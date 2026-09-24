@@ -51,6 +51,19 @@ export interface PatchNote {
 /** Newest first. PREPEND new entries. */
 export const PATCH_NOTES: PatchNote[] = [
   {
+    date: '2026-09-24',
+    changes: [
+      {
+        category: 'Systems',
+        text: 'Growth and Waking Rift have their own effects now, wherever they are cast from.',
+        details: [
+          'The effect plays every time the spell is cast: from your hand, by a rune, by a minion in the Shop, at End of Turn, and in combat.',
+          'Minions that cast Growth in combat (Fatecarver, Taragosa, Hoardbreaker Drake) now show it on every cast.',
+        ],
+      },
+    ],
+  },
+  {
     date: '2026-09-23',
     label: 'Balance 9/23: minion reworks',
     changes: [

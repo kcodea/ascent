@@ -583,6 +583,30 @@ export function heroPowerBuffLabelFor(source: string): { heroId: string } | null
   return HERO_POWER_BUFF_LABELS[source] ?? null;
 }
 
+/**
+ * A SPELL'S OWN CAST EFFECT — the card-level `spellCast` binding of `spellId`, when it is a single play (no
+ * `fanOut`). The ONE binding every phase reads for "this spell was cast" (owner 2026-09-24: *"i added a growth
+ * effect for whenever growth is cast, by any means. player,rune,minion etc and any phase"*):
+ *
+ *   · the player's cast from hand — the shop cue runner (`runSpellCastFire`) already resolves this same row;
+ *   · a rune's / minion's shop cast and an End-of-Turn cast — `playSpellCastFx` off the sim's `castFx` records
+ *     and the `spellResolved` consequence;
+ *   · a combat cast — the `spellCastFx` cue off each `sc` event stamped with `spellId`.
+ *
+ * CARD LEVEL ONLY: the kind-level `spellCast` default (the generic `spell-sparks`) is the player's release-point
+ * flourish and stays there — falling through to it here would put a sparks burst on every rune / minion /
+ * combat cast in the game. A `fanOut` row (Dragonflame's `buffedOn`, the Ales' volley) is excluded too: those
+ * already play once per buffed body through their own per-buff paths, and a second, single play would draw the
+ * effect twice.
+ */
+export function spellCastFxFor(spellId: string | null | undefined): FxBinding | null {
+  if (!spellId) return null;
+  const overridden = patch.cards[spellId]?.spellCast;
+  const b = overridden !== undefined ? overridden : COMMITTED.cards[spellId]?.spellCast;
+  if (!b || (b.fanOut !== undefined && b.fanOut !== 'primary')) return null;
+  return b;
+}
+
 export function authoredBuffDefFor(spellId: string | undefined): string | null {
   if (spellId === undefined) return null;
   const b = bindingFor(spellId, 'buffWave');

@@ -770,4 +770,54 @@ export const FOUNDATION_RULES: GameRule[] = [
       lastVerifiedAt: '2026-09-23',
     },
   },
+  {
+    id: 'R-PHASE-01',
+    title: 'Effects, mechanics and FX work in every phase and from every source by default',
+    statement:
+      'An effect, mechanic, trigger, tally or FX is wired to work in EVERY phase it can occur in (recruit / Shop, End '
+      + 'of Turn, combat) and from EVERY source (the player, a rune, a minion, a hero, a quest) by default. A '
+      + 'phase-limited or source-limited behaviour needs an explicit owner ruling; when unsure, ask the owner. '
+      + 'Concretely for FX: a spell\x27s own cast effect (its card-level `spellCast` row in bindings.json: Growth '
+      + '-> `growth-effect`, Waking Rift (`sparkplug`) -> `waking-rift-fx`) plays on EVERY cast of that spell: the player\x27s cast from hand, a rune\x27s or a '
+      + 'minion\x27s cast in the Shop, an End-of-Turn cast, and a combat cast (Fatecarver, Taragosa, Hoardbreaker '
+      + 'Drake, Sporebat). Every combat cast announces itself (`sc` + `spellId`) and stamps its buffs with `spellId` '
+      + '(`withCastingSpell` at `resolveCombatSpellCast` and the arena\x27s `castRepeat`), and every Shop / End-of-Turn '
+      + 'cast by a rune or minion is recorded on `castFx` (`recordActorCast`, shared by `applyCastEffects` and the '
+      + 'arena\x27s `castRepeat`), so a per-spell effect binds to the SPELL in every phase.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      {
+        kind: 'owner-chat',
+        ref: 'Owner ask, 2026-09-24 (Growth effect)',
+        quote: 'i added a growth effect for whenever growth is cast, by any means. player,rune,minion etc and any phase. recruit, combat, end of turn whatever it may be. (this should be default by now anyways and if it isnt, please write into the oracle that our effects and mechanics should be wired to work across phases by default. always ask if unsure)',
+      },
+      {
+        kind: 'owner-chat',
+        ref: 'Owner ask, 2026-09-24 (Waking Rift effect, same PR)',
+        quote: 'i added a waking rift effect',
+      },
+      { kind: 'code', ref: 'packages/core/src/effects/factories.ts (`withCastingSpell`, `resolveCombatSpellCast`, the combat arena `castRepeat`); packages/sim/src/recruit.ts (`recordActorCast`, the shop arena `castRepeat`); packages/ui/src/fx/spellCastFx.ts (`playSpellCastFx`, `playRecordedCastFx`, `playCombatSpellCastFx`); packages/ui/src/choreo/bindings.ts (`spellCastFxFor`); packages/ui/src/choreo/score.ts (the `spellCastFx` cue); packages/ui/src/Recruit.tsx (the `castFxSeq` watcher, the `spellCast` presenter context, the legacy End-of-Turn beat); packages/core/src/effects/arena.ts (`ARENA_EFFECTS`, the shared cross-phase bodies)' },
+    ],
+    currentBehaviour:
+      'Conforms as of 2026-09-24 for spell cast FX (Growth and Waking Rift are the first spells bound). Combat casts through the arena\x27s '
+      + '`castRepeat` (Fatecarver / Taragosa / Hoardbreaker\x27s Growth) previously logged no `sc` announcement and '
+      + 'emitted untagged buffs, and a shop Rally\x27s inline "cast Growth" recorded no cast; both are fixed. Known '
+      + 'remaining gaps, not yet ruled: Rune of Spellhide\x27s Start-of-Combat re-cast resolves without an `sc` '
+      + 'announcement, and an Equipment\x27s cast deliberately records nothing (R-PRESENT-10). The mechanic half of the '
+      + 'default is enforced by the Doc Bot `factoryPhase` lane (every trigger/factory pair implemented in every '
+      + 'phase its trigger dispatches, or a registered excuse).',
+    enforcement: {
+      kind: 'scenario',
+      refs: [
+        'packages/ui/src/fx/spellCastFx.test.ts',
+        'packages/sim/src/growthCastFx.test.ts',
+        'packages/core/src/combat/growthCastTag.test.ts',
+        'packages/sim/src/docbot/factoryPhase.test.ts',
+        'packages/sim/src/effectArena.test.ts',
+        'packages/sim/src/castFx.test.ts',
+      ],
+      lastVerifiedAt: '2026-09-24',
+    },
+  },
 ];

@@ -55,6 +55,19 @@ let equipmentCastDepth = 0;
 /** > 0 while End of Turn resolves (`applyEndOfTurn`, `projectEndOfTurnSteps`) — a cast recorded then is stamped
  *  `endOfTurn`, so the action-level watcher leaves it to the End-of-Turn beats. */
 let endOfTurnDepth = 0;
+/**
+ * Record a cast by the innermost cast actor (a rune or a minion) on the presentation channel (`castFx`), plus
+ * the `spellResolved` consequence when a collector is capturing. THE one recorder, shared by `applyCastEffects`
+ * (every full shop cast) and the arena's `castRepeat` (a "cast Growth" body that resolves inline — Hoardbreaker
+ * Drake's Rally replayed in the shop), so every shop cast by a rune or minion reaches the per-spell cast FX and
+ * the cast preview. The player's own cast (no actor) and an Equipment's cast record nothing.
+ */
+function recordActorCast(state: RunState, spellId: string, collector: PresentationCollector): void {
+  const actor = castActorStack[castActorStack.length - 1];
+  if (!actor || equipmentCastDepth > 0) return;
+  recordCastFx(state, actor, spellId, endOfTurnDepth > 0 ? 'endOfTurn' : 'recruit');
+  if (collector.enabled) collector.emit({ type: 'spellResolved', cardId: spellId });
+}
 
 type RecruitFn = (
   ctx: RecruitContext,
@@ -285,7 +298,7 @@ function shopArena(state: RunState, self: BoardCard): EffectArena {
       // `castInCombat` gives the combat half. Golden = two real casts, never one doubled cast.
       const def = spellId ? CARD_INDEX[spellId] : undefined;
       for (let i = 0; i < (self.golden ? 2 : 1); i++) {
-        if (def) noteSpellCast(state, def);
+        if (def) { recordActorCast(state, def.id, currentCollector()); noteSpellCast(state, def); }
         body();
       }
     },
@@ -9911,11 +9924,7 @@ export function applyCastEffects(ctx: RecruitContext, spellDef: CardDef, target?
   // parent. The player's own cast (the reducer's `play`, no actor) and an Equipment's cast record nothing. When
   // a collector is capturing (the authoritative End of Turn), the same fact is emitted as a `spellResolved`
   // consequence so the beat that owns the cast delivers the preview on its own clock.
-  const actor = castActorStack[castActorStack.length - 1];
-  if (actor && equipmentCastDepth === 0) {
-    recordCastFx(ctx.state, actor, spellDef.id, endOfTurnDepth > 0 ? 'endOfTurn' : 'recruit');
-    if (ctx.collector.enabled) ctx.collector.emit({ type: 'spellResolved', cardId: spellDef.id });
-  }
+  recordActorCast(ctx.state, spellDef.id, ctx.collector);
   for (const effect of spellDef.effects) {
     if (effect.on !== 'cast') continue;
     const fn = RECRUIT_FACTORIES_UNATTRIBUTED[effect.do]; // the spell's OWN effects: the target is not the caster (cast preview)

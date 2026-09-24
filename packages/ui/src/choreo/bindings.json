@@ -117,6 +117,16 @@
         "fanOut": "selfBuffed"
       }
     },
+    "growth": {
+      "spellCast": {
+        "def": "growth-effect"
+      }
+    },
+    "sparkplug": {
+      "spellCast": {
+        "def": "waking-rift-fx"
+      }
+    },
     "sp_dragonflame": {
       "spellCast": {
         "def": "dragonflame",

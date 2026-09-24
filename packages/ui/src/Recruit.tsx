@@ -5,6 +5,7 @@ import { normalizePresentationBatch } from './choreographer/adapters/presentatio
 import { createTimelinePlayer, runTimeline } from './choreographer/livePlayer';
 import { presentConsequence, type PresenterContext } from './choreographer/consequencePresenters';
 import { clearCastPreviews, fireCastPreviewAt, type CastPreviewSource } from './castPreview';
+import { playRecordedCastFx, playSpellCastFx } from './fx/spellCastFx';
 import { shippedBeatConfig } from './choreographer/beatConfig';
 import { draftToEngine } from './beatLab/labSchedule';
 import type { BeatPolicyOverrides, BeatTimingOverrides } from './beatLab/beatTiming';
@@ -5239,6 +5240,9 @@ export function Recruit() {
     if (seq === prevCastFxSeq.current) return;
     prevCastFxSeq.current = seq;
     if (run.phase !== 'recruit') return;
+    // The spell's OWN cast effect (Growth's `growth-effect`), once per cast — every rune / minion cast in the
+    // Shop (owner 2026-09-24: "by any means … any phase"). Independent of the preview gate. See `fx/spellCastFx.ts`.
+    playRecordedCastFx(run.castFx, 'recruit');
     const cancels = (run.castFx ?? []).filter((c) => c.phase === 'recruit').map((c) => fireCastPreviewAt(c.source, c.spellId));
     return () => { for (const cancel of cancels) cancel(); };
     // Keyed on the seq ONLY (see the fodder watcher above): the array ref changes every action.
@@ -5726,6 +5730,7 @@ export function Recruit() {
       // A spell the beat's RUNE or MINION cast (owner ask 2026-09-23): its card preview above the caster, on the
       // beat. A hero / quest / spell-sourced beat has no badge or body to hang it on and is skipped.
       spellCast: (cardId, source) => {
+        playSpellCastFx(cardId); // the spell's own cast effect, on the cast's beat, whatever the source (fx/spellCastFx.ts)
         const src: CastPreviewSource | null = source.kind === 'minion' && source.uid ? { kind: 'minion', uid: source.uid }
           : source.kind === 'rune' ? { kind: 'rune', id: source.id } : null;
         if (src) fireCastPreviewAt(src, cardId);
@@ -6303,6 +6308,7 @@ export function Recruit() {
         });
         // Spells this beat's rune / minion cast (Rope Wrangler's Lasso, Rune of Recurrence) — the cast preview
         // above the caster, on the beat, while the board is still on screen (owner ask 2026-09-23).
+        playRecordedCastFx(bfx.casts); // each cast's own spell effect (Growth's `growth-effect`), on the beat
         for (const c of bfx.casts ?? []) fireCastPreviewAt(c.source, c.spellId);
         // Auto-welds on this beat (Combinator / Cling Drones / Money Bots) — ring each host as it fuses.
         fireWeldFxBatch(bfx.welds, 'auto');

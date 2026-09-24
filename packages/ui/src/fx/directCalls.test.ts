@@ -141,7 +141,10 @@ describe('DIRECT_CALL_SITES is a derivation, not a list', () => {
     // `equipBeamCascade.ts` plays an Equipment's own `useFxId` once per fire for an Equipment flagged
     // `useFxTargetsBuffed`. The same data-resolved id as `Recruit.tsx`'s, split out so the cascade can be mounted
     // in a test; the same debt, and moving the moment into `recruitCues.ts` retires it with the other two.
-    expect(Object.keys(DYNAMIC_CALL_SITES).sort()).toEqual(['EquipFxTuner.tsx', 'Recruit.tsx', 'buffFxRender.ts', 'choreo/recruitCues.ts', 'choreo/score.ts', 'equipBeamCascade.ts', 'fx/statMilestone.ts', 'runeTriggerFx.ts', 'useCombatReplay.ts']);
+    //
+    // `fx/spellCastFx.ts` (2026-09-24) is NOT an exception: it is a binding RESOLVER (the spell's card-level
+    // `spellCast` row via `spellCastFxFor`), the shared play every phase's cast path reaches — like `fx/statMilestone.ts`.
+    expect(Object.keys(DYNAMIC_CALL_SITES).sort()).toEqual(['EquipFxTuner.tsx', 'Recruit.tsx', 'buffFxRender.ts', 'choreo/recruitCues.ts', 'choreo/score.ts', 'equipBeamCascade.ts', 'fx/spellCastFx.ts', 'fx/statMilestone.ts', 'runeTriggerFx.ts', 'useCombatReplay.ts']);
   });
 
   // The seven migrated effects the library used to call inert, plus `ruby-gem-apply` — authored in the

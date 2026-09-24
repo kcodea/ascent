@@ -120,6 +120,24 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: 'The Announcer has lots of new lines for big moments in your game.',
+        details: [
+          'Knock another player out with your fight and the Announcer calls it. This can happen twice in a game.',
+          'New lines for a big 15 damage hit, a win after three losses in a row, and a win where none of your minions died.',
+          'New lines for three golden minions on your board, your first pair, and buying four of one tribe in a turn.',
+          'New lines for starting a turn with 20 Gold, spending 20 Gold with 10 still left, and a Shop minion passing 50 Attack.',
+          'Some buys, and round 7, have a small chance to get a surprise line.',
+          'The Three Win Streak line has a second take. A wrong Top Two take was removed.',
+          'Most lines still play once per game at most, with a pause between lines. Up to 15 lines per game, plus the final result.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-09-24',
+    changes: [
+      {
+        category: 'Systems',
         text: 'New default audio mix. Game sounds, Music and Announcer all start at 50, and 50 is now a balanced mix.',
         details: [
           'Music sits lower and the Announcer a little higher at 50 than the game sounds, so the three blend well out of the box.',

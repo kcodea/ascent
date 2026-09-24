@@ -283,6 +283,15 @@ export function Game() {
   useEffect(() => {
     const onDown = (e: PointerEvent): void => {
       if (e.pointerType === 'touch') return;                 // the cue belongs to a click, not a tap
+      // AN OFFER'S OPTION (a Discover card, a Choose One option, a Rune in the forge): the press plays the pick's own
+      // select cue INSTEAD of the thock (owner 2026-09-24: "i want the click sound replaced by this new sound"), and
+      // arms the pick that follows to stay silent (see `sfx.pickPress`). A disabled option — a Rune you can't
+      // afford — stays silent, exactly as the thock did.
+      const pick = (e.target as Element | null)?.closest?.('[data-pick-sfx]') ?? null;
+      if (pick) {
+        if (!(pick as HTMLButtonElement).disabled && !pick.classList.contains('disabled')) sfx.pickPress();
+        return;
+      }
       const el = (e.target as Element | null)?.closest?.(MENU_SFX_SEL) ?? null;
       if (!el || el.closest(MENU_SFX_SKIP)) return;
       if ((el as HTMLButtonElement).disabled || el.classList.contains('disabled')) return;

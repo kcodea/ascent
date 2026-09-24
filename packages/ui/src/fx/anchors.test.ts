@@ -327,3 +327,79 @@ describe('per-layer bow', () => {
     expect(sink.heads[1].y).not.toBe(0);                       // default arc, untouched
   });
 });
+
+// ── the fountain: arc upward + a minimum arc height (the gild, owner 2026-09-24) ─────────────────────────
+// Screen space: y grows DOWN, so "up" is a smaller y. At t = 0.5 a quadratic arc sits HALF way to its control
+// point, so the peak is half the control offset: a bow of 0.3 over a 100px span peaks 15px off the line.
+describe('arc upward + minimum arc height', () => {
+  const L = { x: 0, y: 0 };
+  const R = { x: 100, y: 0 };
+
+  it('with neither set, the arc is exactly what it always was', () => {
+    const cases: [typeof L, typeof L][] = [[L, R], [R, L], [{ x: 300, y: 100 }, { x: 100, y: 500 }]];
+    for (const [a, b] of cases) {
+      for (const bow of [-0.6, 0, 0.28, 1]) {
+        for (const t of [0, 0.25, 0.5, 0.9, 1]) {
+          expect(pointOnTravel(a, b, t, bow, false, 0)).toEqual(pointOnTravel(a, b, t, bow));
+        }
+      }
+    }
+  });
+
+  it('left→right already arcs up; arc upward leaves it alone', () => {
+    expect(pointOnTravel(L, R, 0.5, 0.3).y).toBeCloseTo(-15, 10);
+    expect(pointOnTravel(L, R, 0.5, 0.3, true).y).toBeCloseTo(-15, 10);
+  });
+
+  it('right→left arcs DOWN by default; arc upward flips it up', () => {
+    expect(pointOnTravel(R, L, 0.5, 0.3).y).toBeCloseTo(15, 10);   // under the line: under the hand
+    expect(pointOnTravel(R, L, 0.5, 0.3, true).y).toBeCloseTo(-15, 10);
+  });
+
+  it('a minimum arc height lifts a short hop, in pixels', () => {
+    // 100px apart, bow 0.3 → a 15px peak; a 60px minimum raises it to 60px.
+    expect(pointOnTravel(L, R, 0.5, 0.3, true, 60).y).toBeCloseTo(-60, 10);
+    expect(pointOnTravel(R, L, 0.5, 0.3, true, 60).y).toBeCloseTo(-60, 10);
+  });
+
+  it('a minimum never LOWERS an arc that is already taller', () => {
+    const far = { x: 400, y: 0 };                                   // 400px, bow 0.3 → a 60px peak
+    expect(pointOnTravel(L, far, 0.5, 0.3, true, 20).y).toBeCloseTo(-60, 10);
+  });
+
+  it('a minimum lifts even a straight (bow 0) line, upward', () => {
+    expect(pointOnTravel(R, L, 0.5, 0, true, 40).y).toBeCloseTo(-40, 10);
+  });
+
+  it('when source and target coincide, it hops straight up and comes back down', () => {
+    const p = { x: 50, y: 80 };
+    expect(pointOnTravel(p, p, 0.5, 0.3, true, 40)).toEqual({ x: 50, y: 40 });
+    expect(pointOnTravel(p, p, 0, 0.3, true, 40)).toEqual(p);
+    expect(pointOnTravel(p, p, 1, 0.3, true, 40)).toEqual(p);
+  });
+
+  it('a down-left trail bulges out and up, mirroring a down-right one', () => {
+    const top = { x: 200, y: 100 };
+    const left = pointOnTravel(top, { x: 100, y: 500 }, 0.5, 0.3, true);
+    const right = pointOnTravel(top, { x: 300, y: 500 }, 0.5, 0.3, true);
+    expect(left.x).toBeLessThan(150);                               // out to the left of its midpoint (150)
+    expect(right.x).toBeGreaterThan(250);                           // out to the right of its midpoint (250)
+    expect(left.y).toBeCloseTo(right.y, 10);                        // and the same height: a symmetric spray
+    expect(left.y).toBeLessThan(300);                               // above the midpoint
+  });
+
+  it('never moves the endpoints', () => {
+    for (const [up, min] of [[true, 0], [false, 80], [true, 80]] as const) {
+      expect(pointOnTravel(R, L, 0, 0.3, up, min)).toEqual(R);
+      expect(pointOnTravel(R, L, 1, 0.3, up, min)).toEqual(L);
+    }
+  });
+
+  it('driveLayerHeads reads bowUp and minArc off the layer', () => {
+    const sink = fakeSink();
+    const back = { source: R, target: L };
+    driveLayerHeads(sink, [{ anchor: 'travel', bow: 0.3, bowUp: true, minArc: 60 }, { anchor: 'travel', bow: 0.3 }], back, 0.5);
+    expect(sink.heads[0].y).toBeCloseTo(-60, 10);                  // lifted and flipped up
+    expect(sink.heads[1].y).toBeCloseTo(15, 10);                   // untouched layer keeps its old arc
+  });
+});

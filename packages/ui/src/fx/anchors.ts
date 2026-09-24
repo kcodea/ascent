@@ -41,10 +41,41 @@ export const TRAVEL_BOW = 0.28;
  *  the two anchors are from each other and the arc stops reading as a path between them. */
 export const BOW_LIMIT = 1;
 
-/** Quadratic arc between two anchors. `bow` is the perpendicular offset as a fraction of the span. */
-export function pointOnTravel(a: FxPoint, b: FxPoint, t: number, bow: number): FxPoint {
-  const mx = (a.x + b.x) / 2 + (b.y - a.y) * bow;
-  const my = (a.y + b.y) / 2 - (b.x - a.x) * bow;
+/** How high a layer's `minArc` may go, px. Well past any real card-to-card hop; a hand-edited 5000 is a typo. */
+export const MIN_ARC_LIMIT = 600;
+
+/**
+ * Quadratic arc between two anchors. `bow` is the perpendicular offset as a fraction of the span.
+ *
+ * `up` and `minArc` shape the FOUNTAIN (see `FxLayer.bowUp` / `FxLayer.minArc`). A `bow` is a fraction of the
+ * span, so two cards side by side get a flat little hump, and which SIDE it bows to follows the direction of
+ * travel — right-to-left along a row arcs down, under it. `up` puts the arc on whichever side points toward
+ * the top of the screen; `minArc` guarantees the PEAK sits at least that many px off the straight line (the
+ * peak of a quadratic is half its control offset, hence the `2 *`). With neither set, the arc is computed
+ * exactly as it always was, so every def that doesn't ask is untouched to the last bit.
+ */
+export function pointOnTravel(a: FxPoint, b: FxPoint, t: number, bow: number, up = false, minArc = 0): FxPoint {
+  let mx: number, my: number;
+  if (!up && !(minArc > 0)) {
+    mx = (a.x + b.x) / 2 + (b.y - a.y) * bow;
+    my = (a.y + b.y) / 2 - (b.x - a.x) * bow;
+  } else {
+    const dx = b.x - a.x, dy = b.y - a.y;
+    const span = Math.hypot(dx, dy);
+    // The unit perpendicular `bow` pushes along. Two coincident anchors have no line to be perpendicular to,
+    // so the hop goes straight up — the only direction a fountain with nowhere to travel can take.
+    const px = span > 1e-6 ? dy / span : 0;
+    const py = span > 1e-6 ? -dx / span : -1;
+    let off = span * bow;
+    if (up && py * off > 0) off = -off;
+    const need = 2 * Math.max(0, Math.min(MIN_ARC_LIMIT, minArc));
+    if (Math.abs(off) < need) {
+      const side = off !== 0 ? Math.sign(off) : up && py > 0 ? -1 : 1;
+      off = side * need;
+    }
+    mx = (a.x + b.x) / 2 + px * off;
+    my = (a.y + b.y) / 2 + py * off;
+  }
   const it = 1 - t;
   return {
     x: it * it * a.x + 2 * it * t * mx + t * t * b.x,
@@ -59,10 +90,12 @@ export function pointOnTravel(a: FxPoint, b: FxPoint, t: number, bow: number): F
  *  behaviour before per-end parts existed. */
 export function resolveAnchor(
   anchors: FxAnchors, id: FxAnchorId, progress: number, bow = TRAVEL_BOW, part: FxAnchorPart | null = null,
-  toPart: FxAnchorPart | null = part,
+  toPart: FxAnchorPart | null = part, up = false, minArc = 0,
 ): FxPoint {
   if (id === 'travel') {
-    return pointOnTravel(endPoint(anchors, 'source', part) ?? ORIGIN, endPoint(anchors, 'target', toPart) ?? ORIGIN, progress, bow);
+    return pointOnTravel(
+      endPoint(anchors, 'source', part) ?? ORIGIN, endPoint(anchors, 'target', toPart) ?? ORIGIN, progress, bow, up, minArc,
+    );
   }
   if (id === 'source' || id === 'target') return endPoint(anchors, id, part) ?? ORIGIN;
   return anchors[id] ?? ORIGIN;
@@ -101,6 +134,10 @@ export interface FxAnchoredLayer {
   /** Perpendicular bow of the `travel` arc; `0` is a straight line — see `FxLayer.bow`. Absent (or null)
    *  means the default `TRAVEL_BOW`, so every existing caller and test fake keeps the arc it had. */
   bow?: number | null;
+  /** Arc toward the top of the screen whichever way it travels — see `FxLayer.bowUp`. Absent = as before. */
+  bowUp?: boolean | null;
+  /** The arc's peak sits at least this many px off the line — see `FxLayer.minArc`. Absent = no minimum. */
+  minArc?: number | null;
 }
 
 /** The composition clock `driveLayerHeads` needs to resolve per-layer travel. */
@@ -196,7 +233,7 @@ export function driveLayerHeads(
     const pt =
       head !== null && anchor === 'travel'
         ? head
-        : resolveAnchor(anchors, anchor, travelAt, layer.bow ?? TRAVEL_BOW, part, toPart);
+        : resolveAnchor(anchors, anchor, travelAt, layer.bow ?? TRAVEL_BOW, part, toPart, layer.bowUp === true, layer.minArc ?? 0);
     sink.setHead(i, pt.x, pt.y);
     // Three identity checks per layer, all on loop-invariant consts — narrowed here rather than hoisted into
     // a boolean because a boolean would not narrow `src`/`tgt`/`setAim` for TypeScript inside the loop. A

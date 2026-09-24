@@ -286,6 +286,30 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: 'Tripling a minion has a new effect. Each copy bursts into golden sparks and sends a golden trail to your new golden minion.',
+        details: [
+          'Every trail starts where its copy was, on your board or in your hand.',
+          'Trails arc upward, so copies already in your hand leap up and drop into your golden minion.',
+          'Your golden minion appears in its slot as the last trail arrives.',
+        ],
+      },
+      {
+        category: 'Systems',
+        text: 'Minions now slide into their new spots when cards leave your warband or the shop, instead of jumping.',
+        details: ['This includes the copies a triple uses up from your warband.'],
+      },
+      {
+        category: 'Systems',
+        text: 'Picking a card from a Discover, a Choose One or the Runeforge has a new sound, and it plays the moment you press the card.',
+        details: ['It replaces the usual click, so you hear one sound, not two.'],
+      },
+    ],
+  },
+  {
+    date: '2026-09-24',
+    changes: [
+      {
+        category: 'Systems',
         text: 'Effects are no longer cut off by a hard edge. They now play over their full area.',
         details: [
           'Soft, blurred effects could stop at an invisible line on wide screens.',

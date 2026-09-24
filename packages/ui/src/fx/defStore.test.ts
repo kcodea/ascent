@@ -22,6 +22,7 @@ import {
   type StoredFxDef,
 } from './defStore';
 import { clearPrimitives, registerPrimitive } from './registry';
+import { MIN_ARC_LIMIT } from './anchors';
 import type { FxPrimitive } from './primitive';
 
 /**
@@ -773,6 +774,32 @@ describe('session autosave', () => {
  * straight-line laser the field exists to make expressible — so every "is it set?" check in this path has to
  * be `!== null` rather than truthy. A truthiness bug would look exactly like the control doing nothing.
  */
+/** The fountain fields (`bowUp` / `minArc`, the gild, owner 2026-09-24): kept only when meaningful, so a def
+ *  that never asked for them keeps its exact JSON. */
+describe('coerceDef — arc upward + minimum arc height', () => {
+  const layerWith = (extra: Record<string, unknown>): Record<string, unknown> =>
+    coerceDef({
+      duration: 100,
+      layers: [{ primitive: 'test-prim', anchor: 'travel', at: 0, params: {}, ...extra }],
+    })!.layers[0] as unknown as Record<string, unknown>;
+
+  it('keeps bowUp only when it is literally true', () => {
+    expect(layerWith({ bowUp: true }).bowUp).toBe(true);
+    for (const v of [false, 'yes', 1, null, undefined]) expect('bowUp' in layerWith({ bowUp: v }), String(v)).toBe(false);
+  });
+
+  it('keeps a positive minArc, clamped', () => {
+    expect(layerWith({ minArc: 120 }).minArc).toBe(120);
+    expect(layerWith({ minArc: 5000 }).minArc).toBe(MIN_ARC_LIMIT);
+  });
+
+  it('drops a zero, negative or junk minArc (no minimum)', () => {
+    for (const v of [0, -40, 'tall', Number.NaN, null, undefined]) {
+      expect('minArc' in layerWith({ minArc: v }), String(v)).toBe(false);
+    }
+  });
+});
+
 describe('coerceDef — layer bow', () => {
   const withBow = (bow: unknown): unknown =>
     coerceDef({

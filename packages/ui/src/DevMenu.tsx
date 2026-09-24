@@ -79,7 +79,6 @@ import { CardPlateTuner } from './CardPlateTuner';
 import { CardTextTuner } from './CardTextTuner';
 import { PlateDissolveTuner } from './PlateDissolveTuner';
 import { PlateCoalesceTuner } from './PlateCoalesceTuner';
-import { PlateGildTuner } from './PlateGildTuner';
 import { EndTurnTuner } from './EndTurnTuner';
 import { HeroPowerTuner } from './HeroPowerTuner';
 import { DiceRollTuner } from './DiceRollTuner';
@@ -241,7 +240,6 @@ const GROUPS: Group[] = [
     items: [
       { key: 'platedissolve', icon: '🌀', label: 'Dissolve', C: PlateDissolveTuner, hint: "What plays when a hand card's backplate leaves", alt: 'plate' },
       { key: 'platecoalesce', icon: '🪄', label: 'Coalesce', C: PlateCoalesceTuner, hint: 'What plays when a card is generated into hand', alt: 'plate' },
-      { key: 'plategild', icon: '👑', label: 'Gild', C: PlateGildTuner, hint: 'Three copies combining into a gilded card', alt: 'plate golden triple' },
     ],
   },
   {

@@ -54,7 +54,7 @@ function cardViewOf(id: string, golden = false): CardView | null {
  * the effect it grants for the run. Bought for its cost on click (greyed when you can't afford it). A rune that
  * grants a minion (Pillaging → a Pillager) floats a full preview of that card on hover, like QuestCard.
  */
-export function RuneCard({ rune, affordable, onBuy, cost, duplicating }: {
+export function RuneCard({ rune, affordable, onBuy, cost, duplicating, pickSfx }: {
   rune: RuneDef;
   affordable: boolean;
   /** The clicked card's own element comes back with the call so the lock-in ceremony can read its rect at
@@ -66,6 +66,9 @@ export function RuneCard({ rune, affordable, onBuy, cost, duplicating }: {
    *  "more" (a boolean, a whole-object assignment) gain nothing from the copy — say so on the card rather
    *  than letting the player spend the Duplication on a no-op (owner ask 2026-08-06). */
   duplicating?: boolean;
+  /** This card is a real PICK (the forge), so pressing it plays the pick cue instead of the click thock (see
+   *  `sfx.pickPress`). Off everywhere a RuneCard is only shown — the Compendium, a preview, the ceremony's clones. */
+  pickSfx?: boolean;
 }) {
   const shownCost = cost ?? rune.cost;
   const discounted = shownCost < rune.cost;
@@ -109,6 +112,7 @@ export function RuneCard({ rune, affordable, onBuy, cost, duplicating }: {
       className={`runecard${rune.epic ? ' runecard-epic' : ''}${art ? ' has-art' : ''}${affordable ? '' : ' cantafford'}`}
       onClick={affordable ? (e) => { onBuy(e.currentTarget); } : undefined}
       disabled={!affordable}
+      data-pick-sfx={pickSfx || undefined}
       onMouseEnter={hasPreview ? (e) => show(e.currentTarget) : undefined}
       onMouseLeave={hasPreview ? hide : undefined}
       aria-label={`${rune.name}: buy for ${shownCost} Gold`}

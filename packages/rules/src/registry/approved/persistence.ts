@@ -326,4 +326,38 @@ export const PERSISTENCE_RULES: GameRule[] = [
       lastVerifiedAt: '2026-09-22',
     },
   },
+
+  // ── The FX workbench keeps what it loads (owner ruling 2026-09-24, found building the gild) ────────────
+  {
+    id: 'R-FXSAVE-01',
+    title: 'A def saved from the FX workbench keeps every setting it was loaded with',
+    statement:
+      'Loading an effect definition into the FX workbench and saving it again never changes it. Every layer '
+      + 'setting the def carried (its arc, arc upward, minimum arc and per-recipient stagger, its travel window, '
+      + 'anchor parts and timing, the author\'s mute / solo / layer name, and every parameter) is written back '
+      + 'exactly, and a setting the author never touched is never added. The workbench reads a def on the same '
+      + 'terms as the game\'s own def loader, so what an author tunes is what players see.',
+    domain: 'persistence',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Gild redesign session, 2026-09-24 (approving this rule as proposed)', quote: 'approve it - i want to adjust the def settings myself though' },
+      { kind: 'owner-chat', ref: 'Gild redesign session, 2026-09-24 (the goal the fix protects)', quote: 'i wish so badly to be able to create this effect in the fx workbench' },
+      { kind: 'fix-pr', ref: 'https://github.com/kcodea/ascent/pull/1689 (feat/gild-trail-fx)' },
+      { kind: 'code', ref: 'packages/ui/src/fx/ui/sessionState.ts arcFields (toEditorLayer + toStoredLayers); packages/ui/src/fx/defStore.ts coerceLayer' },
+    ],
+    currentBehaviour:
+      'Conforms at the LAYER level as of 2026-09-24. Before that, toEditorLayer (load and session restore) and '
+      + 'toStoredLayers (save) copied layer fields one by one and dropped `bow` and `stagger`, so loading a def '
+      + 'and saving it again wiped its arc and cascade (verified on heavy-beam: stagger 120 came back as '
+      + 'nothing); both now go through one arcFields(), which also carries the new `bowUp` / `minArc`. The pin '
+      + 'round-trips a layer carrying EVERY field, typed Required<StoredEditorLayer>, so a new layer field fails '
+      + 'the typecheck until it is added there. PARTIAL at the DEF level: seed, slot, ease, loop mode, '
+      + 'followSource, label and tags ride Workbench.loadDef and toStoredDef (whose writing half and label/tag '
+      + 'carry are pinned in defStore.test.ts), but the component\'s reading half is not pinned end to end.',
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/ui/src/fx/ui/sessionState.test.ts'],
+      lastVerifiedAt: '2026-09-24',
+    },
+  },
 ];

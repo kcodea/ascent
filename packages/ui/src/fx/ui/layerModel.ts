@@ -46,6 +46,12 @@ export interface EditorLayer {
    *  fraction of the span (mirrors `FxLayer.bow`). `0` = dead-straight; omitted = the default `TRAVEL_BOW`.
    *  Set/cleared via `setLayerBow`, which deletes the key on `null` to keep "omitted" distinct from `0`. */
   bow?: number;
+  /** `travel` only: arc toward the top of the screen whichever way it travels (mirrors `FxLayer.bowUp`).
+   *  Absent = as before; set/cleared via `setLayerBowUp`, which deletes the key rather than storing `false`. */
+  bowUp?: boolean;
+  /** `travel` only: the arc's peak sits at least this many px off the line (mirrors `FxLayer.minArc`). Absent
+   *  = no minimum; set/cleared via `setLayerMinArc`, which deletes the key for 0 or `null`. */
+  minArc?: number;
   /** ms this layer shifts per recipient when a moment plays the def on several units. See `FxLayer.stagger`. */
   stagger?: number;
   params: Record<string, unknown>;
@@ -233,6 +239,30 @@ export function setLayerBow(layers: EditorLayer[], index: number, bow: number | 
     const next = { ...l };
     if (bow === null) delete next.bow;
     else next.bow = bow;
+    return next;
+  });
+}
+
+/** Turn "arc upward" on or off for the layer at `index` (see `FxLayer.bowUp`). Off DELETES the key, so a
+ *  layer that never used it serialises exactly as before. Returns a NEW array. */
+export function setLayerBowUp(layers: EditorLayer[], index: number, on: boolean): EditorLayer[] {
+  return layers.map((l, i) => {
+    if (i !== index) return l;
+    const next = { ...l };
+    if (on) next.bowUp = true;
+    else delete next.bowUp;
+    return next;
+  });
+}
+
+/** Set the minimum arc height for the layer at `index`, px (see `FxLayer.minArc`). `null` or anything not
+ *  above 0 DELETES the key — "no minimum" is the default and serialises as an omission. Returns a NEW array. */
+export function setLayerMinArc(layers: EditorLayer[], index: number, px: number | null): EditorLayer[] {
+  return layers.map((l, i) => {
+    if (i !== index) return l;
+    const next = { ...l };
+    if (px === null || !(px > 0)) delete next.minArc;
+    else next.minArc = px;
     return next;
   });
 }

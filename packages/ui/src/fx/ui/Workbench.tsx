@@ -77,6 +77,8 @@ import {
   setLayerAnchorPart,
   setLayerAnchorPartTo,
   setLayerBow,
+  setLayerBowUp,
+  setLayerMinArc,
   setLayerStagger,
   setLayerMuted,
   setLayerName,
@@ -1386,6 +1388,18 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
     commitLayers(setLayerBow(layersRef.current, selected, bow));
   };
 
+  /** "Arc upward" — the arc bends toward the top of the screen whichever way it travels (see `FxLayer.bowUp`). */
+  const changeLayerBowUp = (on: boolean): void => {
+    record('timing', `${selected}:bowUp`);
+    commitLayers(setLayerBowUp(layersRef.current, selected, on));
+  };
+
+  /** The arc's minimum peak height, px; 0 = no minimum (see `FxLayer.minArc`). */
+  const changeLayerMinArc = (px: number): void => {
+    record('timing', `${selected}:minArc`);
+    commitLayers(setLayerMinArc(layersRef.current, selected, px));
+  };
+
   /**
    * Retime ANY layer by index — what the timeline drags need, since a drag can grab a bar that isn't the
    * selected one. `changeLayerTiming` is this with `selected` baked in, for the sliders.
@@ -2410,6 +2424,30 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
               Reset arc to default
             </button>
           )}
+          {/* THE FOUNTAIN (owner 2026-09-24, the gild). A bow's side follows the direction of travel, so along a
+              row one way arcs up and the other arcs under it; and a bow is a fraction of the span, so a short
+              hop is a flat hump. These two make a short hop leap up and drop in. Both default off. */}
+          <label className="fxwb-timing-full" aria-description="Always arc toward the top of the screen, whichever way the layer travels. Diagonal trails bulge outward and up.">
+            <input
+              type="checkbox"
+              checked={selLayer.bowUp === true}
+              onChange={(e) => changeLayerBowUp(e.target.checked)}
+            />
+            Arc upward
+          </label>
+          <label htmlFor="fxwb-layer-minarc" aria-description="The arc's peak sits at least this many px off the straight line, so a short hop still leaps. Never lowers a taller arc. 0 = no minimum.">
+            Min arc
+          </label>
+          <input
+            id="fxwb-layer-minarc"
+            type="range"
+            min={0}
+            max={300}
+            step={5}
+            value={selLayer.minArc ?? 0}
+            onChange={(e) => changeLayerMinArc(Number(e.target.value))}
+          />
+          <span className="fxwb-val">{(selLayer.minArc ?? 0) === 0 ? 'None' : `${selLayer.minArc} px`}</span>
         </>
       )}
       {/* PER-RECIPIENT stagger — shown for EVERY layer (not only travel-anchored ones): any layer can want

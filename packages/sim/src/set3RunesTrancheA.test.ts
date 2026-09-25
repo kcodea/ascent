@@ -51,7 +51,8 @@ const BASIC: [string, number, string[] | undefined][] = [
 const EPIC: [string, number, string[] | undefined][] = [
   ['rune_epic_celestial', 3, ['celestial']], ['rune_epic_spirit', 3, ['spirit']], ['rune_epic_undead', 3, ['undead']],
   ['rune_meteor_shower', 2, ['celestial']], ['rune_astral_refrain', 5, undefined], ['rune_astral_draft', 4, undefined], // Draft 6 → 4 (2026-09-18)
-  ['rune_dream_mirror', 5, undefined], ['rune_waking_dreams', 5, undefined], ['rune_shared_revelry', 5, ['spirit']],
+  ['rune_dream_mirror', 5, ['spirit']], ['rune_waking_dreams', 5, ['spirit']], // Spirit-gated 2026-09-25 (owner Set 3 rune list)
+  ['rune_shared_revelry', 5, ['spirit']],
   ['rune_grand_procession', 6, ['spirit']], ['rune_festival_circuit', 4, ['spirit', 'celestial']], // Circuit 5 → 4 (2026-09-18)
   ['rune_spirit_crown', 6, ['spirit']], ['rune_handy_flame', 5, ['spirit']], // Handy Flame is a Spirit body → gated (tag pass 2026-09-18)
 ];

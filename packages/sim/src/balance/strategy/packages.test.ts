@@ -34,7 +34,7 @@ describe('strategy packages — set-2 census', () => {
   it('pins the set-2 member counts (a content change that moves a package shows up here)', () => {
     const census = Object.fromEntries(rows.map((r) => [r.id, `${r.members}/${r.engines}/${r.payoffs}/${r.affineRunes}`]));
     expect(census).toEqual({
-      ruby: '30/14/12/9', // Ruby batch 2026-09-24 (random-Ruby texts move Kobe/Shipment/Gem Sage to engines; Resonance's text rewrite leaves the rune census); Balance 9/23 combined (stat pass + archives + Picnic)
+      ruby: '30/14/12/10', // runes 9 → 10 on 2026-09-25: Rune of Engraving Gems moved Epic → Basic (owner Set 3 rune list; the census counts Basic runes);  Ruby batch 2026-09-24 (random-Ruby texts move Kobe/Shipment/Gem Sage to engines; Resonance's text rewrite leaves the rune census); Balance 9/23 combined (stat pass + archives + Picnic)
       ale: '31/5/4/31', // 32 → 31 on 2026-09-18: rune tag pass
       demonConsume: '34/13/7/14', // runes 16 → 14: Balance 9/23 combined (rune reworks A rewrote rune texts, #1669); // 14 -> 13 engines: Balance 9/23 minion reworks (Soul Defiler's EoT now casts Staff of Guel) on top of the combined census; // 32 → 33 on 2026-09-18: Dissipate (a sell spell — the consume text match) // Balance 9/23 combined (stat pass + archives + Picnic)
       beastSummon: '31/6/6/10', // beast/dragon batch 2026-09-24 (5 new minions, 4 archived) // // 14 → 13 on 2026-09-16: Rune of Rebirth grants the Rebirth keyword now (no longer an Echo-summon text match) // Balance 9/23 combined (stat pass + archives + Picnic)

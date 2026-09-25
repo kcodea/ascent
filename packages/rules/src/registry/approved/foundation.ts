@@ -1132,4 +1132,35 @@ export const FOUNDATION_RULES: GameRule[] = [
       lastVerifiedAt: '2026-09-24',
     },
   },
+  // ── One authored buff effect per buff (owner ruling 2026-09-24, King Oona's banana) ───────────────────────
+  {
+    id: 'R-BUFFFX-01',
+    title: 'A minion\x27s authored buff effect plays exactly once per buffed unit, instead of the buff tendril',
+    statement:
+      'When a minion that has its own authored buff effect gives another unit stats, that effect travels from '
+      + 'the minion to each unit it buffed, once per unit, and the stock buff tendril does not also play. This '
+      + 'holds whether the buff lands as its own beat (King Oona doubling a summoned Beast) or inside the '
+      + 'minion\x27s attack. Two source-to-target effects drawn for one buff read as the buff happening twice.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Milestone-hit / Oona session, 2026-09-24 (the ask)', quote: 'i also created a def for oona when his effect procs called oona banana. it should travel from oona to the unit effected by him' },
+      { kind: 'owner-chat', ref: 'Milestone-hit / Oona session, 2026-09-24 (asked: should the banana replace the tendril?)', quote: 'Banana replaces tendril (Recommended)' },
+      { kind: 'fix-pr', ref: 'https://github.com/kcodea/ascent/pull/1702 (feat/oona-banana-fx)' },
+      { kind: 'code', ref: 'packages/ui/src/choreo/score.ts fxDef `buffed` fan-out (stands down for a no-spell minion buff); packages/ui/src/useCombatReplay.ts fireBuffCasts `sourceBuffDefFor` (plays the def in place of the tendril)' },
+    ],
+    currentBehaviour:
+      'Conforms as of 2026-09-24 for a minion buff with no spell behind it. Since PR #1416 the tendril path '
+      + '(`fireBuffCasts`) has swapped a card\x27s `buffWave`/`buffed` def in for the tendril on EVERY buff wave, '
+      + 'while the score\x27s `buffed` fan-out still played the same def on the same beat, so a standalone wave drew '
+      + 'it twice (King Oona\x27s banana, Karwind\x27s flame ring). The fan-out now stands down for those buffs, the '
+      + 'mirror of the `buffedOn` fan-out skipping spell buffs. The pin runs the real cue runner on a simulated '
+      + 'Oona wave and asserts the score hands the cast to the tendril path without playing the def itself; '
+      + 'that `fireBuffCasts` then plays it once is read from the code, not exercised (it is a React hook).',
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/ui/src/choreo/oonaBanana.test.ts'],
+      lastVerifiedAt: '2026-09-24',
+    },
+  },
 ];

@@ -52,6 +52,16 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-09-25',
+    label: 'New Game Start Lines',
+    changes: [
+      {
+        category: 'Systems',
+        text: 'The announcer has 23 new lines for the start of a game, 25 in all.',
+      },
+    ],
+  },
+  {
+    date: '2026-09-25',
     label: 'Discover Look',
     changes: [
       {

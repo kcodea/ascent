@@ -82,7 +82,7 @@ function go(r: AnnouncerRunLike, patch: Partial<AnnouncerStateLike> = {}): Annou
 }
 const tick = async (ms: number): Promise<void> => { await vi.advanceTimersByTimeAsync(ms); };
 const files = (): string[] => plays.map((p) => p.file);
-const events = (): string[] => plays.map((p) => p.file.replace(/-\d$/, ''));
+const events = (): string[] => plays.map((p) => p.file.replace(/-\d+$/, ''));
 const dropped = (event: AnnouncerEvent): boolean => announcerDebug().log.some((l) => l.kind === 'drop' && l.event === event);
 const expired = (event: AnnouncerEvent): boolean => announcerDebug().log.some((l) => l.kind === 'expire' && l.event === event);
 
@@ -181,6 +181,30 @@ describe('GameStart', () => {
     expect(seen).toEqual(new Set([0, 1]));
     // A repeat occurrence of a two-line event is allowed to differ from its first (still deterministic).
     expect(announcerVariant(SEED, 'backToShop', 1, 3)).toBe(announcerVariant(SEED, 'backToShop', 1, 3));
+  });
+  it('owner 2026-09-25: GameStart has 25 takes, every file exists, and no two share the same audio', async () => {
+    const { readFileSync, existsSync } = await import('node:fs');
+    const { createHash } = await import('node:crypto');
+    const { resolve } = await import('node:path');
+    const dir = `${resolve(process.cwd(), 'apps/web/public/announcer')}/`;
+    expect(ANNOUNCER_LINES.gameStart).toHaveLength(25);
+    // The audio stream only (ID3 tags stripped), so a re-tagged copy of the same take still counts as a duplicate.
+    const audio = (b: Buffer): Buffer => {
+      let a = b;
+      if (a.subarray(0, 3).toString() === 'ID3') a = a.subarray(10 + ((a[6]! & 0x7f) << 21 | (a[7]! & 0x7f) << 14 | (a[8]! & 0x7f) << 7 | (a[9]! & 0x7f)));
+      if (a.subarray(a.length - 128, a.length - 125).toString() === 'TAG') a = a.subarray(0, a.length - 128);
+      return a;
+    };
+    const hashes = new Set<string>();
+    for (const name of ANNOUNCER_LINES.gameStart) {
+      const file = `${dir}${name}.mp3`;
+      expect(existsSync(file), name).toBe(true);
+      hashes.add(createHash('md5').update(audio(readFileSync(file))).digest('hex'));
+    }
+    expect(hashes.size).toBe(25);
+    const seen = new Set<number>();
+    for (let s = 1; s < 400; s++) seen.add(announcerVariant(s, 'gameStart', 0, 25));
+    expect(seen.size).toBe(25); // every take is reachable from some seed
   });
   it('a Continue never replays it: a restored slice that has it fired stays silent', async () => {
     announced = withAnnounced(announced, 'gameStart', 1);

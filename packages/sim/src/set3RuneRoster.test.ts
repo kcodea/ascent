@@ -110,7 +110,7 @@ describe('the Yazzus runes — ONE Yazzus (owner 2026-09-16)', () => {
     expect(forkedCardId('set3', 'yazzus')).toBe('yazzus');
     expect(forkedCardId('set2', 'yazzus')).toBe('yazzus');
     expect(Object.keys(CARD_INDEX)).not.toContain('n3_yazzus');
-    expect(CARD_INDEX['yazzus']!.text).toBe('Your **targeted** spells cast **an additional** time.');
+    expect(CARD_INDEX['yazzus']!.text).toBe('**Targeted** spells you cast from hand cast **an additional** time.');
   });
   it('the old n3_yazzus id still RESOLVES (saved runs / replays) — to the one Yazzus, without being a second card', () => {
     expect(CARD_INDEX['n3_yazzus']).toBe(CARD_INDEX['yazzus']);

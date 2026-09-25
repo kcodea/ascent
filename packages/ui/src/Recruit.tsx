@@ -48,11 +48,11 @@ import { buildShopViews, type ShopViewCacheEntry } from './shopViewCache';
 import { deriveDragDecision, dragDecisionEqual, computeCastingSpell, NO_DRAG_DECISION, type DragGeo, type DragDecision } from './dragDecision';
 import { dragStore, useDragSlice, type DragSnapshot, type DragState } from './dragStore';
 import { QuestCard } from './QuestCard';
-import { RuneCard } from './RuneCard';
+import { RuneforgeDialog } from './runeforgeEntrance/RuneforgeDialog';
 import { RuneLockIn, type RuneLockInCard } from './RuneLockIn';
 import { captureRuneLockIn } from './runeLockInCapture';
 import { getRuneLockInConfig, stretchLockIn } from './runeLockInConfig';
-import { combatGains } from './combatGains';
+import { FightRecap } from './FightRecap';
 import { instView, liveCardText, type LiveTextParams } from './instView';
 import { diffHandBuffs, fireHandBuff, fireHandBuffOnHandSpells, fireHandBuffOnHandRubies } from './handBuffFx';
 import { HudBar } from './HudBar';
@@ -135,6 +135,7 @@ import { visibleHandPreviews } from './handPreview';
 import { chargeTune, useChargePreview } from './chargeGlyphTune';
 import { ChargeMotes } from './chargeMotes';
 import { wipeFx } from './wipeFx';
+import { wipeOriginFor, type WipeOrigin } from './wipeGeometry';
 
 /** Golden Ruby's coin cue: a beat after its gem (so the two read as "Ruby, then Gold"), and spaced when a
  *  multi-cast Golden Ruby pays several times in one action. */
@@ -1933,27 +1934,33 @@ export function Recruit() {
   const wipeSweeping = wipe === 'coverIn' || wipe === 'revealIn' || wipe === 'coverOut' || wipe === 'revealOut';
   const wipeExiting = wipe === 'primeOut' || wipe === 'coverOut' || wipe === 'coveredOut' || wipe === 'revealOut';
   // GEM ORIGIN — measured ONCE at the start of each cover sweep (a one-shot layout read, not per-frame;
-  // see CLAUDE.md perf rules), then handed to the CSS as `--wipe-cx/--wipe-cy/--wipe-r`. The radius is the
-  // distance to the farthest viewport corner, so `.full` provably covers the whole screen from any anchor.
+  // see CLAUDE.md perf rules), then handed to the CSS as `--wipe-cx/--wipe-cy/--wipe-r/--wipe-front-scale`.
+  // The radius is the distance to the farthest viewport corner and the ring's scale is derived from it (see
+  // wipeGeometry.ts), so `.full` provably covers the whole screen — 16:9, 21:9 or 32:9 — and the ring rides
+  // the seam all the way out (owner bug 2026-09-24: the ring was a fixed 16:9 size and stalled mid-screen on
+  // ultrawide). Re-measured on resize while a wipe is on screen, so a mid-wipe window change still covers.
   // The gem element (`.etb-gembox` inside `.etbwrap`) is the same control in both directions — End Turn on
   // entry, End Combat on exit — so both blooms erupt from the same diamond.
-  const [wipeOrigin, setWipeOrigin] = useState<{ cx: number; cy: number; r: number } | null>(null);
-  const wipeOriginRef = useRef<{ cx: number; cy: number; r: number } | null>(null);
+  const [wipeOrigin, setWipeOrigin] = useState<WipeOrigin | null>(null);
+  const wipeOriginRef = useRef<WipeOrigin | null>(null);
+  const measureWipeOrigin = useCallback((): void => {
+    const gem = document.querySelector('.etbwrap .etb-gembox') ?? document.querySelector('.etbwrap');
+    const o = wipeOriginFor(window.innerWidth, window.innerHeight, gem ? gem.getBoundingClientRect() : null);
+    wipeOriginRef.current = o;
+    setWipeOrigin(o);
+  }, []);
   useLayoutEffect(() => {
     // Both tells precede their bloom, so measuring here commits the vars (and the ref the FX reads)
     // before `coverIn`/`coverOut` launches.
     if (wipe !== 'chargeIn' && wipe !== 'primeOut') return;
-    const vw = window.innerWidth, vh = window.innerHeight;
-    let cx = vw * 0.84, cy = vh * 0.62; // fallback ≈ where the gem sits on the stage
-    const gem = document.querySelector('.etbwrap .etb-gembox') ?? document.querySelector('.etbwrap');
-    if (gem) {
-      const b = gem.getBoundingClientRect();
-      cx = b.left + b.width / 2; cy = b.top + b.height / 2;
-    }
-    const r = Math.ceil(Math.hypot(Math.max(cx, vw - cx), Math.max(cy, vh - cy)));
-    wipeOriginRef.current = { cx, cy, r };
-    setWipeOrigin({ cx, cy, r });
-  }, [wipe]);
+    measureWipeOrigin();
+  }, [wipe, measureWipeOrigin]);
+  const wipeOnScreen = wipe !== 'idle' && wipe !== 'combat';
+  useEffect(() => {
+    if (!wipeOnScreen) return undefined;
+    window.addEventListener('resize', measureWipeOrigin);
+    return () => window.removeEventListener('resize', measureWipeOrigin);
+  }, [wipeOnScreen, measureWipeOrigin]);
   // WIPE FX — the above-curtain Pixi layer (see wipeFx.ts). Warmed once on mount so the async Pixi init
   // is long done before the first combat; each state fires its one-shot as it begins. A decisive combat
   // snaps the machine to 'idle' — clear() kills any in-flight motes so nothing drifts over the end screen.
@@ -1973,7 +1980,10 @@ export function Recruit() {
   }, [wipe]);
   const wipeVars = {
     '--wipe-dur': `${WIPE_MS}ms`,
-    ...(wipeOrigin ? { '--wipe-cx': `${wipeOrigin.cx}px`, '--wipe-cy': `${wipeOrigin.cy}px`, '--wipe-r': `${wipeOrigin.r}px` } : {}),
+    ...(wipeOrigin ? {
+      '--wipe-cx': `${wipeOrigin.cx}px`, '--wipe-cy': `${wipeOrigin.cy}px`, '--wipe-r': `${wipeOrigin.r}px`,
+      '--wipe-front-scale': String(wipeOrigin.frontScale),
+    } : {}),
   } as CSSProperties;
   const wipeTimeoutRef = useRef<number | undefined>(undefined);
   const advanceWipe = useCallback((): void => {
@@ -2012,8 +2022,12 @@ export function Recruit() {
   // shape change that lets the reveal run linear); `gone` is the entry reveal's R→L retreat (parked
   // through combat), `gone rtl` the exit reveal's L→R retreat; base and `primeOut` park on the zero
   // circle, ready for the next bloom.
+  // The TELL states (`chargeIn`/`primeOut`) wear `settle` too: they are where a fresh origin lands, and
+  // without it the zero-radius circle's CENTRE would transition from the last origin to the new one over
+  // the next 450ms, dragging the bloom's centre off the gem for its first half (seen in 2026-09-24's traces).
   const curtainClass = `wipecurtain${
-    wipe === 'coveredIn' || wipe === 'coveredOut' ? ' full settle'
+    wipe === 'chargeIn' || wipe === 'primeOut' ? ' settle'
+    : wipe === 'coveredIn' || wipe === 'coveredOut' ? ' full settle'
     : wipe === 'coverIn' || wipe === 'coverOut' ? ' full'
     : wipe === 'revealIn' || wipe === 'combat' ? ' gone'
     : wipe === 'revealOut' ? ' gone rtl' : ''
@@ -2215,7 +2229,6 @@ export function Recruit() {
     win.__runeLockIn = (slow) => lockInDemoRef.current?.(slow);
     return () => { delete (window as unknown as { __runeLockIn?: (slow?: number) => void }).__runeLockIn; };
   }, []); // the Runeforge overlay is minimized (inspect the board behind it)
-  const [logTab, setLogTab] = useState<'gains' | 'procs' | 'log'>('gains'); // Permanent gains · Procs · blow-by-blow log
   // Per-card stat snapshot (attack + health) for the recruit-phase buff flash (declared up here so the
   // combat→recruit transition can re-sync it and avoid a spurious flash on the way back in).
   const prevStatsRef = useRef<Map<string, { a: number; h: number }>>(new Map());
@@ -2532,13 +2545,14 @@ export function Recruit() {
   // A board-covering modal is open (Discover / Choose One / a quest or runeforge offer / a scouted board).
   useEffect(() => {
     // A minimized Discover / Quest overlay leaves the board visible, so it doesn't count as covering.
-    const modalCovering = !overlaysHeld && ((run.discover && !discoverMin && !discoverDeathHold) || (run.questOffer && !questMin) || run.powerOffer || (run.runeforgeOffer && !forgeMin) || run.chooseOne || (run.scoutedNextOpponent?.length ?? 0) > 0);
+    const modalCovering = showLog || (!overlaysHeld && ((run.discover && !discoverMin && !discoverDeathHold) || (run.questOffer && !questMin) || run.powerOffer || (run.runeforgeOffer && !forgeMin) || run.chooseOne || (run.scoutedNextOpponent?.length ?? 0) > 0));
+    // The Fight Recap counts too (2026-09-24): without it the hand + hero panels painted OVER its scrim.
     // The hero portrait / pills / power diamond live OUTSIDE the overlay's backdrop root (their own fixed
     // stacking contexts), so the overlay's backdrop-filter can't blur them — mark the body and let CSS blur
     // + dim them to match the rest of the covered board (owner report 2026-07-16). One-shot filter change.
     document.body.classList.toggle('modalup', !!modalCovering);
     return () => document.body.classList.remove('modalup');
-  }, [run.discover, run.chooseOne, discoverMin, run.questOffer, run.powerOffer, questMin, run.runeforgeOffer, forgeMin, overlaysHeld, discoverDeathHold]);
+  }, [run.discover, run.chooseOne, discoverMin, run.questOffer, run.powerOffer, questMin, run.runeforgeOffer, forgeMin, overlaysHeld, discoverDeathHold, showLog]);
   // B2: each Discover opens expanded — reset the minimized flag whenever the pending Discover changes.
   useEffect(() => { setDiscoverMin(false); }, [run.discover]);
   // Each quest offer opens expanded too — reset the minimized flag when the offer changes.
@@ -6910,8 +6924,13 @@ export function Recruit() {
   applyDropRef.current = applyDrop;
   // STABLE HANDLERS for the memoized subtrees (perf 2026-09-16). Each one used to be an inline arrow in the
   // JSX — a new function every render, which is exactly what defeats a `React.memo` child.
-  const openSummary = useCallback((): void => { setLogTab('gains'); setShowLog(true); }, []);
+  const openSummary = useCallback((): void => setShowLog(true), []);
   const closeLog = useCallback((): void => setShowLog(false), []);
+  // WATCH REPLAY (fight recap, 2026-09-24): close the recap and run THIS fight's replay again from its first
+  // moment. The board is a pure fold of (initial, events, upto), so a seek to 0 is the same replay the player
+  // just watched. Offered only once the fight has SETTLED (the recap passes it through only then), so the
+  // post-fight settle and the damage strike can never run a second time.
+  const watchReplay = useCallback((): void => { setShowLog(false); replayRef.current.seekTo(0); }, []);
   const onFreeze = useCallback((): void => dispatch({ type: 'freeze' }), [dispatch]);
   const onRefresh = useCallback((): void => dispatch({ type: 'roll' }), [dispatch]);
   const onUpgrade = useCallback((): void => dispatch({ type: 'upgrade' }), [dispatch]);
@@ -7253,8 +7272,9 @@ export function Recruit() {
 
       <PerfProfiler id="render:recruit:overlays">
       <CombatLogOverlay
-        showLog={showLog} result={replay.result} combatOdds={combatOdds} logTab={logTab} setLogTab={setLogTab}
-        lastCombat={run.lastCombat} procs={replay.procs} fullLog={replay.fullLog} onClose={closeLog}
+        showLog={showLog} result={replay.result} combatOdds={combatOdds} lastCombat={run.lastCombat}
+        lobby={run.lobby} board={run.board} wave={run.wave} mode={run.mode} procs={replay.procs} fullLog={replay.fullLog}
+        onWatchReplay={run.combatSettled ? watchReplay : undefined} onClose={closeLog}
       />
 
       <ChooseOneOverlay overlaysHeld={overlaysHeld} run={run} spellBonus={spellBonus} spellBonusH={spellBonusH} dispatch={dispatch} captureCoalesce={captureCoalesce} />
@@ -8415,83 +8435,21 @@ const DragOverlay = memo(function DragOverlay({ timeUp, heroArmed, equipArmed, h
   );
 });
 
-/** The post-combat Combat Summary overlay. Memoized so that, while it is closed (the whole shop phase), a
- *  Recruit render costs it a handful of prop compares and nothing else. */
-const CombatLogOverlay = memo(function CombatLogOverlay({ showLog, result, combatOdds, logTab, setLogTab, lastCombat, procs, fullLog, onClose }: {
-  showLog: boolean; result: 'win' | 'lose' | 'draw' | null; combatOdds: CombatOdds | null; logTab: 'gains' | 'procs' | 'log';
-  setLogTab: (t: 'gains' | 'procs' | 'log') => void; lastCombat: RunState['lastCombat']; procs: ReturnType<typeof useCombatReplay>['procs'];
-  fullLog: ReturnType<typeof useCombatReplay>['fullLog']; onClose: () => void;
+/** The post-combat FIGHT RECAP (owner redesign 2026-09-24; was the "Combat Summary"). Memoized so that, while it
+ *  is closed (the whole shop phase), a Recruit render costs it a handful of prop compares and nothing else; the
+ *  recap itself (FightRecap.tsx) only mounts while open. */
+const CombatLogOverlay = memo(function CombatLogOverlay({ showLog, result, combatOdds, lastCombat, lobby, board, wave, mode, procs, fullLog, onWatchReplay, onClose }: {
+  showLog: boolean; result: 'win' | 'lose' | 'draw' | null; combatOdds: CombatOdds | null; lastCombat: RunState['lastCombat'];
+  lobby: RunState['lobby']; board: RunState['board']; wave: number; mode: RunState['mode'];
+  procs: ReturnType<typeof useCombatReplay>['procs']; fullLog: ReturnType<typeof useCombatReplay>['fullLog'];
+  onWatchReplay?: () => void; onClose: () => void;
 }) {
+  if (!showLog) return null;
   return (
-    <>
-      {showLog && (
-        <div className="logov" role="dialog" aria-label="Combat log" onClick={onClose}>
-          <div className="logbox" onClick={(e) => e.stopPropagation()}>
-            <div className="logtitle">
-              Combat Summary <span className={`logverdict ${result ?? ''}`}>{result === 'win' ? 'Victory' : result === 'lose' ? 'Defeat' : 'Draw'}</span>
-            </div>
-            {combatOdds && (
-              <div
-                className="logodds"
-                aria-label="Estimated from repeated simulations of this matchup. The actual result was one roll of these odds."
-              >
-                <div className="oddscap gtip" data-tip="Estimated from repeated simulations of this matchup. The actual result was one roll of these odds.">Outcome odds</div>
-                <div className="oddsbar">
-                  <span className="ob win" style={{ width: `${combatOdds.win * 100}%` }} />
-                  <span className="ob draw" style={{ width: `${combatOdds.draw * 100}%` }} />
-                  <span className="ob lose" style={{ width: `${combatOdds.lose * 100}%` }} />
-                </div>
-                <div className="oddslabels">
-                  <span className="ol win">{Math.round(combatOdds.win * 100)}% win</span>
-                  <span className="ol draw">{Math.round(combatOdds.draw * 100)}% draw</span>
-                  <span className="ol lose">{Math.round(combatOdds.lose * 100)}% loss</span>
-                </div>
-                {combatOdds.lose > 0 && (
-                  <div className="oddsavg gtip" aria-description="Average Health lost across the losing simulations, capped by the round. This is what a typical loss of this matchup costs." data-tip="Average Health lost across the losing simulations, capped by the round. This is what a typical loss of this matchup costs.">
-                    Avg damage on loss: <b>{Math.round(combatOdds.avgLossDamage * 10) / 10}</b>
-                  </div>
-                )}
-              </div>
-            )}
-            <div className="logtabs">
-              <button className={`logtab${logTab === 'gains' ? ' active' : ''}`} onClick={() => setLogTab('gains')}>Gains</button>
-              <button className={`logtab${logTab === 'procs' ? ' active' : ''}`} onClick={() => setLogTab('procs')}>Procs</button>
-              <button className={`logtab${logTab === 'log' ? ' active' : ''}`} onClick={() => setLogTab('log')}>Log</button>
-            </div>
-            {logTab === 'gains' ? (
-              <div className="loglines">
-                <div className="loggainhead">What you keep from this fight</div>
-                {(() => {
-                  const gains = combatGains(lastCombat);
-                  return gains.length === 0 ? (
-                    <div className="logline">No lasting gains this fight.</div>
-                  ) : (
-                    gains.map((g, i) => <div className="loggain" key={i}>{g}</div>)
-                  );
-                })()}
-              </div>
-            ) : logTab === 'procs' ? (
-              <div className="loglines">
-                {procs.map((s, i) => (
-                  <div className={`logsum ${s.kind}`} key={i}>{s.text}</div>
-                ))}
-              </div>
-            ) : (
-              <div className="loglines">
-                {fullLog.length === 0 ? (
-                  <div className="logline">No blows were struck.</div>
-                ) : (
-                  fullLog.map((line, i) => (
-                    <div className={`logline ${line.kind}`} key={i}>{line.text}</div>
-                  ))
-                )}
-              </div>
-            )}
-            <button className="btn big" onClick={onClose}>Close</button>
-          </div>
-        </div>
-      )}
-    </>
+    <FightRecap
+      result={result} combatOdds={combatOdds} lastCombat={lastCombat} lobby={lobby} board={board} wave={wave} mode={mode}
+      procs={procs} fullLog={fullLog} onWatchReplay={onWatchReplay} onClose={onClose}
+    />
   );
 });
 
@@ -8827,6 +8785,8 @@ export const RuneforgeOverlay = memo(function RuneforgeOverlay({ overlaysHeld, r
   runeLockInCue: RuneLockInCard[] | null; cueRuneArrival: (cards: RuneLockInCard[] | null, phase: 'pending' | 'arrived') => void;
   startRuneLockIn: (el: HTMLElement | null, chosenIndex: number) => void; dispatch: (a: Action) => void;
 }) {
+  // A replay plays its forge entrance at the replay's speed (live play has no session: 1).
+  const replaySpeed = useGame((st) => st.replaySession?.speed ?? 1);
   return (
     <>
       {/* Runeforge: a stone/engraved shop. Buy ONE of the offered runes (or Skip), then it closes and the shop
@@ -8864,60 +8824,26 @@ export const RuneforgeOverlay = memo(function RuneforgeOverlay({ overlaysHeld, r
         />
       )}
       {!overlaysHeld && run.runeforgeOffer && !forgeMin && (
-        <div className={`discover-ov forge-ov${run.runeforgeEpic ? ' forge-epic' : ''}`} role="dialog" aria-label={run.runeforgeEpic ? 'The Epic Runeforge' : 'The Runeforge'}>
-          <div className="disc-panel forge-panel">
-            {/* Title only — the anvil icon was removed from the forge banner (owner ask 2026-08-30). */}
-            <div className="disc-banner forge-banner"><span className="disp">{run.runeforgeEpic ? 'Epic Runeforge' : 'Runeforge'}</span></div>
-            {/* The player's CURRENT Gold — the runes charge Gold, so the panel must say what's in the purse
-                (owner ask 2026-07-16). Re-renders with every buy/re-roll (run.embers). */}
-            <div className="forge-gold" aria-description="Your Gold right now"><Icon name="mana" /><b>{run.embers}</b> Gold</div>
-            <div className="disc-cards forge-cards">
-              {run.runeforgeOffer.map((id, i) => {
-                const rune = RUNE_INDEX[id];
-                if (!rune) return null;
-                // The pivot discount (aligned array, seeded at draw): a rune that doesn't follow the board can
-                // arrive cheaper — the buy path charges the same number.
-                const liveCost = Math.max(0, rune.cost - (run.runeforgeDiscounts?.[i] ?? 0));
-                return (
-                  <RuneCard
-                    key={id} rune={rune} cost={liveCost} affordable={run.embers >= liveCost} pickSfx
-                    duplicating={!!run.runeDuplication && !!run.runeforgeEpic}
-                    onBuy={(el) => {
-                      // CAPTURE BEFORE DISPATCH. The buy clears `runeforgeOffer`, so this overlay unmounts on
-                      // the same frame — after that there is nothing on screen to measure. The ceremony
-                      // re-renders clones at these exact rects, which is why the handover is invisible.
-                      startRuneLockIn(el, i);
-                      dispatch({ type: 'buyRune', index: i });
-                    }}
-                  />
-                );
-              })}
-            </div>
-            {/* The re-roll STAYS MOUNTED once spent (hidden, disabled, out of the tab order) rather than
-                unmounting. The overlay centres the panel vertically, so a footer that collapsed to zero height
-                re-centred the whole panel and the rune tablets visibly dropped by half the button's height on
-                the click (owner report 2026-09-22: "the runes move down when the player uses the free
-                re-roll"). Reserving the space keeps the row pinned; nothing else about the button changes. */}
-            <div className="forge-actions">
-              {(() => {
-                const spent = !!run.runeforgeRerolled || !!run.runeforgeRerollUsed;
-                return (
-                  <button
-                    className={`forge-reroll gtip${spent ? ' forge-reroll-spent' : ''}`}
-                    onClick={() => dispatch({ type: 'rerollRuneforge' })}
-                    disabled={spent}
-                    aria-hidden={spent || undefined}
-                    tabIndex={spent ? -1 : undefined}
-                    aria-description={spent ? undefined : "Re-roll the offered Runes for free, once per game. Spending it here forfeits the other forge's re-roll."}
-                    data-tip={spent ? undefined : "Re-roll the offered Runes for free, once per game. Spending it here forfeits the other forge's re-roll."}
-                  >
-                    <Icon name="refresh" /> Re-roll · <b className="forge-reroll-cost">Free</b>
-                  </button>
-                );
-              })()}
-            </div>
-          </div>
-        </div>
+        // The forge panel + its ENTRANCE (owner ask 2026-09-24: the tablets drop in with dust, the forge ignites).
+        // Shared with the entrance tuner's sandbox, so the preview is the real row. See `RuneforgeDialog`.
+        <RuneforgeDialog
+          offer={run.runeforgeOffer}
+          epic={!!run.runeforgeEpic}
+          embers={run.embers}
+          discounts={run.runeforgeDiscounts}
+          rerollSpent={!!run.runeforgeRerolled || !!run.runeforgeRerollUsed}
+          duplicating={!!run.runeDuplication && !!run.runeforgeEpic}
+          occasion={`${run.seed}:${run.wave}`}
+          speed={replaySpeed}
+          onBuy={(i, el) => {
+            // CAPTURE BEFORE DISPATCH. The buy clears `runeforgeOffer`, so this overlay unmounts on the same
+            // frame — after that there is nothing on screen to measure. The ceremony re-renders clones at these
+            // exact rects, which is why the handover is invisible.
+            startRuneLockIn(el, i);
+            dispatch({ type: 'buyRune', index: i });
+          }}
+          onReroll={() => dispatch({ type: 'rerollRuneforge' })}
+        />
       )}
     </>
   );

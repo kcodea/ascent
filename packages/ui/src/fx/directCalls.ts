@@ -103,6 +103,11 @@ export const DIRECT_CALL_SITES: Readonly<Record<string, readonly string[]>> = {
   // The implosion on a rune's BADGE as the lock-in ceremony hands it over (owner ask 2026-08-31).
   'rune-select-implosion': ['useRuneArrivalFx.ts'],
   'rune-slot-break': ['QuestBadges.tsx'],
+  // THE RUNEFORGE ENTRANCE (2026-09-24): the dust puff under each landing rune tablet, the embers off the forge
+  // floor as it opens, and the Epic forge's flare as its last tablet lands.
+  'runeforge-embers': ['runeforgeEntrance/entrance.ts'],
+  'runeforge-epic-flare': ['runeforgeEntrance/entrance.ts'],
+  'runeforge-land-dust': ['runeforgeEntrance/entrance.ts'],
   // The mid-combat Shop-buff bloom (owner-authored 2026-09-02, replacing `shop-buff-aura` on this surface). The
   // shop-row play goes through the `shopBuffAll` binding instead — see `runShopBuffAllFire`.
   'shop-buff-purple': ['useCombatReplay.ts'],
@@ -207,6 +212,10 @@ export const DYNAMIC_CALL_SITES: Readonly<Record<string, number>> = {
   // instead of a `RecruitMoment`/`CombatEvent` kind because there is no event to hang a moment off (see that
   // file's header).
   'fx/statMilestone.ts': 1,
+  // MILESTONE HIT (2026-09-24). One `playDef(milestone.def, …)` in `playContactImpact`: a plain melee hit whose
+  // attacker's Attack badge is tier 4/5/6 (pink/purple/blue) plays `bindingFor(cardId, attackHitMilestoneKind(tier))`
+  // in place of the stock sparks + ring. Resolved from the `attackHitMilestoneN` family, not a literal.
+  'choreo/channels/impact.ts': 1,
   // A SPELL'S OWN CAST EFFECT (2026-09-24, Growth's `growth-effect`). One `playDef(binding.def, …)` in
   // `playSpellCastFx`, resolving the spell's card-level `spellCast` row via `spellCastFxFor` — the one play every
   // phase's cast path shares (the shop's rune / minion records, the End-of-Turn beats, the combat `spellCastFx` cue) — and `playRuneCastBuffFx`, a rune cast's per-buff row (`spellCastFanOutFor`: an Ale, Dragonflame).

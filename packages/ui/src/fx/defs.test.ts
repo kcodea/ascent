@@ -312,7 +312,8 @@ describe('committed defs — canvas slot', () => {
     // `good-luck-intro` (2026-09-24) bursts over the game-start "Good Luck" overlay, a full-screen dim that sits
     // above every board canvas (z190) and under this one (z200), so only the above-modal canvas can put its
     // sparks over the words. It only ever plays in the opening seconds, before any modal can be up.
-    const ABOUT_A_MODAL = new Set(['prismatic-pick', 'rank-up', 'down-rank', 'good-luck-intro']);
+    // The three `runeforge-*` defs (2026-09-24) are the Runeforge entrance: they play OVER the forge overlay (z 160).
+    const ABOUT_A_MODAL = new Set(['prismatic-pick', 'rank-up', 'down-rank', 'good-luck-intro', 'runeforge-land-dust', 'runeforge-embers', 'runeforge-epic-flare']);
     const claimed = ENTRIES.filter((e) => isRecord(e.raw) && e.raw.slot === 'above').map((e) => e.stem);
     expect(claimed.filter((s) => !ABOUT_A_MODAL.has(s)),
       'a def took the above-modal canvas without being about a modal — check it, then add it here')

@@ -5893,7 +5893,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
             "mult": 3
           }
         },
-        "note": "Choose One branch 2: \"Your first Shop spell each turn casts 3 times.\""
+        "note": "Choose One branch 2: \"The first Shop spell you cast from hand each turn casts 3 times.\""
       }
     ],
     "gildedDelta": {

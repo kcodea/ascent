@@ -1,8 +1,9 @@
 import { useEffect, useLayoutEffect, useRef, type CSSProperties } from 'react';
 import { useGame } from '../store';
 import { canPlayDefs, playDef } from '../fx/playDef';
+import { sfx, type SfxHandle } from '../sfx';
 import { goodLuckIntro, useGoodLuckIntroActive, useGoodLuckIntroSeq } from './goodLuckIntroStore';
-import { GLI_DEFAULTS, GLI_REPLAY_EVENT, getGoodLuckIntroConfig, goodLuckTimeline } from './goodLuckIntroConfig';
+import { GLI_DEFAULTS, GLI_REPLAY_EVENT, getGoodLuckIntroConfig, goodLuckTail, goodLuckTimeline } from './goodLuckIntroConfig';
 import './goodLuckIntro.css';
 
 /**
@@ -103,6 +104,16 @@ export function GoodLuckIntro(): JSX.Element | null {
     const reduced = prefersReducedMotion();
     const t = goodLuckTimeline(c, reduced);
     const timers: number[] = [];
+    // The sounds are queued up front on the AUDIO clock (like the WAAPI animations), so they cannot drift from
+    // the sweep. Each ends on its own soft tail (a fade over its last few hundred ms plus a light reverb; see
+    // audio/tailFade). A skip (Esc / click / replay / leaving) fades whatever is still sounding in ~120 ms; the
+    // natural end does not touch them, so the tails ring out over the live board.
+    const sounds: (SfxHandle | null)[] = [];
+    let endedNaturally = false;
+
+    // The shine sound plays under reduced motion too: it is audio, and the words still arrive. Only the sweep's
+    // motion is dropped there, so it lands as the words finish fading in, exactly where the sweep would start.
+    sounds.push(sfx.goodLuckShine(c.shineSoundGain, t.shineSoundAt, goodLuckTail(c, 'shine')));
 
     // The dim is already at full strength (static CSS), so the curtain lifts onto a dimmed board. It only fades OUT.
     anim(dimRef.current, [{ opacity: 1 }, { opacity: 0 }], { duration: c.fadeOutMs, delay: t.outAt, easing: 'ease-in', fill: 'forwards' });
@@ -137,18 +148,22 @@ export function GoodLuckIntro(): JSX.Element | null {
 
       // The sparks, off the words' centre, a beat into the fade-in so they burst as the words bloom.
       if (c.sparkCount > 0) {
+        sounds.push(sfx.goodLuckSpark(c.sparkSoundGain, t.sparkAt, goodLuckTail(c, 'spark')));
         timers.push(window.setTimeout(() => {
           const el = wordRef.current;
           if (!el || !canPlayDefs()) return;
           const r = el.getBoundingClientRect();
           const p = { x: r.left + r.width / 2, y: r.top + r.height / 2 };
           playDef('good-luck-intro', { source: p, target: p, cursor: p }, { intensity: c.sparkCount / DEF_SPARKS });
-        }, t.inAt + Math.round(c.fadeInMs * 0.2)));
+        }, t.sparkAt));
       }
     }
 
-    timers.push(window.setTimeout(() => goodLuckIntro.end(), t.endAt));
-    return () => { for (const id of timers) window.clearTimeout(id); };
+    timers.push(window.setTimeout(() => { endedNaturally = true; goodLuckIntro.end(); }, t.endAt));
+    return () => {
+      for (const id of timers) window.clearTimeout(id);
+      if (!endedNaturally) for (const h of sounds) h?.stop();
+    };
   }, [active, seq]);
 
   if (!active) return null;

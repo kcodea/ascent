@@ -61,6 +61,29 @@ export const WATCHER_BINDING_KINDS: readonly WatcherBindingKind[] = ['watcher'];
 export type CombatMechanicBindingKind = 'startOfCombat' | 'avenge';
 export const COMBAT_MECHANIC_BINDING_KINDS: readonly CombatMechanicBindingKind[] = ['startOfCombat', 'avenge'];
 
+/**
+ * A binding key for a MELEE HIT whose attacker's Attack badge sits at a high milestone tier — the pink (4,
+ * 500+), purple (5, 2000+) and blue (6, 5000+) frames (see `choreo/statMilestones.ts`). The hit visual escalates
+ * with the badge (owner ask 2026-09-24); tiers 1..3 deliberately have no slot and keep the standard hit.
+ *
+ * Its own family, like `StatMilestoneBindingKind`: fired directly from the impact channel
+ * (`choreo/channels/impact.ts`) at the lunge's contact, not from a compiled moment — so it has no
+ * `SCORE_DEFAULTS` row and no recruit emitter. A bound def REPLACES the stock sparks + energy ring (the dust
+ * billow stays, as it does under a crit); Execute / Cleave / Flurry / crit still outrank it (owner 2026-09-24).
+ * An UNBOUND tier plays the standard hit, so a slot is safe to leave empty.
+ */
+export type AttackHitMilestoneBindingKind = 'attackHitMilestone4' | 'attackHitMilestone5' | 'attackHitMilestone6';
+export const ATTACK_HIT_MILESTONE_BINDING_KINDS: readonly AttackHitMilestoneBindingKind[] =
+  ['attackHitMilestone4', 'attackHitMilestone5', 'attackHitMilestone6'];
+
+/** The hit binding kind for an Attack badge tier, or null below tier 4 (those tiers keep the standard hit).
+ *  A tier above 6 clamps to 6 so a future higher tier still escalates rather than falling back to stock. */
+export function attackHitMilestoneKind(tier: number): AttackHitMilestoneBindingKind | null {
+  const t = Math.round(tier);
+  if (!(t >= 4)) return null;
+  return ATTACK_HIT_MILESTONE_BINDING_KINDS[Math.min(t, 6) - 4];
+}
+
 /** The binding kind for a milestone tier (1..5). Clamped so an out-of-range tier resolves to a real key. */
 export function statMilestoneKind(tier: number): StatMilestoneBindingKind {
   const n = Math.min(STAT_MILESTONE_BINDING_KINDS.length, Math.max(1, Math.round(tier)));
@@ -77,7 +100,7 @@ export function statMilestoneKind(tier: number): StatMilestoneBindingKind {
  * A shop kind has no combat cues and never should, and widening would have forced a meaningless row per
  * kind and made the exhaustive-score test lie.
  */
-export type BindingKind = MomentKind | RecruitMomentKind | HudBindingKind | StatMilestoneBindingKind | WatcherBindingKind | CombatMechanicBindingKind;
+export type BindingKind = MomentKind | RecruitMomentKind | HudBindingKind | StatMilestoneBindingKind | AttackHitMilestoneBindingKind | WatcherBindingKind | CombatMechanicBindingKind;
 import rawBindings from './bindings.json';
 
 /**

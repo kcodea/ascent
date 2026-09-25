@@ -1,7 +1,8 @@
 import gsap from 'gsap';
 import { sfx } from '../../sfx';
 import { pixiFx } from '../../pixiFx';
-import { playDef } from '../../fx/playDef';
+import { canPlayDefs, playDef } from '../../fx/playDef';
+import { attackHitMilestoneKind, bindingFor, type FxBinding } from '../bindings';
 import { setTransition } from './lunge';
 
 /** Map an attack's swing damage → the impact's `power` scale (1 = baseline). Ramps gently: a 1-3 dmg chip
@@ -73,6 +74,17 @@ function strikeBurst(x: number, y: number, dx: number, dy: number, power: number
 }
 
 /**
+ * The authored hit def for an attacker whose Attack badge sits at milestone tier 4+ (pink/purple/blue), or null
+ * when the tier is below 4, the tier's slot is unbound, or defs can't play — every null keeps the standard hit.
+ * `attackerCardId` lets a per-card row shadow the tier default, the same layering every binding family has.
+ */
+export function milestoneHitBinding(tier: number, attackerCardId: string | null): FxBinding | null {
+  const kind = attackHitMilestoneKind(tier);
+  if (kind === null || !canPlayDefs()) return null;
+  return bindingFor(attackerCardId, kind);
+}
+
+/**
  * Impact channel (choreographer phase 3b) — the melee "smack": the hit sound, the WebGL flash + spark spray +
  * dust billow + energy pulse fired along the blow direction, and the defender's knockback-and-recover tween
  * (with `spinDeg` of counter-rotation folded in). The FX originate at `contact` — the DEFENDER'S CENTRE,
@@ -84,7 +96,7 @@ function strikeBurst(x: number, y: number, dx: number, dy: number, power: number
  * amplified crimson-gold crit flourish (`pixiFx.critImpact` — bold ring, "CRIT!" pop, red card flash), plus a
  * heftier knockback. No-op FX/recoil when there's no defender (still fires the hit/crit sound).
  */
-export function playContactImpact(defender: Element | null, dx: number, dy: number, power: number, speed: number, contact?: { x: number; y: number }, spinDeg = 0, crit = false, flurryHit = false, flurrySlash = false, executeSlash = false, cleave = false, suppressRecoil = false): void {
+export function playContactImpact(defender: Element | null, dx: number, dy: number, power: number, speed: number, contact?: { x: number; y: number }, spinDeg = 0, crit = false, flurryHit = false, flurrySlash = false, executeSlash = false, cleave = false, suppressRecoil = false, milestoneTier = 0, attackerCardId: string | null = null): void {
   // The defender's uid, for any `react` layer in these defs: an impact is something that happens TO a
   // unit, and the element is already in hand. `null` when the caller had no defender element, which a
   // react layer reads as "no subject" and skips.
@@ -94,6 +106,8 @@ export function playContactImpact(defender: Element | null, dx: number, dy: numb
   if (!defender) return;
   const r = defender.getBoundingClientRect();
   const fx = contact ?? { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+  // Resolved only for a PLAIN hit: every keyword effect below outranks it (owner 2026-09-24).
+  const milestone = executeSlash || cleave || flurrySlash || crit ? null : milestoneHitBinding(milestoneTier, attackerCardId);
   // PRECEDENCE for "which effect replaces the standard strike burst" — first match wins:
   //   Execute > Cleave > Flurry > crit.
   // Execute is a KILL, the biggest beat available, so it outranks everything (a Flurry/crit/Cleave execute
@@ -127,6 +141,15 @@ export function playContactImpact(defender: Element | null, dx: number, dy: numb
   } else if (crit) {
     // The crit REPLACES the normal impact burst with its own amplified flourish; the dust billow still reads.
     pixiFx.critImpact(fx.x, fx.y, dx, dy, { x: r.left, y: r.top, w: r.width, h: r.height });
+    strikeDust(fx.x, fx.y, power, defenderUid);
+  } else if (milestone !== null) {
+    // MILESTONE HIT (owner ask 2026-09-24): the attacker's Attack badge is pink/purple/blue (tier 4/5/6), so
+    // its tier's authored def REPLACES the stock sparks + energy ring; the dust billow still reads, as it does
+    // under a crit. Played at authored size — each tier is its own composition, not a scaled stock burst. Same
+    // anchors as `strikeBurst`, so a `sourceToTarget` layer fans along the blow.
+    playDef(milestone.def, { source: { x: fx.x - dx, y: fx.y - dy }, target: { x: fx.x, y: fx.y } },
+      { uids: { source: null, target: defenderUid } });
+    if (milestone.sfx !== undefined) (sfx[milestone.sfx] as (() => void) | undefined)?.();
     strikeDust(fx.x, fx.y, power, defenderUid);
   } else {
     strikeBurst(fx.x, fx.y, dx, dy, power, defenderUid);

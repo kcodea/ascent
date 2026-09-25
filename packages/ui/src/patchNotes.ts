@@ -62,6 +62,91 @@ export const PATCH_NOTES: PatchNote[] = [
   },
   {
     date: '2026-09-24',
+    label: 'Big Hits',
+    changes: [
+      {
+        category: 'Systems',
+        text: 'Minions with huge Attack now hit harder on screen. Once the Attack badge turns pink, purple or blue, its attacks get their own bigger impact effect and sound.',
+        details: [
+          'Pink Attack badge (500+): a heavy pink impact.',
+          'Purple Attack badge (2000+): a bigger purple impact.',
+          'Blue Attack badge (5000+): the biggest blue impact.',
+          'Crits, Execute, Cleave and Flurry still show their own effects.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-09-24',
+    label: 'Fight Recap',
+    changes: [
+      {
+        category: 'Systems',
+        text: 'The Summary after a fight is now a Fight Recap, with a new look to match the rest of the game.',
+        details: [
+          'The top shows the result, the round, who you fought and the damage both ways, split into Armor and Resolve.',
+          'The odds are now one line. A win you were not expected to get is marked Upset, and a loss you should have won is marked Heartbreaker.',
+          'Stars of the fight shows your minions that dealt the most damage, got the most kills and triggered the most.',
+          'What you keep shows your lasting gains as small cards, and only appears when there are some.',
+          'The Procs and Log views now live in a Details drawer, closed by default.',
+          'Watch replay plays the fight again from the start.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-09-24',
+    label: 'Ultrawide Fix',
+    changes: [
+      {
+        category: 'Systems',
+        text: 'The blue screen wipe between the shop and combat now covers ultrawide screens fully and no longer stalls partway.',
+        details: [
+          'The wipe grows to fit your screen, so 21:9 and 32:9 monitors are covered edge to edge before the scene changes.',
+          'The glowing ring now stays on the edge of the wipe all the way out, instead of stopping in the middle of wide screens.',
+          'The wipe still takes the same time as before.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-09-24',
+    label: 'Runeforge Entrance',
+    changes: [
+      {
+        category: 'Systems',
+        text: 'The Runeforge now opens with a short entrance. The rune tablets drop into place one by one and kick up dust as they land.',
+        details: [
+          'It waits until you are fully back from combat and the screen wipe has finished.',
+          'The forge starts in shadow with embers rising, then brightens as the tablets land from left to right.',
+          'Each tablet lands with a thud and a puff of dust, then a golden glow sweeps across it.',
+          'The Epic Runeforge has heavier tablets, more dust and a purple and gold flare.',
+          'Each tablet can be picked as soon as it lands. Click anywhere to skip the rest.',
+          'With reduced motion turned on, the forge simply fades in.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-09-24',
+    label: 'Casts From Hand',
+    changes: [
+      {
+        category: 'Balance',
+        text: 'Effects that make spells cast more times now only work on spells you cast from hand.',
+        details: [
+          'Covers Yazzus, Living Grimoire, Orivax, Nimbus, Cometius and its Comet, Edward Keg-hands and Constellation Prime.',
+          'Also covers Spell Thesis, Ancient Runes, Bottomless Cellar, The Endless Verse, and the Shared Pour, Bottomless Cask, Hoardflame and Dragon Breath runes.',
+          'A spell cast by a minion, a rune or an Equipment casts once. A Mage-Pup or a Pourman\'s Keg pour is no longer doubled.',
+          'Those casts no longer use up a Living Grimoire charge, Orivax\'s first spell, Spell Thesis or a Nimbus or Comet charge. Your next spell from hand gets it.',
+          'They still count as spells you cast, so Rune of Recurrence, Mushy and friends can still remember them.',
+          'Card texts now say "from hand".',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-09-24',
     label: 'Owner Rulings',
     changes: [
       {
@@ -87,6 +172,7 @@ export const PATCH_NOTES: PatchNote[] = [
         details: [
           'Plays after Start Game in the hero ceremony, for Play and Practice games.',
           'Gold lettering with sparks and a sweep of light, then a fade to the board. About two seconds.',
+          'It has sound now: a shimmer as the light sweeps across the words, and a soft sparkle as the sparks burst. Both fade out gently with a light echo, so neither stops short.',
           'Your first turn keeps its full time. The clock waits until the intro is gone.',
           'Press Esc or click anywhere to skip it.',
           'Not shown in the tutorial, the Scene Builder, replays, or when you continue a saved game.',

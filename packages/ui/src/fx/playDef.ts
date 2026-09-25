@@ -154,6 +154,12 @@ export interface PlayDefOptions extends FxScaleAxes {
    * `'above'` so any def renders in the above-modal canvas and shows over the browser window.
    */
   slot?: FxSlot;
+  /**
+   * A whole-play OPACITY multiplier (0..1) on the play's container: `1` (or omitted) is an exact no-op, `0.5`
+   * draws every layer at half strength. A single container `alpha` (multiplied into world alpha by Pixi, no
+   * filter, no extra pass), so it costs nothing per frame. Used by the Runeforge entrance's dust-opacity dial.
+   */
+  alpha?: number;
 }
 
 /**
@@ -571,6 +577,7 @@ function playDefInner(
     opts.follow ?? (stored.followSource ? () => liveSourcePoint(opts.uids?.source) : undefined);
 
   const container = new Container();
+  if (opts.alpha !== undefined && Number.isFinite(opts.alpha) && opts.alpha < 1) container.alpha = Math.max(0, opts.alpha);
   const unmountLayer = pixiFx.mountLayer(container, slot);
   const player = createPlayer(
     def,

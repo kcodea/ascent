@@ -1,4 +1,5 @@
 import type { TunerControl, TunerSpec, TunerUnit } from '../tunerSchema';
+import type { TailOpts } from '../audio/tailFade';
 
 /**
  * THE "GOOD LUCK" INTRO — its tunable numbers (owner ask 2026-09-24).
@@ -28,6 +29,20 @@ export interface GoodLuckIntroConfig {
   sparkCount: number;
   /** The words' size, in reference px (scales with the UI like every other size). */
   textSize: number;
+  /** The shine sound's level, on top of its mixer fader (0 = silent). */
+  shineSoundGain: number;
+  /** Nudge the shine sound against the sweep: negative plays it earlier, positive later. */
+  shineSoundOffsetMs: number;
+  /** The spark burst's sparkle sound level, on top of its mixer fader (0 = silent). */
+  sparkSoundGain: number;
+  /** The shine sound's fade over its last N ms, so it does not stop dead (owner 2026-09-24). 0 = no fade. */
+  shineFadeOutMs: number;
+  /** The sparkle's fade over its last N ms. Its clip is cut mid-ring, so this is what stops the hard end. */
+  sparkFadeOutMs: number;
+  /** A light reverb tail under both sounds, ringing on after they end (0 = dry). */
+  reverbMix: number;
+  /** How long that reverb tail rings, in seconds. */
+  reverbSec: number;
 }
 
 /** Shipped values. Total from the run being built: 250 + 500 + 900 + 500 = 2150 ms, plus the 280 ms
@@ -41,6 +56,13 @@ export const GLI_DEFAULTS: GoodLuckIntroConfig = {
   fadeOutMs: 500,
   sparkCount: 70,
   textSize: 112,
+  shineSoundGain: 1,
+  shineSoundOffsetMs: 0,
+  sparkSoundGain: 0.8,
+  shineFadeOutMs: 300,
+  sparkFadeOutMs: 350,
+  reverbMix: 0.2,
+  reverbSec: 0.7,
 };
 
 export const GLI_RANGES: Record<keyof GoodLuckIntroConfig, [number, number, number]> = {
@@ -52,6 +74,13 @@ export const GLI_RANGES: Record<keyof GoodLuckIntroConfig, [number, number, numb
   fadeOutMs: [100, 1500, 10],
   sparkCount: [0, 400, 1],
   textSize: [40, 220, 1],
+  shineSoundGain: [0, 2, 0.01],
+  shineSoundOffsetMs: [-400, 400, 10],
+  sparkSoundGain: [0, 2, 0.01],
+  shineFadeOutMs: [0, 1000, 10],
+  sparkFadeOutMs: [0, 900, 10],
+  reverbMix: [0, 0.6, 0.01],
+  reverbSec: [0.2, 2, 0.05],
 };
 
 const KEY = 'ascent.goodluckintro';
@@ -87,6 +116,10 @@ export interface GoodLuckTimeline {
   inAt: number;
   /** The shine starts sweeping. */
   shineAt: number;
+  /** The shine sound starts (the sweep's start plus the tuner's offset, never before the intro). */
+  shineSoundAt: number;
+  /** The sparks burst (a beat into the fade-in), and their sparkle sound with them. */
+  sparkAt: number;
   /** Everything starts fading out. */
   outAt: number;
   /** The intro is over: the overlay unmounts and the shop clock starts. */
@@ -103,7 +136,18 @@ export function goodLuckTimeline(c: GoodLuckIntroConfig, reduced: boolean): Good
   const hold = reduced ? Math.min(c.holdMs, 600) : c.holdMs;
   const outAt = shineAt + Math.max(0, hold);
   const endAt = outAt + Math.max(0, c.fadeOutMs);
-  return { inAt, shineAt, outAt, endAt };
+  const shineSoundAt = Math.max(0, shineAt + (c.shineSoundOffsetMs || 0));
+  const sparkAt = inAt + Math.round(Math.max(0, c.fadeInMs) * 0.2);
+  return { inAt, shineAt, shineSoundAt, sparkAt, outAt, endAt };
+}
+
+/** One sound's tail dials (its own fade, the shared reverb), as `sfx.goodLuckShine` / `goodLuckSpark` take them. */
+export function goodLuckTail(c: GoodLuckIntroConfig, which: 'shine' | 'spark'): TailOpts {
+  return {
+    fadeOutMs: which === 'shine' ? c.shineFadeOutMs : c.sparkFadeOutMs,
+    reverbMix: c.reverbMix,
+    reverbSec: c.reverbSec,
+  };
 }
 
 /** [label, unit, hint, group]. Declaration order is render order. */
@@ -116,6 +160,13 @@ const SPECS: Record<keyof GoodLuckIntroConfig, [string, TunerUnit | undefined, s
   shineMs: ['Shine', 'ms', 'The light sweeping across the words, left to right. Starts as the fade-in ends.', 'Timing'],
   holdMs: ['Hold', 'ms', 'How long the words stay up after the fade-in, before everything fades.', 'Timing'],
   fadeOutMs: ['Fade out', 'ms', 'The words and the dim fading to the live board. The shop clock starts when this ends.', 'Timing'],
+  shineSoundGain: ['Shine sound', '×', 'How loud the shine sound is, on top of its mixer fader. 0 = silent.', 'Sound'],
+  shineSoundOffsetMs: ['Shine sound offset', 'ms', 'Moves the shine sound against the sweep. Below 0 plays it earlier, above 0 later.', 'Sound'],
+  sparkSoundGain: ['Spark sound', '×', 'How loud the sparkle is as the sparks burst, on top of its mixer fader. 0 = silent.', 'Sound'],
+  shineFadeOutMs: ['Shine fade-out', 'ms', 'The shine sound fades over its last this-many ms instead of stopping dead. 0 = no fade.', 'Sound'],
+  sparkFadeOutMs: ['Spark fade-out', 'ms', 'The sparkle fades over its last this-many ms instead of stopping dead. 0 = no fade.', 'Sound'],
+  reverbMix: ['Reverb mix', undefined, 'A light reverb tail under both sounds that rings on after they end. 0 = none.', 'Sound'],
+  reverbSec: ['Reverb length', 's', 'How long the reverb tail rings after the sound ends.', 'Sound'],
 };
 
 const controls: TunerControl<Extract<keyof GoodLuckIntroConfig, string>>[] =

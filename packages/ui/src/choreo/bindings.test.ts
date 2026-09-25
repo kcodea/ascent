@@ -14,6 +14,7 @@ import {
   unbindJson,
   HUD_BINDING_KINDS,
   STAT_MILESTONE_BINDING_KINDS,
+  ATTACK_HIT_MILESTONE_BINDING_KINDS,
   WATCHER_BINDING_KINDS,
   COMBAT_MECHANIC_BINDING_KINDS,
 } from './bindings';
@@ -276,10 +277,18 @@ const SFX_BINDINGS: Record<string, { def: string; sfx: string }> = {
   statMilestone5: { def: 'rune-select-implosion', sfx: 'runeSelectImplosion' },
 };
 
+/** Melee hits by the attacker's Attack badge tier — pink / purple / blue (owner 2026-09-24). Each def carries its
+ *  own sound layers, so the bindings name no `sfx`. */
+const MILESTONE_HIT_BINDINGS: Record<string, { def: string }> = {
+  attackHitMilestone4: { def: 'strike-impact-pink' },
+  attackHitMilestone5: { def: 'strike-impact-purple' },
+  attackHitMilestone6: { def: 'strike-impact-blue' },
+};
+
 describe('the bound kinds', () => {
   it('binds exactly the intended kind → def pairs, and nothing else', () => {
     const expected: Record<string, { def: string; fanOut?: string; sfx?: string }> =
-      { ...BINDINGS, ...FANOUT_BINDINGS, ...SFX_BINDINGS };
+      { ...BINDINGS, ...FANOUT_BINDINGS, ...SFX_BINDINGS, ...MILESTONE_HIT_BINDINGS };
     expect(effectiveTables().kinds).toEqual(expected);
   });
 
@@ -349,7 +358,7 @@ describe('binding integrity', () => {
     // design (see `HudBindingKind` / `StatMilestoneBindingKind`).
     const kinds = new Set<string>([
       ...Object.keys(SCORE_DEFAULTS), ...RECRUIT_MOMENT_KINDS, ...HUD_BINDING_KINDS, ...STAT_MILESTONE_BINDING_KINDS,
-      ...WATCHER_BINDING_KINDS, ...COMBAT_MECHANIC_BINDING_KINDS,
+      ...ATTACK_HIT_MILESTONE_BINDING_KINDS, ...WATCHER_BINDING_KINDS, ...COMBAT_MECHANIC_BINDING_KINDS,
     ]);
     const t = effectiveTables();
     const bad: string[] = [];

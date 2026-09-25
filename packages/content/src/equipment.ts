@@ -427,8 +427,8 @@ export const REVELMAKER: EquipmentDefinition = {
 export const COMET: EquipmentDefinition = {
   id: 'comet',
   name: 'Comet',
-  text: 'Your next spell casts **2** additional times.',
-  goldenText: 'Your next spell casts **4** additional times.',
+  text: 'Your next spell cast from hand casts **2** additional times.',
+  goldenText: 'Your next spell cast from hand casts **4** additional times.',
   baseCost: 3,
   targetMode: 'none',
   effectId: 'equipmentExtraNextSpellCasts',

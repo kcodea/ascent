@@ -12,7 +12,8 @@
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { CARD_INDEX, RUNE_INDEX } from '@game/content';
-import { ALE_IDS, type CardDef, type CombatEvent, type MinionSnapshot, type Tribe } from '@game/core';
+import { ALE_IDS, TRIBES, type CardDef, type CombatEvent, type MinionSnapshot, type Tribe } from '@game/core';
+import { HEROES, type SurgeTribe } from '@game/sim';
 import {
   __setAnnouncerDepsForTests, ANNOUNCER_BACK_TO_SHOP_DELAY_MS, ANNOUNCER_BIG_STAT, ANNOUNCER_COMBAT_SILENCE_MS, ANNOUNCER_COOLDOWN_MS,
   ANNOUNCER_END_DELAY_MS, ANNOUNCER_EQUIPMENT_DELAY_MS, ANNOUNCER_FACE_OMEN_DELAY_MS, ANNOUNCER_GAME_START_DELAY_MS,
@@ -21,6 +22,8 @@ import {
   announcerExhausted, ANNOUNCER_CHANCE, ANNOUNCER_NAMED_BUYS, ANNOUNCER_RANDOM_BUY_GAP_WAVES, ANNOUNCER_RANDOM_BUY_MAX, observeTurnClock, previewAnnouncerEvent,
   CATALOG_BATCH_1_EVENTS, CATALOG_BATCH_2_EVENTS, CATALOG_BATCH_3_EVENTS, observeCombatMoments, type CombatReplayView, isMixedBoard, isTribeFullBoard, RANDOM_BUY_EVENTS, SPECIALTY_EVENTS, type AnnouncerDeps, setAnnouncerVolume, syncAnnouncer, toggleAnnouncerMute, type AnnouncerEvent, type AnnouncerRunLike,
   ANNOUNCER_BATCH_3_CARDS, ANNOUNCER_BATCH_3_RUNES, type AnnouncerActionLike, type AnnouncerFoe,
+  CATALOG_BATCH_4_EVENTS, HERO_PICK_TAKES, OPPONENT_HERO_TAKES, TRIBE_SURGE_TAKES, TRIBE_TAKEOVER_TAKES,
+  ANNOUNCER_TRIBE_SURGE_WAVE, ANNOUNCER_TRIBE_TAKEOVER, boardTribeCounts, foeHeroId, keyedTakes, type KeyedTakes,
   type AnnouncerStateLike,
 } from './announcer';
 import { announcedFor, emptyAnnounced, withAnnounced, type AnnouncedSlice } from './announcerSlice';
@@ -120,7 +123,7 @@ beforeEach(() => {
   __setAnnouncerDepsForTests(stubDeps());
   // The suites written before the moment catalog's first batch pin exact line sequences; they keep testing what they
   // were written for with that batch muted (its own suite below turns it back on).
-  for (const e of [...CATALOG_BATCH_1_EVENTS, ...CATALOG_BATCH_2_EVENTS]) setAnnouncerTunerValue(`${e}Chance`, 0);
+  for (const e of [...CATALOG_BATCH_1_EVENTS, ...CATALOG_BATCH_2_EVENTS, ...CATALOG_BATCH_4_EVENTS]) setAnnouncerTunerValue(`${e}Chance`, 0);
   // …and the third batch (owner 2026-09-25, group C), likewise (its own suite at the end turns it back on).
   for (const e of CATALOG_BATCH_3_EVENTS) setAnnouncerTunerValue(`${e}Chance`, 0);
 });
@@ -1084,10 +1087,16 @@ describe('the third batch (owner 2026-09-25): new takes, TimeRunningOut, the no-
   it('the table is append-only (the new events at the end) and the priorities are the owner\'s', () => {
     const keys = Object.keys(ANNOUNCER_LINES);
     expect(keys.slice(keys.indexOf('timeRunningOut'), keys.indexOf('timeRunningOut') + 4)).toEqual(['timeRunningOut', 'buyDrakko', 'buySylus', 'castAle']);
-    const b1 = keys.indexOf(CATALOG_BATCH_1_EVENTS[0]!);
-    expect(keys.slice(b1, b1 + CATALOG_BATCH_1_EVENTS.length)).toEqual([...CATALOG_BATCH_1_EVENTS]);
-    const b2 = keys.indexOf(CATALOG_BATCH_2_EVENTS[0]!);
-    expect(keys.slice(b2, b2 + CATALOG_BATCH_2_EVENTS.length)).toEqual([...CATALOG_BATCH_2_EVENTS]);
+    // Each catalog batch is one contiguous block, appended in order: batch 1 right after the specialty lines.
+    const at = keys.indexOf('castAle') + 1;
+    expect(keys.slice(at, at + CATALOG_BATCH_1_EVENTS.length)).toEqual([...CATALOG_BATCH_1_EVENTS]);
+    let prevEnd = at + CATALOG_BATCH_1_EVENTS.length;
+    for (const batch of [CATALOG_BATCH_2_EVENTS, CATALOG_BATCH_3_EVENTS, CATALOG_BATCH_4_EVENTS]) {
+      const start = keys.indexOf(batch[0]!);
+      expect(start).toBeGreaterThanOrEqual(prevEnd);
+      expect(keys.slice(start, start + batch.length)).toEqual([...batch]);
+      prevEnd = start + batch.length;
+    }
     expect(ANNOUNCER_PRIORITY).toMatchObject({ timeRunningOut: 5, buyDrakko: 36, buySylus: 36, castAle: 16 });
     expect(Math.min(...Object.values(ANNOUNCER_PRIORITY))).toBe(5);
     expect(ANNOUNCER_TIME_WARNING_SECONDS).toBe(15);
@@ -2222,6 +2231,169 @@ describe('the moment catalog\'s third batch (owner 2026-09-25, group C): new tal
       observeCombatBoard([1, 2, 3].map(() => ({ attack: 1, health: 1, cardId: ANNOUNCER_BATCH_3_CARDS.golem })), r2.wave);
       await tick(ANNOUNCER_COMBAT_SILENCE_MS + 20);
       expect(events()).toContain('gemheart-golem');
+    });
+  });
+});
+
+describe('the moment catalog\'s group D (owner 2026-09-25): per-hero / per-tribe moments on KEYED takes', () => {
+  beforeEach(() => { resetAnnouncerTunerConfig(); }); // un-mute the batch (the suite-wide beforeEach mutes it)
+  const first = async (ms = 20): Promise<string | undefined> => { await tick(ms); return events()[0]; };
+  const fresh = (): void => { __setAnnouncerDepsForTests(stubDeps()); plays = []; cur = null; announced = emptyAnnounced(SEED); };
+  /** A lobby the round's pairing can read: seat 0 (the player) and the given foes, all standing. */
+  const lobbyWith = (foes: string[], round = 5): AnnouncerRunLike['lobby'] => ({
+    seed: 7, round, encounters: [], finished: false,
+    seats: [{ id: 's0', heroId: 'warden' }, ...foes.map((heroId, i) => ({ id: `s${i + 1}`, heroId }))]
+      .map((x) => ({ ...x, alive: true, resolve: 30, armor: 0 })),
+  }) as unknown as AnnouncerRunLike['lobby'];
+  const tribeBoard = (tribe: Tribe, n: number): AnnouncerRunLike['board'] => Array.from({ length: n }, () => m(plainMinion(tribe)!.id));
+
+  it('every group D event has a priority, a tuner row, chance 1, and every keyed take is a real hero / tribe', () => {
+    for (const e of CATALOG_BATCH_4_EVENTS) {
+      expect(ANNOUNCER_LINES[e].length).toBeGreaterThan(0);
+      expect(ANNOUNCER_PRIORITY[e]).toBeGreaterThan(0);
+      expect(ANNOUNCER_TUNER_EVENTS).toContain(e);
+      expect(ANNOUNCER_CHANCE[e as (typeof ANNOUNCER_TUNER_EVENTS)[number]]).toBe(1);
+    }
+    const heroIds = new Set(HEROES.map((h) => h.id));
+    for (const k of [...Object.keys(HERO_PICK_TAKES.byKey), ...Object.keys(OPPONENT_HERO_TAKES.byKey)]) expect(heroIds.has(k), k).toBe(true);
+    for (const k of [...Object.keys(TRIBE_TAKEOVER_TAKES.byKey), ...Object.keys(TRIBE_SURGE_TAKES.byKey)]) expect(TRIBES).toContain(k);
+    // The ANNOUNCER_LINES row IS the keyed map (each key's takes, then the generic ones).
+    expect(ANNOUNCER_LINES.heroPick).toEqual(['hero-pick-1']);
+    expect(ANNOUNCER_LINES.opponentHero).toEqual(['opponent-hero-1']);
+    expect(ANNOUNCER_LINES.tribeTakeover).toEqual(['tribe-takeover-1']);
+    expect(ANNOUNCER_LINES.tribeSurge).toEqual(['tribe-surge-1']);
+    // Priorities: each beside its nearest live moment, none over a line it could silence in the common case.
+    expect(ANNOUNCER_PRIORITY.heroPick).toBe(ANNOUNCER_PRIORITY.gameStart + 1);
+    expect(ANNOUNCER_PRIORITY.rankUp).toBeLessThan(ANNOUNCER_PRIORITY.gameWon);
+    expect(ANNOUNCER_PRIORITY.opponentHero).toBeLessThan(ANNOUNCER_PRIORITY.enteringCombatAfterLoss);
+    expect(ANNOUNCER_PRIORITY.tribeTakeover).toBeLessThan(ANNOUNCER_PRIORITY.triple);
+  });
+  it('keyedTakes: a key\'s own takes, else the generic ones, else none', () => {
+    const t: KeyedTakes<string> = { byKey: { a: ['a-1'] }, generic: ['g-1'] };
+    const none: KeyedTakes<string> = { byKey: { a: ['a-1'] }, generic: [] };
+    expect(keyedTakes(t, 'a')).toEqual(['a-1']);
+    expect(keyedTakes(t, 'b')).toEqual(['g-1']);
+    expect(keyedTakes(none, 'b')).toEqual([]);
+    expect(keyedTakes(t, null)).toEqual(['g-1']);
+  });
+
+  it('HeroPick: a hero with its own line speaks it as the run lands, in place of GameStart; any other hero hears GameStart', async () => {
+    go(run({ wave: 1, heroId: 'brackus' }));
+    await tick(ANNOUNCER_GAME_START_DELAY_MS + 20);
+    expect(files()).toEqual(['hero-pick-1']);
+    expect(dropped('gameStart')).toBe(true);
+    fresh();
+    go(run({ wave: 1, heroId: 'warden' }));
+    await tick(ANNOUNCER_GAME_START_DELAY_MS + 20);
+    expect(events()).toEqual(['game-start']);
+    fresh();
+    go(run({ wave: 4, heroId: 'brackus' })); // a restored game past the pick: no pick line
+    await tick(ANNOUNCER_GAME_START_DELAY_MS + 20);
+    expect(plays).toEqual([]);
+  });
+
+  describe('TribeTakeover', () => {
+    it('speaks when a tribe with a take reaches 5 on the board, once', async () => {
+      const r = openShop({ board: tribeBoard('kobold', ANNOUNCER_TRIBE_TAKEOVER - 1) });
+      const r5 = go({ ...r, board: tribeBoard('kobold', ANNOUNCER_TRIBE_TAKEOVER) });
+      expect(await first()).toBe('tribe-takeover');
+      await tick(ANNOUNCER_COOLDOWN_MS + 2000);
+      plays = [];
+      const r4 = go({ ...r5, board: tribeBoard('kobold', ANNOUNCER_TRIBE_TAKEOVER - 1) });
+      go({ ...r4, board: tribeBoard('kobold', ANNOUNCER_TRIBE_TAKEOVER) });
+      await tick(20);
+      expect(plays).toEqual([]);
+    });
+    it('a tribe without a take of its own stays silent (no generic take yet)', async () => {
+      const r = openShop({ board: tribeBoard('beast', 4) });
+      go({ ...r, board: tribeBoard('beast', 5) });
+      await tick(20);
+      expect(plays).toEqual([]);
+    });
+    it('counts a dual-tribe minion for both tribes and an All-tribe minion for every tribe', () => {
+      const all = Object.values(CARD_INDEX).find((d) => d.universalTribe && !d.spell && !d.token);
+      const board = [...tribeBoard('kobold', 3), ...(all ? [m(all.id)] : []), m(DUAL.id)];
+      const counts = boardTribeCounts(run({ board }));
+      expect(counts.get(DUAL.tribe)).toBeGreaterThanOrEqual(1);
+      expect(counts.get(DUAL.tribe2!)).toBeGreaterThanOrEqual(1);
+      if (all) expect(counts.get('kobold')).toBe(3 + 1 + (DUAL.tribe === 'kobold' || DUAL.tribe2 === 'kobold' ? 1 : 0));
+    });
+  });
+
+  describe('OpponentHero', () => {
+    it('reads the foe from the round\'s pairing, and is null for no lobby or a lobby it cannot pair', () => {
+      expect(foeHeroId(run({ lobby: lobbyWith(['midas']) }))).toBe('midas');
+      expect(foeHeroId(run({ lobby: undefined }))).toBeNull();
+      expect(foeHeroId(run({ lobby: { seats: seats(8) } }))).toBeNull();
+    });
+    it('speaks at the Face Omen against a hero with a take; silent against the rest', async () => {
+      go({ ...openShop({ lobby: lobbyWith(['midas', 'midas', 'midas']) }), phase: 'combat' });
+      await tick(ANNOUNCER_FACE_OMEN_DELAY_MS - 50);
+      expect(plays).toEqual([]);
+      expect(await first(100)).toBe('opponent-hero');
+      fresh();
+      go({ ...openShop({ lobby: lobbyWith(['drakko', 'drakko', 'drakko']) }), phase: 'combat' });
+      await tick(ANNOUNCER_FACE_OMEN_DELAY_MS + 100);
+      expect(plays).toEqual([]);
+    });
+    it('outranks the generic EnteringCombat, never a Face Omen warning', async () => {
+      go({ ...openShop({ wave: 2, lobby: lobbyWith(['midas', 'midas', 'midas']) }), phase: 'combat' });
+      expect(await first(ANNOUNCER_FACE_OMEN_DELAY_MS + 20)).toBe('opponent-hero');
+      expect(dropped('enteringCombat')).toBe(true);
+      fresh();
+      go({ ...openShop({ resolve: 5, lobby: lobbyWith(['midas', 'midas', 'midas']) }), phase: 'combat' });
+      expect(await first(ANNOUNCER_FACE_OMEN_DELAY_MS + 20)).toBe('start-combat-under-10hp');
+    });
+  });
+
+  describe('TribeSurge', () => {
+    const surgeRun = (tribeSurge: SurgeTribe | null): AnnouncerRunLike => openShop({ wave: 1, practiceConfig: { tribeSurge } });
+    it('a Practice surge with a take speaks on the first return to the Shop, over BackToShop', async () => {
+      const r = await fight(surgeRun('dragon'), 'win');
+      await tick(ANNOUNCER_COOLDOWN_MS);
+      plays = [];
+      backToShop(r);
+      expect(r.wave + 1).toBe(ANNOUNCER_TRIBE_SURGE_WAVE);
+      expect(await first(ANNOUNCER_BACK_TO_SHOP_DELAY_MS + 20)).toBe('tribe-surge');
+      expect(dropped('backToShop')).toBe(true);
+    });
+    it('no surge, or a surge without a take: BackToShop as before', async () => {
+      for (const surge of [null, 'beast'] as const) {
+        fresh();
+        const r = await fight(surgeRun(surge), 'win');
+        await tick(ANNOUNCER_COOLDOWN_MS);
+        plays = [];
+        backToShop(r);
+        expect(await first(ANNOUNCER_BACK_TO_SHOP_DELAY_MS + 20)).toBe('back-to-shop');
+      }
+    });
+  });
+
+  describe('RankUp', () => {
+    const promoted = (yes: boolean) => ({ rankResult: { runId: 'r1', promoted: yes } });
+    it('a promotion speaks on the rank screen AFTER the end line, straight on (not after the cooldown)', async () => {
+      const r = openShop();
+      const over = go({ ...r, phase: 'victory', lobby: { seats: seats(1, 1) } });
+      await tick(200);
+      go(over, promoted(true)); // the server's answer lands before the end line has spoken
+      await tick(ANNOUNCER_END_DELAY_MS);
+      expect(files()).toEqual(['game-won']);
+      await tick(LINE_MS + 20);
+      expect(files()).toEqual(['game-won', 'rank-up-1']);
+      expect(plays[1]!.t - plays[0]!.t).toBeLessThan(ANNOUNCER_COOLDOWN_MS);
+    });
+    it('no promotion (or no rated result): no line', async () => {
+      const r = openShop();
+      const over = go({ ...r, phase: 'gameover', lobby: { seats: seats(1, 5) } });
+      go(over, promoted(false));
+      await tick(ANNOUNCER_END_DELAY_MS + LINE_MS + ANNOUNCER_COOLDOWN_MS);
+      expect(events()).toEqual(['game-loss']);
+    });
+    it('never while the run is still going', async () => {
+      const r = openShop();
+      go({ ...r, board: [] }, promoted(true));
+      await tick(ANNOUNCER_COOLDOWN_MS);
+      expect(plays).toEqual([]);
     });
   });
 });

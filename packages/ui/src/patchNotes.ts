@@ -76,6 +76,24 @@ export const PATCH_NOTES: PatchNote[] = [
   },
   {
     date: '2026-09-25',
+    label: 'Announcer: Heroes and Tribes',
+    changes: [
+      {
+        category: 'Systems',
+        text: 'The announcer now calls out some heroes and tribes by name, and cheers when you rank up.',
+        details: [
+          'Picking Brackus gets its own opening line.',
+          'Facing Midas gets a line as the fight begins.',
+          'Five or more Kobolds on your board gets a line.',
+          'A Practice game with a Dragon surge mentions it when you return to the Shop after your first fight.',
+          'A medal rank promotion gets a line on the rank screen, right after the end-of-game line.',
+          'More heroes and tribes will get their own lines as they are recorded.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-09-25',
     label: 'More Announcer Moments',
     changes: [
       {

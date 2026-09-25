@@ -46,6 +46,8 @@ export const ANNOUNCER_TUNER_EVENTS = [
   'starformCollapse', 'floRida', 'goldilox', 'gemheartGolem', 'idle', 'timeUp', 'fastTurn',
   'ghostFight', 'mirrorMatch', 'outgunned', 'rematch', 'streakStopper',
   // ── end of the third batch ──
+  // The moment catalog's group D (owner 2026-09-25): the per-hero / per-tribe moments.
+  'heroPick', 'tribeTakeover', 'opponentHero', 'tribeSurge', 'rankUp',
 ] as const satisfies readonly AnnouncerEvent[];
 
 type VolKey = `${AnnouncerEvent}Vol`;
@@ -180,6 +182,12 @@ const EVENT_LABEL: Record<AnnouncerEvent, string> = {
   outgunned: 'Foe\'s tier 2+ above yours (1600 ms)',
   rematch: 'Facing whoever hit you hardest (1600 ms)',
   streakStopper: 'Beat a foe on a 3+ win streak (verdict)',
+  // The moment catalog's group D (owner 2026-09-25): only heroes / tribes with a recorded take speak.
+  heroPick: 'Hero picked, per hero (with Game start, replaces it)',
+  tribeTakeover: '5+ of one tribe on the board, per tribe (0 ms)',
+  opponentHero: 'Facing a hero, per hero (1600 ms)',
+  tribeSurge: 'Practice tribe surge, per tribe (1000 ms after the round-2 return)',
+  rankUp: 'Rank up on the rank screen (after the end line)',
 };
 
 /**

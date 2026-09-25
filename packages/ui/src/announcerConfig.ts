@@ -48,6 +48,7 @@ export const ANNOUNCER_TUNER_EVENTS = [
   // ── end of the third batch ──
   // The moment catalog's group D (owner 2026-09-25): the per-hero / per-tribe moments.
   'heroPick', 'tribeTakeover', 'opponentHero', 'tribeSurge', 'rankUp',
+  'grimPayout', 'hanGover', 'kurseGolem', 'wolvieRise',
 ] as const satisfies readonly AnnouncerEvent[];
 
 type VolKey = `${AnnouncerEvent}Vol`;
@@ -188,6 +189,10 @@ const EVENT_LABEL: Record<AnnouncerEvent, string> = {
   opponentHero: 'Facing a hero, per hero (1600 ms)',
   tribeSurge: 'Practice tribe surge, per tribe (1000 ms after the round-2 return)',
   rankUp: 'Rank up on the rank screen (after the end line)',
+  grimPayout: 'Grim pays out with 6+ Echoes counted (as shown, 3 s in)',
+  hanGover: 'Han Gover Pummel pays out (as shown, 3 s in)',
+  kurseGolem: 'Kurse summons a Golem (as shown, 3 s in)',
+  wolvieRise: 'A Beast Wolvie gave Rise Rises (as shown, 3 s in)',
 };
 
 /**

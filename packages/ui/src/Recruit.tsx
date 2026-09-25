@@ -115,6 +115,7 @@ import { getShopDeathFxConfig } from './shopDeathFxConfig';
 import { getEquipFxConfig } from './equipFxConfig';
 import { anchorsForUnits } from './fx/combatAnchors';
 import { rubyLandHolds, RUBY_BEAT_MS, RUBY_GAP_MS, DARK_RUBY_CONSUME_DELAY_MS } from './choreo/channels/rubyLanded';
+import { chooseOneHeldSlot } from './chooseOneHold';
 import { captureRecruitSeqs, chooseOneMoment, endOfTurnMoment, minionPlayedMoment, recruitMomentsSince, recruitSeqsOf, selfBuffMoment, shieldGainMoment, shoutMoment, spellCastMoment } from './choreo/recruitMoments';
 import { runRecruitMomentCues } from './choreo/recruitCues';
 import { bindingFor, castFxReplacesTendril } from './choreo/bindings';
@@ -1762,9 +1763,10 @@ export function Recruit() {
    * iterates (`handViews.get(m.uid)!`), so dropping the entry while the row still walked `run.hand` crashed
    * Card on `undefined.attack` (caught live, 2026-09-01). The view map stays complete; only the row skips it.
    */
-  const chooseOnePreviewUid = run.chooseOne && !run.chooseOne.spell && !run.chooseOne.equipmentId
-    ? run.chooseOne.uid
-    : undefined;
+  // Held through BOTH open steps of the play — the prompt AND a targeted branch's aim (owner bug 2026-09-25);
+  // see `chooseOneHeldSlot`. Memoized on the two fields so the board splice below keeps a stable identity.
+  const chooseOneHeld = useMemo(() => chooseOneHeldSlot({ chooseOne: run.chooseOne, pendingTarget: run.pendingTarget }), [run.chooseOne, run.pendingTarget]);
+  const chooseOnePreviewUid = chooseOneHeld?.uid;
   const handShown = chooseOnePreviewUid
     ? run.hand.filter((c) => c.uid !== chooseOnePreviewUid)
     : run.hand;
@@ -3499,7 +3501,7 @@ export function Recruit() {
    */
   const coalesceRef = useRef<ReturnType<typeof Flip.getState> | null>(null);
   const captureCoalesce = useCallback((): void => {
-    const uid = useGame.getState().run.chooseOne?.uid;
+    const uid = chooseOneHeldSlot(useGame.getState().run)?.uid;
     if (!uid) return;
     const el = document.querySelector<HTMLElement>(`.row.board .card[data-uid="${CSS.escape(uid)}"]`)
       ?? document.querySelector<HTMLElement>(`.card[data-uid="${CSS.escape(uid)}"]`);
@@ -3507,18 +3509,18 @@ export function Recruit() {
   }, []);
   useLayoutEffect(() => {
     const st = coalesceRef.current;
-    if (!st || run.chooseOne) return;   // still open — the capture is for the frame it CLOSES
+    if (!st || chooseOneHeld) return;   // still open — the capture is for the frame it CLOSES
     coalesceRef.current = null;
     Flip.from(st, { duration: getFlipConfig().commitMs / 1000, ease: 'power2.out', absolute: true });
-  }, [run.chooseOne]);
+  }, [chooseOneHeld]);
 
   const chooseOnePreview = useMemo<{ card: BoardCard; at: number } | null>(() => {
-    const co = run.chooseOne;
-    if (!co || co.spell || co.equipmentId) return null;      // a spell takes no slot; an Equipment has no card
-    const card = run.hand.find((c) => c.uid === co.uid);
+    const held = chooseOneHeld;                              // a spell takes no slot; an Equipment has no card
+    if (!held) return null;
+    const card = run.hand.find((c) => c.uid === held.uid);
     if (!card) return null;
-    return { card, at: Math.max(0, Math.min(co.toIndex ?? run.board.length, run.board.length)) };
-  }, [run.chooseOne, run.hand, run.board.length]);
+    return { card, at: Math.max(0, Math.min(held.toIndex ?? run.board.length, run.board.length)) };
+  }, [chooseOneHeld, run.hand, run.board.length]);
 
   const displayBoard = useMemo<BoardCard[]>(() => {
     if (chooseOnePreview) {
@@ -4356,7 +4358,7 @@ export function Recruit() {
       // CLICK AWAY = CANCEL, but only for a DEFERRED Choose One aim (owner ruling 2026-08-28): nothing has
       // been played, so the card simply returns to hand untouched. An ordinary battlecry aim still ignores the
       // click and keeps aiming — its body is already on the board, so there is nothing clean to back out to.
-      if (pendingTarget.deferredPlay) dispatch({ type: 'cancelChoice' });
+      if (pendingTarget.deferredPlay) { captureCoalesce(); dispatch({ type: 'cancelChoice' }); }
     });
     window.addEventListener('pointermove', move);
     window.addEventListener('pointerdown', pick);
@@ -4365,7 +4367,7 @@ export function Recruit() {
       window.removeEventListener('pointermove', move);
       window.removeEventListener('pointerdown', pick);
     };
-  }, [pendingTarget, timeUp, dispatch, inCombat, run.board]);
+  }, [pendingTarget, timeUp, dispatch, inCombat, run.board, captureCoalesce]);
 
   // Reset the round clock at the start of each recruit wave, and whenever the hero picker opens or
   // closes (so wave 1 always begins at full time the moment a hero is chosen — even on a fresh run

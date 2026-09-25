@@ -52,6 +52,20 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-09-25',
+    label: 'Choose One Fix',
+    changes: [
+      {
+        category: 'Systems',
+        text: 'A Choose One minion now stays in its board slot while you pick a target. It only goes back to your hand if you cancel.',
+        details: [
+          'After picking an option that needs a target, the minion keeps its spot on the board and the aim line starts from it.',
+          'Click away at either step to cancel. The card glides back to your hand with nothing spent.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-09-25',
     label: 'Discover Entrance',
     changes: [
       {

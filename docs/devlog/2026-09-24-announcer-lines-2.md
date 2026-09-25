@@ -62,7 +62,7 @@ run seed. New this batch in **bold**.
 | Equipment | an Equipment acquired | 25 | shop, 400 ms | once | equipment-1, -2 |
 | **BigSpender** | 20+ Gold spent this turn with 10+ still held | 24 | shop, 0 | once | big-spender |
 | **RichTurn** | return to the shop holding 20+ Gold | 22 | shop, 1 s | once | rich-turn |
-| EnteringCombat | the first Face Omen (eligible through wave 3) | 20 | combat, 1.6 s | once | entering-combat-1, -2 |
+| EnteringCombat | the first Face Omen (eligible through wave 3) | 20 | combat, 1.6 s | once | entering-combat-1, -2 (-3 to -7 added 2026-09-25) |
 | **Pair** | your first pair: 2 copies of one non-golden minion across board and hand | 18 | shop, 0 | once | pair-1, -2 |
 | GameStart | wave 1's first shop | 15 | shop, 4 s | once | game-start-1, -2 |
 | **Round7** | wave 7's Shop opens, on a seeded 10% roll | 14 | shop, 1 s | once | round-7 |
@@ -71,6 +71,7 @@ run seed. New this batch in **bold**.
 | **RandomBeastBuy** | a Beast buy, on a seeded 10% roll | 12 | shop, 0 | once | random-beast-buy |
 | **RandomDwarfBuy** | a Dwarf buy, on a seeded 10% roll | 12 | shop, 0 | once | random-dwarf-buy |
 | BackToShop | return from combat, first at wave 2+ | 10 | shop, 1 s | twice, 5+ waves apart | back-to-shop-1, -2, -3 |
+| TimeRunningOut *(added 2026-09-25, see [2026-09-25-announcer-lines-3.md](2026-09-25-announcer-lines-3.md))* | the Shop clock (a real timer) ticks down to 10 s, the first time per game | 5 | shop, 0, bypasses the cooldown, waits out a playing line, dropped at 0 s | once (tried once) | time-running-out-1 to -21 |
 
 Source file map for the new clips: `Knockout1-4` -> `knockout-1..4`, `Dealing15ormoretohero` -> `big-hit`,
 `WinAfterLoseStreak` -> `comeback-win`, `WinWithNoMinionDeaths` -> `flawless-victory`, `3WinStreak` ->

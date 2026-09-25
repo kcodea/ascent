@@ -44,7 +44,9 @@ export type AnnouncerEvent =
   | 'randomCardBuy'
   | 'randomBeastBuy'
   | 'randomDwarfBuy'
-  | 'round7';
+  | 'round7'
+  // The shop-clock warning (owner 2026-09-25).
+  | 'timeRunningOut';
 
 export interface AnnouncedSlice {
   seed: number;

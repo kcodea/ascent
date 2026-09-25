@@ -34,7 +34,7 @@
  *
  * AUDIO: its OWN channel — a third gain on the SFX AudioContext (like the music's), with its own volume + mute
  * (`ascent.announcervol.v2`, `ascent.announcermuted`; the slider defaults to 50, which plays gain 0.7), NOT ducked by the Game-sounds mute or slider.
- * The 54 clips are PUBLIC files (`apps/web/public/announcer/`), fetched + decoded LAZILY on first need into a
+ * The clips are PUBLIC files (`apps/web/public/announcer/`), fetched + decoded LAZILY on first need into a
  * cached buffer (never the eager `import.meta.glob` bank in sfx.ts). Without Web Audio an HTMLAudioElement per
  * line carries the level. Lines never overlap each other.
  */
@@ -113,6 +113,8 @@ export const ANNOUNCER_TRIBE_BUYS = 4;
 export const ANNOUNCER_RARE_CHANCE = 0.1;
 /** Round7: the wave whose Shop may (rarely) say it. */
 export const ANNOUNCER_ROUND_SEVEN = 7;
+/** TimeRunningOut: the Shop clock's seconds left that trigger it (the first time per game the clock ticks down to it). */
+export const ANNOUNCER_TIME_WARNING_SECONDS = 10;
 /** EnteringCombat is "the first Face Omen": if the first one is dropped it may still speak up to this wave. */
 export const ANNOUNCER_ENTERING_COMBAT_MAX_WAVE = 3;
 /** The Announcer slider's storage key. `.v2` since the default-mix curve (owner 2026-09-24): the stored value is a
@@ -131,7 +133,8 @@ export const ANNOUNCER_LINES: Record<AnnouncerEvent, readonly string[]> = {
   tierSix: ['tier-six-1', 'tier-six-2'],
   runeforge: ['runeforge-1', 'runeforge-2'],
   epicRuneforge: ['epic-runeforge-1', 'epic-runeforge-2'],
-  enteringCombat: ['entering-combat-1', 'entering-combat-2'],
+  // 7 takes (owner 2026-09-25: five ElevenLabs takes from the Entering Combat folder joined the first two).
+  enteringCombat: Array.from({ length: 7 }, (_, i) => `entering-combat-${i + 1}`),
   enteringCombatAfterLoss: ['entering-combat-after-loss'],
   startCombatUnder10hp: ['start-combat-under-10hp'],
   surviveUnder10hp: ['survive-under-10hp'],
@@ -159,6 +162,8 @@ export const ANNOUNCER_LINES: Record<AnnouncerEvent, readonly string[]> = {
   randomBeastBuy: ['random-beast-buy'],
   randomDwarfBuy: ['random-dwarf-buy'],
   round7: ['round-7'],
+  // The shop-clock warning (owner 2026-09-25): 21 takes from the Low on time folder, in folder timestamp order.
+  timeRunningOut: Array.from({ length: 21 }, (_, i) => `time-running-out-${i + 1}`),
 };
 
 /** Higher speaks first when several are pending at once. */
@@ -197,6 +202,7 @@ export const ANNOUNCER_PRIORITY: Record<AnnouncerEvent, number> = {
   randomBeastBuy: 12,
   randomDwarfBuy: 12,
   backToShop: 10,
+  timeRunningOut: 5,
 };
 
 /** When a pending line goes stale: 'shop' lines when combat starts, 'combat' lines when the next shop opens. */
@@ -424,7 +430,8 @@ interface PendingLine {
   notBefore: number;
   wave: number;
   /** Speaks inside the cooldown (never over a playing line: it waits for that to end). SurviveUnder10hp after
-   *  this round's StartCombatUnder10hp (the round's only line), and the two forge lines (see `detectForge`). */
+   *  this round's StartCombatUnder10hp (the round's only line), the two forge lines (see `detectForge`) and
+   *  TimeRunningOut (see `observeTurnClock`). */
   bypassCooldown?: boolean;
 }
 export type AnnouncerLogKind = 'queue' | 'play' | 'drop' | 'expire' | 'cancel' | 'end';
@@ -449,6 +456,10 @@ let enteredAtWaveOne = false;
 let combatStartedAt: number | null = null;
 /** MinionHits100Stats in combat is checked per frame; report it once per fight. */
 let bigStatSeenThisCombat = false;
+/** TimeRunningOut is tried ONCE per game: the first time the clock reaches ANNOUNCER_TIME_WARNING_SECONDS, whether
+ *  it then speaks or is dropped (the clock ran out behind a playing line, or combat started). In memory, like
+ *  TribeFour's count: a Save & Continue before it spoke may try again on a later turn. */
+let timeWarningTried = false;
 /** TribeFour: this Shop turn's minion buys per tribe (dual tribes count for both, an All-tribe minion for every
  *  tribe). In memory only, reset each wave: a Save & Continue mid-turn starts the count again. */
 let tribeBuys: { wave: number; byTribe: Map<Tribe, number>; all: number } = { wave: -1, byTribe: new Map(), all: 0 };
@@ -745,6 +756,7 @@ function enterRun(s: AnnouncerStateLike): void {
   enteredAtWaveOne = s.run.wave === 1 && s.run.phase === 'recruit';
   combatStartedAt = s.run.phase === 'combat' ? runEnteredAt : null;
   bigStatSeenThisCombat = false;
+  timeWarningTried = false;
   tribeBuys = { wave: -1, byTribe: new Map(), all: 0 };
   if (enteredAtWaveOne && !hasFired(slice!, 'gameStart')) {
     enqueue({ event: 'gameStart', shelf: 'shop', notBefore: runEnteredAt + ANNOUNCER_GAME_START_DELAY_MS, wave: 1 });
@@ -921,6 +933,28 @@ export function observeCombatBoard(units: readonly { attack: number; health: num
   enqueue({ event: 'minionHits100Stats', shelf: 'combat', notBefore: Math.max(deps.now(), combatStartedAt + ANNOUNCER_COMBAT_SILENCE_MS), wave });
 }
 
+/** THE SHOP CLOCK (owner 2026-09-25, the "Low on time" lines): Recruit's countdown hands in every tick of a REAL
+ *  timer (never the tutorial's or the God-rules sandbox's effectively infinite one; the gate already keeps the
+ *  announcer out of both). The first time per game the clock ticks down to ANNOUNCER_TIME_WARNING_SECONDS in a
+ *  Shop turn, TimeRunningOut queues: priority 5, shop shelf (combat starting expires it), and it BYPASSES the
+ *  12 s cooldown because it is a warning, but never talks over a playing line: it waits for that line to end,
+ *  and is dropped if the clock reaches 0 first. Presentation-only: the engine is untimed. */
+export function observeTurnClock(seconds: number, wave: number): void {
+  if (!active || !slice) return;
+  if (seconds <= 0) {
+    // Out of time: a warning still waiting behind a playing line has nothing left to warn about.
+    if (pending.some((p) => p.event === 'timeRunningOut')) {
+      pending = pending.filter((p) => p.event !== 'timeRunningOut');
+      note('drop', 'timeRunningOut', { why: 'time up' });
+    }
+    return;
+  }
+  if (seconds !== ANNOUNCER_TIME_WARNING_SECONDS || timeWarningTried || combatStartedAt !== null) return;
+  timeWarningTried = true;
+  if (hasFired(slice, 'timeRunningOut')) return;
+  enqueue({ event: 'timeRunningOut', shelf: 'shop', notBefore: deps.now(), wave, bypassCooldown: true });
+}
+
 // ── The Announcer dev tuner's ▶ (owner 2026-09-24) ──────────────────────────────────────────────────────────
 let previewHandle: AnnouncerHandle | null = null;
 let previewToken = 0;
@@ -974,6 +1008,7 @@ export function resetAnnouncerForTests(): void {
   enteredAtWaveOne = false;
   combatStartedAt = null;
   bigStatSeenThisCombat = false;
+  timeWarningTried = false;
   tribeBuys = { wave: -1, byTribe: new Map(), all: 0 };
   log.length = 0;
 }

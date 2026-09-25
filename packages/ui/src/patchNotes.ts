@@ -52,6 +52,21 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-09-25',
+    label: 'Announcer: Low on Time',
+    changes: [
+      {
+        category: 'Systems',
+        text: 'The announcer now warns you when the Shop timer gets low, and has more lines for entering combat.',
+        details: [
+          'The first time in a game your Shop timer reaches 10 seconds, the announcer tells you time is running out.',
+          'It waits for any line already playing to finish, and stays quiet if the timer runs out first.',
+          'Entering combat has 5 new lines, 7 in all.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-09-25',
     label: 'Announcer Variety',
     changes: [
       {

@@ -23,7 +23,7 @@ import type { TunerControl, TunerSpec } from './tunerSchema';
 export const ANNOUNCER_TUNER_EVENTS = [
   'gameStart', 'equipment', 'triple', 'tierSix', 'runeforge', 'epicRuneforge', 'minionHits100Stats',
   'goldenArmy', 'bigSpender', 'shopBigBuff', 'pair', 'tribeFour',
-  'randomCardBuy', 'randomSpellBuy', 'randomBeastBuy', 'randomDwarfBuy',
+  'randomCardBuy', 'randomSpellBuy', 'randomBeastBuy', 'randomDwarfBuy', 'timeRunningOut',
   'enteringCombat', 'enteringCombatAfterLoss', 'startCombatUnder10hp',
   'surviveUnder10hp', 'losingLowOddsFight', 'winningLowOddsFight', 'comebackWin', 'threeWinStreak',
   'flawlessVictory', 'bigHit',
@@ -71,6 +71,7 @@ const EVENT_LABEL: Record<AnnouncerEvent, string> = {
   randomBeastBuy: 'Random Beast buy, 10% (0 ms)',
   randomDwarfBuy: 'Random Dwarf buy, 10% (0 ms)',
   round7: 'Round 7, 10% (1000 ms after the return)',
+  timeRunningOut: 'Time running out, 10 s left on the Shop clock (0 ms)',
 };
 
 export const ANNOUNCER_VOL_RANGE: [number, number, number] = [0, 200, 5];

@@ -564,13 +564,13 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'buy lines, Round7) roll a seeded ANNOUNCER_RARE_CHANCE (10%) per qualifying moment from the run seed, the wave and '
       + 'the buy index (`announcerRoll`), so a replay rolls the same way; never Math.random. One global cooldown, ANNOUNCER_COOLDOWN_MS (12 s from the previous '
       + 'line ending), and never while a line plays: an event landing inside it is DROPPED, not queued, and stays '
-      + 'unfired (it may speak later if its moment recurs and is still valid); the two forge lines and this round\x27s '
-      + 'SurviveUnder10hp BYPASS the cooldown (never a playing line: they wait for it to end). Pending events are weighed together by '
+      + 'unfired (it may speak later if its moment recurs and is still valid); the two forge lines, this round\x27s '
+      + 'SurviveUnder10hp and TimeRunningOut BYPASS the cooldown (never a playing line: they wait for it to end). Pending events are weighed together by '
       + 'priority (GameWon = GameLoss 100 > TopTwo 90 > Knockout 88 > TopFour 85 > SurviveUnder10hp 80 > LosingLowOdds = '
       + 'WinningLowOdds 70 > ComebackWin 66 > ThreeWinStreak 65 > StartCombatUnder10hp 60 > FlawlessVictory 58 > BigHit 57 > '
       + 'EnteringCombatAfterLoss 55 > MinionHits100Stats 50 > GoldenArmy 48 > ShopBigBuff 46 > TierSix 45 > EpicRuneforge 40 > '
       + 'Runeforge 35 > Triple 30 > TribeFour 28 > Equipment 25 > BigSpender 24 > RichTurn 22 > EnteringCombat 20 > Pair 18 > '
-      + 'GameStart 15 > Round7 14 > the four random buy lines 12 > BackToShop 10): the highest speaks, '
+      + 'GameStart 15 > Round7 14 > the four random buy lines 12 > BackToShop 10 > TimeRunningOut 5): the highest speaks, '
       + 'the rest are dropped. Shelf life: combat lines expire when the next shop opens, shop lines when combat starts, '
       + 'GameWon / GameLoss never expire (they wait out the cooldown). Silence: nothing in the first '
       + 'ANNOUNCER_COMBAT_SILENCE_MS (3 s) of a combat resolution; nothing over the music\x27s turn-1 fade-in (GameStart '
@@ -600,7 +600,10 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'minion across board and hand), TribeFour (4 minions of one tribe bought in one Shop turn, a dual-tribe minion '
       + 'counting for both, an All-tribe one for every tribe), RandomSpellBuy / RandomCardBuy / RandomBeastBuy / '
       + 'RandomDwarfBuy (a 10% seeded roll on a spell / any / a Beast / a Dwarf buy, each once per game) and Round7 (a 10% '
-      + 'seeded roll when wave 7\x27s Shop opens). The '
+      + 'seeded roll when wave 7\x27s Shop opens). The third batch (2026-09-25): EnteringCombat has 7 takes, and '
+      + 'TimeRunningOut (the Shop clock, a real timer only, ticks down to ANNOUNCER_TIME_WARNING_SECONDS, 10 s, tried the '
+      + 'FIRST time per game only; Recruit\x27s countdown calls observeTurnClock on every tick; shop shelf; bypasses the '
+      + 'cooldown but waits out a playing line, and is dropped if the clock reaches 0 first). The '
       + 'announcer is its own channel: a third gain on the SFX AudioContext with its own volume and mute '
       + '(`ascent.announcervol.v2`, see R-PRESENT-13; `ascent.announcermuted`), not ducked by the Game-sounds mute; the clips '
       + 'load lazily on first need. Settings shows one "Audio" button (aria-expanded, collapsed by default, its state '
@@ -621,12 +624,13 @@ export const FOUNDATION_RULES: GameRule[] = [
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-23 (the announcer, on the queue logic)', quote: 'i like your logic you\x27ve shared here' },
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-24 (announcer lines, second batch)', quote: 'the gamewon is correct. there was a toptwo2 that was wrong which i removed.' },
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-24 (announcer lines, second batch: the random buy lines)', quote: 'Rare: ~10% per buy' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-25 (announcer lines, third batch: Entering Combat takes + Low on time)', quote: 'wire new announcer sfx C:\\Game Assets\\Ascent Art\\SFX\\Announcer' },
       {
         kind: 'owner-chat',
         ref: 'Claude Code session, 2026-09-23 (the announcer follow-up: the forge lines + the delays)',
         quote: 'i dont think the runeforge voicelines are playing? and can you slightly delay the combat and return to shop ones? they play too quickly and should be offset by about 1s.',
       },
-      { kind: 'code', ref: 'packages/ui/src/announcer.ts (the queue, the detectors, the channel); packages/ui/src/announcerSlice.ts (the persisted slice); packages/ui/src/store.ts (announced, markAnnounced, combatOdds, the save round-trip); packages/ui/src/Game.tsx (the subscription + the stopAllAudio hook); packages/ui/src/Recruit.tsx (observeCombatBoard); packages/ui/src/EscMenu.tsx (the Audio panel)' },
+      { kind: 'code', ref: 'packages/ui/src/announcer.ts (the queue, the detectors, the channel); packages/ui/src/announcerSlice.ts (the persisted slice); packages/ui/src/store.ts (announced, markAnnounced, combatOdds, the save round-trip); packages/ui/src/Game.tsx (the subscription + the stopAllAudio hook); packages/ui/src/Recruit.tsx (observeCombatBoard, observeTurnClock); packages/ui/src/EscMenu.tsx (the Audio panel)' },
     ],
     currentBehaviour:
       'Conforms as of 2026-09-24 (the second batch of lines, see the end). Owner report after #1653: "i dont think the runeforge '
@@ -641,11 +645,13 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'the Face Omen lines. Before this there was no announcer and the Settings Audio section was two flat '
       + 'rows (Game sounds, Music). 2026-09-24 (second batch): fifteen new events wired, ThreeWinStreak gained a second '
       + 'variant, the cap went 8 -> 15, and the TopTwo2 clip was removed (the owner: it was the wrong take; GameWon.mp3 was '
-      + 'correct all along), so TopTwo has one variant.',
+      + 'correct all along), so TopTwo has one variant. 2026-09-25 (third batch): five new EnteringCombat takes '
+      + '(entering-combat-3..7) and the new TimeRunningOut event (21 takes, time-running-out-1..21), with the Announcer '
+      + 'tuner rows; the test suite checks every clip exists and no two share audio.',
     enforcement: {
       kind: 'scenario',
       refs: ['packages/ui/src/announcer.test.ts', 'packages/ui/src/escMenuAudioPanel.test.tsx'],
-      lastVerifiedAt: '2026-09-24',
+      lastVerifiedAt: '2026-09-25',
     },
   },
   {

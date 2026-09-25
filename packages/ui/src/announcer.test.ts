@@ -16,9 +16,9 @@ import type { CardDef, Tribe } from '@game/core';
 import {
   __setAnnouncerDepsForTests, ANNOUNCER_BACK_TO_SHOP_DELAY_MS, ANNOUNCER_BIG_STAT, ANNOUNCER_COMBAT_SILENCE_MS, ANNOUNCER_COOLDOWN_MS,
   ANNOUNCER_END_DELAY_MS, ANNOUNCER_EQUIPMENT_DELAY_MS, ANNOUNCER_FACE_OMEN_DELAY_MS, ANNOUNCER_GAME_START_DELAY_MS,
-  ANNOUNCER_LINES, ANNOUNCER_PRIORITY, ANNOUNCER_RARE_CHANCE, ANNOUNCER_STOP_FADE_MS, ANNOUNCER_TURN_ONE_QUIET_MS,
+  ANNOUNCER_LINES, ANNOUNCER_PRIORITY, ANNOUNCER_RARE_CHANCE, ANNOUNCER_STOP_FADE_MS, ANNOUNCER_TIME_WARNING_SECONDS, ANNOUNCER_TURN_ONE_QUIET_MS,
   announcerDebug, announcerPick, announcerRoll, hasPair, cancelAnnouncer, getAnnouncerVolume, isAnnouncerMuted, observeCombatBoard,
-  previewAnnouncerEvent, setAnnouncerVolume, syncAnnouncer, toggleAnnouncerMute, type AnnouncerEvent, type AnnouncerRunLike,
+  observeTurnClock, previewAnnouncerEvent, setAnnouncerVolume, syncAnnouncer, toggleAnnouncerMute, type AnnouncerEvent, type AnnouncerRunLike,
   type AnnouncerStateLike,
 } from './announcer';
 import { announcedFor, emptyAnnounced, withAnnounced, type AnnouncedSlice } from './announcerSlice';
@@ -1017,6 +1017,116 @@ describe('the second batch (owner 2026-09-24)', () => {
       knockout: 88, bigHit: 57, comebackWin: 66, flawlessVictory: 58, goldenArmy: 48, richTurn: 22, bigSpender: 24,
       shopBigBuff: 46, pair: 18, tribeFour: 28, randomSpellBuy: 12, randomCardBuy: 12, randomBeastBuy: 12, randomDwarfBuy: 12, round7: 14,
     });
+  });
+});
+
+describe('the third batch (owner 2026-09-25): more Entering Combat takes + TimeRunningOut', () => {
+  it('every clip of every event exists and no two share the same audio (ID3 / TAG stripped)', async () => {
+    const { readFileSync, existsSync } = await import('node:fs');
+    const { createHash } = await import('node:crypto');
+    const { resolve } = await import('node:path');
+    const dir = `${resolve(process.cwd(), 'apps/web/public/announcer')}/`;
+    expect(ANNOUNCER_LINES.enteringCombat).toHaveLength(7);
+    expect(ANNOUNCER_LINES.timeRunningOut).toHaveLength(21);
+    const audio = (b: Buffer): Buffer => {
+      let a = b;
+      if (a.subarray(0, 3).toString() === 'ID3') a = a.subarray(10 + ((a[6]! & 0x7f) << 21 | (a[7]! & 0x7f) << 14 | (a[8]! & 0x7f) << 7 | (a[9]! & 0x7f)));
+      if (a.subarray(a.length - 128, a.length - 125).toString() === 'TAG') a = a.subarray(0, a.length - 128);
+      return a;
+    };
+    const all = Object.values(ANNOUNCER_LINES).flat();
+    const byHash = new Map<string, string>();
+    for (const name of all) {
+      const file = `${dir}${name}.mp3`;
+      expect(existsSync(file), name).toBe(true);
+      const h = createHash('md5').update(audio(readFileSync(file))).digest('hex');
+      expect(byHash.get(h), `${name} has the same audio as ${byHash.get(h)}`).toBeUndefined();
+      byHash.set(h, name);
+    }
+    expect(byHash.size).toBe(all.length);
+  });
+  it('the table is append-only: TimeRunningOut is the last event, priority 5 (below BackToShop)', () => {
+    expect(Object.keys(ANNOUNCER_LINES).at(-1)).toBe('timeRunningOut');
+    expect(ANNOUNCER_PRIORITY.timeRunningOut).toBe(5);
+    expect(Math.min(...Object.values(ANNOUNCER_PRIORITY))).toBe(5);
+    expect(ANNOUNCER_TIME_WARNING_SECONDS).toBe(10);
+  });
+  it('fires when the Shop clock reaches 10 s, and only the first time per game', async () => {
+    const r = openShop();
+    for (let sec = 20; sec > ANNOUNCER_TIME_WARNING_SECONDS; sec--) observeTurnClock(sec, r.wave);
+    await tick(1000);
+    expect(plays).toEqual([]);
+    observeTurnClock(ANNOUNCER_TIME_WARNING_SECONDS, r.wave);
+    await tick(0);
+    expect(events()).toEqual(['time-running-out']);
+    expect(ANNOUNCER_LINES.timeRunningOut).toContain(files()[0]);
+    expect(announced.fired.timeRunningOut).toEqual([5]);
+    await tick(LINE_MS + ANNOUNCER_COOLDOWN_MS);
+    // A later turn's 10 s mark is silent.
+    const next = backToShop(await fight(r, 'win'));
+    await tick(LINE_MS + ANNOUNCER_COOLDOWN_MS);
+    const before = plays.length;
+    observeTurnClock(ANNOUNCER_TIME_WARNING_SECONDS, next.wave);
+    await tick(LINE_MS + ANNOUNCER_COOLDOWN_MS);
+    expect(plays).toHaveLength(before);
+  });
+  it('is a warning: it BYPASSES the 12 s cooldown', async () => {
+    const r = openShop({ equipment: { available: [] } });
+    go({ ...r, equipment: { available: [1] } });
+    await tick(ANNOUNCER_EQUIPMENT_DELAY_MS + LINE_MS + 500); // Equipment spoke and ended 500 ms ago
+    expect(events()).toEqual(['equipment']);
+    observeTurnClock(ANNOUNCER_TIME_WARNING_SECONDS, r.wave);
+    await tick(0);
+    expect(events()).toEqual(['equipment', 'time-running-out']);
+  });
+  it('never talks over a playing line: it waits for it to end, then speaks', async () => {
+    const r = openShop({ equipment: { available: [] } });
+    go({ ...r, equipment: { available: [1] } });
+    await tick(ANNOUNCER_EQUIPMENT_DELAY_MS + 100); // Equipment is playing
+    observeTurnClock(ANNOUNCER_TIME_WARNING_SECONDS, r.wave);
+    await tick(0);
+    expect(events()).toEqual(['equipment']);
+    await tick(LINE_MS - 100);
+    expect(events()).toEqual(['equipment', 'time-running-out']);
+    expect(plays[1]!.t).toBe(plays[0]!.t + LINE_MS);
+  });
+  it('is dropped if the clock runs out while it waits, and is not tried again', async () => {
+    const r = openShop({ equipment: { available: [] } });
+    go({ ...r, equipment: { available: [1] } });
+    await tick(ANNOUNCER_EQUIPMENT_DELAY_MS + 100);
+    observeTurnClock(ANNOUNCER_TIME_WARNING_SECONDS, r.wave);
+    observeTurnClock(0, r.wave);
+    await tick(LINE_MS + ANNOUNCER_COOLDOWN_MS);
+    expect(events()).toEqual(['equipment']);
+    expect(dropped('timeRunningOut')).toBe(true);
+    observeTurnClock(ANNOUNCER_TIME_WARNING_SECONDS, r.wave + 1);
+    await tick(1000);
+    expect(events()).toEqual(['equipment']);
+  });
+  it('has the shop shelf: combat starting while it waits expires it', async () => {
+    const r = openShop({ equipment: { available: [] } });
+    const withEq = go({ ...r, equipment: { available: [1] } });
+    await tick(ANNOUNCER_EQUIPMENT_DELAY_MS + 100);
+    observeTurnClock(ANNOUNCER_TIME_WARNING_SECONDS, r.wave);
+    go({ ...withEq, phase: 'combat' }); // End Turn
+    expect(expired('timeRunningOut')).toBe(true);
+    await tick(LINE_MS + ANNOUNCER_COOLDOWN_MS);
+    expect(files().some((f) => f.startsWith('time-running-out'))).toBe(false);
+  });
+  it('never fires without a real timer (the tutorial, a sandbox rig, the title) or during a fight', async () => {
+    for (const [rp, patch] of [[{ mode: 'tutorial' }, {}], [{ sandbox: true }, {}], [{}, { showTitle: true }]] as [Partial<AnnouncerRunLike>, Partial<AnnouncerStateLike>][]) {
+      cur = null;
+      go(run(rp), patch);
+      observeTurnClock(ANNOUNCER_TIME_WARNING_SECONDS, 5);
+      await tick(1000);
+    }
+    expect(plays).toEqual([]);
+    cur = null;
+    const r = openShop();
+    go({ ...r, phase: 'combat', wave: 9 }); // past EnteringCombat's waves: a silent Face Omen
+    observeTurnClock(ANNOUNCER_TIME_WARNING_SECONDS, 9);
+    await tick(1000);
+    expect(plays).toEqual([]);
   });
 });
 

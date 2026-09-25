@@ -33,7 +33,8 @@ channel are unchanged.
 Priority: higher speaks first when several are pending together; the rest are dropped. Shelf: `shop` lines expire when
 combat starts, `combat` lines when the next shop opens. Every line sits behind the 12 s cooldown and the cap of 15
 (GameWon / GameLoss on top of it). Once per game unless the Repeat column says otherwise. Variants are picked from the
-run seed. New this batch in **bold**.
+run seed. *(2026-09-25: the cap is gone, takes are a random pick from a no-repeat bag, and a per-event chance table
+gates each line; see [2026-09-25-announcer-lines-3.md](2026-09-25-announcer-lines-3.md).)* New this batch in **bold**.
 
 | Event | Trigger | Priority | Shelf, delay | Repeat | Clips |
 |---|---|---|---|---|---|
@@ -62,15 +63,19 @@ run seed. New this batch in **bold**.
 | Equipment | an Equipment acquired | 25 | shop, 400 ms | once | equipment-1, -2 |
 | **BigSpender** | 20+ Gold spent this turn with 10+ still held | 24 | shop, 0 | once | big-spender |
 | **RichTurn** | return to the shop holding 20+ Gold | 22 | shop, 1 s | once | rich-turn |
-| EnteringCombat | the first Face Omen (eligible through wave 3) | 20 | combat, 1.6 s | once | entering-combat-1, -2 |
+| EnteringCombat | the first Face Omen (eligible through wave 3) | 20 | combat, 1.6 s | once | entering-combat-1, -2 (-3 to -7 added 2026-09-25) |
 | **Pair** | your first pair: 2 copies of one non-golden minion across board and hand | 18 | shop, 0 | once | pair-1, -2 |
 | GameStart | wave 1's first shop | 15 | shop, 4 s | once | game-start-1, -2 |
 | **Round7** | wave 7's Shop opens, on a seeded 10% roll | 14 | shop, 1 s | once | round-7 |
-| **RandomSpellBuy** | a spell buy, on a seeded 10% roll | 12 | shop, 0 | once | random-spell-buy-1, -2 |
-| **RandomCardBuy** | any buy, on a seeded 10% roll | 12 | shop, 0 | once | random-card-buy |
-| **RandomBeastBuy** | a Beast buy, on a seeded 10% roll | 12 | shop, 0 | once | random-beast-buy |
-| **RandomDwarfBuy** | a Dwarf buy, on a seeded 10% roll | 12 | shop, 0 | once | random-dwarf-buy |
+| **RandomSpellBuy** | a spell buy, on a seeded 6% roll (10% until 2026-09-25) | 12 | shop, 0 | up to 3 per game, 2+ waves apart (2026-09-25) | random-spell-buy-1, -2 |
+| **RandomCardBuy** | any buy, on a seeded 6% roll (10% until 2026-09-25) | 12 | shop, 0 | up to 3 per game, 2+ waves apart (2026-09-25) | random-card-buy, -2 to -8 (2026-09-25) |
+| **RandomBeastBuy** | a Beast buy, on a seeded 6% roll (10% until 2026-09-25) | 12 | shop, 0 | up to 3 per game, 2+ waves apart (2026-09-25) | random-beast-buy |
+| **RandomDwarfBuy** | a Dwarf buy, on a seeded 6% roll (10% until 2026-09-25) | 12 | shop, 0 | up to 3 per game, 2+ waves apart (2026-09-25) | random-dwarf-buy |
 | BackToShop | return from combat, first at wave 2+ | 10 | shop, 1 s | twice, 5+ waves apart | back-to-shop-1, -2, -3 |
+| TimeRunningOut *(added 2026-09-25, see [2026-09-25-announcer-lines-3.md](2026-09-25-announcer-lines-3.md))* | EVERY Shop turn whose clock (a real timer) ticks down to 15 s | 5 | shop, 0, bypasses the cooldown, waits out a playing line, dropped at 0 s | every turn; reshuffles its bag | time-running-out-1 to -21 |
+| BuyDrakko *(added 2026-09-25)* | the Shop minion Drakko (`drummer`) bought | 36 | shop, 0 | once; a dropped try retries, up to 5 tries | buy-drakko-1 to -5 |
+| BuySylus *(added 2026-09-25)* | the Shop minion Sylus (`sylus`) bought | 36 | shop, 0 | once; a dropped try retries, up to 4 tries | buy-sylus-1 to -4 |
+| CastAle *(added 2026-09-25)* | an Ale (ALE_IDS) cast from hand | 16 | shop, 0 | once; a dropped try retries, up to 6 tries | cast-ale-1 to -6 |
 
 Source file map for the new clips: `Knockout1-4` -> `knockout-1..4`, `Dealing15ormoretohero` -> `big-hit`,
 `WinAfterLoseStreak` -> `comeback-win`, `WinWithNoMinionDeaths` -> `flawless-victory`, `3WinStreak` ->

@@ -457,7 +457,7 @@ interface GameStore {
    *  against the per-game cap. Persisted with the save (a Continue never replays a line), keyed by the run seed,
    *  fresh on every new run. Written only by `markAnnounced` (announcer.ts); see `announcerSlice.ts`. */
   announced: AnnouncedSlice;
-  markAnnounced: (event: AnnouncerEvent, wave: number) => void;
+  markAnnounced: (event: AnnouncerEvent, wave: number, take?: string, reshuffle?: boolean) => void;
   /** The rail's REAL pre-combat odds for the current wave, once Recruit's deferred probe has run (it stamps
    *  the replay frame through `stampReplayOdds`; this mirror is what the announcer reads at the verdict).
    *  Null until the probe lands; a stale wave is ignored by its reader. */
@@ -1847,9 +1847,9 @@ export const useGame = create<GameStore>((rawSet, get) => {
   combatOdds: null,
   // A line spoke: record it and persist it on idle time (the phase-boundary autosave alone could leave a line
   // unrecorded between a reload and the next boundary, and a Continue would then replay it).
-  markAnnounced: (event, wave) => {
+  markAnnounced: (event, wave, take, reshuffle) => {
     const s = get();
-    const announced = withAnnounced(announcedFor(s.announced, s.run.seed), event, wave);
+    const announced = withAnnounced(announcedFor(s.announced, s.run.seed), event, wave, take, reshuffle);
     set({ announced });
     if (s.showTitle || s.replaying || s.run.sandbox || s.run.phase === 'gameover' || s.run.phase === 'victory') return;
     autosave.schedule([s.run, s.replayActions, s.capturedBoards, s.telemetryLog, s.deriveState, undefined, announced]);

@@ -318,20 +318,24 @@ canvas.spr { image-rendering: pixelated; display: block; }
    the curtain and kept only for the fronts. */
 .wipecurtain { position: fixed; inset: 0; z-index: 250; pointer-events: none;
   background: radial-gradient(ellipse 60% 60% at 50% 50%, #24468a 0%, #0a1730 100%);
-  clip-path: circle(0px at var(--wipe-cx, 84%) var(--wipe-cy, 62%));
+  clip-path: ellipse(0px 0px at var(--wipe-cx, 84%) var(--wipe-cy, 62%));
   /* Hint the clip transition onto the compositor (Chromium composites basic-shape clip-path animations when
      the element is promoted) — without it the near-fullscreen gradient repaints every frame of the bloom. */
   will-change: clip-path;
-  transition: clip-path var(--wipe-dur, 450ms) cubic-bezier(.4, 0, .2, 1); }
+  transition: clip-path var(--wipe-dur, 450ms) var(--wipe-ease, cubic-bezier(.4, 0, .2, 1)); }
 /* The EXIT curtain wears a lighter, daylight-sky blue (owner ask 2026-08-30 — matched to the sky in the
    Returning-to-Shop vignette, sampled ≈#2390f5→#61b6f9). The class flips while the curtain is parked
    empty (primeOut) and clears at idle, so the gradient swap is never on screen. */
 .wipecurtain.exit { background: radial-gradient(ellipse 60% 60% at 50% 50%, #4a9be8 0%, #16406f 100%); }
-.wipecurtain.full { clip-path: circle(var(--wipe-r, 150vmax) at var(--wipe-cx, 84%) var(--wipe-cy, 62%)); }
+/* The bloom: an ELLIPSE (round 2 of the ultrawide fix, owner 2026-09-24 "smoother/wider/cleaner"). Its radii come
+   from wipeGeometry.ts via Recruit: the farthest corner, stretched sideways by how much wider than 16:9 the screen
+   is (a circle on 16:9). The easing is the Screen wipe tuner's; by default it leaves the screen still moving. */
+.wipecurtain.full { clip-path: ellipse(var(--wipe-rx, 150vmax) var(--wipe-ry, 150vmax) at var(--wipe-cx, 84%) var(--wipe-cy, 62%)); }
 /* The covered hold: same full cover, INSET shape — the invisible switch that lets the reveal run linear. */
 .wipecurtain.full.settle { clip-path: inset(0 0 0 0); }
-/* Entry reveal (R→L retreat; parked here through combat) / exit reveal (`.rtl`, L→R retreat). */
-.wipecurtain.gone { clip-path: inset(0 100% 0 0); }
+/* Entry reveal (R→L retreat; parked here through combat) / exit reveal (`.rtl`, L→R retreat). The reveals run
+   their own duration and keep the original ease-in-out. */
+.wipecurtain.gone { clip-path: inset(0 100% 0 0); transition-duration: var(--wipe-reveal-dur, 450ms); transition-timing-function: cubic-bezier(.4, 0, .2, 1); }
 .wipecurtain.gone.rtl { clip-path: inset(0 0 0 100%); }
 /* HOLD states wear `.settle` (owner bug report 2026-08-28: brief combat-board flashes during the covered
    beat). The state machine's backstop timer can outrun the real sweep on a hitchy combat-entry frame —
@@ -381,12 +385,20 @@ canvas.spr { image-rendering: pixelated; display: block; }
 .wipefront { position: fixed; left: var(--wipe-cx, 84vw); top: var(--wipe-cy, 62vh);
   width: 1000px; height: 1000px; margin: -500px 0 0 -500px;
   border-radius: 50%; z-index: 250; pointer-events: none; opacity: 0; mix-blend-mode: screen;
+  /* Round 2 (owner 2026-09-24): a DOUBLE-LAYER edge. Inside the seam the ring's glow rises to the bright line
+     (`--wf-line`, which Recruit puts ON the seam), and past it a soft leading HALO fades out over the old screen,
+     so the edge reads as light arriving rather than a hard line that could look parked. Every stop comes from the
+     Screen wipe tuner via inline vars, fixed for the whole sweep: the texture rasterises once, then only its
+     transform moves. */
   background: radial-gradient(closest-side,
-    rgba(120, 160, 255, 0) 0%, rgba(120, 160, 255, 0) 84%,
-    rgba(190, 215, 255, .45) 92%, rgba(255, 255, 255, .85) 97%, rgba(160, 200, 255, 0) 100%);
+    rgba(120, 160, 255, 0) 0%, rgba(120, 160, 255, 0) var(--wf-in0, 84%),
+    rgba(190, 215, 255, calc(.45 * var(--wf-glow, 1))) var(--wf-in1, 92%),
+    rgba(255, 255, 255, calc(.85 * var(--wf-glow, 1))) var(--wf-line, 97%),
+    rgba(175, 208, 255, calc(.4 * var(--wf-halo, 0))) var(--wf-out1, 98%),
+    rgba(160, 200, 255, 0) 100%);
   transform: scale(0.004); will-change: transform, opacity;
-  transition: transform var(--wipe-dur, 450ms) cubic-bezier(.4, 0, .2, 1), opacity 120ms linear; }
-.wipefront.grow { transform: scale(var(--wipe-front-scale, 4.4)); }
+  transition: transform var(--wipe-dur, 450ms) var(--wipe-ease, cubic-bezier(.4, 0, .2, 1)), opacity 120ms linear; }
+.wipefront.grow { transform: scale(var(--wipe-front-sx, 4.4), var(--wipe-front-sy, 4.4)); }
 .wipefront.sweeping { opacity: 1; }
 .wipefront.snap { transition: none; }
 /* The linear BAR front — rides the reveal sweeps' seam (the hybrid's second half; same look as the
@@ -399,7 +411,7 @@ canvas.spr { image-rendering: pixelated; display: block; }
     radial-gradient(60% 50% at 50% 50%, rgba(255, 255, 255, .55), rgba(160, 200, 255, .28) 40%, rgba(90, 130, 255, 0) 70%),
     linear-gradient(to right, rgba(120, 160, 255, 0), rgba(190, 215, 255, .5) 46%, rgba(255, 255, 255, .85) 50%, rgba(190, 215, 255, .5) 54%, rgba(120, 160, 255, 0));
   filter: blur(2px); transform: translateX(0); will-change: transform, opacity;
-  transition: transform var(--wipe-dur, 450ms) cubic-bezier(.4, 0, .2, 1), opacity 120ms linear; }
+  transition: transform var(--wipe-reveal-dur, 450ms) cubic-bezier(.4, 0, .2, 1), opacity 120ms linear; }
 .wipebar.go { transform: translateX(100vw); }
 .wipebar.rtl { transform: translateX(100vw); }
 .wipebar.rtl.go { transform: translateX(0); }
@@ -408,6 +420,20 @@ canvas.spr { image-rendering: pixelated; display: block; }
 /* The ABOVE-CURTAIN Pixi canvas (wipeFx.ts) — z255 so its motes/runes ride ON the blue (curtain + fronts
    are z250) while staying under the deliberate overlays (Esc z300+). Hidden + ticker stopped when idle. */
 .wipefx-canvas { position: fixed; inset: 0; z-index: 255; pointer-events: none; }
+/* NOTHING IN THE GAME PAINTS OVER THE CURTAIN (owner 2026-09-24: "sometimes background elements come through the
+   wipe or it flickers"). `body.wipe-up` is set by Recruit from the gem's tell until the reveal ends
+   (wipeMachine.wipeUp). The hover layers that deliberately sit above every in-game layer (card references and
+   cast previews z460, game tooltips z600) would otherwise pop over the blue when the cursor rests on a card or a
+   control through the transition; they are hidden while it is up. The z2000 in-game floats (the loss-damage
+   tally, its flying tier numbers, the lobby damage float: z2000 so they clear the replay bar) DROP under the
+   curtain while it is up, so a tally still flying when End Combat is clicked is swallowed by the bloom instead
+   of floating over the blue (reproduced 2026-09-24 in every lost round). Deliberate full-screen menus (Esc,
+   hero select, dev tools) still sit above it. */
+body.wipe-up .cardref, body.wipe-up .castprev-layer { visibility: hidden !important; }
+body.wipe-up .gtip[data-tip]::after { visibility: hidden !important; }
+body.wipe-up .lossdmg, body.wipe-up .lossfly, body.wipe-up .lobbydmg-float { z-index: 240; }
+/* The Screen wipe tuner's ▶ Play (WipePreview, DEV) plays over any screen, menus included; under the dev menu. */
+.wipecurtain.preview, .wipefront.preview, .wipebar.preview { z-index: 9000; }
 /* z200: the ABOVE-MODAL FX canvas (see `FxSlot` in fx/def.ts). Over the Discover / Choose One overlays
    (z160, which are otherwise deliberately above every board effect) and under the wipe curtain (z255).
    Only an effect that is ABOUT the modal belongs here. */

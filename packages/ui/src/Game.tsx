@@ -9,6 +9,7 @@ import { PracticeOptions } from './PracticeOptions';
 import { HeroLaunchCurtain } from './hero-select/HeroLaunchCurtain';
 import { GoodLuckIntro } from './goodLuck/GoodLuckIntro';
 import { RuneforgeEntrancePreview } from './runeforgeEntrance/RuneforgeEntrancePreview';
+import { WipePreview } from './WipePreview';
 import { Title } from './Title';
 import { Leaderboard } from './Leaderboard';
 import { Rankings } from './Rankings';
@@ -498,6 +499,7 @@ export function Game() {
       <GoodLuckIntro />
       {/* DEV: the Runeforge entrance tuner's sandbox forge (▶ Play). Renders nothing until a Play is pressed. */}
       <RuneforgeEntrancePreview />
+      <WipePreview />
       <HeroLaunchCurtain />
       <Title onSettings={openSettings} />
       <Leaderboard />

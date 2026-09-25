@@ -1142,13 +1142,18 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'scene swaps underneath it. Its full size comes from the live viewport: the distance from the gem to the '
       + 'farthest corner. The glowing ring on its edge is sized from the same number, so it stays on the edge the '
       + 'whole way out and leaves past the farthest corner. It never stops short on the screen. A window resize '
-      + 'during the wipe re-measures. Same duration and easing on every screen.',
+      + 'during the wipe re-measures. The bloom is an ellipse stretched by how much wider than 16:9 the screen is '
+      + '(a circle on 16:9 and narrower), so on 21:9 and 32:9 it reaches the sides together with the top and '
+      + 'bottom, and by default it is still moving when it reaches full cover instead of crawling into the far '
+      + 'corner. Its durations, easing, stretch and edge are dev-tunable (Screen wipe tuner) with baked defaults.',
     domain: 'foundation',
     status: 'approved',
     evidence: [
       { kind: 'owner-chat', ref: 'Bug report session, 2026-09-24 (21:9 screenshot of RETURNING TO SHOP)', quote: 'the screen wipes between combat/shop seem not built for 21:9 and stop/pause here and it\x27s janky. can you make sure the animation fully covers the ultrawide display as well?' },
-      { kind: 'fix-pr', ref: 'fix/screen-wipe-ultrawide' },
-      { kind: 'code', ref: 'packages/ui/src/wipeGeometry.ts wipeCoverRadius + wipeFrontScale + wipeOriginFor; packages/ui/src/Recruit.tsx measureWipeOrigin (--wipe-r / --wipe-front-scale); packages/ui/src/styles.css .wipecurtain / .wipefront' },
+      { kind: 'fix-pr', ref: 'https://github.com/kcodea/ascent/pull/1707 (fix/screen-wipe-ultrawide)' },
+      { kind: 'owner-chat', ref: 'Follow-up after playing #1707 on the ultrawide, 2026-09-24', quote: 'the screen wipe still isnt perfect, can you make it smoother/wider/cleaner so that there\x27s no jank on an ultrawide?' },
+      { kind: 'fix-pr', ref: 'fix/screen-wipe-polish' },
+      { kind: 'code', ref: 'packages/ui/src/wipeGeometry.ts wipeAspect + wipeCoverEllipse + wipeOriginFor; packages/ui/src/screenWipeConfig.ts (WIPE_DEFAULTS, wipeCssVars); packages/ui/src/Recruit.tsx measureWipeOrigin; packages/ui/src/styles.css .wipecurtain / .wipefront' },
     ],
     currentBehaviour:
       'Conforms as of 2026-09-24. The curtain clip already used the farthest-corner radius, but the ring '
@@ -1159,10 +1164,48 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'r / 485, putting the ring\x27s bright line on the seam. The tell states also snap the zero circle to the '
       + 'freshly measured gem, so the bloom centre no longer slides from the old origin during the first half '
       + 'of the sweep. Verified live in headless Chrome at 1920x1080, 2560x1080, 3440x1440 and 5120x1440, '
-      + 'both directions.',
+      + 'both directions. Round 2 (same day): the circle became the aspect-stretched ellipse, with an ease that '
+      + 'leaves the screen still moving (default cubic-bezier(0.45, 0, 0.7, 0.85)), and the ring became a '
+      + 'double-layer edge (glow inside the seam, soft halo outside it). Verified again at all four sizes; the '
+      + 'worst frame in any sweep stayed at or under 16.7ms at 3440x1440 and 5120x1440.',
     enforcement: {
       kind: 'scenario',
-      refs: ['packages/ui/src/wipeGeometry.test.ts'],
+      refs: ['packages/ui/src/wipeGeometry.test.ts', 'packages/ui/src/wipeMachine.test.ts'],
+      lastVerifiedAt: '2026-09-24',
+    },
+  },
+  // ── Nothing in the game paints over the combat <-> shop curtain (owner bug 2026-09-24, bleed-through) ─────
+  {
+    id: 'R-PRESENT-17',
+    title: 'Nothing in the game shows through the combat and shop curtain, and the scene only swaps under full cover',
+    statement:
+      'While the curtain is up (from the gem\x27s charge-up until the reveal sweep ends), nothing in the game '
+      + 'paints over it: no damage tally, flying number, damage float, card reference, cast preview or tooltip. '
+      + 'Anything still animating when the wipe starts is swallowed by the bloom, and a float that belongs to '
+      + 'the new screen (the lobby damage you dealt) waits until that screen is revealed. The board behind the '
+      + 'curtain only swaps during the fully covered hold. Deliberate full-screen menus (Esc, hero select, dev '
+      + 'tools) may still open above it.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Follow-up after playing #1707 on the ultrawide, 2026-09-24', quote: 'also sometimes background elements come through the wipe or it flickers, not sure what\x27s causing it' },
+      { kind: 'fix-pr', ref: 'fix/screen-wipe-polish' },
+      { kind: 'code', ref: 'packages/ui/src/wipeMachine.ts wipeUp + combatBackdropShown; packages/ui/src/Recruit.tsx (body.wipe-up); packages/ui/src/styles.css body.wipe-up rules; packages/ui/src/lobbyDamageFx.ts whenCurtainDown; packages/ui/src/LobbyPanel.tsx' },
+    ],
+    currentBehaviour:
+      'Conforms as of 2026-09-24. Reproduced in real lobby play (headless Chrome at 3440x1440 and 5120x1440, '
+      + 'with a scanner listing every visible element whose stacking context outranks the z250 curtain while it '
+      + 'covers): (1) the loss-damage tally and its flying tier numbers (z2000/2001) kept animating when End '
+      + 'Combat was clicked mid-tally, so they floated over the exit bloom; (2) the lobby damage float (z2000) '
+      + 'fires when the round settles, and the round settles UNDER the curtain at full cover, so it popped onto '
+      + 'the blue hold. Both show as elements coming through the wipe or flickering. Now `body.wipe-up` drops '
+      + 'those floats to z240 under the curtain and hides the hover layers (card refs, cast previews, game '
+      + 'tooltips), and the lobby float waits for the curtain to lift. Scanner after: 0 records across all four '
+      + 'sizes and 5-round runs (before: 5 to 8 per run). The wipe FX canvas also renders its empty stage before '
+      + 'hiding, so a cleared wipe can never flash stale motes on the next one.',
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/ui/src/wipeMachine.test.ts', 'packages/ui/src/lobbyDamageFx.test.ts'],
       lastVerifiedAt: '2026-09-24',
     },
   },

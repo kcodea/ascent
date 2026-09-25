@@ -48,7 +48,11 @@
  */
 import { CARD_INDEX } from '@game/content';
 import { ALE_IDS, type Tribe } from '@game/core';
-import { defIsTribe, lossDamageCap, offerBuyStats, type RunState, type ShopCard } from '@game/sim';
+import {
+  boardIntel, chooseBothActive, chooseBothStateOf, CONFIG, defIsTribe, lossDamageCap, offerBuyStats, playerOpponent, type PreparedBoard, type RunLobby,
+  type RunState, type ShopCard,
+} from '@game/sim';
+import { runeTally } from './runeTally';
 import { DEFAULT_SLIDER, sliderToGain } from './audio/volumeCurve';
 import { ANNOUNCER_CHANCE, announcerEventChance, announcerEventOffset, announcerEventVolume, announcerLineGain } from './announcerConfig';
 import { isMusicWanted, MUSIC_FADE_MS, MUSIC_START_DELAY_MS, type MusicStateLike } from './music';
@@ -183,6 +187,48 @@ export const ANNOUNCER_LOSING_STREAK = 2;
 export const ANNOUNCER_STREAK_BROKEN = 3;
 /** MixedBoard: a full board spanning at least this many different tribes. */
 export const ANNOUNCER_MIXED_TRIBES = 5;
+
+// ── The moment catalog's third batch (owner 2026-09-25, group C): thresholds as the catalog words them ─────────
+/** GoldRush: this much Gold gained from effects in one Shop turn (a sale's base value and turn income are not effects). */
+export const ANNOUNCER_GOLD_RUSH = 10;
+/** RefreshStreak: the Nth Refresh of one Shop turn. */
+export const ANNOUNCER_REFRESH_STREAK = 5;
+/** DiscoverOpen: a Discover of these tier minions always speaks (every other Discover rolls the chance table). */
+export const ANNOUNCER_DISCOVER_ALWAYS_TIER = 6;
+/** RunePayout: a counter rune (one with a live `x/N` tally) paying out for this many times in a game. */
+export const ANNOUNCER_RUNE_PAYOUTS = 3;
+/** RuneSlotsFull: the player's rune sockets (the two open ones and the chained third, QuestBadges.tsx). */
+export const ANNOUNCER_RUNE_SOCKETS = 3;
+/** HeroPowerBig: hero power uses in one game. */
+export const ANNOUNCER_HERO_POWER_BIG = 10;
+/** BigBuffMoment: one effect's buff on one minion, at least this much Attack AND Health. */
+export const ANNOUNCER_BIG_BUFF = 20;
+/** FastTurn: ending a turn with at least this many seconds left, after at least ANNOUNCER_FAST_TURN_BUYS buys. */
+export const ANNOUNCER_FAST_TURN_SECONDS = 40;
+export const ANNOUNCER_FAST_TURN_BUYS = 3;
+/** Idle: this many seconds of Shop clock with no action. */
+export const ANNOUNCER_IDLE_SECONDS = 20;
+/** Outgunned: the foe's tier at least this far above the player's. */
+export const ANNOUNCER_OUTGUNNED_TIERS = 2;
+/** StreakStopper: beating a foe on a win streak at least this long. */
+export const ANNOUNCER_STREAK_STOPPER = 3;
+/** Goldilox: grown PAST this much Attack and Health above its printed stats, in hand. */
+export const ANNOUNCER_GOLDILOX_GROWTH = 20;
+/** GemheartGolem: this many Gemheart Golems on the board. */
+export const ANNOUNCER_GOLEM_ARMY = 3;
+/** StarformCollapse: a collapsed Starform over this much Attack. */
+export const ANNOUNCER_STARFORM_ATTACK = 30;
+/** RippleResonance: a Ripple Ruby's landings on one cast (Ripple doubles each cast, Resonance casts it twice). */
+export const ANNOUNCER_RIPPLE_LANDINGS = 4;
+/** The cards the third batch's special lines key on, by CARD ID (found by name in the tests; ids never change). */
+export const ANNOUNCER_BATCH_3_CARDS = {
+  floRida: 'b2_florida', goldilox: 'dw3_goldilox', golem: 'gemheart-shard', greatPot: 'greatpot', picnic: 'sp_picnic',
+  starform: 'ce3_starform', yazzus: 'yazzus', darkRuby: 'dark-ruby', rippleRuby: 'ripple-ruby',
+} as const;
+export const ANNOUNCER_BATCH_3_RUNES = { resonance: 'rune_resonance', happyBirthday: 'rune_happy_birthday' } as const;
+/** TribeBuyLines / MirrorMatch: the tribe the one approved take names ("Another Kobold for the hoard.", "Kobold
+ *  against Kobold!"). The other tribes speak once they have takes of their own. */
+export const ANNOUNCER_TAKE_TRIBE: Tribe = 'kobold';
 /** The Announcer slider's storage key. `.v2` since the default-mix curve (owner 2026-09-24): the stored value is a
  *  SLIDER position that `sliderToGain('announcer', …)` turns into the gain, so the old `ascent.announcervol` (a raw
  *  gain) is no longer read and every player starts once on the new default, the 50 mark (= the owner's 0.7 gain). */
@@ -290,6 +336,44 @@ export const ANNOUNCER_LINES: Record<AnnouncerEvent, readonly string[]> = {
   narrowLoss: ['narrow-loss-1'],
   // The owner's own moment (2026-09-25): written in the tracker, two ElevenLabs takes of the owner's line.
   blartChronos: ['blart-chronos-1', 'blart-chronos-2'],
+  // ── The moment catalog's third batch (owner 2026-09-25, group C): one approved ElevenLabs take each ──
+  goldRush: ['gold-rush-1'],
+  refreshStreak: ['refresh-streak-1'],
+  discoverOpen: ['discover-open-1'],
+  firstFreeze: ['first-freeze-1'],
+  tribeBuyLines: ['tribe-buy-lines-1'],
+  runePayout: ['rune-payout-1'],
+  runeReroll: ['rune-reroll-1'],
+  runeSkip: ['rune-skip-1'],
+  runePick: ['rune-pick-1'],
+  runeSlotsFull: ['rune-slots-full-1'],
+  equipmentUsed: ['equipment-used-1'],
+  heroPowerBig: ['hero-power-big-1'],
+  questComplete: ['quest-complete-1'],
+  questOffered: ['quest-offered-1'],
+  bothEffects: ['both-effects-1'],
+  chooseOnePlay: ['choose-one-play-1'],
+  bigBuffMoment: ['big-buff-moment-1'],
+  fastTurn: ['fast-turn-1'],
+  idle: ['idle-1'],
+  timeUp: ['time-up-1'],
+  ghostFight: ['ghost-fight-1'],
+  mirrorMatch: ['mirror-match-1'],
+  outgunned: ['outgunned-1'],
+  rematch: ['rematch-1'],
+  streakStopper: ['streak-stopper-1'],
+  resumeGame: ['resume-game-1'],
+  darkRuby: ['dark-ruby-1'],
+  discoDanChain: ['disco-dan-chain-1'],
+  floRida: ['flo-rida-1'],
+  goldilox: ['goldilox-1'],
+  gemheartGolem: ['gemheart-golem-1'],
+  greatPot: ['great-pot-1'],
+  rippleResonance: ['ripple-resonance-1'],
+  starformCollapse: ['starform-collapse-1'],
+  yazzusDouble: ['yazzus-double-1'],
+  seasonalRune: ['seasonal-rune-1'],
+  // ── end of the third batch ──
 };
 
 /** The moment catalog's first batch (owner 2026-09-25), in ANNOUNCER_LINES order. */
@@ -303,6 +387,16 @@ export const CATALOG_BATCH_1_EVENTS: readonly AnnouncerEvent[] = [
  *  final-frame verdicts, in ANNOUNCER_LINES order. */
 export const CATALOG_BATCH_2_EVENTS: readonly AnnouncerEvent[] = [
   ...COMBAT_MOMENT_EVENTS, 'clutchWin', 'narrowLoss',
+];
+
+/** The moment catalog's third batch (owner 2026-09-25, group C: moments that needed new tallies / signals), in
+ *  ANNOUNCER_LINES order. */
+export const CATALOG_BATCH_3_EVENTS: readonly AnnouncerEvent[] = [
+  'goldRush', 'refreshStreak', 'discoverOpen', 'firstFreeze', 'tribeBuyLines', 'runePayout', 'runeReroll', 'runeSkip',
+  'runePick', 'runeSlotsFull', 'equipmentUsed', 'heroPowerBig', 'questComplete', 'questOffered', 'bothEffects',
+  'chooseOnePlay', 'bigBuffMoment', 'fastTurn', 'idle', 'timeUp', 'ghostFight', 'mirrorMatch', 'outgunned', 'rematch',
+  'streakStopper', 'resumeGame', 'darkRuby', 'discoDanChain', 'floRida', 'goldilox', 'gemheartGolem', 'greatPot',
+  'rippleResonance', 'starformCollapse', 'yazzusDouble', 'seasonalRune',
 ];
 
 /** Higher speaks first when several are pending at once. */
@@ -398,6 +492,45 @@ export const ANNOUNCER_PRIORITY: Record<AnnouncerEvent, number> = {
   riseBack: 21,
   firstBlood: 15,
   blartChronos: 36, // a named-card specialty, like BuyDrakko / BuySylus
+  // ── The moment catalog's third batch (owner 2026-09-25, group C). PROPOSED by Claude, each beside the live moment
+  // it most resembles; the owner tunes. Checked against the common co-pending cases (see the devlog). ──
+  questComplete: 47, // beside GoldenArmy / ShopBigBuff: a rare, big Shop payoff
+  bigBuffMoment: 47,
+  streakStopper: 64, // a verdict win line, beside BlowoutLoss / StreakBroken
+  outgunned: 50, // beside UnderdogOdds (52): the same "you are behind" read, just under it
+  runeSlotsFull: 38,
+  seasonalRune: 39, // the specialty rune pick outranks the generic socket line
+  darkRuby: 36, // the card specials sit with the specialty buy lines (Drakko / Sylus 36)
+  discoDanChain: 36,
+  floRida: 36,
+  goldilox: 36,
+  gemheartGolem: 36,
+  rippleResonance: 36,
+  starformCollapse: 36,
+  yazzusDouble: 36,
+  questOffered: 34, // below Runeforge (35): a forge opening with it wins
+  rematch: 33, // Face Omen, beside HeavyFavourite (32)
+  runePick: 33,
+  bothEffects: 31, // outranks ChooseOnePlay, so a both-effects first play says the special line
+  heroPowerBig: 29,
+  runePayout: 27,
+  equipmentUsed: 24, // below Equipment (25): gaining Equipment says its own line first
+  goldRush: 23, // beside SellSpree / BigSpender
+  ghostFight: 21, // Face Omen, just above EnteringCombat (20); a ghost needs a knockout, so never waves 1-3
+  runeSkip: 21,
+  runeReroll: 20,
+  mirrorMatch: 19, // BELOW EnteringCombat (20): a turn-1 Kobold mirror must not take "the first Face Omen"
+  chooseOnePlay: 18, // beside Pair
+  greatPot: 16, // a cast, beside CastAle
+  resumeGame: 15, // beside GameStart
+  firstFreeze: 12,
+  tribeBuyLines: 12, // the generic buy family (12); enqueued before RandomCardBuy, so the tribe line wins a tie
+  refreshStreak: 11,
+  discoverOpen: 9, // BELOW BackToShop (10): a Start-of-Turn Discover must not silence the return line
+  fastTurn: 9, // Face Omen, just above BrokeTurn (8)
+  idle: 7,
+  timeUp: 6, // just above TimeRunningOut (5), which it replaces at 0
+  // ── end of the third batch ──
 };
 
 /** When a pending line goes stale: 'shop' lines when combat starts, 'combat' lines when the next shop opens. */
@@ -413,8 +546,8 @@ export interface AnnouncerRunLike {
   resolve: number;
   tier: number;
   history: readonly string[];
-  board: readonly { attack: number; health: number; golden: boolean; cardId?: string }[];
-  hand: readonly { golden: boolean; cardId?: string }[];
+  board: readonly { attack: number; health: number; golden: boolean; cardId?: string; uid?: string; buffs?: readonly AnnouncerBuffLike[] | undefined }[];
+  hand: readonly { golden: boolean; cardId?: string; uid?: string; attack?: number; health?: number; buffs?: readonly AnnouncerBuffLike[] | undefined }[];
   /** Spells cast this run (the reducer's tally): CastAle keys on it rising while an Ale leaves the hand. */
   spellsCast?: number | undefined;
   /** Gold in hand (RichTurn, BigSpender). */
@@ -444,15 +577,50 @@ export interface AnnouncerRunLike {
       /** LobbyLast / LeaderboardTop compare it across the standing seats. */
       resolve?: number | undefined;
     }[];
-    encounters?: readonly { round: number; a: string; b: string; damageToA: number; damageToB: number; bye?: string | undefined }[] | undefined;
+    encounters?: readonly {
+      round: number; a: string; b: string; damageToA: number; damageToB: number; bye?: string | undefined;
+      /** Written from A's side (StreakStopper reads the foe's streak). */
+      outcome?: string | undefined; fought?: boolean | undefined;
+    }[] | undefined;
   } | undefined;
+  // ── The third batch's reads (owner 2026-09-25, group C) ──
+  frozen?: boolean | undefined;
+  /** The open Discover (DiscoverOpen), what is queued behind it and Disco Dan's lock tier (DiscoDanChain). */
+  discover?: readonly string[] | undefined;
+  discoverQueue?: readonly unknown[] | undefined;
+  discoverLockTier?: number | undefined;
+  ownedRunes?: readonly string[] | undefined;
+  /** Per rune id, how many times it went off (RunePayout). */
+  runeProcs?: Readonly<Record<string, number>> | undefined;
+  questOffer?: readonly string[] | undefined;
+  activeQuests?: readonly { questId: string; completed: boolean; completionCount?: number | undefined }[] | undefined;
+  equipmentActivationsThisTurn?: number | undefined;
+  /** An open Choose One prompt (BothEffects: a card that resolved without one resolved both branches). */
+  chooseOne?: { uid: string } | undefined;
+  /** The per-action FX payloads (reset every action; the seq bumps when one lands): BigBuffMoment, DarkRuby /
+   *  RippleResonance, StarformCollapse. */
+  recruitFxSeq?: number | undefined;
+  recruitBuffFx?: readonly { attack: number; health: number }[] | undefined;
+  rubyRiderFxSeq?: number | undefined;
+  rubyRiderFx?: readonly { rider: string }[] | undefined;
+  starformFxSeq?: number | undefined;
+  starformFx?: readonly { kind: string; fromUid: string }[] | undefined;
 }
+/** A buff entry on a card (the source label is the buffing card's NAME: Flo Rida's buffs read `'Flo Rida'`). */
+export interface AnnouncerBuffLike { source: string; attack: number; health: number }
+/** One logged action (the store's `replayActions`): only the fields the third batch reads. */
+export interface AnnouncerActionLike { type: string; uid?: string | undefined; targetUid?: string | undefined }
+/** Who the player faces this fight (Ghost / Outgunned / Mirror / Rematch / StreakStopper). */
+export interface AnnouncerFoe { seatId: string; ghost: boolean; tier: number; topTribe?: string | undefined }
 export interface AnnouncerStateLike extends MusicStateLike {
   run: AnnouncerRunLike;
   announced: AnnouncedSlice;
   /** The rail's real pre-combat odds for `wave`, once the deferred probe has run (see `stampReplayOdds`). */
   combatOdds: { wave: number; odds: { win: number; draw: number; lose: number } } | null;
   markAnnounced: (event: AnnouncerEvent, wave: number, take?: string, reshuffle?: boolean) => void;
+  /** The run's state-changing action log (appended in the same store update as the run). The third batch reads the
+   *  actions an update added: a Refresh, a rune pick / skip / re-roll, a hero power, a card played. */
+  replayActions?: readonly AnnouncerActionLike[] | undefined;
 }
 
 /** The pure gate: the same as the music's (lobby / practice on screen, no sandbox, no replay, no title). */
@@ -474,6 +642,9 @@ export interface AnnouncerDeps {
   /** A uniform roll in [0, 1) for picking which take of a line plays (owner 2026-09-25: "random pick every time, no
    *  seeds"). Tests replace it to pin a take. */
   random: () => number;
+  /** Who the player faces this fight, read once at the Face Omen (null = no lobby / unknown). The default asks the
+   *  lobby (`playerOpponent`, the same read the combat HUD makes); tests hand one in. */
+  foe: (run: AnnouncerRunLike) => AnnouncerFoe | null;
 }
 
 // ── Level (the Settings slider + mute), persisted ────────────────────────────────────────────────────────────
@@ -622,6 +793,7 @@ const defaultDeps: AnnouncerDeps = {
   clearTimeout: (id) => window.clearTimeout(id),
   play: playDefault,
   random: () => Math.random(), // presentation only: the announcer never feeds the sim, so the seeded-RNG ban doesn't apply
+  foe: lobbyFoe,
 };
 let deps: AnnouncerDeps = defaultDeps;
 /** Tests only: swap the seams. Resets the machine. */
@@ -642,6 +814,8 @@ interface PendingLine {
   bypassCooldown?: boolean;
   /** The chance roll's index (a buy's count this turn); 0 when absent. */
   rollIndex?: number;
+  /** Skip the chance roll (a tier 6 Discover always speaks), unless the event's chance is 0 (muted). */
+  certain?: boolean;
 }
 export type AnnouncerLogKind = 'queue' | 'play' | 'drop' | 'expire' | 'cancel' | 'end';
 export interface AnnouncerLogEntry { t: number; kind: AnnouncerLogKind; event: AnnouncerEvent; file?: string; why?: string }
@@ -684,6 +858,28 @@ let specialtyTries = new Map<AnnouncerEvent, number>();
 /** TribeFour: this Shop turn's minion buys per tribe (dual tribes count for both, an All-tribe minion for every
  *  tribe). In memory only, reset each wave: a Save & Continue mid-turn starts the count again. */
 let tribeBuys: { wave: number; byTribe: Map<Tribe, number>; all: number } = { wave: -1, byTribe: new Map(), all: 0 };
+// ── The third batch's in-memory tallies (owner 2026-09-25, group C). Like TribeFour's, a Save & Continue mid-turn
+// restarts them; a spoken line stays spoken (it is in the slice). ──
+/** RefreshStreak: this Shop turn's Refreshes. GoldRush: this Shop turn's Gold from effects. */
+let refreshes = { wave: -1, n: 0 };
+let goldGained = { wave: -1, n: 0 };
+/** DiscoverOpen: Discovers seen this game (the chance roll's index). */
+let discoversSeen = 0;
+/** THE SHOP CLOCK as Recruit last reported it (`observeTurnClock`): FastTurn reads the seconds left at End Turn,
+ *  Idle counts down from `idleFrom` (the clock at the last action), TimeUp hears it reach 0. */
+let clock = { wave: -1, seconds: 0, idleFrom: 0 };
+/** This fight's foe, read at the Face Omen (StreakStopper needs its streak at the verdict). */
+let combatFoe: { wave: number; seatId: string; streak: number } | null = null;
+/** GemheartGolem in combat is checked per frame; report it once per fight. */
+let golemsSeenThisCombat = false;
+const freshBatch3Tallies = (): void => {
+  refreshes = { wave: -1, n: 0 };
+  goldGained = { wave: -1, n: 0 };
+  discoversSeen = 0;
+  clock = { wave: -1, seconds: 0, idleFrom: 0 };
+  combatFoe = null;
+  golemsSeenThisCombat = false;
+};
 const log: AnnouncerLogEntry[] = [];
 
 function note(kind: AnnouncerLogKind, event: AnnouncerEvent, extra: { file?: string; why?: string } = {}): void {
@@ -743,10 +939,10 @@ export function announcerExhausted(s: AnnouncedSlice, event: AnnouncerEvent): bo
   return !REUSABLE_BAG_EVENTS.includes(event) && unheardTakes(s, event).length === 0;
 }
 /** The chance table: does this moment speak? 1 always, 0 never, else the seeded roll. */
-function chanceAllows(s: AnnouncedSlice, event: AnnouncerEvent, wave: number, index: number): boolean {
+function chanceAllows(s: AnnouncedSlice, event: AnnouncerEvent, wave: number, index: number, certain = false): boolean {
   const c = announcerEventChance(event);
-  if (c >= 1) return true;
   if (c <= 0) return false;
+  if (c >= 1 || certain) return true;
   return announcerRoll(s.seed, event, wave, index) < c;
 }
 
@@ -754,7 +950,7 @@ function enqueue(line: PendingLine): void {
   if (!active) return;
   if (pending.some((p) => p.event === line.event)) return;
   if (slice && announcerExhausted(slice, line.event)) return; // the no-repeat rule: nothing left to say
-  if (slice && !chanceAllows(slice, line.event, line.wave, line.rollIndex ?? 0)) return;
+  if (slice && !chanceAllows(slice, line.event, line.wave, line.rollIndex ?? 0, line.certain)) return;
   // The Announcer dev tuner's per-event TIMING OFFSET (owner 2026-09-24; 0 in prod unless baked). Added to the
   // event's built-in delay; a negative one fires earlier but never before the moment was detected (now). Only
   // `notBefore` moves: the cooldown (from the previous line's real end), the cap and the shelf life are untouched.
@@ -968,6 +1164,8 @@ function detectBuy(s: AnnouncedSlice, p: AnnouncerRunLike, run: AnnouncerRunLike
   if (isSpell) candidates.push('randomSpellBuy');
   if (def && !isSpell && defIsTribe(def, 'beast')) candidates.push('randomBeastBuy');
   if (def && !isSpell && defIsTribe(def, 'dwarf')) candidates.push('randomDwarfBuy');
+  // TribeBuyLines (the third batch): the one take names Kobolds. Once a game (one take), same 6% roll.
+  if (def && !isSpell && defIsTribe(def, ANNOUNCER_TAKE_TRIBE) && !hasFired(s, 'tribeBuyLines')) candidates.push('tribeBuyLines');
   candidates.push('randomCardBuy');
   for (const event of candidates) {
     // The one exception to once-per-game: up to ANNOUNCER_RANDOM_BUY_MAX, ANNOUNCER_RANDOM_BUY_GAP_WAVES apart.
@@ -1054,7 +1252,7 @@ function trailingRun(h: readonly string[]): { result: string | null; length: num
   return { result: last, length: n };
 }
 
-function enterRun(s: AnnouncerStateLike): void {
+function enterRun(s: AnnouncerStateLike, prev: AnnouncerStateLike | null): void {
   cancelAnnouncer('run change');
   active = true;
   runKey = s.run.seed;
@@ -1072,8 +1270,17 @@ function enterRun(s: AnnouncerStateLike): void {
   timeWarningWave = -1;
   specialtyTries = new Map();
   tribeBuys = { wave: -1, byTribe: new Map(), all: 0 };
+  freshBatch3Tallies();
   if (enteredAtWaveOne && !hasFired(slice!, 'gameStart')) {
     enqueue({ event: 'gameStart', shelf: 'shop', notBefore: runEnteredAt + ANNOUNCER_GAME_START_DELAY_MS, wave: 1 });
+  }
+  // ResumeGame (the third batch): the title's Continue puts the SAME run object back on screen (`continueRun` never
+  // touches `run`); every new-run path replaces it. Waits out the music's start like GameStart.
+  if (prev && prev.showTitle && prev.run === s.run && !hasFired(slice!, 'resumeGame')) {
+    enqueue({
+      event: 'resumeGame', shelf: s.run.phase === 'combat' ? 'combat' : 'shop', notBefore: runEnteredAt + ANNOUNCER_GAME_START_DELAY_MS,
+      wave: s.run.wave,
+    });
   }
 }
 
@@ -1097,7 +1304,7 @@ export function syncAnnouncer(s: AnnouncerStateLike, prev: AnnouncerStateLike | 
   slice = announcedFor(s.announced, run.seed);
   mark = s.markAnnounced;
   if (!active || runKey !== run.seed) {
-    enterRun(s);
+    enterRun(s, prev);
     return;
   }
   // UNDERDOG / FAVOURITE: the rail's pre-fight odds arrive on their own update (the deferred probe), before or
@@ -1117,6 +1324,7 @@ export function syncAnnouncer(s: AnnouncerStateLike, prev: AnnouncerStateLike | 
   const p = prev?.run;
   if (!p || p === run || p.seed !== run.seed) return;
   const now = deps.now();
+  const acts = newActions(s, prev);
 
   // ── Phase flips ──
   if (p.phase !== 'combat' && run.phase === 'combat') {
@@ -1148,6 +1356,7 @@ export function syncAnnouncer(s: AnnouncerStateLike, prev: AnnouncerStateLike | 
     if (p.wave > ANNOUNCER_BROKE_AFTER_WAVE && p.embers === 0 && p.cardsBoughtThisTurn === 0 && !hasFired(slice, 'brokeTurn')) {
       enqueue({ event: 'brokeTurn', shelf: 'combat', notBefore: at, wave: run.wave });
     }
+    detectFaceOmenBatch3(slice, p, run, at);
     return;
   }
   if (p.phase === 'combat' && run.phase === 'combat' && !p.combatSettled && run.combatSettled) {
@@ -1190,6 +1399,7 @@ export function syncAnnouncer(s: AnnouncerStateLike, prev: AnnouncerStateLike | 
       }
     }
     detectVerdict(slice, p, run, result, at);
+    detectVerdictBatch3(slice, p, run, result, at);
     return;
   }
   if (p.phase === 'combat' && run.phase === 'recruit') {
@@ -1215,6 +1425,7 @@ export function syncAnnouncer(s: AnnouncerStateLike, prev: AnnouncerStateLike | 
       enqueue({ event: 'round7', shelf: 'shop', notBefore: at, wave: run.wave });
     }
     detectReturn(slice, p, run, at);
+    detectReturnBatch3(slice, p, run, at);
     // A forge that opens WITH the return (the turn-6 / turn-9 forges, a hero's turn-5 / turn-8 one, a booked
     // Clock forge) arrives in this same update: it outranks BackToShop, which is then dropped as outranked
     // (and stays unfired, so a later return may still hear it).
@@ -1268,6 +1479,7 @@ export function syncAnnouncer(s: AnnouncerStateLike, prev: AnnouncerStateLike | 
     // CastAle: a spell was cast and an Ale left the hand (an Ale cast from hand, not one a minion or rune casts).
     if ((run.spellsCast ?? 0) > (p.spellsCast ?? 0) && aleCount(run) < aleCount(p)) trySpecialty(slice, 'castAle', run.wave, now);
     detectShopTurn(slice, p, run, now);
+    detectShopBatch3(slice, p, run, now, acts, s.replayActions);
   }
 }
 
@@ -1366,11 +1578,252 @@ function detectShopTurn(s: AnnouncedSlice, p: AnnouncerRunLike, run: AnnouncerRu
   detectArmorUp(s, p, run, now);
 }
 
+// ── The moment catalog's third batch's detectors (owner 2026-09-25, group C) ─────────────────────────────────
+// Every read here is a cheap diff of fields the update already carries (or of the actions it appended); the only
+// walk of the whole action log is HeroPowerBig's count, and only on an update that used the hero power.
+
+/** The actions this store update appended to the run's log (none when the log was replaced: a new run, a load). */
+function newActions(s: AnnouncerStateLike, prev: AnnouncerStateLike | null): readonly AnnouncerActionLike[] {
+  const now = s.replayActions;
+  const before = prev?.replayActions;
+  if (!now || !before || now === before || now.length <= before.length) return [];
+  return now.slice(before.length);
+}
+/** The default foe read: the lobby's own pairing for this round (a ghost when the player holds the bye). */
+function lobbyFoe(run: AnnouncerRunLike): AnnouncerFoe | null {
+  if (!run.lobby) return null;
+  try {
+    const o = playerOpponent(run.lobby as unknown as RunLobby);
+    if (!o) return null;
+    return { seatId: o.seat.id, ghost: !!o.ghost, tier: o.board.tier, topTribe: boardIntel(o.board, run.lobby.round ?? run.wave).topTribe };
+  } catch {
+    return null; // a partial (hand-built) lobby
+  }
+}
+/** The player's board's main tribe, by the same count the scout card uses for a foe's (`boardIntel`). */
+function playerTopTribe(run: AnnouncerRunLike): string | undefined {
+  const minions = run.board.filter((c) => !!c.cardId).map((c) => ({ cardId: c.cardId! }));
+  return boardIntel({ minions } as unknown as PreparedBoard, run.wave).topTribe;
+}
+/** A seat's win streak going into this round: its newest FOUGHT results, counted while they are wins. */
+function winStreakOf(run: AnnouncerRunLike, seatId: string): number {
+  const encounters = run.lobby?.encounters ?? [];
+  const round = run.lobby?.round ?? Infinity;
+  let n = 0;
+  for (let i = encounters.length - 1; i >= 0; i--) {
+    const e = encounters[i]!;
+    if (e.round >= round || e.fought === false || e.bye || (e.a !== seatId && e.b !== seatId)) continue;
+    const won = e.a === seatId ? e.outcome === 'win' : e.outcome === 'lose';
+    if (!won) break;
+    n++;
+  }
+  return n;
+}
+/** Rematch: the seat(s) that dealt the player's single biggest hit so far (none before the player is first hit). */
+function hardestHitters(run: AnnouncerRunLike): readonly string[] {
+  let best = 0;
+  let who: string[] = [];
+  for (const e of run.lobby?.encounters ?? []) {
+    if (e.bye || (e.a !== 's0' && e.b !== 's0')) continue;
+    const taken = e.a === 's0' ? e.damageToA : e.damageToB;
+    const foe = e.a === 's0' ? e.b : e.a;
+    if (taken > best) { best = taken; who = [foe]; } else if (taken === best && taken > 0 && !who.includes(foe)) who.push(foe);
+  }
+  return who;
+}
+const golemCount = (units: readonly { cardId?: string | undefined }[]): number =>
+  units.filter((u) => u.cardId === ANNOUNCER_BATCH_3_CARDS.golem).length;
+/** Flo Rida's buff on the board and hand, summed (addBuff labels each gain with the buffing card's name). */
+const FLO_RIDA_SOURCE = CARD_INDEX[ANNOUNCER_BATCH_3_CARDS.floRida]?.name ?? 'Flo Rida';
+function floRidaBuffs(r: AnnouncerRunLike): number {
+  let n = 0;
+  for (const c of [...r.board, ...r.hand]) for (const b of c.buffs ?? []) if (b.source === FLO_RIDA_SOURCE) n += b.attack + b.health;
+  return n;
+}
+/** Goldilox in hand grown PAST +20/+20 over its printed stats (gilded prints double). */
+function goldiloxGrown(r: AnnouncerRunLike): boolean {
+  const def = CARD_INDEX[ANNOUNCER_BATCH_3_CARDS.goldilox];
+  if (!def) return false;
+  return r.hand.some((c) => {
+    if (c.cardId !== def.id || c.attack === undefined || c.health === undefined) return false;
+    const k = c.golden ? 2 : 1;
+    return c.attack - def.attack * k > ANNOUNCER_GOLDILOX_GROWTH && c.health - def.health * k > ANNOUNCER_GOLDILOX_GROWTH;
+  });
+}
+/** RunePayout: a COUNTER rune (it has a live `x/N` tally, `runeTally`) reached its ANNOUNCER_RUNE_PAYOUTS-th payout. */
+function runeHitThirdPayout(p: AnnouncerRunLike, run: AnnouncerRunLike): boolean {
+  if (!run.runeProcs || run.runeProcs === p.runeProcs) return false;
+  for (const [id, n] of Object.entries(run.runeProcs)) {
+    if (n < ANNOUNCER_RUNE_PAYOUTS || (p.runeProcs?.[id] ?? 0) >= ANNOUNCER_RUNE_PAYOUTS) continue;
+    try {
+      if (runeTally(run as unknown as RunState, id) !== null) return true;
+    } catch { /* a partial (test) run */ }
+  }
+  return false;
+}
+function questCompleted(p: AnnouncerRunLike, run: AnnouncerRunLike): boolean {
+  return (run.activeQuests ?? []).some((q) => {
+    const before = p.activeQuests?.find((x) => x.questId === q.questId);
+    return (q.completed && !before?.completed) || (q.completionCount ?? 0) > (before?.completionCount ?? 0);
+  });
+}
+/** A Discover opened (or the next queued one did): 10% (the chance table), a tier 6 minion Discover always. */
+function detectDiscover(s: AnnouncedSlice, p: AnnouncerRunLike, run: AnnouncerRunLike, at: number): void {
+  const d = run.discover;
+  if (!d?.length || (p.discover && p.discover.join() === d.join()) || hasFired(s, 'discoverOpen')) return;
+  discoversSeen++;
+  const tierSix = d.every((id) => { const def = CARD_INDEX[id]; return !!def && !def.spell && !def.ruby && def.tier === ANNOUNCER_DISCOVER_ALWAYS_TIER; });
+  enqueue({ event: 'discoverOpen', shelf: 'shop', notBefore: at, wave: run.wave, rollIndex: discoversSeen, certain: tierSix });
+}
+/** The lines a state change can carry in ANY phase (a payout at settle, a Start-of-Turn quest, …). */
+function detectAnyPhaseBatch3(s: AnnouncedSlice, p: AnnouncerRunLike, run: AnnouncerRunLike, at: number, shelf: AnnouncerShelf): void {
+  const q = (event: AnnouncerEvent): void => enqueue({ event, shelf, notBefore: at, wave: run.wave });
+  if (!hasFired(s, 'runePayout') && runeHitThirdPayout(p, run)) q('runePayout');
+  if (!hasFired(s, 'questComplete') && questCompleted(p, run)) q('questComplete');
+  if (!hasFired(s, 'goldilox') && !goldiloxGrown(p) && goldiloxGrown(run)) q('goldilox');
+}
+
+/** Face Omen: the fight's pairing lines (Ghost, Outgunned, Mirror, Rematch) and FastTurn for the turn just ended. */
+function detectFaceOmenBatch3(s: AnnouncedSlice, p: AnnouncerRunLike, run: AnnouncerRunLike, at: number): void {
+  const q = (event: AnnouncerEvent): void => enqueue({ event, shelf: 'combat', notBefore: at, wave: run.wave });
+  golemsSeenThisCombat = false;
+  // FastTurn: the Shop clock still had 40+ s when End Turn landed, after 3+ buys (an unknown clock never counts).
+  if ((p.cardsBoughtThisTurn ?? 0) >= ANNOUNCER_FAST_TURN_BUYS && clock.wave === p.wave && clock.seconds >= ANNOUNCER_FAST_TURN_SECONDS
+    && !hasFired(s, 'fastTurn')) q('fastTurn');
+  combatFoe = null;
+  const foe = run.lobby ? deps.foe(run) : null;
+  if (!foe) return;
+  combatFoe = { wave: run.wave, seatId: foe.seatId, streak: foe.ghost ? 0 : winStreakOf(run, foe.seatId) };
+  if (foe.ghost && !hasFired(s, 'ghostFight')) q('ghostFight');
+  if (foe.tier - run.tier >= ANNOUNCER_OUTGUNNED_TIERS && !hasFired(s, 'outgunned')) q('outgunned');
+  if (foe.topTribe === ANNOUNCER_TAKE_TRIBE && !hasFired(s, 'mirrorMatch') && playerTopTribe(run) === ANNOUNCER_TAKE_TRIBE) q('mirrorMatch');
+  if (!hasFired(s, 'rematch') && hardestHitters(run).includes(foe.seatId)) q('rematch');
+}
+
+/** The verdict: StreakStopper, and the any-phase lines a settle can carry. */
+function detectVerdictBatch3(s: AnnouncedSlice, p: AnnouncerRunLike, run: AnnouncerRunLike, result: string | undefined, at: number): void {
+  if (result === 'win' && combatFoe?.wave === run.wave && combatFoe.streak >= ANNOUNCER_STREAK_STOPPER && !hasFired(s, 'streakStopper')) {
+    enqueue({ event: 'streakStopper', shelf: 'combat', notBefore: at, wave: run.wave });
+  }
+  detectAnyPhaseBatch3(s, p, run, at, 'combat');
+}
+
+/** Back in the Shop: a quest offer or a Discover that opens with the turn, and the any-phase lines. */
+function detectReturnBatch3(s: AnnouncedSlice, p: AnnouncerRunLike, run: AnnouncerRunLike, at: number): void {
+  combatFoe = null;
+  if (!p.questOffer?.length && run.questOffer?.length && !hasFired(s, 'questOffered')) {
+    enqueue({ event: 'questOffered', shelf: 'shop', notBefore: at, wave: run.wave });
+  }
+  detectDiscover(s, p, run, at);
+  detectAnyPhaseBatch3(s, p, run, at, 'shop');
+}
+
+/** Within a Shop turn: the third batch's economy, rune, card and special lines. */
+function detectShopBatch3(
+  s: AnnouncedSlice, p: AnnouncerRunLike, run: AnnouncerRunLike, now: number,
+  acts: readonly AnnouncerActionLike[], log: readonly AnnouncerActionLike[] | undefined,
+): void {
+  const w = run.wave;
+  const q = (event: AnnouncerEvent, delay = 0): void => enqueue({ event, shelf: 'shop', notBefore: now + delay, wave: w });
+  const once = (event: AnnouncerEvent): boolean => !hasFired(s, event);
+  const did = (type: string): boolean => acts.some((a) => a.type === type);
+  // Idle: any player action restarts the count (the clock's own window expiry is not the player acting).
+  if (clock.wave === w && (!acts.length || acts.some((a) => a.type !== 'discountWindowExpired'))) clock.idleFrom = clock.seconds;
+  // FirstFreeze: the player froze the Shop (the flag flipping on; an unfreeze is the same action).
+  if (!p.frozen && run.frozen && once('firstFreeze')) q('firstFreeze');
+  // RefreshStreak: the 5th Refresh this turn.
+  if (refreshes.wave !== w) refreshes = { wave: w, n: 0 };
+  const rolls = acts.filter((a) => a.type === 'roll').length;
+  if (rolls) {
+    refreshes.n += rolls;
+    if (refreshes.n >= ANNOUNCER_REFRESH_STREAK && once('refreshStreak')) q('refreshStreak');
+  }
+  // GoldRush: Gold GAINED this turn (the Gold change plus the Gold spent on the same update), less a sale's base
+  // value (selling is not an effect). Both known tallies only.
+  if (goldGained.wave !== w) goldGained = { wave: w, n: 0 };
+  if (p.embers !== undefined && run.embers !== undefined) {
+    const sold = Math.max(0, (run.soldThisTurn?.length ?? 0) - (p.soldThisTurn?.length ?? 0));
+    const gained = (run.embers - p.embers) + ((run.goldSpentThisTurn ?? 0) - (p.goldSpentThisTurn ?? 0)) - sold * CONFIG.sellValue;
+    if (gained > 0) goldGained.n += gained;
+    if (goldGained.n >= ANNOUNCER_GOLD_RUSH && once('goldRush')) q('goldRush');
+  }
+  detectDiscover(s, p, run, now);
+  // DiscoDanChain: the Setlist's last locked Discover resolved on turn 1 (nothing left open or queued).
+  if (w === 1 && p.discover?.length && p.discoverLockTier !== undefined && !run.discover?.length && !run.discoverQueue?.length
+    && once('discoDanChain')) q('discoDanChain');
+  if (!p.questOffer?.length && run.questOffer?.length && once('questOffered')) q('questOffered');
+  // The Runeforge: the pick, the skip, the re-roll; three sockets full; the seasonal rune.
+  if (did('buyRune') && once('runePick')) q('runePick');
+  if (did('skipRuneforge') && once('runeSkip')) q('runeSkip');
+  if (did('rerollRuneforge') && once('runeReroll')) q('runeReroll');
+  const runesBefore = p.ownedRunes?.length ?? 0;
+  const runesNow = run.ownedRunes?.length ?? 0;
+  if (runesBefore < ANNOUNCER_RUNE_SOCKETS && runesNow >= ANNOUNCER_RUNE_SOCKETS && once('runeSlotsFull')) q('runeSlotsFull');
+  if (runesNow > runesBefore && run.ownedRunes?.includes(ANNOUNCER_BATCH_3_RUNES.happyBirthday)
+    && !p.ownedRunes?.includes(ANNOUNCER_BATCH_3_RUNES.happyBirthday) && once('seasonalRune')) q('seasonalRune');
+  // EquipmentUsed: the first activation (the per-turn count rising). Lets the Equipment SFX land first.
+  if ((run.equipmentActivationsThisTurn ?? 0) > (p.equipmentActivationsThisTurn ?? 0) && once('equipmentUsed')) {
+    q('equipmentUsed', ANNOUNCER_EQUIPMENT_DELAY_MS);
+  }
+  // HeroPowerBig: the 10th hero power this game (the whole log's count, read only when one was just used).
+  if (did('heroPower') && once('heroPowerBig') && (log ?? []).filter((a) => a.type === 'heroPower').length >= ANNOUNCER_HERO_POWER_BIG) {
+    q('heroPowerBig');
+  }
+  // BigBuffMoment: one buff event of +20/+20 or more on one minion.
+  if ((run.recruitFxSeq ?? 0) > (p.recruitFxSeq ?? 0) && once('bigBuffMoment')
+    && (run.recruitBuffFx ?? []).some((b) => b.attack >= ANNOUNCER_BIG_BUFF && b.health >= ANNOUNCER_BIG_BUFF)) q('bigBuffMoment');
+  // The special Rubies' riders (a per-action payload): Dark Ruby's devour (only stamped when it ate a Shop minion),
+  // and a Ripple that landed 4+ times (each 'ripple' stamp is one cast that lands twice) under Rune of Resonance.
+  if ((run.rubyRiderFxSeq ?? 0) > (p.rubyRiderFxSeq ?? 0)) {
+    const riders = run.rubyRiderFx ?? [];
+    if (riders.some((r) => r.rider === 'devour') && once('darkRuby')) q('darkRuby');
+    if (riders.filter((r) => r.rider === 'ripple').length * 2 >= ANNOUNCER_RIPPLE_LANDINGS
+      && run.ownedRunes?.includes(ANNOUNCER_BATCH_3_RUNES.resonance) && once('rippleResonance')) q('rippleResonance');
+  }
+  // StarformCollapse: a collapse whose Starform (a Shop offer) stood over 30 Attack.
+  if ((run.starformFxSeq ?? 0) > (p.starformFxSeq ?? 0) && once('starformCollapse')) {
+    const big = (run.starformFx ?? []).some((f) => {
+      if (f.kind !== 'collapse') return false;
+      const offer = p.shop?.find((o) => o.uid === f.fromUid);
+      return !!offer && offerAttack(p, offer) > ANNOUNCER_STARFORM_ATTACK;
+    });
+    if (big) q('starformCollapse');
+  }
+  if (once('floRida') && floRidaBuffs(run) > floRidaBuffs(p)) q('floRida');
+  if (once('gemheartGolem') && golemCount(p.board) < ANNOUNCER_GOLEM_ARMY && golemCount(run.board) >= ANNOUNCER_GOLEM_ARMY) q('gemheartGolem');
+  // The cards that left the hand on a play: ChooseOnePlay / BothEffects, YazzusDouble, GreatPot.
+  if (acts.some((a) => a.type === 'play' || a.type === 'chooseOne' || a.type === 'battlecryTarget')) {
+    for (const card of p.hand) {
+      if (!card.uid || !card.cardId || run.hand.some((c) => c.uid === card.uid)) continue;
+      const def = CARD_INDEX[card.cardId];
+      if (!def) continue;
+      const play = acts.find((a) => a.uid === card.uid);
+      if (def.chooseOne?.length) {
+        if (once('chooseOnePlay')) q('chooseOnePlay');
+        // Both branches resolved: the Choose One never asked (no prompt was open for it) because both were active.
+        const asked = !!p.chooseOne;
+        if (!asked && once('bothEffects') && chooseBothActive(chooseBothStateOf(p as unknown as RunState), card, def)) q('bothEffects');
+      }
+      if ((def.spell || def.ruby || def.giftMulticast) && def.target && !def.singleCast && play?.targetUid
+        && p.board.some((c) => c.cardId === ANNOUNCER_BATCH_3_CARDS.yazzus) && once('yazzusDouble')) q('yazzusDouble');
+      if ((def.id === ANNOUNCER_BATCH_3_CARDS.greatPot || def.id === ANNOUNCER_BATCH_3_CARDS.picnic) && p.board.length >= ANNOUNCER_BOARD_SLOTS
+        && once('greatPot')) q('greatPot');
+    }
+  }
+  detectAnyPhaseBatch3(s, p, run, now, 'shop');
+}
+// ── end of the third batch's detectors ──
+
 /** The combat replay's PLAYER units at the current beat (Recruit hands them in per frame): MinionHits100Stats and
  *  MinionHits250 during a fight. Ghost / enemy boards are never passed. Each once per fight, only while the fight is on. */
-export function observeCombatBoard(units: readonly { attack: number; health: number }[], wave: number): void {
+export function observeCombatBoard(units: readonly { attack: number; health: number; cardId?: string | undefined }[], wave: number): void {
   if (!active || !slice || combatStartedAt === null) return;
   const at = Math.max(deps.now(), combatStartedAt + ANNOUNCER_COMBAT_SILENCE_MS);
+  // GemheartGolem (the third batch): 3+ Golems on the player's side mid-fight (Gemheart Carver's Echo summons them).
+  if (!golemsSeenThisCombat && !hasFired(slice, 'gemheartGolem') && golemCount(units) >= ANNOUNCER_GOLEM_ARMY) {
+    golemsSeenThisCombat = true;
+    enqueue({ event: 'gemheartGolem', shelf: 'combat', notBefore: at, wave });
+  }
   if (!bigStatSeenThisCombat && !hasFired(slice, 'minionHits100Stats') && hasBigStat(units)) {
     bigStatSeenThisCombat = true;
     enqueue({ event: 'minionHits100Stats', shelf: 'combat', notBefore: at, wave });
@@ -1428,13 +1881,26 @@ export function observeCombatMoments(v: CombatReplayView, wave: number): void {
  *  untimed. */
 export function observeTurnClock(seconds: number, wave: number): void {
   if (!active || !slice) return;
+  // The third batch (owner 2026-09-25) remembers the clock: FastTurn reads it at End Turn, Idle counts from the
+  // last action's reading (a paused clock, a Discover or an aim, never counts as idle), TimeUp hears it reach 0.
+  const before = clock.wave === wave ? clock.seconds : null;
+  if (clock.wave !== wave) clock = { wave, seconds, idleFrom: seconds + 1 };
+  else clock.seconds = seconds;
   if (seconds <= 0) {
     // Out of time: a warning still waiting behind a playing line has nothing left to warn about.
     if (pending.some((p) => p.event === 'timeRunningOut')) {
       pending = pending.filter((p) => p.event !== 'timeRunningOut');
       note('drop', 'timeRunningOut', { why: 'time up' });
     }
+    // TimeUp: the clock ran out and locked the Shop (the game has no auto-End-Turn: the player still presses it).
+    if ((before === null || before > 0) && combatStartedAt === null && !hasFired(slice, 'timeUp')) {
+      enqueue({ event: 'timeUp', shelf: 'shop', notBefore: deps.now(), wave });
+    }
     return;
+  }
+  if (combatStartedAt === null && clock.idleFrom - seconds >= ANNOUNCER_IDLE_SECONDS && !hasFired(slice, 'idle')) {
+    clock.idleFrom = seconds; // one try per idle stretch
+    enqueue({ event: 'idle', shelf: 'shop', notBefore: deps.now(), wave });
   }
   if (seconds !== ANNOUNCER_TIME_WARNING_SECONDS || timeWarningWave === wave || combatStartedAt !== null) return;
   timeWarningWave = wave;
@@ -1502,6 +1968,7 @@ export function resetAnnouncerForTests(): void {
   timeWarningWave = -1;
   specialtyTries = new Map();
   tribeBuys = { wave: -1, byTribe: new Map(), all: 0 };
+  freshBatch3Tallies();
   log.length = 0;
 }
 

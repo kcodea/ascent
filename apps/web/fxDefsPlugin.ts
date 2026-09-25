@@ -254,8 +254,11 @@ export function planCardArtWrite(body: unknown, file: string): WritePlan {
 // `packages/ui/src/choreo/bindings.ts` (the reader), and the `FxBinding['fanOut']` TypeScript union. `ui`
 // is off-limits to import from `apps/web` (package-boundary rule in CLAUDE.md) and `FAN_OUTS` isn't on
 // `bindings.ts`'s public entrypoint anyway, so a shared constant isn't available — this comment is the
-// lockstep mechanism instead of a shared value.
-const BINDING_FAN_OUTS: readonly string[] = ['primary', 'damaged', 'selfBuffed'];
+// lockstep mechanism instead of a shared value — and the comment alone DRIFTED: this list stopped at
+// `selfBuffed` while the reader grew `struck` / `buffed` / `buffedOn`, so every bindings save 400'd once any
+// row used one (found 2026-09-25: the FX Library's By-card edits never reached the file). `fxDefsPlugin.test.ts`
+// now reads both the reader's list and the committed file off disk and fails on any mismatch.
+export const BINDING_FAN_OUTS: readonly string[] = ['primary', 'damaged', 'struck', 'selfBuffed', 'buffed', 'buffedOn'];
 
 /** Rejected at every key position, mirroring `bindings.ts`'s own `UNSAFE_KEYS` guard on the read side. A key
  *  the reader is guaranteed to drop must never earn a 200 here: the file would claim a binding the game can

@@ -52,6 +52,16 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-09-25',
+    label: 'Hero Select',
+    changes: [
+      {
+        category: 'Systems',
+        text: 'The Ascent logo on the hero select screen is bigger and now sits just above Select Your Hero.',
+      },
+    ],
+  },
+  {
+    date: '2026-09-25',
     label: 'Announcer: New Lines',
     changes: [
       {

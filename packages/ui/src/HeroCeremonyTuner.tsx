@@ -46,6 +46,8 @@ const SPECS: Record<keyof HscTunerConfig, [string, TunerUnit | undefined, string
   btnX:              ['Button horizontal', 'px', 'Nudge Start Game off center.', 'Button'],
   btnY:              ['Button vertical', 'px', 'Negative lifts the button toward the name.', 'Button'],
   btnScale:          ['Button size', '×', 'Scales the whole button — text and padding together.', 'Button'],
+  logoScale:         ['Logo size', '×', 'The picker’s ASCENT mark + wordmark, as a multiple of the 64px mark / 42px word.', 'Picker logo'],
+  logoGap:           ['Logo gap', 'px', 'Space between the ASCENT lockup and the picker below it (Select Your Hero).', 'Picker logo'],
   songOn:            ['Song', undefined, 'asiansong.mp3 — the ceremonial sting.', 'SFX — Song'],
   songAtMs:          ['Song at', 'ms', 'When the song starts (from the hero click).', 'SFX — Song'],
   songVol:           ['Song volume', '×', 'Multiplier on the ceremony bus gain.', 'SFX — Song'],
@@ -113,6 +115,7 @@ const ORDER: (keyof HscTunerConfig)[] = [
   'powerX', 'powerY', 'powerSize',
   'plateOpacity', 'plateLen', 'platePadTop', 'platePadBot', 'plateFade',
   'btnX', 'btnY', 'btnScale',
+  'logoScale', 'logoGap',
 ];
 
 const controls: TunerControl<Extract<keyof HscTunerConfig, string>>[] = ORDER.map((key) => {

@@ -43,6 +43,12 @@ export interface HscLayout {
   btnY: number;
   /** Start Game — overall scale (×), text + padding together (CSS zoom). */
   btnScale: number;
+  /** The hero-select ASCENT lockup (mark + wordmark) — size multiplier (×) on the 64px mark / 42px word.
+   *  Unlike the knobs above this styles the PICKER, not the ceremony (owner ask 2026-09-25: larger, sitting
+   *  just above "Select Your Hero"). */
+  logoScale: number;
+  /** The hero-select ASCENT lockup — gap (px, stage-scaled) between the lockup and the picker below it. */
+  logoGap: number;
 }
 
 /** Ceremony STINGERS (owner assets 2026-08-21: audio/ceremony/*) + the circular-portrait FLASH. Unlike the
@@ -85,7 +91,7 @@ export type HscTunerConfig = HeroCeremonyTiming & HscLayout & HscFx;
 // Owner-tuned 2026-08-21 (pill pass): a big 80px name + 22px power on the new dark plate, the button at
 // 1.55×. The name offsets move the WHOLE plate (name + power ride inside it); power offsets move the power
 // line within the plate.
-const LAYOUT_DEFAULTS: HscLayout = { nameX: 0, nameY: -399, nameSize: 62, powerX: 0, powerY: -408, powerSize: 21, plateOpacity: 1, plateLen: 690, platePadTop: 2, platePadBot: 7, plateFade: 400, btnX: 0, btnY: -198, btnScale: 1.55 };
+const LAYOUT_DEFAULTS: HscLayout = { nameX: 0, nameY: -399, nameSize: 62, powerX: 0, powerY: -408, powerSize: 21, plateOpacity: 1, plateLen: 690, platePadTop: 2, platePadBot: 7, plateFade: 400, btnX: 0, btnY: -198, btnScale: 1.55, logoScale: 1.7, logoGap: 14 };
 
 /** Owner-tuned 2026-08-21: song from the click, wooshes on the exits (100) and the settle (640), reveal +
  *  flash paired at 1320 — after the fast transform finishes (825+350) — with the art at 1.26× inside a big
@@ -149,6 +155,8 @@ export const HSC_RANGES: Record<keyof HscTunerConfig, [number, number, number]> 
   btnX: [-400, 400, 1],
   btnY: [-900, 400, 1], // matched to nameY/powerY: the tuned -198 sat 2px off the old -200 floor
   btnScale: [0.6, 1.6, 0.01],
+  logoScale: [0.5, 3, 0.01],
+  logoGap: [-40, 200, 1],
   songOn: [0, 1, 1], songAtMs: [0, 3000, 10], songVol: [0, 1, 0.01],
   woosh1On: [0, 1, 1], woosh1AtMs: [0, 3000, 10], woosh1Vol: [0, 1, 0.01],
   woosh2On: [0, 1, 1], woosh2AtMs: [0, 3000, 10], woosh2Vol: [0, 1, 0.01],

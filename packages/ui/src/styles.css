@@ -5157,15 +5157,23 @@ body:has(.heroselect) .statusbar { visibility: hidden; }
    global offset/float/mark-size, so sharing it would make tuning the home screen silently drag this logo too.
    `animation: none` is load-bearing for the same reason — `.titleword`/`.crest` default to `titlebob`, so the
    wordmark would bob here without it. */
-/* Pinned to the top of the screen (grid row 1) and shrunk ~30% (owner ask 2026-08-24: 92→64 mark, 60→42
+/* (History: pinned to the top of the screen and shrunk ~30% on 2026-08-24, 92→64 mark, 60→42
    word). Now a DIRECT child of `.heroselect`, so it carries its own `--hs-zoom` for scale parity with the
    picker below (it used to inherit it from `.hsbox`). */
-.hslogo { display: flex; align-items: center; justify-content: center; gap: 10px; zoom: var(--hs-zoom); margin: clamp(8px, 2.6vh, 26px) 0 0; }
-.hslogo .crest { font-size: 64px; animation: none; }
-.hslogo .hsword { font-size: 42px; animation: none; }
+.hslogo { display: flex; align-items: center; justify-content: center; gap: calc(10px * var(--hsc-logoscale, 1.7)); zoom: var(--hs-zoom); margin: 0 0 calc(var(--hsc-logogap, 14) * 1px); }
+.hslogo .crest { font-size: calc(64px * var(--hsc-logoscale, 1.7)); animation: none; }
+.hslogo .hsword { font-size: calc(42px * var(--hsc-logoscale, 1.7)); animation: none; }
+/* Larger, and dropped to sit just above the picker (owner ask 2026-09-25: "make the ascent text larger and drop
+   it so it is just above the choose your hero text"). The lockup and `.hsbox` now size to content and the PAIR
+   centres in the screen as one group, instead of the lockup pinned to row 1 over a 1fr picker row. `safe`
+   keeps the top reachable (scroll, not clip) if a window is ever too short for the group. Size and gap are the
+   hero-ceremony tuner's `logoScale` / `logoGap` dials (--hsc-logoscale / --hsc-logogap; the fallbacks above
+   mirror its defaults). Everything rides `--hs-zoom`, so the group shrinks with the stage height (1366x768,
+   1280x720) exactly as the cards do. Practice's browse grid keeps its own top-pinned layout below. */
+.heroselect:has(> .hslogo):not(:has(.hsrow.browse)) { grid-template-rows: auto auto; align-content: safe center; }
 /* Practice's browse grid is a taller screen (two rows + scroll), so the lockup stays a touch smaller. Scoped to
    `.heroselect` now that the logo sits outside `.hsbox`. */
-.heroselect:has(.hsrow.browse) .hslogo { margin: clamp(6px, 1.6vh, 16px) 0 0; }
+.heroselect:has(.hsrow.browse) .hslogo { gap: 10px; margin: clamp(6px, 1.6vh, 16px) 0 0; }
 .heroselect:has(.hsrow.browse) .hslogo .crest { font-size: clamp(30px, 4vw, 50px); }
 .heroselect:has(.hsrow.browse) .hslogo .hsword { font-size: clamp(22px, 3.4vw, 38px); }
 /* "Select Your Hero" — the picker prompt directly above the portraits (owner ask 2026-08-24). Static label,

@@ -56,7 +56,7 @@ import { runeTally } from './runeTally';
 import { DEFAULT_SLIDER, sliderToGain } from './audio/volumeCurve';
 import { ANNOUNCER_CHANCE, announcerEventChance, announcerEventOffset, announcerEventVolume, announcerLineGain } from './announcerConfig';
 import { isMusicWanted, MUSIC_FADE_MS, MUSIC_START_DELAY_MS, type MusicStateLike } from './music';
-import { COMBAT_MOMENT_EVENTS, finalMoments, newCombatScan, scanCombat, type CombatScan, type FrameAt, type UnitStats } from './announcerCombat';
+import { COMBAT_MOMENT_EVENTS, COMBAT_SPECIAL_EVENTS, finalMoments, newCombatScan, scanCombat, type CombatScan, type FrameAt, type UnitStats } from './announcerCombat';
 import type { CombatEvent, MinionSnapshot } from '@game/core';
 import {
   type AnnouncedSlice, type AnnouncerEvent, announcedFor, firedWaves, hasFired, heardTakes, UNCAPPED_EVENTS, withAnnounced,
@@ -416,6 +416,11 @@ export const ANNOUNCER_LINES: Record<AnnouncerEvent, readonly string[]> = {
   tribeTakeover: allKeyedTakes(TRIBE_TAKEOVER_TAKES),
   tribeSurge: allKeyedTakes(TRIBE_SURGE_TAKES),
   rankUp: ['rank-up-1'], // "Promoted!": generic, any promotion
+  // The fight specials (owner 2026-09-25): one ElevenLabs take each (the catalog's example line).
+  grimPayout: ['grim-payout-1'],
+  hanGover: ['han-gover-1'],
+  kurseGolem: ['kurse-golem-1'],
+  wolvieRise: ['wolvie-rise-1'],
 };
 
 /** The moment catalog's first batch (owner 2026-09-25), in ANNOUNCER_LINES order. */
@@ -430,6 +435,8 @@ export const CATALOG_BATCH_1_EVENTS: readonly AnnouncerEvent[] = [
 export const CATALOG_BATCH_2_EVENTS: readonly AnnouncerEvent[] = [
   ...COMBAT_MOMENT_EVENTS, 'clutchWin', 'narrowLoss',
 ];
+/** The fight specials (owner 2026-09-25), in ANNOUNCER_LINES order. */
+export const FIGHT_SPECIAL_EVENTS: readonly AnnouncerEvent[] = COMBAT_SPECIAL_EVENTS;
 
 /** The moment catalog's third batch (owner 2026-09-25, group C: moments that needed new tallies / signals), in
  *  ANNOUNCER_LINES order. */
@@ -581,6 +588,11 @@ export const ANNOUNCER_PRIORITY: Record<AnnouncerEvent, number> = {
   opponentHero: 21, // just over EnteringCombat (20), under every Face Omen warning
   heroPick: 16, // over GameStart (15): a picked hero with its own line replaces the generic welcome
   tribeSurge: 14, // with Round7, over BackToShop (10), which stays unfired and may speak on a later return
+  // The fight specials, with the named-card specialties (36); a verdict or standings line still wins.
+  grimPayout: 37,
+  hanGover: 36,
+  kurseGolem: 36,
+  wolvieRise: 36,
 };
 
 /** When a pending line goes stale: 'shop' lines when combat starts, 'combat' lines when the next shop opens. */

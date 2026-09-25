@@ -43,7 +43,13 @@ export const COMBAT_MOMENT_EVENTS = [
   'firstBlood', 'overkill', 'wardBreak', 'rebirth', 'riseBack', 'avengeBig', 'echoChain', 'summonSwarm',
   'tauntWall', 'flurry', 'pummel', 'lastStand', 'executeKill', 'executeKing', 'sameCardDuel',
 ] as const satisfies readonly AnnouncerEvent[];
-export type CombatMoment = (typeof COMBAT_MOMENT_EVENTS)[number];
+/** The card-specific fight specials (the catalog's Special bucket), keyed on the stamped `srcCard` of the effect
+ *  that fired — the sim tags every event an effect emits with its card id (`simulate.ts` effectCtx). */
+export const COMBAT_SPECIAL_EVENTS = ['grimPayout', 'hanGover', 'kurseGolem', 'wolvieRise'] as const satisfies readonly AnnouncerEvent[];
+export const COMBAT_SPECIAL_CARDS = { grim: 'grim', hanGover: 'dw3_hangover', kurse: 'k3_kurse', wolvie: 'b2_wolvie' } as const;
+/** GrimPayout: Grim's Echo pays out with at least this many Echoes counted. */
+export const GRIM_PAYOUT_ECHOES = 6;
+export type CombatMoment = (typeof COMBAT_MOMENT_EVENTS)[number] | (typeof COMBAT_SPECIAL_EVENTS)[number];
 
 /** A unit's stats at some point of the replay (the live frame's shape, narrowed). */
 export interface UnitStats { uid: string; attack: number; health: number }
@@ -69,6 +75,10 @@ export interface CombatScan {
   fired: Set<CombatMoment>;
   /** SameCardDuel, decided from the opening boards; handed out on the first scan. */
   duel: boolean;
+  /** Gilded bodies (GrimPayout reads a gilded Grim's doubled step). */
+  golden: Set<string>;
+  /** WolvieRise: the Beasts a Wolvie Echo gave Rise to this fight. */
+  wolvieRise: Set<string>;
 }
 
 export function newCombatScan(initial: { player: readonly MinionSnapshot[]; enemy: readonly MinionSnapshot[] }): CombatScan {
@@ -91,6 +101,8 @@ export function newCombatScan(initial: { player: readonly MinionSnapshot[]; enem
     lastStand: null,
     fired: new Set(),
     duel,
+    golden: new Set([...initial.player, ...initial.enemy].filter((u) => u.golden).map((u) => u.uid)),
+    wolvieRise: new Set(),
   };
 }
 
@@ -106,6 +118,14 @@ const stepKey = (e: CombatEvent, i: number): string => (e.step !== undefined ? `
  * Fold `events[scan.cursor, to)` into `scan` and return the moments those events complete, in the order they
  * complete. Each moment is returned at most once per scan (per fight).
  */
+/** Grim's per-Echo Attack step, read off the card so a balance pass never desyncs it (3 today). */
+function grimStep(): number {
+  const eff = CARD_INDEX[COMBAT_SPECIAL_CARDS.grim]?.effects?.find((x) => x.do === 'deathrattleBuffTribeByTally');
+  const a = (eff?.params as { attack?: unknown } | undefined)?.attack;
+  return typeof a === 'number' ? a : 0;
+}
+const C = COMBAT_SPECIAL_CARDS;
+
 export function scanCombat(scan: CombatScan, events: readonly CombatEvent[], to: number, frameAt?: FrameAt): CombatMoment[] {
   const out: CombatMoment[] = [];
   const hit = (m: CombatMoment): void => { if (!scan.fired.has(m)) { scan.fired.add(m); out.push(m); } };
@@ -123,9 +143,23 @@ export function scanCombat(scan: CombatScan, events: readonly CombatEvent[], to:
       scan.echoSteps.add(stepKey(e, i));
       if (scan.echoSteps.size >= T.echo) hit('echoChain');
     }
+    // THE FIGHT SPECIALS (the player's own cards; `srcCard` = the card whose effect emitted the event).
+    const src = e.srcCard;
+    if (src === C.grim && (e.type === 'buff' || e.type === 'tribeAura') && e.key?.endsWith(':onDeath')) {
+      // Grim's Echo: +attack x (Echoes counted), doubled when gilded; its source body tells side and gild.
+      const body = e.type === 'buff' ? e.source : undefined;
+      const per = grimStep() * (body && scan.golden.has(body) ? 2 : 1);
+      const mineSide = e.type === 'buff' ? mine(body) : e.side === 'player';
+      if (mineSide && per > 0 && (e.attack ?? 0) / per >= GRIM_PAYOUT_ECHOES) hit('grimPayout');
+    }
+    if (src === C.hanGover && e.type === 'pummelTrigger' && e.side === 'player') hit('hanGover');
+    if (src === C.kurse && e.type === 'summon' && e.side === 'player') hit('kurseGolem');
+    if (src === C.wolvie && e.type === 'keyword' && e.keyword === 'R' && mine(e.target)) scan.wolvieRise.add(e.target);
+    if (e.type === 'reborn' && !e.rebirth && scan.wolvieRise.has(e.target)) hit('wolvieRise');
     switch (e.type) {
       case 'summon': {
         scan.keywords.set(e.minion.uid, new Set(e.minion.keywords));
+        if (e.minion.golden) scan.golden.add(e.minion.uid);
         if (e.side === 'player') {
           scan.player.add(e.minion.uid);
           scan.alivePlayer.add(e.minion.uid);

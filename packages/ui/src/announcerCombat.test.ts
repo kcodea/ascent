@@ -5,7 +5,7 @@
 import { describe, expect, it } from 'vitest';
 import { CARD_INDEX } from '@game/content';
 import type { CombatEvent, Keyword, MinionSnapshot } from '@game/core';
-import { COMBAT_MOMENT_THRESHOLDS as T, finalMoments, newCombatScan, scanCombat, type FrameAt } from './announcerCombat';
+import { COMBAT_MOMENT_THRESHOLDS as T, COMBAT_SPECIAL_CARDS as SC, GRIM_PAYOUT_ECHOES, finalMoments, newCombatScan, scanCombat, type FrameAt } from './announcerCombat';
 
 const snap = (uid: string, keywords: Keyword[] = [], cardId = 'x', attack = 2, health = 2): MinionSnapshot =>
   ({ uid, cardId, name: uid, tribe: 'neutral', attack, health, keywords }) as MinionSnapshot;
@@ -109,5 +109,44 @@ describe('the in-fight moments', () => {
     expect(finalMoments('win', { player: [u(2), u(2)], enemy: [] })).toEqual([]);
     expect(finalMoments('lose', { player: [], enemy: [u(1)] })).toEqual(['narrowLoss']);
     expect(finalMoments('draw', { player: [], enemy: [] })).toEqual([]);
+  });
+});
+
+describe('the fight specials (owner 2026-09-25): keyed on the card whose effect fired', () => {
+  const b = () => board([snap('p1'), snap('grim1', [], SC.grim)], [snap('e1')]);
+  const grimBuff = (attack: number, source = 'grim1'): CombatEvent =>
+    ({ type: 'buff', target: 'p1', attack, health: 1, source, key: 'factory:deathrattleBuffTribeByTally:onDeath', srcCard: SC.grim });
+  it('the cards exist under the ids the specials key on', () => {
+    expect(CARD_INDEX[SC.grim]?.name).toBe('Grim');
+    expect(CARD_INDEX[SC.hanGover]?.name).toBe('Han Gover');
+    expect(CARD_INDEX[SC.kurse]?.name).toBe('Kurse');
+    expect(CARD_INDEX[SC.wolvie]?.name).toBe('Wolvie');
+  });
+  it('GrimPayout when the Grim Echo pays out with 6+ Echoes counted (a gilded Grim doubles its step)', () => {
+    const step = 3; // Grim's printed +3 Attack per Echo
+    expect(all(b(), [grimBuff(step * GRIM_PAYOUT_ECHOES)])).toEqual(['grimPayout']);
+    expect(all(b(), [grimBuff(step * (GRIM_PAYOUT_ECHOES - 1))])).toEqual([]);
+    const gilded = board([snap('p1'), { ...snap('grim1', [], SC.grim), golden: true } as MinionSnapshot], [snap('e1')]);
+    expect(all(gilded, [grimBuff(2 * step * (GRIM_PAYOUT_ECHOES - 1))])).toEqual([]);
+    expect(all(gilded, [grimBuff(2 * step * GRIM_PAYOUT_ECHOES)])).toEqual(['grimPayout']);
+    const theirs = board([snap('p1')], [snap('e1'), snap('grim1', [], SC.grim)]);
+    expect(all(theirs, [grimBuff(step * 10)])).toEqual([]);
+  });
+  it('HanGover on a player Han Gover Pummel payout (the generic Pummel also counts it)', () => {
+    const e: CombatEvent = { type: 'pummelTrigger', source: 'p1', side: 'player', marker: 'm', srcCard: SC.hanGover };
+    expect(all(b(), [e])).toEqual(['hanGover', 'pummel']);
+    expect(all(b(), [{ ...e, side: 'enemy' } as CombatEvent])).toEqual([]);
+  });
+  it('KurseGolem when a player Kurse summons its Golem', () => {
+    const e: CombatEvent = { type: 'summon', minion: snap('g1', [], 'gemheart-shard'), side: 'player', index: 0, srcCard: SC.kurse };
+    expect(all(b(), [e])).toEqual(['kurseGolem']);
+    expect(all(b(), [{ ...e, side: 'enemy' } as CombatEvent])).toEqual([]);
+  });
+  it('WolvieRise when a Beast Wolvie gave Rise then Rises in the same fight', () => {
+    const give: CombatEvent = { type: 'keyword', target: 'p1', keyword: 'R', srcCard: SC.wolvie };
+    const rises: CombatEvent = { type: 'reborn', target: 'p1', hp: 2, attack: 2, keywords: [] };
+    expect(all(b(), [give, rises])).toContain('wolvieRise');
+    expect(all(b(), [give])).not.toContain('wolvieRise');
+    expect(all(b(), [rises])).not.toContain('wolvieRise');
   });
 });

@@ -1,6 +1,7 @@
 import { useRef, type CSSProperties, type HTMLAttributes, type PointerEvent as ReactPointerEvent, type ReactNode, type RefObject } from 'react';
 import { Card, type CardView } from '../Card';
 import { useOfferEntrance, type OfferEntrance } from './useOfferEntrance';
+import { OfferBanner } from './OfferBanner';
 import './discoverEntrance.css';
 
 /**
@@ -22,16 +23,20 @@ export interface DiscoverDialogProps {
   speed?: number;
   /** The Discover burst layer's mount point (the live overlay's golden bloom behind the cards). */
   burstRef?: RefObject<HTMLDivElement>;
+  /** What opened this Discover, for the banner's "From X" subtitle. Omitted (no subtitle) while the run state
+   *  records no Discover source: see `offerSource.ts`. */
+  source?: string | null;
   className?: string;
 }
 
-export function DiscoverDialog({ cards, ids, onPick, occasion, speed, burstRef, className }: DiscoverDialogProps): JSX.Element {
+export function DiscoverDialog({ cards, ids, onPick, occasion, speed, burstRef, source, className }: DiscoverDialogProps): JSX.Element {
   const rootRef = useRef<HTMLDivElement | null>(null);
   const entrance = useOfferEntrance(rootRef, occasion, { openCue: true, speed });
   return (
     <div
       ref={rootRef}
-      className={`discover-ov dce${className ? ` ${className}` : ''}`}
+      // `disc-look`: the spotlight backdrop (a static vignette + soft radial glow behind the cards; see the CSS).
+      className={`discover-ov dce disc-look${className ? ` ${className}` : ''}`}
       role="dialog"
       aria-label="Discover a card"
       // ANY press while the entrance plays settles it. A press on a card still in flight lands here (flying cards
@@ -43,7 +48,7 @@ export function DiscoverDialog({ cards, ids, onPick, occasion, speed, burstRef, 
       <div className="disc-burst" ref={burstRef} aria-hidden="true" />
       <div className="disc-panel">
         <span className="disc-gem disc-gem-top" aria-hidden="true" />
-        <div className="disc-banner"><span className="disp">Discover</span></div>
+        <OfferBanner title="Discover" source={source} />
         <div className="disc-cards">
           {cards.map((card, i) => (
             <div className="disc-slot" data-pick-sfx key={`${ids[i] ?? card.cardId}-${i}`} style={{ '--c': `var(--t-${card.tribe})` } as CSSProperties}>

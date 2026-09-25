@@ -37,3 +37,146 @@ body:has(.dce-preview) .tunerpanel { z-index: 910; }
   border: 2px solid color-mix(in srgb, var(--gold) 58%, #000); border-radius: calc(11 * var(--u));
   padding: calc(8 * var(--u)) calc(16 * var(--u));
 }
+
+/* ── THE DISCOVER LOOK (owner pick 2026-09-25): the ornate title banner + the spotlight backdrop ─────────────────
+   Scoped to `.disc-look` (the Discover and the Choose One; the quest shop, Runeforge, scout and power offers keep
+   their own chrome). Every dial is a `--dcl-*` custom property written by `applyDiscoverLook` (💫 tuner, "Look"
+   group); the fallbacks below are the shipped defaults (`DCE_DEFAULTS`), so the two must move together.
+   PERF CONTRACT: all STATIC. No blur, no backdrop-filter, nothing animated. The backdrop is two gradients painted
+   once when the overlay mounts (the same cost as the flat scrim it replaces: one full-viewport paint), and the
+   overlay's existing 200 ms opacity fade carries it in. The title's glow is a static filter, rasterized once. */
+
+/* THE SPOTLIGHT BACKDROP. Top layer: a soft warm glow centred on the card row, sized in vh so an ultrawide gets the
+   same pool of light rather than a wider one. Under it: the scrim itself, at `--dcl-tint` behind the cards and
+   darkening to `--dcl-vignette` at the screen's edges. Both layers cover the board, so the board shows through
+   LESS than under the old flat 0.72 scrim, even where the glow is brightest. */
+.discover-ov.disc-look {
+  background:
+    radial-gradient(ellipse calc(var(--dcl-spot-r, 40) * 1.6vh) calc(var(--dcl-spot-r, 40) * 1vh) at 50% 51%,
+      rgba(255, 196, 112, calc(var(--dcl-spot, 0.4) * 0.34)) 0%,
+      rgba(255, 170, 80, calc(var(--dcl-spot, 0.4) * 0.14)) 50%,
+      rgba(255, 160, 70, 0) 100%),
+    radial-gradient(ellipse 72% 68% at 50% 51%,
+      rgba(16, 11, 6, var(--dcl-tint, 0.84)) 0%,
+      rgba(16, 11, 6, var(--dcl-tint, 0.84)) 30%,
+      rgba(4, 3, 2, var(--dcl-vignette, 0.95)) 100%);
+}
+
+/* THE ORNATE TITLE BANNER. Absolute, anchored by its BOTTOM where the old flat banner's bottom sat (16u into the
+   panel: the enlarged option cards' gems and plates rise above their row, so this is the clear line), so a subtitle
+   grows it upward and the cards never move. */
+.disc-ornate {
+  --dcl-k: calc(var(--dcl-banner, 50) / 50); /* 1 at the shipped size: the parts below scale with the title */
+  position: absolute; left: 50%; bottom: calc(100% - 14 * var(--u));
+  transform: translateX(-50%);
+  display: flex; flex-direction: column; align-items: center;
+  gap: calc(3 * var(--u) * var(--dcl-k));
+  white-space: nowrap; pointer-events: none;
+}
+.disc-ornate-row { display: flex; align-items: center; gap: calc(10 * var(--u) * var(--dcl-k)); }
+.disc-ornate-title {
+  font-family: var(--title-font, 'Cinzel Decorative'), 'Cinzel Decorative', 'Outfit', serif;
+  font-weight: var(--title-weight, 700);
+  font-size: calc(var(--dcl-banner, 50) * var(--u));
+  line-height: 1.12; letter-spacing: 0.04em;
+  /* No kerning: Cinzel Decorative kerns its small-cap "oo" pair so tight the two rings interlock (it read
+     "CHꝏSE ONE"; measured -21px at 50px, and not a ligature, so the ligature switches do nothing). */
+  font-kerning: none;
+  color: transparent;
+  background: linear-gradient(180deg, #fff4cf 0%, #f6d77e 38%, #d9a441 62%, #a8701c 100%);
+  -webkit-background-clip: text; background-clip: text;
+  /* STATIC glow: a dark lift off the board + a warm halo (the Good Luck recipe, scaled to a heading). */
+  filter:
+    drop-shadow(0 calc(2 * var(--u)) 0 rgba(60, 34, 6, 0.95))
+    drop-shadow(0 0 calc(9 * var(--u)) rgba(255, 196, 84, 0.55))
+    drop-shadow(0 0 calc(22 * var(--u)) rgba(255, 150, 40, 0.3));
+}
+/* The Good Luck flourishes (`Flourish`, its own SVG + static glow), at heading size. The right arm is the same art
+   mirrored. */
+.disc-ornate-flour {
+  display: block; flex: none;
+  width: calc(136 * var(--u) * var(--dcl-k)); height: calc(26 * var(--u) * var(--dcl-k));
+}
+.disc-ornate-flour-r { transform: scaleX(-1); }
+/* "From Runic Beetle": small gold caps between two fine rules. */
+.disc-ornate-sub {
+  display: flex; align-items: center; gap: calc(10 * var(--u) * var(--dcl-k));
+  font-family: var(--font-ui); font-weight: 800;
+  font-size: calc(13 * var(--u) * var(--dcl-k)); letter-spacing: 0.16em; text-transform: uppercase;
+  color: #efdcaa;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.85), 0 0 calc(8 * var(--u)) rgba(0, 0, 0, 0.6);
+}
+.disc-ornate-sub::before,
+.disc-ornate-sub::after {
+  content: ''; width: calc(34 * var(--u) * var(--dcl-k)); height: 1px;
+  background: linear-gradient(90deg, rgba(233, 196, 106, 0), #e9c46a);
+}
+.disc-ornate-sub::after { transform: scaleX(-1); }
+
+
+/* THE PEEK TOGGLE (owner ask 2026-09-25: "make the minimize button better"): the Discover's Peek / Return button,
+   restyled to match the banner. Keeps the base `.disc-toggle` placement (viewport-fixed at 50% / 67%, the one spot
+   for both states), its fade-in and its gauntlet cursor; everything else is overridden here.
+   PERF: the fill, trim and glow are all STATIC paint. Hover / press move only `transform` and the glow layer's
+   `opacity` (compositor), as one-shot transitions. Nothing loops. Size is the 💫 tuner's `lookPeekSize`. */
+.disc-toggle.disc-peek {
+  --pk: var(--dcl-peek, 1);
+  gap: calc(9 * var(--u) * var(--pk));
+  padding: calc(9 * var(--u) * var(--pk)) calc(24 * var(--u) * var(--pk));
+  border-radius: 999px;
+  /* Dark glass inside, a gold gradient trim (the banner's gold) on the border box. */
+  border: calc(1.6 * var(--u) * var(--pk)) solid transparent;
+  background:
+    linear-gradient(180deg, rgba(40, 27, 14, 0.9), rgba(14, 9, 5, 0.94)) padding-box,
+    linear-gradient(180deg, #fff1c4 0%, #f0cd72 35%, #c8913a 70%, #7d5217 100%) border-box;
+  box-shadow:
+    0 calc(8 * var(--u)) calc(22 * var(--u)) calc(-8 * var(--u)) rgba(0, 0, 0, 0.8),
+    inset 0 1px 0 rgba(255, 236, 190, 0.18),
+    inset 0 calc(-6 * var(--u)) calc(12 * var(--u)) rgba(0, 0, 0, 0.35);
+  color: #f3dca0;
+  font-family: var(--font-ui); font-weight: 800;
+  font-size: calc(14 * var(--u) * var(--pk)); letter-spacing: 0.12em; text-transform: uppercase;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.9);
+  transition: transform 0.14s cubic-bezier(0.2, 0.9, 0.3, 1.2);
+}
+/* Small gold diamonds riding the trim at each end: the banner's flourish tips, in miniature. */
+.disc-toggle.disc-peek::before,
+.disc-toggle.disc-peek::after {
+  content: ''; position: absolute; top: 50%;
+  width: calc(7 * var(--u) * var(--pk)); height: calc(7 * var(--u) * var(--pk));
+  background: linear-gradient(135deg, #fff1c4, #d9a441 60%, #8a5a16);
+  box-shadow: 0 0 calc(4 * var(--u)) rgba(255, 190, 80, 0.55);
+  transform: translateY(-50%) rotate(45deg);
+  pointer-events: none;
+}
+.disc-toggle.disc-peek::before { left: calc(-4.5 * var(--u) * var(--pk)); }
+.disc-toggle.disc-peek::after { right: calc(-4.5 * var(--u) * var(--pk)); }
+/* The hover glow: a STATIC warm halo on its own layer, faded in by opacity only. */
+.disc-peek-glow {
+  position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
+  box-shadow: 0 0 calc(18 * var(--u)) calc(2 * var(--u)) rgba(255, 186, 76, 0.5), inset 0 0 calc(10 * var(--u)) rgba(255, 210, 120, 0.22);
+  opacity: 0;
+  transition: opacity 0.16s ease;
+}
+.disc-toggle.disc-peek .disc-peek-icon {
+  width: calc(19 * var(--u) * var(--pk)); height: calc(19 * var(--u) * var(--pk));
+  flex: none; color: #f0cd72;
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.8)); /* static */
+}
+.disc-peek-label { position: relative; }
+/* "3 options": a small gold chip, only while minimized. */
+.disc-peek-count {
+  position: relative;
+  padding: calc(2 * var(--u) * var(--pk)) calc(9 * var(--u) * var(--pk));
+  border-radius: 999px;
+  background: linear-gradient(180deg, #f3d484, #c8913a);
+  color: #241507; text-shadow: none;
+  font-size: calc(11 * var(--u) * var(--pk)); letter-spacing: 0.08em;
+}
+/* Minimized: the board is un-dimmed behind it, so the Return state carries the glow at half strength to stay easy
+   to find. Still static. */
+.disc-toggle.disc-peek.is-min .disc-peek-glow { opacity: 0.55; }
+.disc-toggle.disc-peek:hover { border-color: transparent; color: #fff4d6; transform: translateX(-50%) translateY(calc(-2 * var(--u))) scale(1.04); }
+.disc-toggle.disc-peek:hover .disc-peek-glow { opacity: 1; }
+.disc-toggle.disc-peek:active { transform: translateX(-50%) translateY(0) scale(0.97); transition-duration: 0.06s; }
+.disc-toggle.disc-peek:focus-visible { outline: 2px solid #f0cd72; outline-offset: calc(4 * var(--u)); }

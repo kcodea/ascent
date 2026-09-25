@@ -50,6 +50,9 @@ import { dragStore, useDragSlice, type DragSnapshot, type DragState } from './dr
 import { QuestCard } from './QuestCard';
 import { RuneforgeDialog } from './runeforgeEntrance/RuneforgeDialog';
 import { DiscoverDialog, EntranceOverlay, OfferSheen } from './discoverEntrance/DiscoverDialog';
+import { OfferBanner } from './discoverEntrance/OfferBanner';
+import { DiscoverPeekToggle } from './discoverEntrance/DiscoverPeekToggle';
+import { chooseOneSourceName } from './discoverEntrance/offerSource';
 import { discoverOccasion } from './discoverEntrance/useOfferEntrance';
 import { RuneLockIn, type RuneLockInCard } from './RuneLockIn';
 import { captureRuneLockIn } from './runeLockInCapture';
@@ -8464,17 +8467,21 @@ const ChooseOneOverlay = memo(function ChooseOneOverlay({ overlaysHeld, run, spe
         // a Choose One never had one. `occasion` null: it plays on every opening (there is no minimize to restore).
         <EntranceOverlay
           occasion={null} speed={replaySpeed}
+          // The Discover's spotlight backdrop too (owner 2026-09-25): a Choose One is the same kind of decision.
+          className="disc-look"
           role="dialog" aria-label="Choose One" tabIndex={-1}
           onPointerDown={(e) => { if (!(e.target as Element).closest('.disc-slot')) { captureCoalesce(); dispatch({ type: 'cancelChoice' }); } }}
           onKeyDown={(e) => { if (e.key === 'Escape') { captureCoalesce(); dispatch({ type: 'cancelChoice' }); } }}
         >{(entrance) => (<>
-          {/* Reuses the DISCOVER chrome (transparent panel, dark-glass banner, card row) rather than the old
+          {/* Reuses the DISCOVER chrome (transparent panel, ornate title banner, card row) rather than the old
               bespoke cream text-buttons — a Choose One is the same kind of decision as a Discover, so the
               player picks a CARD, not a paragraph (owner 2026-07-24). Each option renders the real card with
               only that branch's text printed, so what you click is exactly what lands on your board. */}
           <div className="disc-panel">
-            <div className="disc-banner"><span className="disp">Choose One</span></div>
-            <div className="disc-sub">{(run.chooseOne!.equipmentId ? EQUIPMENT_INDEX[run.chooseOne!.equipmentId]?.name : CARD_INDEX[run.chooseOne!.cardId]?.name)} · click away to cancel</div>
+            {/* The ornate gold title (owner 2026-09-25), naming what opened the prompt: the card being played, or
+                the Equipment (Prismatic Pick). The source moved from the line below into the banner's subtitle. */}
+            <OfferBanner title="Choose One" source={chooseOneSourceName(run.chooseOne, { cards: CARD_INDEX, equipment: EQUIPMENT_INDEX })} />
+            <div className="disc-sub">Click away to cancel</div>
             <div className="disc-cards">
               {(() => {
                 // A golden Choose One doubles each option's effect (gold(self) in the factories) — so show each
@@ -8591,18 +8598,11 @@ const DiscoverOverlay = memo(function DiscoverOverlay({ overlaysHeld, run, disco
   const replaySpeed = useGame((st) => st.replaySession?.speed ?? 1);
   return (
     <>
-      {/* One orange button, always in the same fixed spot just below the Discover cards — it toggles between
-          Minimize (inspect the board) and Return, so the player can flip back and forth without moving the mouse. */}
+      {/* One button, always in the same fixed spot just below the Discover cards: it toggles between Peek (inspect
+          the board) and Return, so the player can flip back and forth without moving the mouse. Gold-trimmed to
+          match the Discover banner (owner 2026-09-25); see `DiscoverPeekToggle`. */}
       {!overlaysHeld && run.discover && (
-        <button
-          className="disc-toggle"
-          onClick={() => setDiscoverMin((m) => !m)}
-          aria-description={discoverMin ? 'Return to your Discover' : 'Inspect your board, then return to choose'}
-        >
-          {discoverMin
-            ? <><Icon name="up" /> Return to Discover · {run.discover.length} options</>
-            : <><Icon name="eye" /> Minimize</>}
-        </button>
+        <DiscoverPeekToggle minimized={discoverMin} options={run.discover.length} onToggle={() => setDiscoverMin((m) => !m)} />
       )}
 
       {!overlaysHeld && run.discover && !discoverMin && (

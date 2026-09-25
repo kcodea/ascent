@@ -612,21 +612,59 @@ class FxController {
     this.pendingAboveMounts.length = 0;    this.fireRendererReady(app.renderer, 'above');
   }
 
-  /** Render the above-modal stage, driven by the MAIN app's ticker. Skips while nothing is mounted, so an
-   *  idle above canvas costs one array-length read per frame — the `renderUnder` bargain. */
+  /**
+   * Whether the above / under canvas is still SHOWING something: true after a frame that had anything
+   * mounted, false once an EMPTY frame has been presented over it.
+   *
+   * THE LINGERING-STARS BUG (owner report 2026-09-25: "bug - sometimes getting these stars lingering", "i think
+   * it's from discover"). Both aux canvases skip rendering while nothing is mounted (the idle bargain below).
+   * A canvas keeps showing whatever it last presented, so the moment the LAST container left, the canvas froze
+   * on the frame before: every star (`discover-glint`) and dust puff (`discover-arrive`) still in the air at
+   * that instant stayed painted over the shop, at full alpha, until the next above-slot effect happened to
+   * render. Picking a Discover card mid-entrance is the everyday trigger (its `cancel` retires the in-flight
+   * dust and glints), but ANY retire does it: a natural finish (the updater retires before this renders), the
+   * lifetime ceiling, a budget cull, a caller's disposer. The fix is general, here, not in any one def: the
+   * frame after a slot goes empty renders ONE empty stage, which clears the canvas, and only then does the slot
+   * idle. The over canvas never had this bug: the main Application renders its stage every tick it runs.
+   */
+  private aboveShowing = false;
+  private underShowing = false;
+
+  /** Render the above-modal stage, driven by the MAIN app's ticker. Skips while nothing is mounted AND the
+   *  canvas is already clear, so an idle above canvas costs one array-length read per frame — the
+   *  `renderUnder` bargain. The first frame after the last container leaves presents one empty stage. */
   private renderAbove = (): void => {
     const app = this.aboveApp;
-    if (!app || (this.aboveLayer?.children.length ?? 0) === 0) return;
+    if (!app) return;
+    const mounted = (this.aboveLayer?.children.length ?? 0) > 0;
+    if (!mounted && !this.aboveShowing) return;
     app.renderer.render(app.stage);
+    this.aboveShowing = mounted;
   };
 
   /** Render the under-card stage, driven by the MAIN app's ticker. Skips entirely while nothing is mounted
-   *  there, so an idle under canvas costs one array-length read per frame. */
+   *  there and the canvas is already clear (see `aboveShowing`), so an idle under canvas costs one
+   *  array-length read per frame. */
   private renderUnder = (): void => {
     const app = this.underApp;
-    if (!app || (this.underLayer?.children.length ?? 0) === 0) return;
+    if (!app) return;
+    const mounted = (this.underLayer?.children.length ?? 0) > 0;
+    if (!mounted && !this.underShowing) return;
     app.renderer.render(app.stage);
+    this.underShowing = mounted;
   };
+
+  /**
+   * DEV watchdog: which aux canvases are still SHOWING something with nothing mounted to justify it. Should
+   * be empty on any frame after the ticker has run once past a retire; `window.__pixiFx.staleSlots()` in the
+   * console, and asserted by `fx/auxCanvasClearsOnRetire.test.ts`.
+   */
+  staleSlots(): FxSlot[] {
+    const out: FxSlot[] = [];
+    if (this.aboveShowing && (this.aboveLayer?.children.length ?? 0) === 0) out.push('above');
+    if (this.underShowing && (this.underLayer?.children.length ?? 0) === 0) out.push('under');
+    return out;
+  }
 
   /** The renderer an effect in `slot` must build its GPU resources against. Pixi v8 resources are portable
    *  descriptors, but each renderer uploads its own, so a layer rendered by the under canvas must be built
@@ -655,6 +693,9 @@ class FxController {
         this.aboveLayer?.removeChild(c);
         const i = this.pendingAboveMounts.indexOf(c);
         if (i >= 0) this.pendingAboveMounts.splice(i, 1);
+        // The next frame must present the (possibly now empty) stage, or the canvas freezes on the frame
+        // this container was last drawn in (see `aboveShowing`). A no-op while the ticker is already running.
+        if (this.aboveShowing) this.wake();
       };
     }
     if (slot === 'under') {
@@ -666,6 +707,7 @@ class FxController {
         this.underLayer?.removeChild(c);
         const i = this.pendingUnderMounts.indexOf(c);
         if (i >= 0) this.pendingUnderMounts.splice(i, 1);
+        if (this.underShowing) this.wake(); // present the clearing frame (see `aboveShowing`)
       };
     }
     if (this.layer) {
@@ -928,6 +970,8 @@ class FxController {
       this.underIniting = null;
       this.pendingUnderMounts.length = 0;
     }
+    this.underShowing = false; // the canvas is gone with its last frame
+    this.aboveShowing = false;
     if (this.aboveApp) {
       // `releaseGlobalResources: false` for the same reason as the under canvas above — it shares Pixi's
       // module-global caches with the main overlay, which has already been destroyed by this point.

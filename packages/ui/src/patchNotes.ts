@@ -62,6 +62,20 @@ export const PATCH_NOTES: PatchNote[] = [
   },
   {
     date: '2026-09-25',
+    label: 'Effects Fix',
+    changes: [
+      {
+        category: 'Systems',
+        text: 'Fixed stars and dust from the Discover cards sometimes staying frozen on the board.',
+        details: [
+          'Picking a Discover card while the cards were still landing could leave their sparkles and dust stuck on screen.',
+          'Every effect drawn over or under the cards now clears the moment it ends.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-09-25',
     label: 'Discover Look',
     changes: [
       {

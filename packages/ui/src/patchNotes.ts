@@ -69,6 +69,24 @@ export const PATCH_NOTES: PatchNote[] = [
   },
   {
     date: '2026-09-24',
+    label: 'Fight Recap',
+    changes: [
+      {
+        category: 'Systems',
+        text: 'The Summary after a fight is now a Fight Recap, with a new look to match the rest of the game.',
+        details: [
+          'The top shows the result, the round, who you fought and the damage both ways, split into Armor and Resolve.',
+          'The odds are now one line. A win you were not expected to get is marked Upset, and a loss you should have won is marked Heartbreaker.',
+          'Stars of the fight shows your minions that dealt the most damage, got the most kills and triggered the most.',
+          'What you keep shows your lasting gains as small cards, and only appears when there are some.',
+          'The Procs and Log views now live in a Details drawer, closed by default.',
+          'Watch replay plays the fight again from the start.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-09-24',
     label: 'Ultrawide Fix',
     changes: [
       {

@@ -4,7 +4,8 @@ import { TunerPanel } from './TunerPanel';
 /**
  * DEV tuner for the Discover ENTRANCE (owner ask 2026-09-25): the option cards' float-in (stagger, duration,
  * direction, distance, settle), the golden dust and glints, the shimmer, and the four sound cues (open, whoosh,
- * arrive, sparkle), each with its clip, gain, offset, window and fade. ▶ Play opens a sample Discover of three cards
+ * arrive, sparkle), each with its clip, gain, offset, window and fade; and the LOOK (owner pick 2026-09-25): the gold
+ * title banner's size and the spotlight backdrop's tint, vignette, radius and strength (live). ▶ Play opens a sample Discover of three cards
  * over the current screen. Production always plays the baked defaults.
  */
 export function DiscoverEntranceTuner(): JSX.Element {

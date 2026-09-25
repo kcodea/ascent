@@ -92,6 +92,18 @@ export interface DiscoverEntranceConfig {
   reverbMix: number;
   /** How long that tail rings, in seconds. */
   reverbSec: number;
+  // ── Look (owner pick 2026-09-25): the ornate title banner and the spotlight backdrop. STATIC, never animated;
+  //    applied as CSS custom properties on the document root (see `applyDiscoverLook`), so a dial moves the look live.
+  /** The banner's title size, in design px (its flourishes and subtitle scale with it). */
+  lookBannerSize: number;
+  /** How dark the scrim is behind the cards (the middle of the screen), 0..1. */
+  lookTint: number;
+  /** How dark the scrim gets at the screen's edges (the vignette), 0..1. */
+  lookVignette: number;
+  /** The spotlight's size: its vertical radius in vh (it is 1.6x as wide). */
+  lookSpotRadius: number;
+  /** How bright the warm spotlight behind the cards is, 0..1. 0 = no spotlight. */
+  lookSpotStrength: number;
 }
 
 /** "No clip mapped": the cue fires nothing. The select shows it as "(none)". */
@@ -160,6 +172,11 @@ export const DCE_DEFAULTS: DiscoverEntranceConfig = {
   sfxSparkleFadeMs: 350,
   reverbMix: 0.15,
   reverbSec: 0.6,
+  lookBannerSize: 50,
+  lookTint: 0.84,
+  lookVignette: 0.95,
+  lookSpotRadius: 40,
+  lookSpotStrength: 0.4,
 };
 
 type NumKey = { [K in keyof DiscoverEntranceConfig]: DiscoverEntranceConfig[K] extends number ? K : never }[keyof DiscoverEntranceConfig];
@@ -207,6 +224,11 @@ export const DCE_RANGES: Record<NumKey, [number, number, number]> = {
   sfxSparkleFadeMs: [0, 1000, 10],
   reverbMix: [0, 0.6, 0.01],
   reverbSec: [0.2, 2, 0.05],
+  lookBannerSize: [24, 80, 1],
+  lookTint: [0, 1, 0.01],
+  lookVignette: [0, 1, 0.01],
+  lookSpotRadius: [15, 80, 1],
+  lookSpotStrength: [0, 1, 0.01],
 };
 
 const KEY = 'ascent.discoverentrance';
@@ -225,16 +247,39 @@ export function getDiscoverEntranceConfig(): DiscoverEntranceConfig {
   return cfg;
 }
 
+/** The look dials as the CSS custom properties `discoverEntrance.css` reads (pure, for the tests). */
+export function discoverLookVars(c: DiscoverEntranceConfig): Record<string, string> {
+  return {
+    '--dcl-banner': String(num(c.lookBannerSize, DCE_DEFAULTS.lookBannerSize)),
+    '--dcl-tint': String(num(c.lookTint, DCE_DEFAULTS.lookTint)),
+    '--dcl-vignette': String(num(c.lookVignette, DCE_DEFAULTS.lookVignette)),
+    '--dcl-spot-r': String(num(c.lookSpotRadius, DCE_DEFAULTS.lookSpotRadius)),
+    '--dcl-spot': String(num(c.lookSpotStrength, DCE_DEFAULTS.lookSpotStrength)),
+  };
+}
+
+/** Writes the look dials onto the document root: once at load, and again whenever a dial moves. The CSS carries the
+ *  same defaults as fallbacks, so a page that never ran this still paints the shipped look. */
+export function applyDiscoverLook(c: DiscoverEntranceConfig = cfg): void {
+  if (typeof document === 'undefined') return;
+  const style = document.documentElement.style;
+  for (const [k, v] of Object.entries(discoverLookVars(c))) style.setProperty(k, v);
+}
+
 export function setDiscoverEntranceValue(key: keyof DiscoverEntranceConfig, value: number | string): void {
   cfg = { ...cfg, [key]: isStrKey(key) ? String(value) : Number(value) };
+  applyDiscoverLook(cfg);
   if (!import.meta.env.DEV) return;
   try { localStorage.setItem(KEY, JSON.stringify(cfg)); } catch { /* ignore */ }
 }
 
 export function resetDiscoverEntranceConfig(): void {
   cfg = { ...DCE_DEFAULTS };
+  applyDiscoverLook(cfg);
   try { localStorage.removeItem(KEY); } catch { /* ignore */ }
 }
+
+applyDiscoverLook(cfg);
 
 // ─── the sequence (pure) ──────────────────────────────────────────────────────────────────────────────────────
 
@@ -405,6 +450,11 @@ const SPECS: Record<NumKey, [string, TunerUnit | undefined, string, string]> = {
   sfxSparkleFadeMs: ['sparkle: fade-out', 'ms', 'Fade over the last N ms so the cut window rings out.', 'Sound: sparkle'],
   reverbMix: ['Reverb mix', undefined, 'A light reverb tail under every cue. 0 = dry.', 'Sound: tail'],
   reverbSec: ['Reverb length', 's', 'How long that tail rings.', 'Sound: tail'],
+  lookBannerSize: ['Banner size', 'px', 'The gold title banner (Discover / Choose One): its title size. The flourishes and the subtitle scale with it. Moves live.', 'Look'],
+  lookTint: ['Backdrop tint', 'opacity', 'How dark the backdrop is behind the cards (the middle of the screen). Moves live.', 'Look'],
+  lookVignette: ['Vignette', 'opacity', "How dark the backdrop gets toward the screen's edges. Moves live.", 'Look'],
+  lookSpotRadius: ['Spotlight radius', 'vh', 'The size of the soft spotlight behind the cards: its height radius as a share of the screen height (it is 1.6x as wide). Moves live.', 'Look'],
+  lookSpotStrength: ['Spotlight strength', 'opacity', 'How bright the warm spotlight behind the cards is. 0 = none. Moves live.', 'Look'],
 };
 
 /** Which string select sits at the head of a group, keyed by the first numeric control of that group. */

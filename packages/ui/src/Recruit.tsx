@@ -48,7 +48,7 @@ import { buildShopViews, type ShopViewCacheEntry } from './shopViewCache';
 import { deriveDragDecision, dragDecisionEqual, computeCastingSpell, NO_DRAG_DECISION, type DragGeo, type DragDecision } from './dragDecision';
 import { dragStore, useDragSlice, type DragSnapshot, type DragState } from './dragStore';
 import { QuestCard } from './QuestCard';
-import { RuneCard } from './RuneCard';
+import { RuneforgeDialog } from './runeforgeEntrance/RuneforgeDialog';
 import { RuneLockIn, type RuneLockInCard } from './RuneLockIn';
 import { captureRuneLockIn } from './runeLockInCapture';
 import { getRuneLockInConfig, stretchLockIn } from './runeLockInConfig';
@@ -8827,6 +8827,8 @@ export const RuneforgeOverlay = memo(function RuneforgeOverlay({ overlaysHeld, r
   runeLockInCue: RuneLockInCard[] | null; cueRuneArrival: (cards: RuneLockInCard[] | null, phase: 'pending' | 'arrived') => void;
   startRuneLockIn: (el: HTMLElement | null, chosenIndex: number) => void; dispatch: (a: Action) => void;
 }) {
+  // A replay plays its forge entrance at the replay's speed (live play has no session: 1).
+  const replaySpeed = useGame((st) => st.replaySession?.speed ?? 1);
   return (
     <>
       {/* Runeforge: a stone/engraved shop. Buy ONE of the offered runes (or Skip), then it closes and the shop
@@ -8864,60 +8866,26 @@ export const RuneforgeOverlay = memo(function RuneforgeOverlay({ overlaysHeld, r
         />
       )}
       {!overlaysHeld && run.runeforgeOffer && !forgeMin && (
-        <div className={`discover-ov forge-ov${run.runeforgeEpic ? ' forge-epic' : ''}`} role="dialog" aria-label={run.runeforgeEpic ? 'The Epic Runeforge' : 'The Runeforge'}>
-          <div className="disc-panel forge-panel">
-            {/* Title only — the anvil icon was removed from the forge banner (owner ask 2026-08-30). */}
-            <div className="disc-banner forge-banner"><span className="disp">{run.runeforgeEpic ? 'Epic Runeforge' : 'Runeforge'}</span></div>
-            {/* The player's CURRENT Gold — the runes charge Gold, so the panel must say what's in the purse
-                (owner ask 2026-07-16). Re-renders with every buy/re-roll (run.embers). */}
-            <div className="forge-gold" aria-description="Your Gold right now"><Icon name="mana" /><b>{run.embers}</b> Gold</div>
-            <div className="disc-cards forge-cards">
-              {run.runeforgeOffer.map((id, i) => {
-                const rune = RUNE_INDEX[id];
-                if (!rune) return null;
-                // The pivot discount (aligned array, seeded at draw): a rune that doesn't follow the board can
-                // arrive cheaper — the buy path charges the same number.
-                const liveCost = Math.max(0, rune.cost - (run.runeforgeDiscounts?.[i] ?? 0));
-                return (
-                  <RuneCard
-                    key={id} rune={rune} cost={liveCost} affordable={run.embers >= liveCost} pickSfx
-                    duplicating={!!run.runeDuplication && !!run.runeforgeEpic}
-                    onBuy={(el) => {
-                      // CAPTURE BEFORE DISPATCH. The buy clears `runeforgeOffer`, so this overlay unmounts on
-                      // the same frame — after that there is nothing on screen to measure. The ceremony
-                      // re-renders clones at these exact rects, which is why the handover is invisible.
-                      startRuneLockIn(el, i);
-                      dispatch({ type: 'buyRune', index: i });
-                    }}
-                  />
-                );
-              })}
-            </div>
-            {/* The re-roll STAYS MOUNTED once spent (hidden, disabled, out of the tab order) rather than
-                unmounting. The overlay centres the panel vertically, so a footer that collapsed to zero height
-                re-centred the whole panel and the rune tablets visibly dropped by half the button's height on
-                the click (owner report 2026-09-22: "the runes move down when the player uses the free
-                re-roll"). Reserving the space keeps the row pinned; nothing else about the button changes. */}
-            <div className="forge-actions">
-              {(() => {
-                const spent = !!run.runeforgeRerolled || !!run.runeforgeRerollUsed;
-                return (
-                  <button
-                    className={`forge-reroll gtip${spent ? ' forge-reroll-spent' : ''}`}
-                    onClick={() => dispatch({ type: 'rerollRuneforge' })}
-                    disabled={spent}
-                    aria-hidden={spent || undefined}
-                    tabIndex={spent ? -1 : undefined}
-                    aria-description={spent ? undefined : "Re-roll the offered Runes for free, once per game. Spending it here forfeits the other forge's re-roll."}
-                    data-tip={spent ? undefined : "Re-roll the offered Runes for free, once per game. Spending it here forfeits the other forge's re-roll."}
-                  >
-                    <Icon name="refresh" /> Re-roll · <b className="forge-reroll-cost">Free</b>
-                  </button>
-                );
-              })()}
-            </div>
-          </div>
-        </div>
+        // The forge panel + its ENTRANCE (owner ask 2026-09-24: the tablets drop in with dust, the forge ignites).
+        // Shared with the entrance tuner's sandbox, so the preview is the real row. See `RuneforgeDialog`.
+        <RuneforgeDialog
+          offer={run.runeforgeOffer}
+          epic={!!run.runeforgeEpic}
+          embers={run.embers}
+          discounts={run.runeforgeDiscounts}
+          rerollSpent={!!run.runeforgeRerolled || !!run.runeforgeRerollUsed}
+          duplicating={!!run.runeDuplication && !!run.runeforgeEpic}
+          occasion={`${run.seed}:${run.wave}`}
+          speed={replaySpeed}
+          onBuy={(i, el) => {
+            // CAPTURE BEFORE DISPATCH. The buy clears `runeforgeOffer`, so this overlay unmounts on the same
+            // frame — after that there is nothing on screen to measure. The ceremony re-renders clones at these
+            // exact rects, which is why the handover is invisible.
+            startRuneLockIn(el, i);
+            dispatch({ type: 'buyRune', index: i });
+          }}
+          onReroll={() => dispatch({ type: 'rerollRuneforge' })}
+        />
       )}
     </>
   );

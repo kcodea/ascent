@@ -91,6 +91,7 @@ export const PANEL_EMBLEMS: Record<string, string> = {
   chargeglyph: '🔋',
   runeforgebg: '🪨',
   runeforgelook: '🔨',
+  runeforgeentrance: '🔥',
   platedissolve: '🌀',
   platecoalesce: '🪄',
   ward: '🔵',

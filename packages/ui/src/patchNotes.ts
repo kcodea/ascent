@@ -52,6 +52,24 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-09-24',
+    label: 'Runeforge Entrance',
+    changes: [
+      {
+        category: 'Systems',
+        text: 'The Runeforge now opens with a short entrance. The rune tablets drop into place one by one and kick up dust as they land.',
+        details: [
+          'It waits until you are fully back from combat and the screen wipe has finished.',
+          'The forge starts in shadow with embers rising, then brightens as the tablets land from left to right.',
+          'Each tablet lands with a thud and a puff of dust, then a golden glow sweeps across it.',
+          'The Epic Runeforge has heavier tablets, more dust and a purple and gold flare.',
+          'Each tablet can be picked as soon as it lands. Click anywhere to skip the rest.',
+          'With reduced motion turned on, the forge simply fades in.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-09-24',
     label: 'Owner Rulings',
     changes: [
       {

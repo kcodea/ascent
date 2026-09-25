@@ -8,6 +8,7 @@ import { HeroSelect } from './HeroSelect';
 import { PracticeOptions } from './PracticeOptions';
 import { HeroLaunchCurtain } from './hero-select/HeroLaunchCurtain';
 import { GoodLuckIntro } from './goodLuck/GoodLuckIntro';
+import { RuneforgeEntrancePreview } from './runeforgeEntrance/RuneforgeEntrancePreview';
 import { Title } from './Title';
 import { Leaderboard } from './Leaderboard';
 import { Rankings } from './Rankings';
@@ -495,6 +496,8 @@ export function Game() {
           the curtain right after pickHero on a lobby / Practice start. Self-gates on its own store; it holds the
           shop clock while it plays. Mounted just before the curtain, which lifts off it. */}
       <GoodLuckIntro />
+      {/* DEV: the Runeforge entrance tuner's sandbox forge (▶ Play). Renders nothing until a Play is pressed. */}
+      <RuneforgeEntrancePreview />
       <HeroLaunchCurtain />
       <Title onSettings={openSettings} />
       <Leaderboard />

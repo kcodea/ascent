@@ -41,6 +41,7 @@ import { fireBuffFx } from './buffFxRender';
 import { resolveBuffSource } from './choreo/buffSource';
 import { cardFxScale } from './fx/cardScale';
 import { canPlayDefs, playDef } from './fx/playDef';
+import { createSettlingPoint, settledSlotCenter } from './fx/settledSlot';
 import { authoredBuffDefFor, bindingFor, heroPowerBuffLabelFor, labelBuffFxFor, sourceBuffDefFor, castFxReplacesTendril } from './choreo/bindings';
 import { isRuneBuffSource } from '@game/sim';
 import { anchorsForUnits } from './fx/combatAnchors';
@@ -78,6 +79,10 @@ function notifyPresented(e: CombatEvent): void {
  *  cast is absorbed into the wind-up is that its numbers should reconcile while the attacker is still held
  *  (owner ask 2026-09-01). */
 const AUTHORED_BUFF_ROLL_MS = 140;
+/** How often an in-flight travel effect re-measures its target's settled slot, and the longest it keeps doing so
+ *  (a backstop — the play's own `onDone` normally stops it). See `settleTarget`. */
+const SETTLE_REMEASURE_MS = 100;
+const SETTLE_MAX_MS = 3000;
 const COMBAT_ROLL_MS = 650;
 
 /**
@@ -1597,6 +1602,17 @@ export function useCombatReplay(
   // buffers, launched from the lunge timeline so the beat reads pulse → tendril → lunge). The release timer is
   // scheduled in the combat-lifetime roll registry (`scheduleRoll`, near `resetTo`) — NOT the caller's per-beat
   // `timers` array — so an ordinary beat advance can't cancel it out from under the roll it starts.
+  /** A settling landing point for a travel effect aimed at `uid` (see `fx/settledSlot.ts`): starts at the unit's
+   *  settled slot, re-measured every `SETTLE_REMEASURE_MS` until the play ends (`stop`) or the backstop expires. */
+  const settleTarget = useCallback((uid: string, el: Element): { start: { x: number; y: number }; get: () => { x: number; y: number }; stop: () => void } | null => {
+    const start = settledSlotCenter(el);
+    if (!start) return null;
+    const pt = createSettlingPoint(start);
+    const iv = setInterval(() => { const g = settledSlotCenter(findEl(uid)); if (g) pt.setGoal(g); }, SETTLE_REMEASURE_MS);
+    const backstop = setTimeout(() => clearInterval(iv), SETTLE_MAX_MS);
+    return { start, get: pt.get, stop: () => { clearInterval(iv); clearTimeout(backstop); } };
+  }, [findEl]);
+
   const fireBuffCasts = useCallback((casts: BuffCast[]): void => {
     // target uid → the first landing cast's tendril flight time. A target can take several casts in one
     // moment, but they all release the SAME store hold together, so only the timing of the first is needed
@@ -1732,8 +1748,13 @@ export function useCombatReplay(
       const sc = src.center;
       const srcAuthored = sourceless ? null : sourceBuffDefFor(cardId);
       if (srcAuthored && sc) {
-        playDef(srcAuthored, { source: sc, target: tc, cursor: tc, camera: { x: window.innerWidth / 2, y: window.innerHeight / 2 } },
-          { uids: { source: c.source, target: c.target }, index: srcAuthoredIndex });
+        // LAND WHERE THE UNIT ENDS UP (owner 2026-09-24, King Oona's banana): a summoned target is still growing
+        // into its slot, and a later summon in the same cascade keeps sliding it over, so its fire-time rect is
+        // not where it settles. Aim at the SETTLED slot (`settledSlotCenter`) and re-measure it on a light timer
+        // for the flight only — a few layout reads per play, never one per frame — easing onto each new goal.
+        const target = settleTarget(c.target, tEl) ?? undefined;
+        playDef(srcAuthored, { source: sc, target: target?.start ?? tc, cursor: tc, camera: { x: window.innerWidth / 2, y: window.innerHeight / 2 } },
+          { uids: { source: c.source, target: c.target }, index: srcAuthoredIndex, target: target?.get, onDone: target?.stop });
         srcAuthoredIndex++;
         if (!perTarget.has(c.target)) perTarget.set(c.target, AUTHORED_BUFF_ROLL_MS);
         continue;
@@ -1763,7 +1784,7 @@ export function useCombatReplay(
       const ms = strikeMs / (combatSpeedRef.current > 0 ? combatSpeedRef.current : 1);
       scheduleRoll(target, ms);
     }
-  }, [findEl, cardIds, scheduleRoll]);
+  }, [findEl, cardIds, scheduleRoll, settleTarget]);
 
   // Fire a moment's SELF-buffs (a unit empowering ITSELF): one in-place pulse per unit, then after its own
   // hold time, roll its badge from the pre-buff value to the new one — the blast "causes" the tick. Shared by

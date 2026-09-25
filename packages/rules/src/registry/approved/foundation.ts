@@ -1166,4 +1166,34 @@ export const FOUNDATION_RULES: GameRule[] = [
       lastVerifiedAt: '2026-09-24',
     },
   },
+  // ── The Good Luck intro's sounds end on a soft tail (owner 2026-09-24) ─────────────────────────────────
+  {
+    id: 'R-PRESENT-16',
+    title: 'The Good Luck intro sounds fade out with a light reverb tail instead of stopping dead, and a skip fades them quickly',
+    statement:
+      'The two Good Luck intro sounds (the shine and the spark sparkle) each fade to silence over their last few '
+      + 'hundred ms (tunable, 300 ms shine / 350 ms spark by default) and carry a subtle reverb tail (wet 0.2, '
+      + '0.7 s) that rings on after the clip ends. The intro ending on its own never stops them, so the tails ring '
+      + 'out over the live board. A skip (Esc, a click, a replay, leaving) fades whatever is still sounding in '
+      + 'about 120 ms rather than cutting it. Every node of a play is disconnected once its tail (or the skip '
+      + 'fade) is done, so plays never pile up.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Good Luck intro session, 2026-09-24', quote: 'the good luck sfx ends abruptly. can you give it a tiny bit of reverb and/or fade it out a bit so it isnt an abrupt end' },
+      { kind: 'fix-pr', ref: 'fix/good-luck-sfx-tail' },
+      { kind: 'code', ref: 'packages/ui/src/audio/tailFade.ts scheduleTailFade + scheduleSkipFade; packages/ui/src/sfx.ts playTailedSample + goodLuckShine / goodLuckSpark; packages/ui/src/goodLuck/goodLuckIntroConfig.ts goodLuckTail (the Sound tuner rows)' },
+    ],
+    currentBehaviour:
+      'Conforms as of 2026-09-24. The abrupt end was the SPARK: it plays a 1.1 s to 2.0 s window of the sparkle-whoosh '
+      + 'clip, and at 2.0 s the sparkle is still about -23 dB (only ~10 dB under its -13 dB peak), so the hard '
+      + 'window end cut it mid-ring. The shine clip decays to about -63 dB on its own and the intro\x27s natural end '
+      + 'never stopped either sound. An offline render of the fixed spark voice now falls smoothly from the '
+      + 'fade start through the reverb tail instead of dropping to silence in one 50 ms step.',
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/ui/src/audio/tailFade.test.ts', 'packages/ui/src/goodLuck/GoodLuckIntro.test.tsx'],
+      lastVerifiedAt: '2026-09-24',
+    },
+  },
 ];

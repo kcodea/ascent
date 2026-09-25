@@ -128,7 +128,7 @@ export const PATCH_NOTES: PatchNote[] = [
         details: [
           'Plays after Start Game in the hero ceremony, for Play and Practice games.',
           'Gold lettering with sparks and a sweep of light, then a fade to the board. About two seconds.',
-          'It has sound now: a shimmer as the light sweeps across the words, and a soft sparkle as the sparks burst.',
+          'It has sound now: a shimmer as the light sweeps across the words, and a soft sparkle as the sparks burst. Both fade out gently with a light echo, so neither stops short.',
           'Your first turn keeps its full time. The clock waits until the intro is gone.',
           'Press Esc or click anywhere to skip it.',
           'Not shown in the tutorial, the Scene Builder, replays, or when you continue a saved game.',

@@ -52,6 +52,20 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-09-25',
+    label: 'Grim Shows Its Total',
+    changes: [
+      {
+        category: 'Systems',
+        text: 'Grim now shows the full buff its Echo will give right now, and it goes up as Echoes trigger, even mid combat.',
+        details: [
+          'Grim reads "Echo: Give your Beast Aura +X/+Y." With 4 Echoes so far this game it reads +15/+10.',
+          'The total counts every Echo triggered this game plus Grim\'s own. Each Echo is worth +3/+2 (+6/+4 when Golden).',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-09-25',
     label: 'New Game Start Lines',
     changes: [
       {

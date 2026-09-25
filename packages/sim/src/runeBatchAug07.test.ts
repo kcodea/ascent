@@ -35,7 +35,9 @@ describe('the 15 remaining defs exist at sheet costs', () => {
     for (const id of ['rune_engraving', 'rune_flagship', 'rune_brew']) expect(rune(id).sets).toEqual(['set2', 'set3']); // + set3 2026-09-14 (rune roster carryover)
     for (const [id] of want) {
       if (['rune_engraving', 'rune_flagship', 'rune_brew'].includes(id)) continue;
-      expect(rune(id).sets, `${id} should be shared`).toBeUndefined();
+      // Vault / Altar / Thrift / Wheel / Underdog / Top Hat / Evolution / Treasure Map CUT FROM SET 3 2026-09-25 (owner's Set 3 rune list): set 1 + set 2.
+      const cut0925 = ['rune_vault', 'rune_altar', 'rune_thrift', 'rune_wheel', 'rune_underdog', 'rune_top_hat', 'rune_evolution', 'rune_treasure_map'].includes(id);
+      expect(rune(id).sets, `${id} should be shared`).toEqual(cut0925 ? ['set1', 'set2'] : undefined);
     }
   });
 });

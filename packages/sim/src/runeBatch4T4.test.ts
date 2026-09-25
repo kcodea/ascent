@@ -32,7 +32,7 @@ describe('the five defs ship as specced', () => {
     expect(rune('rune_ruby_shrapnel').sets).toEqual(['set2']); // CUT FROM SET 3 2026-09-24 (owner)
     for (const id of ['rune_ancestral_roar', 'rune_shared_scripture', 'rune_banquet_hall', 'rune_crucible_choir']) {
       // Ancestral Roar (Dragon) CUT FROM SET 3 2026-09-24 (owner): scoped to set 1 + set 2.
-      expect(rune(id).sets, `${id} should work in either set`).toEqual(id === 'rune_ancestral_roar' ? ['set1', 'set2'] : undefined);
+      expect(rune(id).sets, `${id} is scoped to set 1 + set 2`).toEqual(['set1', 'set2']); // Shared Scripture / Banquet Hall / Crucible Choir CUT FROM SET 3 2026-09-25 (owner's Set 3 rune list)
     }
   });
 });

@@ -32,15 +32,15 @@ const originals = (epic: boolean): number => [...RUNES, ...EPIC_RUNES].filter((r
 describe('the Set 3 static rune pool (handoff 2026-09-14)', () => {
   it('resolves to 115 Basic / 97 Epic before any Set 3-original rune (98 Epic at the handoff; Frontline Glory dropped 2026-09-16)', () => {
     const pool = staticPool('set3', S3).filter((r) => !isOriginal(r));
-    expect(pool.filter((r) => !r.epic)).toHaveLength(99); // 100 → 99 on 2026-09-24 (Rune of Investment moved Basic → Epic, Ruby batch); 109 → 100 on 2026-09-24 (owner Set 3 rune cuts: Contraband, Facetwright, Gemcutting, Unbroken Vein, Shifting Facets, Last Call, Shared Pour, Pillaging, Aftershocks); // 115 at the handoff + Rune of Gambling (all sets, 2026-09-17); −4 on 2026-09-18 (tag pass: Beast/Mech-body runes now gate on tribes set 3 does not field); −2 on 2026-09-23 (Balance 9/23 archives: Centerline, Spare Chair); rune reworks A (2026-09-23) nets 0: −1 Drake Skull (now reads Dragons, gated `dragon`) +1 Hoardcalling (now any Shout, gate dropped); −1 on 2026-09-24 (owner: "hoardcalling should have a dragon tag" — Hoardcalling gated `dragon` again; set 3 fields no Dragons)
-    expect(pool.filter((r) => r.epic)).toHaveLength(79); // 78 → 79 on 2026-09-24 (Rune of Investment moved Basic → Epic, Ruby batch); 87 → 78 on 2026-09-24 (owner Set 3 rune cuts: Lapidary, Redirection, Ruby Shrapnel, Baal, Chef, Mykel, Runic Exchange, Rising Graves, Soul Taxes); // 97 → 90 on 2026-09-18 (tag pass: Beast/Dragon/Mech/Demon-body Epics gate on tribes set 3 does not field); 90 → 87 on 2026-09-23 (Balance 9/23 archives: Taurus, Open Market, Warpath)
+    expect(pool.filter((r) => !r.epic)).toHaveLength(64); // 99 → 64 on 2026-09-25 (owner's Set 3 rune list): 35 carryover Basics the list does not name;  100 → 99 on 2026-09-24 (Rune of Investment moved Basic → Epic, Ruby batch); 109 → 100 on 2026-09-24 (owner Set 3 rune cuts: Contraband, Facetwright, Gemcutting, Unbroken Vein, Shifting Facets, Last Call, Shared Pour, Pillaging, Aftershocks); // 115 at the handoff + Rune of Gambling (all sets, 2026-09-17); −4 on 2026-09-18 (tag pass: Beast/Mech-body runes now gate on tribes set 3 does not field); −2 on 2026-09-23 (Balance 9/23 archives: Centerline, Spare Chair); rune reworks A (2026-09-23) nets 0: −1 Drake Skull (now reads Dragons, gated `dragon`) +1 Hoardcalling (now any Shout, gate dropped); −1 on 2026-09-24 (owner: "hoardcalling should have a dragon tag" — Hoardcalling gated `dragon` again; set 3 fields no Dragons)
+    expect(pool.filter((r) => r.epic)).toHaveLength(53); // 79 → 53 on 2026-09-25 (owner's Set 3 rune list): 26 carryover Epics the list does not name;  78 → 79 on 2026-09-24 (Rune of Investment moved Basic → Epic, Ruby batch); 87 → 78 on 2026-09-24 (owner Set 3 rune cuts: Lapidary, Redirection, Ruby Shrapnel, Baal, Chef, Mykel, Runic Exchange, Rising Graves, Soul Taxes); // 97 → 90 on 2026-09-18 (tag pass: Beast/Dragon/Mech/Demon-body Epics gate on tribes set 3 does not field); 90 → 87 on 2026-09-23 (Balance 9/23 archives: Taurus, Open Market, Warpath)
     expect(pool.some((r) => r.id === 'rune_frontline_glory')).toBe(false);
     expect(RUNE_INDEX['rune_frontline_glory']!.sets).toEqual(['set1']);
   });
   it('the Set 3-original runes (batch 2: tranche A 11/13, B 8/11, C 2/4, D 0/2) join on top', () => {
     const own = staticPool('set3', S3).filter(isOriginal);
-    expect(own.filter((r) => !r.epic)).toHaveLength(20); // 21 → 20: the Full Hand CUT FROM SET 3 2026-09-24 (owner)
-    expect(own.filter((r) => r.epic)).toHaveLength(29); // 30 → 29: the Grave Orbit CUT FROM SET 3 2026-09-24 (owner)
+    expect(own.filter((r) => !r.epic)).toHaveLength(19); // 20 → 19: Charted Skies CUT FROM SET 3 2026-09-25 (owner's Set 3 rune list); 21 → 20: the Full Hand CUT FROM SET 3 2026-09-24 (owner)
+    expect(own.filter((r) => r.epic)).toHaveLength(27); // 29 → 27: the Festival Circuit + the Open Constellation CUT FROM SET 3 2026-09-25 (owner's Set 3 rune list); 30 → 29: the Grave Orbit CUT FROM SET 3 2026-09-24 (owner)
   });
   it('Set 1 and Set 2 pools keep their previous scoped runes — a carryover only ADDS set3', () => {
     for (const r of [...RUNES, ...EPIC_RUNES]) {
@@ -70,18 +70,21 @@ describe('a Set 3 Dwarf / Kobold run at the forge', () => {
     const s = { ...createRun(5, 'warden'), setId: 'set3', tribes: ['dwarf', 'kobold', 'undead', 'spirit', 'celestial'], runeforgeEpic: epic || undefined } as RunState;
     return runeforgePool(s);
   };
-  it('can be offered Engraving (Basic), Gemscript and Spellstone (Epic); never Contraband (cut 2026-09-24)', () => {
+  it('can be offered Engraving (Basic), the Gem Golem and Attacking Gems (Epic); never Contraband, Gemscript or Spellstone', () => {
     expect(forge(false)).toContain('rune_engraving');
     expect(forge(false)).not.toContain('rune_contraband'); // CUT FROM SET 3 2026-09-24 (owner)
-    expect(forge(true)).toContain('rune_gemscript');
-    expect(forge(true)).toContain('rune_spellstone');
+    expect(forge(true)).toContain('rune_gem_golem');
+    expect(forge(true)).toContain('rune_attacking_gems');
+    expect(forge(true)).not.toContain('rune_gemscript'); // CUT FROM SET 3 2026-09-25 (owner's Set 3 rune list)
+    expect(forge(true)).not.toContain('rune_spellstone'); // CUT FROM SET 3 2026-09-25 (owner's Set 3 rune list)
   });
   it('the forge pool matches the static pool sizes minus nothing structural (every set-3 rune reachable when all five tribes roll)', () => {
     const basic = forge(false), epic = forge(true);
     // the Wishbone is hero-conditional (requiresDoublePower) — the Warden's power does not double, so one Basic fewer
-    const wishbone = RUNE_INDEX['rune_wishbone'] ? 1 : 0;
-    expect(basic.length).toBe(99 - wishbone + originals(false)); // → 99 (Investment → Epic); → 100 on 2026-09-24 (owner Set 3 rune cuts); // 112 → 110 on 2026-09-23 (Balance 9/23 archives); → 109 on 2026-09-24 (Hoardcalling gated `dragon` again)
-    expect(epic.length).toBe(79 + originals(true)); // → 79 (Investment → Epic); → 78 on 2026-09-24 (owner Set 3 rune cuts); // 90 → 87 on 2026-09-23 (Balance 9/23 archives)
+    // (the Wishbone left Set 3 on 2026-09-25 (owner's Set 3 rune list), so no hero-conditional Basic is left to subtract)
+    expect(RUNE_INDEX['rune_wishbone']!.sets).toEqual(['set1', 'set2']);
+    expect(basic.length).toBe(64 + originals(false)); // → 99 (Investment → Epic); → 100 on 2026-09-24 (owner Set 3 rune cuts); // 112 → 110 on 2026-09-23 (Balance 9/23 archives); → 109 on 2026-09-24 (Hoardcalling gated `dragon` again)
+    expect(epic.length).toBe(53 + originals(true)); // → 53 on 2026-09-25 (owner's Set 3 rune list); // → 79 (Investment → Epic); → 78 on 2026-09-24 (owner Set 3 rune cuts); // 90 → 87 on 2026-09-23 (Balance 9/23 archives)
   });
 });
 

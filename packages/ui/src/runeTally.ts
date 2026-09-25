@@ -1,4 +1,4 @@
-import { runeStacksOf, PACKCRAFT_STEP, REINVESTMENT_PER_SUMMON, REVELER_METER, SLAYING_KILLS, INVESTMENT_SELLS, ANCESTRAL_ROAR_STEP, type RunState } from '@game/sim';
+import { runeStacksOf, PACKCRAFT_STEP, REINVESTMENT_PER_SUMMON, REVELER_METER, SLAYING_KILLS, INVESTMENT_SELLS, ANCESTRAL_ROAR_STEP, recurringTickCount, type RunState } from '@game/sim';
 import { CARD_INDEX } from '@game/content';
 
 /**
@@ -171,9 +171,10 @@ export function runeTally(run: RunState, runeId: string): string | null {
     const n = (run.playedThisTurn ?? []).length;
     return `${n} card${n === 1 ? '' : 's'}`;
   }
+  // RUNE OF ACTION, the REPEAT form (owner rework 2026-09-25): the live number of times the +2/+2 lands this End of
+  // Turn, the base plus one per card played (`recurringTickCount`, the count the commit itself reads).
   if (runeId === 'rune_action' && run.questRecurringEndOfTurn?.includes('runeAction')) {
-    const n = (run.playedThisTurn ?? []).length;
-    return `${n} card${n === 1 ? '' : 's'}`;
+    return `×${recurringTickCount(run, 'runeAction')}`;
   }
   if (runeId === 'rune_spending' && run.questRecurringEndOfTurn?.includes('runeSpending')) {
     return `${run.goldSpentThisTurn ?? 0}g`;

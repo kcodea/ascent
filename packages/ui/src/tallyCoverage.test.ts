@@ -262,7 +262,7 @@ describe('per-turn ACCUMULATOR runes show a live count (audit 2026-08-12)', () =
       goldSpentThisTurn: 7,
     } as unknown as RunState;
     expect(runeTally(run, 'rune_lapidary')).toBe('3 cards');
-    expect(runeTally(run, 'rune_action')).toBe('3 cards');
+    expect(runeTally(run, 'rune_action')).toBe('×4'); // the REPEAT form (owner 2026-09-25): the base + one per card played
     expect(runeTally(run, 'rune_spending')).toBe('7g');
     // Un-armed → no badge (the rune isn't held).
     expect(runeTally({ playedThisTurn: ['a'] } as unknown as RunState, 'rune_lapidary')).toBeNull();

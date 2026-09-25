@@ -19,7 +19,7 @@ import {
   ANNOUNCER_LINES, ANNOUNCER_PRIORITY, ANNOUNCER_RARE_CHANCE, ANNOUNCER_STOP_FADE_MS, ANNOUNCER_TIME_WARNING_SECONDS, ANNOUNCER_TURN_ONE_QUIET_MS,
   announcerDebug, announcerPick, announcerRoll, hasPair, cancelAnnouncer, getAnnouncerVolume, isAnnouncerMuted, observeCombatBoard,
   announcerExhausted, ANNOUNCER_CHANCE, ANNOUNCER_NAMED_BUYS, ANNOUNCER_RANDOM_BUY_GAP_WAVES, ANNOUNCER_RANDOM_BUY_MAX, observeTurnClock, previewAnnouncerEvent,
-  RANDOM_BUY_EVENTS, SPECIALTY_EVENTS, type AnnouncerDeps, setAnnouncerVolume, syncAnnouncer, toggleAnnouncerMute, type AnnouncerEvent, type AnnouncerRunLike,
+  CATALOG_BATCH_1_EVENTS, isMixedBoard, isTribeFullBoard, RANDOM_BUY_EVENTS, SPECIALTY_EVENTS, type AnnouncerDeps, setAnnouncerVolume, syncAnnouncer, toggleAnnouncerMute, type AnnouncerEvent, type AnnouncerRunLike,
   type AnnouncerStateLike,
 } from './announcer';
 import { announcedFor, emptyAnnounced, withAnnounced, type AnnouncedSlice } from './announcerSlice';
@@ -117,6 +117,9 @@ beforeEach(() => {
   announced = emptyAnnounced(SEED);
   cur = null;
   __setAnnouncerDepsForTests(stubDeps());
+  // The suites written before the moment catalog's first batch pin exact line sequences; they keep testing what they
+  // were written for with that batch muted (its own suite below turns it back on).
+  for (const e of CATALOG_BATCH_1_EVENTS) setAnnouncerTunerValue(`${e}Chance`, 0);
 });
 function stubDeps(): Partial<AnnouncerDeps> {
   return {
@@ -366,9 +369,11 @@ describe('the queue', () => {
     await tick(LINE_MS + ANNOUNCER_COOLDOWN_MS);
     expect(plays).toHaveLength(17);
     expect(events().at(-1)).toBe('top-two');
+    // Finishing exactly 2nd has had its own end line since the catalog's first batch (SecondPlace, in GameLoss's place).
+    setAnnouncerTunerValue('secondPlaceChance', 100);
     go({ ...r, phase: 'gameover', lobby: { seats: seats(1, 2) } });
     await tick(ANNOUNCER_END_DELAY_MS);
-    expect(events().at(-1)).toBe('game-loss');
+    expect(events().at(-1)).toBe('second-place');
     expect(announced.count).toBe(17); // the end line is not counted
   });
   it('GameWon / GameLoss never expire and wait out the cooldown instead of being dropped', async () => {
@@ -1073,7 +1078,9 @@ describe('the third batch (owner 2026-09-25): new takes, TimeRunningOut, the no-
     expect(byHash.size).toBe(all.length);
   });
   it('the table is append-only (the new events at the end) and the priorities are the owner\'s', () => {
-    expect(Object.keys(ANNOUNCER_LINES).slice(-4)).toEqual(['timeRunningOut', 'buyDrakko', 'buySylus', 'castAle']);
+    const keys = Object.keys(ANNOUNCER_LINES);
+    expect(keys.slice(keys.indexOf('timeRunningOut'), keys.indexOf('timeRunningOut') + 4)).toEqual(['timeRunningOut', 'buyDrakko', 'buySylus', 'castAle']);
+    expect(keys.slice(-CATALOG_BATCH_1_EVENTS.length)).toEqual([...CATALOG_BATCH_1_EVENTS]);
     expect(ANNOUNCER_PRIORITY).toMatchObject({ timeRunningOut: 5, buyDrakko: 36, buySylus: 36, castAle: 16 });
     expect(Math.min(...Object.values(ANNOUNCER_PRIORITY))).toBe(5);
     expect(ANNOUNCER_TIME_WARNING_SECONDS).toBe(15);
@@ -1089,6 +1096,7 @@ describe('the third batch (owner 2026-09-25): new takes, TimeRunningOut, the no-
 
   describe('the chance table (owner: "low-ish chances to proc the on-buy style ones")', () => {
     it('ONE table: the generic buys 6%, Round 7 10%, every other event 1, and the tuner\'s Chance dial defaults to it', () => {
+      resetAnnouncerTunerConfig(); // undo the suite-wide mute of the catalog batch: this reads the defaults
       for (const e of RANDOM_BUY_EVENTS) expect(ANNOUNCER_CHANCE[e]).toBe(0.06);
       expect(ANNOUNCER_CHANCE.round7).toBe(0.1);
       for (const e of [...SPECIALTY_EVENTS, 'timeRunningOut', 'gameStart', 'triple'] as AnnouncerEvent[]) expect(ANNOUNCER_CHANCE[e]).toBe(1);
@@ -1476,5 +1484,226 @@ describe('the dev tuner (owner 2026-09-24): per-event volume + timing offset', (
     expect(plays.map((p) => p.gain)).toEqual([0.6, 0.6]);
     expect(plays[0]!.handle.stopped).toBe(ANNOUNCER_STOP_FADE_MS); // the second press cut the first
     expect(announced.fired.backToShop ?? []).toEqual([]); // nothing marked
+  });
+});
+
+describe('the moment catalog\'s first batch (owner 2026-09-25): ElevenLabs lines on states the store already carries', () => {
+  beforeEach(() => { resetAnnouncerTunerConfig(); }); // un-mute the batch (the suite-wide beforeEach mutes it)
+  const first = async (ms = 20): Promise<string | undefined> => { await tick(ms); return events()[0]; };
+  /** A fresh machine between the cases of one test. */
+  const fresh = (): void => { __setAnnouncerDepsForTests(stubDeps()); plays = []; cur = null; announced = emptyAnnounced(SEED); };
+  /** Face Omen from `r`, then the verdict with `after` applied to the settled run (the Face Omen's own lines cleared). */
+  async function settle(r: AnnouncerRunLike, outcome: 'win' | 'lose' | 'draw', after: Partial<AnnouncerRunLike> = {}): Promise<AnnouncerRunLike> {
+    const fighting = go({ ...r, phase: 'combat' });
+    await tick(FIGHT_MS);
+    plays = [];
+    return go({ ...fighting, combatSettled: true, history: [...r.history, outcome], lastCombat: { result: outcome }, ...after });
+  }
+  /** A lobby table: seat 0 first, every seat standing, with these Resolves. */
+  const table = (resolves: number[]) => resolves.map((resolve, i) => ({ id: `s${i}`, alive: true, resolve }));
+  const plain = (tribes: Tribe[]): string[] => tribes.map((t) => plainMinion(t)?.id).filter((id): id is string => !!id);
+
+  it('every batch event has one take (on disk: the suite-wide file check), a priority and a tuner row', () => {
+    for (const e of CATALOG_BATCH_1_EVENTS) {
+      expect(ANNOUNCER_LINES[e]).toHaveLength(1);
+      expect(ANNOUNCER_PRIORITY[e]).toBeGreaterThan(0);
+      expect(ANNOUNCER_TUNER_EVENTS).toContain(e);
+      expect(ANNOUNCER_CHANCE[e as (typeof ANNOUNCER_TUNER_EVENTS)[number]]).toBe(1);
+    }
+  });
+
+  describe('within a Shop turn', () => {
+    it('TierUp on an upgrade to 2-5; FastTier at tier 4 by round 5; reaching 6 by round 9 says TierSix', async () => {
+      let r = openShop({ wave: 6, tier: 2 });
+      go({ ...r, tier: 3 });
+      expect(await first()).toBe('tier-up');
+      fresh();
+      r = openShop({ wave: 5, tier: 3 });
+      go({ ...r, tier: 4 });
+      expect(await first()).toBe('fast-tier');
+      fresh();
+      r = openShop({ wave: 8, tier: 5 });
+      go({ ...r, tier: 6 });
+      expect(await first()).toBe('tier-six');
+      expect(dropped('fastTier')).toBe(true);
+    });
+    it('SellSpree at the 4th sale of a turn; SellGilded when a sale takes a gilded minion', async () => {
+      let r = openShop({ soldThisTurn: ['a', 'b', 'c'] });
+      go({ ...r, soldThisTurn: ['a', 'b', 'c', 'd'] });
+      expect(await first()).toBe('sell-spree');
+      fresh();
+      r = openShop({ board: [m(BEAST.id, true)], soldThisTurn: [] });
+      go({ ...r, board: [], soldThisTurn: [BEAST.id] });
+      expect(await first()).toBe('sell-gilded');
+    });
+    it('SpellChain at the 4th spell of a turn; BigTurn at the 5th card played', async () => {
+      let r = openShop({ spellsThisTurn: 3 });
+      go({ ...r, spellsThisTurn: 4 });
+      expect(await first()).toBe('spell-chain');
+      fresh();
+      r = openShop({ playedThisTurn: ['a', 'b', 'c', 'd'] });
+      go({ ...r, playedThisTurn: ['a', 'b', 'c', 'd', 'e'] });
+      expect(await first()).toBe('big-turn');
+    });
+    it('FullBoard the first time all 7 slots fill (a board of 3 tribes: no tribe line)', async () => {
+      const ids = plain(['beast', 'dwarf', 'mech']);
+      const seven = Array.from({ length: 7 }, (_, i) => m(ids[i % ids.length]!));
+      const r = openShop({ board: seven.slice(0, 6) });
+      go({ ...r, board: seven });
+      expect(await first()).toBe('full-board');
+    });
+    it('AllGolden when every slot holds a gilded minion (outranks FullBoard and Triple on the same update)', async () => {
+      const r = openShop({ board: Array.from({ length: 6 }, g) });
+      go({ ...r, board: Array.from({ length: 7 }, g) });
+      expect(await first()).toBe('all-golden');
+    });
+    it('BoardTotal when the board\'s Attack + Health passes 500', async () => {
+      const unit = { attack: 45, health: 45, golden: false };
+      const r = openShop({ board: Array.from({ length: 5 }, () => unit) }); // 450
+      go({ ...r, board: Array.from({ length: 6 }, () => unit) }); // 540
+      expect(await first()).toBe('board-total');
+    });
+    it('MinionHits250 in the Shop (outranks MinionHits100) and in a fight', async () => {
+      let r = openShop({ board: [{ attack: 50, health: 50, golden: false }] });
+      go({ ...r, board: [{ attack: 260, health: 50, golden: false }] });
+      expect(await first()).toBe('minion-hits-250');
+      fresh();
+      r = openShop();
+      go({ ...r, phase: 'combat' });
+      observeCombatBoard([{ attack: 1, health: 300 }], r.wave);
+      await tick(ANNOUNCER_COMBAT_SILENCE_MS + 20);
+      expect(events()).toContain('minion-hits-250');
+    });
+    it('ArmorUp at 20+ Armor', async () => {
+      const r = openShop({ armor: 15 });
+      go({ ...r, armor: 20 });
+      expect(await first()).toBe('armor-up');
+    });
+    it('TribeFullBoard: seven of one tribe; MixedBoard: seven across 5+ tribes', async () => {
+      const beasts = Array.from({ length: 7 }, () => m(BEAST.id));
+      expect(isTribeFullBoard(run({ board: beasts }))).toBe(true);
+      expect(isTribeFullBoard(run({ board: beasts.slice(0, 6) }))).toBe(false);
+      let r = openShop({ board: beasts.slice(0, 6) });
+      go({ ...r, board: beasts });
+      expect(await first()).toBe('tribe-full-board');
+      const five = plain(['beast', 'dwarf', 'mech', 'dragon', 'demon', 'undead', 'kobold']).slice(0, 5);
+      expect(five).toHaveLength(5);
+      const mixed = [...five, five[0]!, five[1]!].map((id) => m(id));
+      expect(isMixedBoard(run({ board: mixed }))).toBe(true);
+      expect(isTribeFullBoard(run({ board: mixed }))).toBe(false);
+      fresh();
+      r = openShop({ board: mixed.slice(0, 6) });
+      go({ ...r, board: mixed });
+      expect(await first()).toBe('mixed-board');
+    });
+  });
+
+  describe('heading into a fight', () => {
+    it('FinalShowdown when the fight starts with two players standing', async () => {
+      const r = openShop({ lobby: { seats: seats(2) } });
+      go({ ...r, phase: 'combat' });
+      expect(await first(ANNOUNCER_FACE_OMEN_DELAY_MS + 20)).toBe('final-showdown');
+    });
+    it('BrokeTurn: the turn ended on 0 Gold with nothing bought, after round 5 (unknown tallies never count)', async () => {
+      let r = openShop({ wave: 6, embers: 0, cardsBoughtThisTurn: 0 });
+      go({ ...r, phase: 'combat' });
+      expect(await first(ANNOUNCER_FACE_OMEN_DELAY_MS + 20)).toBe('broke-turn');
+      for (const patch of [
+        { wave: 5, embers: 0, cardsBoughtThisTurn: 0 }, { wave: 6, embers: 1, cardsBoughtThisTurn: 0 },
+        { wave: 6, embers: 0, cardsBoughtThisTurn: 1 }, { wave: 6 },
+      ]) {
+        fresh();
+        r = openShop(patch);
+        go({ ...r, phase: 'combat' });
+        await tick(ANNOUNCER_FACE_OMEN_DELAY_MS + 20);
+        expect(events()).not.toContain('broke-turn');
+      }
+    });
+    it('UnderdogOdds under 20%, HeavyFavourite over 90%, once the fight\'s odds land; even odds say nothing', async () => {
+      const cases: [number, string | undefined][] = [[0.1, 'underdog-odds'], [0.95, 'heavy-favourite'], [0.5, undefined]];
+      for (const [win, line] of cases) {
+        fresh();
+        const r = openShop();
+        const fighting = go({ ...r, phase: 'combat' });
+        go(fighting, { combatOdds: { wave: r.wave, odds: { win, draw: 0, lose: 1 - win } } });
+        expect(await first(ANNOUNCER_FACE_OMEN_DELAY_MS + 20)).toBe(line);
+      }
+    });
+  });
+
+  describe('the verdict', () => {
+    it('Stalemate on the first draw', async () => {
+      await settle(openShop(), 'draw');
+      expect(await first()).toBe('stalemate');
+    });
+    it('OneResolve when the fight leaves exactly 1 Resolve', async () => {
+      await settle(openShop({ resolve: 20 }), 'lose', { resolve: 1 });
+      expect(await first()).toBe('one-resolve');
+    });
+    it('ArmorGone when Armor first hits 0', async () => {
+      await settle(openShop({ armor: 5 }), 'lose', { armor: 0 });
+      expect(await first()).toBe('armor-gone');
+    });
+    it('BlowoutLoss: a loss that costs the round\'s full damage cap (Armor included); a smaller loss is quiet', async () => {
+      await settle(openShop({ wave: 5, resolve: 30, armor: 3 }), 'lose', { resolve: 23, armor: 0 }); // 10 = the wave-5 cap
+      await tick(20);
+      expect(events()).toContain('blowout-loss');
+      fresh();
+      await settle(openShop({ wave: 5, resolve: 30 }), 'lose', { resolve: 25 });
+      await tick(20);
+      expect(events()).not.toContain('blowout-loss');
+    });
+    it('FiveWinStreak on the 5th win in a row (outranks ThreeWinStreak)', async () => {
+      await settle(openShop({ history: ['win', 'win', 'win', 'win'] }), 'win');
+      expect(await first()).toBe('five-win-streak');
+    });
+    it('LosingStreak on the 2nd loss in a row; StreakBroken when a loss ends 3+ wins', async () => {
+      await settle(openShop({ history: ['lose'] }), 'lose');
+      expect(await first()).toBe('losing-streak');
+      fresh();
+      await settle(openShop({ history: ['win', 'win', 'win'] }), 'lose');
+      expect(await first()).toBe('streak-broken');
+    });
+  });
+
+  describe('back in the Shop', () => {
+    it('FirstOut on the lobby\'s first knockout; PlayersRemain when someone goes out and 5 or 3 are left', async () => {
+      let r = await settle(openShop({ lobby: { seats: seats(8) } }), 'win');
+      backToShop(r, { lobby: { seats: seats(7) } });
+      expect(await first(ANNOUNCER_BACK_TO_SHOP_DELAY_MS + 20)).toBe('first-out');
+      fresh();
+      r = await settle(openShop({ lobby: { seats: seats(6) } }), 'win');
+      backToShop(r, { lobby: { seats: seats(5) } });
+      expect(await first(ANNOUNCER_BACK_TO_SHOP_DELAY_MS + 20)).toBe('players-remain');
+    });
+    it('LeaderboardTop / LobbyLast: the most / least Resolve at the table, only after round 8', async () => {
+      const cases: [number, number, string | undefined][] = [[10, 30, 'leaderboard-top'], [10, 5, 'lobby-last'], [6, 30, undefined]];
+      for (const [wave, resolve, line] of cases) {
+        fresh();
+        const seatsNow = table([resolve, 20, 20, 20, 20, 20, 20, 20]);
+        const r = await settle(openShop({ wave, resolve, lobby: { seats: seatsNow } }), 'win');
+        backToShop(r, { lobby: { seats: seatsNow } });
+        expect(await first(ANNOUNCER_BACK_TO_SHOP_DELAY_MS + 20)).toBe(line ?? 'back-to-shop');
+      }
+    });
+    it('LateGame when the game passes round 18; RoundMilestone at the round-10 Shop', async () => {
+      let r = await settle(openShop({ wave: 18 }), 'win');
+      backToShop(r);
+      expect(await first(ANNOUNCER_BACK_TO_SHOP_DELAY_MS + 20)).toBe('late-game');
+      fresh();
+      r = await settle(openShop({ wave: 9 }), 'win');
+      backToShop(r);
+      expect(await first(ANNOUNCER_BACK_TO_SHOP_DELAY_MS + 20)).toBe('round-milestone');
+    });
+  });
+
+  it('SecondPlace replaces GameLoss for exactly 2nd; 3rd and lower still hear GameLoss', async () => {
+    let r = openShop();
+    go({ ...r, phase: 'gameover', lobby: { seats: seats(1, 2) } });
+    expect(await first(ANNOUNCER_END_DELAY_MS + 20)).toBe('second-place');
+    fresh();
+    r = openShop();
+    go({ ...r, phase: 'gameover', lobby: { seats: seats(1, 3) } });
+    expect(await first(ANNOUNCER_END_DELAY_MS + 20)).toBe('game-loss');
   });
 });

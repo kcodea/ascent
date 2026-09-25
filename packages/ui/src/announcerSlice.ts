@@ -50,7 +50,39 @@ export type AnnouncerEvent =
   // The specialty lines (owner 2026-09-25).
   | 'buyDrakko'
   | 'buySylus'
-  | 'castAle';
+  | 'castAle'
+  // The moment catalog's first batch (owner 2026-09-25): ElevenLabs lines, states the store already carries.
+  | 'lateGame'
+  | 'roundMilestone'
+  | 'secondPlace'
+  | 'brokeTurn'
+  | 'fastTier'
+  | 'sellSpree'
+  | 'sellGilded'
+  | 'spellChain'
+  | 'tierUp'
+  | 'allGolden'
+  | 'bigTurn'
+  | 'boardTotal'
+  | 'fullBoard'
+  | 'minionHits250'
+  | 'armorUp'
+  | 'finalShowdown'
+  | 'underdogOdds'
+  | 'heavyFavourite'
+  | 'armorGone'
+  | 'blowoutLoss'
+  | 'oneResolve'
+  | 'stalemate'
+  | 'lobbyLast'
+  | 'firstOut'
+  | 'leaderboardTop'
+  | 'playersRemain'
+  | 'fiveWinStreak'
+  | 'losingStreak'
+  | 'streakBroken'
+  | 'tribeFullBoard'
+  | 'mixedBoard';
 
 export interface AnnouncedSlice {
   seed: number;
@@ -72,8 +104,8 @@ export function announcedFor(slice: AnnouncedSlice | null | undefined, seed: num
   return slice;
 }
 
-/** The two end-of-game lines sit outside the per-game cap. */
-export const UNCAPPED_EVENTS: readonly AnnouncerEvent[] = ['gameWon', 'gameLoss'];
+/** The end-of-game lines (GameWon, SecondPlace, GameLoss) never expire and wait out the cooldown. */
+export const UNCAPPED_EVENTS: readonly AnnouncerEvent[] = ['gameWon', 'gameLoss', 'secondPlace'];
 
 /** Pure: the slice after `event` spoke at `wave`, playing `take` (when given). `reshuffle` empties the event's
  *  bag first: the events allowed to repeat a take once every take has been heard (see `announcer.ts`). */

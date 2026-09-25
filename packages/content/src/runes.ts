@@ -696,7 +696,7 @@ export const RUNES: RuneDef[] = [
     tribes: ['dwarf'], // TRIBE GATE (owner tag pass 2026-09-18): the text names the tribe / its Rubies, Ales, Attachments, Imps, or it grants that tribe's minion
     name: 'Rune of Shared Pour',
     cost: 2, // balance 9/23 (was 3)
-    text: 'Your first **Dwarven Ale** each turn casts an **additional time**.',
+    text: 'The first **Dwarven Ale** you cast from hand each turn casts an **additional time**.',
     reward: { kind: 'runeSharedPour' },
     sets: ['set2'], // CUT FROM SET 3 (owner 2026-09-24: named in the Set 3 rune cut list)
   },
@@ -1007,7 +1007,7 @@ export const RUNES: RuneDef[] = [
     id: 'rune_hoardflame',
     name: 'Rune of Hoardflame',
     cost: 2,
-    text: 'Get a **Hoardflame**. Repeat every **Start of Turn**. They cast **twice**.',
+    text: 'Get a **Hoardflame**. Repeat every **Start of Turn**. They cast **twice** from hand.',
     previewCards: ['hoardflame'],
     reward: { kind: 'multi', rewards: [{ kind: 'recurringGrant', cards: ['hoardflame'] }, { kind: 'runeSpellDouble', spellId: 'hoardflame' }] },
   },
@@ -2012,7 +2012,7 @@ export const EPIC_RUNES: RuneDef[] = [
     name: 'Rune of the Bottomless Cask',
     cost: 5,
     epic: true,
-    text: 'Your **Dwarven Ales** trigger an **additional time**.',
+    text: '**Dwarven Ales** you cast from hand trigger an **additional time**.',
     sets: ['set2', 'set3'], // + set3 2026-09-14 (rune roster handoff: mechanically compatible carryover)
     reward: { kind: 'aleExtraCasts', amount: 1 },
   },
@@ -2728,7 +2728,7 @@ export const EPIC_RUNES: RuneDef[] = [
     name: 'Rune of Dragon Breath',
     cost: 4,
     epic: true,
-    text: 'Get a **Dragonflame**. Repeat every **Start of Turn**. They cast **twice**.',
+    text: 'Get a **Dragonflame**. Repeat every **Start of Turn**. They cast **twice** from hand.',
     previewCards: ['sp_dragonflame'],
     reward: { kind: 'multi', rewards: [{ kind: 'recurringGrant', cards: ['sp_dragonflame'] }, { kind: 'runeSpellDouble', spellId: 'sp_dragonflame' }] },
     sets: ['set2'],

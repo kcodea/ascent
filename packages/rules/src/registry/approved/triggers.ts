@@ -575,12 +575,15 @@ export const TRIGGERS_RULES: GameRule[] = [
       + '(Kindling, Scales, Flagship, Summoning, Might) and the cast-specific runes (Rune of Lassoing\x27s +2/+2 on a Lasso, '
       + 'Rune of Spellweaving, and for a spell cast ON a minion Lorekeeping and Spellhide). Each cast is counted exactly '
       + 'once. A targeted spell lands on the caster\x27s chosen friend (Arnold: itself; the others: the highest-Attack other '
-      + 'friend); an untargeted spell (Lasso, Staff of Guel) is cast on nobody. Cast multipliers that belong to the hand '
-      + 'play (Yazzus, Spell Thesis, Orivax) do not multiply a minion\x27s cast, as for every other no-aim cast.',
+      + 'friend); an untargeted spell (Lasso, Staff of Guel) is cast on nobody. Cast multipliers never multiply a '
+      + 'minion\x27s cast and a minion\x27s cast never spends one (R-MULT-06: they apply only to spells cast from hand). '
+      + 'Because it IS a spell cast, an End-of-Turn Lasso or Staff of Guel can be the turn\x27s first or last spell, so '
+      + 'Rune of Recurrence, Mushy, Steward of Spells and Runesnout Archivist can remember one.',
     domain: 'triggers',
     status: 'approved',
     evidence: [
       { kind: 'owner-chat', ref: 'Owner ruling 2026-09-24 on the End-of-Turn minion-cast gap (Rune of Lassoing not paying for a Rope Wrangler Lasso)', quote: 'fix that for all' },
+      { kind: 'owner-chat', ref: 'Owner confirmation 2026-09-24, with the from-hand multiplier ruling (R-MULT-06), of: An End-of-Turn Lasso or Staff of Guel can now count as the turn\x27s first or last spell. So Rune of Recurrence, Mushy, Steward of Spells and Runesnout Archivist can remember one.', quote: 'this is correct' },
       { kind: 'code', ref: 'packages/sim/src/recruit.ts RECRUIT_FACTORIES castSpell / endOfTurnCastSpellOnSelf / endOfTurnCastSpellEscalating (each repetition calls castSpell(); minionCastTarget picks the target), the shop arena castRepeat (spellweaveSnapshot / settleSpellweave around the inline body); fireShopSpellGrowers (the Goldilox-only hook from #1682) removed' },
     ],
     contentIds: ['ropewrangler', 'dm_curator', 'dw_arnold', 'rune_lassoing', 'rune_spellweaving', 'dw3_goldilox'],
@@ -593,7 +596,7 @@ export const TRIGGERS_RULES: GameRule[] = [
       + 'Might\x27s own Might of Aeon cast deliberately stays a bare `applyCastEffects` behind its recursion guard.',
     enforcement: {
       kind: 'scenario',
-      refs: ['packages/sim/src/minionCastsFullPath.test.ts', 'packages/sim/src/spellFxEverySource.test.ts', 'packages/sim/src/goldilox.test.ts'],
+      refs: ['packages/sim/src/minionCastsFullPath.test.ts', 'packages/sim/src/spellFxEverySource.test.ts', 'packages/sim/src/goldilox.test.ts', 'packages/sim/src/castMultipliersFromHand.test.ts'],
       lastVerifiedAt: '2026-09-24',
     },
   },

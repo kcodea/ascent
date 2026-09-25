@@ -70,6 +70,24 @@ export const PATCH_NOTES: PatchNote[] = [
   },
   {
     date: '2026-09-24',
+    label: 'Casts From Hand',
+    changes: [
+      {
+        category: 'Balance',
+        text: 'Effects that make spells cast more times now only work on spells you cast from hand.',
+        details: [
+          'Covers Yazzus, Living Grimoire, Orivax, Nimbus, Cometius and its Comet, Edward Keg-hands and Constellation Prime.',
+          'Also covers Spell Thesis, Ancient Runes, Bottomless Cellar, The Endless Verse, and the Shared Pour, Bottomless Cask, Hoardflame and Dragon Breath runes.',
+          'A spell cast by a minion, a rune or an Equipment casts once. A Mage-Pup or a Pourman\'s Keg pour is no longer doubled.',
+          'Those casts no longer use up a Living Grimoire charge, Orivax\'s first spell, Spell Thesis or a Nimbus or Comet charge. Your next spell from hand gets it.',
+          'They still count as spells you cast, so Rune of Recurrence, Mushy and friends can still remember them.',
+          'Card texts now say "from hand".',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-09-24',
     label: 'Owner Rulings',
     changes: [
       {
@@ -95,6 +113,7 @@ export const PATCH_NOTES: PatchNote[] = [
         details: [
           'Plays after Start Game in the hero ceremony, for Play and Practice games.',
           'Gold lettering with sparks and a sweep of light, then a fade to the board. About two seconds.',
+          'It has sound now: a shimmer as the light sweeps across the words, and a soft sparkle as the sparks burst.',
           'Your first turn keeps its full time. The clock waits until the intro is gone.',
           'Press Esc or click anywhere to skip it.',
           'Not shown in the tutorial, the Scene Builder, replays, or when you continue a saved game.',

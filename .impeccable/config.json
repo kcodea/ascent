@@ -11,6 +11,25 @@
       "bounce-easing"
     ],
     "ignoreFiles": [],
-    "ignoreValues": []
+    "ignoreValues": [
+      {
+        "rule": "design-system-color",
+        "value": "rgba(224,179,77,0.92)",
+        "createdAt": "2026-09-25T23:16:20.092Z",
+        "reason": "User confirmed rgba(224,179,77,0.92) is intentional"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "#1a1408",
+        "createdAt": "2026-09-25T23:16:24.377Z",
+        "reason": "User confirmed #1a1408 is intentional"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "#8a6d1f",
+        "createdAt": "2026-09-25T23:16:26.209Z",
+        "reason": "User confirmed #8a6d1f is intentional"
+      }
+    ]
   }
 }

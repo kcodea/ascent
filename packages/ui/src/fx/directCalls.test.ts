@@ -193,7 +193,10 @@ describe('DIRECT_CALL_SITES is a derivation, not a list', () => {
       // 'starform-create' joined on 2026-09-14: the owner-authored Starform creation cue, fired from `Recruit.tsx`.
       // 'rune-cast-flourish' + 'rune-cast-mote' joined on 2026-09-24: the rune cast flourish (the glyph flash on a
       // casting rune's node, and the mote it sends out), fired from `fx/runeCastFlourish.ts` for every rune cast.
-      'rune-buff-unit', 'rune-cast-flourish', 'rune-cast-mote', 'rune-select-implosion', 'rune-slot-break', 'shop-buff-purple', 'shop-tier-up', 'spell-bounce', 'starform-create', 'starform-pull', 'strike-impact', 'tallyanimation1', 'tendril-trail',
+      'rune-buff-unit', 'rune-cast-flourish', 'rune-cast-mote', 'rune-select-implosion', 'rune-slot-break',
+      // 'runeforge-embers' / 'runeforge-epic-flare' / 'runeforge-land-dust' joined on 2026-09-24: the Runeforge entrance
+      // (`runeforgeEntrance/entrance.ts`): embers as the forge opens, the Epic flare, and the dust under each landing tablet.
+      'runeforge-embers', 'runeforge-epic-flare', 'runeforge-land-dust', 'shop-buff-purple', 'shop-tier-up', 'spell-bounce', 'starform-create', 'starform-pull', 'strike-impact', 'tallyanimation1', 'tendril-trail',
       // 'tendril-trail-spirit' joined on 2026-09-17: the Spirit ribbon fires by literal id so its hits can be staggered.
       'tendril-trail-spirit',
       // 'test-ascent-frame-attack' / '…-health' joined on 2026-09-19: the owner-authored persistent milestone

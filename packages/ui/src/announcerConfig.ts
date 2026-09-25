@@ -6,7 +6,8 @@ import type { TunerControl, TunerSpec } from './tunerSchema';
  * tuner to the dev panel that has volume for each event, and a timing adjust that allows me to offset timing of the
  * event earlier or later"*.
  *
- * Two knobs per event (every key of `ANNOUNCER_LINES` in announcer.ts):
+ * Three knobs per event (every key of `ANNOUNCER_LINES` in announcer.ts; `<event>Chance`, the percent chance the
+ * line speaks when its moment happens, was added 2026-09-25 and defaults to `ANNOUNCER_CHANCE` below):
  *  · `<event>Vol`: a percentage (0 to 200, 100 = as recorded) multiplied into that line's gain, on top of the Announcer channel's
  *    level. The final gain is clamped at 1 (`announcerLineGain`), so a boost can never clip past full scale.
  *  · `<event>Offset`: milliseconds added to the event's built-in delay (Face Omen 1600, back to shop 1000,
@@ -23,7 +24,7 @@ import type { TunerControl, TunerSpec } from './tunerSchema';
 export const ANNOUNCER_TUNER_EVENTS = [
   'gameStart', 'equipment', 'triple', 'tierSix', 'runeforge', 'epicRuneforge', 'minionHits100Stats',
   'goldenArmy', 'bigSpender', 'shopBigBuff', 'pair', 'tribeFour',
-  'randomCardBuy', 'randomSpellBuy', 'randomBeastBuy', 'randomDwarfBuy', 'timeRunningOut',
+  'randomCardBuy', 'randomSpellBuy', 'randomBeastBuy', 'randomDwarfBuy', 'buyDrakko', 'buySylus', 'castAle', 'timeRunningOut',
   'enteringCombat', 'enteringCombatAfterLoss', 'startCombatUnder10hp',
   'surviveUnder10hp', 'losingLowOddsFight', 'winningLowOddsFight', 'comebackWin', 'threeWinStreak',
   'flawlessVictory', 'bigHit',
@@ -32,7 +33,8 @@ export const ANNOUNCER_TUNER_EVENTS = [
 
 type VolKey = `${AnnouncerEvent}Vol`;
 type OffsetKey = `${AnnouncerEvent}Offset`;
-export type AnnouncerTunerKey = VolKey | OffsetKey;
+type ChanceKey = `${AnnouncerEvent}Chance`;
+export type AnnouncerTunerKey = VolKey | OffsetKey | ChanceKey;
 export type AnnouncerTunerConfig = Record<AnnouncerTunerKey, number>;
 
 /** The panel's group title per event: its name plus the built-in delay the offset rides on. */
@@ -71,19 +73,42 @@ const EVENT_LABEL: Record<AnnouncerEvent, string> = {
   randomBeastBuy: 'Random Beast buy, 10% (0 ms)',
   randomDwarfBuy: 'Random Dwarf buy, 10% (0 ms)',
   round7: 'Round 7, 10% (1000 ms after the return)',
-  timeRunningOut: 'Time running out, 10 s left on the Shop clock (0 ms)',
+  timeRunningOut: 'Time running out, 15 s left on the Shop clock, every turn (0 ms)',
+  buyDrakko: 'Bought Drakko (0 ms)',
+  buySylus: 'Bought Sylus (0 ms)',
+  castAle: 'Cast an Ale from hand (0 ms)',
 };
+
+/**
+ * THE CHANCE TABLE (owner 2026-09-25: *"we need to have low-ish chances to proc the on-buy style ones except for
+ * specialty targeted ones, like drakko/sylus etc."*): the chance, 0 to 1, that an event SPEAKS when its moment
+ * happens. The ONE place to tune it; the Announcer tuner's per-event Chance dial (percent) defaults to these. 1 =
+ * every time. A chance below 1 rolls the seeded `announcerRoll` (run seed + event + wave + index), so a replay
+ * rolls the same way.
+ */
+export const ANNOUNCER_CHANCE: Record<(typeof ANNOUNCER_TUNER_EVENTS)[number], number> = Object.fromEntries(
+  ANNOUNCER_TUNER_EVENTS.map((e) => [e, 1]),
+) as Record<(typeof ANNOUNCER_TUNER_EVENTS)[number], number>;
+// The generic buy lines: 6% per qualifying buy (was 10%, owner 2026-09-25).
+ANNOUNCER_CHANCE.randomCardBuy = 0.06;
+ANNOUNCER_CHANCE.randomSpellBuy = 0.06;
+ANNOUNCER_CHANCE.randomBeastBuy = 0.06;
+ANNOUNCER_CHANCE.randomDwarfBuy = 0.06;
+// Round 7: 10% when wave 7's Shop opens (owner ruling 2026-09-24, unchanged).
+ANNOUNCER_CHANCE.round7 = 0.1;
 
 export const ANNOUNCER_VOL_RANGE: [number, number, number] = [0, 200, 5];
 export const ANNOUNCER_OFFSET_RANGE: [number, number, number] = [-2000, 3000, 50];
+export const ANNOUNCER_CHANCE_RANGE: [number, number, number] = [0, 100, 1];
 
 const DEFAULTS: AnnouncerTunerConfig = Object.fromEntries(
-  ANNOUNCER_TUNER_EVENTS.flatMap((e) => [[`${e}Vol`, 100], [`${e}Offset`, 0]]),
+  ANNOUNCER_TUNER_EVENTS.flatMap((e) => [[`${e}Vol`, 100], [`${e}Offset`, 0], [`${e}Chance`, Math.round(ANNOUNCER_CHANCE[e] * 100)]]),
 ) as AnnouncerTunerConfig;
 export { DEFAULTS as ANNOUNCER_TUNER_DEFAULTS };
 
 export const ANNOUNCER_TUNER_KEYS = Object.keys(DEFAULTS) as AnnouncerTunerKey[];
-const rangeOf = (key: AnnouncerTunerKey): [number, number, number] => (key.endsWith('Vol') ? ANNOUNCER_VOL_RANGE : ANNOUNCER_OFFSET_RANGE);
+const rangeOf = (key: AnnouncerTunerKey): [number, number, number] =>
+  key.endsWith('Vol') ? ANNOUNCER_VOL_RANGE : key.endsWith('Chance') ? ANNOUNCER_CHANCE_RANGE : ANNOUNCER_OFFSET_RANGE;
 
 const KEY = 'ascent.announcertuner';
 
@@ -139,6 +164,10 @@ export function announcerEventVolume(event: AnnouncerEvent, c: AnnouncerTunerCon
 export function announcerEventOffset(event: AnnouncerEvent, c: AnnouncerTunerConfig = cfg): number {
   return c[`${event}Offset`] ?? 0;
 }
+/** The tuned chance (0 to 1) that an event speaks when its moment happens (the panel stores percent). */
+export function announcerEventChance(event: AnnouncerEvent, c: AnnouncerTunerConfig = cfg): number {
+  return (c[`${event}Chance`] ?? 100) / 100;
+}
 /** A line's final gain: the channel level times the event's multiplier, clamped to [0, 1]. */
 export function announcerLineGain(channelLevel: number, eventVolume: number): number {
   return Math.max(0, Math.min(1, channelLevel * eventVolume));
@@ -151,9 +180,11 @@ export function announcerTunerControls(preview?: (event: AnnouncerEvent) => void
     const group = EVENT_LABEL[e];
     const [vMin, vMax, vStep] = ANNOUNCER_VOL_RANGE;
     const [oMin, oMax, oStep] = ANNOUNCER_OFFSET_RANGE;
+    const [cMin, cMax, cStep] = ANNOUNCER_CHANCE_RANGE;
     return [
       { key: `${e}Vol`, label: 'Volume', group, unit: '%', min: vMin, max: vMax, step: vStep, ...(preview ? { preview: () => preview(e) } : {}) },
       { key: `${e}Offset`, label: 'Timing offset', group, unit: 'ms', min: oMin, max: oMax, step: oStep },
+      { key: `${e}Chance`, label: 'Chance', group, unit: '%', min: cMin, max: cMax, step: cStep },
     ];
   });
 }
@@ -161,7 +192,7 @@ export function announcerTunerControls(preview?: (event: AnnouncerEvent) => void
 export const SPEC: TunerSpec<AnnouncerTunerConfig> = {
   id: 'announcer',                 // FROZEN — indexes this panel's dragged position in localStorage
   title: 'Announcer',
-  note: 'dev · per-line volume + timing',
+  note: 'dev · per-line volume + timing + chance',
   read: getAnnouncerTunerConfig,
   write: (key, value) => setAnnouncerTunerValue(key, value),
   reset: resetAnnouncerTunerConfig,

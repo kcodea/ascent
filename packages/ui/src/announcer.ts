@@ -10,11 +10,19 @@
  *  · ONCE PER EVENT PER RUN, tracked in the store's `announced` slice (persisted with the autosave, keyed by the
  *    run seed, reset by every new run) so a Save & Continue never replays a line. Three events may speak twice
  *    (BackToShop and Triple at least ANNOUNCER_REPEAT_GAP_WAVES waves apart, Knockout at least
- *    ANNOUNCER_KNOCKOUT_GAP_WAVES apart), still against the cap.
+ *    ANNOUNCER_KNOCKOUT_GAP_WAVES apart). Exceptions added 2026-09-25: the generic random buy lines speak up to
+ *    ANNOUNCER_RANDOM_BUY_MAX times (ANNOUNCER_RANDOM_BUY_GAP_WAVES apart), and TimeRunningOut every Shop turn.
  *  · The VARIANT (which take) is a fresh RANDOM pick every time (owner 2026-09-25: "random pick every time, no
- *    seeds"), so a replay or reload can hear a different take. The RARE lines
- *    (the random buy lines, Round 7) roll a SEEDED ANNOUNCER_RARE_CHANCE from the run seed + wave + buy index
- *    (`announcerRoll`), so a replay rolls the same way; never `Math.random`.
+ *    seeds") from the takes NOT YET HEARD this game: THE NO-REPEAT BAG (owner 2026-09-25: "we have a global rule to
+ *    never repeat lines except maybe the generic random buys sometimes?"). The bag is the slice's `heard`, persisted
+ *    like `fired`, so a Save & Continue keeps it. An event whose every take has been heard goes SILENT for the rest
+ *    of the game, except the REUSABLE_BAG events (the four generic random buys and TimeRunningOut), which
+ *    reshuffle and start over.
+ *  · THE CHANCE TABLE (`ANNOUNCER_CHANCE` in announcerConfig.ts, a Chance dial per event in the Announcer tuner):
+ *    below 1, an event's moment rolls a SEEDED chance from the run seed + event + wave + index (`announcerRoll`),
+ *    so a replay rolls the same way. The generic buy lines 6% per qualifying buy, Round 7 10%, everything else 1.
+ *  · SPECIALTY lines (SPECIALTY_EVENTS: a named card bought, an Ale cast) speak the first time the thing happens
+ *    in a game; a dropped one tries again the next time, at most as many tries as it has takes.
  *  · A GLOBAL COOLDOWN: no line within ANNOUNCER_COOLDOWN_MS of the previous one, and never while a line is
  *    playing. An event that lands inside the cooldown is DROPPED, not queued (that is what stops the Equipment →
  *    Triple → TierSix chatter on one turn). A dropped event stays unfired: it may speak later if its moment
@@ -39,16 +47,17 @@
  * line carries the level. Lines never overlap each other.
  */
 import { CARD_INDEX } from '@game/content';
-import type { Tribe } from '@game/core';
+import { ALE_IDS, type Tribe } from '@game/core';
 import { defIsTribe, lossDamageCap, offerBuyStats, type RunState, type ShopCard } from '@game/sim';
 import { DEFAULT_SLIDER, sliderToGain } from './audio/volumeCurve';
-import { announcerEventOffset, announcerEventVolume, announcerLineGain } from './announcerConfig';
+import { ANNOUNCER_CHANCE, announcerEventChance, announcerEventOffset, announcerEventVolume, announcerLineGain } from './announcerConfig';
 import { isMusicWanted, MUSIC_FADE_MS, MUSIC_START_DELAY_MS, type MusicStateLike } from './music';
 import {
-  type AnnouncedSlice, type AnnouncerEvent, announcedFor, firedWaves, hasFired, UNCAPPED_EVENTS,
+  type AnnouncedSlice, type AnnouncerEvent, announcedFor, firedWaves, hasFired, heardTakes, UNCAPPED_EVENTS, withAnnounced,
 } from './announcerSlice';
 
 export type { AnnouncerEvent } from './announcerSlice';
+export { ANNOUNCER_CHANCE } from './announcerConfig';
 
 // ── The constants (one name each; the tests and the devlog read these) ──────────────────────────────────────
 /** No line within this of the previous one ending. THE cooldown. */
@@ -109,12 +118,28 @@ export const ANNOUNCER_BIG_SPENDER_LEFT = 10;
 export const ANNOUNCER_SHOP_BIG_ATTACK = 50;
 /** TribeFour: this many minions of one tribe bought in one Shop turn. */
 export const ANNOUNCER_TRIBE_BUYS = 4;
-/** The rare lines' chance per qualifying moment (owner ruling 2026-09-24: "Rare: ~10% per buy"). */
-export const ANNOUNCER_RARE_CHANCE = 0.1;
+/** The generic buy lines' chance per qualifying buy: 6% (owner 2026-09-25, was 10%). The live value is the tuner's
+ *  `ANNOUNCER_CHANCE` table (announcerConfig.ts); this is its default, exported for the tests. */
+export const ANNOUNCER_RARE_CHANCE = ANNOUNCER_CHANCE.randomCardBuy;
+/** The generic random buy lines: up to this many per game, at least ANNOUNCER_RANDOM_BUY_GAP_WAVES apart (owner
+ *  2026-09-25: the one exception to the no-repeat rule). */
+export const ANNOUNCER_RANDOM_BUY_MAX = 3;
+export const ANNOUNCER_RANDOM_BUY_GAP_WAVES = 2;
+/** The generic random buy events. */
+export const RANDOM_BUY_EVENTS: readonly AnnouncerEvent[] = ['randomCardBuy', 'randomSpellBuy', 'randomBeastBuy', 'randomDwarfBuy'];
+/** Events that RESHUFFLE their no-repeat bag once every take has been heard (every other event goes silent). */
+export const REUSABLE_BAG_EVENTS: readonly AnnouncerEvent[] = [...RANDOM_BUY_EVENTS, 'timeRunningOut'];
+/** The SPECIALTY lines: a named card or rune, an Ale. First time it happens, retried when dropped (see the header). */
+export const SPECIALTY_EVENTS: readonly AnnouncerEvent[] = ['buyDrakko', 'buySylus', 'castAle'];
+/** The named cards the specialty buy lines listen for, by CARD ID (ids never change on a rename). `drummer` is the
+ *  shop minion named Drakko (there is also a HERO named Drakko; a hero is never bought, so it cannot trigger this);
+ *  `sylus` is the shop minion Sylus (Rune of Sylus grants one at the Runeforge, which is not a buy). */
+export const ANNOUNCER_NAMED_BUYS: Readonly<Record<string, AnnouncerEvent>> = { drummer: 'buyDrakko', sylus: 'buySylus' };
 /** Round7: the wave whose Shop may (rarely) say it. */
 export const ANNOUNCER_ROUND_SEVEN = 7;
-/** TimeRunningOut: the Shop clock's seconds left that trigger it (the first time per game the clock ticks down to it). */
-export const ANNOUNCER_TIME_WARNING_SECONDS = 10;
+/** TimeRunningOut: the Shop clock's seconds left that trigger it, EVERY Shop turn (owner 2026-09-25: "the running
+ *  out of time can play everytime theres 15 seconds left"). */
+export const ANNOUNCER_TIME_WARNING_SECONDS = 15;
 /** EnteringCombat is "the first Face Omen": if the first one is dropped it may still speak up to this wave. */
 export const ANNOUNCER_ENTERING_COMBAT_MAX_WAVE = 3;
 /** The Announcer slider's storage key. `.v2` since the default-mix curve (owner 2026-09-24): the stored value is a
@@ -158,12 +183,18 @@ export const ANNOUNCER_LINES: Record<AnnouncerEvent, readonly string[]> = {
   pair: ['pair-1', 'pair-2'],
   tribeFour: ['tribe-four'],
   randomSpellBuy: ['random-spell-buy-1', 'random-spell-buy-2'],
-  randomCardBuy: ['random-card-buy'],
+  // RandomCardBuy1 + the seven 'Buying Cards/Any' takes (owner 2026-09-25).
+  randomCardBuy: ['random-card-buy', ...Array.from({ length: 7 }, (_, i) => `random-card-buy-${i + 2}`)],
   randomBeastBuy: ['random-beast-buy'],
   randomDwarfBuy: ['random-dwarf-buy'],
   round7: ['round-7'],
   // The shop-clock warning (owner 2026-09-25): 21 takes from the Low on time folder, in folder timestamp order.
   timeRunningOut: Array.from({ length: 21 }, (_, i) => `time-running-out-${i + 1}`),
+  // The specialty lines (owner 2026-09-25): the Special folder. BuyingDrakko / BuyingDrakko2 first, then the
+  // ElevenLabs takes in folder timestamp order.
+  buyDrakko: Array.from({ length: 5 }, (_, i) => `buy-drakko-${i + 1}`),
+  buySylus: Array.from({ length: 4 }, (_, i) => `buy-sylus-${i + 1}`),
+  castAle: Array.from({ length: 6 }, (_, i) => `cast-ale-${i + 1}`),
 };
 
 /** Higher speaks first when several are pending at once. */
@@ -203,6 +234,9 @@ export const ANNOUNCER_PRIORITY: Record<AnnouncerEvent, number> = {
   randomDwarfBuy: 12,
   backToShop: 10,
   timeRunningOut: 5,
+  buyDrakko: 36,
+  buySylus: 36,
+  castAle: 16,
 };
 
 /** When a pending line goes stale: 'shop' lines when combat starts, 'combat' lines when the next shop opens. */
@@ -220,6 +254,8 @@ export interface AnnouncerRunLike {
   history: readonly string[];
   board: readonly { attack: number; health: number; golden: boolean; cardId?: string }[];
   hand: readonly { golden: boolean; cardId?: string }[];
+  /** Spells cast this run (the reducer's tally): CastAle keys on it rising while an Ale leaves the hand. */
+  spellsCast?: number | undefined;
   /** Gold in hand (RichTurn, BigSpender). */
   embers?: number | undefined;
   goldSpentThisTurn?: number | undefined;
@@ -245,7 +281,7 @@ export interface AnnouncerStateLike extends MusicStateLike {
   announced: AnnouncedSlice;
   /** The rail's real pre-combat odds for `wave`, once the deferred probe has run (see `stampReplayOdds`). */
   combatOdds: { wave: number; odds: { win: number; draw: number; lose: number } } | null;
-  markAnnounced: (event: AnnouncerEvent, wave: number) => void;
+  markAnnounced: (event: AnnouncerEvent, wave: number, take?: string, reshuffle?: boolean) => void;
 }
 
 /** The pure gate: the same as the music's (lobby / practice on screen, no sandbox, no replay, no title). */
@@ -433,6 +469,8 @@ interface PendingLine {
    *  this round's StartCombatUnder10hp (the round's only line), the two forge lines (see `detectForge`) and
    *  TimeRunningOut (see `observeTurnClock`). */
   bypassCooldown?: boolean;
+  /** The chance roll's index (a buy's count this turn); 0 when absent. */
+  rollIndex?: number;
 }
 export type AnnouncerLogKind = 'queue' | 'play' | 'drop' | 'expire' | 'cancel' | 'end';
 export interface AnnouncerLogEntry { t: number; kind: AnnouncerLogKind; event: AnnouncerEvent; file?: string; why?: string }
@@ -440,7 +478,7 @@ export interface AnnouncerLogEntry { t: number; kind: AnnouncerLogKind; event: A
 let active = false;
 let runKey: number | null = null;
 let slice: AnnouncedSlice | null = null;
-let mark: ((event: AnnouncerEvent, wave: number) => void) | null = null;
+let mark: ((event: AnnouncerEvent, wave: number, take?: string, reshuffle?: boolean) => void) | null = null;
 let pending: PendingLine[] = [];
 let playing: { event: AnnouncerEvent; token: number; handle: AnnouncerHandle | null } | null = null;
 let playToken = 0;
@@ -456,10 +494,11 @@ let enteredAtWaveOne = false;
 let combatStartedAt: number | null = null;
 /** MinionHits100Stats in combat is checked per frame; report it once per fight. */
 let bigStatSeenThisCombat = false;
-/** TimeRunningOut is tried ONCE per game: the first time the clock reaches ANNOUNCER_TIME_WARNING_SECONDS, whether
- *  it then speaks or is dropped (the clock ran out behind a playing line, or combat started). In memory, like
- *  TribeFour's count: a Save & Continue before it spoke may try again on a later turn. */
-let timeWarningTried = false;
+/** TimeRunningOut: the wave whose clock already crossed ANNOUNCER_TIME_WARNING_SECONDS (once per Shop turn). */
+let timeWarningWave = -1;
+/** SPECIALTY lines: detections so far this game (a dropped one retries, at most its take count). In memory, like
+ *  TribeFour's count: a Save & Continue restarts the tries (a spoken one stays spoken, it is in the slice). */
+let specialtyTries = new Map<AnnouncerEvent, number>();
 /** TribeFour: this Shop turn's minion buys per tribe (dual tribes count for both, an All-tribe minion for every
  *  tribe). In memory only, reset each wave: a Save & Continue mid-turn starts the count again. */
 let tribeBuys: { wave: number; byTribe: Map<Tribe, number>; all: number } = { wave: -1, byTribe: new Map(), all: 0 };
@@ -512,9 +551,28 @@ function clipUrl(file: string): string {
 
 const isTerminal = (e: AnnouncerEvent): boolean => UNCAPPED_EVENTS.includes(e);
 
+/** The takes of `event` not yet heard this game (the no-repeat bag). */
+function unheardTakes(s: AnnouncedSlice, event: AnnouncerEvent): readonly string[] {
+  const heard = new Set(heardTakes(s, event));
+  return ANNOUNCER_LINES[event].filter((t) => !heard.has(t));
+}
+/** Every take heard, and the event does not reshuffle: silent for the rest of the game. */
+export function announcerExhausted(s: AnnouncedSlice, event: AnnouncerEvent): boolean {
+  return !REUSABLE_BAG_EVENTS.includes(event) && unheardTakes(s, event).length === 0;
+}
+/** The chance table: does this moment speak? 1 always, 0 never, else the seeded roll. */
+function chanceAllows(s: AnnouncedSlice, event: AnnouncerEvent, wave: number, index: number): boolean {
+  const c = announcerEventChance(event);
+  if (c >= 1) return true;
+  if (c <= 0) return false;
+  return announcerRoll(s.seed, event, wave, index) < c;
+}
+
 function enqueue(line: PendingLine): void {
   if (!active) return;
   if (pending.some((p) => p.event === line.event)) return;
+  if (slice && announcerExhausted(slice, line.event)) return; // the no-repeat rule: nothing left to say
+  if (slice && !chanceAllows(slice, line.event, line.wave, line.rollIndex ?? 0)) return;
   // The Announcer dev tuner's per-event TIMING OFFSET (owner 2026-09-24; 0 in prod unless baked). Added to the
   // event's built-in delay; a negative one fires earlier but never before the moment was detected (now). Only
   // `notBefore` moves: the cooldown (from the previous line's real end), the cap and the shelf life are untouched.
@@ -575,13 +633,19 @@ function pump(): void {
 function speak(line: PendingLine): void {
   const s = slice;
   if (!s || !mark) return;
-  const variants = ANNOUNCER_LINES[line.event];
-  const file = variants[announcerPick(variants.length)]!;
+  // THE NO-REPEAT BAG: a random take from those not heard this game; a reusable bag reshuffles when empty.
+  const fresh = unheardTakes(s, line.event);
+  const reshuffle = fresh.length === 0;
+  if (reshuffle && !REUSABLE_BAG_EVENTS.includes(line.event)) { note('drop', line.event, { why: 'every take heard' }); return; }
+  const bag = reshuffle ? ANNOUNCER_LINES[line.event] : fresh;
+  const file = bag[announcerPick(bag.length)]!;
   const token = ++playToken;
   playing = { event: line.event, token, handle: null };
   lastLine = { event: line.event, wave: line.wave };
   note('play', line.event, { file });
-  mark(line.event, line.wave);
+  mark(line.event, line.wave, file, reshuffle);
+  // Mirror the store's write locally, so a second line before the next store update already sees this take heard.
+  slice = withAnnounced(s, line.event, line.wave, file, reshuffle);
   const ended = (): void => {
     if (!playing || playing.token !== token) return;
     playing = null;
@@ -723,12 +787,25 @@ function detectBuy(s: AnnouncedSlice, p: AnnouncerRunLike, run: AnnouncerRunLike
   if (def && !isSpell && defIsTribe(def, 'dwarf')) candidates.push('randomDwarfBuy');
   candidates.push('randomCardBuy');
   for (const event of candidates) {
-    if (hasFired(s, event)) continue;
-    if (announcerRoll(s.seed, event, run.wave, bought) < ANNOUNCER_RARE_CHANCE) {
-      enqueue({ event, shelf: 'shop', notBefore: now, wave: run.wave });
-    }
+    // The one exception to once-per-game: up to ANNOUNCER_RANDOM_BUY_MAX, ANNOUNCER_RANDOM_BUY_GAP_WAVES apart.
+    if (!repeatAllowed(s, event, run.wave, ANNOUNCER_RANDOM_BUY_MAX, ANNOUNCER_RANDOM_BUY_GAP_WAVES)) continue;
+    enqueue({ event, shelf: 'shop', notBefore: now, wave: run.wave, rollIndex: bought }); // the chance table rolls
   }
+  // The SPECIALTY buy lines: a named card bought from the Shop.
+  const named = cardId ? ANNOUNCER_NAMED_BUYS[cardId] : undefined;
+  if (named) trySpecialty(s, named, run.wave, now);
 }
+
+/** A SPECIALTY line's moment happened: speak unless it already has; a dropped one retries, up to its take count. */
+function trySpecialty(s: AnnouncedSlice, event: AnnouncerEvent, wave: number, now: number): void {
+  if (hasFired(s, event)) return;
+  const tries = specialtyTries.get(event) ?? 0;
+  if (tries >= ANNOUNCER_LINES[event].length) return;
+  specialtyTries.set(event, tries + 1);
+  enqueue({ event, shelf: 'shop', notBefore: now, wave });
+}
+
+const aleCount = (r: AnnouncerRunLike): number => r.hand.filter((c) => !!c.cardId && ALE_IDS.includes(c.cardId)).length;
 
 /** THE FORGE OPENING: `runeforgeOffer` appeared (`runeforgeEpic` picks the Epic line). The scheduled forges (turn
  *  6 Basic / turn 9 Epic for every hero, a Runesmith's turn 5, a Guardian's turn 8, a booked Clock forge) open
@@ -756,7 +833,8 @@ function enterRun(s: AnnouncerStateLike): void {
   enteredAtWaveOne = s.run.wave === 1 && s.run.phase === 'recruit';
   combatStartedAt = s.run.phase === 'combat' ? runEnteredAt : null;
   bigStatSeenThisCombat = false;
-  timeWarningTried = false;
+  timeWarningWave = -1;
+  specialtyTries = new Map();
   tribeBuys = { wave: -1, byTribe: new Map(), all: 0 };
   if (enteredAtWaveOne && !hasFired(slice!, 'gameStart')) {
     enqueue({ event: 'gameStart', shelf: 'shop', notBefore: runEnteredAt + ANNOUNCER_GAME_START_DELAY_MS, wave: 1 });
@@ -869,7 +947,7 @@ export function syncAnnouncer(s: AnnouncerStateLike, prev: AnnouncerStateLike | 
     if ((run.embers ?? 0) >= ANNOUNCER_RICH_GOLD && !hasFired(slice, 'richTurn')) {
       enqueue({ event: 'richTurn', shelf: 'shop', notBefore: at, wave: run.wave });
     }
-    if (run.wave === ANNOUNCER_ROUND_SEVEN && !hasFired(slice, 'round7') && announcerRoll(slice.seed, 'round7', run.wave, 0) < ANNOUNCER_RARE_CHANCE) {
+    if (run.wave === ANNOUNCER_ROUND_SEVEN && !hasFired(slice, 'round7')) { // the chance table rolls (10%)
       enqueue({ event: 'round7', shelf: 'shop', notBefore: at, wave: run.wave });
     }
     // A forge that opens WITH the return (the turn-6 / turn-9 forges, a hero's turn-5 / turn-8 one, a booked
@@ -921,6 +999,8 @@ export function syncAnnouncer(s: AnnouncerStateLike, prev: AnnouncerStateLike | 
       enqueue({ event: 'pair', shelf: 'shop', notBefore: now, wave: run.wave });
     }
     detectBuy(slice, p, run, now);
+    // CastAle: a spell was cast and an Ale left the hand (an Ale cast from hand, not one a minion or rune casts).
+    if ((run.spellsCast ?? 0) > (p.spellsCast ?? 0) && aleCount(run) < aleCount(p)) trySpecialty(slice, 'castAle', run.wave, now);
   }
 }
 
@@ -935,10 +1015,12 @@ export function observeCombatBoard(units: readonly { attack: number; health: num
 
 /** THE SHOP CLOCK (owner 2026-09-25, the "Low on time" lines): Recruit's countdown hands in every tick of a REAL
  *  timer (never the tutorial's or the God-rules sandbox's effectively infinite one; the gate already keeps the
- *  announcer out of both). The first time per game the clock ticks down to ANNOUNCER_TIME_WARNING_SECONDS in a
- *  Shop turn, TimeRunningOut queues: priority 5, shop shelf (combat starting expires it), and it BYPASSES the
- *  12 s cooldown because it is a warning, but never talks over a playing line: it waits for that line to end,
- *  and is dropped if the clock reaches 0 first. Presentation-only: the engine is untimed. */
+ *  announcer out of both). EVERY Shop turn whose clock ticks down to ANNOUNCER_TIME_WARNING_SECONDS (15 s; owner:
+ *  "the running out of time can play everytime theres 15 seconds left"), TimeRunningOut queues: exempt from
+ *  once-per-game, priority 5, shop shelf (End Turn expires it), and it BYPASSES the 12 s cooldown because it is a
+ *  warning, but never talks over a playing line: it waits for that line to end, and is dropped if the clock
+ *  reaches 0 first. Its no-repeat bag reshuffles once all its takes are heard. Presentation-only: the engine is
+ *  untimed. */
 export function observeTurnClock(seconds: number, wave: number): void {
   if (!active || !slice) return;
   if (seconds <= 0) {
@@ -949,9 +1031,8 @@ export function observeTurnClock(seconds: number, wave: number): void {
     }
     return;
   }
-  if (seconds !== ANNOUNCER_TIME_WARNING_SECONDS || timeWarningTried || combatStartedAt !== null) return;
-  timeWarningTried = true;
-  if (hasFired(slice, 'timeRunningOut')) return;
+  if (seconds !== ANNOUNCER_TIME_WARNING_SECONDS || timeWarningWave === wave || combatStartedAt !== null) return;
+  timeWarningWave = wave;
   enqueue({ event: 'timeRunningOut', shelf: 'shop', notBefore: deps.now(), wave, bypassCooldown: true });
 }
 
@@ -1008,7 +1089,8 @@ export function resetAnnouncerForTests(): void {
   enteredAtWaveOne = false;
   combatStartedAt = null;
   bigStatSeenThisCombat = false;
-  timeWarningTried = false;
+  timeWarningWave = -1;
+  specialtyTries = new Map();
   tribeBuys = { wave: -1, byTribe: new Map(), all: 0 };
   log.length = 0;
 }

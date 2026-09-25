@@ -1297,4 +1297,40 @@ export const FOUNDATION_RULES: GameRule[] = [
       lastVerifiedAt: '2026-09-25',
     },
   },
+  {
+    id: 'R-PRESENT-20',
+    title: 'No FX particle outlives its play: an aux canvas clears the frame its last play leaves',
+    statement:
+      'The above-modal and under-card FX canvases only render while something is mounted on them, but a canvas '
+      + 'keeps showing the last frame it presented. So the frame after the LAST container leaves a slot (any '
+      + 'retire: a caller\'s cancel such as a Discover pick mid-entrance, a natural finish, the lifetime ceiling, '
+      + 'a budget cull) must present ONE empty stage, clearing every particle that was still in the air, and only '
+      + 'then idle. The unmount wakes the ticker so that clearing frame always happens. No star, dust puff or '
+      + 'other particle from a retired play may stay painted on screen. This holds for every def on every slot, '
+      + 'not per effect.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      {
+        kind: 'owner-chat',
+        ref: 'Owner bug report 2026-09-25 (two shop-board screenshots)',
+        quote: 'bug - sometimes getting these stars lingering ... i think it\'s from discover',
+      },
+      { kind: 'code', ref: 'packages/ui/src/pixiFx.ts renderAbove / renderUnder (aboveShowing / underShowing), mountLayer disposers, staleSlots' },
+    ],
+    currentBehaviour:
+      'Conforms as of 2026-09-25. Before the fix `renderAbove` / `renderUnder` returned early whenever their layer '
+      + 'had no children, so the tick after the last play unmounted never drew: the canvas froze on the previous '
+      + 'frame. Picking a Discover card while its cards were landing runs the entrance\'s `cancel`, which retires '
+      + 'the in-flight `discover-glint` (cream stars) and `discover-arrive` (brown dust) plays at full alpha, and '
+      + 'those particles then sat over the shop board until some later above-slot effect happened to render. A '
+      + 'natural finish left the second-to-last frame the same way (fainter). Each slot now tracks whether its '
+      + 'canvas is still showing content and renders one empty frame when it goes empty; `pixiFx.staleSlots()` is '
+      + 'the DEV watchdog (`window.__pixiFx.staleSlots()`).',
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/ui/src/fx/auxCanvasClearsOnRetire.test.ts'],
+      lastVerifiedAt: '2026-09-25',
+    },
+  },
 ];

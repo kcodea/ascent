@@ -798,6 +798,17 @@ export function bindingsJson(): string {
   return serialise(mergedTable(persistablePatch()));
 }
 
+/**
+ * True when the session holds binding edits that `bindings.json` does not — i.e. writing `bindingsJson()`
+ * would change the file. Compared as the exact text a save would write, so an override that happens to equal
+ * the committed row (or a draft, which never persists) reads as saved. Drives the FX Library's "Save all
+ * edits" button (owner ask 2026-09-25): By-card edits apply live and wait for one explicit save, instead of
+ * each writing the file and reloading the page.
+ */
+export function hasUnsavedBindings(): boolean {
+  return bindingsJson() !== serialise(COMMITTED);
+}
+
 /** A layer table as `bindings.json` text: sorted keys, tombstones written as an explicit `null`. */
 function serialise(t: LayerTable): string {
   const kinds: Record<string, FxBinding | null> = {};

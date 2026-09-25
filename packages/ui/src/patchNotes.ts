@@ -76,6 +76,66 @@ export const PATCH_NOTES: PatchNote[] = [
   },
   {
     date: '2026-09-25',
+    label: 'More Announcer Moments',
+    changes: [
+      {
+        category: 'Systems',
+        text: 'The announcer has 36 more moments to call out, from refresh streaks and rune picks to rematches and a few famous cards.',
+        details: [
+          'Shop: your first Freeze, a fifth Refresh in one turn, a rush of Gold from effects, the odd Kobold buy, a Discover opening (always for a tier 6 one), a huge single buff, your first Choose One and one that gets both effects, your first Equipment use, a tenth hero power, and quests being offered or completed.',
+          'Runes: picking, skipping or re-rolling the Runeforge, filling all three rune sockets, picking Happy Birthday, and a counter rune paying out for the third time.',
+          'Pacing: ending a turn fast after a shopping spree, standing idle for a while, and the clock running out.',
+          'Into a fight: facing a ghost, a much higher tier, a Kobold mirror or the player who hit you hardest; and beating someone on a three-win streak.',
+          'Specials: Dark Ruby, Ripple Ruby under Rune of Resonance, Disco Dan\'s opening Discovers, Great Pot or Picnic on a full board, Yazzus doubling a spell, a big Starform collapse, Flo Rida, a well-fed Goldilox and a Gemheart Golem army.',
+          'Reopening a saved game gets a welcome back.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-09-25',
+    label: 'Seconds',
+    changes: [
+      { category: 'Systems', text: 'The announcer has something to say the first time Bob Blart and Chronos share your board.' },
+    ],
+  },
+  {
+    date: '2026-09-25',
+    label: 'Announcer in the Fight',
+    changes: [
+      {
+        category: 'Systems',
+        text: 'The announcer now calls out big moments during fights, right as they happen.',
+        details: [
+          'First blood, a 50+ damage hit, a Ward that saves a minion from a killing blow, a minion Rising or returning with Rebirth.',
+          'A third Avenge, five Echoes, ten summons, Taunts soaking five attacks, a Flurry double kill, a Pummel payout, and your last minion taking down three.',
+          'Execute finishing off a 50+ or 100+ Health minion, and both boards fielding the same tier 6 minion.',
+          'At the end of a fight: a clutch win with one minion left on 3 Health or less, or a narrow loss to their last minion on 3 or less.',
+          'Skipping a fight skips its fight lines too.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-09-25',
+    label: 'Announcer Moments',
+    changes: [
+      {
+        category: 'Systems',
+        text: 'The announcer has 31 new moments to call out, from tier-ups and big turns to streaks, standings and finishing second.',
+        details: [
+          'Shop: tier-ups, a fast climb to tier 4 or 6, selling sprees, selling a golden minion, spell chains, big turns, a full board, an all-golden board, a board passing 500 total stats, a minion reaching 250 stats, 20+ Armor, a one-tribe board, and a board of five or more tribes.',
+          'Into a fight: the final showdown, being a big underdog or a heavy favourite, and ending a turn broke.',
+          'After a fight: your first draw, surviving on 1 Resolve, losing your Armor, a blowout loss, a five-win streak, back-to-back losses, and a broken win streak.',
+          'The table: the first player out, five or three players left, leading or trailing the lobby after round 8, rounds 10, 15 and 20, and a game that runs past round 18.',
+          'Finishing second now has its own line.',
+          'Each moment speaks at most once a game, and the announcer still waits between lines, so you will hear a few per game, not all of them.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-09-25',
     label: 'Rune Tribes',
     changes: [
       {

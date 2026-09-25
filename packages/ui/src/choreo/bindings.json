@@ -5,12 +5,21 @@
       "def": "self-buff-burst",
       "fanOut": "selfBuffed"
     },
+    "attackHitMilestone4": {
+      "def": "strike-impact-pink"
+    },
+    "attackHitMilestone5": {
+      "def": "strike-impact-purple"
+    },
+    "attackHitMilestone6": {
+      "def": "strike-impact-blue"
+    },
     "buffWave": {
       "def": "self-buff-burst",
       "fanOut": "selfBuffed"
     },
-    "minionSelfBuffed": {
-      "def": "self-buff-burst"
+    "epicRuneTriggered": {
+      "def": "epic-rune-burst"
     },
     "hpGrant": {
       "def": "hp-grant"
@@ -21,24 +30,27 @@
     "keywordLost": {
       "def": "keyword-lost"
     },
+    "minionSelfBuffed": {
+      "def": "self-buff-burst"
+    },
+    "pummelTrigger": {
+      "def": "pummel-trigger"
+    },
     "questComplete": {
       "def": "quest-complete"
     },
     "questTrigger": {
       "def": "quest-trigger"
     },
-    "pummelTrigger": {
-      "def": "pummel-trigger"
-    },
     "rally": null,
+    "reveal": {
+      "def": "stealth-break"
+    },
     "rubyLanded": {
       "def": "ruby-gem-apply"
     },
-    "shopRubied": {
-      "def": "ruby-gem-veinstorm"
-    },
-    "reveal": {
-      "def": "stealth-break"
+    "runeTriggered": {
+      "def": "rune-burst"
     },
     "scCast": {
       "def": "spell-cast"
@@ -46,29 +58,20 @@
     "shieldGain": {
       "def": "ward-gain-blast"
     },
-    "spellProgress": {
-      "def": "spell-progress"
-    },
-    "toHand": {
-      "def": "to-hand"
-    },
-    "venomSpent": {
-      "def": "venom-spent"
-    },
     "shopBuffAll": {
       "def": "shop-buff-purple"
     },
-    "runeTriggered": {
-      "def": "rune-burst"
+    "shopRubied": {
+      "def": "ruby-gem-veinstorm"
+    },
+    "shout": {
+      "def": "shout-icon-effect"
     },
     "spellCast": {
       "def": "spell-sparks"
     },
-    "epicRuneTriggered": {
-      "def": "epic-rune-burst"
-    },
-    "shout": {
-      "def": "shout-icon-effect"
+    "spellProgress": {
+      "def": "spell-progress"
     },
     "statMilestone1": {
       "def": "rune-select-implosion",
@@ -90,20 +93,29 @@
       "def": "rune-select-implosion",
       "sfx": "runeSelectImplosion"
     },
-    "attackHitMilestone4": {
-      "def": "strike-impact-pink"
+    "toHand": {
+      "def": "to-hand"
     },
-    "attackHitMilestone5": {
-      "def": "strike-impact-purple"
-    },
-    "attackHitMilestone6": {
-      "def": "strike-impact-blue"
+    "venomSpent": {
+      "def": "venom-spent"
     }
   },
   "cards": {
     "b2_echohorn": {
       "rally": {
         "def": "echohorn-target-sparkle"
+      }
+    },
+    "b2_florida": {
+      "minionPlayed": {
+        "def": "sfx-dragon-growl-2",
+        "gain": 0.5
+      }
+    },
+    "b2_oona": {
+      "buffWave": {
+        "def": "oona-banana",
+        "fanOut": "buffed"
       }
     },
     "bloodbinder": {
@@ -118,54 +130,22 @@
       }
     },
     "d2_embermouth": {
-      "minionSelfBuffed": {
-        "def": "embermouth"
-      },
       "buffWave": {
         "def": "embermouth",
         "fanOut": "selfBuffed"
-      }
-    },
-    "growth": {
-      "spellCast": {
-        "def": "growth-effect"
-      }
-    },
-    "sp_picnic": {
-      "spellCast": {
-        "def": "shop-buff-shout"
-      }
-    },
-    "greatpot": {
-      "spellCast": {
-        "def": "greatpot",
-        "fanOut": "buffed"
-      }
-    },
-    "sparkplug": {
-      "spellCast": {
-        "def": "waking-rift-fx"
-      }
-    },
-    "sp_dragonflame": {
-      "spellCast": {
-        "def": "dragonflame",
-        "fanOut": "buffedOn",
-        "sfx": "dragonflame"
       },
-      "buffWave": {
-        "def": "dragonflame",
-        "fanOut": "buffedOn"
+      "minionSelfBuffed": {
+        "def": "embermouth"
       }
     },
     "dm_butcher": {
-      "shout": {
-        "def": "shop-buff-shout"
-      },
       "scNarrate": {
         "def": "shop-buff-shout"
       },
       "shopBuffAll": {
+        "def": "shop-buff-shout"
+      },
+      "shout": {
         "def": "shop-buff-shout"
       }
     },
@@ -176,11 +156,16 @@
         "launchOnDeath": true
       }
     },
+    "dm_jumbo": {
+      "shopBuffAll": {
+        "def": "shop-buff-shout"
+      }
+    },
     "dm_tormentor": {
-      "shout": {
+      "scNarrate": {
         "def": "shop-buff-shout"
       },
-      "scNarrate": {
+      "shout": {
         "def": "shop-buff-shout"
       }
     },
@@ -188,6 +173,17 @@
       "shout": {
         "def": "coin-shout",
         "sfx": "maxGold"
+      }
+    },
+    "greatpot": {
+      "spellCast": {
+        "def": "greatpot",
+        "fanOut": "buffed"
+      }
+    },
+    "growth": {
+      "spellCast": {
+        "def": "growth-effect"
       }
     },
     "karwind": {
@@ -198,6 +194,44 @@
       "minionBuffed": {
         "def": "flame-ring",
         "critDef": "flame-ring-crit"
+      }
+    },
+    "manasaber": {
+      "minionPlayed": {
+        "def": "sfx-voidpanther"
+      }
+    },
+    "n2_paragon": {
+      "buffWave": {
+        "def": "lightning-bolt-blue",
+        "fanOut": "buffed"
+      }
+    },
+    "n2_standardbearer": {
+      "buffWave": {
+        "def": "heavy-beam",
+        "fanOut": "buffed"
+      }
+    },
+    "sp_dragonflame": {
+      "buffWave": {
+        "def": "dragonflame",
+        "fanOut": "buffedOn"
+      },
+      "spellCast": {
+        "def": "dragonflame",
+        "fanOut": "buffedOn",
+        "sfx": "dragonflame"
+      }
+    },
+    "sp_picnic": {
+      "spellCast": {
+        "def": "shop-buff-shout"
+      }
+    },
+    "sparkplug": {
+      "spellCast": {
+        "def": "waking-rift-fx"
       }
     },
     "wo_attack": {
@@ -227,34 +261,6 @@
     "wo_reinforcement": {
       "spellCast": {
         "def": "reinforcing-ale",
-        "fanOut": "buffed"
-      }
-    },
-    "dm_jumbo": {
-      "shopBuffAll": {
-        "def": "shop-buff-shout"
-      }
-    },
-    "n2_paragon": {
-      "buffWave": {
-        "def": "lightning-bolt-blue",
-        "fanOut": "buffed"
-      }
-    },
-    "n2_standardbearer": {
-      "buffWave": {
-        "def": "heavy-beam",
-        "fanOut": "buffed"
-      }
-    },
-    "manasaber": {
-      "minionPlayed": {
-        "def": "sfx-voidpanther"
-      }
-    },
-    "b2_oona": {
-      "buffWave": {
-        "def": "oona-banana",
         "fanOut": "buffed"
       }
     }

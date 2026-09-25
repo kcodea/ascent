@@ -73,7 +73,7 @@ import { TavernUpButton } from './TavernUpButton';
 import { GoldPill } from './GoldPill';
 import { Icon } from './Icon';
 import { sfx, stopAllAudio, resumeAudio, stopTurnCharge } from './sfx';
-import { observeCombatBoard, observeTurnClock } from './announcer';
+import { observeCombatBoard, observeCombatMoments, observeTurnClock } from './announcer';
 import { pixiFx, discoverFx, RUBY_AIM_DEF_ID } from './pixiFx';
 import { FxUnderSlot } from './PixiFxLayer';
 import { perfMonitor } from './perfMonitor';
@@ -134,7 +134,7 @@ import { Flip } from 'gsap/Flip';
 import { recordCursorSample, useGame } from './store';
 import { gateBlocks as tutorialGateBlocks, notifyGateNudge as notifyTutorialGateNudge } from './tutorial/gateBus';
 import { Unit } from './Unit';
-import { useCombatReplay } from './useCombatReplay';
+import { computeFrame, useCombatReplay } from './useCombatReplay';
 import { turnClock, turnClockMayTick, turnClockReset, useTurnSeconds, useTurnTimeUp } from './turnClock';
 import { useGoodLuckIntroActive } from './goodLuck/goodLuckIntroStore';
 import { visibleHandPreviews } from './handPreview';
@@ -2481,6 +2481,22 @@ export function Recruit() {
   // THE ANNOUNCER's MinionHits100Stats during a fight: the TRUTH frame's player units, per beat (seven reads, no
   // allocation; the module reports once per fight and only while unfired). Never the enemy / ghost side.
   useEffect(() => { if (fighting) observeCombatBoard(replay.frame.player, run.wave); }, [fighting, replay.frame, run.wave]);
+  // The announcer's IN-FIGHT moments (owner 2026-09-25: "At the moment"): handed the replay's cursor on every beat.
+  // WardBreak alone needs stats at an arbitrary event (the foe's Attack vs the Ward-holder's Health at the pop):
+  // folded on demand, only when a friendly Ward pops.
+  const combatInitial = run.lastCombat?.initial;
+  const replayEvents = replay.replayEvents;
+  const frameAt = useCallback(
+    (i: number) => (combatInitial ? computeFrame(combatInitial, replayEvents, i, i, new Map()) : { player: [], enemy: [] }),
+    [combatInitial, replayEvents],
+  );
+  useEffect(() => {
+    if (!fighting) return;
+    observeCombatMoments({
+      combat: run.lastCombat, initial: combatInitial, events: replayEvents, end: replay.processedEnd,
+      done: replay.done, result: replay.result, frame: replay.frame, frameAt,
+    }, run.wave);
+  }, [fighting, replay.processedEnd, replay.done]); // once per beat: the cursor moves, the rest rides along
   /** Latest replay for handlers that must stay referentially stable (`skipCombat`): the hook returns a fresh
    *  object every render, so a `[replay]` dep would hand the memoized shop controls a new callback each render. */
   const replayRef = useRef(replay);

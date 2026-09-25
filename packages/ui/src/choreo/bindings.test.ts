@@ -201,8 +201,10 @@ const BINDINGS: Record<string, { def: string }> = {
  * and the easier one to add without telling anyone, and it SHADOWS the kind beneath it — so an unnoticed
  * entry here silences a global effect for one card rather than merely adding to it.
  */
-const CARD_BINDINGS: Record<string, Record<string, { def: string; fanOut?: string; sfx?: string; critDef?: string; launchOnDeath?: boolean }>> = {
+const CARD_BINDINGS: Record<string, Record<string, { def: string; fanOut?: string; sfx?: string; critDef?: string; launchOnDeath?: boolean; gain?: number }>> = {
   b2_echohorn: { rally: { def: 'echohorn-target-sparkle' } },
+  // Florida growls when played from hand, at half level (owner, FX Library By-card save 2026-09-25).
+  b2_florida: { minionPlayed: { def: 'sfx-dragon-growl-2', gain: 0.5 } },
   // King Oona doubling a summoned Beast in combat: a banana flies Oona → that Beast (owner 2026-09-24). Its own
   // `buffWave` moment with Oona as the source, so the Karwind `buffed` fan-out reaches it.
   b2_oona: { buffWave: { def: 'oona-banana', fanOut: 'buffed' } },

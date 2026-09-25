@@ -750,7 +750,39 @@ class FxController {
    *  the MAIN controller safe: the ticker stops the instant `hasLiveWork()` is false (see `update`'s tail)
    *  and this is the single, audited way back. A no-op when already running; never overrides a Skip freeze. */
   private wake(): void {
-    if (!this.manuallyPaused) this.app?.ticker.start();
+    if (this.manuallyPaused) return;
+    if (this.app) this.app.ticker.start();
+    else this.startDetachedClock();
+  }
+
+  /**
+   * THE DETACHED CLOCK — per-frame work with NO main overlay (owner report 2026-09-25: *"when clicking the play
+   * button i do not hear the imported audio … the screen goes dark like this but no sound plays"*).
+   *
+   * The main Application (and so its ticker, which drives every updater AND renders the above-modal canvas) only
+   * exists once `PixiFxLayer` mounts — in a run, not on the title screen (`Game.tsx`). The FX Library's ▶
+   * preview plays on the above canvas via `playDef`, whose updater is what advances a def (a `sound` layer only
+   * starts inside an update). From the title screen nothing ever ticked it: the scrim went dark and the def sat
+   * frozen at t=0, so a sound never played and a visual never moved. This rAF loop stands in until the main
+   * ticker exists: it runs the external updaters and renders the above slot, stops the moment neither has work,
+   * and yields as soon as `attach()` brings the real ticker.
+   */
+  private detachedRaf = 0;
+  private detachedLast = 0;
+  private startDetachedClock(): void {
+    if (this.app || this.detachedRaf !== 0 || typeof requestAnimationFrame === 'undefined') return;
+    this.detachedLast = performance.now();
+    const loop = (): void => {
+      this.detachedRaf = 0;
+      if (this.app || this.manuallyPaused) return; // the main ticker took over, or a Skip freeze holds
+      const now = performance.now();
+      const dtMs = Math.min(100, Math.max(0, now - this.detachedLast)); // a stalled tab must not leap a def
+      this.detachedLast = now;
+      this.runExtraUpdaters(dtMs);
+      this.renderAbove();
+      if (this.extraUpdaters.length > 0 || this.aboveShowing) this.detachedRaf = requestAnimationFrame(loop);
+    };
+    this.detachedRaf = requestAnimationFrame(loop);
   }
 
   private hasLiveWork(): boolean {
@@ -2916,13 +2948,9 @@ class FxController {
 
   /** Per-frame: advance every live particle, recycle the dead. Bound method for ticker.add/remove.
    *  Wrapped as `fx:sim` for the perf monitor (a passthrough when it is off) — see `attach`. */
-  private update = (ticker: Ticker): void => {
-    perfMonitor.begin(this.simLabel);
-    try { this.updateInner(ticker); } finally { perfMonitor.end(); }
-  };
-
-  private updateInner(ticker: Ticker): void {
-    const dtMs = ticker.deltaMS;
+  /** Run every external updater once (sandboxed — see the body). Shared by the main ticker's `update` and the
+   *  detached clock, so a def advances the same way whether or not the main overlay exists. */
+  private runExtraUpdaters(dtMs: number): void {
     if (this.extraUpdaters.length > 0) {
       // Sandboxed: a workbench updater plays hand-authored, frequently-malformed effect data, and PixiJS's
       // Ticker doesn't catch listener exceptions — an uncaught throw here would skip the rest of this method
@@ -2938,6 +2966,16 @@ class FxController {
         }
       }
     }
+  }
+
+  private update = (ticker: Ticker): void => {
+    perfMonitor.begin(this.simLabel);
+    try { this.updateInner(ticker); } finally { perfMonitor.end(); }
+  };
+
+  private updateInner(ticker: Ticker): void {
+    const dtMs = ticker.deltaMS;
+    this.runExtraUpdaters(dtMs);
     const dt = dtMs / 1000;
     for (let i = this.live.length - 1; i >= 0; i--) {
       const p = this.live[i]!;

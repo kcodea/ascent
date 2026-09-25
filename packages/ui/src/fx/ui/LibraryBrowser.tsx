@@ -5,15 +5,16 @@ import {
   FX_HUES, type FxHue, type FxUsage,
 } from './catalog';
 import { EMPTY_FILTER, applyFilter, groupByLook, groupByCard, type FxFilter, type FxUsageFilter, type FxCardRow } from './catalogView';
-import { effectiveTables, setBinding, bindingsJson, type BindingKind } from '../../choreo/bindings';
+import { effectiveTables, setBinding, bindingsJson, hasUnsavedBindings, type BindingKind } from '../../choreo/bindings';
 import { saveBindings, saveDef } from '../defStore';
-import { registerSavedDef } from '../fxDefs';
+import { addPendingDef, clearPendingDefs, hasPendingDefs, pendingDefs } from '../pendingDefs';
 import { importFxSound } from '../../sfx';
 import { CARD_EVENT_SLOTS } from './cardEventSlots';
 import { Card } from '../../Card';
 import { toView } from '../../MinionBook';
 import { CARD_INDEX, SETS } from '@game/content';
 import { playDef } from '../playDef';
+import { getDef } from '../fxDefs';
 import { pixiFx } from '../../pixiFx';
 
 export interface LibraryBrowserProps {
@@ -146,12 +147,33 @@ export function LibraryBrowser({ onLoad, onDuplicate, onPreview, onClose }: Libr
     ? `${shownCards.length} result${shownCards.length === 1 ? '' : 's'} for “${filter.search.trim()}”`
     : (activeTribe ?? '');
 
-  // Re-read the table + persist to bindings.json (dev-only endpoint) after any binding write.
+  // Re-read the table after any binding write. The edit is LIVE at once (the session overlay, kept in
+  // localStorage, is what the game reads), but it is NOT written to bindings.json here: writing that file makes
+  // Vite reload the page, and one reload per tweak made a By-card pass unusable (owner ask 2026-09-25). The
+  // edits wait for "Save all edits", which writes the file once.
   const persist = (): void => {
     setBindVersion((n) => n + 1);
-    void saveBindings(bindingsJson()).then((r) => {
-      setBindNote(r.ok ? '✓ saved to bindings.json' : `save failed — ${r.error}`);
-      window.setTimeout(() => setBindNote(null), 2600);
+  };
+  // Recomputed on every table change (`bindVersion`). Cheap: two serialisations of a small JSON table, plus
+  // any imported sound defs still waiting to be written (`fx/pendingDefs.ts`).
+  const unsaved = useMemo(() => hasUnsavedBindings() || hasPendingDefs(), [bindVersion]);
+  const [saving, setSaving] = useState(false);
+  const saveAllEdits = (): void => {
+    if (saving || !(hasUnsavedBindings() || hasPendingDefs())) return;
+    setSaving(true);
+    setBindNote('saving…');
+    // Every write goes out TOGETHER: any one of them lands a file the dev server reloads on, so a sequential
+    // chain could be cut off by the first reload. Sent in parallel, all are on the wire before it arrives.
+    // A parked def is dropped only once its own write succeeds; a failed one stays for the next click.
+    const defs = pendingDefs();
+    const defWrites = defs.map((d) => saveDef(d).then((res) => { if (res.ok) clearPendingDefs([d.id]); return res; }));
+    void Promise.all([saveBindings(bindingsJson()), ...defWrites]).then((results) => {
+      setSaving(false);
+      setBindVersion((n) => n + 1);
+      const failed = results.find((x) => !x.ok);
+      // On success the dev server reloads the page — once, for the whole batch.
+      setBindNote(failed ? `save failed — ${failed.error}` : '✓ saved');
+      if (failed) window.setTimeout(() => setBindNote(null), 5000);
     });
   };
 
@@ -166,33 +188,36 @@ export function LibraryBrowser({ onLoad, onDuplicate, onPreview, onClose }: Libr
     persist();
   };
 
-  // ▶ preview: a dedicated PREVIEW STAGE that renders the def OVER everything (owner ask). It plays in the
-  // above-modal Pixi canvas — lifted above the workbench while the stage is open (see `body.fxlib-previewing`
-  // in styles.css) — so ANY visual def shows here regardless of whether a game board is loaded. It LOOPS while
-  // open so the effect stays visible; the effect below owns play + teardown. Scrim / ✕ / Esc close it.
-  const [preview, setPreview] = useState<{ def: string; gain: number | undefined } | null>(null);
-  const previewOnCard = (def: string, gain: number | undefined): void => setPreview({ def, gain });
-  const closePreview = (): void => setPreview(null);
-
-  useEffect(() => {
-    if (preview === null) return;
-    document.body.classList.add('fxlib-previewing');
-    let stop: (() => void) | null = null;
-    let cancelled = false;
+  // ▶ PLAYS THE SOUND, nothing else (owner 2026-09-25: *"when previewing the sound, i dont want that dark overlay
+  // to happen … we just want that play button to play the audio. if it is a def, then dont let it work. have text
+  // that pops up to say 'Press Edit to View Def'"*). The old preview stage darkened the whole screen and could only
+  // be left with its ✕. Now a SOUND-ONLY def plays once, in place (a second press restarts it); a def with any
+  // visual layer does not play here — a bubble points at ✎, which opens it in the editor.
+  const [defHint, setDefHint] = useState<string | null>(null); // `${cardId}:${kind}` showing the bubble
+  const defHintTimer = useRef<number | null>(null);
+  const stopSoundRef = useRef<(() => void) | null>(null);
+  const playSlot = (cardId: string, kind: BindingKind, def: string, gain: number | undefined): void => {
+    const stored = getDef(def);
+    const soundOnly = !!stored && stored.layers.length > 0 && stored.layers.every((l) => l.primitive === 'sound');
+    if (!soundOnly) {
+      setDefHint(`${cardId}:${kind}`);
+      if (defHintTimer.current !== null) window.clearTimeout(defHintTimer.current);
+      defHintTimer.current = window.setTimeout(() => setDefHint(null), 2200);
+      return;
+    }
+    stopSoundRef.current?.();
+    stopSoundRef.current = null;
+    // On the ABOVE canvas: it exists on every screen (the main overlay does not, on the title screen), and a
+    // sound-only def draws nothing, so which canvas it sits on is invisible — no lift, no scrim.
     void pixiFx.ensureAboveSlot().then(() => {
-      if (cancelled) return;
       const pt = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
-      stop = playDef(preview.def, { source: pt, target: pt, cursor: pt }, { slot: 'above', gain: preview.gain, loop: true }) ?? null;
+      stopSoundRef.current = playDef(def, { source: pt, target: pt, cursor: pt }, { slot: 'above', gain }) ?? null;
     });
-    const onKey = (e: KeyboardEvent): void => { if (e.key === 'Escape') setPreview(null); };
-    window.addEventListener('keydown', onKey);
-    return () => {
-      cancelled = true;
-      stop?.();
-      window.removeEventListener('keydown', onKey);
-      document.body.classList.remove('fxlib-previewing');
-    };
-  }, [preview]);
+  };
+  useEffect(() => () => {
+    stopSoundRef.current?.();
+    if (defHintTimer.current !== null) window.clearTimeout(defHintTimer.current);
+  }, []);
 
   // The per-card volume (0–100 → a gain multiplier on the def's authored level; 100 → omitted default `1`).
   // Only meaningful when a def is bound, and preserves the def + other fields.
@@ -227,14 +252,13 @@ export function LibraryBrowser({ onLoad, onDuplicate, onPreview, onClose }: Libr
         duration: 1000,
         layers: [{ primitive: 'sound', anchor: 'travel', at: 0, params: { clip: clipId } }],
       };
-      const saved = await saveDef(def);
-      if (!saved.ok) { setBindNote(`import failed — ${saved.error}`); window.setTimeout(() => setBindNote(null), 3500); return; }
-      registerSavedDef(def);           // live this session, no reload
+      // PARKED, not written: a new file in the defs folder reloads the page, which is what made every import
+      // refresh the workbench (owner 2026-09-25). It plays this session now; "Save all edits" writes it.
+      addPendingDef(def);
       setCatalogVersion((n) => n + 1); // so knownIds / the autocomplete see the new def
       setBinding(cardId, kind, { def: defId });
-      setBindVersion((n) => n + 1);
-      void saveBindings(bindingsJson());
-      setBindNote(`✓ imported “${label}” and bound it`);
+      setBindVersion((n) => n + 1); // the binding waits for "Save all edits" like every other By-card edit
+      setBindNote(`✓ imported “${label}” and bound it (unsaved)`);
       window.setTimeout(() => setBindNote(null), 3500);
     } catch (e) {
       setBindNote(`import failed — ${(e as Error).message}`);
@@ -324,6 +348,16 @@ export function LibraryBrowser({ onLoad, onDuplicate, onPreview, onClose }: Libr
                   {s.name}
                 </button>
               ))}
+              {/* SAVE ALL EDITS (owner ask 2026-09-25): By-card edits apply live but only reach bindings.json
+                  here, in one write, so the page reloads once per batch instead of once per tweak. */}
+              <button
+                className={`fxwb-btn fxlib-saveall${unsaved ? ' dirty' : ''}`}
+                disabled={!unsaved || saving}
+                aria-label={unsaved ? 'Write every By-card edit to bindings.json (reloads the page once)' : 'Every edit is saved'}
+                onClick={saveAllEdits}
+              >
+                {saving ? 'Saving…' : unsaved ? 'Save all edits' : 'All edits saved'}
+              </button>
             </>
           ) : (
             <>
@@ -457,9 +491,9 @@ export function LibraryBrowser({ onLoad, onDuplicate, onPreview, onClose }: Libr
                 }}
               />
               <div className="fxlib-note">
-                Assign an effect (sound, visual, or a composed def with both) to a card's event. ▶ previews it,
+                Assign an effect (sound, visual, or a composed def with both) to a card's event. ▶ plays a sound,
                 ✎ opens it in the workbench editor, the box is volume (0–100%). Search by card or effect above.
-                Changes save to <code>bindings.json</code> and ship.
+                Changes apply straight away; <b>Save all edits</b> (bottom left) writes them to <code>bindings.json</code> so they ship.
                 {bindNote !== null && <span className="fxlib-bindnote"> · {bindNote}</span>}
               </div>
               <div className="fxlib-cardtribe-title">{cardTitle}</div>
@@ -498,11 +532,16 @@ export function LibraryBrowser({ onLoad, onDuplicate, onPreview, onClose }: Libr
                             />
                             {bound !== null && (
                               <>
-                                <button
-                                  className="fxlib-slot-play"
-                                  aria-label="Preview this effect (plays over everything)"
-                                  onClick={() => previewOnCard(bound, binding?.gain)}
-                                >▶</button>
+                                <span className="fxlib-slot-playwrap">
+                                  <button
+                                    className="fxlib-slot-play"
+                                    aria-label="Play this sound"
+                                    onClick={() => playSlot(c.cardId, kind, bound, binding?.gain)}
+                                  >▶</button>
+                                  {defHint === `${c.cardId}:${kind}` && (
+                                    <span className="fxlib-slot-hint" role="status">Press Edit to View Def</span>
+                                  )}
+                                </span>
                                 <button
                                   className="fxlib-slot-edit"
                                   aria-label={editable ? 'Open this def in the workbench editor' : 'This def does not exist yet'}
@@ -553,14 +592,6 @@ export function LibraryBrowser({ onLoad, onDuplicate, onPreview, onClose }: Libr
       </div>
     </div>
     </div>
-    {/* PREVIEW STAGE — a scrim + ✕ around the above-modal Pixi canvas (lifted while `body.fxlib-previewing`).
-        The canvas is pointer-events:none, so a click anywhere but the ✕ lands on the scrim below and closes. */}
-    {preview !== null && (
-      <>
-        <div className="fxlib-previewstage-scrim" onClick={closePreview} />
-        <button className="fxlib-previewstage-close" onClick={closePreview} aria-label="Close preview (Esc)">✕</button>
-      </>
-    )}
     </>
   );
 }

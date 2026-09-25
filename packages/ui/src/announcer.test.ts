@@ -11,15 +11,16 @@
  * structural state (`AnnouncerStateLike`), so every detector is exercised on exactly the fields it reads.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { CARD_INDEX } from '@game/content';
-import { ALE_IDS, type CardDef, type Tribe } from '@game/core';
+import { CARD_INDEX, RUNE_INDEX } from '@game/content';
+import { ALE_IDS, type CardDef, type CombatEvent, type MinionSnapshot, type Tribe } from '@game/core';
 import {
   __setAnnouncerDepsForTests, ANNOUNCER_BACK_TO_SHOP_DELAY_MS, ANNOUNCER_BIG_STAT, ANNOUNCER_COMBAT_SILENCE_MS, ANNOUNCER_COOLDOWN_MS,
   ANNOUNCER_END_DELAY_MS, ANNOUNCER_EQUIPMENT_DELAY_MS, ANNOUNCER_FACE_OMEN_DELAY_MS, ANNOUNCER_GAME_START_DELAY_MS,
   ANNOUNCER_LINES, ANNOUNCER_PRIORITY, ANNOUNCER_RARE_CHANCE, ANNOUNCER_STOP_FADE_MS, ANNOUNCER_TIME_WARNING_SECONDS, ANNOUNCER_TURN_ONE_QUIET_MS,
   announcerDebug, announcerPick, announcerRoll, hasPair, cancelAnnouncer, getAnnouncerVolume, isAnnouncerMuted, observeCombatBoard,
   announcerExhausted, ANNOUNCER_CHANCE, ANNOUNCER_NAMED_BUYS, ANNOUNCER_RANDOM_BUY_GAP_WAVES, ANNOUNCER_RANDOM_BUY_MAX, observeTurnClock, previewAnnouncerEvent,
-  RANDOM_BUY_EVENTS, SPECIALTY_EVENTS, type AnnouncerDeps, setAnnouncerVolume, syncAnnouncer, toggleAnnouncerMute, type AnnouncerEvent, type AnnouncerRunLike,
+  CATALOG_BATCH_1_EVENTS, CATALOG_BATCH_2_EVENTS, CATALOG_BATCH_3_EVENTS, observeCombatMoments, type CombatReplayView, isMixedBoard, isTribeFullBoard, RANDOM_BUY_EVENTS, SPECIALTY_EVENTS, type AnnouncerDeps, setAnnouncerVolume, syncAnnouncer, toggleAnnouncerMute, type AnnouncerEvent, type AnnouncerRunLike,
+  ANNOUNCER_BATCH_3_CARDS, ANNOUNCER_BATCH_3_RUNES, type AnnouncerActionLike, type AnnouncerFoe,
   type AnnouncerStateLike,
 } from './announcer';
 import { announcedFor, emptyAnnounced, withAnnounced, type AnnouncedSlice } from './announcerSlice';
@@ -117,9 +118,15 @@ beforeEach(() => {
   announced = emptyAnnounced(SEED);
   cur = null;
   __setAnnouncerDepsForTests(stubDeps());
+  // The suites written before the moment catalog's first batch pin exact line sequences; they keep testing what they
+  // were written for with that batch muted (its own suite below turns it back on).
+  for (const e of [...CATALOG_BATCH_1_EVENTS, ...CATALOG_BATCH_2_EVENTS]) setAnnouncerTunerValue(`${e}Chance`, 0);
+  // …and the third batch (owner 2026-09-25, group C), likewise (its own suite at the end turns it back on).
+  for (const e of CATALOG_BATCH_3_EVENTS) setAnnouncerTunerValue(`${e}Chance`, 0);
 });
 function stubDeps(): Partial<AnnouncerDeps> {
   return {
+    foe: () => null, // no lobby pairing unless a test hands one in (the third batch reads it at the Face Omen)
     random: () => 0, // the take is random in the game; pinned to the first unheard take here so tests can name the file
     now: () => Date.now(),
     setTimeout: (cb, ms) => setTimeout(cb, ms) as unknown as number,
@@ -366,9 +373,11 @@ describe('the queue', () => {
     await tick(LINE_MS + ANNOUNCER_COOLDOWN_MS);
     expect(plays).toHaveLength(17);
     expect(events().at(-1)).toBe('top-two');
+    // Finishing exactly 2nd has had its own end line since the catalog's first batch (SecondPlace, in GameLoss's place).
+    setAnnouncerTunerValue('secondPlaceChance', 100);
     go({ ...r, phase: 'gameover', lobby: { seats: seats(1, 2) } });
     await tick(ANNOUNCER_END_DELAY_MS);
-    expect(events().at(-1)).toBe('game-loss');
+    expect(events().at(-1)).toBe('second-place');
     expect(announced.count).toBe(17); // the end line is not counted
   });
   it('GameWon / GameLoss never expire and wait out the cooldown instead of being dropped', async () => {
@@ -1073,7 +1082,12 @@ describe('the third batch (owner 2026-09-25): new takes, TimeRunningOut, the no-
     expect(byHash.size).toBe(all.length);
   });
   it('the table is append-only (the new events at the end) and the priorities are the owner\'s', () => {
-    expect(Object.keys(ANNOUNCER_LINES).slice(-4)).toEqual(['timeRunningOut', 'buyDrakko', 'buySylus', 'castAle']);
+    const keys = Object.keys(ANNOUNCER_LINES);
+    expect(keys.slice(keys.indexOf('timeRunningOut'), keys.indexOf('timeRunningOut') + 4)).toEqual(['timeRunningOut', 'buyDrakko', 'buySylus', 'castAle']);
+    const b1 = keys.indexOf(CATALOG_BATCH_1_EVENTS[0]!);
+    expect(keys.slice(b1, b1 + CATALOG_BATCH_1_EVENTS.length)).toEqual([...CATALOG_BATCH_1_EVENTS]);
+    const b2 = keys.indexOf(CATALOG_BATCH_2_EVENTS[0]!);
+    expect(keys.slice(b2, b2 + CATALOG_BATCH_2_EVENTS.length)).toEqual([...CATALOG_BATCH_2_EVENTS]);
     expect(ANNOUNCER_PRIORITY).toMatchObject({ timeRunningOut: 5, buyDrakko: 36, buySylus: 36, castAle: 16 });
     expect(Math.min(...Object.values(ANNOUNCER_PRIORITY))).toBe(5);
     expect(ANNOUNCER_TIME_WARNING_SECONDS).toBe(15);
@@ -1089,6 +1103,7 @@ describe('the third batch (owner 2026-09-25): new takes, TimeRunningOut, the no-
 
   describe('the chance table (owner: "low-ish chances to proc the on-buy style ones")', () => {
     it('ONE table: the generic buys 6%, Round 7 10%, every other event 1, and the tuner\'s Chance dial defaults to it', () => {
+      resetAnnouncerTunerConfig(); // undo the suite-wide mute of the catalog batch: this reads the defaults
       for (const e of RANDOM_BUY_EVENTS) expect(ANNOUNCER_CHANCE[e]).toBe(0.06);
       expect(ANNOUNCER_CHANCE.round7).toBe(0.1);
       for (const e of [...SPECIALTY_EVENTS, 'timeRunningOut', 'gameStart', 'triple'] as AnnouncerEvent[]) expect(ANNOUNCER_CHANCE[e]).toBe(1);
@@ -1476,5 +1491,737 @@ describe('the dev tuner (owner 2026-09-24): per-event volume + timing offset', (
     expect(plays.map((p) => p.gain)).toEqual([0.6, 0.6]);
     expect(plays[0]!.handle.stopped).toBe(ANNOUNCER_STOP_FADE_MS); // the second press cut the first
     expect(announced.fired.backToShop ?? []).toEqual([]); // nothing marked
+  });
+});
+
+describe('the moment catalog\'s first batch (owner 2026-09-25): ElevenLabs lines on states the store already carries', () => {
+  beforeEach(() => { resetAnnouncerTunerConfig(); }); // un-mute the batch (the suite-wide beforeEach mutes it)
+  const first = async (ms = 20): Promise<string | undefined> => { await tick(ms); return events()[0]; };
+  /** A fresh machine between the cases of one test. */
+  const fresh = (): void => { __setAnnouncerDepsForTests(stubDeps()); plays = []; cur = null; announced = emptyAnnounced(SEED); };
+  /** Face Omen from `r`, then the verdict with `after` applied to the settled run (the Face Omen's own lines cleared). */
+  async function settle(r: AnnouncerRunLike, outcome: 'win' | 'lose' | 'draw', after: Partial<AnnouncerRunLike> = {}): Promise<AnnouncerRunLike> {
+    const fighting = go({ ...r, phase: 'combat' });
+    await tick(FIGHT_MS);
+    plays = [];
+    return go({ ...fighting, combatSettled: true, history: [...r.history, outcome], lastCombat: { result: outcome }, ...after });
+  }
+  /** A lobby table: seat 0 first, every seat standing, with these Resolves. */
+  const table = (resolves: number[]) => resolves.map((resolve, i) => ({ id: `s${i}`, alive: true, resolve }));
+  const plain = (tribes: Tribe[]): string[] => tribes.map((t) => plainMinion(t)?.id).filter((id): id is string => !!id);
+
+  it('every batch event has one take (on disk: the suite-wide file check), a priority and a tuner row', () => {
+    for (const e of CATALOG_BATCH_1_EVENTS) {
+      expect(ANNOUNCER_LINES[e]).toHaveLength(1);
+      expect(ANNOUNCER_PRIORITY[e]).toBeGreaterThan(0);
+      expect(ANNOUNCER_TUNER_EVENTS).toContain(e);
+      expect(ANNOUNCER_CHANCE[e as (typeof ANNOUNCER_TUNER_EVENTS)[number]]).toBe(1);
+    }
+  });
+
+  describe('within a Shop turn', () => {
+    it('TierUp on an upgrade to 2-5; FastTier at tier 4 by round 5; reaching 6 by round 9 says TierSix', async () => {
+      let r = openShop({ wave: 6, tier: 2 });
+      go({ ...r, tier: 3 });
+      expect(await first()).toBe('tier-up');
+      fresh();
+      r = openShop({ wave: 5, tier: 3 });
+      go({ ...r, tier: 4 });
+      expect(await first()).toBe('fast-tier');
+      fresh();
+      r = openShop({ wave: 8, tier: 5 });
+      go({ ...r, tier: 6 });
+      expect(await first()).toBe('tier-six');
+      expect(dropped('fastTier')).toBe(true);
+    });
+    it('SellSpree at the 4th sale of a turn; SellGilded when a sale takes a gilded minion', async () => {
+      let r = openShop({ soldThisTurn: ['a', 'b', 'c'] });
+      go({ ...r, soldThisTurn: ['a', 'b', 'c', 'd'] });
+      expect(await first()).toBe('sell-spree');
+      fresh();
+      r = openShop({ board: [m(BEAST.id, true)], soldThisTurn: [] });
+      go({ ...r, board: [], soldThisTurn: [BEAST.id] });
+      expect(await first()).toBe('sell-gilded');
+    });
+    it('SpellChain at the 4th spell of a turn; BigTurn at the 5th card played', async () => {
+      let r = openShop({ spellsThisTurn: 3 });
+      go({ ...r, spellsThisTurn: 4 });
+      expect(await first()).toBe('spell-chain');
+      fresh();
+      r = openShop({ playedThisTurn: ['a', 'b', 'c', 'd'] });
+      go({ ...r, playedThisTurn: ['a', 'b', 'c', 'd', 'e'] });
+      expect(await first()).toBe('big-turn');
+    });
+    it('FullBoard the first time all 7 slots fill (a board of 3 tribes: no tribe line)', async () => {
+      const ids = plain(['beast', 'dwarf', 'mech']);
+      const seven = Array.from({ length: 7 }, (_, i) => m(ids[i % ids.length]!));
+      const r = openShop({ board: seven.slice(0, 6) });
+      go({ ...r, board: seven });
+      expect(await first()).toBe('full-board');
+    });
+    it('AllGolden when every slot holds a gilded minion (outranks FullBoard and Triple on the same update)', async () => {
+      const r = openShop({ board: Array.from({ length: 6 }, g) });
+      go({ ...r, board: Array.from({ length: 7 }, g) });
+      expect(await first()).toBe('all-golden');
+    });
+    it('BoardTotal when the board\'s Attack + Health passes 500', async () => {
+      const unit = { attack: 45, health: 45, golden: false };
+      const r = openShop({ board: Array.from({ length: 5 }, () => unit) }); // 450
+      go({ ...r, board: Array.from({ length: 6 }, () => unit) }); // 540
+      expect(await first()).toBe('board-total');
+    });
+    it('MinionHits250 in the Shop (outranks MinionHits100) and in a fight', async () => {
+      let r = openShop({ board: [{ attack: 50, health: 50, golden: false }] });
+      go({ ...r, board: [{ attack: 260, health: 50, golden: false }] });
+      expect(await first()).toBe('minion-hits-250');
+      fresh();
+      r = openShop();
+      go({ ...r, phase: 'combat' });
+      observeCombatBoard([{ attack: 1, health: 300 }], r.wave);
+      await tick(ANNOUNCER_COMBAT_SILENCE_MS + 20);
+      expect(events()).toContain('minion-hits-250');
+    });
+    it('ArmorUp at 20+ Armor', async () => {
+      const r = openShop({ armor: 15 });
+      go({ ...r, armor: 20 });
+      expect(await first()).toBe('armor-up');
+    });
+    it('TribeFullBoard: seven of one tribe; MixedBoard: seven across 5+ tribes', async () => {
+      const beasts = Array.from({ length: 7 }, () => m(BEAST.id));
+      expect(isTribeFullBoard(run({ board: beasts }))).toBe(true);
+      expect(isTribeFullBoard(run({ board: beasts.slice(0, 6) }))).toBe(false);
+      let r = openShop({ board: beasts.slice(0, 6) });
+      go({ ...r, board: beasts });
+      expect(await first()).toBe('tribe-full-board');
+      const five = plain(['beast', 'dwarf', 'mech', 'dragon', 'demon', 'undead', 'kobold']).slice(0, 5);
+      expect(five).toHaveLength(5);
+      const mixed = [...five, five[0]!, five[1]!].map((id) => m(id));
+      expect(isMixedBoard(run({ board: mixed }))).toBe(true);
+      expect(isTribeFullBoard(run({ board: mixed }))).toBe(false);
+      fresh();
+      r = openShop({ board: mixed.slice(0, 6) });
+      go({ ...r, board: mixed });
+      expect(await first()).toBe('mixed-board');
+    });
+  });
+
+  describe('heading into a fight', () => {
+    it('FinalShowdown when the fight starts with two players standing', async () => {
+      const r = openShop({ lobby: { seats: seats(2) } });
+      go({ ...r, phase: 'combat' });
+      expect(await first(ANNOUNCER_FACE_OMEN_DELAY_MS + 20)).toBe('final-showdown');
+    });
+    it('BrokeTurn: the turn ended on 0 Gold with nothing bought, after round 5 (unknown tallies never count)', async () => {
+      let r = openShop({ wave: 6, embers: 0, cardsBoughtThisTurn: 0 });
+      go({ ...r, phase: 'combat' });
+      expect(await first(ANNOUNCER_FACE_OMEN_DELAY_MS + 20)).toBe('broke-turn');
+      for (const patch of [
+        { wave: 5, embers: 0, cardsBoughtThisTurn: 0 }, { wave: 6, embers: 1, cardsBoughtThisTurn: 0 },
+        { wave: 6, embers: 0, cardsBoughtThisTurn: 1 }, { wave: 6 },
+      ]) {
+        fresh();
+        r = openShop(patch);
+        go({ ...r, phase: 'combat' });
+        await tick(ANNOUNCER_FACE_OMEN_DELAY_MS + 20);
+        expect(events()).not.toContain('broke-turn');
+      }
+    });
+    it('UnderdogOdds under 20%, HeavyFavourite over 90%, once the fight\'s odds land; even odds say nothing', async () => {
+      const cases: [number, string | undefined][] = [[0.1, 'underdog-odds'], [0.95, 'heavy-favourite'], [0.5, undefined]];
+      for (const [win, line] of cases) {
+        fresh();
+        const r = openShop();
+        const fighting = go({ ...r, phase: 'combat' });
+        go(fighting, { combatOdds: { wave: r.wave, odds: { win, draw: 0, lose: 1 - win } } });
+        expect(await first(ANNOUNCER_FACE_OMEN_DELAY_MS + 20)).toBe(line);
+      }
+    });
+  });
+
+  describe('the verdict', () => {
+    it('Stalemate on the first draw', async () => {
+      await settle(openShop(), 'draw');
+      expect(await first()).toBe('stalemate');
+    });
+    it('OneResolve when the fight leaves exactly 1 Resolve', async () => {
+      await settle(openShop({ resolve: 20 }), 'lose', { resolve: 1 });
+      expect(await first()).toBe('one-resolve');
+    });
+    it('ArmorGone when Armor first hits 0', async () => {
+      await settle(openShop({ armor: 5 }), 'lose', { armor: 0 });
+      expect(await first()).toBe('armor-gone');
+    });
+    it('BlowoutLoss: a loss that costs the round\'s full damage cap (Armor included); a smaller loss is quiet', async () => {
+      await settle(openShop({ wave: 5, resolve: 30, armor: 3 }), 'lose', { resolve: 23, armor: 0 }); // 10 = the wave-5 cap
+      await tick(20);
+      expect(events()).toContain('blowout-loss');
+      fresh();
+      await settle(openShop({ wave: 5, resolve: 30 }), 'lose', { resolve: 25 });
+      await tick(20);
+      expect(events()).not.toContain('blowout-loss');
+    });
+    it('FiveWinStreak on the 5th win in a row (outranks ThreeWinStreak)', async () => {
+      await settle(openShop({ history: ['win', 'win', 'win', 'win'] }), 'win');
+      expect(await first()).toBe('five-win-streak');
+    });
+    it('LosingStreak on the 2nd loss in a row; StreakBroken when a loss ends 3+ wins', async () => {
+      await settle(openShop({ history: ['lose'] }), 'lose');
+      expect(await first()).toBe('losing-streak');
+      fresh();
+      await settle(openShop({ history: ['win', 'win', 'win'] }), 'lose');
+      expect(await first()).toBe('streak-broken');
+    });
+  });
+
+  describe('back in the Shop', () => {
+    it('FirstOut on the lobby\'s first knockout; PlayersRemain when someone goes out and 5 or 3 are left', async () => {
+      let r = await settle(openShop({ lobby: { seats: seats(8) } }), 'win');
+      backToShop(r, { lobby: { seats: seats(7) } });
+      expect(await first(ANNOUNCER_BACK_TO_SHOP_DELAY_MS + 20)).toBe('first-out');
+      fresh();
+      r = await settle(openShop({ lobby: { seats: seats(6) } }), 'win');
+      backToShop(r, { lobby: { seats: seats(5) } });
+      expect(await first(ANNOUNCER_BACK_TO_SHOP_DELAY_MS + 20)).toBe('players-remain');
+    });
+    it('LeaderboardTop / LobbyLast: the most / least Resolve at the table, only after round 8', async () => {
+      const cases: [number, number, string | undefined][] = [[10, 30, 'leaderboard-top'], [10, 5, 'lobby-last'], [6, 30, undefined]];
+      for (const [wave, resolve, line] of cases) {
+        fresh();
+        const seatsNow = table([resolve, 20, 20, 20, 20, 20, 20, 20]);
+        const r = await settle(openShop({ wave, resolve, lobby: { seats: seatsNow } }), 'win');
+        backToShop(r, { lobby: { seats: seatsNow } });
+        expect(await first(ANNOUNCER_BACK_TO_SHOP_DELAY_MS + 20)).toBe(line ?? 'back-to-shop');
+      }
+    });
+    it('LateGame when the game passes round 18; RoundMilestone at the round-10 Shop', async () => {
+      let r = await settle(openShop({ wave: 18 }), 'win');
+      backToShop(r);
+      expect(await first(ANNOUNCER_BACK_TO_SHOP_DELAY_MS + 20)).toBe('late-game');
+      fresh();
+      r = await settle(openShop({ wave: 9 }), 'win');
+      backToShop(r);
+      expect(await first(ANNOUNCER_BACK_TO_SHOP_DELAY_MS + 20)).toBe('round-milestone');
+    });
+  });
+
+  it('SecondPlace replaces GameLoss for exactly 2nd; 3rd and lower still hear GameLoss', async () => {
+    let r = openShop();
+    go({ ...r, phase: 'gameover', lobby: { seats: seats(1, 2) } });
+    expect(await first(ANNOUNCER_END_DELAY_MS + 20)).toBe('second-place');
+    fresh();
+    r = openShop();
+    go({ ...r, phase: 'gameover', lobby: { seats: seats(1, 3) } });
+    expect(await first(ANNOUNCER_END_DELAY_MS + 20)).toBe('game-loss');
+  });
+});
+
+describe('the moment catalog\'s second batch (owner 2026-09-25): in-fight lines "At the moment"', () => {
+  beforeEach(() => { resetAnnouncerTunerConfig(); });
+  const P = { uid: 'p1', cardId: 'x', name: 'p1', tribe: 'neutral', attack: 2, health: 2, keywords: [] } as unknown as MinionSnapshot;
+  const E = { ...P, uid: 'e1', name: 'e1' } as MinionSnapshot;
+  const log: CombatEvent[] = [
+    { type: 'attack', attacker: 'p1', defender: 'e1', swing: 1 },
+    { type: 'death', target: 'e1', side: 'enemy' },
+    { type: 'pummelTrigger', source: 'p1', side: 'player', marker: 'm' },
+  ];
+  const combat = {};
+  const view = (end: number, patch: Partial<CombatReplayView> = {}): CombatReplayView => ({
+    combat, initial: { player: [P], enemy: [E] }, events: log, end, done: false, result: 'win',
+    frame: { player: [{ uid: 'p1', attack: 2, health: 2 }, { uid: 'p2', attack: 2, health: 2 }], enemy: [] }, ...patch,
+  });
+  /** A fight on screen (the Face Omen flip), its opening silence waited out. */
+  async function fighting(): Promise<AnnouncerRunLike> {
+    const r = go({ ...openShop(), phase: 'combat' });
+    await tick(ANNOUNCER_COMBAT_SILENCE_MS);
+    return r;
+  }
+
+  it('every batch-2 event has one take, a priority and a tuner row', () => {
+    for (const e of CATALOG_BATCH_2_EVENTS) {
+      expect(ANNOUNCER_LINES[e]).toHaveLength(1);
+      expect(ANNOUNCER_PRIORITY[e]).toBeGreaterThan(0);
+      expect(ANNOUNCER_TUNER_EVENTS).toContain(e);
+    }
+  });
+  it('a moment speaks when the replay SHOWS it, not before', async () => {
+    const r = await fighting();
+    observeCombatMoments(view(1), r.wave); // the swing is shown, the death not yet
+    await tick(20);
+    expect(events()).toEqual([]);
+    observeCombatMoments(view(2), r.wave);
+    await tick(20);
+    expect(events()).toEqual(['first-blood']);
+  });
+  it('never inside the fight\'s opening silence: an early moment waits for it', async () => {
+    const r = go({ ...openShop(), phase: 'combat' });
+    observeCombatMoments(view(2), r.wave);
+    await tick(ANNOUNCER_COMBAT_SILENCE_MS - 100);
+    expect(events()).toEqual([]);
+    await tick(200);
+    expect(events()).toEqual(['first-blood']);
+  });
+  it('a re-seek back rebuilds the fold without hearing a reached moment again', async () => {
+    const r = await fighting();
+    observeCombatMoments(view(2), r.wave);
+    await tick(LINE_MS + ANNOUNCER_COOLDOWN_MS);
+    observeCombatMoments(view(0), r.wave); // seek back
+    observeCombatMoments(view(2), r.wave);
+    await tick(LINE_MS + ANNOUNCER_COOLDOWN_MS);
+    expect(events().filter((e) => e === 'first-blood')).toHaveLength(1);
+  });
+  it('a Skip silences the rest of that fight\'s in-fight lines, but the final-frame verdict still speaks', async () => {
+    const r = await fighting();
+    cancelAnnouncer('skip');
+    observeCombatMoments(view(log.length, { done: true, frame: { player: [{ uid: 'p1', attack: 2, health: 1 }], enemy: [] } }), r.wave);
+    await tick(20);
+    expect(events()).toEqual(['clutch-win']);
+    expect(dropped('firstBlood')).toBe(false); // never even queued
+  });
+  it('the next fight speaks again after a skipped one (the silence ends at the next Face Omen)', async () => {
+    let r = await fighting();
+    cancelAnnouncer('skip');
+    r = go({ ...r, combatSettled: true, history: ['win'], lastCombat: { result: 'win' } });
+    r = backToShop(r);
+    go({ ...r, phase: 'combat' });
+    await tick(ANNOUNCER_COMBAT_SILENCE_MS);
+    observeCombatMoments(view(2, { combat: {} }), r.wave);
+    await tick(20);
+    expect(events()).toContain('first-blood');
+  });
+});
+
+describe('the owner own moment (2026-09-25): Bob Blart and Chronos', () => {
+  it('BlartChronos the first time both sit on the board; never with only one; once per game', async () => {
+    expect(CARD_INDEX.dm_gourmand?.name).toBe('Bob Blart');
+    expect(CARD_INDEX.chronos?.name).toBe('Chronos');
+    expect(ANNOUNCER_LINES.blartChronos).toEqual(['blart-chronos-1', 'blart-chronos-2']);
+    let r = openShop({ board: [m('dm_gourmand')] });
+    r = go({ ...r, board: [m('dm_gourmand'), m(BEAST.id)] });
+    await tick(20);
+    expect(events()).toEqual([]);
+    r = go({ ...r, board: [m('dm_gourmand'), m(BEAST.id), m('chronos')] });
+    await tick(20);
+    expect(events()).toEqual(['blart-chronos']);
+    r = go({ ...r, board: [m('dm_gourmand')] });
+    go({ ...r, board: [m('dm_gourmand'), m('chronos')] });
+    await tick(LINE_MS + ANNOUNCER_COOLDOWN_MS);
+    expect(events()).toEqual(['blart-chronos']);
+  });
+});
+
+// ── The moment catalog's third batch (owner 2026-09-25, group C): moments that needed new tallies / signals ──────
+describe('the moment catalog\'s third batch (owner 2026-09-25, group C): new tallies and signals', () => {
+  beforeEach(() => { resetAnnouncerTunerConfig(); }); // un-mute the batch (the suite-wide beforeEach mutes it)
+  const first = async (ms = 20): Promise<string | undefined> => { await tick(ms); return events()[0]; };
+  /** The store's action log, appended with the run (the third batch reads the actions an update added). */
+  let actionLog: AnnouncerActionLike[] = [];
+  /** A fresh machine between the cases of one test; `foe` is who the Face Omen pairs the player with. */
+  const fresh = (foe: AnnouncerFoe | null = null): void => {
+    __setAnnouncerDepsForTests({ ...stubDeps(), foe: () => foe });
+    plays = []; cur = null; announced = emptyAnnounced(SEED); actionLog = [];
+  };
+  beforeEach(() => { fresh(); });
+  /** Open a Shop that carries the action log. */
+  const openA = (patch: Partial<AnnouncerRunLike> = {}, log: AnnouncerActionLike[] = []): AnnouncerRunLike => {
+    actionLog = log;
+    return go(run(patch), { replayActions: actionLog });
+  };
+  /** A store update that appended `acts` to the log. */
+  const goA = (r: AnnouncerRunLike, ...acts: AnnouncerActionLike[]): AnnouncerRunLike => {
+    actionLog = [...actionLog, ...acts];
+    return go(r, { replayActions: actionLog });
+  };
+  /** Face Omen, then the verdict (the Face Omen's own lines cleared). */
+  async function settle(r: AnnouncerRunLike, outcome: 'win' | 'lose' | 'draw'): Promise<AnnouncerRunLike> {
+    const fighting = go({ ...r, phase: 'combat' });
+    await tick(FIGHT_MS);
+    plays = [];
+    return go({ ...fighting, combatSettled: true, history: [...r.history, outcome], lastCombat: { result: outcome } });
+  }
+  const faceOmen = async (r: AnnouncerRunLike): Promise<string | undefined> => {
+    go({ ...r, phase: 'combat' });
+    return first(ANNOUNCER_FACE_OMEN_DELAY_MS + 20);
+  };
+  const KOBOLD = plainMinion('kobold')!;
+  const card = (uid: string, cardId: string, extra: Partial<AnnouncerRunLike['hand'][number]> = {}): AnnouncerRunLike['hand'][number] =>
+    ({ uid, cardId, golden: false, ...extra });
+  const seedWhere = (pred: (seed: number) => boolean): number => {
+    for (let s = 1; s < 200_000; s++) if (pred(s)) return s;
+    throw new Error('no seed');
+  };
+
+  it('every batch event has one take, a priority, a tuner row and the catalog\'s chance; the table stays append-only', () => {
+    for (const e of CATALOG_BATCH_3_EVENTS) {
+      expect(ANNOUNCER_LINES[e]).toHaveLength(1);
+      expect(ANNOUNCER_PRIORITY[e]).toBeGreaterThan(5);
+      expect(ANNOUNCER_TUNER_EVENTS).toContain(e);
+    }
+    const chance = ANNOUNCER_CHANCE as Record<string, number>;
+    expect(chance.tribeBuyLines).toBe(0.06);
+    expect(chance.discoverOpen).toBe(0.1);
+    for (const e of CATALOG_BATCH_3_EVENTS.filter((x) => x !== 'tribeBuyLines' && x !== 'discoverOpen')) expect(chance[e]).toBe(1);
+    const keys = Object.keys(ANNOUNCER_LINES);
+    const b3 = keys.indexOf(CATALOG_BATCH_3_EVENTS[0]!);
+    expect(b3).toBeGreaterThan(keys.indexOf(CATALOG_BATCH_1_EVENTS[CATALOG_BATCH_1_EVENTS.length - 1]!));
+    expect(keys.slice(b3, b3 + CATALOG_BATCH_3_EVENTS.length)).toEqual([...CATALOG_BATCH_3_EVENTS]);
+    // The priorities that keep a more important line speaking in the common case.
+    expect(ANNOUNCER_PRIORITY.discoverOpen).toBeLessThan(ANNOUNCER_PRIORITY.backToShop);
+    expect(ANNOUNCER_PRIORITY.mirrorMatch).toBeLessThan(ANNOUNCER_PRIORITY.enteringCombat);
+    expect(ANNOUNCER_PRIORITY.equipmentUsed).toBeLessThan(ANNOUNCER_PRIORITY.equipment);
+    expect(ANNOUNCER_PRIORITY.questOffered).toBeLessThan(ANNOUNCER_PRIORITY.runeforge);
+  });
+  it('the special lines key on stable ids, found here by name', () => {
+    const c = ANNOUNCER_BATCH_3_CARDS;
+    const names: Record<string, string> = {
+      [c.floRida]: 'Flo Rida', [c.goldilox]: 'Goldilox', [c.golem]: 'Gemheart Golem', [c.greatPot]: 'Great Pot', [c.picnic]: 'Picnic',
+      [c.starform]: 'Starform', [c.yazzus]: 'Yazzus', [c.darkRuby]: 'Dark Ruby', [c.rippleRuby]: 'Ripple Ruby',
+    };
+    for (const [id, name] of Object.entries(names)) expect(CARD_INDEX[id]?.name, id).toBe(name);
+    expect(RUNE_INDEX[ANNOUNCER_BATCH_3_RUNES.resonance]?.name).toBe('Rune of Resonance');
+    expect(RUNE_INDEX[ANNOUNCER_BATCH_3_RUNES.happyBirthday]?.name).toBe('Happy Birthday');
+    expect(CARD_INDEX[c.darkRuby]?.rubyRider).toBe('devour');
+    expect(CARD_INDEX[c.rippleRuby]?.rubyRider).toBe('ripple');
+  });
+
+  describe('game flow and pacing', () => {
+    it('ResumeGame when Continue puts the saved run back on screen; a new run is not a resume', async () => {
+      const r = run({ wave: 6 });
+      go(r, { showTitle: true });
+      go(r);
+      expect(await first(ANNOUNCER_GAME_START_DELAY_MS + 20)).toBe('resume-game');
+      fresh();
+      go(run({ wave: 6 }), { showTitle: true });
+      go(run({ wave: 6 }));
+      await tick(ANNOUNCER_GAME_START_DELAY_MS + 20);
+      expect(events()).not.toContain('resume-game');
+    });
+    it('Idle after 20 s of Shop clock with no action; an action restarts the count', async () => {
+      const r = openShop();
+      for (let s = 60; s >= 42; s--) observeTurnClock(s, r.wave);
+      await tick(20);
+      expect(plays).toEqual([]);
+      observeTurnClock(41, r.wave); // 61 - 41 = 20 s since the turn's first second
+      expect(await first()).toBe('idle');
+      fresh();
+      const r2 = openShop();
+      for (let s = 60; s >= 50; s--) observeTurnClock(s, r2.wave);
+      go({ ...r2, embers: 3 }); // the player acted at 50
+      for (let s = 49; s >= 31; s--) observeTurnClock(s, r2.wave);
+      await tick(20);
+      expect(plays).toEqual([]);
+      observeTurnClock(30, r2.wave);
+      expect(await first()).toBe('idle');
+    });
+    it('TimeUp when the Shop clock reaches 0', async () => {
+      const r = openShop();
+      observeTurnClock(1, r.wave);
+      await tick(20);
+      expect(plays).toEqual([]);
+      observeTurnClock(0, r.wave);
+      expect(await first()).toBe('time-up');
+    });
+    it('FastTurn: End Turn with 40+ s left after 3+ buys (39 s, 2 buys or an unknown clock say nothing)', async () => {
+      let r = openShop({ cardsBoughtThisTurn: 3 });
+      observeTurnClock(40, r.wave);
+      expect(await faceOmen(r)).toBe('fast-turn');
+      for (const [secs, buys] of [[39, 3], [50, 2], [null, 5]] as const) {
+        fresh();
+        r = openShop({ cardsBoughtThisTurn: buys });
+        if (secs !== null) observeTurnClock(secs, r.wave);
+        expect(await faceOmen(r)).toBeUndefined();
+      }
+    });
+  });
+
+  describe('shop and economy', () => {
+    it('FirstFreeze when the player freezes the Shop', async () => {
+      const r = openShop({ frozen: false });
+      go({ ...r, frozen: true });
+      expect(await first()).toBe('first-freeze');
+    });
+    it('RefreshStreak at the 5th Refresh of one turn', async () => {
+      let r = openA();
+      for (let i = 0; i < 4; i++) r = goA({ ...r }, { type: 'roll' });
+      await tick(20);
+      expect(plays).toEqual([]);
+      goA({ ...r }, { type: 'roll' });
+      expect(await first()).toBe('refresh-streak');
+    });
+    it('GoldRush at 10 Gold gained from effects in one turn (Gold spent on the same update counts; a sale\'s base value does not)', async () => {
+      let r = openShop({ embers: 5, goldSpentThisTurn: 0, soldThisTurn: [] });
+      r = go({ ...r, embers: 10 }); // +5
+      await tick(20);
+      expect(plays).toEqual([]);
+      go({ ...r, embers: 12, goldSpentThisTurn: 3 }); // +5 while 3 went out
+      expect(await first()).toBe('gold-rush');
+      fresh();
+      r = openShop({ embers: 0, goldSpentThisTurn: 0, soldThisTurn: [] });
+      for (let i = 1; i <= 12; i++) r = go({ ...r, embers: i, soldThisTurn: [...(r.soldThisTurn ?? []), `s${i}`] });
+      await tick(20);
+      expect(events()).not.toContain('gold-rush');
+    });
+    it('TribeBuyLines: a Kobold buy on a passing 6% roll (the take names Kobolds); a Beast buy on the same roll says nothing', async () => {
+      for (const e of RANDOM_BUY_EVENTS) setAnnouncerTunerValue(`${e}Chance`, 0);
+      const lucky = seedWhere((s) => announcerRoll(s, 'tribeBuyLines', 5, 1) < 0.06);
+      announced = emptyAnnounced(lucky);
+      let r = openShop({ seed: lucky, shop: [{ uid: 'o0', cardId: KOBOLD.id }], cardsBoughtThisTurn: 0 });
+      go({ ...r, shop: [], cardsBoughtThisTurn: 1 });
+      expect(await first()).toBe('tribe-buy-lines');
+      fresh();
+      for (const e of RANDOM_BUY_EVENTS) setAnnouncerTunerValue(`${e}Chance`, 0);
+      announced = emptyAnnounced(lucky);
+      r = openShop({ seed: lucky, shop: [{ uid: 'o0', cardId: BEAST.id }], cardsBoughtThisTurn: 0 });
+      go({ ...r, shop: [], cardsBoughtThisTurn: 1 });
+      await tick(20);
+      expect(plays).toEqual([]);
+    });
+    it('DiscoverOpen: a tier 6 Discover always speaks; a lower one only on a passing 10% roll', async () => {
+      const t6 = Object.values(CARD_INDEX).filter((d) => d.tier === 6 && !d.spell && !d.ruby && !d.token).slice(0, 3).map((d) => d.id);
+      const low = Object.values(CARD_INDEX).filter((d) => d.tier === 2 && !d.spell && !d.ruby && !d.token).slice(0, 3).map((d) => d.id);
+      const unlucky = seedWhere((s) => announcerRoll(s, 'discoverOpen', 5, 1) >= 0.1);
+      announced = emptyAnnounced(unlucky);
+      let r = openShop({ seed: unlucky });
+      go({ ...r, discover: t6 });
+      expect(await first()).toBe('discover-open');
+      fresh();
+      announced = emptyAnnounced(unlucky);
+      r = openShop({ seed: unlucky });
+      go({ ...r, discover: low });
+      await tick(20);
+      expect(plays).toEqual([]);
+      fresh();
+      const lucky = seedWhere((s) => announcerRoll(s, 'discoverOpen', 5, 1) < 0.1);
+      announced = emptyAnnounced(lucky);
+      r = openShop({ seed: lucky });
+      go({ ...r, discover: low });
+      expect(await first()).toBe('discover-open');
+    });
+    it('BigBuffMoment when one effect gives a minion +20/+20 (+20/+19 is not enough)', async () => {
+      let r = openShop({ recruitFxSeq: 0, recruitBuffFx: [] });
+      go({ ...r, recruitFxSeq: 1, recruitBuffFx: [{ attack: 20, health: 19 }] });
+      await tick(20);
+      expect(plays).toEqual([]);
+      fresh();
+      r = openShop({ recruitFxSeq: 0, recruitBuffFx: [] });
+      go({ ...r, recruitFxSeq: 1, recruitBuffFx: [{ attack: 4, health: 4 }, { attack: 20, health: 25 }] });
+      expect(await first()).toBe('big-buff-moment');
+    });
+  });
+
+  describe('cards played, Equipment, the hero power and quests', () => {
+    const CHOOSE = Object.values(CARD_INDEX).find((d) => d.chooseOne?.length && !d.spell && !d.token && !d.chooseBothWhenGolden)!;
+    it('ChooseOnePlay when the first Choose One card is played', async () => {
+      const r = openA({ hand: [card('h1', CHOOSE.id)] });
+      goA({ ...r, hand: [], board: [m(CHOOSE.id)] }, { type: 'play', uid: 'h1' });
+      expect(await first()).toBe('choose-one-play');
+    });
+    it('BothEffects when a Choose One resolves both branches (a Forked Crown / Prismatic Pick charge); a picked branch does not', async () => {
+      let r = openA({ hand: [card('h1', CHOOSE.id)], ...({ chooseBothCharges: 1 } as object) });
+      goA({ ...r, hand: [], board: [m(CHOOSE.id)] }, { type: 'play', uid: 'h1' });
+      expect(await first()).toBe('both-effects');
+      fresh();
+      r = openA({ hand: [card('h1', CHOOSE.id)], chooseOne: { uid: 'h1' } });
+      goA({ ...r, hand: [], board: [m(CHOOSE.id)], chooseOne: undefined }, { type: 'chooseOne', uid: 'h1' });
+      expect(await first()).toBe('choose-one-play');
+      expect(events()).not.toContain('both-effects');
+    });
+    it('YazzusDouble when a targeted spell is cast from hand with Yazzus on board', async () => {
+      const aimed = Object.values(CARD_INDEX).find((d) => d.spell && !d.ruby && d.target && !d.singleCast && !d.chooseOne)!;
+      let r = openA({ board: [{ ...m(ANNOUNCER_BATCH_3_CARDS.yazzus), uid: 'y' }], hand: [card('h1', aimed.id)] });
+      goA({ ...r, hand: [] }, { type: 'play', uid: 'h1', targetUid: 'y' });
+      expect(await first()).toBe('yazzus-double');
+      fresh();
+      r = openA({ board: [{ ...m(BEAST.id), uid: 'b' }], hand: [card('h1', aimed.id)] });
+      goA({ ...r, hand: [] }, { type: 'play', uid: 'h1', targetUid: 'b' });
+      await tick(20);
+      expect(plays).toEqual([]);
+    });
+    it('GreatPot when Great Pot or Picnic is cast on a full board (six minions say nothing)', async () => {
+      const seven = Array.from({ length: 7 }, () => m(BEAST.id));
+      let r = openA({ board: seven, hand: [card('h1', ANNOUNCER_BATCH_3_CARDS.picnic)] });
+      goA({ ...r, hand: [] }, { type: 'play', uid: 'h1' });
+      expect(await first()).toBe('great-pot');
+      fresh();
+      r = openA({ board: seven.slice(0, 6), hand: [card('h1', ANNOUNCER_BATCH_3_CARDS.greatPot)] });
+      goA({ ...r, hand: [] }, { type: 'play', uid: 'h1' });
+      await tick(20);
+      expect(plays).toEqual([]);
+    });
+    it('EquipmentUsed on the first Equipment activation (after the Equipment SFX)', async () => {
+      const r = openShop({ equipmentActivationsThisTurn: 0 });
+      go({ ...r, equipmentActivationsThisTurn: 1 });
+      expect(await first(ANNOUNCER_EQUIPMENT_DELAY_MS + 20)).toBe('equipment-used');
+    });
+    it('HeroPowerBig on the 10th hero power of the game', async () => {
+      let r = openA({}, Array.from({ length: 8 }, () => ({ type: 'heroPower' })));
+      r = goA({ ...r }, { type: 'heroPower' });
+      await tick(20);
+      expect(plays).toEqual([]);
+      goA({ ...r }, { type: 'heroPower' });
+      expect(await first()).toBe('hero-power-big');
+    });
+    it('QuestOffered when a quest offer opens (dormant while quests are archived)', async () => {
+      const r = openShop();
+      go({ ...r, questOffer: ['q1', 'q2'] });
+      expect(await first()).toBe('quest-offered');
+    });
+    it('QuestComplete when a quest completes (or a repeatable one fires again)', async () => {
+      const r = openShop({ activeQuests: [{ questId: 'q', completed: false }] });
+      go({ ...r, activeQuests: [{ questId: 'q', completed: true }] });
+      expect(await first()).toBe('quest-complete');
+    });
+  });
+
+  describe('runes and the Runeforge', () => {
+    const forge = { runeforgeOffer: ['a', 'b', 'c'] };
+    it('RunePick when a rune is picked', async () => {
+      const r = openA({ ...forge, ownedRunes: [] });
+      goA({ ...r, runeforgeOffer: undefined, ownedRunes: ['a'] }, { type: 'buyRune' });
+      expect(await first()).toBe('rune-pick');
+    });
+    it('RuneSkip when the Runeforge is left without a rune', async () => {
+      const r = openA({ ...forge });
+      goA({ ...r, runeforgeOffer: undefined }, { type: 'skipRuneforge' });
+      expect(await first()).toBe('rune-skip');
+    });
+    it('RuneReroll when the Runeforge is re-rolled', async () => {
+      const r = openA({ ...forge });
+      goA({ ...r, runeforgeOffer: ['d', 'e', 'f'] }, { type: 'rerollRuneforge' });
+      expect(await first()).toBe('rune-reroll');
+    });
+    it('RuneSlotsFull when the third rune socket fills', async () => {
+      const r = openShop({ ownedRunes: ['a', 'b'] });
+      go({ ...r, ownedRunes: ['a', 'b', 'c'] });
+      expect(await first()).toBe('rune-slots-full');
+    });
+    it('SeasonalRune on Happy Birthday (the take is the birthday line; Merry Christmas waits for its own)', async () => {
+      let r = openShop({ ownedRunes: [] });
+      go({ ...r, ownedRunes: [ANNOUNCER_BATCH_3_RUNES.happyBirthday] });
+      expect(await first()).toBe('seasonal-rune');
+      fresh();
+      r = openShop({ ownedRunes: [] });
+      go({ ...r, ownedRunes: ['rune_merry_christmas'] });
+      await tick(20);
+      expect(plays).toEqual([]);
+    });
+    it('RunePayout on a counter rune\'s 3rd payout; a rune with no counter says nothing', async () => {
+      const meter = { runeThresholds: [{ sourceId: 'rune_x', per: 10, tick: 0, meter: 'gold' }] } as object;
+      let r = openShop({ runeProcs: { rune_x: 2 }, ...meter });
+      go({ ...r, runeProcs: { rune_x: 3 } });
+      expect(await first()).toBe('rune-payout');
+      fresh();
+      r = openShop({ runeProcs: { rune_y: 2 } });
+      go({ ...r, runeProcs: { rune_y: 3 } });
+      await tick(20);
+      expect(plays).toEqual([]);
+    });
+  });
+
+  describe('heading into a fight, and the verdict', () => {
+    const foe = (patch: Partial<AnnouncerFoe> = {}): AnnouncerFoe => ({ seatId: 's3', ghost: false, tier: 3, ...patch });
+    it('GhostFight when the player faces a knocked-out seat\'s ghost', async () => {
+      fresh(foe({ ghost: true }));
+      expect(await faceOmen(openShop())).toBe('ghost-fight');
+    });
+    it('Outgunned when the foe\'s tier is 2+ above the player\'s (1 above says nothing)', async () => {
+      fresh(foe({ tier: 5 }));
+      expect(await faceOmen(openShop({ tier: 3 }))).toBe('outgunned');
+      fresh(foe({ tier: 4 }));
+      expect(await faceOmen(openShop({ tier: 3 }))).toBeUndefined();
+    });
+    it('MirrorMatch when both boards\' main tribe is Kobold (the take\'s tribe); a Beast board says nothing', async () => {
+      fresh(foe({ topTribe: 'kobold' }));
+      expect(await faceOmen(openShop({ board: [m(KOBOLD.id), m(KOBOLD.id), m(BEAST.id)] }))).toBe('mirror-match');
+      fresh(foe({ topTribe: 'kobold' }));
+      expect(await faceOmen(openShop({ board: [m(BEAST.id), m(BEAST.id)] }))).toBeUndefined();
+    });
+    it('Rematch when the foe is the seat that dealt the player\'s biggest hit so far', async () => {
+      const encounters = [
+        { round: 1, a: 's0', b: 's2', damageToA: 5, damageToB: 0 },
+        { round: 2, a: 's3', b: 's0', damageToA: 0, damageToB: 9 },
+      ];
+      fresh(foe({ seatId: 's3' }));
+      expect(await faceOmen(openShop({ lobby: { seats: seats(8), encounters } }))).toBe('rematch');
+      fresh(foe({ seatId: 's2' }));
+      expect(await faceOmen(openShop({ lobby: { seats: seats(8), encounters } }))).toBeUndefined();
+    });
+    it('StreakStopper when the player beats a foe on a 3+ win streak (a streak of 2, or a loss, says nothing)', async () => {
+      const won = (round: number, other: string) => ({ round, a: 's4', b: other, damageToA: 0, damageToB: 3, outcome: 'win', fought: true });
+      const three = [won(1, 's5'), { round: 2, a: 's6', b: 's4', damageToA: 4, damageToB: 0, outcome: 'lose', fought: true }, won(3, 's1')];
+      fresh(foe({ seatId: 's4' }));
+      await settle(openShop({ lobby: { round: 4, seats: seats(8), encounters: three } }), 'win');
+      expect(await first()).toBe('streak-stopper');
+      fresh(foe({ seatId: 's4' }));
+      await settle(openShop({ lobby: { round: 4, seats: seats(8), encounters: three.slice(1) } }), 'win');
+      await tick(20);
+      expect(events()).not.toContain('streak-stopper');
+      fresh(foe({ seatId: 's4' }));
+      await settle(openShop({ lobby: { round: 4, seats: seats(8), encounters: three } }), 'lose');
+      await tick(20);
+      expect(events()).not.toContain('streak-stopper');
+    });
+  });
+
+  describe('the card and rune specials', () => {
+    it('DarkRuby when a Dark Ruby eats a Shop minion (its devour rider)', async () => {
+      const r = openShop({ rubyRiderFxSeq: 0 });
+      go({ ...r, rubyRiderFxSeq: 1, rubyRiderFx: [{ rider: 'devour' }] });
+      expect(await first()).toBe('dark-ruby');
+    });
+    it('RippleResonance when a Ripple Ruby lands four times under Rune of Resonance (not without the rune)', async () => {
+      const res = [ANNOUNCER_BATCH_3_RUNES.resonance];
+      let r = openShop({ rubyRiderFxSeq: 0, ownedRunes: res });
+      go({ ...r, rubyRiderFxSeq: 1, rubyRiderFx: [{ rider: 'ripple' }, { rider: 'ripple' }] });
+      expect(await first()).toBe('ripple-resonance');
+      fresh();
+      r = openShop({ rubyRiderFxSeq: 0, ownedRunes: [] });
+      go({ ...r, rubyRiderFxSeq: 1, rubyRiderFx: [{ rider: 'ripple' }, { rider: 'ripple' }] });
+      await tick(20);
+      expect(plays).toEqual([]);
+    });
+    it('DiscoDanChain when the Setlist\'s last turn-1 Discover resolves (a pick that opens the next says nothing)', async () => {
+      const ids = ['a', 'b', 'c'];
+      let r = openShop({ wave: 1, discover: ids, discoverLockTier: 4, discoverQueue: [{}] });
+      r = go({ ...r, discover: ['d', 'e', 'f'], discoverLockTier: 2, discoverQueue: [] });
+      r = go({ ...r, discover: undefined, discoverLockTier: undefined });
+      expect(await first(ANNOUNCER_TURN_ONE_QUIET_MS + 20)).toBe('disco-dan-chain');
+    });
+    it('StarformCollapse when a Starform over 30 Attack collapses (a smaller one says nothing)', async () => {
+      const sf = (atk: number) => [{ uid: 'sf', cardId: ANNOUNCER_BATCH_3_CARDS.starform, atk }];
+      let r = openShop({ shop: sf(40), starformFxSeq: 0 });
+      go({ ...r, shop: [], starformFxSeq: 1, starformFx: [{ kind: 'collapse', fromUid: 'sf' }] });
+      expect(await first()).toBe('starform-collapse');
+      fresh();
+      r = openShop({ shop: sf(10), starformFxSeq: 0 });
+      go({ ...r, shop: [], starformFxSeq: 1, starformFx: [{ kind: 'collapse', fromUid: 'sf' }] });
+      await tick(20);
+      expect(plays).toEqual([]);
+    });
+    it('FloRida the first time Flo Rida\'s Beast buff lands in the Shop', async () => {
+      const r = openShop({ board: [{ ...m(BEAST.id), buffs: [] }] });
+      go({ ...r, board: [{ ...m(BEAST.id), buffs: [{ source: 'Flo Rida', attack: 4, health: 4 }] }] });
+      expect(await first()).toBe('flo-rida');
+    });
+    it('Goldilox when it grows PAST +20/+20 in hand (exactly +20/+20 says nothing)', async () => {
+      const gx = (grow: number) => [card('gx', ANNOUNCER_BATCH_3_CARDS.goldilox, { attack: 2 + grow, health: 2 + grow })];
+      let r = openShop({ hand: gx(10) });
+      r = go({ ...r, hand: gx(20) });
+      await tick(20);
+      expect(plays).toEqual([]);
+      go({ ...r, hand: gx(21) });
+      expect(await first()).toBe('goldilox');
+    });
+    it('GemheartGolem with 3+ Gemheart Golems on the board, in the Shop and in a fight', async () => {
+      const golem = () => m(ANNOUNCER_BATCH_3_CARDS.golem);
+      const r = openShop({ board: [golem(), golem()] });
+      go({ ...r, board: [golem(), golem(), golem()] });
+      expect(await first()).toBe('gemheart-golem');
+      fresh();
+      const r2 = openShop();
+      go({ ...r2, phase: 'combat' });
+      observeCombatBoard([1, 2, 3].map(() => ({ attack: 1, health: 1, cardId: ANNOUNCER_BATCH_3_CARDS.golem })), r2.wave);
+      await tick(ANNOUNCER_COMBAT_SILENCE_MS + 20);
+      expect(events()).toContain('gemheart-golem');
+    });
   });
 });

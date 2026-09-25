@@ -59,3 +59,27 @@ existing ~66 ms `pickHero` + first Recruit mount under the opaque curtain, which
 and the 2.2 to 3 s window) and `goodLuck/GoodLuckIntro.test.tsx` (ends on its timer and only then, Esc skip without
 reaching the Esc menu, click skip, leaving to the title releases the clock, the curtain begins it for lobby and
 Practice but not the tutorial or a sandbox).
+
+## Sound (follow-up, same day)
+
+Owner: *"the effect you had built is nice. it needs a sound effect tho"*. Two clips, both already in the repo, no new
+audio files:
+
+- **Shine**: `audio/equipmentsheen.mp3` (the Equipment slot's art-sheen sweep, source
+  `C:/Game Assets/Ascent Art/SFX/Equipment/equipmentsheen.mp3`). It is already the game's "light sweeping over gold
+  art" sound, so the intro's sweep reads as the same family. `sfx.goodLuckShine(vol, delayMs)`, category
+  `goodLuckShine` (ui bus, 0.6).
+- **Spark burst**: `audio/fx/djartmusic-christmas-sparkle-whoosh-1-275404.mp3`, cut to the same 1.1 s to 2.0 s window
+  the Stellar Lens FX plays (the glitter tail, not the whoosh). `sfx.goodLuckSpark(vol, delayMs)`, category
+  `goodLuckSpark` (ui bus, 0.45). `playSample` gained an optional `slice` for this.
+
+Both are queued up front on the audio clock at the intro's start, with the same delays the WAAPI sweep and the spark
+timer use (`goodLuckTimeline` now returns `shineSoundAt` and `sparkAt`), so they cannot drift from the visuals. Each
+returns an `SfxHandle`; a skip (Esc, click, a tuner replay over a playing intro, leaving to the title) stops both,
+while the natural end leaves the shine's tail ringing over the live board. Reduced motion: no codebase-wide gate on
+sounds exists, so the shine sound still plays (at the moment the words finish fading in); the spark sound follows the
+sparks and is skipped with them.
+
+Tuner "Good Luck intro" gains a **Sound** group: Shine sound (gain, default 1), Shine sound offset (ms, default 0,
+-400 to 400), Spark sound (gain, default 0.8). Tests in both goodLuck test files pin the shine at the sweep start,
+the offset, stop on Esc and click, no stop on the natural end, and a replay playing them again.

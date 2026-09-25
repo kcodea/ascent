@@ -184,11 +184,11 @@ body { background: #160f08; }
 /* Scroll areas hide the NATIVE scrollbar and scroll by wheel/trackpad. A native scrollbar (even a styled
    ::-webkit-scrollbar) forces the OS arrow cursor — the browser ignores `cursor` on it — which breaks the
    game's custom gauntlet cursor. Hiding it keeps the cursor consistent everywhere; content still scrolls. */
-.book-grid, .book-rail, .avatarpick-scroll, .lbscroll, .heroselect, .loglines, .inspect-buffs, .sfxmix {
+.book-grid, .book-rail, .avatarpick-scroll, .lbscroll, .heroselect, .fr-body, .inspect-buffs, .sfxmix {
   scrollbar-width: none; -ms-overflow-style: none;
 }
 .book-grid::-webkit-scrollbar, .book-rail::-webkit-scrollbar, .avatarpick-scroll::-webkit-scrollbar,
-.lbscroll::-webkit-scrollbar, .heroselect::-webkit-scrollbar, .loglines::-webkit-scrollbar,
+.lbscroll::-webkit-scrollbar, .heroselect::-webkit-scrollbar, .fr-body::-webkit-scrollbar,
 .inspect-buffs::-webkit-scrollbar, .sfxmix::-webkit-scrollbar { width: 0; height: 0; display: none; }
 /* The hero frame is no longer clickable (the power fires from its button only) — don't show the action cursor on it.
    A disabled power button keeps the game's custom default cursor (not the bare OS arrow), like the other ctl buttons. */
@@ -4900,59 +4900,122 @@ body.aiming, body.aiming * { cursor: none !important; }
 .combathud-skip svg { width: calc(16 * var(--u)); height: calc(16 * var(--u)); }
 .combathud-skip:hover { background: var(--cc-skip-border, #b07047); }
 .combathud-skip:active { transform: translate(-50%, -50%) translateY(calc(2 * var(--u))); box-shadow: 0 calc(2 * var(--u)) 0 var(--cc-skip-border, #b07047); }
-/* post-combat Combat Log overlay */
-.logov { position: fixed; inset: 0; z-index: 200; display: grid; place-items: center; background: rgba(20, 15, 10, 0.55); animation: logfade 0.16s ease; }
-@keyframes logfade { from { opacity: 0; } to { opacity: 1; } }
-.logbox { width: min(calc(560 * var(--u)), 90vw); max-height: 76vh; display: flex; flex-direction: column; gap: calc(13 * var(--u)); background: var(--card); border: 2px solid var(--line); border-radius: calc(18 * var(--u)); padding: calc(18 * var(--u)) calc(20 * var(--u)); box-shadow: 0 18px 50px -12px rgba(0, 0, 0, 0.5); }
-.logtitle { font-family: var(--font-ui); font-weight: 900; font-size: calc(20 * var(--u)); letter-spacing: 0.04em; display: flex; align-items: center; gap: calc(12 * var(--u)); }
-.logverdict { font-size: calc(13 * var(--u)); font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em; padding: calc(3 * var(--u)) calc(11 * var(--u)); border-radius: 9px; }
-.logverdict.win { color: var(--acc-dk); background: color-mix(in srgb, var(--acc) 20%, transparent); }
-.logverdict.lose { color: var(--threat-dk); background: color-mix(in srgb, var(--threat) 18%, transparent); }
-.logverdict.draw { color: var(--ink2); background: var(--bg2); }
-/* Outcome-odds bar: the estimated win / draw / loss distribution for the matchup (the result was one roll). */
-.logodds { display: flex; flex-direction: column; gap: calc(5 * var(--u)); }
-.oddscap { font-family: var(--font-ui); font-weight: 800; font-size: calc(10 * var(--u)); letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink3); }
-/* 4× thicker than before; segment widths map 1:1 to the win/draw/loss odds (flex:none defeats the
-   generic .ob flex:1 so the inline width wins), coloured green → orange → red. */
-.oddsbar { display: flex; height: calc(40 * var(--u)); border-radius: calc(12 * var(--u)); overflow: hidden; box-shadow: inset 0 0 0 1px var(--line); background: var(--bg2); }
-.oddsbar .ob { height: 100%; flex: none; transition: width 0.3s ease; }
-.oddsbar .ob.win { background: #2fb866; }
-.oddsbar .ob.draw { background: #f59324; }
-.oddsbar .ob.lose { background: #e53b3b; }
-.oddslabels { display: flex; justify-content: space-between; font-family: var(--font-ui); font-weight: 800; font-size: calc(12 * var(--u)); }
-.oddslabels .win { color: #1f8a4b; }
-.oddslabels .draw { color: #b36608; }
-.oddslabels .lose { color: #b82626; }
-.oddsavg { font-family: var(--font-ui); font-weight: 600; font-size: calc(12 * var(--u)); color: var(--ink3); }
-.oddsavg b { font-weight: 800; color: #b82626; }
-.loglines { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: calc(6 * var(--u)); padding-right: 6px; }
-.logline { font-family: var(--font-body), sans-serif; font-size: calc(14 * var(--u)); font-weight: 600; color: var(--ink2); padding: calc(7 * var(--u)) calc(11 * var(--u)); border-radius: 8px; background: var(--bg2); border-left: 3px solid var(--line); }
-/* Post-combat "Gains" tab (A4): the permanent value the fight left you with. */
-.loggainhead { font-family: var(--font-ui); font-weight: 900; font-size: calc(11.5 * var(--u)); letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink3); margin-bottom: calc(2 * var(--u)); }
-.loggain { font-family: var(--font-ui); font-weight: 700; font-size: calc(14 * var(--u)); color: var(--ink); padding: calc(7 * var(--u)) calc(12 * var(--u)); border-radius: 8px; background: var(--bg2); border-left: 3px solid #3b9e57; }
-.logline.sc { border-left-color: var(--t-dragon); color: var(--ink); font-weight: 800; }
-.logline.attack { border-left-color: var(--ink3); }
-.logline.dmg { border-left-color: var(--threat); color: var(--threat-dk); }
-.logline.death { border-left-color: var(--ink); color: var(--ink); font-weight: 800; }
-.logline.shield { border-left-color: var(--acc); color: var(--acc-dk); }
-.logline.poison { border-left-color: var(--poison); }
-.logline.buff { border-left-color: #1aa86f; color: #157049; }
-.logline.summon { border-left-color: var(--t-beast); }
-.logline.reborn { border-left-color: var(--t-demon); }
-.logline.rally { border-left-color: var(--t-demon); color: var(--t-demon); font-weight: 800; }
-/* Proc-count summary block above the detailed log. */
-/* Combat Log tab switcher (Procs / Log) + the per-source proc lines. */
-.logtabs { display: flex; gap: calc(8 * var(--u)); }
-.logtab { font-family: var(--font-ui); font-weight: 800; font-size: calc(14 * var(--u)); padding: calc(6 * var(--u)) calc(16 * var(--u)); border-radius: 999px; border: 2px solid var(--line); background: var(--bg2); color: var(--ink2); }
-.logtab.active { background: var(--acc); color: #fff; border-color: var(--acc); }
-.logsum { font-family: var(--font-ui); font-weight: 700; font-size: calc(13.5 * var(--u)); color: var(--ink); padding: calc(3 * var(--u)) calc(11 * var(--u)); }
-.logsum.total { color: var(--ink2); font-weight: 800; }
-.logsum.head { color: var(--ink); font-weight: 900; font-size: calc(11.5 * var(--u)); letter-spacing: 0.06em; text-transform: uppercase; opacity: 0.65; margin-top: calc(7 * var(--u)); }
-.logsum.rally { color: var(--t-demon); padding-left: calc(20 * var(--u)); }
-.logsum.summon { color: var(--t-beast); padding-left: calc(20 * var(--u)); }
-.logsum.sc { color: var(--t-dragon); padding-left: calc(20 * var(--u)); }
-.logsum.buff { color: #157049; padding-left: calc(20 * var(--u)); }
-.logbox .btn { align-self: center; }
+/* ── FIGHT RECAP (owner redesign 2026-09-24; was the flat beige "Combat Summary") ──
+   The house modal language: dark glass (#241a13 → #17110c) inside a dark-gold trim, cream type, gold accents
+   (the Discover banner / Runeforge gold chip / End Combat tip chrome). Nothing here loops: the only animation
+   is the one-shot opacity + transform entrance, and every glow is a STATIC shadow. */
+.fr-ov { position: fixed; inset: 0; z-index: 200; display: grid; place-items: center; padding: 16px; background: rgba(22, 15, 9, 0.72); animation: fadein 0.16s ease; }
+.fr-panel {
+  position: relative; width: min(calc(600 * var(--u)), 94vw); max-height: 88vh; display: flex; flex-direction: column; overflow: hidden;
+  background: linear-gradient(180deg, #241a13, #17110c); color: #f4ecdb;
+  border: 2px solid color-mix(in srgb, var(--gold) 58%, #000); border-radius: calc(18 * var(--u));
+  box-shadow: 0 calc(22 * var(--u)) calc(60 * var(--u)) -18px rgba(0, 0, 0, 0.75), inset 0 0 0 1px rgba(255, 255, 255, 0.06);
+  animation: frpop 0.22s ease-out both;
+}
+@keyframes frpop { from { opacity: 0; transform: translateY(8px) scale(0.97); } to { opacity: 1; transform: none; } }
+
+/* Header: round eyebrow, the verdict, then [dealt] [foe] [taken]. A static verdict-tinted wash behind it. */
+.fr-head { position: relative; padding: calc(16 * var(--u)) calc(22 * var(--u)) calc(16 * var(--u)); text-align: center; border-bottom: 1px solid color-mix(in srgb, var(--gold) 30%, transparent); }
+.fr-head.win { background: radial-gradient(120% 90% at 50% 0%, rgba(232, 200, 119, 0.20), transparent 70%); }
+.fr-head.lose { background: radial-gradient(120% 90% at 50% 0%, rgba(229, 68, 107, 0.20), transparent 70%); }
+.fr-head.draw { background: radial-gradient(120% 90% at 50% 0%, rgba(200, 200, 210, 0.13), transparent 70%); }
+.fr-round { font-family: var(--font-ui); font-weight: 800; font-size: calc(11.5 * var(--u)); letter-spacing: 0.18em; text-transform: uppercase; color: rgba(244, 236, 219, 0.6); }
+.fr-verdict-row { display: flex; align-items: center; justify-content: center; gap: calc(12 * var(--u)); margin: calc(2 * var(--u)) 0 calc(12 * var(--u)); }
+.fr-verdict {
+  font-family: var(--font-disp, var(--font-title)); font-weight: 900; font-size: calc(46 * var(--u)); line-height: 1; letter-spacing: 0.02em; text-transform: uppercase;
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+  filter: drop-shadow(0 3px 0 rgba(0, 0, 0, 0.45));
+}
+.fr-verdict.win { background-image: linear-gradient(180deg, #fff6df, #e8c877 55%, #a2762c); }
+.fr-verdict.lose { background-image: linear-gradient(180deg, #ffe0e6, #ef6a88 55%, #9e1f3f); }
+.fr-verdict.draw { background-image: linear-gradient(180deg, #ffffff, #c9ccd6 55%, #7d808c); }
+.fr-tag { font-family: var(--font-ui); font-weight: 900; font-size: calc(13 * var(--u)); letter-spacing: 0.08em; text-transform: uppercase; padding: calc(4 * var(--u)) calc(12 * var(--u)); border-radius: 999px; transform: rotate(-4deg); box-shadow: 0 3px 8px -3px rgba(0, 0, 0, 0.6); }
+.fr-tag.upset { color: #2a1a04; background: linear-gradient(180deg, #ffe39a, #e0a93a); border: 1px solid #fff0c2; }
+.fr-tag.heartbreaker { color: #fff; background: linear-gradient(180deg, #f0587d, #b32c50); border: 1px solid #ffb3c6; }
+
+.fr-vs { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: calc(14 * var(--u)); }
+.fr-foe { display: flex; flex-direction: column; align-items: center; min-width: 0; max-width: calc(170 * var(--u)); }
+.fr-foe-pic { width: calc(78 * var(--u)); height: calc(78 * var(--u)); border-radius: 50%; overflow: hidden; display: grid; place-items: center; background: #0f0a06; border: 3px solid color-mix(in srgb, var(--gold) 70%, #000); box-shadow: 0 calc(6 * var(--u)) calc(16 * var(--u)) -6px rgba(0, 0, 0, 0.7); }
+.fr-foe-pic img { width: 100%; height: 100%; object-fit: cover; -webkit-user-drag: none; }
+.fr-foe-pic svg { width: 44%; height: 44%; color: var(--gold); }
+.fr-foe-name { margin-top: calc(6 * var(--u)); font-family: var(--font-ui); font-weight: 900; font-size: calc(16 * var(--u)); color: #f4ecdb; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fr-foe-hero { font-family: var(--font-ui); font-weight: 700; font-size: calc(12 * var(--u)); color: #e8c877; }
+.fr-dmg { display: flex; flex-direction: column; align-items: center; padding: calc(8 * var(--u)) calc(6 * var(--u)); border-radius: calc(12 * var(--u)); background: rgba(0, 0, 0, 0.28); border: 1px solid rgba(255, 255, 255, 0.07); }
+.fr-dmg-label { font-family: var(--font-ui); font-weight: 800; font-size: calc(11 * var(--u)); letter-spacing: 0.12em; text-transform: uppercase; color: rgba(244, 236, 219, 0.6); }
+.fr-dmg-num { font-family: var(--font-ui); font-weight: 900; font-size: calc(34 * var(--u)); line-height: 1.05; font-variant-numeric: tabular-nums; }
+.fr-dmg.dealt .fr-dmg-num { color: #ffd66e; }
+.fr-dmg.taken .fr-dmg-num { color: #ff7b98; }
+.fr-dmg.zero .fr-dmg-num { color: rgba(244, 236, 219, 0.35); }
+.fr-dmg-sub { font-family: var(--font-ui); font-weight: 700; font-size: calc(11.5 * var(--u)); color: rgba(244, 236, 219, 0.72); white-space: nowrap; }
+
+/* Body: scrolls if a long Details log is open; the header and the buttons stay put. */
+.fr-body { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: calc(14 * var(--u)); padding: calc(14 * var(--u)) calc(22 * var(--u)); }
+.fr-odds { display: flex; flex-direction: column; align-items: center; gap: calc(6 * var(--u)); }
+.fr-odds-line { font-family: var(--font-ui); font-weight: 800; font-size: calc(15 * var(--u)); color: #f4ecdb; text-align: center; }
+.fr-oddsbar { display: flex; width: min(100%, calc(320 * var(--u))); height: calc(6 * var(--u)); border-radius: 999px; overflow: hidden; background: rgba(255, 255, 255, 0.08); }
+.fr-oddsbar span { height: 100%; flex: none; }
+.fr-oddsbar .win { background: #2fb866; }
+.fr-oddsbar .draw { background: #f59324; }
+.fr-oddsbar .lose { background: #e53b3b; }
+.fr-odds-avg { font-family: var(--font-ui); font-weight: 600; font-size: calc(12 * var(--u)); color: rgba(244, 236, 219, 0.6); }
+
+.fr-sec { display: flex; flex-direction: column; gap: calc(8 * var(--u)); }
+.fr-sechead { display: flex; align-items: center; gap: calc(10 * var(--u)); font-family: var(--font-ui); font-weight: 900; font-size: calc(12 * var(--u)); letter-spacing: 0.14em; text-transform: uppercase; color: #e8c877; }
+.fr-sechead::before, .fr-sechead::after { content: ''; flex: 1; height: 1px; background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--gold) 45%, transparent), transparent); }
+.fr-row { display: flex; justify-content: center; gap: calc(12 * var(--u)); }
+.fr-row.wrap { flex-wrap: wrap; }
+.fr-mini { width: calc(112 * var(--u)); display: flex; flex-direction: column; align-items: center; gap: calc(4 * var(--u)); padding: calc(8 * var(--u)) calc(6 * var(--u)); border-radius: calc(12 * var(--u)); background: rgba(0, 0, 0, 0.26); border: 1px solid rgba(255, 255, 255, 0.07); }
+.fr-mini-pic { width: calc(70 * var(--u)); height: calc(70 * var(--u)); border-radius: calc(12 * var(--u)); overflow: hidden; display: grid; place-items: center; background: #0f0a06; border: 2px solid color-mix(in srgb, var(--gold) 60%, #000); }
+.fr-mini.golden .fr-mini-pic { border-color: #f3cf6b; box-shadow: 0 0 0 1px #fff2c4, 0 0 calc(10 * var(--u)) -2px rgba(243, 207, 107, 0.7); }
+.fr-mini-pic img { width: 100%; height: 100%; object-fit: cover; -webkit-user-drag: none; }
+.fr-mini-pic svg { width: 46%; height: 46%; color: var(--gold); }
+.fr-mini-name { font-family: var(--font-ui); font-weight: 800; font-size: calc(12.5 * var(--u)); color: #f4ecdb; text-align: center; line-height: 1.15; max-width: 100%; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.fr-mini-chips { display: flex; flex-direction: column; align-items: center; gap: calc(3 * var(--u)); }
+.fr-chip { font-family: var(--font-ui); font-weight: 900; font-size: calc(11.5 * var(--u)); color: #2a1a04; background: linear-gradient(180deg, #ffe39a, #e0a93a); border-radius: 999px; padding: calc(1 * var(--u)) calc(9 * var(--u)); white-space: nowrap; font-variant-numeric: tabular-nums; }
+
+/* Details: Procs + Log folded into one drawer, closed by default. */
+.fr-details { border-top: 1px solid rgba(255, 255, 255, 0.07); padding-top: calc(8 * var(--u)); }
+.fr-details-toggle { display: inline-flex; align-items: center; gap: calc(7 * var(--u)); background: none; border: none; padding: calc(4 * var(--u)) calc(2 * var(--u)); font-family: var(--font-ui); font-weight: 800; font-size: calc(12.5 * var(--u)); letter-spacing: 0.12em; text-transform: uppercase; color: rgba(244, 236, 219, 0.65); }
+.fr-details-toggle:hover { color: #f4ecdb; }
+.fr-details-toggle:focus-visible { outline: 2px solid var(--acc); outline-offset: 2px; border-radius: 6px; }
+.fr-caret { font-size: calc(11 * var(--u)); color: #e8c877; }
+.fr-details-body { display: flex; flex-direction: column; gap: calc(8 * var(--u)); margin-top: calc(6 * var(--u)); }
+.fr-detail-tabs { display: inline-flex; align-self: flex-start; gap: 2px; padding: 2px; border-radius: 999px; background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); }
+.fr-detail-tab { font-family: var(--font-ui); font-weight: 800; font-size: calc(11.5 * var(--u)); text-transform: uppercase; letter-spacing: 0.06em; color: rgba(244, 236, 219, 0.6); background: none; border: none; border-radius: 999px; padding: calc(4 * var(--u)) calc(14 * var(--u)); }
+.fr-detail-tab:hover { color: #f4ecdb; }
+.fr-detail-tab.on { color: #1d140c; background: var(--acc); }
+.fr-lines { display: flex; flex-direction: column; gap: calc(4 * var(--u)); }
+.fr-line { font-family: var(--font-body), sans-serif; font-size: calc(13 * var(--u)); font-weight: 600; color: rgba(244, 236, 219, 0.82); padding: calc(5 * var(--u)) calc(10 * var(--u)); border-radius: 7px; background: rgba(0, 0, 0, 0.24); border-left: 3px solid rgba(255, 255, 255, 0.12); }
+.fr-line.sc { border-left-color: var(--t-dragon); color: #f4ecdb; font-weight: 800; }
+.fr-line.dmg { border-left-color: var(--threat); color: #ff9db3; }
+.fr-line.death { border-left-color: #f4ecdb; color: #f4ecdb; font-weight: 800; }
+.fr-line.shield { border-left-color: var(--acc); color: #ffc58a; }
+.fr-line.poison { border-left-color: var(--poison); }
+.fr-line.buff { border-left-color: #1aa86f; color: #7fe0b0; }
+.fr-line.summon { border-left-color: var(--t-beast); }
+.fr-line.reborn { border-left-color: var(--t-demon); }
+.fr-line.rally { border-left-color: var(--t-demon); color: #d9a6ff; font-weight: 800; }
+.fr-line.sum { background: none; border-left: none; font-family: var(--font-ui); font-weight: 700; padding: calc(2 * var(--u)) calc(6 * var(--u)); }
+.fr-line.sum.total { color: #f4ecdb; font-weight: 800; }
+.fr-line.sum.head { color: #e8c877; font-weight: 900; font-size: calc(11 * var(--u)); letter-spacing: 0.08em; text-transform: uppercase; margin-top: calc(6 * var(--u)); }
+.fr-line.sum.rally, .fr-line.sum.summon, .fr-line.sum.sc, .fr-line.sum.buff { padding-left: calc(18 * var(--u)); }
+
+.fr-foot { display: flex; justify-content: center; gap: calc(12 * var(--u)); padding: calc(12 * var(--u)) calc(22 * var(--u)) calc(16 * var(--u)); border-top: 1px solid color-mix(in srgb, var(--gold) 30%, transparent); }
+.fr-btn { display: inline-flex; align-items: center; gap: calc(8 * var(--u)); font-family: var(--font-ui); font-weight: 800; font-size: calc(15 * var(--u)); letter-spacing: 0.03em; padding: calc(9 * var(--u)) calc(24 * var(--u)); border-radius: calc(12 * var(--u)); transition: border-color 120ms ease, color 120ms ease; }
+.fr-btn svg { width: calc(16 * var(--u)); height: calc(16 * var(--u)); }
+.fr-btn.primary { color: #2a1a04; background: linear-gradient(180deg, #ffe39a, #e0a93a); border: 2px solid #8a5f1c; }
+.fr-btn.primary:hover { border-color: #fff0c2; }
+.fr-btn.ghost { color: #f4ecdb; background: rgba(255, 255, 255, 0.05); border: 2px solid color-mix(in srgb, var(--gold) 55%, #000); }
+.fr-btn.ghost svg { color: #e8c877; }
+.fr-btn.ghost:hover { border-color: var(--acc); color: #fff; }
+.fr-btn:focus-visible { outline: 2px solid var(--acc); outline-offset: 2px; }
+
+/* Narrow stages: stack the damage tiles under the foe rather than squeezing three columns. */
+@media (max-width: 520px) {
+  .fr-vs { grid-template-columns: 1fr 1fr; }
+  .fr-foe { grid-column: 1 / -1; grid-row: 1; justify-self: center; }
+  .fr-row { flex-wrap: wrap; }
+}
 @keyframes combatctlin { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: none; } }
 
 /* the enemy "arrival" once the fight is on (team-tint bands removed — the combat area stays uncoloured) */

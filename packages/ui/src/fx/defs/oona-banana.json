@@ -2820,7 +2820,7 @@
       "at": 0,
       "params": {
         "clip": "fx/oona-launch",
-        "gain": 0.38,
+        "gain": 0.304,
         "gainCurve": [
           [
             0,
@@ -2952,7 +2952,7 @@
       "at": 650,
       "params": {
         "clip": "fx/oona-splat",
-        "gain": 0.17,
+        "gain": 0.136,
         "gainCurve": [
           [
             0,
@@ -3084,7 +3084,7 @@
       "at": 650,
       "params": {
         "clip": "fx/oona-powerup",
-        "gain": 0.7,
+        "gain": 0.56,
         "gainCurve": [
           [
             0,

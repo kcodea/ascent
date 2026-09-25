@@ -52,6 +52,21 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-09-24',
+    label: 'Ultrawide Fix',
+    changes: [
+      {
+        category: 'Systems',
+        text: 'The blue screen wipe between the shop and combat now covers ultrawide screens fully and no longer stalls partway.',
+        details: [
+          'The wipe grows to fit your screen, so 21:9 and 32:9 monitors are covered edge to edge before the scene changes.',
+          'The glowing ring now stays on the edge of the wipe all the way out, instead of stopping in the middle of wide screens.',
+          'The wipe still takes the same time as before.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-09-24',
     label: 'Owner Rulings',
     changes: [
       {

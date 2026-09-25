@@ -1132,4 +1132,38 @@ export const FOUNDATION_RULES: GameRule[] = [
       lastVerifiedAt: '2026-09-24',
     },
   },
+  // ── The combat <-> shop curtain covers every screen shape (owner bug 2026-09-24, ultrawide) ───────────
+  {
+    id: 'R-PRESENT-15',
+    title: 'The combat and shop curtain covers the whole screen on every aspect ratio, and its glowing edge rides the seam out',
+    statement:
+      'The curtain that blooms out of the End Turn / End Combat gem between the shop and combat always grows '
+      + 'until it covers the ENTIRE viewport, whatever its shape (16:9, 21:9, 32:9 or anything else), before the '
+      + 'scene swaps underneath it. Its full size comes from the live viewport: the distance from the gem to the '
+      + 'farthest corner. The glowing ring on its edge is sized from the same number, so it stays on the edge the '
+      + 'whole way out and leaves past the farthest corner. It never stops short on the screen. A window resize '
+      + 'during the wipe re-measures. Same duration and easing on every screen.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Bug report session, 2026-09-24 (21:9 screenshot of RETURNING TO SHOP)', quote: 'the screen wipes between combat/shop seem not built for 21:9 and stop/pause here and it\x27s janky. can you make sure the animation fully covers the ultrawide display as well?' },
+      { kind: 'fix-pr', ref: 'fix/screen-wipe-ultrawide' },
+      { kind: 'code', ref: 'packages/ui/src/wipeGeometry.ts wipeCoverRadius + wipeFrontScale + wipeOriginFor; packages/ui/src/Recruit.tsx measureWipeOrigin (--wipe-r / --wipe-front-scale); packages/ui/src/styles.css .wipecurtain / .wipefront' },
+    ],
+    currentBehaviour:
+      'Conforms as of 2026-09-24. The curtain clip already used the farthest-corner radius, but the ring '
+      + '(`.wipefront`, a 1000px texture scaled up) read `--wipe-front-scale`, which Recruit never set, so it '
+      + 'always stopped at the 4.4 fallback, a ring about 2130px out. On 3440x1440 the cover radius is about '
+      + '2650px, so the ring slowed to a halt around x=390 with the blue still travelling, which read as the wipe '
+      + 'stalling (on 1920x1080 the same fixed ring instead ran well AHEAD of the blue). The scale is now '
+      + 'r / 485, putting the ring\x27s bright line on the seam. The tell states also snap the zero circle to the '
+      + 'freshly measured gem, so the bloom centre no longer slides from the old origin during the first half '
+      + 'of the sweep. Verified live in headless Chrome at 1920x1080, 2560x1080, 3440x1440 and 5120x1440, '
+      + 'both directions.',
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/ui/src/wipeGeometry.test.ts'],
+      lastVerifiedAt: '2026-09-24',
+    },
+  },
 ];

@@ -51,6 +51,7 @@ import { QuestCard } from './QuestCard';
 import { RuneforgeDialog } from './runeforgeEntrance/RuneforgeDialog';
 import { DiscoverDialog, EntranceOverlay, OfferSheen } from './discoverEntrance/DiscoverDialog';
 import { OfferBanner } from './discoverEntrance/OfferBanner';
+import { DiscoverPeekToggle } from './discoverEntrance/DiscoverPeekToggle';
 import { chooseOneSourceName } from './discoverEntrance/offerSource';
 import { discoverOccasion } from './discoverEntrance/useOfferEntrance';
 import { RuneLockIn, type RuneLockInCard } from './RuneLockIn';
@@ -8595,18 +8596,11 @@ const DiscoverOverlay = memo(function DiscoverOverlay({ overlaysHeld, run, disco
   const replaySpeed = useGame((st) => st.replaySession?.speed ?? 1);
   return (
     <>
-      {/* One orange button, always in the same fixed spot just below the Discover cards — it toggles between
-          Minimize (inspect the board) and Return, so the player can flip back and forth without moving the mouse. */}
+      {/* One button, always in the same fixed spot just below the Discover cards: it toggles between Peek (inspect
+          the board) and Return, so the player can flip back and forth without moving the mouse. Gold-trimmed to
+          match the Discover banner (owner 2026-09-25); see `DiscoverPeekToggle`. */}
       {!overlaysHeld && run.discover && (
-        <button
-          className="disc-toggle"
-          onClick={() => setDiscoverMin((m) => !m)}
-          aria-description={discoverMin ? 'Return to your Discover' : 'Inspect your board, then return to choose'}
-        >
-          {discoverMin
-            ? <><Icon name="up" /> Return to Discover · {run.discover.length} options</>
-            : <><Icon name="eye" /> Minimize</>}
-        </button>
+        <DiscoverPeekToggle minimized={discoverMin} options={run.discover.length} onToggle={() => setDiscoverMin((m) => !m)} />
       )}
 
       {!overlaysHeld && run.discover && !discoverMin && (

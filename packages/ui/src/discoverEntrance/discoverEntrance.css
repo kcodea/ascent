@@ -113,3 +113,70 @@ body:has(.dce-preview) .tunerpanel { z-index: 910; }
 }
 .disc-ornate-sub::after { transform: scaleX(-1); }
 
+
+/* THE PEEK TOGGLE (owner ask 2026-09-25: "make the minimize button better"): the Discover's Peek / Return button,
+   restyled to match the banner. Keeps the base `.disc-toggle` placement (viewport-fixed at 50% / 67%, the one spot
+   for both states), its fade-in and its gauntlet cursor; everything else is overridden here.
+   PERF: the fill, trim and glow are all STATIC paint. Hover / press move only `transform` and the glow layer's
+   `opacity` (compositor), as one-shot transitions. Nothing loops. Size is the 💫 tuner's `lookPeekSize`. */
+.disc-toggle.disc-peek {
+  --pk: var(--dcl-peek, 1);
+  gap: calc(9 * var(--u) * var(--pk));
+  padding: calc(9 * var(--u) * var(--pk)) calc(24 * var(--u) * var(--pk));
+  border-radius: 999px;
+  /* Dark glass inside, a gold gradient trim (the banner's gold) on the border box. */
+  border: calc(1.6 * var(--u) * var(--pk)) solid transparent;
+  background:
+    linear-gradient(180deg, rgba(40, 27, 14, 0.9), rgba(14, 9, 5, 0.94)) padding-box,
+    linear-gradient(180deg, #fff1c4 0%, #f0cd72 35%, #c8913a 70%, #7d5217 100%) border-box;
+  box-shadow:
+    0 calc(8 * var(--u)) calc(22 * var(--u)) calc(-8 * var(--u)) rgba(0, 0, 0, 0.8),
+    inset 0 1px 0 rgba(255, 236, 190, 0.18),
+    inset 0 calc(-6 * var(--u)) calc(12 * var(--u)) rgba(0, 0, 0, 0.35);
+  color: #f3dca0;
+  font-family: var(--font-ui); font-weight: 800;
+  font-size: calc(14 * var(--u) * var(--pk)); letter-spacing: 0.12em; text-transform: uppercase;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.9);
+  transition: transform 0.14s cubic-bezier(0.2, 0.9, 0.3, 1.2);
+}
+/* Small gold diamonds riding the trim at each end: the banner's flourish tips, in miniature. */
+.disc-toggle.disc-peek::before,
+.disc-toggle.disc-peek::after {
+  content: ''; position: absolute; top: 50%;
+  width: calc(7 * var(--u) * var(--pk)); height: calc(7 * var(--u) * var(--pk));
+  background: linear-gradient(135deg, #fff1c4, #d9a441 60%, #8a5a16);
+  box-shadow: 0 0 calc(4 * var(--u)) rgba(255, 190, 80, 0.55);
+  transform: translateY(-50%) rotate(45deg);
+  pointer-events: none;
+}
+.disc-toggle.disc-peek::before { left: calc(-4.5 * var(--u) * var(--pk)); }
+.disc-toggle.disc-peek::after { right: calc(-4.5 * var(--u) * var(--pk)); }
+/* The hover glow: a STATIC warm halo on its own layer, faded in by opacity only. */
+.disc-peek-glow {
+  position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
+  box-shadow: 0 0 calc(18 * var(--u)) calc(2 * var(--u)) rgba(255, 186, 76, 0.5), inset 0 0 calc(10 * var(--u)) rgba(255, 210, 120, 0.22);
+  opacity: 0;
+  transition: opacity 0.16s ease;
+}
+.disc-toggle.disc-peek .disc-peek-icon {
+  width: calc(19 * var(--u) * var(--pk)); height: calc(19 * var(--u) * var(--pk));
+  flex: none; color: #f0cd72;
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.8)); /* static */
+}
+.disc-peek-label { position: relative; }
+/* "3 options": a small gold chip, only while minimized. */
+.disc-peek-count {
+  position: relative;
+  padding: calc(2 * var(--u) * var(--pk)) calc(9 * var(--u) * var(--pk));
+  border-radius: 999px;
+  background: linear-gradient(180deg, #f3d484, #c8913a);
+  color: #241507; text-shadow: none;
+  font-size: calc(11 * var(--u) * var(--pk)); letter-spacing: 0.08em;
+}
+/* Minimized: the board is un-dimmed behind it, so the Return state carries the glow at half strength to stay easy
+   to find. Still static. */
+.disc-toggle.disc-peek.is-min .disc-peek-glow { opacity: 0.55; }
+.disc-toggle.disc-peek:hover { border-color: transparent; color: #fff4d6; transform: translateX(-50%) translateY(calc(-2 * var(--u))) scale(1.04); }
+.disc-toggle.disc-peek:hover .disc-peek-glow { opacity: 1; }
+.disc-toggle.disc-peek:active { transform: translateX(-50%) translateY(0) scale(0.97); transition-duration: 0.06s; }
+.disc-toggle.disc-peek:focus-visible { outline: 2px solid #f0cd72; outline-offset: calc(4 * var(--u)); }

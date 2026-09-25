@@ -104,6 +104,8 @@ export interface DiscoverEntranceConfig {
   lookSpotRadius: number;
   /** How bright the warm spotlight behind the cards is, 0..1. 0 = no spotlight. */
   lookSpotStrength: number;
+  /** The Peek / Return button under the cards, as a size multiplier (1 = shipped). */
+  lookPeekSize: number;
 }
 
 /** "No clip mapped": the cue fires nothing. The select shows it as "(none)". */
@@ -177,6 +179,7 @@ export const DCE_DEFAULTS: DiscoverEntranceConfig = {
   lookVignette: 0.95,
   lookSpotRadius: 40,
   lookSpotStrength: 0.4,
+  lookPeekSize: 1,
 };
 
 type NumKey = { [K in keyof DiscoverEntranceConfig]: DiscoverEntranceConfig[K] extends number ? K : never }[keyof DiscoverEntranceConfig];
@@ -229,6 +232,7 @@ export const DCE_RANGES: Record<NumKey, [number, number, number]> = {
   lookVignette: [0, 1, 0.01],
   lookSpotRadius: [15, 80, 1],
   lookSpotStrength: [0, 1, 0.01],
+  lookPeekSize: [0.6, 1.8, 0.01],
 };
 
 const KEY = 'ascent.discoverentrance';
@@ -255,6 +259,7 @@ export function discoverLookVars(c: DiscoverEntranceConfig): Record<string, stri
     '--dcl-vignette': String(num(c.lookVignette, DCE_DEFAULTS.lookVignette)),
     '--dcl-spot-r': String(num(c.lookSpotRadius, DCE_DEFAULTS.lookSpotRadius)),
     '--dcl-spot': String(num(c.lookSpotStrength, DCE_DEFAULTS.lookSpotStrength)),
+    '--dcl-peek': String(num(c.lookPeekSize, DCE_DEFAULTS.lookPeekSize)),
   };
 }
 
@@ -455,6 +460,7 @@ const SPECS: Record<NumKey, [string, TunerUnit | undefined, string, string]> = {
   lookVignette: ['Vignette', 'opacity', "How dark the backdrop gets toward the screen's edges. Moves live.", 'Look'],
   lookSpotRadius: ['Spotlight radius', 'vh', 'The size of the soft spotlight behind the cards: its height radius as a share of the screen height (it is 1.6x as wide). Moves live.', 'Look'],
   lookSpotStrength: ['Spotlight strength', 'opacity', 'How bright the warm spotlight behind the cards is. 0 = none. Moves live.', 'Look'],
+  lookPeekSize: ['Peek button size', '×', 'The "Peek at board" / "Return to Discover" button under the cards: its overall size. Moves live.', 'Look'],
 };
 
 /** Which string select sits at the head of a group, keyed by the first numeric control of that group. */

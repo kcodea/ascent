@@ -87,6 +87,7 @@ describe('the look dials', () => {
       '--dcl-vignette': String(DCE_DEFAULTS.lookVignette),
       '--dcl-spot-r': String(DCE_DEFAULTS.lookSpotRadius),
       '--dcl-spot': String(DCE_DEFAULTS.lookSpotStrength),
+      '--dcl-peek': String(DCE_DEFAULTS.lookPeekSize),
     });
     expect(discoverLookVars({ ...DCE_DEFAULTS, lookTint: Number.NaN })['--dcl-tint']).toBe(String(DCE_DEFAULTS.lookTint));
   });
@@ -114,5 +115,6 @@ describe('the look dials', () => {
     expect1('--dcl-vignette', DCE_DEFAULTS.lookVignette);
     expect1('--dcl-spot-r', DCE_DEFAULTS.lookSpotRadius);
     expect1('--dcl-spot', DCE_DEFAULTS.lookSpotStrength);
+    expect1('--dcl-peek', DCE_DEFAULTS.lookPeekSize);
   });
 });

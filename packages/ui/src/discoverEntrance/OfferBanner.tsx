@@ -9,7 +9,7 @@ import { offerSubtitle } from './offerSource';
  *
  * Static by contract: no animation of its own (the overlay's one-shot fade carries it in), and its glow is a STATIC
  * filter rasterized once. Positioned absolutely above the card row, so the row sits exactly where it always did and
- * the Minimize pill (pinned to the viewport) still clears it. Size is the 💫 tuner's `lookBannerSize`.
+ * the Peek at board button (pinned to the viewport) still clears it. Size is the 💫 tuner's `lookBannerSize`.
  */
 export function OfferBanner({ title, source }: { title: string; source?: string | null }): JSX.Element {
   const sub = offerSubtitle(source);

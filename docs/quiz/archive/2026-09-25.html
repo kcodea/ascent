@@ -1,0 +1,526 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ascent Quiz #44 — 2026-09-25</title>
+<style>
+  :root {
+    --bg: #12141c;
+    --panel: #1b1f2c;
+    --panel-border: #2c3244;
+    --text: #e8eaf2;
+    --muted: #9096ab;
+    --accent: #7c9cff;
+    --accent-dim: #4a5a8f;
+    --good: #4ade80;
+    --good-bg: rgba(74, 222, 128, 0.12);
+    --bad: #f87171;
+    --bad-bg: rgba(248, 113, 113, 0.12);
+    --choice-bg: #232838;
+    --choice-hover: #2a3040;
+  }
+  @media (prefers-color-scheme: light) {
+    :root:not([data-theme="dark"]) {
+      --bg: #f4f5fa;
+      --panel: #ffffff;
+      --panel-border: #dfe2ee;
+      --text: #1c2030;
+      --muted: #5c6178;
+      --accent: #3d5cd6;
+      --accent-dim: #b9c4f0;
+      --good: #16a34a;
+      --good-bg: rgba(22, 163, 74, 0.1);
+      --bad: #dc2626;
+      --bad-bg: rgba(220, 38, 38, 0.1);
+      --choice-bg: #f0f1f8;
+      --choice-hover: #e4e7f5;
+    }
+  }
+  :root[data-theme="light"] {
+    --bg: #f4f5fa;
+    --panel: #ffffff;
+    --panel-border: #dfe2ee;
+    --text: #1c2030;
+    --muted: #5c6178;
+    --accent: #3d5cd6;
+    --accent-dim: #b9c4f0;
+    --good: #16a34a;
+    --good-bg: rgba(22, 163, 74, 0.1);
+    --bad: #dc2626;
+    --bad-bg: rgba(220, 38, 38, 0.1);
+    --choice-bg: #f0f1f8;
+    --choice-hover: #e4e7f5;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    min-height: 100vh;
+    padding: 24px 16px 60px;
+  }
+  .wrap {
+    max-width: 640px;
+    margin: 0 auto;
+  }
+  header {
+    text-align: center;
+    margin-bottom: 20px;
+  }
+  header .emoji { font-size: 34px; line-height: 1; }
+  h1 {
+    font-size: 20px;
+    margin: 8px 0 4px;
+    font-weight: 700;
+  }
+  .subtitle {
+    color: var(--muted);
+    font-size: 13px;
+  }
+  .progress-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 18px 0 14px;
+  }
+  .progress-track {
+    flex: 1;
+    height: 6px;
+    background: var(--panel-border);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+  .progress-fill {
+    height: 100%;
+    background: var(--accent);
+    border-radius: 4px;
+    transition: width 0.25s ease;
+    width: 0%;
+  }
+  .progress-label {
+    font-size: 12px;
+    color: var(--muted);
+    white-space: nowrap;
+    min-width: 62px;
+    text-align: right;
+  }
+  .score-label {
+    font-size: 12px;
+    color: var(--muted);
+    text-align: center;
+    margin-bottom: 18px;
+  }
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 14px;
+    padding: 22px 20px;
+    margin-bottom: 16px;
+  }
+  .topic-tag {
+    display: inline-block;
+    font-size: 11px;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    color: var(--accent);
+    background: var(--accent-dim);
+    opacity: 0.9;
+    padding: 3px 9px;
+    border-radius: 999px;
+    margin-bottom: 12px;
+  }
+  .question {
+    font-size: 16px;
+    line-height: 1.5;
+    margin: 0 0 16px;
+    font-weight: 600;
+  }
+  .question code {
+    background: var(--choice-bg);
+    padding: 1px 5px;
+    border-radius: 4px;
+    font-size: 0.9em;
+  }
+  .choices {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .choice {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    text-align: left;
+    background: var(--choice-bg);
+    border: 1px solid var(--panel-border);
+    color: var(--text);
+    border-radius: 10px;
+    padding: 12px 14px;
+    font-size: 14.5px;
+    line-height: 1.45;
+    cursor: url('data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%221%22 height=%221%22%3E%3C/svg%3E') 0 0, pointer;
+    font-family: inherit;
+  }
+  .choice:hover:not(.locked) {
+    background: var(--choice-hover);
+    border-color: var(--accent-dim);
+  }
+  .choice .letter {
+    flex: none;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: var(--panel-border);
+    color: var(--text);
+    font-size: 12px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .choice.correct {
+    background: var(--good-bg);
+    border-color: var(--good);
+  }
+  .choice.correct .letter { background: var(--good); color: #08240f; }
+  .choice.incorrect {
+    background: var(--bad-bg);
+    border-color: var(--bad);
+  }
+  .choice.incorrect .letter { background: var(--bad); color: #2a0808; }
+  .choice.locked { cursor: default; }
+  .choice.dim { opacity: 0.55; }
+  .explanation {
+    margin-top: 16px;
+    padding: 14px 16px;
+    border-radius: 10px;
+    background: var(--choice-bg);
+    border: 1px solid var(--panel-border);
+    font-size: 13.5px;
+    line-height: 1.55;
+    color: var(--text);
+    display: none;
+  }
+  .explanation.show { display: block; }
+  .explanation .verdict {
+    font-weight: 700;
+    margin-bottom: 6px;
+    display: block;
+  }
+  .explanation .verdict.good { color: var(--good); }
+  .explanation .verdict.bad { color: var(--bad); }
+  .nav-row {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 4px;
+  }
+  .btn {
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: 9px;
+    padding: 10px 20px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: url('data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%221%22 height=%221%22%3E%3C/svg%3E') 0 0, pointer;
+    font-family: inherit;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease;
+  }
+  .btn.show { opacity: 1; pointer-events: auto; }
+  .btn:active { transform: translateY(1px); }
+  .summary {
+    text-align: center;
+    padding: 30px 20px;
+  }
+  .summary .big {
+    font-size: 42px;
+    font-weight: 800;
+    margin: 6px 0 4px;
+  }
+  .summary .line {
+    color: var(--muted);
+    font-size: 14px;
+    margin-bottom: 18px;
+  }
+  .summary .encourage {
+    font-size: 15px;
+    line-height: 1.5;
+    max-width: 440px;
+    margin: 0 auto;
+  }
+  .hidden { display: none; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="emoji">🎓</div>
+    <h1>Ascent Quiz #44</h1>
+    <div class="subtitle">2026-09-25 · how the game is coded, not how it plays</div>
+  </header>
+
+  <div id="quizArea">
+    <div class="progress-row">
+      <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+      <div class="progress-label" id="progressLabel">Q1 / 10</div>
+    </div>
+    <div class="score-label" id="scoreLabel">Score: 0 / 0 answered</div>
+
+    <div class="card" id="questionCard">
+      <div class="topic-tag" id="topicTag"></div>
+      <p class="question" id="questionText"></p>
+      <div class="choices" id="choicesArea"></div>
+      <div class="explanation" id="explanationArea">
+        <span class="verdict" id="verdictText"></span>
+        <span id="explanationText"></span>
+      </div>
+      <div class="nav-row">
+        <button class="btn" id="nextBtn">Next question →</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="summaryArea" class="card summary hidden">
+    <div class="topic-tag">Final score</div>
+    <div class="big" id="summaryScore">0 / 10</div>
+    <div class="line" id="summaryPct"></div>
+    <div class="encourage" id="summaryEncourage"></div>
+  </div>
+</div>
+
+<script>
+(function () {
+  var QUESTIONS = [
+    {
+      topicId: "what-is-a-function",
+      topicLabel: "What a function is",
+      question: "packages/core/src/combat/side.ts defines a frozen, ~20-field <code>EMPTY_SIDE</code> (all zeros), then just this: <code>function combatSide(partial = {}) { return { ...EMPTY_SIDE, ...partial }; }</code>. A caller writes <code>combatSide({ tier: 6 })</code> and gets back a full, valid object with the other ~19 fields already filled in. What is this function actually doing?",
+      choices: [
+        "It validates that `tier: 6` is a legal value before returning the object.",
+        "It looks up a pre-built `CombatSideState` from a database keyed by `tier`.",
+        "It merges the caller's partial object on top of a base object of all-zero defaults (`{ ...EMPTY_SIDE, ...partial }`), so every call gets a full, valid object without listing every field itself.",
+        "It permanently mutates `EMPTY_SIDE`, adding `tier: 6` to it for every future caller."
+      ],
+      answer: 2,
+      explanation: "<code>combatSide()</code> is the classic \"fill in defaults\" pattern: spread the base object first, then the caller's overrides on top, so later keys win. `EMPTY_SIDE` is frozen and only ever read, never touched (side.ts) — so D is wrong, nothing is mutated. There's no validation (A) or lookup (C) happening; it's a plain object literal returned from a plain function — the reducer, the tools, and every test all use it so nobody has to spell out all ~20 fields by hand."
+    },
+    {
+      topicId: "deterministic-sim",
+      topicLabel: "Deterministic simulation",
+      question: "packages/sim/src/reducer.ts stamps the wave's opponent into <code>state.servedBoards[state.wave]</code> on the FIRST recruit action of a turn, rather than waiting until combat starts. The comment calls this a fix for a \"reload-divergence\" bug, saying the pick used to come from \"a session-variable pool.\" What went wrong before this fix, and how does pinning it early solve it?",
+      choices: [
+        "It's purely a performance optimization — computing the opponent earlier makes combat resolve faster.",
+        "Before the fix, the opponent was drawn from a live, in-memory pool each time recruit code ran — so reloading the page mid-turn could re-roll a DIFFERENT board than the one already shown. Stamping the pick into `servedBoards` (part of persisted run state) the moment the turn starts means every reload reads back that same saved pick instead of re-rolling.",
+        "It stops players from seeing which opponent they'll face before combat, to preserve suspense.",
+        "It was a typo that accidentally deleted saved games; pinning early prevents data loss."
+      ],
+      answer: 1,
+      explanation: "The comment literally names this a \"reload-divergence fix\": before it, the enemy pick lived only in a transient, session-scoped pool, so re-rendering after a reload could draw a fresh (different) opponent than the one already shown. Stamping the pick into `state.servedBoards` — a field that's part of the persisted `RunState` — the moment the turn is first played means a reload reads back the exact same saved value instead of re-rolling. C and D describe real project concerns elsewhere in the codebase, but aren't what this specific fix addresses."
+    },
+    {
+      topicId: "seeded-rng",
+      topicLabel: "The seeded RNG",
+      question: "rng.ts's `Rng` interface includes <code>state(): number</code>, with a comment: \"Persist this to resume the exact same stream later (`makeRng(rng.state())`) — lets a pure reducer thread RNG through plain, serializable state.\" Why would a REDUCER specifically need the RNG's state to be a plain number it can save and restore, instead of just holding onto the live `Rng` object?",
+      choices: [
+        "Because reducers aren't allowed to call functions that take zero arguments.",
+        "Because calling `state()` produces a completely different stream of random numbers than continuing to use the live object would.",
+        "Because only one `Rng` object is allowed to exist per JavaScript process.",
+        "A reducer must hand back fresh, serializable state on every dispatch (no live closures baked in) because that state gets saved, reloaded, and replayed — `state()` returns the RNG's mutable counter as one plain number, and `makeRng(that number)` rebuilds an RNG that resumes the exact same stream, so 'where the RNG is' can be persisted without persisting the RNG object itself."
+      ],
+      answer: 3,
+      explanation: "A reducer must be able to hand back a plain, serializable `RunState` on every dispatch — no live closures baked into it — because that state gets saved, reloaded, and replayed. `state()` returns the RNG's whole mutable counter as one plain number, and `makeRng(that number)` rebuilds an RNG that continues the exact same stream, so a reducer can persist \"where the RNG is\" without persisting the RNG object itself. B and C invent behavior `state()` doesn't actually have."
+    },
+    {
+      topicId: "sim-ui-decoupling",
+      topicLabel: "Sim/UI decoupling",
+      question: "packages/ui/src/choreographer/combatTimeline.ts turns a resolved combat into a viewable timeline. Its comment says it reuses <code>replayBeats</code> — \"the SAME `compileMoments(replayOrder(events))` the live combat replay folds — rather than re-deriving the moment stream, because two definitions of 'the moments of this fight' is exactly how a preview would drift from what the player sees.\" What's the underlying risk this avoids?",
+      choices: [
+        "If this preview built its own separate notion of \"what happened and when\" from the raw event log instead of reusing the UI's one real replay pipeline, the two could quietly disagree over time — showing the player a timeline that doesn't match what they'd actually see the fight do.",
+        "It avoids a TypeScript compiler error that would occur if two functions shared the same name.",
+        "It makes Pixi's shader compilation faster by skipping a recompile step.",
+        "It changes what `simulate()` itself computes, so both views can literally share one result object."
+      ],
+      answer: 0,
+      explanation: "combatTimeline.ts's own comment spells this out: \"two definitions of the moments of this fight is exactly how a preview would drift from what the player sees.\" By calling the SAME `replayBeats()` the live combat player already uses, this preview can never compute a different grouping of events than what actually gets shown. It explicitly does NOT touch playback or `simulate()` (ruling out D) — combat still runs on its own runtime; this only re-describes an already-resolved result."
+    },
+    {
+      topicId: "monorepo-packages",
+      topicLabel: "Monorepo packages",
+      question: "packages/ui/package.json lists <code>\"@game/content\": \"*\"</code> as a dependency — not a real version number, and there's no package named `@game/content` on the public npm registry. The root package.json declares <code>\"workspaces\": [\"packages/*\", \"apps/*\"]</code>. How does <code>import { CARD_INDEX } from '@game/content'</code> inside packages/ui actually resolve?",
+      choices: [
+        "It silently fails at build time, and the import resolves to `undefined`.",
+        "`\"*\"` is a wildcard that lets the import resolve to ANY package whose name starts with `@game/`.",
+        "npm workspaces matches the dependency's name against `packages/content`'s own `package.json` name field (`@game/content`) and symlinks that local folder into `node_modules/@game/content` instead of fetching anything from the registry — `\"*\"` just means \"whatever local version is present.\"",
+        "Vite downloads `@game/content` from the public npm registry during `npm install`, ignoring the local folder entirely."
+      ],
+      answer: 2,
+      explanation: "npm workspaces resolves a dependency by matching its NAME against every local package's own `package.json` name field first; `packages/content/package.json` is named `@game/content`, so npm symlinks that folder straight into `node_modules` rather than reaching the registry. `\"*\"` in the version slot just means \"accept whatever local version is linked.\" This is the same mechanism behind CLAUDE.md's worktree gotcha — a fresh worktree's `node_modules` symlinks can point at a DIFFERENT checkout's `packages/*` until you run `npm install` there."
+    },
+    {
+      topicId: "pure-functions",
+      topicLabel: "Pure functions",
+      question: "packages/content/src/sets.ts's <code>poolFor(setId)</code> has a comment calling it \"Pure + deterministic: same registry → same order, every time.\" But its body reads from and writes to a `Map` declared OUTSIDE the function at module scope: <code>const hit = resolved.get(setId); if (hit) return hit; ... resolved.set(setId, pool); return pool;</code>. Does writing to that outer `resolved` Map make this function impure?",
+      choices: [
+        "Yes — any function that reads or writes something declared outside itself is automatically impure, no exceptions.",
+        "Not in the sense that matters to callers: `poolFor('set2')` still always returns the same result for the same input — from the outside, it's referentially transparent. The `resolved` Map is purely an internal caching detail (skip re-walking a set's inherit/exclude chain on repeat calls); it never lets the SAME input produce a DIFFERENT output.",
+        "No, but only because `Map` objects are a special exception to JavaScript's purity rules.",
+        "Yes, and the cache is a bug that should be removed."
+      ],
+      answer: 1,
+      explanation: "Purity, in the sense that matters to callers, is about the function's observable input→output mapping staying consistent — and `poolFor(setId)` always does: the same `setId` always yields the same `CardPool`. The `resolved` Map is purely an internal speed-up, not something that lets the same input ever produce a different output, which is the only thing that would actually break the guarantee. It's the same nuance as `computeCombatOdds()` reassigning local `let` variables inside a loop and still being called \"pure\" — internal mechanics aren't the same as external, observable behavior."
+    },
+    {
+      topicId: "data-vs-code",
+      topicLabel: "Data vs. code",
+      question: "packages/content/src/schema.ts declares <code>EffectDefSchema = z.object({ on: GameEventSchema, do: EffectFactoryIdSchema, params: z.record(z.unknown()).optional(), align: ... }).strict();</code> — every card effect in the game validates against this ONE shape: which event triggers it, which factory handles it, and what params it needs. What does `.strict()` buy here, and what does this shape show about how a new card ability usually gets added?",
+      choices: [
+        "`.strict()` rejects any extra or misspelled field (like a typo'd `targetTribes`) instead of silently ignoring it, so a broken ability fails validation loudly instead of shipping quietly missing the feature — and because every effect is just `{on, do, params}` data plugged into an existing factory function, a new ability is usually just new DATA, not a new hand-written class.",
+        "`.strict()` makes the schema validate faster by skipping every optional field.",
+        "`.strict()` only runs in production builds, never during `npm test`.",
+        "Every card effect needs its own hand-written TypeScript class implementing an `Effect` interface; `EffectDefSchema` just validates that class's constructor arguments."
+      ],
+      answer: 0,
+      explanation: "schema.ts's own comment says it directly: \".strict(): a typo'd optional key... would otherwise validate silently and the card would ship without the feature.\" Because `{on, do, params}` is one shape every effect fills in, most new abilities need only a new data entry plugged into an EXISTING factory — CLAUDE.md's \"cards are data, not bespoke classes\" rule in concrete form. A brand-new hand-written class (D) is only needed for a genuinely new effect PRIMITIVE, which is the exception, not the rule."
+    },
+    {
+      topicId: "event-log-replay",
+      topicLabel: "Event log & replay",
+      question: "packages/core/src/combat/simulate.ts stamps every emitted event with a `step` number, and its comment calls this \"Pure metadata: zero logic/RNG/order impact\" with a rule of thumb for extending the sim: \"finer is safer (the UI compiler can MERGE steps, never split them).\" Why would merging steps be safe but splitting them NOT be?",
+      choices: [
+        "Because `step` is read by `simulate()` itself to help decide who wins the fight.",
+        "Because merging two steps deletes duplicate events from the array, while splitting one step would create an infinite loop.",
+        "Because the RNG consumes one unit of randomness per `step`, so extra steps waste randomness.",
+        "The replay groups events sharing a `step` into one visual beat. If a future change gave two genuinely separate moments the SAME step, the worst case is an over-eager visual merge — but splitting ONE real moment's events across two different step numbers could break existing replay code that already assumes those events belong together, misgrouping or desyncing the animation."
+      ],
+      answer: 3,
+      explanation: "The comment is explicit that `step` is \"pure metadata: zero logic/RNG/order impact\" — resolution outcomes never read it, which rules out A and C, both of which invent a mechanical role for it. The asymmetry is about the UI's grouping assumption: merging two moments onto the same step is at worst an over-eager visual grouping, while splitting one real moment across two steps could break code that was already written assuming those events travel together."
+    },
+    {
+      topicId: "eslint-rules",
+      topicLabel: "ESLint rules",
+      question: "eslint.config.mjs sets <code>'@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_' }]</code>. If you write a callback like <code>arr.map((_, i) => i)</code> where the first parameter is deliberately unused, what does `argsIgnorePattern: '^_'` do?",
+      choices: [
+        "It renames every unused variable in the file to start with an underscore automatically.",
+        "It tells the rule not to flag a function PARAMETER as unused if its name starts with an underscore — the common convention for \"I have to accept this argument positionally but don't need it here\" — so `_` in `(_, i) => i` is deliberately silenced instead of warned about.",
+        "It only applies to variables declared with `var`, never `let`/`const`.",
+        "It disables the entire rule for any file whose name starts with an underscore."
+      ],
+      answer: 1,
+      explanation: "The underscore-prefix convention is common across JS/TS codebases for a parameter you must accept positionally (like the array element in `.map((_, i) => i)`, where only the index is actually needed) but never use. Without it, the plain `no-unused-vars` rule would flag `_` as unused even though you can't remove it without breaking the callback's signature. Worth noting: this rule is `'warn'`, not `'error'` like the `Math.random` ban — so an unused var doesn't fail `npm run lint` the way a `Math.random` call does."
+    },
+    {
+      topicId: "performance-memo",
+      topicLabel: "Performance architecture",
+      question: "docs/performance.md's \"calibration trap\" section: `perfMonitor` shipped with `LONG_FRAME_MS = 33` / `JANK_MS = 50` — numbers that look like neutral \"this frame was slow\" thresholds. The doc says they're secretly \"60 Hz numbers: 2 and 3 frames at 16.67 ms,\" so on a 360 Hz display, \"the HUD reported a clean session while the game dropped frames continuously.\" What's the general lesson here?",
+      choices: [
+        "360 Hz monitors are strictly worse for performance measurement than 60 Hz monitors.",
+        "`LONG_FRAME_MS` and `JANK_MS` are dead code that has no real effect on the HUD.",
+        "A hardcoded millisecond threshold can silently bake in an assumption (here, a specific refresh rate) that's invisible in the number itself — the same value that correctly flags a problem in one context can hide that exact same problem in another, so a threshold needs to be checked against what it's actually being measured against, not just picked once and trusted forever.",
+        "The fix was to lower the game's target frame rate back down to 60 Hz so the old thresholds would work correctly again."
+      ],
+      answer: 2,
+      explanation: "The doc's own framing: 33 ms and 50 ms are \"60 Hz numbers\" (2 and 3 dropped frames at 16.67 ms), so on a 360 Hz display, where a single dropped frame only costs 2.8 ms, the HUD needed roughly 8–12 dropped frames before it noticed anything — while the game was already missing its real 4.17 ms / 240 Hz budget (§0) continuously. The lesson is that any hardcoded threshold should be checked against what it's actually being measured against, not trusted forever just because it once looked reasonable."
+    }
+  ];
+
+  var current = 0;
+  var score = 0;
+  var answered = 0;
+  var letters = ["A", "B", "C", "D"];
+
+  var progressFill = document.getElementById("progressFill");
+  var progressLabel = document.getElementById("progressLabel");
+  var scoreLabel = document.getElementById("scoreLabel");
+  var topicTag = document.getElementById("topicTag");
+  var questionText = document.getElementById("questionText");
+  var choicesArea = document.getElementById("choicesArea");
+  var explanationArea = document.getElementById("explanationArea");
+  var verdictText = document.getElementById("verdictText");
+  var explanationText = document.getElementById("explanationText");
+  var nextBtn = document.getElementById("nextBtn");
+  var quizArea = document.getElementById("quizArea");
+  var summaryArea = document.getElementById("summaryArea");
+
+  function renderQuestion() {
+    var q = QUESTIONS[current];
+    topicTag.textContent = q.topicLabel;
+    questionText.innerHTML = q.question;
+    choicesArea.innerHTML = "";
+    explanationArea.classList.remove("show");
+    nextBtn.classList.remove("show");
+    progressFill.style.width = ((current) / QUESTIONS.length * 100) + "%";
+    progressLabel.textContent = "Q" + (current + 1) + " / " + QUESTIONS.length;
+    scoreLabel.textContent = "Score: " + score + " / " + answered + " answered";
+
+    q.choices.forEach(function (choiceHtml, idx) {
+      var btn = document.createElement("button");
+      btn.className = "choice";
+      btn.innerHTML = '<span class="letter">' + letters[idx] + '</span><span>' + choiceHtml + '</span>';
+      btn.addEventListener("click", function () { handleAnswer(idx, btn); });
+      choicesArea.appendChild(btn);
+    });
+  }
+
+  function handleAnswer(idx, btnEl) {
+    var q = QUESTIONS[current];
+    var allBtns = choicesArea.querySelectorAll(".choice");
+    allBtns.forEach(function (b, i) {
+      b.classList.add("locked");
+      if (i === q.answer) b.classList.add("correct");
+      else if (i === idx) b.classList.add("incorrect");
+      else b.classList.add("dim");
+      b.onclick = null;
+    });
+
+    var correct = idx === q.answer;
+    if (correct) score++;
+    answered++;
+    scoreLabel.textContent = "Score: " + score + " / " + answered + " answered";
+
+    verdictText.textContent = correct ? "✓ Correct!" : "✗ Not quite — correct answer is " + letters[q.answer] + ".";
+    verdictText.className = "verdict " + (correct ? "good" : "bad");
+    explanationText.innerHTML = q.explanation;
+    explanationArea.classList.add("show");
+    nextBtn.classList.add("show");
+    nextBtn.textContent = (current === QUESTIONS.length - 1) ? "See final score →" : "Next question →";
+  }
+
+  nextBtn.addEventListener("click", function () {
+    current++;
+    if (current >= QUESTIONS.length) {
+      showSummary();
+    } else {
+      renderQuestion();
+    }
+  });
+
+  function showSummary() {
+    quizArea.classList.add("hidden");
+    summaryArea.classList.remove("hidden");
+    document.getElementById("summaryScore").textContent = score + " / " + QUESTIONS.length;
+    var pct = Math.round((score / QUESTIONS.length) * 100);
+    document.getElementById("summaryPct").textContent = pct + "%";
+    var msg;
+    if (score === QUESTIONS.length) {
+      msg = "Perfect score! You're reading this codebase like it's your own — because it is. 🎉";
+    } else if (score >= 8) {
+      msg = "Great run — you clearly know your way around this engine. A couple of these were genuinely tricky.";
+    } else if (score >= 6) {
+      msg = "Solid! You're picking up the architecture steadily — reply with your score and which ones tripped you up, and tomorrow's quiz will circle back to them.";
+    } else if (score >= 4) {
+      msg = "Good effort — this is how learning a codebase actually feels. Tell me your score and we'll re-teach the tricky spots from a fresh angle.";
+    } else {
+      msg = "That's alright — these were dense ones today. Reply with your score and we'll slow down and revisit these topics soon.";
+    }
+    document.getElementById("summaryEncourage").textContent = msg;
+  }
+
+  renderQuestion();
+})();
+</script>
+</body>
+</html>

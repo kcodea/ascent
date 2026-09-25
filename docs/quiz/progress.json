@@ -5,48 +5,48 @@
   "focus": "ARCHITECTURE ONLY \u2014 how the game is coded/structured. NEVER ask game-rules questions (see daily-prompt.md).",
   "difficulty": 1,
   "difficultyScale": "1 = gentlest (what is a function, what is a package). 5 = deep (trace an event through the architecture). Ramp only per the rules in daily-prompt.md.",
-  "totalQuizzes": 43,
+  "totalQuizzes": 44,
   "recentScores": [],
   "topics": {
     "what-is-a-function": {
-      "asked": 21,
-      "lastAsked": "2026-09-23"
+      "asked": 22,
+      "lastAsked": "2026-09-25"
     },
     "deterministic-sim": {
-      "asked": 21,
-      "lastAsked": "2026-09-23"
+      "asked": 22,
+      "lastAsked": "2026-09-25"
     },
     "seeded-rng": {
-      "asked": 21,
-      "lastAsked": "2026-09-23"
+      "asked": 22,
+      "lastAsked": "2026-09-25"
     },
     "sim-ui-decoupling": {
-      "asked": 21,
-      "lastAsked": "2026-09-23"
+      "asked": 22,
+      "lastAsked": "2026-09-25"
     },
     "monorepo-packages": {
-      "asked": 21,
-      "lastAsked": "2026-09-23"
+      "asked": 22,
+      "lastAsked": "2026-09-25"
     },
     "pure-functions": {
-      "asked": 21,
-      "lastAsked": "2026-09-23"
+      "asked": 22,
+      "lastAsked": "2026-09-25"
     },
     "data-vs-code": {
-      "asked": 21,
-      "lastAsked": "2026-09-23"
+      "asked": 22,
+      "lastAsked": "2026-09-25"
     },
     "event-log-replay": {
-      "asked": 21,
-      "lastAsked": "2026-09-23"
+      "asked": 22,
+      "lastAsked": "2026-09-25"
     },
     "eslint-rules": {
-      "asked": 20,
-      "lastAsked": "2026-09-23"
+      "asked": 21,
+      "lastAsked": "2026-09-25"
     },
     "performance-memo": {
-      "asked": 20,
-      "lastAsked": "2026-09-23"
+      "asked": 21,
+      "lastAsked": "2026-09-25"
     },
     "reducer-run-state": {
       "asked": 21,
@@ -1015,6 +1015,25 @@
       ],
       "scored": null,
       "note": "Still no score ever reported by Mike (43 quizzes in), so mastery/difficulty stayed untouched. Picked this topic group (lastAsked 2026-09-22) over the other group (lastAsked 2026-09-23) to keep the spaced two-group rotation going. Dispatched a research agent to extract already-used angles from the 5 most recent archives on this exact topic set (2026-09-14/16/18/20/22), then wrote 10 fresh questions grounded in live source, avoiding every angle it listed: `QuestRewardKind = QuestReward['kind']` as an indexed-access type that auto-tracks the union it's derived from (types-basics, types.ts:1119); `instantiate()`'s `[...board.keywords]` spread so a combat Minion's keyword array is never the same object as the board/CardDef's (immutability, minion.ts:22-46); `reduceWithPresentation`'s early `if (!capture) return` to skip building a PresentationCollector when nothing is recording (reducer-run-state, reducer.ts:375-380); the store creator's `(set, get)` signature, with `get()` reading live state from inside an action rather than a stale closure (zustand-store, store.ts:866+892); `CombatBus.emit()`'s `[...list]` snapshot so a handler that registers a new handler mid-emit (a Deathrattle triggering onSummon) can't corrupt the in-progress iteration (event-bus, events.ts:22-27); Set 2's deny-list (`SET2_DROPPED_SPELLS`) vs Set 3's allow-list (`SET3_SHARED_SPELL_IDS`) as two solutions to the same reuse-a-shared-pool problem (cards-in-sets, sets.ts); confirmed by grep that the public-entrypoints-only rule has NO backing ESLint rule (unlike the Math.random ban) — convention only (package-boundaries, eslint.config.mjs); `COMBAT_REPLAYABLE_BATTLECRIES` derived from `Object.keys(FACTORIES)` instead of hand-kept, so the two can't drift apart (effects-as-subscriptions, factories.ts:3690); the general reason Battlecries bake early but Deathrattles can't — an effect runs at the earliest point all the info it needs exists (effect-timing-pipeline, CLAUDE.md architecture section); and root vitest.config.ts's placeholder `__APP_VERSION__`/`__BUILD_SHA__` `define`, mirroring Vite's build-time substitution so tests importing store.ts don't crash on an undefined name (testing-vitest, vitest.config.ts). Verified all ten facts by reading the live source directly (packages/core/src/types.ts, packages/core/src/combat/minion.ts, packages/sim/src/reducer.ts, packages/ui/src/store.ts, packages/core/src/events.ts, packages/content/src/sets.ts, eslint.config.mjs, packages/core/src/effects/factories.ts, vitest.config.ts). Varied the correct-answer letter across questions (answer indices A,B,C,D,A,B,C,D,A,B) rather than clustering, and verified the embedded QUESTIONS array parses as valid JS (10 questions, 4 choices each, in-range unique answer, all 10 topicIds present and unique) via a node script before publishing. Published as an interactive Artifact and archived to docs/quiz/archive/2026-09-24.html."
+    },
+    {
+      "date": "2026-09-25",
+      "quizNumber": 44,
+      "difficulty": 1,
+      "topics": [
+        "what-is-a-function",
+        "deterministic-sim",
+        "seeded-rng",
+        "sim-ui-decoupling",
+        "monorepo-packages",
+        "pure-functions",
+        "data-vs-code",
+        "event-log-replay",
+        "eslint-rules",
+        "performance-memo"
+      ],
+      "scored": null,
+      "note": "Still no score ever reported by Mike (44 quizzes in), so mastery/difficulty stayed untouched. Picked this topic group (lastAsked 2026-09-23) over the other group (lastAsked 2026-09-24) to keep the spaced two-group rotation going. Manually reviewed the 5 most recent archives on this exact topic set (2026-09-15/17/19/21/23) by grepping their embedded QUESTIONS arrays, then wrote 10 fresh questions grounded in live source, avoiding every angle found there (isTribeOf, combatCastable, rng.ts pick's self-reference, instantiate()'s CardIndex miss for what-is-a-function; the three iteration-guard constants, effectIdentity's key/srcCard stamp, opponentPool.data.ts's seed/capturedAt/patch, CARD_INDEX staying global across set flips for deterministic-sim; shopArena's cursorRng reimplementation, the 'single source of randomness' doc comment, fork()'s parent-stream consumption for seeded-rng; PresentationPolicy living in core, which package owns the FX-def table, CombatBus.emit's sync in-core loop, nearly-100-files `import type` for sim-ui-decoupling; \"private\": true, apps/desktop's missing type:module, npm run perf's script location, tools' missing main/exports for monorepo-packages; nameMap() in combat-harness.ts, computeCombatOdds' 200-different-rng-calls, EMPTY_SIDE's Object.freeze default param, validateCards() throwing for pure-functions; universalTribe on 3 types, one CardDef interface for every tribe, runes.ts reusing the QuestReward engine, CARD_REF_EFFECTS' param-name map for data-vs-code; the improve event's amount/display split, the CombatEvent union's outer `&` intersection, \"don't hardcode the event count\", the death event's explicit side field for event-log-replay; the no-restricted-properties Math/random precision, the apps/desktop/release ignore comment, no-explicit-any:off contrast, the ignores-with-no-files entry, banMathRandom's tools inclusion for eslint-rules; and .pixifx-below's shared ticker, the perf-HUD task:0 diagnosis, the two perfMonitor.measure() hotspots, the 08-01 odds-probe async change, plateGild's worst-frame-unmoved judging rule for performance-memo). Wrote 10 new questions instead: `combatSide()`'s `{ ...EMPTY_SIDE, ...partial }` spread-merge-defaults pattern (what-is-a-function, core/src/combat/side.ts); `servedBoards` pinned on the FIRST recruit action to fix a named 'reload-divergence' bug — re-picking from a session-variable pool used to diverge across reloads (deterministic-sim, sim/src/reducer.ts:498-509); `Rng.state()`/`makeRng(rng.state())` as a serializable round-trip so a pure reducer can thread RNG through plain state (seeded-rng, core/src/rng.ts); combatTimeline.ts reusing the live replay's own `replayBeats()` instead of re-deriving moments, because two definitions of 'the moments of this fight' is how a preview drifts from what the player sees (sim-ui-decoupling, ui/src/choreographer/combatTimeline.ts); `\"@game/content\": \"*\"` resolving via npm workspaces' local-name symlink rather than the registry (monorepo-packages, ui/package.json + root workspaces glob); `poolFor()`'s module-level `resolved` Map cache vs. its own \"Pure + deterministic\" doc comment — referential transparency vs. internal memoization (pure-functions, content/src/sets.ts); `EffectDefSchema`'s `{on, do, params}` shape + `.strict()` catching a typo'd field before it ships silently broken (data-vs-code, content/src/schema.ts); the `step` field's \"finer is safer — merge, never split\" rule of thumb for extending the sim without breaking replay grouping (event-log-replay, core/src/combat/simulate.ts:74-95); `no-unused-vars`'s `'warn'` severity + `argsIgnorePattern: '^_'` for the positional-but-unused-parameter convention (eslint-rules, eslint.config.mjs:44); and the \"calibration trap\" — `LONG_FRAME_MS`/`JANK_MS` silently encoding a 60 Hz assumption that hid dropped frames on a 360 Hz display (performance-memo, docs/performance.md §0). Verified all ten facts by reading the live source directly (packages/core/src/combat/side.ts, packages/sim/src/reducer.ts, packages/core/src/rng.ts, packages/ui/src/choreographer/combatTimeline.ts, package.json + packages/ui/package.json, packages/content/src/sets.ts, packages/content/src/schema.ts, packages/core/src/combat/simulate.ts, eslint.config.mjs, docs/performance.md). Varied the correct-answer letter across questions (answer indices C,B,D,A,C,B,A,D,B,C — 2×A, 3×B, 3×C, 2×D) rather than clustering, and verified the embedded QUESTIONS array parses as valid JS (10 questions, 4 choices each, in-range unique answer, all 10 topicIds present and unique, no duplicates) via a node script before publishing. Published as an interactive Artifact and archived to docs/quiz/archive/2026-09-25.html."
     }
   ],
   "notes": "2026-08-15: refocused to ARCHITECTURE ONLY per Mike \u2014 removed game-rules topics (shop-vs-combat, auto-battler-loop) and expanded the code-architecture curriculum. Do not quiz on game rules; see the hard constraint in daily-prompt.md."

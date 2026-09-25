@@ -35,6 +35,9 @@ export const ANNOUNCER_TUNER_EVENTS = [
   'brokeTurn', 'finalShowdown', 'underdogOdds', 'heavyFavourite',
   'stalemate', 'oneResolve', 'armorGone', 'blowoutLoss', 'fiveWinStreak', 'losingStreak', 'streakBroken',
   'firstOut', 'playersRemain', 'lobbyLast', 'leaderboardTop', 'lateGame', 'roundMilestone', 'secondPlace',
+  // The second batch (owner 2026-09-25): in-fight moments, then the final-frame verdicts.
+  'sameCardDuel', 'firstBlood', 'overkill', 'wardBreak', 'rebirth', 'riseBack', 'avengeBig', 'echoChain', 'summonSwarm',
+  'tauntWall', 'flurry', 'pummel', 'lastStand', 'executeKill', 'executeKing', 'clutchWin', 'narrowLoss',
 ] as const satisfies readonly AnnouncerEvent[];
 
 type VolKey = `${AnnouncerEvent}Vol`;
@@ -114,6 +117,23 @@ const EVENT_LABEL: Record<AnnouncerEvent, string> = {
   lateGame: 'Past round 18 (1000 ms after the return)',
   roundMilestone: 'Round 10 / 15 / 20 (1000 ms after the return)',
   secondPlace: 'Finished 2nd (1000 ms)',
+  sameCardDuel: 'Same tier 6 minion on both boards (in the fight, 3 s in)',
+  firstBlood: 'First blood: the first death of the fight is theirs (as shown, 3 s in)',
+  overkill: 'Overkill: one hit of 50+ (as shown, 3 s in)',
+  wardBreak: 'Ward absorbs a lethal hit (as shown, 3 s in)',
+  rebirth: 'Rebirth: a minion returns at full stats (as shown, 3 s in)',
+  riseBack: 'Rise: a minion rises (as shown, 3 s in)',
+  avengeBig: 'Third Avenge of the fight (as shown, 3 s in)',
+  echoChain: 'Five Echoes in one fight (as shown, 3 s in)',
+  summonSwarm: 'Ten summons in one fight (as shown, 3 s in)',
+  tauntWall: 'Taunts absorb 5 attacks (as shown, 3 s in)',
+  flurry: 'Flurry kills twice in one swing turn (as shown, 3 s in)',
+  pummel: 'Pummel pays out (as shown, 3 s in)',
+  lastStand: 'Last minion kills 3 (as shown, 3 s in)',
+  executeKill: 'Execute kills a 50+ Health minion (as shown, 3 s in)',
+  executeKing: 'Execute kills a 100+ Health minion (as shown, 3 s in)',
+  clutchWin: 'Clutch win: one minion left at 3 Health or less (replay end)',
+  narrowLoss: 'Narrow loss: their one minion at 3 Health or less (replay end)',
 };
 
 /**

@@ -52,6 +52,23 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-09-25',
+    label: 'Announcer in the Fight',
+    changes: [
+      {
+        category: 'Systems',
+        text: 'The announcer now calls out big moments during fights, right as they happen.',
+        details: [
+          'First blood, a 50+ damage hit, a Ward that saves a minion from a killing blow, a minion Rising or returning with Rebirth.',
+          'A third Avenge, five Echoes, ten summons, Taunts soaking five attacks, a Flurry double kill, a Pummel payout, and your last minion taking down three.',
+          'Execute finishing off a 50+ or 100+ Health minion, and both boards fielding the same tier 6 minion.',
+          'At the end of a fight: a clutch win with one minion left on 3 Health or less, or a narrow loss to their last minion on 3 or less.',
+          'Skipping a fight skips its fight lines too.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-09-25',
     label: 'Announcer Moments',
     changes: [
       {

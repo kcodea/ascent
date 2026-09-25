@@ -83,7 +83,7 @@ const AUTHORED_BUFF_ROLL_MS = 140;
 /** How often an in-flight travel effect re-measures its target's settled slot, and the longest it keeps doing so
  *  (a backstop — the play's own `onDone` normally stops it). See `settleTarget`. */
 const SETTLE_REMEASURE_MS = 100;
-/** One step of a stepped reveal (`scheduleSteppedRoll`): short enough that steps 400 ms apart never overlap. */
+/** One step of a stepped reveal (`scheduleSteppedRoll`), at most: a step is cut to the gap before the next strike. */
 const STEP_ROLL_MS = 320;
 const SETTLE_MAX_MS = 3000;
 const COMBAT_ROLL_MS = 650;
@@ -1364,18 +1364,23 @@ export function useCombatReplay(
     const endMs = steps[steps.length - 1]!.atMs + STEP_ROLL_MS / speed + HOLD_GRACE_MS;
     const held = heldFor(uid); // just placed this beat, nothing revealed yet: the whole delta
     if (held && endMs > COMBAT_HOLD_TTL_MS / speed) replaceHold(uid, held, { origin: 'effect', ttlMs: endMs });
-    for (const step of steps) {
+    steps.forEach((step, k) => {
+      // Each step finishes before the NEXT strike lands, so a close cascade (200 ms apart) still reads as
+      // separate numbers instead of the next step cutting this roll short. `step.atMs` is wall-clock, and
+      // `driveRollSegment` divides by speed, so the gap is converted back into speed-1 ms here.
+      const next = steps[k + 1];
+      const rollMs = next ? Math.min(STEP_ROLL_MS, Math.max(0, (next.atMs - step.atMs) * speed)) : STEP_ROLL_MS;
       const id = ++rollRegistryIdRef.current;
       const entry: { uid: string; strikeTimer: number | null; cancelRoll: (() => void) | null } =
         { uid, strikeTimer: null, cancelRoll: null };
       entry.strikeTimer = window.setTimeout(() => {
         entry.strikeTimer = null;
-        entry.cancelRoll = driveRollSegment(uid, step.from, step.to, STEP_ROLL_MS, () => combatSpeedRef.current, () => {
+        entry.cancelRoll = driveRollSegment(uid, step.from, step.to, rollMs, () => combatSpeedRef.current, () => {
           rollRegistryRef.current.delete(id);
         });
       }, step.atMs);
       rollRegistryRef.current.set(id, entry);
-    }
+    });
   }, []);
 
   const scheduleRoll = useCallback((uid: string, ms: number): void => {

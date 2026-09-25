@@ -14,7 +14,7 @@ describe('sourceCascadeRanks — left-most source fires first (owner 2026-09-24,
     const xs: Record<string, number> = { right: 900, left: 100, mid: 500 };
     const ranks = sourceCascadeRanks([cast('right', 't'), cast('left', 't'), cast('mid', 't')], (u) => xs[u] ?? null, all);
     expect([...ranks.entries()]).toEqual([['left', 0], ['mid', 1], ['right', 2]]);
-    expect(SOURCE_CASCADE_MS).toBe(400);
+    expect(SOURCE_CASCADE_MS).toBe(200);
   });
 
   it('every cast from one source shares its rank', () => {

@@ -766,13 +766,29 @@ describe('fxDef channel — buffed (cross-buff) fan-out', () => {
 
   beforeEach(() => { mockPlayDef.mockClear(); mockAnchors.mockClear(); mockCanPlayDefs.mockReturnValue(true); });
 
-  it("plays the card's def once per unit it buffed, anchored source→each target", () => {
+  // R-BUFFFX-01 (owner 2026-09-24, King Oona's banana): a MINION's buff with no spell behind it belongs to the
+  // tendril path, which plays the card's `buffed` def IN PLACE of the tendril (`fireBuffCasts`). The fan-out
+  // stands down for it, so the def plays once per unit, not twice.
+  it("hands a minion's own buffs to the tendril path and does not play the def a second time", () => {
     const events = [buffOther('k', 'd1'), buffOther('k', 'd2')];
-    runMomentCues(moment('buffWave', events), baseCtx(events, withCard('k', 'karwind')));
-    expect(mockPlayDef).toHaveBeenCalledTimes(2);
-    expect(mockPlayDef.mock.calls.every((c) => c[0] === 'flame-ring')).toBe(true);
-    expect(mockAnchors).toHaveBeenCalledWith('k', 'd1');
-    expect(mockAnchors).toHaveBeenCalledWith('k', 'd2');
+    const ctx = baseCtx(events, withCard('k', 'karwind'));
+    runMomentCues(moment('buffWave', events), ctx);
+    expect(mockPlayDef).not.toHaveBeenCalled();
+    expect(ctx.onBuffCasts).toHaveBeenCalledWith(expect.arrayContaining([
+      expect.objectContaining({ source: 'k', target: 'd1' }), expect.objectContaining({ source: 'k', target: 'd2' }),
+    ]));
+  });
+
+  it("a SPELL's own buffed row still plays from here, once per unit it buffed, anchored source→each target", () => {
+    const events = [{ ...buffOther('k', 'd1'), spellId: 'zz_spell' }, { ...buffOther('k', 'd2'), spellId: 'zz_spell' }] as CombatEvent[];
+    setBinding('zz_spell', 'buffWave', { def: 'spell-ring', fanOut: 'buffed' });
+    try {
+      runMomentCues(moment('buffWave', events), baseCtx(events, withCard('k', 'karwind')));
+      expect(mockPlayDef).toHaveBeenCalledTimes(2);
+      expect(mockPlayDef.mock.calls.every((c) => c[0] === 'spell-ring')).toBe(true);
+      expect(mockAnchors).toHaveBeenCalledWith('k', 'd1');
+      expect(mockAnchors).toHaveBeenCalledWith('k', 'd2');
+    } finally { resetBindings(); }
   });
 
   // A self-buff is the OTHER channel's job — the buffed fan-out rides only source→target (cross) buffs.

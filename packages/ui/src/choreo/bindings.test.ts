@@ -203,6 +203,9 @@ const BINDINGS: Record<string, { def: string }> = {
  */
 const CARD_BINDINGS: Record<string, Record<string, { def: string; fanOut?: string; sfx?: string; critDef?: string; launchOnDeath?: boolean }>> = {
   b2_echohorn: { rally: { def: 'echohorn-target-sparkle' } },
+  // King Oona doubling a summoned Beast in combat: a banana flies Oona → that Beast (owner 2026-09-24). Its own
+  // `buffWave` moment with Oona as the source, so the Karwind `buffed` fan-out reaches it.
+  b2_oona: { buffWave: { def: 'oona-banana', fanOut: 'buffed' } },
   bloodbinder: { scCast: { def: 'ruby-lance', fanOut: 'damaged' } },
   // Broodfire's Shout buffs every Dragon; the authored def cascades over each one it pumped (owner 2026-09-01).
   // Shop-only by construction — a Shout has no combat moment — so there is no `buffWave` row to pair with it.

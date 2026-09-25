@@ -23,7 +23,7 @@ import { canPlayDefs, playDef } from '../fx/playDef';
 import { sfx } from '../sfx';
 import { anchorsForUnits } from '../fx/combatAnchors';
 import { claimDamageFx, damagedUidsIn, struckUidsIn, expireDamageFxClaim, isDamageFxClaimed } from './cardFx';
-import { bindingFor } from './bindings';
+import { bindingFor, sourceBuffDefFor } from './bindings';
 import { spellCastsIn, type CombatSpellCast } from './channels/castPreview';
 import { playCombatSpellCastFx } from '../fx/spellCastFx';
 
@@ -958,12 +958,18 @@ export function runMomentCues(moment: Moment, ctx: CueContext): () => void {
         at(cue, () => {
           // Once per unit the source EMPOWERED (source !== target) — Karwind pumping every Dragon. Rides the
           // exact same `groupBuffCasts` the tendril channel uses, so the def lands on precisely the units that
-          // grew, at their own anchor (`target`). Additive: the buff tendril still fires; this plays on top.
-          // `index` drives per-recipient `stagger`, matching the `damaged` fan-out.
-          groupBuffCasts(moment, ctx.events).forEach((c, i) => {
-            const fanAnchors = anchorsForUnits(c.source, c.target);
-            if (fanAnchors) playDef(binding.def, fanAnchors, { uids: { source: c.source, target: c.target }, index: i, gain: binding.gain });
-          });
+          // grew, at their own anchor (`target`). `index` drives per-recipient `stagger`, matching `damaged`.
+          // ONE PLAY PER BUFF (owner 2026-09-24, King Oona's banana: "banana replaces tendril"). A buff a MINION
+          // gave with no spell behind it is the `buffCast` channel's: `fireBuffCasts` plays this same def IN
+          // PLACE of the tendril (`sourceBuffDefFor`), on a standalone wave as well as a swing. Playing it here
+          // too threw two bananas (and two Karwind flame rings) at every unit. The `buffedOn` mirror below skips
+          // spell buffs for the same reason. What is left here is a buff a spell produced.
+          groupBuffCasts(moment, ctx.events)
+            .filter((c) => !(c.spellId === undefined && sourceBuffDefFor(ctx.cardIds?.get(c.source) ?? null) !== null))
+            .forEach((c, i) => {
+              const fanAnchors = anchorsForUnits(c.source, c.target);
+              if (fanAnchors) playDef(binding.def, fanAnchors, { uids: { source: c.source, target: c.target }, index: i, gain: binding.gain });
+            });
         });
       } else if (binding.fanOut === 'buffedOn') {
         at(cue, () => {

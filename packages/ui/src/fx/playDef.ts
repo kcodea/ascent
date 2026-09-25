@@ -128,6 +128,16 @@ export interface PlayDefOptions extends FxScaleAxes {
    */
   follow?: () => { x: number; y: number } | null;
   /**
+   * A per-frame TARGET anchor for a one-shot whose destination may move during the flight — King Oona's banana
+   * landing where a summoned Beast ENDS UP while later summons keep sliding it over (owner 2026-09-24). Only
+   * `target` is replaced; `source`/`cursor` stay the fire-time snapshot, and the play still retires on its own.
+   *
+   * NOT a layout read: the getter must be arithmetic only (see `fx/settledSlot.ts`'s `createSettlingPoint`,
+   * which eases toward a goal the CALLER re-measures once per beat). The snapshot rule in the module header
+   * stands — this exists so a caller that measures on its own clock can steer an in-flight travel.
+   */
+  target?: () => { x: number; y: number } | null;
+  /**
    * A per-call PALETTE recolor: a 4-stop rim→core palette (`0xRRGGBB` numbers) written onto every
    * palette-bearing layer before the def plays, so ONE committed def can fire in a caller-chosen colour — the
    * milestone celebration plays the single bound `rune-select-implosion` in each tier's colour this way. It is
@@ -663,6 +673,9 @@ function playDefInner(
       }
       container.visible = true;
       live = { source: p, target: p, cursor: p };
+    } else if (opts.target) {
+      const t = opts.target();
+      if (t) live = { ...anchors, target: t };
     }
     driveLayerHeads(player, layers, live, fireProgress(nowMs, def.duration), null, {
       timeMs: nowMs,

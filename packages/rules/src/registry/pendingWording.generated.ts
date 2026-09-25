@@ -103,17 +103,17 @@ export const WORDING_PENDING: GameRule[] = [
   },
   {
     "id": "q-word-lg-position-01",
-    "title": "Wording: left-most vs leftmost · 76 vs 1",
+    "title": "Wording: left-most vs leftmost · 75 vs 1",
     "statement": "Positional words are hyphenated: \"left-most\" / \"right-most\", never \"leftmost\". — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "text",
     "status": "needs-ruling",
-    "currentBehaviour": "Both spellings are live: \"left-most\" in 76 printed texts, \"leftmost\" in 1. Approving picks \"left-most\"; the LG-POSITION-01 guide predicate then watches new text.",
+    "currentBehaviour": "Both spellings are live: \"left-most\" in 75 printed texts, \"leftmost\" in 1. Approving picks \"left-most\"; the LG-POSITION-01 guide predicate then watches new text.",
     "cardText": "\"left-most\" — Echohorn: \"Rally: trigger your left-most Echo.\" · \"leftmost\" — Grave Body: \"Copy your leftmost Echo when summoned.\"",
     "example": "Grave Body would be re-worded to the \"left-most\" form; mechanics untouched.",
     "evidence": [
       {
         "kind": "docbot-scan",
-        "ref": "textParse.wording · LG-POSITION-01 (corpus survey: 76 vs 1)"
+        "ref": "textParse.wording · LG-POSITION-01 (corpus survey: 75 vs 1)"
       }
     ],
     "sourceQueue": "textParse.wording",
@@ -129,17 +129,17 @@ export const WORDING_PENDING: GameRule[] = [
   },
   {
     "id": "q-word-lg-trigger-01",
-    "title": "Wording: Shout vs Battlecry · 140 vs 40",
+    "title": "Wording: Shout vs Battlecry · 141 vs 40",
     "statement": "On-play triggers print \"Shout\" everywhere; every \"Battlecry\" in card text is updated to match. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "text",
     "status": "needs-ruling",
-    "currentBehaviour": "Both spellings are live: \"Shout\" in 140 printed texts, \"Battlecry\" in 40. Approving picks \"Shout\"; the LG-TRIGGER-01 guide predicate then watches new text.",
+    "currentBehaviour": "Both spellings are live: \"Shout\" in 141 printed texts, \"Battlecry\" in 40. Approving picks \"Shout\"; the LG-TRIGGER-01 guide predicate then watches new text.",
     "cardText": "\"Shout\" — Dawnclaw: \"Taunt. Echo: trigger an adjacent minion's Shout.\" · \"Battlecry\" — Pennycat: \"Battlecry: summon a 1/1 Stray next to it.\"",
     "example": "Pennycat would be re-worded to the \"Shout\" form; mechanics untouched.",
     "evidence": [
       {
         "kind": "docbot-scan",
-        "ref": "textParse.wording · LG-TRIGGER-01 (corpus survey: 140 vs 40)"
+        "ref": "textParse.wording · LG-TRIGGER-01 (corpus survey: 141 vs 40)"
       }
     ],
     "sourceQueue": "textParse.wording",

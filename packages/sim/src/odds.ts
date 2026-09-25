@@ -45,14 +45,14 @@ export interface OddsProbe {
 }
 
 export function createOddsProbe(input: CombatOddsInput, seed: number, wave: number, sims = COMBAT_ODDS_SIMS): OddsProbe {
-  let win = 0, draw = 0, lose = 0, lossDamageTotal = 0, i = 0;
+  let win = 0, draw = 0, lose = 0, lossDamageTotal = 0, winDamageTotal = 0, i = 0;
   const lossDamages: number[] = []; // per-sim, for the recap's typical-loss RANGE (display only)
   const cap = lossDamageCap(wave);
   const step = (n: number): boolean => {
     const end = Math.min(sims, i + Math.max(0, n));
     for (; i < end; i++) {
       const r = simulate(input.player, input.enemy, makeRng(mixSeed(seed, wave, TAG.ODDS, i)), CARD_INDEX, input.playerState, input.enemyState, input.config);
-      if (r.result === 'win') win++;
+      if (r.result === 'win') { win++; winDamageTotal += Math.min(r.enemyDamage ?? 0, cap); } // round-capped, as the recap's real "You dealt" is
       else if (r.result === 'draw') draw++;
       else { const d = Math.min(r.playerDamage, cap); lose++; lossDamageTotal += d; lossDamages.push(d); } // round-capped, as a real loss would be
     }
@@ -65,7 +65,7 @@ export function createOddsProbe(input: CombatOddsInput, seed: number, wave: numb
     result: () => {
       const n = Math.max(1, i);
       const range = lossDamageRangeOf(lossDamages);
-      return { win: win / n, draw: draw / n, lose: lose / n, avgLossDamage: lose > 0 ? lossDamageTotal / lose : 0, ...(range ? { lossDamageRange: range } : {}) };
+      return { win: win / n, draw: draw / n, lose: lose / n, avgLossDamage: lose > 0 ? lossDamageTotal / lose : 0, avgWinDamage: win > 0 ? winDamageTotal / win : 0, ...(range ? { lossDamageRange: range } : {}) };
     },
   };
 }

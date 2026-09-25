@@ -373,7 +373,7 @@ export const PERSISTENCE_RULES: GameRule[] = [
     status: 'approved',
     evidence: [
       { kind: 'owner-chat', ref: 'FX Library session, 2026-09-25', quote: 'can we not have it automatically refresh the server every time something new is added? id much rather put a "Save all edits" button in the bottom left below the Set 1,2,3 options with a big orange button' },
-      { kind: 'fix-pr', ref: 'feat/fxlib-save-all-edits (FX Library Save all edits)' },
+      { kind: 'fix-pr', ref: 'https://github.com/kcodea/ascent/pull/1728 (feat/fxlib-save-all-edits)' },
       { kind: 'code', ref: 'apps/web/fxDefsPlugin.ts BINDING_FAN_OUTS; packages/ui/src/fx/ui/LibraryBrowser.tsx saveAllEdits; packages/ui/src/fx/pendingDefs.ts; packages/ui/src/choreo/bindings.ts hasUnsavedBindings' },
     ],
     currentBehaviour:

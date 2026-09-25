@@ -67,6 +67,16 @@ export const PATCH_NOTES: PatchNote[] = [
   },
   {
     date: '2026-09-25',
+    label: 'Announcer Cap Removed',
+    changes: [
+      {
+        category: 'Systems',
+        text: 'The announcer no longer stops talking after 15 lines in a game. Lines are still spaced out, and each moment is still announced once.',
+      },
+    ],
+  },
+  {
+    date: '2026-09-25',
     label: 'New Game Start Lines',
     changes: [
       {

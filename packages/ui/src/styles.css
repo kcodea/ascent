@@ -6447,6 +6447,11 @@ svg { width: 18px; height: 18px; }
 /* THE AUDIO PANEL (2026-09-23): the three channel rows behind the "Audio" button; each row's mute is a small pill.
    No cursor keyword here: the global button rule paints the gauntlet. */
 .escaudio { display: flex; flex-direction: column; }
+/* Owner ask 2026-09-24: the three channel sliders must line up. Each row is a flex line, so a label's own width
+   decided where its slider started ("Game sounds" pushed its track right of "Music"'s). A fixed label column and a
+   fixed Mute pill ("Mute"/"Muted") give every track the same start, end and length. */
+.escaudio .escvol .evl { flex: 0 0 104px; }
+.escaudio .escvol .escmute { min-width: 76px; }
 .escvol .escmute { flex: 0 0 auto; font-family: var(--font-ui); font-weight: 800; font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink3); background: var(--card); border: 2px solid var(--line); border-radius: 99px; padding: 5px 11px; }
 .escvol .escmute:hover { border-color: var(--acc); }
 .escvol .escmute.on { color: var(--acc-dk); border-color: var(--acc); background: color-mix(in srgb, var(--acc) 15%, var(--card)); }

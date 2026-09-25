@@ -52,6 +52,24 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-09-25',
+    label: 'More Announcer Moments',
+    changes: [
+      {
+        category: 'Systems',
+        text: 'The announcer has 36 more moments to call out, from refresh streaks and rune picks to rematches and a few famous cards.',
+        details: [
+          'Shop: your first Freeze, a fifth Refresh in one turn, a rush of Gold from effects, the odd Kobold buy, a Discover opening (always for a tier 6 one), a huge single buff, your first Choose One and one that gets both effects, your first Equipment use, a tenth hero power, and quests being offered or completed.',
+          'Runes: picking, skipping or re-rolling the Runeforge, filling all three rune sockets, picking Happy Birthday, and a counter rune paying out for the third time.',
+          'Pacing: ending a turn fast after a shopping spree, standing idle for a while, and the clock running out.',
+          'Into a fight: facing a ghost, a much higher tier, a Kobold mirror or the player who hit you hardest; and beating someone on a three-win streak.',
+          'Specials: Dark Ruby, Ripple Ruby under Rune of Resonance, Disco Dan\'s opening Discovers, Great Pot or Picnic on a full board, Yazzus doubling a spell, a big Starform collapse, Flo Rida, a well-fed Goldilox and a Gemheart Golem army.',
+          'Reopening a saved game gets a welcome back.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-09-25',
     label: 'Seconds',
     changes: [
       { category: 'Systems', text: 'The announcer has something to say the first time Bob Blart and Chronos share your board.' },

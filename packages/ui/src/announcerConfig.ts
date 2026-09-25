@@ -39,6 +39,13 @@ export const ANNOUNCER_TUNER_EVENTS = [
   'sameCardDuel', 'firstBlood', 'overkill', 'wardBreak', 'rebirth', 'riseBack', 'avengeBig', 'echoChain', 'summonSwarm',
   'tauntWall', 'flurry', 'pummel', 'lastStand', 'executeKill', 'executeKing', 'clutchWin', 'narrowLoss',
   'blartChronos',
+  // ── The moment catalog's third batch (owner 2026-09-25, group C), in the same rough game order ──
+  'resumeGame', 'firstFreeze', 'refreshStreak', 'goldRush', 'tribeBuyLines', 'discoverOpen', 'discoDanChain', 'questOffered',
+  'questComplete', 'chooseOnePlay', 'bothEffects', 'bigBuffMoment', 'equipmentUsed', 'heroPowerBig', 'runePick', 'runeSkip',
+  'runeReroll', 'runeSlotsFull', 'seasonalRune', 'runePayout', 'darkRuby', 'rippleResonance', 'greatPot', 'yazzusDouble',
+  'starformCollapse', 'floRida', 'goldilox', 'gemheartGolem', 'idle', 'timeUp', 'fastTurn',
+  'ghostFight', 'mirrorMatch', 'outgunned', 'rematch', 'streakStopper',
+  // ── end of the third batch ──
 ] as const satisfies readonly AnnouncerEvent[];
 
 type VolKey = `${AnnouncerEvent}Vol`;
@@ -136,6 +143,43 @@ const EVENT_LABEL: Record<AnnouncerEvent, string> = {
   clutchWin: 'Clutch win: one minion left at 3 Health or less (replay end)',
   narrowLoss: 'Narrow loss: their one minion at 3 Health or less (replay end)',
   blartChronos: 'Bob Blart and Chronos together on the board, first time (0 ms)',
+  // ── The moment catalog's third batch (owner 2026-09-25, group C) ──
+  resumeGame: 'Save & Continue reopened (4000 ms after the run lands)',
+  firstFreeze: 'First Freeze of the game (0 ms)',
+  refreshStreak: '5th Refresh in one turn (0 ms)',
+  goldRush: '10+ Gold gained from effects in one turn (0 ms)',
+  tribeBuyLines: 'Kobold buy, 6% (0 ms; the one take is the Kobold line)',
+  discoverOpen: 'A Discover opens, 10%; tier 6 always (0 ms)',
+  discoDanChain: 'Disco Dan finishes his turn-1 Discovers (0 ms)',
+  questOffered: 'A quest is offered (0 ms; 1000 ms on the return)',
+  questComplete: 'A quest completes (0 ms)',
+  chooseOnePlay: 'First Choose One card played (0 ms)',
+  bothEffects: 'A Choose One gets both effects (0 ms)',
+  bigBuffMoment: 'One effect gives a minion +20/+20 (0 ms)',
+  equipmentUsed: 'First Equipment use (400 ms)',
+  heroPowerBig: 'Hero power used 10 times (0 ms)',
+  runePick: 'Picked a rune (0 ms)',
+  runeSkip: 'Left the Runeforge without a rune (0 ms)',
+  runeReroll: 'Re-rolled the Runeforge (0 ms)',
+  runeSlotsFull: 'All three rune sockets filled (0 ms)',
+  seasonalRune: 'Picked Happy Birthday (0 ms)',
+  runePayout: 'A counter rune pays out a 3rd time (0 ms; 1000 ms on the return)',
+  darkRuby: 'A Dark Ruby eats a Shop minion (0 ms)',
+  rippleResonance: 'Ripple Ruby lands 4 times under Resonance (0 ms)',
+  greatPot: 'Great Pot / Picnic cast on a full board (0 ms)',
+  yazzusDouble: 'Yazzus doubles a targeted spell from hand (0 ms)',
+  starformCollapse: 'Starform over 30 Attack collapses (0 ms)',
+  floRida: 'Flo Rida\'s Beast buff, first time in the Shop (0 ms)',
+  goldilox: 'Goldilox past +20/+20 in hand (0 ms)',
+  gemheartGolem: '3+ Gemheart Golems on board (0 ms, 3 s into a fight)',
+  idle: 'No action for 20 s of Shop clock (0 ms)',
+  timeUp: 'The Shop clock hits 0 (0 ms)',
+  fastTurn: 'Turn ended with 40+ s left after 3+ buys (1600 ms)',
+  ghostFight: 'Facing a ghost (1600 ms)',
+  mirrorMatch: 'Kobold board against a Kobold board (1600 ms)',
+  outgunned: 'Foe\'s tier 2+ above yours (1600 ms)',
+  rematch: 'Facing whoever hit you hardest (1600 ms)',
+  streakStopper: 'Beat a foe on a 3+ win streak (verdict)',
 };
 
 /**
@@ -155,6 +199,10 @@ ANNOUNCER_CHANCE.randomBeastBuy = 0.06;
 ANNOUNCER_CHANCE.randomDwarfBuy = 0.06;
 // Round 7: 10% when wave 7's Shop opens (owner ruling 2026-09-24, unchanged).
 ANNOUNCER_CHANCE.round7 = 0.1;
+// The moment catalog's third batch (owner 2026-09-25): the catalog's own chances. A tier 6 Discover always speaks
+// (see `detectDiscover` in announcer.ts, which skips this roll for it).
+ANNOUNCER_CHANCE.tribeBuyLines = 0.06;
+ANNOUNCER_CHANCE.discoverOpen = 0.1;
 
 export const ANNOUNCER_VOL_RANGE: [number, number, number] = [0, 200, 5];
 export const ANNOUNCER_OFFSET_RANGE: [number, number, number] = [-2000, 3000, 50];

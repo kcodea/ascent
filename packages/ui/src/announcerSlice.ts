@@ -102,7 +102,45 @@ export type AnnouncerEvent =
   | 'clutchWin'
   | 'narrowLoss'
   // The owner's own moment (2026-09-25, the tracker): Bob Blart and Chronos together.
-  | 'blartChronos';
+  | 'blartChronos'
+  // ── The moment catalog's third batch (owner 2026-09-25, group C): moments that needed new tallies / signals ──
+  | 'goldRush'
+  | 'refreshStreak'
+  | 'discoverOpen'
+  | 'firstFreeze'
+  | 'tribeBuyLines'
+  | 'runePayout'
+  | 'runeReroll'
+  | 'runeSkip'
+  | 'runePick'
+  | 'runeSlotsFull'
+  | 'equipmentUsed'
+  | 'heroPowerBig'
+  | 'questComplete'
+  | 'questOffered'
+  | 'bothEffects'
+  | 'chooseOnePlay'
+  | 'bigBuffMoment'
+  | 'fastTurn'
+  | 'idle'
+  | 'timeUp'
+  | 'ghostFight'
+  | 'mirrorMatch'
+  | 'outgunned'
+  | 'rematch'
+  | 'streakStopper'
+  | 'resumeGame'
+  | 'darkRuby'
+  | 'discoDanChain'
+  | 'floRida'
+  | 'goldilox'
+  | 'gemheartGolem'
+  | 'greatPot'
+  | 'rippleResonance'
+  | 'starformCollapse'
+  | 'yazzusDouble'
+  | 'seasonalRune';
+  // ── end of the third batch ──
 
 export interface AnnouncedSlice {
   seed: number;

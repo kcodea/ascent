@@ -39,8 +39,9 @@ function anim(el: Element | null, frames: Keyframe[], opts: KeyframeAnimationOpt
 }
 
 /** One ornamental arm: a filigree line with a scroll curl at its outer end and a double chevron pointing in
- *  at the words. Drawn for the LEFT side; the right arm is the same art mirrored by its wrapper. */
-function Flourish(): JSX.Element {
+ *  at the words. Drawn for the LEFT side; the right arm is the same art mirrored by its wrapper. Also worn, at
+ *  heading size, by the Discover / Choose One title banner (`discoverEntrance/OfferBanner.tsx`). */
+export function Flourish(): JSX.Element {
   return (
     <svg className="gli-flour-svg" viewBox="0 0 260 48" aria-hidden="true">
       <path className="gli-flour-line" d="M34 24 H214" />

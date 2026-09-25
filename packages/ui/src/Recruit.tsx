@@ -49,6 +49,11 @@ import { deriveDragDecision, dragDecisionEqual, computeCastingSpell, NO_DRAG_DEC
 import { dragStore, useDragSlice, type DragSnapshot, type DragState } from './dragStore';
 import { QuestCard } from './QuestCard';
 import { RuneforgeDialog } from './runeforgeEntrance/RuneforgeDialog';
+import { DiscoverDialog, EntranceOverlay, OfferSheen } from './discoverEntrance/DiscoverDialog';
+import { OfferBanner } from './discoverEntrance/OfferBanner';
+import { DiscoverPeekToggle } from './discoverEntrance/DiscoverPeekToggle';
+import { chooseOneSourceName } from './discoverEntrance/offerSource';
+import { discoverOccasion } from './discoverEntrance/useOfferEntrance';
 import { RuneLockIn, type RuneLockInCard } from './RuneLockIn';
 import { captureRuneLockIn } from './runeLockInCapture';
 import { getRuneLockInConfig, stretchLockIn } from './runeLockInConfig';
@@ -113,6 +118,7 @@ import { getShopDeathFxConfig } from './shopDeathFxConfig';
 import { getEquipFxConfig } from './equipFxConfig';
 import { anchorsForUnits } from './fx/combatAnchors';
 import { rubyLandHolds, RUBY_BEAT_MS, RUBY_GAP_MS, DARK_RUBY_CONSUME_DELAY_MS } from './choreo/channels/rubyLanded';
+import { chooseOneHeldSlot } from './chooseOneHold';
 import { captureRecruitSeqs, chooseOneMoment, endOfTurnMoment, minionPlayedMoment, recruitMomentsSince, recruitSeqsOf, selfBuffMoment, shieldGainMoment, shoutMoment, spellCastMoment } from './choreo/recruitMoments';
 import { runRecruitMomentCues } from './choreo/recruitCues';
 import { bindingFor, castFxReplacesTendril } from './choreo/bindings';
@@ -136,6 +142,8 @@ import { chargeTune, useChargePreview } from './chargeGlyphTune';
 import { ChargeMotes } from './chargeMotes';
 import { wipeFx } from './wipeFx';
 import { wipeOriginFor, type WipeOrigin } from './wipeGeometry';
+import { afterBeat, afterSweep, barClassFor, combatBackdropShown, curtainClassFor, frontClassFor, wipeExiting, wipeSweeping, wipeUp, type WipeState } from './wipeMachine';
+import { getScreenWipeConfig, wipeCssVars } from './screenWipeConfig';
 
 /** Golden Ruby's coin cue: a beat after its gem (so the two read as "Ruby, then Gold"), and spaced when a
  *  multi-cast Golden Ruby pays several times in one action. */
@@ -1758,9 +1766,10 @@ export function Recruit() {
    * iterates (`handViews.get(m.uid)!`), so dropping the entry while the row still walked `run.hand` crashed
    * Card on `undefined.attack` (caught live, 2026-09-01). The view map stays complete; only the row skips it.
    */
-  const chooseOnePreviewUid = run.chooseOne && !run.chooseOne.spell && !run.chooseOne.equipmentId
-    ? run.chooseOne.uid
-    : undefined;
+  // Held through BOTH open steps of the play — the prompt AND a targeted branch's aim (owner bug 2026-09-25);
+  // see `chooseOneHeldSlot`. Memoized on the two fields so the board splice below keeps a stable identity.
+  const chooseOneHeld = useMemo(() => chooseOneHeldSlot({ chooseOne: run.chooseOne, pendingTarget: run.pendingTarget }), [run.chooseOne, run.pendingTarget]);
+  const chooseOnePreviewUid = chooseOneHeld?.uid;
   const handShown = chooseOnePreviewUid
     ? run.hand.filter((c) => c.uid !== chooseOnePreviewUid)
     : run.hand;
@@ -1918,24 +1927,17 @@ export function Recruit() {
   // curtain stays parked while wipeFx spirals motes into the gem, then the bloom erupts. The EXIT reuses
   // `primeOut` for the same tell — it already parks the zero circle, so it just holds for the charge
   // duration instead of one frame.
-  type WipeState = 'idle' | 'chargeIn' | 'coverIn' | 'coveredIn' | 'revealIn' | 'combat' | 'primeOut' | 'coverOut' | 'coveredOut' | 'revealOut';
   const [wipe, setWipe] = useState<WipeState>(() => (run.phase === 'combat' ? 'combat' : 'idle'));
-  // Per-STAGE sweep duration + the full-blue hold between stages — single source: the CSS var below is set
-  // FROM WIPE_MS, and the backstop timer derives from it (+150ms margin), so retuning here can never strand
-  // the state machine mid-sweep.
-  const WIPE_MS = 450;
-  // ENTRY holds long enough to read the NOW FACING announcement on the blue; EXIT has no announcement and
-  // stays snappy.
-  const WIPE_HOLD_IN_MS = 900;
-  const WIPE_HOLD_OUT_MS = 700;
-  // The gem tell's length (both directions) — long enough to read as anticipation, short enough not to lag
-  // the transition.
-  const WIPE_CHARGE_MS = 260;
-  const wipeSweeping = wipe === 'coverIn' || wipe === 'revealIn' || wipe === 'coverOut' || wipe === 'revealOut';
-  const wipeExiting = wipe === 'primeOut' || wipe === 'coverOut' || wipe === 'coveredOut' || wipe === 'revealOut';
+  // Every duration, the easing, the shape and the edge come from the Screen wipe tuner (screenWipeConfig.ts;
+  // production plays its baked defaults). Read per render: the machine only moves between wipes, so a slider
+  // change shows on the next one. The CSS vars below are set FROM the same numbers, and the sweep backstop
+  // derives from them (+400ms), so retuning can never strand the state machine mid-sweep.
+  const wipeCfg = getScreenWipeConfig();
+  const wipeIsSweeping = wipeSweeping(wipe);
+  const wipeIsExiting = wipeExiting(wipe);
   // GEM ORIGIN — measured ONCE at the start of each cover sweep (a one-shot layout read, not per-frame;
-  // see CLAUDE.md perf rules), then handed to the CSS as `--wipe-cx/--wipe-cy/--wipe-r/--wipe-front-scale`.
-  // The radius is the distance to the farthest viewport corner and the ring's scale is derived from it (see
+  // see CLAUDE.md perf rules), then handed to the CSS (`wipeCssVars`: `--wipe-cx/cy/rx/ry`, `--wipe-front-sx/sy`). The
+  // ellipse reaches the farthest viewport corner and the ring's scale is derived from it (see
   // wipeGeometry.ts), so `.full` provably covers the whole screen — 16:9, 21:9 or 32:9 — and the ring rides
   // the seam all the way out (owner bug 2026-09-24: the ring was a fixed 16:9 size and stalled mid-screen on
   // ultrawide). Re-measured on resize while a wipe is on screen, so a mid-wipe window change still covers.
@@ -1945,7 +1947,8 @@ export function Recruit() {
   const wipeOriginRef = useRef<WipeOrigin | null>(null);
   const measureWipeOrigin = useCallback((): void => {
     const gem = document.querySelector('.etbwrap .etb-gembox') ?? document.querySelector('.etbwrap');
-    const o = wipeOriginFor(window.innerWidth, window.innerHeight, gem ? gem.getBoundingClientRect() : null);
+    const c = getScreenWipeConfig();
+    const o = wipeOriginFor(window.innerWidth, window.innerHeight, gem ? gem.getBoundingClientRect() : null, { ellipse: c.ellipse, ringLine: c.ringLine });
     wipeOriginRef.current = o;
     setWipeOrigin(o);
   }, []);
@@ -1955,7 +1958,14 @@ export function Recruit() {
     if (wipe !== 'chargeIn' && wipe !== 'primeOut') return;
     measureWipeOrigin();
   }, [wipe, measureWipeOrigin]);
-  const wipeOnScreen = wipe !== 'idle' && wipe !== 'combat';
+  const wipeOnScreen = wipeUp(wipe);
+  // `body.wipe-up` while the curtain is up (owner 2026-09-24: "sometimes background elements come through the
+  // wipe or it flickers"): hides the hover layers that sit above the curtain's z (card references, cast
+  // previews, game tooltips) and holds the lobby's damage float until the reveal is done (lobbyDamageFx.ts).
+  useLayoutEffect(() => {
+    document.body.classList.toggle('wipe-up', wipeOnScreen);
+  }, [wipeOnScreen]);
+  useEffect(() => () => document.body.classList.remove('wipe-up'), []);
   useEffect(() => {
     if (!wipeOnScreen) return undefined;
     window.addEventListener('resize', measureWipeOrigin);
@@ -1974,37 +1984,34 @@ export function Recruit() {
     const o = wipeOriginRef.current;
     if (wipe === 'idle') { wipeFx.clear(); return; }
     if (!o) return;
-    if (wipe === 'chargeIn' || wipe === 'primeOut') wipeFx.charge(o.cx, o.cy, WIPE_CHARGE_MS + 80);
-    else if (wipe === 'coverIn') wipeFx.bloom(o.cx, o.cy, o.r, WIPE_MS);
-    else if (wipe === 'coverOut') { wipeFx.bloom(o.cx, o.cy, o.r, WIPE_MS); wipeFx.inhale(o.cx, o.cy, o.r, WIPE_MS + 200); }
+    const c = getScreenWipeConfig();
+    const ease: [number, number, number, number] = [c.easeX1, c.easeY1, c.easeX2, c.easeY2];
+    if (wipe === 'chargeIn' || wipe === 'primeOut') wipeFx.charge(o.cx, o.cy, c.chargeMs + 80);
+    else if (wipe === 'coverIn') wipeFx.bloom(o.cx, o.cy, o.rx, o.ry, c.coverMs, ease);
+    else if (wipe === 'coverOut') { wipeFx.bloom(o.cx, o.cy, o.rx, o.ry, c.coverMs, ease); wipeFx.inhale(o.cx, o.cy, o.r, c.coverMs + 200); }
   }, [wipe]);
-  const wipeVars = {
-    '--wipe-dur': `${WIPE_MS}ms`,
-    ...(wipeOrigin ? {
-      '--wipe-cx': `${wipeOrigin.cx}px`, '--wipe-cy': `${wipeOrigin.cy}px`, '--wipe-r': `${wipeOrigin.r}px`,
-      '--wipe-front-scale': String(wipeOrigin.frontScale),
-    } : {}),
-  } as CSSProperties;
+  const wipeVars = wipeCssVars(wipeCfg, wipeOrigin) as CSSProperties;
   const wipeTimeoutRef = useRef<number | undefined>(undefined);
   const advanceWipe = useCallback((): void => {
-    setWipe((w) => (w === 'coverIn' ? 'coveredIn' : w === 'revealIn' ? 'combat' : w === 'coverOut' ? 'coveredOut' : w === 'revealOut' ? 'idle' : w));
+    setWipe(afterSweep);
   }, []);
   // Hold timers (the beat at full blue) + the sweep backstop live in one effect keyed on the state.
   useEffect(() => {
     if (wipe === 'coveredIn' || wipe === 'coveredOut') {
-      const t = window.setTimeout(() => setWipe(wipe === 'coveredIn' ? 'revealIn' : 'revealOut'), wipe === 'coveredIn' ? WIPE_HOLD_IN_MS : WIPE_HOLD_OUT_MS);
+      const t = window.setTimeout(() => setWipe(afterBeat(wipe)), wipe === 'coveredIn' ? getScreenWipeConfig().holdInMs : getScreenWipeConfig().holdOutMs);
       return () => window.clearTimeout(t);
     }
     // The tell beats: the zero-circle park is committed by this render; the charge FX plays on the gem,
     // then the bloom launches (a timer, not rAF, so a background tab can't stall the machine).
     if (wipe === 'chargeIn' || wipe === 'primeOut') {
-      const t = window.setTimeout(() => setWipe(wipe === 'chargeIn' ? 'coverIn' : 'coverOut'), WIPE_CHARGE_MS);
+      const t = window.setTimeout(() => setWipe(afterBeat(wipe)), getScreenWipeConfig().chargeMs);
       return () => window.clearTimeout(t);
     }
-    if (!wipeSweeping) return undefined;
-    wipeTimeoutRef.current = window.setTimeout(advanceWipe, WIPE_MS + 400);
+    if (!wipeIsSweeping) return undefined;
+    const c = getScreenWipeConfig();
+    wipeTimeoutRef.current = window.setTimeout(advanceWipe, (wipe === 'coverIn' || wipe === 'coverOut' ? c.coverMs : c.revealMs) + 400);
     return () => window.clearTimeout(wipeTimeoutRef.current);
-  }, [wipe, wipeSweeping, advanceWipe]);
+  }, [wipe, wipeIsSweeping, advanceWipe]);
   useEffect(() => {
     // A DECISIVE combat exits to the END SCREEN (gameover/victory), not the shop — no curtain, no
     // "returning to shop" announcement (owner ask 2026-08-28). Snap the machine home; the end screen
@@ -2017,22 +2024,10 @@ export function Recruit() {
     // invisibly behind the blue. The CSS `.wipefront` glow carries the front's look. The `board-wipe` def
     // stays committed in the workbench for a future dedicated above-curtain layer.)
   }, [inCombat]);
-  // What each element wears per state. Covers wear `full` (the bloom, circle geometry); the holds wear
-  // `full settle` (which ALSO swaps the clip to the full-cover inset, transition:none — the invisible
-  // shape change that lets the reveal run linear); `gone` is the entry reveal's R→L retreat (parked
-  // through combat), `gone rtl` the exit reveal's L→R retreat; base and `primeOut` park on the zero
-  // circle, ready for the next bloom.
-  // The TELL states (`chargeIn`/`primeOut`) wear `settle` too: they are where a fresh origin lands, and
-  // without it the zero-radius circle's CENTRE would transition from the last origin to the new one over
-  // the next 450ms, dragging the bloom's centre off the gem for its first half (seen in 2026-09-24's traces).
-  const curtainClass = `wipecurtain${
-    wipe === 'chargeIn' || wipe === 'primeOut' ? ' settle'
-    : wipe === 'coveredIn' || wipe === 'coveredOut' ? ' full settle'
-    : wipe === 'coverIn' || wipe === 'coverOut' ? ' full'
-    : wipe === 'revealIn' || wipe === 'combat' ? ' gone'
-    : wipe === 'revealOut' ? ' gone rtl' : ''
-  }${wipeExiting ? ' exit' : ''}`;
-  const combatBgShown = wipe === 'coveredIn' || wipe === 'revealIn' || wipe === 'combat' || wipe === 'primeOut' || wipe === 'coverOut';
+  // What each element wears per state lives in wipeMachine.ts (curtainClassFor / frontClassFor / barClassFor),
+  // so the tuner's preview and the tests read the same rules. The backdrop flips only across a hold.
+  const curtainClass = curtainClassFor(wipe);
+  const combatBgShown = combatBackdropShown(wipe);
   // COMBAT UNITS render on the staged window too (owner ask 2026-08-29): the warband's recruit-cards→Unit
   // swap and the enemy row's arrival both happen while the curtain fully hides the board, so the entry
   // reveal exposes BOTH armies already standing (they hold ~300ms before the first attack — see the
@@ -2071,10 +2066,8 @@ export function Recruit() {
     const cfg = getShopDeathFxConfig();
     const rose = (shopDeathFxRef.current ?? []).some((f) => f.kind === 'rise');
     const ms = Math.max(0, cfg.deathDelayMs) + DEATH_DISSOLVE_MS + (rose ? RISE_REFORM_MS : 0);
-    const t = window.setTimeout(() => {
-      setPostDeathHold(false);
-      sfx.discover(); // the open cue the store skipped while the death was pending (see store.ts)
-    }, ms);
+    // Releasing the hold mounts the overlay, whose entrance plays the open cue (see `discoverEntrance/`).
+    const t = window.setTimeout(() => setPostDeathHold(false), ms);
     return () => window.clearTimeout(t);
   }, [discoverOpen, deathHoldPendingUid, postDeathHold]);
   const onWipeEnd = useCallback((e: ReactTransitionEvent<HTMLDivElement>): void => {
@@ -3511,7 +3504,7 @@ export function Recruit() {
    */
   const coalesceRef = useRef<ReturnType<typeof Flip.getState> | null>(null);
   const captureCoalesce = useCallback((): void => {
-    const uid = useGame.getState().run.chooseOne?.uid;
+    const uid = chooseOneHeldSlot(useGame.getState().run)?.uid;
     if (!uid) return;
     const el = document.querySelector<HTMLElement>(`.row.board .card[data-uid="${CSS.escape(uid)}"]`)
       ?? document.querySelector<HTMLElement>(`.card[data-uid="${CSS.escape(uid)}"]`);
@@ -3519,18 +3512,18 @@ export function Recruit() {
   }, []);
   useLayoutEffect(() => {
     const st = coalesceRef.current;
-    if (!st || run.chooseOne) return;   // still open — the capture is for the frame it CLOSES
+    if (!st || chooseOneHeld) return;   // still open — the capture is for the frame it CLOSES
     coalesceRef.current = null;
     Flip.from(st, { duration: getFlipConfig().commitMs / 1000, ease: 'power2.out', absolute: true });
-  }, [run.chooseOne]);
+  }, [chooseOneHeld]);
 
   const chooseOnePreview = useMemo<{ card: BoardCard; at: number } | null>(() => {
-    const co = run.chooseOne;
-    if (!co || co.spell || co.equipmentId) return null;      // a spell takes no slot; an Equipment has no card
-    const card = run.hand.find((c) => c.uid === co.uid);
+    const held = chooseOneHeld;                              // a spell takes no slot; an Equipment has no card
+    if (!held) return null;
+    const card = run.hand.find((c) => c.uid === held.uid);
     if (!card) return null;
-    return { card, at: Math.max(0, Math.min(co.toIndex ?? run.board.length, run.board.length)) };
-  }, [run.chooseOne, run.hand, run.board.length]);
+    return { card, at: Math.max(0, Math.min(held.toIndex ?? run.board.length, run.board.length)) };
+  }, [chooseOneHeld, run.hand, run.board.length]);
 
   const displayBoard = useMemo<BoardCard[]>(() => {
     if (chooseOnePreview) {
@@ -4368,7 +4361,7 @@ export function Recruit() {
       // CLICK AWAY = CANCEL, but only for a DEFERRED Choose One aim (owner ruling 2026-08-28): nothing has
       // been played, so the card simply returns to hand untouched. An ordinary battlecry aim still ignores the
       // click and keeps aiming — its body is already on the board, so there is nothing clean to back out to.
-      if (pendingTarget.deferredPlay) dispatch({ type: 'cancelChoice' });
+      if (pendingTarget.deferredPlay) { captureCoalesce(); dispatch({ type: 'cancelChoice' }); }
     });
     window.addEventListener('pointermove', move);
     window.addEventListener('pointerdown', pick);
@@ -4377,7 +4370,7 @@ export function Recruit() {
       window.removeEventListener('pointermove', move);
       window.removeEventListener('pointerdown', pick);
     };
-  }, [pendingTarget, timeUp, dispatch, inCombat, run.board]);
+  }, [pendingTarget, timeUp, dispatch, inCombat, run.board, captureCoalesce]);
 
   // Reset the round clock at the start of each recruit wave, and whenever the hero picker opens or
   // closes (so wave 1 always begins at full time the moment a hero is chosen — even on a fresh run
@@ -6930,7 +6923,14 @@ export function Recruit() {
   // moment. The board is a pure fold of (initial, events, upto), so a seek to 0 is the same replay the player
   // just watched. Offered only once the fight has SETTLED (the recap passes it through only then), so the
   // post-fight settle and the damage strike can never run a second time.
-  const watchReplay = useCallback((): void => { setShowLog(false); replayRef.current.seekTo(0); }, []);
+  // A rewatch hands the player BACK to the recap when it ends (played out or Skipped), so they land where they
+  // pressed the button (owner report 2026-09-24). Cleared when the fight is left, so a new fight never reopens it.
+  const rewatchingRef = useRef(false);
+  const watchReplay = useCallback((): void => { rewatchingRef.current = true; setShowLog(false); replayRef.current.seekTo(0); }, []);
+  useEffect(() => {
+    if (!inCombat) { rewatchingRef.current = false; return; }
+    if (replay.done && rewatchingRef.current) { rewatchingRef.current = false; setShowLog(true); }
+  }, [replay.done, inCombat]);
   const onFreeze = useCallback((): void => dispatch({ type: 'freeze' }), [dispatch]);
   const onRefresh = useCallback((): void => dispatch({ type: 'roll' }), [dispatch]);
   const onUpgrade = useCallback((): void => dispatch({ type: 'upgrade' }), [dispatch]);
@@ -6983,7 +6983,7 @@ export function Recruit() {
         })()}
         {/* The exit curtain's own announcement (owner ask 2026-08-28; shop vignette added 2026-08-30) —
             the same format as NOW FACING, with the shop art in the circle instead of a foe portrait. */}
-        {wipeExiting && (
+        {wipeIsExiting && (
           <div className="wipevs">
             <div className="wipevs-label">Returning to Shop</div>
             <img decoding="sync" className="wipevs-face" src={`${import.meta.env.BASE_URL}return-to-shop.webp`} alt="" draggable={false} />
@@ -6994,12 +6994,8 @@ export function Recruit() {
           parked snapped at base otherwise), and the vertical BAR rides the linear reveals — parked at the
           launch edge during each hold (entry reveal runs R→L so it parks RIGHT during coveredIn; exit
           reveal runs L→R from its LEFT home). Opacity rides `sweeping` on both, so parking is invisible. */}
-      <div className={`wipefront${wipe === 'coverIn' || wipe === 'coverOut' ? ' grow sweeping' : ' snap'}`} aria-hidden="true" style={wipeVars} />
-      <div className={`wipebar${
-        wipe === 'revealIn' ? ' rtl go sweeping'
-        : wipe === 'revealOut' ? ' go sweeping'
-        : wipe === 'coveredIn' ? ' rtl snap'
-        : ' snap'}`} aria-hidden="true" style={wipeVars} />
+      <div className={frontClassFor(wipe)} aria-hidden="true" style={wipeVars} />
+      <div className={barClassFor(wipe)} aria-hidden="true" style={wipeVars} />
       </>, document.body)}
       {/* Charge glyph — the board's etched sigil, anchored to the board midline. Lives HERE (a direct child of
           `.app`, before the zones) rather than inside the warband zone, so the warband layout offset (x/y/scale)
@@ -8458,6 +8454,7 @@ const CombatLogOverlay = memo(function CombatLogOverlay({ showLog, result, comba
 const ChooseOneOverlay = memo(function ChooseOneOverlay({ overlaysHeld, run, spellBonus, spellBonusH, dispatch, captureCoalesce }: {
   overlaysHeld: boolean; run: RunState; spellBonus: number; spellBonusH: number; dispatch: (a: Action) => void; captureCoalesce: () => void;
 }) {
+  const replaySpeed = useGame((st) => st.replaySession?.speed ?? 1);
   return (
     <>
       {!overlaysHeld && run.chooseOne && (
@@ -8465,18 +8462,26 @@ const ChooseOneOverlay = memo(function ChooseOneOverlay({ overlaysHeld, run, spe
         // Nothing was committed when it was played, so this is a pure no-op in the reducer — no effects, no
         // Gold, no triggers, no RNG. The handler is on the BACKDROP and checks `currentTarget`, so a click
         // that lands on the panel (or on an option card) is never a cancel. Escape does the same.
-        <div
-          className="discover-ov" role="dialog" aria-label="Choose One" tabIndex={-1}
+        // The Discover ENTRANCE plays here too (owner 2026-09-25): the options float in with dust and a shimmer. A
+        // press during it only settles it (never a cancel, never a pick on an option still in flight). No open cue:
+        // a Choose One never had one. `occasion` null: it plays on every opening (there is no minimize to restore).
+        <EntranceOverlay
+          occasion={null} speed={replaySpeed}
+          // The Discover's spotlight backdrop too (owner 2026-09-25): a Choose One is the same kind of decision.
+          className="disc-look"
+          role="dialog" aria-label="Choose One" tabIndex={-1}
           onPointerDown={(e) => { if (!(e.target as Element).closest('.disc-slot')) { captureCoalesce(); dispatch({ type: 'cancelChoice' }); } }}
           onKeyDown={(e) => { if (e.key === 'Escape') { captureCoalesce(); dispatch({ type: 'cancelChoice' }); } }}
-        >
-          {/* Reuses the DISCOVER chrome (transparent panel, dark-glass banner, card row) rather than the old
+        >{(entrance) => (<>
+          {/* Reuses the DISCOVER chrome (transparent panel, ornate title banner, card row) rather than the old
               bespoke cream text-buttons — a Choose One is the same kind of decision as a Discover, so the
               player picks a CARD, not a paragraph (owner 2026-07-24). Each option renders the real card with
               only that branch's text printed, so what you click is exactly what lands on your board. */}
           <div className="disc-panel">
-            <div className="disc-banner"><span className="disp">Choose One</span></div>
-            <div className="disc-sub">{(run.chooseOne.equipmentId ? EQUIPMENT_INDEX[run.chooseOne.equipmentId]?.name : CARD_INDEX[run.chooseOne.cardId]?.name)} · click away to cancel</div>
+            {/* The ornate gold title (owner 2026-09-25), naming what opened the prompt: the card being played, or
+                the Equipment (Prismatic Pick). The source moved from the line below into the banner's subtitle. */}
+            <OfferBanner title="Choose One" source={chooseOneSourceName(run.chooseOne, { cards: CARD_INDEX, equipment: EQUIPMENT_INDEX })} />
+            <div className="disc-sub">Click away to cancel</div>
             <div className="disc-cards">
               {(() => {
                 // A golden Choose One doubles each option's effect (gold(self) in the factories) — so show each
@@ -8514,8 +8519,10 @@ const ChooseOneOverlay = memo(function ChooseOneOverlay({ overlaysHeld, run, spe
                         }}
                         forceFull
                         plated
-                        onClick={() => dispatch({ type: 'chooseOne', index: i })}
+                        suppressPop
+                        onClick={() => { if (entrance.canPick(i)) dispatch({ type: 'chooseOne', index: i }); }}
                       />
+                      <OfferSheen />
                     </div>
                   ));
                 }
@@ -8553,7 +8560,9 @@ const ChooseOneOverlay = memo(function ChooseOneOverlay({ overlaysHeld, run, spe
                       // `plated` so the option wears the same carved stone plate it has in hand / the Compendium
                       // (owner ask 2026-08-19) — a Choose One is picking the real card, so it should look like one.
                       plated
+                      suppressPop
                       onClick={() => {
+                        if (!entrance.canPick(i)) return; // still in flight: the press settled the entrance instead
                         // `chooseOne` cue — the By-card binder's "On Choose One" flourish, fired as the player
                         // commits the branch, ON the chosen minion. Keyed by the choosing card. Distinct from the
                         // `minionPlayed` cue that also fires as the body settles — this is the pick itself. Plays
@@ -8567,12 +8576,13 @@ const ChooseOneOverlay = memo(function ChooseOneOverlay({ overlaysHeld, run, spe
                         dispatch({ type: 'chooseOne', index: i });
                       }}
                     />
+                    <OfferSheen />
                   </div>
                 ));
               })()}
             </div>
           </div>
-        </div>
+        </>)}</EntranceOverlay>
       )}
     </>
   );
@@ -8584,66 +8594,51 @@ const DiscoverOverlay = memo(function DiscoverOverlay({ overlaysHeld, run, disco
   overlaysHeld: boolean; run: RunState; discoverMin: boolean; setDiscoverMin: React.Dispatch<React.SetStateAction<boolean>>;
   cardBuffsLive: Record<string, { attack: number; health: number }>; dispatch: (a: Action) => void; discoverBurstRef: React.RefObject<HTMLDivElement>;
 }) {
+  // A replay plays its Discover entrance at the replay's speed (live play has no session: 1).
+  const replaySpeed = useGame((st) => st.replaySession?.speed ?? 1);
   return (
     <>
-      {/* One orange button, always in the same fixed spot just below the Discover cards — it toggles between
-          Minimize (inspect the board) and Return, so the player can flip back and forth without moving the mouse. */}
+      {/* One button, always in the same fixed spot just below the Discover cards: it toggles between Peek (inspect
+          the board) and Return, so the player can flip back and forth without moving the mouse. Gold-trimmed to
+          match the Discover banner (owner 2026-09-25); see `DiscoverPeekToggle`. */}
       {!overlaysHeld && run.discover && (
-        <button
-          className="disc-toggle"
-          onClick={() => setDiscoverMin((m) => !m)}
-          aria-description={discoverMin ? 'Return to your Discover' : 'Inspect your board, then return to choose'}
-        >
-          {discoverMin
-            ? <><Icon name="up" /> Return to Discover · {run.discover.length} options</>
-            : <><Icon name="eye" /> Minimize</>}
-        </button>
+        <DiscoverPeekToggle minimized={discoverMin} options={run.discover.length} onToggle={() => setDiscoverMin((m) => !m)} />
       )}
 
       {!overlaysHeld && run.discover && !discoverMin && (
-        <div className="discover-ov" role="dialog" aria-label="Discover a card">
-          {/* WebGL burst layer — sits behind the cards (z0) but above the overlay's dark backdrop, so the
-              golden magic reads white-hot without covering the UI. Driven by discoverFx (see the effect). */}
-          <div className="disc-burst" ref={discoverBurstRef} aria-hidden="true" />
-          <div className="disc-panel">
-            <span className="disc-gem disc-gem-top" aria-hidden="true" />
-            <div className="disc-banner"><span className="disp">Discover</span></div>
-            <div className="disc-cards">
-              {run.discover.map((id, i) => {
-                const c = CARD_INDEX[id];
-                // A Discover option shows its CURRENT value too (Grim's +32/+32, Guel's live grant, …) — the
-                // same live-text chain the shop + board use.
-                // The FULL live param set (audit 2026-08-06: this surface passed 11 of 30 params, so a
-                // dozen scaling cards read base only in Discover). Built by the same builders as every other
-                // offer surface, plus the overlay-only extras (rune notes, the tier ceiling).
-                const lt = liveCardText(c.id, {
-                  ...offerLiveTextParams(false, { ...liveOptsFromRun(run), cardBuffs: cardBuffsLive }),
-                  runeMammoth: !!run.questFlags?.runeMammoth,
-                  runeFlags: { matriarch: !!run.runeMatriarch, brokerage: !!run.runeBrokerage, livingTreasure: !!run.questFlags?.runeLivingTreasure, gambling: !!run.runeGambleBoth },
-                  // (Both): a Discovered Choose One the run already makes do both reads as (Both) here too —
-                  // the option row is where you decide to take it, so it must not promise a choice it won't ask.
-                  chooseBoth: chooseBothActive(run, undefined, c),
-                  maxTier: maxTierFor(run.rift),
-                });
-                return (
-                  <div className="disc-slot" data-pick-sfx key={`${id}-${i}`} style={{ '--c': `var(--t-${c.tribe})` } as CSSProperties}>
-                    <Card
-                      // `spell`/`ruby` are carried so a discovered SPELL renders as a spell — the type pill in
-                      // place of the Attack/Health badges (owner 2026-07-24: spells were showing a meaningless
-                      // 0/1 here). Every other surface passes these through `instView`; this panel builds its
-                      // card view by hand, which is how they got dropped.
-                      card={{ name: c.name, cardId: c.id, tribe: c.tribe, tribe2: c.tribe2, universalTribe: !!c.universalTribe, attack: c.attack, health: c.health, keywords: c.keywords, text: lt.text, goldenText: lt.goldenText, tier: c.tier, spell: !!c.spell, ruby: !!c.ruby,
-                        // (Both) marker hook — a Discover option has no uid, so it is keyed by its slot.
-                        chooseBothKey: chooseBothActive(run, undefined, c) ? `disc:${i}` : undefined }}
-                      onClick={() => dispatch({ type: 'discover', index: i })}
-                    />
-                  </div>
-                );
-              })}
-            </div>
-            <span className="disc-gem disc-gem-bot" aria-hidden="true" />
-          </div>
-        </div>
+        // The Discover panel + its ENTRANCE (owner ask 2026-09-25: the cards float in with a little dust, shimmer and
+        // sound). Shared with the entrance tuner's sandbox, so the preview is the real row. See `DiscoverDialog`.
+        <DiscoverDialog
+          ids={run.discover}
+          cards={run.discover.map((id, i) => {
+            const c = CARD_INDEX[id];
+            // A Discover option shows its CURRENT value too (Grim's +32/+32, Guel's live grant, …) — the
+            // same live-text chain the shop + board use.
+            // The FULL live param set (audit 2026-08-06: this surface passed 11 of 30 params, so a
+            // dozen scaling cards read base only in Discover). Built by the same builders as every other
+            // offer surface, plus the overlay-only extras (rune notes, the tier ceiling).
+            const lt = liveCardText(c.id, {
+              ...offerLiveTextParams(false, { ...liveOptsFromRun(run), cardBuffs: cardBuffsLive }),
+              runeMammoth: !!run.questFlags?.runeMammoth,
+              runeFlags: { matriarch: !!run.runeMatriarch, brokerage: !!run.runeBrokerage, livingTreasure: !!run.questFlags?.runeLivingTreasure, gambling: !!run.runeGambleBoth },
+              // (Both): a Discovered Choose One the run already makes do both reads as (Both) here too —
+              // the option row is where you decide to take it, so it must not promise a choice it won't ask.
+              chooseBoth: chooseBothActive(run, undefined, c),
+              maxTier: maxTierFor(run.rift),
+            });
+            // `spell`/`ruby` are carried so a discovered SPELL renders as a spell — the type pill in
+            // place of the Attack/Health badges (owner 2026-07-24: spells were showing a meaningless
+            // 0/1 here). Every other surface passes these through `instView`; this panel builds its
+            // card view by hand, which is how they got dropped.
+            return { name: c.name, cardId: c.id, tribe: c.tribe, tribe2: c.tribe2, universalTribe: !!c.universalTribe, attack: c.attack, health: c.health, keywords: c.keywords, text: lt.text, goldenText: lt.goldenText, tier: c.tier, spell: !!c.spell, ruby: !!c.ruby,
+              // (Both) marker hook — a Discover option has no uid, so it is keyed by its slot.
+              chooseBothKey: chooseBothActive(run, undefined, c) ? `disc:${i}` : undefined };
+          })}
+          onPick={(i) => dispatch({ type: 'discover', index: i })}
+          occasion={discoverOccasion(run)}
+          speed={replaySpeed}
+          burstRef={discoverBurstRef}
+        />
       )}
     </>
   );

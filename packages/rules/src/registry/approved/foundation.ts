@@ -1132,6 +1132,207 @@ export const FOUNDATION_RULES: GameRule[] = [
       lastVerifiedAt: '2026-09-24',
     },
   },
+  // ── The combat <-> shop curtain covers every screen shape (owner bug 2026-09-24, ultrawide) ───────────
+  {
+    id: 'R-PRESENT-15',
+    title: 'The combat and shop curtain covers the whole screen on every aspect ratio, and its glowing edge rides the seam out',
+    statement:
+      'The curtain that blooms out of the End Turn / End Combat gem between the shop and combat always grows '
+      + 'until it covers the ENTIRE viewport, whatever its shape (16:9, 21:9, 32:9 or anything else), before the '
+      + 'scene swaps underneath it. Its full size comes from the live viewport: the distance from the gem to the '
+      + 'farthest corner. The glowing ring on its edge is sized from the same number, so it stays on the edge the '
+      + 'whole way out and leaves past the farthest corner. It never stops short on the screen. A window resize '
+      + 'during the wipe re-measures. The bloom is an ellipse stretched by how much wider than 16:9 the screen is '
+      + '(a circle on 16:9 and narrower), so on 21:9 and 32:9 it reaches the sides together with the top and '
+      + 'bottom, and by default it is still moving when it reaches full cover instead of crawling into the far '
+      + 'corner. Its durations, easing, stretch and edge are dev-tunable (Screen wipe tuner) with baked defaults.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Bug report session, 2026-09-24 (21:9 screenshot of RETURNING TO SHOP)', quote: 'the screen wipes between combat/shop seem not built for 21:9 and stop/pause here and it\x27s janky. can you make sure the animation fully covers the ultrawide display as well?' },
+      { kind: 'fix-pr', ref: 'https://github.com/kcodea/ascent/pull/1707 (fix/screen-wipe-ultrawide)' },
+      { kind: 'owner-chat', ref: 'Follow-up after playing #1707 on the ultrawide, 2026-09-24', quote: 'the screen wipe still isnt perfect, can you make it smoother/wider/cleaner so that there\x27s no jank on an ultrawide?' },
+      { kind: 'fix-pr', ref: 'fix/screen-wipe-polish' },
+      { kind: 'code', ref: 'packages/ui/src/wipeGeometry.ts wipeAspect + wipeCoverEllipse + wipeOriginFor; packages/ui/src/screenWipeConfig.ts (WIPE_DEFAULTS, wipeCssVars); packages/ui/src/Recruit.tsx measureWipeOrigin; packages/ui/src/styles.css .wipecurtain / .wipefront' },
+    ],
+    currentBehaviour:
+      'Conforms as of 2026-09-24. The curtain clip already used the farthest-corner radius, but the ring '
+      + '(`.wipefront`, a 1000px texture scaled up) read `--wipe-front-scale`, which Recruit never set, so it '
+      + 'always stopped at the 4.4 fallback, a ring about 2130px out. On 3440x1440 the cover radius is about '
+      + '2650px, so the ring slowed to a halt around x=390 with the blue still travelling, which read as the wipe '
+      + 'stalling (on 1920x1080 the same fixed ring instead ran well AHEAD of the blue). The scale is now '
+      + 'r / 485, putting the ring\x27s bright line on the seam. The tell states also snap the zero circle to the '
+      + 'freshly measured gem, so the bloom centre no longer slides from the old origin during the first half '
+      + 'of the sweep. Verified live in headless Chrome at 1920x1080, 2560x1080, 3440x1440 and 5120x1440, '
+      + 'both directions. Round 2 (same day): the circle became the aspect-stretched ellipse, with an ease that '
+      + 'leaves the screen still moving (default cubic-bezier(0.45, 0, 0.7, 0.85)), and the ring became a '
+      + 'double-layer edge (glow inside the seam, soft halo outside it). Verified again at all four sizes; the '
+      + 'worst frame in any sweep stayed at or under 16.7ms at 3440x1440 and 5120x1440.',
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/ui/src/wipeGeometry.test.ts', 'packages/ui/src/wipeMachine.test.ts'],
+      lastVerifiedAt: '2026-09-24',
+    },
+  },
+  // ── Nothing in the game paints over the combat <-> shop curtain (owner bug 2026-09-24, bleed-through) ─────
+  {
+    id: 'R-PRESENT-17',
+    title: 'Nothing in the game shows through the combat and shop curtain, and the scene only swaps under full cover',
+    statement:
+      'While the curtain is up (from the gem\x27s charge-up until the reveal sweep ends), nothing in the game '
+      + 'paints over it: no damage tally, flying number, damage float, card reference, cast preview or tooltip. '
+      + 'Anything still animating when the wipe starts is swallowed by the bloom, and a float that belongs to '
+      + 'the new screen (the lobby damage you dealt) waits until that screen is revealed. The board behind the '
+      + 'curtain only swaps during the fully covered hold. Deliberate full-screen menus (Esc, hero select, dev '
+      + 'tools) may still open above it.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Follow-up after playing #1707 on the ultrawide, 2026-09-24', quote: 'also sometimes background elements come through the wipe or it flickers, not sure what\x27s causing it' },
+      { kind: 'fix-pr', ref: 'fix/screen-wipe-polish' },
+      { kind: 'code', ref: 'packages/ui/src/wipeMachine.ts wipeUp + combatBackdropShown; packages/ui/src/Recruit.tsx (body.wipe-up); packages/ui/src/styles.css body.wipe-up rules; packages/ui/src/lobbyDamageFx.ts whenCurtainDown; packages/ui/src/LobbyPanel.tsx' },
+    ],
+    currentBehaviour:
+      'Conforms as of 2026-09-24. Reproduced in real lobby play (headless Chrome at 3440x1440 and 5120x1440, '
+      + 'with a scanner listing every visible element whose stacking context outranks the z250 curtain while it '
+      + 'covers): (1) the loss-damage tally and its flying tier numbers (z2000/2001) kept animating when End '
+      + 'Combat was clicked mid-tally, so they floated over the exit bloom; (2) the lobby damage float (z2000) '
+      + 'fires when the round settles, and the round settles UNDER the curtain at full cover, so it popped onto '
+      + 'the blue hold. Both show as elements coming through the wipe or flickering. Now `body.wipe-up` drops '
+      + 'those floats to z240 under the curtain and hides the hover layers (card refs, cast previews, game '
+      + 'tooltips), and the lobby float waits for the curtain to lift. Scanner after: 0 records across all four '
+      + 'sizes and 5-round runs (before: 5 to 8 per run). The wipe FX canvas also renders its empty stage before '
+      + 'hiding, so a cleared wipe can never flash stale motes on the next one.',
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/ui/src/wipeMachine.test.ts', 'packages/ui/src/lobbyDamageFx.test.ts'],
+      lastVerifiedAt: '2026-09-24',
+    },
+  },
+  // ── The Good Luck intro's sounds end on a soft tail (owner 2026-09-24) ─────────────────────────────────
+  {
+    id: 'R-PRESENT-16',
+    title: 'The Good Luck intro sounds fade out with a light reverb tail instead of stopping dead, and a skip fades them quickly',
+    statement:
+      'The two Good Luck intro sounds (the shine and the spark sparkle) each fade to silence over their last few '
+      + 'hundred ms (tunable, 300 ms shine / 350 ms spark by default) and carry a subtle reverb tail (wet 0.2, '
+      + '0.7 s) that rings on after the clip ends. The intro ending on its own never stops them, so the tails ring '
+      + 'out over the live board. A skip (Esc, a click, a replay, leaving) fades whatever is still sounding in '
+      + 'about 120 ms rather than cutting it. Every node of a play is disconnected once its tail (or the skip '
+      + 'fade) is done, so plays never pile up.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Good Luck intro session, 2026-09-24', quote: 'the good luck sfx ends abruptly. can you give it a tiny bit of reverb and/or fade it out a bit so it isnt an abrupt end' },
+      { kind: 'fix-pr', ref: 'fix/good-luck-sfx-tail' },
+      { kind: 'code', ref: 'packages/ui/src/audio/tailFade.ts scheduleTailFade + scheduleSkipFade; packages/ui/src/sfx.ts playTailedSample + goodLuckShine / goodLuckSpark; packages/ui/src/goodLuck/goodLuckIntroConfig.ts goodLuckTail (the Sound tuner rows)' },
+    ],
+    currentBehaviour:
+      'Conforms as of 2026-09-24. The abrupt end was the SPARK: it plays a 1.1 s to 2.0 s window of the sparkle-whoosh '
+      + 'clip, and at 2.0 s the sparkle is still about -23 dB (only ~10 dB under its -13 dB peak), so the hard '
+      + 'window end cut it mid-ring. The shine clip decays to about -63 dB on its own and the intro\x27s natural end '
+      + 'never stopped either sound. An offline render of the fixed spark voice now falls smoothly from the '
+      + 'fade start through the reverb tail instead of dropping to silence in one 50 ms step.',
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/ui/src/audio/tailFade.test.ts', 'packages/ui/src/goodLuck/GoodLuckIntro.test.tsx'],
+      lastVerifiedAt: '2026-09-24',
+    },
+  },
+  {
+    id: 'R-PRESENT-18',
+    title: 'A combat replay always reaches its end: a rewatch or a Skip of any fight, a zero-event fight included, finishes and hands back',
+    statement:
+      'Every combat replay reaches `done`, however it was started. That covers a fresh fight, the Fight Recap\x27s '
+      + 'Watch replay (a seek to the first moment) and a Skip, and it holds for a fight with no events at all (an '
+      + 'empty player board, where the enemy simply wins). Skip always ends the replay. A rewatch never changes '
+      + 'the run: the settle and the damage strike happen once, whatever is rewatched. When a rewatch ends, played '
+      + 'out or skipped, the player lands back on the Fight Recap they pressed it from, and End Combat still '
+      + 'returns them to the shop.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Fight Recap follow-ups, 2026-09-24', quote: 'the watch replay gets me stuck in a screen here' },
+      { kind: 'code', ref: 'packages/ui/src/useCombatReplay.ts (`endNonce` re-arms the final hold on seek + Skip); packages/ui/src/Recruit.tsx (`watchReplay` / `rewatchingRef`)' },
+    ],
+    currentBehaviour:
+      'Conforms as of 2026-09-24. Before the fix the final-hold timer that flips `done` only re-armed when '
+      + '`replayComplete` changed from false to true. An empty player board resolves with zero events, so the replay '
+      + 'has zero beats and `replayComplete` is true before and after a seek: Watch replay cleared `done` and nothing '
+      + 'set it again, and Skip (setting the beat index to 0 again) did nothing. The arena sat on the enemy board '
+      + 'with Skip showing. Verified live on port 5288: a zero-event loss rewatch returns to the recap in about 250 ms, '
+      + 'Skip during a rewatch returns too, the run and seat health are unchanged, and End Combat settles the round once.',
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/ui/src/replayRewatch.test.tsx'],
+      lastVerifiedAt: '2026-09-24',
+    },
+  },
+  {
+    id: 'R-PRESENT-19',
+    title: 'A Discover (and a Choose One) floats its options in, and a card still in flight can never be picked',
+    statement:
+      'When a Discover or a Choose One opens, its option cards float in left to right with a soft stagger and a tiny '
+      + 'settle (transform and opacity only), each one puffing golden dust and a few glints and getting one shimmer as '
+      + 'it arrives. The Discover open cue plays with the overlay, once per Discover (each step of a chain such as Disco '
+      + 'Dan\x27s included, never while the overlay is held behind the combat wipe or a pending shop death), with a '
+      + 'whoosh, a gap-gated settle per card and one sparkle, all on soft tails. A card is pickable from the moment it '
+      + 'arrives; a press during the entrance settles it at once and never picks a card still in flight (nor cancels a '
+      + 'Choose One). Minimize then Return, a re-render or a remount never replays it (Return shows the overlay\x27s '
+      + 'own quick fade). Reduced motion gets a plain fade with every card pickable at once.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Discover entrance session, 2026-09-25', quote: 'i want a brief but clean fly in or float in of the cards, with some dust and pixi to make it look clean/exciting but not over the top, with sound effects to match the vibe.' },
+      { kind: 'fix-pr', ref: 'feat/discover-entrance' },
+      { kind: 'code', ref: 'packages/ui/src/discoverEntrance/entrance.ts runEntrance; packages/ui/src/discoverEntrance/useOfferEntrance.ts useOfferEntrance + discoverOccasion; packages/ui/src/discoverEntrance/DiscoverDialog.tsx; packages/ui/src/discoverEntrance/discoverEntranceConfig.ts DCE_DEFAULTS' },
+    ],
+    currentBehaviour:
+      'Conforms as of 2026-09-25. Before it the options simply popped in with the overlay and the open cue played from '
+      + 'the store the moment the offer existed, even while the overlay was still held, and not at all for the second '
+      + 'and third Discover of a chain.',
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/ui/src/discoverEntrance/DiscoverDialog.test.tsx'],
+      lastVerifiedAt: '2026-09-25',
+    },
+  },
+  {
+    id: 'R-PRESENT-20',
+    title: 'No FX particle outlives its play: an aux canvas clears the frame its last play leaves',
+    statement:
+      'The above-modal and under-card FX canvases only render while something is mounted on them, but a canvas '
+      + 'keeps showing the last frame it presented. So the frame after the LAST container leaves a slot (any '
+      + 'retire: a caller\'s cancel such as a Discover pick mid-entrance, a natural finish, the lifetime ceiling, '
+      + 'a budget cull) must present ONE empty stage, clearing every particle that was still in the air, and only '
+      + 'then idle. The unmount wakes the ticker so that clearing frame always happens. No star, dust puff or '
+      + 'other particle from a retired play may stay painted on screen. This holds for every def on every slot, '
+      + 'not per effect.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      {
+        kind: 'owner-chat',
+        ref: 'Owner bug report 2026-09-25 (two shop-board screenshots)',
+        quote: 'bug - sometimes getting these stars lingering ... i think it\'s from discover',
+      },
+      { kind: 'code', ref: 'packages/ui/src/pixiFx.ts renderAbove / renderUnder (aboveShowing / underShowing), mountLayer disposers, staleSlots' },
+    ],
+    currentBehaviour:
+      'Conforms as of 2026-09-25. Before the fix `renderAbove` / `renderUnder` returned early whenever their layer '
+      + 'had no children, so the tick after the last play unmounted never drew: the canvas froze on the previous '
+      + 'frame. Picking a Discover card while its cards were landing runs the entrance\'s `cancel`, which retires '
+      + 'the in-flight `discover-glint` (cream stars) and `discover-arrive` (brown dust) plays at full alpha, and '
+      + 'those particles then sat over the shop board until some later above-slot effect happened to render. A '
+      + 'natural finish left the second-to-last frame the same way (fainter). Each slot now tracks whether its '
+      + 'canvas is still showing content and renders one empty frame when it goes empty; `pixiFx.staleSlots()` is '
+      + 'the DEV watchdog (`window.__pixiFx.staleSlots()`).',
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/ui/src/fx/auxCanvasClearsOnRetire.test.ts'],
+      lastVerifiedAt: '2026-09-25',
+    },
+  },
   // ── One authored buff effect per buff (owner ruling 2026-09-24, King Oona's banana) ───────────────────────
   {
     id: 'R-BUFFFX-01',

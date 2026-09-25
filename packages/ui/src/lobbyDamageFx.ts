@@ -38,6 +38,31 @@ export function floatLobbyDamage(x: number, y: number, amount: number): void {
   }
 }
 
+/** Longest we hold a float for the curtain before dropping it (a stuck class must never queue floats forever). */
+const CURTAIN_WAIT_MAX_MS = 6000;
+
+/**
+ * Run `fn` once the combat <-> shop curtain is down (`body.wipe-up` cleared by Recruit when the reveal ends), or at
+ * once when it is not up. The round settles UNDER the curtain (the run resolves at full cover), so without this
+ * the float fired straight onto the blue hold, on top of it (owner 2026-09-24: "sometimes background elements come
+ * through the wipe"). Now it plays over the revealed rail, where it was always meant to be seen.
+ */
+export function whenCurtainDown(fn: () => void): () => void {
+  if (typeof document === 'undefined' || !document.body.classList.contains('wipe-up')) { fn(); return () => {}; }
+  let done = false;
+  const finish = (run: boolean): void => {
+    if (done) return;
+    done = true;
+    obs.disconnect();
+    window.clearTimeout(t);
+    if (run) fn();
+  };
+  const obs = new MutationObserver(() => { if (!document.body.classList.contains('wipe-up')) finish(true); });
+  obs.observe(document.body, { attributes: true, attributeFilter: ['class'] });
+  const t = window.setTimeout(() => finish(false), CURTAIN_WAIT_MAX_MS);
+  return () => finish(false);
+}
+
 /** Float the hit over a seat row, if that row is on screen. Returns whether it fired. */
 export function floatLobbyDamageOnSeat(seatId: string, amount: number): boolean {
   if (amount <= 0 || typeof document === 'undefined') return false;

@@ -124,14 +124,18 @@ export const FightRecap = memo(function FightRecap({ result, combatOdds, lastCom
           {odds && (
             <section className="fr-odds" aria-label="Estimated from repeated simulations of this matchup. The actual result was one roll of these odds.">
               <div className="fr-odds-line">{odds.line}</div>
-              {odds.showBar && combatOdds && (
-                <div className="fr-oddsbar" aria-hidden="true">
-                  <span className="win" style={{ width: `${combatOdds.win * 100}%` }} />
-                  <span className="draw" style={{ width: `${combatOdds.draw * 100}%` }} />
-                  <span className="lose" style={{ width: `${combatOdds.lose * 100}%` }} />
-                </div>
-              )}
-              {odds.avgLossLine && <div className="fr-odds-avg">{odds.avgLossLine}</div>}
+              <div className="fr-oddsbar" aria-hidden="true">
+                {/* Flex-grow by share, so a 0% segment collapses to nothing but its label still shows below. */}
+                {odds.pcts.win > 0 && <span className="win" style={{ flexGrow: odds.pcts.win }} />}
+                {odds.pcts.draw > 0 && <span className="draw" style={{ flexGrow: odds.pcts.draw }} />}
+                {odds.pcts.lose > 0 && <span className="lose" style={{ flexGrow: odds.pcts.lose }} />}
+              </div>
+              <div className="fr-oddslabels">
+                <span className="win"><b>{odds.pcts.win}%</b> Win</span>
+                <span className="draw"><b>{odds.pcts.draw}%</b> Draw</span>
+                <span className="lose"><b>{odds.pcts.lose}%</b> Loss</span>
+              </div>
+              {odds.lossLine && <div className="fr-odds-avg">{odds.lossLine}</div>}
             </section>
           )}
 

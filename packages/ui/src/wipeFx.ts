@@ -6,8 +6,8 @@
  * effect is alive (visibility:hidden + stopped ticker otherwise, so it costs nothing between combats).
  *
  * Four one-shot effects, all driven by the same origin/radius/duration Recruit hands the curtain, so they
- * track the clip seam exactly (the seam's radius is `R * ease(t)` with the curtain's own cubic-bezier —
- * replicated here numerically):
+ * track the clip seam exactly (the seam is the ellipse `(rx, ry) * ease(t)` with the curtain's own cubic-bezier
+ * from the Screen wipe tuner, evaluated here numerically):
  *  - charge():  the gem's anticipation tell — motes spiral INTO the gem + a swelling flare, played during
  *               the pre-bloom beat (`chargeIn` / the stretched `primeOut`).
  *  - bloom():   stardust wake + tangential wisps emitted along the expanding seam.
@@ -18,36 +18,7 @@
  * rules; nothing here runs outside the wipe).
  */
 import { Application, Container, Graphics, Sprite, Texture } from 'pixi.js';
-
-/** Numeric cubic-bezier(x1,y1,x2,y2) easing — mirrors the curtain's CSS `cubic-bezier(.4,0,.2,1)` so the
- *  emitters' seam radius can never drift from the clip's. Newton–Raphson with a bisection fallback. */
-function cubicBezier(x1: number, y1: number, x2: number, y2: number): (t: number) => number {
-  const ax = 3 * x1 - 3 * x2 + 1, bx = 3 * x2 - 6 * x1, cx = 3 * x1;
-  const ay = 3 * y1 - 3 * y2 + 1, by = 3 * y2 - 6 * y1, cy = 3 * y1;
-  const sampleX = (t: number): number => ((ax * t + bx) * t + cx) * t;
-  const sampleY = (t: number): number => ((ay * t + by) * t + cy) * t;
-  const sampleDX = (t: number): number => (3 * ax * t + 2 * bx) * t + cx;
-  return (x: number): number => {
-    if (x <= 0) return 0;
-    if (x >= 1) return 1;
-    let t = x;
-    for (let i = 0; i < 6; i++) {
-      const err = sampleX(t) - x;
-      if (Math.abs(err) < 1e-4) return sampleY(t);
-      const d = sampleDX(t);
-      if (Math.abs(d) < 1e-6) break;
-      t -= err / d;
-    }
-    let lo = 0, hi = 1;
-    t = x;
-    while (hi - lo > 1e-4) {
-      if (sampleX(t) < x) lo = t; else hi = t;
-      t = (lo + hi) / 2;
-    }
-    return sampleY(t);
-  };
-}
-const seamEase = cubicBezier(0.4, 0, 0.2, 1);
+import { cubicBezier } from './wipeGeometry';
 
 const PALETTE = [0x9fc0f5, 0xcfe0ff, 0xffffff, 0xbcd4ff] as const;
 
@@ -153,7 +124,13 @@ class WipeFxController {
     this.emitters.length = 0;
     for (const p of this.particles) p.sp.destroy();
     this.particles.length = 0;
-    if (this.app) { this.app.ticker.stop(); this.app.canvas.style.visibility = 'hidden'; }
+    if (this.app) {
+      // Render the now-empty stage BEFORE hiding: a stopped ticker leaves the canvas holding its last frame, and
+      // the next wipe's first visible frame would flash those stale motes (a one-frame flicker).
+      this.app.render();
+      this.app.ticker.stop();
+      this.app.canvas.style.visibility = 'hidden';
+    }
   }
 
   private spawn(tex: Texture, x: number, y: number, tint: number, life: number, update: Particle['update']): Sprite {
@@ -198,18 +175,21 @@ class WipeFxController {
 
   /** THE BLOOM WAKE — stardust + tangential wisps emitted along the expanding seam. (Runic flickers were
    *  cut — owner call 2026-08-29: their hard pops read as animation blips on the blue.) */
-  bloom(cx: number, cy: number, R: number, ms: number): void {
+  bloom(cx: number, cy: number, rx: number, ry: number, ms: number, ease: readonly [number, number, number, number]): void {
+    // The seam is the curtain's ellipse at `ease(t)`: the same cubic-bezier the CSS transition runs (from the
+    // Screen wipe tuner), evaluated here so the motes ride the clip edge exactly.
+    const seamEase = cubicBezier(ease[0], ease[1], ease[2], ease[3]);
     this.run(() => {
       const em: Emitter & { moteAcc: number } = {
         age: 0, dur: ms, moteAcc: 0,
         update: (e, dt) => {
           const self = e as typeof em;
-          const seamR = R * seamEase(Math.min(1, e.age / ms));
+          const k = seamEase(Math.min(1, e.age / ms));
           self.moteAcc += dt * 0.62; // ~280 motes over a 450ms sweep
           while (self.moteAcc >= 1) {
             self.moteAcc -= 1;
             const ang = Math.random() * Math.PI * 2;
-            const px = cx + Math.cos(ang) * seamR, py = cy + Math.sin(ang) * seamR;
+            const px = cx + Math.cos(ang) * rx * k, py = cy + Math.sin(ang) * ry * k;
             if (px < -40 || py < -40 || px > window.innerWidth + 40 || py > window.innerHeight + 40) continue;
             const wisp = Math.random() < 0.4;
             const speed = wisp ? 0 : 30 + Math.random() * 110; // px/s outward

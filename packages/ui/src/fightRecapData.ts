@@ -117,7 +117,7 @@ export const starStatLabel = (s: { stat: StarStat; value: number }): string =>
 
 // ── Odds ───────────────────────────────────────────────────────────────────────────────────────────────────
 
-export interface OddsLike { win: number; draw: number; lose: number; avgLossDamage: number }
+export interface OddsLike { win: number; draw: number; lose: number; avgLossDamage: number; lossDamageRange?: [number, number] }
 
 export interface OddsRecap {
   /** The one line of copy. */
@@ -125,29 +125,49 @@ export interface OddsRecap {
   /** "Upset!" for a win the odds gave at most ANNOUNCER_LOW_ODDS; "Heartbreaker" for a loss they gave at least
    *  ANNOUNCER_HIGH_ODDS. The SAME thresholds (and comparisons) the announcer uses for its lines. */
   tag: 'upset' | 'heartbreaker' | null;
-  /** Show the slim segmented bar only when more than one outcome was possible. */
-  showBar: boolean;
-  /** "A typical loss here cost about N damage", only when a loss was possible but not certain. */
-  avgLossLine: string | null;
+  /** Whole-percent Win / Draw / Loss that always sum to 100 (largest remainder), for the bar's labels. The bar
+   *  is ALWAYS shown, 100/0 included (owner ask 2026-09-24: "keep the odds bar"). */
+  pcts: { win: number; draw: number; lose: number };
+  /** "A loss here usually costs 7-9 damage" whenever a loss was possible (null when none was). */
+  lossLine: string | null;
 }
 
-const pct = (x: number): number => Math.round(x * 100);
+/** Round three shares to whole percents that sum to exactly 100 (largest remainder). */
+export function wholePercents(win: number, draw: number, lose: number): { win: number; draw: number; lose: number } {
+  const raw = [win, draw, lose].map((p) => Math.max(0, p) * 100);
+  const total = raw.reduce((a, b) => a + b, 0);
+  if (total <= 0) return { win: 0, draw: 0, lose: 0 };
+  const scaled = raw.map((r) => (r / total) * 100);
+  const floor = scaled.map(Math.floor);
+  let left = 100 - floor.reduce((a, b) => a + b, 0);
+  const order = scaled.map((v, i) => [v - floor[i]!, i] as const).sort((x, y) => y[0] - x[0] || x[1] - y[1]);
+  for (const [, i] of order) { if (left <= 0) break; floor[i]!++; left--; }
+  return { win: floor[0]!, draw: floor[1]!, lose: floor[2]! };
+}
+
+/** "a" or "an" before a spoken number: an 8, an 11, an 18, an 80-89 (they start with a vowel sound). */
+export const articleFor = (n: number): 'a' | 'an' => (n === 8 || n === 11 || n === 18 || (n >= 80 && n <= 89) ? 'an' : 'a');
 
 export function oddsRecap(odds: OddsLike | null | undefined, result: 'win' | 'lose' | 'draw' | null): OddsRecap | null {
   if (!odds) return null;
-  const w = pct(odds.win);
-  const d = pct(odds.draw);
+  const pcts = wholePercents(odds.win, odds.draw, odds.lose);
+  const w = pcts.win;
+  const d = pcts.draw;
   const line = w >= 100 ? 'You were always going to win this one'
     : w <= 0 && d <= 0 ? 'This one was never winnable'
     : w <= 0 ? `You could not win this one, only draw (${d}%)`
-    : `You had a ${w}% chance to win`;
+    : `You had ${articleFor(w)} ${w}% chance to win`;
   const tag = result === 'win' && odds.win <= ANNOUNCER_LOW_ODDS ? 'upset'
     : result === 'lose' && odds.win >= ANNOUNCER_HIGH_ODDS ? 'heartbreaker'
     : null;
-  const outcomes = [odds.win, odds.draw, odds.lose].filter((p) => pct(p) > 0).length;
-  const avg = Math.round(odds.avgLossDamage);
-  const avgLossLine = odds.lose > 0 && pct(odds.lose) < 100 && avg > 0 ? `A typical loss here cost about ${avg} damage` : null;
-  return { line, tag, showBar: outcomes > 1, avgLossLine };
+  let lossLine: string | null = null;
+  if (odds.lose > 0) {
+    const [lo, hi] = odds.lossDamageRange ?? [odds.avgLossDamage, odds.avgLossDamage];
+    const a = Math.round(lo);
+    const b = Math.round(hi);
+    if (b > 0) lossLine = `A loss here usually costs ${a === b ? a : `${a}-${b}`} damage`;
+  }
+  return { line, tag, pcts, lossLine };
 }
 
 // ── Damage header ──────────────────────────────────────────────────────────────────────────────────────────

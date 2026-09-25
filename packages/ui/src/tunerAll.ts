@@ -22,6 +22,7 @@ import { SPEC as ShopDeathFxSpec } from './ShopDeathFxTuner';
 import { SPEC as EquipFxSpec } from './EquipFxTuner';
 import { SPEC as EquipSlotSpec } from './equipSlotConfig';
 import { SPEC as RuneLockInSpec } from './runeLockInConfig';
+import { SPEC as ScreenWipeSpec } from './screenWipeConfig';
 import { SPEC as BookSpec } from './BookTuner';
 import { SPEC as BuffDrawerSpec } from './BuffDrawerTuner';
 import { SPEC as BuffFxSpec } from './BuffFxTuner';
@@ -155,7 +156,8 @@ export const ALL_TUNER_SPECS: TunerSpec<never>[] = [
   TitleVeilSpec,
   TrailSpec,
   WardSpec,
-  WeldFxSpec,] as unknown as TunerSpec<never>[];
+  WeldFxSpec,
+  ScreenWipeSpec,] as unknown as TunerSpec<never>[];
 
 /**
  * Put every tuner back to its shipped values. Returns the number of panels reset, so the caller can say what it

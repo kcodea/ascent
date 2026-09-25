@@ -7,7 +7,8 @@
 import { describe, expect, it } from 'vitest';
 import type { CombatEvent, CombatResult, MinionSnapshot } from '@game/core';
 import { ANNOUNCER_HIGH_ODDS, ANNOUNCER_LOW_ODDS } from './announcer';
-import { combatGainItems, fightStars, oddsRecap, splitDamage, starStatLabel } from './fightRecapData';
+import { lossDamageRangeOf } from '@game/sim';
+import { articleFor, combatGainItems, fightStars, oddsRecap, splitDamage, starStatLabel, wholePercents } from './fightRecapData';
 
 const snap = (uid: string, name: string, golden = false): MinionSnapshot =>
   ({ uid, cardId: `card_${uid}`, name, tribe: 'neutral', attack: 1, health: 1, keywords: [], ...(golden ? { golden } : {}) } as MinionSnapshot);
@@ -107,16 +108,37 @@ describe('oddsRecap', () => {
     expect(oddsRecap(o(0.1), 'draw')!.tag).toBeNull();
   });
 
-  it('drops the bar at 100/0 and keeps it when more than one outcome was possible', () => {
-    expect(oddsRecap(o(1), 'win')!.showBar).toBe(false);
-    expect(oddsRecap(o(0), 'lose')!.showBar).toBe(false);
-    expect(oddsRecap(o(0.5), 'win')!.showBar).toBe(true);
+  it('uses "an" before 8, 11, 18 and the 80s', () => {
+    expect(oddsRecap(o(0.08), 'lose')!.line).toBe('You had an 8% chance to win');
+    expect(oddsRecap(o(0.11), 'lose')!.line).toBe('You had an 11% chance to win');
+    expect(oddsRecap(o(0.18), 'lose')!.line).toBe('You had an 18% chance to win');
+    expect(oddsRecap(o(0.83), 'win')!.line).toBe('You had an 83% chance to win');
+    expect(oddsRecap(o(0.7), 'win')!.line).toBe('You had a 70% chance to win');
+    expect(articleFor(1)).toBe('a');
   });
 
-  it('shows the average loss only when a loss was possible but not certain', () => {
-    expect(oddsRecap(o(0.4, 0, 5.6), 'lose')!.avgLossLine).toBe('A typical loss here cost about 6 damage');
-    expect(oddsRecap(o(0, 0, 5.6), 'lose')!.avgLossLine).toBeNull();
-    expect(oddsRecap(o(1, 0, 0), 'win')!.avgLossLine).toBeNull();
+  it('always gives all three percentages, summing to 100, 0% and 100% included', () => {
+    expect(oddsRecap(o(1), 'win')!.pcts).toEqual({ win: 100, draw: 0, lose: 0 });
+    expect(oddsRecap(o(0), 'lose')!.pcts).toEqual({ win: 0, draw: 0, lose: 100 });
+    expect(wholePercents(1 / 3, 1 / 3, 1 / 3)).toEqual({ win: 34, draw: 33, lose: 33 });
+    const p = wholePercents(0.084, 0.005, 0.911);
+    expect(p.win + p.draw + p.lose).toBe(100);
+  });
+});
+
+describe('typical loss damage', () => {
+  const o = (win: number, avg: number, range?: [number, number]) => ({ win, draw: 0, lose: 1 - win, avgLossDamage: avg, ...(range ? { lossDamageRange: range } : {}) });
+  it('prints the probe range, a single number when it collapses, and nothing when no loss was possible', () => {
+    expect(oddsRecap(o(0.08, 8.1, [7, 9]), 'lose')!.lossLine).toBe('A loss here usually costs 7-9 damage');
+    expect(oddsRecap(o(0, 9, [9, 9]), 'lose')!.lossLine).toBe('A loss here usually costs 9 damage');
+    expect(oddsRecap(o(0.4, 5.6), 'lose')!.lossLine).toBe('A loss here usually costs 6 damage'); // legacy odds: average only
+    expect(oddsRecap(o(1, 0), 'win')!.lossLine).toBeNull();
+  });
+
+  it('the probe range is the 25th-75th percentile, or min-max for a small sample', () => {
+    expect(lossDamageRangeOf([])).toBeNull();
+    expect(lossDamageRangeOf([5, 2, 9])).toEqual([2, 9]);
+    expect(lossDamageRangeOf([1, 2, 3, 4, 5, 6, 7, 8])).toEqual([2, 6]);
   });
 });
 

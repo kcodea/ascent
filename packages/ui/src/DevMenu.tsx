@@ -69,6 +69,8 @@ import { ReplayRailTuner } from './ReplayRailTuner';
 import { HeroCeremonyTuner } from './HeroCeremonyTuner';
 import { GoodLuckIntroTuner } from './GoodLuckIntroTuner';
 import { RuneforgeEntranceTuner } from './RuneforgeEntranceTuner';
+import { DiscoverEntranceTuner } from './DiscoverEntranceTuner';
+import { ScreenWipeTuner } from './ScreenWipeTuner';
 import { ChargeGlyphTuner } from './ChargeGlyphTuner';
 import { RuneforgeBgTuner } from './RuneforgeBgTuner';
 import { RuneforgeLookTuner } from './RuneforgeLookTuner';
@@ -160,7 +162,9 @@ const GROUPS: Group[] = [
       { key: 'book', icon: '📖', label: 'Compendium Palette', C: BookTuner, hint: 'Colours and scale of the card browser' },
       { key: 'runeforgebg', icon: '🪨', label: 'Runeforge Backdrop', C: RuneforgeBgTuner, hint: 'Size and position of the art behind the forge menus', alt: 'rune forge background' },
       { key: 'runeforgelook', icon: '🔨', label: 'Runeforge Look', C: RuneforgeLookTuner, hint: 'The title plaque, Gold pill, rune tablets, footer buttons and minimize toggle — placement, size, and every colour, including the Epic variant', alt: 'rune forge tablet card kicker cost coin medallion epic' },
+      { key: 'screenwipe', icon: '🌀', label: 'Screen wipe', C: ScreenWipeTuner, hint: 'The combat and shop transition: bloom and reveal durations, easing and tail speed, the wide-screen ellipse stretch, and the glowing edge (ring and leading halo). Has a ▶ Play button', alt: 'screen wipe curtain transition bloom combat shop ultrawide ellipse ring halo easing' },
       { key: 'runeforgeentrance', icon: '🔥', label: 'Runeforge entrance', C: RuneforgeEntranceTuner, hint: 'The forge opening: the rune tablets dropping in with dust, the shade and embers, the glow sweep, the Epic variant and the sound cues. Has ▶ Play (Basic) and ▶ Play (Epic) buttons', alt: 'rune forge entrance opening drop dust land squash embers glow sweep epic flare sound cue sim' },
+      { key: 'discoverentrance', icon: '💫', label: 'Discover entrance', C: DiscoverEntranceTuner, hint: 'The Discover (and Choose One) opening: the option cards floating in with a soft stagger, the golden dust and glints, the shimmer and the sound cues, plus the Look: the gold title banner size and the spotlight backdrop (tint, vignette, spotlight radius and strength). Has a ▶ Play button', alt: 'discover entrance opening fly float in cards stagger dust glint sparkle shimmer whoosh sound cue choose one sim look banner title spotlight vignette backdrop tint' },
       { key: 'runesheen', icon: '💠', label: 'Rune Nodes', C: RuneSheenTuner, hint: 'The owned-rune node row — size/position + per-node nudges — and the glossy sheen over them', alt: 'rune sheen quest node badge row' },
       { key: 'titlelogo', icon: '🏔️', label: 'Title Logo', C: TitleLogoTuner, hint: 'The main-menu peak mark + ASCENT wordmark — size, spacing, and position', alt: 'main menu title wordmark' },
       { key: 'titleveil', icon: '🌒', label: 'Title Veil', C: TitleVeilTuner, hint: 'The dark navy gradient behind the main menu — colour, intensity and the bowed clear zone over the floating city', alt: 'main menu background darken vignette overlay' },

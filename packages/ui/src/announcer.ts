@@ -123,7 +123,8 @@ const ANNOUNCER_VOLUME_KEY = 'ascent.announcervol.v2';
  *  END: `announcerVariant` hashes an event's index in this table, so reordering would re-pick every existing
  *  run's variants. */
 export const ANNOUNCER_LINES: Record<AnnouncerEvent, readonly string[]> = {
-  gameStart: ['game-start-1', 'game-start-2'],
+  // 25 takes (owner 2026-09-25: the StartGame folder, byte/audio duplicates dropped). Variant still picked by run seed.
+  gameStart: Array.from({ length: 25 }, (_, i) => `game-start-${i + 1}`),
   backToShop: ['back-to-shop-1', 'back-to-shop-2', 'back-to-shop-3'],
   equipment: ['equipment-1', 'equipment-2'],
   triple: ['triple-1', 'triple-2'],

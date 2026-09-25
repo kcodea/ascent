@@ -51,6 +51,111 @@ export interface PatchNote {
 /** Newest first. PREPEND new entries. */
 export const PATCH_NOTES: PatchNote[] = [
   {
+    date: '2026-09-25',
+    label: 'New Game Start Lines',
+    changes: [
+      {
+        category: 'Systems',
+        text: 'The announcer has 23 new lines for the start of a game, 25 in all.',
+      },
+    ],
+  },
+  {
+    date: '2026-09-25',
+    label: 'Effects Fix',
+    changes: [
+      {
+        category: 'Systems',
+        text: 'Fixed stars and dust from the Discover cards sometimes staying frozen on the board.',
+        details: [
+          'Picking a Discover card while the cards were still landing could leave their sparkles and dust stuck on screen.',
+          'Every effect drawn over or under the cards now clears the moment it ends.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-09-25',
+    label: 'Discover Look',
+    changes: [
+      {
+        category: 'Systems',
+        text: 'Discover and Choose One have a new gold title banner and a spotlight behind the cards.',
+        details: [
+          'The title is now gold lettering between two filigree flourishes, in the style of the Good Luck opening.',
+          'A Choose One names the card (or Equipment) it came from under the title, for example "From Runic Beetle".',
+          'The screen behind the choice is darker toward the edges, with a soft warm spotlight behind the cards, so your board no longer competes with the options.',
+          'The Minimize button is now "Peek at board": a gold-trimmed button with an eye icon. While you peek it reads "Return to Discover" and shows how many options are waiting.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-09-25',
+    label: 'Choose One Fix',
+    changes: [
+      {
+        category: 'Systems',
+        text: 'A Choose One minion now stays in its board slot while you pick a target. It only goes back to your hand if you cancel.',
+        details: [
+          'After picking an option that needs a target, the minion keeps its spot on the board and the aim line starts from it.',
+          'Click away at either step to cancel. The card glides back to your hand with nothing spent.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-09-25',
+    label: 'Discover Entrance',
+    changes: [
+      {
+        category: 'Systems',
+        text: 'Discover and Choose One cards now float in with a little golden dust, a shimmer and new sounds.',
+        details: [
+          'The cards drift up into place from left to right in about half a second, with a gentle settle.',
+          'Each card lands with a soft puff of golden dust and a few sparkles, and a light shimmer crosses it.',
+          'A soft whoosh plays as they come in, a light tap as each one arrives, and a sparkle once they are all in.',
+          'You can pick a card the moment it arrives. Clicking during the entrance finishes it at once.',
+          'Every Discover in a row (like Disco Dan\'s three) now plays its own opening sound.',
+          'Returning to a minimized Discover just fades it back in. With reduced motion on, the cards simply fade in.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-09-24',
+    label: 'Fight Recap Fixes',
+    changes: [
+      {
+        category: 'Systems',
+        text: 'Watch replay in the Fight Recap no longer gets stuck, and the odds bar is back with a cleaner look.',
+        details: [
+          'Watch replay always plays to the end and brings you back to the recap. Skip always works, even for a fight where you had no minions.',
+          'The odds bar is always shown, with Win, Draw and Loss percentages under it.',
+          'The damage a loss usually costs is now shown as a range, like 7-9.',
+          'Hover your own seat in the lobby list to see the same card you see for other players.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-09-24',
+    label: 'Smoother Screen Wipe',
+    changes: [
+      {
+        category: 'Systems',
+        text: 'The blue screen wipe between the shop and combat is smoother on wide screens, and nothing shows through it any more.',
+        details: [
+          'On ultrawide screens the wipe now grows wider, so it reaches the sides at the same time as the top and bottom.',
+          'The wipe keeps moving until it has covered the screen, instead of slowing to a crawl in the far corner.',
+          'Its glowing edge is softer, with a light glow running just ahead of it.',
+          'Damage numbers, damage counters and tooltips no longer pop up on top of the wipe.',
+          'The damage you dealt to another player now shows once the shop is back, instead of during the wipe.',
+        ],
+      },
+    ],
+  },
+  {
     date: '2026-09-24',
     label: 'Banana',
     changes: [

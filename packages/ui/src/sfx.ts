@@ -467,6 +467,24 @@ function playTailedSample(name: string, category: string, vol: number, delay: nu
   };
 }
 
+/**
+ * Play any clip once through the soft-tail voice, charged to `category`'s mixer fader: the DISCOVER ENTRANCE's
+ * cues (owner 2026-09-25), each tunable to any clip, window, gain and fade. `startMs`/`lenMs` cut a window of the
+ * clip (0 length = to its end); `delayMs` schedules on the audio clock. Null when nothing was queued (muted,
+ * hidden, not decoded yet: the decode is kicked so the next play has it).
+ */
+export function playTailedClip(
+  clip: string, category: string,
+  opts: { gain?: number; delayMs?: number; startMs?: number; lenMs?: number; tail?: TailOpts } = {},
+): SfxHandle | null {
+  const vol = opts.gain ?? 1;
+  if (!clip || !(vol > 0)) return null;
+  const start = Math.max(0, opts.startMs ?? 0) / 1000;
+  const len = Math.max(0, opts.lenMs ?? 0) / 1000;
+  const slice: ClipSlice | undefined = start > 0 || len > 0 ? { offset: start, duration: len > 0 ? len : 1e6 } : undefined;
+  return playTailedSample(clip, category, vol, Math.max(0, opts.delayMs ?? 0) / 1000, opts.tail ?? NO_TAIL, slice);
+}
+
 // The end-of-turn CHARGE build (`turncharge`) is a long (~25–40s) clip. Web Audio sources are fire-and-forget, so
 // we keep a handle to the live nodes and ramp them down when the turn ends early (End Turn pressed / a new charge
 // starts) — otherwise the build keeps playing under combat. See `stopTurnCharge` + `sfx.turnCharge`.

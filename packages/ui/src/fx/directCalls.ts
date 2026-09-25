@@ -103,6 +103,10 @@ export const DIRECT_CALL_SITES: Readonly<Record<string, readonly string[]>> = {
   // The implosion on a rune's BADGE as the lock-in ceremony hands it over (owner ask 2026-08-31).
   'rune-select-implosion': ['useRuneArrivalFx.ts'],
   'rune-slot-break': ['QuestBadges.tsx'],
+  // THE DISCOVER ENTRANCE (2026-09-25): the golden dust under each arriving Discover / Choose One option, and the glints
+  // over its face.
+  'discover-arrive': ['discoverEntrance/entrance.ts'],
+  'discover-glint': ['discoverEntrance/entrance.ts'],
   // THE RUNEFORGE ENTRANCE (2026-09-24): the dust puff under each landing rune tablet, the embers off the forge
   // floor as it opens, and the Epic forge's flare as its last tablet lands.
   'runeforge-embers': ['runeforgeEntrance/entrance.ts'],

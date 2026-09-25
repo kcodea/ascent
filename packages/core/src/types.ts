@@ -3163,7 +3163,13 @@ export interface CombatResult {
    *  on many independent seeds. Not produced by `simulate` itself (a single fight); the run loop fills it.
    *  `avgLossDamage` is the mean Resolve lost across the losing sims (round-capped), i.e. how much damage
    *  you'd take on a typical loss of this matchup — 0 when no sim lost. */
-  odds?: { win: number; draw: number; lose: number; avgLossDamage: number };
+  odds?: {
+    win: number; draw: number; lose: number; avgLossDamage: number;
+    /** The TYPICAL loss's damage as a range (Fight Recap, owner ask 2026-09-24): the 25th to 75th percentile of
+     *  the losing sims' round-capped damage, or min to max when fewer than 8 sims lost. Display-only, like the
+     *  rest of `odds`. Absent when no sim lost, and on odds recorded before it existed. */
+    lossDamageRange?: [number, number];
+  };
 }
 
 /**

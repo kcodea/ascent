@@ -1,11 +1,11 @@
-import { memo, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import {
-  boardIntel, getHero, lastPlayerEncounter, lastRoundDamage, lossDamageCap, playerOpponent, seatResults,
+  boardIntel, getHero, lastPlayerEncounter, lastRoundDamage, lossDamageCap, playerOpponent, seatResults, snapshotBoard,
   type LobbySeatState, type RunLobby, type SeatIntel,
 } from '@game/sim';
 import { QUEST_INDEX, RUNE_INDEX } from '@game/content';
-import { floatLobbyDamageOnSeat } from './lobbyDamageFx';
+import { floatLobbyDamageOnSeat, whenCurtainDown } from './lobbyDamageFx';
 import { heroArt, questArt, runeArt } from './art';
 import { mdBold } from './Card';
 import { Icon } from './Icon';
@@ -29,6 +29,7 @@ import { useGame } from './store';
 export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby }): JSX.Element | null {
   // Hooks must run unconditionally — the early return for a missing lobby lives after them.
   const firedRound = useRef(0);
+  const pendingFloatRef = useRef<(() => void) | null>(null);
   // The hovered seat AND where it sits on screen. The anchor is measured because the card is `position: fixed`
   // — see `ScoutCard`. One measurement per hover, not per frame, so this does not violate the layout-read rule.
   const [hovered, setHovered] = useState<{ id: string; top: number; right: number } | null>(null);
@@ -79,9 +80,15 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
     firedRound.current = lobby.round;
     const last = lastPlayerEncounter(lobby);
     if (!last || last.dealt <= 0) return; // a draw or a loss has nothing to announce
-    const raf = requestAnimationFrame(() => floatLobbyDamageOnSeat(last.foe.id, last.dealt));
-    return () => cancelAnimationFrame(raf);
+    // Held until the combat -> shop curtain is down: the round settles under full blue, and a float fired then
+    // would pop over the curtain instead of over the rail (see whenCurtainDown). A rAF after it lifts still
+    // lets the re-sorted rows lay out before one is measured.
+    // Not cancelled by a re-render (the lobby object changes under the hold; the round guard above would then
+    // never re-arm it): only a newer round's float or unmounting drops a pending one.
+    pendingFloatRef.current?.();
+    pendingFloatRef.current = whenCurtainDown(() => { requestAnimationFrame(() => floatLobbyDamageOnSeat(last.foe.id, last.dealt)); });
   }, [lobby?.round, lobby]);
+  useEffect(() => () => pendingFloatRef.current?.(), []);
 
   if (!lobby) return null;
   const next = playerOpponent(lobby);
@@ -135,9 +142,10 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
               key={seat.id}
               data-seat={seat.id}
               className={`lobbyseat${isYou ? ' you' : ''}${isFoe ? ' foe' : ''}${seat.alive ? '' : ' dead'}`}
-              // Scouting is for OPPONENTS — your own board is on screen in front of you.
-              onMouseEnter={isYou ? undefined : (e) => openScout(e, seat.id)}
-              onMouseLeave={isYou ? undefined : () => setHovered((h) => (h?.id === seat.id ? null : h))}
+              // Hover scouting works on EVERY seat, yours included (owner ask 2026-09-24: "add the same mouseover
+              // for self as we have for enemies"). Pinning stays opponent-only; the owner asked for the hover.
+              onMouseEnter={(e) => openScout(e, seat.id)}
+              onMouseLeave={() => setHovered((h) => (h?.id === seat.id ? null : h))}
               // Left OR right click pins the card (and clicking a different seat switches to it) — owner ask 2026-08-31.
               onClick={isYou ? undefined : (e) => pinScout(e, seat.id)}
               onContextMenu={isYou ? undefined : (e) => pinScout(e, seat.id)}
@@ -167,7 +175,9 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
                   <span style={{ width: `${Math.max(0, Math.min(100, (hp / maxHp) * 100))}%` }} />
                 </span>
               )}
-              {hovered?.id === seat.id && pinned?.id !== seat.id && <ScoutCard lobby={lobby} seat={seat} intel={intel} at={hovered} />}
+              {hovered?.id === seat.id && pinned?.id !== seat.id && (isYou
+                ? <SelfScoutCard lobby={lobby} seat={seat} at={hovered} />
+                : <ScoutCard lobby={lobby} seat={seat} intel={intel} at={hovered} />)}
               {pinned?.id === seat.id && (
                 <ScoutCard lobby={lobby} seat={seat} intel={intel} at={pinned} pinned />
               )}
@@ -178,6 +188,20 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
     </div>
   );
 });
+
+/**
+ * YOUR OWN seat's hover card: the SAME ScoutCard the opponents get, fed intel read live off your run (the table
+ * only records intel for seats it prepares, and your board is the run itself). Subscribes to the run only while
+ * mounted, i.e. only while your seat is hovered, so the rail pays nothing for it otherwise.
+ */
+function SelfScoutCard({ lobby, seat, at }: { lobby: RunLobby; seat: LobbySeatState; at: { top: number; right: number } }): JSX.Element {
+  const run = useGame((st) => st.run);
+  const intel = useMemo(() => {
+    const snap = snapshotBoard(run);
+    return boardIntel({ minions: snap.minions, tier: snap.tier, snapshot: snap }, lobby.round);
+  }, [run, lobby.round]);
+  return <ScoutCard lobby={lobby} seat={seat} intel={intel} at={at} />;
+}
 
 const TRIBE_LABEL: Record<string, string> = {
   beast: 'Beasts', dragon: 'Dragons', undead: 'Undead', mech: 'Mechs',

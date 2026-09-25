@@ -46,6 +46,7 @@ export interface OddsProbe {
 
 export function createOddsProbe(input: CombatOddsInput, seed: number, wave: number, sims = COMBAT_ODDS_SIMS): OddsProbe {
   let win = 0, draw = 0, lose = 0, lossDamageTotal = 0, i = 0;
+  const lossDamages: number[] = []; // per-sim, for the recap's typical-loss RANGE (display only)
   const cap = lossDamageCap(wave);
   const step = (n: number): boolean => {
     const end = Math.min(sims, i + Math.max(0, n));
@@ -53,7 +54,7 @@ export function createOddsProbe(input: CombatOddsInput, seed: number, wave: numb
       const r = simulate(input.player, input.enemy, makeRng(mixSeed(seed, wave, TAG.ODDS, i)), CARD_INDEX, input.playerState, input.enemyState, input.config);
       if (r.result === 'win') win++;
       else if (r.result === 'draw') draw++;
-      else { lose++; lossDamageTotal += Math.min(r.playerDamage, cap); } // round-capped, as a real loss would be
+      else { const d = Math.min(r.playerDamage, cap); lose++; lossDamageTotal += d; lossDamages.push(d); } // round-capped, as a real loss would be
     }
     return i >= sims;
   };
@@ -63,9 +64,20 @@ export function createOddsProbe(input: CombatOddsInput, seed: number, wave: numb
     progress: () => i,
     result: () => {
       const n = Math.max(1, i);
-      return { win: win / n, draw: draw / n, lose: lose / n, avgLossDamage: lose > 0 ? lossDamageTotal / lose : 0 };
+      const range = lossDamageRangeOf(lossDamages);
+      return { win: win / n, draw: draw / n, lose: lose / n, avgLossDamage: lose > 0 ? lossDamageTotal / lose : 0, ...(range ? { lossDamageRange: range } : {}) };
     },
   };
+}
+
+/** The typical loss's damage as a range: the 25th to 75th percentile (nearest rank) of the losing sims, or
+ *  min to max when fewer than 8 sims lost (quartiles of a handful of samples mean nothing). Null = no losses. */
+export function lossDamageRangeOf(samples: readonly number[]): [number, number] | null {
+  if (samples.length === 0) return null;
+  const s = [...samples].sort((a, b) => a - b);
+  if (s.length < 8) return [s[0]!, s[s.length - 1]!];
+  const at = (q: number): number => s[Math.min(s.length - 1, Math.max(0, Math.ceil(q * s.length) - 1))]!;
+  return [at(0.25), at(0.75)];
 }
 
 /** Re-run the stashed matchup `COMBAT_ODDS_SIMS` times in one go. Pure + deterministic: same run seed and wave

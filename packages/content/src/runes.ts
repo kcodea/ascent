@@ -976,6 +976,18 @@ export const RUNES: RuneDef[] = [
     sets: ['set2', 'set3'], // + set3 2026-09-14 (rune roster handoff: mechanically compatible carryover)
   },
   {
+    // Moved Epic -> BASIC (owner 2026-09-25, Set 3 rune list: listed Kobold Basic). Basic because it lives in RUNES;
+    // the `epic: true` kicker was dropped with the move. Cost unchanged at 2 (inside the Basic range).
+    id: 'rune_engraving_gems',
+    tribes: ['kobold'], // TRIBE GATE (owner 2026-09-18): a Ruby rune is Kobold-related — Rubies come from Kobolds
+    name: 'Rune of Engraving Gems',
+    cost: 2, // balance 9/23 (was 4)
+    text: 'Your **Rubies** applied in combat are **permanent**.',
+    previewCards: ['ruby'],
+    reward: { kind: 'combatFlag', flag: 'runeEngravingGems' },
+    sets: ['set2', 'set3'], // Rubies // + set3 2026-09-14 (rune roster handoff: mechanically compatible carryover)
+  },
+  {
     // NB: Resonance Idol is ARCHIVED (owner call 2026-08-19) — it is out of the draw pool, so this rune is the
     // ONLY way to obtain one. Deliberate, and the exception to the archive rule in `cards/archive.ts` that a
     // reward must not name an archived id: here the reward IS the point. Archived cards still resolve through
@@ -1735,6 +1747,7 @@ export const EPIC_RUNES: RuneDef[] = [
   },
   {
     id: 'rune_spearline',
+    tribes: ['undead'], // TRIBE GATE (owner 2026-09-25, Set 3 rune list): offered only when Undead is in the run, in every set
     sets: ['set1', 'set3'], // + set3 2026-09-14 (rune roster handoff: mechanically compatible carryover)
     name: 'Rune of the Spearline',
     cost: 7,
@@ -2065,8 +2078,9 @@ export const EPIC_RUNES: RuneDef[] = [
     sets: ['set2', 'set3'], // Rubies / Ales / set-2 cards // + set3 2026-09-14 (rune roster handoff: mechanically compatible carryover)
   },
   {
+    // NEUTRAL (owner 2026-09-25, Set 3 rune list): the Undead gate from the 2026-09-18 tag pass was removed, so
+    // any run can be offered it.
     id: 'rune_lazarus',
-    tribes: ['undead'], // TRIBE GATE (owner tag pass 2026-09-18): the text names the tribe / its Rubies, Ales, Attachments, Imps, or it grants that tribe's minion
     name: 'Rune of Lazarus',
     cost: 3, // balance 9/23 (was 5)
     epic: true,
@@ -2750,6 +2764,7 @@ export const EPIC_RUNES: RuneDef[] = [
   },
   {
     id: 'rune_sellers_market',
+    tribes: ['dwarf'], // TRIBE GATE (owner 2026-09-25, Set 3 rune list): offered only when Dwarf is in the run, in every set
     name: "Rune of the Seller's Market",
     cost: 3,
     epic: true,
@@ -2883,17 +2898,6 @@ export const EPIC_RUNES: RuneDef[] = [
     text: 'When a friendly **Demon** deals damage, give your minions **+2/+2**.',
     reward: { kind: 'combatFlag', flag: 'runeRuins' },
     sets: ['set2'], // Demons + the Demon-damage trigger
-  },
-  {
-    id: 'rune_engraving_gems',
-    tribes: ['kobold'], // TRIBE GATE (owner 2026-09-18): a Ruby rune is Kobold-related — Rubies come from Kobolds
-    name: 'Rune of Engraving Gems',
-    cost: 2, // balance 9/23 (was 4)
-    epic: true,
-    text: 'Your **Rubies** applied in combat are **permanent**.',
-    previewCards: ['ruby'],
-    reward: { kind: 'combatFlag', flag: 'runeEngravingGems' },
-    sets: ['set2', 'set3'], // Rubies // + set3 2026-09-14 (rune roster handoff: mechanically compatible carryover)
   },
   {
     // Two stacked `shoutRepeat: always` grants — the reward stacks by design (see the reducer branch), so this
@@ -3218,8 +3222,9 @@ export const EPIC_RUNES: RuneDef[] = [
     // "A minion in your hand gains stats" = the reducer's per-action HAND stat diff (shop phase; every source).
     // Owner rework 2026-09-18: EVERY hand gain is mirrored (no per-turn latch) — each gainer's own +A/+H lands on a
     // random friendly BOARD minion.
-    // No `tribes` gate: "a minion in your hand" names no tribe — any hand buff pays it (Spirit-flavoured on the sheet).
+    // Spirit-gated by the owner's Set 3 rune list (2026-09-25), though the text names no tribe.
     id: 'rune_dream_mirror',
+    tribes: ['spirit'], // TRIBE GATE (owner 2026-09-25, Set 3 rune list): offered only when Spirit is in the run, in every set
     name: 'Rune of the Dream Mirror',
     cost: 5,
     epic: true,
@@ -3228,8 +3233,9 @@ export const EPIC_RUNES: RuneDef[] = [
     sets: ['set3'],
   },
   {
-    // No `tribes` gate: names no tribe (see the Dream Mirror).
+    // Spirit-gated (see the Dream Mirror).
     id: 'rune_waking_dreams',
+    tribes: ['spirit'], // TRIBE GATE (owner 2026-09-25, Set 3 rune list): offered only when Spirit is in the run, in every set
     name: 'Rune of Waking Dreams',
     cost: 5,
     epic: true,
@@ -3444,6 +3450,7 @@ export const EPIC_RUNES: RuneDef[] = [
     // Shop half: the shop hand-summons (Tide Caller / Seedling Spirit / Rope Wrangler fired in the shop) pay it
     // permanently.
     id: 'rune_open_hand',
+    tribes: ['spirit'], // TRIBE GATE (owner 2026-09-25, Set 3 rune list): offered only when Spirit is in the run, in every set
     name: 'Rune of the Open Hand',
     cost: 5,
     epic: true,
@@ -3457,6 +3464,7 @@ export const EPIC_RUNES: RuneDef[] = [
     // Hand — but the hand card is NOT marked as summoned, so a Spirit may still summon it later this fight.
     // One copy per rune copy held. Shop twin: the Start-of-Combat replays (Combat Prowess / Lasting Cadence).
     id: 'rune_waking_reserve',
+    tribes: ['spirit'], // TRIBE GATE (owner 2026-09-25, Set 3 rune list): offered only when Spirit is in the run, in every set
     name: 'Rune of the Waking Reserve',
     cost: 6,
     epic: true,

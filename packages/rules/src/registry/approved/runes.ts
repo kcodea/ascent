@@ -742,6 +742,35 @@ export const RUNES_RULES: GameRule[] = [
     },
   },
   {
+    id: 'R-RUNE-22',
+    title: "Set 3 runes take the tribe and rarity of the owner's Set 3 rune list: listed under a tribe = gated to it, Neutral = no gate",
+    statement:
+      "The owner's Set 3 rune list groups every Set 3 rune by tribe (Kobold, Dwarf, Undead, Spirit, Celestial, Neutral) and "
+      + 'by Basic / Epic, and the game matches it. A rune listed under a tribe carries that tribe gate, so the Runeforge '
+      + 'offers it only when that tribe is in the run, in every set. A rune listed under Neutral carries no gate and is '
+      + 'offered whatever tribes rolled. A rune listed Basic lives in the Basic pool (RUNES), one listed Epic in the Epic '
+      + "pool (EPIC_RUNES). Rulings of 2026-09-25: Seller's Market is Dwarf; Spearline is Undead; Dream Mirror, Open Hand, "
+      + 'Waking Reserve and Waking Dreams are Spirit; Lazarus is Neutral (its Undead gate removed, although it grants an '
+      + 'Undead body); Soul Script keeps both Undead and Celestial (the one allowed extra tribe); Engraving Gems is Basic '
+      + '(moved from the Epic pool, cost unchanged at 2).',
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-25 (Set 3 rune list follow-up)', quote: `see here in this list how spearline and waking dreams are not "neutral" tagged and are tagged to tribes? can you make sure we're aligned on tribe orientation of set 3 runes` },
+      { kind: 'owner-handoff', ref: "Owner rulings 2026-09-25: tag Seller's Market Dwarf, Spearline Undead, the four hand runes Spirit; Lazarus Neutral; Soul Script keeps both tribes; Engraving Gems Basic" },
+      { kind: 'code', ref: 'packages/content/src/runes.ts (the `tribes` gates; Engraving Gems moved into RUNES); packages/sim/src/reducer.ts runeforgePool (the tribe filter)' },
+    ],
+    contentIds: ['rune_sellers_market', 'rune_spearline', 'rune_dream_mirror', 'rune_open_hand', 'rune_waking_reserve', 'rune_waking_dreams', 'rune_lazarus', 'rune_soul_script', 'rune_engraving_gems'],
+    currentBehaviour:
+      "Conforms (2026-09-25). Before, the first list pass (#1719) set Set 3 membership only: six tribe-listed runes were "
+      + 'untribed, Lazarus was Undead-gated, and Engraving Gems was Epic.',
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/sim/src/set3RuneList.test.ts', 'packages/sim/src/tribeGate.test.ts'],
+      lastVerifiedAt: '2026-09-25',
+    },
+  },
+  {
     id: 'R-RUNE-23',
     title: 'Rune of Gemmed Decisions: every Choose One card played gets a Ruby',
     statement:

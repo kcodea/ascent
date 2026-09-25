@@ -30,14 +30,14 @@ const stats = (c: BoardCard): [number, number] => [c.attack, c.health];
 const SRC = { cardId: 'dbg_starseed', name: 'Star Seed' };
 
 describe('the two deferred runes ship: roster, cost, scope, wiring', () => {
-  it.each([['rune_open_hand', 5], ['rune_waking_reserve', 6]] as const)('%s is EPIC, set 3 only, costs %i, and is NOT tribe-gated (its text names no tribe)', (id, cost) => {
+  it.each([['rune_open_hand', 5], ['rune_waking_reserve', 6]] as const)('%s is EPIC, set 3 only, costs %i, and is Spirit-gated (owner Set 3 rune list 2026-09-25)', (id, cost) => {
     const r = RUNE_INDEX[id]!;
     expect(EPIC_RUNES.some((x) => x.id === id)).toBe(true);
     expect(RUNES.some((x) => x.id === id)).toBe(false);
     expect(r.epic).toBe(true);
     expect(r.cost).toBe(cost);
     expect(r.sets).toEqual(['set3']);
-    expect(r.tribes).toBeUndefined();
+    expect(r.tribes).toEqual(['spirit']);
   });
 
   it('buying either through the forge arms its combat flag, counts the copy, and the flag rides into the combat mods', () => {

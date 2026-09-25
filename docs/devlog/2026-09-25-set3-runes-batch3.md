@@ -2,7 +2,7 @@
 
 **What shipped.** Eleven new Set-3-only runes (`sets: ['set3']`, each tribe-gated), appended at the end of `RUNES` /
 `EPIC_RUNES` under a `Set 3 rune batch 3` header so a concurrent roster PR (#1727) meets them at a seam, not inside
-its hunks. They JOIN the owner's Set 3 list (`set3RuneList.test.ts`): Set 3 is now **174 runes, 90 Basic / 84 Epic**.
+its hunks. They JOIN the owner's Set 3 list (`set3RuneList.test.ts`): Set 3 is now **174 runes, 91 Basic / 83 Epic** (after #1727 moved Engraving Gems Epic to Basic).
 Rune of Resonance's text is reordered (Start of Turn first); its behaviour is unchanged.
 
 | Rune | Id | Pool | Cost | Gate |
@@ -82,5 +82,5 @@ has not landed; no placeholder files were added.
 mods need Kobolds / a Shop-spell cast / 8 deaths the staged fight does not field; each is pinned by the new tests).
 The text-parse unresolved pin moved 95 → 97 consciously: Echoing Kobolds' quoted granted Echo, Body Counting's
 "When 8 friendly minions die," and Sold Choices' "when sold as well" have no grammar rule yet (the other eight parse);
-Resonance's reordered text now parses. Oracle R-RUNE-23..33 (R-RUNE-22 left to PR #1727). Contracts, Doc Bot text and
+Resonance's reordered text now parses. Oracle R-RUNE-23..33 (after #1727's R-RUNE-22). Contracts, Doc Bot text and
 the rules seed regenerated; `final-report.md`'s contract total moved 1045 → 1056.

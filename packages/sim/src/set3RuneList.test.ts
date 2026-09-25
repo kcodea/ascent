@@ -4,9 +4,13 @@
  * that own one still resolve it through RUNE_INDEX).
  *
  * The list is kept below in the owner's grouping (tribe, then Basic / Epic) with the owner's word for each rune.
- * That grouping is the OWNER'S; the game stays the source of truth for rarity and tribe gates. Where they differ
- * (Engraving Gems is Epic, several "tribe" runes are untribed, Lazarus is Undead-gated, Soul Script is also
- * Celestial) the game was NOT changed; the mismatches are reported in docs/devlog/2026-09-25-set3-rune-list.md.
+ * TRIBE + RARITY ALIGNMENT (owner 2026-09-25, the same day): "see here in this list how spearline and waking dreams
+ * are not "neutral" tagged and are tagged to tribes? can you make sure we're aligned on tribe orientation of set 3
+ * runes". The grouping now IS the game's: a rune listed under a tribe carries that tribe gate (offered only when the
+ * tribe is in the run, in every set), a rune listed under Neutral carries none, and a rune's pool (RUNES / EPIC_RUNES)
+ * matches its Basic / Epic heading. The one owner-ruled extra: Soul Script keeps BOTH its tribes (Undead + Celestial).
+ * The first pass left eight tribe mismatches and one rarity mismatch (docs/devlog/2026-09-25-set3-rune-list.md);
+ * docs/devlog/2026-09-25-set3-rune-tribes.md records the alignment.
  *
  * Three names match through the one card the rune grants: "dwarf king brill" (Rune of the High King gets a Dwarf
  * King, Brill), "spear warden" (Rune of the Warden gets a Spear Warden), "reflector" (Rune of Refraction gets a
@@ -126,9 +130,9 @@ describe("the owner's Set 3 rune list (2026-09-25)", () => {
     expect([...offered].sort()).toEqual([...LISTED].sort());
   });
 
-  it('counts: 90 Basic / 84 Epic (the game rarity, not the list grouping)', () => {
-    expect(LISTED.filter((id) => RUNES.some((r) => r.id === id))).toHaveLength(90); // 83 + 7 (batch 3, 2026-09-25)
-    expect(LISTED.filter((id) => EPIC_RUNES.some((r) => r.id === id))).toHaveLength(84); // 80 + 4 (batch 3, 2026-09-25)
+  it('counts: 91 Basic / 83 Epic (the game rarity; 84 / 79 after Engraving Gems moved Epic → Basic, + 7 / + 4 from rune batch 3, 2026-09-25)', () => {
+    expect(LISTED.filter((id) => RUNES.some((r) => r.id === id))).toHaveLength(91);
+    expect(LISTED.filter((id) => EPIC_RUNES.some((r) => r.id === id))).toHaveLength(83);
   });
 
   it('every rune NOT named is out of Set 3, still resolves, and keeps its other sets (never archived)', () => {
@@ -141,10 +145,49 @@ describe("the owner's Set 3 rune list (2026-09-25)", () => {
     for (const id of NOWHERE) expect(RUNE_INDEX[id]!.sets, `${id} was Set-3-only: now offered in no set`).toEqual([]);
   });
 
-  it('the list changed no rune rarity: every Basic-grouped / Epic-grouped mismatch is reported, not "fixed"', () => {
-    const basicListed = Object.values(OWNER_LIST).flatMap((g) => Object.values(g.basic));
-    const epicListed = Object.values(OWNER_LIST).flatMap((g) => Object.values(g.epic));
-    expect(basicListed.filter((id) => EPIC_RUNES.some((r) => r.id === id))).toEqual(['rune_engraving_gems']);
-    expect(epicListed.filter((id) => RUNES.some((r) => r.id === id))).toEqual([]);
+  it('RARITY: every rune sits in the pool its Basic / Epic heading names (zero mismatches)', () => {
+    for (const [group, g] of Object.entries(OWNER_LIST)) {
+      for (const id of Object.values(g.basic)) {
+        expect(RUNES.some((r) => r.id === id), `${id} (${group} Basic) is in RUNES`).toBe(true);
+        expect(RUNE_INDEX[id]!.epic, `${id} (${group} Basic) carries no Epic kicker`).toBeFalsy();
+      }
+      for (const id of Object.values(g.epic)) {
+        expect(EPIC_RUNES.some((r) => r.id === id), `${id} (${group} Epic) is in EPIC_RUNES`).toBe(true);
+        expect(RUNE_INDEX[id]!.epic, `${id} (${group} Epic) carries the Epic kicker`).toBe(true);
+      }
+    }
+  });
+
+  it('TRIBE: a tribe-listed rune carries that tribe gate, a Neutral-listed rune carries none (zero mismatches)', () => {
+    // The only owner-ruled extra tribe: Soul Script ("Starforms count as Undead") keeps Celestial beside Undead.
+    const EXTRA: Record<string, readonly Tribe[]> = { rune_soul_script: ['celestial'] };
+    for (const [group, g] of Object.entries(OWNER_LIST)) {
+      for (const id of [...Object.values(g.basic), ...Object.values(g.epic)]) {
+        const tribes = [...(RUNE_INDEX[id]!.tribes ?? [])].sort();
+        if (group === 'neutral') expect(tribes, `${id} is Neutral: no tribe gate`).toEqual([]);
+        else expect(tribes, `${id} is gated to ${group}`).toEqual([group as Tribe, ...(EXTRA[id] ?? [])].sort());
+      }
+    }
+  });
+
+  it('the rulings of 2026-09-25 hold at the forge: newly gated runes need their tribe, Lazarus is open to any run', () => {
+    const forge = (setId: 'set2' | 'set3', tribes: Tribe[], epic: boolean): string[] =>
+      runeforgePool({ ...createRun(7, 'warden', 'ascent', undefined, setId), tribes, ownedRunes: [], runeforgeEpic: epic || undefined } as RunState);
+    const GATED: [string, Tribe][] = [
+      ['rune_sellers_market', 'dwarf'], ['rune_spearline', 'undead'], ['rune_dream_mirror', 'spirit'],
+      ['rune_open_hand', 'spirit'], ['rune_waking_reserve', 'spirit'], ['rune_waking_dreams', 'spirit'],
+    ];
+    for (const [id, tribe] of GATED) {
+      const others = SETS.set3.tribes.filter((t) => t !== tribe) as Tribe[];
+      expect(forge('set3', others, true), `${id} without ${tribe}`).not.toContain(id);
+      expect(forge('set3', [tribe, ...others.slice(0, 2)], true), `${id} with ${tribe}`).toContain(id);
+    }
+    // Lazarus: no Undead needed, in Set 3 or Set 2 (which fields no Undead at all).
+    expect(forge('set3', ['kobold', 'dwarf', 'spirit'], true)).toContain('rune_lazarus');
+    expect(forge('set2', ['kobold', 'dwarf', 'beast'], true)).toContain('rune_lazarus');
+    // Engraving Gems: now a BASIC-forge Kobold rune, never at an Epic forge.
+    expect(forge('set3', ['kobold', 'dwarf', 'undead'], false)).toContain('rune_engraving_gems');
+    expect(forge('set3', ['kobold', 'dwarf', 'undead'], true)).not.toContain('rune_engraving_gems');
+    expect(forge('set3', ['dwarf', 'undead', 'spirit'], false)).not.toContain('rune_engraving_gems');
   });
 });

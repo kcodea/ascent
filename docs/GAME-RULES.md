@@ -555,14 +555,22 @@ include the set-3 originals). Full list: `docs/devlog/2026-09-24-set3-rune-cuts.
 `packages/sim/src/set3RuneCuts.test.ts`.
 
 **The Set 3 rune list (owner 2026-09-25) supersedes the counts above.** The owner's list IS Set 3's Runeforge:
-**163 runes, 83 Basic / 80 Epic** (the game's rarity; the list's own Basic/Epic grouping is not applied). Every rune
+**163 runes, 84 Basic / 79 Epic**. Every rune
 it names is in set 3; every other rune left set 3 only, keeping its other sets (an unscoped rune became
 `sets: ['set1', 'set2']`), never archived. Three set-3-only runes the list does not name (Charted Skies, the Festival
-Circuit, the Open Constellation) are now `sets: []`, offered in no set, pending an owner ruling. Full tables and the
-rarity / tribe mismatch report: `docs/devlog/2026-09-25-set3-rune-list.md`; the exact ids are pinned by
-`packages/sim/src/set3RuneList.test.ts`.
+Circuit, the Open Constellation) are now `sets: []`, offered in no set, pending an owner ruling. Full tables:
+`docs/devlog/2026-09-25-set3-rune-list.md`; the exact ids are pinned by `packages/sim/src/set3RuneList.test.ts`.
 
-**Set 3 rune batch 3 (owner 2026-09-25)** adds 11 Set-3-only runes to that list (**174 runes, 90 Basic / 84 Epic**):
+**The list's grouping IS each rune's tribe and rarity (owner 2026-09-25, R-RUNE-22).** A rune listed under a tribe
+carries that tribe gate (offered only when the tribe is in the run, in every set), a rune listed under Neutral carries
+none, and a rune listed Basic / Epic lives in that pool. This overrides the "text names a tribe" derivation where they
+differ: **Seller's Market** is Dwarf, **Spearline** Undead, and **Dream Mirror**, **Open Hand**, **Waking Reserve** and
+**Waking Dreams** Spirit, though none names its tribe; **Lazarus** is Neutral, though it grants an Undead body; **Soul
+Script** keeps both Undead and Celestial. **Engraving Gems** moved Epic → Basic (cost 2, unchanged), taking set 3 to
+84 Basic / 79 Epic. Every Set 3 rune's tribe and rarity is pinned against the list in `set3RuneList.test.ts`; the
+exceptions to the text rule are listed in `tribeGate.test.ts`.
+
+**Set 3 rune batch 3 (owner 2026-09-25)** adds 11 Set-3-only runes to that list (**174 runes, 91 Basic / 83 Epic**):
 Kobold Basics Gemmed Decisions, Echoing Kobolds, the Red Storm, Rubywire, Choices and Combatative Rubies; the Undead
 Basic Body Counting; Kobold Epics Storming Veins, Sold Choices, Aggressive Golems and Ruptured Rubies. Rules worth
 knowing: Echoing Kobolds and Aggressive Golems are aura-style GRAFTS (every Kobold / Gemheart Golem now and later, combat
@@ -581,7 +589,8 @@ runes of that sheet shipped in tranche D: **Rune of the Open Hand** (Epic 5 — 
 hand, another random friendly minion gains its current stats; every landed hand-summon, both phases) and **Rune of
 the Waking Reserve** (Epic 6 — Start of Combat: a copy of your highest-stat hand minion when the board has room;
 the hand card is NOT marked, so a Spirit may still summon it later that fight; it IS a hand-summon for Dreamed
-Graves / the Open Hand). Neither is tribe-gated: the text names no tribe (the 2026-09-10 rule). The tribe
+Graves / the Open Hand). Both shipped untribed (the text names no tribe) and are Spirit-gated since the owner's
+Set 3 rune list (2026-09-25). The tribe
 faucets (Rune of Basic/Epic Spirits, Celestials, Undead) are capped at the shop tier by the engine, like the
 Dwarf/Kobold ones. See `docs/devlog/2026-09-16-set3-runes-tranche-a.md` and `…-tranche-d.md` for the rulings and
 interpretations. **Rune of the Traveling Festival**'s "+2/+2 more" is applied ONCE per Reveler trigger (owner

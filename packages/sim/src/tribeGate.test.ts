@@ -21,17 +21,26 @@ const WORD: Record<Exclude<Tribe, 'neutral'>, RegExp> = {
   dwarf: /\bDwarv(?:es|en)?\b|\bDwarf\b|\bAles?\b/i, kobold: /\bKobolds?\b|\bRub(?:y|ies)\b/i, spirit: /\bSpirits?\b|\bRevelers?\b/i, celestial: /\bCelestials?\b|\bStarforms?\b|\bStar Crash(?:es)?\b/i,
 };
 /** Owner ruling 2026-09-10: a rune that only GRANTS a tribe body (Kegheart, High King) is gated like one that reads
- *  the board — so this allowlist is empty on purpose. Adding an id here needs an owner call. */
-const BODY_GRANT_ONLY = new Set<string>([]);
+ *  the board — so this allowlist holds only owner-ruled exceptions. Adding an id here needs an owner call.
+ *  Rune of Lazarus grants the Undead Lazarus but is NEUTRAL (owner ruling 2026-09-25 on the Set 3 rune list: remove its Undead gate),
+ *  so any run can be offered it. */
+const BODY_GRANT_ONLY = new Set<string>(['rune_lazarus']);
 /** OWNER-RULED tags whose text names the tribe by its KEYWORD rather than by name. Rune of the Deathtouched Apple
  *  ("When a minion Rises, give it Rise") is Undead (owner 2026-09-23, Balance 9/23: "make deathtouched apple an
  *  undead rune, so it is not in set 2") — Rise is the Undead keyword, the way Imps are Demon content. Rune of
  *  Hoardcalling ("get a Hoardflame or Dragonflame") is Dragon (owner 2026-09-24: "hoardcalling should have a dragon
- *  tag") — its rewards are Dragon spells, which the name-matcher does not read as naming Dragons. Rune of Choices
- *  and Rune of Sold Choices are Kobold (owner rune batch 2026-09-25 lists both under Kobold: Choose One is the
- *  Kobold keyword, like Rise for the Undead). Rune of Storming Veins (Veinstorm is the Kobold spell) and Rune of
- *  Aggressive Golems (the Gemheart Golem is the Kobold token) are Kobold by the same list. Adding an id here needs an owner call. */
-const OWNER_TRIBE_RULINGS: Readonly<Record<string, Tribe>> = { rune_deathtouched_apple: 'undead', rune_hoardcalling: 'dragon', rune_choices: 'kobold', rune_sold_choices: 'kobold', rune_storming_veins: 'kobold', rune_aggressive_golems: 'kobold' };
+ *  tag") — its rewards are Dragon spells, which the name-matcher does not read as naming Dragons. Adding an id
+ *  here needs an owner call. */
+const OWNER_TRIBE_RULINGS: Readonly<Record<string, Tribe>> = {
+  rune_deathtouched_apple: 'undead', rune_hoardcalling: 'dragon',
+  // The owner's Set 3 rune list (2026-09-25): "see here in this list how spearline and waking dreams are not
+  // "neutral" tagged and are tagged to tribes?" Each rune takes the tribe it is listed under, in every set.
+  rune_sellers_market: 'dwarf', rune_spearline: 'undead',
+  rune_dream_mirror: 'spirit', rune_open_hand: 'spirit', rune_waking_reserve: 'spirit', rune_waking_dreams: 'spirit',
+  // Set 3 rune batch 3 (owner 2026-09-25) lists these under Kobold though their text names no tribe word: Choose One
+  // is the Kobold keyword (like Rise for the Undead), Veinstorm is the Kobold spell, the Gemheart Golem the Kobold token.
+  rune_choices: 'kobold', rune_sold_choices: 'kobold', rune_storming_veins: 'kobold', rune_aggressive_golems: 'kobold',
+};
 
 /** The tribes of the bodies a reward GRANTS (Rune of Lazarus → Lazarus is Undead) — the 2026-09-10 ruling's
  *  "only grants a tribe body" case, resolved through the card index rather than a hand list. */

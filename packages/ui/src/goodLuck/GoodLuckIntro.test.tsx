@@ -7,7 +7,7 @@ import { GoodLuckIntro } from './GoodLuckIntro';
 import { HeroLaunchCurtain } from '../hero-select/HeroLaunchCurtain';
 import { requestLaunch, resetLaunchControllerForTests } from '../hero-select/heroLaunchController';
 import { goodLuckIntro, resetGoodLuckIntroForTests } from './goodLuckIntroStore';
-import { GLI_DEFAULTS, GLI_REPLAY_EVENT, goodLuckTimeline, resetGoodLuckIntroConfig, setGoodLuckIntroValue } from './goodLuckIntroConfig';
+import { GLI_DEFAULTS, GLI_REPLAY_EVENT, goodLuckTail, goodLuckTimeline, resetGoodLuckIntroConfig, setGoodLuckIntroValue } from './goodLuckIntroConfig';
 
 // The intro's two sounds, spied: each play hands back a handle whose `stop` a skip must call.
 const snd = vi.hoisted(() => {
@@ -102,9 +102,9 @@ describe('the Good Luck sounds (owner 2026-09-24: "it needs a sound effect")', (
     const t = goodLuckTimeline(GLI_DEFAULTS, false);
     expect(t.shineSoundAt).toBe(t.shineAt);
     expect(snd.shine).toHaveBeenCalledTimes(1);
-    expect(snd.shine).toHaveBeenCalledWith(GLI_DEFAULTS.shineSoundGain, t.shineAt);
+    expect(snd.shine).toHaveBeenCalledWith(GLI_DEFAULTS.shineSoundGain, t.shineAt, goodLuckTail(GLI_DEFAULTS, 'shine'));
     expect(snd.spark).toHaveBeenCalledTimes(1);
-    expect(snd.spark).toHaveBeenCalledWith(GLI_DEFAULTS.sparkSoundGain, t.sparkAt);
+    expect(snd.spark).toHaveBeenCalledWith(GLI_DEFAULTS.sparkSoundGain, t.sparkAt, goodLuckTail(GLI_DEFAULTS, 'spark'));
   });
 
   it('follows the tuner: the offset moves the shine sound, gains pass through, 0 sparks = no spark sound', () => {
@@ -114,7 +114,7 @@ describe('the Good Luck sounds (owner 2026-09-24: "it needs a sound effect")', (
     m = mount(<GoodLuckIntro />);
     act(() => goodLuckIntro.begin());
     const shineAt = goodLuckTimeline(GLI_DEFAULTS, false).shineAt;
-    expect(snd.shine).toHaveBeenCalledWith(0.5, shineAt - 120);
+    expect(snd.shine).toHaveBeenCalledWith(0.5, shineAt - 120, expect.objectContaining({ fadeOutMs: GLI_DEFAULTS.shineFadeOutMs }));
     expect(snd.spark).not.toHaveBeenCalled();
   });
 

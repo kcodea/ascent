@@ -151,7 +151,7 @@ const impulseCache = new Map<string, AudioBuffer>();
  * (0..1) how fast the highs die. Cached by (seconds, damping, rate) so repeated fires don't refill it.
  * `Math.random` is fine here — this is UI, not the seeded engine.
  */
-function reverbImpulse(a: BaseAudioContext, seconds: number, damping: number): AudioBuffer {
+export function reverbImpulse(a: BaseAudioContext, seconds: number, damping: number): AudioBuffer {
   const rate = a.sampleRate;
   const secs = Math.min(8, Math.max(0.1, seconds));
   const damp = Math.min(1, Math.max(0, damping));

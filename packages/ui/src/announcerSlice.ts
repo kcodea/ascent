@@ -146,7 +146,12 @@ export type AnnouncerEvent =
   | 'opponentHero'
   | 'tribeTakeover'
   | 'tribeSurge'
-  | 'rankUp';
+  | 'rankUp'
+  // The fight specials (owner 2026-09-25): card-specific in-fight moments.
+  | 'grimPayout'
+  | 'hanGover'
+  | 'kurseGolem'
+  | 'wolvieRise';
 
 export interface AnnouncedSlice {
   seed: number;

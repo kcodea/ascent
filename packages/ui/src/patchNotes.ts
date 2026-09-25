@@ -52,6 +52,22 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-09-25',
+    label: 'Fight Specials',
+    changes: [
+      {
+        category: 'Systems',
+        text: 'The announcer now reacts to a few famous cards mid-fight.',
+        details: [
+          'Grim paying out with six or more Echoes behind it.',
+          'Han Gover landing a Pummel payout.',
+          'Kurse summoning its Golem.',
+          'A Beast that Wolvie gave Rise getting back up.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-09-25',
     label: 'Announcer: Heroes and Tribes',
     changes: [
       {

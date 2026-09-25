@@ -100,7 +100,7 @@ describe('Runeforge — framework', () => {
     // (Set 2 rune batch 2026-07-29). The epic list grew by 6 in the same batch — see the sibling assertion.
     // A hardcoded total is a tripwire, not a spec: it fires whenever runes are added so the addition gets a
     // deliberate look. Bump it with the count. +10 (2026-07-30): Recollection, the First Round, six threshold runes, the Stampede, the Hatchery, Resonance, Investment, Last Call, Hunger, Blood and Coin, the Remains, Reinvestment the Hunting Bell, the Brood + the War Chorus. (Epics are counted separately.)
-    expect(RUNES.length).toBe(157); // 158 → 157 on 2026-09-24: Rune of the Full Hand archived (owner rulings, in no set after the Set 3 cut); 159 → 158 on 2026-09-24: Rune of Investment moved Basic → Epic (owner Ruby batch); 141 → 142 on 2026-08-26: Happy Birthday; 142 → 163 on 2026-09-16: Set 3 batch 2 (A 11 + B 8 + C 2 Basic); 163 → 164 on 2026-09-17: Rune of Gambling (all sets); 164 → 159 on 2026-09-23: five Basics archived (Emberline, Centerline, Cindergem, Second Litter, Spare Chair — ARCHIVED_RUNES)
+    expect(RUNES.length).toBe(158); // 157 → 158 on 2026-09-25: Rune of Engraving Gems moved Epic → Basic (owner Set 3 rune list); 158 → 157 on 2026-09-24: Rune of the Full Hand archived (owner rulings, in no set after the Set 3 cut); 159 → 158 on 2026-09-24: Rune of Investment moved Basic → Epic (owner Ruby batch); 141 → 142 on 2026-08-26: Happy Birthday; 142 → 163 on 2026-09-16: Set 3 batch 2 (A 11 + B 8 + C 2 Basic); 163 → 164 on 2026-09-17: Rune of Gambling (all sets); 164 → 159 on 2026-09-23: five Basics archived (Emberline, Centerline, Cindergem, Second Litter, Spare Chair — ARCHIVED_RUNES)
     for (const r of RUNES) expect(r.id.startsWith('rune_')).toBe(true);
   });
 

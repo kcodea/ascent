@@ -52,6 +52,29 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-09-25',
+    label: 'Rune Tribes',
+    changes: [
+      {
+        category: 'Balance',
+        text: 'Some runes now belong to a tribe. The Runeforge only offers them when that tribe is in your game.',
+        details: [
+          "Rune of the Seller's Market needs Dwarves.",
+          'Rune of the Spearline needs Undead.',
+          'Rune of the Dream Mirror, Rune of the Open Hand, Rune of the Waking Reserve and Rune of Waking Dreams need Spirits.',
+        ],
+      },
+      {
+        category: 'Balance',
+        text: 'Rune of Lazarus no longer needs Undead. Any game can be offered it.',
+      },
+      {
+        category: 'Balance',
+        text: 'Rune of Engraving Gems is now a Basic rune. It shows up at the Basic Runeforge and still costs 2 Gold.',
+      },
+    ],
+  },
+  {
+    date: '2026-09-25',
     label: 'Fight Recap: Cleaner',
     changes: [
       {

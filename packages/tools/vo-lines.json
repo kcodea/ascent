@@ -1,0 +1,16 @@
+{
+  "voices": {
+    "announcer": {
+      "id": "GFNPDbkiJBcXfkZZsunT",
+      "model": "eleven_multilingual_v2",
+      "dest": "apps/web/public/announcer",
+      "settings": {
+        "speed": 0.89,
+        "stability": 0.81,
+        "similarity_boost": 0.75,
+        "style": 0.45
+      }
+    }
+  },
+  "lines": []
+}

@@ -51,3 +51,6 @@ packages/ui/src/art/**/*.png
 
 # Balance bot job output (`npm run balance:synth` / `balance:run`) — regenerable records, never committed.
 packages/tools/src/balance/out/
+
+# Voiceover drafts from `npm run vo:generate` (ElevenLabs takes awaiting approval) — never committed.
+vo-drafts/

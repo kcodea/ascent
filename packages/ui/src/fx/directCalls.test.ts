@@ -166,6 +166,9 @@ describe('DIRECT_CALL_SITES is a derivation, not a list', () => {
       'auctioneer-hp', 'choose-one-both', 'cia-hp', 'click-puff', 'coin', 'coins', 'consume-pull', 'damage-burst', 'death-dissolve',
       // 'dice-land' joined on 2026-09-17: the landing burst of the shared 3D die (`DiceRoll.tsx`), fired at the anchor.
       'dice-land',
+      // 'discover-arrive' / 'discover-glint' joined on 2026-09-25: the Discover entrance (`discoverEntrance/entrance.ts`),
+      // the golden dust under each arriving option and the glints over its face.
+      'discover-arrive', 'discover-glint',
       // 'down-rank' joined on 2026-09-21: the owner-authored demotion hit on the post-game rank screen (`rank/rankTimeline.ts`),
       // the down twin of `rank-up` — fired for both demotion kinds (division and medal).
       'down-rank',

@@ -1,0 +1,39 @@
+/* THE DISCOVER ENTRANCE (owner ask 2026-09-25). The runner (`entrance.ts`) animates the slots and the sheen band
+   with WAAPI, transform and opacity only, one-shot. Everything here is STATIC: no CSS animation, nothing looping, no
+   animated paint property. At rest every layer below is invisible and inert, so a settled Discover paints exactly as
+   it did before this existed. */
+
+/* A card still in flight takes no input: a press there falls through to the overlay, which settles the entrance
+   without picking. It becomes clickable the instant it arrives (the runner clears the flag). */
+.disc-slot[data-dce="flying"] { pointer-events: none; }
+
+/* The shimmer: a soft diagonal band clipped to the card, parked off its left edge until the runner slides it across.
+   Over the card's art and text, under nothing that takes input (pointer-events: none). */
+.dce-sheen {
+  position: absolute; inset: 0; z-index: 5; pointer-events: none;
+  border-radius: var(--arch-radius, 14px); overflow: hidden;
+}
+/* A plated option (Choose One) carries its plate overhang as slot margin: keep the band on the card itself. */
+.disc-slot:has(.card.plated) .dce-sheen { inset-inline: calc(var(--ccw) * (var(--plate-scale, 1.5) - 1) / 2); }
+.dce-sheen-band {
+  position: absolute; top: -10%; bottom: -10%; left: 0; width: 38%;
+  /* Rasterized once and moved as a texture: the gradient never repaints while the band travels. */
+  backface-visibility: hidden;
+  background: linear-gradient(90deg, transparent 0%, rgba(255, 244, 214, 0.18) 30%, rgba(255, 248, 228, 0.7) 50%, rgba(255, 244, 214, 0.18) 70%, transparent 100%);
+  transform: translate3d(-160%, 0, 0) skewX(-16deg);
+  opacity: 0.55;
+}
+
+/* The tuner's sandbox preview (DEV) sits over whatever screen is up, the title (z 450) included. The above-modal FX
+   canvas is lifted over it while it is open, so its dust and glints still draw on top, and the tuner panels stay
+   above both so the dials can be moved and ▶ pressed again without closing it. */
+.discover-ov.dce-preview { z-index: 900; }
+body:has(.dce-preview) .pixifx-above { z-index: 905; }
+body:has(.dce-preview) .tunerpanel { z-index: 910; }
+.dce-preview-close {
+  position: fixed; top: calc(18 * var(--u)); right: calc(18 * var(--u)); z-index: 906;
+  font-family: var(--font-ui); font-weight: 800; font-size: calc(13 * var(--u)); letter-spacing: 0.03em;
+  color: #f4ecdb; background: linear-gradient(180deg, #241a13, #17110c);
+  border: 2px solid color-mix(in srgb, var(--gold) 58%, #000); border-radius: calc(11 * var(--u));
+  padding: calc(8 * var(--u)) calc(16 * var(--u));
+}

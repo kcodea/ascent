@@ -51,6 +51,24 @@ export interface PatchNote {
 /** Newest first. PREPEND new entries. */
 export const PATCH_NOTES: PatchNote[] = [
   {
+    date: '2026-09-25',
+    label: 'Discover Entrance',
+    changes: [
+      {
+        category: 'Systems',
+        text: 'Discover and Choose One cards now float in with a little golden dust, a shimmer and new sounds.',
+        details: [
+          'The cards drift up into place from left to right in about half a second, with a gentle settle.',
+          'Each card lands with a soft puff of golden dust and a few sparkles, and a light shimmer crosses it.',
+          'A soft whoosh plays as they come in, a light tap as each one arrives, and a sparkle once they are all in.',
+          'You can pick a card the moment it arrives. Clicking during the entrance finishes it at once.',
+          'Every Discover in a row (like Disco Dan\'s three) now plays its own opening sound.',
+          'Returning to a minimized Discover just fades it back in. With reduced motion on, the cards simply fade in.',
+        ],
+      },
+    ],
+  },
+  {
     date: '2026-09-24',
     label: 'Fight Recap Fixes',
     changes: [

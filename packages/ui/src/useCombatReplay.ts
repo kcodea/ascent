@@ -41,14 +41,16 @@ import { fireBuffFx } from './buffFxRender';
 import { resolveBuffSource } from './choreo/buffSource';
 import { cardFxScale } from './fx/cardScale';
 import { canPlayDefs, playDef } from './fx/playDef';
+import { createSettlingPoint, settledSlotCenter } from './fx/settledSlot';
+import { SOURCE_CASCADE_MS, sourceCascadeRanks, steppedRevealPlan, type RevealStep } from './choreo/sourceCascade';
 import { authoredBuffDefFor, bindingFor, heroPowerBuffLabelFor, labelBuffFxFor, sourceBuffDefFor, castFxReplacesTendril } from './choreo/bindings';
 import { isRuneBuffSource } from '@game/sim';
 import { anchorsForUnits } from './fx/combatAnchors';
 import { getDef } from './fx/fxDefs';
 import { WATCHER_PULSE_DEF_ID, watcherPixiReady } from './fx/watcherPulse';
 import { watcherPulseUids } from './choreo/channels/watcherPulse';
-import { combatBuffDeltas, combatDamageDeltas, driveRoll } from './fx/combatBuffRoll';
-import { heldFor, holdStat, releaseStat, replaceHold } from './fx/statHold';
+import { combatBuffDeltas, combatDamageDeltas, driveRoll, driveRollSegment } from './fx/combatBuffRoll';
+import { HOLD_GRACE_MS, heldFor, holdStat, releaseStat, replaceHold } from './fx/statHold';
 
 /** Card display name from its id (for combat-log lines about generated cards). */
 const cardName = (id: string): string => CARD_INDEX[id]?.name ?? id;
@@ -78,6 +80,12 @@ function notifyPresented(e: CombatEvent): void {
  *  cast is absorbed into the wind-up is that its numbers should reconcile while the attacker is still held
  *  (owner ask 2026-09-01). */
 const AUTHORED_BUFF_ROLL_MS = 140;
+/** How often an in-flight travel effect re-measures its target's settled slot, and the longest it keeps doing so
+ *  (a backstop — the play's own `onDone` normally stops it). See `settleTarget`. */
+const SETTLE_REMEASURE_MS = 100;
+/** One step of a stepped reveal (`scheduleSteppedRoll`), at most: a step is cut to the gap before the next strike. */
+const STEP_ROLL_MS = 320;
+const SETTLE_MAX_MS = 3000;
 const COMBAT_ROLL_MS = 650;
 
 /**
@@ -1311,6 +1319,10 @@ export function useCombatReplay(
   // here instead, cleared ONLY on reset/seek (`cancelPendingRolls`), so every volley fires but a scrub cancels
   // the ones still pending.
   const echoVolleyTimersRef = useRef<number[]>([]);
+  // Combat-lifetime timers for the LATER sources of a source cascade (`sourceCascadeRanks`: the second Oona's
+  // banana 200 ms after the first). Same reason as the volleys above: a fire can outlive its beat. Cleared on
+  // reset/seek only.
+  const srcCascadeTimersRef = useRef<number[]>([]);
   /**
    * FLOAT REMOVAL TIMERS — combat-lifetime, NOT per-beat (owner report 2026-09-01: *"dmg values being left
    * behind from fel spike's trigger"*).
@@ -1338,6 +1350,39 @@ export function useCombatReplay(
   // `timers`), so an ordinary beat advance cannot cancel it. When the delay elapses, hand off to `driveRoll`
   // with a LIVE speed getter (Task 6) — a mid-roll combat-speed change re-scales the remainder instead of
   // the roll finishing on whatever speed happened to be live when the strike landed.
+  /**
+   * `scheduleRoll`, STEPPED: each `RevealStep` rolls its slice of the unit's hold when its strike lands
+   * (`steppedRevealPlan`), so two Oona doublings read as two numbers, each on its own banana. Same registry and
+   * the same `combatHeldRef` hand-off as `scheduleRoll`, so a seek/reset or a same-unit hit cancels every step.
+   * The hold is re-placed with a TTL that outlives the LAST step when the default would not — a cascade of
+   * four sources ends well past `COMBAT_HOLD_TTL_MS`, and an early fail-open would snap the final number in.
+   */
+  const scheduleSteppedRoll = useCallback((uid: string, steps: RevealStep[]): void => {
+    if (steps.length === 0) return;
+    combatHeldRef.current = combatHeldRef.current.filter((u) => u !== uid);
+    const speed = combatSpeedRef.current > 0 ? combatSpeedRef.current : 1;
+    const endMs = steps[steps.length - 1]!.atMs + STEP_ROLL_MS / speed + HOLD_GRACE_MS;
+    const held = heldFor(uid); // just placed this beat, nothing revealed yet: the whole delta
+    if (held && endMs > COMBAT_HOLD_TTL_MS / speed) replaceHold(uid, held, { origin: 'effect', ttlMs: endMs });
+    steps.forEach((step, k) => {
+      // Each step finishes before the NEXT strike lands, so a close cascade (200 ms apart) still reads as
+      // separate numbers instead of the next step cutting this roll short. `step.atMs` is wall-clock, and
+      // `driveRollSegment` divides by speed, so the gap is converted back into speed-1 ms here.
+      const next = steps[k + 1];
+      const rollMs = next ? Math.min(STEP_ROLL_MS, Math.max(0, (next.atMs - step.atMs) * speed)) : STEP_ROLL_MS;
+      const id = ++rollRegistryIdRef.current;
+      const entry: { uid: string; strikeTimer: number | null; cancelRoll: (() => void) | null } =
+        { uid, strikeTimer: null, cancelRoll: null };
+      entry.strikeTimer = window.setTimeout(() => {
+        entry.strikeTimer = null;
+        entry.cancelRoll = driveRollSegment(uid, step.from, step.to, rollMs, () => combatSpeedRef.current, () => {
+          rollRegistryRef.current.delete(id);
+        });
+      }, step.atMs);
+      rollRegistryRef.current.set(id, entry);
+    });
+  }, []);
+
   const scheduleRoll = useCallback((uid: string, ms: number): void => {
     const id = ++rollRegistryIdRef.current;
     const entry: { uid: string; strikeTimer: number | null; cancelRoll: (() => void) | null } =
@@ -1391,6 +1436,8 @@ export function useCombatReplay(
     // or a re-seek supersedes them (they'd otherwise fire a stale spray onto the new frame).
     for (const id of echoVolleyTimersRef.current) window.clearTimeout(id);
     echoVolleyTimersRef.current = [];
+    for (const id of srcCascadeTimersRef.current) window.clearTimeout(id);
+    srcCascadeTimersRef.current = [];
     for (const id of floatTimersRef.current) window.clearTimeout(id);
     floatTimersRef.current = [];
     // A parked held-windup lunge from a swing this instance already replayed must not survive a fresh combat or
@@ -1604,6 +1651,17 @@ export function useCombatReplay(
   // buffers, launched from the lunge timeline so the beat reads pulse → tendril → lunge). The release timer is
   // scheduled in the combat-lifetime roll registry (`scheduleRoll`, near `resetTo`) — NOT the caller's per-beat
   // `timers` array — so an ordinary beat advance can't cancel it out from under the roll it starts.
+  /** A settling landing point for a travel effect aimed at `uid` (see `fx/settledSlot.ts`): starts at the unit's
+   *  settled slot, re-measured every `SETTLE_REMEASURE_MS` until the play ends (`stop`) or the backstop expires. */
+  const settleTarget = useCallback((uid: string, el: Element): { start: { x: number; y: number }; get: () => { x: number; y: number }; stop: () => void } | null => {
+    const start = settledSlotCenter(el);
+    if (!start) return null;
+    const pt = createSettlingPoint(start);
+    const iv = setInterval(() => { const g = settledSlotCenter(findEl(uid)); if (g) pt.setGoal(g); }, SETTLE_REMEASURE_MS);
+    const backstop = setTimeout(() => clearInterval(iv), SETTLE_MAX_MS);
+    return { start, get: pt.get, stop: () => { clearInterval(iv); clearTimeout(backstop); } };
+  }, [findEl]);
+
   const fireBuffCasts = useCallback((casts: BuffCast[]): void => {
     // target uid → the first landing cast's tendril flight time. A target can take several casts in one
     // moment, but they all release the SAME store hold together, so only the timing of the first is needed
@@ -1614,6 +1672,17 @@ export function useCombatReplay(
     // each successive beam gets the next `index`, so a def that staggers its layers fans out one-by-one instead
     // of all at once. Only the source-authored branch advances it; the generic tendril has no per-target stagger.
     let srcAuthoredIndex = 0;
+    const steppedStrikes = new Map<string, { gain: number; atMs: number }[]>();
+    const srcRank = sourceCascadeRanks(
+      casts,
+      (uid) => {
+        const el = findEl(uid);
+        if (el) { const r = el.getBoundingClientRect(); return r.left + r.width / 2; }
+        return lastRectRef.current.get(uid)?.cx ?? null;
+      },
+      // The casts the source-authored branch below plays: a minion's own buff, no spell behind it, with a def.
+      (c) => c.spellId === undefined && cardIds.has(c.source) && sourceBuffDefFor(cardIds.get(c.source) ?? null) !== null,
+    );
     for (const c of casts) {
       const tEl = findEl(c.target);
       if (!tEl) continue; // target not on screen → nothing to land on
@@ -1739,10 +1808,30 @@ export function useCombatReplay(
       const sc = src.center;
       const srcAuthored = sourceless ? null : sourceBuffDefFor(cardId);
       if (srcAuthored && sc) {
-        playDef(srcAuthored, { source: sc, target: tc, cursor: tc, camera: { x: window.innerWidth / 2, y: window.innerHeight / 2 } },
-          { uids: { source: c.source, target: c.target }, index: srcAuthoredIndex });
-        srcAuthoredIndex++;
-        if (!perTarget.has(c.target)) perTarget.set(c.target, AUTHORED_BUFF_ROLL_MS);
+        // LAND WHERE THE UNIT ENDS UP (owner 2026-09-24, King Oona's banana): a summoned target is still growing
+        // into its slot, and a later summon in the same cascade keeps sliding it over, so its fire-time rect is
+        // not where it settles. Aim at the SETTLED slot (`settledSlotCenter`) and re-measure it on a light timer
+        // for the flight only — a few layout reads per play, never one per frame — easing onto each new goal.
+        // LEFT-MOST SOURCE FIRST (owner 2026-09-24, two King Oonas): several minions firing their own buff def in
+        // one beat go one after another, `SOURCE_CASCADE_MS` apart (speed-scaled), instead of all at once. The
+        // settled target is measured when each one actually fires, so a late one still lands on the moved unit.
+        const index = srcAuthoredIndex++;
+        const fire = (): void => {
+          const liveEl = findEl(c.target) ?? tEl;
+          const target = settleTarget(c.target, liveEl) ?? undefined;
+          playDef(srcAuthored, { source: sc, target: target?.start ?? tc, cursor: tc, camera: { x: window.innerWidth / 2, y: window.innerHeight / 2 } },
+            { uids: { source: c.source, target: c.target }, index, target: target?.get, onDone: target?.stop });
+        };
+        const delayMs = (srcRank.get(c.source) ?? 0) * SOURCE_CASCADE_MS / (combatSpeedRef.current > 0 ? combatSpeedRef.current : 1);
+        if (delayMs > 0) srcCascadeTimersRef.current.push(window.setTimeout(fire, delayMs));
+        else fire();
+        // THE NUMBER WAITS FOR ITS STRIKE, one gain at a time (owner 2026-09-24): no flat roll for this target —
+        // each fire's gain rolls in when that fire's def reaches the unit (its target-anchored impact layer),
+        // scheduled after the loop once every strike on the target is known. Casts arrive in LOG order, which is
+        // the order the gains were applied, so `steppedRevealPlan` can walk the badge through each true value.
+        const strikes = steppedStrikes.get(c.target) ?? [];
+        strikes.push({ gain: Math.max(0, c.attack) + Math.max(0, c.health), atMs: delayMs + projectileImpactMs(srcAuthored) });
+        steppedStrikes.set(c.target, strikes);
         continue;
       }
       const strikeMs = fireBuffFx({
@@ -1756,6 +1845,11 @@ export function useCombatReplay(
     }
     const unitOf = (uid: string) =>
       frameRef.current?.player.find((u) => u.uid === uid) ?? frameRef.current?.enemy.find((u) => u.uid === uid);
+    for (const [target, strikes] of steppedStrikes) {
+      perTarget.delete(target);
+      if (!unitOf(target)) continue;
+      scheduleSteppedRoll(target, steppedRevealPlan(strikes.map((x) => x.gain), strikes.map((x) => x.atMs)));
+    }
     for (const [target, strikeMs] of perTarget) {
       const tgt = unitOf(target);
       if (!tgt) continue;
@@ -1770,7 +1864,7 @@ export function useCombatReplay(
       const ms = strikeMs / (combatSpeedRef.current > 0 ? combatSpeedRef.current : 1);
       scheduleRoll(target, ms);
     }
-  }, [findEl, cardIds, scheduleRoll]);
+  }, [findEl, cardIds, scheduleRoll, scheduleSteppedRoll, settleTarget]);
 
   // Fire a moment's SELF-buffs (a unit empowering ITSELF): one in-place pulse per unit, then after its own
   // hold time, roll its badge from the pre-buff value to the new one — the blast "causes" the tick. Shared by

@@ -177,4 +177,38 @@ export const MULTIPLIERS_RULES: GameRule[] = [
       lastVerifiedAt: '2026-09-22',
     },
   },
+  {
+    id: 'R-MULT-06',
+    title: 'Cast multipliers apply only to spells cast from hand, and only a hand cast spends them',
+    statement:
+      'Every effect that makes a spell cast more times (Yazzus, Living Grimoire, Orivax, Spell Thesis, Ancient Runes, '
+      + 'Nimbus, Comet, Edward Keg-hands, the Bottomless Cask and Bottomless Cellar, Rune of Shared Pour, Rune of '
+      + 'Hoardflame, Rune of Dragon Breath, Constellation Prime) applies ONLY to a spell the player casts from hand. A '
+      + 'spell cast by a minion (a Mage-Pup, an End-of-Turn caster), by a rune (Rune of Recurrence, a rune threshold) or '
+      + 'by an Equipment (Pourman\'s Keg) resolves exactly once, and it never spends a one-shot multiplier: the Living '
+      + 'Grimoire charge, Orivax\'s first-spell window, the Spell Thesis freebie, a Nimbus or Comet charge and the Shared '
+      + 'Pour freebie all wait for the next spell cast from hand. A re-cast of the spell being cast from hand, inside '
+      + 'that same cast (Mirrorwing, Yirin\'s Reflector, Runefire, Crash Course, Rune of Shared Reflection), is that '
+      + 'hand cast happening again and keeps its multiplier; the same re-cast of a minion\'s or rune\'s cast resolves '
+      + 'once. A minion\'s or rune\'s cast still counts as a spell cast for every tally and for the first/last-spell '
+      + 'memory (R-MINIONCAST-01). Rune of Resonance and the Ruby cast count are unchanged: a Ruby only multiplies when '
+      + 'played from hand already.',
+    domain: 'multipliers',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner ruling 2026-09-24 (after PR #1699 routed minion casts through castSpell)', quote: 'let\'s make the effect of living grimoire and yazzus/orivax etc specify spell cast from hand so that it only doubles from spells cast from hand.' },
+      { kind: 'code', ref: 'packages/sim/src/recruit.ts withHandCast / isHandCast / castsOutsideHand (the one gate), noteSpellCast (Grimoire spend + Orivax window), battlecryCastTaughtSpell, equipmentCastRandomAle, the spellCastOnThis re-casts, spellBuffTargetAndRandomFriendly (Constellation Prime); packages/sim/src/reducer.ts the hand-play paths (the only withHandCast callers)' },
+    ],
+    contentIds: ['yazzus', 'd2_grimoire', 'd2_orivax', 'nimbus', 'ce3_artificer', 'dw_edward', 'ce3_constellationprime', 'rune_shared_pour', 'rune_hoardflame', 'rune_bottomless_cask', 'rune_dragon_breath', 'q_spell_thesis', 'q_ancient_runes', 'q_bottomless_cellar', 'q_endless_verse'],
+    currentBehaviour:
+      'Conforms (fix/cast-multipliers-from-hand, 2026-09-24). Before, a minion\'s or rune\'s cast went through '
+      + '`castSpell` without being multiplied but still spent the Living Grimoire charge and closed Orivax\'s window, '
+      + 'while a Mage-Pup\'s taught spell and a Pourman\'s Keg pour were fully multiplied (and the Pup spent Spell Thesis '
+      + 'and the Nimbus charge). Card, rune and quest texts now say "from hand".',
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/sim/src/castMultipliersFromHand.test.ts', 'packages/sim/src/set3Dwarves.test.ts', 'packages/sim/src/docbot/recastMultiplier.test.ts'],
+      lastVerifiedAt: '2026-09-24',
+    },
+  },
 ];

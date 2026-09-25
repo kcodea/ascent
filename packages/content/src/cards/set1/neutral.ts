@@ -173,8 +173,8 @@ export const NEUTRAL: CardDef[] = [
     health: 8,
     keywords: [],
     effects: [],
-    text: 'Your **targeted** spells cast **an additional** time.',
-    goldenText: 'Your **targeted** spells cast **2 additional** times.',
+    text: '**Targeted** spells you cast from hand cast **an additional** time.',
+    goldenText: '**Targeted** spells you cast from hand cast **2 additional** times.',
   },
   {
     // Engraver. At Start of Combat it grants Engraved (EG) to the minion on its LEFT (golden: both
@@ -343,8 +343,8 @@ export const NEUTRAL: CardDef[] = [
     health: 3,
     keywords: [],
     effects: [{ on: 'onPlay', do: 'battlecryDoubleNextSpell' }],
-    text: '**Battlecry:** your next Shop spell casts an **additional** time.',
-    goldenText: '**Battlecry:** your next Shop spell casts **2 additional** times.',
+    text: '**Battlecry:** your next Shop spell cast from hand casts an **additional** time.',
+    goldenText: '**Battlecry:** your next Shop spell cast from hand casts **2 additional** times.',
   },
   {
     // Echo Warden: a passive presence special-cased in the combat summon path (simulate's summonMinion) — while

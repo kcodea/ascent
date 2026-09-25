@@ -233,8 +233,8 @@ export const SET2_DWARVES: CardDef[] = [
     health: 7,
     keywords: [],
     effects: [],
-    text: 'Your **Dwarven Ales** trigger **twice**.',
-    goldenText: 'Your **Dwarven Ales** trigger **three times**.',
+    text: '**Dwarven Ales** you cast from hand trigger **twice**.',
+    goldenText: '**Dwarven Ales** you cast from hand trigger **three times**.',
   },
   {
     // A flat per-Dwarf-played tribe pump. Owner balance 2026-08-28: +3/+3 → +4/+4 (golden +8/+8).

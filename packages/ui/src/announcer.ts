@@ -11,7 +11,8 @@
  *    run seed, reset by every new run) so a Save & Continue never replays a line. Three events may speak twice
  *    (BackToShop and Triple at least ANNOUNCER_REPEAT_GAP_WAVES waves apart, Knockout at least
  *    ANNOUNCER_KNOCKOUT_GAP_WAVES apart), still against the cap.
- *  · The VARIANT (1 / 2 / 3 / 4) is picked from the run seed, so a replayed run hears the same line. The RARE lines
+ *  · The VARIANT (which take) is a fresh RANDOM pick every time (owner 2026-09-25: "random pick every time, no
+ *    seeds"), so a replay or reload can hear a different take. The RARE lines
  *    (the random buy lines, Round 7) roll a SEEDED ANNOUNCER_RARE_CHANCE from the run seed + wave + buy index
  *    (`announcerRoll`), so a replay rolls the same way; never `Math.random`.
  *  · A GLOBAL COOLDOWN: no line within ANNOUNCER_COOLDOWN_MS of the previous one, and never while a line is
@@ -120,10 +121,9 @@ export const ANNOUNCER_ENTERING_COMBAT_MAX_WAVE = 3;
 const ANNOUNCER_VOLUME_KEY = 'ascent.announcervol.v2';
 
 /** The clips, per event, in variant order. Files live at `<BASE_URL>announcer/<name>.mp3`. NEW EVENTS GO AT THE
- *  END: `announcerVariant` hashes an event's index in this table, so reordering would re-pick every existing
- *  run's variants. */
+ *  END (the rare-line rolls still hash an event's index in this table). Which take plays is a fresh random pick. */
 export const ANNOUNCER_LINES: Record<AnnouncerEvent, readonly string[]> = {
-  // 25 takes (owner 2026-09-25: the StartGame folder, byte/audio duplicates dropped). Variant still picked by run seed.
+  // 25 takes (owner 2026-09-25: the StartGame folder, byte/audio duplicates dropped). Which take plays is picked at random each time.
   gameStart: Array.from({ length: 25 }, (_, i) => `game-start-${i + 1}`),
   backToShop: ['back-to-shop-1', 'back-to-shop-2', 'back-to-shop-3'],
   equipment: ['equipment-1', 'equipment-2'],
@@ -258,6 +258,9 @@ export interface AnnouncerDeps {
    *  event's tuned multiplier (the Announcer dev tuner, 1 = as recorded), applied on top of the channel level with
    *  the final gain clamped at 1 (`announcerLineGain`). */
   play: (url: string, onEnded: () => void, gain: number) => Promise<AnnouncerHandle | null>;
+  /** A uniform roll in [0, 1) for picking which take of a line plays (owner 2026-09-25: "random pick every time, no
+   *  seeds"). Tests replace it to pin a take. */
+  random: () => number;
 }
 
 // ── Level (the Settings slider + mute), persisted ────────────────────────────────────────────────────────────
@@ -405,6 +408,7 @@ const defaultDeps: AnnouncerDeps = {
   setTimeout: (cb, ms) => window.setTimeout(cb, ms),
   clearTimeout: (id) => window.clearTimeout(id),
   play: playDefault,
+  random: () => Math.random(), // presentation only: the announcer never feeds the sim, so the seeded-RNG ban doesn't apply
 };
 let deps: AnnouncerDeps = defaultDeps;
 /** Tests only: swap the seams. Resets the machine. */
@@ -469,18 +473,11 @@ function schedulePump(ms: number): void {
   pumpTimer = deps.setTimeout(() => { pumpTimer = null; pump(); }, Math.max(0, ms));
 }
 
-/** A deterministic variant index from the run seed, the event and its occurrence (so a replay hears the same
- *  line and a second BackToShop differs from the first). */
-export function announcerVariant(seed: number, event: AnnouncerEvent, occurrence: number, variants: number): number {
+/** Which take of a line plays: a fresh uniform pick every time (owner 2026-09-25: "random pick every time, no
+ *  seeds"), so the same moment can sound different on a replay or a reload. */
+export function announcerPick(variants: number, roll: number = deps.random()): number {
   if (variants <= 1) return 0;
-  const events = Object.keys(ANNOUNCER_LINES) as AnnouncerEvent[];
-  let h = (seed ^ 0x9e3779b9) >>> 0;
-  h = Math.imul(h ^ (events.indexOf(event) + 1), 0x85ebca6b) >>> 0;
-  h = Math.imul(h ^ (occurrence + 1), 0xc2b2ae35) >>> 0;
-  h = (h ^ (h >>> 13)) >>> 0;
-  h = Math.imul(h, 0x27d4eb2f) >>> 0;
-  h = (h ^ (h >>> 16)) >>> 0;
-  return h % variants;
+  return Math.min(variants - 1, Math.floor(roll * variants));
 }
 
 /** A deterministic roll in [0, 1) for the RARE lines, from the run seed, the event, the wave and an index (the
@@ -568,8 +565,7 @@ function speak(line: PendingLine): void {
   const s = slice;
   if (!s || !mark) return;
   const variants = ANNOUNCER_LINES[line.event];
-  const occurrence = firedWaves(s, line.event).length;
-  const file = variants[announcerVariant(s.seed, line.event, occurrence, variants.length)]!;
+  const file = variants[announcerPick(variants.length)]!;
   const token = ++playToken;
   playing = { event: line.event, token, handle: null };
   lastLine = { event: line.event, wave: line.wave };

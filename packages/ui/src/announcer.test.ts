@@ -17,7 +17,7 @@ import {
   __setAnnouncerDepsForTests, ANNOUNCER_BACK_TO_SHOP_DELAY_MS, ANNOUNCER_BIG_STAT, ANNOUNCER_COMBAT_SILENCE_MS, ANNOUNCER_COOLDOWN_MS,
   ANNOUNCER_END_DELAY_MS, ANNOUNCER_EQUIPMENT_DELAY_MS, ANNOUNCER_FACE_OMEN_DELAY_MS, ANNOUNCER_GAME_START_DELAY_MS,
   ANNOUNCER_LINES, ANNOUNCER_PRIORITY, ANNOUNCER_RARE_CHANCE, ANNOUNCER_STOP_FADE_MS, ANNOUNCER_TURN_ONE_QUIET_MS,
-  announcerDebug, announcerRoll, announcerVariant, hasPair, cancelAnnouncer, getAnnouncerVolume, isAnnouncerMuted, observeCombatBoard,
+  announcerDebug, announcerPick, announcerRoll, hasPair, cancelAnnouncer, getAnnouncerVolume, isAnnouncerMuted, observeCombatBoard,
   previewAnnouncerEvent, setAnnouncerVolume, syncAnnouncer, toggleAnnouncerMute, type AnnouncerEvent, type AnnouncerRunLike,
   type AnnouncerStateLike,
 } from './announcer';
@@ -116,6 +116,7 @@ beforeEach(() => {
   announced = emptyAnnounced(SEED);
   cur = null;
   __setAnnouncerDepsForTests({
+    random: () => 0, // the take is random in the game; pinned to the first take here so tests can name the file
     now: () => Date.now(),
     setTimeout: (cb, ms) => setTimeout(cb, ms) as unknown as number,
     clearTimeout: (id) => clearTimeout(id),
@@ -173,14 +174,16 @@ describe('GameStart', () => {
     expect(announced.fired.gameStart).toEqual([1]);
     expect(announced.count).toBe(1);
   });
-  it('the variant comes from the run seed: the same seed hears the same line, other seeds hear the other', () => {
-    const a = announcerVariant(SEED, 'gameStart', 0, 2);
-    expect(announcerVariant(SEED, 'gameStart', 0, 2)).toBe(a);
+  it('owner 2026-09-25: the take is a fresh random pick every time, not the run seed', () => {
+    expect(announcerPick(1, 0.99)).toBe(0);
+    expect(announcerPick(25, 0)).toBe(0);
+    expect(announcerPick(25, 0.999999)).toBe(24);
+    expect(announcerPick(4, 0.5)).toBe(2);
+    // Every take is reachable, and two calls with different rolls can differ (no seed pinning a moment's take).
     const seen = new Set<number>();
-    for (let s = 1; s < 40; s++) seen.add(announcerVariant(s, 'gameStart', 0, 2));
-    expect(seen).toEqual(new Set([0, 1]));
-    // A repeat occurrence of a two-line event is allowed to differ from its first (still deterministic).
-    expect(announcerVariant(SEED, 'backToShop', 1, 3)).toBe(announcerVariant(SEED, 'backToShop', 1, 3));
+    for (let i = 0; i < 25; i++) seen.add(announcerPick(25, (i + 0.5) / 25));
+    expect(seen.size).toBe(25);
+    expect(announcerPick(2, 0.1)).not.toBe(announcerPick(2, 0.9));
   });
   it('owner 2026-09-25: GameStart has 25 takes, every file exists, and no two share the same audio', async () => {
     const { readFileSync, existsSync } = await import('node:fs');
@@ -202,9 +205,6 @@ describe('GameStart', () => {
       hashes.add(createHash('md5').update(audio(readFileSync(file))).digest('hex'));
     }
     expect(hashes.size).toBe(25);
-    const seen = new Set<number>();
-    for (let s = 1; s < 400; s++) seen.add(announcerVariant(s, 'gameStart', 0, 25));
-    expect(seen.size).toBe(25); // every take is reachable from some seed
   });
   it('a Continue never replays it: a restored slice that has it fired stays silent', async () => {
     announced = withAnnounced(announced, 'gameStart', 1);
@@ -725,11 +725,8 @@ describe('the second batch (owner 2026-09-24)', () => {
     expect(ANNOUNCER_LINES.knockout).toHaveLength(4);
     expect(ANNOUNCER_LINES.pair).toHaveLength(2);
     expect(ANNOUNCER_LINES.randomSpellBuy).toHaveLength(2);
-    // The variant table is append-only: the first-batch events keep their hash index (and so their variants).
+    // The table stays append-only: the rare-line rolls still hash an event's index in it.
     expect(Object.keys(ANNOUNCER_LINES).indexOf('gameLoss')).toBe(18);
-    const seen = new Set<number>();
-    for (let s = 1; s < 60; s++) seen.add(announcerVariant(s, 'threeWinStreak', 0, 2));
-    expect(seen).toEqual(new Set([0, 1]));
   });
 
   it('Knockout: your fight knocks your foe out; it lands with the return (the table settles there), twice at most, 1+ wave apart', async () => {

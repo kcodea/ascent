@@ -52,6 +52,16 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-09-25',
+    label: 'Announcer Variety',
+    changes: [
+      {
+        category: 'Systems',
+        text: 'The announcer now picks a random take of each line every time, so you hear more of the different recordings.',
+      },
+    ],
+  },
+  {
+    date: '2026-09-25',
     label: 'Rune Changes',
     changes: [
       {

@@ -52,6 +52,24 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-09-25',
+    label: 'Announcer Moments',
+    changes: [
+      {
+        category: 'Systems',
+        text: 'The announcer has 31 new moments to call out, from tier-ups and big turns to streaks, standings and finishing second.',
+        details: [
+          'Shop: tier-ups, a fast climb to tier 4 or 6, selling sprees, selling a golden minion, spell chains, big turns, a full board, an all-golden board, a board passing 500 total stats, a minion reaching 250 stats, 20+ Armor, a one-tribe board, and a board of five or more tribes.',
+          'Into a fight: the final showdown, being a big underdog or a heavy favourite, and ending a turn broke.',
+          'After a fight: your first draw, surviving on 1 Resolve, losing your Armor, a blowout loss, a five-win streak, back-to-back losses, and a broken win streak.',
+          'The table: the first player out, five or three players left, leading or trailing the lobby after round 8, rounds 10, 15 and 20, and a game that runs past round 18.',
+          'Finishing second now has its own line.',
+          'Each moment speaks at most once a game, and the announcer still waits between lines, so you will hear a few per game, not all of them.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-09-25',
     label: 'Rune Tribes',
     changes: [
       {

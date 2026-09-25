@@ -142,6 +142,45 @@ export const ANNOUNCER_ROUND_SEVEN = 7;
 export const ANNOUNCER_TIME_WARNING_SECONDS = 15;
 /** EnteringCombat is "the first Face Omen": if the first one is dropped it may still speak up to this wave. */
 export const ANNOUNCER_ENTERING_COMBAT_MAX_WAVE = 3;
+
+// ── The moment catalog's first batch (owner 2026-09-25): thresholds as the catalog words them ─────────────────
+/** LateGame: the game passes this round (the Shop of the round after it opens). */
+export const ANNOUNCER_LATE_GAME_ROUND = 18;
+/** RoundMilestone: these rounds' Shops. */
+export const ANNOUNCER_ROUND_MILESTONES: readonly number[] = [10, 15, 20];
+/** BrokeTurn: ending a Shop turn with 0 Gold and nothing bought, after this round. */
+export const ANNOUNCER_BROKE_AFTER_WAVE = 5;
+/** FastTier: tier 4 by round 5, or tier 6 by round 9. */
+export const ANNOUNCER_FAST_TIERS: readonly { tier: number; byWave: number }[] = [{ tier: 4, byWave: 5 }, { tier: 6, byWave: 9 }];
+/** SellSpree: this many minions sold in one Shop turn. */
+export const ANNOUNCER_SELL_SPREE = 4;
+/** SpellChain: this many spells cast in one Shop turn. */
+export const ANNOUNCER_SPELL_CHAIN = 4;
+/** BigTurn: this many cards played in one Shop turn. */
+export const ANNOUNCER_BIG_TURN = 5;
+/** BoardTotal: the board's summed Attack + Health passes these (in order; each a separate moment). */
+export const ANNOUNCER_BOARD_TOTALS: readonly number[] = [500, 1000];
+/** A full board. */
+export const ANNOUNCER_BOARD_SLOTS = 7;
+/** MinionHits250: a minion at or above this Attack or Health. */
+export const ANNOUNCER_HUGE_STAT = 250;
+/** ArmorUp: Armor at or above this. */
+export const ANNOUNCER_ARMOR_UP = 20;
+/** UnderdogOdds / HeavyFavourite: entering a fight under / over these win odds. */
+export const ANNOUNCER_UNDERDOG_ODDS = 0.2;
+export const ANNOUNCER_FAVOURITE_ODDS = 0.9;
+/** LobbyLast / LeaderboardTop: only after this round. */
+export const ANNOUNCER_STANDINGS_AFTER_WAVE = 8;
+/** PlayersRemain: someone else is knocked out and exactly one of these many remain. */
+export const ANNOUNCER_PLAYERS_REMAIN: readonly number[] = [5, 3];
+/** FiveWinStreak: this many wins in a row. */
+export const ANNOUNCER_FIVE_STREAK = 5;
+/** LosingStreak: this many losses in a row. */
+export const ANNOUNCER_LOSING_STREAK = 2;
+/** StreakBroken: a loss ending a win streak at least this long. */
+export const ANNOUNCER_STREAK_BROKEN = 3;
+/** MixedBoard: a full board spanning at least this many different tribes. */
+export const ANNOUNCER_MIXED_TRIBES = 5;
 /** The Announcer slider's storage key. `.v2` since the default-mix curve (owner 2026-09-24): the stored value is a
  *  SLIDER position that `sliderToGain('announcer', …)` turns into the gain, so the old `ascent.announcervol` (a raw
  *  gain) is no longer read and every player starts once on the new default, the 50 mark (= the owner's 0.7 gain). */
@@ -195,7 +234,49 @@ export const ANNOUNCER_LINES: Record<AnnouncerEvent, readonly string[]> = {
   buyDrakko: Array.from({ length: 5 }, (_, i) => `buy-drakko-${i + 1}`),
   buySylus: Array.from({ length: 4 }, (_, i) => `buy-sylus-${i + 1}`),
   castAle: Array.from({ length: 6 }, (_, i) => `cast-ale-${i + 1}`),
+  // The moment catalog's first batch (owner 2026-09-25): one ElevenLabs take each (the catalog's example line,
+  // generated with the owner's cloned announcer voice). A moment the catalog lets recur (TierUp, RoundMilestone,
+  // BoardTotal) speaks once until it gets more takes: the no-repeat bag goes silent when its takes run out.
+  lateGame: ['late-game-1'],
+  roundMilestone: ['round-milestone-1'],
+  secondPlace: ['second-place-1'],
+  brokeTurn: ['broke-turn-1'],
+  fastTier: ['fast-tier-1'],
+  sellSpree: ['sell-spree-1'],
+  sellGilded: ['sell-gilded-1'],
+  spellChain: ['spell-chain-1'],
+  tierUp: ['tier-up-1'],
+  allGolden: ['all-golden-1'],
+  bigTurn: ['big-turn-1'],
+  boardTotal: ['board-total-1'],
+  fullBoard: ['full-board-1'],
+  minionHits250: ['minion-hits-250-1'],
+  armorUp: ['armor-up-1'],
+  finalShowdown: ['final-showdown-1'],
+  underdogOdds: ['underdog-odds-1'],
+  heavyFavourite: ['heavy-favourite-1'],
+  armorGone: ['armor-gone-1'],
+  blowoutLoss: ['blowout-loss-1'],
+  oneResolve: ['one-resolve-1'],
+  stalemate: ['stalemate-1'],
+  lobbyLast: ['lobby-last-1'],
+  firstOut: ['first-out-1'],
+  leaderboardTop: ['leaderboard-top-1'],
+  playersRemain: ['players-remain-1'],
+  fiveWinStreak: ['five-win-streak-1'],
+  losingStreak: ['losing-streak-1'],
+  streakBroken: ['streak-broken-1'],
+  tribeFullBoard: ['tribe-full-board-1'],
+  mixedBoard: ['mixed-board-1'],
 };
+
+/** The moment catalog's first batch (owner 2026-09-25), in ANNOUNCER_LINES order. */
+export const CATALOG_BATCH_1_EVENTS: readonly AnnouncerEvent[] = [
+  'lateGame', 'roundMilestone', 'secondPlace', 'brokeTurn', 'fastTier', 'sellSpree', 'sellGilded', 'spellChain', 'tierUp',
+  'allGolden', 'bigTurn', 'boardTotal', 'fullBoard', 'minionHits250', 'armorUp', 'finalShowdown', 'underdogOdds',
+  'heavyFavourite', 'armorGone', 'blowoutLoss', 'oneResolve', 'stalemate', 'lobbyLast', 'firstOut', 'leaderboardTop',
+  'playersRemain', 'fiveWinStreak', 'losingStreak', 'streakBroken', 'tribeFullBoard', 'mixedBoard',
+];
 
 /** Higher speaks first when several are pending at once. */
 export const ANNOUNCER_PRIORITY: Record<AnnouncerEvent, number> = {
@@ -237,6 +318,39 @@ export const ANNOUNCER_PRIORITY: Record<AnnouncerEvent, number> = {
   buyDrakko: 36,
   buySylus: 36,
   castAle: 16,
+  // The moment catalog's first batch (owner 2026-09-25). PROPOSED by Claude, each slotted beside the live moment it
+  // most resembles; the owner tunes. Ties with an existing moment are deliberate (same weight, first queued wins).
+  secondPlace: 100,
+  playersRemain: 84,
+  firstOut: 82,
+  oneResolve: 78,
+  finalShowdown: 75,
+  fiveWinStreak: 67,
+  blowoutLoss: 64,
+  streakBroken: 63,
+  stalemate: 62,
+  allGolden: 56,
+  minionHits250: 53,
+  underdogOdds: 52,
+  boardTotal: 49,
+  fastTier: 44, // below TierSix (45): tier 6 by round 9 says "Tier six", which cannot recur
+  armorGone: 41,
+  leaderboardTop: 43,
+  lobbyLast: 42,
+  losingStreak: 40,
+  tribeFullBoard: 38,
+  mixedBoard: 34,
+  heavyFavourite: 32,
+  armorUp: 31,
+  spellChain: 29,
+  sellGilded: 27,
+  bigTurn: 26,
+  lateGame: 26,
+  sellSpree: 23,
+  tierUp: 19,
+  fullBoard: 17,
+  roundMilestone: 13,
+  brokeTurn: 8,
 };
 
 /** When a pending line goes stale: 'shop' lines when combat starts, 'combat' lines when the next shop opens. */
@@ -269,10 +383,20 @@ export interface AnnouncerRunLike {
   runeforgeOffer?: readonly string[] | undefined;
   runeforgeEpic?: boolean | undefined;
   combatSettled: boolean;
+  /** Armor (ArmorUp, ArmorGone, and the loss damage BlowoutLoss reads with Resolve). */
+  armor?: number | undefined;
+  /** The Shop turn's tallies (the reducer's): SellSpree / SellGilded, SpellChain, BigTurn. */
+  soldThisTurn?: readonly string[] | undefined;
+  spellsThisTurn?: number | undefined;
+  playedThisTurn?: readonly string[] | undefined;
   lastCombat?: { result: string; enemyDamage?: number | undefined; playerDeaths?: number | undefined } | undefined;
   lobby?: {
     round?: number | undefined;
-    seats: readonly { id?: string | undefined; alive: boolean; placement?: number | undefined; eliminatedRound?: number | undefined }[];
+    seats: readonly {
+      id?: string | undefined; alive: boolean; placement?: number | undefined; eliminatedRound?: number | undefined;
+      /** LobbyLast / LeaderboardTop compare it across the standing seats. */
+      resolve?: number | undefined;
+    }[];
     encounters?: readonly { round: number; a: string; b: string; damageToA: number; damageToB: number; bye?: string | undefined }[] | undefined;
   } | undefined;
 }
@@ -494,6 +618,10 @@ let enteredAtWaveOne = false;
 let combatStartedAt: number | null = null;
 /** MinionHits100Stats in combat is checked per frame; report it once per fight. */
 let bigStatSeenThisCombat = false;
+/** MinionHits250 in combat, the same way. */
+let hugeStatSeenThisCombat = false;
+/** UnderdogOdds / HeavyFavourite: the wave whose pre-fight odds were already weighed (the probe lands once). */
+let oddsCheckedWave = -1;
 /** TimeRunningOut: the wave whose clock already crossed ANNOUNCER_TIME_WARNING_SECONDS (once per Shop turn). */
 let timeWarningWave = -1;
 /** SPECIALTY lines: detections so far this game (a dropped one retries, at most its take count). In memory, like
@@ -823,6 +951,54 @@ function detectForge(s: AnnouncedSlice, p: AnnouncerRunLike, run: AnnouncerRunLi
   if (!hasFired(s, event)) enqueue({ event, shelf: 'shop', notBefore, wave: run.wave, bypassCooldown: true });
 }
 
+// ── The moment catalog's first batch's detectors (owner 2026-09-25) ──────────────────────────────────────────
+const hasHugeStat = (units: readonly { attack: number; health: number }[]): boolean =>
+  units.some((u) => u.attack >= ANNOUNCER_HUGE_STAT || u.health >= ANNOUNCER_HUGE_STAT);
+const boardTotal = (r: AnnouncerRunLike): number => r.board.reduce((n, c) => n + c.attack + c.health, 0);
+const fullBoard = (r: AnnouncerRunLike): boolean => r.board.length >= ANNOUNCER_BOARD_SLOTS;
+/** Every board slot holds a gilded minion. */
+const allGolden = (r: AnnouncerRunLike): boolean => fullBoard(r) && r.board.every((c) => c.golden);
+/** The tribes a board minion counts as (its own one or two; an All-tribe minion is every tribe, `'all'`). */
+function tribesOf(cardId: string | undefined): readonly (Tribe | 'all')[] {
+  const def = cardId ? CARD_INDEX[cardId] : undefined;
+  if (!def || def.spell || def.ruby) return [];
+  if (def.universalTribe) return ['all'];
+  return [def.tribe, def.tribe2].filter((t): t is Tribe => !!t && t !== 'neutral');
+}
+/** TribeFullBoard: a full board whose every minion shares one tribe (an All-tribe minion fits any). */
+export function isTribeFullBoard(r: AnnouncerRunLike): boolean {
+  if (!fullBoard(r)) return false;
+  const each = r.board.map((c) => tribesOf(c.cardId));
+  if (each.some((t) => t.length === 0)) return false;
+  const named = each.filter((t) => !t.includes('all'));
+  if (!named.length) return true;
+  return named[0]!.some((tribe) => named.every((t) => t.includes(tribe)));
+}
+/** MixedBoard: a full board spanning ANNOUNCER_MIXED_TRIBES+ different tribes (an All-tribe minion adds none). */
+export function isMixedBoard(r: AnnouncerRunLike): boolean {
+  if (!fullBoard(r)) return false;
+  const seen = new Set<Tribe>();
+  for (const c of r.board) for (const t of tribesOf(c.cardId)) if (t !== 'all') seen.add(t);
+  return seen.size >= ANNOUNCER_MIXED_TRIBES;
+}
+const knockedOutCount = (r: AnnouncerRunLike): number => r.lobby?.seats.filter((x) => !x.alive).length ?? 0;
+/** LobbyLast / LeaderboardTop: the player's Resolve against every other standing seat's (strictly lowest / highest). */
+function standing(r: AnnouncerRunLike): 'last' | 'top' | null {
+  const others = (r.lobby?.seats ?? []).slice(1).filter((x) => x.alive && typeof x.resolve === 'number');
+  if (!others.length || !playerAlive(r)) return null;
+  if (others.every((x) => r.resolve < x.resolve!)) return 'last';
+  if (others.every((x) => r.resolve > x.resolve!)) return 'top';
+  return null;
+}
+/** The run of identical results at the end of `h` (how many, and which). */
+function trailingRun(h: readonly string[]): { result: string | null; length: number } {
+  const last = h[h.length - 1];
+  if (last === undefined) return { result: null, length: 0 };
+  let n = 0;
+  for (let i = h.length - 1; i >= 0 && h[i] === last; i--) n++;
+  return { result: last, length: n };
+}
+
 function enterRun(s: AnnouncerStateLike): void {
   cancelAnnouncer('run change');
   active = true;
@@ -833,6 +1009,8 @@ function enterRun(s: AnnouncerStateLike): void {
   enteredAtWaveOne = s.run.wave === 1 && s.run.phase === 'recruit';
   combatStartedAt = s.run.phase === 'combat' ? runEnteredAt : null;
   bigStatSeenThisCombat = false;
+  hugeStatSeenThisCombat = false;
+  oddsCheckedWave = -1;
   timeWarningWave = -1;
   specialtyTries = new Map();
   tribeBuys = { wave: -1, byTribe: new Map(), all: 0 };
@@ -864,6 +1042,20 @@ export function syncAnnouncer(s: AnnouncerStateLike, prev: AnnouncerStateLike | 
     enterRun(s);
     return;
   }
+  // UNDERDOG / FAVOURITE: the rail's pre-fight odds arrive on their own update (the deferred probe), before or
+  // after the Face Omen flip, so this is weighed on any update once the fight is on and its odds are known.
+  if (run.phase === 'combat' && !run.combatSettled && combatStartedAt !== null && oddsCheckedWave !== run.wave
+    && s.combatOdds && s.combatOdds.wave === run.wave) {
+    oddsCheckedWave = run.wave;
+    const win = s.combatOdds.odds.win;
+    const at = Math.max(deps.now(), combatStartedAt + ANNOUNCER_FACE_OMEN_DELAY_MS);
+    if (win < ANNOUNCER_UNDERDOG_ODDS && !hasFired(slice, 'underdogOdds')) {
+      enqueue({ event: 'underdogOdds', shelf: 'combat', notBefore: at, wave: run.wave });
+    }
+    if (win > ANNOUNCER_FAVOURITE_ODDS && !hasFired(slice, 'heavyFavourite')) {
+      enqueue({ event: 'heavyFavourite', shelf: 'combat', notBefore: at, wave: run.wave });
+    }
+  }
   const p = prev?.run;
   if (!p || p === run || p.seed !== run.seed) return;
   const now = deps.now();
@@ -884,6 +1076,16 @@ export function syncAnnouncer(s: AnnouncerStateLike, prev: AnnouncerStateLike | 
     }
     if (run.wave <= ANNOUNCER_ENTERING_COMBAT_MAX_WAVE && !hasFired(slice, 'enteringCombat')) {
       enqueue({ event: 'enteringCombat', shelf: 'combat', notBefore: at, wave: run.wave });
+    }
+    hugeStatSeenThisCombat = false;
+    // FinalShowdown: the last fight of the game, two players standing (the player one of them).
+    if (run.lobby && playerAlive(run) && aliveSeats(run) === 2 && !hasFired(slice, 'finalShowdown')) {
+      enqueue({ event: 'finalShowdown', shelf: 'combat', notBefore: at, wave: run.wave });
+    }
+    // BrokeTurn: the Shop turn that just ended spent every Gold and bought nothing, past the opening rounds.
+    // Both tallies must be KNOWN (absent = unknown, never assumed 0).
+    if (p.wave > ANNOUNCER_BROKE_AFTER_WAVE && p.embers === 0 && p.cardsBoughtThisTurn === 0 && !hasFired(slice, 'brokeTurn')) {
+      enqueue({ event: 'brokeTurn', shelf: 'combat', notBefore: at, wave: run.wave });
     }
     return;
   }
@@ -926,6 +1128,7 @@ export function syncAnnouncer(s: AnnouncerStateLike, prev: AnnouncerStateLike | 
         enqueue({ event: 'bigHit', shelf: 'combat', notBefore: at, wave: run.wave });
       }
     }
+    detectVerdict(slice, p, run, result, at);
     return;
   }
   if (p.phase === 'combat' && run.phase === 'recruit') {
@@ -950,6 +1153,7 @@ export function syncAnnouncer(s: AnnouncerStateLike, prev: AnnouncerStateLike | 
     if (run.wave === ANNOUNCER_ROUND_SEVEN && !hasFired(slice, 'round7')) { // the chance table rolls (10%)
       enqueue({ event: 'round7', shelf: 'shop', notBefore: at, wave: run.wave });
     }
+    detectReturn(slice, p, run, at);
     // A forge that opens WITH the return (the turn-6 / turn-9 forges, a hero's turn-5 / turn-8 one, a booked
     // Clock forge) arrives in this same update: it outranks BackToShop, which is then dropped as outranked
     // (and stays unfired, so a later return may still hear it).
@@ -960,12 +1164,13 @@ export function syncAnnouncer(s: AnnouncerStateLike, prev: AnnouncerStateLike | 
     return;
   }
   if (p.phase !== run.phase && (run.phase === 'gameover' || run.phase === 'victory')) {
-    // THE END: the two lines that never expire and sit outside the cap.
+    // THE END: the lines that never expire. Exactly 2nd has its own line (SecondPlace) in place of GameLoss.
     expire('combat');
     expire('shop');
     combatStartedAt = null;
-    const event: AnnouncerEvent = finalPlacement(run) === 1 ? 'gameWon' : 'gameLoss';
-    if (!hasFired(slice, 'gameWon') && !hasFired(slice, 'gameLoss')) {
+    const placement = finalPlacement(run);
+    const event: AnnouncerEvent = placement === 1 ? 'gameWon' : placement === 2 ? 'secondPlace' : 'gameLoss';
+    if (!hasFired(slice, 'gameWon') && !hasFired(slice, 'gameLoss') && !hasFired(slice, 'secondPlace')) {
       enqueue({ event, shelf: 'never', notBefore: now + ANNOUNCER_END_DELAY_MS, wave: run.wave });
     }
     return;
@@ -1001,16 +1206,112 @@ export function syncAnnouncer(s: AnnouncerStateLike, prev: AnnouncerStateLike | 
     detectBuy(slice, p, run, now);
     // CastAle: a spell was cast and an Ale left the hand (an Ale cast from hand, not one a minion or rune casts).
     if ((run.spellsCast ?? 0) > (p.spellsCast ?? 0) && aleCount(run) < aleCount(p)) trySpecialty(slice, 'castAle', run.wave, now);
+    detectShopTurn(slice, p, run, now);
   }
 }
 
-/** The combat replay's PLAYER units at the current beat (Recruit hands them in per frame): MinionHits100Stats
- *  during a fight. Ghost / enemy boards are never passed. Once per fight, only while the fight is on. */
+/** The fight's verdict: the catalog's result and streak lines. `at` is the verdict lines' shared time. */
+function detectVerdict(s: AnnouncedSlice, p: AnnouncerRunLike, run: AnnouncerRunLike, result: string | undefined, at: number): void {
+  const w = run.wave;
+  // Stalemate: the first draw of the game.
+  if (result === 'draw' && !hasFired(s, 'stalemate')) enqueue({ event: 'stalemate', shelf: 'combat', notBefore: at, wave: w });
+  // OneResolve: the fight leaves the player on exactly 1 Resolve.
+  if (run.resolve === 1 && p.resolve !== 1 && !hasFired(s, 'oneResolve')) enqueue({ event: 'oneResolve', shelf: 'combat', notBefore: at, wave: w });
+  // ArmorGone: Armor hits 0 for the first time.
+  if ((p.armor ?? 0) > 0 && (run.armor ?? 0) === 0 && !hasFired(s, 'armorGone')) enqueue({ event: 'armorGone', shelf: 'combat', notBefore: at, wave: w });
+  // BlowoutLoss: a loss that cost the round's full damage cap (Armor + Resolve taken; rounds past the cap never qualify).
+  const cap = lossDamageCap(w);
+  const taken = (p.resolve + (p.armor ?? 0)) - (run.resolve + (run.armor ?? 0));
+  if (result === 'lose' && Number.isFinite(cap) && taken >= cap && !hasFired(s, 'blowoutLoss')) {
+    enqueue({ event: 'blowoutLoss', shelf: 'combat', notBefore: at, wave: w });
+  }
+  const streak = trailingRun(run.history);
+  if (streak.result === 'win' && streak.length === ANNOUNCER_FIVE_STREAK && !hasFired(s, 'fiveWinStreak')) {
+    enqueue({ event: 'fiveWinStreak', shelf: 'combat', notBefore: at, wave: w });
+  }
+  if (result === 'lose' && streak.length === ANNOUNCER_LOSING_STREAK && !hasFired(s, 'losingStreak')) {
+    enqueue({ event: 'losingStreak', shelf: 'combat', notBefore: at, wave: w });
+  }
+  // StreakBroken: this loss ends a win streak of ANNOUNCER_STREAK_BROKEN+.
+  if (result === 'lose' && trailingRun(run.history.slice(0, -1)).result === 'win'
+    && trailingRun(run.history.slice(0, -1)).length >= ANNOUNCER_STREAK_BROKEN && !hasFired(s, 'streakBroken')) {
+    enqueue({ event: 'streakBroken', shelf: 'combat', notBefore: at, wave: w });
+  }
+}
+
+/** Back in the Shop: the catalog's lobby and round lines. `at` is the return lines' shared time. */
+function detectReturn(s: AnnouncedSlice, p: AnnouncerRunLike, run: AnnouncerRunLike, at: number): void {
+  const w = run.wave;
+  if (run.lobby && playerAlive(run)) {
+    const outNow = knockedOutCount(run);
+    // FirstOut: the lobby's first knockout (someone else: the player is still standing).
+    if (knockedOutCount(p) === 0 && outNow > 0 && !hasFired(s, 'firstOut')) enqueue({ event: 'firstOut', shelf: 'shop', notBefore: at, wave: w });
+    // PlayersRemain: someone else went out and 5 or 3 are left.
+    if (outNow > knockedOutCount(p) && ANNOUNCER_PLAYERS_REMAIN.includes(aliveSeats(run))
+      && repeatAllowed(s, 'playersRemain', w, ANNOUNCER_PLAYERS_REMAIN.length, 1)) {
+      enqueue({ event: 'playersRemain', shelf: 'shop', notBefore: at, wave: w });
+    }
+    // LobbyLast / LeaderboardTop: the lowest / highest Resolve at the table, past the opening rounds.
+    if (w > ANNOUNCER_STANDINGS_AFTER_WAVE) {
+      const where = standing(run);
+      if (where === 'last' && !hasFired(s, 'lobbyLast')) enqueue({ event: 'lobbyLast', shelf: 'shop', notBefore: at, wave: w });
+      if (where === 'top' && !hasFired(s, 'leaderboardTop')) enqueue({ event: 'leaderboardTop', shelf: 'shop', notBefore: at, wave: w });
+    }
+  }
+  if (w > ANNOUNCER_LATE_GAME_ROUND && !hasFired(s, 'lateGame')) enqueue({ event: 'lateGame', shelf: 'shop', notBefore: at, wave: w });
+  if (ANNOUNCER_ROUND_MILESTONES.includes(w) && repeatAllowed(s, 'roundMilestone', w, ANNOUNCER_ROUND_MILESTONES.length, 1)) {
+    enqueue({ event: 'roundMilestone', shelf: 'shop', notBefore: at, wave: w });
+  }
+  detectArmorUp(s, p, run, at);
+}
+
+function detectArmorUp(s: AnnouncedSlice, p: AnnouncerRunLike, run: AnnouncerRunLike, at: number): void {
+  if ((p.armor ?? 0) < ANNOUNCER_ARMOR_UP && (run.armor ?? 0) >= ANNOUNCER_ARMOR_UP && !hasFired(s, 'armorUp')) {
+    enqueue({ event: 'armorUp', shelf: 'shop', notBefore: at, wave: run.wave });
+  }
+}
+
+/** Within a Shop turn: the catalog's economy, tier and board lines. */
+function detectShopTurn(s: AnnouncedSlice, p: AnnouncerRunLike, run: AnnouncerRunLike, now: number): void {
+  const w = run.wave;
+  const q = (event: AnnouncerEvent): void => enqueue({ event, shelf: 'shop', notBefore: now, wave: w });
+  // TierUp: an upgrade to tier 2-5 (TierSix has its own line). FastTier: tier 4 by round 5 / tier 6 by round 9.
+  if (run.tier > p.tier) {
+    if (run.tier >= 2 && run.tier <= 5 && repeatAllowed(s, 'tierUp', w, 4, 0)) q('tierUp');
+    if (ANNOUNCER_FAST_TIERS.some((f) => p.tier < f.tier && run.tier >= f.tier && w <= f.byWave) && repeatAllowed(s, 'fastTier', w, ANNOUNCER_FAST_TIERS.length, 0)) q('fastTier');
+  }
+  const soldBefore = p.soldThisTurn?.length ?? 0;
+  const soldNow = run.soldThisTurn?.length ?? 0;
+  if (soldBefore < ANNOUNCER_SELL_SPREE && soldNow >= ANNOUNCER_SELL_SPREE && !hasFired(s, 'sellSpree')) q('sellSpree');
+  // SellGilded: a sale on the update a gilded minion left the board / hand.
+  if (soldNow > soldBefore && countGolden(run) < countGolden(p) && !hasFired(s, 'sellGilded')) q('sellGilded');
+  if ((p.spellsThisTurn ?? 0) < ANNOUNCER_SPELL_CHAIN && (run.spellsThisTurn ?? 0) >= ANNOUNCER_SPELL_CHAIN && !hasFired(s, 'spellChain')) q('spellChain');
+  if ((p.playedThisTurn?.length ?? 0) < ANNOUNCER_BIG_TURN && (run.playedThisTurn?.length ?? 0) >= ANNOUNCER_BIG_TURN && !hasFired(s, 'bigTurn')) q('bigTurn');
+  if (p.board !== run.board) {
+    if (!allGolden(p) && allGolden(run) && !hasFired(s, 'allGolden')) q('allGolden');
+    if (!fullBoard(p) && fullBoard(run) && !hasFired(s, 'fullBoard')) q('fullBoard');
+    if (!hasHugeStat(p.board) && hasHugeStat(run.board) && !hasFired(s, 'minionHits250')) q('minionHits250');
+    const before = boardTotal(p), after = boardTotal(run);
+    if (ANNOUNCER_BOARD_TOTALS.some((t) => before < t && after >= t) && repeatAllowed(s, 'boardTotal', w, ANNOUNCER_BOARD_TOTALS.length, 0)) q('boardTotal');
+    if (!isTribeFullBoard(p) && isTribeFullBoard(run) && !hasFired(s, 'tribeFullBoard')) q('tribeFullBoard');
+    if (!isMixedBoard(p) && isMixedBoard(run) && !hasFired(s, 'mixedBoard')) q('mixedBoard');
+  }
+  detectArmorUp(s, p, run, now);
+}
+
+/** The combat replay's PLAYER units at the current beat (Recruit hands them in per frame): MinionHits100Stats and
+ *  MinionHits250 during a fight. Ghost / enemy boards are never passed. Each once per fight, only while the fight is on. */
 export function observeCombatBoard(units: readonly { attack: number; health: number }[], wave: number): void {
-  if (!active || !slice || combatStartedAt === null || bigStatSeenThisCombat) return;
-  if (hasFired(slice, 'minionHits100Stats') || !hasBigStat(units)) return;
-  bigStatSeenThisCombat = true;
-  enqueue({ event: 'minionHits100Stats', shelf: 'combat', notBefore: Math.max(deps.now(), combatStartedAt + ANNOUNCER_COMBAT_SILENCE_MS), wave });
+  if (!active || !slice || combatStartedAt === null) return;
+  const at = Math.max(deps.now(), combatStartedAt + ANNOUNCER_COMBAT_SILENCE_MS);
+  if (!bigStatSeenThisCombat && !hasFired(slice, 'minionHits100Stats') && hasBigStat(units)) {
+    bigStatSeenThisCombat = true;
+    enqueue({ event: 'minionHits100Stats', shelf: 'combat', notBefore: at, wave });
+  }
+  if (!hugeStatSeenThisCombat && !hasFired(slice, 'minionHits250') && hasHugeStat(units)) {
+    hugeStatSeenThisCombat = true;
+    enqueue({ event: 'minionHits250', shelf: 'combat', notBefore: at, wave });
+  }
 }
 
 /** THE SHOP CLOCK (owner 2026-09-25, the "Low on time" lines): Recruit's countdown hands in every tick of a REAL
@@ -1089,6 +1390,8 @@ export function resetAnnouncerForTests(): void {
   enteredAtWaveOne = false;
   combatStartedAt = null;
   bigStatSeenThisCombat = false;
+  hugeStatSeenThisCombat = false;
+  oddsCheckedWave = -1;
   timeWarningWave = -1;
   specialtyTries = new Map();
   tribeBuys = { wave: -1, byTribe: new Map(), all: 0 };

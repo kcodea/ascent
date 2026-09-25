@@ -128,9 +128,10 @@ export function HeroSelect() {
         <button className="hsback" onPointerDown={() => { sfx.pulse(); openTitle(); }}>← Main Menu</button>
       )}
       {/* The real brand lockup, not a text heading (owner ask 2026-08-22) — the same mark + wordmark the home
-          screen wears, so the two screens read as one product. Pinned to the TOP of the screen and shrunk
-          (owner ask 2026-08-24): it lives OUTSIDE `.hsbox` so the picker below centres on its own —
-          `.heroselect` is a two-row grid (this lockup, then the centred box). `.hslogo` owns its own sizing. */}
+          screen wears, so the two screens read as one product. It lives OUTSIDE `.hsbox` (`.heroselect` is a
+          two-row grid: this lockup, then the box) and the pair centres as ONE group, the lockup sitting just
+          above "Select Your Hero" (owner ask 2026-09-25). Size + gap are the ceremony tuner's `logoScale` /
+          `logoGap` dials; `.hslogo` owns its own sizing. */}
       <AscentLogo className="hslogo" headingClass="disp titleword hsword" />
       <div className="hsbox">
         {/* Run-start telegraph: your rating-derived Line — the wins this run is expected to cover. Shown for

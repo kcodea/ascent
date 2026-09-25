@@ -1,7 +1,14 @@
 # 2026-09-25 — Grim prints its live Echo total in place
 
 **Owner ask:** "fix grim so that it updates in real time with the current value of the echo." Format picked by
-the owner: the TOTAL IN PLACE, "**Echo:** Give your **Beast Aura** **+X/+Y**." (4 Echoes so far reads +15/+10).
+the owner: the TOTAL IN PLACE (4 Echoes so far reads +15/+10). Wording corrected by the owner on PR #1717:
+"grim text is bad - should say "Echo: Give your Beast Aura +X/+Y. Improves by +3/+2 for every Echo triggered
+this game.""
+
+Final text: "**Echo:** Give your **Beast Aura** **+X/+Y**. Improves by **+3/+2** for every **Echo** triggered this
+game." +X/+Y is the live total (green). The +3/+2 rate is static (Golden: +6/+4, and the total doubles). The
+printed card text (Compendium, Doc Bot) is the same sentence at the base value, +3/+2 (0 Echoes so far, its own
+counted).
 
 This REPLACES the 2026-09-24 exception (PR #1690), where the owner asked for static text and the old
 `tallyBuffText` helper was deleted. The comment on `grim` in `cards/set1/beasts.ts` and oracle rule
@@ -26,9 +33,9 @@ body would read one Echo higher for that beat. The body is gone by then, so noth
 
 ## Per-Echo rule text
 
-The game has no per-card hover or rule-tooltip field, so the "+3/+2 for every Echo triggered this game"
-wording is no longer printed on any live surface. It stays as the card's printed `text` (what a context-free
-surface such as the Compendium and Doc Bot read), and in the patch note.
+The per-Echo rate is printed in the sentence itself ("Improves by +3/+2 ..."), on every surface, so no tooltip
+field was needed. Doc Bot's printed-text parser reads the new sentence (see the magnitude pin in
+`textParse.test.ts`).
 
 ## Tests
 

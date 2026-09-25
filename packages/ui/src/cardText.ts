@@ -1053,7 +1053,8 @@ export function cardTypeTallyText(cardId: string, enchant: { attack: number; hea
 /**
  * Grim ("Echo: give your Beast Aura +3/+2 for every Echo triggered this game") prints its TOTAL in place — owner
  * ruling 2026-09-25, replacing the 2026-09-24 static-text exception: "fix grim so that it updates in real time
- * with the current value of the echo." The live text is "Echo: Give your Beast Aura {{+X/+Y}}." where
+ * with the current value of the echo." Owner wording (2026-09-25 correction): "Echo: Give your Beast Aura
+ * {{+X/+Y}}. Improves by +3/+2 for every Echo triggered this game." (the rate stays static, gilded +6/+4) where
  * X/Y = N x (+3/+2) (gilded x2) and N is the SAME number `deathrattleBuffTribeByTally` will read when this Echo
  * fires: the run-wide Echo tally so far (+ this fight's Echoes in combat) plus ONE for Grim's own Echo, since
  * the tally is bumped before an Echo fires. `includeSelf = false` is the enemy side's frozen snapshot tally,
@@ -1070,7 +1071,10 @@ export function echoTallyText(cardId: string, echoesSoFar: number, golden = fals
   const a = n * (typeof params.attack === 'number' ? params.attack : per);
   const h = n * (typeof params.health === 'number' ? params.health : per);
   const tribe = params.tribe && params.tribe !== 'any' ? `${params.tribe[0]!.toUpperCase()}${params.tribe.slice(1)} ` : '';
-  return `**Echo:** Give your **${tribe}Aura** **{{+${a}/+${h}}}**.`;
+  const g = golden ? 2 : 1;
+  const rateA = g * (typeof params.attack === 'number' ? params.attack : per);
+  const rateH = g * (typeof params.health === 'number' ? params.health : per);
+  return `**Echo:** Give your **${tribe}Aura** **{{+${a}/+${h}}}**. Improves by **+${rateA}/+${rateH}** for every **Echo** triggered this game.`;
 }
 
 /**

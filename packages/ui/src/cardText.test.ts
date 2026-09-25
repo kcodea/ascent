@@ -121,8 +121,8 @@ describe('cardText helpers', () => {
   // 2026-09-25, replacing the static-text exception). Full text == payout coverage: grimLiveText.test.ts.
   it('Grim prints its live Echo total on every surface (owner ruling 2026-09-25)', () => {
     const bag = { tier: 6, golden: false, spellBonus: 0, spellBonusH: 0, frontToBackBonus: 0, spellsThisTurn: 0, spellsCast: 0, deathrattlesTriggered: 9, undeadBuyAtk: 0, soulsmanGold: 0 };
-    expect(liveCardText('grim', bag as never).text).toBe('**Echo:** Give your **Beast Aura** **{{+30/+20}}**.');
-    expect(liveCardText('grim', { ...bag, golden: true } as never).goldenText).toBe('**Echo:** Give your **Beast Aura** **{{+60/+40}}**.');
+    expect(liveCardText('grim', bag as never).text).toBe('**Echo:** Give your **Beast Aura** **{{+30/+20}}**. Improves by **+3/+2** for every **Echo** triggered this game.');
+    expect(liveCardText('grim', { ...bag, golden: true } as never).goldenText).toBe('**Echo:** Give your **Beast Aura** **{{+60/+40}}**. Improves by **+6/+4** for every **Echo** triggered this game.');
   });
 
   it('run-wide metric helpers surface live values (Soulsman gold, Eternal Knight tally)', () => {

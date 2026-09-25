@@ -2,7 +2,7 @@
  * GRIM prints its Echo's LIVE TOTAL in place (owner ruling 2026-09-25, replacing the 2026-09-24 static-text
  * exception): "fix grim so that it updates in real time with the current value of the echo."
  *
- * The text reads "Echo: Give your Beast Aura {{+X/+Y}}." with +X/+Y = (Echoes triggered this game + 1 for its
+ * The text reads "Echo: Give your Beast Aura {{+X/+Y}}. Improves by +3/+2 for every Echo triggered this game." with +X/+Y = (Echoes triggered this game + 1 for its
  * own Echo) x (+3/+2), gilded x2. The contract pinned here is the one that matters: what the card SAYS equals
  * what the Echo PAYS, at several tally values, in the Shop (the real reducer, Ossuary Rite proc'ing a living
  * Grim) and in combat (the real simulator, the tally the UI folds in = the run tally + the fight's Echoes
@@ -26,18 +26,24 @@ const bag = (tally: number, golden = false) =>
 
 describe('Grim text: the live total in place (owner ruling 2026-09-25)', () => {
   it('prints (tally + 1) x (+3/+2) in the owner-picked format', () => {
-    expect(liveCardText('grim', bag(0)).text).toBe('**Echo:** Give your **Beast Aura** **{{+3/+2}}**.');
-    expect(liveCardText('grim', bag(4)).text).toBe('**Echo:** Give your **Beast Aura** **{{+15/+10}}**.'); // the owner's example
-    expect(liveCardText('grim', bag(9)).text).toBe('**Echo:** Give your **Beast Aura** **{{+30/+20}}**.');
+    expect(liveCardText('grim', bag(0)).text).toBe('**Echo:** Give your **Beast Aura** **{{+3/+2}}**. Improves by **+3/+2** for every **Echo** triggered this game.');
+    expect(liveCardText('grim', bag(4)).text).toBe('**Echo:** Give your **Beast Aura** **{{+15/+10}}**. Improves by **+3/+2** for every **Echo** triggered this game.'); // the owner's example
+    expect(liveCardText('grim', bag(9)).text).toBe('**Echo:** Give your **Beast Aura** **{{+30/+20}}**. Improves by **+3/+2** for every **Echo** triggered this game.');
   });
 
   it('GILDED doubles the per-Echo value (+6/+4 each), on the golden variant', () => {
-    expect(liveCardText('grim', bag(4, true)).goldenText).toBe('**Echo:** Give your **Beast Aura** **{{+30/+20}}**.');
-    expect(liveCardText('grim', bag(0, true)).goldenText).toBe('**Echo:** Give your **Beast Aura** **{{+6/+4}}**.');
+    expect(liveCardText('grim', bag(4, true)).goldenText).toBe('**Echo:** Give your **Beast Aura** **{{+30/+20}}**. Improves by **+6/+4** for every **Echo** triggered this game.');
+    expect(liveCardText('grim', bag(0, true)).goldenText).toBe('**Echo:** Give your **Beast Aura** **{{+6/+4}}**. Improves by **+6/+4** for every **Echo** triggered this game.');
   });
 
   it('an ENEMY Grim prints its frozen snapshot tally with no self bump (the simulator never bumps it mid-fight)', () => {
-    expect(echoTallyText('grim', 4, false, false)).toBe('**Echo:** Give your **Beast Aura** **{{+12/+8}}**.');
+    expect(echoTallyText('grim', 4, false, false)).toBe('**Echo:** Give your **Beast Aura** **{{+12/+8}}**. Improves by **+3/+2** for every **Echo** triggered this game.');
+  });
+
+  it('the printed card text (Compendium, Doc Bot) is the same sentence at its base value (0 Echoes so far)', () => {
+    expect(CARD_INDEX['grim']!.text).toBe('**Echo:** Give your **Beast Aura** **+3/+2**. Improves by **+3/+2** for every **Echo** triggered this game.');
+    expect(CARD_INDEX['grim']!.goldenText).toBe('**Echo:** Give your **Beast Aura** **+6/+4**. Improves by **+6/+4** for every **Echo** triggered this game.');
+    expect(liveCardText('grim', bag(0)).text.replace(/\{\{|\}\}/g, '')).toBe(CARD_INDEX['grim']!.text);
   });
 
   it('is null for every non-tally card', () => {

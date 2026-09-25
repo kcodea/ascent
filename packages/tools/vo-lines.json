@@ -1,0 +1,10 @@
+{
+  "voices": {
+    "announcer": {
+      "id": "R0MVIMlQlTPetmN2WE4N",
+      "model": "eleven_multilingual_v2",
+      "dest": "apps/web/public/announcer"
+    }
+  },
+  "lines": []
+}

@@ -161,7 +161,7 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
-        text: 'King Oona now throws a banana at each Beast it doubles in combat. With more than one King Oona, they throw left to right, one after another.',
+        text: 'King Oona now throws a banana at each Beast it doubles in combat. The stats double when the banana lands. With more than one King Oona, they throw left to right, one after another, and each doubling lands with its own banana.',
       },
     ],
   },

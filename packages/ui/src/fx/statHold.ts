@@ -427,6 +427,17 @@ export function withheldFraction(revealed: number): number {
 }
 
 /**
+ * The inverse of `withheldFraction`: the `revealed` progress at which the badge SHOWS `shown` (0..1) of the
+ * withheld change. Lets a caller STEP one hold through intermediate true values — King Oona's doublings, one
+ * per banana (owner 2026-09-24) — by revealing up to each step's point instead of rolling the whole change.
+ * Must stay the exact inverse of the curve above (pinned by a round-trip test).
+ */
+export function revealedForShown(shown: number): number {
+  const s = Math.max(0, Math.min(1, shown));
+  return 1 - Math.sqrt(1 - s);
+}
+
+/**
  * What is currently withheld for a unit, or `null`.
  *
  * Expired holds read as absent AND are swept here, so a unit that scrolled off screen (or a def that never

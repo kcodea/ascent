@@ -42,6 +42,7 @@ import { resolveBuffSource } from './choreo/buffSource';
 import { cardFxScale } from './fx/cardScale';
 import { canPlayDefs, playDef } from './fx/playDef';
 import { createSettlingPoint, settledSlotCenter } from './fx/settledSlot';
+import { SOURCE_CASCADE_MS, sourceCascadeRanks } from './choreo/sourceCascade';
 import { authoredBuffDefFor, bindingFor, heroPowerBuffLabelFor, labelBuffFxFor, sourceBuffDefFor, castFxReplacesTendril } from './choreo/bindings';
 import { isRuneBuffSource } from '@game/sim';
 import { anchorsForUnits } from './fx/combatAnchors';
@@ -1309,6 +1310,10 @@ export function useCombatReplay(
   // here instead, cleared ONLY on reset/seek (`cancelPendingRolls`), so every volley fires but a scrub cancels
   // the ones still pending.
   const echoVolleyTimersRef = useRef<number[]>([]);
+  // Combat-lifetime timers for the LATER sources of a source cascade (`sourceCascadeRanks`: the second Oona's
+  // banana 200 ms after the first). Same reason as the volleys above: a fire can outlive its beat. Cleared on
+  // reset/seek only.
+  const srcCascadeTimersRef = useRef<number[]>([]);
   /**
    * FLOAT REMOVAL TIMERS — combat-lifetime, NOT per-beat (owner report 2026-09-01: *"dmg values being left
    * behind from fel spike's trigger"*).
@@ -1389,6 +1394,8 @@ export function useCombatReplay(
     // or a re-seek supersedes them (they'd otherwise fire a stale spray onto the new frame).
     for (const id of echoVolleyTimersRef.current) window.clearTimeout(id);
     echoVolleyTimersRef.current = [];
+    for (const id of srcCascadeTimersRef.current) window.clearTimeout(id);
+    srcCascadeTimersRef.current = [];
     for (const id of floatTimersRef.current) window.clearTimeout(id);
     floatTimersRef.current = [];
     // A parked held-windup lunge from a swing this instance already replayed must not survive a fresh combat or
@@ -1623,6 +1630,16 @@ export function useCombatReplay(
     // each successive beam gets the next `index`, so a def that staggers its layers fans out one-by-one instead
     // of all at once. Only the source-authored branch advances it; the generic tendril has no per-target stagger.
     let srcAuthoredIndex = 0;
+    const srcRank = sourceCascadeRanks(
+      casts,
+      (uid) => {
+        const el = findEl(uid);
+        if (el) { const r = el.getBoundingClientRect(); return r.left + r.width / 2; }
+        return lastRectRef.current.get(uid)?.cx ?? null;
+      },
+      // The casts the source-authored branch below plays: a minion's own buff, no spell behind it, with a def.
+      (c) => c.spellId === undefined && cardIds.has(c.source) && sourceBuffDefFor(cardIds.get(c.source) ?? null) !== null,
+    );
     for (const c of casts) {
       const tEl = findEl(c.target);
       if (!tEl) continue; // target not on screen → nothing to land on
@@ -1752,10 +1769,19 @@ export function useCombatReplay(
         // into its slot, and a later summon in the same cascade keeps sliding it over, so its fire-time rect is
         // not where it settles. Aim at the SETTLED slot (`settledSlotCenter`) and re-measure it on a light timer
         // for the flight only — a few layout reads per play, never one per frame — easing onto each new goal.
-        const target = settleTarget(c.target, tEl) ?? undefined;
-        playDef(srcAuthored, { source: sc, target: target?.start ?? tc, cursor: tc, camera: { x: window.innerWidth / 2, y: window.innerHeight / 2 } },
-          { uids: { source: c.source, target: c.target }, index: srcAuthoredIndex, target: target?.get, onDone: target?.stop });
-        srcAuthoredIndex++;
+        // LEFT-MOST SOURCE FIRST (owner 2026-09-24, two King Oonas): several minions firing their own buff def in
+        // one beat go one after another, `SOURCE_CASCADE_MS` apart (speed-scaled), instead of all at once. The
+        // settled target is measured when each one actually fires, so a late one still lands on the moved unit.
+        const index = srcAuthoredIndex++;
+        const fire = (): void => {
+          const liveEl = findEl(c.target) ?? tEl;
+          const target = settleTarget(c.target, liveEl) ?? undefined;
+          playDef(srcAuthored, { source: sc, target: target?.start ?? tc, cursor: tc, camera: { x: window.innerWidth / 2, y: window.innerHeight / 2 } },
+            { uids: { source: c.source, target: c.target }, index, target: target?.get, onDone: target?.stop });
+        };
+        const delayMs = (srcRank.get(c.source) ?? 0) * SOURCE_CASCADE_MS / (combatSpeedRef.current > 0 ? combatSpeedRef.current : 1);
+        if (delayMs > 0) srcCascadeTimersRef.current.push(window.setTimeout(fire, delayMs));
+        else fire();
         if (!perTarget.has(c.target)) perTarget.set(c.target, AUTHORED_BUFF_ROLL_MS);
         continue;
       }

@@ -75,6 +75,15 @@ describe('the timeline', () => {
     expect(withCover).toBeLessThanOrEqual(3000);
   });
 
+  it('starts the shine sound with the sweep, nudged by the offset but never before the intro', () => {
+    const t = goodLuckTimeline(GLI_DEFAULTS, false);
+    expect(t.shineSoundAt).toBe(t.shineAt);
+    expect(goodLuckTimeline({ ...GLI_DEFAULTS, shineSoundOffsetMs: 80 }, false).shineSoundAt).toBe(t.shineAt + 80);
+    expect(goodLuckTimeline({ ...GLI_DEFAULTS, startDelayMs: 0, fadeInMs: 100, shineSoundOffsetMs: -400 }, false).shineSoundAt).toBe(0);
+    expect(t.sparkAt).toBeGreaterThanOrEqual(t.inAt);
+    expect(t.sparkAt).toBeLessThan(t.shineAt);
+  });
+
   it('is shorter, never longer, under reduced motion', () => {
     expect(goodLuckTimeline(GLI_DEFAULTS, true).endAt).toBeLessThanOrEqual(goodLuckTimeline(GLI_DEFAULTS, false).endAt);
   });

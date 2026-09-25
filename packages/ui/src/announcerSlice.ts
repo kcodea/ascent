@@ -44,12 +44,22 @@ export type AnnouncerEvent =
   | 'randomCardBuy'
   | 'randomBeastBuy'
   | 'randomDwarfBuy'
-  | 'round7';
+  | 'round7'
+  // The shop-clock warning (owner 2026-09-25).
+  | 'timeRunningOut'
+  // The specialty lines (owner 2026-09-25).
+  | 'buyDrakko'
+  | 'buySylus'
+  | 'castAle';
 
 export interface AnnouncedSlice {
   seed: number;
   fired: Partial<Record<AnnouncerEvent, number[]>>;
   count: number;
+  /** THE NO-REPEAT BAG (owner 2026-09-25: "we have a global rule to never repeat lines"): per event, the takes
+   *  heard this game, in order. A take in here is not picked again this game (see `announcer.ts`). Absent on a
+   *  save written before the bag existed = nothing heard yet. */
+  heard?: Partial<Record<AnnouncerEvent, string[]>>;
 }
 
 export function emptyAnnounced(seed: number): AnnouncedSlice {
@@ -65,15 +75,25 @@ export function announcedFor(slice: AnnouncedSlice | null | undefined, seed: num
 /** The two end-of-game lines sit outside the per-game cap. */
 export const UNCAPPED_EVENTS: readonly AnnouncerEvent[] = ['gameWon', 'gameLoss'];
 
-/** Pure: the slice after `event` spoke at `wave`. */
-export function withAnnounced(slice: AnnouncedSlice, event: AnnouncerEvent, wave: number): AnnouncedSlice {
+/** Pure: the slice after `event` spoke at `wave`, playing `take` (when given). `reshuffle` empties the event's
+ *  bag first: the events allowed to repeat a take once every take has been heard (see `announcer.ts`). */
+export function withAnnounced(slice: AnnouncedSlice, event: AnnouncerEvent, wave: number, take?: string, reshuffle = false): AnnouncedSlice {
   const waves = [...(slice.fired[event] ?? []), wave];
-  return {
+  const next: AnnouncedSlice = {
     seed: slice.seed,
     fired: { ...slice.fired, [event]: waves },
     count: slice.count + (UNCAPPED_EVENTS.includes(event) ? 0 : 1),
   };
+  if (take !== undefined || slice.heard) {
+    const heard = { ...(slice.heard ?? {}) };
+    if (take !== undefined) heard[event] = [...(reshuffle ? [] : heard[event] ?? []), take];
+    next.heard = heard;
+  }
+  return next;
 }
+
+/** The takes of `event` heard this game (the no-repeat bag). */
+export const heardTakes = (slice: AnnouncedSlice, event: AnnouncerEvent): readonly string[] => slice.heard?.[event] ?? [];
 
 export const firedWaves = (slice: AnnouncedSlice, event: AnnouncerEvent): readonly number[] => slice.fired[event] ?? [];
 export const hasFired = (slice: AnnouncedSlice, event: AnnouncerEvent): boolean => firedWaves(slice, event).length > 0;

@@ -62,6 +62,34 @@ export const PATCH_NOTES: PatchNote[] = [
   },
   {
     date: '2026-09-25',
+    label: 'Announcer: New Lines',
+    changes: [
+      {
+        category: 'Systems',
+        text: 'The announcer warns you when the Shop timer gets low, never repeats a line in a game, and has new lines for Drakko, Sylus and Ales.',
+        details: [
+          'Every Shop turn, when your timer reaches 15 seconds, the announcer tells you time is running out.',
+          'The warning waits for any line already playing to finish. It stays quiet if the timer runs out or you end your turn first.',
+          'Within one game, the announcer never plays the same recording twice. When a moment has used all its lines, it goes quiet for the rest of that game.',
+          'The random card-buy lines are rarer now, but can come up to 3 times a game.',
+          'New lines when you buy Drakko, buy Sylus, or cast an Ale.',
+          'Entering combat has 5 new lines, 7 in all. Buying a card has 7 new lines, 8 in all.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-09-25',
+    label: 'Announcer Variety',
+    changes: [
+      {
+        category: 'Systems',
+        text: 'The announcer now picks a random take of each line every time, so you hear more of the different recordings.',
+      },
+    ],
+  },
+  {
+    date: '2026-09-25',
     label: 'Rune Changes',
     changes: [
       {

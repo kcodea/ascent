@@ -143,7 +143,7 @@ describe("the four runes ship as specced", () => {
   it("all four are set-2 scoped — each names a set-2 mechanic", () => {
     for (const n of ['Rune of Hunger', 'Rune of Gemstorm', 'Rune of the Shared Table', 'Rune of Redirection']) {
       // Gemstorm / Shared Table / Redirection carried into set 3 (2026-09-14); Hunger (Fodder) stays set-2 only.
-      expect(byName(n)!.sets, `${n} leaks into set 1`).toEqual(n === 'Rune of Hunger' || n === 'Rune of Redirection' ? ['set2'] : ['set2', 'set3']); // Redirection CUT FROM SET 3 2026-09-24 (owner)
+      expect(byName(n)!.sets, `${n} leaks into set 1`).toEqual(n === 'Rune of the Shared Table' ? ['set2', 'set3'] : ['set2']); // Redirection CUT FROM SET 3 2026-09-24 (owner); Gemstorm CUT FROM SET 3 2026-09-25 (owner's Set 3 rune list)
     }
   });
 });

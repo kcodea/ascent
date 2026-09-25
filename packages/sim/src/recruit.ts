@@ -13162,16 +13162,20 @@ function applyEndOfTurnInner(state: RunState): void {
   // `recurringEotEffects` folds in the flag-armed rune recurrences (Lapidary / Crucible Choir). BEAT SYSTEM
   // (PR 5): each gets its own labeled beat (rune/quest source), after the board effects (owner ruling #987).
   for (const eff of recurringEotEffects(state)) {
+    // REPEAT PER TICK (R-REPEAT-01) for a recurring rune too (Rune of Action, owner 2026-09-25): one ROOT trigger
+    // per tick, so the Choreographer plays one beat per repeat instead of summing them into one scope. A plain
+    // recurrence has one tick and emits exactly what it did before.
+    const ticks = recurringTickCount(state, eff);
     for (let r = 0; r < repeats; r++) {
       // A SELF_BEAT effect (the Reliquary) opens one beat per acting minion itself — no outer scope, or the
       // outer diff would emit every delta twice and an Echo-less board would leave an empty rune beat.
       if (SELF_BEAT_RECURRING.has(eff)) runRecurringEndOfTurn(state, eff, false, { repeatIndex: r, repeatCount: repeats });
-      else withRecruitTrigger(
+      else for (let t = 0; t < ticks; t++) withRecruitTrigger(
         ctx,
-        { phase: 'endOfTurn', ...recurringBeatSpec(eff), repeatIndex: r, repeatCount: repeats },
-        () => runRecurringEndOfTurn(state, eff),
+        { phase: 'endOfTurn', ...recurringBeatSpec(eff), repeatIndex: r * ticks + t, repeatCount: repeats * ticks },
+        () => runRecurringEndOfTurn(state, eff, false, undefined, ticks > 1 ? t : undefined),
       );
-      fires++;
+      fires++; // one End-of-Turn TRIGGER per Chronos repeat, never one per tick (R-REPEAT-01)
     }
   }
   // TURN-LIMITED recurrences (Rune of Quick Study: 2 turns). Fired the same way, then ticked down ONCE for
@@ -13646,6 +13650,8 @@ function runRecurringEndOfTurn(
   itemizeFx = false,
   /** The Chronos repeat this fire belongs to — forwarded onto the per-source beats a SELF_BEAT effect opens. */
   beat?: { repeatIndex: number; repeatCount: number },
+  /** ONE tick of a REPEAT recurrence (`recurringTickCount` > 1); absent = run every tick (the replay paths). */
+  tick?: number,
 ): void {
   // Each `step` is one WAVE of the itemized reward — tagged so the UI can stagger BETWEEN waves while
   // firing everything inside a wave simultaneously.
@@ -13733,12 +13739,21 @@ function runRecurringEndOfTurn(
     const leftmost = state.board[0];
     if (leftmost && n > 0) for (let i = 0; i < n; i++) step(() => addBuff(leftmost, 'Rune of Spending', 2, 3));
   } else if (effect === 'runeAction') {
-    // Rune of Action: give your THREE leftmost minions +1/+1 for every card you played this turn — one
-    // step per card played, each step buffing the (up to) three leftmost.
-    const n = (state.playedThisTurn ?? []).length;
-    if (n > 0) {
-      for (let i = 0; i < n; i++) step(() => { for (const c of state.board.slice(0, 3)) addBuff(c, 'Rune of Action', 1, 1); });
-    }
+    // Rune of Action (owner rework 2026-09-25): "End of Turn: Give 3 random minions +2/+2. Repeat for every card
+    // played this turn." The REPEAT form (R-REPEAT-01): the base tick once, then one more per card played — each
+    // its own step, root trigger and beat. The 3 FRIENDLY targets are distinct within a tick and re-rolled per
+    // tick off the run cursor (all of them when fewer than 3 are on the board).
+    forEachTick(tick === undefined ? undefined : { tick }, recurringTickCount(state, effect), () => {
+      if (state.board.length === 0) return;
+      step(() => {
+        const rng = makeRng(state.rngCursor);
+        const picks = [...state.board];
+        for (let i = 0; i < RUNE_ACTION_GRANT.count && picks.length > 0; i++) {
+          addBuff(picks.splice(rng.int(picks.length), 1)[0]!, 'Rune of Action', RUNE_ACTION_GRANT.attack, RUNE_ACTION_GRANT.health);
+        }
+        state.rngCursor = rng.state();
+      });
+    });
   } else if (effect === 'runeAncestralRoar') {
     // Rune of Ancestral Roar (balance 9/23): "End of Turn: give your Dragons +6/+6 for every Shout you triggered
     // this turn." LUMP form (R-REPEAT-01): ONE buff instance per Dragon sized by the count — 3 Shouts = one +18/+18.
@@ -14134,10 +14149,11 @@ function projectEndOfTurnStepsInner(state: RunState): {
   // Rune of Spending / Rune of Action's stat gains climb on their own beats (and conjures grow the hand).
   // Sourceless (no card to anchor) → their captured buffs replay as descends onto the gaining minions.
   for (const eff of recurringEotEffects(clone)) {
+    const ticks = recurringTickCount(clone, eff); // Rune of Action: one projected beat per tick, like the commit
     for (let r = 0; r < repeats; r++) {
       // itemizeFx: the "+x/+y per z" rewards capture one nested event PER UNIT of the scaler, so the beat
       // replays a sequential descend per step (the outer beat capture skips the itemized targets).
-      beat(undefined, () => runRecurringEndOfTurn(clone, eff, true));
+      for (let t = 0; t < ticks; t++) beat(undefined, () => runRecurringEndOfTurn(clone, eff, true, undefined, ticks > 1 ? t : undefined));
     }
   }
   // TURN-LIMITED recurrences (Rune of Quick Study) — the same audit class as the Lapidary (2026-08-12): they
@@ -14184,7 +14200,8 @@ export function questEndOfTurnBeats(state: RunState): Array<{ effect: string; la
   const repeats = endOfTurnRepeats(state);
   const out: Array<{ effect: string; label: string; uid?: string }> = [];
   for (const eff of recurringEotEffects(state)) {
-    for (let r = 0; r < repeats; r++) out.push({ effect: eff, label: RECURRING_EOT_LABEL[eff] ?? 'End of Turn' });
+    const ticks = recurringTickCount(state, eff); // one beat per tick (Rune of Action), matching commit + projection
+    for (let r = 0; r < repeats * ticks; r++) out.push({ effect: eff, label: RECURRING_EOT_LABEL[eff] ?? 'End of Turn' });
   }
   // Turn-limited recurrences march after the standing ones, mirroring applyEndOfTurn + the projection.
   for (const entry of state.questRecurringLimited ?? []) {
@@ -14209,6 +14226,16 @@ export function questEndOfTurnBeats(state: RunState): Array<{ effect: string; la
   }
   return out;
 }
+/** Rune of Action's per-tick grant (owner rework 2026-09-25): 3 random friendly minions +2/+2 per tick. */
+export const RUNE_ACTION_GRANT = { count: 3, attack: 2, health: 2 } as const;
+
+/** How many TICKS one fire of a recurring End-of-Turn effect takes — the recurring twin of `eotTickCount`, read by
+ *  the commit, the projection and the beat list so the three agree. Rune of Action is the REPEAT form: the base
+ *  plus one per card played this turn. Every other recurrence fires once per trigger. */
+export function recurringTickCount(state: Pick<RunState, 'playedThisTurn'>, effect: string): number {
+  return effect === 'runeAction' ? 1 + (state.playedThisTurn?.length ?? 0) : 1;
+}
+
 const RECURRING_EOT_LABEL: Record<string, string> = {
   triggerLeftmostShout: 'Echoing Roar', grantRandomShout: 'The Hoard Wakes', grantRandomAttachments: 'Attachments',
   buffMechsPerAttachment: 'Blueprint Cache',

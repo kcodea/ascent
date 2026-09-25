@@ -667,4 +667,78 @@ export const RUNES_RULES: GameRule[] = [
       lastVerifiedAt: '2026-09-24',
     },
   },
+  {
+    id: 'R-RUNE-19',
+    title: 'Rune of Action is the REPEAT form: 3 random friendly minions +2/+2, once, then once more per card played, each its own tick',
+    statement:
+      'Rune of Action reads "End of Turn: give 3 random friendly minions +2/+2. Repeat for every card played this turn" and '
+      + 'resolves by R-REPEAT-01: the base tick lands once, then once more for every card played this turn, 1 + count ticks, '
+      + 'each its own state delta, root trigger and beat. Each tick picks 3 DISTINCT friendly minions at random, re-rolled '
+      + 'per tick off the run cursor; with fewer than 3 on the board every one of them gets the tick. A turn with nothing '
+      + 'played still pays the base once. The commit, the End-of-Turn projection and the beat list read one tick count '
+      + '(`recurringTickCount`), and a replay of your recurring End-of-Turn effects runs every tick. The badge shows the '
+      + 'live tick count (×N).',
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-handoff', ref: 'Owner rune changes 2026-09-25 (Set 3 rune list)', quote: 'Rune of Action: "End of Turn: Give 3 random minions +2/+2. Repeat for every card played this turn."' },
+      { kind: 'code', ref: 'packages/sim/src/recruit.ts runRecurringEndOfTurn (runeAction) + recurringTickCount + the per-tick loops in applyEndOfTurn / projectEndOfTurnSteps / questEndOfTurnBeats; packages/ui/src/runeTally.ts' },
+    ],
+    contentIds: ['rune_action'],
+    cardText: '**End of Turn:** give **3 random friendly minions +2/+2**. Repeat for every card played this turn.',
+    currentBehaviour:
+      'Conforms (built with the change, 2026-09-25). Before, the rune gave your three LEFT-MOST minions +1/+1 per card played, '
+      + 'with no base tick, inside one End-of-Turn beat.',
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/sim/src/runeReworks0925.test.ts', 'packages/sim/src/runes.test.ts', 'packages/ui/src/choreo/socEotTendrils.test.ts', 'packages/ui/src/tallyCoverage.test.ts'],
+      lastVerifiedAt: '2026-09-25',
+    },
+  },
+  {
+    id: 'R-RUNE-20',
+    title: 'Rune of Bulk Order pays 4 random friendly minions +4/+4 per 10 Gold spent, banking the remainder across spends and turns',
+    statement:
+      'Rune of Bulk Order reads "Every 10 Gold you spend, give 4 random friendly minions +4/+4". Gold spent feeds one running '
+      + 'counter that never resets at the turn boundary. Every time it reaches 10 it pays once and keeps the remainder, so a '
+      + 'single 20-Gold spend pays twice. Each payout picks 4 distinct friendly minions at random, or all of them when fewer '
+      + 'are on the board. The badge shows the countdown to the next payout (x/10g).',
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-handoff', ref: 'Owner rune changes 2026-09-25 (Set 3 rune list)', quote: 'Rune of Bulk Order: "When you spend 10 gold, give 4 friendly minions +4/+4."' },
+      { kind: 'code', ref: 'packages/content/src/runes.ts rune_scale (runeScale count 4, +4/+4, per 10); packages/sim/src/reducer.ts spendGold (the runeScale meter); packages/ui/src/runeTally.ts' },
+    ],
+    contentIds: ['rune_scale'],
+    cardText: 'Every **10 Gold** you spend, give **4 random friendly minions +4/+4**.',
+    currentBehaviour: 'Conforms (built with the change, 2026-09-25). Before, it paid 3 random allies +3/+3 per 5 Gold.',
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/sim/src/runeReworks0925.test.ts'],
+      lastVerifiedAt: '2026-09-25',
+    },
+  },
+  {
+    id: 'R-RUNE-21',
+    title: 'Rune of the Bargain Bin fills its refresh with Shout minions only',
+    statement:
+      'Rune of the Bargain Bin reads "Your first Refresh each turn fills the Shop with Shout minions that cost 1 Gold. They sell '
+      + 'for 0 Gold". The binned row draws only minions with a Shout from the run pool at the Tavern tier or below (never a '
+      + 'spell, a Ruby or the Starform). When no Shout minion is reachable the refresh stays an ordinary one and the rune use '
+      + 'for the turn is not spent. One binned refresh per turn per copy held.',
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-handoff', ref: 'Owner rune changes 2026-09-25 (Set 3 rune list)', quote: 'Rune of the Bargain Bin: "the refresh should only include SHOUT minions. edit the description to match"' },
+      { kind: 'code', ref: 'packages/sim/src/reducer.ts bargainBinPool + fillBargainBin + the refresh gate' },
+    ],
+    contentIds: ['rune_bargain_bin'],
+    cardText: 'Your first **Refresh** each turn fills the Shop with **Shout** minions that cost **1 Gold**. They sell for **0 Gold**.',
+    currentBehaviour: 'Conforms (built with the change, 2026-09-25). Before, the binned row drew any minion at your tier.',
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/sim/src/runeReworks0925.test.ts', 'packages/sim/src/runeMinionBatchAug11.test.ts'],
+      lastVerifiedAt: '2026-09-25',
+    },
+  },
 ];

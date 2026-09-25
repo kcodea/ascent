@@ -136,6 +136,18 @@ export function advanceRollProgress(prevProgress: number, dtMs: number, rollMs: 
  * the fight. Nothing else needs it — callers that don't pass it see identical behavior to before.
  */
 export function driveRoll(uid: string, rollMs: number, speedGetter: () => number, onComplete?: () => void): () => void {
+  return driveRollSegment(uid, 0, 1, rollMs, speedGetter, onComplete);
+}
+
+/**
+ * `driveRoll` over PART of the hold: walks the reveal from `from` to `to` (0..1) over `rollMs / speed`. A
+ * stepped delivery chains these — King Oona's doublings, each rolling in when its banana strikes (owner
+ * 2026-09-24) — with `revealedForShown` (`fx/statHold.ts`) mapping each step's true value to its reveal point,
+ * so the badge prints every intermediate number the unit really had. `driveRoll` is the `0 → 1` case.
+ */
+export function driveRollSegment(
+  uid: string, from: number, to: number, rollMs: number, speedGetter: () => number, onComplete?: () => void,
+): () => void {
   let progress = 0;
   let last = typeof performance !== 'undefined' ? performance.now() : Date.now();
   let raf = 0;
@@ -143,7 +155,7 @@ export function driveRoll(uid: string, rollMs: number, speedGetter: () => number
     const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
     progress = advanceRollProgress(progress, now - last, rollMs, speedGetter());
     last = now;
-    revealStat(uid, progress);
+    revealStat(uid, from + (to - from) * progress);
     if (progress < 1) raf = requestAnimationFrame(tick);
     else onComplete?.();
   };

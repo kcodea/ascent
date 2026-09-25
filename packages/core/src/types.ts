@@ -1414,7 +1414,7 @@ export type QuestReward =
   // conjure a random Shout minion to hand (The Hoard Wakes). Applied every End of Turn for the rest of the run.
   // `runeSpending` (Rune of Spending): End of Turn — +1 max Gold, and buff your leftmost minion +N/+N where N =
   // the Gold you spent this turn.
-  // `runeAction` (Rune of Action): End of Turn — give your leftmost minion +1/+1 for every card you played this turn.
+  // `runeAction` (Rune of Action): End of Turn — give 3 random friendly minions +2/+2. Repeat for every card played this turn.
   // `triggerLeftmostEcho` (Rune of the Reliquary): End of Turn — fire your leftmost minion's Echo (Deathrattle).
   // `weldMoneyBotsEdgeMechs` (Rune of Banking): End of Turn — weld a Money Bot onto your leftmost + rightmost Mech.
   // `buffMechsPerAttachment` (Blueprint Cache): End of Turn — give each friendly Mech +2/+2 for every Attachment

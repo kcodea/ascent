@@ -62,6 +62,72 @@ export const PATCH_NOTES: PatchNote[] = [
   },
   {
     date: '2026-09-25',
+    label: 'Rune Changes',
+    changes: [
+      {
+        category: 'Balance',
+        text: 'Rune of Action reworked. At End of Turn it gives 3 random friendly minions +2/+2, and repeats that for every card you played this turn.',
+        details: [
+          'Was: your three left-most minions got +1/+1 for each card you played this turn.',
+          'Each repeat picks new random minions and plays on its own.',
+          'It always fires at least once, even on a turn you played nothing.',
+          'The rune badge shows how many times it will fire.',
+        ],
+      },
+      {
+        category: 'Balance',
+        text: 'Rune of Bulk Order reworked. Every 10 Gold you spend gives 4 random friendly minions +4/+4.',
+        details: [
+          'Was: every 5 Gold spent gave 3 random allies +3/+3.',
+          'Leftover Gold still counts toward the next payout, across turns.',
+          'The rune badge shows your progress to the next 10 Gold.',
+        ],
+      },
+      {
+        category: 'Balance',
+        text: 'Rune of the Bargain Bin now fills its Refresh with Shout minions only.',
+        details: [
+          'They still cost 1 Gold and sell for 0 Gold.',
+          'If no Shout minion can be found, the Refresh works as normal and the rune waits for your next one.',
+        ],
+      },
+      {
+        category: 'Balance',
+        text: 'Set 3 rune list updated. The Set 3 Runeforges now offer a set list of 163 runes.',
+        details: [
+          '83 Basic runes and 80 Epic runes.',
+          'Runes taken out of Set 3 are still in the other sets they were in.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-09-25',
+    label: 'Grim Shows Its Total',
+    changes: [
+      {
+        category: 'Systems',
+        text: 'Grim now shows the full buff its Echo will give right now, and it goes up as Echoes trigger, even mid combat.',
+        details: [
+          'Grim reads "Echo: Give your Beast Aura +X/+Y. Improves by +3/+2 for every Echo triggered this game."',
+          'The total counts every Echo triggered this game plus Grim\'s own. With 4 Echoes so far it reads +15/+10.',
+          'A Golden Grim improves by +6/+4 for every Echo instead.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-09-25',
+    label: 'New Game Start Lines',
+    changes: [
+      {
+        category: 'Systems',
+        text: 'The announcer has 23 new lines for the start of a game, 25 in all.',
+      },
+    ],
+  },
+  {
+    date: '2026-09-25',
     label: 'Announcer Cap Removed',
     changes: [
       {
@@ -172,6 +238,16 @@ export const PATCH_NOTES: PatchNote[] = [
           'Damage numbers, damage counters and tooltips no longer pop up on top of the wipe.',
           'The damage you dealt to another player now shows once the shop is back, instead of during the wipe.',
         ],
+      },
+    ],
+  },
+  {
+    date: '2026-09-24',
+    label: 'Banana',
+    changes: [
+      {
+        category: 'Systems',
+        text: 'King Oona now throws a banana at each Beast it doubles in combat. The stats double when the banana lands. With more than one King Oona, they throw left to right, one after another, and each doubling lands with its own banana.',
       },
     ],
   },

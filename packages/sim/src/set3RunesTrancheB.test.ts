@@ -67,8 +67,8 @@ describe('tranche B — the roster', () => {
       const r = RUNE_INDEX[id]!;
       // the Grave Orbit was ARCHIVED 2026-09-24 (owner rulings: "remove them") — out of EPIC_RUNES, into ARCHIVED_RUNES
       expect(EPIC_RUNES.some((x) => x.id === id), `${id} lives in EPIC_RUNES`).toBe(id !== 'rune_grave_orbit');
-      // the Grave Orbit CUT FROM SET 3 2026-09-24 (owner): offered in no set
-      expect([r.cost, r.epic, r.sets], id).toEqual([cost, true, id === 'rune_grave_orbit' ? [] : ['set3']]);
+      // the Grave Orbit CUT FROM SET 3 2026-09-24 (owner): offered in no set; the Open Constellation CUT FROM SET 3 2026-09-25 (owner's Set 3 rune list)
+      expect([r.cost, r.epic, r.sets], id).toEqual([cost, true, id === 'rune_grave_orbit' || id === 'rune_open_constellation' ? [] : ['set3']]);
     }
   });
   it('tribe-gates exactly the runes whose text names a tribe on the board', () => {

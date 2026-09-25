@@ -5,7 +5,7 @@ import type { CardView } from './Card';
 import {
   abhorrentHorrorText, ascendProgressText, asymSummonBuffText, cadenceProgressText, cardTypeTallyText, chefRaagText, clingProgressText,
   cryptDrakeText, drunkenOafText, shredderText, karthusText, engraveTallyText, escalatingCastText, guelProgressText, herzogText, hunterText, monkProgressText, overflowPerPlayedText, packLeaderText, runescaleText, scTribeBuffPerPlayedText,
-  archivistText, ashenHeirText, chooseBothText, attackGrantImproveText, castSpellPerGoldText, copyCastSpellText, runeModifiedNote, type RuneTextFlags, improvingSummonText, perCardPlayedText, rougeRogueText, perGoldSpentText, rallySpreadText, shopBuffImproveText, spellThresholdText, ritualistText, sergeantText, soulsmanText, squirlScoutText, conductorText, stepProgress, sporebatText, stewardText, thundeerText, summonBuffText, summonEscalatingText, summonFlatZooText, summonImproveText, soldProgressText, summitTierText, summonScalingText, shootingStarText,
+  archivistText, ashenHeirText, chooseBothText, attackGrantImproveText, castSpellPerGoldText, copyCastSpellText, runeModifiedNote, type RuneTextFlags, improvingSummonText, perCardPlayedText, rougeRogueText, perGoldSpentText, rallySpreadText, shopBuffImproveText, spellThresholdText, ritualistText, sergeantText, soulsmanText, squirlScoutText, conductorText, stepProgress, sporebatText, stewardText, thundeerText, summonBuffText, summonEscalatingText, summonFlatZooText, summonImproveText, soldProgressText, summitTierText, summonScalingText, shootingStarText, echoTallyText,
   ancientWandererText, musterTrooperText, shopSpellGrowthText,
   taughtSpellText, trailForagerText, transformProgressText, watcherText, withImpStats, spiritText } from './cardText';
 
@@ -20,6 +20,9 @@ export interface LiveTextParams {
   runeFlags?: RuneTextFlags;
   spellBonus: number; spellBonusH: number; frontToBackBonus: number; frontToBackBonusH?: number; growthBonus?: number; juggler?: boolean;
   spellsThisTurn: number; spellsCast: number; deathrattlesTriggered: number;
+  /** Grim's live total counts its OWN Echo on top of `deathrattlesTriggered` (the tally is bumped before an Echo
+   *  fires). False only for an ENEMY combat body, whose snapshot tally is frozen and never bumped mid-fight. */
+  echoIncludesSelf?: boolean;
   /** Starpath Vendor's banked next-SHOP-spell bonus. `spellBonus` already folds it (it rides `spellAttackBonus`);
    *  a Gift's preview subtracts it back out, because a Gift neither reads nor spends it. */
   nextSpellBonus?: { attack: number; health: number };
@@ -205,7 +208,7 @@ export function liveCardText(cardId: string, p: LiveTextParams): { text: string;
             copyCastSpellText(c.id, p.golden, { firstThisTurn: p.firstSpellThisTurnName, lastThisTurn: p.lastSpellThisTurnName, keeperFirst: p.keeperFirstSpellName }) ?? // the Dragon copiers name the spell they will give
             improvingSummonText(c.id, p.summonBonus ?? 0, p.golden) ?? // Oona / Broodwright: the Avenge-improved grant
             rougeRogueText(c.id, p.golden, p.summonBonus ?? 0) ?? // Rouge Rogue: its per-combat escalating Imp grant
-            // (Grim's per-game Echo tally prints STATIC by owner ruling 2026-09-24, so no tally helper runs here.)
+            echoTallyText(c.id, p.deathrattlesTriggered, p.golden, p.echoIncludesSelf ?? true) ?? // Grim: its Echo's live TOTAL in place (owner ruling 2026-09-25)
             ancientWandererText(c.id, p.goldSpentRun ?? 0, p.golden) ?? // Ancient Wanderer: the +A/+H it HAS right now
             musterTrooperText(c.id, p.summonBonus ?? 0, p.golden) ?? // Muster General: the Trooper's live stat line
             perGoldSpentText(c.id, p.goldSpent ?? 0, p.golden) ?? // Baby Gastrid: the Health it grants RIGHT NOW

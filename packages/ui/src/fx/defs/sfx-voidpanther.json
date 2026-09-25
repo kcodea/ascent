@@ -9,7 +9,7 @@
       "at": 0,
       "params": {
         "clip": "fx/voidpanthergrowl",
-        "gain": 0.35,
+        "gain": 0.175,
         "gainCurve": [
           [
             0,

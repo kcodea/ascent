@@ -1333,4 +1333,66 @@ export const FOUNDATION_RULES: GameRule[] = [
       lastVerifiedAt: '2026-09-25',
     },
   },
+  // ── One authored buff effect per buff (owner ruling 2026-09-24, King Oona's banana) ───────────────────────
+  {
+    id: 'R-BUFFFX-01',
+    title: 'A minion\x27s authored buff effect plays exactly once per buffed unit, instead of the buff tendril',
+    statement:
+      'When a minion that has its own authored buff effect gives another unit stats, that effect travels from '
+      + 'the minion to each unit it buffed, once per unit, and the stock buff tendril does not also play. This '
+      + 'holds whether the buff lands as its own beat (King Oona doubling a summoned Beast) or inside the '
+      + 'minion\x27s attack. Two source-to-target effects drawn for one buff read as the buff happening twice.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Milestone-hit / Oona session, 2026-09-24 (the ask)', quote: 'i also created a def for oona when his effect procs called oona banana. it should travel from oona to the unit effected by him' },
+      { kind: 'owner-chat', ref: 'Milestone-hit / Oona session, 2026-09-24 (asked: should the banana replace the tendril?)', quote: 'Banana replaces tendril (Recommended)' },
+      { kind: 'fix-pr', ref: 'https://github.com/kcodea/ascent/pull/1702 (feat/oona-banana-fx)' },
+      { kind: 'code', ref: 'packages/ui/src/choreo/score.ts fxDef `buffed` fan-out (stands down for a no-spell minion buff); packages/ui/src/useCombatReplay.ts fireBuffCasts `sourceBuffDefFor` (plays the def in place of the tendril)' },
+    ],
+    currentBehaviour:
+      'Conforms as of 2026-09-24 for a minion buff with no spell behind it. Since PR #1416 the tendril path '
+      + '(`fireBuffCasts`) has swapped a card\x27s `buffWave`/`buffed` def in for the tendril on EVERY buff wave, '
+      + 'while the score\x27s `buffed` fan-out still played the same def on the same beat, so a standalone wave drew '
+      + 'it twice (King Oona\x27s banana, Karwind\x27s flame ring). The fan-out now stands down for those buffs, the '
+      + 'mirror of the `buffedOn` fan-out skipping spell buffs. The pin runs the real cue runner on a simulated '
+      + 'Oona wave and asserts the score hands the cast to the tendril path without playing the def itself; '
+      + 'that `fireBuffCasts` then plays it once is read from the code, not exercised (it is a React hook).',
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/ui/src/choreo/oonaBanana.test.ts'],
+      lastVerifiedAt: '2026-09-24',
+    },
+  },
+
+  // ── A travelling buff effect lands where its unit settles (owner report 2026-09-24, King Oona's banana) ────
+  {
+    id: 'R-BUFFFX-02',
+    title: 'A buff effect that travels to a unit lands where that unit ends up, not where it stood when it fired',
+    statement:
+      'When a minion\x27s authored buff effect travels to a unit whose row is still shifting (the unit was just '
+      + 'summoned and is growing into its slot, or more summons in the same cascade keep pushing it over), the '
+      + 'effect lands on the slot the unit settles into. It follows the unit to where it ends up rather than '
+      + 'striking the empty spot the unit has already left.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Milestone-hit / Oona session, 2026-09-24', quote: 'i need the banana to land on where the unit ends up. im noticing that the banana is landing where the unit was(which is usually correct), but in the case of multiple summons at once, it misses the mark as the unit continues to shift over as more summons occur' },
+      { kind: 'fix-pr', ref: 'https://github.com/kcodea/ascent/pull/1702 (feat/oona-banana-fx)' },
+      { kind: 'code', ref: 'packages/ui/src/fx/settledSlot.ts settledSlotCenter + createSettlingPoint; packages/ui/src/useCombatReplay.ts settleTarget (fireBuffCasts source-authored branch); packages/ui/src/fx/playDef.ts PlayDefOptions.target' },
+    ],
+    currentBehaviour:
+      'Conforms as of 2026-09-24 for a MINION\x27s authored buff def (the `buffWave`/`buffed` source-authored path in '
+      + '`fireBuffCasts`: King Oona, Karwind, Paragon, Standard Bearer). The target is the unit\x27s SETTLED slot, '
+      + 'computed from its row (centre + index x pitch, a growing slot counted at full width, a dying one dropped), '
+      + 're-measured every 100ms for the flight only (never per frame), and the effect eases onto each new goal. '
+      + 'PARTIAL: the stock buff tendril and spell-authored buff defs still aim at the fire-time rect. The pin '
+      + 'covers the settled-slot math and the easing; the wiring into the live replay was not exercised by a test '
+      + '(it is a React hook) and was handed to the owner to eyeball in play.',
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/ui/src/fx/settledSlot.test.ts'],
+      lastVerifiedAt: '2026-09-24',
+    },
+  },
 ];

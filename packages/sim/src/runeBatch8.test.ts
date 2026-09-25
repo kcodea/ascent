@@ -71,6 +71,6 @@ describe("the two runes ship as specced", () => {
   });
 
   it("Reinvestment is not set-scoped — summoning and the Shop exist in both sets", () => {
-    expect(byName('Rune of Reinvestment')!.sets).toBeUndefined();
+    expect(byName('Rune of Reinvestment')!.sets).toEqual(['set1', 'set2']); // CUT FROM SET 3 2026-09-25 (owner's Set 3 rune list)
   });
 });

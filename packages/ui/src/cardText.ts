@@ -1051,6 +1051,33 @@ export function cardTypeTallyText(cardId: string, enchant: { attack: number; hea
 }
 
 /**
+ * Grim ("Echo: give your Beast Aura +3/+2 for every Echo triggered this game") prints its TOTAL in place — owner
+ * ruling 2026-09-25, replacing the 2026-09-24 static-text exception: "fix grim so that it updates in real time
+ * with the current value of the echo." Owner wording (2026-09-25 correction): "Echo: Give your Beast Aura
+ * {{+X/+Y}}. Improves by +3/+2 for every Echo triggered this game." (the rate stays static, gilded +6/+4) where
+ * X/Y = N x (+3/+2) (gilded x2) and N is the SAME number `deathrattleBuffTribeByTally` will read when this Echo
+ * fires: the run-wide Echo tally so far (+ this fight's Echoes in combat) plus ONE for Grim's own Echo, since
+ * the tally is bumped before an Echo fires. `includeSelf = false` is the enemy side's frozen snapshot tally,
+ * which the simulator never bumps mid-fight (the known asymmetry in R-ECHOTALLY-01), so there N = the tally.
+ * Always returns a line for a tally card (the total is the text), null for every other card.
+ */
+export function echoTallyText(cardId: string, echoesSoFar: number, golden = false, includeSelf = true): string | null {
+  const def = CARD_INDEX[cardId];
+  const eff = def?.effects.find((e) => e.do === 'deathrattleBuffTribeByTally');
+  if (!def || !eff) return null;
+  const params = (eff.params ?? {}) as { attack?: number; health?: number; per?: number; tribe?: string };
+  const per = typeof params.per === 'number' ? params.per : 1;
+  const n = (Math.max(0, echoesSoFar) + (includeSelf ? 1 : 0)) * (golden ? 2 : 1);
+  const a = n * (typeof params.attack === 'number' ? params.attack : per);
+  const h = n * (typeof params.health === 'number' ? params.health : per);
+  const tribe = params.tribe && params.tribe !== 'any' ? `${params.tribe[0]!.toUpperCase()}${params.tribe.slice(1)} ` : '';
+  const g = golden ? 2 : 1;
+  const rateA = g * (typeof params.attack === 'number' ? params.attack : per);
+  const rateH = g * (typeof params.health === 'number' ? params.health : per);
+  return `**Echo:** Give your **${tribe}Aura** **{{+${a}/+${h}}}**. Improves by **+${rateA}/+${rateH}** for every **Echo** triggered this game.`;
+}
+
+/**
  * Baby Gastrid (ex-Quartermaster Dorrin) — "+N Health per Gold spent this turn" folded into the ACTUAL Health it will grant now.
  *
  * The hard rule (CLAUDE.md): a card whose magnitude depends on live run state prints the number it will really

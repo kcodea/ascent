@@ -108,10 +108,10 @@ describe('Set 3 rune cuts (owner 2026-09-24)', () => {
     }
   });
 
-  it('the Set 3 static pool counts after the cut: 119 Basic / 108 Epic (Rune of Investment moved Basic to Epic in the Ruby batch)', () => {
+  it('the Set 3 static pool counts: 83 Basic / 80 Epic since the owner Set 3 rune list (2026-09-25; was 119 / 108)', () => {
     const inS3 = (arr: typeof RUNES) => arr.filter((r) => !r.sets || r.sets.includes('set3'));
-    expect(inS3(RUNES)).toHaveLength(119);
-    expect(inS3(EPIC_RUNES)).toHaveLength(108);
+    expect(inS3(RUNES)).toHaveLength(83); // 119 → 83 on 2026-09-25 (set3RuneList.test.ts pins the exact ids)
+    expect(inS3(EPIC_RUNES)).toHaveLength(80); // 108 → 80 on 2026-09-25
     // 26/28 → 25/27 on 2026-09-24: Full Hand (Basic) and Grave Orbit (Epic) left the cut list for the archive
     expect(CUT.filter((id) => !isEpic(id))).toHaveLength(25);
     expect(CUT.filter(isEpic)).toHaveLength(27);

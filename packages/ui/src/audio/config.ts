@@ -37,6 +37,8 @@ export const CATEGORY_GAINS: Record<string, number> = {
   // The post-game MEDAL RANK cues (2026-09-20): progress / gate / promotion / medal, one fader. Synth-only until
   // clips land, so the gain is routing-only today (see buildCategories); seeded at the ui fallback level.
   rank: 0.6,
+  // The "Good Luck" game-start intro (owner 2026-09-24): the shine sweep + the spark burst, one fader each.
+  goodLuckShine: 0.6, goodLuckSpark: 0.45,
   // ── Equipment (owner ask 2026-08-31: "add an equipment section for me ... named/titled based on the
   //    card/effect so it is easier to understand what each effect is tied to"). One category PER CLIP, so a
   //    fader moves exactly one sound, and every name says which card it belongs to (see CATEGORY_LABEL).
@@ -62,6 +64,7 @@ export const CATEGORY_BUS: Record<string, BusName> = {
   ceremony: 'hero', auctioneerhp: 'hero', runeselect: 'ui',
   gamble: 'ui',
   rank: 'ui',
+  goodLuckShine: 'ui', goodLuckSpark: 'ui',
   // All FX-primitive clips imported through the workbench (`fx/<slug>`) share this one desk fader (see
   // `familyOf`). Grouped on the combat bus — the `sound` primitive's own default bus — though playback routes
   // through the layer's chosen bus, so this is where they GROUP on the desk, not what they play through.
@@ -83,6 +86,8 @@ export const CATEGORY_LABEL: Record<string, string> = {
   runeselect: 'Rune select — frame clang',
   gamble: 'Gamble — die roll (power + spell)',
   rank: 'Rank screen — progress / gate / promotion / medal',
+  goodLuckShine: 'Good Luck intro — shine sweep',
+  goodLuckSpark: 'Good Luck intro — spark burst',
   fx: 'FX clips — imported sound-primitive layers',
   eqEquipClang: 'Equip clang — any Equip minion',
   eqSelect: 'Equipment slot — swap',

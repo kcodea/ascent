@@ -1160,6 +1160,10 @@ export const FOUNDATION_RULES: GameRule[] = [
     enforcement: {
       kind: 'scenario',
       refs: ['packages/ui/src/choreo/oonaBanana.test.ts'],
+      lastVerifiedAt: '2026-09-24',
+    },
+  },
+
   // ── The combat <-> shop curtain covers every screen shape (owner bug 2026-09-24, ultrawide) ───────────
   {
     id: 'R-PRESENT-15',

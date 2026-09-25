@@ -562,6 +562,18 @@ Circuit, the Open Constellation) are now `sets: []`, offered in no set, pending 
 rarity / tribe mismatch report: `docs/devlog/2026-09-25-set3-rune-list.md`; the exact ids are pinned by
 `packages/sim/src/set3RuneList.test.ts`.
 
+**Set 3 rune batch 3 (owner 2026-09-25)** adds 11 Set-3-only runes to that list (**174 runes, 90 Basic / 84 Epic**):
+Kobold Basics Gemmed Decisions, Echoing Kobolds, the Red Storm, Rubywire, Choices and Combatative Rubies; the Undead
+Basic Body Counting; Kobold Epics Storming Veins, Sold Choices, Aggressive Golems and Ruptured Rubies. Rules worth
+knowing: Echoing Kobolds and Aggressive Golems are aura-style GRAFTS (every Kobold / Gemheart Golem now and later, combat
+summons included; a Gilded Kobold still gets one Ruby); Rubywire's "Shop Spell" is R-SHOPSPELL-01's (Ales count, Rubies /
+Clues / tokens do not) in every phase; Choices is a per-turn Choose-Both charge (the Prismatic Pick mechanism); Sold
+Choices repeats the branch recorded at play (`chosenOption`, or both via `chosenBoth`) and does nothing for a body that
+never chose; Combatative Rubies (every 3rd friendly attack) and Body Counting (every 8th friendly death, Shop deaths
+included, sales not) are RUNNING meters carried across fights; Storming Veins adds 2 casts from hand only (R-MULT-06);
+Ruptured Rubies hops every combat Ruby twice (stats only), the Shop unaffected. Oracle R-RUNE-23..33; details in
+`docs/devlog/2026-09-25-set3-runes-batch3.md`.
+
 **Set 3-original runes (batch 2, 2026-09-16).** Set 3 now also has runes of its own — `sets: ['set3']` alone,
 no origin scope — starting with tranche A's 24 Spirit / Celestial / Undead runes (11 Basic + 13 Epic, taking the
 set-3 static pool to **126 Basic / 111 Epic**), plus the rune-exclusive **Handy Flame** token. The two combat-side

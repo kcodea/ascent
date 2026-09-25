@@ -27,9 +27,11 @@ const BODY_GRANT_ONLY = new Set<string>([]);
  *  ("When a minion Rises, give it Rise") is Undead (owner 2026-09-23, Balance 9/23: "make deathtouched apple an
  *  undead rune, so it is not in set 2") — Rise is the Undead keyword, the way Imps are Demon content. Rune of
  *  Hoardcalling ("get a Hoardflame or Dragonflame") is Dragon (owner 2026-09-24: "hoardcalling should have a dragon
- *  tag") — its rewards are Dragon spells, which the name-matcher does not read as naming Dragons. Adding an id
- *  here needs an owner call. */
-const OWNER_TRIBE_RULINGS: Readonly<Record<string, Tribe>> = { rune_deathtouched_apple: 'undead', rune_hoardcalling: 'dragon' };
+ *  tag") — its rewards are Dragon spells, which the name-matcher does not read as naming Dragons. Rune of Choices
+ *  and Rune of Sold Choices are Kobold (owner rune batch 2026-09-25 lists both under Kobold: Choose One is the
+ *  Kobold keyword, like Rise for the Undead). Rune of Storming Veins (Veinstorm is the Kobold spell) and Rune of
+ *  Aggressive Golems (the Gemheart Golem is the Kobold token) are Kobold by the same list. Adding an id here needs an owner call. */
+const OWNER_TRIBE_RULINGS: Readonly<Record<string, Tribe>> = { rune_deathtouched_apple: 'undead', rune_hoardcalling: 'dragon', rune_choices: 'kobold', rune_sold_choices: 'kobold', rune_storming_veins: 'kobold', rune_aggressive_golems: 'kobold' };
 
 /** The tribes of the bodies a reward GRANTS (Rune of Lazarus → Lazarus is Undead) — the 2026-09-10 ruling's
  *  "only grants a tribe body" case, resolved through the card index rather than a hand list. */

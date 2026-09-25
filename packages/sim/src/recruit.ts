@@ -1,4 +1,4 @@
-import { ALE_IDS, RUBY_TYPE_IDS, SPECIAL_RUBY_IDS, TRIBES, alignAllows, makeRng, SILENT_ONPLAY, isShopPoolSpell, shopSpellGrowth, COMBAT_REPLAYABLE_BATTLECRIES, extraTriggerFires, foldEchoExtraFires, socTwilightExtraFires, ARENA_EFFECTS, beatIdentity, type EffectArena, type PresentationCollector, type PresentationPhase, type PresentationPolicy, type Rng, type CardDef, type EffectDef, type Keyword, type TriggerFamily, type TriggerSourceRef, type Tribe } from '@game/core';
+import { ALE_IDS, RUBY_TYPE_IDS, SPECIAL_RUBY_IDS, TRIBES, alignAllows, makeRng, SILENT_ONPLAY, isShopPoolSpell, shopSpellGrowth, COMBAT_REPLAYABLE_BATTLECRIES, extraTriggerFires, foldEchoExtraFires, socTwilightExtraFires, BODY_COUNTING_DEATHS, ARENA_EFFECTS, beatIdentity, type EffectArena, type PresentationCollector, type PresentationPhase, type PresentationPolicy, type Rng, type CardDef, type EffectDef, type Keyword, type TriggerFamily, type TriggerSourceRef, type Tribe } from '@game/core';
 import { runSpells } from './spellPool';
 import { REVELER_IDS, RUNE_INDEX, CARD_INDEX, EQUIPMENT_INDEX, STAR_DESTROYER, equipmentOf, recurringEotOwner, type EquipmentDefinition } from '@game/content';
 import { equipIsNews, equipmentParams as equipmentParamsFor, grantEquipment as grantEquipmentToPlayer, armCalibration, unusedEquipmentCount } from './equipment';
@@ -1576,6 +1576,7 @@ export function runeExtraCasts(state: RunState, def: CardDef, card?: Pick<BoardC
     if (state.runeSharedPour && !state.sharedPourUsedThisTurn) runes.push('rune_shared_pour');
   }
   if ((card?.extraCasts ?? 0) > 0 && (state.ownedRunes ?? []).includes('rune_astral_draft')) runes.push('rune_astral_draft');
+  if (def.id === 'veinstorm' && (state.runeStormingVeins ?? 0) > 0) runes.push('rune_storming_veins');
   if (runes.length === 0) return [];
   const off = new Set(runes);
   let prev = spellCastsWithout(state, def, card, off);
@@ -1650,6 +1651,9 @@ function spellCastsWithout(state: RunState, def: CardDef, card: Pick<BoardCard, 
     // +1 extra cast per Shared Pour copy held (repeat family, owner 2026-08-27).
     if (state.runeSharedPour && !state.sharedPourUsedThisTurn && !off.has('rune_shared_pour')) mult += runeStacksOf(state, 'rune_shared_pour');
   }
+  // RUNE OF STORMING VEINS (owner 2026-09-25): "Veinstorms cast 2 additional times from hand" — ADDED, like every
+  // "additional time" source, after the multipliers above (R-MULT-06: only the hand-cast path reads `spellCasts`).
+  if (def.id === 'veinstorm' && !off.has('rune_storming_veins')) mult += state.runeStormingVeins ?? 0;
   // Nimbus is ADDED LAST, and added rather than multiplied, because it reads "casts an ADDITIONAL time"
   // (owner 2026-07-24). It also applies to untargeted spells, unlike Yazzus — the charge is a flat bonus on
   // whatever the spell would otherwise do.
@@ -3585,6 +3589,16 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   rallyGetRubies: (ctx, self, params, payload) => {
     if (payload.minion !== self) return;
     ARENA_EFFECTS.rallyGetRubies(shopArena(ctx.state, self), params);
+  },
+  // Rune of Aggressive Golems' graft (2026-09-25): a Shop Rally replay (Lasting Cadence, the rally runes) fires it
+  // too, and a Shop buff is permanent.
+  rallyGiveAttackToRight: (ctx, self, params, payload) => {
+    if (payload.minion !== self) return;
+    ARENA_EFFECTS.rallyGiveAttackToRight(shopArena(ctx.state, self), params);
+  },
+  // Rune of Echoing Kobolds' graft (2026-09-25): a Shop Echo (a destroy, a forced Echo) mints the Rubies now.
+  deathrattleGetRubies: (ctx, self, params) => {
+    ARENA_EFFECTS.deathrattleGetRubies(shopArena(ctx.state, self), params);
   },
   rallyDoubleSelf: (ctx, self, params, payload) => {
     if (payload.minion !== self) return;
@@ -9415,6 +9429,12 @@ export function applyGoldSpent(state: RunState, amount: number): void {
  */
 export function applyChooseOnePlayed(state: RunState, def: CardDef): void {
   if (!def.chooseOne?.length) return;
+  // RUNE OF GEMMED DECISIONS (owner 2026-09-25): "After you play a Choose One card, get a Ruby." Here, the one
+  // resolution hook both the minion and the spell paths reach AFTER the branch resolved. One Ruby per copy held.
+  if (state.runeGemmedDecisions) {
+    procRuneId(state, 'rune_gemmed_decisions');
+    mintRubies(state, runeStacksOf(state, 'rune_gemmed_decisions'));
+  }
   const ctx = makeContext(state);
   for (const card of [...state.board]) {
     const cd = CARD_INDEX[card.cardId];
@@ -10434,6 +10454,17 @@ const FRIEND_DEATH_WATCHERS: ReadonlySet<string> = new Set(['onFriendDeathSummon
 
 export function fireOnFriendDeath(state: RunState, dead: BoardCard): void {
   const ctx = makeContext(state);
+  // RUNE OF BODY COUNTING (owner 2026-09-25), the SHOP half of its running death meter: every Shop death path (a
+  // destroy, a pending destroy, Fel Spikes, a devour) notifies here exactly once; a SALE never does. Every 8th death
+  // (the same `runeBodyCountTick` combat continues) gets a random Undead at or below your tier, per copy held.
+  if (state.questFlags?.runeBodyCounting) {
+    state.runeBodyCountTick = (state.runeBodyCountTick ?? 0) + 1;
+    if (state.runeBodyCountTick >= BODY_COUNTING_DEATHS) {
+      state.runeBodyCountTick -= BODY_COUNTING_DEATHS;
+      procRuneId(state, 'rune_body_counting');
+      conjureToHand(state, poolOf(state).buyable.filter((c) => defIsTribe(c, 'undead') && c.tier <= state.tier), runeStacksOf(state, 'rune_body_counting'), true);
+    }
+  }
   for (const card of [...state.board]) {
     if (card.uid === dead.uid) continue;
     for (const effect of instanceEffects(card)) {
@@ -11577,7 +11608,7 @@ export function applySecondLife(state: RunState, card: BoardCard): void {
 export const ENDLESS_MARCH_TOKEN = 'knit';
 
 export function applyRuneGrafts(state: RunState, card: BoardCard): void {
-  if (!state.runeEndlessMarch && !state.runeLastTool) return;
+  if (!state.runeEndlessMarch && !state.runeLastTool && !state.questFlags?.runeEchoingKobolds && !state.questFlags?.runeAggressiveGolems) return;
   const def = CARD_INDEX[card.cardId];
   if (!def || def.spell || def.ruby) return;
   const graft = (effect: EffectDef): void => {
@@ -11590,6 +11621,47 @@ export function applyRuneGrafts(state: RunState, card: BoardCard): void {
     graft({ on: 'onRise', do: 'onRiseSelfSummonToken', params: { tokenId: ENDLESS_MARCH_TOKEN, count: runeStacksOf(state, 'rune_endless_march') } });
   }
   if (state.runeLastTool && hasEquip(def)) graft({ on: 'onDeath', do: 'deathrattleEquipmentFreeNextTurn', params: {} });
+  // SET 3 RUNE BATCH 3 (owner 2026-09-25). Rune of Echoing Kobolds: every friendly Kobold (All-types included) carries
+  // "Echo: get a Ruby", one Ruby per copy held; `fixed` = a Gilded Kobold gets the same count (a rune-granted Echo
+  // is not the card's own, so gilding does not double it). Rune of Aggressive Golems: every Gemheart Golem carries
+  // the Rally keyword and "give this minion's Attack to the minion to the right".
+  if (state.questFlags?.runeEchoingKobolds && isTribe(card, 'kobold')) {
+    graft({ on: 'onDeath', do: 'deathrattleGetRubies', params: { count: runeStacksOf(state, 'rune_echoing_kobolds'), fixed: true } });
+  }
+  if (state.questFlags?.runeAggressiveGolems && card.cardId === 'gemheart-shard') {
+    graft({ on: 'onAttack', do: 'rallyGiveAttackToRight', params: {} });
+    if (!card.keywords.includes('RL')) card.keywords = [...card.keywords, 'RL'];
+  }
+}
+
+/** Set 3 rune batch 3: cast a Ruby on `n` DISTINCT random friendly Kobolds on the board (All-types bodies count),
+ *  through `playRubiesOn`, the Shop's one Ruby chokepoint (live Ruby strength + the Ruby-landed watchers), each
+ *  Kobold its own source. Fewer Kobolds than `n` = each gets one; none = nothing. Seeded off the run cursor. */
+function rubyOnRandomKobolds(state: RunState, n: number): void {
+  for (const k of pickRandom(state, state.board.filter((c) => isTribe(c, 'kobold')), n)) {
+    if (state.board.includes(k)) shopArena(state, k).playRubiesOn(k, 1);
+  }
+}
+
+/**
+ * RUNE OF SOLD CHOICES (owner ruling 2026-09-25): selling a board Choose One minion repeats THE OPTION IT CHOSE when
+ * it was played (`chosenOption`), or every option when that play resolved both (`chosenBoth`). Resolved through
+ * the same `applyChooseOne` a play uses, so the body's gilding scales it exactly as it did then. A branch that
+ * aims lands on a random OTHER friendly minion (the body is leaving); with none, it fizzles. A body that never
+ * chose (summoned or Discovered onto the board) does nothing. Called while the body is still on the board.
+ */
+export function fireSoldChoice(state: RunState, card: BoardCard): void {
+  const def = CARD_INDEX[card.cardId];
+  if (!def?.chooseOne?.length || def.spell) return;
+  const options = card.chosenBoth ? def.chooseOne : (card.chosenOption !== undefined && def.chooseOne[card.chosenOption] ? [def.chooseOne[card.chosenOption]!] : []);
+  if (options.length === 0) return;
+  procRuneId(state, 'rune_sold_choices');
+  for (const opt of options) {
+    const aims = (opt.target ?? def.target) === 'friendly' || (opt.target ?? def.target) === 'any';
+    if (!aims) { applyChooseOne(state, card, opt.effects); continue; }
+    const [target] = pickRandom(state, state.board.filter((c) => c.uid !== card.uid), 1);
+    if (target) applyChooseOneTarget(state, card, opt.effects, target);
+  }
 }
 
 /** The tribe a card's Battlecry aim is restricted to, AFTER runes. Rune of Open Appetite drops the Appetite
@@ -12249,6 +12321,13 @@ export function castSpell(state: RunState, spellDef: CardDef, target?: BoardCard
     procRuneId(state, 'rune_lassoing', reps);
     for (const c of state.board) addBuff(c, 'Rune of Lassoing', 2 * reps, 2 * reps);
   }
+  // RUNE OF THE RED STORM (owner 2026-09-25): every Veinstorm CAST, whoever casts it (hand, a Martyr's branch, a rune,
+  // a repeat), also casts a Ruby on 2 random friendly Kobolds, once per copy held. `castSpell` runs once per
+  // resolution, so a multicast Veinstorm (Rune of Storming Veins) pays on every cast.
+  if (spellDef.id === 'veinstorm' && state.runeRedStorm) {
+    procRuneId(state, 'rune_red_storm');
+    for (let k = 0; k < runeStacksOf(state, 'rune_red_storm'); k++) rubyOnRandomKobolds(state, 2);
+  }
   if (weaveBefore) settleSpellweave(state, weaveBefore, target);
   if (target && state.board.includes(target)) {
     const dAtk = target.attack - preAtk;
@@ -12490,6 +12569,13 @@ export function noteSpellCast(state: RunState, spellDef: CardDef): void {
   // it pays on EVERY spell (a Ruby with or without the Spellstone) from the Ruby path directly.
   fireShopSpellCastRunes(state);
   fireRunicHoard(state, 1);
+  // RUNE OF RUBYWIRE (owner 2026-09-25): a SHOP SPELL (R-SHOPSPELL-01: the set's Shop-spell pool, Ales included;
+  // never a Ruby, a Clue or other Gift, or a token spell) cast by anyone casts a Ruby on 2 random friendly Kobolds,
+  // once per copy held. The combat half lives in simulate's `spellResolved`.
+  if (state.questFlags?.runeRubywire && isShopPoolSpell(spellDef, poolOf(state).all)) {
+    procRuneId(state, 'rune_rubywire');
+    for (let k = 0; k < runeStacksOf(state, 'rune_rubywire'); k++) rubyOnRandomKobolds(state, 2);
+  }
   for (const card of [...state.board]) {
     const def = CARD_INDEX[card.cardId];
     if (!def) continue;

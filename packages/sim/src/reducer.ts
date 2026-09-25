@@ -1,4 +1,4 @@
-import { type PresentationCollector, type ConsequenceDraft, type CombatEvent, beatIdentity, socTwilightExtraFires, ALE_IDS, combatSide, makeCollector, makeRng, simulate, type BoardMinion, type CardDef, type CombatConfig, type CombatResult, type CombatSideState, type Keyword, type PendingCombatQuest, type PresentationBatch, type QuestCombatMods, type QuestDef, type QuestObjective, type QuestObjectiveEvent, type Tribe, TRIBES } from '@game/core';
+import { type PresentationCollector, type ConsequenceDraft, type CombatEvent, beatIdentity, socTwilightExtraFires, COMBATATIVE_RUBIES_ATTACKS, BODY_COUNTING_DEATHS, ALE_IDS, combatSide, makeCollector, makeRng, simulate, type BoardMinion, type CardDef, type CombatConfig, type CombatResult, type CombatSideState, type Keyword, type PendingCombatQuest, type PresentationBatch, type QuestCombatMods, type QuestDef, type QuestObjective, type QuestObjectiveEvent, type Tribe, TRIBES } from '@game/core';
 import { runSpells } from './spellPool';
 import { currentCollector, withActiveCollector } from './activeCollector';
 import { surfaceKeyForRune, surfaceKeyForQuest, CARD_INDEX, EPIC_RUNES, GIFT_IDS, QUEST_INDEX, RUNE_INDEX, RUNES, runeSynergies, type SynergyTag } from '@game/content';
@@ -20,7 +20,7 @@ import {
   equipmentChargesOf, equipmentCostOf, expireEquipmentTurn, rebuildEquipment, spendEquipmentCharge,
   selectEquipment, selectedEquipment, amplifyAllHeld, amplifyUnactivated, consumeAmplified,
 } from './equipment';
-import { applyChooseOnePlayed, spendChooseBothCharge, noteSpellCast, applyCastEffects, makeContext, discoverSpecFor, heroPowerCostOf, commissionOffer, COMMISSION_DELAY, aegisGrantOf, allInPayoutOf, threeDistinctTypes, exhibitionGrantOf, stampSableBond, stampSharedSpoils, heroOfferPrice, addBuff, addOfferBuff, applyBattlecryTarget, applyCardsBought, applyCardsPlayed, applyChooseOne, applyChooseOneTarget, chooseBothActive, chooseOneNeedsChoice, applyEndOfTurn, applyStartOfTurn, applyOnBuy, applyGoldSpent, advanceRuneThresholds, applySecondLife, effectiveTargetTribe, dominantBoardTribe, uncontrolledTribes, gainGold, applyRunShopBuff, applyShoutsForEndlessVerse, applyShoutsForShopBuff, auraFxTargets, boardManaBonus, buffImpsRunWide, buffUndeadAttackEverywhere, buffCardTypeRunWide, buffFodderRunWide, cardBuff, captureBuffFx, conjuredStats, castSpell, castSpellOnOffer, conjureToHand, consumeTavernFodder, fireGravetwinEchoes, fireOnGainAttack, fireOnRubyCast, fireOnRubyPlayed, applyRubyRiderAction, mintRandomRubies, recordRubyRiderFx, fireOnMinionSold, fireOnSell, fireOnGainCard, fireSummonBuffs, fireDemonPlayRunes, foldOfferBuffs, creditShopBuffSource, gildMinion, grantMinionToHandOrBoard, grantTopTypeMinion, hasBattlecry, isTribe, mintRubies, modalOpen, openDiscover, playCard, queueDiscover, replayBattlecry, replayEconomyBattlecry, replayEndOfTurn, restoreHeldOffer, replayRecurringEndOfTurn, withEotDiscoverGrantBeat, sellValueOf, sellValueWithBonus, rubyCastCount, giftCastCount, rubyStatBonus, yazzusExtraCasts, consumeGrimoireCharge, countRubyAsShopSpell, fireSpellCastWatchersForRuby, spellAttackBonus, spellCasts, spellCostReduction, spellHealthBonus, stampImproveReps, swapWithTavern, applySpellBought, applyShopRefreshed, taughtAimSpell, triggerBorrowedEcho, landBorrowed, settlePendingDeath, stampEquipFx, equipmentFxMark, buffedFxTargets, fireEquipmentTriggers, fireEquipmentActivated, buyHealthAura, undeadBuyBonus, weldMagnetic, defIsTribe, handCardLocked, fireStatGainReactors, fireEquipmentFree, applyRuneGrafts, noteSpellForCountRunes, settleMinionSale, distillationEdges, fireRunicHoard, applyLorekeeping, runeExtraCasts, castWithRuneRepeats, withCastActor, withHandCast } from './recruit';
+import { applyChooseOnePlayed, spendChooseBothCharge, noteSpellCast, applyCastEffects, makeContext, discoverSpecFor, heroPowerCostOf, commissionOffer, COMMISSION_DELAY, aegisGrantOf, allInPayoutOf, threeDistinctTypes, exhibitionGrantOf, stampSableBond, stampSharedSpoils, heroOfferPrice, addBuff, addOfferBuff, applyBattlecryTarget, applyCardsBought, applyCardsPlayed, applyChooseOne, applyChooseOneTarget, chooseBothActive, chooseOneNeedsChoice, applyEndOfTurn, applyStartOfTurn, applyOnBuy, applyGoldSpent, advanceRuneThresholds, applySecondLife, effectiveTargetTribe, dominantBoardTribe, uncontrolledTribes, gainGold, applyRunShopBuff, applyShoutsForEndlessVerse, applyShoutsForShopBuff, auraFxTargets, boardManaBonus, buffImpsRunWide, buffUndeadAttackEverywhere, buffCardTypeRunWide, buffFodderRunWide, cardBuff, captureBuffFx, conjuredStats, castSpell, castSpellOnOffer, conjureToHand, consumeTavernFodder, fireGravetwinEchoes, fireOnGainAttack, fireOnRubyCast, fireOnRubyPlayed, applyRubyRiderAction, mintRandomRubies, recordRubyRiderFx, fireOnMinionSold, fireOnSell, fireOnGainCard, fireSummonBuffs, fireDemonPlayRunes, foldOfferBuffs, creditShopBuffSource, gildMinion, grantMinionToHandOrBoard, grantTopTypeMinion, hasBattlecry, isTribe, mintRubies, modalOpen, openDiscover, playCard, queueDiscover, replayBattlecry, replayEconomyBattlecry, replayEndOfTurn, restoreHeldOffer, replayRecurringEndOfTurn, withEotDiscoverGrantBeat, sellValueOf, sellValueWithBonus, rubyCastCount, giftCastCount, rubyStatBonus, yazzusExtraCasts, consumeGrimoireCharge, countRubyAsShopSpell, fireSpellCastWatchersForRuby, spellAttackBonus, spellCasts, spellCostReduction, spellHealthBonus, stampImproveReps, swapWithTavern, applySpellBought, applyShopRefreshed, taughtAimSpell, triggerBorrowedEcho, landBorrowed, settlePendingDeath, stampEquipFx, equipmentFxMark, buffedFxTargets, fireEquipmentTriggers, fireEquipmentActivated, buyHealthAura, undeadBuyBonus, weldMagnetic, defIsTribe, handCardLocked, fireStatGainReactors, fireEquipmentFree, applyRuneGrafts, noteSpellForCountRunes, settleMinionSale, distillationEdges, fireRunicHoard, applyLorekeeping, runeExtraCasts, castWithRuneRepeats, withCastActor, withHandCast, fireSoldChoice } from './recruit';
 import { handCap, recordBounceFx, mixSeed, reservedHandSlots, TAG, henchmanOffer, type Action, type DeferredFight, type PreparedCombatSide, type ActiveQuest, type AuraFxTribe, type BoardCard, type CardBuff, type ShopCard, type CiaSuit, type Commission, type CommissionKind, type RunState, type RubyLandedFx, gateUses, procRune, procRuneId, runeBuffMagnitude, PACKCRAFT_STEP, REINVESTMENT_PER_SUMMON, SLAYING_KILLS } from './state';
 import { alignmentsOf } from './alignment';
 import { RUNE_DUP_SWEETENER, RUNE_DUP_UNIQUE, forgeFilteredDuplicate, runeStacksOf } from './runeDup';
@@ -888,7 +888,9 @@ export function reduce(state: RunState, action: Action): RunState {
     syncStarDestroyer(next);
     // Set 3 batch 2 rune-graft tripwire: every arrival path stamps the Endless March / Last Tool grafts inline;
     // this sweep catches the ones that do not (a Discover, a conjure, a restored displaced body …).
-    if (next.runeEndlessMarch || next.runeLastTool) for (const c of [...next.board, ...next.hand]) applyRuneGrafts(next, c);
+    if (next.runeEndlessMarch || next.runeLastTool || next.questFlags?.runeEchoingKobolds || next.questFlags?.runeAggressiveGolems) {
+      for (const c of [...next.board, ...next.hand]) applyRuneGrafts(next, c);
+    }
   }
   // onGainAttack reactors (Hunter — "when this gains Attack, give your minions +Health") fire whenever a
   // recruit action raises a BOARD minion's Attack, from ANY source (Fortify, spells, tribe Battlecries,
@@ -2262,6 +2264,7 @@ function reduceCore(state: RunState, action: Action): RunState {
         if (chooseBothActive(s, card, coDef)) {
           if (s.runeUnbrokenVein && card.cardId === 'k_veinbreaker') procRuneId(s, 'rune_unbroken_vein');
           spendChooseBothCharge(s, card, coDef); // Forked Crown / Prismpick — one card per charge
+          card.chosenBoth = true; // Rune of Sold Choices repeats what it did: every branch (owner 2026-09-25)
           for (const opt of coDef.chooseOne) applyChooseOne(s, card, opt.effects);
         } else {
           const pick = s.chooseOnePick?.uid === card.uid ? s.chooseOnePick : undefined;
@@ -2474,6 +2477,10 @@ function reduceCore(state: RunState, action: Action): RunState {
           }
         }
       }
+      // RUNE OF SOLD CHOICES (owner 2026-09-25): a board Choose One minion repeats the option it CHOSE when played,
+      // while it is still on the board (so a targeted branch can aim at another friendly minion). A body that never
+      // chose (summoned or Discovered onto the board) does nothing. Minions only; hand sales never chose anything.
+      if (bi >= 0 && s.runeSoldChoices) fireSoldChoice(s, s.board[bi]!);
       if (bi >= 0) {
         sold = s.board[bi];
         s.board.splice(bi, 1);
@@ -4934,6 +4941,15 @@ function settleCombat(s: RunState, result: CombatResult): void {
       health: prev.health + result.playerHoardGain.health,
     };
   }
+  // Set 3 rune batch 3 (owner 2026-09-25): the RUNNING meters. Combat already paid every trip it crossed (it was
+  // seeded with this progress); settle advances the run's progress by the fight's friendly attacks / deaths, the
+  // same counts combat ticked on, so the next fight and the badge continue from where this one stopped.
+  if (s.questFlags?.runeCombatativeRubies) {
+    s.runeCombatativeTick = ((s.runeCombatativeTick ?? 0) + (result.playerQuestTally?.attack ?? 0)) % COMBATATIVE_RUBIES_ATTACKS;
+  }
+  if (s.questFlags?.runeBodyCounting) {
+    s.runeBodyCountTick = ((s.runeBodyCountTick ?? 0) + (result.playerDeaths ?? 0)) % BODY_COUNTING_DEATHS;
+  }
   if (s.questFlags?.runeSlaying && result.playerQuestTally?.slaughter) {
     s.runeSlayingKills = (s.runeSlayingKills ?? 0) + result.playerQuestTally.slaughter;
     // `SLAYING_KILLS` (5 — owner balance 2026-09-23, was 6) is the ONE threshold: the badge's x/N reads the same
@@ -5234,6 +5250,9 @@ function advanceCombat(s: RunState): void {
   // the same advance) re-grants its own. Clearing FIRST is what makes "the first Choose One each turn" true
   // rather than letting an unspent charge accumulate.
   s.chooseBothCharges = 0;
+  // Rune of Choices (owner 2026-09-25): "your first Choose One card each turn gains both effects" — one charge per
+  // copy held, armed right after the clear, the same channel Prismatic Pick and Forked Crown use.
+  if (s.runeChoices) s.chooseBothCharges = runeStacksOf(s, 'rune_choices');
   // Ruby per-turn gates. NEITHER was reset before 2026-08-06 (owner report on Resonance): "first Ruby each
   // turn casts extra" fired once per RUN, and Gemscript's first-Ruby spell-power bump did the same.
   // Chef Gary Toast: clear each Chef's per-turn grant tally. NOT banked into a second field — the combat that
@@ -6441,6 +6460,9 @@ function applyQuestRewardInner(s: RunState, def: QuestDef, allowRepeat: boolean)
       // Every flag records how many copies are held; the boolean ones are the reason it exists (a second
       // `true` says nothing), and the amount ones carry it harmlessly for the badge/live-text layer.
       s.flagCopies[r.flag] = (s.flagCopies[r.flag] ?? 0) + 1;
+      // Set 3 rune batch 3: the two AURA-STYLE grafts (Echoing Kobolds, Aggressive Golems) land on every body the
+      // run already holds, board and hand; later arrivals are stamped at their arrival + the action-boundary sweep.
+      if (r.flag === 'runeEchoingKobolds' || r.flag === 'runeAggressiveGolems') for (const c of [...s.board, ...s.hand]) applyRuneGrafts(s, c);
       break;
     }
     case 'questGoldTribeBuff':
@@ -6989,6 +7011,28 @@ function applyQuestRewardInner(s: RunState, def: QuestDef, allowRepeat: boolean)
       for (const c of [...s.board, ...s.hand]) applyRuneGrafts(s, c); // a duplicate re-sweeps the Skeleton count
       break;
     case 'runeGraveOrbit': s.runeGraveOrbit = { attack: r.attack, health: r.health }; break;
+    // ── Set 3 rune batch 3 (owner 2026-09-25) ──
+    case 'runeGemmedDecisions': s.runeGemmedDecisions = true; break;
+    case 'runeRedStorm': {
+      // "Get a Veinstorm." on pickup (a rune reward is never dropped to a full hand), then the cast rider below.
+      s.runeRedStorm = true;
+      const vs = CARD_INDEX['veinstorm'];
+      if (vs) conjureToHand(s, [vs], 1, true);
+      break;
+    }
+    case 'runeStormingVeins': {
+      s.runeStormingVeins = (s.runeStormingVeins ?? 0) + r.extra; // +2 per copy held (repeat family)
+      const vs = CARD_INDEX['veinstorm'];
+      if (vs) conjureToHand(s, [vs], 1, true);
+      break;
+    }
+    case 'runeChoices':
+      // The Prismatic Pick mechanism (owner ruling 2026-09-25): a Choose-Both charge, re-armed at every turn setup
+      // (after the per-turn clear). The turn you take it counts too: one charge NOW, per copy applied.
+      s.runeChoices = true;
+      s.chooseBothCharges = (s.chooseBothCharges ?? 0) + 1;
+      break;
+    case 'runeSoldChoices': s.runeSoldChoices = true; break;
     case 'runeLorekeeping': s.runeLorekeeping = true; break;
     case 'runeThrift': s.runeThrift = true; break;
     case 'runeFlagship': s.runeFlagship = true; break;
@@ -7413,6 +7457,15 @@ export function questCombatMods(s: RunState): QuestCombatMods {
     // ── Set 3 batch 2 (2026-09-16), tranche D ──
     runeOpenHand: f?.runeOpenHand,             // Rune of the Open Hand: every hand-summon gives its stats to another friendly minion
     runeWakingReserve: f?.runeWakingReserve,   // Rune of the Waking Reserve: SoC — a copy of the highest-stat hand minion (card not marked)
+    // ── Set 3 rune batch 3 (owner 2026-09-25) ──
+    runeEchoingKobolds: f?.runeEchoingKobolds,       // combat-summoned Kobolds get the "Echo: get a Ruby" graft
+    runeRubywire: f?.runeRubywire,                   // a Shop spell cast in combat casts a Ruby on 2 friendly Kobolds
+    runeCombatativeRubies: f?.runeCombatativeRubies, // every 3rd friendly attack: a permanent Ruby on 2 friendly Kobolds
+    runeCombatativeTick: f?.runeCombatativeRubies ? (s.runeCombatativeTick ?? 0) : undefined, // the carried meter
+    runeBodyCounting: f?.runeBodyCounting,           // every 8th friendly death: a random Undead
+    runeBodyCountTick: f?.runeBodyCounting ? (s.runeBodyCountTick ?? 0) : undefined, // the carried meter
+    runeAggressiveGolems: f?.runeAggressiveGolems,   // combat-summoned Gemheart Golems get the Rally graft
+    runeRupturedRubies: f?.runeRupturedRubies,       // every combat Ruby bounces twice
     // SHOP→COMBAT CARRY-OVER (owner ruling 2026-08-26): "war drum should have a 1/1 use, and that use resets
     // at start of turn, therefore if it is not used in shop, then the first shout triggered in combat should
     // work." Present only while the per-turn charge is UNSPENT; combat consumes it on the first triggered

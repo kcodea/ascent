@@ -15,7 +15,7 @@ Decide them in the DEV MENU → Rulebook board (clicks write to decisions.json),
 
 - **q-watch-gravebody** — Grave Body: never reacts to things played past it — confirm the reading
 
-## Doc Bot verification backlog (65) — NOT owner questions
+## Doc Bot verification backlog (72) — NOT owner questions
 
 Items Doc Bot could not yet verify with a staged scenario. Claude works these; they reach the board only if a
 staged scenario CONFIRMS a mismatch or exposes a genuine design fork.
@@ -51,6 +51,13 @@ staged scenario CONFIRMS a mismatch or exposes a genuine design fork.
 - combat mod runeDreamedGraves (Rune of Dreamed Graves: "The first minion summoned from your hand each combat gains Rebirth.") — Rune of Dreamed Graves: the first minion summoned FROM THE HAND each combat (a Spirit hand-summon, Rope Wrangler's Echo) gains Rebirth. Once per fight.
 - combat mod runeOpenHand (Rune of the Open Hand: "When you summon a minion from your hand, give its stats to another friendly minion.") — Rune of the Open Hand: whenever a minion is summoned FROM THE HAND (the same `pendingHandSummon` moment Dreamed Graves reads), another random friendly minion gains its current Attack/Health. Every hand-summon, one grant per copy held.
 - combat mod runeWakingReserve (Rune of the Waking Reserve: "Start of Combat: summon a copy of your highest-stat minion in hand when you have room. This does not mark that hand card as summoned.") — Rune of the Waking Reserve: Start of Combat — summon a COPY of the highest-stat (Attack + Health) minion in hand when the board has room. The hand card is NOT marked as summoned. One copy per rune copy held.
+- combat mod runeEchoingKobolds (Rune of Echoing Kobolds: "Give your Kobolds "Echo: get a Ruby."") — Rune of Echoing Kobolds: every Kobold SUMMONED this fight is grafted "Echo: get a Ruby" (bodies that started the fight carry the Shop graft already, via `grantedEffects`). One Ruby per copy held.
+- combat mod runeRubywire (Rune of Rubywire: "When you cast a Shop Spell, cast a Ruby on 2 friendly Kobolds.") — Rune of Rubywire: every Shop-pool spell this side casts (`spellResolved`) casts a Ruby on 2 random friendly Kobolds, once per copy held.
+- combat mod runeCombatativeTick — …and the meter's carried progress (0-2) coming into this fight. Settle advances it by the fight's attacks.
+- combat mod runeBodyCounting (Rune of Body Counting: "When 8 friendly minions die, get a random Undead minion.") — Rune of Body Counting: every 8th friendly death gets a random Undead (to hand, after combat).
+- combat mod runeBodyCountTick — …and the meter's carried progress (0-7) coming into this fight. Settle advances it by the fight's deaths.
+- combat mod runeAggressiveGolems (Rune of Aggressive Golems: "Your Gemheart Golems gain "Rally: give this minion's Attack to the minion to the right."") — Rune of Aggressive Golems: every Gemheart Golem SUMMONED this fight is grafted the Rally (board bodies carry it).
+- combat mod runeRupturedRubies (Rune of Ruptured Rubies: "Your Rubies cast in combat bounce twice.") — Rune of Ruptured Rubies: every Ruby played in combat bounces twice (per copy held) after it lands.
 - combat mod candlelightToll (Candlelight Toll: "") — Rune of Lasting Cadence: at Start of Combat, EVERY rally-capable friendly fires its Rally once (the board-wide sibling of `runeRallying`, which fires only the left-most). */ /** Candlelight Toll: a friendly Kobold dying grants a Ruby to hand (carried back like any hand grant).
 - combat mod gemheartCharge (Heart of the Mountain: "") — Heart of the Mountain: Gemheart Golems attack immediately when summoned.
 - combat mod burningLegionUses — The Burning Legion: how many times an attacking Imp may summon a copy of itself this combat.

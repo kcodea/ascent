@@ -238,7 +238,7 @@ export const RUNES: RuneDef[] = [
     tribes: ['kobold'], // TRIBE GATE (owner 2026-09-18): a Ruby rune is Kobold-related — Rubies come from Kobolds
     name: 'Rune of Resonance',
     cost: 1, // balance 9/23 (was 3)
-    text: 'Your **Rubies** cast twice from hand. **Start of Turn:** get a random **Ruby**.',
+    text: '**Start of Turn:** get a random **Ruby**. Your **Rubies** cast twice from hand.', // owner 2026-09-25: reordered (text only)
     previewCards: ['ruby'], // text names it — the forge hover shows the card
     reward: { kind: 'multi', rewards: [{ kind: 'rubyExtraCasts', amount: 1, scope: 'always' }, { kind: 'runeRubyDrip' }] },
     sets: ['set2', 'set3'], // Rubies // + set3 2026-09-14 (rune roster handoff: mechanically compatible carryover)
@@ -1583,6 +1583,91 @@ export const RUNES: RuneDef[] = [
       { kind: 'combatFlag', flag: 'runeOverflow', amount: 1 },
       { kind: 'runeCrowdedCrypt', attack: 1, health: 1, times: 2 },
     ] },
+    sets: ['set3'],
+  },
+  // ── Set 3 rune batch 3 (owner 2026-09-25): Basic ───────────────────────────────────────────────────────────
+  // Kobold + Undead runes, every one `sets: ['set3']` with its tribe gate. Engine notes live at each hook.
+  {
+    // Fired at the ONE Choose One resolution hook (`applyChooseOnePlayed`), minion or spell, after the branch
+    // resolved. A plain Ruby (the run's live Ruby line), one per copy held.
+    id: 'rune_gemmed_decisions',
+    tribes: ['kobold'],
+    name: 'Rune of Gemmed Decisions',
+    cost: 3,
+    text: 'After you play a **Choose One** card, get a **Ruby**.',
+    previewCards: ['ruby'],
+    reward: { kind: 'runeGemmedDecisions' },
+    sets: ['set3'],
+  },
+  {
+    // An AURA-STYLE graft: every friendly Kobold (board and hand now, every later arrival, and every Kobold summoned
+    // in combat) carries "Echo: get a Ruby" (`deathrattleGetRubies`, fixed: a Gilded Kobold still gets ONE). A
+    // real Echo, so Echo multipliers and tallies apply in combat and in the Shop. One Ruby per copy held.
+    id: 'rune_echoing_kobolds',
+    tribes: ['kobold'],
+    name: 'Rune of Echoing Kobolds',
+    cost: 3,
+    text: 'Give your **Kobolds** "**Echo:** get a **Ruby**."',
+    previewCards: ['ruby'],
+    reward: { kind: 'combatFlag', flag: 'runeEchoingKobolds' },
+    sets: ['set3'],
+  },
+  {
+    // A Veinstorm on pickup, then every Veinstorm CAST (any caster; hooked in `castSpell`, once per resolution)
+    // also casts a Ruby on 2 random friendly Kobolds. Veinstorm has no combat cast, so this is a Shop rune.
+    id: 'rune_red_storm',
+    tribes: ['kobold'],
+    name: 'Rune of the Red Storm',
+    cost: 4,
+    text: 'Get a **Veinstorm**. **Veinstorms** also cast a **Ruby** on **2** friendly **Kobolds**.',
+    previewCards: ['veinstorm', 'ruby'],
+    reward: { kind: 'runeRedStorm' },
+    sets: ['set3'],
+  },
+  {
+    // "Shop Spell" = R-SHOPSPELL-01 (Goldilox): a Shop-pool spell, Ales included; never a Ruby, Clue, Gift or
+    // token spell. Any caster, any phase: the Shop pays from `noteSpellCast`, combat from `spellResolved`.
+    id: 'rune_rubywire',
+    tribes: ['kobold'],
+    name: 'Rune of Rubywire',
+    cost: 4,
+    text: 'When you cast a **Shop Spell**, cast a **Ruby** on **2** friendly **Kobolds**.',
+    previewCards: ['ruby'],
+    reward: { kind: 'combatFlag', flag: 'runeRubywire' },
+    sets: ['set3'],
+  },
+  {
+    // Owner ruling 2026-09-25: FIRST EACH TURN, the Prismatic Pick mechanism: one Choose-Both charge armed at every
+    // turn setup (after the per-turn clear) and one on purchase. One charge per copy held.
+    id: 'rune_choices',
+    tribes: ['kobold'],
+    name: 'Rune of Choices',
+    cost: 3,
+    text: 'Your first **Choose One** card each turn gains **both** effects.',
+    reward: { kind: 'runeChoices' },
+    sets: ['set3'],
+  },
+  {
+    // A RUNNING meter over friendly attacks in combat (`runeCombatativeTick`, carried across fights): every 3rd
+    // attack casts a PERMANENT Ruby on 2 random friendly Kobolds. Cost 3 (owner ruling 2026-09-25).
+    id: 'rune_combatative_rubies',
+    tribes: ['kobold'],
+    name: 'Rune of Combatative Rubies',
+    cost: 3,
+    text: 'When **3** allies attack, cast a **permanent Ruby** on **2** friendly **Kobolds**.',
+    previewCards: ['ruby'],
+    reward: { kind: 'combatFlag', flag: 'runeCombatativeRubies' },
+    sets: ['set3'],
+  },
+  {
+    // A RUNNING meter over friendly DEATHS (`runeBodyCountTick`), shared by combat and the Shop: every 8th pays a
+    // random Undead from the run's pool at or below your tier. Sales are not deaths; Shop destroys and devours are.
+    id: 'rune_body_counting',
+    tribes: ['undead'],
+    name: 'Rune of Body Counting',
+    cost: 3,
+    text: 'When **8** friendly minions die, get a random **Undead** minion.',
+    reward: { kind: 'combatFlag', flag: 'runeBodyCounting' },
     sets: ['set3'],
   },
 ];
@@ -3392,6 +3477,58 @@ export const EPIC_RUNES: RuneDef[] = [
     previewCards: ['ruby'], // names Rubies — forge hover shows the live Ruby (audit 2026-08-06)
     reward: { kind: 'runeSellRubies', count: 2 },
     sets: ['set2', 'set3'], // Rubies // + set3 2026-09-14 (rune roster handoff: mechanically compatible carryover)
+  },
+  // ── Set 3 rune batch 3 (owner 2026-09-25): Epic ────────────────────────────────────────────────────────────
+  {
+    // A Veinstorm on pickup; a Veinstorm cast FROM HAND casts 2 additional times (added like every "additional
+    // time" multiplier, R-MULT-06: a cast by a minion, rune or Equipment resolves once). +2 per copy held.
+    id: 'rune_storming_veins',
+    tribes: ['kobold'],
+    name: 'Rune of Storming Veins',
+    cost: 4,
+    epic: true,
+    text: 'Get a **Veinstorm**. **Veinstorms** cast **2 additional** times from hand.',
+    previewCards: ['veinstorm'],
+    reward: { kind: 'runeStormingVeins', extra: 2 },
+    sets: ['set3'],
+  },
+  {
+    // Owner ruling 2026-09-25: selling repeats THE OPTION CHOSEN when the minion was played (`chosenOption`, or
+    // every option when it resolved both: `chosenBoth`). Minions only; a body that never chose does nothing.
+    id: 'rune_sold_choices',
+    tribes: ['kobold'],
+    name: 'Rune of Sold Choices',
+    cost: 5,
+    epic: true,
+    text: 'Your **Choose One** cards trigger their effect when sold as well.',
+    reward: { kind: 'runeSoldChoices' },
+    sets: ['set3'],
+  },
+  {
+    // A graft on every friendly Gemheart Golem (board, hand, later arrivals, combat summons): Rally keyword +
+    // `rallyGiveAttackToRight`. Combat Rally; the Shop's Rally replays fire it too (their buff is permanent).
+    id: 'rune_aggressive_golems',
+    tribes: ['kobold'],
+    name: 'Rune of Aggressive Golems',
+    cost: 5,
+    epic: true,
+    text: "Your **Gemheart Golems** gain \"**Rally:** give this minion's Attack to the minion to the right.\"",
+    previewCards: ['gemheart-shard'],
+    reward: { kind: 'combatFlag', flag: 'runeAggressiveGolems' },
+    sets: ['set3'],
+  },
+  {
+    // Hooked in `playRubyOn`, the one combat Ruby-play primitive: after a Ruby lands, it hops twice (per copy held)
+    // to random OTHER living friendly minions, stats only (R-RUBY-02's hop). Shop casts are unaffected.
+    id: 'rune_ruptured_rubies',
+    tribes: ['kobold'],
+    name: 'Rune of Ruptured Rubies',
+    cost: 6,
+    epic: true,
+    text: 'Your **Rubies** cast in combat bounce **twice**.',
+    previewCards: ['ruby'],
+    reward: { kind: 'combatFlag', flag: 'runeRupturedRubies' },
+    sets: ['set3'],
   },
 ];
 

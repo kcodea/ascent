@@ -18,7 +18,7 @@ import type {
   Side,
   Tribe,
 } from '../types';
-import { ALE_IDS, RUBY_TYPE_IDS, damageMeterOf, alignAllows, extraTriggerFires, foldEchoExtraFires, socTwilightExtraFires } from '../types';
+import { ALE_IDS, RUBY_TYPE_IDS, damageMeterOf, alignAllows, extraTriggerFires, foldEchoExtraFires, socTwilightExtraFires, COMBATATIVE_RUBIES_ATTACKS, BODY_COUNTING_DEATHS, RUPTURED_RUBY_BOUNCES } from '../types';
 import { makeRng, type Rng } from '../rng';
 import { CombatBus } from '../events';
 import { FACTORIES, playRubyOn, castInCombat, combatCastable, resolveCombatSpellCast, replayCombatBattlecry, drakkoRepeats, SILENT_ONPLAY, isShopPoolSpell, shopSpellGrowth } from '../effects/factories';
@@ -121,6 +121,19 @@ export function simulate(
   // channel the rune Avenge dispatchers have consumed since 2026-08-06; `?? 1` keeps every single-copy run
   // (and every pre-counter snapshot) byte-identical.
   const flagCopiesOf = (side: Side, flag: string): number => Math.max(1, modsFor(side).flagCopies?.[flag] ?? 1);
+  /** Set 3 rune batch 3 (owner 2026-09-25): Rune of Echoing Kobolds' "Echo: get a Ruby" (one Ruby per copy held, a
+   *  Gilded Kobold still gets the same count: `fixed`) and Rune of Aggressive Golems' Rally, grafted onto a combat
+   *  SUMMON. Idempotent by factory id, so a body that already carries the Shop graft is untouched. */
+  const graftBatch3Runes = (minion: Minion, card: CardDef, side: Side): void => {
+    const m = modsFor(side);
+    if (m.runeEchoingKobolds && isTribeOf(minion, 'kobold', cards) && !minion.effects.some((e) => e.do === 'deathrattleGetRubies' && e.params?.fixed)) {
+      minion.effects = [...minion.effects, { on: 'onDeath', do: 'deathrattleGetRubies', params: { count: flagCopiesOf(side, 'runeEchoingKobolds'), fixed: true } }];
+    }
+    if (m.runeAggressiveGolems && card.id === 'gemheart-shard' && !minion.effects.some((e) => e.do === 'rallyGiveAttackToRight')) {
+      minion.effects = [...minion.effects, { on: 'onAttack', do: 'rallyGiveAttackToRight', params: {} }];
+      if (!minion.keywords.includes('RL')) minion.keywords.push('RL');
+    }
+  };
   // Beast Attack aura, PER SIDE, mutable so The Old Hunt (oldHuntStep) can pump it live as Beasts attack —
   // later from-base Beast bodies (summons / Reborn) then inherit the grown value. Its Health sibling
   // (Pack Mentality) is fixed for the fight. Enemy values come from the served snapshot.
@@ -242,6 +255,9 @@ export function simulate(
   const echoRefreshTick: Record<Side, number> = { player: 0, enemy: 0 };
   /** Rune of the Returning Pack's per-side Beast-summon counter. Combat-local for the same reason. */
   const packSummonTick: Record<Side, number> = { player: 0, enemy: 0 };
+  /** Rune of Combatative Rubies' per-side attack meter, seeded with the run's carried progress (a RUNNING meter,
+   *  owner 2026-09-25). Settle writes the new progress back from the fight's attack tally. */
+  const combatativeTick: Record<Side, number> = { player: modsFor('player').runeCombatativeTick ?? 0, enemy: modsFor('enemy').runeCombatativeTick ?? 0 };
   /** Balance 9/23 — the CROSS-PHASE Shout tally: Shout (Battlecry) FIRES this fight per side (one per
    *  `battlecryTriggered` emit: Ryme / Dawnclaw / Sovereign re-fires, parting cries, Drakko repeats), carried
    *  back as `shoutFires` so the run's Shout trackers (quest objectives, Bane's Presence, the Author's Hand)
@@ -763,6 +779,16 @@ export function simulate(
   });
 
   const living = (side: Side): Minion[] => boards[side].filter((m) => !m.dead && m.health > 0);
+  /** Set 3 rune batch 3: cast a Ruby on `n` DISTINCT random living friendly Kobolds (All-types bodies count) through
+   *  `playRubyOn`, the one combat Ruby primitive, each Kobold its own source (the Gemstorm convention: a rune has no
+   *  body). `permanent` = the Ruby carries back (Rune of Combatative Rubies). Fewer Kobolds = each gets one. */
+  const rubyOnRandomKobolds = (side: Side, n: number, permanent: boolean): void => {
+    const pool = living(side).filter((m) => isTribeOf(m, 'kobold', cards));
+    for (let i = 0; i < n && pool.length > 0; i++) {
+      const k = pool.splice(rng.int(pool.length), 1)[0]!;
+      playRubyOn(ctx, k, k, 1, permanent);
+    }
+  };
   /** The room check every summon reads. A dying body — Rise or Rebirth included — holds NO slot while it is dead
    *  (owner ruling 2026-09-18, reversing the 2026-09-09 "a rising body holds its slot"): the Echo fires from the
    *  death and takes the freed room first, THEN the body attempts to return, and on a full board it is the RETURN
@@ -1374,6 +1400,12 @@ export function simulate(
       // permanent". `castInCombat` reports each finished repetition with the spell it cast; only a Shop-POOL
       // spell of this side's set (Ales included) wakes the spell-identity watchers.
       if (!isShopPoolSpell(cards[spellId], ctx.poolCards(side))) return;
+      // RUNE OF RUBYWIRE (owner 2026-09-25): a Shop spell cast in combat (any caster) casts a Ruby on 2 random
+      // friendly Kobolds, once per copy held. The same Shop-spell test Goldilox reads (R-SHOPSPELL-01).
+      if (modsFor(side).runeRubywire) {
+        fireTrigger('runeRubywire', side);
+        for (let k = 0; k < flagCopiesOf(side, 'runeRubywire'); k++) rubyOnRandomKobolds(side, 2, false);
+      }
       // BOARD: the living bodies' own factories (permanent self-growth), in board order.
       for (const m of living(side)) {
         for (const eff of m.effects) {
@@ -1398,6 +1430,8 @@ export function simulate(
     groveweaverSelfFor: (side) => !!modsFor(side).runeGroveweaver,
     broodmasterSelfFor: (side) => !!modsFor(side).runeBroodmaster,
     floodedVaultFor: (side) => !!modsFor(side).runeFloodedVault,
+    // Rune of Ruptured Rubies (owner 2026-09-25): each combat Ruby hops this many times after landing (see `playRubyOn`).
+    rubyRuptureBouncesFor: (side) => (modsFor(side).runeRupturedRubies ? RUPTURED_RUBY_BOUNCES * flagCopiesOf(side, 'runeRupturedRubies') : 0),
     battleRefractionRepsFor: (side) => {
       // Rune of Battle Refraction: each living Prismcaster repeats a combat Ruby once (golden twice) — the
       // shop-side `rubyExtraCast` convention, read live so a Prismcaster that died stops paying.
@@ -1631,6 +1665,11 @@ export function simulate(
       fireTrigger('runeLivingTreasure', side);
       minion.keywords.push('RB');
     }
+    // SET 3 RUNE BATCH 3 (owner 2026-09-25): the two aura-style grafts reach bodies SUMMONED mid-fight too ("all
+    // friendly Kobolds / Gemheart Golems, now and later"). Board bodies already carry them from the Shop graft
+    // (`grantedEffects`, folded in at instantiate); a hand-summoned body may too, so each is added only when absent.
+    // Grafted here, before `placeSummon` registers the effects, so the summoned body's Echo / Rally is live at once.
+    graftBatch3Runes(minion, card, side);
     // Aug-11 minion-grant runes — Ward/Taunt on a specific summoner's token. `nearUid` is the summoner's uid
     // (combatArena.summonToken passes self.uid), so these scope to "summoned by your Imp Wranglers / Geode
     // Guardians" rather than every Imp / Golem. Granted before the summon snapshot so the keyword shows frame 1.
@@ -3389,6 +3428,17 @@ export function simulate(
         bumpRally(extras, attacker.side);
       }
       bumpQuestTally('attack', attacker, attacker.side); // "Attack N times with Beasts" quest
+      // RUNE OF COMBATATIVE RUBIES (owner 2026-09-25): a RUNNING meter over friendly attacks, carried in from the run
+      // (`runeCombatativeTick`); every 3rd casts a PERMANENT Ruby on 2 random friendly Kobolds, per copy held. Ticked
+      // beside the quest tally's `attack` count, which is what settle advances the run's meter by, so the two agree.
+      if (modsFor(attacker.side).runeCombatativeRubies) {
+        const cside = attacker.side;
+        combatativeTick[cside] += 1;
+        if (combatativeTick[cside] % COMBATATIVE_RUBIES_ATTACKS === 0) {
+          nextStep(); fireTrigger('runeCombatativeRubies', cside);
+          for (let k = 0; k < flagCopiesOf(cside, 'runeCombatativeRubies'); k++) rubyOnRandomKobolds(cside, 2, true);
+        }
+      }
       // Better Bot (Rally): each time this attacks — once per swing, so a Windfury body rallies TWICE if it
       // survives the first swing — give your OTHER Mechs +N Attack (N = accrued rallyMechAtk, stacks via
       // magnetize). Fires per hit alongside the onAttack rallies (rallyBuff / rallyProcDeathrattle) above.
@@ -4398,6 +4448,18 @@ export function simulate(
       }
     });
   };
+  // RUNE OF BODY COUNTING (owner 2026-09-25): "When 8 friendly minions die" — a RUNNING death meter carried in from
+  // the run (`runeBodyCountTick`, which the Shop's deaths advance too). NOT an Avenge (the text never says so), so
+  // Rune of Fury does not double it. Every 8th death gets a random Undead (the side's pool, at or below its tier)
+  // through the hand carry-back; one per copy held. Settle advances the run's meter by the fight's deaths.
+  bus.on('avenge', (payload) => {
+    const { side, count, victim } = payload as { side: Side; count: number; victim?: Minion };
+    const m = modsFor(side);
+    if (!m.runeBodyCounting || ((m.runeBodyCountTick ?? 0) + count) % BODY_COUNTING_DEATHS !== 0) return;
+    nextStep();
+    if (side === 'player') fireTrigger('runeBodyCounting', side);
+    ctx.grantRandomMinion(flagCopiesOf(side, 'runeBodyCounting'), 'undead', side, undefined, victim?.uid);
+  });
   // Combat avenge runes — PER SIDE (a served enemy runs its own): Broodpit + Spearline summon to their own side.
   runeAvenge(4, 'runeBroodpit', (m) => !!m.runeBroodpit, (side) => { // Avenge (4): summon 2 Imps with Taunt (owner rebalance 2026-08-03, was 3)
     const imp = cards['impscrap'];

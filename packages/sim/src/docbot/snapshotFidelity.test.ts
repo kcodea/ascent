@@ -94,6 +94,7 @@ function boardCardExemplar(): Required<BoardCard> {
     addedTribes: ['mech'],
     allTribes: true,
     chosenOption: 1,
+    chosenBoth: true, // Rune of Sold Choices' (Both) record — shop-only, see the registry
     grantedTier: 3,
     buffs: [{ source: 'exemplar-buff', attack: 2, health: 3, count: 1 }],
     chefGranted: 6,

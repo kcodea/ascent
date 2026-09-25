@@ -52,6 +52,30 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-09-25',
+    label: 'New Kobold and Undead Runes',
+    changes: [
+      {
+        category: 'Balance',
+        text: 'Eleven new Set 3 runes join the Runeforge: seven Basic (six Kobold, one Undead) and four Epic Kobold runes.',
+        details: [
+          'Rune of Gemmed Decisions (Basic, 3 Gold, Kobold): after you play a Choose One card, get a Ruby.',
+          'Rune of Echoing Kobolds (Basic, 3 Gold, Kobold): your Kobolds have "Echo: get a Ruby", including Kobolds you get later.',
+          'Rune of the Red Storm (Basic, 4 Gold, Kobold): get a Veinstorm. Veinstorms also cast a Ruby on 2 friendly Kobolds.',
+          'Rune of Rubywire (Basic, 4 Gold, Kobold): when you cast a Shop Spell, cast a Ruby on 2 friendly Kobolds. Works in combat too.',
+          'Rune of Choices (Basic, 3 Gold, Kobold): your first Choose One card each turn gains both effects.',
+          'Rune of Combatative Rubies (Basic, 3 Gold, Kobold): every 3 ally attacks cast a permanent Ruby on 2 friendly Kobolds. The count carries between fights.',
+          'Rune of Body Counting (Basic, 3 Gold, Undead): every 8 friendly deaths get you a random Undead. Shop and combat deaths both count; selling does not.',
+          'Rune of Storming Veins (Epic, 4 Gold, Kobold): get a Veinstorm. Veinstorms cast 2 more times from hand.',
+          'Rune of Sold Choices (Epic, 5 Gold, Kobold): selling a Choose One minion repeats the option it chose.',
+          "Rune of Aggressive Golems (Epic, 5 Gold, Kobold): Gemheart Golems gain \"Rally: give this minion's Attack to the minion to the right.\"",
+          'Rune of Ruptured Rubies (Epic, 6 Gold, Kobold): Rubies cast in combat bounce twice.',
+          'Rune of Resonance now reads its Start of Turn Ruby first. It works the same.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-09-25',
     label: 'Fight Recap: Cleaner',
     changes: [
       {

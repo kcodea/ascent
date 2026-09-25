@@ -201,6 +201,13 @@ export function extraTriggerFires(
  * of Combat Prowess (owner reversal 2026-08-20: the two runes STACK — a trigger multiplier follows the
  * trigger to whatever phase it fires in), so the two counts can never drift.
  */
+/** Set 3 rune batch 3 (owner 2026-09-25): the running-meter thresholds, shared by combat (the payout) and the run
+ *  (the carried tick, the badge's x/N). Rune of Combatative Rubies: "When 3 allies attack". Rune of Body Counting:
+ *  "When 8 friendly minions die". Rune of Ruptured Rubies bounces each combat Ruby this many times per copy. */
+export const COMBATATIVE_RUBIES_ATTACKS = 3;
+export const BODY_COUNTING_DEATHS = 8;
+export const RUPTURED_RUBY_BOUNCES = 2;
+
 export function socTwilightExtraFires(mods: { runeTwilight?: boolean; flagCopies?: Record<string, number> } | undefined): number {
   // +1 extra Start-of-Combat pass per Twilight copy held (boolean-flag family, owner 2026-08-27) — the
   // `flagCopies` channel; single-copy runs and pre-counter snapshots read 1, byte-identical to before.
@@ -358,6 +365,7 @@ export type EffectFactoryId =
   | 'rallyGrantMagnetic' // Mechanical Jouster — Rally: when this attacks, add a random Magnetic Mech to hand
   | 'rallyProcDeathrattle' // Rally: when this attacks, fire your leftmost minion's Deathrattle first (Deathsayer)
   | 'deathrattleGrantSpell' // Deathrattle: add a spell to your hand after combat (Arcane Weaver)
+  | 'deathrattleGetRubies' // Rune of Echoing Kobolds' graft (2026-09-25): Echo, get `count` Rubies (minted at the live Ruby line)
   | 'deathrattleBuffHandTribe' // Echo: give the <tribe> minions IN YOUR HAND +a/+h — both phases; in combat it is permanent (R-HAND-02)
   | 'onRiseBuffSelfWard' // Set 3 Undead — Revenant: after a friendly minion Rises, this gains Ward and +a/+h (stacks)
   | 'onRiseBuffBoardAndHand' // Set 3 Undead — Rising Tide: when a friendly minion Rises, your minions on board AND in hand +a/+h
@@ -877,6 +885,7 @@ export type EffectFactoryId =
   | 'onSpellCastBuffOnePerTribe' // Set 2 — Fatecarver (Choose One A)
   | 'spellCastTriggerAdjacentShouts' // Set 2 Dwarves — High King Mykel // Set 2 — Hoardmaster Krik: every N cards bought, mint Rubies to hand
   | 'rallyGetRubies' // Set 2 — Rally: get N Rubies (carried back to hand after combat)
+  | 'rallyGiveAttackToRight' // Rune of Aggressive Golems' graft (2026-09-25): Rally, the minion to the right gains this minion's Attack
   | 'avengeRubyStatGain' // Set 2 — Avenge (X): buff your Rubies +X/+Y (carried back to rubyBonus)
   | 'scPlayRubiesPerBuy' // Set 2 — Frenzied Excavator: SoC play N Rubies per M cards bought this turn
   | 'avengeGetRubies' // Set 2 — Gemline Martyr: Avenge (X) get N Rubies
@@ -1603,6 +1612,17 @@ export type QuestReward =
   | { kind: 'runeEndlessMarch' }
   /** Rune of the Grave Orbit: after combat, the Starform gains +a/+h per friendly Undead that Rose. */
   | { kind: 'runeGraveOrbit'; attack: number; health: number }
+  // ── Set 3 rune batch 3 (owner 2026-09-25) ──
+  /** Rune of Gemmed Decisions: after you play a Choose One card, get a Ruby. */
+  | { kind: 'runeGemmedDecisions' }
+  /** Rune of the Red Storm: get a Veinstorm; every Veinstorm cast also casts a Ruby on 2 friendly Kobolds. */
+  | { kind: 'runeRedStorm' }
+  /** Rune of Choices: your first Choose One card each turn gains both effects (a per-turn Choose-Both charge). */
+  | { kind: 'runeChoices' }
+  /** Rune of Storming Veins: get a Veinstorm; a Veinstorm cast from hand casts `extra` additional times. */
+  | { kind: 'runeStormingVeins'; extra: number }
+  /** Rune of Sold Choices: selling a Choose One minion repeats the option it chose when played. */
+  | { kind: 'runeSoldChoices' }
   // Open the EPIC Runeforge — a quest reward that presents the Epic runeset (a random few of `EPIC_RUNES`) to
   // buy ONE, exactly like the Runesmith's forge but reachable by any hero via a quest.
   | { kind: 'openEpicRuneforge' }
@@ -1783,7 +1803,14 @@ export type QuestCombatFlag = 'bloodTrail' | 'echoingCoop' | 'lawOfTeeth' | 'old
   // ── Set 3 batch 2 (2026-09-16), tranche D — the two combat-side runes tranche A deferred ──
   // openHand = when you summon a minion from your hand, another friendly minion gains its stats;
   // wakingReserve = Start of Combat: summon a copy of your highest-stat hand minion (the card is NOT marked).
-  | 'runeOpenHand' | 'runeWakingReserve';
+  | 'runeOpenHand' | 'runeWakingReserve'
+  // ── Set 3 rune batch 3 (owner 2026-09-25) ──
+  // echoingKobolds = your Kobolds carry "Echo: get a Ruby" (a graft, combat summons included); rubywire = a Shop
+  // spell cast casts a Ruby on 2 friendly Kobolds; combatativeRubies = every 3rd friendly attack (a running meter)
+  // casts a permanent Ruby on 2 friendly Kobolds; bodyCounting = every 8th friendly death (a running meter) gets a
+  // random Undead; aggressiveGolems = Gemheart Golems carry "Rally: give this minion's Attack to the minion to the
+  // right"; rupturedRubies = every combat Ruby bounces twice after it lands.
+  | 'runeEchoingKobolds' | 'runeRubywire' | 'runeCombatativeRubies' | 'runeBodyCounting' | 'runeAggressiveGolems' | 'runeRupturedRubies';
 /** Quest-armed combat modifiers threaded into `simulate()` (one trailing options arg). Beast quest capstones +
  *  greaters live here so the pure combat engine can honor them without new positional params per flag. */
 export interface QuestCombatMods {
@@ -1977,6 +2004,25 @@ export interface QuestCombatMods {
   /** Rune of the Waking Reserve: Start of Combat — summon a COPY of the highest-stat (Attack + Health) minion in
    *  hand when the board has room. The hand card is NOT marked as summoned. One copy per rune copy held. */
   runeWakingReserve?: boolean;
+  // ── Set 3 rune batch 3 (owner 2026-09-25) ──
+  /** Rune of Echoing Kobolds: every Kobold SUMMONED this fight is grafted "Echo: get a Ruby" (bodies that started
+   *  the fight carry the Shop graft already, via `grantedEffects`). One Ruby per copy held. */
+  runeEchoingKobolds?: boolean;
+  /** Rune of Rubywire: every Shop-pool spell this side casts (`spellResolved`) casts a Ruby on 2 random friendly
+   *  Kobolds, once per copy held. */
+  runeRubywire?: boolean;
+  /** Rune of Combatative Rubies: every 3rd friendly attack casts a PERMANENT Ruby on 2 random friendly Kobolds. */
+  runeCombatativeRubies?: boolean;
+  /** …and the meter's carried progress (0-2) coming into this fight. Settle advances it by the fight's attacks. */
+  runeCombatativeTick?: number;
+  /** Rune of Body Counting: every 8th friendly death gets a random Undead (to hand, after combat). */
+  runeBodyCounting?: boolean;
+  /** …and the meter's carried progress (0-7) coming into this fight. Settle advances it by the fight's deaths. */
+  runeBodyCountTick?: number;
+  /** Rune of Aggressive Golems: every Gemheart Golem SUMMONED this fight is grafted the Rally (board bodies carry it). */
+  runeAggressiveGolems?: boolean;
+  /** Rune of Ruptured Rubies: every Ruby played in combat bounces twice (per copy held) after it lands. */
+  runeRupturedRubies?: boolean;
   /** Rune of the War Drum's UNSPENT shop charge (owner ruling 2026-08-26: "1/1 use, resets at start of turn —
    *  if it is not used in shop, the first shout triggered in combat should work"). Present ONLY when the
    *  per-turn charge went unspent; the FIRST Shout triggered in combat on this side fires this many extra
@@ -3442,6 +3488,8 @@ export interface CombatContext {
   battleRefractionRepsFor?(side: Side): number;
   /** Rune of Engraving Gems: this side's combat Rubies carry back to the run board (see `playRubyOn`). */
   rubiesPermanentFor?(side: Side): boolean;
+  /** Rune of Ruptured Rubies: how many times each combat Ruby on this side bounces after landing (0 = none). */
+  rubyRuptureBouncesFor?(side: Side): number;
   /** Rune of Living Growth — this side's accrued Growth improvement (added to combat Growth casts). */
   growthBonusFor?(side: Side): number;
   /** Runesnout Archivist's journal for this side (see `CombatSideState.rememberedSpellIds`). */

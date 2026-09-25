@@ -68,6 +68,7 @@ import { BuffDrawerTuner } from './BuffDrawerTuner';
 import { ReplayRailTuner } from './ReplayRailTuner';
 import { HeroCeremonyTuner } from './HeroCeremonyTuner';
 import { GoodLuckIntroTuner } from './GoodLuckIntroTuner';
+import { RuneforgeEntranceTuner } from './RuneforgeEntranceTuner';
 import { ChargeGlyphTuner } from './ChargeGlyphTuner';
 import { RuneforgeBgTuner } from './RuneforgeBgTuner';
 import { RuneforgeLookTuner } from './RuneforgeLookTuner';
@@ -159,6 +160,7 @@ const GROUPS: Group[] = [
       { key: 'book', icon: '📖', label: 'Compendium Palette', C: BookTuner, hint: 'Colours and scale of the card browser' },
       { key: 'runeforgebg', icon: '🪨', label: 'Runeforge Backdrop', C: RuneforgeBgTuner, hint: 'Size and position of the art behind the forge menus', alt: 'rune forge background' },
       { key: 'runeforgelook', icon: '🔨', label: 'Runeforge Look', C: RuneforgeLookTuner, hint: 'The title plaque, Gold pill, rune tablets, footer buttons and minimize toggle — placement, size, and every colour, including the Epic variant', alt: 'rune forge tablet card kicker cost coin medallion epic' },
+      { key: 'runeforgeentrance', icon: '🔥', label: 'Runeforge entrance', C: RuneforgeEntranceTuner, hint: 'The forge opening: the rune tablets dropping in with dust, the shade and embers, the glow sweep, the Epic variant and the sound cues. Has ▶ Play (Basic) and ▶ Play (Epic) buttons', alt: 'rune forge entrance opening drop dust land squash embers glow sweep epic flare sound cue sim' },
       { key: 'runesheen', icon: '💠', label: 'Rune Nodes', C: RuneSheenTuner, hint: 'The owned-rune node row — size/position + per-node nudges — and the glossy sheen over them', alt: 'rune sheen quest node badge row' },
       { key: 'titlelogo', icon: '🏔️', label: 'Title Logo', C: TitleLogoTuner, hint: 'The main-menu peak mark + ASCENT wordmark — size, spacing, and position', alt: 'main menu title wordmark' },
       { key: 'titleveil', icon: '🌒', label: 'Title Veil', C: TitleVeilTuner, hint: 'The dark navy gradient behind the main menu — colour, intensity and the bowed clear zone over the floating city', alt: 'main menu background darken vignette overlay' },

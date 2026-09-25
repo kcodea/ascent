@@ -142,9 +142,9 @@ describe("Pourman's Keg — cast a random Dwarven Ale", () => {
     expect(a.lastSpellCastId).toBe(b.lastSpellCastId);
     expect(['wo_mine', 'wo_reinforcement', 'wo_champion', 'wo_health', 'wo_attack']).toContain(a.lastSpellCastId);
   });
-  it('Edward Keg-hands doubles the pour, exactly as a hand-cast Ale', () => {
+  it('Edward Keg-hands does NOT double the pour: an Equipment cast is not a cast from hand (owner ruling 2026-09-24)', () => {
     const t = act(armed(false, [body('ed', 'dw_edward')]), { type: 'activateEquipment' });
-    expect(t.alesCastThisTurn ?? 0).toBe(2);
+    expect(t.alesCastThisTurn ?? 0).toBe(1);
   });
   it('a Gilded Pourman pours two', () => {
     const t = act(armed(true), { type: 'activateEquipment' });

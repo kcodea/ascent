@@ -343,7 +343,7 @@ pinned in `packages/sim/src/set3CelestialRoster.test.ts`):
   **Zenith** rebuilds the token after a **consume or collapse** (the buy, a Demon eating it, a Devotee's Collapse,
   Herald-assisted or not) — never after the Star Destroyer's silent exit — with half its stats rounded up, at the
   fresh 6-Gold price; a full row eats its right-most minion as any create does.
-- **Constellation Prime** — "your Star Crashes cast an additional time" means the **PRIMARY** +5/+7 lands one extra
+- **Constellation Prime** — "Star Crashes you cast from hand cast an additional time" (from hand only, R-MULT-06) means the **PRIMARY** +5/+7 lands one extra
   time on the chosen Celestial per Prime (two per gilded Prime); the secondary random-friendly half fires **once per
   cast**. A Comet / Nimbus-multiplied cast re-lands the primary on every repeat. Applies to a Star Crash aimed at the
   Starform too.
@@ -576,8 +576,8 @@ the way an Imp rune is gated on Demons.
 
 **Set forks.** A card a rune grants BY ID resolves to the pinned set's fork when one exists
 (`SET_FORKS` in `packages/content/src/sets.ts`). The map is EMPTY today: its one entry, the set-3 Yazzus fork,
-went when the owner ruled there is **one Yazzus** (2026-09-16) — `yazzus` (Tier 7, 4/8, "your targeted spells
-cast an additional time": Shop spells, Rubies, Tower Shields and Clues alike) is the same card in every set that
+went when the owner ruled there is **one Yazzus** (2026-09-16) — `yazzus` (Tier 7, 4/8, "Targeted spells you
+cast from hand cast an additional time": Shop spells, Rubies, Tower Shields and Clues alike) is the same card in every set that
 carries him, and the retired `n3_yazzus` id still resolves to it for saved runs and replays (`LEGACY_CARD_IDS`).
 The Open Market's "first Shop consume each turn" hears the Starform's consumes (they ride the one Shop-consume
 chokepoint) — Rune of the Open Market was archived 2026-09-23 (Balance 9/23), so only a run that already holds
@@ -902,6 +902,19 @@ while in hand."*) grows on every Shop spell cast by any source (your hand, a run
 Turn cast) in every phase: +3/+2 on the board, +6/+4 in the hand, doubled when gilded. A spell cast in combat grows it
 too, and those stats are permanent: a board Goldilox keeps them after the fight, and a hand Goldilox takes them as a
 hand buff (R-HAND-02), shown live during the replay. Only your own casts count.
+
+### Cast multipliers work only on spells cast from hand (owner rule 2026-09-24, R-MULT-06)
+
+Every effect that makes a spell cast more times applies only to a spell **you cast from hand**: Yazzus, Living
+Grimoire, Orivax, Nimbus, Comet (Cometius), Edward Keg-hands, Constellation Prime, Spell Thesis, Ancient Runes, the
+Bottomless Cellar, The Endless Verse, and the Shared Pour, Bottomless Cask, Hoardflame and Dragon Breath runes. A
+spell cast by a minion (a Mage-Pup, an End-of-Turn caster), a rune (Rune of Recurrence, a rune threshold) or an
+Equipment (Pourman's Keg) casts once, and it never uses up a one-shot multiplier: the Living Grimoire charge,
+Orivax's first spell, the Spell Thesis freebie, a Nimbus or Comet charge and Shared Pour's first Ale all wait for your
+next spell from hand. A re-cast of the spell you are casting from hand (Mirrorwing, Yirin's Reflector, Runefire,
+Crash Course, Rune of Shared Reflection) is that same cast happening again and keeps its multiplier. A minion's or
+rune's cast is still a spell cast for every tally and for first/last-spell memory (R-MINIONCAST-01). Rubies were
+already multiplied only from hand (Rune of Resonance, Prismcaster); that is unchanged.
 
 ### An Aura-affecting spell is permanent from any phase (owner rule 2026-09-09, R-AURA-02)
 

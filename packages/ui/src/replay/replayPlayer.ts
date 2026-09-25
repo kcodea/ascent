@@ -21,6 +21,7 @@ import { actionSfx, useGame } from '../store';
 import { dragStore } from '../dragStore';
 import { NO_DRAG_DECISION, type DragDecision, type DragSource, type Zone } from '../dragDecision';
 import { captureRuneLockIn, chosenRuneIndex } from '../runeLockInCapture';
+import { skipRuneforgeEntrance } from '../runeforgeEntrance/entrance';
 import type { RuneLockInCard } from '../RuneLockIn';
 import { synthRunFromShopView } from './synthRun';
 
@@ -510,6 +511,9 @@ function armReplayRuneLockIn(f: ShopFrame): RuneLockInCard[] | null {
   if (!offer?.length) return null;
   const idx = chosenRuneIndex(f.causeIndex, offer, prev.ownedRunes, f.view.ownedRunes);
   if (idx < 0) return null;
+  // A fast replay can reach the buy while the forge ENTRANCE is still dropping the tablets in. Settle it first,
+  // so the ceremony is measured from the tablets' resting rects, not from mid-fall.
+  skipRuneforgeEntrance();
   return captureRuneLockIn(offer, prev.runeforgeDiscounts, idx);
 }
 

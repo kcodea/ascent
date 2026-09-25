@@ -636,4 +636,35 @@ export const RUNES_RULES: GameRule[] = [
       lastVerifiedAt: '2026-09-24',
     },
   },
+  {
+    id: 'R-RUNE-18',
+    title: 'The Runeforge entrance waits for the return wipe, plays each sound cue once, and never hides a tablet or its cost coin',
+    statement:
+      'The Runeforge opening sequence (the tablets dropping in, dust, glow sweep, Epic flare) is presentation only and '
+      + 'follows these rules. It never starts before the return-to-shop wipe has fully ended (the forge mounts only once '
+      + 'the wipe is idle) plus the post-wipe pad set in the tuner. Nothing shows or sounds inside the pad. Its beats are timed '
+      + 'from when the animations really start, so no cue runs ahead of the visuals. Each sound cue plays at most once per '
+      + 'tablet per opening (the glow sweep sound once per forge by default), never looped. A re-render or a later '
+      + 'remount never replays it. Every tablet in the offer (a real forge offers four) is clickable the moment it lands, '
+      + 'and any press skips to the settled state. At rest the layout is identical to the plain forge. Each tablet, cost '
+      + 'coin included, stacks above its left neighbour in every frame, and the Re-roll hover bubble draws above the tablets.',
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-24 (Runeforge entrance, owner test in a real game)', quote: 'make sure the runeforge opening is delayed enough to not trigger until the player has fully come back from combat and the screen wipe has ended' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-24 (Runeforge entrance)', quote: 'fix this so the coin never falls behind the frame thing here' },
+      { kind: 'code', ref: 'packages/ui/src/runeforgeEntrance/entrance.ts (the clock + cue dedupe); RuneforgeDialog.tsx (the openings registry, `--rfe-z`); runeforgeEntrance.css' },
+      { kind: 'test', ref: 'packages/ui/src/runeforgeEntrance/RuneforgeDialog.test.tsx' },
+    ],
+    contentIds: [],
+    currentBehaviour:
+      'Conforms as of 2026-09-24. The first cut started its timers before the first painted frame, so on a slow commit '
+      + 'the landing thuds ran ahead of the tablets and bunched together. A remount mid-play also restarted the whole '
+      + 'sequence and its sounds, and the cost coin of a dropping tablet could fall under the glow of its neighbour.',
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/ui/src/runeforgeEntrance/RuneforgeDialog.test.tsx', 'packages/ui/src/runeforgeEntrance/runeforgeEntranceConfig.test.ts'],
+      lastVerifiedAt: '2026-09-24',
+    },
+  },
 ];

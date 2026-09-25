@@ -67,6 +67,42 @@ export const PATCH_NOTES: PatchNote[] = [
   },
   {
     date: '2026-09-24',
+    label: 'Runeforge Entrance',
+    changes: [
+      {
+        category: 'Systems',
+        text: 'The Runeforge now opens with a short entrance. The rune tablets drop into place one by one and kick up dust as they land.',
+        details: [
+          'It waits until you are fully back from combat and the screen wipe has finished.',
+          'The forge starts in shadow with embers rising, then brightens as the tablets land from left to right.',
+          'Each tablet lands with a thud and a puff of dust, then a golden glow sweeps across it.',
+          'The Epic Runeforge has heavier tablets, more dust and a purple and gold flare.',
+          'Each tablet can be picked as soon as it lands. Click anywhere to skip the rest.',
+          'With reduced motion turned on, the forge simply fades in.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-09-24',
+    label: 'Casts From Hand',
+    changes: [
+      {
+        category: 'Balance',
+        text: 'Effects that make spells cast more times now only work on spells you cast from hand.',
+        details: [
+          'Covers Yazzus, Living Grimoire, Orivax, Nimbus, Cometius and its Comet, Edward Keg-hands and Constellation Prime.',
+          'Also covers Spell Thesis, Ancient Runes, Bottomless Cellar, The Endless Verse, and the Shared Pour, Bottomless Cask, Hoardflame and Dragon Breath runes.',
+          'A spell cast by a minion, a rune or an Equipment casts once. A Mage-Pup or a Pourman\'s Keg pour is no longer doubled.',
+          'Those casts no longer use up a Living Grimoire charge, Orivax\'s first spell, Spell Thesis or a Nimbus or Comet charge. Your next spell from hand gets it.',
+          'They still count as spells you cast, so Rune of Recurrence, Mushy and friends can still remember them.',
+          'Card texts now say "from hand".',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-09-24',
     label: 'Owner Rulings',
     changes: [
       {

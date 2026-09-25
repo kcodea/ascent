@@ -26,6 +26,11 @@ import type { CardDef } from '@game/core';
  * and no test would object. So this reads the source and asks the shape question of every member.
  */
 
+/** The multiplier read a re-cast must make. Since the FROM-HAND GATE (owner ruling 2026-09-24: multipliers only
+ *  double "spells cast from hand") a re-cast reads `castsOutsideHand`, which IS `spellCasts` while the spell it
+ *  re-casts is being cast from hand, and 1 when a minion's or rune's cast landed on the reactor. */
+const MULT_READ = /\b(?:spellCasts|castsOutsideHand)\(/;
+
 const HERE = dirname(fileURLToPath(import.meta.url));
 const RECRUIT = readFileSync(join(HERE, '../recruit.ts'), 'utf8');
 
@@ -69,7 +74,7 @@ describe('Doc Bot — every spell re-cast is a FULL cast', () => {
     // a stat grant) has no multiplier to honour, and demanding one would be noise.
     if (!/\bcastSpell\(/.test(body)) return;
     expect(
-      /spellCasts\(/.test(body),
+      MULT_READ.test(body),
       `${factoryId} calls castSpell without spellCasts — it adds one flat resolution instead of re-casting the spell`,
     ).toBe(true);
   });
@@ -82,7 +87,7 @@ describe('Doc Bot — every spell re-cast is a FULL cast', () => {
     const spread = body.slice(body.indexOf('runeSharedReflection'));
     expect(/castSpell\(/.test(spread), 'the rune spread should still cast').toBe(true);
     expect(
-      /spellCasts\(/.test(spread),
+      MULT_READ.test(spread),
       'Rune of Shared Reflection spreads a flat cast while the printed cards spread a full one',
     ).toBe(true);
   });

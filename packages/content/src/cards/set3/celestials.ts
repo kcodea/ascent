@@ -137,8 +137,8 @@ export const SET3_CELESTIALS: readonly CardDef[] = [
     health: 10,
     keywords: [],
     effects: [{ on: 'equip', do: 'grantEquipment', params: { equipmentId: 'comet' } }],
-    text: '**Equip Comet (3):** your next spell casts **2** additional times.',
-    goldenText: '**Equip Comet (3):** your next spell casts **4** additional times.',
+    text: '**Equip Comet (3):** your next spell cast from hand casts **2** additional times.',
+    goldenText: '**Equip Comet (3):** your next spell cast from hand casts **4** additional times.',
   },
   {
     // THE STARFORM (owner design 2026-09-12) — a 1/1 Celestial TOKEN that lives IN THE SHOP as a shop offer, not
@@ -418,7 +418,7 @@ export const SET3_CELESTIALS: readonly CardDef[] = [
     health: 9,
     keywords: [],
     effects: [{ on: 'onPlay', do: 'battlecryGrantSpell', params: { spellId: 'starcrash', count: 2 } }],
-    text: 'Your **Star Crashes** cast an additional time. **Shout:** get **2 Star Crashes**.',
-    goldenText: 'Your **Star Crashes** cast **2** additional times. **Shout:** get **4 Star Crashes**.',
+    text: '**Star Crashes** you cast from hand cast an additional time. **Shout:** get **2 Star Crashes**.',
+    goldenText: '**Star Crashes** you cast from hand cast **2** additional times. **Shout:** get **4 Star Crashes**.',
   },
 ];

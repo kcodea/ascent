@@ -144,7 +144,8 @@ describe('DIRECT_CALL_SITES is a derivation, not a list', () => {
     //
     // `fx/spellCastFx.ts` (2026-09-24) is NOT an exception: it is a binding RESOLVER (the spell's card-level
     // `spellCast` row via `spellCastFxFor`), the shared play every phase's cast path reaches — like `fx/statMilestone.ts`.
-    expect(Object.keys(DYNAMIC_CALL_SITES).sort()).toEqual(['EquipFxTuner.tsx', 'Recruit.tsx', 'buffFxRender.ts', 'choreo/recruitCues.ts', 'choreo/score.ts', 'equipBeamCascade.ts', 'fx/spellCastFx.ts', 'fx/statMilestone.ts', 'runeTriggerFx.ts', 'useCombatReplay.ts']);
+    // `choreo/channels/impact.ts` (2026-09-24) is likewise a RESOLVER: the melee hit's `attackHitMilestoneN` row.
+    expect(Object.keys(DYNAMIC_CALL_SITES).sort()).toEqual(['EquipFxTuner.tsx', 'Recruit.tsx', 'buffFxRender.ts', 'choreo/channels/impact.ts', 'choreo/recruitCues.ts', 'choreo/score.ts', 'equipBeamCascade.ts', 'fx/spellCastFx.ts', 'fx/statMilestone.ts', 'runeTriggerFx.ts', 'useCombatReplay.ts']);
   });
 
   // The seven migrated effects the library used to call inert, plus `ruby-gem-apply` — authored in the

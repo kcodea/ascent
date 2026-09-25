@@ -13,6 +13,7 @@ const fakeEl = (): Element => ({
   getBoundingClientRect: () => ({ left: 0, top: 0, width: 80, height: 100 }),
   classList: { contains: () => false },
   querySelector: () => null,
+  getAttribute: () => null, // the impact reads the attacker's `data-card` (milestone-hit per-card rows)
 }) as unknown as Element;
 
 const attackMoment = (swing: number): Moment => ({

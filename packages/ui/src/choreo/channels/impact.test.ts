@@ -3,12 +3,13 @@ import gsap from 'gsap';
 import { sfx } from '../../sfx';
 import { pixiFx } from '../../pixiFx';
 import { playDef } from '../../fx/playDef';
-import { dustIntensity, hitPower, playContactImpact, strikeIntensity, strikeScale } from './impact';
+import { dustIntensity, hitPower, milestoneHitBinding, playContactImpact, strikeIntensity, strikeScale } from './impact';
+import { attackHitMilestoneKind, resetBindings, setBinding } from '../bindings';
 
 // Neither the tan billow nor the strike burst is a `pixiFx` method any more — they are the authored
 // `impact-dust` and `strike-impact` defs, fired through `playDef`. Mocked at the MODULE, not spied on an
 // object: `playDef` is a bare function export, and most assertions below only care WHICH def fired.
-vi.mock('../../fx/playDef', () => ({ playDef: vi.fn(() => null) }));
+vi.mock('../../fx/playDef', () => ({ playDef: vi.fn(() => null), canPlayDefs: vi.fn(() => true) }));
 const playDefMock = vi.mocked(playDef);
 /** Every def id `playDef` was handed this test, in call order. */
 const firedDefs = (): string[] => playDefMock.mock.calls.map((c) => c[0]);
@@ -223,5 +224,68 @@ describe('playContactImpact — the strike-impact def', () => {
   it('fires BEFORE the dust, so the burst reads under the billow as it always did', () => {
     normalHit(10, 0);
     expect(firedDefs()).toEqual(['strike-impact', 'impact-dust']);
+  });
+});
+
+// MILESTONE HITS (owner ask 2026-09-24): a plain hit from an attacker whose Attack badge is pink/purple/blue
+// (tier 4/5/6) plays that tier's bound def in place of the stock sparks + ring; the dust stays; keyword effects
+// still win; an unbound tier (or tiers 1..3) keeps the standard hit.
+describe('milestone hits', () => {
+  afterEach(() => resetBindings());
+  const bindTier = (tier: 4 | 5 | 6, def: string, cardId: string | null = null): void =>
+    setBinding(cardId, attackHitMilestoneKind(tier)!, { def });
+  const hit = (tier: number, opts: { crit?: boolean; flurry?: boolean; execute?: boolean; cleave?: boolean } = {}, cardId: string | null = null): void => {
+    vi.spyOn(sfx, 'hit').mockImplementation(() => {});
+    vi.spyOn(sfx, 'critHit').mockImplementation(() => {});
+    vi.spyOn(sfx, 'flurryHit').mockImplementation(() => {});
+    vi.spyOn(sfx, 'cleave').mockImplementation(() => {});
+    for (const m of ['impactPulse', 'critImpact', 'windSlash', 'executeStrike', 'cleaveSlash'] as const) vi.spyOn(pixiFx, m).mockImplementation(() => {});
+    vi.spyOn(gsap, 'fromTo').mockImplementation(() => ({}) as never);
+    vi.spyOn(gsap, 'killTweensOf').mockImplementation(() => {});
+    vi.spyOn(gsap, 'set').mockImplementation(() => ({}) as never);
+    playContactImpact(fakeDefender(), 10, 0, 1, 1, { x: 0, y: 0 }, 0, opts.crit, opts.flurry, opts.flurry, opts.execute, opts.cleave, false, tier, cardId);
+  };
+
+  it('maps only tiers 4..6 to a slot (tiers above 6 clamp to 6)', () => {
+    expect([0, 1, 2, 3].map(attackHitMilestoneKind)).toEqual([null, null, null, null]);
+    expect([4, 5, 6, 9].map(attackHitMilestoneKind)).toEqual(['attackHitMilestone4', 'attackHitMilestone5', 'attackHitMilestone6', 'attackHitMilestone6']);
+  });
+
+  it('a bound tier REPLACES the sparks + ring but keeps the dust', () => {
+    bindTier(5, 'hit-purple');
+    hit(5);
+    expect(firedDefs()).toEqual(['hit-purple', 'impact-dust']);
+    expect(pixiFx.impactPulse).not.toHaveBeenCalled();
+    expect(playDefMock.mock.calls[0][1]).toEqual({ source: { x: -10, y: 0 }, target: { x: 0, y: 0 } });
+  });
+
+  it('each tier plays its own def', () => {
+    bindTier(4, 'hit-pink'); bindTier(5, 'hit-purple'); bindTier(6, 'hit-blue');
+    for (const t of [4, 5, 6]) hit(t);
+    expect(firedDefs().filter((d) => d !== 'impact-dust')).toEqual(['hit-pink', 'hit-purple', 'hit-blue']);
+  });
+
+  it('tiers 1..3 and an unbound tier keep the standard hit', () => {
+    bindTier(4, 'hit-pink');
+    hit(3);
+    setBinding(null, 'attackHitMilestone6', null); // tombstone: tier 6 plays nothing bespoke
+    hit(6);
+    expect(firedDefs()).toEqual(['strike-impact', 'impact-dust', 'strike-impact', 'impact-dust']);
+  });
+
+  it('crit / Flurry / Execute / Cleave outrank the milestone def', () => {
+    bindTier(6, 'hit-blue');
+    hit(6, { crit: true });
+    hit(6, { flurry: true });
+    hit(6, { execute: true });
+    hit(6, { cleave: true });
+    expect(firedDefs()).not.toContain('hit-blue');
+  });
+
+  it('a per-card row shadows the tier default', () => {
+    bindTier(4, 'hit-pink');
+    bindTier(4, 'hit-special', 'karwind');
+    expect(milestoneHitBinding(4, 'karwind')?.def).toBe('hit-special');
+    expect(milestoneHitBinding(4, 'someone-else')?.def).toBe('hit-pink');
   });
 });

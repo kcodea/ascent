@@ -52,6 +52,22 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-09-24',
+    label: 'Big Hits',
+    changes: [
+      {
+        category: 'Systems',
+        text: 'Minions with huge Attack now hit harder on screen. Once the Attack badge turns pink, purple or blue, its attacks get their own bigger impact effect and sound.',
+        details: [
+          'Pink Attack badge (500+): a heavy pink impact.',
+          'Purple Attack badge (2000+): a bigger purple impact.',
+          'Blue Attack badge (5000+): the biggest blue impact.',
+          'Crits, Execute, Cleave and Flurry still show their own effects.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-09-24',
     label: 'Fight Recap',
     changes: [
       {

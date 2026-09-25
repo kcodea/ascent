@@ -1,0 +1,162 @@
+/* ANCIENTS (proof of concept, owner 2026-09-25). Look: light, clean, minimal (owner direction on the first playable:
+   "cleaner and more minimalistic, not dark and weird/gloomy"). The game's cream panel language (--card / --line /
+   --ink / --gold), thin lines, plenty of space, few effects.
+   PERF CONTRACT: nothing here loops. Every motion is a one-shot WAAPI transform/opacity (AncientMeter.tsx /
+   AncientPreview.tsx) or a one-shot transition; every gradient and shadow is STATIC paint. No `cursor:` keyword
+   anywhere: buttons take the global gauntlet rule. */
+
+/* ── THE METER ──────────────────────────────────────────────────────────────────────────────────────────────────── */
+/* Centred on the hero-power circle (the button is the first 128u box of `.hpwrap`). Takes no space in the flow. */
+.anc-meter {
+  position: absolute; left: 50%; top: calc(64 * var(--u));
+  width: 0; height: 0; z-index: 5; pointer-events: none;
+}
+.anc-ring {
+  position: absolute; left: 0; top: 0;
+  width: calc(128 * var(--u) * var(--anc-ring-s, 1.22)); height: calc(128 * var(--u) * var(--anc-ring-s, 1.22));
+  transform: translate(-50%, -50%);
+}
+.anc-ring-svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.anc-ring-hit { fill: none; stroke: transparent; pointer-events: stroke; }
+/* The track: a faint cream line. */
+.anc-ring-track { fill: none; stroke: rgba(255, 248, 230, 0.28); pointer-events: none; }
+/* The fill: ONE gradient arc. Progress is its dash offset, eased once per change (one-shot, never looped). */
+.anc-ring-fill {
+  fill: none; stroke: url(#anc-arc-grad); stroke-linecap: round; pointer-events: none;
+  transition: stroke-dashoffset var(--anc-fill-ms, 520ms) cubic-bezier(0.22, 0.8, 0.26, 1);
+}
+/* The full-ring flash: a light cream halo, once. */
+.anc-flash {
+  position: absolute; inset: -3%; border-radius: 50%; pointer-events: none; opacity: 0;
+  background: radial-gradient(circle, rgba(255, 250, 235, 0) 60%, rgba(255, 246, 220, 0.9) 72%, rgba(255, 236, 190, 0) 84%);
+}
+
+/* The "7/16" readout at the ring's lower right: a small cream pill. */
+.anc-chip {
+  position: absolute; pointer-events: auto;
+  left: calc(64 * var(--u) * var(--anc-ring-s, 1.22) * 0.72); top: calc(64 * var(--u) * var(--anc-ring-s, 1.22) * 0.72);
+  transform: translate(-50%, -50%);
+  padding: calc(3 * var(--u)) calc(8 * var(--u)); border-radius: 999px;
+  border: 1px solid var(--line, #e7dcc7);
+  background: var(--card, #fffdf8);
+  box-shadow: 0 calc(2 * var(--u)) calc(6 * var(--u)) rgba(60, 40, 10, 0.22);
+  font-family: var(--font-ui); line-height: 1; white-space: nowrap; color: var(--ink2, #6c5d48);
+  font-size: calc(12 * var(--u));
+}
+.anc-chip b { font-weight: 800; font-size: calc(14 * var(--u)); color: var(--ink, #2a2017); display: inline-block; animation: ancchipbump 220ms ease-out; }
+.anc-chip span { font-weight: 600; }
+@keyframes ancchipbump { 0% { transform: scale(1.25); } 100% { transform: scale(1); } } /* one-shot, keyed per value */
+.anc-chip:focus-visible { outline: 2px solid var(--gold, #c8922e); outline-offset: 2px; }
+
+/* ── THE SPLIT hero-power face (inside `.heropowerbtn`): the Ancient is the right half of the circle ─────────────── */
+.anc-split-anchor { display: none; }
+.anc-split { position: absolute; inset: 0; z-index: 3; border-radius: 50%; overflow: hidden; pointer-events: none; }
+.anc-split-half { position: absolute; inset: 0; clip-path: inset(0 0 0 50%); }
+/* Out-specifies `.heropowerbtn svg` (the power's fallback icon rule: a small centred glyph). The face's glyph is
+   centred on the RIGHT half so the divider never cuts it in two. */
+.heropowerbtn .anc-split-half svg.anc-face {
+  position: absolute; inset: 0; left: 0; top: 0; width: 100%; height: 100%; z-index: auto;
+  transform: translateX(25%) scale(1.1);
+}
+/* A clean fine divider. */
+.anc-split-seam {
+  position: absolute; left: 50%; top: 0; bottom: 0; width: calc(2 * var(--u)); transform: translateX(-50%);
+  background: #fffaf0;
+}
+.anc-split-shinewrap { position: absolute; inset: 0; overflow: hidden; border-radius: 50%; }
+.anc-split-shine {
+  position: absolute; top: -10%; bottom: -10%; left: 0; width: 40%; opacity: 0;
+  background: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.55) 50%, transparent 100%);
+  transform: translateX(-130%) skewX(-18deg);
+}
+/* The chosen face riding the trail into the hero power. Above the modal FX canvas. */
+.anc-flyface { position: fixed; z-index: 960; pointer-events: none; transform: translate(-50%, -50%); will-change: transform, opacity; }
+.anc-flyface .anc-face { width: 100%; height: 100%; display: block; }
+
+/* ── THE AWAKENING DISCOVER ─────────────────────────────────────────────────────────────────────────────────────── */
+/* A light, even dim over the Shop: no vignette, no spotlight. */
+.discover-ov.disc-look.anc-offer { background: rgba(28, 22, 14, var(--dcl-tint, 0.42)); }
+.anc-cards { gap: calc(26 * var(--u)); }
+.anc-card {
+  position: relative; display: flex; flex-direction: column; align-items: center; gap: calc(8 * var(--u));
+  width: calc(230 * var(--u)); min-height: calc(330 * var(--u));
+  padding: calc(24 * var(--u)) calc(20 * var(--u)) calc(16 * var(--u));
+  border-radius: calc(16 * var(--u));
+  border: 1px solid var(--line, #e7dcc7);
+  background: var(--card, #fffdf8);
+  box-shadow: 0 calc(10 * var(--u)) calc(28 * var(--u)) calc(-10 * var(--u)) rgba(40, 26, 8, 0.45);
+  color: var(--ink, #2a2017); text-align: center;
+  transition: transform 0.16s cubic-bezier(0.2, 0.9, 0.3, 1.2), border-color 0.16s ease;
+}
+.anc-card:hover { transform: translateY(calc(-5 * var(--u))); border-color: var(--gold-lt, #e6b45a); }
+.anc-card:focus-visible { outline: 2px solid var(--gold, #c8922e); outline-offset: calc(4 * var(--u)); }
+.anc-card-face { width: calc(104 * var(--u)); height: calc(104 * var(--u)); display: block; margin-bottom: calc(4 * var(--u)); }
+.anc-card-face .anc-face { width: 100%; height: 100%; display: block; }
+.anc-card-name { font-family: var(--font-title); font-weight: 800; font-size: calc(19 * var(--u)); letter-spacing: 0.01em; color: var(--ink, #2a2017); }
+.anc-card-thesis { font-family: var(--font-body); font-size: calc(12.5 * var(--u)); color: var(--ink3, #9c8b71); }
+.anc-card-rule {
+  margin-top: calc(6 * var(--u)); padding-top: calc(12 * var(--u)); width: 100%;
+  border-top: 1px solid var(--line, #e7dcc7);
+  font-family: var(--font-body); font-weight: 600; font-size: calc(14.5 * var(--u)); line-height: 1.4; color: var(--ink, #2a2017);
+}
+.anc-card-rule b, .anc-pv-rule b { color: var(--acc-dk, #c46f17); }
+.anc-card-ph, .anc-pv-ph {
+  margin-top: auto; font-family: var(--font-ui); font-size: calc(9.5 * var(--u)); letter-spacing: 0.14em; text-transform: uppercase;
+  color: var(--ink3, #9c8b71); opacity: 0.7;
+}
+
+/* ── THE PREVIEW CARD ───────────────────────────────────────────────────────────────────────────────────────────── */
+.anc-pv {
+  position: fixed; z-index: 480; box-sizing: border-box;
+  padding: 16px 18px 14px; border-radius: 14px;
+  border: 1px solid var(--line, #e7dcc7);
+  background: var(--card, #fffdf8);
+  box-shadow: 0 14px 34px -14px rgba(40, 26, 8, 0.5);
+  color: var(--ink, #2a2017); outline: none;
+  opacity: 0; transform: translateX(-6px); transform-origin: left center;
+  transition: opacity 0.16s ease, transform 0.18s cubic-bezier(0.2, 0.9, 0.3, 1);
+}
+.anc-pv.flip { transform: translateX(6px); }
+.anc-pv.shown { opacity: 1; transform: none; }
+.anc-pv-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 10px; }
+.anc-pv-kicker { font-family: var(--font-ui); font-weight: 800; font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--gold, #c8922e); }
+.anc-pv-hint { font-family: var(--font-ui); font-size: 11px; color: var(--ink3, #9c8b71); }
+.anc-pv-stage { position: relative; height: 150px; overflow: hidden; }
+.anc-pv-page { position: absolute; inset: 0; }
+.anc-pv-page.ghost { pointer-events: none; }
+.anc-pv-body { display: flex; gap: 14px; align-items: flex-start; height: 100%; }
+.anc-pv-face { flex: none; width: 64px; height: 64px; display: block; }
+.anc-pv-face .anc-face { width: 100%; height: 100%; display: block; }
+.anc-pv-text { display: flex; flex-direction: column; gap: 4px; min-width: 0; height: 100%; }
+.anc-pv-name { font-family: var(--font-title); font-weight: 800; font-size: 16px; color: var(--ink, #2a2017); display: flex; align-items: center; gap: 8px; }
+.anc-pv-yours { font-family: var(--font-ui); font-size: 9.5px; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; padding: 2px 7px; border-radius: 999px; background: var(--gold-lt, #e6b45a); color: var(--ink, #2a2017); }
+.anc-pv-thesis { font-family: var(--font-body); font-size: 12px; color: var(--ink3, #9c8b71); }
+.anc-pv-rule { margin-top: 4px; font-family: var(--font-body); font-weight: 600; font-size: 13.5px; line-height: 1.42; color: var(--ink, #2a2017); }
+.anc-pv-nav { display: flex; align-items: center; justify-content: space-between; margin-top: 10px; }
+.anc-pv-arrow {
+  width: 28px; height: 28px; border-radius: 50%; padding: 0; display: grid; place-items: center;
+  font-size: 18px; line-height: 1; color: var(--ink2, #6c5d48);
+  border: 1px solid var(--line, #e7dcc7); background: var(--bg2, #efe5d4);
+  transition: transform 0.12s ease;
+}
+.anc-pv-arrow:hover { transform: scale(1.08); }
+.anc-pv-arrow:focus-visible, .anc-pv-dot:focus-visible { outline: 2px solid var(--gold, #c8922e); outline-offset: 2px; }
+.anc-pv-dots { display: flex; gap: 8px; }
+.anc-pv-dot {
+  width: 8px; height: 8px; padding: 0; border-radius: 50%; border: 0;
+  background: var(--line, #e7dcc7); transition: transform 0.14s ease, background-color 0.14s ease;
+}
+.anc-pv-dot.on { background: var(--anc-c, #c8922e); transform: scale(1.3); }
+
+/* Reduced motion: no slide, no pop; the fades stay. */
+@media (prefers-reduced-motion: reduce) {
+  .anc-card, .anc-pv, .anc-pv-arrow, .anc-pv-dot { transition: opacity 0.15s ease; }
+  .anc-card:hover { transform: none; }
+  .anc-pv, .anc-pv.flip { transform: none; }
+  .anc-chip b { animation: none; }
+  .anc-ring-fill { transition-duration: 0ms; }
+}
+
+/* The hero power's own tip stands down while the meter (or its preview) is the thing being hovered. */
+.heropanel:has(.anc-meter :hover) .herotip,
+body:has(.anc-pv) .heropanel .herotip { opacity: 0 !important; transition-delay: 0s !important; }

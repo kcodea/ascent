@@ -517,6 +517,9 @@ export function computeFrame(
       // kept its pre-ascension face for the rest of the replay.
       const u = find(e.target);
       const def = CARD_INDEX[e.into];
+      // ANCIENT OF TIME: an in-fight GILD rides this event (`gild`, same card) — the body turns golden for the
+      // fight; its doubled stats land as the `buff` that follows.
+      if (u && e.gild) u.golden = true;
       if (u && def) {
         u.cardId = e.into;
         u.name = def.name;

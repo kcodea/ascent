@@ -1,4 +1,5 @@
 import { ALE_IDS, RUBY_TYPE_IDS, SPECIAL_RUBY_IDS, TRIBES, alignAllows, makeRng, SILENT_ONPLAY, isShopPoolSpell, shopSpellGrowth, COMBAT_REPLAYABLE_BATTLECRIES, extraTriggerFires, foldEchoExtraFires, socTwilightExtraFires, ARENA_EFFECTS, beatIdentity, type EffectArena, type PresentationCollector, type PresentationPhase, type PresentationPolicy, type Rng, type CardDef, type EffectDef, type Keyword, type TriggerFamily, type TriggerSourceRef, type Tribe } from '@game/core';
+import { ancientOnSale, ancientOnShopDeath, ancientPowerText } from './ancients';
 import { runSpells } from './spellPool';
 import { REVELER_IDS, RUNE_INDEX, CARD_INDEX, EQUIPMENT_INDEX, STAR_DESTROYER, equipmentOf, recurringEotOwner, type EquipmentDefinition } from '@game/content';
 import { equipIsNews, equipmentParams as equipmentParamsFor, grantEquipment as grantEquipmentToPlayer, armCalibration, unusedEquipmentCount } from './equipment';
@@ -1043,6 +1044,13 @@ export interface HeroPowerLive {
 }
 
 export function heroPowerText(state: RunState, which = 0, live: HeroPowerLive = {}): string {
+  const base = baseHeroPowerText(state, which, live);
+  // ANCIENTS (owner ruling 2026-09-25): an awakened Ancient's pairing prints the COMBINED power on the main slot.
+  // `ancientPowerText` is undefined unless the run has Ancients on and a written pairing is picked.
+  return (which === 0 ? ancientPowerText(state, base) : undefined) ?? base;
+}
+
+function baseHeroPowerText(state: RunState, which: number, live: HeroPowerLive): string {
   const power = activePowers(state)[which] ?? primaryPower(state);
   if (power.kind === 'luckySeat') {
     const suit = state.ciaSuit ?? 'hearts';
@@ -3001,6 +3009,7 @@ export function destroyMinionInShop(
  */
 export function afterShopDestroy(state: RunState, destroyed: BoardCard): void {
   noteShopCardDeath(state, destroyed);
+  ancientOnShopDeath(state, destroyed); // ANCIENT OF WAR, Shop half (a no-op unless the run has it)
   if (!state.runeLastRites || state.lastRitesUsedThisTurn || !isTribe(destroyed, 'undead')) return;
   const def = CARD_INDEX[destroyed.cardId];
   if (!def) return;
@@ -10823,6 +10832,7 @@ export function fireOnMinionSold(state: RunState, sold: BoardCard): void {
  * (Rune of Dismantling is deliberately NOT here: it fires BEFORE the body leaves and belongs to the manual sale.)
  */
 export function settleMinionSale(state: RunState, sold: BoardCard): void {
+  ancientOnSale(state, sold); // ANCIENT OF FORTUNE: a gilded sale gets a plain copy (a no-op unless the run has it)
   // Hoarder sells for a flat 2 Gold (golden 4); everything else for the base sell value. Rune of
   // Bartering (Shout minions sell for 2) is folded into the shared helper, so the UI coin matches.
   // Quick Sale: the next minion sold this turn gets a one-shot bonus on top, then the bonus is spent.

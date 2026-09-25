@@ -100,6 +100,7 @@ import { playPlateCoalesce } from './plateCoalesce';
    rope gets there. The hold state machine and its escape hatches live in `lassoHolds.ts`, pinned by a test. */
 import { foldLassoHolds, lassoBeamSchedule, lassoCascadeMs, useLassoCascade, LASSO_CONTACT_MS, LASSO_STAGGER_MS, type LassoCascadeHandlers, type LassoSteal } from './lassoHolds';
 import { useEquipBeamCascade, type EquipBeamAnchors } from './equipBeamCascade';
+import { AncientOfferOverlay } from './ancients/AncientOffer';
 import { playGildTrail } from './gildTrail';
 import { commitSlidePlan } from './rowSlides';
 import { resolveGildSources, snapshotGildCandidates, type GildSnap, type Pt } from './gildTrailSources';
@@ -2038,6 +2039,8 @@ export function Recruit() {
   // The same window drives the `.app.staged` class (the lobby rail's slide-away) below.
   const setCombatStaged = useGame((s) => s.setCombatStaged);
   useEffect(() => { setCombatStaged(combatBgShown); }, [combatBgShown, setCombatStaged]);
+  const setWipeIdle = useGame((s) => s.setWipeIdle);
+  useEffect(() => { setWipeIdle(wipe === 'idle'); }, [wipe, setWipeIdle]);
   // SHOP OVERLAYS WAIT FOR THE CURTAIN (owner ask 2026-08-28) — the Runeforge / quest / power / Discover /
   // Choose One / scout offers exist in run state the instant combat resolves, but their overlays must not
   // open over the exit curtain: hold their RENDER (state is untouched — the shop timer's pause already keys
@@ -4472,7 +4475,7 @@ export function Recruit() {
     // the intro fades or is skipped. The gate itself lives in `turnClockMayTick` so it is testable.
     if (!turnClockMayTick({
       recruitPhase: run.phase === 'recruit',
-      decisionOpen: !!(run.discover || run.questOffer || run.powerOffer || run.runeforgeOffer || run.pendingTarget || run.chooseOne || run.scoutedNextOpponent?.length),
+      decisionOpen: !!(run.discover || run.questOffer || run.powerOffer || run.runeforgeOffer || run.pendingTarget || run.chooseOne || run.scoutedNextOpponent?.length || run.ancients?.offer?.length),
       heroSelecting,
       overlayOpen,
       introPlaying,
@@ -4495,7 +4498,7 @@ export function Recruit() {
     };
     id = window.setTimeout(tick, tickMs());
     return () => window.clearTimeout(id);
-  }, [run.phase, run.discover, run.questOffer, run.powerOffer, run.runeforgeOffer, run.pendingTarget, run.chooseOne, heroSelecting, overlayOpen, introPlaying, run.wave, replaySpeed]);
+  }, [run.phase, run.discover, run.questOffer, run.powerOffer, run.runeforgeOffer, run.pendingTarget, run.chooseOne, run.ancients?.offer, heroSelecting, overlayOpen, introPlaying, run.wave, replaySpeed]);
 
   // Detect a self-buff (a minion's own stats jump in the recruit phase) and fire its self-buff cue. The
   // readout itself is the badge's own job now — see the cut below.
@@ -7303,6 +7306,10 @@ export function Recruit() {
       <QuestOverlay overlaysHeld={overlaysHeld} questOffer={run.questOffer} questMin={questMin} setQuestMin={setQuestMin} dispatch={dispatch} />
 
       <PowerOverlay overlaysHeld={overlaysHeld} powerOffer={run.powerOffer} dispatch={dispatch} />
+
+      {/* ANCIENTS (proof of concept): the awakening Discover. It waits for every other decision overlay, and for
+          the curtain, so it never stacks on one. */}
+      <AncientOfferOverlay held={overlaysHeld || !!(run.discover || run.questOffer || run.powerOffer || run.runeforgeOffer || run.pendingTarget || run.chooseOne || run.scoutedNextOpponent?.length)} run={run} dispatch={dispatch} />
 
       <RuneforgeOverlay
         overlaysHeld={overlaysHeld} run={run} forgeMin={forgeMin} setForgeMin={setForgeMin} lockIn={lockIn} lockInSlow={lockInSlow} setLockIn={setLockIn}

@@ -1,3 +1,4 @@
+import type { AncientId, AncientsState } from './ancients';
 import { makeRng } from '@game/core';
 import type { BoardMinion, BounceKind, CombatConfig, CombatOutcome, CombatResult, CombatSideState, EffectDef, Keyword, QuestObjectiveEvent, Rng, RubyRider, Tribe } from '@game/core';
 import { CARD_INDEX, LEGACY_CARD_IDS, SETS, activeSet, poolFor, type SetId } from '@game/content';
@@ -666,6 +667,11 @@ export interface RunState {
    *  launched as its own thing from the title, and mounts the Scene Builder control panel. Additive flag so
    *  it needs no new RunMode + no mode-switch audit. Absent = a normal run. */
   sandbox?: boolean;
+  /** ANCIENTS (proof of concept, owner 2026-09-25): the Scene Builder turns this on for Set 3 runs only. Off (absent)
+   *  on every lobby / practice / normal run, and then nothing in `ancients.ts` reads or writes anything. */
+  ancientsEnabled?: boolean;
+  /** The Ancient meter / offer / pick (see `ancients.ts`). Plain serialisable data; absent unless enabled. */
+  ancients?: AncientsState;
   /** Scene Builder sandbox (dev): the wave whose `servedBoards` entry the RIG authored (the "Next enemy"
    *  dummies, "+ add enemy", or a click-to-edit of the foe row). A sandbox is a LOBBY run since 2026-09-09, and
    *  a lobby fight normally serves the paired seat's board, not the `servedBoards` pin — the pin is also
@@ -2553,7 +2559,11 @@ export type Action =
   /** DEV Scene Builder only — drop a quest (optionally already completed) or a rune straight into the run so
    *  its interactions can be tested without playing to the turn that offers it. Routed through the SAME
    *  reward engine a real buy/completion uses; see the reducer case. */
-  | { type: 'devGrant'; kind: 'quest' | 'rune'; id: string; completed?: boolean };
+  | { type: 'devGrant'; kind: 'quest' | 'rune'; id: string; completed?: boolean }
+  /** ANCIENTS: lock in an offered Ancient (the awakening Discover). */
+  | { type: 'pickAncient'; id: AncientId }
+  /** ANCIENTS, DEV Scene Builder only: set the meter's points filled (full awakens it). */
+  | { type: 'ancientSetMeter'; points: number };
 
 /** The automatic combat-flow transitions — they fire ~once per round regardless of how the player
  *  builds, so they're excluded from the "actions per round" stat (which measures player decisions). */

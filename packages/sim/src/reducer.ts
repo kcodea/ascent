@@ -1,4 +1,5 @@
 import { type PresentationCollector, type ConsequenceDraft, type CombatEvent, beatIdentity, socTwilightExtraFires, ALE_IDS, combatSide, makeCollector, makeRng, simulate, type BoardMinion, type CardDef, type CombatConfig, type CombatResult, type CombatSideState, type Keyword, type PendingCombatQuest, type PresentationBatch, type QuestCombatMods, type QuestDef, type QuestObjective, type QuestObjectiveEvent, type Tribe, TRIBES } from '@game/core';
+import { ancientCombatMods, ancientAfterPowerGild, ancientOfferOpen, ancientReplacesPowerGild, ancientsCombatTick, ancientsRefreshTick, ancientsSetMeter, pickAncient } from './ancients';
 import { runSpells } from './spellPool';
 import { currentCollector, withActiveCollector } from './activeCollector';
 import { surfaceKeyForRune, surfaceKeyForQuest, CARD_INDEX, EPIC_RUNES, GIFT_IDS, QUEST_INDEX, RUNE_INDEX, RUNES, runeSynergies, type SynergyTag } from '@game/content';
@@ -1373,6 +1374,16 @@ function reduceCore(state: RunState, action: Action): RunState {
   // dissolve and THEN raise the Discover (Recruit.tsx holds the overlay on `pendingDeath`).
   const settlesDeath = action.type === 'resolveShopDeath' && !!state.pendingDeath;
   if (modalOpen(state) && !combatTransition && !combatPreview && !settlesDeath && action.type !== 'discover' && action.type !== 'chooseOne' && action.type !== 'cancelChoice' && action.type !== 'battlecryTarget' && action.type !== 'buyQuest' && action.type !== 'pickPower' && action.type !== 'buyRune' && action.type !== 'skipRuneforge' && action.type !== 'rerollRuneforge' && action.type !== 'devGrant' && action.type !== 'closeScout' && !endTurnEscapesAim) {
+    return state;
+  }
+
+  // ANCIENTS: the awakening Discover PAUSES THE SHOP (owner ruling 3). It is its own gate rather than a `modalOpen`
+  // member so it never changes how the other modals queue: a quest / Runeforge / Discover raised alongside it stays
+  // answerable (the UI presents those first), and only the Shop's own actions wait for the pick.
+  if (ancientOfferOpen(state) && !combatTransition && !combatPreview && !settlesDeath && action.type !== 'pickAncient'
+    && action.type !== 'discover' && action.type !== 'chooseOne' && action.type !== 'cancelChoice' && action.type !== 'battlecryTarget'
+    && action.type !== 'buyQuest' && action.type !== 'pickPower' && action.type !== 'buyRune' && action.type !== 'skipRuneforge'
+    && action.type !== 'rerollRuneforge' && action.type !== 'devGrant' && action.type !== 'closeScout') {
     return state;
   }
 
@@ -2994,8 +3005,14 @@ function reduceCore(state: RunState, action: Action): RunState {
         // inspect breakdown still sums; accrued buffs are NOT doubled — see `gildMinion`) AND flips the golden
         // flag, which doubles its effects (Deathrattles fire twice, ×N multipliers, etc.). Board only; a no-op
         // (and no charge spent) on a missing target or an already-golden minion.
-        if (!card || card.golden) return state;
-        gildMinion(card);
+        // ANCIENT OF GENESIS replaces the gild outright (2 plain copies; the `checkTriples` below completes the
+        // triple), so a gilded target is legal for it. Every other pairing gilds first, then rides along.
+        if (!card) return state;
+        if (!ancientReplacesPowerGild(s, card)) {
+          if (card.golden) return state;
+          gildMinion(card);
+          ancientAfterPowerGild(s, card); // ANCIENT OF DEATH: the target also gains Rise + Taunt
+        }
         // Indy: arm the recharge — the charge comes back after INDY_GILD_RECHARGE_GOLD more Gold is spent.
         s.indyGildRearmAt = (s.goldSpent ?? 0) + INDY_GILD_RECHARGE_GOLD;
       } else if (power.kind === 'replayBattlecry') {
@@ -3637,6 +3654,18 @@ function reduceCore(state: RunState, action: Action): RunState {
       s.fxBladeAttacksPreview = action.count === 0 ? undefined : action.count; // Gorun's live grant/countdown
       return s;
     }
+    case 'pickAncient': {
+      if (!pickAncient(s, action.id)) return state;
+      return s;
+    }
+
+    case 'ancientSetMeter': {
+      // DEV (Scene Builder): only on a run that has Ancients; a no-op (no clone kept) otherwise.
+      if (!s.ancientsEnabled || !s.ancients) return state;
+      ancientsSetMeter(s, action.points);
+      return s;
+    }
+
     case 'settleCombat': {
       // Combat replay finished — apply the outcome (damage + carry-backs) now, in the combat view, so the
       // Resolve hit lands before you return to the shop. Idempotent: only the first call settles.
@@ -4345,7 +4374,7 @@ export function playerCombatSideState(s: RunState): CombatSideState {
     // Set 2 — Elderhorn's chosen mode(s), so its tribe-scoped trigger multipliers apply in the fight.
     beastHuntExtra: s.beastHuntExtra ?? 0,
     beastRitualExtra: s.beastRitualExtra ?? 0,
-    questMods: questCombatMods(s),
+    questMods: { ...questCombatMods(s), ...ancientCombatMods(s) }, // Ancients ride the PLAYER's fight only (never a snapshot)
     pendingQuests: buildPendingCombatQuests(s),
   });
 }
@@ -5583,6 +5612,9 @@ function advanceCombat(s: RunState): void {
       applyShopRefreshed(s); // same fresh-roll rule as the main start-of-turn path above
     }
   }
+  // ANCIENTS: the combat just fought fills the meter as the next Shop opens (a no-op unless the run has Ancients).
+  // If it fills, the awakening offer opens behind whatever start-of-turn modal is up; the UI presents it after.
+  ancientsCombatTick(s);
 }
 
 /** Advance every active, incomplete quest whose objective matches `pred`, by 1; complete + apply the reward at
@@ -7447,6 +7479,9 @@ export function questCombatMods(s: RunState): QuestCombatMods {
  * with "tavern refresh" hooks in one place.
  */
 function refreshTavern(s: RunState, hold = false): void {
+  // ANCIENTS: every Shop REFRESH fills the meter (paid or free, no distinction). `hold` marks the turn-start
+  // roll, which is the new Shop rather than a refresh. A no-op unless the run has Ancients.
+  if (!hold) ancientsRefreshTick(s);
   // Rune of the Muster: the armed free refresh is stocked with PLAIN copies of your board instead of a draw.
   // Spent on use, and only when there is a board to copy (an empty board would produce an empty shop).
   if (s.runeMuster && s.board.length > 0) {

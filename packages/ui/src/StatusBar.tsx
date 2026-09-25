@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { createPortal } from 'react-dom';
+import { AncientMeter, AncientSplit } from './ancients/AncientMeter';
 import { renameTerms } from './terms';
 import { Card, mdBold } from './Card';
 import { instView } from './instView';
@@ -796,10 +797,15 @@ export function StatusBar() {
               {powerArt
                 ? <span className="hpb-artwrap" aria-hidden="true"><img decoding="sync" className="hpb-art" src={powerArt} alt="" draggable={false} /></span>
                 : <Icon name="sc" />}
+              {/* ANCIENTS (proof of concept): the awakened split — hero art left, the Ancient's face right. Inert
+                  (renders nothing) unless the run has Ancients on. */}
+              {run.ancientsEnabled && <AncientSplit run={run} />}
               {/* The REFRESH bloom — a one-shot circular flash as the power re-arms (never a loop). */}
               {refreshFlash && <span className="hpb-flash" aria-hidden="true" />}
             </button>
             {liveCost ? <span className="hpcost"><span className="costn">{liveCost}</span></span> : null}
+            {/* ANCIENTS (proof of concept): the segmented meter ring + its points medallion / the awakened badge. */}
+            {run.ancientsEnabled && <AncientMeter run={run} />}
             {/* Keyed on its text so every change replays the compositor-only bump (the Avenge-tally feel).
                 While the Gambler's 3D die is in the air the slot waits; the held face takes it at the settle. */}
             {diceHeldShown

@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { loadFpsCap, saveFpsCap } from './fpsCap';
 import { CARD_INDEX, activeSet, type SetId } from '@game/content';
-import { type CombatOdds, HEROES, playableHeroes, practiceHeroes, runTribesForSeed, OPPONENT_POOL, OPPONENT_POOL_DATA, registerOpponents, createRun, deserialize, initialProfile, resolveServerRank, adoptServerRank, legacyRatingChangeOf, rankedRunIdOf, type RankResult, type RankedProfile, isPlayerAction, missingCardIds, nextOpponent, parseQaScenario, reconstructRunTelemetry, recordTelemetryAction, emptyTelemetryLog, withLiveTelemetry, telemetrySourceOf, setIdOf, type TelemetryLog, beginDerive, observeAction, finishDerive, type DeriveState, reduce, reduceWithPresentation, serialize, snapshotBoard, type Action, type BoardSnapshot, type PlayerProfile, type RatingChange, type Replay, type RunMode, type RunState, combatFrameOf, deltaShopFrameOf, shopFrameOf, runRecord, type DragPath, type ReplayFrame, type ReplayV2, type ShopView, appendInspectEvent, type InspectEvent, type InspectSnapshot, createLobbyRun, createTutorialRun, type TutorialCourse, type PracticeConfig, type BotLevel, DEFAULT_PRACTICE_CONFIG, normalizeBotDifficulty, warmLobbySeat, prepareActionWithPresentation, type PreparedPresentationAction, fightRowsOf, opponentFightKeys, type LobbyStrength, type FightRow } from '@game/sim';
+import { type CombatOdds, HEROES, playableHeroes, practiceHeroes, runTribesForSeed, OPPONENT_POOL, OPPONENT_POOL_DATA, registerOpponents, createRun, deserialize, initialProfile, resolveServerRank, adoptServerRank, legacyRatingChangeOf, rankedRunIdOf, type RankResult, type RankedProfile, isPlayerAction, missingCardIds, nextOpponent, parseQaScenario, reconstructRunTelemetry, recordTelemetryAction, emptyTelemetryLog, withLiveTelemetry, telemetrySourceOf, setIdOf, type TelemetryLog, beginDerive, observeAction, finishDerive, type DeriveState, reduce, reduceWithPresentation, serialize, snapshotBoard, type Action, type BoardSnapshot, type PlayerProfile, type RatingChange, type Replay, type RunMode, type RunState, combatFrameOf, deltaShopFrameOf, shopFrameOf, runRecord, type DragPath, type ReplayFrame, type ReplayV2, type ShopView, appendInspectEvent, type InspectEvent, type InspectSnapshot, createLobbyRun, enableAncients, createTutorialRun, type TutorialCourse, type PracticeConfig, type BotLevel, DEFAULT_PRACTICE_CONFIG, normalizeBotDifficulty, warmLobbySeat, prepareActionWithPresentation, type PreparedPresentationAction, fightRowsOf, opponentFightKeys, type LobbyStrength, type FightRow } from '@game/sim';
 import type { PresentationBatch } from '@game/core';
 import { combatTimelineFrom } from './choreographer/combatTimeline';
 import type { RuneLockInCard } from './RuneLockIn';
@@ -63,6 +63,7 @@ export interface CombatQuestDelta {
   slaughterByTribe: Partial<Record<Tribe, number>>;
 }
 import { sfx } from './sfx';
+import { ancientMeterOverride } from './ancients/ancientsConfig';
 import { releaseAllStats } from './fx/statHold';
 import { playGenericCastSound } from './fx/spellCastFx';
 import { resetMilestoneLatches } from './fx/milestoneBadgeFx';
@@ -320,6 +321,10 @@ interface GameStore {
    *  phase, so the reveal sweep always exposes them already seated (owner ask 2026-08-28). */
   combatStaged: boolean;
   setCombatStaged: (v: boolean) => void;
+  /** The screen wipe is fully at rest (no curtain moving). Published by Recruit; read by presentation that must
+   *  never play under a curtain (the Ancients meter's post-combat drain). */
+  wipeIdle: boolean;
+  setWipeIdle: (v: boolean) => void;
   heroAtkPill: { side: 'player' | 'opp'; amount: number; buffed?: boolean; leaving?: boolean } | null;
   setHeroAtkPill: (p: { side: 'player' | 'opp'; amount: number; buffed?: boolean; leaving?: boolean } | null) => void;
   /** THE RED DAMAGE-TAKEN NUMBER (owner ask 2026-08-25) — the big blocky number that pops in the CENTRE of the
@@ -621,6 +626,11 @@ interface GameStore {
   /** SANDBOX ONLY (dev). The bot strength the sandbox lobby is built with (1–10). Persisted; a change
    *  re-launches the rig, since the seats are built at creation. */
   sbBotLevel: BotLevel;
+  /** SANDBOX ONLY (dev). ANCIENTS proof of concept (owner 2026-09-25): a Set 3 sandbox run is started with
+   *  `ancientsEnabled` while this is on. Persisted; flipping it relaunches the rig (the meter is stamped at
+   *  creation). Never read outside the Scene Builder, so no lobby / practice / normal run can carry Ancients. */
+  sbAncients: boolean;
+  setSbAncients: (on: boolean) => void;
   /** SANDBOX ONLY (dev). Click-to-edit is armed: a click on a board minion opens the unit editor instead of
    *  starting a drag / a buy. A MODE rather than a modifier because a bare click already means something on
    *  both rows, and the rig has to leave normal play intact — the shop phase is where some of the
@@ -816,6 +826,10 @@ const SB_RULES_KEY = 'ascent.sb.rules';
 const SB_BOT_KEY = 'ascent.sb.botlevel';
 function loadSbRules(): SandboxRules {
   try { return localStorage.getItem(SB_RULES_KEY) === 'normal' ? 'normal' : 'god'; } catch { return 'god'; }
+}
+const SB_ANCIENTS_KEY = 'ascent.sb.ancients';
+function loadSbAncients(): boolean {
+  try { return localStorage.getItem(SB_ANCIENTS_KEY) !== '0'; } catch { return true; }
 }
 function loadSbBotLevel(): BotLevel {
   try { return normalizeBotDifficulty(localStorage.getItem(SB_BOT_KEY) ?? 5); } catch { return 5; }
@@ -1979,6 +1993,8 @@ export const useGame = create<GameStore>((rawSet, get) => {
   setDuelPreview: (v) => set({ duelPreview: v }),
   combatStaged: false,
   setCombatStaged: (v) => set({ combatStaged: v }),
+  wipeIdle: true,
+  setWipeIdle: (v) => set({ wipeIdle: v }),
   heroAtkPill: null,
   setHeroAtkPill: (p) => set({ heroAtkPill: p }),
   oppDmgDealt: 0,
@@ -2105,7 +2121,9 @@ export const useGame = create<GameStore>((rawSet, get) => {
       const level = botLevel ?? s.sbBotLevel;
       const config: PracticeConfig = { opponents: 'bots', botDifficulty: level, health: 'unlimited', timeMult: 1, tribeSurge: null };
       const base = createLobbyRun(randomSeed(), heroId, {}, 'practice', config, setId);
-      const run: RunState = { ...base, sandbox: true, tier: 1, ...(s.sbRules === 'god' ? { embers: 999 } : {}) };
+      const plain: RunState = { ...base, sandbox: true, tier: 1, ...(s.sbRules === 'god' ? { embers: 999 } : {}) };
+      // ANCIENTS (owner ruling 2026-09-25): Scene Builder + Set 3 only, behind the rig's toggle.
+      const run: RunState = s.sbAncients && setId === 'set3' ? enableAncients(plain, ancientMeterOverride()) : plain;
       warmLobbyDrivers(run); // build the bot seats while the shop opens, not on the first End Turn
       if (level !== s.sbBotLevel) try { localStorage.setItem(SB_BOT_KEY, String(level)); } catch { /* ignore */ }
       return { run, sbBotLevel: level, savedRun: null, lastRunBoards: 0, presentationTx: null, heroArmed: false, endTurnAnimating: false, sellTick: 0, inspect: null, heroChoices: null, showTitle: false, avatarPickerOpen: false, replayActions: [], capturedBoards: [], replayFrames: beginReplayCapture(run), replayPartial: false, ...RANK_SLICE_RESET, sandboxReplay: false };
@@ -2123,6 +2141,13 @@ export const useGame = create<GameStore>((rawSet, get) => {
     return { sbRules: rules, run: { ...s.run, embers } };
   }),
   sbBotLevel: loadSbBotLevel(),
+  sbAncients: loadSbAncients(),
+  setSbAncients: (on) => {
+    try { localStorage.setItem(SB_ANCIENTS_KEY, on ? '1' : '0'); } catch { /* ignore */ }
+    set({ sbAncients: on });
+    const run = get().run;
+    if (run?.sandbox) get().startSceneBuilder(run.heroId, run.setId);
+  },
   sbEditMode: false,
   setSbEditMode: (on) => set({ sbEditMode: on }),
   sbTavernShowsEnemy: false,

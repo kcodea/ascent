@@ -1607,6 +1607,26 @@ export const ARENA_EFFECTS = {
     }
   },
 
+  /** Rune of Aggressive Golems' graft (owner 2026-09-25) — Rally: the minion to the RIGHT of this one (the next
+   *  living ally in board order) gains this minion's CURRENT Attack. Nothing to the right = nothing happens. A
+   *  rune-granted ability, so it fires once whatever the body's gilding. */
+  rallyGiveAttackToRight(arena: EffectArena, _params?: Record<string, unknown>): void {
+    const amount = arena.self.attack;
+    if (amount <= 0) return;
+    const line = arena.friends();
+    const i = line.findIndex((m) => m.uid === arena.self.uid);
+    const right = i >= 0 ? line[i + 1] : undefined;
+    if (right) arena.buff(right, amount, 0);
+  },
+
+  /** Rune of Echoing Kobolds' graft (owner 2026-09-25) — Echo: get `count` Rubies, minted at the run's live Ruby
+   *  line (combat: at settle, via the Ruby carry-back). `fixed` = a rune-granted Echo: a Gilded body does NOT
+   *  double it (the rune gives every Kobold the same single Ruby). */
+  deathrattleGetRubies(arena: EffectArena, params: Record<string, unknown>): void {
+    const n = num(params.count, 1) * (params.fixed ? 1 : gold(arena));
+    if (n > 0) arena.grantRubies(n);
+  },
+
   /** Tunnelcharger Rikk — Rally: get `count` Rubies (× golden), minted at the run's live Ruby power. */
   rallyGetRubies(arena: EffectArena, params: Record<string, unknown>): void {
     arena.grantRubies(num(params.count, 1) * gold(arena));

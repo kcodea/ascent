@@ -1,5 +1,6 @@
 import { runeStacksOf, PACKCRAFT_STEP, REINVESTMENT_PER_SUMMON, REVELER_METER, SLAYING_KILLS, INVESTMENT_SELLS, ANCESTRAL_ROAR_STEP, recurringTickCount, type RunState } from '@game/sim';
 import { CARD_INDEX } from '@game/content';
+import { COMBATATIVE_RUBIES_ATTACKS, BODY_COUNTING_DEATHS } from '@game/core';
 
 /**
  * LIVE RUNE TALLIES (owner ask 2026-08-03: "make sure our runes/quests all have tally trackers like the
@@ -138,6 +139,14 @@ export function runeTally(run: RunState, runeId: string): string | null {
   // rounds after the kills that earned it, so without this it reads as pure randomness.
   if (runeId === 'rune_slaying' && run.questFlags?.runeSlaying) {
     return `${Math.min(run.runeSlayingKills ?? 0, SLAYING_KILLS)}/${SLAYING_KILLS}`;
+  }
+  // SET 3 RUNE BATCH 3 (owner 2026-09-25): the two RUNNING meters, carried across fights (and, for Body Counting,
+  // the Shop's deaths too) — the countdown to the next payout, the card-text live-accuracy rule on the badge.
+  if (runeId === 'rune_combatative_rubies' && run.questFlags?.runeCombatativeRubies) {
+    return `${Math.min(run.runeCombatativeTick ?? 0, COMBATATIVE_RUBIES_ATTACKS)}/${COMBATATIVE_RUBIES_ATTACKS}`;
+  }
+  if (runeId === 'rune_body_counting' && run.questFlags?.runeBodyCounting) {
+    return `${Math.min(run.runeBodyCountTick ?? 0, BODY_COUNTING_DEATHS)}/${BODY_COUNTING_DEATHS}`;
   }
   // RUNE OF PACKCRAFT (owner rework 2026-09-23): an escalating combat-summon grant — the pill prints what the
   // NEXT summon will get (the run-persisted level × copies held), the card-text live-accuracy rule. The base

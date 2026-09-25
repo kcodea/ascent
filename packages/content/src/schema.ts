@@ -558,6 +558,8 @@ export const EffectFactoryIdSchema = z.enum([
   'setArmor',
   'battlecryGainGoldNextTurn', 'cardsPlayedPlayRubies', 'onTribeSummonedBuffTribe', 'onSpellCastBuffOnePerTribe', 'spellCastTriggerAdjacentShouts', // Hoardmaster Krik: every N cards bought, mint Rubies to hand
   'rallyGetRubies',   // Rally: get N Rubies (carried back to hand after combat)
+  'rallyGiveAttackToRight', // Rune of Aggressive Golems' graft (2026-09-25)
+  'deathrattleGetRubies',   // Rune of Echoing Kobolds' graft (2026-09-25)
   'avengeRubyStatGain', // Avenge (X): buff your Rubies +X/+Y (carried back to rubyBonus)
   'scPlayRubiesPerBuy', // Frenzied Excavator: SoC play N Rubies per M cards bought this turn
   'avengeGetRubies', // Gemline Martyr: Avenge (X) get N Rubies
@@ -736,7 +738,9 @@ export const QuestCombatFlagSchema = z.enum(['bloodTrail', 'echoingCoop', 'lawOf
   // Set 3 batch 2 (2026-09-16), tranche C
   'runeFinalGate', 'runeDreamedGraves',
   // Set 3 batch 2 (2026-09-16), tranche D
-  'runeOpenHand', 'runeWakingReserve']);
+  'runeOpenHand', 'runeWakingReserve',
+  // Set 3 rune batch 3 (2026-09-25)
+  'runeEchoingKobolds', 'runeRubywire', 'runeCombatativeRubies', 'runeBodyCounting', 'runeAggressiveGolems', 'runeRupturedRubies']);
 
 // The reward palette — a discriminated union kept in lockstep with the `QuestReward` type in @game/core.
 export const QuestRewardSchema: z.ZodType = z.lazy(() => z.discriminatedUnion('kind', [
@@ -988,6 +992,12 @@ z.object({ kind: z.literal('consumeDoubleFirstEachTurn') }).strict(),
   z.object({ kind: z.literal('runeLastTool') }).strict(),
   z.object({ kind: z.literal('runeEndlessMarch') }).strict(),
   z.object({ kind: z.literal('runeGraveOrbit'), attack: z.number().int().nonnegative(), health: z.number().int().nonnegative() }).strict(),
+  // Set 3 rune batch 3 (2026-09-25)
+  z.object({ kind: z.literal('runeGemmedDecisions') }).strict(),
+  z.object({ kind: z.literal('runeRedStorm') }).strict(),
+  z.object({ kind: z.literal('runeChoices') }).strict(),
+  z.object({ kind: z.literal('runeStormingVeins'), extra: z.number().int().positive() }).strict(),
+  z.object({ kind: z.literal('runeSoldChoices') }).strict(),
   z.object({ kind: z.literal('openEpicRuneforge') }).strict(),
   z.object({ kind: z.literal('scheduleRuneforge'), forge: z.enum(['basic', 'epic']), onWave: z.number().int().positive().optional(), gold: z.number().int().nonnegative().optional() }).strict(),
   z.object({ kind: z.literal('multi'), rewards: z.array(QuestRewardSchema).min(1) }).strict(),

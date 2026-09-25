@@ -111,7 +111,11 @@ const SWEEP = runTextSweep({ contracts: CONTRACTS });
 // Wolvie's "give a Beast +2/+4 and Rise", Flo Rida, Humphry and Grim. One new clause the grammar has no rule for
 // yet: Beev's "give it and this +2/+2" (the attacker + self pronoun pair). Dunkey, Moira, Moonhowl Mentor and
 // Embercrest left via the archive.
-const UNRESOLVED_CAP = 95;
+// 2026-09-25 (Set 3 rune batch 3): 95 → 97, CONSCIOUSLY. Eight of the eleven new runes parse fully; three clauses have
+// no grammar rule yet: Rune of Echoing Kobolds' quoted granted Echo ('Give your Kobolds "Echo: get a Ruby."'), Rune of
+// Body Counting's friendly-death count trigger ("When 8 friendly minions die,") and Rune of Sold Choices' "when sold
+// as well" re-trigger. Rune of Resonance's reordered text now parses fully (it was one of the Ruby batch's five).
+const UNRESOLVED_CAP = 97;
 /** Collapse floor: the parser fully consuming fewer objects than this means a grammar regression. */
 const PARSED_FLOOR = 900;
 /** The HARD ceiling (2026-09-11): the unresolved share of active objects may never reach this fraction again. A

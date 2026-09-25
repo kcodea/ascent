@@ -1,7 +1,7 @@
 {
   "voices": {
     "announcer": {
-      "id": "R0MVIMlQlTPetmN2WE4N",
+      "id": "GFNPDbkiJBcXfkZZsunT",
       "model": "eleven_multilingual_v2",
       "dest": "apps/web/public/announcer"
     }

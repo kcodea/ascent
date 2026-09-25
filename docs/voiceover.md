@@ -12,8 +12,10 @@ only: the API key never ships in the web build or the exe, and players never spe
    ELEVENLABS_API_KEY=your_key_here
    ```
 
-The announcer voice is already configured in `packages/tools/vo-lines.json` (voice ID `R0MVIMlQlTPetmN2WE4N`,
-the original Voice Design voice, reached through the shared ElevenLabs workspace).
+The announcer voice is already configured in `packages/tools/vo-lines.json` (voice ID `GFNPDbkiJBcXfkZZsunT`,
+an Instant Voice Clone of the original announcer on the owner's PAID account). Generate from that account: its
+plan carries the commercial licence. The original Voice Design voice (`R0MVIMlQlTPetmN2WE4N`) lives on a free
+plan, which grants no commercial rights, so it is not used.
 
 ## Adding lines
 

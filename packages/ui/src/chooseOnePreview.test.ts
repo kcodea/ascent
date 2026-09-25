@@ -39,14 +39,13 @@ describe('Choose One preview — shown on board, not put there', () => {
   });
 
   it('only a MINION is previewed — a spell takes no slot, an Equipment has no card', () => {
-    // The gate lives on `chooseOnePreviewUid`, which BOTH the board splice and the hand row read, so the two
-    // can never disagree about which card is being previewed. (Anchored on the exact declaration: the memo
-    // below shares its prefix, and an earlier cut of this test matched the wrong one.)
-    const i = RECRUIT.indexOf('const chooseOnePreviewUid =');
-    expect(i, 'the gate exists').toBeGreaterThan(-1);
-    const decl = RECRUIT.slice(i, RECRUIT.indexOf(';', RECRUIT.indexOf('undefined', i)));
-    expect(decl.includes('!run.chooseOne.spell'), 'a spell Choose One is not previewed on the board').toBe(true);
-    expect(decl.includes('!run.chooseOne.equipmentId'), "and neither is an Equipment's prompt").toBe(true);
+    // The gate is `chooseOneHeldSlot` (chooseOneHold.ts), which BOTH the board splice and the hand row read,
+    // so the two can never disagree about which card is being previewed. Since 2026-09-25 it also holds the
+    // card through a targeted branch's aim step (chooseOneHold.test.ts drives every path).
+    const HOLD = readFileSync(join(__dirname, 'chooseOneHold.ts'), 'utf8');
+    expect(HOLD.includes('co.spell || co.equipmentId ? null'), 'a spell / Equipment Choose One is not previewed').toBe(true);
+    expect(HOLD.includes('pt?.deferredPlay && !pt.spell'), 'nor is a spell aim').toBe(true);
+    expect(RECRUIT.includes('const chooseOnePreviewUid = chooseOneHeld?.uid;'), 'the hand row reads the gate').toBe(true);
   });
 
   it('the previewed body is the HAND card itself — because the play committed nothing', () => {

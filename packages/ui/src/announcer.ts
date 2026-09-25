@@ -28,7 +28,8 @@
  *    music's turn-1 fade-in (GameStart waits until ANNOUNCER_GAME_START_DELAY_MS); never on the title, in a
  *    tutorial, a sandbox rig or a replay; a Skip (`stopAllAudio`) or leaving the run cancels the queue and the
  *    playing line at once (ANNOUNCER_STOP_FADE_MS).
- *  · A per-game CAP of ANNOUNCER_LINE_CAP lines; GameWon / GameLoss are allowed on top of it.
+ *  · NO per-game line cap (owner 2026-09-25: "we can remove a max number of things the announcer says, as long as we
+ *    have the cooldown and stuff"). The cooldown, once-per-event rule, priority and shelf life keep it from chattering.
  *
  * AUDIO: its OWN channel — a third gain on the SFX AudioContext (like the music's), with its own volume + mute
  * (`ascent.announcervol.v2`, `ascent.announcermuted`; the slider defaults to 50, which plays gain 0.7), NOT ducked by the Game-sounds mute or slider.
@@ -53,7 +54,6 @@ export type { AnnouncerEvent } from './announcerSlice';
 export const ANNOUNCER_COOLDOWN_MS = 12_000;
 /** Lines per game, GameWon / GameLoss excepted. 8 at first; the owner raised it to 15 with the second batch of
  *  lines (2026-09-24). */
-export const ANNOUNCER_LINE_CAP = 15;
 /** GameStart: after the first shop lands, past the music's 3 s start + its fade-in. */
 export const ANNOUNCER_GAME_START_DELAY_MS = MUSIC_START_DELAY_MS + 1000;
 /** No line over the music's turn-1 fade-in: the quiet window after a wave-1 run lands. */
@@ -567,10 +567,6 @@ function pump(): void {
 function speak(line: PendingLine): void {
   const s = slice;
   if (!s || !mark) return;
-  if (!isTerminal(line.event) && s.count >= ANNOUNCER_LINE_CAP) {
-    note('drop', line.event, { why: 'cap' });
-    return;
-  }
   const variants = ANNOUNCER_LINES[line.event];
   const occurrence = firedWaves(s, line.event).length;
   const file = variants[announcerVariant(s.seed, line.event, occurrence, variants.length)]!;

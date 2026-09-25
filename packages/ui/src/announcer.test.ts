@@ -16,7 +16,7 @@ import type { CardDef, Tribe } from '@game/core';
 import {
   __setAnnouncerDepsForTests, ANNOUNCER_BACK_TO_SHOP_DELAY_MS, ANNOUNCER_BIG_STAT, ANNOUNCER_COMBAT_SILENCE_MS, ANNOUNCER_COOLDOWN_MS,
   ANNOUNCER_END_DELAY_MS, ANNOUNCER_EQUIPMENT_DELAY_MS, ANNOUNCER_FACE_OMEN_DELAY_MS, ANNOUNCER_GAME_START_DELAY_MS,
-  ANNOUNCER_LINE_CAP, ANNOUNCER_LINES, ANNOUNCER_PRIORITY, ANNOUNCER_RARE_CHANCE, ANNOUNCER_STOP_FADE_MS, ANNOUNCER_TURN_ONE_QUIET_MS,
+  ANNOUNCER_LINES, ANNOUNCER_PRIORITY, ANNOUNCER_RARE_CHANCE, ANNOUNCER_STOP_FADE_MS, ANNOUNCER_TURN_ONE_QUIET_MS,
   announcerDebug, announcerRoll, announcerVariant, hasPair, cancelAnnouncer, getAnnouncerVolume, isAnnouncerMuted, observeCombatBoard,
   previewAnnouncerEvent, setAnnouncerVolume, syncAnnouncer, toggleAnnouncerMute, type AnnouncerEvent, type AnnouncerRunLike,
   type AnnouncerStateLike,
@@ -326,8 +326,7 @@ describe('the queue', () => {
     await tick(0);
     expect(events()).toEqual(['runeforge', 'epic-runeforge']);
   });
-  it('the cap: after ANNOUNCER_LINE_CAP (15) lines nothing else speaks, except GameWon / GameLoss', async () => {
-    expect(ANNOUNCER_LINE_CAP).toBe(15); // owner ruling 2026-09-24 (was 8)
+  it('no line cap (owner 2026-09-25): past 15 lines every fresh moment still speaks; only the cooldown spaces them', async () => {
     let r = openShop({ wave: 2 });
     // Ten capped shop lines, each a fresh moment, each past the cooldown.
     const moments: Partial<AnnouncerRunLike>[] = [
@@ -354,19 +353,19 @@ describe('the queue', () => {
       'equipment', 'tier-six', 'runeforge', 'epic-runeforge', 'triple', 'minion-hits-100-stats', 'golden-army', 'big-spender',
       'shop-big-buff', 'pair', 'entering-combat', 'back-to-shop', 'start-combat-under-10hp', 'survive-under-10hp', 'top-four',
     ]);
-    expect(announced.count).toBe(ANNOUNCER_LINE_CAP);
-    r = await fight(r, 'win', { odds: 0.2 }); // WinningLowOddsFight: capped out
+    expect(announced.count).toBe(15);
+    r = await fight(r, 'win', { odds: 0.2 }); // WinningLowOddsFight: line 16, no longer capped out
     await tick(ANNOUNCER_COMBAT_SILENCE_MS + LINE_MS + ANNOUNCER_COOLDOWN_MS);
-    expect(plays).toHaveLength(ANNOUNCER_LINE_CAP);
-    expect(dropped('winningLowOddsFight')).toBe(true);
-    r = backToShop(r, { wave: 20, lobby: { seats: seats(2) } }); // TopTwo: capped out
+    expect(plays).toHaveLength(16);
+    expect(events().at(-1)).toBe('winning-low-odds-fight');
+    r = backToShop(r, { wave: 20, lobby: { seats: seats(2) } }); // TopTwo: line 17
     await tick(LINE_MS + ANNOUNCER_COOLDOWN_MS);
-    expect(plays).toHaveLength(ANNOUNCER_LINE_CAP);
-    expect(dropped('topTwo')).toBe(true);
+    expect(plays).toHaveLength(17);
+    expect(events().at(-1)).toBe('top-two');
     go({ ...r, phase: 'gameover', lobby: { seats: seats(1, 2) } });
     await tick(ANNOUNCER_END_DELAY_MS);
     expect(events().at(-1)).toBe('game-loss');
-    expect(announced.count).toBe(ANNOUNCER_LINE_CAP); // the end line sits outside the cap
+    expect(announced.count).toBe(17); // the end line is not counted
   });
   it('GameWon / GameLoss never expire and wait out the cooldown instead of being dropped', async () => {
     const r = openShop();

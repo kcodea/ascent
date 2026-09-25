@@ -9956,16 +9956,16 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 }
 .fxlib-slot-import:hover { border-color: #c8a45c; color: #f0d9a4; }
 .fxlib-bindnote { color: #c8a45c; font-style: normal; font-weight: 700; }
-/* PREVIEW STAGE (▶) — renders a def OVER everything by lifting the above-modal Pixi canvas above the workbench
-   while open. Scrim (below the effect) catches outside clicks to close; ✕ sits above the effect. */
-.fxlib-previewstage-scrim { position: fixed; inset: 0; z-index: 1100; background: rgba(0, 0, 0, 0.74); }
-body.fxlib-previewing .pixifx-above { z-index: 1150 !important; }
-.fxlib-previewstage-close {
-  position: fixed; top: 20px; right: 24px; z-index: 1200;
-  border: 1px solid #4a4136; border-radius: 8px; background: #241f17; color: #f0d9a4;
-  font-size: 18px; font-weight: 800; padding: 6px 14px;
+/* ▶ on a By-card slot plays a SOUND in place (owner 2026-09-25 — no preview stage). On a def with visuals it
+   shows this bubble instead, pointing the author at ✎. A one-shot fade, never a loop. */
+.fxlib-slot-playwrap { position: relative; display: inline-flex; }
+.fxlib-slot-hint {
+  position: absolute; bottom: calc(100% + 6px); left: 50%; transform: translateX(-50%); z-index: 5;
+  white-space: nowrap; pointer-events: none; padding: 5px 9px; border-radius: 7px;
+  background: #241f17; border: 1px solid #c8a45c; color: #f0d9a4; font-size: 11px; font-weight: 800;
+  box-shadow: 0 6px 14px -6px rgba(0, 0, 0, 0.8); animation: fxlibhint 2.2s ease forwards;
 }
-.fxlib-previewstage-close:hover { border-color: #c8a45c; }
+@keyframes fxlibhint { 0% { opacity: 0; } 8% { opacity: 1; } 85% { opacity: 1; } 100% { opacity: 0; } }
 
 /* WIRING BADGE — the three ways a def relates to the game, which one label used to flatten into "unbound".
    The colours carry the distinction that matters: `bound` and `code` are both PLAYS (two greens, differing

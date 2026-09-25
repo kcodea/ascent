@@ -1417,4 +1417,39 @@ export const FOUNDATION_RULES: GameRule[] = [
       lastVerifiedAt: '2026-09-24',
     },
   },
+  // ── An effect preview plays on every screen (owner report 2026-09-25, silent imported sound) ─────────────
+  {
+    id: 'R-FXPREVIEW-01',
+    title: 'An authored effect plays in full on every screen, and the FX Library play button just plays the sound',
+    statement:
+      'An authored effect played outside a fight or shop (the title screen, menus) runs from start to finish, '
+      + 'motion and sound, exactly as it does in a run. In the FX Library, a card slot\x27s play button plays the '
+      + 'slot\x27s SOUND in place: it never covers the screen or traps the author behind a close button. A slot '
+      + 'holding an effect with visuals does not play there; a note tells the author to open it with Edit.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'FX Library session, 2026-09-25', quote: 'when clicking the play button i do not hear the imported audio' },
+      { kind: 'owner-chat', ref: 'FX Library session, 2026-09-25', quote: 'the screen goes dark like this but no sound plays' },
+      { kind: 'owner-chat', ref: 'FX Library session, 2026-09-25', quote: 'when previewing the sound, i dont want that dark overlay to happen. when it does, theres no option other than hitting the X in the corner to exit the fx workbench entirely. that is not good. we just want that play button to play the audio. if it is a def, then dont let it work. have text that pops up to say "Press Edit to View Def"' },
+      { kind: 'fix-pr', ref: 'https://github.com/kcodea/ascent/pull/1728 (feat/fxlib-save-all-edits)' },
+      { kind: 'code', ref: 'packages/ui/src/pixiFx.ts startDetachedClock / wake / runExtraUpdaters; packages/ui/src/fx/ui/LibraryBrowser.tsx playSlot' },
+    ],
+    currentBehaviour:
+      'Conforms as of 2026-09-25. The main effects overlay (whose ticker advances every played effect and draws '
+      + 'the above-modal canvas) only mounts in a run (`Game.tsx`), so on the title screen a preview was placed '
+      + 'and never advanced: the scrim went dark, visuals sat at their first frame, and a sound layer (which starts '
+      + 'inside an update) never played. Verified in a real browser tab on the title screen: no main app, the '
+      + 'preview fired, and no audio source ever started, for a committed sound (Void Panther) as well as an '
+      + 'imported one. `pixiFx` now runs a detached rAF clock whenever work arrives with no main app (it yields to '
+      + 'the real ticker and respects the Skip freeze). The pin drives a def with no main app and asserts it is '
+      + 'ticked and presented; audible playback itself needs a focused tab and was left to the owner. The By-card '
+      + 'play button no longer opens the dark preview stage (removed): a sound-only def plays in place, any other '
+      + 'shows "Press Edit to View Def" (checked live in the DOM, not pinned by a test).',
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/ui/src/fx/detachedClock.test.ts'],
+      lastVerifiedAt: '2026-09-25',
+    },
+  },
 ];

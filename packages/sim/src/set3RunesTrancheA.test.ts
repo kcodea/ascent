@@ -69,7 +69,7 @@ describe('tranche A — pool membership, cost, scope and tribe gates', () => {
     expect(EPIC_RUNES.some((x) => x.id === id)).toBe(false);
     expect(r.epic).toBeFalsy();
     expect(r.cost).toBe(cost);
-    expect(r.sets).toEqual(id === 'rune_full_hand' ? [] : ['set3']); // the Full Hand CUT FROM SET 3 2026-09-24 (owner): offered in no set
+    expect(r.sets).toEqual(id === 'rune_full_hand' || id === 'rune_charted_skies' ? [] : ['set3']); // Charted Skies CUT FROM SET 3 2026-09-25 (owner's Set 3 rune list) // the Full Hand CUT FROM SET 3 2026-09-24 (owner): offered in no set
     expect(r.tribes).toEqual(tribes);
     expect(CARD_INDEX[id]).toBeUndefined();
   });
@@ -79,7 +79,7 @@ describe('tranche A — pool membership, cost, scope and tribe gates', () => {
     expect(RUNES.some((x) => x.id === id)).toBe(false);
     expect(r.epic).toBe(true);
     expect(r.cost).toBe(cost);
-    expect(r.sets).toEqual(['set3']);
+    expect(r.sets).toEqual(id === 'rune_festival_circuit' || id === 'rune_open_constellation' ? [] : ['set3']); // CUT FROM SET 3 2026-09-25 (owner's Set 3 rune list): offered in no set
     expect(r.tribes).toEqual(tribes);
   });
   it('the Crown rename: the sheet\'s "Rune of the Crown" ships as Rune of the Spirit Crown beside the existing Crown', () => {

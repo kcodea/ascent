@@ -34,6 +34,7 @@ export const RUNES: RuneDef[] = [
     cost: 3,
     text: '**Start of Combat:** give your **right-most** minion **Ward** and **triple its Health**.',
     reward: { kind: 'combatFlag', flag: 'runeWarding' },
+    sets: ['set1', 'set2'], // CUT FROM SET 3 (owner 2026-09-25: not on the owner's Set 3 rune list)
   },
   {
     id: 'rune_structure',
@@ -53,6 +54,7 @@ export const RUNES: RuneDef[] = [
     cost: 3,
     text: 'When you kill **5 enemies**, get a minion of your **most common type**.',
     reward: { kind: 'combatFlag', flag: 'runeSlaying' },
+    sets: ['set1', 'set2'], // CUT FROM SET 3 (owner 2026-09-25: not on the owner's Set 3 rune list)
   },
   {
     // Cross-currency smuggling: each turn, the first Ruby pays an Ale and the first Ale pays a Ruby.
@@ -134,8 +136,11 @@ export const RUNES: RuneDef[] = [
     id: 'rune_scale',
     name: 'Rune of Bulk Order',   // the owner re-confirmed Bulk Order over the sheet's "Scale" (2026-07-31)
     cost: 5,
-    text: 'Every **5 Gold** you spend, give **3 random allies +3/+3**.',
-    reward: { kind: 'runeScale', count: 3, attack: 3, health: 3, per: 5 },
+    // Owner rework 2026-09-25: "When you spend 10 gold, give 4 friendly minions +4/+4." Was every 5 Gold, 3
+    // random allies +3/+3. Still a running counter that banks the remainder across turns (the `per` contract),
+    // 4 random friendly minions per payout, or every one of them when fewer are on the board.
+    text: 'Every **10 Gold** you spend, give **4 random friendly minions +4/+4**.',
+    reward: { kind: 'runeScale', count: 4, attack: 4, health: 4, per: 10 },
   },
   {
     // Shares Runic Refrain's EoT primitive — a COPY to hand, not a recast (that is Rune of Recurrence).
@@ -184,6 +189,7 @@ export const RUNES: RuneDef[] = [
     // every future roll inherits it, not just the row on screen.
     text: 'Whenever you cast a **Shop Spell**, give minions in the **Shop +1/+1**.',
     reward: { kind: 'runeThreshold', meter: 'spellCast', per: 1, buff: { target: 'shop', attack: 1, health: 1 } },
+    sets: ['set1', 'set2'], // CUT FROM SET 3 (owner 2026-09-25: not on the owner's Set 3 rune list)
   },
   {
     id: 'rune_showcase',
@@ -220,6 +226,7 @@ export const RUNES: RuneDef[] = [
     cost: 4,
     text: 'Minions summoned in **combat** have **+5/+5** and **Taunt**.', // owner rework 2026-08-03 (was Echo-only); +5/+5 owner balance 2026-09-23 (was +3/+3)
     reward: { kind: 'combatFlag', flag: 'runeHatchery' },
+    sets: ['set1', 'set2'], // CUT FROM SET 3 (owner 2026-09-25: not on the owner's Set 3 rune list)
   },
   {
     // Reworked 2026-08-06 (owner): first TWO Rubies each turn double, 2 Rubies per turn, and buying it pays
@@ -260,6 +267,7 @@ export const RUNES: RuneDef[] = [
     cost: 3,
     text: '**Avenge (4):** gain **3 Gold** next turn.', // balance 9/23: Avenge (4) (was 5; owner 2026-08-11 had moved it 4 -> 5)
     reward: { kind: 'combatFlag', flag: 'runeBloodAndCoin', amount: 3 },
+    sets: ['set1', 'set2'], // CUT FROM SET 3 (owner 2026-09-25: not on the owner's Set 3 rune list)
   },
   {
     // A COMBAT-SUMMON trigger whose payoff lands in the Shop: the badge pulses on every friendly summon, and the
@@ -271,6 +279,7 @@ export const RUNES: RuneDef[] = [
     cost: 5,
     text: 'When you summon a minion in combat, give minions in the **Shop +3/+4** permanently.',
     reward: { kind: 'combatFlag', flag: 'runeReinvestment', amount: 1 },
+    sets: ['set1', 'set2'], // CUT FROM SET 3 (owner 2026-09-25: not on the owner's Set 3 rune list)
   },
   {
     id: 'rune_hunting_bell',
@@ -296,6 +305,7 @@ export const RUNES: RuneDef[] = [
     cost: 3,
     text: 'Your **first Rally** each combat triggers your **left-most Shout**.',
     reward: { kind: 'combatFlag', flag: 'runeWarChorus' },
+    sets: ['set1', 'set2'], // CUT FROM SET 3 (owner 2026-09-25: not on the owner's Set 3 rune list)
   },
   {
     // Owner add 2026-08-02. A cheap tempo rune for spell builds: the shop-buff cast pays twice.
@@ -333,7 +343,10 @@ export const RUNES: RuneDef[] = [
     id: 'rune_action',
     name: 'Rune of Action',
     cost: 5, // owner balance 2026-08-11
-    text: '**End of Turn:** give your **three left-most minions +1/+1** for each card you played this turn.',
+    // Owner rework 2026-09-25: "End of Turn: Give 3 random minions +2/+2. Repeat for every card played this turn."
+    // The REPEAT form (R-REPEAT-01): the base tick once, then one more per card played, each its own tick and
+    // beat, the 3 friendly targets re-rolled per tick. Was the LUMP-ish "three left-most +1/+1 per card played".
+    text: '**End of Turn:** give **3 random friendly minions +2/+2**. Repeat for every card played this turn.',
     reward: { kind: 'recurringEndOfTurn', effect: 'runeAction' },
   },
   {
@@ -413,6 +426,7 @@ export const RUNES: RuneDef[] = [
     cost: 3,
     text: 'Get **7 Gold** immediately.',
     reward: { kind: 'gainGold', amount: 7, immediate: true },
+    sets: ['set1', 'set2'], // CUT FROM SET 3 (owner 2026-09-25: not on the owner's Set 3 rune list)
   },
   {
     // Balance 9/23 (rune reworks A): a Quick Study SPELL + a Gold Font NOW, and the same pair again next turn
@@ -434,6 +448,7 @@ export const RUNES: RuneDef[] = [
     cost: 3, // owner balance 2026-08-11
     text: '**In 2 turns:** **Discover** a **Tier 7** minion. Repeats every **2 turns**.', // balance 9/23 (was 3 turns)
     reward: { kind: 'runeSummit' },
+    sets: ['set1', 'set2'], // CUT FROM SET 3 (owner 2026-09-25: not on the owner's Set 3 rune list)
   },
   {
     id: 'rune_scout',
@@ -467,6 +482,7 @@ export const RUNES: RuneDef[] = [
     cost: 2,
     text: 'When you summon a minion in combat, give it **+2/+1** and improve this permanently.',
     reward: { kind: 'combatFlag', flag: 'runePackcraft' },
+    sets: ['set1', 'set2'], // CUT FROM SET 3 (owner 2026-09-25: not on the owner's Set 3 rune list)
   },
   {
     id: 'rune_salvage',
@@ -496,6 +512,7 @@ export const RUNES: RuneDef[] = [
     cost: 1, // balance 9/23 (was 3)
     text: '**Start of Combat:** give a random friendly minion **Rebirth**.',
     reward: { kind: 'combatFlag', flag: 'runeRebirth' },
+    sets: ['set1', 'set2'], // CUT FROM SET 3 (owner 2026-09-25: not on the owner's Set 3 rune list)
   },
   {
     id: 'rune_tempering',
@@ -527,6 +544,7 @@ export const RUNES: RuneDef[] = [
     cost: 3, // owner balance 2026-08-07
     text: 'Get a copy of the first minion you **kill** in combat.',
     reward: { kind: 'combatFlag', flag: 'runeTrophy' },
+    sets: ['set1', 'set2'], // CUT FROM SET 3 (owner 2026-09-25: not on the owner's Set 3 rune list)
   },
   // ── the 2026-08-07 owner batch (16 Basic runes) ──
   {
@@ -542,6 +560,7 @@ export const RUNES: RuneDef[] = [
     cost: 2,
     text: 'When you reach **Shop Tier 5**, gain **10 Gold**.',
     reward: { kind: 'runeVault' },
+    sets: ['set1', 'set2'], // CUT FROM SET 3 (owner 2026-09-25: not on the owner's Set 3 rune list)
   },
   {
     // Immediate, destructive on purpose: the whole board cashes out at a premium. The sell goes through the
@@ -551,6 +570,7 @@ export const RUNES: RuneDef[] = [
     cost: 3, // balance 9/23 (was 1)
     text: 'Sell your **entire board**. Gain **3 Gold** for each minion sold.',
     reward: { kind: 'runeAltar', goldPer: 3 },
+    sets: ['set1', 'set2'], // CUT FROM SET 3 (owner 2026-09-25: not on the owner's Set 3 rune list)
   },
   {
     id: 'rune_lorekeeping',
@@ -567,6 +587,7 @@ export const RUNES: RuneDef[] = [
     cost: 3,
     text: 'Shop spells that **give stats** cost **2 less**.',
     reward: { kind: 'runeThrift' },
+    sets: ['set1', 'set2'], // CUT FROM SET 3 (owner 2026-09-25: not on the owner's Set 3 rune list)
   },
   {
     id: 'rune_engraving',
@@ -587,6 +608,7 @@ export const RUNES: RuneDef[] = [
     cost: 4,
     text: 'Minions in the **Shop** have **+2/+2**. Improves every **4 refreshes**.',
     reward: { kind: 'shopAuraGrowing', attack: 2, health: 2, step: 2, per: 4 },
+    sets: ['set1', 'set2'], // CUT FROM SET 3 (owner 2026-09-25: not on the owner's Set 3 rune list)
   },
   {
     id: 'rune_flagship',
@@ -612,6 +634,7 @@ export const RUNES: RuneDef[] = [
     cost: 4,
     text: '**Start of Combat:** double the stats of your **two lowest-Attack** minions.',
     reward: { kind: 'combatFlag', flag: 'runeUnderdog' },
+    sets: ['set1', 'set2'], // CUT FROM SET 3 (owner 2026-09-25: not on the owner's Set 3 rune list)
   },
   {
     id: 'rune_top_hat',
@@ -623,6 +646,7 @@ export const RUNES: RuneDef[] = [
       { kind: 'grant', randomTier: 2, randomCount: 2 },
       { kind: 'grant', randomTier: 3, randomCount: 2 },
     ] },
+    sets: ['set1', 'set2'], // CUT FROM SET 3 (owner 2026-09-25: not on the owner's Set 3 rune list)
   },
   {
     id: 'rune_evolution',
@@ -630,6 +654,7 @@ export const RUNES: RuneDef[] = [
     cost: 3,
     text: 'Transform your minions into random **Tier 4** minions.',
     reward: { kind: 'runeEvolution', tier: 4 },
+    sets: ['set1', 'set2'], // CUT FROM SET 3 (owner 2026-09-25: not on the owner's Set 3 rune list)
   },
   {
     id: 'rune_transcription',
@@ -644,6 +669,7 @@ export const RUNES: RuneDef[] = [
     cost: 3, // balance 9/23 (was 2)
     text: 'In **2 turns**, gain **10 Gold**.',
     reward: { kind: 'runeTreasureMap', turns: 2, gold: 10 },
+    sets: ['set1', 'set2'], // CUT FROM SET 3 (owner 2026-09-25: not on the owner's Set 3 rune list)
   },
   {
     id: 'rune_golden_splinter',
@@ -660,6 +686,7 @@ export const RUNES: RuneDef[] = [
     cost: 2, // owner balance 2026-08-11
     text: 'When you **Consume 2 minions**, get a random **Shop spell**.', // balance 9/23: 3 → 2
     reward: { kind: 'runeThreshold', meter: 'consume', per: 2, grantSpell: 1 },
+    sets: ['set1', 'set2'], // CUT FROM SET 3 (owner 2026-09-25: not on the owner's Set 3 rune list)
   },
   {
     // Balance 9/23: the FIRST Ruby cast each turn pays 3 Gold NOW (`grantGold` + `oncePerTurn`; was 5 Rubies in a
@@ -671,7 +698,7 @@ export const RUNES: RuneDef[] = [
     text: 'When you cast a **Ruby**, gain **3 Gold**. (Once per turn.)',
     previewCards: ['ruby'],
     reward: { kind: 'runeThreshold', meter: 'castRuby', per: 1, grantGold: 3, oncePerTurn: true },
-    sets: ['set2', 'set3'], // Rubies // + set3 2026-09-14 (rune roster handoff: mechanically compatible carryover)
+    sets: ['set2'], // CUT FROM SET 3 (owner 2026-09-25: not on the owner's Set 3 rune list)
   },
   {
     id: 'rune_carrion_coin',
@@ -690,6 +717,7 @@ export const RUNES: RuneDef[] = [
     cost: 4,
     text: '**End of Turn:** give a minion of **each type +5/+4**.',
     reward: { kind: 'runeFiveBanners' },
+    sets: ['set1', 'set2'], // CUT FROM SET 3 (owner 2026-09-25: not on the owner's Set 3 rune list)
   },
   {
     id: 'rune_shared_pour',
@@ -706,6 +734,7 @@ export const RUNES: RuneDef[] = [
     cost: 3, // balance 9/23 (was 4)
     text: 'The first minion you **sell** each turn gives **half its stats** to the **right-most** minion in the current **Shop**.', // owner 2026-08-11
     reward: { kind: 'runeAftermarket' },
+    sets: ['set1', 'set2'], // CUT FROM SET 3 (owner 2026-09-25: not on the owner's Set 3 rune list)
   },
   {
     // Balance 9/23: a `shout` THRESHOLD (was the first Dragon Shout each turn → a Shop spell). CROSS-PHASE like
@@ -801,7 +830,7 @@ export const RUNES: RuneDef[] = [
     text: 'After you play **5 cards**, cast a **Ruby** on your minions.',
     previewCards: ['ruby'],
     reward: { kind: 'runeThreshold', meter: 'cardsPlayed', per: 5, rubyAll: true },
-    sets: ['set2', 'set3'], // + set3 2026-09-14 (rune roster handoff: mechanically compatible carryover)
+    sets: ['set2'], // CUT FROM SET 3 (owner 2026-09-25: not on the owner's Set 3 rune list)
   },
   {
     id: 'rune_open_appetite',
@@ -864,6 +893,7 @@ export const RUNES: RuneDef[] = [
     cost: 2, // balance 9/23 (was 3)
     text: '**Start of Turn:** get a random minion from a type you **do not control**.',
     reward: { kind: 'runeStrangeCaravan' },
+    sets: ['set1', 'set2'], // CUT FROM SET 3 (owner 2026-09-25: not on the owner's Set 3 rune list)
   },
   {
     // Owner rework 2026-09-23: hands over a Rope Wrangler (the End-of-Turn Lasso caster) and pays your board
@@ -882,6 +912,7 @@ export const RUNES: RuneDef[] = [
     cost: 2, // balance 9/23 (was 3)
     text: 'The first minion you **buy** each turn refills its Shop slot with a minion of the same **Tier** that costs **2 Gold**.',
     reward: { kind: 'runeRestocking' },
+    sets: ['set1', 'set2'], // CUT FROM SET 3 (owner 2026-09-25: not on the owner's Set 3 rune list)
   },
   {
     id: 'rune_trade_in',
@@ -889,6 +920,7 @@ export const RUNES: RuneDef[] = [
     cost: 1, // balance 9/23 (was 2)
     text: 'After you **sell** your first minion each turn, your next minion of that **type** costs **1 less**.',
     reward: { kind: 'runeTradeIn' },
+    sets: ['set1', 'set2'], // CUT FROM SET 3 (owner 2026-09-25: not on the owner's Set 3 rune list)
   },
   {
     id: 'rune_window_shopping',
@@ -896,6 +928,7 @@ export const RUNES: RuneDef[] = [
     cost: 3,
     text: 'Your first **3 Refreshes** each turn are **free**.',
     reward: { kind: 'runeWindowShopping' },
+    sets: ['set1', 'set2'], // CUT FROM SET 3 (owner 2026-09-25: not on the owner's Set 3 rune list)
   },
   {
     id: 'rune_fresh_pages',
@@ -954,7 +987,7 @@ export const RUNES: RuneDef[] = [
     text: 'Get a **Resonance Idol**.',
     previewCards: ['k_resonance'],
     reward: { kind: 'grant', cards: ['k_resonance'] },
-    sets: ['set2', 'set3'], // + set3 2026-09-14 (rune roster handoff: mechanically compatible carryover)
+    sets: ['set2'], // CUT FROM SET 3 (owner 2026-09-25: not on the owner's Set 3 rune list)
   },
   {
     id: 'rune_basic_dwarf',
@@ -1010,6 +1043,7 @@ export const RUNES: RuneDef[] = [
     text: 'Get a **Hoardflame**. Repeat every **Start of Turn**. They cast **twice** from hand.',
     previewCards: ['hoardflame'],
     reward: { kind: 'multi', rewards: [{ kind: 'recurringGrant', cards: ['hoardflame'] }, { kind: 'runeSpellDouble', spellId: 'hoardflame' }] },
+    sets: ['set1', 'set2'], // CUT FROM SET 3 (owner 2026-09-25: not on the owner's Set 3 rune list)
   },
   {
     // Owner add 2026-09-17, ALL sets (no `sets` scope). The Hoardflame shape: a recurring spell grant plus a
@@ -1055,6 +1089,7 @@ export const RUNES: RuneDef[] = [
     cost: 3,
     text: '**Start of Turn:** make a random friendly minion **Tier 4 or below Gilded**.',
     reward: { kind: 'runePendant', maxTier: 4 },
+    sets: ['set1', 'set2'], // CUT FROM SET 3 (owner 2026-09-25: not on the owner's Set 3 rune list)
   },
   {
     // `scheduleRuneforge` carries the Gold, so this is one reward rather than a `multi`. `onWave` is resolved
@@ -1116,6 +1151,7 @@ export const RUNES: RuneDef[] = [
     text: 'Your **Hero Power** triggers **twice**.',
     requiresDoublePower: true,
     reward: { kind: 'runeWishbone' },
+    sets: ['set1', 'set2'], // CUT FROM SET 3 (owner 2026-09-25: not on the owner's Set 3 rune list)
   },
 
   // -- 2026-08-20 owner rune batch: BASIC --------------------------------------------------------------
@@ -1138,7 +1174,7 @@ export const RUNES: RuneDef[] = [
     cost: 5,
     text: 'Get a **Gem Sage**.',
     reward: { kind: 'grant', cards: ['k_gemsage'] },
-    sets: ['set2', 'set3'], // the Sage doubles RUBIES - dead weight in a set without them // + set3 2026-09-14 (rune roster handoff: mechanically compatible carryover)
+    sets: ['set2'], // CUT FROM SET 3 (owner 2026-09-25: not on the owner's Set 3 rune list)
   },
   {
     id: 'rune_ancient_expenditure',
@@ -1285,7 +1321,7 @@ export const RUNES: RuneDef[] = [
     cost: 4,
     text: 'Whenever your **left-most Dwarf** gains stats, give your **right-most Dwarf** the same stats.',
     reward: { kind: 'runeSharedSpoils' },
-    sets: ['set2', 'set3'], // Dwarves // + set3 2026-09-14 (rune roster handoff: mechanically compatible carryover)
+    sets: ['set2'], // CUT FROM SET 3 (owner 2026-09-25: not on the owner's Set 3 rune list)
   },
   {
     id: 'rune_heavy_payroll',
@@ -1426,7 +1462,7 @@ export const RUNES: RuneDef[] = [
     cost: 2,
     text: 'After you cast **3** spells, get a copy of one of them. (Once per turn)',
     reward: { kind: 'runeChartedSkies', at: 3 },
-    sets: ['set3'],
+    sets: [], // CUT FROM SET 3 (owner 2026-09-25: not on the owner's Set 3 rune list)
   },
   {
     // The Hoardflame shape: a named spell now + every Start of Turn (`recurringGrant` pays the first copy at once),
@@ -1588,6 +1624,7 @@ export const EPIC_RUNES: RuneDef[] = [
     epic: true,
     text: '**End of Turn:** trigger your **2 left-most Echoes**.', // owner 2026-08-19: was one
     reward: { kind: 'recurringEndOfTurn', effect: 'triggerLeftmostEcho' },
+    sets: ['set1', 'set2'], // CUT FROM SET 3 (owner 2026-09-25: not on the owner's Set 3 rune list)
   },
   // ── Batch 3: combat runes (Start of Combat + Avenge) ──
   {
@@ -1628,6 +1665,7 @@ export const EPIC_RUNES: RuneDef[] = [
     epic: true,
     text: '**Avenge (3):** improve your Shop spells by **+1/+1**.',
     reward: { kind: 'combatFlag', flag: 'runeAppraisal' },
+    sets: ['set1', 'set2'], // CUT FROM SET 3 (owner 2026-09-25: not on the owner's Set 3 rune list)
   },
   // ── Batch 4: grant runes (existing cards + a Gilded-grant option) ──
   {
@@ -1659,7 +1697,7 @@ export const EPIC_RUNES: RuneDef[] = [
     text: 'The first **Shop spell** you cast each turn gives your **Rubies +1/+1**. The first **Ruby** you cast gives your **Shop spells +1/+1**.',
     previewCards: ['ruby'], // text names it — the forge hover shows the card
     reward: { kind: 'runeGemscript' },
-    sets: ['set2', 'set3'], // Rubies // + set3 2026-09-14 (rune roster handoff: mechanically compatible carryover)
+    sets: ['set2'], // CUT FROM SET 3 (owner 2026-09-25: not on the owner's Set 3 rune list)
   },
   {
     id: 'rune_stormcalling',
@@ -1751,6 +1789,7 @@ export const EPIC_RUNES: RuneDef[] = [
     epic: true,
     text: 'When your **left-most minion dies**, your **right-most minion** gains its stats.',
     reward: { kind: 'combatFlag', flag: 'runeInheritance' },
+    sets: ['set1', 'set2'], // CUT FROM SET 3 (owner 2026-09-25: not on the owner's Set 3 rune list)
   },
   {
     // Owner sheet 2026-07-31 (was: Discover a Greater-Quest reward minion).
@@ -1818,6 +1857,7 @@ export const EPIC_RUNES: RuneDef[] = [
     epic: true,
     text: 'Get a **Goldcrafter**. Get another in **2 turns**.',
     reward: { kind: 'grant', cards: ['goldcrafter'], repeatInTurns: 2 },
+    sets: ['set1', 'set2'], // CUT FROM SET 3 (owner 2026-09-25: not on the owner's Set 3 rune list)
   },
   // ── Batch 7a additions (owner designs 2026-07-17; Rune of Mastery follows separately in 7b) ──
   {
@@ -1838,6 +1878,7 @@ export const EPIC_RUNES: RuneDef[] = [
     epic: true,
     text: '**Start of Combat:** when you have room, summon a **copy of your left-most minion**.',
     reward: { kind: 'combatFlag', flag: 'runeMirrorMarch' },
+    sets: ['set1', 'set2'], // CUT FROM SET 3 (owner 2026-09-25: not on the owner's Set 3 rune list)
   },
   {
     id: 'rune_recurrence',
@@ -1872,10 +1913,11 @@ export const EPIC_RUNES: RuneDef[] = [
     epic: true,
     text: 'The first **4** minions summoned in combat gain **Ward**.',
     reward: { kind: 'combatFlag', flag: 'runeUndertow', amount: 4 },
+    sets: ['set1', 'set2'], // CUT FROM SET 3 (owner 2026-09-25: not on the owner's Set 3 rune list)
   },
   {
     id: 'rune_mastery',
-    sets: ['set1', 'set3'], // + set3 2026-09-14 (rune roster handoff: mechanically compatible carryover)
+    sets: ['set1'], // CUT FROM SET 3 (owner 2026-09-25: not on the owner's Set 3 rune list)
     name: 'Rune of Mastery',
     cost: 7,
     epic: true,
@@ -1903,6 +1945,7 @@ export const EPIC_RUNES: RuneDef[] = [
     epic: true,
     text: 'When you **sell** a minion, give its **stats** to the **right-most Shop** minion.', // owner 2026-08-11 (was bonus stats)
     reward: { kind: 'runeLiquidation' },
+    sets: ['set1', 'set2'], // CUT FROM SET 3 (owner 2026-09-25: not on the owner's Set 3 rune list)
   },
   {
     // Owner add 2026-08-02. Balance 9/23: every 15 Gold spent IMPROVES your Rubies +1/+2 and hands over a Ruby
@@ -1915,7 +1958,7 @@ export const EPIC_RUNES: RuneDef[] = [
     text: 'When you spend **15 Gold**, improve your **Rubies +1/+2** and get a **Ruby**.',
     previewCards: ['ruby'], // text names it — the forge hover shows the card
     reward: { kind: 'runeThreshold', meter: 'gold', per: 15, grantRuby: 1, improveRuby: { attack: 1, health: 2 } },
-    sets: ['set2', 'set3'], // Rubies are a set-2 mechanic // + set3 2026-09-14 (rune roster handoff: mechanically compatible carryover)
+    sets: ['set2'], // CUT FROM SET 3 (owner 2026-09-25: not on the owner's Set 3 rune list)
   },
   {
     // Owner add 2026-08-02: a GIFT spell (not a Shop spell — see the token-gift branch in the reducer) that
@@ -2013,7 +2056,7 @@ export const EPIC_RUNES: RuneDef[] = [
     cost: 5,
     epic: true,
     text: '**Dwarven Ales** you cast from hand trigger an **additional time**.',
-    sets: ['set2', 'set3'], // + set3 2026-09-14 (rune roster handoff: mechanically compatible carryover)
+    sets: ['set2'], // CUT FROM SET 3 (owner 2026-09-25: not on the owner's Set 3 rune list)
     reward: { kind: 'aleExtraCasts', amount: 1 },
   },
   {
@@ -2063,6 +2106,7 @@ export const EPIC_RUNES: RuneDef[] = [
     epic: true,
     text: '**Start of Combat:** give your **three left-most** minions **Critical Strike** and **Ward**.',
     reward: { kind: 'combatFlag', flag: 'runeVanguard' },
+    sets: ['set1', 'set2'], // CUT FROM SET 3 (owner 2026-09-25: not on the owner's Set 3 rune list)
   },
   {
     // The Warded sibling of Pit Without End — its own latch, so holding both pays both.
@@ -2115,7 +2159,7 @@ export const EPIC_RUNES: RuneDef[] = [
     text: '**Avenge (2):** cast **2 Rubies** on each friendly **Kobold**.',
     previewCards: ['ruby'], // names Rubies — forge hover shows the live Ruby (audit 2026-08-06)
     reward: { kind: 'combatFlag', flag: 'runeGemstorm', amount: 2 },
-    sets: ['set2', 'set3'], // Rubies // + set3 2026-09-14 (rune roster handoff: mechanically compatible carryover)
+    sets: ['set2'], // CUT FROM SET 3 (owner 2026-09-25: not on the owner's Set 3 rune list)
   },
   {
     id: 'rune_shared_table',
@@ -2239,7 +2283,7 @@ export const EPIC_RUNES: RuneDef[] = [
     text: '**Rubies** you cast count as **Shop spells**, and gain your **Shop spell** bonuses.',
     previewCards: ['ruby'], // names Rubies — forge hover shows the live Ruby (audit 2026-08-06)
     reward: { kind: 'runeSpellstone' },
-    sets: ['set2', 'set3'], // Rubies // + set3 2026-09-14 (rune roster handoff: mechanically compatible carryover)
+    sets: ['set2'], // CUT FROM SET 3 (owner 2026-09-25: not on the owner's Set 3 rune list)
   },
   {
     id: 'rune_counterpoint',
@@ -2248,6 +2292,7 @@ export const EPIC_RUNES: RuneDef[] = [
     epic: true,
     text: 'When a friendly minion **dies**, your **left-most** minion **attacks immediately**.',
     reward: { kind: 'combatFlag', flag: 'runeCounterpoint' },
+    sets: ['set1', 'set2'], // CUT FROM SET 3 (owner 2026-09-25: not on the owner's Set 3 rune list)
   },
   {
     // Epic, like every other named-minion grant rune (Yazzus, Lazarus, Exgalloper, Mykel, the High King).
@@ -2277,6 +2322,7 @@ export const EPIC_RUNES: RuneDef[] = [
     epic: true,
     text: 'After you cast **6 Shop spells**, your Shop spells give an extra **+4/+4**.',
     reward: { kind: 'runeCrown', per: 6, attack: 4, health: 4 },
+    sets: ['set1', 'set2'], // CUT FROM SET 3 (owner 2026-09-25: not on the owner's Set 3 rune list)
   },
   {
     id: 'rune_lapidary',
@@ -2323,6 +2369,7 @@ export const EPIC_RUNES: RuneDef[] = [
     epic: true,
     text: 'When you **refresh**, **double** the Health of the **right-most** minion in the Shop.',
     reward: { kind: 'runeEmbers' },
+    sets: ['set1', 'set2'], // CUT FROM SET 3 (owner 2026-09-25: not on the owner's Set 3 rune list)
   },
   {
     // Owner rework 2026-08-19: was a BASIC 6-Gold rune for 3 Gold / +3 max. Promoted to Epic at 0 Gold for
@@ -2363,6 +2410,7 @@ export const EPIC_RUNES: RuneDef[] = [
     epic: true,
     text: '**Start of Combat:** give each of your minions **Health** equal to **half its Attack**.',
     reward: { kind: 'combatFlag', flag: 'runeTemperedTime' },
+    sets: ['set1', 'set2'], // CUT FROM SET 3 (owner 2026-09-25: not on the owner's Set 3 rune list)
   },
   {
     id: 'rune_savagery',
@@ -2444,7 +2492,7 @@ export const EPIC_RUNES: RuneDef[] = [
     text: 'Your **Rubies** all bounce an additional time.',
     previewCards: ['ruby'], // text names it — the forge hover shows the card
     reward: { kind: 'runeConduit' },
-    sets: ['set2', 'set3'], // Rubies // + set3 2026-09-14 (rune roster handoff: mechanically compatible carryover)
+    sets: ['set2'], // CUT FROM SET 3 (owner 2026-09-25: not on the owner's Set 3 rune list)
   },
   {
     // The Chef banks what it handed out each shop turn; this rune spends LAST turn's total as a combat Rally.
@@ -2515,6 +2563,7 @@ export const EPIC_RUNES: RuneDef[] = [
     text: 'The first **Shop spell** cast by your warband in combat triggers your left-most **Shout** and **Rally**.',
     epic: true,
     reward: { kind: 'combatFlag', flag: 'runeSharedScripture' },
+    sets: ['set1', 'set2'], // CUT FROM SET 3 (owner 2026-09-25: not on the owner's Set 3 rune list)
   },
   {
     id: 'rune_banquet_hall',
@@ -2526,6 +2575,7 @@ export const EPIC_RUNES: RuneDef[] = [
     text: 'The first minion you **buy** each turn gives its stats to **2 random** friendly minions.',
     epic: true,
     reward: { kind: 'runeBanquetHall' },
+    sets: ['set1', 'set2'], // CUT FROM SET 3 (owner 2026-09-25: not on the owner's Set 3 rune list)
   },
   {
     id: 'rune_crucible_choir',
@@ -2534,6 +2584,7 @@ export const EPIC_RUNES: RuneDef[] = [
     text: '**End of Turn:** trigger your left-most **Shout**, then your left-most **Echo**.',
     epic: true,
     reward: { kind: 'runeCrucibleChoir' },
+    sets: ['set1', 'set2'], // CUT FROM SET 3 (owner 2026-09-25: not on the owner's Set 3 rune list)
   },
 
   {
@@ -2588,7 +2639,7 @@ export const EPIC_RUNES: RuneDef[] = [
     text: 'Get a **Kobebes** with **Taunt** and **Rise**.',
     previewCards: ['k_kobabyboldies'],
     reward: { kind: 'grant', cards: ['k_kobabyboldies'], grantKeywords: ['T', 'R'] },
-    sets: ['set2', 'set3'], // + set3 2026-09-14 (rune roster handoff: mechanically compatible carryover)
+    sets: ['set2'], // CUT FROM SET 3 (owner 2026-09-25: not on the owner's Set 3 rune list)
   },
   {
     id: 'rune_herzog', // id kept (saved runs store ids); renamed Rune of Herzog → Rune of the Vaultkeeper 2026-08-12
@@ -2607,7 +2658,9 @@ export const EPIC_RUNES: RuneDef[] = [
     name: 'Rune of the Bargain Bin',
     cost: 6, // balance 9/23 (was 7)
     epic: true,
-    text: 'Your first **Refresh** each turn fills the Shop with minions that cost **1 Gold**. They sell for **0 Gold**.',
+    // Owner 2026-09-25: "the refresh should only include SHOUT minions." The binned row draws only Shout minions
+    // from the run's pool at your Tavern tier or below.
+    text: 'Your first **Refresh** each turn fills the Shop with **Shout** minions that cost **1 Gold**. They sell for **0 Gold**.',
     reward: { kind: 'runeBargainBin' },
   },
   {
@@ -2766,6 +2819,7 @@ export const EPIC_RUNES: RuneDef[] = [
     epic: true,
     text: 'Your **Shouts** trigger **2 extra times** in combat.',
     reward: { kind: 'multi', rewards: [{ kind: 'shoutRepeat', scope: 'always' }, { kind: 'shoutRepeat', scope: 'always' }] },
+    sets: ['set1', 'set2'], // CUT FROM SET 3 (owner 2026-09-25: not on the owner's Set 3 rune list)
   },
 
   // ── 2026-08-19 owner rune batch (third wave) ──────────────────────────────────────────────────────────
@@ -2867,6 +2921,7 @@ export const EPIC_RUNES: RuneDef[] = [
     epic: true,
     text: 'Get an **Echo Mimic**.',
     reward: { kind: 'grant', cards: ['n2_echomimic'] },
+    sets: ['set1', 'set2'], // CUT FROM SET 3 (owner 2026-09-25: not on the owner's Set 3 rune list)
   },
   {
     // RENAMED from the owner's "Rune of the Muster" (2026-08-20): that name is already taken by the free-refresh
@@ -2935,7 +2990,7 @@ export const EPIC_RUNES: RuneDef[] = [
     text: '**Avenge (3):** improve your **Rubies** by **+1/+1** and cast a **Ruby** on every friendly **Kobold**.',
     previewCards: ['ruby'],
     reward: { kind: 'combatFlag', flag: 'runeDeepeningVein' },
-    sets: ['set2', 'set3'], // Rubies + Kobolds // + set3 2026-09-14 (rune roster handoff: mechanically compatible carryover)
+    sets: ['set2'], // CUT FROM SET 3 (owner 2026-09-25: not on the owner's Set 3 rune list)
   },
   {
     // RENAMED from the owner's "Rune of Evolution" (2026-08-20) - Rune of Evolution already exists and is the
@@ -3135,7 +3190,7 @@ export const EPIC_RUNES: RuneDef[] = [
     text: 'After you sell **3 Revelers**, get a random **Celestial**. Your **Revelers** buff **Celestials**.',
     previewCards: ['sp3_flamereveler', 'sp3_tidereveler', 'sp3_grovereveler'],
     reward: { kind: 'runeFestivalCircuit', count: 3 },
-    sets: ['set3'],
+    sets: [], // CUT FROM SET 3 (owner 2026-09-25: not on the owner's Set 3 rune list)
   },
   {
     // RENAMED from the owner's "Rune of the Crown" (2026-09-16) — Rune of the Crown already exists (the Epic
@@ -3175,7 +3230,7 @@ export const EPIC_RUNES: RuneDef[] = [
     text: "After you **Consume** your first Starform each turn, create another Starform with the consumed Starform's stats.",
     previewCards: ['ce3_starform'], // the text names the token — the forge hover shows it
     reward: { kind: 'runeOpenConstellation' },
-    sets: ['set3'],
+    sets: [], // CUT FROM SET 3 (owner 2026-09-25: not on the owner's Set 3 rune list)
   },
   {
     // `collapseHits`: the "2 unique originals" become EVERY friendly Celestial; Nova Herald's extras still land

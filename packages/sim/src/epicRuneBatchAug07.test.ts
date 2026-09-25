@@ -36,7 +36,9 @@ describe('the 14 defs ship as specced', () => {
       const scoped = ['rune_lapidary', 'rune_gem_golem'].includes(id);
       // CUT FROM SET 3 2026-09-24 (owner): the Lapidary (named) and the Dragon/Beast runes (tribe not in set 3).
       const cutTribal = ['rune_dragonscale', 'rune_savagery', 'rune_foundry'].includes(id);
-      expect(rune(id).sets, id).toEqual(id === 'rune_lapidary' ? ['set2'] : scoped ? ['set2', 'set3'] : cutTribal ? ['set1', 'set2'] : undefined);
+      // CUT FROM SET 3 2026-09-25 (owner's Set 3 rune list): every rune of this batch the list does not name.
+      const cut0925 = ['rune_crown', 'rune_tempered_time'].includes(id);
+      expect(rune(id).sets, id).toEqual(id === 'rune_lapidary' ? ['set2'] : scoped ? ['set2', 'set3'] : cutTribal || cut0925 ? ['set1', 'set2'] : undefined);
     }
   });
 });

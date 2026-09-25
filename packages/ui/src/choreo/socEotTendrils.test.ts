@@ -137,19 +137,20 @@ describe('END OF TURN — one ribbon per recipient, from the buffer', () => {
     expect(CARD_INDEX['dw_foreman']!.tribe).toBe('dwarf'); // → `tendril-trail-dwarf`, read off the source card
   });
 
-  it('Rune of Action: each of the three leftmost gets its own rail ribbon (the rune cue), never a minion tendril', () => {
+  it('Rune of Action: each recipient of each TICK gets its own rail ribbon (the rune cue), never a minion tendril', () => {
     const ctx = presentEndOfTurn(run('set1', {
       board: [body('a', 'venom'), body('b', 'dw_brakka'), body('c', 'k_veinbreaker'), body('d', 'yazzus')],
       playedThisTurn: ['x', 'y'] as never,
       questRecurringEndOfTurn: ['runeAction'] as never,
     }));
-    expect(ctx.questTendril).toHaveBeenCalledTimes(3);
-    for (const uid of ['a', 'b', 'c']) expect(ctx.questTendril).toHaveBeenCalledWith('rune', 'rune_action', uid, expect.any(Number));
-    expect(ctx.questTendril).not.toHaveBeenCalledWith('rune', 'rune_action', 'd', expect.any(Number));
+    // THE REPEAT FORM (owner rework 2026-09-25): two cards played → the base tick plus two repeats, each its own
+    // beat, each picking 3 random friendly minions → 3 ticks × 3 ribbons, each +2/+2 (never a summed lump).
+    expect(ctx.questTendril).toHaveBeenCalledTimes(9);
+    for (const call of ctx.questTendril.mock.calls) expect(call.slice(0, 2)).toEqual(['rune', 'rune_action']);
     // The generic statGain still fires per recipient with NO minion source — the presenter's contract for a
     // rune beat (it draws nothing there; the rail ribbon above is the cue).
-    expect(ctx.statGain).toHaveBeenCalledTimes(3);
-    expect(ctx.statGain).toHaveBeenCalledWith('a', 'board', expect.any(Number), expect.any(Number), undefined);
+    expect(ctx.statGain).toHaveBeenCalledTimes(9);
+    for (const call of ctx.statGain.mock.calls) expect([call[2], call[3], call[4]]).toEqual([2, 2, undefined]);
   });
 
   it("Aevor's Tempest (hero power): each end minion gets its own heroPowerGain — the tendril from the power button", () => {

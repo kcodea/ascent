@@ -554,6 +554,14 @@ by id). Set 3's static pool is now **120 Basic / 107 Epic** (both counts
 include the set-3 originals). Full list: `docs/devlog/2026-09-24-set3-rune-cuts.md`; pinned by
 `packages/sim/src/set3RuneCuts.test.ts`.
 
+**The Set 3 rune list (owner 2026-09-25) supersedes the counts above.** The owner's list IS Set 3's Runeforge:
+**163 runes, 83 Basic / 80 Epic** (the game's rarity; the list's own Basic/Epic grouping is not applied). Every rune
+it names is in set 3; every other rune left set 3 only, keeping its other sets (an unscoped rune became
+`sets: ['set1', 'set2']`), never archived. Three set-3-only runes the list does not name (Charted Skies, the Festival
+Circuit, the Open Constellation) are now `sets: []`, offered in no set, pending an owner ruling. Full tables and the
+rarity / tribe mismatch report: `docs/devlog/2026-09-25-set3-rune-list.md`; the exact ids are pinned by
+`packages/sim/src/set3RuneList.test.ts`.
+
 **Set 3-original runes (batch 2, 2026-09-16).** Set 3 now also has runes of its own — `sets: ['set3']` alone,
 no origin scope — starting with tranche A's 24 Spirit / Celestial / Undead runes (11 Basic + 13 Epic, taking the
 set-3 static pool to **126 Basic / 111 Epic**), plus the rune-exclusive **Handy Flame** token. The two combat-side

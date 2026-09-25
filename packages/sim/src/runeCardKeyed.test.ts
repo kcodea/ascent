@@ -29,7 +29,7 @@ describe('the five defs ship as specced', () => {
       expect(rune(id).cost, `${id} cost`).toBe(cost);
       expect(!!rune(id).epic, `${id} rarity`).toBe(epic);
       // Full Measure / Mountain Trade carried into set 3 (2026-09-14); Open Appetite (Fodder) stays set-2 only.
-      expect(rune(id).sets, `${id} must be Set-2 scoped — its subject is a Set-2 card`).toEqual(id === 'rune_open_appetite' ? ['set2'] : ['set2', 'set3']);
+      expect(rune(id).sets, `${id} must be Set-2 scoped — its subject is a Set-2 card`).toEqual(id === 'rune_open_appetite' || id === 'rune_mountain_trade' ? ['set2'] : ['set2', 'set3']); // Mountain Trade CUT FROM SET 3 2026-09-25 (owner's Set 3 rune list)
     }
   });
 });

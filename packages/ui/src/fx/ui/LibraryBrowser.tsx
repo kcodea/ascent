@@ -5,9 +5,9 @@ import {
   FX_HUES, type FxHue, type FxUsage,
 } from './catalog';
 import { EMPTY_FILTER, applyFilter, groupByLook, groupByCard, type FxFilter, type FxUsageFilter, type FxCardRow } from './catalogView';
-import { effectiveTables, setBinding, bindingsJson, type BindingKind } from '../../choreo/bindings';
+import { effectiveTables, setBinding, bindingsJson, hasUnsavedBindings, type BindingKind } from '../../choreo/bindings';
 import { saveBindings, saveDef } from '../defStore';
-import { registerSavedDef } from '../fxDefs';
+import { addPendingDef, clearPendingDefs, hasPendingDefs, pendingDefs } from '../pendingDefs';
 import { importFxSound } from '../../sfx';
 import { CARD_EVENT_SLOTS } from './cardEventSlots';
 import { Card } from '../../Card';
@@ -146,12 +146,33 @@ export function LibraryBrowser({ onLoad, onDuplicate, onPreview, onClose }: Libr
     ? `${shownCards.length} result${shownCards.length === 1 ? '' : 's'} for “${filter.search.trim()}”`
     : (activeTribe ?? '');
 
-  // Re-read the table + persist to bindings.json (dev-only endpoint) after any binding write.
+  // Re-read the table after any binding write. The edit is LIVE at once (the session overlay, kept in
+  // localStorage, is what the game reads), but it is NOT written to bindings.json here: writing that file makes
+  // Vite reload the page, and one reload per tweak made a By-card pass unusable (owner ask 2026-09-25). The
+  // edits wait for "Save all edits", which writes the file once.
   const persist = (): void => {
     setBindVersion((n) => n + 1);
-    void saveBindings(bindingsJson()).then((r) => {
-      setBindNote(r.ok ? '✓ saved to bindings.json' : `save failed — ${r.error}`);
-      window.setTimeout(() => setBindNote(null), 2600);
+  };
+  // Recomputed on every table change (`bindVersion`). Cheap: two serialisations of a small JSON table, plus
+  // any imported sound defs still waiting to be written (`fx/pendingDefs.ts`).
+  const unsaved = useMemo(() => hasUnsavedBindings() || hasPendingDefs(), [bindVersion]);
+  const [saving, setSaving] = useState(false);
+  const saveAllEdits = (): void => {
+    if (saving || !(hasUnsavedBindings() || hasPendingDefs())) return;
+    setSaving(true);
+    setBindNote('saving…');
+    // Every write goes out TOGETHER: any one of them lands a file the dev server reloads on, so a sequential
+    // chain could be cut off by the first reload. Sent in parallel, all are on the wire before it arrives.
+    // A parked def is dropped only once its own write succeeds; a failed one stays for the next click.
+    const defs = pendingDefs();
+    const defWrites = defs.map((d) => saveDef(d).then((res) => { if (res.ok) clearPendingDefs([d.id]); return res; }));
+    void Promise.all([saveBindings(bindingsJson()), ...defWrites]).then((results) => {
+      setSaving(false);
+      setBindVersion((n) => n + 1);
+      const failed = results.find((x) => !x.ok);
+      // On success the dev server reloads the page — once, for the whole batch.
+      setBindNote(failed ? `save failed — ${failed.error}` : '✓ saved');
+      if (failed) window.setTimeout(() => setBindNote(null), 5000);
     });
   };
 
@@ -227,14 +248,13 @@ export function LibraryBrowser({ onLoad, onDuplicate, onPreview, onClose }: Libr
         duration: 1000,
         layers: [{ primitive: 'sound', anchor: 'travel', at: 0, params: { clip: clipId } }],
       };
-      const saved = await saveDef(def);
-      if (!saved.ok) { setBindNote(`import failed — ${saved.error}`); window.setTimeout(() => setBindNote(null), 3500); return; }
-      registerSavedDef(def);           // live this session, no reload
+      // PARKED, not written: a new file in the defs folder reloads the page, which is what made every import
+      // refresh the workbench (owner 2026-09-25). It plays this session now; "Save all edits" writes it.
+      addPendingDef(def);
       setCatalogVersion((n) => n + 1); // so knownIds / the autocomplete see the new def
       setBinding(cardId, kind, { def: defId });
-      setBindVersion((n) => n + 1);
-      void saveBindings(bindingsJson());
-      setBindNote(`✓ imported “${label}” and bound it`);
+      setBindVersion((n) => n + 1); // the binding waits for "Save all edits" like every other By-card edit
+      setBindNote(`✓ imported “${label}” and bound it (unsaved)`);
       window.setTimeout(() => setBindNote(null), 3500);
     } catch (e) {
       setBindNote(`import failed — ${(e as Error).message}`);
@@ -324,6 +344,16 @@ export function LibraryBrowser({ onLoad, onDuplicate, onPreview, onClose }: Libr
                   {s.name}
                 </button>
               ))}
+              {/* SAVE ALL EDITS (owner ask 2026-09-25): By-card edits apply live but only reach bindings.json
+                  here, in one write, so the page reloads once per batch instead of once per tweak. */}
+              <button
+                className={`fxwb-btn fxlib-saveall${unsaved ? ' dirty' : ''}`}
+                disabled={!unsaved || saving}
+                aria-label={unsaved ? 'Write every By-card edit to bindings.json (reloads the page once)' : 'Every edit is saved'}
+                onClick={saveAllEdits}
+              >
+                {saving ? 'Saving…' : unsaved ? 'Save all edits' : 'All edits saved'}
+              </button>
             </>
           ) : (
             <>
@@ -459,7 +489,7 @@ export function LibraryBrowser({ onLoad, onDuplicate, onPreview, onClose }: Libr
               <div className="fxlib-note">
                 Assign an effect (sound, visual, or a composed def with both) to a card's event. ▶ previews it,
                 ✎ opens it in the workbench editor, the box is volume (0–100%). Search by card or effect above.
-                Changes save to <code>bindings.json</code> and ship.
+                Changes apply straight away; <b>Save all edits</b> (bottom left) writes them to <code>bindings.json</code> so they ship.
                 {bindNote !== null && <span className="fxlib-bindnote"> · {bindNote}</span>}
               </div>
               <div className="fxlib-cardtribe-title">{cardTitle}</div>

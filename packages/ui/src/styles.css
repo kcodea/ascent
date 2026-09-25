@@ -9833,6 +9833,19 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
   font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em;
   color: #9a8c74; margin-top: 8px;
 }
+/* By-card "Save all edits" (owner ask 2026-09-25): big and orange while there is something to save, pinned to
+   the bottom of the facet column; greyed out once everything is in bindings.json. No cursor rule of its own —
+   the global button rule paints the gauntlet. */
+.fxlib-saveall {
+  margin-top: auto; min-height: 52px; font-size: 14px; font-weight: 900; letter-spacing: 0.03em;
+  border-radius: 10px; background: #3a332a; color: #9a8c74; border: 2px solid #4a4136;
+}
+.fxlib-saveall.dirty {
+  background: linear-gradient(180deg, #ffa53a 0%, #f07a12 100%); color: #2a1604; border-color: #ffc57a;
+  box-shadow: 0 0 0 2px rgba(240, 122, 18, 0.35), 0 6px 16px -6px rgba(240, 122, 18, 0.7);
+}
+.fxlib-saveall.dirty:hover { filter: brightness(1.08); }
+.fxlib-saveall:disabled { opacity: 0.75; }
 .fxlib-hues { display: flex; flex-wrap: wrap; gap: 5px; }
 .fxlib-hue { width: 20px; height: 20px; border-radius: 50%; border: 2px solid transparent; cursor: pointer; }
 .fxlib-hue.on { border-color: #fff; }

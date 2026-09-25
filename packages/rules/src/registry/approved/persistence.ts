@@ -360,4 +360,36 @@ export const PERSISTENCE_RULES: GameRule[] = [
       lastVerifiedAt: '2026-09-24',
     },
   },
+  // ── By-card edits reach bindings.json, once per save (owner ask 2026-09-25) ──────────────────────────────
+  {
+    id: 'R-FXSAVE-02',
+    title: 'Effect assignments made in the FX Library are saved to the game in one explicit save that always succeeds',
+    statement:
+      'Every effect or sound an author assigns to a card in the FX Library (By card) plays straight away, and '
+      + 'is written to the game\x27s bindings file only when the author presses Save all edits, together with '
+      + 'every other pending assignment and imported sound, in one write that reloads the page once. The save '
+      + 'accepts every kind of assignment the game itself can play, so a valid edit is never silently lost.',
+    domain: 'persistence',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'FX Library session, 2026-09-25', quote: 'can we not have it automatically refresh the server every time something new is added? id much rather put a "Save all edits" button in the bottom left below the Set 1,2,3 options with a big orange button' },
+      { kind: 'fix-pr', ref: 'feat/fxlib-save-all-edits (FX Library Save all edits)' },
+      { kind: 'code', ref: 'apps/web/fxDefsPlugin.ts BINDING_FAN_OUTS; packages/ui/src/fx/ui/LibraryBrowser.tsx saveAllEdits; packages/ui/src/fx/pendingDefs.ts; packages/ui/src/choreo/bindings.ts hasUnsavedBindings' },
+    ],
+    currentBehaviour:
+      'Conforms as of 2026-09-25. Before, every By-card edit POSTed the whole table immediately, and the dev '
+      + 'server rejected it (400) whenever any row used the `struck` / `buffed` / `buffedOn` fan-outs, which its '
+      + 'whitelist had never learned, so no By-card edit had reached the file since those arrived; they lived only '
+      + 'in the browser\x27s session overlay. The page refresh the owner saw came from importing a sound, whose new '
+      + 'def file in the globbed defs folder reloads the page. Now edits apply live and wait; imported sound defs '
+      + 'are parked (fx/pendingDefs.ts, survives a reload); Save all edits sends every write in parallel. Pinned: '
+      + 'the committed bindings.json must pass the endpoint and its fan-out list must equal the reader\x27s '
+      + '(fxDefsPlugin.test.ts), plus the unsaved signal and the parked defs. The button itself was checked live '
+      + '(one save, one reload, the file written), not by a test.',
+    enforcement: {
+      kind: 'scenario',
+      refs: ['apps/web/fxDefsPlugin.test.ts', 'packages/ui/src/choreo/unsavedBindings.test.ts', 'packages/ui/src/fx/pendingDefs.test.ts'],
+      lastVerifiedAt: '2026-09-25',
+    },
+  },
 ];

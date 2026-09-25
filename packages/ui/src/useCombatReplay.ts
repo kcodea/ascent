@@ -745,6 +745,10 @@ export interface CombatReplay {
   shaking: boolean;
   critShaking: boolean;
   beatCount: number;
+  /** The replay's event order (presentation order, the one `processedEnd` indexes) and its cursor: everything
+   *  before `processedEnd` is on screen. The announcer's in-fight moments fold through it. */
+  replayEvents: CombatEvent[];
+  processedEnd: number;
   /** Enemy minions killed so far in the replay (up to the current beat) — drives Cassen's live counter. */
   enemyDeaths: number;
   /** Run-buff gains telegraphed so far this fight (spell power, max Gold) — drives the live Buffs window. */
@@ -3327,7 +3331,7 @@ export function useCombatReplay(
     watcherPulseUids: watcherPulse,
     framePulseUids: framePulse,
     done, result: combat ? combat.result : null, shaking, critShaking,
-    beatCount: beats.length, enemyDeaths, combatBuffs, combatPreviews, questDelta, triggeredQuests, completedQuests, skip: () => { setBeatIdx(beats.length); setEndNonce((n) => n + 1); },
+    beatCount: beats.length, replayEvents: events, processedEnd, enemyDeaths, combatBuffs, combatPreviews, questDelta, triggeredQuests, completedQuests, skip: () => { setBeatIdx(beats.length); setEndNonce((n) => n + 1); },
     // Clamped here rather than at the call site: an out-of-range seek from a stale moment list (the fight
     // was re-staged while the harness still showed the old one) must land somewhere valid, not wedge the
     // replay past its end. The outer `max` also floors the no-combat case (`beats.length === 0`, where the

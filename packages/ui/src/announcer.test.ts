@@ -12,14 +12,14 @@
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { CARD_INDEX } from '@game/content';
-import { ALE_IDS, type CardDef, type Tribe } from '@game/core';
+import { ALE_IDS, type CardDef, type CombatEvent, type MinionSnapshot, type Tribe } from '@game/core';
 import {
   __setAnnouncerDepsForTests, ANNOUNCER_BACK_TO_SHOP_DELAY_MS, ANNOUNCER_BIG_STAT, ANNOUNCER_COMBAT_SILENCE_MS, ANNOUNCER_COOLDOWN_MS,
   ANNOUNCER_END_DELAY_MS, ANNOUNCER_EQUIPMENT_DELAY_MS, ANNOUNCER_FACE_OMEN_DELAY_MS, ANNOUNCER_GAME_START_DELAY_MS,
   ANNOUNCER_LINES, ANNOUNCER_PRIORITY, ANNOUNCER_RARE_CHANCE, ANNOUNCER_STOP_FADE_MS, ANNOUNCER_TIME_WARNING_SECONDS, ANNOUNCER_TURN_ONE_QUIET_MS,
   announcerDebug, announcerPick, announcerRoll, hasPair, cancelAnnouncer, getAnnouncerVolume, isAnnouncerMuted, observeCombatBoard,
   announcerExhausted, ANNOUNCER_CHANCE, ANNOUNCER_NAMED_BUYS, ANNOUNCER_RANDOM_BUY_GAP_WAVES, ANNOUNCER_RANDOM_BUY_MAX, observeTurnClock, previewAnnouncerEvent,
-  CATALOG_BATCH_1_EVENTS, isMixedBoard, isTribeFullBoard, RANDOM_BUY_EVENTS, SPECIALTY_EVENTS, type AnnouncerDeps, setAnnouncerVolume, syncAnnouncer, toggleAnnouncerMute, type AnnouncerEvent, type AnnouncerRunLike,
+  CATALOG_BATCH_1_EVENTS, CATALOG_BATCH_2_EVENTS, observeCombatMoments, type CombatReplayView, isMixedBoard, isTribeFullBoard, RANDOM_BUY_EVENTS, SPECIALTY_EVENTS, type AnnouncerDeps, setAnnouncerVolume, syncAnnouncer, toggleAnnouncerMute, type AnnouncerEvent, type AnnouncerRunLike,
   type AnnouncerStateLike,
 } from './announcer';
 import { announcedFor, emptyAnnounced, withAnnounced, type AnnouncedSlice } from './announcerSlice';
@@ -119,7 +119,7 @@ beforeEach(() => {
   __setAnnouncerDepsForTests(stubDeps());
   // The suites written before the moment catalog's first batch pin exact line sequences; they keep testing what they
   // were written for with that batch muted (its own suite below turns it back on).
-  for (const e of CATALOG_BATCH_1_EVENTS) setAnnouncerTunerValue(`${e}Chance`, 0);
+  for (const e of [...CATALOG_BATCH_1_EVENTS, ...CATALOG_BATCH_2_EVENTS]) setAnnouncerTunerValue(`${e}Chance`, 0);
 });
 function stubDeps(): Partial<AnnouncerDeps> {
   return {
@@ -1080,7 +1080,9 @@ describe('the third batch (owner 2026-09-25): new takes, TimeRunningOut, the no-
   it('the table is append-only (the new events at the end) and the priorities are the owner\'s', () => {
     const keys = Object.keys(ANNOUNCER_LINES);
     expect(keys.slice(keys.indexOf('timeRunningOut'), keys.indexOf('timeRunningOut') + 4)).toEqual(['timeRunningOut', 'buyDrakko', 'buySylus', 'castAle']);
-    expect(keys.slice(-CATALOG_BATCH_1_EVENTS.length)).toEqual([...CATALOG_BATCH_1_EVENTS]);
+    const b1 = keys.indexOf(CATALOG_BATCH_1_EVENTS[0]!);
+    expect(keys.slice(b1, b1 + CATALOG_BATCH_1_EVENTS.length)).toEqual([...CATALOG_BATCH_1_EVENTS]);
+    expect(keys.slice(-CATALOG_BATCH_2_EVENTS.length)).toEqual([...CATALOG_BATCH_2_EVENTS]);
     expect(ANNOUNCER_PRIORITY).toMatchObject({ timeRunningOut: 5, buyDrakko: 36, buySylus: 36, castAle: 16 });
     expect(Math.min(...Object.values(ANNOUNCER_PRIORITY))).toBe(5);
     expect(ANNOUNCER_TIME_WARNING_SECONDS).toBe(15);
@@ -1705,5 +1707,80 @@ describe('the moment catalog\'s first batch (owner 2026-09-25): ElevenLabs lines
     r = openShop();
     go({ ...r, phase: 'gameover', lobby: { seats: seats(1, 3) } });
     expect(await first(ANNOUNCER_END_DELAY_MS + 20)).toBe('game-loss');
+  });
+});
+
+describe('the moment catalog\'s second batch (owner 2026-09-25): in-fight lines "At the moment"', () => {
+  beforeEach(() => { resetAnnouncerTunerConfig(); });
+  const P = { uid: 'p1', cardId: 'x', name: 'p1', tribe: 'neutral', attack: 2, health: 2, keywords: [] } as unknown as MinionSnapshot;
+  const E = { ...P, uid: 'e1', name: 'e1' } as MinionSnapshot;
+  const log: CombatEvent[] = [
+    { type: 'attack', attacker: 'p1', defender: 'e1', swing: 1 },
+    { type: 'death', target: 'e1', side: 'enemy' },
+    { type: 'pummelTrigger', source: 'p1', side: 'player', marker: 'm' },
+  ];
+  const combat = {};
+  const view = (end: number, patch: Partial<CombatReplayView> = {}): CombatReplayView => ({
+    combat, initial: { player: [P], enemy: [E] }, events: log, end, done: false, result: 'win',
+    frame: { player: [{ uid: 'p1', attack: 2, health: 2 }, { uid: 'p2', attack: 2, health: 2 }], enemy: [] }, ...patch,
+  });
+  /** A fight on screen (the Face Omen flip), its opening silence waited out. */
+  async function fighting(): Promise<AnnouncerRunLike> {
+    const r = go({ ...openShop(), phase: 'combat' });
+    await tick(ANNOUNCER_COMBAT_SILENCE_MS);
+    return r;
+  }
+
+  it('every batch-2 event has one take, a priority and a tuner row', () => {
+    for (const e of CATALOG_BATCH_2_EVENTS) {
+      expect(ANNOUNCER_LINES[e]).toHaveLength(1);
+      expect(ANNOUNCER_PRIORITY[e]).toBeGreaterThan(0);
+      expect(ANNOUNCER_TUNER_EVENTS).toContain(e);
+    }
+  });
+  it('a moment speaks when the replay SHOWS it, not before', async () => {
+    const r = await fighting();
+    observeCombatMoments(view(1), r.wave); // the swing is shown, the death not yet
+    await tick(20);
+    expect(events()).toEqual([]);
+    observeCombatMoments(view(2), r.wave);
+    await tick(20);
+    expect(events()).toEqual(['first-blood']);
+  });
+  it('never inside the fight\'s opening silence: an early moment waits for it', async () => {
+    const r = go({ ...openShop(), phase: 'combat' });
+    observeCombatMoments(view(2), r.wave);
+    await tick(ANNOUNCER_COMBAT_SILENCE_MS - 100);
+    expect(events()).toEqual([]);
+    await tick(200);
+    expect(events()).toEqual(['first-blood']);
+  });
+  it('a re-seek back rebuilds the fold without hearing a reached moment again', async () => {
+    const r = await fighting();
+    observeCombatMoments(view(2), r.wave);
+    await tick(LINE_MS + ANNOUNCER_COOLDOWN_MS);
+    observeCombatMoments(view(0), r.wave); // seek back
+    observeCombatMoments(view(2), r.wave);
+    await tick(LINE_MS + ANNOUNCER_COOLDOWN_MS);
+    expect(events().filter((e) => e === 'first-blood')).toHaveLength(1);
+  });
+  it('a Skip silences the rest of that fight\'s in-fight lines, but the final-frame verdict still speaks', async () => {
+    const r = await fighting();
+    cancelAnnouncer('skip');
+    observeCombatMoments(view(log.length, { done: true, frame: { player: [{ uid: 'p1', attack: 2, health: 1 }], enemy: [] } }), r.wave);
+    await tick(20);
+    expect(events()).toEqual(['clutch-win']);
+    expect(dropped('firstBlood')).toBe(false); // never even queued
+  });
+  it('the next fight speaks again after a skipped one (the silence ends at the next Face Omen)', async () => {
+    let r = await fighting();
+    cancelAnnouncer('skip');
+    r = go({ ...r, combatSettled: true, history: ['win'], lastCombat: { result: 'win' } });
+    r = backToShop(r);
+    go({ ...r, phase: 'combat' });
+    await tick(ANNOUNCER_COMBAT_SILENCE_MS);
+    observeCombatMoments(view(2, { combat: {} }), r.wave);
+    await tick(20);
+    expect(events()).toContain('first-blood');
   });
 });

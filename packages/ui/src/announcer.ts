@@ -52,6 +52,8 @@ import { defIsTribe, lossDamageCap, offerBuyStats, type RunState, type ShopCard 
 import { DEFAULT_SLIDER, sliderToGain } from './audio/volumeCurve';
 import { ANNOUNCER_CHANCE, announcerEventChance, announcerEventOffset, announcerEventVolume, announcerLineGain } from './announcerConfig';
 import { isMusicWanted, MUSIC_FADE_MS, MUSIC_START_DELAY_MS, type MusicStateLike } from './music';
+import { COMBAT_MOMENT_EVENTS, finalMoments, newCombatScan, scanCombat, type CombatScan, type FrameAt, type UnitStats } from './announcerCombat';
+import type { CombatEvent, MinionSnapshot } from '@game/core';
 import {
   type AnnouncedSlice, type AnnouncerEvent, announcedFor, firedWaves, hasFired, heardTakes, UNCAPPED_EVENTS, withAnnounced,
 } from './announcerSlice';
@@ -268,6 +270,24 @@ export const ANNOUNCER_LINES: Record<AnnouncerEvent, readonly string[]> = {
   streakBroken: ['streak-broken-1'],
   tribeFullBoard: ['tribe-full-board-1'],
   mixedBoard: ['mixed-board-1'],
+  // The moment catalog's second batch (owner 2026-09-25): in-fight moments, one ElevenLabs take each.
+  firstBlood: ['first-blood-1'],
+  overkill: ['overkill-1'],
+  wardBreak: ['ward-break-1'],
+  rebirth: ['rebirth-1'],
+  riseBack: ['rise-back-1'],
+  avengeBig: ['avenge-big-1'],
+  echoChain: ['echo-chain-1'],
+  summonSwarm: ['summon-swarm-1'],
+  tauntWall: ['taunt-wall-1'],
+  flurry: ['flurry-1'],
+  pummel: ['pummel-1'],
+  lastStand: ['last-stand-1'],
+  executeKill: ['execute-kill-1'],
+  executeKing: ['execute-king-1'],
+  sameCardDuel: ['same-card-duel-1'],
+  clutchWin: ['clutch-win-1'],
+  narrowLoss: ['narrow-loss-1'],
 };
 
 /** The moment catalog's first batch (owner 2026-09-25), in ANNOUNCER_LINES order. */
@@ -276,6 +296,11 @@ export const CATALOG_BATCH_1_EVENTS: readonly AnnouncerEvent[] = [
   'allGolden', 'bigTurn', 'boardTotal', 'fullBoard', 'minionHits250', 'armorUp', 'finalShowdown', 'underdogOdds',
   'heavyFavourite', 'armorGone', 'blowoutLoss', 'oneResolve', 'stalemate', 'lobbyLast', 'firstOut', 'leaderboardTop',
   'playersRemain', 'fiveWinStreak', 'losingStreak', 'streakBroken', 'tribeFullBoard', 'mixedBoard',
+];
+/** The moment catalog's second batch (owner 2026-09-25): the in-fight moments (`announcerCombat.ts`) plus the two
+ *  final-frame verdicts, in ANNOUNCER_LINES order. */
+export const CATALOG_BATCH_2_EVENTS: readonly AnnouncerEvent[] = [
+  ...COMBAT_MOMENT_EVENTS, 'clutchWin', 'narrowLoss',
 ];
 
 /** Higher speaks first when several are pending at once. */
@@ -351,6 +376,25 @@ export const ANNOUNCER_PRIORITY: Record<AnnouncerEvent, number> = {
   fullBoard: 17,
   roundMilestone: 13,
   brokeTurn: 8,
+  // The second batch (owner 2026-09-25), proposed the same way. In-fight lines sit mid-table: a verdict or a
+  // standings line still outranks them when they land together.
+  clutchWin: 69,
+  narrowLoss: 61,
+  lastStand: 59,
+  executeKing: 54,
+  wardBreak: 51,
+  overkill: 39,
+  sameCardDuel: 37,
+  flurry: 33,
+  executeKill: 33,
+  echoChain: 31,
+  avengeBig: 30,
+  summonSwarm: 29,
+  rebirth: 27,
+  tauntWall: 25,
+  pummel: 24,
+  riseBack: 21,
+  firstBlood: 15,
 };
 
 /** When a pending line goes stale: 'shop' lines when combat starts, 'combat' lines when the next shop opens. */
@@ -622,6 +666,13 @@ let bigStatSeenThisCombat = false;
 let hugeStatSeenThisCombat = false;
 /** UnderdogOdds / HeavyFavourite: the wave whose pre-fight odds were already weighed (the probe lands once). */
 let oddsCheckedWave = -1;
+/** The in-fight fold (`announcerCombat.ts`) for the fight on screen, keyed by that fight's identity. */
+let combatScan: { key: object; scan: CombatScan } | null = null;
+/** A Skip mid-fight silences the rest of that fight's in-fight lines (the skipped replay jumps to the end, and
+ *  the lines it passed must not all queue at once). Reset by the next Face Omen. */
+let combatSilenced = false;
+/** The fight whose final frame was already weighed for ClutchWin / NarrowLoss. */
+let finalChecked: object | null = null;
 /** TimeRunningOut: the wave whose clock already crossed ANNOUNCER_TIME_WARNING_SECONDS (once per Shop turn). */
 let timeWarningWave = -1;
 /** SPECIALTY lines: detections so far this game (a dropped one retries, at most its take count). In memory, like
@@ -800,6 +851,7 @@ function speak(line: PendingLine): void {
 /** Cancel the queue and the playing line at once (a Skip, leaving the run). */
 export function cancelAnnouncer(why = 'cancel'): void {
   clearPump();
+  if (why === 'skip' && combatStartedAt !== null) combatSilenced = true;
   for (const p of pending) note('cancel', p.event, { why });
   pending = [];
   if (playing) {
@@ -1011,6 +1063,9 @@ function enterRun(s: AnnouncerStateLike): void {
   bigStatSeenThisCombat = false;
   hugeStatSeenThisCombat = false;
   oddsCheckedWave = -1;
+  combatScan = null;
+  combatSilenced = false;
+  finalChecked = null;
   timeWarningWave = -1;
   specialtyTries = new Map();
   tribeBuys = { wave: -1, byTribe: new Map(), all: 0 };
@@ -1078,6 +1133,9 @@ export function syncAnnouncer(s: AnnouncerStateLike, prev: AnnouncerStateLike | 
       enqueue({ event: 'enteringCombat', shelf: 'combat', notBefore: at, wave: run.wave });
     }
     hugeStatSeenThisCombat = false;
+    combatScan = null;
+    combatSilenced = false;
+    finalChecked = null;
     // FinalShowdown: the last fight of the game, two players standing (the player one of them).
     if (run.lobby && playerAlive(run) && aliveSeats(run) === 2 && !hasFired(slice, 'finalShowdown')) {
       enqueue({ event: 'finalShowdown', shelf: 'combat', notBefore: at, wave: run.wave });
@@ -1314,6 +1372,43 @@ export function observeCombatBoard(units: readonly { attack: number; health: num
   }
 }
 
+/** What the combat replay hands in as it advances (Recruit, on every beat): the fight's identity, its opening
+ *  boards, the replay's event order and cursor (`processedEnd`: everything before it is on screen), the live frame
+ *  and, for WardBreak, the frame at any event index. */
+export interface CombatReplayView {
+  combat: object | null | undefined;
+  initial: { player: readonly MinionSnapshot[]; enemy: readonly MinionSnapshot[] } | null | undefined;
+  events: readonly CombatEvent[];
+  end: number;
+  done: boolean;
+  result: string | null | undefined;
+  frame: { player: readonly UnitStats[]; enemy: readonly UnitStats[] };
+  frameAt?: FrameAt;
+}
+
+/** THE IN-FIGHT MOMENTS (the moment catalog's second batch, owner 2026-09-25: "At the moment"): each line queues
+ *  when the replay SHOWS its moment, on the combat shelf, never inside the first ANNOUNCER_COMBAT_SILENCE_MS of the
+ *  fight. The fold is cumulative through the cursor, so a re-seek back rebuilds it (the moments this fight already
+ *  reached stay reached) and nothing counts twice. After a Skip the fight's remaining in-fight lines stay silent;
+ *  the final-frame verdicts (ClutchWin / NarrowLoss) still speak, like the other verdict lines. */
+export function observeCombatMoments(v: CombatReplayView, wave: number): void {
+  if (!active || !slice || combatStartedAt === null || !v.combat || !v.initial) return;
+  if (!combatScan || combatScan.key !== v.combat || v.end < combatScan.scan.cursor) {
+    const reached = combatScan?.key === v.combat ? combatScan.scan.fired : null;
+    combatScan = { key: v.combat, scan: newCombatScan(v.initial) };
+    if (reached) for (const m of reached) combatScan.scan.fired.add(m);
+  }
+  const found = scanCombat(combatScan.scan, v.events, v.end, v.frameAt);
+  const at = Math.max(deps.now(), combatStartedAt + ANNOUNCER_COMBAT_SILENCE_MS);
+  if (!combatSilenced) {
+    for (const event of found) if (!hasFired(slice, event)) enqueue({ event, shelf: 'combat', notBefore: at, wave });
+  }
+  if (v.done && finalChecked !== v.combat) {
+    finalChecked = v.combat;
+    for (const event of finalMoments(v.result, v.frame)) if (!hasFired(slice, event)) enqueue({ event, shelf: 'combat', notBefore: at, wave });
+  }
+}
+
 /** THE SHOP CLOCK (owner 2026-09-25, the "Low on time" lines): Recruit's countdown hands in every tick of a REAL
  *  timer (never the tutorial's or the God-rules sandbox's effectively infinite one; the gate already keeps the
  *  announcer out of both). EVERY Shop turn whose clock ticks down to ANNOUNCER_TIME_WARNING_SECONDS (15 s; owner:
@@ -1392,6 +1487,9 @@ export function resetAnnouncerForTests(): void {
   bigStatSeenThisCombat = false;
   hugeStatSeenThisCombat = false;
   oddsCheckedWave = -1;
+  combatScan = null;
+  combatSilenced = false;
+  finalChecked = null;
   timeWarningWave = -1;
   specialtyTries = new Map();
   tribeBuys = { wave: -1, byTribe: new Map(), all: 0 };

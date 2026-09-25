@@ -82,7 +82,25 @@ export type AnnouncerEvent =
   | 'losingStreak'
   | 'streakBroken'
   | 'tribeFullBoard'
-  | 'mixedBoard';
+  | 'mixedBoard'
+  // The moment catalog's second batch (owner 2026-09-25): in-fight moments, spoken as the replay shows them.
+  | 'firstBlood'
+  | 'overkill'
+  | 'wardBreak'
+  | 'rebirth'
+  | 'riseBack'
+  | 'avengeBig'
+  | 'echoChain'
+  | 'summonSwarm'
+  | 'tauntWall'
+  | 'flurry'
+  | 'pummel'
+  | 'lastStand'
+  | 'executeKill'
+  | 'executeKing'
+  | 'sameCardDuel'
+  | 'clutchWin'
+  | 'narrowLoss';
 
 export interface AnnouncedSlice {
   seed: number;

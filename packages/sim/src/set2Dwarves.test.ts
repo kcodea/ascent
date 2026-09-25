@@ -682,7 +682,7 @@ describe('the run-wide Ale multiplier (Bottomless Cellar / Rune of the Bottomles
     const r = [...RUNES, ...EPIC_RUNES].find((x) => x.id === 'rune_bottomless_cask')!;
     expect((q.reward as { kind: string }).kind).toBe('aleExtraCasts');
     expect((r.reward as { kind: string }).kind).toBe('aleExtraCasts');
-    expect(r.sets).toEqual(['set2', 'set3']); // + set3 2026-09-14 (rune roster carryover)
+    expect(r.sets).toEqual(['set2']); // CUT FROM SET 3 2026-09-25 (owner's Set 3 rune list)
   });
 });
 

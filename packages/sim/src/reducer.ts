@@ -417,10 +417,17 @@ function diedLastCombat(s: RunState): string[] {
   return out;
 }
 
-/** Rune of the Bargain Bin: replace every minion offer with a random minion priced at 1 Gold that sells for 0
+/** Rune of the Bargain Bin's draw pool (owner 2026-09-25: "the refresh should only include SHOUT minions"): the
+ *  run's buyable SHOUT minions at the Tavern tier or below. Empty (no Shout minion reachable yet) → the refresh
+ *  stays an ordinary one and the rune's use for the turn is NOT spent, so a later refresh can still bin. */
+function bargainBinPool(s: RunState): CardDef[] {
+  return poolOf(s).buyable.filter((c) => !c.spell && !c.ruby && c.tier <= s.tier && hasBattlecry(c));
+}
+
+/** Rune of the Bargain Bin: replace every minion offer with a random SHOUT minion priced at 1 Gold that sells for 0
  *  (the `sellZero` marker rides onto the bought minion as `sellOverride`). Spell/Ruby offers are left as-is. */
 function fillBargainBin(s: RunState): void {
-  const pool = poolOf(s).buyable.filter((c) => !c.spell && !c.ruby && c.tier <= s.tier);
+  const pool = bargainBinPool(s);
   if (pool.length === 0) return;
   const rng = makeRng(s.rngCursor);
   s.shop = s.shop.map((o) => {
@@ -2523,7 +2530,7 @@ function reduceCore(state: RunState, action: Action): RunState {
       starformRefreshTick(s);
       // Rune of the Bargain Bin: the FIRST refresh each turn fills the row with 1-Gold minions that sell for 0
       // — one binned refresh per copy held (owner 2026-08-27, unique-engine doubling).
-      if (s.runeBargainBin && gateUses(s.bargainBinUsedThisTurn) < runeStacksOf(s, 'rune_bargain_bin')) { s.bargainBinUsedThisTurn = gateUses(s.bargainBinUsedThisTurn) + 1; procRuneId(s, 'rune_bargain_bin'); fillBargainBin(s); }
+      if (s.runeBargainBin && gateUses(s.bargainBinUsedThisTurn) < runeStacksOf(s, 'rune_bargain_bin') && bargainBinPool(s).length > 0) { s.bargainBinUsedThisTurn = gateUses(s.bargainBinUsedThisTurn) + 1; procRuneId(s, 'rune_bargain_bin'); fillBargainBin(s); }
       // Set 2 — tell the board a refresh happened (Hellrider counts them). Fired AFTER `refreshTavern`, so a
       // watcher that eats a Shop minion sees the NEW row rather than the one that just rolled away.
       applyShopRefreshed(s);

@@ -565,12 +565,14 @@ describe('Basic runes — moved-in effects (Rallying / Scale / Action)', () => {
     expect(next.hand.some((c) => c.cardId === 'alley')).toBe(true);
   });
 
-  it('Rune of Action: End of Turn gives the THREE leftmost minions +1/+1 per card played this turn', () => {
+  it('Rune of Action: End of Turn gives 3 random friendly minions +2/+2, repeated for every card played this turn', () => {
+    // Owner rework 2026-09-25 (the REPEAT form): 3 cards played → 4 ticks × 3 picks × +2/+2 = +24/+24 in total.
     const s: RunState = { ...createRun(1, 'warden'), wave: 3, phase: 'recruit', questRecurringEndOfTurn: ['runeAction'],
       playedThisTurn: ['x', 'y', 'z'], board: [mkAlley('a'), mkAlley('b'), mkAlley('c'), mkAlley('d')] };
     applyEndOfTurn(s);
-    expect(s.board.slice(0, 3).map((c) => [c.attack, c.health])).toEqual([[4, 4], [4, 4], [4, 4]]); // +3/+3 each
-    expect([s.board[3]!.attack, s.board[3]!.health]).toEqual([1, 1]); // 4th untouched
+    const gained = s.board.reduce((n, c) => n + (c.attack - 1), 0);
+    expect(gained).toBe(24);
+    expect(s.board.every((c) => c.attack === c.health && (c.attack - 1) % 2 === 0)).toBe(true);
   });
 
   it('recruit telegraph: quest/rune recurring EoT rewards get a projected step + labeled beat (Rune of Action)', () => {
@@ -578,11 +580,13 @@ describe('Basic runes — moved-in effects (Rallying / Scale / Action)', () => {
       playedThisTurn: ['x', 'y', 'z'], board: [mkAlley('a'), mkAlley('b'), mkAlley('c'), mkAlley('d')] };
     const { steps } = projectEndOfTurnSteps(s);
     const beats = questEndOfTurnBeats(s);
-    // No warband EoT minions here, so the ONLY step is the rune's — and it must match the real applyEndOfTurn.
-    expect(beats).toEqual([{ effect: 'runeAction', label: 'Rune of Action' }]);
-    expect(steps).toHaveLength(1);
-    expect(steps[0]!['a']).toEqual({ attack: 4, health: 4 }); // leftmost climbs on the rune's own beat
-    expect(steps[0]!['d']).toEqual({ attack: 1, health: 1 }); // 4th untouched, matching applyEndOfTurn
+    // No warband EoT minions here, so the ONLY steps are the rune's: ONE PER TICK (the REPEAT form, owner
+    // 2026-09-25) — the base plus one per card played — and the last must match the real applyEndOfTurn.
+    expect(beats).toEqual(Array.from({ length: 4 }, () => ({ effect: 'runeAction', label: 'Rune of Action' })));
+    expect(steps).toHaveLength(4);
+    const committed = structuredClone(s);
+    applyEndOfTurn(committed);
+    for (const c of committed.board) expect(steps[3]![c.uid]).toEqual({ attack: c.attack, health: c.health });
   });
 
   // Per-z FX itemization (owner ruling 2026-07-17): "+x/+y per z" EoT rewards project one sourceless FX

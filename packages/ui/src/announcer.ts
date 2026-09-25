@@ -47,9 +47,9 @@
  * line carries the level. Lines never overlap each other.
  */
 import { CARD_INDEX } from '@game/content';
-import { ALE_IDS, type Tribe } from '@game/core';
+import { ALE_IDS, TRIBES, type Tribe } from '@game/core';
 import {
-  boardIntel, chooseBothActive, chooseBothStateOf, CONFIG, defIsTribe, lossDamageCap, offerBuyStats, playerOpponent, type PreparedBoard, type RunLobby,
+  boardIntel, chooseBothActive, chooseBothStateOf, CONFIG, defIsTribe, lossDamageCap, offerBuyStats, pairRunLobby, playerOpponent, type PreparedBoard, type RunLobby,
   type RunState, type ShopCard,
 } from '@game/sim';
 import { runeTally } from './runeTally';
@@ -229,6 +229,42 @@ export const ANNOUNCER_BATCH_3_RUNES = { resonance: 'rune_resonance', happyBirth
 /** TribeBuyLines / MirrorMatch: the tribe the one approved take names ("Another Kobold for the hoard.", "Kobold
  *  against Kobold!"). The other tribes speak once they have takes of their own. */
 export const ANNOUNCER_TAKE_TRIBE: Tribe = 'kobold';
+// ── The moment catalog's group D (owner 2026-09-25): KEYED takes ──────────────────────────────────────────────
+// These moments want a line PER HERO or PER TRIBE ("Brackus. A king takes the field.", "Kobolds everywhere!"). Each
+// moment's takes are keyed by the hero id / tribe; a moment only speaks when its key has a take (or the moment has a
+// GENERIC take that reads right for any key). A new take drops in by adding it to its key's list here (and the file
+// to apps/web/public/announcer/): the event's ANNOUNCER_LINES row is built from these maps, so nothing else changes.
+// Today each moment has exactly ONE approved take, and each one names its hero / tribe, so each key map has one entry
+// and no generic take: the other heroes / tribes stay silent until their lines are recorded.
+export interface KeyedTakes<K extends string> {
+  /** Per key (a hero id, a tribe): the takes that name it. */
+  byKey: Readonly<Partial<Record<K, readonly string[]>>>;
+  /** Takes that read right for ANY key: the fallback when a key has none of its own. Empty = a key without its own
+   *  takes stays silent. */
+  generic: readonly string[];
+}
+/** HeroPick: the picked hero, by HERO ID. */
+export const HERO_PICK_TAKES: KeyedTakes<string> = { byKey: { brackus: ['hero-pick-1'] }, generic: [] }; // "Brackus. A king takes the field."
+/** OpponentHero: the hero of the seat the player is about to fight, by HERO ID. */
+export const OPPONENT_HERO_TAKES: KeyedTakes<string> = { byKey: { midas: ['opponent-hero-1'] }, generic: [] }; // "Midas and his Gold again."
+/** TribeTakeover: the tribe with 5+ minions on the board. */
+export const TRIBE_TAKEOVER_TAKES: KeyedTakes<Tribe> = { byKey: { kobold: ['tribe-takeover-1'] }, generic: [] }; // "Kobolds everywhere!"
+/** TribeSurge: the Practice tribe surge (`practiceConfig.tribeSurge`). */
+export const TRIBE_SURGE_TAKES: KeyedTakes<Tribe> = { byKey: { dragon: ['tribe-surge-1'] }, generic: [] }; // "Dragons are surging this game."
+/** The takes a keyed moment may speak for `key`: its own, else the generic ones (none = the moment stays silent). */
+export function keyedTakes<K extends string>(t: KeyedTakes<K>, key: K | null | undefined): readonly string[] {
+  const own = key ? t.byKey[key] : undefined;
+  return own && own.length ? own : t.generic;
+}
+/** Every take of a keyed moment (its ANNOUNCER_LINES row): each key's, then the generic ones. */
+const allKeyedTakes = <K extends string>(t: KeyedTakes<K>): readonly string[] =>
+  [...(Object.values(t.byKey) as (readonly string[])[]).flat(), ...t.generic];
+/** TribeTakeover: this many minions of one tribe on the board. */
+export const ANNOUNCER_TRIBE_TAKEOVER = 5;
+/** TribeSurge: said on the return to this wave's Shop (the first return), so the game's GameStart welcome still
+ *  speaks at the first Shop. */
+export const ANNOUNCER_TRIBE_SURGE_WAVE = 2;
+
 /** The Announcer slider's storage key. `.v2` since the default-mix curve (owner 2026-09-24): the stored value is a
  *  SLIDER position that `sliderToGain('announcer', …)` turns into the gain, so the old `ascent.announcervol` (a raw
  *  gain) is no longer read and every player starts once on the new default, the 50 mark (= the owner's 0.7 gain). */
@@ -374,6 +410,12 @@ export const ANNOUNCER_LINES: Record<AnnouncerEvent, readonly string[]> = {
   yazzusDouble: ['yazzus-double-1'],
   seasonalRune: ['seasonal-rune-1'],
   // ── end of the third batch ──
+  // ── The moment catalog's group D (owner 2026-09-25): keyed takes, built from the maps above. ──
+  heroPick: allKeyedTakes(HERO_PICK_TAKES),
+  opponentHero: allKeyedTakes(OPPONENT_HERO_TAKES),
+  tribeTakeover: allKeyedTakes(TRIBE_TAKEOVER_TAKES),
+  tribeSurge: allKeyedTakes(TRIBE_SURGE_TAKES),
+  rankUp: ['rank-up-1'], // "Promoted!": generic, any promotion
 };
 
 /** The moment catalog's first batch (owner 2026-09-25), in ANNOUNCER_LINES order. */
@@ -398,6 +440,8 @@ export const CATALOG_BATCH_3_EVENTS: readonly AnnouncerEvent[] = [
   'streakStopper', 'resumeGame', 'darkRuby', 'discoDanChain', 'floRida', 'goldilox', 'gemheartGolem', 'greatPot',
   'rippleResonance', 'starformCollapse', 'yazzusDouble', 'seasonalRune',
 ];
+/** The moment catalog's group D (owner 2026-09-25): the per-hero / per-tribe moments, in ANNOUNCER_LINES order. */
+export const CATALOG_BATCH_4_EVENTS: readonly AnnouncerEvent[] = ['heroPick', 'opponentHero', 'tribeTakeover', 'tribeSurge', 'rankUp'];
 
 /** Higher speaks first when several are pending at once. */
 export const ANNOUNCER_PRIORITY: Record<AnnouncerEvent, number> = {
@@ -531,6 +575,12 @@ export const ANNOUNCER_PRIORITY: Record<AnnouncerEvent, number> = {
   idle: 7,
   timeUp: 6, // just above TimeRunningOut (5), which it replaces at 0
   // ── end of the third batch ──
+  // ── The moment catalog's group D (owner 2026-09-25). PROPOSED by Claude, beside the nearest live moment. ──
+  rankUp: 95, // under the end lines: GameWon / SecondPlace / GameLoss speak first, then "Promoted!"
+  tribeTakeover: 29, // between Triple (30) and TribeFour (28)
+  opponentHero: 21, // just over EnteringCombat (20), under every Face Omen warning
+  heroPick: 16, // over GameStart (15): a picked hero with its own line replaces the generic welcome
+  tribeSurge: 14, // with Round7, over BackToShop (10), which stays unfired and may speak on a later return
 };
 
 /** When a pending line goes stale: 'shop' lines when combat starts, 'combat' lines when the next shop opens. */
@@ -570,12 +620,18 @@ export interface AnnouncerRunLike {
   spellsThisTurn?: number | undefined;
   playedThisTurn?: readonly string[] | undefined;
   lastCombat?: { result: string; enemyDamage?: number | undefined; playerDeaths?: number | undefined } | undefined;
+  /** The player's hero (HeroPick). */
+  heroId?: string | undefined;
+  /** The Practice setup (TribeSurge reads its surge). */
+  practiceConfig?: { tribeSurge?: string | null | undefined } | undefined;
   lobby?: {
     round?: number | undefined;
     seats: readonly {
       id?: string | undefined; alive: boolean; placement?: number | undefined; eliminatedRound?: number | undefined;
       /** LobbyLast / LeaderboardTop compare it across the standing seats. */
       resolve?: number | undefined;
+      /** OpponentHero reads the foe seat's hero. */
+      heroId?: string | undefined;
     }[];
     encounters?: readonly {
       round: number; a: string; b: string; damageToA: number; damageToB: number; bye?: string | undefined;
@@ -621,6 +677,8 @@ export interface AnnouncerStateLike extends MusicStateLike {
   /** The run's state-changing action log (appended in the same store update as the run). The third batch reads the
    *  actions an update added: a Refresh, a rune pick / skip / re-roll, a hero power, a card played. */
   replayActions?: readonly AnnouncerActionLike[] | undefined;
+  /** The confirmed medal-rank result of the run just finished (RankUp), null until the server settles it. */
+  rankResult?: { runId: string; promoted: boolean } | null | undefined;
 }
 
 /** The pure gate: the same as the music's (lobby / practice on screen, no sandbox, no replay, no title). */
@@ -816,6 +874,8 @@ interface PendingLine {
   rollIndex?: number;
   /** Skip the chance roll (a tier 6 Discover always speaks), unless the event's chance is 0 (muted). */
   certain?: boolean;
+  /** A KEYED moment (group D): only these of the event's takes may play (the hero's / the tribe's). */
+  takes?: readonly string[];
 }
 export type AnnouncerLogKind = 'queue' | 'play' | 'drop' | 'expire' | 'cancel' | 'end';
 export interface AnnouncerLogEntry { t: number; kind: AnnouncerLogKind; event: AnnouncerEvent; file?: string; why?: string }
@@ -880,6 +940,8 @@ const freshBatch3Tallies = (): void => {
   combatFoe = null;
   golemsSeenThisCombat = false;
 };
+/** RankUp: when the end-of-game line was queued to speak (RankUp never goes before it); null before the end. */
+let endLineAt: number | null = null;
 const log: AnnouncerLogEntry[] = [];
 
 function note(kind: AnnouncerLogKind, event: AnnouncerEvent, extra: { file?: string; why?: string } = {}): void {
@@ -930,9 +992,9 @@ function clipUrl(file: string): string {
 const isTerminal = (e: AnnouncerEvent): boolean => UNCAPPED_EVENTS.includes(e);
 
 /** The takes of `event` not yet heard this game (the no-repeat bag). */
-function unheardTakes(s: AnnouncedSlice, event: AnnouncerEvent): readonly string[] {
+function unheardTakes(s: AnnouncedSlice, event: AnnouncerEvent, only?: readonly string[]): readonly string[] {
   const heard = new Set(heardTakes(s, event));
-  return ANNOUNCER_LINES[event].filter((t) => !heard.has(t));
+  return (only ?? ANNOUNCER_LINES[event]).filter((t) => !heard.has(t));
 }
 /** Every take heard, and the event does not reshuffle: silent for the rest of the game. */
 export function announcerExhausted(s: AnnouncedSlice, event: AnnouncerEvent): boolean {
@@ -950,6 +1012,8 @@ function enqueue(line: PendingLine): void {
   if (!active) return;
   if (pending.some((p) => p.event === line.event)) return;
   if (slice && announcerExhausted(slice, line.event)) return; // the no-repeat rule: nothing left to say
+  // A keyed moment (group D): nothing left to say for THIS hero / tribe.
+  if (line.takes && (!line.takes.length || (slice && unheardTakes(slice, line.event, line.takes).length === 0))) return;
   if (slice && !chanceAllows(slice, line.event, line.wave, line.rollIndex ?? 0, line.certain)) return;
   // The Announcer dev tuner's per-event TIMING OFFSET (owner 2026-09-24; 0 in prod unless baked). Added to the
   // event's built-in delay; a negative one fires earlier but never before the moment was detected (now). Only
@@ -1012,10 +1076,10 @@ function speak(line: PendingLine): void {
   const s = slice;
   if (!s || !mark) return;
   // THE NO-REPEAT BAG: a random take from those not heard this game; a reusable bag reshuffles when empty.
-  const fresh = unheardTakes(s, line.event);
+  const fresh = unheardTakes(s, line.event, line.takes);
   const reshuffle = fresh.length === 0;
   if (reshuffle && !REUSABLE_BAG_EVENTS.includes(line.event)) { note('drop', line.event, { why: 'every take heard' }); return; }
-  const bag = reshuffle ? ANNOUNCER_LINES[line.event] : fresh;
+  const bag = reshuffle ? line.takes ?? ANNOUNCER_LINES[line.event] : fresh;
   const file = bag[announcerPick(bag.length)]!;
   const token = ++playToken;
   playing = { event: line.event, token, handle: null };
@@ -1271,6 +1335,7 @@ function enterRun(s: AnnouncerStateLike, prev: AnnouncerStateLike | null): void 
   specialtyTries = new Map();
   tribeBuys = { wave: -1, byTribe: new Map(), all: 0 };
   freshBatch3Tallies();
+  endLineAt = null;
   if (enteredAtWaveOne && !hasFired(slice!, 'gameStart')) {
     enqueue({ event: 'gameStart', shelf: 'shop', notBefore: runEnteredAt + ANNOUNCER_GAME_START_DELAY_MS, wave: 1 });
   }
@@ -1281,6 +1346,13 @@ function enterRun(s: AnnouncerStateLike, prev: AnnouncerStateLike | null): void 
       event: 'resumeGame', shelf: s.run.phase === 'combat' ? 'combat' : 'shop', notBefore: runEnteredAt + ANNOUNCER_GAME_START_DELAY_MS,
       wave: s.run.wave,
     });
+  }
+  // HERO PICK (group D): the pick screen is gated off (the hero picker is pre-run), and the pick is what puts the run
+  // on screen, so the run LANDING at wave 1 is the pick. Queued with GameStart at the same time and above it: a hero
+  // with its own line replaces the generic welcome (GameStart is dropped, outranked); any other hero hears GameStart.
+  const pickTakes = keyedTakes(HERO_PICK_TAKES, s.run.heroId);
+  if (enteredAtWaveOne && pickTakes.length && !hasFired(slice!, 'heroPick')) {
+    enqueue({ event: 'heroPick', shelf: 'shop', notBefore: runEnteredAt + ANNOUNCER_GAME_START_DELAY_MS, wave: 1, takes: pickTakes });
   }
 }
 
@@ -1321,6 +1393,14 @@ export function syncAnnouncer(s: AnnouncerStateLike, prev: AnnouncerStateLike | 
       enqueue({ event: 'heavyFavourite', shelf: 'combat', notBefore: at, wave: run.wave });
     }
   }
+  // RANK UP (group D): the rank screen sits inside the run's gate (the run is over, still on screen), and the server's
+  // confirmed result lands on its own store update, after the end line was queued. A promotion speaks after that
+  // line (never before it: `endLineAt`), bypassing the cooldown so it follows straight on; it never expires but a
+  // Continue off the screen (leaving the run) cancels it.
+  if ((run.phase === 'gameover' || run.phase === 'victory') && s.rankResult?.promoted && s.rankResult !== prev?.rankResult
+    && !hasFired(slice, 'rankUp')) {
+    enqueue({ event: 'rankUp', shelf: 'never', notBefore: Math.max(deps.now(), endLineAt ?? 0), wave: run.wave, bypassCooldown: true });
+  }
   const p = prev?.run;
   if (!p || p === run || p.seed !== run.seed) return;
   const now = deps.now();
@@ -1357,6 +1437,7 @@ export function syncAnnouncer(s: AnnouncerStateLike, prev: AnnouncerStateLike | 
       enqueue({ event: 'brokeTurn', shelf: 'combat', notBefore: at, wave: run.wave });
     }
     detectFaceOmenBatch3(slice, p, run, at);
+    detectOpponentHero(run, at);
     return;
   }
   if (p.phase === 'combat' && run.phase === 'combat' && !p.combatSettled && run.combatSettled) {
@@ -1445,6 +1526,7 @@ export function syncAnnouncer(s: AnnouncerStateLike, prev: AnnouncerStateLike | 
     if (!hasFired(slice, 'gameWon') && !hasFired(slice, 'gameLoss') && !hasFired(slice, 'secondPlace')) {
       enqueue({ event, shelf: 'never', notBefore: now + ANNOUNCER_END_DELAY_MS, wave: run.wave });
     }
+    endLineAt = now + ANNOUNCER_END_DELAY_MS;
     return;
   }
 
@@ -1536,6 +1618,7 @@ function detectReturn(s: AnnouncedSlice, p: AnnouncerRunLike, run: AnnouncerRunL
     enqueue({ event: 'roundMilestone', shelf: 'shop', notBefore: at, wave: w });
   }
   detectArmorUp(s, p, run, at);
+  detectTribeSurge(s, run, at);
 }
 
 function detectArmorUp(s: AnnouncedSlice, p: AnnouncerRunLike, run: AnnouncerRunLike, at: number): void {
@@ -1574,6 +1657,7 @@ function detectShopTurn(s: AnnouncedSlice, p: AnnouncerRunLike, run: AnnouncerRu
     if (ANNOUNCER_BOARD_TOTALS.some((t) => before < t && after >= t) && repeatAllowed(s, 'boardTotal', w, ANNOUNCER_BOARD_TOTALS.length, 0)) q('boardTotal');
     if (!isTribeFullBoard(p) && isTribeFullBoard(run) && !hasFired(s, 'tribeFullBoard')) q('tribeFullBoard');
     if (!isMixedBoard(p) && isMixedBoard(run) && !hasFired(s, 'mixedBoard')) q('mixedBoard');
+    detectTribeTakeover(p, run, now);
   }
   detectArmorUp(s, p, run, now);
 }
@@ -1813,6 +1897,62 @@ function detectShopBatch3(
   detectAnyPhaseBatch3(s, p, run, now, 'shop');
 }
 // ── end of the third batch's detectors ──
+// ── The moment catalog's group D's detectors (owner 2026-09-25): keyed takes ─────────────────────────────────
+/** TribeTakeover: minions of each tribe on the board (a dual-tribe minion counts for both, an All-tribe minion for
+ *  every tribe). */
+export function boardTribeCounts(r: AnnouncerRunLike): Map<Tribe, number> {
+  const counts = new Map<Tribe, number>();
+  let all = 0;
+  for (const c of r.board) {
+    for (const t of tribesOf(c.cardId)) {
+      if (t === 'all') all++;
+      else counts.set(t, (counts.get(t) ?? 0) + 1);
+    }
+  }
+  if (all) for (const t of TRIBES) if (t !== 'neutral') counts.set(t, (counts.get(t) ?? 0) + all);
+  return counts;
+}
+/** TribeTakeover: a tribe reaches ANNOUNCER_TRIBE_TAKEOVER on the board (it was under it before this update) and has a
+ *  take not heard yet. Once per tribe (the keyed no-repeat bag), so a second tribe's takeover may speak later. */
+function detectTribeTakeover(p: AnnouncerRunLike, run: AnnouncerRunLike, now: number): void {
+  const before = boardTribeCounts(p);
+  for (const [tribe, n] of boardTribeCounts(run)) {
+    if (n < ANNOUNCER_TRIBE_TAKEOVER || (before.get(tribe) ?? 0) >= ANNOUNCER_TRIBE_TAKEOVER) continue;
+    const takes = keyedTakes(TRIBE_TAKEOVER_TAKES, tribe);
+    if (!takes.length || (slice && unheardTakes(slice, 'tribeTakeover', takes).length === 0)) continue;
+    enqueue({ event: 'tribeTakeover', shelf: 'shop', notBefore: now, wave: run.wave, takes });
+    return;
+  }
+}
+/** OpponentHero: the hero of the seat the player is about to fight, from the round's pairing (the same pairing the
+ *  NOW FACING wipe reads, without preparing the foe's board). Null for the bye (a ghost fight), outside a lobby, or
+ *  on a lobby the pairing cannot read. */
+export function foeHeroId(r: AnnouncerRunLike): string | null {
+  if (!r.lobby) return null;
+  try {
+    const { pairs } = pairRunLobby(r.lobby as unknown as RunLobby);
+    const pair = pairs.find(([a, b]) => a.id === 's0' || b.id === 's0');
+    if (!pair) return null;
+    return (pair[0].id === 's0' ? pair[1] : pair[0]).heroId ?? null;
+  } catch {
+    return null;
+  }
+}
+/** OpponentHero at the Face Omen: once per foe hero with a take (the keyed no-repeat bag). */
+function detectOpponentHero(run: AnnouncerRunLike, at: number): void {
+  // No generic take and no standing foe with a take of its own: skip the pairing entirely (the common case).
+  if (!OPPONENT_HERO_TAKES.generic.length
+    && !run.lobby?.seats.some((x) => x.id !== 's0' && x.alive && !!x.heroId && !!OPPONENT_HERO_TAKES.byKey[x.heroId]?.length)) return;
+  const takes = keyedTakes(OPPONENT_HERO_TAKES, foeHeroId(run));
+  if (takes.length) enqueue({ event: 'opponentHero', shelf: 'combat', notBefore: at, wave: run.wave, takes });
+}
+/** TribeSurge: a Practice game with a tribe surge, on the return to the ANNOUNCER_TRIBE_SURGE_WAVE Shop. */
+function detectTribeSurge(s: AnnouncedSlice, run: AnnouncerRunLike, at: number): void {
+  const surge = run.practiceConfig?.tribeSurge as Tribe | null | undefined;
+  if (run.wave !== ANNOUNCER_TRIBE_SURGE_WAVE || !surge || hasFired(s, 'tribeSurge')) return;
+  const takes = keyedTakes(TRIBE_SURGE_TAKES, surge);
+  if (takes.length) enqueue({ event: 'tribeSurge', shelf: 'shop', notBefore: at, wave: run.wave, takes });
+}
 
 /** The combat replay's PLAYER units at the current beat (Recruit hands them in per frame): MinionHits100Stats and
  *  MinionHits250 during a fight. Ghost / enemy boards are never passed. Each once per fight, only while the fight is on. */
@@ -1969,6 +2109,7 @@ export function resetAnnouncerForTests(): void {
   specialtyTries = new Map();
   tribeBuys = { wave: -1, byTribe: new Map(), all: 0 };
   freshBatch3Tallies();
+  endLineAt = null;
   log.length = 0;
 }
 

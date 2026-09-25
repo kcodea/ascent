@@ -139,8 +139,14 @@ export type AnnouncerEvent =
   | 'rippleResonance'
   | 'starformCollapse'
   | 'yazzusDouble'
-  | 'seasonalRune';
+  | 'seasonalRune'
   // ── end of the third batch ──
+  // ── The moment catalog's group D (owner 2026-09-25): the per-hero / per-tribe moments, KEYED takes. ──
+  | 'heroPick'
+  | 'opponentHero'
+  | 'tribeTakeover'
+  | 'tribeSurge'
+  | 'rankUp';
 
 export interface AnnouncedSlice {
   seed: number;
@@ -162,8 +168,9 @@ export function announcedFor(slice: AnnouncedSlice | null | undefined, seed: num
   return slice;
 }
 
-/** The end-of-game lines (GameWon, SecondPlace, GameLoss) never expire and wait out the cooldown. */
-export const UNCAPPED_EVENTS: readonly AnnouncerEvent[] = ['gameWon', 'gameLoss', 'secondPlace'];
+/** The end-of-game lines (GameWon, SecondPlace, GameLoss, and RankUp on the rank screen after them) never expire
+ *  and wait out the cooldown. */
+export const UNCAPPED_EVENTS: readonly AnnouncerEvent[] = ['gameWon', 'gameLoss', 'secondPlace', 'rankUp'];
 
 /** Pure: the slice after `event` spoke at `wave`, playing `take` (when given). `reshuffle` empties the event's
  *  bag first: the events allowed to repeat a take once every take has been heard (see `announcer.ts`). */

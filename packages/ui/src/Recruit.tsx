@@ -52,7 +52,7 @@ import { RuneforgeDialog } from './runeforgeEntrance/RuneforgeDialog';
 import { RuneLockIn, type RuneLockInCard } from './RuneLockIn';
 import { captureRuneLockIn } from './runeLockInCapture';
 import { getRuneLockInConfig, stretchLockIn } from './runeLockInConfig';
-import { combatGains } from './combatGains';
+import { FightRecap } from './FightRecap';
 import { instView, liveCardText, type LiveTextParams } from './instView';
 import { diffHandBuffs, fireHandBuff, fireHandBuffOnHandSpells, fireHandBuffOnHandRubies } from './handBuffFx';
 import { HudBar } from './HudBar';
@@ -2229,7 +2229,6 @@ export function Recruit() {
     win.__runeLockIn = (slow) => lockInDemoRef.current?.(slow);
     return () => { delete (window as unknown as { __runeLockIn?: (slow?: number) => void }).__runeLockIn; };
   }, []); // the Runeforge overlay is minimized (inspect the board behind it)
-  const [logTab, setLogTab] = useState<'gains' | 'procs' | 'log'>('gains'); // Permanent gains · Procs · blow-by-blow log
   // Per-card stat snapshot (attack + health) for the recruit-phase buff flash (declared up here so the
   // combat→recruit transition can re-sync it and avoid a spurious flash on the way back in).
   const prevStatsRef = useRef<Map<string, { a: number; h: number }>>(new Map());
@@ -2546,13 +2545,14 @@ export function Recruit() {
   // A board-covering modal is open (Discover / Choose One / a quest or runeforge offer / a scouted board).
   useEffect(() => {
     // A minimized Discover / Quest overlay leaves the board visible, so it doesn't count as covering.
-    const modalCovering = !overlaysHeld && ((run.discover && !discoverMin && !discoverDeathHold) || (run.questOffer && !questMin) || run.powerOffer || (run.runeforgeOffer && !forgeMin) || run.chooseOne || (run.scoutedNextOpponent?.length ?? 0) > 0);
+    const modalCovering = showLog || (!overlaysHeld && ((run.discover && !discoverMin && !discoverDeathHold) || (run.questOffer && !questMin) || run.powerOffer || (run.runeforgeOffer && !forgeMin) || run.chooseOne || (run.scoutedNextOpponent?.length ?? 0) > 0));
+    // The Fight Recap counts too (2026-09-24): without it the hand + hero panels painted OVER its scrim.
     // The hero portrait / pills / power diamond live OUTSIDE the overlay's backdrop root (their own fixed
     // stacking contexts), so the overlay's backdrop-filter can't blur them — mark the body and let CSS blur
     // + dim them to match the rest of the covered board (owner report 2026-07-16). One-shot filter change.
     document.body.classList.toggle('modalup', !!modalCovering);
     return () => document.body.classList.remove('modalup');
-  }, [run.discover, run.chooseOne, discoverMin, run.questOffer, run.powerOffer, questMin, run.runeforgeOffer, forgeMin, overlaysHeld, discoverDeathHold]);
+  }, [run.discover, run.chooseOne, discoverMin, run.questOffer, run.powerOffer, questMin, run.runeforgeOffer, forgeMin, overlaysHeld, discoverDeathHold, showLog]);
   // B2: each Discover opens expanded — reset the minimized flag whenever the pending Discover changes.
   useEffect(() => { setDiscoverMin(false); }, [run.discover]);
   // Each quest offer opens expanded too — reset the minimized flag when the offer changes.
@@ -6924,8 +6924,13 @@ export function Recruit() {
   applyDropRef.current = applyDrop;
   // STABLE HANDLERS for the memoized subtrees (perf 2026-09-16). Each one used to be an inline arrow in the
   // JSX — a new function every render, which is exactly what defeats a `React.memo` child.
-  const openSummary = useCallback((): void => { setLogTab('gains'); setShowLog(true); }, []);
+  const openSummary = useCallback((): void => setShowLog(true), []);
   const closeLog = useCallback((): void => setShowLog(false), []);
+  // WATCH REPLAY (fight recap, 2026-09-24): close the recap and run THIS fight's replay again from its first
+  // moment. The board is a pure fold of (initial, events, upto), so a seek to 0 is the same replay the player
+  // just watched. Offered only once the fight has SETTLED (the recap passes it through only then), so the
+  // post-fight settle and the damage strike can never run a second time.
+  const watchReplay = useCallback((): void => { setShowLog(false); replayRef.current.seekTo(0); }, []);
   const onFreeze = useCallback((): void => dispatch({ type: 'freeze' }), [dispatch]);
   const onRefresh = useCallback((): void => dispatch({ type: 'roll' }), [dispatch]);
   const onUpgrade = useCallback((): void => dispatch({ type: 'upgrade' }), [dispatch]);
@@ -7267,8 +7272,9 @@ export function Recruit() {
 
       <PerfProfiler id="render:recruit:overlays">
       <CombatLogOverlay
-        showLog={showLog} result={replay.result} combatOdds={combatOdds} logTab={logTab} setLogTab={setLogTab}
-        lastCombat={run.lastCombat} procs={replay.procs} fullLog={replay.fullLog} onClose={closeLog}
+        showLog={showLog} result={replay.result} combatOdds={combatOdds} lastCombat={run.lastCombat}
+        lobby={run.lobby} board={run.board} wave={run.wave} mode={run.mode} procs={replay.procs} fullLog={replay.fullLog}
+        onWatchReplay={run.combatSettled ? watchReplay : undefined} onClose={closeLog}
       />
 
       <ChooseOneOverlay overlaysHeld={overlaysHeld} run={run} spellBonus={spellBonus} spellBonusH={spellBonusH} dispatch={dispatch} captureCoalesce={captureCoalesce} />
@@ -8429,83 +8435,21 @@ const DragOverlay = memo(function DragOverlay({ timeUp, heroArmed, equipArmed, h
   );
 });
 
-/** The post-combat Combat Summary overlay. Memoized so that, while it is closed (the whole shop phase), a
- *  Recruit render costs it a handful of prop compares and nothing else. */
-const CombatLogOverlay = memo(function CombatLogOverlay({ showLog, result, combatOdds, logTab, setLogTab, lastCombat, procs, fullLog, onClose }: {
-  showLog: boolean; result: 'win' | 'lose' | 'draw' | null; combatOdds: CombatOdds | null; logTab: 'gains' | 'procs' | 'log';
-  setLogTab: (t: 'gains' | 'procs' | 'log') => void; lastCombat: RunState['lastCombat']; procs: ReturnType<typeof useCombatReplay>['procs'];
-  fullLog: ReturnType<typeof useCombatReplay>['fullLog']; onClose: () => void;
+/** The post-combat FIGHT RECAP (owner redesign 2026-09-24; was the "Combat Summary"). Memoized so that, while it
+ *  is closed (the whole shop phase), a Recruit render costs it a handful of prop compares and nothing else; the
+ *  recap itself (FightRecap.tsx) only mounts while open. */
+const CombatLogOverlay = memo(function CombatLogOverlay({ showLog, result, combatOdds, lastCombat, lobby, board, wave, mode, procs, fullLog, onWatchReplay, onClose }: {
+  showLog: boolean; result: 'win' | 'lose' | 'draw' | null; combatOdds: CombatOdds | null; lastCombat: RunState['lastCombat'];
+  lobby: RunState['lobby']; board: RunState['board']; wave: number; mode: RunState['mode'];
+  procs: ReturnType<typeof useCombatReplay>['procs']; fullLog: ReturnType<typeof useCombatReplay>['fullLog'];
+  onWatchReplay?: () => void; onClose: () => void;
 }) {
+  if (!showLog) return null;
   return (
-    <>
-      {showLog && (
-        <div className="logov" role="dialog" aria-label="Combat log" onClick={onClose}>
-          <div className="logbox" onClick={(e) => e.stopPropagation()}>
-            <div className="logtitle">
-              Combat Summary <span className={`logverdict ${result ?? ''}`}>{result === 'win' ? 'Victory' : result === 'lose' ? 'Defeat' : 'Draw'}</span>
-            </div>
-            {combatOdds && (
-              <div
-                className="logodds"
-                aria-label="Estimated from repeated simulations of this matchup. The actual result was one roll of these odds."
-              >
-                <div className="oddscap gtip" data-tip="Estimated from repeated simulations of this matchup. The actual result was one roll of these odds.">Outcome odds</div>
-                <div className="oddsbar">
-                  <span className="ob win" style={{ width: `${combatOdds.win * 100}%` }} />
-                  <span className="ob draw" style={{ width: `${combatOdds.draw * 100}%` }} />
-                  <span className="ob lose" style={{ width: `${combatOdds.lose * 100}%` }} />
-                </div>
-                <div className="oddslabels">
-                  <span className="ol win">{Math.round(combatOdds.win * 100)}% win</span>
-                  <span className="ol draw">{Math.round(combatOdds.draw * 100)}% draw</span>
-                  <span className="ol lose">{Math.round(combatOdds.lose * 100)}% loss</span>
-                </div>
-                {combatOdds.lose > 0 && (
-                  <div className="oddsavg gtip" aria-description="Average Health lost across the losing simulations, capped by the round. This is what a typical loss of this matchup costs." data-tip="Average Health lost across the losing simulations, capped by the round. This is what a typical loss of this matchup costs.">
-                    Avg damage on loss: <b>{Math.round(combatOdds.avgLossDamage * 10) / 10}</b>
-                  </div>
-                )}
-              </div>
-            )}
-            <div className="logtabs">
-              <button className={`logtab${logTab === 'gains' ? ' active' : ''}`} onClick={() => setLogTab('gains')}>Gains</button>
-              <button className={`logtab${logTab === 'procs' ? ' active' : ''}`} onClick={() => setLogTab('procs')}>Procs</button>
-              <button className={`logtab${logTab === 'log' ? ' active' : ''}`} onClick={() => setLogTab('log')}>Log</button>
-            </div>
-            {logTab === 'gains' ? (
-              <div className="loglines">
-                <div className="loggainhead">What you keep from this fight</div>
-                {(() => {
-                  const gains = combatGains(lastCombat);
-                  return gains.length === 0 ? (
-                    <div className="logline">No lasting gains this fight.</div>
-                  ) : (
-                    gains.map((g, i) => <div className="loggain" key={i}>{g}</div>)
-                  );
-                })()}
-              </div>
-            ) : logTab === 'procs' ? (
-              <div className="loglines">
-                {procs.map((s, i) => (
-                  <div className={`logsum ${s.kind}`} key={i}>{s.text}</div>
-                ))}
-              </div>
-            ) : (
-              <div className="loglines">
-                {fullLog.length === 0 ? (
-                  <div className="logline">No blows were struck.</div>
-                ) : (
-                  fullLog.map((line, i) => (
-                    <div className={`logline ${line.kind}`} key={i}>{line.text}</div>
-                  ))
-                )}
-              </div>
-            )}
-            <button className="btn big" onClick={onClose}>Close</button>
-          </div>
-        </div>
-      )}
-    </>
+    <FightRecap
+      result={result} combatOdds={combatOdds} lastCombat={lastCombat} lobby={lobby} board={board} wave={wave} mode={mode}
+      procs={procs} fullLog={fullLog} onWatchReplay={onWatchReplay} onClose={onClose}
+    />
   );
 });
 

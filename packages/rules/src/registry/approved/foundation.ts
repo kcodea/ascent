@@ -1239,4 +1239,33 @@ export const FOUNDATION_RULES: GameRule[] = [
       lastVerifiedAt: '2026-09-24',
     },
   },
+  {
+    id: 'R-PRESENT-18',
+    title: 'A combat replay always reaches its end: a rewatch or a Skip of any fight, a zero-event fight included, finishes and hands back',
+    statement:
+      'Every combat replay reaches `done`, however it was started. That covers a fresh fight, the Fight Recap\x27s '
+      + 'Watch replay (a seek to the first moment) and a Skip, and it holds for a fight with no events at all (an '
+      + 'empty player board, where the enemy simply wins). Skip always ends the replay. A rewatch never changes '
+      + 'the run: the settle and the damage strike happen once, whatever is rewatched. When a rewatch ends, played '
+      + 'out or skipped, the player lands back on the Fight Recap they pressed it from, and End Combat still '
+      + 'returns them to the shop.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Fight Recap follow-ups, 2026-09-24', quote: 'the watch replay gets me stuck in a screen here' },
+      { kind: 'code', ref: 'packages/ui/src/useCombatReplay.ts (`endNonce` re-arms the final hold on seek + Skip); packages/ui/src/Recruit.tsx (`watchReplay` / `rewatchingRef`)' },
+    ],
+    currentBehaviour:
+      'Conforms as of 2026-09-24. Before the fix the final-hold timer that flips `done` only re-armed when '
+      + '`replayComplete` changed from false to true. An empty player board resolves with zero events, so the replay '
+      + 'has zero beats and `replayComplete` is true before and after a seek: Watch replay cleared `done` and nothing '
+      + 'set it again, and Skip (setting the beat index to 0 again) did nothing. The arena sat on the enemy board '
+      + 'with Skip showing. Verified live on port 5288: a zero-event loss rewatch returns to the recap in about 250 ms, '
+      + 'Skip during a rewatch returns too, the run and seat health are unchanged, and End Combat settles the round once.',
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/ui/src/replayRewatch.test.tsx'],
+      lastVerifiedAt: '2026-09-24',
+    },
+  },
 ];

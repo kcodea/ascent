@@ -6918,7 +6918,14 @@ export function Recruit() {
   // moment. The board is a pure fold of (initial, events, upto), so a seek to 0 is the same replay the player
   // just watched. Offered only once the fight has SETTLED (the recap passes it through only then), so the
   // post-fight settle and the damage strike can never run a second time.
-  const watchReplay = useCallback((): void => { setShowLog(false); replayRef.current.seekTo(0); }, []);
+  // A rewatch hands the player BACK to the recap when it ends (played out or Skipped), so they land where they
+  // pressed the button (owner report 2026-09-24). Cleared when the fight is left, so a new fight never reopens it.
+  const rewatchingRef = useRef(false);
+  const watchReplay = useCallback((): void => { rewatchingRef.current = true; setShowLog(false); replayRef.current.seekTo(0); }, []);
+  useEffect(() => {
+    if (!inCombat) { rewatchingRef.current = false; return; }
+    if (replay.done && rewatchingRef.current) { rewatchingRef.current = false; setShowLog(true); }
+  }, [replay.done, inCombat]);
   const onFreeze = useCallback((): void => dispatch({ type: 'freeze' }), [dispatch]);
   const onRefresh = useCallback((): void => dispatch({ type: 'roll' }), [dispatch]);
   const onUpgrade = useCallback((): void => dispatch({ type: 'upgrade' }), [dispatch]);

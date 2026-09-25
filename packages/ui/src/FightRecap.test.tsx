@@ -71,6 +71,11 @@ describe('FightRecap', () => {
     ui = mount(<FightRecap {...props({ result: 'win', lastCombat: { ...empty, result: 'win' }, combatOdds: { win: 0.3, draw: 0, lose: 0.7, avgLossDamage: 4 } })} />);
     expect(text()).toContain('Upset!');
     expect(text()).toContain('You had a 30% chance to win');
+    // The bar is always there, with all three numbers.
+    expect(ui.container.querySelector('.fr-oddsbar')).not.toBeNull();
+    expect(text()).toContain('30% Win');
+    expect(text()).toContain('0% Draw');
+    expect(text()).toContain('70% Loss');
     ui.render(<FightRecap {...props({ combatOdds: { win: 0.8, draw: 0, lose: 0.2, avgLossDamage: 4 } })} />);
     expect(text()).toContain('Heartbreaker');
   });

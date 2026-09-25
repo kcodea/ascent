@@ -4978,11 +4978,21 @@ body.aiming, body.aiming * { cursor: none !important; }
 .fr-body { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: calc(14 * var(--u)); padding: calc(14 * var(--u)) calc(22 * var(--u)); }
 .fr-odds { display: flex; flex-direction: column; align-items: center; gap: calc(6 * var(--u)); }
 .fr-odds-line { font-family: var(--font-ui); font-weight: 800; font-size: calc(15 * var(--u)); color: #f4ecdb; text-align: center; }
-.fr-oddsbar { display: flex; width: min(100%, calc(320 * var(--u))); height: calc(6 * var(--u)); border-radius: 999px; overflow: hidden; background: rgba(255, 255, 255, 0.08); }
-.fr-oddsbar span { height: 100%; flex: none; }
-.fr-oddsbar .win { background: #2fb866; }
-.fr-oddsbar .draw { background: #f59324; }
-.fr-oddsbar .lose { background: #e53b3b; }
+/* The outcome bar (owner 2026-09-24: "much cleaner/sleek/modern"): a thin rounded track, soft palette segments
+   sized by flex-grow, a hairline gap between them (the track shows through), a faint top highlight. Static. */
+.fr-oddsbar { display: flex; gap: 2px; width: min(100%, calc(340 * var(--u))); height: calc(6 * var(--u)); min-height: 5px; padding: 1px; border-radius: 999px; overflow: hidden; background: rgba(0, 0, 0, 0.35); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06); }
+.fr-oddsbar span { height: 100%; flex-basis: 0; min-width: 3px; border-radius: 999px; box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.28); }
+.fr-oddsbar .win { background: linear-gradient(180deg, #7fd9a1, #4cb77a); }
+.fr-oddsbar .draw { background: linear-gradient(180deg, #f2cf85, #d4a452); }
+.fr-oddsbar .lose { background: linear-gradient(180deg, #f08a9e, #cf5670); }
+.fr-oddslabels { display: grid; grid-template-columns: 1fr 1fr 1fr; width: min(100%, calc(340 * var(--u))); font-family: var(--font-ui); font-weight: 700; font-size: calc(11.5 * var(--u)); letter-spacing: 0.04em; color: rgba(244, 236, 219, 0.62); font-variant-numeric: tabular-nums; }
+.fr-oddslabels b { font-weight: 900; }
+.fr-oddslabels .win { text-align: left; }
+.fr-oddslabels .win b { color: #7fd9a1; }
+.fr-oddslabels .draw { text-align: center; }
+.fr-oddslabels .draw b { color: #f2cf85; }
+.fr-oddslabels .lose { text-align: right; }
+.fr-oddslabels .lose b { color: #f08a9e; }
 .fr-odds-avg { font-family: var(--font-ui); font-weight: 600; font-size: calc(12 * var(--u)); color: rgba(244, 236, 219, 0.6); }
 
 .fr-sec { display: flex; flex-direction: column; gap: calc(8 * var(--u)); }

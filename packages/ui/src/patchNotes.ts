@@ -52,6 +52,22 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-09-24',
+    label: 'Fight Recap Fixes',
+    changes: [
+      {
+        category: 'Systems',
+        text: 'Watch replay in the Fight Recap no longer gets stuck, and the odds bar is back with a cleaner look.',
+        details: [
+          'Watch replay always plays to the end and brings you back to the recap. Skip always works, even for a fight where you had no minions.',
+          'The odds bar is always shown, with Win, Draw and Loss percentages under it.',
+          'The damage a loss usually costs is now shown as a range, like 7-9.',
+          'Hover your own seat in the lobby list to see the same card you see for other players.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-09-24',
     label: 'Smoother Screen Wipe',
     changes: [
       {

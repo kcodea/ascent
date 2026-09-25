@@ -69,7 +69,13 @@ function UnitInner({ u, side, anim, triggered, rallyPulse, watcherPulse, framePu
   const zooSummons = useGame((s) => (s.run.questFlags?.runeZoo ? (s.combatQuestDelta?.summonCombat ?? 0) : undefined));
   const spA = foe ? (enemyScalers?.spellPower.attack ?? 0) : runSpA;
   const spH = foe ? (enemyScalers?.spellPower.health ?? 0) : runSpH;
-  const drTally = foe ? (enemyScalers?.deathrattles ?? 0) : runDrTally;
+  // Grim's Echo total ticks LIVE mid-fight (owner ruling 2026-09-25): the run tally is frozen until settle, so fold
+  // in this fight's Echoes replayed so far (the replay's step-tagged `questDelta.deathrattle`, the same engine
+  // timeline `bumpDeathrattles` feeds the payout from). Only a tally card subscribes, so an Echo beat re-renders
+  // Grim and nothing else. The enemy's tally is its frozen snapshot value, exactly what the simulator reads.
+  const echoTally = !!def?.effects.some((e) => e.do === 'deathrattleBuffTribeByTally');
+  const liveEchoes = useGame((s) => (echoTally && !foe ? (s.combatQuestDelta?.deathrattle ?? 0) : 0));
+  const drTally = foe ? (enemyScalers?.deathrattles ?? 0) : runDrTally + liveEchoes;
   const spellsThisTurn = foe ? (enemyScalers?.spellsThisTurn ?? 0) : runSpellsThisTurn;
   // Pack Leader's grant: the player counts qualifying plays from the card-id array; the enemy's beast count is
   // pre-computed in its snapshot (the ids aren't carried), so pass the number straight through.
@@ -92,7 +98,7 @@ function UnitInner({ u, side, anim, triggered, rallyPulse, watcherPulse, framePu
         frontToBackBonusH: foe ? (enemyScalers?.spellEscalation.health ?? 0) : runFtbH,
         // Vaultkeeper's umbrella ticks LIVE: the run's lifetime count + this side's casts so far THIS fight (the
         // carry-back only lands on `run.spellsCast` at settle — owner report 2026-09-18).
-        spellsThisTurn, spellsCast: (foe ? (enemyScalers?.spellsCast ?? 0) : run.spellsCast) + (u.spellsCastCombat ?? 0), deathrattlesTriggered: drTally,
+        spellsThisTurn, spellsCast: (foe ? (enemyScalers?.spellsCast ?? 0) : run.spellsCast) + (u.spellsCastCombat ?? 0), deathrattlesTriggered: drTally, echoIncludesSelf: !foe,
         rubyCasts: foe ? (enemyScalers?.rubyCasts ?? 0) : run.rubyCasts, // the Vaultkeeper umbrella — was never passed in combat, either side
         clingEnchant: foe ? enemyScalers?.cardBuffs.cling : run.cardBuffs?.cling,
         fodderConsumed: foe ? enemyScalers?.fodderConsumed : run.fodderConsumedThisTurn,

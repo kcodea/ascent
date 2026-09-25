@@ -52,6 +52,21 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-09-25',
+    label: 'Grim Shows Its Total',
+    changes: [
+      {
+        category: 'Systems',
+        text: 'Grim now shows the full buff its Echo will give right now, and it goes up as Echoes trigger, even mid combat.',
+        details: [
+          'Grim reads "Echo: Give your Beast Aura +X/+Y. Improves by +3/+2 for every Echo triggered this game."',
+          'The total counts every Echo triggered this game plus Grim\'s own. With 4 Echoes so far it reads +15/+10.',
+          'A Golden Grim improves by +6/+4 for every Echo instead.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-09-25',
     label: 'Announcer Cap Removed',
     changes: [
       {

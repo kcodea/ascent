@@ -120,11 +120,14 @@ export const BEASTS: CardDef[] = [
     health: 1,
     keywords: [],
     effects: [{ on: 'onDeath', do: 'deathrattleBuffTribeByTally', params: { tribe: 'beast', attack: 3, health: 2 } }],
-    // STATIC TEXT BY OWNER RULING (2026-09-24, an exception to the live-value default): "grim text doesnt need
-    // flavor. just Echo: Give your Beast Aura +3/+2 for every Echo triggered this game." — no live total, no count,
-    // on any surface (the live tally helper was removed from cardText.ts for this; see R-ECHOTALLY-01).
-    text: '**Echo:** Give your **Beast Aura** **+3/+2** for every **Echo** triggered this game.',
-    goldenText: '**Echo:** Give your **Beast Aura** **+6/+4** for every **Echo** triggered this game.',
+    // LIVE TOTAL IN PLACE (owner ruling 2026-09-25, replacing the 2026-09-24 static-text exception): "fix grim so
+    // that it updates in real time with the current value of the echo." Wording (owner correction, same day): "Echo:
+    // Give your Beast Aura +X/+Y. Improves by +3/+2 for every Echo triggered this game." Every live surface (shop,
+    // board, hand, Discover, end screen, combat) prints +X/+Y = (Echoes so far + 1 for its own) x (+3/+2) via
+    // `echoTallyText` in packages/ui/src/cardText.ts (see R-ECHOTALLY-01). The printed text below carries the BASE
+    // value (0 Echoes so far, its own counted): what a context-free surface (the Compendium, Doc Bot) reads.
+    text: '**Echo:** Give your **Beast Aura** **+3/+2**. Improves by **+3/+2** for every **Echo** triggered this game.',
+    goldenText: '**Echo:** Give your **Beast Aura** **+6/+4**. Improves by **+6/+4** for every **Echo** triggered this game.',
   },
   {
     id: 'shaper',

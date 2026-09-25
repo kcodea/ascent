@@ -49,6 +49,8 @@ import { deriveDragDecision, dragDecisionEqual, computeCastingSpell, NO_DRAG_DEC
 import { dragStore, useDragSlice, type DragSnapshot, type DragState } from './dragStore';
 import { QuestCard } from './QuestCard';
 import { RuneforgeDialog } from './runeforgeEntrance/RuneforgeDialog';
+import { DiscoverDialog, EntranceOverlay, OfferSheen } from './discoverEntrance/DiscoverDialog';
+import { discoverOccasion } from './discoverEntrance/useOfferEntrance';
 import { RuneLockIn, type RuneLockInCard } from './RuneLockIn';
 import { captureRuneLockIn } from './runeLockInCapture';
 import { getRuneLockInConfig, stretchLockIn } from './runeLockInConfig';
@@ -2059,10 +2061,8 @@ export function Recruit() {
     const cfg = getShopDeathFxConfig();
     const rose = (shopDeathFxRef.current ?? []).some((f) => f.kind === 'rise');
     const ms = Math.max(0, cfg.deathDelayMs) + DEATH_DISSOLVE_MS + (rose ? RISE_REFORM_MS : 0);
-    const t = window.setTimeout(() => {
-      setPostDeathHold(false);
-      sfx.discover(); // the open cue the store skipped while the death was pending (see store.ts)
-    }, ms);
+    // Releasing the hold mounts the overlay, whose entrance plays the open cue (see `discoverEntrance/`).
+    const t = window.setTimeout(() => setPostDeathHold(false), ms);
     return () => window.clearTimeout(t);
   }, [discoverOpen, deathHoldPendingUid, postDeathHold]);
   const onWipeEnd = useCallback((e: ReactTransitionEvent<HTMLDivElement>): void => {
@@ -8449,6 +8449,7 @@ const CombatLogOverlay = memo(function CombatLogOverlay({ showLog, result, comba
 const ChooseOneOverlay = memo(function ChooseOneOverlay({ overlaysHeld, run, spellBonus, spellBonusH, dispatch, captureCoalesce }: {
   overlaysHeld: boolean; run: RunState; spellBonus: number; spellBonusH: number; dispatch: (a: Action) => void; captureCoalesce: () => void;
 }) {
+  const replaySpeed = useGame((st) => st.replaySession?.speed ?? 1);
   return (
     <>
       {!overlaysHeld && run.chooseOne && (
@@ -8456,18 +8457,22 @@ const ChooseOneOverlay = memo(function ChooseOneOverlay({ overlaysHeld, run, spe
         // Nothing was committed when it was played, so this is a pure no-op in the reducer — no effects, no
         // Gold, no triggers, no RNG. The handler is on the BACKDROP and checks `currentTarget`, so a click
         // that lands on the panel (or on an option card) is never a cancel. Escape does the same.
-        <div
-          className="discover-ov" role="dialog" aria-label="Choose One" tabIndex={-1}
+        // The Discover ENTRANCE plays here too (owner 2026-09-25): the options float in with dust and a shimmer. A
+        // press during it only settles it (never a cancel, never a pick on an option still in flight). No open cue:
+        // a Choose One never had one. `occasion` null: it plays on every opening (there is no minimize to restore).
+        <EntranceOverlay
+          occasion={null} speed={replaySpeed}
+          role="dialog" aria-label="Choose One" tabIndex={-1}
           onPointerDown={(e) => { if (!(e.target as Element).closest('.disc-slot')) { captureCoalesce(); dispatch({ type: 'cancelChoice' }); } }}
           onKeyDown={(e) => { if (e.key === 'Escape') { captureCoalesce(); dispatch({ type: 'cancelChoice' }); } }}
-        >
+        >{(entrance) => (<>
           {/* Reuses the DISCOVER chrome (transparent panel, dark-glass banner, card row) rather than the old
               bespoke cream text-buttons — a Choose One is the same kind of decision as a Discover, so the
               player picks a CARD, not a paragraph (owner 2026-07-24). Each option renders the real card with
               only that branch's text printed, so what you click is exactly what lands on your board. */}
           <div className="disc-panel">
             <div className="disc-banner"><span className="disp">Choose One</span></div>
-            <div className="disc-sub">{(run.chooseOne.equipmentId ? EQUIPMENT_INDEX[run.chooseOne.equipmentId]?.name : CARD_INDEX[run.chooseOne.cardId]?.name)} · click away to cancel</div>
+            <div className="disc-sub">{(run.chooseOne!.equipmentId ? EQUIPMENT_INDEX[run.chooseOne!.equipmentId]?.name : CARD_INDEX[run.chooseOne!.cardId]?.name)} · click away to cancel</div>
             <div className="disc-cards">
               {(() => {
                 // A golden Choose One doubles each option's effect (gold(self) in the factories) — so show each
@@ -8505,8 +8510,10 @@ const ChooseOneOverlay = memo(function ChooseOneOverlay({ overlaysHeld, run, spe
                         }}
                         forceFull
                         plated
-                        onClick={() => dispatch({ type: 'chooseOne', index: i })}
+                        suppressPop
+                        onClick={() => { if (entrance.canPick(i)) dispatch({ type: 'chooseOne', index: i }); }}
                       />
+                      <OfferSheen />
                     </div>
                   ));
                 }
@@ -8544,7 +8551,9 @@ const ChooseOneOverlay = memo(function ChooseOneOverlay({ overlaysHeld, run, spe
                       // `plated` so the option wears the same carved stone plate it has in hand / the Compendium
                       // (owner ask 2026-08-19) — a Choose One is picking the real card, so it should look like one.
                       plated
+                      suppressPop
                       onClick={() => {
+                        if (!entrance.canPick(i)) return; // still in flight: the press settled the entrance instead
                         // `chooseOne` cue — the By-card binder's "On Choose One" flourish, fired as the player
                         // commits the branch, ON the chosen minion. Keyed by the choosing card. Distinct from the
                         // `minionPlayed` cue that also fires as the body settles — this is the pick itself. Plays
@@ -8558,12 +8567,13 @@ const ChooseOneOverlay = memo(function ChooseOneOverlay({ overlaysHeld, run, spe
                         dispatch({ type: 'chooseOne', index: i });
                       }}
                     />
+                    <OfferSheen />
                   </div>
                 ));
               })()}
             </div>
           </div>
-        </div>
+        </>)}</EntranceOverlay>
       )}
     </>
   );
@@ -8575,6 +8585,8 @@ const DiscoverOverlay = memo(function DiscoverOverlay({ overlaysHeld, run, disco
   overlaysHeld: boolean; run: RunState; discoverMin: boolean; setDiscoverMin: React.Dispatch<React.SetStateAction<boolean>>;
   cardBuffsLive: Record<string, { attack: number; health: number }>; dispatch: (a: Action) => void; discoverBurstRef: React.RefObject<HTMLDivElement>;
 }) {
+  // A replay plays its Discover entrance at the replay's speed (live play has no session: 1).
+  const replaySpeed = useGame((st) => st.replaySession?.speed ?? 1);
   return (
     <>
       {/* One orange button, always in the same fixed spot just below the Discover cards — it toggles between
@@ -8592,49 +8604,39 @@ const DiscoverOverlay = memo(function DiscoverOverlay({ overlaysHeld, run, disco
       )}
 
       {!overlaysHeld && run.discover && !discoverMin && (
-        <div className="discover-ov" role="dialog" aria-label="Discover a card">
-          {/* WebGL burst layer — sits behind the cards (z0) but above the overlay's dark backdrop, so the
-              golden magic reads white-hot without covering the UI. Driven by discoverFx (see the effect). */}
-          <div className="disc-burst" ref={discoverBurstRef} aria-hidden="true" />
-          <div className="disc-panel">
-            <span className="disc-gem disc-gem-top" aria-hidden="true" />
-            <div className="disc-banner"><span className="disp">Discover</span></div>
-            <div className="disc-cards">
-              {run.discover.map((id, i) => {
-                const c = CARD_INDEX[id];
-                // A Discover option shows its CURRENT value too (Grim's +32/+32, Guel's live grant, …) — the
-                // same live-text chain the shop + board use.
-                // The FULL live param set (audit 2026-08-06: this surface passed 11 of 30 params, so a
-                // dozen scaling cards read base only in Discover). Built by the same builders as every other
-                // offer surface, plus the overlay-only extras (rune notes, the tier ceiling).
-                const lt = liveCardText(c.id, {
-                  ...offerLiveTextParams(false, { ...liveOptsFromRun(run), cardBuffs: cardBuffsLive }),
-                  runeMammoth: !!run.questFlags?.runeMammoth,
-                  runeFlags: { matriarch: !!run.runeMatriarch, brokerage: !!run.runeBrokerage, livingTreasure: !!run.questFlags?.runeLivingTreasure, gambling: !!run.runeGambleBoth },
-                  // (Both): a Discovered Choose One the run already makes do both reads as (Both) here too —
-                  // the option row is where you decide to take it, so it must not promise a choice it won't ask.
-                  chooseBoth: chooseBothActive(run, undefined, c),
-                  maxTier: maxTierFor(run.rift),
-                });
-                return (
-                  <div className="disc-slot" data-pick-sfx key={`${id}-${i}`} style={{ '--c': `var(--t-${c.tribe})` } as CSSProperties}>
-                    <Card
-                      // `spell`/`ruby` are carried so a discovered SPELL renders as a spell — the type pill in
-                      // place of the Attack/Health badges (owner 2026-07-24: spells were showing a meaningless
-                      // 0/1 here). Every other surface passes these through `instView`; this panel builds its
-                      // card view by hand, which is how they got dropped.
-                      card={{ name: c.name, cardId: c.id, tribe: c.tribe, tribe2: c.tribe2, universalTribe: !!c.universalTribe, attack: c.attack, health: c.health, keywords: c.keywords, text: lt.text, goldenText: lt.goldenText, tier: c.tier, spell: !!c.spell, ruby: !!c.ruby,
-                        // (Both) marker hook — a Discover option has no uid, so it is keyed by its slot.
-                        chooseBothKey: chooseBothActive(run, undefined, c) ? `disc:${i}` : undefined }}
-                      onClick={() => dispatch({ type: 'discover', index: i })}
-                    />
-                  </div>
-                );
-              })}
-            </div>
-            <span className="disc-gem disc-gem-bot" aria-hidden="true" />
-          </div>
-        </div>
+        // The Discover panel + its ENTRANCE (owner ask 2026-09-25: the cards float in with a little dust, shimmer and
+        // sound). Shared with the entrance tuner's sandbox, so the preview is the real row. See `DiscoverDialog`.
+        <DiscoverDialog
+          ids={run.discover}
+          cards={run.discover.map((id, i) => {
+            const c = CARD_INDEX[id];
+            // A Discover option shows its CURRENT value too (Grim's +32/+32, Guel's live grant, …) — the
+            // same live-text chain the shop + board use.
+            // The FULL live param set (audit 2026-08-06: this surface passed 11 of 30 params, so a
+            // dozen scaling cards read base only in Discover). Built by the same builders as every other
+            // offer surface, plus the overlay-only extras (rune notes, the tier ceiling).
+            const lt = liveCardText(c.id, {
+              ...offerLiveTextParams(false, { ...liveOptsFromRun(run), cardBuffs: cardBuffsLive }),
+              runeMammoth: !!run.questFlags?.runeMammoth,
+              runeFlags: { matriarch: !!run.runeMatriarch, brokerage: !!run.runeBrokerage, livingTreasure: !!run.questFlags?.runeLivingTreasure, gambling: !!run.runeGambleBoth },
+              // (Both): a Discovered Choose One the run already makes do both reads as (Both) here too —
+              // the option row is where you decide to take it, so it must not promise a choice it won't ask.
+              chooseBoth: chooseBothActive(run, undefined, c),
+              maxTier: maxTierFor(run.rift),
+            });
+            // `spell`/`ruby` are carried so a discovered SPELL renders as a spell — the type pill in
+            // place of the Attack/Health badges (owner 2026-07-24: spells were showing a meaningless
+            // 0/1 here). Every other surface passes these through `instView`; this panel builds its
+            // card view by hand, which is how they got dropped.
+            return { name: c.name, cardId: c.id, tribe: c.tribe, tribe2: c.tribe2, universalTribe: !!c.universalTribe, attack: c.attack, health: c.health, keywords: c.keywords, text: lt.text, goldenText: lt.goldenText, tier: c.tier, spell: !!c.spell, ruby: !!c.ruby,
+              // (Both) marker hook — a Discover option has no uid, so it is keyed by its slot.
+              chooseBothKey: chooseBothActive(run, undefined, c) ? `disc:${i}` : undefined };
+          })}
+          onPick={(i) => dispatch({ type: 'discover', index: i })}
+          occasion={discoverOccasion(run)}
+          speed={replaySpeed}
+          burstRef={discoverBurstRef}
+        />
       )}
     </>
   );

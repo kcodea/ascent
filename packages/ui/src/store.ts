@@ -230,11 +230,9 @@ export function actionSfx(action: Action, prev: RunState, next: RunState): void 
   // The recruit board and the combat board are different sets of bodies; anything withheld for one of them
   // has nothing left to deliver it once the other is on screen. See `dropBoardFx`.
   if (prev.phase !== next.phase) dropBoardFx();
-  // A Discover choice just OPENED (any action that set run.discover — playing a Discover spell, a golden's
-  // reward, etc.): play the discover cue, on top of the triggering action's own sound.
-  // …unless a shop death is pending in the same commit (Cage Breaker): Recruit holds the overlay until the body has
-  // dissolved and plays this cue itself when it opens (owner 2026-09-18).
-  if (!prev.discover && next.discover && !next.pendingDeath) sfx.discover();
+  // (A Discover OPENING no longer plays its cue here. The Discover entrance plays it as the overlay actually appears
+  // (owner 2026-09-25, `discoverEntrance/entrance.ts`): once per Discover, a chain's second and third included, and
+  // never while the overlay is held behind the combat wipe or a pending shop death.)
   // A friendly minion was just GIVEN Taunt — it existed on the board WITHOUT Taunt and now has it (so this
   // skips minions bought/played already-Taunt; only granted Taunt, e.g. Bulwark/a hero power, fires it).
   const wasTaunt = new Map(prev.board.map((m) => [m.uid, m.keywords.includes('T')]));

@@ -92,6 +92,7 @@ export const PANEL_EMBLEMS: Record<string, string> = {
   runeforgebg: '🪨',
   runeforgelook: '🔨',
   runeforgeentrance: '🔥',
+  discoverentrance: '💫',
   screenwipe: '🌀',
   platedissolve: '🌀',
   platecoalesce: '🪄',

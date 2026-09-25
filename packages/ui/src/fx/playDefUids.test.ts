@@ -41,6 +41,8 @@ const UNIT_LESS: { file: string; id: string; why: string }[] = [
   { file: 'useAmplifiedSlotFx.ts', id: 'amplified-slot', why: "the AMPLIFIED glow loops on the Equipment slot button — HUD chrome with no unit uid; the subject is the selected Equipment's next activation, not a body on the board (2026-09-22)" },
   { file: 'DiceRoll.tsx', id: 'dice-land', why: "the die's landing burst — at the power button or the cast point, never a unit" },
   { file: 'GoodLuckIntro.tsx', id: 'good-luck-intro', why: 'the game-start "Good Luck" spark burst, anchored on the centre of the words in a full-screen overlay; no unit is its subject (2026-09-24)' },
+  { file: 'entrance.ts', id: 'discover-arrive', why: "the Discover entrance's golden dust under an arriving OPTION card in the Discover / Choose One overlay: an offer, not a unit, so there is no uid (2026-09-25)" },
+  { file: 'entrance.ts', id: 'discover-glint', why: "the Discover entrance's glints over an arriving option card's face: an offer, not a unit (2026-09-25)" },
   { file: 'entrance.ts', id: 'runeforge-land-dust', why: "the Runeforge entrance's dust under a landing rune TABLET in the forge overlay: an offer, not a unit, so there is no uid (2026-09-24)" },
   { file: 'entrance.ts', id: 'runeforge-embers', why: 'the Runeforge entrance embers, anchored on the forge floor under the tablet row; no unit is its subject (2026-09-24)' },
   { file: 'entrance.ts', id: 'runeforge-epic-flare', why: "the Epic Runeforge flare, anchored on the tablet row's centre in the forge overlay; no unit is its subject (2026-09-24)" },

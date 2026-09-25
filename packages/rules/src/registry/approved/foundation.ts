@@ -1268,4 +1268,33 @@ export const FOUNDATION_RULES: GameRule[] = [
       lastVerifiedAt: '2026-09-24',
     },
   },
+  {
+    id: 'R-PRESENT-19',
+    title: 'A Discover (and a Choose One) floats its options in, and a card still in flight can never be picked',
+    statement:
+      'When a Discover or a Choose One opens, its option cards float in left to right with a soft stagger and a tiny '
+      + 'settle (transform and opacity only), each one puffing golden dust and a few glints and getting one shimmer as '
+      + 'it arrives. The Discover open cue plays with the overlay, once per Discover (each step of a chain such as Disco '
+      + 'Dan\x27s included, never while the overlay is held behind the combat wipe or a pending shop death), with a '
+      + 'whoosh, a gap-gated settle per card and one sparkle, all on soft tails. A card is pickable from the moment it '
+      + 'arrives; a press during the entrance settles it at once and never picks a card still in flight (nor cancels a '
+      + 'Choose One). Minimize then Return, a re-render or a remount never replays it (Return shows the overlay\x27s '
+      + 'own quick fade). Reduced motion gets a plain fade with every card pickable at once.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Discover entrance session, 2026-09-25', quote: 'i want a brief but clean fly in or float in of the cards, with some dust and pixi to make it look clean/exciting but not over the top, with sound effects to match the vibe.' },
+      { kind: 'fix-pr', ref: 'feat/discover-entrance' },
+      { kind: 'code', ref: 'packages/ui/src/discoverEntrance/entrance.ts runEntrance; packages/ui/src/discoverEntrance/useOfferEntrance.ts useOfferEntrance + discoverOccasion; packages/ui/src/discoverEntrance/DiscoverDialog.tsx; packages/ui/src/discoverEntrance/discoverEntranceConfig.ts DCE_DEFAULTS' },
+    ],
+    currentBehaviour:
+      'Conforms as of 2026-09-25. Before it the options simply popped in with the overlay and the open cue played from '
+      + 'the store the moment the offer existed, even while the overlay was still held, and not at all for the second '
+      + 'and third Discover of a chain.',
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/ui/src/discoverEntrance/DiscoverDialog.test.tsx'],
+      lastVerifiedAt: '2026-09-25',
+    },
+  },
 ];

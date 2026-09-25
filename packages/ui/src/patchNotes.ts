@@ -61,6 +61,7 @@ export const PATCH_NOTES: PatchNote[] = [
           'The title is now gold lettering between two filigree flourishes, in the style of the Good Luck opening.',
           'A Choose One names the card (or Equipment) it came from under the title, for example "From Runic Beetle".',
           'The screen behind the choice is darker toward the edges, with a soft warm spotlight behind the cards, so your board no longer competes with the options.',
+          'The Minimize button is now "Peek at board": a gold-trimmed button with an eye icon. While you peek it reads "Return to Discover" and shows how many options are waiting.',
         ],
       },
     ],

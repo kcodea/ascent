@@ -39,6 +39,28 @@ are unchanged. The Discover entrance (PR #1712) and the Minimize / Return to Dis
   write or reset), so they move live. The CSS carries the same defaults as fallbacks. A test pins the CSS fallbacks
   to `DCE_DEFAULTS` so the two cannot drift apart.
 
+## The Peek / Return button (follow-up ask, same day)
+
+Owner, after seeing the above: *"can you make the minimize button better though?"*
+
+- `discoverEntrance/DiscoverPeekToggle.tsx` replaces the plain dark "👁 Minimize" pill and its
+  "Return to Discover · N options" twin. It is still **one button in one fixed spot** (`.disc-toggle`: viewport
+  50% / 67%) for both states, so the player can flip back and forth without moving the mouse.
+- **Label: "Peek at board"**, not "Minimize" (a judgement call, easy to revert). It says what the button is for.
+  While minimized it reads **"Return to Discover"** with a small gold **"3 options"** chip.
+- **Look:** a dark glass fill and a gold gradient trim (the banner's gold, drawn with the `padding-box` /
+  `border-box` two-background trick), with small gold diamonds riding the trim at each end. The icons are inline
+  SVG: an eye for Peek, and fanned cards rising for Return. The Icon-sprite glyph and the emoji are gone. The
+  button carries `aria-pressed`. There is no `title=`, and the cursor is the global gauntlet.
+- **Hover and press** are one-shot transitions of `transform` only (lift + 1.04 scale; press 0.97), plus the
+  `opacity` of a separate glow layer whose `box-shadow` is static. Nothing loops. While minimized, the glow sits at
+  0.55 so the button stays easy to find over the un-dimmed board.
+- **Placement** is unchanged (top 67%). It clears the cards and the hand at both 1920x1080 and 3440x1440 (see the
+  screenshots).
+- **Tuner:** "Peek button size" (×1) in the same "Look" group (`--dcl-peek`).
+- The Farseer scout's Close button, the quest shop's toggle and the Runeforge's toggle share `.disc-toggle` but are
+  untouched: the new look is scoped to `.disc-peek`.
+
 ## Performance
 
 Everything is static: no blur, no `backdrop-filter`, nothing animated. The backdrop is one full-viewport paint when
@@ -54,5 +76,11 @@ title fixes it. Any future mixed-case Cinzel Decorative title with "oo" needs th
 
 ## Screenshots
 
-Before and after, for a Discover, a Triple Reward Discover and a Choose One, at 1920x1080 and 3440x1440, in
-`C:\Users\kevin\Pictures\ascent-shots\discover-look\` (outside the repo).
+These are in `C:\Users\kevin\Pictures\ascent-shots\discover-look\`, outside the repo.
+
+- `before-*` / `after-*`: a Discover, a Triple Reward Discover and a Choose One, at 1920x1080 and 3440x1440.
+- `pill-before-*` / `pill-after-*`: the button, resting (`discover`), hovered (`pill-hover`) and minimized
+  (`pill-minimized`).
+
+The minimized shot exists at 1920x1080 only. At 3440x1440, headless Chrome never returned a frame of the full,
+un-dimmed live board (software raster), before or after this change.

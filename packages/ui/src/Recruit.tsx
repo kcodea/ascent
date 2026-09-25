@@ -73,7 +73,7 @@ import { TavernUpButton } from './TavernUpButton';
 import { GoldPill } from './GoldPill';
 import { Icon } from './Icon';
 import { sfx, stopAllAudio, resumeAudio, stopTurnCharge } from './sfx';
-import { observeCombatBoard } from './announcer';
+import { observeCombatBoard, observeTurnClock } from './announcer';
 import { pixiFx, discoverFx, RUBY_AIM_DEF_ID } from './pixiFx';
 import { FxUnderSlot } from './PixiFxLayer';
 import { perfMonitor } from './perfMonitor';
@@ -4437,6 +4437,10 @@ export function Recruit() {
   // the self-scheduling loop on every activation and hand the player a free partial second each time.
   const discountWindowRef = useRef(run.cardDiscountWindow);
   discountWindowRef.current = run.cardDiscountWindow;
+  // The announcer's TimeRunningOut hears only a REAL clock (never the tutorial's / God sandbox's infinite one).
+  // A ref, not a dep, for the same reason as the window above: the loop must not restart when it flips.
+  const infiniteClockRef = useRef(infiniteClock);
+  infiniteClockRef.current = infiniteClock;
 
   // Round timer: count down each recruit turn; at 0 the player is forced into combat (paused while a
   // Discover pick is open, and frozen while the hero picker is open). UI-only — the engine is untimed.
@@ -4464,6 +4468,7 @@ export function Recruit() {
       const next = cur - 1;
       if (next === 0) sfx.turnExplode(); // timer hits 0 — shop locks; syncs with the charge glyph's completion flash
       turnClock.set(next); // (the last-5s tick beeps were retired — the charge-glyph turnCharge cue replaces them)
+      if (!infiniteClockRef.current) observeTurnClock(next, run.wave); // the announcer's "Low on time" warning (15 s left, every Shop turn)
       // Thymepiece's window closes on the SAME tick that moves the clock, so whatever pauses this loop (a
       // Discover, a Choose One, an aim, hero select — the effect's gate above) pauses the window with it. Once:
       // the reducer clears the window, so the next tick reads none. Replay pacing divides this tick too, so a

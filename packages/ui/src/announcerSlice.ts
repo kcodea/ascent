@@ -100,7 +100,9 @@ export type AnnouncerEvent =
   | 'executeKing'
   | 'sameCardDuel'
   | 'clutchWin'
-  | 'narrowLoss';
+  | 'narrowLoss'
+  // The owner's own moment (2026-09-25, the tracker): Bob Blart and Chronos together.
+  | 'blartChronos';
 
 export interface AnnouncedSlice {
   seed: number;

@@ -1082,7 +1082,9 @@ describe('the third batch (owner 2026-09-25): new takes, TimeRunningOut, the no-
     expect(keys.slice(keys.indexOf('timeRunningOut'), keys.indexOf('timeRunningOut') + 4)).toEqual(['timeRunningOut', 'buyDrakko', 'buySylus', 'castAle']);
     const b1 = keys.indexOf(CATALOG_BATCH_1_EVENTS[0]!);
     expect(keys.slice(b1, b1 + CATALOG_BATCH_1_EVENTS.length)).toEqual([...CATALOG_BATCH_1_EVENTS]);
-    expect(keys.slice(-CATALOG_BATCH_2_EVENTS.length)).toEqual([...CATALOG_BATCH_2_EVENTS]);
+    const b2 = keys.indexOf(CATALOG_BATCH_2_EVENTS[0]!);
+    expect(keys.slice(b2, b2 + CATALOG_BATCH_2_EVENTS.length)).toEqual([...CATALOG_BATCH_2_EVENTS]);
+    expect(keys.at(-1)).toBe('blartChronos');
     expect(ANNOUNCER_PRIORITY).toMatchObject({ timeRunningOut: 5, buyDrakko: 36, buySylus: 36, castAle: 16 });
     expect(Math.min(...Object.values(ANNOUNCER_PRIORITY))).toBe(5);
     expect(ANNOUNCER_TIME_WARNING_SECONDS).toBe(15);
@@ -1782,5 +1784,24 @@ describe('the moment catalog\'s second batch (owner 2026-09-25): in-fight lines 
     observeCombatMoments(view(2, { combat: {} }), r.wave);
     await tick(20);
     expect(events()).toContain('first-blood');
+  });
+});
+
+describe('the owner own moment (2026-09-25): Bob Blart and Chronos', () => {
+  it('BlartChronos the first time both sit on the board; never with only one; once per game', async () => {
+    expect(CARD_INDEX.dm_gourmand?.name).toBe('Bob Blart');
+    expect(CARD_INDEX.chronos?.name).toBe('Chronos');
+    expect(ANNOUNCER_LINES.blartChronos).toEqual(['blart-chronos-1', 'blart-chronos-2']);
+    let r = openShop({ board: [m('dm_gourmand')] });
+    r = go({ ...r, board: [m('dm_gourmand'), m(BEAST.id)] });
+    await tick(20);
+    expect(events()).toEqual([]);
+    r = go({ ...r, board: [m('dm_gourmand'), m(BEAST.id), m('chronos')] });
+    await tick(20);
+    expect(events()).toEqual(['blart-chronos']);
+    r = go({ ...r, board: [m('dm_gourmand')] });
+    go({ ...r, board: [m('dm_gourmand'), m('chronos')] });
+    await tick(LINE_MS + ANNOUNCER_COOLDOWN_MS);
+    expect(events()).toEqual(['blart-chronos']);
   });
 });

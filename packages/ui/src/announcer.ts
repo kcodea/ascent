@@ -288,6 +288,8 @@ export const ANNOUNCER_LINES: Record<AnnouncerEvent, readonly string[]> = {
   sameCardDuel: ['same-card-duel-1'],
   clutchWin: ['clutch-win-1'],
   narrowLoss: ['narrow-loss-1'],
+  // The owner's own moment (2026-09-25): written in the tracker, two ElevenLabs takes of the owner's line.
+  blartChronos: ['blart-chronos-1', 'blart-chronos-2'],
 };
 
 /** The moment catalog's first batch (owner 2026-09-25), in ANNOUNCER_LINES order. */
@@ -395,6 +397,7 @@ export const ANNOUNCER_PRIORITY: Record<AnnouncerEvent, number> = {
   pummel: 24,
   riseBack: 21,
   firstBlood: 15,
+  blartChronos: 36, // a named-card specialty, like BuyDrakko / BuySylus
 };
 
 /** When a pending line goes stale: 'shop' lines when combat starts, 'combat' lines when the next shop opens. */
@@ -1329,10 +1332,16 @@ function detectArmorUp(s: AnnouncedSlice, p: AnnouncerRunLike, run: AnnouncerRun
   }
 }
 
+/** BlartChronos (the owner's own moment, 2026-09-25: "When bob blart and chronos are both on the player's warband for
+ *  the first time"): Bob Blart (`dm_gourmand`) and Chronos on the board together. */
+export const ANNOUNCER_BLART_CHRONOS: readonly string[] = ['dm_gourmand', 'chronos'];
+const hasAll = (r: AnnouncerRunLike, ids: readonly string[]): boolean => ids.every((id) => r.board.some((c) => c.cardId === id));
+
 /** Within a Shop turn: the catalog's economy, tier and board lines. */
 function detectShopTurn(s: AnnouncedSlice, p: AnnouncerRunLike, run: AnnouncerRunLike, now: number): void {
   const w = run.wave;
   const q = (event: AnnouncerEvent): void => enqueue({ event, shelf: 'shop', notBefore: now, wave: w });
+  if (p.board !== run.board && !hasAll(p, ANNOUNCER_BLART_CHRONOS) && hasAll(run, ANNOUNCER_BLART_CHRONOS) && !hasFired(s, 'blartChronos')) q('blartChronos');
   // TierUp: an upgrade to tier 2-5 (TierSix has its own line). FastTier: tier 4 by round 5 / tier 6 by round 9.
   if (run.tier > p.tier) {
     if (run.tier >= 2 && run.tier <= 5 && repeatAllowed(s, 'tierUp', w, 4, 0)) q('tierUp');

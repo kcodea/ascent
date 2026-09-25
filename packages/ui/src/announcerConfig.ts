@@ -38,6 +38,7 @@ export const ANNOUNCER_TUNER_EVENTS = [
   // The second batch (owner 2026-09-25): in-fight moments, then the final-frame verdicts.
   'sameCardDuel', 'firstBlood', 'overkill', 'wardBreak', 'rebirth', 'riseBack', 'avengeBig', 'echoChain', 'summonSwarm',
   'tauntWall', 'flurry', 'pummel', 'lastStand', 'executeKill', 'executeKing', 'clutchWin', 'narrowLoss',
+  'blartChronos',
 ] as const satisfies readonly AnnouncerEvent[];
 
 type VolKey = `${AnnouncerEvent}Vol`;
@@ -134,6 +135,7 @@ const EVENT_LABEL: Record<AnnouncerEvent, string> = {
   executeKing: 'Execute kills a 100+ Health minion (as shown, 3 s in)',
   clutchWin: 'Clutch win: one minion left at 3 Health or less (replay end)',
   narrowLoss: 'Narrow loss: their one minion at 3 Health or less (replay end)',
+  blartChronos: 'Bob Blart and Chronos together on the board, first time (0 ms)',
 };
 
 /**

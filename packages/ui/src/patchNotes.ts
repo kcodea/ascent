@@ -52,6 +52,13 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-09-25',
+    label: 'Seconds',
+    changes: [
+      { category: 'Systems', text: 'The announcer has something to say the first time Bob Blart and Chronos share your board.' },
+    ],
+  },
+  {
+    date: '2026-09-25',
     label: 'Announcer in the Fight',
     changes: [
       {

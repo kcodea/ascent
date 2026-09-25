@@ -1162,6 +1162,13 @@ export function useCombatReplay(
   // while tuning is the harness's whole workflow, so the nonce gives those effects something that always
   // changes. It never moves during ordinary playback, so the normal path is untouched.
   const [seekNonce, setSeekNonce] = useState(0);
+  // Re-arms the FINAL HOLD (the `finished` timer) on every seek and Skip. The final-hold effect otherwise keys
+  // on `replayComplete` flipping false→true, and for a ZERO-BEAT fight (an empty player board: `simulate`
+  // emits no events at all) it never flips: `beatIdx` is 0 and `beats.length` is 0 before AND after a seek, so
+  // `resetTo` cleared `finished` and nothing ever set it again. That was the Fight Recap's Watch replay hang
+  // (owner report 2026-09-24): the arena sat on the enemy board with Skip showing, and Skip (`beatIdx =
+  // beats.length`, again 0) was a no-op too. Bumping this makes both paths always reach `done`.
+  const [endNonce, setEndNonce] = useState(0);
   const [floats, setFloats] = useState<Float[]>([]);
   const [deathFloats, setDeathFloats] = useState<DeathFloat[]>([]); // damage on dying units (board overlay)
   const [triggers, setTriggers] = useState<Set<string>>(new Set()); // uids whose effect just fired → medallion pulse
@@ -1947,7 +1954,7 @@ export function useCombatReplay(
     });
     const t = window.setTimeout(() => setFinished(true), hold);
     return () => window.clearTimeout(t);
-  }, [active, replayComplete, combatSpeed, beats, events, cardIds]);
+  }, [active, replayComplete, combatSpeed, beats, events, cardIds, endNonce]);
 
   // Trigger-medallion pulse — when a unit's EFFECT fires this beat (Start-of-Combat, Deathrattle/summon,
   // buff/aura, Rally, Avenge, Sergeant's HP-grant, Reborn), its trigger icon releases a ring of energy.
@@ -3226,7 +3233,7 @@ export function useCombatReplay(
     watcherPulseUids: watcherPulse,
     framePulseUids: framePulse,
     done, result: combat ? combat.result : null, shaking, critShaking,
-    beatCount: beats.length, enemyDeaths, combatBuffs, combatPreviews, questDelta, triggeredQuests, completedQuests, skip: () => setBeatIdx(beats.length),
+    beatCount: beats.length, enemyDeaths, combatBuffs, combatPreviews, questDelta, triggeredQuests, completedQuests, skip: () => { setBeatIdx(beats.length); setEndNonce((n) => n + 1); },
     // Clamped here rather than at the call site: an out-of-range seek from a stale moment list (the fight
     // was re-staged while the harness still showed the old one) must land somewhere valid, not wedge the
     // replay past its end. The outer `max` also floors the no-combat case (`beats.length === 0`, where the
@@ -3235,6 +3242,7 @@ export function useCombatReplay(
     // become true.
     seekTo: (index: number) => {
       setSeekNonce((n) => n + 1); // here, not in `resetTo` — a fresh combat already changes `combat` identity
+      setEndNonce((n) => n + 1);  // …and re-arm the final hold (a zero-beat fight never flips `replayComplete`)
       resetTo(Math.max(0, Math.min(beats.length - 1, index)));
     },
   };

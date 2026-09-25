@@ -52,6 +52,23 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-09-24',
+    label: 'Smoother Screen Wipe',
+    changes: [
+      {
+        category: 'Systems',
+        text: 'The blue screen wipe between the shop and combat is smoother on wide screens, and nothing shows through it any more.',
+        details: [
+          'On ultrawide screens the wipe now grows wider, so it reaches the sides at the same time as the top and bottom.',
+          'The wipe keeps moving until it has covered the screen, instead of slowing to a crawl in the far corner.',
+          'Its glowing edge is softer, with a light glow running just ahead of it.',
+          'Damage numbers, damage counters and tooltips no longer pop up on top of the wipe.',
+          'The damage you dealt to another player now shows once the shop is back, instead of during the wipe.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-09-24',
     label: 'Big Hits',
     changes: [
       {

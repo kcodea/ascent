@@ -136,6 +136,8 @@ import { chargeTune, useChargePreview } from './chargeGlyphTune';
 import { ChargeMotes } from './chargeMotes';
 import { wipeFx } from './wipeFx';
 import { wipeOriginFor, type WipeOrigin } from './wipeGeometry';
+import { afterBeat, afterSweep, barClassFor, combatBackdropShown, curtainClassFor, frontClassFor, wipeExiting, wipeSweeping, wipeUp, type WipeState } from './wipeMachine';
+import { getScreenWipeConfig, wipeCssVars } from './screenWipeConfig';
 
 /** Golden Ruby's coin cue: a beat after its gem (so the two read as "Ruby, then Gold"), and spaced when a
  *  multi-cast Golden Ruby pays several times in one action. */
@@ -1918,24 +1920,17 @@ export function Recruit() {
   // curtain stays parked while wipeFx spirals motes into the gem, then the bloom erupts. The EXIT reuses
   // `primeOut` for the same tell — it already parks the zero circle, so it just holds for the charge
   // duration instead of one frame.
-  type WipeState = 'idle' | 'chargeIn' | 'coverIn' | 'coveredIn' | 'revealIn' | 'combat' | 'primeOut' | 'coverOut' | 'coveredOut' | 'revealOut';
   const [wipe, setWipe] = useState<WipeState>(() => (run.phase === 'combat' ? 'combat' : 'idle'));
-  // Per-STAGE sweep duration + the full-blue hold between stages — single source: the CSS var below is set
-  // FROM WIPE_MS, and the backstop timer derives from it (+150ms margin), so retuning here can never strand
-  // the state machine mid-sweep.
-  const WIPE_MS = 450;
-  // ENTRY holds long enough to read the NOW FACING announcement on the blue; EXIT has no announcement and
-  // stays snappy.
-  const WIPE_HOLD_IN_MS = 900;
-  const WIPE_HOLD_OUT_MS = 700;
-  // The gem tell's length (both directions) — long enough to read as anticipation, short enough not to lag
-  // the transition.
-  const WIPE_CHARGE_MS = 260;
-  const wipeSweeping = wipe === 'coverIn' || wipe === 'revealIn' || wipe === 'coverOut' || wipe === 'revealOut';
-  const wipeExiting = wipe === 'primeOut' || wipe === 'coverOut' || wipe === 'coveredOut' || wipe === 'revealOut';
+  // Every duration, the easing, the shape and the edge come from the Screen wipe tuner (screenWipeConfig.ts;
+  // production plays its baked defaults). Read per render: the machine only moves between wipes, so a slider
+  // change shows on the next one. The CSS vars below are set FROM the same numbers, and the sweep backstop
+  // derives from them (+400ms), so retuning can never strand the state machine mid-sweep.
+  const wipeCfg = getScreenWipeConfig();
+  const wipeIsSweeping = wipeSweeping(wipe);
+  const wipeIsExiting = wipeExiting(wipe);
   // GEM ORIGIN — measured ONCE at the start of each cover sweep (a one-shot layout read, not per-frame;
-  // see CLAUDE.md perf rules), then handed to the CSS as `--wipe-cx/--wipe-cy/--wipe-r/--wipe-front-scale`.
-  // The radius is the distance to the farthest viewport corner and the ring's scale is derived from it (see
+  // see CLAUDE.md perf rules), then handed to the CSS (`wipeCssVars`: `--wipe-cx/cy/rx/ry`, `--wipe-front-sx/sy`). The
+  // ellipse reaches the farthest viewport corner and the ring's scale is derived from it (see
   // wipeGeometry.ts), so `.full` provably covers the whole screen — 16:9, 21:9 or 32:9 — and the ring rides
   // the seam all the way out (owner bug 2026-09-24: the ring was a fixed 16:9 size and stalled mid-screen on
   // ultrawide). Re-measured on resize while a wipe is on screen, so a mid-wipe window change still covers.
@@ -1945,7 +1940,8 @@ export function Recruit() {
   const wipeOriginRef = useRef<WipeOrigin | null>(null);
   const measureWipeOrigin = useCallback((): void => {
     const gem = document.querySelector('.etbwrap .etb-gembox') ?? document.querySelector('.etbwrap');
-    const o = wipeOriginFor(window.innerWidth, window.innerHeight, gem ? gem.getBoundingClientRect() : null);
+    const c = getScreenWipeConfig();
+    const o = wipeOriginFor(window.innerWidth, window.innerHeight, gem ? gem.getBoundingClientRect() : null, { ellipse: c.ellipse, ringLine: c.ringLine });
     wipeOriginRef.current = o;
     setWipeOrigin(o);
   }, []);
@@ -1955,7 +1951,14 @@ export function Recruit() {
     if (wipe !== 'chargeIn' && wipe !== 'primeOut') return;
     measureWipeOrigin();
   }, [wipe, measureWipeOrigin]);
-  const wipeOnScreen = wipe !== 'idle' && wipe !== 'combat';
+  const wipeOnScreen = wipeUp(wipe);
+  // `body.wipe-up` while the curtain is up (owner 2026-09-24: "sometimes background elements come through the
+  // wipe or it flickers"): hides the hover layers that sit above the curtain's z (card references, cast
+  // previews, game tooltips) and holds the lobby's damage float until the reveal is done (lobbyDamageFx.ts).
+  useLayoutEffect(() => {
+    document.body.classList.toggle('wipe-up', wipeOnScreen);
+  }, [wipeOnScreen]);
+  useEffect(() => () => document.body.classList.remove('wipe-up'), []);
   useEffect(() => {
     if (!wipeOnScreen) return undefined;
     window.addEventListener('resize', measureWipeOrigin);
@@ -1974,37 +1977,34 @@ export function Recruit() {
     const o = wipeOriginRef.current;
     if (wipe === 'idle') { wipeFx.clear(); return; }
     if (!o) return;
-    if (wipe === 'chargeIn' || wipe === 'primeOut') wipeFx.charge(o.cx, o.cy, WIPE_CHARGE_MS + 80);
-    else if (wipe === 'coverIn') wipeFx.bloom(o.cx, o.cy, o.r, WIPE_MS);
-    else if (wipe === 'coverOut') { wipeFx.bloom(o.cx, o.cy, o.r, WIPE_MS); wipeFx.inhale(o.cx, o.cy, o.r, WIPE_MS + 200); }
+    const c = getScreenWipeConfig();
+    const ease: [number, number, number, number] = [c.easeX1, c.easeY1, c.easeX2, c.easeY2];
+    if (wipe === 'chargeIn' || wipe === 'primeOut') wipeFx.charge(o.cx, o.cy, c.chargeMs + 80);
+    else if (wipe === 'coverIn') wipeFx.bloom(o.cx, o.cy, o.rx, o.ry, c.coverMs, ease);
+    else if (wipe === 'coverOut') { wipeFx.bloom(o.cx, o.cy, o.rx, o.ry, c.coverMs, ease); wipeFx.inhale(o.cx, o.cy, o.r, c.coverMs + 200); }
   }, [wipe]);
-  const wipeVars = {
-    '--wipe-dur': `${WIPE_MS}ms`,
-    ...(wipeOrigin ? {
-      '--wipe-cx': `${wipeOrigin.cx}px`, '--wipe-cy': `${wipeOrigin.cy}px`, '--wipe-r': `${wipeOrigin.r}px`,
-      '--wipe-front-scale': String(wipeOrigin.frontScale),
-    } : {}),
-  } as CSSProperties;
+  const wipeVars = wipeCssVars(wipeCfg, wipeOrigin) as CSSProperties;
   const wipeTimeoutRef = useRef<number | undefined>(undefined);
   const advanceWipe = useCallback((): void => {
-    setWipe((w) => (w === 'coverIn' ? 'coveredIn' : w === 'revealIn' ? 'combat' : w === 'coverOut' ? 'coveredOut' : w === 'revealOut' ? 'idle' : w));
+    setWipe(afterSweep);
   }, []);
   // Hold timers (the beat at full blue) + the sweep backstop live in one effect keyed on the state.
   useEffect(() => {
     if (wipe === 'coveredIn' || wipe === 'coveredOut') {
-      const t = window.setTimeout(() => setWipe(wipe === 'coveredIn' ? 'revealIn' : 'revealOut'), wipe === 'coveredIn' ? WIPE_HOLD_IN_MS : WIPE_HOLD_OUT_MS);
+      const t = window.setTimeout(() => setWipe(afterBeat(wipe)), wipe === 'coveredIn' ? getScreenWipeConfig().holdInMs : getScreenWipeConfig().holdOutMs);
       return () => window.clearTimeout(t);
     }
     // The tell beats: the zero-circle park is committed by this render; the charge FX plays on the gem,
     // then the bloom launches (a timer, not rAF, so a background tab can't stall the machine).
     if (wipe === 'chargeIn' || wipe === 'primeOut') {
-      const t = window.setTimeout(() => setWipe(wipe === 'chargeIn' ? 'coverIn' : 'coverOut'), WIPE_CHARGE_MS);
+      const t = window.setTimeout(() => setWipe(afterBeat(wipe)), getScreenWipeConfig().chargeMs);
       return () => window.clearTimeout(t);
     }
-    if (!wipeSweeping) return undefined;
-    wipeTimeoutRef.current = window.setTimeout(advanceWipe, WIPE_MS + 400);
+    if (!wipeIsSweeping) return undefined;
+    const c = getScreenWipeConfig();
+    wipeTimeoutRef.current = window.setTimeout(advanceWipe, (wipe === 'coverIn' || wipe === 'coverOut' ? c.coverMs : c.revealMs) + 400);
     return () => window.clearTimeout(wipeTimeoutRef.current);
-  }, [wipe, wipeSweeping, advanceWipe]);
+  }, [wipe, wipeIsSweeping, advanceWipe]);
   useEffect(() => {
     // A DECISIVE combat exits to the END SCREEN (gameover/victory), not the shop — no curtain, no
     // "returning to shop" announcement (owner ask 2026-08-28). Snap the machine home; the end screen
@@ -2017,22 +2017,10 @@ export function Recruit() {
     // invisibly behind the blue. The CSS `.wipefront` glow carries the front's look. The `board-wipe` def
     // stays committed in the workbench for a future dedicated above-curtain layer.)
   }, [inCombat]);
-  // What each element wears per state. Covers wear `full` (the bloom, circle geometry); the holds wear
-  // `full settle` (which ALSO swaps the clip to the full-cover inset, transition:none — the invisible
-  // shape change that lets the reveal run linear); `gone` is the entry reveal's R→L retreat (parked
-  // through combat), `gone rtl` the exit reveal's L→R retreat; base and `primeOut` park on the zero
-  // circle, ready for the next bloom.
-  // The TELL states (`chargeIn`/`primeOut`) wear `settle` too: they are where a fresh origin lands, and
-  // without it the zero-radius circle's CENTRE would transition from the last origin to the new one over
-  // the next 450ms, dragging the bloom's centre off the gem for its first half (seen in 2026-09-24's traces).
-  const curtainClass = `wipecurtain${
-    wipe === 'chargeIn' || wipe === 'primeOut' ? ' settle'
-    : wipe === 'coveredIn' || wipe === 'coveredOut' ? ' full settle'
-    : wipe === 'coverIn' || wipe === 'coverOut' ? ' full'
-    : wipe === 'revealIn' || wipe === 'combat' ? ' gone'
-    : wipe === 'revealOut' ? ' gone rtl' : ''
-  }${wipeExiting ? ' exit' : ''}`;
-  const combatBgShown = wipe === 'coveredIn' || wipe === 'revealIn' || wipe === 'combat' || wipe === 'primeOut' || wipe === 'coverOut';
+  // What each element wears per state lives in wipeMachine.ts (curtainClassFor / frontClassFor / barClassFor),
+  // so the tuner's preview and the tests read the same rules. The backdrop flips only across a hold.
+  const curtainClass = curtainClassFor(wipe);
+  const combatBgShown = combatBackdropShown(wipe);
   // COMBAT UNITS render on the staged window too (owner ask 2026-08-29): the warband's recruit-cards→Unit
   // swap and the enemy row's arrival both happen while the curtain fully hides the board, so the entry
   // reveal exposes BOTH armies already standing (they hold ~300ms before the first attack — see the
@@ -6983,7 +6971,7 @@ export function Recruit() {
         })()}
         {/* The exit curtain's own announcement (owner ask 2026-08-28; shop vignette added 2026-08-30) —
             the same format as NOW FACING, with the shop art in the circle instead of a foe portrait. */}
-        {wipeExiting && (
+        {wipeIsExiting && (
           <div className="wipevs">
             <div className="wipevs-label">Returning to Shop</div>
             <img decoding="sync" className="wipevs-face" src={`${import.meta.env.BASE_URL}return-to-shop.webp`} alt="" draggable={false} />
@@ -6994,12 +6982,8 @@ export function Recruit() {
           parked snapped at base otherwise), and the vertical BAR rides the linear reveals — parked at the
           launch edge during each hold (entry reveal runs R→L so it parks RIGHT during coveredIn; exit
           reveal runs L→R from its LEFT home). Opacity rides `sweeping` on both, so parking is invisible. */}
-      <div className={`wipefront${wipe === 'coverIn' || wipe === 'coverOut' ? ' grow sweeping' : ' snap'}`} aria-hidden="true" style={wipeVars} />
-      <div className={`wipebar${
-        wipe === 'revealIn' ? ' rtl go sweeping'
-        : wipe === 'revealOut' ? ' go sweeping'
-        : wipe === 'coveredIn' ? ' rtl snap'
-        : ' snap'}`} aria-hidden="true" style={wipeVars} />
+      <div className={frontClassFor(wipe)} aria-hidden="true" style={wipeVars} />
+      <div className={barClassFor(wipe)} aria-hidden="true" style={wipeVars} />
       </>, document.body)}
       {/* Charge glyph — the board's etched sigil, anchored to the board midline. Lives HERE (a direct child of
           `.app`, before the zones) rather than inside the warband zone, so the warband layout offset (x/y/scale)

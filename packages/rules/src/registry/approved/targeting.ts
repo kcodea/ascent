@@ -115,4 +115,27 @@ export const TARGETING_RULES: GameRule[] = [
       + 'the rule restates R-TARGET-03 and the tribe guard from the automated player\'s side.',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/bots/bots.test.ts', 'packages/sim/src/lobby/runLobby.test.ts'], lastVerifiedAt: '2026-09-23' },
   },
+  {
+    id: 'R-TARGET-05',
+    title: 'A Choose One minion holds its board slot through the aim step, and only a cancel sends it home',
+    statement:
+      'A Choose One minion dropped on the board stands in the slot it was dropped on for the WHOLE unresolved play: '
+      + 'the Choose One prompt AND, when the picked branch needs a target, the aim step that follows. The aim line '
+      + 'starts from that board slot. It returns to the hand only when the player cancels (at either step); once the '
+      + 'target is picked the play commits into that same slot. Presentation only: the reducer still commits nothing '
+      + 'until the branch and target are settled (the card stays in `run.hand`, its slot on `pendingTarget.toIndex`), '
+      + 'so a cancel stays a pure no-op (no Gold, no counters, no RNG).',
+    domain: 'targeting',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner bug report, 2026-09-25 (Runic Beetle)', quote: 'the card should stay on board like it is during the choose animation for that targeting animation, too' },
+      { kind: 'code', ref: 'packages/ui/src/chooseOneHold.ts chooseOneHeldSlot (reads run.chooseOne OR a deferred run.pendingTarget); packages/ui/src/Recruit.tsx chooseOnePreview / chooseOnePreviewUid / captureCoalesce' },
+    ],
+    contentIds: ['beetle', 'godfodder'],
+    currentBehaviour:
+      'Conforms — 2026-09-25: the board preview and the hand-row hide read one gate that covers both open steps. '
+      + 'Before, the preview read only `run.chooseOne`, so picking a targeted branch dropped it and the card jumped '
+      + 'back into the hand with the aim beam starting there.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/chooseOneHold.test.ts'], lastVerifiedAt: '2026-09-25' },
+  },
 ];

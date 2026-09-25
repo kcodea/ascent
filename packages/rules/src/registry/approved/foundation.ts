@@ -559,7 +559,7 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'speaks at most ONCE per run, recorded in the store\x27s `announced` slice, which is persisted with the '
       + 'autosave and keyed by the run seed, so a Save & Continue never replays a line and a new run starts fresh; '
       + 'BackToShop and Triple may speak twice, at least ANNOUNCER_REPEAT_GAP_WAVES (5) waves apart, and Knockout twice, '
-      + 'at least ANNOUNCER_KNOCKOUT_GAP_WAVES (1) apart. The variant (1 to 4) is drawn from the run seed (`announcerVariant`, '
+      + 'at least ANNOUNCER_KNOCKOUT_GAP_WAVES (1) apart. Which take plays is a fresh RANDOM pick every time (`announcerPick`, owner 2026-09-25: no seeds; '
       + 'which hashes the event\x27s index in ANNOUNCER_LINES, so the table is append-only). The RARE lines (the four random '
       + 'buy lines, Round7) roll a seeded ANNOUNCER_RARE_CHANCE (10%) per qualifying moment from the run seed, the wave and '
       + 'the buy index (`announcerRoll`), so a replay rolls the same way; never Math.random. One global cooldown, ANNOUNCER_COOLDOWN_MS (12 s from the previous '

@@ -76,8 +76,8 @@ export const SET2_DRAGONS: CardDef[] = [
     // (`consumeGrimoireCharge` on the ruby path), so this really is the inclusive umbrella. Pinned by
     // set2RubyExclusion.test.ts so a wording sweep can't narrow it — which is exactly what happened on
     // 2026-07-28 before the test caught it.
-    text: 'The first spell you cast each turn **casts twice**. Once used, trigger **3 Shouts** to reset this.',
-    goldenText: 'The first spell you cast each turn **casts 3 times**. Once used, trigger **3 Shouts** to reset this.',
+    text: 'The first spell you cast from hand each turn **casts twice**. Once used, trigger **3 Shouts** to reset this.',
+    goldenText: 'The first spell you cast from hand each turn **casts 3 times**. Once used, trigger **3 Shouts** to reset this.',
   },
   {
     // Dragon/BEAST: a delayed spell-copier. Its Echo (dying in combat is the usual path) queues a copy of
@@ -217,12 +217,12 @@ export const SET2_DRAGONS: CardDef[] = [
     effects: [],
     chooseOne: [
       { text: 'Your **Shouts** trigger an additional time.', effects: [{ on: 'onPlay', do: 'battlecryGrantShoutExtra', params: { extra: 1 } }] },
-      { text: 'Your first **Shop spell** each turn casts **3 times**.', effects: [{ on: 'onPlay', do: 'battlecryGrantFirstSpellMult', params: { mult: 3 } }] },
+      { text: 'The first **Shop spell** you cast from hand each turn casts **3 times**.', effects: [{ on: 'onPlay', do: 'battlecryGrantFirstSpellMult', params: { mult: 3 } }] },
     ],
     chooseBothWhenGolden: true,
     // No flavour names (owner 2026-07-25) — its OPTIONS never carried them, but the combined card text did.
-    text: '**Choose One:** your **Shouts** trigger an additional time, or your first **Shop spell** each turn casts **3 times**.',
-    goldenText: '**Choose One:** gain **both**. Your **Shouts** trigger an additional time, and your first **Shop spell** each turn casts **3 times**.',
+    text: '**Choose One:** your **Shouts** trigger an additional time, or the first **Shop spell** you cast from hand each turn casts **3 times**.',
+    goldenText: '**Choose One:** gain **both**. Your **Shouts** trigger an additional time, and the first **Shop spell** you cast from hand each turn casts **3 times**.',
   },
   {
     // Owner add 2026-08-11 (renamed Herzog → Vaultkeeper 2026-08-12; the id stays — saved runs store ids). A

@@ -284,7 +284,7 @@ export const CONVENTION_PENDING: GameRule[] = [
     "statement": "All 16 'grant' cards trigger the same way. Gilding doubles their output. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "triggers",
     "currentBehaviour": "1 effect factories across 16 cards dispatch through the 'grant' presentation family, all on the single trigger 'equip' (recruit); the factoryPhase lane gates each (trigger, factory) pair. Gilding: the ×2 baseline; any member whose gild changes shape instead carries authored golden text (R-GILD-01).",
-    "cardText": "Exemplar — Cometius: \"Equip Comet (3): your next spell casts 2 additional times.\" · Members: Cometius · Lens Grinder · Pourman · Thymes · Alchemist Frank · Titan Sculptor · Blast Surveyor · Kaura L'roft · Picksy · Calibration Master · Highway Hustler · Inspector Pell · … and 4 more",
+    "cardText": "Exemplar — Cometius: \"Equip Comet (3): your next spell cast from hand casts 2 additional times.\" · Members: Cometius · Lens Grinder · Pourman · Thymes · Alchemist Frank · Titan Sculptor · Blast Surveyor · Kaura L'roft · Picksy · Calibration Master · Highway Hustler · Inspector Pell · … and 4 more",
     "example": "Cometius follows the 'grant' convention — its trigger fires on equip. its printed numbers double when the card is gilded.",
     "contentIds": [
       "ce3_artificer",
@@ -519,7 +519,7 @@ export const CONVENTION_PENDING: GameRule[] = [
     "statement": "All 2 'shoutPayoff' cards trigger the same way. Gilding doubles their output. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "triggers",
     "currentBehaviour": "2 effect factories across 2 cards dispatch through the 'shoutPayoff' presentation family, all on the single trigger 'battlecryTriggered' (recruit); the factoryPhase lane gates each (trigger, factory) pair. Gilding: the ×2 baseline; any member whose gild changes shape instead carries authored golden text (R-GILD-01).",
-    "cardText": "Exemplar — Living Grimoire: \"The first spell you cast each turn casts twice. Once used, trigger 3 Shouts to reset this.\" · Members: Living Grimoire · Reconfigured Combinator",
+    "cardText": "Exemplar — Living Grimoire: \"The first spell you cast from hand each turn casts twice. Once used, trigger 3 Shouts to reset this.\" · Members: Living Grimoire · Reconfigured Combinator",
     "example": "Living Grimoire follows the 'shoutPayoff' convention — its trigger fires on battlecryTriggered. its printed numbers double when the card is gilded.",
     "contentIds": [
       "d2_grimoire",

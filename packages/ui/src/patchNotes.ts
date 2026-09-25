@@ -52,6 +52,21 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-09-25',
+    label: 'Fight Recap: Cleaner',
+    changes: [
+      {
+        category: 'Systems',
+        text: 'The fight recap is shorter and to the point: one damage number, and the average damage a win or a loss would have done beside the odds.',
+        details: [
+          'The top shows one number: You dealt X in green after a win, or You took X in red after a loss.',
+          'The odds now sit under a Fight Outcome Odds title, with the average damage a win deals on the left and the average damage a loss costs on the right.',
+          'Stars of the fight and the "chance to win" and "a loss here usually costs" lines are gone.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-09-25',
     label: 'Hero Select',
     changes: [
       {

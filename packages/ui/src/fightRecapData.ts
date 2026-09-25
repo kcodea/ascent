@@ -1,5 +1,5 @@
 import { CARD_INDEX } from '@game/content';
-import type { CombatEvent, CombatResult } from '@game/core';
+import type { CombatResult } from '@game/core';
 import { ANNOUNCER_HIGH_ODDS, ANNOUNCER_LOW_ODDS } from './announcer';
 
 /**
@@ -8,128 +8,22 @@ import { ANNOUNCER_HIGH_ODDS, ANNOUNCER_LOW_ODDS } from './announcer';
  * carry-backs, its odds) so the recap can never disagree with what the replay showed.
  */
 
-// ── Stars of the fight ─────────────────────────────────────────────────────────────────────────────────────
-
-export type StarStat = 'damage' | 'kills' | 'procs';
-
-export interface FightStar {
-  uid: string;
-  cardId: string;
-  name: string;
-  golden: boolean;
-  /** Every category this minion led, in display order (damage, kills, procs). */
-  stats: { stat: StarStat; value: number }[];
-}
-
-/** Event families that count as ONE trigger of the minion named by `sourceOf`. */
-function triggerSource(e: CombatEvent): string | undefined {
-  switch (e.type) {
-    case 'sc': case 'shout': case 'rally': case 'proccrit': case 'pummelTrigger': return e.source;
-    case 'summon': case 'toHand': case 'keyword': case 'buff': case 'handBuff': return e.source;
-    case 'maxGold': return e.target; // Soulsman's Avenge names the minion that fired as `target`
-    default: return undefined;
-  }
-}
-
-/**
- * The player's standout minions, from the event log alone.
- *
- * - **damage**: the sum of every `dmg` a player minion dealt to an enemy.
- * - **kills**: an enemy death (a Rise's first death does not count, the body returns) is credited to the LAST
- *   player minion that damaged that body before it fell.
- * - **procs**: effect triggers the minion sourced. One trigger that lands on several targets (a buff wave, a
- *   multi-summon) emits several events on the same `step`, so events are folded per (family, source, step).
- *
- * Each category names its single leader (ties go to the minion that entered the fight first). A minion that
- * leads two categories is shown once with both chips, so the row holds at most three portraits. Returns []
- * when the log has nothing to credit (no events, or no player minion did anything).
- */
-export function fightStars(r: CombatResult | null | undefined): FightStar[] {
-  if (!r) return [];
-  const mine = new Map<string, { cardId: string; name: string; golden: boolean; order: number }>();
-  const theirs = new Set<string>();
-  let order = 0;
-  for (const m of r.initial?.player ?? []) mine.set(m.uid, { cardId: m.cardId, name: m.name, golden: !!m.golden, order: order++ });
-  for (const m of r.initial?.enemy ?? []) theirs.add(m.uid);
-
-  const damage = new Map<string, number>();
-  const kills = new Map<string, number>();
-  const procs = new Map<string, number>();
-  const lastHit = new Map<string, string>();
-  const seen = new Set<string>();
-  const bump = (m: Map<string, number>, k: string, n = 1): void => void m.set(k, (m.get(k) ?? 0) + n);
-
-  r.events.forEach((e, i) => {
-    if (e.type === 'summon') {
-      if (e.side === 'player') {
-        if (!mine.has(e.minion.uid)) mine.set(e.minion.uid, { cardId: e.minion.cardId, name: e.minion.name, golden: !!e.minion.golden, order: order++ });
-      } else theirs.add(e.minion.uid);
-    } else if (e.type === 'ascend') {
-      const m = mine.get(e.target);
-      if (m) mine.set(e.target, { ...m, cardId: e.into, name: CARD_INDEX[e.into]?.name ?? m.name });
-    } else if (e.type === 'dmg') {
-      if (e.source && mine.has(e.source) && theirs.has(e.target) && e.amount > 0) {
-        bump(damage, e.source, e.amount);
-        lastHit.set(e.target, e.source);
-      } else if (theirs.has(e.target) && e.amount > 0) {
-        lastHit.delete(e.target); // the last blow came from someone else, so no player minion earns the kill
-      }
-    } else if (e.type === 'death') {
-      if (!e.rise && theirs.has(e.target)) {
-        const killer = lastHit.get(e.target);
-        if (killer) bump(kills, killer);
-      }
-      lastHit.delete(e.target);
-    }
-    const src = triggerSource(e);
-    if (src && mine.has(src)) {
-      const k = `${e.type}|${src}|${e.step ?? `i${i}`}`;
-      if (!seen.has(k)) { seen.add(k); bump(procs, src); }
-    }
-  });
-
-  const leader = (m: Map<string, number>): [string, number] | null => {
-    let best: [string, number] | null = null;
-    for (const [uid, v] of m) {
-      if (v <= 0) continue;
-      if (!best || v > best[1] || (v === best[1] && (mine.get(uid)?.order ?? 0) < (mine.get(best[0])?.order ?? 0))) best = [uid, v];
-    }
-    return best;
-  };
-
-  const out: FightStar[] = [];
-  for (const [stat, m] of [['damage', damage], ['kills', kills], ['procs', procs]] as const) {
-    const lead = leader(m);
-    if (!lead) continue;
-    const [uid, value] = lead;
-    const existing = out.find((s) => s.uid === uid);
-    if (existing) { existing.stats.push({ stat, value }); continue; }
-    const info = mine.get(uid)!;
-    out.push({ uid, cardId: info.cardId, name: info.name, golden: info.golden, stats: [{ stat, value }] });
-  }
-  return out;
-}
-
-export const starStatLabel = (s: { stat: StarStat; value: number }): string =>
-  s.stat === 'damage' ? `${s.value} damage`
-    : s.stat === 'kills' ? `${s.value} ${s.value === 1 ? 'kill' : 'kills'}`
-    : `${s.value} ${s.value === 1 ? 'trigger' : 'triggers'}`;
-
 // ── Odds ───────────────────────────────────────────────────────────────────────────────────────────────────
 
-export interface OddsLike { win: number; draw: number; lose: number; avgLossDamage: number; lossDamageRange?: [number, number] }
+export interface OddsLike { win: number; draw: number; lose: number; avgLossDamage: number; avgWinDamage?: number }
 
 export interface OddsRecap {
-  /** The one line of copy. */
-  line: string;
   /** "Upset!" for a win the odds gave at most ANNOUNCER_LOW_ODDS; "Heartbreaker" for a loss they gave at least
    *  ANNOUNCER_HIGH_ODDS. The SAME thresholds (and comparisons) the announcer uses for its lines. */
   tag: 'upset' | 'heartbreaker' | null;
   /** Whole-percent Win / Draw / Loss that always sum to 100 (largest remainder), for the bar's labels. The bar
    *  is ALWAYS shown, 100/0 included (owner ask 2026-09-24: "keep the odds bar"). */
   pcts: { win: number; draw: number; lose: number };
-  /** "A loss here usually costs 7-9 damage" whenever a loss was possible (null when none was). */
-  lossLine: string | null;
+  /** The average damage a WIN here deals, rounded, beside the Win odds (owner ask 2026-09-25). Null when no sim
+   *  won, or on odds recorded before the probe tracked it. */
+  winDmg: number | null;
+  /** The average damage a LOSS here costs you, rounded, beside the Loss odds. Null when no sim lost. */
+  lossDmg: number | null;
 }
 
 /** Round three shares to whole percents that sum to exactly 100 (largest remainder). */
@@ -145,29 +39,15 @@ export function wholePercents(win: number, draw: number, lose: number): { win: n
   return { win: floor[0]!, draw: floor[1]!, lose: floor[2]! };
 }
 
-/** "a" or "an" before a spoken number: an 8, an 11, an 18, an 80-89 (they start with a vowel sound). */
-export const articleFor = (n: number): 'a' | 'an' => (n === 8 || n === 11 || n === 18 || (n >= 80 && n <= 89) ? 'an' : 'a');
-
 export function oddsRecap(odds: OddsLike | null | undefined, result: 'win' | 'lose' | 'draw' | null): OddsRecap | null {
   if (!odds) return null;
   const pcts = wholePercents(odds.win, odds.draw, odds.lose);
-  const w = pcts.win;
-  const d = pcts.draw;
-  const line = w >= 100 ? 'You were always going to win this one'
-    : w <= 0 && d <= 0 ? 'This one was never winnable'
-    : w <= 0 ? `You could not win this one, only draw (${d}%)`
-    : `You had ${articleFor(w)} ${w}% chance to win`;
   const tag = result === 'win' && odds.win <= ANNOUNCER_LOW_ODDS ? 'upset'
     : result === 'lose' && odds.win >= ANNOUNCER_HIGH_ODDS ? 'heartbreaker'
     : null;
-  let lossLine: string | null = null;
-  if (odds.lose > 0) {
-    const [lo, hi] = odds.lossDamageRange ?? [odds.avgLossDamage, odds.avgLossDamage];
-    const a = Math.round(lo);
-    const b = Math.round(hi);
-    if (b > 0) lossLine = `A loss here usually costs ${a === b ? a : `${a}-${b}`} damage`;
-  }
-  return { line, tag, pcts, lossLine };
+  const winDmg = odds.win > 0 && odds.avgWinDamage !== undefined ? Math.round(odds.avgWinDamage) : null;
+  const lossDmg = odds.lose > 0 ? Math.round(odds.avgLossDamage) : null;
+  return { tag, pcts, winDmg, lossDmg };
 }
 
 // ── Damage header ──────────────────────────────────────────────────────────────────────────────────────────

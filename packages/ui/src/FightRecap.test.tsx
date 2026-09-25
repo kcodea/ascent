@@ -1,7 +1,9 @@
 // @vitest-environment jsdom
 /**
- * FIGHT RECAP (owner ask 2026-09-24), rendered. Pins: empty sections HIDE (no "Stars of the fight" row with no
- * data, no "What you keep" and never the old "No lasting gains" line); Details is one drawer, closed by
+ * FIGHT RECAP (owner ask 2026-09-24, condensed 2026-09-25), rendered. Pins: no Stars of the fight section at
+ * all; ONE damage line (You dealt on a win, You took on a loss); the Fight outcome odds title with the average
+ * win / loss damage flanking the bar; empty sections HIDE (no "What you keep" and never the old "No lasting
+ * gains" line); Details is one drawer, closed by
  * default, holding Procs + Log; the Upset / Heartbreaker tag renders; Watch replay renders only when offered;
  * no `title=` anywhere (native tooltips are banned).
  */
@@ -31,26 +33,28 @@ const text = (): string => ui!.container.textContent ?? '';
 const click = (el: Element | null): void => { act(() => { (el as HTMLElement).click(); }); };
 
 describe('FightRecap', () => {
-  it('hides the Stars and What you keep sections when there is nothing to show', () => {
+  it('hides What you keep when there is nothing to show, and shows ONE damage line', () => {
     ui = mount(<FightRecap {...props()} />);
     expect(text()).toContain('Defeat');
     expect(text()).toContain('Round 3');
-    expect(text()).not.toContain('Stars of the fight');
+    expect(ui.container.querySelectorAll('.fr-dmgline')).toHaveLength(1);
+    expect(ui.container.querySelector('.fr-dmgline.taken')?.textContent).toBe('You took4');
+    expect(text()).not.toContain('You dealt');
     expect(text()).not.toContain('What you keep');
     expect(text()).not.toContain('No lasting gains');
     expect(ui.container.querySelector('[title]')).toBeNull();
   });
 
-  it('shows the Stars and What you keep rows when the fight has them', () => {
+  it('never shows Stars of the fight; a win shows You dealt; What you keep shows when the fight has it', () => {
     const r: CombatResult = {
-      ...empty, result: 'win',
+      ...empty, result: 'win', enemyDamage: 5,
       events: [{ type: 'dmg', target: 'e1', amount: 6, remainingHp: 0, source: 'p1' }, { type: 'death', target: 'e1', side: 'enemy' }],
       playerFreeRolls: 2,
     };
     ui = mount(<FightRecap {...props({ result: 'win', lastCombat: r })} />);
-    expect(text()).toContain('Stars of the fight');
-    expect(text()).toContain('6 damage');
-    expect(text()).toContain('1 kill');
+    expect(text()).not.toContain('Stars of the fight');
+    expect(ui.container.querySelector('.fr-dmgline.dealt')?.textContent).toBe('You dealt5');
+    expect(text()).not.toContain('You took');
     expect(text()).toContain('What you keep');
     expect(text()).toContain('Free rerolls');
   });
@@ -68,9 +72,14 @@ describe('FightRecap', () => {
   });
 
   it('tags an upset and a heartbreaker from the odds', () => {
-    ui = mount(<FightRecap {...props({ result: 'win', lastCombat: { ...empty, result: 'win' }, combatOdds: { win: 0.3, draw: 0, lose: 0.7, avgLossDamage: 4 } })} />);
+    ui = mount(<FightRecap {...props({ result: 'win', lastCombat: { ...empty, result: 'win' }, combatOdds: { win: 0.3, draw: 0, lose: 0.7, avgLossDamage: 4, avgWinDamage: 6.2 } })} />);
     expect(text()).toContain('Upset!');
-    expect(text()).toContain('You had a 30% chance to win');
+    expect(text()).toContain('Fight outcome odds');
+    expect(text()).not.toContain('chance to win');
+    expect(text()).not.toContain('usually costs');
+    // The average damage flanks the bar: a win's on the left, a loss's on the right.
+    expect(ui.container.querySelector('.fr-odds-dmg.win .fr-odds-dmg-num')?.textContent).toBe('6');
+    expect(ui.container.querySelector('.fr-odds-dmg.lose .fr-odds-dmg-num')?.textContent).toBe('4');
     // The bar is always there, with all three numbers.
     expect(ui.container.querySelector('.fr-oddsbar')).not.toBeNull();
     expect(text()).toContain('30% Win');

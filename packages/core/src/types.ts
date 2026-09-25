@@ -3169,6 +3169,10 @@ export interface CombatResult {
      *  the losing sims' round-capped damage, or min to max when fewer than 8 sims lost. Display-only, like the
      *  rest of `odds`. Absent when no sim lost, and on odds recorded before it existed. */
     lossDamageRange?: [number, number];
+    /** The mean damage the player DEALS across the winning sims (round-capped, the same cap the real hit uses):
+     *  the Fight Recap's "a win here deals ~N" (owner ask 2026-09-25). Display-only. 0 when no sim won; absent on
+     *  odds recorded before it existed. */
+    avgWinDamage?: number;
   };
 }
 

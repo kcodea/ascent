@@ -3797,6 +3797,10 @@ describe('run loop (@game/sim)', () => {
     expect(odds.avgLossDamage).toBeGreaterThanOrEqual(0);
     if (odds.lose > 0) expect(odds.avgLossDamage).toBeLessThanOrEqual(lossDamageCap(1));
     else expect(odds.avgLossDamage).toBe(0);
+    // Average WIN damage (Fight Recap, owner 2026-09-25): same round cap, 0 when nothing won.
+    expect(odds.avgWinDamage).toBeGreaterThanOrEqual(0);
+    if (odds.win > 0) expect(odds.avgWinDamage).toBeLessThanOrEqual(lossDamageCap(1));
+    else expect(odds.avgWinDamage).toBe(0);
   });
 });
 

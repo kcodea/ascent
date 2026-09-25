@@ -3,13 +3,14 @@ import type { CombatResult } from '@game/core';
 import { getHero, lossDamageCap, playerLossDamage, playerOpponent, type CombatOdds, type RunState } from '@game/sim';
 import { artFor, heroArt } from './art';
 import { Icon } from './Icon';
-import { combatGainItems, fightStars, oddsRecap, splitDamage, starStatLabel, type DamageSplit, type FightStar, type GainItem } from './fightRecapData';
+import { combatGainItems, oddsRecap, splitDamage, type DamageSplit, type GainItem } from './fightRecapData';
 
 /**
  * FIGHT RECAP (owner ask 2026-09-24): the redesigned post-combat summary, opened only from the Summary pill.
  * Dark glass + gold trim (the Discover / Runeforge / End Combat chrome), a strong result header with the foe
- * and the damage both ways, one line of odds, the fight's standout minions, what you keep, and the old
- * Procs + Log folded into a closed-by-default Details drawer. Every value is read off the recorded fight.
+ * and the ONE damage number that mattered (dealt on a win, taken on a loss), the outcome odds flanked by the
+ * average damage a win deals and a loss costs, what you keep, and the old Procs + Log folded into a
+ * closed-by-default Details drawer (condensed per owner ask 2026-09-25). Every value is read off the recorded fight.
  *
  * Mounted only while open (the parent gates it), so none of this costs anything during the shop phase.
  */
@@ -52,15 +53,30 @@ const RecapMini = memo(function RecapMini({ art, icon, name, chips, golden }: {
   );
 });
 
-function DamageTile({ label, dmg, split, kind }: { label: string; dmg: DamageSplit; split: boolean; kind: 'dealt' | 'taken' }) {
+/** The header's single damage line: "You dealt X" (green) on a win, "You took X" (red) on a loss, "No damage"
+ *  otherwise. The Armor / Resolve split rides underneath when the lobby split it. */
+function DamageLine({ verdict, dealt, taken, split }: { verdict: 'win' | 'lose' | 'draw'; dealt: DamageSplit; taken: DamageSplit; split: boolean }) {
+  const kind = verdict === 'win' && dealt.total > 0 ? 'dealt' : verdict === 'lose' && taken.total > 0 ? 'taken' : null;
+  if (!kind) return <div className="fr-dmgline zero">No damage</div>;
+  const dmg = kind === 'dealt' ? dealt : taken;
   const parts: string[] = [];
   if (split && dmg.armor) parts.push(`${dmg.armor} Armor`);
-  if (split && dmg.resolve) parts.push(`${dmg.resolve} Resolve`);
+  if (split && dmg.resolve && dmg.armor) parts.push(`${dmg.resolve} Resolve`);
   return (
-    <div className={`fr-dmg ${kind}${dmg.total ? '' : ' zero'}`}>
-      <div className="fr-dmg-label">{label}</div>
-      <div className="fr-dmg-num">{dmg.total}</div>
-      <div className="fr-dmg-sub">{dmg.total === 0 ? 'No damage' : parts.length ? parts.join(' · ') : 'damage'}</div>
+    <div className={`fr-dmgline ${kind}`}>
+      <span className="fr-dmgline-label">{kind === 'dealt' ? 'You dealt' : 'You took'}</span>
+      <span className="fr-dmgline-num">{dmg.total}</span>
+      {parts.length > 0 && <span className="fr-dmgline-sub">{parts.join(' · ')}</span>}
+    </div>
+  );
+}
+
+/** One average-damage figure flanking the odds bar: what a win deals (left) / what a loss costs (right). */
+function OddsDmg({ kind, value }: { kind: 'win' | 'lose'; value: number | null }) {
+  return (
+    <div className={`fr-odds-dmg ${kind}${value === null ? ' none' : ''}`}>
+      <span className="fr-odds-dmg-num">{value ?? '–'}</span>
+      <span className="fr-odds-dmg-label">{kind === 'win' ? 'avg dealt' : 'avg taken'}</span>
     </div>
   );
 }
@@ -90,7 +106,6 @@ export const FightRecap = memo(function FightRecap({ result, combatOdds, lastCom
   }, [lobby, wave, mode, lastCombat]);
 
   const odds = useMemo(() => oddsRecap(combatOdds, result), [combatOdds, result]);
-  const stars = useMemo<FightStar[]>(() => fightStars(lastCombat), [lastCombat]);
   const gains = useMemo<GainItem[]>(() => combatGainItems(lastCombat, board), [lastCombat, board]);
   const verdict = result ?? 'draw';
 
@@ -103,50 +118,40 @@ export const FightRecap = memo(function FightRecap({ result, combatOdds, lastCom
             <span className={`fr-verdict ${verdict}`}>{VERDICT[verdict]}</span>
             {odds?.tag && <span className={`fr-tag ${odds.tag}`}>{odds.tag === 'upset' ? 'Upset!' : 'Heartbreaker'}</span>}
           </div>
-          <div className="fr-vs">
-            <DamageTile label="You dealt" dmg={head.dealt} split={head.split} kind="dealt" />
-            <div className="fr-foe">
-              <div className="fr-foe-pic">
-                {head.foe && heroArt(head.foe.heroId)
-                  ? <img decoding="sync" src={heroArt(head.foe.heroId)} alt="" draggable={false} />
-                  : <Icon name="sword" />}
-              </div>
-              <div className="fr-foe-name">{head.foe ? head.foe.label : 'Your opponent'}</div>
-              {head.foe && (head.foe.heroName || head.foe.ghost) && (
-                <div className="fr-foe-hero">{head.foe.ghost ? 'Ghost' : head.foe.heroName}</div>
-              )}
+          <div className="fr-foe">
+            <div className="fr-foe-pic">
+              {head.foe && heroArt(head.foe.heroId)
+                ? <img decoding="sync" src={heroArt(head.foe.heroId)} alt="" draggable={false} />
+                : <Icon name="sword" />}
             </div>
-            <DamageTile label="You took" dmg={head.taken} split={head.split} kind="taken" />
+            <div className="fr-foe-name">{head.foe ? head.foe.label : 'Your opponent'}</div>
+            {head.foe && (head.foe.heroName || head.foe.ghost) && (
+              <div className="fr-foe-hero">{head.foe.ghost ? 'Ghost' : head.foe.heroName}</div>
+            )}
           </div>
+          <DamageLine verdict={verdict} dealt={head.dealt} taken={head.taken} split={head.split} />
         </header>
 
         <div className="fr-body">
           {odds && (
             <section className="fr-odds" aria-label="Estimated from repeated simulations of this matchup. The actual result was one roll of these odds.">
-              <div className="fr-odds-line">{odds.line}</div>
-              <div className="fr-oddsbar" aria-hidden="true">
-                {/* Flex-grow by share, so a 0% segment collapses to nothing but its label still shows below. */}
-                {odds.pcts.win > 0 && <span className="win" style={{ flexGrow: odds.pcts.win }} />}
-                {odds.pcts.draw > 0 && <span className="draw" style={{ flexGrow: odds.pcts.draw }} />}
-                {odds.pcts.lose > 0 && <span className="lose" style={{ flexGrow: odds.pcts.lose }} />}
-              </div>
-              <div className="fr-oddslabels">
-                <span className="win"><b>{odds.pcts.win}%</b> Win</span>
-                <span className="draw"><b>{odds.pcts.draw}%</b> Draw</span>
-                <span className="lose"><b>{odds.pcts.lose}%</b> Loss</span>
-              </div>
-              {odds.lossLine && <div className="fr-odds-avg">{odds.lossLine}</div>}
-            </section>
-          )}
-
-          {stars.length > 0 && (
-            <section className="fr-sec">
-              <div className="fr-sechead">Stars of the fight</div>
-              <div className="fr-row">
-                {stars.map((s) => (
-                  <RecapMini key={s.uid} art={artFor(s.cardId, s.uid)} name={s.name} golden={s.golden}
-                    chips={s.stats.map(starStatLabel).join('\n')} />
-                ))}
+              <div className="fr-sechead">Fight outcome odds</div>
+              <div className="fr-odds-row">
+                <OddsDmg kind="win" value={odds.winDmg} />
+                <div className="fr-odds-mid">
+                  <div className="fr-oddsbar" aria-hidden="true">
+                    {/* Flex-grow by share, so a 0% segment collapses to nothing but its label still shows below. */}
+                    {odds.pcts.win > 0 && <span className="win" style={{ flexGrow: odds.pcts.win }} />}
+                    {odds.pcts.draw > 0 && <span className="draw" style={{ flexGrow: odds.pcts.draw }} />}
+                    {odds.pcts.lose > 0 && <span className="lose" style={{ flexGrow: odds.pcts.lose }} />}
+                  </div>
+                  <div className="fr-oddslabels">
+                    <span className="win"><b>{odds.pcts.win}%</b> Win</span>
+                    <span className="draw"><b>{odds.pcts.draw}%</b> Draw</span>
+                    <span className="lose"><b>{odds.pcts.lose}%</b> Loss</span>
+                  </div>
+                </div>
+                <OddsDmg kind="lose" value={odds.lossDmg} />
               </div>
             </section>
           )}

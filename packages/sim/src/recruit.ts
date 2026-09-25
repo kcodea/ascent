@@ -50,6 +50,40 @@ export function withCastActor<T>(actor: CastFxSource, fn: () => T): T {
   try { return fn(); } finally { castActorStack.pop(); }
 }
 /**
+ * THE FROM-HAND GATE (owner ruling 2026-09-24: "let's make the effect of living grimoire and yazzus/orivax etc specify
+ * spell cast from hand so that it only doubles from spells cast from hand"). Every cast MULTIPLIER (Yazzus, Living
+ * Grimoire, Orivax, Spell Thesis, Ancient Runes, Nimbus / Comet, Edward Keg-hands, the Bottomless Cask / Cellar,
+ * Shared Pour, Hoardflame / Dragon Breath, Constellation Prime) applies ONLY to a spell the player casts from hand,
+ * and ONLY such a cast spends a one-shot multiplier (the Grimoire charge, Orivax's window, Spell Thesis's freebie,
+ * the Nimbus / Comet charge, Shared Pour's freebie). A minion's, a rune's or an Equipment's cast resolves once and
+ * spends nothing.
+ *
+ * The reducer's hand-play paths are the ONLY callers of `withHandCast`; everything else is "not from hand" by
+ * construction. The stack holds the SPELL ID being hand-cast, so a re-cast of that same spell inside its own
+ * resolution (Mirrorwing, the Reflector, Runefire, Crash Course: "a re-cast is the same cast happening again",
+ * Mirrorwing ruling 2026-09-01) still counts as that hand cast, while a DIFFERENT spell a watcher casts in the
+ * middle of it does not. Module-scoped like `castActorStack`: `reduce` is synchronous and non-reentrant.
+ */
+const handCastStack: string[] = [];
+/** Resolve `fn` as the player's cast of `spellId` from hand. Called ONLY by the reducer's hand-play paths. */
+export function withHandCast<T>(spellId: string, fn: () => T): T {
+  handCastStack.push(spellId);
+  try { return fn(); } finally { handCastStack.pop(); }
+}
+/** Is `spellId` the spell the player is casting from hand right now? */
+export function isHandCast(spellId: string): boolean {
+  return handCastStack[handCastStack.length - 1] === spellId;
+}
+/**
+ * How many times a NON-HAND cast site resolves `def` (Pourman's Keg, a Mage-Pup's taught spell, the Mirrorwing
+ * family's re-casts, Rune of Shared Reflection): the hand-cast count while that very spell is being cast from hand
+ * (the re-cast is that cast happening again), else ONE. The from-hand gate for every site that used to loop
+ * `spellCasts` outside the hand path.
+ */
+export function castsOutsideHand(state: RunState, def: CardDef): number {
+  return isHandCast(def.id) ? spellCasts(state, def) : 1;
+}
+/**
  * THE CAST BEING RESOLVED, for the cast factories that open their OWN buff capture per repeat (Dragonflame's
  * `spellBuffRandomPerTribe`, R-REPEAT-01) or per recipient (Great Pot, the targeted Gifts). Those nested captures
  * claim their targets, so `applyCastEffects`' outer capture (the one stamped with the spell, the rune and the
@@ -4843,7 +4877,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
       // Recorded ONCE per pick (not per multiplied cast): the UI's cast presentation already replays Edward's
       // echo itself, exactly as it does for a hand-cast Ale.
       (ctx.state.equipmentSpellCasts ??= []).push(spell.id);
-      for (let i = 0; i < spellCasts(ctx.state, spell); i++) castSpell(ctx.state, spell, undefined);
+      for (let i = 0; i < castsOutsideHand(ctx.state, spell); i++) castSpell(ctx.state, spell, undefined); // an Equipment's cast: never multiplied (from-hand gate)
     }
   },
 
@@ -5150,7 +5184,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     // A golden Pup casts the whole thing twice; `spellCasts` then applies the run's own multipliers per cast,
     // exactly as playing the spell from hand would.
     for (let g = 0; g < gold(self); g++) {
-      const casts = def.singleCast ? 1 : spellCasts(st, def);
+      const casts = def.singleCast ? 1 : castsOutsideHand(st, def); // a minion's cast: never multiplied (from-hand gate)
       if (def.discoverOnPlay) {
         // A Discover spell's payload is the OFFER, not an `effects[]` — go through the same builder the hand
         // path uses so a taught Beyond the Summit peeks a tier up like the real card.
@@ -5169,12 +5203,10 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
           castSpell(st, def, target);
         }
       }
-      // Spend the same one-shot charges a hand cast spends, so a taught spell can't double-dip them.
-      if (!def.singleCast) {
-        st.nextSpellExtraCasts = undefined; // Nimbus charge (already folded into `casts`)
-        if (!def.gift) st.nextSpellBonus = undefined; // Starpath Vendor's next-Shop-spell bonus spent
-        if (st.spellFirstDoubleEachTurn) st.spellFirstUsedThisTurn = true; // Spell Thesis freebie
-      }
+      // A taught cast is a MINION's cast, so it spends none of the cast multipliers' one-shot charges (Nimbus /
+      // Comet, Spell Thesis): the from-hand gate, owner ruling 2026-09-24. Starpath Vendor's stat bonus is not a
+      // multiplier and is still spent here, as before.
+      if (!def.singleCast && !def.gift) st.nextSpellBonus = undefined;
     }
   },
 
@@ -6517,7 +6549,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     if (!spellDef || spellDef.id !== str(params.spellId)) return;
     if (self.namedSpreadUsedThisTurn) return;
     self.namedSpreadUsedThisTurn = true;
-    for (let i = 0; i < num(params.count, 1) * gold(self) * spellCasts(ctx.state, spellDef); i++) {
+    for (let i = 0; i < num(params.count, 1) * gold(self) * castsOutsideHand(ctx.state, spellDef); i++) {
       castSpell(ctx.state, spellDef, self);
     }
   },
@@ -7363,7 +7395,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     if (self.spellsOnThisTurn !== 1) return;
     const spellDef = (payload as { spellDef?: CardDef }).spellDef;
     if (!spellDef) return;
-    for (let i = 0; i < num(params.count, 1) * gold(self) * spellCasts(ctx.state, spellDef); i++) {
+    for (let i = 0; i < num(params.count, 1) * gold(self) * castsOutsideHand(ctx.state, spellDef); i++) {
       castSpell(ctx.state, spellDef, self);
     }
   },
@@ -7383,7 +7415,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     const rng = makeRng(ctx.state.rngCursor);
     const pick = others[rng.int(others.length)]!;
     ctx.state.rngCursor = rng.state();
-    for (let r = 0; r < num(params.count, 1) * gold(self) * spellCasts(ctx.state, spellDef); r++) {
+    for (let r = 0; r < num(params.count, 1) * gold(self) * castsOutsideHand(ctx.state, spellDef); r++) {
       recordBounceFx(ctx.state, 'spell', self.uid, pick.uid); // the hop: Reflector → its random friend
       castSpell(ctx.state, spellDef, pick);
     }
@@ -7408,7 +7440,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
       (c): c is BoardCard => !!c && (!tribe || isTribe(c, tribe as never)),
     );
     for (const n of neighbours) {
-      for (let r = 0; r < num(params.count, 1) * gold(self) * spellCasts(ctx.state, spellDef); r++) {
+      for (let r = 0; r < num(params.count, 1) * gold(self) * castsOutsideHand(ctx.state, spellDef); r++) {
         recordBounceFx(ctx.state, 'spell', self.uid, n.uid); // the hop: Runefire → its neighbour
         castSpell(ctx.state, spellDef, n);
       }
@@ -8671,7 +8703,8 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     const a = num(params.attack, 0) + spellAttackBonus(ctx.state) + sc.attack, h = num(params.health, 0) + spellHealthBonus(ctx.state) + sc.health;
     // Constellation Prime: "your Star Crashes cast an additional time" = the PRIMARY lands once more per Prime on
     // the chosen target; the secondary random-friendly half fires ONCE per cast (owner 2026-09-12).
-    const lands = 1 + (params._spellId === 'starcrash' ? primeExtraPrimaryLands(ctx.state) : 0);
+    // From hand only (the from-hand gate, owner ruling 2026-09-24): a minion's or rune's Star Crash lands once.
+    const lands = 1 + (params._spellId === 'starcrash' && isHandCast('starcrash') ? primeExtraPrimaryLands(ctx.state) : 0);
     for (let i = 0; i < lands; i++) addBuff(target, 'Star Crash', a, h);
     // "It also casts on a random friendly minion" — a bounce hop target → friend. `recordBounceFx` drops the
     // same-body case (the random friend CAN be the target; that is a same-target recast, not a bounce). The
@@ -10906,7 +10939,7 @@ export function fireOnSpellCastOnThis(state: RunState, card: BoardCard, spellDef
       // runs with the rune as the cast actor, so it records, previews and flourishes from the rune's node on the
       // rail, and its buffs stem from there (no Mirrorwing -> Dragon bounce hop on top: the rune is the source).
       withCastActor({ kind: 'rune', id: 'rune_shared_reflection' }, () => {
-        for (let r = 0; r < spellCasts(state, spellDef); r++) castSpell(state, spellDef, nb);
+        for (let r = 0; r < castsOutsideHand(state, spellDef); r++) castSpell(state, spellDef, nb);
       });
     }
   }
@@ -12420,7 +12453,13 @@ export function noteSpellCast(state: RunState, spellDef: CardDef): void {
   // Living Grimoire's charge is spent by this cast (consumed here at the real cast, not in the read-only
   // `spellCasts` the UI previews with). `casts` was already computed with the charge, so the full multiplied
   // count still resolves; clearing after keeps the NEXT spell single.
-  consumeGrimoireCharge(state);
+  // THE FROM-HAND GATE (owner ruling 2026-09-24): only a spell cast FROM HAND spends it. A minion's, a rune's or an
+  // Equipment's cast is never multiplied, so it leaves the charge, and ORIVAX's window, for the next hand cast: the
+  // window is "spellsThisTurn still at the mark", so a non-hand cast walks the mark forward with the count.
+  if (isHandCast(spellDef.id)) consumeGrimoireCharge(state);
+  else if (state.spellFirstMultEachTurn && state.spellFirstMultEachTurn > 1 && state.spellsThisTurn === (state.spellMultMark ?? 0) + 1) {
+    state.spellMultMark = state.spellsThisTurn;
+  }
   fireOnRubyCast(state, castUmbrellaBefore, castUmbrellaBefore + 1);
   // Steward of Spells copies the most recent spell cast — so a Gift deliberately does NOT become that memory.
   if (!spellDef.gift) state.lastSpellCastId = spellDef.id;

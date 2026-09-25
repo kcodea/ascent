@@ -371,8 +371,11 @@ canvas.spr { image-rendering: pixelated; display: block; }
    FIXED 1000px texture scaled UP to the live radius (owner report 2026-08-29: sizing the div at 2×radius
    rasterized a ~4400px layer whose full weight hit the viewport exactly as the ring reached the screen
    edge — a frame hitch at the end of every bloom; a small texture upscaled by the compositor costs nothing
-   and the upscale blur only softens the glow). `grow` expands it to `--wipe-front-scale` (= 2×radius /
-   1000, set by Recruit with the origin) during the cover blooms; `.snap` parks it back at base instantly
+   and the upscale blur only softens the glow). `grow` expands it to `--wipe-front-scale` during the cover
+   blooms — set by Recruit with the origin (wipeGeometry.ts: r / (500 × 0.97), so the bright 97% stop lands
+   ON the seam at the farthest-corner radius and the fringe leaves the screen). Owner bug 2026-09-24: the
+   var was never actually set, so the ring stopped at the 4.4 fallback (~2130px, a 16:9 size) and stalled
+   mid-screen on 21:9 / 32:9 while the blue kept going. The fallback is only for a missing origin; `.snap` parks it back at base instantly
    (opacity 0, so the jump is invisible). Rendered AFTER the curtain at the same z, so it paints above the
    blue. */
 .wipefront { position: fixed; left: var(--wipe-cx, 84vw); top: var(--wipe-cy, 62vh);
@@ -6447,6 +6450,11 @@ svg { width: 18px; height: 18px; }
 /* THE AUDIO PANEL (2026-09-23): the three channel rows behind the "Audio" button; each row's mute is a small pill.
    No cursor keyword here: the global button rule paints the gauntlet. */
 .escaudio { display: flex; flex-direction: column; }
+/* Owner ask 2026-09-24: the three channel sliders must line up. Each row is a flex line, so a label's own width
+   decided where its slider started ("Game sounds" pushed its track right of "Music"'s). A fixed label column and a
+   fixed Mute pill ("Mute"/"Muted") give every track the same start, end and length. */
+.escaudio .escvol .evl { flex: 0 0 104px; }
+.escaudio .escvol .escmute { min-width: 76px; }
 .escvol .escmute { flex: 0 0 auto; font-family: var(--font-ui); font-weight: 800; font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink3); background: var(--card); border: 2px solid var(--line); border-radius: 99px; padding: 5px 11px; }
 .escvol .escmute:hover { border-color: var(--acc); }
 .escvol .escmute.on { color: var(--acc-dk); border-color: var(--acc); background: color-mix(in srgb, var(--acc) 15%, var(--card)); }

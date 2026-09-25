@@ -696,7 +696,7 @@ export const RUNES: RuneDef[] = [
     tribes: ['dwarf'], // TRIBE GATE (owner tag pass 2026-09-18): the text names the tribe / its Rubies, Ales, Attachments, Imps, or it grants that tribe's minion
     name: 'Rune of Shared Pour',
     cost: 2, // balance 9/23 (was 3)
-    text: 'Your first **Dwarven Ale** each turn casts an **additional time**.',
+    text: 'The first **Dwarven Ale** you cast from hand each turn casts an **additional time**.',
     reward: { kind: 'runeSharedPour' },
     sets: ['set2'], // CUT FROM SET 3 (owner 2026-09-24: named in the Set 3 rune cut list)
   },
@@ -1007,7 +1007,7 @@ export const RUNES: RuneDef[] = [
     id: 'rune_hoardflame',
     name: 'Rune of Hoardflame',
     cost: 2,
-    text: 'Get a **Hoardflame**. Repeat every **Start of Turn**. They cast **twice**.',
+    text: 'Get a **Hoardflame**. Repeat every **Start of Turn**. They cast **twice** from hand.',
     previewCards: ['hoardflame'],
     reward: { kind: 'multi', rewards: [{ kind: 'recurringGrant', cards: ['hoardflame'] }, { kind: 'runeSpellDouble', spellId: 'hoardflame' }] },
   },
@@ -1373,17 +1373,6 @@ export const RUNES: RuneDef[] = [
     text: 'Get an **Undead**. Repeat every **Start of Turn**.',
     reward: { kind: 'runeTribeDrip', tribe: 'undead', count: 1 },
     sets: ['set3'],
-  },
-  {
-    // "After every third Spirit you play" = the threshold engine on a `playSpirit` meter (progress carries across
-    // turns, like the Dragon's Pantry), paying the HAND (`target: 'hand'`).
-    id: 'rune_full_hand',
-    tribes: ['spirit'],
-    name: 'Rune of the Full Hand',
-    cost: 4,
-    text: 'After every **3rd** Spirit you play, give the minions in your hand **+4/+4**.',
-    reward: { kind: 'runeThreshold', meter: 'playSpirit', per: 3, buff: { target: 'hand', attack: 4, health: 4 } },
-    sets: [], // CUT FROM SET 3 (owner 2026-09-24: named in the Set 3 rune cut list) — it was Set-3-only, so it is offered nowhere now; still resolves via RUNE_INDEX
   },
   {
     id: 'rune_chosen_vessel',
@@ -2023,7 +2012,7 @@ export const EPIC_RUNES: RuneDef[] = [
     name: 'Rune of the Bottomless Cask',
     cost: 5,
     epic: true,
-    text: 'Your **Dwarven Ales** trigger an **additional time**.',
+    text: '**Dwarven Ales** you cast from hand trigger an **additional time**.',
     sets: ['set2', 'set3'], // + set3 2026-09-14 (rune roster handoff: mechanically compatible carryover)
     reward: { kind: 'aleExtraCasts', amount: 1 },
   },
@@ -2739,7 +2728,7 @@ export const EPIC_RUNES: RuneDef[] = [
     name: 'Rune of Dragon Breath',
     cost: 4,
     epic: true,
-    text: 'Get a **Dragonflame**. Repeat every **Start of Turn**. They cast **twice**.',
+    text: 'Get a **Dragonflame**. Repeat every **Start of Turn**. They cast **twice** from hand.',
     previewCards: ['sp_dragonflame'],
     reward: { kind: 'multi', rewards: [{ kind: 'recurringGrant', cards: ['sp_dragonflame'] }, { kind: 'runeSpellDouble', spellId: 'sp_dragonflame' }] },
     sets: ['set2'],
@@ -3302,20 +3291,6 @@ export const EPIC_RUNES: RuneDef[] = [
     reward: { kind: 'runeEndlessMarch' },
     sets: ['set3'],
   },
-  {
-    // Settled at combat carry-back off the `reborn` events of friendly Undead (the Rise that returned; a
-    // board-full Rise that stayed dead is not a Rise). Needs a Starform standing after the fight. +15/+15 per
-    // Rise per copy held. `tribes` is any-of: offered when EITHER tribe rolled.
-    id: 'rune_grave_orbit',
-    name: 'Rune of the Grave Orbit',
-    cost: 5,
-    epic: true,
-    tribes: ['undead', 'celestial'],
-    text: 'After combat, give your Starform **+15/+15** for each friendly **Undead** that Rose.',
-    previewCards: ['ce3_starform'], // the text names the token — the forge hover shows it
-    reward: { kind: 'runeGraveOrbit', attack: 15, health: 15 },
-    sets: [], // CUT FROM SET 3 (owner 2026-09-24: named in the Set 3 rune cut list) — it was Set-3-only, so it is offered nowhere now; still resolves via RUNE_INDEX
-  },
 
   // ── Set 3 batch 2 (2026-09-16) — tranche D: the two combat-side runes tranche A deferred ────────────────
   // Both fire off the hand-summon machinery in `packages/core/src/combat/simulate.ts` (the Spirit hand-summons,
@@ -3372,6 +3347,34 @@ export const EPIC_RUNES: RuneDef[] = [
  * Brokerage went in alongside its subject: Ruby Broker was archived the same day.
  */
 export const ARCHIVED_RUNES: RuneDef[] = [
+  // ── 2026-09-24 owner rulings: the two runes the Set 3 cut left in no set, archived ("remove them"). ──
+  {
+    // ARCHIVED 2026-09-24 (owner rulings: "remove them" — in no set after the Set 3 rune cuts). Was a Basic rune.
+    // "After every third Spirit you play" = the threshold engine on a `playSpirit` meter (progress carries across
+    // turns, like the Dragon's Pantry), paying the HAND (`target: 'hand'`).
+    id: 'rune_full_hand',
+    tribes: ['spirit'],
+    name: 'Rune of the Full Hand',
+    cost: 4,
+    text: 'After every **3rd** Spirit you play, give the minions in your hand **+4/+4**.',
+    reward: { kind: 'runeThreshold', meter: 'playSpirit', per: 3, buff: { target: 'hand', attack: 4, health: 4 } },
+    sets: [], // history: cut from Set 3 2026-09-24 (it was Set-3-only), then archived the same day
+  },
+  {
+    // ARCHIVED 2026-09-24 (owner rulings: "remove them" — in no set after the Set 3 rune cuts). Was an Epic rune.
+    // Settled at combat carry-back off the `reborn` events of friendly Undead (the Rise that returned; a
+    // board-full Rise that stayed dead is not a Rise). Needs a Starform standing after the fight. +15/+15 per
+    // Rise per copy held. `tribes` is any-of: offered when EITHER tribe rolled.
+    id: 'rune_grave_orbit',
+    name: 'Rune of the Grave Orbit',
+    cost: 5,
+    epic: true,
+    tribes: ['undead', 'celestial'],
+    text: 'After combat, give your Starform **+15/+15** for each friendly **Undead** that Rose.',
+    previewCards: ['ce3_starform'], // the text names the token — the forge hover shows it
+    reward: { kind: 'runeGraveOrbit', attack: 15, health: 15 },
+    sets: [], // history: cut from Set 3 2026-09-24 (it was Set-3-only), then archived the same day
+  },
   {
     // ARCHIVED 2026-09-24 (owner beast/dragon batch: Moonhowl Mentor archived with its set-2 runes). Was an Epic rune.
     // Shares the Moonhowl Mentor's per-turn teach ceiling rather than owning its own, so holding both raises the

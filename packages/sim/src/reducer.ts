@@ -20,7 +20,7 @@ import {
   equipmentChargesOf, equipmentCostOf, expireEquipmentTurn, rebuildEquipment, spendEquipmentCharge,
   selectEquipment, selectedEquipment, amplifyAllHeld, amplifyUnactivated, consumeAmplified,
 } from './equipment';
-import { applyChooseOnePlayed, spendChooseBothCharge, noteSpellCast, applyCastEffects, makeContext, discoverSpecFor, heroPowerCostOf, commissionOffer, COMMISSION_DELAY, aegisGrantOf, allInPayoutOf, threeDistinctTypes, exhibitionGrantOf, stampSableBond, stampSharedSpoils, heroOfferPrice, addBuff, addOfferBuff, applyBattlecryTarget, applyCardsBought, applyCardsPlayed, applyChooseOne, applyChooseOneTarget, chooseBothActive, chooseOneNeedsChoice, applyEndOfTurn, applyStartOfTurn, applyOnBuy, applyGoldSpent, advanceRuneThresholds, applySecondLife, effectiveTargetTribe, dominantBoardTribe, uncontrolledTribes, gainGold, applyRunShopBuff, applyShoutsForEndlessVerse, applyShoutsForShopBuff, auraFxTargets, boardManaBonus, buffImpsRunWide, buffUndeadAttackEverywhere, buffCardTypeRunWide, buffFodderRunWide, cardBuff, captureBuffFx, conjuredStats, castSpell, castSpellOnOffer, conjureToHand, consumeTavernFodder, fireGravetwinEchoes, fireOnGainAttack, fireOnRubyCast, fireOnRubyPlayed, applyRubyRiderAction, mintRandomRubies, recordRubyRiderFx, fireOnMinionSold, fireOnSell, fireOnGainCard, fireSummonBuffs, fireDemonPlayRunes, foldOfferBuffs, creditShopBuffSource, gildMinion, grantMinionToHandOrBoard, grantTopTypeMinion, hasBattlecry, isTribe, mintRubies, modalOpen, openDiscover, playCard, queueDiscover, replayBattlecry, replayEconomyBattlecry, replayEndOfTurn, restoreHeldOffer, replayRecurringEndOfTurn, withEotDiscoverGrantBeat, sellValueOf, sellValueWithBonus, rubyCastCount, giftCastCount, rubyStatBonus, yazzusExtraCasts, consumeGrimoireCharge, countRubyAsShopSpell, fireSpellCastWatchersForRuby, spellAttackBonus, spellCasts, spellCostReduction, spellHealthBonus, stampImproveReps, swapWithTavern, applySpellBought, applyShopRefreshed, taughtAimSpell, triggerBorrowedEcho, landBorrowed, settlePendingDeath, stampEquipFx, equipmentFxMark, buffedFxTargets, fireEquipmentTriggers, fireEquipmentActivated, buyHealthAura, undeadBuyBonus, weldMagnetic, defIsTribe, handCardLocked, fireStatGainReactors, fireEquipmentFree, applyRuneGrafts, noteSpellForCountRunes, settleMinionSale, distillationEdges, fireRunicHoard, applyLorekeeping, runeExtraCasts, castWithRuneRepeats, withCastActor } from './recruit';
+import { applyChooseOnePlayed, spendChooseBothCharge, noteSpellCast, applyCastEffects, makeContext, discoverSpecFor, heroPowerCostOf, commissionOffer, COMMISSION_DELAY, aegisGrantOf, allInPayoutOf, threeDistinctTypes, exhibitionGrantOf, stampSableBond, stampSharedSpoils, heroOfferPrice, addBuff, addOfferBuff, applyBattlecryTarget, applyCardsBought, applyCardsPlayed, applyChooseOne, applyChooseOneTarget, chooseBothActive, chooseOneNeedsChoice, applyEndOfTurn, applyStartOfTurn, applyOnBuy, applyGoldSpent, advanceRuneThresholds, applySecondLife, effectiveTargetTribe, dominantBoardTribe, uncontrolledTribes, gainGold, applyRunShopBuff, applyShoutsForEndlessVerse, applyShoutsForShopBuff, auraFxTargets, boardManaBonus, buffImpsRunWide, buffUndeadAttackEverywhere, buffCardTypeRunWide, buffFodderRunWide, cardBuff, captureBuffFx, conjuredStats, castSpell, castSpellOnOffer, conjureToHand, consumeTavernFodder, fireGravetwinEchoes, fireOnGainAttack, fireOnRubyCast, fireOnRubyPlayed, applyRubyRiderAction, mintRandomRubies, recordRubyRiderFx, fireOnMinionSold, fireOnSell, fireOnGainCard, fireSummonBuffs, fireDemonPlayRunes, foldOfferBuffs, creditShopBuffSource, gildMinion, grantMinionToHandOrBoard, grantTopTypeMinion, hasBattlecry, isTribe, mintRubies, modalOpen, openDiscover, playCard, queueDiscover, replayBattlecry, replayEconomyBattlecry, replayEndOfTurn, restoreHeldOffer, replayRecurringEndOfTurn, withEotDiscoverGrantBeat, sellValueOf, sellValueWithBonus, rubyCastCount, giftCastCount, rubyStatBonus, yazzusExtraCasts, consumeGrimoireCharge, countRubyAsShopSpell, fireSpellCastWatchersForRuby, spellAttackBonus, spellCasts, spellCostReduction, spellHealthBonus, stampImproveReps, swapWithTavern, applySpellBought, applyShopRefreshed, taughtAimSpell, triggerBorrowedEcho, landBorrowed, settlePendingDeath, stampEquipFx, equipmentFxMark, buffedFxTargets, fireEquipmentTriggers, fireEquipmentActivated, buyHealthAura, undeadBuyBonus, weldMagnetic, defIsTribe, handCardLocked, fireStatGainReactors, fireEquipmentFree, applyRuneGrafts, noteSpellForCountRunes, settleMinionSale, distillationEdges, fireRunicHoard, applyLorekeeping, runeExtraCasts, castWithRuneRepeats, withCastActor, withHandCast } from './recruit';
 import { handCap, recordBounceFx, mixSeed, reservedHandSlots, TAG, henchmanOffer, type Action, type DeferredFight, type PreparedCombatSide, type ActiveQuest, type AuraFxTribe, type BoardCard, type CardBuff, type ShopCard, type CiaSuit, type Commission, type CommissionKind, type RunState, type RubyLandedFx, gateUses, procRune, procRuneId, runeBuffMagnitude, PACKCRAFT_STEP, REINVESTMENT_PER_SUMMON, SLAYING_KILLS } from './state';
 import { alignmentsOf } from './alignment';
 import { RUNE_DUP_SWEETENER, RUNE_DUP_UNIQUE, forgeFilteredDuplicate, runeStacksOf } from './runeDup';
@@ -1765,7 +1765,7 @@ function reduceCore(state: RunState, action: Action): RunState {
         // path below.
         if (dop.spell) {
           const spellCastsN = def.singleCast ? 1 : spellCasts(s, def, card);
-          for (let n = 0; n < spellCastsN; n++) { queueDiscover(s, { kind: 'spell' }); noteSpellCast(s, def); }
+          withHandCast(def.id, () => { for (let n = 0; n < spellCastsN; n++) { queueDiscover(s, { kind: 'spell' }); noteSpellCast(s, def); } }); // a cast FROM HAND (the from-hand gate)
           if (!def.singleCast) s.nextSpellExtraCasts = undefined;
           if (!def.gift) s.nextSpellBonus = undefined; // Starpath Vendor's next-Shop-spell bonus spent
           if (!def.singleCast && s.spellFirstDoubleEachTurn) s.spellFirstUsedThisTurn = true;
@@ -1797,7 +1797,7 @@ function reduceCore(state: RunState, action: Action): RunState {
         // counted as nothing at all — no `spellsCast`, no quest tally, and no `spellCast` watchers, which is
         // why Sprout didn't trigger Runebloom Matriarch or Groveweaver (owner report 2026-07-27). Once per
         // cast, so a multiplied Discover counts each time, exactly like a multiplied ordinary spell.
-        for (let n = 0; n < casts; n++) { queueDiscover(s, { ...spec }); noteSpellCast(s, def); }
+        withHandCast(def.id, () => { for (let n = 0; n < casts; n++) { queueDiscover(s, { ...spec }); noteSpellCast(s, def); } }); // a cast FROM HAND (the from-hand gate)
         if (!def.singleCast) s.nextSpellExtraCasts = undefined; // Nimbus charge spent (already folded into `casts`)
         if (!def.gift) s.nextSpellBonus = undefined; // Starpath Vendor's next-Shop-spell bonus spent
         if (!def.singleCast && s.spellFirstDoubleEachTurn) s.spellFirstUsedThisTurn = true; // Spell Thesis freebie spent
@@ -1995,7 +1995,7 @@ function reduceCore(state: RunState, action: Action): RunState {
           if (def.giftMulticast && giftTarget) s.nextSpellExtraCasts = undefined; // Comet / Nimbus charge spent (folded into `giftCasts`)
           s.hand.splice(i, 1);
           s.playedThisTurn = [...(s.playedThisTurn ?? []), card.cardId];
-          noteSpellCast(s, def); // counts as a spell CAST (but never as a Shop spell — see the flag's doc)
+          withHandCast(def.id, () => noteSpellCast(s, def)); // counts as a spell CAST from hand (but never as a Shop spell — see the flag's doc)
           checkTriples(s);
           return s;
         }
@@ -2048,9 +2048,11 @@ function reduceCore(state: RunState, action: Action): RunState {
           // The PLAYER's casts first, then each repeat rune's share under that rune (owner 2026-09-24: "the runes
           // that repeat casts should use the rune-cast visual"). Gameplay-identical to a plain `casts` loop.
           const runeRepeats = runeExtraCasts(s, def, card);
-          if (boardTarget) castWithRuneRepeats(casts, runeRepeats, () => castSpell(s, def, boardTarget));
+          // THE FROM-HAND GATE (owner ruling 2026-09-24): the player's play runs under `withHandCast`, the one scope in
+          // which a cast multiplier applies and spends its charge. Distillation's echo below is the RUNE's cast: outside it.
+          if (boardTarget) withHandCast(def.id, () => castWithRuneRepeats(casts, runeRepeats, () => castSpell(s, def, boardTarget)));
           else if (offer) {
-            castWithRuneRepeats(casts, runeRepeats, () => castSpellOnOffer(s, def, offer));
+            withHandCast(def.id, () => castWithRuneRepeats(casts, runeRepeats, () => castSpellOnOffer(s, def, offer)));
             // Rune of Distillation (balance 9/23: "cast on your left and right-most minion too"): a spell that
             // landed on a SHOP minion also casts on your left-most AND right-most board minion — real second
             // casts (same `castSpell` path), so each target's own on-spell watchers see them. A one-minion board
@@ -2070,7 +2072,7 @@ function reduceCore(state: RunState, action: Action): RunState {
           // Same rule for an UNTARGETED spell — Deep Delve Writ with no Dwarf in the tavern, Growth on an
           // empty board, Mend at full Resolve. This is where most of the audit's findings landed.
           if (spellFizzles(s, def)) return state;
-          castWithRuneRepeats(casts, runeExtraCasts(s, def, card), () => castSpell(s, def, undefined)); // untargeted run spell (Growth, Ember Pouch)
+          withHandCast(def.id, () => castWithRuneRepeats(casts, runeExtraCasts(s, def, card), () => castSpell(s, def, undefined))); // untargeted run spell (Growth, Ember Pouch), cast from hand
         }
         if (!def.singleCast) s.nextSpellExtraCasts = undefined; // Nimbus charge spent on this cast (already folded into `casts`)
         if (!def.gift) s.nextSpellBonus = undefined; // Starpath Vendor's next-Shop-spell bonus spent
@@ -2402,7 +2404,7 @@ function reduceCore(state: RunState, action: Action): RunState {
         const second = s.board.find((c) => c.uid === action.targetUid);
         const spellDef = CARD_INDEX[pt.cardId];
         if (hi >= 0 && spellDef && first && second && first.uid !== second.uid) {
-          castSpell(s, spellDef, second); // factory averages `second` with `pt.spellFirstUid` BEFORE we clear pt
+          withHandCast(spellDef.id, () => castSpell(s, spellDef, second)); // factory averages `second` with `pt.spellFirstUid` BEFORE we clear pt; a cast from hand
           s.hand.splice(hi, 1);
           s.playedThisTurn = [...(s.playedThisTurn ?? []), pt.cardId]; // counts as a card played (Rune of Action)
         }
@@ -3705,10 +3707,11 @@ function resolveChooseOneSpell(
   const branches = both ? (def.chooseOne ?? []) : (def.chooseOne?.[index] ? [def.chooseOne[index]] : []);
   const synthetic = { ...def, effects: branches.flatMap((o) => o.effects) };
   // The player's casts, then each repeat rune's share under that rune (owner 2026-09-24, see `castWithRuneRepeats`).
-  castWithRuneRepeats(casts, runeExtraCasts(s, def, card), () => {
+  // Cast FROM HAND (the from-hand gate, owner ruling 2026-09-24): the one scope where the multipliers apply and spend.
+  withHandCast(def.id, () => castWithRuneRepeats(casts, runeExtraCasts(s, def, card), () => {
     if (offer) castSpellOnOffer(s, synthetic, offer);
     else castSpell(s, synthetic, target);
-  });
+  }));
   if (!def.singleCast) s.nextSpellExtraCasts = undefined; // Nimbus charge spent (already folded into `casts`)
   if (!def.gift) s.nextSpellBonus = undefined; // Starpath Vendor's next-Shop-spell bonus spent
   if (!def.singleCast && s.spellFirstDoubleEachTurn) s.spellFirstUsedThisTurn = true; // Spell Thesis freebie spent
@@ -6642,8 +6645,14 @@ function applyQuestRewardInner(s: RunState, def: QuestDef, allowRepeat: boolean)
       // Spare Forge / Runic Passage: a random rune of that rarity, handed over outright — no forge, no pick,
       // no Gold. It goes through the SAME apply-then-own path a BOUGHT rune takes (`case 'buyRune'`), so a
       // granted rune is indistinguishable from a forged one downstream: badge row, tallies, saves, replays.
+      // SET SCOPING (owner ruling 2026-09-24, "limit to the runs own set only"): draw only runes offered in the
+      // run's PINNED set (`setIdOf`, never the live registry) — `sets` absent means every set, the same test the
+      // Runeforge applies. Archived runes live in neither array, so they never come up.
       const owned = new Set(s.ownedRunes ?? []);
-      const pool = (r.rarity === 'epic' ? EPIC_RUNES : RUNES).filter((rn) => !owned.has(rn.id));
+      const runSet = setIdOf(s);
+      const pool = (r.rarity === 'epic' ? EPIC_RUNES : RUNES)
+        .filter((rn) => !rn.sets || rn.sets.includes(runSet))
+        .filter((rn) => !owned.has(rn.id));
       if (pool.length === 0) break; // owns every rune of the rarity — a no-op beats granting a duplicate
       const rng = makeRng(s.rngCursor);
       const rune = pool[rng.int(pool.length)]!;

@@ -834,7 +834,7 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'rune:rune_empty_hands:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
   'rune:rune_last_tool:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
   'rune:rune_endless_march:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
-  'rune:rune_grave_orbit:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
+  // rune_grave_orbit archived 2026-09-24 (ARCHIVED_RUNES, owner rulings) — entry removed so the registry carries no ghost.
   'rune:rune_wild_hunt:combat': { policy: 'foldedCue', family: 'combatModifier' },
   'rune:rune_window_shopping:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
   'rune:rune_yazzus:onAcquire': { policy: 'ownBeat', family: 'rewardGrant' },
@@ -843,7 +843,7 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'rune:rune_basic_spirit:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
   'rune:rune_basic_celestial:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
   'rune:rune_basic_undead:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
-  'rune:rune_full_hand:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
+  // rune_full_hand archived 2026-09-24 (ARCHIVED_RUNES, owner rulings) — entry removed so the registry carries no ghost.
   'rune:rune_chosen_vessel:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
   'rune:rune_deep_currents:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
   'rune:rune_traveling_festival:recruit': { policy: 'ownBeat', family: 'runeMechanic' },

@@ -91,8 +91,8 @@ describe('Yazzus — one card, every targeted spell (owner 2026-09-16)', () => {
   it('is T7 4/8 and doubles aimed Shop spells (golden ×3)', () => {
     const d = CARD_INDEX['yazzus']!;
     expect([d.tier, d.attack, d.health]).toEqual([7, 4, 8]);
-    expect(d.text).toBe('Your **targeted** spells cast **an additional** time.');
-    expect(d.goldenText).toBe('Your **targeted** spells cast **2 additional** times.');
+    expect(d.text).toBe('**Targeted** spells you cast from hand cast **an additional** time.');
+    expect(d.goldenText).toBe('**Targeted** spells you cast from hand cast **2 additional** times.');
     const spirit = CARD_INDEX['spiritfire'] ?? Object.values(CARD_INDEX).find((c) => c.spell && c.target)!;
     expect(spellCasts(run({ board: [body('y', 'yazzus')] }), spirit)).toBe(2);
     expect(spellCasts(run({ board: [body('y', 'yazzus', { golden: true })] }), spirit)).toBe(3);

@@ -608,4 +608,63 @@ export const RUNES_RULES: GameRule[] = [
       lastVerifiedAt: '2026-09-24',
     },
   },
+  {
+    id: 'R-RUNE-17',
+    title: 'Spare Forge / Runic Passage grant a random rune from the run\'s OWN pinned set only, never an archived rune',
+    statement:
+      'The hero-quest rune grant (`grantRune`: Spare Forge a Basic, Runic Passage an Epic) draws from the rarity\'s live '
+      + 'pool (`RUNES` / `EPIC_RUNES`, so archived runes never come up) filtered to runes offered in the run\'s PINNED set: '
+      + 'a rune with no `sets` field counts as every set, otherwise its `sets` must include `setIdOf(state)`. The set comes '
+      + 'from the run\'s own `setId`, never the live `activeSet()`, so flipping the live set never changes an in-flight or '
+      + 'replayed run. Owned runes are skipped, the draw uses the run\'s seeded RNG, and an empty pool is a no-op. The tribe '
+      + 'gate the Runeforge applies is NOT applied here (the ruling names the set only).',
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-24 (owner rulings: Spare Forge drew from every set)', quote: 'limit to the runs own set only' },
+      { kind: 'code', ref: 'packages/sim/src/reducer.ts applyQuestReward case \'grantRune\' (the `setIdOf` filter)' },
+      { kind: 'test', ref: 'packages/sim/src/ownerRulings0924.test.ts' },
+    ],
+    contentIds: ['hq_spare_forge', 'hq_runic_passage'],
+    currentBehaviour:
+      'Conforms as of 2026-09-24. Before, the grant drew from the whole rarity list, so a Set 3 run could be handed a '
+      + 'Set-2-only Ruby or Ale rune. The draw order is unchanged apart from the filter, so a same-seed grant can now land a '
+      + 'different rune; a recorded run keeps the rune it was handed (`ownedRunes` is stored, replays never re-draw).',
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/sim/src/ownerRulings0924.test.ts', 'packages/sim/src/heroQuests.test.ts'],
+      lastVerifiedAt: '2026-09-24',
+    },
+  },
+  {
+    id: 'R-RUNE-18',
+    title: 'The Runeforge entrance waits for the return wipe, plays each sound cue once, and never hides a tablet or its cost coin',
+    statement:
+      'The Runeforge opening sequence (the tablets dropping in, dust, glow sweep, Epic flare) is presentation only and '
+      + 'follows these rules. It never starts before the return-to-shop wipe has fully ended (the forge mounts only once '
+      + 'the wipe is idle) plus the post-wipe pad set in the tuner. Nothing shows or sounds inside the pad. Its beats are timed '
+      + 'from when the animations really start, so no cue runs ahead of the visuals. Each sound cue plays at most once per '
+      + 'tablet per opening (the glow sweep sound once per forge by default), never looped. A re-render or a later '
+      + 'remount never replays it. Every tablet in the offer (a real forge offers four) is clickable the moment it lands, '
+      + 'and any press skips to the settled state. At rest the layout is identical to the plain forge. Each tablet, cost '
+      + 'coin included, stacks above its left neighbour in every frame, and the Re-roll hover bubble draws above the tablets.',
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-24 (Runeforge entrance, owner test in a real game)', quote: 'make sure the runeforge opening is delayed enough to not trigger until the player has fully come back from combat and the screen wipe has ended' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-24 (Runeforge entrance)', quote: 'fix this so the coin never falls behind the frame thing here' },
+      { kind: 'code', ref: 'packages/ui/src/runeforgeEntrance/entrance.ts (the clock + cue dedupe); RuneforgeDialog.tsx (the openings registry, `--rfe-z`); runeforgeEntrance.css' },
+      { kind: 'test', ref: 'packages/ui/src/runeforgeEntrance/RuneforgeDialog.test.tsx' },
+    ],
+    contentIds: [],
+    currentBehaviour:
+      'Conforms as of 2026-09-24. The first cut started its timers before the first painted frame, so on a slow commit '
+      + 'the landing thuds ran ahead of the tablets and bunched together. A remount mid-play also restarted the whole '
+      + 'sequence and its sounds, and the cost coin of a dropping tablet could fall under the glow of its neighbour.',
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/ui/src/runeforgeEntrance/RuneforgeDialog.test.tsx', 'packages/ui/src/runeforgeEntrance/runeforgeEntranceConfig.test.ts'],
+      lastVerifiedAt: '2026-09-24',
+    },
+  },
 ];

@@ -64,7 +64,8 @@ describe('tranche A — pool membership, cost, scope and tribe gates', () => {
   });
   it.each(BASIC)('%s is BASIC, set 3 only, gated to %s', (id, cost, tribes) => {
     const r = RUNE_INDEX[id]!;
-    expect(RUNES.some((x) => x.id === id)).toBe(true);
+    // the Full Hand was ARCHIVED 2026-09-24 (owner rulings: "remove them") — out of RUNES, into ARCHIVED_RUNES
+    expect(RUNES.some((x) => x.id === id)).toBe(id !== 'rune_full_hand');
     expect(EPIC_RUNES.some((x) => x.id === id)).toBe(false);
     expect(r.epic).toBeFalsy();
     expect(r.cost).toBe(cost);

@@ -468,11 +468,14 @@ function recDamage(s: string): Rec | null {
 /** "Your <family> (effects) trigger/cast/… twice | an additional time | N more times" — the multiplier-print
  *  family (the LG-TWICE-01 surface), grown to its subject-first cousins ("The first spell you cast each turn
  *  casts twice", "your next spell casts 2 additional times", "They cast twice", "One Shout triggers 2 extra
- *  times per turn", "Your Rubies all bounce an additional time"). `value` is the number of EXTRA fires printed. */
+ *  times per turn", "Your Rubies all bounce an additional time") and the from-hand forms (R-MULT-06: "Dwarven Ales
+ *  you cast from hand trigger twice", "They cast twice from hand"). `value` is the number of EXTRA fires printed. */
 function recMultiplierPrint(s: string): Rec | null {
-  const m = /^(?:([Yy]our|The next|The first|[Yy]our first|[Yy]our next|One|They|It|it)\s+)?([\w'’ ,-]+?)?\s*(?:effects?\s+)?(?:all\s+|also\s+)?([Tt]riggers?|[Pp]rocs?|[Ff]ires?|[Cc]asts?|[Mm]agnetizes?|[Bb]ounces?|[Ii]mproves?)\s+(?:an?\s+)?(twice|three times|again|\d+ times|additional times?|extra time|(?:one|two|\d+)\s+(?:more|additional|extra)\s+times?)\b/.exec(s);
+  const m = /^(?:([Yy]our|[Tt]he next|[Tt]he first|[Yy]our first|[Yy]our next|One|They|It|it)\s+)?([\w'’ ,-]+?)?\s*(?:effects?\s+)?(?:all\s+|also\s+)?([Tt]riggers?|[Pp]rocs?|[Ff]ires?|[Cc]asts?|[Mm]agnetizes?|[Bb]ounces?|[Ii]mproves?)\s+(?:an?\s+)?(twice|three times|again|\d+ times|additional times?|extra time|(?:one|two|\d+)\s+(?:more|additional|extra)\s+times?)\b(?:\s+from hand)?/.exec(s);
   if (!m) return null;
-  if (!m[1] && m[2]) return null; // verb-first only when nothing precedes the verb (a subject-first dispatch)
+  // Verb-first only when nothing precedes the verb (a subject-first dispatch), unless the subject carries the
+  // from-hand qualifier ("Targeted spells you cast from hand cast ...", R-MULT-06, 2026-09-24).
+  if (!m[1] && m[2] && !/\bfrom hand\b/.test(m[2])) return null;
   const tail = m[4]!;
   const extra = tail === 'twice' ? 1
     : tail === 'three times' ? 2

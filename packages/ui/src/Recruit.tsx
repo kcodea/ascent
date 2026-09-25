@@ -48,7 +48,7 @@ import { buildShopViews, type ShopViewCacheEntry } from './shopViewCache';
 import { deriveDragDecision, dragDecisionEqual, computeCastingSpell, NO_DRAG_DECISION, type DragGeo, type DragDecision } from './dragDecision';
 import { dragStore, useDragSlice, type DragSnapshot, type DragState } from './dragStore';
 import { QuestCard } from './QuestCard';
-import { RuneCard } from './RuneCard';
+import { RuneforgeDialog } from './runeforgeEntrance/RuneforgeDialog';
 import { RuneLockIn, type RuneLockInCard } from './RuneLockIn';
 import { captureRuneLockIn } from './runeLockInCapture';
 import { getRuneLockInConfig, stretchLockIn } from './runeLockInConfig';
@@ -135,6 +135,7 @@ import { visibleHandPreviews } from './handPreview';
 import { chargeTune, useChargePreview } from './chargeGlyphTune';
 import { ChargeMotes } from './chargeMotes';
 import { wipeFx } from './wipeFx';
+import { wipeOriginFor, type WipeOrigin } from './wipeGeometry';
 
 /** Golden Ruby's coin cue: a beat after its gem (so the two read as "Ruby, then Gold"), and spaced when a
  *  multi-cast Golden Ruby pays several times in one action. */
@@ -1933,27 +1934,33 @@ export function Recruit() {
   const wipeSweeping = wipe === 'coverIn' || wipe === 'revealIn' || wipe === 'coverOut' || wipe === 'revealOut';
   const wipeExiting = wipe === 'primeOut' || wipe === 'coverOut' || wipe === 'coveredOut' || wipe === 'revealOut';
   // GEM ORIGIN — measured ONCE at the start of each cover sweep (a one-shot layout read, not per-frame;
-  // see CLAUDE.md perf rules), then handed to the CSS as `--wipe-cx/--wipe-cy/--wipe-r`. The radius is the
-  // distance to the farthest viewport corner, so `.full` provably covers the whole screen from any anchor.
+  // see CLAUDE.md perf rules), then handed to the CSS as `--wipe-cx/--wipe-cy/--wipe-r/--wipe-front-scale`.
+  // The radius is the distance to the farthest viewport corner and the ring's scale is derived from it (see
+  // wipeGeometry.ts), so `.full` provably covers the whole screen — 16:9, 21:9 or 32:9 — and the ring rides
+  // the seam all the way out (owner bug 2026-09-24: the ring was a fixed 16:9 size and stalled mid-screen on
+  // ultrawide). Re-measured on resize while a wipe is on screen, so a mid-wipe window change still covers.
   // The gem element (`.etb-gembox` inside `.etbwrap`) is the same control in both directions — End Turn on
   // entry, End Combat on exit — so both blooms erupt from the same diamond.
-  const [wipeOrigin, setWipeOrigin] = useState<{ cx: number; cy: number; r: number } | null>(null);
-  const wipeOriginRef = useRef<{ cx: number; cy: number; r: number } | null>(null);
+  const [wipeOrigin, setWipeOrigin] = useState<WipeOrigin | null>(null);
+  const wipeOriginRef = useRef<WipeOrigin | null>(null);
+  const measureWipeOrigin = useCallback((): void => {
+    const gem = document.querySelector('.etbwrap .etb-gembox') ?? document.querySelector('.etbwrap');
+    const o = wipeOriginFor(window.innerWidth, window.innerHeight, gem ? gem.getBoundingClientRect() : null);
+    wipeOriginRef.current = o;
+    setWipeOrigin(o);
+  }, []);
   useLayoutEffect(() => {
     // Both tells precede their bloom, so measuring here commits the vars (and the ref the FX reads)
     // before `coverIn`/`coverOut` launches.
     if (wipe !== 'chargeIn' && wipe !== 'primeOut') return;
-    const vw = window.innerWidth, vh = window.innerHeight;
-    let cx = vw * 0.84, cy = vh * 0.62; // fallback ≈ where the gem sits on the stage
-    const gem = document.querySelector('.etbwrap .etb-gembox') ?? document.querySelector('.etbwrap');
-    if (gem) {
-      const b = gem.getBoundingClientRect();
-      cx = b.left + b.width / 2; cy = b.top + b.height / 2;
-    }
-    const r = Math.ceil(Math.hypot(Math.max(cx, vw - cx), Math.max(cy, vh - cy)));
-    wipeOriginRef.current = { cx, cy, r };
-    setWipeOrigin({ cx, cy, r });
-  }, [wipe]);
+    measureWipeOrigin();
+  }, [wipe, measureWipeOrigin]);
+  const wipeOnScreen = wipe !== 'idle' && wipe !== 'combat';
+  useEffect(() => {
+    if (!wipeOnScreen) return undefined;
+    window.addEventListener('resize', measureWipeOrigin);
+    return () => window.removeEventListener('resize', measureWipeOrigin);
+  }, [wipeOnScreen, measureWipeOrigin]);
   // WIPE FX — the above-curtain Pixi layer (see wipeFx.ts). Warmed once on mount so the async Pixi init
   // is long done before the first combat; each state fires its one-shot as it begins. A decisive combat
   // snaps the machine to 'idle' — clear() kills any in-flight motes so nothing drifts over the end screen.
@@ -1973,7 +1980,10 @@ export function Recruit() {
   }, [wipe]);
   const wipeVars = {
     '--wipe-dur': `${WIPE_MS}ms`,
-    ...(wipeOrigin ? { '--wipe-cx': `${wipeOrigin.cx}px`, '--wipe-cy': `${wipeOrigin.cy}px`, '--wipe-r': `${wipeOrigin.r}px` } : {}),
+    ...(wipeOrigin ? {
+      '--wipe-cx': `${wipeOrigin.cx}px`, '--wipe-cy': `${wipeOrigin.cy}px`, '--wipe-r': `${wipeOrigin.r}px`,
+      '--wipe-front-scale': String(wipeOrigin.frontScale),
+    } : {}),
   } as CSSProperties;
   const wipeTimeoutRef = useRef<number | undefined>(undefined);
   const advanceWipe = useCallback((): void => {
@@ -2012,8 +2022,12 @@ export function Recruit() {
   // shape change that lets the reveal run linear); `gone` is the entry reveal's R→L retreat (parked
   // through combat), `gone rtl` the exit reveal's L→R retreat; base and `primeOut` park on the zero
   // circle, ready for the next bloom.
+  // The TELL states (`chargeIn`/`primeOut`) wear `settle` too: they are where a fresh origin lands, and
+  // without it the zero-radius circle's CENTRE would transition from the last origin to the new one over
+  // the next 450ms, dragging the bloom's centre off the gem for its first half (seen in 2026-09-24's traces).
   const curtainClass = `wipecurtain${
-    wipe === 'coveredIn' || wipe === 'coveredOut' ? ' full settle'
+    wipe === 'chargeIn' || wipe === 'primeOut' ? ' settle'
+    : wipe === 'coveredIn' || wipe === 'coveredOut' ? ' full settle'
     : wipe === 'coverIn' || wipe === 'coverOut' ? ' full'
     : wipe === 'revealIn' || wipe === 'combat' ? ' gone'
     : wipe === 'revealOut' ? ' gone rtl' : ''
@@ -8827,6 +8841,8 @@ export const RuneforgeOverlay = memo(function RuneforgeOverlay({ overlaysHeld, r
   runeLockInCue: RuneLockInCard[] | null; cueRuneArrival: (cards: RuneLockInCard[] | null, phase: 'pending' | 'arrived') => void;
   startRuneLockIn: (el: HTMLElement | null, chosenIndex: number) => void; dispatch: (a: Action) => void;
 }) {
+  // A replay plays its forge entrance at the replay's speed (live play has no session: 1).
+  const replaySpeed = useGame((st) => st.replaySession?.speed ?? 1);
   return (
     <>
       {/* Runeforge: a stone/engraved shop. Buy ONE of the offered runes (or Skip), then it closes and the shop
@@ -8864,60 +8880,26 @@ export const RuneforgeOverlay = memo(function RuneforgeOverlay({ overlaysHeld, r
         />
       )}
       {!overlaysHeld && run.runeforgeOffer && !forgeMin && (
-        <div className={`discover-ov forge-ov${run.runeforgeEpic ? ' forge-epic' : ''}`} role="dialog" aria-label={run.runeforgeEpic ? 'The Epic Runeforge' : 'The Runeforge'}>
-          <div className="disc-panel forge-panel">
-            {/* Title only — the anvil icon was removed from the forge banner (owner ask 2026-08-30). */}
-            <div className="disc-banner forge-banner"><span className="disp">{run.runeforgeEpic ? 'Epic Runeforge' : 'Runeforge'}</span></div>
-            {/* The player's CURRENT Gold — the runes charge Gold, so the panel must say what's in the purse
-                (owner ask 2026-07-16). Re-renders with every buy/re-roll (run.embers). */}
-            <div className="forge-gold" aria-description="Your Gold right now"><Icon name="mana" /><b>{run.embers}</b> Gold</div>
-            <div className="disc-cards forge-cards">
-              {run.runeforgeOffer.map((id, i) => {
-                const rune = RUNE_INDEX[id];
-                if (!rune) return null;
-                // The pivot discount (aligned array, seeded at draw): a rune that doesn't follow the board can
-                // arrive cheaper — the buy path charges the same number.
-                const liveCost = Math.max(0, rune.cost - (run.runeforgeDiscounts?.[i] ?? 0));
-                return (
-                  <RuneCard
-                    key={id} rune={rune} cost={liveCost} affordable={run.embers >= liveCost} pickSfx
-                    duplicating={!!run.runeDuplication && !!run.runeforgeEpic}
-                    onBuy={(el) => {
-                      // CAPTURE BEFORE DISPATCH. The buy clears `runeforgeOffer`, so this overlay unmounts on
-                      // the same frame — after that there is nothing on screen to measure. The ceremony
-                      // re-renders clones at these exact rects, which is why the handover is invisible.
-                      startRuneLockIn(el, i);
-                      dispatch({ type: 'buyRune', index: i });
-                    }}
-                  />
-                );
-              })}
-            </div>
-            {/* The re-roll STAYS MOUNTED once spent (hidden, disabled, out of the tab order) rather than
-                unmounting. The overlay centres the panel vertically, so a footer that collapsed to zero height
-                re-centred the whole panel and the rune tablets visibly dropped by half the button's height on
-                the click (owner report 2026-09-22: "the runes move down when the player uses the free
-                re-roll"). Reserving the space keeps the row pinned; nothing else about the button changes. */}
-            <div className="forge-actions">
-              {(() => {
-                const spent = !!run.runeforgeRerolled || !!run.runeforgeRerollUsed;
-                return (
-                  <button
-                    className={`forge-reroll gtip${spent ? ' forge-reroll-spent' : ''}`}
-                    onClick={() => dispatch({ type: 'rerollRuneforge' })}
-                    disabled={spent}
-                    aria-hidden={spent || undefined}
-                    tabIndex={spent ? -1 : undefined}
-                    aria-description={spent ? undefined : "Re-roll the offered Runes for free, once per game. Spending it here forfeits the other forge's re-roll."}
-                    data-tip={spent ? undefined : "Re-roll the offered Runes for free, once per game. Spending it here forfeits the other forge's re-roll."}
-                  >
-                    <Icon name="refresh" /> Re-roll · <b className="forge-reroll-cost">Free</b>
-                  </button>
-                );
-              })()}
-            </div>
-          </div>
-        </div>
+        // The forge panel + its ENTRANCE (owner ask 2026-09-24: the tablets drop in with dust, the forge ignites).
+        // Shared with the entrance tuner's sandbox, so the preview is the real row. See `RuneforgeDialog`.
+        <RuneforgeDialog
+          offer={run.runeforgeOffer}
+          epic={!!run.runeforgeEpic}
+          embers={run.embers}
+          discounts={run.runeforgeDiscounts}
+          rerollSpent={!!run.runeforgeRerolled || !!run.runeforgeRerollUsed}
+          duplicating={!!run.runeDuplication && !!run.runeforgeEpic}
+          occasion={`${run.seed}:${run.wave}`}
+          speed={replaySpeed}
+          onBuy={(i, el) => {
+            // CAPTURE BEFORE DISPATCH. The buy clears `runeforgeOffer`, so this overlay unmounts on the same
+            // frame — after that there is nothing on screen to measure. The ceremony re-renders clones at these
+            // exact rects, which is why the handover is invisible.
+            startRuneLockIn(el, i);
+            dispatch({ type: 'buyRune', index: i });
+          }}
+          onReroll={() => dispatch({ type: 'rerollRuneforge' })}
+        />
       )}
     </>
   );

@@ -103,6 +103,11 @@ export const DIRECT_CALL_SITES: Readonly<Record<string, readonly string[]>> = {
   // The implosion on a rune's BADGE as the lock-in ceremony hands it over (owner ask 2026-08-31).
   'rune-select-implosion': ['useRuneArrivalFx.ts'],
   'rune-slot-break': ['QuestBadges.tsx'],
+  // THE RUNEFORGE ENTRANCE (2026-09-24): the dust puff under each landing rune tablet, the embers off the forge
+  // floor as it opens, and the Epic forge's flare as its last tablet lands.
+  'runeforge-embers': ['runeforgeEntrance/entrance.ts'],
+  'runeforge-epic-flare': ['runeforgeEntrance/entrance.ts'],
+  'runeforge-land-dust': ['runeforgeEntrance/entrance.ts'],
   // The mid-combat Shop-buff bloom (owner-authored 2026-09-02, replacing `shop-buff-aura` on this surface). The
   // shop-row play goes through the `shopBuffAll` binding instead — see `runShopBuffAllFire`.
   'shop-buff-purple': ['useCombatReplay.ts'],

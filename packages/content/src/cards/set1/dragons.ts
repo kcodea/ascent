@@ -69,8 +69,8 @@ export const DRAGONS: CardDef[] = [
     name: 'Karwind',
     tribe: 'dragon',
     tier: 4, // owner balance 2026-08-18: T6 → T5; owner batch 2026-09-24: T5 → T4
-    attack: 4,
-    health: 12,
+    attack: 2, // owner ruling 2026-09-24: 4/12 → 2/8 (stats only)
+    health: 8,
     keywords: ['DS'],
     // Owner rework 2026-08-07: the adjacency clause is GONE — a flat grant to every Dragon.
     // Owner balance 2026-08-18: +4/+4 then dialled back to +3/+3, and dropped the 20%-chance-of-double clause.

@@ -27,7 +27,9 @@ import { createPickPressLatch } from './pickPressLatch';
 import { SCENES } from './audio/scenes';
 import { slugify, isValidSlug, saveSound } from './fx/defStore';
 import { getBuffFxConfig } from './buffFxConfig';
-import { buildAudioFilterChain, curveVaries, applyAudioCurve, type FxFilterCtx } from './fx/audioFilters';
+import { buildAudioFilterChain, curveVaries, applyAudioCurve, reverbImpulse, type FxFilterCtx } from './fx/audioFilters';
+import { getGoodLuckIntroConfig, goodLuckTail } from './goodLuck/goodLuckIntroConfig';
+import { scheduleTailFade, scheduleSkipFade, SKIP_FADE_S, type TailOpts } from './audio/tailFade';
 
 export { SCENES };
 
@@ -374,7 +376,7 @@ function firstCardClip(): string | undefined {
  *  the sample finishes decoding. `delay` (s) schedules the start later on the audio clock (sample-accurate) —
  *  used to stagger a token's clip after the summon cue. `onNodes` hands back the live source+gain so the caller
  *  can later fade/stop a long clip (see `stopTurnCharge`) — Web Audio sources are otherwise fire-and-forget. */
-function playSample(name: string, category: string, delay = 0, onNodes?: (nodes: PlayNodes) => void): boolean {
+function playSample(name: string, category: string, delay = 0, onNodes?: (nodes: PlayNodes) => void, slice?: ClipSlice): boolean {
   if (isHidden() || audioSuspended) return false; // backgrounded, or hard-muted by a Skip-combat fade
   const a = audio();
   if (!a || muted) return false;
@@ -385,11 +387,85 @@ function playSample(name: string, category: string, delay = 0, onNodes?: (nodes:
   const g = a.createGain();
   g.gain.value = effectiveGain(cfg, category, name);
   src.connect(g).connect(busInput(a, category));
-  src.start(a.currentTime + Math.max(0, delay));
+  const when = a.currentTime + Math.max(0, delay);
+  if (slice) src.start(when, Math.max(0, slice.offset), Math.max(0, slice.duration));
+  else src.start(when);
   onNodes?.({ src, gain: g });
   return true;
 }
 interface PlayNodes { src: AudioBufferSourceNode; gain: GainNode; }
+/** The Good Luck intro's spark clip (an FX-workbench import, also the Stellar Lens sparkle). */
+const GOOD_LUCK_SPARK_CLIP = 'fx/djartmusic-christmas-sparkle-whoosh-1-275404';
+/** Play only a window of a clip (seconds into the file, and for how long). */
+interface ClipSlice { offset: number; duration: number; }
+/** A tailed play with every dial off: the clip's own end, no reverb (the old behaviour, for bare calls). */
+const NO_TAIL: TailOpts = { fadeOutMs: 0, reverbMix: 0, reverbSec: 0 };
+
+/** A handle on a scheduled clip, so a skipped moment can silence a sound it had already queued. */
+export interface SfxHandle { stop: () => void; }
+
+/**
+ * Play a clip through the soft-tail voice (see ./audio/tailFade): a fade over the clip's last `fadeOutMs`, a
+ * light convolution tail after it, and a handle whose `stop()` fades the whole voice in `SKIP_FADE_S` instead of
+ * cutting it. Same gating + category routing as `playSample`. Every node is disconnected once the tail has rung
+ * out (natural end) or the skip fade has landed, so nothing piles up. Returns null when nothing was queued.
+ */
+function playTailedSample(name: string, category: string, vol: number, delay: number, tail: TailOpts, slice?: ClipSlice): SfxHandle | null {
+  if (isHidden() || audioSuspended) return null;
+  const a = audio();
+  if (!a || muted) return null;
+  const buf = buffers.get(name);
+  if (!buf) { loadSample(name); return null; }
+  const src = a.createBufferSource();
+  src.buffer = buf;
+  const level = a.createGain();
+  level.gain.value = effectiveGain(cfg, category, name) * vol;
+  const env = a.createGain();
+  const out = a.createGain();
+  src.connect(level).connect(env).connect(out).connect(busInput(a, category));
+  const nodes: AudioNode[] = [src, level, env, out];
+  const reverbSec = Math.max(0, tail.reverbSec);
+  if (tail.reverbMix > 0 && reverbSec > 0) {
+    const send = a.createGain();
+    send.gain.value = tail.reverbMix;
+    const conv = a.createConvolver();
+    conv.buffer = reverbImpulse(a, reverbSec, 0.55); // cached per (length, damping, rate): built once
+    env.connect(send).connect(conv).connect(out);
+    nodes.push(send, conv);
+  }
+  const when = a.currentTime + Math.max(0, delay);
+  const offset = slice ? Math.max(0, slice.offset) : 0;
+  const playDur = slice ? Math.min(Math.max(0, slice.duration), Math.max(0, buf.duration - offset)) : buf.duration;
+  scheduleTailFade(env.gain, when, playDur, Math.max(0, tail.fadeOutMs) / 1000);
+  if (slice) src.start(when, offset, playDur);
+  else src.start(when);
+
+  let released = false;
+  let timer: ReturnType<typeof setTimeout> | null = null;
+  const release = (): void => {
+    if (released) return;
+    released = true;
+    if (timer !== null) clearTimeout(timer);
+    for (const n of nodes) { try { n.disconnect(); } catch { /* already */ } }
+  };
+  // Natural end: let the reverb ring out past the source's end, then let go of the whole graph.
+  const releaseAfterTail = (): void => { timer = setTimeout(release, reverbSec * 1000 + 60); };
+  src.onended = releaseAfterTail;
+  let stopped = false;
+  return {
+    stop: () => {
+      if (stopped || released) return;
+      stopped = true;
+      try {
+        const landAt = scheduleSkipFade(out.gain, a.currentTime);
+        src.onended = null;
+        src.stop(landAt + 0.01);
+      } catch { /* already stopped */ }
+      if (timer !== null) clearTimeout(timer);
+      timer = setTimeout(release, SKIP_FADE_S * 1000 + 60);
+    },
+  };
+}
 
 // The end-of-turn CHARGE build (`turncharge`) is a long (~25–40s) clip. Web Audio sources are fire-and-forget, so
 // we keep a handle to the live nodes and ramp them down when the turn ends early (End Turn pressed / a new charge
@@ -656,6 +732,28 @@ export const sfx = {
     if (vol <= 0) return;
     if (playSample('equipmentsheen', 'eqSheen', Math.max(0, delay) / 1000, ({ gain }) => { gain.gain.value *= vol; })) return;
     tone({ freq: 1500, dur: 0.14, type: 'sine', vol: 0.06 * vol, slideTo: 2400, category: 'eqSheen' });
+  },
+  /**
+   * THE "GOOD LUCK" INTRO — the shine sweeping the words left to right (owner ask 2026-09-24: "it needs a sound
+   * effect"). The Equipment art-sheen clip: the same light-across-gold sweep, already in the owner's mix.
+   * `vol` is the Good Luck tuner's dial on top of the category gain; `delay` (ms) schedules on the AUDIO clock
+   * so it lands with the WAAPI sweep. Returns a handle so a skip can silence it (null if nothing was queued).
+   */
+  goodLuckShine: (vol = 1, delay = 0, tail: TailOpts = NO_TAIL): SfxHandle | null => {
+    if (vol <= 0) return null;
+    // No synth stand-in: a late beep over the words reads worse than silence.
+    return playTailedSample('equipmentsheen', 'goodLuckShine', vol, Math.max(0, delay) / 1000, tail);
+  },
+  /**
+   * THE "GOOD LUCK" INTRO — the soft sparkle as the gold sparks burst. The owner's sparkle-whoosh clip, cut to
+   * the same bright window the Stellar Lens FX plays (1.1 s to 2.0 s of the file), so only the glitter tail
+   * rings, not the whoosh. Same `vol` / `delay` / handle contract as `goodLuckShine`.
+   */
+  goodLuckSpark: (vol = 1, delay = 0, tail: TailOpts = NO_TAIL): SfxHandle | null => {
+    if (vol <= 0) return null;
+    // The window ends at 2.0 s while the sparkle is still loud (about 10 dB under its peak), so without the
+    // tail's fade + reverb it stops dead: the owner's "ends abruptly" (2026-09-24).
+    return playTailedSample(GOOD_LUCK_SPARK_CLIP, 'goodLuckSpark', vol, Math.max(0, delay) / 1000, tail, { offset: 1.1, duration: 0.9 });
   },
   /**
    * The rune lock-in clang — the gold frame slamming shut on the chosen rune (owner ask 2026-08-29).
@@ -989,6 +1087,8 @@ const SFX_PREVIEW: Record<string, () => void> = {
   eqUseThymepiece: () => sfx.equipmentUse('thymepiece'),
   eqUseDeathfibrillator: () => sfx.equipmentUse('deathfibrillator'),
   runeArrival: () => sfx.runeSelectImplosion(),
+  goodLuckShine: () => { sfx.goodLuckShine(1, 0, goodLuckTail(getGoodLuckIntroConfig(), 'shine')); },
+  goodLuckSpark: () => { sfx.goodLuckSpark(1, 0, goodLuckTail(getGoodLuckIntroConfig(), 'spark')); },
   felSpikeEcho: sfx.felSpikeEcho, felSpikeEchoLand: sfx.felSpikeEchoLand,
   combatStart: sfx.combatStart,
   // cardVoice is per-card; preview plays whichever card clip is present (first one found), or nothing.

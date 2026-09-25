@@ -1,0 +1,80 @@
+/* THE RUNEFORGE ENTRANCE (owner ask 2026-09-24). The runner (`entrance.ts`) animates these with WAAPI, transform and
+   opacity only, one-shot. Everything here is STATIC: no CSS animation, nothing looping, no animated paint property.
+   At rest (no entrance playing, or after it) every layer below is invisible and inert, so a settled forge paints
+   exactly as it did before this existed. */
+
+/* The tablet's wrapper: the thing that drops, squashes and settles. Its own transform, so the tablet's `:hover`
+   lift (on the button inside) never fights the entrance. The squash is anchored at the base: it lands ON something. */
+/* EXPLICIT Z-ORDER, left to right (owner report 2026-09-24: "fix this so the coin never falls behind the frame thing
+   here"). A slot is a stacking context whenever it animates (its transform), which traps its tablet's cost coin
+   (z 6) inside it. The coin overhangs the tablet's top-left corner, over its LEFT neighbour, and while the slot was
+   dropping that neighbour's glow ring (z 7, in the panel's context) painted over the trapped coin. Now every slot is
+   ALWAYS its own stacking context at an increasing `z-index` (set inline, `--rfe-z`), so each tablet, coin
+   included, sits wholly above the one to its left, at rest and in every frame of the drop, squash and sweep. */
+.rfe-slot {
+  position: relative;
+  z-index: var(--rfe-z, 1);
+  display: flex;
+  transform-origin: 50% 100%;
+}
+/* A tablet still in the air takes no input: a press there falls through to the overlay, which skips the entrance
+   without buying anything. It becomes clickable the instant it lands (the runner clears the flag). */
+.rfe-slot[data-rfe="falling"] { pointer-events: none; }
+
+/* The glow + sweep overlay, over the tablet's art and text (z 2) but UNDER its cost coin (z 6). Inert. */
+.rfe-fx {
+  position: absolute; inset: 0; pointer-events: none; z-index: 5;
+  --rfe-glow: #ffb24a;
+  --rfe-sheen: rgba(255, 236, 196, 0.62);
+}
+.rfe-epic .rfe-fx {
+  --rfe-glow: #c69bff;
+  --rfe-sheen: rgba(255, 226, 170, 0.66);
+}
+/* The ignite: a STATIC glow ring the runner fades in and out (opacity only, per the kwglow rule). */
+.rfe-ignite {
+  position: absolute; inset: 0; border-radius: 15px; opacity: 0;
+  box-shadow:
+    0 0 0 3px var(--rfe-glow),
+    0 0 18px 4px color-mix(in srgb, var(--rfe-glow) 80%, transparent),
+    0 0 46px 10px color-mix(in srgb, var(--rfe-glow) 38%, transparent);
+}
+/* The sweep: a soft diagonal band clipped to the tablet, parked off its left edge until the runner slides it across. */
+.rfe-sweep {
+  position: absolute; inset: 0; border-radius: 13px; overflow: hidden;
+}
+.rfe-sweep-band {
+  position: absolute; top: -12%; bottom: -12%; left: 0; width: 40%;
+  /* Rasterized once and moved as a texture: the gradient never repaints while the band travels. */
+  backface-visibility: hidden;
+  background: linear-gradient(90deg, transparent 0%, color-mix(in srgb, var(--rfe-sheen) 30%, transparent) 30%, var(--rfe-sheen) 50%, color-mix(in srgb, var(--rfe-sheen) 30%, transparent) 70%, transparent 100%);
+  transform: translate3d(-140%, 0, 0) skewX(-18deg);
+}
+
+/* THE FOOTER ABOVE THE TABLETS (owner report 2026-09-24: the Re-roll's hover bubble, "...offered Runes ...
+   forfeits the other forge's re-roll.", drew UNDER the tablets' rules boxes). `.forge-actions` carries a transform
+   (the Runeforge Look scale), so it is its own stacking context at z auto, and the bubble's z 600 was trapped inside
+   it; the tablets' text boxes (z 2) and the tablet slots (z 1..n) sit directly in the panel's context and painted
+   over it. Lifting the footer's context above the tablets puts the bubble on top. No geometry changes. */
+.forge-ov .forge-actions { position: relative; z-index: 20; }
+
+/* The shade: the forge in shadow before the tablets land. Over the backdrop art, under the panel (z 1). The runner
+   sets its opacity; at rest it is 0 and costs nothing. */
+.rfe-shade {
+  position: absolute; inset: 0; z-index: 0; pointer-events: none; opacity: 0;
+  background: radial-gradient(120% 95% at 50% 58%, rgba(10, 6, 4, 0.72) 0%, rgba(4, 3, 2, 0.96) 62%, #020101 100%);
+}
+
+/* The tuner's sandbox preview (DEV) sits over whatever screen is up, the title (z 450) included. The above-modal FX
+   canvas is lifted over it while it is open (the rank screen's trick), so its dust and embers still draw on top. */
+.discover-ov.rfe-preview { z-index: 900; }
+body:has(.rfe-preview) .pixifx-above { z-index: 905; }
+/* ...and the tuner panels stay above it, so the dials can be moved and ▶ pressed again without closing it. */
+body:has(.rfe-preview) .tunerpanel { z-index: 910; }
+.rfe-preview-close {
+  position: fixed; top: calc(18 * var(--u)); right: calc(18 * var(--u)); z-index: 906;
+  font-family: var(--font-ui); font-weight: 800; font-size: calc(13 * var(--u)); letter-spacing: 0.03em;
+  color: #f4ecdb; background: linear-gradient(180deg, #241a13, #17110c);
+  border: 2px solid color-mix(in srgb, var(--gold) 58%, #000); border-radius: calc(11 * var(--u));
+  padding: calc(8 * var(--u)) calc(16 * var(--u));
+}

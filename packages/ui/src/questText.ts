@@ -326,7 +326,7 @@ export function questRewardText(r: QuestReward, live?: { completed?: boolean; sh
     case 'dupeFirstBuy':
       return 'Get a second copy of the first minion you buy each turn';
     case 'spellRepeat':
-      return r.scope === 'always' ? 'Your Shop spells cast twice' : 'Your first Shop spell each turn casts twice';
+      return r.scope === 'always' ? 'Shop spells you cast from hand cast twice' : 'The first Shop spell you cast from hand each turn casts twice';
     case 'minionCost':
       return `Minions cost ${r.cost} Gold from the shop`;
     // ── Hero quest rewards (Fi / Coran) ──
@@ -366,8 +366,8 @@ export function questRewardText(r: QuestReward, live?: { completed?: boolean; sh
       return `Your ${TRIBE_PLURAL[r.tribe]} Rallies and Slaughters trigger an additional time`;
     case 'aleExtraCasts':
       return (r.amount ?? 1) === 1
-        ? 'Your Dwarven Ales trigger an additional time'
-        : `Your Dwarven Ales trigger ${r.amount} additional times`;
+        ? 'Dwarven Ales you cast from hand trigger an additional time'
+        : `Dwarven Ales you cast from hand trigger ${r.amount} additional times`;
     case 'questGoldTribeBuff':
       return `Every ${r.per} Gold spent gives your ${TRIBE_PLURAL[r.tribe]} +${r.attack}/+${r.health}`;
     case 'rubyStatGain':
@@ -436,7 +436,7 @@ export function questRewardText(r: QuestReward, live?: { completed?: boolean; sh
     case 'spellCost':
       return `Your Shop spells cost ${r.cost} less`;
     case 'endlessVerse':
-      return `The first spell you cast each turn casts twice. Trigger ${r.per} Shouts to reset this`;
+      return `The first spell you cast from hand each turn casts twice. Trigger ${r.per} Shouts to reset this`;
     case 'shopBuff':
       return `Give Shop minions +${r.attack}/+${r.health}`;
     case 'shopBuffPerShouts':

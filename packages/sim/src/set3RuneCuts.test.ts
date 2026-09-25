@@ -14,7 +14,8 @@ import { runeforgePool } from './reducer';
 import { createRun, type RunState } from './index';
 
 /** The owner's named cuts → the sets each is still offered in afterwards. Grave Orbit and Full Hand were
- *  Set-3-only runes, so they are now offered in no set (still defined, still resolvable). */
+ *  Set-3-only runes, so the cut left them in no set — and the owner then ARCHIVED both the same day ("remove
+ *  them"), so they are pinned in ownerRulings0924.test.ts, not here. */
 const NAMED: Record<string, readonly SetId[]> = {
   // Kobolds
   rune_contraband: ['set2'], rune_facetwright: ['set2'], rune_gemcutting: ['set2'], rune_lapidary: ['set2'],
@@ -23,9 +24,7 @@ const NAMED: Record<string, readonly SetId[]> = {
   rune_last_call: ['set2'], rune_shared_pour: ['set2'], rune_baal: ['set2'], rune_chef: ['set2'],
   rune_brisbane: ['set2'], rune_runic_exchange: ['set2'],
   // Undead
-  rune_pillaging: ['set1', 'set2'], rune_rising_graves: ['set1'], rune_soul_taxes: ['set1', 'set2'], rune_grave_orbit: [],
-  // Spirits
-  rune_full_hand: [],
+  rune_pillaging: ['set1', 'set2'], rune_rising_graves: ['set1'], rune_soul_taxes: ['set1', 'set2'],
   // Other
   rune_aftershocks: ['set1', 'set2'],
 };
@@ -113,7 +112,8 @@ describe('Set 3 rune cuts (owner 2026-09-24)', () => {
     const inS3 = (arr: typeof RUNES) => arr.filter((r) => !r.sets || r.sets.includes('set3'));
     expect(inS3(RUNES)).toHaveLength(119);
     expect(inS3(EPIC_RUNES)).toHaveLength(108);
-    expect(CUT.filter((id) => !isEpic(id))).toHaveLength(26);
-    expect(CUT.filter(isEpic)).toHaveLength(28);
+    // 26/28 → 25/27 on 2026-09-24: Full Hand (Basic) and Grave Orbit (Epic) left the cut list for the archive
+    expect(CUT.filter((id) => !isEpic(id))).toHaveLength(25);
+    expect(CUT.filter(isEpic)).toHaveLength(27);
   });
 });

@@ -52,6 +52,16 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-09-25',
+    label: 'Round Number in Combat',
+    changes: [
+      {
+        category: 'Systems',
+        text: 'The combat screen now shows the current round at the top centre, just above the Skip button.',
+      },
+    ],
+  },
+  {
+    date: '2026-09-25',
     label: 'New Kobold and Undead Runes',
     changes: [
       {

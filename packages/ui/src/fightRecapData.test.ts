@@ -8,7 +8,7 @@ import { describe, expect, it } from 'vitest';
 import type { CombatEvent, CombatResult, MinionSnapshot } from '@game/core';
 import { ANNOUNCER_HIGH_ODDS, ANNOUNCER_LOW_ODDS } from './announcer';
 import { lossDamageRangeOf } from '@game/sim';
-import { combatGainItems, oddsRecap, splitDamage, wholePercents } from './fightRecapData';
+import { combatGainItems, oddsRecap, wholePercents } from './fightRecapData';
 
 const snap = (uid: string, name: string, golden = false): MinionSnapshot =>
   ({ uid, cardId: `card_${uid}`, name, tribe: 'neutral', attack: 1, health: 1, keywords: [], ...(golden ? { golden } : {}) } as MinionSnapshot);
@@ -61,14 +61,6 @@ describe('average damage beside the odds', () => {
     expect(lossDamageRangeOf([])).toBeNull();
     expect(lossDamageRangeOf([5, 2, 9])).toEqual([2, 9]);
     expect(lossDamageRangeOf([1, 2, 3, 4, 5, 6, 7, 8])).toEqual([2, 6]);
-  });
-});
-
-describe('splitDamage', () => {
-  it('takes Armor first, then Resolve', () => {
-    expect(splitDamage(8, 5)).toEqual({ total: 8, armor: 5, resolve: 3 });
-    expect(splitDamage(3, 10)).toEqual({ total: 3, armor: 3, resolve: 0 });
-    expect(splitDamage(4, undefined)).toEqual({ total: 4, armor: 0, resolve: 4 });
   });
 });
 

@@ -280,7 +280,7 @@ function rubyMultiplierFor(ctx: CombatContext, side: Side): number {
  *  already gives that ordering, which is how Karwind's neighbours were written; this makes the older
  *  index-the-raw-board sites agree with it instead of quietly meaning something else.
  */
-function livingNeighbours(ctx: CombatContext, self: Minion): Minion[] {
+export function livingNeighbours(ctx: CombatContext, self: Minion): Minion[] {
   const alive = ctx.living(self.side);
   const raw = ctx.boards[self.side];
   const i = raw.indexOf(self);
@@ -1289,6 +1289,13 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     ARENA_EFFECTS.rallyTriggerTribeShouts(combatArena(ctx, self), params);
   },
 
+  /** Ancients × the Auctioneer (War): the grafted "Rally: trigger this minion's Shout" (arena body). */
+  rallyTriggerOwnShout: (ctx, self, params, payload) => {
+    const { minion } = payload as MinionPayload;
+    if (self.dead || minion !== self) return; // Rally: this minion's own attack only
+    ARENA_EFFECTS.rallyTriggerOwnShout(combatArena(ctx, self), params);
+  },
+
   /** Spell Drummer — Rally: cast a random stat spell on a random friendly minion (its buff + combat spell power,
    *  golden-scaled). It's a REAL cast — fires in-combat spell reactions (Guel, Forsaken Weaver…) — then adds a
    *  copy of THAT SPELL to your hand (carried back via `playerHandGrants`). */
@@ -1523,6 +1530,22 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
       targets = targets.filter((m) => m !== t);
       ctx.buff(t, top.attack, 0, self.uid); // uid, not name — a label source is bodiless to the replay and drew NO tendril (2026-09-16)
     }
+  },
+
+  /** Tidebud (Shout), the COMBAT half: a random OTHER friendly `tribe` minion on the board AND a random `tribe`
+   *  minion in hand gain +atk/+hp, the moment the Shout fires (R-REALTIME-01, owner 2026-09-26: an Ancient of Time
+   *  Start-of-Combat Shout paid the hand at settle). The board half is a normal combat gain; the hand half rides
+   *  `buffHand` (permanent, R-HAND-02, the replay grows the hand card live). Golden: twice the stats. */
+  battlecryBuffRandomTribeBoardAndHand: (ctx, self, params) => {
+    const tribe = str(params.tribe) as Tribe;
+    const a = num(params.attack, 0) * mul(self), h = num(params.health, 0) * mul(self);
+    if (a === 0 && h === 0) return;
+    const arena = combatArena(ctx, self);
+    const onBoard = ctx.living(self.side).filter((m) => m !== self && arena.isTribe(m, tribe));
+    if (onBoard.length > 0) ctx.buff(ctx.rng.pick(onBoard), a, h, self.uid);
+    // The arena's hand bodies carry their def's tribes, so the one tribe predicate answers for them too.
+    const inHand = arena.handMinions().filter((c) => !ctx.getCard(c.cardId)?.spell && arena.isTribe(c, tribe));
+    if (inHand.length > 0) arena.buffHand(ctx.rng.pick(inHand), a, h);
   },
 
   /** Hearth Whisperer: whenever THIS takes damage, a random minion in your hand +atk/+hp — permanent (R-HAND-02). */

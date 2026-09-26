@@ -200,6 +200,7 @@ export const EffectFactoryIdSchema = z.enum([
   'onTribeAttackCastNamedSpell',
   'rallyGrantRandomShoutMinion',
   'rallyTriggerTribeShouts',
+  'rallyTriggerOwnShout',
   'spellBuffRandomPerTribe',
   'spellBuffHealthGrantFlurryDragon',
   'onRallyProcLeftmostEcho',

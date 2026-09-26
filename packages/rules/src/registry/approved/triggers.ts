@@ -633,4 +633,23 @@ export const TRIGGERS_RULES: GameRule[] = [
       lastVerifiedAt: '2026-09-26',
     },
   },
+  {
+    id: 'R-REALTIME-02',
+    title: 'A Shout fired in combat that touches your hand pays the hand DURING the fight (Tidebud)',
+    statement:
+      'When a Shout is triggered in combat (a Start-of-Combat Ancient of Time trigger, a Rally re-fire, a Ryme-style '
+      + 'replay), any part of it that buffs a card IN HAND resolves at that moment through the combat hand-buff channel: '
+      + 'the hand card grows in the replay on that beat (a live handBuff event) and is carried back once. It is never '
+      + 'deferred and replayed in the Shop at settle. Tidebud: a random OTHER friendly Spirit on the board gains the stats '
+      + 'as a normal combat gain, and a random Spirit in hand gains them permanently (R-HAND-02).',
+    domain: 'triggers',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-26 (Auctioneer x Time, Tidebud)', quote: 'ancient of time + auctioneer trigger happened at resolution instead of in real time. please fix this' },
+      { kind: 'code', ref: 'packages/core/src/effects/factories.ts FACTORIES.battlecryBuffRandomTribeBoardAndHand (the combat half; replayCombatBattlecry runs it live instead of deferring)' },
+    ],
+    contentIds: ['sp3_tidebud'],
+    currentBehaviour: 'Conforms, FIXED 2026-09-26: Tidebud had no combat half, so a combat Shout deferred to settle and grew the hand card only after the fight.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsAuctioneer.test.ts'], lastVerifiedAt: '2026-09-26' },
+  },
 ];

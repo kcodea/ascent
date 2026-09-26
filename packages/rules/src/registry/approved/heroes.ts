@@ -144,4 +144,88 @@ export const HEROES_RULES: GameRule[] = [
     currentBehaviour: 'Conforms (built 2026-09-26). Dev-only.',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsWarden.test.ts', 'packages/core/src/combat/resilientWard.test.ts'], lastVerifiedAt: '2026-09-26' },
   },
+  {
+    id: 'R-ANCAUCT-01',
+    title: 'Auctioneer × Ancient of Death: Pulse triggers the Shout one more time, then destroys the minion',
+    statement:
+      'With the Ancient of Death, Pulse fires the chosen minion\'s Shout twice (the base replay plus one more, each through the shared replay path, so a gild or Drakko applies to each), then destroys it. The destroy is a real Shop death (its Echo, the death watchers, a Rebirth or Rise return). A minion with no Shout cannot be Pulsed.',
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-26 (Auctioneer Ancients)', quote: 'Pulse triggers the chosen minion\'s Shout an additional time, then destroys it.' },
+      { kind: 'code', ref: 'packages/sim/src/ancients.ts pulseRepeatThenDestroy; packages/sim/src/reducer.ts heroPower replayBattlecry' },
+    ],
+    currentBehaviour: 'Conforms (built 2026-09-26). Dev-only (Scene Builder, Set 3, the Ancients flag).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsAuctioneer.test.ts'], lastVerifiedAt: '2026-09-26' },
+  },
+  {
+    id: 'R-ANCAUCT-02',
+    title: 'Auctioneer × Ancient of Fortune: every Shout fired in the Shop phase banks 1 Gold for next turn',
+    statement:
+      'Every Shout FIRE in the Shop phase (played from hand, Pulse, any replay, End-of-Turn replays; a Drakko repeat is its own fire) adds 1 Gold to next turn\'s Gold the moment it fires. Shouts fired in combat do not count, because the text says Shop phase. The power text prints the Gold banked so far this turn.',
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-26 (Auctioneer Ancients)', quote: 'Whenever you trigger a Shout during the Shop phase, gain 1 Gold next turn.' },
+      { kind: 'code', ref: 'packages/sim/src/ancients.ts shopShoutGold / ancientOnShopShout; packages/sim/src/recruit.ts fireBattlecryTriggered' },
+    ],
+    currentBehaviour: 'Conforms (built 2026-09-26). Dev-only (Scene Builder, Set 3, the Ancients flag).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsAuctioneer.test.ts'], lastVerifiedAt: '2026-09-26' },
+  },
+  {
+    id: 'R-ANCAUCT-03',
+    title: 'Auctioneer × Ancient of War: the Pulsed minion also gains "Rally: trigger this minion\'s Shout"',
+    statement:
+      'Pulse fires the Shout as normal, then the target permanently gains the Rally keyword and a grafted Rally (`grantedEffects`: `rallyTriggerOwnShout`) that fires its own Shout each time it attacks, in real time, through the shared combat Shout path (a counted shout event, Drakko folded, `battlecryTriggered` for every watcher). It also works on a Shop Rally. One graft per minion: a second Pulse does not stack it. The card prints the granted Rally on every surface.',
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-26 (Auctioneer Ancients)', quote: 'The minion you Pulse gains \'Rally: trigger this minion\'s Shout\'' },
+      { kind: 'code', ref: 'packages/sim/src/ancients.ts pulseGrantsRallyShout / ancientAfterPulse; packages/core/src/effects/arena.ts rallyTriggerOwnShout; packages/ui/src/instView.ts GRANTED_RALLY_SHOUT_NOTE' },
+    ],
+    currentBehaviour: 'Conforms (built 2026-09-26). Dev-only (Scene Builder, Set 3, the Ancients flag).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsAuctioneer.test.ts'], lastVerifiedAt: '2026-09-26' },
+  },
+  {
+    id: 'R-ANCAUCT-04',
+    title: 'Auctioneer × Ancient of Genesis: Pulse becomes a 2 Gold Discover of a Shout minion',
+    statement:
+      'With the Ancient of Genesis, Pulse is replaced: untargeted, 2 Gold, still once per turn, it opens a Discover of minions with a Shout from the run\'s pool at your Shop tier or below (the Help Wanted convention).',
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-26 (Auctioneer Ancients)', quote: 'Pulse becomes: 2g - Discover a Shout minion.' },
+      { kind: 'code', ref: 'packages/sim/src/ancients.ts pulseDiscoverShout + power override; packages/sim/src/heroes.ts activePowers; packages/sim/src/reducer.ts heroPower replayBattlecry' },
+    ],
+    currentBehaviour: 'Conforms (built 2026-09-26). Dev-only (Scene Builder, Set 3, the Ancients flag).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsAuctioneer.test.ts'], lastVerifiedAt: '2026-09-26' },
+  },
+  {
+    id: 'R-ANCAUCT-05',
+    title: 'Auctioneer × Ancient of Time: Pulse is passive; Start of Combat triggers the left-most and right-most Shouts',
+    statement:
+      'With the Ancient of Time, Pulse becomes passive (never activatable). At Start of Combat the left-most and the right-most living friendly minions that have a Shout each fire it once, through the shared combat Shout path, so every Shout watcher and tally hears them. When they are the same minion (only one Shout on the board) it fires once.',
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-26 (Auctioneer Ancients)', quote: 'Pulse becomes passive. Start of Combat: trigger your left-most and right-most Shouts. If you have only one Shout, trigger it once.' },
+      { kind: 'code', ref: 'packages/sim/src/ancients.ts socTriggerEdgeShouts + power override; packages/core/src/combat/simulate.ts ancientEdgeShouts' },
+    ],
+    currentBehaviour: 'Conforms (built 2026-09-26). Dev-only (Scene Builder, Set 3, the Ancients flag).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsAuctioneer.test.ts'], lastVerifiedAt: '2026-09-26' },
+  },
+  {
+    id: 'R-ANCAUCT-06',
+    title: 'Auctioneer × Ancient of Bonds: whenever a Shout triggers, the minions next to it gain +4/+3',
+    statement:
+      'Whenever a friendly Shout fires (any source), the minions next to the Shouting minion gain +4/+3 right then. Shop: permanent, per fire. Combat: per fire, on its living neighbours, right after the Shout\'s own effect; like every combat gain it lasts the fight unless the minion is Engraved.',
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-26 (Auctioneer Ancients)', quote: 'Shout triggers buff adjacent minions +4/+3.' },
+      { kind: 'code', ref: 'packages/sim/src/ancients.ts shoutBuffsAdjacent / ancientOnShopShout; packages/core/src/combat/simulate.ts ancientShoutAdjacent' },
+    ],
+    currentBehaviour: 'Conforms (built 2026-09-26). Dev-only (Scene Builder, Set 3, the Ancients flag).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsAuctioneer.test.ts'], lastVerifiedAt: '2026-09-26' },
+  },
 ];

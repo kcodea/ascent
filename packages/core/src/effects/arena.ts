@@ -1447,6 +1447,15 @@ export const ARENA_EFFECTS = {
     }
   },
 
+  /** Ancients × the Auctioneer (War, owner 2026-09-26) — a grafted "Rally: trigger this minion's Shout". The shared
+   *  Shout-replay ritual (`replayShout`: combat folds Drakko and emits `battlecryTriggered`; the shop runs
+   *  `replayBattlecry`). ONE fire per Rally: the graft is the hero's, not the card's, so a gild doubles the Shout's own
+   *  magnitude (as any gilded Shout does) rather than the trigger count. */
+  rallyTriggerOwnShout(arena: EffectArena, _params?: Record<string, unknown>): void {
+    if (!arena.hasEffect(arena.self, 'onPlay')) return;
+    arena.replayShout(arena.self);
+  },
+
   /** Trophy Stalker — Rally: grant your `tribe` +N/+N, where N GROWS by `step` each rally. The accrual rides
    *  `summonBonus` (per-instance, carried back), so the printed live text climbs. The rest-of-combat aura for
    *  later arrivals is a combat-only concept — `addTribeAura` is a shop no-op and the board loop covers it. */

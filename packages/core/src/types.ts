@@ -472,6 +472,7 @@ export type EffectFactoryId =
   | 'onTribeAttackCastNamedSpell' // Set 2 — Warflame: a friendly Dragon attacks → cast a named spell (Dragonflame)
   | 'rallyGrantRandomShoutMinion' // Set 2 — Roarcollector: Rally adds a random Shout minion to hand
   | 'rallyTriggerTribeShouts' // Set 2 — Embercrest: Rally re-triggers your Dragon Shouts
+  | 'rallyTriggerOwnShout' // Ancients × the Auctioneer (War): a grafted "Rally: trigger this minion's Shout"
   | 'spellBuffRandomPerTribe' // Set 2 — Dragonflame: buff a friendly, repeat per Dragon (random)
   | 'spellBuffHealthGrantFlurryDragon' // Set 2 — Flutter: +Health; a Dragon also gains Flurry
   | 'onRallyProcLeftmostEcho' // Set 2 — Hawkus: any friendly Rally triggers your left-most Echo
@@ -1833,6 +1834,14 @@ export interface QuestCombatMods {
    *  minions goes to hand DURING the fight (`grantToHand`, a live `toHand`) and the window empties. The window after
    *  the fight comes home as `CombatCarryBacks.wardWindow`. Player-only; never snapshotted. */
   ancientWardCopy?: { every: number; window: string[] };
+  /** ANCIENT OF TIME × the Auctioneer (owner 2026-09-26): Start of Combat, trigger this side's left-most and right-most
+   *  living minions with a Shout (once when they are the same minion), through the shared combat Shout path
+   *  (`fireShout`), so every Shout watcher and tally hears them. Player-only; never snapshotted. */
+  ancientEdgeShouts?: { label: string };
+  /** ANCIENT OF BONDS × the Auctioneer (owner 2026-09-26): whenever one of this side's Shouts triggers
+   *  (`battlecryTriggered`), the living minions next to the Shouting minion gain +attack/+health, right then.
+   *  Combat-only like every combat gain (Engraved keeps it). Player-only; never snapshotted. */
+  ancientShoutAdjacent?: { attack: number; health: number; label: string };
   /** Pack Mentality's Health half of the Beast aura — the `beastBuyHp` sibling of `beastBuyAtk`, re-added to
    *  from-base Beast bodies (summons / Reborn) so "+/+H wherever they are" catches combat summons. */
   beastAuraHp?: number;
@@ -2620,6 +2629,9 @@ export interface MinionSnapshot {
   /** Sunmane Herald's escalating rally — the Attack it grants on its next rally attack, so the combat card can
    *  print its CURRENT value rather than the printed base. Display-only. */
   rallySpreadAtk?: number;
+  /** ANCIENTS × the Auctioneer (War): this body carries the grafted "Rally: trigger this minion's Shout"
+   *  (`rallyTriggerOwnShout` in its effects), so the combat card prints it. Display-only. */
+  grantedRallyShout?: true;
   /** Mage-Pup: the spell it was taught — display-only, so the combat card names the spell its Shout cast
    *  instead of the "the spell this was taught" placeholder. */
   taughtSpellId?: string;

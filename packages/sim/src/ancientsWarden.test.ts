@@ -148,34 +148,45 @@ describe('Warden × FORTUNE — 2 Gold next turn per friendly Ward that breaks',
   });
 });
 
-describe('Warden × GENESIS — every 3 friendly Ward breaks, a copy of one of them', () => {
-  const result = (ids: string[]): CombatResult => ({ playerWardBreaks: ids } as unknown as CombatResult);
-
-  it('the count carries across combats and the countdown is live', () => {
-    const s = picked('genesis');
-    expect(heroPowerText(s)).toContain('**3** more to go');
-    ancientAfterCombat(s, result(['gnash', 'u3_poochy']));
-    expect(s.hand).toHaveLength(0);
-    expect(s.ancients!.wardWindow).toEqual(['gnash', 'u3_poochy']);
-    expect(heroPowerText(s)).toContain('**1** more to go');
-    ancientAfterCombat(s, result(['sandbag', 'gnash'])); // the 3rd pays, the 4th starts the next window
-    expect(s.hand).toHaveLength(1);
-    expect(['gnash', 'u3_poochy', 'sandbag']).toContain(s.hand[0]!.cardId);
-    expect(s.hand[0]!.golden).toBe(false);
-    expect(s.ancients!.wardBreaks).toBe(4);
-    expect(s.ancients!.wardWindow).toEqual(['gnash']);
-    expect(heroPowerText(s)).toContain('**2** more to go');
-  });
-
-  it('counts real combat breaks at settle', () => {
+describe('Warden × GENESIS — every 3 friendly Ward breaks, a copy of one of them, in REAL TIME', () => {
+  it('the copy is granted DURING the fight, the moment the 3rd Ward breaks (a live toHand), not at settle', () => {
     let s = picked('genesis', { board: [pup('a', 0, 30, ['DS']), pup('b', 0, 30, ['DS']), pup('c', 0, 30, ['DS'])] });
     s = fightNow(s);
-    const n = s.lastCombat!.playerWardBreaks?.length ?? 0;
-    expect(n).toBe(3);
+    const ev = s.lastCombat!.events as CombatEvent[];
+    const breaks = ev.flatMap((e, i) => (e.type === 'shield' ? [i] : []));
+    const grant = ev.findIndex((e) => e.type === 'toHand' && e.side === 'player');
+    expect(breaks.length).toBeGreaterThanOrEqual(3);
+    expect(grant, 'granted mid-fight').toBeGreaterThan(breaks[2]!);
+    expect(grant, 'right after the 3rd break, before a 4th could land').toBeLessThan(breaks[3] ?? Infinity);
+    expect([VANILLA.a, VANILLA.b, VANILLA.c]).toContain((ev[grant] as { cardId: string }).cardId);
+    expect(s.lastCombat!.playerWardWindow).toEqual([]);
     s = reduce(s, { type: 'resolveCombat' });
     expect(s.ancients!.wardBreaks).toBe(3);
+    expect(s.hand).toHaveLength(1); // the combat grant carried home once, not paid twice
+    expect(s.hand[0]!.golden).toBe(false);
+  });
+
+  it('the running window carries across fights, the countdown is live, and a carried window pays mid-fight', () => {
+    let s = picked('genesis', { board: [pup('a', 0, 30, ['DS']), pup('b', 0, 30, ['DS'])] });
+    expect(heroPowerText(s)).toContain('**3** more to go');
+    s = reduce(fightNow(s), { type: 'resolveCombat' });
+    expect(s.hand).toHaveLength(0);
+    expect(s.ancients!.wardWindow).toHaveLength(2);
+    expect(heroPowerText(s)).toContain('**1** more to go');
+    s = { ...s, board: [pup('c', 0, 30, ['DS'])] };
+    s = fightNow(s);
+    expect((s.lastCombat!.events as CombatEvent[]).some((e) => e.type === 'toHand' && e.side === 'player')).toBe(true);
+    s = reduce(s, { type: 'resolveCombat' });
     expect(s.hand).toHaveLength(1);
-    expect([VANILLA.a, VANILLA.b, VANILLA.c]).toContain(s.hand[0]!.cardId);
+    expect(s.ancients!.wardWindow).toEqual([]);
+    expect(heroPowerText(s)).toContain('**3** more to go');
+  });
+
+  it('settle only stores the window (it never pays a copy itself)', () => {
+    const s = picked('genesis');
+    ancientAfterCombat(s, { playerWardBreaks: ['gnash', 'u3_poochy', 'sandbag'], playerWardWindow: [] } as unknown as CombatResult);
+    expect(s.hand).toHaveLength(0);
+    expect(s.ancients!.wardBreaks).toBe(3);
   });
 });
 

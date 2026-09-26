@@ -47,7 +47,7 @@ there is no patch note.
 | Death | `aegisDestroyGivesAttackAndWard` | reducer `grantWard`. One target (the victim); the recipient is random, picked before the destroy: a minion without Ward first, else a random Warded one (owner 2026-09-26) | Shop |
 | Fortune | `wardBreakGold` (2) | `ancientAfterCombat` at settle, from `CombatResult.playerWardBreaks` → `bonusEmbersNextTurn` | Combat → next turn |
 | War | `nextAegisResilient` (1) | reducer `grantWard`: `AncientsState.resilientAegisLeft` (set on the pick) | Shop |
-| Genesis | `wardBreaksGetCopy` (3) | `ancientAfterCombat`: `wardBreaks` + `wardWindow` carry across combats | Combat → settle |
+| Genesis | `wardBreaksGetCopy` (3) | `QuestCombatMods.ancientWardCopy` carries the window into `simulate`, which pays the copy mid-fight via `ctx.grantToHand`; `ancientAfterCombat` stores the returned window | Combat (real-time) |
 | Time | `eotBuffWarded` (+5/+5) | a virtual recurring End-of-Turn entry, `ancientTimeWard` (its own beat, projected, Chronos-repeated, replayed) | End of Turn |
 | Bonds | `wardedGainBuffsWarded` (+5 Attack) | Shop: `ancientBondsReact` at the reducer's per-action stat diff, plus an End-of-Turn pass. Combat: `QuestCombatMods.ancientBonds` in `ctx.buff` | Both |
 
@@ -70,7 +70,10 @@ there is no patch note.
   Attack, and it is permanent.
 - **War is exactly one Aegis** ("your next"). Every Aegis after it grants a plain Ward.
 - **Fortune and Genesis count friendly Wards only**, and only real breaks (not the Resilient downgrade). Genesis
-  counts from the pick, and its copy arrives at settle (to hand, else the board).
+  counts from the pick. Its copy is granted in REAL TIME, the moment the 3rd Ward breaks mid-fight (owner
+  2026-09-26: "warden's genesis grant should be in real-time not at combat resolution"). The owner made real-time the
+  general default for every trigger, grant and printed number unless the text says otherwise: oracle rule
+  `R-REALTIME-01` (triggers domain).
 - **Bonds in the Shop fires once per gaining minion per action** (the `onGainStats` convention). An Aegis wave gives
   every Warded minion a gain, so each gives another +5. **In combat it fires per gain** as the gain lands, and the
   +5 lasts the fight unless the recipient is Engraved (the standing combat-buff rule).

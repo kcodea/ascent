@@ -1828,6 +1828,11 @@ export interface QuestCombatMods {
   /** ANCIENT OF FORTUNE / GENESIS × Warden: record every FRIENDLY Ward that breaks (`CombatCarryBacks.wardBreaks`).
    *  Off by default so every other fight's result is byte-identical. Player-only; never snapshotted. */
   ancientTrackWardBreaks?: boolean;
+  /** ANCIENT OF GENESIS × Warden, REAL-TIME (owner 2026-09-26): the running window of friendly Ward breaks (cardIds)
+   *  carried in from the run. Every break joins it; the moment it reaches `every`, a plain copy of one of those
+   *  minions goes to hand DURING the fight (`grantToHand`, a live `toHand`) and the window empties. The window after
+   *  the fight comes home as `CombatCarryBacks.wardWindow`. Player-only; never snapshotted. */
+  ancientWardCopy?: { every: number; window: string[] };
   /** Pack Mentality's Health half of the Beast aura — the `beastBuyHp` sibling of `beastBuyAtk`, re-added to
    *  from-base Beast bodies (summons / Reborn) so "+/+H wherever they are" catches combat summons. */
   beastAuraHp?: number;
@@ -2976,6 +2981,8 @@ export interface CombatCarryBacks {
   /** ANCIENTS (Warden's Fortune / Genesis): the cardId of each friendly minion whose Ward BROKE this fight, in
    *  order (one entry per break; a Resilient Ward's downgrade is not a break). Only when `ancientTrackWardBreaks`. */
   wardBreaks?: string[];
+  /** ANCIENTS (Warden's Genesis): the break window after this fight (`QuestCombatMods.ancientWardCopy`). */
+  wardWindow?: string[];
 }
 
 export interface CombatResult {
@@ -3225,6 +3232,8 @@ export interface CombatResult {
   playerFodderBuffGain?: { attack: number; health: number };
   /** ANCIENTS (Warden's Fortune / Genesis): the player's `CombatCarryBacks.wardBreaks`. */
   playerWardBreaks?: string[];
+  /** ANCIENTS (Warden's Genesis): the player's `CombatCarryBacks.wardWindow`. */
+  playerWardWindow?: string[];
   /** Outcome odds (fractions summing to 1) — estimated by the run loop re-simulating these boards
    *  on many independent seeds. Not produced by `simulate` itself (a single fight); the run loop fills it.
    *  `avgLossDamage` is the mean Resolve lost across the losing sims (round-capped), i.e. how much damage

@@ -393,6 +393,12 @@ export function simulate(
   /** ANCIENTS (Warden's Fortune / Genesis): the cardId of each Ward that BROKE this fight, per side — recorded only
    *  for a side whose mods carry `ancientTrackWardBreaks`, so every other fight's result stays byte-identical. */
   const wardBreakLog: Record<Side, string[]> = { player: [], enemy: [] };
+  /** ANCIENT OF GENESIS × Warden: the run's break window, copied in so the ONE counter continues here and pays the
+   *  copy the moment the Nth Ward breaks (real-time, not at settle). */
+  const wardWindow: Record<Side, string[]> = {
+    player: [...(modsFor('player').ancientWardCopy?.window ?? [])],
+    enemy: [...(modsFor('enemy').ancientWardCopy?.window ?? [])],
+  };
   /** Wolvie (Echo): one-shot buffs queued for the next tribe minion each side summons (FIFO). */
   const nextSummonBuffs: Record<Side, { tribe: Tribe; attack: number; health: number; sourceUid?: string }[]> = { player: [], enemy: [] };
   /** Wolvie's Echoes STACK onto the NEXT matching summon (owner 2026-08-12): four queued Echoes all land on the
@@ -3090,6 +3096,18 @@ export function simulate(
       target.keywords = target.keywords.filter((k) => k !== 'DS');
       wardBroken.add(target.uid); // Rebirth restores it (see `killOrReborn`)
       emit({ type: 'shield', target: target.uid });
+      // ANCIENT OF GENESIS × Warden (real-time): the break joins the window; the Nth pays a copy NOW, after the break.
+      const wardCopy = modsFor(target.side).ancientWardCopy;
+      if (wardCopy) {
+        const win = wardWindow[target.side];
+        win.push(target.cardId);
+        if (win.length >= wardCopy.every) {
+          const pickId = win[Math.floor(grantRngFor(target.side).next() * win.length)]!;
+          wardWindow[target.side] = [];
+          const def = cards[pickId];
+          if (def && !def.spell) ctx.grantToHand(pickId, target.side, target.uid);
+        }
+      }
       bus.emit('onLoseDivineShield', { minion: target, side: target.side });
       return;
     }
@@ -5022,6 +5040,7 @@ export function simulate(
       magneticBuffGain: magneticBuffGain[side].attack > 0 || magneticBuffGain[side].health > 0 ? magneticBuffGain[side] : undefined,
       fodderBuffGain: fodderBuffGain[side].attack > 0 || fodderBuffGain[side].health > 0 ? fodderBuffGain[side] : undefined,
       wardBreaks: wardBreakLog[side].length > 0 ? [...wardBreakLog[side]] : undefined,
+      wardWindow: modsFor(side).ancientWardCopy ? [...wardWindow[side]] : undefined,
     };
   };
   const pc = carryBacksFor('player');
@@ -5091,6 +5110,7 @@ export function simulate(
     playerMagneticBuffGain: pc.magneticBuffGain,
     playerFodderBuffGain: pc.fodderBuffGain,
     ...(pc.wardBreaks ? { playerWardBreaks: pc.wardBreaks } : {}),
+    ...(pc.wardWindow ? { playerWardWindow: pc.wardWindow } : {}),
     // Enemy run-level scalers so the UI can render an enemy Grim/Taragosa/Pack Leader/Runescale at the
     // OPPONENT's value. Present only when the enemy actually had a nonzero scaler (else the card's base text
     // is already accurate → the UI's player-side fallback is fine).

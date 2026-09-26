@@ -99,12 +99,14 @@ export const HEROES_RULES: GameRule[] = [
     statement:
       'A running count of FRIENDLY Ward breaks in combat, carried across combats from the pick. Every 3rd break gets a plain '
       + 'copy (to hand, the board when the hand is full) of a random minion whose Ward broke in that window of 3; the '
-      + 'window then restarts. The power text prints the live countdown. The copy arrives at settle.',
+      + 'window then restarts. The power text prints the live countdown. REAL-TIME (owner 2026-09-26, R-REALTIME-01): the '
+      + 'copy is granted DURING the fight, the moment the 3rd Ward breaks (a live toHand), never at settle.',
     domain: 'heroes',
     status: 'approved',
     evidence: [
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-26 (Warden Ancients)', quote: 'When 3 Wards break in combat, get a copy of one of the Warded minions.' },
-      { kind: 'code', ref: 'packages/sim/src/ancients.ts wardBreaksGetCopy / ancientAfterCombat (AncientsState.wardBreaks / wardWindow)' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-26 (Warden Genesis timing)', quote: "warden's genesis grant should be in real-time not at combat resolution." },
+      { kind: 'code', ref: 'packages/sim/src/ancients.ts wardBreaksGetCopy / ancientCombatMods (ancientWardCopy) / ancientAfterCombat; packages/core/src/combat/simulate.ts the Ward-break site' },
     ],
     currentBehaviour: 'Conforms (built 2026-09-26). Dev-only.',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsWarden.test.ts'], lastVerifiedAt: '2026-09-26' },

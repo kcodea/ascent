@@ -37,9 +37,10 @@
  *  · `wardBreakGold`              `ancientAfterCombat` (settle): +gold next turn per FRIENDLY Ward that broke. (Fortune)
  *  · `nextAegisResilient`         the `grantWard` branch: the next `count` Aegis casts after the pick grant
  *                                 RESILIENT Ward instead of Ward (`AncientsState.resilientAegisLeft`). (War)
- *  · `wardBreaksGetCopy`          `ancientAfterCombat`: a running count of friendly Ward breaks (it carries across
- *                                 combats); every `every`, a plain copy of one of the minions whose Ward broke in
- *                                 that window goes to hand. (Genesis)
+ *  · `wardBreaksGetCopy`          REAL-TIME (owner 2026-09-26): `QuestCombatMods.ancientWardCopy` carries the running
+ *                                 break window into the fight; the moment the `every`th Ward breaks, a plain copy of
+ *                                 one of those minions goes to hand mid-fight (a live `toHand`). `ancientAfterCombat`
+ *                                 only stores the window the fight hands back. (Genesis)
  *  · `eotBuffWarded`              a virtual recurring End-of-Turn entry (`ancientTimeWard` in `recurringEotEffects`):
  *                                 every minion with Ward gains +a/+h, permanently. (Time)
  *  · `wardedGainBuffsWarded`      SHOP: `ancientBondsReact` at the reducer's per-action stat diff (+ an End-of-Turn
@@ -440,6 +441,8 @@ export function ancientCombatMods(state: RunState): Partial<QuestCombatMods> {
   const bonds = effectOf(state, 'wardedGainBuffsWarded');
   if (bonds) out.ancientBonds = { attack: bonds.attack, label: ANCIENTS.bonds.name };
   if (effectOf(state, 'wardBreakGold') || effectOf(state, 'wardBreaksGetCopy')) out.ancientTrackWardBreaks = true;
+  const copy = effectOf(state, 'wardBreaksGetCopy');
+  if (copy) out.ancientWardCopy = { every: copy.every, window: [...(live(state)?.wardWindow ?? [])] };
   return out;
 }
 
@@ -532,27 +535,16 @@ export function ancientBondsReact(state: RunState, before: Map<string, { attack:
   if (mark) a.bondsHandled = [...handled, ...touched];
 }
 
-/** FORTUNE / GENESIS: the fight is settled. Fortune banks Gold for next turn per friendly Ward break; Genesis counts
- *  them (carrying across combats) and pays a plain copy of one of the window's minions every `every` breaks. */
+/** FORTUNE / GENESIS: the fight is settled. Fortune banks Gold for next turn per friendly Ward break (its text says
+ *  "next turn"). Genesis already paid its copies DURING the fight (real-time, see `ancientWardCopy`); here it only
+ *  keeps the running count and the window the fight handed back. */
 export function ancientAfterCombat(state: RunState, result: CombatResult): void {
   const a = live(state);
   if (!a) return;
   const breaks = result.playerWardBreaks ?? [];
-  if (breaks.length === 0) return;
   const gold = effectOf(state, 'wardBreakGold');
-  if (gold) state.bonusEmbersNextTurn = (state.bonusEmbersNextTurn ?? 0) + gold.gold * breaks.length;
-  const copy = effectOf(state, 'wardBreaksGetCopy');
-  if (!copy) return;
-  for (const cardId of breaks) {
-    a.wardBreaks = (a.wardBreaks ?? 0) + 1;
-    const window = (a.wardWindow ??= []);
-    window.push(cardId);
-    if (window.length < copy.every) continue;
-    const rng = makeRng(state.rngCursor);
-    const pickId = window[rng.int(window.length)]!;
-    state.rngCursor = rng.state();
-    a.wardWindow = [];
-    const def = CARD_INDEX[pickId];
-    if (def && !def.spell) grantMinionToHandOrBoard(state, def, false);
-  }
+  if (gold && breaks.length > 0) state.bonusEmbersNextTurn = (state.bonusEmbersNextTurn ?? 0) + gold.gold * breaks.length;
+  if (!effectOf(state, 'wardBreaksGetCopy')) return;
+  a.wardBreaks = (a.wardBreaks ?? 0) + breaks.length;
+  if (result.playerWardWindow) a.wardWindow = [...result.playerWardWindow];
 }

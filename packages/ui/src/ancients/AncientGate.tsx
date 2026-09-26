@@ -163,13 +163,14 @@ export const AncientGate = memo(function AncientGate({ run }: { run: RunState })
     return () => document.body.classList.remove('ancgate');
   }, [phase]);
 
-  // A click steps the cinematic forward: omen / eruption / title → reveal. (The offer handles reveal → settled.)
+  // No click-to-skip (owner 2026-09-26: "remove the click to skip in the animation, that is not necessary"): the
+  // cinematic always plays through. Clicks during it are swallowed so nothing underneath reacts.
   useEffect(() => {
     if (phase !== 'omen' && phase !== 'eruption' && phase !== 'title') return;
-    const skip = (e: PointerEvent): void => { e.stopPropagation(); toReveal(seqRef.current); };
-    window.addEventListener('pointerdown', skip, true);
-    return () => window.removeEventListener('pointerdown', skip, true);
-  }, [phase, toReveal]);
+    const swallow = (e: PointerEvent): void => { e.stopPropagation(); };
+    window.addEventListener('pointerdown', swallow, true);
+    return () => window.removeEventListener('pointerdown', swallow, true);
+  }, [phase]);
 
   // OPEN for a fresh offer once the ring has pinged and nothing else holds the screen.
   useEffect(() => {

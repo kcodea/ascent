@@ -59,14 +59,6 @@ function Reveal({ gated, offer, heroId, seq, onPick }: { gated: boolean; offer: 
   const [landed, setLanded] = useState<boolean[]>(() => offer.map(() => false));
   const [settled, setSettled] = useState(false);
 
-  const settle = (): void => {
-    for (const t of timers.current) window.clearTimeout(t);
-    timers.current = [];
-    for (const a of anims.current) a.finish();
-    setLanded(offer.map(() => true));
-    setSettled(true);
-    setAwakenStage('settled', seq);
-  };
 
   // Once per reveal (the component is keyed by the awakening's seq).
   useLayoutEffect(() => {
@@ -187,8 +179,8 @@ function Reveal({ gated, offer, heroId, seq, onPick }: { gated: boolean; offer: 
   return (
     <div ref={rootRef} className={`discover-ov dce disc-look anc-offer${gated ? ' gated' : ''}${settled ? ' settled' : ''}`} role="dialog" aria-label="An Ancient Awakens"
       onPointerDownCapture={(e) => {
-        // The second skip: a click during the emergence completes it (and picks nothing).
-        if (!settled) { e.stopPropagation(); e.preventDefault(); settle(); }
+        // No click-to-skip (owner 2026-09-26): a click during the emergence is swallowed and the reveal plays through.
+        if (!settled) { e.stopPropagation(); e.preventDefault(); }
       }}>
       <div className="disc-panel">
         <OfferBanner title="An Ancient Awakens" />

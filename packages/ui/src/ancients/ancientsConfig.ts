@@ -184,7 +184,7 @@ export const ANCIENTS_DEFAULTS: AncientsFullConfig = {
   flashMs: 480,
   splitMs: 520,
   shineMs: 800,
-  tickGain: 0.5,
+  tickGain: 0.5, // drives the soft `ancientFillTick` synth now (owner 2026-09-26), not the tally-counter clip
   revealGain: 0.8,
   omenMs: 850,
   omenDark: 1,

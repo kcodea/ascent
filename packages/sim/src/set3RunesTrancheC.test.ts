@@ -332,6 +332,8 @@ describe('Rebirth in the SHOP + the snapshot fold + the recruit-side Rune of Reb
     expect(back.uid, 'a fresh uid (the departure diff must see it leave)').not.toBe('m');
     expect([back.attack, back.health], 'the 9/9 it had').toEqual([9, 9]);
     expect(back.keywords, 'Taunt kept, Rebirth spent').toEqual(['T']);
+    // The return cue is flagged REBIRTH, so the shop plays the phoenix flame, not Rise's aqua re-form (2026-09-26).
+    expect((s.shopDeathFx ?? []).filter((f) => f.kind === 'rise' && f.uid === back.uid).map((f) => f.rebirth)).toEqual([true]);
     // The Rise twin on the same body: the printed 2/1.
     let r = run({ tier: 4, board: [body('m', 'u3_poochy', { attack: 9, health: 9, keywords: ['R', 'T'] })], hand: [body('cb', 'u3_cagebreaker')] });
     r = act(r, { type: 'play', uid: 'cb' });
@@ -340,6 +342,7 @@ describe('Rebirth in the SHOP + the snapshot fold + the recruit-side Rune of Reb
     r = act(r, { type: 'resolveShopDeath' });
     const risen = r.board.find((c) => c.cardId === 'u3_poochy')!;
     expect([risen.attack, risen.health]).toEqual([2, 1]);
+    expect((r.shopDeathFx ?? []).filter((f) => f.kind === 'rise' && f.uid === risen.uid).map((f) => !!f.rebirth), 'a Rise is not a Rebirth').toEqual([false]);
   });
 
   it('SNAPSHOT FIDELITY: a Rebirth granted at Start of Combat folds into the SoC board like any keyword grant', () => {

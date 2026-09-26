@@ -1,7 +1,8 @@
 import { pixiFx } from '../../pixiFx';
 import { playDef } from '../../fx/playDef';
 import { sfx } from '../../sfx';
-import { getRebirthConfig } from '../../rebirthConfig';
+import { getRebirthConfig, rebirthPalette } from '../../rebirthConfig';
+import { pillarHostFor, spawnRebirthBurn, spawnRebirthPillar } from '../../fx/rebirthPillar';
 
 /**
  * Aura channel (choreographer phase 3c) — the single owner of every combat aura burst/break/re-form FX+sfx
@@ -21,6 +22,8 @@ export function burstDeathAuras(uid: string, rect: { cx: number; cy: number; w: 
   if (!card) return;
   if (card.classList.contains('dscard')) { playDef('ward-lost-blast', { target: { x: rect.cx, y: rect.cy } }, { uids: { source: null, target: uid } }); sfx.shieldBreak(); }
   if (card.classList.contains('reborncard')) { pixiFx.shatterAt(rect.cx, rect.cy, rect.w, rect.h, 'reborn'); sfx.rebornShatter(); }
+  // A REBIRTH body burns away in blue flame, embers hovering in its slot until it returns (owner 2026-09-26).
+  if (card.classList.contains('rebirthcard')) spawnRebirthBurn(rect);
 }
 
 /** A Ward was consumed → play `ward-lost-blast` now + the unchanged `sfx.shieldBreak` sound, at the unit's
@@ -41,13 +44,30 @@ export function reformReborn(rect: { cx: number; cy: number; w: number; h: numbe
   sfx.rebornSummon();
 }
 
-/** A unit REBIRTHS (the `RB` keyword's full-body return, `reborn { rebirth: true }`) → its own phoenix look in
- *  blue-and-white fire (owner 2026-09-25): a one-shot `rebirth-flame` burst up from the unit, sized by the 🔥 tuner, and a gap-gated flame cue.
- *  Split from Rise's aqua re-form so the two keywords never share a look. `uid` is the returning unit. */
-export function reformRebirth(rect: { cx: number; cy: number; w: number; h: number } | null, uid: string | null): void {
+/** A unit REBIRTHS (the `RB` keyword's full-body return, `reborn { rebirth: true }`) → its phoenix moment in blue
+ *  and white fire (owner 2026-09-25; made loud 2026-09-26, "its not noticeable"): the one-shot `rebirth-flame`
+ *  column erupts from the slot, recoloured to the 🔥 tuner's flame colours, sized by `burstScale` and stretched by
+ *  `burstTime`; the flame whoosh follows `soundOffset` ms later (gap-gated, so a mass rebirth rings once). The unit's
+ *  own re-form out of the fire is CSS (`.unit.rebirthing`), started by the same beat, and the pillar of fire it
+ *  rises from is `fx/rebirthPillar.ts` (hosted on the unit, or `host` when a caller passes one). Fired at the beat START by the
+ *  `rebirthFx` cue. `uid` is the returning unit.
+ *
+ *  SIZE: the rect is measured at beat start, while the re-entering slot is still expanding from zero WIDTH
+ *  (`summonexpand`) — sizing off `w` made the first burst near-invisible. The height is stable, so the burst sizes
+ *  off it (a card is ~0.75 as wide as it is tall). */
+export function reformRebirth(rect: { cx: number; cy: number; w: number; h: number } | null, uid: string | null, host: HTMLElement | null = null): void {
   const c = getRebirthConfig();
-  if (rect) playDef('rebirth-flame', { target: { x: rect.cx, y: rect.cy } }, { uids: { source: null, target: uid }, scale: c.burstScale * (rect.w / 180) });
-  if (c.soundGain > 0 && rebirthSoundAllowed()) sfx.rebirthFlame(c.soundGain);
+  spawnRebirthPillar(host ?? pillarHostFor(uid), rect);
+  if (rect) {
+    const cardW = Math.max(rect.w, rect.h * 0.75);
+    playDef('rebirth-flame', { target: { x: rect.cx, y: rect.cy } }, {
+      uids: { source: null, target: uid },
+      scale: c.burstScale * (cardW / 180),
+      time: c.burstTime,
+      recolor: rebirthPalette(c),
+    });
+  }
+  if (c.soundGain > 0 && rebirthSoundAllowed()) sfx.rebirthFlame(c.soundGain, c.soundOffset);
 }
 let lastRebirthSoundAt = 0;
 function rebirthSoundAllowed(): boolean {

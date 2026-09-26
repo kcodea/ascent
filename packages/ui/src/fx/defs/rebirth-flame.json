@@ -8,7 +8,7 @@
     "rebirth",
     "keyword"
   ],
-  "duration": 900,
+  "duration": 1300,
   "layers": [
     {
       "primitive": "shockwave",
@@ -16,10 +16,54 @@
       "at": 0,
       "params": {
         "rings": 1,
-        "speed": 3.65,
-        "thickness": 0.12,
-        "fade": 3.15,
-        "radius": 105,
+        "speed": 2.4,
+        "thickness": 0.2,
+        "fade": 3.2,
+        "radius": 150,
+        "squash": 0.34,
+        "ringDelay": 0,
+        "ease": 1,
+        "radiusCurve": [
+          [
+            0,
+            0
+          ],
+          [
+            1,
+            1
+          ]
+        ],
+        "reverse": false,
+        "bands": 3,
+        "palette": [
+          1720260,
+          2776319,
+          7331071,
+          16777215
+        ],
+        "alpha": 1,
+        "blendMode": "normal",
+        "glow": 0.4,
+        "plateau": 0.3,
+        "noiseAlong": 3,
+        "noiseAcross": 7,
+        "warp": 0.35,
+        "scroll": 1.4,
+        "erode": 0.5,
+        "gain": 1.4,
+        "offsetY": 58
+      }
+    },
+    {
+      "primitive": "shockwave",
+      "anchor": "target",
+      "at": 0,
+      "params": {
+        "rings": 1,
+        "speed": 2.3,
+        "thickness": 0.3,
+        "fade": 5,
+        "radius": 110,
         "squash": 1,
         "ringDelay": 0,
         "ease": 1,
@@ -37,34 +81,35 @@
         "bands": 3,
         "palette": [
           1720260,
-          3112191,
-          9429247,
+          2776319,
+          7331071,
           16777215
         ],
         "alpha": 1,
         "blendMode": "add",
-        "glow": 0.3,
+        "glow": 0.5,
         "plateau": 0.3,
         "noiseAlong": 3,
         "noiseAcross": 7,
-        "warp": 0.35,
+        "warp": 0.6,
         "scroll": 1.4,
-        "erode": 0.5,
-        "gain": 1.1
+        "erode": 0.8,
+        "gain": 1.1,
+        "offsetY": -10
       }
     },
     {
       "primitive": "burst",
       "anchor": "target",
-      "at": 0,
+      "at": 40,
       "params": {
-        "count": 55,
+        "count": 24,
         "interval": 600,
-        "spread": 1,
-        "aimMode": "travel",
-        "angle": 89,
-        "speed": 900,
-        "speedVar": 0.5,
+        "spread": 0.34,
+        "aimMode": "fixed",
+        "angle": -90,
+        "speed": 1050,
+        "speedVar": 0.6,
         "reverse": false,
         "speedCurve": [
           [
@@ -76,10 +121,10 @@
             1
           ]
         ],
-        "drag": 0.9,
-        "gravity": -2240,
+        "drag": 0.95,
+        "gravity": -420,
         "pointGravity": 1230,
-        "life": 820,
+        "life": 1250,
         "orientToVelocity": false,
         "spinMul": 1,
         "spinCurve": [
@@ -92,23 +137,23 @@
             1
           ]
         ],
-        "turbulence": 1875,
-        "turbScale": 0.092,
+        "turbulence": 900,
+        "turbScale": 0.05,
         "fieldPhase": 0.44,
-        "emitShape": "point",
-        "emitRadius": 150,
+        "emitShape": "disc",
+        "emitRadius": 44,
         "emitFill": false,
         "emitDensity": 400,
         "emitPoints": [],
-        "squashX": 0.28,
-        "squashY": 0.25,
+        "squashX": 1,
+        "squashY": 1,
         "offsetX": 0,
-        "offsetY": 55,
+        "offsetY": 40,
         "inheritVel": 0,
-        "shape": "shard",
-        "size": 12,
-        "sizeVar": 0.5,
-        "stretchX": 0.85,
+        "shape": "circle",
+        "size": 6,
+        "sizeVar": 0.6,
+        "stretchX": 1,
         "stretchY": 1,
         "sizeCurve": [
           [
@@ -141,18 +186,18 @@
             1
           ]
         ],
-        "fade": 2.3,
+        "fade": 1.6,
         "bands": 5,
         "plateau": 0.27,
         "fieldMix": 0.88,
         "tintMode": "palette",
         "palette": [
-          1720260,
-          3112191,
-          9429247,
+          2776319,
+          7331071,
+          13628671,
           16777215
         ],
-        "blendMode": "add",
+        "blendMode": "normal",
         "glow": 0,
         "blur": 0,
         "blurCurve": [
@@ -604,25 +649,17 @@
       }
     },
     {
-      "primitive": "smoke",
+      "primitive": "burst",
       "anchor": "target",
-      "at": 30,
+      "at": 220,
       "params": {
-        "rate": 300,
-        "rateCurve": [
-          [
-            0,
-            1
-          ],
-          [
-            1,
-            1
-          ]
-        ],
-        "life": 460,
-        "spread": 1,
-        "speed": 260,
-        "speedVar": 0.5,
+        "count": 14,
+        "interval": 600,
+        "spread": 0.5,
+        "aimMode": "fixed",
+        "angle": -90,
+        "speed": 520,
+        "speedVar": 0.7,
         "reverse": false,
         "speedCurve": [
           [
@@ -634,25 +671,37 @@
             1
           ]
         ],
-        "gravity": -1490,
-        "spin": 25,
-        "spinVar": 0.6,
+        "drag": 0.96,
+        "gravity": -300,
+        "pointGravity": 1230,
+        "life": 1500,
         "orientToVelocity": false,
-        "turbulence": 0,
-        "turbScale": 0.02,
-        "fieldPhase": 0,
-        "emitShape": "point",
-        "emitRadius": 0,
+        "spinMul": 1,
+        "spinCurve": [
+          [
+            0,
+            1
+          ],
+          [
+            1,
+            1
+          ]
+        ],
+        "turbulence": 1100,
+        "turbScale": 0.06,
+        "fieldPhase": 0.44,
+        "emitShape": "disc",
+        "emitRadius": 60,
         "emitFill": false,
         "emitDensity": 400,
         "emitPoints": [],
         "squashX": 1,
-        "squashY": 1,
+        "squashY": 0.6,
         "offsetX": 0,
-        "offsetY": 55,
+        "offsetY": -20,
         "inheritVel": 0,
-        "shape": "shard",
-        "size": 17,
+        "shape": "circle",
+        "size": 4,
         "sizeVar": 0.5,
         "stretchX": 1,
         "stretchY": 1,
@@ -687,24 +736,19 @@
             1
           ]
         ],
-        "bands": 3,
-        "plateau": 0.3,
-        "fieldMix": 0,
+        "fade": 1.3,
+        "bands": 5,
+        "plateau": 0.27,
+        "fieldMix": 0.88,
         "tintMode": "palette",
-        "fadeIn": 0.2,
         "palette": [
           1720260,
-          3112191,
-          9429247,
+          2776319,
+          7331071,
           16777215
         ],
         "blendMode": "add",
         "glow": 0,
-        "noiseScale": 6,
-        "warp": 0.35,
-        "scroll": 1.4,
-        "erode": 0.35,
-        "gain": 1.4,
         "blur": 0,
         "blurCurve": [
           [
@@ -716,6 +760,11 @@
             1
           ]
         ],
+        "noiseScale": 6,
+        "warp": 0.35,
+        "scroll": 1.4,
+        "erode": 0.5,
+        "gain": 2,
         "advancedBloomOn": false,
         "advancedBloomAmt": 1.3,
         "advancedBloomCurve": [

@@ -1592,36 +1592,80 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
           drop-shadow(0 0 3px rgba(69, 232, 192, 0.85))
           drop-shadow(0 0 11px rgba(23, 143, 134, 0.5));
 }
-/* REBIRTH (RB) — the phoenix look (owner 2026-09-25: "similar to rise, but less intrusive, more thin and less haze";
-   then "make rebirth a blue effect … blue and white fire": cobalt → cyan → a white-hot core). A THIN ember rim on the oval + a few embers rising from the base. PERF: the rim is a static
-   pre-rendered ring whose OPACITY breathes (the `kwglow` pattern); the embers move by transform/opacity only, no blur,
-   no blend mode. Colours / sizes / counts are the 🔥 Rebirth tuner's `--rb-*` vars (fallbacks = its defaults). */
-.card.compact.rebirthcard .rebirth {
-  /* Fills the art window, so the rim hugs its oval edge (the window clips anything outside it). */
-  position: absolute; inset: 0; pointer-events: none; z-index: 2;
+/* REBIRTH (RB) — SOFT BLUE-WHITE FIRE BURNING ON THE FRAME (owner 2026-09-25: "blue and white fire", a phoenix;
+   2026-09-26: v1's thin rim was "not noticeable and ugly", v2's spiky tongues behind the frame "still really bad …
+   blur it … improve its readability … it should be on top of the card"). Rendered by Card.tsx's `RebirthCrown` in
+   the archbox at z4 — OVER the art (z1) and the gold frame (z3), exactly where Ward's glass shell sits, and UNDER
+   the stat badges (z6) and the gem (z7) — so the fire burns along the top of the frame and the numbers stay clean.
+   Few, large, calm tongues; every edge is PRE-BLURRED inside the SVG frames (rebirthCrown.ts), so nothing blurs live.
+   WHAT IT COSTS: plain divs with static background images (`--rb-crown-N`, `--rb-crown-s-N` for a Taunt shield).
+   Only opacity (the frame cross-fade, the glow breathe) and transform (the frame breathe, the ember rise) animate,
+   with constant keyframe values; the tuner's alphas sit on static wrapper opacities. No paint, no layout per frame.
+   Box = 2.0 × --ccw (rebirthCrown's CROWN_BOX), centred on the portrait. */
+/* REBIRTH VEIL — the over-the-card half of the idle look (owner 2026-09-26: "put it over the card a bit more so it
+   looks closer to rise/ward/execute"): soft blue fire licking up over the portrait's lower edge, inside the clipped
+   art at z2 like Rise's dome, transparent through the middle so the art reads through it. */
+.card.compact .rebirth-veil { position: absolute; inset: 0; z-index: 2; pointer-events: none; opacity: var(--rb-veil-a, 0.75); }
+/* The oval's art box is OVERFILLED under the gold (--fill), so the veil insets to the VISIBLE window; a Taunt's art
+   box IS its window (clipped to --heater). The image is the pre-blurred `--rb-veil` (rebirthCrown.ts veilSvg). */
+.card.compact.stdframe .rebirth-veil { inset: calc(50% * (1 - 1 / var(--fill, 1))); }
+.card.compact .rebirth-veil .rbv {
+  position: absolute; inset: 0; background: var(--rb-veil) center / 100% 100% no-repeat;
+  animation: rbveil var(--rb-glow-pulse, 2.4s) ease-in-out infinite; will-change: opacity;
 }
-.card.compact.rebirthcard .rebirth-rim {
-  position: absolute; inset: 0; border-radius: 50%; will-change: opacity;
-  box-shadow: inset 0 0 0 calc(var(--rb-rim-w, 3.5) * var(--u)) var(--rb-a, #9fe6ff),
-              inset 0 0 calc(14 * var(--u)) calc(3 * var(--u)) color-mix(in srgb, var(--rb-b, #2350e6) 80%, transparent);
-  opacity: var(--rb-rim-a, 0.9);
-  animation: rebirthrim var(--rb-rim-pulse, 2.8s) ease-in-out infinite;
+@keyframes rbveil { 0%, 100% { opacity: 0.7; } 50% { opacity: 1; } }
+/* The frame itself glows blue, exactly as Rise's does aqua (a STATIC filter on the frame, never animated). */
+.card.compact.stdframe.rebirthcard .cframe,
+.card.compact.taunt.rebirthcard .tframe {
+  filter: var(--frame-tone) drop-shadow(0 4px 6px rgba(0, 0, 0, 0.45))
+          drop-shadow(0 0 3px color-mix(in srgb, var(--rb-a, #6fdcff) 85%, transparent))
+          drop-shadow(0 0 10px color-mix(in srgb, var(--rb-b, #2a5cff) 55%, transparent));
 }
-@keyframes rebirthrim { 0%, 100% { opacity: calc(var(--rb-rim-a, 0.9) * 0.45); } 50% { opacity: var(--rb-rim-a, 0.9); } }
-.card.compact.rebirthcard .ember {
-  position: absolute; bottom: 10%; width: var(--rb-ember-size, 7%); aspect-ratio: 1; border-radius: 50%;
-  background: radial-gradient(circle, #ffffff 0%, var(--rb-a, #9fe6ff) 40%, color-mix(in srgb, var(--rb-b, #2350e6) 60%, transparent) 70%, transparent 100%);
-  opacity: 0; will-change: transform, opacity;
-  animation: rebirthember 3.2s linear infinite;
+.card.compact .rebirth-crown {
+  position: absolute; z-index: 4; pointer-events: none;
+  width: calc(var(--ccw) * 2); height: calc(var(--ccw) * 2);
+  left: calc(var(--ccw) * -0.5); top: calc(var(--ccw) * (-0.5 + var(--dy, 0)));
 }
-@keyframes rebirthember {
-  0%   { transform: translate(-50%, 0) scale(0.6); opacity: 0; }
-  15%  { opacity: var(--rb-ember-a, 0.85); }
-  100% { transform: translate(calc(-50% + var(--ex, 0px)), calc(var(--ccw) * -0.62)) scale(0.2); opacity: 0; }
+.card.compact .rebirth-crown .rbc-glow { position: absolute; inset: 0; opacity: var(--rb-glow-a, 0.45); }
+/* A faint blue ring of light on the frame (transparent over the portrait's middle), breathing in opacity. */
+.card.compact .rebirth-crown .rbc-glow::before {
+  content: ''; position: absolute; left: 50%; top: 50%; border-radius: 50%;
+  width: calc(var(--ccw) * 1.08); height: calc(var(--ccw) * 1.26); transform: translate(-50%, -52%);
+  background: radial-gradient(closest-side, transparent 72%, color-mix(in srgb, var(--rb-a, #6fdcff) 55%, transparent) 86%, transparent 100%);
+  animation: rbglow var(--rb-glow-pulse, 2.4s) ease-in-out infinite; will-change: opacity;
+}
+@keyframes rbglow { 0%, 100% { opacity: 0.55; } 50% { opacity: 1; } }
+.card.compact .rebirth-crown .rbc-flames { position: absolute; inset: 0; opacity: var(--rb-crown-a, 1); }
+.card.compact .rebirth-crown .rbc-frame {
+  position: absolute; inset: 0; background: center / 100% 100% no-repeat; opacity: 0;
+  animation: rbflick var(--rb-flicker, 0.9s) linear infinite; will-change: transform, opacity;
+}
+/* Three frames a third of a cycle apart: each fades in (0-10%), holds (10-43%) and fades out (43-53%) over the
+   NEXT frame's full hold, so one frame is always at full strength (a pure cross-fade leaves both half-transparent)
+   while the tongues slowly change shape; the slight scale lets them breathe outward. */
+@keyframes rbflick {
+  0%   { opacity: 0; transform: scale(0.985); }
+  10%  { opacity: 1; }
+  43%  { opacity: 1; transform: scale(1.01); }
+  53%  { opacity: 0; transform: scale(1.02); }
+  100% { opacity: 0; transform: scale(1.02); }
+}
+.card.compact .rebirth-crown .rbc-embers { position: absolute; inset: 0; opacity: var(--rb-ember-a, 0.95); }
+.card.compact .rebirth-crown .rbc-ember {
+  position: absolute; width: var(--rb-ember-size, 5%); aspect-ratio: 1; border-radius: 50%; opacity: 0;
+  background: radial-gradient(circle, var(--rb-core, #f4fdff) 0%, var(--rb-a, #6fdcff) 34%,
+    color-mix(in srgb, var(--rb-b, #2a5cff) 55%, transparent) 60%, transparent 72%);
+  animation: rbember 2.2s ease-out infinite; will-change: transform, opacity;
+}
+@keyframes rbember {
+  0%   { transform: translate(-50%, 0) scale(1); opacity: 0; }
+  12%  { opacity: 1; }
+  100% { transform: translate(calc(-50% + var(--ex, 0%) * 6), -620%) scale(0.35); opacity: 0; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .card.compact.rebirthcard .ember { animation: none; opacity: 0; }
-  .card.compact.rebirthcard .rebirth-rim { animation: none; }
+  .card.compact .rebirth-crown .rbc-frame { animation: none; }
+  .card.compact .rebirth-crown .rbc-frame:first-of-type { opacity: 1; }
+  .card.compact .rebirth-crown .rbc-glow::before, .card.compact .rebirth-crown .rbc-ember, .card.compact .rebirth-veil .rbv { animation: none; }
 }
 /* FLURRY (W) — wind blades swirling the card. A ring stack in the archbox (z2: above the art, below the
    frame — so the swirl orbits AROUND the card), sized to the card width. Rendered by Card.tsx from
@@ -4489,6 +4533,89 @@ body.hglow-preview .card.plated .plateglow { opacity: 1; }
    (`sfx.rebornShatter` on the death, `sfx.rebornSummon` here) fire from the replay — no board shake. */
 .unit.reborn { z-index: 14; animation: summonexpand 0.4s ease; }
 .unit.reborn .card { width: var(--cw); animation: risepop 0.7s ease forwards; }
+/* REBIRTH — THE DEATH → RETURN (owner 2026-09-26: the first return "is pretty terrible when it dies and comes back";
+   the reference is Rise's return, kept clean and tasteful). All one-shot, transform/opacity only, every duration
+   divided by --combat-speed like the beat holds:
+     1. BURN-UP (the death beat, `dying rising rbburn`, set by the replay when a Rebirth return follows): the body
+        lifts and fades while a soft sheaf of blue flame rises through where it was and a few embers hover in the
+        empty slot (the REBIRTH BURN nodes below) through the return's read-lead (`REBORN_LEAD`);
+     2. RE-FORM (the reborn beat, `reborn rebirthing`): a soft flame rises in the slot (fx/rebirthPillar.ts BACK,
+        behind the card) and the body fades and scales in cleanly out of it (no oversized pop) under a brief
+        white-blue flash (the `.rbflash` node), then settles. The next beat waits for it (`rebirthSettleLead`).
+     3. The idle aura is gone: the returned body has spent its Rebirth. */
+.unit.dying.rising.rbburn .card { animation: rbburn calc(0.34s / var(--combat-speed, 1)) ease-in forwards; }
+.unit.dying.rising.rbburn.returning .card { animation: rbburn calc(0.34s / var(--combat-speed, 1)) ease-in calc(0.3s / var(--combat-speed, 1)) both; }
+@keyframes rbburn {
+  0%   { opacity: 1; transform: none; }
+  100% { opacity: 0; transform: translateY(-7%) scale(0.96, 1.02); }
+}
+/* REBIRTH BURN — fixed-position nodes at the dying body's slot (fx/rebirthPillar.ts spawnRebirthBurn, fired with
+   the death's aura burst): a soft sheaf of blue flame rising through where the body was, and embers hovering in
+   the empty slot through the return's read-lead. z 100: over the board (z1), under the Pixi layer (z110). */
+.rbburn-flame, .rbburn-embers { position: fixed; z-index: 100; pointer-events: none; opacity: 0; will-change: transform, opacity; }
+.rbburn-flame {
+  width: calc(var(--cw) * 1.0); height: calc(var(--cw) * 1.55); translate: -50% -100%;
+  background: var(--rb-pillar) center bottom / 100% 100% no-repeat; transform-origin: 50% 100%;
+  -webkit-mask-image: linear-gradient(to top, transparent 0, #000 18%); mask-image: linear-gradient(to top, transparent 0, #000 18%);
+  animation: rbburnflame calc(0.85s / var(--combat-speed, 1)) ease-out both;
+}
+.rbburn-embers {
+  width: calc(var(--cw) * 0.95); height: calc(var(--cw) * 1.33); translate: -50% -50%;
+  background: var(--rb-embers) center / 100% 100% no-repeat;
+  animation: rbembers calc(1.5s / var(--combat-speed, 1)) ease-out calc(0.2s / var(--combat-speed, 1)) both;
+}
+@keyframes rbburnflame {
+  0%   { opacity: 0; transform: scale(0.7, 0.3); }
+  25%  { opacity: 0.95; transform: scale(0.95, 0.9); }
+  100% { opacity: 0; transform: translateY(-22%) scale(0.85, 1.15); }
+}
+@keyframes rbembers {
+  0%   { opacity: 0; transform: translateY(6%); }
+  25%  { opacity: 0.95; }
+  75%  { opacity: 0.75; }
+  100% { opacity: 0; transform: translateY(-10%); }
+}
+/* 0.9s = useCombatReplay's REBIRTH_FORM_MS. */
+.unit.reborn.rebirthing .card { animation: rebirthform calc(0.9s / var(--combat-speed, 1)) cubic-bezier(0.25, 0.6, 0.3, 1) both; }
+@keyframes rebirthform {
+  0%   { opacity: 0; transform: translateY(7%) scale(0.93); }
+  20%  { opacity: 0; transform: translateY(6%) scale(0.94); }
+  65%  { opacity: 1; transform: translateY(-1%) scale(1); }
+  100% { opacity: 1; transform: none; }
+}
+/* REBIRTH PILLAR — the soft rising flame the body re-forms out of (fx/rebirthPillar.ts spawns + removes it), behind
+   the card, and the brief white-blue FLASH over it as the body lands. */
+.rbpillar {
+  /* left = HALF A CARD, not 50%: the combat slot is still expanding from 0 while the card inside it is already
+     full width and left-aligned, so the card's centre is --cw/2 from the host's left edge (shop: the card itself). */
+  position: absolute; left: calc(var(--cw) * 0.5); bottom: 4%; pointer-events: none;
+  width: calc(var(--cw) * 1.08); height: calc(var(--cw) * 1.7);
+  background: var(--rb-pillar) center bottom / 100% 100% no-repeat;
+  /* a static soft foot, so the column's base never reads as a hard horizontal cut */
+  -webkit-mask-image: linear-gradient(to top, transparent 0, #000 16%); mask-image: linear-gradient(to top, transparent 0, #000 16%);
+  transform-origin: 50% 100%; opacity: 0; will-change: transform, opacity;
+}
+.rbpillar.back { z-index: 0; animation: rbpillar calc(var(--rb-burst-dur, 1.05s) / var(--combat-speed, 1)) cubic-bezier(0.2, 0.8, 0.3, 1) both; }
+.rbpillar.fixed { position: fixed; bottom: auto; left: auto; z-index: 2000; translate: 0 -100%; animation: rbpillar var(--rb-burst-dur, 1.05s) cubic-bezier(0.2, 0.8, 0.3, 1) both; }
+@keyframes rbpillar {
+  0%   { opacity: 0; transform: translateX(-50%) scale(0.7, 0.2); }
+  18%  { opacity: 0.95; }
+  45%  { opacity: 0.9; transform: translateX(-50%) scale(1, 1); }
+  100% { opacity: 0; transform: translateX(-50%) translateY(-12%) scale(1.02, 1.15); }
+}
+.rbflash {
+  position: absolute; left: calc(var(--cw) * 0.5); top: calc(var(--ch) * 0.36); z-index: 2; pointer-events: none;
+  width: calc(var(--cw) * 1.1); height: calc(var(--cw) * 1.1); border-radius: 50%;
+  background: radial-gradient(closest-side, color-mix(in srgb, var(--rb-core, #f4fdff) 90%, transparent) 0%,
+    color-mix(in srgb, var(--rb-a, #6fdcff) 55%, transparent) 45%, transparent 100%);
+  transform: translate(-50%, -50%); opacity: 0; will-change: opacity;
+  animation: rbflash calc(var(--rb-burst-dur, 1.05s) * 0.85 / var(--combat-speed, 1)) ease-out both;
+}
+@keyframes rbflash { 0%, 38% { opacity: 0; } 55% { opacity: 0.85; } 100% { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) {
+  .unit.reborn.rebirthing .card, .unit.dying.rising.rbburn .card { animation: none; }
+  .rbpillar, .rbflash, .rbburn-flame, .rbburn-embers { display: none; }
+}
 @keyframes risepop {
   0%   { transform: scale(0.35); opacity: 0; filter: brightness(1.6) drop-shadow(0 0 20px rgba(140, 196, 255, 0.95)); } /* re-form from a spark */
   55%  { transform: scale(1.14); opacity: 1; filter: brightness(1.4) drop-shadow(0 0 16px rgba(140, 196, 255, 0.9)); }  /* pop + blue Rise glow */

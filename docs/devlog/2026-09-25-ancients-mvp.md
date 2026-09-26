@@ -128,3 +128,12 @@ Nothing loops: every motion is WAAPI transform/opacity or a one-shot transition.
   inhale take an optional palette; the curtain is an aspect-stretched ellipse from `wipeGeometry`, the seam ring the
   wipe's scaled texture) in violet/gold/teal, with "An Ancient Awakens" as its centre moment, then it hands off to the
   offer. Verified with headless-Chrome screenshots at 1920x1080 and 3440x1440 against a real Discover.
+- **The awakening as a cinematic** (owner: "ominous exciting … delay the discover, and make the discover animation
+  unique to the ancients in timing, sound and appearance"): OMEN (music + other buses duck via the new
+  `setMusicDuck` / `duckSfxBuses`, rumble, darkening edges, glyphs flickering around the hero power, embers rising)
+  → ERUPTION (boom + flash, a column of light, the curtain bloom with runes on its seam) → TITLE (held, sting) →
+  the Ancients' OWN REVEAL (one at a time out of a flash of their colour and a ring of light shards, descending
+  per-card cues, a frame shimmer) → SETTLED (drifting motes, a quiet looping hum) → PICK (seal). Every beat and
+  every cue (clip / gain / offset / pitch) is a ✦ Ancients tuner dial; ▶ Play full sequence / ▶ Play from reveal.
+  A click steps omen/eruption/title → reveal, and a second completes the reveal. Sequencing lives on the
+  `ancientsFx` stage bus (`AncientGate` drives it, `AncientOffer` reports `settled`).

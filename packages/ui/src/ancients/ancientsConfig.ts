@@ -47,34 +47,41 @@ export interface AncientsConfig {
   tickGain: number;
   /** Sound: the awaken / reveal cue's gain (0 mutes). */
   revealGain: number;
+  /** THE AWAKENING (owner 2026-09-25: "ominous exciting when the hero power erupts … delay the discover, and make the
+   *  discover animation unique to the ancients in timing, sound and appearance"). Beat lengths (ms): */
+  omenMs: number;
+  /** Omen: how dark the screen edges go while the world holds its breath (opacity). */
+  omenDark: number;
+  /** Eruption: the curtain bloom out of the hero power (ms). */
+  eruptionMs: number;
+  /** Eruption: the column of light from the hero power (ms). */
+  columnMs: number;
+  /** Eruption: the burst FX size (×). */
+  burstScale: number;
+  /** Eruption: the energy ring riding the curtain's seam (peak opacity). */
+  seamGlow: number;
+  /** Title: how long "An Ancient Awakens" holds before the reveal (ms). */
+  titleHoldMs: number;
+  /** Reveal: the curtain fading off (ms). */
+  revealFadeMs: number;
+  /** Reveal: the pause before the first Ancient emerges (ms). */
+  revealDelayMs: number;
+  /** Reveal: between one Ancient emerging and the next (ms). */
+  cardStaggerMs: number;
+  /** Reveal: one Ancient's emergence (ms). */
+  cardRevealMs: number;
+  /** Close: the gate contracting back into the hero power on the pick (ms). */
+  closeMs: number;
+  /** Sound: the duck on the music + other sounds during the awakening (0 = silent, 1 = none). */
+  duckAmount: number;
+  /** Sound: the duck's ramp (ms). */
+  duckRampMs: number;
   /** Preview: the slide/fade IN on hover (ms). */
   pvInMs: number;
   /** Preview: the slide/fade OUT when the pointer leaves (ms). */
   pvOutMs: number;
   /** Preview: the grace before it starts leaving, so the pointer can cross from the ring to the card (ms). */
   pvGraceMs: number;
-  /** Gate: the hero power's swell before it bursts (ms). */
-  gateChargeMs: number;
-  /** Gate: the burst FX size (×). */
-  gateBurstScale: number;
-  /** Gate: the curtain blooming out of the hero power (ms). */
-  gateOpenMs: number;
-  /** Gate: how long "An Ancient Awakens" holds on the curtain (ms). */
-  gateHoldMs: number;
-  /** Gate: the curtain fading off to reveal the offer (ms). */
-  gateRevealMs: number;
-  /** Gate: the iris contracting back into the hero power on a pick (ms). */
-  gateCloseMs: number;
-  /** Gate: the glowing ring on the iris edge (peak opacity). */
-  gateGlow: number;
-  /** Gate cue slots (owner SFX to come): the burst's boom (a sound clip id), its gain and offset. */
-  gateBoomClip: string;
-  gateBoomGain: number;
-  gateBoomOffset: number;
-  /** …and the gate-open shimmer. */
-  gateShimmerClip: string;
-  gateShimmerGain: number;
-  gateShimmerOffset: number;
   /** Crack: where the split runs, % of the button width from the left. */
   crackX: number;
   /** Crack: how far each zig swings either side of the line, % of the button width. */
@@ -100,10 +107,31 @@ const ART_DEFAULTS = Object.fromEntries(
   ANCIENT_ART_IDS.flatMap((id) => ART_FIELDS.map((f) => [`${id}${f}`, f === 'S' ? 1 : 0])),
 ) as Record<AncientArtKey, number>;
 export type AncientColorKey = `${'death' | 'fortune' | 'war' | 'genesis' | 'time'}Color`;
-export type AncientsFullConfig = AncientsConfig & Record<AncientArtKey, number> & Record<AncientColorKey, string>;
+/** THE AWAKENING SOUND CUES (owner: "i can help source sounds if you set up a tuner with timing cues"). Each cue is a
+ *  clip id (swap in the owner's SFX in the tuner), a gain, an offset (ms, relative to its beat) and a rate (pitch). */
+export const ANCIENT_CUES = ['omenRumble', 'eruptionBoom', 'eruptionFlash', 'titleSting', 'cardReveal', 'ambientHum', 'pickSeal'] as const;
+export type AncientCue = (typeof ANCIENT_CUES)[number];
+export type AncientCueKey = `${AncientCue}${'Clip' | 'Gain' | 'Offset' | 'Rate'}`;
+/** The shipped placeholder picks (existing repo clips, pitched where it helps). */
+export const ANCIENT_CUE_DEFAULTS: Record<AncientCue, { clip: string; gain: number; offset: number; rate: number }> = {
+  omenRumble: { clip: 'turncharge', gain: 0.7, offset: 0, rate: 0.62 },
+  eruptionBoom: { clip: 'fx/universfield-ground-impact-352053', gain: 0.9, offset: 0, rate: 0.82 },
+  eruptionFlash: { clip: 'fx/universfield-cinematic-swoosh-impact-454392', gain: 0.6, offset: 40, rate: 0.9 },
+  titleSting: { clip: 'fx/waking-rift', gain: 0.75, offset: 60, rate: 1 },
+  cardReveal: { clip: 'runeselectimplosion', gain: 0.7, offset: 0, rate: 0.9 },
+  ambientHum: { clip: 'turncharge', gain: 0.18, offset: 0, rate: 0.45 },
+  pickSeal: { clip: 'fx/triple-impact', gain: 0.8, offset: 0, rate: 0.85 },
+};
+const CUE_DEFAULTS = Object.fromEntries(ANCIENT_CUES.flatMap((c) => {
+  const d = ANCIENT_CUE_DEFAULTS[c];
+  return [[`${c}Clip`, d.clip], [`${c}Gain`, d.gain], [`${c}Offset`, d.offset], [`${c}Rate`, d.rate]];
+})) as Record<AncientCueKey, string | number>;
+export type AncientsFullConfig = AncientsConfig & Record<AncientArtKey, number> & Record<AncientColorKey, string>
+  & Record<`${AncientCue}Clip`, string> & Record<`${AncientCue}${'Gain' | 'Offset' | 'Rate'}`, number>;
 
 export const ANCIENTS_DEFAULTS: AncientsFullConfig = {
   ...ART_DEFAULTS,
+  ...(CUE_DEFAULTS as unknown as Record<`${AncientCue}Clip`, string> & Record<`${AncientCue}${'Gain' | 'Offset' | 'Rate'}`, number>),
   ...(Object.fromEntries(ANCIENT_ART_IDS.map((id) => [`${id}Color`, ANCIENTS[id].color])) as Record<AncientColorKey, string>),
   cost: 16,
   refresh: 1,
@@ -122,19 +150,20 @@ export const ANCIENTS_DEFAULTS: AncientsFullConfig = {
   shineMs: 800,
   tickGain: 0.5,
   revealGain: 0.8,
-  gateChargeMs: 320,
-  gateBurstScale: 1,
-  gateOpenMs: 460,
-  gateHoldMs: 560,
-  gateRevealMs: 360,
-  gateCloseMs: 380,
-  gateGlow: 0.85,
-  gateBoomClip: 'turnexplosion',
-  gateBoomGain: 0.55,
-  gateBoomOffset: 0,
-  gateShimmerClip: 'equipmentsheen',
-  gateShimmerGain: 0.7,
-  gateShimmerOffset: 90,
+  omenMs: 850,
+  omenDark: 0.75,
+  eruptionMs: 520,
+  columnMs: 800,
+  burstScale: 1.1,
+  seamGlow: 0.9,
+  titleHoldMs: 1500,
+  revealFadeMs: 480,
+  revealDelayMs: 280,
+  cardStaggerMs: 460,
+  cardRevealMs: 700,
+  closeMs: 420,
+  duckAmount: 0.3,
+  duckRampMs: 260,
   pvInMs: 180,
   pvOutMs: 110,
   pvGraceMs: 80,
@@ -166,20 +195,26 @@ export const ANCIENTS_RANGES: Record<NumKey, [number, number, number]> = {
   shineMs: [0, 2000, 10],
   tickGain: [0, 1, 0.01],
   revealGain: [0, 1, 0.01],
-  gateChargeMs: [0, 800, 10],
-  gateBurstScale: [0, 3, 0.05],
-  gateOpenMs: [100, 1600, 10],
-  gateHoldMs: [0, 2000, 10],
-  gateRevealMs: [60, 1200, 10],
-  gateCloseMs: [100, 1200, 10],
-  gateGlow: [0, 1, 0.01],
-  gateBoomGain: [0, 1, 0.01],
-  gateBoomOffset: [0, 800, 10],
-  gateShimmerGain: [0, 1, 0.01],
-  gateShimmerOffset: [0, 800, 10],
+  omenMs: [0, 3000, 10],
+  omenDark: [0, 1, 0.01],
+  eruptionMs: [100, 2000, 10],
+  columnMs: [0, 2000, 10],
+  burstScale: [0, 3, 0.05],
+  seamGlow: [0, 1, 0.01],
+  titleHoldMs: [0, 4000, 10],
+  revealFadeMs: [60, 2000, 10],
+  revealDelayMs: [0, 2000, 10],
+  cardStaggerMs: [0, 1500, 10],
+  cardRevealMs: [100, 2000, 10],
+  closeMs: [100, 1500, 10],
+  duckAmount: [0, 1, 0.01],
+  duckRampMs: [0, 1500, 10],
   pvInMs: [0, 600, 10],
   pvOutMs: [0, 400, 10],
   pvGraceMs: [0, 400, 10],
+  ...(Object.fromEntries(ANCIENT_CUES.flatMap((c) => [
+    [`${c}Gain`, [0, 1.5, 0.01]], [`${c}Offset`, [-500, 2000, 10]], [`${c}Rate`, [0.25, 2, 0.01]],
+  ])) as Record<`${AncientCue}${'Gain' | 'Offset' | 'Rate'}`, [number, number, number]>),
   crackX: [20, 80, 0.5],
   crackJag: [0, 20, 0.25],
   crackSegs: [2, 20, 1],

@@ -32,33 +32,30 @@ export function useRingSettledSeq(): number {
   return useSyncExternalStore(subscribe, () => ringSettledSeq, () => ringSettledSeq);
 }
 
-/** THE GATE (see `AncientGate`): the offer rises once the gate has opened for offer #N; while any gate is up the
- *  offer drops its own dim (the gate IS the backdrop); the tuner's ▶ Play gate. */
-let gateOpenSeq = 0;
-let gateActive = false;
-let gateDemo: { seq: number } | null = null;
+/** THE AWAKENING SEQUENCE (see `AncientGate`): which beat it is on, for which offer (a demo is a negative seq); the
+ *  offer overlay mounts on `reveal`, runs its own emergence and reports `settled`. A click steps it forward
+ *  (`requestSkip`): omen / eruption / title → reveal, reveal → settled. */
+export type AwakenStage = 'idle' | 'omen' | 'eruption' | 'title' | 'reveal' | 'settled' | 'closing';
+let stage: { stage: AwakenStage; seq: number } = { stage: 'idle', seq: 0 };
+let skipSeq = 0;
+let gateDemo: { seq: number; mode: 'full' | 'reveal' } | null = null;
 let gateDemoSeq = 0;
-export function markGateOpen(seq: number): void {
-  if (seq <= gateOpenSeq) return;
-  gateOpenSeq = seq;
+export function setAwakenStage(next: AwakenStage, seq: number): void {
+  if (stage.stage === next && stage.seq === seq) return;
+  stage = { stage: next, seq };
   emit();
 }
-export function useGateOpenSeq(): number {
-  return useSyncExternalStore(subscribe, () => gateOpenSeq, () => gateOpenSeq);
+export function getAwakenStage(): { stage: AwakenStage; seq: number } { return stage; }
+export function useAwakenStage(): { stage: AwakenStage; seq: number } {
+  return useSyncExternalStore(subscribe, () => stage, () => stage);
 }
-export function setGateActive(on: boolean): void {
-  if (gateActive === on) return;
-  gateActive = on;
+export function requestSkip(): void { skipSeq++; emit(); }
+export function useSkipSeq(): number { return useSyncExternalStore(subscribe, () => skipSeq, () => skipSeq); }
+export function playGateDemo(mode: 'full' | 'reveal' = 'full'): void {
+  gateDemo = { seq: ++gateDemoSeq, mode };
   emit();
 }
-export function useGateActive(): boolean {
-  return useSyncExternalStore(subscribe, () => gateActive, () => gateActive);
-}
-export function playGateDemo(): void {
-  gateDemo = { seq: ++gateDemoSeq };
-  emit();
-}
-export function useGateDemo(): { seq: number } | null {
+export function useGateDemo(): { seq: number; mode: 'full' | 'reveal' } | null {
   return useSyncExternalStore(subscribe, () => gateDemo, () => gateDemo);
 }
 

@@ -1152,6 +1152,18 @@ export function setBusGain(b: BusName, v: number): void {
   busNodes.get(b)?.input.gain.setTargetAtTime(v, a?.currentTime ?? 0, 0.01);
   persistConfig();
 }
+/** Temporarily DUCK every sound bus except `keep` to `factor` × its fader (ramped, never persisted); `duckSfxBuses(1)`
+ *  restores the faders. For a presentation beat that must hold its breath (the Ancients awakening). */
+export function duckSfxBuses(factor: number, keep: BusName | null = null, tauMs = 120): void {
+  const a = audio();
+  if (!a) return;
+  const k = Math.min(1, Math.max(0, factor));
+  for (const [b, node] of busNodes) {
+    if (b === keep) continue;
+    node.input.gain.cancelScheduledValues(a.currentTime);
+    node.input.gain.setTargetAtTime(cfg.buses[b].gain * k, a.currentTime, Math.max(0.005, tauMs / 1000));
+  }
+}
 /** Set one master-limiter dial (threshold/knee/ratio/attack/release) — live on the node + persists. */
 export function setMasterComp(k: keyof CompConfig, v: number): void {
   cfg.master[k] = v;

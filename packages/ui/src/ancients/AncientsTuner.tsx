@@ -2,7 +2,7 @@ import { ANCIENT_IDS, type AncientId } from '@game/sim';
 import { TunerPanel } from '../TunerPanel';
 import type { TunerControl, TunerSpec, TunerUnit } from '../tunerSchema';
 import { useGame } from '../store';
-import { ANCIENTS_DEFAULTS, ANCIENTS_RANGES, getAncientsConfig, resetAncientsConfig, setAncientsValue, type AncientsFullConfig, type AncientsNumKey, ANCIENT_ART_IDS, ART_FIELDS } from './ancientsConfig';
+import { ANCIENTS_DEFAULTS, ANCIENTS_RANGES, getAncientsConfig, resetAncientsConfig, setAncientsValue, type AncientsFullConfig, type AncientsNumKey, ANCIENT_ART_IDS, ANCIENT_CUES, ART_FIELDS } from './ancientsConfig';
 import { playAwakenDemo, playGateDemo } from './ancientsFx';
 
 /**
@@ -30,19 +30,26 @@ const ROWS: [Key, string, TunerUnit | undefined, string, string, ('color' | 'tog
   ['shineMs', 'Shine sweep', 'ms', 'The one-shot shine across the split button. 0 turns it off.', 'Timing'],
   ['tickGain', 'Fill tick', 'opacity', 'Volume of the tick when points are added. 0 mutes it.', 'Sound'],
   ['revealGain', 'Awaken + reveal', 'opacity', 'Volume of the full-ring flash and the split reveal cues. 0 mutes them.', 'Sound'],
-  ['gateChargeMs', 'Charge', 'ms', 'Motes spiral into the hero power before it bursts. The hero power itself never moves.', 'Gate'],
-  ['gateBurstScale', 'Burst size', '×', 'The size of the burst from the hero power.', 'Gate'],
-  ['gateOpenMs', 'Curtain bloom', 'ms', 'The violet curtain blooming out of the hero power.', 'Gate'],
-  ['gateHoldMs', 'Title hold', 'ms', 'How long "An Ancient Awakens" holds on the curtain.', 'Gate'],
-  ['gateRevealMs', 'Reveal', 'ms', 'The curtain fading off as the offer rises.', 'Gate'],
-  ['gateCloseMs', 'Gate closes', 'ms', 'The iris contracting back into the hero power on a pick.', 'Gate'],
-  ['gateGlow', 'Seam ring', 'opacity', 'The energy ring riding the curtain’s edge.', 'Gate'],
-  ['gateBoomClip', 'Burst sound (clip)', undefined, 'The clip id for the burst. Swap in the owner’s SFX here.', 'Gate sound', 'text'],
-  ['gateBoomGain', 'Burst sound gain', 'opacity', 'Volume of the burst. 0 mutes it.', 'Gate sound'],
-  ['gateBoomOffset', 'Burst sound offset', 'ms', 'Delay after the burst.', 'Gate sound'],
-  ['gateShimmerClip', 'Open sound (clip)', undefined, 'The clip id for the gate-open shimmer.', 'Gate sound', 'text'],
-  ['gateShimmerGain', 'Open sound gain', 'opacity', 'Volume of the shimmer. 0 mutes it.', 'Gate sound'],
-  ['gateShimmerOffset', 'Open sound offset', 'ms', 'Delay after the burst.', 'Gate sound'],
+  ['omenMs', 'Omen', 'ms', 'The world holds its breath: the duck, the rumble, the darkening edges, the glyphs and embers around the hero power.', 'Awakening beats'],
+  ['omenDark', 'Omen edge darkness', 'opacity', 'How dark the screen edges go during the omen.', 'Awakening beats'],
+  ['eruptionMs', 'Eruption bloom', 'ms', 'The curtain bursting out of the hero power.', 'Awakening beats'],
+  ['columnMs', 'Light column', 'ms', 'The column of light shooting up from the hero power.', 'Awakening beats'],
+  ['burstScale', 'Burst size', '×', 'The shockwave and sparks at the eruption.', 'Awakening beats'],
+  ['seamGlow', 'Seam ring', 'opacity', 'The energy ring and runes riding the curtain’s edge.', 'Awakening beats'],
+  ['titleHoldMs', 'Title hold', 'ms', 'How long "An Ancient Awakens" holds before the Ancients emerge.', 'Awakening beats'],
+  ['revealFadeMs', 'Curtain fade', 'ms', 'The curtain fading off into the reveal.', 'Awakening beats'],
+  ['revealDelayMs', 'First Ancient delay', 'ms', 'The pause before the first Ancient emerges.', 'Awakening beats'],
+  ['cardStaggerMs', 'Between Ancients', 'ms', 'The gap between one Ancient emerging and the next.', 'Awakening beats'],
+  ['cardRevealMs', 'One Ancient emerges', 'ms', 'How long each Ancient takes to materialise.', 'Awakening beats'],
+  ['closeMs', 'Gate closes', 'ms', 'The gate contracting back into the hero power on the pick.', 'Awakening beats'],
+  ['duckAmount', 'Duck level', 'opacity', 'Music and other sounds dip to this during the awakening (1 = no duck).', 'Awakening sound'],
+  ['duckRampMs', 'Duck ramp', 'ms', 'How quickly the duck goes in and comes back.', 'Awakening sound'],
+  ...ANCIENT_CUES.flatMap((cue): [Key, string, TunerUnit | undefined, string, string, ('text')?][] => [
+    [`${cue}Clip` as Key, `${cue}: clip`, undefined, `The clip id for ${cue} (e.g. fx/waking-rift). Swap in the owner’s SFX here.`, '✦ Ancients: Sound', 'text'],
+    [`${cue}Gain` as Key, `${cue}: gain`, undefined, `Volume of ${cue}. 0 mutes it.`, '✦ Ancients: Sound'],
+    [`${cue}Offset` as Key, `${cue}: offset`, 'ms', `Delay of ${cue} relative to its beat.`, '✦ Ancients: Sound'],
+    [`${cue}Rate` as Key, `${cue}: pitch`, '×', `Playback rate (pitch + speed) of ${cue}.`, '✦ Ancients: Sound'],
+  ]),
   ['pvInMs', 'Preview in', 'ms', 'The preview card’s slide and fade in on hover.', 'Preview'],
   ['pvOutMs', 'Preview out', 'ms', 'The quick slide and fade out when the pointer leaves.', 'Preview'],
   ['pvGraceMs', 'Hover grace', 'ms', 'How long the pointer has to cross from the ring into the card before it starts leaving.', 'Preview'],
@@ -102,9 +109,14 @@ export const SPEC: TunerSpec<AncientsFullConfig> = {
   controls,
   actions: [
     {
-      label: '▶ Play gate',
-      hint: 'Plays the gate opening from the hero power, holds it, and closes it again. Needs a Set 3 sandbox with Ancients on. Run state is untouched.',
-      run: () => playGateDemo(),
+      label: '▶ Play full sequence',
+      hint: 'The whole awakening on the hero power: omen, eruption, title, the Ancients emerging, settled; closes after a moment. Needs a Set 3 sandbox with Ancients on. Run state is untouched.',
+      run: () => playGateDemo('full'),
+    },
+    {
+      label: '▶ Play from reveal',
+      hint: 'Just the Ancients emerging (Death, Fortune, War) and the settled state. Run state is untouched.',
+      run: () => playGateDemo('reveal'),
     },
     {
       label: '▶ Awaken',

@@ -284,7 +284,9 @@ body:has(.anc-pv) .heropanel .herotip { opacity: 0 !important; transition-delay:
 
 /* While the awakening is up, the Shop row steps fully back (a one-shot opacity fade), so no offer peeks through the
    title or between the Ancient cards. */
-body.ancoffer [data-zone="tavern"] { opacity: 0; transition: opacity 0.18s ease; }
+body.ancoffer [data-zone="tavern"], body.ancgate [data-zone="tavern"] { opacity: 0; transition: opacity 0.18s ease; }
+/* The awakening layers like a Discover: `.app`'s stacking context dissolves so the offer (z 160) sorts above the gate (z 158). */
+body.ancgate .app { z-index: auto; }
 
 /* ── THE GATE CURTAIN: the go-to-combat wipe's language, in the Ancients' violet (above the backdrop, under the offer:
    the offer mounts as the curtain fades off). The bloom is a one-shot ELLIPSE clip; the seam ring is the wipe's
@@ -305,10 +307,10 @@ body.ancoffer [data-zone="tavern"] { opacity: 0; transition: opacity 0.18s ease;
 }
 .anc-gate-title {
   position: absolute; left: 50%; top: 46%; transform: translate(-50%, -50%);
-  display: flex; flex-direction: column; align-items: center;
-  animation: ancgatetitle 520ms cubic-bezier(0.16, 1, 0.3, 1) 140ms backwards;
+  display: flex; flex-direction: column; align-items: center; opacity: 0;
 }
-@keyframes ancgatetitle { from { opacity: 0; transform: translate(-50%, -42%) scale(0.94); } }
+.anc-gate-title.in { opacity: 1; animation: ancgatetitle 900ms cubic-bezier(0.16, 1, 0.3, 1) backwards; }
+@keyframes ancgatetitle { from { opacity: 0; transform: translate(-50%, -30%) scale(0.9); letter-spacing: 0.3em; } }
 .anc-gate-label {
   font-family: var(--title-font, 'Cinzel Decorative'), 'Cinzel Decorative', serif; font-weight: var(--title-weight, 700);
   font-size: calc(58 * var(--u, 1px)); letter-spacing: 0.06em; font-kerning: none; white-space: nowrap;
@@ -316,6 +318,71 @@ body.ancoffer [data-zone="tavern"] { opacity: 0; transition: opacity 0.18s ease;
   -webkit-background-clip: text; background-clip: text;
   filter: drop-shadow(0 2px 0 rgba(40, 20, 60, 0.95)) drop-shadow(0 0 14px rgba(200, 160, 255, 0.55)) drop-shadow(0 0 30px rgba(255, 190, 90, 0.3));
 }
-@media (prefers-reduced-motion: reduce) { .anc-gate-title { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .anc-gate-title.in { animation: none; } }
 /* The preview has no room above the card for the frame gem. */
 .anc-pv .anc-cardx-gem { display: none; }
+
+/* ── THE OMEN: edges darkening, glyphs flickering around the hero power, embers drifting up (one-shot WAAPI). ── */
+.anc-omen { position: absolute; inset: 0; pointer-events: none; z-index: 3; }
+.anc-omen-vignette {
+  position: absolute; inset: 0; opacity: 0;
+  background: radial-gradient(ellipse 70% 65% at 50% 50%, rgba(8, 4, 18, 0) 30%, rgba(14, 6, 28, 0.6) 70%, rgba(6, 2, 14, 0.95) 100%);
+}
+.anc-omen-glyph {
+  position: absolute; width: calc(30 * var(--u)); height: calc(30 * var(--u)); transform: translate(-50%, -50%); opacity: 0;
+  fill: none; stroke: #ffe3a0; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round;
+  filter: drop-shadow(0 0 4px rgba(190, 150, 255, 0.95)) drop-shadow(0 0 10px rgba(255, 200, 110, 0.6));
+}
+.anc-omen-ember {
+  position: absolute; width: calc(7 * var(--u)); height: calc(7 * var(--u)); border-radius: 50%; opacity: 0;
+  transform: translate(-50%, -50%);
+  background: radial-gradient(circle, #fff6d8 0%, #ffcf6a 45%, rgba(190, 140, 255, 0) 75%);
+}
+/* ── THE ERUPTION: the flash and the column of light from the hero power. ── */
+.anc-erupt-flash {
+  position: absolute; width: 60vmin; height: 60vmin; border-radius: 50%; transform: translate(-50%, -50%); opacity: 0; z-index: 3;
+  background: radial-gradient(circle, rgba(255, 250, 235, 1) 0%, rgba(255, 214, 140, 0.8) 18%, rgba(181, 140, 255, 0.45) 40%, rgba(120, 80, 220, 0) 70%);
+}
+.anc-erupt-column {
+  position: absolute; top: 0; width: calc(120 * var(--u)); transform-origin: 50% 100%; transform: translateX(-50%) scaleY(0); opacity: 0; z-index: 3;
+  background:
+    linear-gradient(90deg, rgba(181, 140, 255, 0) 0%, rgba(200, 170, 255, 0.55) 28%, rgba(255, 246, 220, 0.95) 50%, rgba(200, 170, 255, 0.55) 72%, rgba(181, 140, 255, 0) 100%);
+  -webkit-mask-image: linear-gradient(0deg, #000 60%, rgba(0, 0, 0, 0) 100%); mask-image: linear-gradient(0deg, #000 60%, rgba(0, 0, 0, 0) 100%);
+}
+/* The runes riding the curtain's seam: a ring of marks on the wipe's scaled 1000px texture. */
+.anc-gate-runes {
+  position: absolute; left: var(--gx); top: var(--gy); z-index: 2; width: 1000px; height: 1000px; margin: -500px 0 0 -500px;
+  pointer-events: none; transform: scale(0.004); opacity: 0; will-change: transform, opacity;
+}
+.anc-gate-runes svg { width: 100%; height: 100%; overflow: visible; }
+.anc-gate-runes circle { fill: none; stroke: #ffe3a0; stroke-width: 7; stroke-dasharray: 3 14 10 14 3 30; stroke-linecap: round; opacity: 0.9; }
+
+/* ── THE ANCIENTS EMERGING (`AncientOffer`): a flash of the Ancient's colour and a ring of light shards behind each. ── */
+.anc-slot { position: relative; }
+.anc-emerge-flash, .anc-emerge-shards { position: absolute; left: 50%; top: 45%; pointer-events: none; opacity: 0; transform: translate(-50%, -50%); }
+.anc-emerge-flash {
+  width: calc(520 * var(--u)); height: calc(520 * var(--u)); border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.9) 0%, color-mix(in srgb, var(--anc-c, #c8922e) 85%, transparent) 25%, color-mix(in srgb, var(--anc-c, #c8922e) 30%, transparent) 50%, transparent 70%);
+}
+.anc-emerge-shards {
+  width: calc(440 * var(--u)); height: calc(440 * var(--u)); border-radius: 50%;
+  background: repeating-conic-gradient(from 0deg, color-mix(in srgb, var(--anc-c, #c8922e) 60%, #fff) 0deg 2deg, transparent 2deg 22deg);
+  -webkit-mask-image: radial-gradient(circle, transparent 40%, #000 55%, transparent 72%); mask-image: radial-gradient(circle, transparent 40%, #000 55%, transparent 72%);
+}
+.anc-card:disabled { opacity: 1; }
+/* SETTLED: slow motes drifting behind the cards (transform/opacity loops, static paint). */
+.anc-motes { position: absolute; inset: 0; pointer-events: none; opacity: 0; transition: opacity 1.2s ease; }
+.anc-offer.settled .anc-motes { opacity: 1; }
+.anc-mote {
+  position: absolute; width: calc(6 * var(--u)); height: calc(6 * var(--u)); border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 240, 200, 0.95), rgba(190, 150, 255, 0) 70%);
+  animation: ancmote 11s ease-in-out infinite; will-change: transform, opacity;
+}
+@keyframes ancmote {
+  0% { transform: translate(0, 0); opacity: 0; }
+  20% { opacity: 0.8; }
+  50% { transform: translate(18px, -40px); opacity: 0.5; }
+  80% { opacity: 0.7; }
+  100% { transform: translate(-10px, -90px); opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) { .anc-mote { animation: none; opacity: 0.4; } }

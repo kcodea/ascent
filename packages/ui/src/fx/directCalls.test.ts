@@ -145,7 +145,7 @@ describe('DIRECT_CALL_SITES is a derivation, not a list', () => {
     // `fx/spellCastFx.ts` (2026-09-24) is NOT an exception: it is a binding RESOLVER (the spell's card-level
     // `spellCast` row via `spellCastFxFor`), the shared play every phase's cast path reaches — like `fx/statMilestone.ts`.
     // `choreo/channels/impact.ts` (2026-09-24) is likewise a RESOLVER: the melee hit's `attackHitMilestoneN` row.
-    expect(Object.keys(DYNAMIC_CALL_SITES).sort()).toEqual(['EquipFxTuner.tsx', 'Recruit.tsx', 'ancients/ancientsSmoke.ts', 'buffFxRender.ts', 'choreo/channels/impact.ts', 'choreo/recruitCues.ts', 'choreo/score.ts', 'equipBeamCascade.ts', 'fx/spellCastFx.ts', 'fx/statMilestone.ts', 'runeTriggerFx.ts', 'useCombatReplay.ts']);
+    expect(Object.keys(DYNAMIC_CALL_SITES).sort()).toEqual(['EquipFxTuner.tsx', 'Recruit.tsx', 'buffFxRender.ts', 'choreo/channels/impact.ts', 'choreo/recruitCues.ts', 'choreo/score.ts', 'equipBeamCascade.ts', 'fx/spellCastFx.ts', 'fx/statMilestone.ts', 'runeTriggerFx.ts', 'useCombatReplay.ts']);
   });
 
   // The seven migrated effects the library used to call inert, plus `ruby-gem-apply` — authored in the
@@ -163,10 +163,9 @@ describe('DIRECT_CALL_SITES is a derivation, not a list', () => {
       // 'amplified-slot' joined on 2026-09-22: the owner-authored Amplified glow, a looping play on the Equipment slot
       // button from `useAmplifiedSlotFx.ts` while the selected Equipment will Amplify and has a charge to spend.
       'amplified-slot',
-      // 'ancient-gate-burst' joined on 2026-09-25: the Ancients gate, the burst from the hero power (`ancients/AncientGate.tsx`).
-      'ancient-gate-burst',
-      // 'ancient-gate-smoke' / 'ancient-slam' joined the same day: the eruption's smoke and the reveal's slam (`ancients/ancientsSmoke.ts`).
-      'ancient-gate-smoke', 'ancient-slam',
+      // 'ancient-slam' joined on 2026-09-25: the Ancients reveal's slam shockwave (`ancients/ancientsSmoke.ts`). The
+      // Ancients' own smoke/burst defs left the same day: they reuse the Runeforge landing dust instead.
+      'ancient-slam',
       'auctioneer-hp', 'choose-one-both', 'cia-hp', 'click-puff', 'coin', 'coins', 'consume-pull', 'damage-burst', 'death-dissolve',
       // 'dice-land' joined on 2026-09-17: the landing burst of the shared 3D die (`DiceRoll.tsx`), fired at the anchor.
       'dice-land',

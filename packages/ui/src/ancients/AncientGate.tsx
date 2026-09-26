@@ -1,14 +1,13 @@
-import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
+import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type CSSProperties } from 'react';
 import { createPortal } from 'react-dom';
 import type { RunState } from '@game/sim';
 import { useGame } from '../store';
-import { canPlayDefs, playDef } from '../fx/playDef';
 import { wipeFx } from '../wipeFx';
 import { wipeAspect, wipeCoverEllipse, wipeFrontScale } from '../wipeGeometry';
-import { getAncientsConfig } from './ancientsConfig';
+import { getAncientsConfig, subscribeAncientsConfig } from './ancientsConfig';
 import { getAwakenStage, prefersReducedMotion, setAwakenStage, useAwakenStage, useGateDemo, useRingSettledSeq } from './ancientsFx';
 import { duckForAwakening, playCue, warmAncientCues } from './ancientsSound';
-import { ancientGateSmoke } from './ancientsSmoke';
+import { ancientLandDust } from './ancientsSmoke';
 
 /**
  * THE AWAKENING (owner 2026-09-25: "ominous exciting when the hero power erupts. it should be a moment that the player
@@ -71,6 +70,8 @@ export const AncientGate = memo(function AncientGate({ run }: { run: RunState })
   const otherModal = !!(run.discover || run.questOffer || run.powerOffer || run.runeforgeOffer || run.pendingTarget || run.chooseOne || run.scoutedNextOpponent?.length);
   const blocked = run.phase !== 'recruit' || !wipeIdle || combatStaged || otherModal;
 
+  // The screen's colours are live tuner values (✦ Ancients › Screen colours), fed to the CSS as custom properties.
+  const cfg = useSyncExternalStore(subscribeAncientsConfig, getAncientsConfig, getAncientsConfig);
   const [phase, setPhase] = useState<Phase>('idle');
   const [geo, setGeo] = useState<Geo | null>(null);
   const bgRef = useRef<HTMLDivElement | null>(null);
@@ -83,15 +84,19 @@ export const AncientGate = memo(function AncientGate({ run }: { run: RunState })
   const seqRef = useRef(0);
   const rumble = useRef<{ stop: (ms?: number) => void } | null>(null);
   const hum = useRef<{ stop: (ms?: number) => void } | null>(null);
+  // The hero power's dust burst (retired outright the moment the curtain covers it).
+  const hpFx = useRef<(() => void)[]>([]);
+  const retireHpFx = (): void => { for (const r of hpFx.current) r(); hpFx.current = []; };
   const clearTimers = (): void => { for (const t of timers.current) window.clearTimeout(t); timers.current = []; };
   const go = useCallback((p: Phase, seq: number) => { setPhase(p); setAwakenStage(p, seq); }, []);
   useEffect(() => { wipeFx.warm(); warmAncientCues(); }, []);
-  useEffect(() => () => { clearTimers(); rumble.current?.stop(200); hum.current?.stop(200); duckForAwakening(false); }, []);
+  useEffect(() => () => { clearTimers(); rumble.current?.stop(200); hum.current?.stop(200); duckForAwakening(false); retireHpFx(); }, []);
 
   /** REVEAL: the curtain gives way to the offer's own emergence. */
   const toReveal = useCallback((seq: number) => {
     clearTimers();
     rumble.current?.stop(500); rumble.current = null;
+    retireHpFx();
     go('reveal', seq);
   }, [go]);
 
@@ -118,8 +123,10 @@ export const AncientGate = memo(function AncientGate({ run }: { run: RunState })
       playCue('eruptionBoom');
       playCue('eruptionFlash');
       wipeFx.bloom(x, y, rx, ry, c.eruptionMs, EASE, PALETTE);
-      if (canPlayDefs()) playDef('ancient-gate-burst', { target: { x, y } }, { scale: c.burstScale });
-      ancientGateSmoke({ x, y });
+      // ONE crisp, short burst of the Runeforge landing dust from the hero power, in the curtain's colour. Its life is
+      // cut by the "Hero-power dust life" dial so it has played out by the time the curtain has bloomed: no fog.
+      const burst = ancientLandDust(c.curtainInner, { x, y }, c.hpDustLife);
+      if (burst) hpFx.current.push(burst);
     }, c.omenMs));
     timers.current.push(window.setTimeout(() => { go('title', seq); playCue('titleSting'); }, c.omenMs + c.eruptionMs));
     timers.current.push(window.setTimeout(() => toReveal(seq), c.omenMs + c.eruptionMs + c.titleHoldMs));
@@ -157,6 +164,7 @@ export const AncientGate = memo(function AncientGate({ run }: { run: RunState })
 
   const close = useCallback(() => {
     clearTimers();
+    retireHpFx();
     rumble.current?.stop(300); rumble.current = null;
     hum.current?.stop(500); hum.current = null;
     playCue('pickSeal');
@@ -178,7 +186,7 @@ export const AncientGate = memo(function AncientGate({ run }: { run: RunState })
   // Never over a fight or a curtain.
   useEffect(() => {
     if (run.phase !== 'recruit' && phase !== 'idle') {
-      clearTimers(); rumble.current?.stop(150); hum.current?.stop(150); duckForAwakening(false);
+      clearTimers(); rumble.current?.stop(150); hum.current?.stop(150); duckForAwakening(false); retireHpFx();
       setPhase('idle'); setGeo(null); setAwakenStage('idle', 0);
     }
   }, [run.phase, phase]);
@@ -296,7 +304,10 @@ export const AncientGate = memo(function AncientGate({ run }: { run: RunState })
   const curtainOn = !reduced && (phase === 'eruption' || phase === 'title' || phase === 'reveal');
   const ring = geo.hp * 0.95;
   return createPortal(
-    <div className="anc-gate" aria-hidden="true" style={{ '--gx': `${geo.x}px`, '--gy': `${geo.y}px` } as CSSProperties}>
+    <div className="anc-gate" aria-hidden="true" style={{
+      '--gx': `${geo.x}px`, '--gy': `${geo.y}px`,
+      '--anc-cin': cfg.curtainInner, '--anc-cout': cfg.curtainOuter, '--anc-seam': cfg.seamColor, '--anc-tglow': cfg.titleGlow, '--anc-tint': cfg.backdropTint,
+    } as CSSProperties}>
       {/* The Discover view's backdrop: what the awakening ends on, under the offer. */}
       {phase !== 'omen' && (
         <div ref={bgRef} className="anc-gate-bg" style={reduced || phase === 'reveal' || phase === 'settled' ? (reduced ? { opacity: 0 } : undefined) : { clipPath: `ellipse(0px 0px at ${geo.x}px ${geo.y}px)` }} />

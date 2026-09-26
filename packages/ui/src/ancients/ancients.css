@@ -99,6 +99,12 @@
     0 0 calc(28 * var(--anc-k, 1px)) calc(-6 * var(--anc-k, 1px)) color-mix(in srgb, var(--anc-c, #c8922e) 55%, transparent);
   background: #0c0f17;
 }
+/* The glint: a soft bar of light sweeping across the art as the Ancient lands (a one-shot transform, run by the offer). */
+.anc-glint {
+  position: absolute; inset: -10% auto -10% 0; width: 45%; pointer-events: none; opacity: 0; z-index: 2;
+  background: linear-gradient(100deg, rgba(255, 255, 255, 0) 0%, rgba(255, 250, 235, 0.55) 50%, rgba(255, 255, 255, 0) 100%);
+  mix-blend-mode: screen; transform: translateX(-120%) skewX(-14deg); will-change: transform, opacity;
+}
 .anc-art-frame .anc-art { position: absolute; inset: 0; width: 100%; height: 100%; display: block; object-fit: cover; }
 /* The placeholder: a painterly lit gradient in the Ancient's colour, a soft grain and vignette, and a large emblem. */
 .anc-art-fill {
@@ -247,8 +253,8 @@ body:has(.anc-pv) .heropanel .herotip { opacity: 0 !important; transition-delay:
       rgba(255, 170, 80, calc(var(--dcl-spot, 0.4) * 0.14)) 50%,
       rgba(255, 160, 70, 0) 100%),
     radial-gradient(ellipse 72% 68% at 50% 51%,
-      rgba(16, 11, 6, var(--dcl-tint, 0.84)) 0%,
-      rgba(16, 11, 6, var(--dcl-tint, 0.84)) 30%,
+      color-mix(in srgb, var(--anc-tint, #100b06) calc(var(--dcl-tint, 0.84) * 100%), transparent) 0%,
+      color-mix(in srgb, var(--anc-tint, #100b06) calc(var(--dcl-tint, 0.84) * 100%), transparent) 30%,
       rgba(4, 3, 2, var(--dcl-vignette, 0.95)) 100%);
 }
 .anc-gate-ring {
@@ -273,7 +279,7 @@ body.ancgate .app { z-index: auto; }
   position: absolute; inset: 0; z-index: 1; will-change: clip-path, opacity;
   background:
     radial-gradient(ellipse 45% 40% at 50% 48%, rgba(255, 214, 140, 0.18) 0%, rgba(255, 214, 140, 0) 70%),
-    radial-gradient(ellipse 70% 70% at 50% 50%, #3a2470 0%, #1b1040 55%, #0a0618 100%);
+    radial-gradient(ellipse 70% 70% at 50% 50%, var(--anc-cin, #3a2470) 0%, color-mix(in srgb, var(--anc-cin, #3a2470) 42%, var(--anc-cout, #0a0618)) 55%, var(--anc-cout, #0a0618) 100%);
 }
 .anc-gate-front {
   position: absolute; left: var(--gx); top: var(--gy); z-index: 2;
@@ -281,7 +287,7 @@ body.ancgate .app { z-index: auto; }
   mix-blend-mode: screen; transform: scale(0.004); opacity: 0; will-change: transform, opacity;
   background: radial-gradient(closest-side,
     rgba(160, 120, 255, 0) 0%, rgba(160, 120, 255, 0) 84%,
-    rgba(190, 150, 255, 0.45) 91%, rgba(255, 236, 190, 0.9) 96.5%, rgba(127, 227, 208, 0.45) 98%, rgba(127, 227, 208, 0) 100%);
+    rgba(190, 150, 255, 0.45) 91%, color-mix(in srgb, var(--anc-seam, #ffecbe) 90%, transparent) 96.5%, rgba(127, 227, 208, 0.45) 98%, rgba(127, 227, 208, 0) 100%);
 }
 .anc-gate-title {
   position: absolute; left: 50%; top: 46%; transform: translate(-50%, -50%);
@@ -294,7 +300,7 @@ body.ancgate .app { z-index: auto; }
   font-size: calc(58 * var(--u, 1px)); letter-spacing: 0.06em; font-kerning: none; white-space: nowrap;
   color: transparent; background: linear-gradient(180deg, #fff4cf 0%, #f6d77e 40%, #d9a441 65%, #a8701c 100%);
   -webkit-background-clip: text; background-clip: text;
-  filter: drop-shadow(0 2px 0 rgba(40, 20, 60, 0.95)) drop-shadow(0 0 14px rgba(200, 160, 255, 0.55)) drop-shadow(0 0 30px rgba(255, 190, 90, 0.3));
+  filter: drop-shadow(0 2px 0 rgba(40, 20, 60, 0.95)) drop-shadow(0 0 14px color-mix(in srgb, var(--anc-tglow, #c8a0ff) 55%, transparent)) drop-shadow(0 0 30px rgba(255, 190, 90, 0.3));
 }
 @media (prefers-reduced-motion: reduce) { .anc-gate-title.in { animation: none; } }
 /* The preview has no room above the card for the frame gem. */
@@ -343,23 +349,7 @@ body.ancgate .app { z-index: auto; }
   pointer-events: none; transform: scale(0.004); opacity: 0; will-change: transform, opacity;
 }
 .anc-gate-runes svg { width: 100%; height: 100%; overflow: visible; }
-.anc-gate-runes circle { fill: none; stroke: #ffe3a0; stroke-width: 7; stroke-dasharray: 3 14 10 14 3 30; stroke-linecap: round; opacity: 0.9; }
+.anc-gate-runes circle { fill: none; stroke: var(--anc-seam, #ffe3a0); stroke-width: 7; stroke-dasharray: 3 14 10 14 3 30; stroke-linecap: round; opacity: 0.9; }
 
 .anc-slot { position: relative; }
 .anc-card:disabled { opacity: 1; }
-/* SETTLED: slow motes drifting behind the cards (transform/opacity loops, static paint). */
-.anc-motes { position: absolute; inset: 0; pointer-events: none; opacity: 0; transition: opacity 1.2s ease; }
-.anc-offer.settled .anc-motes { opacity: 1; }
-.anc-mote {
-  position: absolute; width: calc(6 * var(--u)); height: calc(6 * var(--u)); border-radius: 50%;
-  background: radial-gradient(circle, rgba(255, 240, 200, 0.95), rgba(190, 150, 255, 0) 70%);
-  animation: ancmote 11s ease-in-out infinite; will-change: transform, opacity;
-}
-@keyframes ancmote {
-  0% { transform: translate(0, 0); opacity: 0; }
-  20% { opacity: 0.8; }
-  50% { transform: translate(18px, -40px); opacity: 0.5; }
-  80% { opacity: 0.7; }
-  100% { transform: translate(-10px, -90px); opacity: 0; }
-}
-@media (prefers-reduced-motion: reduce) { .anc-mote { animation: none; opacity: 0.4; } }

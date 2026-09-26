@@ -147,3 +147,21 @@ Nothing loops: every motion is WAAPI transform/opacity or a one-shot transition.
   Ancient-coloured glow + underline, clean text). Pixi smoke everywhere, in each Ancient's colour (`ancient-smoke`,
   `ancient-haze` looped when settled, `ancient-slam`, `ancient-gate-smoke`); the gate now sits at z 105, under the
   z 110 FX canvas, so the smoke draws over the backdrop and behind the offer. Peak ≈ 300 pooled particles (beat 2).
+- **Dust, colour pickers, and a cleaner Pixi pass** (owner: "add pixi dust … make the dust dissipate from the hero
+  power more quickly … a color picker", then "i dont want stars, id rather dust", then "dust like a pixi burst and
+  then smoke kinda like the runeforge animation's smoke", then "the smoke effect is all biffed and so sloppy. make the
+  animation cleaner"). Where it landed after three iterations:
+  - Each slam plays the Runeforge tablet landing's OWN dust def (`runeforge-land-dust`, the owner-approved tuning) as
+    is. It is tinted to the Ancient's colour, centred on the card's bottom edge (the art frame is measured AT the slam),
+    and sized in proportion to the card. It plays on the z110 FX canvas, so it sits under the cards. It is one puff,
+    with the `ancient-slam` shockwave under it and a one-shot light sweep across the art.
+  - The eruption is one short puff of the same dust from the hero power. It gets its own "Hero-power dust life" dial
+    (0.45×), so it has played out by the time the curtain has bloomed.
+  - There are no particles on the curtain or the settled screen, and the DOM motes are gone. The Ancients' own
+    smoke/burst defs are deleted.
+  - **Found on the way:** every smoke layer in the Ancients defs had shipped `muted: true` (copied from a muted
+    template), so the "coloured smoke" from the previous round never rendered. There was no error and no warning.
+    `ancients/ancientDefs.test.ts` now fails on any muted or star-shaped layer in an `ancient-*` def.
+  - Screen colour pickers in the ✦ Ancients tuner (live, via CSS vars on the gate root): curtain centre and edge,
+    seam ring, title glow, backdrop tint.
+  - Dust dials follow the Runeforge entrance's pattern: count, size, life, opacity.

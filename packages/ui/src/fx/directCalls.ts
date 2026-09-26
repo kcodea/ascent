@@ -31,8 +31,6 @@ export const DIRECT_CALL_SITES: Readonly<Record<string, readonly string[]>> = {
   // The persistent AMPLIFIED glow on the Equipment slot (owner-authored 2026-09-22): a looping, slot-centred play
   // started while the selected Equipment will Amplify AND has a charge to spend, fired by literal id from its hook.
   'amplified-slot': ['useAmplifiedSlotFx.ts'],
-  'ancient-gate-burst': ['ancients/AncientGate.tsx'],
-  'ancient-gate-smoke': ['ancients/ancientsSmoke.ts'],
   'ancient-slam': ['ancients/ancientsSmoke.ts'],
   // The Auctioneer's Pulse — played on the TARGET minion instead of the generic `hero-power-target` spark.
   'auctioneer-hp': ['Recruit.tsx'],
@@ -115,7 +113,8 @@ export const DIRECT_CALL_SITES: Readonly<Record<string, readonly string[]>> = {
   // floor as it opens, and the Epic forge's flare as its last tablet lands.
   'runeforge-embers': ['runeforgeEntrance/entrance.ts'],
   'runeforge-epic-flare': ['runeforgeEntrance/entrance.ts'],
-  'runeforge-land-dust': ['runeforgeEntrance/entrance.ts'],
+  // The Ancients reuse the Runeforge landing dust as-is (tinted) for each slam and the eruption (2026-09-25).
+  'runeforge-land-dust': ['ancients/ancientsSmoke.ts', 'runeforgeEntrance/entrance.ts'],
   // The mid-combat Shop-buff bloom (owner-authored 2026-09-02, replacing `shop-buff-aura` on this surface). The
   // shop-row play goes through the `shopBuffAll` binding instead — see `runShopBuffAllFire`.
   'shop-buff-purple': ['useCombatReplay.ts'],
@@ -169,10 +168,6 @@ export const DYNAMIC_CALL_SITES: Readonly<Record<string, number>> = {
   // timed, rather than being hardwired to Bloodpot's. Same debt, same fix — moving the moment into
   // `recruitCues.ts` retires this line with the one above it.
   'EquipFxTuner.tsx': 1,
-  // THE ANCIENTS' COLOURED SMOKE (2026-09-25): one `playDef(defId, …)` in `ancientsSmoke.ts`, where the id is a
-  // runtime per-Ancient recolour of a committed base (`ancient-smoke--<ancient>` / `ancient-haze--<ancient>`) so each
-  // Ancient's smoke is its own (tunable) colour. Data-resolved like the tendril-per-tribe case, not a new caller kind.
-  'ancients/ancientsSmoke.ts': 1,
   // SIX since 2026-09-01: the `buffedOn` fan-out is a sixth `playDef(binding.def, …)`, playing ON each buffed
   // unit rather than travelling to it (Dragonflame). Same binding path, one more anchor convention.
   // +1 on 2026-09-01: the `shoutFx` cue plays a `shout`-kind binding per re-fire proc.

@@ -5,7 +5,7 @@ import { AncientCard } from './AncientCard';
 import { notePickSource, prefersReducedMotion, setAwakenStage, useAwakenStage } from './ancientsFx';
 import { ancientColor, getAncientsConfig } from './ancientsConfig';
 import { playCue } from './ancientsSound';
-import { ancientSlam, ancientSmoke } from './ancientsSmoke';
+import { ancientLandDust, ancientSlam } from './ancientsSmoke';
 import '../discoverEntrance/discoverEntrance.css';
 import './ancients.css';
 
@@ -15,13 +15,12 @@ import './ancients.css';
  * `reveal` beat, over the Discover view's backdrop:
  *   · the gold banner fades in;
  *   · TWO BEATS (the default, `revealStyle` 1): the middle Ancient rises up the centre and SLAMS (a weighty settle, a
- *     card shake, the `ancient-slam` landing and a puff of its coloured smoke, one `cardReveal`); after a gap the left
- *     and right slide out from BEHIND it and slam together (one shared `cardReveal`, a slam + smoke at each).
- *     SEQUENTIAL (`revealStyle` 0): left → middle → right, each rising out of a puff of its coloured smoke;
- *   · once all have landed it reports `settled`: a faint haze of each Ancient's colour lingers behind its card
- *     (looped Pixi smoke, retired on unmount) and slow motes drift.
+ *     card shake, the `ancient-slam` shockwave and ONE puff of the Runeforge landing dust in its colour, one
+ *     `cardReveal`); after a gap the left and right slide out from BEHIND it and slam together (one shared
+ *     `cardReveal`, a shockwave + dust puff at each). SEQUENTIAL (`revealStyle` 0): left → middle → right;
+ *   · once all have landed it reports `settled`. No particles on the settled screen (owner 2026-09-25).
  * A card takes its click only once it has landed. A click during the emergence completes it (the cinematic's second
- * skip). WAAPI transform / opacity only, scheduled up front; the motes are transform/opacity loops.
+ * skip). WAAPI transform / opacity only, scheduled up front.
  * Reduced motion: a plain fade, sounds kept.
  */
 const DEMO_OFFER: AncientId[] = ['death', 'fortune', 'war'];
@@ -59,8 +58,6 @@ function Reveal({ gated, offer, heroId, seq, onPick }: { gated: boolean; offer: 
   const timers = useRef<number[]>([]);
   const [landed, setLanded] = useState<boolean[]>(() => offer.map(() => false));
   const [settled, setSettled] = useState(false);
-  const hazeRef = useRef<(() => void)[]>([]);
-  const startHazeRef = useRef<(() => void) | null>(null);
 
   const settle = (): void => {
     for (const t of timers.current) window.clearTimeout(t);
@@ -69,7 +66,6 @@ function Reveal({ gated, offer, heroId, seq, onPick }: { gated: boolean; offer: 
     setLanded(offer.map(() => true));
     setSettled(true);
     setAwakenStage('settled', seq);
-    startHazeRef.current?.();
   };
 
   // Once per reveal (the component is keyed by the awakening's seq).
@@ -90,21 +86,28 @@ function Reveal({ gated, offer, heroId, seq, onPick }: { gated: boolean; offer: 
     const rects = slots.map((sl) => sl.getBoundingClientRect());
     const mid = Math.floor((slots.length - 1) / 2);
     const cx = (i: number): number => rects[i]!.left + rects[i]!.width / 2;
-    // The art's lower edge: where the smoke billows up and the slam lands (not over the effect text).
-    const base = (i: number): { x: number; y: number } => ({ x: cx(i), y: rects[i]!.top + rects[i]!.width * 0.92 });
+    // The art's lower edge at rest: where the slam's shockwave lands (not over the effect text).
+    const base = (i: number): { x: number; y: number } => ({ x: cx(i), y: rects[i]!.top + rects[i]!.width });
     const k = Math.max(0, c.slamStrength);
-    const haze: (() => void)[] = [];
-    // SETTLED: a faint slow haze of each Ancient's colour behind its card (looped Pixi plays, retired on unmount).
-    let hazed = false;
-    startHazeRef.current = () => {
-      if (hazed) return;
-      hazed = true;
-      offer.forEach((id, i) => { const r = ancientSmoke('haze', id, { x: cx(i), y: rects[i]!.top + rects[i]!.height * 0.55 }); if (r) haze.push(r); });
+    // LAND (owner 2026-09-25: "make the animation cleaner"): ONE puff of the Runeforge landing dust in the Ancient's
+    // colour, centred on the card's bottom edge (the art frame, measured AT the slam so it tracks the settled card),
+    // under the cards; plus a gentle light sweep across the art. One-shots; nothing loops.
+    const landFx = (i: number): void => {
+      const frame = slots[i]?.querySelector<HTMLElement>('.anc-art-frame');
+      const r = frame?.getBoundingClientRect();
+      ancientLandDust(ancientColor(offer[i]!), r ? { x: r.left + r.width / 2, y: r.bottom } : base(i), 1, r?.width ?? rects[i]!.width);
+      const g = slots[i]?.querySelector<HTMLElement>('.anc-glint');
+      if (g && typeof g.animate === 'function') {
+        push(g.animate([
+          { opacity: 0, transform: 'translateX(-120%) skewX(-14deg)' },
+          { opacity: 1, offset: 0.25 },
+          { opacity: 0, transform: 'translateX(260%) skewX(-14deg)' },
+        ], { duration: 620, easing: 'cubic-bezier(0.3, 0, 0.4, 1)' }));
+      }
     };
     const finish = (total: number): void => {
-      at(total, () => { setSettled(true); setAwakenStage('settled', seq); startHazeRef.current?.(); });
+      at(total, () => { setSettled(true); setAwakenStage('settled', seq); });
     };
-    hazeRef.current = haze;
     const slamShake = (card: HTMLElement, delay: number): void => {
       if (k <= 0) return;
       const a = 5 * k;
@@ -136,8 +139,7 @@ function Reveal({ gated, offer, heroId, seq, onPick }: { gated: boolean; offer: 
         ], { duration: c.beat1Ms, delay: b1, easing: 'cubic-bezier(0.3, 0, 0.6, 1)', fill: 'backwards' }));
         slamShake(mCard, slam1);
       }
-      at(b1, () => ancientSmoke('puff', offer[mid]!, base(mid)));
-      at(slam1, () => { ancientSlam(base(mid)); ancientSmoke('puff', offer[mid]!, base(mid)); });
+      at(slam1, () => { ancientSlam(base(mid)); landFx(mid); });
       playCue('cardReveal', slam1 - 40);
       at(b1 + c.beat1Ms, () => land(mid));
       slots.forEach((slot, i) => {
@@ -154,7 +156,7 @@ function Reveal({ gated, offer, heroId, seq, onPick }: { gated: boolean; offer: 
           { opacity: 1, transform: 'translateX(0) scale(1)' },
         ], { duration: c.beat2Ms, delay: b2, easing: 'cubic-bezier(0.5, 0, 0.75, 0)', fill: 'backwards' }));
         slamShake(card, slam2);
-        at(slam2, () => { ancientSlam(base(i)); ancientSmoke('puff', offer[i]!, base(i)); });
+        at(slam2, () => { ancientSlam(base(i)); landFx(i); });
         at(b2 + c.beat2Ms, () => land(i));
       });
       if (slots[mid]) slots[mid]!.style.zIndex = '1';
@@ -172,13 +174,13 @@ function Reveal({ gated, offer, heroId, seq, onPick }: { gated: boolean; offer: 
             { opacity: 1, transform: 'translateY(0) scale(1)' },
           ], { duration: c.cardRevealMs, delay, easing: 'cubic-bezier(0.22, 0.8, 0.3, 1)', fill: 'backwards' }));
         }
-        at(delay, () => ancientSmoke('puff', offer[i]!, base(i)));
+        at(delay + c.cardRevealMs * 0.7, () => landFx(i));
         playCue('cardReveal', delay, { rateMul: 1 - i * 0.07 });
         at(delay + c.cardRevealMs, () => land(i));
       });
       finish(c.revealDelayMs + (slots.length - 1) * c.cardStaggerMs + c.cardRevealMs);
     }
-    return () => { for (const t of timers.current) window.clearTimeout(t); for (const a of anims.current) a.cancel(); anims.current = []; for (const r of hazeRef.current) r(); hazeRef.current = []; };
+    return () => { for (const t of timers.current) window.clearTimeout(t); for (const a of anims.current) a.cancel(); anims.current = []; };
   }, []);
 
   return (
@@ -187,12 +189,6 @@ function Reveal({ gated, offer, heroId, seq, onPick }: { gated: boolean; offer: 
         // The second skip: a click during the emergence completes it (and picks nothing).
         if (!settled) { e.stopPropagation(); e.preventDefault(); settle(); }
       }}>
-      {/* SETTLED: slow motes drifting behind the cards (transform/opacity loops only). */}
-      <div className="anc-motes" aria-hidden="true">
-        {Array.from({ length: 16 }, (_, i) => (
-          <span key={i} className="anc-mote" style={{ left: `${8 + ((i * 57) % 84)}%`, top: `${20 + ((i * 37) % 60)}%`, animationDelay: `${-(i * 0.9)}s`, animationDuration: `${9 + (i % 5) * 1.7}s` }} />
-        ))}
-      </div>
       <div className="disc-panel">
         <OfferBanner title="An Ancient Awakens" />
         <div className="disc-cards anc-cards">

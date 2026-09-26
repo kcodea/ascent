@@ -21,6 +21,7 @@ export const AncientCard = memo(function AncientCard({ id, heroId, tag }: { id: 
             <span className="anc-art-fill" aria-hidden="true"><span className="anc-art-glyph">{`${ANCIENTS[id].glyph}\uFE0E`}</span></span>
           )}
         {!hasAncientArt(id) && <span className="anc-art-ph">placeholder art</span>}
+        <span className="anc-glint" aria-hidden="true" />
       </div>
       <div className="anc-cardx-name">{ANCIENTS[id].name}{tag && <span className="anc-cardx-tag">{tag}</span>}</div>
       <span className="anc-cardx-rulebar" aria-hidden="true" />

@@ -1,19 +1,16 @@
-import type { AncientId } from '@game/sim';
 import { canPlayDefs, playDef } from '../fx/playDef';
-import { getDef, registerSavedDef } from '../fx/fxDefs';
-import { ancientColor, getAncientsConfig } from './ancientsConfig';
+import { getAncientsConfig } from './ancientsConfig';
 
 /**
- * THE ANCIENTS' SMOKE (owner 2026-09-25: "use colored smoke and pixi to enhance this entire animation"). Pixi defs,
- * pooled particles, capped rates — never DOM paint:
- *  · `ancient-smoke`       an arrival / slam puff billowing up, in the Ancient's OWN colour;
- *  · `ancient-haze`        the settled state's faint slow haze behind each card (a LOOPED play, retired on unmount);
- *  · `ancient-slam`        the landing: a flat gold shockwave + dust;
- *  · `ancient-gate-smoke`  the eruption's violet/gold burst from the hero power.
- * The two coloured ones are recoloured per Ancient: a variant def (`<base>--<ancient>`) is registered at runtime from
- * the committed base with the Ancient's palette (the tuner's colour), so each Ancient's smoke is its own colour even
- * when two play at once. Size / amount / lifetime come from the ✦ Ancients "Smoke" dials (`scale` / `intensity` /
- * `time` on the play).
+ * THE ANCIENTS' PIXI, RESTRAINED (owner 2026-09-25: "the smoke effect is all biffed and so sloppy. make the animation
+ * cleaner"). Less is more, and nothing new is invented:
+ *  · each slam plays the Runeforge tablet landing's OWN dust def (`runeforge-land-dust`, the owner-approved tuning),
+ *    only tinted to the Ancient's colour, centred on the card's bottom edge, on the main FX canvas (z110) so it
+ *    sits UNDER the offer's cards (z160) and never over the art;
+ *  · the eruption is one short burst of that same dust from the hero power, in the curtain's colour;
+ *  · a flat gold shockwave (`ancient-slam`) under each slam.
+ * Nothing loops: no curtain smoke, no settled particles. Dials: the ✦ Ancients "Dust" rows (count / size / life /
+ * opacity, the Runeforge entrance's pattern) and "Hero-power dust life".
  */
 type Pt = { x: number; y: number };
 
@@ -24,39 +21,30 @@ function shade(hex: string, k: number): number {
   return (mix(r) << 16) | (mix(g) << 8) | mix(b);
 }
 
-const registered = new Map<string, string>(); // variant id → the colour it was built with
-function variantId(base: 'ancient-smoke' | 'ancient-haze', id: AncientId): string {
-  const vid = `${base}--${id}`;
-  const col = ancientColor(id);
-  if (registered.get(vid) === col) return vid;
-  const def = getDef(base);
-  if (!def) return base;
-  const palette = [shade(col, -0.35), shade(col, 0), shade(col, 0.3), shade(col, 0.65)]; // additive: lit, not muddy
-  registerSavedDef({ ...def, id: vid, layers: def.layers.map((l) => ({ ...l, params: { ...l.params, palette } })) });
-  registered.set(vid, col);
-  return vid;
+/** The Runeforge dust's four stops (rim → core), tinted to one colour: muted, never blown out on the dark backdrop. */
+function tint(col: string): number[] {
+  return [shade(col, -0.5), shade(col, -0.25), shade(col, 0.05), shade(col, 0.35)];
 }
 
-function smokeOpts(): { scale: number; intensity: number; time: number } {
+/** The width the Runeforge landing dust is tuned for (a rune tablet, px). */
+const RUNE_TABLET_PX = 170;
+
+/** One clean puff of the Runeforge landing dust at `at`, tinted `color`. `lifeMul` shortens it (the eruption);
+ *  `widthPx` is the width of what landed (the dust is sized in proportion). */
+export function ancientLandDust(color: string, at: Pt, lifeMul = 1, widthPx = RUNE_TABLET_PX): (() => void) | null {
   const c = getAncientsConfig();
-  return { scale: c.smokeSize, intensity: c.smokeAmount, time: c.smokeLife };
+  if (!canPlayDefs() || c.dustAmount <= 0 || c.dustOpacity <= 0) return null;
+  // Scaled to the thing that lands: the def is tuned for a rune tablet, an Ancient card is wider, so the same puff is
+  // sized in proportion (it spreads just past the card's edges, where it shows from under the card).
+  const fit = Math.max(0.5, Math.min(3, widthPx / RUNE_TABLET_PX));
+  return playDef('runeforge-land-dust', { source: at, target: at, cursor: at }, {
+    intensity: c.dustAmount, scale: c.dustSize * fit, time: c.dustLife * lifeMul, alpha: c.dustOpacity,
+    recolor: tint(color), slot: 'over',
+  }) ?? null;
 }
 
-/** A coloured puff (arrival / slam) — or, with `loop`, the settled haze; returns its retire for a looped play. */
-export function ancientSmoke(kind: 'puff' | 'haze', id: AncientId, at: Pt): (() => void) | null {
-  if (!canPlayDefs() || getAncientsConfig().smokeAmount <= 0) return null;
-  const defId = variantId(kind === 'haze' ? 'ancient-haze' : 'ancient-smoke', id);
-  return playDef(defId, { target: at }, { ...smokeOpts(), loop: kind === 'haze' }) ?? null;
-}
-
-/** The slam's landing: a flat gold shockwave + dust at `at`, scaled by the slam strength. */
+/** The slam's flat gold shockwave at `at`, scaled by the slam strength. */
 export function ancientSlam(at: Pt): void {
   if (!canPlayDefs()) return;
   playDef('ancient-slam', { target: at }, { scale: Math.max(0.3, getAncientsConfig().slamStrength) });
-}
-
-/** The eruption's violet/gold smoke burst from the hero power. */
-export function ancientGateSmoke(at: Pt): void {
-  if (!canPlayDefs() || getAncientsConfig().smokeAmount <= 0) return;
-  playDef('ancient-gate-smoke', { target: at }, smokeOpts());
 }

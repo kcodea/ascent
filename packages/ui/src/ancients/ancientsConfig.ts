@@ -56,8 +56,6 @@ export interface AncientsConfig {
   omenTremor: number;
   /** Eruption: the curtain bloom out of the hero power (ms). */
   eruptionMs: number;
-  /** Eruption: the burst FX size (×). */
-  burstScale: number;
   /** Eruption: the energy ring riding the curtain's seam (peak opacity). */
   seamGlow: number;
   /** Title: how long "An Ancient Awakens" holds before the reveal (ms). */
@@ -81,12 +79,26 @@ export interface AncientsConfig {
   beat2Ms: number;
   /** The slam's weight: overshoot, card shake and the landing FX size (×). */
   slamStrength: number;
-  /** Smoke: size (×). */
-  smokeSize: number;
-  /** Smoke: amount (×). 0 turns the smoke off. */
-  smokeAmount: number;
-  /** Smoke: lifetime (×). */
-  smokeLife: number;
+  /** Hero-power dust: its lifetime as a fraction of the landing dust's (short, so it has cleared by the curtain). */
+  hpDustLife: number;
+  /** Landing dust (the Runeforge tablet landing's own dust, tinted; each slam + the eruption): count (×). 0 = none. */
+  dustAmount: number;
+  /** Landing dust: size and spread (×). */
+  dustSize: number;
+  /** Landing dust: how long it hangs before it settles (×). */
+  dustLife: number;
+  /** Landing dust: opacity (0..1). */
+  dustOpacity: number;
+  /** Screen colours: the curtain gradient's centre. */
+  curtainInner: string;
+  /** Screen colours: the curtain gradient's edge. */
+  curtainOuter: string;
+  /** Screen colours: the energy ring on the curtain's seam. */
+  seamColor: string;
+  /** Screen colours: the title's glow. */
+  titleGlow: string;
+  /** Screen colours: the backdrop tint behind the cards. */
+  backdropTint: string;
   /** Close: the gate contracting back into the hero power on the pick (ms). */
   closeMs: number;
   /** Sound: the duck on the music + other sounds during the awakening (0 = silent, 1 = none). */
@@ -171,7 +183,6 @@ export const ANCIENTS_DEFAULTS: AncientsFullConfig = {
   omenDark: 1,
   omenTremor: 2.5,
   eruptionMs: 520,
-  burstScale: 1.1,
   seamGlow: 0.9,
   titleHoldMs: 1500,
   revealFadeMs: 480,
@@ -183,9 +194,16 @@ export const ANCIENTS_DEFAULTS: AncientsFullConfig = {
   beatGapMs: 360,
   beat2Ms: 560,
   slamStrength: 1,
-  smokeSize: 1,
-  smokeAmount: 1,
-  smokeLife: 1,
+  hpDustLife: 0.45,
+  dustAmount: 1,
+  dustSize: 1,
+  dustLife: 1,
+  dustOpacity: 0.85,
+  curtainInner: '#3a2470',
+  curtainOuter: '#0a0618',
+  seamColor: '#ffecbe',
+  titleGlow: '#c8a0ff',
+  backdropTint: '#100b06',
   closeMs: 420,
   duckAmount: 0.3,
   duckRampMs: 260,
@@ -224,7 +242,6 @@ export const ANCIENTS_RANGES: Record<NumKey, [number, number, number]> = {
   omenDark: [0, 1, 0.01],
   omenTremor: [0, 10, 0.1],
   eruptionMs: [100, 2000, 10],
-  burstScale: [0, 3, 0.05],
   seamGlow: [0, 1, 0.01],
   titleHoldMs: [0, 4000, 10],
   revealFadeMs: [60, 2000, 10],
@@ -236,9 +253,11 @@ export const ANCIENTS_RANGES: Record<NumKey, [number, number, number]> = {
   beatGapMs: [0, 1500, 10],
   beat2Ms: [200, 2000, 10],
   slamStrength: [0, 3, 0.05],
-  smokeSize: [0.2, 3, 0.05],
-  smokeAmount: [0, 3, 0.05],
-  smokeLife: [0.2, 3, 0.05],
+  hpDustLife: [0.1, 1.5, 0.05],
+  dustAmount: [0, 4, 0.05],
+  dustSize: [0.2, 3, 0.05],
+  dustLife: [0.3, 3, 0.05],
+  dustOpacity: [0, 1, 0.01],
   closeMs: [100, 1500, 10],
   duckAmount: [0, 1, 0.01],
   duckRampMs: [0, 1500, 10],

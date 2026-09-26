@@ -46,7 +46,7 @@ there is no patch note.
 | --- | --- | --- | --- |
 | Death | `aegisDestroyGivesAttackAndWard` | reducer `grantWard`. One target (the victim); the recipient is random, picked before the destroy: a minion without Ward first, else a random Warded one (owner 2026-09-26) | Shop |
 | Fortune | `wardBreakGold` (2) | `ancientAfterCombat` at settle, from `CombatResult.playerWardBreaks` → `bonusEmbersNextTurn` | Combat → next turn |
-| War | `nextAegisResilient` (1) | reducer `grantWard`: `AncientsState.resilientAegisLeft` (set on the pick) | Shop |
+| War | `aegisUpgradesWardToResilient` | reducer `grantWard`: an Aegis on a minion that already has Ward upgrades it to Resilient Ward, every time (owner rework 2026-09-26; was "your next Aegis") | Shop |
 | Genesis | `wardBreaksGetCopy` (3) | `QuestCombatMods.ancientWardCopy` carries the window into `simulate`, which pays the copy mid-fight via `ctx.grantToHand`; `ancientAfterCombat` stores the returned window | Combat (real-time) |
 | Time | `eotBuffWarded` (+5/+5) | a virtual recurring End-of-Turn entry, `ancientTimeWard` (its own beat, projected, Chronos-repeated, replayed) | End of Turn |
 | Bonds | `wardedGainBuffsWarded` (+5 Attack) | Shop: `ancientBondsReact` at the reducer's per-action stat diff, plus an End-of-Turn pass. Combat: `QuestCombatMods.ancientBonds` in `ctx.buff` | Both |
@@ -68,7 +68,7 @@ there is no patch note.
 - **Death replaces Aegis.** There is no "+5 Attack to Warded minions" after the transfer. The recipient always gains
   Ward, and a Resilient Ward on the victim travels as a Resilient Ward. The Attack moved is the victim's current
   Attack, and it is permanent.
-- **War is exactly one Aegis** ("your next"). Every Aegis after it grants a plain Ward.
+- **War (reworked by the owner, 2026-09-26):** every Aegis on a minion that already has Ward upgrades it to Resilient Ward; a minion without Ward gets a plain Ward. (The first version was "your next Aegis grants Resilient Ward".)
 - **Fortune and Genesis count friendly Wards only**, and only real breaks (not the Resilient downgrade). Genesis
   counts from the pick. Its copy is granted in REAL TIME, the moment the 3rd Ward breaks mid-fight (owner
   2026-09-26: "warden's genesis grant should be in real-time not at combat resolution"). The owner made real-time the

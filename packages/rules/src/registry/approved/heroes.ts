@@ -79,16 +79,18 @@ export const HEROES_RULES: GameRule[] = [
   },
   {
     id: 'R-ANCWARDEN-03',
-    title: 'Warden × Ancient of War: exactly the next Aegis grants Resilient Ward',
+    title: 'Warden × Ancient of War: Aegis on a minion that already has Ward gives it Resilient Ward',
     statement:
-      'After the Ancient of War is picked, the NEXT Aegis grants Resilient Ward instead of Ward (then the usual +5 Attack to '
-      + 'every minion with Ward); every Aegis after it grants a plain Ward. The power text says so until it is used '
-      + '(judgement call pending the owner: "your next" read as one Aegis).',
+      'With the Ancient of War picked, every Aegis on a friendly minion that ALREADY has Ward upgrades that Ward to '
+      + 'Resilient Ward (a standing rule, not a one-shot). An Aegis on a minion without Ward gives it a plain Ward, as '
+      + 'usual. Either way the usual +5 Attack to every minion with Ward follows. Replaces the earlier "your next Aegis '
+      + 'grants Resilient Ward" (owner 2026-09-26).',
     domain: 'heroes',
     status: 'approved',
     evidence: [
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-26 (Warden Ancients)', quote: 'Your next Aegis grants Resilient Ward. It takes 2 hits to break.' },
-      { kind: 'code', ref: 'packages/sim/src/ancients.ts nextAegisResilient / ancientAegisResilient (AncientsState.resilientAegisLeft)' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-26 (War rework)', quote: "warden's ancient of war should be using aegis on a warded minion grants it resilient ward" },
+      { kind: 'code', ref: 'packages/sim/src/ancients.ts aegisUpgradesWardToResilient / ancientAegisResilient(state, hadWard); packages/sim/src/reducer.ts heroPower grantWard' },
     ],
     currentBehaviour: 'Conforms (built 2026-09-26). Dev-only.',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsWarden.test.ts'], lastVerifiedAt: '2026-09-26' },

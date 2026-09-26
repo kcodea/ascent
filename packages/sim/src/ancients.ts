@@ -35,8 +35,8 @@
  *                                 shop death) and a RANDOM other friendly minion gains its Attack and Ward, preferring
  *                                 one without Ward. REPLACES the power (no +5 Attack to Warded minions). (Death)
  *  · `wardBreakGold`              `ancientAfterCombat` (settle): +gold next turn per FRIENDLY Ward that broke. (Fortune)
- *  · `nextAegisResilient`         the `grantWard` branch: the next `count` Aegis casts after the pick grant
- *                                 RESILIENT Ward instead of Ward (`AncientsState.resilientAegisLeft`). (War)
+ *  · `aegisUpgradesWardToResilient`  the `grantWard` branch: an Aegis on a minion that ALREADY has Ward upgrades it
+ *                                 to RESILIENT Ward (every Aegis, a standing rule; owner 2026-09-26). (War)
  *  · `wardBreaksGetCopy`          REAL-TIME (owner 2026-09-26): `QuestCombatMods.ancientWardCopy` carries the running
  *                                 break window into the fight; the moment the `every`th Ward breaks, a plain copy of
  *                                 one of those minions goes to hand mid-fight (a live `toHand`). `ancientAfterCombat`
@@ -137,7 +137,7 @@ export type AncientEffect =
   /** Each FRIENDLY Ward that breaks in combat: gain `gold` next turn (stacking). */
   | { do: 'wardBreakGold'; gold: number }
   /** The next `count` Aegis casts after the pick grant Resilient Ward instead of Ward. */
-  | { do: 'nextAegisResilient'; count: number }
+  | { do: 'aegisUpgradesWardToResilient' }
   /** Every `every` friendly Ward breaks in combat (a running count across combats): get a plain copy of one of the
    *  minions whose Ward broke in that window. */
   | { do: 'wardBreaksGetCopy'; every: number }
@@ -182,8 +182,6 @@ export interface AncientPairing {
    *  Ward breaks still needed for Genesis' next copy; `{riseGold}` = Gold the Risen's last combat banked;
    *  `{summons}` / `{timeA}` / `{timeH}` = the Risen's last-combat summon count and the Start-of-Turn grant it paid. */
   powerText: string;
-  /** The resolved text once a one-shot pairing is used up (War's Resilient Aegis). Absent = `powerText` always. */
-  powerTextSpent?: string;
   /** Changes to the hero power's own SHAPE while this pairing is live (Auctioneer: Time makes Pulse passive, Genesis
    *  makes it an untargeted 2 Gold Discover). Stamped on the run at the pick (`AncientsState.powerOverride`) and
    *  folded in by `activePowers`, so the button, the cost coin, the reducer's gates and the bots all read one shape. */
@@ -254,11 +252,11 @@ export const ANCIENT_PAIRINGS: Record<string, Partial<Record<AncientId, AncientP
       effects: [{ do: 'wardBreakGold', gold: 2 }],
     },
     war: {
-      // "Your next Aegis grants Resilient Ward. It takes 2 hits to break." Exactly the NEXT Aegis (flagged).
-      offerText: 'Your next Aegis grants **Resilient Ward**. It takes 2 hits to break.',
-      powerText: 'Give a friendly minion **Resilient Ward**, then give your minions with **Ward** **{aegis}**. Only your next Aegis grants **Resilient Ward**.',
-      powerTextSpent: '{base}',
-      effects: [{ do: 'nextAegisResilient', count: 1 }],
+      // Owner 2026-09-26 (replacing "Your next Aegis grants Resilient Ward"): "using aegis on a warded minion grants it
+      // resilient ward". A standing rule: every Aegis on a minion that already has Ward upgrades it; the +5 wave stays.
+      offerText: 'Aegis on a minion with **Ward** gives it **Resilient Ward** instead. It takes 2 hits to break.',
+      powerText: 'Give a friendly minion **Ward**. If it already has **Ward**, it gets **Resilient Ward**. Then give your minions with **Ward** **{aegis}**.',
+      effects: [{ do: 'aegisUpgradesWardToResilient' }],
     },
     genesis: {
       // "When 3 Wards break in combat, get a copy of one of the Warded minions." A running count across combats.
@@ -418,8 +416,6 @@ export interface AncientsState {
    *  Golden Touch, gilded Discovers and payouts, every other gild effect) and +1 per triple. Ticks from the run's
    *  start whichever Ancient is picked, so Bonds counts gilds made before it awakened. */
   gilds?: number;
-  /** WARDEN × WAR: Aegis casts still to grant Resilient Ward (set on the pick, spent by Aegis). */
-  resilientAegisLeft?: number;
   /** WARDEN × GENESIS: friendly Ward breaks counted since the pick (carries across combats), and the cardIds of the
    *  minions whose Ward broke in the CURRENT window (cleared each time a copy is paid). */
   wardBreaks?: number;
@@ -504,8 +500,6 @@ export function pickAncient(state: RunState, id: AncientId): boolean {
   a.picked = id;
   a.offer = undefined;
   a.pickSeq = (a.pickSeq ?? 0) + 1;
-  const res = effectOf(state, 'nextAegisResilient');
-  if (res) a.resilientAegisLeft = res.count;
   const shape = activeAncientPairing(state)?.power;
   if (shape) a.powerOverride = { ...shape };
   return true;
@@ -533,8 +527,7 @@ export function ancientPowerText(state: RunState, base: string): string | undefi
   const per = effectOf(state, 'powerBuffPerGild');
   const a = live(state);
   const gilds = a?.gilds ?? 0;
-  const spent = !!effectOf(state, 'nextAegisResilient') && (a?.resilientAegisLeft ?? 0) <= 0;
-  const text = spent && p.powerTextSpent ? p.powerTextSpent : p.powerText;
+  const text = p.powerText;
   const g = aegisGrantOf(state);
   const aegis = g.health > 0 ? `+${g.attack}/+${g.health}` : `+${g.attack} Attack`;
   const copy = effectOf(state, 'wardBreaksGetCopy');
@@ -666,12 +659,10 @@ export function ancientAegisDestroyAndGive(state: RunState, victim: BoardCard, r
   });
 }
 
-/** WAR: does THIS Aegis grant Resilient Ward? Spends the charge when it does. */
-export function ancientAegisResilient(state: RunState): boolean {
-  const a = live(state);
-  if (!a || !effectOf(state, 'nextAegisResilient') || (a.resilientAegisLeft ?? 0) <= 0) return false;
-  a.resilientAegisLeft = (a.resilientAegisLeft ?? 0) - 1;
-  return true;
+/** WAR: an Aegis on a minion that ALREADY has Ward upgrades it to Resilient Ward (every Aegis; owner 2026-09-26).
+ *  `hadWard` = the target's Ward BEFORE this Aegis. */
+export function ancientAegisResilient(state: RunState, hadWard: boolean): boolean {
+  return hadWard && !!live(state) && !!effectOf(state, 'aegisUpgradesWardToResilient');
 }
 
 /** TIME: the End-of-Turn grant to every minion with Ward, when the pairing is live. */

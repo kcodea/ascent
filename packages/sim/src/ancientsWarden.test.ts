@@ -101,23 +101,28 @@ describe('Warden × DEATH — Aegis destroys its target, a random friend gets th
   });
 });
 
-describe('Warden × WAR — the next Aegis grants Resilient Ward', () => {
-  it('exactly the NEXT Aegis grants Resilient Ward (+ the +5 Attack wave); the one after is a plain Ward', () => {
-    let s = picked('war', { board: [pup('a', 1, 5), pup('b', 1, 5)] });
-    expect(s.ancients!.resilientAegisLeft).toBe(1);
+describe('Warden × WAR — Aegis on a minion that already has Ward gives it Resilient Ward', () => {
+  it('a Warded target is upgraded to Resilient Ward, every time; a target without Ward just gets Ward; the +5 wave stays', () => {
+    let s = picked('war', { board: [pup('a', 1, 5, ['DS']), pup('b', 1, 5), pup('c', 1, 5, ['DS'])] });
     expect(heroPowerText(s)).toContain('**Resilient Ward**');
     s = reduce(s, { type: 'heroPower', uid: 'a' });
     expect(at(s, 'a').keywords).toEqual(expect.arrayContaining(['DS', 'RW']));
-    expect(at(s, 'a').attack).toBe(6);
-    expect(s.ancients!.resilientAegisLeft).toBe(0);
-    expect(heroPowerText(s)).not.toContain('Resilient');
+    expect(at(s, 'a').attack).toBe(6); // the +5 wave still lands
     s = reduce({ ...s, heroReady: true }, { type: 'heroPower', uid: 'b' });
     expect(at(s, 'b').keywords).toContain('DS');
-    expect(at(s, 'b').keywords).not.toContain('RW');
+    expect(at(s, 'b').keywords, 'no Ward before: a plain Ward').not.toContain('RW');
+    s = reduce({ ...s, heroReady: true }, { type: 'heroPower', uid: 'c' });
+    expect(at(s, 'c').keywords, 'not a one-shot: a later Aegis on a Warded minion upgrades too').toEqual(expect.arrayContaining(['DS', 'RW']));
+  });
+
+  it('with any other Ancient, Aegis on a Warded minion never grants Resilient Ward', () => {
+    let s = picked('fortune', { board: [pup('a', 1, 5, ['DS'])] });
+    s = reduce(s, { type: 'heroPower', uid: 'a' });
+    expect(at(s, 'a').keywords).not.toContain('RW');
   });
 
   it('Resilient Ward is permanent on the run card: it survives a fight (combat strips it from the combat body only)', () => {
-    let s = picked('war', { board: [pup('a', 0, 40)] });
+    let s = picked('war', { board: [pup('a', 0, 40, ['DS'])] });
     s = reduce(s, { type: 'heroPower', uid: 'a' });
     s = fightNow(s);
     const me = s.lastCombat!.initial.player[0]!;

@@ -161,6 +161,20 @@ describe('score', () => {
     vi.useRealTimers();
   });
 
+  it('a REBIRTH bursts at the beat START on its own rebirthFx cue (the unit re-forms out of the flame), never again at +460', () => {
+    vi.useFakeTimers();
+    const cue = SCORE_DEFAULTS.reborn.find((c) => c.ch === 'rebirthFx');
+    expect(cue?.offset ?? 0).toBe(0);
+    const c = baseCtx([{ type: 'reborn', target: 'a', hp: 5, attack: 5, keywords: [], rebirth: true }] as CombatEvent[]);
+    runMomentCues(moment('reborn', c.events), c);
+    vi.advanceTimersByTime(0);
+    expect(c.onReborn).toHaveBeenCalledTimes(1);
+    expect(c.onReborn).toHaveBeenCalledWith('a', true);
+    vi.advanceTimersByTime(1000); // the Rise-only auraReform cue stands down for a Rebirth
+    expect(c.onReborn).toHaveBeenCalledTimes(1);
+    vi.useRealTimers();
+  });
+
   it('a REBIRTH return routes to onReborn flagged rebirth, exactly once per rebirth (the rebirth-flame binding)', () => {
     vi.useFakeTimers();
     const c = baseCtx([

@@ -86,7 +86,7 @@ import { getRubyPowerFxConfig, floatRubyPowerNumber } from './rubyPowerFxConfig'
 import { getQuestTendrilConfig, tendrilCfgFor } from './questTendrilConfig';
 import { applyWeldWiggle, weldCfgFor, weldLandMs } from './weldFxConfig';
 import { waveGapFor, coalesceBuffFxByTarget, getBuffFxConfig } from './buffFxConfig';
-import { reformReborn } from './choreo/channels/aura';
+import { reformRebirth, reformReborn } from './choreo/channels/aura';
 import { useCiaEnchantedFx } from './useCiaEnchantedFx';
 import { useChooseBothFx } from './useChooseBothFx';
 import { getAimFxConfig } from './aimFxConfig';
@@ -8015,7 +8015,8 @@ const RowFlip = memo(function RowFlip({ rowsKey, shopFxSeq, shopDeathFx, findEl,
         if (fx.kind === 'echo') { pixiFx.deathrattle(at.x, at.y, at.w); return; }
         // A RISEN body has returned (owner 2026-09-09): combat's reborn re-form on the new card, one beat after the
         // death it followed. `base` was read from the live, freshly-mounted element above.
-        if (fx.kind === 'rise') { reformReborn({ cx: at.x, cy: at.y, w: base.w, h: base.w * 1.4 }); return; }
+        // A REBIRTH return plays its phoenix flame instead (cross-phase: the same burst combat plays).
+        if (fx.kind === 'rise') { const r = { cx: at.x, cy: at.y, w: base.w, h: base.w * 1.4 }; if (fx.rebirth) reformRebirth(r, fx.uid); else reformReborn(r); return; }
         // A body that will Rise dies IN FULL first (dissolve here, its Echo skull on its own cue) — the return is
         // the `rise` cue above, not a bloom in place (owner 2026-09-09: "just as if it had happened in combat").
         if (!canPlayDefs()) return;

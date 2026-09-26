@@ -559,7 +559,7 @@ export function computeFrame(
 // damage float always lands ON contact, independent of pacing.
 
 /** The transient animation class for the unit the active event acts on. */
-function animFor(e: CombatEvent | undefined): Record<string, string> {
+export function animFor(e: CombatEvent | undefined): Record<string, string> {
   if (!e) return {};
   switch (e.type) {
     case 'attack': return { [e.attacker]: 'attacking', [e.defender]: 'aimed' };
@@ -568,7 +568,8 @@ function animFor(e: CombatEvent | undefined): Record<string, string> {
     case 'shieldUp': return { [e.target]: 'shieldgain' };
     case 'poison': return { [e.target]: 'poisoned' };
     case 'venomLost': return { [e.target]: 'venomspent' };
-    case 'reborn': return { [e.target]: 'reborn' };
+    // A REBIRTH re-forms out of its phoenix flame (`rebirthing`, styles.css) on top of the shared re-entry.
+    case 'reborn': return { [e.target]: e.rebirth ? 'reborn rebirthing' : 'reborn' };
     case 'buff': return { [e.target]: 'buffed' };
     case 'improve': return { [e.target]: 'buffed' };
     case 'keyword': return { [e.target]: 'buffed' }; // a granted keyword pulses like a buff landing

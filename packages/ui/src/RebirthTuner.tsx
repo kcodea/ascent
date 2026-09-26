@@ -1,28 +1,35 @@
 import { REBIRTH_DEFAULTS, REBIRTH_RANGES, getRebirthConfig, resetRebirthConfig, setRebirthValue, type RebirthConfig } from './rebirthConfig';
-import { reformRebirth } from './choreo/channels/aura';
+import { playRebirthBurstCentre, playRebirthPreview, toggleRebirthPreview } from './rebirthPreview';
 import { TunerPanel } from './TunerPanel';
 import type { TunerControl, TunerSpec, TunerUnit } from './tunerSchema';
 
 /**
- * DEV 🔥 REBIRTH tuner: the Rebirth keyword's idle look (ember rim + rising motes) and its one-shot flame on a real
- * rebirth. ▶ Flame plays the burst on the first card on screen that wears Rebirth (else the screen centre).
+ * DEV 🔥 REBIRTH tuner: the Rebirth keyword's idle flame crown (flames, glow, embers), its colours, and the
+ * phoenix moment on a real rebirth (burst + re-form + whoosh). ▶ Idle card floats a sample Rebirth card beside the
+ * panel; ▶ Rebirth plays the full trigger on it (or on the first Rebirth card on screen).
  */
 type Key = keyof RebirthConfig;
+type ColorKey = 'colorA' | 'colorB' | 'colorCore';
 const ROWS: [Key, string, TunerUnit | undefined, string, string, 'color'?][] = [
-  ['emberCount', 'Ember motes', undefined, 'Rising embers per card. 0 hides them. Applies to cards drawn after the change.', 'Idle'],
+  ['crownAlpha', 'Flame intensity', 'opacity', 'How strongly the flame crown shows around the oval.', 'Idle'],
+  ['crownSize', 'Flame height', '×', 'How far the flame tongues lick above the frame.', 'Idle'],
+  ['flickerSpeed', 'Flicker cycle', 's', 'Seconds for one full flicker through the flame frames. Lower is livelier.', 'Idle'],
+  ['glowAlpha', 'Glow', 'opacity', 'Peak strength of the blue glow behind the oval.', 'Idle'],
+  ['glowPulse', 'Glow breathe', 's', 'Seconds per glow breathe.', 'Idle'],
+  ['emberCount', 'Embers', undefined, 'Embers rising off the flames. 0 hides them. Applies to cards drawn after the change.', 'Idle'],
   ['emberAlpha', 'Ember opacity', 'opacity', 'Peak brightness of an ember.', 'Idle'],
-  ['emberSize', 'Ember size', undefined, 'Ember size, % of the card width.', 'Idle'],
-  ['rimAlpha', 'Rim opacity', 'opacity', 'Peak opacity of the thin ember rim on the oval.', 'Idle'],
-  ['rimWidth', 'Rim width', 'px', 'Thickness of the ember rim.', 'Idle'],
-  ['rimPulse', 'Rim breathe', 's', 'Seconds per rim breathe (opacity only).', 'Idle'],
-  ['colorA', 'Hot colour', undefined, 'Ember cores and the rim’s inner edge.', 'Colours', 'color'],
-  ['colorB', 'Deep colour', undefined, 'Ember tails and the rim’s outer glow.', 'Colours', 'color'],
-  ['burstScale', 'Flame burst size', '×', 'Size of the flame burst when a minion rebirths.', 'Trigger'],
-  ['soundGain', 'Flame sound', 'opacity', 'Volume of the rebirth flame cue. 0 mutes it.', 'Trigger'],
+  ['emberSize', 'Ember size', '%', 'Ember size, as a share of the flame box.', 'Idle'],
+  ['colorB', 'Deep flame', undefined, 'The outer flame and the glow edge (cobalt).', 'Colours', 'color'],
+  ['colorA', 'Hot flame', undefined, 'The flame body, glow and embers (cyan).', 'Colours', 'color'],
+  ['colorCore', 'Core', undefined, 'The white-hot core of each tongue and ember.', 'Colours', 'color'],
+  ['burstScale', 'Burst size', '×', 'Size of the flame burst when a minion rebirths.', 'Trigger'],
+  ['burstTime', 'Burst duration', '×', 'Stretches how long the flame column burns.', 'Trigger'],
+  ['soundGain', 'Whoosh volume', 'opacity', 'Volume of the rebirth flame whoosh. 0 mutes it.', 'Trigger'],
+  ['soundOffset', 'Whoosh delay', 'ms', 'Delay of the whoosh after the burst starts.', 'Trigger'],
 ];
 const controls: TunerControl<Key>[] = ROWS.map(([key, label, unit, hint, group, kind]) => {
   if (kind === 'color') return { key, label, hint, group, kind, min: 0, max: 0, step: 0 };
-  const [min, max, step] = REBIRTH_RANGES[key as Exclude<Key, 'colorA' | 'colorB'>];
+  const [min, max, step] = REBIRTH_RANGES[key as Exclude<Key, ColorKey>];
   return { key, label, unit, hint, group, min, max, step };
 });
 
@@ -36,18 +43,23 @@ export const SPEC: TunerSpec<RebirthConfig> = {
   reset: resetRebirthConfig,
   defaults: REBIRTH_DEFAULTS,
   controls,
-  actions: [{
-    label: '▶ Flame',
-    hint: 'Plays the rebirth flame on the first Rebirth card on screen (else the screen centre).',
-    run: () => {
-      const el = document.querySelector('.card.rebirthcard');
-      const r = el?.getBoundingClientRect();
-      const rect = r && r.width > 0
-        ? { cx: r.left + r.width / 2, cy: r.top + r.height / 2, w: r.width, h: r.height }
-        : { cx: window.innerWidth / 2, cy: window.innerHeight / 2, w: 180, h: 240 };
-      reformRebirth(rect, null);
+  actions: [
+    {
+      label: '▶ Idle card',
+      hint: 'Shows (or hides) a sample Rebirth card beside this panel, so the idle flames can be judged anywhere.',
+      run: (panelEl) => toggleRebirthPreview(panelEl),
     },
-  }],
+    {
+      label: '▶ Rebirth',
+      hint: 'Plays the full rebirth (flame burst, the card re-forming from the fire, the whoosh) on the sample card, else on the first Rebirth card on screen.',
+      run: () => playRebirthPreview(),
+    },
+    {
+      label: '▶ Burst ×7',
+      hint: 'Seven bursts at once over the screen centre: the mass-rebirth check.',
+      run: () => playRebirthBurstCentre(7),
+    },
+  ],
 };
 
 export function RebirthTuner(): JSX.Element {

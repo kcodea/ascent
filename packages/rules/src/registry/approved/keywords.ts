@@ -214,4 +214,27 @@ export const KEYWORDS_RULES: GameRule[] = [
       lastVerifiedAt: '2026-09-24',
     },
   },
+  {
+    id: 'R-REBIRTH-FX-01',
+    title: 'Rebirth reads at a glance (a flame crown on the card) and its return is a visible phoenix burst, in combat AND the Shop',
+    statement:
+      'Every card with Rebirth wears its blue-white flame crown on every surface (shop, board, hand, combat), distinct '
+      + 'from Rise (aqua dome) and Ward (glass shell). When a minion rebirths, the rebirth-flame burst plays ONCE per '
+      + 'return at the start of its beat, sized from the card (never from the still-expanding slot, which made it '
+      + 'near-invisible), with the pillar of fire the body re-forms out of. A Shop return plays the same burst, not '
+      + "Rise's re-form. Presentation only: the idle look animates transform/opacity alone.",
+    domain: 'keywords',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-26 (Rebirth look v2)', quote: 'improve rebirth effect? its not noticeable and ugly' },
+      { kind: 'code', ref: 'packages/ui/src/Card.tsx RebirthCrown; packages/ui/src/rebirthCrown.ts; packages/ui/src/choreo/score.ts rebirthFx; packages/ui/src/choreo/channels/aura.ts reformRebirth; packages/ui/src/fx/rebirthPillar.ts; packages/sim/src/recruit.ts rebirthReturn (`rebirth: true` on the shop cue)' },
+    ],
+    contentIds: ['dw_exgalloper'],
+    currentBehaviour: 'Conforms (2026-09-26): the crown replaced the thin rim, the burst moved to its own start-of-beat cue and sizes off the card height, and the Shop cue carries `rebirth: true`.',
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/ui/src/rebirthLook.test.tsx', 'packages/ui/src/choreo/score.test.ts', 'packages/sim/src/set3RunesTrancheC.test.ts'],
+      lastVerifiedAt: '2026-09-26',
+    },
+  },
 ];

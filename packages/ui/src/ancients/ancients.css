@@ -87,50 +87,58 @@
 }
 /* The chosen face riding the trail into the hero power. Above the modal FX canvas. */
 
-/* ── THE ANCIENT CARD (offer + preview, `AncientCard`): a full-art portrait in a gold frame, the name, then the
-   effect in its own panel. The game's dark slate-blue (the hero-power tip / Career hover) so the set reads as one. ── */
-.anc-cardx { display: flex; flex-direction: column; gap: calc(9 * var(--anc-k, 1px)); width: 100%; }
+/* ── THE ANCIENT CARD (offer + preview, `AncientCard`): a crisp full-art portrait in a gold frame, the name in strong
+   type, then the effect on a deep, high-contrast panel. ── */
+.anc-cardx { display: flex; flex-direction: column; gap: calc(10 * var(--anc-k, 1px)); width: 100%; }
 .anc-art-frame {
-  position: relative; width: 100%; aspect-ratio: 1 / 1; border-radius: calc(10 * var(--anc-k, 1px)); overflow: hidden;
-  border: calc(2 * var(--anc-k, 1px)) solid transparent;
-  background: linear-gradient(#141a26, #141a26) padding-box, linear-gradient(160deg, #fff1c4, #e2b04e 40%, #8a5a16) border-box;
-  box-shadow: 0 calc(6 * var(--anc-k, 1px)) calc(16 * var(--anc-k, 1px)) -8px rgba(0, 0, 0, 0.7);
+  position: relative; width: 100%; aspect-ratio: 1 / 1; border-radius: calc(12 * var(--anc-k, 1px)); overflow: hidden;
+  border: calc(3 * var(--anc-k, 1px)) solid transparent;
+  background: linear-gradient(#0f1420, #0f1420) padding-box, linear-gradient(160deg, #fff4cf, #f0c052 38%, #b07a22 70%, #6b4410) border-box;
+  box-shadow: 0 calc(8 * var(--anc-k, 1px)) calc(20 * var(--anc-k, 1px)) -8px rgba(0, 0, 0, 0.75);
 }
 .anc-art-frame .anc-art { position: absolute; inset: 0; width: 100%; height: 100%; display: block; object-fit: cover; }
-.anc-art-frame.placeholder .anc-art { transform: scale(0.92); }
+/* The placeholder: the Ancient's colour, lit from the top, with its emblem. */
+.anc-art-fill {
+  position: absolute; inset: 0; display: grid; place-items: center;
+  background:
+    radial-gradient(ellipse 80% 70% at 50% 30%, color-mix(in srgb, var(--anc-c, #c8922e) 55%, #fff) 0%, var(--anc-c, #c8922e) 45%, color-mix(in srgb, var(--anc-c, #c8922e) 45%, #000) 100%);
+}
+.anc-art-glyph { font-size: calc(96 * var(--anc-k, 1px)); line-height: 1; color: #fff; text-shadow: 0 calc(3 * var(--anc-k, 1px)) calc(12 * var(--anc-k, 1px)) rgba(0, 0, 0, 0.45); }
 .anc-art-ph {
-  position: absolute; left: 0; right: 0; bottom: calc(6 * var(--anc-k, 1px)); text-align: center;
-  font-family: var(--font-ui); font-size: calc(9.5 * var(--anc-k, 1px)); letter-spacing: 0.14em; text-transform: uppercase; color: rgba(255, 255, 255, 0.75);
+  position: absolute; left: 0; right: 0; bottom: calc(8 * var(--anc-k, 1px)); text-align: center;
+  font-family: var(--font-ui); font-weight: 700; font-size: calc(10 * var(--anc-k, 1px)); letter-spacing: 0.16em; text-transform: uppercase; color: rgba(255, 255, 255, 0.8);
 }
 .anc-cardx-name {
   display: flex; align-items: center; justify-content: center; gap: 8px; text-align: center;
-  font-family: var(--font-title); font-weight: 800; font-size: calc(18 * var(--anc-k, 1px)); line-height: 1.15; color: #ffd98a;
+  font-family: var(--font-title); font-weight: 900; font-size: calc(22 * var(--anc-k, 1px)); line-height: 1.1; color: #ffe2a0;
+  text-shadow: 0 2px 3px rgba(0, 0, 0, 0.8);
 }
-.anc-cardx-tag { font-family: var(--font-ui); font-size: calc(9.5 * var(--anc-k, 1px)); font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; padding: 2px 7px; border-radius: 999px; background: var(--anc-c, #c8922e); color: #fff; }
+.anc-cardx-tag { font-family: var(--font-ui); font-size: calc(9.5 * var(--anc-k, 1px)); font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; padding: 2px 7px; border-radius: 999px; background: var(--anc-c, #c8922e); color: #fff; text-shadow: none; }
 .anc-cardx-rule {
-  padding: calc(10 * var(--anc-k, 1px)) calc(12 * var(--anc-k, 1px)); border-radius: calc(9 * var(--anc-k, 1px));
-  background: rgba(8, 11, 18, 0.5); border: 1px solid rgba(190, 214, 240, 0.2);
-  border-left: calc(3 * var(--anc-k, 1px)) solid var(--anc-c, #c8922e);
-  font-family: var(--font-body); font-weight: 600; font-size: calc(14 * var(--anc-k, 1px)); line-height: 1.42; color: #e3e8f0; text-align: left;
+  padding: calc(12 * var(--anc-k, 1px)) calc(14 * var(--anc-k, 1px)); border-radius: calc(10 * var(--anc-k, 1px));
+  background: #0b0f18; border: 1px solid rgba(255, 226, 160, 0.22);
+  font-family: var(--font-body); font-weight: 700; font-size: calc(16 * var(--anc-k, 1px)); line-height: 1.42; color: #f4f6fa; text-align: center;
 }
-.anc-cardx-rule b { color: #ffb561; }
+.anc-cardx-rule b { color: #ffc47a; }
 
-/* ── THE AWAKENING DISCOVER ─────────────────────────────────────────────────────────────────────────────────────── */
-/* A light, even dim over the Shop: no vignette, no spotlight. */
-.discover-ov.disc-look.anc-offer { background: rgba(28, 22, 14, var(--dcl-tint, 0.42)); }
-.anc-cards { gap: calc(26 * var(--u)); }
+/* ── THE AWAKENING DISCOVER: the Discover view's own look (PR #1714), unmodified; bigger, clearly spaced cards. ── */
+.anc-cards { gap: calc(40 * var(--u)); }
 .anc-card {
   --anc-k: var(--u);
-  position: relative; display: block; width: calc(250 * var(--u));
-  padding: calc(12 * var(--u)) calc(12 * var(--u)) calc(14 * var(--u));
-  border-radius: calc(16 * var(--u));
-  border: 1px solid rgba(190, 214, 240, 0.28); border-top: 2px solid color-mix(in srgb, var(--gold-lt) 85%, transparent);
-  background: linear-gradient(180deg, rgba(40, 50, 68, 0.98), rgba(18, 23, 33, 0.99));
-  box-shadow: 0 calc(14 * var(--u)) calc(34 * var(--u)) calc(-10 * var(--u)) rgba(0, 0, 0, 0.75);
+  /* A column, top-aligned: a <button> centres its content vertically by default, which let a card with a shorter
+     effect text sit lower than its neighbours. */
+  position: relative; display: flex; flex-direction: column; justify-content: flex-start; width: calc(300 * var(--u));
+  padding: calc(14 * var(--u)) calc(14 * var(--u)) calc(16 * var(--u));
+  border-radius: calc(18 * var(--u));
+  border: 1px solid rgba(255, 226, 160, 0.3);
+  background: linear-gradient(180deg, #1c2434, #111722);
+  box-shadow: 0 calc(18 * var(--u)) calc(40 * var(--u)) calc(-12 * var(--u)) rgba(0, 0, 0, 0.85);
   color: #eef2f8; text-align: center;
   transition: transform 0.16s cubic-bezier(0.2, 0.9, 0.3, 1.2), border-color 0.16s ease;
 }
-.anc-card:hover { transform: translateY(calc(-5 * var(--u))); border-color: var(--gold-lt, #e6b45a); }
+.anc-card:hover { transform: translateY(calc(-6 * var(--u))); border-color: var(--gold-lt, #e6b45a); }
+.anc-card .anc-cardx { flex: 1; }
+.anc-card .anc-cardx-rule { flex: 1; display: flex; align-items: center; justify-content: center; }
 .anc-card:focus-visible { outline: 2px solid var(--gold, #c8922e); outline-offset: calc(4 * var(--u)); }
 
 /* ── THE PREVIEW CARD ───────────────────────────────────────────────────────────────────────────────────────────── */
@@ -207,16 +215,28 @@ body:has(.anc-pv) .heropanel .herotip { opacity: 0 !important; transition-delay:
    the edge ring moves by transform/opacity; the flash is opacity only. The offer drops its own dim while gated. ── */
 .anc-gate { position: fixed; inset: 0; z-index: 158; pointer-events: none; }
 .anc-gate-bg {
+  /* EXACTLY the Discover view's backdrop (`.discover-ov.disc-look`, driven by the same --dcl-* vars), so the gate
+     ends on it and the offer takes over seamlessly. */
   position: absolute; inset: 0;
   background:
-    radial-gradient(circle at var(--gx) var(--gy), rgba(255, 222, 150, calc(var(--gate-tint) * 0.55)) 0, rgba(150, 110, 230, calc(var(--gate-tint) * 0.5)) calc(var(--gate-d) * 0.08), rgba(60, 40, 120, calc(var(--gate-tint) * 0.35)) calc(var(--gate-d) * 0.22), transparent calc(var(--gate-d) * 0.4)),
-    rgba(10, 9, 24, var(--gate-dim));
+    radial-gradient(ellipse calc(var(--dcl-spot-r, 40) * 1.6vh) calc(var(--dcl-spot-r, 40) * 1vh) at 50% 51%,
+      rgba(255, 196, 112, calc(var(--dcl-spot, 0.4) * 0.34)) 0%,
+      rgba(255, 170, 80, calc(var(--dcl-spot, 0.4) * 0.14)) 50%,
+      rgba(255, 160, 70, 0) 100%),
+    radial-gradient(ellipse 72% 68% at 50% 51%,
+      rgba(16, 11, 6, var(--dcl-tint, 0.84)) 0%,
+      rgba(16, 11, 6, var(--dcl-tint, 0.84)) 30%,
+      rgba(4, 3, 2, var(--dcl-vignette, 0.95)) 100%);
 }
 .anc-gate-ring {
   position: absolute; left: var(--gx); top: var(--gy); width: var(--gate-d); height: var(--gate-d); border-radius: 50%;
   transform: translate(-50%, -50%) scale(0.02); opacity: 0; will-change: transform, opacity;
   border: 3px solid rgba(255, 236, 190, 0.9);
-  box-shadow: 0 0 24px 6px rgba(255, 210, 120, 0.55), inset 0 0 30px 6px rgba(190, 150, 255, 0.35);
+  box-shadow: 0 0 24px 6px rgba(255, 210, 120, 0.5), inset 0 0 26px 4px rgba(255, 210, 120, 0.25);
 }
 .anc-gate-flash { position: absolute; inset: 0; opacity: 0; background: radial-gradient(circle at var(--gx) var(--gy), rgba(255, 246, 220, 0.9), rgba(255, 236, 200, 0.25) 45%, transparent 75%); }
 .discover-ov.disc-look.anc-offer.gated { background: transparent; }
+
+/* While the awakening is up, the Shop row steps fully back (a one-shot opacity fade), so no offer peeks through the
+   title or between the Ancient cards. */
+body.ancoffer [data-zone="tavern"] { opacity: 0; transition: opacity 0.18s ease; }

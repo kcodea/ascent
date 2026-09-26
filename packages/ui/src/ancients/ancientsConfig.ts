@@ -39,8 +39,6 @@ export interface AncientsConfig {
   fillMs: number;
   /** Awaken: the full ring's flash before the Discover rises (ms). */
   flashMs: number;
-  /** Awaken: Shop dim behind the Discover (opacity). */
-  dim: number;
   /** Pick: the split reveal duration (ms). */
   splitMs: number;
   /** Pick: the shine sweep duration (ms). */
@@ -57,8 +55,6 @@ export interface AncientsConfig {
   pvGraceMs: number;
   /** Gate: the hero power's swell before it bursts (ms). */
   gateChargeMs: number;
-  /** Gate: how far the hero power swells (×). */
-  gateChargeScale: number;
   /** Gate: the burst FX size (×). */
   gateBurstScale: number;
   /** Gate: the quick screen flash at the burst (peak opacity). 0 = none. */
@@ -69,10 +65,6 @@ export interface AncientsConfig {
   gateCloseMs: number;
   /** Gate: the glowing ring on the iris edge (peak opacity). */
   gateGlow: number;
-  /** Gate: how dark the backdrop inside the gate is (the board stays faintly visible). */
-  gateDim: number;
-  /** Gate: the mystic violet/gold tint inside the gate. */
-  gateTint: number;
   /** Gate cue slots (owner SFX to come): the burst's boom (a sound clip id), its gain and offset. */
   gateBoomClip: string;
   gateBoomGain: number;
@@ -124,20 +116,16 @@ export const ANCIENTS_DEFAULTS: AncientsFullConfig = {
   ticks: 1,
   fillMs: 520,
   flashMs: 480,
-  dim: 0.42,
   splitMs: 520,
   shineMs: 800,
   tickGain: 0.5,
   revealGain: 0.8,
-  gateChargeMs: 240,
-  gateChargeScale: 1.14,
+  gateChargeMs: 160,
   gateBurstScale: 1,
-  gateFlash: 0.28,
+  gateFlash: 0,
   gateOpenMs: 560,
   gateCloseMs: 380,
   gateGlow: 0.85,
-  gateDim: 0.55,
-  gateTint: 0.35,
   gateBoomClip: 'turnexplosion',
   gateBoomGain: 0.55,
   gateBoomOffset: 0,
@@ -171,20 +159,16 @@ export const ANCIENTS_RANGES: Record<NumKey, [number, number, number]> = {
   ticks: [0, 1, 1],
   fillMs: [0, 1600, 10],
   flashMs: [0, 1500, 10],
-  dim: [0, 0.9, 0.01],
   splitMs: [120, 1600, 10],
   shineMs: [0, 2000, 10],
   tickGain: [0, 1, 0.01],
   revealGain: [0, 1, 0.01],
   gateChargeMs: [0, 800, 10],
-  gateChargeScale: [1, 1.6, 0.01],
   gateBurstScale: [0, 3, 0.05],
   gateFlash: [0, 1, 0.01],
   gateOpenMs: [100, 1600, 10],
   gateCloseMs: [100, 1200, 10],
   gateGlow: [0, 1, 0.01],
-  gateDim: [0, 0.95, 0.01],
-  gateTint: [0, 1, 0.01],
   gateBoomGain: [0, 1, 0.01],
   gateBoomOffset: [0, 800, 10],
   gateShimmerGain: [0, 1, 0.01],

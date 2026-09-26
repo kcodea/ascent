@@ -12,13 +12,15 @@ import { markGateOpen, prefersReducedMotion, useGateDemo, useRingSettledSeq, set
  * exploded and opened this gate to the ancients"). A smaller, faster cousin of the combat/shop screen wipe that
  * ORIGINATES FROM THE HERO POWER, played between the meter's full-ring ping (kept as-is) and the offer:
  *
- *   1. CHARGE  the hero-power button swells (WAAPI `scale`, which composes with its own transform);
- *   2. BURST   it snaps back as the `ancient-gate-burst` Pixi def fires from it (a gold/violet shockwave + sparks),
- *              with a quick screen flash and the boom cue;
- *   3. OPEN    a luminous iris grows from the hero power: a tinted, semi-transparent backdrop revealed by an expanding
- *              `clip-path: circle()` (sized from the LIVE viewport's farthest corner, so ultrawide is covered) with a
- *              soft glowing ring riding its edge (transform + opacity). The board stays faintly visible. The offer is
- *              released a beat into the opening (`markGateOpen`), so the cards rise out of the gate;
+ *   1. CHARGE  a short beat (`gateChargeMs`) after the ping. The hero-power button and its art NEVER change
+ *              (owner 2026-09-25: "the hero power's art should not pop or grow or change"); everything below is a
+ *              separate layer that only EMANATES from its position;
+ *   2. BURST   the `ancient-gate-burst` Pixi def fires from the hero power's centre (a gold shockwave + sparks), with
+ *              the boom cue (and an optional flash, off by default);
+ *   3. OPEN    an iris grows from the hero power revealing EXACTLY the Discover view's backdrop (PR #1714's dark
+ *              vignette + warm static spotlight, the same `--dcl-*` vars), via an expanding `clip-path: circle()` sized
+ *              from the LIVE viewport's farthest corner (ultrawide-safe), with a soft ring riding its edge. The offer is
+ *              released a beat into the opening, so the cards rise out of it, and the gate ENDS on that clean backdrop;
  *   4. CLOSE   when the offer is answered, the iris contracts back INTO the hero power (the triple trail and the crack
  *              reveal play from `AncientSplit`).
  *
@@ -77,11 +79,6 @@ export const AncientGate = memo(function AncientGate({ run }: { run: RunState })
     setGateActive(true);
     if (prefersReducedMotion()) { reveal(seq); return; }
     setPhase('charging');
-    const btn = document.querySelector<HTMLElement>('.statusbar .heropanel .heropowerbtn');
-    if (btn && typeof btn.animate === 'function') {
-      btn.animate([{ scale: '1' }, { scale: String(c.gateChargeScale) }], { duration: c.gateChargeMs, easing: 'cubic-bezier(0.3, 0, 0.7, 1)' });
-      btn.animate([{ scale: String(c.gateChargeScale) }, { scale: '1' }], { duration: 180, delay: c.gateChargeMs, easing: 'cubic-bezier(0.2, 0.9, 0.3, 1.4)', fill: 'backwards' });
-    }
     timers.current.push(window.setTimeout(() => {
       if (canPlayDefs()) playDef('ancient-gate-burst', { target: { x, y } }, { scale: c.gateBurstScale });
       cue(c.gateBoomClip, c.gateBoomGain, c.gateBoomOffset);
@@ -142,10 +139,9 @@ export const AncientGate = memo(function AncientGate({ run }: { run: RunState })
   }, [phase, geo]);
 
   if (!geo || phase === 'idle' || phase === 'charging') return null;
-  const c = getAncientsConfig();
   return createPortal(
     <div className="anc-gate" aria-hidden="true"
-      style={{ '--gx': `${geo.x}px`, '--gy': `${geo.y}px`, '--gate-dim': String(c.gateDim), '--gate-tint': String(c.gateTint), '--gate-d': `${geo.r * 2}px` } as CSSProperties}>
+      style={{ '--gx': `${geo.x}px`, '--gy': `${geo.y}px`, '--gate-d': `${geo.r * 2}px` } as CSSProperties}>
       <div ref={bgRef} className="anc-gate-bg" style={prefersReducedMotion() ? { opacity: 0 } : { clipPath: `circle(0px at ${geo.x}px ${geo.y}px)` }} />
       <div ref={ringRef} className="anc-gate-ring" />
       <div ref={flashRef} className="anc-gate-flash" />

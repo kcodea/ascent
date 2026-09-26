@@ -41,7 +41,7 @@ export const AncientOfferOverlay = memo(function AncientOfferOverlay({ held, run
   };
   return (
     <EntranceOverlay occasion={`ancient:${run.seed}:${offerSeq}`} openCue className={`disc-look anc-offer${gated ? ' gated' : ''}`} role="dialog" aria-label="An Ancient Awakens"
-      style={{ '--dcl-tint': String(getAncientsConfig().dim) } as CSSProperties}>
+>
       {(entrance) => (
         <div className="disc-panel">
           <span className="disc-gem disc-gem-top" aria-hidden="true" />

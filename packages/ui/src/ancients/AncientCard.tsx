@@ -14,11 +14,16 @@ export const AncientCard = memo(function AncientCard({ id, heroId, tag }: { id: 
   return (
     <div className="anc-cardx" style={{ '--anc-c': ancientColor(id) } as CSSProperties}>
       <div className={`anc-art-frame${hasAncientArt(id) ? '' : ' placeholder'}`}>
-        <AncientFace id={id} className="anc-art" />
+        {hasAncientArt(id)
+          ? <AncientFace id={id} className="anc-art" />
+          : (
+            // PLACEHOLDER (no art yet): the Ancient's colour as a lit gradient filling the frame, with its emblem.
+            <span className="anc-art-fill" aria-hidden="true"><span className="anc-art-glyph">{`${ANCIENTS[id].glyph}\uFE0E`}</span></span>
+          )}
         {!hasAncientArt(id) && <span className="anc-art-ph">placeholder art</span>}
       </div>
       <div className="anc-cardx-name">{ANCIENTS[id].name}{tag && <span className="anc-cardx-tag">{tag}</span>}</div>
-      <div className="anc-cardx-rule" dangerouslySetInnerHTML={{ __html: mdBold(ancientOfferText(heroId, id)) }} />
+      <div className="anc-cardx-rule"><span dangerouslySetInnerHTML={{ __html: mdBold(ancientOfferText(heroId, id)) }} /></div>
     </div>
   );
 });

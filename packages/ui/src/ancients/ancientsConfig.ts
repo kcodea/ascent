@@ -1,4 +1,5 @@
 import { ANCIENTS } from '@game/sim';
+import { ANCIENT_HERO_THEMES, HERO_THEME_DEFAULTS, type HeroThemeKey } from './ancientHeroThemes';
 
 /**
  * The ✦ Ancients tuner's values (DEV, proof of concept 2026-09-25).
@@ -156,12 +157,15 @@ const CUE_DEFAULTS = Object.fromEntries(ANCIENT_CUES.flatMap((c) => {
   return [[`${c}Clip`, d.clip], [`${c}Gain`, d.gain], [`${c}Offset`, d.offset], [`${c}Rate`, d.rate]];
 })) as Record<AncientCueKey, string | number>;
 export type AncientsFullConfig = AncientsConfig & Record<AncientArtKey, number> & Record<AncientColorKey, string>
+  & Record<HeroThemeKey, string>
   & Record<`${AncientCue}Clip`, string> & Record<`${AncientCue}${'Gain' | 'Offset' | 'Rate'}`, number>;
 
 export const ANCIENTS_DEFAULTS: AncientsFullConfig = {
   ...ART_DEFAULTS,
   ...(CUE_DEFAULTS as unknown as Record<`${AncientCue}Clip`, string> & Record<`${AncientCue}${'Gain' | 'Offset' | 'Rate'}`, number>),
   ...(Object.fromEntries(ANCIENT_ART_IDS.map((id) => [`${id}Color`, ANCIENTS[id].color])) as Record<AncientColorKey, string>),
+  // Per-hero awakening themes (ancientHeroThemes.ts): the themed heroes' colours under `<hero>Theme<Field>` keys.
+  ...HERO_THEME_DEFAULTS,
   cost: 16,
   refresh: 1,
   combat: 2,
@@ -199,11 +203,8 @@ export const ANCIENTS_DEFAULTS: AncientsFullConfig = {
   dustSize: 1,
   dustLife: 1,
   dustOpacity: 0.85,
-  curtainInner: '#247067',
-  curtainOuter: '#0a0618',
-  seamColor: '#fff1bd',
-  titleGlow: '#9effd5',
-  backdropTint: '#060d0f',
+  // The DEFAULT hero theme (every hero without its own entry): the owner-baked screen colours, from the theme table.
+  ...ANCIENT_HERO_THEMES.default,
   closeMs: 420,
   duckAmount: 0.3,
   duckRampMs: 260,

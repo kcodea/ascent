@@ -4,6 +4,7 @@ import type { TunerControl, TunerSpec, TunerUnit } from '../tunerSchema';
 import { useGame } from '../store';
 import { ANCIENTS_DEFAULTS, ANCIENTS_RANGES, getAncientsConfig, resetAncientsConfig, setAncientsValue, type AncientsFullConfig, type AncientsNumKey, ANCIENT_ART_IDS, ANCIENT_CUES, ART_FIELDS } from './ancientsConfig';
 import { playAwakenDemo, playGateDemo } from './ancientsFx';
+import { heroThemeKey, THEME_FIELDS, THEMED_HEROES, type ThemeField } from './ancientHeroThemes';
 
 /**
  * DEV ✦ ANCIENTS tuner (proof of concept 2026-09-25). The METER group is balance: moving it re-stamps the live
@@ -12,6 +13,16 @@ import { playAwakenDemo, playGateDemo } from './ancientsFx';
  * without touching run state; the Scene Builder's "Fill meter" plays the real thing end to end.
  */
 type Key = keyof AncientsFullConfig;
+const THEME_LABELS: Record<ThemeField, [string, string]> = {
+  curtainInner: ['Curtain centre', 'The curtain’s colour at its centre (it blooms out of the hero power).'],
+  curtainOuter: ['Curtain edge', 'The curtain’s colour at its edge.'],
+  seamColor: ['Seam ring + medallion rim', 'The energy ring riding the curtain’s edge as it opens, and the rim round the hero power art.'],
+  titleGlow: ['Title glow', 'The glow around the title and the medallion.'],
+  backdropTint: ['Backdrop tint', 'The dark tint behind the cards once they are revealed.'],
+};
+function themeRows(hero: 'default' | (typeof THEMED_HEROES)[number], group: string): [Key, string, TunerUnit | undefined, string, string, 'color'][] {
+  return THEME_FIELDS.map((f) => [(hero === 'default' ? f : heroThemeKey(hero, f)) as Key, THEME_LABELS[f][0], undefined, THEME_LABELS[f][1], group, 'color']);
+}
 const ROWS: [Key, string, TunerUnit | undefined, string, string, ('color' | 'toggle' | 'text')?][] = [
   ['cost', 'Points to fill', undefined, 'The meter fills up to this and then awakens. Re-stamps the live sandbox run.', 'Meter (balance)'],
   ['refresh', 'Points per refresh', undefined, 'Points one Shop refresh adds (paid or free).', 'Meter (balance)'],
@@ -49,12 +60,11 @@ const ROWS: [Key, string, TunerUnit | undefined, string, string, ('color' | 'tog
   ['dustSize', 'Dust size', '×', 'How big and how wide the dust puffs out.', 'Dust'],
   ['dustLife', 'Dust life', '×', 'How long the dust hangs before it settles.', 'Dust'],
   ['dustOpacity', 'Dust opacity', undefined, 'How opaque the dust is.', 'Dust'],
-  ['hpDustLife', 'Hero-power dust life', '×', 'How long the burst from the hero power lasts. Low clears it before the purple curtain.', 'Dust'],
-  ['curtainInner', 'Curtain centre', undefined, 'The purple curtain’s colour at its centre.', 'Screen colours', 'color'],
-  ['curtainOuter', 'Curtain edge', undefined, 'The purple curtain’s colour at its edge.', 'Screen colours', 'color'],
-  ['seamColor', 'Seam ring', undefined, 'The energy ring riding the curtain’s edge as it opens.', 'Screen colours', 'color'],
-  ['titleGlow', 'Title glow', undefined, 'The glow around the title.', 'Screen colours', 'color'],
-  ['backdropTint', 'Backdrop tint', undefined, 'The dark tint behind the cards once they are revealed.', 'Screen colours', 'color'],
+  ['hpDustLife', 'Hero-power dust life', '×', 'How long the burst from the hero power lasts. Low clears it before the curtain.', 'Dust'],
+  // HERO THEMES (owner 2026-09-26): the awakening's curtain, seam, title glow and backdrop in the hero's colours. The
+  // default is every hero without its own entry; each themed hero (ancientHeroThemes.ts) gets its own group.
+  ...themeRows('default', 'Hero theme: Default (every other hero)'),
+  ...THEMED_HEROES.flatMap((h) => themeRows(h, `Hero theme: ${h.charAt(0).toUpperCase()}${h.slice(1)}`)),
   ['closeMs', 'Gate closes', 'ms', 'The gate contracting back into the hero power on the pick.', 'Awakening beats'],
   ['duckAmount', 'Duck level', 'opacity', 'Music and other sounds dip to this during the awakening (1 = no duck).', 'Awakening sound'],
   ['duckRampMs', 'Duck ramp', 'ms', 'How quickly the duck goes in and comes back.', 'Awakening sound'],
@@ -126,6 +136,16 @@ export const SPEC: TunerSpec<AncientsFullConfig> = {
       label: '▶ Play full sequence',
       hint: 'The whole awakening on the hero power: omen, eruption, title, the Ancients emerging, settled; closes after a moment. Needs a Set 3 sandbox with Ancients on. Run state is untouched.',
       run: () => playGateDemo('full'),
+    },
+    ...THEMED_HEROES.map((h) => ({
+      label: `▶ Play as ${h.charAt(0).toUpperCase()}${h.slice(1)}`,
+      hint: `The full awakening in ${h.charAt(0).toUpperCase()}${h.slice(1)}’s theme and power art, whoever the run's hero is. Run state is untouched.`,
+      run: () => playGateDemo('full', h),
+    })),
+    {
+      label: '▶ Play as default',
+      hint: 'The full awakening in the default theme (every hero without its own). Run state is untouched.',
+      run: () => playGateDemo('full', 'default'),
     },
     {
       label: '▶ Play from reveal',

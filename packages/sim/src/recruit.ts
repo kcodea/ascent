@@ -1197,8 +1197,16 @@ const GOLD_SCALED_ACCRUAL_CARDS = new Set(['kennel', 'd2_sovereign', 'packleader
  *  it); only the copy grant skips it. */
 export const NO_COPY_SPELLS: ReadonlySet<string> = new Set(['seconddraft']);
 
-export function gildMinion(card: BoardCard): void {
+/** A minion became Gilded this run: ticks the Ancients' gild count (Bonds). A no-op outside an Ancients run. */
+export function noteGilded(state: RunState | undefined): void {
+  if (state?.ancientsEnabled && state.ancients) state.ancients.gilds = (state.ancients.gilds ?? 0) + 1;
+}
+
+/** Gild `card`. Pass `state` when this is a NEW gild (it ticks the run's gild count); a restore of an already-gilded
+ *  held offer omits it. */
+export function gildMinion(card: BoardCard, state?: RunState): void {
   if (card.golden) return;
+  noteGilded(state);
   const def = CARD_INDEX[card.cardId];
   addBuff(card, 'Gild', def?.attack ?? 0, def?.health ?? 0);
   if (GOLD_SCALED_ACCRUAL_CARDS.has(card.cardId) && (card.summonBonus ?? 0) > 0) {
@@ -2477,7 +2485,7 @@ export function grantMinionToHandOrBoard(state: RunState, def: CardDef, golden: 
   else if (state.board.length < CONFIG.boardMax) state.board.push(card); // hand full → onto the board
   else if (overflow) state.hand.push(card); // quest / rune REWARD cards may over-cap the hand (owner ruling — never lose an earned reward)
   else return card; // otherwise the hand is a hard 10-card cap: hand + board both full → drop, never over-capped
-  if (golden) gildMinion(card);
+  if (golden) gildMinion(card, state);
   takeFromPool(state, def.id); // only claim a pool copy for a card we actually placed
   return card;
 }
@@ -4716,7 +4724,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     const target = (payload as { target?: BoardCard } | undefined)?.target;
     if (!target || target.golden) return;
     // Same gild the spell path uses, so triple/golden bookkeeping lives in one place.
-    gildMinion(target);
+    gildMinion(target, ctx.state);
   },
 
 
@@ -7906,7 +7914,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     const targetTier = CARD_INDEX[self.cardId]?.tier ?? 1;
     if (self.golden) return;
     if (declared !== undefined && targetTier > num(declared, 7)) return;
-    gildMinion(self);
+    gildMinion(self, ctx.state);
   },
 
   /** Tribes Choice — cast: conjure a random buyable minion sharing the *target's* tribe, tier ≤ the

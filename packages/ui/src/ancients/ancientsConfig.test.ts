@@ -10,7 +10,9 @@ describe('the Ancients tuner defaults', () => {
       cardRevealGain: 0.19, pickSealGain: 0.62,
       revealStyle: 1, // 1 = two beats (the middle slams, then the sides together); 0 = sequential
       hpDustLife: 0.45, dustAmount: 1, dustSize: 1, dustLife: 1, dustOpacity: 0.85,
+      bondsColor: '#9b5de5', // the sixth Ancient, purple (owner 2026-09-26)
     });
+    expect(ANCIENT_ART_IDS).toHaveLength(6);
   });
   it('fit every Ancient’s hero-power art at the neutral offset (0) and scale (1)', () => {
     for (const id of ANCIENT_ART_IDS) {

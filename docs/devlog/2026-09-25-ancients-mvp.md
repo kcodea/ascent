@@ -179,3 +179,21 @@ Nothing loops: every motion is WAAPI transform/opacity or a one-shot transition.
     - cardReveal gain 0.19, pickSeal gain 0.62;
     - revealStyle 1 (two beats).
   - `ancientsConfig.test.ts` pins these values.
+- **The sixth Ancient: Bonds (2026-09-26, owner: "add in ancient of bonds and wire art. (purple aesthetic) Ancient
+  of Bonds for Indy -> Masterwork grants +20/+20 for every Gilded minion this game. Can target Gilded minions.").**
+  - **The Ancient:** `bonds`, coloured purple (#9b5de5). The seeded offer now draws 3 of 6, and the preview cycles
+    all six. Art is wired (sources 00:22 and 00:21) and the art budget is raised by exactly 2 (1274 → 1276).
+  - **The gild count** is the new `AncientsState.gilds`, ticked by `noteGilded`:
+    - +1 on every `gildMinion` call that gilds a minion. That covers Masterwork, Golden Touch, Eyes of Aresmar,
+      gilded Discovers and grants, the Gilded payouts and the random-gild effect.
+    - +1 on every triple.
+    - Not counted:
+      - re-gilding a held Golden Touch offer on its way back (no new gild);
+      - a shop offer that is already golden and gets bought;
+      - Time's combat-only Start of Combat gild.
+    - It counts from the run's start, whichever Ancient is picked.
+  - **The effect:** Masterwork gilds first (so its own gild counts), then the target gains +20/+20 × the count,
+    permanently. With Bonds an already-Gilded target is legal: it is not gilded again and the count doesn't move,
+    but the buff still lands.
+  - **Live text:** the resolved power prints the total from the current count, as "(+20/+20 for every Gilded minion
+    this game: N so far)".

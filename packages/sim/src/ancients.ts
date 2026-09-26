@@ -26,6 +26,9 @@
  *                                 the gain recorded as `permaGain` so it carries back (War, cross-phase).
  *  · `socGildRightmost`           COMBAT only: `QuestCombatMods.ancientTimeGild`, at Start of Combat (Time). The
  *                                 gild lives on the combat body only, so it reverts after the fight.
+ *  · `powerTargetsGilded`         the reducer's `gild` branch: an already-Gilded target is legal (Bonds).
+ *  · `powerBuffPerGild`           the same branch, after the gild: the target gains +a/+h × the run's gild count
+ *                                 (`AncientsState.gilds`, ticked by `noteGilded` in `gildMinion` + the triple).
  *
  * Serialisable plain data throughout, so saves / snapshots / replays can carry it cheaply later (not in the MVP).
  */
@@ -35,8 +38,8 @@ import { mixSeed, type BoardCard, type RunState } from './state';
 import { addBuff, captureBuffFx, grantMinionToHandOrBoard } from './recruit';
 import { INDY_GILD_RECHARGE_GOLD } from './config';
 
-export type AncientId = 'death' | 'fortune' | 'war' | 'genesis' | 'time';
-export const ANCIENT_IDS: readonly AncientId[] = ['death', 'fortune', 'war', 'genesis', 'time'];
+export type AncientId = 'death' | 'fortune' | 'war' | 'genesis' | 'time' | 'bonds';
+export const ANCIENT_IDS: readonly AncientId[] = ['death', 'fortune', 'war', 'genesis', 'time', 'bonds'];
 
 export interface AncientDef {
   id: AncientId;
@@ -55,6 +58,8 @@ export const ANCIENTS: Record<AncientId, AncientDef> = {
   war: { id: 'war', name: 'Ancient of War', glyph: '⚔', color: '#c9363b', color2: '#4a1410' },
   genesis: { id: 'genesis', name: 'Ancient of Genesis', glyph: '✺', color: '#5aae3c', color2: '#12402a' },
   time: { id: 'time', name: 'Ancient of Time', glyph: '⧗', color: '#2f8fd8', color2: '#10334a' },
+  // Purple (owner 2026-09-26: "purple aesthetic"): a warm violet, clear of Time's azure and the teal curtain.
+  bonds: { id: 'bonds', name: 'Ancient of Bonds', glyph: '∞', color: '#9b5de5', color2: '#2e1650' },
 };
 
 // ── Effect primitives ────────────────────────────────────────────────────────────────────────────────────────
@@ -70,13 +75,18 @@ export type AncientEffect =
   /** Whenever a friendly minion dies (Shop AND combat), your gilded minions gain +a/+h, permanently. */
   | { do: 'friendlyDeathBuffsGilded'; attack: number; health: number }
   /** Start of Combat: your right-most minion becomes Gilded for that combat (reverts after). */
-  | { do: 'socGildRightmost' };
+  | { do: 'socGildRightmost' }
+  /** The hero power may target an already-Gilded minion (it is not gilded again; the rest still applies). */
+  | { do: 'powerTargetsGilded' }
+  /** The hero power's target gains +a/+h for every minion that became Gilded this run, permanently. */
+  | { do: 'powerBuffPerGild'; attack: number; health: number };
 
 export interface AncientPairing {
   /** The Ancient's text for this hero, as shown on the offer and the preview (the owner's words). */
   offerText: string;
   /** The RESOLVED hero-power text (owner ruling 5: "shows the combined power"). `{base}` = the base power's live
-   *  text; `{recharge}` = Indy's live recharge Gold. */
+   *  text; `{recharge}` = Indy's live recharge Gold; `{gilds}` / `{gildA}` / `{gildH}` = the run's gild count and
+   *  the live Bonds total it grants right now. */
   powerText: string;
   effects: AncientEffect[];
 }
@@ -113,6 +123,14 @@ export const ANCIENT_PAIRINGS: Record<string, Partial<Record<AncientId, AncientP
       offerText: '**Start of Combat:** your right-most minion becomes **Gilded** for that combat.',
       powerText: '{base} **Start of Combat:** your right-most minion becomes **Gilded** for that combat.',
       effects: [{ do: 'socGildRightmost' }],
+    },
+    bonds: {
+      // Owner 2026-09-26: "Ancient of Bonds for Indy -> Masterwork grants +20/+20 for every Gilded minion this game.
+      // Can target Gilded minions." The count is `AncientsState.gilds` (see `noteGilded`); gilding a fresh target
+      // counts that gild too, so the printed total is what an already-Gilded target would get.
+      offerText: 'Masterwork also gives **+20/+20** for every **Gilded** minion this game. It can target **Gilded** minions.',
+      powerText: 'Make a friendly minion **Gilded**, or pick a **Gilded** one. It gains **+{gildA}/+{gildH}** (+20/+20 for every **Gilded** minion this game: **{gilds}** so far). Recharges after you spend {recharge} Gold.',
+      effects: [{ do: 'powerTargetsGilded' }, { do: 'powerBuffPerGild', attack: 20, health: 20 }],
     },
   },
 };
@@ -162,6 +180,10 @@ export interface AncientsState {
   lastGain?: { amount: number; why: 'refresh' | 'combat' | 'set' };
   offerSeq?: number;
   pickSeq?: number;
+  /** Minions that became Gilded this run (Bonds' count): +1 per `gildMinion` call that gilds a minion (Masterwork,
+   *  Golden Touch, gilded Discovers and payouts, every other gild effect) and +1 per triple. Ticks from the run's
+   *  start whichever Ancient is picked, so Bonds counts gilds made before it awakened. */
+  gilds?: number;
 }
 
 /** Turn Ancients on for a run (the Scene Builder's Set 3 flag). Pure: returns a new run. */
@@ -252,7 +274,10 @@ function effectOf<K extends AncientEffect['do']>(state: RunState, kind: K): Extr
 export function ancientPowerText(state: RunState, base: string): string | undefined {
   const p = activeAncientPairing(state);
   if (!p) return undefined;
-  return p.powerText.replace('{base}', base).replace('{recharge}', String(INDY_GILD_RECHARGE_GOLD));
+  const per = effectOf(state, 'powerBuffPerGild');
+  const gilds = live(state)?.gilds ?? 0;
+  return p.powerText.replace('{base}', base).replace('{recharge}', String(INDY_GILD_RECHARGE_GOLD))
+    .replace('{gilds}', String(gilds)).replace('{gildA}', String((per?.attack ?? 0) * gilds)).replace('{gildH}', String((per?.health ?? 0) * gilds));
 }
 
 // ── Hooks ────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -271,11 +296,21 @@ export function ancientReplacesPowerGild(state: RunState, card: BoardCard): bool
   return true;
 }
 
-/** After the `gild` hero power gilded `card` (Death: it also gains Rise + Taunt, permanently). */
+/** The `gild` hero power may take an already-Gilded target (Bonds). */
+export function ancientPowerTargetsGilded(state: RunState): boolean {
+  return !!effectOf(state, 'powerTargetsGilded');
+}
+
+/** After the `gild` hero power resolved on `card` (Death: it also gains Rebirth + Taunt, permanently; Bonds: it gains
+ *  +a/+h for every minion Gilded this run, the gild just made included). */
 export function ancientAfterPowerGild(state: RunState, card: BoardCard): void {
   const e = effectOf(state, 'powerTargetGainsKeywords');
-  if (!e) return;
-  for (const k of e.keywords) if (!card.keywords.includes(k)) card.keywords.push(k);
+  if (e) for (const k of e.keywords) if (!card.keywords.includes(k)) card.keywords.push(k);
+  const per = effectOf(state, 'powerBuffPerGild');
+  const gilds = live(state)?.gilds ?? 0;
+  if (per && gilds > 0) {
+    captureBuffFx(state, undefined, 'spell', () => addBuff(card, ANCIENTS.bonds.name, per.attack * gilds, per.health * gilds));
+  }
 }
 
 /** A minion was sold (Fortune: a gilded one gets a plain copy to hand). */

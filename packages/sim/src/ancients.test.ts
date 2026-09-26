@@ -116,16 +116,19 @@ describe('Ancients — the offer', () => {
     expect(a.ancients!.offer).toEqual(b.ancients!.offer);
     expect(new Set(a.ancients!.offer).size).toBe(3);
     for (const id of a.ancients!.offer!) expect(ANCIENT_IDS).toContain(id);
+    expect(ANCIENT_IDS).toHaveLength(6); // draws from all six (Bonds joined 2026-09-26)
     const before = enableAncients({ ...base(), seed: 11 } as RunState);
     expect(a.rngCursor).toBe(before.rngCursor);
     // Different seeds reach different offers somewhere in a small sweep (it is not a constant).
     const seen = new Set<string>();
-    for (let seed = 1; seed <= 12; seed++) seen.add(open(seed).ancients!.offer!.join(','));
+    const drawn = new Set<string>();
+    for (let seed = 1; seed <= 40; seed++) { const o = open(seed).ancients!.offer!; seen.add(o.join(',')); for (const id of o) drawn.add(id); }
     expect(seen.size).toBeGreaterThan(1);
+    expect(drawn.size, 'every one of the six Ancients can be offered').toBe(6);
   });
 });
 
-describe('Ancients × Indy — the five pairings', () => {
+describe('Ancients × Indy — the six pairings', () => {
   it('DEATH: the Masterwork target also gains Rebirth and Taunt (not Rise), permanently', () => {
     let s = picked('death', { board: [card('a', 'gnash')] });
     s = reduce(s, { type: 'heroPower', uid: 'a' });
@@ -201,6 +204,54 @@ describe('Ancients × Indy — the five pairings', () => {
     const r = s.board.find((c) => c.uid === 'r')!;
     expect(r.golden).toBe(false);
     expect([r.attack, r.health]).toEqual([CARD_INDEX.gnash!.attack, CARD_INDEX.gnash!.health]);
+  });
+
+  it('BONDS: Masterwork gilds AND grants +20/+20 per gild this run, the gild it just made included', () => {
+    let s = picked('bonds', { board: [card('a', 'gnash')] });
+    expect(s.ancients!.gilds ?? 0).toBe(0);
+    s = reduce(s, { type: 'heroPower', uid: 'a' });
+    const a = s.board.find((c) => c.uid === 'a')!;
+    expect(a.golden).toBe(true);
+    expect(s.ancients!.gilds).toBe(1);
+    // printed ×2 by the gild, then +20/+20 × 1
+    expect([a.attack, a.health]).toEqual([CARD_INDEX.gnash!.attack * 2 + 20, CARD_INDEX.gnash!.health * 2 + 20]);
+  });
+
+  it('BONDS: the count includes triples (and gilds made BEFORE Bonds was picked)', () => {
+    // A triple before the pick: two on the board, the third played from hand.
+    let s = withAncients('indy', { board: [card('t1', 'gnash'), card('t2', 'gnash')], hand: [card('t3', 'gnash')] });
+    s = reduce(s, { type: 'play', uid: 't3' });
+    expect(s.triplesMade).toBe(1);
+    expect(s.ancients!.gilds).toBe(1);
+    s = { ...s, ancients: { ...s.ancients!, points: s.ancients!.cost, offer: ['bonds', 'death', 'war'] } };
+    s = reduce(s, { type: 'pickAncient', id: 'bonds' });
+    s = { ...s, board: [...s.board, card('m', 'sandbag')] };
+    s = reduce(s, { type: 'heroPower', uid: 'm' });
+    expect(s.ancients!.gilds).toBe(2); // the triple + this Masterwork
+    const m = s.board.find((c) => c.uid === 'm')!;
+    expect([m.attack, m.health]).toEqual([CARD_INDEX.sandbag!.attack * 2 + 40, CARD_INDEX.sandbag!.health * 2 + 40]);
+  });
+
+  it('BONDS: Masterwork may target an already-Gilded minion: no second gild, no new count, the buff still lands', () => {
+    let s = picked('bonds', { board: [card('g', 'gnash', { golden: true, attack: 10, health: 10 })] });
+    s = { ...s, ancients: { ...s.ancients!, gilds: 3 } };
+    s = reduce(s, { type: 'heroPower', uid: 'g' });
+    const g = s.board.find((c) => c.uid === 'g')!;
+    expect(s.heroPowerSpent).toBe(true);
+    expect(s.ancients!.gilds).toBe(3);
+    expect([g.attack, g.health]).toEqual([70, 70]);
+  });
+
+  it('without BONDS, a Gilded target is still refused (no charge spent)', () => {
+    const s = picked('death', { board: [card('g', 'gnash', { golden: true })] });
+    expect(reduce(s, { type: 'heroPower', uid: 'g' })).toBe(s);
+  });
+
+  it('BONDS prints the live total', () => {
+    let s = picked('bonds');
+    s = { ...s, ancients: { ...s.ancients!, gilds: 3 } };
+    expect(heroPowerText(s)).toContain('+60/+60');
+    expect(heroPowerText(s)).toContain('**3** so far');
   });
 
   it('TIME is combat-only: no Shop action gilds anything', () => {

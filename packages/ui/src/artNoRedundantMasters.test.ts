@@ -139,6 +139,7 @@ describe('no redundant PNG masters ship alongside their WebP builds', () => {
     // still under the budget.)
     // → 1274: owner-supplied Ancient art 2026-09-25 (+6: War, Genesis and Time full art + hero-power halves; the owner
     // was told the cap would need raising for these).
-    expect(total, `art files: ${total} — the WHOLE-ZIP count (~${total + 176}) is what itch caps at 1000`).toBeLessThan(1274);
+    // → 1276: owner-supplied Ancient art 2026-09-26 (+2: the Ancient of Bonds' full art + hero-power half).
+    expect(total, `art files: ${total} — the WHOLE-ZIP count (~${total + 176}) is what itch caps at 1000`).toBeLessThan(1276);
   });
 });

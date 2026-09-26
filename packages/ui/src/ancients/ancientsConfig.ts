@@ -129,13 +129,13 @@ export interface AncientsConfig {
 
 /** Per-Ancient art fit for the hero-power half: offset (design px), scale (x), rotation (deg), and a crack-position
  *  nudge (% of the button) when the default split cuts the art badly. Keys: `<ancient><X|Y|S|R|Crack>`. */
-export type AncientArtKey = `${'death' | 'fortune' | 'war' | 'genesis' | 'time'}${'X' | 'Y' | 'S' | 'R' | 'Crack'}`;
-export const ANCIENT_ART_IDS = ['death', 'fortune', 'war', 'genesis', 'time'] as const;
+export type AncientArtKey = `${'death' | 'fortune' | 'war' | 'genesis' | 'time' | 'bonds'}${'X' | 'Y' | 'S' | 'R' | 'Crack'}`;
+export const ANCIENT_ART_IDS = ['death', 'fortune', 'war', 'genesis', 'time', 'bonds'] as const;
 export const ART_FIELDS = ['X', 'Y', 'S', 'R', 'Crack'] as const;
 const ART_DEFAULTS = Object.fromEntries(
   ANCIENT_ART_IDS.flatMap((id) => ART_FIELDS.map((f) => [`${id}${f}`, f === 'S' ? 1 : 0])),
 ) as Record<AncientArtKey, number>;
-export type AncientColorKey = `${'death' | 'fortune' | 'war' | 'genesis' | 'time'}Color`;
+export type AncientColorKey = `${'death' | 'fortune' | 'war' | 'genesis' | 'time' | 'bonds'}Color`;
 /** THE AWAKENING SOUND CUES (owner: "i can help source sounds if you set up a tuner with timing cues"). Each cue is a
  *  clip id (swap in the owner's SFX in the tuner), a gain, an offset (ms, relative to its beat) and a rate (pitch). */
 export const ANCIENT_CUES = ['omenRumble', 'eruptionBoom', 'eruptionFlash', 'titleSting', 'cardReveal', 'ambientHum', 'pickSeal'] as const;

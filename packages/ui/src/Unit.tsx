@@ -172,6 +172,7 @@ function UnitInner({ u, side, anim, triggered, rallyPulse, watcherPulse, framePu
     attack: u.attack,
     health: Math.max(0, u.health),
     keywords: u.keywords, golden: u.golden,
+    riseTint: u.riseTint, // Ancients × Lord of the Risen: War's red / Death's regained blue Rise
     text: liveText,
     // liveCardText already folds golden-awareness + the golden-variant fallback into its goldenText (Card renders
     // that for goldens), so pass it straight through — same source of truth as the shop.
@@ -252,5 +253,6 @@ export const Unit = memo(UnitInner, (a, b) =>
   a.u.tribe === b.u.tribe &&
   a.u.baseAttack === b.u.baseAttack &&
   a.u.baseHealth === b.u.baseHealth &&
+  a.u.riseTint === b.u.riseTint &&
   sameKeywords(a.u.keywords, b.u.keywords),
 );

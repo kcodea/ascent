@@ -228,4 +228,91 @@ export const HEROES_RULES: GameRule[] = [
     currentBehaviour: 'Conforms (built 2026-09-26). Dev-only (Scene Builder, Set 3, the Ancients flag).',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsAuctioneer.test.ts'], lastVerifiedAt: '2026-09-26' },
   },
+  {
+    id: 'R-ANCRISEN-01',
+    title: "Lord of the Risen × Ancient of Death: Undying's target gains Rise again after it Rises, once per combat (a blue Rise)",
+    statement:
+      'With the Ancient of Death, the minion Undying marked regains Rise the moment it returns from its Rise in combat, once per combat, so it can Rise a second time that fight; its third death is final. The regained Rise shows as a BLUE copy of the Rise look (the idle dome and wisps, and its return FX). A body that regains Rise still reads as having died for every per-exchange death check (kill credit, the Flurry second-swing rule, the vanguard rule).',
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-26 (Lord of the Risen Ancients)', quote: "Undying's target gains Rise after rising. (Once per combat.) — with this, copy the existing rise effect, except make it blue instead of green" },
+      { kind: 'code', ref: 'packages/sim/src/ancients.ts undyingRegainsRise; packages/core/src/combat/simulate.ts killOrReborn (ancientUndying.regainRise) + risesOf' },
+    ],
+    currentBehaviour: 'Conforms (built 2026-09-26). Dev-only (Scene Builder, Set 3, the Ancients flag).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsRisen.test.ts'], lastVerifiedAt: '2026-09-26' },
+  },
+  {
+    id: 'R-ANCRISEN-02',
+    title: 'Lord of the Risen × Ancient of Fortune: every friendly Rise in combat banks 1 Gold for next turn',
+    statement:
+      "With the Ancient of Fortune, every friendly Rise in combat is counted the moment it happens (a Rise whose return overflowed does not count) and adds 1 Gold to next turn's Gold. The power text prints the Gold the last combat banked.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-26 (Lord of the Risen Ancients)', quote: 'When a minion Rises each combat, gain 1 Gold next turn.' },
+      { kind: 'code', ref: 'packages/sim/src/ancients.ts riseGold / ancientAfterCombat; packages/core/src/combat/simulate.ts onRise listener (ancientCountRises)' },
+    ],
+    currentBehaviour: 'Conforms (built 2026-09-26). Dev-only (Scene Builder, Set 3, the Ancients flag).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsRisen.test.ts'], lastVerifiedAt: '2026-09-26' },
+  },
+  {
+    id: 'R-ANCRISEN-03',
+    title: 'Lord of the Risen × Ancient of War: the Undying target Rises with double Attack and attacks immediately (a red Rise)',
+    statement:
+      'With the Ancient of War, every Rise of the minion Undying marked returns it with double the Attack it returns with, and it attacks immediately: it cuts the line like any "attacks immediately" summon (R-ORD-05), striking once its return settles, before the next normal attacker, and between the two swings of a Flurry. Its Rise shows as a RED copy of the Rise look, in the Shop and in combat.',
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-26 (Lord of the Risen Ancients)', quote: 'The minion chosen by Undying returns with double Attack and attacks immediately. — copy the existing rise effect, except make it red instead of green' },
+      { kind: 'code', ref: 'packages/sim/src/ancients.ts undyingReturnsDoubleAndAttacks / ancientRiseTint; packages/core/src/combat/simulate.ts killOrReborn (ancientUndying.war) + the interrupting queue item' },
+    ],
+    currentBehaviour: 'Conforms (built 2026-09-26). Dev-only (Scene Builder, Set 3, the Ancients flag).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsRisen.test.ts'], lastVerifiedAt: '2026-09-26' },
+  },
+  {
+    id: 'R-ANCRISEN-04',
+    title: 'Lord of the Risen × Ancient of Genesis: every summon in combat summons an extra copy; an extra that does not fit is an overflow',
+    statement:
+      'With the Ancient of Genesis, every friendly summon in combat summons one more copy of what it summoned, through the normal summon path: Echo summons, token summons, hand summons, fills, and every Rise or Rebirth return (the copy of a returned body comes at its return stats, without Rise or Rebirth). The copy counts as a summon for every watcher and tally. On a full board the copy is a real overflow: it fires every overflow watcher, exactly like any summon that did not fit. A copy never makes copies of its own.',
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-26 (Lord of the Risen Ancients)', quote: 'Your summons summon an extra minion in combat. — adds 1 to any and all summon effects in combat, including rise.' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-26 (Risen Ancients, owner answers)', quote: 'make sure these count as overflows, this is important. this also makes echo summons summon an extra body.' },
+      { kind: 'code', ref: 'packages/sim/src/ancients.ts summonsSummonExtra; packages/core/src/combat/simulate.ts placeSummon (summonGenesisExtras) + summonReturnExtras' },
+    ],
+    currentBehaviour: 'Conforms (built 2026-09-26). Dev-only (Scene Builder, Set 3, the Ancients flag).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsRisen.test.ts'], lastVerifiedAt: '2026-09-26' },
+  },
+  {
+    id: 'R-ANCRISEN-05',
+    title: 'Lord of the Risen × Ancient of Time: Start of Turn, your minions gain +3/+2 for each minion summoned in the last combat',
+    statement:
+      "With the Ancient of Time, every friendly minion summoned in combat is counted at the summon-entry chokepoint (hand summons, Echo summons, tokens, Rise and Rebirth returns, Genesis copies), and the next Start of Turn gives every minion on your board +3/+2 per counted summon, permanently. Only the previous combat counts. The power text prints the last combat's count and the grant it paid.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-26 (Lord of the Risen Ancients)', quote: 'Start of Turn: Give your minions +3/+2 for every minion summoned in combat. — summoned counts anything from hand, echo summons, and rising bodies.' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-26 (Risen Ancients, owner answers)', quote: 'TIME: confirmed, previous combat only.' },
+      { kind: 'code', ref: 'packages/sim/src/ancients.ts sotBuffPerCombatSummon / ancientStartOfTurn; packages/core/src/combat/simulate.ts summonEntryEffects (ancientCountSummons)' },
+    ],
+    currentBehaviour: 'Conforms (built 2026-09-26). Dev-only (Scene Builder, Set 3, the Ancients flag).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsRisen.test.ts'], lastVerifiedAt: '2026-09-26' },
+  },
+  {
+    id: 'R-ANCRISEN-06',
+    title: 'Lord of the Risen × Ancient of Bonds: when a minion Rises, trigger the Echo of a minion next to it',
+    statement:
+      'With the Ancient of Bonds, whenever a friendly minion Rises (combat and Shop), the Echo of a living minion next to it fires right then, through the shared Echo path (every Echo multiplier and the Echo tally apply; in combat it is attributed to the risen body). When both neighbours have an Echo, one is picked at random; when neither has one, nothing happens. It stacks with every other Rise and Echo effect.',
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-26 (Lord of the Risen Ancients)', quote: 'When a minion Rises, trigger an adjacent Echo. — this stacks with any other potential effects and triggers happening of course.' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-26 (Risen Ancients, owner answers)', quote: 'BONDS: confirmed (random adjacent Echo if both neighbours have one, nothing if neither; stacks with everything else).' },
+      { kind: 'code', ref: 'packages/sim/src/ancients.ts riseTriggersAdjacentEcho / ancientOnShopRise; packages/core/src/combat/simulate.ts onRise listener (ancientRiseEcho); packages/sim/src/recruit.ts riseReturn' },
+    ],
+    currentBehaviour: 'Conforms (built 2026-09-26). Dev-only (Scene Builder, Set 3, the Ancients flag).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsRisen.test.ts'], lastVerifiedAt: '2026-09-26' },
+  },
 ];

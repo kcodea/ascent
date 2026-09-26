@@ -10,7 +10,7 @@ import { heroArt, questArt, runeArt } from './art';
 import { mdBold } from './Card';
 import { Icon } from './Icon';
 import { useGame } from './store';
-import { stageHost } from './stage';
+import { stageHost, stageViewport, toStage } from './stage';
 
 /**
  * The 8-seat table, shown in a LOBBY run.
@@ -42,12 +42,12 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
   const [pinned, setPinned] = useState<{ id: string; top: number; right: number } | null>(null);
   const openScout = (e: React.MouseEvent<HTMLDivElement>, id: string): void => {
     const b = e.currentTarget.getBoundingClientRect();
-    setHovered({ id, top: b.top + b.height / 2, right: b.left });
+    setHovered({ id, top: toStage(b.top + b.height / 2), right: toStage(b.left) }); // screen -> stage (stage.ts): `at` is CSS px
   };
   const pinScout = (e: React.MouseEvent<HTMLDivElement>, id: string): void => {
     e.preventDefault(); // no browser context menu over the rail
     const b = e.currentTarget.getBoundingClientRect();
-    setPinned((p) => (p?.id === id ? null : { id, top: b.top + b.height / 2, right: b.left })); // toggle
+    setPinned((p) => (p?.id === id ? null : { id, top: toStage(b.top + b.height / 2), right: toStage(b.left) })); // toggle; stage px
   };
   // Escape closes it, like every other dismissible overlay in the app.
   useEffect(() => {
@@ -245,7 +245,7 @@ function ScoutCard({ lobby, seat, intel, at, pinned }: {
     const el = cardRef.current;
     if (!el) return;
     const w = el.offsetWidth, h = el.offsetHeight, m = 8;
-    const vw = window.innerWidth, vh = window.innerHeight;
+    const { w: vw, h: vh } = stageViewport(); // the window in stage px, matching `at` and offsetWidth
     // Horizontal: prefer opening left (right edge 6px left of the seat), then clamp so neither edge leaves the view.
     const right = Math.max(m, Math.min(vw - at.right + 6, vw - w - m));
     // Vertical: `top` is the centre (translateY(-50%)) — keep the whole card between the top/bottom margins.
@@ -435,7 +435,7 @@ function ScoutCard({ lobby, seat, intel, at, pinned }: {
       aria-label={pinned ? `${seat.label} scouting report` : undefined}
       style={clamp
         ? { top: clamp.top, right: clamp.right }
-        : { top: at.top, right: `calc(100vw - ${at.right}px + 6px)`, visibility: 'hidden' }}
+        : { top: at.top, right: `calc(var(--lvw, 100vw) - ${at.right}px + 6px)`, visibility: 'hidden' }}
       // React portals bubble synthetic events through the REACT tree, so a click inside this card would reach the
       // seat's onClick and toggle the pin shut. Stop it here; the native mousedown outside-handler (on document)
       // still sees the click and keeps the card open.

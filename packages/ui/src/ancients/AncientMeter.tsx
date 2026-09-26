@@ -10,6 +10,7 @@ import { ancientPowerArt } from '../art';
 import { AncientPreview, useAncientCycler, type PreviewAnchor } from './AncientPreview';
 import { ancientColor, getAncientsConfig, subscribeAncientsConfig, type AncientsFullConfig } from './ancientsConfig';
 import { markRingSettled, prefersReducedMotion, takePickSource, tickAllowed, useAwakenDemo } from './ancientsFx';
+import { rectToStage } from '../stage';
 import './ancients.css';
 
 /**
@@ -96,7 +97,8 @@ export const AncientMeter = memo(function AncientMeter({ run }: { run: RunState 
   }, []);
   const open = useCallback(() => {
     cancelLeave();
-    const r = rootRef.current?.querySelector('.anc-ring')?.getBoundingClientRect();
+    const sr = rootRef.current?.querySelector('.anc-ring')?.getBoundingClientRect();
+    const r = sr && rectToStage(sr); // stage px (stage.ts): the preview is placed with CSS left/top
     if (r) setAnchor((a) => a ?? { left: r.left, top: r.top, right: r.right, bottom: r.bottom });
   }, [cancelLeave]);
   const leave = useCallback(() => {

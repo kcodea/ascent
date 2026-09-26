@@ -21,7 +21,7 @@
  * `var(--x, fallback)` CSS half, and the double-source rule deliberately does not apply.
  */
 import { WIRE_SRC, REF_W, linePoints, bodyPoints, sprite, rgba, arcaneGradient } from './plateFx';
-import { stageHost } from './stage';
+import { rectToStage, stageHost } from './stage';
 
 export interface PlateCoalesceConfig {
   /** Whole effect, ms. */
@@ -165,10 +165,12 @@ interface Mote {
  * `--fan-rot` and `transform`), so a re-render mid-effect can't clobber it. Always cleaned up in `done()`.
  */
 export function playPlateCoalesce(
-  rect: { left: number; top: number; width: number; height: number },
+  screenRect: { left: number; top: number; width: number; height: number },
   target?: HTMLElement | null,
 ): void {
   if (typeof document === 'undefined') return;
+  // Every node below is a fixed-position DOM overlay inside the stage: work in layout px (screen -> stage, stage.ts).
+  const rect = rectToStage(screenRect);
   const c = cfg;
   const k = rect.width / REF_W;
   // Gilded cards form in gold; everything else in the arcane blue. Only the colours differ — geometry, motes

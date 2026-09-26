@@ -174,10 +174,13 @@ body { font-family: var(--font-body), sans-serif; color: var(--ink); background:
   .rotate-prompt {
     display: flex; position: fixed; inset: 0; z-index: 10000; flex-direction: column; align-items: center;
     justify-content: center; gap: 20px; text-align: center; padding: 40px calc(40px + env(safe-area-inset-right));
-    background: #160f08; color: #f0e8da; font-family: var(--font-ui), sans-serif; pointer-events: auto;
+    /* The board's own ambient (the ultrawide side-blend colour) so it reads as the game, not a browser error. */
+    background: radial-gradient(ellipse 90% 60% at 50% 45%, #3a2d74 0%, var(--board-edge-col, #312361) 45%, #120d26 100%);
+    color: #f0e8da; font-family: var(--font-ui), sans-serif; pointer-events: auto; touch-action: none;
   }
-  .rotate-prompt svg { width: 76px; height: 76px; color: var(--acc, #f0902e); animation: rotatehint 2.6s ease-in-out infinite; }
-  .rotate-prompt-t { font-weight: 800; font-size: 22px; letter-spacing: 0.02em; }
+  /* transform-only loop (compositor), per the performance rules */
+  .rotate-prompt svg { width: 76px; height: 76px; color: var(--gold-lt, #e6b45a); filter: drop-shadow(0 0 10px rgba(230, 180, 90, 0.45)); animation: rotatehint 2.6s ease-in-out infinite; }
+  .rotate-prompt-t { font-family: var(--font-title), sans-serif; font-weight: 800; font-size: 24px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--gold-lt, #e6b45a); }
   .rotate-prompt-s { font-weight: 600; font-size: 15px; color: rgba(240, 232, 218, 0.68); max-width: 300px; line-height: 1.5; }
 }
 @keyframes rotatehint { 0%, 42% { transform: rotate(0deg); } 60%, 100% { transform: rotate(-90deg); } }
@@ -5341,11 +5344,8 @@ body.aiming, body.aiming * { cursor: none !important; }
 .fr-btn.ghost:hover { border-color: var(--acc); color: #fff; }
 .fr-btn:focus-visible { outline: 2px solid var(--acc); outline-offset: 2px; }
 
-/* Narrow stages: tighten the odds row's flanking numbers. */
-@media (max-width: 520px) {
-  .fr-odds-row { gap: calc(8 * var(--u)); }
-  .fr-row { flex-wrap: wrap; }
-}
+/* [stage] Dead since the scaled stage (stage.ts, 2026-09-26): the LAYOUT viewport is never under 1920x1080, so a
+   viewport query below that can only misfire on a phone. Removed rather than left to reflow the scaled layout. */
 @keyframes combatctlin { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: none; } }
 
 /* the enemy "arrival" once the fight is on (team-tint bands removed — the combat area stays uncoloured) */
@@ -6965,12 +6965,8 @@ svg { width: 18px; height: 18px; }
 /* SHORT viewports: the six-plaque stack (6 × 56 + 5 × 10 = 386px) plus Back needs ~500px; under that the
    plaques compact (44px, 6px gaps, 14px labels → 6 × 44 + 30 + a two-line Hall ≈ 300px) so the column fits
    down to a ~400px window without scrolling or overlapping Back. */
-@media (max-height: 560px) {
-  .msb { gap: 10px; padding-top: 14px; padding-bottom: 14px; }
-  .msb-nav { gap: 6px; }
-  .sbbtn { min-height: 44px; padding: 5px 10px; gap: 10px; }
-  .sbbtn .mblabel { font-size: 14px; letter-spacing: 0.06em; }
-}
+/* [stage] Dead since the scaled stage (stage.ts, 2026-09-26): the LAYOUT viewport is never under 1920x1080, so a
+   viewport query below that can only misfire on a phone. Removed rather than left to reflow the scaled layout. */
 /* A HOP between two sidebar hosts (the store's `goTo`): the destination mounts as the source unmounts, in one
    store write, so the hosts' page-level `fadein` re-faded the sidebar and showed the title through it on every
    hop (review 2026-09-21). The host mounted BY the sidebar wears `.hop` (`SidebarHost` — see MenuSidebar.tsx)
@@ -7397,7 +7393,8 @@ body:has(.lb-ladder) .cardref { z-index: 490; }
 .lb-fights.none { font-weight: 600; font-size: 13px; color: rgba(255, 255, 255, 0.45); }
 
 /* 2560-class screens: bigger tiles + a wider list so the page fills rather than floats. */
-@media (min-width: 2200px) {
+/* [stage] was @media (min-width: 2200px): the LAYOUT viewport width (stage.ts sets data-lv), not the window. */
+:root[data-lv~="w2200"] {
   .lb-ladder .lbscroll { max-width: 2000px; }
   .lb-team { --tile-s: 0.95; }
   /* The ranked row steps up with the panel: a 100px frame, a 72px coin, the rating at 46px (~136px rows). */
@@ -7419,15 +7416,8 @@ body:has(.lb-ladder) .cardref { z-index: 490; }
 /* Recent Games: the Ranked | Practice tabs (owner 2026-09-24) wear the Career page's `.cv2-tabs` pill and sit where
    the Hall's sort toggle sits, at the right of the top bar. */
 .rg-tabs { margin-left: auto; flex: none; }
-@media (max-width: 1640px) { .lb-team { --tile-s: 0.62; } }
-@media (max-width: 1420px) {
-  .lb-team { --tile-s: 0.5; }
-  /* The rating track holds the 64px crest + 14px gap + the widest label ("Ascendant III", ~116px) = 194px. */
-  .lb-trow { grid-template-columns: 72px minmax(0, 1fr) 196px 100px 236px; column-gap: 16px; padding: 12px 16px; }
-  .lb-trow-btn .lb-btn { font-size: 13px; padding: 10px 14px; }
-  .lb-trow-btn .lb-heroframe .hero { width: 76px; height: 76px; }
-  .lb-rating { font-size: 34px; }
-}
+/* [stage] Dead since the scaled stage (stage.ts, 2026-09-26): the LAYOUT viewport is never under 1920x1080, so a
+   viewport query below that can only misfire on a phone. Removed rather than left to reflow the scaled layout. */
 .lbentry { background: rgba(0, 0, 0, 0.3); border: 2px solid rgba(255, 255, 255, 0.12); border-radius: 18px; padding: 14px 18px; }
 .lbentry-head { display: flex; align-items: center; gap: 14px; margin-bottom: 10px; }
 .lbrank { min-width: 30px; text-align: center; font-family: var(--font-ui); font-weight: 800; font-size: 20px; color: var(--acc); flex: none; }
@@ -7688,7 +7678,7 @@ body:has(.lb-ladder) .cardref { z-index: 490; }
 .cv2-chart-empty { position: absolute; inset: 0 0 0 40px; display: grid; place-items: center; font-family: var(--font-ui); font-weight: 700; font-size: 13px; color: rgba(255, 255, 255, 0.45); text-align: center; padding: 0 10px; }
 .cv2-trend-foot { font-family: var(--font-ui); font-weight: 600; font-size: 13px; color: rgba(255, 255, 255, 0.45); text-align: right; }
 
-@media (min-height: 1000px) { .cv2-chart svg { height: 120px; } .cv2-trend { gap: 6px; padding-top: 12px; } .cv2-trends { gap: 12px; } }
+:root[data-lv~="h1000"] { .cv2-chart svg { height: 120px; } .cv2-trend { gap: 6px; padding-top: 12px; } .cv2-trends { gap: 12px; } }
 /* FOUR charts stack in the right column since MMR joined (2026-09-22), under a ~300px Seasonal Ranked card, in a
    column that is only ~320px wide at 1920 and scrolls with no visible scrollbar (overlay scrollbars), so a chart
    below the fold is a chart nobody finds (review 2026-09-22: at 1080p the fourth sat 260px under the column's
@@ -7697,8 +7687,8 @@ body:has(.lb-ladder) .cardref { z-index: 490; }
    the plots to 60px so the whole panel sits in view at 1080p (column 967 = 50 + 301 + a 608 panel, 8px spare).
    Measured, not guessed. The stacked single-column layout (1300 and under) keeps the plain steps: the page scrolls
    as a whole there and the plots are full-width. A 2x2 grid was rejected: at 320px it leaves ~95px of plot. */
-@media (max-height: 1359px) { @container cv2 (width > 1300px) { .cv2-chart svg { height: 92px; } .cv2-trend { gap: 4px; padding-top: 8px; } .cv2-trends { gap: 8px; } } }
-@media (max-height: 1199px) { @container cv2 (width > 1300px) { .cv2-chart svg { height: 60px; } } }
+:root:not([data-lv~="h1360"]) { @container cv2 (width > 1300px) { .cv2-chart svg { height: 92px; } .cv2-trend { gap: 4px; padding-top: 8px; } .cv2-trends { gap: 8px; } } }
+:root:not([data-lv~="h1200"]) { @container cv2 (width > 1300px) { .cv2-chart svg { height: 60px; } } }
 /* Narrower pages give the tiles the room first (the side columns shrink); under 1300 the columns stack and
    the page scrolls as a whole. CONTAINER queries on `.cv2-page` (the width beside the sidebar), not viewport
    media queries — the 1700 / 1360 thresholds the page had before the sidebar took its 240px; the stack point
@@ -8213,7 +8203,6 @@ body:has(.book-ov) .cardref { z-index: 490; }
 .porow.podisabled .polabel { opacity: 0.5; }
 .postart { margin-top: 30px; align-self: center; font-family: var(--font-ui); font-weight: 900; font-size: 22px; text-transform: uppercase; letter-spacing: 0.08em; color: #1a1206; background: var(--acc); border: none; border-radius: 14px; padding: 16px 68px; box-shadow: 0 8px 22px -8px rgba(240, 144, 46, 0.6); }
 .postart:hover { filter: brightness(1.06); }
-@media (max-width: 620px) { .porow { grid-template-columns: 1fr; gap: 8px; } .polabel { text-align: center; align-items: center; } .poseg { justify-self: center; } }
 
 .modecard {
   width: 375px; gap: 12px; padding: 32px 12px 12px;
@@ -9146,10 +9135,6 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
    gap). Widened from 288px: at that width the param rows had ~150px of slider left after the label and
    value columns, so every dial was a stub. */
 .fxwb { --fxwb-rail: 448px; }
-@media (max-width: 1100px) {
-  /* Don't eat a small screen alive — below this the stage matters more than the dials. */
-  .fxwb { --fxwb-rail: 300px; }
-}
 
 .fxwb-top {
   position: absolute; top: 0; left: 0; right: 0; display: flex; align-items: center; gap: 10px;
@@ -9529,9 +9514,7 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 .fxwb-fitduration:hover:not(:disabled) { background: #4a4136; color: #efe7db; }
 .fxwb-fitduration:disabled { opacity: 0.4; cursor: not-allowed; }
 .fxwb-hint { flex: 1 1 100%; font-size: 11px; color: #9a8c74; line-height: 1.3; }
-@media (min-width: 900px) {
-  .fxwb-hint { flex: 1 1 auto; text-align: right; }
-}
+.fxwb-hint { flex: 1 1 auto; text-align: right; } /* [stage] was @media (min-width: 900px): always true at the layout viewport */
 
 /* ---- FX WORKBENCH SHELL (four-region grid) -----------------------------------------------------------
    The NON-RAIL layout is a design-app grid: a full-width top bar, then Layers | Stage | Properties, then a
@@ -9541,7 +9524,6 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
    Stage Setter fills it in a later phase). Rail mode keeps its own absolute layout (above) and is
    untouched. */
 .fxwb { --fxwb-layers-w: 320px; --fxwb-props-w: 448px; }
-@media (max-width: 1100px) { .fxwb { --fxwb-layers-w: 240px; --fxwb-props-w: 320px; } }
 
 .fxwb-grid {
   position: absolute; inset: var(--fxwb-pipe-h) 0 0 0;
@@ -11353,7 +11335,6 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 .pntoggle-btn { font-family: var(--font-ui); font-weight: 800; font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--ink3); background: none; border: none; border-radius: 999px; padding: 5px 14px; transition: color 120ms ease, background 120ms ease; }
 .pntoggle-btn:hover { color: var(--ink2); }
 .pntoggle-btn.on { color: var(--bg); background: var(--acc); }
-@media (max-width: 620px) { .pnbar { flex-wrap: wrap; } }
 
 /* ── IN-GAME HOVER BUBBLE (`.gtip[data-tip]`, owner ask 2026-09-24: "remove the window tooltips on these buttons
    (and every button)"). Native `title=` tooltips are banned (ESLint `no-restricted-syntax`, see CLAUDE.md); a hover

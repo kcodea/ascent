@@ -22,7 +22,7 @@
  */
 
 import { WIRE_SRC, REF_W, linePoints, bodyPoints, sprite, rgba, arcaneGradient } from './plateFx';
-import { stageHost } from './stage';
+import { rectToStage, stageHost } from './stage';
 
 export interface PlateDissolveConfig {
   /** Whole effect, ms — start to nothing left. Governs how long the DUST lives. */
@@ -143,8 +143,10 @@ interface Mote { x: number; y: number; vx: number; vy: number; born: number; lif
  * Everything is created detached on <body> and torn down when it finishes, so nothing survives the effect
  * and it can't interact with React's tree.
  */
-export function playPlateDissolve(rect: { left: number; top: number; width: number; height: number }): void {
+export function playPlateDissolve(screenRect: { left: number; top: number; width: number; height: number }): void {
   if (typeof document === 'undefined') return;
+  // Every node below is a fixed-position DOM overlay inside the stage: work in layout px (screen -> stage, stage.ts).
+  const rect = rectToStage(screenRect);
   const c = cfg;
   const k = rect.width / REF_W;
   if (!sprites) sprites = { core: sprite(c.cCore, 32), mid: sprite(c.cMid, 32) };

@@ -6,7 +6,7 @@ import { diceRollParamsFor, type DiceVariant } from './diceRollConfig';
 import {
   buildDiceTimeline, diceCosmetics, FACE_PIPS, FACE_TRANSFORM, shadowFor, type DieFace,
 } from './diceRollTimeline';
-import { stageHost } from './stage';
+import { stageHost, toStage } from './stage';
 
 /**
  * The DICE ROLL overlay — ONE top-down 3D CSS die shared by both callers (owner handoff 2026-09-17):
@@ -146,7 +146,7 @@ export function DiceRoll(props: DiceRollProps): JSX.Element {
       throw: thrown,
       onUpdate: (s) => {
         // Five transform writes, no reads. The shadow follows the hop height — the top-down depth cue.
-        if (thrown) ground.style.transform = `translate(${s.tx}px, ${s.ty}px)`;
+        if (thrown) ground.style.transform = `translate(${toStage(s.tx)}px, ${toStage(s.ty)}px)`; // screen -> stage (stage.ts)
         hop.style.transform = `translateZ(${s.z}px) scale(${s.scale})`;
         yaw.style.transform = `rotateZ(${s.yaw}deg)`;
         cube.style.transform = `rotateX(${s.rx}deg) rotateY(${s.ry}deg)`;
@@ -183,7 +183,7 @@ export function DiceRoll(props: DiceRollProps): JSX.Element {
   }, [result, variant, seed, anchor.x, anchor.y, throwTo?.x, throwTo?.y]);
 
   const tint = diceTint(variant, result);
-  const style = { left: anchor.x, top: anchor.y, '--dice-tint': tint } as CSSProperties;
+  const style = { left: toStage(anchor.x), top: toStage(anchor.y), '--dice-tint': tint } as CSSProperties; // anchor is screen px (Pixi bursts use it raw)
   return createPortal(
     <div ref={groundRef} className={`diceroll diceroll-${variant}`} style={style} aria-hidden="true" data-face={result}>
       <div ref={shadowRef} className="diceroll-shadow" />

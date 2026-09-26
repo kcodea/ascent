@@ -13,6 +13,7 @@ import { requestLaunch } from './heroLaunchController';
 import { getHeroCeremonyConfig } from './heroCeremonyTunerConfig';
 import ringArt from './heroportrait.png';
 import { createHeroCeremonyFx, type HeroCeremonyFxController } from './HeroCeremonyPixi';
+import { rectToStage, stageViewport } from '../stage';
 import './heroCeremony.css';
 
 /**
@@ -67,7 +68,8 @@ function animateEl(
  *  tuner's Hero-art knobs — scale around center + x/y nudge. Prod uses the shipped defaults (1 / 0 / 0). */
 function portraitBoundsOf(crop: RectSnapshot): RectSnapshot {
   const fx = getHeroCeremonyConfig();
-  const k = stageScale(window.innerWidth, window.innerHeight); // offsets are REFERENCE px, like the rest of the UI
+  const vp = stageViewport();
+  const k = stageScale(vp.w, vp.h); // offsets are REFERENCE px, like the rest of the UI
   const grow = 1.18 * fx.portraitScale;
   const w = crop.width * grow;
   const h = crop.height * grow;
@@ -120,7 +122,9 @@ export function HeroSelectCeremony({ state, dispatch, cardEls }: Props) {
    *  and every call below is safe against that — the DOM ceremony IS the fallback (§19). */
   const fxRef = useRef<HeroCeremonyFxController | null>(null);
 
-  const [dest, setDest] = useState(() => destinationRect(window.innerWidth, window.innerHeight, source));
+  // The whole ceremony runs in STAGE px (stage.ts): its DOM is fixed-positioned inside #stage and its Pixi layer
+  // is `resizeTo` its host, so every rect is snapshotted through `rectToStage` and the viewport is the stage's.
+  const [dest, setDest] = useState(() => destinationRect(stageViewport().w, stageViewport().h, source));
   /** The circular-portrait FLASH has fired: the ring is on stage and the art clips to a circle inside it. */
   const [flashed, setFlashed] = useState(false);
   /** The clone's travel has actually FINISHED. The portrait's bounds are measured off the settled clone, and
@@ -140,7 +144,7 @@ export function HeroSelectCeremony({ state, dispatch, cardEls }: Props) {
     const snaps: { el: HTMLButtonElement; rect: RectSnapshot; index: number }[] = [];
     els.forEach((el, index) => {
       if (!el || index === state.sourceIndex) return;
-      snaps.push({ el, rect: snapshotRect(el.getBoundingClientRect()), index });
+      snaps.push({ el, rect: snapshotRect(rectToStage(el.getBoundingClientRect())), index });
     });
     cardRectsRef.current = snaps;
 
@@ -278,7 +282,7 @@ export function HeroSelectCeremony({ state, dispatch, cardEls }: Props) {
     if (!crossed('materializing') || portrait || !art || !travelDone) return;
     const frame = frameRef.current;
     if (!frame) return;
-    const crop = snapshotRect(frame.getBoundingClientRect());
+    const crop = snapshotRect(rectToStage(frame.getBoundingClientRect()));
     if (crop.width <= 0) return; // degenerate (hidden/unstyled test env): keep the framed fallback
     setPortrait({ crop, bounds: portraitBoundsOf(crop) });
   }, [state.phase, art, travelDone, portrait]);
@@ -307,7 +311,7 @@ export function HeroSelectCeremony({ state, dispatch, cardEls }: Props) {
     const onResize = () => {
       clearTimeout(id);
       id = setTimeout(() => {
-        const next = destinationRect(window.innerWidth, window.innerHeight, source);
+        const next = destinationRect(stageViewport().w, stageViewport().h, source);
         setDest(next);
         const wrap = cloneWrapRef.current;
         // Only correct once travel is over (post-focus phases); mid-travel the running animation still
@@ -320,7 +324,7 @@ export function HeroSelectCeremony({ state, dispatch, cardEls }: Props) {
           // Portrait correction: re-measure the snapped frame once and rebuild the (already faded-in)
           // portrait bounds around it. The entrance animation is long finished by any realistic resize.
           if (portrait && frameRef.current) {
-            const crop = snapshotRect(frameRef.current.getBoundingClientRect());
+            const crop = snapshotRect(rectToStage(frameRef.current.getBoundingClientRect()));
             if (crop.width > 0) {
               setPortrait({ crop, bounds: portraitBoundsOf(crop) });
               const p = portraitRef.current;
@@ -414,7 +418,7 @@ export function HeroSelectCeremony({ state, dispatch, cardEls }: Props) {
         const fx = getHeroCeremonyConfig();
         // Ring offsets AND diameter are reference px at the 1440 stage — scaled so the ring keeps its exact
         // relationship to the portrait at every resolution (owner report: sizing off on other monitors).
-        const k = stageScale(window.innerWidth, window.innerHeight);
+        const k = stageScale(stageViewport().w, stageViewport().h);
         const ringSize = fx.ringSize * k;
         const cx = portrait.bounds.left + portrait.bounds.width / 2 + fx.ringX * k;
         const cy = portrait.bounds.top + portrait.bounds.height / 2 + fx.ringY * k;

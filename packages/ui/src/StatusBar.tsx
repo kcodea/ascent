@@ -32,7 +32,7 @@ import { getHeroPowerBtnConfig } from './heroPowerBtnConfig';
 import { pixiFx } from './pixiFx';
 import { getAimFxConfig } from './aimFxConfig'; // also reflects the --hpb-* vars at load (side-effect)
 import './heroPanelConfig'; // side-effect: reflects the --hpn-* hero-panel transform vars at load
-import { stageHost } from './stage';
+import { rectToStage, stageHost, stageViewport } from './stage';
 
 
 /** Shrink a pill's TEXT to fit its box (owner note 2026-07-16: no ellipsis — "Lord of the Risen" should
@@ -466,16 +466,17 @@ export function StatusBar() {
    *  hover uses (`.cardref`), portalled to <body> so nothing in the status bar clips it, and flipped to the
    *  left when it would run off the right edge. */
   const showHunchTip = (el: HTMLElement): void => {
-    const r = el.getBoundingClientRect();
+    const r = rectToStage(el.getBoundingClientRect()); // stage px (stage.ts): written as the popup's CSS left/top
+    const vp = stageViewport();
     const cs = getComputedStyle(document.documentElement);
     const zoom = (parseFloat(cs.getPropertyValue('--inspect-zoom')) || 1) * (parseFloat(cs.getPropertyValue('--z-inspect-s')) || 1);
     const cardW = r.width * zoom * 1.5; // plate footprint, same estimate the card popup uses
     const gap = 10;
-    const flip = r.right + gap + cardW > window.innerWidth - 6;
+    const flip = r.right + gap + cardW > vp.w - 6;
     const estH = cardW * 1.5550; // plate aspect (800x1244)
     setHunchTip({
       left: flip ? Math.max(6, r.left - gap - cardW) : r.right + gap,
-      top: Math.max(6, Math.min(r.top - estH / 3, window.innerHeight - estH - 6)),
+      top: Math.max(6, Math.min(r.top - estH / 3, vp.h - estH - 6)),
       origin: flip ? 'right' : 'left',
     });
   };

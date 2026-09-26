@@ -4,6 +4,7 @@ import { useGame } from '../store';
 import { replayRoundInfo, replayRoundMarks, replayRoundStats, seekReplayPhase, type RoundInfo } from './replayPlayer';
 import { statsByWave } from './roundDrawer';
 import { clampRailOffset, loadRailPlacement, saveRailPlacement, type RailPlacement } from './railPlacement';
+import { rectToStage, stageViewport, toStage } from '../stage';
 
 /**
  * REPLAY VIEWER round rail (§7.1 of docs/replay-v2-handoff.md) — a per-round index over the replay, visible
@@ -96,7 +97,7 @@ export function RoundRail(): JSX.Element | null {
   const [placement, setPlacement] = useState<RailPlacement>(() => loadRailPlacement());
   /** The press in progress: ARMED from pointerdown (a click until proven otherwise), DRAGGING once the pointer
    *  has travelled the threshold (written to CSS vars per move; committed to state on release). */
-  const dragRef = useRef<{ startX: number; startY: number; dx0: number; dy0: number; rect: DOMRect; vw: number; vh: number; pointerId: number; dragging: boolean; last: { dx: number; dy: number } | null } | null>(null);
+  const dragRef = useRef<{ startX: number; startY: number; dx0: number; dy0: number; rect: { left: number; top: number; width: number; height: number }; vw: number; vh: number; pointerId: number; dragging: boolean; last: { dx: number; dy: number } | null } | null>(null);
   /** Set when a press ended as a drag, so the click the browser fires next is swallowed before a cell sees it. */
   const swallowClickRef = useRef(false);
   const placementRef = useRef(placement);
@@ -138,7 +139,9 @@ export function RoundRail(): JSX.Element | null {
       const el = wrapRef.current;
       if (!el) return;
       const cur = placementRef.current;
-      const next = clampRailOffset(cur, cur, el.getBoundingClientRect(), { width: window.innerWidth, height: window.innerHeight });
+      // The offset is a CSS length (--rrl-dx/dy), so the clamp runs in stage px (stage.ts).
+      const vp = stageViewport();
+      const next = clampRailOffset(cur, cur, rectToStage(el.getBoundingClientRect()), { width: vp.w, height: vp.h });
       if (next.dx !== cur.dx || next.dy !== cur.dy) {
         const p = { ...cur, ...next };
         setPlacement(p);
@@ -158,7 +161,8 @@ export function RoundRail(): JSX.Element | null {
     // ONE layout read for the whole gesture: the rail's box now, and the viewport. Every move is arithmetic.
     dragRef.current = {
       startX: e.clientX, startY: e.clientY, dx0: cur.dx, dy0: cur.dy,
-      rect: el.getBoundingClientRect(), vw: window.innerWidth, vh: window.innerHeight,
+      // Stage px, like the CSS offset it clamps (stage.ts); the pointer delta is converted in onRailMove.
+      rect: rectToStage(el.getBoundingClientRect()), vw: stageViewport().w, vh: stageViewport().h,
       pointerId: e.pointerId, dragging: false, last: null,
     };
   };
@@ -174,7 +178,7 @@ export function RoundRail(): JSX.Element | null {
       el.classList.add('dragging');
     }
     const next = clampRailOffset(
-      { dx: d.dx0 + mx, dy: d.dy0 + my },
+      { dx: d.dx0 + toStage(mx), dy: d.dy0 + toStage(my) },
       { dx: d.dx0, dy: d.dy0 }, d.rect, { width: d.vw, height: d.vh },
     );
     applyVars(el, next.dx, next.dy); // the cached rect stays valid: it is the box under dx0/dy0, and the clamp maps through the delta

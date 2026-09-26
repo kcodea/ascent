@@ -20,6 +20,7 @@ import { useGame } from './store';
 import { conjuredView } from './Recruit';
 import { getCastPreviews, placeCastPreview, subscribeCastPreviews, type CastPreviewEntry, type OccupiedSpan } from './castPreview';
 import { castPreviewLook, castPreviewTimings, getCastPreviewConfig, subscribeCastPreviewConfig } from './castPreviewConfig';
+import { rectToStage, stageViewport, toStage } from './stage';
 
 /** Placements of the previews currently up — read by a newcomer's placement so it can dodge them. Module-level
  *  because the entries live in a module store too; cleared as each preview unmounts. */
@@ -43,19 +44,22 @@ const CastPreviewCard = memo(function CastPreviewCard({ entry, view }: { entry: 
     // hover zoom, measured 2026-09-23). Placing by the tile put the card OVER the rune badge instead of above it,
     // so the footprint is the union of the tile's box and the plate's — what the eye sees — and the position is
     // corrected by the plate's overhang. Still one synchronous layout pass per preview; never per frame.
-    const outer = el.getBoundingClientRect();
+    // Placement runs in STAGE px (stage.ts): the rects and the (screen-px) anchor are converted, since the
+    // result is written as CSS left/top. Identity when the stage is unscaled.
+    const outer = rectToStage(el.getBoundingClientRect());
     let left = outer.left, top = outer.top, right = outer.right, bottom = outer.bottom;
     for (const sel of ['.cardplate', '.card']) {
-      const r = el.querySelector(sel)?.getBoundingClientRect();
-      if (!r || r.width === 0) continue;
+      const sr = el.querySelector(sel)?.getBoundingClientRect();
+      if (!sr || sr.width === 0) continue;
+      const r = rectToStage(sr);
       left = Math.min(left, r.left); top = Math.min(top, r.top); right = Math.max(right, r.right); bottom = Math.max(bottom, r.bottom);
     }
     const w = right - left, h = bottom - top;
     const dx = left - outer.left, dy = top - outer.top; // the visual box's offset from the positioned box
     const occupied = [...placed.entries()].filter(([id]) => id !== entry.id).map(([, span]) => span);
     const p = placeCastPreview({
-      anchor: { left: aLeft, top: aTop, width: aW, height: aH }, w, h,
-      viewportW: window.innerWidth, viewportH: window.innerHeight, occupied,
+      anchor: rectToStage({ left: aLeft, top: aTop, width: aW, height: aH }), w, h,
+      viewportW: stageViewport().w, viewportH: stageViewport().h, occupied,
       side: look.side, offsetX: look.offsetX, offsetY: look.offsetY,
     });
     placed.set(entry.id, { left: p.left, right: p.left + w });
@@ -72,7 +76,7 @@ const CastPreviewCard = memo(function CastPreviewCard({ entry, view }: { entry: 
   };
   const style: CSSProperties = pos
     ? { ...base, left: pos.left, top: pos.top }
-    : { ...base, left: aLeft + aW / 2, top: aTop, visibility: 'hidden' }; // unmeasured: off-paint for one layout pass
+    : { ...base, left: toStage(aLeft + aW / 2), top: toStage(aTop), visibility: 'hidden' }; // unmeasured: off-paint for one layout pass
   return (
     <div ref={ref} className={`castprev${entry.leaving ? ' leaving' : ''}`} style={style} data-spell-id={entry.spellId} data-source-key={entry.sourceKey} data-context={entry.context}>
       <div className="castprev-inner" style={{ opacity: look.alpha }}>

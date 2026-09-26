@@ -9,6 +9,7 @@ import { turnClock } from './turnClock';
 import { addEnemy, stagedBoard, foeSnapshotOf, MAX_BOARD } from './sandboxEdit';
 import { StatBadgeField, CountStepper } from './StatBadgeField';
 import { SceneBuilderPreview, type SbPreviewTarget } from './SceneBuilderPreview';
+import { toStage } from './stage';
 
 /**
  * DEV-only SCENE BUILDER control panel — the sandbox rig launched from the title (its own mode, see
@@ -111,7 +112,8 @@ function SceneBuilderInner({ minimized, onRestore }: { minimized: boolean; onRes
     const row = el.getBoundingClientRect();
     const panel = el.closest('.scenebuilder')?.getBoundingClientRect();
     const right = Math.max(row.right, panel?.right ?? 0);
-    setPreview({ kind, id, anchor: new DOMRect(row.left, row.top, right - row.left, row.height) });
+    // screen -> stage (stage.ts): the preview seats itself with CSS left/top.
+    setPreview({ kind, id, anchor: new DOMRect(toStage(row.left), toStage(row.top), toStage(right - row.left), toStage(row.height)) });
   }, []);
   const clearPreview = useCallback((): void => setPreview(null), []);
   // ↑/↓ walk the result rows (real DOM focus, so the focused row previews and ↵ on it adds it); ↑ off the

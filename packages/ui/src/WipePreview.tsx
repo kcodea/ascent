@@ -4,7 +4,7 @@ import { getScreenWipeConfig, wipeCssVars, WIPE_PLAY_EVENT } from './screenWipeC
 import { wipeOriginFor, type WipeOrigin } from './wipeGeometry';
 import { afterBeat, afterSweep, barClassFor, curtainClassFor, frontClassFor, wipeSweeping, type WipeState } from './wipeMachine';
 import { wipeFx } from './wipeFx';
-import { stageHost } from './stage';
+import { stageHost, toStage } from './stage';
 
 /**
  * THE SCREEN WIPE SANDBOX (DEV only): what the Screen wipe tuner's ▶ Play runs. It plays the Returning-to-Shop
@@ -60,7 +60,10 @@ export function WipePreview(): JSX.Element | null {
   }, []);
 
   if (!import.meta.env.DEV || !wipe) return null;
-  const vars = wipeCssVars(getScreenWipeConfig(), origin) as CSSProperties;
+  // `origin` is screen px (wipeFx is Pixi); the CSS vars are lengths inside the stage -> stage px (stage.ts),
+  // the same split Recruit's live curtain makes. The front scales are ratios and stay as they are.
+  const cssOrigin = origin && { ...origin, cx: toStage(origin.cx), cy: toStage(origin.cy), rx: toStage(origin.rx), ry: toStage(origin.ry), r: toStage(origin.r) };
+  const vars = wipeCssVars(getScreenWipeConfig(), cssOrigin) as CSSProperties;
   return createPortal(<>
     <div className={`${curtainClassFor(wipe)} preview`} aria-hidden="true" onTransitionEnd={onEnd} style={vars}>
       <div className="wipevs">

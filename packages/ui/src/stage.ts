@@ -41,6 +41,16 @@ export function fitStage(vw: number, vh: number): StageFit {
   return { s, lw: w / s, lh: h / s };
 }
 
+/** The `data-lv` tokens for a fit: which layout-viewport breakpoints hold (see the `[data-lv~=…]` rules in styles.css). */
+export function layoutBreakpoints(f: StageFit): string[] {
+  const out: string[] = [];
+  if (f.lw >= 2200) out.push('w2200');
+  if (f.lh >= 1000) out.push('h1000');
+  if (f.lh >= 1200) out.push('h1200');
+  if (f.lh >= 1360) out.push('h1360');
+  return out;
+}
+
 let fit: StageFit = typeof window === 'undefined' ? { s: 1, lw: DESIGN_W, lh: DESIGN_H } : fitStage(window.innerWidth, window.innerHeight);
 const listeners = new Set<(f: StageFit) => void>();
 
@@ -100,6 +110,9 @@ export function applyStage(): StageFit {
   const next = fitStage(window.innerWidth, window.innerHeight);
   fit = next;
   const de = document.documentElement.style;
+  // Layout-viewport breakpoints for the few stylesheet rules that used to be viewport @media queries (a media
+  // query sees the WINDOW, which on a scaled stage is not the size the layout is drawn at).
+  document.documentElement.setAttribute('data-lv', layoutBreakpoints(next).join(' '));
   const root = stageHost();
   if (next.s === 1) {
     // Identity: the pre-stage behaviour exactly. Viewport units resolve against the real window.

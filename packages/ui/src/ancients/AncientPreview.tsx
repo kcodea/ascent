@@ -4,7 +4,7 @@ import { ANCIENT_IDS, ANCIENTS, type AncientId } from '@game/sim';
 import { AncientCard } from './AncientCard';
 import { ancientColor } from './ancientsConfig';
 import { prefersReducedMotion } from './ancientsFx';
-import { stageHost } from '../stage';
+import { stageHost, stageViewport } from '../stage';
 
 /**
  * THE ANCIENTS PREVIEW CARD (owner ruling 6 + the polish brief): hovering the meter opens a card beside the hero
@@ -15,6 +15,7 @@ import { stageHost } from '../stage';
  * Motion: WAAPI on transform + opacity only, one-shot per step; the outgoing page is kept for one transition and
  * then dropped. Layout is read ONCE per open (the anchor rect), never per frame. Reduced motion: a plain fade.
  */
+/** The hero power's box in STAGE px (`rectToStage`, stage.ts) — the preview is placed with CSS left/top. */
 export interface PreviewAnchor { left: number; top: number; right: number; bottom: number }
 
 const SLIDE_MS = 240;
@@ -94,11 +95,12 @@ export function AncientPreview({ heroId, anchor, leaving = false, inMs = 180, ou
   };
 
   // Placement: to the right of the hero power, vertically centred on it, clamped to the viewport.
-  const W = Math.min(300, window.innerWidth - 32);
+  const vp = stageViewport(); // the window in stage px, matching the anchor
+  const W = Math.min(300, vp.w - 32);
   const H = 505;
-  const flip = anchor.right + 18 + W > window.innerWidth - 12;
+  const flip = anchor.right + 18 + W > vp.w - 12;
   const left = flip ? Math.max(12, anchor.left - 18 - W) : anchor.right + 18;
-  const top = Math.max(12, Math.min((anchor.top + anchor.bottom) / 2 - H / 2, window.innerHeight - H - 12));
+  const top = Math.max(12, Math.min((anchor.top + anchor.bottom) / 2 - H / 2, vp.h - H - 12));
   const [shown, setShown] = useState(false);
   useEffect(() => { const r = requestAnimationFrame(() => setShown(true)); return () => cancelAnimationFrame(r); }, []);
 

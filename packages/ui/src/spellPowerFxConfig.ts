@@ -1,4 +1,4 @@
-import { stageHost } from './stage';
+import { stageHost, toStage } from './stage';
 /**
  * Tunable parameters for the SPELL POWER FX — the "a spell just resolved, and here's the power behind it"
  * cue (owner ask 2026-07-21): a fan of pink/purple/gold ARROWS rises from the caster, a BLAST of motes pops
@@ -171,8 +171,8 @@ export function floatSpellPowerNumber(x: number, y: number, atk: number, hp: num
   const el = document.createElement('div');
   el.className = 'spellpower-float';
   el.textContent = label;
-  el.style.left = `${x}px`;
-  el.style.top = `${y}px`;
+  el.style.left = `${toStage(x)}px`; // a screen point -> stage px (stage.ts)
+  el.style.top = `${toStage(y)}px`;
   el.style.fontSize = `${c.numSize}px`;
   el.style.setProperty('--spf-text', c.colorText);
   el.style.setProperty('--spf-outline', c.colorOutline);

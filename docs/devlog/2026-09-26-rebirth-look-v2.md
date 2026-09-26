@@ -45,3 +45,36 @@ filtered.
 max ~21 ms and no frames over 33 ms. The remaining paints in that trial come from the shared `.unit.reborn`
 `summonexpand` width animation, which Rise pays too. Particles per burst: 40 sparks + 22 glints (~430 for 7),
 well under the 4,000 FX budget.
+
+## Revision after owner review (same day, PR #1745)
+
+Owner: "rebirths looking slightly better, but still really bad. can you blur it and just overall improve its
+readability? and this isnt css right? … it should be on top of the card, not behind it. also, it needs the same
+combat beat style as rise, so it rises before the next beat occurs."
+
+- **Soft, on top.**
+  - The crown moved to z4, over the art and the gold frame and under the stat badges and gem. This is Ward's
+    layer.
+  - It is now 7 large calm front tongues plus 6 soft back tongues, and a soft burning line along the frame
+    ring. Every edge is PRE-BLURRED with `feGaussianBlur` inside the SVG frames, so the blur is rasterised
+    once and is never a live filter.
+  - There are 3 frames and a calmer flicker (1.5 s cycle).
+  - Two silhouettes: `oval` and `shield`. The shield one follows Taunt's heater (`--rb-crown-s-N`) and is
+    picked by the `T` keyword.
+  - The glow is now a faint ring of light (transparent over the middle of the portrait).
+- **What it is.** Plain CSS: absolutely-positioned divs with static SVG data-URI backgrounds, animated only by
+  opacity and transform (compositor). No Pixi and no canvas for the idle look.
+- **Measured** (headless Chrome, 8 Rebirth cards idle, 5 s): 10 paints, 5 layouts, exactly the no-Rebirth
+  baseline. There were no long frames. No live filter and no paint-property animation runs.
+- **Rise's beat style.**
+  - A Rebirth death already carries `rise: true` (the engine copies Rise's order), so the return already had
+    Rise's `REBORN_LEAD`.
+  - Two differences remained, and both are fixed. First, the dying body used the plain collapse, because the
+    soft `dying rising` fade keyed off the `R` keyword. It now keys off the death's `rise` flag. Second, the
+    next beat could start while the body was still rising.
+  - `rebirthSettleLead` adds 700 ms after a rebirth beat. The re-form (0.9 s) and the pillar are now
+    combat-speed scaled like the holds.
+  - Measured in a real fight: the next attack starts 1042 ms after the rebirth begins.
+  - Tests: `rebirthLook.test.tsx` asserts that at 1× and 2× the hold before the next beat exceeds the re-form.
+- **Mass rebirth ×7.** The re-form itself is compositor-only (11 paints when isolated). The remaining paints
+  in that trial come from the shared `.unit.reborn` `summonexpand` width animation, which a Rise pays too.

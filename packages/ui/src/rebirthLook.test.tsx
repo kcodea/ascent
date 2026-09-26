@@ -16,7 +16,9 @@ import { mount } from './renderedText.mount';
 import { CROWN_FRAMES, crownSvg, crownTongues, pillarSvg } from './rebirthCrown';
 import { REBIRTH_DEFAULTS, getRebirthConfig, hexToNum, rebirthPalette } from './rebirthConfig';
 import { reformRebirth } from './choreo/channels/aura';
-import { animFor } from './useCombatReplay';
+import { animFor, rebirthSettleLead, REBIRTH_FORM_MS } from './useCombatReplay';
+import { holdMs } from './choreo/clock';
+import { compileMoments, type Moment } from './choreo/compile';
 
 const playDefMock = vi.mocked(playDef);
 afterEach(() => { playDefMock.mockClear(); document.body.innerHTML = ''; });
@@ -31,10 +33,19 @@ describe('Rebirth idle look', () => {
     const card = m.container.querySelector('.card')!;
     expect(card.classList.contains('rebirthcard')).toBe(true);
     const crown = card.querySelector('.archbox > .rebirth-crown');
-    expect(crown, 'the crown lives in the archbox (behind the frame), not inside the clipped art').not.toBeNull();
+    expect(crown, 'the crown lives in the archbox (the overlay layer, like Ward), not inside the clipped art').not.toBeNull();
+    expect(crown!.classList.contains('shield')).toBe(false);
     expect(crown!.querySelector('.rbc-glow')).not.toBeNull();
     expect(crown!.querySelectorAll('.rbc-frame')).toHaveLength(CROWN_FRAMES);
     expect(crown!.querySelectorAll('.rbc-ember')).toHaveLength(getRebirthConfig().emberCount);
+    m.unmount();
+  });
+
+  it('a Taunt Rebirth card gets the SHIELD crown, following the heater frame', () => {
+    const m = mount(<Card card={view(['RB', 'T'])} uid="u3" />);
+    const crown = m.container.querySelector('.rebirth-crown')!;
+    expect(crown.classList.contains('shield')).toBe(true);
+    expect((crown.querySelector('.rbc-frame') as HTMLElement).style.backgroundImage).toContain('--rb-crown-s-0');
     m.unmount();
   });
 
@@ -61,6 +72,9 @@ describe('Rebirth idle look', () => {
     const a = crownTongues(1, 1), b = crownTongues(1, 1.4);
     expect(b[0]!.l / a[0]!.l).toBeCloseTo(1.4, 5);
     expect(pillarSvg(c)).toContain('#778899');
+    // The shield variant is its own silhouette; every frame pre-blurs its edges (no live CSS blur).
+    expect(crownSvg(0, c, 1, 'shield')).not.toBe(crownSvg(0, c, 1, 'oval'));
+    for (const f of frames) expect(f).toContain('feGaussianBlur');
   });
 });
 
@@ -96,5 +110,37 @@ describe('Rebirth trigger', () => {
     expect(p[2]).toBe(hexToNum(REBIRTH_DEFAULTS.colorA));
     expect(p[3]).toBe(hexToNum(REBIRTH_DEFAULTS.colorCore));
     expect(rebirthPalette({ ...REBIRTH_DEFAULTS, colorA: 'nope' })).toBeUndefined();
+  });
+});
+
+describe('Rebirth combat beat (Rise beat style: the body is back before the next beat)', () => {
+  // A real Rise-style fight fragment: attack → the Rebirth body dies (rise-flagged) → it returns → the next swing.
+  const events = [
+    { type: 'attack', attacker: 'e1', defender: 'p1', step: 1 },
+    { type: 'dmg', target: 'p1', amount: 9, hp: 0, step: 1 },
+    { type: 'death', target: 'p1', side: 'player', rise: true, step: 2 },
+    { type: 'reborn', target: 'p1', hp: 5, attack: 5, keywords: [], rebirth: true, step: 3 },
+    { type: 'attack', attacker: 'p1', defender: 'e1', step: 4 },
+  ] as unknown as CombatEvent[];
+  const moments = compileMoments(events);
+  const rebornIdx = moments.findIndex((m) => m.primary.type === 'reborn');
+  const reborn = moments[rebornIdx]!;
+  const next = moments[rebornIdx + 1]!;
+
+  it('the rebirth is its own beat, and the next beat is a separate one after it', () => {
+    expect(reborn.kind).toBe('reborn');
+    expect(next.primary.type).toBe('attack');
+    expect(moments.indexOf(reborn)).toBeGreaterThan(moments.findIndex((m) => events.slice(m.start, m.end).some((e) => e.type === 'death')));
+  });
+
+  it.each([1, 2])('at %sx speed the rebirth beat holds past the full re-form before the next beat starts', (spd) => {
+    const hold = holdMs(next, reborn, spd) + rebirthSettleLead(reborn, events) / spd;
+    expect(hold).toBeGreaterThan(REBIRTH_FORM_MS / spd);
+  });
+
+  it('a Rise return adds no Rebirth hold (Rise keeps its own pacing)', () => {
+    const rise = events.map((e) => (e.type === 'reborn' ? { ...e, rebirth: undefined } : e)) as CombatEvent[];
+    const m = compileMoments(rise).find((x) => x.primary.type === 'reborn') as Moment;
+    expect(rebirthSettleLead(m, rise)).toBe(0);
   });
 });

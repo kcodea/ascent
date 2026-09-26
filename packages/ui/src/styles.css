@@ -1592,27 +1592,27 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
           drop-shadow(0 0 3px rgba(69, 232, 192, 0.85))
           drop-shadow(0 0 11px rgba(23, 143, 134, 0.5));
 }
-/* REBIRTH (RB) — a CROWN OF BLUE-WHITE FLAME (owner 2026-09-25: "blue and white fire", a phoenix; 2026-09-26: the
-   first thin-rim pass was "not noticeable and ugly"). Rendered by Card.tsx's `RebirthCrown` in the archbox at z0 —
-   over the grounding shadow, UNDER the art (z1) and the gold frame (z3) — so the tongues root behind the gold and
-   only their licking tips show, all round the top of the oval. Distinct from Rise (an aqua dome INSIDE the art) and
-   Ward (a gold-blue glass shell OVER the frame).
-   PERF (the `kwglow` rule): every gradient + blur is STATIC paint — the flames are pre-rendered SVG frames
-   (`--rb-crown-N`, rebirthCrown.ts) and the glow a fixed radial gradient. Only opacity (the frame cross-fade, the
-   glow breathe) and transform (the frame breathe, the ember rise) animate, with constant keyframe values; the
-   tuner's alphas sit on static wrapper opacities. Box = 2.4 × --ccw (rebirthCrown's CROWN_BOX), centred on the oval. */
+/* REBIRTH (RB) — SOFT BLUE-WHITE FIRE BURNING ON THE FRAME (owner 2026-09-25: "blue and white fire", a phoenix;
+   2026-09-26: v1's thin rim was "not noticeable and ugly", v2's spiky tongues behind the frame "still really bad …
+   blur it … improve its readability … it should be on top of the card"). Rendered by Card.tsx's `RebirthCrown` in
+   the archbox at z4 — OVER the art (z1) and the gold frame (z3), exactly where Ward's glass shell sits, and UNDER
+   the stat badges (z6) and the gem (z7) — so the fire burns along the top of the frame and the numbers stay clean.
+   Few, large, calm tongues; every edge is PRE-BLURRED inside the SVG frames (rebirthCrown.ts), so nothing blurs live.
+   WHAT IT COSTS: plain divs with static background images (`--rb-crown-N`, `--rb-crown-s-N` for a Taunt shield).
+   Only opacity (the frame cross-fade, the glow breathe) and transform (the frame breathe, the ember rise) animate,
+   with constant keyframe values; the tuner's alphas sit on static wrapper opacities. No paint, no layout per frame.
+   Box = 2.0 × --ccw (rebirthCrown's CROWN_BOX), centred on the portrait. */
 .card.compact .rebirth-crown {
-  position: absolute; z-index: 0; pointer-events: none;
-  width: calc(var(--ccw) * 2.4); height: calc(var(--ccw) * 2.4);
-  left: calc(var(--ccw) * -0.7); top: calc(var(--ccw) * (-0.7 + var(--dy, 0)));
+  position: absolute; z-index: 4; pointer-events: none;
+  width: calc(var(--ccw) * 2); height: calc(var(--ccw) * 2);
+  left: calc(var(--ccw) * -0.5); top: calc(var(--ccw) * (-0.5 + var(--dy, 0)));
 }
-.card.compact.taunt .rebirth-crown { transform: translateY(calc(var(--ccw) * -0.02)) scale(1.06, 1); }
-.card.compact .rebirth-crown .rbc-glow { position: absolute; inset: 0; opacity: var(--rb-glow-a, 0.75); }
+.card.compact .rebirth-crown .rbc-glow { position: absolute; inset: 0; opacity: var(--rb-glow-a, 0.45); }
+/* A faint blue ring of light on the frame (transparent over the portrait's middle), breathing in opacity. */
 .card.compact .rebirth-crown .rbc-glow::before {
   content: ''; position: absolute; left: 50%; top: 50%; border-radius: 50%;
-  width: calc(var(--ccw) * 1.16); height: calc(var(--ccw) * 1.42); transform: translate(-50%, -52%);
-  background: radial-gradient(closest-side, color-mix(in srgb, var(--rb-a, #6fdcff) 70%, transparent) 62%,
-    color-mix(in srgb, var(--rb-b, #2a5cff) 55%, transparent) 78%, transparent 100%);
+  width: calc(var(--ccw) * 1.08); height: calc(var(--ccw) * 1.26); transform: translate(-50%, -52%);
+  background: radial-gradient(closest-side, transparent 72%, color-mix(in srgb, var(--rb-a, #6fdcff) 55%, transparent) 86%, transparent 100%);
   animation: rbglow var(--rb-glow-pulse, 2.4s) ease-in-out infinite; will-change: opacity;
 }
 @keyframes rbglow { 0%, 100% { opacity: 0.55; } 50% { opacity: 1; } }
@@ -1621,15 +1621,15 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
   position: absolute; inset: 0; background: center / 100% 100% no-repeat; opacity: 0;
   animation: rbflick var(--rb-flicker, 0.9s) linear infinite; will-change: transform, opacity;
 }
-/* Four frames a quarter-cycle apart: each fades in (0-8%), holds (8-33%) and fades out (33-41%) over the NEXT
-   frame's full hold, so one frame is always at full strength (a pure cross-fade would leave both half-transparent
-   and the fire washed out) while the tongues keep changing shape; the slight scale lets them lick outward. */
+/* Three frames a third of a cycle apart: each fades in (0-10%), holds (10-43%) and fades out (43-53%) over the
+   NEXT frame's full hold, so one frame is always at full strength (a pure cross-fade leaves both half-transparent)
+   while the tongues slowly change shape; the slight scale lets them breathe outward. */
 @keyframes rbflick {
-  0%   { opacity: 0; transform: scale(0.975); }
-  8%   { opacity: 1; }
-  33%  { opacity: 1; transform: scale(1.015); }
-  41%  { opacity: 0; transform: scale(1.03); }
-  100% { opacity: 0; transform: scale(1.03); }
+  0%   { opacity: 0; transform: scale(0.985); }
+  10%  { opacity: 1; }
+  43%  { opacity: 1; transform: scale(1.01); }
+  53%  { opacity: 0; transform: scale(1.02); }
+  100% { opacity: 0; transform: scale(1.02); }
 }
 .card.compact .rebirth-crown .rbc-embers { position: absolute; inset: 0; opacity: var(--rb-ember-a, 0.95); }
 .card.compact .rebirth-crown .rbc-ember {
@@ -4519,7 +4519,9 @@ body.hglow-preview .card.plated .plateglow { opacity: 1; }
    rises from inside it: hidden while the column erupts, then surging up oversized and settling. The white-hot look
    is the pillar's FRONT copy burning over the body, so this stays transform/opacity only (a filter here repainted
    every card every frame: 7 at once measured ~440 paints in 1.5 s). One-shot. */
-.unit.reborn.rebirthing .card { animation: rebirthform 0.9s cubic-bezier(0.22, 0.7, 0.25, 1) both; }
+/* 0.9s = useCombatReplay's REBIRTH_FORM_MS; both scale with combat speed, and the next beat waits for it
+   (`rebirthSettleLead`), so the body is fully back before the next swing — Rise's beat style. */
+.unit.reborn.rebirthing .card { animation: rebirthform calc(0.9s / var(--combat-speed, 1)) cubic-bezier(0.22, 0.7, 0.25, 1) both; }
 @keyframes rebirthform {
   0%   { opacity: 0; transform: translateY(26%) scale(0.45); }
   16%  { opacity: 0; transform: translateY(20%) scale(0.55); }
@@ -4541,8 +4543,8 @@ body.hglow-preview .card.plated .plateglow { opacity: 1; }
   -webkit-mask-image: linear-gradient(to top, transparent 0, #000 16%); mask-image: linear-gradient(to top, transparent 0, #000 16%);
   transform-origin: 50% 100%; opacity: 0; will-change: transform, opacity;
 }
-.rbpillar.back { z-index: 0; animation: rbpillar var(--rb-burst-dur, 1.05s) cubic-bezier(0.2, 0.8, 0.3, 1) both; }
-.rbpillar.front { z-index: 2; animation: rbpillarfront calc(var(--rb-burst-dur, 1.05s) * 0.7) ease-out both; }
+.rbpillar.back { z-index: 0; animation: rbpillar calc(var(--rb-burst-dur, 1.05s) / var(--combat-speed, 1)) cubic-bezier(0.2, 0.8, 0.3, 1) both; }
+.rbpillar.front { z-index: 2; animation: rbpillarfront calc(var(--rb-burst-dur, 1.05s) * 0.7 / var(--combat-speed, 1)) ease-out both; }
 .rbpillar.fixed { position: fixed; bottom: auto; left: auto; z-index: 2000; translate: 0 -100%; animation: rbpillar var(--rb-burst-dur, 1.05s) cubic-bezier(0.2, 0.8, 0.3, 1) both; }
 @keyframes rbpillar {
   0%   { opacity: 0; transform: translateX(-50%) scale(0.55, 0.15); }

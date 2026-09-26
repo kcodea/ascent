@@ -11,10 +11,10 @@ import type { TunerControl, TunerSpec, TunerUnit } from './tunerSchema';
 type Key = keyof RebirthConfig;
 type ColorKey = 'colorA' | 'colorB' | 'colorCore';
 const ROWS: [Key, string, TunerUnit | undefined, string, string, 'color'?][] = [
-  ['crownAlpha', 'Flame intensity', 'opacity', 'How strongly the flame crown shows around the oval.', 'Idle'],
+  ['crownAlpha', 'Flame intensity', 'opacity', 'How strongly the soft flames show on the frame.', 'Idle'],
   ['crownSize', 'Flame height', '×', 'How far the flame tongues lick above the frame.', 'Idle'],
   ['flickerSpeed', 'Flicker cycle', 's', 'Seconds for one full flicker through the flame frames. Lower is livelier.', 'Idle'],
-  ['glowAlpha', 'Glow', 'opacity', 'Peak strength of the blue glow behind the oval.', 'Idle'],
+  ['glowAlpha', 'Glow', 'opacity', 'Peak strength of the faint blue ring of light on the frame.', 'Idle'],
   ['glowPulse', 'Glow breathe', 's', 'Seconds per glow breathe.', 'Idle'],
   ['emberCount', 'Embers', undefined, 'Embers rising off the flames. 0 hides them. Applies to cards drawn after the change.', 'Idle'],
   ['emberAlpha', 'Ember opacity', 'opacity', 'Peak brightness of an ember.', 'Idle'],

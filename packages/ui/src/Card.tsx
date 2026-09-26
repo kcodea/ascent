@@ -1148,10 +1148,10 @@ export const Card = memo(function Card({
             <span className="cframe-tint" aria-hidden="true" />
           </>
         )}
-        {/* REBIRTH (`RB`) — a crown of blue-white flame licking up from BEHIND the gold oval (z0: over the grounding
-            shadow, under the art and the frame, so only the tongues beyond the frame show), a cobalt glow and rising
-            embers. Pre-rendered SVG frames cross-faded by opacity; see `RebirthCrown` + styles.css "REBIRTH". */}
-        {card.keywords.includes('RB') && <RebirthCrown />}
+        {/* REBIRTH (`RB`) — soft blue-white fire burning ON the frame (z4, over the art and the gold like Ward's
+            shell, under the badges), a faint glow and rising embers. Pre-rendered, pre-blurred SVG frames
+            cross-faded by opacity; the shield variant follows Taunt's heater. See `RebirthCrown` + styles.css. */}
+        {card.keywords.includes('RB') && <RebirthCrown shield={card.keywords.includes('T')} />}
         {/* Golden (tripled) marker — authored gilded badge PNG (was a CSS gold-circle + crown glyph); pairs with
             the gold arch frame so a tripled minion is instantly findable in a row. */}
         {card.golden && <span className="goldcrown" aria-hidden="true"><img decoding="sync" className="goldcrown-img" src={GILDED_BADGE_SRC} alt="" aria-hidden="true" /></span>}
@@ -1344,15 +1344,15 @@ const REBIRTH_EMBERS = Array.from({ length: 12 }, (_, i) => ({
   ex: ((Math.random() - 0.5) * 22).toFixed(0) + '%',
 }));
 
-/** The REBIRTH crown: a glow, CROWN_FRAMES pre-rendered flame frames (`--rb-crown-N`, rebirthConfig.ts) that
- *  cross-fade in turn, and a few embers. Memoised with no props — every card's crown is identical. */
-const RebirthCrown = memo(function RebirthCrown() {
+/** The REBIRTH crown: a glow, CROWN_FRAMES pre-rendered flame frames (`--rb-crown-N`, or `--rb-crown-s-N` on a
+ *  Taunt shield; rebirthConfig.ts) that cross-fade in turn, and a few embers. Memoised on its one prop. */
+const RebirthCrown = memo(function RebirthCrown({ shield }: { shield: boolean }) {
   return (
-    <div className="rebirth-crown" aria-hidden="true">
+    <div className={`rebirth-crown${shield ? ' shield' : ''}`} aria-hidden="true">
       <div className="rbc-glow" />
       <div className="rbc-flames">
         {Array.from({ length: CROWN_FRAMES }, (_, k) => (
-          <div key={k} className="rbc-frame" style={{ backgroundImage: `var(--rb-crown-${k})`, animationDelay: `calc(var(--rb-flicker, 0.9s) * ${(-k / CROWN_FRAMES).toFixed(3)})` } as CSSProperties} />
+          <div key={k} className="rbc-frame" style={{ backgroundImage: `var(--rb-crown-${shield ? 's-' : ''}${k})`, animationDelay: `calc(var(--rb-flicker, 0.9s) * ${(-k / CROWN_FRAMES).toFixed(3)})` } as CSSProperties} />
         ))}
       </div>
       <div className="rbc-embers">

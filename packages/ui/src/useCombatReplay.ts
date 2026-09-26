@@ -872,6 +872,23 @@ function deathConsequenceLead(
   return lead;
 }
 
+/** How long a REBIRTH return keeps the stage before the next beat (ms at 1× speed, ADDED to the base hold). Owner
+ *  2026-09-26: "it needs the same combat beat style as rise, so it rises before the next beat occurs". The body
+ *  re-forms out of its pillar of fire over `REBIRTH_FORM_MS` (styles.css `rebirthform`, scaled by combat speed like
+ *  the hold), and the next swing must not start while it is still rising: base hold (~360ms before an attack) +
+ *  this ≈ 1.06s, clear of the 0.9s re-form. The death → return side already matches Rise exactly: a rebirth's death
+ *  carries `rise: true`, so it fades soft in place (`dying rising`) and `REBORN_LEAD` holds its return. */
+export const REBIRTH_FORM_MS = 900;
+export const REBIRTH_SETTLE_LEAD = 700;
+export function rebirthSettleLead(shown: Moment | undefined, events: CombatEvent[]): number {
+  if (!shown) return 0;
+  for (let i = shown.start; i < shown.end; i++) {
+    const e = events[i];
+    if (e?.type === 'reborn' && e.rebirth) return REBIRTH_SETTLE_LEAD;
+  }
+  return 0;
+}
+
 /** A PLAIN attacker death (no Rise / Deathrattle consequence to lead the hold) still gets pulled back to its
  *  slot before it dies (`runRiseReturn` + `.dying.returning`), so hold this beat long enough for the ~0.34s
  *  pull-home + the collapse to read in the unit's own slot — otherwise the base beat hold unmounts the body
@@ -1986,6 +2003,8 @@ export function useCombatReplay(
       const lead = Math.max(
         deathConsequenceLead(shown, next, events, cardIds, atkUid),
         pulledHomeAttackerHold(shown, atkUid, events, cardIds),
+        // A REBIRTH finishes re-forming out of its fire before anything else plays (owner 2026-09-26).
+        rebirthSettleLead(shown, events),
         // A PARKED attacker's own damage beat waits a moment first (owner ask 2026-09-01: *"we need a slight
         // delay after the final resolution before the echohorn actually commits its attack"*). Its forced Echo
         // has just finished — a spray, a charger's whole exchange — and the swing it has been holding should
@@ -3257,7 +3276,10 @@ export function useCombatReplay(
         // styles.css) since its spirit bursts over it and the body re-forms in that same slot next beat.
         if (cls === 'dying') {
           const u = frame.player.find((x) => x.uid === uid) ?? frame.enemy.find((x) => x.uid === uid);
-          if (u?.keywords.includes('R')) {
+          // A Rise AND a Rebirth death both carry `rise: true` (the body returns): both fade soft in place, so the
+          // two keywords share Rise's beat style (owner 2026-09-26). The keyword check stays for older logs.
+          const ev = events[i];
+          if ((ev?.type === 'death' && ev.rise) || u?.keywords.includes('R')) {
             anims[uid] = uid === impactAtk ? 'dying rising returning' : 'dying rising';
           } else if (CARD_INDEX[cardIds.get(uid) ?? '']?.effects?.some((f) => f.on === 'onDeath')) {
             // Deathrattle: fade the card IN PLACE (no bounce) under the skull burst. A Deathrattle ATTACKER

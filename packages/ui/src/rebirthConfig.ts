@@ -4,11 +4,13 @@ import { CROWN_FRAMES, crownUrl, pillarUrl } from './rebirthCrown';
  * The REBIRTH look. History: 2026-09-25 the owner asked for a phoenix look "similar to rise, but less intrusive,
  * more thin and less haze", in "blue and white fire" (deep cobalt → cyan → a white-hot core, clear of Rise's
  * aqua-green, Ward's gold and the Time Ancient's azure). That first pass (a 3px rim + a few motes) was judged
- * "not noticeable and ugly" (2026-09-26), so it is now:
- *  · IDLE, on every card with Rebirth (`RB`): a CROWN of blue-white flame tongues licking up from behind the
- *    portrait's gold oval (pre-rendered SVG frames from `rebirthCrown.ts`, cross-faded by opacity and breathed by
- *    scale), a cobalt glow behind it (a static gradient whose opacity breathes: the `kwglow` pattern) and embers
- *    rising off the flames (transform/opacity only);
+ * "not noticeable and ugly" (2026-09-26); the spiky v2 was "still really bad … blur it … it should be on top of the
+ * card", so it is now:
+ *  · IDLE, on every card with Rebirth (`RB`): SOFT blue-white fire burning ON the frame, over the art like Ward's
+ *    shell (pre-rendered, pre-blurred SVG frames from `rebirthCrown.ts`, oval or Taunt-shield silhouette,
+ *    cross-faded by opacity and breathed by scale), a faint ring of light (a static gradient whose opacity
+ *    breathes: the `kwglow` pattern) and embers rising off the flames (transform/opacity only). CSS only: no
+ *    Pixi, no live filter, no per-frame paint;
  *  · TRIGGER, on a real rebirth in combat: the one-shot `rebirth-flame` Pixi def at the slot (recoloured to the
  *    tuner's colours, sized by `burstScale`, stretched by `burstTime`), the unit re-forming out of the fire
  *    (`.unit.rebirthing`, one-shot transform/opacity), and a flame whoosh `soundOffset` ms later.
@@ -50,11 +52,11 @@ export interface RebirthConfig {
 const DEFAULTS: RebirthConfig = {
   crownAlpha: 1,
   crownSize: 1,
-  flickerSpeed: 0.9,
-  glowAlpha: 0.75,
+  flickerSpeed: 1.5,
+  glowAlpha: 0.45,
   glowPulse: 2.4,
-  emberCount: 7,
-  emberAlpha: 0.95,
+  emberCount: 5,
+  emberAlpha: 0.8,
   emberSize: 5,
   colorB: '#2a5cff',
   colorA: '#6fdcff',
@@ -71,7 +73,7 @@ export const REBIRTH_COLOR_KEYS: readonly ColorKey[] = ['colorB', 'colorA', 'col
 
 export const REBIRTH_RANGES: Record<Exclude<keyof RebirthConfig, ColorKey>, [number, number, number]> = {
   crownAlpha: [0, 1, 0.01],
-  crownSize: [0.4, 1.5, 0.05],
+  crownSize: [0.4, 1.4, 0.05],
   flickerSpeed: [0.3, 3, 0.05],
   glowAlpha: [0, 1, 0.01],
   glowPulse: [0.6, 8, 0.1],
@@ -141,7 +143,10 @@ export function applyRebirthVars(): void {
   if (crownKey !== lastCrownKey) {
     lastCrownKey = crownKey;
     const colors = { deep: cfg.colorB, hot: cfg.colorA, core: cfg.colorCore };
-    for (let k = 0; k < CROWN_FRAMES; k++) r.setProperty(`--rb-crown-${k}`, crownUrl(k, colors, cfg.crownSize));
+    for (let k = 0; k < CROWN_FRAMES; k++) {
+      r.setProperty(`--rb-crown-${k}`, crownUrl(k, colors, cfg.crownSize, 'oval'));
+      r.setProperty(`--rb-crown-s-${k}`, crownUrl(k, colors, cfg.crownSize, 'shield'));
+    }
     r.setProperty('--rb-pillar', pillarUrl(colors));
   }
 }

@@ -45,6 +45,7 @@ export const KEYWORD_LEXICON: Readonly<Record<Keyword, KeywordLexeme>> = {
   SL: { canonical: 'Slaughter', alternates: [] },
   CR: { canonical: 'Critical Strike', alternates: [] },
   EG: { canonical: 'Engraved', alternates: [] },
+  RW: { canonical: 'Resilient Ward', alternates: [] }, // Ancients POC (owner 2026-09-26): a Ward that takes 2 hits to break
   RB: { canonical: 'Rebirth', alternates: [] }, // NEW keyword (owner 2026-09-16) — distinct from Rise; the Rise→Rebirth RENAME stays reserved above
 };
 

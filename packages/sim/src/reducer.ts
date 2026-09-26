@@ -1,5 +1,5 @@
 import { type PresentationCollector, type ConsequenceDraft, type CombatEvent, beatIdentity, socTwilightExtraFires, COMBATATIVE_RUBIES_ATTACKS, BODY_COUNTING_DEATHS, ALE_IDS, combatSide, makeCollector, makeRng, simulate, type BoardMinion, type CardDef, type CombatConfig, type CombatResult, type CombatSideState, type Keyword, type PendingCombatQuest, type PresentationBatch, type QuestCombatMods, type QuestDef, type QuestObjective, type QuestObjectiveEvent, type Tribe, TRIBES } from '@game/core';
-import { ancientCombatMods, ancientAfterPowerGild, ancientOfferOpen, ancientPowerTargetsGilded, ancientReplacesPowerGild, ancientsCombatTick, ancientsRefreshTick, ancientsSetMeter, pickAncient } from './ancients';
+import { ancientCombatMods, ancientAfterPowerGild, ancientOfferOpen, ancientPowerTargetsGilded, ancientReplacesPowerGild, ancientsCombatTick, ancientsRefreshTick, ancientsSetMeter, pickAncient, ancientAegisDestroys, ancientAegisRecipient, ancientAegisDestroyAndGive, ancientAegisResilient, ancientAfterCombat, ancientBondsReact } from './ancients';
 import { runSpells } from './spellPool';
 import { currentCollector, withActiveCollector } from './activeCollector';
 import { surfaceKeyForRune, surfaceKeyForQuest, CARD_INDEX, EPIC_RUNES, GIFT_IDS, QUEST_INDEX, RUNE_INDEX, RUNES, runeSynergies, type SynergyTag } from '@game/content';
@@ -923,6 +923,9 @@ export function reduce(state: RunState, action: Action): RunState {
     // runes (Dream Mirror / Waking Dreams) ride this same per-action diff — the one boundary every stat writer
     // crosses. Runs before the Dragon tally below so the gains it pays are themselves counted.
     fireStatGainReactors(next, statBefore);
+    // ANCIENT OF BONDS × Warden (a no-op unless the run has it): a minion with Ward that gained stats this action gives
+    // another minion with Ward +5 Attack. Same boundary, same reason — stats have a dozen writers.
+    ancientBondsReact(next, statBefore);
     let dragonStatGain = 0;
     for (const c of [...next.board, ...next.hand]) {
       const prev = statBefore.get(c.uid);
@@ -3055,11 +3058,22 @@ function reduceCore(state: RunState, action: Action): RunState {
         // 2026-09-14 rework). No-op (no charge/gold spent) only on a missing target. An ALREADY-Warded target is a
         // legal use (owner 2026-09-14: "it still buffs all Wards +5 Attack") — the Ward half is simply nothing to add.
         if (!card) return state;
-        if (!card.keywords.includes('DS')) card.keywords.push('DS');
-        // …THEN every minion that now HAS Ward (the fresh one included) gains the flat +5 Attack (owner 2026-09-14;
-        // it was +Tier/+Tier+1 from 2026-08-16).
-        const g = aegisGrantOf(s);
-        for (const c of s.board) if (c.keywords.includes('DS')) addBuff(c, 'Aegis', g.attack, g.health);
+        // ANCIENT OF DEATH: the Aegis REPLACES the grant — destroy `card`; a RANDOM other friendly minion (one without
+        // Ward first; owner 2026-09-26) gains its Attack and Ward. No +5 Attack wave (judgement call 2026-09-26).
+        // Needs a second friendly minion to give to.
+        if (ancientAegisDestroys(s)) {
+          const recipient = ancientAegisRecipient(s, card);
+          if (!recipient) return state;
+          ancientAegisDestroyAndGive(s, card, recipient);
+        } else {
+          if (!card.keywords.includes('DS')) card.keywords.push('DS');
+          // ANCIENT OF WAR: the next Aegis grants RESILIENT Ward (rides beside Ward: 'RW' + 'DS').
+          if (ancientAegisResilient(s) && !card.keywords.includes('RW')) card.keywords.push('RW');
+          // …THEN every minion that now HAS Ward (the fresh one included) gains the flat +5 Attack (owner 2026-09-14;
+          // it was +Tier/+Tier+1 from 2026-08-16).
+          const g = aegisGrantOf(s);
+          for (const c of s.board) if (c.keywords.includes('DS')) addBuff(c, 'Aegis', g.attack, g.health);
+        }
       } else if (power.kind === 'scalingGold') {
         // Bagger Ben's Bag It: gain Gold now, the payout climbing +1 each turn (turn 1 → 2, turn 2 → 3, …).
         // Untargeted; the once-per-turn charge is spent by the shared block below.
@@ -4819,6 +4833,8 @@ function settleCombat(s: RunState, result: CombatResult): void {
     s.maxEmbers += result.playerMaxGoldGain;
     s.soulsmanGold = (s.soulsmanGold ?? 0) + result.playerMaxGoldGain;
   }
+  // ANCIENTS × Warden (a no-op unless the run has them): Fortune's Gold per friendly Ward break, Genesis' count.
+  ancientAfterCombat(s, result);
   // Bounty Bot: one-time Gold granted into the next shop (added to the next turn's starting Gold).
   if (result.playerBonusGold) {
     s.bonusEmbersNextTurn = (s.bonusEmbersNextTurn ?? 0) + result.playerBonusGold;

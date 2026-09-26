@@ -82,6 +82,7 @@ export const COMBAT_TRACE_COVERAGE: Record<CombatEvent['type'], CombatTraceCover
   proccrit: { source: 'always', target: 'never', amount: 'always', note: 'amount = the multiplier; the repeated effect itself is in the following buff events (step grouping links them)' },
   spellcast: { source: 'never', target: 'never', amount: 'always', note: 'a side-scoped counter tick — no per-minion source in the log; amount = running total, side in detail' },
   shield: { source: 'never', target: 'always', amount: 'never', note: 'shield break carries no breaker uid — the attacker is inferable only via step grouping' },
+  wardDowngrade: { source: 'never', target: 'always', amount: 'never', note: 'a Resilient Ward absorbed its first hit and dropped to a plain Ward — no breaker uid, like `shield`' },
   shieldUp: { source: 'sometimes', target: 'always', amount: 'never', note: 'granter only via key/srcCard stamps when present' },
   poison: { source: 'never', target: 'always', amount: 'never', note: 'poisoner not in the event — the dmg event beside it carries the source uid' },
   reborn: { source: 'never', target: 'always', amount: 'never', note: 'a Rise return; hp/attack in detail; re-slot anchor (after) in detail when stamped' },
@@ -130,6 +131,7 @@ function project(e: CombatEvent): Pick<CombatSemanticEvent, 'source' | 'target' 
     case 'spellcast':
       return { amount: e.count, detail: { side: e.side } };
     case 'shield':
+    case 'wardDowngrade':
     case 'shieldUp':
     case 'poison':
     case 'reveal':

@@ -71,6 +71,8 @@ const EXEMPT: Record<string, string> = {
   playerBeastialSwarmLevel: 'a run-persisted rune LEVEL (Rune of Beastial Swarm), not a board buff — no combat surface',
   playerPackcraftLevel: 'a run-persisted rune LEVEL (Rune of Packcraft) — the grant itself lands on each summon as its entry stats; the level is what the NEXT summon gets, shown on the rune badge',
   playerBonusGold: 'ditto — next-shop Gold has no live surface mid-fight',
+  playerWardBreaks: "the Warden Ancients' Ward-break log (Fortune's next-turn Gold, as its text says; Genesis' running count) is stored at settle; each break already animates live as its own Ward-break beat",
+  playerWardWindow: "Warden x Genesis' running break window, stored for the next fight; the copy it earns is granted LIVE mid-fight (a toHand at the 3rd break, R-REALTIME-01)",
   playerFreeRolls: 'ditto — rerolls are a shop-phase affordance',
   playerMaxGoldGain: 'max-Gold has no combat surface; the maxGold event exists for the replay log only',
   playerFodderGrants: 'queued into the next tavern — no combat surface',

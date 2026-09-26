@@ -6,7 +6,7 @@ import { sfx } from '../../sfx';
 // `playDef` is a bare function export — so these assertions check WHICH def fired and where, like impact.test.
 vi.mock('../../fx/playDef', () => ({ playDef: vi.fn(() => null) }));
 import { playDef } from '../../fx/playDef';
-import { burstDeathAuras, breakShieldAura, reformReborn } from './aura';
+import { burstDeathAuras, breakShieldAura, crackResilientWard, reformReborn } from './aura';
 
 const playDefMock = vi.mocked(playDef);
 
@@ -103,5 +103,22 @@ describe('reformReborn', () => {
     reformReborn(null);
     expect(summon).not.toHaveBeenCalled();
     expect(s).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('crackResilientWard (Resilient Ward first hit, owner 2026-09-26)', () => {
+  it('fires the orange resilient-ward-shatter sparks at the rect (scaled to the card) + the Ward-break sound', () => {
+    const shieldSfx = vi.spyOn(sfx, 'shieldBreak').mockImplementation(() => {});
+    crackResilientWard(RECT, 'u9');
+    expect(playDefMock).toHaveBeenCalledWith('resilient-ward-shatter', { target: { x: 200, y: 150 } }, { uids: { source: null, target: 'u9' }, scale: 80 / 120 });
+    expect(playDefMock).not.toHaveBeenCalledWith('ward-lost-blast', expect.anything(), expect.anything());
+    expect(shieldSfx).toHaveBeenCalledTimes(1);
+  });
+
+  it('quiet: a real Ward break in the same exchange already plays the sound', () => {
+    const shieldSfx = vi.spyOn(sfx, 'shieldBreak').mockImplementation(() => {});
+    crackResilientWard(RECT, 'u9', true);
+    expect(playDefMock).toHaveBeenCalledTimes(1);
+    expect(shieldSfx).not.toHaveBeenCalled();
   });
 });

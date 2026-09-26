@@ -387,6 +387,18 @@ export function simulate(
    *  its Ward first — and the owner's example ("a Warded 50/50 dies and comes back a Warded 50/50") wants it
    *  back, so the return restores a Ward the body carried at any point this fight. */
   const wardBroken = new Set<string>();
+  /** RESILIENT WARD's twin of `wardBroken`: uids whose Resilient layer was stripped this combat, so a Rebirth return
+   *  (the FULL body) comes back with the Resilient Ward it carried. */
+  const resilientBroken = new Set<string>();
+  /** ANCIENTS (Warden's Fortune / Genesis): the cardId of each Ward that BROKE this fight, per side — recorded only
+   *  for a side whose mods carry `ancientTrackWardBreaks`, so every other fight's result stays byte-identical. */
+  const wardBreakLog: Record<Side, string[]> = { player: [], enemy: [] };
+  /** ANCIENT OF GENESIS × Warden: the run's break window, copied in so the ONE counter continues here and pays the
+   *  copy the moment the Nth Ward breaks (real-time, not at settle). */
+  const wardWindow: Record<Side, string[]> = {
+    player: [...(modsFor('player').ancientWardCopy?.window ?? [])],
+    enemy: [...(modsFor('enemy').ancientWardCopy?.window ?? [])],
+  };
   /** Wolvie (Echo): one-shot buffs queued for the next tribe minion each side summons (FIFO). */
   const nextSummonBuffs: Record<Side, { tribe: Tribe; attack: number; health: number; sourceUid?: string }[]> = { player: [], enemy: [] };
   /** Wolvie's Echoes STACK onto the NEXT matching summon (owner 2026-08-12): four queued Echoes all land on the
@@ -829,6 +841,8 @@ export function simulate(
   // Sable's Soulbind re-entrancy guard — declared beside `ctx` because `ctx.buff` mirrors onto its partner by
   // calling itself. See the mirror block inside `buff`.
   let soulbindMirroring = false;
+  /** ANCIENT OF BONDS: set while its own +Attack lands, so that grant can never trigger Bonds again. */
+  let ancientBondsFiring = false;
 
   /**
    * "A card was added to your hand" — broadcast to the side's reactors (owner report 2026-08-29). Called from
@@ -1004,6 +1018,20 @@ export function simulate(
       // Sable's Soulbind: a stat gain on one bound body is gained by the other, in full and ONCE. The mirrored
       // grant re-enters this very function, so `soulbindMirroring` is the load-bearing guard — without it the
       // pair buff each other forever. Player-side only: the bond is forged in the player's shop.
+      // ANCIENT OF BONDS × Warden (owner 2026-09-26: "When a Warded minion gains stats, give another Warded minion
+      // +5 attack. this doesnt re-trigger itself"): a positive gain on a WARDED body (a Resilient Ward is a Ward)
+      // hands a random OTHER living Warded friend +attack. The grant re-enters this function, so
+      // `ancientBondsFiring` is the load-bearing guard — the +5 never fires Bonds again. Combat-only, like every
+      // combat gain (an Engraved recipient keeps it through the Engraved rule above).
+      const bonds = modsFor(target.side).ancientBonds;
+      if (bonds && !ancientBondsFiring && target.divineShield && !target.dead && (attack > 0 || health > 0)) {
+        const others = boards[target.side].filter((m) => m !== target && !m.dead && m.health > 0 && m.divineShield);
+        if (others.length > 0) {
+          const pick = rng.pick(others);
+          ancientBondsFiring = true;
+          try { ctx.buff(pick, bonds.attack, 0, bonds.label); } finally { ancientBondsFiring = false; }
+        }
+      }
       const bond = modsFor('player').soulbind;
       if (bond && !soulbindMirroring && target.side === 'player' && (attack !== 0 || health !== 0)) {
         // Match on `sourceUid` — the RUN-BOARD uid the bond was forged against. A combat minion is a fresh
@@ -1786,6 +1814,8 @@ export function simulate(
         if (!minion.keywords.includes(kw)) {
           minion.keywords.push(kw);
           if (kw === 'DS') minion.divineShield = true;
+          // A Resilient Ward is always a Ward too (see the `RW` keyword).
+          if (kw === 'RW') { minion.divineShield = true; if (!minion.keywords.includes('DS')) minion.keywords.push('DS'); }
         }
       }
     }
@@ -2215,6 +2245,7 @@ export function simulate(
       // Sync the paired state flags — a printed DS/R on the ascended form must actually arm, not just
       // render (the same rule as granted keywords; today's forms grant neither, so this is future-proofing).
       if (k === 'DS') minion.divineShield = true;
+      if (k === 'RW') { minion.divineShield = true; if (!minion.keywords.includes('DS')) minion.keywords.push('DS'); }
       if (k === 'R') minion.rebornAvailable = true;
     }
     minion.effects = def.effects; // old handlers self-disable (the includes-guard above); register the new ones
@@ -2543,6 +2574,9 @@ export function simulate(
       minion.keywords = body.keywords;
       if (wardBroken.has(minion.uid) && !minion.keywords.includes('DS')) minion.keywords.push('DS');
       wardBroken.delete(minion.uid);
+      if (resilientBroken.has(minion.uid) && !minion.keywords.includes('RW')) minion.keywords.push('RW');
+      resilientBroken.delete(minion.uid);
+      if (minion.keywords.includes('RW') && !minion.keywords.includes('DS')) minion.keywords.push('DS');
       minion.divineShield = minion.keywords.includes('DS');
       minion.rebornAvailable = minion.keywords.includes('R');
       // Its AVENGE progress restarts, exactly as on a Rise (owner: "1/3 should reset to 0/3") and as on any body
@@ -3072,12 +3106,36 @@ export function simulate(
     // watchers — and it would bloat the replay with `dmg 0` beats. Load-bearing since 0-Attack
     // retaliators exist (Manasaber's 0/2 cubs): trading into one must not spend the attacker's shield.
     if (amount <= 0) return;
+    // RESILIENT WARD (owner 2026-09-26: "takes 2 hits to break"): the FIRST hit on a Resilient Ward is absorbed
+    // exactly like a Ward's (it blocks Execute/Venomous too, and the venom is not spent) but only strips the
+    // Resilient layer — the minion keeps a plain Ward, so the SECOND hit breaks it below as usual. Not a break:
+    // `onLoseDivineShield` stays quiet and nothing counts it as a lost Ward. A shield-bypassing destroy skips both
+    // layers, as it skips a Ward.
+    if (!bypassShield && target.divineShield && target.keywords.includes('RW')) {
+      target.keywords = target.keywords.filter((k) => k !== 'RW');
+      resilientBroken.add(target.uid); // Rebirth restores it (see `killOrReborn`)
+      emit({ type: 'wardDowngrade', target: target.uid });
+      return;
+    }
     // Divine Shield absorbs the first instance — and still blocks Venomous (A.3).
     if (!bypassShield && target.divineShield) {
+      if (modsFor(target.side).ancientTrackWardBreaks) wardBreakLog[target.side].push(target.cardId);
       target.divineShield = false;
       target.keywords = target.keywords.filter((k) => k !== 'DS');
       wardBroken.add(target.uid); // Rebirth restores it (see `killOrReborn`)
       emit({ type: 'shield', target: target.uid });
+      // ANCIENT OF GENESIS × Warden (real-time): the break joins the window; the Nth pays a copy NOW, after the break.
+      const wardCopy = modsFor(target.side).ancientWardCopy;
+      if (wardCopy) {
+        const win = wardWindow[target.side];
+        win.push(target.cardId);
+        if (win.length >= wardCopy.every) {
+          const pickId = win[Math.floor(grantRngFor(target.side).next() * win.length)]!;
+          wardWindow[target.side] = [];
+          const def = cards[pickId];
+          if (def && !def.spell) ctx.grantToHand(pickId, target.side, target.uid);
+        }
+      }
       bus.emit('onLoseDivineShield', { minion: target, side: target.side });
       return;
     }
@@ -5017,6 +5075,8 @@ export function simulate(
       boardBuffGain: bbg.attack > 0 || bbg.health > 0 ? { ...bbg } : undefined,
       magneticBuffGain: magneticBuffGain[side].attack > 0 || magneticBuffGain[side].health > 0 ? magneticBuffGain[side] : undefined,
       fodderBuffGain: fodderBuffGain[side].attack > 0 || fodderBuffGain[side].health > 0 ? fodderBuffGain[side] : undefined,
+      wardBreaks: wardBreakLog[side].length > 0 ? [...wardBreakLog[side]] : undefined,
+      wardWindow: modsFor(side).ancientWardCopy ? [...wardWindow[side]] : undefined,
     };
   };
   const pc = carryBacksFor('player');
@@ -5085,6 +5145,8 @@ export function simulate(
     playerBoardBuffGain: pc.boardBuffGain,
     playerMagneticBuffGain: pc.magneticBuffGain,
     playerFodderBuffGain: pc.fodderBuffGain,
+    ...(pc.wardBreaks ? { playerWardBreaks: pc.wardBreaks } : {}),
+    ...(pc.wardWindow ? { playerWardWindow: pc.wardWindow } : {}),
     // Enemy run-level scalers so the UI can render an enemy Grim/Taragosa/Pack Leader/Runescale at the
     // OPPONENT's value. Present only when the enemy actually had a nonzero scaler (else the card's base text
     // is already accurate → the UI's player-side fallback is fine).

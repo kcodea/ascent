@@ -215,6 +215,31 @@ export const KEYWORDS_RULES: GameRule[] = [
     },
   },
   {
+    id: 'R-RWARD-01',
+    title: 'Resilient Ward takes 2 hits to break: the first strips the Resilient layer and leaves a plain Ward',
+    statement:
+      'Resilient Ward (`RW`) always rides beside Ward (`DS`), so every "has Ward" check sees a Ward. In combat the FIRST '
+      + 'damage instance on it is absorbed exactly like a Ward\'s (it blocks Execute and the venom is not spent) but only '
+      + 'strips `RW` (a `wardDowngrade` event); the minion keeps a plain Ward, and the SECOND instance breaks that Ward as '
+      + 'usual (`shield`, `onLoseDivineShield`). The downgrade is not a Ward break (no break watcher, no break tally). A '
+      + 'shield-bypassing destroy skips both layers; each separate hit (a Flurry swing, a Cleave splash) is its own hit. '
+      + 'Rebirth returns the full body with its Resilient Ward. On the run card it is permanent like Ward, and it '
+      + 'serialises as a keyword in snapshots and copies. Look: the Ward shell in red and orange with an orange outline; '
+      + 'the downgrade shatters the orange layer (a flash, then sharp orange shards) on the Ward-break beat, revealing the plain Ward.',
+    domain: 'keywords',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-26 (Warden Ancients + Resilient Ward)', quote: 'Takes 2 hits to break: the first hit breaks it down to a NORMAL Ward (the damage is absorbed); the second hit breaks the Ward as usual.' },
+      { kind: 'code', ref: 'packages/core/src/combat/simulate.ts applyDamage (the RW branch) + killOrReborn (resilientBroken); packages/core/src/combat/minion.ts instantiate (RW implies DS); packages/ui/src/Card.tsx WardGlass' },
+    ],
+    currentBehaviour: 'Conforms (built 2026-09-26). Granted today only by the dev-only Ancient of War on the Warden (Scene Builder, Set 3).',
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/core/src/combat/resilientWard.test.ts', 'packages/ui/src/resilientWard.test.tsx'],
+      lastVerifiedAt: '2026-09-26',
+    },
+  },
+  {
     id: 'R-REBIRTH-FX-01',
     title: 'Rebirth reads at a glance (a flame crown on the card) and its return is a visible phoenix burst, in combat AND the Shop',
     statement:

@@ -2279,7 +2279,7 @@ export interface RunState {
    *  than folded into it: every other recurrence is unbounded, and giving them all a counter would mean
    *  touching every read. Each entry ticks down at End of Turn and drops out at 0. */
   questRecurringLimited?: { effect: NonNullable<RunState['questRecurringEndOfTurn']>[number]; turnsLeft: number }[];
-  questRecurringEndOfTurn?: ('triggerLeftmostShout' | 'grantRandomShout' | 'grantRandomAttachments' | 'buffMechsPerAttachment' | 'runeSpending' | 'runeAction' | 'triggerLeftmostEcho' | 'weldMoneyBotsEdgeMechs' | 'undeadPlayedAtk' | 'attachClingDrones' | 'recastFirstSpell' | 'grantAles' | 'grantAles3' | 'quickStudy' | 'copyFirstSpell' | 'grantRuby' | 'grantRuby2' | 'demonEatsRightmostShop' | 'grantFacetwright' | 'lassoing' | 'runeLapidary' | 'runeCrucibleChoir' | 'runeFiveBanners' | 'runeAncestralRoar')[];
+  questRecurringEndOfTurn?: ('triggerLeftmostShout' | 'grantRandomShout' | 'grantRandomAttachments' | 'buffMechsPerAttachment' | 'runeSpending' | 'runeAction' | 'triggerLeftmostEcho' | 'weldMoneyBotsEdgeMechs' | 'undeadPlayedAtk' | 'attachClingDrones' | 'recastFirstSpell' | 'grantAles' | 'grantAles3' | 'quickStudy' | 'copyFirstSpell' | 'grantRuby' | 'grantRuby2' | 'demonEatsRightmostShop' | 'grantFacetwright' | 'lassoing' | 'runeLapidary' | 'runeCrucibleChoir' | 'runeFiveBanners' | 'runeAncestralRoar' | 'ancientTimeWard')[];
   /** Bane's Existence: when set, your Banes' after-Battlecry Fodder/Imp buff ALSO grants all your Demons this
    *  much run-wide (a persistent tribe aura). Absent = Bane only buffs Fodder/Imps as printed. */
   baneBuffsDemons?: { attack: number; health: number };

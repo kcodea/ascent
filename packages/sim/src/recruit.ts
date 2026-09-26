@@ -1,5 +1,5 @@
 import { ALE_IDS, RUBY_TYPE_IDS, SPECIAL_RUBY_IDS, TRIBES, alignAllows, makeRng, SILENT_ONPLAY, isShopPoolSpell, shopSpellGrowth, COMBAT_REPLAYABLE_BATTLECRIES, extraTriggerFires, foldEchoExtraFires, socTwilightExtraFires, BODY_COUNTING_DEATHS, ARENA_EFFECTS, beatIdentity, type EffectArena, type PresentationCollector, type PresentationPhase, type PresentationPolicy, type Rng, type CardDef, type EffectDef, type Keyword, type TriggerFamily, type TriggerSourceRef, type Tribe } from '@game/core';
-import { ancientOnSale, ancientOnShopDeath, ancientPowerText } from './ancients';
+import { ancientOnSale, ancientOnShopDeath, ancientPowerText, ancientEotWardBuff, ancientRunEotWardBuff, ancientBondsReact, ANCIENTS } from './ancients';
 import { runSpells } from './spellPool';
 import { REVELER_IDS, RUNE_INDEX, CARD_INDEX, EQUIPMENT_INDEX, STAR_DESTROYER, equipmentOf, recurringEotOwner, type EquipmentDefinition } from '@game/content';
 import { equipIsNews, equipmentParams as equipmentParamsFor, grantEquipment as grantEquipmentToPlayer, armCalibration, unusedEquipmentCount } from './equipment';
@@ -13173,6 +13173,13 @@ export function applyEndOfTurn(state: RunState): void {
   try { applyEndOfTurnInner(state); } finally { endOfTurnDepth -= 1; }
 }
 function applyEndOfTurnInner(state: RunState): void {
+  // ANCIENT OF BONDS × Warden: the End-of-Turn gains react HERE, before the fight is prepared (the reducer's
+  // per-action diff runs after `faceOmen` has already resolved combat). Board stats at the start of End of Turn.
+  const bondsBefore = state.ancientsEnabled ? new Map(state.board.map((c) => [c.uid, { attack: c.attack, health: c.health }])) : undefined;
+  applyEndOfTurnBody(state);
+  if (bondsBefore) ancientBondsReact(state, bondsBefore, true);
+}
+function applyEndOfTurnBody(state: RunState): void {
   const collector = currentCollector();
   const beatSource = (kind: TriggerSourceRef['kind'], id: string, label: string, uid?: string): TriggerSourceRef =>
     ({ kind, id, label, uid, side: 'player' });
@@ -13182,6 +13189,8 @@ function applyEndOfTurnInner(state: RunState): void {
    * so Echoing Roar reads as the quest it is, and the emitted `policyKey` matches the row that classified it.
    */
   const recurringBeatSpec = (effect: string): { source: TriggerSourceRef; trigger: string; policy: PresentationPolicy; policyKey?: string; family?: string } => {
+    // The Ancient of Time's grant is the HERO's, not a rune's (no content owner).
+    if (effect === 'ancientTimeWard') return { source: beatSource('hero', state.heroId, ANCIENTS.time.name), trigger: 'endOfTurn', policy: 'ownBeat' };
     const owner = recurringEotOwner(effect);
     const label = RECURRING_EOT_LABEL[effect] ?? 'End of Turn';
     return {
@@ -13731,6 +13740,9 @@ export function recurringEotEffects(state: RunState): NonNullable<RunState['ques
     ...Array.from({ length: lapidary }, () => 'runeLapidary' as const),
     ...Array.from({ length: choir }, () => 'runeCrucibleChoir' as const),
     ...Array.from({ length: banners }, () => 'runeFiveBanners' as const),
+    // ANCIENT OF TIME × Warden: "End of Turn: give your minions with Ward +5/+5" — a virtual recurring entry so it
+    // gets a beat, the projection, Chronos repeats and the End-of-Turn replays like every other recurrence.
+    ...(ancientEotWardBuff(state) ? ['ancientTimeWard' as const] : []),
   ];
 }
 
@@ -13770,6 +13782,8 @@ function runRecurringEndOfTurn(
   if (effect === 'triggerLeftmostShout') {
     const leftmost = state.board.find((c) => { const d = CARD_INDEX[c.cardId]; return !!d && hasBattlecry(d); });
     if (leftmost) { stampQuestTendril(state, effect, leftmost.uid); replayBattlecry(state, leftmost); }
+  } else if (effect === 'ancientTimeWard') {
+    ancientRunEotWardBuff(state, step);
   } else if (effect === 'runeFiveBanners') {
     // Rune of the Five Banners (owner rework 2026-09-23): End of Turn, one friendly minion of each type gains
     // +5/+4 — the same one-banner-per-body selection combat's legacy Start-of-Combat pass used. One `step`, so
@@ -14350,6 +14364,7 @@ const RECURRING_EOT_LABEL: Record<string, string> = {
   runeLapidary: 'Rune of the Lapidary',
   runeCrucibleChoir: 'Rune of the Crucible Choir',
   runeFiveBanners: 'Rune of the Five Banners',
+  ancientTimeWard: 'Ancient of Time',
   quickStudy: 'Rune of Quick Study',
   runeAncestralRoar: 'Rune of Ancestral Roar',
 };

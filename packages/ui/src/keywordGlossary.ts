@@ -95,6 +95,8 @@ export const KEYWORD_GLOSSARY: KeywordDef[] = [
   // ── Combat keywords ────────────────────────────────────────────────────────────────────────────────────────
   { id: 'taunt', name: 'Taunt', aliases: [], badge: 'T', section: 'combat', mechanic: 'taunt', def: 'Enemies must attack this minion before any other until it is destroyed.' },
   { id: 'ward', name: 'Ward', aliases: ['Divine Shield'], badge: 'DS', section: 'combat', mechanic: 'ward', def: 'Blocks the first instance of damage it would take, then breaks.' },
+  // Owner's wording verbatim (2026-09-26). A Resilient Ward also carries Ward (DS), so both pills show.
+  { id: 'resilientward', name: 'Resilient Ward', aliases: [], badge: 'RW', section: 'combat', icon: 'shield', def: 'Takes 2 hits to break.' },
   { id: 'execute', name: 'Execute', aliases: ['Venomous'], badge: 'V', section: 'combat', mechanic: 'execute', def: 'Any damage it deals to a minion destroys that minion. Lost after use.' },
   { id: 'flurry', name: 'Flurry', aliases: ['Windfury'], badge: 'W', section: 'combat', mechanic: 'flurry', def: 'When attacking in combat, attacks twice.' },
   { id: 'crit', name: 'Critical Strike', aliases: ['Crit', 'Critical'], badge: 'CR', section: 'combat', mechanic: 'crit', def: 'Its attack has a chance to deal double damage.' },

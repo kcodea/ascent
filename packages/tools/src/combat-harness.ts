@@ -50,6 +50,8 @@ function describe(ev: CombatEvent, names: Map<string, string>): string {
       return `   ${n(ev.target)} takes ${ev.amount}  (${ev.remainingHp} hp left)`;
     case 'shield':
       return `   ◇ ${n(ev.target)}'s Divine Shield absorbs it`;
+    case 'wardDowngrade':
+      return `   ◇ ${n(ev.target)}'s Resilient Ward absorbs it (a plain Ward remains)`;
     case 'shieldUp':
       return `   ◇ ${n(ev.target)} gains a Divine Shield`;
     case 'poison':

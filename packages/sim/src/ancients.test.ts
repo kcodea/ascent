@@ -271,8 +271,9 @@ describe('Ancients × Indy — the six pairings', () => {
 
 describe('Ancients — a hero with no pairing', () => {
   it('shows "Not written yet." and has no effect', () => {
-    expect(ancientOfferText('warden', 'war')).toBe(ANCIENT_NOT_WRITTEN);
-    const s = picked('war', { board: [card('g', 'gnash', { golden: true }), card('v', 'sandbag')] }, 'warden');
+    // Indy and the Warden are written (2026-09-26); the Auctioneer (`myra`) is not.
+    expect(ancientOfferText('myra', 'war')).toBe(ANCIENT_NOT_WRITTEN);
+    const s = picked('war', { board: [card('g', 'gnash', { golden: true }), card('v', 'sandbag')] }, 'myra');
     const g0 = { ...s.board[0]! };
     recruitMod.destroyMinionInShop(recruitMod.makeContext(s), s.board[1]!);
     expect(s.board[0]!.attack).toBe(g0.attack);

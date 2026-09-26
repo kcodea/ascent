@@ -31,7 +31,7 @@ import { groupBuffCasts, type BuffCast } from './choreo/channels/buffCast';
 import { groupSelfBuffs, type SelfBuff } from './choreo/channels/buffSelf';
 import { runAttackExchangeCues, runRiseReturn } from './choreo/engine';
 import { setTransition } from './choreo/channels/lunge';
-import { burstDeathAuras, breakShieldAura, reformReborn, reformRebirth } from './choreo/channels/aura';
+import { burstDeathAuras, breakShieldAura, crackResilientWard, reformReborn, reformRebirth } from './choreo/channels/aura';
 import { type Float, type DeathFloat, KW_FLOAT } from './choreo/channels/float';
 import { combatBuffDelta, combatPreviewFold, type CombatBuffDelta, type CombatPreviewFold } from './runBuffs';
 import type { CombatQuestDelta } from './store'; // type-only (erased) — no runtime edge back to the store
@@ -369,7 +369,11 @@ export function computeFrame(
       }
     } else if (e.type === 'shield') {
       const u = find(e.target);
-      if (u) { u.divineShield = false; u.keywords = u.keywords.filter((k) => k !== 'DS'); }
+      if (u) { u.divineShield = false; u.keywords = u.keywords.filter((k) => k !== 'DS' && k !== 'RW'); }
+    } else if (e.type === 'wardDowngrade') {
+      // A Resilient Ward took its first hit: it drops to a plain Ward (the card's orange layer cracks away).
+      const u = find(e.target);
+      if (u) u.keywords = u.keywords.filter((k) => k !== 'RW');
     } else if (e.type === 'shieldUp') {
       const u = find(e.target);
       if (u) { u.divineShield = true; if (!u.keywords.includes('DS')) u.keywords.push('DS'); }
@@ -565,6 +569,7 @@ export function animFor(e: CombatEvent | undefined): Record<string, string> {
     case 'attack': return { [e.attacker]: 'attacking', [e.defender]: 'aimed' };
     case 'dmg': return { [e.target]: 'struck' };
     case 'shield': return { [e.target]: 'shatter' };
+    case 'wardDowngrade': return { [e.target]: 'shatter' };
     case 'shieldUp': return { [e.target]: 'shieldgain' };
     case 'poison': return { [e.target]: 'poisoned' };
     case 'venomLost': return { [e.target]: 'venomspent' };
@@ -595,6 +600,7 @@ function narrateLog(e: CombatEvent, names: Map<string, string>): { text: string;
     case 'attack': return { text: `${n(e.attacker)} strikes ${n(e.defender)} for ${e.swing}.`, kind: 'attack' };
     case 'dmg': return { text: `${n(e.target)} takes ${e.amount} damage (${Math.max(0, e.remainingHp)} HP left).`, kind: 'dmg' };
     case 'shield': return { text: `${n(e.target)}'s Ward absorbs the hit.`, kind: 'shield' };
+    case 'wardDowngrade': return { text: `${n(e.target)}'s Resilient Ward absorbs the hit. A Ward remains.`, kind: 'shield' };
     case 'shieldUp': return { text: `${n(e.target)} gains a Ward.`, kind: 'shield' };
     case 'poison': return { text: `Execute destroys ${n(e.target)}.`, kind: 'poison' };
     case 'venomLost': return { text: `${n(e.target)}'s Execute is spent.`, kind: 'poison' };
@@ -2447,6 +2453,7 @@ export function useCombatReplay(
       },
       onAuraBurst: (uid) => burstDeathAuras(uid, rectOf(uid)),
       onShieldBreak: (uid) => breakShieldAura(rectOf(uid), uid),
+      onWardDowngrade: (uid) => crackResilientWard(rectOf(uid), uid),
       // Rise re-forms in aqua; REBIRTH bursts into its phoenix flame (owner 2026-09-25) — one call per event.
       onReborn: (uid, rebirth) => (rebirth ? reformRebirth(rebornRects.get(uid) ?? rectOf(uid), uid) : reformReborn(rebornRects.get(uid) ?? rectOf(uid))),
       // Execute proc → the crescent strike at the VICTIM's slot (the unit being destroyed), read at fire time
@@ -2758,6 +2765,11 @@ export function useCombatReplay(
       // ward is CSS now, so the shatter fires at the unit's live rect (no Pixi bubble to read coords from).
       const wardTargets: string[] = [];
       for (let i = cur.start; i < cur.end; i++) { const e = events[i]; if (e?.type === 'shield') wardTargets.push(e.target); }
+      // A Resilient Ward's first hit (its orange layer shatters on the card itself — see `WardGlass`): the small
+      // `resilient-ward-shatter` sparks + the Ward-break SOUND at the same contact, and no Ward blast, since a Ward
+      // is still standing. One sound per exchange: quiet when a real Ward break (or an earlier downgrade) plays it.
+      const downgrades: string[] = [];
+      for (let i = cur.start; i < cur.end; i++) { const e = events[i]; if (e?.type === 'wardDowngrade') downgrades.push(e.target); }
       // EXECUTE proc inside this exchange → the strike REPLACES the standard hit FX at contact (see impact.ts).
       // Gated on a `poison` EVENT, not on the attacker carrying `V`: the keyword is spent after one kill, so a
       // keyword check would keep slashing on later swings that no longer execute anything.
@@ -2767,7 +2779,7 @@ export function useCombatReplay(
       // lunge — the gold shatter has to pop where the bubble visibly is (mid-strike, at contact), not back at
       // the unit's empty slot. The opposite call from the unit-marking FX; don't "fix" this to match them.
       const rectFor = (uid: string) => { const r = findEl(uid)?.getBoundingClientRect(); return r ? { cx: r.left + r.width / 2, cy: r.top + r.height / 2, w: r.width, h: r.height } : null; };
-      const breakWards = wardTargets.length ? () => { for (const t of wardTargets) breakShieldAura(rectFor(t), t); } : undefined;
+      const breakWards = wardTargets.length || downgrades.length ? () => { for (const t of wardTargets) breakShieldAura(rectFor(t), t); downgrades.forEach((t, i) => crackResilientWard(rectFor(t), t, wardTargets.length > 0 || i > 0)); } : undefined;
       if (atkEl && a && d) {
         setAttackUid(cur.primary.attacker);
         // A Rally firing as THIS unit attacks → the lunge pauses at the top of the wind-up and flashes the

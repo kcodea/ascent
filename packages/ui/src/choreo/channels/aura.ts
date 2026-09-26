@@ -37,6 +37,15 @@ export function breakShieldAura(rect: { cx: number; cy: number; w: number; h: nu
   sfx.shieldBreak();
 }
 
+/** A RESILIENT Ward took its first hit and dropped to a plain Ward (`wardDowngrade`). The shell shatter itself is the
+ *  card's own one-shot (`WardGlass` in Card.tsx: flash, outline kick, six angular shards, as the frame drops `RW`);
+ *  this adds the `resilient-ward-shatter` spark burst off the shell's edge at the unit's `rect` (owner 2026-09-26,
+ *  "a burst/shatter effect ... really clean") and the Ward-break sound (unless `quiet`), on the same beat the Ward break uses. */
+export function crackResilientWard(rect: { cx: number; cy: number; w: number; h: number } | null = null, uid: string | null = null, quiet = false): void {
+  if (rect) playDef('resilient-ward-shatter', { target: { x: rect.cx, y: rect.cy } }, { uids: { source: null, target: uid }, scale: rect.w / 120 });
+  if (!quiet) sfx.shieldBreak(); // `quiet`: a real Ward break in the same exchange already plays the sound
+}
+
 /** A unit reborn → the re-form glow + sound now. The DELAY is the auraReform cue's offset (scaled:false),
  *  scheduled by the runner (was the internal REBORN_SUMMON_DELAY setTimeout). */
 export function reformReborn(rect: { cx: number; cy: number; w: number; h: number } | null): void {

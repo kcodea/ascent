@@ -2013,7 +2013,7 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
 }
 /* Dual-type minions are still oval `.stdframe` cards, so the hover glow comes from `.cglow` like every other
    framed card — no bespoke `:hover` box-shadow here (it would add a boxy rectangular halo over the silhouette glow). */
-.card.golden.dual::before, .card.spellcard::before, .card.triplecard::before { display: none; } /* special frames win */
+.card.golden.dual::before, .card.spellcard::before { display: none; } /* special frames win */
 .cbody { padding: 0 9px 8px; margin-top: -20px; position: relative; z-index: 2; display: flex; flex-direction: column; flex: 1 1 0; min-height: 0; overflow: hidden; }
 .cn { flex: none; align-self: center; max-width: 100%; font-family: var(--font-ui); font-weight: 700; font-size: 13px; line-height: 1.1; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; background: color-mix(in srgb, var(--card) 88%, transparent); border-radius: 8px; padding: 2px 9px; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12); }
 /* always reserves one pill-row of height (even with no pills) so the description below
@@ -2585,19 +2585,8 @@ img.tierbadge.tierstars,
 .card.spellcard { border-color: var(--t-demon); box-shadow: 0 0 0 2px color-mix(in srgb, var(--t-demon) 55%, transparent), 0 3px 0 var(--shadow), 0 0 18px -3px color-mix(in srgb, var(--t-demon) 70%, transparent); }
 .card.spellcard .art { background: radial-gradient(120% 90% at 50% 25%, color-mix(in srgb, var(--t-demon) 40%, var(--card)), color-mix(in srgb, var(--t-demon) 18%, var(--card))); border-radius: 11px 11px 0 0; }
 .card.spellcard .ctype.spell { color: var(--t-demon); font-weight: 800; }
-/* Triple Reward — the triple/golden reward spell wears the golden frame + text box (like a tripled
-   minion) and a bright, vibrant orange glow that pulses. Overrides the generic spell (purple) look. */
-.card.triplecard { z-index: 5; border-color: #e7b53d; background: color-mix(in srgb, #f4cf6a 22%, var(--card)); box-shadow: 0 0 0 2px #f4cf6a, 0 0 20px 4px rgba(255, 138, 30, 0.72), 0 3px 0 var(--shadow); }
-.card.triplecard::before { content: ''; position: absolute; inset: 0; border-radius: var(--arch-radius); pointer-events: none; box-shadow: 0 0 42px 13px rgba(255, 150, 42, 1); animation: kwglow 1.5s ease-in-out infinite; will-change: opacity; }
-.card.triplecard .art { background: color-mix(in srgb, #f4cf6a 34%, var(--card)); border-radius: 11px 11px 0 0; }
-.card.triplecard .cn { background: linear-gradient(180deg, #ffe9a6, #f1cb5e); color: #6e5008; box-shadow: 0 1px 3px rgba(120, 80, 10, 0.32); }
-.card.triplecard .cfoot { background: color-mix(in srgb, #f4cf6a 30%, var(--card)); }
-.card.triplecard .ctype.spell { color: var(--acc-dk); }
-/* IN HAND the Triple Reward files in like any other card. The `z-index: 5` above lifted it over its
-   neighbours, so a reward sitting mid-fan painted on top of the cards to its right instead of tucking under
-   them (owner report 2026-07-25). Hand cards stack by DOM order (no explicit z), so drop back to `auto` here;
-   the `:hover` bump (z50) and the z5 elsewhere (tavern / board) are untouched. */
-.row.hand .card.triplecard { z-index: auto; }
+/* The Triple Reward has NO bespoke look any more: it renders exactly like a spell in hand — the authored square
+   spell frame, art window, pill and text box (owner 2026-09-25). Its old gold `.triplecard` skin was removed. */
 
 /* Discover overlay (triple reward) */
 /* z160: discover / choose-one must sit above ALL effects — the FX overlay (.pixifx z110), a freshly-placed
@@ -4819,6 +4808,7 @@ body.aiming, body.aiming * { cursor: none !important; }
 .app.combatout .zone .row,
 .app.combatout .pixifx,
 .app.combatout .combathud-skip,
+.app.combatout .combatround,
 .app.combatout .combatctl { opacity: 0; transition: opacity 0.2s ease; }
 .app.combatin .zone .row,
 .app.combatin .pixifx,
@@ -4926,6 +4916,11 @@ body.aiming, body.aiming * { cursor: none !important; }
 .combathud-skip svg { width: calc(16 * var(--u)); height: calc(16 * var(--u)); }
 .combathud-skip:hover { background: var(--cc-skip-border, #b07047); }
 .combathud-skip:active { transform: translate(-50%, -50%) translateY(calc(2 * var(--u))); box-shadow: 0 calc(2 * var(--u)) 0 var(--cc-skip-border, #b07047); }
+/* ROUND X (owner ask 2026-09-25) — the round number, white, top-centre of the arena, sitting just ABOVE the Skip
+   button. Same stage anchor as `.combathud-skip` (its centre point, incl. the tuner's --cc-skip-x/y), then lifted
+   by half Skip's height + a gap and bottom-anchored (translateY -100%), so it never overlaps or shifts Skip and
+   stays put after Skip unmounts. Static: no looping animation, only the shared one-shot fade-in. Inert. */
+.combatround { position: fixed; left: calc(var(--bar-x) + 0.5 * var(--gw) + 96px * var(--scale) + var(--cc-skip-x, -95px) * var(--scale)); top: calc(var(--bar-y) + 0.055 * var(--gh) + var(--cc-skip-y, 49px) * var(--scale) - 28 * var(--u)); transform: translate(-50%, -100%); z-index: 41; pointer-events: none; white-space: nowrap; font-family: var(--font-ui); font-weight: 800; font-size: calc(24 * var(--u)); line-height: 1; letter-spacing: 0.14em; text-transform: uppercase; color: #fff; text-shadow: 0 calc(2 * var(--u)) calc(4 * var(--u)) rgba(0, 0, 0, 0.75), 0 0 calc(10 * var(--u)) rgba(0, 0, 0, 0.45); animation: fadein 0.25s ease; }
 /* ── FIGHT RECAP (owner redesign 2026-09-24; was the flat beige "Combat Summary") ──
    The house modal language: dark glass (#241a13 → #17110c) inside a dark-gold trim, cream type, gold accents
    (the Discover banner / Runeforge gold chip / End Combat tip chrome). Nothing here loops: the only animation
@@ -4948,7 +4943,7 @@ body.aiming, body.aiming * { cursor: none !important; }
 .fr-round { font-family: var(--font-ui); font-weight: 800; font-size: calc(11.5 * var(--u)); letter-spacing: 0.18em; text-transform: uppercase; color: rgba(244, 236, 219, 0.6); }
 .fr-verdict-row { display: flex; align-items: center; justify-content: center; gap: calc(12 * var(--u)); margin: calc(2 * var(--u)) 0 calc(12 * var(--u)); }
 .fr-verdict {
-  font-family: var(--font-disp, var(--font-title)); font-weight: 900; font-size: calc(46 * var(--u)); line-height: 1; letter-spacing: 0.02em; text-transform: uppercase;
+  font-family: var(--font-disp, var(--font-title)); font-weight: 900; font-size: calc(36 * var(--u)); line-height: 1; letter-spacing: 0.02em; text-transform: uppercase;
   -webkit-background-clip: text; background-clip: text; color: transparent;
   filter: drop-shadow(0 3px 0 rgba(0, 0, 0, 0.45));
 }
@@ -4965,13 +4960,12 @@ body.aiming, body.aiming * { cursor: none !important; }
 .fr-foe-pic svg { width: 44%; height: 44%; color: var(--gold); }
 .fr-foe-name { margin-top: calc(6 * var(--u)); font-family: var(--font-ui); font-weight: 900; font-size: calc(16 * var(--u)); color: #f4ecdb; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .fr-foe-hero { font-family: var(--font-ui); font-weight: 700; font-size: calc(12 * var(--u)); color: #e8c877; }
-/* The ONE damage line (owner 2026-09-25): "You dealt X" green on a win, "You took X" red on a loss. */
-.fr-dmgline { display: flex; align-items: baseline; justify-content: center; flex-wrap: wrap; gap: calc(8 * var(--u)); margin-top: calc(10 * var(--u)); font-family: var(--font-ui); }
+/* The ONE damage readout (owner 2026-09-25): the label, then the number big on its own line, green dealt / red took. */
+.fr-dmgline { display: flex; flex-direction: column; align-items: center; gap: calc(4 * var(--u)); margin-top: calc(16 * var(--u)); font-family: var(--font-ui); } /* a line's breathing room under the odds (owner 2026-09-25) */
 .fr-dmgline-label { font-weight: 800; font-size: calc(13 * var(--u)); letter-spacing: 0.12em; text-transform: uppercase; color: rgba(244, 236, 219, 0.75); }
-.fr-dmgline-num { font-weight: 900; font-size: calc(34 * var(--u)); line-height: 1; font-variant-numeric: tabular-nums; }
+.fr-dmgline-num { font-weight: 900; font-size: calc(60 * var(--u)); line-height: 1; font-variant-numeric: tabular-nums; filter: drop-shadow(0 3px 0 rgba(0, 0, 0, 0.45)); }
 .fr-dmgline.dealt .fr-dmgline-num { color: #7fd9a1; }
 .fr-dmgline.taken .fr-dmgline-num { color: #f08a9e; }
-.fr-dmgline-sub { flex-basis: 100%; font-weight: 700; font-size: calc(11.5 * var(--u)); color: rgba(244, 236, 219, 0.6); }
 .fr-dmgline.zero { font-weight: 800; font-size: calc(13 * var(--u)); letter-spacing: 0.12em; text-transform: uppercase; color: rgba(244, 236, 219, 0.45); }
 
 /* Body: scrolls if a long Details log is open; the header and the buttons stay put. */
@@ -4989,7 +4983,7 @@ body.aiming, body.aiming * { cursor: none !important; }
 .fr-odds-dmg-label { margin-top: calc(3 * var(--u)); font-weight: 700; font-size: calc(10.5 * var(--u)); letter-spacing: 0.06em; text-transform: uppercase; color: rgba(244, 236, 219, 0.55); white-space: nowrap; }
 /* The outcome bar (owner 2026-09-24: "much cleaner/sleek/modern"): a thin rounded track, soft palette segments
    sized by flex-grow, a hairline gap between them (the track shows through), a faint top highlight. Static. */
-.fr-oddsbar { display: flex; gap: 2px; width: 100%; height: calc(6 * var(--u)); min-height: 5px; padding: 1px; border-radius: 999px; overflow: hidden; background: rgba(0, 0, 0, 0.35); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06); }
+.fr-oddsbar { display: flex; gap: 2px; width: 100%; height: calc(14 * var(--u)); min-height: 10px; padding: 2px; border-radius: 999px; overflow: hidden; background: rgba(0, 0, 0, 0.35); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06); }
 .fr-oddsbar span { height: 100%; flex-basis: 0; min-width: 3px; border-radius: 999px; box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.28); }
 .fr-oddsbar .win { background: linear-gradient(180deg, #7fd9a1, #4cb77a); }
 .fr-oddsbar .draw { background: linear-gradient(180deg, #f2cf85, #d4a452); }

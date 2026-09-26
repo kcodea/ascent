@@ -69,6 +69,44 @@ export const PATCH_NOTES: PatchNote[] = [
   },
   {
     date: '2026-09-25',
+    label: 'Triple Reward Card',
+    changes: [
+      {
+        category: 'Systems',
+        text: 'The Triple Reward card now looks exactly like a spell in your hand.',
+        details: [
+          'It wears the same square spell frame, art window, Spell label and text box as every other spell.',
+          'The old gold frame and orange glow are gone; it still arrives in a burst of gold.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-09-25',
+    label: 'Round Number in Combat',
+    changes: [
+      {
+        category: 'Systems',
+        text: 'The combat screen now shows the current round at the top centre, just above the Skip button.',
+      },
+    ],
+  },
+  {
+    date: '2026-09-25',
+    label: 'Sell Medallion Fix',
+    changes: [
+      {
+        category: 'Systems',
+        text: 'Every minion with a Sell effect now shows the Sell medallion on its frame.',
+        details: [
+          'Traveling Salesman and Salvatore McKlusky showed the Discover medallion instead.',
+          'Hoard Whelp showed the End of Turn medallion instead.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-09-25',
     label: 'New Kobold and Undead Runes',
     changes: [
       {
@@ -216,9 +254,11 @@ export const PATCH_NOTES: PatchNote[] = [
         category: 'Systems',
         text: 'The fight recap is shorter and to the point: one damage number, and the average damage a win or a loss would have done beside the odds.',
         details: [
-          'The top shows one number: You dealt X in green after a win, or You took X in red after a loss.',
+          'The title reads Won against: or Defeated by:, right above your opponent.',
+          'Under the odds, one big number: You dealt X in green after a win, or You took X in red after a loss.',
           'The odds now sit under a Fight Outcome Odds title, with the average damage a win deals on the left and the average damage a loss costs on the right.',
-          'Stars of the fight and the "chance to win" and "a loss here usually costs" lines are gone.',
+          'The odds bar is thicker.',
+          'Stars of the fight, the Armor callout, and the "chance to win" and "a loss here usually costs" lines are gone.',
         ],
       },
     ],

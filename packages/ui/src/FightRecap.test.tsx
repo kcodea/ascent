@@ -35,10 +35,11 @@ const click = (el: Element | null): void => { act(() => { (el as HTMLElement).cl
 describe('FightRecap', () => {
   it('hides What you keep when there is nothing to show, and shows ONE damage line', () => {
     ui = mount(<FightRecap {...props()} />);
-    expect(text()).toContain('Defeat');
+    expect(text()).toContain('Defeated by:');
     expect(text()).toContain('Round 3');
     expect(ui.container.querySelectorAll('.fr-dmgline')).toHaveLength(1);
     expect(ui.container.querySelector('.fr-dmgline.taken')?.textContent).toBe('You took4');
+    expect(text()).not.toContain('Armor');
     expect(text()).not.toContain('You dealt');
     expect(text()).not.toContain('What you keep');
     expect(text()).not.toContain('No lasting gains');
@@ -53,6 +54,7 @@ describe('FightRecap', () => {
     };
     ui = mount(<FightRecap {...props({ result: 'win', lastCombat: r })} />);
     expect(text()).not.toContain('Stars of the fight');
+    expect(text()).toContain('Won against:');
     expect(ui.container.querySelector('.fr-dmgline.dealt')?.textContent).toBe('You dealt5');
     expect(text()).not.toContain('You took');
     expect(text()).toContain('What you keep');

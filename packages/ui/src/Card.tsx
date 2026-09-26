@@ -769,8 +769,10 @@ export const Card = memo(function Card({
   const [frameOk, setFrameOk] = useState(tauntFrameAvailable);
   const [starsOk, setStarsOk] = useState(tierStarsAvailable);
   // STANDARD / SPELL frames: same load-or-fallback guard. A card wears exactly one authored frame — Taunt wins
-  // for a Taunt minion; regular spells (but NOT the golden Triple-Reward token) get the purple square; every other
-  // minion gets the oval. On 404 the flag flips and the card renders its original arch/spell look.
+  // for a Taunt minion; every spell-like card gets the purple square; every other minion gets the oval. On 404
+  // the flag flips and the card renders its original arch/spell look. The Triple Reward (`discoverspell`) is an
+  // ordinary spell here: it used to be excluded and wear a bespoke gold look, but the owner wants it to "look
+  // exactly like a shop spell card ... the frame, the pill location, everything" (2026-09-25).
   const [sframeOk, setSframeOk] = useState(stdFrameAvailable);
   const [pframeOk, setPframeOk] = useState(spellFrameAvailable);
   const [plateOk, setPlateOk] = useState(cardPlateAvailable);
@@ -797,13 +799,16 @@ export const Card = memo(function Card({
   // cards — the gem now prints ALL instead, so the exclusion is obsolete and the label sits where the eye
   // already looks for it.
   const tribePlated = usePlate && isTribePlated(card.tribe) && !spellLike;
-  const useSpellFrame = spellLike && card.cardId !== 'discoverspell' && pframeOk;
+  const useSpellFrame = spellLike && pframeOk;
   const useStdFrame = !spellLike && !isTaunt && sframeOk;
   return (
     <div
-      className={`card compact${showText ? ' showtext' : ''}${popin ? ' popin' : ''}${popDelay ? ' popdelay' : ''}${highlight ? ' armed' : ''}${targeted ? ' targeted' : ''}${card.golden ? ' golden' : ''}${dimmed ? ' dragsrc' : ''}${spent ? ' spent' : ''}${battlecry ? ' bcasting' : ''}${card.keywords.includes('T') ? ' taunt' : ''}${card.keywords.includes('ST') ? ' stealth' : ''}${card.keywords.includes('DS') ? ' dscard' : ''}${card.keywords.includes('R') || card.keywords.includes('RB') ? ' reborncard' : ''}${card.keywords.includes('V') ? ' venomcard' : ''}${card.keywords.includes('W') ? ' flurrycard' : ''}${spellLike ? ' spellcard' : ''}${card.ruby ? ' rubycard' : ''}${card.cardId === 'discoverspell' ? ' triplecard' : ''}${useStdFrame ? ' stdframe' : ''}${(useStdFrame && hasTribeOval(card.tribe)) || (isTaunt && frameOk && hasTribeTaunt(card.tribe)) ? ' tribeframe' : ''}${useSpellFrame ? ' spellframe' : ''}${electrify ? ' electrify' : ''}${tripleReady ? ' tripready' : ''}${contraband ? ' contraband' : ''}${enchanted ? ' enchanted' : ''}${card.starform ? ' starform' : ''}${card.tribe2 ? ' dual' : ''}${locked ? ' locked' : ''}${usePlate ? ` plated plate-txt-${txtBucket}` : ''}`}
+      className={`card compact${showText ? ' showtext' : ''}${popin ? ' popin' : ''}${popDelay ? ' popdelay' : ''}${highlight ? ' armed' : ''}${targeted ? ' targeted' : ''}${card.golden ? ' golden' : ''}${dimmed ? ' dragsrc' : ''}${spent ? ' spent' : ''}${battlecry ? ' bcasting' : ''}${card.keywords.includes('T') ? ' taunt' : ''}${card.keywords.includes('ST') ? ' stealth' : ''}${card.keywords.includes('DS') ? ' dscard' : ''}${card.keywords.includes('R') || card.keywords.includes('RB') ? ' reborncard' : ''}${card.keywords.includes('V') ? ' venomcard' : ''}${card.keywords.includes('W') ? ' flurrycard' : ''}${spellLike ? ' spellcard' : ''}${card.ruby ? ' rubycard' : ''}${useStdFrame ? ' stdframe' : ''}${(useStdFrame && hasTribeOval(card.tribe)) || (isTaunt && frameOk && hasTribeTaunt(card.tribe)) ? ' tribeframe' : ''}${useSpellFrame ? ' spellframe' : ''}${electrify ? ' electrify' : ''}${tripleReady ? ' tripready' : ''}${contraband ? ' contraband' : ''}${enchanted ? ' enchanted' : ''}${card.starform ? ' starform' : ''}${card.tribe2 ? ' dual' : ''}${locked ? ' locked' : ''}${usePlate ? ` plated plate-txt-${txtBucket}` : ''}`}
       data-uid={uid}
       data-tribe={card.tribe}
+      /* Marks the Triple Reward for its gold ARRIVAL coalesce only (plateCoalesce.ts) — no styling keys on it;
+         the card itself renders exactly as a spell (owner 2026-09-25). */
+      data-triple-reward={card.cardId === 'discoverspell' ? '' : undefined}
       data-choose-both={card.chooseBothKey}
       style={{ '--c': `var(--t-${card.tribe})`, '--c2': `var(--t-${card.tribe2 ?? card.tribe})`,
         '--fan-rot': `${fanRot ?? 0}deg`,

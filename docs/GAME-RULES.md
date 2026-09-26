@@ -721,6 +721,21 @@ hand actually received the card.
 
 ---
 
+### A triple uses the BOARD copies first (owner rule 2026-09-25, R-GILD-03)
+
+*"the minions on board should be used first and foremeost for triples"*
+
+- When a Gild combines copies (3, or 2 under Twin Gilding / Midas), the **board** copies go in first, left-most
+  first; only the copies still missing come from the **hand**, newest first. Any surplus copy stays where it was.
+- Two copies on the board + an effect that gives two copies to hand: both board copies and one new copy combine,
+  the golden goes to hand as usual, and the other new copy stays in hand as a plain copy.
+- The merge itself is unchanged (the two best copies stacked, buffs and accruals carried), and so is where the
+  golden lands (hand; the board when the hand is full). Every route (buy, Discover, play/summon, hero powers,
+  copy grants, the shop-open check for End-of-Turn and combat carry-back copies) goes through the one
+  consumption point, `pullCopies` in `packages/sim/src/reducer.ts`.
+
+---
+
 ### "A card buffed in hand keeps the buff" — permanent, every phase (owner rule 2026-09-09, R-HAND-02)
 
 *"cards buffed in hand are always permanent. so if something buffs a card in hand during combat, that card in

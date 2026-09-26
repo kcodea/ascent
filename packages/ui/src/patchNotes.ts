@@ -52,6 +52,23 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-09-25',
+    label: 'Triples Use Your Board First',
+    changes: [
+      {
+        category: 'Systems',
+        text: 'Triples now use the copies on your board first. Extra copies stay where they were.',
+        details: [
+          'When you hold more copies of a minion than a triple needs, the ones on your board are combined first.',
+          'Only the copies still missing come from your hand, so a spare copy stays in your hand as a normal card.',
+          'Example: two copies on your board, then an effect gives you two more. Both board copies and one new copy become the golden card, and you keep the other new copy.',
+          'Buffs on the board copies carry into the golden card as before.',
+          'This works the same for buying, Discover, hero powers, copies you are given, and minions you play.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-09-25',
     label: 'New Kobold and Undead Runes',
     changes: [
       {

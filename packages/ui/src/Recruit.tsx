@@ -35,7 +35,7 @@ if (import.meta.env.DEV) {
 }
 import { chooseBothText } from './cardText';
 import { relatedCardIds, relatedPickOneIds } from './cardRefs';
-import { type Action, spiritsPlayedThisTurn, anySpellsCastThisTurn, unusedEquipmentCount, playerOpponent, alignmentsOf, boardHasCelestial, chooseBothActive, chooseBothStateOf, type ChooseBothState, chooseOneNeedsChoice, computeCombatOdds, type CombatOdds, rubyCastCount, giftCastCount, rubyStatBonus, CONFIG, RIFTS, hasTier7Access, maxTierFor, conjuredStats, cardBuff, getHero, isTribe, defIsTribe, magnetizesTo, magnetizeTargets, endOfTurnRepeats, endOfTurnTicksOf, projectEndOfTurnSteps, questEndOfTurnBeats, sellValueWithBonus, spellDisplayText, chooseOneBranchText, spellAttackBonus, spellHealthBonus, spellAttackBonusLive, spellHealthBonusLive, spellEscalationLive, spellCasts, runeExtraCasts, spellCostReduction, implosionCasts, dragonflameCasts, nextOpponent, lossDamageCap, playerLossDamage, minionCostOf, heroOfferPrice, offerBuyPrice, dominantBoardTribe, effectiveTargetTribe, boardManaBonus, upgradeCostOf, nextRefreshCostOf, poolOf, type RunState, type ShopCard, type CardBuff, type BoardCard, type BoardSnapshot, gildCopiesNeeded, activePowers, gateUses, runeStacksOf, starformSpellAimsToken, createOddsProbe, selectedEquipment, selectedEquipmentDef } from '@game/sim';
+import { type Action, ancientRiseTint, spiritsPlayedThisTurn, anySpellsCastThisTurn, unusedEquipmentCount, playerOpponent, alignmentsOf, boardHasCelestial, chooseBothActive, chooseBothStateOf, type ChooseBothState, chooseOneNeedsChoice, computeCombatOdds, type CombatOdds, rubyCastCount, giftCastCount, rubyStatBonus, CONFIG, RIFTS, hasTier7Access, maxTierFor, conjuredStats, cardBuff, getHero, isTribe, defIsTribe, magnetizesTo, magnetizeTargets, endOfTurnRepeats, endOfTurnTicksOf, projectEndOfTurnSteps, questEndOfTurnBeats, sellValueWithBonus, spellDisplayText, chooseOneBranchText, spellAttackBonus, spellHealthBonus, spellAttackBonusLive, spellHealthBonusLive, spellEscalationLive, spellCasts, runeExtraCasts, spellCostReduction, implosionCasts, dragonflameCasts, nextOpponent, lossDamageCap, playerLossDamage, minionCostOf, heroOfferPrice, offerBuyPrice, dominantBoardTribe, effectiveTargetTribe, boardManaBonus, upgradeCostOf, nextRefreshCostOf, poolOf, type RunState, type ShopCard, type CardBuff, type BoardCard, type BoardSnapshot, gildCopiesNeeded, activePowers, gateUses, runeStacksOf, starformSpellAimsToken, createOddsProbe, selectedEquipment, selectedEquipmentDef } from '@game/sim';
 import { createPortal } from 'react-dom';
 import { setCardId, setCardStats, toggleCardKeyword, setEnemyStats, setEnemyCardId, toggleEnemyKeyword, removeEnemy, foeSnapshotOf } from './sandboxEdit';
 import { UnitEditor } from './UnitEditor';
@@ -854,11 +854,12 @@ export function shopView(card: ShopCard, opts: ShopViewOpts = {}): CardView { //
   if (card.held) {
     const h = card.held;
     const { buffs: heldBuffs, golden, gild } = heldOfferLedger(card);
-    const lt = liveCardText(c.id, offerLiveTextParams(golden, opts, c.id));
+    const heldKeywords = [...h.keywords, ...(card.keywords ?? []).filter((k) => !h.keywords.includes(k))];
+    const lt = liveCardText(c.id, { ...offerLiveTextParams(golden, opts, c.id), keywords: heldKeywords });
     return {
       name: c.name, cardId: c.id, tribe: c.tribe, tribe2: c.tribe2, universalTribe: !!c.universalTribe,
       attack: Math.max(0, h.attack + (card.atk ?? 0)) + gild.attack, health: h.health + (card.hp ?? 0) + gild.health,
-      keywords: [...h.keywords, ...(card.keywords ?? []).filter((k) => !h.keywords.includes(k))],
+      keywords: heldKeywords,
       text: lt.text, goldenText: lt.goldenText ?? c.goldenText, cost: opts.minionCost ?? CONFIG.minionCost, tier: c.tier, golden,
       buffs: heldBuffs.length > 0 ? heldBuffs : undefined,
       baseAttack: c.attack * (golden ? 2 : 1), baseHealth: c.health * (golden ? 2 : 1),
@@ -890,7 +891,8 @@ export function shopView(card: ShopCard, opts: ShopViewOpts = {}): CardView { //
   const goldMul = card.golden ? 2 : 1;
   // Every scaling offer (Grim, Guel, Taragosa, Spirit Worgen, …) shows its live value in the tavern, not just
   // on the board — the same live-text chain the board uses (instView), via the shared liveCardText.
-  const lt = liveCardText(c.id, offerLiveTextParams(!!card.golden, opts, c.id));
+  const offerKeywords = [...c.keywords, ...(card.keywords ?? []).filter((k) => !c.keywords.includes(k))];
+  const lt = liveCardText(c.id, { ...offerLiveTextParams(!!card.golden, opts, c.id), keywords: offerKeywords }); // an offer granted Rise says so
   // Itemize the buy-time buffs the offer previews (Fortify, run enchant, Staff of Guel, tribe buy-aura) so the
   // tavern inspect shows WHERE the boosted stats come from — the same sources the reducer's buy path records.
   const offerBuffs: { source: string; attack: number; health: number; count: number }[] = [];
@@ -916,7 +918,7 @@ export function shopView(card: ShopCard, opts: ShopViewOpts = {}): CardView { //
     name: c.name, cardId: c.id, tribe: c.tribe, tribe2: c.tribe2, universalTribe: !!c.universalTribe,
     chooseBothKey: offerChoosesBoth(c.id, !!card.golden, opts) ? card.uid : undefined, // (Both) marker hook
     attack: (c.attack + addAtk) * goldMul + (opts.eotBuff?.attack ?? 0), health: (c.health + addHp) * goldMul + (opts.eotBuff?.health ?? 0),
-    keywords: [...c.keywords, ...(card.keywords ?? []).filter((k) => !c.keywords.includes(k))],
+    keywords: offerKeywords,
     text: lt.text,
     goldenText: lt.goldenText ?? c.goldenText,
     buffs: offerBuffs.length > 0 ? offerBuffs : undefined,
@@ -3584,11 +3586,15 @@ export function Recruit() {
   // If a heavily-attached late-game board makes these dominate a fanout frame, this is where it shows.
   const boardViews = useMemo(
     () => perfMonitor.measure('view:board', () => {
-      const fresh = new Map(displayBoard.map((m) => [m.uid, instView(m, run.tier, eotAnimStats?.[m.uid], spellBonus, spellBonusH, run.spellsThisTurn, run.deathrattlesTriggered, run.undeadAttackBonus, run.undeadHealthBonus, ftbBonus, run.wave, run.spellsCast, run.cardBuffs?.cling, run.fodderConsumedThisTurn, { ...live, onBoard: true, eotTickOverride: eotAnimTick?.[m.uid] })] as const));
+      const fresh = new Map(displayBoard.map((m) => {
+        const v = instView(m, run.tier, eotAnimStats?.[m.uid], spellBonus, spellBonusH, run.spellsThisTurn, run.deathrattlesTriggered, run.undeadAttackBonus, run.undeadHealthBonus, ftbBonus, run.wave, run.spellsCast, run.cardBuffs?.cling, run.fodderConsumedThisTurn, { ...live, onBoard: true, eotTickOverride: eotAnimTick?.[m.uid] });
+        const tint = ancientRiseTint(run, m); // Ancients × Lord of the Risen (War): the Undying target's Rise is RED
+        return [m.uid, tint ? { ...v, riseTint: tint } : v] as const;
+      }));
       boardViewCache.current = stabilizeViewMap(fresh, boardViewCache.current);
       return boardViewCache.current;
     }),
-    [displayBoard, run.tier, eotAnimStats, eotAnimTick, spellBonus, spellBonusH, run.spellsThisTurn, run.deathrattlesTriggered, run.undeadAttackBonus, run.undeadHealthBonus, ftbBonus, run.wave, run.spellsCast, run.cardBuffs, run.fodderConsumedThisTurn, live],
+    [displayBoard, run.ancients, run.ancientsEnabled, run.heroId, run.tier, eotAnimStats, eotAnimTick, spellBonus, spellBonusH, run.spellsThisTurn, run.deathrattlesTriggered, run.undeadAttackBonus, run.undeadHealthBonus, ftbBonus, run.wave, run.spellsCast, run.cardBuffs, run.fodderConsumedThisTurn, live],
   );
   // R-HAND-02 (owner 2026-09-09): a hand card a combat effect buffs grows ON ITS BEAT. The replay's reached
   // deltas ride the same stat-override slot the End-of-Turn animation uses, on top of the run hand's stats;

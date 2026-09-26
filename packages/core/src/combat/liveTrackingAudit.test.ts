@@ -73,6 +73,8 @@ const EXEMPT: Record<string, string> = {
   playerBonusGold: 'ditto — next-shop Gold has no live surface mid-fight',
   playerWardBreaks: "the Warden Ancients' Ward-break log (Fortune's next-turn Gold, as its text says; Genesis' running count) is stored at settle; each break already animates live as its own Ward-break beat",
   playerWardWindow: "Warden x Genesis' running break window, stored for the next fight; the copy it earns is granted LIVE mid-fight (a toHand at the 3rd break, R-REALTIME-01)",
+  playerRises: "Risen x Fortune's Rise count, paid as next-turn Gold (as its text says); each Rise already animates live as its own reborn beat",
+  playerSummonsMade: "Risen x Time's summon count, paid at the next Start of Turn (as its text says); each summon already animates live as its own summon beat",
   playerFreeRolls: 'ditto — rerolls are a shop-phase affordance',
   playerMaxGoldGain: 'max-Gold has no combat surface; the maxGold event exists for the replay log only',
   playerFodderGrants: 'queued into the next tavern — no combat surface',

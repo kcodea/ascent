@@ -1,5 +1,5 @@
 import { ALE_IDS, RUBY_TYPE_IDS, SPECIAL_RUBY_IDS, TRIBES, alignAllows, makeRng, SILENT_ONPLAY, isShopPoolSpell, shopSpellGrowth, COMBAT_REPLAYABLE_BATTLECRIES, extraTriggerFires, foldEchoExtraFires, socTwilightExtraFires, BODY_COUNTING_DEATHS, ARENA_EFFECTS, beatIdentity, type EffectArena, type PresentationCollector, type PresentationPhase, type PresentationPolicy, type Rng, type CardDef, type EffectDef, type Keyword, type TriggerFamily, type TriggerSourceRef, type Tribe } from '@game/core';
-import { ancientOnSale, ancientOnShopDeath, ancientOnShopShout, ancientPowerText, ancientEotWardBuff, ancientRunEotWardBuff, ancientBondsReact, ANCIENTS } from './ancients';
+import { ancientOnSale, ancientOnShopDeath, ancientOnShopShout, ancientOnShopRise, ancientPowerText, ancientEotWardBuff, ancientRunEotWardBuff, ancientBondsReact, ANCIENTS } from './ancients';
 import { runSpells } from './spellPool';
 import { REVELER_IDS, RUNE_INDEX, CARD_INDEX, EQUIPMENT_INDEX, STAR_DESTROYER, equipmentOf, recurringEotOwner, type EquipmentDefinition } from '@game/content';
 import { equipIsNews, equipmentParams as equipmentParamsFor, grantEquipment as grantEquipmentToPlayer, armCalibration, unusedEquipmentCount } from './equipment';
@@ -3107,6 +3107,10 @@ function riseReturn(state: RunState, target: BoardCard, slot: number, summonedFr
   // The RETURN is its own beat (owner 2026-09-09: "show the minion rise again, just as if it had happened in
   // combat"): the UI plays combat's reborn re-form on the new body once it has mounted.
   stampShopFx(state, { kind: 'rise', uid: risen.uid, cardId: risen.cardId });
+  // ANCIENT OF BONDS x Lord of the Risen (a no-op unless the run has it): the Shop half of "When a minion Rises,
+  // trigger an adjacent Echo" (combat's is the `onRise` listener in simulate). Here, in the one Rise return both
+  // shop-destroy paths share, so every shop Rise reaches it.
+  ancientOnShopRise(state, risen);
   return risen;
 }
 
@@ -12226,6 +12230,12 @@ export function settlePendingDeath(state: RunState): void {
  *  Exported for tests: positional Echoes (Dawnclaw) need the minion to actually be on the board, which the
  *  borrowed-card path can never provide. */
 export function fireRecruitDeathrattlesForTest(state: RunState, minion: BoardCard): void {
+  fireRecruitDeathrattles(makeContext(state), minion);
+}
+
+/** Fire a living BOARD minion's Echo in the Shop without it dying (the shop's whole Echo ritual: Sylus / Uron extra
+ *  fires, the Echo tally). Ancients x Lord of the Risen (Bonds) triggers a risen minion's neighbour through it. */
+export function fireShopEchoOf(state: RunState, minion: BoardCard): void {
   fireRecruitDeathrattles(makeContext(state), minion);
 }
 

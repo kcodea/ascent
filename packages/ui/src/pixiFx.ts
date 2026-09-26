@@ -1,4 +1,5 @@
 import { Application, Container, Graphics, Sprite, Texture, UPDATE_PRIORITY, type BLEND_MODES, type Renderer, type Ticker } from 'pixi.js';
+import type { RiseTint } from '@game/core';
 import { getSmokeConfig } from './smokeConfig';
 import { perfMonitor } from './perfMonitor';
 import { getCritFxConfig, type CritFxConfig } from './critFxConfig';
@@ -329,6 +330,15 @@ interface DescendFx {
  *  `Card.tsx`); Pixi only draws the one-shot shatter. (Taunt has no aura — it signifies via a static grey
  *  card border; see `.card.taunt` in styles.css.) */
 type AuraKind = 'shield' | 'reborn';
+
+/** The Rise FX palette: the ordinary aqua-green, plus the two Ancients × Lord of the Risen tints (Death's regained
+ *  BLUE Rise, War's RED Undying Rise). The same shapes, timings and blends: only the colours change. */
+interface RisePalette { flash: number; ring: number; bloom: number; wispA: number; wispB: number; mote: number; knit: number }
+const RISE_PALETTES: Record<'green' | RiseTint, RisePalette> = {
+  green: { flash: 0xe6fff6, ring: 0x45e8c0, bloom: 0x8ff2d8, wispA: 0x2fd6b0, wispB: 0xa8f5df, mote: 0xd6fff2, knit: 0xcffff0 },
+  blue: { flash: 0xe6f2ff, ring: 0x4596e8, bloom: 0x8fbef2, wispA: 0x2f7cd6, wispB: 0xa8cdf5, mote: 0xd6e8ff, knit: 0xcfe2ff },
+  red: { flash: 0xffe9e6, ring: 0xe84545, bloom: 0xf28f8f, wispA: 0xd62f2f, wispB: 0xf5a8a8, mote: 0xffd9d6, knit: 0xffd2cf },
+};
 
 const BUBBLE_TEX_R = 40;       // shatter ring/rim scale reference (px)
 const PULSE_TEX_R = 50;        // impact pulse-ring texture radius (px); callers scale wantedRadius / PULSE_TEX_R
@@ -1833,9 +1843,9 @@ class FxController {
    * explosion: fracture lines + shockwave rings + shrapnel shards + energy motes. Deliberately NO bubble/shield
    * DISC flash — the old hex-shield bubble is retired, so the break reads as a shatter, not a shield reappearing.
    */
-  shatterAt(cx: number, cy: number, w: number, h: number, kind: AuraKind = 'shield'): void {
+  shatterAt(cx: number, cy: number, w: number, h: number, kind: AuraKind = 'shield', tint?: RiseTint): void {
     if (!this.ready) return;
-    if (kind === 'reborn') { this.rebornShatter(cx, cy, w, h); return; } // wispy spirit release, not shards
+    if (kind === 'reborn') { this.rebornShatter(cx, cy, w, h, tint); return; } // wispy spirit release, not shards
     const rad = Math.max(w, h) * 0.5 * AURA[kind].margin;
 
     // NB: additive colour washes out to near-white on the light "Sunward" cream board (the burst was invisible —
@@ -1895,22 +1905,23 @@ class FxController {
    *  ward break, not sigh out): a bright blue crack-flash + an expanding shockwave ring, then the spirit
    *  release — outward/RISING smoke wisps + bright motes streaking up. Still no hard shards (it's a spirit,
    *  not glass), but the flash/ring/speed put it in the same punch class as the gold shatter. */
-  private rebornShatter(cx: number, cy: number, w: number, h: number): void {
+  private rebornShatter(cx: number, cy: number, w: number, h: number, tint?: RiseTint): void {
+    const pal = RISE_PALETTES[tint ?? 'green'];
     const rad = Math.max(w, h) * 0.5 * AURA.reborn.margin;
     // CRACK — a hot white-teal flash at the moment the spirit tears free.
     this.spawn(this.glowTex!, {
       x: cx, y: cy, vx: 0, vy: 0, drag: 1, life: 170, fromScale: 0.5, toScale: (rad / 40) * 2.4,
-      spin: 0, tint: 0xe6fff6, blend: 'add', peakAlpha: 0.95,
+      spin: 0, tint: pal.flash, blend: 'add', peakAlpha: 0.95,
     });
     // SHOCKWAVE — a crisp teal ring expanding past the aura edge (the ward-break punctuation).
     this.spawn(this.rimTex!, {
       x: cx, y: cy, vx: 0, vy: 0, drag: 1, life: 420, fromScale: (rad / BUBBLE_TEX_R) * 0.7,
-      toScale: (rad / BUBBLE_TEX_R) * 2.2, spin: 0, tint: 0x45e8c0, blend: 'add', peakAlpha: 0.9,
+      toScale: (rad / BUBBLE_TEX_R) * 2.2, spin: 0, tint: pal.ring, blend: 'add', peakAlpha: 0.9,
     });
     // soft teal bloom that swells + fades under the flash
     this.spawn(this.bubbleTex!, {
       x: cx, y: cy, vx: 0, vy: 0, drag: 1, life: 300, fromScale: (rad / BUBBLE_TEX_R) * 0.8,
-      toScale: (rad / BUBBLE_TEX_R) * 2.0, spin: 0, tint: 0x8ff2d8, blend: 'add', peakAlpha: 0.8,
+      toScale: (rad / BUBBLE_TEX_R) * 2.0, spin: 0, tint: pal.bloom, blend: 'add', peakAlpha: 0.8,
     });
     // smoke wisps — soft blobs BLASTED outward (faster than the old sigh) that bias UPWARD (spirits rising)
     const wisps = 18;
@@ -1922,7 +1933,7 @@ class FxController {
         vx: Math.cos(a) * speed * 0.7, vy: Math.sin(a) * speed * 0.5 - (70 + Math.random() * 140), // rise
         drag: 0.4, life: 600 + Math.random() * 520, fromScale: 0.5 + Math.random() * 0.5,
         toScale: 1.4 + Math.random() * 0.8, spin: (Math.random() - 0.5) * 1.0,
-        tint: Math.random() < 0.5 ? 0x2fd6b0 : 0xa8f5df, blend: 'add', peakAlpha: 0.5 + Math.random() * 0.2,
+        tint: Math.random() < 0.5 ? pal.wispA : pal.wispB, blend: 'add', peakAlpha: 0.5 + Math.random() * 0.2,
       });
     }
     // bright spirit motes streaking up — more of them, flung harder
@@ -1933,20 +1944,21 @@ class FxController {
         x: cx + (Math.random() - 0.5) * rad * 0.6, y: cy,
         vx: Math.cos(a) * speed, vy: Math.sin(a) * speed, drag: 0.35,
         life: 500 + Math.random() * 400, fromScale: 0.8 + Math.random() * 0.6, toScale: 0.05,
-        spin: 0, tint: 0xd6fff2, blend: 'add', peakAlpha: 0.9,
+        spin: 0, tint: pal.mote, blend: 'add', peakAlpha: 0.9,
       });
     }
   }
 
   /** The REBORN rebirth — the unit re-forms from the spirit: teal wisps CONVERGE inward + rise into the
    *  reborn unit + a soft teal flash. The wispy counterpart of a summon poof (fired on the `reborn` beat). */
-  rebornSummon(cx: number, cy: number, w: number, h: number): void {
+  rebornSummon(cx: number, cy: number, w: number, h: number, tint?: RiseTint): void {
     if (!this.ready) return;
+    const pal = RISE_PALETTES[tint ?? 'green'];
     const rad = Math.max(w, h) * 0.5 * AURA.reborn.margin;
     // soft teal flash as the body knits back together
     this.spawn(this.bubbleTex!, {
       x: cx, y: cy, vx: 0, vy: 0, drag: 1, life: 320, fromScale: (rad / BUBBLE_TEX_R) * 0.3,
-      toScale: (rad / BUBBLE_TEX_R) * 1.2, spin: 0, tint: 0xcffff0, blend: 'add', peakAlpha: 0.65,
+      toScale: (rad / BUBBLE_TEX_R) * 1.2, spin: 0, tint: pal.knit, blend: 'add', peakAlpha: 0.65,
     });
     // wisps starting below + around, rising and converging into the unit
     const n = 16;
@@ -1958,7 +1970,7 @@ class FxController {
         x: cx + Math.cos(a) * r0, y: cy + Math.sin(a) * r0 + rad * 0.4, // start a touch low → rise in
         vx: -Math.cos(a) * speed * 0.6, vy: -Math.abs(Math.sin(a)) * speed - 40, // inward + up
         drag: 0.12, life: 360 + Math.random() * 220, fromScale: 0.6 + Math.random() * 0.5, toScale: 0.05,
-        spin: 0, tint: Math.random() < 0.5 ? 0x2fd6b0 : 0xd6fff2, blend: 'add', peakAlpha: 0.7,
+        spin: 0, tint: Math.random() < 0.5 ? pal.wispA : pal.mote, blend: 'add', peakAlpha: 0.7,
       });
     }
   }

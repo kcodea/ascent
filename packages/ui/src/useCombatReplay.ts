@@ -2,7 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, use
 import { playCastFanOutBuffFx, playGenericCastSound } from './fx/spellCastFx';
 import { perfMonitor } from './perfMonitor';
 import gsap from 'gsap';
-import { damageMeterOf, type CombatEvent, type CombatResult, type Keyword, type MinionBuff, type MinionSnapshot, type Tribe } from '@game/core';
+import { damageMeterOf, type CombatEvent, type CombatResult, type Keyword, type MinionBuff, type MinionSnapshot, type RiseTint, type Tribe } from '@game/core';
 import { CARD_INDEX } from '@game/content';
 import { triggerCounts } from './choreo/triggerCounts';
 import { getSpellPowerFxConfig, floatSpellPowerNumber } from './spellPowerFxConfig';
@@ -216,6 +216,8 @@ export interface UnitFrame {
   rallySpreadAtk?: number;
   /** Ancients × the Auctioneer (War): the body carries the granted "Rally: trigger this minion's Shout". Display-only. */
   grantedRallyShout?: boolean;
+  /** Ancients × Lord of the Risen: the body's Rise wears a tinted look (War red, Death's regained blue). Display-only. */
+  riseTint?: RiseTint;
 }
 
 // Stable empty list for the hand-grant memo — a fresh [] each render would churn every downstream memo.
@@ -242,6 +244,7 @@ const fromSnap = (s: MinionSnapshot): UnitFrame => ({
   taughtSpellId: s.taughtSpellId, // Mage-Pup: the combat card names the spell it was taught
   rallySpreadAtk: s.rallySpreadAtk, // Sunmane Herald: the combat card shows the live escalating rally grant
   grantedRallyShout: s.grantedRallyShout, // Auctioneer × War: the combat card prints the granted Rally
+  riseTint: s.riseTint, // Risen × War: the Undying target's Rise is red from the first frame
   // Clone the recruit-buff breakdown so the per-beat fold can merge in combat buffs without mutating the snapshot.
   buffs: s.buffs ? s.buffs.map((b) => ({ ...b })) : undefined,
 });
@@ -391,6 +394,7 @@ export function computeFrame(
         u.health = e.hp;
         u.attack = e.attack;
         u.keywords = [...e.keywords];
+        u.riseTint = undefined; // the tinted Rise is spent by this return (a regained one re-tints on its `keyword` beat)
         u.divineShield = e.keywords.includes('DS');
         // A risen body's Avenge restarts (owner ruling 2026-08-08) — the sim stamps its baseline AFTER its
         // own rise-death was tallied, and the reborn event lands after that death here too, so the current
@@ -424,6 +428,7 @@ export function computeFrame(
         u.keywords = [...u.keywords, e.keyword];
         if (e.keyword === 'DS') u.divineShield = true;
       }
+      if (u && e.keyword === 'R' && e.tint) u.riseTint = e.tint; // Risen × Death: the regained Rise is blue
     } else if (e.type === 'keywordLost') {
       // A combat effect STRIPPED a keyword (Tauntbreaker → Taunt/Rise off the enemy it hit) — drop the pill.
       const u = find(e.target);
@@ -577,7 +582,7 @@ export function animFor(e: CombatEvent | undefined): Record<string, string> {
     case 'poison': return { [e.target]: 'poisoned' };
     case 'venomLost': return { [e.target]: 'venomspent' };
     // A REBIRTH re-forms out of its phoenix flame (`rebirthing`, styles.css) on top of the shared re-entry.
-    case 'reborn': return { [e.target]: e.rebirth ? 'reborn rebirthing' : 'reborn' };
+    case 'reborn': return { [e.target]: e.rebirth ? 'reborn rebirthing' : e.tint ? `reborn risetint-${e.tint}` : 'reborn' };
     case 'buff': return { [e.target]: 'buffed' };
     case 'improve': return { [e.target]: 'buffed' };
     case 'keyword': return { [e.target]: 'buffed' }; // a granted keyword pulses like a buff landing
@@ -2458,7 +2463,7 @@ export function useCombatReplay(
       onShieldBreak: (uid) => breakShieldAura(rectOf(uid), uid),
       onWardDowngrade: (uid) => crackResilientWard(rectOf(uid), uid),
       // Rise re-forms in aqua; REBIRTH bursts into its phoenix flame (owner 2026-09-25) — one call per event.
-      onReborn: (uid, rebirth) => (rebirth ? reformRebirth(rebornRects.get(uid) ?? rectOf(uid), uid) : reformReborn(rebornRects.get(uid) ?? rectOf(uid))),
+      onReborn: (uid, rebirth, tint) => (rebirth ? reformRebirth(rebornRects.get(uid) ?? rectOf(uid), uid) : reformReborn(rebornRects.get(uid) ?? rectOf(uid), tint)),
       // Execute proc → the crescent strike at the VICTIM's slot (the unit being destroyed), read at fire time
       // so a tuner edit applies to the next proc.
       onExecuteFx: (uids) => {

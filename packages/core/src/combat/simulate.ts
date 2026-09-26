@@ -15,13 +15,14 @@ import type {
   MinionSnapshot,
   QuestCombatMods,
   PendingCombatQuest,
+  RiseTint,
   Side,
   Tribe,
 } from '../types';
 import { ALE_IDS, RUBY_TYPE_IDS, damageMeterOf, alignAllows, extraTriggerFires, foldEchoExtraFires, socTwilightExtraFires, COMBATATIVE_RUBIES_ATTACKS, BODY_COUNTING_DEATHS, RUPTURED_RUBY_BOUNCES } from '../types';
 import { makeRng, type Rng } from '../rng';
 import { CombatBus } from '../events';
-import { FACTORIES, playRubyOn, castInCombat, combatCastable, resolveCombatSpellCast, replayCombatBattlecry, drakkoRepeats, fireShout, livingNeighbours, SILENT_ONPLAY, isShopPoolSpell, shopSpellGrowth } from '../effects/factories';
+import { FACTORIES, playRubyOn, castInCombat, combatCastable, resolveCombatSpellCast, replayCombatBattlecry, drakkoRepeats, fireShout, livingNeighbours, triggerEcho, SILENT_ONPLAY, isShopPoolSpell, shopSpellGrowth } from '../effects/factories';
 import { instantiate, type CardIndex } from './minion';
 import { EMPTY_SIDE } from './side';
 
@@ -278,6 +279,23 @@ export function simulate(
   // ANCIENT OF BONDS × the Auctioneer (owner 2026-09-26: "Shout triggers buff adjacent minions +4/+3"): every Shout
   // fire on a side buffs the living minions next to the Shouting minion, the moment it fires (the emit follows the
   // Shout's own effect, so the buff lands right after it). Registered before the tally so it runs first per fire.
+  // ANCIENTS x Lord of the Risen, on every Rise (the moment the body is back): FORTUNE counts it (Gold next turn);
+  // BONDS (owner 2026-09-26: "When a minion Rises, trigger an adjacent Echo"; "random adjacent Echo if both
+  // neighbours have one, nothing if neither") fires the Echo of a living neighbour through the shared forced-Echo
+  // path (`triggerEcho`: every Echo multiplier the side has, each proc through the `asEcho` chokepoint, a `rally`
+  // cue from the risen body), real time. The Ancient's own fire is never gilded (`sourceMul` 1).
+  bus.on('onRise', (payload) => {
+    const { minion, side } = payload as { minion: Minion; side: Side };
+    if (modsFor(side).ancientCountRises) riseLog[side] += 1;
+    const bonds = modsFor(side).ancientRiseEcho;
+    if (!bonds || minion.dead) return;
+    const echoes = livingNeighbours(ctx, minion).filter((n) => n.effects.some((e) => e.on === 'onDeath'));
+    if (echoes.length === 0) return;
+    const target = echoes.length === 1 ? echoes[0]! : rng.pick(echoes);
+    nextStep();
+    emit({ type: 'sc', source: minion.uid, text: `${bonds.label}: ${target.name}'s Echo` });
+    triggerEcho(ctx, minion, target, 1);
+  });
   bus.on('battlecryTriggered', (payload) => {
     const { side, minion } = payload as { side: Side; minion?: Minion };
     const adj = modsFor(side).ancientShoutAdjacent;
@@ -408,6 +426,21 @@ export function simulate(
     player: [...(modsFor('player').ancientWardCopy?.window ?? [])],
     enemy: [...(modsFor('enemy').ancientWardCopy?.window ?? [])],
   };
+  /** ANCIENTS × Lord of the Risen: the combat uids of the bodies Undying marked (matched by `sourceUid` against
+   *  `ancientUndying.uids` once the boards exist), the ones whose Death regain is spent, and each body's tinted
+   *  Rise look (War's red, Death's regained blue), read by `snapshot` and stamped on the `reborn` / `keyword` events. */
+  const undyingUids = new Set<string>();
+  const undyingRegained = new Set<string>();
+  const riseTint = new Map<string, RiseTint>();
+  /** How many times each body has spent a Rise this fight. "Did it die and rise during this exchange?" compares this
+   *  before and after, rather than reading `rebornAvailable` flipping to false: a body that REGAINS Rise the moment
+   *  it returns (Risen x Death, the Deathtouched Apple) holds Rise again afterwards, and would read as never dying. */
+  const riseSerial = new Map<string, number>();
+  const risesOf = (m: Minion): number => riseSerial.get(m.uid) ?? 0;
+  /** ANCIENTS (Risen's Fortune / Time): friendly Rises and friendly summons this fight, per side — counted only for
+   *  a side whose mods ask (`ancientCountRises` / `ancientCountSummons`), so every other result is byte-identical. */
+  const riseLog: Record<Side, number> = { player: 0, enemy: 0 };
+  const summonLog: Record<Side, number> = { player: 0, enemy: 0 };
   /** Wolvie (Echo): one-shot buffs queued for the next tribe minion each side summons (FIFO). */
   const nextSummonBuffs: Record<Side, { tribe: Tribe; attack: number; health: number; sourceUid?: string }[]> = { player: [], enemy: [] };
   /** Wolvie's Echoes STACK onto the NEXT matching summon (owner 2026-08-12): four queued Echoes all land on the
@@ -584,6 +617,18 @@ export function simulate(
     enemy: enemy.map((b) => instantiate(b, 'enemy', cards, mkUid)),
   };
   for (const m of boards.player) applyAuras(m, false); // fold run-wide auras into starting minions (already baked → live part only)
+  // ANCIENTS × Lord of the Risen: find the Undying bodies (the run card's uid rides in as `sourceUid`). War's Rise on
+  // them is RED (Death's BLUE) from the first frame (the `initial` snapshot reads `riseTint`).
+  for (const side of ['player', 'enemy'] as const) {
+    const u = modsFor(side).ancientUndying;
+    if (!u) continue;
+    for (const m of boards[side]) {
+      if (!m.sourceUid || !u.uids.includes(m.sourceUid)) continue;
+      undyingUids.add(m.uid);
+      if (u.war && m.rebornAvailable) riseTint.set(m.uid, 'red');
+      else if (u.regainRise && m.rebornAvailable) riseTint.set(m.uid, 'blue'); // Death: blue from the first frame too
+    }
+  }
 
   // Persistent tribe buffs (Grim's Deathrattle): registered when it fires, then applied to every matching
   // friend summoned for the *rest of combat*. Side-scoped; multiple Grims stack.
@@ -785,6 +830,7 @@ export function simulate(
     chosenOption: m.chosenOption, // Choose One: display-only, so the combat card prints the branch it became
     rallySpreadAtk: m.rallySpreadAtk, // Sunmane: the live escalating rally value, for the card text
     ...(m.effects.some((e) => e.do === 'rallyTriggerOwnShout') ? { grantedRallyShout: true as const } : {}), // Auctioneer × War: print the granted Rally
+    ...(riseTint.has(m.uid) && m.keywords.includes('R') ? { riseTint: riseTint.get(m.uid) } : {}), // Risen × War / Death: the tinted Rise look
     taughtSpellId: m.taughtSpellId, // Mage-Pup: display-only, so the combat card names the spell it cast
     sellBonus: m.sellBonus,
     eotTick: m.eotTick,
@@ -1591,7 +1637,7 @@ export function simulate(
    * auras, keyword grants, attack-on-summon and the onSummon event apply to *any* summon (token
    * Deathrattles, `deathrattleFillTribe`'s real minions, Brood Matron, future effects).
    */
-  function summonMinion(side: Side, card: CardDef, nearUid: string | undefined, grantKeywords?: Keyword[], golden = false, attackNow = false, copyStats?: { attack: number; health: number; maxHealth: number; divineShield?: boolean; rebornAvailable?: boolean }, doubled = false): Minion {
+  function summonMinion(side: Side, card: CardDef, nearUid: string | undefined, grantKeywords?: Keyword[], golden = false, attackNow = false, copyStats?: { attack: number; health: number; maxHealth: number; divineShield?: boolean; rebornAvailable?: boolean; stripReturn?: boolean }, doubled = false): Minion {
     // A GILDED token (golden: true): doubled base stats + the golden flag, for summoners whose golden form
     // upgrades the token rather than the count (Manasaber's 0/4 cubs).
     const minion = instantiate(
@@ -1606,6 +1652,12 @@ export function simulate(
       minion.maxHealth = copyStats.maxHealth;
       if (copyStats.divineShield) minion.divineShield = true;
       if (copyStats.rebornAvailable) minion.rebornAvailable = true;
+      // ANCIENT OF GENESIS x Lord of the Risen: the extra body a Rise / Rebirth return summons comes WITHOUT the
+      // returning keyword (a printed Rise / Rebirth included), so it is a plain copy that stays dead.
+      if (copyStats.stripReturn) {
+        minion.keywords = minion.keywords.filter((k) => k !== 'R' && k !== 'RB');
+        minion.rebornAvailable = false;
+      }
     }
     // Echo summons (a Deathrattle is resolving right now): Rune of the Undertow routes the body onto the
     // immediate-attack queue so it lands + strikes as one beat (the Whelp path). Rune of Aftershocks no
@@ -1780,6 +1832,9 @@ export function simulate(
         for (const m of boards[side]) if (!m.dead && m.health > 0) ctx.buff(m, ov, ov, 'Rune of Overflow');
         boardBuffGain[side].attack += ov; boardBuffGain[side].health += ov;
       }
+      // ANCIENT OF GENESIS x Lord of the Risen (owner 2026-09-26: "make sure these count as overflows"): the extra
+      // body is still summoned, so on a full board it is a REAL overflow of its own (every overflow watcher hears it).
+      summonGenesisExtras(side, card, nearUid, grantKeywords, golden, attackNow, copyStats, doubled);
       return minion;
     }
     const arr = boards[side];
@@ -1866,7 +1921,34 @@ export function simulate(
       for (const m of boards[side]) if (m !== minion && !m.dead && m.health > 0 && m.cardId === 'echowarden') extra += m.golden ? 2 : 1;
       for (let k = 0; k < extra; k++) summonMinion(side, card, minion.uid, grantKeywords, golden, attackNow, copyStats, true);
     }
+    summonGenesisExtras(side, card, minion.uid, grantKeywords, golden, attackNow, copyStats, doubled);
     return minion;
+  }
+
+  /**
+   * ANCIENT OF GENESIS x Lord of the Risen (owner 2026-09-26: "Your summons summon an extra minion in combat. adds 1
+   * to any and all summon effects in combat, including rise"; "this also makes echo summons summon an extra body").
+   * Every summon this side makes summons `ancientSummonExtra` more copies of what it summoned, through the normal
+   * summon path (`summonMinion`): the copy lands beside it, counts as a summon for every watcher and tally, and on
+   * a full board is a real overflow. A copy carries `doubled`, so it never makes copies of its own (Echo Warden's
+   * guard). Called from BOTH halves of `placeSummon` (landed or overflowed).
+   */
+  function summonGenesisExtras(side: Side, card: CardDef, nearUid: string | undefined, grantKeywords: Keyword[] | undefined, golden: boolean, attackNow: boolean, copyStats: Parameters<typeof summonMinion>[6], doubled: boolean): void {
+    const n = doubled ? 0 : modsFor(side).ancientSummonExtra ?? 0;
+    for (let k = 0; k < n; k++) summonMinion(side, card, nearUid, grantKeywords, golden, attackNow, copyStats, true);
+  }
+
+  /** ANCIENT OF GENESIS for a RETURN (a Rise or a Rebirth, which re-slot the same body rather than place a new
+   *  one): one more copy of the returned body beside it, at its return stats, WITHOUT the returning keyword. When
+   *  the return itself overflowed (`overflow`), the copy is attempted too, so it overflows as well. */
+  function summonReturnExtras(minion: Minion, overflow = false): void {
+    const n = modsFor(minion.side).ancientSummonExtra ?? 0;
+    const def = cards[minion.cardId];
+    if (n <= 0 || !def) return;
+    const hp = Math.max(1, overflow ? 1 : minion.health);
+    const stats = { attack: minion.attack, health: hp, maxHealth: Math.max(hp, minion.maxHealth), divineShield: !overflow && minion.divineShield, stripReturn: true };
+    const kws = minion.keywords.filter((k) => k !== 'R' && k !== 'RB');
+    for (let k = 0; k < n; k++) summonMinion(minion.side, def, minion.uid, kws, !!minion.golden, false, stats, true);
   }
 
   /**
@@ -1896,6 +1978,7 @@ export function simulate(
       // entry chokepoint, so a token, a Rise and a resummon all count exactly once each.
       if (minion.side === side) {
         summonCount[side] += 1;
+        if (modsFor(side).ancientCountSummons) summonLog[side] += 1; // ANCIENT OF TIME x Lord of the Risen
         // Rune of Reinvestment (owner text 2026-09-23: "When you summon a minion in combat…"): the badge pulses
         // on EACH friendly summon; the Shop buff itself is still paid once at settle (× summons), see below.
         if (modsFor(side).runeReinvestment) fireTrigger('runeReinvestment', side);
@@ -2289,7 +2372,10 @@ export function simulate(
   //     own swing, or Solaris Fang / Feeding Line / Bloodlust granting an existing body a bonus attack).
   const pendingAttackOnSummon: (
     | { summon: { minion: Minion; side: Side; card: CardDef; nearUid: string | undefined; grantKeywords: Keyword[] | undefined; golden: boolean; copyStats: { attack: number; health: number; maxHealth: number; divineShield?: boolean; rebornAvailable?: boolean } | undefined; doubled: boolean }; seq: number; minion?: undefined }
-    | { minion: Minion; shieldFirst?: boolean; forcedTarget?: Minion; summon?: undefined }
+    | { minion: Minion; shieldFirst?: boolean; forcedTarget?: Minion; summon?: undefined; interrupts?: undefined; seq?: undefined }
+    // ANCIENT OF WAR x Lord of the Risen: a body that RETURNED to attack immediately (the Undying Rise). A Rise is a
+    // summon, so for R-ORD-05 it interrupts like one (the between-swings and wind-up flushes pick it up by `seq`).
+    | { minion: Minion; interrupts: true; seq: number; shieldFirst?: undefined; forcedTarget?: undefined; summon?: undefined }
   )[] = [];
   /** Monotonic stamp on each deferred summon, so a swing's wind-up flush drains ONLY what its own wind-up queued
    *  (an earlier Flurry swing's summon strikes between the swings instead; see `performAttack`). */
@@ -2575,6 +2661,7 @@ export function simulate(
       if (living(minion.side).length >= 7) {
         bus.emit('summonOverflow', { side: minion.side });
         if (isUndeadMinion(minion)) finalGateGraves[minion.side].push({ cardId: minion.cardId, golden: !!minion.golden }); // it stayed dead
+        summonReturnExtras(minion, true); // ANCIENT OF GENESIS: the extra does not fit either (a real overflow)
         return;
       }
       minion.dead = false;
@@ -2602,10 +2689,12 @@ export function simulate(
       nextStep();
       emit({ type: 'reborn', target: minion.uid, hp: minion.health, attack: minion.attack, keywords: [...minion.keywords], ...(after ? { after } : {}), rebirth: true });
       summonEntryEffects(minion, minion.side);
+      summonReturnExtras(minion); // ANCIENT OF GENESIS × Lord of the Risen: a Rebirth return is a summon too
       return;
     }
     if (minion.rebornAvailable) {
       minion.rebornAvailable = false;
+      riseSerial.set(minion.uid, risesOf(minion) + 1); // the Rise is spent (see `risesOf`)
       // It really died: proc the unit's own Deathrattle / on-death effects (each death procs them) BEFORE the
       // body returns — so the Whelp's spawn + the Eternal Knight's +3/+2 land per death, not just on the last.
       if (minion.effects.some((e) => e.on === 'onDeath')) bumpDeathrattles(1, minion.side);
@@ -2654,6 +2743,7 @@ export function simulate(
       if (living(minion.side).length >= 7) {
         bus.emit('summonOverflow', { side: minion.side });
         if (isUndeadMinion(minion)) finalGateGraves[minion.side].push({ cardId: minion.cardId, golden: !!minion.golden }); // Final Gate: it stayed dead
+        summonReturnExtras(minion, true); // ANCIENT OF GENESIS: the extra does not fit either (a real overflow)
         return;
       }
       // Rise: revive the SAME body (keeps its uid → "reborn attacks again" + every per-instance carry-back
@@ -2718,8 +2808,26 @@ export function simulate(
       while (at < arr.length && !before.has(arr[at]!.uid)) at++; // skip the tokens the rattle just summoned
       arr.splice(at, 0, minion);
       const after = at > slot ? arr[at - 1]!.uid : undefined; // anchor the UI re-slot to the token on its left
+      // ANCIENT OF WAR × Lord of the Risen (owner 2026-09-26: "The minion chosen by Undying returns with double Attack
+      // and attacks immediately"): the returned body's Attack doubles (after its auras), before the `reborn` event,
+      // so the return shows the doubled number. Its strike is queued below, once the return has settled.
+      const undying = undyingUids.has(minion.uid) ? modsFor(minion.side).ancientUndying : undefined;
+      if (undying?.war) minion.attack *= 2;
+      const spentTint = riseTint.get(minion.uid);
+      riseTint.delete(minion.uid);
       nextStep(); // the body's return is its own moment, after the rattle's summons
-      emit({ type: 'reborn', target: minion.uid, hp: minion.health, attack: minion.attack, keywords: [...minion.keywords], ...(after ? { after } : {}) });
+      emit({ type: 'reborn', target: minion.uid, hp: minion.health, attack: minion.attack, keywords: [...minion.keywords], ...(after ? { after } : {}), ...(spentTint ? { tint: spentTint } : {}) });
+      // ANCIENT OF DEATH × Lord of the Risen (owner 2026-09-26: "Undying's target gains Rise after rising. (Once per
+      // combat.)"): right after its return the Undying body regains Rise, ONCE per combat, as a BLUE Rise (the
+      // regained keyword arrives on its own `keyword` beat, carrying the tint). Its next Rise is a normal one.
+      if (undying?.regainRise && !undyingRegained.has(minion.uid)) {
+        undyingRegained.add(minion.uid);
+        if (!minion.keywords.includes('R')) minion.keywords.push('R');
+        minion.rebornAvailable = true;
+        riseTint.set(minion.uid, 'blue');
+        nextStep();
+        emit({ type: 'keyword', target: minion.uid, keyword: 'R', source: minion.uid, tint: 'blue' });
+      }
       // `onRise` — the Rise watchers (Revenant, Rising Tide). Emitted once the body is BACK (auras re-applied,
       // re-slotted) so a watcher that buffs "your minions" reaches the risen body itself. The shop's twin is
       // `fireOnRise` in recruit.ts, off the same return (owner 2026-09-09: both phases, shop payouts permanent).
@@ -2729,6 +2837,15 @@ export function simulate(
       // watchers (Beardsley / King Oona / Groveweaver), tribe auras, the Zoo ordinal, Remains, Emberline,
       // Second Litter, Savagery / Jungle, Wolvie, and the quest tallies (all inside the shared helper).
       summonEntryEffects(minion, minion.side);
+      // ANCIENT OF GENESIS × Lord of the Risen: a Rise is a summon, so it summons an extra body too: a copy of the
+      // risen body at its return stats, WITHOUT Rise (a real overflow on a full board).
+      summonReturnExtras(minion);
+      // ANCIENT OF WAR: the returned Undying body attacks immediately. It cuts the line like an "attacks immediately"
+      // summon (R-ORD-05): it strikes once this return settles, before the next normal attacker, and between the
+      // swings of a Flurry (it rides the queue as an interrupting item with its own sequence stamp).
+      if (undying?.war && !minion.dead && minion.health > 0) {
+        pendingAttackOnSummon.push({ minion, interrupts: true, seq: immediateSummonSeq++ });
+      }
       return;
     }
     minion.dead = true;
@@ -3252,15 +3369,15 @@ export function simulate(
     // The risen body is a fresh body: its turn is over, the next minion attacks, and it swings again on a
     // later turn like anything else. (Granted Flurry is already shed by the Rise itself, which rebuilds
     // `keywords` from the card def; an INNATE Flurry survives but still doesn't re-swing this exchange.)
-    const rebornAtStart = attacker.rebornAvailable;
+    const risesAtStart = risesOf(attacker);
     for (let s = 0; s < swings; s++) {
       // "ATTACKS IMMEDIATELY" INTERRUPTS A FLURRY (owner ruling 2026-09-26, reversing the same-day "doesn't
       // interrupt a flurry"): *"a minion summoned that attacks immediately SHOULD interrupt a flurry"*. A summon
       // queued by swing 1's cascade (a Whelp-maker it killed) lands and strikes HERE, between the two swings, as
       // its own clean beat: never inside swing 2's lunge. Swing 2 then goes (if the Flurry minion still lives).
-      if (s > 0 && pendingAttackOnSummon.some((q) => q.summon)) flushImmediateAttacks(true);
+      if (s > 0 && pendingAttackOnSummon.some((q) => q.summon || q.interrupts)) flushImmediateAttacks(true);
       if (attacker.dead || attacker.health <= 0) break;
-      if (rebornAtStart && !attacker.rebornAvailable) break; // it died and rose during this exchange
+      if (risesOf(attacker) !== risesAtStart) break; // it died and rose during this exchange
       let target = chooseTarget(defenderSide);
       // PORKBELLY'S VANGUARD: the golem below is handed its summoner's victim, so it swings at that body
       // rather than rolling its own. Only honoured while the body is still a live, legal target.
@@ -3305,9 +3422,9 @@ export function simulate(
           // that had it before the vanguard swung and does not after DIED in that exchange — even though it
           // is standing there alive again. Without this the settle reads `target.dead === false` and Porkbelly
           // swings at a body his vanguard already killed (owner ruling 2026-09-01: he should NOT).
-          const couldRise = !!target.rebornAvailable;
+          const risesBefore = risesOf(target);
           if (golem && !golem.dead && golem.health > 0) performAttack(golem, defenderSide, depth + 1, target);
-          if (couldRise && !target.rebornAvailable) vanguardKilled = true;
+          if (risesOf(target) !== risesBefore) vanguardKilled = true;
         }
       }
       // The vanguard felled it (or something in that exchange did): Porkbelly settles. No swing, no
@@ -3595,7 +3712,7 @@ export function simulate(
        * the `attack` event). A summon an EARLIER swing of a Flurry queued already struck between the swings (the
        * flush at the top of the swing loop), so it can never land inside this swing's lunge.
        */
-      if (pendingAttackOnSummon.some((q) => q.summon && q.seq >= windupSeq)) flushImmediateAttacks(true, windupSeq);
+      if (pendingAttackOnSummon.some((q) => (q.summon || q.interrupts) && q.seq >= windupSeq)) flushImmediateAttacks(true, windupSeq);
       if (attacker.dead || attacker.health <= 0) return;
       /**
        * THE TARGET DIED IN THE WIND-UP — so there is no clash (owner ruling 2026-09-01).
@@ -3618,7 +3735,7 @@ export function simulate(
       if (target.dead || target.health <= 0 || !boards[target.side].includes(target)) return;
 
       const targetWasAlive = !target.dead && target.health > 0;
-      const targetCouldReborn = target.rebornAvailable; // a Reborn target that "dies" returns to life
+      const targetRises0 = risesOf(target); // a Reborn target that "dies" returns to life (see `risesOf`)
       const poison = attacker.keywords.includes('V'); // Venomous
 
       // === The exchange is SIMULTANEOUS, in two phases (owner ruling 2026-07-02). ===
@@ -3628,7 +3745,7 @@ export function simulate(
       // deathrattles and all, before the attacker's counter damage even landed).
       // `victims` collects each body hit this clash, in damage order, for phase 2. `couldReborn` is the
       // pre-clash Reborn state (nothing flips it until phase 2), so a spent Rise reads as a kill below.
-      const victims: { m: Minion; killer: Minion; couldReborn: boolean }[] = [];
+      const victims: { m: Minion; killer: Minion; rises0: number }[] = [];
 
       // Cleave hits the target's neighbours in the same clash (A.3 step 5). Uses LIVING adjacency, not raw array
       // index: dead minions are kept in `boards[side]` (never spliced), so an index-based lookup would splash a
@@ -3639,7 +3756,7 @@ export function simulate(
         const di = live.indexOf(target);
         const neighbours = [live[di - 1], live[di + 1]].filter((n): n is Minion => !!n);
         for (const n of neighbours) {
-          victims.push({ m: n, killer: attacker, couldReborn: n.rebornAvailable });
+          victims.push({ m: n, killer: attacker, rises0: risesOf(n) });
           applyDamage(n, attacker.attack * critMult, poison, false, attacker);
         }
       }
@@ -3651,7 +3768,7 @@ export function simulate(
         const both = [live[di - 1], live[di + 1]].filter((n): n is Minion => !!n);
         const hit = attacker.golden ? both : both.slice(0, 1); // ungilded: the first available side
         for (const n of hit) {
-          victims.push({ m: n, killer: attacker, couldReborn: n.rebornAvailable });
+          victims.push({ m: n, killer: attacker, rises0: risesOf(n) });
           applyDamage(n, attacker.attack * critMult, poison, false, attacker);
         }
       }
@@ -3661,7 +3778,7 @@ export function simulate(
       // documentation of the rule: retaliation uses the body that actually clashed.)
       const counterAttack = target.attack;
       const counterVenom = target.keywords.includes('V');
-      victims.push({ m: target, killer: attacker, couldReborn: targetCouldReborn });
+      victims.push({ m: target, killer: attacker, rises0: targetRises0 });
       applyDamage(target, attacker.attack * critMult, poison, false, attacker); // main hit (Critical Strike doubles it)
       // Bounty Bot: "immune while attacking" for its first N swings this combat — take no retaliation, and
       // spend one charge of immunity per swing (so it protects the first N attacks, not the first N combats).
@@ -3669,7 +3786,7 @@ export function simulate(
         // Mauron's immunity never depletes — it is "while attacking", not a charge count.
         if (!cards[attacker.cardId]?.attackImmuneAlways) attacker.attackImmuneLeft = attacker.attackImmuneLeft! - 1;
       } else {
-        victims.push({ m: attacker, killer: target, couldReborn: attacker.rebornAvailable });
+        victims.push({ m: attacker, killer: target, rises0: risesOf(attacker) });
         applyDamage(attacker, counterAttack, counterVenom, false, target); // retaliation
       }
 
@@ -3687,12 +3804,12 @@ export function simulate(
       // body's killer; a dead killer's handlers self-suppress in registerEffects (a mutual kill procs
       // nothing, unchanged from before).
       nextStep(); // on-kill rewards resolve as their own step, after every death in the clash
-      for (const { m, killer, couldReborn } of victims) {
+      for (const { m, killer, rises0 } of victims) {
         // Slaughter (on-kill) fires ONLY when THIS minion ATTACKS and kills (owner ruling 2026-07-08, revising
         // the 2026-07-03 "defender fells attacker counts" rule): the attacker's own kills — the main target and
         // cleave splash — proc it, but a defender felling its attacker via retaliation does NOT (its `killer` is
         // the target, not this exchange's `attacker`). So gate on `killer === attacker`.
-        if ((m.dead || m.health <= 0 || (couldReborn && !m.rebornAvailable)) && killer === attacker) {
+        if ((m.dead || m.health <= 0 || risesOf(m) !== rises0) && killer === attacker) {
           bus.emit('onKill', { attacker: killer, victim: m });
           // Uron: your SLAUGHTERS trigger extra times — the killer's own on-kill effects only. The KILL
           // count (`slaughter`) still counts one, but each re-trigger bumps the "Trigger N Slaughters" tally.
@@ -3788,7 +3905,7 @@ export function simulate(
       // On-kill re-attack (Gnasher) stays keyed to the MAIN target's kill only.
       const killed =
         targetWasAlive &&
-        (target.dead || target.health <= 0 || (targetCouldReborn && !target.rebornAvailable));
+        (target.dead || target.health <= 0 || risesOf(target) !== targetRises0);
       if (killed && attacker.reAttackOnKill && !attacker.dead && attacker.health > 0 && depth < REATTACK_GUARD) {
         performAttack(attacker, defenderSide, depth + 1);
       }
@@ -3841,7 +3958,7 @@ export function simulate(
     let guard = 0;
     while (guard++ < IMMEDIATE_ATTACK_GUARD) {
       const at = onlySummons
-        ? pendingAttackOnSummon.findIndex((q) => q.summon && q.seq >= fromSeq)
+        ? pendingAttackOnSummon.findIndex((q) => (q.summon || q.interrupts) && q.seq >= fromSeq)
         : (pendingAttackOnSummon.length > 0 ? 0 : -1);
       if (at < 0) break;
       const item = pendingAttackOnSummon.splice(at, 1)[0]!;
@@ -4875,7 +4992,7 @@ export function simulate(
       turn = defenderSide;
       continue;
     }
-    const rebornBefore = attacker.rebornAvailable;
+    const risesBefore = risesOf(attacker);
     const rebirthBefore = attacker.keywords.includes('RB');
     performAttack(attacker, defenderSide, 0);
     // Reborn-on-attack: a minion that died to retaliation and Reborned keeps its place — it's next to
@@ -4883,7 +5000,7 @@ export function simulate(
     // A REBIRTH return gets the same rewind (owner 2026-09-16: "it acts like rise, so copy that" — pinned by
     // the Rise/Rebirth parity test in `rebirth.test.ts`): `RB` was on the body before the swing and is spent
     // by the return, so a body standing without it came back this swing.
-    if ((rebornBefore && !attacker.rebornAvailable && !attacker.dead && attacker.health > 0)
+    if ((risesOf(attacker) !== risesBefore && !attacker.dead && attacker.health > 0)
       || (rebirthBefore && !attacker.keywords.includes('RB') && !attacker.dead && attacker.health > 0)) {
       const arr = boards[turn];
       lastAttacker[turn] = arr[arr.indexOf(attacker) - 1] ?? null;
@@ -5104,6 +5221,8 @@ export function simulate(
       fodderBuffGain: fodderBuffGain[side].attack > 0 || fodderBuffGain[side].health > 0 ? fodderBuffGain[side] : undefined,
       wardBreaks: wardBreakLog[side].length > 0 ? [...wardBreakLog[side]] : undefined,
       wardWindow: modsFor(side).ancientWardCopy ? [...wardWindow[side]] : undefined,
+      rises: modsFor(side).ancientCountRises ? riseLog[side] : undefined,
+      summonsMade: modsFor(side).ancientCountSummons ? summonLog[side] : undefined,
     };
   };
   const pc = carryBacksFor('player');
@@ -5174,6 +5293,8 @@ export function simulate(
     playerFodderBuffGain: pc.fodderBuffGain,
     ...(pc.wardBreaks ? { playerWardBreaks: pc.wardBreaks } : {}),
     ...(pc.wardWindow ? { playerWardWindow: pc.wardWindow } : {}),
+    ...(pc.rises !== undefined ? { playerRises: pc.rises } : {}),
+    ...(pc.summonsMade !== undefined ? { playerSummonsMade: pc.summonsMade } : {}),
     // Enemy run-level scalers so the UI can render an enemy Grim/Taragosa/Pack Leader/Runescale at the
     // OPPONENT's value. Present only when the enemy actually had a nonzero scaler (else the card's base text
     // is already accurate → the UI's player-side fallback is fine).

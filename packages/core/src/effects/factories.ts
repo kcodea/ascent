@@ -744,8 +744,9 @@ export function replayCombatBattlecry(ctx: CombatContext, m: Minion): void {
  *  The Echo fires as many times as a real death would (every Echo multiplier the side has — Sylus, Uron,
  *  Funeral Engine…), then `self`'s gild DOUBLES that whole count. Logs a `rally` cue per proc (the "trigger
  *  this Deathrattle" visual). ANY `onDeath` effect counts, not just ids that start with "deathrattle". */
-export function triggerEcho(ctx: CombatContext, self: Minion, target: Minion): void {
-  const procs = (1 + (ctx.echoExtras?.(target) ?? 0)) * mul(self);
+export function triggerEcho(ctx: CombatContext, self: Minion, target: Minion, sourceMul?: number): void {
+  // `sourceMul` overrides the source's gild multiplier (an Ancient firing from a minion's Rise is never gilded).
+  const procs = (1 + (ctx.echoExtras?.(target) ?? 0)) * (sourceMul ?? mul(self));
   const runProcs = (): void => {
     for (let r = 0; r < procs; r++) {
       ctx.log({ type: 'rally', source: self.uid, target: target.uid });

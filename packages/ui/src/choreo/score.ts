@@ -1,4 +1,4 @@
-import type { CombatEvent } from '@game/core';
+import type { CombatEvent, RiseTint } from '@game/core';
 import { ALE_IDS } from '@game/core';
 import type { Moment } from './compile';
 import type { MomentKind } from './kinds';
@@ -291,7 +291,7 @@ export interface CueContext {
    *  older harness contexts need not supply it. */
   onWardDowngrade?: (uid: string) => void;
   /** A unit was reborn this moment (uid) → schedule the re-form glow. */
-  onReborn: (uid: string, rebirth?: boolean) => void;
+  onReborn: (uid: string, rebirth?: boolean, tint?: RiseTint) => void;
   /** This moment's `poison` targets — minions destroyed by an Execute proc. The replay fires the Execution
    *  Strike crescent at each victim's slot. */
   onExecuteFx: (uids: string[]) => void;
@@ -543,7 +543,7 @@ export function runMomentCues(moment: Moment, ctx: CueContext): () => void {
       if (uids.length) ctx.onExecuteFx(uids);
     });
     else if (cue.ch === 'auraReform') at(cue, () => {  // Rise: the aqua re-form glow (a Rebirth plays on `rebirthFx`)
-      for (let i = moment.start; i < moment.end; i++) { const e = ctx.events[i]; if (e?.type === 'reborn' && !e.rebirth) ctx.onReborn(e.target, false); }
+      for (let i = moment.start; i < moment.end; i++) { const e = ctx.events[i]; if (e?.type === 'reborn' && !e.rebirth) { if (e.tint) ctx.onReborn(e.target, false, e.tint); else ctx.onReborn(e.target, false); } }
     });
     else if (cue.ch === 'rebirthFx') at(cue, () => {  // Rebirth: the phoenix burst, once per rebirth event
       for (let i = moment.start; i < moment.end; i++) { const e = ctx.events[i]; if (e?.type === 'reborn' && e.rebirth) ctx.onReborn(e.target, true); }

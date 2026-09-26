@@ -54,6 +54,7 @@ import {
 } from '@game/sim';
 import { runeTally } from './runeTally';
 import { DEFAULT_SLIDER, sliderToGain } from './audio/volumeCurve';
+import { masterLevel, masterOutput, onMasterChange } from './audio/master';
 import { ANNOUNCER_CHANCE, announcerEventChance, announcerEventOffset, announcerEventVolume, announcerLineGain } from './announcerConfig';
 import { isMusicWanted, MUSIC_FADE_MS, MUSIC_START_DELAY_MS, type MusicStateLike } from './music';
 import { COMBAT_MOMENT_EVENTS, COMBAT_SPECIAL_EVENTS, finalMoments, newCombatScan, scanCombat, type CombatScan, type FrameAt, type UnitStats } from './announcerCombat';
@@ -770,7 +771,7 @@ function ensureGraph(ctx: AudioContext): GainNode {
   if (graph && graph.ctx === ctx) return graph.level;
   const lvl = ctx.createGain();
   lvl.gain.value = level();
-  lvl.connect(ctx.destination);
+  lvl.connect(masterOutput(ctx)); // → the Settings MASTER volume (audio/master.ts) → destination
   graph = { ctx, level: lvl };
   return lvl;
 }
@@ -781,8 +782,13 @@ function applyLevel(): void {
     graph.level.gain.cancelScheduledValues(now);
     graph.level.gain.setTargetAtTime(level(), now, 0.01);
   }
-  for (const [el, gain] of liveElements) el.volume = announcerLineGain(level(), gain);
+  applyElementVolumes();
 }
+/** No-context path: each sounding element's volume is its line gain × the MASTER (audio/master.ts). */
+function applyElementVolumes(): void {
+  for (const [el, gain] of liveElements) el.volume = announcerLineGain(level(), gain) * masterLevel();
+}
+onMasterChange(applyElementVolumes);
 
 function loadBuffer(ctx: AudioContext, url: string): Promise<AudioBuffer | null> {
   let p = buffers.get(url);
@@ -831,7 +837,7 @@ async function playDefault(url: string, onEnded: () => void, gain = 1): Promise<
   try {
     if (typeof Audio === 'undefined') return null;
     const el = new Audio(url);
-    el.volume = announcerLineGain(level(), gain);
+    el.volume = announcerLineGain(level(), gain) * masterLevel();
     let live = true;
     const done = (): void => { if (live) { live = false; liveElements.delete(el); onEnded(); } };
     el.addEventListener('ended', done);

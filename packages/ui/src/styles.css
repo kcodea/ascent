@@ -166,6 +166,8 @@ html, body { overscroll-behavior: none; touch-action: manipulation; }
    transform lays them back exactly over the window. `!important` beats Pixi's autoDensity inline size. */
 :root[data-stage-scaled] canvas.pixi-screen { width: var(--lvw) !important; height: var(--lvh) !important; }
 body { font-family: var(--font-body), sans-serif; color: var(--ink); background: var(--bg); overflow: hidden; cursor: url('/cursors/gauntlet_default.svg') 6 2, auto; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
+/* No grey tap-flash on a finger tap (the game paints its own press states). */
+body { -webkit-tap-highlight-color: transparent; }
 /* Landscape-only on phones: a full-screen "rotate your device" overlay, shown ONLY on a touch device held in
    portrait (`pointer: coarse` excludes a desktop window that merely happens to be portrait). The 16:9 board is
    unusable upright, so we ask the player to rotate rather than maintain a second, portrait layout. */
@@ -235,7 +237,7 @@ body { background: #160f08; }
   top: calc(20 * var(--u) + var(--hd-power-y, 191px) * var(--scale) + 128 * var(--u) * var(--hd-power-s, 0.87) + 12px * var(--scale));
   left: auto; right: calc(50% - var(--gw) / 2 + 20 * var(--u) - var(--hd-power-x, -386px) * var(--scale) + 64 * var(--u) * var(--hd-power-s, 0.87));
   transform: translateX(50%); }
-.heropowerbtn.opp-power:hover + .herotip.opp-power-tip { opacity: 1; transition-delay: 0.35s; }
+.heropowerbtn.opp-power:hover + .herotip.opp-power-tip, .heropowerbtn.opp-power.tt-on + .herotip.opp-power-tip { opacity: 1; transition-delay: 0.35s; }
 
 /* closed fist while a card is being dragged */
 body.dragging, body.dragging * { cursor: url('/cursors/hand_closed.svg') 13 12, grabbing !important; }
@@ -800,7 +802,7 @@ body.wipe-up .lossdmg, body.wipe-up .lossfly, body.wipe-up .lobbydmg-float { z-i
 .statcell.time.low .sc-ic svg, .statcell.time.low .sc-v { color: var(--threat-dk); }
 /* Info-strip cells reuse the shop tip pill on hover. */
 .statcell:hover { z-index: 85; }
-.statcell:hover .sbtip { opacity: 1; transition-delay: 0.3s; }
+.statcell:hover .sbtip, .statcell.tt-on .sbtip { opacity: 1; transition-delay: 0.3s; }
 /* Gold-cell hover — a small dark projection card: this turn's Gold + the START of the next two waves
    (cap-aware, folding in board income + banked Gold). Extends the .sbtip dark pill but stacks rows. */
 .goldtip { display: flex; flex-direction: column; gap: calc(3 * var(--u)); text-align: left; min-width: calc(150 * var(--u)); padding: calc(8 * var(--u)) calc(12 * var(--u)); }
@@ -974,7 +976,7 @@ body.etb-glow-preview .etbwrap:not(.pressed):not(:disabled) .etb-gem {
      the centring + the slide-in animation) instead of overwriting it. */
   translate: var(--cc-end-x, -4px) var(--cc-end-y, 0px);
 }
-.etbwrap:not(:disabled):hover .etb-tip, .etbwrap.urgent .etb-tip, .etbwrap.ready .etb-tip { opacity: 1; transform: translateX(calc(-50% + var(--etb-tip-x, 108px))) translateY(0); }
+.etbwrap:not(:disabled):hover .etb-tip, .etbwrap.urgent .etb-tip, .etbwrap.ready .etb-tip, .etbwrap:not(:disabled).tt-on .etb-tip { opacity: 1; transform: translateX(calc(-50% + var(--etb-tip-x, 108px))) translateY(0); }
 /* LOBBY: the End Turn label is centred on a button that sits well right of centre, and its right half ran
    under the seat rail — the rail's z-index simply hid the text rather than avoiding it. Shift it left by the
    rail's own width so the whole label stays readable. Scaled in `--u-base`, like the rail, so the two track
@@ -982,7 +984,7 @@ body.etb-glow-preview .etbwrap:not(.pressed):not(:disabled) .etb-gem {
 .app.lobby .etbwrap .etb-tip { transform: translateX(calc(-50% + var(--etb-tip-x, 108px) - 100 * var(--u-base))) translateY(7px); }
 .app.lobby .etbwrap:not(:disabled):hover .etb-tip,
 .app.lobby .etbwrap.urgent .etb-tip,
-.app.lobby .etbwrap.ready .etb-tip { transform: translateX(calc(-50% + var(--etb-tip-x, 108px) - 100 * var(--u-base))) translateY(0); }
+.app.lobby .etbwrap.ready .etb-tip, .app.lobby .etbwrap:not(:disabled).tt-on .etb-tip { transform: translateX(calc(-50% + var(--etb-tip-x, 108px) - 100 * var(--u-base))) translateY(0); }
 /* Summary — a small glass pill ABOVE the End Combat diamond (owner note 2026-07-16: shrunk from the big
    white button, dark-glass style, right side). Anchored to the SAME stage point + --etb-x/y offsets as the
    diamond so the tuner moves them together; the one-shot mount animation floats it up as it fades in,
@@ -1039,7 +1041,7 @@ body.dragging .tvbwrap { pointer-events: none; } /* a card dragged across it dro
 .goldpill { position: fixed; z-index: 41; right: calc(var(--bar-x) + var(--gold-x, 408px) * var(--scale)); bottom: calc(var(--bar-y) + var(--gold-y, 423px) * var(--scale)); transform: scale(var(--gold-s, 1.69)); transform-origin: bottom right; width: calc(66 * var(--u)); height: calc(66 * var(--u)); display: grid; place-items: center; padding: 0; border-radius: 50%; background: linear-gradient(180deg, rgba(247, 205, 86, 0.92), rgba(198, 142, 26, 0.94)); -webkit-backdrop-filter: var(--gl-blur, blur(10px) saturate(1.15)); backdrop-filter: var(--gl-blur, blur(10px) saturate(1.15)); border: 2px solid rgba(255, 244, 210, 0.6); border-top-color: rgba(255, 250, 235, 0.85); box-shadow: 0 calc(6 * var(--u)) calc(16 * var(--u)) -6px var(--shadow), inset 0 1px 0 rgba(255, 255, 255, 0.5); color: #3a2408; }
 .goldpill svg { width: calc(20 * var(--u)); height: calc(20 * var(--u)); color: #4a2f08; }
 .goldpill-v { font-family: var(--font-ui); font-weight: 900; font-size: calc(23 * var(--u)); font-variant-numeric: tabular-nums; color: #2e1d05; text-shadow: 0 1px 0 rgba(255, 245, 210, 0.5); line-height: 1; }
-.goldpill:hover .sbtip { opacity: 1; transition-delay: 0.3s; }
+.goldpill:hover .sbtip, .goldpill.tt-on .sbtip { opacity: 1; transition-delay: 0.3s; }
 /* The pill sits bottom-right, so its tooltip opens ABOVE + right-aligned (the base `.sbtip` opens below-centred). */
 .goldpill .sbtip { top: auto; bottom: calc(100% + 8px); left: auto; right: 0; transform: none; }
 /* Disabled (can't afford / locked) dims the GEM only — the stone base + pips are board furniture cut straight
@@ -1168,14 +1170,14 @@ body.tvb-glow-preview .tvbwrap:not(:disabled) .tvb-glow {
   background: linear-gradient(180deg, #211812, #16100b); border: 2px solid color-mix(in srgb, var(--gold) 55%, #000);
   border-radius: 11px; padding: 5px 14px; box-shadow: 0 3px 9px -3px rgba(0, 0, 0, 0.6); z-index: 6;
 }
-.tvbwrap:hover .tvb-tip { opacity: 1; transform: translateX(-50%) translateY(0); }
+.tvbwrap:hover .tvb-tip, .tvbwrap.tt-on .tvb-tip { opacity: 1; transform: translateX(-50%) translateY(0); }
 /* Styled hover tooltip (replaces the native title): the game's dark rounded pill, dropping below the control
    with a small arrow — same format as the hero/opponent tips. The hovered control lifts above its neighbours
    so the pill never gets trapped behind the next plaque. */
 .sbtip { position: absolute; top: calc(100% + 8px); left: 50%; transform: translateX(-50%); background: var(--ink); color: #fff; font-family: var(--font-ui); font-weight: 700; font-size: calc(13 * var(--u)); letter-spacing: 0.01em; text-transform: none; padding: calc(6 * var(--u)) calc(12 * var(--u)); border-radius: calc(10 * var(--u)); white-space: nowrap; pointer-events: none; opacity: 0; z-index: 90; box-shadow: 0 10px 24px -10px rgba(0, 0, 0, 0.55); transition: opacity 0.14s; }
 .sbtip::before { content: ''; position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%); border: 6px solid transparent; border-bottom-color: var(--ink); }
 .shopbtn:hover { z-index: 85; }
-.shopbtn:hover .sbtip { opacity: 1; transition-delay: 0.3s; }
+.shopbtn:hover .sbtip, .shopbtn.tt-on .sbtip { opacity: 1; transition-delay: 0.3s; }
 
 /* Hero-power button — a circle attached to the RIGHT side of the hero frame (in the status bar). It sits
    as the frame's right-most flex child (parent gap spaces it off the text); clicking it bubbles to the
@@ -1227,7 +1229,7 @@ body.tvb-glow-preview .tvbwrap:not(:disabled) .tvb-glow {
 .heropowerbtn:not(:disabled):hover .hpb-glow,
 .statusbar .heropanel.ready .hpb-glow,
 .statusbar .heropanel.armed .hpb-glow,
-body.hpb-glow-preview .heropowerbtn .hpb-glow {
+body.hpb-glow-preview .heropowerbtn .hpb-glow, .heropowerbtn:not(:disabled).tt-on .hpb-glow {
   opacity: var(--hpb-glow-alpha, 1);
   animation: hpbbreathe var(--hpb-glow-pulse, 3s) ease-in-out infinite;
 }
@@ -2219,7 +2221,7 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
 
 /* keyword tooltip — reveals after ~1.5s of hover (handoff) */
 .tip { position: absolute; bottom: calc(100% + 9px); left: 50%; transform: translateX(-50%); width: 210px; background: var(--ink); color: #fff; border-radius: 11px; padding: 10px 12px; font-size: 11.5px; line-height: 1.4; font-weight: 600; box-shadow: 0 10px 28px -8px rgba(0, 0, 0, 0.55); opacity: 0; pointer-events: none; z-index: 30; transition: opacity 0.15s; }
-.card:hover .tip { opacity: 1; transition-delay: 1.5s; }
+.card:hover .tip, .card.tt-on .tip { opacity: 1; transition-delay: 1.5s; }
 /* hero-power tooltip — same dark pill as the keyword tip, popping above the corner tray */
 /* THE HERO-POWER TIP (restyled 2026-09-25, owner: "it looks ugly", then "i dont want it to be white background …
    our typical dark blue style"): the dark slate-blue panel the Career / lobby hover cards wear (`.cv2-herotip`), a
@@ -2247,7 +2249,7 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
 .herotip .kwdefs { display: flex; max-width: none; margin-top: 10px; text-align: left; align-self: stretch; }
 .herotip .kwbox-name { font-size: 12px; }
 .herotip .kwbox-def { font-size: 11px; }
-.heropanel:hover .herotip { opacity: 1; transition-delay: 0.35s; }
+.heropanel:hover .herotip, .heropanel.tt-on .herotip { opacity: 1; transition-delay: 0.35s; }
 /* embers projection — hover the Embers chip to see the next two waves' starting Embers */
 .tiprow + .tiprow { margin-top: 6px; padding-top: 6px; border-top: 1px solid rgba(255, 255, 255, 0.14); }
 
@@ -3609,7 +3611,7 @@ body.modalup .app { z-index: auto; }
 .questbadge-tip b { color: var(--gl-accent, #a8d8ef); font-weight: 800; } /* ice accent — the old orange fought the glass */
 .questbadge-tip .questbadge-tip-reward { color: var(--gl-text, #dbe7f4); }
 .questbadge-tip .questbadge-tip-state { color: var(--gl-value, var(--gold-lt)); font-weight: 800; } /* gold reads as a VALUE against cool glass; the darker --gold went muddy */
-.questbadge:hover .questbadge-tip { opacity: 1; transition-delay: 0.3s; }
+.questbadge:hover .questbadge-tip, .questbadge.tt-on .questbadge-tip { opacity: 1; transition-delay: 0.3s; }
 /* The badges and the board-floated hero-power panel (z-index 41) are SIBLINGS inside `.statusbar`, and the tip's
    own z-index (60) is trapped inside `.questbadges`' transform stacking context — so the power icon painted over a
    quest/rune tooltip. While a badge is hovered, lift the whole badge row above the hero power so the tip reads on
@@ -4295,7 +4297,7 @@ body.hglow-preview .card.compact.taunt .cglow { opacity: 1; }
 .card.compact.taunt:hover .tframe.cshadow,
 body.hglow-preview .card.compact.stdframe .cframe.cshadow,
 body.hglow-preview .card.compact.spellframe .cframe.cshadow,
-body.hglow-preview .card.compact.taunt .tframe.cshadow { opacity: 0; }
+body.hglow-preview .card.compact.taunt .tframe.cshadow, .card.compact.stdframe.tt-on .cframe.cshadow, .card.compact.spellframe.tt-on .cframe.cshadow, .card.compact.taunt.tt-on .tframe.cshadow { opacity: 0; }
 /* Kill the glow where hover isn't real (any card the cursor only "hovers" under the pointer-events:none drag
    layer — including hand cards mid-drag) — mirrors the `--hglow-*` suppressors. A REAL hand hover keeps the
    frame-rim glow (owner call 2026-07-20). Placed last to win the tie. */
@@ -5491,7 +5493,7 @@ body:has(.heroselect) .statusbar { visibility: hidden; }
 .riftpill-tip { position: absolute; top: calc(100% + 10px); left: 0; width: 230px; max-width: calc(var(--lvw, 100vw) - 24px); display: flex; flex-direction: column; gap: 4px; background: linear-gradient(180deg, var(--gl-top, rgba(46, 56, 72, 0.86)), var(--gl-bot, rgba(20, 25, 34, 0.9))); -webkit-backdrop-filter: var(--gl-blur, blur(10px) saturate(1.15)); backdrop-filter: var(--gl-blur, blur(10px) saturate(1.15)); border: 1px solid var(--gl-border, rgba(190, 214, 240, 0.22)); border-top-color: var(--gl-border-top, rgba(226, 240, 255, 0.42)); color: var(--gl-text, #eef4fb); border-radius: var(--gl-radius, 12px); padding: 10px 13px; font-size: 12px; line-height: 1.4; font-weight: 600; text-transform: none; letter-spacing: normal; text-align: center; overflow-wrap: break-word; box-shadow: 0 14px 34px -10px rgba(0, 0, 0, 0.72), inset 0 1px 0 rgba(255, 255, 255, 0.16); opacity: 0; pointer-events: none; z-index: 70; transition: opacity 0.14s; }
 .riftpill-tip b { color: var(--gl-accent, #a8d8ef); font-weight: 800; }
 .riftpill-tip .riftpill-tip-body { color: var(--gl-text, #dbe7f4); }
-.riftpill:hover .riftpill-tip { opacity: 1; transition-delay: 0.3s; }
+.riftpill:hover .riftpill-tip, .riftpill.tt-on .riftpill-tip { opacity: 1; transition-delay: 0.3s; }
 .hsrow { display: flex; gap: 29px; align-items: stretch; justify-content: center; flex-wrap: wrap; }
 .herocard { width: 333px; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 13px; padding: 29px 23px 23px; border-radius: 26px; border: 3px solid var(--line); background: var(--card); color: var(--ink); cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; box-shadow: 0 10px 30px -12px rgba(0, 0, 0, 0.5); transition: transform 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease; }
 .herocard:hover { transform: translateY(-8px); border-color: var(--acc); box-shadow: 0 0 0 4px color-mix(in srgb, var(--acc) 40%, transparent), 0 16px 36px -12px rgba(0, 0, 0, 0.55); }
@@ -5676,7 +5678,7 @@ body:has(.heroselect) .statusbar { visibility: hidden; }
 /* Custom build-tag tooltip — replaces the native title bubble: a dark rounded card with a caret, above the chip. */
 .tagtip { position: absolute; bottom: calc(100% + 9px); left: 50%; transform: translateX(-50%) translateY(4px); width: max-content; max-width: 230px; background: var(--ink); color: #f6efe2; border: 1px solid rgba(255, 255, 255, 0.12); border-radius: 10px; padding: 8px 12px; font-family: var(--font-body); font-weight: 600; font-size: 12.5px; line-height: 1.4; letter-spacing: normal; text-transform: none; text-align: center; box-shadow: 0 12px 30px -8px rgba(0, 0, 0, 0.6); opacity: 0; pointer-events: none; z-index: 60; transition: opacity 0.14s ease, transform 0.14s ease; }
 .tagtip::after { content: ''; position: absolute; top: 100%; left: 50%; transform: translateX(-50%); border: 6px solid transparent; border-top-color: var(--ink); }
-.endtag:hover .tagtip { opacity: 1; transform: translateX(-50%) translateY(0); }
+.endtag:hover .tagtip, .endtag.tt-on .tagtip { opacity: 1; transform: translateX(-50%) translateY(0); }
 /* Run stats row (polish): triples · gold · APT · cards · strongest. Light text on the dark end-screen backdrop. */
 .endstats { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px 24px; margin-top: 18px; font-family: var(--font-ui); font-weight: 600; font-size: 18px; color: rgba(255, 255, 255, 0.8); }
 .endstat b { font-weight: 900; color: #fff; }
@@ -5772,7 +5774,7 @@ body:has(.titlescreen) .version { visibility: hidden; }
 .titlescreen .titleaccount .titleportrait[data-tip]:hover::after,
 .titlescreen .titleaccount .titleportrait[data-tip]:focus-visible::after,
 .titlescreen .titleaccount .titlename[data-tip]:hover::after,
-.titlescreen .titleaccount .titlename[data-tip]:focus-visible::after { transform: translateY(-50%) translateX(0); }
+.titlescreen .titleaccount .titlename[data-tip]:focus-visible::after, .titlescreen .titleaccount .titleportrait[data-tip].tt-on::after, .titlescreen .titleaccount .titlename[data-tip].tt-on::after { transform: translateY(-50%) translateX(0); }
 .titlescreen .titleaccount .titleportrait[data-tip]::before,
 .titlescreen .titleaccount .titlename[data-tip]::before { left: auto; right: calc(100% + 8px); top: 50%; transform: translateY(-50%) rotate(45deg);
   border-left: none; border-top: 1.5px solid var(--line); border-right: 1.5px solid var(--line); }
@@ -7142,8 +7144,8 @@ svg { width: 18px; height: 18px; }
   border-left: 1.5px solid var(--line); border-top: 1.5px solid var(--line);
   opacity: 0; pointer-events: none; z-index: 600; transition: opacity 0.12s ease; transition-delay: 0s;
 }
-.balpage [data-tip]:hover::after, .balpage [data-tip]:focus-visible::after { opacity: 1; transform: translateX(-50%) translateY(0); transition-delay: 0.25s; }
-.balpage [data-tip]:hover::before, .balpage [data-tip]:focus-visible::before { opacity: 1; transition-delay: 0.25s; }
+.balpage [data-tip]:hover::after, .balpage [data-tip]:focus-visible::after, .balpage [data-tip].tt-on::after { opacity: 1; transform: translateX(-50%) translateY(0); transition-delay: 0.25s; }
+.balpage [data-tip]:hover::before, .balpage [data-tip]:focus-visible::before, .balpage [data-tip].tt-on::before { opacity: 1; transition-delay: 0.25s; }
 /* ── BALANCE REPORT ROUND 2 (owner ask 2026-09-22): heroes, runes and shop tiers get the impact treatment, the
    Gold economy is rebuilt. A row's NAME carries its plain-words read as a hover bubble; the economy chart is a
    static SVG with three named series (gray available, amber spent, green spent by the winners). ── */
@@ -7152,7 +7154,7 @@ svg { width: 18px; height: 18px; }
 /* A name cell's bubble anchors to its LEFT edge (the name column is the leftmost; a centred bubble on a short
    name would sit half under the table's edge). */
 .balpage .balname[data-tip]::after { left: 0; transform: translateX(0) translateY(-4px); }
-.balpage .balname[data-tip]:hover::after, .balpage .balname[data-tip]:focus-visible::after { transform: translateX(0) translateY(0); }
+.balpage .balname[data-tip]:hover::after, .balpage .balname[data-tip]:focus-visible::after, .balpage .balname[data-tip].tt-on::after { transform: translateX(0) translateY(0); }
 .balpage .balname[data-tip]::before { left: 16px; transform: rotate(45deg); }
 .balgap { height: 22px; flex: none; }
 .balchart-line.avail { stroke: rgba(255, 255, 255, 0.38); }
@@ -7286,7 +7288,7 @@ body:has(.lb-ladder) .cardref { z-index: 490; }
 .lb-rune-em img { width: 100%; height: 100%; object-fit: cover; }
 .lb-rune-em svg { width: 17px; height: 17px; color: #d9cfaa; }
 .lb-rune-name { font-family: var(--font-ui); font-weight: 700; font-size: 15px; color: #f4eee2; white-space: nowrap; }
-.lb-rune:hover .lb-rune-tip { opacity: 1; transition-delay: 0.25s; }
+.lb-rune:hover .lb-rune-tip, .lb-rune.tt-on .lb-rune-tip { opacity: 1; transition-delay: 0.25s; }
 .lb-runes-none { font-family: var(--font-ui); font-weight: 600; font-size: 13px; color: rgba(255, 255, 255, 0.45); }
 
 /* ── THE RANKED TABLE (Rankings.tsx) — one gold panel, a header row, then a chunky plate per player (owner
@@ -7458,7 +7460,7 @@ body:has(.lb-ladder) .cardref { z-index: 490; }
 .runtrophy-tip b { color: var(--acc); font-weight: 800; }
 .runtrophy-tip .runtrophy-tip-body { color: #f4f0e6; }
 .runtrophy-tip .runtrophy-tip-kind { color: var(--gold); font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; font-size: 11px; }
-.runtrophy:hover .runtrophy-tip { opacity: 1; transition-delay: 0.25s; }
+.runtrophy:hover .runtrophy-tip, .runtrophy.tt-on .runtrophy-tip { opacity: 1; transition-delay: 0.25s; }
 
 /* ── CAREER (owner rebuild 2026-09-19/20) — three columns on the .lbpage backdrop: hero + tiles · Match
    History banners · Seasonal Ranked + Performance Trends. All `cv2-`. Panels re-use the page shell
@@ -8156,7 +8158,7 @@ body:has(.book-ov) .cardref { z-index: 490; }
   pointer-events: none; z-index: 60;
 }
 .riftbtn:hover .riftbtn-tip,
-.riftbtn.pinned .riftbtn-tip { display: flex; } /* .pinned = the click/touch path (no hover) */
+.riftbtn.pinned .riftbtn-tip, .riftbtn.tt-on .riftbtn-tip { display: flex; } /* .pinned = the click/touch path (no hover) */
 .riftbtn-tip-body { font-weight: 600; color: #cfc4b4; line-height: 1.35; }
 @media (prefers-reduced-motion: reduce) { .riftbtn-swirl { animation: none; } }
 
@@ -8386,7 +8388,7 @@ body.dragging .rfbwrap { pointer-events: none; } /* a card dragged across it dro
   opacity: 0; transition: opacity 0.16s ease; z-index: 0; pointer-events: none;
 }
 .rfbwrap:hover:not(:disabled) .rfb-glow,
-body.rfb-glow-preview .rfb-glow {  /* the tuner's "glow always on" — one pointer can't hover AND drag a slider */
+body.rfb-glow-preview .rfb-glow, .rfbwrap.tt-on:not(:disabled) .rfb-glow {  /* the tuner's "glow always on" — one pointer can't hover AND drag a slider */
   animation: rfbbreath var(--rfb-glow-pulse, 1.5s) ease-in-out infinite;
   opacity: var(--rfb-glow-alpha, 1);
 }
@@ -8493,7 +8495,7 @@ body.rfb-glow-preview .rfb-glow {  /* the tuner's "glow always on" — one point
   border: 1px solid color-mix(in srgb, var(--gold) 45%, #000);
   border-radius: calc(8 * var(--u)); padding: calc(5 * var(--u)) calc(10 * var(--u)); z-index: 60;
 }
-.rfbwrap:hover:not(:disabled) .rfb-tip { display: block; }
+.rfbwrap:hover:not(:disabled) .rfb-tip, .rfbwrap.tt-on:not(:disabled) .rfb-tip { display: block; }
 @media (prefers-reduced-motion: reduce) { .rfb-sheen-bar, .rfbwrap:hover .rfb-glow { animation: none; } }
 
 /* ---- HAND HOVER BRIDGE — the gap between a card's arch and its detached text drawer was a DEAD ZONE.
@@ -11354,12 +11356,12 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
   transition: opacity 0.12s ease, transform 0.12s ease; transition-delay: 0s;
 }
 .gtip.gtip-down[data-tip]::after { bottom: auto; top: calc(100% + 9px); transform: translateX(-50%) translateY(-4px); }
-.gtip[data-tip]:hover::after, .gtip[data-tip]:focus-visible::after { opacity: 1; transform: translateX(-50%) translateY(0); transition-delay: 0.25s; }
+.gtip[data-tip]:hover::after, .gtip[data-tip]:focus-visible::after, .gtip[data-tip].tt-on::after { opacity: 1; transform: translateX(-50%) translateY(0); transition-delay: 0.25s; }
 /* `.gtip-end`: anchored to the element's RIGHT edge (opening leftward) for chips pinned to the right of the screen
    (the lobby rail's max-loss chip), where a centred bubble would run off the edge. */
 .gtip.gtip-end[data-tip]::after { left: auto; right: 0; transform: translateY(4px); }
 .gtip.gtip-end.gtip-down[data-tip]::after { transform: translateY(-4px); }
-.gtip.gtip-end[data-tip]:hover::after, .gtip.gtip-end[data-tip]:focus-visible::after { transform: translateY(0); }
+.gtip.gtip-end[data-tip]:hover::after, .gtip.gtip-end[data-tip]:focus-visible::after, .gtip.gtip-end[data-tip].tt-on::after { transform: translateY(0); }
 /* The lobby rail clips its overflow (it scrolls), so a bubble inside it must fit its ~125px left of the chip. */
 .lobbyrail .gtip[data-tip]::after { max-width: 118px; font-size: 11px; padding: 5px 8px; }
 @media (prefers-reduced-motion: reduce) { .gtip[data-tip]::after { transition: none; } }
@@ -11388,9 +11390,9 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
   opacity: 0; pointer-events: none; z-index: 600; transition: opacity 0.12s ease; transition-delay: 0s;
 }
 .titlescreen [data-tip]:not(.menubtn):hover::after, .lbpage [data-tip]:not(.menubtn):hover::after,
-.titlescreen [data-tip]:not(.menubtn):focus-visible::after, .lbpage [data-tip]:not(.menubtn):focus-visible::after { opacity: 1; transform: translateX(-50%) translateY(0); transition-delay: 0.25s; }
+.titlescreen [data-tip]:not(.menubtn):focus-visible::after, .lbpage [data-tip]:not(.menubtn):focus-visible::after, .titlescreen [data-tip]:not(.menubtn).tt-on::after, .lbpage [data-tip]:not(.menubtn).tt-on::after { opacity: 1; transform: translateX(-50%) translateY(0); transition-delay: 0.25s; }
 .titlescreen [data-tip]:not(.menubtn):hover::before, .lbpage [data-tip]:not(.menubtn):hover::before,
-.titlescreen [data-tip]:not(.menubtn):focus-visible::before, .lbpage [data-tip]:not(.menubtn):focus-visible::before { opacity: 1; transition-delay: 0.25s; }
+.titlescreen [data-tip]:not(.menubtn):focus-visible::before, .lbpage [data-tip]:not(.menubtn):focus-visible::before, .titlescreen [data-tip]:not(.menubtn).tt-on::before, .lbpage [data-tip]:not(.menubtn).tt-on::before { opacity: 1; transition-delay: 0.25s; }
 @media (prefers-reduced-motion: reduce) { .titlescreen [data-tip]:not(.menubtn)::after, .titlescreen [data-tip]:not(.menubtn)::before, .lbpage [data-tip]:not(.menubtn)::after, .lbpage [data-tip]:not(.menubtn)::before { transition: none; } }
 /* THE MENU SIDEBAR's Play bubble (the saved-run note, `MenuSidebar.tsx`) sits to the RIGHT of the plaque: the
    rules above drop a bubble BELOW its element, which in the sidebar's 10px-gap stack landed on the Career
@@ -11403,7 +11405,7 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 .msb .msb-item[data-tip]::after, .titlenav .tn-item[data-tip]::after, .continuerow .clearrun[data-tip]::after { left: calc(100% + 12px); top: 50%; transform: translateY(-50%) translateX(-4px); }
 .msb .msb-item[data-tip]:hover::after, .msb .msb-item[data-tip]:focus-visible::after,
 .titlenav .tn-item[data-tip]:hover::after, .titlenav .tn-item[data-tip]:focus-visible::after,
-.continuerow .clearrun[data-tip]:hover::after, .continuerow .clearrun[data-tip]:focus-visible::after { transform: translateY(-50%) translateX(0); }
+.continuerow .clearrun[data-tip]:hover::after, .continuerow .clearrun[data-tip]:focus-visible::after, .msb .msb-item[data-tip].tt-on::after, .titlenav .tn-item[data-tip].tt-on::after, .continuerow .clearrun[data-tip].tt-on::after { transform: translateY(-50%) translateX(0); }
 .msb .msb-item[data-tip]::before, .titlenav .tn-item[data-tip]::before, .continuerow .clearrun[data-tip]::before { left: calc(100% + 7px); top: 50%; transform: translateY(-50%) rotate(45deg); border-top: none; border-bottom: 1.5px solid var(--line); }
 
 

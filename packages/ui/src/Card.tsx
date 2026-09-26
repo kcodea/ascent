@@ -98,6 +98,7 @@ import { Icon } from './Icon';
 import { Sprite } from './Sprite';
 import { spriteForTribe } from './sprites';
 import { useGame } from './store';
+import { lastPointerWasTouch, tapInspectAllowed } from './touchInput';
 import { FLURRY_RINGS, flurryBoxStyle, flurryWrapStyle, flurryRingStyle } from './flurryConfig';
 import { pixiFx } from './pixiFx';
 import { getStepProcFxConfig, isStepProcTick } from './stepProcFxConfig';
@@ -828,7 +829,8 @@ export const Card = memo(function Card({
         transform: handSlidePx
           ? `translateX(${handSlidePx}px) translateY(var(--hand-tuck, 0px)) rotate(var(--fan-rot, 0deg))` /* hand reorder: keep the tuck + fan tilt while parting */
           : slideDir ? `translateX(calc((var(--ccw) + 22px) * ${slideDir}))` : undefined } as CSSProperties}
-      onClick={onClick}
+      /* TOUCH: with no click action of its own, a finger tap opens the Inspect overlay (touchInput.ts). */
+      onClick={onClick ?? ((e) => { if (tapInspectAllowed(e.currentTarget)) inspectCard(card); })}
       /* Card Art tuner: double-click targets this card. Only while that panel is open (`isPickingCardArt`),
          so normal play never has a hidden double-click meaning. `onDoubleClick` rather than `onClick`
          deliberately - a single click is already play/drag, and stealing it would break the board. */
@@ -840,7 +842,9 @@ export const Card = memo(function Card({
         // not the base card's, so the two can be framed independently.
         beginEditCardArt(artVariantKey(card.cardId!, card.chosenOption));
       } : undefined}
-      onMouseEnter={hasPopup && !dragging ? (e) => perfMonitor.measure('input:pointerenter', () => showRefTip(e.currentTarget)) : undefined}
+      // Mouse only: a finger tap opens the full Inspect overlay instead (touchInput.ts), and the compatibility
+      // mouseenter a tap fires would otherwise stack this reveal under it.
+      onMouseEnter={hasPopup && !dragging ? (e) => { if (!lastPointerWasTouch()) perfMonitor.measure('input:pointerenter', () => showRefTip(e.currentTarget)); } : undefined}
       onMouseLeave={hasPopup ? () => perfMonitor.measure('input:pointerleave', hideRefTip) : undefined}
       onContextMenu={(e) => {
         e.preventDefault();

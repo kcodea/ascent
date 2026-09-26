@@ -147,6 +147,7 @@ import { wipeOriginFor, type WipeOrigin } from './wipeGeometry';
 import { afterBeat, afterSweep, barClassFor, combatBackdropShown, curtainClassFor, frontClassFor, wipeExiting, wipeSweeping, wipeUp, type WipeState } from './wipeMachine';
 import { getScreenWipeConfig, wipeCssVars } from './screenWipeConfig';
 import { stageHost, toStage, toScreen, rectToStage, stageScale } from './stage';
+import { TAP_SLOP } from './touchInput';
 
 /** Golden Ruby's coin cue: a beat after its gem (so the two read as "Ruby, then Gold"), and spaced when a
  *  multi-cast Golden Ruby pays several times in one action. */
@@ -3805,6 +3806,9 @@ export function Recruit() {
    * already replaced with a new one cannot tear the new one down (the old `setDrag(null)` in a timeout could).
    */
   const startDragSession = (drag: DragState, touch: boolean): void => {
+    // A finger always wobbles: below TAP_SLOP a touch stays a TAP (inspect / pick), never a micro-drag. Mouse keeps
+    // the DEV-tuned threshold (0 = engage at once). Screen px on purpose: the slop is a physical distance.
+    const dragThreshold = (): number => (touch ? Math.max(TAP_SLOP, getDragFeel().threshold) : getDragFeel().threshold);
     endSessionRef.current?.(); // never two sessions at once
     const token = ++dragSessionSeq.current;
     dragStore.pos = null;
@@ -3965,7 +3969,7 @@ export function Recruit() {
       if (!e) return;
       lastMove = null;
       const d0 = dragStore.get().drag;
-      const willBeActive = !!d0 && (d0.active || Math.hypot(e.clientX - d0.startX, e.clientY - d0.startY) > getDragFeel().threshold);
+      const willBeActive = !!d0 && (d0.active || Math.hypot(e.clientX - d0.startX, e.clientY - d0.startY) > dragThreshold());
       // The spell aim line follows the cursor EXACTLY (every frame), even though the state behind it only
       // advances on the decision gate — otherwise the line would visibly step.
       if (castAimRef.current.casting && d0) {
@@ -4041,7 +4045,7 @@ export function Recruit() {
       const d = dragStore.get().drag;
       // Recompute "did it move" from the up event too: with the rAF-throttle a flick completed inside one
       // frame may not have flushed `active` yet, but it's still a drag if the pointer cleared the threshold.
-      const moved = !!d && (d.active || Math.hypot(e.clientX - d.startX, e.clientY - d.startY) > getDragFeel().threshold);
+      const moved = !!d && (d.active || Math.hypot(e.clientX - d.startX, e.clientY - d.startY) > dragThreshold());
       if (!d || !moved) {
         cancelDragTrace(); // a click, not a drag — nothing to replay
         document.body.classList.remove('dragging');

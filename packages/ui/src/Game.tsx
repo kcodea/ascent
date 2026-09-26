@@ -59,7 +59,7 @@ import { ReplayCursorGhost } from './replay/ReplayCursorGhost';
 import { RoundRail } from './replay/RoundRail';
 import { PixiFxLayer } from './PixiFxLayer';
 import { CastPreviewLayer } from './CastPreviewLayer';
-import { pixiFx, warmDiscoverFx } from './pixiFx';
+import { discoverFx, pixiFx, warmDiscoverFx } from './pixiFx';
 import { applyFpsCap } from './fpsCap';
 import { warmArt } from './art';
 import { audioContext, onStopAllAudio, sfx } from './sfx';
@@ -67,6 +67,7 @@ import { cancelAnnouncer, setAnnouncerAudioContextProvider, syncAnnouncer } from
 import { setMusicAudioContextProvider, syncMusic } from './music';
 import { useGame, isPreRun } from './store';
 import { installStage, onStageChange, stageScale, stageViewport } from './stage';
+import { installTouchInput } from './touchInput';
 
 /** Root of the playable game. `Recruit` owns the board and stays mounted across every
  *  phase — combat plays out *in place* (the shop closes, the enemies arrive, the
@@ -354,6 +355,8 @@ export function Game() {
       // space (stage.ts), so fold the stage transform in: the on-screen scale is `--scale × s`. The FX px dials
       // were tuned at the owner's ~0.745 desktop scale, so divide that reference out → 1.0 on the owner's desktop.
       pixiFx.setScale((scale * stageScale()) / 0.745);
+      // The Discover overlay's own controller: identity on desktop (as before), shrunk with a scaled stage.
+      discoverFx.setScale(stageScale() === 1 ? 1 : (scale * stageScale()) / 0.745);
     };
     installStage();
     apply();
@@ -381,6 +384,8 @@ export function Game() {
   // focus) lives in the store's `openBugReport`; the modal's own capture-phase handler claims Esc/Tab while
   // it is open, so the two listeners below never fire underneath it.
   useEffect(() => installBugReportHotkey(), []);
+  // TOUCH (owner ask 2026-09-26): a finger tap reaches everything a mouse hover reaches; tap-away closes it.
+  useEffect(() => installTouchInput(), []);
 
   // Tab toggles the Compendium — from the title (browse the whole set) or in a run (scoped to it). Not
   // during hero select. `preventDefault` stops the browser's focus-cycling.

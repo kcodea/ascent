@@ -218,7 +218,7 @@
 
 /* The hero power's own tip stands down while the meter (or its preview) is the thing being hovered. */
 .heropanel:has(.anc-meter :hover) .herotip,
-body:has(.anc-pv) .heropanel .herotip { opacity: 0 !important; transition-delay: 0s !important; }
+body:has(.anc-pv) .heropanel .herotip, .heropanel:has(.anc-meter .tt-on) .herotip { opacity: 0 !important; transition-delay: 0s !important; }
 
 /* The hero-power NAME pill stays ABOVE the meter ring (owner 2026-09-25: "it is behind the progress bar"). */
 .statusbar .heropanel .hplabel { position: relative; z-index: 7; }

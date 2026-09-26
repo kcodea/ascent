@@ -1,7 +1,7 @@
 import { Application, Container, Graphics, Sprite, Texture, UPDATE_PRIORITY, type BLEND_MODES, type Renderer, type Ticker } from 'pixi.js';
 import type { RiseTint } from '@game/core';
 import { getSmokeConfig } from './smokeConfig';
-import { stageHost } from './stage';
+import { stageHost, stageScale } from './stage';
 import { perfMonitor } from './perfMonitor';
 import { getCritFxConfig, type CritFxConfig } from './critFxConfig';
 import { getFlurrySwingConfig } from './flurrySwingConfig';
@@ -2686,6 +2686,10 @@ class FxController {
       // strand the rest (a def's custom/emitter layer would silently never appear). Wait for the full set.
       if (!specs.every((l) => getPrimitive(l.primitive))) return;
       const root = new Container();
+      // Scaled stage (stage.ts): the aim is authored at the 1080p layout; shrink it with the board. The sink
+      // below divides the screen anchors by the same factor. Identity at s === 1.
+      const k = stageScale();
+      if (k !== 1) root.scale.set(k);
       this.layer.addChild(root);
       const containers: Container[] = [];
       const insts = specs.map((layer) => {
@@ -2701,9 +2705,13 @@ class FxController {
       a.containers = containers;
       a.spawnedDefId = a.defId;
       // Built once, capturing the stable `insts` array, so the per-frame drive below allocates nothing.
-      a.sink = {
+      const inv = 1 / k;
+      a.sink = k === 1 ? {
         setHead: (i, x, y) => { insts[i]?.setHead?.(x, y); },
         setAim: (i, sx, sy, tx, ty) => { insts[i]?.setAim?.(sx, sy, tx, ty); },
+      } : {
+        setHead: (i, x, y) => { insts[i]?.setHead?.(x * inv, y * inv); },
+        setAim: (i, sx, sy, tx, ty) => { insts[i]?.setAim?.(sx * inv, sy * inv, tx * inv, ty * inv); },
       };
     }
     const anchors: FxAnchors = { source: a.from, target: a.to, cursor: a.to };

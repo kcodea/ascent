@@ -1656,16 +1656,16 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
    colours change: the dome still breathes on opacity and the wisps still rise on transform/opacity (no looping paint). */
 .card.compact.reborncard.risetint-blue .reborn-dome {
   background: radial-gradient(circle at 50% 46%,
-    rgba(96, 170, 255, 0) 0%, rgba(28, 86, 196, 0) calc(52% - 13%), rgba(28, 86, 196, 1) 62%, rgba(96, 170, 255, 0.51) 80%, rgba(96, 170, 255, 0) 100%);
+    rgba(70, 178, 255, 0) 0%, rgba(14, 108, 220, 0) calc(52% - 13%), rgba(14, 108, 220, 1) 62%, rgba(70, 178, 255, 0.51) 80%, rgba(70, 178, 255, 0) 100%);
 }
 .card.compact.reborncard.risetint-blue .wisp {
-  background: radial-gradient(ellipse 60% 50% at 50% 62%, rgba(96, 170, 255, 0.95) 0%, rgba(28, 86, 196, 0.5) 45%, rgba(28, 86, 196, 0) 78%);
+  background: radial-gradient(ellipse 60% 50% at 50% 62%, rgba(70, 178, 255, 0.95) 0%, rgba(14, 108, 220, 0.5) 45%, rgba(14, 108, 220, 0) 78%);
 }
 .card.compact.stdframe.reborncard.risetint-blue .cframe,
 .card.compact.taunt.reborncard.risetint-blue .tframe {
   filter: var(--frame-tone) drop-shadow(0 4px 6px rgba(0, 0, 0, 0.45))
-          drop-shadow(0 0 3px rgba(96, 170, 255, 0.85))
-          drop-shadow(0 0 11px rgba(28, 86, 196, 0.5));
+          drop-shadow(0 0 3px rgba(70, 178, 255, 0.85))
+          drop-shadow(0 0 11px rgba(14, 108, 220, 0.5));
 }
 .card.compact.reborncard.risetint-red .reborn-dome {
   background: radial-gradient(circle at 50% 46%,

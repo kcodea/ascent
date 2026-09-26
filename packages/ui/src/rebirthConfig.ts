@@ -1,4 +1,4 @@
-import { CROWN_FRAMES, crownUrl, pillarUrl } from './rebirthCrown';
+import { CROWN_FRAMES, crownUrl, embersSvg, pillarUrl, svgUrl, veilSvg } from './rebirthCrown';
 
 /**
  * The REBIRTH look. History: 2026-09-25 the owner asked for a phoenix look "similar to rise, but less intrusive,
@@ -19,6 +19,8 @@ import { CROWN_FRAMES, crownUrl, pillarUrl } from './rebirthCrown';
 export interface RebirthConfig {
   /** Peak opacity of the flame crown. */
   crownAlpha: number;
+  /** Peak opacity of the flame VEIL over the portrait (the fire licking up over the art's lower edge). */
+  veilAlpha: number;
   /** Flame length (×): how far the tongues lick above the frame. */
   crownSize: number;
   /** Seconds for one full flicker cycle through the crown's frames. Lower = livelier. */
@@ -51,6 +53,7 @@ export interface RebirthConfig {
 
 const DEFAULTS: RebirthConfig = {
   crownAlpha: 1,
+  veilAlpha: 0.65,
   crownSize: 1,
   flickerSpeed: 1.5,
   glowAlpha: 0.45,
@@ -73,6 +76,7 @@ export const REBIRTH_COLOR_KEYS: readonly ColorKey[] = ['colorB', 'colorA', 'col
 
 export const REBIRTH_RANGES: Record<Exclude<keyof RebirthConfig, ColorKey>, [number, number, number]> = {
   crownAlpha: [0, 1, 0.01],
+  veilAlpha: [0, 1, 0.01],
   crownSize: [0.4, 1.4, 0.05],
   flickerSpeed: [0.3, 3, 0.05],
   glowAlpha: [0, 1, 0.01],
@@ -129,6 +133,7 @@ export function applyRebirthVars(): void {
   if (typeof document === 'undefined') return;
   const r = document.documentElement.style;
   r.setProperty('--rb-crown-a', String(cfg.crownAlpha));
+  r.setProperty('--rb-veil-a', String(cfg.veilAlpha));
   r.setProperty('--rb-flicker', `${cfg.flickerSpeed}s`);
   r.setProperty('--rb-glow-a', String(cfg.glowAlpha));
   r.setProperty('--rb-glow-pulse', `${cfg.glowPulse}s`);
@@ -148,6 +153,8 @@ export function applyRebirthVars(): void {
       r.setProperty(`--rb-crown-s-${k}`, crownUrl(k, colors, cfg.crownSize, 'shield'));
     }
     r.setProperty('--rb-pillar', pillarUrl(colors));
+    r.setProperty('--rb-veil', svgUrl(veilSvg(colors)));
+    r.setProperty('--rb-embers', svgUrl(embersSvg(colors)));
   }
 }
 

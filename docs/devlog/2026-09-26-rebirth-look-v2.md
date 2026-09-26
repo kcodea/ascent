@@ -78,3 +78,28 @@ combat beat style as rise, so it rises before the next beat occurs."
   - Tests: `rebirthLook.test.tsx` asserts that at 1× and 2× the hold before the next beat exceeds the re-form.
 - **Mass rebirth ×7.** The re-form itself is compositor-only (11 paints when isolated). The remaining paints
   in that trial come from the shared `.unit.reborn` `summonexpand` width animation, which a Rise pays too.
+
+## Round 3 (owner: "put it over the card a bit more … the rebirth animation is pretty terrible when it dies and comes back … the attack truncated and happened instantly")
+
+- **Over the card.** A VEIL now sits inside the clipped art at z2, the layer where Rise's dome sits. It is soft
+  pre-blurred blue flame (`--rb-veil`) licking up the lower edge of the portrait, transparent through the
+  middle. The oval insets it to the visible window with `(1 - 1/--fill) / 2`; a Taunt uses its heater box. The
+  frame gets a STATIC blue drop-shadow glow, as Rise gets its aqua one. The crown (z4) stays on the frame. The
+  stat badges (z6) stay clear.
+- **Death → return, redesigned** (Rise's return is the reference):
+  - The body lifts and fades fast (`rbburn`, 0.34 s). The fire and embers are fixed-position nodes
+    (`spawnRebirthBurn`, fired with the death's aura burst) because the body unmounts with its death beat: a
+    soft sheaf of flame rises through the slot, then embers hover in the empty slot through the read-lead.
+  - Then a soft flame rises (`.rbpillar.back`, smaller than before). The body fades and scales in from 0.93
+    with no oversized pop, under a brief white-blue flash (`.rbflash`).
+  - The Pixi burst was toned down (24 sparks, 14 glints).
+- **The truncated attack: root cause.** The killer's own reaction (a Target Dummy's onDamaged `buff`) puts a
+  beat BETWEEN the death and the return. `deathConsequenceLead` only looked at the beat right before the return,
+  found no death, and skipped `REBORN_LEAD`. The body popped back ~0.2 s after dying and swung almost at once.
+  The same gap hit Rise.
+  - It now looks back through the last few beats for the returning body's own `rise` death.
+  - Together with `rebirthSettleLead`, a real 1v1 now plays: death, ~1 s pause with embers, a ~1.1 s re-form,
+    then the full wind-up and strike (~0.7 s wind-up, the same as any other swing).
+  - Regression tests in `rebirthLook.test.tsx` run on the replay's real pipeline (`replayBeats`), for 1v1 and a
+    larger board. They assert the lead survives the in-between beat (it was 0 before the fix), and that the
+    pre-attack hold is longer than the re-form and no shorter than an ordinary pre-attack hold.

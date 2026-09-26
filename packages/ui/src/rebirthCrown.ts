@@ -210,3 +210,57 @@ export function pillarSvg(c: CrownColors): string {
 export function pillarUrl(c: CrownColors): string {
   return `url("data:image/svg+xml,${encodeURIComponent(pillarSvg(c))}")`;
 }
+
+/** The VEIL: the part of the idle fire that lies over the portrait itself (owner 2026-09-26: "put it over the card
+ *  a bit more so it looks closer to rise/ward/execute"). Soft flame tongues licking up from the bottom and lower
+ *  sides of the window and a faint edge glow, pre-blurred, drawn in the WINDOW's own box (viewBox 100 x 128, the
+ *  window is the inscribed ellipse; the portrait clip trims the rest). Transparent through the middle, so the art
+ *  reads through it the way it reads through Ward's glass. */
+export function veilSvg(c: CrownColors): string {
+  const rnd = prng(0x7e11a);
+  const cx = 50, cy = 64, rx = 50, ry = 64;
+  const tongues: string[] = [];
+  const cores: string[] = [];
+  const n = 9;
+  for (let i = 0; i < n; i++) {
+    // Along the lower half of the ellipse: from the left flank (~100°) under the bottom to the right flank (~260°).
+    const a = ((100 + (i / (n - 1)) * 160) * Math.PI) / 180;
+    const x = cx + rx * Math.sin(a) * 0.98, y = cy - ry * Math.cos(a) * 0.98;
+    // Point inward-and-up: toward a spot above the centre.
+    const tx = cx - x, ty = cy - 18 - y;
+    const rot = (Math.atan2(tx, -ty) * 180) / Math.PI;
+    const bottomness = Math.max(0, -Math.cos(a)); // 1 at the very bottom
+    const l = (22 + 20 * bottomness) * (0.85 + rnd() * 0.3);
+    const w = 9 + 4 * bottomness;
+    const lean = (rnd() - 0.5) * 6;
+    tongues.push(`<path transform="translate(${f(x)} ${f(y)}) rotate(${f(rot)})" d="${tonguePath(w, l, lean)}" fill="url(#vd)"/>`);
+    cores.push(`<path transform="translate(${f(x)} ${f(y)}) rotate(${f(rot)})" d="${tonguePath(w * 0.5, l * 0.6, lean * 0.6)}" fill="url(#vh)"/>`);
+  }
+  return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 128" preserveAspectRatio="none">'
+    + '<defs>'
+    + `<radialGradient id="edge" cx="50%" cy="50%" r="50%"><stop offset="0.7" stop-color="${c.deep}" stop-opacity="0"/><stop offset="0.9" stop-color="${c.deep}" stop-opacity="0.55"/><stop offset="1" stop-color="${c.hot}" stop-opacity="0.8"/></radialGradient>`
+    + `<linearGradient id="vd" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="${c.hot}" stop-opacity="0.9"/><stop offset="0.55" stop-color="${c.deep}" stop-opacity="0.6"/><stop offset="1" stop-color="${c.deep}" stop-opacity="0"/></linearGradient>`
+    + `<linearGradient id="vh" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="${c.core}" stop-opacity="0.9"/><stop offset="1" stop-color="${c.hot}" stop-opacity="0"/></linearGradient>`
+    + '<filter id="vb" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="3"/></filter>'
+    + '<filter id="vc" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="1.6"/></filter>'
+    + '</defs>'
+    + '<ellipse cx="50" cy="64" rx="50" ry="64" fill="url(#edge)"/>'
+    + `<g filter="url(#vb)">${tongues.join('')}</g>`
+    + `<g filter="url(#vc)">${cores.join('')}</g>`
+    + '</svg>';
+}
+
+/** A few soft embers (the burn-up's afterglow hovering in the empty slot). ViewBox 100 x 140. */
+export function embersSvg(c: CrownColors): string {
+  const rnd = prng(0xe3b);
+  let dots = '';
+  for (let i = 0; i < 14; i++) {
+    const x = 18 + rnd() * 64, y = 30 + rnd() * 90, r = 1.4 + rnd() * 2.4;
+    dots += `<circle cx="${f(x)}" cy="${f(y)}" r="${f(r * 2.2)}" fill="${c.deep}" opacity="0.45"/><circle cx="${f(x)}" cy="${f(y)}" r="${f(r)}" fill="${i % 3 ? c.hot : c.core}"/>`;
+  }
+  return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 140">'
+    + '<defs><filter id="e" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="1.1"/></filter></defs>'
+    + `<g filter="url(#e)">${dots}</g></svg>`;
+}
+
+export const svgUrl = (svg: string): string => `url("data:image/svg+xml,${encodeURIComponent(svg)}")`;

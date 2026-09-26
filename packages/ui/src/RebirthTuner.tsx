@@ -12,6 +12,7 @@ type Key = keyof RebirthConfig;
 type ColorKey = 'colorA' | 'colorB' | 'colorCore';
 const ROWS: [Key, string, TunerUnit | undefined, string, string, 'color'?][] = [
   ['crownAlpha', 'Flame intensity', 'opacity', 'How strongly the soft flames show on the frame.', 'Idle'],
+  ['veilAlpha', 'Veil over art', 'opacity', 'How strongly the fire licks up over the portrait itself.', 'Idle'],
   ['crownSize', 'Flame height', '×', 'How far the flame tongues lick above the frame.', 'Idle'],
   ['flickerSpeed', 'Flicker cycle', 's', 'Seconds for one full flicker through the flame frames. Lower is livelier.', 'Idle'],
   ['glowAlpha', 'Glow', 'opacity', 'Peak strength of the faint blue ring of light on the frame.', 'Idle'],

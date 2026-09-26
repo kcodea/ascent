@@ -16,9 +16,10 @@ import { mount } from './renderedText.mount';
 import { CROWN_FRAMES, crownSvg, crownTongues, pillarSvg } from './rebirthCrown';
 import { REBIRTH_DEFAULTS, getRebirthConfig, hexToNum, rebirthPalette } from './rebirthConfig';
 import { reformRebirth } from './choreo/channels/aura';
-import { animFor, rebirthSettleLead, REBIRTH_FORM_MS } from './useCombatReplay';
+import { animFor, deathConsequenceLead, rebirthSettleLead, REBIRTH_FORM_MS } from './useCombatReplay';
 import { holdMs } from './choreo/clock';
 import { compileMoments, type Moment } from './choreo/compile';
+import { replayBeats, replayOrder } from './choreo/replayOrder';
 
 const playDefMock = vi.mocked(playDef);
 afterEach(() => { playDefMock.mockClear(); document.body.innerHTML = ''; });
@@ -99,7 +100,7 @@ describe('Rebirth trigger', () => {
     expect(opts?.recolor).toEqual(rebirthPalette());
     const host = document.getElementById('host')!;
     expect(host.querySelectorAll('.rbpillar.back')).toHaveLength(1);
-    expect(host.querySelectorAll('.rbpillar.front')).toHaveLength(1);
+    expect(host.querySelectorAll('.rbflash')).toHaveLength(1);
     expect(host.firstElementChild!.classList.contains('back'), 'the back column sits behind the card').toBe(true);
   });
 
@@ -142,5 +143,41 @@ describe('Rebirth combat beat (Rise beat style: the body is back before the next
     const rise = events.map((e) => (e.type === 'reborn' ? { ...e, rebirth: undefined } : e)) as CombatEvent[];
     const m = compileMoments(rise).find((x) => x.primary.type === 'reborn') as Moment;
     expect(rebirthSettleLead(m, rise)).toBe(0);
+  });
+});
+
+describe('Rebirth 1v1 regression (owner 2026-09-26: "the attack truncated and happened instantly")', () => {
+  // The REAL shape of the reported fight: the killer is a Target Dummy, so its onDamaged `buff` beat sits BETWEEN the
+  // Rebirth body's death and its return. The return used to look only at the beat right before it, found no death,
+  // skipped its read-lead, and the body popped back and swung almost at once.
+  const build = (extra: number): CombatEvent[] => ([
+    { type: 'attack', attacker: 'e1', defender: 'p1', step: 1 },
+    { type: 'dmg', target: 'p1', amount: 5, hp: 0, step: 1 },
+    { type: 'dmg', target: 'e1', amount: 2, hp: 58, step: 1 },
+    { type: 'buff', target: 'e1', attack: 1, health: 0, step: 1 },
+    { type: 'death', target: 'p1', side: 'player', rise: true, step: 2 },
+    { type: 'reborn', target: 'p1', hp: 3, attack: 2, keywords: [], rebirth: true, step: 4 },
+    { type: 'attack', attacker: 'p1', defender: extra ? 'e2' : 'e1', step: 6 },
+  ] as unknown as CombatEvent[]);
+
+  it.each([[0, '1v1'], [3, 'a larger board']])('%s extra units (%s): the return waits its full read-lead, then the attack gets its normal hold', (extra) => {
+    // The replay's REAL pipeline (`replayBeats` = compileMoments(replayOrder(...))), not a bare compile.
+    const events = replayOrder(build(extra));
+    const beats = replayBeats(build(extra));
+    const ri = beats.findIndex((m) => m.primary.type === 'reborn');
+    const reborn = beats[ri]!;
+    const shown = beats[ri - 1]!;
+    expect(shown.kind, 'a beat sits between the death and the return').not.toBe('riseDeath');
+    const recent = beats.slice(Math.max(0, ri - 3), ri - 1);
+    const lead = deathConsequenceLead(shown, reborn, events, new Map(), null, recent);
+    expect(lead, 'the return still holds for the death to read').toBeGreaterThanOrEqual(800);
+    // Without the look-back (the old behaviour) there was no lead at all.
+    expect(deathConsequenceLead(shown, reborn, events, new Map(), null, [])).toBe(0);
+    // The next ATTACK: the rebirth beat holds past the full re-form, and never shorter than an ordinary pre-attack hold.
+    const attack = beats[ri + 1]!;
+    expect(attack.kind).toBe('attackExchange');
+    const hold = holdMs(attack, reborn, 1) + rebirthSettleLead(reborn, events);
+    expect(hold).toBeGreaterThan(REBIRTH_FORM_MS);
+    expect(hold).toBeGreaterThanOrEqual(holdMs(attack, shown, 1));
   });
 });

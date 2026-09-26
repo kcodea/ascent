@@ -56,10 +56,10 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
-        text: 'Rebirth has its own look: soft blue and white fire burning on the frame, and a pillar of flame the minion rises from when it comes back.',
+        text: 'Rebirth has its own look: soft blue and white fire over the card, and a clean burn-and-return when the minion comes back.',
         details: [
-          'A minion with Rebirth has soft blue and white flames burning along its frame, with a faint blue glow and rising embers. Its art and stats stay clear. You can spot it at a glance in the shop, in your hand and in combat. Rise keeps its green look.',
-          'When a minion rebirths, a pillar of blue fire bursts up from its slot and the minion re-forms out of the flames with a whoosh. Like Rise, the fight waits for it to return before the next attack.',
+          'A minion with Rebirth is wrapped in soft blue and white fire: flames over the lower part of its portrait, along its frame and above it, with rising embers. Its stats stay clear. You can spot it at a glance in the shop, in your hand and in combat. Rise keeps its green look.',
+          'When a Rebirth minion dies, it burns away in blue flame and embers hover in its slot. Then it re-forms out of a rising flame with a soft flash and a whoosh. Like Rise, the fight waits for it to return, then it attacks normally.',
           'A minion that rebirths in the shop gets the same burst.',
           'The Rebirth keyword box uses the same blue colours.',
         ],

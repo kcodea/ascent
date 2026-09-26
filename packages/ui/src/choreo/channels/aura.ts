@@ -2,7 +2,7 @@ import { pixiFx } from '../../pixiFx';
 import { playDef } from '../../fx/playDef';
 import { sfx } from '../../sfx';
 import { getRebirthConfig, rebirthPalette } from '../../rebirthConfig';
-import { pillarHostFor, spawnRebirthPillar } from '../../fx/rebirthPillar';
+import { pillarHostFor, spawnRebirthBurn, spawnRebirthPillar } from '../../fx/rebirthPillar';
 
 /**
  * Aura channel (choreographer phase 3c) — the single owner of every combat aura burst/break/re-form FX+sfx
@@ -22,6 +22,8 @@ export function burstDeathAuras(uid: string, rect: { cx: number; cy: number; w: 
   if (!card) return;
   if (card.classList.contains('dscard')) { playDef('ward-lost-blast', { target: { x: rect.cx, y: rect.cy } }, { uids: { source: null, target: uid } }); sfx.shieldBreak(); }
   if (card.classList.contains('reborncard')) { pixiFx.shatterAt(rect.cx, rect.cy, rect.w, rect.h, 'reborn'); sfx.rebornShatter(); }
+  // A REBIRTH body burns away in blue flame, embers hovering in its slot until it returns (owner 2026-09-26).
+  if (card.classList.contains('rebirthcard')) spawnRebirthBurn(rect);
 }
 
 /** A Ward was consumed → play `ward-lost-blast` now + the unchanged `sfx.shieldBreak` sound, at the unit's

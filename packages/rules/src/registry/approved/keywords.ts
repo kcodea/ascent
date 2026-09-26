@@ -232,7 +232,7 @@ export const KEYWORDS_RULES: GameRule[] = [
       { kind: 'code', ref: 'packages/ui/src/Card.tsx RebirthCrown; packages/ui/src/rebirthCrown.ts; packages/ui/src/choreo/score.ts rebirthFx; packages/ui/src/choreo/channels/aura.ts reformRebirth; packages/ui/src/fx/rebirthPillar.ts; packages/sim/src/recruit.ts rebirthReturn (`rebirth: true` on the shop cue)' },
     ],
     contentIds: ['dw_exgalloper'],
-    currentBehaviour: 'Conforms (2026-09-26): the crown replaced the thin rim, the burst moved to its own start-of-beat cue and sizes off the card height, and the Shop cue carries `rebirth: true`.',
+    currentBehaviour: "Conforms (2026-09-26): soft fire over the card (a veil on the art, a glow and crown on the frame); the burst has its own start-of-beat cue and sizes off the card height; the body burns away and re-forms with Rise's beat treatment, and the return's read-lead now finds its death even when the killer's own reaction beat sits between them (the 1v1 'instant attack' report); the Shop cue carries `rebirth: true`.",
     enforcement: {
       kind: 'scenario',
       refs: ['packages/ui/src/rebirthLook.test.tsx', 'packages/ui/src/choreo/score.test.ts', 'packages/sim/src/set3RunesTrancheC.test.ts'],

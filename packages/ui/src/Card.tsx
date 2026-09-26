@@ -987,7 +987,9 @@ export const Card = memo(function Card({
           )}
           {/* Reborn — a faint ethereal aqua-green dome + rising randomized wisps (CSS, replacing the old Pixi
               wisp), clipped to the oval window. Each wisp carries its own random position/size/rise/drift. */}
-          {/* REBIRTH (`RB`) has its own phoenix flame crown (RebirthCrown, in the archbox below); Rise keeps the dome. */}
+          {/* REBIRTH (`RB`) — the VEIL: soft blue fire licking up over the portrait's lower edge (clipped to the window,
+              z2 like Rise's dome), the over-the-card half of its look; the crown on the frame is RebirthCrown below. */}
+          {card.keywords.includes('RB') && <div className="rebirth-veil" aria-hidden="true"><div className="rbv" /></div>}
           {card.keywords.includes('R') && (
             <div className="reborn" aria-hidden="true">
               <div className="reborn-dome" />

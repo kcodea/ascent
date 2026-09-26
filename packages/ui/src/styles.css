@@ -4966,7 +4966,7 @@ body.aiming, body.aiming * { cursor: none !important; }
 .fr-foe-name { margin-top: calc(6 * var(--u)); font-family: var(--font-ui); font-weight: 900; font-size: calc(16 * var(--u)); color: #f4ecdb; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .fr-foe-hero { font-family: var(--font-ui); font-weight: 700; font-size: calc(12 * var(--u)); color: #e8c877; }
 /* The ONE damage readout (owner 2026-09-25): the label, then the number big on its own line, green dealt / red took. */
-.fr-dmgline { display: flex; flex-direction: column; align-items: center; gap: calc(4 * var(--u)); font-family: var(--font-ui); }
+.fr-dmgline { display: flex; flex-direction: column; align-items: center; gap: calc(4 * var(--u)); margin-top: calc(16 * var(--u)); font-family: var(--font-ui); } /* a line's breathing room under the odds (owner 2026-09-25) */
 .fr-dmgline-label { font-weight: 800; font-size: calc(13 * var(--u)); letter-spacing: 0.12em; text-transform: uppercase; color: rgba(244, 236, 219, 0.75); }
 .fr-dmgline-num { font-weight: 900; font-size: calc(60 * var(--u)); line-height: 1; font-variant-numeric: tabular-nums; filter: drop-shadow(0 3px 0 rgba(0, 0, 0, 0.45)); }
 .fr-dmgline.dealt .fr-dmgline-num { color: #7fd9a1; }

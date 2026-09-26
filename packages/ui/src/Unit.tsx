@@ -164,6 +164,9 @@ function UnitInner({ u, side, anim, triggered, rallyPulse, watcherPulse, framePu
         // Bicycle Bob's Undead-played count, per side (2026-09-18): the foe's rides its snapshot's per-tribe map; the
         // player's is derived from the frozen `playedThisTurn` ids by the same predicate the sim froze it with.
         tribesPlayed: foe ? enemyScalers?.tribesPlayed : tribesPlayedThisTurn(run),
+        // Granted Rise leads the text while the body still HAS it (owner 2026-09-26): spent on Rising, back on a
+        // regain. `u.keywords` is already in the memo comparator, so no extra re-render trigger is needed.
+        keywords: u.keywords,
       })
     : { text: '', goldenText: undefined };
   const view: CardView = {
@@ -172,6 +175,7 @@ function UnitInner({ u, side, anim, triggered, rallyPulse, watcherPulse, framePu
     attack: u.attack,
     health: Math.max(0, u.health),
     keywords: u.keywords, golden: u.golden,
+    riseTint: u.riseTint, // Ancients × Lord of the Risen: War's red / Death's regained blue Rise
     text: liveText,
     // liveCardText already folds golden-awareness + the golden-variant fallback into its goldenText (Card renders
     // that for goldens), so pass it straight through — same source of truth as the shop.
@@ -252,5 +256,6 @@ export const Unit = memo(UnitInner, (a, b) =>
   a.u.tribe === b.u.tribe &&
   a.u.baseAttack === b.u.baseAttack &&
   a.u.baseHealth === b.u.baseHealth &&
+  a.u.riseTint === b.u.riseTint &&
   sameKeywords(a.u.keywords, b.u.keywords),
 );

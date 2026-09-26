@@ -80,6 +80,10 @@ export type Tribe = 'beast' | 'undead' | 'mech' | 'dragon' | 'demon' | 'neutral'
 const TRIBE_SET: Record<Tribe, true> = { beast: true, undead: true, mech: true, dragon: true, demon: true, neutral: true, kobold: true, dwarf: true, celestial: true, spirit: true };
 export const TRIBES: readonly Tribe[] = Object.keys(TRIBE_SET) as Tribe[];
 
+/** A tinted Rise look (Ancients × Lord of the Risen): Death's regained Rise is BLUE, War's Undying Rise is RED. Absent =
+ *  the ordinary aqua-green Rise. Presentation only. */
+export type RiseTint = 'blue' | 'red';
+
 /** Keyword codes (handoff A.4). */
 export type Keyword =
   | 'T' // Taunt
@@ -1842,6 +1846,24 @@ export interface QuestCombatMods {
    *  (`battlecryTriggered`), the living minions next to the Shouting minion gain +attack/+health, right then.
    *  Combat-only like every combat gain (Engraved keeps it). Player-only; never snapshotted. */
   ancientShoutAdjacent?: { attack: number; health: number; label: string };
+  /** ANCIENTS × Lord of the Risen: the run-board uids of the minions Undying marked for this fight (`tempReborn`),
+   *  matched against each combat body's `sourceUid`. `regainRise` (Death): the body regains Rise right after its
+   *  first Rise, once per combat (a BLUE Rise). `war` (War): every Rise of the body returns it with double Attack
+   *  and it attacks immediately (a RED Rise). Player-only; never snapshotted. */
+  ancientUndying?: { uids: string[]; regainRise?: boolean; war?: boolean; label: string };
+  /** ANCIENT OF FORTUNE × Lord of the Risen: count every friendly Rise this fight (`CombatCarryBacks.rises`), the
+   *  moment it happens; the run banks Gold for next turn per Rise. Player-only; never snapshotted. */
+  ancientCountRises?: boolean;
+  /** ANCIENT OF GENESIS × Lord of the Risen: every friendly summon in combat summons `extra` more copies of the
+   *  body it summoned (a Rise and a Rebirth included: the copy comes without the returning keyword). A copy never
+   *  makes copies. On a full board the copy is a real overflow. Player-only; never snapshotted. */
+  ancientSummonExtra?: number;
+  /** ANCIENT OF TIME × Lord of the Risen: count every friendly minion summoned this fight
+   *  (`CombatCarryBacks.summonsMade`); the next Start of Turn pays per summon. Player-only; never snapshotted. */
+  ancientCountSummons?: boolean;
+  /** ANCIENT OF BONDS × Lord of the Risen: whenever a friendly minion Rises, trigger the Echo of a living minion next
+   *  to it (random between two, nothing with none), through the shared Echo path. Player-only; never snapshotted. */
+  ancientRiseEcho?: { label: string };
   /** Pack Mentality's Health half of the Beast aura — the `beastBuyHp` sibling of `beastBuyAtk`, re-added to
    *  from-base Beast bodies (summons / Reborn) so "+/+H wherever they are" catches combat summons. */
   beastAuraHp?: number;
@@ -2632,6 +2654,9 @@ export interface MinionSnapshot {
   /** ANCIENTS × the Auctioneer (War): this body carries the grafted "Rally: trigger this minion's Shout"
    *  (`rallyTriggerOwnShout` in its effects), so the combat card prints it. Display-only. */
   grantedRallyShout?: true;
+  /** ANCIENTS × Lord of the Risen: this body's Rise wears a tinted look (War's RED Rise on the Undying target).
+   *  Display-only. */
+  riseTint?: RiseTint;
   /** Mage-Pup: the spell it was taught — display-only, so the combat card names the spell its Shout cast
    *  instead of the "the spell this was taught" placeholder. */
   taughtSpellId?: string;
@@ -2676,11 +2701,11 @@ export type CombatEvent = (
   | { type: 'wardDowngrade'; target: string } // a RESILIENT Ward took its first hit: the hit is absorbed and it drops to a plain Ward ('RW' stripped, 'DS' kept). Not a break — `onLoseDivineShield` does not fire. The UI plays it on the Ward-break beat (the orange layer cracks away)
   | { type: 'shieldUp'; target: string }
   | { type: 'poison'; target: string }
-  | { type: 'reborn'; target: string; hp: number; attack: number; keywords: Keyword[]; after?: string; rebirth?: true } // returns at base stats; `after` = the uid the Rise re-slots to the RIGHT of (a Rise whose Deathrattle summoned tokens into its old slot). `rebirth` = a REBIRTH return (full body, not the printed one) — the UI reuses the Rise beat/FX for it (placeholder until the owner authors one)
+  | { type: 'reborn'; target: string; hp: number; attack: number; keywords: Keyword[]; after?: string; rebirth?: true; tint?: RiseTint } // returns at base stats; `after` = the uid the Rise re-slots to the RIGHT of (a Rise whose Deathrattle summoned tokens into its old slot). `rebirth` = a REBIRTH return (full body, not the printed one) — the UI reuses the Rise beat/FX for it (placeholder until the owner authors one)
   | { type: 'death'; target: string; side: Side; rise?: true } // `side` lets the UI count enemy kills (Cassen) without uid-matching; `rise` marks a Rise's FIRST death — shown (the body vacates its slot) but NOT counted as a kill, since it returns
   | { type: 'reveal'; target: string } // a Stealth minion attacked and lost Stealth
   | { type: 'tribeAura'; side: Side; tribe: Tribe | 'any'; attack?: number; health?: number; aura?: string } // a run-wide aura rose in combat (Ryme / Lantern / Imp King / Fodder Feeder …). UI blooms the board wash (by `tribe`) AND ticks the matching Buffs-panel row live (by `aura` key + amounts), mirroring recruit-phase `auraFxSeq`
-  | { type: 'keyword'; target: string; keyword: Keyword; source?: string } // a combat effect grants a keyword (Mumi → Rise, Ryme-replayed keyword battlecries) — the UI folds it into the unit's pills
+  | { type: 'keyword'; target: string; keyword: Keyword; source?: string; tint?: RiseTint } // a combat effect grants a keyword (Mumi → Rise, Ryme-replayed keyword battlecries) — the UI folds it into the unit's pills
   | { type: 'keywordLost'; target: string; keyword: Keyword; source?: string } // a combat effect STRIPS a keyword (Tauntbreaker → Taunt/Rise off the enemy it hit) — the UI drops that pill
   | { type: 'venomLost'; target: string } // a Venomous minion procced and lost Venomous
   | { type: 'summon'; minion: MinionSnapshot; side: Side; index: number; source?: string; fromHandUid?: string } // `fromHandUid`: a COPY summoned from that hand card (set 3 Spirits) — the card stays in hand, greyed for the fight
@@ -2995,6 +3020,10 @@ export interface CombatCarryBacks {
   wardBreaks?: string[];
   /** ANCIENTS (Warden's Genesis): the break window after this fight (`QuestCombatMods.ancientWardCopy`). */
   wardWindow?: string[];
+  /** ANCIENTS (Risen's Fortune): friendly Rises this fight (only when `ancientCountRises`). */
+  rises?: number;
+  /** ANCIENTS (Risen's Time): friendly minions summoned this fight (only when `ancientCountSummons`). */
+  summonsMade?: number;
 }
 
 export interface CombatResult {
@@ -3246,6 +3275,10 @@ export interface CombatResult {
   playerWardBreaks?: string[];
   /** ANCIENTS (Warden's Genesis): the player's `CombatCarryBacks.wardWindow`. */
   playerWardWindow?: string[];
+  /** ANCIENTS (Risen's Fortune): the player's `CombatCarryBacks.rises`. */
+  playerRises?: number;
+  /** ANCIENTS (Risen's Time): the player's `CombatCarryBacks.summonsMade`. */
+  playerSummonsMade?: number;
   /** Outcome odds (fractions summing to 1) — estimated by the run loop re-simulating these boards
    *  on many independent seeds. Not produced by `simulate` itself (a single fight); the run loop fills it.
    *  `avgLossDamage` is the mean Resolve lost across the losing sims (round-capped), i.e. how much damage

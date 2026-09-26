@@ -73,6 +73,8 @@ const OBJECT_ARMS: Record<string, unknown> = {
   encoreExtra: 1,        // Demand an Encore's turn-long Shout extras (R-TURN-01; a count, not a flag)
   runeHeldStrength: { attack: 3, health: 3, copies: 1 }, // the captured left-most-hand-card stats (owner rework 2026-08-27)
   shoutMeters: [{ sourceId: 'rune_chorus', per: 1, tick: 0, grantSpell: 1 }], // balance 9/23: the cross-phase Shout tally — pays a hand grant on a combat Shout
+  ancientUndying: { uids: ['pS1'], war: true, regainRise: true, label: 'Ancient of War' }, // Risen x Death / War: the Undying body by sourceUid
+  ancientSummonExtra: 1, // Risen x Genesis: extra copies per combat summon (a count, not a flag)
 };
 
 export interface ModScanResult { changed: string[]; inert: string[]; errored: string[]; stagedActive: string[] }

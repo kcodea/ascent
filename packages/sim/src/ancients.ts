@@ -62,14 +62,30 @@
  *  · `shoutBuffsAdjacent`         SHOP: `fireBattlecryTriggered` (per fire, real time); COMBAT:
  *                                 `QuestCombatMods.ancientShoutAdjacent`, a `battlecryTriggered` listener. (Bonds)
  *
+ *  LORD OF THE RISEN (`risen`, Undying, `grantReborn`; owner pairings 2026-09-26). Undying marks its target with
+ *  `tempReborn`; the combat halves find that body by its run uid (`QuestCombatMods.ancientUndying.uids`, matched
+ *  against each combat body's `sourceUid`), so nothing new rides the board card or a snapshot.
+ *  · `undyingRegainsRise`         COMBAT: `ancientUndying.regainRise` in `killOrReborn`'s Rise branch: the Undying
+ *                                 body regains Rise right after it returns, once per combat (a BLUE Rise). (Death)
+ *  · `riseGold`                   COMBAT: `ancientCountRises` counts every friendly Rise (an `onRise` listener, the
+ *                                 moment it happens); `ancientAfterCombat` banks +gold next turn per Rise. (Fortune)
+ *  · `undyingReturnsDoubleAndAttacks` COMBAT: `ancientUndying.war` in the Rise branch: double Attack on the return,
+ *                                 then an interrupting "attacks immediately" strike (R-ORD-05). A RED Rise. (War)
+ *  · `summonsSummonExtra`         COMBAT: `ancientSummonExtra` in `placeSummon` (landed or overflowed) and on every
+ *                                 Rise / Rebirth return (a copy without the returning keyword). (Genesis)
+ *  · `sotBuffPerCombatSummon`     COMBAT counts (`ancientCountSummons`, at the summon-entry chokepoint); the next
+ *                                 Start of Turn (`ancientStartOfTurn`) buffs the board per summon, permanently. (Time)
+ *  · `riseTriggersAdjacentEcho`   COMBAT: `ancientRiseEcho`, an `onRise` listener (`triggerEcho`); SHOP: `fireOnRise`
+ *                                 (`ancientOnShopRise`, the shop Echo ritual). (Bonds)
+ *
  * Serialisable plain data throughout, so saves / snapshots / replays can carry it cheaply later (not in the MVP).
  */
-import { makeRng, type EffectDef, type Keyword, type QuestCombatMods } from '@game/core';
+import { makeRng, type EffectDef, type Keyword, type QuestCombatMods, type RiseTint } from '@game/core';
 import { CARD_INDEX } from '@game/content';
 import { mixSeed, type BoardCard, type RunState } from './state';
 import type { HeroPower } from './heroes';
 import type { CombatResult } from '@game/core';
-import { addBuff, aegisGrantOf, captureBuffFx, destroyMinionInShop, grantMinionToHandOrBoard, makeContext } from './recruit';
+import { addBuff, aegisGrantOf, captureBuffFx, destroyMinionInShop, fireShopEchoOf, grantMinionToHandOrBoard, instanceEffects, makeContext } from './recruit';
 import { INDY_GILD_RECHARGE_GOLD } from './config';
 
 export type AncientId = 'death' | 'fortune' | 'war' | 'genesis' | 'time' | 'bonds';
@@ -142,7 +158,20 @@ export type AncientEffect =
   /** Start of Combat: trigger your left-most and right-most Shouts (once when they are the same minion). */
   | { do: 'socTriggerEdgeShouts' }
   /** Whenever a friendly Shout triggers (Shop AND combat), the minions next to it gain +a/+h. */
-  | { do: 'shoutBuffsAdjacent'; attack: number; health: number };
+  | { do: 'shoutBuffsAdjacent'; attack: number; health: number }
+  // ── Lord of the Risen (Undying) ──
+  /** The Undying body regains Rise right after it Rises in combat, once per combat. */
+  | { do: 'undyingRegainsRise' }
+  /** Every friendly Rise in combat: gain `gold` next turn. */
+  | { do: 'riseGold'; gold: number }
+  /** The Undying body returns from its Rise with double Attack and attacks immediately. */
+  | { do: 'undyingReturnsDoubleAndAttacks' }
+  /** Every friendly summon in combat (a Rise and a Rebirth included) summons `extra` more copies. */
+  | { do: 'summonsSummonExtra'; extra: number }
+  /** Start of Turn: your minions gain +a/+h for every friendly minion summoned in the last combat. */
+  | { do: 'sotBuffPerCombatSummon'; attack: number; health: number }
+  /** Whenever a friendly minion Rises (Shop AND combat), trigger the Echo of a minion next to it. */
+  | { do: 'riseTriggersAdjacentEcho' };
 
 export interface AncientPairing {
   /** The Ancient's text for this hero, as shown on the offer and the preview (the owner's words). */
@@ -150,7 +179,8 @@ export interface AncientPairing {
   /** The RESOLVED hero-power text (owner ruling 5: "shows the combined power"). `{base}` = the base power's live
    *  text; `{recharge}` = Indy's live recharge Gold; `{gilds}` / `{gildA}` / `{gildH}` = the run's gild count and
    *  the live Bonds total it grants right now; `{aegis}` = Warden's live Aegis grant ("+5 Attack"); `{wardLeft}` =
-   *  Ward breaks still needed for Genesis' next copy. */
+   *  Ward breaks still needed for Genesis' next copy; `{riseGold}` = Gold the Risen's last combat banked;
+   *  `{summons}` / `{timeA}` / `{timeH}` = the Risen's last-combat summon count and the Start-of-Turn grant it paid. */
   powerText: string;
   /** The resolved text once a one-shot pairing is used up (War's Resilient Aegis). Absent = `powerText` always. */
   powerTextSpent?: string;
@@ -292,6 +322,51 @@ export const ANCIENT_PAIRINGS: Record<string, Partial<Record<AncientId, AncientP
       effects: [{ do: 'shoutBuffsAdjacent', attack: 4, health: 3 }],
     },
   },
+  // LORD OF THE RISEN (hero id `risen`; owner pairings 2026-09-26, quoted above each entry). Undying = "Give a friendly
+  // minion Rise for the next combat."
+  risen: {
+    death: {
+      // "Undying's target gains Rise after rising. (Once per combat.)" Shown as a BLUE Rise.
+      offerText: "Undying's target gains **Rise** again after it Rises. Once per combat.",
+      powerText: '{base} After it Rises, it gains **Rise** again. Once per combat.',
+      effects: [{ do: 'undyingRegainsRise' }],
+    },
+    fortune: {
+      // "When a minion Rises each combat, gain 1 Gold next turn."
+      offerText: 'When one of your minions Rises in combat, gain **1 Gold** next turn.',
+      powerText: '{base} When one of your minions Rises in combat, gain **1 Gold** next turn. Last combat: **{riseGold} Gold**.',
+      effects: [{ do: 'riseGold', gold: 1 }],
+    },
+    war: {
+      // "The minion chosen by Undying returns with double Attack and attacks immediately." Shown as a RED Rise.
+      offerText: 'The minion you pick with Undying Rises with double Attack and attacks immediately.',
+      powerText: '{base} When it Rises, it has double Attack and attacks immediately.',
+      effects: [{ do: 'undyingReturnsDoubleAndAttacks' }],
+    },
+    genesis: {
+      // "Your summons summon an extra minion in combat." (owner: "adds 1 to any and all summon effects in combat,
+      // including rise"; "make sure these count as overflows"; "this also makes echo summons summon an extra body")
+      // Owner text trim 2026-09-26: "remove the sentence 'This includes minions that Rise.'" (behaviour unchanged: a
+      // Rise still gets its extra copy).
+      offerText: 'In combat, each minion you summon summons an extra copy.',
+      powerText: '{base} In combat, each minion you summon summons an extra copy.',
+      effects: [{ do: 'summonsSummonExtra', extra: 1 }],
+    },
+    time: {
+      // "Start of Turn: Give your minions +3/+2 for every minion summoned in combat." (owner: the previous combat only;
+      // "summoned counts anything from hand, echo summons, and rising bodies")
+      offerText: '**Start of Turn:** give your minions **+3/+2** for each minion you summoned last combat.',
+      powerText: '{base} **Start of Turn:** give your minions **+3/+2** for each minion you summoned last combat. Last combat: **{summons}** summoned (**+{timeA}/+{timeH}**).',
+      effects: [{ do: 'sotBuffPerCombatSummon', attack: 3, health: 2 }],
+    },
+    bonds: {
+      // "When a minion Rises, trigger an adjacent Echo." (owner: a random one when both neighbours have one; nothing
+      // when neither; "this stacks with any other potential effects and triggers")
+      offerText: 'When one of your minions Rises, trigger the **Echo** of a minion next to it.',
+      powerText: '{base} When one of your minions Rises, trigger the **Echo** of a minion next to it.',
+      effects: [{ do: 'riseTriggersAdjacentEcho' }],
+    },
+  },
 };
 
 export function ancientPairingFor(heroId: string, id: AncientId): AncientPairing | undefined {
@@ -357,6 +432,10 @@ export interface AncientsState {
   powerOverride?: AncientPowerOverride;
   /** AUCTIONEER × FORTUNE: Gold banked by Shop Shouts on `wave` (the live power text prints it). */
   shoutGold?: { wave: number; gold: number };
+  /** RISEN × FORTUNE: Gold the last combat's Rises banked for this turn (the live power text prints it). */
+  riseGold?: number;
+  /** RISEN × TIME: friendly minions summoned in the last combat (paid at the next Start of Turn; printed live). */
+  lastSummons?: number;
 }
 
 /** Turn Ancients on for a run (the Scene Builder's Set 3 flag). Pure: returns a new run. */
@@ -461,7 +540,11 @@ export function ancientPowerText(state: RunState, base: string): string | undefi
   const copy = effectOf(state, 'wardBreaksGetCopy');
   const wardLeft = copy ? copy.every - ((a?.wardWindow?.length ?? 0) % copy.every) : 0;
   const shoutGold = a?.shoutGold?.wave === state.wave ? a.shoutGold.gold : 0;
-  return text.replace('{base}', base).replace('{shoutGold}', String(shoutGold)).replace('{aegis}', aegis).replace('{wardLeft}', String(wardLeft)).replace('{recharge}', String(INDY_GILD_RECHARGE_GOLD))
+  const time = effectOf(state, 'sotBuffPerCombatSummon');
+  const summons = a?.lastSummons ?? 0;
+  return text.replace('{base}', base).replace('{shoutGold}', String(shoutGold))
+    .replace('{riseGold}', String(a?.riseGold ?? 0)).replace('{summons}', String(summons))
+    .replace('{timeA}', String((time?.attack ?? 0) * summons)).replace('{timeH}', String((time?.health ?? 0) * summons)).replace('{aegis}', aegis).replace('{wardLeft}', String(wardLeft)).replace('{recharge}', String(INDY_GILD_RECHARGE_GOLD))
     .replace('{gilds}', String(gilds)).replace('{gildA}', String((per?.attack ?? 0) * gilds)).replace('{gildH}', String((per?.health ?? 0) * gilds));
 }
 
@@ -533,6 +616,20 @@ export function ancientCombatMods(state: RunState): Partial<QuestCombatMods> {
   if (effectOf(state, 'socTriggerEdgeShouts')) out.ancientEdgeShouts = { label: ANCIENTS.time.name };
   const adj = effectOf(state, 'shoutBuffsAdjacent');
   if (adj) out.ancientShoutAdjacent = { attack: adj.attack, health: adj.health, label: ANCIENTS.bonds.name };
+  // LORD OF THE RISEN: the Undying body is the board card Undying marked (`tempReborn`) this turn.
+  const regain = effectOf(state, 'undyingRegainsRise');
+  const riseWar = effectOf(state, 'undyingReturnsDoubleAndAttacks');
+  if (regain || riseWar) {
+    const uids = state.board.filter((c) => c.tempReborn && c.keywords.includes('R')).map((c) => c.uid);
+    if (uids.length > 0) {
+      out.ancientUndying = { uids, label: (riseWar ? ANCIENTS.war : ANCIENTS.death).name, ...(regain ? { regainRise: true } : {}), ...(riseWar ? { war: true } : {}) };
+    }
+  }
+  if (effectOf(state, 'riseGold')) out.ancientCountRises = true;
+  const extra = effectOf(state, 'summonsSummonExtra');
+  if (extra) out.ancientSummonExtra = extra.extra;
+  if (effectOf(state, 'sotBuffPerCombatSummon')) out.ancientCountSummons = true;
+  if (effectOf(state, 'riseTriggersAdjacentEcho')) out.ancientRiseEcho = { label: ANCIENTS.bonds.name };
   return out;
 }
 
@@ -634,6 +731,14 @@ export function ancientAfterCombat(state: RunState, result: CombatResult): void 
   const breaks = result.playerWardBreaks ?? [];
   const gold = effectOf(state, 'wardBreakGold');
   if (gold && breaks.length > 0) state.bonusEmbersNextTurn = (state.bonusEmbersNextTurn ?? 0) + gold.gold * breaks.length;
+  // RISEN × FORTUNE: +gold next turn per friendly Rise (counted the moment each happened, in the fight).
+  const riseGold = effectOf(state, 'riseGold');
+  if (riseGold) {
+    a.riseGold = riseGold.gold * (result.playerRises ?? 0);
+    if (a.riseGold > 0) state.bonusEmbersNextTurn = (state.bonusEmbersNextTurn ?? 0) + a.riseGold;
+  }
+  // RISEN × TIME: the count the next Start of Turn pays on.
+  if (effectOf(state, 'sotBuffPerCombatSummon')) a.lastSummons = result.playerSummonsMade ?? 0;
   if (!effectOf(state, 'wardBreaksGetCopy')) return;
   a.wardBreaks = (a.wardBreaks ?? 0) + breaks.length;
   if (result.playerWardWindow) a.wardWindow = [...result.playerWardWindow];
@@ -690,4 +795,46 @@ export function ancientOnShopShout(state: RunState, source: BoardCard | undefine
     if (near.length === 0) return;
     captureBuffFx(state, source, 'minion', () => { for (const c of near) addBuff(c, ANCIENTS.bonds.name, adj.attack, adj.health); });
   }
+}
+
+// ── Lord of the Risen (Undying) hooks ─────────────────────────────────────────────────────────────────────────
+/** WAR: the Undying target's Rise wears the RED look in the Shop too (the combat body reads `riseTint` off its
+ *  snapshot). Undefined = the ordinary Rise look. */
+export function ancientRiseTint(state: RunState, card: BoardCard): RiseTint | undefined {
+  // Owner 2026-09-26 ("they look identical"): the Undying target wears its pairing's colour from the moment Undying
+  // lands, not only once it has risen: War RED, Death BLUE.
+  if (!card.tempReborn || !card.keywords.includes('R')) return undefined;
+  if (effectOf(state, 'undyingReturnsDoubleAndAttacks')) return 'red';
+  if (effectOf(state, 'undyingRegainsRise')) return 'blue';
+  return undefined;
+}
+
+/** TIME: Start of Turn, every board minion gains +a/+h for each friendly minion summoned in the last combat,
+ *  permanently (owner 2026-09-26: the previous combat only). */
+export function ancientStartOfTurn(state: RunState): void {
+  const a = live(state);
+  const e = effectOf(state, 'sotBuffPerCombatSummon');
+  const n = a?.lastSummons ?? 0;
+  if (!a || !e || n <= 0 || state.board.length === 0) return;
+  captureBuffFx(state, undefined, 'spell', () => {
+    for (const c of state.board) addBuff(c, ANCIENTS.time.name, e.attack * n, e.health * n);
+  });
+}
+
+/** BONDS, Shop half: a friendly minion Rose in the Shop (a shop destroy's Rise return). Trigger the Echo of a
+ *  minion next to it, a random one when both neighbours have an Echo, through the shop's own Echo ritual (the
+ *  Echo multipliers and the Echo tally apply). Nothing when neither neighbour has one. */
+export function ancientOnShopRise(state: RunState, risen: BoardCard): void {
+  if (!effectOf(state, 'riseTriggersAdjacentEcho')) return;
+  const i = state.board.indexOf(risen);
+  if (i < 0) return;
+  const near = [state.board[i - 1], state.board[i + 1]].filter((c): c is BoardCard => !!c && instanceEffects(c).some((e) => e.on === 'onDeath'));
+  if (near.length === 0) return;
+  let target = near[0]!;
+  if (near.length > 1) {
+    const rng = makeRng(state.rngCursor);
+    target = near[rng.int(near.length)]!;
+    state.rngCursor = rng.state();
+  }
+  captureBuffFx(state, risen, 'minion', () => fireShopEchoOf(state, target));
 }

@@ -1,3 +1,4 @@
+import type { RiseTint } from '@game/core';
 import { pixiFx } from '../../pixiFx';
 import { playDef } from '../../fx/playDef';
 import { sfx } from '../../sfx';
@@ -21,7 +22,13 @@ export function burstDeathAuras(uid: string, rect: { cx: number; cy: number; w: 
   const card = document.querySelector(`.unit[data-uid="${uid}"] .card`);
   if (!card) return;
   if (card.classList.contains('dscard')) { playDef('ward-lost-blast', { target: { x: rect.cx, y: rect.cy } }, { uids: { source: null, target: uid } }); sfx.shieldBreak(); }
-  if (card.classList.contains('reborncard')) { pixiFx.shatterAt(rect.cx, rect.cy, rect.w, rect.h, 'reborn'); sfx.rebornShatter(); }
+  if (card.classList.contains('reborncard')) {
+    // Ancients × Lord of the Risen: a tinted Rise (War red, Death's regained blue) releases its spirit in its own colour.
+    const tint: RiseTint | undefined = card.classList.contains('risetint-red') ? 'red' : card.classList.contains('risetint-blue') ? 'blue' : undefined;
+    if (tint) pixiFx.shatterAt(rect.cx, rect.cy, rect.w, rect.h, 'reborn', tint);
+    else pixiFx.shatterAt(rect.cx, rect.cy, rect.w, rect.h, 'reborn');
+    sfx.rebornShatter();
+  }
   // A REBIRTH body burns away in blue flame, embers hovering in its slot until it returns (owner 2026-09-26).
   if (card.classList.contains('rebirthcard')) spawnRebirthBurn(rect);
 }
@@ -48,8 +55,9 @@ export function crackResilientWard(rect: { cx: number; cy: number; w: number; h:
 
 /** A unit reborn → the re-form glow + sound now. The DELAY is the auraReform cue's offset (scaled:false),
  *  scheduled by the runner (was the internal REBORN_SUMMON_DELAY setTimeout). */
-export function reformReborn(rect: { cx: number; cy: number; w: number; h: number } | null): void {
-  if (rect) pixiFx.rebornSummon(rect.cx, rect.cy, rect.w, rect.h);
+export function reformReborn(rect: { cx: number; cy: number; w: number; h: number } | null, tint?: RiseTint): void {
+  // `tint`: the Risen Ancients' red / blue Rise (passed only when set, so the plain Rise call is unchanged).
+  if (rect) { if (tint) pixiFx.rebornSummon(rect.cx, rect.cy, rect.w, rect.h, tint); else pixiFx.rebornSummon(rect.cx, rect.cy, rect.w, rect.h); }
   sfx.rebornSummon();
 }
 

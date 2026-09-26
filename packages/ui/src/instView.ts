@@ -7,7 +7,7 @@ import {
   cryptDrakeText, drunkenOafText, shredderText, karthusText, engraveTallyText, escalatingCastText, guelProgressText, herzogText, hunterText, monkProgressText, overflowPerPlayedText, packLeaderText, runescaleText, scTribeBuffPerPlayedText,
   archivistText, ashenHeirText, chooseBothText, attackGrantImproveText, castSpellPerGoldText, copyCastSpellText, runeModifiedNote, type RuneTextFlags, improvingSummonText, perCardPlayedText, rougeRogueText, perGoldSpentText, rallySpreadText, shopBuffImproveText, spellThresholdText, ritualistText, sergeantText, soulsmanText, squirlScoutText, conductorText, stepProgress, sporebatText, stewardText, thundeerText, summonBuffText, summonEscalatingText, summonFlatZooText, summonImproveText, soldProgressText, summitTierText, summonScalingText, shootingStarText, echoTallyText,
   ancientWandererText, musterTrooperText, shopSpellGrowthText,
-  taughtSpellText, trailForagerText, transformProgressText, watcherText, withImpStats, spiritText } from './cardText';
+  taughtSpellText, trailForagerText, transformProgressText, watcherText, withGrantedRise, withImpStats, spiritText } from './cardText';
 
 /** Run-wide state + optional per-instance accruals for the live-text chain. Per-instance fields are absent
  *  (0) for a not-yet-owned shop / Discover preview — those helpers then fall back to the printed text. */
@@ -118,6 +118,9 @@ export interface LiveTextParams {
   /** Rune of the Zoo (combat only): the player's combat-summon tally at the current beat — Beardsley prints
    *  the buff the NEXT summon will actually get (base × golden × (this + 1)). Undefined = no rune / shop. */
   zooSummons?: number | null;
+  /** This instance's CURRENT keywords (board / hand / offer / combat body). A Rise the printed card lacks (granted
+   *  by Undying, Last Stand, …) leads the text as "**Rise.**" (owner 2026-09-26). Absent for a plain preview. */
+  keywords?: readonly string[];
 }
 
 /** A Ruby's printed sentence with its "+A/+H" grant swapped for `grant` (already `{{…}}`-wrapped when it is above
@@ -135,6 +138,16 @@ export function rubyLiveText(printed: string, grant: string): string {
 export const GRANTED_RALLY_SHOUT_NOTE = "[[Rally: trigger this minion's Shout.]]";
 
 export function liveCardText(cardId: string, p: LiveTextParams): { text: string; goldenText: string | undefined } {
+  const r = liveCardTextCore(cardId, p);
+  if (!p.keywords?.includes('R')) return r;
+  // Granted Rise leads BOTH variants (owner 2026-09-26). A golden with no goldenText of its own renders `text`.
+  return {
+    text: withGrantedRise(cardId, r.text, p.keywords),
+    goldenText: r.goldenText !== undefined ? withGrantedRise(cardId, r.goldenText, p.keywords) : undefined,
+  };
+}
+
+function liveCardTextCore(cardId: string, p: LiveTextParams): { text: string; goldenText: string | undefined } {
   const c = CARD_INDEX[cardId];
   // A RESOLVED Choose One prints only the branch it became — the other option is no longer something this body
   // can do. Applies to every Choose One card, golden included (a golden reads its option's `goldenText`, which
@@ -290,6 +303,11 @@ export function instView(
   // The full live rule text (+ golden variant) — shared with the shop / Discover via liveCardText.
   // (BOTH) — the ONE predicate, shared with the printed text below and with the reducer's prompt decision.
   const chooseBoth = chooseBothActive(live?.chooseBothState ?? {}, inst, c);
+  // The keywords this body shows (a next-combat grant like Last Stand previews its badge) — also what the granted
+  // "**Rise.**" lead in the text reads, so the pill and the text always agree.
+  const shownKeywords = inst.tempGrants?.length
+    ? [...inst.keywords, ...inst.tempGrants.map((g) => g.keyword as Keyword).filter((k) => !inst.keywords.includes(k))]
+    : inst.keywords;
   const { text, goldenText } = liveCardText(inst.cardId, {
     tier, golden: !!inst.golden, spellBonus, spellBonusH, frontToBackBonus, frontToBackBonusH: live?.frontToBackBonusH ?? frontToBackBonus, spellsThisTurn, spellsCast, rubyCasts: live?.rubyCasts,
     deathrattlesTriggered, clingEnchant, fodderConsumed,
@@ -312,6 +330,7 @@ export function instView(
     chooseBoth, // (Both) — no choice to print
     taughtSpellId: inst.taughtSpellId, // a Mage-Pup prints the spell it was taught
     grantedRallyShout: !!inst.grantedEffects?.some((e) => e.do === 'rallyTriggerOwnShout'), // Auctioneer × War
+    keywords: shownKeywords, // a granted Rise leads the text (owner 2026-09-26)
   });
   // `override` shows transient stats during the End-of-Turn animation (the per-proc value the minion
   // is at on this beat), so its numbers visibly tick up as each effect procs. Otherwise the real stats.
@@ -332,9 +351,6 @@ export function instView(
   // parenthesized tag — ((label)) renders via the Card's `desctemp` marker — and the promised keyword badge
   // previews on the minion until combat spends it.
   const tempTags = (inst.tempGrants ?? []).map((g) => ` ((${g.label}))`).join('');
-  const shownKeywords = inst.tempGrants?.length
-    ? [...inst.keywords, ...inst.tempGrants.map((g) => g.keyword as Keyword).filter((k) => !inst.keywords.includes(k))]
-    : inst.keywords;
   // Every Ruby type prints its own authored sentence (the Kobold rider — Ward, Gold, bounce, ripple, devour —
   // owner Ruby batch 2026-09-24) with its printed "+A/+H" swapped for the live grant.
   const shownText = c.ruby ? rubyLiveText(c.text, shownAtk > c.attack || shownHp > c.health ? `{{${rubyVal}}}` : rubyVal) : text;

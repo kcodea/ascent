@@ -95,3 +95,8 @@ export function tickAllowed(minGapMs = 70): boolean {
 export function prefersReducedMotion(): boolean {
   try { return typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch { return false; }
 }
+
+// DEV only: a console / headless-capture handle to replay the awakening without refilling the meter.
+if (import.meta.env?.DEV && typeof window !== 'undefined') {
+  (window as unknown as { __ancients?: unknown }).__ancients = { playGateDemo };
+}

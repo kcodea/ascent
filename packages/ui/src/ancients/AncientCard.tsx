@@ -13,7 +13,6 @@ import { ancientColor } from './ancientsConfig';
 export const AncientCard = memo(function AncientCard({ id, heroId, tag }: { id: AncientId; heroId: string; tag?: string }) {
   return (
     <div className="anc-cardx" style={{ '--anc-c': ancientColor(id) } as CSSProperties}>
-      <span className="anc-cardx-gem" aria-hidden="true" />
       <div className={`anc-art-frame${hasAncientArt(id) ? '' : ' placeholder'}`}>
         {hasAncientArt(id)
           ? <AncientFace id={id} className="anc-art" />

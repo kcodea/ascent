@@ -31,9 +31,9 @@ const ROWS: [Key, string, TunerUnit | undefined, string, string, ('color' | 'tog
   ['tickGain', 'Fill tick', 'opacity', 'Volume of the tick when points are added. 0 mutes it.', 'Sound'],
   ['revealGain', 'Awaken + reveal', 'opacity', 'Volume of the full-ring flash and the split reveal cues. 0 mutes them.', 'Sound'],
   ['omenMs', 'Omen', 'ms', 'The world holds its breath: the duck, the rumble, the darkening edges, the glyphs and embers around the hero power.', 'Awakening beats'],
-  ['omenDark', 'Omen edge darkness', 'opacity', 'How dark the screen edges go during the omen.', 'Awakening beats'],
+  ['omenDark', 'Omen edge darkness', 'opacity', 'How strongly the vignette creeps in from the edges during the omen.', 'Awakening beats'],
+  ['omenTremor', 'Omen tremor', 'px', 'The board’s tremor at the peak of the omen. The hero power never moves. 0 turns it off.', 'Awakening beats'],
   ['eruptionMs', 'Eruption bloom', 'ms', 'The curtain bursting out of the hero power.', 'Awakening beats'],
-  ['columnMs', 'Light column', 'ms', 'The column of light shooting up from the hero power.', 'Awakening beats'],
   ['burstScale', 'Burst size', '×', 'The shockwave and sparks at the eruption.', 'Awakening beats'],
   ['seamGlow', 'Seam ring', 'opacity', 'The energy ring and runes riding the curtain’s edge.', 'Awakening beats'],
   ['titleHoldMs', 'Title hold', 'ms', 'How long "An Ancient Awakens" holds before the Ancients emerge.', 'Awakening beats'],
@@ -41,6 +41,14 @@ const ROWS: [Key, string, TunerUnit | undefined, string, string, ('color' | 'tog
   ['revealDelayMs', 'First Ancient delay', 'ms', 'The pause before the first Ancient emerges.', 'Awakening beats'],
   ['cardStaggerMs', 'Between Ancients', 'ms', 'The gap between one Ancient emerging and the next.', 'Awakening beats'],
   ['cardRevealMs', 'One Ancient emerges', 'ms', 'How long each Ancient takes to materialise.', 'Awakening beats'],
+  ['revealStyle', 'Reveal style', undefined, 'Two beats (the middle slams, then the sides slide out and slam together) or sequential (left → middle → right).', 'Reveal', 'toggle'],
+  ['beat1Ms', 'Two beats: middle', 'ms', 'The middle Ancient rising up the centre and slamming down.', 'Reveal'],
+  ['beatGapMs', 'Two beats: gap', 'ms', 'The pause before the sides.', 'Reveal'],
+  ['beat2Ms', 'Two beats: sides', 'ms', 'The left and right Ancients sliding out from behind and slamming together.', 'Reveal'],
+  ['slamStrength', 'Slam weight', '×', 'The slam’s overshoot, card shake and landing burst.', 'Reveal'],
+  ['smokeSize', 'Smoke size', '×', 'The coloured smoke’s size (arrival, slam, eruption, settled haze).', 'Smoke'],
+  ['smokeAmount', 'Smoke amount', '×', 'How much smoke. 0 turns it off.', 'Smoke'],
+  ['smokeLife', 'Smoke lifetime', '×', 'How long the smoke lingers before it dissipates.', 'Smoke'],
   ['closeMs', 'Gate closes', 'ms', 'The gate contracting back into the hero power on the pick.', 'Awakening beats'],
   ['duckAmount', 'Duck level', 'opacity', 'Music and other sounds dip to this during the awakening (1 = no duck).', 'Awakening sound'],
   ['duckRampMs', 'Duck ramp', 'ms', 'How quickly the duck goes in and comes back.', 'Awakening sound'],
@@ -81,7 +89,7 @@ const controls: TunerControl<Key>[] = ROWS.map(([key, label, unit, hint, group, 
   if (kind === 'color' || kind === 'text') return { key, label, hint, group, kind, min: 0, max: 0, step: 0 };
   const [min, max, step] = ANCIENTS_RANGES[key as AncientsNumKey];
   return kind === 'toggle'
-    ? { key, label, hint, group, kind, min, max, step, onValue: 1, offValue: 0 }
+    ? { key, label, hint, group, kind, min, max, step, onValue: 1, offValue: 0, ...(key === 'revealStyle' ? { onOffLabels: ['two beats', 'sequential'] as [string, string] } : {}) }
     : { key, label, unit, hint, group, min, max, step };
 });
 

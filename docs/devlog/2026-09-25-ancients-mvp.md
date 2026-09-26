@@ -137,3 +137,13 @@ Nothing loops: every motion is WAAPI transform/opacity or a one-shot transition.
   every cue (clip / gain / offset / pitch) is a ✦ Ancients tuner dial; ▶ Play full sequence / ▶ Play from reveal.
   A click steps omen/eruption/title → reveal, and a second completes the reveal. Sequencing lives on the
   `ancientsFx` stage bus (`AncientGate` drives it, `AncientOffer` reports `settled`).
+- **Omen strengthened + reveal round**: the omen vignette creeps in from the edges (~50% at the edges), a violet halo
+  and a turning ring of bright rune glyphs around the hero power, cracks of light across the board, motes pulled in,
+  and a light tremor on the board ART only (`.boardbg`). The first tremor animated `.app`, which made it the
+  containing block for every fixed element and collapsed 21:9 into a 16:9 box (owner report); `gateLayout.test.ts`
+  now fails any Ancients code that reaches for `.app` / `.statusbar` / `#root`, or CSS that transforms `.app`. The
+  light column is gone. REVEAL STYLE (tuner): two beats (default; the middle rises and slams, then the sides slide out
+  from behind it and slam together, one sound) or sequential. Cards are minimal (the art, the name with an
+  Ancient-coloured glow + underline, clean text). Pixi smoke everywhere, in each Ancient's colour (`ancient-smoke`,
+  `ancient-haze` looped when settled, `ancient-slam`, `ancient-gate-smoke`); the gate now sits at z 105, under the
+  z 110 FX canvas, so the smoke draws over the backdrop and behind the offer. Peak ≈ 300 pooled particles (beat 2).

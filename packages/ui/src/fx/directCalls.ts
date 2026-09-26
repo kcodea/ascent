@@ -32,6 +32,8 @@ export const DIRECT_CALL_SITES: Readonly<Record<string, readonly string[]>> = {
   // started while the selected Equipment will Amplify AND has a charge to spend, fired by literal id from its hook.
   'amplified-slot': ['useAmplifiedSlotFx.ts'],
   'ancient-gate-burst': ['ancients/AncientGate.tsx'],
+  'ancient-gate-smoke': ['ancients/ancientsSmoke.ts'],
+  'ancient-slam': ['ancients/ancientsSmoke.ts'],
   // The Auctioneer's Pulse — played on the TARGET minion instead of the generic `hero-power-target` spark.
   'auctioneer-hp': ['Recruit.tsx'],
   'choose-one-both': ['useChooseBothFx.ts'],   // the persistent (Both) marker on hand / shop / Discover cards
@@ -167,6 +169,10 @@ export const DYNAMIC_CALL_SITES: Readonly<Record<string, number>> = {
   // timed, rather than being hardwired to Bloodpot's. Same debt, same fix — moving the moment into
   // `recruitCues.ts` retires this line with the one above it.
   'EquipFxTuner.tsx': 1,
+  // THE ANCIENTS' COLOURED SMOKE (2026-09-25): one `playDef(defId, …)` in `ancientsSmoke.ts`, where the id is a
+  // runtime per-Ancient recolour of a committed base (`ancient-smoke--<ancient>` / `ancient-haze--<ancient>`) so each
+  // Ancient's smoke is its own (tunable) colour. Data-resolved like the tendril-per-tribe case, not a new caller kind.
+  'ancients/ancientsSmoke.ts': 1,
   // SIX since 2026-09-01: the `buffedOn` fan-out is a sixth `playDef(binding.def, …)`, playing ON each buffed
   // unit rather than travelling to it (Dragonflame). Same binding path, one more anchor convention.
   // +1 on 2026-09-01: the `shoutFx` cue plays a `shout`-kind binding per re-fire proc.

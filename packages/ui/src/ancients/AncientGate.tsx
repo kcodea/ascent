@@ -8,6 +8,7 @@ import { wipeAspect, wipeCoverEllipse, wipeFrontScale } from '../wipeGeometry';
 import { getAncientsConfig } from './ancientsConfig';
 import { getAwakenStage, prefersReducedMotion, setAwakenStage, useAwakenStage, useGateDemo, useRingSettledSeq } from './ancientsFx';
 import { duckForAwakening, playCue, warmAncientCues } from './ancientsSound';
+import { ancientGateSmoke } from './ancientsSmoke';
 
 /**
  * THE AWAKENING (owner 2026-09-25: "ominous exciting when the hero power erupts. it should be a moment that the player
@@ -17,8 +18,8 @@ import { duckForAwakening, playCue, warmAncientCues } from './ancientsSound';
  *
  *   OMEN      the world holds its breath: music + other sounds duck, a low rumble swells, the screen's edges darken,
  *             arcane glyphs flicker around the hero power and embers drift up from it (`omenRumble`).
- *   ERUPTION  a deep boom and a violet/gold flash from the hero power, the burst def's shockwave, a column of light
- *             shooting upward, and the violet curtain blooming out in the go-to-combat wipe's language (the wipe's
+ *   ERUPTION  a deep boom and a violet/gold flash from the hero power, the burst def's shockwave, a violet/gold smoke
+ *             burst (`ancient-gate-smoke`), and the violet curtain blooming out in the go-to-combat wipe's language (the wipe's
  *             aspect-stretched ellipse, its seam ring — here carrying runes — and `wipeFx` stardust) (`eruptionBoom`,
  *             `eruptionFlash`).
  *   TITLE     "An Ancient Awakens" rises in the centre and HOLDS (`titleSting`).
@@ -47,7 +48,7 @@ const GLYPHS = [
   'M6 22 L12 2 L18 22 M8 15 H16',
   'M12 2 V22 M4 9 L20 15 M20 9 L4 15',
 ];
-const N_GLYPHS = 10;
+const N_GLYPHS = 12;
 const N_EMBERS = 18;
 
 function hpBox(): { x: number; y: number; w: number } {
@@ -78,7 +79,6 @@ export const AncientGate = memo(function AncientGate({ run }: { run: RunState })
   const runesRef = useRef<HTMLDivElement | null>(null);
   const omenRef = useRef<HTMLDivElement | null>(null);
   const flashRef = useRef<HTMLDivElement | null>(null);
-  const columnRef = useRef<HTMLDivElement | null>(null);
   const timers = useRef<number[]>([]);
   const seqRef = useRef(0);
   const rumble = useRef<{ stop: (ms?: number) => void } | null>(null);
@@ -119,6 +119,7 @@ export const AncientGate = memo(function AncientGate({ run }: { run: RunState })
       playCue('eruptionFlash');
       wipeFx.bloom(x, y, rx, ry, c.eruptionMs, EASE, PALETTE);
       if (canPlayDefs()) playDef('ancient-gate-burst', { target: { x, y } }, { scale: c.burstScale });
+      ancientGateSmoke({ x, y });
     }, c.omenMs));
     timers.current.push(window.setTimeout(() => { go('title', seq); playCue('titleSting'); }, c.omenMs + c.eruptionMs));
     timers.current.push(window.setTimeout(() => toReveal(seq), c.omenMs + c.eruptionMs + c.titleHoldMs));
@@ -201,25 +202,49 @@ export const AncientGate = memo(function AncientGate({ run }: { run: RunState })
     const ell = (k: number): string => `ellipse(${Math.max(0, geo.rx * k)}px ${Math.max(0, geo.ry * k)}px at ${geo.x}px ${geo.y}px)`;
     if (phase === 'omen') {
       const om = omenRef.current;
-      om?.querySelector('.anc-omen-vignette')?.animate([{ opacity: 0 }, { opacity: c.omenDark }], { duration: c.omenMs, easing: 'ease-in', fill: 'forwards' });
-      om?.querySelectorAll<HTMLElement>('.anc-omen-glyph').forEach((g) => {
-        const d = rnd(0, c.omenMs * 0.55);
-        g.animate([{ opacity: 0 }, { opacity: 0.9, offset: 0.15 }, { opacity: 0.25, offset: 0.3 }, { opacity: 1, offset: 0.45 }, { opacity: 0.4, offset: 0.7 }, { opacity: 0.9, offset: 0.85 }, { opacity: 0 }],
+      // The vignette CREEPS IN from the edges toward the hero power (a pre-rendered radial layer, scaled + faded).
+      om?.querySelector('.anc-omen-vignette')?.animate([
+        { opacity: 0, transform: 'scale(1.6)' }, { opacity: c.omenDark, transform: 'scale(1)' },
+      ], { duration: c.omenMs, easing: 'cubic-bezier(0.3, 0, 0.6, 1)', fill: 'forwards' });
+      om?.querySelector('.anc-omen-halo')?.animate([
+        { opacity: 0, transform: 'translate(-50%, -50%) scale(0.5)' }, { opacity: 0.95, transform: 'translate(-50%, -50%) scale(1.25)' },
+      ], { duration: c.omenMs, easing: 'ease-in', fill: 'forwards' });
+      // The rune ring turns slowly around the hero power while its glyphs flicker alight.
+      om?.querySelector('.anc-omen-ring')?.animate([{ transform: 'rotate(0deg)' }, { transform: 'rotate(38deg)' }], { duration: c.omenMs + c.eruptionMs, easing: 'linear', fill: 'forwards' });
+      om?.querySelectorAll<SVGElement>('.anc-omen-glyph').forEach((g, i) => {
+        const d = (i / N_GLYPHS) * c.omenMs * 0.35;
+        g.animate([{ opacity: 0 }, { opacity: 1, offset: 0.2 }, { opacity: 0.45, offset: 0.35 }, { opacity: 1, offset: 0.5 }, { opacity: 0.6, offset: 0.7 }, { opacity: 1 }],
           { duration: Math.max(200, c.omenMs - d), delay: d, fill: 'both' });
       });
+      // Cracks of light spreading across the board toward the hero power (a one-shot dash draw on static paths).
+      om?.querySelectorAll<SVGPolylineElement>('.anc-omen-crack').forEach((p, i) => {
+        p.animate([{ strokeDashoffset: 1, opacity: 0 }, { strokeDashoffset: 0.35, opacity: 1, offset: 0.6 }, { strokeDashoffset: 0, opacity: 0.85 }],
+          { duration: c.omenMs * 0.8, delay: c.omenMs * 0.15 + i * 40, easing: 'ease-in', fill: 'both' });
+      });
+      // A light tremor on the board ART only: the fixed `.boardbg` layers are leaves, so moving them shifts nothing
+      // else. NEVER transform `.app` or any ancestor of fixed UI: that makes a new containing block for every fixed
+      // descendant and collapses the stage scaler (the 21:9 layout shrank into a 16:9 box, owner report 2026-09-25).
+      if (c.omenTremor > 0) {
+        const k = c.omenTremor;
+        const frames: Keyframe[] = [];
+        for (let f = 0; f <= 14; f++) {
+          const amp = k * (f / 14);
+          frames.push({ translate: f === 14 ? '0 0' : `${rnd(-amp, amp).toFixed(2)}px ${rnd(-amp, amp).toFixed(2)}px` });
+        }
+        document.querySelectorAll<HTMLElement>('.boardbg').forEach((el) => { if (typeof el.animate === 'function') el.animate(frames, { duration: c.omenMs, easing: 'linear' }); });
+      }
+      // Motes pulled INTO the hero power from across the scene.
+      wipeFx.inhale(geo.x, geo.y, Math.max(360, geo.r * 0.5), c.omenMs, PALETTE);
       om?.querySelectorAll<HTMLElement>('.anc-omen-ember').forEach((e) => {
         const d = rnd(0, c.omenMs * 0.6);
         e.animate([{ opacity: 0, transform: 'translate(-50%, -50%)' }, { opacity: 1, offset: 0.2 }, { opacity: 0, transform: `translate(calc(-50% + ${rnd(-30, 30)}px), calc(-50% - ${rnd(110, 240)}px))` }],
           { duration: rnd(700, 1200), delay: d, easing: 'ease-out', fill: 'both' });
       });
     } else if (phase === 'eruption') {
-      omenRef.current?.querySelector('.anc-omen-vignette')?.animate([{ opacity: c.omenDark }, { opacity: 0 }], { duration: 260, fill: 'forwards' });
+      // The omen's layer (vignette, glyphs, cracks) gives way as the curtain blooms: nothing of it rides over the curtain.
+      omenRef.current?.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 240, easing: 'ease-out', fill: 'forwards' });
       flashRef.current?.animate([{ opacity: 0, transform: 'translate(-50%, -50%) scale(0.3)' }, { opacity: 1, transform: 'translate(-50%, -50%) scale(1)', offset: 0.18 }, { opacity: 0, transform: 'translate(-50%, -50%) scale(1.6)' }],
         { duration: 520, easing: 'ease-out', fill: 'forwards' });
-      if (c.columnMs > 0) {
-        columnRef.current?.animate([{ opacity: 0, transform: 'translateX(-50%) scaleY(0)' }, { opacity: 1, transform: 'translateX(-50%) scaleY(1)', offset: 0.25 }, { opacity: 0, transform: 'translateX(-50%) scaleY(1.05) scaleX(0.4)' }],
-          { duration: c.columnMs, easing: 'cubic-bezier(0.2, 0.8, 0.3, 1)', fill: 'forwards' });
-      }
       curtain?.animate([{ clipPath: ell(0) }, { clipPath: ell(1) }], { duration: c.eruptionMs, easing: ease, fill: 'forwards' });
       // The backdrop rides the curtain's own ellipse, so nothing leads the seam.
       bg?.animate([{ clipPath: ell(0) }, { clipPath: ell(1) }], { duration: c.eruptionMs, easing: ease, fill: 'forwards' });
@@ -246,12 +271,30 @@ export const AncientGate = memo(function AncientGate({ run }: { run: RunState })
     }
   }, [phase, geo]);
 
+  // Cracks of light: jagged paths from points across the board toward the hero power, fixed per awakening.
+  const cracks = useMemo(() => {
+    if (!geo) return [] as string[];
+    const out: string[] = [];
+    for (let i = 0; i < 7; i++) {
+      const sx = rnd(window.innerWidth * 0.3, window.innerWidth * 0.85), sy = rnd(window.innerHeight * 0.15, window.innerHeight * 0.85);
+      const pts: string[] = [];
+      const n = 7;
+      for (let k = 0; k <= n; k++) {
+        const t = k / n;
+        const x = sx + (geo.x - sx) * t * 0.8 + (k > 0 && k < n ? rnd(-22, 22) : 0);
+        const y = sy + (geo.y - sy) * t * 0.8 + (k > 0 && k < n ? rnd(-22, 22) : 0);
+        pts.push(`${x.toFixed(1)},${y.toFixed(1)}`);
+      }
+      out.push(pts.join(' '));
+    }
+    return out;
+  }, [geo]);
   // Ember starts, fixed per awakening (not per render, so nothing jumps between beats).
   const embers = useMemo(() => (geo ? Array.from({ length: N_EMBERS }, () => ({ left: geo.x + rnd(-geo.hp * 0.45, geo.hp * 0.45), top: geo.y + rnd(-geo.hp * 0.2, geo.hp * 0.35) })) : []), [geo]);
   if (!geo || phase === 'idle') return null;
   const reduced = prefersReducedMotion();
   const curtainOn = !reduced && (phase === 'eruption' || phase === 'title' || phase === 'reveal');
-  const ring = geo.hp * 0.85;
+  const ring = geo.hp * 0.95;
   return createPortal(
     <div className="anc-gate" aria-hidden="true" style={{ '--gx': `${geo.x}px`, '--gy': `${geo.y}px` } as CSSProperties}>
       {/* The Discover view's backdrop: what the awakening ends on, under the offer. */}
@@ -261,23 +304,28 @@ export const AncientGate = memo(function AncientGate({ run }: { run: RunState })
       {/* OMEN: darkening edges, glyphs flickering around the hero power, embers drifting up from it. */}
       {(phase === 'omen' || phase === 'eruption') && !reduced && (
         <div ref={omenRef} className="anc-omen">
-          <div className="anc-omen-vignette" />
-          {Array.from({ length: N_GLYPHS }, (_, i) => {
-            const a = (i / N_GLYPHS) * Math.PI * 2 - Math.PI / 2;
-            return (
-              <svg key={`g${i}`} className="anc-omen-glyph" viewBox="0 0 24 24" style={{ left: geo.x + Math.cos(a) * ring, top: geo.y + Math.sin(a) * ring }}>
-                <path d={GLYPHS[i % GLYPHS.length]} />
-              </svg>
-            );
-          })}
+          <div className="anc-omen-vignette" style={{ transformOrigin: `${geo.x}px ${geo.y}px` }} />
+          <svg className="anc-omen-cracks" viewBox={`0 0 ${window.innerWidth} ${window.innerHeight}`} preserveAspectRatio="none">
+            {cracks.map((pts, i) => <polyline key={i} className="anc-omen-crack" points={pts} pathLength={1} strokeDasharray="1" />)}
+          </svg>
+          <div className="anc-omen-halo" style={{ left: geo.x, top: geo.y, width: geo.hp * 3.4, height: geo.hp * 3.4 }} />
+          <div className="anc-omen-ring" style={{ left: geo.x, top: geo.y }}>
+            {Array.from({ length: N_GLYPHS }, (_, i) => {
+              const a = (i / N_GLYPHS) * Math.PI * 2 - Math.PI / 2;
+              return (
+                <svg key={`g${i}`} className="anc-omen-glyph" viewBox="0 0 24 24" style={{ left: Math.cos(a) * ring, top: Math.sin(a) * ring }}>
+                  <path d={GLYPHS[i % GLYPHS.length]} />
+                </svg>
+              );
+            })}
+          </div>
           {embers.map((e, i) => <span key={`e${i}`} className="anc-omen-ember" style={{ left: e.left, top: e.top }} />)}
         </div>
       )}
-      {/* ERUPTION: the flash + the column of light, from the hero power. */}
+      {/* ERUPTION: the flash from the hero power. */}
       {phase === 'eruption' && !reduced && (
         <>
           <div ref={flashRef} className="anc-erupt-flash" style={{ left: geo.x, top: geo.y }} />
-          <div ref={columnRef} className="anc-erupt-column" style={{ left: geo.x, height: geo.y }} />
         </>
       )}
       {curtainOn && (

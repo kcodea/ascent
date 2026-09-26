@@ -52,10 +52,10 @@ export interface AncientsConfig {
   omenMs: number;
   /** Omen: how dark the screen edges go while the world holds its breath (opacity). */
   omenDark: number;
+  /** Omen: the board's tremor at its peak (px). 0 = none. The hero power never moves. */
+  omenTremor: number;
   /** Eruption: the curtain bloom out of the hero power (ms). */
   eruptionMs: number;
-  /** Eruption: the column of light from the hero power (ms). */
-  columnMs: number;
   /** Eruption: the burst FX size (×). */
   burstScale: number;
   /** Eruption: the energy ring riding the curtain's seam (peak opacity). */
@@ -70,6 +70,23 @@ export interface AncientsConfig {
   cardStaggerMs: number;
   /** Reveal: one Ancient's emergence (ms). */
   cardRevealMs: number;
+  /** Reveal style: 1 = TWO BEATS (the middle rises and slams, then left + right slide out from behind it and slam
+   *  together), 0 = SEQUENTIAL (left → middle → right). */
+  revealStyle: number;
+  /** Two beats: the middle's rise + slam (ms). */
+  beat1Ms: number;
+  /** Two beats: the gap before the sides (ms). */
+  beatGapMs: number;
+  /** Two beats: the sides sliding out + slamming (ms). */
+  beat2Ms: number;
+  /** The slam's weight: overshoot, card shake and the landing FX size (×). */
+  slamStrength: number;
+  /** Smoke: size (×). */
+  smokeSize: number;
+  /** Smoke: amount (×). 0 turns the smoke off. */
+  smokeAmount: number;
+  /** Smoke: lifetime (×). */
+  smokeLife: number;
   /** Close: the gate contracting back into the hero power on the pick (ms). */
   closeMs: number;
   /** Sound: the duck on the music + other sounds during the awakening (0 = silent, 1 = none). */
@@ -151,9 +168,9 @@ export const ANCIENTS_DEFAULTS: AncientsFullConfig = {
   tickGain: 0.5,
   revealGain: 0.8,
   omenMs: 850,
-  omenDark: 0.75,
+  omenDark: 1,
+  omenTremor: 2.5,
   eruptionMs: 520,
-  columnMs: 800,
   burstScale: 1.1,
   seamGlow: 0.9,
   titleHoldMs: 1500,
@@ -161,6 +178,14 @@ export const ANCIENTS_DEFAULTS: AncientsFullConfig = {
   revealDelayMs: 280,
   cardStaggerMs: 460,
   cardRevealMs: 700,
+  revealStyle: 1,
+  beat1Ms: 720,
+  beatGapMs: 360,
+  beat2Ms: 560,
+  slamStrength: 1,
+  smokeSize: 1,
+  smokeAmount: 1,
+  smokeLife: 1,
   closeMs: 420,
   duckAmount: 0.3,
   duckRampMs: 260,
@@ -197,8 +222,8 @@ export const ANCIENTS_RANGES: Record<NumKey, [number, number, number]> = {
   revealGain: [0, 1, 0.01],
   omenMs: [0, 3000, 10],
   omenDark: [0, 1, 0.01],
+  omenTremor: [0, 10, 0.1],
   eruptionMs: [100, 2000, 10],
-  columnMs: [0, 2000, 10],
   burstScale: [0, 3, 0.05],
   seamGlow: [0, 1, 0.01],
   titleHoldMs: [0, 4000, 10],
@@ -206,6 +231,14 @@ export const ANCIENTS_RANGES: Record<NumKey, [number, number, number]> = {
   revealDelayMs: [0, 2000, 10],
   cardStaggerMs: [0, 1500, 10],
   cardRevealMs: [100, 2000, 10],
+  revealStyle: [0, 1, 1],
+  beat1Ms: [200, 2000, 10],
+  beatGapMs: [0, 1500, 10],
+  beat2Ms: [200, 2000, 10],
+  slamStrength: [0, 3, 0.05],
+  smokeSize: [0.2, 3, 0.05],
+  smokeAmount: [0, 3, 0.05],
+  smokeLife: [0.2, 3, 0.05],
   closeMs: [100, 1500, 10],
   duckAmount: [0, 1, 0.01],
   duckRampMs: [0, 1500, 10],

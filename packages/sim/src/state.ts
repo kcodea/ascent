@@ -1058,6 +1058,11 @@ export interface RunState {
    *  sibling here — the store already derives a live enemy-death count (`combatEnemyDeaths`, Cassen's), folded
    *  into his pill. */
   fxBladeAttacksPreview?: number;
+  /** TRANSIENT combat-replay preview of Squirl Scout's run-wide snowball GROWN this fight (R-TEXT-11, owner
+   *  2026-09-26): a combat Squirl Scout Shout improves `squirlScoutBuff` mid-fight, so its printed grant must
+   *  move as it fires. Folded from the player's `improve` events that carry `scout`; cleared at settle, where the
+   *  REAL growth lands through `playerShoutCarry.squirlScoutBuff`. Display-only (read via `squirlScoutBuffLive`). */
+  fxScoutPreview?: number;
   /** TRANSIENT combat-replay preview of FRIENDLY deaths this fight — Cindara's Hoard Avenge (4) tracker ticks
    *  live as her minions fall, instead of being blank in the shop (deaths are combat-internal; there is no run
    *  total). Reset at settle like its spell-cast sibling, so it can never leak into the next fight — a fresh
@@ -2527,6 +2532,8 @@ export type Action =
   | { type: 'combatFriendlyDeathPreview'; count: number }
   /** Combat replay: Blade Mastery attacks so far this fight (Gorun). */
   | { type: 'combatBladeAttackPreview'; count: number }
+  /** Combat replay: Squirl Scout's run-wide snowball grown so far this fight (R-TEXT-11). */
+  | { type: 'combatScoutPreview'; amount: number }
   | { type: 'buy'; uid: string }
   /** Recruit your hero's HENCHMAN for its current (decayed) cost — once per run. See `henchmanCostOf`. */
   | { type: 'buyHenchman' }
@@ -2965,6 +2972,7 @@ export function deserialize(json: string, opts: { turnRemaining?: number } = {})
   state.fxSpellsCastPreview = undefined;
   state.fxFriendlyDeathPreview = undefined;
   state.fxBladeAttacksPreview = undefined;
+  state.fxScoutPreview = undefined;
   const win = state.cardDiscountWindow;
   if (win && (typeof win.amount !== 'number' || win.amount <= 0)) state.cardDiscountWindow = undefined;
   else if (win && win.untilClock !== null && typeof opts.turnRemaining === 'number' && opts.turnRemaining <= win.untilClock) {

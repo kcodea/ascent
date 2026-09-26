@@ -54,6 +54,27 @@ export const PATCH_NOTES: PatchNote[] = [
     date: '2026-09-26',
     changes: [
       {
+        category: 'Balance',
+        text: 'Gravetwin, Auric Runemaster and Graverobber now pick a random target when their Shout is triggered again.',
+        details: [
+          'Played from your hand, you still choose the target.',
+          'When another effect triggers their Shout, in the Shop or in combat, they pick a random minion they could target. Before, they did nothing.',
+          'Gravetwin copies the Echo of a random friendly Echo minion. A copy made in combat still triggers at the start of your next Shop if Gravetwin survives.',
+          'Auric Runemaster Gilds a random friendly minion that is not Gilded yet. A Gild made in combat lasts for that fight.',
+          'Graverobber destroys a random other friendly minion and gives you a spell of its tier.',
+          'With nothing to target, the Shout does nothing.',
+        ],
+      },
+      {
+        category: 'Systems',
+        text: 'Squirl Scout now shows its current bonus during combat, updating as it grows.',
+      },
+    ],
+  },
+  {
+    date: '2026-09-26',
+    changes: [
+      {
         category: 'Systems',
         text: 'Shouts triggered during combat now take effect right away. Cards they give you arrive during the fight, and can trigger other effects.',
         details: [

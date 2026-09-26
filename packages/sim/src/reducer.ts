@@ -1344,7 +1344,7 @@ function reduceCore(state: RunState, action: Action): RunState {
   // Discover raised mid-fight must not freeze them either (hence the modal guard below exempts them too).
   const combatPreview = action.type === 'combatEscalationPreview' || action.type === 'combatSpellPowerPreview'
     || action.type === 'combatSpellCastPreview' || action.type === 'combatFriendlyDeathPreview'
-    || action.type === 'combatBladeAttackPreview';
+    || action.type === 'combatBladeAttackPreview' || action.type === 'combatScoutPreview';
   // Recruit actions apply only in the recruit phase; `settleCombat` / `resolveCombat` only in combat.
   if (state.phase !== 'recruit' && !combatPreview && action.type !== 'resolveCombat' && action.type !== 'settleCombat') return state;
 
@@ -3694,6 +3694,10 @@ function reduceCore(state: RunState, action: Action): RunState {
       s.fxBladeAttacksPreview = action.count === 0 ? undefined : action.count; // Gorun's live grant/countdown
       return s;
     }
+    case 'combatScoutPreview': {
+      s.fxScoutPreview = action.amount === 0 ? undefined : action.amount; // Squirl Scout's live snowball (R-TEXT-11)
+      return s;
+    }
     case 'pickAncient': {
       if (!pickAncient(s, action.id)) return state;
       return s;
@@ -4822,6 +4826,12 @@ function settleCombat(s: RunState, result: CombatResult): void {
     if (c.grimoireMult) s.grimoireMult = Math.max(s.grimoireMult ?? 0, c.grimoireMult); // Living Grimoire
     if (c.squirlScoutBuff) s.squirlScoutBuff = (s.squirlScoutBuff ?? 0) + c.squirlScoutBuff; // Squirl Scout
     for (const b of c.runShopBuffs ?? []) applyRunShopBuff(s, b.attack, b.health, b.source, b.cardId); // Contract Butcher / Malphas
+    for (const e of c.copiedEchoes ?? []) { // Gravetwin re-fired in combat (R-TARGET-06): the copy lands on its run card
+      const gt = s.board.find((b) => b.uid === e.uid);
+      if (!gt) continue;
+      gt.copiedEcho = e.effects.map((x) => ({ ...x, ...(x.params ? { params: { ...x.params } } : {}) }));
+      if (e.name) gt.copiedEchoName = e.name;
+    }
   }
   // Imp King / Brood Matron Avenge: their in-combat Imp buffs are permanent — accrue them into the run-wide
   // Imp buff so future Imps (next fights) inherit them.
@@ -4945,6 +4955,7 @@ function settleCombat(s: RunState, result: CombatResult): void {
   s.fxSpellsCastPreview = undefined; // ditto: `playerSpellsCast` was applied above
   s.fxFriendlyDeathPreview = undefined; // Cindara's live Avenge tracker retires — a new fight re-counts from 0
   s.fxBladeAttacksPreview = undefined; // Gorun's live counter retires — `bladeAttacks` already banked the real total
+  s.fxScoutPreview = undefined; // Squirl Scout's live snowball retires — `playerShoutCarry.squirlScoutBuff` banks the real growth
   // Permanent Undead attack AURA gained in combat (Karthus's on-kill, Deathswarmer re-fired by Ryme) —
   // stack into undeadBuyAtk AND apply to all current run-board Undead immediately so they benefit without
   // being re-bought. Labelled 'Undead Bond' to match the buy-time aura (the source varies, the aura is one).

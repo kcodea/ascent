@@ -188,6 +188,14 @@ returns an event log; the UI only replays it and never computes outcomes. Recrui
 (Shouts/Battlecries, buff-on-summon, Consume) bake into stats *before* combat; the simulator runs
 combat-time effects (Start of Combat, Echoes/Deathrattles, on-kill, etc.) and emits log events.
 
+**A Shout triggered again** (Resonance, Myra, Echoing Roar or an End-of-Turn replay in the Shop; Dawnclaw / Ryme,
+a Rally re-fire or an Ancient of Time in combat) resolves the moment it fires, in either phase (R-REALTIME-03). Its
+board stats in combat are combat gains that end with the fight (R-REALTIME-04); a Consume it causes waits for the
+Shop (R-REALTIME-05). A targeted Shout has no aim when re-fired, so it picks a **random legal target** (never
+itself), seeded, like Baby Gastrid and Appetite Agent: Gravetwin a friendly Echo minion, Auric Runemaster a
+non-Gilded friendly (a combat Gild lasts that fight), Graverobber any other friendly. No legal target: nothing
+happens (R-TARGET-06, owner 2026-09-26).
+
 **The shop draws from a shared, finite pool, weighted by copies left** (owner ruling 2026-09-10). Every
 minion of the run's tribes starts with a fixed number of copies per tier; buying takes one, selling or
 discarding returns one. Each roll picks a card with probability proportional to the copies it has left, so

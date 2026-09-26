@@ -1373,6 +1373,10 @@ export function simulate(
       ctx.grantToHand(cardId, side, sourceUid);
       (shoutCarry[side].handEchoes ??= []).push(idx);
     },
+    grantCopiedEcho: (minion, effects, name) => {
+      if (!minion.sourceUid || effects.length === 0) return;
+      (shoutCarry[minion.side].copiedEchoes ??= []).push({ uid: minion.sourceUid, effects, ...(name ? { name } : {}) });
+    },
     revelerValueFor: (side) => Math.max(1, (side === 'player' ? playerState : enemyState).revelerX ?? 1),
     goldSpentThisTurnFor: (side) => (side === 'player' ? playerState : enemyState).goldSpentThisTurn ?? 0,
     lastSpellThisTurnIdFor: (side) => (side === 'player' ? playerState : enemyState).lastSpellThisTurnId,

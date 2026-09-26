@@ -138,4 +138,29 @@ export const TARGETING_RULES: GameRule[] = [
       + 'back into the hand with the aim beam starting there.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/chooseOneHold.test.ts'], lastVerifiedAt: '2026-09-25' },
   },
+  {
+    id: 'R-TARGET-06',
+    title: 'A targeted Shout re-fired without an aim picks a random legal target, in the Shop and in combat',
+    statement:
+      'Played from hand, a targeted Shout is aimed by the player. When it is RE-FIRED (Resonance, Myra, Echoing Roar or '
+      + 'an End-of-Turn replay in the Shop; Dawnclaw / Ryme, a Rally re-fire or an Ancient of Time in combat) there is no '
+      + 'aim, so it picks a RANDOM target from the bodies it could legally target: never itself (R-TARGET-03), and only '
+      + 'bodies the effect can act on. Gravetwin: a friendly Echo minion (its Echo is copied; a combat copy also carries '
+      + 'back to Gravetwin, so it fires next Shop if Gravetwin survives). Auric Runemaster: a friendly minion that is not '
+      + 'Gilded (a combat Gild lasts for that fight, R-REALTIME-04). Graverobber: any other friendly minion (it is '
+      + 'destroyed at once, its Echo fires, and a spell of its tier goes to hand). With no legal target the Shout does '
+      + 'nothing. The pick is seeded: the Shop draws from the run\u2019s random cursor, combat from the fight\u2019s, '
+      + 'the same way Baby Gastrid and Appetite Agent pick on a re-fire, so a replay picks the same body.',
+    domain: 'targeting',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-26 (#1755 question 2: "when re-fired they have no target, so they do nothing. Should they pick a random target instead?")', quote: 'yes they should pick a random target.' },
+      { kind: 'code', ref: 'packages/sim/src/recruit.ts refireTarget + battlecryCopyEcho / battlecryGildTarget / battlecryDestroyForSpell; packages/core/src/effects/factories.ts the three combat halves (ctx.rng.pick); ShoutCarry.copiedEchoes folded in settleCombat' },
+    ],
+    contentIds: ['gravetwin', 'dw_runemaster', 'graverobber'],
+    currentBehaviour:
+      'Conforms, FIXED 2026-09-26: a re-fire of these three had no target and did nothing in either phase (the Shop '
+      + 'bodies returned on a missing target; the #1755 combat halves were empty).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/shoutRefireTargets.test.ts'], lastVerifiedAt: '2026-09-26' },
+  },
 ];

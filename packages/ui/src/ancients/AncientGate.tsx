@@ -8,7 +8,8 @@ import { getAncientsConfig, subscribeAncientsConfig } from './ancientsConfig';
 import { getAwakenStage, prefersReducedMotion, setAwakenStage, useAwakenStage, useGateDemo, useRingSettledSeq } from './ancientsFx';
 import { duckForAwakening, playCue, warmAncientCues } from './ancientsSound';
 import { ancientLandDust } from './ancientsSmoke';
-import { heroMotePalette, isThemedHero, resolveAncientHeroTheme } from './ancientHeroThemes';
+import { heroMotePalette, isThemedHero, resolveAncientHeroSignature, resolveAncientHeroTheme } from './ancientHeroThemes';
+import { ACCENT_PARTS, MEDAL_LAYERS, playHeroBloom } from './ancientHeroBloom';
 import { heroPowerArt } from '../art';
 
 /**
@@ -85,6 +86,10 @@ export const AncientGate = memo(function AncientGate({ run }: { run: RunState })
   // (A tuner demo may play as another hero: `themeHero` is pinned when the sequence starts.)
   const [themeHero, setThemeHero] = useState<string | undefined>(undefined);
   const theme = useMemo(() => resolveAncientHeroTheme(themeHero ?? run.heroId, cfg as unknown as Record<string, unknown>), [themeHero, run.heroId, cfg]);
+  // …and its SIGNATURE (a themed hero's bloom accent + medallion entrance; `null` = the generic entrance).
+  const sig = useMemo(() => resolveAncientHeroSignature(themeHero ?? run.heroId), [themeHero, run.heroId]);
+  const sigRef = useRef(sig);
+  sigRef.current = sig;
   const heroIdRef = useRef(run.heroId);
   heroIdRef.current = run.heroId;
   const [phase, setPhase] = useState<Phase>('idle');
@@ -273,10 +278,10 @@ export const AncientGate = memo(function AncientGate({ run }: { run: RunState })
       flashRef.current?.animate([{ opacity: 0, transform: 'translate(-50%, -50%) scale(0.3)' }, { opacity: 1, transform: 'translate(-50%, -50%) scale(1)', offset: 0.18 }, { opacity: 0, transform: 'translate(-50%, -50%) scale(1.6)' }],
         { duration: 520, easing: 'ease-out', fill: 'forwards' });
       curtain?.animate([{ clipPath: ell(0) }, { clipPath: ell(1) }], { duration: c.eruptionMs, easing: ease, fill: 'forwards' });
-      // The hero power's art settles into the middle of the bloom as it opens (transform/opacity only, one shot).
-      curtain?.querySelector('.anc-gate-medal')?.animate([
-        { opacity: 0, transform: 'scale(0.6)' }, { opacity: 1, transform: 'scale(1.04)', offset: 0.7 }, { opacity: 1, transform: 'scale(1)' },
-      ], { duration: c.eruptionMs + 260, delay: c.eruptionMs * 0.35, easing: 'cubic-bezier(0.16, 1, 0.3, 1)', fill: 'both' });
+      // The hero power's art settles into the middle of the bloom as it opens, in the hero's own way, with the hero's
+      // signature accent round it (`ancientHeroBloom.ts`; the default keeps the generic scale/fade). Transform/opacity
+      // one-shots only, all done inside the title hold.
+      playHeroBloom(curtain?.querySelector('.anc-gate-medalwrap'), sigRef.current, c);
       // The backdrop rides the curtain's own ellipse, so nothing leads the seam.
       bg?.animate([{ clipPath: ell(0) }, { clipPath: ell(1) }], { duration: c.eruptionMs, easing: ease, fill: 'forwards' });
       const sx = wipeFrontScale(geo.rx), sy = wipeFrontScale(geo.ry);
@@ -370,8 +375,17 @@ export const AncientGate = memo(function AncientGate({ run }: { run: RunState })
         <div ref={curtainRef} className="anc-gate-curtain" style={phase === 'reveal' ? undefined : { clipPath: `ellipse(0px 0px at ${geo.x}px ${geo.y}px)` }}>
           <div className="anc-gate-center">
             {geo.art && (
-              <div className="anc-gate-medal" style={reduced || phase !== 'eruption' ? undefined : { opacity: 0 }}>
-                <img className="anc-gate-medal-art" src={geo.art} alt="" draggable={false} decoding="sync" />
+              <div className={`anc-gate-medalwrap${sig ? ` acc-${sig.accent} med-${sig.medal}` : ''}`}>
+                {sig && MEDAL_LAYERS[sig.medal].includes('out') && <span className={`anc-medal-fx anc-medal-${sig.medal}`} />}
+                <div className="anc-gate-medal" style={reduced || phase !== 'eruption' ? undefined : { opacity: 0 }}>
+                  <img className="anc-gate-medal-art" src={geo.art} alt="" draggable={false} decoding="sync" />
+                  {sig && MEDAL_LAYERS[sig.medal].includes('in') && <span className={`anc-medal-fx anc-medal-${sig.medal}-in`} />}
+                </div>
+                {sig && (
+                  <div className={`anc-acc anc-acc-${sig.accent}`}>
+                    {Array.from({ length: ACCENT_PARTS[sig.accent] }, (_, i) => <i key={i} className={`anc-acc-p p${i}`} />)}
+                  </div>
+                )}
               </div>
             )}
             <div className={`anc-gate-title${phase === 'title' || phase === 'reveal' ? ' in' : ''}`}>

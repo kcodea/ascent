@@ -4,7 +4,7 @@ import type { TunerControl, TunerSpec, TunerUnit } from '../tunerSchema';
 import { useGame } from '../store';
 import { ANCIENTS_DEFAULTS, ANCIENTS_RANGES, getAncientsConfig, resetAncientsConfig, setAncientsValue, type AncientsFullConfig, type AncientsNumKey, ANCIENT_ART_IDS, ANCIENT_CUES, ART_FIELDS } from './ancientsConfig';
 import { playAwakenDemo, playGateDemo } from './ancientsFx';
-import { heroThemeKey, THEME_FIELDS, THEMED_HEROES, type ThemeField } from './ancientHeroThemes';
+import { ANCIENT_HERO_THEMES, heroThemeKey, THEME_FIELDS, THEMED_HEROES, type ThemeField } from './ancientHeroThemes';
 
 /**
  * DEV ✦ ANCIENTS tuner (proof of concept 2026-09-25). The METER group is balance: moving it re-stamps the live
@@ -13,6 +13,8 @@ import { heroThemeKey, THEME_FIELDS, THEMED_HEROES, type ThemeField } from './an
  * without touching run state; the Scene Builder's "Fill meter" plays the real thing end to end.
  */
 type Key = keyof AncientsFullConfig;
+/** "Indy", "The Warden" … (a theme's own label, capitalised for a heading). */
+const heroName = (h: (typeof THEMED_HEROES)[number]): string => { const l = ANCIENT_HERO_THEMES[h].label; return l.charAt(0).toUpperCase() + l.slice(1); };
 const THEME_LABELS: Record<ThemeField, [string, string]> = {
   curtainInner: ['Curtain centre', 'The curtain’s colour at its centre (it blooms out of the hero power).'],
   curtainOuter: ['Curtain edge', 'The curtain’s colour at its edge.'],
@@ -64,7 +66,7 @@ const ROWS: [Key, string, TunerUnit | undefined, string, string, ('color' | 'tog
   // HERO THEMES (owner 2026-09-26): the awakening's curtain, seam, title glow and backdrop in the hero's colours. The
   // default is every hero without its own entry; each themed hero (ancientHeroThemes.ts) gets its own group.
   ...themeRows('default', 'Hero theme: Default (every other hero)'),
-  ...THEMED_HEROES.flatMap((h) => themeRows(h, `Hero theme: ${h.charAt(0).toUpperCase()}${h.slice(1)}`)),
+  ...THEMED_HEROES.flatMap((h) => themeRows(h, `Hero theme: ${heroName(h)}`)),
   ['closeMs', 'Gate closes', 'ms', 'The gate contracting back into the hero power on the pick.', 'Awakening beats'],
   ['duckAmount', 'Duck level', 'opacity', 'Music and other sounds dip to this during the awakening (1 = no duck).', 'Awakening sound'],
   ['duckRampMs', 'Duck ramp', 'ms', 'How quickly the duck goes in and comes back.', 'Awakening sound'],
@@ -138,8 +140,8 @@ export const SPEC: TunerSpec<AncientsFullConfig> = {
       run: () => playGateDemo('full'),
     },
     ...THEMED_HEROES.map((h) => ({
-      label: `▶ Play as ${h.charAt(0).toUpperCase()}${h.slice(1)}`,
-      hint: `The full awakening in ${h.charAt(0).toUpperCase()}${h.slice(1)}’s theme and power art, whoever the run's hero is. Run state is untouched.`,
+      label: `▶ Play as ${ANCIENT_HERO_THEMES[h].label}`,
+      hint: `The full awakening as ${ANCIENT_HERO_THEMES[h].label}: the colours, the power art, the bloom accent and the medallion's entrance, whoever the run's hero is. Run state is untouched.`,
       run: () => playGateDemo('full', h),
     })),
     {

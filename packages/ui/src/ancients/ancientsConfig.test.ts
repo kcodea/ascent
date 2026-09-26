@@ -20,11 +20,33 @@ describe('the Ancients tuner defaults', () => {
       for (const f of ART_FIELDS) expect(ANCIENTS_DEFAULTS[`${id}${f}`], `${id}${f}`).toBe(f === 'S' ? 1 : 0);
     }
   });
-  it('carry the baked hero themes: the default (today’s teal) and Indy’s gold', () => {
+  it('carry the baked hero themes: the default (today’s teal) and Indy’s gold (redone 2026-09-26)', () => {
     expect(ANCIENT_HERO_THEMES.default).toEqual({ curtainInner: '#247067', curtainOuter: '#0a0618', seamColor: '#fff1bd', titleGlow: '#9effd5', backdropTint: '#060d0f' });
-    expect(ANCIENT_HERO_THEMES.indy).toEqual({ curtainInner: '#c08a2c', curtainOuter: '#150a03', seamColor: '#fff0c4', titleGlow: '#ffc85a', backdropTint: '#100a04' });
+    expect(ANCIENT_HERO_THEMES.indy).toEqual({
+      curtainInner: '#a0620f', curtainOuter: '#0d0501', seamColor: '#fff3cf', titleGlow: '#ffcf66', backdropTint: '#0f0803',
+      label: 'Indy', accent: 'glints', medal: 'gild',
+    });
     expect(ANCIENTS_DEFAULTS).toMatchObject({
-      indyThemeCurtainInner: '#c08a2c', indyThemeCurtainOuter: '#150a03', indyThemeSeamColor: '#fff0c4', indyThemeTitleGlow: '#ffc85a', indyThemeBackdropTint: '#100a04',
+      indyThemeCurtainInner: '#a0620f', indyThemeCurtainOuter: '#0d0501', indyThemeSeamColor: '#fff3cf', indyThemeTitleGlow: '#ffcf66', indyThemeBackdropTint: '#0f0803',
+    });
+  });
+  it('carry the baked Warden, Auctioneer and Risen themes and their signatures (owner 2026-09-26)', () => {
+    expect(ANCIENT_HERO_THEMES.warden).toEqual({
+      curtainInner: '#4a87bb', curtainOuter: '#050d1c', seamColor: '#eaf8ff', titleGlow: '#9fe0ff', backdropTint: '#050b14',
+      label: 'the Warden', accent: 'shell', medal: 'seal',
+    });
+    expect(ANCIENT_HERO_THEMES.myra).toEqual({
+      curtainInner: '#7b2887', curtainOuter: '#12031a', seamColor: '#ffe6a3', titleGlow: '#ffc95c', backdropTint: '#0d0512',
+      label: 'the Auctioneer', accent: 'rings', medal: 'thump',
+    });
+    expect(ANCIENT_HERO_THEMES.risen).toEqual({
+      curtainInner: '#5d8f7b', curtainOuter: '#030a08', seamColor: '#eafff5', titleGlow: '#b9ffe2', backdropTint: '#060c0a',
+      label: 'Lord of the Risen', accent: 'wisps', medal: 'rise',
+    });
+    expect(ANCIENTS_DEFAULTS).toMatchObject({
+      wardenThemeCurtainInner: '#4a87bb', wardenThemeCurtainOuter: '#050d1c', wardenThemeSeamColor: '#eaf8ff', wardenThemeTitleGlow: '#9fe0ff', wardenThemeBackdropTint: '#050b14',
+      myraThemeCurtainInner: '#7b2887', myraThemeCurtainOuter: '#12031a', myraThemeSeamColor: '#ffe6a3', myraThemeTitleGlow: '#ffc95c', myraThemeBackdropTint: '#0d0512',
+      risenThemeCurtainInner: '#5d8f7b', risenThemeCurtainOuter: '#030a08', risenThemeSeamColor: '#eafff5', risenThemeTitleGlow: '#b9ffe2', risenThemeBackdropTint: '#060c0a',
     });
   });
 });

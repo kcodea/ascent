@@ -50,19 +50,6 @@ export function oddsRecap(odds: OddsLike | null | undefined, result: 'win' | 'lo
   return { tag, pcts, winDmg, lossDmg };
 }
 
-// ── Damage header ──────────────────────────────────────────────────────────────────────────────────────────
-
-export interface DamageSplit { total: number; armor: number; resolve: number }
-
-/** Split a hit the way the lobby applies it: Armor absorbs first, the rest comes off Resolve. `pool` is the
- *  seat's Armor going in; absent (a non-lobby run) = no split, all of it reads as a plain total. */
-export function splitDamage(total: number, armorGoingIn: number | undefined): DamageSplit {
-  const t = Math.max(0, total);
-  if (armorGoingIn === undefined) return { total: t, armor: 0, resolve: t };
-  const armor = Math.min(Math.max(0, armorGoingIn), t);
-  return { total: t, armor, resolve: t - armor };
-}
-
 // ── What you keep ──────────────────────────────────────────────────────────────────────────────────────────
 
 export interface GainItem {

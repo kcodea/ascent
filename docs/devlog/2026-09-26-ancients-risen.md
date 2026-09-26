@@ -51,4 +51,4 @@ pairings. Still dev-only (the Scene Builder's Set 3 Ancients flag), so there is 
 - **Bonds is not gilded by the risen body**, and in combat reads the nearest LIVING neighbour on each side.
 - **Known gap, not changed here**: the immediate shop-destroy path's `riseReturn` never ran the shop `onRise` watchers
   (`fireOnRise` is only called from the deferred `settlePendingDeath` path). Bonds' shop half lives in `riseReturn`
-  so it reaches both paths.
+  so it reaches both paths. FIXED the same day: see [2026-09-26-shop-rise-watchers](2026-09-26-shop-rise-watchers.md).

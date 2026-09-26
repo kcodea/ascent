@@ -17,10 +17,22 @@ export interface AncientsConfig {
   refresh: number;
   /** Meter: points one combat adds. */
   combat: number;
-  /** Ring: outer diameter as a multiple of the hero-power button. */
-  ringScale: number;
   /** Ring: stroke thickness (design px). */
   ringWidth: number;
+  /** Ring: gap between the hero-power button's edge and the ring (design px), so it never merges with the frame. */
+  ringOffset: number;
+  /** Ring: the empty track's colour. */
+  trackColor: string;
+  /** Ring: the empty track's opacity. */
+  trackAlpha: number;
+  /** Ring: the fill gradient's start (at the arc's tail). */
+  fillFrom: string;
+  /** Ring: the fill gradient's end (at the head). */
+  fillTo: string;
+  /** Ring: the leading-edge cap's size (× the ring width). 0 hides it. */
+  capSize: number;
+  /** Ring: quarter tick marks on the track (1 on, 0 off). */
+  ticks: number;
   /** Fill: the arc's eased sweep when points are added (ms). */
   fillMs: number;
   /** Awaken: the full ring's flash before the Discover rises (ms). */
@@ -41,8 +53,14 @@ export const ANCIENTS_DEFAULTS: AncientsConfig = {
   cost: 16,
   refresh: 1,
   combat: 2,
-  ringScale: 1.22,
-  ringWidth: 5,
+  ringWidth: 12,
+  ringOffset: 7,
+  trackColor: '#241c3d',
+  trackAlpha: 0.55,
+  fillFrom: '#ffe36e',
+  fillTo: '#ff8a1f',
+  capSize: 1.25,
+  ticks: 1,
   fillMs: 520,
   flashMs: 480,
   dim: 0.42,
@@ -52,12 +70,19 @@ export const ANCIENTS_DEFAULTS: AncientsConfig = {
   revealGain: 0.8,
 };
 
-export const ANCIENTS_RANGES: Record<keyof AncientsConfig, [number, number, number]> = {
+type NumKey = { [K in keyof AncientsConfig]: AncientsConfig[K] extends number ? K : never }[keyof AncientsConfig];
+export type AncientsNumKey = NumKey;
+export type AncientsColorKey = Exclude<keyof AncientsConfig, NumKey>;
+
+export const ANCIENTS_RANGES: Record<NumKey, [number, number, number]> = {
   cost: [1, 40, 1],
   refresh: [0, 8, 1],
   combat: [0, 16, 1],
-  ringScale: [1.05, 1.8, 0.01],
-  ringWidth: [1.5, 14, 0.5],
+  ringWidth: [2, 30, 0.5],
+  ringOffset: [0, 30, 0.5],
+  trackAlpha: [0, 1, 0.01],
+  capSize: [0, 2.5, 0.05],
+  ticks: [0, 1, 1],
   fillMs: [0, 1600, 10],
   flashMs: [0, 1500, 10],
   dim: [0, 0.9, 0.01],
@@ -82,7 +107,7 @@ const listeners = new Set<() => void>();
 export function getAncientsConfig(): AncientsConfig { return cfg; }
 export function subscribeAncientsConfig(fn: () => void): () => void { listeners.add(fn); return () => { listeners.delete(fn); }; }
 
-export function setAncientsValue(key: keyof AncientsConfig, value: number): void {
+export function setAncientsValue(key: keyof AncientsConfig, value: number | string): void {
   cfg = { ...cfg, [key]: value };
   try { localStorage.setItem(KEY, JSON.stringify(cfg)); } catch { /* ignore */ }
   for (const fn of listeners) fn();

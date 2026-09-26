@@ -67,7 +67,7 @@ The Ancient combat mods are added to the PLAYER's fight in `playerCombatSideStat
 
 `packages/ui/src/ancients/`:
 
-- `AncientMeter` is the ring. It is one `stroke-dashoffset` arc with a one-shot eased transition per gain. Its
+- `AncientMeter` is the ring. It is one thick `stroke-dashoffset` arc (a warm gold-to-amber fill on a dark semi-opaque track, set just outside the power's frame, with a bright leading-edge dot and quarter ticks; owner on #1739: "make it look more obvious") with a one-shot eased transition per gain. Its
   displayed value waits for `wipeIdle` (a new store flag published by Recruit) so a combat's gain lands after the
   wipe.
 - `AncientSplit` is the half-circle face inside `.heropowerbtn`, and plays the pick beat: the gild-trail plus the face

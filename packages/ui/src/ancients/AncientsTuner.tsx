@@ -2,7 +2,7 @@ import { ANCIENT_IDS, type AncientId } from '@game/sim';
 import { TunerPanel } from '../TunerPanel';
 import type { TunerControl, TunerSpec, TunerUnit } from '../tunerSchema';
 import { useGame } from '../store';
-import { ANCIENTS_DEFAULTS, ANCIENTS_RANGES, getAncientsConfig, resetAncientsConfig, setAncientsValue, type AncientsConfig } from './ancientsConfig';
+import { ANCIENTS_DEFAULTS, ANCIENTS_RANGES, getAncientsConfig, resetAncientsConfig, setAncientsValue, type AncientsConfig, type AncientsNumKey } from './ancientsConfig';
 import { playAwakenDemo } from './ancientsFx';
 
 /**
@@ -12,12 +12,18 @@ import { playAwakenDemo } from './ancientsFx';
  * without touching run state; the Scene Builder's "Fill meter" plays the real thing end to end.
  */
 type Key = keyof AncientsConfig;
-const ROWS: [Key, string, TunerUnit | undefined, string, string][] = [
+const ROWS: [Key, string, TunerUnit | undefined, string, string, ('color' | 'toggle')?][] = [
   ['cost', 'Points to fill', undefined, 'The meter fills up to this and then awakens. Re-stamps the live sandbox run.', 'Meter (balance)'],
   ['refresh', 'Points per refresh', undefined, 'Points one Shop refresh adds (paid or free).', 'Meter (balance)'],
   ['combat', 'Points per combat', undefined, 'Points one combat adds.', 'Meter (balance)'],
-  ['ringScale', 'Ring size', '×', 'Ring diameter as a multiple of the hero-power button.', 'Ring'],
   ['ringWidth', 'Ring thickness', 'px', 'Thickness of the ring.', 'Ring'],
+  ['ringOffset', 'Ring offset', 'px', 'Gap between the hero-power frame and the ring, so the two never read as one.', 'Ring'],
+  ['trackColor', 'Empty track colour', undefined, 'Colour of the unfilled part of the ring.', 'Ring', 'color'],
+  ['trackAlpha', 'Empty track opacity', 'opacity', 'How solid the unfilled part reads.', 'Ring'],
+  ['fillFrom', 'Fill colour (tail)', undefined, 'The fill gradient where it starts, at 12 o’clock.', 'Ring', 'color'],
+  ['fillTo', 'Fill colour (head)', undefined, 'The fill gradient toward its leading edge.', 'Ring', 'color'],
+  ['capSize', 'Leading-edge dot', '×', 'Size of the bright dot at the head of the fill, relative to the ring. 0 hides it.', 'Ring'],
+  ['ticks', 'Quarter ticks', undefined, 'Small marks on the track at each quarter.', 'Ring', 'toggle'],
   ['fillMs', 'Fill sweep', 'ms', 'How long the arc takes to sweep to its new value.', 'Timing'],
   ['flashMs', 'Full flash', 'ms', 'The ring’s flash when it fills, before the Discover rises.', 'Timing'],
   ['dim', 'Shop dim', 'opacity', 'How much the Shop dims behind the awakening Discover.', 'Timing'],
@@ -27,9 +33,12 @@ const ROWS: [Key, string, TunerUnit | undefined, string, string][] = [
   ['revealGain', 'Awaken + reveal', 'opacity', 'Volume of the full-ring flash and the split reveal cues. 0 mutes them.', 'Sound'],
 ];
 
-const controls: TunerControl<Key>[] = ROWS.map(([key, label, unit, hint, group]) => {
-  const [min, max, step] = ANCIENTS_RANGES[key];
-  return { key, label, unit, hint, group, min, max, step };
+const controls: TunerControl<Key>[] = ROWS.map(([key, label, unit, hint, group, kind]) => {
+  if (kind === 'color') return { key, label, hint, group, kind, min: 0, max: 0, step: 0 };
+  const [min, max, step] = ANCIENTS_RANGES[key as AncientsNumKey];
+  return kind === 'toggle'
+    ? { key, label, hint, group, kind, min, max, step, onValue: 1, offValue: 0 }
+    : { key, label, unit, hint, group, min, max, step };
 });
 
 /** Push the meter's balance numbers into the live sandbox run (only a run that has Ancients, before it awakens). */
@@ -50,6 +59,7 @@ export const SPEC: TunerSpec<AncientsConfig> = {
   note: 'dev · proof of concept',
   read: getAncientsConfig,
   write: (key, value) => { setAncientsValue(key, value); restampLiveRun(key, value); },
+  writeColor: (key, value) => setAncientsValue(key, value),
   reset: resetAncientsConfig,
   defaults: ANCIENTS_DEFAULTS,
   controls,

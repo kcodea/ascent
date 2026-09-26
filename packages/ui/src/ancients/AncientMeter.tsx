@@ -104,32 +104,49 @@ export const AncientMeter = memo(function AncientMeter({ run }: { run: RunState 
   };
 
   if (!anc || anc.picked) return null;
-  // Geometry in the SVG's 200-unit box: the button is radius 100/ringScale; the stroke sits just outside it.
-  const k = 200 / (128 * cfg.ringScale);
-  const sw = cfg.ringWidth * k;
-  const r = Math.min(99 - sw / 2, 100 / cfg.ringScale + 3 * k + sw / 2);
+  // Geometry in DESIGN PX (the SVG box is sized in --u, so its user units ARE design px): the button is a 128 circle,
+  // and the ring sits `ringOffset` outside its edge so it never merges with the power's own frame.
+  const sw = Math.max(1, cfg.ringWidth);
+  const r = 64 + cfg.ringOffset + sw / 2;
+  const cap = cfg.capSize > 0 ? (sw * cfg.capSize) / 2 : 0;
+  const pad = Math.max(sw / 2, cap) + 3;
+  const D = 2 * (r + pad);
+  const c = D / 2;
   const C = 2 * Math.PI * r;
   const frac = Math.max(0, Math.min(1, shown / total));
   const label = `Ancient meter: ${shown} of ${total}. Refreshes and combats fill it; when it is full an Ancient awakens. Hover or use the arrow keys to preview the Ancients.`;
 
   return (
     <div ref={rootRef} className="anc-meter"
-      style={{ '--anc-ring-s': String(cfg.ringScale), '--anc-fill-ms': `${sweep ? cfg.fillMs : 0}ms` } as CSSProperties}>
+      style={{ '--anc-ring-d': String(D), '--anc-ring-r': String(r + sw / 2), '--anc-fill-ms': `${sweep ? cfg.fillMs : 0}ms` } as CSSProperties}>
       <div className="anc-ring" aria-hidden="true">
-        <svg viewBox="0 0 200 200" className="anc-ring-svg">
+        <svg viewBox={`0 0 ${D} ${D}`} className="anc-ring-svg">
           <defs>
-            <linearGradient id="anc-arc-grad" x1="0" y1="0" x2="1" y2="1">
-              <stop offset="0%" stopColor="#fff6dc" />
-              <stop offset="55%" stopColor="#f5d27a" />
-              <stop offset="100%" stopColor="#e6a93a" />
+            {/* Tail (12 o'clock) → the bottom of the ring: warm gold into amber. */}
+            <linearGradient id="anc-arc-grad" gradientUnits="userSpaceOnUse" x1={c} y1={c - r} x2={c} y2={c + r}>
+              <stop offset="0%" stopColor={cfg.fillFrom} />
+              <stop offset="100%" stopColor={cfg.fillTo} />
             </linearGradient>
           </defs>
-          <circle className="anc-ring-hit" cx="100" cy="100" r={r} strokeWidth={sw + 14}
+          <circle className="anc-ring-hit" cx={c} cy={c} r={r} strokeWidth={sw + 12}
             onPointerEnter={open} onPointerLeave={leave} onWheel={(e) => { open(); cycler.onWheel(e); }} />
-          <circle className="anc-ring-track" cx="100" cy="100" r={r} strokeWidth={sw} />
-          <circle className="anc-ring-fill" cx="100" cy="100" r={r} strokeWidth={sw}
-            strokeDasharray={C.toFixed(2)} strokeDashoffset={(C * (1 - frac)).toFixed(2)} transform="rotate(-90 100 100)" />
+          <circle className="anc-ring-track" cx={c} cy={c} r={r} strokeWidth={sw} stroke={cfg.trackColor} strokeOpacity={cfg.trackAlpha} />
+          {cfg.ticks > 0 && [0.25, 0.5, 0.75].map((q) => {
+            const a = q * Math.PI * 2 - Math.PI / 2;
+            const i = r - sw / 2 + 1, o = r + sw / 2 - 1;
+            return <line key={q} className="anc-ring-tick" x1={c + i * Math.cos(a)} y1={c + i * Math.sin(a)} x2={c + o * Math.cos(a)} y2={c + o * Math.sin(a)} />;
+          })}
+          <circle className="anc-ring-fill" cx={c} cy={c} r={r} strokeWidth={sw}
+            strokeDasharray={C.toFixed(2)} strokeDashoffset={(C * (1 - frac)).toFixed(2)} transform={`rotate(-90 ${c} ${c})`}
+            style={{ opacity: frac > 0 ? 1 : 0 }} />
         </svg>
+        {/* The leading-edge cap: a bright dot riding the head. The layer ROTATES (a one-shot transform transition in
+            step with the arc's sweep), so the dot is never repainted. */}
+        {cap > 0 && frac > 0 && (
+          <div className="anc-ring-headrot" style={{ transform: `rotate(${frac * 360}deg)` }}>
+            <span className="anc-ring-cap" style={{ width: `calc(${cap * 2} * var(--u))`, height: `calc(${cap * 2} * var(--u))`, top: `calc(${c - r} * var(--u))` }} />
+          </div>
+        )}
         {flashKey > 0 && <Flash key={flashKey} ms={cfg.flashMs} />}
       </div>
       <button type="button" className="anc-chip" aria-label={label}

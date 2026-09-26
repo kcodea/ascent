@@ -4808,6 +4808,7 @@ body.aiming, body.aiming * { cursor: none !important; }
 .app.combatout .zone .row,
 .app.combatout .pixifx,
 .app.combatout .combathud-skip,
+.app.combatout .combatround,
 .app.combatout .combatctl { opacity: 0; transition: opacity 0.2s ease; }
 .app.combatin .zone .row,
 .app.combatin .pixifx,
@@ -4915,6 +4916,11 @@ body.aiming, body.aiming * { cursor: none !important; }
 .combathud-skip svg { width: calc(16 * var(--u)); height: calc(16 * var(--u)); }
 .combathud-skip:hover { background: var(--cc-skip-border, #b07047); }
 .combathud-skip:active { transform: translate(-50%, -50%) translateY(calc(2 * var(--u))); box-shadow: 0 calc(2 * var(--u)) 0 var(--cc-skip-border, #b07047); }
+/* ROUND X (owner ask 2026-09-25) — the round number, white, top-centre of the arena, sitting just ABOVE the Skip
+   button. Same stage anchor as `.combathud-skip` (its centre point, incl. the tuner's --cc-skip-x/y), then lifted
+   by half Skip's height + a gap and bottom-anchored (translateY -100%), so it never overlaps or shifts Skip and
+   stays put after Skip unmounts. Static: no looping animation, only the shared one-shot fade-in. Inert. */
+.combatround { position: fixed; left: calc(var(--bar-x) + 0.5 * var(--gw) + 96px * var(--scale) + var(--cc-skip-x, -95px) * var(--scale)); top: calc(var(--bar-y) + 0.055 * var(--gh) + var(--cc-skip-y, 49px) * var(--scale) - 28 * var(--u)); transform: translate(-50%, -100%); z-index: 41; pointer-events: none; white-space: nowrap; font-family: var(--font-ui); font-weight: 800; font-size: calc(24 * var(--u)); line-height: 1; letter-spacing: 0.14em; text-transform: uppercase; color: #fff; text-shadow: 0 calc(2 * var(--u)) calc(4 * var(--u)) rgba(0, 0, 0, 0.75), 0 0 calc(10 * var(--u)) rgba(0, 0, 0, 0.45); animation: fadein 0.25s ease; }
 /* ── FIGHT RECAP (owner redesign 2026-09-24; was the flat beige "Combat Summary") ──
    The house modal language: dark glass (#241a13 → #17110c) inside a dark-gold trim, cream type, gold accents
    (the Discover banner / Runeforge gold chip / End Combat tip chrome). Nothing here loops: the only animation

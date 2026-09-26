@@ -4954,7 +4954,7 @@ body.aiming, body.aiming * { cursor: none !important; }
 .fr-round { font-family: var(--font-ui); font-weight: 800; font-size: calc(11.5 * var(--u)); letter-spacing: 0.18em; text-transform: uppercase; color: rgba(244, 236, 219, 0.6); }
 .fr-verdict-row { display: flex; align-items: center; justify-content: center; gap: calc(12 * var(--u)); margin: calc(2 * var(--u)) 0 calc(12 * var(--u)); }
 .fr-verdict {
-  font-family: var(--font-disp, var(--font-title)); font-weight: 900; font-size: calc(46 * var(--u)); line-height: 1; letter-spacing: 0.02em; text-transform: uppercase;
+  font-family: var(--font-disp, var(--font-title)); font-weight: 900; font-size: calc(36 * var(--u)); line-height: 1; letter-spacing: 0.02em; text-transform: uppercase;
   -webkit-background-clip: text; background-clip: text; color: transparent;
   filter: drop-shadow(0 3px 0 rgba(0, 0, 0, 0.45));
 }
@@ -4971,13 +4971,12 @@ body.aiming, body.aiming * { cursor: none !important; }
 .fr-foe-pic svg { width: 44%; height: 44%; color: var(--gold); }
 .fr-foe-name { margin-top: calc(6 * var(--u)); font-family: var(--font-ui); font-weight: 900; font-size: calc(16 * var(--u)); color: #f4ecdb; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .fr-foe-hero { font-family: var(--font-ui); font-weight: 700; font-size: calc(12 * var(--u)); color: #e8c877; }
-/* The ONE damage line (owner 2026-09-25): "You dealt X" green on a win, "You took X" red on a loss. */
-.fr-dmgline { display: flex; align-items: baseline; justify-content: center; flex-wrap: wrap; gap: calc(8 * var(--u)); margin-top: calc(10 * var(--u)); font-family: var(--font-ui); }
+/* The ONE damage readout (owner 2026-09-25): the label, then the number big on its own line, green dealt / red took. */
+.fr-dmgline { display: flex; flex-direction: column; align-items: center; gap: calc(4 * var(--u)); margin-top: calc(16 * var(--u)); font-family: var(--font-ui); } /* a line's breathing room under the odds (owner 2026-09-25) */
 .fr-dmgline-label { font-weight: 800; font-size: calc(13 * var(--u)); letter-spacing: 0.12em; text-transform: uppercase; color: rgba(244, 236, 219, 0.75); }
-.fr-dmgline-num { font-weight: 900; font-size: calc(34 * var(--u)); line-height: 1; font-variant-numeric: tabular-nums; }
+.fr-dmgline-num { font-weight: 900; font-size: calc(60 * var(--u)); line-height: 1; font-variant-numeric: tabular-nums; filter: drop-shadow(0 3px 0 rgba(0, 0, 0, 0.45)); }
 .fr-dmgline.dealt .fr-dmgline-num { color: #7fd9a1; }
 .fr-dmgline.taken .fr-dmgline-num { color: #f08a9e; }
-.fr-dmgline-sub { flex-basis: 100%; font-weight: 700; font-size: calc(11.5 * var(--u)); color: rgba(244, 236, 219, 0.6); }
 .fr-dmgline.zero { font-weight: 800; font-size: calc(13 * var(--u)); letter-spacing: 0.12em; text-transform: uppercase; color: rgba(244, 236, 219, 0.45); }
 
 /* Body: scrolls if a long Details log is open; the header and the buttons stay put. */
@@ -4995,7 +4994,7 @@ body.aiming, body.aiming * { cursor: none !important; }
 .fr-odds-dmg-label { margin-top: calc(3 * var(--u)); font-weight: 700; font-size: calc(10.5 * var(--u)); letter-spacing: 0.06em; text-transform: uppercase; color: rgba(244, 236, 219, 0.55); white-space: nowrap; }
 /* The outcome bar (owner 2026-09-24: "much cleaner/sleek/modern"): a thin rounded track, soft palette segments
    sized by flex-grow, a hairline gap between them (the track shows through), a faint top highlight. Static. */
-.fr-oddsbar { display: flex; gap: 2px; width: 100%; height: calc(6 * var(--u)); min-height: 5px; padding: 1px; border-radius: 999px; overflow: hidden; background: rgba(0, 0, 0, 0.35); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06); }
+.fr-oddsbar { display: flex; gap: 2px; width: 100%; height: calc(14 * var(--u)); min-height: 10px; padding: 2px; border-radius: 999px; overflow: hidden; background: rgba(0, 0, 0, 0.35); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06); }
 .fr-oddsbar span { height: 100%; flex-basis: 0; min-width: 3px; border-radius: 999px; box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.28); }
 .fr-oddsbar .win { background: linear-gradient(180deg, #7fd9a1, #4cb77a); }
 .fr-oddsbar .draw { background: linear-gradient(180deg, #f2cf85, #d4a452); }

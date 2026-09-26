@@ -3,7 +3,7 @@ import type { CombatResult } from '@game/core';
 import { getHero, lossDamageCap, playerLossDamage, playerOpponent, type CombatOdds, type RunState } from '@game/sim';
 import { artFor, heroArt } from './art';
 import { Icon } from './Icon';
-import { combatGainItems, oddsRecap, splitDamage, type DamageSplit, type GainItem } from './fightRecapData';
+import { combatGainItems, oddsRecap, type GainItem } from './fightRecapData';
 
 /**
  * FIGHT RECAP (owner ask 2026-09-24): the redesigned post-combat summary, opened only from the Summary pill.
@@ -33,7 +33,8 @@ export interface FightRecapProps {
   onClose: () => void;
 }
 
-const VERDICT = { win: 'Victory', lose: 'Defeat', draw: 'Draw' } as const;
+/** The header title reads straight into the foe's name under it (owner 2026-09-25). */
+const VERDICT = { win: 'Won against:', lose: 'Defeated by:', draw: 'Drew with:' } as const;
 
 /** One mini card: a portrait (card art, or an icon when the gain has no card) + name + stat chips. Memoized
  *  with primitive props so a parent re-render (the odds arriving) never re-renders the row. */
@@ -53,20 +54,15 @@ const RecapMini = memo(function RecapMini({ art, icon, name, chips, golden }: {
   );
 });
 
-/** The header's single damage line: "You dealt X" (green) on a win, "You took X" (red) on a loss, "No damage"
- *  otherwise. The Armor / Resolve split rides underneath when the lobby split it. */
-function DamageLine({ verdict, dealt, taken, split }: { verdict: 'win' | 'lose' | 'draw'; dealt: DamageSplit; taken: DamageSplit; split: boolean }) {
-  const kind = verdict === 'win' && dealt.total > 0 ? 'dealt' : verdict === 'lose' && taken.total > 0 ? 'taken' : null;
+/** The single damage readout: "You dealt" over a big green number on a win, "You took" over a big red one on
+ *  a loss, "No damage" otherwise (owner 2026-09-25: number on its own line, no Armor callout). */
+function DamageLine({ verdict, dealt, taken }: { verdict: 'win' | 'lose' | 'draw'; dealt: number; taken: number }) {
+  const kind = verdict === 'win' && dealt > 0 ? 'dealt' : verdict === 'lose' && taken > 0 ? 'taken' : null;
   if (!kind) return <div className="fr-dmgline zero">No damage</div>;
-  const dmg = kind === 'dealt' ? dealt : taken;
-  const parts: string[] = [];
-  if (split && dmg.armor) parts.push(`${dmg.armor} Armor`);
-  if (split && dmg.resolve && dmg.armor) parts.push(`${dmg.resolve} Resolve`);
   return (
     <div className={`fr-dmgline ${kind}`}>
       <span className="fr-dmgline-label">{kind === 'dealt' ? 'You dealt' : 'You took'}</span>
-      <span className="fr-dmgline-num">{dmg.total}</span>
-      {parts.length > 0 && <span className="fr-dmgline-sub">{parts.join(' · ')}</span>}
+      <span className="fr-dmgline-num">{kind === 'dealt' ? dealt : taken}</span>
     </div>
   );
 }
@@ -90,7 +86,6 @@ export const FightRecap = memo(function FightRecap({ result, combatOdds, lastCom
   // Armor is still its going-in value: exactly what the split needs.
   const head = useMemo(() => {
     const foe = lobby ? playerOpponent(lobby) : null;
-    const me = lobby?.seats[0];
     const cap = lossDamageCap(wave);
     const taken = !lastCombat || lastCombat.result === 'win' ? 0
       : lobby && mode !== 'practice' ? playerLossDamage(lobby, lastCombat)
@@ -99,9 +94,8 @@ export const FightRecap = memo(function FightRecap({ result, combatOdds, lastCom
     return {
       round: lobby ? lobby.round : wave,
       foe: foe?.seat ? { label: foe.seat.label, heroId: foe.seat.heroId, heroName: getHero(foe.seat.heroId)?.name, ghost: !!foe.ghost } : null,
-      dealt: splitDamage(dealt, foe?.seat ? foe.seat.armor : undefined),
-      taken: splitDamage(taken, me ? me.armor : undefined),
-      split: !!lobby,
+      dealt,
+      taken,
     };
   }, [lobby, wave, mode, lastCombat]);
 
@@ -129,7 +123,6 @@ export const FightRecap = memo(function FightRecap({ result, combatOdds, lastCom
               <div className="fr-foe-hero">{head.foe.ghost ? 'Ghost' : head.foe.heroName}</div>
             )}
           </div>
-          <DamageLine verdict={verdict} dealt={head.dealt} taken={head.taken} split={head.split} />
         </header>
 
         <div className="fr-body">
@@ -155,6 +148,8 @@ export const FightRecap = memo(function FightRecap({ result, combatOdds, lastCom
               </div>
             </section>
           )}
+
+          <DamageLine verdict={verdict} dealt={head.dealt} taken={head.taken} />
 
           {gains.length > 0 && (
             <section className="fr-sec">

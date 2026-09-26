@@ -209,9 +209,11 @@ export const PATCH_NOTES: PatchNote[] = [
         category: 'Systems',
         text: 'The fight recap is shorter and to the point: one damage number, and the average damage a win or a loss would have done beside the odds.',
         details: [
-          'The top shows one number: You dealt X in green after a win, or You took X in red after a loss.',
+          'The title reads Won against: or Defeated by:, right above your opponent.',
+          'Under the odds, one big number: You dealt X in green after a win, or You took X in red after a loss.',
           'The odds now sit under a Fight Outcome Odds title, with the average damage a win deals on the left and the average damage a loss costs on the right.',
-          'Stars of the fight and the "chance to win" and "a loss here usually costs" lines are gone.',
+          'The odds bar is thicker.',
+          'Stars of the fight, the Armor callout, and the "chance to win" and "a loss here usually costs" lines are gone.',
         ],
       },
     ],

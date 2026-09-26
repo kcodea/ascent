@@ -2404,11 +2404,7 @@ export interface RunState {
      *  pure no-op instead of stranding a chosen-but-unplaced card. */
     deferredPlay?: boolean;
     /** The warband slot captured at play time, replayed into the completing `play` (minions only). */
-    toIndex?: number;
-    /** A TWO-TARGET HERO POWER's second step (the Warden's Aegis with the Ancient of Death): `uid` is the FIRST
-     *  pick (the minion to destroy), nothing has resolved or been paid, and the aim picks the recipient; the pick
-     *  replays `heroPower { uid, uid2, slot }`. Click-away / ending the turn abandons it untouched. */
-    heroPowerSlot?: number };
+    toIndex?: number };
   /** The most recent combat's result, for the UI to replay. Transient. */
   lastCombat?: CombatResult;
   /** BALANCE BOT (B1): the fully prepared combat side of a DEFERRED fight — set by `faceOmen { deferFight }`,
@@ -2539,7 +2535,7 @@ export type Action =
   | { type: 'reposition'; uid: string; toIndex: number }
   | { type: 'reorderShop'; uid: string; toIndex: number }
   | { type: 'reorderHand'; uid: string; toIndex: number }
-  | { type: 'heroPower'; uid?: string; uid2?: string; commission?: CommissionKind; flashPick?: 'first' | 'last'; slot?: number } // uid omitted for untargeted powers (Nadja's Mana Font); `commission` carries Cassen's chosen option; `slot` picks WHICH wielded power fires (Void holds two — 0 = the main button, 1 = the second)
+  | { type: 'heroPower'; uid?: string; commission?: CommissionKind; flashPick?: 'first' | 'last'; slot?: number } // uid omitted for untargeted powers (Nadja's Mana Font); `commission` carries Cassen's chosen option; `slot` picks WHICH wielded power fires (Void holds two — 0 = the main button, 1 = the second)
   | { type: 'pickPower'; index: number } // power Discover (Mimic every turn / Void turn 4): adopt the offered hero's power
   | { type: 'discover'; index: number }
   | { type: 'buyQuest'; index: number } // quest shop (waves 4/8/12): "buy" the offered quest at `index` for 0 Gold

@@ -44,11 +44,11 @@ export const HEROES_RULES: GameRule[] = [
   },
   {
     id: 'R-ANCWARDEN-01',
-    title: 'Warden × Ancient of Death: Aegis takes two targets, destroys the first and gives its Attack and Ward to the second',
+    title: 'Warden × Ancient of Death: Aegis destroys its target and gives its Attack and Ward to a random friendly minion, one without Ward first',
     statement:
-      'With the Ancient of Death, the Warden\'s Aegis picks a friendly minion to destroy, then another friendly minion to '
-      + 'receive it. Nothing resolves or is paid until the recipient is picked; a click-away or ending the turn abandons it '
-      + 'untouched, and it needs two friendly minions. The destroy is a real Shop death (its Echo, the death watchers and '
+      'With the Ancient of Death, the Warden\'s Aegis picks a friendly minion to destroy. The recipient is RANDOM, chosen '
+      + 'before the destroy from the other friendly minions: one without Ward if any exists, else a random Warded one. It '
+      + 'needs two friendly minions. The destroy is a real Shop death (its Echo, the death watchers and '
       + 'counters, a Rebirth or Rise return). The recipient permanently gains the Attack the victim had and Ward (a '
       + 'Resilient Ward on the victim travels as a Resilient Ward). The power is REPLACED: no +5 Attack wave follows '
       + '(judgement call pending the owner).',
@@ -56,7 +56,8 @@ export const HEROES_RULES: GameRule[] = [
     status: 'approved',
     evidence: [
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-26 (Warden Ancients)', quote: 'Aegis destroys a friendly minion and gives its Attack and Ward to a friendly minion.' },
-      { kind: 'code', ref: 'packages/sim/src/ancients.ts aegisDestroyGivesAttackAndWard / ancientAegisDestroyAndGive; packages/sim/src/reducer.ts heroPower grantWard + battlecryTarget (heroPowerSlot)' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-26 (Warden Death rework)', quote: 'Warden\'s ancient of death should give attack and ward to a RANDOM friendly minion. it will smart target minions without ward first, if all other minions have ward it is a random warded minion.' },
+      { kind: 'code', ref: 'packages/sim/src/ancients.ts aegisDestroyGivesAttackAndWard / ancientAegisRecipient / ancientAegisDestroyAndGive; packages/sim/src/reducer.ts heroPower grantWard' },
     ],
     currentBehaviour: 'Conforms (built 2026-09-26). Dev-only (Scene Builder, Set 3, the Ancients flag).',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsWarden.test.ts'], lastVerifiedAt: '2026-09-26' },

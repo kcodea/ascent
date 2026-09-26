@@ -4383,8 +4383,7 @@ export function Recruit() {
       // CLICK AWAY = CANCEL, but only for a DEFERRED Choose One aim (owner ruling 2026-08-28): nothing has
       // been played, so the card simply returns to hand untouched. An ordinary battlecry aim still ignores the
       // click and keeps aiming — its body is already on the board, so there is nothing clean to back out to.
-      // A two-target hero power's recipient aim (Aegis + the Ancient of Death) has paid nothing yet: cancel it too.
-      if (pendingTarget.deferredPlay || pendingTarget.heroPowerSlot !== undefined) { captureCoalesce(); dispatch({ type: 'cancelChoice' }); }
+      if (pendingTarget.deferredPlay) { captureCoalesce(); dispatch({ type: 'cancelChoice' }); }
     });
     window.addEventListener('pointermove', move);
     window.addEventListener('pointerdown', pick);
@@ -7249,9 +7248,7 @@ export function Recruit() {
           its grant lands on (click a warband minion; ending the turn auto-targets the carry). */}
       {pendingTarget && !inCombat && (
         <div className="targetprompt" aria-live="polite">
-          {pendingTarget.heroPowerSlot !== undefined
-            ? <>Choose a minion to gain {CARD_INDEX[pendingTarget.cardId]?.name ?? 'its'}&rsquo;s Attack and Ward</>
-            : <>Choose a minion for {CARD_INDEX[pendingTarget.cardId]?.name ?? 'this'}&rsquo;s Battlecry</>}
+          Choose a minion for {CARD_INDEX[pendingTarget.cardId]?.name ?? 'this'}&rsquo;s Battlecry
         </div>
       )}
 

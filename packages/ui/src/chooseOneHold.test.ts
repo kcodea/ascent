@@ -123,6 +123,6 @@ describe('Choose One hold — the card keeps its board slot through the targetin
     expect(RECRUIT).toContain('chooseOneHeldSlot({ chooseOne: run.chooseOne, pendingTarget: run.pendingTarget })');
     expect(RECRUIT).toContain('const chooseOnePreviewUid = chooseOneHeld?.uid;');
     // The aim step's click-away cancel captures the Flip state first, so the card glides home too.
-    expect(RECRUIT).toContain("if (pendingTarget.deferredPlay || pendingTarget.heroPowerSlot !== undefined) { captureCoalesce(); dispatch({ type: 'cancelChoice' }); }");
+    expect(RECRUIT).toContain("if (pendingTarget.deferredPlay) { captureCoalesce(); dispatch({ type: 'cancelChoice' }); }");
   });
 });

@@ -31,10 +31,9 @@
  *                                 (`AncientsState.gilds`, ticked by `noteGilded` in `gildMinion` + the triple).
  *
  *  WARDEN (Aegis, `grantWard`; owner pairings 2026-09-26):
- *  · `aegisDestroyGivesAttackAndWard`  the reducer's `grantWard` branch: Aegis takes TWO targets (the first
- *                                 heroPower opens a `pendingTarget` aim with `heroPowerSlot`; the pick replays the
- *                                 power with `uid2`). The first is destroyed (a real shop death), the second gains its
- *                                 Attack and Ward. REPLACES the power (no +5 Attack to Warded minions). (Death)
+ *  · `aegisDestroyGivesAttackAndWard`  the reducer's `grantWard` branch: the Aegis target is destroyed (a real
+ *                                 shop death) and a RANDOM other friendly minion gains its Attack and Ward, preferring
+ *                                 one without Ward. REPLACES the power (no +5 Attack to Warded minions). (Death)
  *  · `wardBreakGold`              `ancientAfterCombat` (settle): +gold next turn per FRIENDLY Ward that broke. (Fortune)
  *  · `nextAegisResilient`         the `grantWard` branch: the next `count` Aegis casts after the pick grant
  *                                 RESILIENT Ward instead of Ward (`AncientsState.resilientAegisLeft`). (War)
@@ -99,8 +98,8 @@ export type AncientEffect =
   /** The hero power's target gains +a/+h for every minion that became Gilded this run, permanently. */
   | { do: 'powerBuffPerGild'; attack: number; health: number }
   // ── Warden (Aegis) ──
-  /** Aegis takes two targets: destroy the first friendly minion, the second gains its Attack (permanent) and Ward.
-   *  Replaces the power's own grant. */
+  /** Aegis destroys its target; a random other friendly minion (one without Ward first) gains its Attack (permanent)
+   *  and Ward. Replaces the power's own grant. */
   | { do: 'aegisDestroyGivesAttackAndWard' }
   /** Each FRIENDLY Ward that breaks in combat: gain `gold` next turn (stacking). */
   | { do: 'wardBreakGold'; gold: number }
@@ -175,9 +174,10 @@ export const ANCIENT_PAIRINGS: Record<string, Partial<Record<AncientId, AncientP
   warden: {
     death: {
       // "Aegis destroys a friendly minion and gives its Attack and Ward to a friendly minion." The power is REPLACED
-      // (judgement call, flagged): the recipient gets the Attack + Ward, and no +5 Attack wave follows.
-      offerText: 'Aegis destroys a friendly minion and gives its Attack and **Ward** to another friendly minion.',
-      powerText: 'Destroy a friendly minion. Another friendly minion gains its Attack and **Ward**.',
+      // (judgement call, flagged): the recipient gets the Attack + Ward, and no +5 Attack wave follows. Owner
+      // 2026-09-26: the recipient is RANDOM and smart-targeted (a minion without Ward first, else a random Warded one).
+      offerText: 'Aegis destroys a friendly minion and gives its Attack and **Ward** to another random friendly minion.',
+      powerText: 'Destroy a friendly minion. Give its Attack and **Ward** to another random friendly minion (one without **Ward** first).',
       effects: [{ do: 'aegisDestroyGivesAttackAndWard' }],
     },
     fortune: {
@@ -444,9 +444,22 @@ export function ancientCombatMods(state: RunState): Partial<QuestCombatMods> {
 }
 
 // ── Warden (Aegis) hooks ─────────────────────────────────────────────────────────────────────────────────────
-/** DEATH: Aegis takes two targets (destroy, then the recipient). */
-export function ancientAegisTwoStep(state: RunState): boolean {
+/** DEATH: the Aegis destroys its target and gives the Attack + Ward to a random other friendly minion. */
+export function ancientAegisDestroys(state: RunState): boolean {
   return !!effectOf(state, 'aegisDestroyGivesAttackAndWard');
+}
+
+/** DEATH: the recipient, picked BEFORE the destroy (so a Rebirth / Rise return or an Echo summon is never it): a
+ *  random other friendly board minion WITHOUT Ward, or a random Warded one when every other minion has Ward. */
+export function ancientAegisRecipient(state: RunState, victim: BoardCard): BoardCard | undefined {
+  const others = state.board.filter((c) => c !== victim);
+  if (others.length === 0) return undefined;
+  const bare = others.filter((c) => !c.keywords.includes('DS'));
+  const pool = bare.length > 0 ? bare : others;
+  const rng = makeRng(state.rngCursor);
+  const pick = pool[rng.int(pool.length)]!;
+  state.rngCursor = rng.state();
+  return pick;
 }
 
 /** DEATH: destroy `victim` (a real shop death: its Echo, the death watchers, a Rebirth / Rise return) and give

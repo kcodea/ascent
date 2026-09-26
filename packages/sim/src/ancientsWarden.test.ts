@@ -41,15 +41,11 @@ describe('Warden × every Ancient has a written pairing', () => {
   });
 });
 
-describe('Warden × DEATH — a two-target Aegis', () => {
-  it('the first pick opens the recipient aim and pays nothing; the second destroys it and gives its Attack + Ward', () => {
+describe('Warden × DEATH — Aegis destroys its target, a random friend gets the Attack + Ward', () => {
+  it('one click: the target is destroyed, the only minion WITHOUT Ward gets its Attack + Ward, no +5 wave', () => {
     let s = picked('death', { board: [pup('v', 9, 4), pup('r', 2, 6), pup('w', 1, 1, ['DS'])] });
     const gold = s.embers;
     s = reduce(s, { type: 'heroPower', uid: 'v' });
-    expect(s.pendingTarget).toMatchObject({ uid: 'v', heroPowerSlot: 0 });
-    expect([s.embers, s.heroReady]).toEqual([gold, true]);
-    expect(reduce(s, { type: 'battlecryTarget', targetUid: 'v' }), 'never onto itself').toBe(s);
-    s = reduce(s, { type: 'battlecryTarget', targetUid: 'r' });
     expect(s.pendingTarget).toBeUndefined();
     expect(s.board.some((c) => c.uid === 'v'), 'destroyed').toBe(false);
     expect(at(s, 'r').attack).toBe(2 + 9);
@@ -58,10 +54,30 @@ describe('Warden × DEATH — a two-target Aegis', () => {
     expect([s.embers, s.heroReady]).toEqual([gold - 3, false]);
   });
 
-  it('the destroy is a REAL death: a Rebirth victim comes back (the shop destroy path)', () => {
+  it('smart-targets a minion without Ward first, across many seeds; never the victim', () => {
+    for (let seed = 1; seed <= 40; seed++) {
+      let s = picked('death', { board: [pup('v', 9, 4), pup('a', 1, 5, ['DS']), pup('r', 2, 6), pup('w', 1, 1, ['DS'])] });
+      s = reduce({ ...s, rngCursor: seed * 7919 }, { type: 'heroPower', uid: 'v' });
+      expect(at(s, 'r').attack, `seed ${seed}`).toBe(11);
+      expect([at(s, 'a').attack, at(s, 'w').attack]).toEqual([1, 1]);
+    }
+  });
+
+  it('when every other minion has Ward, a random Warded one gets it (both are reachable)', () => {
+    const hit = new Set<string>();
+    for (let seed = 1; seed <= 40; seed++) {
+      let s = picked('death', { board: [pup('v', 9, 4), pup('a', 1, 5, ['DS']), pup('w', 1, 1, ['DS'])] });
+      s = reduce({ ...s, rngCursor: seed * 7919 }, { type: 'heroPower', uid: 'v' });
+      const got = ['a', 'w'].filter((u) => at(s, u).attack === 10);
+      expect(got, `seed ${seed}: exactly one recipient`).toHaveLength(1);
+      hit.add(got[0]!);
+    }
+    expect([...hit].sort()).toEqual(['a', 'w']);
+  });
+
+  it('the destroy is a REAL death: a Rebirth victim comes back, and is never its own recipient', () => {
     let s = picked('death', { board: [pup('v', 9, 4, ['RB']), pup('r', 2, 6)] });
     s = reduce(s, { type: 'heroPower', uid: 'v' });
-    s = reduce(s, { type: 'battlecryTarget', targetUid: 'r' });
     const back = s.board.find((c) => c.cardId === VANILLA.v);
     expect(back, 'the same body, returned').toBeDefined();
     expect(back!.attack).toBe(9);
@@ -69,25 +85,19 @@ describe('Warden × DEATH — a two-target Aegis', () => {
     expect(at(s, 'r').attack).toBe(11);
   });
 
-  it('a click-away cancels it untouched; ending the turn abandons it; one minion alone cannot use it', () => {
-    let s = picked('death', { board: [pup('v', 9, 4), pup('r', 2, 6)] });
-    const before = s;
-    s = reduce(s, { type: 'heroPower', uid: 'v' });
-    s = reduce(s, { type: 'cancelChoice' });
-    expect(s.pendingTarget).toBeUndefined();
-    expect([s.embers, s.heroReady, s.board.length]).toEqual([before.embers, true, 2]);
+  it('one minion alone cannot use it (nothing paid)', () => {
     const lone = picked('death', { board: [pup('v', 9, 4)] });
     expect(reduce(lone, { type: 'heroPower', uid: 'v' })).toBe(lone);
   });
 
-  it('a victim\'s Resilient Ward travels as a Resilient Ward', () => {
+  it("a victim's Resilient Ward travels as a Resilient Ward", () => {
     let s = picked('death', { board: [pup('v', 3, 4, ['DS', 'RW']), pup('r', 2, 6)] });
-    s = reduce(reduce(s, { type: 'heroPower', uid: 'v' }), { type: 'battlecryTarget', targetUid: 'r' });
+    s = reduce(s, { type: 'heroPower', uid: 'v' });
     expect(at(s, 'r').keywords).toEqual(expect.arrayContaining(['DS', 'RW']));
   });
 
   it('prints the replaced power', () => {
-    expect(heroPowerText(picked('death'))).toBe('Destroy a friendly minion. Another friendly minion gains its Attack and **Ward**.');
+    expect(heroPowerText(picked('death'))).toBe('Destroy a friendly minion. Give its Attack and **Ward** to another random friendly minion (one without **Ward** first).');
   });
 });
 

@@ -39,7 +39,7 @@ there is no patch note.
 
 | Ancient | Primitive | Hook | Phase |
 | --- | --- | --- | --- |
-| Death | `aegisDestroyGivesAttackAndWard` | reducer `grantWard`. The first pick opens `pendingTarget { heroPowerSlot }`; the second (`battlecryTarget`) replays `heroPower { uid, uid2 }` | Shop |
+| Death | `aegisDestroyGivesAttackAndWard` | reducer `grantWard`. One target (the victim); the recipient is random, picked before the destroy: a minion without Ward first, else a random Warded one (owner 2026-09-26) | Shop |
 | Fortune | `wardBreakGold` (2) | `ancientAfterCombat` at settle, from `CombatResult.playerWardBreaks` → `bonusEmbersNextTurn` | Combat → next turn |
 | War | `nextAegisResilient` (1) | reducer `grantWard`: `AncientsState.resilientAegisLeft` (set on the pick) | Shop |
 | Genesis | `wardBreaksGetCopy` (3) | `ancientAfterCombat`: `wardBreaks` + `wardWindow` carry across combats | Combat → settle |
@@ -73,8 +73,7 @@ there is no patch note.
 - **The owner's brief said "the normal gold Ward".** The shipped Ward shell is light blue, so the crack reveals the
   blue shell. The orange layer is the Resilient one.
 - **Presentation gap:** the Shop Bonds grants and Death's transfer have their buff FX, but they are not projected as
-  their own End-of-Turn / hero beats. The Death second pick arrives as a `battlecryTarget`, so the hero trigger does
-  not wrap it.
+  their own End-of-Turn / hero beats.
 
 ## Tests
 
@@ -82,7 +81,7 @@ there is no patch note.
   Execute, Flurry, Cleave, a bypassing destroy, Rebirth, determinism, the break log, and Bonds (one fire, no
   recursion, needs another Warded friend).
 - `sim/src/ancientsWarden.test.ts` (19) covers all six pairings in their phases:
-  - Death's two picks, cancel, real death and the RW transfer;
+  - Death's random recipient (no-Ward first, else a Warded one), real death and the RW transfer;
   - War: exactly one Resilient Aegis, permanent on the run card, downgraded in the fight;
   - Fortune's stacking Gold against the same fight without it;
   - Genesis' carry-over and countdown;
@@ -102,4 +101,4 @@ there is no patch note.
   - the Resilient Ward idle;
   - a 7-frame break strip;
   - a live combat crack frame;
-  - the Death recipient prompt and the "Resilient Ward" pill, driven in the Browser pane.
+  - the "Resilient Ward" pill, driven in the Browser pane.

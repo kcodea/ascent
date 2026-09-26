@@ -1,5 +1,5 @@
 import { type PresentationCollector, type ConsequenceDraft, type CombatEvent, beatIdentity, socTwilightExtraFires, COMBATATIVE_RUBIES_ATTACKS, BODY_COUNTING_DEATHS, ALE_IDS, combatSide, makeCollector, makeRng, simulate, type BoardMinion, type CardDef, type CombatConfig, type CombatResult, type CombatSideState, type Keyword, type PendingCombatQuest, type PresentationBatch, type QuestCombatMods, type QuestDef, type QuestObjective, type QuestObjectiveEvent, type Tribe, TRIBES } from '@game/core';
-import { ancientCombatMods, ancientAfterPowerGild, ancientOfferOpen, ancientPowerTargetsGilded, ancientReplacesPowerGild, ancientsCombatTick, ancientsRefreshTick, ancientsSetMeter, pickAncient, ancientAegisTwoStep, ancientAegisDestroyAndGive, ancientAegisResilient, ancientAfterCombat, ancientBondsReact } from './ancients';
+import { ancientCombatMods, ancientAfterPowerGild, ancientOfferOpen, ancientPowerTargetsGilded, ancientReplacesPowerGild, ancientsCombatTick, ancientsRefreshTick, ancientsSetMeter, pickAncient, ancientAegisDestroys, ancientAegisRecipient, ancientAegisDestroyAndGive, ancientAegisResilient, ancientAfterCombat, ancientBondsReact } from './ancients';
 import { runSpells } from './spellPool';
 import { currentCollector, withActiveCollector } from './activeCollector';
 import { surfaceKeyForRune, surfaceKeyForQuest, CARD_INDEX, EPIC_RUNES, GIFT_IDS, QUEST_INDEX, RUNE_INDEX, RUNES, runeSynergies, type SynergyTag } from '@game/content';
@@ -2392,7 +2392,6 @@ function reduceCore(state: RunState, action: Action): RunState {
       // alone — there is no clean "untouched" state to return those to.
       if (s.chooseOne && !s.chooseOne.targetUid) { s.chooseOne = undefined; return s; }
       if (s.pendingTarget?.deferredPlay) { s.pendingTarget = undefined; return s; }
-      if (s.pendingTarget?.heroPowerSlot !== undefined) { s.pendingTarget = undefined; return s; } // nothing paid yet
       return state;
     }
 
@@ -2405,14 +2404,6 @@ function reduceCore(state: RunState, action: Action): RunState {
     case 'battlecryTarget': {
       if (!s.pendingTarget) return state;
       const pt = s.pendingTarget;
-      // A TWO-TARGET HERO POWER's second pick (Warden's Aegis + the Ancient of Death): replay the power with both
-      // targets. A refused pick (itself / not on the board / the power refused) leaves the aim up.
-      if (pt.heroPowerSlot !== undefined) {
-        if (action.targetUid === pt.uid || !s.board.some((c) => c.uid === action.targetUid)) return state;
-        s.pendingTarget = undefined;
-        const done = reduceCore(s, { type: 'heroPower', uid: pt.uid, uid2: action.targetUid, slot: pt.heroPowerSlot });
-        return done === s ? state : done;
-      }
       // ── CHOOSE ONE, TARGET STEP (owner ruling 2026-08-28: choose → target → resolve) ────────────────────
       // Nothing has been played yet — the card is still in hand. Validate the aim against the SAME pool the
       // play-time guard and the pick step read, then complete the play by replaying it with the branch and
@@ -3012,14 +3003,6 @@ function reduceCore(state: RunState, action: Action): RunState {
       // Powers with a Mana cost (Nadja's Mana Font) also need the Mana on hand.
       if (power.cost && s.embers < power.cost) return state;
       const card = s.board.find((c) => c.uid === action.uid);
-      // ANCIENT OF DEATH × Warden: Aegis takes TWO targets. The first click (no `uid2`) only opens the recipient aim
-      // (`pendingTarget.heroPowerSlot`) — nothing resolves and nothing is paid until the recipient is picked, which
-      // replays this action with `uid2`. Needs a second friendly minion to give to.
-      if (power.kind === 'grantWard' && ancientAegisTwoStep(s) && action.uid2 === undefined) {
-        if (!card || s.board.length < 2) return state;
-        s.pendingTarget = { uid: card.uid, cardId: card.cardId, heroPowerSlot: slot };
-        return s;
-      }
       // Rune of Empowerment (Epic): the hero power's effect triggers twice. Threaded into the value/generate
       // powers below (scalingGold / gainMaxMana / fortify / dynamiteDig — the DOUBLEABLE_POWERS the rune is
       // gated to). A targeted single-application power (Gild / Ward) can't meaningfully double, so `reps` is
@@ -3075,11 +3058,12 @@ function reduceCore(state: RunState, action: Action): RunState {
         // 2026-09-14 rework). No-op (no charge/gold spent) only on a missing target. An ALREADY-Warded target is a
         // legal use (owner 2026-09-14: "it still buffs all Wards +5 Attack") — the Ward half is simply nothing to add.
         if (!card) return state;
-        // ANCIENT OF DEATH: the two-target Aegis REPLACES the grant — destroy `card`, the recipient (`uid2`) gains its
-        // Attack and Ward. No +5 Attack wave (judgement call 2026-09-26: the power is replaced).
-        if (ancientAegisTwoStep(s)) {
-          const recipient = s.board.find((c) => c.uid === action.uid2);
-          if (!recipient || recipient.uid === card.uid) return state;
+        // ANCIENT OF DEATH: the Aegis REPLACES the grant — destroy `card`; a RANDOM other friendly minion (one without
+        // Ward first; owner 2026-09-26) gains its Attack and Ward. No +5 Attack wave (judgement call 2026-09-26).
+        // Needs a second friendly minion to give to.
+        if (ancientAegisDestroys(s)) {
+          const recipient = ancientAegisRecipient(s, card);
+          if (!recipient) return state;
           ancientAegisDestroyAndGive(s, card, recipient);
         } else {
           if (!card.keywords.includes('DS')) card.keywords.push('DS');
@@ -4118,11 +4102,7 @@ function endRecruitTurn(s: RunState): void {
   s.cardDiscountWindow = undefined;
   // An unresolved targeted Battlecry (the player ended the turn mid-pick) auto-resolves on the
   // carry — never strand a played Toxin Tender without its grant.
-  if (s.pendingTarget?.heroPowerSlot !== undefined) {
-    // A two-target hero power's recipient aim (Aegis + the Ancient of Death): nothing has resolved or been paid, so
-    // ending the turn simply abandons it.
-    s.pendingTarget = undefined;
-  } else if (s.pendingTarget?.deferredPlay) {
+  if (s.pendingTarget?.deferredPlay) {
     // A DEFERRED Choose One aim (the card is still in hand and nothing has resolved): ending the turn
     // abandons it exactly like a click-away cancel — the card stays in hand untouched. Auto-resolving it
     // would summon a minion the player never confirmed, into a board they can no longer arrange.

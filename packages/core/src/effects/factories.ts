@@ -1532,6 +1532,22 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     }
   },
 
+  /** Tidebud (Shout), the COMBAT half: a random OTHER friendly `tribe` minion on the board AND a random `tribe`
+   *  minion in hand gain +atk/+hp, the moment the Shout fires (R-REALTIME-01, owner 2026-09-26: an Ancient of Time
+   *  Start-of-Combat Shout paid the hand at settle). The board half is a normal combat gain; the hand half rides
+   *  `buffHand` (permanent, R-HAND-02, the replay grows the hand card live). Golden: twice the stats. */
+  battlecryBuffRandomTribeBoardAndHand: (ctx, self, params) => {
+    const tribe = str(params.tribe) as Tribe;
+    const a = num(params.attack, 0) * mul(self), h = num(params.health, 0) * mul(self);
+    if (a === 0 && h === 0) return;
+    const arena = combatArena(ctx, self);
+    const onBoard = ctx.living(self.side).filter((m) => m !== self && arena.isTribe(m, tribe));
+    if (onBoard.length > 0) ctx.buff(ctx.rng.pick(onBoard), a, h, self.uid);
+    // The arena's hand bodies carry their def's tribes, so the one tribe predicate answers for them too.
+    const inHand = arena.handMinions().filter((c) => !ctx.getCard(c.cardId)?.spell && arena.isTribe(c, tribe));
+    if (inHand.length > 0) arena.buffHand(ctx.rng.pick(inHand), a, h);
+  },
+
   /** Hearth Whisperer: whenever THIS takes damage, a random minion in your hand +atk/+hp — permanent (R-HAND-02). */
   onDamagedBuffRandomHand: (ctx, self, params, payload) => {
     if (self.dead || (payload as MinionPayload).minion !== self) return;

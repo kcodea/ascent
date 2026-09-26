@@ -217,6 +217,24 @@ describe('Auctioneer × TIME — passive; Start of Combat triggers the left-most
   });
 });
 
+describe('Auctioneer × TIME in REAL TIME — a Start-of-Combat Tidebud Shout pays the hand DURING the fight (R-REALTIME-01)', () => {
+  it('the hand Spirit grows at Start of Combat (a live handBuff), the board Spirit too, and settle pays the hand exactly once', () => {
+    const tb = (uid: string): BoardCard => card(uid, 'sp3_tidebud', { attack: 2, health: 3, keywords: [] });
+    let s = picked('time', { board: [tb('t'), card('k', 'sp3_tidebud', { attack: 2, health: 3, keywords: [] })], hand: [card('h', 'sp3_flamereveler', { attack: 4, health: 3, keywords: [] })] });
+    s = fightNow(s);
+    const ev = events(s);
+    const firstAttack = ev.findIndex((e) => e.type === 'attack');
+    const hb = ev.findIndex((e) => e.type === 'handBuff' && e.side === 'player' && e.uid === 'h');
+    expect(hb, 'the hand buff fires in the fight').toBeGreaterThanOrEqual(0);
+    expect(hb, 'at Start of Combat, before any attack').toBeLessThan(firstAttack);
+    const boardBuffs = ev.slice(0, firstAttack).filter((e) => e.type === 'buff' && e.health === 2);
+    expect(boardBuffs.length, 'each edge Shout buffs the OTHER board Spirit').toBe(2);
+    s = reduce(s, { type: 'resolveCombat' });
+    // Two edge Shouts, each gives the only hand Spirit +2 Health: 3 + 2 + 2, paid once (never replayed at settle).
+    expect(s.hand.find((c) => c.uid === 'h')!.health).toBe(7);
+  });
+});
+
 describe('Auctioneer × BONDS — a Shout gives the minions next to it +4/+3', () => {
   it('SHOP: Pulse buffs both neighbours +4/+3, permanently, per fire', () => {
     let s = picked('bonds', { board: [pup('a', 1, 1), cleric(), pup('b', 1, 1), pup('v', 1, 1)] });

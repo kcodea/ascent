@@ -38287,9 +38287,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     "triggers": [
       {
         "event": "onPlay",
-        "phase": "shop",
-        "phaseBasis": "derived:phaseRegistry",
-        "note": "combat side excused: no-surface"
+        "phase": "both",
+        "phaseBasis": "derived:phaseRegistry"
       }
     ],
     "effects": [

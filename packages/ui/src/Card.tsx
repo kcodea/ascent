@@ -1292,23 +1292,33 @@ export const Card = memo(function Card({
   );
 });
 
-/** The shards the orange RESILIENT layer breaks into when its first hit lands: a static clip polygon each (in % of
- *  the shell box) and the direction it flies off. Only transform + opacity animate (one-shot, `wgcrack`). */
-const RESIL_SHARDS: readonly { clip: string; dx: string; dy: string; rot: string }[] = [
-  { clip: 'polygon(50% 50%, 50% 0%, 100% 0%, 100% 22%)', dx: '14%', dy: '-16%', rot: '14deg' },
-  { clip: 'polygon(50% 50%, 100% 22%, 100% 70%)', dx: '20%', dy: '2%', rot: '9deg' },
-  { clip: 'polygon(50% 50%, 100% 70%, 100% 100%, 62% 100%)', dx: '12%', dy: '17%', rot: '-12deg' },
-  { clip: 'polygon(50% 50%, 62% 100%, 0% 100%, 0% 84%)', dx: '-6%', dy: '21%', rot: '10deg' },
-  { clip: 'polygon(50% 50%, 0% 84%, 0% 34%)', dx: '-20%', dy: '4%', rot: '-9deg' },
-  { clip: 'polygon(50% 50%, 0% 34%, 0% 0%, 50% 0%)', dx: '-13%', dy: '-17%', rot: '-15deg' },
+/** The shards the orange RESILIENT layer bursts into when its first hit lands (owner 2026-09-26: "a burst/shatter
+ *  effect ... really clean"): eight sharp glass slivers born ON the shell's rim, each pointing outward, that fly
+ *  straight out, spin a little, shrink and fade. Few, sharp, no debris. `x`/`y` seat the sliver on the rim (% of the
+ *  shell box), `w` sizes it, `r0` aims it outward; `dx`/`dy` is its flight (% of the shell box) and `spin` its turn.
+ *  Only transform + opacity animate (one-shot, `wgshardfly` on the wrapper, `wgshardspin` on the sliver). */
+const SHARD_A = 'polygon(50% 0%, 100% 34%, 70% 100%, 22% 86%, 0% 28%)';
+const SHARD_B = 'polygon(38% 0%, 100% 52%, 58% 100%, 0% 64%)';
+const SHARD_C = 'polygon(52% 0%, 88% 66%, 34% 100%, 6% 44%)';
+const RESIL_SHARDS: readonly { x: string; y: string; w: string; r0: string; dx: string; dy: string; spin: string; shape: string }[] = [
+  { x: '44%', y: '4%', w: '17%', r0: '-8deg', dx: '-5%', dy: '-34%', spin: '-40deg', shape: SHARD_A },
+  { x: '81%', y: '16%', w: '14%', r0: '42deg', dx: '20%', dy: '-22%', spin: '55deg', shape: SHARD_B },
+  { x: '96%', y: '48%', w: '19%', r0: '88deg', dx: '36%', dy: '-1%', spin: '-30deg', shape: SHARD_C },
+  { x: '83%', y: '82%', w: '14%', r0: '134deg', dx: '22%', dy: '22%', spin: '48deg', shape: SHARD_A },
+  { x: '48%', y: '96%', w: '18%', r0: '182deg', dx: '-1%', dy: '35%', spin: '-52deg', shape: SHARD_B },
+  { x: '16%', y: '81%', w: '13%', r0: '228deg', dx: '-22%', dy: '19%', spin: '36deg', shape: SHARD_C },
+  { x: '4%', y: '45%', w: '16%', r0: '276deg', dx: '-33%', dy: '-3%', spin: '-44deg', shape: SHARD_A },
+  { x: '22%', y: '14%', w: '14%', r0: '322deg', dx: '-18%', dy: '-24%', spin: '60deg', shape: SHARD_B },
 ];
 
 /**
  * WARD GLASS — the energy shell (see styles.css "WARD GLASS"). A RESILIENT Ward (`RW`, owner 2026-09-26) wears the
  * same shell re-tinted red-and-orange (`.resil` swaps the shell's colour vars) with a clean orange outline. When the
- * Resilient layer's first hit strips `RW` (combat's `wardDowngrade`), the shell reverts to the plain Ward and the
- * orange layer plays ONE crack: a jagged crack flash, then its shards fly off and fade, revealing the Ward under it.
- * Transform/opacity only; the shards unmount on animation end. No loop touches a paint property.
+ * Resilient layer's first hit strips `RW` (combat's `wardDowngrade`), the shell reverts to the plain Ward at once and
+ * the orange layer plays ONE clean shatter on top (owner 2026-09-26, "a burst/shatter effect ... really clean"): a
+ * hot flare of the orange rim, its outline kicks outward, and eight sharp slivers fly off the rim and fade (~400 ms).
+ * The Pixi `resilient-ward-shatter` sparks fire with it (aura channel). Transform/opacity only; the layer unmounts on
+ * its animation end. No loop touches a paint property.
  */
 const WardGlass = memo(function WardGlass({ resilient }: { resilient: boolean }) {
   const was = useRef(resilient);
@@ -1326,14 +1336,13 @@ const WardGlass = memo(function WardGlass({ resilient }: { resilient: boolean })
       {resilient && <div className="wg-resil-rim" />}
       {crack > 0 && (
         <div key={crack} className="wg-crack" onAnimationEnd={(e) => { if (e.target === e.currentTarget) setCrack(0); }}>
+          <div className="wg-flash" />
+          <div className="wg-burstring" />
           {RESIL_SHARDS.map((sh, i) => (
-            <div key={i} className="wg-shard" style={{ clipPath: sh.clip, '--dx': sh.dx, '--dy': sh.dy, '--rot': sh.rot } as CSSProperties} />
+            <div key={i} className="wg-shardfly" style={{ '--dx': sh.dx, '--dy': sh.dy } as CSSProperties}>
+              <div className="wg-shard" style={{ left: sh.x, top: sh.y, width: sh.w, clipPath: sh.shape, '--r0': sh.r0, '--spin': sh.spin } as CSSProperties} />
+            </div>
           ))}
-          <svg className="wg-crackline" viewBox="0 0 100 100" preserveAspectRatio="none">
-            <polyline points="50,0 47,14 55,24 46,38 53,50 44,63 52,76 47,88 50,100" />
-            <polyline points="53,50 66,46 74,55 88,50 100,54" />
-            <polyline points="46,38 33,33 22,40 8,35 0,38" />
-          </svg>
         </div>
       )}
     </div>

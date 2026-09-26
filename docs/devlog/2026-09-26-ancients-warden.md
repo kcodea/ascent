@@ -23,13 +23,18 @@ there is no patch note.
   On the run card it is permanent like Ward. Combat strips it from the combat body only.
 - **Look** (`WardGlass` in `Card.tsx`; "RESILIENT WARD" in `styles.css`). It is the same Ward shell, re-tinted
   red-and-orange by swapping the shell's colour vars on `.wardglass.resil`, with a clean orange outline ring
-  (`.wg-resil-rim`). When `RW` drops, the card plays one crack (`.wg-crack`): a jagged white crack line flashes, then
-  six clip-polygon shards of the orange layer fly off and fade, revealing the plain Ward. It is transform/opacity
-  only and unmounts on `animationend`. The one loop is the shell's existing opacity breathe. It has a
-  reduced-motion fallback.
+  (`.wg-resil-rim`). When `RW` drops, the plain Ward shows at once and the orange layer SHATTERS over it (owner
+  2026-09-26, the first crack look was "bad", asked for "a burst/shatter effect ... really clean"; `.wg-crack`,
+  ~400 ms): the orange rim flares white-hot (`.wg-flash`), the outline kicks outward and fades (`.wg-burstring`), and
+  eight sharp two-faced glass slivers born on the rim fly straight out, spin a little, shrink and fade
+  (`.wg-shardfly` + `.wg-shard`). The Pixi def `resilient-ward-shatter` adds a few small orange sparks off the shell
+  edge at the unit's rect, scaled to the card. No crack line, no smoke, no lingering debris. It is transform/opacity
+  only (measured headless: 4 paints, 0.8 ms total across the whole break, none per frame) and unmounts on
+  `animationend`. The one loop is the shell's existing opacity breathe. It has a reduced-motion fallback.
 - **Choreography:** `wardDowngrade` is a `RESULT_TYPE` (it merges into the clash's impact), classified `shieldPop`
   (the Ward-break beat), and paced on its own `wardDowngrade` key (460, the same as `shield`). The Ward-break sound
-  plays at the lunge's contact (`crackResilientWard`) and on the `auraBreak` cue for a non-attack hit. There is no
+  and the spark def play at the lunge's contact (`crackResilientWard(rect, uid, quiet)`, quiet when a real Ward break in
+  the same exchange already plays the sound) and on the `auraBreak` cue for a non-attack hit. There is no
   blast, since a Ward still stands. The frame folds it in `useCombatReplay`, the log narrates it, and the trace,
   harness and Bug Board describe it.
 - **Glossary pill:** "Resilient Ward: Takes 2 hits to break." (badge `RW`). It sits in the coverage test's KEEP list
@@ -88,8 +93,9 @@ there is no patch note.
   - Time before the fight;
   - Bonds in the Shop, at End of Turn (no double at the boundary) and wired into combat;
   - the round trip.
-- `ui/src/resilientWard.test.tsx` covers the shell, the crack on the downgrade, the pill, the beat classification,
-  and no looping animation in the new CSS.
+- `ui/src/resilientWard.test.tsx` covers the shell, the shatter on the downgrade (flash, outline kick, eight
+  slivers, no crack line), the pill, the beat classification, no looping animation in the new CSS, and that the
+  shatter keyframes move only transform + opacity. `choreo/channels/aura.test.ts` pins the spark def + sound.
 - Pins moved:
   - Doc Bot combat-mod lane 71 → 72: `ancientBonds` needs a Warded gainer beside another Warded friend, pinned in
     the core test.

@@ -2413,7 +2413,7 @@ export function useCombatReplay(
       },
       onAuraBurst: (uid) => burstDeathAuras(uid, rectOf(uid)),
       onShieldBreak: (uid) => breakShieldAura(rectOf(uid), uid),
-      onWardDowngrade: () => crackResilientWard(),
+      onWardDowngrade: (uid) => crackResilientWard(rectOf(uid), uid),
       // Rise re-forms in aqua; REBIRTH bursts into its phoenix flame (owner 2026-09-25) — one call per event.
       onReborn: (uid, rebirth) => (rebirth ? reformRebirth(rebornRects.get(uid) ?? rectOf(uid), uid) : reformReborn(rebornRects.get(uid) ?? rectOf(uid))),
       // Execute proc → the crescent strike at the VICTIM's slot (the unit being destroyed), read at fire time
@@ -2725,10 +2725,11 @@ export function useCombatReplay(
       // ward is CSS now, so the shatter fires at the unit's live rect (no Pixi bubble to read coords from).
       const wardTargets: string[] = [];
       for (let i = cur.start; i < cur.end; i++) { const e = events[i]; if (e?.type === 'shield') wardTargets.push(e.target); }
-      // A Resilient Ward's first hit (its layer cracks on the card itself — see `WardGlass`): the Ward-break SOUND at
-      // the same contact, and no blast, since a Ward is still standing.
-      let downgrades = 0;
-      for (let i = cur.start; i < cur.end; i++) if (events[i]?.type === 'wardDowngrade') downgrades++;
+      // A Resilient Ward's first hit (its orange layer shatters on the card itself — see `WardGlass`): the small
+      // `resilient-ward-shatter` sparks + the Ward-break SOUND at the same contact, and no Ward blast, since a Ward
+      // is still standing. One sound per exchange: quiet when a real Ward break (or an earlier downgrade) plays it.
+      const downgrades: string[] = [];
+      for (let i = cur.start; i < cur.end; i++) { const e = events[i]; if (e?.type === 'wardDowngrade') downgrades.push(e.target); }
       // EXECUTE proc inside this exchange → the strike REPLACES the standard hit FX at contact (see impact.ts).
       // Gated on a `poison` EVENT, not on the attacker carrying `V`: the keyword is spent after one kill, so a
       // keyword check would keep slashing on later swings that no longer execute anything.
@@ -2738,7 +2739,7 @@ export function useCombatReplay(
       // lunge — the gold shatter has to pop where the bubble visibly is (mid-strike, at contact), not back at
       // the unit's empty slot. The opposite call from the unit-marking FX; don't "fix" this to match them.
       const rectFor = (uid: string) => { const r = findEl(uid)?.getBoundingClientRect(); return r ? { cx: r.left + r.width / 2, cy: r.top + r.height / 2, w: r.width, h: r.height } : null; };
-      const breakWards = wardTargets.length || downgrades ? () => { for (const t of wardTargets) breakShieldAura(rectFor(t), t); if (downgrades && !wardTargets.length) crackResilientWard(); } : undefined;
+      const breakWards = wardTargets.length || downgrades.length ? () => { for (const t of wardTargets) breakShieldAura(rectFor(t), t); downgrades.forEach((t, i) => crackResilientWard(rectFor(t), t, wardTargets.length > 0 || i > 0)); } : undefined;
       if (atkEl && a && d) {
         setAttackUid(cur.primary.attacker);
         // A Rally firing as THIS unit attacks → the lunge pauses at the top of the wind-up and flashes the

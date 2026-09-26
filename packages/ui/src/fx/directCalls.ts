@@ -96,6 +96,8 @@ export const DIRECT_CALL_SITES: Readonly<Record<string, readonly string[]>> = {
   // the new crest lands — fired by the post-game rank timeline at the promotion beat (division and medal).
   'rank-up': ['rank/rankTimeline.ts'],
   'rebirth-flame': ['choreo/channels/aura.ts'],
+  // A RESILIENT Ward's first hit (owner 2026-09-26): orange spark shards off the shell edge, over the card's CSS shatter.
+  'resilient-ward-shatter': ['choreo/channels/aura.ts'],
   'rune-buff-unit': ['Recruit.tsx', 'useCombatReplay.ts'],
   // THE RUNE CAST FLOURISH (2026-09-24, owner: "a bit of flair … a 'magic' element to it? nothing crazy"): the glyph
   // flash on a casting rune's node, and the mote it sends to where a single-play spell effect lands. Every rune

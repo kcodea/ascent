@@ -5,7 +5,8 @@
  *   · A card carrying `RW` (always beside `DS`) wears the Ward shell re-tinted red-and-orange (`.wardglass.resil`)
  *     with a clean orange outline (`.wg-resil-rim`).
  *   · When the Resilient layer's first hit strips `RW` (combat's `wardDowngrade`), the shell reverts to the plain
- *     Ward and ONE crack plays (`.wg-crack`, shards + a crack line), never on a plain Ward losing nothing.
+ *     Ward and ONE clean shatter plays (`.wg-crack`: a rim flare, the outline kicking out, eight sharp slivers), never
+ *     on a plain Ward losing nothing.
  *   · The combat frame folds `wardDowngrade` (drop `RW`, keep the Ward) and it rides the Ward-break beat.
  *   · The pill: "Resilient Ward: Takes 2 hits to break."
  *   · No looping animation on a paint property (the perf rule): the only new loops are none.
@@ -42,15 +43,18 @@ describe('Resilient Ward — the shell', () => {
     expect(m.container.querySelector('.wg-crack')).toBeNull();
   });
 
-  it('losing RW (the downgrade) plays one crack and reveals the plain Ward', () => {
+  it('losing RW (the downgrade) plays one clean shatter and reveals the plain Ward', () => {
     m.render(<Card card={view(['DS', 'RW'])} />);
     m.render(<Card card={view(['DS'])} />);
     expect(m.container.querySelector('.wardglass')).not.toBeNull();
     expect(m.container.querySelector('.wardglass.resil')).toBeNull();
     const crack = m.container.querySelector('.wg-crack');
     expect(crack).not.toBeNull();
-    expect(crack!.querySelectorAll('.wg-shard').length).toBeGreaterThanOrEqual(4);
-    expect(crack!.querySelector('.wg-crackline')).not.toBeNull();
+    // Few, sharp shards (owner: "really clean"), a flash and the outline kick; no crack line, no debris.
+    expect(crack!.querySelectorAll('.wg-shard').length).toBe(8);
+    expect(crack!.querySelector('.wg-flash')).not.toBeNull();
+    expect(crack!.querySelector('.wg-burstring')).not.toBeNull();
+    expect(crack!.querySelector('.wg-crackline')).toBeNull();
   });
 });
 
@@ -70,5 +74,11 @@ describe('Resilient Ward — glossary + choreography', () => {
     const block = css.slice(css.indexOf('/* RESILIENT WARD'), css.indexOf('/* Reborn — wispy'));
     expect(block.length).toBeGreaterThan(100);
     expect(block).not.toMatch(/infinite/);
+    // The shatter's keyframes move transform + opacity only (their paint is static).
+    for (const name of ['wgshardfly', 'wgshardspin', 'wgburstring', 'wgflash']) {
+      const body = block.match(new RegExp(`@keyframes ${name} \\{[\\s\\S]*?\\}\\s*\\}`))?.[0] ?? '';
+      expect(body, name).toMatch(/transform|opacity/);
+      expect(body, name).not.toMatch(/box-shadow|filter|background|border-radius|clip-path/);
+    }
   });
 });

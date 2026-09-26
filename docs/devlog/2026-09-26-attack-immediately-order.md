@@ -60,3 +60,12 @@ conditions would play out differently.
 Tests: `packages/sim/src/attackImmediatelyOrder.test.ts` (4 of 7 fail without the fix; the Whelp/Kurse/rotation
 guards pass both ways). Oracle: `R-ORD-05` in `packages/rules/src/registry/approved/ordering.ts`. Patch note:
 Systems.
+
+## Follow-up (same day): an immediate attacker DOES interrupt a Flurry
+
+Owner reversal: *"revert one attack immediately change - a minion summoned that attacks immediately SHOULD
+interrupt a flurry."* The #1748 behaviour (a summon from swing 1 waits until swing 2 resolves) is replaced, but not
+by the pre-#1748 timing (the summon landed inside swing 2's wind-up, between its lunge and its hit). Instead
+`performAttack` flushes queued summons at the top of the swing loop for swing 2+, so the summon lands and strikes as
+its own beat between the swings; swing 2 then runs if the Flurry minion is still alive. R-ORD-05, GAME-RULES and the
+patch note are revised; the Flurry test in `attackImmediatelyOrder.test.ts` now pins the between-swings order.

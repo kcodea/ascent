@@ -10,7 +10,8 @@ describe('the Ancients tuner defaults', () => {
       curtainInner: '#247067', curtainOuter: '#0a0618', seamColor: '#fff1bd', titleGlow: '#9effd5', backdropTint: '#060d0f',
       cardRevealGain: 0.19, pickSealGain: 0.62,
       revealStyle: 1, // 1 = two beats (the middle slams, then the sides together); 0 = sequential
-      hpDustLife: 0.45, dustAmount: 1, dustSize: 1, dustLife: 1, dustOpacity: 0.85,
+      hpDustLife: 0.45, dustAmount: 1, dustSize: 1, dustLife: 1, dustOpacity: 0.85, slamDust: 1.7,
+      revealDelayMs: 220, beat1Ms: 600, beatGapMs: 250, beat2Ms: 470, // owner 2026-09-26: a slightly faster reveal
       bondsColor: '#9b5de5', // the sixth Ancient, purple (owner 2026-09-26)
     });
     expect(ANCIENT_ART_IDS).toHaveLength(6);

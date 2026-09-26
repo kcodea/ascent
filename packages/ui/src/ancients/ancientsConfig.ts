@@ -90,6 +90,9 @@ export interface AncientsConfig {
   dustLife: number;
   /** Landing dust: opacity (0..1). */
   dustOpacity: number;
+  /** The reveal SLAMS' dust burst (×, on top of the dust settings; owner 2026-09-26: "have dust pop out when it slams
+   *  in place a bit more"). 1 = the plain landing puff. */
+  slamDust: number;
   /** Screen colours: the curtain gradient's centre. */
   curtainInner: string;
   /** Screen colours: the curtain gradient's edge. */
@@ -190,19 +193,20 @@ export const ANCIENTS_DEFAULTS: AncientsFullConfig = {
   seamGlow: 0.9,
   titleHoldMs: 1500,
   revealFadeMs: 480,
-  revealDelayMs: 280,
+  revealDelayMs: 220, // owner 2026-09-26: "speed up the ancient reveal slightly" (was 280)
   cardStaggerMs: 460,
   cardRevealMs: 700,
   revealStyle: 1,
-  beat1Ms: 720,
-  beatGapMs: 360,
-  beat2Ms: 560,
+  beat1Ms: 600, // was 720 (owner 2026-09-26: faster reveal)
+  beatGapMs: 250, // was 360
+  beat2Ms: 470, // was 560
   slamStrength: 1,
   hpDustLife: 0.45,
   dustAmount: 1,
   dustSize: 1,
   dustLife: 1,
   dustOpacity: 0.85,
+  slamDust: 1.7,
   // The DEFAULT hero theme (every hero without its own entry): the owner-baked screen colours, from the theme table.
   ...ANCIENT_HERO_THEMES.default,
   closeMs: 420,
@@ -259,6 +263,7 @@ export const ANCIENTS_RANGES: Record<NumKey, [number, number, number]> = {
   dustSize: [0.2, 3, 0.05],
   dustLife: [0.3, 3, 0.05],
   dustOpacity: [0, 1, 0.01],
+  slamDust: [0, 4, 0.05],
   closeMs: [100, 1500, 10],
   duckAmount: [0, 1, 0.01],
   duckRampMs: [0, 1500, 10],

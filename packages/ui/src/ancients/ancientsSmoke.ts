@@ -31,14 +31,15 @@ const RUNE_TABLET_PX = 170;
 
 /** One clean puff of the Runeforge landing dust at `at`, tinted `color`. `lifeMul` shortens it (the eruption);
  *  `widthPx` is the width of what landed (the dust is sized in proportion). */
-export function ancientLandDust(color: string, at: Pt, lifeMul = 1, widthPx = RUNE_TABLET_PX): (() => void) | null {
+export function ancientLandDust(color: string, at: Pt, lifeMul = 1, widthPx = RUNE_TABLET_PX, boost = 1): (() => void) | null {
   const c = getAncientsConfig();
   if (!canPlayDefs() || c.dustAmount <= 0 || c.dustOpacity <= 0) return null;
   // Scaled to the thing that lands: the def is tuned for a rune tablet, an Ancient card is wider, so the same puff is
   // sized in proportion (it spreads just past the card's edges, where it shows from under the card).
   const fit = Math.max(0.5, Math.min(3, widthPx / RUNE_TABLET_PX));
   return playDef('runeforge-land-dust', { source: at, target: at, cursor: at }, {
-    intensity: c.dustAmount, scale: c.dustSize * fit, time: c.dustLife * lifeMul, alpha: c.dustOpacity,
+    // `boost` (the reveal slams' `slamDust`): more dust, spread a little wider, so a slam visibly throws it out.
+    intensity: c.dustAmount * boost, scale: c.dustSize * fit * (1 + (boost - 1) * 0.25), time: c.dustLife * lifeMul, alpha: c.dustOpacity,
     recolor: tint(color), slot: 'over',
   }) ?? null;
 }

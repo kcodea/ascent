@@ -95,7 +95,7 @@ function Reveal({ gated, offer, heroId, seq, onPick }: { gated: boolean; offer: 
     const landFx = (i: number): void => {
       const frame = slots[i]?.querySelector<HTMLElement>('.anc-art-frame');
       const r = frame?.getBoundingClientRect();
-      ancientLandDust(ancientColor(offer[i]!), r ? { x: r.left + r.width / 2, y: r.bottom } : base(i), 1, r?.width ?? rects[i]!.width);
+      ancientLandDust(ancientColor(offer[i]!), r ? { x: r.left + r.width / 2, y: r.bottom } : base(i), 1, r?.width ?? rects[i]!.width, Math.max(0, c.slamDust));
       const g = slots[i]?.querySelector<HTMLElement>('.anc-glint');
       if (g && typeof g.animate === 'function') {
         push(g.animate([
@@ -131,13 +131,14 @@ function Reveal({ gated, offer, heroId, seq, onPick }: { gated: boolean; offer: 
       const b2 = b1 + c.beat1Ms + c.beatGapMs, slam2 = b2 + c.beat2Ms * 0.8;
       const mCard = slots[mid]!.querySelector<HTMLElement>('.anc-card');
       if (mCard && typeof mCard.animate === 'function') {
+        // NO WOBBLE (owner 2026-09-26: "make the first one not wobble"): it rises, then slams STRAIGHT down to rest at
+        // the slam frame, with no dip below its resting spot and no side-to-side shake. The dust sells the impact.
         push(mCard.animate([
           { opacity: 0, transform: 'translateY(120px) scale(0.82)' },
-          { opacity: 1, transform: `translateY(${-34 * (0.6 + 0.4 * k)}px) scale(1.07)`, offset: 0.6 },
-          { transform: `translateY(${8 * k}px) scale(${1 - 0.03 * k})`, offset: 0.78, easing: 'ease-out' },
+          { opacity: 1, transform: `translateY(${-34 * (0.6 + 0.4 * k)}px) scale(1.07)`, offset: 0.6, easing: 'cubic-bezier(0.55, 0, 0.9, 0.4)' },
+          { opacity: 1, transform: 'translateY(0) scale(1)', offset: 0.78 },
           { opacity: 1, transform: 'translateY(0) scale(1)' },
         ], { duration: c.beat1Ms, delay: b1, easing: 'cubic-bezier(0.3, 0, 0.6, 1)', fill: 'backwards' }));
-        slamShake(mCard, slam1);
       }
       at(slam1, () => { ancientSlam(base(mid)); landFx(mid); });
       playCue('cardReveal', slam1 - 40);

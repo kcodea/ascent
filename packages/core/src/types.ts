@@ -98,7 +98,8 @@ export type Keyword =
   | 'SL' // Slaughter — triggers an effect each time this kills an enemy minion
   | 'CR' // Critical Strike — a chance (see CardDef.critChance) to deal double damage on attack
   | 'EG' // Engraved — stat gains during combat carry back to the run board (permanent)
-  | 'RB'; // Rebirth (owner 2026-09-16) — when this dies it returns ONCE with its FULL current body: stats, granted buffs, keywords, effects (Rise, by contrast, returns the PRINTED body at 1 Health). Spent on the return; not re-armed unless something re-grants it.
+  | 'RB' // Rebirth (owner 2026-09-16) — when this dies it returns ONCE with its FULL current body: stats, granted buffs, keywords, effects (Rise, by contrast, returns the PRINTED body at 1 Health). Spent on the return; not re-armed unless something re-grants it.
+  | 'RW'; // Resilient Ward (Ancients POC, owner 2026-09-26) — a Ward that takes 2 hits to break. Always carried ALONGSIDE 'DS' (so every "has Ward" check still sees a Ward): the first hit strips 'RW' only (absorbed, a `wardDowngrade` event), the second breaks the Ward as usual.
 // NB: Transcendant grants Engraved as a LIVE ADJACENCY AURA rather than the keyword — see `engravedByAura`.
 
 /**
@@ -1820,6 +1821,13 @@ export interface QuestCombatMods {
   /** ANCIENT OF TIME (proof of concept): Start of Combat, this side's right-most minion becomes Gilded for the
    *  fight only (the run card is never touched, so it reverts after). Player-only; never snapshotted. */
   ancientTimeGild?: { label: string };
+  /** ANCIENT OF BONDS × Warden (proof of concept, owner 2026-09-26): whenever one of this side's WARDED minions gains
+   *  stats, a random OTHER Warded friendly minion gains +attack Attack. The grant never re-triggers it (guarded).
+   *  Combat-only like every combat gain (Engraved keeps it). Player-only; never snapshotted. */
+  ancientBonds?: { attack: number; label: string };
+  /** ANCIENT OF FORTUNE / GENESIS × Warden: record every FRIENDLY Ward that breaks (`CombatCarryBacks.wardBreaks`).
+   *  Off by default so every other fight's result is byte-identical. Player-only; never snapshotted. */
+  ancientTrackWardBreaks?: boolean;
   /** Pack Mentality's Health half of the Beast aura — the `beastBuyHp` sibling of `beastBuyAtk`, re-added to
    *  from-base Beast bodies (summons / Reborn) so "+/+H wherever they are" catches combat summons. */
   beastAuraHp?: number;
@@ -2648,6 +2656,7 @@ export type CombatEvent = (
   | { type: 'proccrit'; source: string; mult: number }
   | { type: 'spellcast'; side: Side; count: number } // a Shop Spell resolved mid-fight (Quil/Mammoth/Taragosa/…). `count` = that side's running total. The UI's live counters (Yirin's Attunement, Guel-style tallies) tick off this — carry-backs land at settle, so without it nothing can move in real time. // a chance-to-repeat effect rolled its multiplier (Karwind's 20% double) — the UI floats a crit-style "Nx" above `source`. Presentation only; the repeat itself is already in the buff events.
   | { type: 'shield'; target: string }
+  | { type: 'wardDowngrade'; target: string } // a RESILIENT Ward took its first hit: the hit is absorbed and it drops to a plain Ward ('RW' stripped, 'DS' kept). Not a break — `onLoseDivineShield` does not fire. The UI plays it on the Ward-break beat (the orange layer cracks away)
   | { type: 'shieldUp'; target: string }
   | { type: 'poison'; target: string }
   | { type: 'reborn'; target: string; hp: number; attack: number; keywords: Keyword[]; after?: string; rebirth?: true } // returns at base stats; `after` = the uid the Rise re-slots to the RIGHT of (a Rise whose Deathrattle summoned tokens into its old slot). `rebirth` = a REBIRTH return (full body, not the printed one) — the UI reuses the Rise beat/FX for it (placeholder until the owner authors one)
@@ -2964,6 +2973,9 @@ export interface CombatCarryBacks {
   boardBuffGain?: { attack: number; health: number };
   magneticBuffGain?: { attack: number; health: number };
   fodderBuffGain?: { attack: number; health: number };
+  /** ANCIENTS (Warden's Fortune / Genesis): the cardId of each friendly minion whose Ward BROKE this fight, in
+   *  order (one entry per break; a Resilient Ward's downgrade is not a break). Only when `ancientTrackWardBreaks`. */
+  wardBreaks?: string[];
 }
 
 export interface CombatResult {
@@ -3211,6 +3223,8 @@ export interface CombatResult {
    *  applied via `buffFodderRunWide` so every Fodder (board, hand, future copies) inherits it, mirroring the
    *  recruit-phase Bane. Absent if 0/0. */
   playerFodderBuffGain?: { attack: number; health: number };
+  /** ANCIENTS (Warden's Fortune / Genesis): the player's `CombatCarryBacks.wardBreaks`. */
+  playerWardBreaks?: string[];
   /** Outcome odds (fractions summing to 1) — estimated by the run loop re-simulating these boards
    *  on many independent seeds. Not produced by `simulate` itself (a single fight); the run loop fills it.
    *  `avgLossDamage` is the mean Resolve lost across the losing sims (round-capped), i.e. how much damage

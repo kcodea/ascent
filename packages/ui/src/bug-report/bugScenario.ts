@@ -193,6 +193,7 @@ export function combatEventLines(result: CombatResult): CombatEventLine[] {
       case 'attack': text = `${n(e.attacker)} → ${n(e.defender)} for ${e.swing}${e.crit ? ' (crit)' : ''}`; break;
       case 'dmg': text = `${n(e.target)} takes ${e.amount} (${Math.max(0, e.remainingHp)} HP left)${e.source ? ` from ${n(e.source)}` : ''}`; break;
       case 'shield': text = `${n(e.target)}'s Ward absorbs the hit`; break;
+      case 'wardDowngrade': text = `${n(e.target)}'s Resilient Ward absorbs the hit (a Ward remains)`; break;
       case 'shieldUp': text = `${n(e.target)} gains a Ward`; break;
       case 'poison': text = `${n(e.target)} destroyed by Execute`; break;
       case 'venomLost': text = `${n(e.target)}'s Execute is spent`; break;

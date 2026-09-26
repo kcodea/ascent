@@ -1029,14 +1029,7 @@ export const Card = memo(function Card({
             sphere, not a smaller one inside the art (owner note).
             Geometry is pure CSS per frame type (oval / spell square / taunt heater), mirroring `.cframe-tint`
             so it tracks the frame at any card scale with no measuring — see styles.css "WARD GLASS". */}
-        {card.keywords.includes('DS') && (
-          <div className="wardglass" aria-hidden="true">
-            <div className="wg-fill" />
-            <div className="wg-hex" />
-            <div className="wg-sheen" />
-            <div className="wg-rim" />
-          </div>
-        )}
+        {card.keywords.includes('DS') && <WardGlass resilient={card.keywords.includes('RW')} />}
         {/* Flurry (W) — wind blades swirling the card: a CSS ring stack (styles.css `.flurrycard .flurry`).
             Lives in the archbox (NOT `.art`, which clips) at z2 — above the art, below the frame — so the
             swirl orbits AROUND the card like the preview. Static gradient/mask paint from flurryConfig; only
@@ -1294,6 +1287,54 @@ export const Card = memo(function Card({
           </div>
         </div>,
         document.body,
+      )}
+    </div>
+  );
+});
+
+/** The shards the orange RESILIENT layer breaks into when its first hit lands: a static clip polygon each (in % of
+ *  the shell box) and the direction it flies off. Only transform + opacity animate (one-shot, `wgcrack`). */
+const RESIL_SHARDS: readonly { clip: string; dx: string; dy: string; rot: string }[] = [
+  { clip: 'polygon(50% 50%, 50% 0%, 100% 0%, 100% 22%)', dx: '14%', dy: '-16%', rot: '14deg' },
+  { clip: 'polygon(50% 50%, 100% 22%, 100% 70%)', dx: '20%', dy: '2%', rot: '9deg' },
+  { clip: 'polygon(50% 50%, 100% 70%, 100% 100%, 62% 100%)', dx: '12%', dy: '17%', rot: '-12deg' },
+  { clip: 'polygon(50% 50%, 62% 100%, 0% 100%, 0% 84%)', dx: '-6%', dy: '21%', rot: '10deg' },
+  { clip: 'polygon(50% 50%, 0% 84%, 0% 34%)', dx: '-20%', dy: '4%', rot: '-9deg' },
+  { clip: 'polygon(50% 50%, 0% 34%, 0% 0%, 50% 0%)', dx: '-13%', dy: '-17%', rot: '-15deg' },
+];
+
+/**
+ * WARD GLASS — the energy shell (see styles.css "WARD GLASS"). A RESILIENT Ward (`RW`, owner 2026-09-26) wears the
+ * same shell re-tinted red-and-orange (`.resil` swaps the shell's colour vars) with a clean orange outline. When the
+ * Resilient layer's first hit strips `RW` (combat's `wardDowngrade`), the shell reverts to the plain Ward and the
+ * orange layer plays ONE crack: a jagged crack flash, then its shards fly off and fade, revealing the Ward under it.
+ * Transform/opacity only; the shards unmount on animation end. No loop touches a paint property.
+ */
+const WardGlass = memo(function WardGlass({ resilient }: { resilient: boolean }) {
+  const was = useRef(resilient);
+  const [crack, setCrack] = useState(0);
+  useEffect(() => {
+    if (was.current && !resilient) setCrack((n) => n + 1);
+    was.current = resilient;
+  }, [resilient]);
+  return (
+    <div className={`wardglass${resilient ? ' resil' : ''}`} aria-hidden="true">
+      <div className="wg-fill" />
+      <div className="wg-hex" />
+      <div className="wg-sheen" />
+      <div className="wg-rim" />
+      {resilient && <div className="wg-resil-rim" />}
+      {crack > 0 && (
+        <div key={crack} className="wg-crack" onAnimationEnd={(e) => { if (e.target === e.currentTarget) setCrack(0); }}>
+          {RESIL_SHARDS.map((sh, i) => (
+            <div key={i} className="wg-shard" style={{ clipPath: sh.clip, '--dx': sh.dx, '--dy': sh.dy, '--rot': sh.rot } as CSSProperties} />
+          ))}
+          <svg className="wg-crackline" viewBox="0 0 100 100" preserveAspectRatio="none">
+            <polyline points="50,0 47,14 55,24 46,38 53,50 44,63 52,76 47,88 50,100" />
+            <polyline points="53,50 66,46 74,55 88,50 100,54" />
+            <polyline points="46,38 33,33 22,40 8,35 0,38" />
+          </svg>
+        </div>
       )}
     </div>
   );

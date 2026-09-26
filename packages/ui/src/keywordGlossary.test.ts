@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import type { Keyword } from '@game/core';
 import { KEYWORD_GLOSSARY } from './keywordGlossary';
 
-const ALL_BADGES: Keyword[] = ['T', 'DS', 'V', 'W', 'R', 'C', 'M', 'SC', 'CN', 'FD', 'IMM', 'ST', 'RL', 'SL', 'CR', 'EG', 'RB'];
+const ALL_BADGES: Keyword[] = ['T', 'DS', 'V', 'W', 'R', 'C', 'M', 'SC', 'CN', 'FD', 'IMM', 'ST', 'RL', 'SL', 'CR', 'EG', 'RB', 'RW'];
 
 describe('KEYWORD_GLOSSARY', () => {
   it('has unique ids', () => {
@@ -17,7 +17,7 @@ describe('KEYWORD_GLOSSARY', () => {
     }
   });
 
-  it('maps all 16 badge codes exactly once', () => {
+  it('maps all 17 badge codes exactly once', () => {
     const badges = KEYWORD_GLOSSARY.map((e) => e.badge).filter(Boolean) as Keyword[];
     expect(new Set(badges).size).toBe(badges.length);          // no badge used twice
     for (const b of ALL_BADGES) expect(badges).toContain(b);   // all covered

@@ -36,7 +36,7 @@ describe('Doc Bot — combat-mod lane', () => {
   });
 
   it('the scenario-conditional INERT queue is pinned (60 as of 2026-08-26)', () => {
-    const PIN = 71; // 63 → 70 on 2026-09-25 (Set 3 rune batch 3: 7 runes/ticks), +1 → 71 the same day: ancientWar (Ancients PoC) needs a GILDED body beside a dying friend, which the staged fight lacks; pinned in sim/src/ancients.test.ts (WAR combat).
+    const PIN = 72; // 63 → 70 on 2026-09-25 (Set 3 rune batch 3: 7 runes/ticks), +1 → 71 the same day: ancientWar (Ancients PoC) needs a GILDED body beside a dying friend, which the staged fight lacks; pinned in sim/src/ancients.test.ts (WAR combat). +1 → 72 on 2026-09-26: ancientBonds (Warden × Bonds) needs a WARDED body gaining stats beside another Warded friend; pinned in core/src/combat/resilientWard.test.ts (BONDS).
     expect(scan.inert.length, `${scan.inert.length} mod(s) changed NOTHING in the staged fight (pin ${PIN}):\n  ${scan.inert.join(', ')}\nAbove the pin: a NEW mod never acted — stage its trigger or raise the pin consciously in review. (Soulbind sat exactly here for five days as a shipped no-op, #832.)`).toBeLessThanOrEqual(PIN);
     expect(scan.inert.length, `only ${scan.inert.length} inert now (pin ${PIN}) — you staged some; lower the pin.`).toBeGreaterThanOrEqual(PIN);
   });

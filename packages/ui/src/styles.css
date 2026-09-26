@@ -1555,6 +1555,46 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
   box-shadow: inset 0 0 var(--wg-rim-in, 56px) rgba(var(--wg-rim-in-rgb, 170, 159, 254), var(--wg-rim-in-a, 0.84)),
               0 0 var(--wg-rim-out, 4px) rgba(var(--wg-rim-out-rgb, 189, 242, 255), var(--wg-rim-out-a, 0.97));
 }
+/* RESILIENT WARD (owner 2026-09-26: "a red-and-orange version of the existing Ward shell with a clean orange
+   outline"). The SAME shell, re-tinted by swapping its colour vars on the shell itself (so they beat the DEV Ward
+   tuner's root-level values), plus a crisp orange outline ring just outside the rim. All static paint: the only
+   loop is the shell's own opacity breathe. */
+.card.compact.dscard .wardglass.resil {
+  --wg-fill-core-rgb: 255, 120, 48; --wg-fill-edge-rgb: 236, 72, 30; --wg-fill-edge: 0.88;
+  --wg-hex-color: #ffcf9a;
+  --wg-sheen-rgb: 255, 236, 214;
+  --wg-rim-rgb: 255, 214, 170; --wg-rim-in-rgb: 214, 52, 24; --wg-rim-out-rgb: 255, 150, 60;
+  --wg-halo-rgb: 255, 110, 40;
+}
+.card.compact.dscard .wardglass .wg-resil-rim {
+  inset: -3px; border: 2px solid rgb(255, 146, 38);
+  box-shadow: 0 0 5px rgba(255, 150, 50, 0.9), inset 0 0 3px rgba(255, 190, 110, 0.7);
+}
+/* The one-shot CRACK when the Resilient layer breaks down to a plain Ward: a jagged crack flashes across the shell,
+   then the orange shards fly outward and fade. Transform + opacity only; `.wg-crack` unmounts on its animationend. */
+.card.compact.dscard .wardglass .wg-crack { border-radius: 0; animation: wgcrackhold 780ms linear forwards; }
+@keyframes wgcrackhold { from { opacity: 1; } to { opacity: 1; } }
+.card.compact.dscard .wardglass .wg-shard {
+  position: absolute; inset: 0; border-radius: 50%;
+  background: radial-gradient(ellipse 50% 50% at 50% 47%, rgba(255, 120, 48, 0.16) 0%, rgba(255, 120, 48, 0.22) 70%, rgba(236, 72, 30, 0.9) 100%);
+  border: 2px solid rgb(255, 146, 38);
+  animation: wgshard 640ms cubic-bezier(0.25, 0.6, 0.35, 1) 110ms both;
+}
+@keyframes wgshard {
+  0% { transform: translate(0, 0) rotate(0deg) scale(1); opacity: 1; }
+  55% { opacity: 0.95; }
+  100% { transform: translate(var(--dx), var(--dy)) rotate(var(--rot)) scale(1.08); opacity: 0; }
+}
+.card.compact.dscard .wardglass .wg-crackline {
+  position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible;
+  fill: none; stroke: #fff3de; stroke-width: 1.4; vector-effect: non-scaling-stroke; stroke-linejoin: round;
+  animation: wgcrackline 260ms ease-out both;
+}
+@keyframes wgcrackline { 0% { opacity: 0; } 25% { opacity: 1; } 100% { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) {
+  .card.compact.dscard .wardglass .wg-shard { animation-duration: 1ms; animation-delay: 0ms; }
+  .card.compact.dscard .wardglass .wg-crackline { animation-duration: 1ms; }
+}
 /* ========================================================================================================== */
 /* Reborn — wispy ethereal AQUA-GREEN aura (tuned on fx/reborn-css-preview.html), replacing the old Pixi wisp.
    A faint ghost DOME + N rising RANDOMIZED wisps, seated on the oval window inside the ellipse-clipped art

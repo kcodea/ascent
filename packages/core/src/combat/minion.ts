@@ -37,6 +37,8 @@ export function instantiate(
     : card.effects;
   if (board.echoStripped) effects = effects.filter((e) => e.on !== 'onDeath');
   const keywords = board.keywords ? [...board.keywords] : [...card.keywords];
+  // A RESILIENT Ward is always a Ward too ('RW' rides beside 'DS'): normalise a body that carries only 'RW'.
+  if (keywords.includes('RW') && !keywords.includes('DS')) keywords.push('DS');
   // Better Bot: own base Rally (×golden for a standalone Better Bot) + any welded onto it (already
   // golden-baked at weld time, stored on board.rallyMechAtk).
   const rallyMechAtk = (board.rallyMechAtk ?? 0) + (card.rallyMechAtk ?? 0) * (board.golden ? 2 : 1);

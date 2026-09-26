@@ -31,7 +31,7 @@ import type { CombatEvent } from '@game/core';
  *  (An `onDamaged` reactor's non-result event — Hearth Whisperer's `handBuff` — emitted before the meter can
  *  still split the run; the trigger then leads a `pummelTrigger` moment, which the same per-event scan plays.) */
 export const RESULT_TYPES = new Set<CombatEvent['type']>([
-  'dmg', 'shield', 'shieldUp', 'poison', 'venomLost', 'death', 'keyword', 'pummelTrigger',
+  'dmg', 'shield', 'wardDowngrade', 'shieldUp', 'poison', 'venomLost', 'death', 'keyword', 'pummelTrigger',
 ]);
 
 /** On-attack "flash" events the sim emits between an `attack` and its damage — pulled into the attack's

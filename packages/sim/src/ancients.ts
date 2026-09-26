@@ -30,12 +30,30 @@
  *  · `powerBuffPerGild`           the same branch, after the gild: the target gains +a/+h × the run's gild count
  *                                 (`AncientsState.gilds`, ticked by `noteGilded` in `gildMinion` + the triple).
  *
+ *  WARDEN (Aegis, `grantWard`; owner pairings 2026-09-26):
+ *  · `aegisDestroyGivesAttackAndWard`  the reducer's `grantWard` branch: Aegis takes TWO targets (the first
+ *                                 heroPower opens a `pendingTarget` aim with `heroPowerSlot`; the pick replays the
+ *                                 power with `uid2`). The first is destroyed (a real shop death), the second gains its
+ *                                 Attack and Ward. REPLACES the power (no +5 Attack to Warded minions). (Death)
+ *  · `wardBreakGold`              `ancientAfterCombat` (settle): +gold next turn per FRIENDLY Ward that broke. (Fortune)
+ *  · `nextAegisResilient`         the `grantWard` branch: the next `count` Aegis casts after the pick grant
+ *                                 RESILIENT Ward instead of Ward (`AncientsState.resilientAegisLeft`). (War)
+ *  · `wardBreaksGetCopy`          `ancientAfterCombat`: a running count of friendly Ward breaks (it carries across
+ *                                 combats); every `every`, a plain copy of one of the minions whose Ward broke in
+ *                                 that window goes to hand. (Genesis)
+ *  · `eotBuffWarded`              a virtual recurring End-of-Turn entry (`ancientTimeWard` in `recurringEotEffects`):
+ *                                 every minion with Ward gains +a/+h, permanently. (Time)
+ *  · `wardedGainBuffsWarded`      SHOP: `ancientBondsReact` at the reducer's per-action stat diff (+ an End-of-Turn
+ *                                 pass so its grants land before the fight); COMBAT: `QuestCombatMods.ancientBonds`
+ *                                 in `ctx.buff`. Its own grant never re-triggers it. (Bonds)
+ *
  * Serialisable plain data throughout, so saves / snapshots / replays can carry it cheaply later (not in the MVP).
  */
 import { makeRng, type Keyword, type QuestCombatMods } from '@game/core';
 import { CARD_INDEX } from '@game/content';
 import { mixSeed, type BoardCard, type RunState } from './state';
-import { addBuff, captureBuffFx, grantMinionToHandOrBoard } from './recruit';
+import type { CombatResult } from '@game/core';
+import { addBuff, aegisGrantOf, captureBuffFx, destroyMinionInShop, grantMinionToHandOrBoard, makeContext } from './recruit';
 import { INDY_GILD_RECHARGE_GOLD } from './config';
 
 export type AncientId = 'death' | 'fortune' | 'war' | 'genesis' | 'time' | 'bonds';
@@ -79,15 +97,34 @@ export type AncientEffect =
   /** The hero power may target an already-Gilded minion (it is not gilded again; the rest still applies). */
   | { do: 'powerTargetsGilded' }
   /** The hero power's target gains +a/+h for every minion that became Gilded this run, permanently. */
-  | { do: 'powerBuffPerGild'; attack: number; health: number };
+  | { do: 'powerBuffPerGild'; attack: number; health: number }
+  // ── Warden (Aegis) ──
+  /** Aegis takes two targets: destroy the first friendly minion, the second gains its Attack (permanent) and Ward.
+   *  Replaces the power's own grant. */
+  | { do: 'aegisDestroyGivesAttackAndWard' }
+  /** Each FRIENDLY Ward that breaks in combat: gain `gold` next turn (stacking). */
+  | { do: 'wardBreakGold'; gold: number }
+  /** The next `count` Aegis casts after the pick grant Resilient Ward instead of Ward. */
+  | { do: 'nextAegisResilient'; count: number }
+  /** Every `every` friendly Ward breaks in combat (a running count across combats): get a plain copy of one of the
+   *  minions whose Ward broke in that window. */
+  | { do: 'wardBreaksGetCopy'; every: number }
+  /** End of Turn: every friendly minion with Ward gains +a/+h, permanently. */
+  | { do: 'eotBuffWarded'; attack: number; health: number }
+  /** When a friendly minion with Ward gains stats, another random friendly minion with Ward gains +attack Attack.
+   *  That grant never re-triggers it. */
+  | { do: 'wardedGainBuffsWarded'; attack: number };
 
 export interface AncientPairing {
   /** The Ancient's text for this hero, as shown on the offer and the preview (the owner's words). */
   offerText: string;
   /** The RESOLVED hero-power text (owner ruling 5: "shows the combined power"). `{base}` = the base power's live
    *  text; `{recharge}` = Indy's live recharge Gold; `{gilds}` / `{gildA}` / `{gildH}` = the run's gild count and
-   *  the live Bonds total it grants right now. */
+   *  the live Bonds total it grants right now; `{aegis}` = Warden's live Aegis grant ("+5 Attack"); `{wardLeft}` =
+   *  Ward breaks still needed for Genesis' next copy. */
   powerText: string;
+  /** The resolved text once a one-shot pairing is used up (War's Resilient Aegis). Absent = `powerText` always. */
+  powerTextSpent?: string;
   effects: AncientEffect[];
 }
 
@@ -131,6 +168,48 @@ export const ANCIENT_PAIRINGS: Record<string, Partial<Record<AncientId, AncientP
       offerText: 'Masterwork also gives **+20/+20** for every **Gilded** minion this game. It can target **Gilded** minions.',
       powerText: 'Make a friendly minion **Gilded**, or pick a **Gilded** one. It gains **+{gildA}/+{gildH}** (+20/+20 for every **Gilded** minion this game: **{gilds}** so far). Recharges after you spend {recharge} Gold.',
       effects: [{ do: 'powerTargetsGilded' }, { do: 'powerBuffPerGild', attack: 20, health: 20 }],
+    },
+  },
+  // THE WARDEN (owner pairings 2026-09-26, quoted above each entry). Aegis = "Give a friendly minion Ward, then give
+  // your minions with Ward +5 Attack."
+  warden: {
+    death: {
+      // "Aegis destroys a friendly minion and gives its Attack and Ward to a friendly minion." The power is REPLACED
+      // (judgement call, flagged): the recipient gets the Attack + Ward, and no +5 Attack wave follows.
+      offerText: 'Aegis destroys a friendly minion and gives its Attack and **Ward** to another friendly minion.',
+      powerText: 'Destroy a friendly minion. Another friendly minion gains its Attack and **Ward**.',
+      effects: [{ do: 'aegisDestroyGivesAttackAndWard' }],
+    },
+    fortune: {
+      // "When a Ward breaks in combat, gain 2 gold next turn." Friendly Wards only; one payout per break.
+      offerText: 'When one of your **Wards** breaks in combat, gain **2 Gold** next turn.',
+      powerText: '{base} When one of your **Wards** breaks in combat, gain **2 Gold** next turn.',
+      effects: [{ do: 'wardBreakGold', gold: 2 }],
+    },
+    war: {
+      // "Your next Aegis grants Resilient Ward. It takes 2 hits to break." Exactly the NEXT Aegis (flagged).
+      offerText: 'Your next Aegis grants **Resilient Ward**. It takes 2 hits to break.',
+      powerText: 'Give a friendly minion **Resilient Ward**, then give your minions with **Ward** **{aegis}**. Only your next Aegis grants **Resilient Ward**.',
+      powerTextSpent: '{base}',
+      effects: [{ do: 'nextAegisResilient', count: 1 }],
+    },
+    genesis: {
+      // "When 3 Wards break in combat, get a copy of one of the Warded minions." A running count across combats.
+      offerText: 'When 3 of your **Wards** break in combat, get a copy of one of those minions.',
+      powerText: '{base} When 3 of your **Wards** break in combat, get a copy of one of those minions (**{wardLeft}** more to go).',
+      effects: [{ do: 'wardBreaksGetCopy', every: 3 }],
+    },
+    time: {
+      // "End of Turn: Give your Warded minions +5/+5." Permanent.
+      offerText: '**End of Turn:** give your minions with **Ward** **+5/+5**.',
+      powerText: '{base} **End of Turn:** give your minions with **Ward** **+5/+5**.',
+      effects: [{ do: 'eotBuffWarded', attack: 5, health: 5 }],
+    },
+    bonds: {
+      // "When a Warded minion gains stats, give another Warded minion +5 attack. this doesnt re-trigger itself".
+      offerText: 'When a minion with **Ward** gains stats, give another minion with **Ward** **+5 Attack**. This does not trigger itself.',
+      powerText: '{base} When a minion with **Ward** gains stats, give another minion with **Ward** **+5 Attack**. This does not trigger itself.',
+      effects: [{ do: 'wardedGainBuffsWarded', attack: 5 }],
     },
   },
 };
@@ -184,6 +263,15 @@ export interface AncientsState {
    *  Golden Touch, gilded Discovers and payouts, every other gild effect) and +1 per triple. Ticks from the run's
    *  start whichever Ancient is picked, so Bonds counts gilds made before it awakened. */
   gilds?: number;
+  /** WARDEN × WAR: Aegis casts still to grant Resilient Ward (set on the pick, spent by Aegis). */
+  resilientAegisLeft?: number;
+  /** WARDEN × GENESIS: friendly Ward breaks counted since the pick (carries across combats), and the cardIds of the
+   *  minions whose Ward broke in the CURRENT window (cleared each time a copy is paid). */
+  wardBreaks?: number;
+  wardWindow?: string[];
+  /** WARDEN × BONDS: board uids whose gain (or Bonds grant) the End-of-Turn pass already handled this action, so the
+   *  reducer's per-action diff does not handle them again. Transient: cleared by the diff. */
+  bondsHandled?: string[];
 }
 
 /** Turn Ancients on for a run (the Scene Builder's Set 3 flag). Pure: returns a new run. */
@@ -252,6 +340,8 @@ export function pickAncient(state: RunState, id: AncientId): boolean {
   a.picked = id;
   a.offer = undefined;
   a.pickSeq = (a.pickSeq ?? 0) + 1;
+  const res = effectOf(state, 'nextAegisResilient');
+  if (res) a.resilientAegisLeft = res.count;
   return true;
 }
 
@@ -275,8 +365,15 @@ export function ancientPowerText(state: RunState, base: string): string | undefi
   const p = activeAncientPairing(state);
   if (!p) return undefined;
   const per = effectOf(state, 'powerBuffPerGild');
-  const gilds = live(state)?.gilds ?? 0;
-  return p.powerText.replace('{base}', base).replace('{recharge}', String(INDY_GILD_RECHARGE_GOLD))
+  const a = live(state);
+  const gilds = a?.gilds ?? 0;
+  const spent = !!effectOf(state, 'nextAegisResilient') && (a?.resilientAegisLeft ?? 0) <= 0;
+  const text = spent && p.powerTextSpent ? p.powerTextSpent : p.powerText;
+  const g = aegisGrantOf(state);
+  const aegis = g.health > 0 ? `+${g.attack}/+${g.health}` : `+${g.attack} Attack`;
+  const copy = effectOf(state, 'wardBreaksGetCopy');
+  const wardLeft = copy ? copy.every - ((a?.wardWindow?.length ?? 0) % copy.every) : 0;
+  return text.replace('{base}', base).replace('{aegis}', aegis).replace('{wardLeft}', String(wardLeft)).replace('{recharge}', String(INDY_GILD_RECHARGE_GOLD))
     .replace('{gilds}', String(gilds)).replace('{gildA}', String((per?.attack ?? 0) * gilds)).replace('{gildH}', String((per?.health ?? 0) * gilds));
 }
 
@@ -340,5 +437,109 @@ export function ancientCombatMods(state: RunState): Partial<QuestCombatMods> {
   const war = effectOf(state, 'friendlyDeathBuffsGilded');
   if (war) out.ancientWar = { attack: war.attack, health: war.health, label: ANCIENTS.war.name };
   if (effectOf(state, 'socGildRightmost')) out.ancientTimeGild = { label: ANCIENTS.time.name };
+  const bonds = effectOf(state, 'wardedGainBuffsWarded');
+  if (bonds) out.ancientBonds = { attack: bonds.attack, label: ANCIENTS.bonds.name };
+  if (effectOf(state, 'wardBreakGold') || effectOf(state, 'wardBreaksGetCopy')) out.ancientTrackWardBreaks = true;
   return out;
+}
+
+// ── Warden (Aegis) hooks ─────────────────────────────────────────────────────────────────────────────────────
+/** DEATH: Aegis takes two targets (destroy, then the recipient). */
+export function ancientAegisTwoStep(state: RunState): boolean {
+  return !!effectOf(state, 'aegisDestroyGivesAttackAndWard');
+}
+
+/** DEATH: destroy `victim` (a real shop death: its Echo, the death watchers, a Rebirth / Rise return) and give
+ *  `recipient` the Attack it had (permanent) and Ward. A Resilient Ward on the victim travels as a Resilient Ward. */
+export function ancientAegisDestroyAndGive(state: RunState, victim: BoardCard, recipient: BoardCard): void {
+  const attack = victim.attack;
+  const resilient = victim.keywords.includes('RW');
+  destroyMinionInShop(makeContext(state), victim);
+  if (!state.board.includes(recipient)) return;
+  captureBuffFx(state, undefined, 'spell', () => {
+    if (attack > 0) addBuff(recipient, ANCIENTS.death.name, attack, 0);
+    if (!recipient.keywords.includes('DS')) recipient.keywords.push('DS');
+    if (resilient && !recipient.keywords.includes('RW')) recipient.keywords.push('RW');
+  });
+}
+
+/** WAR: does THIS Aegis grant Resilient Ward? Spends the charge when it does. */
+export function ancientAegisResilient(state: RunState): boolean {
+  const a = live(state);
+  if (!a || !effectOf(state, 'nextAegisResilient') || (a.resilientAegisLeft ?? 0) <= 0) return false;
+  a.resilientAegisLeft = (a.resilientAegisLeft ?? 0) - 1;
+  return true;
+}
+
+/** TIME: the End-of-Turn grant to every minion with Ward, when the pairing is live. */
+export function ancientEotWardBuff(state: RunState): { attack: number; health: number } | undefined {
+  const e = effectOf(state, 'eotBuffWarded');
+  return e ? { attack: e.attack, health: e.health } : undefined;
+}
+
+/** TIME: run the End-of-Turn grant (the `ancientTimeWard` recurring entry). `apply` wraps it (the recurring
+ *  runner's `step`, which captures the buff FX in the projection). */
+export function ancientRunEotWardBuff(state: RunState, apply: (run: () => void) => void): void {
+  const g = ancientEotWardBuff(state);
+  if (!g) return;
+  const warded = state.board.filter((c) => c.keywords.includes('DS'));
+  if (warded.length === 0) return;
+  apply(() => { for (const c of warded) addBuff(c, ANCIENTS.time.name, g.attack, g.health); });
+}
+
+/**
+ * BONDS, Shop half: every BOARD minion with Ward whose stats rose since `before` gives a random OTHER board minion
+ * with Ward +attack Attack. Gainers are resolved before any grant, and the grants are never re-diffed, so a Bonds
+ * grant cannot trigger Bonds (the owner's "this doesnt re-trigger itself"). With `mark` (the End-of-Turn pass) every
+ * uid it handled (gainers and recipients) is recorded, so the reducer's per-action diff skips them.
+ */
+export function ancientBondsReact(state: RunState, before: Map<string, { attack: number; health: number }>, mark = false): void {
+  const a = live(state);
+  const e = effectOf(state, 'wardedGainBuffsWarded');
+  if (!a || !e) return;
+  const handled = new Set(a.bondsHandled ?? []);
+  if (!mark) a.bondsHandled = undefined; // the per-action diff is the last reader
+  const warded = (c: BoardCard): boolean => c.keywords.includes('DS');
+  const gainers = state.board.filter((c) => {
+    if (!warded(c) || handled.has(c.uid)) return false;
+    const p = before.get(c.uid);
+    return !!p && (c.attack > p.attack || c.health > p.health);
+  });
+  if (gainers.length === 0) return;
+  const touched: string[] = [];
+  for (const g of gainers) {
+    const others = state.board.filter((c) => c !== g && warded(c));
+    if (others.length === 0) continue;
+    const rng = makeRng(state.rngCursor);
+    const pick = others[rng.int(others.length)]!;
+    state.rngCursor = rng.state();
+    captureBuffFx(state, g, 'minion', () => addBuff(pick, ANCIENTS.bonds.name, e.attack, 0));
+    touched.push(g.uid, pick.uid);
+  }
+  if (mark) a.bondsHandled = [...handled, ...touched];
+}
+
+/** FORTUNE / GENESIS: the fight is settled. Fortune banks Gold for next turn per friendly Ward break; Genesis counts
+ *  them (carrying across combats) and pays a plain copy of one of the window's minions every `every` breaks. */
+export function ancientAfterCombat(state: RunState, result: CombatResult): void {
+  const a = live(state);
+  if (!a) return;
+  const breaks = result.playerWardBreaks ?? [];
+  if (breaks.length === 0) return;
+  const gold = effectOf(state, 'wardBreakGold');
+  if (gold) state.bonusEmbersNextTurn = (state.bonusEmbersNextTurn ?? 0) + gold.gold * breaks.length;
+  const copy = effectOf(state, 'wardBreaksGetCopy');
+  if (!copy) return;
+  for (const cardId of breaks) {
+    a.wardBreaks = (a.wardBreaks ?? 0) + 1;
+    const window = (a.wardWindow ??= []);
+    window.push(cardId);
+    if (window.length < copy.every) continue;
+    const rng = makeRng(state.rngCursor);
+    const pickId = window[rng.int(window.length)]!;
+    state.rngCursor = rng.state();
+    a.wardWindow = [];
+    const def = CARD_INDEX[pickId];
+    if (def && !def.spell) grantMinionToHandOrBoard(state, def, false);
+  }
 }

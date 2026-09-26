@@ -34,6 +34,13 @@ export function breakShieldAura(rect: { cx: number; cy: number; w: number; h: nu
   sfx.shieldBreak();
 }
 
+/** A RESILIENT Ward took its first hit and dropped to a plain Ward (`wardDowngrade`). The visual is the card's own
+ *  one-shot crack (`WardGlass` in Card.tsx: the orange layer shatters off the shell as the frame drops `RW`); this
+ *  plays the Ward-break sound on the same beat the Ward break uses. */
+export function crackResilientWard(): void {
+  sfx.shieldBreak();
+}
+
 /** A unit reborn → the re-form glow + sound now. The DELAY is the auraReform cue's offset (scaled:false),
  *  scheduled by the runner (was the internal REBORN_SUMMON_DELAY setTimeout). */
 export function reformReborn(rect: { cx: number; cy: number; w: number; h: number } | null): void {

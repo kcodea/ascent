@@ -6,8 +6,8 @@ import { CARD_INDEX, poolFor } from '@game/content';
  * "ATTACKS IMMEDIATELY" CUTS THE LINE (owner bug 2026-09-26, oracle rule R-COMBAT-ATTACKNOW-01).
  *
  *   *"when the sunmane is summoned, it is supposed to attack immediately after being summoned, cutting in front
- *   of the order. a 'attacks immediately' mechanic cuts the line. this doesn't interrupt a flurry attack, but it
- *   does interrupt other attack orderings if something is summoned to attack immediately."*
+ *   of the order. a 'attacks immediately' mechanic cuts the line. [the Flurry half was REVERSED the same day: "a minion
+ *   summoned that attacks immediately SHOULD interrupt a flurry".] It does interrupt other attack orderings if something is summoned to attack immediately."*
  *
  * The bug: Rune of Living Echoes summons in `fillFreeSlots`, which ran AFTER the between-attacks flush of the
  * immediate-attack queue. The deferred Sunmane then sat queued until the NEXT attacker's wind-up flush — after
@@ -105,10 +105,10 @@ describe('Rune of Living Echoes — the Sunmane attacks the moment it lands', ()
   });
 });
 
-describe('Flurry is NOT interrupted by an immediate attacker', () => {
-  it('a Whelp spawned by swing 1 of a Flurry waits for swing 2 to resolve, then strikes before anyone else', () => {
+describe('an immediate attacker INTERRUPTS a Flurry (owner ruling 2026-09-26)', () => {
+  it('a Whelp spawned by swing 1 lands and strikes BETWEEN the swings, never inside the lunge of swing 2', () => {
     // The player's Flurry attacker opens (7 v 2), kills the Taunted Violet Whelp on swing 1; its Deathrattle
-    // queues an enemy 3/2 Whelp that attacks immediately. Swing 2 must land in full first.
+    // queues an enemy 3/2 Whelp that attacks immediately. It cuts in before swing 2 starts.
     const mine = [bag(1, 300, ['W']), ...Array.from({ length: 6 }, () => bag(1, 300))];
     const foes: BoardMinion[] = [
       { cardId: 'twilightwhelp', attack: 1, health: 1, keywords: ['T'] } as unknown as BoardMinion,
@@ -116,15 +116,17 @@ describe('Flurry is NOT interrupted by an immediate attacker', () => {
     ];
     const r = fight(mine, foes);
     const flurry = r.initial.player[0]!.uid;
+    const swing1 = r.events.findIndex((e) => e.type === 'attack' && e.attacker === flurry && e.swing === 0);
     const swing2 = r.events.findIndex((e) => e.type === 'attack' && e.attacker === flurry && e.swing === 1);
     expect(swing2, 'the Flurry never took its second swing').toBeGreaterThanOrEqual(0);
-    const swing2Hit = r.events.findIndex((e, k) => k > swing2 && e.type === 'dmg' && e.source === flurry);
     const [w] = summonsOf(r.events, 'whelpling');
     expect(w, 'no Whelp was summoned').toBeDefined();
-    // The regression this pins: the Whelp used to land in swing 2's wind-up, between its lunge and its hit.
-    expect(w!.i, 'the Whelp cut into the Flurry').toBeGreaterThan(swing2Hit);
-    // …and it still cuts the line: the next attack after it lands is its own, not the enemy's normal turn.
+    expect(w!.i, 'lands after swing 1').toBeGreaterThan(swing1);
+    expect(w!.i, 'lands BEFORE swing 2 starts (it interrupts the Flurry)').toBeLessThan(swing2);
+    // Its strike is the very next attack, and it resolves before swing 2's lunge.
     expect(nextAttackAfter(r.events, w!.i).ev?.attacker).toBe(w!.uid);
+    const whelpAttack = nextAttackAfter(r.events, w!.i).j;
+    expect(whelpAttack).toBeLessThan(swing2);
   });
 });
 

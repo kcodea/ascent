@@ -3,7 +3,7 @@ import { ANCIENTS, ancientOfferText, type Action, type AncientId, type RunState 
 import { EntranceOverlay, OfferSheen } from '../discoverEntrance/DiscoverDialog';
 import { OfferBanner } from '../discoverEntrance/OfferBanner';
 import { AncientCard } from './AncientCard';
-import { notePickSource, useRingSettledSeq } from './ancientsFx';
+import { notePickSource, useGateActive, useGateOpenSeq } from './ancientsFx';
 import { ancientColor, getAncientsConfig } from './ancientsConfig';
 import './ancients.css';
 
@@ -22,12 +22,15 @@ export const AncientOfferOverlay = memo(function AncientOfferOverlay({ held, run
 }) {
   const offer = run.ancients?.offer;
   const offerSeq = run.ancients?.offerSeq ?? 0;
-  const settled = useRingSettledSeq();
+  // The offer rises OUT OF THE GATE (`AncientGate`): it waits for the gate to open for this offer.
+  const settled = useGateOpenSeq();
+  const gated = useGateActive();
   // Safety net: a meter that never reports (not mounted, reduced motion skipped its flash) releases the offer.
   const [timedOut, setTimedOut] = useState(0);
   useEffect(() => {
     if (!offer?.length) return;
-    const id = window.setTimeout(() => setTimedOut(offerSeq), 4000 + getAncientsConfig().flashMs);
+    const c = getAncientsConfig();
+    const id = window.setTimeout(() => setTimedOut(offerSeq), 4000 + c.flashMs + c.gateChargeMs + c.gateOpenMs);
     return () => window.clearTimeout(id);
   }, [offer, offerSeq]);
   if (!offer?.length || held || run.phase !== 'recruit') return null;
@@ -37,7 +40,7 @@ export const AncientOfferOverlay = memo(function AncientOfferOverlay({ held, run
     dispatch({ type: 'pickAncient', id });
   };
   return (
-    <EntranceOverlay occasion={`ancient:${run.seed}:${offerSeq}`} openCue className="disc-look anc-offer" role="dialog" aria-label="An Ancient Awakens"
+    <EntranceOverlay occasion={`ancient:${run.seed}:${offerSeq}`} openCue className={`disc-look anc-offer${gated ? ' gated' : ''}`} role="dialog" aria-label="An Ancient Awakens"
       style={{ '--dcl-tint': String(getAncientsConfig().dim) } as CSSProperties}>
       {(entrance) => (
         <div className="disc-panel">

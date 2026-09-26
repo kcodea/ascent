@@ -32,6 +32,36 @@ export function useRingSettledSeq(): number {
   return useSyncExternalStore(subscribe, () => ringSettledSeq, () => ringSettledSeq);
 }
 
+/** THE GATE (see `AncientGate`): the offer rises once the gate has opened for offer #N; while any gate is up the
+ *  offer drops its own dim (the gate IS the backdrop); the tuner's ▶ Play gate. */
+let gateOpenSeq = 0;
+let gateActive = false;
+let gateDemo: { seq: number } | null = null;
+let gateDemoSeq = 0;
+export function markGateOpen(seq: number): void {
+  if (seq <= gateOpenSeq) return;
+  gateOpenSeq = seq;
+  emit();
+}
+export function useGateOpenSeq(): number {
+  return useSyncExternalStore(subscribe, () => gateOpenSeq, () => gateOpenSeq);
+}
+export function setGateActive(on: boolean): void {
+  if (gateActive === on) return;
+  gateActive = on;
+  emit();
+}
+export function useGateActive(): boolean {
+  return useSyncExternalStore(subscribe, () => gateActive, () => gateActive);
+}
+export function playGateDemo(): void {
+  gateDemo = { seq: ++gateDemoSeq };
+  emit();
+}
+export function useGateDemo(): { seq: number } | null {
+  return useSyncExternalStore(subscribe, () => gateDemo, () => gateDemo);
+}
+
 export function notePickSource(el: Element | null): void {
   const r = el?.getBoundingClientRect();
   pickSource = r && r.width > 0 ? { x: r.left + r.width / 2, y: r.top + r.height / 2, w: r.width } : null;

@@ -163,6 +163,8 @@ describe('DIRECT_CALL_SITES is a derivation, not a list', () => {
       // 'amplified-slot' joined on 2026-09-22: the owner-authored Amplified glow, a looping play on the Equipment slot
       // button from `useAmplifiedSlotFx.ts` while the selected Equipment will Amplify and has a charge to spend.
       'amplified-slot',
+      // 'ancient-gate-burst' joined on 2026-09-25: the Ancients gate, the burst from the hero power (`ancients/AncientGate.tsx`).
+      'ancient-gate-burst',
       'auctioneer-hp', 'choose-one-both', 'cia-hp', 'click-puff', 'coin', 'coins', 'consume-pull', 'damage-burst', 'death-dissolve',
       // 'dice-land' joined on 2026-09-17: the landing burst of the shared 3D die (`DiceRoll.tsx`), fired at the anchor.
       'dice-land',

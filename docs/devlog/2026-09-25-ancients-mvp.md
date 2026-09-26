@@ -110,3 +110,12 @@ Nothing loops: every motion is WAAPI transform/opacity or a one-shot transition.
   (opacity-only breathe) + rising embers (transform/opacity only) on the card, and a one-shot blue-and-white
   `rebirth-flame` burst + gap-gated flame cue when a minion rebirths in combat (`reborn { rebirth: true }` →
   `onReborn(uid, true)` → `reformRebirth`). 🔥 Rebirth tuner. The keyword box wears the same blues.
+- **The meter pill** reads "Ancients 7/16" and is the ONLY hover that opens the preview (the ring takes no pointer
+  events). The preview slides/fades in (180 ms) and, after an 80 ms grace, out (110 ms). The hero-power tip hides its
+  status chip when it would only say "ready".
+- **The gate** (`AncientGate`): after the full-ring ping, the hero power swells, bursts (`ancient-gate-burst` def +
+  a quick flash + boom cue) and an iris opens from it (a one-shot `clip-path: circle()` sized to the viewport's
+  farthest corner, with a glowing edge ring) into a tinted, semi-transparent backdrop; the offer rises out of it and
+  drops its own dim. On a pick the iris contracts back into the hero power while the triple trail lands. Click skips
+  the charge; reduced motion fades. Cue slots (clip id / gain / offset) and every timing in the ✦ Ancients tuner, plus
+  ▶ Play gate. It never plays under a curtain, in combat or over another decision overlay.

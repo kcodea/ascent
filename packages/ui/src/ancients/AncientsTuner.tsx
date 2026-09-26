@@ -3,7 +3,7 @@ import { TunerPanel } from '../TunerPanel';
 import type { TunerControl, TunerSpec, TunerUnit } from '../tunerSchema';
 import { useGame } from '../store';
 import { ANCIENTS_DEFAULTS, ANCIENTS_RANGES, getAncientsConfig, resetAncientsConfig, setAncientsValue, type AncientsFullConfig, type AncientsNumKey, ANCIENT_ART_IDS, ART_FIELDS } from './ancientsConfig';
-import { playAwakenDemo } from './ancientsFx';
+import { playAwakenDemo, playGateDemo } from './ancientsFx';
 
 /**
  * DEV ✦ ANCIENTS tuner (proof of concept 2026-09-25). The METER group is balance: moving it re-stamps the live
@@ -12,7 +12,7 @@ import { playAwakenDemo } from './ancientsFx';
  * without touching run state; the Scene Builder's "Fill meter" plays the real thing end to end.
  */
 type Key = keyof AncientsFullConfig;
-const ROWS: [Key, string, TunerUnit | undefined, string, string, ('color' | 'toggle')?][] = [
+const ROWS: [Key, string, TunerUnit | undefined, string, string, ('color' | 'toggle' | 'text')?][] = [
   ['cost', 'Points to fill', undefined, 'The meter fills up to this and then awakens. Re-stamps the live sandbox run.', 'Meter (balance)'],
   ['refresh', 'Points per refresh', undefined, 'Points one Shop refresh adds (paid or free).', 'Meter (balance)'],
   ['combat', 'Points per combat', undefined, 'Points one combat adds.', 'Meter (balance)'],
@@ -31,6 +31,21 @@ const ROWS: [Key, string, TunerUnit | undefined, string, string, ('color' | 'tog
   ['shineMs', 'Shine sweep', 'ms', 'The one-shot shine across the split button. 0 turns it off.', 'Timing'],
   ['tickGain', 'Fill tick', 'opacity', 'Volume of the tick when points are added. 0 mutes it.', 'Sound'],
   ['revealGain', 'Awaken + reveal', 'opacity', 'Volume of the full-ring flash and the split reveal cues. 0 mutes them.', 'Sound'],
+  ['gateChargeMs', 'Charge', 'ms', 'The hero power swells before it bursts.', 'Gate'],
+  ['gateChargeScale', 'Charge swell', '×', 'How far the hero power swells.', 'Gate'],
+  ['gateBurstScale', 'Burst size', '×', 'The size of the burst from the hero power.', 'Gate'],
+  ['gateFlash', 'Screen flash', 'opacity', 'The quick flash as it bursts. 0 turns it off.', 'Gate'],
+  ['gateOpenMs', 'Gate opens', 'ms', 'The iris opening from the hero power.', 'Gate'],
+  ['gateCloseMs', 'Gate closes', 'ms', 'The iris contracting back into the hero power on a pick.', 'Gate'],
+  ['gateGlow', 'Gate edge glow', 'opacity', 'The soft glowing ring on the gate’s edge.', 'Gate'],
+  ['gateDim', 'Gate dim', 'opacity', 'How dark it is inside the gate. The board stays faintly visible.', 'Gate'],
+  ['gateTint', 'Gate tint', 'opacity', 'The mystic violet and gold tint inside the gate.', 'Gate'],
+  ['gateBoomClip', 'Burst sound (clip)', undefined, 'The clip id for the burst. Swap in the owner’s SFX here.', 'Gate sound', 'text'],
+  ['gateBoomGain', 'Burst sound gain', 'opacity', 'Volume of the burst. 0 mutes it.', 'Gate sound'],
+  ['gateBoomOffset', 'Burst sound offset', 'ms', 'Delay after the burst.', 'Gate sound'],
+  ['gateShimmerClip', 'Open sound (clip)', undefined, 'The clip id for the gate-open shimmer.', 'Gate sound', 'text'],
+  ['gateShimmerGain', 'Open sound gain', 'opacity', 'Volume of the shimmer. 0 mutes it.', 'Gate sound'],
+  ['gateShimmerOffset', 'Open sound offset', 'ms', 'Delay after the burst.', 'Gate sound'],
   ['pvInMs', 'Preview in', 'ms', 'The preview card’s slide and fade in on hover.', 'Preview'],
   ['pvOutMs', 'Preview out', 'ms', 'The quick slide and fade out when the pointer leaves.', 'Preview'],
   ['pvGraceMs', 'Hover grace', 'ms', 'How long the pointer has to cross from the ring into the card before it starts leaving.', 'Preview'],
@@ -59,7 +74,7 @@ const ROWS: [Key, string, TunerUnit | undefined, string, string, ('color' | 'tog
 void ART_FIELDS;
 
 const controls: TunerControl<Key>[] = ROWS.map(([key, label, unit, hint, group, kind]) => {
-  if (kind === 'color') return { key, label, hint, group, kind, min: 0, max: 0, step: 0 };
+  if (kind === 'color' || kind === 'text') return { key, label, hint, group, kind, min: 0, max: 0, step: 0 };
   const [min, max, step] = ANCIENTS_RANGES[key as AncientsNumKey];
   return kind === 'toggle'
     ? { key, label, hint, group, kind, min, max, step, onValue: 1, offValue: 0 }
@@ -89,6 +104,11 @@ export const SPEC: TunerSpec<AncientsFullConfig> = {
   defaults: ANCIENTS_DEFAULTS,
   controls,
   actions: [
+    {
+      label: '▶ Play gate',
+      hint: 'Plays the gate opening from the hero power, holds it, and closes it again. Needs a Set 3 sandbox with Ancients on. Run state is untouched.',
+      run: () => playGateDemo(),
+    },
     {
       label: '▶ Awaken',
       hint: 'Plays the pick beat on the hero power: the triple trail flies an Ancient in and the button splits. Cycles the five. Run state is untouched.',

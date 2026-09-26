@@ -201,3 +201,22 @@ body:has(.anc-pv) .heropanel .herotip { opacity: 0 !important; transition-delay:
   text-shadow: 0 1px 1px rgba(0, 0, 0, 0.35);
 }
 .anc-pill-dot { width: calc(7 * var(--u)); height: calc(7 * var(--u)); border-radius: 50%; background: #fff; opacity: 0.9; flex: none; }
+
+/* ── THE GATE (`AncientGate`): the hero power bursts and an iris opens from it into the offer. Below the offer
+   (z 160), above the board and HUD. The backdrop is STATIC paint revealed by a one-shot clip-path (like the wipe's);
+   the edge ring moves by transform/opacity; the flash is opacity only. The offer drops its own dim while gated. ── */
+.anc-gate { position: fixed; inset: 0; z-index: 158; pointer-events: none; }
+.anc-gate-bg {
+  position: absolute; inset: 0;
+  background:
+    radial-gradient(circle at var(--gx) var(--gy), rgba(255, 222, 150, calc(var(--gate-tint) * 0.55)) 0, rgba(150, 110, 230, calc(var(--gate-tint) * 0.5)) calc(var(--gate-d) * 0.08), rgba(60, 40, 120, calc(var(--gate-tint) * 0.35)) calc(var(--gate-d) * 0.22), transparent calc(var(--gate-d) * 0.4)),
+    rgba(10, 9, 24, var(--gate-dim));
+}
+.anc-gate-ring {
+  position: absolute; left: var(--gx); top: var(--gy); width: var(--gate-d); height: var(--gate-d); border-radius: 50%;
+  transform: translate(-50%, -50%) scale(0.02); opacity: 0; will-change: transform, opacity;
+  border: 3px solid rgba(255, 236, 190, 0.9);
+  box-shadow: 0 0 24px 6px rgba(255, 210, 120, 0.55), inset 0 0 30px 6px rgba(190, 150, 255, 0.35);
+}
+.anc-gate-flash { position: absolute; inset: 0; opacity: 0; background: radial-gradient(circle at var(--gx) var(--gy), rgba(255, 246, 220, 0.9), rgba(255, 236, 200, 0.25) 45%, transparent 75%); }
+.discover-ov.disc-look.anc-offer.gated { background: transparent; }

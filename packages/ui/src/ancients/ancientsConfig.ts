@@ -55,6 +55,32 @@ export interface AncientsConfig {
   pvOutMs: number;
   /** Preview: the grace before it starts leaving, so the pointer can cross from the ring to the card (ms). */
   pvGraceMs: number;
+  /** Gate: the hero power's swell before it bursts (ms). */
+  gateChargeMs: number;
+  /** Gate: how far the hero power swells (×). */
+  gateChargeScale: number;
+  /** Gate: the burst FX size (×). */
+  gateBurstScale: number;
+  /** Gate: the quick screen flash at the burst (peak opacity). 0 = none. */
+  gateFlash: number;
+  /** Gate: the iris opening from the hero power (ms). */
+  gateOpenMs: number;
+  /** Gate: the iris contracting back into the hero power on a pick (ms). */
+  gateCloseMs: number;
+  /** Gate: the glowing ring on the iris edge (peak opacity). */
+  gateGlow: number;
+  /** Gate: how dark the backdrop inside the gate is (the board stays faintly visible). */
+  gateDim: number;
+  /** Gate: the mystic violet/gold tint inside the gate. */
+  gateTint: number;
+  /** Gate cue slots (owner SFX to come): the burst's boom (a sound clip id), its gain and offset. */
+  gateBoomClip: string;
+  gateBoomGain: number;
+  gateBoomOffset: number;
+  /** …and the gate-open shimmer. */
+  gateShimmerClip: string;
+  gateShimmerGain: number;
+  gateShimmerOffset: number;
   /** Crack: where the split runs, % of the button width from the left. */
   crackX: number;
   /** Crack: how far each zig swings either side of the line, % of the button width. */
@@ -103,6 +129,21 @@ export const ANCIENTS_DEFAULTS: AncientsFullConfig = {
   shineMs: 800,
   tickGain: 0.5,
   revealGain: 0.8,
+  gateChargeMs: 240,
+  gateChargeScale: 1.14,
+  gateBurstScale: 1,
+  gateFlash: 0.28,
+  gateOpenMs: 560,
+  gateCloseMs: 380,
+  gateGlow: 0.85,
+  gateDim: 0.55,
+  gateTint: 0.35,
+  gateBoomClip: 'turnexplosion',
+  gateBoomGain: 0.55,
+  gateBoomOffset: 0,
+  gateShimmerClip: 'equipmentsheen',
+  gateShimmerGain: 0.7,
+  gateShimmerOffset: 90,
   pvInMs: 180,
   pvOutMs: 110,
   pvGraceMs: 80,
@@ -135,6 +176,19 @@ export const ANCIENTS_RANGES: Record<NumKey, [number, number, number]> = {
   shineMs: [0, 2000, 10],
   tickGain: [0, 1, 0.01],
   revealGain: [0, 1, 0.01],
+  gateChargeMs: [0, 800, 10],
+  gateChargeScale: [1, 1.6, 0.01],
+  gateBurstScale: [0, 3, 0.05],
+  gateFlash: [0, 1, 0.01],
+  gateOpenMs: [100, 1600, 10],
+  gateCloseMs: [100, 1200, 10],
+  gateGlow: [0, 1, 0.01],
+  gateDim: [0, 0.95, 0.01],
+  gateTint: [0, 1, 0.01],
+  gateBoomGain: [0, 1, 0.01],
+  gateBoomOffset: [0, 800, 10],
+  gateShimmerGain: [0, 1, 0.01],
+  gateShimmerOffset: [0, 800, 10],
   pvInMs: [0, 600, 10],
   pvOutMs: [0, 400, 10],
   pvGraceMs: [0, 400, 10],

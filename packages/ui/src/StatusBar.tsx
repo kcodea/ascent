@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { createPortal } from 'react-dom';
 import { AncientMeter, AncientPill, AncientSplit } from './ancients/AncientMeter';
+import { AncientGate } from './ancients/AncientGate';
 import { ancientColor } from './ancients/ancientsConfig';
 import { renameTerms } from './terms';
 import { Card, mdBold } from './Card';
@@ -809,6 +810,7 @@ export function StatusBar() {
             {liveCost ? <span className="hpcost"><span className="costn">{liveCost}</span></span> : null}
             {/* ANCIENTS (proof of concept): the segmented meter ring + its points medallion / the awakened badge. */}
             {run.ancientsEnabled && <AncientMeter run={run} />}
+            {run.ancientsEnabled && <AncientGate run={run} />}
             {/* Keyed on its text so every change replays the compositor-only bump (the Avenge-tally feel).
                 While the Gambler's 3D die is in the air the slot waits; the held face takes it at the settle. */}
             {diceHeldShown

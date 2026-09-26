@@ -25,7 +25,8 @@ export function burstDeathAuras(uid: string, rect: { cx: number; cy: number; w: 
   if (card.classList.contains('reborncard')) {
     // Ancients × Lord of the Risen: a tinted Rise (War red, Death's regained blue) releases its spirit in its own colour.
     const tint: RiseTint | undefined = card.classList.contains('risetint-red') ? 'red' : card.classList.contains('risetint-blue') ? 'blue' : undefined;
-    pixiFx.shatterAt(rect.cx, rect.cy, rect.w, rect.h, 'reborn', tint);
+    if (tint) pixiFx.shatterAt(rect.cx, rect.cy, rect.w, rect.h, 'reborn', tint);
+    else pixiFx.shatterAt(rect.cx, rect.cy, rect.w, rect.h, 'reborn');
     sfx.rebornShatter();
   }
   // A REBIRTH body burns away in blue flame, embers hovering in its slot until it returns (owner 2026-09-26).
@@ -55,7 +56,8 @@ export function crackResilientWard(rect: { cx: number; cy: number; w: number; h:
 /** A unit reborn → the re-form glow + sound now. The DELAY is the auraReform cue's offset (scaled:false),
  *  scheduled by the runner (was the internal REBORN_SUMMON_DELAY setTimeout). */
 export function reformReborn(rect: { cx: number; cy: number; w: number; h: number } | null, tint?: RiseTint): void {
-  if (rect) pixiFx.rebornSummon(rect.cx, rect.cy, rect.w, rect.h, tint); // `tint`: the Risen Ancients' red / blue Rise
+  // `tint`: the Risen Ancients' red / blue Rise (passed only when set, so the plain Rise call is unchanged).
+  if (rect) { if (tint) pixiFx.rebornSummon(rect.cx, rect.cy, rect.w, rect.h, tint); else pixiFx.rebornSummon(rect.cx, rect.cy, rect.w, rect.h); }
   sfx.rebornSummon();
 }
 

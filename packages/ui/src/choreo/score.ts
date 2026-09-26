@@ -543,7 +543,7 @@ export function runMomentCues(moment: Moment, ctx: CueContext): () => void {
       if (uids.length) ctx.onExecuteFx(uids);
     });
     else if (cue.ch === 'auraReform') at(cue, () => {  // Rise: the aqua re-form glow (a Rebirth plays on `rebirthFx`)
-      for (let i = moment.start; i < moment.end; i++) { const e = ctx.events[i]; if (e?.type === 'reborn' && !e.rebirth) ctx.onReborn(e.target, false, e.tint); }
+      for (let i = moment.start; i < moment.end; i++) { const e = ctx.events[i]; if (e?.type === 'reborn' && !e.rebirth) { if (e.tint) ctx.onReborn(e.target, false, e.tint); else ctx.onReborn(e.target, false); } }
     });
     else if (cue.ch === 'rebirthFx') at(cue, () => {  // Rebirth: the phoenix burst, once per rebirth event
       for (let i = moment.start; i < moment.end; i++) { const e = ctx.events[i]; if (e?.type === 'reborn' && e.rebirth) ctx.onReborn(e.target, true); }

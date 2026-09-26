@@ -90,13 +90,15 @@ export interface CombatPreviewFold {
   friendlyDeaths: number;
   /** Player `bladeMastery` quest triggers so far — one per buffed attack, Gorun's live grant + countdown. */
   bladeAttacks: number;
+  /** Squirl Scout's run-wide snowball grown so far this fight (the player's `improve` events carrying `scout`). */
+  scout: number;
 }
 
 const ESCALATION_RE = /improves \+(\d+)\/\+(\d+)$/;
 
 /** Fold the four display-only preview counters over `events[0, upto)`. Pure; one pass. */
 export function combatPreviewFold(events: readonly CombatEvent[], upto: number): CombatPreviewFold {
-  let escA = 0, escH = 0, spellsCast = 0, friendlyDeaths = 0, bladeAttacks = 0;
+  let escA = 0, escH = 0, spellsCast = 0, friendlyDeaths = 0, bladeAttacks = 0, scout = 0;
   const n = Math.min(upto, events.length);
   for (let i = 0; i < n; i++) {
     const e = events[i];
@@ -106,12 +108,13 @@ export function combatPreviewFold(events: readonly CombatEvent[], upto: number):
     if (e.type === 'spellcast') { if (e.side === 'player') spellsCast++; }
     else if (e.type === 'death') { if (e.side === 'player' && !e.rise) friendlyDeaths++; }
     else if (e.type === 'questTrigger') { if (e.side === 'player' && e.flag === 'bladeMastery') bladeAttacks++; }
+    else if (e.type === 'improve') { if (e.scout) scout += e.scout; } // only the player's Squirl Scout stamps `scout`
     else if (e.type === 'sc' && e.side === 'player') {
       const m = ESCALATION_RE.exec(e.text);
       if (m) { escA += Number(m[1]); escH += Number(m[2]); }
     }
   }
-  return { escalation: { attack: escA, health: escH }, spellsCast, friendlyDeaths, bladeAttacks };
+  return { escalation: { attack: escA, health: escH }, spellsCast, friendlyDeaths, bladeAttacks, scout };
 }
 
 /** Read a card def's first effect of a given `do` id and pull a numeric param (for live magnitudes). */

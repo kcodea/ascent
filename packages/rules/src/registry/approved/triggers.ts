@@ -667,8 +667,8 @@ export const TRIGGERS_RULES: GameRule[] = [
       + 'exceptions are Shouts whose TARGET only exists in the Shop (SHOP_ONLY_SHOUTS: the Starform, a Shop meal, a Shop '
       + 'slot, Orbit, a Consume, the Choose One latch): they still fire live (their line, every Shout counter and watcher) '
       + 'and only their Shop part is applied when the Shop exists again, exactly once, acting as the Shout’s own run card. '
-      + 'A targeted Shout re-fired without a target (Gravetwin, Auric Runemaster, Graverobber) finds none and does nothing, '
-      + 'in combat exactly as in the Shop.',
+      + 'A targeted Shout re-fired without an aim (Gravetwin, Auric Runemaster, Graverobber) picks a random legal target, '
+      + 'in combat exactly as in the Shop (R-TARGET-06).',
     domain: 'triggers',
     status: 'approved',
     evidence: [
@@ -702,5 +702,47 @@ export const TRIGGERS_RULES: GameRule[] = [
       + 'destroyed by the immediate path (`destroyMinionInShop`) Rose without its watchers hearing it. Bonds had its own '
       + 'hook inside `riseReturn` as a workaround; it now rides `fireOnRise` like every other watcher.',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/shopRiseWatchers.test.ts'], lastVerifiedAt: '2026-09-26' },
+  },
+  {
+    id: 'R-REALTIME-04',
+    title: 'A Shout re-fired in combat gives combat-only board stats, like every other combat buff',
+    statement:
+      'When a Shout fires during combat (Dawnclaw / Ryme, a Rally re-fire, an Ancient of Time, Parting Cry, Shared '
+      + 'Scripture), the stats it gives to minions on the board are COMBAT gains: they last for that fight and are gone '
+      + 'when the Shop opens, exactly like every other combat buff. They are never turned into a permanent Shop buff '
+      + 'after the fight. This holds for Squirl Scout, Limelight and Baby Gastrid, and for an Auric Runemaster Gild '
+      + 'made in combat. Only a card whose text says the gain is permanent keeps it (a hand buff, R-HAND-02; a '
+      + '"permanently" text). Run-wide values the Shout improves (Squirl Scout\u2019s snowball) still carry back once '
+      + '(R-REALTIME-03).',
+    domain: 'triggers',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-26 (#1755 question 1: "when Squirl Scout, Limelight or Baby Gastrid fire in combat, their board buff now lasts for that fight only")', quote: 'this is correct now, good catch' },
+      { kind: 'code', ref: 'packages/core/src/effects/factories.ts battlecryScoutSpread / battlecryBuffRandomTribePlusReveler / battlecryBuffTargetPerGoldSpent / battlecryGildTarget (ctx.buff on the combat body; nothing carried to the run card)' },
+    ],
+    contentIds: ['squirlscout', 'sp3_luminary', 'dw_dorrin', 'dw_runemaster'],
+    currentBehaviour:
+      'Conforms since #1755 (2026-09-26). Before it, these three Shouts were deferred to settle and replayed in the '
+      + 'Shop, which quietly made their combat buff permanent. The owner confirmed the combat-only reading.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/combatShoutsRealtime.test.ts', 'packages/sim/src/shoutRefireTargets.test.ts'], lastVerifiedAt: '2026-09-26' },
+  },
+  {
+    id: 'R-REALTIME-05',
+    title: 'Consume is a Shop action: a Consume Shout fired in combat feeds when the Shop opens',
+    statement:
+      'Consume happens only in the Shop. A Shout whose effect is a Consume (Herald of the Apocalypse: "all of your '
+      + 'Demons Consume a Fodder"; Appetite Agent; Cinder Clerk; The Great Attractor) that fires during combat still '
+      + 'fires live (its line, every Shout counter and watcher) but consumes nothing mid-fight: its Consume is applied '
+      + 'once when the Shop opens, acting as the Shout\u2019s own run card, where the Consume watchers hear it '
+      + '(SHOP_ONLY_SHOUTS, R-REALTIME-03). There is no combat Consume and no temporary combat version of the gain.',
+    domain: 'triggers',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-26 (#1755 question 3: "Herald of the Apocalypse stays Shop-only")', quote: 'yes, consume does nothing in combat' },
+      { kind: 'code', ref: 'packages/core/src/effects/factories.ts SHOP_ONLY_SHOUTS (battlecryAllDemonsConsume, battlecryTargetConsumesShop, battlecryConsumeShopRandom, battlecryStarformConsumeShop)' },
+    ],
+    contentIds: ['heraldapoc', 'dm_agent'],
+    currentBehaviour: 'Conforms (the #1755 SHOP_ONLY_SHOUTS list). No behaviour change: the owner confirmed it.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/combatShoutsRealtime.test.ts'], lastVerifiedAt: '2026-09-26' },
   },
 ];

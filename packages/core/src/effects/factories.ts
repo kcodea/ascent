@@ -1,4 +1,4 @@
-import type { BounceProvenance, CardDef, CombatContext, EffectFactoryId, Keyword, Minion, Side, Tribe } from '../types';
+import type { BounceProvenance, CardDef, CombatContext, EffectDef, EffectFactoryId, Keyword, Minion, Side, Tribe } from '../types';
 import { defIsTribe } from '../combat/tribe';
 import { ARENA_EFFECTS, type ArenaBody, type EffectArena } from './arena';
 import { ALE_IDS, extraTriggerFires } from '../types';
@@ -1655,6 +1655,9 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
   battlecryScoutSpread: (ctx, self, params) => {
     const step = num(params.step, 3) * mul(self) * ctx.improveRepsFor(self.side);
     ctx.grantScoutBuff(step, self.side);
+    // The improve, logged on the beat (R-TEXT-11): `scout` (player side only) is what the replay folds into
+    // Squirl Scout's printed grant, so every Squirl Scout's text moves the moment the value grows.
+    if (step !== 0) ctx.log({ type: 'improve', target: self.uid, amount: 0, display: step, ...(self.side === 'player' ? { scout: step } : {}) });
     const amount = ctx.scoutBuffFor(self.side);
     const arena = combatArena(ctx, self);
     const beasts = ctx.living(self.side).filter((m) => arena.isTribe(m, 'beast')).length;
@@ -1719,13 +1722,53 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     if (self.side === 'player') ctx.log({ type: 'sc', source: self.uid, text: `+${a}/+${h} next Shop${ticks > 1 ? ` (x${ticks})` : ''}` });
   },
 
-  /** Gravetwin / Auric Runemaster / Graverobber: the TARGETED Shouts that name their target at PLAY. A re-fire
-   *  carries no target in either phase (the Shop's `replayBattlecry` passes none, and each Shop body returns on a
-   *  missing target), so a combat re-fire resolves the same way the Shop one does, at the moment it fires: it
-   *  finds no target and does nothing. Registered so the Shout is never deferred and replayed later. */
-  battlecryCopyEcho: () => {},
-  battlecryGildTarget: () => {},
-  battlecryDestroyForSpell: () => {},
+  // ── The three TARGETED Shouts that name their target at PLAY (owner ruling 2026-09-26, R-TARGET-06: "yes they
+  // should pick a random target"). A combat re-fire has no aim, so each picks a RANDOM legal other friendly off
+  // `ctx.rng` (the Baby Gastrid re-fire draw above), resolving on the beat (R-REALTIME-03). Never itself
+  // (R-TARGET-03); nothing legal → nothing happens. The Shop halves pick the same pools off the run cursor.
+
+  /** Gravetwin (Shout): copy a random other friendly ECHO minion's Deathrattle onto this body. Grafted LIVE, so it
+   *  fires if Gravetwin dies this fight, and the copy is carried back to the run card ONCE (the Shop body's
+   *  `copiedEcho`, replacing any earlier copy) so "if Gravetwin survives combat, trigger it at the start of your
+   *  next shop" holds for a combat re-fire too. */
+  battlecryCopyEcho: (ctx, self) => {
+    if (self.dead) return;
+    const pool = otherFriends(ctx, self, (m) => (ctx.getCard(m.cardId)?.effects ?? []).some((e) => e.on === 'onDeath'));
+    if (pool.length === 0) return;
+    const target = ctx.rng.pick(pool);
+    const def = ctx.getCard(target.cardId)!;
+    const copy = (): EffectDef[] => def.effects.filter((e) => e.on === 'onDeath').map((e) => ({ ...e, ...(e.params ? { params: { ...e.params } } : {}) }));
+    ctx.grantDeathrattle(self, copy());
+    ctx.grantCopiedEcho?.(self, copy(), def.name);
+    if (self.side === 'player') ctx.log({ type: 'sc', source: self.uid, text: `${self.name} copies ${def.name}'s Echo` });
+  },
+
+  /** Auric Runemaster (Shout): Gild a random other friendly that is not already Gilded, for THIS fight (the
+   *  Ancient of Time combat gild: golden flag + its printed stats again, the run card untouched). A combat gain,
+   *  like every other combat Shout's stats (R-REALTIME-04). */
+  battlecryGildTarget: (ctx, self) => {
+    const pool = otherFriends(ctx, self, (m) => !m.golden);
+    if (pool.length === 0) return;
+    const target = ctx.rng.pick(pool);
+    const def = ctx.getCard(target.cardId);
+    target.golden = true;
+    ctx.log({ type: 'ascend', target: target.uid, into: target.cardId, gild: true });
+    if (def && (def.attack > 0 || def.health > 0)) ctx.buff(target, def.attack, def.health, self.uid);
+  },
+
+  /** Graverobber (Shout): destroy a random other friendly (its Echo fires as the death resolves), then get
+   *  `gold(self)` random Shop spells of its tier to hand NOW (a live `toHand` that wakes the hand reactors). The
+   *  spell first, then the death: the Shop body's order. */
+  battlecryDestroyForSpell: (ctx, self) => {
+    const pool = otherFriends(ctx, self);
+    if (pool.length === 0) return;
+    const target = ctx.rng.pick(pool);
+    const tier = ctx.getCard(target.cardId)?.tier ?? 1;
+    const spellTribes = new Set<string>(['neutral', ...ctx.activeTribesFor(self.side)]); // the Shop's `runSpells` filter
+    const spells = ctx.poolCards(self.side).filter((c) => c.spell && !c.token && c.tier === tier && spellTribes.has(c.tribe));
+    for (let i = 0; i < mul(self) && spells.length > 0; i++) ctx.grantToHand(ctx.rng.pick(spells).id, self.side, self.uid);
+    ctx.damage(target, target.health + 999, false, true); // a destroy: bypasses Ward
+  },
 
   /** Hearth Whisperer: whenever THIS takes damage, a random minion in your hand +atk/+hp — permanent (R-HAND-02). */
   onDamagedBuffRandomHand: (ctx, self, params, payload) => {

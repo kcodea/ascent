@@ -287,6 +287,28 @@ export const TEXT_RULES: GameRule[] = [
     },
   },
   {
+    id: 'R-TEXT-11',
+    title: 'Squirl Scout prints its current grant in combat, moving as it grows mid-fight',
+    statement:
+      'Squirl Scout\u2019s printed grant is the run-wide value it would give right now. When a Squirl Scout Shout fires '
+      + 'in combat and improves that value, every Squirl Scout\u2019s text (on the combat board, and on the board and in '
+      + 'hand) shows the new number on that beat, not the number the fight started with. The live number is exactly '
+      + 'what settle banks. Scrubbing, skipping or resuming a saved fight lands on the same number (it is a fold of '
+      + 'the fight log, never a per-beat bump).',
+    domain: 'text',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-26 (#1755 known gap: Squirl Scout\u2019s printed number in combat still showed the start-of-fight value)', quote: 'write these into the oracle after fixing' },
+      { kind: 'code', ref: 'packages/core/src/effects/factories.ts battlecryScoutSpread (improve event with `scout`); packages/ui/src/runBuffs.ts combatPreviewFold.scout; packages/sim/src/recruit.ts squirlScoutBuffLive; packages/ui/src/Unit.tsx + Recruit.tsx' },
+    ],
+    cardText: '**Battlecry:** Give a friendly minion **+1/+1**. Repeat for every Beast you own. Every Squirl Scout played improves this by **+1/+1**.',
+    contentIds: ['squirlscout'],
+    currentBehaviour:
+      'Conforms, FIXED 2026-09-26: the combat text read the frozen run value, so after #1755 made the Shout grow the '
+      + 'value mid-fight the printed number lagged until settle.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/squirlScoutLiveText.test.ts'], lastVerifiedAt: '2026-09-26' },
+  },
+  {
     id: 'R-MEDAL-01',
     title: 'A minion with a Sell effect shows the Sell medallion',
     statement:

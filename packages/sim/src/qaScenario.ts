@@ -223,7 +223,7 @@ const MODES = new Set<QaScenarioMode>(['recruit', 'combat', 'lobby']);
  *  action to the union without listing it here is a TYPE error, not a silently-permissive validator. */
 const ACTION_TYPES: Record<Action['type'], true> = {
   combatEscalationPreview: true, combatSpellPowerPreview: true, combatSpellCastPreview: true, combatFriendlyDeathPreview: true,
-  combatBladeAttackPreview: true, buy: true, buyHenchman: true, play: true, sell: true, roll: true,
+  combatBladeAttackPreview: true, combatScoutPreview: true, buy: true, buyHenchman: true, play: true, sell: true, roll: true,
   freeze: true, upgrade: true, reposition: true, reorderShop: true, reorderHand: true, heroPower: true,
   pickPower: true, discover: true, buyQuest: true, buyRune: true, skipRuneforge: true, rerollRuneforge: true,
   resolveShopDeath: true, selectEquipment: true, activateEquipment: true, discountWindowExpired: true,

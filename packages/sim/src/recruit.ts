@@ -1462,6 +1462,17 @@ export function othersOnBoard(state: RunState, self: { uid: string }, pred?: (c:
   return state.board.filter((c) => c.uid !== self.uid && (!pred || pred(c)));
 }
 
+/** A targeted Shout RE-FIRED without an aim (Resonance, Myra, Echoing Roar, an End-of-Turn replay) picks its target
+ *  at random from `pool`: one draw off the shared rng cursor, the draw Baby Gastrid and Appetite Agent use
+ *  (R-TARGET-06, owner 2026-09-26). An empty pool draws nothing and returns undefined (the Shout does nothing). */
+export function refireTarget(state: RunState, pool: BoardCard[]): BoardCard | undefined {
+  if (pool.length === 0) return undefined;
+  const rng = makeRng(state.rngCursor);
+  const pick = pool[rng.int(pool.length)]!;
+  state.rngCursor = rng.state();
+  return pick;
+}
+
 export function buffCardTypeRunWide(state: RunState, cardId: string, a: number, h: number, source: string): void {
   state.cardBuffs ??= {};
   const cur = (state.cardBuffs[cardId] ??= { attack: 0, health: 0 });
@@ -4749,8 +4760,13 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
 
   /** Auric Runemaster (Shout, targeted): Gild a friendly minion. Reuses the spell path's gild so a Shout-gild
    *  and a spell-gild are the same operation — one place for triple/golden bookkeeping. */
-  battlecryGildTarget: (ctx, _self, _params, payload) => {
-    const target = (payload as { target?: BoardCard } | undefined)?.target;
+  battlecryGildTarget: (ctx, self, _params, payload) => {
+    // A RE-FIRE (Resonance / Myra / Echoing Roar / an End-of-Turn replay) carries no target: pick a RANDOM other
+    // friendly that is not already Gilded (owner ruling 2026-09-26, R-TARGET-06: "yes they should pick a random
+    // target"). Same draw as Baby Gastrid's un-aimed re-fire, one pick off the shared rng cursor; never itself
+    // (R-TARGET-03); nothing eligible → nothing happens.
+    const target = (payload as { target?: BoardCard } | undefined)?.target
+      ?? refireTarget(ctx.state, othersOnBoard(ctx.state, self, (c) => !c.golden));
     if (!target || target.golden) return;
     // Same gild the spell path uses, so triple/golden bookkeeping lives in one place.
     gildMinion(target, ctx.state);
@@ -7118,7 +7134,14 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
    *  shop), then add `gold(self)` random Tavern spell(s) of the destroyed minion's tier to your hand (golden
    *  → 2). No spell exists at that tier → none is added. */
   battlecryDestroyForSpell: (ctx, self, params, payload) => {
-    const target = payload.target;
+    // A RE-FIRE carries no target: destroy a RANDOM other friendly instead (owner ruling 2026-09-26, R-TARGET-06).
+    // A body already marked dying is not a candidate. The re-fired death resolves IMMEDIATELY
+    // (`destroyMinionInShop`, its Echo / Rise / Rise watchers included, R-RISE-SHOP-01) rather than through the
+    // two-step `pendingDeath`: a re-fire can land twice in one action (Drakko, the Auctioneer's two edges) or at
+    // End of Turn right before the fight, and a second mark would overwrite the first or reach combat unsettled.
+    const refired = !payload.target;
+    const target = payload.target
+      ?? refireTarget(ctx.state, othersOnBoard(ctx.state, self, (c) => c.uid !== ctx.state.pendingDeath?.uid));
     if (!target) return;
     const tier = CARD_INDEX[target.cardId]?.tier ?? 1;
     // TWO STEPS, like Funeral on Loan (owner 2026-08-28: "graverobber is still janky - can you add the same
@@ -7130,19 +7153,22 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     // ORDERING NOTE: the spell below now arrives BEFORE the Echo rather than after it. Graverobber's spell is
     // its SHOUT's payoff and belongs to the play; the death is what moved. The one visible consequence is a
     // full hand — a spell taking the last slot can crowd out a card the Echo would have granted.
-    ctx.state.pendingDeath = { uid: target.uid, kind: 'destroy' };
+    if (!refired) ctx.state.pendingDeath = { uid: target.uid, kind: 'destroy' };
     const pool = runSpells(ctx.state).filter((c) => c.tier === tier);
-    if (pool.length === 0) return;
-    const rng = makeRng(ctx.state.rngCursor);
-    for (let i = 0; i < gold(self) && ctx.state.hand.length < handCap(ctx.state); i++) {
-      const spell = pool[rng.int(pool.length)]!;
-      ctx.state.hand.push({
-        uid: `b${ctx.state.uidSeq++}`,
-        cardId: spell.id, tribe: spell.tribe, attack: spell.attack, health: spell.health,
-        keywords: [...spell.keywords], golden: false,
-      });
+    if (pool.length > 0) {
+      const rng = makeRng(ctx.state.rngCursor);
+      for (let i = 0; i < gold(self) && ctx.state.hand.length < handCap(ctx.state); i++) {
+        const spell = pool[rng.int(pool.length)]!;
+        ctx.state.hand.push({
+          uid: `b${ctx.state.uidSeq++}`,
+          cardId: spell.id, tribe: spell.tribe, attack: spell.attack, health: spell.health,
+          keywords: [...spell.keywords], golden: false,
+        });
+      }
+      ctx.state.rngCursor = rng.state();
     }
-    ctx.state.rngCursor = rng.state();
+    // The spell first, then the death — the aimed play's order (its spell is the Shout's payoff).
+    if (refired) destroyMinionInShop(ctx, target);
   },
 
   /** Ossuary Rite (cast, targeted) — trigger the chosen friendly minion's Echo out of combat, WITHOUT destroying
@@ -7155,8 +7181,11 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   /** Gravetwin (Battlecry, targeted) — copy the targeted friendly minion's Deathrattle (its onDeath EffectDefs)
    *  onto Gravetwin. Stored per-instance; fired at the start of the next shop if Gravetwin survives combat
    *  (see fireGravetwinEchoes). No-ops if the target has no Echo. */
-  battlecryCopyEcho: (_ctx, self, _params, payload) => {
-    const target = payload.target;
+  battlecryCopyEcho: (ctx, self, _params, payload) => {
+    // A RE-FIRE carries no target: copy a RANDOM other friendly ECHO minion (owner ruling 2026-09-26, R-TARGET-06).
+    // Only a body whose card has an Echo is a candidate: the text copies "a friendly Echo minion's" Deathrattle.
+    const target = payload.target
+      ?? refireTarget(ctx.state, othersOnBoard(ctx.state, self, (c) => (CARD_INDEX[c.cardId]?.effects ?? []).some((e) => e.on === 'onDeath')));
     if (!target) return;
     const def = CARD_INDEX[target.cardId];
     const drs = (def?.effects ?? []).filter((e) => e.on === 'onDeath');
@@ -9990,6 +10019,11 @@ export function spellAttackBonusLive(state: RunState): number {
 /** `spellHealthBonus` plus the combat replay's display-only spell-power preview. Display only. */
 export function spellHealthBonusLive(state: RunState): number {
   return spellHealthBonus(state) + (state.fxSpellPowerPreview?.health ?? 0);
+}
+
+/** Squirl Scout's run-wide snowball plus the combat replay's display-only growth (R-TEXT-11). Display only. */
+export function squirlScoutBuffLive(state: RunState): number {
+  return (state.squirlScoutBuff ?? 0) + (state.fxScoutPreview ?? 0);
 }
 
 /** The run's escalating-spell step (Front to Back) plus the replay's display-only preview. Display only. */

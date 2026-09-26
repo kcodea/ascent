@@ -2724,7 +2724,7 @@ export type CombatEvent = (
   // `spell-bounce` ribbon from `bounce.from` to `target`. Only stamped for CROSS-target hops (a same-target
   // recast — Mirrorwing, Resonance's extra Ruby — carries none; owner ruling 2026-09-15). Never read by the sim.
   | { type: 'buff'; target: string; attack: number; health: number; source: string; ruby?: true; spellId?: string; bounce?: BounceProvenance } // `spellId` = the spell whose cast produced this buff, when one did. Same purpose as the field on `sc`: a buff WAVE is its own presentation moment (the tendril channel lives there), so without this the wave is attributed to the BODY that cast — and an authored spell effect could not replace the stock tendril for the spell that caused it (owner report 2026-09-01: Dragonflame's casters "are triggering tendrils instead").
-  | { type: 'improve'; target: string; amount: number; display?: number } // an Improve accrual ticked: `amount` = the accrual-field delta (what the replay folds into `summonBonus`); `display` = the magnitude to NARRATE when it differs (Mammoth: amount 1 proc, display +3)
+  | { type: 'improve'; target: string; amount: number; display?: number; scout?: number } // an Improve accrual ticked: `amount` = the accrual-field delta (what the replay folds into `summonBonus`); `display` = the magnitude to NARRATE when it differs (Mammoth: amount 1 proc, display +3)
   | { type: 'shout'; source: string; target: string } // a combat Shout RE-FIRE — one per FIRE, so Drakko's repeats are countable at the signal: `source` = the re-triggering unit (Dawnclaw / Ryme / Thunderous Sovereign / Chorus Drake / Embercrest…), `target` = the Shout's owner. Mirrors `rally` (2026-09-01: three Drakko-repeated fires read as one on screen because they were narration).
   | { type: 'rally'; source: string; target: string } // Deathsayer's Rally fires `target`'s Deathrattle
   | { type: 'maxGold'; target: string; side: Side; amount: number } // Soulsman's Avenge raises your max Gold
@@ -3331,6 +3331,9 @@ export interface ShoutCarry {
   runShopBuffs?: { source: string; cardId?: string; attack: number; health: number }[];
   /** Crypt Broker: indices into `handGrants` whose arrived card's Echo fires out of combat at settle. */
   handEchoes?: number[];
+  /** Gravetwin (R-TARGET-06): a combat re-fire copied a random friendly Echo. Keyed by the body's run card
+   *  (`sourceUid`); settle sets that card's `copiedEcho` (the last copy wins, as in the Shop). */
+  copiedEchoes?: { uid: string; effects: EffectDef[]; name?: string }[];
 }
 
 export interface CombatContext {
@@ -3560,6 +3563,9 @@ export interface CombatContext {
   /** A card to hand NOW (a live `toHand` + the hand-grant reactors, exactly `grantToHand`) whose ECHO then fires
    *  out of combat on the arrived card at settle (Crypt Broker). */
   grantToHandThenEcho(cardId: string, side: Side, sourceUid?: string): void;
+  /** Gravetwin (R-TARGET-06): record a copied Echo on `minion`'s run card, carried back once at settle
+   *  (`ShoutCarry.copiedEchoes`). A body with no run card (a token, an enemy snapshot) carries nothing. */
+  grantCopiedEcho?(minion: Minion, effects: EffectDef[], name?: string): void;
   /** The side's shared Reveler value (max 1, run value) — Limelight's combat half. */
   revelerValueFor(side: Side): number;
   /** Gold spent in the Shop turn that just ended (Baby Gastrid). */

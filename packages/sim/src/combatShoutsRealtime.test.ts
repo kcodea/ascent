@@ -9,6 +9,11 @@
  * Shop after the fight. Now every onPlay id either has a combat factory (it resolves on the beat) or sits on the
  * explicit, reasoned `SHOP_ONLY_SHOUTS` list (its target is the Shop row / the Starform / Orbit / a Consume): it
  * still fires live (its line, every Shout counter) and only its Shop part is applied at settle, once.
+ *
+ * Owner rulings 2026-09-26 on the #1755 questions: a combat Shout's board stats are combat gains (R-REALTIME-04,
+ * Squirl Scout / Limelight / Baby Gastrid below); Consume stays a Shop action (R-REALTIME-05, Herald below); the
+ * three targeted Shouts (Gravetwin, Auric Runemaster, Graverobber) now pick a RANDOM legal target on a re-fire in
+ * both phases (R-TARGET-06, shoutRefireTargets.test.ts).
  */
 import { describe, expect, it } from 'vitest';
 import { CARD_INDEX } from '@game/content';
@@ -214,5 +219,42 @@ describe('R-REALTIME-03 end to end — live in the fight, applied ONCE at settle
     expect(fought.lastCombat!.playerDeferredBattlecries).toEqual([{ cardId: 'ce3_starseed', golden: false, uid: 'ss' }]);
     expect(fought.shop.some((o) => o.starform), 'no Starform before settle').toBe(false);
     expect(settled.shop.filter((o) => o.starform).length, 'settle applied the Shop part exactly once').toBe(1);
+  });
+});
+
+// ── Owner rulings 2026-09-26 on the #1755 questions ────────────────────────────────────────────────────────────
+
+describe('R-REALTIME-04 — a Shout re-fired in combat gives COMBAT-ONLY board stats (no permanent Shop buff)', () => {
+  it('Baby Gastrid: the buff lands in the fight; the run card keeps its stats after settle', () => {
+    const s = withTime({ board: [card('bg', 'dw_dorrin'), card('gp', 'dw_gangplank')], goldSpentThisTurn: 3 });
+    const { fought, settled } = fightAndSettle(s);
+    const gp = fought.lastCombat!.initial.player.find((m) => m.cardId === 'dw_gangplank')!.uid;
+    const src = fought.lastCombat!.initial.player.find((m) => m.cardId === 'dw_dorrin')!.uid;
+    expect(beforeFirstAttack(fought).some((e) => e.type === 'buff' && e.source === src && e.target === gp), 'buffed in the fight').toBe(true);
+    const after = settled.board.find((c) => c.uid === 'gp')!;
+    expect([after.attack, after.health], 'no permanent gain').toEqual([card('gp', 'dw_gangplank').attack, 400]);
+  });
+
+  it('Limelight: its Spirits are buffed in the fight; the run cards keep their stats after settle', () => {
+    const s = withTime({ board: [card('l', 'sp3_luminary'), card('a', 'sp3_seedling'), card('b', 'sp3_dreamtide')] });
+    const { fought, settled } = fightAndSettle(s);
+    const src = fought.lastCombat!.initial.player.find((m) => m.cardId === 'sp3_luminary')!.uid;
+    expect(beforeFirstAttack(fought).some((e) => e.type === 'buff' && e.source === src), 'buffed in the fight').toBe(true);
+    for (const uid of ['a', 'b']) {
+      const c = settled.board.find((x) => x.uid === uid)!;
+      expect([c.attack, c.health], `${uid}: no permanent gain`).toEqual([card(uid, c.cardId).attack, 400]);
+    }
+  });
+});
+
+describe('R-REALTIME-05 — Consume is a Shop action: a Consume Shout fired in combat feeds when the Shop opens', () => {
+  it('Herald of the Apocalypse re-fired in combat logs its line, consumes nothing mid-fight, and settle replays it once', () => {
+    const r = refire(bm('heraldapoc', 1, 9999, { sourceUid: 'run-h' }), [bm('dm_butcher', 1, 9999)]);
+    const shout = r.events.findIndex((e) => e.type === 'shout');
+    expect(r.events.slice(shout).some((e) => e.type === 'sc' && /Shop opens/.test((e as { text: string }).text))).toBe(true);
+    const herald = r.initial.player[0]!.uid;
+    expect(ofType(r.events, 'buff').some((e) => e.source === herald), 'no Demon fed mid-fight').toBe(false);
+    expect(r.playerDeferredBattlecries).toEqual([{ cardId: 'heraldapoc', golden: false, uid: 'run-h' }]);
+    expect(SHOP_ONLY_SHOUTS.battlecryAllDemonsConsume).toBeTruthy();
   });
 });

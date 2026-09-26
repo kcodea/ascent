@@ -1,14 +1,15 @@
 import { memo, useCallback, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, type CSSProperties } from 'react';
 import { createPortal } from 'react-dom';
-import { type AncientId, type RunState } from '@game/sim';
+import { ANCIENTS, type AncientId, type RunState } from '@game/sim';
 import { useGame } from '../store';
 import { sfx } from '../sfx';
 import { canPlayDefs, playDef } from '../fx/playDef';
 import { getDef } from '../fx/fxDefs';
 import { gildArrivalMs } from '../gildTrailSources';
 import { AncientFace } from './AncientFace';
+import { ancientPowerArt } from '../art';
 import { AncientPreview, useAncientCycler, type PreviewAnchor } from './AncientPreview';
-import { getAncientsConfig, subscribeAncientsConfig, type AncientsConfig } from './ancientsConfig';
+import { ancientColor, getAncientsConfig, subscribeAncientsConfig, type AncientsFullConfig } from './ancientsConfig';
 import { markRingSettled, prefersReducedMotion, takePickSource, tickAllowed, useAwakenDemo } from './ancientsFx';
 import './ancients.css';
 
@@ -34,7 +35,7 @@ import './ancients.css';
  * PERF: loop-free. One layout read per hover open; everything else is a one-shot transition or WAAPI
  * transform/opacity.
  */
-function useAncCfg(): AncientsConfig {
+function useAncCfg(): AncientsFullConfig {
   return useSyncExternalStore(subscribeAncientsConfig, getAncientsConfig, getAncientsConfig);
 }
 
@@ -188,6 +189,7 @@ function Flash({ ms }: { ms: number }): JSX.Element {
 export const AncientSplit = memo(function AncientSplit({ run }: { run: RunState }) {
   const anc = run.ancientsEnabled ? run.ancients : undefined;
   const demo = useAwakenDemo();
+  const cfg = useAncCfg();
   const picked = anc?.picked;
   // The tuner's ▶ shows its Ancient for the length of the demo, then the run's own (if any) comes back.
   const id: AncientId | undefined = demo?.id ?? picked;
@@ -195,7 +197,7 @@ export const AncientSplit = memo(function AncientSplit({ run }: { run: RunState 
   const demoSeq = demo?.seq ?? 0;
   const btnRef = useRef<HTMLSpanElement | null>(null);
   const halfRef = useRef<HTMLSpanElement | null>(null);
-  const seamRef = useRef<HTMLSpanElement | null>(null);
+  const seamRef = useRef<SVGSVGElement | null>(null);
   const shineRef = useRef<HTMLSpanElement | null>(null);
   // Mounting on an already-picked run (a reload, a remount) shows the settled split: no beat (the refs start at the
   // current seqs). Only a pick or a ▶ that happens while mounted plays it.
@@ -210,24 +212,28 @@ export const AncientSplit = memo(function AncientSplit({ run }: { run: RunState 
     const cfg = getAncientsConfig();
     const reduced = prefersReducedMotion();
     const half = halfRef.current, seam = seamRef.current, shine = shineRef.current;
+    // 1. THE CRACK OPENS: its edge draws top to bottom (a one-shot dash sweep on a static path).
+    const openMs = reduced ? 0 : Math.max(0, cfg.crackOpenMs);
+    if (openMs > 0 && seam) {
+      for (const line of Array.from(seam.querySelectorAll<SVGPolylineElement>('polyline'))) {
+        if (typeof line.animate === 'function') line.animate([{ strokeDashoffset: 1 }, { strokeDashoffset: 0 }], { duration: openMs, easing: 'cubic-bezier(0.5, 0, 0.3, 1)', fill: 'backwards' });
+      }
+    }
+    // 2. ...and the Ancient shows through it.
     if (half && typeof half.animate === 'function') {
       half.animate(reduced
         ? [{ opacity: 0 }, { opacity: 1 }]
-        : [{ opacity: 0, transform: 'translateX(10%)' }, { opacity: 1, transform: 'translateX(0)' }],
-      { duration: reduced ? 200 : cfg.splitMs, easing: 'cubic-bezier(0.16, 0.9, 0.24, 1)' });
-    }
-    if (!reduced && seam && typeof seam.animate === 'function') {
-      seam.animate([{ transform: 'translateX(-50%) scaleY(0)' }, { transform: 'translateX(-50%) scaleY(1)' }],
-        { duration: cfg.splitMs * 0.7, easing: 'cubic-bezier(0.2, 0.9, 0.3, 1)' });
+        : [{ opacity: 0, transform: 'translateX(4%)' }, { opacity: 1, transform: 'translateX(0)' }],
+      { duration: reduced ? 200 : cfg.splitMs, delay: openMs * 0.6, easing: 'cubic-bezier(0.16, 0.9, 0.24, 1)', fill: 'backwards' });
     }
     if (!reduced && cfg.shineMs > 0 && shine && typeof shine.animate === 'function') {
       shine.animate([
         { transform: 'translateX(-130%) skewX(-18deg)', opacity: 0 },
         { transform: 'translateX(-20%) skewX(-18deg)', opacity: 1, offset: 0.35 },
         { transform: 'translateX(140%) skewX(-18deg)', opacity: 0 },
-      ], { duration: cfg.shineMs, delay: cfg.splitMs * 0.35, easing: 'cubic-bezier(0.4, 0, 0.3, 1)', fill: 'backwards' });
+      ], { duration: cfg.shineMs, delay: openMs * 0.6 + cfg.splitMs * 0.35, easing: 'cubic-bezier(0.4, 0, 0.3, 1)', fill: 'backwards' });
     }
-    if (cfg.revealGain > 0) { sfx.runeSelectImplosion(cfg.revealGain); sfx.equipmentSheen(cfg.revealGain, cfg.splitMs * 0.35 / 1000); }
+    if (cfg.revealGain > 0) { sfx.runeSelectImplosion(cfg.revealGain); sfx.equipmentSheen(cfg.revealGain, (openMs * 0.6 + cfg.splitMs * 0.35) / 1000); }
   }, []);
 
   useLayoutEffect(() => {
@@ -253,17 +259,52 @@ export const AncientSplit = memo(function AncientSplit({ run }: { run: RunState 
   }, [id, pickSeq, demoSeq, reveal]);
 
   if (!id) return <span ref={btnRef} className="anc-split-anchor" aria-hidden="true" />;
+  const art = crackGeometry(cfg, id);
+  const hasPowerArt = !!ancientPowerArt(id);
   return (
     <>
       <span ref={btnRef} className="anc-split" aria-hidden="true">
-        <span ref={halfRef} className="anc-split-half" style={hidden ? { opacity: 0 } : undefined}><AncientFace id={id} /></span>
-        <span ref={seamRef} className="anc-split-seam" style={hidden ? { opacity: 0 } : undefined} />
+        {/* The Ancient's half: its hero-power art at the SAME size and place as the power's own art (the power's
+            --hpb-art-* fit, then this Ancient's tuner fit), clipped to the right of the crack. */}
+        <span ref={halfRef} className="anc-split-half" style={{ clipPath: art.clip, ...(hidden ? { opacity: 0 } : {}) }}>
+          {hasPowerArt
+            ? <span className="anc-split-art" style={art.fit}><AncientFace id={id} variant="power" /></span>
+            : <AncientFace id={id} className="anc-split-emblem" />}
+        </span>
+        {/* The crack's edge: a soft shadow just inside it, then the thin bright highlight. Static paths. */}
+        <svg ref={seamRef} className="anc-split-crack" viewBox="0 0 100 100" preserveAspectRatio="none" style={hidden ? { opacity: 0 } : undefined}>
+          {cfg.crackShadow > 0 && <polyline className="anc-crack-shadow" points={art.shadowPts} pathLength={1} strokeDasharray="1" style={{ opacity: cfg.crackShadow, strokeWidth: `calc(${Math.max(1, cfg.crackEdge) * 2.5} * var(--u))` }} />}
+          {cfg.crackEdge > 0 && <polyline className="anc-crack-edge" points={art.pts} pathLength={1} strokeDasharray="1" style={{ opacity: cfg.crackEdgeAlpha, strokeWidth: `calc(${cfg.crackEdge} * var(--u))` }} />}
+        </svg>
         <span className="anc-split-shinewrap"><span ref={shineRef} className="anc-split-shine" /></span>
       </span>
       {ghost && <FlyingFace {...ghost} />}
     </>
   );
 });
+
+/** A fixed, per-segment jitter in [0.55, 1]: deterministic, so the crack never changes shape between renders. */
+const jitter = (i: number): number => 0.55 + 0.45 * (((Math.sin(i * 12.9898 + 4.1) * 43758.5453) % 1 + 1) % 1);
+
+/** The crack's zig-zag (in % of the button), its right-side clip polygon, and the Ancient art's fit. */
+function crackGeometry(cfg: AncientsFullConfig, id: AncientId): { pts: string; shadowPts: string; clip: string; fit: CSSProperties } {
+  const k = cfg as unknown as Record<string, number>;
+  const x0 = cfg.crackX + (k[`${id}Crack`] ?? 0);
+  const n = Math.max(2, Math.round(cfg.crackSegs));
+  const pts: [number, number][] = [];
+  for (let i = 0; i <= n; i++) {
+    const y = -2 + (104 * i) / n;
+    const side = i === 0 || i === n ? 0 : (i % 2 === 0 ? 1 : -1) * jitter(i);
+    pts.push([x0 + side * cfg.crackJag, y]);
+  }
+  const fmt = (p: [number, number][]): string => p.map(([x, y]) => `${x.toFixed(2)},${y.toFixed(2)}`).join(' ');
+  const clip = `polygon(${pts.map(([x, y]) => `${x.toFixed(2)}% ${y.toFixed(2)}%`).join(', ')}, 102% 102%, 102% -2%)`;
+  const X = k[`${id}X`] ?? 0, Y = k[`${id}Y`] ?? 0, S = k[`${id}S`] ?? 1, R = k[`${id}R`] ?? 0;
+  const fit: CSSProperties = {
+    transform: `translate(calc((var(--hpb-art-x, 0) + ${X}) * var(--u)), calc((var(--hpb-art-y, 0) + ${Y}) * var(--u))) scale(calc(var(--hpb-art-s, 1.03) * ${S})) rotate(${R}deg)`,
+  };
+  return { pts: fmt(pts), shadowPts: fmt(pts.map(([x, y]) => [x + 1.2, y])), clip, fit };
+}
 
 /** The chosen face riding the trail's arc into the hero power (portal; transform + opacity only). */
 function FlyingFace({ id, from, to, ms }: { id: AncientId; from: { x: number; y: number; w: number }; to: { x: number; y: number; w: number }; ms: number }): JSX.Element {
@@ -285,3 +326,20 @@ function FlyingFace({ id, from, to, ms }: { id: AncientId; from: { x: number; y:
     document.body,
   );
 }
+
+/**
+ * THE ANCIENT PILL (owner 2026-09-25: "show a pill for the ancient selected below the hero power, coloured to match
+ * the style of the ancient"): a small pill naming the chosen Ancient, stacked under the power's name pill. Taken out
+ * of the flow (absolute), so its arrival never shifts the layout. Its colour is the Ancient's (the sim's colour table,
+ * or the tuner's override).
+ */
+export const AncientPill = memo(function AncientPill({ run }: { run: RunState }) {
+  useAncCfg(); // re-render on a colour change in the tuner
+  const id = run.ancientsEnabled ? run.ancients?.picked : undefined;
+  if (!id) return null;
+  return (
+    <div className="anc-pill" style={{ '--anc-c': ancientColor(id) } as CSSProperties}>
+      <span className="anc-pill-dot" aria-hidden="true" />{ANCIENTS[id].name}
+    </div>
+  );
+});

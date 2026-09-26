@@ -1,10 +1,11 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { createPortal } from 'react-dom';
-import { AncientMeter, AncientSplit } from './ancients/AncientMeter';
+import { AncientMeter, AncientPill, AncientSplit } from './ancients/AncientMeter';
+import { ancientColor } from './ancients/ancientsConfig';
 import { renameTerms } from './terms';
 import { Card, mdBold } from './Card';
 import { instView } from './instView';
-import { dragonTamerCostOf, heroPowerCostOf, INDY_GILD_RECHARGE_GOLD, KESHI_CROWN_THRESHOLD, roundedSpellbookCostOf, allInPayoutOf, exhibitionGrantOf, tempestGrantOf, bladeMasteryGrantOf, hoardWhelpStatsOf, TEMPEST_KILLS_PER_STEP, BLADE_ATTACKS_PER_STEP, heroPowerText, commissionOffer, COMMISSION_NAME, COMMISSION_REWARD, COMMISSION_DELAY, getHero, spellAmplifyBonus, spellAttackBonusLive, spellHealthBonusLive, spellEscalationLive, rubyStatBonus, heroPowerLockTurns, activePowers, type RunState, type HeroPower } from '@game/sim';
+import { ANCIENTS, dragonTamerCostOf, heroPowerCostOf, INDY_GILD_RECHARGE_GOLD, KESHI_CROWN_THRESHOLD, roundedSpellbookCostOf, allInPayoutOf, exhibitionGrantOf, tempestGrantOf, bladeMasteryGrantOf, hoardWhelpStatsOf, TEMPEST_KILLS_PER_STEP, BLADE_ATTACKS_PER_STEP, heroPowerText, commissionOffer, COMMISSION_NAME, COMMISSION_REWARD, COMMISSION_DELAY, getHero, spellAmplifyBonus, spellAttackBonusLive, spellHealthBonusLive, spellEscalationLive, rubyStatBonus, heroPowerLockTurns, activePowers, type RunState, type HeroPower } from '@game/sim';
 import { henchmanOffer } from '@game/sim';
 import { equipmentWillAmplify, equipmentCostOf, equipmentPool, equipmentState, equipmentText, equipmentUsesLeft, selectedEquipment, selectedEquipmentDef } from '@game/sim';
 import { CARD_INDEX, EQUIPMENT_INDEX } from '@game/content';
@@ -512,6 +513,8 @@ export function StatusBar() {
     : 0;
   // The price this power ACTUALLY costs right now: a per-hero override when it has one, else the printed cost.
   // Rendered by the coin below and checked by `canHero` — the two must read the same value or they drift.
+  // ANCIENTS: the chosen Ancient (only on a run that has them), tagged in the power's tip title.
+  const pickedAncient = run.ancientsEnabled ? run.ancients?.picked : undefined;
   const liveCost = heroPowerCostOf(power, run, run.heroPowerUses ?? 0);
   const canHero =
     !isPassive &&
@@ -915,6 +918,8 @@ export function StatusBar() {
           {/* Once a granted quest/rune owns the slot, its NAME owns the plate too — "Errand" under Opening
               Act's art reads as a mismatch (owner ask 2026-08-21). */}
           <div className="hplabel">{grantQuestDef?.name ?? grantRuneDef?.name ?? power.name}</div>
+          {/* ANCIENTS (proof of concept): the chosen Ancient's pill, under the power's name. */}
+          {run.ancientsEnabled && <AncientPill run={run} />}
           {/* HENCHMAN recruit chip — placeholder presentation (see the `henchman` derivation above). */}
           {henchman && henchmanDef && (
             <button
@@ -928,7 +933,12 @@ export function StatusBar() {
             </button>
           )}
           <div className="herotip" role="tooltip">
-            <b>{grantQuestDef?.name ?? grantRuneDef?.name ?? power.name}</b>{isPassive ? ' · passive' : ''}
+            <div className="herotip-head">
+              <b>{grantQuestDef?.name ?? grantRuneDef?.name ?? power.name}</b>
+              {/* ANCIENTS: "Masterwork (Death)", the tag in the Ancient's colour, so the power reads as modified. */}
+              {pickedAncient && <span className="herotip-anc" style={{ color: ancientColor(pickedAncient) }}>({ANCIENTS[pickedAncient].name.replace(/^Ancient of /, '')})</span>}
+              {isPassive && <span className="herotip-tag">passive</span>}
+            </div>
             {/* `**word**` = a keyword reference → renders BOLD (mdBold), never raw asterisks. */}
             <span className="herotip-rule" dangerouslySetInnerHTML={{ __html: mdBold(powerRule) }} />
             {powerReward && (

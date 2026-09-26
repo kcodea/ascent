@@ -135,6 +135,8 @@ describe('no redundant PNG masters ship alongside their WebP builds', () => {
     // masters stay under `C:\Game Assets\Ascent Art\Ranks\`.)
     // → 1268 (2026-09-24, the beast/dragon batch: +5 minion art — Raven, Tort, Flo Rida, Beev, Humphry — measured
     // against origin/main's 1258 after the Ruby batch.)
+    // (2026-09-25, Ancients PoC: +4 in a new `art/ancients/` dir, Death + Fortune full art and hero-power halves. 1263 → 1267,
+    // still under the budget.)
     expect(total, `art files: ${total} — the WHOLE-ZIP count (~${total + 176}) is what itch caps at 1000`).toBeLessThan(1268);
   });
 });

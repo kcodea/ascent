@@ -2,7 +2,8 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState, type CSSProp
 import { createPortal } from 'react-dom';
 import { ANCIENT_IDS, ANCIENTS, ancientOfferText, type AncientId } from '@game/sim';
 import { mdBold } from '../Card';
-import { AncientFace } from './AncientFace';
+import { AncientFace, hasAncientArt } from './AncientFace';
+import { ancientColor } from './ancientsConfig';
 import { prefersReducedMotion } from './ancientsFx';
 
 /**
@@ -114,7 +115,7 @@ export function AncientPreview({ heroId, anchor, index, dir, step, go, onWheel, 
         <div className="anc-pv-dots" role="tablist" aria-label="Choose an Ancient">
           {ANCIENT_IDS.map((a, i) => (
             <button key={a} type="button" role="tab" aria-selected={i === index} aria-label={ANCIENTS[a].name}
-              className={`anc-pv-dot${i === index ? ' on' : ''}`} style={{ '--anc-c': ANCIENTS[a].color } as CSSProperties} onClick={() => go(i)} />
+              className={`anc-pv-dot${i === index ? ' on' : ''}`} style={{ '--anc-c': ancientColor(a) } as CSSProperties} onClick={() => go(i)} />
           ))}
         </div>
         <button type="button" className="anc-pv-arrow" aria-label="Next Ancient" onClick={() => step(1)}>›</button>
@@ -127,13 +128,13 @@ export function AncientPreview({ heroId, anchor, index, dir, step, go, onWheel, 
 function Page({ id, heroId, picked }: { id: AncientId; heroId: string; picked: boolean }): JSX.Element {
   const a = ANCIENTS[id];
   return (
-    <div className="anc-pv-body" style={{ '--anc-c': a.color, '--anc-c2': a.color2 } as CSSProperties}>
-      <span className="anc-pv-face"><AncientFace id={id} /></span>
+    <div className="anc-pv-body" style={{ '--anc-c': ancientColor(id) } as CSSProperties}>
+      <span className={`anc-pv-face${hasAncientArt(id) ? ' has-art' : ''}`}><AncientFace id={id} /></span>
       <div className="anc-pv-text">
         <div className="anc-pv-name">{a.name}{picked && <span className="anc-pv-yours">yours</span>}</div>
         <div className="anc-pv-thesis">{a.thesis}</div>
         <div className="anc-pv-rule" dangerouslySetInnerHTML={{ __html: mdBold(ancientOfferText(heroId, id)) }} />
-        <div className="anc-pv-ph">placeholder art</div>
+        {!hasAncientArt(id) && <div className="anc-pv-ph">placeholder art</div>}
       </div>
     </div>
   );

@@ -43,18 +43,20 @@ export interface AncientDef {
   name: string;
   /** The one-line mechanical thesis (the handoff's identity), shown under the name. */
   thesis: string;
-  /** PLACEHOLDER face: the emblem glyph + its colour (the UI draws a flat emblem from these; `color2` is spare). */
+  /** THE ANCIENT'S COLOUR TABLE (owner 2026-09-25: Death green/teal, Fortune gold; War crimson, Genesis leaf green and
+   *  Time azure are placeholders): its pill, its preview dot, and the flat placeholder emblem. `glyph` is the placeholder
+   *  emblem's mark; `color2` is spare. The ✦ Ancients tuner can override each colour live. */
   glyph: string;
   color: string;
   color2: string;
 }
 
 export const ANCIENTS: Record<AncientId, AncientDef> = {
-  death: { id: 'death', name: 'Ancient of Death', thesis: 'What you can afford to lose.', glyph: '☠', color: '#8c7ae0', color2: '#2a1f45' },
-  fortune: { id: 'fortune', name: 'Ancient of Fortune', thesis: 'Take value now, or bank it.', glyph: '⚜', color: '#e9b43a', color2: '#5a3f0c' },
-  war: { id: 'war', name: 'Ancient of War', thesis: 'Who fights, and where they stand.', glyph: '⚔', color: '#e45a4a', color2: '#4a1410' },
-  genesis: { id: 'genesis', name: 'Ancient of Genesis', thesis: 'Create, copy and circulate.', glyph: '✺', color: '#3fb97a', color2: '#12402a' },
-  time: { id: 'time', name: 'Ancient of Time', thesis: 'Now, later, or both.', glyph: '⧗', color: '#3fa3de', color2: '#10334a' },
+  death: { id: 'death', name: 'Ancient of Death', thesis: 'What you can afford to lose.', glyph: '☠', color: '#1fa89a', color2: '#2a1f45' },
+  fortune: { id: 'fortune', name: 'Ancient of Fortune', thesis: 'Take value now, or bank it.', glyph: '⚜', color: '#e3aa2b', color2: '#5a3f0c' },
+  war: { id: 'war', name: 'Ancient of War', thesis: 'Who fights, and where they stand.', glyph: '⚔', color: '#c9363b', color2: '#4a1410' },
+  genesis: { id: 'genesis', name: 'Ancient of Genesis', thesis: 'Create, copy and circulate.', glyph: '✺', color: '#5aae3c', color2: '#12402a' },
+  time: { id: 'time', name: 'Ancient of Time', thesis: 'Now, later, or both.', glyph: '⧗', color: '#2f8fd8', color2: '#10334a' },
 };
 
 // ── Effect primitives ────────────────────────────────────────────────────────────────────────────────────────

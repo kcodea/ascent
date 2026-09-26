@@ -1,3 +1,5 @@
+import { ANCIENTS } from '@game/sim';
+
 /**
  * The ✦ Ancients tuner's values (DEV, proof of concept 2026-09-25).
  *
@@ -47,9 +49,36 @@ export interface AncientsConfig {
   tickGain: number;
   /** Sound: the awaken / reveal cue's gain (0 mutes). */
   revealGain: number;
+  /** Crack: where the split runs, % of the button width from the left. */
+  crackX: number;
+  /** Crack: how far each zig swings either side of the line, % of the button width. */
+  crackJag: number;
+  /** Crack: how many zig-zag segments top to bottom. */
+  crackSegs: number;
+  /** Crack: the bright edge's width (design px). 0 hides it. */
+  crackEdge: number;
+  /** Crack: the bright edge's opacity. */
+  crackEdgeAlpha: number;
+  /** Crack: the shadow along the crack's edge (opacity). */
+  crackShadow: number;
+  /** Crack: the one-shot "opens" draw on awakening (ms). 0 = no draw. */
+  crackOpenMs: number;
 }
 
-export const ANCIENTS_DEFAULTS: AncientsConfig = {
+/** Per-Ancient art fit for the hero-power half: offset (design px), scale (x), rotation (deg), and a crack-position
+ *  nudge (% of the button) when the default split cuts the art badly. Keys: `<ancient><X|Y|S|R|Crack>`. */
+export type AncientArtKey = `${'death' | 'fortune' | 'war' | 'genesis' | 'time'}${'X' | 'Y' | 'S' | 'R' | 'Crack'}`;
+export const ANCIENT_ART_IDS = ['death', 'fortune', 'war', 'genesis', 'time'] as const;
+export const ART_FIELDS = ['X', 'Y', 'S', 'R', 'Crack'] as const;
+const ART_DEFAULTS = Object.fromEntries(
+  ANCIENT_ART_IDS.flatMap((id) => ART_FIELDS.map((f) => [`${id}${f}`, f === 'S' ? 1 : 0])),
+) as Record<AncientArtKey, number>;
+export type AncientColorKey = `${'death' | 'fortune' | 'war' | 'genesis' | 'time'}Color`;
+export type AncientsFullConfig = AncientsConfig & Record<AncientArtKey, number> & Record<AncientColorKey, string>;
+
+export const ANCIENTS_DEFAULTS: AncientsFullConfig = {
+  ...ART_DEFAULTS,
+  ...(Object.fromEntries(ANCIENT_ART_IDS.map((id) => [`${id}Color`, ANCIENTS[id].color])) as Record<AncientColorKey, string>),
   cost: 16,
   refresh: 1,
   combat: 2,
@@ -68,11 +97,18 @@ export const ANCIENTS_DEFAULTS: AncientsConfig = {
   shineMs: 800,
   tickGain: 0.5,
   revealGain: 0.8,
+  crackX: 50,
+  crackJag: 5,
+  crackSegs: 7,
+  crackEdge: 2,
+  crackEdgeAlpha: 0.9,
+  crackShadow: 0.45,
+  crackOpenMs: 420,
 };
 
-type NumKey = { [K in keyof AncientsConfig]: AncientsConfig[K] extends number ? K : never }[keyof AncientsConfig];
+type NumKey = { [K in keyof AncientsFullConfig]: AncientsFullConfig[K] extends number ? K : never }[keyof AncientsFullConfig];
 export type AncientsNumKey = NumKey;
-export type AncientsColorKey = Exclude<keyof AncientsConfig, NumKey>;
+export type AncientsColorKey = Exclude<keyof AncientsFullConfig, NumKey>;
 
 export const ANCIENTS_RANGES: Record<NumKey, [number, number, number]> = {
   cost: [1, 40, 1],
@@ -90,24 +126,34 @@ export const ANCIENTS_RANGES: Record<NumKey, [number, number, number]> = {
   shineMs: [0, 2000, 10],
   tickGain: [0, 1, 0.01],
   revealGain: [0, 1, 0.01],
+  crackX: [20, 80, 0.5],
+  crackJag: [0, 20, 0.25],
+  crackSegs: [2, 20, 1],
+  crackEdge: [0, 8, 0.25],
+  crackEdgeAlpha: [0, 1, 0.01],
+  crackShadow: [0, 1, 0.01],
+  crackOpenMs: [0, 1500, 10],
+  ...(Object.fromEntries(ANCIENT_ART_IDS.flatMap((id) => [
+    [`${id}X`, [-80, 80, 0.5]], [`${id}Y`, [-80, 80, 0.5]], [`${id}S`, [0.3, 3, 0.01]], [`${id}R`, [-180, 180, 0.5]], [`${id}Crack`, [-30, 30, 0.5]],
+  ])) as Record<AncientArtKey, [number, number, number]>),
 };
 
 const KEY = 'ascent.ancients';
-let cfg: AncientsConfig = (() => {
+let cfg: AncientsFullConfig = (() => {
   if (!import.meta.env.DEV) return { ...ANCIENTS_DEFAULTS };
   try {
     const saved: unknown = JSON.parse(localStorage.getItem(KEY) ?? '{}');
-    return { ...ANCIENTS_DEFAULTS, ...(saved && typeof saved === 'object' ? (saved as Partial<AncientsConfig>) : {}) };
+    return { ...ANCIENTS_DEFAULTS, ...(saved && typeof saved === 'object' ? (saved as Partial<AncientsFullConfig>) : {}) };
   } catch {
     return { ...ANCIENTS_DEFAULTS };
   }
 })();
 
 const listeners = new Set<() => void>();
-export function getAncientsConfig(): AncientsConfig { return cfg; }
+export function getAncientsConfig(): AncientsFullConfig { return cfg; }
 export function subscribeAncientsConfig(fn: () => void): () => void { listeners.add(fn); return () => { listeners.delete(fn); }; }
 
-export function setAncientsValue(key: keyof AncientsConfig, value: number | string): void {
+export function setAncientsValue(key: keyof AncientsFullConfig, value: number | string): void {
   cfg = { ...cfg, [key]: value };
   try { localStorage.setItem(KEY, JSON.stringify(cfg)); } catch { /* ignore */ }
   for (const fn of listeners) fn();
@@ -121,4 +167,9 @@ export function resetAncientsConfig(): void {
 /** The meter tuning handed to `enableAncients`. */
 export function ancientMeterOverride(): { cost: number; refresh: number; combat: number } {
   return { cost: cfg.cost, refresh: cfg.refresh, combat: cfg.combat };
+}
+
+/** The Ancient's colour — the tuner's override, else the sim's colour table. */
+export function ancientColor(id: string): string {
+  return (cfg as unknown as Record<string, string>)[`${id}Color`] ?? '#c8922e';
 }

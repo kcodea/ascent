@@ -58,21 +58,27 @@
 @keyframes ancchipbump { 0% { transform: scale(1.25); } 100% { transform: scale(1); } } /* one-shot, keyed per value */
 .anc-chip:focus-visible { outline: 2px solid var(--gold, #c8922e); outline-offset: 2px; }
 
-/* ── THE SPLIT hero-power face (inside `.heropowerbtn`): the Ancient is the right half of the circle ─────────────── */
+/* ── THE SPLIT hero-power face (inside `.heropowerbtn`): the power's art CRACKS open down a jagged line and the
+   Ancient's hero-power art shows through on the right, at the same size and place, so the two read as one image. ── */
 .anc-split-anchor { display: none; }
 .anc-split { position: absolute; inset: 0; z-index: 3; border-radius: 50%; overflow: hidden; pointer-events: none; }
-.anc-split-half { position: absolute; inset: 0; clip-path: inset(0 0 0 50%); }
-/* Out-specifies `.heropowerbtn svg` (the power's fallback icon rule: a small centred glyph). The face's glyph is
-   centred on the RIGHT half so the divider never cuts it in two. */
-.heropowerbtn .anc-split-half svg.anc-face {
+.anc-split-half { position: absolute; inset: 0; } /* clip-path = the crack polygon, set inline (static) */
+/* The Ancient's art mirrors `.hpb-art`: the same box, cover fit and --hpb-art-* transform (plus its tuner fit). */
+.anc-split-art { position: absolute; inset: 0; display: block; }
+.heropowerbtn .anc-split-art .anc-face-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; -webkit-user-drag: none; }
+/* Out-specifies `.heropowerbtn svg` (the power's fallback icon rule). The placeholder emblem's glyph sits on the
+   RIGHT half so the crack never cuts it in two. */
+.heropowerbtn .anc-split-half svg.anc-split-emblem {
   position: absolute; inset: 0; left: 0; top: 0; width: 100%; height: 100%; z-index: auto;
   transform: translateX(25%) scale(1.1);
 }
-/* A clean fine divider. */
-.anc-split-seam {
-  position: absolute; left: 50%; top: 0; bottom: 0; width: calc(2 * var(--u)); transform: translateX(-50%);
-  background: #fffaf0;
+/* The crack: a static zig-zag over both halves. Shadow first (inside the crack), then the bright edge. */
+.heropowerbtn svg.anc-split-crack {
+  position: absolute; inset: 0; left: 0; top: 0; width: 100%; height: 100%; transform: none; z-index: 1; overflow: visible;
 }
+.anc-crack-shadow, .anc-crack-edge { fill: none; stroke-linejoin: miter; stroke-linecap: round; vector-effect: non-scaling-stroke; stroke-dashoffset: 0; }
+.anc-crack-shadow { stroke: rgba(12, 8, 4, 1); }
+.anc-crack-edge { stroke: #fff6dc; }
 .anc-split-shinewrap { position: absolute; inset: 0; overflow: hidden; border-radius: 50%; }
 .anc-split-shine {
   position: absolute; top: -10%; bottom: -10%; left: 0; width: 40%; opacity: 0;
@@ -170,3 +176,20 @@
 /* The hero power's own tip stands down while the meter (or its preview) is the thing being hovered. */
 .heropanel:has(.anc-meter :hover) .herotip,
 body:has(.anc-pv) .heropanel .herotip { opacity: 0 !important; transition-delay: 0s !important; }
+
+/* The hero-power NAME pill stays ABOVE the meter ring (owner 2026-09-25: "it is behind the progress bar"). */
+.statusbar .heropanel .hplabel { position: relative; z-index: 7; }
+
+/* THE ANCIENT PILL: under the power's name pill, out of the flow (no layout shift), tinted with the Ancient's colour. */
+.statusbar .heropanel .anc-pill {
+  position: absolute; left: 50%; top: calc(100% + 5 * var(--u)); transform: translateX(-50%); z-index: 7;
+  display: inline-flex; align-items: center; gap: calc(6 * var(--u)); white-space: nowrap; pointer-events: none;
+  padding: calc(3 * var(--u)) calc(11 * var(--u)) calc(3 * var(--u)) calc(8 * var(--u)); border-radius: 999px;
+  font-family: var(--font-ui); font-weight: 800; font-size: calc(11.5 * var(--u)); letter-spacing: 0.02em; line-height: 1.1;
+  color: #fff;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--anc-c) 88%, #fff), color-mix(in srgb, var(--anc-c) 82%, #000));
+  border: 1.5px solid color-mix(in srgb, var(--anc-c) 45%, #fff);
+  box-shadow: 0 calc(3 * var(--u)) calc(8 * var(--u)) -3px rgba(0, 0, 0, 0.45);
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.35);
+}
+.anc-pill-dot { width: calc(7 * var(--u)); height: calc(7 * var(--u)); border-radius: 50%; background: #fff; opacity: 0.9; flex: none; }

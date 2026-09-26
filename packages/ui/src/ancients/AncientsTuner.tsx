@@ -2,7 +2,7 @@ import { ANCIENT_IDS, type AncientId } from '@game/sim';
 import { TunerPanel } from '../TunerPanel';
 import type { TunerControl, TunerSpec, TunerUnit } from '../tunerSchema';
 import { useGame } from '../store';
-import { ANCIENTS_DEFAULTS, ANCIENTS_RANGES, getAncientsConfig, resetAncientsConfig, setAncientsValue, type AncientsConfig, type AncientsNumKey } from './ancientsConfig';
+import { ANCIENTS_DEFAULTS, ANCIENTS_RANGES, getAncientsConfig, resetAncientsConfig, setAncientsValue, type AncientsFullConfig, type AncientsNumKey, ANCIENT_ART_IDS, ART_FIELDS } from './ancientsConfig';
 import { playAwakenDemo } from './ancientsFx';
 
 /**
@@ -11,7 +11,7 @@ import { playAwakenDemo } from './ancientsFx';
  * The rest is presentation. ▶ plays the awakening pick beat (the triple trail into the hero power + the split)
  * without touching run state; the Scene Builder's "Fill meter" plays the real thing end to end.
  */
-type Key = keyof AncientsConfig;
+type Key = keyof AncientsFullConfig;
 const ROWS: [Key, string, TunerUnit | undefined, string, string, ('color' | 'toggle')?][] = [
   ['cost', 'Points to fill', undefined, 'The meter fills up to this and then awakens. Re-stamps the live sandbox run.', 'Meter (balance)'],
   ['refresh', 'Points per refresh', undefined, 'Points one Shop refresh adds (paid or free).', 'Meter (balance)'],
@@ -31,7 +31,29 @@ const ROWS: [Key, string, TunerUnit | undefined, string, string, ('color' | 'tog
   ['shineMs', 'Shine sweep', 'ms', 'The one-shot shine across the split button. 0 turns it off.', 'Timing'],
   ['tickGain', 'Fill tick', 'opacity', 'Volume of the tick when points are added. 0 mutes it.', 'Sound'],
   ['revealGain', 'Awaken + reveal', 'opacity', 'Volume of the full-ring flash and the split reveal cues. 0 mutes them.', 'Sound'],
+  ['crackX', 'Crack position', undefined, 'Where the crack runs, % of the button from the left.', 'Crack'],
+  ['crackJag', 'Jaggedness', undefined, 'How far each zig swings either side of the line (% of the button).', 'Crack'],
+  ['crackSegs', 'Segments', undefined, 'How many zig-zags top to bottom.', 'Crack'],
+  ['crackEdge', 'Edge highlight width', 'px', 'The bright line along the crack. 0 hides it.', 'Crack'],
+  ['crackEdgeAlpha', 'Edge highlight opacity', 'opacity', 'How bright the crack edge reads.', 'Crack'],
+  ['crackShadow', 'Edge shadow', 'opacity', 'The soft shadow just inside the crack.', 'Crack'],
+  ['crackOpenMs', 'Crack opens', 'ms', 'The one-shot crack draw on awakening. 0 skips it.', 'Crack'],
+  ...ANCIENT_ART_IDS.map((id): [Key, string, TunerUnit | undefined, string, string, 'color'] =>
+    [`${id}Color` as Key, `${id.charAt(0).toUpperCase() + id.slice(1)}`, undefined, 'The Ancient’s colour: its pill under the hero power, the (Name) tag in the power tip, its preview dot and placeholder emblem.', 'Colours', 'color']),
+  ...ANCIENT_ART_IDS.flatMap((id) => {
+    const name = id.charAt(0).toUpperCase() + id.slice(1);
+    const g = `Art: ${name}`;
+    const rows: [Key, string, TunerUnit | undefined, string, string][] = [
+      [`${id}X` as Key, 'X offset', 'px', `Slides the ${name} hero-power art sideways inside the split.`, g],
+      [`${id}Y` as Key, 'Y offset', 'px', `Slides the ${name} hero-power art vertically.`, g],
+      [`${id}S` as Key, 'Scale', '×', `Zooms the ${name} hero-power art (on top of the power art's own zoom).`, g],
+      [`${id}R` as Key, 'Rotation', undefined, `Rotates the ${name} hero-power art, in degrees.`, g],
+      [`${id}Crack` as Key, 'Crack nudge', undefined, `Moves the crack for ${name} only (% of the button).`, g],
+    ];
+    return rows;
+  }),
 ];
+void ART_FIELDS;
 
 const controls: TunerControl<Key>[] = ROWS.map(([key, label, unit, hint, group, kind]) => {
   if (kind === 'color') return { key, label, hint, group, kind, min: 0, max: 0, step: 0 };
@@ -53,7 +75,7 @@ function restampLiveRun(key: Key, value: number): void {
 }
 
 let demoIx = 0;
-export const SPEC: TunerSpec<AncientsConfig> = {
+export const SPEC: TunerSpec<AncientsFullConfig> = {
   id: 'ancients', // FROZEN
   title: 'Ancients',
   note: 'dev · proof of concept',

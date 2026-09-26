@@ -133,6 +133,16 @@ const POWER_ART = indexArt(
 );
 export const heroPowerArt = (heroId: string): string | undefined => POWER_ART[heroId];
 
+/** ANCIENTS art (proof of concept, owner 2026-09-25) — `packages/ui/src/art/ancients/<ancientId>.webp` is the full
+ *  art (offer + preview cards) and `<ancientId>_power.webp` the hero-power-button art revealed through the crack in
+ *  the split power. Masters stay under `C:\Game Assets\Ascent Art\Ancients\` (+ `HeroPower\`). An Ancient with no
+ *  file keeps its placeholder emblem. */
+const ANCIENT_ART = indexArt(
+  import.meta.glob('./art/ancients/*.{png,webp}', { eager: true, query: '?url', import: 'default' }) as ArtModules,
+);
+export const ancientArt = (id: string): string | undefined => ANCIENT_ART[id];
+export const ancientPowerArt = (id: string): string | undefined => ANCIENT_ART[`${id}_power`];
+
 /** Quest art — drop a PNG into `packages/ui/src/art/quests/<questId>.png` (e.g. `q_grave_toll.png`), keyed by
  *  the quest id like minion art is keyed by cardId. Absent = the quest card falls back to its textless look.
  *  (First file into a previously-empty folder needs one dev-server restart; see the minions README.) */

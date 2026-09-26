@@ -3,9 +3,9 @@ import { ANCIENTS, ancientOfferText, type Action, type AncientId, type RunState 
 import { EntranceOverlay, OfferSheen } from '../discoverEntrance/DiscoverDialog';
 import { OfferBanner } from '../discoverEntrance/OfferBanner';
 import { mdBold } from '../Card';
-import { AncientFace } from './AncientFace';
+import { AncientFace, hasAncientArt } from './AncientFace';
 import { notePickSource, useRingSettledSeq } from './ancientsFx';
-import { getAncientsConfig } from './ancientsConfig';
+import { ancientColor, getAncientsConfig } from './ancientsConfig';
 import './ancients.css';
 
 /**
@@ -48,14 +48,14 @@ export const AncientOfferOverlay = memo(function AncientOfferOverlay({ held, run
             {offer.map((id, i) => {
               const a = ANCIENTS[id];
               return (
-                <div className="disc-slot" data-pick-sfx key={id} style={{ '--anc-c': a.color, '--anc-c2': a.color2 } as CSSProperties}>
+                <div className="disc-slot" data-pick-sfx key={id} style={{ '--anc-c': ancientColor(id) } as CSSProperties}>
                   <button type="button" className="anc-card" aria-label={`${a.name}: ${ancientOfferText(run.heroId, id).replace(/\*\*/g, '')}`}
                     onClick={(e) => { if (entrance.canPick(i)) pick(id, e.currentTarget.querySelector('.anc-card-face')); }}>
-                    <span className="anc-card-face"><AncientFace id={id} /></span>
+                    <span className={`anc-card-face${hasAncientArt(id) ? ' has-art' : ''}`}><AncientFace id={id} /></span>
                     <span className="anc-card-name">{a.name}</span>
                     <span className="anc-card-thesis">{a.thesis}</span>
                     <span className="anc-card-rule" dangerouslySetInnerHTML={{ __html: mdBold(ancientOfferText(run.heroId, id)) }} />
-                    <span className="anc-card-ph">placeholder art</span>
+                    {!hasAncientArt(id) && <span className="anc-card-ph">placeholder art</span>}
                   </button>
                   <OfferSheen />
                 </div>

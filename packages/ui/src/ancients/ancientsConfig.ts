@@ -105,6 +105,11 @@ export interface AncientsConfig {
   titleGlow: string;
   /** Screen colours: the backdrop tint behind the cards. */
   backdropTint: string;
+  /** Tuner only: the hero the Hero theme group edits and the Play button plays as (`default` = every hero without
+   *  its own theme). Nothing in the game reads it. */
+  tunerHero: string;
+  /** Tuner only: preview another bloom style on that hero (`auto` = the hero's own). Nothing in the game reads it. */
+  tunerStyle: string;
   /** Close: the gate contracting back into the hero power on the pick (ms). */
   closeMs: number;
   /** Sound: the duck on the music + other sounds during the awakening (0 = silent, 1 = none). */
@@ -212,6 +217,8 @@ export const ANCIENTS_DEFAULTS: AncientsFullConfig = {
   slamSparks: 1,
   // The DEFAULT hero theme (every hero without its own entry): the owner-baked screen colours, from the theme table.
   ...ANCIENT_HERO_THEMES.default,
+  tunerHero: 'indy',
+  tunerStyle: 'auto',
   closeMs: 420,
   duckAmount: 0.3,
   duckRampMs: 260,

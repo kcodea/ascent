@@ -15,6 +15,7 @@ describe('the Ancients tuner defaults', () => {
       bondsColor: '#9b5de5', // the sixth Ancient, purple (owner 2026-09-26)
     });
     expect(ANCIENT_ART_IDS).toHaveLength(6);
+    expect(ANCIENTS_DEFAULTS).toMatchObject({ tunerHero: 'indy', tunerStyle: 'auto' }); // tuner-only pickers
   });
   it('fit every Ancient’s hero-power art at the neutral offset (0) and scale (1)', () => {
     for (const id of ANCIENT_ART_IDS) {
@@ -25,7 +26,7 @@ describe('the Ancients tuner defaults', () => {
     expect(ANCIENT_HERO_THEMES.default).toEqual({ curtainInner: '#247067', curtainOuter: '#0a0618', seamColor: '#fff1bd', titleGlow: '#9effd5', backdropTint: '#060d0f' });
     expect(ANCIENT_HERO_THEMES.indy).toEqual({
       curtainInner: '#a0620f', curtainOuter: '#0d0501', seamColor: '#fff3cf', titleGlow: '#ffcf66', backdropTint: '#0f0803',
-      label: 'Indy', accent: 'glints', medal: 'gild',
+      label: 'Indy', style: 'coinStrike', knobs: { baked: true },
     });
     expect(ANCIENTS_DEFAULTS).toMatchObject({
       indyThemeCurtainInner: '#a0620f', indyThemeCurtainOuter: '#0d0501', indyThemeSeamColor: '#fff3cf', indyThemeTitleGlow: '#ffcf66', indyThemeBackdropTint: '#0f0803',
@@ -34,15 +35,15 @@ describe('the Ancients tuner defaults', () => {
   it('carry the baked Warden, Auctioneer and Risen themes and their signatures (owner 2026-09-26)', () => {
     expect(ANCIENT_HERO_THEMES.warden).toEqual({
       curtainInner: '#4a87bb', curtainOuter: '#050d1c', seamColor: '#eaf8ff', titleGlow: '#9fe0ff', backdropTint: '#050b14',
-      label: 'the Warden', accent: 'shell', medal: 'seal',
+      label: 'Warden', style: 'glassShell', knobs: { baked: true, medal: 'seal' },
     });
     expect(ANCIENT_HERO_THEMES.myra).toEqual({
       curtainInner: '#7b2887', curtainOuter: '#12031a', seamColor: '#ffe6a3', titleGlow: '#ffc95c', backdropTint: '#0d0512',
-      label: 'the Auctioneer', accent: 'rings', medal: 'thump',
+      label: 'Auctioneer', style: 'strikeRings', knobs: { medal: 'thump', rhythm: 'shout', count: 3 },
     });
     expect(ANCIENT_HERO_THEMES.risen).toEqual({
       curtainInner: '#5d8f7b', curtainOuter: '#030a08', seamColor: '#eafff5', titleGlow: '#b9ffe2', backdropTint: '#060c0a',
-      label: 'Lord of the Risen', accent: 'wisps', medal: 'rise',
+      label: 'Lord of the Risen', style: 'spiritRise', knobs: { baked: true },
     });
     expect(ANCIENTS_DEFAULTS).toMatchObject({
       wardenThemeCurtainInner: '#4a87bb', wardenThemeCurtainOuter: '#050d1c', wardenThemeSeamColor: '#eaf8ff', wardenThemeTitleGlow: '#9fe0ff', wardenThemeBackdropTint: '#050b14',

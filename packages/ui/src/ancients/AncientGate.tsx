@@ -8,8 +8,9 @@ import { getAncientsConfig, subscribeAncientsConfig } from './ancientsConfig';
 import { getAwakenStage, prefersReducedMotion, setAwakenStage, useAwakenStage, useGateDemo, useRingSettledSeq } from './ancientsFx';
 import { duckForAwakening, playCue, warmAncientCues } from './ancientsSound';
 import { ancientLandDust } from './ancientsSmoke';
-import { heroMotePalette, isThemedHero, resolveAncientHeroSignature, resolveAncientHeroTheme } from './ancientHeroThemes';
-import { ACCENT_PARTS, MEDAL_LAYERS, playHeroBloom } from './ancientHeroBloom';
+import { heroMotePalette, isBloomStyle, isThemedHero, resolveAncientHeroSignature, resolveAncientHeroTheme, type BloomStyle } from './ancientHeroThemes';
+import { playHeroBloom } from './ancientHeroBloom';
+import { AncientBloomMedal } from './AncientBloom';
 import { heroPowerArt } from '../art';
 
 /**
@@ -85,9 +86,11 @@ export const AncientGate = memo(function AncientGate({ run }: { run: RunState })
   // …in the HERO's theme (its own entry, else the default; `start` resolves the same theme for the dust + motes).
   // (A tuner demo may play as another hero: `themeHero` is pinned when the sequence starts.)
   const [themeHero, setThemeHero] = useState<string | undefined>(undefined);
+  // …and a tuner demo may preview another bloom style on that hero (✦ Ancients › Style).
+  const [themeStyle, setThemeStyle] = useState<BloomStyle | undefined>(undefined);
   const theme = useMemo(() => resolveAncientHeroTheme(themeHero ?? run.heroId, cfg as unknown as Record<string, unknown>), [themeHero, run.heroId, cfg]);
   // …and its SIGNATURE (a themed hero's bloom accent + medallion entrance; `null` = the generic entrance).
-  const sig = useMemo(() => resolveAncientHeroSignature(themeHero ?? run.heroId), [themeHero, run.heroId]);
+  const sig = useMemo(() => resolveAncientHeroSignature(themeHero ?? run.heroId, themeStyle), [themeHero, themeStyle, run.heroId]);
   const sigRef = useRef(sig);
   sigRef.current = sig;
   const heroIdRef = useRef(run.heroId);
@@ -121,7 +124,7 @@ export const AncientGate = memo(function AncientGate({ run }: { run: RunState })
   }, [go]);
 
   /** Start the sequence for offer `seq` (< 0: a tuner demo). `fromReveal` jumps straight to the Ancients. */
-  const start = useCallback((seq: number, fromReveal = false, asHero?: string) => {
+  const start = useCallback((seq: number, fromReveal = false, asHero?: string, asStyle?: string) => {
     const c = getAncientsConfig();
     const { x, y, w, art } = hpBox();
     const vw = window.innerWidth, vh = window.innerHeight;
@@ -130,6 +133,9 @@ export const AncientGate = memo(function AncientGate({ run }: { run: RunState })
     const theme = resolveAncientHeroTheme(heroId, c as unknown as Record<string, unknown>);
     const pal = heroMotePalette(heroId, theme) ?? PALETTE;
     setThemeHero(asHero);
+    const style = isBloomStyle(asStyle) ? asStyle : undefined;
+    setThemeStyle(style);
+    sigRef.current = resolveAncientHeroSignature(heroId, style);
     setGeo({ x, y, rx, ry, r: Math.max(rx, ry), hp: w, art: (asHero ? heroPowerArt(asHero) : undefined) ?? art ?? heroPowerArt(heroIdRef.current), pal });
     seqRef.current = seq;
     duckForAwakening(true);
@@ -219,7 +225,7 @@ export const AncientGate = memo(function AncientGate({ run }: { run: RunState })
   // The tuner's ▶ Play full sequence / ▶ Play from reveal.
   useEffect(() => {
     if (!demo || blocked || offerOpen) return;
-    start(-demo.seq, demo.mode === 'reveal', demo.hero);
+    start(-demo.seq, demo.mode === 'reveal', demo.hero, demo.style);
     // Auto-close a demo that nobody picks from, after a while.
     const t = window.setTimeout(() => { if (getAwakenStage().seq === -demo.seq) setAwakenStage('closing', -demo.seq); }, 14000);
     return () => window.clearTimeout(t);
@@ -376,18 +382,7 @@ export const AncientGate = memo(function AncientGate({ run }: { run: RunState })
         <div ref={curtainRef} className="anc-gate-curtain" style={phase === 'reveal' ? undefined : { clipPath: `ellipse(0px 0px at ${geo.x}px ${geo.y}px)` }}>
           <div className="anc-gate-center">
             {geo.art && (
-              <div className={`anc-gate-medalwrap${sig ? ` acc-${sig.accent} med-${sig.medal}` : ''}`}>
-                {sig && MEDAL_LAYERS[sig.medal].includes('out') && <span className={`anc-medal-fx anc-medal-${sig.medal}`} />}
-                <div className="anc-gate-medal" style={reduced || phase !== 'eruption' ? undefined : { opacity: 0 }}>
-                  <img className="anc-gate-medal-art" src={geo.art} alt="" draggable={false} decoding="sync" />
-                  {sig && MEDAL_LAYERS[sig.medal].includes('in') && <span className={`anc-medal-fx anc-medal-${sig.medal}-in`} />}
-                </div>
-                {sig && (
-                  <div className={`anc-acc anc-acc-${sig.accent}`}>
-                    {Array.from({ length: ACCENT_PARTS[sig.accent] }, (_, i) => <i key={i} className={`anc-acc-p p${i}`} />)}
-                  </div>
-                )}
-              </div>
+              <AncientBloomMedal art={geo.art} sig={sig} hidden={!reduced && phase === 'eruption'} />
             )}
             <div className={`anc-gate-title${phase === 'title' || phase === 'reveal' ? ' in' : ''}`}>
               <span className="anc-gate-label">An Ancient Awakens</span>

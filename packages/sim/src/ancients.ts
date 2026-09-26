@@ -47,11 +47,27 @@
  *                                 pass so its grants land before the fight); COMBAT: `QuestCombatMods.ancientBonds`
  *                                 in `ctx.buff`. Its own grant never re-triggers it. (Bonds)
  *
+ *  AUCTIONEER (`myra`, Pulse, `replayBattlecry`; owner pairings 2026-09-26):
+ *  · `pulseRepeatThenDestroy`     the reducer's `replayBattlecry` branch: the Shout fires `1 + extra` times per Pulse,
+ *                                 then the target is destroyed (a real shop death via `destroyMinionInShop`). (Death)
+ *  · `shopShoutGold`              `fireBattlecryTriggered` (every SHOP Shout fire walks it): +gold next turn per fire,
+ *                                 real time. Combat Shouts do not count (the text says Shop phase). (Fortune)
+ *  · `pulseGrantsRallyShout`      the `replayBattlecry` branch, after the Shout: the target gains the Rally keyword and a
+ *                                 grafted `rallyTriggerOwnShout` (`grantedEffects`, so it rides into combat, snapshots
+ *                                 and replays). Once per minion: a second Pulse does not stack it. (War)
+ *  · `pulseDiscoverShout`         the `replayBattlecry` branch REPLACED: untargeted, `cost` Gold (the pairing's `power`
+ *                                 override), a Discover of a Shout minion at your tier or below. (Genesis)
+ *  · `socTriggerEdgeShouts`       COMBAT: `QuestCombatMods.ancientEdgeShouts`, at Start of Combat. The power turns
+ *                                 passive (the pairing's `power` override). (Time)
+ *  · `shoutBuffsAdjacent`         SHOP: `fireBattlecryTriggered` (per fire, real time); COMBAT:
+ *                                 `QuestCombatMods.ancientShoutAdjacent`, a `battlecryTriggered` listener. (Bonds)
+ *
  * Serialisable plain data throughout, so saves / snapshots / replays can carry it cheaply later (not in the MVP).
  */
-import { makeRng, type Keyword, type QuestCombatMods } from '@game/core';
+import { makeRng, type EffectDef, type Keyword, type QuestCombatMods } from '@game/core';
 import { CARD_INDEX } from '@game/content';
 import { mixSeed, type BoardCard, type RunState } from './state';
+import type { HeroPower } from './heroes';
 import type { CombatResult } from '@game/core';
 import { addBuff, aegisGrantOf, captureBuffFx, destroyMinionInShop, grantMinionToHandOrBoard, makeContext } from './recruit';
 import { INDY_GILD_RECHARGE_GOLD } from './config';
@@ -113,7 +129,20 @@ export type AncientEffect =
   | { do: 'eotBuffWarded'; attack: number; health: number }
   /** When a friendly minion with Ward gains stats, another random friendly minion with Ward gains +attack Attack.
    *  That grant never re-triggers it. */
-  | { do: 'wardedGainBuffsWarded'; attack: number };
+  | { do: 'wardedGainBuffsWarded'; attack: number }
+  // ── Auctioneer (Pulse) ──
+  /** Pulse fires the target's Shout `extra` more times, then destroys it (a real shop death). */
+  | { do: 'pulseRepeatThenDestroy'; extra: number }
+  /** Every Shout FIRE in the Shop phase: gain `gold` next turn. Combat Shouts do not count. */
+  | { do: 'shopShoutGold'; gold: number }
+  /** The Pulse target also gains "Rally: trigger this minion's Shout" (once per minion). */
+  | { do: 'pulseGrantsRallyShout' }
+  /** Pulse is replaced: Discover a Shout minion at your tier or below (the cost rides the pairing's `power`). */
+  | { do: 'pulseDiscoverShout' }
+  /** Start of Combat: trigger your left-most and right-most Shouts (once when they are the same minion). */
+  | { do: 'socTriggerEdgeShouts' }
+  /** Whenever a friendly Shout triggers (Shop AND combat), the minions next to it gain +a/+h. */
+  | { do: 'shoutBuffsAdjacent'; attack: number; health: number };
 
 export interface AncientPairing {
   /** The Ancient's text for this hero, as shown on the offer and the preview (the owner's words). */
@@ -125,8 +154,15 @@ export interface AncientPairing {
   powerText: string;
   /** The resolved text once a one-shot pairing is used up (War's Resilient Aegis). Absent = `powerText` always. */
   powerTextSpent?: string;
+  /** Changes to the hero power's own SHAPE while this pairing is live (Auctioneer: Time makes Pulse passive, Genesis
+   *  makes it an untargeted 2 Gold Discover). Stamped on the run at the pick (`AncientsState.powerOverride`) and
+   *  folded in by `activePowers`, so the button, the cost coin, the reducer's gates and the bots all read one shape. */
+  power?: AncientPowerOverride;
   effects: AncientEffect[];
 }
+
+/** The hero-power fields a pairing may override. */
+export type AncientPowerOverride = Partial<Pick<HeroPower, 'passive' | 'untargeted' | 'cost'>>;
 
 /** Shown for a hero × Ancient with no written pairing. Has no effect. */
 export const ANCIENT_NOT_WRITTEN = 'Not written yet.';
@@ -213,6 +249,49 @@ export const ANCIENT_PAIRINGS: Record<string, Partial<Record<AncientId, AncientP
       effects: [{ do: 'wardedGainBuffsWarded', attack: 5 }],
     },
   },
+  // THE AUCTIONEER (hero id `myra`; owner pairings 2026-09-26, quoted above each entry). Pulse = "Trigger a friendly
+  // minion's Shout." (free, once per turn).
+  myra: {
+    death: {
+      // "Pulse triggers the chosen minion's Shout an additional time, then destroys it."
+      offerText: "Pulse triggers the minion's **Shout** one more time, then destroys it.",
+      powerText: "Trigger a friendly minion's **Shout** twice, then destroy it.",
+      effects: [{ do: 'pulseRepeatThenDestroy', extra: 1 }],
+    },
+    fortune: {
+      // "Whenever you trigger a Shout during the Shop phase, gain 1 Gold next turn."
+      offerText: 'Whenever you trigger a **Shout** in the Shop, gain **1 Gold** next turn.',
+      powerText: '{base} Whenever you trigger a **Shout** in the Shop, gain **1 Gold** next turn. **{shoutGold} Gold** banked this turn.',
+      effects: [{ do: 'shopShoutGold', gold: 1 }],
+    },
+    war: {
+      // "The minion you Pulse gains 'Rally: trigger this minion's Shout'".
+      offerText: 'The minion you Pulse also gains "**Rally:** trigger this minion\'s **Shout**."',
+      powerText: '{base} It also gains "**Rally:** trigger this minion\'s **Shout**."',
+      effects: [{ do: 'pulseGrantsRallyShout' }],
+    },
+    genesis: {
+      // "Pulse becomes: 2g - Discover a Shout minion."
+      offerText: 'Pulse becomes: pay **2 Gold** to **Discover** a **Shout** minion.',
+      powerText: '**Discover** a **Shout** minion.',
+      power: { untargeted: true, cost: 2 },
+      effects: [{ do: 'pulseDiscoverShout' }],
+    },
+    time: {
+      // "Pulse becomes passive. Start of Combat: trigger your left-most and right-most Shouts. If you have only one
+      // Shout, trigger it once."
+      offerText: 'Pulse becomes passive. **Start of Combat:** trigger your left-most and right-most **Shouts**. With only one, trigger it once.',
+      powerText: '**Start of Combat:** trigger your left-most and right-most **Shouts**. With only one, trigger it once.',
+      power: { passive: true },
+      effects: [{ do: 'socTriggerEdgeShouts' }],
+    },
+    bonds: {
+      // "Shout triggers buff adjacent minions +4/+3."
+      offerText: 'Whenever you trigger a **Shout**, the minions next to it gain **+4/+3**.',
+      powerText: '{base} Whenever you trigger a **Shout**, the minions next to it gain **+4/+3**.',
+      effects: [{ do: 'shoutBuffsAdjacent', attack: 4, health: 3 }],
+    },
+  },
 };
 
 export function ancientPairingFor(heroId: string, id: AncientId): AncientPairing | undefined {
@@ -273,6 +352,11 @@ export interface AncientsState {
   /** WARDEN × BONDS: board uids whose gain (or Bonds grant) the End-of-Turn pass already handled this action, so the
    *  reducer's per-action diff does not handle them again. Transient: cleared by the diff. */
   bondsHandled?: string[];
+  /** The picked pairing's hero-power shape override (`AncientPairing.power`), stamped at the pick. Read by
+   *  `activePowers` (heroes.ts), which cannot import this module without a cycle. */
+  powerOverride?: AncientPowerOverride;
+  /** AUCTIONEER × FORTUNE: Gold banked by Shop Shouts on `wave` (the live power text prints it). */
+  shoutGold?: { wave: number; gold: number };
 }
 
 /** Turn Ancients on for a run (the Scene Builder's Set 3 flag). Pure: returns a new run. */
@@ -343,6 +427,8 @@ export function pickAncient(state: RunState, id: AncientId): boolean {
   a.pickSeq = (a.pickSeq ?? 0) + 1;
   const res = effectOf(state, 'nextAegisResilient');
   if (res) a.resilientAegisLeft = res.count;
+  const shape = activeAncientPairing(state)?.power;
+  if (shape) a.powerOverride = { ...shape };
   return true;
 }
 
@@ -374,7 +460,8 @@ export function ancientPowerText(state: RunState, base: string): string | undefi
   const aegis = g.health > 0 ? `+${g.attack}/+${g.health}` : `+${g.attack} Attack`;
   const copy = effectOf(state, 'wardBreaksGetCopy');
   const wardLeft = copy ? copy.every - ((a?.wardWindow?.length ?? 0) % copy.every) : 0;
-  return text.replace('{base}', base).replace('{aegis}', aegis).replace('{wardLeft}', String(wardLeft)).replace('{recharge}', String(INDY_GILD_RECHARGE_GOLD))
+  const shoutGold = a?.shoutGold?.wave === state.wave ? a.shoutGold.gold : 0;
+  return text.replace('{base}', base).replace('{shoutGold}', String(shoutGold)).replace('{aegis}', aegis).replace('{wardLeft}', String(wardLeft)).replace('{recharge}', String(INDY_GILD_RECHARGE_GOLD))
     .replace('{gilds}', String(gilds)).replace('{gildA}', String((per?.attack ?? 0) * gilds)).replace('{gildH}', String((per?.health ?? 0) * gilds));
 }
 
@@ -443,6 +530,9 @@ export function ancientCombatMods(state: RunState): Partial<QuestCombatMods> {
   if (effectOf(state, 'wardBreakGold') || effectOf(state, 'wardBreaksGetCopy')) out.ancientTrackWardBreaks = true;
   const copy = effectOf(state, 'wardBreaksGetCopy');
   if (copy) out.ancientWardCopy = { every: copy.every, window: [...(live(state)?.wardWindow ?? [])] };
+  if (effectOf(state, 'socTriggerEdgeShouts')) out.ancientEdgeShouts = { label: ANCIENTS.time.name };
+  const adj = effectOf(state, 'shoutBuffsAdjacent');
+  if (adj) out.ancientShoutAdjacent = { attack: adj.attack, health: adj.health, label: ANCIENTS.bonds.name };
   return out;
 }
 
@@ -547,4 +637,57 @@ export function ancientAfterCombat(state: RunState, result: CombatResult): void 
   if (!effectOf(state, 'wardBreaksGetCopy')) return;
   a.wardBreaks = (a.wardBreaks ?? 0) + breaks.length;
   if (result.playerWardWindow) a.wardWindow = [...result.playerWardWindow];
+}
+
+// ── Auctioneer (Pulse) hooks ─────────────────────────────────────────────────────────────────────────────────
+/** DEATH: how many EXTRA times Pulse fires the Shout before destroying the target (0 = the pairing is not live). */
+export function ancientPulseExtraThenDestroy(state: RunState): number {
+  return effectOf(state, 'pulseRepeatThenDestroy')?.extra ?? 0;
+}
+
+/** GENESIS: Pulse is a Discover of a Shout minion instead of a replay. */
+export function ancientPulseDiscovers(state: RunState): boolean {
+  return !!effectOf(state, 'pulseDiscoverShout');
+}
+
+/** TIME: Pulse is passive (its Start-of-Combat half rides `ancientCombatMods`). */
+export function ancientPulsePassive(state: RunState): boolean {
+  return !!effectOf(state, 'socTriggerEdgeShouts');
+}
+
+/** The grafted Rally War's Pulse gives (`grantedEffects`): "Rally: trigger this minion's Shout." */
+export const ANCIENT_RALLY_SHOUT: EffectDef = { on: 'onAttack', do: 'rallyTriggerOwnShout', params: {} };
+
+/** WAR: after Pulse fired `card`'s Shout, it gains the Rally keyword and "Rally: trigger this minion's Shout" (once;
+ *  a second Pulse on the same minion does not stack it). Permanent: a per-instance graft on the run card. */
+export function ancientAfterPulse(state: RunState, card: BoardCard): void {
+  if (!effectOf(state, 'pulseGrantsRallyShout')) return;
+  if (!card.grantedEffects?.some((e) => e.do === ANCIENT_RALLY_SHOUT.do)) {
+    (card.grantedEffects ??= []).push({ ...ANCIENT_RALLY_SHOUT, params: {} });
+  }
+  if (!card.keywords.includes('RL')) card.keywords.push('RL');
+}
+
+/**
+ * ONE SHOP Shout fire (called from `fireBattlecryTriggered`, once per fire, so a Drakko-doubled Shout counts twice).
+ * FORTUNE banks Gold for next turn; BONDS gives the minions next to `source` +a/+h, permanently, in real time.
+ * `source` is the minion whose Shout fired (absent / off the board = no neighbours, e.g. a borrowed play).
+ */
+export function ancientOnShopShout(state: RunState, source: BoardCard | undefined): void {
+  const a = live(state);
+  if (!a) return;
+  const gold = effectOf(state, 'shopShoutGold');
+  if (gold) {
+    state.bonusEmbersNextTurn = (state.bonusEmbersNextTurn ?? 0) + gold.gold;
+    const cur = a.shoutGold?.wave === state.wave ? a.shoutGold.gold : 0;
+    a.shoutGold = { wave: state.wave, gold: cur + gold.gold };
+  }
+  const adj = effectOf(state, 'shoutBuffsAdjacent');
+  if (adj && source) {
+    const i = state.board.indexOf(source);
+    if (i < 0) return;
+    const near = [state.board[i - 1], state.board[i + 1]].filter((c): c is BoardCard => !!c);
+    if (near.length === 0) return;
+    captureBuffFx(state, source, 'minion', () => { for (const c of near) addBuff(c, ANCIENTS.bonds.name, adj.attack, adj.health); });
+  }
 }

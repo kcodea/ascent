@@ -116,6 +116,7 @@ function UnitInner({ u, side, anim, triggered, rallyPulse, watcherPulse, framePu
         // Player-side only: an enemy snapshot carries no run, the same fallback every run-scoped input takes.
         chooseBoth: foe ? false : chooseBothActive(run, u, def),
         rallySpreadAtk: u.rallySpreadAtk, // Sunmane: the rally's live escalating grant
+        grantedRallyShout: u.grantedRallyShout, // Auctioneer × War: the granted Rally prints in combat too
         taughtSpellId: u.taughtSpellId, // a Mage-Pup names the spell it was taught
         spellProgress: u.spellProgress, spiritTally: u.spiritTally, ascendProgress: u.ascendProgress, summonBonus: u.summonBonus,
         overflowBonus: u.overflowBonus, hpGrantBonus: u.hpGrantBonus, eotBonus: u.eotBonus, eotTick: u.eotTick,

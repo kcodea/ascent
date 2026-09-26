@@ -336,6 +336,7 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'factory:rallyCastSpell:onAttack': { policy: 'ownBeat', family: 'rally' },
   'factory:rallyGrantRandomShoutMinion:onAttack': { policy: 'ownBeat', family: 'rally' },
   'factory:rallyTriggerTribeShouts:onAttack': { policy: 'ownBeat', family: 'rally' },
+  'factory:rallyTriggerOwnShout:onAttack': { policy: 'ownBeat', family: 'rally' },
   'factory:onTribeAttackCastNamedSpell:onAttack': { policy: 'ownBeat', family: 'rally' },
   'factory:rallyCastTribeAttack:onAttack': { policy: 'ownBeat', family: 'rally' },
   'factory:rallyDamageRandomEnemy:onAttack': { policy: 'ownBeat', family: 'rally' },

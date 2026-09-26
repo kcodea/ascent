@@ -21,7 +21,7 @@ import type {
 import { ALE_IDS, RUBY_TYPE_IDS, damageMeterOf, alignAllows, extraTriggerFires, foldEchoExtraFires, socTwilightExtraFires, COMBATATIVE_RUBIES_ATTACKS, BODY_COUNTING_DEATHS, RUPTURED_RUBY_BOUNCES } from '../types';
 import { makeRng, type Rng } from '../rng';
 import { CombatBus } from '../events';
-import { FACTORIES, playRubyOn, castInCombat, combatCastable, resolveCombatSpellCast, replayCombatBattlecry, drakkoRepeats, SILENT_ONPLAY, isShopPoolSpell, shopSpellGrowth } from '../effects/factories';
+import { FACTORIES, playRubyOn, castInCombat, combatCastable, resolveCombatSpellCast, replayCombatBattlecry, drakkoRepeats, fireShout, livingNeighbours, SILENT_ONPLAY, isShopPoolSpell, shopSpellGrowth } from '../effects/factories';
 import { instantiate, type CardIndex } from './minion';
 import { EMPTY_SIDE } from './side';
 
@@ -275,6 +275,15 @@ export function simulate(
   // enemy half accumulates silently (no `toHand` event), like every other symmetric carry-back. Registered HERE,
   // before the Start-of-Combat pass, so a Herald / Sovereign / Twilight Shout at Start of Combat counts too
   // (`ctx` / `grantRngFor` are consts declared below; the handler only runs once the fight is underway).
+  // ANCIENT OF BONDS × the Auctioneer (owner 2026-09-26: "Shout triggers buff adjacent minions +4/+3"): every Shout
+  // fire on a side buffs the living minions next to the Shouting minion, the moment it fires (the emit follows the
+  // Shout's own effect, so the buff lands right after it). Registered before the tally so it runs first per fire.
+  bus.on('battlecryTriggered', (payload) => {
+    const { side, minion } = payload as { side: Side; minion?: Minion };
+    const adj = modsFor(side).ancientShoutAdjacent;
+    if (!adj || !minion) return;
+    for (const n of livingNeighbours(ctx, minion)) ctx.buff(n, adj.attack, adj.health, adj.label);
+  });
   bus.on('battlecryTriggered', (payload) => {
     const { side } = payload as { side: Side };
     shoutFires[side] += 1;
@@ -775,6 +784,7 @@ export function simulate(
     eotBonus: m.eotBonus,
     chosenOption: m.chosenOption, // Choose One: display-only, so the combat card prints the branch it became
     rallySpreadAtk: m.rallySpreadAtk, // Sunmane: the live escalating rally value, for the card text
+    ...(m.effects.some((e) => e.do === 'rallyTriggerOwnShout') ? { grantedRallyShout: true as const } : {}), // Auctioneer × War: print the granted Rally
     taughtSpellId: m.taughtSpellId, // Mage-Pup: display-only, so the combat card names the spell it cast
     sellBonus: m.sellBonus,
     eotTick: m.eotTick,
@@ -3944,6 +3954,20 @@ export function simulate(
         tail.golden = true;
         emit({ type: 'ascend', target: tail.uid, into: tail.cardId, gild: true });
         if (def && (def.attack > 0 || def.health > 0)) ctx.buff(tail, def.attack, def.health, smods.ancientTimeGild.label);
+      }
+    }
+    // ANCIENT OF TIME × the Auctioneer (owner 2026-09-26): "Start of Combat: trigger your left-most and right-most
+    // Shouts. If you have only one Shout, trigger it once." The two edges are read once, up front; each fires through
+    // the shared combat Shout path (`fireShout`: a counted `shout` event, the Shout's combat half, the
+    // `battlecryTriggered` emit), folding Drakko like every combat Shout re-fire.
+    if (smods.ancientEdgeShouts) {
+      const shouters = boards[scSide].filter((m) => !m.dead && m.health > 0 && m.effects.some((e) => e.on === 'onPlay' && !SILENT_ONPLAY.has(e.do)));
+      const edges = shouters.length === 0 ? [] : [...new Set([shouters[0]!, shouters[shouters.length - 1]!])];
+      for (const m of edges) {
+        if (m.dead || m.health <= 0) continue;
+        nextStep();
+        emit({ type: 'sc', source: m.uid, text: `${smods.ancientEdgeShouts.label}: ${m.name}'s Shout` });
+        for (let r = 0; r < drakkoRepeats(ctx, scSide); r++) fireShout(ctx, m, m);
       }
     }
     // Rulebreaker's Crown: the leftmost living minion gains +Attack equal to its Attack (doubles it).

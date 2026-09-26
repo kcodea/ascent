@@ -1,5 +1,5 @@
 import { ALE_IDS, RUBY_TYPE_IDS, SPECIAL_RUBY_IDS, TRIBES, alignAllows, makeRng, SILENT_ONPLAY, isShopPoolSpell, shopSpellGrowth, COMBAT_REPLAYABLE_BATTLECRIES, extraTriggerFires, foldEchoExtraFires, socTwilightExtraFires, BODY_COUNTING_DEATHS, ARENA_EFFECTS, beatIdentity, type EffectArena, type PresentationCollector, type PresentationPhase, type PresentationPolicy, type Rng, type CardDef, type EffectDef, type Keyword, type TriggerFamily, type TriggerSourceRef, type Tribe } from '@game/core';
-import { ancientOnSale, ancientOnShopDeath, ancientPowerText, ancientEotWardBuff, ancientRunEotWardBuff, ancientBondsReact, ANCIENTS } from './ancients';
+import { ancientOnSale, ancientOnShopDeath, ancientOnShopShout, ancientPowerText, ancientEotWardBuff, ancientRunEotWardBuff, ancientBondsReact, ANCIENTS } from './ancients';
 import { runSpells } from './spellPool';
 import { REVELER_IDS, RUNE_INDEX, CARD_INDEX, EQUIPMENT_INDEX, STAR_DESTROYER, equipmentOf, recurringEotOwner, type EquipmentDefinition } from '@game/content';
 import { equipIsNews, equipmentParams as equipmentParamsFor, grantEquipment as grantEquipmentToPlayer, armCalibration, unusedEquipmentCount } from './equipment';
@@ -3527,6 +3527,10 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   rallyTriggerTribeShouts: (ctx, self, params, payload) => {
     if (payload.minion !== self) return;
     ARENA_EFFECTS.rallyTriggerTribeShouts(shopArena(ctx.state, self), params);
+  },
+  rallyTriggerOwnShout: (ctx, self, params, payload) => {
+    if (payload.minion !== self) return;
+    ARENA_EFFECTS.rallyTriggerOwnShout(shopArena(ctx.state, self), params);
   },
   rallyTribeAuraGrowing: (ctx, self, params, payload) => {
     if (payload.minion !== self) return;
@@ -11114,7 +11118,10 @@ export function endOfTurnRepeats(state: RunState): number {
 
 /** Notify Battlecry-triggered watchers (Karwind) that a Battlecry just resolved. Call once per
  *  Battlecry *fire* — including each Drakko repeat — so a doubled Battlecry procs Karwind twice. */
-function fireBattlecryTriggered(state: RunState): void {
+function fireBattlecryTriggered(state: RunState, source?: BoardCard): void {
+  // ANCIENTS × the Auctioneer (a no-op unless the run has them): Fortune banks 1 Gold for next turn per SHOP Shout
+  // fire; Bonds buffs the minions next to `source`. Real time, per fire, before the Shout watchers below react.
+  ancientOnShopShout(state, source);
   const ctx = makeContext(state);
   for (const card of [...state.board]) {
     const def = CARD_INDEX[card.cardId];
@@ -11321,7 +11328,7 @@ export function applyBattlecryTarget(state: RunState, card: BoardCard, target: B
     // (Doc Bot `beatConservation`, the "missing beat" half). Same scope `playCard` opens for untargeted Shouts.
     withPlayTrigger(ctx, card, effect, () => captureBuffFx(ctx.state, card, 'minion', () => { for (let r = 0; r < repeats; r++) fn(ctx, card, effect.params ?? {}, { minion: card, target }); }));
   }
-  for (let r = 0; r < repeats; r++) fireBattlecryTriggered(state); // a Battlecry → procs Karwind
+  for (let r = 0; r < repeats; r++) fireBattlecryTriggered(state, card); // a Battlecry → procs Karwind
   if (state.karwindFlash && state.karwindFlash.length) state.karwindFlashSeq = (state.karwindFlashSeq ?? 0) + 1;
 }
 
@@ -11448,7 +11455,7 @@ export function replayBattlecry(state: RunState, card: BoardCard): boolean {
     if (!fn) continue;
     captureBuffFx(ctx.state, card, 'minion', () => { for (let r = 0; r < repeats; r++) fn(ctx, card, effect.params ?? {}, { minion: card }); });
   }
-  for (let r = 0; r < repeats; r++) fireBattlecryTriggered(state); // a Battlecry → procs Karwind
+  for (let r = 0; r < repeats; r++) fireBattlecryTriggered(state, card); // a Battlecry → procs Karwind
   if (state.karwindFlash && state.karwindFlash.length) state.karwindFlashSeq = (state.karwindFlashSeq ?? 0) + 1;
   return true;
 }
@@ -12072,7 +12079,7 @@ export function triggerBorrowedEcho(state: RunState, card: BoardCard): void {
       if (!fn) continue;
       captureBuffFx(ctx.state, card, 'minion', () => { for (let r = 0; r < repeats; r++) fn(ctx, card, effect.params ?? {}, { minion: card }); });
     }
-    for (let r = 0; r < repeats; r++) fireBattlecryTriggered(state); // each Battlecry fire procs Karwind
+    for (let r = 0; r < repeats; r++) fireBattlecryTriggered(state, card); // each Battlecry fire procs Karwind
     if (state.karwindFlash && state.karwindFlash.length) state.karwindFlashSeq = (state.karwindFlashSeq ?? 0) + 1;
   }
   fireRecruitDeathrattles(makeContext(state), card);
@@ -14903,6 +14910,6 @@ export function playCard(state: RunState, played: BoardCard): void {
     });
   }
   // each Battlecry fire (incl. Drakko repeats) procs Battlecry-triggered watchers (Karwind)
-  if (hasBattlecry) for (let r = 0; r < repeats; r++) fireBattlecryTriggered(state);
+  if (hasBattlecry) for (let r = 0; r < repeats; r++) fireBattlecryTriggered(state, played);
   if (state.karwindFlash && state.karwindFlash.length) state.karwindFlashSeq = (state.karwindFlashSeq ?? 0) + 1;
 }

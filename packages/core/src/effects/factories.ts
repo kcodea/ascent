@@ -280,7 +280,7 @@ function rubyMultiplierFor(ctx: CombatContext, side: Side): number {
  *  already gives that ordering, which is how Karwind's neighbours were written; this makes the older
  *  index-the-raw-board sites agree with it instead of quietly meaning something else.
  */
-function livingNeighbours(ctx: CombatContext, self: Minion): Minion[] {
+export function livingNeighbours(ctx: CombatContext, self: Minion): Minion[] {
   const alive = ctx.living(self.side);
   const raw = ctx.boards[self.side];
   const i = raw.indexOf(self);
@@ -1287,6 +1287,13 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     const { minion } = payload as MinionPayload;
     if (self.dead || minion !== self) return; // Rally: this minion's own attack only
     ARENA_EFFECTS.rallyTriggerTribeShouts(combatArena(ctx, self), params);
+  },
+
+  /** Ancients × the Auctioneer (War): the grafted "Rally: trigger this minion's Shout" (arena body). */
+  rallyTriggerOwnShout: (ctx, self, params, payload) => {
+    const { minion } = payload as MinionPayload;
+    if (self.dead || minion !== self) return; // Rally: this minion's own attack only
+    ARENA_EFFECTS.rallyTriggerOwnShout(combatArena(ctx, self), params);
   },
 
   /** Spell Drummer — Rally: cast a random stat spell on a random friendly minion (its buff + combat spell power,

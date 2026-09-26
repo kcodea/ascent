@@ -214,6 +214,8 @@ export interface UnitFrame {
   taughtSpellId?: string;
   /** Sunmane Herald: the live escalating rally grant, so the combat card shows its current value. Display-only. */
   rallySpreadAtk?: number;
+  /** Ancients × the Auctioneer (War): the body carries the granted "Rally: trigger this minion's Shout". Display-only. */
+  grantedRallyShout?: boolean;
 }
 
 // Stable empty list for the hand-grant memo — a fresh [] each render would churn every downstream memo.
@@ -239,6 +241,7 @@ const fromSnap = (s: MinionSnapshot): UnitFrame => ({
   chosenOption: s.chosenOption, // Choose One: the combat card prints the branch it became
   taughtSpellId: s.taughtSpellId, // Mage-Pup: the combat card names the spell it was taught
   rallySpreadAtk: s.rallySpreadAtk, // Sunmane Herald: the combat card shows the live escalating rally grant
+  grantedRallyShout: s.grantedRallyShout, // Auctioneer × War: the combat card prints the granted Rally
   // Clone the recruit-buff breakdown so the per-beat fold can merge in combat buffs without mutating the snapshot.
   buffs: s.buffs ? s.buffs.map((b) => ({ ...b })) : undefined,
 });

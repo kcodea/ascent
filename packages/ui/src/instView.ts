@@ -94,6 +94,9 @@ export interface LiveTextParams {
   starCrashBonus?: { attack: number; health: number };
   /** Sunmane Herald's live escalating rally value (combat-only) — its printed "+3" is only the opening rung. */
   rallySpreadAtk?: number;
+  /** ANCIENTS × the Auctioneer (War): this instance carries the granted "Rally: trigger this minion's Shout" (a
+   *  `grantedEffects` graft in the shop, the snapshot's `grantedRallyShout` in combat). Printed as a blue note. */
+  grantedRallyShout?: boolean;
   /** Mage-Pup: the spell Moonhowl Mentor taught THIS token, so its Shout line can print that spell's actual
    *  rule instead of "the spell this was taught". Absent on every other card. */
   taughtSpellId?: string;
@@ -128,6 +131,9 @@ export function rubyLiveText(printed: string, grant: string): string {
  * Sergeant, …, each green via `{{…}}`) plus its golden variant. The single source of truth used by the recruit
  * board (`instView`), the shop, and Discover, so a card ALWAYS shows its current value wherever it's offered.
  */
+/** The blue note a Pulsed minion wears under Ancients × the Auctioneer (War). */
+export const GRANTED_RALLY_SHOUT_NOTE = "[[Rally: trigger this minion's Shout.]]";
+
 export function liveCardText(cardId: string, p: LiveTextParams): { text: string; goldenText: string | undefined } {
   const c = CARD_INDEX[cardId];
   // A RESOLVED Choose One prints only the branch it became — the other option is no longer something this body
@@ -233,7 +239,9 @@ export function liveCardText(cardId: string, p: LiveTextParams): { text: string;
   const goldenBase = p.golden && text !== c.text ? text : c.goldenText;
   // RUNE-NOTE post-pass (owner rule 2026-08-02): a rune that changes this card's printed RULE says so on the
   // card, composing with whatever live values the chain injected above. Both variants carry it.
-  const runeNote = runeModifiedNote(c.id, p.runeFlags);
+  // …and a rule GRANTED to this instance (Ancients × the Auctioneer's War Pulse) prints as a blue [[…]] note.
+  const grantNote = p.grantedRallyShout ? GRANTED_RALLY_SHOUT_NOTE : '';
+  const runeNote = [runeModifiedNote(c.id, p.runeFlags), grantNote].filter(Boolean).join(' ');
   const noted = runeNote ? `${text} ${runeNote}` : text;
   const notedGolden = goldenBase !== undefined && runeNote ? `${goldenBase} ${runeNote}` : goldenBase;
   // Live Imp-stat annotation (owner 2026-08-11): fold the summoned Imp's current X/Y into the "summon … Imp"
@@ -303,6 +311,7 @@ export function instView(
     chosenOption: inst.chosenOption, // a resolved Choose One prints only the branch it became
     chooseBoth, // (Both) — no choice to print
     taughtSpellId: inst.taughtSpellId, // a Mage-Pup prints the spell it was taught
+    grantedRallyShout: !!inst.grantedEffects?.some((e) => e.do === 'rallyTriggerOwnShout'), // Auctioneer × War
   });
   // `override` shows transient stats during the End-of-Turn animation (the per-proc value the minion
   // is at on this beat), so its numbers visibly tick up as each effect procs. Otherwise the real stats.

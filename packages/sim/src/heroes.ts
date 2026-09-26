@@ -1060,7 +1060,14 @@ export function gildCopiesNeeded(run: { heroId: string; runeTwinGilding?: boolea
  * hero (Fi/Coran's turn-1 quest, Runesmith's forge), beat identity, save/opponent keys — which is why the
  * accessor is additive rather than a rewrite of getHero.
  */
-interface PowerCarrier { heroId: string; adoptedPowerId?: string; mimicPowerId?: string; voidPowerIds?: string[] }
+interface PowerCarrier {
+  heroId: string; adoptedPowerId?: string; mimicPowerId?: string; voidPowerIds?: string[];
+  /** ANCIENTS: a picked pairing may reshape the NATIVE power (Auctioneer: Time makes Pulse passive, Genesis makes
+   *  it an untargeted 2 Gold power). Stamped at the pick (`AncientsState.powerOverride`); read only when the run has
+   *  Ancients on, and never over an adopted power (the pairing belongs to the hero's own power). */
+  ancientsEnabled?: boolean;
+  ancients?: { powerOverride?: Partial<Pick<HeroPower, 'passive' | 'untargeted' | 'cost'>> };
+}
 
 /** The power(s) this run is wielding RIGHT NOW — one for everyone, one adopted for Mimic, two for a
  *  post-turn-4 Void. Before Mimic's first pick / Void's turn 4, the base placeholder power stands. */
@@ -1074,6 +1081,8 @@ export function activePowers(run: PowerCarrier): HeroPower[] {
   // read so a run saved between the two same-day merges keeps its disguise.
   const adopted = run.adoptedPowerId ?? run.mimicPowerId;
   if (adopted && HERO_INDEX[adopted]) return [getHero(adopted).power];
+  const shape = run.ancientsEnabled ? run.ancients?.powerOverride : undefined;
+  if (shape) return [{ ...base, ...shape }];
   return [base];
 }
 

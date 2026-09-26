@@ -3804,20 +3804,29 @@ function checkTriples(s: RunState): void {
   }
 }
 
-/** Pull up to `count` non-golden copies of `cardId` out of the hand (first) then the board, removing them
- *  and returning them with their current stats/keywords — the copies a combine consumes. */
+/** Pull up to `count` non-golden copies of `cardId` — BOARD FIRST, then the hand — removing them and returning
+ *  them with their current stats/keywords: the copies a combine consumes.
+ *
+ *  BOARD FIRST (owner rule 2026-09-25: "the minions on board should be used first and foremeost for triples").
+ *  It used to be hand first, so an effect that dropped two copies into the hand while two sat on the board
+ *  (Genesis Indy's hero power) combined both new copies plus ONE board copy, stranding a board copy. Now the
+ *  board copies go in first and only the shortfall comes from the hand; any surplus stays where it was.
+ *
+ *  Tie-break, deterministic: board copies are taken LEFT-MOST first (slot 0 upward); hand copies are taken
+ *  NEWEST first (right-most — the copy that just arrived), the long-standing hand order. Consumed board
+ *  copies carry their buffs into the golden through `combineIntoGolden`'s unchanged merge. This is the ONE
+ *  consumption point: every triple route (buy, Discover, copy-to-hand, summon, hero power, End-of-Turn
+ *  carry-back at shop open, Gildmaster) funnels through `checkTriples` → here. */
 function pullCopies(s: RunState, cardId: string, count: number): BoardCard[] {
   const combined: BoardCard[] = [];
-  const pull = (arr: BoardCard[]): void => {
-    for (let i = arr.length - 1; i >= 0 && combined.length < count; i--) {
-      if (arr[i]!.cardId === cardId && !arr[i]!.golden) {
-        combined.push(arr[i]!);
-        arr.splice(i, 1);
-      }
-    }
-  };
-  pull(s.hand); // consume from the hand first, then the board
-  pull(s.board);
+  const matches = (c: BoardCard): boolean => c.cardId === cardId && !c.golden;
+  for (let i = 0; i < s.board.length && combined.length < count;) {
+    if (matches(s.board[i]!)) combined.push(s.board.splice(i, 1)[0]!); // left-most first; splice shifts, so no i++
+    else i++;
+  }
+  for (let i = s.hand.length - 1; i >= 0 && combined.length < count; i--) {
+    if (matches(s.hand[i]!)) combined.push(s.hand.splice(i, 1)[0]!); // newest (right-most) first
+  }
   return combined;
 }
 
@@ -3989,8 +3998,9 @@ function combineIntoGolden(s: RunState, tripleId: string, combined: BoardCard[])
     boughtWave: goldenBoughtWave,
     eotTick: goldenEotTick,
   };
-  // Respect the hard 10-card hand cap. A triple always frees board slots (it consumes ≥1 board copy), so if
-  // the hand is full the golden goes onto the board rather than over-capping the hand — the reward is never lost.
+  // Respect the hard 10-card hand cap. If the hand is full the golden goes onto the board rather than
+  // over-capping the hand — the reward is never lost. Board copies are consumed FIRST (see `pullCopies`), so a
+  // full hand next to any board copy always has a freed slot; an all-hand triple frees hand room instead.
   if (s.hand.length < handCap(s)) s.hand.push(goldenCard);
   else s.board.push(goldenCard);
   carrySableBond(s, combined, goldenCard.uid);
@@ -5585,9 +5595,9 @@ function advanceCombat(s: RunState): void {
   // Deathrattle-granted minion) AFTER the last recruit action that would have checked. Every other
   // path checks on the mutation; this is the one entry the player never triggers, so check once here
   // as the shop opens. Idempotent + loop-guarded, and the only settle/advance-path call (no double-Discover).
-  // No hand overflow here: a shop-start triple always includes ≥1 hand-granted copy (3 board copies would
-  // have tripled back in recruit), and checkTriples pulls from the hand first — removing it offsets the
-  // golden it pushes back, so the hand never grows past the cap.
+  // No hand overflow here: checkTriples pulls BOARD copies first (owner rule 2026-09-25), and
+  // `combineIntoGolden` lands the golden on the board — in a slot the combine just freed — whenever the hand is
+  // full, so the hand never grows past the cap.
   checkTriples(s);
   // Quest turns roll the tavern HERE (after checkTriples — matching the old deferred `buyQuest` roll's rngCursor
   // position, so the run stays byte-identical) so the shop is populated behind the quest overlay for a

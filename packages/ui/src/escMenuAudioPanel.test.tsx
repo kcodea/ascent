@@ -2,8 +2,8 @@
 /**
  * THE AUDIO PANEL in Settings (owner ask 2026-09-23: *"an 'audio' button in the settings window that
  * expands/collapses these 3 channels with mute toggles for each"*). Pins: the section is ONE "Audio" button
- * (aria-expanded), collapsed by default; expanded it shows exactly three channel rows, Game sounds / Music /
- * Announcer, each a slider + a mute pill; a mute persists to its own localStorage key and applies live (the
+ * (aria-expanded), collapsed by default; expanded it shows the MASTER row (owner ask 2026-09-26) on top of the
+ * three channel rows, Game sounds / Music / Announcer, each a slider + a mute pill; a mute persists to its own localStorage key and applies live (the
  * slider disables, the value reads Off); the open state is remembered; no `title=` attribute anywhere in the
  * menu (the owner banned native tooltips); no player-facing em dash or double hyphen.
  *
@@ -19,6 +19,7 @@ import { useGame } from './store';
 import { isMuted, toggleMute } from './sfx';
 import { isMusicMuted, toggleMusicMute } from './music';
 import { getAnnouncerVolume, isAnnouncerMuted, setAnnouncerVolume, toggleAnnouncerMute } from './announcer';
+import { getMasterVolume, isMasterMuted, masterLevel, setMasterVolume, toggleMasterMute } from './audio/master';
 import { announcedFor, type AnnouncedSlice } from './announcerSlice';
 
 let ui: Mounted | null = null;
@@ -33,6 +34,8 @@ const unmuteAll = (): void => {
   if (isMuted()) toggleMute();
   if (isMusicMuted()) toggleMusicMute();
   if (isAnnouncerMuted()) toggleAnnouncerMute();
+  if (isMasterMuted()) toggleMasterMute();
+  setMasterVolume(1);
 };
 
 beforeEach(() => {
@@ -49,7 +52,7 @@ afterEach(() => {
 });
 
 describe('the Audio panel', () => {
-  it('is one "Audio" button, collapsed by default, that expands to exactly three channels', () => {
+  it('is one "Audio" button, collapsed by default, that expands to the Master row plus the three channels', () => {
     ui = mount(<EscMenu onClose={() => {}} />);
     const btn = audioButton(ui.container);
     expect(btn).not.toBeNull();
@@ -57,7 +60,7 @@ describe('the Audio panel', () => {
     expect(ui.container.querySelector('#esc-audio-panel')).toBeNull();
     press(btn);
     expect(audioButton(ui.container)!.getAttribute('aria-expanded')).toBe('true');
-    expect(rows(ui.container).map(labelOf)).toEqual(['Game sounds', 'Music', 'Announcer']);
+    expect(rows(ui.container).map(labelOf)).toEqual(['Master', 'Game sounds', 'Music', 'Announcer']);
     for (const row of rows(ui.container)) {
       expect(row.querySelector('input[type="range"]')).not.toBeNull();
       const mute = row.querySelector<HTMLButtonElement>('button.escmute');
@@ -77,24 +80,24 @@ describe('the Audio panel', () => {
     ui.unmount();
     ui = mount(<EscMenu onClose={() => {}} />);
     expect(audioButton(ui.container)!.getAttribute('aria-expanded')).toBe('true');
-    expect(rows(ui.container)).toHaveLength(3);
+    expect(rows(ui.container)).toHaveLength(4);
   });
 
   it('each mute is its own persisted toggle: the slider disables, the value reads Off, the others are untouched', () => {
     ui = mount(<EscMenu onClose={() => {}} />);
     press(audioButton(ui.container));
-    const [, music, announcer] = rows(ui.container) as [HTMLElement, HTMLElement, HTMLElement];
+    const [, , music, announcer] = rows(ui.container) as [HTMLElement, HTMLElement, HTMLElement, HTMLElement];
     press(announcer.querySelector('button.escmute'));
     expect(isAnnouncerMuted()).toBe(true);
     expect(localStorage.getItem('ascent.announcermuted')).toBe('1');
     expect(isMusicMuted()).toBe(false);
     expect(isMuted()).toBe(false);
-    const row = rows(ui.container)[2]!;
+    const row = rows(ui.container)[3]!;
     expect(row.querySelector<HTMLInputElement>('input[type="range"]')!.disabled).toBe(true);
     expect(row.querySelector('.evv')!.textContent).toBe('Off');
     expect(row.querySelector('button.escmute')!.getAttribute('aria-pressed')).toBe('true');
     expect(row.querySelector('button.escmute')!.textContent).toBe('Muted');
-    press(rows(ui.container)[2]!.querySelector('button.escmute'));
+    press(rows(ui.container)[3]!.querySelector('button.escmute'));
     expect(isAnnouncerMuted()).toBe(false);
     expect(localStorage.getItem('ascent.announcermuted')).toBe('0');
     press(music.querySelector('button.escmute'));
@@ -107,7 +110,7 @@ describe('the Audio panel', () => {
     setAnnouncerVolume(0.9);
     ui = mount(<EscMenu onClose={() => {}} />);
     press(audioButton(ui.container));
-    const row = rows(ui.container)[2]!;
+    const row = rows(ui.container)[3]!;
     const slider = row.querySelector<HTMLInputElement>('input[type="range"]')!;
     expect(slider.value).toBe('90');
     expect(slider.getAttribute('aria-label')).toBe('Announcer volume');
@@ -118,8 +121,34 @@ describe('the Audio panel', () => {
     });
     expect(getAnnouncerVolume()).toBeCloseTo(0.35);
     expect(localStorage.getItem('ascent.announcervol.v2')).toBe('0.35');
-    expect(rows(ui.container)[2]!.querySelector('.evv')!.textContent).toBe('35');
+    expect(rows(ui.container)[3]!.querySelector('.evv')!.textContent).toBe('35');
     setAnnouncerVolume(0.9);
+  });
+
+  it('Master sits on top: default 100, its slider persists, its mute silences everything and leaves the channel mutes alone', () => {
+    ui = mount(<EscMenu onClose={() => {}} />);
+    press(audioButton(ui.container));
+    const master = rows(ui.container)[0]!;
+    const slider = master.querySelector<HTMLInputElement>('input[type="range"]')!;
+    expect(slider.value).toBe('100');
+    expect(slider.getAttribute('aria-label')).toBe('Master volume');
+    act(() => {
+      const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!;
+      setter.call(slider, '60');
+      slider.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+    expect(getMasterVolume()).toBeCloseTo(0.6);
+    expect(localStorage.getItem('ascent.mastervol.v1')).toBe('0.6');
+    press(master.querySelector('button.escmute'));
+    expect(isMasterMuted()).toBe(true);
+    expect(masterLevel()).toBe(0);
+    expect(localStorage.getItem('ascent.mastermuted')).toBe('1');
+    const row = rows(ui.container)[0]!;
+    expect(row.querySelector('.evv')!.textContent).toBe('Off');
+    expect(row.querySelector('button.escmute')!.getAttribute('aria-label')).toBe('Unmute master');
+    expect(isMuted()).toBe(false);
+    expect(isMusicMuted()).toBe(false);
+    expect(isAnnouncerMuted()).toBe(false);
   });
 
   it('nothing native, nothing typographic: no title= anywhere, no em dash / double hyphen in the menu text', () => {

@@ -2103,6 +2103,9 @@ export interface QuestCombatMods {
   /** Rune of the Spellstone, combat half (owner ask 2026-07-31): a Ruby played IN combat also counts as a
    *  spell cast — it fires the `spellCast` trigger, so per-spell improvers (Groveweaver) advance. */
   runeSpellstone?: boolean;
+  /** Rune of Full Measure: Baby Gastrid's Shout also grants Attack, 1:1 with the Health — read by its combat
+   *  half too, so a Shout re-fired mid-fight pays the same +N/+N (R-REALTIME-03). */
+  runeFullMeasure?: boolean;
   /** Decoy Sigil (next-combat spell): summon this many 1/1 Training Dummies (Taunt + Ward), one at a time,
    *  far right, whenever the board first has room — the Rune-of-the-Brood slot-filler machinery. */
   decoySigils?: number;
@@ -2846,6 +2849,13 @@ export interface CombatSideState {
   spellhide?: { spellId: string; uid: string }[];
   /** Rune of Living Growth: the run's accrued Growth improvement, added to every combat Growth cast. */
   growthBonus?: number;
+  /** Gold spent in the Shop turn that just ended — Baby Gastrid's Shout re-fired in combat scales off it
+   *  (R-REALTIME-03). Snapshot-captured so a served Gastrid pays ITS run's value. */
+  goldSpentThisTurn?: number;
+  /** The last Shop spell cast in the turn that just ended — Recaller's Shout re-fired in combat copies it. */
+  lastSpellThisTurnId?: string;
+  /** Squirl Scout's run-wide snowball (`squirlScoutBuff`) — a combat re-fire improves it and grants the new value. */
+  squirlScoutBuff?: number;
   /** The MINIONS in this side's hand at combat start, in hand order, with their live (buffed) stats — Rope
    *  Wrangler's Echo summons one at random, CONSUMING it (`uid` is the run hand card's uid; settle removes
    *  the summoned ones via `CombatResult.playerHandSummoned`). Player-only in practice. */
@@ -2995,7 +3005,8 @@ export interface CombatCarryBacks {
   cardBuffs?: { cardId: string; attack: number; health: number }[];
   fodderGrants?: number;
   fodderSchedule?: number[];
-  deferredBattlecries?: { cardId: string; golden: boolean }[];
+  deferredBattlecries?: { cardId: string; golden: boolean; uid?: string }[];
+  shoutCarry?: ShoutCarry;
   maxGoldGain?: number;
   bonusGold?: number;
   freeRolls?: number;
@@ -3210,7 +3221,9 @@ export interface CombatResult {
    *  buff, gain-a-minion) — recorded here (cardId + its golden state) and replayed through the real recruit
    *  factory in settleCombat, where they have full RunState access. Combat-meaningful Battlecries (summon /
    *  buff / discover / grant-keyword / spell-power) run in combat instead and are NOT listed here. */
-  playerDeferredBattlecries?: { cardId: string; golden: boolean }[];
+  playerDeferredBattlecries?: { cardId: string; golden: boolean; uid?: string }[];
+  /** Run-state grants from Shouts that resolved LIVE in combat (R-REALTIME-03) — see `ShoutCarry`. */
+  playerShoutCarry?: ShoutCarry;
   /** Free shop rerolls banked from this combat (Gryphon's on-damaged). Added to `freeRolls` in settleCombat. */
   playerFreeRolls?: number;
   /** Moe: number of upcoming shops that must contain a guaranteed Magnetic offer. Added to the run's counter. */
@@ -3300,6 +3313,26 @@ export interface CombatResult {
  * The combat-time API exposed to effect factories. Factories mutate state and
  * push events only through this surface.
  */
+/**
+ * Run-state grants made by Shouts that resolve LIVE in combat (R-REALTIME-03, owner 2026-09-26: "all shouts
+ * should be real time in combat"). The grant happens — and is logged — at the moment the Shout fires; the run
+ * fields only exist in the Shop, so settle folds each one in ONCE. Nothing here is ever replayed as a Shout.
+ */
+export interface ShoutCarry {
+  /** Nimbus: extra casts banked on the next Shop spell (`nextSpellExtraCasts`). */
+  nextSpellExtraCasts?: number;
+  /** Sugarnova: +A/+H banked on the next Shop spell (`nextSpellBonus`). */
+  nextSpellBonus?: { attack: number; health: number };
+  /** Living Grimoire: the charge armed (`grimoireMult`, set to the highest armed). */
+  grimoireMult?: number;
+  /** Squirl Scout: the run-wide snowball's growth this fight (`squirlScoutBuff`). */
+  squirlScoutBuff?: number;
+  /** Contract Butcher / Malphas: permanent "minions in the Shop" buffs, in fire order. */
+  runShopBuffs?: { source: string; cardId?: string; attack: number; health: number }[];
+  /** Crypt Broker: indices into `handGrants` whose arrived card's Echo fires out of combat at settle. */
+  handEchoes?: number[];
+}
+
 export interface CombatContext {
   /**
    * The spell currently being cast, if one is — set for the duration of EVERY combat cast and restored after
@@ -3510,7 +3543,31 @@ export interface CombatContext {
    *  replayed through its recruit factory at settle. Player-only; carried back via
    *  `CombatResult.playerDeferredBattlecries`. `golden` is the re-fired minion's golden state (so the factory
    *  doubles correctly). */
-  deferBattlecry(cardId: string, golden: boolean, side: Side): void;
+  deferBattlecry(cardId: string, golden: boolean, side: Side, sourceUid?: string): void;
+  /** SHOUTS IN REAL TIME (R-REALTIME-03, owner 2026-09-26). The run-state grants a Shout makes AT THE MOMENT it
+   *  fires in combat, carried back once at settle via `CombatResult.playerShoutCarry` (player-only, like every
+   *  carry-back; the enemy half accumulates silently for self-play). Each logs its own live line. */
+  grantNextSpellExtraCasts(count: number, side: Side, sourceUid?: string): void;
+  grantNextSpellBonus(attack: number, health: number, side: Side, sourceUid?: string): void;
+  armGrimoire(mult: number, side: Side): void;
+  /** Squirl Scout: raise the side's run-wide scout value by `step` — live for the rest of this fight. */
+  grantScoutBuff(step: number, side: Side): void;
+  /** The side's CURRENT Squirl Scout value (run value + this fight's growth). */
+  scoutBuffFor(side: Side): number;
+  /** "Give minions in the Shop +a/+h" (Contract Butcher / Malphas): the permanent run shop channel, applied at
+   *  settle through the Shop's own `applyRunShopBuff` (tavern buy bonus + Fodder + Starform, all of it). */
+  grantRunShopBuff(attack: number, health: number, side: Side, sourceUid?: string, sourceName?: string, sourceCardId?: string): void;
+  /** A card to hand NOW (a live `toHand` + the hand-grant reactors, exactly `grantToHand`) whose ECHO then fires
+   *  out of combat on the arrived card at settle (Crypt Broker). */
+  grantToHandThenEcho(cardId: string, side: Side, sourceUid?: string): void;
+  /** The side's shared Reveler value (max 1, run value) — Limelight's combat half. */
+  revelerValueFor(side: Side): number;
+  /** Gold spent in the Shop turn that just ended (Baby Gastrid). */
+  goldSpentThisTurnFor(side: Side): number;
+  /** The last Shop spell cast in the turn that just ended (Recaller). */
+  lastSpellThisTurnIdFor(side: Side): string | undefined;
+  /** Rune of Full Measure held by `side`. */
+  fullMeasureFor(side: Side): boolean;
   /** Permanently raise the player's max Gold by `amount` (Soulsman's Avenge). Player-only; carried
    *  back via `CombatResult.playerMaxGoldGain`, applied to maxEmbers in settleCombat. */
   grantMaxGold(amount: number, side: Side): void;

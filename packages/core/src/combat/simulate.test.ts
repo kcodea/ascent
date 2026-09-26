@@ -1892,15 +1892,19 @@ describe('simulate (handoff A.3)', () => {
     expect(gold.playerSpellPower).toEqual({ attack: 0, health: 2 }); // golden Cinderwing doubles
   });
 
-  it("Ryme re-firing an ECONOMY Battlecry records it for settle (Nimbus) — not the combat ones", () => {
+  it("Ryme re-firing a SHOP-ONLY Shout records it for settle (Market Tormentor) — every other Shout is live (R-REALTIME-03)", () => {
     const omen = [{ cardId: 'omen', attack: 50, health: 2000, keywords: [] }];
-    // Nimbus = battlecryDoubleNextSpell (banks a shop spell-cast charge) — genuinely shop-only, so it's
-    // recorded on playerDeferredBattlecries for the run loop to replay at settle (the golden state rides along).
-    // (Living Grimoire would NOT work here: battlecryArmGrimoire is in SILENT_ONPLAY — not a "Battlecry".)
-    const nim = run([{ cardId: 'ryme', attack: 5, health: 1 }, { cardId: 'nimbus', attack: 0, health: 100 }], omen, 1);
-    expect(nim.playerDeferredBattlecries).toEqual([{ cardId: 'nimbus', golden: false }]);
-    const goldNim = run([{ cardId: 'ryme', attack: 5, health: 1 }, { cardId: 'nimbus', attack: 0, health: 100, golden: true }], omen, 1);
-    expect(goldNim.playerDeferredBattlecries).toEqual([{ cardId: 'nimbus', golden: true }]);
+    // Market Tormentor enchants a Shop SLOT — a SHOP_ONLY_SHOUTS id — so it's recorded on playerDeferredBattlecries
+    // for the run loop to replay at settle (the golden state rides along), after logging its line live.
+    const tor = run([{ cardId: 'ryme', attack: 5, health: 1 }, { cardId: 'dm_tormentor', attack: 0, health: 100 }], omen, 1);
+    expect(tor.playerDeferredBattlecries).toEqual([{ cardId: 'dm_tormentor', golden: false }]);
+    expect(tor.events.some((e) => e.type === 'sc' && /enchants the Shop/.test(e.text))).toBe(true);
+    const goldTor = run([{ cardId: 'ryme', attack: 5, health: 1 }, { cardId: 'dm_tormentor', attack: 0, health: 100, golden: true }], omen, 1);
+    expect(goldTor.playerDeferredBattlecries).toEqual([{ cardId: 'dm_tormentor', golden: true }]);
+    // Nimbus used to be THE defer example; it banks its charge LIVE now (the ShoutCarry channel), nothing defers.
+    const nim = run([{ cardId: 'ryme', attack: 5, health: 1 }, { cardId: 'nimbus', attack: 0, health: 100, golden: true }], omen, 1);
+    expect(nim.playerShoutCarry?.nextSpellExtraCasts).toBe(2);
+    expect(nim.playerDeferredBattlecries).toBeUndefined();
     // Soulfeeder used to be THE defer example — it now schedules its Fodder LIVE through `scheduleFodder`
     // (settle merges the array into fodderSchedule), so nothing defers for it either.
     const feed = run([{ cardId: 'ryme', attack: 5, health: 1 }, { cardId: 'feed', attack: 0, health: 100 }], omen, 1);

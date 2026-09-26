@@ -256,4 +256,33 @@ export const TEXT_RULES: GameRule[] = [
       lastVerifiedAt: '2026-09-23',
     },
   },
+  {
+    id: 'R-MEDAL-01',
+    title: 'A minion with a Sell effect shows the Sell medallion',
+    statement:
+      'Every minion whose own effect fires when it is sold (the onSell trigger, printed "Sell: …") shows the Sell '
+      + 'medallion at the base of its frame. When the card has other mechanics too, the medallion goes to the one '
+      + 'its text mentions FIRST, and the "Sell:" lead counts as a mention of Sell, so a card that opens with '
+      + '"Sell:" always shows Sell, whatever it Discovers, casts or does at End of Turn afterwards.',
+    domain: 'text',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-25 (Traveling Salesman medallion report)', quote: 'travelling salesman should have the sell medallion' },
+      { kind: 'fix-pr', ref: 'fix/traveling-salesman-sell-medallion — packages/ui/src/mechanics.ts (the sell entry\'s termRe now matches "Sell:"), packages/ui/src/mechIcon.ts (resolveMech orders by first text mention)' },
+    ],
+    contentIds: ['n2_salesman', 'salvatore', 'hoardwhelp', 'd2_riverdrake', 'k_beggy', 'k_pouchpincher', 'sp3_flamereveler', 'sp3_tidereveler', 'sp3_grovereveler'],
+    currentBehaviour:
+      'Conforms as of 2026-09-25. When R-TEXT-09 (2026-09-23) moved Sell cards from "When you sell this, …" to '
+      + '"Sell: …", the Sell mechanic\'s text matcher still looked only for "when you sell". A single-mechanic Sell '
+      + 'card still showed Sell, but on a multi-mechanic card the other term won the ordering: Traveling Salesman '
+      + 'and Salvatore McKlusky showed Discover, Hoard Whelp showed End of Turn. The matcher now also reads "Sell:".',
+    example:
+      'Traveling Salesman ("Sell: Discover a minion you control exactly one copy of.") shows the Sell medallion, '
+      + 'not the Discover star.',
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/ui/src/mechIcon.test.ts'],
+      lastVerifiedAt: '2026-09-25',
+    },
+  },
 ];

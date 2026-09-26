@@ -143,7 +143,10 @@ const REGISTRY: Omit<Mechanic, 'def'>[] = [
   // Sell ("When you sell this:", e.g. River Drake) and Equip (Equipment minions) get their own medallions
   // (owner ask 2026-09-23). Both are effect-trigger families, not badge keywords. Glyphs are SVG fallbacks —
   // the authored PNGs (sell.webp / equip.webp) are what render.
-  { id: 'sell', term: 'Sell', glyph: 'spend', detect: hasOn('onSell'), termRe: /when you sell/i, order: 21 },
+  // termRe must match the "**Sell:**" lead too (not only the old "When you sell this:" phrasing): it orders
+  // multi-mechanic cards, so a miss let a later term win the gem — Traveling Salesman / Salvatore showed
+  // Discover and Hoardwhelp End of Turn instead of Sell (owner 2026-09-25, R-MEDAL-01).
+  { id: 'sell', term: 'Sell', glyph: 'spend', detect: hasOn('onSell'), termRe: /when you sell|\bsell:/i, order: 21 },
   { id: 'equip', term: 'Equip', glyph: 'magnetic', detect: hasOn('equip'), termRe: /\bequip\b/i, order: 22 },
   // — Build & shop —
   { id: 'attachment', term: 'Attachment', glyph: 'magnetic', detect: kwMatch('M'), kw: 'M', termRe: /magneti[cz]e?[sd]?|attachments?|\battaches?\b|\battach\b/i, order: 40 },

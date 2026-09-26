@@ -2,7 +2,7 @@
 /**
  * GRANTED RISE prints in the card text (owner ask 2026-09-26: "do you think we should add Rise as text when a
  * minion is given it? i think so"). A minion that HAS Rise right now but whose printed card does not leads its
- * text with "**Rise.**", on the shop/board/hand chain (`liveCardText` via `instView`) AND in combat (`Unit`).
+ * text ending "**Rise.**", on the shop/board/hand chain (`liveCardText` via `instView`) AND in combat (`Unit`).
  * A printed Rise is never doubled, and a spent Rise (the body already Rose) drops it again.
  */
 import { describe, expect, it, afterEach } from 'vitest';
@@ -25,13 +25,13 @@ const instOf = (id: string, keywords: Keyword[], golden = false): BoardCard => (
 });
 
 describe('granted Rise — the text helper', () => {
-  it('a minion GIVEN Rise leads its text with **Rise.**', () => {
-    expect(liveCardText('deathswarmer', { ...base, keywords: ['R'] }).text).toBe(`**Rise.** ${SWARM.text}`);
+  it('a minion GIVEN Rise ends its text with **Rise.**', () => {
+    expect(liveCardText('deathswarmer', { ...base, keywords: ['R'] }).text).toBe(`${SWARM.text} **Rise.**`);
   });
 
   it('golden too: the golden variant carries it', () => {
     const t = liveCardText('deathswarmer', { ...base, golden: true, keywords: ['R'] });
-    expect(t.goldenText).toBe(`**Rise.** ${SWARM.goldenText}`);
+    expect(t.goldenText).toBe(`${SWARM.goldenText} **Rise.**`);
   });
 
   it('a card with no printed text reads just **Rise.**', () => {
@@ -55,7 +55,7 @@ describe('granted Rise — the text helper', () => {
   it('the board chain (instView) reads the instance keywords', () => {
     const run = createRun(21, 'drakko');
     const given = instView(instOf('deathswarmer', ['R']), run.tier);
-    expect(given.text).toBe(`**Rise.** ${SWARM.text}`);
+    expect(given.text).toBe(`${SWARM.text} **Rise.**`);
     const plain = instView(instOf('deathswarmer', []), run.tier);
     expect(plain.text).toBe(SWARM.text);
   });
@@ -75,12 +75,12 @@ describe('granted Rise — the combat chain (Unit)', () => {
     const run = { ...createRun(21, 'drakko') } as RunState;
     act(() => { useGame.setState({ run, compactCards: false }); });
     m.render(<Unit u={unitOf(['R'])} side="you" />);
-    expect(descTextOf(m.container)).toBe(plainOf(`**Rise.** ${SWARM.text}`));
+    expect(descTextOf(m.container)).toBe(plainOf(`${SWARM.text} **Rise.**`));
     // Rose: the snapshot loses R, the memo comparator sees new keywords, the text follows.
     m.render(<Unit u={unitOf([])} side="you" />);
     expect(descTextOf(m.container)).toBe(plainOf(SWARM.text));
     // Regained (Ancient of Death): back again.
     m.render(<Unit u={unitOf(['R'])} side="you" />);
-    expect(descTextOf(m.container)).toBe(plainOf(`**Rise.** ${SWARM.text}`));
+    expect(descTextOf(m.container)).toBe(plainOf(`${SWARM.text} **Rise.**`));
   });
 });

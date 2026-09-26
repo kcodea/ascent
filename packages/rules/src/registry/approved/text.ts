@@ -261,8 +261,8 @@ export const TEXT_RULES: GameRule[] = [
     title: 'A minion given Rise says Rise in its text',
     statement:
       'When a minion HAS Rise right now but its printed card does not (Rise was granted: Lord of the Risen\'s '
-      + 'Undying, Last Stand, a Shout or Echo that gives Rise, an Ancient of Death regain), its card text leads with '
-      + '"Rise." in the bold keyword style printed Rise cards use, on every surface: shop, board, hand, inspect, '
+      + 'Undying, Last Stand, a Shout or Echo that gives Rise, an Ancient of Death regain), its card text ENDS with '
+      + '"Rise." (after the printed mechanic, which keeps the lead and its pill) in the bold keyword style printed Rise cards use, on every surface: shop, board, hand, inspect, '
       + 'end screen and combat. It follows the CURRENT keyword: once the minion Rises the combat card drops it, and '
       + 'a regained Rise brings it back. A card that already prints Rise is never doubled, and a card with no text '
       + 'reads just "Rise.".',
@@ -270,6 +270,7 @@ export const TEXT_RULES: GameRule[] = [
     status: 'approved',
     evidence: [
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-26 (Deathswarmer given Rise by Undying)', quote: 'do you think we should add Rise as text when a minion is given it? i think so' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-26 (Rise placement)', quote: "showing rise is good, but show it at the end so it doesn't replace the minion's main mechanic pill. showing at the end makes sense since it is a granted effect" },
       { kind: 'code', ref: 'packages/ui/src/cardText.ts (withGrantedRise); packages/ui/src/instView.ts (liveCardText reads LiveTextParams.keywords); packages/ui/src/Unit.tsx (passes u.keywords)' },
     ],
     contentIds: ['deathswarmer', 'u3_poochy', 'drone'],
@@ -277,7 +278,7 @@ export const TEXT_RULES: GameRule[] = [
       'Conforms as of 2026-09-26. Before, a granted Rise showed only as the keyword pill and in the glossary side '
       + 'panel; the text still read the printed card ("Shout: give your Undead Aura +1 Attack.").',
     example:
-      'A Deathswarmer given Rise by Undying reads "Rise. Shout: give your Undead Aura +1 Attack." After it Rises in '
+      'A Deathswarmer given Rise by Undying reads "Shout: give your Undead Aura +1 Attack. Rise." After it Rises in '
       + 'combat it reads "Shout: give your Undead Aura +1 Attack." again. Rising Pup still reads "Taunt. Rise."',
     enforcement: {
       kind: 'scenario',

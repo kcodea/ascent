@@ -2013,7 +2013,7 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
 }
 /* Dual-type minions are still oval `.stdframe` cards, so the hover glow comes from `.cglow` like every other
    framed card — no bespoke `:hover` box-shadow here (it would add a boxy rectangular halo over the silhouette glow). */
-.card.golden.dual::before, .card.spellcard::before, .card.triplecard::before { display: none; } /* special frames win */
+.card.golden.dual::before, .card.spellcard::before { display: none; } /* special frames win */
 .cbody { padding: 0 9px 8px; margin-top: -20px; position: relative; z-index: 2; display: flex; flex-direction: column; flex: 1 1 0; min-height: 0; overflow: hidden; }
 .cn { flex: none; align-self: center; max-width: 100%; font-family: var(--font-ui); font-weight: 700; font-size: 13px; line-height: 1.1; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; background: color-mix(in srgb, var(--card) 88%, transparent); border-radius: 8px; padding: 2px 9px; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12); }
 /* always reserves one pill-row of height (even with no pills) so the description below
@@ -2585,19 +2585,8 @@ img.tierbadge.tierstars,
 .card.spellcard { border-color: var(--t-demon); box-shadow: 0 0 0 2px color-mix(in srgb, var(--t-demon) 55%, transparent), 0 3px 0 var(--shadow), 0 0 18px -3px color-mix(in srgb, var(--t-demon) 70%, transparent); }
 .card.spellcard .art { background: radial-gradient(120% 90% at 50% 25%, color-mix(in srgb, var(--t-demon) 40%, var(--card)), color-mix(in srgb, var(--t-demon) 18%, var(--card))); border-radius: 11px 11px 0 0; }
 .card.spellcard .ctype.spell { color: var(--t-demon); font-weight: 800; }
-/* Triple Reward — the triple/golden reward spell wears the golden frame + text box (like a tripled
-   minion) and a bright, vibrant orange glow that pulses. Overrides the generic spell (purple) look. */
-.card.triplecard { z-index: 5; border-color: #e7b53d; background: color-mix(in srgb, #f4cf6a 22%, var(--card)); box-shadow: 0 0 0 2px #f4cf6a, 0 0 20px 4px rgba(255, 138, 30, 0.72), 0 3px 0 var(--shadow); }
-.card.triplecard::before { content: ''; position: absolute; inset: 0; border-radius: var(--arch-radius); pointer-events: none; box-shadow: 0 0 42px 13px rgba(255, 150, 42, 1); animation: kwglow 1.5s ease-in-out infinite; will-change: opacity; }
-.card.triplecard .art { background: color-mix(in srgb, #f4cf6a 34%, var(--card)); border-radius: 11px 11px 0 0; }
-.card.triplecard .cn { background: linear-gradient(180deg, #ffe9a6, #f1cb5e); color: #6e5008; box-shadow: 0 1px 3px rgba(120, 80, 10, 0.32); }
-.card.triplecard .cfoot { background: color-mix(in srgb, #f4cf6a 30%, var(--card)); }
-.card.triplecard .ctype.spell { color: var(--acc-dk); }
-/* IN HAND the Triple Reward files in like any other card. The `z-index: 5` above lifted it over its
-   neighbours, so a reward sitting mid-fan painted on top of the cards to its right instead of tucking under
-   them (owner report 2026-07-25). Hand cards stack by DOM order (no explicit z), so drop back to `auto` here;
-   the `:hover` bump (z50) and the z5 elsewhere (tavern / board) are untouched. */
-.row.hand .card.triplecard { z-index: auto; }
+/* The Triple Reward has NO bespoke look any more: it renders exactly like a spell in hand — the authored square
+   spell frame, art window, pill and text box (owner 2026-09-25). Its old gold `.triplecard` skin was removed. */
 
 /* Discover overlay (triple reward) */
 /* z160: discover / choose-one must sit above ALL effects — the FX overlay (.pixifx z110), a freshly-placed

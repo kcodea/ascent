@@ -4,7 +4,7 @@ import type { TunerControl, TunerSpec, TunerUnit } from '../tunerSchema';
 import { useGame } from '../store';
 import { ANCIENTS_DEFAULTS, ANCIENTS_RANGES, getAncientsConfig, resetAncientsConfig, setAncientsValue, type AncientsFullConfig, type AncientsNumKey, ANCIENT_ART_IDS, ANCIENT_CUES, ART_FIELDS } from './ancientsConfig';
 import { playAwakenDemo, playGateDemo } from './ancientsFx';
-import { ANCIENT_HERO_THEMES, heroThemeKey, THEME_FIELDS, THEMED_HEROES, type ThemeField } from './ancientHeroThemes';
+import { ANCIENT_HERO_THEMES, BLOOM_STYLES, heroThemeKey, isThemedHero, STYLE_FAMILY, THEME_FIELDS, THEMED_HEROES, type ThemeField } from './ancientHeroThemes';
 
 /**
  * DEV ✦ ANCIENTS tuner (proof of concept 2026-09-25). The METER group is balance: moving it re-stamps the live
@@ -13,8 +13,8 @@ import { ANCIENT_HERO_THEMES, heroThemeKey, THEME_FIELDS, THEMED_HEROES, type Th
  * without touching run state; the Scene Builder's "Fill meter" plays the real thing end to end.
  */
 type Key = keyof AncientsFullConfig;
-/** "Indy", "The Warden" … (a theme's own label, capitalised for a heading). */
-const heroName = (h: (typeof THEMED_HEROES)[number]): string => { const l = ANCIENT_HERO_THEMES[h].label; return l.charAt(0).toUpperCase() + l.slice(1); };
+/** A hero's display name (the theme's label), or "Default" for every hero without its own theme. */
+const heroName = (h: string): string => (isThemedHero(h) ? ANCIENT_HERO_THEMES[h].label : 'Default (every other hero)');
 const THEME_LABELS: Record<ThemeField, [string, string]> = {
   curtainInner: ['Curtain centre', 'The curtain’s colour at its centre (it blooms out of the hero power).'],
   curtainOuter: ['Curtain edge', 'The curtain’s colour at its edge.'],
@@ -22,8 +22,25 @@ const THEME_LABELS: Record<ThemeField, [string, string]> = {
   titleGlow: ['Title glow', 'The glow around the title and the medallion.'],
   backdropTint: ['Backdrop tint', 'The dark tint behind the cards once they are revealed.'],
 };
-function themeRows(hero: 'default' | (typeof THEMED_HEROES)[number], group: string): [Key, string, TunerUnit | undefined, string, string, 'color'][] {
-  return THEME_FIELDS.map((f) => [(hero === 'default' ? f : heroThemeKey(hero, f)) as Key, THEME_LABELS[f][0], undefined, THEME_LABELS[f][1], group, 'color']);
+function themeRows(hero: string, group: string): [Key, string, TunerUnit | undefined, string, string, 'color'][] {
+  return THEME_FIELDS.map((f) => [(isThemedHero(hero) ? heroThemeKey(hero, f) : f) as Key, THEME_LABELS[f][0], undefined, THEME_LABELS[f][1], group, 'color']);
+}
+const HERO_GROUP = 'Hero theme';
+const HERO_OPTIONS = ['default', ...[...THEMED_HEROES].sort((a, b) => heroName(a).localeCompare(heroName(b)))];
+const STYLE_OPTIONS = ['auto', ...BLOOM_STYLES];
+/** The HERO THEME group (owner 2026-09-26): pick a hero (and optionally preview another bloom style on it), then its
+ *  five colours. Only the SELECTED hero's colours show, so the panel stays one group, not sixty. */
+function heroThemeControls(): TunerControl<Key>[] {
+  const hero = String(getAncientsConfig().tunerHero);
+  const sel = (key: Key, label: string, hint: string, options: readonly string[], optionLabels: Record<string, string>): TunerControl<Key> =>
+    ({ key, label, hint, group: HERO_GROUP, kind: 'select', min: 0, max: 0, step: 0, options, optionLabels });
+  return [
+    sel('tunerHero', 'Hero', 'The hero whose awakening colours are below, and who ▶ Play plays as.', HERO_OPTIONS,
+      Object.fromEntries(HERO_OPTIONS.map((h) => [h, isThemedHero(h) ? `${heroName(h)} (${STYLE_FAMILY[ANCIENT_HERO_THEMES[h].style].split(' ')[0]})` : heroName(h)]))),
+    sel('tunerStyle', 'Style preview', 'Play the hero with another bloom style (Auto = its own). A preview only: the hero keeps its own style in the game.', STYLE_OPTIONS,
+      { auto: 'Auto (the hero’s own)', ...STYLE_FAMILY }),
+    ...themeRows(hero, HERO_GROUP).map(([key, label, , hint, group, kind]): TunerControl<Key> => ({ key, label, hint, group, kind, min: 0, max: 0, step: 0 })),
+  ];
 }
 const ROWS: [Key, string, TunerUnit | undefined, string, string, ('color' | 'toggle' | 'text')?][] = [
   ['cost', 'Points to fill', undefined, 'The meter fills up to this and then awakens. Re-stamps the live sandbox run.', 'Meter (balance)'],
@@ -65,10 +82,6 @@ const ROWS: [Key, string, TunerUnit | undefined, string, string, ('color' | 'tog
   ['slamSparks', 'Slam sparks', '×', 'The turbulent spark blast on each slam. 0 turns it off.', 'Dust'],
   ['slamDust', 'Slam dust', '×', 'How much dust bursts out when a revealed Ancient slams into place.', 'Dust'],
   ['hpDustLife', 'Hero-power dust life', '×', 'How long the burst from the hero power lasts. Low clears it before the curtain.', 'Dust'],
-  // HERO THEMES (owner 2026-09-26): the awakening's curtain, seam, title glow and backdrop in the hero's colours. The
-  // default is every hero without its own entry; each themed hero (ancientHeroThemes.ts) gets its own group.
-  ...themeRows('default', 'Hero theme: Default (every other hero)'),
-  ...THEMED_HEROES.flatMap((h) => themeRows(h, `Hero theme: ${heroName(h)}`)),
   ['closeMs', 'Gate closes', 'ms', 'The gate contracting back into the hero power on the pick.', 'Awakening beats'],
   ['duckAmount', 'Duck level', 'opacity', 'Music and other sounds dip to this during the awakening (1 = no duck).', 'Awakening sound'],
   ['duckRampMs', 'Duck ramp', 'ms', 'How quickly the duck goes in and comes back.', 'Awakening sound'],
@@ -105,13 +118,19 @@ const ROWS: [Key, string, TunerUnit | undefined, string, string, ('color' | 'tog
 ];
 void ART_FIELDS;
 
-const controls: TunerControl<Key>[] = ROWS.map(([key, label, unit, hint, group, kind]) => {
+const BASE_CONTROLS: TunerControl<Key>[] = ROWS.map(([key, label, unit, hint, group, kind]) => {
   if (kind === 'color' || kind === 'text') return { key, label, hint, group, kind, min: 0, max: 0, step: 0 };
   const [min, max, step] = ANCIENTS_RANGES[key as AncientsNumKey];
   return kind === 'toggle'
     ? { key, label, hint, group, kind, min, max, step, onValue: 1, offValue: 0, ...(key === 'revealStyle' ? { onOffLabels: ['two beats', 'sequential'] as [string, string] } : {}) }
     : { key, label, unit, hint, group, min, max, step };
 });
+
+/** The hero-theme group goes where the theme groups always sat: after the Dust group. */
+const HERO_AT = BASE_CONTROLS.findIndex((c) => c.key === 'closeMs');
+function controls(): TunerControl<Key>[] {
+  return [...BASE_CONTROLS.slice(0, HERO_AT), ...heroThemeControls(), ...BASE_CONTROLS.slice(HERO_AT)];
+}
 
 /** Push the meter's balance numbers into the live sandbox run (only a run that has Ancients, before it awakens). */
 function restampLiveRun(key: Key, value: number): void {
@@ -134,22 +153,21 @@ export const SPEC: TunerSpec<AncientsFullConfig> = {
   writeColor: (key, value) => setAncientsValue(key, value),
   reset: resetAncientsConfig,
   defaults: ANCIENTS_DEFAULTS,
-  controls,
+  // Recomputed on every render: the colour rows follow the selected hero.
+  get controls() { return controls(); },
   actions: [
     {
       label: '▶ Play full sequence',
       hint: 'The whole awakening on the hero power: omen, eruption, title, the Ancients emerging, settled; closes after a moment. Needs a Set 3 sandbox with Ancients on. Run state is untouched.',
       run: () => playGateDemo('full'),
     },
-    ...THEMED_HEROES.map((h) => ({
-      label: `▶ Play as ${ANCIENT_HERO_THEMES[h].label}`,
-      hint: `The full awakening as ${ANCIENT_HERO_THEMES[h].label}: the colours, the power art, the bloom accent and the medallion's entrance, whoever the run's hero is. Run state is untouched.`,
-      run: () => playGateDemo('full', h),
-    })),
     {
-      label: '▶ Play as default',
-      hint: 'The full awakening in the default theme (every hero without its own). Run state is untouched.',
-      run: () => playGateDemo('full', 'default'),
+      label: '▶ Play selected hero',
+      hint: 'The full awakening as the hero picked in Hero theme (its colours, power art, bloom style and medallion entrance), with the Style preview if one is set, whoever the run’s hero is. Run state is untouched.',
+      run: () => {
+        const c = getAncientsConfig();
+        playGateDemo('full', String(c.tunerHero), c.tunerStyle === 'auto' ? undefined : String(c.tunerStyle));
+      },
     },
     {
       label: '▶ Play from reveal',

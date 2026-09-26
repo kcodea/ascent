@@ -65,7 +65,7 @@ describe('Risen × DEATH — Undying\'s target gains Rise again after it Rises (
     const a = cuid(s, 0);
     const back = reborns(s, a);
     expect(back, 'two Rises in one fight').toHaveLength(2);
-    expect(back[0]!.tint, 'the first Rise is the ordinary one').toBeUndefined();
+    expect(back[0]!.tint, 'the Undying Rise is blue from the start (owner 2026-09-26)').toBe('blue');
     expect(back[1]!.tint, 'the regained Rise is blue').toBe('blue');
     const ev = events(s);
     const i0 = ev.indexOf(back[0]!);
@@ -122,6 +122,17 @@ describe('Risen × FORTUNE — every friendly Rise in combat banks 1 Gold for ne
     let s = picked('fortune', { board: [pup('a', 0, 300)] });
     s = fightNow(s, 1, 400);
     expect(s.lastCombat!.playerRises).toBe(0);
+  });
+});
+
+describe('Risen × DEATH — the Undying target wears a BLUE Rise from the moment Undying lands', () => {
+  it('blue in the Shop and in the first combat frame; a printed Rise stays green', () => {
+    let s = undying(picked('death', { board: [pup('a', 2, 2), pup('b', 2, 2, ['R'])] }), 'a');
+    expect(ancientRiseTint(s, at(s, 'a'))).toBe('blue');
+    expect(ancientRiseTint(s, at(s, 'b'))).toBeUndefined();
+    s = fightNow(s, 50, 400);
+    expect(s.lastCombat!.initial.player[0]!.riseTint).toBe('blue');
+    expect(s.lastCombat!.initial.player[1]!.riseTint).toBeUndefined();
   });
 });
 

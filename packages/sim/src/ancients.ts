@@ -801,7 +801,12 @@ export function ancientOnShopShout(state: RunState, source: BoardCard | undefine
 /** WAR: the Undying target's Rise wears the RED look in the Shop too (the combat body reads `riseTint` off its
  *  snapshot). Undefined = the ordinary Rise look. */
 export function ancientRiseTint(state: RunState, card: BoardCard): RiseTint | undefined {
-  return card.tempReborn && card.keywords.includes('R') && effectOf(state, 'undyingReturnsDoubleAndAttacks') ? 'red' : undefined;
+  // Owner 2026-09-26 ("they look identical"): the Undying target wears its pairing's colour from the moment Undying
+  // lands, not only once it has risen: War RED, Death BLUE.
+  if (!card.tempReborn || !card.keywords.includes('R')) return undefined;
+  if (effectOf(state, 'undyingReturnsDoubleAndAttacks')) return 'red';
+  if (effectOf(state, 'undyingRegainsRise')) return 'blue';
+  return undefined;
 }
 
 /** TIME: Start of Turn, every board minion gains +a/+h for each friendly minion summoned in the last combat,

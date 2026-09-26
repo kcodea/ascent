@@ -618,7 +618,7 @@ export function simulate(
   };
   for (const m of boards.player) applyAuras(m, false); // fold run-wide auras into starting minions (already baked → live part only)
   // ANCIENTS × Lord of the Risen: find the Undying bodies (the run card's uid rides in as `sourceUid`). War's Rise on
-  // them is RED from the first frame (the `initial` snapshot reads `riseTint`).
+  // them is RED (Death's BLUE) from the first frame (the `initial` snapshot reads `riseTint`).
   for (const side of ['player', 'enemy'] as const) {
     const u = modsFor(side).ancientUndying;
     if (!u) continue;
@@ -626,6 +626,7 @@ export function simulate(
       if (!m.sourceUid || !u.uids.includes(m.sourceUid)) continue;
       undyingUids.add(m.uid);
       if (u.war && m.rebornAvailable) riseTint.set(m.uid, 'red');
+      else if (u.regainRise && m.rebornAvailable) riseTint.set(m.uid, 'blue'); // Death: blue from the first frame too
     }
   }
 

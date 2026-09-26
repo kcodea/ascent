@@ -775,6 +775,21 @@ hear **wherever it happens**:
 `simulate.ts`, `fireOnRise` off the shop's `riseReturn`), with the risen body in the payload. Pinned in
 `set3Undead.test.ts` for both phases and for the enemy case.
 
+### "Attacks immediately" cuts the line (owner rule 2026-09-26, R-ORD-05)
+
+*"a "attacks immediately" mechanic cuts the line. this doesn't interrupt a flurry attack, but it does interrupt
+other attack orderings if something is summoned to attack immediately."* Every source (Rune of Living Echoes'
+Sunmane Herald, Kurse's Gemheart Golem, Violet Whelp / Tamer's Whelps, Spear Warden, Charging Soldier, Trooper):
+
+- The minion **lands, then strikes at once**, after the event that summoned it has settled (a death cascade, an
+  Avenge, a "while you have space" fill) and **before the next normal attacker is chosen**.
+- It **never cuts into a Flurry**: a summon queued by the first swing lands after the second swing resolves.
+  (Summons queued by a swing's own wind-up, e.g. Echohorn's Rally firing an Echo, still strike before that swing
+  lands: the 2026-09-01 wind-up ruling.)
+- **Several at once** each land and strike in summon order.
+- The strike **does not use or move the normal attack pointer**; the body then joins the rotation (appended at
+  the right) and takes its regular turn as well.
+
 ### Echo first, THEN the Rise attempts — every Rise/Echo interaction, both phases (owner ruling 2026-09-18)
 
 *"When I used Deathfibrillator on a minion with 7 bodies on board, it gives the minion Rise and kills it, but

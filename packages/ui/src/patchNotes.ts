@@ -51,6 +51,37 @@ export interface PatchNote {
 /** Newest first. PREPEND new entries. */
 export const PATCH_NOTES: PatchNote[] = [
   {
+    date: '2026-09-26',
+    changes: [
+      {
+        category: 'Systems',
+        text: 'A minion summoned to attack immediately now attacks right after it lands, before the next minion in line.',
+        details: [
+          'Fixed: the Sunmane Herald from Rune of Living Echoes waited for another minion to start its attack before swinging.',
+          'Immediate attacks never cut into a Flurry. The Flurry minion finishes both attacks first.',
+          'When several arrive at once, each one lands and attacks in the order it was summoned.',
+          'Afterwards the normal attack order carries on where it left off.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-09-26',
+    label: 'Master Volume',
+    changes: [
+      {
+        category: 'Systems',
+        text: 'The Audio panel has a new Master slider at the top. It turns every sound in the game up or down at once.',
+        details: [
+          'Master scales game sounds, music and the announcer together. Each channel keeps its own slider.',
+          'Master starts at 100, which sounds exactly like before.',
+          'Master has its own Mute. It silences everything and leaves your other mutes as they were.',
+          'Your Master setting is saved between sessions.',
+        ],
+      },
+    ],
+  },
+  {
     date: '2026-09-25',
     label: 'Rebirth',
     changes: [

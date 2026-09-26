@@ -82,28 +82,31 @@ export const ORDERING_RULES: GameRule[] = [
   },
   {
     id: 'R-ORD-05',
-    title: '"Attacks immediately" cuts the line — right after its summon, before the next normal attacker, never inside a Flurry',
+    title: '"Attacks immediately" cuts the line — right after its summon, before the next normal attacker, and between the swings of a Flurry',
     statement:
       "A minion summoned to \"attack immediately\" (Rune of Living Echoes' Sunmane Herald, Kurse's Gemheart Golem, "
       + "Violet Whelp's Whelp, Tamer's whelp, Spear Warden, Charging Soldier, Trooper, …) strikes as soon as its "
       + 'summon lands and the event that summoned it has settled, BEFORE the next normal attacker is chosen. That '
       + 'holds for every summon point between attacks, including one made after the death cascade (a "while you '
-      + 'have space" rune filling a freed slot). It does not interrupt a Flurry exchange in progress: a summon '
-      + 'queued by swing 1 lands after swing 2 resolves. Several summoned together each summon and strike in '
+      + 'have space" rune filling a freed slot). It DOES interrupt a Flurry: a summon queued by swing 1 lands and '
+      + 'strikes between the two swings (never inside the lunge of swing 2), then the Flurry minion swings again if it '
+      + 'still lives. Several summoned together each summon and strike in '
       + 'summon order. The immediate strike does not consume or shift the normal attack pointer; the body then '
       + 'joins the rotation (appended at the right) and takes its regular turn too.',
     domain: 'ordering',
     status: 'approved',
     evidence: [
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-26 (bug report)', quote: "when the sunmane is summoned, it is supposed to attack immediately after being summoned, cutting in front of the order. a \"attacks immediately\" mechanic cuts the line. this doesn't interrupt a flurry attack, but it does interrupt other attack orderings if something is summoned to attack immediately." },
-      { kind: 'code', ref: 'packages/core/src/combat/simulate.ts settleBetweenAttacks (flush → resummons → fillFreeSlots, repeated while an immediate attacker is queued); performAttack wind-up flush scoped by windupSeq' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-26 (Flurry reversal)', quote: 'revert one attack immediately change - a minion summoned that attacks immediately SHOULD interrupt a flurry. sorry for the mistake on my end there' },
+      { kind: 'code', ref: 'packages/core/src/combat/simulate.ts performAttack (the between-swings flush at the top of the swing loop); settleBetweenAttacks (flush → resummons → fillFreeSlots, repeated while an immediate attacker is queued); performAttack wind-up flush scoped by windupSeq' },
     ],
     contentIds: ['rune_living_echoes', 'b2_sunmane', 'k3_kurse', 'twilightwhelp'],
     currentBehaviour:
       "Conforms — 2026-09-26. Living Echoes summoned in fillFreeSlots AFTER the between-attacks flush, so the "
       + "deferred Sunmane waited for the NEXT attacker's wind-up flush: that attacker lunged, the Sunmane landed and "
       + "swung, then the lunge's hit landed. Separately, the wind-up flush drained summons left by a Flurry's first "
-      + 'swing between its two swings.',
+      + 'swing between its two swings. REVISED later 2026-09-26 by the owner: the Flurry IS interrupted, cleanly '
+      + '(fix/immediate-interrupts-flurry): the summon strikes between the swings, not inside the lunge of swing 2.',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/attackImmediatelyOrder.test.ts'], lastVerifiedAt: '2026-09-26' },
   },
 ];

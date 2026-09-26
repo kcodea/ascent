@@ -58,7 +58,7 @@ export const PATCH_NOTES: PatchNote[] = [
         text: 'A minion summoned to attack immediately now attacks right after it lands, before the next minion in line.',
         details: [
           'Fixed: the Sunmane Herald from Rune of Living Echoes waited for another minion to start its attack before swinging.',
-          'Immediate attacks never cut into a Flurry. The Flurry minion finishes both attacks first.',
+          'An immediate attack also cuts into a Flurry. If the first Flurry attack summons one, it lands and attacks before the second.',
           'When several arrive at once, each one lands and attacks in the order it was summoned.',
           'Afterwards the normal attack order carries on where it left off.',
         ],

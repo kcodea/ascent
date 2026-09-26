@@ -2250,8 +2250,8 @@ export function simulate(
     | { summon: { minion: Minion; side: Side; card: CardDef; nearUid: string | undefined; grantKeywords: Keyword[] | undefined; golden: boolean; copyStats: { attack: number; health: number; maxHealth: number; divineShield?: boolean; rebornAvailable?: boolean } | undefined; doubled: boolean }; seq: number; minion?: undefined }
     | { minion: Minion; shieldFirst?: boolean; forcedTarget?: Minion; summon?: undefined }
   )[] = [];
-  /** Monotonic stamp on each deferred summon, so a swing's wind-up flush can drain ONLY what its own wind-up
-   *  queued — not a summon left over from an EARLIER swing of the same Flurry exchange (see `performAttack`). */
+  /** Monotonic stamp on each deferred summon, so a swing's wind-up flush drains ONLY what its own wind-up queued
+   *  (an earlier Flurry swing's summon strikes between the swings instead; see `performAttack`). */
   let immediateSummonSeq = 0;
 
   // Fire a minion's OWN Deathrattle / on-death effects directly (no global onDeath broadcast / Avenge / death
@@ -3186,6 +3186,11 @@ export function simulate(
     // `keywords` from the card def; an INNATE Flurry survives but still doesn't re-swing this exchange.)
     const rebornAtStart = attacker.rebornAvailable;
     for (let s = 0; s < swings; s++) {
+      // "ATTACKS IMMEDIATELY" INTERRUPTS A FLURRY (owner ruling 2026-09-26, reversing the same-day "doesn't
+      // interrupt a flurry"): *"a minion summoned that attacks immediately SHOULD interrupt a flurry"*. A summon
+      // queued by swing 1's cascade (a Whelp-maker it killed) lands and strikes HERE, between the two swings, as
+      // its own clean beat: never inside swing 2's lunge. Swing 2 then goes (if the Flurry minion still lives).
+      if (s > 0 && pendingAttackOnSummon.some((q) => q.summon)) flushImmediateAttacks(true);
       if (attacker.dead || attacker.health <= 0) break;
       if (rebornAtStart && !attacker.rebornAvailable) break; // it died and rose during this exchange
       let target = chooseTarget(defenderSide);
@@ -3518,11 +3523,9 @@ export function simulate(
        * retaliate), and a dead body must not go on to complete its own clash.
        */
       /*
-       * FLURRY IS NOT INTERRUPTED (owner ruling 2026-09-26): *"a 'attacks immediately' mechanic cuts the line.
-       * this doesn't interrupt a flurry attack"*. The flush drains only the summons THIS swing's wind-up queued
-       * (`windupSeq`, stamped just before the `attack` event). A summon queued by an EARLIER swing's death
-       * cascade — swing 1 of a Flurry killing a Deathrattle Whelp-maker — waits for the whole exchange to end
-       * and lands at the post-attack settle in the main loop, instead of cutting between the two swings.
+       * The wind-up flush drains only the summons THIS swing's wind-up queued (`windupSeq`, stamped just before
+       * the `attack` event). A summon an EARLIER swing of a Flurry queued already struck between the swings (the
+       * flush at the top of the swing loop), so it can never land inside this swing's lunge.
        */
       if (pendingAttackOnSummon.some((q) => q.summon && q.seq >= windupSeq)) flushImmediateAttacks(true, windupSeq);
       if (attacker.dead || attacker.health <= 0) return;

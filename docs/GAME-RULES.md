@@ -783,8 +783,9 @@ Sunmane Herald, Kurse's Gemheart Golem, Violet Whelp / Tamer's Whelps, Spear War
 
 - The minion **lands, then strikes at once**, after the event that summoned it has settled (a death cascade, an
   Avenge, a "while you have space" fill) and **before the next normal attacker is chosen**.
-- It **never cuts into a Flurry**: a summon queued by the first swing lands after the second swing resolves.
-  (Summons queued by a swing's own wind-up, e.g. Echohorn's Rally firing an Echo, still strike before that swing
+- It **also interrupts a Flurry** (owner reversal, same day: *"a minion summoned that attacks immediately SHOULD
+  interrupt a flurry"*): a summon queued by the first swing lands and strikes between the two swings, never inside
+  the second swing's lunge. The Flurry minion then takes its second swing if it is still alive. (Summons queued by a swing's own wind-up, e.g. Echohorn's Rally firing an Echo, still strike before that swing
   lands: the 2026-09-01 wind-up ruling.)
 - **Several at once** each land and strike in summon order.
 - The strike **does not use or move the normal attack pointer**; the body then joins the rotation (appended at

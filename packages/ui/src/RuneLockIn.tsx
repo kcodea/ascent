@@ -4,6 +4,7 @@ import type { RuneDef } from '@game/core';
 import { RuneCard } from './RuneCard';
 import { getRuneLockInConfig, lockInTotalMs, type RuneLockInConfig } from './runeLockInConfig';
 import { sfx } from './sfx';
+import { stageHost } from './stage';
 
 /**
  * RUNE LOCK-IN CEREMONY (owner ask 2026-08-29).
@@ -153,6 +154,6 @@ export function RuneLockIn({ cards, onDone, timing }: RuneLockInProps): JSX.Elem
         );
       })}
     </div>,
-    document.body,
+    stageHost(),
   );
 }

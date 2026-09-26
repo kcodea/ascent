@@ -2,6 +2,7 @@ import { createRoot, type Root } from 'react-dom/client';
 import { CARD_INDEX } from '@game/content';
 import { Card, type CardView } from './Card';
 import { reformRebirth } from './choreo/channels/aura';
+import { stageHost } from './stage';
 
 /**
  * DEV preview rig for the 🔥 Rebirth tuner: a sample Rebirth card floated beside the tuner panel (the idle crown
@@ -32,7 +33,7 @@ export function toggleRebirthPreview(panelEl: HTMLElement | null): void {
   const left = r ? Math.max(12, r.left - 300) : window.innerWidth / 2 - 130;
   const top = r ? Math.max(90, r.top + 110) : window.innerHeight / 2 - 160;
   host.style.cssText = `position:fixed;left:${left}px;top:${top}px;z-index:900;pointer-events:none;`;
-  document.body.appendChild(host);
+  stageHost().appendChild(host);
   root = createRoot(host);
   root.render(<div className="unit rbpreview-unit"><Card card={sampleView()} uid="rbpreview" /></div>);
 }

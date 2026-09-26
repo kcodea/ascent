@@ -4,6 +4,7 @@ import { ANCIENT_IDS, ANCIENTS, type AncientId } from '@game/sim';
 import { AncientCard } from './AncientCard';
 import { ancientColor } from './ancientsConfig';
 import { prefersReducedMotion } from './ancientsFx';
+import { stageHost } from '../stage';
 
 /**
  * THE ANCIENTS PREVIEW CARD (owner ruling 6 + the polish brief): hovering the meter opens a card beside the hero
@@ -125,7 +126,7 @@ export function AncientPreview({ heroId, anchor, leaving = false, inMs = 180, ou
         <button type="button" className="anc-pv-arrow" aria-label="Next Ancient" onClick={() => step(1)}>›</button>
       </div>
     </div>,
-    document.body,
+    stageHost(),
   );
 }
 

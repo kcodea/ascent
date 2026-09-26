@@ -10,6 +10,7 @@ import { withImpStats } from './cardText';
 import { KeywordDefs } from './KeywordDefs';
 import { detectCardKeywords } from './detectCardKeywords';
 import { useGame } from './store';
+import { stageHost } from './stage';
 
 /** The card ids a rune's reward GRANTS (Pillaging → the Pillager) — for the hover preview. GILDED grants
  *  (Frontline Glory's Gilded Yazzus) are included and marked, so the preview shows the golden card. */
@@ -159,7 +160,7 @@ export function RuneCard({ rune, affordable, onBuy, cost, duplicating, pickSfx }
             {hasDefs && <KeywordDefs card={kwCard} />}
           </div>
         </div>,
-        document.body,
+        stageHost(),
       )}
     </button>
   );

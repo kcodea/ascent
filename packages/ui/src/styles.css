@@ -42,8 +42,8 @@
      it (nothing moves), while a smaller window still shrinks the whole board uniformly to fit (one locked unit,
      no drift). `--scale` (= --gh/1440, clamped) therefore tops out at 1.0, its tuned value. Mirrors the old
      `[data-res="r2560"]` cap, now always-on. Bump both caps together (keep 16:9) to re-pin at a larger size. */
-  --gw: min(100vw, calc(100dvh * 16 / 9), 2560px); --gh: min(100dvh, calc(100vw * 9 / 16), 1440px);
-  --bar-x: calc((100vw - var(--gw)) / 2); --bar-y: calc((100dvh - var(--gh)) / 2);
+  --gw: min(var(--lvw, 100vw), calc(var(--lvh, 100dvh) * 16 / 9), 2560px); --gh: min(var(--lvh, 100dvh), calc(var(--lvw, 100vw) * 9 / 16), 1440px);
+  --bar-x: calc((var(--lvw, 100vw) - var(--gw)) / 2); --bar-y: calc((var(--lvh, 100dvh) - var(--gh)) / 2);
   /* The in-game board backdrop — ONE source art, drawn on `.boardbg` (a full-viewport layer behind the 16:9
      stage): scaled to the stage height + centred, so the ornate frame stays locked to the 16:9 UI. The default
      is the FULL board, itself 16:9 (owner promoted it 2026-08-17), so it fills the stage height-for-height. It
@@ -140,9 +140,9 @@
    Each maintains its aspect ratio (the height cap keeps it true) and never exceeds the window. The aspect must
    be the option's EXACT pixel ratio (w/h), not a rounded label like 21:9 — 3440×1440 is really 43/18 (2.389),
    NOT 21/9 (2.333); the rounded value capped the width at 1440·(21/9)=3360 on a true 3440×1440 monitor. */
-:root[data-res="r1920"] { --gw: min(100vw, calc(100vh * 1920 / 1080), 1920px); --gh: min(100vh, calc(100vw * 1080 / 1920), 1080px); }
-:root[data-res="r2560"] { --gw: min(100vw, calc(100vh * 2560 / 1440), 2560px); --gh: min(100vh, calc(100vw * 1440 / 2560), 1440px); }
-:root[data-res="r3440"] { --gw: min(100vw, calc(100vh * 3440 / 1440), 3440px); --gh: min(100vh, calc(100vw * 1440 / 3440), 1440px); }
+:root[data-res="r1920"] { --gw: min(var(--lvw, 100vw), calc(var(--lvh, 100vh) * 1920 / 1080), 1920px); --gh: min(var(--lvh, 100vh), calc(var(--lvw, 100vw) * 1080 / 1920), 1080px); }
+:root[data-res="r2560"] { --gw: min(var(--lvw, 100vw), calc(var(--lvh, 100vh) * 2560 / 1440), 2560px); --gh: min(var(--lvh, 100vh), calc(var(--lvw, 100vw) * 1440 / 2560), 1440px); }
+:root[data-res="r3440"] { --gw: min(var(--lvw, 100vw), calc(var(--lvh, 100vh) * 3440 / 1440), 3440px); --gh: min(var(--lvh, 100vh), calc(var(--lvw, 100vw) * 1440 / 3440), 1440px); }
 /* One board art (augustfullboard, with augustboardcombat as the combat-phase variant) serves every
    resolution — drawn on `.boardbg`, cropped to 16:9 at standard
    aspect and extending into the margins on wider windows. No per-aspect --board swap. */
@@ -153,6 +153,18 @@ html, body, #root { height: 100%; }
 html, body { overscroll-behavior: none; touch-action: manipulation; }
 /* centre the stage box in the window (it shrinks under the resolution scaler, letterboxing the rest) */
 #root { display: flex; align-items: center; justify-content: center; overflow: hidden; }
+/* THE SCALED STAGE (owner ask 2026-09-26, see stage.ts). Below the 1920×1080 design size, `#stage` (the wrapper around `#root`, plus every portal) lays out at the
+   LAYOUT viewport (`--lvw` × `--lvh`, never smaller than the design size) and one transform scales it to the
+   window, so the tuned 1080p look shrinks as ONE piece and nothing drifts. stage.ts sets width/height/transform
+   inline and the attribute; at or above the design size neither exists and this rule is inert. `position: fixed`
+   descendants resolve against `#stage` while it carries a transform, which is why the layout viewport covers the
+   whole window: `inset: 0` overlays still reach every edge. */
+#stage { display: contents; }
+:root[data-stage-scaled] #stage { display: block; position: fixed; left: 0; top: 0; transform-origin: 0 0; overflow: hidden; }
+/* The Pixi canvases keep a SCREEN-space renderer (sized to the window, at device resolution, so FX positions
+   measured with getBoundingClientRect need no conversion). Their CSS box is the layout viewport, so the stage's
+   transform lays them back exactly over the window. `!important` beats Pixi's autoDensity inline size. */
+:root[data-stage-scaled] canvas.pixi-screen { width: var(--lvw) !important; height: var(--lvh) !important; }
 body { font-family: var(--font-body), sans-serif; color: var(--ink); background: var(--bg); overflow: hidden; cursor: url('/cursors/gauntlet_default.svg') 6 2, auto; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
 /* Landscape-only on phones: a full-screen "rotate your device" overlay, shown ONLY on a touch device held in
    portrait (`pointer: coarse` excludes a desktop window that merely happens to be portrait). The 16:9 board is
@@ -172,8 +184,8 @@ body { font-family: var(--font-body), sans-serif; color: var(--ink); background:
 /* Boot loading screen — held up front while all card/hero art fetches + decodes (see Boot.tsx). Uses only
    fixed units (no --u letterbox vars, which Game sets later) so it renders correctly before Game mounts. */
 .bootload { position: fixed; inset: 0; z-index: 9999; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 22px; background: var(--bg2, #efe5d4); color: var(--ink, #2a2017); }
-.bootload-mark { font-family: var(--font-title, 'Outfit'), sans-serif; font-weight: 800; font-size: clamp(40px, 7vw, 84px); letter-spacing: 0.14em; color: var(--acc, #f0902e); text-shadow: 0 3px 0 var(--acc-dk, #c46f17); }
-.bootload-bar { width: min(340px, 60vw); height: 12px; border-radius: 999px; background: color-mix(in srgb, var(--ink, #2a2017) 12%, transparent); overflow: hidden; }
+.bootload-mark { font-family: var(--font-title, 'Outfit'), sans-serif; font-weight: 800; font-size: clamp(40px, calc(7 * var(--vw, 1vw)), 84px); letter-spacing: 0.14em; color: var(--acc, #f0902e); text-shadow: 0 3px 0 var(--acc-dk, #c46f17); }
+.bootload-bar { width: min(340px, calc(60 * var(--vw, 1vw))); height: 12px; border-radius: 999px; background: color-mix(in srgb, var(--ink, #2a2017) 12%, transparent); overflow: hidden; }
 .bootload-fill { height: 100%; border-radius: 999px; background: var(--acc, #f0902e); transition: width 0.18s ease-out; }
 .bootload-sub { font-family: var(--font-ui, 'Outfit'), sans-serif; font-weight: 700; font-size: 14px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink3, #9c8b71); font-variant-numeric: tabular-nums; }
 /* the window behind the stage is a dark frame — it only shows as letterbox bars when the
@@ -382,7 +394,7 @@ canvas.spr { image-rendering: pixelated; display: block; }
    mid-screen on 21:9 / 32:9 while the blue kept going. The fallback is only for a missing origin; `.snap` parks it back at base instantly
    (opacity 0, so the jump is invisible). Rendered AFTER the curtain at the same z, so it paints above the
    blue. */
-.wipefront { position: fixed; left: var(--wipe-cx, 84vw); top: var(--wipe-cy, 62vh);
+.wipefront { position: fixed; left: var(--wipe-cx, calc(84 * var(--vw, 1vw))); top: var(--wipe-cy, calc(62 * var(--vh, 1vh)));
   width: 1000px; height: 1000px; margin: -500px 0 0 -500px;
   border-radius: 50%; z-index: 250; pointer-events: none; opacity: 0; mix-blend-mode: screen;
   /* Round 2 (owner 2026-09-24): a DOUBLE-LAYER edge. Inside the seam the ring's glow rises to the bright line
@@ -405,15 +417,15 @@ canvas.spr { image-rendering: pixelated; display: block; }
    original L→R front). Parks at the left edge; `.go` sweeps it L→R (exit reveal), `.rtl` parks it at the
    RIGHT edge and `.rtl.go` brings it home R→L (entry reveal). Same duration + easing as the curtain's
    inset transition so bar and seam can never desync; compositor-only transform, static gradient. */
-.wipebar { position: fixed; top: 0; bottom: 0; left: -15vw; width: 30vw; z-index: 250;
+.wipebar { position: fixed; top: 0; bottom: 0; left: calc(-15 * var(--vw, 1vw)); width: calc(30 * var(--vw, 1vw)); z-index: 250;
   pointer-events: none; opacity: 0; mix-blend-mode: screen;
   background:
     radial-gradient(60% 50% at 50% 50%, rgba(255, 255, 255, .55), rgba(160, 200, 255, .28) 40%, rgba(90, 130, 255, 0) 70%),
     linear-gradient(to right, rgba(120, 160, 255, 0), rgba(190, 215, 255, .5) 46%, rgba(255, 255, 255, .85) 50%, rgba(190, 215, 255, .5) 54%, rgba(120, 160, 255, 0));
   filter: blur(2px); transform: translateX(0); will-change: transform, opacity;
   transition: transform var(--wipe-reveal-dur, 450ms) cubic-bezier(.4, 0, .2, 1), opacity 120ms linear; }
-.wipebar.go { transform: translateX(100vw); }
-.wipebar.rtl { transform: translateX(100vw); }
+.wipebar.go { transform: translateX(var(--lvw, 100vw)); }
+.wipebar.rtl { transform: translateX(var(--lvw, 100vw)); }
 .wipebar.rtl.go { transform: translateX(0); }
 .wipebar.sweeping { opacity: 1; }
 .wipebar.snap { transition: none; }
@@ -458,7 +470,7 @@ body.wipe-up .lossdmg, body.wipe-up .lossfly, body.wipe-up .lobbydmg-float { z-i
    warband up to the line (Mike, 2026-07-17). Now the nudge RAMPS smoothly: 0 at ≤780px viewport height,
    +0.16px per px of height above that, capped at the full `--ch × 0.07` (reached ≈890px, matching the old
    ≥900px behavior) — so any zoom level / window height just slides it a few px, never snaps. */
-.zone[data-zone='warband'] { top: calc(clamp(0px, (100vh - 780px) * 0.16, var(--ch) * 0.07) + (var(--z-wb-y, -136px) + var(--wb-drop, 0px)) * var(--scale)); }
+.zone[data-zone='warband'] { top: calc(clamp(0px, (var(--lvh, 100vh) - 780px) * 0.16, var(--ch) * 0.07) + (var(--z-wb-y, -136px) + var(--wb-drop, 0px)) * var(--scale)); }
 
 /* End-of-turn CHARGE GLYPH — replaces the burning rope. Over the final CHARGE_SECONDS the board's etched sigil
    charges with white-hot blue energy, building from BOTH sides inward along the midline conduit and filling the
@@ -3129,13 +3141,13 @@ body.modalup .app { z-index: auto; }
    in the positioned layer, which is ABOVE a static in-flow sibling no matter who comes first in the tree.
    z-index 30 clears every z a card can take internally, so the panel also
    stays in front of the frame, badges and any keyword aura. */
-.inspect-buffs { position: relative; z-index: 30; align-self: center; min-width: 92px; max-width: min(252px, 44vw); max-height: min(72vh, 560px); overflow-y: auto; background: linear-gradient(180deg, #241a13, #17110c); border: 2px solid color-mix(in srgb, var(--gold) 55%, #000); border-radius: 9px; padding: 6px 8px; box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 4px 14px -6px rgba(0, 0, 0, 0.45); display: flex; flex-direction: column; gap: 3px; }
+.inspect-buffs { position: relative; z-index: 30; align-self: center; min-width: 92px; max-width: min(252px, calc(44 * var(--vw, 1vw))); max-height: min(calc(72 * var(--vh, 1vh)), 560px); overflow-y: auto; background: linear-gradient(180deg, #241a13, #17110c); border: 2px solid color-mix(in srgb, var(--gold) 55%, #000); border-radius: 9px; padding: 6px 8px; box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 4px 14px -6px rgba(0, 0, 0, 0.45); display: flex; flex-direction: column; gap: 3px; }
 .ib-title { font-family: var(--font-ui); font-weight: 800; font-size: 8.5px; letter-spacing: 0.12em; text-transform: uppercase; color: #b7a98f; text-align: center; margin-bottom: 2px; }
 .ib-row { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; font-size: 10px; white-space: nowrap; }
 /* Keyword definition panel (KeywordDefs) — a column of word-led boxes beside the enlarged card on the hover
    reveal and the right-click Inspect. Mirrors the .inspect-buffs glass chrome so the two side panels read as
    one family. Static DOM only — no animated paint. */
-.kwdefs { align-self: center; display: flex; flex-direction: column; gap: 6px; max-width: min(144px, 25vw); max-height: min(72vh, 560px); overflow-y: auto; }
+.kwdefs { align-self: center; display: flex; flex-direction: column; gap: 6px; max-width: min(144px, calc(25 * var(--vw, 1vw))); max-height: min(calc(72 * var(--vh, 1vh)), 560px); overflow-y: auto; }
 .kwdefs::-webkit-scrollbar { width: 0; height: 0; display: none; }
 /* Hover reveal: match the Inspect layout — top-align the defs to the card (not vertically centred) and lift
    them a touch so they start just above the card top and cascade DOWN. The lift is a FIXED offset (not a % of
@@ -3286,9 +3298,9 @@ body.modalup .app { z-index: auto; }
 /* "End of Turn" banner — a brief centred title as the turn ends (end-of-turn effects resolved). */
 /* Centred over the upper (shop / enemy-board) region, not the screen middle — so the banner
    clears the player's warband below as the turn's end-of-turn effects resolve. */
-.eotbanner { position: fixed; left: 0; right: 0; top: 0; height: 62vh; z-index: 95; display: grid; place-items: center; pointer-events: none; }
+.eotbanner { position: fixed; left: 0; right: 0; top: 0; height: calc(62 * var(--vh, 1vh)); z-index: 95; display: grid; place-items: center; pointer-events: none; }
 .eotbanner .eot-text {
-  font-family: var(--font-ui); font-weight: 900; font-size: clamp(34px, 6vh, 64px); letter-spacing: 0.08em;
+  font-family: var(--font-ui); font-weight: 900; font-size: clamp(34px, calc(6 * var(--vh, 1vh)), 64px); letter-spacing: 0.08em;
   text-transform: uppercase; color: #fff; text-shadow: 0 3px 0 var(--acc-dk), 0 0 34px rgba(240, 144, 46, 0.75);
   animation: eotpop 0.85s ease forwards;
 }
@@ -3308,13 +3320,13 @@ body.modalup .app { z-index: auto; }
 .crashscreen h1 { font-size: 30px; font-weight: 900; letter-spacing: 0.02em; color: var(--acc-dk); }
 .crashscreen p { max-width: 460px; font-size: 15px; line-height: 1.5; color: var(--ink3); }
 .crashscreen pre {
-  max-width: 70vw; overflow-x: auto; padding: 10px 14px; border-radius: 10px; font-size: 12px;
+  max-width: calc(70 * var(--vw, 1vw)); overflow-x: auto; padding: 10px 14px; border-radius: 10px; font-size: 12px;
   background: color-mix(in srgb, var(--threat) 12%, var(--card)); border: 2px solid var(--line); color: var(--ink);
 }
-.crashdetails { max-width: 70vw; width: 100%; }
+.crashdetails { max-width: calc(70 * var(--vw, 1vw)); width: 100%; }
 .crashdetails summary { cursor: pointer; font-family: var(--font-ui), sans-serif; font-weight: 700; font-size: 13px; color: var(--ink3); user-select: none; }
 .crashdetails summary:hover { color: var(--ink); }
-.crashstack { max-height: 34vh; overflow: auto !important; white-space: pre-wrap; word-break: break-word; margin-top: 8px; font-size: 11px !important; }
+.crashstack { max-height: calc(34 * var(--vh, 1vh)); overflow: auto !important; white-space: pre-wrap; word-break: break-word; margin-top: 8px; font-size: 11px !important; }
 .crashcopy { margin-top: 8px; font-family: var(--font-ui), sans-serif; font-weight: 700; font-size: 12px; padding: 6px 14px; border-radius: 9px; border: 2px solid var(--line); background: var(--card); color: var(--ink); cursor: pointer; }
 .crashcopy:hover { filter: brightness(1.05); }
 .crashbtns { display: flex; gap: 12px; margin-top: 6px; }
@@ -3590,7 +3602,7 @@ body.modalup .app { z-index: auto; }
    The blur is DELIBERATE and safe here, unlike the one dropped from `.discover-ov`: that was a full-viewport
    backdrop pass sampling the whole framebuffer every composite. This is a ~220px box that appears on hover
    and holds still — bounded area, no looping animation, one composite on open. */
-.questbadge-tip { position: absolute; bottom: calc(100% + 10px); left: 0; width: 286px; max-width: calc(100vw - 24px); display: flex; flex-direction: column; gap: 4px; background: linear-gradient(180deg, var(--gl-top, rgba(46, 56, 72, 0.86)), var(--gl-bot, rgba(20, 25, 34, 0.9))); -webkit-backdrop-filter: var(--gl-blur, blur(10px) saturate(1.15)); backdrop-filter: var(--gl-blur, blur(10px) saturate(1.15)); border: 1px solid var(--gl-border, rgba(190, 214, 240, 0.22)); border-top-color: var(--gl-border-top, rgba(226, 240, 255, 0.42)); color: var(--gl-text, #eef4fb); border-radius: var(--gl-radius, 12px); padding: 13px 17px; font-size: 15.6px; line-height: 1.4; font-weight: 600; text-align: center; overflow-wrap: break-word; box-shadow: 0 14px 34px -10px rgba(0, 0, 0, 0.72), inset 0 1px 0 rgba(255, 255, 255, 0.16); opacity: 0; pointer-events: none; z-index: 60; transition: opacity 0.14s; }
+.questbadge-tip { position: absolute; bottom: calc(100% + 10px); left: 0; width: 286px; max-width: calc(var(--lvw, 100vw) - 24px); display: flex; flex-direction: column; gap: 4px; background: linear-gradient(180deg, var(--gl-top, rgba(46, 56, 72, 0.86)), var(--gl-bot, rgba(20, 25, 34, 0.9))); -webkit-backdrop-filter: var(--gl-blur, blur(10px) saturate(1.15)); backdrop-filter: var(--gl-blur, blur(10px) saturate(1.15)); border: 1px solid var(--gl-border, rgba(190, 214, 240, 0.22)); border-top-color: var(--gl-border-top, rgba(226, 240, 255, 0.42)); color: var(--gl-text, #eef4fb); border-radius: var(--gl-radius, 12px); padding: 13px 17px; font-size: 15.6px; line-height: 1.4; font-weight: 600; text-align: center; overflow-wrap: break-word; box-shadow: 0 14px 34px -10px rgba(0, 0, 0, 0.72), inset 0 1px 0 rgba(255, 255, 255, 0.16); opacity: 0; pointer-events: none; z-index: 60; transition: opacity 0.14s; }
 .questbadge-tip b { color: var(--gl-accent, #a8d8ef); font-weight: 800; } /* ice accent — the old orange fought the glass */
 .questbadge-tip .questbadge-tip-reward { color: var(--gl-text, #dbe7f4); }
 .questbadge-tip .questbadge-tip-state { color: var(--gl-value, var(--gold-lt)); font-weight: 800; } /* gold reads as a VALUE against cool glass; the darker --gold went muddy */
@@ -5208,7 +5220,7 @@ body.aiming, body.aiming * { cursor: none !important; }
    is the one-shot opacity + transform entrance, and every glow is a STATIC shadow. */
 .fr-ov { position: fixed; inset: 0; z-index: 200; display: grid; place-items: center; padding: 16px; background: rgba(22, 15, 9, 0.72); animation: fadein 0.16s ease; }
 .fr-panel {
-  position: relative; width: min(calc(600 * var(--u)), 94vw); max-height: 88vh; display: flex; flex-direction: column; overflow: hidden;
+  position: relative; width: min(calc(600 * var(--u)), calc(94 * var(--vw, 1vw))); max-height: calc(88 * var(--vh, 1vh)); display: flex; flex-direction: column; overflow: hidden;
   background: linear-gradient(180deg, #241a13, #17110c); color: #f4ecdb;
   border: 2px solid color-mix(in srgb, var(--gold) 58%, #000); border-radius: calc(18 * var(--u));
   box-shadow: 0 calc(22 * var(--u)) calc(60 * var(--u)) -18px rgba(0, 0, 0, 0.75), inset 0 0 0 1px rgba(255, 255, 255, 0.06);
@@ -5424,8 +5436,8 @@ body:has(.heroselect) .statusbar { visibility: hidden; }
    by the zoom, so the width caps divide it back out (else the row falsely wraps on phones). The Practice
    Practice's all-heroes BROWSE grid sizes itself from the viewport, so it opts out (zoom would fight it). */
 .heroselect { --hs-zoom: calc(var(--scale, 0.745) / 0.745 * var(--mobile-boost, 1)); }
-.hsbox { display: flex; flex-direction: column; align-items: center; text-align: center; zoom: var(--hs-zoom); max-width: calc(96vw / var(--hs-zoom)); }
-.hsbox:has(.hsrow.browse) { zoom: 1; max-width: 96vw; }
+.hsbox { display: flex; flex-direction: column; align-items: center; text-align: center; zoom: var(--hs-zoom); max-width: calc(calc(96 * var(--vw, 1vw)) / var(--hs-zoom)); }
+.hsbox:has(.hsrow.browse) { zoom: 1; max-width: calc(96 * var(--vw, 1vw)); }
 /* Hero-picker panels + the title/eyebrow above them sit ~30% larger than the base sizes. */
 /* Still live: `Title.tsx`'s mode-pick and Learn-pick views both use `.hsback`. Hero select no longer does —
    its Back button was removed 2026-08-22 (owner ask), but the class is NOT dead. */
@@ -5455,9 +5467,9 @@ body:has(.heroselect) .statusbar { visibility: hidden; }
 .heroselect:has(> .hslogo):not(:has(.hsrow.browse)) { grid-template-rows: auto auto; align-content: safe center; }
 /* Practice's browse grid is a taller screen (two rows + scroll), so the lockup stays a touch smaller. Scoped to
    `.heroselect` now that the logo sits outside `.hsbox`. */
-.heroselect:has(.hsrow.browse) .hslogo { gap: 10px; margin: clamp(6px, 1.6vh, 16px) 0 0; }
-.heroselect:has(.hsrow.browse) .hslogo .crest { font-size: clamp(30px, 4vw, 50px); }
-.heroselect:has(.hsrow.browse) .hslogo .hsword { font-size: clamp(22px, 3.4vw, 38px); }
+.heroselect:has(.hsrow.browse) .hslogo { gap: 10px; margin: clamp(6px, calc(1.6 * var(--vh, 1vh)), 16px) 0 0; }
+.heroselect:has(.hsrow.browse) .hslogo .crest { font-size: clamp(30px, calc(4 * var(--vw, 1vw)), 50px); }
+.heroselect:has(.hsrow.browse) .hslogo .hsword { font-size: clamp(22px, calc(3.4 * var(--vw, 1vw)), 38px); }
 /* "Select Your Hero" — the picker prompt directly above the portraits (owner ask 2026-08-24). Static label,
    nothing animated. */
 .hsprompt { margin: 0 0 16px; font-family: var(--font-ui); font-weight: 800; font-size: 17px; letter-spacing: 0.2em; text-transform: uppercase; color: rgba(255, 255, 255, 0.88); text-shadow: 0 2px 12px rgba(0, 0, 0, 0.55); }
@@ -5476,7 +5488,7 @@ body:has(.heroselect) .statusbar { visibility: hidden; }
 .riftpill-hud { --ap-fs: calc(12 * var(--u)); margin-bottom: calc(6 * var(--u)); }
 /* The floating tooltip — same clean card as .questbadge-tip, opened below the pill (both pills sit high on
    screen). Normal-case + normal tracking so the blurb reads as prose, not a label. */
-.riftpill-tip { position: absolute; top: calc(100% + 10px); left: 0; width: 230px; max-width: calc(100vw - 24px); display: flex; flex-direction: column; gap: 4px; background: linear-gradient(180deg, var(--gl-top, rgba(46, 56, 72, 0.86)), var(--gl-bot, rgba(20, 25, 34, 0.9))); -webkit-backdrop-filter: var(--gl-blur, blur(10px) saturate(1.15)); backdrop-filter: var(--gl-blur, blur(10px) saturate(1.15)); border: 1px solid var(--gl-border, rgba(190, 214, 240, 0.22)); border-top-color: var(--gl-border-top, rgba(226, 240, 255, 0.42)); color: var(--gl-text, #eef4fb); border-radius: var(--gl-radius, 12px); padding: 10px 13px; font-size: 12px; line-height: 1.4; font-weight: 600; text-transform: none; letter-spacing: normal; text-align: center; overflow-wrap: break-word; box-shadow: 0 14px 34px -10px rgba(0, 0, 0, 0.72), inset 0 1px 0 rgba(255, 255, 255, 0.16); opacity: 0; pointer-events: none; z-index: 70; transition: opacity 0.14s; }
+.riftpill-tip { position: absolute; top: calc(100% + 10px); left: 0; width: 230px; max-width: calc(var(--lvw, 100vw) - 24px); display: flex; flex-direction: column; gap: 4px; background: linear-gradient(180deg, var(--gl-top, rgba(46, 56, 72, 0.86)), var(--gl-bot, rgba(20, 25, 34, 0.9))); -webkit-backdrop-filter: var(--gl-blur, blur(10px) saturate(1.15)); backdrop-filter: var(--gl-blur, blur(10px) saturate(1.15)); border: 1px solid var(--gl-border, rgba(190, 214, 240, 0.22)); border-top-color: var(--gl-border-top, rgba(226, 240, 255, 0.42)); color: var(--gl-text, #eef4fb); border-radius: var(--gl-radius, 12px); padding: 10px 13px; font-size: 12px; line-height: 1.4; font-weight: 600; text-transform: none; letter-spacing: normal; text-align: center; overflow-wrap: break-word; box-shadow: 0 14px 34px -10px rgba(0, 0, 0, 0.72), inset 0 1px 0 rgba(255, 255, 255, 0.16); opacity: 0; pointer-events: none; z-index: 70; transition: opacity 0.14s; }
 .riftpill-tip b { color: var(--gl-accent, #a8d8ef); font-weight: 800; }
 .riftpill-tip .riftpill-tip-body { color: var(--gl-text, #dbe7f4); }
 .riftpill:hover .riftpill-tip { opacity: 1; transition-delay: 0.3s; }
@@ -5585,10 +5597,10 @@ body:has(.heroselect) .statusbar { visibility: hidden; }
    row centres itself. */
 .hsrow.browse {
   --hs-cols: 4;
-  --hs-gap: clamp(14px, 1.4vw, 29px);
+  --hs-gap: clamp(14px, calc(1.4 * var(--vw, 1vw)), 29px);
   --hs-rowh: 340px;   /* fallback only — HeroSelect measures a real card and overwrites this per resize */
   gap: var(--hs-gap);
-  width: min(94vw, 1680px);
+  width: min(calc(94 * var(--vw, 1vw)), 1680px);
   /* EXPLICITLY hidden. Setting only `overflow-y` leaves X as `visible`, which the spec then COERCES to
      `auto` — so a horizontal track painted along the bottom even with nothing to scroll (owner report
      2026-08-22: "remove the bar at the bottom"). */
@@ -5596,7 +5608,7 @@ body:has(.heroselect) .statusbar { visibility: hidden; }
   /* TWO rows when the screen has room, but never taller than the screen: on a short window (1280x720 shows
      a 377px card, so two rows + the lockup exceed 720) the cap wins and the grid simply scrolls sooner. Two
      rows is the target, staying on screen is the requirement. */
-  max-height: min(calc(var(--hs-rowh) * 2 + var(--hs-gap)), 72vh);
+  max-height: min(calc(var(--hs-rowh) * 2 + var(--hs-gap)), calc(72 * var(--vh, 1vh)));
   overflow-y: auto;
   overscroll-behavior: contain;   /* a scroll that hits the end must not scroll the page behind it */
   align-content: flex-start;      /* rows stack from the top, so a partly-scrolled grid never floats */
@@ -5624,7 +5636,7 @@ body:has(.heroselect) .statusbar { visibility: hidden; }
 
 /* End-of-run screen — reuses the hero-picker overlay (.heroselect/.hsbox); shows the round
    W-L-W summary + the final warband. */
-.endbox { max-width: 96vw; }
+.endbox { max-width: calc(96 * var(--vw, 1vw)); }
 /* The run's hero, centred above the verdict. */
 .endhero { display: flex; flex-direction: column; align-items: center; gap: 8px; margin-bottom: 4px; }
 .endhero-portrait { width: 104px; height: 104px; border-radius: 50%; overflow: hidden; display: grid; place-items: center; background: var(--ink); border: 4px solid color-mix(in srgb, var(--acc) 60%, var(--card)); box-shadow: 0 10px 28px -10px rgba(0, 0, 0, 0.6); }
@@ -5637,7 +5649,7 @@ body:has(.heroselect) .statusbar { visibility: hidden; }
 /* GRADUATION screen: no `.endboardlabel` sits between the title and the board here, so the title's zero
    bottom margin let the final warband ride up over it (owner report 2026-08-20). Give the title its own
    breathing room and shrink it a little — 116px is sized for the full end screen's taller layout. */
-.tutgrad .hstitle { font-size: clamp(56px, 7vw, 92px); margin: 4px 0 30px; }
+.tutgrad .hstitle { font-size: clamp(56px, calc(7 * var(--vw, 1vw)), 92px); margin: 4px 0 30px; }
 .tutgrad .endboard { margin-top: 6px; }
 .endsub { font-family: var(--font-ui); font-weight: 800; font-size: 32px; letter-spacing: 0.18em; text-transform: uppercase; color: #f2ead9; margin-top: 16px; }
 /* Par / line verdict (A2): the run's target + how it graded (covered / exceeded / missed / …). */
@@ -5659,7 +5671,7 @@ body:has(.heroselect) .statusbar { visibility: hidden; }
 .endrating-move.promo { background: #3b9e57; }
 .endrating-move.demo { background: var(--threat); }
 /* Build identity (A6): the tags that describe what you built this run. */
-.endtags { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; max-width: 90vw; margin-top: 16px; }
+.endtags { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; max-width: calc(90 * var(--vw, 1vw)); margin-top: 16px; }
 .endtag { position: relative; font-family: var(--font-ui); font-weight: 800; font-size: 13px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--acc-dk); background: color-mix(in srgb, var(--acc) 16%, var(--card)); border: 1.5px solid color-mix(in srgb, var(--acc) 55%, transparent); padding: 6px 14px; border-radius: 999px; }
 /* Custom build-tag tooltip — replaces the native title bubble: a dark rounded card with a caret, above the chip. */
 .tagtip { position: absolute; bottom: calc(100% + 9px); left: 50%; transform: translateX(-50%) translateY(4px); width: max-content; max-width: 230px; background: var(--ink); color: #f6efe2; border: 1px solid rgba(255, 255, 255, 0.12); border-radius: 10px; padding: 8px 12px; font-family: var(--font-body); font-weight: 600; font-size: 12.5px; line-height: 1.4; letter-spacing: normal; text-transform: none; text-align: center; box-shadow: 0 12px 30px -8px rgba(0, 0, 0, 0.6); opacity: 0; pointer-events: none; z-index: 60; transition: opacity 0.14s ease, transform 0.14s ease; }
@@ -5668,7 +5680,7 @@ body:has(.heroselect) .statusbar { visibility: hidden; }
 /* Run stats row (polish): triples · gold · APT · cards · strongest. Light text on the dark end-screen backdrop. */
 .endstats { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px 24px; margin-top: 18px; font-family: var(--font-ui); font-weight: 600; font-size: 18px; color: rgba(255, 255, 255, 0.8); }
 .endstat b { font-weight: 900; color: #fff; }
-.endpips { display: flex; flex-wrap: nowrap; gap: 9px; justify-content: center; max-width: 96vw; margin: 34px 0 8px; }
+.endpips { display: flex; flex-wrap: nowrap; gap: 9px; justify-content: center; max-width: calc(96 * var(--vw, 1vw)); margin: 34px 0 8px; }
 .endpip { flex: none; width: 44px; height: 44px; border-radius: 11px; font-family: var(--font-ui); font-weight: 800; font-size: 22px; color: #fff; display: grid; place-items: center; }
 .endpip.win { background: #3b9e57; }
 .endpip.lose { background: var(--threat); }
@@ -5685,7 +5697,7 @@ button.endpip { border: none; padding: 0; font: inherit; }
 .endboard-back { font: inherit; letter-spacing: inherit; text-transform: inherit; color: var(--acc); background: none; border: none; cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; }
 .endboard-backhint { color: rgba(255, 255, 255, 0.55); font-size: 0.7em; margin-left: 10px; }
 .endboard-back:hover .endboard-backhint { color: rgba(255, 255, 255, 0.85); }
-.endboard { display: flex; gap: 14px; justify-content: center; align-items: flex-start; flex-wrap: nowrap; zoom: 0.92; max-width: 96vw; }
+.endboard { display: flex; gap: 14px; justify-content: center; align-items: flex-start; flex-wrap: nowrap; zoom: 0.92; max-width: calc(96 * var(--vw, 1vw)); }
 .endboard .card { cursor: url('/cursors/gauntlet_default.svg') 6 2, default; }
 .endempty { font-family: var(--font-ui); font-weight: 700; font-size: 15px; color: #ddd2c0; padding: 24px; }
 .endplay { margin-top: 44px; font-family: var(--font-ui); font-weight: 800; font-size: 30px; letter-spacing: 0.12em; text-transform: uppercase; color: #fff; text-shadow: 0 2px 4px rgba(120, 60, 10, 0.5); background: linear-gradient(180deg, #f7a63c, #e8842a); border: 3px solid var(--acc-dk); box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.3), 0 7px 0 var(--acc-dk), 0 14px 34px -8px rgba(0, 0, 0, 0.55); padding: 22px 72px; border-radius: 18px; cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; }
@@ -5693,7 +5705,7 @@ button.endpip { border: none; padding: 0; font: inherit; }
 
 /* Avatar picker — a modal grid of every bundled hero / minion / token / power art. */
 .avatarpick { position: fixed; inset: 0; z-index: 520; display: grid; place-items: center; background: rgba(8, 10, 20, 0.74); backdrop-filter: blur(3px); }
-.avatarpick-panel { display: flex; flex-direction: column; width: min(760px, 92vw); max-height: 84vh; background: rgba(18, 20, 32, 0.98); border: 2px solid rgba(255, 255, 255, 0.14); border-radius: 20px; box-shadow: 0 24px 60px rgba(0, 0, 0, 0.55); }
+.avatarpick-panel { display: flex; flex-direction: column; width: min(760px, calc(92 * var(--vw, 1vw))); max-height: calc(84 * var(--vh, 1vh)); background: rgba(18, 20, 32, 0.98); border: 2px solid rgba(255, 255, 255, 0.14); border-radius: 20px; box-shadow: 0 24px 60px rgba(0, 0, 0, 0.55); }
 .avatarpick-head { display: flex; align-items: center; justify-content: space-between; gap: 24px; padding: 20px 24px 14px; }
 .avatarpick-title { font-family: var(--font-ui); font-weight: 800; font-size: 22px; letter-spacing: 0.06em; text-transform: uppercase; color: #f6efe2; }
 .avatarpick-close { font-family: var(--font-ui); font-weight: 800; font-size: 18px; color: #ddd2c0; background: rgba(255, 255, 255, 0.08); border: none; border-radius: 10px; width: 40px; height: 40px; cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; }
@@ -5813,7 +5825,7 @@ body:has(.titlescreen) .version { visibility: hidden; }
 /* ACCOUNTS C2 — the account overlay (sign-in lives in Settings now). Themed off the shared glass vars so the UI
    Theme tuner reaches it; PRESENTATION IS MIKE'S SEAM, this is a plain functional shell for him to restyle. */
 .acctpanel { position: fixed; inset: 0; z-index: 540; display: grid; place-items: center; background: rgba(8, 10, 20, 0.74); backdrop-filter: blur(3px); }
-.acctpanel-box { display: flex; flex-direction: column; width: min(440px, 92vw); border-radius: var(--gl-radius, 16px);
+.acctpanel-box { display: flex; flex-direction: column; width: min(440px, calc(92 * var(--vw, 1vw))); border-radius: var(--gl-radius, 16px);
   background: linear-gradient(180deg, var(--gl-top, rgba(46, 56, 72, 0.96)), var(--gl-bot, rgba(20, 25, 34, 0.98)));
   -webkit-backdrop-filter: var(--gl-blur, blur(10px) saturate(1.15)); backdrop-filter: var(--gl-blur, blur(10px) saturate(1.15));
   border: 1px solid var(--gl-border, rgba(190, 214, 240, 0.22)); border-top-color: var(--gl-border-top, rgba(226, 240, 255, 0.42));
@@ -5838,8 +5850,8 @@ body:has(.titlescreen) .version { visibility: hidden; }
 .acctpanel-btn.ghost:hover { border-color: var(--gl-border-top, rgba(226, 240, 255, 0.6)); }
 
 /* The left menu column. */
-.titlemenu { zoom: var(--ui-zoom); position: absolute; left: clamp(40px, 7vw, 150px); top: 50%; transform: translateY(-50%);
-  display: flex; flex-direction: column; align-items: flex-start; gap: 30px; max-width: 90vw; }
+.titlemenu { zoom: var(--ui-zoom); position: absolute; left: clamp(40px, calc(7 * var(--vw, 1vw)), 150px); top: 50%; transform: translateY(-50%);
+  display: flex; flex-direction: column; align-items: flex-start; gap: 30px; max-width: calc(90 * var(--vw, 1vw)); }
 /* Placement, font, glows + float all driven by the 🏔️ Title Logo dev tuner (`titleConfig.ts` → `--title-*`);
    fallbacks mirror DEFAULTS. FLOAT is a compositor-only transform loop with two modes: SYNCED bobs the whole
    `.titlelogo` group with `titlefloat` (its keyframes fold in the x/y offset so it oscillates around the seat),
@@ -5872,7 +5884,7 @@ body:has(.titlescreen) .version { visibility: hidden; }
   --bob-amp: var(--title-text-float-amp, 4.5px);
   animation: var(--title-text-float-name, titlebob) var(--title-text-float-speed, 5.2s) ease-in-out infinite; }
 
-.titlenav { display: flex; flex-direction: column; gap: 15px; width: min(420px, 78vw); }
+.titlenav { display: flex; flex-direction: column; gap: 15px; width: min(420px, calc(78 * var(--vw, 1vw))); }
 /* Ornate menu button: dark navy fill, gold rim + inner bevel, a framed gold icon cell, letter-spaced label. */
 .menubtn { position: relative; overflow: hidden; display: flex; align-items: center; gap: 16px; width: 100%; padding: 15px 22px; border-radius: 9px;
   border: 1.5px solid rgba(196, 160, 92, 0.6); background: linear-gradient(180deg, rgba(24, 36, 58, 0.92), rgba(13, 22, 39, 0.94));
@@ -6162,8 +6174,8 @@ svg { width: 18px; height: 18px; }
 .devmenu-count { position: absolute; top: -4px; right: -4px; min-width: 17px; height: 17px; padding: 0 4px; border-radius: 999px; background: var(--acc); color: #fff; font-family: var(--font-ui); font-weight: 800; font-size: 10px; line-height: 17px; text-align: center; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4); }
 
 .devmenu { position: fixed; right: calc(var(--bar-x) + 64px); bottom: calc(var(--bar-y) + 64px); z-index: 9991;
-  width: 296px; max-width: calc(100vw - 24px);
-  display: flex; flex-direction: column; max-height: min(72vh, 620px);
+  width: 296px; max-width: calc(var(--lvw, 100vw) - 24px);
+  display: flex; flex-direction: column; max-height: min(calc(72 * var(--vh, 1vh)), 620px);
   background: var(--card); border: 2px solid var(--gold); border-radius: 14px; padding: 8px;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6), 0 18px 44px -10px rgba(0, 0, 0, 0.55);
   font-family: var(--font-ui); box-sizing: border-box; }
@@ -6211,7 +6223,7 @@ svg { width: 18px; height: 18px; }
 .devmenu-clear:hover { border-color: var(--acc); color: var(--acc-dk); }
 .devmenu-foot { flex: none; padding: 7px 6px 1px; border-top: 1px solid var(--line); margin-top: 6px;
   font-size: 10px; font-weight: 700; letter-spacing: 0.04em; color: var(--ink3); text-align: center; }
-.sfxmix { position: fixed; right: calc(var(--bar-x) + 16px); bottom: calc(var(--bar-y) + 64px); z-index: 200; width: 290px; background: var(--card); border: 2px solid var(--line); border-radius: 14px; padding: 12px 14px; box-shadow: 0 16px 40px -8px rgba(0, 0, 0, 0.5); font-family: var(--font-ui); box-sizing: border-box; resize: both; overflow: auto; min-width: 220px; max-width: 92vw; min-height: 110px; max-height: 88vh; }
+.sfxmix { position: fixed; right: calc(var(--bar-x) + 16px); bottom: calc(var(--bar-y) + 64px); z-index: 200; width: 290px; background: var(--card); border: 2px solid var(--line); border-radius: 14px; padding: 12px 14px; box-shadow: 0 16px 40px -8px rgba(0, 0, 0, 0.5); font-family: var(--font-ui); box-sizing: border-box; resize: both; overflow: auto; min-width: 220px; max-width: calc(92 * var(--vw, 1vw)); min-height: 110px; max-height: calc(88 * var(--vh, 1vh)); }
 /* ---- SHARED TUNER PANEL (schema-driven) ------------------------------------------------------------------
    Additive only. Panels migrated to `TunerPanel` keep every `.sfxmix*` class the hand-rolled ones use, so a
    half-migrated toolset still reads as one product; these rules add what the schema made possible — sections,
@@ -6720,7 +6732,7 @@ svg { width: 18px; height: 18px; }
 /* DEV Mixing Desk — a horizontal console of channel strips with VERTICAL faders (like a real mixer). Dark
    dev-tool theme. Draggable (header) + resizable (bottom-right corner). Meters animate transform ONLY. */
 .desk { position: fixed; right: calc(var(--bar-x) + 16px); bottom: calc(var(--bar-y) + 48px); z-index: 200;
-  width: 640px; height: 480px; min-width: 340px; min-height: 260px; max-width: 96vw; max-height: 92vh;
+  width: 640px; height: 480px; min-width: 340px; min-height: 260px; max-width: calc(96 * var(--vw, 1vw)); max-height: calc(92 * var(--vh, 1vh));
   overflow: auto; resize: both; box-sizing: border-box; display: flex; flex-direction: column; gap: 10px;
   background: #1c1a17; border: 2px solid #3a352e; border-radius: 14px; padding: 12px 14px;
   box-shadow: 0 16px 40px -8px rgba(0,0,0,0.55); font-family: var(--font-ui); color: #efe7db;
@@ -7452,7 +7464,7 @@ body:has(.lb-ladder) .cardref { z-index: 490; }
 .runtrophy-art { width: 100%; height: 100%; object-fit: cover; }
 .runtrophy-emblem { color: #d9cfaa; }
 .runtrophy-emblem svg { width: 22px; height: 22px; }
-.runtrophy-tip { position: absolute; bottom: calc(100% + 8px); left: 0; width: 224px; max-width: calc(100vw - 24px); display: flex; flex-direction: column; gap: 4px; background: var(--ink); color: #fff; border-radius: 12px; padding: 10px 13px; font-size: 12px; line-height: 1.4; font-weight: 600; text-align: center; overflow-wrap: break-word; box-shadow: 0 12px 30px -8px rgba(0, 0, 0, 0.6); opacity: 0; pointer-events: none; z-index: 60; transition: opacity 0.14s; }
+.runtrophy-tip { position: absolute; bottom: calc(100% + 8px); left: 0; width: 224px; max-width: calc(var(--lvw, 100vw) - 24px); display: flex; flex-direction: column; gap: 4px; background: var(--ink); color: #fff; border-radius: 12px; padding: 10px 13px; font-size: 12px; line-height: 1.4; font-weight: 600; text-align: center; overflow-wrap: break-word; box-shadow: 0 12px 30px -8px rgba(0, 0, 0, 0.6); opacity: 0; pointer-events: none; z-index: 60; transition: opacity 0.14s; }
 .runtrophy-tip b { color: var(--acc); font-weight: 800; }
 .runtrophy-tip .runtrophy-tip-body { color: #f4f0e6; }
 .runtrophy-tip .runtrophy-tip-kind { color: var(--gold); font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; font-size: 11px; }
@@ -7747,7 +7759,7 @@ body:has(.lb-ladder) .cardref { z-index: 490; }
    are RE-DECLARED on `.book` so every child rule reading var(--card)/--line/--ink/… reskins from this one
    block — a dark face with a cream rule and a warm peach ink. The three surfaces below (body/head/rail) carry
    explicit fills the tokens can't express as a gradient. */
-.book { --card: #000000; --line: #e7dcc7; --ink: #f5c6ad; --ink3: #d1c3ad; --bg2: #ffe5b8; --bg3: #ffe5b8; width: min(2300px, 95vw); height: min(1450px, 93vh); display: flex; flex-direction: column; background: linear-gradient(180deg, #e8f1fd 0%, #000000 14%); border: 3px solid var(--line); border-radius: 22px; box-shadow: 0 24px 70px -20px rgba(0, 0, 0, 0.7), inset 0 0 0 2px color-mix(in srgb, var(--acc) 18%, transparent); overflow: hidden; animation: bookpop 0.18s cubic-bezier(0.34, 1.2, 0.64, 1); cursor: url('/cursors/gauntlet_default.svg') 6 2, auto; }
+.book { --card: #000000; --line: #e7dcc7; --ink: #f5c6ad; --ink3: #d1c3ad; --bg2: #ffe5b8; --bg3: #ffe5b8; width: min(2300px, calc(95 * var(--vw, 1vw))); height: min(1450px, calc(93 * var(--vh, 1vh))); display: flex; flex-direction: column; background: linear-gradient(180deg, #e8f1fd 0%, #000000 14%); border: 3px solid var(--line); border-radius: 22px; box-shadow: 0 24px 70px -20px rgba(0, 0, 0, 0.7), inset 0 0 0 2px color-mix(in srgb, var(--acc) 18%, transparent); overflow: hidden; animation: bookpop 0.18s cubic-bezier(0.34, 1.2, 0.64, 1); cursor: url('/cursors/gauntlet_default.svg') 6 2, auto; }
 /* Gentle fade + slight pop (NOT inspectpop — that scales 1.45→1.9 for the inspect card, which rests at 1.9;
    the book rests at scale 1, so inspectpop made it balloon then snap down). */
 @keyframes bookpop { from { opacity: 0; transform: scale(0.97); } to { opacity: 1; transform: scale(1); } }
@@ -7845,7 +7857,7 @@ body:has(.book-ov) .cardref { z-index: 490; }
    shadows"). In hand the same plate reads as carved framing because the board behind it is dark — so the
    GRID gets a dark surface of its own rather than the plates being dropped. Scoped to the grid: the rail,
    header and glossary keep the book's light treatment. */
-.book-grid { background: linear-gradient(180deg, #1b1a21 0%, #141319 100%); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05); flex: 1; display: grid; grid-template-columns: repeat(auto-fill, minmax(calc(var(--cw) + 18.4px), 1fr)); gap: 72px 25.3px; padding: calc(var(--ccw) * 0.17) 20px 36px; overflow-y: auto; align-content: start; align-items: start; justify-items: center; --ch: calc(clamp(233px, 28.6vh, 304px) * var(--book-zoom, 1)); --cw: calc(var(--ch) * 0.752); --ccw: calc(var(--cw) * 0.85); }
+.book-grid { background: linear-gradient(180deg, #1b1a21 0%, #141319 100%); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05); flex: 1; display: grid; grid-template-columns: repeat(auto-fill, minmax(calc(var(--cw) + 18.4px), 1fr)); gap: 72px 25.3px; padding: calc(var(--ccw) * 0.17) 20px 36px; overflow-y: auto; align-content: start; align-items: start; justify-items: center; --ch: calc(clamp(233px, calc(28.6 * var(--vh, 1vh)), 304px) * var(--book-zoom, 1)); --cw: calc(var(--ch) * 0.752); --ccw: calc(var(--cw) * 0.85); }
 /* A PLATED card is wider than its frame (the plate overhangs), so the cell has to allow for it or the grid
    clips the carved edge — the same allowance `.cardref .card.plated` makes for the hover preview. */
 .book-grid .card.plated {
@@ -7903,7 +7915,7 @@ body:has(.book-ov) .cardref { z-index: 490; }
 .book-gloss:hover { transform: translateY(-2px); border-color: var(--acc); }
 .book-gloss.on { background: var(--acc); color: #fff; border-color: var(--acc-dk); box-shadow: 0 3px 0 var(--acc-dk); }
 /* Search box in the compendium header — becomes the right-side pusher; the Glossary/Gilded buttons flow after it. */
-.book-search { margin-left: auto; height: 38px; width: min(240px, 28vw); padding: 0 14px; border-radius: 11px; border: 2px solid var(--line); background: var(--bg2); color: var(--ink2); /* the rail chips' grey/black, not the orange ink (owner 2026-09-18) */ font-family: var(--font-body), sans-serif; font-weight: 600; font-size: 14px; }
+.book-search { margin-left: auto; height: 38px; width: min(240px, calc(28 * var(--vw, 1vw))); padding: 0 14px; border-radius: 11px; border: 2px solid var(--line); background: var(--bg2); color: var(--ink2); /* the rail chips' grey/black, not the orange ink (owner 2026-09-18) */ font-family: var(--font-body), sans-serif; font-weight: 600; font-size: 14px; }
 .book-search:focus { outline: none; border-color: var(--acc); }
 .book-search::placeholder { color: var(--ink3); }
 .book-search ~ .book-gloss, .book-search ~ .book-gilded { margin-left: 12px; }
@@ -8006,7 +8018,7 @@ body:has(.book-ov) .cardref { z-index: 490; }
   background: #0b0c10; border: 1px solid rgba(255, 255, 255, 0.16); border-radius: 12px;
   box-shadow: 0 18px 48px -10px rgba(0, 0, 0, 0.75);
   font-family: var(--font-ui); color: #f1ece2;
-  resize: both; overflow: hidden; min-width: 240px; max-width: 92vw; min-height: 44px; max-height: 88vh;
+  resize: both; overflow: hidden; min-width: 240px; max-width: calc(92 * var(--vw, 1vw)); min-height: 44px; max-height: calc(88 * var(--vh, 1vh));
   /* Column flex so the RESIZE grip works: header + sparkline keep their natural height, the body takes the
      remainder and scrolls. Without it the body sizes to content and is simply clipped. */
   display: flex; flex-direction: column;
@@ -8176,7 +8188,7 @@ body:has(.book-ov) .cardref { z-index: 490; }
 }
 /* Match hero select's zoom so the cards are the same physical size on the same screen. */
 .modepick { --hs-zoom: calc(var(--scale, 0.745) / 0.745 * var(--mobile-boost, 1)); }
-.mpbox { display: flex; flex-direction: column; align-items: center; text-align: center; zoom: var(--hs-zoom); max-width: calc(96vw / var(--hs-zoom)); }
+.mpbox { display: flex; flex-direction: column; align-items: center; text-align: center; zoom: var(--hs-zoom); max-width: calc(calc(96 * var(--vw, 1vw)) / var(--hs-zoom)); }
 .mptitle { font-family: var(--font-title); font-weight: 900; font-size: 68px; letter-spacing: 0.06em; color: #f6efe2; margin: 8px 0 22px; }
 .mprow { display: flex; gap: 36px; align-items: stretch; justify-content: center; flex-wrap: wrap; }
 
@@ -8186,7 +8198,7 @@ body:has(.book-ov) .cardref { z-index: 490; }
 /* Explicit high-contrast palette on this screen — the shared `--ink*`/`--bg` tokens are warm browns tuned for
    the light board, and reading them over the dark backdrop (and as text ON the orange accent) was muddy
    (owner report 2026-08-24). Cream text on dark, near-black text on orange. */
-.pobox { gap: 2px; min-width: min(580px, 92vw); }
+.pobox { gap: 2px; min-width: min(580px, calc(92 * var(--vw, 1vw))); }
 .posub { font-family: var(--font-ui); font-weight: 600; font-size: 15px; color: #d7cdba; margin: -8px 0 22px; }
 .porow { display: grid; grid-template-columns: 168px 1fr; align-items: center; gap: 22px; width: 100%; padding: 13px 0; border-top: 1px solid rgba(255, 255, 255, 0.1); }
 .porow:first-of-type { border-top: none; }
@@ -8779,7 +8791,7 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 /* ---- SCENE BUILDER (SceneBuilder.tsx) — dev sandbox control panel, launched from the title. Reuses the
    `.sfxmix`/`.lunge` tuner chrome for the frame + drag; the `.sb-*` rules give it a clean sectioned layout.
    Dev-only, stripped from production. */
-.scenebuilder { width: calc(288 * var(--u)); max-width: 92vw; }
+.scenebuilder { width: calc(288 * var(--u)); max-width: calc(92 * var(--vw, 1vw)); }
 .scenebuilder.collapsed { width: calc(180 * var(--u)); }
 .scenebuilder.minimized { display: none; }
 .sb-head { display: flex; align-items: center; justify-content: space-between; gap: calc(8 * var(--u)); }
@@ -8848,7 +8860,7 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 /* The report side panel shares the Scene Builder's `.sfxmix`/`.sb-*` chrome; `.bsc-*` adds only what a
    report needs: the quoted UNTRUSTED player text, the mismatch banner, and the raw event-chain list.
    No cursor rules here — buttons inherit the gauntlet pointer from the global rule. */
-.bugscenario { width: calc(300 * var(--u)); max-width: 92vw; }
+.bugscenario { width: calc(300 * var(--u)); max-width: calc(92 * var(--vw, 1vw)); }
 .sb-bugpaste { resize: vertical; min-height: calc(34 * var(--u)); font-size: calc(11 * var(--u)); }
 /* QA scenario bridge: the headless runner's compact summary — monospace, scrolls inside itself, never widens
    the panel. (No cursor rule — dev text block, not interactive.) */
@@ -9353,7 +9365,7 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
   padding: 24px; background: rgba(0, 0, 0, 0.55);
 }
 .fxwb-addprim-window {
-  width: min(1100px, 94vw); max-height: 90vh; overflow-y: auto;
+  width: min(1100px, calc(94 * var(--vw, 1vw))); max-height: calc(90 * var(--vh, 1vh)); overflow-y: auto;
   background: #16120e; border: 1px solid #4a4136; border-radius: 12px; padding: 20px 22px 22px;
   box-shadow: 0 28px 80px rgba(0, 0, 0, 0.65);
 }
@@ -10086,7 +10098,7 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
   background: rgba(0, 0, 0, 0.58);
 }
 .fxlib {
-  width: min(1680px, 97vw); height: min(94vh, 1040px); display: flex; flex-direction: column;
+  width: min(1680px, calc(97 * var(--vw, 1vw))); height: min(calc(94 * var(--vh, 1vh)), 1040px); display: flex; flex-direction: column;
   background: #100d08; color: #efe7db; font-family: var(--font-ui);
   border: 1px solid #4a4136; border-radius: 12px; overflow: hidden;
   box-shadow: 0 24px 70px rgba(0, 0, 0, 0.6);
@@ -10603,11 +10615,11 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 
 .endplace { display: flex; flex-direction: column; align-items: center; line-height: 0.92; }
 .endplace-num { font-family: var(--font-disp, var(--font-ui)); font-weight: 900;
-  font-size: clamp(64px, 11vh, 132px); letter-spacing: -0.02em;
+  font-size: clamp(64px, calc(11 * var(--vh, 1vh)), 132px); letter-spacing: -0.02em;
   background: linear-gradient(180deg, #fff6df, #d8a94e 62%, #a2762c);
   -webkit-background-clip: text; background-clip: text; color: transparent;
   filter: drop-shadow(0 3px 0 rgba(0, 0, 0, 0.35)); }
-.endplace-of { font-family: var(--font-ui); font-weight: 700; font-size: clamp(13px, 1.7vh, 19px);
+.endplace-of { font-family: var(--font-ui); font-weight: 700; font-size: clamp(13px, calc(1.7 * var(--vh, 1vh)), 19px);
   letter-spacing: 0.16em; text-transform: uppercase; color: rgba(255, 255, 255, 0.5); margin-top: 0.35em; }
 /* First place gets a brighter gradient. `background-image`, NOT the `background` shorthand: the shorthand
    resets `background-clip` to `border-box`, which un-clips the gradient from the glyphs and paints "1st" as a
@@ -10828,12 +10840,12 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
    cover would be useless mid-search. */
 .fxwb-cmd {
   position: fixed; inset: 0; z-index: 90; display: flex; justify-content: center;
-  padding-top: 14vh; background: rgba(10, 8, 5, 0.6);
+  padding-top: calc(14 * var(--vh, 1vh)); background: rgba(10, 8, 5, 0.6);
   font-family: var(--font-ui); color: #efe7db;
   animation: fadein 0.12s ease;
 }
 .fxwb-cmd-panel {
-  display: flex; flex-direction: column; width: min(560px, 92vw); max-height: 60vh;
+  display: flex; flex-direction: column; width: min(560px, calc(92 * var(--vw, 1vw))); max-height: calc(60 * var(--vh, 1vh));
   border-radius: 10px; border: 1px solid #4a4136; background: #16120e;
   box-shadow: 0 18px 44px -14px rgba(0, 0, 0, 0.75);
   overflow: hidden;
@@ -11220,7 +11232,7 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 .roundrail-wrap { cursor: url('/cursors/gauntlet_open.svg') 6 2, grab; touch-action: none; }
 .roundrail-wrap.dragging, .roundrail-wrap.dragging * { cursor: url('/cursors/gauntlet_open.svg') 6 2, grabbing; }
 .roundrail {
-  display: flex; flex-direction: column; gap: 3px; padding: 6px 6px 8px; border-radius: 10px; max-height: 82vh; overflow-y: auto;
+  display: flex; flex-direction: column; gap: 3px; padding: 6px 6px 8px; border-radius: 10px; max-height: calc(82 * var(--vh, 1vh)); overflow-y: auto;
   background: #14111c; box-shadow: 0 4px 14px -6px rgba(0, 0, 0, 0.7), inset 0 0 0 1px rgba(255, 255, 255, 0.09);
   font-family: var(--font-ui); position: relative; z-index: 1; }
 /* The title bar: grab handle · title · collapse toggle. */
@@ -11304,7 +11316,7 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 /* ── PATCH NOTES (owner ask 2026-08-24) — the gameplay changelog, opened from the title only. Full-screen
    overlay mirroring the Esc panel's chrome (`.escov`/`.escpanel`), with a scrolling newest-first list. ── */
 .pnov { position: fixed; inset: 0; z-index: 500; display: grid; place-items: center; background: rgba(20, 14, 7, 0.62); backdrop-filter: blur(3px); animation: fadein 0.16s ease; }
-.pnpanel { width: min(760px, 92vw); max-height: 86vh; display: flex; flex-direction: column; background: var(--bg2); border: 2px solid var(--line); border-radius: 18px; box-shadow: 0 22px 60px -18px rgba(0, 0, 0, 0.6); overflow: hidden; }
+.pnpanel { width: min(760px, calc(92 * var(--vw, 1vw))); max-height: calc(86 * var(--vh, 1vh)); display: flex; flex-direction: column; background: var(--bg2); border: 2px solid var(--line); border-radius: 18px; box-shadow: 0 22px 60px -18px rgba(0, 0, 0, 0.6); overflow: hidden; }
 .pnhead { display: flex; align-items: center; justify-content: space-between; padding: 18px 22px 10px; }
 /* The tab bar under the title (owner ask 2026-09-23): the Game / Systems tabs on the left, the Summary /
    Detailed segment on the right. Both are the same pill-track language; the tabs read a touch larger because
@@ -11380,7 +11392,7 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 .titlescreen [data-tip]:not(.menubtn)::after, .lbpage [data-tip]:not(.menubtn)::after {
   content: attr(data-tip);
   position: absolute; left: 50%; top: calc(100% + 9px); transform: translateX(-50%) translateY(-4px);
-  white-space: nowrap; max-width: 60vw;
+  white-space: nowrap; max-width: calc(60 * var(--vw, 1vw));
   font-family: var(--font-ui); font-weight: 700; font-size: 12px; letter-spacing: 0.02em; text-transform: none;
   color: var(--ink); background: color-mix(in srgb, var(--bg2) 92%, #000); border: 1.5px solid var(--line);
   padding: 6px 11px; border-radius: 10px; box-shadow: 0 10px 26px -10px rgba(0, 0, 0, 0.7);
@@ -11694,7 +11706,7 @@ body.duel-attacker-opp .combatopp-hp { opacity: 0; }
    one-shot fade-in, no looping animation (an interruption-recovery tool, blueprint §5.4). NO `cursor`
    anywhere here: the global `button` rule paints the gauntlet cursor (see CLAUDE.md's cursor note). ── */
 .bgrov { position: fixed; inset: 0; z-index: 560; display: grid; place-items: center; background: rgba(20, 14, 7, 0.55); backdrop-filter: blur(2px); animation: fadein 0.14s ease; }
-.bgrpanel { width: min(640px, 92vw); max-height: 88vh; display: flex; flex-direction: column; background: var(--bg2); border: 2px solid var(--line); border-radius: 16px; box-shadow: 0 22px 60px -18px rgba(0, 0, 0, 0.6); overflow: hidden; }
+.bgrpanel { width: min(640px, calc(92 * var(--vw, 1vw))); max-height: calc(88 * var(--vh, 1vh)); display: flex; flex-direction: column; background: var(--bg2); border: 2px solid var(--line); border-radius: 16px; box-shadow: 0 22px 60px -18px rgba(0, 0, 0, 0.6); overflow: hidden; }
 .bgrhead { display: flex; align-items: center; gap: 12px; padding: 16px 20px 10px; border-bottom: 1px solid var(--line); }
 .bgrtitle { font-size: 23px; color: var(--ink); letter-spacing: 0.02em; margin-right: auto; }
 /* The phase badge: SHOP (accent) vs COMBAT (demon hue) + round number — where the capsule froze. */
@@ -11739,7 +11751,7 @@ body.duel-attacker-opp .combatopp-hp { opacity: 0; }
   position: fixed; inset: 0; z-index: 600; display: grid; place-items: center;
   background: rgba(6, 8, 14, 0.82); backdrop-filter: blur(3px); }
 .perfsc {
-  width: min(1180px, 94vw); height: min(860px, 92vh); display: flex; flex-direction: column;
+  width: min(1180px, calc(94 * var(--vw, 1vw))); height: min(860px, calc(92 * var(--vh, 1vh))); display: flex; flex-direction: column;
   background: linear-gradient(180deg, #221a13, #171009); color: #efe6d6;
   border: 2px solid var(--line); border-radius: 16px; overflow: hidden;
   box-shadow: 0 30px 80px -20px rgba(0, 0, 0, 0.8); }
@@ -12107,7 +12119,7 @@ body.duel-attacker-opp .combatopp-hp { opacity: 0; }
    the ≥2200px step to 72px lives with the medallion's, in the Rankings block). */
 .rankcrest-row { --ring: 64px; }
 .rankcrest-big { --ring: 150px; }
-.rankcrest-xl { --ring: clamp(200px, 26vh, 260px); }
+.rankcrest-xl { --ring: clamp(200px, calc(26 * var(--vh, 1vh)), 260px); }
 /* The division plate — a gold coin pill on the ring's bottom edge, in the game's gold-medal ramp. */
 .rankcrest-plate { position: absolute; left: 50%; bottom: calc(var(--ring, 160px) * 0.02); transform: translate(-50%, 40%); z-index: 3; white-space: nowrap;
   font-family: var(--font-ui); font-weight: 900; font-size: calc(var(--ring, 160px) * 0.11); line-height: 1; letter-spacing: 0.08em;
@@ -12169,7 +12181,7 @@ body.duel-attacker-opp .combatopp-hp { opacity: 0; }
 .rankbar-xl { flex-direction: column; align-items: center; text-align: center; gap: 26px; }
 .rankbar-xl .rankbar-body { align-items: center; gap: 10px; }
 .rankbar-xl .rankbar-label { font-size: 34px; letter-spacing: 0.12em; }
-.rankbar-xl .rankbar-track { width: min(380px, 72vw); height: 16px; }
+.rankbar-xl .rankbar-track { width: min(380px, calc(72 * var(--vw, 1vw))); height: 16px; }
 .rankbar-xl .rankbar-tip { width: 36px; height: 36px; margin-top: -18px; right: -12px; }
 .rankbar-xl .rankbar-points { font-size: 20px; color: #fff6e4; }
 
@@ -12206,7 +12218,7 @@ body:has(.heroselect.rankend) .pixifx-above { z-index: 470; }
 .rankend .endbox { margin: auto; }
 .rankend-panel { display: flex; flex-direction: column; align-items: center; gap: 14px; }
 .rankend-place { display: flex; flex-direction: column; align-items: center; line-height: 0.92; will-change: transform, opacity; }
-.rankend-place-text { font-family: var(--font-disp, var(--font-ui)); font-weight: 900; font-size: clamp(64px, 11vh, 132px); letter-spacing: -0.01em;
+.rankend-place-text { font-family: var(--font-disp, var(--font-ui)); font-weight: 900; font-size: clamp(64px, calc(11 * var(--vh, 1vh)), 132px); letter-spacing: -0.01em;
   background: linear-gradient(180deg, #fff6df, #d8a94e 62%, #a2762c); -webkit-background-clip: text; background-clip: text; color: transparent;
   filter: drop-shadow(0 3px 0 rgba(0, 0, 0, 0.35)); }
 /* VICTORY reads green (owner ask 2026-09-20). `background-image`, not the shorthand — the shorthand un-clips. */

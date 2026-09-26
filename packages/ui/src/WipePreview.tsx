@@ -4,6 +4,7 @@ import { getScreenWipeConfig, wipeCssVars, WIPE_PLAY_EVENT } from './screenWipeC
 import { wipeOriginFor, type WipeOrigin } from './wipeGeometry';
 import { afterBeat, afterSweep, barClassFor, curtainClassFor, frontClassFor, wipeSweeping, type WipeState } from './wipeMachine';
 import { wipeFx } from './wipeFx';
+import { stageHost } from './stage';
 
 /**
  * THE SCREEN WIPE SANDBOX (DEV only): what the Screen wipe tuner's ▶ Play runs. It plays the Returning-to-Shop
@@ -69,5 +70,5 @@ export function WipePreview(): JSX.Element | null {
     </div>
     <div className={`${frontClassFor(wipe)} preview`} aria-hidden="true" style={vars} />
     <div className={`${barClassFor(wipe)} preview`} aria-hidden="true" style={vars} />
-  </>, document.body);
+  </>, stageHost());
 }

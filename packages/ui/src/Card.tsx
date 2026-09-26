@@ -103,6 +103,7 @@ import { pixiFx } from './pixiFx';
 import { getStepProcFxConfig, isStepProcTick } from './stepProcFxConfig';
 import { getExecuteSnapshot, subscribeExecute } from './executeConfig';
 import { getCardPlateConfig, plateTextBucket } from './cardPlateConfig';
+import { stageHost } from './stage';
 
 // TAUNT frame — pipeline layer 2 (the authored shield). Prefer an authored raster PNG (painterly, drops into
 // `apps/web/public/frames/`); until it exists the SVG placeholder renders instead. `tauntFrameAvailable` flips
@@ -1286,7 +1287,7 @@ export const Card = memo(function Card({
             {refPos.origin === 'left' && <KeywordDefs card={card} mech={mech} />}
           </div>
         </div>,
-        document.body,
+        stageHost(),
       )}
     </div>
   );

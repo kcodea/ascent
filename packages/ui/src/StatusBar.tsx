@@ -32,6 +32,7 @@ import { getHeroPowerBtnConfig } from './heroPowerBtnConfig';
 import { pixiFx } from './pixiFx';
 import { getAimFxConfig } from './aimFxConfig'; // also reflects the --hpb-* vars at load (side-effect)
 import './heroPanelConfig'; // side-effect: reflects the --hpn-* hero-panel transform vars at load
+import { stageHost } from './stage';
 
 
 /** Shrink a pill's TEXT to fit its box (owner note 2026-07-16: no ellipsis — "Lord of the Risen" should
@@ -867,7 +868,7 @@ export function StatusBar() {
               ))}
             </div>
           </div>
-        </div>, document.body)}
+        </div>, stageHost())}
       {/* FLASH'S CHOOSE ONE — the SAME markup as Cassen's picker above, so the quest-style treatment in
           styles.css dresses both from one place rather than drifting into two lookalike panels. */}
       {pickingFlash && createPortal(
@@ -902,7 +903,7 @@ export function StatusBar() {
               ))}
             </div>
           </div>
-        </div>, document.body)}
+        </div>, stageHost())}
       {/* Hunch: hovering the power shows the SPELL it would hand you (owner ask 2026-08-14) — you can't
                 judge the price without knowing what you're buying. Rendered from the same live view the shop
                 uses, so its printed value is the real one. */}
@@ -912,7 +913,7 @@ export function StatusBar() {
                   <Card card={hunchPreview} forceFull plated />
                 </div>
               </div>,
-              document.body,
+              stageHost(),
             )}
           </div>
           {/* The power NAME now lives in the pill for passives too (mirrors the active-power pill, e.g. Soren's

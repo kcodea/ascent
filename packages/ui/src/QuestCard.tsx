@@ -7,6 +7,7 @@ import { Card, type CardView } from './Card';
 import { Icon } from './Icon';
 import { questArt } from './art';
 import { questObjectiveLines, questObjectiveText, questRewardText } from './questText';
+import { stageHost } from './stage';
 
 const TIER_LABEL: Record<QuestDef['tier'], string> = { lesser: 'Lesser', greater: 'Greater', capstone: 'Capstone' };
 /** Each tribe's emblem glyph — the canonical set (mirrors Card.tsx's footer icons). */
@@ -108,7 +109,7 @@ export function QuestCard({ quest, onBuy, readOnly = false }: { quest: QuestDef;
             ))}
           </div>
         </div>,
-        document.body,
+        stageHost(),
       )}
     </button>
   );

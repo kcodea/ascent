@@ -1,3 +1,4 @@
+import { stageHost } from './stage';
 /**
  * Tunable parameters for the SPELL POWER FX — the "a spell just resolved, and here's the power behind it"
  * cue (owner ask 2026-07-21): a fan of pink/purple/gold ARROWS rises from the caster, a BLAST of motes pops
@@ -175,7 +176,7 @@ export function floatSpellPowerNumber(x: number, y: number, atk: number, hp: num
   el.style.fontSize = `${c.numSize}px`;
   el.style.setProperty('--spf-text', c.colorText);
   el.style.setProperty('--spf-outline', c.colorOutline);
-  document.body.appendChild(el);
+  stageHost().appendChild(el);
   const total = c.numHoldMs + c.numFadeMs;
   try {
     const anim = el.animate([

@@ -22,6 +22,7 @@
  */
 
 import { WIRE_SRC, REF_W, linePoints, bodyPoints, sprite, rgba, arcaneGradient } from './plateFx';
+import { stageHost } from './stage';
 
 export interface PlateDissolveConfig {
   /** Whole effect, ms — start to nothing left. Governs how long the DUST lives. */
@@ -159,7 +160,7 @@ export function playPlateDissolve(rect: { left: number; top: number; width: numb
     `mask:url(${WIRE_SRC}) center / 100% 100% no-repeat`,
     `filter:drop-shadow(0 0 ${c.g1 * k}px ${rgba(c.cMid, 0.85)}) drop-shadow(0 0 ${c.g2 * k}px ${rgba(c.cDeep, 1)})`,
   ].join(';');
-  document.body.appendChild(imp);
+  stageHost().appendChild(imp);
 
   // --- the dust canvas, oversized so outward motes + bloom aren't clipped at the plate's edge ---
   const pad = 1.9;
@@ -170,7 +171,7 @@ export function playPlateDissolve(rect: { left: number; top: number; width: numb
     'position:fixed', `left:${rect.left - (cw - rect.width) / 2}px`, `top:${rect.top - (ch - rect.height) / 2}px`,
     `width:${cw}px`, `height:${ch}px`, 'pointer-events:none', 'z-index:114',
   ].join(';');
-  document.body.appendChild(cv);
+  stageHost().appendChild(cv);
   const ctx = cv.getContext('2d');
 
   // --- motes, born on the wireframe (or anywhere on the plate) and pushed outward from centre ---

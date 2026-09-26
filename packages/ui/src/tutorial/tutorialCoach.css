@@ -94,7 +94,7 @@
   cursor: url('/cursors/gauntlet_default.svg') 6 2, auto; /* keep the game cursor over the panel body */
   box-sizing: border-box;
   width: max-content;
-  max-width: min(calc(320px * var(--tut-scale)), calc(100vw - 24px));
+  max-width: min(calc(320px * var(--tut-scale)), calc(var(--lvw, 100vw) - 24px));
   padding: calc(13px * var(--tut-scale)) calc(15px * var(--tut-scale));
   display: flex;
   flex-direction: column;
@@ -274,7 +274,7 @@ body.dragging .tut-coach-panel { pointer-events: none; }
 }
 @keyframes tut-fl-in { from { opacity: 0; } to { opacity: 1; } }
 .tut-fl-card {
-  width: min(92vw, 460px);
+  width: min(calc(92 * var(--vw, 1vw)), 460px);
   padding: 32px 30px 30px;
   border-radius: 18px;
   text-align: center;
@@ -330,7 +330,7 @@ body.dragging .tut-coach-panel { pointer-events: none; }
   bottom: 12%;
   transform: translateX(-50%);
   z-index: 620;
-  max-width: min(90vw, 420px);
+  max-width: min(calc(90 * var(--vw, 1vw)), 420px);
   padding: 11px 18px;
   border-radius: 10px;
   text-align: center;

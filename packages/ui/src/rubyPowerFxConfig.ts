@@ -1,3 +1,4 @@
+import { stageHost } from './stage';
 /**
  * Tunable parameters for the RUBY POWER FX — the "your Rubies just got stronger" cue (owner ask 2026-07-24):
  * the Ruby-side sibling of the Spell Power FX, with its own independent dials so the two reads can diverge.
@@ -180,7 +181,7 @@ export function floatRubyPowerNumber(x: number, y: number, atk: number, hp: numb
   el.style.fontSize = `${c.numSize}px`;
   el.style.setProperty('--spf-text', c.colorText);
   el.style.setProperty('--spf-outline', c.colorOutline);
-  document.body.appendChild(el);
+  stageHost().appendChild(el);
   const total = c.numHoldMs + c.numFadeMs;
   try {
     const anim = el.animate([

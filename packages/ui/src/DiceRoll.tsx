@@ -6,6 +6,7 @@ import { diceRollParamsFor, type DiceVariant } from './diceRollConfig';
 import {
   buildDiceTimeline, diceCosmetics, FACE_PIPS, FACE_TRANSFORM, shadowFor, type DieFace,
 } from './diceRollTimeline';
+import { stageHost } from './stage';
 
 /**
  * The DICE ROLL overlay — ONE top-down 3D CSS die shared by both callers (owner handoff 2026-09-17):
@@ -200,6 +201,6 @@ export function DiceRoll(props: DiceRollProps): JSX.Element {
         </div>
       </div>
     </div>,
-    document.body,
+    stageHost(),
   );
 }

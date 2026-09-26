@@ -6,6 +6,7 @@ import type { RunState, ShopCard } from '@game/sim';
 import { Card, type CardView } from './Card';
 import { RuneCard } from './RuneCard';
 import { liveOptsFromRun, shopView } from './Recruit';
+import { stageHost } from './stage';
 
 /** What the Scene Builder's library is hovering / focusing: one row, and the rect to seat the preview beside. */
 export type SbPreviewTarget =
@@ -64,6 +65,6 @@ export function SceneBuilderPreview({ target, run }: { target: SbPreviewTarget |
         {rune && <RuneCard rune={rune} affordable onBuy={() => {}} />}
       </div>
     </div>,
-    document.body,
+    stageHost(),
   );
 }

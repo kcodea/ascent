@@ -17,6 +17,7 @@ import type { FxContext, FxInstance, FxPrimitive } from '../primitive';
 import type { ParamsOf, FxParamSpecs } from '../params';
 import { registerPrimitive } from '../registry';
 import { sfx } from '../../sfx';
+import { stageHost } from '../../stage';
 
 export const FLASH_COLORS = ['white', 'gold', 'red', 'crimson', 'blue', 'black'] as const;
 const FLASH_HEX: Record<(typeof FLASH_COLORS)[number], string> = {
@@ -78,7 +79,7 @@ function fireFlash(alpha: number, color: string, ms: number): (() => void) | nul
   el.style.setProperty('--fxflash-color', color);
   el.style.setProperty('--fxflash-alpha', String(alpha));
   el.style.setProperty('--fxflash-ms', `${ms}ms`);
-  document.body.appendChild(el);
+  stageHost().appendChild(el);
   const clear = (): void => { el.remove(); };
   el.addEventListener('animationend', clear, { once: true });
   return clear;

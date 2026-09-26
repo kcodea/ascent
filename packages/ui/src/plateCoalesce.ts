@@ -21,6 +21,7 @@
  * `var(--x, fallback)` CSS half, and the double-source rule deliberately does not apply.
  */
 import { WIRE_SRC, REF_W, linePoints, bodyPoints, sprite, rgba, arcaneGradient } from './plateFx';
+import { stageHost } from './stage';
 
 export interface PlateCoalesceConfig {
   /** Whole effect, ms. */
@@ -197,7 +198,7 @@ export function playPlateCoalesce(
     `mask:url(${WIRE_SRC}) center / 100% 100% no-repeat`,
     `filter:drop-shadow(0 0 ${c.g1 * k}px ${rgba(pal.cMid, 0.85)}) drop-shadow(0 0 ${c.g2 * k}px ${rgba(pal.cDeep, 1)})`,
   ].join(';');
-  document.body.appendChild(imp);
+  stageHost().appendChild(imp);
 
   // roomier than the dissolve's canvas: motes START outside the plate and fly in
   const pad = 2.6;
@@ -208,7 +209,7 @@ export function playPlateCoalesce(
     'position:fixed', `left:${rect.left - (cw - rect.width) / 2}px`, `top:${rect.top - (ch - rect.height) / 2}px`,
     `width:${cw}px`, `height:${ch}px`, 'pointer-events:none', 'z-index:114',
   ].join(';');
-  document.body.appendChild(cv);
+  stageHost().appendChild(cv);
   const ctx = cv.getContext('2d');
 
   const motes: Mote[] = [];

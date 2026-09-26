@@ -3,6 +3,7 @@ import { StatBadgeField } from './StatBadgeField';
 import { createPortal } from 'react-dom';
 import { BUYABLE_CARDS } from '@game/content';
 import type { Keyword } from '@game/core';
+import { stageHost } from './stage';
 
 /**
  * The sandbox unit editor — a popover anchored to one card, holding everything that can be set about it
@@ -120,6 +121,6 @@ export function UnitEditor({
         </button>
       )}
     </div>,
-    document.body,
+    stageHost(),
   );
 }

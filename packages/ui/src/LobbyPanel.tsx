@@ -10,6 +10,7 @@ import { heroArt, questArt, runeArt } from './art';
 import { mdBold } from './Card';
 import { Icon } from './Icon';
 import { useGame } from './store';
+import { stageHost } from './stage';
 
 /**
  * The 8-seat table, shown in a LOBBY run.
@@ -447,6 +448,6 @@ function ScoutCard({ lobby, seat, intel, at, pinned }: {
       )}
       {body}
     </div>,
-    document.body,
+    stageHost(),
   );
 }

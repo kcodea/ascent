@@ -1,3 +1,4 @@
+import { stageHost } from './stage';
 /**
  * The damage YOU dealt, floated over the seat that took it (owner ask 2026-07-29).
  *
@@ -21,7 +22,7 @@ export function floatLobbyDamage(x: number, y: number, amount: number): void {
   el.textContent = `−${amount}`;
   el.style.left = `${x}px`;
   el.style.top = `${y}px`;
-  document.body.appendChild(el);
+  stageHost().appendChild(el);
   const total = HOLD_MS + FADE_MS;
   try {
     const anim = el.animate([

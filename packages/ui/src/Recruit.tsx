@@ -146,6 +146,7 @@ import { wipeFx } from './wipeFx';
 import { wipeOriginFor, type WipeOrigin } from './wipeGeometry';
 import { afterBeat, afterSweep, barClassFor, combatBackdropShown, curtainClassFor, frontClassFor, wipeExiting, wipeSweeping, wipeUp, type WipeState } from './wipeMachine';
 import { getScreenWipeConfig, wipeCssVars } from './screenWipeConfig';
+import { stageHost } from './stage';
 
 /** Golden Ruby's coin cue: a beat after its gem (so the two read as "Ruby, then Gold"), and spaced when a
  *  multi-cast Golden Ruby pays several times in one action. */
@@ -2447,7 +2448,7 @@ export function Recruit() {
         n.style.left = `${at.x}px`;
         n.style.top = `${at.y}px`;
         n.style.animationDelay = `${base}ms`;
-        document.body.appendChild(n);
+        stageHost().appendChild(n);
         retire.push(() => n.remove());
       }
     });
@@ -7030,7 +7031,7 @@ export function Recruit() {
           reveal runs L→R from its LEFT home). Opacity rides `sweeping` on both, so parking is invisible. */}
       <div className={frontClassFor(wipe)} aria-hidden="true" style={wipeVars} />
       <div className={barClassFor(wipe)} aria-hidden="true" style={wipeVars} />
-      </>, document.body)}
+      </>, stageHost())}
       {/* Charge glyph — the board's etched sigil, anchored to the board midline. Lives HERE (a direct child of
           `.app`, before the zones) rather than inside the warband zone, so the warband layout offset (x/y/scale)
           never moves it; it stays on the board sigil. z:0 + earliest tree position keeps it BEHIND the cards but
@@ -7219,7 +7220,7 @@ export function Recruit() {
               </div>
             ))}
           </>,
-          document.body,
+          stageHost(),
         )}
 
       {/* Gold gained from a sale, floating at the spot the minion was released (the actual sell value).
@@ -8470,7 +8471,7 @@ const DragOverlay = memo(function DragOverlay({ timeUp, heroArmed, equipArmed, h
             </div>
           </div>
         </div>
-      ), document.body)}
+      ), stageHost())}
     </>
   );
 });

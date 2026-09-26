@@ -12,6 +12,7 @@ import { heroMotePalette, isBloomStyle, isThemedHero, resolveAncientHeroSignatur
 import { playHeroBloom } from './ancientHeroBloom';
 import { AncientBloomMedal } from './AncientBloom';
 import { heroPowerArt } from '../art';
+import { stageHost } from '../stage';
 
 /**
  * THE AWAKENING (owner 2026-09-25: "ominous exciting when the hero power erupts. it should be a moment that the player
@@ -399,6 +400,6 @@ export const AncientGate = memo(function AncientGate({ run }: { run: RunState })
         </>
       )}
     </div>,
-    document.body,
+    stageHost(),
   );
 });

@@ -11,6 +11,7 @@
  * itself after its run. Presentation only.
  */
 import { getRebirthConfig } from '../rebirthConfig';
+import { stageHost } from '../stage';
 
 type Rect = { cx: number; cy: number; w: number; h: number };
 
@@ -36,7 +37,7 @@ export function spawnRebirthBurn(rect: Rect | null): void {
     el.style.left = `${rect.cx}px`;
     el.style.top = `${top}px`;
     el.style.setProperty('--cw', `${cw}px`);
-    document.body.appendChild(el);
+    stageHost().appendChild(el);
     return el;
   };
   const flame = mk('rbburn-flame', rect.cy + rect.h * 0.42);
@@ -65,7 +66,7 @@ export function spawnRebirthPillar(host: HTMLElement | null, rect: Rect | null):
     el.style.left = `${rect.cx}px`;
     el.style.top = `${rect.cy + rect.h * 0.46}px`;
     el.style.setProperty('--cw', `${Math.max(rect.w, rect.h * 0.75)}px`);
-    document.body.appendChild(el);
+    stageHost().appendChild(el);
     made.push(el);
   }
   if (made.length) window.setTimeout(() => { for (const el of made) el.remove(); }, durMs + 80);

@@ -20,6 +20,7 @@ import {
   TREND_WINDOWS, TRIBE_LABEL, careerAggregates, heroCareers, matchResultOf, mmrAxisOf, ordinalOf, outcomeOf, playedOnText, polylineOf, runLengthText,
   trendSeries, trendWindowLabel, type CareerRun, type HeroCareer, type TrendSeries, type TrendWindow,
 } from './careerData';
+import { stageHost } from './stage';
 
 /**
  * CAREER (owner rebuild 2026-09-19/20) — three columns on the game's page backdrop, after the Battlegrounds-style
@@ -147,7 +148,7 @@ function RuneEmblem({ runeId }: { runeId: string }) {
           <div className="cv2-rune-tip-name">{rune.name}<span className="cv2-rune-tip-kind">{rune.epic ? 'Epic Rune' : 'Rune'}</span></div>
           <div className="cv2-rune-tip-body" dangerouslySetInnerHTML={{ __html: mdBold(rune.text) }} />
         </div>,
-        document.body,
+        stageHost(),
       )}
     </div>
   );
@@ -389,7 +390,7 @@ function HeroTile({ h }: { h: HeroCareer }) {
             <span className="cv2-herotip-sv">{last || '—'}</span>
           </div>
         </div>,
-        document.body,
+        stageHost(),
       )}
     </div>
   );

@@ -1,6 +1,7 @@
 import { Application, Container, Graphics, Sprite, Texture, UPDATE_PRIORITY, type BLEND_MODES, type Renderer, type Ticker } from 'pixi.js';
 import type { RiseTint } from '@game/core';
 import { getSmokeConfig } from './smokeConfig';
+import { stageHost } from './stage';
 import { perfMonitor } from './perfMonitor';
 import { getCritFxConfig, type CritFxConfig } from './critFxConfig';
 import { getFlurrySwingConfig } from './flurrySwingConfig';
@@ -573,6 +574,7 @@ class FxController {
       resolution: res, preference: 'webgl', powerPreference: 'high-performance',
     });
     const c = app.canvas;
+    c.classList.add('pixi-screen'); // screen-space renderer, stage-sized box (see stage.ts)
     c.style.position = 'absolute'; c.style.top = '0'; c.style.left = '0';
     c.style.pointerEvents = 'none'; c.style.display = 'block';
     // Inherit whatever opacity a Skip-fade left on the main canvas, so a canvas created MID-fade doesn't
@@ -608,7 +610,7 @@ class FxController {
       resolution: res, preference: 'webgl', powerPreference: 'high-performance',
     });
     const c = app.canvas;
-    c.className = 'pixifx-above'; // position/z live in styles.css beside every other layer's
+    c.className = 'pixifx-above pixi-screen'; // position/z live in styles.css beside every other layer's; pixi-screen: see stage.ts
     c.style.pointerEvents = 'none';
     c.style.display = 'block';
     if (this.app) c.style.opacity = this.app.canvas.style.opacity || '1'; // inherit a mid-fade opacity
@@ -617,7 +619,7 @@ class FxController {
     app.ticker.stop(); // the main ticker renders this — see `renderAbove`
     this.aboveApp = app;
     this.aboveLayer = layer;
-    document.body.appendChild(c);
+    stageHost().appendChild(c); // inside the stage so it scales + z-orders with it (stage.ts)
     for (const pending of this.pendingAboveMounts) layer.addChild(pending);
     this.pendingAboveMounts.length = 0;    this.fireRendererReady(app.renderer, 'above');
   }
@@ -839,6 +841,7 @@ class FxController {
     });
     // The replay may have remounted before init resolved; only attach if still wanted.
     const canvas = app.canvas;
+    canvas.classList.add('pixi-screen'); // screen-space renderer, stage-sized box (see stage.ts)
     canvas.style.position = 'absolute';
     canvas.style.top = '0';
     canvas.style.left = '0';
@@ -3362,7 +3365,7 @@ export function warmDiscoverFx(): void {
     const host = document.createElement('div');
     host.style.cssText = 'position:fixed;left:-9999px;top:0;width:1px;height:1px;pointer-events:none;';
     host.setAttribute('aria-hidden', 'true');
-    document.body.appendChild(host);
+    stageHost().appendChild(host);
     void discoverFx.attach(host);
   };
   const ric = (window as unknown as { requestIdleCallback?: (cb: () => void) => void }).requestIdleCallback;

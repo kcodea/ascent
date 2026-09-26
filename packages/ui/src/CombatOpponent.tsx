@@ -8,6 +8,7 @@ import { mdBold } from './Card';
 import { Icon } from './Icon';
 import { BuffsFrame } from './BuffsFrame';
 import { gatherSnapshotBuffs } from './runBuffs';
+import { stageHost } from './stage';
 
 /**
  * THE COMBAT OPPONENT — the foe's hero portrait, dropped in over the Refresh button for the fight (owner ask
@@ -186,6 +187,6 @@ export const CombatOpponent = memo(function CombatOpponent(): JSX.Element | null
       </>
     )}
     </>,
-    document.body,
+    stageHost(),
   );
 });

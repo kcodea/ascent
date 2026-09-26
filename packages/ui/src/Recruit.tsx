@@ -854,11 +854,12 @@ export function shopView(card: ShopCard, opts: ShopViewOpts = {}): CardView { //
   if (card.held) {
     const h = card.held;
     const { buffs: heldBuffs, golden, gild } = heldOfferLedger(card);
-    const lt = liveCardText(c.id, offerLiveTextParams(golden, opts, c.id));
+    const heldKeywords = [...h.keywords, ...(card.keywords ?? []).filter((k) => !h.keywords.includes(k))];
+    const lt = liveCardText(c.id, { ...offerLiveTextParams(golden, opts, c.id), keywords: heldKeywords });
     return {
       name: c.name, cardId: c.id, tribe: c.tribe, tribe2: c.tribe2, universalTribe: !!c.universalTribe,
       attack: Math.max(0, h.attack + (card.atk ?? 0)) + gild.attack, health: h.health + (card.hp ?? 0) + gild.health,
-      keywords: [...h.keywords, ...(card.keywords ?? []).filter((k) => !h.keywords.includes(k))],
+      keywords: heldKeywords,
       text: lt.text, goldenText: lt.goldenText ?? c.goldenText, cost: opts.minionCost ?? CONFIG.minionCost, tier: c.tier, golden,
       buffs: heldBuffs.length > 0 ? heldBuffs : undefined,
       baseAttack: c.attack * (golden ? 2 : 1), baseHealth: c.health * (golden ? 2 : 1),
@@ -890,7 +891,8 @@ export function shopView(card: ShopCard, opts: ShopViewOpts = {}): CardView { //
   const goldMul = card.golden ? 2 : 1;
   // Every scaling offer (Grim, Guel, Taragosa, Spirit Worgen, …) shows its live value in the tavern, not just
   // on the board — the same live-text chain the board uses (instView), via the shared liveCardText.
-  const lt = liveCardText(c.id, offerLiveTextParams(!!card.golden, opts, c.id));
+  const offerKeywords = [...c.keywords, ...(card.keywords ?? []).filter((k) => !c.keywords.includes(k))];
+  const lt = liveCardText(c.id, { ...offerLiveTextParams(!!card.golden, opts, c.id), keywords: offerKeywords }); // an offer granted Rise says so
   // Itemize the buy-time buffs the offer previews (Fortify, run enchant, Staff of Guel, tribe buy-aura) so the
   // tavern inspect shows WHERE the boosted stats come from — the same sources the reducer's buy path records.
   const offerBuffs: { source: string; attack: number; health: number; count: number }[] = [];
@@ -916,7 +918,7 @@ export function shopView(card: ShopCard, opts: ShopViewOpts = {}): CardView { //
     name: c.name, cardId: c.id, tribe: c.tribe, tribe2: c.tribe2, universalTribe: !!c.universalTribe,
     chooseBothKey: offerChoosesBoth(c.id, !!card.golden, opts) ? card.uid : undefined, // (Both) marker hook
     attack: (c.attack + addAtk) * goldMul + (opts.eotBuff?.attack ?? 0), health: (c.health + addHp) * goldMul + (opts.eotBuff?.health ?? 0),
-    keywords: [...c.keywords, ...(card.keywords ?? []).filter((k) => !c.keywords.includes(k))],
+    keywords: offerKeywords,
     text: lt.text,
     goldenText: lt.goldenText ?? c.goldenText,
     buffs: offerBuffs.length > 0 ? offerBuffs : undefined,

@@ -164,6 +164,9 @@ function UnitInner({ u, side, anim, triggered, rallyPulse, watcherPulse, framePu
         // Bicycle Bob's Undead-played count, per side (2026-09-18): the foe's rides its snapshot's per-tribe map; the
         // player's is derived from the frozen `playedThisTurn` ids by the same predicate the sim froze it with.
         tribesPlayed: foe ? enemyScalers?.tribesPlayed : tribesPlayedThisTurn(run),
+        // Granted Rise leads the text while the body still HAS it (owner 2026-09-26): spent on Rising, back on a
+        // regain. `u.keywords` is already in the memo comparator, so no extra re-render trigger is needed.
+        keywords: u.keywords,
       })
     : { text: '', goldenText: undefined };
   const view: CardView = {

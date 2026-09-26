@@ -1414,3 +1414,27 @@ export function spiritText(
     default: return null;
   }
 }
+
+/** Does the card PRINT Rise itself — the keyword on its def, or its text opening with a bold keyword run that
+ *  names Rise ("**Rise.** …", "**Taunt. Rise.**")? A card that merely GIVES Rise ("give a minion **Rise**")
+ *  does not count. */
+function printsRise(cardId: string): boolean {
+  const def = CARD_INDEX[cardId];
+  if (!def) return false;
+  return def.keywords.includes('R') || /^\*\*[^*]*\bRise\b/.test(def.text);
+}
+
+/**
+ * GRANTED RISE (owner ask 2026-09-26: "do you think we should add Rise as text when a minion is given it? i think
+ * so"). A minion that HAS Rise right now (keyword `R` on this instance: Lord of the Risen's Undying, Last Stand, a
+ * Shout/Echo grant, Ancient of Death regaining it) but whose printed card does not, leads its text with
+ * "**Rise.**" in the same bold keyword style printed Rise cards use. Driven by the instance's CURRENT keywords, so
+ * a spent Rise (the minion already Rose this fight) drops it and a regained one brings it back. A card with no
+ * text reads just "**Rise.**". Spells never carry it.
+ */
+export function withGrantedRise(cardId: string, text: string, keywords: readonly string[] | undefined): string {
+  if (!keywords?.includes('R')) return text;
+  const def = CARD_INDEX[cardId];
+  if (!def || def.spell || def.ruby || printsRise(cardId)) return text;
+  return text.trim() ? `**Rise.** ${text}` : '**Rise.**';
+}

@@ -62,6 +62,20 @@ export const PATCH_NOTES: PatchNote[] = [
   },
   {
     date: '2026-09-25',
+    label: 'Sell Medallion Fix',
+    changes: [
+      {
+        category: 'Systems',
+        text: 'Every minion with a Sell effect now shows the Sell medallion on its frame.',
+        details: [
+          'Traveling Salesman and Salvatore McKlusky showed the Discover medallion instead.',
+          'Hoard Whelp showed the End of Turn medallion instead.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-09-25',
     label: 'New Kobold and Undead Runes',
     changes: [
       {

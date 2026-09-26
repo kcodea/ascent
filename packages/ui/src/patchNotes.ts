@@ -71,6 +71,85 @@ export const PATCH_NOTES: PatchNote[] = [
   },
   {
     date: '2026-09-25',
+    label: 'Triples Use Your Board First',
+    changes: [
+      {
+        category: 'Systems',
+        text: 'Triples now use the copies on your board first. Extra copies stay where they were.',
+        details: [
+          'When you hold more copies of a minion than a triple needs, the ones on your board are combined first.',
+          'Only the copies still missing come from your hand, so a spare copy stays in your hand as a normal card.',
+          'Example: two copies on your board, then an effect gives you two more. Both board copies and one new copy become the golden card, and you keep the other new copy.',
+          'Buffs on the board copies carry into the golden card as before.',
+          'This works the same for buying, Discover, hero powers, copies you are given, and minions you play.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-09-25',
+    label: 'Triple Reward Card',
+    changes: [
+      {
+        category: 'Systems',
+        text: 'The Triple Reward card now looks exactly like a spell in your hand.',
+        details: [
+          'It wears the same square spell frame, art window, Spell label and text box as every other spell.',
+          'The old gold frame and orange glow are gone; it still arrives in a burst of gold.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-09-25',
+    label: 'Round Number in Combat',
+    changes: [
+      {
+        category: 'Systems',
+        text: 'The combat screen now shows the current round at the top centre, just above the Skip button.',
+      },
+    ],
+  },
+  {
+    date: '2026-09-25',
+    label: 'Sell Medallion Fix',
+    changes: [
+      {
+        category: 'Systems',
+        text: 'Every minion with a Sell effect now shows the Sell medallion on its frame.',
+        details: [
+          'Traveling Salesman and Salvatore McKlusky showed the Discover medallion instead.',
+          'Hoard Whelp showed the End of Turn medallion instead.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-09-25',
+    label: 'New Kobold and Undead Runes',
+    changes: [
+      {
+        category: 'Balance',
+        text: 'Eleven new Set 3 runes join the Runeforge: seven Basic (six Kobold, one Undead) and four Epic Kobold runes.',
+        details: [
+          'Rune of Gemmed Decisions (Basic, 3 Gold, Kobold): after you play a Choose One card, get a Ruby.',
+          'Rune of Echoing Kobolds (Basic, 3 Gold, Kobold): your Kobolds have "Echo: get a Ruby", including Kobolds you get later.',
+          'Rune of the Red Storm (Basic, 4 Gold, Kobold): get a Veinstorm. Veinstorms also cast a Ruby on 2 friendly Kobolds.',
+          'Rune of Rubywire (Basic, 4 Gold, Kobold): when you cast a Shop Spell, cast a Ruby on 2 friendly Kobolds. Works in combat too.',
+          'Rune of Choices (Basic, 3 Gold, Kobold): your first Choose One card each turn gains both effects.',
+          'Rune of Combatative Rubies (Basic, 3 Gold, Kobold): every 3 ally attacks cast a permanent Ruby on 2 friendly Kobolds. The count carries between fights.',
+          'Rune of Body Counting (Basic, 3 Gold, Undead): every 8 friendly deaths get you a random Undead. Shop and combat deaths both count; selling does not.',
+          'Rune of Storming Veins (Epic, 4 Gold, Kobold): get a Veinstorm. Veinstorms cast 2 more times from hand.',
+          'Rune of Sold Choices (Epic, 5 Gold, Kobold): selling a Choose One minion repeats the option it chose.',
+          "Rune of Aggressive Golems (Epic, 5 Gold, Kobold): Gemheart Golems gain \"Rally: give this minion's Attack to the minion to the right.\"",
+          'Rune of Ruptured Rubies (Epic, 6 Gold, Kobold): Rubies cast in combat bounce twice.',
+          'Rune of Resonance now reads its Start of Turn Ruby first. It works the same.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-09-25',
     label: 'Fight Specials',
     changes: [
       {
@@ -194,9 +273,11 @@ export const PATCH_NOTES: PatchNote[] = [
         category: 'Systems',
         text: 'The fight recap is shorter and to the point: one damage number, and the average damage a win or a loss would have done beside the odds.',
         details: [
-          'The top shows one number: You dealt X in green after a win, or You took X in red after a loss.',
+          'The title reads Won against: or Defeated by:, right above your opponent.',
+          'Under the odds, one big number: You dealt X in green after a win, or You took X in red after a loss.',
           'The odds now sit under a Fight Outcome Odds title, with the average damage a win deals on the left and the average damage a loss costs on the right.',
-          'Stars of the fight and the "chance to win" and "a loss here usually costs" lines are gone.',
+          'The odds bar is thicker.',
+          'Stars of the fight, the Armor callout, and the "chance to win" and "a loss here usually costs" lines are gone.',
         ],
       },
     ],

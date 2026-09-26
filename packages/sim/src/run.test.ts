@@ -1849,7 +1849,9 @@ describe('run loop (@game/sim)', () => {
     };
     // 6 minions → playing Alleycat makes 7, then its Stray Battlecry summon overflows → Monk procs.
     s = reduce(s, { type: 'play', uid: 'al' });
-    expect(s.board.some((c) => c.buffs?.some((b) => b.source === 'Flowing Monk'))).toBe(true);
+    // The five fillers are copies, so the play also triples three of them — and triples take BOARD copies
+    // left-most first (R-GILD-03, owner 2026-09-25), so a buffed filler can ride into the golden in hand.
+    expect([...s.board, ...s.hand].some((c) => c.buffs?.some((b) => b.source === 'Flowing Monk'))).toBe(true);
   });
 
   it('Fodder with no Demon on board is wasted — never enters the tavern, never stored', () => {

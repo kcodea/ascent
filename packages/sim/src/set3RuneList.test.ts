@@ -24,8 +24,17 @@ import { createRun, type RunState } from './index';
 
 const OWNER_LIST: Record<string, { basic: Record<string, string>; epic: Record<string, string> }> = {
   kobold: {
-    basic: { 'basic kobolds': 'rune_basic_kobold', engraving: 'rune_engraving', 'living geode': 'rune_living_geode', resonance: 'rune_resonance', 'engraving gems': 'rune_engraving_gems' },
-    epic: { 'epic kobolds': 'rune_epic_kobold', 'attacking gems': 'rune_attacking_gems', investment: 'rune_investment', 'gem golem': 'rune_gem_golem', motherlode: 'rune_motherlode' },
+    basic: {
+      'basic kobolds': 'rune_basic_kobold', engraving: 'rune_engraving', 'living geode': 'rune_living_geode', resonance: 'rune_resonance', 'engraving gems': 'rune_engraving_gems',
+      // Set 3 rune batch 3 (owner 2026-09-25): the new Kobold Basics JOIN the list.
+      'gemmed decisions': 'rune_gemmed_decisions', 'echoing kobolds': 'rune_echoing_kobolds', 'red storm': 'rune_red_storm', rubywire: 'rune_rubywire',
+      choices: 'rune_choices', 'combatative rubies': 'rune_combatative_rubies',
+    },
+    epic: {
+      'epic kobolds': 'rune_epic_kobold', 'attacking gems': 'rune_attacking_gems', investment: 'rune_investment', 'gem golem': 'rune_gem_golem', motherlode: 'rune_motherlode',
+      // Set 3 rune batch 3 (owner 2026-09-25): the new Kobold Epics JOIN the list.
+      'storming veins': 'rune_storming_veins', 'sold choices': 'rune_sold_choices', 'aggressive golems': 'rune_aggressive_golems', 'ruptured rubies': 'rune_ruptured_rubies',
+    },
   },
   dwarf: {
     basic: {
@@ -38,7 +47,7 @@ const OWNER_LIST: Record<string, { basic: Record<string, string>; epic: Record<s
     },
   },
   undead: {
-    basic: { 'basic undead': 'rune_basic_undead', 'last rites': 'rune_last_rites', 'spear warden': 'rune_warden', 'soul script': 'rune_soul_script' },
+    basic: { 'basic undead': 'rune_basic_undead', 'last rites': 'rune_last_rites', 'spear warden': 'rune_warden', 'soul script': 'rune_soul_script', 'body counting': 'rune_body_counting' /* batch 3, 2026-09-25 */ },
     epic: { 'epic undead': 'rune_epic_undead', 'death touched apple': 'rune_deathtouched_apple', 'endless march': 'rune_endless_march', 'final gate': 'rune_final_gate', spearline: 'rune_spearline' },
   },
   spirit: {
@@ -97,8 +106,8 @@ const inSet3 = (r: { sets?: readonly string[] }): boolean => !r.sets || r.sets.i
 const NOWHERE = ['rune_charted_skies', 'rune_festival_circuit', 'rune_open_constellation'];
 
 describe("the owner's Set 3 rune list (2026-09-25)", () => {
-  it('names 163 distinct runes, every one a live (non-archived) rune def', () => {
-    expect(LISTED).toHaveLength(163);
+  it('names 174 distinct runes, every one a live (non-archived) rune def', () => {
+    expect(LISTED).toHaveLength(174); // 163 + 11 from Set 3 rune batch 3 (2026-09-25)
     expect(new Set(LISTED).size, 'no rune named twice').toBe(LISTED.length);
     for (const id of LISTED) {
       expect(LIVE.some((r) => r.id === id), `${id} is a live rune`).toBe(true);
@@ -121,9 +130,9 @@ describe("the owner's Set 3 rune list (2026-09-25)", () => {
     expect([...offered].sort()).toEqual([...LISTED].sort());
   });
 
-  it('counts: 84 Basic / 79 Epic (was 83 / 80 until Engraving Gems moved Epic → Basic, 2026-09-25)', () => {
-    expect(LISTED.filter((id) => RUNES.some((r) => r.id === id))).toHaveLength(84);
-    expect(LISTED.filter((id) => EPIC_RUNES.some((r) => r.id === id))).toHaveLength(79);
+  it('counts: 91 Basic / 83 Epic (the game rarity; 84 / 79 after Engraving Gems moved Epic → Basic, + 7 / + 4 from rune batch 3, 2026-09-25)', () => {
+    expect(LISTED.filter((id) => RUNES.some((r) => r.id === id))).toHaveLength(91);
+    expect(LISTED.filter((id) => EPIC_RUNES.some((r) => r.id === id))).toHaveLength(83);
   });
 
   it('every rune NOT named is out of Set 3, still resolves, and keeps its other sets (never archived)', () => {

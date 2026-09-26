@@ -770,4 +770,259 @@ export const RUNES_RULES: GameRule[] = [
       lastVerifiedAt: '2026-09-25',
     },
   },
+  {
+    id: 'R-RUNE-23',
+    title: 'Rune of Gemmed Decisions: every Choose One card played gets a Ruby',
+    statement:
+      "After you play a Choose One card (a minion or a spell), you get a Ruby at the run's current Ruby strength, "
+      + 'once the chosen branch (or both) has resolved. One Ruby per copy held. A card that is not a Choose One pays '
+      + 'nothing. Choose One cards are played in the Shop, so the rune acts in the Shop.',
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-handoff', ref: 'Owner rune batch 2026-09-25 (Set 3 rune batch 3)', quote: 'Rune of Gemmed Decisions (3): "After you play a Choose One card, get a Ruby."' },
+      { kind: 'code', ref: 'packages/sim/src/recruit.ts applyChooseOnePlayed (the one Choose One resolution hook, minion and spell)' },
+    ],
+    contentIds: ['rune_gemmed_decisions'],
+    cardText: 'After you play a **Choose One** card, get a **Ruby**.',
+    currentBehaviour: 'Conforms (built with the rune, 2026-09-25).',
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/sim/src/set3RunesBatch3.test.ts'],
+      lastVerifiedAt: '2026-09-25',
+    },
+  },
+  {
+    id: 'R-RUNE-24',
+    title: 'Rune of Echoing Kobolds grafts "Echo: get a Ruby" on every friendly Kobold, now and later, one Ruby even when Gilded',
+    statement:
+      'Every friendly Kobold (All-types bodies included) carries "Echo: get a Ruby": the ones on the board and in '
+      + 'hand when the rune is taken, every Kobold that arrives later, and every Kobold summoned in combat. It is a '
+      + 'real Echo, so it fires wherever a death or a triggered Echo fires it (combat, a Shop destroy) and the Echo '
+      + 'multipliers apply. A combat Ruby reaches the hand through the Ruby carry-back, minted at settle at the live '
+      + 'Ruby strength. A Gilded Kobold gets the same single Ruby (the granted Echo is not its own, so gilding does '
+      + 'not double it). One Ruby per copy held.',
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-handoff', ref: 'Owner rune batch 2026-09-25 (Set 3 rune batch 3)', quote: 'Rune of Echoing Kobolds (3): "Give your Kobolds Echo: Get a Ruby." It applies to ALL friendly Kobolds, now and later.' },
+      { kind: 'code', ref: 'packages/sim/src/recruit.ts applyRuneGrafts (deathrattleGetRubies graft, fixed); packages/core/src/combat/simulate.ts graftBatch3Runes (combat summons); packages/core/src/effects/arena.ts deathrattleGetRubies' },
+    ],
+    contentIds: ['rune_echoing_kobolds'],
+    cardText: 'Give your **Kobolds** "**Echo:** get a **Ruby**."',
+    currentBehaviour: 'Conforms (built with the rune, 2026-09-25).',
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/sim/src/set3RunesBatch3.test.ts', 'packages/core/src/combat/set3RunesBatch3.test.ts'],
+      lastVerifiedAt: '2026-09-25',
+    },
+  },
+  {
+    id: 'R-RUNE-25',
+    title: 'Rune of the Red Storm: a Veinstorm on pickup; every Veinstorm cast also casts a Ruby on 2 friendly Kobolds',
+    statement:
+      'Taking the rune gets you a Veinstorm. From then on every Veinstorm cast, whoever casts it and however many '
+      + 'times it repeats, also casts a Ruby on 2 random friendly Kobolds (distinct; one when only one Kobold is out; '
+      + 'nothing with none). One pair per copy held. Veinstorm has no combat cast, so this pays in the Shop and at End '
+      + 'of Turn.',
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-handoff', ref: 'Owner rune batch 2026-09-25 (Set 3 rune batch 3)', quote: 'Rune of the Red Storm (4): "Get a Veinstorm. Veinstorms also cast a Ruby on 2 friendly Kobolds."' },
+      { kind: 'code', ref: 'packages/sim/src/recruit.ts castSpell (the Veinstorm rider) + rubyOnRandomKobolds; packages/sim/src/reducer.ts runeRedStorm grant' },
+    ],
+    contentIds: ['rune_red_storm'],
+    cardText: 'Get a **Veinstorm**. **Veinstorms** also cast a **Ruby** on **2** friendly **Kobolds**.',
+    currentBehaviour: 'Conforms (built with the rune, 2026-09-25).',
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/sim/src/set3RunesBatch3.test.ts'],
+      lastVerifiedAt: '2026-09-25',
+    },
+  },
+  {
+    id: 'R-RUNE-26',
+    title: 'Rune of Rubywire: a Shop spell cast by anyone, in any phase, casts a Ruby on 2 friendly Kobolds',
+    statement:
+      "Whenever a Shop spell is cast (the R-SHOPSPELL-01 definition: a spell from the set's Shop-spell pool, Dwarven "
+      + 'Ales included; never a Ruby, a Clue or other Gift, or a token spell), a Ruby is cast on 2 random friendly '
+      + 'Kobolds. Any caster counts (the player from hand, a minion, a rune, a repeat) in the Shop, at End of Turn and '
+      + 'in combat. One pair per copy held. A combat Ruby is temporary unless something makes it permanent.',
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-handoff', ref: 'Owner rune batch 2026-09-25 (Set 3 rune batch 3)', quote: 'Rune of Rubywire (4): "When you cast a Shop Spell, cast a Ruby on 2 friendly Kobolds."' },
+      { kind: 'owner-handoff', ref: 'Owner rune batch 2026-09-25 (Set 3 rune batch 3)', quote: '"Shop Spell" means the Shop-spell pool definition used by Goldilox. Any source, any phase.' },
+      { kind: 'code', ref: 'packages/sim/src/recruit.ts noteSpellCast (isShopPoolSpell); packages/core/src/combat/simulate.ts spellResolved' },
+    ],
+    contentIds: ['rune_rubywire'],
+    cardText: 'When you cast a **Shop Spell**, cast a **Ruby** on **2** friendly **Kobolds**.',
+    currentBehaviour: 'Conforms (built with the rune, 2026-09-25).',
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/sim/src/set3RunesBatch3.test.ts', 'packages/core/src/combat/set3RunesBatch3.test.ts'],
+      lastVerifiedAt: '2026-09-25',
+    },
+  },
+  {
+    id: 'R-RUNE-27',
+    title: 'Rune of Choices: the first Choose One card each turn gains both effects, re-armed every Shop turn',
+    statement:
+      'Your first Choose One card each turn resolves both branches with no prompt. It is the Prismatic Pick '
+      + 'mechanism: a Choose-Both charge armed at every turn setup (after the per-turn clear) and one on the turn the '
+      + 'rune is taken; the charge is spent by the card that uses it and an unspent charge does not carry into the '
+      + 'next turn. One charge per copy held.',
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-handoff', ref: 'Owner rune batch 2026-09-25 (Set 3 rune batch 3)', quote: 'Owner ruling: FIRST EACH TURN, resetting every Shop turn, the same mechanism as Prismatic Pick\'s "next Choose One this turn".' },
+      { kind: 'code', ref: 'packages/sim/src/reducer.ts turn setup (chooseBothCharges) + runeChoices; packages/sim/src/recruit.ts chooseBothActive / spendChooseBothCharge' },
+    ],
+    contentIds: ['rune_choices'],
+    cardText: 'Your first **Choose One** card each turn gains **both** effects.',
+    currentBehaviour: 'Conforms (built with the rune, 2026-09-25).',
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/sim/src/set3RunesBatch3.test.ts'],
+      lastVerifiedAt: '2026-09-25',
+    },
+  },
+  {
+    id: 'R-RUNE-28',
+    title: 'Rune of Combatative Rubies: every 3rd friendly attack, on a running meter, casts a permanent Ruby on 2 friendly Kobolds',
+    statement:
+      'Friendly attacks in combat feed one running meter that carries across fights. Every 3rd attack casts a '
+      + 'PERMANENT Ruby (it carries back to the run board) on 2 random friendly Kobolds. The progress left at the end '
+      + 'of a fight carries into the next, and the badge shows the countdown (x/3). One pair per copy held. There are '
+      + 'no attacks in the Shop, so the rune acts in combat.',
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-handoff', ref: 'Owner rune batch 2026-09-25 (Set 3 rune batch 3)', quote: 'Rune of Combatative Rubies (3): "When 3 allies attack, cast a permanent Ruby on 2 friendly Kobolds."' },
+      { kind: 'code', ref: 'packages/core/src/combat/simulate.ts (after the attack tally, combatativeTick); packages/sim/src/reducer.ts settle (runeCombatativeTick); packages/ui/src/runeTally.ts' },
+    ],
+    contentIds: ['rune_combatative_rubies'],
+    cardText: 'When **3** allies attack, cast a **permanent Ruby** on **2** friendly **Kobolds**.',
+    currentBehaviour: 'Conforms (built with the rune, 2026-09-25).',
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/sim/src/set3RunesBatch3.test.ts', 'packages/core/src/combat/set3RunesBatch3.test.ts'],
+      lastVerifiedAt: '2026-09-25',
+    },
+  },
+  {
+    id: 'R-RUNE-29',
+    title: 'Rune of Body Counting: every 8th friendly death, Shop or combat, gets a random Undead at or below your tier',
+    statement:
+      'Friendly deaths feed one running meter shared by combat and the Shop. A Shop destroy, a Shop devour and a '
+      + 'Shop damage death count; a sale is not a death and never counts. Every 8th death gets a random Undead minion '
+      + "from the run's pool at or below your Tavern tier (in combat it reaches the hand after the fight). The "
+      + 'progress carries across fights and turns, and the badge shows the countdown (x/8). It is not an Avenge, so '
+      + 'Rune of Fury does not double it. One Undead per copy held.',
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-handoff', ref: 'Owner rune batch 2026-09-25 (Set 3 rune batch 3)', quote: 'Rune of Body Counting (3): "When 8 friendly minions die, get a random Undead minion." A running counter across fights and Shop.' },
+      { kind: 'code', ref: 'packages/sim/src/recruit.ts fireOnFriendDeath (the Shop deaths); packages/core/src/combat/simulate.ts the avenge-bus handler; packages/sim/src/reducer.ts settle (runeBodyCountTick)' },
+    ],
+    contentIds: ['rune_body_counting'],
+    cardText: 'When **8** friendly minions die, get a random **Undead** minion.',
+    currentBehaviour: 'Conforms (built with the rune, 2026-09-25).',
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/sim/src/set3RunesBatch3.test.ts', 'packages/core/src/combat/set3RunesBatch3.test.ts'],
+      lastVerifiedAt: '2026-09-25',
+    },
+  },
+  {
+    id: 'R-RUNE-30',
+    title: 'Rune of Storming Veins: a Veinstorm on pickup; a Veinstorm cast from hand casts 3 times in total',
+    statement:
+      'Taking the rune gets you a Veinstorm. A Veinstorm cast FROM HAND casts 2 additional times (3 in total), added '
+      + 'like every "additional time" source and stacking with the other from-hand multipliers. A Veinstorm cast by a '
+      + 'minion, a rune or an Equipment resolves once (R-MULT-06). +2 casts per copy held.',
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-handoff', ref: 'Owner rune batch 2026-09-25 (Set 3 rune batch 3)', quote: 'Rune of Storming Veins (4): "Get a Veinstorm. Veinstorms cast 2 additional times from hand."' },
+      { kind: 'code', ref: 'packages/sim/src/recruit.ts spellCastsWithout + runeExtraCasts (rune_storming_veins); packages/sim/src/reducer.ts runeStormingVeins' },
+    ],
+    contentIds: ['rune_storming_veins'],
+    cardText: 'Get a **Veinstorm**. **Veinstorms** cast **2 additional** times from hand.',
+    currentBehaviour: 'Conforms (built with the rune, 2026-09-25).',
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/sim/src/set3RunesBatch3.test.ts'],
+      lastVerifiedAt: '2026-09-25',
+    },
+  },
+  {
+    id: 'R-RUNE-31',
+    title: 'Rune of Sold Choices: selling a Choose One minion repeats the option it chose when played',
+    statement:
+      'Selling a Choose One minion from the board repeats the option it chose when it was played, at its own gilding '
+      + '(a Gilded body repeats its Gilded branch). A body that resolved both branches repeats both. A branch that '
+      + 'aims lands on a random other friendly minion. A Choose One minion that reached the board without choosing '
+      + '(summoned or Discovered onto it) does nothing when sold. Minions only.',
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-handoff', ref: 'Owner rune batch 2026-09-25 (Set 3 rune batch 3)', quote: 'Owner ruling: selling repeats THE OPTION THAT WAS CHOSEN when the card was played. Minions only.' },
+      { kind: 'code', ref: 'packages/sim/src/recruit.ts fireSoldChoice; packages/sim/src/reducer.ts sell (before the body leaves) + chosenBoth' },
+    ],
+    contentIds: ['rune_sold_choices'],
+    cardText: 'Your **Choose One** cards trigger their effect when sold as well.',
+    currentBehaviour: 'Conforms (built with the rune, 2026-09-25).',
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/sim/src/set3RunesBatch3.test.ts'],
+      lastVerifiedAt: '2026-09-25',
+    },
+  },
+  {
+    id: 'R-RUNE-32',
+    title: 'Rune of Aggressive Golems: every Gemheart Golem has "Rally: give this minion\'s Attack to the minion to the right"',
+    statement:
+      'Every friendly Gemheart Golem (on the board, in hand, arriving later, or summoned in combat) gains the Rally '
+      + 'keyword and "give this minion\'s Attack to the minion to the right". When it attacks, the next living friendly '
+      + "minion to its right gains Attack equal to the Golem's current Attack; with nothing to its right nothing "
+      + 'happens. A Shop Rally replay fires it too, and a Shop gain is permanent. It fires once however the Golem is '
+      + 'gilded.',
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-handoff', ref: 'Owner rune batch 2026-09-25 (Set 3 rune batch 3)', quote: 'Rune of Aggressive Golems (5): "Your Gemheart Golems gain Rally: Give this minion\'s Attack to the minion to the right."' },
+      { kind: 'code', ref: 'packages/sim/src/recruit.ts applyRuneGrafts (rallyGiveAttackToRight + RL); packages/core/src/combat/simulate.ts graftBatch3Runes; packages/core/src/effects/arena.ts rallyGiveAttackToRight' },
+    ],
+    contentIds: ['rune_aggressive_golems'],
+    cardText: 'Your **Gemheart Golems** gain "**Rally:** give this minion\'s Attack to the minion to the right."',
+    currentBehaviour: 'Conforms (built with the rune, 2026-09-25).',
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/sim/src/set3RunesBatch3.test.ts', 'packages/core/src/combat/set3RunesBatch3.test.ts'],
+      lastVerifiedAt: '2026-09-25',
+    },
+  },
+  {
+    id: 'R-RUNE-33',
+    title: 'Rune of Ruptured Rubies: every Ruby cast in combat bounces twice after it lands',
+    statement:
+      "Every Ruby cast in combat, from any source, bounces twice after it lands: each bounce carries the Ruby's "
+      + 'stats to a random other living friendly minion (the R-RUBY-02 hop: stats only, and a hop never bounces again) '
+      + "and keeps the landing's permanence. Two more bounces per copy held. Rubies cast in the Shop are unaffected.",
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-handoff', ref: 'Owner rune batch 2026-09-25 (Set 3 rune batch 3)', quote: 'Rune of Ruptured Rubies (6): "Your Rubies cast in combat bounce twice."' },
+      { kind: 'code', ref: 'packages/core/src/effects/factories.ts playRubyOn (the one combat Ruby primitive) via ctx.rubyRuptureBouncesFor' },
+    ],
+    contentIds: ['rune_ruptured_rubies'],
+    cardText: 'Your **Rubies** cast in combat bounce **twice**.',
+    currentBehaviour: 'Conforms (built with the rune, 2026-09-25).',
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/sim/src/set3RunesBatch3.test.ts', 'packages/core/src/combat/set3RunesBatch3.test.ts'],
+      lastVerifiedAt: '2026-09-25',
+    },
+  },
 ];

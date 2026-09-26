@@ -173,9 +173,9 @@ export function playPlateCoalesce(
   // Gilded cards form in gold; everything else in the arcane blue. Only the colours differ — geometry, motes
   // and timing are identical.
   // Gold when the arriving card is itself Gilded/golden, OR when it's the "Triple Reward" token
-  // (`discoverspell`, rendered `.triplecard`) — a triple reward materialising should read gold even though the
-  // token isn't a golden minion (owner 2026-07-24).
-  const gold = !!target && (target.classList.contains('golden') || target.classList.contains('triplecard'));
+  // (`discoverspell`, marked `data-triple-reward`) — a triple reward materialising should read gold even though
+  // the token isn't a golden minion (owner 2026-07-24). The card itself now renders as a plain spell (2026-09-25).
+  const gold = !!target && (target.classList.contains('golden') || target.hasAttribute('data-triple-reward'));
   const pal = gold ? GOLD : { cDeep: c.cDeep, cMid: c.cMid, cCore: c.cCore };
   if (gold) { if (!goldSprites) goldSprites = { core: sprite(GOLD.cCore, 32), mid: sprite(GOLD.cMid, 32) }; }
   else if (!sprites) sprites = { core: sprite(c.cCore, 32), mid: sprite(c.cMid, 32) };

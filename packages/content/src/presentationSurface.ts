@@ -152,6 +152,9 @@ export const SYSTEM_SURFACE: SurfaceEntry[] = [
   // cannot see them; the rune that grafts them is the user.
   { key: 'factory:onRiseSelfSummonToken:onRise', users: ['rune_endless_march'] },
   { key: 'factory:deathrattleEquipmentFreeNextTurn:onDeath', users: ['rune_last_tool'] },
+  // Set 3 rune batch 3 (2026-09-25) grafts: Rune of Echoing Kobolds' Echo and Rune of Aggressive Golems' Rally.
+  { key: 'factory:deathrattleGetRubies:onDeath', users: ['rune_echoing_kobolds'] },
+  { key: 'factory:rallyGiveAttackToRight:onAttack', users: ['rune_aggressive_golems'] },
   // EQUIPMENT (owner handoff 2026-08-28): the grant as a body enters play / re-equips, and one beat per
   // Equipment TRIGGER (repeats included, each carrying its index).
   { key: 'system:equipment:equip', users: ['e3_frank'] },

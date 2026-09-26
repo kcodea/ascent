@@ -170,6 +170,7 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'factory:deathrattleGrantRebornAll:onDeath': { policy: 'ownBeat', family: 'echo' },
   'factory:deathrattleGrantShield:onDeath': { policy: 'ownBeat', family: 'echo' },
   'factory:deathrattleGrantSpell:onDeath': { policy: 'ownBeat', family: 'echo' },
+  'factory:deathrattleGetRubies:onDeath': { policy: 'ownBeat', family: 'echo' }, // Rune of Echoing Kobolds' graft (2026-09-25)
   'factory:deathrattleGrantRandomSpell:onDeath': { policy: 'ownBeat', family: 'echo' }, // Horizon Courier (first live user)
   'factory:deathrattleGoldNextTurn:onDeath': { policy: 'ownBeat', family: 'echo' }, // Tromboneer (set 3)
   'factory:deathrattleGrantWardRandom:onDeath': { policy: 'ownBeat', family: 'echo' },
@@ -340,6 +341,7 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'factory:rallyDamageRandomEnemy:onAttack': { policy: 'ownBeat', family: 'rally' },
   'factory:rallyGetRubies:onAttack': { policy: 'ownBeat', family: 'rally' },
   'factory:rallyGiveAttackToOthers:onAttack': { policy: 'ownBeat', family: 'rally' },
+  'factory:rallyGiveAttackToRight:onAttack': { policy: 'ownBeat', family: 'rally' }, // Rune of Aggressive Golems' graft (2026-09-25)
   'factory:rallyGiveHealthToDragons:onAttack': { policy: 'ownBeat', family: 'rally' },
   'factory:rallyGrantMagnetic:onAttack': { policy: 'ownBeat', family: 'rally' },
   'factory:rallyGrantSelfCopy:onAttack': { policy: 'ownBeat', family: 'rally' },
@@ -860,6 +862,18 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'rune:rune_dream_mirror:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
   'rune:rune_waking_dreams:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
   'rune:rune_waking_reserve:combat': { policy: 'foldedCue', family: 'combatModifier' },
+  // ── Set 3 rune batch 3 (owner 2026-09-25) ──
+  'rune:rune_gemmed_decisions:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
+  'rune:rune_echoing_kobolds:combat': { policy: 'foldedCue', family: 'combatModifier' },
+  'rune:rune_red_storm:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
+  'rune:rune_rubywire:combat': { policy: 'foldedCue', family: 'combatModifier' },
+  'rune:rune_choices:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
+  'rune:rune_combatative_rubies:combat': { policy: 'foldedCue', family: 'combatModifier' },
+  'rune:rune_body_counting:combat': { policy: 'foldedCue', family: 'combatModifier' },
+  'rune:rune_storming_veins:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
+  'rune:rune_sold_choices:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
+  'rune:rune_aggressive_golems:combat': { policy: 'foldedCue', family: 'combatModifier' },
+  'rune:rune_ruptured_rubies:combat': { policy: 'foldedCue', family: 'combatModifier' },
   'rune:rune_shared_revelry:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
   'rune:rune_grand_procession:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
   'rune:rune_festival_circuit:recruit': { policy: 'ownBeat', family: 'runeMechanic' },

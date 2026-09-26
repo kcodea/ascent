@@ -89,4 +89,27 @@ export const GILDING_RULES: GameRule[] = [
       + 'authored gilded body.',
     enforcement: { kind: 'oracle', refs: ['gildingKinds'], lastVerifiedAt: '2026-08-28' },
   },
+  {
+    id: 'R-GILD-03',
+    title: 'A triple consumes BOARD copies first; only the shortfall comes from the hand',
+    statement:
+      'When a Gild combines copies of a minion, the copies on the board are used first (left-most first), and '
+      + 'only as many hand copies as are still needed are taken (the newest first). Any surplus copy stays where '
+      + 'it was. Two copies on the board plus an effect that gives two copies to the hand: both board copies and '
+      + 'one new copy combine, the golden goes to the hand as usual, and the other new copy stays in hand as a '
+      + 'plain copy. The golden merge itself (the two best copies stacked, buffs carried) is unchanged. Applies '
+      + 'to every triple route: buy, Discover, copy-to-hand effects, hero powers, a played or summoned copy, and '
+      + 'the shop-open check that catches End-of-Turn and combat carry-back grants.',
+    domain: 'gilding',
+    status: 'approved',
+    evidence: [
+      {
+        kind: 'owner-chat', ref: 'Owner rule 2026-09-25 (triple board-first)',
+        quote: 'the minions on board should be used first and foremeost for triples',
+      },
+      { kind: 'code', ref: 'packages/sim/src/reducer.ts pullCopies (the one consumption point, reached via checkTriples)' },
+    ],
+    currentBehaviour: 'Conforms as of 2026-09-25 (was hand first).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/tripleBoardFirst.test.ts'], lastVerifiedAt: '2026-09-25' },
+  },
 ];

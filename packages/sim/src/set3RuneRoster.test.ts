@@ -37,10 +37,10 @@ describe('the Set 3 static rune pool (handoff 2026-09-14)', () => {
     expect(pool.some((r) => r.id === 'rune_frontline_glory')).toBe(false);
     expect(RUNE_INDEX['rune_frontline_glory']!.sets).toEqual(['set1']);
   });
-  it('the Set 3-original runes (batch 2: tranche A 11/13, B 8/11, C 2/4, D 0/2) join on top', () => {
+  it('the Set 3-original runes (batch 2: tranche A 11/13, B 8/11, C 2/4, D 0/2; batch 3: 7/4) join on top', () => {
     const own = staticPool('set3', S3).filter(isOriginal);
-    expect(own.filter((r) => !r.epic)).toHaveLength(19); // 20 → 19: Charted Skies CUT FROM SET 3 2026-09-25 (owner's Set 3 rune list); 21 → 20: the Full Hand CUT FROM SET 3 2026-09-24 (owner)
-    expect(own.filter((r) => r.epic)).toHaveLength(27); // 29 → 27: the Festival Circuit + the Open Constellation CUT FROM SET 3 2026-09-25 (owner's Set 3 rune list); 30 → 29: the Grave Orbit CUT FROM SET 3 2026-09-24 (owner)
+    expect(own.filter((r) => !r.epic)).toHaveLength(26); // 19 → 26 on 2026-09-25 (Set 3 rune batch 3: 7 Basics); 20 → 19: Charted Skies CUT FROM SET 3 2026-09-25 (owner's Set 3 rune list); 21 → 20: the Full Hand CUT FROM SET 3 2026-09-24 (owner)
+    expect(own.filter((r) => r.epic)).toHaveLength(31); // 27 → 31 on 2026-09-25 (Set 3 rune batch 3: 4 Epics); 29 → 27: the Festival Circuit + the Open Constellation CUT FROM SET 3 2026-09-25 (owner's Set 3 rune list); 30 → 29: the Grave Orbit CUT FROM SET 3 2026-09-24 (owner)
   });
   it('Set 1 and Set 2 pools keep their previous scoped runes — a carryover only ADDS set3', () => {
     for (const r of [...RUNES, ...EPIC_RUNES]) {

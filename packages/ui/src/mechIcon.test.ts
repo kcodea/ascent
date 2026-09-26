@@ -67,6 +67,18 @@ describe('resolveMech', () => {
   });
 });
 
+describe('Sell medallion (R-MEDAL-01)', () => {
+  it('Traveling Salesman → the Sell medallion (not Discover)', () => {
+    // "**Sell:** **Discover** …" — the Sell lead must out-order the Discover mention (owner 2026-09-25).
+    expect(resolveMech(view('n2_salesman'))?.id).toBe('sell');
+  });
+  it('every minion whose text leads with "Sell:" and has an onSell effect resolves to the Sell medallion', () => {
+    const sellCards = ALL_CARDS.filter((c) => /^(\*\*)?sell:/i.test(c.text ?? '') && (c.effects ?? []).some((e) => e.on === 'onSell'));
+    expect(sellCards.length).toBeGreaterThanOrEqual(9); // Hoard Whelp, Salvatore, Salesman, River Drake, Beggy, …
+    for (const c of sellCards) expect(resolveMech(view(c.id))?.id, c.id).toBe('sell');
+  });
+});
+
 describe('glossary ↔ registry (no drift)', () => {
   it('every glossary mechanic row is backed by a MECHANICS entry', () => {
     const ids = new Set(MECHANICS.map((m) => m.id));

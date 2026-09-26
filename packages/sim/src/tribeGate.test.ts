@@ -37,6 +37,9 @@ const OWNER_TRIBE_RULINGS: Readonly<Record<string, Tribe>> = {
   // "neutral" tagged and are tagged to tribes?" Each rune takes the tribe it is listed under, in every set.
   rune_sellers_market: 'dwarf', rune_spearline: 'undead',
   rune_dream_mirror: 'spirit', rune_open_hand: 'spirit', rune_waking_reserve: 'spirit', rune_waking_dreams: 'spirit',
+  // Set 3 rune batch 3 (owner 2026-09-25) lists these under Kobold though their text names no tribe word: Choose One
+  // is the Kobold keyword (like Rise for the Undead), Veinstorm is the Kobold spell, the Gemheart Golem the Kobold token.
+  rune_choices: 'kobold', rune_sold_choices: 'kobold', rune_storming_veins: 'kobold', rune_aggressive_golems: 'kobold',
 };
 
 /** The tribes of the bodies a reward GRANTS (Rune of Lazarus → Lazarus is Undead) — the 2026-09-10 ruling's

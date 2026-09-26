@@ -180,6 +180,20 @@ export function playRubyOn(ctx: CombatContext, self: Minion, target: Minion, per
   // equivalent of `fireTrigger` — same channel, no new context hook (see the runeFloodedVault stamp).
   if (runeEngraved) ctx.log({ type: 'questTrigger', flag: 'runeEngravingGems', side: self.side });
   applyRubyStats(ctx, self, target, a, h, engraved);
+  // RUNE OF RUPTURED RUBIES (owner 2026-09-25): "Your Rubies cast in combat bounce twice." Every combat Ruby, from any
+  // source, hops to a random OTHER living friendly minion twice (per copy held) after it lands, carrying its stats
+  // only (the R-RUBY-02 hop: `applyRubyStats`, no watchers, so a hop never re-bounces) and inheriting the landing's
+  // permanence (the Double Trouble rule). Combat only: this is the combat Ruby primitive; the Shop never reads it.
+  const rupture = ctx.rubyRuptureBouncesFor?.(self.side) ?? 0;
+  if (rupture > 0) {
+    let hopped = false;
+    for (let b = 0; b < rupture; b++) {
+      const others = ctx.living(self.side).filter((x) => x !== target && !x.dead);
+      if (others.length === 0) break;
+      if (!hopped) { ctx.log({ type: 'questTrigger', flag: 'runeRupturedRubies', side: self.side }); hopped = true; }
+      applyRubyStats(ctx, self, ctx.rng.pick(others), a, h, engraved, { from: target.uid, kind: 'ruby' });
+    }
+  }
   // CANDLE CONDUIT (owner rework 2026-08-07): every Ruby played on this side bounces to 1 more minion per
   // Conduit (golden 2). The bounce is STATS ONLY (`applyRubyStats`, never the watchers below), which is the
   // same no-rebounce guard Resonance Idol's bounce uses — a bounce can never trigger another bounce.
@@ -1805,6 +1819,11 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     if ((payload as MinionPayload).minion !== self) return;
     ARENA_EFFECTS.deathrattleGrantSpell(combatArena(ctx, self), params);
   },
+  /** Rune of Echoing Kobolds' graft (2026-09-25): this body's own Echo gets Rubies (carried back, minted at settle). */
+  deathrattleGetRubies: (ctx, self, params, payload) => {
+    if ((payload as MinionPayload).minion !== self) return;
+    ARENA_EFFECTS.deathrattleGetRubies(combatArena(ctx, self), params);
+  },
 
   // ── Set 3 Undead (owner roster 2026-09-09) ──────────────────────────────────────────────────────────────
 
@@ -2568,6 +2587,12 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     const { minion } = payload as MinionPayload;
     if (self.dead || minion !== self) return; // Rally: this minion's own attack only
     ARENA_EFFECTS.rallyGetRubies(combatArena(ctx, self), params);
+  },
+  /** Rune of Aggressive Golems' graft (2026-09-25) — Rally: the minion to the right gains this minion's Attack. */
+  rallyGiveAttackToRight: (ctx, self, params, payload) => {
+    const { minion } = payload as MinionPayload;
+    if (self.dead || minion !== self) return; // Rally: this minion's own attack only
+    ARENA_EFFECTS.rallyGiveAttackToRight(combatArena(ctx, self), params);
   },
 
   /** Set 2 — Crownvein Vanguard (half 1): Rally — when THIS attacks, buff your Rubies +atk/+hp (× golden),

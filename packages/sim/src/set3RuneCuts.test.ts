@@ -108,10 +108,10 @@ describe('Set 3 rune cuts (owner 2026-09-24)', () => {
     }
   });
 
-  it('the Set 3 static pool counts: 84 Basic / 79 Epic since the owner Set 3 rune list (2026-09-25; was 119 / 108) and Engraving Gems moved Epic → Basic', () => {
+  it('the Set 3 static pool counts: 91 Basic / 83 Epic (owner Set 3 rune list 2026-09-25: 84 / 79 after Engraving Gems moved Epic → Basic, then rune batch 3 +7 / +4; was 119 / 108)', () => {
     const inS3 = (arr: typeof RUNES) => arr.filter((r) => !r.sets || r.sets.includes('set3'));
-    expect(inS3(RUNES)).toHaveLength(84); // 83 → 84 on 2026-09-25: Engraving Gems moved Epic → Basic (owner); 119 → 83 on 2026-09-25 (set3RuneList.test.ts pins the exact ids)
-    expect(inS3(EPIC_RUNES)).toHaveLength(79); // 80 → 79 on 2026-09-25: Engraving Gems moved Epic → Basic (owner); 108 → 80 on 2026-09-25
+    expect(inS3(RUNES)).toHaveLength(91); // 84 → 91 on 2026-09-25 (Set 3 rune batch 3); 83 → 84 on 2026-09-25: Engraving Gems moved Epic → Basic (owner); 119 → 83 on 2026-09-25 (set3RuneList.test.ts pins the exact ids)
+    expect(inS3(EPIC_RUNES)).toHaveLength(83); // 79 → 83 on 2026-09-25 (Set 3 rune batch 3); 80 → 79 on 2026-09-25: Engraving Gems moved Epic → Basic (owner); 108 → 80 on 2026-09-25
     // 26/28 → 25/27 on 2026-09-24: Full Hand (Basic) and Grave Orbit (Epic) left the cut list for the archive
     expect(CUT.filter((id) => !isEpic(id))).toHaveLength(25);
     expect(CUT.filter(isEpic)).toHaveLength(27);

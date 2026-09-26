@@ -570,6 +570,18 @@ Script** keeps both Undead and Celestial. **Engraving Gems** moved Epic → Basi
 84 Basic / 79 Epic. Every Set 3 rune's tribe and rarity is pinned against the list in `set3RuneList.test.ts`; the
 exceptions to the text rule are listed in `tribeGate.test.ts`.
 
+**Set 3 rune batch 3 (owner 2026-09-25)** adds 11 Set-3-only runes to that list (**174 runes, 91 Basic / 83 Epic**):
+Kobold Basics Gemmed Decisions, Echoing Kobolds, the Red Storm, Rubywire, Choices and Combatative Rubies; the Undead
+Basic Body Counting; Kobold Epics Storming Veins, Sold Choices, Aggressive Golems and Ruptured Rubies. Rules worth
+knowing: Echoing Kobolds and Aggressive Golems are aura-style GRAFTS (every Kobold / Gemheart Golem now and later, combat
+summons included; a Gilded Kobold still gets one Ruby); Rubywire's "Shop Spell" is R-SHOPSPELL-01's (Ales count, Rubies /
+Clues / tokens do not) in every phase; Choices is a per-turn Choose-Both charge (the Prismatic Pick mechanism); Sold
+Choices repeats the branch recorded at play (`chosenOption`, or both via `chosenBoth`) and does nothing for a body that
+never chose; Combatative Rubies (every 3rd friendly attack) and Body Counting (every 8th friendly death, Shop deaths
+included, sales not) are RUNNING meters carried across fights; Storming Veins adds 2 casts from hand only (R-MULT-06);
+Ruptured Rubies hops every combat Ruby twice (stats only), the Shop unaffected. Oracle R-RUNE-23..33; details in
+`docs/devlog/2026-09-25-set3-runes-batch3.md`.
+
 **Set 3-original runes (batch 2, 2026-09-16).** Set 3 now also has runes of its own — `sets: ['set3']` alone,
 no origin scope — starting with tranche A's 24 Spirit / Celestial / Undead runes (11 Basic + 13 Epic, taking the
 set-3 static pool to **126 Basic / 111 Epic**), plus the rune-exclusive **Handy Flame** token. The two combat-side
@@ -706,6 +718,21 @@ hand actually received the card.
 (so a new `hand.push` site cannot forget to fire it), combat emits from `ctx.grantToHand` / `ctx.grantRubies` /
 `ctx.grantRandomRubies` (the only ways a card reaches a hand mid-fight). Both run the *same* effect bodies, in
 `ARENA_EFFECTS`, so the two phases cannot drift apart.
+
+---
+
+### A triple uses the BOARD copies first (owner rule 2026-09-25, R-GILD-03)
+
+*"the minions on board should be used first and foremeost for triples"*
+
+- When a Gild combines copies (3, or 2 under Twin Gilding / Midas), the **board** copies go in first, left-most
+  first; only the copies still missing come from the **hand**, newest first. Any surplus copy stays where it was.
+- Two copies on the board + an effect that gives two copies to hand: both board copies and one new copy combine,
+  the golden goes to hand as usual, and the other new copy stays in hand as a plain copy.
+- The merge itself is unchanged (the two best copies stacked, buffs and accruals carried), and so is where the
+  golden lands (hand; the board when the hand is full). Every route (buy, Discover, play/summon, hero powers,
+  copy grants, the shop-open check for End-of-Turn and combat carry-back copies) goes through the one
+  consumption point, `pullCopies` in `packages/sim/src/reducer.ts`.
 
 ---
 

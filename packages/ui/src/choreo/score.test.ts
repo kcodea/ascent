@@ -157,7 +157,21 @@ describe('score', () => {
     const c3 = baseCtx([{ type: 'reborn', target: 'r', hp: 1, attack: 2, keywords: [] }] as CombatEvent[]);
     runMomentCues(moment('reborn', c3.events), c3);
     vi.advanceTimersByTime(460); // auraReform +460ms fixed
-    expect(c3.onReborn).toHaveBeenCalledWith('r');
+    expect(c3.onReborn).toHaveBeenCalledWith('r', false); // a Rise re-form (a Rebirth passes true)
+    vi.useRealTimers();
+  });
+
+  it('a REBIRTH return routes to onReborn flagged rebirth, exactly once per rebirth (the rebirth-flame binding)', () => {
+    vi.useFakeTimers();
+    const c = baseCtx([
+      { type: 'reborn', target: 'a', hp: 5, attack: 5, keywords: [], rebirth: true },
+      { type: 'reborn', target: 'b', hp: 1, attack: 2, keywords: [] },
+    ] as CombatEvent[]);
+    runMomentCues(moment('reborn', c.events), c);
+    vi.advanceTimersByTime(460);
+    expect(c.onReborn).toHaveBeenCalledTimes(2);
+    expect(c.onReborn).toHaveBeenCalledWith('a', true); // Rebirth → the phoenix flame
+    expect(c.onReborn).toHaveBeenCalledWith('b', false); // Rise → the aqua re-form
     vi.useRealTimers();
   });
 
@@ -181,7 +195,7 @@ describe('score', () => {
     const c = baseCtx([{ type: 'reborn', target: 'r', hp: 1, attack: 2, keywords: [] }] as CombatEvent[], { combatSpeed: 2 });
     runMomentCues(moment('reborn', c.events), c);
     vi.advanceTimersByTime(459); expect(c.onReborn).not.toHaveBeenCalled();  // fixed 460 despite speed 2
-    vi.advanceTimersByTime(2); expect(c.onReborn).toHaveBeenCalledWith('r');
+    vi.advanceTimersByTime(2); expect(c.onReborn).toHaveBeenCalledWith('r', false);
     vi.useRealTimers();
   });
   it('the returned cleanup cancels a pending offset timer', () => {

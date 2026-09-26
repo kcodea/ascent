@@ -3836,6 +3836,20 @@ export function simulate(
   // Contract Rewrite. Enemy values come from the captured mods / scalers.
   for (const scSide of ['player', 'enemy'] as const) {
     const smods = modsFor(scSide);
+    // ANCIENT OF TIME (proof of concept, owner 2026-09-25): the right-most living minion becomes GILDED for this
+    // fight — golden flag (so its effects double, as any gilded body's do) plus its printed stats again (the gild's
+    // doubled base, as `gildMinion` does in the Shop). The combat body only: the run card is never touched, so the
+    // gild reverts after the fight. First in the Start-of-Combat pass so its own Start of Combat fires gilded.
+    if (smods.ancientTimeGild) {
+      const tail = [...boards[scSide]].reverse().find((m) => !m.dead && m.health > 0);
+      if (tail && !tail.golden) {
+        const def = cards[tail.cardId];
+        nextStep();
+        tail.golden = true;
+        emit({ type: 'ascend', target: tail.uid, into: tail.cardId, gild: true });
+        if (def && (def.attack > 0 || def.health > 0)) ctx.buff(tail, def.attack, def.health, smods.ancientTimeGild.label);
+      }
+    }
     // Rulebreaker's Crown: the leftmost living minion gains +Attack equal to its Attack (doubles it).
     if (smods.doubleLeftmostAttack) {
       const lead = boards[scSide].find((m) => !m.dead && m.health > 0);
@@ -4592,6 +4606,23 @@ export function simulate(
   // `onSummon` listener that buffed your whole Beast line whenever a Beast was summoned; it is now applied at
   // the summon SITE beside Rune of the Hatchery — see the grant there. Kept as an empty branch-free note so
   // the rune reads in one place: nothing subscribes to the bus for Packcraft any more.
+  // ANCIENT OF WAR (proof of concept, owner 2026-09-25): whenever a friendly minion dies (a Rise death included —
+  // it is a real death), this side's living GILDED minions gain +a/+h PERMANENTLY — recorded as `permaGain`, the
+  // channel settle carries back (the arena's `buffPermanent` contract), so the Shop board keeps it.
+  if (playerState.questMods.ancientWar || enemyState.questMods.ancientWar) {
+    bus.on('onDeath', (payload) => {
+      const { minion, side } = payload as { minion: Minion; side: Side };
+      const war = modsFor(side).ancientWar;
+      if (!war) return;
+      const gilded = boards[side].filter((m) => m !== minion && !m.dead && m.health > 0 && m.golden);
+      if (gilded.length === 0) return;
+      nextStep(); // its own beat, not the death's
+      for (const m of gilded) {
+        ctx.buff(m, war.attack, war.health, war.label);
+        if (!m.keywords.includes('EG')) m.permaGain = { attack: (m.permaGain?.attack ?? 0) + war.attack, health: (m.permaGain?.health ?? 0) + war.health };
+      }
+    });
+  }
   // Rune of Inheritance: when your LEFT-MOST living minion dies, your right-most living minion gains its stats. Per side.
   if (playerState.questMods.runeInheritance || enemyState.questMods.runeInheritance) {
     bus.on('onDeath', (payload) => {

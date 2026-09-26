@@ -153,7 +153,21 @@ let muted = (() => {
   }
 })();
 /** The ONE place the Music slider becomes a gain (the default-mix curve: 50 plays the owner's 0.2, 100 plays 1). */
-const level = (): number => (muted ? 0 : sliderToGain('music', volume));
+/** A temporary DUCK multiplier (1 = none), for a presentation beat that wants the music to hold its breath (the
+ *  Ancients awakening). Never persisted. */
+let duck = 1;
+const level = (): number => (muted ? 0 : sliderToGain('music', volume) * duck);
+
+/** Duck the music to `factor` × its level for a moment, ramping with time constant `tauMs`; `setMusicDuck(1)` restores. */
+export function setMusicDuck(factor: number, tauMs = 120): void {
+  duck = Math.min(1, Math.max(0, factor));
+  if (graph) {
+    const now = graph.ctx.currentTime;
+    graph.level.gain.cancelScheduledValues(now);
+    graph.level.gain.setTargetAtTime(level(), now, Math.max(0.005, tauMs / 1000));
+  }
+  applyElementVolume();
+}
 
 export function getMusicVolume(): number {
   return volume;

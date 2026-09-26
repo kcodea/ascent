@@ -1,0 +1,56 @@
+{
+  "version": 1,
+  "id": "ancient-slam",
+  "label": "Ancient slam (shockwave)",
+  "tags": [
+    "ancients",
+    "impact",
+    "dust"
+  ],
+  "duration": 280,
+  "layers": [
+    {
+      "primitive": "shockwave",
+      "anchor": "target",
+      "at": 0,
+      "params": {
+        "rings": 1,
+        "speed": 3.65,
+        "thickness": 0.12,
+        "fade": 3.15,
+        "radius": 190,
+        "squash": 0.32,
+        "ringDelay": 0,
+        "ease": 1,
+        "radiusCurve": [
+          [
+            0,
+            0
+          ],
+          [
+            1,
+            1
+          ]
+        ],
+        "reverse": false,
+        "bands": 3,
+        "palette": [
+          9067030,
+          15318362,
+          16773572,
+          16777215
+        ],
+        "alpha": 1,
+        "blendMode": "add",
+        "glow": 0.3,
+        "plateau": 0.3,
+        "noiseAlong": 3,
+        "noiseAcross": 7,
+        "warp": 0.35,
+        "scroll": 1.4,
+        "erode": 0.5,
+        "gain": 1.1
+      }
+    }
+  ]
+}

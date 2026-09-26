@@ -71,6 +71,8 @@ export const ACTION_CATALOG = {
   // clock (it never activates Equipment either), and every turn flip / combat entry closes the window anyway.
   discountWindowExpired: { generation: 'automatic', reveal: false, note: 'closes Thymepiece\'s clock-window discount; driven by the UI clock, never a choice' },
   devGrant: { generation: 'never', reveal: false, note: 'development tooling — not available to a bot' },
+  pickAncient: { generation: 'never', reveal: false, note: 'Ancients proof of concept — Scene Builder only, not available to a bot' },
+  ancientSetMeter: { generation: 'never', reveal: false, note: 'development tooling — not available to a bot' },
 } satisfies Record<Action['type'], ActionDescriptor>;
 
 export type CatalogedAction = keyof typeof ACTION_CATALOG;

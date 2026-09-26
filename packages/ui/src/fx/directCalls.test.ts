@@ -163,6 +163,9 @@ describe('DIRECT_CALL_SITES is a derivation, not a list', () => {
       // 'amplified-slot' joined on 2026-09-22: the owner-authored Amplified glow, a looping play on the Equipment slot
       // button from `useAmplifiedSlotFx.ts` while the selected Equipment will Amplify and has a charge to spend.
       'amplified-slot',
+      // 'ancient-slam' joined on 2026-09-25: the Ancients reveal's slam shockwave (`ancients/ancientsSmoke.ts`). The
+      // Ancients' own smoke/burst defs left the same day: they reuse the Runeforge landing dust instead.
+      'ancient-slam',
       'auctioneer-hp', 'choose-one-both', 'cia-hp', 'click-puff', 'coin', 'coins', 'consume-pull', 'damage-burst', 'death-dissolve',
       // 'dice-land' joined on 2026-09-17: the landing burst of the shared 3D die (`DiceRoll.tsx`), fired at the anchor.
       'dice-land',
@@ -189,6 +192,8 @@ describe('DIRECT_CALL_SITES is a derivation, not a list', () => {
       'lasso',
       // 'rank-up' joined on 2026-09-20: the owner-authored promotion hit on the post-game rank screen (`rank/rankTimeline.ts`).
       'rank-up',
+      // 'rebirth-flame' joined on 2026-09-25: the Rebirth keyword's one-shot flame on a real rebirth (`choreo/channels/aura.ts`).
+      'rebirth-flame',
       'ruby-bounce', 'ruby-gem-apply',
       // 'tendril-trail' joined on 2026-09-02: the owner-authored buff-other ribbon, fired from `buffFxRender.ts`.
       // 'shop-buff-purple' joined the same day: the mid-combat Shop-buff bloom, fired from `useCombatReplay.ts`.

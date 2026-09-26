@@ -1,9 +1,12 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { createPortal } from 'react-dom';
+import { AncientMeter, AncientPill, AncientSplit } from './ancients/AncientMeter';
+import { AncientGate } from './ancients/AncientGate';
+import { ancientColor } from './ancients/ancientsConfig';
 import { renameTerms } from './terms';
 import { Card, mdBold } from './Card';
 import { instView } from './instView';
-import { dragonTamerCostOf, heroPowerCostOf, INDY_GILD_RECHARGE_GOLD, KESHI_CROWN_THRESHOLD, roundedSpellbookCostOf, allInPayoutOf, exhibitionGrantOf, tempestGrantOf, bladeMasteryGrantOf, hoardWhelpStatsOf, TEMPEST_KILLS_PER_STEP, BLADE_ATTACKS_PER_STEP, heroPowerText, commissionOffer, COMMISSION_NAME, COMMISSION_REWARD, COMMISSION_DELAY, getHero, spellAmplifyBonus, spellAttackBonusLive, spellHealthBonusLive, spellEscalationLive, rubyStatBonus, heroPowerLockTurns, activePowers, type RunState, type HeroPower } from '@game/sim';
+import { ANCIENTS, dragonTamerCostOf, heroPowerCostOf, INDY_GILD_RECHARGE_GOLD, KESHI_CROWN_THRESHOLD, roundedSpellbookCostOf, allInPayoutOf, exhibitionGrantOf, tempestGrantOf, bladeMasteryGrantOf, hoardWhelpStatsOf, TEMPEST_KILLS_PER_STEP, BLADE_ATTACKS_PER_STEP, heroPowerText, commissionOffer, COMMISSION_NAME, COMMISSION_REWARD, COMMISSION_DELAY, getHero, spellAmplifyBonus, spellAttackBonusLive, spellHealthBonusLive, spellEscalationLive, rubyStatBonus, heroPowerLockTurns, activePowers, type RunState, type HeroPower } from '@game/sim';
 import { henchmanOffer } from '@game/sim';
 import { equipmentWillAmplify, equipmentCostOf, equipmentPool, equipmentState, equipmentText, equipmentUsesLeft, selectedEquipment, selectedEquipmentDef } from '@game/sim';
 import { CARD_INDEX, EQUIPMENT_INDEX } from '@game/content';
@@ -511,6 +514,8 @@ export function StatusBar() {
     : 0;
   // The price this power ACTUALLY costs right now: a per-hero override when it has one, else the printed cost.
   // Rendered by the coin below and checked by `canHero` — the two must read the same value or they drift.
+  // ANCIENTS: the chosen Ancient (only on a run that has them), tagged in the power's tip title.
+  const pickedAncient = run.ancientsEnabled ? run.ancients?.picked : undefined;
   const liveCost = heroPowerCostOf(power, run, run.heroPowerUses ?? 0);
   const canHero =
     !isPassive &&
@@ -796,10 +801,16 @@ export function StatusBar() {
               {powerArt
                 ? <span className="hpb-artwrap" aria-hidden="true"><img decoding="sync" className="hpb-art" src={powerArt} alt="" draggable={false} /></span>
                 : <Icon name="sc" />}
+              {/* ANCIENTS (proof of concept): the awakened split — hero art left, the Ancient's face right. Inert
+                  (renders nothing) unless the run has Ancients on. */}
+              {run.ancientsEnabled && <AncientSplit run={run} />}
               {/* The REFRESH bloom — a one-shot circular flash as the power re-arms (never a loop). */}
               {refreshFlash && <span className="hpb-flash" aria-hidden="true" />}
             </button>
             {liveCost ? <span className="hpcost"><span className="costn">{liveCost}</span></span> : null}
+            {/* ANCIENTS (proof of concept): the segmented meter ring + its points medallion / the awakened badge. */}
+            {run.ancientsEnabled && <AncientMeter run={run} />}
+            {run.ancientsEnabled && <AncientGate run={run} />}
             {/* Keyed on its text so every change replays the compositor-only bump (the Avenge-tally feel).
                 While the Gambler's 3D die is in the air the slot waits; the held face takes it at the settle. */}
             {diceHeldShown
@@ -909,6 +920,8 @@ export function StatusBar() {
           {/* Once a granted quest/rune owns the slot, its NAME owns the plate too — "Errand" under Opening
               Act's art reads as a mismatch (owner ask 2026-08-21). */}
           <div className="hplabel">{grantQuestDef?.name ?? grantRuneDef?.name ?? power.name}</div>
+          {/* ANCIENTS (proof of concept): the chosen Ancient's pill, under the power's name. */}
+          {run.ancientsEnabled && <AncientPill run={run} />}
           {/* HENCHMAN recruit chip — placeholder presentation (see the `henchman` derivation above). */}
           {henchman && henchmanDef && (
             <button
@@ -922,7 +935,12 @@ export function StatusBar() {
             </button>
           )}
           <div className="herotip" role="tooltip">
-            <b>{grantQuestDef?.name ?? grantRuneDef?.name ?? power.name}</b>{isPassive ? ' · passive' : ''}
+            <div className="herotip-head">
+              <b>{grantQuestDef?.name ?? grantRuneDef?.name ?? power.name}</b>
+              {/* ANCIENTS: "Masterwork (Death)", the tag in the Ancient's colour, so the power reads as modified. */}
+              {pickedAncient && <span className="herotip-anc" style={{ color: ancientColor(pickedAncient) }}>({ANCIENTS[pickedAncient].name.replace(/^Ancient of /, '')})</span>}
+              {isPassive && <span className="herotip-tag">passive</span>}
+            </div>
             {/* `**word**` = a keyword reference → renders BOLD (mdBold), never raw asterisks. */}
             <span className="herotip-rule" dangerouslySetInnerHTML={{ __html: mdBold(powerRule) }} />
             {powerReward && (
@@ -952,7 +970,8 @@ export function StatusBar() {
             )}
             {/* Live status (current magnitude + countdown) on hover — the progress text was removed from the
                 always-visible hero box, so it reads here instead. */}
-            <span className="herotip-live">{powerStatus}</span>
+            {/* The status chip only when it tells you something (owner 2026-09-25: "remove the "ready" pill"). */}
+            {powerStatus && !/^ready$/i.test(powerStatus) && <span className="herotip-live">{powerStatus}</span>}
           </div>
         </div>
         {/* VOID'S SECOND POWER (owner spec 2026-08-22): the slot-1 wielded power, seated to the right of the

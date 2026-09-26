@@ -52,6 +52,25 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-09-25',
+    label: 'Rebirth',
+    changes: [
+      {
+        category: 'Systems',
+        text: 'Rebirth has its own look: a thin blue and white flame around the minion, and a burst of blue fire when it comes back.',
+        details: [
+          'A minion with Rebirth wears a thin blue flame rim with a few rising embers. Rise keeps its green look.',
+          'When a minion rebirths in combat, a short blue and white flame bursts up from it.',
+          'The Rebirth keyword box uses the same blue colours.',
+        ],
+      },
+      {
+        category: 'Systems',
+        text: 'The hero power hover card has a cleaner dark blue style.',
+      },
+    ],
+  },
+  {
+    date: '2026-09-25',
     label: 'Triples Use Your Board First',
     changes: [
       {

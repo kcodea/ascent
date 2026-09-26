@@ -1592,6 +1592,37 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
           drop-shadow(0 0 3px rgba(69, 232, 192, 0.85))
           drop-shadow(0 0 11px rgba(23, 143, 134, 0.5));
 }
+/* REBIRTH (RB) — the phoenix look (owner 2026-09-25: "similar to rise, but less intrusive, more thin and less haze";
+   then "make rebirth a blue effect … blue and white fire": cobalt → cyan → a white-hot core). A THIN ember rim on the oval + a few embers rising from the base. PERF: the rim is a static
+   pre-rendered ring whose OPACITY breathes (the `kwglow` pattern); the embers move by transform/opacity only, no blur,
+   no blend mode. Colours / sizes / counts are the 🔥 Rebirth tuner's `--rb-*` vars (fallbacks = its defaults). */
+.card.compact.rebirthcard .rebirth {
+  /* Fills the art window, so the rim hugs its oval edge (the window clips anything outside it). */
+  position: absolute; inset: 0; pointer-events: none; z-index: 2;
+}
+.card.compact.rebirthcard .rebirth-rim {
+  position: absolute; inset: 0; border-radius: 50%; will-change: opacity;
+  box-shadow: inset 0 0 0 calc(var(--rb-rim-w, 3.5) * var(--u)) var(--rb-a, #9fe6ff),
+              inset 0 0 calc(14 * var(--u)) calc(3 * var(--u)) color-mix(in srgb, var(--rb-b, #2350e6) 80%, transparent);
+  opacity: var(--rb-rim-a, 0.9);
+  animation: rebirthrim var(--rb-rim-pulse, 2.8s) ease-in-out infinite;
+}
+@keyframes rebirthrim { 0%, 100% { opacity: calc(var(--rb-rim-a, 0.9) * 0.45); } 50% { opacity: var(--rb-rim-a, 0.9); } }
+.card.compact.rebirthcard .ember {
+  position: absolute; bottom: 10%; width: var(--rb-ember-size, 7%); aspect-ratio: 1; border-radius: 50%;
+  background: radial-gradient(circle, #ffffff 0%, var(--rb-a, #9fe6ff) 40%, color-mix(in srgb, var(--rb-b, #2350e6) 60%, transparent) 70%, transparent 100%);
+  opacity: 0; will-change: transform, opacity;
+  animation: rebirthember 3.2s linear infinite;
+}
+@keyframes rebirthember {
+  0%   { transform: translate(-50%, 0) scale(0.6); opacity: 0; }
+  15%  { opacity: var(--rb-ember-a, 0.85); }
+  100% { transform: translate(calc(-50% + var(--ex, 0px)), calc(var(--ccw) * -0.62)) scale(0.2); opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .card.compact.rebirthcard .ember { animation: none; opacity: 0; }
+  .card.compact.rebirthcard .rebirth-rim { animation: none; }
+}
 /* FLURRY (W) — wind blades swirling the card. A ring stack in the archbox (z2: above the art, below the
    frame — so the swirl orbits AROUND the card), sized to the card width. Rendered by Card.tsx from
    flurryConfig (per-ring inline: diameter inset, the comet conic-gradient + band mask, blur, opacity, spin
@@ -2043,8 +2074,27 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
 .tip { position: absolute; bottom: calc(100% + 9px); left: 50%; transform: translateX(-50%); width: 210px; background: var(--ink); color: #fff; border-radius: 11px; padding: 10px 12px; font-size: 11.5px; line-height: 1.4; font-weight: 600; box-shadow: 0 10px 28px -8px rgba(0, 0, 0, 0.55); opacity: 0; pointer-events: none; z-index: 30; transition: opacity 0.15s; }
 .card:hover .tip { opacity: 1; transition-delay: 1.5s; }
 /* hero-power tooltip — same dark pill as the keyword tip, popping above the corner tray */
-.herotip { position: absolute; bottom: calc(100% + 12px); left: 50%; transform: translateX(-50%); width: 322px; background: var(--ink); color: #fff; border-radius: 14px; padding: 14px 18px; font-size: 15.6px; line-height: 1.45; font-weight: 600; text-align: center; box-shadow: 0 12px 30px -8px rgba(0, 0, 0, 0.6); opacity: 0; pointer-events: none; z-index: 60; transition: opacity 0.14s; }
-.herotip b { color: var(--acc); }
+/* THE HERO-POWER TIP (restyled 2026-09-25, owner: "it looks ugly", then "i dont want it to be white background …
+   our typical dark blue style"): the dark slate-blue panel the Career / lobby hover cards wear (`.cv2-herotip`), a
+   gold hairline on top, a warm-gold title, the rule in soft cream (AA on the panel) and the live status as a dark chip. Shared by EVERY hero-power hover (the
+   main power, Void's second power, the Equipment slot and the foe's power in combat), so all of them change together.
+   Static paint; only the existing one-shot opacity fade. */
+.herotip {
+  position: absolute; bottom: calc(100% + 12px); left: 50%; transform: translateX(-50%); width: 320px; box-sizing: border-box;
+  display: flex; flex-direction: column; align-items: stretch; gap: 6px;
+  background: linear-gradient(180deg, rgba(40, 50, 68, 0.97), rgba(18, 23, 33, 0.98)); color: #eef2f8;
+  border: 1px solid rgba(190, 214, 240, 0.26); border-top: 2px solid color-mix(in srgb, var(--gold-lt) 85%, transparent);
+  border-radius: 12px; padding: 12px 16px 13px;
+  font-family: var(--font-body); font-size: 14.5px; line-height: 1.42; font-weight: 600; text-align: left;
+  box-shadow: 0 14px 34px -10px rgba(0, 0, 0, 0.72), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  opacity: 0; pointer-events: none; z-index: 60; transition: opacity 0.14s;
+}
+.herotip > b, .herotip-head > b { font-family: var(--font-title); font-weight: 800; font-size: 17px; color: #ffd98a; line-height: 1.15; }
+.herotip-head { display: flex; align-items: baseline; flex-wrap: wrap; gap: 0 6px; padding-bottom: 7px; border-bottom: 1px solid rgba(255, 255, 255, 0.1); }
+/* The Ancient tag keeps its colour, lifted toward white so it reads on navy. */
+.herotip-anc { font-family: var(--font-title); font-weight: 800; font-size: 17px; line-height: 1.15; filter: brightness(1.35) saturate(1.1); }
+.herotip-tag { margin-left: auto; align-self: center; font-family: var(--font-ui); font-size: 10.5px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; color: rgba(238, 242, 248, 0.55); }
+.herotip b:not(.herotip-head > b):not(.herotip > b) { color: #ffb561; }
 /* Glossary pills inside a hero-panel tooltip (the Equipment slot): the same `.kwbox` chrome as the card hover,
    stacked full-width under the rule text, left-aligned like a definition list. */
 .herotip .kwdefs { display: flex; max-width: none; margin-top: 10px; text-align: left; align-self: stretch; }
@@ -2967,6 +3017,9 @@ body.modalup .app { z-index: auto; }
    it sits on the same line; PNG art fills it, an SVG glyph inherits the title's accent colour. */
 .kwbox-ico { flex: none; width: 13px; height: 13px; display: inline-flex; }
 .kwbox-ico img, .kwbox-ico svg { width: 100%; height: 100%; object-fit: contain; display: block; }
+/* Rebirth's pill reads in its blue-and-white fire colours (owner 2026-09-25). */
+.kwbox[data-kw="rebirth"] .kwbox-name { color: var(--rb-a, #9fe6ff); }
+.kwbox[data-kw="rebirth"] { border-color: color-mix(in srgb, var(--rb-b, #2350e6) 60%, #000); }
 .kwbox-def { font-family: var(--font-ui); font-weight: 500; font-size: 8.4px; line-height: 1.35; color: #e9dcc4; margin-top: 2px; }
 /* The source name flexes + ellipsizes if a name is unusually long; the +atk/+hp amount never clips. */
 .ib-src { font-family: var(--font-ui); font-weight: 700; color: #f4ecdb; flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
@@ -3600,13 +3653,13 @@ body.dragging .statusbar .heropanel { pointer-events: none; } /* let a corner-re
 .statusbar .hero .hpbox .hpval { color: #ff9db0; } /* threat, lightened to read on the dark box */
 .statusbar .hero .hpbox .armval { color: #b7c2cf; }
 /* Hover tip: the rule (muted) + the live status (tangerine) stacked under the bold power name. */
-.herotip-rule { display: block; margin-top: 3px; color: #d8ccb6; font-weight: 600; }
-.herotip-live { display: block; margin-top: 5px; color: var(--acc); font-weight: 800; }
+.herotip-rule { display: block; color: #e3e8f0; font-weight: 600; }
+.herotip-live { display: inline-block; align-self: flex-start; margin-top: 2px; padding: 2px 10px; border-radius: 999px; background: rgba(8, 11, 18, 0.55); border: 1px solid rgba(190, 214, 240, 0.22); color: #f4ecdb; font-family: var(--font-ui); font-size: 12.5px; font-weight: 800; font-variant-numeric: tabular-nums; }
 /* A granted quest's REWARD, under its objective in the hero-power tooltip. The hairline separates the two so
    "what to do" and "what you get" don't read as one run-on sentence; the label carries the accent so the eye
    lands on the payoff first. */
-.herotip-reward { display: block; margin-top: 6px; padding-top: 6px; border-top: 1px solid rgba(255, 255, 255, 0.12); color: #d8ccb6; font-weight: 600; }
-.herotip-reward > b { display: block; margin-bottom: 1px; color: var(--acc); font-size: 13px; letter-spacing: 0.06em; text-transform: uppercase; }
+.herotip-reward { display: block; padding-top: 6px; border-top: 1px solid rgba(255, 255, 255, 0.1); color: #e3e8f0; font-weight: 600; }
+.herotip-reward > b { display: block; margin-bottom: 1px; color: #ffb561; font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; font-family: var(--font-ui); }
 
 /* VOID'S SECOND POWER (owner spec 2026-08-22) — the slot-1 button, seated right of the hero under the main
    power button. `--hp2-*` come from the 👥 Second Power tuner (secondPowerConfig.ts); these fallbacks are the

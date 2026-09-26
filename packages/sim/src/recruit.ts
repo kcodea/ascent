@@ -1,4 +1,5 @@
 import { ALE_IDS, RUBY_TYPE_IDS, SPECIAL_RUBY_IDS, TRIBES, alignAllows, makeRng, SILENT_ONPLAY, isShopPoolSpell, shopSpellGrowth, COMBAT_REPLAYABLE_BATTLECRIES, extraTriggerFires, foldEchoExtraFires, socTwilightExtraFires, BODY_COUNTING_DEATHS, ARENA_EFFECTS, beatIdentity, type EffectArena, type PresentationCollector, type PresentationPhase, type PresentationPolicy, type Rng, type CardDef, type EffectDef, type Keyword, type TriggerFamily, type TriggerSourceRef, type Tribe } from '@game/core';
+import { ancientOnSale, ancientOnShopDeath, ancientPowerText } from './ancients';
 import { runSpells } from './spellPool';
 import { REVELER_IDS, RUNE_INDEX, CARD_INDEX, EQUIPMENT_INDEX, STAR_DESTROYER, equipmentOf, recurringEotOwner, type EquipmentDefinition } from '@game/content';
 import { equipIsNews, equipmentParams as equipmentParamsFor, grantEquipment as grantEquipmentToPlayer, armCalibration, unusedEquipmentCount } from './equipment';
@@ -1043,6 +1044,13 @@ export interface HeroPowerLive {
 }
 
 export function heroPowerText(state: RunState, which = 0, live: HeroPowerLive = {}): string {
+  const base = baseHeroPowerText(state, which, live);
+  // ANCIENTS (owner ruling 2026-09-25): an awakened Ancient's pairing prints the COMBINED power on the main slot.
+  // `ancientPowerText` is undefined unless the run has Ancients on and a written pairing is picked.
+  return (which === 0 ? ancientPowerText(state, base) : undefined) ?? base;
+}
+
+function baseHeroPowerText(state: RunState, which: number, live: HeroPowerLive): string {
   const power = activePowers(state)[which] ?? primaryPower(state);
   if (power.kind === 'luckySeat') {
     const suit = state.ciaSuit ?? 'hearts';
@@ -1189,8 +1197,16 @@ const GOLD_SCALED_ACCRUAL_CARDS = new Set(['kennel', 'd2_sovereign', 'packleader
  *  it); only the copy grant skips it. */
 export const NO_COPY_SPELLS: ReadonlySet<string> = new Set(['seconddraft']);
 
-export function gildMinion(card: BoardCard): void {
+/** A minion became Gilded this run: ticks the Ancients' gild count (Bonds). A no-op outside an Ancients run. */
+export function noteGilded(state: RunState | undefined): void {
+  if (state?.ancientsEnabled && state.ancients) state.ancients.gilds = (state.ancients.gilds ?? 0) + 1;
+}
+
+/** Gild `card`. Pass `state` when this is a NEW gild (it ticks the run's gild count); a restore of an already-gilded
+ *  held offer omits it. */
+export function gildMinion(card: BoardCard, state?: RunState): void {
   if (card.golden) return;
+  noteGilded(state);
   const def = CARD_INDEX[card.cardId];
   addBuff(card, 'Gild', def?.attack ?? 0, def?.health ?? 0);
   if (GOLD_SCALED_ACCRUAL_CARDS.has(card.cardId) && (card.summonBonus ?? 0) > 0) {
@@ -2473,7 +2489,7 @@ export function grantMinionToHandOrBoard(state: RunState, def: CardDef, golden: 
   else if (state.board.length < CONFIG.boardMax) state.board.push(card); // hand full → onto the board
   else if (overflow) state.hand.push(card); // quest / rune REWARD cards may over-cap the hand (owner ruling — never lose an earned reward)
   else return card; // otherwise the hand is a hard 10-card cap: hand + board both full → drop, never over-capped
-  if (golden) gildMinion(card);
+  if (golden) gildMinion(card, state);
   takeFromPool(state, def.id); // only claim a pool copy for a card we actually placed
   return card;
 }
@@ -3005,6 +3021,7 @@ export function destroyMinionInShop(
  */
 export function afterShopDestroy(state: RunState, destroyed: BoardCard): void {
   noteShopCardDeath(state, destroyed);
+  ancientOnShopDeath(state, destroyed); // ANCIENT OF WAR, Shop half (a no-op unless the run has it)
   if (!state.runeLastRites || state.lastRitesUsedThisTurn || !isTribe(destroyed, 'undead')) return;
   const def = CARD_INDEX[destroyed.cardId];
   if (!def) return;
@@ -4721,7 +4738,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     const target = (payload as { target?: BoardCard } | undefined)?.target;
     if (!target || target.golden) return;
     // Same gild the spell path uses, so triple/golden bookkeeping lives in one place.
-    gildMinion(target);
+    gildMinion(target, ctx.state);
   },
 
 
@@ -7911,7 +7928,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     const targetTier = CARD_INDEX[self.cardId]?.tier ?? 1;
     if (self.golden) return;
     if (declared !== undefined && targetTier > num(declared, 7)) return;
-    gildMinion(self);
+    gildMinion(self, ctx.state);
   },
 
   /** Tribes Choice — cast: conjure a random buyable minion sharing the *target's* tribe, tier ≤ the
@@ -10854,6 +10871,7 @@ export function fireOnMinionSold(state: RunState, sold: BoardCard): void {
  * (Rune of Dismantling is deliberately NOT here: it fires BEFORE the body leaves and belongs to the manual sale.)
  */
 export function settleMinionSale(state: RunState, sold: BoardCard): void {
+  ancientOnSale(state, sold); // ANCIENT OF FORTUNE: a gilded sale gets a plain copy (a no-op unless the run has it)
   // Hoarder sells for a flat 2 Gold (golden 4); everything else for the base sell value. Rune of
   // Bartering (Shout minions sell for 2) is folded into the shared helper, so the UI coin matches.
   // Quick Sale: the next minion sold this turn gets a one-shot bonus on top, then the bonus is spent.

@@ -1,4 +1,5 @@
 import { type PresentationCollector, type ConsequenceDraft, type CombatEvent, beatIdentity, socTwilightExtraFires, COMBATATIVE_RUBIES_ATTACKS, BODY_COUNTING_DEATHS, ALE_IDS, combatSide, makeCollector, makeRng, simulate, type BoardMinion, type CardDef, type CombatConfig, type CombatResult, type CombatSideState, type Keyword, type PendingCombatQuest, type PresentationBatch, type QuestCombatMods, type QuestDef, type QuestObjective, type QuestObjectiveEvent, type Tribe, TRIBES } from '@game/core';
+import { ancientCombatMods, ancientAfterPowerGild, ancientOfferOpen, ancientPowerTargetsGilded, ancientReplacesPowerGild, ancientsCombatTick, ancientsRefreshTick, ancientsSetMeter, pickAncient } from './ancients';
 import { runSpells } from './spellPool';
 import { currentCollector, withActiveCollector } from './activeCollector';
 import { surfaceKeyForRune, surfaceKeyForQuest, CARD_INDEX, EPIC_RUNES, GIFT_IDS, QUEST_INDEX, RUNE_INDEX, RUNES, runeSynergies, type SynergyTag } from '@game/content';
@@ -20,7 +21,7 @@ import {
   equipmentChargesOf, equipmentCostOf, expireEquipmentTurn, rebuildEquipment, spendEquipmentCharge,
   selectEquipment, selectedEquipment, amplifyAllHeld, amplifyUnactivated, consumeAmplified,
 } from './equipment';
-import { applyChooseOnePlayed, spendChooseBothCharge, noteSpellCast, applyCastEffects, makeContext, discoverSpecFor, heroPowerCostOf, commissionOffer, COMMISSION_DELAY, aegisGrantOf, allInPayoutOf, threeDistinctTypes, exhibitionGrantOf, stampSableBond, stampSharedSpoils, heroOfferPrice, addBuff, addOfferBuff, applyBattlecryTarget, applyCardsBought, applyCardsPlayed, applyChooseOne, applyChooseOneTarget, chooseBothActive, chooseOneNeedsChoice, applyEndOfTurn, applyStartOfTurn, applyOnBuy, applyGoldSpent, advanceRuneThresholds, applySecondLife, effectiveTargetTribe, dominantBoardTribe, uncontrolledTribes, gainGold, applyRunShopBuff, applyShoutsForEndlessVerse, applyShoutsForShopBuff, auraFxTargets, boardManaBonus, buffImpsRunWide, buffUndeadAttackEverywhere, buffCardTypeRunWide, buffFodderRunWide, cardBuff, captureBuffFx, conjuredStats, castSpell, castSpellOnOffer, conjureToHand, consumeTavernFodder, fireGravetwinEchoes, fireOnGainAttack, fireOnRubyCast, fireOnRubyPlayed, applyRubyRiderAction, mintRandomRubies, recordRubyRiderFx, fireOnMinionSold, fireOnSell, fireOnGainCard, fireSummonBuffs, fireDemonPlayRunes, foldOfferBuffs, creditShopBuffSource, gildMinion, grantMinionToHandOrBoard, grantTopTypeMinion, hasBattlecry, isTribe, mintRubies, modalOpen, openDiscover, playCard, queueDiscover, replayBattlecry, replayEconomyBattlecry, replayEndOfTurn, restoreHeldOffer, replayRecurringEndOfTurn, withEotDiscoverGrantBeat, sellValueOf, sellValueWithBonus, rubyCastCount, giftCastCount, rubyStatBonus, yazzusExtraCasts, consumeGrimoireCharge, countRubyAsShopSpell, fireSpellCastWatchersForRuby, spellAttackBonus, spellCasts, spellCostReduction, spellHealthBonus, stampImproveReps, swapWithTavern, applySpellBought, applyShopRefreshed, taughtAimSpell, triggerBorrowedEcho, landBorrowed, settlePendingDeath, stampEquipFx, equipmentFxMark, buffedFxTargets, fireEquipmentTriggers, fireEquipmentActivated, buyHealthAura, undeadBuyBonus, weldMagnetic, defIsTribe, handCardLocked, fireStatGainReactors, fireEquipmentFree, applyRuneGrafts, noteSpellForCountRunes, settleMinionSale, distillationEdges, fireRunicHoard, applyLorekeeping, runeExtraCasts, castWithRuneRepeats, withCastActor, withHandCast, fireSoldChoice } from './recruit';
+import { applyChooseOnePlayed, spendChooseBothCharge, noteSpellCast, applyCastEffects, makeContext, discoverSpecFor, heroPowerCostOf, commissionOffer, COMMISSION_DELAY, aegisGrantOf, allInPayoutOf, threeDistinctTypes, exhibitionGrantOf, stampSableBond, stampSharedSpoils, heroOfferPrice, addBuff, addOfferBuff, applyBattlecryTarget, applyCardsBought, applyCardsPlayed, applyChooseOne, applyChooseOneTarget, chooseBothActive, chooseOneNeedsChoice, applyEndOfTurn, applyStartOfTurn, applyOnBuy, applyGoldSpent, advanceRuneThresholds, applySecondLife, effectiveTargetTribe, dominantBoardTribe, uncontrolledTribes, gainGold, applyRunShopBuff, applyShoutsForEndlessVerse, applyShoutsForShopBuff, auraFxTargets, boardManaBonus, buffImpsRunWide, buffUndeadAttackEverywhere, buffCardTypeRunWide, buffFodderRunWide, cardBuff, captureBuffFx, conjuredStats, castSpell, castSpellOnOffer, conjureToHand, consumeTavernFodder, fireGravetwinEchoes, fireOnGainAttack, fireOnRubyCast, fireOnRubyPlayed, applyRubyRiderAction, mintRandomRubies, recordRubyRiderFx, fireOnMinionSold, fireOnSell, fireOnGainCard, fireSummonBuffs, fireDemonPlayRunes, foldOfferBuffs, creditShopBuffSource, gildMinion, grantMinionToHandOrBoard, grantTopTypeMinion, hasBattlecry, isTribe, mintRubies, modalOpen, openDiscover, playCard, queueDiscover, replayBattlecry, replayEconomyBattlecry, replayEndOfTurn, restoreHeldOffer, replayRecurringEndOfTurn, withEotDiscoverGrantBeat, sellValueOf, sellValueWithBonus, rubyCastCount, giftCastCount, rubyStatBonus, yazzusExtraCasts, consumeGrimoireCharge, countRubyAsShopSpell, fireSpellCastWatchersForRuby, spellAttackBonus, spellCasts, spellCostReduction, spellHealthBonus, stampImproveReps, swapWithTavern, applySpellBought, applyShopRefreshed, taughtAimSpell, triggerBorrowedEcho, landBorrowed, settlePendingDeath, stampEquipFx, equipmentFxMark, buffedFxTargets, fireEquipmentTriggers, fireEquipmentActivated, buyHealthAura, undeadBuyBonus, weldMagnetic, defIsTribe, handCardLocked, fireStatGainReactors, fireEquipmentFree, applyRuneGrafts, noteSpellForCountRunes, settleMinionSale, distillationEdges, fireRunicHoard, applyLorekeeping, runeExtraCasts, castWithRuneRepeats, withCastActor, withHandCast, fireSoldChoice, noteGilded } from './recruit';
 import { handCap, recordBounceFx, mixSeed, reservedHandSlots, TAG, henchmanOffer, type Action, type DeferredFight, type PreparedCombatSide, type ActiveQuest, type AuraFxTribe, type BoardCard, type CardBuff, type ShopCard, type CiaSuit, type Commission, type CommissionKind, type RunState, type RubyLandedFx, gateUses, procRune, procRuneId, runeBuffMagnitude, PACKCRAFT_STEP, REINVESTMENT_PER_SUMMON, SLAYING_KILLS } from './state';
 import { alignmentsOf } from './alignment';
 import { RUNE_DUP_SWEETENER, RUNE_DUP_UNIQUE, forgeFilteredDuplicate, runeStacksOf } from './runeDup';
@@ -586,7 +587,7 @@ function takeDiscoverPick(s: RunState, index: number): boolean {
     if (s.discoverSetStats) { taken.attack = s.discoverSetStats.attack; taken.health = s.discoverSetStats.health; }
     // A GILDED Discover (a golden Salvatore McKlusky) hands the pick over already gilded — the same
     // transform a triple applies, so the stats/keywords stay consistent with every other golden.
-    if (s.discoverGolden) gildMinion(taken);
+    if (s.discoverGolden) gildMinion(taken, s);
     // Rune of Rising Echoes: the pick arrives carrying granted keywords (Rise + Taunt). Applied after the gild
     // so a gilded pick keeps them, and de-duped against what the card already has.
     for (const k of s.discoverKeywords ?? []) if (!taken.keywords.includes(k)) taken.keywords.push(k);
@@ -1375,6 +1376,16 @@ function reduceCore(state: RunState, action: Action): RunState {
   // dissolve and THEN raise the Discover (Recruit.tsx holds the overlay on `pendingDeath`).
   const settlesDeath = action.type === 'resolveShopDeath' && !!state.pendingDeath;
   if (modalOpen(state) && !combatTransition && !combatPreview && !settlesDeath && action.type !== 'discover' && action.type !== 'chooseOne' && action.type !== 'cancelChoice' && action.type !== 'battlecryTarget' && action.type !== 'buyQuest' && action.type !== 'pickPower' && action.type !== 'buyRune' && action.type !== 'skipRuneforge' && action.type !== 'rerollRuneforge' && action.type !== 'devGrant' && action.type !== 'closeScout' && !endTurnEscapesAim) {
+    return state;
+  }
+
+  // ANCIENTS: the awakening Discover PAUSES THE SHOP (owner ruling 3). It is its own gate rather than a `modalOpen`
+  // member so it never changes how the other modals queue: a quest / Runeforge / Discover raised alongside it stays
+  // answerable (the UI presents those first), and only the Shop's own actions wait for the pick.
+  if (ancientOfferOpen(state) && !combatTransition && !combatPreview && !settlesDeath && action.type !== 'pickAncient'
+    && action.type !== 'discover' && action.type !== 'chooseOne' && action.type !== 'cancelChoice' && action.type !== 'battlecryTarget'
+    && action.type !== 'buyQuest' && action.type !== 'pickPower' && action.type !== 'buyRune' && action.type !== 'skipRuneforge'
+    && action.type !== 'rerollRuneforge' && action.type !== 'devGrant' && action.type !== 'closeScout') {
     return state;
   }
 
@@ -3001,8 +3012,15 @@ function reduceCore(state: RunState, action: Action): RunState {
         // inspect breakdown still sums; accrued buffs are NOT doubled — see `gildMinion`) AND flips the golden
         // flag, which doubles its effects (Deathrattles fire twice, ×N multipliers, etc.). Board only; a no-op
         // (and no charge spent) on a missing target or an already-golden minion.
-        if (!card || card.golden) return state;
-        gildMinion(card);
+        // ANCIENT OF GENESIS replaces the gild outright (2 plain copies; the `checkTriples` below completes the
+        // triple), so a gilded target is legal for it. Every other pairing gilds first, then rides along.
+        if (!card) return state;
+        if (!ancientReplacesPowerGild(s, card)) {
+          // ANCIENT OF BONDS: an already-Gilded target is legal (no second gild, so no new count; the buff still lands).
+          if (card.golden) { if (!ancientPowerTargetsGilded(s)) return state; }
+          else gildMinion(card, s);
+          ancientAfterPowerGild(s, card); // DEATH: + Rebirth + Taunt. BONDS: + 20/20 × the run's gild count.
+        }
         // Indy: arm the recharge — the charge comes back after INDY_GILD_RECHARGE_GOLD more Gold is spent.
         s.indyGildRearmAt = (s.goldSpent ?? 0) + INDY_GILD_RECHARGE_GOLD;
       } else if (power.kind === 'replayBattlecry') {
@@ -3208,7 +3226,7 @@ function reduceCore(state: RunState, action: Action): RunState {
           s.rngCursor = rng.state();
           conjureToHand(s, [pick], 1);
           const granted = s.hand[s.hand.length - 1];
-          if (granted) gildMinion(granted); // the payout arrives already Gilded, like a golden Discover
+          if (granted) gildMinion(granted, s); // the payout arrives already Gilded, like a golden Discover
           s.bramInvested = 0;
         } else {
           s.bramInvested = invested;
@@ -3644,6 +3662,18 @@ function reduceCore(state: RunState, action: Action): RunState {
       s.fxBladeAttacksPreview = action.count === 0 ? undefined : action.count; // Gorun's live grant/countdown
       return s;
     }
+    case 'pickAncient': {
+      if (!pickAncient(s, action.id)) return state;
+      return s;
+    }
+
+    case 'ancientSetMeter': {
+      // DEV (Scene Builder): only on a run that has Ancients; a no-op (no clone kept) otherwise.
+      if (!s.ancientsEnabled || !s.ancients) return state;
+      ancientsSetMeter(s, action.points);
+      return s;
+    }
+
     case 'settleCombat': {
       // Combat replay finished — apply the outcome (damage + carry-backs) now, in the combat view, so the
       // Resolve hit lands before you return to the shop. Idempotent: only the first call settles.
@@ -4005,6 +4035,7 @@ function combineIntoGolden(s: RunState, tripleId: string, combined: BoardCard[])
   else s.board.push(goldenCard);
   carrySableBond(s, combined, goldenCard.uid);
   s.triplesMade++; // run-wide tally — surfaced as opponent intel in board snapshots
+  noteGilded(s); // a triple is a minion becoming Gilded (the Ancient of Bonds' count)
 }
 
 /**
@@ -4362,7 +4393,7 @@ export function playerCombatSideState(s: RunState): CombatSideState {
     // Set 2 — Elderhorn's chosen mode(s), so its tribe-scoped trigger multipliers apply in the fight.
     beastHuntExtra: s.beastHuntExtra ?? 0,
     beastRitualExtra: s.beastRitualExtra ?? 0,
-    questMods: questCombatMods(s),
+    questMods: { ...questCombatMods(s), ...ancientCombatMods(s) }, // Ancients ride the PLAYER's fight only (never a snapshot)
     pendingQuests: buildPendingCombatQuests(s),
   });
 }
@@ -5526,7 +5557,7 @@ function advanceCombat(s: RunState): void {
       const rng = makeRng(s.rngCursor);
       const pick = eligible[rng.int(eligible.length)]!;
       s.rngCursor = rng.state();
-      gildMinion(pick);
+      gildMinion(pick, s);
       procRuneId(s, 'rune_pendant');
     }
   }
@@ -5612,6 +5643,9 @@ function advanceCombat(s: RunState): void {
       applyShopRefreshed(s); // same fresh-roll rule as the main start-of-turn path above
     }
   }
+  // ANCIENTS: the combat just fought fills the meter as the next Shop opens (a no-op unless the run has Ancients).
+  // If it fills, the awakening offer opens behind whatever start-of-turn modal is up; the UI presents it after.
+  ancientsCombatTick(s);
 }
 
 /** Advance every active, incomplete quest whose objective matches `pred`, by 1; complete + apply the reward at
@@ -7510,6 +7544,9 @@ export function questCombatMods(s: RunState): QuestCombatMods {
  * with "tavern refresh" hooks in one place.
  */
 function refreshTavern(s: RunState, hold = false): void {
+  // ANCIENTS: every Shop REFRESH fills the meter (paid or free, no distinction). `hold` marks the turn-start
+  // roll, which is the new Shop rather than a refresh. A no-op unless the run has Ancients.
+  if (!hold) ancientsRefreshTick(s);
   // Rune of the Muster: the armed free refresh is stocked with PLAIN copies of your board instead of a draw.
   // Spent on use, and only when there is a board to copy (an empty board would produce an empty shop).
   if (s.runeMuster && s.board.length > 0) {

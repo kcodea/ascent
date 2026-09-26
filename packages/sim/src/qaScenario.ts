@@ -228,7 +228,7 @@ const ACTION_TYPES: Record<Action['type'], true> = {
   pickPower: true, discover: true, buyQuest: true, buyRune: true, skipRuneforge: true, rerollRuneforge: true,
   resolveShopDeath: true, selectEquipment: true, activateEquipment: true, discountWindowExpired: true,
   chooseOne: true, cancelChoice: true, battlecryTarget: true, closeScout: true, faceOmen: true, settleCombat: true,
-  resolveCombat: true, devGrant: true,
+  resolveCombat: true, devGrant: true, pickAncient: true, ancientSetMeter: true,
 };
 
 /** Does this id resolve in ANY content index (card, rune, quest)? */

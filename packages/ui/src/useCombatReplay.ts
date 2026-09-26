@@ -31,7 +31,7 @@ import { groupBuffCasts, type BuffCast } from './choreo/channels/buffCast';
 import { groupSelfBuffs, type SelfBuff } from './choreo/channels/buffSelf';
 import { runAttackExchangeCues, runRiseReturn } from './choreo/engine';
 import { setTransition } from './choreo/channels/lunge';
-import { burstDeathAuras, breakShieldAura, reformReborn } from './choreo/channels/aura';
+import { burstDeathAuras, breakShieldAura, reformReborn, reformRebirth } from './choreo/channels/aura';
 import { type Float, type DeathFloat, KW_FLOAT } from './choreo/channels/float';
 import { combatBuffDelta, combatPreviewFold, type CombatBuffDelta, type CombatPreviewFold } from './runBuffs';
 import type { CombatQuestDelta } from './store'; // type-only (erased) — no runtime edge back to the store
@@ -517,6 +517,9 @@ export function computeFrame(
       // kept its pre-ascension face for the rest of the replay.
       const u = find(e.target);
       const def = CARD_INDEX[e.into];
+      // ANCIENT OF TIME: an in-fight GILD rides this event (`gild`, same card) — the body turns golden for the
+      // fight; its doubled stats land as the `buff` that follows.
+      if (u && e.gild) u.golden = true;
       if (u && def) {
         u.cardId = e.into;
         u.name = def.name;
@@ -2404,7 +2407,8 @@ export function useCombatReplay(
       },
       onAuraBurst: (uid) => burstDeathAuras(uid, rectOf(uid)),
       onShieldBreak: (uid) => breakShieldAura(rectOf(uid), uid),
-      onReborn: (uid) => reformReborn(rebornRects.get(uid) ?? rectOf(uid)),
+      // Rise re-forms in aqua; REBIRTH bursts into its phoenix flame (owner 2026-09-25) — one call per event.
+      onReborn: (uid, rebirth) => (rebirth ? reformRebirth(rebornRects.get(uid) ?? rectOf(uid), uid) : reformReborn(rebornRects.get(uid) ?? rectOf(uid))),
       // Execute proc → the crescent strike at the VICTIM's slot (the unit being destroyed), read at fire time
       // so a tuner edit applies to the next proc.
       onExecuteFx: (uids) => {

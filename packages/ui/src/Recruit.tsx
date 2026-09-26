@@ -101,6 +101,7 @@ import { playPlateCoalesce } from './plateCoalesce';
    rope gets there. The hold state machine and its escape hatches live in `lassoHolds.ts`, pinned by a test. */
 import { foldLassoHolds, lassoBeamSchedule, lassoCascadeMs, useLassoCascade, LASSO_CONTACT_MS, LASSO_STAGGER_MS, type LassoCascadeHandlers, type LassoSteal } from './lassoHolds';
 import { useEquipBeamCascade, type EquipBeamAnchors } from './equipBeamCascade';
+import { AncientOfferOverlay } from './ancients/AncientOffer';
 import { playGildTrail } from './gildTrail';
 import { commitSlidePlan } from './rowSlides';
 import { resolveGildSources, snapshotGildCandidates, type GildSnap, type Pt } from './gildTrailSources';
@@ -2039,6 +2040,8 @@ export function Recruit() {
   // The same window drives the `.app.staged` class (the lobby rail's slide-away) below.
   const setCombatStaged = useGame((s) => s.setCombatStaged);
   useEffect(() => { setCombatStaged(combatBgShown); }, [combatBgShown, setCombatStaged]);
+  const setWipeIdle = useGame((s) => s.setWipeIdle);
+  useEffect(() => { setWipeIdle(wipe === 'idle'); }, [wipe, setWipeIdle]);
   // SHOP OVERLAYS WAIT FOR THE CURTAIN (owner ask 2026-08-28) — the Runeforge / quest / power / Discover /
   // Choose One / scout offers exist in run state the instant combat resolves, but their overlays must not
   // open over the exit curtain: hold their RENDER (state is untouched — the shop timer's pause already keys
@@ -2555,14 +2558,16 @@ export function Recruit() {
   // A board-covering modal is open (Discover / Choose One / a quest or runeforge offer / a scouted board).
   useEffect(() => {
     // A minimized Discover / Quest overlay leaves the board visible, so it doesn't count as covering.
-    const modalCovering = showLog || (!overlaysHeld && ((run.discover && !discoverMin && !discoverDeathHold) || (run.questOffer && !questMin) || run.powerOffer || (run.runeforgeOffer && !forgeMin) || run.chooseOne || (run.scoutedNextOpponent?.length ?? 0) > 0));
+    const modalCovering = showLog || (!overlaysHeld && ((run.discover && !discoverMin && !discoverDeathHold) || (run.questOffer && !questMin) || run.powerOffer || (run.runeforgeOffer && !forgeMin) || run.chooseOne || (run.scoutedNextOpponent?.length ?? 0) > 0 || (run.ancients?.offer?.length ?? 0) > 0));
     // The Fight Recap counts too (2026-09-24): without it the hand + hero panels painted OVER its scrim.
     // The hero portrait / pills / power diamond live OUTSIDE the overlay's backdrop root (their own fixed
     // stacking contexts), so the overlay's backdrop-filter can't blur them — mark the body and let CSS blur
     // + dim them to match the rest of the covered board (owner report 2026-07-16). One-shot filter change.
     document.body.classList.toggle('modalup', !!modalCovering);
-    return () => document.body.classList.remove('modalup');
-  }, [run.discover, run.chooseOne, discoverMin, run.questOffer, run.powerOffer, questMin, run.runeforgeOffer, forgeMin, overlaysHeld, discoverDeathHold, showLog]);
+    // ANCIENTS: the awakening (gate + offer) also marks the body, so the Shop row can step back behind it.
+    document.body.classList.toggle('ancoffer', !overlaysHeld && (run.ancients?.offer?.length ?? 0) > 0);
+    return () => { document.body.classList.remove('modalup'); document.body.classList.remove('ancoffer'); };
+  }, [run.discover, run.chooseOne, discoverMin, run.questOffer, run.powerOffer, questMin, run.runeforgeOffer, forgeMin, overlaysHeld, discoverDeathHold, showLog, run.ancients?.offer]);
   // B2: each Discover opens expanded — reset the minimized flag whenever the pending Discover changes.
   useEffect(() => { setDiscoverMin(false); }, [run.discover]);
   // Each quest offer opens expanded too — reset the minimized flag when the offer changes.
@@ -4473,7 +4478,7 @@ export function Recruit() {
     // the intro fades or is skipped. The gate itself lives in `turnClockMayTick` so it is testable.
     if (!turnClockMayTick({
       recruitPhase: run.phase === 'recruit',
-      decisionOpen: !!(run.discover || run.questOffer || run.powerOffer || run.runeforgeOffer || run.pendingTarget || run.chooseOne || run.scoutedNextOpponent?.length),
+      decisionOpen: !!(run.discover || run.questOffer || run.powerOffer || run.runeforgeOffer || run.pendingTarget || run.chooseOne || run.scoutedNextOpponent?.length || run.ancients?.offer?.length),
       heroSelecting,
       overlayOpen,
       introPlaying,
@@ -4496,7 +4501,7 @@ export function Recruit() {
     };
     id = window.setTimeout(tick, tickMs());
     return () => window.clearTimeout(id);
-  }, [run.phase, run.discover, run.questOffer, run.powerOffer, run.runeforgeOffer, run.pendingTarget, run.chooseOne, heroSelecting, overlayOpen, introPlaying, run.wave, replaySpeed]);
+  }, [run.phase, run.discover, run.questOffer, run.powerOffer, run.runeforgeOffer, run.pendingTarget, run.chooseOne, run.ancients?.offer, heroSelecting, overlayOpen, introPlaying, run.wave, replaySpeed]);
 
   // Detect a self-buff (a minion's own stats jump in the recruit phase) and fire its self-buff cue. The
   // readout itself is the badge's own job now — see the cut below.
@@ -7305,6 +7310,10 @@ export function Recruit() {
       <QuestOverlay overlaysHeld={overlaysHeld} questOffer={run.questOffer} questMin={questMin} setQuestMin={setQuestMin} dispatch={dispatch} />
 
       <PowerOverlay overlaysHeld={overlaysHeld} powerOffer={run.powerOffer} dispatch={dispatch} />
+
+      {/* ANCIENTS (proof of concept): the awakening Discover. It waits for every other decision overlay, and for
+          the curtain, so it never stacks on one. */}
+      <AncientOfferOverlay held={overlaysHeld || !!(run.discover || run.questOffer || run.powerOffer || run.runeforgeOffer || run.pendingTarget || run.chooseOne || run.scoutedNextOpponent?.length)} run={run} dispatch={dispatch} />
 
       <RuneforgeOverlay
         overlaysHeld={overlaysHeld} run={run} forgeMin={forgeMin} setForgeMin={setForgeMin} lockIn={lockIn} lockInSlow={lockInSlow} setLockIn={setLockIn}

@@ -1814,6 +1814,12 @@ export type QuestCombatFlag = 'bloodTrail' | 'echoingCoop' | 'lawOfTeeth' | 'old
 /** Quest-armed combat modifiers threaded into `simulate()` (one trailing options arg). Beast quest capstones +
  *  greaters live here so the pure combat engine can honor them without new positional params per flag. */
 export interface QuestCombatMods {
+  /** ANCIENT OF WAR (proof of concept, owner 2026-09-25): whenever a friendly minion dies, this side's GILDED
+   *  minions gain +attack/+health, permanently (carried back as `permaGain`). Player-only; never snapshotted. */
+  ancientWar?: { attack: number; health: number; label: string };
+  /** ANCIENT OF TIME (proof of concept): Start of Combat, this side's right-most minion becomes Gilded for the
+   *  fight only (the run card is never touched, so it reverts after). Player-only; never snapshotted. */
+  ancientTimeGild?: { label: string };
   /** Pack Mentality's Health half of the Beast aura — the `beastBuyHp` sibling of `beastBuyAtk`, re-added to
    *  from-base Beast bodies (summons / Reborn) so "+/+H wherever they are" catches combat summons. */
   beastAuraHp?: number;
@@ -2652,7 +2658,7 @@ export type CombatEvent = (
   | { type: 'keywordLost'; target: string; keyword: Keyword; source?: string } // a combat effect STRIPS a keyword (Tauntbreaker → Taunt/Rise off the enemy it hit) — the UI drops that pill
   | { type: 'venomLost'; target: string } // a Venomous minion procced and lost Venomous
   | { type: 'summon'; minion: MinionSnapshot; side: Side; index: number; source?: string; fromHandUid?: string } // `fromHandUid`: a COPY summoned from that hand card (set 3 Spirits) — the card stays in hand, greyed for the fight
-  | { type: 'ascend'; target: string; into: string } // mid-combat transform (Tara → Taragosa, Spirit Pup → Spirit Worgen)
+  | { type: 'ascend'; target: string; into: string; gild?: true } // `gild`: an in-fight GILD (Ancient of Time) — same card, now golden; its doubled stats arrive as a `buff` // mid-combat transform (Tara → Taragosa, Spirit Pup → Spirit Worgen)
   // `ruby`: this stat gain came from a RUBY landing on `target` (set 2 Kobolds), not from an ordinary buff.
   // Pure presentation metadata in the same spirit as `avenge` below — never read by the sim, never affects
   // outcomes. It exists because `applyRubyStats` routes through the same `ctx.buff` as every other stat gain,

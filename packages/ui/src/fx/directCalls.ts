@@ -31,6 +31,7 @@ export const DIRECT_CALL_SITES: Readonly<Record<string, readonly string[]>> = {
   // The persistent AMPLIFIED glow on the Equipment slot (owner-authored 2026-09-22): a looping, slot-centred play
   // started while the selected Equipment will Amplify AND has a charge to spend, fired by literal id from its hook.
   'amplified-slot': ['useAmplifiedSlotFx.ts'],
+  'ancient-slam': ['ancients/ancientsSmoke.ts'],
   // The Auctioneer's Pulse — played on the TARGET minion instead of the generic `hero-power-target` spark.
   'auctioneer-hp': ['Recruit.tsx'],
   'choose-one-both': ['useChooseBothFx.ts'],   // the persistent (Both) marker on hand / shop / Discover cards
@@ -62,7 +63,7 @@ export const DIRECT_CALL_SITES: Readonly<Record<string, readonly string[]>> = {
   'freeze-blast': ['FreezeButton.tsx'],
   // THE GILD (owner redesign 2026-09-24, replacing plateGild's centre-screen fuse): one play PER consumed copy,
   // from where it stood into the new gilded card — the poof, the arc and the landing are all this one def.
-  'gild-trail': ['gildTrail.ts'],
+  'gild-trail': ['ancients/AncientMeter.tsx', 'gildTrail.ts'],
   // A HAND card getting stronger — minion, spell, Ruby or token (owner-authored 2026-09-15, replacing the CSS
   // spell-buff grow/shrink + mote blast). Fired from the one `playHandBuffOn` every surface's fan-out lands on:
   // the shop's hand diff, the End-of-Turn presenters and the combat replay's `handBuff` beat scan.
@@ -94,6 +95,7 @@ export const DIRECT_CALL_SITES: Readonly<Record<string, readonly string[]>> = {
   // The RANK-UP hit (owner-authored 2026-09-20): a ring collapsing onto the crest, then a gold shard burst as
   // the new crest lands — fired by the post-game rank timeline at the promotion beat (division and medal).
   'rank-up': ['rank/rankTimeline.ts'],
+  'rebirth-flame': ['choreo/channels/aura.ts'],
   'rune-buff-unit': ['Recruit.tsx', 'useCombatReplay.ts'],
   // THE RUNE CAST FLOURISH (2026-09-24, owner: "a bit of flair … a 'magic' element to it? nothing crazy"): the glyph
   // flash on a casting rune's node, and the mote it sends to where a single-play spell effect lands. Every rune
@@ -111,7 +113,8 @@ export const DIRECT_CALL_SITES: Readonly<Record<string, readonly string[]>> = {
   // floor as it opens, and the Epic forge's flare as its last tablet lands.
   'runeforge-embers': ['runeforgeEntrance/entrance.ts'],
   'runeforge-epic-flare': ['runeforgeEntrance/entrance.ts'],
-  'runeforge-land-dust': ['runeforgeEntrance/entrance.ts'],
+  // The Ancients reuse the Runeforge landing dust as-is (tinted) for each slam and the eruption (2026-09-25).
+  'runeforge-land-dust': ['ancients/ancientsSmoke.ts', 'runeforgeEntrance/entrance.ts'],
   // The mid-combat Shop-buff bloom (owner-authored 2026-09-02, replacing `shop-buff-aura` on this surface). The
   // shop-row play goes through the `shopBuffAll` binding instead — see `runShopBuffAllFire`.
   'shop-buff-purple': ['useCombatReplay.ts'],

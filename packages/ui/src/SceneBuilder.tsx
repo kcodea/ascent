@@ -97,6 +97,8 @@ function SceneBuilderInner({ minimized, onRestore }: { minimized: boolean; onRes
   const sbRules = useGame((s) => s.sbRules);
   const setSbRules = useGame((s) => s.setSbRules);
   const sbBotLevel = useGame((s) => s.sbBotLevel);
+  const sbAncients = useGame((s) => s.sbAncients);
+  const setSbAncients = useGame((s) => s.setSbAncients);
   const { panelRef, headerPointerDown, panelStyle, raise } = useDraggablePanel('scenebuilder');
   // Library tab (minions / spells / runes share the search box + list) and the per-section fold state (remembered).
   const [lib, setLib] = useState<LibTab>('minions');
@@ -388,6 +390,27 @@ function SceneBuilderInner({ minimized, onRestore }: { minimized: boolean; onRes
               <button className="sb-btn sb-btn-tall" onClick={() => startSceneBuilder(run?.heroId ?? 'warden', setId)} aria-description="Start the sandbox over with a fresh lobby (same hero, set and rules)">↺ restart</button>
             </div>
             <div className="sb-mini sb-note">you can't be eliminated under either rule set</div>
+            {/* ANCIENTS (proof of concept, owner 2026-09-25): Set 3 only. The toggle relaunches the rig (the meter is
+                stamped on the run at creation); the meter row drives the REAL reducer (`ancientSetMeter`). */}
+            {setId === 'set3' && (
+              <div className="sb-ancients">
+                <button type="button" className={`sb-seg-btn sb-anc-toggle${sbAncients ? ' on' : ''}`} aria-pressed={sbAncients}
+                  onClick={() => setSbAncients(!sbAncients)}
+                  aria-description="Play this Set 3 sandbox with the Ancients meter around the hero power (restarts the sandbox)">
+                  ✦ Ancients {sbAncients ? 'on' : 'off'}
+                </button>
+                {run?.ancients && (
+                  <>
+                    <span className="sb-mini">meter</span>
+                    <CountStepper value={run.ancients.points} min={0} max={run.ancients.cost}
+                      onCommit={(v) => dispatch({ type: 'ancientSetMeter', points: v })} />
+                    <button type="button" className="sb-btn" disabled={!!run.ancients.picked || !!run.ancients.offer}
+                      onClick={() => dispatch({ type: 'ancientSetMeter', points: run.ancients!.cost })}
+                      aria-description="Fill the meter so the Ancient awakens now">Fill meter</button>
+                  </>
+                )}
+              </div>
+            )}
           </Sec>
 
           {/* TABLE — Gold, time, tier and the board sweeps, as one grid of same-sized tiles. */}

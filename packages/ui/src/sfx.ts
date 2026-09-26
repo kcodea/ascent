@@ -662,6 +662,8 @@ export const sfx = {
   // drift apart — a spell has no `onPlay` effect, so `store.ts`'s per-card effect hook (minions only) never
   // reaches it. It plays the same `cards/sp_dragonflame.effect.mp3` clip both phases use, on the same fader.
   dragonflame: () => { playSample('cards/sp_dragonflame.effect', 'cardEffect'); },
+  /** REBIRTH's phoenix flame (owner 2026-09-25): reuses the Dragonflame whoosh, softened by the 🔥 tuner's gain. */
+  rebirthFlame: (vol = 0.6) => { playSample('cards/sp_dragonflame.effect', 'cardEffect', 0, (n) => { n.gain.gain.value *= Math.max(0, vol); }); },
   // A hero is CHOSEN in Hero Select — drop `audio/heroes/<heroId>.mp3` and it plays, LAYERED over the generic
   // pulse. Silent (no fallback) if the hero has no clip.
   heroSelect: (heroId: string) => { playSample(`heroes/${heroId}`, 'heroSelect'); },
@@ -1149,6 +1151,18 @@ export function setBusGain(b: BusName, v: number): void {
   const a = audio();
   busNodes.get(b)?.input.gain.setTargetAtTime(v, a?.currentTime ?? 0, 0.01);
   persistConfig();
+}
+/** Temporarily DUCK every sound bus except `keep` to `factor` × its fader (ramped, never persisted); `duckSfxBuses(1)`
+ *  restores the faders. For a presentation beat that must hold its breath (the Ancients awakening). */
+export function duckSfxBuses(factor: number, keep: BusName | null = null, tauMs = 120): void {
+  const a = audio();
+  if (!a) return;
+  const k = Math.min(1, Math.max(0, factor));
+  for (const [b, node] of busNodes) {
+    if (b === keep) continue;
+    node.input.gain.cancelScheduledValues(a.currentTime);
+    node.input.gain.setTargetAtTime(cfg.buses[b].gain * k, a.currentTime, Math.max(0.005, tauMs / 1000));
+  }
 }
 /** Set one master-limiter dial (threshold/knee/ratio/attack/release) — live on the node + persists. */
 export function setMasterComp(k: keyof CompConfig, v: number): void {

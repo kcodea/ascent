@@ -1,0 +1,526 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ascent Quiz #45 — 2026-09-26</title>
+<style>
+  :root {
+    --bg: #12141c;
+    --panel: #1b1f2c;
+    --panel-border: #2c3244;
+    --text: #e8eaf2;
+    --muted: #9096ab;
+    --accent: #7c9cff;
+    --accent-dim: #4a5a8f;
+    --good: #4ade80;
+    --good-bg: rgba(74, 222, 128, 0.12);
+    --bad: #f87171;
+    --bad-bg: rgba(248, 113, 113, 0.12);
+    --choice-bg: #232838;
+    --choice-hover: #2a3040;
+  }
+  @media (prefers-color-scheme: light) {
+    :root:not([data-theme="dark"]) {
+      --bg: #f4f5fa;
+      --panel: #ffffff;
+      --panel-border: #dfe2ee;
+      --text: #1c2030;
+      --muted: #5c6178;
+      --accent: #3d5cd6;
+      --accent-dim: #b9c4f0;
+      --good: #16a34a;
+      --good-bg: rgba(22, 163, 74, 0.1);
+      --bad: #dc2626;
+      --bad-bg: rgba(220, 38, 38, 0.1);
+      --choice-bg: #f0f1f8;
+      --choice-hover: #e4e7f5;
+    }
+  }
+  :root[data-theme="light"] {
+    --bg: #f4f5fa;
+    --panel: #ffffff;
+    --panel-border: #dfe2ee;
+    --text: #1c2030;
+    --muted: #5c6178;
+    --accent: #3d5cd6;
+    --accent-dim: #b9c4f0;
+    --good: #16a34a;
+    --good-bg: rgba(22, 163, 74, 0.1);
+    --bad: #dc2626;
+    --bad-bg: rgba(220, 38, 38, 0.1);
+    --choice-bg: #f0f1f8;
+    --choice-hover: #e4e7f5;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    min-height: 100vh;
+    padding: 24px 16px 60px;
+  }
+  .wrap {
+    max-width: 640px;
+    margin: 0 auto;
+  }
+  header {
+    text-align: center;
+    margin-bottom: 20px;
+  }
+  header .emoji { font-size: 34px; line-height: 1; }
+  h1 {
+    font-size: 20px;
+    margin: 8px 0 4px;
+    font-weight: 700;
+  }
+  .subtitle {
+    color: var(--muted);
+    font-size: 13px;
+  }
+  .progress-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 18px 0 14px;
+  }
+  .progress-track {
+    flex: 1;
+    height: 6px;
+    background: var(--panel-border);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+  .progress-fill {
+    height: 100%;
+    background: var(--accent);
+    border-radius: 4px;
+    transition: width 0.25s ease;
+    width: 0%;
+  }
+  .progress-label {
+    font-size: 12px;
+    color: var(--muted);
+    white-space: nowrap;
+    min-width: 62px;
+    text-align: right;
+  }
+  .score-label {
+    font-size: 12px;
+    color: var(--muted);
+    text-align: center;
+    margin-bottom: 18px;
+  }
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 14px;
+    padding: 22px 20px;
+    margin-bottom: 16px;
+  }
+  .topic-tag {
+    display: inline-block;
+    font-size: 11px;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    color: var(--accent);
+    background: var(--accent-dim);
+    opacity: 0.9;
+    padding: 3px 9px;
+    border-radius: 999px;
+    margin-bottom: 12px;
+  }
+  .question {
+    font-size: 16px;
+    line-height: 1.5;
+    margin: 0 0 16px;
+    font-weight: 600;
+  }
+  .question code {
+    background: var(--choice-bg);
+    padding: 1px 5px;
+    border-radius: 4px;
+    font-size: 0.9em;
+  }
+  .choices {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .choice {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    text-align: left;
+    background: var(--choice-bg);
+    border: 1px solid var(--panel-border);
+    color: var(--text);
+    border-radius: 10px;
+    padding: 12px 14px;
+    font-size: 14.5px;
+    line-height: 1.45;
+    cursor: url('data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%221%22 height=%221%22%3E%3C/svg%3E') 0 0, pointer;
+    font-family: inherit;
+  }
+  .choice:hover:not(.locked) {
+    background: var(--choice-hover);
+    border-color: var(--accent-dim);
+  }
+  .choice .letter {
+    flex: none;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: var(--panel-border);
+    color: var(--text);
+    font-size: 12px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .choice.correct {
+    background: var(--good-bg);
+    border-color: var(--good);
+  }
+  .choice.correct .letter { background: var(--good); color: #08240f; }
+  .choice.incorrect {
+    background: var(--bad-bg);
+    border-color: var(--bad);
+  }
+  .choice.incorrect .letter { background: var(--bad); color: #2a0808; }
+  .choice.locked { cursor: default; }
+  .choice.dim { opacity: 0.55; }
+  .explanation {
+    margin-top: 16px;
+    padding: 14px 16px;
+    border-radius: 10px;
+    background: var(--choice-bg);
+    border: 1px solid var(--panel-border);
+    font-size: 13.5px;
+    line-height: 1.55;
+    color: var(--text);
+    display: none;
+  }
+  .explanation.show { display: block; }
+  .explanation .verdict {
+    font-weight: 700;
+    margin-bottom: 6px;
+    display: block;
+  }
+  .explanation .verdict.good { color: var(--good); }
+  .explanation .verdict.bad { color: var(--bad); }
+  .nav-row {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 4px;
+  }
+  .btn {
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: 9px;
+    padding: 10px 20px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: url('data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%221%22 height=%221%22%3E%3C/svg%3E') 0 0, pointer;
+    font-family: inherit;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease;
+  }
+  .btn.show { opacity: 1; pointer-events: auto; }
+  .btn:active { transform: translateY(1px); }
+  .summary {
+    text-align: center;
+    padding: 30px 20px;
+  }
+  .summary .big {
+    font-size: 42px;
+    font-weight: 800;
+    margin: 6px 0 4px;
+  }
+  .summary .line {
+    color: var(--muted);
+    font-size: 14px;
+    margin-bottom: 18px;
+  }
+  .summary .encourage {
+    font-size: 15px;
+    line-height: 1.5;
+    max-width: 440px;
+    margin: 0 auto;
+  }
+  .hidden { display: none; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="emoji">🎓</div>
+    <h1>Ascent Quiz #45</h1>
+    <div class="subtitle">2026-09-26 · how the game is coded, not how it plays</div>
+  </header>
+
+  <div id="quizArea">
+    <div class="progress-row">
+      <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+      <div class="progress-label" id="progressLabel">Q1 / 10</div>
+    </div>
+    <div class="score-label" id="scoreLabel">Score: 0 / 0 answered</div>
+
+    <div class="card" id="questionCard">
+      <div class="topic-tag" id="topicTag"></div>
+      <p class="question" id="questionText"></p>
+      <div class="choices" id="choicesArea"></div>
+      <div class="explanation" id="explanationArea">
+        <span class="verdict" id="verdictText"></span>
+        <span id="explanationText"></span>
+      </div>
+      <div class="nav-row">
+        <button class="btn" id="nextBtn">Next question →</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="summaryArea" class="card summary hidden">
+    <div class="topic-tag">Final score</div>
+    <div class="big" id="summaryScore">0 / 10</div>
+    <div class="line" id="summaryPct"></div>
+    <div class="encourage" id="summaryEncourage"></div>
+  </div>
+</div>
+
+<script>
+(function () {
+  var QUESTIONS = [
+    {
+      topicId: "types-basics",
+      topicLabel: "TypeScript types",
+      question: "packages/core/src/types.ts declares <code>export type Tier = 1 | 2 | 3 | 4 | 5 | 6 | 7;</code> — a literal-number union, not plain <code>number</code>. A comment nearby notes Tier 7 only exists under a special rift. Given that, what actually stops a normal run from reaching Tier 7?",
+      choices: [
+        "A separate runtime function, `maxTierFor(rift)` in packages/sim/src/config.ts, that checks the run's rift and caps the tier — the `Tier` type itself doesn't enforce this.",
+        "The `Tier` type itself excludes 7 unless a rift flag is passed to it as a generic parameter.",
+        "TypeScript raises a compile error if code tries to assign 7 to a `Tier` variable outside a rift.",
+        "`Tier` is really `1 | 2 | 3 | 4 | 5 | 6` normally, and a second type `RiftTier` adds the 7th value."
+      ],
+      answer: 0,
+      explanation: "Types describe *shape*, not *behavior* — `Tier` is perfectly happy to hold `7` at any time; whether a run can actually reach it is a completely separate runtime check, `maxTierFor(rift)`. B and C describe things TypeScript literally can't do — a type can't branch on a runtime flag, and it can't throw based on data, only on shape mismatches. D is simply false; `Tier` is one union of all 7 values, full stop (types.ts)."
+    },
+    {
+      topicId: "immutability",
+      topicLabel: "Immutability",
+      question: "packages/core/src/types.ts marks fields on `CombatContext` (the struct passed to every effect during combat) as `readonly` — e.g. <code>readonly boards: Record&lt;Side, Minion[]&gt;</code> and <code>readonly spellPower: { attack: number; health: number }</code>. What does that `readonly` actually stop code from doing?",
+      choices: [
+        "Nothing at all, at runtime or compile time — it's purely documentation with no enforcement.",
+        "Reassigning `ctx.boards` or `ctx.spellPower` to a different object — but it does NOT stop code from mutating whatever those fields already point to, like pushing into `ctx.boards.player` or bumping `ctx.spellPower.attack`.",
+        "Both reassigning the field AND mutating whatever it points to — a full, deep freeze of the whole object graph.",
+        "Only mutating the contents, while still freely allowing `ctx.boards = someOtherBoards`."
+      ],
+      answer: 1,
+      explanation: "TypeScript's `readonly` is shallow — it's a compile-time check on the property binding only. `spellPower`'s own doc comment even says it \"grows in place via `grantSpellPower`,\" openly documenting that its *contents* mutate even though the field itself is `readonly`. D has it backwards (readonly blocks reassignment, not mutation). A undersells it — the compiler does enforce the reassignment rule, just not deeply. C is what `Object.freeze()` would buy, which plain TS `readonly` does not."
+    },
+    {
+      topicId: "reducer-run-state",
+      topicLabel: "The reducer + run state",
+      question: "Hunter's reactive ability (\"when this gains Attack, buff your other minions\") has to fire during the recruit phase from ANY source — Fortify, spells, tribe Battlecries, weld, buy-triggers. Rather than every one of those effect sites explicitly announcing \"I raised an Attack, go fire reactors,\" how does packages/sim/src/reducer.ts's `reduce()` actually detect the gain?",
+      choices: [
+        "It emits a `gainAttack` event through the same `CombatBus` combat uses, and the reactor subscribes to it.",
+        "Every effect factory that can raise Attack calls a shared `fireOnGainAttack` helper directly at its own call site.",
+        "After running the core reducer, it snapshots each board minion's Attack by `uid` before and after, and treats any minion whose Attack strictly rose as a \"gain\" worth reacting to.",
+        "It re-runs the whole recruit action twice — once to detect what changed, once to apply it for real."
+      ],
+      answer: 2,
+      explanation: "`reduce()` builds a `before` map of `uid → attack`, runs `reduceCore`, then loops the resulting board comparing before vs. after — any strict increase fires the reactor (reducer.ts). This \"diff after the fact, from one central place\" approach means individual effect sites never need to know Hunter exists. A describes how *combat* does it — `CombatBus` is scoped to a single fight and isn't used by the recruit-phase reducer. B is the tempting \"obvious\" wiring, but it's exactly what this diff pattern avoids. D would be needlessly expensive and isn't what the code does."
+    },
+    {
+      topicId: "zustand-store",
+      topicLabel: "UI state with Zustand",
+      question: "packages/ui/src/store.ts registers <code>window.addEventListener('pagehide', () =&gt; useGame.getState().flushSave())</code>, and separately calls <code>useGame.setState({ profile: adopted })</code> inside an async network callback — neither one inside a React component. Is that allowed with a Zustand store built by `create&lt;GameStore&gt;(...)`?",
+      choices: [
+        "No — `getState()`/`setState()` only exist on a store built with a special `create.withVanilla()` wrapper, not on a plain `create()` store.",
+        "No — this would only work if the store were wrapped in a React `<Provider>` so outside code could reach it through context.",
+        "It runs, but Zustand logs a console warning any time `setState` is called from outside a component render.",
+        "Yes — the object `create()` returns is both the React hook AND a plain store object with its own `getState()`/`setState()`, so any ordinary JS code — event listeners, network callbacks, none of it React — can read and write it directly."
+      ],
+      answer: 3,
+      explanation: "This is one of Zustand's core design points: the object `create()` returns isn't React-only — it's a plain store (getState/setState/subscribe) with a thin React-hook binding layered on top of the same object. That's exactly why store.ts can flush an autosave from a raw `pagehide` listener or adopt a server profile from inside a `.then()` — no component, no Provider, no context required. A and B invent requirements that don't exist for this store; C invents a warning Zustand doesn't emit."
+    },
+    {
+      topicId: "event-bus",
+      topicLabel: "The event bus",
+      question: "packages/core/src/events.ts declares <code>export type EventHandler = (payload: unknown) => void;</code> — so `CombatBus.emit(event, payload)` accepts `payload: unknown` for every event, no matter which one. What does that mean for a handler that actually needs `{ minion: Minion; side: Side }` out of the payload?",
+      choices: [
+        "The handler has to cast the payload itself, e.g. `const { minion, side } = payload as { minion: Minion; side: Side }` — the bus gives no compile-time guarantee that any particular event's payload has a particular shape.",
+        "TypeScript infers the payload's shape automatically from the event name string, since `GameEvent` is a union of string literals.",
+        "`CombatBus` actually has a separate generic `emit<T>()` overload per event that supplies the correct payload type.",
+        "The payload is validated at runtime with zod before every handler call, so a wrongly-shaped payload throws before it ever reaches a handler."
+      ],
+      answer: 0,
+      explanation: "`unknown` is TypeScript's deliberately least-permissive type — it forces you to narrow before use, and the only way to narrow it here is a manual `as` cast, because nothing ties a payload's shape to the event name it travels under. B is impossible; TS can't infer an object shape from an unrelated string literal. C describes a genuinely type-safe alternative (a per-event payload map) that this lightweight bus does NOT implement. D invents runtime validation that doesn't exist here."
+    },
+    {
+      topicId: "cards-in-sets",
+      topicLabel: "Cards organized into sets",
+      question: "packages/content/src/sets.ts's `poolFor()` builds a pool with a `push()` helper that does `if (seen.has(c.id)) return;` before adding a card — first push wins. It pushes every inherited card first, THEN the set's own `own` list. If Set 2 inherits Set 1 and also lists one of Set 1's ids in its own `own` array — without adding that id to `excludes` — which version ends up in Set 2's pool?",
+      choices: [
+        "The `own` version — re-listing a card in `own` is how you override an inherited card.",
+        "The inherited Set-1 version — the inherited pool is pushed first, and `seen` blocks the later `own` copy from ever being added.",
+        "Both versions end up in the pool, since `seen` only dedupes within a single push pass, not across the two passes.",
+        "Neither — `poolFor` throws once it detects a duplicate id shared between `inherits` and `own`."
+      ],
+      answer: 1,
+      explanation: "The code's own comment says it plainly: \"a set can inherit AND redeclare an id; first wins, order stays stable\" (sets.ts). Because inherited cards are pushed before `own`, an id appearing in both places keeps its inherited version — re-declaring it in `own` silently does nothing. To truly replace an inherited card you must put its id in `excludes` (dropping it from the inherited pass) AND then list the new version in `own`. C misreads `seen` as scoped per-pass when it's one Set shared across both. D invents a guard that doesn't exist — this fails silently, not loudly."
+    },
+    {
+      topicId: "package-boundaries",
+      topicLabel: "Package boundaries",
+      question: "eslint.config.mjs's `banMathRandom` rule scopes itself to <code>files: ['packages/core/**/*.ts', 'packages/content/**/*.ts', 'packages/sim/**/*.ts', 'packages/tools/**/*.ts']</code>. Which layer is NOT in that list, and why is leaving it out safe?",
+      choices: [
+        "`packages/tools` is excluded, because the balance-runner scripts don't need determinism.",
+        "`packages/content` is excluded, because card data files never contain executable logic.",
+        "`packages/ui` (and `apps/web`) are excluded — CLAUDE.md calls randomness in the presentation layer \"cosmetic only,\" since it never feeds the deterministic simulation, only things like idle-animation timing.",
+        "No package is excluded — those four globs already cover every package in the monorepo."
+      ],
+      answer: 2,
+      explanation: "The engine/determinism boundary — core, content, sim, plus tools (since `npm run pool` generates the COMMITTED opponent pool) — is exactly where `Math.random` would break replays and shareable seeds, so those four are banned. `packages/ui` and `apps/web` are the presentation layer, deliberately left off the list, because nothing there feeds the sim. A is backwards — tools IS in the list, specifically because its output must be reproducible. B is false — content is in the list. D is wrong: ui and web are visibly missing from those four globs."
+    },
+    {
+      topicId: "effects-as-subscriptions",
+      topicLabel: "Effects as data subscriptions",
+      question: "packages/core/src/effects/factories.ts types its dispatcher as <code>export const FACTORIES: Partial&lt;Record&lt;EffectFactoryId, EffectFn&gt;&gt; = {...}</code>, using `Partial<Record<...>>` instead of a plain `Record<EffectFactoryId, EffectFn>`. A comment above it calls this \"a *partial* registry.\" What does using `Partial` force every call site to do?",
+      choices: [
+        "Nothing different — `Partial` only affects how the object literal is constructed, not how it's read.",
+        "Wrap every lookup in a try/catch, since indexing a `Partial` record can throw on a missing key.",
+        "Call `Object.keys(FACTORIES)` before every single lookup, to confirm the key exists first.",
+        "Use optional-chaining at the call site, like `FACTORIES[effect.do]?.(ctx, target, ...)`, because TypeScript now types every lookup as possibly `undefined` — matching the real fact that recruit-time effect ids (battlecries, buff-on-buy) live in `@game/sim` instead and simply have no entry here."
+      ],
+      answer: 3,
+      explanation: "A plain `Record<K, V>` promises TypeScript that every key of `K` has a value; `Partial` withdraws that promise, so `FACTORIES[id]` is typed `EffectFn | undefined`, and TS won't let you call it without narrowing first — hence `?.()` everywhere it's read. This isn't cosmetic: it's the type system reflecting a real fact stated in the code's own comment — some `EffectFactoryId`s are recruit-only and genuinely have no combat-time entry, so an effect without one is simply inert during `simulate()`. B and C invent mechanisms this codebase doesn't use (a missing plain-object key returns `undefined`, it doesn't throw, and nobody re-checks with `Object.keys` per lookup)."
+    },
+    {
+      topicId: "effect-timing-pipeline",
+      topicLabel: "Effect timing pipeline",
+      question: "`simulate(player, enemy, rng, cards, playerState, enemyState, config)` takes the two sides' run-level context (spell power, tribe tallies, quest mods, tier, …) as two separate parameters with different doc comments: `playerState` is \"Built from live `RunState`\", while `enemyState` is \"reconstituted from its board snapshot.\" What's the practical effect of that split during a fight?",
+      choices: [
+        "An enemy's own spell-power/tribe stats are locked to whatever its board looked like when it was captured — nothing happening in the current player's live run can change them, while the player's own side does read live economy state.",
+        "It's purely a naming convention — both parameters actually read from the same live `RunState` object once combat starts.",
+        "`enemyState` gets recomputed fresh from the live opposing player's run every time a fight happens, exactly like `playerState`.",
+        "The split only matters for procedural (non-player) enemies — a real recorded opponent's `enemyState` is built from live `RunState` too."
+      ],
+      answer: 0,
+      explanation: "This is exactly why \"opponents are pinned\" (a CLAUDE.md rule) works: the enemy's `CombatSideState` is reconstructed from a frozen board snapshot captured when that board was recorded, not from whatever the opposing account happens to be doing right now — so an enemy Grim/Taragosa/Pack Leader scales with the OPPONENT's captured values, never the current player's (simulate.ts). B and C both claim there's no real difference, contradicting the doc comments and the whole point of `servedBoards`. D invents a \"real opponent\" exception that doesn't exist — every enemy side goes through the snapshot path, since there's no live connection to another player's session during combat."
+    },
+    {
+      topicId: "testing-vitest",
+      topicLabel: "Testing with Vitest",
+      question: "`vitest.setup.ts` runs before every test file and includes: <code>import { RIFTS } from './packages/sim/src/config'; for (const a of Object.values(RIFTS)) a.enabled = false;</code>. Why does the whole suite need this, given `createRun` reads whichever rift happens to be flipped on in `config.ts`?",
+      choices: [
+        "It doesn't — this line is dead code left over from a rift that's already been retired.",
+        "Without it, whichever live-ops rift is currently toggled on in `config.ts` would get pinned onto every run created during tests, so the deterministic economy/quest suite would silently start asserting rift-modified behavior instead of the intended base-game baseline — this line forces every test back to the base game up front.",
+        "It only affects test files that explicitly import `RIFTS` themselves; other test files are unaffected either way.",
+        "It disables rifts only in CI, since `vitest.setup.ts` is skipped when tests run locally."
+      ],
+      answer: 1,
+      explanation: "`RIFTS` entries are shared, mutable module state, and `createRun` pins whatever's currently enabled onto each new run. Because `vitest.setup.ts` runs once before the whole suite (via `setupFiles`), flipping every rift off up front means every test — whether or not it even knows rifts exist — gets the same base-game baseline, instead of the suite's results silently depending on whatever a developer left toggled on. A is false: a dedicated `freedomRift.test.ts` re-enables one rift on purpose, proving the mechanism is very much alive. C misreads module-level mutation as import-scoped when it actually affects every test regardless of what that file imports. D is false — `vitest.setup.ts` runs the same way in CI and locally."
+    }
+  ];
+
+  var current = 0;
+  var score = 0;
+  var answered = 0;
+  var letters = ["A", "B", "C", "D"];
+
+  var progressFill = document.getElementById("progressFill");
+  var progressLabel = document.getElementById("progressLabel");
+  var scoreLabel = document.getElementById("scoreLabel");
+  var topicTag = document.getElementById("topicTag");
+  var questionText = document.getElementById("questionText");
+  var choicesArea = document.getElementById("choicesArea");
+  var explanationArea = document.getElementById("explanationArea");
+  var verdictText = document.getElementById("verdictText");
+  var explanationText = document.getElementById("explanationText");
+  var nextBtn = document.getElementById("nextBtn");
+  var quizArea = document.getElementById("quizArea");
+  var summaryArea = document.getElementById("summaryArea");
+
+  function renderQuestion() {
+    var q = QUESTIONS[current];
+    topicTag.textContent = q.topicLabel;
+    questionText.innerHTML = q.question;
+    choicesArea.innerHTML = "";
+    explanationArea.classList.remove("show");
+    nextBtn.classList.remove("show");
+    progressFill.style.width = ((current) / QUESTIONS.length * 100) + "%";
+    progressLabel.textContent = "Q" + (current + 1) + " / " + QUESTIONS.length;
+    scoreLabel.textContent = "Score: " + score + " / " + answered + " answered";
+
+    q.choices.forEach(function (choiceHtml, idx) {
+      var btn = document.createElement("button");
+      btn.className = "choice";
+      btn.innerHTML = '<span class="letter">' + letters[idx] + '</span><span>' + choiceHtml + '</span>';
+      btn.addEventListener("click", function () { handleAnswer(idx, btn); });
+      choicesArea.appendChild(btn);
+    });
+  }
+
+  function handleAnswer(idx, btnEl) {
+    var q = QUESTIONS[current];
+    var allBtns = choicesArea.querySelectorAll(".choice");
+    allBtns.forEach(function (b, i) {
+      b.classList.add("locked");
+      if (i === q.answer) b.classList.add("correct");
+      else if (i === idx) b.classList.add("incorrect");
+      else b.classList.add("dim");
+      b.onclick = null;
+    });
+
+    var correct = idx === q.answer;
+    if (correct) score++;
+    answered++;
+    scoreLabel.textContent = "Score: " + score + " / " + answered + " answered";
+
+    verdictText.textContent = correct ? "✓ Correct!" : "✗ Not quite — correct answer is " + letters[q.answer] + ".";
+    verdictText.className = "verdict " + (correct ? "good" : "bad");
+    explanationText.innerHTML = q.explanation;
+    explanationArea.classList.add("show");
+    nextBtn.classList.add("show");
+    nextBtn.textContent = (current === QUESTIONS.length - 1) ? "See final score →" : "Next question →";
+  }
+
+  nextBtn.addEventListener("click", function () {
+    current++;
+    if (current >= QUESTIONS.length) {
+      showSummary();
+    } else {
+      renderQuestion();
+    }
+  });
+
+  function showSummary() {
+    quizArea.classList.add("hidden");
+    summaryArea.classList.remove("hidden");
+    document.getElementById("summaryScore").textContent = score + " / " + QUESTIONS.length;
+    var pct = Math.round((score / QUESTIONS.length) * 100);
+    document.getElementById("summaryPct").textContent = pct + "%";
+    var msg;
+    if (score === QUESTIONS.length) {
+      msg = "Perfect score! You're reading this codebase like it's your own — because it is. 🎉";
+    } else if (score >= 8) {
+      msg = "Great run — you clearly know your way around this engine. A couple of these were genuinely tricky.";
+    } else if (score >= 6) {
+      msg = "Solid! You're picking up the architecture steadily — reply with your score and which ones tripped you up, and tomorrow's quiz will circle back to them.";
+    } else if (score >= 4) {
+      msg = "Good effort — this is how learning a codebase actually feels. Tell me your score and we'll re-teach the tricky spots from a fresh angle.";
+    } else {
+      msg = "That's alright — these were dense ones today. Reply with your score and we'll slow down and revisit these topics soon.";
+    }
+    document.getElementById("summaryEncourage").textContent = msg;
+  }
+
+  renderQuestion();
+})();
+</script>
+</body>
+</html>

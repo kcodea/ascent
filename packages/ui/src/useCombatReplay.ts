@@ -563,7 +563,7 @@ export function computeFrame(
 // damage float always lands ON contact, independent of pacing.
 
 /** The transient animation class for the unit the active event acts on. */
-function animFor(e: CombatEvent | undefined): Record<string, string> {
+export function animFor(e: CombatEvent | undefined): Record<string, string> {
   if (!e) return {};
   switch (e.type) {
     case 'attack': return { [e.attacker]: 'attacking', [e.defender]: 'aimed' };
@@ -573,7 +573,8 @@ function animFor(e: CombatEvent | undefined): Record<string, string> {
     case 'shieldUp': return { [e.target]: 'shieldgain' };
     case 'poison': return { [e.target]: 'poisoned' };
     case 'venomLost': return { [e.target]: 'venomspent' };
-    case 'reborn': return { [e.target]: 'reborn' };
+    // A REBIRTH re-forms out of its phoenix flame (`rebirthing`, styles.css) on top of the shared re-entry.
+    case 'reborn': return { [e.target]: e.rebirth ? 'reborn rebirthing' : 'reborn' };
     case 'buff': return { [e.target]: 'buffed' };
     case 'improve': return { [e.target]: 'buffed' };
     case 'keyword': return { [e.target]: 'buffed' }; // a granted keyword pulses like a buff landing
@@ -846,18 +847,38 @@ export function layoutRectOf(el: Element): { cx: number; cy: number; w: number; 
   };
 }
 
-function deathConsequenceLead(
+export function deathConsequenceLead(
   shown: Moment | undefined,
   next: Moment,
   events: CombatEvent[],
   cardIds: Map<string, string>,
   attackerUid: string | null,
+  /** The beats shown just BEFORE `shown` (oldest first). A returning body's death is not always in the beat right
+   *  before its return: the killer's own reaction (a Target Dummy's onDamaged `buff`) can sit between them, and the
+   *  return then skipped its read-lead entirely and popped back ~0.2s after dying (owner 2026-09-26, a 1v1
+   *  Rebirth). The reborn branch looks back through these for the returning body's own death. */
+  recent: Moment[] = [],
 ): number {
   if (!shown) return 0;
   const summon = next.primary.type === 'summon';
   const reborn = next.primary.type === 'reborn';
   const buff = next.primary.type === 'buff';
   if (!summon && !reborn && !buff) return 0;
+  if (reborn) {
+    const returning = new Set<string>();
+    for (let i = next.start; i < next.end; i++) { const e = events[i]; if (e?.type === 'reborn') returning.add(e.target); }
+    let lead = 0;
+    for (const m of [...recent, shown]) {
+      for (let i = m.start; i < m.end; i++) {
+        const e = events[i];
+        // A Rise/Rebirth death (`rise:true`) → hold the body's return until its fade (and, for a Rebirth, its
+        // burn-up and hovering embers) has read.
+        if (e?.type !== 'death' || !e.rise || !returning.has(e.target)) continue;
+        lead = Math.max(lead, e.target === attackerUid ? REBORN_LEAD.attacker : REBORN_LEAD.defender);
+      }
+    }
+    return lead;
+  }
   let lead = 0;
   for (let i = shown.start; i < shown.end; i++) {
     const e = events[i];
@@ -875,6 +896,23 @@ function deathConsequenceLead(
     lead = Math.max(lead, e.target === attackerUid ? table.attacker : table.defender);
   }
   return lead;
+}
+
+/** How long a REBIRTH return keeps the stage before the next beat (ms at 1× speed, ADDED to the base hold). Owner
+ *  2026-09-26: "it needs the same combat beat style as rise, so it rises before the next beat occurs". The body
+ *  re-forms out of its pillar of fire over `REBIRTH_FORM_MS` (styles.css `rebirthform`, scaled by combat speed like
+ *  the hold), and the next swing must not start while it is still rising: base hold (~360ms before an attack) +
+ *  this ≈ 1.06s, clear of the 0.9s re-form. The death → return side already matches Rise exactly: a rebirth's death
+ *  carries `rise: true`, so it fades soft in place (`dying rising`) and `REBORN_LEAD` holds its return. */
+export const REBIRTH_FORM_MS = 900;
+export const REBIRTH_SETTLE_LEAD = 700;
+export function rebirthSettleLead(shown: Moment | undefined, events: CombatEvent[]): number {
+  if (!shown) return 0;
+  for (let i = shown.start; i < shown.end; i++) {
+    const e = events[i];
+    if (e?.type === 'reborn' && e.rebirth) return REBIRTH_SETTLE_LEAD;
+  }
+  return 0;
 }
 
 /** A PLAIN attacker death (no Rise / Deathrattle consequence to lead the hold) still gets pulled back to its
@@ -1989,8 +2027,10 @@ export function useCombatReplay(
       // Hold for the death cascade's consequence (DR summon / Rise return), OR — with no consequence — for a
       // plain attacker being pulled home to die in its slot. Max: a Rise/DR lead already covers its pull.
       const lead = Math.max(
-        deathConsequenceLead(shown, next, events, cardIds, atkUid),
+        deathConsequenceLead(shown, next, events, cardIds, atkUid, beats.slice(Math.max(0, beatIdx - 3), Math.max(0, beatIdx - 1))),
         pulledHomeAttackerHold(shown, atkUid, events, cardIds),
+        // A REBIRTH finishes re-forming out of its fire before anything else plays (owner 2026-09-26).
+        rebirthSettleLead(shown, events),
         // A PARKED attacker's own damage beat waits a moment first (owner ask 2026-09-01: *"we need a slight
         // delay after the final resolution before the echohorn actually commits its attack"*). Its forced Echo
         // has just finished — a spray, a charger's whole exchange — and the swing it has been holding should
@@ -3268,8 +3308,14 @@ export function useCombatReplay(
         // styles.css) since its spirit bursts over it and the body re-forms in that same slot next beat.
         if (cls === 'dying') {
           const u = frame.player.find((x) => x.uid === uid) ?? frame.enemy.find((x) => x.uid === uid);
-          if (u?.keywords.includes('R')) {
-            anims[uid] = uid === impactAtk ? 'dying rising returning' : 'dying rising';
+          // A Rise AND a Rebirth death both carry `rise: true` (the body returns): both fade soft in place, so the
+          // two keywords share Rise's beat style (owner 2026-09-26). The keyword check stays for older logs.
+          const ev = events[i];
+          if ((ev?.type === 'death' && ev.rise) || u?.keywords.includes('R')) {
+            // A REBIRTH (its return is a `reborn { rebirth }` later in the log) BURNS UP in blue flame instead of the
+            // plain soft fade (`rbburn`, styles.css).
+            const burn = events.some((x, j) => j > i && x.type === 'reborn' && x.rebirth && x.target === uid) ? ' rbburn' : '';
+            anims[uid] = (uid === impactAtk ? 'dying rising returning' : 'dying rising') + burn;
           } else if (CARD_INDEX[cardIds.get(uid) ?? '']?.effects?.some((f) => f.on === 'onDeath')) {
             // Deathrattle: fade the card IN PLACE (no bounce) under the skull burst. A Deathrattle ATTACKER
             // that died mid-lunge also gets `returning` — the fade DELAYS while GSAP pulls it home, so the

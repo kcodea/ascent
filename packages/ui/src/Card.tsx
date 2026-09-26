@@ -89,6 +89,7 @@ import './cardPillsConfig';
 import { artFor, artVariantKey } from './art';
 import { renameTerms } from './terms';
 import { getRebirthConfig } from './rebirthConfig';
+import { CROWN_FRAMES } from './rebirthCrown';
 import { colourTerms } from './termColour';
 import { KeywordDefs } from './KeywordDefs';
 import { refPopupLeft } from './refPreviewPlacement';
@@ -986,7 +987,9 @@ export const Card = memo(function Card({
           )}
           {/* Reborn — a faint ethereal aqua-green dome + rising randomized wisps (CSS, replacing the old Pixi
               wisp), clipped to the oval window. Each wisp carries its own random position/size/rise/drift. */}
-          {/* REBIRTH (`RB`) has its own phoenix look now (owner 2026-09-25), below; Rise keeps the dome. */}
+          {/* REBIRTH (`RB`) — the VEIL: soft blue fire licking up over the portrait's lower edge (clipped to the window,
+              z2 like Rise's dome), the over-the-card half of its look; the crown on the frame is RebirthCrown below. */}
+          {card.keywords.includes('RB') && <div className="rebirth-veil" aria-hidden="true"><div className="rbv" /></div>}
           {card.keywords.includes('R') && (
             <div className="reborn" aria-hidden="true">
               <div className="reborn-dome" />
@@ -999,16 +1002,6 @@ export const Card = memo(function Card({
                   />
                 ))}
               </div>
-            </div>
-          )}
-          {/* REBIRTH — a thin ember rim on the oval (a static ring breathing in OPACITY only, the `kwglow` pattern)
-              and a few embers rising from the base (transform/opacity only, no blur). Colours/sizes: 🔥 tuner. */}
-          {card.keywords.includes('RB') && (
-            <div className="rebirth" aria-hidden="true">
-              <div className="rebirth-rim" />
-              {REBIRTH_EMBERS.slice(0, getRebirthConfig().emberCount).map((e, i) => (
-                <div key={i} className="ember" style={{ left: e.left, animationDelay: e.delay, animationDuration: e.dur, '--ex': e.ex } as CSSProperties} />
-              ))}
             </div>
           )}
         </div>
@@ -1150,6 +1143,10 @@ export const Card = memo(function Card({
             <span className="cframe-tint" aria-hidden="true" />
           </>
         )}
+        {/* REBIRTH (`RB`) — soft blue-white fire burning ON the frame (z4, over the art and the gold like Ward's
+            shell, under the badges), a faint glow and rising embers. Pre-rendered, pre-blurred SVG frames
+            cross-faded by opacity; the shield variant follows Taunt's heater. See `RebirthCrown` + styles.css. */}
+        {card.keywords.includes('RB') && <RebirthCrown shield={card.keywords.includes('T')} />}
         {/* Golden (tripled) marker — authored gilded badge PNG (was a CSS gold-circle + crown glyph); pairs with
             the gold arch frame so a tripled minion is instantly findable in a row. */}
         {card.golden && <span className="goldcrown" aria-hidden="true"><img decoding="sync" className="goldcrown-img" src={GILDED_BADGE_SRC} alt="" aria-hidden="true" /></span>}
@@ -1389,18 +1386,40 @@ const ExecuteAura = memo(function ExecuteAura() {
   );
 });
 
+/** Rebirth embers — a fixed randomized set (module load; presentation-only jitter), capped by the tuner's count.
+ *  Each rises off the crown's upper arc (`left` across the top, `top` near the rim) and drifts sideways by `ex`. */
+const REBIRTH_EMBERS = Array.from({ length: 12 }, (_, i) => ({
+  left: (50 + (((i * 37) % 12) / 11 - 0.5) * 40 + (Math.random() - 0.5) * 6).toFixed(1) + '%',
+  top: (28 + Math.random() * 10).toFixed(1) + '%',
+  delay: (-Math.random() * 2.6).toFixed(2) + 's',
+  dur: (1.7 + Math.random() * 1.1).toFixed(2) + 's',
+  ex: ((Math.random() - 0.5) * 22).toFixed(0) + '%',
+}));
+
+/** The REBIRTH crown: a glow, CROWN_FRAMES pre-rendered flame frames (`--rb-crown-N`, or `--rb-crown-s-N` on a
+ *  Taunt shield; rebirthConfig.ts) that cross-fade in turn, and a few embers. Memoised on its one prop. */
+const RebirthCrown = memo(function RebirthCrown({ shield }: { shield: boolean }) {
+  return (
+    <div className={`rebirth-crown${shield ? ' shield' : ''}`} aria-hidden="true">
+      <div className="rbc-glow" />
+      <div className="rbc-flames">
+        {Array.from({ length: CROWN_FRAMES }, (_, k) => (
+          <div key={k} className="rbc-frame" style={{ backgroundImage: `var(--rb-crown-${shield ? 's-' : ''}${k})`, animationDelay: `calc(var(--rb-flicker, 0.9s) * ${(-k / CROWN_FRAMES).toFixed(3)})` } as CSSProperties} />
+        ))}
+      </div>
+      <div className="rbc-embers">
+        {REBIRTH_EMBERS.slice(0, getRebirthConfig().emberCount).map((e, i) => (
+          <div key={i} className="rbc-ember" style={{ left: e.left, top: e.top, animationDelay: e.delay, animationDuration: e.dur, '--ex': e.ex } as CSSProperties} />
+        ))}
+      </div>
+    </div>
+  );
+});
+
 /** Reborn wisps — a fixed randomized set (generated once at module load) of rising ethereal spirit wisps. Each
  *  carries its own position / size / rise / sideways-drift so they read as an organic cloud, not a line. Count +
  *  ranges mirror the tuner (fx/reborn-css-preview.html): count 27, spread 38%, size 27%±35%, rise 320%±, wx ±22px.
  *  Math.random is presentation-only jitter (the ban is scoped to core/content/sim). */
-/** Rebirth embers — a fixed randomized set (module load; presentation-only jitter), capped by the tuner's count. */
-const REBIRTH_EMBERS = Array.from({ length: 14 }, () => ({
-  left: (50 + (Math.random() - 0.5) * 44).toFixed(1) + '%',
-  delay: (-Math.random() * 3.4).toFixed(2) + 's',
-  dur: (2.6 + Math.random() * 1.6).toFixed(2) + 's',
-  ex: ((Math.random() - 0.5) * 18).toFixed(0) + 'px',
-}));
-
 const REBORN_WISPS = Array.from({ length: 27 }, () => ({
   left: (50 + (Math.random() - 0.5) * 38).toFixed(1) + '%',
   bottom: (Math.random() * 16).toFixed(1) + '%',

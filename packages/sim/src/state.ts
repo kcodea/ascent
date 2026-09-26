@@ -506,6 +506,9 @@ export interface ShopDeathFx {
   cardId: string;
   /** Death only: the body will Rise. Since 2026-09-09 it dies in full anyway — the return is the `rise` cue. */
   rise?: boolean;
+  /** `rise` only: the return was a REBIRTH (`RB`), not a Rise — the UI plays the phoenix flame, not the aqua
+   *  re-form (owner 2026-09-26; combat's twin is `reborn { rebirth: true }`). */
+  rebirth?: boolean;
 }
 
 export interface RubyLandedFx { uid: string; count: number; }

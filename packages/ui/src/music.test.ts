@@ -15,6 +15,7 @@ import {
   MUSIC_START_DELAY_MS, MUSIC_STOP_FADE_MS, setMusicVolume, syncMusic, toggleMusicMute, type MusicElement,
   type MusicStateLike,
 } from './music';
+import { __resetMasterForTests, setMasterVolume, toggleMasterMute } from './audio/master';
 
 class StubAudio implements MusicElement {
   preload = 'none';
@@ -73,6 +74,7 @@ beforeEach(() => {
   gesture = null;
   rejectBg = null;
   localStorage.clear();
+  __resetMasterForTests();
   __setMusicDepsForTests({
     createElement: (src) => {
       const el = new StubAudio(src);
@@ -302,6 +304,18 @@ describe('settings: the music mute + volume persist and apply live', () => {
     expect(toggleMusicMute()).toBe(false);
     expect(localStorage.getItem('ascent.musicmuted')).toBe('0');
     expect(bg().volume).toBe(1);
+  });
+  it('the MASTER (audio/master.ts) scales the element fallback live; its mute silences without touching the music mute', async () => {
+    syncMusic(state());
+    await tick(MUSIC_START_DELAY_MS + MUSIC_FADE_MS + 50);
+    expect(bg().volume).toBe(1);
+    setMasterVolume(0.5);
+    expect(bg().volume).toBeCloseTo(0.5, 5);
+    toggleMasterMute();
+    expect(bg().volume).toBe(0);
+    expect(isMusicMuted()).toBe(false);
+    toggleMasterMute();
+    expect(bg().volume).toBeCloseTo(0.5, 5);
   });
   it('clamps the volume to 0..1', () => {
     setMusicVolume(4);

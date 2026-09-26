@@ -3124,8 +3124,8 @@ function rebirthReturn(state: RunState, target: BoardCard, slot: number, summone
   const grew = state.board.length - summonedFrom;
   const at = Math.min(state.board.length, slot + Math.max(0, grew));
   state.board.splice(at, 0, reborn);
-  // The same re-form beat a Rise plays — a placeholder until the owner authors a Rebirth cue.
-  stampShopFx(state, { kind: 'rise', uid: reborn.uid, cardId: reborn.cardId });
+  // The return beat a Rise plays, flagged so the UI shows Rebirth's phoenix flame instead of the aqua re-form.
+  stampShopFx(state, { kind: 'rise', uid: reborn.uid, cardId: reborn.cardId, rebirth: true });
   return reborn;
 }
 

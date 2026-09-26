@@ -51,15 +51,47 @@ export interface PatchNote {
 /** Newest first. PREPEND new entries. */
 export const PATCH_NOTES: PatchNote[] = [
   {
+    date: '2026-09-26',
+    changes: [
+      {
+        category: 'Systems',
+        text: 'A minion summoned to attack immediately now attacks right after it lands, before the next minion in line.',
+        details: [
+          'Fixed: the Sunmane Herald from Rune of Living Echoes waited for another minion to start its attack before swinging.',
+          'Immediate attacks never cut into a Flurry. The Flurry minion finishes both attacks first.',
+          'When several arrive at once, each one lands and attacks in the order it was summoned.',
+          'Afterwards the normal attack order carries on where it left off.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-09-26',
+    label: 'Master Volume',
+    changes: [
+      {
+        category: 'Systems',
+        text: 'The Audio panel has a new Master slider at the top. It turns every sound in the game up or down at once.',
+        details: [
+          'Master scales game sounds, music and the announcer together. Each channel keeps its own slider.',
+          'Master starts at 100, which sounds exactly like before.',
+          'Master has its own Mute. It silences everything and leaves your other mutes as they were.',
+          'Your Master setting is saved between sessions.',
+        ],
+      },
+    ],
+  },
+  {
     date: '2026-09-25',
     label: 'Rebirth',
     changes: [
       {
         category: 'Systems',
-        text: 'Rebirth has its own look: a thin blue and white flame around the minion, and a burst of blue fire when it comes back.',
+        text: 'Rebirth has its own look: soft blue and white fire over the card, and a clean burn-and-return when the minion comes back.',
         details: [
-          'A minion with Rebirth wears a thin blue flame rim with a few rising embers. Rise keeps its green look.',
-          'When a minion rebirths in combat, a short blue and white flame bursts up from it.',
+          'A minion with Rebirth is wrapped in soft blue and white fire: flames over the lower part of its portrait, along its frame and above it, with rising embers. Its stats stay clear. You can spot it at a glance in the shop, in your hand and in combat. Rise keeps its green look.',
+          'When a Rebirth minion dies, it burns away in blue flame and embers hover in its slot. Then it re-forms out of a rising flame with a soft flash and a whoosh. Like Rise, the fight waits for it to return, then it attacks normally.',
+          'A minion that rebirths in the shop gets the same burst.',
           'The Rebirth keyword box uses the same blue colours.',
         ],
       },

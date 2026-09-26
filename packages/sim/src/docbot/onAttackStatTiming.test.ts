@@ -245,7 +245,9 @@ describe('Doc Bot — a swing\u2019s wind-up fully resolves before the swing lan
     // mechanism with its own ordering, and the reason the flush filters on `summon`.
     const core = readFileSync(join(HERE, '../../../core/src/combat/simulate.ts'), 'utf8')
       .replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/\/\/[^\n]*/g, ' ');
-    expect(core.includes('flushImmediateAttacks(true)'),
+    // `flushImmediateAttacks(true, windupSeq)` since 2026-09-26: still summons-only, now also scoped to THIS
+    // swing's own wind-up so a Flurry's second swing is not cut by a summon left over from its first.
+    expect(/flushImmediateAttacks\(true[,)]/.test(core),
       'the wind-up flush must drain summons only').toBe(true);
   });
 });

@@ -225,7 +225,7 @@ export const KEYWORDS_RULES: GameRule[] = [
       + 'shield-bypassing destroy skips both layers; each separate hit (a Flurry swing, a Cleave splash) is its own hit. '
       + 'Rebirth returns the full body with its Resilient Ward. On the run card it is permanent like Ward, and it '
       + 'serialises as a keyword in snapshots and copies. Look: the Ward shell in red and orange with an orange outline; '
-      + 'the downgrade cracks the orange layer away on the Ward-break beat, revealing the plain Ward.',
+      + 'the downgrade shatters the orange layer (a flash, then sharp orange shards) on the Ward-break beat, revealing the plain Ward.',
     domain: 'keywords',
     status: 'approved',
     evidence: [
@@ -236,6 +236,31 @@ export const KEYWORDS_RULES: GameRule[] = [
     enforcement: {
       kind: 'scenario',
       refs: ['packages/core/src/combat/resilientWard.test.ts', 'packages/ui/src/resilientWard.test.tsx'],
+      lastVerifiedAt: '2026-09-26',
+    },
+  },
+  {
+    id: 'R-REBIRTH-FX-01',
+    title: 'Rebirth reads at a glance (a flame crown on the card) and its return is a visible phoenix burst, in combat AND the Shop',
+    statement:
+      'Every card with Rebirth wears soft blue-white fire ON its frame (over the art, under the stats) on every surface '
+      + '(shop, board, hand, combat), distinct from Rise (aqua dome) and Ward (glass shell). When a minion rebirths, the '
+      + 'rebirth-flame burst plays ONCE per return at the start of its beat, sized from the card (never from the '
+      + 'still-expanding slot, which made it near-invisible), with the pillar of fire the body re-forms out of; like a '
+      + 'Rise, the body dies soft and is fully back before the next beat plays. A Shop return plays the same burst, '
+      + "not Rise's re-form. Presentation only: the idle look is pre-blurred images animating transform/opacity alone.",
+    domain: 'keywords',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-26 (Rebirth look v2)', quote: 'improve rebirth effect? its not noticeable and ugly' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-26 (PR #1745 review)', quote: 'it should be on top of the card, not behind it. also, it needs the same combat beat style as rise, so it rises before the next beat occurs.' },
+      { kind: 'code', ref: 'packages/ui/src/Card.tsx RebirthCrown; packages/ui/src/rebirthCrown.ts; packages/ui/src/choreo/score.ts rebirthFx; packages/ui/src/choreo/channels/aura.ts reformRebirth; packages/ui/src/fx/rebirthPillar.ts; packages/sim/src/recruit.ts rebirthReturn (`rebirth: true` on the shop cue)' },
+    ],
+    contentIds: ['dw_exgalloper'],
+    currentBehaviour: "Conforms (2026-09-26): soft fire over the card (a veil on the art, a glow and crown on the frame); the burst has its own start-of-beat cue and sizes off the card height; the body burns away and re-forms with Rise's beat treatment, and the return's read-lead now finds its death even when the killer's own reaction beat sits between them (the 1v1 'instant attack' report); the Shop cue carries `rebirth: true`.",
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/ui/src/rebirthLook.test.tsx', 'packages/ui/src/choreo/score.test.ts', 'packages/sim/src/set3RunesTrancheC.test.ts'],
       lastVerifiedAt: '2026-09-26',
     },
   },

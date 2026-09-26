@@ -6603,24 +6603,25 @@ svg { width: 18px; height: 18px; }
 .escvol { display: flex; align-items: center; gap: 12px; padding: 10px 16px; border-radius: 13px; border: 2px solid var(--line); background: var(--bg2); margin-bottom: 8px; }
 .escvol .evl { font-family: var(--font-ui); font-weight: 800; font-size: 14px; color: var(--ink); white-space: nowrap; }
 .escvol .evv { font-family: var(--font-ui); font-weight: 800; font-size: 14px; color: var(--acc-dk); min-width: 30px; text-align: right; font-variant-numeric: tabular-nums; }
-.escvol input[type='range'] { flex: 1; height: 8px; -webkit-appearance: none; appearance: none; background: var(--line); border-radius: 99px; cursor: pointer; outline: none; }
+.escvol input[type='range'] { flex: 1; height: 8px; -webkit-appearance: none; appearance: none; background: var(--line); border-radius: 99px; cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; outline: none; }
 .escname { flex: 1; min-width: 0; font-family: var(--font-ui); font-weight: 700; font-size: 15px; color: var(--ink); background: var(--card); border: 2px solid var(--line); border-radius: 9px; padding: 7px 11px; outline: none; }
 .escname:focus { border-color: var(--acc); }
 .escname::placeholder { color: var(--ink3); }
-.escvol input[type='range']:disabled { opacity: 0.4; cursor: default; }
+.escvol input[type='range']:disabled { opacity: 0.4; cursor: inherit; }
 /* THE AUDIO PANEL (2026-09-23): the three channel rows behind the "Audio" button; each row's mute is a small pill.
    No cursor keyword here: the global button rule paints the gauntlet. */
 .escaudio { display: flex; flex-direction: column; }
 /* Owner ask 2026-09-24: the three channel sliders must line up. Each row is a flex line, so a label's own width
    decided where its slider started ("Game sounds" pushed its track right of "Music"'s). A fixed label column and a
    fixed Mute pill ("Mute"/"Muted") give every track the same start, end and length. */
+/* 104px holds the widest label ("Game sounds"); "Master" (2026-09-26) fits well inside it. */
 .escaudio .escvol .evl { flex: 0 0 104px; }
 .escaudio .escvol .escmute { min-width: 76px; }
 .escvol .escmute { flex: 0 0 auto; font-family: var(--font-ui); font-weight: 800; font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink3); background: var(--card); border: 2px solid var(--line); border-radius: 99px; padding: 5px 11px; }
 .escvol .escmute:hover { border-color: var(--acc); }
 .escvol .escmute.on { color: var(--acc-dk); border-color: var(--acc); background: color-mix(in srgb, var(--acc) 15%, var(--card)); }
-.escvol input[type='range']::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 18px; height: 18px; border-radius: 50%; background: var(--acc); border: 2px solid var(--card); box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3); cursor: pointer; }
-.escvol input[type='range']::-moz-range-thumb { width: 18px; height: 18px; border-radius: 50%; background: var(--acc); border: 2px solid var(--card); box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3); cursor: pointer; }
+.escvol input[type='range']::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 18px; height: 18px; border-radius: 50%; background: var(--acc); border: 2px solid var(--card); box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3); cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; }
+.escvol input[type='range']::-moz-range-thumb { width: 18px; height: 18px; border-radius: 50%; background: var(--acc); border: 2px solid var(--card); box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3); cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; }
 .escbtn { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; padding: 12px 16px; border-radius: 13px; border: 2px solid var(--line); background: var(--bg2); cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; text-align: left; }
 .escbtn:hover { border-color: var(--acc); }
 .escbtn.on { border-color: var(--acc); background: color-mix(in srgb, var(--acc) 15%, var(--card)); box-shadow: inset 0 0 0 1px var(--acc); }

@@ -51,6 +51,22 @@ export interface PatchNote {
 /** Newest first. PREPEND new entries. */
 export const PATCH_NOTES: PatchNote[] = [
   {
+    date: '2026-09-26',
+    label: 'Master Volume',
+    changes: [
+      {
+        category: 'Systems',
+        text: 'The Audio panel has a new Master slider at the top. It turns every sound in the game up or down at once.',
+        details: [
+          'Master scales game sounds, music and the announcer together. Each channel keeps its own slider.',
+          'Master starts at 100, which sounds exactly like before.',
+          'Master has its own Mute. It silences everything and leaves your other mutes as they were.',
+          'Your Master setting is saved between sessions.',
+        ],
+      },
+    ],
+  },
+  {
     date: '2026-09-25',
     label: 'Rebirth',
     changes: [

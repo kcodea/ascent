@@ -15,6 +15,7 @@ import { isDesktop, quitGame, toggleFullscreen } from './desktop';
 import { getVolume, isMuted, setVolume, sfx, toggleMute } from './sfx';
 import { getMusicVolume, isMusicMuted, setMusicVolume, toggleMusicMute } from './music';
 import { getAnnouncerVolume, isAnnouncerMuted, setAnnouncerVolume, toggleAnnouncerMute } from './announcer';
+import { getMasterVolume, isMasterMuted, setMasterVolume, toggleMasterMute } from './audio/master';
 import { useGame } from './store';
 import { FPS_CAP_OPTIONS, fpsCapLabel } from './fpsCap';
 import { perfThresholds } from './perfMonitor';
@@ -45,6 +46,8 @@ export function EscMenu({ onClose }: { onClose: () => void }) {
   const [musicMuted, setMusicMuted] = useState(isMusicMuted());
   const [announcerVol, setAnnouncerVol] = useState(getAnnouncerVolume());
   const [announcerMuted, setAnnouncerMuted] = useState(isAnnouncerMuted());
+  const [masterVol, setMasterVol] = useState(getMasterVolume());
+  const [masterMuted, setMasterMuted] = useState(isMasterMuted());
   // THE AUDIO PANEL (owner ask 2026-09-23): one "Audio" button expands / collapses the three channels. Collapsed
   // by default; the choice is remembered per browser.
   const [audioOpen, setAudioOpen] = useState(readAudioPanelOpen);
@@ -107,7 +110,8 @@ export function EscMenu({ onClose }: { onClose: () => void }) {
         <div className="escsec">Audio</div>
         {/* THREE CHANNELS behind one button (owner ask 2026-09-23): "Game sounds" is the SFX master (sfx.ts),
             "Music" the lobby background music's level (music.ts), "Announcer" the voice lines' level
-            (announcer.ts). Each row is its slider + its mute; none touches another. */}
+            (announcer.ts). Each row is its slider + its mute; none touches another. MASTER (owner ask 2026-09-26)
+            sits on top and scales all three (audio/master.ts); its mute leaves the channel mutes as they are. */}
         <button
           className={`escbtn pressable${audioOpen ? ' on' : ''}`}
           onPointerDown={toggleAudioPanel}
@@ -115,10 +119,18 @@ export function EscMenu({ onClose }: { onClose: () => void }) {
           aria-controls="esc-audio-panel"
         >
           <span className="ebl">Audio</span>
-          <span className="ebs">{audioOpen ? 'Hide the channels' : 'Game sounds, music, announcer'}</span>
+          <span className="ebs">{audioOpen ? 'Hide the channels' : 'Master, game sounds, music, announcer'}</span>
         </button>
         {audioOpen && (
           <div className="escaudio" id="esc-audio-panel">
+            <AudioChannel
+              label="Master"
+              volume={masterVol}
+              muted={masterMuted}
+              onVolume={(v) => { setMasterVol(v); setMasterVolume(v); }}
+              onRelease={() => sfx.buy()}
+              onToggleMute={() => { const m = toggleMasterMute(); setMasterMuted(m); if (!m) sfx.pulse(); }}
+            />
             <AudioChannel
               label="Game sounds"
               volume={vol}

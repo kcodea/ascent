@@ -29,6 +29,7 @@ import { slugify, isValidSlug, saveSound } from './fx/defStore';
 import { getBuffFxConfig } from './buffFxConfig';
 import { buildAudioFilterChain, curveVaries, applyAudioCurve, reverbImpulse, type FxFilterCtx } from './fx/audioFilters';
 import { getGoodLuckIntroConfig, goodLuckTail } from './goodLuck/goodLuckIntroConfig';
+import { masterOutput } from './audio/master';
 import { scheduleTailFade, scheduleSkipFade, SKIP_FADE_S, type TailOpts } from './audio/tailFade';
 
 export { SCENES };
@@ -181,7 +182,7 @@ function applyComp(node: DynamicsCompressorNode, c: CompConfig): void {
 /** The node a category's sounds connect to: its bus input (if built), else the master limiter, else destination. */
 function busInput(a: AudioContext, category: string): AudioNode {
   const b = busNodes.get(busOf(cfg, category));
-  return b ? b.input : (master ?? a.destination);
+  return b ? b.input : (master ?? masterOutput(a));
 }
 
 function audio(): AudioContext | null {
@@ -199,7 +200,7 @@ function audio(): AudioContext | null {
       masterGain.gain.value = cfg.masterGain;  // the Settings-slider master volume (was a per-play multiply)
       master.connect(masterGain);
       masterGain.connect(bus);
-      bus.connect(ctx.destination);
+      bus.connect(masterOutput(ctx)); // → the Settings MASTER volume (audio/master.ts) → destination
       // Category buses: each an input gain → optional per-bus comp → master limiter. Sounds route in by category.
       for (const b of BUS_NAMES) {
         const input = ctx.createGain();
@@ -1317,7 +1318,7 @@ export function playFxSound(clip: string, opts: FxSoundOpts = {}): FxSoundHandle
   const gainJit = opts.gainVar ? 1 - Math.random() * opts.gainVar : 1; // only DOWN, so it never exceeds the set level
   const level = Math.max(0, (opts.gain ?? 1) * gainJit);
   const g = a.createGain();
-  const busIn = busNodes.get(opts.bus ?? 'combat')?.input ?? master ?? a.destination;
+  const busIn = busNodes.get(opts.bus ?? 'combat')?.input ?? master ?? masterOutput(a);
   const t0 = a.currentTime + Math.max(0, (opts.delayMs ?? 0) / 1000);
   const offset = Math.max(0, (opts.startOffsetMs ?? 0) / 1000);
   const endTrim = Math.max(0, (opts.endOffsetMs ?? 0) / 1000);

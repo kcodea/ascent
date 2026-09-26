@@ -34,6 +34,7 @@
  */
 import { isPreRun } from './store';
 import { DEFAULT_SLIDER, sliderToGain } from './audio/volumeCurve';
+import { masterLevel, masterOutput, onMasterChange } from './audio/master';
 
 export const MUSIC_START_DELAY_MS = 3000;
 export const MUSIC_GAP_MS = 3000;
@@ -230,7 +231,7 @@ function wire(slot: Slot): void {
       const lvl = ctx.createGain();
       lvl.gain.value = level();
       fade.connect(lvl);
-      lvl.connect(ctx.destination);
+      lvl.connect(masterOutput(ctx)); // → the Settings MASTER volume (audio/master.ts) → destination
       graph = { ctx, fade, level: lvl };
     }
     const src = graph.ctx.createMediaElementSource(slot.el as unknown as HTMLMediaElement);
@@ -252,9 +253,11 @@ function applyLevel(): void {
 /** No-context path: each playing element's volume is fade × level. (With a graph the elements sit at 1.) */
 function applyElementVolume(): void {
   if (graph || !slots) return;
-  const v = Math.min(1, Math.max(0, fadeLevel * level()));
+  const v = Math.min(1, Math.max(0, fadeLevel * level() * masterLevel()));
   for (const s of slots) s.el.volume = v;
 }
+// The element path has no graph to hold the master stage, so a master change re-applies the element volumes.
+onMasterChange(applyElementVolume);
 
 /** Ramp the fade multiplier to `to` over `ms`, then `done`. Compositor-cheap on the graph path (a scheduled
  *  AudioParam ramp); one ~50 ms interval on the element path, alive only while the fade runs. */

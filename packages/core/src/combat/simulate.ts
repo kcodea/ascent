@@ -1713,7 +1713,7 @@ export function simulate(
        * WIND-UP, before the attacker's clash, so the attacker is still alive and still occupying its slot when the
        * cap is judged — the death that used to make room happens after the decision, not before it.
        */
-      pendingAttackOnSummon.push({ summon: { minion, side, card, nearUid, grantKeywords, golden, copyStats, doubled } });
+      pendingAttackOnSummon.push({ summon: { minion, side, card, nearUid, grantKeywords, golden, copyStats, doubled }, seq: immediateSummonSeq++ });
       return minion;
     }
     return placeSummon(minion, side, card, nearUid, grantKeywords, golden, false, copyStats, doubled);
@@ -2088,6 +2088,31 @@ export function simulate(
   }
 
   const decoysSpent: Record<Side, number> = { player: 0, enemy: 0 };
+
+  /**
+   * THE BETWEEN-ATTACKS SETTLE: everything an attack set off resolves before the next normal attacker is chosen.
+   *
+   *   1. `flushImmediateAttacks` — tokens the death cascade summoned to "attack immediately" land and strike.
+   *   2. `flushResummons` — a Reclaimer waiting in the wings reclaims a freed slot.
+   *   3. `fillFreeSlots` — Brood / Living Echoes / Decoy Sigil fill what is still free.
+   *
+   * and REPEATS while step 3 (or anything else) left an immediate attacker queued. The repeat is the fix for the
+   * owner's 2026-09-26 report: *"when the sunmane is summoned, it is supposed to attack immediately after being
+   * summoned, cutting in front of the order. a 'attacks immediately' mechanic cuts the line."* Living Echoes'
+   * Sunmane is summoned in step 3 — AFTER step 1 had already drained the queue — so it sat there until the NEXT
+   * attacker's wind-up flush, which runs after that attacker's `attack` event: the next minion lunged, the
+   * Sunmane landed and swung, and only then did the lunge's hit land. The Sunmane's own swing can free another
+   * slot (it dies to retaliation), so the loop keeps settling until nothing is left queued; the per-combat rune
+   * counters and `IMMEDIATE_ATTACK_GUARD` bound it.
+   */
+  function settleBetweenAttacks(): void {
+    let rounds = 0;
+    do {
+      flushImmediateAttacks();
+      flushResummons();
+      fillFreeSlots();
+    } while (pendingAttackOnSummon.length > 0 && rounds++ < IMMEDIATE_ATTACK_GUARD);
+  }
   /** The Sealed Vault's once-per-combat latch, per side. */
   const avengeDoubleSpent: Record<string, boolean> = {};
   function registerEffect(minion: Minion, effect: EffectDef): void {
@@ -2222,9 +2247,12 @@ export function simulate(
   //   • `{ minion, shieldFirst }` — an already-on-board minion taking an out-of-turn strike (a placed token's
   //     own swing, or Solaris Fang / Feeding Line / Bloodlust granting an existing body a bonus attack).
   const pendingAttackOnSummon: (
-    | { summon: { minion: Minion; side: Side; card: CardDef; nearUid: string | undefined; grantKeywords: Keyword[] | undefined; golden: boolean; copyStats: { attack: number; health: number; maxHealth: number; divineShield?: boolean; rebornAvailable?: boolean } | undefined; doubled: boolean }; minion?: undefined }
+    | { summon: { minion: Minion; side: Side; card: CardDef; nearUid: string | undefined; grantKeywords: Keyword[] | undefined; golden: boolean; copyStats: { attack: number; health: number; maxHealth: number; divineShield?: boolean; rebornAvailable?: boolean } | undefined; doubled: boolean }; seq: number; minion?: undefined }
     | { minion: Minion; shieldFirst?: boolean; forcedTarget?: Minion; summon?: undefined }
   )[] = [];
+  /** Monotonic stamp on each deferred summon, so a swing's wind-up flush can drain ONLY what its own wind-up
+   *  queued — not a summon left over from an EARLIER swing of the same Flurry exchange (see `performAttack`). */
+  let immediateSummonSeq = 0;
 
   // Fire a minion's OWN Deathrattle / on-death effects directly (no global onDeath broadcast / Avenge / death
   // event) — used by Reborn so a reborn death procs the unit's own Deathrattle without re-triggering other
@@ -3222,6 +3250,7 @@ export function simulate(
       // hit + cleave splash), not the retaliation. Only consumes RNG for a minion that actually has critChance.
       const crit = !!attacker.critChance && attacker.critChance > 0 && rng.next() < attacker.critChance;
       const critMult = crit ? 2 : 1;
+      const windupSeq = immediateSummonSeq; // deferred summons stamped from here on belong to THIS swing's wind-up
       emit({ type: 'attack', attacker: attacker.uid, defender: target.uid, swing: s, ...(crit ? { crit: true } : {}) });
       bus.emit('onAttack', { minion: attacker, side: attacker.side, target }); // Rally + on-attack effects (target = the enemy being hit this swing)
       // RUNE OF THE CHEF: an attacking Chef Gary Toast buffs ANOTHER random friendly Dwarf by the combined
@@ -3488,7 +3517,14 @@ export function simulate(
        * Guarded on `attacker.dead`: the flushed token can kill the attacker (it swings into a board that can
        * retaliate), and a dead body must not go on to complete its own clash.
        */
-      if (pendingAttackOnSummon.some((q) => q.summon)) flushImmediateAttacks(true);
+      /*
+       * FLURRY IS NOT INTERRUPTED (owner ruling 2026-09-26): *"a 'attacks immediately' mechanic cuts the line.
+       * this doesn't interrupt a flurry attack"*. The flush drains only the summons THIS swing's wind-up queued
+       * (`windupSeq`, stamped just before the `attack` event). A summon queued by an EARLIER swing's death
+       * cascade — swing 1 of a Flurry killing a Deathrattle Whelp-maker — waits for the whole exchange to end
+       * and lands at the post-attack settle in the main loop, instead of cutting between the two swings.
+       */
+      if (pendingAttackOnSummon.some((q) => q.summon && q.seq >= windupSeq)) flushImmediateAttacks(true, windupSeq);
       if (attacker.dead || attacker.health <= 0) return;
       /**
        * THE TARGET DIED IN THE WIND-UP — so there is no clash (owner ruling 2026-09-01).
@@ -3708,10 +3744,10 @@ export function simulate(
    * EXISTING body is a different mechanism whose ordering is tied to its own grant sequence: Solaris Fang's
    * Avenge re-grants a Ward BEFORE each of its two strikes, so draining those early strips the second Ward.
    */
-  function flushImmediateAttacks(onlySummons = false): void {
+  function flushImmediateAttacks(onlySummons = false, fromSeq = 0): void {
     if (flushingImmediates) return; // already draining — see `flushingImmediates`
     flushingImmediates = true;
-    try { drainImmediateAttacks(onlySummons); } finally { flushingImmediates = false; }
+    try { drainImmediateAttacks(onlySummons, fromSeq); } finally { flushingImmediates = false; }
   }
 
   /**
@@ -3730,10 +3766,12 @@ export function simulate(
    */
   let flushingImmediates = false;
 
-  function drainImmediateAttacks(onlySummons: boolean): void {
+  function drainImmediateAttacks(onlySummons: boolean, fromSeq: number): void {
     let guard = 0;
     while (guard++ < IMMEDIATE_ATTACK_GUARD) {
-      const at = onlySummons ? pendingAttackOnSummon.findIndex((q) => q.summon) : (pendingAttackOnSummon.length > 0 ? 0 : -1);
+      const at = onlySummons
+        ? pendingAttackOnSummon.findIndex((q) => q.summon && q.seq >= fromSeq)
+        : (pendingAttackOnSummon.length > 0 ? 0 : -1);
       if (at < 0) break;
       const item = pendingAttackOnSummon.splice(at, 1)[0]!;
       // A deferred summon: land the token NOW (a fresh beat), then take its immediate strike as its own beat
@@ -4741,7 +4779,7 @@ export function simulate(
   // opponent had already swung (owner bug 2026-08-11). The bounded per-combat counters (broodSpent/echoesSpent/
   // decoysSpent) keep this from double-firing with the in-loop call below.
   fillFreeSlots();
-  flushImmediateAttacks(); // Whelps summoned during Start-of-Combat / Reclaimer / the fills above strike before the rotation begins
+  settleBetweenAttacks(); // Whelps summoned during Start-of-Combat / Reclaimer / the fills above strike before the rotation begins
   flushAscensions(); // a Start-of-Combat buff/cast can already push Tara/Spirit Pup over the line — transform before round 1
   let guard = 0;
   while (countLiving('player') > 0 && countLiving('enemy') > 0 && guard++ < ITERATION_GUARD) {
@@ -4765,12 +4803,10 @@ export function simulate(
       const arr = boards[turn];
       lastAttacker[turn] = arr[arr.indexOf(attacker) - 1] ?? null;
     }
-    // Whelps summoned by this attack's death cascade strike immediately, out of turn order.
-    flushImmediateAttacks();
-    // This attack's death cascade has fully settled — if it freed a player slot, a Reclaimer
-    // resummon waiting in the wings reclaims it now (never interleaved mid-summon).
-    flushResummons();
-    fillFreeSlots(); // Rune of the Brood / Living Echoes: a slot freed by this cascade gets filled
+    // Whelps summoned by this attack's death cascade strike immediately, out of turn order; freed slots are
+    // reclaimed / refilled, and anything THAT summons to attack immediately strikes too — all before the next
+    // normal attacker is chosen. See `settleBetweenAttacks`.
+    settleBetweenAttacks();
     flushAscensions(); // a Tara/Spirit Pup that crossed its threshold this attack transforms now (between actions)
     turn = defenderSide;
   }

@@ -52,6 +52,21 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-09-26',
+    changes: [
+      {
+        category: 'Systems',
+        text: 'A minion summoned to attack immediately now attacks right after it lands, before the next minion in line.',
+        details: [
+          'Fixed: the Sunmane Herald from Rune of Living Echoes waited for another minion to start its attack before swinging.',
+          'Immediate attacks never cut into a Flurry. The Flurry minion finishes both attacks first.',
+          'When several arrive at once, each one lands and attacks in the order it was summoned.',
+          'Afterwards the normal attack order carries on where it left off.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-09-26',
     label: 'Master Volume',
     changes: [
       {

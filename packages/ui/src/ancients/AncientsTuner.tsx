@@ -62,6 +62,7 @@ const ROWS: [Key, string, TunerUnit | undefined, string, string, ('color' | 'tog
   ['dustSize', 'Dust size', '×', 'How big and how wide the dust puffs out.', 'Dust'],
   ['dustLife', 'Dust life', '×', 'How long the dust hangs before it settles.', 'Dust'],
   ['dustOpacity', 'Dust opacity', undefined, 'How opaque the dust is.', 'Dust'],
+  ['slamSparks', 'Slam sparks', '×', 'The turbulent spark blast on each slam. 0 turns it off.', 'Dust'],
   ['slamDust', 'Slam dust', '×', 'How much dust bursts out when a revealed Ancient slams into place.', 'Dust'],
   ['hpDustLife', 'Hero-power dust life', '×', 'How long the burst from the hero power lasts. Low clears it before the curtain.', 'Dust'],
   // HERO THEMES (owner 2026-09-26): the awakening's curtain, seam, title glow and backdrop in the hero's colours. The

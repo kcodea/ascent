@@ -5,7 +5,7 @@ import { AncientCard } from './AncientCard';
 import { notePickSource, prefersReducedMotion, setAwakenStage, useAwakenStage } from './ancientsFx';
 import { ancientColor, getAncientsConfig } from './ancientsConfig';
 import { playCue } from './ancientsSound';
-import { ancientLandDust, ancientSlam } from './ancientsSmoke';
+import { ancientLandDust, ancientSlam, ancientSlamSparks } from './ancientsSmoke';
 import '../discoverEntrance/discoverEntrance.css';
 import './ancients.css';
 
@@ -87,7 +87,11 @@ function Reveal({ gated, offer, heroId, seq, onPick }: { gated: boolean; offer: 
     const landFx = (i: number): void => {
       const frame = slots[i]?.querySelector<HTMLElement>('.anc-art-frame');
       const r = frame?.getBoundingClientRect();
-      ancientLandDust(ancientColor(offer[i]!), r ? { x: r.left + r.width / 2, y: r.bottom } : base(i), 1, r?.width ?? rects[i]!.width, Math.max(0, c.slamDust));
+      const col = ancientColor(offer[i]!);
+      const w = r?.width ?? rects[i]!.width;
+      const foot = r ? { x: r.left + r.width / 2, y: r.bottom } : base(i);
+      ancientLandDust(col, foot, 1, w, Math.max(0, c.slamDust));
+      ancientSlamSparks(col, foot);
       const g = slots[i]?.querySelector<HTMLElement>('.anc-glint');
       if (g && typeof g.animate === 'function') {
         push(g.animate([
@@ -132,7 +136,14 @@ function Reveal({ gated, offer, heroId, seq, onPick }: { gated: boolean; offer: 
           { opacity: 1, transform: 'translateY(0) scale(1)' },
         ], { duration: c.beat1Ms, delay: b1, easing: 'cubic-bezier(0.3, 0, 0.6, 1)', fill: 'backwards' }));
       }
-      at(slam1, () => { ancientSlam(base(mid)); landFx(mid); });
+      at(slam1, () => {
+        ancientSlam(base(mid)); landFx(mid);
+        // DUST OFF ITS SIDES too (owner 2026-09-26): the first slam also kicks a smaller puff out of each flank.
+        const fr = slots[mid]?.querySelector<HTMLElement>('.anc-art-frame')?.getBoundingClientRect();
+        const r0 = fr ?? rects[mid]!;
+        const y = fr ? fr.bottom - fr.height * 0.25 : base(mid).y;
+        for (const x of [r0.left, r0.right]) ancientLandDust(ancientColor(offer[mid]!), { x, y }, 0.9, r0.width * 0.55, Math.max(0, c.slamDust));
+      });
       playCue('cardReveal', slam1 - 40);
       at(b1 + c.beat1Ms, () => land(mid));
       slots.forEach((slot, i) => {

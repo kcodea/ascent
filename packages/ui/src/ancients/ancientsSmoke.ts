@@ -44,6 +44,17 @@ export function ancientLandDust(color: string, at: Pt, lifeMul = 1, widthPx = RU
   }) ?? null;
 }
 
+/** The slam's SPARK BLAST (owner 2026-09-26: "add some pixi blast sparks to the overall reveal animations with some
+ *  turbulence"): hot shards thrown up and out plus drifting embers, both pushed around by turbulence, in the
+ *  Ancient's colour. One-shot; `slamSparks` scales it (0 = none). */
+export function ancientSlamSparks(color: string, at: Pt): void {
+  const c = getAncientsConfig();
+  if (!canPlayDefs() || c.slamSparks <= 0) return;
+  playDef('ancient-slam-sparks', { source: at, target: at, cursor: at }, {
+    intensity: c.slamSparks, scale: Math.max(0.3, c.slamStrength), recolor: tint(color), slot: 'over',
+  });
+}
+
 /** The slam's flat gold shockwave at `at`, scaled by the slam strength. */
 export function ancientSlam(at: Pt): void {
   if (!canPlayDefs()) return;

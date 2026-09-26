@@ -1,4 +1,4 @@
-import { ALE_IDS, RUBY_TYPE_IDS, SPECIAL_RUBY_IDS, TRIBES, alignAllows, makeRng, SILENT_ONPLAY, isShopPoolSpell, shopSpellGrowth, COMBAT_REPLAYABLE_BATTLECRIES, extraTriggerFires, foldEchoExtraFires, socTwilightExtraFires, BODY_COUNTING_DEATHS, ARENA_EFFECTS, beatIdentity, type EffectArena, type PresentationCollector, type PresentationPhase, type PresentationPolicy, type Rng, type CardDef, type EffectDef, type Keyword, type TriggerFamily, type TriggerSourceRef, type Tribe } from '@game/core';
+import { ALE_IDS, RUBY_TYPE_IDS, SPECIAL_RUBY_IDS, TRIBES, alignAllows, makeRng, SILENT_ONPLAY, isShopPoolSpell, shopSpellGrowth, COMBAT_REPLAYABLE_BATTLECRIES, NO_COPY_SPELL_IDS, extraTriggerFires, foldEchoExtraFires, socTwilightExtraFires, BODY_COUNTING_DEATHS, ARENA_EFFECTS, beatIdentity, type EffectArena, type PresentationCollector, type PresentationPhase, type PresentationPolicy, type Rng, type CardDef, type EffectDef, type Keyword, type TriggerFamily, type TriggerSourceRef, type Tribe } from '@game/core';
 import { ancientOnSale, ancientOnShopDeath, ancientOnShopShout, ancientOnShopRise, ancientPowerText, ancientEotWardBuff, ancientRunEotWardBuff, ancientBondsReact, ANCIENTS } from './ancients';
 import { runSpells } from './spellPool';
 import { REVELER_IDS, RUNE_INDEX, CARD_INDEX, EQUIPMENT_INDEX, STAR_DESTROYER, equipmentOf, recurringEotOwner, type EquipmentDefinition } from '@game/content';
@@ -1195,7 +1195,7 @@ const GOLD_SCALED_ACCRUAL_CARDS = new Set(['kennel', 'd2_sovereign', 'packleader
  *  Second Draft, repeat — a 3-Gold engine that replays a Shout and mints a spell-cast trigger every lap,
  *  forever. The cast still RECORDS normally (Steward, the Archivist's journal and the live text all still see
  *  it); only the copy grant skips it. */
-export const NO_COPY_SPELLS: ReadonlySet<string> = new Set(['seconddraft']);
+export const NO_COPY_SPELLS: ReadonlySet<string> = NO_COPY_SPELL_IDS; // ONE set, shared with the combat copier (R-REALTIME-03)
 
 /** A minion became Gilded this run: ticks the Ancients' gild count (Bonds). A no-op outside an Ancients run. */
 export function noteGilded(state: RunState | undefined): void {
@@ -11473,12 +11473,16 @@ export function replayBattlecry(state: RunState, card: BoardCard): boolean {
  * count, so NO extra repeats here. `golden` mirrors the re-fired minion so the factory's golden doubling is
  * correct. Karwind/Bane already procced in combat (the `battlecryTriggered` event), so no re-proc here.
  */
-export function replayEconomyBattlecry(state: RunState, cardId: string, golden: boolean): void {
+export function replayEconomyBattlecry(state: RunState, cardId: string, golden: boolean, uid?: string): void {
   const def = CARD_INDEX[cardId];
   if (!def) return;
   const economy = def.effects.filter((e) => e.on === 'onPlay' && !COMBAT_REPLAYABLE_BATTLECRIES.has(e.do));
   if (economy.length === 0) return;
-  const self: BoardCard = {
+  // SHOP-ONLY Shouts (R-REALTIME-03) act AS the re-fired body's own run card when it is still on the board (`uid` =
+  // the combat body's `sourceUid`): Astral Relay wakes ITS neighbours, Double Dealer arms HER latch. A body with no
+  // run card (a summoned token, an enemy) falls back to a stand-in, as before.
+  const own = uid ? state.board.find((c) => c.uid === uid && c.cardId === cardId) : undefined;
+  const self: BoardCard = own ?? {
     uid: 'ryme-bc', cardId, tribe: def.tribe, attack: def.attack, health: def.health, keywords: [...def.keywords], golden,
   };
   const ctx = makeContext(state);
@@ -12231,6 +12235,12 @@ export function settlePendingDeath(state: RunState): void {
  *  borrowed-card path can never provide. */
 export function fireRecruitDeathrattlesForTest(state: RunState, minion: BoardCard): void {
   fireRecruitDeathrattles(makeContext(state), minion);
+}
+
+/** Crypt Broker's Shout fired in combat (R-REALTIME-03): the Echo minion reached hand DURING the fight; its Echo fires
+ *  out of combat on the arrived hand card at settle, exactly as the Shop half triggers it. */
+export function fireHandCardEcho(state: RunState, card: BoardCard): void {
+  fireRecruitDeathrattles(makeContext(state), card);
 }
 
 /** Fire a living BOARD minion's Echo in the Shop without it dying (the shop's whole Echo ritual: Sylus / Uron extra

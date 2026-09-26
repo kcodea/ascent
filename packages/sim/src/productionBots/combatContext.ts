@@ -141,6 +141,9 @@ function friendlySideOf(s: RunState): Omit<CombatSideState, 'poolIds'> {
     rememberedSpellIds: s.rememberedSpellIds ?? [],
     spellhide: s.spellhidePending ?? [],
     growthBonus: s.growthBonus ?? 0,
+    goldSpentThisTurn: s.goldSpentThisTurn ?? 0,
+    lastSpellThisTurnId: s.lastSpellThisTurnId,
+    squirlScoutBuff: s.squirlScoutBuff ?? 0,
     handMinions: s.hand
       .filter((c) => { const d = CARD_INDEX[c.cardId]; return !!d && !d.spell && !d.ruby; })
       .map((c) => ({ uid: c.uid, cardId: c.cardId, attack: c.attack, health: c.health, keywords: c.keywords, golden: c.golden, ...(handCardLocked(s, c) ? { locked: true } : {}) })),
@@ -174,5 +177,5 @@ export const MIRRORED_SIDE_KEYS: readonly string[] = [
   'conductorBuff', 'impHp', 'fodderConsumedAtk', 'fodderConsumedHp', 'beastBuyAtk', 'beastsPlayed',
   'spiritsPlayed', 'cardsBoughtThisTurn', 'magneticAtk', 'magneticHp', 'rubyBonus', 'tier', 'tribes',
   'cardBuffs', 'handSpellIds', 'alesLastTurn', 'spellEscalation', 'lastSpellCastId', 'rememberedSpellIds',
-  'spellhide', 'growthBonus', 'handMinions', 'beastHuntExtra', 'beastRitualExtra', 'questMods', 'pendingQuests',
+  'spellhide', 'growthBonus', 'goldSpentThisTurn', 'lastSpellThisTurnId', 'squirlScoutBuff', 'handMinions', 'beastHuntExtra', 'beastRitualExtra', 'questMods', 'pendingQuests',
 ];

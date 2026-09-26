@@ -1284,19 +1284,22 @@ describe('run loop (@game/sim)', () => {
     expect(karthus.attack).toBe(CARD_INDEX.karthus!.attack + 2); // Undead bond (undeadBuyAtk) baked in
   });
 
-  it('Ryme-deferred economy Battlecries replay through their recruit factory at settle (Nimbus)', () => {
+  it('Ryme-deferred SHOP-ONLY Shouts replay through their recruit factory at settle; live Shouts never do (R-REALTIME-03)', () => {
     let s: RunState = {
       ...createRun(1), phase: 'combat', hand: [],
       lastCombat: { events: [], result: 'win', playerDamage: 0, playerDeathrattles: 0, enemyDeaths: 0, initial: { player: [], enemy: [] },
-        // One genuine economy deferral (Nimbus banks an extra cast for the next shop spell) — plus stale
-        // Soulfeeder / Hoarder entries a pre-2026-08-04 combat could have recorded. Those ids resolve LIVE via
-        // carry-back channels now, so the settle replay must SKIP them (the carry-back is the single source of
-        // truth, never doubled).
-        playerDeferredBattlecries: [{ cardId: 'nimbus', golden: false }, { cardId: 'feed', golden: true }, { cardId: 'hoarder', golden: false }] },
+        // One genuine Shop-only deferral (Market Tormentor enchants the right-most Shop slot) — plus stale Nimbus /
+        // Soulfeeder / Hoarder entries an older combat could have recorded. Those ids resolve LIVE via carry-back
+        // channels now, so the settle replay must SKIP them (the carry-back is the single source of truth, never
+        // doubled): Nimbus's charge arrives ONCE, through playerShoutCarry.
+        playerDeferredBattlecries: [{ cardId: 'dm_tormentor', golden: false }, { cardId: 'nimbus', golden: false }, { cardId: 'feed', golden: true }, { cardId: 'hoarder', golden: false }],
+        playerShoutCarry: { nextSpellExtraCasts: 1 } },
     };
     const goldBefore = s.bonusEmbersNextTurn ?? 0;
     s = reduce(s, { type: 'settleCombat' }); // settle WITHOUT advancing, so nothing else mutates the run yet
-    // The Nimbus deferral replayed through its recruit factory: one extra cast banked.
+    // The Tormentor deferral replayed through its recruit factory: the slot accumulator grew once.
+    expect(s.rightmostSlotBuff).toEqual({ attack: 4, health: 5 });
+    // Nimbus: exactly the carried charge, never a second one from a replay.
     expect(s.nextSpellExtraCasts).toBe(1);
     // The stale live-id entries applied NOTHING at settle.
     expect(s.fodderSchedule ?? []).toEqual([]);

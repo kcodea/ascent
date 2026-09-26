@@ -28,7 +28,7 @@ import { RUNE_DUP_SWEETENER, RUNE_DUP_UNIQUE, forgeFilteredDuplicate, runeStacks
 import { spellFizzles } from './spellFizzle';
 import { buyStarform, fireStarformGainRemainder, starformFollowShopBuff, starformRefreshTick, starformSnapshot, starformSoulScriptBake, starformSpellAimsToken, starformStandIn, withStarformPinned, buffStarform, createStarform, hasStarform } from './starform';
 import { syncStarDestroyer, overchargeFree, consumeCalibration, equipmentPermanentlyAmplified, quickReleaseApplies } from './equipment';
-import { fireOnBuyWatchers, tribesPlayedThisTurn } from './recruit';
+import { fireOnBuyWatchers, tribesPlayedThisTurn, fireHandCardEcho } from './recruit';
 import { MATCHMAKING } from './matchmaking';
 
 /** Spend `amount` Gold and fire any `goldSpent` payoffs (Acid, Banksly) — the single Gold-spend chokepoint
@@ -4416,6 +4416,11 @@ export function playerCombatSideState(s: RunState): CombatSideState {
     rememberedSpellIds: s.rememberedSpellIds ?? [], // Runesnout Archivist's journal
     spellhide: s.spellhidePending ?? [], // Rune of Spellhide's Start-of-Combat re-casts
     growthBonus: s.growthBonus ?? 0, // Rune of Living Growth: combat Growth casts pay the improved value
+    // SHOUTS IN REAL TIME (R-REALTIME-03): what a Shout re-fired mid-fight reads. Built BEFORE the per-turn reset,
+    // so these are the Shop turn that just ended (Baby Gastrid's Gold, Recaller's last spell).
+    goldSpentThisTurn: s.goldSpentThisTurn ?? 0,
+    lastSpellThisTurnId: s.lastSpellThisTurnId,
+    squirlScoutBuff: s.squirlScoutBuff ?? 0, // Squirl Scout's snowball
     // Rope Wrangler's Echo summons a random hand MINION with its live stats (buffs + gilding intact).
     // `locked`: a tier/Gold/next-turn-locked card rides along (it can still be buffed and read) but no
     // combat summon may take it to the board.
@@ -4720,20 +4725,25 @@ function settleCombat(s: RunState, result: CombatResult): void {
   // / Black Belt Brian — the `toHand` event showed the real card flying). Each carries the run's per-card
   // enchant + Undead bond and leaves the shared pool (both no-ops for spells), matching a normal conjure.
   if (result.playerHandGrants) {
-    for (const cardId of result.playerHandGrants) {
+    // Crypt Broker (R-REALTIME-03): the grants at these indices arrived mid-fight; their Echo fires now, out of
+    // combat, on the arrived card (the Shop half's "trigger it"). A grant the hand cap refused triggers nothing.
+    const echoAt = new Set(result.playerShoutCarry?.handEchoes ?? []);
+    result.playerHandGrants.forEach((cardId, i) => {
       const def = CARD_INDEX[cardId];
-      if (!def || s.hand.length >= handCap(s)) continue;
+      if (!def || s.hand.length >= handCap(s)) return;
       const cb = cardBuff(s, cardId);
-      s.hand.push({
+      const card: BoardCard = {
         uid: `b${s.uidSeq++}`,
         cardId: def.id,
         tribe: def.tribe,
         ...conjuredStats(s, def, cb),
         keywords: [...def.keywords],
         golden: false,
-      });
+      };
+      s.hand.push(card);
       takeFromPool(s, cardId);
-    }
+      if (echoAt.has(i)) fireHandCardEcho(s, card);
+    });
   }
   // R-HAND-02 (owner 2026-09-09): "cards buffed in hand are always permanent" — a hand card a combat effect
   // buffed keeps the buff, applied here exactly as a recruit-phase hand buff would be (`addBuff`, so the
@@ -4794,8 +4804,24 @@ function settleCombat(s: RunState, result: CombatResult): void {
   // Ryme re-firing an ECONOMY battlecry in combat (Soulfeeder's Fodder, Hoarder's Gold, Demonic Anomaly's shop
   // buff, a gain-a-minion) couldn't run in the pure fight — replay each through its recruit factory now, with
   // full RunState access. Recorded once per re-fire in combat, so Drakko's doubling is already baked in.
+  // Since R-REALTIME-03 (owner 2026-09-26) ONLY the SHOP-ONLY Shouts land here (`SHOP_ONLY_SHOUTS`: a Starform, a
+  // Shop meal, a Shop slot, Orbit, a Consume): they fired live in the fight (their line, every Shout counter), and
+  // the Shop part applies now, once, acting as the re-fired body's own run card (`uid`).
   if (result.playerDeferredBattlecries) {
-    for (const { cardId, golden } of result.playerDeferredBattlecries) replayEconomyBattlecry(s, cardId, golden);
+    for (const { cardId, golden, uid } of result.playerDeferredBattlecries) replayEconomyBattlecry(s, cardId, golden, uid);
+  }
+  // SHOUTS IN REAL TIME (R-REALTIME-03): the run-state grants Shouts made AT THE MOMENT they fired in combat (each
+  // was logged live). Folded in exactly once here; nothing is replayed as a Shout.
+  if (result.playerShoutCarry) {
+    const c = result.playerShoutCarry;
+    if (c.nextSpellExtraCasts) s.nextSpellExtraCasts = (s.nextSpellExtraCasts ?? 0) + c.nextSpellExtraCasts; // Nimbus
+    if (c.nextSpellBonus) { // Sugarnova
+      const prev = s.nextSpellBonus ?? { attack: 0, health: 0 };
+      s.nextSpellBonus = { attack: prev.attack + c.nextSpellBonus.attack, health: prev.health + c.nextSpellBonus.health };
+    }
+    if (c.grimoireMult) s.grimoireMult = Math.max(s.grimoireMult ?? 0, c.grimoireMult); // Living Grimoire
+    if (c.squirlScoutBuff) s.squirlScoutBuff = (s.squirlScoutBuff ?? 0) + c.squirlScoutBuff; // Squirl Scout
+    for (const b of c.runShopBuffs ?? []) applyRunShopBuff(s, b.attack, b.health, b.source, b.cardId); // Contract Butcher / Malphas
   }
   // Imp King / Brood Matron Avenge: their in-combat Imp buffs are permanent — accrue them into the run-wide
   // Imp buff so future Imps (next fights) inherit them.
@@ -7525,6 +7551,7 @@ export function questCombatMods(s: RunState): QuestCombatMods {
     // rides in (`true` in old snapshots = 1), and simulate's `improveRepsFor` turns it into 1 + copies.
     runeMastery: s.runeMastery ? runeStacksOf(s, 'rune_mastery') : undefined,
     runeSpellstone: s.runeSpellstone, // Rune of the Spellstone: combat Rubies also count as spell casts
+    runeFullMeasure: s.runeFullMeasure || undefined, // Rune of Full Measure: a combat-fired Baby Gastrid pays Attack too (R-REALTIME-03)
     // ── 2026-08-20 rune batch ──
     runeReturningPack: f?.runeReturningPack || undefined,       // every N Beasts summoned → a random Beast next shop
     runeGraveRefreshment: f?.runeGraveRefreshment || undefined, // every N friendly Echoes → a free refresh next turn

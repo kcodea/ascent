@@ -137,6 +137,11 @@ export interface BoardSnapshot {
   rememberedSpellIds?: string[];
   /** Rune of Living Growth: the run's Growth improvement, so a served board's Growth casts at its own value. */
   growthBonus?: number;
+  /** Shouts re-fired on a served board mid-fight read their OWN run (R-REALTIME-03): Baby Gastrid's Gold spent,
+   *  Recaller's last spell, Squirl Scout's snowball. Absent in older captures = 0 / none. */
+  goldSpentThisTurn?: number;
+  lastSpellThisTurnId?: string;
+  squirlScoutBuff?: number;
   /** Set 2 — lifetime Ruby casts (the Vaultkeeper "spell umbrella" text; display-only in combat). */
   rubyCasts?: number;
   /** Set 3 Spirits — Spirits played on the capture turn (a served Kindled Sprite's Rally READS it) and the run's
@@ -363,6 +368,9 @@ export function snapshotBoard(s: RunState): BoardSnapshot {
     ...(s.lastSpellCastId ? { lastSpellCastId: s.lastSpellCastId } : {}),
     ...(s.rememberedSpellIds?.length ? { rememberedSpellIds: [...s.rememberedSpellIds] } : {}),
     ...(s.growthBonus ? { growthBonus: s.growthBonus } : {}),
+    ...(s.goldSpentThisTurn ? { goldSpentThisTurn: s.goldSpentThisTurn } : {}),
+    ...(s.lastSpellThisTurnId ? { lastSpellThisTurnId: s.lastSpellThisTurnId } : {}),
+    ...(s.squirlScoutBuff ? { squirlScoutBuff: s.squirlScoutBuff } : {}),
     ...(s.rubyCasts ? { rubyCasts: s.rubyCasts } : {}),
     ...(spiritsPlayed ? { spiritsPlayed } : {}),
     ...(Object.keys(tribesPlayed).length ? { tribesPlayed } : {}),

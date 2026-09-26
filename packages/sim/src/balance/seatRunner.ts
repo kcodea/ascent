@@ -377,6 +377,7 @@ export function mirrorForEnemySeat(result: CombatResult): CombatResult {
     playerFodderGrants: c.fodderGrants,
     playerFodderSchedule: c.fodderSchedule,
     playerDeferredBattlecries: c.deferredBattlecries,
+    playerShoutCarry: c.shoutCarry,
     playerMaxGoldGain: c.maxGoldGain,
     playerBonusGold: c.bonusGold,
     playerFreeRolls: c.freeRolls,

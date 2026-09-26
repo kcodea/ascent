@@ -110,45 +110,29 @@ export interface PhaseExcuse {
  * in `replayCombatBattlecry`'s docblock (dated 2026-08-04) — the audit Conductor slipped past.
  */
 export const PHASE_EXCUSED: Readonly<Record<string, PhaseExcuse>> = {
-  // ── onPlay (Shouts) with no combat factory: the economy-defer set. `replayCombatBattlecry` defers these to
-  //    settle and replays them through their recruit factory — correct so long as the reason still holds. ──
-  armChooseBoth: { phase: 'combat', kind: 'no-surface', why: "Dealer arms her own 'first Choose One this "
-    + "turn' latch. Choose One is resolved when a HAND card is played in the SHOP, and a fight never plays "
-    + 'one — a combat re-fire would arm a latch nothing can spend before the turn boundary clears it' },
-  battlecryDoubleNextSpell: { phase: 'combat', kind: 'no-surface', why: 'arms a run flag (next spell casts twice); nothing to double mid-fight, replays at settle' },
-  battlecryBuffNextSpell: { phase: 'combat', kind: 'no-surface', why: 'Starpath Vendor banks +A/+H for the next SHOP spell (a run field); no spell casts mid-fight, the deferred Shout replays at settle' },
+  // ── onPlay (Shouts) with no combat factory: ONLY the SHOP-ONLY set (`SHOP_ONLY_SHOUTS` in core/effects/factories.ts,
+  //    R-REALTIME-03, owner 2026-09-26: "all shouts should be real time in combat"). Each fires LIVE in combat (its
+  //    line, every Shout counter) and settle applies its Shop part once. Every other Shout has a combat factory. ──
+  armChooseBoth: { phase: 'combat', kind: 'no-surface', why: "SHOP_ONLY_SHOUTS: Double Dealer arms her own 'first Choose One "
+    + "this turn' latch; Choose One is played from HAND in the SHOP. A combat re-fire logs its line live; settle arms "
+    + 'her run card once (Start of Turn re-arms her anyway)' },
   rallyGrantFirstSpellCopy: { phase: 'recruit', kind: 'no-surface', why: 'Comet Conductor is "once per COMBAT" by its text; a shop Rally pass (Rune of the Chef) is not a fight, and the copy is the payout of the fight' },
   // ── Set 3 Celestials, THE STARFORM ROSTER (2026-09-12): the token lives IN THE SHOP; no shop exists mid-fight ──
-  battlecryCreateStarformOrBuff: { phase: 'combat', kind: 'no-surface', why: 'Star Seed creates / feeds the Starform, a SHOP offer (starform.ts); no shop mid-fight, a combat re-fired Shout replays at settle' },
-  buffThisShop: { phase: 'combat', kind: 'no-surface', why: 'Wishing Star: "this shop" buffs the offers standing in the row (addOfferBuff per offer); no shop mid-fight — the Shout replays at settle, the Echo half has no combat surface (owner spec 2026-09-12)' },
-  battlecryStarformConsumeShop: { phase: 'combat', kind: 'no-surface', why: 'Accretion Warden: the Starform eats a Shop minion; no shop mid-fight, replays at settle' },
-  battlecryBuffThisShopPerSpellsThisTurn: { phase: 'combat', kind: 'no-surface', why: 'Shooting Star: "this shop" per Shop spell this turn; no shop mid-fight, replays at settle' },
-  battlecryCollapseStarform: { phase: 'combat', kind: 'no-surface', why: 'Corona Devotee collapses the Starform, a SHOP offer; no shop mid-fight, replays at settle' },
+  battlecryCreateStarformOrBuff: { phase: 'combat', kind: 'no-surface', why: 'SHOP_ONLY_SHOUTS: Star Seed creates / feeds the Starform, a SHOP token (starform.ts). A combat re-fire logs its line live; settle feeds the token once' },
+  battlecryStarformConsumeShop: { phase: 'combat', kind: 'no-surface', why: 'SHOP_ONLY_SHOUTS: the Starform eats a Shop minion. A combat re-fire logs its line live; settle applies the meal once' },
+  battlecryCollapseStarform: { phase: 'combat', kind: 'no-surface', why: 'SHOP_ONLY_SHOUTS: Solburn collapses the Starform, a SHOP token. A combat re-fire logs its line live; settle collapses it once' },
   collapseExtraTargets: { phase: 'combat', kind: 'no-surface', why: "Nova Herald's passive MARKER — read by `collapseExtraTargetsOf` at Collapse time, a SHOP-only moment (the Starform is a shop offer); the recruit map holds a never-dispatched stub" },
-  battlecryScoutSpread: { phase: 'combat', kind: 'other-channel', why: 'grows the run-wide squirlScoutBuff; combat reads the carried value, the increment is a play-time event' },
   // Trouble's self-Ruby. Combat DOES implement it — just not through the factory map: `rubyPlayedAnywhere`
   // is a passive marker that `playRubyOn` SCANS living friendlies for (the same shape Candle Conduit's
   // `rubyBounceExtra` uses), because the reaction has to run inside the Ruby application it reacts to.
   rubySelfCastPerOtherRuby: { phase: 'combat', kind: 'outside-map', why: 'implemented in `playRubyOn` (core/effects/factories.ts), which scans living friendlies for the `rubyPlayedAnywhere` marker rather than dispatching it' },
-  battlecryDestroyForSpell: { phase: 'combat', kind: 'no-surface', why: 'destroys a SHOP offer to gain its spell; no shop exists mid-fight' },
-  getEchoAndTrigger: { phase: 'combat', kind: 'no-surface', why: 'grants an Echo chosen in the shop and triggers it there; a re-fire has no chosen Echo to reproduce' },
-  battlecryCopyEcho: { phase: 'combat', kind: 'state-missing', why: 'Gravetwin copies a CHOSEN target’s Echo; a combat re-fire has no way to reproduce the choice (documented in replayCombatBattlecry)' },
-  battlecryGrantRandomReveler: { phase: 'combat', kind: 'no-surface', why: 'a Reveler to HAND; no hand grant mid-fight beyond the carry-back, replays at settle' },
-  battlecryBuffRandomTribePlusReveler: { phase: 'combat', kind: 'state-missing', why: 'reads the run-wide Reveler value, which combat does not carry; replays at settle' },
-  battlecryDiscoverTribeIfControl: { phase: 'combat', kind: 'no-surface', why: 'a Discover; no shop mid-fight, replays at settle' },
   scGainStatsOfHighestHealthHand: { phase: 'recruit', kind: 'no-surface', why: 'Handbound Titan gains the hand minion\'s stats "this combat" — a temporary combat gain; a shop-side SoC replay (Twilight) has nothing temporary to grant' },
   rallyGiveTribeAttackOfHighestAttackHand: { phase: 'recruit', kind: 'no-surface', why: 'Flamebanner Marshal\'s Rally Attack is combat-only by owner ruling ("all attack only unless engraved"); a shop rally has no fight to grant it for' },
-  battlecryGetHandSpell: { phase: 'combat', kind: 'no-surface', why: 'mints hand spells (Tower Shield / Clue) into the HAND; no hand mid-fight, replays at settle like every other hand grant' },
-  battlecryAllDemonsConsume: { phase: 'combat', kind: 'no-surface', why: 'Demons Consume from the SHOP; no shop exists mid-fight, replays at settle' },
-  battlecryBuffTargetPerGoldSpent: { phase: 'combat', kind: 'state-missing', why: 'Baby Gastrid scales off goldSpentThisTurn, which CombatContext does not carry (documented in replayCombatBattlecry)' },
-  battlecryGildTarget: { phase: 'combat', kind: 'no-surface', why: 'gilds a shop/board target through the recruit gild pipeline; deferred to settle' },
-  battlecryArmGrimoire: { phase: 'combat', kind: 'no-surface', why: 'arms a run flag; nothing to arm against mid-fight' },
-  battlecryCopyCastSpell: { phase: 'combat', kind: 'state-missing', why: 'copies/casts a spell chosen at play; a re-fire has no chosen spell' },
-  buffShopPermanent: { phase: 'combat', kind: 'no-surface', why: 'permanent SHOP enchant; no shop exists mid-fight, replays at settle' },
-  battlecryTargetConsumesShop: { phase: 'combat', kind: 'no-surface', why: 'target Consumes a shop minion; no shop mid-fight' },
-  buffRightmostSlotPermanent: { phase: 'combat', kind: 'no-surface', why: 'enchants a shop SLOT; no shop mid-fight' },
-  triggerAdjacentOrbits: { phase: 'combat', kind: 'no-surface', why: 'Orbit is a shop mechanic (TRIGGER_PHASES.orbit = recruit); nothing to wake mid-fight' },
-  battlecryConsumeShopRandom: { phase: 'combat', kind: 'no-surface', why: 'Consumes a random shop minion; no shop mid-fight' },
+  battlecryAllDemonsConsume: { phase: 'combat', kind: 'no-surface', why: 'SHOP_ONLY_SHOUTS: Consume is a Shop action (onConsume + the Fodder tally are recruit-only; the meal is permanent). A combat re-fire logs its line live; settle feeds the Demons once' },
+  battlecryTargetConsumesShop: { phase: 'combat', kind: 'no-surface', why: 'SHOP_ONLY_SHOUTS: the target eats a random SHOP minion. A combat re-fire logs its line live; settle applies the meal once' },
+  buffRightmostSlotPermanent: { phase: 'combat', kind: 'no-surface', why: 'SHOP_ONLY_SHOUTS: enchants a Shop SLOT (+ Rune of the Display Case). A combat re-fire logs its line live; settle enchants once' },
+  triggerAdjacentOrbits: { phase: 'combat', kind: 'no-surface', why: 'SHOP_ONLY_SHOUTS: Orbit is a shop mechanic (TRIGGER_PHASES.orbit = recruit). A combat re-fire logs its line live; settle wakes the Relay’s own neighbours once' },
+  battlecryConsumeShopRandom: { phase: 'combat', kind: 'no-surface', why: 'SHOP_ONLY_SHOUTS: eats a random SHOP minion. A combat re-fire logs its line live; settle applies the meal once' },
 
   // ── onDeath (Echoes) with no recruit factory: fires when a shop-side Echo replay (Funeral on Loan,
   //    Echohorn) reaches it. The no-surface ones are sound; the needs-triage ones are EXACTLY the

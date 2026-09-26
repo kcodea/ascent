@@ -31,7 +31,7 @@ import { groupBuffCasts, type BuffCast } from './choreo/channels/buffCast';
 import { groupSelfBuffs, type SelfBuff } from './choreo/channels/buffSelf';
 import { runAttackExchangeCues, runRiseReturn } from './choreo/engine';
 import { setTransition } from './choreo/channels/lunge';
-import { burstDeathAuras, breakShieldAura, reformReborn, reformRebirth } from './choreo/channels/aura';
+import { burstDeathAuras, breakShieldAura, crackResilientWard, reformReborn, reformRebirth } from './choreo/channels/aura';
 import { type Float, type DeathFloat, KW_FLOAT } from './choreo/channels/float';
 import { combatBuffDelta, combatPreviewFold, type CombatBuffDelta, type CombatPreviewFold } from './runBuffs';
 import type { CombatQuestDelta } from './store'; // type-only (erased) — no runtime edge back to the store
@@ -369,7 +369,11 @@ export function computeFrame(
       }
     } else if (e.type === 'shield') {
       const u = find(e.target);
-      if (u) { u.divineShield = false; u.keywords = u.keywords.filter((k) => k !== 'DS'); }
+      if (u) { u.divineShield = false; u.keywords = u.keywords.filter((k) => k !== 'DS' && k !== 'RW'); }
+    } else if (e.type === 'wardDowngrade') {
+      // A Resilient Ward took its first hit: it drops to a plain Ward (the card's orange layer cracks away).
+      const u = find(e.target);
+      if (u) u.keywords = u.keywords.filter((k) => k !== 'RW');
     } else if (e.type === 'shieldUp') {
       const u = find(e.target);
       if (u) { u.divineShield = true; if (!u.keywords.includes('DS')) u.keywords.push('DS'); }
@@ -559,16 +563,18 @@ export function computeFrame(
 // damage float always lands ON contact, independent of pacing.
 
 /** The transient animation class for the unit the active event acts on. */
-function animFor(e: CombatEvent | undefined): Record<string, string> {
+export function animFor(e: CombatEvent | undefined): Record<string, string> {
   if (!e) return {};
   switch (e.type) {
     case 'attack': return { [e.attacker]: 'attacking', [e.defender]: 'aimed' };
     case 'dmg': return { [e.target]: 'struck' };
     case 'shield': return { [e.target]: 'shatter' };
+    case 'wardDowngrade': return { [e.target]: 'shatter' };
     case 'shieldUp': return { [e.target]: 'shieldgain' };
     case 'poison': return { [e.target]: 'poisoned' };
     case 'venomLost': return { [e.target]: 'venomspent' };
-    case 'reborn': return { [e.target]: 'reborn' };
+    // A REBIRTH re-forms out of its phoenix flame (`rebirthing`, styles.css) on top of the shared re-entry.
+    case 'reborn': return { [e.target]: e.rebirth ? 'reborn rebirthing' : 'reborn' };
     case 'buff': return { [e.target]: 'buffed' };
     case 'improve': return { [e.target]: 'buffed' };
     case 'keyword': return { [e.target]: 'buffed' }; // a granted keyword pulses like a buff landing
@@ -594,6 +600,7 @@ function narrateLog(e: CombatEvent, names: Map<string, string>): { text: string;
     case 'attack': return { text: `${n(e.attacker)} strikes ${n(e.defender)} for ${e.swing}.`, kind: 'attack' };
     case 'dmg': return { text: `${n(e.target)} takes ${e.amount} damage (${Math.max(0, e.remainingHp)} HP left).`, kind: 'dmg' };
     case 'shield': return { text: `${n(e.target)}'s Ward absorbs the hit.`, kind: 'shield' };
+    case 'wardDowngrade': return { text: `${n(e.target)}'s Resilient Ward absorbs the hit. A Ward remains.`, kind: 'shield' };
     case 'shieldUp': return { text: `${n(e.target)} gains a Ward.`, kind: 'shield' };
     case 'poison': return { text: `Execute destroys ${n(e.target)}.`, kind: 'poison' };
     case 'venomLost': return { text: `${n(e.target)}'s Execute is spent.`, kind: 'poison' };
@@ -840,18 +847,38 @@ export function layoutRectOf(el: Element): { cx: number; cy: number; w: number; 
   };
 }
 
-function deathConsequenceLead(
+export function deathConsequenceLead(
   shown: Moment | undefined,
   next: Moment,
   events: CombatEvent[],
   cardIds: Map<string, string>,
   attackerUid: string | null,
+  /** The beats shown just BEFORE `shown` (oldest first). A returning body's death is not always in the beat right
+   *  before its return: the killer's own reaction (a Target Dummy's onDamaged `buff`) can sit between them, and the
+   *  return then skipped its read-lead entirely and popped back ~0.2s after dying (owner 2026-09-26, a 1v1
+   *  Rebirth). The reborn branch looks back through these for the returning body's own death. */
+  recent: Moment[] = [],
 ): number {
   if (!shown) return 0;
   const summon = next.primary.type === 'summon';
   const reborn = next.primary.type === 'reborn';
   const buff = next.primary.type === 'buff';
   if (!summon && !reborn && !buff) return 0;
+  if (reborn) {
+    const returning = new Set<string>();
+    for (let i = next.start; i < next.end; i++) { const e = events[i]; if (e?.type === 'reborn') returning.add(e.target); }
+    let lead = 0;
+    for (const m of [...recent, shown]) {
+      for (let i = m.start; i < m.end; i++) {
+        const e = events[i];
+        // A Rise/Rebirth death (`rise:true`) → hold the body's return until its fade (and, for a Rebirth, its
+        // burn-up and hovering embers) has read.
+        if (e?.type !== 'death' || !e.rise || !returning.has(e.target)) continue;
+        lead = Math.max(lead, e.target === attackerUid ? REBORN_LEAD.attacker : REBORN_LEAD.defender);
+      }
+    }
+    return lead;
+  }
   let lead = 0;
   for (let i = shown.start; i < shown.end; i++) {
     const e = events[i];
@@ -869,6 +896,23 @@ function deathConsequenceLead(
     lead = Math.max(lead, e.target === attackerUid ? table.attacker : table.defender);
   }
   return lead;
+}
+
+/** How long a REBIRTH return keeps the stage before the next beat (ms at 1× speed, ADDED to the base hold). Owner
+ *  2026-09-26: "it needs the same combat beat style as rise, so it rises before the next beat occurs". The body
+ *  re-forms out of its pillar of fire over `REBIRTH_FORM_MS` (styles.css `rebirthform`, scaled by combat speed like
+ *  the hold), and the next swing must not start while it is still rising: base hold (~360ms before an attack) +
+ *  this ≈ 1.06s, clear of the 0.9s re-form. The death → return side already matches Rise exactly: a rebirth's death
+ *  carries `rise: true`, so it fades soft in place (`dying rising`) and `REBORN_LEAD` holds its return. */
+export const REBIRTH_FORM_MS = 900;
+export const REBIRTH_SETTLE_LEAD = 700;
+export function rebirthSettleLead(shown: Moment | undefined, events: CombatEvent[]): number {
+  if (!shown) return 0;
+  for (let i = shown.start; i < shown.end; i++) {
+    const e = events[i];
+    if (e?.type === 'reborn' && e.rebirth) return REBIRTH_SETTLE_LEAD;
+  }
+  return 0;
 }
 
 /** A PLAIN attacker death (no Rise / Deathrattle consequence to lead the hold) still gets pulled back to its
@@ -1983,8 +2027,10 @@ export function useCombatReplay(
       // Hold for the death cascade's consequence (DR summon / Rise return), OR — with no consequence — for a
       // plain attacker being pulled home to die in its slot. Max: a Rise/DR lead already covers its pull.
       const lead = Math.max(
-        deathConsequenceLead(shown, next, events, cardIds, atkUid),
+        deathConsequenceLead(shown, next, events, cardIds, atkUid, beats.slice(Math.max(0, beatIdx - 3), Math.max(0, beatIdx - 1))),
         pulledHomeAttackerHold(shown, atkUid, events, cardIds),
+        // A REBIRTH finishes re-forming out of its fire before anything else plays (owner 2026-09-26).
+        rebirthSettleLead(shown, events),
         // A PARKED attacker's own damage beat waits a moment first (owner ask 2026-09-01: *"we need a slight
         // delay after the final resolution before the echohorn actually commits its attack"*). Its forced Echo
         // has just finished — a spray, a charger's whole exchange — and the swing it has been holding should
@@ -2407,6 +2453,7 @@ export function useCombatReplay(
       },
       onAuraBurst: (uid) => burstDeathAuras(uid, rectOf(uid)),
       onShieldBreak: (uid) => breakShieldAura(rectOf(uid), uid),
+      onWardDowngrade: (uid) => crackResilientWard(rectOf(uid), uid),
       // Rise re-forms in aqua; REBIRTH bursts into its phoenix flame (owner 2026-09-25) — one call per event.
       onReborn: (uid, rebirth) => (rebirth ? reformRebirth(rebornRects.get(uid) ?? rectOf(uid), uid) : reformReborn(rebornRects.get(uid) ?? rectOf(uid))),
       // Execute proc → the crescent strike at the VICTIM's slot (the unit being destroyed), read at fire time
@@ -2718,6 +2765,11 @@ export function useCombatReplay(
       // ward is CSS now, so the shatter fires at the unit's live rect (no Pixi bubble to read coords from).
       const wardTargets: string[] = [];
       for (let i = cur.start; i < cur.end; i++) { const e = events[i]; if (e?.type === 'shield') wardTargets.push(e.target); }
+      // A Resilient Ward's first hit (its orange layer shatters on the card itself — see `WardGlass`): the small
+      // `resilient-ward-shatter` sparks + the Ward-break SOUND at the same contact, and no Ward blast, since a Ward
+      // is still standing. One sound per exchange: quiet when a real Ward break (or an earlier downgrade) plays it.
+      const downgrades: string[] = [];
+      for (let i = cur.start; i < cur.end; i++) { const e = events[i]; if (e?.type === 'wardDowngrade') downgrades.push(e.target); }
       // EXECUTE proc inside this exchange → the strike REPLACES the standard hit FX at contact (see impact.ts).
       // Gated on a `poison` EVENT, not on the attacker carrying `V`: the keyword is spent after one kill, so a
       // keyword check would keep slashing on later swings that no longer execute anything.
@@ -2727,7 +2779,7 @@ export function useCombatReplay(
       // lunge — the gold shatter has to pop where the bubble visibly is (mid-strike, at contact), not back at
       // the unit's empty slot. The opposite call from the unit-marking FX; don't "fix" this to match them.
       const rectFor = (uid: string) => { const r = findEl(uid)?.getBoundingClientRect(); return r ? { cx: r.left + r.width / 2, cy: r.top + r.height / 2, w: r.width, h: r.height } : null; };
-      const breakWards = wardTargets.length ? () => { for (const t of wardTargets) breakShieldAura(rectFor(t), t); } : undefined;
+      const breakWards = wardTargets.length || downgrades.length ? () => { for (const t of wardTargets) breakShieldAura(rectFor(t), t); downgrades.forEach((t, i) => crackResilientWard(rectFor(t), t, wardTargets.length > 0 || i > 0)); } : undefined;
       if (atkEl && a && d) {
         setAttackUid(cur.primary.attacker);
         // A Rally firing as THIS unit attacks → the lunge pauses at the top of the wind-up and flashes the
@@ -3256,8 +3308,14 @@ export function useCombatReplay(
         // styles.css) since its spirit bursts over it and the body re-forms in that same slot next beat.
         if (cls === 'dying') {
           const u = frame.player.find((x) => x.uid === uid) ?? frame.enemy.find((x) => x.uid === uid);
-          if (u?.keywords.includes('R')) {
-            anims[uid] = uid === impactAtk ? 'dying rising returning' : 'dying rising';
+          // A Rise AND a Rebirth death both carry `rise: true` (the body returns): both fade soft in place, so the
+          // two keywords share Rise's beat style (owner 2026-09-26). The keyword check stays for older logs.
+          const ev = events[i];
+          if ((ev?.type === 'death' && ev.rise) || u?.keywords.includes('R')) {
+            // A REBIRTH (its return is a `reborn { rebirth }` later in the log) BURNS UP in blue flame instead of the
+            // plain soft fade (`rbburn`, styles.css).
+            const burn = events.some((x, j) => j > i && x.type === 'reborn' && x.rebirth && x.target === uid) ? ' rbburn' : '';
+            anims[uid] = (uid === impactAtk ? 'dying rising returning' : 'dying rising') + burn;
           } else if (CARD_INDEX[cardIds.get(uid) ?? '']?.effects?.some((f) => f.on === 'onDeath')) {
             // Deathrattle: fade the card IN PLACE (no bounce) under the skull burst. A Deathrattle ATTACKER
             // that died mid-lunge also gets `returning` — the fade DELAYS while GSAP pulls it home, so the

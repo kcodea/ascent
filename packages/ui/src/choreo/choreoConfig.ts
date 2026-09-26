@@ -48,6 +48,8 @@ export interface ChoreoConfig {
   dmg: number;
   /** Divine-shield absorb. */
   shield: number;
+  /** A Resilient Ward's first hit (it drops to a plain Ward) — held like a Ward break. */
+  wardDowngrade: number;
   /** Shield gained. */
   shieldUp: number;
   /** Poison tick. */
@@ -89,7 +91,7 @@ const DEFAULTS: ChoreoConfig = {
   attack: 240, sc: 720, summon: 440, buff: 140, reborn: 640, improve: 520, rally: 720, toHand: 410,
   maxGold: 560, hpGrant: 0,
   // result beats (ms)
-  dmg: 460, shield: 460, shieldUp: 460, poison: 500, venomLost: 500, death: 400,
+  dmg: 460, shield: 460, wardDowngrade: 460, shieldUp: 460, poison: 500, venomLost: 500, death: 400,
   pummelTrigger: 460, // = dmg (see the field doc) — a leading crossing reads like the hit it rode in on
   // overlay lifetimes (ms)
   floatMs: 1500, deathFloatMs: 1000, finalHold: 900,

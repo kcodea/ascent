@@ -605,4 +605,32 @@ export const TRIGGERS_RULES: GameRule[] = [
       lastVerifiedAt: '2026-09-24',
     },
   },
+  {
+    id: 'R-REALTIME-01',
+    title: 'Real-time by default: every trigger, grant and printed number resolves and updates the moment it happens',
+    statement:
+      'Unless a card, rune, hero power, quest or Ancient EXPLICITLY says otherwise (for example "next turn", "at End of '
+      + 'Turn", "at Start of Combat", "after combat"), its trigger fires, its grant lands and its printed text updates AT '
+      + 'THE MOMENT the condition is met, in whatever phase that is. A payout that a fight earns (a card to hand, a stat '
+      + 'gain, a tally step) is granted DURING the fight at the event that earned it (a live toHand / buff the replay '
+      + 'shows), never deferred to combat resolution or the next shop. Counters and countdowns tick live. A deferred '
+      + 'timing is only correct when the text says so or an owner ruling records it. This complements cross-phase by '
+      + 'default (every effect works in the shop, at End of Turn and in combat) and live card text (CLAUDE.md).',
+    domain: 'triggers',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-26 (Warden Genesis timing)', quote: 'please bake this rule into the oracle - our triggers, text, etc should all default to real-time updates and grants unless otherwise stated' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-26 (Warden Genesis timing)', quote: "warden's genesis grant should be in real-time not at combat resolution." },
+      { kind: 'code', ref: 'packages/core/src/combat/simulate.ts ctx.grantToHand (the one mid-fight hand chokepoint: live toHand + the hand reactors) and the Genesis ancientWardCopy window at the Ward-break site' },
+    ],
+    currentBehaviour:
+      'Conforms for the cases pinned below. FIXED 2026-09-26: Warden x Ancient of Genesis paid its copy at settle; it now '
+      + 'pays mid-fight the moment the 3rd Ward breaks. Known deliberate deferrals: Warden x Ancient of Fortune ("gain 2 '
+      + 'Gold next turn", said in its text).',
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/sim/src/ancientsWarden.test.ts', 'packages/sim/src/handGainInCombat.test.ts'],
+      lastVerifiedAt: '2026-09-26',
+    },
+  },
 ];

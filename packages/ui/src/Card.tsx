@@ -89,6 +89,7 @@ import './cardPillsConfig';
 import { artFor, artVariantKey } from './art';
 import { renameTerms } from './terms';
 import { getRebirthConfig } from './rebirthConfig';
+import { CROWN_FRAMES } from './rebirthCrown';
 import { colourTerms } from './termColour';
 import { KeywordDefs } from './KeywordDefs';
 import { refPopupLeft } from './refPreviewPlacement';
@@ -986,7 +987,9 @@ export const Card = memo(function Card({
           )}
           {/* Reborn — a faint ethereal aqua-green dome + rising randomized wisps (CSS, replacing the old Pixi
               wisp), clipped to the oval window. Each wisp carries its own random position/size/rise/drift. */}
-          {/* REBIRTH (`RB`) has its own phoenix look now (owner 2026-09-25), below; Rise keeps the dome. */}
+          {/* REBIRTH (`RB`) — the VEIL: soft blue fire licking up over the portrait's lower edge (clipped to the window,
+              z2 like Rise's dome), the over-the-card half of its look; the crown on the frame is RebirthCrown below. */}
+          {card.keywords.includes('RB') && <div className="rebirth-veil" aria-hidden="true"><div className="rbv" /></div>}
           {card.keywords.includes('R') && (
             <div className="reborn" aria-hidden="true">
               <div className="reborn-dome" />
@@ -999,16 +1002,6 @@ export const Card = memo(function Card({
                   />
                 ))}
               </div>
-            </div>
-          )}
-          {/* REBIRTH — a thin ember rim on the oval (a static ring breathing in OPACITY only, the `kwglow` pattern)
-              and a few embers rising from the base (transform/opacity only, no blur). Colours/sizes: 🔥 tuner. */}
-          {card.keywords.includes('RB') && (
-            <div className="rebirth" aria-hidden="true">
-              <div className="rebirth-rim" />
-              {REBIRTH_EMBERS.slice(0, getRebirthConfig().emberCount).map((e, i) => (
-                <div key={i} className="ember" style={{ left: e.left, animationDelay: e.delay, animationDuration: e.dur, '--ex': e.ex } as CSSProperties} />
-              ))}
             </div>
           )}
         </div>
@@ -1029,14 +1022,7 @@ export const Card = memo(function Card({
             sphere, not a smaller one inside the art (owner note).
             Geometry is pure CSS per frame type (oval / spell square / taunt heater), mirroring `.cframe-tint`
             so it tracks the frame at any card scale with no measuring — see styles.css "WARD GLASS". */}
-        {card.keywords.includes('DS') && (
-          <div className="wardglass" aria-hidden="true">
-            <div className="wg-fill" />
-            <div className="wg-hex" />
-            <div className="wg-sheen" />
-            <div className="wg-rim" />
-          </div>
-        )}
+        {card.keywords.includes('DS') && <WardGlass resilient={card.keywords.includes('RW')} />}
         {/* Flurry (W) — wind blades swirling the card: a CSS ring stack (styles.css `.flurrycard .flurry`).
             Lives in the archbox (NOT `.art`, which clips) at z2 — above the art, below the frame — so the
             swirl orbits AROUND the card like the preview. Static gradient/mask paint from flurryConfig; only
@@ -1157,6 +1143,10 @@ export const Card = memo(function Card({
             <span className="cframe-tint" aria-hidden="true" />
           </>
         )}
+        {/* REBIRTH (`RB`) — soft blue-white fire burning ON the frame (z4, over the art and the gold like Ward's
+            shell, under the badges), a faint glow and rising embers. Pre-rendered, pre-blurred SVG frames
+            cross-faded by opacity; the shield variant follows Taunt's heater. See `RebirthCrown` + styles.css. */}
+        {card.keywords.includes('RB') && <RebirthCrown shield={card.keywords.includes('T')} />}
         {/* Golden (tripled) marker — authored gilded badge PNG (was a CSS gold-circle + crown glyph); pairs with
             the gold arch frame so a tripled minion is instantly findable in a row. */}
         {card.golden && <span className="goldcrown" aria-hidden="true"><img decoding="sync" className="goldcrown-img" src={GILDED_BADGE_SRC} alt="" aria-hidden="true" /></span>}
@@ -1299,6 +1289,63 @@ export const Card = memo(function Card({
   );
 });
 
+/** The shards the orange RESILIENT layer bursts into when its first hit lands (owner 2026-09-26: "a burst/shatter
+ *  effect ... really clean"): eight sharp glass slivers born ON the shell's rim, each pointing outward, that fly
+ *  straight out, spin a little, shrink and fade. Few, sharp, no debris. `x`/`y` seat the sliver on the rim (% of the
+ *  shell box), `w` sizes it, `r0` aims it outward; `dx`/`dy` is its flight (% of the shell box) and `spin` its turn.
+ *  Only transform + opacity animate (one-shot, `wgshardfly` on the wrapper, `wgshardspin` on the sliver). */
+const SHARD_A = 'polygon(50% 0%, 100% 34%, 70% 100%, 22% 86%, 0% 28%)';
+const SHARD_B = 'polygon(38% 0%, 100% 52%, 58% 100%, 0% 64%)';
+const SHARD_C = 'polygon(52% 0%, 88% 66%, 34% 100%, 6% 44%)';
+const RESIL_SHARDS: readonly { x: string; y: string; w: string; r0: string; dx: string; dy: string; spin: string; shape: string }[] = [
+  { x: '44%', y: '4%', w: '17%', r0: '-8deg', dx: '-5%', dy: '-34%', spin: '-40deg', shape: SHARD_A },
+  { x: '81%', y: '16%', w: '14%', r0: '42deg', dx: '20%', dy: '-22%', spin: '55deg', shape: SHARD_B },
+  { x: '96%', y: '48%', w: '19%', r0: '88deg', dx: '36%', dy: '-1%', spin: '-30deg', shape: SHARD_C },
+  { x: '83%', y: '82%', w: '14%', r0: '134deg', dx: '22%', dy: '22%', spin: '48deg', shape: SHARD_A },
+  { x: '48%', y: '96%', w: '18%', r0: '182deg', dx: '-1%', dy: '35%', spin: '-52deg', shape: SHARD_B },
+  { x: '16%', y: '81%', w: '13%', r0: '228deg', dx: '-22%', dy: '19%', spin: '36deg', shape: SHARD_C },
+  { x: '4%', y: '45%', w: '16%', r0: '276deg', dx: '-33%', dy: '-3%', spin: '-44deg', shape: SHARD_A },
+  { x: '22%', y: '14%', w: '14%', r0: '322deg', dx: '-18%', dy: '-24%', spin: '60deg', shape: SHARD_B },
+];
+
+/**
+ * WARD GLASS — the energy shell (see styles.css "WARD GLASS"). A RESILIENT Ward (`RW`, owner 2026-09-26) wears the
+ * same shell re-tinted red-and-orange (`.resil` swaps the shell's colour vars) with a clean orange outline. When the
+ * Resilient layer's first hit strips `RW` (combat's `wardDowngrade`), the shell reverts to the plain Ward at once and
+ * the orange layer plays ONE clean shatter on top (owner 2026-09-26, "a burst/shatter effect ... really clean"): a
+ * hot flare of the orange rim, its outline kicks outward, and eight sharp slivers fly off the rim and fade (~400 ms).
+ * The Pixi `resilient-ward-shatter` sparks fire with it (aura channel). Transform/opacity only; the layer unmounts on
+ * its animation end. No loop touches a paint property.
+ */
+const WardGlass = memo(function WardGlass({ resilient }: { resilient: boolean }) {
+  const was = useRef(resilient);
+  const [crack, setCrack] = useState(0);
+  useEffect(() => {
+    if (was.current && !resilient) setCrack((n) => n + 1);
+    was.current = resilient;
+  }, [resilient]);
+  return (
+    <div className={`wardglass${resilient ? ' resil' : ''}`} aria-hidden="true">
+      <div className="wg-fill" />
+      <div className="wg-hex" />
+      <div className="wg-sheen" />
+      <div className="wg-rim" />
+      {resilient && <div className="wg-resil-rim" />}
+      {crack > 0 && (
+        <div key={crack} className="wg-crack" onAnimationEnd={(e) => { if (e.target === e.currentTarget) setCrack(0); }}>
+          <div className="wg-flash" />
+          <div className="wg-burstring" />
+          {RESIL_SHARDS.map((sh, i) => (
+            <div key={i} className="wg-shardfly" style={{ '--dx': sh.dx, '--dy': sh.dy } as CSSProperties}>
+              <div className="wg-shard" style={{ left: sh.x, top: sh.y, width: sh.w, clipPath: sh.shape, '--r0': sh.r0, '--spin': sh.spin } as CSSProperties} />
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+});
+
 /**
  * EXECUTE (V) aura — the swirling ring of rage. Layers are GENERATED (the counts are dials), so unlike Ward
  * this can't ride on CSS vars alone: a tuner change has to rebuild the DOM. `useSyncExternalStore` subscribes
@@ -1339,18 +1386,40 @@ const ExecuteAura = memo(function ExecuteAura() {
   );
 });
 
+/** Rebirth embers — a fixed randomized set (module load; presentation-only jitter), capped by the tuner's count.
+ *  Each rises off the crown's upper arc (`left` across the top, `top` near the rim) and drifts sideways by `ex`. */
+const REBIRTH_EMBERS = Array.from({ length: 12 }, (_, i) => ({
+  left: (50 + (((i * 37) % 12) / 11 - 0.5) * 40 + (Math.random() - 0.5) * 6).toFixed(1) + '%',
+  top: (28 + Math.random() * 10).toFixed(1) + '%',
+  delay: (-Math.random() * 2.6).toFixed(2) + 's',
+  dur: (1.7 + Math.random() * 1.1).toFixed(2) + 's',
+  ex: ((Math.random() - 0.5) * 22).toFixed(0) + '%',
+}));
+
+/** The REBIRTH crown: a glow, CROWN_FRAMES pre-rendered flame frames (`--rb-crown-N`, or `--rb-crown-s-N` on a
+ *  Taunt shield; rebirthConfig.ts) that cross-fade in turn, and a few embers. Memoised on its one prop. */
+const RebirthCrown = memo(function RebirthCrown({ shield }: { shield: boolean }) {
+  return (
+    <div className={`rebirth-crown${shield ? ' shield' : ''}`} aria-hidden="true">
+      <div className="rbc-glow" />
+      <div className="rbc-flames">
+        {Array.from({ length: CROWN_FRAMES }, (_, k) => (
+          <div key={k} className="rbc-frame" style={{ backgroundImage: `var(--rb-crown-${shield ? 's-' : ''}${k})`, animationDelay: `calc(var(--rb-flicker, 0.9s) * ${(-k / CROWN_FRAMES).toFixed(3)})` } as CSSProperties} />
+        ))}
+      </div>
+      <div className="rbc-embers">
+        {REBIRTH_EMBERS.slice(0, getRebirthConfig().emberCount).map((e, i) => (
+          <div key={i} className="rbc-ember" style={{ left: e.left, top: e.top, animationDelay: e.delay, animationDuration: e.dur, '--ex': e.ex } as CSSProperties} />
+        ))}
+      </div>
+    </div>
+  );
+});
+
 /** Reborn wisps — a fixed randomized set (generated once at module load) of rising ethereal spirit wisps. Each
  *  carries its own position / size / rise / sideways-drift so they read as an organic cloud, not a line. Count +
  *  ranges mirror the tuner (fx/reborn-css-preview.html): count 27, spread 38%, size 27%±35%, rise 320%±, wx ±22px.
  *  Math.random is presentation-only jitter (the ban is scoped to core/content/sim). */
-/** Rebirth embers — a fixed randomized set (module load; presentation-only jitter), capped by the tuner's count. */
-const REBIRTH_EMBERS = Array.from({ length: 14 }, () => ({
-  left: (50 + (Math.random() - 0.5) * 44).toFixed(1) + '%',
-  delay: (-Math.random() * 3.4).toFixed(2) + 's',
-  dur: (2.6 + Math.random() * 1.6).toFixed(2) + 's',
-  ex: ((Math.random() - 0.5) * 18).toFixed(0) + 'px',
-}));
-
 const REBORN_WISPS = Array.from({ length: 27 }, () => ({
   left: (50 + (Math.random() - 0.5) * 38).toFixed(1) + '%',
   bottom: (Math.random() * 16).toFixed(1) + '%',

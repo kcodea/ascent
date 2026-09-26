@@ -27,6 +27,9 @@ export function momentKind(primary: CombatEvent): MomentKind {
     // `beatDelay(next.primary.type)`), and the kind-facing `holdMsForKind` maps `shieldGain`→the `shieldUp`
     // pacing key, whose value equals `shield`'s — so both classifications hold for the same time.
     case 'shield': return 'shieldPop';
+    // A Resilient Ward's first hit rides the Ward-break beat (owner 2026-09-26: "it follows the existing Ward break
+    // choreography"), paced on its own `wardDowngrade` key (= `shield`).
+    case 'wardDowngrade': return 'shieldPop';
     case 'shieldUp': return 'shieldGain';
     // Same split, same reason, as `shield`/`shieldUp` above: an Execute PROC (`poison`, a kill) and a Venomous
     // charge being SPENT (`venomLost`) shared one kind, so a def authored for "Venom spent" would have fired on

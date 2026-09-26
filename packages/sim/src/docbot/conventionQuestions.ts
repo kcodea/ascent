@@ -446,6 +446,7 @@ const KEYWORD_CONTRACTS: ReadonlyArray<{ code: Keyword; name: string; semantics:
   { code: 'SL', name: 'Slaughter', semantics: 'triggers its effect each time this minion kills an enemy minion' },
   { code: 'CR', name: 'Critical Strike', semantics: 'a per-card chance to deal double damage on attack' },
   { code: 'EG', name: 'Engraved', semantics: 'stat gains during combat carry back to the run board permanently' },
+  { code: 'RW', name: 'Resilient Ward', semantics: 'a Ward that takes 2 hits to break: the first hit is absorbed and leaves a plain Ward, the second breaks it; carried alongside Ward (DS)' },
   { code: 'RB', name: 'Rebirth', semantics: 'when this dies it returns once with its FULL current body — stats, buffs, keywords and effects (Rise returns the printed body at 1 Health); resolved before Rise, spent on the return' },
 ];
 

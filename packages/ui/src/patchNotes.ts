@@ -52,6 +52,20 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-09-25',
+    label: 'Triple Reward Card',
+    changes: [
+      {
+        category: 'Systems',
+        text: 'The Triple Reward card now looks exactly like a spell in your hand.',
+        details: [
+          'It wears the same square spell frame, art window, Spell label and text box as every other spell.',
+          'The old gold frame and orange glow are gone; it still arrives in a burst of gold.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-09-25',
     label: 'New Kobold and Undead Runes',
     changes: [
       {

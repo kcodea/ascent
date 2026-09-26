@@ -105,8 +105,8 @@ export const ANCIENT_PAIRINGS: Record<string, Partial<Record<AncientId, AncientP
       effects: [{ do: 'friendlyDeathBuffsGilded', attack: 8, health: 8 }],
     },
     genesis: {
-      offerText: 'Masterwork gets **2** copies of a chosen minion instead. This checks for triples.',
-      powerText: 'Get **2** plain copies of a friendly minion. This checks for triples. Recharges after you spend {recharge} Gold.',
+      offerText: 'Masterwork gets **2** copies of a chosen minion instead.',
+      powerText: 'Get **2** plain copies of a friendly minion. Recharges after you spend {recharge} Gold.',
       effects: [{ do: 'powerGivesCopiesInstead', count: 2 }],
     },
     time: {

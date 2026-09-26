@@ -94,7 +94,7 @@ export function AncientPreview({ heroId, anchor, leaving = false, inMs = 180, ou
 
   // Placement: to the right of the hero power, vertically centred on it, clamped to the viewport.
   const W = Math.min(300, window.innerWidth - 32);
-  const H = 470;
+  const H = 505;
   const flip = anchor.right + 18 + W > window.innerWidth - 12;
   const left = flip ? Math.max(12, anchor.left - 18 - W) : anchor.right + 18;
   const top = Math.max(12, Math.min((anchor.top + anchor.bottom) / 2 - H / 2, window.innerHeight - H - 12));

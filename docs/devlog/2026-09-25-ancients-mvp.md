@@ -119,3 +119,12 @@ Nothing loops: every motion is WAAPI transform/opacity or a one-shot transition.
   drops its own dim. On a pick the iris contracts back into the hero power while the triple trail lands. Click skips
   the charge; reduced motion fades. Cue slots (clip id / gain / offset) and every timing in the ✦ Ancients tuner, plus
   ▶ Play gate. It never plays under a curtain, in combat or over another decision overlay.
+- **Awakening rework (owner: "this looks really bad")**: the hero power never moves. The offer uses the Discover
+  view's own backdrop and sits ABOVE it (it now marks `body.modalup`, which dissolves `.app`'s stacking context the
+  way every Discover does; before, the body-level gate painted over the whole offer). The Shop row steps back
+  (`body.ancoffer`). Cards are crafted tablets (gold-bevel art box, the name in the display font over an Ancient-coloured
+  rule, an inset description box, a crest gem; equal height), with painterly placeholders. Genesis no longer prints
+  "This checks for triples." The gate is the go-to-combat wipe's language from the hero power (`wipeFx` charge / bloom /
+  inhale take an optional palette; the curtain is an aspect-stretched ellipse from `wipeGeometry`, the seam ring the
+  wipe's scaled texture) in violet/gold/teal, with "An Ancient Awakens" as its centre moment, then it hands off to the
+  offer. Verified with headless-Chrome screenshots at 1920x1080 and 3440x1440 against a real Discover.

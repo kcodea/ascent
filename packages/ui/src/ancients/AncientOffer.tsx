@@ -30,7 +30,7 @@ export const AncientOfferOverlay = memo(function AncientOfferOverlay({ held, run
   useEffect(() => {
     if (!offer?.length) return;
     const c = getAncientsConfig();
-    const id = window.setTimeout(() => setTimedOut(offerSeq), 4000 + c.flashMs + c.gateChargeMs + c.gateOpenMs);
+    const id = window.setTimeout(() => setTimedOut(offerSeq), 4000 + c.flashMs + c.gateChargeMs + c.gateOpenMs + c.gateHoldMs);
     return () => window.clearTimeout(id);
   }, [offer, offerSeq]);
   if (!offer?.length || held || run.phase !== 'recruit') return null;

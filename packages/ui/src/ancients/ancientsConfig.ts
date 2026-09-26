@@ -57,10 +57,12 @@ export interface AncientsConfig {
   gateChargeMs: number;
   /** Gate: the burst FX size (×). */
   gateBurstScale: number;
-  /** Gate: the quick screen flash at the burst (peak opacity). 0 = none. */
-  gateFlash: number;
-  /** Gate: the iris opening from the hero power (ms). */
+  /** Gate: the curtain blooming out of the hero power (ms). */
   gateOpenMs: number;
+  /** Gate: how long "An Ancient Awakens" holds on the curtain (ms). */
+  gateHoldMs: number;
+  /** Gate: the curtain fading off to reveal the offer (ms). */
+  gateRevealMs: number;
   /** Gate: the iris contracting back into the hero power on a pick (ms). */
   gateCloseMs: number;
   /** Gate: the glowing ring on the iris edge (peak opacity). */
@@ -120,10 +122,11 @@ export const ANCIENTS_DEFAULTS: AncientsFullConfig = {
   shineMs: 800,
   tickGain: 0.5,
   revealGain: 0.8,
-  gateChargeMs: 160,
+  gateChargeMs: 320,
   gateBurstScale: 1,
-  gateFlash: 0,
-  gateOpenMs: 560,
+  gateOpenMs: 460,
+  gateHoldMs: 560,
+  gateRevealMs: 360,
   gateCloseMs: 380,
   gateGlow: 0.85,
   gateBoomClip: 'turnexplosion',
@@ -165,8 +168,9 @@ export const ANCIENTS_RANGES: Record<NumKey, [number, number, number]> = {
   revealGain: [0, 1, 0.01],
   gateChargeMs: [0, 800, 10],
   gateBurstScale: [0, 3, 0.05],
-  gateFlash: [0, 1, 0.01],
   gateOpenMs: [100, 1600, 10],
+  gateHoldMs: [0, 2000, 10],
+  gateRevealMs: [60, 1200, 10],
   gateCloseMs: [100, 1200, 10],
   gateGlow: [0, 1, 0.01],
   gateBoomGain: [0, 1, 0.01],

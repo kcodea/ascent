@@ -13,7 +13,8 @@
  *  - bloom():   stardust wake + tangential wisps emitted along the expanding seam.
  *  - inhale():  motes streaming INTO the gem from across the scene — played with the EXIT bloom, selling
  *               "the gem drinks the combat scene".
- * Everything is additive-blended pale blue/white (the curtain's palette) with a little gold. Worst case is
+ * Everything is additive-blended pale blue/white (the curtain's palette) with a little gold. Each effect takes an
+ * optional `palette` (the Ancients gate plays the same three in its own violet/gold/teal, 2026-09-25). Worst case is
  * a few hundred pooled-texture sprites for under a second — a one-shot, not a loop (see CLAUDE.md perf
  * rules; nothing here runs outside the wipe).
  */
@@ -143,10 +144,10 @@ class WipeFxController {
     this.particles.push({ sp, age: 0, life, update });
     return sp;
   }
-  private pick(): number { return PALETTE[(Math.random() * PALETTE.length) | 0]!; }
 
   /** THE TELL — motes spiral into the gem while a flare swells on it: 'something is about to erupt'. */
-  charge(cx: number, cy: number, ms: number): void {
+  charge(cx: number, cy: number, ms: number, palette: readonly number[] = PALETTE): void {
+    const pick = (): number => palette[(Math.random() * palette.length) | 0]!;
     this.run(() => {
       for (let i = 0; i < 34; i++) {
         const ang0 = Math.random() * Math.PI * 2;
@@ -154,7 +155,7 @@ class WipeFxController {
         const angVel = (2.2 + Math.random() * 2.2) * (Math.random() < 0.5 ? 1 : -1) / 1000; // rad/ms
         const life = ms * (0.55 + Math.random() * 0.45);
         const scale = 0.14 + Math.random() * 0.2;
-        this.spawn(this.dotTex!, cx + Math.cos(ang0) * r0, cy + Math.sin(ang0) * r0, this.pick(), life, (p) => {
+        this.spawn(this.dotTex!, cx + Math.cos(ang0) * r0, cy + Math.sin(ang0) * r0, pick(), life, (p) => {
           const t = p.age / p.life;
           const r = r0 * (1 - t * t); // accelerating fall into the gem
           const ang = ang0 + angVel * p.age;
@@ -175,7 +176,8 @@ class WipeFxController {
 
   /** THE BLOOM WAKE — stardust + tangential wisps emitted along the expanding seam. (Runic flickers were
    *  cut — owner call 2026-08-29: their hard pops read as animation blips on the blue.) */
-  bloom(cx: number, cy: number, rx: number, ry: number, ms: number, ease: readonly [number, number, number, number]): void {
+  bloom(cx: number, cy: number, rx: number, ry: number, ms: number, ease: readonly [number, number, number, number], palette: readonly number[] = PALETTE): void {
+    const pick = (): number => palette[(Math.random() * palette.length) | 0]!;
     // The seam is the curtain's ellipse at `ease(t)`: the same cubic-bezier the CSS transition runs (from the
     // Screen wipe tuner), evaluated here so the motes ride the clip edge exactly.
     const seamEase = cubicBezier(ease[0], ease[1], ease[2], ease[3]);
@@ -199,7 +201,7 @@ class WipeFxController {
             const life = 380 + Math.random() * 500;
             const scale = 0.1 + Math.random() * 0.22;
             const twf = 0.008 + Math.random() * 0.014, twp = Math.random() * Math.PI * 2;
-            this.spawn(this.dotTex!, px, py, this.pick(), life, (p, d) => {
+            this.spawn(this.dotTex!, px, py, pick(), life, (p, d) => {
               p.sp.x += vx * d; p.sp.y += vy * d;
               const t = p.age / p.life;
               p.sp.alpha = (1 - t) * (0.7 + 0.3 * Math.sin(p.age * twf + twp));
@@ -214,7 +216,8 @@ class WipeFxController {
 
   /** THE INHALE — motes from across the scene stream into the gem (played with the EXIT bloom: the gem
    *  drinking the combat scene back in). */
-  inhale(cx: number, cy: number, R: number, ms: number): void {
+  inhale(cx: number, cy: number, R: number, ms: number, palette: readonly number[] = PALETTE): void {
+    const pick = (): number => palette[(Math.random() * palette.length) | 0]!;
     this.run(() => {
       for (let i = 0; i < 120; i++) {
         const ang = Math.random() * Math.PI * 2;
@@ -222,7 +225,7 @@ class WipeFxController {
         const delay = Math.random() * ms * 0.45;
         const life = delay + 260 + Math.random() * (ms * 0.5);
         const scale = 0.1 + Math.random() * 0.18;
-        this.spawn(this.dotTex!, cx + Math.cos(ang) * r0, cy + Math.sin(ang) * r0, this.pick(), life, (p) => {
+        this.spawn(this.dotTex!, cx + Math.cos(ang) * r0, cy + Math.sin(ang) * r0, pick(), life, (p) => {
           if (p.age < delay) { p.sp.alpha = 0; return; }
           const t = (p.age - delay) / (p.life - delay);
           const r = r0 * (1 - t * t * t); // slow start, hard suck at the end

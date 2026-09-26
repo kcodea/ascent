@@ -13,6 +13,7 @@ import { ancientColor } from './ancientsConfig';
 export const AncientCard = memo(function AncientCard({ id, heroId, tag }: { id: AncientId; heroId: string; tag?: string }) {
   return (
     <div className="anc-cardx" style={{ '--anc-c': ancientColor(id) } as CSSProperties}>
+      <span className="anc-cardx-gem" aria-hidden="true" />
       <div className={`anc-art-frame${hasAncientArt(id) ? '' : ' placeholder'}`}>
         {hasAncientArt(id)
           ? <AncientFace id={id} className="anc-art" />
@@ -23,6 +24,7 @@ export const AncientCard = memo(function AncientCard({ id, heroId, tag }: { id: 
         {!hasAncientArt(id) && <span className="anc-art-ph">placeholder art</span>}
       </div>
       <div className="anc-cardx-name">{ANCIENTS[id].name}{tag && <span className="anc-cardx-tag">{tag}</span>}</div>
+      <span className="anc-cardx-rulebar" aria-hidden="true" />
       <div className="anc-cardx-rule"><span dangerouslySetInnerHTML={{ __html: mdBold(ancientOfferText(heroId, id)) }} /></div>
     </div>
   );

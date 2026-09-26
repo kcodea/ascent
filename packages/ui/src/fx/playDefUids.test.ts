@@ -36,6 +36,7 @@ const UNIT_LESS: { file: string; id: string; why: string }[] = [
   { file: 'EquipFxTuner.tsx', id: '<dynamic>', why: "the tuner's TEST fire for the USE effect — the SELECTED Equipment's own def, slot to a stand-in point, no run and no unit; the real call carries the target uid" },
   { file: 'RefreshButton.tsx', id: 'impact-dust', why: 'fires at the button' },
   { file: 'ancientsSmoke.ts', id: 'ancient-slam', why: 'the Ancients reveal slam: lands under an Ancient offer card, not a unit' },
+  { file: 'ancientsSmoke.ts', id: 'ancient-slam-sparks', why: 'the Ancients reveal slam sparks: burst from under an Ancient offer card, not a unit' },
   { file: 'ancientsSmoke.ts', id: 'runeforge-land-dust', why: 'the Ancients landing dust: under an Ancient offer card or the hero-power BUTTON (HUD chrome), not a unit' },
   { file: 'AncientMeter.tsx', id: 'gild-trail', why: 'the Ancients pick beat: flies from the clicked offer card to the hero-power BUTTON (HUD chrome), no unit on either end' },
   { file: 'TavernUpButton.tsx', id: 'shop-tier-up', why: 'fires at the button' },

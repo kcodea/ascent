@@ -633,6 +633,13 @@ export const sfx = {
   tallyTravel: (vol = 1) => { playSample('TallyTravel', 'attack', 0, (n) => { n.gain.gain.value *= Math.max(0, vol); }); },
   attackPillAdd: (vol = 1) => { playSample('AttackPillAdd', 'attack', 0, (n) => { n.gain.gain.value *= Math.max(0, vol); }); },
   tallyImpact: (vol = 1) => { playSample('tallyimpact', 'attack', 0, (n) => { n.gain.gain.value *= Math.max(0, vol); }); },
+  // ANCIENTS meter fill (owner 2026-09-26: the tally-counter clip was "far too loud and delayed and distracting"):
+  // a very soft, short synth glint that starts on the same frame as the fill sweep (no sample decode / lead-in).
+  ancientFillTick: (vol = 1) => {
+    const v = Math.max(0, vol);
+    if (v <= 0) return;
+    tone({ freq: 1320, slideTo: 1760, dur: 0.09, type: 'sine', vol: 0.035 * v });
+  },
   tallyCounter: (vol = 1) => { playSample('tallycounter', 'attack', 0, (n) => { n.gain.gain.value *= Math.max(0, vol); }); },
   // A shop minion (or Tavern Fodder) is CONSUMED — the sourced "consume" clip; low synth gulp fallback until it
   // decodes / if absent. Drop the clip at `packages/ui/src/audio/consume.mp3`. De-duped by a short cooldown so

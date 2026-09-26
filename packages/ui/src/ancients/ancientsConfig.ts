@@ -1,4 +1,5 @@
 import { ANCIENTS } from '@game/sim';
+import { ANCIENT_HERO_THEMES, HERO_THEME_DEFAULTS, type HeroThemeKey } from './ancientHeroThemes';
 
 /**
  * The ✦ Ancients tuner's values (DEV, proof of concept 2026-09-25).
@@ -89,6 +90,11 @@ export interface AncientsConfig {
   dustLife: number;
   /** Landing dust: opacity (0..1). */
   dustOpacity: number;
+  /** The reveal SLAMS' dust burst (×, on top of the dust settings; owner 2026-09-26: "have dust pop out when it slams
+   *  in place a bit more"). 1 = the plain landing puff. */
+  slamDust: number;
+  /** The reveal slams' turbulent SPARK BLAST (×; owner 2026-09-26). 0 = none. */
+  slamSparks: number;
   /** Screen colours: the curtain gradient's centre. */
   curtainInner: string;
   /** Screen colours: the curtain gradient's edge. */
@@ -156,12 +162,15 @@ const CUE_DEFAULTS = Object.fromEntries(ANCIENT_CUES.flatMap((c) => {
   return [[`${c}Clip`, d.clip], [`${c}Gain`, d.gain], [`${c}Offset`, d.offset], [`${c}Rate`, d.rate]];
 })) as Record<AncientCueKey, string | number>;
 export type AncientsFullConfig = AncientsConfig & Record<AncientArtKey, number> & Record<AncientColorKey, string>
+  & Record<HeroThemeKey, string>
   & Record<`${AncientCue}Clip`, string> & Record<`${AncientCue}${'Gain' | 'Offset' | 'Rate'}`, number>;
 
 export const ANCIENTS_DEFAULTS: AncientsFullConfig = {
   ...ART_DEFAULTS,
   ...(CUE_DEFAULTS as unknown as Record<`${AncientCue}Clip`, string> & Record<`${AncientCue}${'Gain' | 'Offset' | 'Rate'}`, number>),
   ...(Object.fromEntries(ANCIENT_ART_IDS.map((id) => [`${id}Color`, ANCIENTS[id].color])) as Record<AncientColorKey, string>),
+  // Per-hero awakening themes (ancientHeroThemes.ts): the themed heroes' colours under `<hero>Theme<Field>` keys.
+  ...HERO_THEME_DEFAULTS,
   cost: 16,
   refresh: 1,
   combat: 2,
@@ -177,7 +186,7 @@ export const ANCIENTS_DEFAULTS: AncientsFullConfig = {
   flashMs: 480,
   splitMs: 520,
   shineMs: 800,
-  tickGain: 0.5,
+  tickGain: 0.5, // drives the soft `ancientFillTick` synth now (owner 2026-09-26), not the tally-counter clip
   revealGain: 0.8,
   omenMs: 850,
   omenDark: 1,
@@ -186,24 +195,23 @@ export const ANCIENTS_DEFAULTS: AncientsFullConfig = {
   seamGlow: 0.9,
   titleHoldMs: 1500,
   revealFadeMs: 480,
-  revealDelayMs: 280,
+  revealDelayMs: 220, // owner 2026-09-26: "speed up the ancient reveal slightly" (was 280)
   cardStaggerMs: 460,
   cardRevealMs: 700,
   revealStyle: 1,
-  beat1Ms: 720,
-  beatGapMs: 360,
-  beat2Ms: 560,
+  beat1Ms: 460, // was 720, then 600 (owner 2026-09-26: "speed up the first ancient slam even more")
+  beatGapMs: 250, // was 360
+  beat2Ms: 470, // was 560
   slamStrength: 1,
   hpDustLife: 0.45,
   dustAmount: 1,
   dustSize: 1,
   dustLife: 1,
   dustOpacity: 0.85,
-  curtainInner: '#247067',
-  curtainOuter: '#0a0618',
-  seamColor: '#fff1bd',
-  titleGlow: '#9effd5',
-  backdropTint: '#060d0f',
+  slamDust: 1.7,
+  slamSparks: 1,
+  // The DEFAULT hero theme (every hero without its own entry): the owner-baked screen colours, from the theme table.
+  ...ANCIENT_HERO_THEMES.default,
   closeMs: 420,
   duckAmount: 0.3,
   duckRampMs: 260,
@@ -258,6 +266,8 @@ export const ANCIENTS_RANGES: Record<NumKey, [number, number, number]> = {
   dustSize: [0.2, 3, 0.05],
   dustLife: [0.3, 3, 0.05],
   dustOpacity: [0, 1, 0.01],
+  slamDust: [0, 4, 0.05],
+  slamSparks: [0, 3, 0.05],
   closeMs: [100, 1500, 10],
   duckAmount: [0, 1, 0.01],
   duckRampMs: [0, 1500, 10],

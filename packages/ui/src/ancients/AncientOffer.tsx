@@ -5,7 +5,7 @@ import { AncientCard } from './AncientCard';
 import { notePickSource, prefersReducedMotion, setAwakenStage, useAwakenStage } from './ancientsFx';
 import { ancientColor, getAncientsConfig } from './ancientsConfig';
 import { playCue } from './ancientsSound';
-import { ancientLandDust, ancientSlam } from './ancientsSmoke';
+import { ancientLandDust, ancientSlam, ancientSlamSparks } from './ancientsSmoke';
 import '../discoverEntrance/discoverEntrance.css';
 import './ancients.css';
 
@@ -59,14 +59,6 @@ function Reveal({ gated, offer, heroId, seq, onPick }: { gated: boolean; offer: 
   const [landed, setLanded] = useState<boolean[]>(() => offer.map(() => false));
   const [settled, setSettled] = useState(false);
 
-  const settle = (): void => {
-    for (const t of timers.current) window.clearTimeout(t);
-    timers.current = [];
-    for (const a of anims.current) a.finish();
-    setLanded(offer.map(() => true));
-    setSettled(true);
-    setAwakenStage('settled', seq);
-  };
 
   // Once per reveal (the component is keyed by the awakening's seq).
   useLayoutEffect(() => {
@@ -95,7 +87,11 @@ function Reveal({ gated, offer, heroId, seq, onPick }: { gated: boolean; offer: 
     const landFx = (i: number): void => {
       const frame = slots[i]?.querySelector<HTMLElement>('.anc-art-frame');
       const r = frame?.getBoundingClientRect();
-      ancientLandDust(ancientColor(offer[i]!), r ? { x: r.left + r.width / 2, y: r.bottom } : base(i), 1, r?.width ?? rects[i]!.width);
+      const col = ancientColor(offer[i]!);
+      const w = r?.width ?? rects[i]!.width;
+      const foot = r ? { x: r.left + r.width / 2, y: r.bottom } : base(i);
+      ancientLandDust(col, foot, 1, w, Math.max(0, c.slamDust));
+      ancientSlamSparks(col, foot);
       const g = slots[i]?.querySelector<HTMLElement>('.anc-glint');
       if (g && typeof g.animate === 'function') {
         push(g.animate([
@@ -131,15 +127,23 @@ function Reveal({ gated, offer, heroId, seq, onPick }: { gated: boolean; offer: 
       const b2 = b1 + c.beat1Ms + c.beatGapMs, slam2 = b2 + c.beat2Ms * 0.8;
       const mCard = slots[mid]!.querySelector<HTMLElement>('.anc-card');
       if (mCard && typeof mCard.animate === 'function') {
+        // NO WOBBLE (owner 2026-09-26: "make the first one not wobble"): it rises, then slams STRAIGHT down to rest at
+        // the slam frame, with no dip below its resting spot and no side-to-side shake. The dust sells the impact.
         push(mCard.animate([
           { opacity: 0, transform: 'translateY(120px) scale(0.82)' },
-          { opacity: 1, transform: `translateY(${-34 * (0.6 + 0.4 * k)}px) scale(1.07)`, offset: 0.6 },
-          { transform: `translateY(${8 * k}px) scale(${1 - 0.03 * k})`, offset: 0.78, easing: 'ease-out' },
+          { opacity: 1, transform: `translateY(${-34 * (0.6 + 0.4 * k)}px) scale(1.07)`, offset: 0.6, easing: 'cubic-bezier(0.55, 0, 0.9, 0.4)' },
+          { opacity: 1, transform: 'translateY(0) scale(1)', offset: 0.78 },
           { opacity: 1, transform: 'translateY(0) scale(1)' },
         ], { duration: c.beat1Ms, delay: b1, easing: 'cubic-bezier(0.3, 0, 0.6, 1)', fill: 'backwards' }));
-        slamShake(mCard, slam1);
       }
-      at(slam1, () => { ancientSlam(base(mid)); landFx(mid); });
+      at(slam1, () => {
+        ancientSlam(base(mid)); landFx(mid);
+        // DUST OFF ITS SIDES too (owner 2026-09-26): the first slam also kicks a smaller puff out of each flank.
+        const fr = slots[mid]?.querySelector<HTMLElement>('.anc-art-frame')?.getBoundingClientRect();
+        const r0 = fr ?? rects[mid]!;
+        const y = fr ? fr.bottom - fr.height * 0.25 : base(mid).y;
+        for (const x of [r0.left, r0.right]) ancientLandDust(ancientColor(offer[mid]!), { x, y }, 0.9, r0.width * 0.55, Math.max(0, c.slamDust));
+      });
       playCue('cardReveal', slam1 - 40);
       at(b1 + c.beat1Ms, () => land(mid));
       slots.forEach((slot, i) => {
@@ -186,8 +190,8 @@ function Reveal({ gated, offer, heroId, seq, onPick }: { gated: boolean; offer: 
   return (
     <div ref={rootRef} className={`discover-ov dce disc-look anc-offer${gated ? ' gated' : ''}${settled ? ' settled' : ''}`} role="dialog" aria-label="An Ancient Awakens"
       onPointerDownCapture={(e) => {
-        // The second skip: a click during the emergence completes it (and picks nothing).
-        if (!settled) { e.stopPropagation(); e.preventDefault(); settle(); }
+        // No click-to-skip (owner 2026-09-26): a click during the emergence is swallowed and the reveal plays through.
+        if (!settled) { e.stopPropagation(); e.preventDefault(); }
       }}>
       <div className="disc-panel">
         <OfferBanner title="An Ancient Awakens" />

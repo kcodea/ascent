@@ -38,7 +38,9 @@ export function useRingSettledSeq(): number {
 export type AwakenStage = 'idle' | 'omen' | 'eruption' | 'title' | 'reveal' | 'settled' | 'closing';
 let stage: { stage: AwakenStage; seq: number } = { stage: 'idle', seq: 0 };
 let skipSeq = 0;
-let gateDemo: { seq: number; mode: 'full' | 'reveal' } | null = null;
+/** A tuner demo of the awakening. `hero` plays it in that hero's theme (and power art) instead of the run hero's. */
+export interface GateDemo { seq: number; mode: 'full' | 'reveal'; hero?: string }
+let gateDemo: GateDemo | null = null;
 let gateDemoSeq = 0;
 export function setAwakenStage(next: AwakenStage, seq: number): void {
   if (stage.stage === next && stage.seq === seq) return;
@@ -51,11 +53,11 @@ export function useAwakenStage(): { stage: AwakenStage; seq: number } {
 }
 export function requestSkip(): void { skipSeq++; emit(); }
 export function useSkipSeq(): number { return useSyncExternalStore(subscribe, () => skipSeq, () => skipSeq); }
-export function playGateDemo(mode: 'full' | 'reveal' = 'full'): void {
-  gateDemo = { seq: ++gateDemoSeq, mode };
+export function playGateDemo(mode: 'full' | 'reveal' = 'full', hero?: string): void {
+  gateDemo = { seq: ++gateDemoSeq, mode, ...(hero ? { hero } : {}) };
   emit();
 }
-export function useGateDemo(): { seq: number; mode: 'full' | 'reveal' } | null {
+export function useGateDemo(): GateDemo | null {
   return useSyncExternalStore(subscribe, () => gateDemo, () => gateDemo);
 }
 

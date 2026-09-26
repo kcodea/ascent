@@ -63,7 +63,7 @@ export const AncientMeter = memo(function AncientMeter({ run }: { run: RunState 
     if (target === shown || !canAnimate) return;
     setSweep(true);
     setShown(target);
-    if (cfg.tickGain > 0 && tickAllowed()) sfx.tallyCounter(cfg.tickGain);
+    if (cfg.tickGain > 0 && tickAllowed()) sfx.ancientFillTick(cfg.tickGain); // soft + immediate (owner 2026-09-26)
   }, [enabled, target, shown, canAnimate, cfg.tickGain]);
 
   // FULL: the displayed ring completes with the offer open → one flash, then release the offer.
@@ -197,7 +197,7 @@ function Flash({ ms }: { ms: number }): JSX.Element {
  *   1. the TRIPLE's reward animation (the `gild-trail` def) flies from the chosen card into the button, and nothing
  *      else (owner 2026-09-25: "dont send the art of the ancient, just send the triple reward animation");
  *   2. at the trail's landing the half fades/slides in, the divider draws, one light shine sweeps, the cue plays.
- * A click anywhere during the flight skips straight to the settled split. Reduced motion: a plain fade.
+ * It always plays through (no click-to-skip, owner 2026-09-26). Reduced motion: a plain fade.
  */
 export const AncientSplit = memo(function AncientSplit({ run }: { run: RunState }) {
   const anc = run.ancientsEnabled ? run.ancients : undefined;
@@ -260,12 +260,9 @@ export const AncientSplit = memo(function AncientSplit({ run }: { run: RunState 
     const ms = Math.max(420, gildArrivalMs(getDef('gild-trail'), 0) || 700);
     setHidden(true);
     if (canPlayDefs()) playDef('gild-trail', { source: { x: from.x, y: from.y }, target: { x: to.x, y: to.y }, camera: { x: window.innerWidth / 2, y: window.innerHeight / 2 } }, { index: 0 });
-    let done = false;
-    const finish = (): void => { if (done) return; done = true; window.clearTimeout(t); window.removeEventListener('pointerdown', skip, true); reveal(); };
-    const skip = (): void => finish();
-    const t = window.setTimeout(finish, ms);
-    window.addEventListener('pointerdown', skip, true);
-    return () => { window.clearTimeout(t); window.removeEventListener('pointerdown', skip, true); };
+    // No click-to-skip (owner 2026-09-26: "remove the click to skip in the animation, that is not necessary").
+    const t = window.setTimeout(reveal, ms);
+    return () => { window.clearTimeout(t); };
   }, [id, pickSeq, demoSeq, reveal]);
 
   if (!id) return <span ref={btnRef} className="anc-split-anchor" aria-hidden="true" />;

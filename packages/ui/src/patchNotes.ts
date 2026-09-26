@@ -80,6 +80,33 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: 'Effects that trigger when a minion Rises now also trigger when it Rises in the Shop.',
+        details: [
+          'Fixed: a minion destroyed in the Shop by some effects Rose, but cards like Revenant and Rising Tide did not notice.',
+          'Every Shop Rise now counts once, whatever destroyed the minion.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-09-26',
+    changes: [
+      {
+        category: 'Systems',
+        text: 'A minion given Rise now says Rise in its text.',
+        details: [
+          'The text starts with Rise on every card view, in the shop, your hand, your board and in combat.',
+          'Once the minion Rises, the text drops it. If it gets Rise again, it comes back.',
+          'Cards that already print Rise are unchanged.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-09-26',
+    changes: [
+      {
+        category: 'Systems',
         text: 'A minion summoned to attack immediately now attacks right after it lands, before the next minion in line.',
         details: [
           'Fixed: the Sunmane Herald from Rune of Living Echoes waited for another minion to start its attack before swinging.',

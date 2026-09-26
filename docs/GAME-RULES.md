@@ -768,12 +768,15 @@ hear **wherever it happens**:
 - **In combat**, when the body returns to the line. A watcher's board grant is a normal combat gain; a hand
   grant is permanent (R-HAND-02).
 - **In the shop**, when a destroyed body returns (Cage Breaker, the Deathfibrillator, any destroy — R-RISE-02).
-  Everything a watcher grants there is **permanent**: the stats and any keyword (Revenant's Ward).
+  Everything a watcher grants there is **permanent**: the stats and any keyword (Revenant's Ward). Every shop destroy
+  path counts, the immediate one (Ancient of Death's Aegis, Pulse x Death) and the two-step one alike, and each Rise
+  is heard **exactly once** (R-RISE-SHOP-01, fixed 2026-09-26).
 - **Friendly only.** An enemy body Rising is not your Rise; your watchers stay quiet.
 
 **How it is enforced.** One trigger, `onRise`, from the single Rise site of each phase (`bus.emit` in
-`simulate.ts`, `fireOnRise` off the shop's `riseReturn`), with the risen body in the payload. Pinned in
-`set3Undead.test.ts` for both phases and for the enemy case.
+`simulate.ts`, `fireOnRise` called from inside the shop's `riseReturn`, which every shop Rise shares), with the
+risen body in the payload. Pinned in `set3Undead.test.ts` for both phases and for the enemy case, and in
+`shopRiseWatchers.test.ts` for every shop destroy path.
 
 ### "Attacks immediately" cuts the line (owner rule 2026-09-26, R-ORD-05)
 

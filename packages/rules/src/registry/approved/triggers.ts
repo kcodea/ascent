@@ -680,4 +680,27 @@ export const TRIGGERS_RULES: GameRule[] = [
     currentBehaviour: 'Conforms, FIXED 2026-09-26: 17 Shout ids had no combat half and were deferred to settle and replayed in the Shop after the fight (cards to hand arrived only after the fight and never woke Gangplank).',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/combatShoutsRealtime.test.ts'], lastVerifiedAt: '2026-09-26' },
   },
+  {
+    id: 'R-RISE-SHOP-01',
+    title: 'A Rise in the Shop fires every "when a minion Rises" watcher, once, the moment the body returns',
+    statement:
+      'When a friendly minion with Rise is destroyed in the Shop by ANY path (an immediate destroy such as Warden x '
+      + 'Ancient of Death (Aegis) or Auctioneer x Ancient of Death, or the two-step death of Cage Breaker / a '
+      + 'Deathfibrillator / a loan), its Rise return fires the Shop onRise dispatch exactly once, at that moment, '
+      + 'with the risen body as the payload (the same payload as the combat `onRise`). Every Rise watcher hears it: Revenant, Rising '
+      + 'Tide (board and hand), Rune of the Endless March, and Lord of the Risen x Ancient of Bonds. A later settle never '
+      + 'fires it again. A Rebirth return is not a Rise and stays silent.',
+    domain: 'triggers',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-26 (shop Rise watchers gap, found building the Risen Ancients)', quote: 'yes fix this' },
+      { kind: 'code', ref: 'packages/sim/src/recruit.ts riseReturn (the one shop Rise return) -> fireOnRise (ancientOnShopRise + the board onRise watchers)' },
+    ],
+    contentIds: ['u3_revenant', 'u3_risingtide'],
+    currentBehaviour:
+      'Conforms, FIXED 2026-09-26: only the deferred settle (`settlePendingDeath`) called `fireOnRise`, so a minion '
+      + 'destroyed by the immediate path (`destroyMinionInShop`) Rose without its watchers hearing it. Bonds had its own '
+      + 'hook inside `riseReturn` as a workaround; it now rides `fireOnRise` like every other watcher.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/shopRiseWatchers.test.ts'], lastVerifiedAt: '2026-09-26' },
+  },
 ];

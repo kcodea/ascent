@@ -38,8 +38,9 @@ export function useRingSettledSeq(): number {
 export type AwakenStage = 'idle' | 'omen' | 'eruption' | 'title' | 'reveal' | 'settled' | 'closing';
 let stage: { stage: AwakenStage; seq: number } = { stage: 'idle', seq: 0 };
 let skipSeq = 0;
-/** A tuner demo of the awakening. `hero` plays it in that hero's theme (and power art) instead of the run hero's. */
-export interface GateDemo { seq: number; mode: 'full' | 'reveal'; hero?: string }
+/** A tuner demo of the awakening. `hero` plays it in that hero's theme (and power art) instead of the run hero's;
+ *  `style` previews another bloom style on that hero. */
+export interface GateDemo { seq: number; mode: 'full' | 'reveal'; hero?: string; style?: string }
 let gateDemo: GateDemo | null = null;
 let gateDemoSeq = 0;
 export function setAwakenStage(next: AwakenStage, seq: number): void {
@@ -53,8 +54,8 @@ export function useAwakenStage(): { stage: AwakenStage; seq: number } {
 }
 export function requestSkip(): void { skipSeq++; emit(); }
 export function useSkipSeq(): number { return useSyncExternalStore(subscribe, () => skipSeq, () => skipSeq); }
-export function playGateDemo(mode: 'full' | 'reveal' = 'full', hero?: string): void {
-  gateDemo = { seq: ++gateDemoSeq, mode, ...(hero ? { hero } : {}) };
+export function playGateDemo(mode: 'full' | 'reveal' = 'full', hero?: string, style?: string): void {
+  gateDemo = { seq: ++gateDemoSeq, mode, ...(hero ? { hero } : {}), ...(style ? { style } : {}) };
   emit();
 }
 export function useGateDemo(): GateDemo | null {

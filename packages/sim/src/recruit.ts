@@ -3107,10 +3107,12 @@ function riseReturn(state: RunState, target: BoardCard, slot: number, summonedFr
   // The RETURN is its own beat (owner 2026-09-09: "show the minion rise again, just as if it had happened in
   // combat"): the UI plays combat's reborn re-form on the new body once it has mounted.
   stampShopFx(state, { kind: 'rise', uid: risen.uid, cardId: risen.cardId });
-  // ANCIENT OF BONDS x Lord of the Risen (a no-op unless the run has it): the Shop half of "When a minion Rises,
-  // trigger an adjacent Echo" (combat's is the `onRise` listener in simulate). Here, in the one Rise return both
-  // shop-destroy paths share, so every shop Rise reaches it.
-  ancientOnShopRise(state, risen);
+  // THE RISE WATCHERS, the moment the body is back (owner 2026-09-26: "yes fix this"; R-RISE-SHOP-01). Fired HERE,
+  // in the one Rise return every shop path shares, so the immediate destroy (`destroyMinionInShop`: Warden x
+  // Death's Aegis, Cage Breaker, a Deathfibrillator) and the deferred settle (`settlePendingDeath`) both reach
+  // Revenant, Rising Tide, Rune of the Endless March and Ancient of Bonds exactly once per Rise. Before this only
+  // the deferred settle called `fireOnRise`, so an immediate shop destroy Rose in silence.
+  fireOnRise(state, risen);
   return risen;
 }
 
@@ -3164,10 +3166,15 @@ export function fireSummonOverflow(state: RunState): void {
  * `onRise` in the SHOP (owner ruling 2026-09-09): a body returning via Rise outside combat notifies the board's
  * Rise watchers (Revenant, Rising Tide) exactly as combat's `bus.emit('onRise')` does — and because this is the
  * recruit phase, whatever they grant is permanent (a shop buff is; a hand buff always is, R-HAND-02). Called
- * from the one shop Rise site (`settlePendingDeath` → `riseReturn`); the risen body is in the payload, and the
- * watcher may be the riser itself.
+ * ONLY from `riseReturn`, the one Rise return every shop path shares (the immediate `destroyMinionInShop` and the
+ * deferred `settlePendingDeath`), so each shop Rise fires it exactly once (R-RISE-SHOP-01); the risen body is in
+ * the payload, and the watcher may be the riser itself.
  */
 export function fireOnRise(state: RunState, risen: BoardCard): void {
+  // ANCIENT OF BONDS x Lord of the Risen (a no-op unless the run has it): the Shop half of "When a minion Rises,
+  // trigger an adjacent Echo" (combat's is the `onRise` listener in simulate, registered ahead of the minion
+  // watchers). One of the shop's Rise watchers, so it rides the same once-per-Rise dispatch.
+  ancientOnShopRise(state, risen);
   const ctx = makeContext(state);
   for (const card of [...state.board]) {
     for (const effect of instanceEffects(card)) {
@@ -12208,8 +12215,7 @@ export function settlePendingDeath(state: RunState): void {
         policyKey: 'system:destroy:shopRise',
       },
       () => {
-        const risen = riseReturn(state, card, gone, Math.max(0, summonedFrom - 1));
-        if (risen) fireOnRise(state, risen);
+        riseReturn(state, card, gone, Math.max(0, summonedFrom - 1)); // fires the Rise watchers itself (`fireOnRise`)
       },
     );
   }

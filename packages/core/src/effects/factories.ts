@@ -689,52 +689,77 @@ export function fireShout(ctx: CombatContext, source: Minion, target: Minion): v
   ctx.bus.emit('battlecryTriggered', { side: source.side, minion: target });
 }
 
-/** The Battlecry `do` ids `replayCombatBattlecry` runs IN COMBAT (they affect the live fight). Every other
- *  onPlay `do` is an economy/recruit battlecry — deferred to settle and replayed through its recruit factory.
- *  Kept in sync with the explicit branches below; `settleCombat` reads it to skip the combat ones at settle. */
+/**
+ * The Shouts whose TARGET does not exist mid-fight (the Shop row, the Starform token, Orbit, a Consume) and so
+ * cannot finish in combat (R-REALTIME-03, owner 2026-09-26). They still FIRE LIVE: `replayCombatBattlecry` logs
+ * each one's line at the moment it fires (and every Shout counter / watcher has already seen the fire); only the
+ * part that needs the Shop is applied when the Shop exists again: settle replays it ONCE through its recruit
+ * factory, acting as the re-fired body's own run card. Everything NOT listed here has a combat factory.
+ * `combatShoutsRealtime.test.ts` fails when an onPlay id is in neither place.
+ */
+export const SHOP_ONLY_SHOUTS: Readonly<Record<string, { why: string; line: string }>> = {
+  armChooseBoth: { why: "Double Dealer arms her 'first Choose One card you play' latch on her own card; Choose One cards are only played in the Shop (and Start of Turn re-arms her anyway)", line: 'arms for the next Choose One' },
+  battlecryAllDemonsConsume: { why: 'Consume is a Shop action: each friendly Demon eats a created Fodder PERMANENTLY through the onConsume pipeline and the Fodder tally, which only run in the Shop', line: 'feeds your Demons when the Shop opens' },
+  battlecryCollapseStarform: { why: 'the Starform is a Shop token; the collapse happens when the Shop opens', line: 'collapses the Starform when the Shop opens' },
+  battlecryConsumeShopRandom: { why: 'the meal is a random Shop minion; no Shop stands mid-fight', line: 'eats from the Shop when it opens' },
+  battlecryCreateStarformOrBuff: { why: 'the Starform is a Shop token (created in, and fed from, the Shop row)', line: 'feeds the Starform when the Shop opens' },
+  battlecryStarformConsumeShop: { why: 'the Starform (a Shop token) eats a Shop minion', line: 'feeds the Starform when the Shop opens' },
+  battlecryTargetConsumesShop: { why: 'the meal is a random Shop minion; no Shop stands mid-fight', line: 'feeds a Demon from the Shop when it opens' },
+  buffRightmostSlotPermanent: { why: 'enchants a Shop SLOT (and, with Rune of the Display Case, the left-most slot too), landing on the offer standing there', line: 'enchants the Shop when it opens' },
+  triggerAdjacentOrbits: { why: "Orbit is a Shop mechanic (TRIGGER_PHASES.orbit = recruit); the neighbours' Orbit text runs on the Shop board", line: "wakes its neighbours' Orbits when the Shop opens" },
+};
 
-/** Re-fire a minion's Battlecry (its `onPlay` effects) in COMBAT — used by Ryme's Deathrattle. Combat-meaningful
- *  battlecries resolve here; economy ones (Fodder/Gold/shop/gain-minion) are recorded via `ctx.deferBattlecry`
- *  and replayed through their recruit factory at settle. Magnitude respects the source's own golden.
+/** Spells a spell-copier never copies (Second Draft would loop the copier itself). The Shop's `NO_COPY_SPELLS`
+ *  is this set, so the two phases can never disagree. */
+export const NO_COPY_SPELL_IDS: ReadonlySet<string> = new Set(['seconddraft']);
+
+/**
+ * The SHOP-ONLY half of ONE combat Shout fire (R-REALTIME-03): every `onPlay` effect with no combat factory (only
+ * `SHOP_ONLY_SHOUTS` may be such) logs its line NOW, and the card is recorded ONCE for settle, which replays its
+ * Shop-only effects through their recruit factories as the body's run card. Every combat site that fires a
+ * Shout's `onPlay` effects itself (Shared Scripture, War Chorus, Ancestral Roar) calls this after its loop, so a
+ * Shop-only Shout is never silently dropped there either.
+ */
+export function deferShopOnlyShout(ctx: CombatContext, m: Minion): void {
+  let shopOnly = false;
+  for (const eff of m.effects) {
+    if (eff.on !== 'onPlay' || COMBAT_REPLAYABLE_BATTLECRIES.has(eff.do)) continue;
+    const only = SHOP_ONLY_SHOUTS[eff.do];
+    if (only && m.side === 'player') ctx.log({ type: 'sc', source: m.uid, text: `${m.name} ${only.line}` });
+    shopOnly = true;
+  }
+  if (shopOnly) ctx.deferBattlecry(m.cardId, m.golden, m.side, m.sourceUid);
+}
+
+/**
+ * Re-fire a minion's Shout (its `onPlay` effects) in COMBAT: Ryme, Rally re-fires, an Ancient of Time, Parting
+ * Cry, Shared Scripture, Dawnclaw. Magnitude respects the source's own golden.
  *
- *  FULL AUDIT 2026-08-04 — every onPlay `do` id in content was checked against this chain. The three kinds that
- *  are still deferred ON PURPOSE, so the next reader doesn't re-audit them:
- *
- *   • **No combat surface.** Gold next turn, cards to hand, Discover-to-hand, shop consumption/buffs, run-flag
- *     grants (Beast Hunt, spell multipliers, Grimoire). A shop does not exist mid-fight; replaying at settle is
- *     the correct and only behaviour. `battlecryGrantSpell` additionally ANNOUNCES itself during the replay.
- *   • **Run-wide auras with no carry-back channel.** `battlecryBuffFodder` and `battlecryBuffMagnetics` enchant
- *     a CARD TYPE for the rest of the run (board + hand + future copies), not the bodies in front of you.
- *     Buffing the live board here would be a visible half-measure that then DOUBLE-applies at settle. Doing
- *     them properly needs a `grantMagneticBuff`-style channel alongside `grantImpBuff`/`grantUndeadBuyAtk`;
- *     until that exists, deferring is the honest behaviour.
- *   • **Reads state combat doesn't carry.** `battlecryBuffTargetPerGoldSpent` (Baby Gastrid) scales off
- *     `goldSpentThisTurn`, which is not on `CombatContext`; and `battlecryCopyEcho` (Gravetwin) needs the
- *     CHOSEN target that a re-fire has no way to reproduce. */
+ * REAL TIME, EVERY SHOUT (R-REALTIME-03, owner 2026-09-26: *"all shouts should be real time in combat, regardless
+ * of what they do/are"*). Every onPlay id in content has a combat factory and resolves HERE, at the moment it
+ * fires: cards to hand (live `toHand`, hand reactors), hand buffs, Gold / next-turn Gold / free rolls, run flags
+ * and run-wide auras through their carry-back channels. The one exception is `SHOP_ONLY_SHOUTS`: a Shout whose
+ * target only exists in the Shop logs its line now and is replayed once at settle (`ctx.deferBattlecry`, carrying
+ * the body's run-card uid). The old 2026-08-04 deferral classes (hand grants, run flags, auras, missing state)
+ * are all gone: each has its channel now.
+ */
 export function replayCombatBattlecry(ctx: CombatContext, m: Minion): void {
-  // THE SWITCH IS DEAD (2026-08-04). Every combat-meaningful Shout lives in FACTORIES (arena-backed, or
-  // phase-split by ruling) and resolves LIVE here; anything else is economy — no tavern, Gold or hand exists
-  // in pure combat — and defers to settle, where it replays through its recruit factory.
+  // Every Shout lives in FACTORIES (arena-backed, or phase-split) and resolves LIVE here; only SHOP_ONLY_SHOUTS
+  // defer their Shop part to settle, where it replays through its recruit factory as the body's own run card.
   // SHOP→COMBAT CARRY-OVER (owner ruling 2026-08-26): a Shout triggered in combat consumes the side's carried
   // shop charges — an unspent War Drum charge on the first Shout, a Warm Embers double on each of the next N
   // (see CombatContext.shoutCarryExtras). Guarded on a real onPlay effect so a no-op call (Ryme re-firing a
-  // Shout-less neighbour) never eats a charge. Each extra fire repeats the WHOLE Battlecry, economy defers
+  // Shout-less neighbour) never eats a charge. Each extra fire repeats the WHOLE Battlecry, Shop-only defers
   // included — the same "n fires" the shop counter would have paid.
   const hasShout = m.effects.some((e) => e.on === 'onPlay');
   const fires = 1 + (hasShout ? ctx.shoutCarryExtras?.(m.side) ?? 0 : 0);
   for (let f = 0; f < fires; f++) {
     if (f > 0) ctx.log({ type: 'sc', source: m.uid, text: `${m.name}'s Battlecry fires again (carried Shout charge)` });
-    let economy = false;
     for (const eff of m.effects) {
       if (eff.on !== 'onPlay') continue;
-      const live = FACTORIES[eff.do as EffectFactoryId];
-      if (live) {
-        live(ctx, m, eff.params ?? {}, { minion: m, side: m.side });
-        continue;
-      }
-      economy = true;
+      FACTORIES[eff.do as EffectFactoryId]?.(ctx, m, eff.params ?? {}, { minion: m, side: m.side });
     }
-    if (economy) ctx.deferBattlecry(m.cardId, m.golden, m.side);
+    deferShopOnlyShout(ctx, m);
   }
   // NB: the `battlecryTriggered` notify (procs Karwind / Bane / Sporeling) is emitted by the CALLER
   // (deathrattleReplayAdjacentBattlecry) once per re-fire — not here, or every watcher would double-proc.
@@ -1548,6 +1573,159 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     const inHand = arena.handMinions().filter((c) => !ctx.getCard(c.cardId)?.spell && arena.isTribe(c, tribe));
     if (inHand.length > 0) arena.buffHand(ctx.rng.pick(inHand), a, h);
   },
+
+  // ══ SHOUTS IN REAL TIME (R-REALTIME-03, owner 2026-09-26) ═══════════════════════════════════════════════════
+  // *"all shouts should be real time in combat, regardless of what they do/are. theres no point in delaying any
+  // of them and they may be important to trigger other combat effects like gangplank's to hand watcher."*
+  // Every Shout below USED to have no combat factory, so a combat re-fire (Ryme, Rally re-fires, an Ancient of Time,
+  // Parting Cry, Shared Scripture) deferred it to settle and replayed it in the Shop after the fight. Each now
+  // resolves at the moment it fires: cards reach hand through `grantToHand` (a live `toHand` + the hand-grant
+  // reactors: Gangplank, Kegheart), stats land as combat gains, and run-state grants ride their carry-back
+  // channel (logged live, folded in once at settle). What still needs a SHOP is listed in `SHOP_ONLY_SHOUTS`.
+
+  /** Defender (Shout): `count` copies of a hand spell (Tower Shield, Clue), to hand NOW. */
+  battlecryGetHandSpell: (ctx, self, params) => {
+    const id = str(params.cardId);
+    if (!id) return;
+    for (let i = 0; i < num(params.count, 1) * mul(self); i++) ctx.grantToHand(id, self.side, self.uid);
+  },
+
+  /** Revelator (Shout): `count` random Revelers to hand NOW (a Reveler = a card whose Sell is `revelerSell`). */
+  battlecryGrantRandomReveler: (ctx, self, params) => {
+    const pool = ctx.poolCards(self.side).filter((c) => !c.spell && c.effects.some((e) => e.on === 'onSell' && e.do === 'revelerSell'));
+    if (pool.length === 0) return;
+    for (let i = 0; i < num(params.count, 1) * mul(self); i++) ctx.grantToHand(ctx.rng.pick(pool).id, self.side, self.uid);
+  },
+
+  /** Limelight (Shout): `count` DIFFERENT random other `tribe` minions +atk/+hp PLUS the side's Reveler value,
+   *  all x golden: the Shop body's arithmetic, read off the side state's Reveler value. */
+  battlecryBuffRandomTribePlusReveler: (ctx, self, params) => {
+    const tribe = str(params.tribe) as Tribe;
+    const x = ctx.revelerValueFor(self.side);
+    const a = (num(params.attack, 0) + x) * mul(self), h = (num(params.health, 0) + x) * mul(self);
+    const arena = combatArena(ctx, self);
+    const pool = otherFriends(ctx, self, (m) => arena.isTribe(m, tribe));
+    for (let i = 0; i < num(params.count, 3) && pool.length > 0; i++) {
+      ctx.buff(pool.splice(ctx.rng.int(pool.length), 1)[0]!, a, h, self.uid);
+    }
+  },
+
+  /** Baby Gastrid (Shout, targeted): a random OTHER friendly of its target tribe gains +Health per Gold spent in
+   *  the turn that just ended (Rune of Full Measure: the same as Attack too). A re-fire carries no target, so it
+   *  auto-picks exactly like the Shop's un-aimed re-fire (owner report 2026-08-25). */
+  battlecryBuffTargetPerGoldSpent: (ctx, self, params) => {
+    const tribe = ctx.getCard(self.cardId)?.targetTribe;
+    const arena = combatArena(ctx, self);
+    const pool = otherFriends(ctx, self, (m) => !tribe || arena.isTribe(m, tribe));
+    if (pool.length === 0) return;
+    const target = ctx.rng.pick(pool);
+    const h = num(params.health, 1) * mul(self) * ctx.goldSpentThisTurnFor(self.side);
+    const a = ctx.fullMeasureFor(self.side) ? h : 0;
+    if (h > 0 || a > 0) ctx.buff(target, a, h, self.uid);
+  },
+
+  /** Branch Manager (Shout): if you control ANOTHER `tribe` minion, Discover one (golden: twice). A Discover
+   *  resolved mid-fight is a RANDOM pick of its offer (owner ruling 2026-08-08, the Discover-spell rule; the same
+   *  reading every combat Discover Shout, Mysterious Joker or Sea Urchin, already has), landing in hand NOW. */
+  battlecryDiscoverTribeIfControl: (ctx, self, params) => {
+    const tribe = str(params.tribe);
+    const arena = combatArena(ctx, self);
+    if (otherFriends(ctx, self, (m) => arena.isTribe(m, tribe as Tribe)).length === 0) return;
+    ctx.grantRandomMinion(mul(self), tribe || undefined, self.side, self.cardId, self.uid);
+  },
+
+  /** Nimbus (Shout): your next Shop spell casts twice (golden: three times), banked the moment it fires. */
+  battlecryDoubleNextSpell: (ctx, self) => {
+    ctx.grantNextSpellExtraCasts(mul(self), self.side, self.uid);
+  },
+
+  /** Sugarnova (Shout): your next Shop spell +A/+H (golden doubles), banked the moment it fires. */
+  battlecryBuffNextSpell: (ctx, self, params) => {
+    ctx.grantNextSpellBonus(num(params.attack, 2) * mul(self), num(params.health, 2) * mul(self), self.side, self.uid);
+  },
+
+  /** Living Grimoire (silent Shout): charge it. Base doubles the turn's first spell, golden triples. */
+  battlecryArmGrimoire: (ctx, self) => {
+    ctx.armGrimoire(1 + mul(self), self.side);
+  },
+
+  /** Squirl Scout (Shout): improve the run-wide scout value by `step` (x golden x Mastery), then give a random
+   *  OTHER friendly +N/+N once per Beast you own, the Shop body's order ("improve first"). The value grows live
+   *  for the rest of this fight and the growth carries back once. */
+  battlecryScoutSpread: (ctx, self, params) => {
+    const step = num(params.step, 3) * mul(self) * ctx.improveRepsFor(self.side);
+    ctx.grantScoutBuff(step, self.side);
+    const amount = ctx.scoutBuffFor(self.side);
+    const arena = combatArena(ctx, self);
+    const beasts = ctx.living(self.side).filter((m) => arena.isTribe(m, 'beast')).length;
+    const pool = otherFriends(ctx, self);
+    if (amount <= 0 || beasts === 0 || pool.length === 0) return;
+    for (let i = 0; i < beasts; i++) ctx.buff(ctx.rng.pick(pool), amount, amount, self.uid);
+  },
+
+  /** Recaller (Shout): copies of the first / last Shop spell cast in the turn that just ended, to hand NOW. */
+  battlecryCopyCastSpell: (ctx, self, params) => {
+    const id = str(params.which) === 'first' ? ctx.firstSpellThisTurnIdFor(self.side) : ctx.lastSpellThisTurnIdFor(self.side);
+    const def = id ? ctx.getCard(id) : undefined;
+    if (!def || NO_COPY_SPELL_IDS.has(def.id)) return;
+    for (let i = 0; i < num(params.count, 1) * mul(self); i++) ctx.grantToHand(def.id, self.side, self.uid);
+  },
+
+  /** Crypt Broker (Shout): a random Echo minion (at or under your tier) to hand NOW (a live `toHand` that wakes the
+   *  hand reactors), whose Echo then fires out of combat on the arrived card at settle: the Shop reading of
+   *  "trigger it" (a hand card has no body in this fight). Golden: two. */
+  getEchoAndTrigger: (ctx, self) => {
+    const tier = ctx.tierFor(self.side);
+    const pool = ctx.poolCards(self.side).filter((c) => !c.spell && !c.token && c.tier <= tier && c.effects.some((e) => e.on === 'onDeath'));
+    if (pool.length === 0) return;
+    for (let i = 0; i < mul(self); i++) ctx.grantToHandThenEcho(ctx.rng.pick(pool).id, self.side, self.uid);
+  },
+
+  /** Contract Butcher / Malphas (Shout): "give minions in the Shop +a/+h", the permanent run shop channel,
+   *  granted the moment it fires (live "+a/+h Shop") and applied at settle by the Shop's own `applyRunShopBuff`.
+   *  Display Curator's per-trigger improve rides `summonBonus`, which carries back per instance. */
+  buffShopPermanent: (ctx, self, params) => {
+    const bonus = self.summonBonus ?? 0;
+    let a: number; let h: number;
+    if (params.alternate) {
+      const amt = (num(params.attack, 1) + bonus) * mul(self);
+      const toAttack = bonus % 2 === 0;
+      a = toAttack ? amt : 0; h = toAttack ? 0 : amt;
+    } else {
+      a = (num(params.attack, 1) + bonus) * mul(self);
+      h = (num(params.health, 1) + bonus) * mul(self);
+    }
+    ctx.grantRunShopBuff(a, h, self.side, self.uid, self.name, self.cardId);
+    const step = num(params.improve, 0);
+    if (step > 0) self.summonBonus = bonus + step;
+  },
+
+  /** The Great Attractor's "give THIS shop +a/+h": no Shop stands mid-fight, so, like a shop-buff SPELL cast in
+   *  combat (owner ruling 2026-08-07), it is banked on the NEXT shop's offers at the moment it fires. */
+  buffThisShop: (ctx, self, params) => {
+    const a = num(params.attack, 2) * mul(self), h = num(params.health, 2) * mul(self);
+    if (a <= 0 && h <= 0) return;
+    ctx.gainNextShopBuff?.(a, h, self.side);
+    if (self.side === 'player') ctx.log({ type: 'sc', source: self.uid, text: `+${a}/+${h} next Shop` });
+  },
+
+  /** Rocket Power (Shout): "this shop +a/+h, repeat for every Shop spell you cast this turn", `1 + n` ticks, each
+   *  banked on the next shop (the `buffThisShop` reading above), n = the side's spells cast in the turn just ended. */
+  battlecryBuffThisShopPerSpellsThisTurn: (ctx, self, params) => {
+    const ticks = 1 + ctx.spellsThisTurnFor(self.side);
+    const a = num(params.attack, 3) * mul(self), h = num(params.health, 3) * mul(self);
+    if (a <= 0 && h <= 0) return;
+    for (let t = 0; t < ticks; t++) ctx.gainNextShopBuff?.(a, h, self.side);
+    if (self.side === 'player') ctx.log({ type: 'sc', source: self.uid, text: `+${a}/+${h} next Shop${ticks > 1 ? ` (x${ticks})` : ''}` });
+  },
+
+  /** Gravetwin / Auric Runemaster / Graverobber: the TARGETED Shouts that name their target at PLAY. A re-fire
+   *  carries no target in either phase (the Shop's `replayBattlecry` passes none, and each Shop body returns on a
+   *  missing target), so a combat re-fire resolves the same way the Shop one does, at the moment it fires: it
+   *  finds no target and does nothing. Registered so the Shout is never deferred and replayed later. */
+  battlecryCopyEcho: () => {},
+  battlecryGildTarget: () => {},
+  battlecryDestroyForSpell: () => {},
 
   /** Hearth Whisperer: whenever THIS takes damage, a random minion in your hand +atk/+hp — permanent (R-HAND-02). */
   onDamagedBuffRandomHand: (ctx, self, params, payload) => {
@@ -3619,7 +3797,7 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
    *  each trigger in combat as it does in the shop, a counted `shout` event so the replay can show EACH fire,
    *  and the `battlecryTriggered` bus emit per fire so KARWIND and Bane proc — Karwind is a Dragon in this very tribe,
    *  so a missing emit would silently break the tribe's own headline combo.
-   *  Economy battlecries are a no-op here by design: `replayCombatBattlecry` defers those to settle. */
+   *  Every Shout resolves live through `replayCombatBattlecry` (R-REALTIME-03); only SHOP_ONLY_SHOUTS defer their Shop part. */
   scTriggerTribeShouts: (ctx, self, params) => {
     const tribe = str(params.tribe);
     const repeats = drakkoRepeats(ctx, self.side) * mul(self);

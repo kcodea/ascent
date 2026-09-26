@@ -2919,6 +2919,11 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     "triggers": [
       {
         "event": "onPlay",
+        "phase": "both",
+        "phaseBasis": "derived:phaseRegistry"
+      },
+      {
+        "event": "onPlay",
         "phase": "shop",
         "phaseBasis": "derived:phaseRegistry",
         "note": "combat side excused: no-surface"
@@ -3693,9 +3698,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     "triggers": [
       {
         "event": "onPlay",
-        "phase": "shop",
-        "phaseBasis": "derived:phaseRegistry",
-        "note": "combat side excused: no-surface"
+        "phase": "both",
+        "phaseBasis": "derived:phaseRegistry"
       }
     ],
     "effects": [
@@ -3967,9 +3971,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     "triggers": [
       {
         "event": "onPlay",
-        "phase": "shop",
-        "phaseBasis": "derived:phaseRegistry",
-        "note": "combat side excused: no-surface"
+        "phase": "both",
+        "phaseBasis": "derived:phaseRegistry"
       }
     ],
     "effects": [
@@ -4910,9 +4913,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     "triggers": [
       {
         "event": "onPlay",
-        "phase": "shop",
-        "phaseBasis": "derived:phaseRegistry",
-        "note": "combat side excused: no-surface"
+        "phase": "both",
+        "phaseBasis": "derived:phaseRegistry"
       }
     ],
     "effects": [
@@ -5663,9 +5665,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     "triggers": [
       {
         "event": "onPlay",
-        "phase": "shop",
-        "phaseBasis": "derived:phaseRegistry",
-        "note": "combat side excused: no-surface"
+        "phase": "both",
+        "phaseBasis": "derived:phaseRegistry"
       },
       {
         "event": "battlecryTriggered",
@@ -7393,9 +7394,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     "triggers": [
       {
         "event": "onPlay",
-        "phase": "shop",
-        "phaseBasis": "derived:phaseRegistry",
-        "note": "combat side excused: no-surface"
+        "phase": "both",
+        "phaseBasis": "derived:phaseRegistry"
       },
       {
         "event": "onDeath",
@@ -9083,9 +9083,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     "triggers": [
       {
         "event": "onPlay",
-        "phase": "shop",
-        "phaseBasis": "derived:phaseRegistry",
-        "note": "combat side excused: state-missing"
+        "phase": "both",
+        "phaseBasis": "derived:phaseRegistry"
       }
     ],
     "effects": [
@@ -9552,9 +9551,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     "triggers": [
       {
         "event": "onPlay",
-        "phase": "shop",
-        "phaseBasis": "derived:phaseRegistry",
-        "note": "combat side excused: no-surface"
+        "phase": "both",
+        "phaseBasis": "derived:phaseRegistry"
       }
     ],
     "effects": [
@@ -11653,9 +11651,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     "triggers": [
       {
         "event": "onPlay",
-        "phase": "shop",
-        "phaseBasis": "derived:phaseRegistry",
-        "note": "combat side excused: no-surface"
+        "phase": "both",
+        "phaseBasis": "derived:phaseRegistry"
       }
     ],
     "effects": [
@@ -11742,9 +11739,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     "triggers": [
       {
         "event": "onPlay",
-        "phase": "shop",
-        "phaseBasis": "derived:phaseRegistry",
-        "note": "combat side excused: state-missing"
+        "phase": "both",
+        "phaseBasis": "derived:phaseRegistry"
       }
     ],
     "effects": [
@@ -19845,9 +19841,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     "triggers": [
       {
         "event": "onPlay",
-        "phase": "shop",
-        "phaseBasis": "derived:phaseRegistry",
-        "note": "combat side excused: no-surface"
+        "phase": "both",
+        "phaseBasis": "derived:phaseRegistry"
       }
     ],
     "effects": [
@@ -20326,9 +20321,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     "triggers": [
       {
         "event": "onPlay",
-        "phase": "shop",
-        "phaseBasis": "derived:phaseRegistry",
-        "note": "combat side excused: no-surface"
+        "phase": "both",
+        "phaseBasis": "derived:phaseRegistry"
       }
     ],
     "effects": [
@@ -37659,9 +37653,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     "triggers": [
       {
         "event": "onPlay",
-        "phase": "shop",
-        "phaseBasis": "derived:phaseRegistry",
-        "note": "combat side excused: no-surface"
+        "phase": "both",
+        "phaseBasis": "derived:phaseRegistry"
       }
     ],
     "effects": [
@@ -37990,9 +37983,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     "triggers": [
       {
         "event": "onPlay",
-        "phase": "shop",
-        "phaseBasis": "derived:phaseRegistry",
-        "note": "combat side excused: state-missing"
+        "phase": "both",
+        "phaseBasis": "derived:phaseRegistry"
       }
     ],
     "effects": [
@@ -38136,9 +38128,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     "triggers": [
       {
         "event": "onPlay",
-        "phase": "shop",
-        "phaseBasis": "derived:phaseRegistry",
-        "note": "combat side excused: no-surface"
+        "phase": "both",
+        "phaseBasis": "derived:phaseRegistry"
       }
     ],
     "effects": [
@@ -39525,9 +39516,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     "triggers": [
       {
         "event": "onPlay",
-        "phase": "shop",
-        "phaseBasis": "derived:phaseRegistry",
-        "note": "combat side excused: other-channel"
+        "phase": "both",
+        "phaseBasis": "derived:phaseRegistry"
       }
     ],
     "effects": [

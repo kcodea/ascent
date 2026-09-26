@@ -641,7 +641,8 @@ export const TRIGGERS_RULES: GameRule[] = [
       + 'replay), any part of it that buffs a card IN HAND resolves at that moment through the combat hand-buff channel: '
       + 'the hand card grows in the replay on that beat (a live handBuff event) and is carried back once. It is never '
       + 'deferred and replayed in the Shop at settle. Tidebud: a random OTHER friendly Spirit on the board gains the stats '
-      + 'as a normal combat gain, and a random Spirit in hand gains them permanently (R-HAND-02).',
+      + 'as a normal combat gain, and a random Spirit in hand gains them permanently (R-HAND-02). The general rule for '
+      + 'EVERY combat Shout is R-REALTIME-03.',
     domain: 'triggers',
     status: 'approved',
     evidence: [
@@ -651,6 +652,33 @@ export const TRIGGERS_RULES: GameRule[] = [
     contentIds: ['sp3_tidebud'],
     currentBehaviour: 'Conforms, FIXED 2026-09-26: Tidebud had no combat half, so a combat Shout deferred to settle and grew the hand card only after the fight.',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsAuctioneer.test.ts'], lastVerifiedAt: '2026-09-26' },
+  },
+  {
+    id: 'R-REALTIME-03',
+    title: 'Every Shout triggered in combat resolves in real time, whatever it does',
+    statement:
+      'A Shout triggered during combat (Dawnclaw / Ryme, a Rally re-fire, Parting Cry, an Ancient of Time, Rune of Shared '
+      + 'Scripture, the War Chorus, Ancestral Roar) resolves AT THE MOMENT it fires, whatever it does. Cards it gives reach '
+      + 'your hand in the fight (a live toHand) and wake the hand-grant watchers then (Gangplank, Kegheart); a Discover '
+      + 'resolves as a random pick of its offer, to hand, live (the combat Discover rule, owner 2026-08-08); hand buffs, '
+      + 'stats, Gold, next-turn Gold, free rolls, next-spell charges, the Grimoire charge, Squirl Scout’s snowball and '
+      + 'permanent Shop buffs are granted and logged on that beat and carried back to the run ONCE; "this shop" buffs '
+      + 'bank on the next Shop (the combat shop-buff spell rule). Nothing is replayed as a Shout at settle. The only '
+      + 'exceptions are Shouts whose TARGET only exists in the Shop (SHOP_ONLY_SHOUTS: the Starform, a Shop meal, a Shop '
+      + 'slot, Orbit, a Consume, the Choose One latch): they still fire live (their line, every Shout counter and watcher) '
+      + 'and only their Shop part is applied when the Shop exists again, exactly once, acting as the Shout’s own run card. '
+      + 'A targeted Shout re-fired without a target (Gravetwin, Auric Runemaster, Graverobber) finds none and does nothing, '
+      + 'in combat exactly as in the Shop.',
+    domain: 'triggers',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-26 (combat Shouts in real time)', quote: "all shouts should be real time in combat, regardless of what they do/are. theres no point in delaying any of them and they may be important to trigger other combat effects like gangplank's to hand watcher." },
+      { kind: 'code', ref: 'packages/core/src/effects/factories.ts replayCombatBattlecry + SHOP_ONLY_SHOUTS + deferShopOnlyShout (the combat halves under "SHOUTS IN REAL TIME")' },
+      { kind: 'code', ref: 'packages/sim/src/reducer.ts settleCombat: playerShoutCarry folded in once; playerDeferredBattlecries holds only SHOP_ONLY_SHOUTS' },
+    ],
+    contentIds: ['n3_defender', 'sp3_revelator', 'sp3_luminary', 'dw_dorrin', 'sp3_gatheringguide', 'nimbus', 'ce3_vendor', 'd2_grimoire', 'squirlscout', 'd2_recaller', 'cryptbroker', 'dm_butcher', 'dm_malphas', 'ce3_accretionwarden', 'ce3_shootingstar', 'gravetwin', 'dw_runemaster', 'graverobber'],
+    currentBehaviour: 'Conforms, FIXED 2026-09-26: 17 Shout ids had no combat half and were deferred to settle and replayed in the Shop after the fight (cards to hand arrived only after the fight and never woke Gangplank).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/combatShoutsRealtime.test.ts'], lastVerifiedAt: '2026-09-26' },
   },
   {
     id: 'R-RISE-SHOP-01',

@@ -58,6 +58,7 @@ const LIVE: Record<string, string> = {
   playerDamageMeters: "the 'dmg' events stamped with Han Gover as `source` — useCombatReplay sums them onto the seeded meter, so the N/40 step counter ticks per landed hit; the Ale itself flies to hand via 'toHand'",
   // Balance 9/23 (2026-09-23) — the cross-phase Shout tally's two carry-backs:
   playerShoutFires: "the 'shout' event — fireShout logs one per FIRE (Drakko repeats included, shoutFired.test.ts), and a parting cry is its own cast `sc` beat, so every counted Shout is watched as it happens, like playerRallies",
+  playerShoutCarry: "R-REALTIME-03: every grant logs its own 'sc' line on the Shout's beat ('Your next spell: +1 cast', '+2/+1 Shop'), and the Crypt Broker card flies to hand as a live 'toHand'; settle only folds the run fields in once",
   playerShoutMeters: "the trip's payout rides the 'toHand' event on the Shout beat that trips it (the card flies to hand mid-fight); each advance is itself a visible Shout beat. The rune badge's N/3 NUMBER still catches up at settle (no threshold-rune combat key yet, flagged in the 2026-09-23 rune reworks A devlog)",
 };
 
@@ -85,7 +86,7 @@ const EXEMPT: Record<string, string> = {
   playerRallyDouble: "next-combat mod already spent by the time it could display — the doubled rally IS the display",
   playerSurvivorCardIds: 'bookkeeping for the end screen — the survivors are literally on screen',
   playerQuestEvents: 'the quest DELTAS are the live channel (playerQuestTally); this is the settle record',
-  playerDeferredBattlecries: 'tavern work queued for the shop — no combat surface by design (Effect Arena rule)',
+  playerDeferredBattlecries: 'only SHOP_ONLY_SHOUTS (R-REALTIME-03): their target is the Shop row / Starform / Orbit, which does not exist mid-fight; each still logs its line on the beat',
   playerGuaranteedAttachments: 'a next-shop pity guarantee — no combat surface',
   playerNextTurnSpellCopies: 'next-turn hand grants — no combat surface',
 };

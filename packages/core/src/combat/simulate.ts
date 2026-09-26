@@ -16,13 +16,14 @@ import type {
   QuestCombatMods,
   PendingCombatQuest,
   RiseTint,
+  ShoutCarry,
   Side,
   Tribe,
 } from '../types';
 import { ALE_IDS, RUBY_TYPE_IDS, damageMeterOf, alignAllows, extraTriggerFires, foldEchoExtraFires, socTwilightExtraFires, COMBATATIVE_RUBIES_ATTACKS, BODY_COUNTING_DEATHS, RUPTURED_RUBY_BOUNCES } from '../types';
 import { makeRng, type Rng } from '../rng';
 import { CombatBus } from '../events';
-import { FACTORIES, playRubyOn, castInCombat, combatCastable, resolveCombatSpellCast, replayCombatBattlecry, drakkoRepeats, fireShout, livingNeighbours, triggerEcho, SILENT_ONPLAY, isShopPoolSpell, shopSpellGrowth } from '../effects/factories';
+import { FACTORIES, playRubyOn, castInCombat, combatCastable, resolveCombatSpellCast, replayCombatBattlecry, deferShopOnlyShout, drakkoRepeats, fireShout, livingNeighbours, triggerEcho, SILENT_ONPLAY, isShopPoolSpell, shopSpellGrowth } from '../effects/factories';
 import { instantiate, type CardIndex } from './minion';
 import { EMPTY_SIDE } from './side';
 
@@ -484,7 +485,13 @@ export function simulate(
   };
   // Economy battlecries Ryme re-fired in combat (Fodder / Gold / shop / gain-minion) — can't run in pure combat,
   // so they're recorded here and replayed through their real recruit factory at settle (full RunState access).
-  const deferredBattlecries = perSide<{ cardId: string; golden: boolean }[]>(() => []);
+  // Since R-REALTIME-03 (owner 2026-09-26) only the SHOP-ONLY Shouts land here (`SHOP_ONLY_SHOUTS`); `uid` is the
+  // re-fired body's run-board card, so the settle replay acts AS that card (its slot, its per-instance fields).
+  const deferredBattlecries = perSide<{ cardId: string; golden: boolean; uid?: string }[]>(() => []);
+  /** Run-state grants Shouts made LIVE this fight (R-REALTIME-03) — see `ShoutCarry`. */
+  const shoutCarry = perSide<ShoutCarry>(() => ({}));
+  /** Squirl Scout's snowball, live: the side's run value, grown by every combat re-fire this fight. */
+  const scoutBuff: Record<Side, number> = { player: playerState.squirlScoutBuff ?? 0, enemy: enemyState.squirlScoutBuff ?? 0 };
 
   /**
    * AURAS — run-wide buffs that follow a player minion EVERYWHERE: the warband + shop (folded into the
@@ -902,7 +909,8 @@ export function simulate(
 
   /**
    * "A card was added to your hand" — broadcast to the side's reactors (owner report 2026-08-29). Called from
-   * `ctx.grantToHand` and `ctx.grantRubies`, the only two ways a card reaches a hand mid-fight.
+   * `ctx.grantToHand`, `ctx.grantRubies` / `grantRandomRubies` and the random grants (`grantRandomSpell` /
+   * `grantRandomMinion`, since R-REALTIME-03) — every way a card reaches a hand mid-fight.
    *
    * DEPTH-GUARDED even though nothing today needs it: no current `onGainCard` reactor grants a card, so the
    * chain cannot recurse — but this is a broadcast whose handlers run arbitrary effects, and the one that
@@ -1326,9 +1334,49 @@ export function simulate(
       const sched = fodderSchedule[side];
       counts.forEach((c, i) => { sched[i] = (sched[i] ?? 0) + c; }); // Pit Supplier: Fodder over the next N shops
     },
-    deferBattlecry: (cardId, golden, side) => {
-      deferredBattlecries[side].push({ cardId, golden });
+    deferBattlecry: (cardId, golden, side, sourceUid) => {
+      deferredBattlecries[side].push({ cardId, golden, ...(sourceUid ? { uid: sourceUid } : {}) });
     },
+    // ── SHOUTS IN REAL TIME (R-REALTIME-03): run-state grants made the moment a combat Shout fires ──
+    grantNextSpellExtraCasts: (count, side, sourceUid) => {
+      if (count <= 0) return;
+      const c = shoutCarry[side];
+      c.nextSpellExtraCasts = (c.nextSpellExtraCasts ?? 0) + count;
+      if (side === 'player' && sourceUid) emit({ type: 'sc', source: sourceUid, text: `Your next spell: +${count} cast${count === 1 ? '' : 's'}` });
+    },
+    grantNextSpellBonus: (attack, health, side, sourceUid) => {
+      if (attack === 0 && health === 0) return;
+      const c = shoutCarry[side];
+      const prev = c.nextSpellBonus ?? { attack: 0, health: 0 };
+      c.nextSpellBonus = { attack: prev.attack + attack, health: prev.health + health };
+      if (side === 'player' && sourceUid) emit({ type: 'sc', source: sourceUid, text: `Your next spell +${attack}/+${health}` });
+    },
+    armGrimoire: (mult, side) => {
+      const c = shoutCarry[side];
+      c.grimoireMult = Math.max(c.grimoireMult ?? 0, mult);
+    },
+    grantScoutBuff: (step, side) => {
+      if (step === 0) return;
+      scoutBuff[side] += step;
+      const c = shoutCarry[side];
+      c.squirlScoutBuff = (c.squirlScoutBuff ?? 0) + step;
+    },
+    scoutBuffFor: (side) => scoutBuff[side],
+    grantRunShopBuff: (attack, health, side, sourceUid, sourceName, sourceCardId) => {
+      if (attack <= 0 && health <= 0) return;
+      const source = sourceName ?? (sourceUid ? boards[side].find((m) => m.uid === sourceUid)?.name : undefined) ?? 'Combat';
+      (shoutCarry[side].runShopBuffs ??= []).push({ source, ...(sourceCardId ? { cardId: sourceCardId } : {}), attack, health });
+      if (side === 'player' && sourceUid) emit({ type: 'sc', source: sourceUid, text: `+${attack}/+${health} Shop` });
+    },
+    grantToHandThenEcho: (cardId, side, sourceUid) => {
+      const idx = handGrants[side].length;
+      ctx.grantToHand(cardId, side, sourceUid);
+      (shoutCarry[side].handEchoes ??= []).push(idx);
+    },
+    revelerValueFor: (side) => Math.max(1, (side === 'player' ? playerState : enemyState).revelerX ?? 1),
+    goldSpentThisTurnFor: (side) => (side === 'player' ? playerState : enemyState).goldSpentThisTurn ?? 0,
+    lastSpellThisTurnIdFor: (side) => (side === 'player' ? playerState : enemyState).lastSpellThisTurnId,
+    fullMeasureFor: (side) => !!modsFor(side).runeFullMeasure,
     grantMaxGold: (amount, side) => {
       maxGoldGain[side] += amount;
     },
@@ -1356,7 +1404,9 @@ export function simulate(
       for (let i = 0; i < count && pool.length > 0; i++) {
         const pick = pool[Math.floor(draw.next() * pool.length)]!;
         handGrants[side].push(pick.id);
-        if (side === 'player') emit({ type: 'toHand', cardId: pick.id, side, source: sourceUid });
+        // A random card reaching hand IS a card reaching hand: the reactors (Gangplank, Kegheart) fire now, the
+        // same as `grantToHand` (R-REALTIME-03 — a Shout's Discover re-fired in combat must wake them).
+        if (side === 'player') { emit({ type: 'toHand', cardId: pick.id, side, source: sourceUid }); emitGainCard(pick.id, side); }
       }
     },
     grantRandomMinion: (count, tribe, side, exclude, sourceUid, fixedTier, shoutOnly) => {
@@ -1397,7 +1447,7 @@ export function simulate(
       for (let i = 0; i < count && pool.length > 0; i++) {
         const pick = pool[Math.floor(draw.next() * pool.length)]!;
         handGrants[side].push(pick.id);
-        if (side === 'player') emit({ type: 'toHand', cardId: pick.id, side, source: sourceUid });
+        if (side === 'player') { emit({ type: 'toHand', cardId: pick.id, side, source: sourceUid }); emitGainCard(pick.id, side); }
       }
     },
     grantImpBuff: (attack, health, side) => {
@@ -1548,6 +1598,7 @@ export function simulate(
             if (effect.on !== 'onPlay') continue;
             withEffect(shout, effect, () => FACTORIES[effect.do]?.(ctx, shout, effect.params ?? {}, { minion: shout, side }));
           }
+          deferShopOnlyShout(ctx, shout); // R-REALTIME-03: a Shop-only Shout fires its line now, its Shop part at settle
         }
       }
       if (rally) fireFreeRally(rally, side);
@@ -2903,6 +2954,7 @@ export function simulate(
           if (effect.on !== 'onPlay') continue;
           withEffect(minion, effect, () => FACTORIES[effect.do]?.(ctx, minion, effect.params ?? {}, { minion, side: minion.side }));
         }
+        deferShopOnlyShout(ctx, minion); // R-REALTIME-03
       }
     }
     // RUNE OF RUBY SHRAPNEL: a dying Ruby-buffed body scatters its Ruby stats across the survivors. The tally
@@ -3526,6 +3578,7 @@ export function simulate(
               if (effect.on !== 'onPlay') continue;
               withEffect(lead, effect, () => FACTORIES[effect.do]?.(ctx, lead, effect.params ?? {}, { minion: lead, side: lead.side }));
             }
+            deferShopOnlyShout(ctx, lead); // R-REALTIME-03
           }
         }
       }
@@ -5194,6 +5247,7 @@ export function simulate(
       fodderGrants: fodderGrants[side] > 0 ? fodderGrants[side] : undefined,
       fodderSchedule: fodderSchedule[side].some((n) => n > 0) ? fodderSchedule[side] : undefined,
       deferredBattlecries: deferredBattlecries[side].length > 0 ? deferredBattlecries[side] : undefined,
+      shoutCarry: Object.keys(shoutCarry[side]).length > 0 ? { ...shoutCarry[side] } : undefined,
       maxGoldGain: maxGoldGain[side] > 0 ? maxGoldGain[side] : undefined,
       bonusGold: bonusGoldGain[side] > 0 ? bonusGoldGain[side] : undefined,
       freeRolls: freeRollGrants[side] > 0 ? freeRollGrants[side] : undefined,
@@ -5272,6 +5326,7 @@ export function simulate(
     playerFodderGrants: pc.fodderGrants,
     playerFodderSchedule: pc.fodderSchedule,
     playerDeferredBattlecries: pc.deferredBattlecries,
+    playerShoutCarry: pc.shoutCarry,
     playerMaxGoldGain: pc.maxGoldGain,
     playerBonusGold: pc.bonusGold,
     playerFreeRolls: pc.freeRolls,

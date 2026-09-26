@@ -55,6 +55,31 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: 'Shouts triggered during combat now take effect right away. Cards they give you arrive during the fight, and can trigger other effects.',
+        details: [
+          'This covers every Shout fired in a fight: by an Echo, a Rally, Parting Cry, a rune or an Ancient.',
+          'Cards a Shout gives you land in your hand during the fight, so Gangplank and other hand watchers react then.',
+          'A Discover from a Shout in combat gives you a random card from its offer, right away.',
+          'Gold, next spell bonuses, the Squirl Scout bonus and Shop buffs from a Shout are gained the moment it fires.',
+          'Shouts that need the Shop, like feeding the Starform or eating a Shop minion, still fire in the fight and finish when the Shop opens.',
+        ],
+      },
+      {
+        category: 'Systems',
+        text: 'A minion given Rise now says Rise in its text.',
+        details: [
+          'The text starts with Rise on every card view, in the shop, your hand, your board and in combat.',
+          'Once the minion Rises, the text drops it. If it gets Rise again, it comes back.',
+          'Cards that already print Rise are unchanged.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-09-26',
+    changes: [
+      {
+        category: 'Systems',
         text: 'Effects that trigger when a minion Rises now also trigger when it Rises in the Shop.',
         details: [
           'Fixed: a minion destroyed in the Shop by some effects Rose, but cards like Revenant and Rising Tide did not notice.',

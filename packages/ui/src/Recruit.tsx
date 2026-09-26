@@ -68,6 +68,7 @@ import { getHeroDuelConfig } from './heroDuelConfig';
 import { EndTurnButton } from './EndTurnButton';
 import { RiftButton } from './RiftButton';
 import { RefreshButton } from './RefreshButton';
+import { CombatRoundLabel, combatRound } from './CombatRoundLabel';
 import { FreezeButton } from './FreezeButton';
 import { TavernUpButton } from './TavernUpButton';
 import { GoldPill } from './GoldPill';
@@ -7050,6 +7051,7 @@ export function Recruit() {
         roundSettled={roundSettled} timeUp={timeUp} combatBgShown={combatBgShown} frozen={!!run.frozen} embers={run.embers}
         refreshCost={nextRefreshCostOf(run)} freeRolls={run.freeRolls} tier={run.tier} maxTier={maxTierFor(run.rift)} upgradeCost={upgradeCostOf(run)}
         nextTurnGold={nextTurnGold} afterNextGold={afterNextGold} wave={run.wave} rift={run.rift}
+        combatRoundNo={combatRound(run.lobby, run.wave)}
         onSummary={openSummary} onEndTurn={endTurnStable} onEndCombat={endCombat} onFreeze={onFreeze} onRefresh={onRefresh} onUpgrade={onUpgrade} onSkip={skipCombat}
       />
       </PerfProfiler>
@@ -7395,7 +7397,7 @@ export function Recruit() {
 const ShopControls = memo(function ShopControls({
   fighting, inCombat, mode, sandbox, replayDone, replayResult, sandboxReplay, lossPhase, eotAnimating,
   hasQuestOffer, hasPowerOffer, hasRuneforgeOffer, roundSettled, timeUp, combatBgShown, frozen, embers,
-  refreshCost, freeRolls, tier, maxTier, upgradeCost, nextTurnGold, afterNextGold, wave, rift,
+  refreshCost, freeRolls, tier, maxTier, upgradeCost, nextTurnGold, afterNextGold, wave, rift, combatRoundNo,
   onSummary, onEndTurn, onEndCombat, onFreeze, onRefresh, onUpgrade, onSkip,
 }: {
   fighting: boolean; inCombat: boolean; mode: RunState['mode']; sandbox: boolean; replayDone: boolean;
@@ -7403,7 +7405,7 @@ const ShopControls = memo(function ShopControls({
   eotAnimating: boolean; hasQuestOffer: boolean; hasPowerOffer: boolean; hasRuneforgeOffer: boolean;
   roundSettled: boolean; timeUp: boolean; combatBgShown: boolean; frozen: boolean; embers: number;
   refreshCost: number; freeRolls: RunState['freeRolls']; tier: number; maxTier: number; upgradeCost: number;
-  nextTurnGold: number; afterNextGold: number; wave: number; rift: RunState['rift'];
+  nextTurnGold: number; afterNextGold: number; wave: number; rift: RunState['rift']; combatRoundNo: number | null;
   onSummary: () => void; onEndTurn: () => void; onEndCombat: () => void; onFreeze: () => void;
   onRefresh: () => void; onUpgrade: () => void; onSkip: () => void;
 }) {
@@ -7536,6 +7538,10 @@ const ShopControls = memo(function ShopControls({
       {!combatBgShown && (
       <GoldPill gold={embers} nextTurnGold={nextTurnGold} afterNextGold={afterNextGold} wave={wave} />
       )}
+
+      {/* ROUND X — white, top-centre, just above the Skip button (owner ask 2026-09-25). Mounted for the WHOLE
+          fight (replay + settled screen), so it stays after Skip unmounts. Shares Skip's stage anchor in CSS. */}
+      {inCombat && <CombatRoundLabel round={combatRoundNo} />}
 
       {/* Skip the combat replay — pinned ABOVE the End Turn / End Combat diamond (owner move 2026-08-11; it was
           a top-centre HUD, and the replay-speed slider moved to the Esc menu's Combat section). */}

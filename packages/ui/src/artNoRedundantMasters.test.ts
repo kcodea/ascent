@@ -137,6 +137,8 @@ describe('no redundant PNG masters ship alongside their WebP builds', () => {
     // against origin/main's 1258 after the Ruby batch.)
     // (2026-09-25, Ancients PoC: +4 in a new `art/ancients/` dir, Death + Fortune full art and hero-power halves. 1263 → 1267,
     // still under the budget.)
-    expect(total, `art files: ${total} — the WHOLE-ZIP count (~${total + 176}) is what itch caps at 1000`).toBeLessThan(1268);
+    // → 1274: owner-supplied Ancient art 2026-09-25 (+6: War, Genesis and Time full art + hero-power halves; the owner
+    // was told the cap would need raising for these).
+    expect(total, `art files: ${total} — the WHOLE-ZIP count (~${total + 176}) is what itch caps at 1000`).toBeLessThan(1274);
   });
 });

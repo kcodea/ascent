@@ -165,3 +165,17 @@ Nothing loops: every motion is WAAPI transform/opacity or a one-shot transition.
   - Screen colour pickers in the ✦ Ancients tuner (live, via CSS vars on the gate root): curtain centre and edge,
     seam ring, title glow, backdrop tint.
   - Dust dials follow the Runeforge entrance's pattern: count, size, life, opacity.
+- **All five Ancients' art wired + owner tuner values baked (2026-09-26).**
+  - **Art:** War, Genesis (source file spelled "Genesys") and Time were added as 512px WebP in `art/ancients/`, each
+    with its full art and its hero-power half. The newer War full art (00:03) was re-wired. Death and Fortune were
+    unchanged since their 21:03 wiring.
+  - **Placeholder:** the emblem fallback stays generic, for any future Ancient without art.
+  - **Art budget:** raised by exactly 6, from 1268 to 1274 ("owner-supplied Ancient art 2026-09-25").
+  - **Art fit:** every Ancient uses the neutral hero-power fit (offset 0, scale 1). All five line up with Indy's
+    split like Death and Fortune did.
+  - **Baked tuner values:** the owner's ✦ Ancients export is now the defaults, including the CSS-var fallbacks:
+    - teal curtain: #247067 → #0a0618;
+    - title glow #9effd5, seam #fff1bd, backdrop tint #060d0f;
+    - cardReveal gain 0.19, pickSeal gain 0.62;
+    - revealStyle 1 (two beats).
+  - `ancientsConfig.test.ts` pins these values.

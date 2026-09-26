@@ -141,15 +141,15 @@ export type AncientColorKey = `${'death' | 'fortune' | 'war' | 'genesis' | 'time
 export const ANCIENT_CUES = ['omenRumble', 'eruptionBoom', 'eruptionFlash', 'titleSting', 'cardReveal', 'ambientHum', 'pickSeal'] as const;
 export type AncientCue = (typeof ANCIENT_CUES)[number];
 export type AncientCueKey = `${AncientCue}${'Clip' | 'Gain' | 'Offset' | 'Rate'}`;
-/** The shipped placeholder picks (existing repo clips, pitched where it helps). */
+/** The shipped picks (existing repo clips, pitched where it helps). Gains baked from the owner's tuner 2026-09-26. */
 export const ANCIENT_CUE_DEFAULTS: Record<AncientCue, { clip: string; gain: number; offset: number; rate: number }> = {
   omenRumble: { clip: 'turncharge', gain: 0.7, offset: 0, rate: 0.62 },
   eruptionBoom: { clip: 'fx/universfield-ground-impact-352053', gain: 0.9, offset: 0, rate: 0.82 },
   eruptionFlash: { clip: 'fx/universfield-cinematic-swoosh-impact-454392', gain: 0.6, offset: 40, rate: 0.9 },
   titleSting: { clip: 'fx/waking-rift', gain: 0.75, offset: 60, rate: 1 },
-  cardReveal: { clip: 'runeselectimplosion', gain: 0.7, offset: 0, rate: 0.9 },
+  cardReveal: { clip: 'runeselectimplosion', gain: 0.19, offset: 0, rate: 0.9 },
   ambientHum: { clip: 'turncharge', gain: 0.18, offset: 0, rate: 0.45 },
-  pickSeal: { clip: 'fx/triple-impact', gain: 0.8, offset: 0, rate: 0.85 },
+  pickSeal: { clip: 'fx/triple-impact', gain: 0.62, offset: 0, rate: 0.85 },
 };
 const CUE_DEFAULTS = Object.fromEntries(ANCIENT_CUES.flatMap((c) => {
   const d = ANCIENT_CUE_DEFAULTS[c];
@@ -199,11 +199,11 @@ export const ANCIENTS_DEFAULTS: AncientsFullConfig = {
   dustSize: 1,
   dustLife: 1,
   dustOpacity: 0.85,
-  curtainInner: '#3a2470',
+  curtainInner: '#247067',
   curtainOuter: '#0a0618',
-  seamColor: '#ffecbe',
-  titleGlow: '#c8a0ff',
-  backdropTint: '#100b06',
+  seamColor: '#fff1bd',
+  titleGlow: '#9effd5',
+  backdropTint: '#060d0f',
   closeMs: 420,
   duckAmount: 0.3,
   duckRampMs: 260,

@@ -253,8 +253,8 @@ body:has(.anc-pv) .heropanel .herotip { opacity: 0 !important; transition-delay:
       rgba(255, 170, 80, calc(var(--dcl-spot, 0.4) * 0.14)) 50%,
       rgba(255, 160, 70, 0) 100%),
     radial-gradient(ellipse 72% 68% at 50% 51%,
-      color-mix(in srgb, var(--anc-tint, #100b06) calc(var(--dcl-tint, 0.84) * 100%), transparent) 0%,
-      color-mix(in srgb, var(--anc-tint, #100b06) calc(var(--dcl-tint, 0.84) * 100%), transparent) 30%,
+      color-mix(in srgb, var(--anc-tint, #060d0f) calc(var(--dcl-tint, 0.84) * 100%), transparent) 0%,
+      color-mix(in srgb, var(--anc-tint, #060d0f) calc(var(--dcl-tint, 0.84) * 100%), transparent) 30%,
       rgba(4, 3, 2, var(--dcl-vignette, 0.95)) 100%);
 }
 .anc-gate-ring {
@@ -279,7 +279,7 @@ body.ancgate .app { z-index: auto; }
   position: absolute; inset: 0; z-index: 1; will-change: clip-path, opacity;
   background:
     radial-gradient(ellipse 45% 40% at 50% 48%, rgba(255, 214, 140, 0.18) 0%, rgba(255, 214, 140, 0) 70%),
-    radial-gradient(ellipse 70% 70% at 50% 50%, var(--anc-cin, #3a2470) 0%, color-mix(in srgb, var(--anc-cin, #3a2470) 42%, var(--anc-cout, #0a0618)) 55%, var(--anc-cout, #0a0618) 100%);
+    radial-gradient(ellipse 70% 70% at 50% 50%, var(--anc-cin, #247067) 0%, color-mix(in srgb, var(--anc-cin, #247067) 42%, var(--anc-cout, #0a0618)) 55%, var(--anc-cout, #0a0618) 100%);
 }
 .anc-gate-front {
   position: absolute; left: var(--gx); top: var(--gy); z-index: 2;
@@ -287,7 +287,7 @@ body.ancgate .app { z-index: auto; }
   mix-blend-mode: screen; transform: scale(0.004); opacity: 0; will-change: transform, opacity;
   background: radial-gradient(closest-side,
     rgba(160, 120, 255, 0) 0%, rgba(160, 120, 255, 0) 84%,
-    rgba(190, 150, 255, 0.45) 91%, color-mix(in srgb, var(--anc-seam, #ffecbe) 90%, transparent) 96.5%, rgba(127, 227, 208, 0.45) 98%, rgba(127, 227, 208, 0) 100%);
+    rgba(190, 150, 255, 0.45) 91%, color-mix(in srgb, var(--anc-seam, #fff1bd) 90%, transparent) 96.5%, rgba(127, 227, 208, 0.45) 98%, rgba(127, 227, 208, 0) 100%);
 }
 .anc-gate-title {
   position: absolute; left: 50%; top: 46%; transform: translate(-50%, -50%);
@@ -300,7 +300,7 @@ body.ancgate .app { z-index: auto; }
   font-size: calc(58 * var(--u, 1px)); letter-spacing: 0.06em; font-kerning: none; white-space: nowrap;
   color: transparent; background: linear-gradient(180deg, #fff4cf 0%, #f6d77e 40%, #d9a441 65%, #a8701c 100%);
   -webkit-background-clip: text; background-clip: text;
-  filter: drop-shadow(0 2px 0 rgba(40, 20, 60, 0.95)) drop-shadow(0 0 14px color-mix(in srgb, var(--anc-tglow, #c8a0ff) 55%, transparent)) drop-shadow(0 0 30px rgba(255, 190, 90, 0.3));
+  filter: drop-shadow(0 2px 0 rgba(40, 20, 60, 0.95)) drop-shadow(0 0 14px color-mix(in srgb, var(--anc-tglow, #9effd5) 55%, transparent)) drop-shadow(0 0 30px rgba(255, 190, 90, 0.3));
 }
 @media (prefers-reduced-motion: reduce) { .anc-gate-title.in { animation: none; } }
 /* The preview has no room above the card for the frame gem. */
@@ -349,7 +349,7 @@ body.ancgate .app { z-index: auto; }
   pointer-events: none; transform: scale(0.004); opacity: 0; will-change: transform, opacity;
 }
 .anc-gate-runes svg { width: 100%; height: 100%; overflow: visible; }
-.anc-gate-runes circle { fill: none; stroke: var(--anc-seam, #ffe3a0); stroke-width: 7; stroke-dasharray: 3 14 10 14 3 30; stroke-linecap: round; opacity: 0.9; }
+.anc-gate-runes circle { fill: none; stroke: var(--anc-seam, #fff1bd); stroke-width: 7; stroke-dasharray: 3 14 10 14 3 30; stroke-linecap: round; opacity: 0.9; }
 
 .anc-slot { position: relative; }
 .anc-card:disabled { opacity: 1; }

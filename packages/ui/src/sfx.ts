@@ -662,6 +662,8 @@ export const sfx = {
   // drift apart — a spell has no `onPlay` effect, so `store.ts`'s per-card effect hook (minions only) never
   // reaches it. It plays the same `cards/sp_dragonflame.effect.mp3` clip both phases use, on the same fader.
   dragonflame: () => { playSample('cards/sp_dragonflame.effect', 'cardEffect'); },
+  /** REBIRTH's phoenix flame (owner 2026-09-25): reuses the Dragonflame whoosh, softened by the 🔥 tuner's gain. */
+  rebirthFlame: (vol = 0.6) => { playSample('cards/sp_dragonflame.effect', 'cardEffect', 0, (n) => { n.gain.gain.value *= Math.max(0, vol); }); },
   // A hero is CHOSEN in Hero Select — drop `audio/heroes/<heroId>.mp3` and it plays, LAYERED over the generic
   // pulse. Silent (no fallback) if the hero has no clip.
   heroSelect: (heroId: string) => { playSample(`heroes/${heroId}`, 'heroSelect'); },

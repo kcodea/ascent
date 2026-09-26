@@ -968,7 +968,8 @@ export function StatusBar() {
             )}
             {/* Live status (current magnitude + countdown) on hover — the progress text was removed from the
                 always-visible hero box, so it reads here instead. */}
-            <span className="herotip-live">{powerStatus}</span>
+            {/* The status chip only when it tells you something (owner 2026-09-25: "remove the "ready" pill"). */}
+            {powerStatus && !/^ready$/i.test(powerStatus) && <span className="herotip-live">{powerStatus}</span>}
           </div>
         </div>
         {/* VOID'S SECOND POWER (owner spec 2026-08-22): the slot-1 wielded power, seated to the right of the

@@ -1,5 +1,4 @@
 import { memo, useCallback, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, type CSSProperties } from 'react';
-import { createPortal } from 'react-dom';
 import { ANCIENTS, type AncientId, type RunState } from '@game/sim';
 import { useGame } from '../store';
 import { sfx } from '../sfx';
@@ -25,7 +24,9 @@ import './ancients.css';
  *  · a combat's two sweep in on the return to the Shop, AFTER the wipe (the displayed value waits for the curtain);
  *  · a sweep is ONE eased `stroke-dashoffset` transition per change (one-shot, never looped), with a gap-gated tick;
  *  · at full the ring flashes once, and only then may the offer rise (`markRingSettled`).
- * Hovering (or focusing) the ring / the readout opens the preview card (`AncientPreview`).
+ * ONLY the "Ancients 7/16" pill opens the preview card (`AncientPreview`) on hover / focus (owner 2026-09-25: "that
+ * be the mouseover for the ancient previews, not the hero power progress bar"). The ring takes no pointer events,
+ * so the hero power keeps its own tip.
  *
  * ── Awakened ──────────────────────────────────────────────────────────────────────────────────────────────────
  * The ring and readout are gone. The Ancient is simply the right HALF of the round hero-power button
@@ -82,19 +83,33 @@ export const AncientMeter = memo(function AncientMeter({ run }: { run: RunState 
 
   // PREVIEW (hover / focus): one anchor read per open; a short grace period lets the pointer cross to the card.
   const cycler = useAncientCycler('death');
+  // In: slide + fade (`pvInMs`). Leave: after a short grace (`pvGraceMs`, the ring → card bridge) it slides + fades
+  // out quickly (`pvOutMs`) and then really unmounts; re-entering at any point cancels the leave.
   const [anchor, setAnchor] = useState<PreviewAnchor | null>(null);
+  const [leaving, setLeaving] = useState(false);
   const closeTimer = useRef(0);
-  const open = useCallback(() => {
+  const goneTimer = useRef(0);
+  const cancelLeave = useCallback(() => {
     window.clearTimeout(closeTimer.current);
-    const r = rootRef.current?.querySelector('.anc-ring')?.getBoundingClientRect();
-    if (r) setAnchor({ left: r.left, top: r.top, right: r.right, bottom: r.bottom });
+    window.clearTimeout(goneTimer.current);
+    setLeaving(false);
   }, []);
+  const open = useCallback(() => {
+    cancelLeave();
+    const r = rootRef.current?.querySelector('.anc-ring')?.getBoundingClientRect();
+    if (r) setAnchor((a) => a ?? { left: r.left, top: r.top, right: r.right, bottom: r.bottom });
+  }, [cancelLeave]);
   const leave = useCallback(() => {
     window.clearTimeout(closeTimer.current);
-    closeTimer.current = window.setTimeout(() => setAnchor(null), 180);
+    window.clearTimeout(goneTimer.current);
+    const c = getAncientsConfig();
+    closeTimer.current = window.setTimeout(() => {
+      setLeaving(true);
+      goneTimer.current = window.setTimeout(() => { setAnchor(null); setLeaving(false); }, prefersReducedMotion() ? 80 : c.pvOutMs);
+    }, c.pvGraceMs);
   }, []);
-  const stay = useCallback(() => window.clearTimeout(closeTimer.current), []);
-  useEffect(() => () => window.clearTimeout(closeTimer.current), []);
+  const stay = cancelLeave;
+  useEffect(() => () => { window.clearTimeout(closeTimer.current); window.clearTimeout(goneTimer.current); }, []);
   // The preview never outlives the Shop (a fight starting mid-hover), nor the meter (the awakening offer, a pick).
   const picked = !!anc?.picked;
   useEffect(() => { if (run.phase !== 'recruit' || picked || offerOpen) setAnchor(null); }, [run.phase, picked, offerOpen]);
@@ -129,8 +144,6 @@ export const AncientMeter = memo(function AncientMeter({ run }: { run: RunState 
               <stop offset="100%" stopColor={cfg.fillTo} />
             </linearGradient>
           </defs>
-          <circle className="anc-ring-hit" cx={c} cy={c} r={r} strokeWidth={sw + 12}
-            onPointerEnter={open} onPointerLeave={leave} onWheel={(e) => { open(); cycler.onWheel(e); }} />
           <circle className="anc-ring-track" cx={c} cy={c} r={r} strokeWidth={sw} stroke={cfg.trackColor} strokeOpacity={cfg.trackAlpha} />
           {cfg.ticks > 0 && [0.25, 0.5, 0.75].map((q) => {
             const a = q * Math.PI * 2 - Math.PI / 2;
@@ -153,10 +166,10 @@ export const AncientMeter = memo(function AncientMeter({ run }: { run: RunState 
       <button type="button" className="anc-chip" aria-label={label}
         onPointerEnter={open} onPointerLeave={leave} onFocus={open} onBlur={leave}
         onWheel={(e) => { open(); cycler.onWheel(e); }} onKeyDown={onKeyDown}>
-        <b key={shown}>{shown}</b><span>/{total}</span>
+        <span className="anc-chip-lbl">Ancients</span><b key={shown}>{shown}</b><span>/{total}</span>
       </button>
       {anchor && run.phase === 'recruit' && !offerOpen && (
-        <AncientPreview heroId={run.heroId} anchor={anchor} index={cycler.index} dir={cycler.dir} step={cycler.step} go={cycler.go}
+        <AncientPreview heroId={run.heroId} anchor={anchor} leaving={leaving} inMs={cfg.pvInMs} outMs={cfg.pvOutMs} index={cycler.index} dir={cycler.dir} step={cycler.step} go={cycler.go}
           onWheel={cycler.onWheel} onPointerEnter={stay} onPointerLeave={leave} />
       )}
     </div>
@@ -181,8 +194,8 @@ function Flash({ ms }: { ms: number }): JSX.Element {
 /**
  * THE SPLIT hero-power face (rendered INSIDE `.heropowerbtn`, over the art): the Ancient's face is the right HALF of
  * the round button, with a fine cream divider. On a fresh pick (or the tuner's ▶) it plays the pick beat:
- *   1. the chosen face flies from where it was clicked into the button — the TRIPLE's `gild-trail` def plus the face
- *      itself riding the same arc — while the right half waits hidden;
+ *   1. the TRIPLE's reward animation (the `gild-trail` def) flies from the chosen card into the button, and nothing
+ *      else (owner 2026-09-25: "dont send the art of the ancient, just send the triple reward animation");
  *   2. at the trail's landing the half fades/slides in, the divider draws, one light shine sweeps, the cue plays.
  * A click anywhere during the flight skips straight to the settled split. Reduced motion: a plain fade.
  */
@@ -204,11 +217,9 @@ export const AncientSplit = memo(function AncientSplit({ run }: { run: RunState 
   const lastPick = useRef(pickSeq);
   const lastDemo = useRef(demoSeq);
   const [hidden, setHidden] = useState(false);
-  const [ghost, setGhost] = useState<{ id: AncientId; from: { x: number; y: number; w: number }; to: { x: number; y: number; w: number }; ms: number } | null>(null);
 
   const reveal = useCallback(() => {
     setHidden(false);
-    setGhost(null);
     const cfg = getAncientsConfig();
     const reduced = prefersReducedMotion();
     const half = halfRef.current, seam = seamRef.current, shine = shineRef.current;
@@ -248,7 +259,6 @@ export const AncientSplit = memo(function AncientSplit({ run }: { run: RunState 
     const to = { x: r.left + r.width / 2, y: r.top + r.height / 2, w: r.width };
     const ms = Math.max(420, gildArrivalMs(getDef('gild-trail'), 0) || 700);
     setHidden(true);
-    setGhost({ id, from, to, ms });
     if (canPlayDefs()) playDef('gild-trail', { source: { x: from.x, y: from.y }, target: { x: to.x, y: to.y }, camera: { x: window.innerWidth / 2, y: window.innerHeight / 2 } }, { index: 0 });
     let done = false;
     const finish = (): void => { if (done) return; done = true; window.clearTimeout(t); window.removeEventListener('pointerdown', skip, true); reveal(); };
@@ -278,24 +288,44 @@ export const AncientSplit = memo(function AncientSplit({ run }: { run: RunState 
         </svg>
         <span className="anc-split-shinewrap"><span ref={shineRef} className="anc-split-shine" /></span>
       </span>
-      {ghost && <FlyingFace {...ghost} />}
     </>
   );
 });
 
-/** A fixed, per-segment jitter in [0.55, 1]: deterministic, so the crack never changes shape between renders. */
-const jitter = (i: number): number => 0.55 + 0.45 * (((Math.sin(i * 12.9898 + 4.1) * 43758.5453) % 1 + 1) % 1);
+/** Fixed pseudo-random numbers in [0, 1): deterministic, so the crack never changes shape between renders. */
+const rnd = (i: number, salt: number): number => (((Math.sin(i * 12.9898 + salt * 78.233) * 43758.5453) % 1) + 1) % 1;
 
-/** The crack's zig-zag (in % of the button), its right-side clip polygon, and the Ancient art's fit. */
+/**
+ * The crack's zig-zag (in % of the button), its right-side clip polygon, and the Ancient art's fit.
+ *
+ * JAGGED END TO END (owner 2026-09-25: "the bottom half of it loses the crack aspect"). Every vertex swings the FULL
+ * amplitude (never a taper), sides alternate so each segment is a sharp zig, the vertical spacing is irregular, and
+ * every long segment gets a small kink so no stretch reads as a smooth line. Only the two end points sit off-circle
+ * (beyond the button edge), so nothing near the rim flattens.
+ */
 function crackGeometry(cfg: AncientsFullConfig, id: AncientId): { pts: string; shadowPts: string; clip: string; fit: CSSProperties } {
   const k = cfg as unknown as Record<string, number>;
   const x0 = cfg.crackX + (k[`${id}Crack`] ?? 0);
   const n = Math.max(2, Math.round(cfg.crackSegs));
+  const amp = cfg.crackJag;
+  // Irregular row heights spanning -4% .. 104%.
+  const weights = Array.from({ length: n }, (_, i) => 0.7 + 0.6 * rnd(i, 1));
+  const total = weights.reduce((t, w) => t + w, 0);
   const pts: [number, number][] = [];
+  let y = -4;
   for (let i = 0; i <= n; i++) {
-    const y = -2 + (104 * i) / n;
-    const side = i === 0 || i === n ? 0 : (i % 2 === 0 ? 1 : -1) * jitter(i);
-    pts.push([x0 + side * cfg.crackJag, y]);
+    const side = i % 2 === 0 ? 1 : -1;
+    pts.push([x0 + side * amp * (0.75 + 0.25 * rnd(i, 2)), y]);
+    if (i < n) {
+      const h = (108 * weights[i]!) / total;
+      // A small kink partway down this zig, off the straight line between its two vertices.
+      const t = 0.35 + 0.3 * rnd(i, 3);
+      const nextSide = -side;
+      const xa = x0 + side * amp * (0.75 + 0.25 * rnd(i, 2));
+      const xb = x0 + nextSide * amp * (0.75 + 0.25 * rnd(i + 1, 2));
+      pts.push([xa + (xb - xa) * t + (rnd(i, 4) - 0.5) * amp * 0.6, y + h * t]);
+      y += h;
+    }
   }
   const fmt = (p: [number, number][]): string => p.map(([x, y]) => `${x.toFixed(2)},${y.toFixed(2)}`).join(' ');
   const clip = `polygon(${pts.map(([x, y]) => `${x.toFixed(2)}% ${y.toFixed(2)}%`).join(', ')}, 102% 102%, 102% -2%)`;
@@ -306,26 +336,6 @@ function crackGeometry(cfg: AncientsFullConfig, id: AncientId): { pts: string; s
   return { pts: fmt(pts), shadowPts: fmt(pts.map(([x, y]) => [x + 1.2, y])), clip, fit };
 }
 
-/** The chosen face riding the trail's arc into the hero power (portal; transform + opacity only). */
-function FlyingFace({ id, from, to, ms }: { id: AncientId; from: { x: number; y: number; w: number }; to: { x: number; y: number; w: number }; ms: number }): JSX.Element {
-  const ref = useRef<HTMLDivElement | null>(null);
-  useLayoutEffect(() => {
-    const el = ref.current;
-    if (!el || typeof el.animate !== 'function') return;
-    const dx = to.x - from.x, dy = to.y - from.y;
-    const s1 = to.w / Math.max(1, from.w);
-    const lift = Math.min(220, Math.hypot(dx, dy) * 0.28);
-    el.animate([
-      { transform: 'translate(-50%, -50%) translate(0px, 0px) scale(1)', opacity: 1 },
-      { transform: `translate(-50%, -50%) translate(${dx * 0.5}px, ${dy * 0.5 - lift}px) scale(${(1 + s1) / 2})`, opacity: 1, offset: 0.5 },
-      { transform: `translate(-50%, -50%) translate(${dx}px, ${dy}px) scale(${s1})`, opacity: 0.2 },
-    ], { duration: ms, easing: 'cubic-bezier(0.45, 0, 0.35, 1)', fill: 'forwards' });
-  }, [from, to, ms]);
-  return createPortal(
-    <div ref={ref} className="anc-flyface" style={{ left: from.x, top: from.y, width: from.w, height: from.w }} aria-hidden="true"><AncientFace id={id} /></div>,
-    document.body,
-  );
-}
 
 /**
  * THE ANCIENT PILL (owner 2026-09-25: "show a pill for the ancient selected below the hero power, coloured to match

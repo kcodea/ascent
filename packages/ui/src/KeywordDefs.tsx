@@ -29,7 +29,7 @@ export function KeywordDefs({ card, mech }: { card: DetectableCard; mech?: Mecha
       {defs.map((d) => {
         const isMech = !!mech && d.mechanic === mech.id;
         return (
-          <div className="kwbox" key={d.id}>
+          <div className="kwbox" key={d.id} data-kw={d.id}>
             <div className="kwbox-name">
               {isMech && (
                 <span className="kwbox-ico" aria-hidden="true">

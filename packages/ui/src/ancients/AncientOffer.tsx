@@ -2,8 +2,7 @@ import { memo, useEffect, useState, type CSSProperties } from 'react';
 import { ANCIENTS, ancientOfferText, type Action, type AncientId, type RunState } from '@game/sim';
 import { EntranceOverlay, OfferSheen } from '../discoverEntrance/DiscoverDialog';
 import { OfferBanner } from '../discoverEntrance/OfferBanner';
-import { mdBold } from '../Card';
-import { AncientFace, hasAncientArt } from './AncientFace';
+import { AncientCard } from './AncientCard';
 import { notePickSource, useRingSettledSeq } from './ancientsFx';
 import { ancientColor, getAncientsConfig } from './ancientsConfig';
 import './ancients.css';
@@ -11,7 +10,7 @@ import './ancients.css';
 /**
  * THE AWAKENING DISCOVER (owner ruling 3 + the polish brief 2026-09-25): at 0 the Shop pauses and 3 of the 5
  * Ancients rise in with the Discover's own entrance (`EntranceOverlay`, PR #1712) under the ornate gold banner
- * (`OfferBanner`, PR #1714), titled "An Ancient Awakens". Each option shows the face, name, thesis and the text
+ * (`OfferBanner`, PR #1714), titled "An Ancient Awakens". Each option is an `AncientCard` (full art, name, and the text
  * for the CURRENT hero ("Not written yet." when the pairing is missing).
  *
  * It waits for (a) the curtain and every other decision overlay (`held`, from Recruit) and (b) the meter's ring
@@ -50,12 +49,8 @@ export const AncientOfferOverlay = memo(function AncientOfferOverlay({ held, run
               return (
                 <div className="disc-slot" data-pick-sfx key={id} style={{ '--anc-c': ancientColor(id) } as CSSProperties}>
                   <button type="button" className="anc-card" aria-label={`${a.name}: ${ancientOfferText(run.heroId, id).replace(/\*\*/g, '')}`}
-                    onClick={(e) => { if (entrance.canPick(i)) pick(id, e.currentTarget.querySelector('.anc-card-face')); }}>
-                    <span className={`anc-card-face${hasAncientArt(id) ? ' has-art' : ''}`}><AncientFace id={id} /></span>
-                    <span className="anc-card-name">{a.name}</span>
-                    <span className="anc-card-thesis">{a.thesis}</span>
-                    <span className="anc-card-rule" dangerouslySetInnerHTML={{ __html: mdBold(ancientOfferText(run.heroId, id)) }} />
-                    {!hasAncientArt(id) && <span className="anc-card-ph">placeholder art</span>}
+                    onClick={(e) => { if (entrance.canPick(i)) pick(id, e.currentTarget); }}>
+                    <AncientCard id={id} heroId={run.heroId} />
                   </button>
                   <OfferSheen />
                 </div>

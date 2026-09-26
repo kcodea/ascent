@@ -189,6 +189,8 @@ describe('DIRECT_CALL_SITES is a derivation, not a list', () => {
       'lasso',
       // 'rank-up' joined on 2026-09-20: the owner-authored promotion hit on the post-game rank screen (`rank/rankTimeline.ts`).
       'rank-up',
+      // 'rebirth-flame' joined on 2026-09-25: the Rebirth keyword's one-shot flame on a real rebirth (`choreo/channels/aura.ts`).
+      'rebirth-flame',
       'ruby-bounce', 'ruby-gem-apply',
       // 'tendril-trail' joined on 2026-09-02: the owner-authored buff-other ribbon, fired from `buffFxRender.ts`.
       // 'shop-buff-purple' joined the same day: the mid-combat Shop-buff bloom, fired from `useCombatReplay.ts`.

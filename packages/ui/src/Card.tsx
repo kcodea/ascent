@@ -88,6 +88,7 @@ function useBadgePop(value: number): RefObject<HTMLSpanElement> {
 import './cardPillsConfig';
 import { artFor, artVariantKey } from './art';
 import { renameTerms } from './terms';
+import { getRebirthConfig } from './rebirthConfig';
 import { colourTerms } from './termColour';
 import { KeywordDefs } from './KeywordDefs';
 import { refPopupLeft } from './refPreviewPlacement';
@@ -801,7 +802,7 @@ export const Card = memo(function Card({
   const useStdFrame = !spellLike && !isTaunt && sframeOk;
   return (
     <div
-      className={`card compact${showText ? ' showtext' : ''}${popin ? ' popin' : ''}${popDelay ? ' popdelay' : ''}${highlight ? ' armed' : ''}${targeted ? ' targeted' : ''}${card.golden ? ' golden' : ''}${dimmed ? ' dragsrc' : ''}${spent ? ' spent' : ''}${battlecry ? ' bcasting' : ''}${card.keywords.includes('T') ? ' taunt' : ''}${card.keywords.includes('ST') ? ' stealth' : ''}${card.keywords.includes('DS') ? ' dscard' : ''}${card.keywords.includes('R') || card.keywords.includes('RB') ? ' reborncard' : ''}${card.keywords.includes('V') ? ' venomcard' : ''}${card.keywords.includes('W') ? ' flurrycard' : ''}${spellLike ? ' spellcard' : ''}${card.ruby ? ' rubycard' : ''}${card.cardId === 'discoverspell' ? ' triplecard' : ''}${useStdFrame ? ' stdframe' : ''}${(useStdFrame && hasTribeOval(card.tribe)) || (isTaunt && frameOk && hasTribeTaunt(card.tribe)) ? ' tribeframe' : ''}${useSpellFrame ? ' spellframe' : ''}${electrify ? ' electrify' : ''}${tripleReady ? ' tripready' : ''}${contraband ? ' contraband' : ''}${enchanted ? ' enchanted' : ''}${card.starform ? ' starform' : ''}${card.tribe2 ? ' dual' : ''}${locked ? ' locked' : ''}${usePlate ? ` plated plate-txt-${txtBucket}` : ''}`}
+      className={`card compact${showText ? ' showtext' : ''}${popin ? ' popin' : ''}${popDelay ? ' popdelay' : ''}${highlight ? ' armed' : ''}${targeted ? ' targeted' : ''}${card.golden ? ' golden' : ''}${dimmed ? ' dragsrc' : ''}${spent ? ' spent' : ''}${battlecry ? ' bcasting' : ''}${card.keywords.includes('T') ? ' taunt' : ''}${card.keywords.includes('ST') ? ' stealth' : ''}${card.keywords.includes('DS') ? ' dscard' : ''}${card.keywords.includes('R') ? ' reborncard' : ''}${card.keywords.includes('RB') ? ' rebirthcard' : ''}${card.keywords.includes('V') ? ' venomcard' : ''}${card.keywords.includes('W') ? ' flurrycard' : ''}${spellLike ? ' spellcard' : ''}${card.ruby ? ' rubycard' : ''}${card.cardId === 'discoverspell' ? ' triplecard' : ''}${useStdFrame ? ' stdframe' : ''}${(useStdFrame && hasTribeOval(card.tribe)) || (isTaunt && frameOk && hasTribeTaunt(card.tribe)) ? ' tribeframe' : ''}${useSpellFrame ? ' spellframe' : ''}${electrify ? ' electrify' : ''}${tripleReady ? ' tripready' : ''}${contraband ? ' contraband' : ''}${enchanted ? ' enchanted' : ''}${card.starform ? ' starform' : ''}${card.tribe2 ? ' dual' : ''}${locked ? ' locked' : ''}${usePlate ? ` plated plate-txt-${txtBucket}` : ''}`}
       data-uid={uid}
       data-tribe={card.tribe}
       data-choose-both={card.chooseBothKey}
@@ -980,8 +981,8 @@ export const Card = memo(function Card({
           )}
           {/* Reborn — a faint ethereal aqua-green dome + rising randomized wisps (CSS, replacing the old Pixi
               wisp), clipped to the oval window. Each wisp carries its own random position/size/rise/drift. */}
-          {/* REBIRTH (`RB`, 2026-09-16) wears the same dome as a PLACEHOLDER until the owner authors its own. */}
-          {(card.keywords.includes('R') || card.keywords.includes('RB')) && (
+          {/* REBIRTH (`RB`) has its own phoenix look now (owner 2026-09-25), below; Rise keeps the dome. */}
+          {card.keywords.includes('R') && (
             <div className="reborn" aria-hidden="true">
               <div className="reborn-dome" />
               <div className="reborn-wisps">
@@ -993,6 +994,16 @@ export const Card = memo(function Card({
                   />
                 ))}
               </div>
+            </div>
+          )}
+          {/* REBIRTH — a thin ember rim on the oval (a static ring breathing in OPACITY only, the `kwglow` pattern)
+              and a few embers rising from the base (transform/opacity only, no blur). Colours/sizes: 🔥 tuner. */}
+          {card.keywords.includes('RB') && (
+            <div className="rebirth" aria-hidden="true">
+              <div className="rebirth-rim" />
+              {REBIRTH_EMBERS.slice(0, getRebirthConfig().emberCount).map((e, i) => (
+                <div key={i} className="ember" style={{ left: e.left, animationDelay: e.delay, animationDuration: e.dur, '--ex': e.ex } as CSSProperties} />
+              ))}
             </div>
           )}
         </div>
@@ -1327,6 +1338,14 @@ const ExecuteAura = memo(function ExecuteAura() {
  *  carries its own position / size / rise / sideways-drift so they read as an organic cloud, not a line. Count +
  *  ranges mirror the tuner (fx/reborn-css-preview.html): count 27, spread 38%, size 27%±35%, rise 320%±, wx ±22px.
  *  Math.random is presentation-only jitter (the ban is scoped to core/content/sim). */
+/** Rebirth embers — a fixed randomized set (module load; presentation-only jitter), capped by the tuner's count. */
+const REBIRTH_EMBERS = Array.from({ length: 14 }, () => ({
+  left: (50 + (Math.random() - 0.5) * 44).toFixed(1) + '%',
+  delay: (-Math.random() * 3.4).toFixed(2) + 's',
+  dur: (2.6 + Math.random() * 1.6).toFixed(2) + 's',
+  ex: ((Math.random() - 0.5) * 18).toFixed(0) + 'px',
+}));
+
 const REBORN_WISPS = Array.from({ length: 27 }, () => ({
   left: (50 + (Math.random() - 0.5) * 38).toFixed(1) + '%',
   bottom: (Math.random() * 16).toFixed(1) + '%',

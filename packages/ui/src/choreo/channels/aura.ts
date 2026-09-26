@@ -1,6 +1,7 @@
 import { pixiFx } from '../../pixiFx';
 import { playDef } from '../../fx/playDef';
 import { sfx } from '../../sfx';
+import { getRebirthConfig } from '../../rebirthConfig';
 
 /**
  * Aura channel (choreographer phase 3c) — the single owner of every combat aura burst/break/re-form FX+sfx
@@ -38,4 +39,20 @@ export function breakShieldAura(rect: { cx: number; cy: number; w: number; h: nu
 export function reformReborn(rect: { cx: number; cy: number; w: number; h: number } | null): void {
   if (rect) pixiFx.rebornSummon(rect.cx, rect.cy, rect.w, rect.h);
   sfx.rebornSummon();
+}
+
+/** A unit REBIRTHS (the `RB` keyword's full-body return, `reborn { rebirth: true }`) → its own phoenix look in
+ *  blue-and-white fire (owner 2026-09-25): a one-shot `rebirth-flame` burst up from the unit, sized by the 🔥 tuner, and a gap-gated flame cue.
+ *  Split from Rise's aqua re-form so the two keywords never share a look. `uid` is the returning unit. */
+export function reformRebirth(rect: { cx: number; cy: number; w: number; h: number } | null, uid: string | null): void {
+  const c = getRebirthConfig();
+  if (rect) playDef('rebirth-flame', { target: { x: rect.cx, y: rect.cy } }, { uids: { source: null, target: uid }, scale: c.burstScale * (rect.w / 180) });
+  if (c.soundGain > 0 && rebirthSoundAllowed()) sfx.rebirthFlame(c.soundGain);
+}
+let lastRebirthSoundAt = 0;
+function rebirthSoundAllowed(): boolean {
+  const now = typeof performance !== 'undefined' ? performance.now() : 0;
+  if (now - lastRebirthSoundAt < 120) return false;
+  lastRebirthSoundAt = now;
+  return true;
 }

@@ -31,7 +31,7 @@ handoff's numbers and awakening rules. Dev-only, so there is no patch note.
 
 | Ancient | Primitive | Hook | Phase |
 | --- | --- | --- | --- |
-| Death | `powerTargetGainsKeywords` (R, T) | reducer `gild` branch, after `gildMinion` | Shop (power) |
+| Death | `powerTargetGainsKeywords` (RB, T): Rebirth + Taunt (owner, same day: "rebirth instead of rise") | reducer `gild` branch, after `gildMinion` | Shop (power) |
 | Fortune | `sellGildedGetsPlainCopy` | `settleMinionSale` (every sale path) | Shop |
 | Genesis | `powerGivesCopiesInstead` (2) | reducer `gild` branch, instead of the gild; the branch's `checkTriples` completes the triple | Shop (power) |
 | War | `friendlyDeathBuffsGilded` (+8/+8) | Shop: `afterShopDestroy`. Combat: `QuestCombatMods.ancientWar`, an `onDeath` listener that records `permaGain` so the gain carries back | Both |
@@ -92,3 +92,21 @@ Nothing loops: every motion is WAAPI transform/opacity or a one-shot transition.
 - The Doc Bot combat-mod lane pin moved 63 → 64: `ancientWar` needs a gilded body beside a dying friend, which the
   staged fight lacks. It is pinned in the test above.
 - Perf (dev build, pane hidden): a full fill → flash → offer → pick → split sequence recorded **0 long tasks**.
+
+## Later the same day (owner rounds on #1739)
+
+- **Death** grants **Rebirth** and Taunt (no longer Rise).
+- **Art**: Death and Fortune wired (`art/ancients/`, full + hero-power halves); War, Genesis and Time keep emblems.
+- **Cards**: the offer and the preview share `AncientCard`: a full-art frame, the name, and the effect in its own panel.
+  **All flavour/thesis text removed** (from the data too).
+- **Pick flight**: only the triple's `gild-trail` flies into the hero power (no flying face). The split is a jagged
+  **crack** (static clip polygon + edge highlight + shadow, jagged end to end), with per-Ancient art fit and crack dials.
+- **Hero-power tip** (shared by every hero-power hover, the Equipment slot and the foe's power): the game's dark
+  slate-blue panel, gold title, "(Death)" tag in the Ancient's colour, status as a chip. The preview and offer cards
+  follow the same dark blue.
+- **The Ancient pill** under the power's name, coloured from one table (Death teal, Fortune gold, War crimson,
+  Genesis leaf, Time azure), overridable in the tuner. The name pill now sits above the meter ring.
+- **Rebirth look (player-facing, patch-noted)**: Rebirth no longer borrows Rise's aqua dome. A thin blue ember rim
+  (opacity-only breathe) + rising embers (transform/opacity only) on the card, and a one-shot blue-and-white
+  `rebirth-flame` burst + gap-gated flame cue when a minion rebirths in combat (`reborn { rebirth: true }` →
+  `onReborn(uid, true)` → `reformRebirth`). 🔥 Rebirth tuner. The keyword box wears the same blues.

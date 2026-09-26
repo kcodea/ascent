@@ -49,6 +49,12 @@ export interface AncientsConfig {
   tickGain: number;
   /** Sound: the awaken / reveal cue's gain (0 mutes). */
   revealGain: number;
+  /** Preview: the slide/fade IN on hover (ms). */
+  pvInMs: number;
+  /** Preview: the slide/fade OUT when the pointer leaves (ms). */
+  pvOutMs: number;
+  /** Preview: the grace before it starts leaving, so the pointer can cross from the ring to the card (ms). */
+  pvGraceMs: number;
   /** Crack: where the split runs, % of the button width from the left. */
   crackX: number;
   /** Crack: how far each zig swings either side of the line, % of the button width. */
@@ -97,9 +103,12 @@ export const ANCIENTS_DEFAULTS: AncientsFullConfig = {
   shineMs: 800,
   tickGain: 0.5,
   revealGain: 0.8,
+  pvInMs: 180,
+  pvOutMs: 110,
+  pvGraceMs: 80,
   crackX: 50,
-  crackJag: 5,
-  crackSegs: 7,
+  crackJag: 4.5,
+  crackSegs: 9,
   crackEdge: 2,
   crackEdgeAlpha: 0.9,
   crackShadow: 0.45,
@@ -126,6 +135,9 @@ export const ANCIENTS_RANGES: Record<NumKey, [number, number, number]> = {
   shineMs: [0, 2000, 10],
   tickGain: [0, 1, 0.01],
   revealGain: [0, 1, 0.01],
+  pvInMs: [0, 600, 10],
+  pvOutMs: [0, 400, 10],
+  pvGraceMs: [0, 400, 10],
   crackX: [20, 80, 0.5],
   crackJag: [0, 20, 0.25],
   crackSegs: [2, 20, 1],

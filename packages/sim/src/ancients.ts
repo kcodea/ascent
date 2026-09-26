@@ -18,7 +18,7 @@
  *     does nothing.
  *
  * ── Where each primitive fires ────────────────────────────────────────────────────────────────────────────────
- *  · `powerTargetGainsKeywords`   the reducer's `gild` hero-power branch, after the gild (Death).
+ *  · `powerTargetGainsKeywords`   the reducer's `gild` hero-power branch, after the gild (Death: Rebirth + Taunt).
  *  · `powerGivesCopiesInstead`    the same branch, INSTEAD of the gild (Genesis); the branch's `checkTriples`.
  *  · `sellGildedGetsPlainCopy`    `settleMinionSale`, the one chokepoint every sale walks (Fortune).
  *  · `friendlyDeathBuffsGilded`   SHOP: `afterShopDestroy`, the one chokepoint both shop-destroy paths walk;
@@ -41,8 +41,6 @@ export const ANCIENT_IDS: readonly AncientId[] = ['death', 'fortune', 'war', 'ge
 export interface AncientDef {
   id: AncientId;
   name: string;
-  /** The one-line mechanical thesis (the handoff's identity), shown under the name. */
-  thesis: string;
   /** THE ANCIENT'S COLOUR TABLE (owner 2026-09-25: Death green/teal, Fortune gold; War crimson, Genesis leaf green and
    *  Time azure are placeholders): its pill, its preview dot, and the flat placeholder emblem. `glyph` is the placeholder
    *  emblem's mark; `color2` is spare. The ✦ Ancients tuner can override each colour live. */
@@ -52,11 +50,11 @@ export interface AncientDef {
 }
 
 export const ANCIENTS: Record<AncientId, AncientDef> = {
-  death: { id: 'death', name: 'Ancient of Death', thesis: 'What you can afford to lose.', glyph: '☠', color: '#1fa89a', color2: '#2a1f45' },
-  fortune: { id: 'fortune', name: 'Ancient of Fortune', thesis: 'Take value now, or bank it.', glyph: '⚜', color: '#e3aa2b', color2: '#5a3f0c' },
-  war: { id: 'war', name: 'Ancient of War', thesis: 'Who fights, and where they stand.', glyph: '⚔', color: '#c9363b', color2: '#4a1410' },
-  genesis: { id: 'genesis', name: 'Ancient of Genesis', thesis: 'Create, copy and circulate.', glyph: '✺', color: '#5aae3c', color2: '#12402a' },
-  time: { id: 'time', name: 'Ancient of Time', thesis: 'Now, later, or both.', glyph: '⧗', color: '#2f8fd8', color2: '#10334a' },
+  death: { id: 'death', name: 'Ancient of Death', glyph: '☠', color: '#1fa89a', color2: '#2a1f45' },
+  fortune: { id: 'fortune', name: 'Ancient of Fortune', glyph: '⚜', color: '#e3aa2b', color2: '#5a3f0c' },
+  war: { id: 'war', name: 'Ancient of War', glyph: '⚔', color: '#c9363b', color2: '#4a1410' },
+  genesis: { id: 'genesis', name: 'Ancient of Genesis', glyph: '✺', color: '#5aae3c', color2: '#12402a' },
+  time: { id: 'time', name: 'Ancient of Time', glyph: '⧗', color: '#2f8fd8', color2: '#10334a' },
 };
 
 // ── Effect primitives ────────────────────────────────────────────────────────────────────────────────────────
@@ -90,9 +88,11 @@ export const ANCIENT_NOT_WRITTEN = 'Not written yet.';
 export const ANCIENT_PAIRINGS: Record<string, Partial<Record<AncientId, AncientPairing>>> = {
   indy: {
     death: {
-      offerText: 'Masterwork targets gain **Rise** and **Taunt**.',
-      powerText: 'Make a friendly minion **Gilded**. It also gains **Rise** and **Taunt**. Recharges after you spend {recharge} Gold.',
-      effects: [{ do: 'powerTargetGainsKeywords', keywords: ['R', 'T'] }],
+      // Rebirth, not Rise (owner 2026-09-25: "change indy's ancient of death to give it rebirth instead of rise. it
+      // still gets taunt").
+      offerText: 'Masterwork targets gain **Rebirth** and **Taunt**.',
+      powerText: 'Make a friendly minion **Gilded**. It also gains **Rebirth** and **Taunt**. Recharges after you spend {recharge} Gold.',
+      effects: [{ do: 'powerTargetGainsKeywords', keywords: ['RB', 'T'] }],
     },
     fortune: {
       offerText: 'Selling a **Gilded** minion gets you a plain copy of it.',

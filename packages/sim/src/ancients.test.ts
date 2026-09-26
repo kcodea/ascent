@@ -126,12 +126,13 @@ describe('Ancients — the offer', () => {
 });
 
 describe('Ancients × Indy — the five pairings', () => {
-  it('DEATH: the Masterwork target also gains Rise and Taunt, permanently', () => {
+  it('DEATH: the Masterwork target also gains Rebirth and Taunt (not Rise), permanently', () => {
     let s = picked('death', { board: [card('a', 'gnash')] });
     s = reduce(s, { type: 'heroPower', uid: 'a' });
     const a = s.board.find((c) => c.uid === 'a')!;
     expect(a.golden).toBe(true);
-    expect(a.keywords).toEqual(expect.arrayContaining(['R', 'T']));
+    expect(a.keywords).toEqual(expect.arrayContaining(['RB', 'T']));
+    expect(a.keywords).not.toContain('R');
   });
 
   it('FORTUNE: selling ANY gilded minion gets a plain, non-golden copy with printed stats', () => {

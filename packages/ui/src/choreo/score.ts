@@ -285,7 +285,7 @@ export interface CueContext {
   /** A Divine Shield was consumed this moment (uid) → the delayed gold shatter. */
   onShieldBreak: (uid: string) => void;
   /** A unit was reborn this moment (uid) → schedule the re-form glow. */
-  onReborn: (uid: string) => void;
+  onReborn: (uid: string, rebirth?: boolean) => void;
   /** This moment's `poison` targets — minions destroyed by an Execute proc. The replay fires the Execution
    *  Strike crescent at each victim's slot. */
   onExecuteFx: (uids: string[]) => void;
@@ -533,7 +533,7 @@ export function runMomentCues(moment: Moment, ctx: CueContext): () => void {
       if (uids.length) ctx.onExecuteFx(uids);
     });
     else if (cue.ch === 'auraReform') at(cue, () => {  // reborn: re-form glow
-      for (let i = moment.start; i < moment.end; i++) { const e = ctx.events[i]; if (e?.type === 'reborn') ctx.onReborn(e.target); }
+      for (let i = moment.start; i < moment.end; i++) { const e = ctx.events[i]; if (e?.type === 'reborn') ctx.onReborn(e.target, !!e.rebirth); }
     });
     else if (cue.ch === 'buffCast') at(cue, () => {
       // AUTHORED REPLACES STOCK (owner report 2026-09-01): *"flamebeat drake and warflame both cast dragonflame

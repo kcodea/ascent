@@ -29,7 +29,7 @@ export function playMomentSfx(moment: Moment, events: CombatEvent[], cardIds?: M
         if (cid) once(`cardDeath:${cid}`, () => sfx.cardDeath(cid));
       }
     }
-    else if (e.type === 'reborn') once('reborn', sfx.rebornSummon);
+    else if (e.type === 'reborn') { if (!e.rebirth) once('reborn', sfx.rebornSummon); } // a Rebirth's flame cue plays with its burst (channels/aura.ts)
     else if (e.type === 'shieldUp') once('shield', sfx.shield);
     else if (e.type === 'buff') once('buff', sfx.buff);
     else if (e.type === 'maxGold') once('maxgold', sfx.maxGold);

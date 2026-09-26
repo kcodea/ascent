@@ -94,6 +94,7 @@ export const DIRECT_CALL_SITES: Readonly<Record<string, readonly string[]>> = {
   // The RANK-UP hit (owner-authored 2026-09-20): a ring collapsing onto the crest, then a gold shard burst as
   // the new crest lands — fired by the post-game rank timeline at the promotion beat (division and medal).
   'rank-up': ['rank/rankTimeline.ts'],
+  'rebirth-flame': ['choreo/channels/aura.ts'],
   'rune-buff-unit': ['Recruit.tsx', 'useCombatReplay.ts'],
   // THE RUNE CAST FLOURISH (2026-09-24, owner: "a bit of flair … a 'magic' element to it? nothing crazy"): the glyph
   // flash on a casting rune's node, and the mote it sends to where a single-play spell effect lands. Every rune

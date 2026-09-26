@@ -1,14 +1,13 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type WheelEvent as ReactWheelEvent } from 'react';
 import { createPortal } from 'react-dom';
-import { ANCIENT_IDS, ANCIENTS, ancientOfferText, type AncientId } from '@game/sim';
-import { mdBold } from '../Card';
-import { AncientFace, hasAncientArt } from './AncientFace';
+import { ANCIENT_IDS, ANCIENTS, type AncientId } from '@game/sim';
+import { AncientCard } from './AncientCard';
 import { ancientColor } from './ancientsConfig';
 import { prefersReducedMotion } from './ancientsFx';
 
 /**
  * THE ANCIENTS PREVIEW CARD (owner ruling 6 + the polish brief): hovering the meter opens a card beside the hero
- * power showing ONE Ancient at a time — face, name, one-line thesis, and its text for the CURRENT hero — with
+ * power showing ONE Ancient at a time (an `AncientCard`: full art, name, and its text for the CURRENT hero) with
  * page dots. The mouse wheel cycles all five (a smooth slide + cross-fade), the arrow buttons do the same for a
  * pointer without a wheel, and ←/→ do it while the card (or the meter) has focus.
  *
@@ -38,9 +37,13 @@ export function useAncientCycler(start: AncientId): {
   return { index: state.index, dir: state.dir, step, go, onWheel };
 }
 
-export function AncientPreview({ heroId, anchor, index, dir, step, go, onWheel, pickedId, onPointerEnter, onPointerLeave }: {
+export function AncientPreview({ heroId, anchor, leaving = false, inMs = 180, outMs = 110, index, dir, step, go, onWheel, pickedId, onPointerEnter, onPointerLeave }: {
   heroId: string;
   anchor: PreviewAnchor;
+  /** Sliding + fading out (the pointer left); the parent unmounts it after `outMs`. */
+  leaving?: boolean;
+  inMs?: number;
+  outMs?: number;
   index: number;
   dir: 1 | -1;
   step: (d: 1 | -1) => void;
@@ -90,8 +93,8 @@ export function AncientPreview({ heroId, anchor, index, dir, step, go, onWheel, 
   };
 
   // Placement: to the right of the hero power, vertically centred on it, clamped to the viewport.
-  const W = Math.min(340, window.innerWidth - 32);
-  const H = 250;
+  const W = Math.min(300, window.innerWidth - 32);
+  const H = 470;
   const flip = anchor.right + 18 + W > window.innerWidth - 12;
   const left = flip ? Math.max(12, anchor.left - 18 - W) : anchor.right + 18;
   const top = Math.max(12, Math.min((anchor.top + anchor.bottom) / 2 - H / 2, window.innerHeight - H - 12));
@@ -99,7 +102,8 @@ export function AncientPreview({ heroId, anchor, index, dir, step, go, onWheel, 
   useEffect(() => { const r = requestAnimationFrame(() => setShown(true)); return () => cancelAnimationFrame(r); }, []);
 
   return createPortal(
-    <div className={`anc-pv${shown ? ' shown' : ''}${flip ? ' flip' : ''}`} style={{ left, top, width: W } as CSSProperties}
+    <div className={`anc-pv${shown && !leaving ? ' shown' : ''}${leaving ? ' leaving' : ''}${flip ? ' flip' : ''}`}
+      style={{ left, top, width: W, '--anc-pv-in': `${inMs}ms`, '--anc-pv-out': `${outMs}ms` } as CSSProperties}
       role="dialog" aria-label="The Ancients" tabIndex={-1}
       onWheel={onWheel} onKeyDown={onKeyDown} onPointerEnter={onPointerEnter} onPointerLeave={onPointerLeave}>
       <div className="anc-pv-head">
@@ -126,16 +130,5 @@ export function AncientPreview({ heroId, anchor, index, dir, step, go, onWheel, 
 }
 
 function Page({ id, heroId, picked }: { id: AncientId; heroId: string; picked: boolean }): JSX.Element {
-  const a = ANCIENTS[id];
-  return (
-    <div className="anc-pv-body" style={{ '--anc-c': ancientColor(id) } as CSSProperties}>
-      <span className={`anc-pv-face${hasAncientArt(id) ? ' has-art' : ''}`}><AncientFace id={id} /></span>
-      <div className="anc-pv-text">
-        <div className="anc-pv-name">{a.name}{picked && <span className="anc-pv-yours">yours</span>}</div>
-        <div className="anc-pv-thesis">{a.thesis}</div>
-        <div className="anc-pv-rule" dangerouslySetInnerHTML={{ __html: mdBold(ancientOfferText(heroId, id)) }} />
-        {!hasAncientArt(id) && <div className="anc-pv-ph">placeholder art</div>}
-      </div>
-    </div>
-  );
+  return <AncientCard id={id} heroId={heroId} tag={picked ? 'yours' : undefined} />;
 }

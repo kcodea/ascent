@@ -86,6 +86,7 @@ import { PlateCoalesceTuner } from './PlateCoalesceTuner';
 import { EndTurnTuner } from './EndTurnTuner';
 import { HeroPowerTuner } from './HeroPowerTuner';
 import { AncientsTuner } from './ancients/AncientsTuner';
+import { RebirthTuner } from './RebirthTuner';
 import { DiceRollTuner } from './DiceRollTuner';
 import { TavernUpTuner } from './TavernUpTuner';
 import { HeroPanelTuner } from './HeroPanelTuner';
@@ -184,6 +185,7 @@ const GROUPS: Group[] = [
       { key: 'herofx', icon: '🃏', label: 'Hero Card FX', C: HeroFxTuner, hint: "Ayse's Enchanted glow + Sable's Soulbind ring" },
       { key: 'endturnbtn', icon: '💎', label: 'End Turn', C: EndTurnTuner, hint: 'The standalone End Turn diamond', alt: 'face the omen' },
       { key: 'heropowerbtn', icon: '💠', label: 'Hero Power', C: HeroPowerTuner, hint: 'The hero power diamond' },
+      { key: 'rebirth', icon: '🔥', label: 'Rebirth', C: RebirthTuner, hint: 'The Rebirth keyword: the thin ember rim + rising embers on a card, and the flame burst when it rebirths. ▶ plays the flame', alt: 'rebirth phoenix keyword ember flame' },
       { key: 'ancients', icon: '✦', label: 'Ancients', C: AncientsTuner, hint: 'The Ancients proof of concept (Scene Builder, Set 3): the meter costs, the ring, the awakening beat. ▶ plays the pick beat', alt: 'ancient meter awaken split hero power' },
       { key: 'diceroll', icon: '🎲', label: 'Dice', C: DiceRollTuner, hint: "The 3D die the Gambler's power and the Gamble spell roll — tumble time, hop, spins, settle", alt: 'gambler gamble roll die' },
       { key: 'tavernupbtn', icon: '🍺', label: 'Tavern Up', C: TavernUpTuner, hint: 'The tavern-upgrade stone button', alt: 'upgrade tier' },

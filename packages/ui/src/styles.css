@@ -3451,6 +3451,10 @@ body.modalup .app { z-index: auto; }
    art-height(1440). Expressed as a fraction of the art, so the panel now tracks the art's overflow at EVERY
    scale instead of drifting off its frame when the board shrinks below 1.0. If the board zoom/aspect/fill is
    re-baked, re-derive the two coefficients. */
+/* TOUCH: the hero power / Equipment buttons start a press-drag-release aim; outside `.app` the page's
+   `touch-action: manipulation` let the browser claim that finger move as a pan (pointercancel), so the aim never
+   landed. The status bar holds no scrollable content. */
+.statusbar { touch-action: none; }
 .statusbar { position: fixed; bottom: calc(50% - 0.389444 * var(--_arth) - var(--board-y, 5px) * var(--scale) + env(safe-area-inset-bottom)); left: calc(50% - 0.391888 * var(--_artw) + var(--board-x, 0px) * var(--scale) + env(safe-area-inset-left)); display: flex; flex-direction: column; align-items: stretch; gap: 7px; z-index: 40; pointer-events: none; padding: 7px 10px 9px; }
 /* IN COMBAT THE HERO CLUSTER SITS UNDER THE ARENA (owner report 2026-09-23: "can you fix the z axis of the hero
    power art etc? it is on top of minions and heroes so when they attack they are behind it"). The z40 above is

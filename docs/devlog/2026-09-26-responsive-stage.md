@@ -88,6 +88,12 @@ finger). A touch drag engages past a 10px slop (`TAP_SLOP`), so a tap never beco
 its tuned threshold. No grey tap flash. Portrait: the rotate prompt now portals outside the stage and wears the
 board's palette.
 
+Two touch bugs the play-through found and fixed: the Layout Lab's sell / buy edge offsets (`sellZoneY` -136,
+`buyZoneY` 79) were raw screen px added to screen rects, so on a phone the sell zone shrank to a 15px strip at the
+top (now `toScreen`, layout px, identical on desktop); and the hero power's press-drag aim was cancelled on a finger
+because the status bar sits outside `.app`, where the page's `touch-action: manipulation` let the browser take the
+move as a pan (`.statusbar { touch-action: none }`).
+
 **Judgement calls (flag if wrong):** the hero-power BUTTON still fires on a tap (its tip opens on the tap too, and a
 tap on the portrait reads the tip without firing); tap on a card = the full Inspect overlay rather than the desktop
 hover reveal; no long-press anywhere.

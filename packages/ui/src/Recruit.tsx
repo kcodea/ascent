@@ -3822,11 +3822,11 @@ export function Recruit() {
     // Dev Layout Lab "Buy/Sell zones": nudge the sell/buy boundaries (both the overlay + the drop hit-test).
     // getLayout() is a cheap singleton read (defaults → 0 in prod, so a no-op there). Read once per drag start.
     const zoneCfg = getLayout();
-    const wbTop = (document.querySelector('[data-zone="warband"]')?.getBoundingClientRect().top ?? 0) + (zoneCfg.sellZoneY ?? 0);
+    const wbTop = (document.querySelector('[data-zone="warband"]')?.getBoundingClientRect().top ?? 0) + toScreen(zoneCfg.sellZoneY ?? 0); // tuned offsets are layout px (stage.ts)
     // The board's horizontal midline (background divider): the .app's vertical centre, since the board art is
     // cover-centred so its centre split maps there. Buying requires releasing a shop card BELOW this line.
     const appR = document.querySelector('.app')?.getBoundingClientRect();
-    const midlineY = (appR ? appR.top + appR.height / 2 : wbTop) + (zoneCfg.buyZoneY ?? 0);
+    const midlineY = (appR ? appR.top + appR.height / 2 : wbTop) + toScreen(zoneCfg.buyZoneY ?? 0);
     const zoneRects = [...document.querySelectorAll<HTMLElement>('[data-zone]')].map((el) => ({
       zone: el.getAttribute('data-zone') as Zone,
       r: el.getBoundingClientRect(),

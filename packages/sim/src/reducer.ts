@@ -3084,9 +3084,11 @@ function reduceCore(state: RunState, action: Action): RunState {
           if (!recipient) return state;
           ancientAegisDestroyAndGive(s, card, recipient);
         } else {
-          if (!card.keywords.includes('DS')) card.keywords.push('DS');
-          // ANCIENT OF WAR: the next Aegis grants RESILIENT Ward (rides beside Ward: 'RW' + 'DS').
-          if (ancientAegisResilient(s) && !card.keywords.includes('RW')) card.keywords.push('RW');
+          const hadWard = card.keywords.includes('DS');
+          if (!hadWard) card.keywords.push('DS');
+          // ANCIENT OF WAR (owner 2026-09-26): Aegis on a minion that ALREADY has Ward upgrades it to RESILIENT Ward
+          // (rides beside Ward: 'RW' + 'DS'). A minion without Ward just gets Ward, as usual.
+          if (ancientAegisResilient(s, hadWard) && !card.keywords.includes('RW')) card.keywords.push('RW');
           // …THEN every minion that now HAS Ward (the fresh one included) gains the flat +5 Attack (owner 2026-09-14;
           // it was +Tier/+Tier+1 from 2026-08-16).
           const g = aegisGrantOf(s);

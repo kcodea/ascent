@@ -18,6 +18,7 @@
 import React, { useEffect, useRef } from 'react';
 import { useGame } from '../store';
 import { replayCursorAt } from './replayPlayer';
+import { stageViewport } from '../stage';
 
 // BASE_URL-relative, NOT root-absolute — itch serves the game from a CDN sub-path where '/cursors/…' 404s.
 const OPEN_SRC = `${import.meta.env.BASE_URL}cursors/gauntlet_open.svg`;
@@ -34,9 +35,10 @@ export function ReplayCursorGhost(): React.ReactElement | null {
   useEffect(() => {
     const el = elRef.current;
     if (!active || !el) return;
-    let vw = window.innerWidth;
-    let vh = window.innerHeight;
-    const onResize = (): void => { vw = window.innerWidth; vh = window.innerHeight; };
+    // The trail is stored as WINDOW fractions; a fraction of the window is the same fraction of the layout
+    // viewport, and the sprite's translate is a CSS length inside the stage -> stage px (stage.ts).
+    let { w: vw, h: vh } = stageViewport();
+    const onResize = (): void => { ({ w: vw, h: vh } = stageViewport()); };
     window.addEventListener('resize', onResize);
     let raf = 0;
     const place = (): boolean => {

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { playCastFanOutBuffFx, playGenericCastSound } from './fx/spellCastFx';
 import { perfMonitor } from './perfMonitor';
+import { toScreen } from './stage';
 import gsap from 'gsap';
 import { damageMeterOf, type CombatEvent, type CombatResult, type Keyword, type MinionBuff, type MinionSnapshot, type RiseTint, type Tribe } from '@game/core';
 import { CARD_INDEX } from '@game/content';
@@ -847,9 +848,9 @@ export function layoutRectOf(el: Element): { cx: number; cy: number; w: number; 
   const r = el.getBoundingClientRect();
   const sx = Number(gsap.getProperty(el, 'scaleX')) || 1;
   const sy = Number(gsap.getProperty(el, 'scaleY')) || 1;
-  return {
-    cx: r.left + r.width / 2 - (Number(gsap.getProperty(el, 'x')) || 0),
-    cy: r.top + r.height / 2 - (Number(gsap.getProperty(el, 'y')) || 0),
+  return { // screen px (feeds FX): the GSAP offset is layout px -> toScreen (stage.ts)
+    cx: r.left + r.width / 2 - toScreen(Number(gsap.getProperty(el, 'x')) || 0),
+    cy: r.top + r.height / 2 - toScreen(Number(gsap.getProperty(el, 'y')) || 0),
     w: r.width / sx,
     h: r.height / sy,
   };

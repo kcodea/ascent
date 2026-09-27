@@ -6,8 +6,9 @@ import type { RunState, ShopCard } from '@game/sim';
 import { Card, type CardView } from './Card';
 import { RuneCard } from './RuneCard';
 import { liveOptsFromRun, shopView } from './Recruit';
+import { stageHost, stageViewport } from './stage';
 
-/** What the Scene Builder's library is hovering / focusing: one row, and the rect to seat the preview beside. */
+/** What the Scene Builder's library is hovering / focusing: one row, and the rect (STAGE px) to seat the preview beside. */
 export type SbPreviewTarget =
   | { kind: 'card'; id: string; anchor: DOMRect }
   | { kind: 'rune'; id: string; anchor: DOMRect };
@@ -48,9 +49,10 @@ export function SceneBuilderPreview({ target, run }: { target: SbPreviewTarget |
     const w = el.offsetWidth;
     const h = el.offsetHeight;
     const a = target.anchor;
-    const fitsRight = a.right + gap + w <= window.innerWidth - 8;
+    const vp = stageViewport(); // `a` is stage px (SceneBuilder converts it), like offsetWidth/Height
+    const fitsRight = a.right + gap + w <= vp.w - 8;
     const left = fitsRight ? a.right + gap : Math.max(8, a.left - gap - w);
-    const top = Math.max(8, Math.min(a.top - 8, window.innerHeight - h - 8));
+    const top = Math.max(8, Math.min(a.top - 8, vp.h - h - 8));
     el.style.left = `${Math.round(left)}px`;
     el.style.top = `${Math.round(top)}px`;
     el.style.visibility = 'visible';
@@ -64,6 +66,6 @@ export function SceneBuilderPreview({ target, run }: { target: SbPreviewTarget |
         {rune && <RuneCard rune={rune} affordable onBuy={() => {}} />}
       </div>
     </div>,
-    document.body,
+    stageHost(),
   );
 }

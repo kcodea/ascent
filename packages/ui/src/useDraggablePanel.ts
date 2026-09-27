@@ -2,6 +2,7 @@ import {
   createContext, useCallback, useContext, useEffect, useRef, useState,
   type CSSProperties, type PointerEvent as ReactPointerEvent, type RefObject,
 } from 'react';
+import { toStage } from './stage';
 
 /**
  * Lets a floating DEV panel close itself. DevMenu (which owns the open/closed set) provides `close`; every panel
@@ -132,11 +133,12 @@ export function useDraggablePanel(key: string): {
     if (!el) return;
     const r = el.getBoundingClientRect();
     const startLeft = r.left, startTop = r.top, startX = e.clientX, startY = e.clientY;
-    setPos({ left: startLeft, top: startTop }); // pin to current spot (switch from the CSS bottom-right anchor)
+    // Drag math stays in SCREEN px (rect + pointer + window); the written left/top is stage px (stage.ts).
+    setPos({ left: toStage(startLeft), top: toStage(startTop) }); // pin to current spot (switch from the CSS bottom-right anchor)
     const move = (ev: globalThis.PointerEvent): void => {
       const left = Math.min(window.innerWidth - 60, Math.max(0, startLeft + ev.clientX - startX));
       const top = Math.min(window.innerHeight - 30, Math.max(0, startTop + ev.clientY - startY));
-      setPos({ left, top });
+      setPos({ left: toStage(left), top: toStage(top) });
     };
     const up = (): void => {
       window.removeEventListener('pointermove', move);

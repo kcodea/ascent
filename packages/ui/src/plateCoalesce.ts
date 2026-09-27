@@ -21,6 +21,7 @@
  * `var(--x, fallback)` CSS half, and the double-source rule deliberately does not apply.
  */
 import { WIRE_SRC, REF_W, linePoints, bodyPoints, sprite, rgba, arcaneGradient } from './plateFx';
+import { rectToStage, stageHost } from './stage';
 
 export interface PlateCoalesceConfig {
   /** Whole effect, ms. */
@@ -164,10 +165,12 @@ interface Mote {
  * `--fan-rot` and `transform`), so a re-render mid-effect can't clobber it. Always cleaned up in `done()`.
  */
 export function playPlateCoalesce(
-  rect: { left: number; top: number; width: number; height: number },
+  screenRect: { left: number; top: number; width: number; height: number },
   target?: HTMLElement | null,
 ): void {
   if (typeof document === 'undefined') return;
+  // Every node below is a fixed-position DOM overlay inside the stage: work in layout px (screen -> stage, stage.ts).
+  const rect = rectToStage(screenRect);
   const c = cfg;
   const k = rect.width / REF_W;
   // Gilded cards form in gold; everything else in the arcane blue. Only the colours differ — geometry, motes
@@ -197,7 +200,7 @@ export function playPlateCoalesce(
     `mask:url(${WIRE_SRC}) center / 100% 100% no-repeat`,
     `filter:drop-shadow(0 0 ${c.g1 * k}px ${rgba(pal.cMid, 0.85)}) drop-shadow(0 0 ${c.g2 * k}px ${rgba(pal.cDeep, 1)})`,
   ].join(';');
-  document.body.appendChild(imp);
+  stageHost().appendChild(imp);
 
   // roomier than the dissolve's canvas: motes START outside the plate and fly in
   const pad = 2.6;
@@ -208,7 +211,7 @@ export function playPlateCoalesce(
     'position:fixed', `left:${rect.left - (cw - rect.width) / 2}px`, `top:${rect.top - (ch - rect.height) / 2}px`,
     `width:${cw}px`, `height:${ch}px`, 'pointer-events:none', 'z-index:114',
   ].join(';');
-  document.body.appendChild(cv);
+  stageHost().appendChild(cv);
   const ctx = cv.getContext('2d');
 
   const motes: Mote[] = [];

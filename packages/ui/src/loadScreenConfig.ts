@@ -1,3 +1,4 @@
+import { stageHost } from './stage';
 /**
  * Tunable size + placement for the BOOT LOAD SCREEN — the AscentIcon logo and the fake 3.5s progress bar that
  * live in `apps/web/index.html`. Owner-tuned live via the ⏳ Load Screen dev tuner (size the icon, size and
@@ -140,7 +141,7 @@ export function toggleLoadScreenPreview(): boolean {
   bar.appendChild(document.createElement('i'));
   el.appendChild(img);
   el.appendChild(bar);
-  document.body.appendChild(el);
+  stageHost().appendChild(el);
   // Next frame, add `.is-in` so the fade-in + 3.5s bar fill run exactly as they do at boot.
   requestAnimationFrame(() => el.classList.add('is-in'));
   return true;

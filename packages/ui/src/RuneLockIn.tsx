@@ -4,6 +4,7 @@ import type { RuneDef } from '@game/core';
 import { RuneCard } from './RuneCard';
 import { getRuneLockInConfig, lockInTotalMs, type RuneLockInConfig } from './runeLockInConfig';
 import { sfx } from './sfx';
+import { stageHost, toStage } from './stage';
 
 /**
  * RUNE LOCK-IN CEREMONY (owner ask 2026-08-29).
@@ -40,7 +41,8 @@ import { sfx } from './sfx';
 export interface RuneLockInCard {
   rune: RuneDef;
   cost: number;
-  /** Viewport rect at click time. Read once — never re-measured. */
+  /** Viewport (SCREEN px) rect at click time. Read once — never re-measured. Converted to stage px at the CSS
+   *  writes below (stage.ts). */
   rect: { x: number; y: number; w: number; h: number };
   chosen: boolean;
 }
@@ -110,22 +112,22 @@ export function RuneLockIn({ cards, onDone, timing }: RuneLockInProps): JSX.Elem
       />
       {cards.map((c, i) => {
         const style = {
-          left: `${c.rect.x}px`,
-          top: `${c.rect.y}px`,
+          left: `${toStage(c.rect.x)}px`,
+          top: `${toStage(c.rect.y)}px`,
           // NO width/height. The wrapper SHRINK-WRAPS its card, so its box is the card's box by construction
           // and the travel delta (computed from the captured rect) lands the card's own centre on the
           // screen's. Forcing the captured size instead made the wrapper the authority on how big a card is —
           // and any disagreement showed up as the card sitting off-centre INSIDE a correctly-centred box,
           // which is exactly what the dev demo surfaced.
-          '--rl-w': `${c.rect.w}px`,
+          '--rl-w': `${toStage(c.rect.w)}px`,
           // The unchosen sweep out one after another; the chosen one has no stagger to wait through.
           '--rl-delay': `${c.chosen ? 0 : t.exitDelayMs + i * t.exitStaggerMs}ms`,
           '--rl-exit': `${t.exitMs}ms`,
           '--rl-focus': `${t.focusMs}ms`,
           '--rl-settle': `${t.settleMs}ms`,
           '--rl-fade': `${t.fadeMs}ms`,
-          '--rl-dx': `${centre.dx}px`,
-          '--rl-dy': `${centre.dy}px`,
+          '--rl-dx': `${toStage(centre.dx)}px`,
+          '--rl-dy': `${toStage(centre.dy)}px`,
           '--rl-clamp': `${t.clampMs}ms`,
           '--rl-clamp-from': `${t.clampFrom}`,
           '--rl-flash': `${t.flashMs}ms`,
@@ -153,6 +155,6 @@ export function RuneLockIn({ cards, onDone, timing }: RuneLockInProps): JSX.Elem
         );
       })}
     </div>,
-    document.body,
+    stageHost(),
   );
 }

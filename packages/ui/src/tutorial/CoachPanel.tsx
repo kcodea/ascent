@@ -17,6 +17,7 @@
 
 import { useState } from 'react';
 import type { TutorialFocusMode } from '@game/sim';
+import { stageViewport } from '../stage';
 
 /** Estimated panel box used for viewport clamping. The panel itself sizes to content via CSS `max-width`;
  *  these are just the bounds we clamp the computed origin against so it never spills off-screen. */
@@ -40,8 +41,9 @@ function placePanel(rect: DOMRect | null, nudge?: { dx?: number; dy?: number }):
   if (typeof window === 'undefined' || !rect) {
     return { top: 0, left: 0, centered: true };
   }
-  const vw = window.innerWidth;
-  const vh = window.innerHeight;
+  // The anchor rect arrives in stage px (TutorialController), and the panel is a fixed DOM node in the stage:
+  // clamp against the layout viewport (== innerWidth/innerHeight when unscaled; stage.ts).
+  const { w: vw, h: vh } = stageViewport();
 
   // Horizontal: centre the panel on the anchor. But when the anchor HUGS a viewport edge — a full-height side
   // rail like the lobby rail — centring would push the panel off that edge and the clamp would jam it right up

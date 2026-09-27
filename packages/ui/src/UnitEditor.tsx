@@ -3,6 +3,7 @@ import { StatBadgeField } from './StatBadgeField';
 import { createPortal } from 'react-dom';
 import { BUYABLE_CARDS } from '@game/content';
 import type { Keyword } from '@game/core';
+import { stageHost, stageViewport } from './stage';
 
 /**
  * The sandbox unit editor — a popover anchored to one card, holding everything that can be set about it
@@ -81,9 +82,11 @@ export function UnitEditor({
   }, [onClose]);
 
   // Seated under the card, clamped into the viewport so an edit on the rightmost slot doesn't run off-screen.
+  // `anchor` is STAGE px (the caller converts it); clamp against the window in stage px too (stage.ts).
+  const vp = stageViewport();
   const width = 232;
-  const left = Math.max(8, Math.min(window.innerWidth - width - 8, anchor.left + anchor.width / 2 - width / 2));
-  const top = Math.min(window.innerHeight - 8, anchor.bottom + 6);
+  const left = Math.max(8, Math.min(vp.w - width - 8, anchor.left + anchor.width / 2 - width / 2));
+  const top = Math.min(vp.h - 8, anchor.bottom + 6);
 
   return createPortal(
     <div className="uned" ref={ref} style={{ left, top, width }} onPointerDown={(e) => e.stopPropagation()}>
@@ -120,6 +123,6 @@ export function UnitEditor({
         </button>
       )}
     </div>,
-    document.body,
+    stageHost(),
   );
 }

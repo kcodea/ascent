@@ -20,6 +20,7 @@
  */
 import { Application, Container, Graphics, Sprite, Texture } from 'pixi.js';
 import { cubicBezier } from './wipeGeometry';
+import { stageHost } from './stage';
 
 const PALETTE = [0x9fc0f5, 0xcfe0ff, 0xffffff, 0xbcd4ff] as const;
 
@@ -60,9 +61,9 @@ class WipeFxController {
       resolution: Math.min(window.devicePixelRatio || 1, 1.5),
     });
     const c = app.canvas;
-    c.className = 'wipefx-canvas';
+    c.className = 'wipefx-canvas pixi-screen';
     c.style.visibility = 'hidden';
-    document.body.appendChild(c);
+    stageHost().appendChild(c); // inside the stage so it scales with it (stage.ts)
     this.layer = new Container();
     app.stage.addChild(this.layer);
 

@@ -13,6 +13,7 @@
 import React, { useLayoutEffect, useRef } from 'react';
 import { Card } from '../Card';
 import { useGame } from '../store';
+import { stageViewport } from '../stage';
 
 // BASE_URL-relative, NOT root-absolute — itch serves the game from a CDN sub-path where '/cursors/…' 404s.
 const FIST_SRC = `${import.meta.env.BASE_URL}cursors/hand_closed.svg`;
@@ -25,8 +26,8 @@ export function ReplayDragGhost(): React.ReactElement | null {
     const el = moverRef.current;
     if (!ghost || !el || typeof el.animate !== 'function') return undefined;
     // Fractions → pixels ONCE per ghost (the viewport can't change mid-flight in any way worth chasing).
-    const w = window.innerWidth;
-    const h = window.innerHeight;
+    // Window fractions -> the layout viewport (stage px), since the translate is a CSS length in the stage.
+    const { w, h } = stageViewport();
     const pts = ghost.pts.map(([fx, fy]) => [fx * w, fy * h] as const);
     // Keyframe offsets are DISTANCE-proportional: capture sampled at a fixed rate, so equal time ≈ equal
     // per-segment weight — but simplification merges collinear runs, and distance weighting reconstructs

@@ -18,6 +18,7 @@ import { join } from 'node:path';
  *   3. The session measures its caches (and the FLIP baseline) at start, where the reads belong.
  */
 const RECRUIT = readFileSync(join(__dirname, 'Recruit.tsx'), 'utf8');
+const STAGE_FLIP = readFileSync(join(__dirname, 'stageFlip.ts'), 'utf8');
 const LAYOUT_READS = /getBoundingClientRect|elementFromPoint|\.offset(?:Left|Top|Width|Height)|getComputedStyle|getClientRects/;
 
 function block(src: string, startMarker: string, endMarker: string): string {
@@ -56,7 +57,8 @@ describe('the drag session (Recruit.tsx source contract)', () => {
     const start = session.slice(0, session.indexOf('const flushMove'));
     expect(start.includes('insertRectsRef.current = {')).toBe(true);
     expect(start.includes('targetRectsRef.current =')).toBe(true);
-    expect(start.includes('flipStateRef.current = Flip.getState(FLIP_SELECTOR, { simple: true })')).toBe(true);
+    // Flip's simple capture, through stageFlip (scaled-stage safe; it IS Flip.getState simple at s === 1).
+    expect(start.includes('flipStateRef.current = getSimpleState(FLIP_SELECTOR)')).toBe(true);
     expect(start.includes("document.querySelectorAll<HTMLElement>('[data-zone]')")).toBe(true);
   });
 
@@ -71,11 +73,15 @@ describe('the drag session (Recruit.tsx source contract)', () => {
   });
 
   it('the FLIP animation calls take the simple path (no per-card global matrix)', () => {
+    // The row slides go through stageFlip's `fromSimpleState` (Flip.from simple at s === 1, a translate-only FLIP
+    // of the same cost on a scaled stage); any direct Flip.from left must still be simple, bar the coalesce.
+    expect((RECRUIT.match(/fromSimpleState\(/g) ?? []).length).toBeGreaterThanOrEqual(2);
     const froms = RECRUIT.match(/Flip\.from\([^;]*?\);/gs) ?? [];
-    expect(froms.length).toBeGreaterThanOrEqual(2);
     for (const f of froms) {
       if (f.includes('absolute: true')) continue; // the Choose One coalesce crosses containers — full path by design
       expect(f.includes('simple: true'), `simple on: ${f.slice(0, 60)}`).toBe(true);
     }
+    expect(STAGE_FLIP.includes('Flip.getState(targets, { simple: true })')).toBe(true);
+    expect(STAGE_FLIP.includes('Flip.from(state, { ...vars, simple: true })')).toBe(true);
   });
 });

@@ -26,6 +26,7 @@ import { setTutorialGate, subscribeGateNudge } from './gateBus';
 import { measureAnchors, resolveAnchorRect, useAnchorMeasureTick } from './anchorRegistry';
 import { TutorialOverlay, type TutorialOverlayView } from './TutorialOverlay';
 import { FocusCutout } from './FocusMask';
+import { rectToStage, stageScale, stageViewport } from '../stage';
 import {
   completeCourse, getCourseProgress, markLessonDemonstrated, setCourseStep, startCourse,
 } from './tutorialProfile';
@@ -388,14 +389,22 @@ export function TutorialController(): JSX.Element | null {
     // a full-screen anchor, which clamps the panel across the bottom of the Discover picker it is covering.
     // A modal needs no cutout: it already owns the screen.
     const coversViewport = (r: DOMRect): boolean => r.width >= window.innerWidth * 0.95 && r.height >= window.innerHeight * 0.95;
-    const rects = measureAnchors(refs).rects.filter((r): r is DOMRect => r !== null && !coversViewport(r));
+    // Every rect the overlay receives is in STAGE px: the mask, connector and coach panel are DOM/SVG laid out
+    // inside the scaled stage. Measured (and the viewport test above made) in screen px, converted once here.
+    const toStageRect = (r: DOMRect): DOMRect => {
+      if (stageScale() === 1) return r;
+      const t = rectToStage(r);
+      return new DOMRect(t.left, t.top, t.width, t.height);
+    };
+    const rects = measureAnchors(refs).rects.filter((r): r is DOMRect => r !== null && !coversViewport(r)).map(toStageRect);
     // PULL A BOARD-ROW SPOTLIGHT IN TO THE BOARD (owner 2026-08-24: "nudge these boxes in closer to the sides of
     // the board"). The warband/shop/hand rows are `align-items: stretch` items in a full-width column zone, so
     // their box spans the ENTIRE stage even when empty — the spotlight spilled way past the board's frame walls
     // out to the stage edges. Any cutout that spans nearly the whole stage is clamped to the board's felt
     // interior (the central slice between the ornate frame walls), centred on the stage. Narrow anchors (a seat,
     // the rail, a button, the Health box) are well under the threshold and pass through untouched.
-    const stage = document.querySelector('.app')?.getBoundingClientRect() ?? null;
+    const appRect = document.querySelector('.app')?.getBoundingClientRect();
+    const stage = appRect ? toStageRect(appRect) : null;
     const BOARD_INTERIOR_FRAC = 0.52; // eyeball-tuned: the felt width as a fraction of the 16:9 stage. Tune here.
     const toBoardInterior = (rect: DOMRect): DOMRect => {
       if (!stage || rect.width < stage.width * 0.9) return rect; // not a full-stage row — leave it
@@ -411,8 +420,10 @@ export function TutorialController(): JSX.Element | null {
       const c = current.step.connector;
       const from = resolveSpec(c.from, run);
       const to = resolveSpec(c.to, run);
-      const fr = from ? resolveAnchorRect(from) : null;
-      const tr = to ? resolveAnchorRect(to) : null;
+      const frS = from ? resolveAnchorRect(from) : null;
+      const trS = to ? resolveAnchorRect(to) : null;
+      const fr = frS ? toStageRect(frS) : null;
+      const tr = trS ? toStageRect(trS) : null;
       if (fr && tr) connector = { from: fr, to: tr, style: c.style, label: c.label };
     }
 
@@ -448,7 +459,8 @@ export function TutorialController(): JSX.Element | null {
     // hand when it does — landed straight on the cards being chosen between. Park it at the bottom instead,
     // the same treatment combat already uses, so the choice is never covered.
     const parkAtBottom = combatAnimating || modalOpen;
-    const bottomAnchor = parkAtBottom ? new DOMRect(window.innerWidth / 2 - 1, window.innerHeight - 46, 2, 26) : null;
+    const vp = stageViewport(); // stage px, like every rect above (== innerWidth/innerHeight when unscaled)
+    const bottomAnchor = parkAtBottom ? new DOMRect(vp.w / 2 - 1, vp.h - 46, 2, 26) : null;
     // A dismissible free-play step whose panel the player closed with "Got it": hide the panel, keep everything
     // else (no scrim, gate still open) so they can play until they End Turn.
     const panelDismissed = !!step.dismissible && dismissed;

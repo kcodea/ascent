@@ -8,6 +8,7 @@ import { hitPower, playContactImpact } from './channels/impact';
 import { getLungeConfig, strikeBandFor, strikeEaseFor } from '../lungeConfig';
 import { contactGeometry } from './contactGeometry';
 import { recordLunge } from '../lungeProbe';
+import { toScreen, toStage } from '../stage';
 
 export interface AttackCueCtx {
   combatSpeed: number;
@@ -118,19 +119,22 @@ export function runAttackExchangeCues(
   });
   const atkCur = curOf(attacker);
   const defCur = curOf(defender);
-  const ldx = dx - defCur.x + atkCur.x;
-  const ldy = dy - defCur.y + atkCur.y;
+  // STAGE SPACE (stage.ts): the caller's dx/dy are screen deltas, GSAP x/y are layout px — the whole strike is
+  // solved in layout px (it drives GSAP), and only the Pixi impact points below go back to screen.
+  const ldx = toStage(dx) - defCur.x + atkCur.x;
+  const ldy = toStage(dy) - defCur.y + atkCur.y;
   // The measured rect also inflates under a mid-wind-up scale — divide the attacker's dims back to rest size.
   const atkScale = Number(gsap.getProperty(attacker, 'scaleX')) || 1;
-  const atkSize = { width: atkRect.width / atkScale, height: atkRect.height / atkScale };
-  const geo = contactGeometry(ldx, ldy, atkSize, defRect ?? { width: 0, height: 0 }, cfg);
+  const atkSize = { width: toStage(atkRect.width) / atkScale, height: toStage(atkRect.height) / atkScale };
+  const geo = contactGeometry(ldx, ldy, atkSize, defRect ? { width: toStage(defRect.width), height: toStage(defRect.height) } : { width: 0, height: 0 }, cfg);
   // The geometry places the attacker so its FIXED leading corner (top corner for a player swing, mirrored
   // bottom corner for an enemy swing, right/left picked by dx) lands on the DEFENDER'S CENTRE — `geo.strike`
   // is the card-centre offset that achieves it, `geo.contact` is that centre, where the impact FX originate.
   // (The former `strikePoint` surface↔centre blend is retired: centre impact is the spec, not a dial.)
-  const atkLayoutC = { x: atkRect.left + atkRect.width / 2 - atkCur.x, y: atkRect.top + atkRect.height / 2 - atkCur.y };
+  // Screen space (the impact point goes to Pixi): the layout-px GSAP offset + contact go back through toScreen.
+  const atkLayoutC = { x: atkRect.left + atkRect.width / 2 - toScreen(atkCur.x), y: atkRect.top + atkRect.height / 2 - toScreen(atkCur.y) };
   const strikeOffset = geo.strike;
-  const impactAt = { x: atkLayoutC.x + geo.contact.x, y: atkLayoutC.y + geo.contact.y };
+  const impactAt = { x: atkLayoutC.x + toScreen(geo.contact.x), y: atkLayoutC.y + toScreen(geo.contact.y) };
   const spinDeg = -Math.sign(geo.leadTilt || 1) * cfg.defenderSpin;
   // LATE RESOLUTION (owner report 2026-07-21: impact rings firing "wayyyy before" the defender): everything
   // above measures at SWING START, but the strike lands ~0.9s later (700ms wind-up + strike, +440ms more
@@ -145,9 +149,9 @@ export function runAttackExchangeCues(
   const posedCorner = { x: geo.contact.x - geo.strike.x, y: geo.contact.y - geo.strike.y };
   const layoutC = (el: Element): { x: number; y: number } => {
     const r = el.getBoundingClientRect();
-    return {
-      x: r.left + r.width / 2 - (Number(gsap.getProperty(el, 'x')) || 0),
-      y: r.top + r.height / 2 - (Number(gsap.getProperty(el, 'y')) || 0),
+    return { // layout px: it solves a GSAP strike offset (screen -> stage, stage.ts)
+      x: toStage(r.left + r.width / 2) - (Number(gsap.getProperty(el, 'x')) || 0),
+      y: toStage(r.top + r.height / 2) - (Number(gsap.getProperty(el, 'y')) || 0),
     };
   };
   const resolveStrike = defender

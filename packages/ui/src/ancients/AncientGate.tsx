@@ -12,6 +12,7 @@ import { heroMotePalette, isBloomStyle, isThemedHero, resolveAncientHeroSignatur
 import { playHeroBloom } from './ancientHeroBloom';
 import { AncientBloomMedal } from './AncientBloom';
 import { heroPowerArt } from '../art';
+import { stageHost, toStage } from '../stage';
 
 /**
  * THE AWAKENING (owner 2026-09-25: "ominous exciting when the hero power erupts. it should be a moment that the player
@@ -42,6 +43,10 @@ import { heroPowerArt } from '../art';
  */
 type Phase = 'idle' | 'omen' | 'eruption' | 'title' | 'reveal' | 'settled' | 'closing';
 interface Geo { x: number; y: number; rx: number; ry: number; r: number; hp: number; art?: string; pal: readonly number[] }
+/** `Geo` is SCREEN px (it feeds `wipeFx`, a Pixi layer); the DOM layer (clip ellipses, --gx/--gy, halo, ring, embers,
+ *  the 1000px front's scale) takes this STAGE-px copy (stage.ts). Identity when the stage is unscaled. */
+const stageGeo = (g: Geo): { x: number; y: number; rx: number; ry: number; hp: number } =>
+  ({ x: toStage(g.x), y: toStage(g.y), rx: toStage(g.rx), ry: toStage(g.ry), hp: toStage(g.hp) });
 
 /** The default motes (violet/gold/teal); a themed hero's awakening uses its own (`heroMotePalette`). */
 const PALETTE = [0xb58cff, 0xffd98a, 0x7fe3d0, 0xffffff, 0xe6ccff] as const;
@@ -238,7 +243,8 @@ export const AncientGate = memo(function AncientGate({ run }: { run: RunState })
     if (!geo) return;
     const bg = bgRef.current, curtain = curtainRef.current, front = frontRef.current, runes = runesRef.current;
     const ease = `cubic-bezier(${EASE.join(', ')})`;
-    const ell = (k: number): string => `ellipse(${Math.max(0, geo.rx * k)}px ${Math.max(0, geo.ry * k)}px at ${geo.x}px ${geo.y}px)`;
+    const sg = stageGeo(geo);
+    const ell = (k: number): string => `ellipse(${Math.max(0, sg.rx * k)}px ${Math.max(0, sg.ry * k)}px at ${sg.x}px ${sg.y}px)`;
     if (phase === 'omen') {
       const om = omenRef.current;
       // The vignette CREEPS IN from the edges toward the hero power (a pre-rendered radial layer, scaled + faded).
@@ -291,7 +297,7 @@ export const AncientGate = memo(function AncientGate({ run }: { run: RunState })
       playHeroBloom(curtain?.querySelector('.anc-gate-medalwrap'), sigRef.current, c);
       // The backdrop rides the curtain's own ellipse, so nothing leads the seam.
       bg?.animate([{ clipPath: ell(0) }, { clipPath: ell(1) }], { duration: c.eruptionMs, easing: ease, fill: 'forwards' });
-      const sx = wipeFrontScale(geo.rx), sy = wipeFrontScale(geo.ry);
+      const sx = wipeFrontScale(sg.rx), sy = wipeFrontScale(sg.ry);
       for (const el of [front, runes]) {
         el?.animate([
           { transform: 'scale(0.004) rotate(0deg)', opacity: c.seamGlow },
@@ -333,14 +339,15 @@ export const AncientGate = memo(function AncientGate({ run }: { run: RunState })
     return out;
   }, [geo]);
   // Ember starts, fixed per awakening (not per render, so nothing jumps between beats).
-  const embers = useMemo(() => (geo ? Array.from({ length: N_EMBERS }, () => ({ left: geo.x + rnd(-geo.hp * 0.45, geo.hp * 0.45), top: geo.y + rnd(-geo.hp * 0.2, geo.hp * 0.35) })) : []), [geo]);
+  const embers = useMemo(() => { const g = geo && stageGeo(geo); return g ? Array.from({ length: N_EMBERS }, () => ({ left: g.x + rnd(-g.hp * 0.45, g.hp * 0.45), top: g.y + rnd(-g.hp * 0.2, g.hp * 0.35) })) : []; }, [geo]);
   if (!geo || phase === 'idle') return null;
+  const sg = stageGeo(geo); // DOM writes below are stage px; `geo` stays screen px for wipeFx
   const reduced = prefersReducedMotion();
   const curtainOn = !reduced && (phase === 'eruption' || phase === 'title' || phase === 'reveal');
-  const ring = geo.hp * 0.95;
+  const ring = sg.hp * 0.95;
   return createPortal(
     <div className="anc-gate" aria-hidden="true" style={{
-      '--gx': `${geo.x}px`, '--gy': `${geo.y}px`,
+      '--gx': `${sg.x}px`, '--gy': `${sg.y}px`,
       '--anc-cin': theme.curtainInner, '--anc-cout': theme.curtainOuter, '--anc-seam': theme.seamColor, '--anc-tglow': theme.titleGlow, '--anc-tint': theme.backdropTint,
       // A themed hero's seam ring wears its own colours; the default keeps the baked violet/teal fringe.
       ...(isThemedHero(themeHero ?? run.heroId) ? {
@@ -349,17 +356,18 @@ export const AncientGate = memo(function AncientGate({ run }: { run: RunState })
     } as CSSProperties}>
       {/* The Discover view's backdrop: what the awakening ends on, under the offer. */}
       {phase !== 'omen' && (
-        <div ref={bgRef} className="anc-gate-bg" style={reduced || phase === 'reveal' || phase === 'settled' ? (reduced ? { opacity: 0 } : undefined) : { clipPath: `ellipse(0px 0px at ${geo.x}px ${geo.y}px)` }} />
+        <div ref={bgRef} className="anc-gate-bg" style={reduced || phase === 'reveal' || phase === 'settled' ? (reduced ? { opacity: 0 } : undefined) : { clipPath: `ellipse(0px 0px at ${sg.x}px ${sg.y}px)` }} />
       )}
       {/* OMEN: darkening edges, glyphs flickering around the hero power, embers drifting up from it. */}
       {(phase === 'omen' || phase === 'eruption') && !reduced && (
         <div ref={omenRef} className="anc-omen">
-          <div className="anc-omen-vignette" style={{ transformOrigin: `${geo.x}px ${geo.y}px` }} />
+          <div className="anc-omen-vignette" style={{ transformOrigin: `${sg.x}px ${sg.y}px` }} />
+          {/* Screen-px viewBox stretched over the stage-px layer: the crack points (from screen `geo`) map correctly. */}
           <svg className="anc-omen-cracks" viewBox={`0 0 ${window.innerWidth} ${window.innerHeight}`} preserveAspectRatio="none">
             {cracks.map((pts, i) => <polyline key={i} className="anc-omen-crack" points={pts} pathLength={1} strokeDasharray="1" />)}
           </svg>
-          <div className="anc-omen-halo" style={{ left: geo.x, top: geo.y, width: geo.hp * 3.4, height: geo.hp * 3.4 }} />
-          <div className="anc-omen-ring" style={{ left: geo.x, top: geo.y }}>
+          <div className="anc-omen-halo" style={{ left: sg.x, top: sg.y, width: sg.hp * 3.4, height: sg.hp * 3.4 }} />
+          <div className="anc-omen-ring" style={{ left: sg.x, top: sg.y }}>
             {Array.from({ length: N_GLYPHS }, (_, i) => {
               const a = (i / N_GLYPHS) * Math.PI * 2 - Math.PI / 2;
               return (
@@ -375,11 +383,11 @@ export const AncientGate = memo(function AncientGate({ run }: { run: RunState })
       {/* ERUPTION: the flash from the hero power. */}
       {phase === 'eruption' && !reduced && (
         <>
-          <div ref={flashRef} className="anc-erupt-flash" style={{ left: geo.x, top: geo.y }} />
+          <div ref={flashRef} className="anc-erupt-flash" style={{ left: sg.x, top: sg.y }} />
         </>
       )}
       {curtainOn && (
-        <div ref={curtainRef} className="anc-gate-curtain" style={phase === 'reveal' ? undefined : { clipPath: `ellipse(0px 0px at ${geo.x}px ${geo.y}px)` }}>
+        <div ref={curtainRef} className="anc-gate-curtain" style={phase === 'reveal' ? undefined : { clipPath: `ellipse(0px 0px at ${sg.x}px ${sg.y}px)` }}>
           <div className="anc-gate-center">
             {geo.art && (
               <AncientBloomMedal art={geo.art} sig={sig} hidden={!reduced && phase === 'eruption'} />
@@ -399,6 +407,6 @@ export const AncientGate = memo(function AncientGate({ run }: { run: RunState })
         </>
       )}
     </div>,
-    document.body,
+    stageHost(),
   );
 });

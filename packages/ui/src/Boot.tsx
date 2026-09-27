@@ -1,5 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import './styles.css'; // ensure the boot loading screen is styled even before <Game/> mounts
+import { createPortal } from 'react-dom';
 import { preloadAllArt, ART_COUNT } from './art';
 
 /**
@@ -116,15 +117,20 @@ export function Boot({ children }: { children: ReactNode }): React.ReactElement 
           <div className="bootload-sub">Loading art… {Math.round(pct * 100)}%</div>
         </div>
       )}
-      {/* Landscape-only on phones: CSS shows this only on a touch device held in portrait (see `.rotate-prompt`). */}
-      <div className="rotate-prompt" role="alertdialog" aria-label="Rotate your device">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-          <rect x="7" y="3" width="10" height="18" rx="2.2" />
-          <path d="M11 5.5h2" />
-        </svg>
-        <div className="rotate-prompt-t">Rotate your device</div>
-        <div className="rotate-prompt-s">ASCENT plays in landscape. Turn your phone sideways to play.</div>
-      </div>
+      {/* Landscape-only on phones: CSS shows this only on a touch device held in portrait (see `.rotate-prompt`).
+          Portalled to <body>, OUTSIDE the scaled stage (stage.ts): it is the one screen drawn in real device px,
+          because a portrait phone would scale the 1920-wide stage down to a fifth. */}
+      {typeof document !== 'undefined' && createPortal(
+        <div className="rotate-prompt" role="alertdialog" aria-label="Rotate your device">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <rect x="7" y="3" width="10" height="18" rx="2.2" />
+            <path d="M11 5.5h2" />
+          </svg>
+          <div className="rotate-prompt-t">Rotate your device</div>
+          <div className="rotate-prompt-s">ASCENT plays in landscape. Turn your phone sideways to play.</div>
+        </div>,
+        document.body,
+      )}
     </>
   );
 }

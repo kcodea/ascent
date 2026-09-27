@@ -11,6 +11,7 @@ import {
   ceremonyReduce, CEREMONY_IDLE, ceremonyActive, ceremonyAcceptsClicks,
 } from './hero-select/heroCeremonyMachine';
 import { snapshotRect } from './hero-select/heroCeremonyGeometry';
+import { rectToStage } from './stage';
 import { ceremonyTiming } from './hero-select/heroCeremonyTiming';
 import { HSC_REPLAY_EVENT } from './hero-select/heroCeremonyTunerConfig';
 import { HeroSelectCeremony } from './hero-select/HeroSelectCeremony';
@@ -109,7 +110,7 @@ export function HeroSelect() {
     dispatch({
       type: 'select',
       heroId: id,
-      rect: snapshotRect(e.currentTarget.getBoundingClientRect()),
+      rect: snapshotRect(rectToStage(e.currentTarget.getBoundingClientRect())), // the ceremony runs in STAGE px (stage.ts)
       index,
       now: performance.now(),
     });

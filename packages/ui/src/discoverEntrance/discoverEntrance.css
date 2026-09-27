@@ -52,7 +52,7 @@ body:has(.dce-preview) .tunerpanel { z-index: 910; }
    LESS than under the old flat 0.72 scrim, even where the glow is brightest. */
 .discover-ov.disc-look {
   background:
-    radial-gradient(ellipse calc(var(--dcl-spot-r, 40) * 1.6vh) calc(var(--dcl-spot-r, 40) * 1vh) at 50% 51%,
+    radial-gradient(ellipse calc(var(--dcl-spot-r, 40) * calc(1.6 * var(--vh, 1vh))) calc(var(--dcl-spot-r, 40) * calc(1 * var(--vh, 1vh))) at 50% 51%,
       rgba(255, 196, 112, calc(var(--dcl-spot, 0.4) * 0.34)) 0%,
       rgba(255, 170, 80, calc(var(--dcl-spot, 0.4) * 0.14)) 50%,
       rgba(255, 160, 70, 0) 100%),

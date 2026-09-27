@@ -22,6 +22,7 @@
  */
 
 import { WIRE_SRC, REF_W, linePoints, bodyPoints, sprite, rgba, arcaneGradient } from './plateFx';
+import { rectToStage, stageHost } from './stage';
 
 export interface PlateDissolveConfig {
   /** Whole effect, ms — start to nothing left. Governs how long the DUST lives. */
@@ -142,8 +143,10 @@ interface Mote { x: number; y: number; vx: number; vy: number; born: number; lif
  * Everything is created detached on <body> and torn down when it finishes, so nothing survives the effect
  * and it can't interact with React's tree.
  */
-export function playPlateDissolve(rect: { left: number; top: number; width: number; height: number }): void {
+export function playPlateDissolve(screenRect: { left: number; top: number; width: number; height: number }): void {
   if (typeof document === 'undefined') return;
+  // Every node below is a fixed-position DOM overlay inside the stage: work in layout px (screen -> stage, stage.ts).
+  const rect = rectToStage(screenRect);
   const c = cfg;
   const k = rect.width / REF_W;
   if (!sprites) sprites = { core: sprite(c.cCore, 32), mid: sprite(c.cMid, 32) };
@@ -159,7 +162,7 @@ export function playPlateDissolve(rect: { left: number; top: number; width: numb
     `mask:url(${WIRE_SRC}) center / 100% 100% no-repeat`,
     `filter:drop-shadow(0 0 ${c.g1 * k}px ${rgba(c.cMid, 0.85)}) drop-shadow(0 0 ${c.g2 * k}px ${rgba(c.cDeep, 1)})`,
   ].join(';');
-  document.body.appendChild(imp);
+  stageHost().appendChild(imp);
 
   // --- the dust canvas, oversized so outward motes + bloom aren't clipped at the plate's edge ---
   const pad = 1.9;
@@ -170,7 +173,7 @@ export function playPlateDissolve(rect: { left: number; top: number; width: numb
     'position:fixed', `left:${rect.left - (cw - rect.width) / 2}px`, `top:${rect.top - (ch - rect.height) / 2}px`,
     `width:${cw}px`, `height:${ch}px`, 'pointer-events:none', 'z-index:114',
   ].join(';');
-  document.body.appendChild(cv);
+  stageHost().appendChild(cv);
   const ctx = cv.getContext('2d');
 
   // --- motes, born on the wireframe (or anywhere on the plate) and pushed outward from centre ---

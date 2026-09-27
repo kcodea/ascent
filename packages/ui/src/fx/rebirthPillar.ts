@@ -11,8 +11,12 @@
  * itself after its run. Presentation only.
  */
 import { getRebirthConfig } from '../rebirthConfig';
+import { stageHost, toStage } from '../stage';
 
 type Rect = { cx: number; cy: number; w: number; h: number };
+
+/** A screen-measured rect in layout px, for the fixed-position nodes below (screen -> stage, stage.ts). */
+const rectToStagePx = (r: Rect): Rect => ({ cx: toStage(r.cx), cy: toStage(r.cy), w: toStage(r.w), h: toStage(r.h) });
 
 /** The element the pillar should live in for `uid`: its combat `.unit`, else its shop `.card`, else null. */
 export function pillarHostFor(uid: string | null): HTMLElement | null {
@@ -26,8 +30,9 @@ export function pillarHostFor(uid: string | null): HTMLElement | null {
 /** The DEATH half: the body burns away in blue flame and a few embers hover in its empty slot until the return
  *  (owner 2026-09-26). Fixed-position nodes at the dying body's rect, because the body itself unmounts with its
  *  death beat; each removes itself after its run. One-shot transform/opacity (styles.css "REBIRTH BURN"). */
-export function spawnRebirthBurn(rect: Rect | null): void {
-  if (typeof document === 'undefined' || !rect) return;
+export function spawnRebirthBurn(screenRect: Rect | null): void {
+  if (typeof document === 'undefined' || !screenRect) return;
+  const rect = rectToStagePx(screenRect);
   const cw = Math.max(rect.w, rect.h * 0.75);
   const mk = (cls: string, top: number): HTMLElement => {
     const el = document.createElement('div');
@@ -36,7 +41,7 @@ export function spawnRebirthBurn(rect: Rect | null): void {
     el.style.left = `${rect.cx}px`;
     el.style.top = `${top}px`;
     el.style.setProperty('--cw', `${cw}px`);
-    document.body.appendChild(el);
+    stageHost().appendChild(el);
     return el;
   };
   const flame = mk('rbburn-flame', rect.cy + rect.h * 0.42);
@@ -44,7 +49,7 @@ export function spawnRebirthBurn(rect: Rect | null): void {
   window.setTimeout(() => { flame.remove(); embers.remove(); }, 2200);
 }
 
-export function spawnRebirthPillar(host: HTMLElement | null, rect: Rect | null): void {
+export function spawnRebirthPillar(host: HTMLElement | null, screenRect: Rect | null): void {
   if (typeof document === 'undefined') return;
   const durMs = 1050 * getRebirthConfig().burstTime;
   const made: HTMLElement[] = [];
@@ -58,14 +63,15 @@ export function spawnRebirthPillar(host: HTMLElement | null, rect: Rect | null):
     front.setAttribute('aria-hidden', 'true');
     host.appendChild(front);
     made.push(back, front);
-  } else if (rect) {
+  } else if (screenRect) {
+    const rect = rectToStagePx(screenRect);
     const el = document.createElement('div');
     el.className = 'rbpillar fixed';
     el.setAttribute('aria-hidden', 'true');
     el.style.left = `${rect.cx}px`;
     el.style.top = `${rect.cy + rect.h * 0.46}px`;
     el.style.setProperty('--cw', `${Math.max(rect.w, rect.h * 0.75)}px`);
-    document.body.appendChild(el);
+    stageHost().appendChild(el);
     made.push(el);
   }
   if (made.length) window.setTimeout(() => { for (const el of made) el.remove(); }, durMs + 80);

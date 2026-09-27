@@ -32,6 +32,7 @@ import { getHeroPowerBtnConfig } from './heroPowerBtnConfig';
 import { pixiFx } from './pixiFx';
 import { getAimFxConfig } from './aimFxConfig'; // also reflects the --hpb-* vars at load (side-effect)
 import './heroPanelConfig'; // side-effect: reflects the --hpn-* hero-panel transform vars at load
+import { rectToStage, stageHost, stageViewport } from './stage';
 
 
 /** Shrink a pill's TEXT to fit its box (owner note 2026-07-16: no ellipsis — "Lord of the Risen" should
@@ -469,16 +470,17 @@ export function StatusBar() {
    *  hover uses (`.cardref`), portalled to <body> so nothing in the status bar clips it, and flipped to the
    *  left when it would run off the right edge. */
   const showHunchTip = (el: HTMLElement): void => {
-    const r = el.getBoundingClientRect();
+    const r = rectToStage(el.getBoundingClientRect()); // stage px (stage.ts): written as the popup's CSS left/top
+    const vp = stageViewport();
     const cs = getComputedStyle(document.documentElement);
     const zoom = (parseFloat(cs.getPropertyValue('--inspect-zoom')) || 1) * (parseFloat(cs.getPropertyValue('--z-inspect-s')) || 1);
     const cardW = r.width * zoom * 1.5; // plate footprint, same estimate the card popup uses
     const gap = 10;
-    const flip = r.right + gap + cardW > window.innerWidth - 6;
+    const flip = r.right + gap + cardW > vp.w - 6;
     const estH = cardW * 1.5550; // plate aspect (800x1244)
     setHunchTip({
       left: flip ? Math.max(6, r.left - gap - cardW) : r.right + gap,
-      top: Math.max(6, Math.min(r.top - estH / 3, window.innerHeight - estH - 6)),
+      top: Math.max(6, Math.min(r.top - estH / 3, vp.h - estH - 6)),
       origin: flip ? 'right' : 'left',
     });
   };
@@ -871,7 +873,7 @@ export function StatusBar() {
               ))}
             </div>
           </div>
-        </div>, document.body)}
+        </div>, stageHost())}
       {/* FLASH'S CHOOSE ONE — the SAME markup as Cassen's picker above, so the quest-style treatment in
           styles.css dresses both from one place rather than drifting into two lookalike panels. */}
       {pickingFlash && createPortal(
@@ -906,7 +908,7 @@ export function StatusBar() {
               ))}
             </div>
           </div>
-        </div>, document.body)}
+        </div>, stageHost())}
       {/* Hunch: hovering the power shows the SPELL it would hand you (owner ask 2026-08-14) — you can't
                 judge the price without knowing what you're buying. Rendered from the same live view the shop
                 uses, so its printed value is the real one. */}
@@ -916,7 +918,7 @@ export function StatusBar() {
                   <Card card={hunchPreview} forceFull plated />
                 </div>
               </div>,
-              document.body,
+              stageHost(),
             )}
           </div>
           {/* The power NAME now lives in the pill for passives too (mirrors the active-power pill, e.g. Soren's

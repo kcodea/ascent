@@ -317,4 +317,21 @@ export const HEROES_RULES: GameRule[] = [
     currentBehaviour: 'Conforms (built 2026-09-26). Dev-only (Scene Builder, Set 3, the Ancients flag).',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsRisen.test.ts'], lastVerifiedAt: '2026-09-26' },
   },
+  {
+    id: 'R-ENCHANTFX-01',
+    title: 'Ayse: the Enchanted shop-card sparkle hides while an overlay covers the shop',
+    statement:
+      'The looping Enchanted effect on a shop card (Ayse, Lucky Seat) draws on the shared effects canvas, which sits '
+      + 'above board-covering overlays. While one is open (Discover, Choose One, a quest or Runeforge offer, a scouted '
+      + 'board, the Fight Recap, the Ancient awakening and offer) the loop hides, and it shows again when the overlay '
+      + 'closes. It never bleeds through an overlay. (It already stops for combat and while the card is dragged.)',
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-26 (Ancient awakening screenshot)', quote: 'small bug - an ayse card bleeds through the animation' },
+      { kind: 'code', ref: 'packages/ui/src/useCiaEnchantedFx.ts overlayCoversShop (the follow returns null under modalup / ancgate / ancoffer)' },
+    ],
+    currentBehaviour: 'Conforms, FIXED 2026-09-26: the sparkle showed through the Ancient awakening backdrop.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/enchantedUnderOverlays.test.ts'], lastVerifiedAt: '2026-09-26' },
+  },
 ];

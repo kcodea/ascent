@@ -228,9 +228,9 @@ function boardShake(hp: HpBox, c: AncientsFullConfig): void {
 /** Play the pick's Pixi once, invisibly (alpha ~0), while the offer sits settled, so the real one pays no first-play
  *  cost on the pick (measured 2026-09-27: a cold first play landed ~250 ms late in headless Chrome). */
 export function warmPickBurst(): void {
-  const hp = hpBox();
-  if (!hp || !canPlayDefs()) return;
-  const at = { x: hp.x, y: hp.y };
+  if (!canPlayDefs()) return;
+  // Far off screen: even at alpha ~0 the trail's bloom filter left a visible dot on the hero power (pass W1).
+  const at = { x: -4000, y: -4000 };
   ancientPickBurst('#ffffff', at, 1, 1, 0.001); // not 0: a fully transparent container may be skipped, not drawn
   playDef('gild-trail', { source: at, target: at, camera: at }, { alpha: 0.001, muteSound: true, intensity: 0.1 });
 }

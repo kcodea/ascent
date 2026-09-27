@@ -23,8 +23,8 @@ import { stageHost, toStage } from '../stage';
  *
  *   OMEN      the world holds its breath: music + other sounds duck, a low rumble swells, the screen's edges darken,
  *             arcane glyphs flicker around the hero power and embers drift up from it (`omenRumble`).
- *   ERUPTION  a deep boom and a violet/gold flash from the hero power, the burst def's shockwave, a violet/gold smoke
- *             burst (`ancient-gate-smoke`), and the violet curtain blooming out in the go-to-combat wipe's language (the wipe's
+ *   ERUPTION  a deep boom and a flash in the hero's theme from the hero power, one short dust burst in the theme's
+ *             seam colour, and the curtain blooming out in the go-to-combat wipe's language (the wipe's
  *             aspect-stretched ellipse, its seam ring — here carrying runes — and `wipeFx` stardust) (`eruptionBoom`,
  *             `eruptionFlash`).
  *             The curtain wears the HERO'S theme (`ancientHeroThemes.ts`, owner 2026-09-26: Indy gold, everyone else the
@@ -35,8 +35,8 @@ import { stageHost, toStage } from '../stage';
  *             (`AncientOffer`: one Ancient at a time out of a flash of its colour, `cardReveal` each).
  *   SETTLED   drifting motes behind the cards and a quiet hum under the (still ducked) music (`ambientHum`).
  *   PICK      the backdrop FADES off (owner 2026-09-27: no more contracting back into the hero power) while the chosen
- *             card slams into the hero power (`ancientPickSlam.ts`: lift, ease-in flight, hit-stop, `pickSeal`, burst,
- *             shake) and the crack reveal plays from `AncientSplit`. The duck lets go on the impact.
+ *             card collapses into the triple's trail and slams into the hero power (`ancientPickSlam.ts`: collapse,
+ *             recoloured `gild-trail`, hit-stop, `pickSeal`, ring, shake) and the crack reveal plays from `AncientSplit`. The duck lets go on the impact.
  *
  * The hero-power button and its art NEVER change; every layer here is separate and only emanates from its position.
  * All one-shot WAAPI (transform / opacity, plus the curtain's one-shot clip, like the wipe's). A click steps it
@@ -153,6 +153,11 @@ export const AncientGate = memo(function AncientGate({ run }: { run: RunState })
       toReveal(seq);
       return;
     }
+    // The pick's Pixi (the triple trail + the ring), pre-played invisibly NOW: a cold first play of the trail is a ~70 ms
+    // task, and here it lands on the meter flash's peak, before any omen frame has drawn, where a held frame reads as
+    // nothing. Warmed at the settled offer it hitched the last slam's dust; not warmed it hitched the pick (measured
+    // 2026-09-27, headless Chrome).
+    warmPickBurst();
     go('omen', seq);
     rumble.current = playCue('omenRumble', 0, { fadeInMs: Math.min(600, c.omenMs) });
     wipeFx.charge(x, y, c.omenMs, pal);
@@ -162,9 +167,11 @@ export const AncientGate = memo(function AncientGate({ run }: { run: RunState })
       playCue('eruptionBoom');
       playCue('eruptionFlash');
       wipeFx.bloom(x, y, rx, ry, c.eruptionMs, EASE, pal);
-      // ONE crisp, short burst of the Runeforge landing dust from the hero power, in the curtain's colour. Its life is
+      // ONE crisp, short burst of the Runeforge landing dust from the hero power. Its life is
       // cut by the "Hero-power dust life" dial so it has played out by the time the curtain has bloomed: no fog.
-      const burst = ancientLandDust(theme.curtainInner, { x, y }, c.hpDustLife);
+      // In the theme's SEAM colour (light): tinted to the curtain centre it read as dark smudges over the bright bloom
+      // (whole-sequence pass 2026-09-27).
+      const burst = ancientLandDust(theme.seamColor, { x, y }, c.hpDustLife);
       if (burst) hpFx.current.push(burst);
     }, c.omenMs));
     timers.current.push(window.setTimeout(() => { go('title', seq); playCue('titleSting'); }, c.omenMs + c.eruptionMs));
@@ -202,7 +209,6 @@ export const AncientGate = memo(function AncientGate({ run }: { run: RunState })
       setPhase('settled');
       hum.current?.stop(100);
       hum.current = playCue('ambientHum', 0, { loop: true, fadeInMs: 900 });
-      warmPickBurst(); // the pick's burst, pre-played invisibly so the impact frame pays nothing
     }
   }, [stage, phase]);
 
@@ -323,7 +329,9 @@ export const AncientGate = memo(function AncientGate({ run }: { run: RunState })
       if (reduced) { bg?.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 220, fill: 'forwards' }); }
       if (curtain) {
         curtain.getAnimations().forEach((a) => a.finish());
-        curtain.animate([{ opacity: 1 }, { opacity: 0 }], { duration: c.revealFadeMs, easing: 'ease-out', fill: 'forwards' });
+        // Holds, then DROPS (ease-in), so it never lingers half-transparent over the dim backdrop: an ease-out fade
+        // spent most of its time as a murky mid-tone (whole-sequence pass 2026-09-27).
+        curtain.animate([{ opacity: 1 }, { opacity: 0 }], { duration: c.revealFadeMs, easing: 'cubic-bezier(0.45, 0, 0.9, 0.55)', fill: 'forwards' });
         curtain.querySelector('.anc-gate-center')?.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 160, easing: 'ease-out', fill: 'forwards' });
       }
     } else if (phase === 'closing') {

@@ -11,7 +11,8 @@ describe('the Ancients tuner defaults', () => {
       cardRevealGain: 0.19, pickSealGain: 0.62,
       revealStyle: 1, // 1 = two beats (the middle slams, then the sides together); 0 = sequential
       hpDustLife: 0.45, dustAmount: 1, dustSize: 1, dustLife: 1, dustOpacity: 0.85, slamDust: 1.7, slamSparks: 1,
-      revealDelayMs: 220, beat1Ms: 460, beatGapMs: 250, beat2Ms: 470, // owner 2026-09-26: a slightly faster reveal
+      revealDelayMs: 80, beat1Ms: 460, beatGapMs: 140, beat2Ms: 470, // owner 2026-09-26 faster reveal; 2026-09-27 whole-sequence pass
+      titleHoldMs: 1050, revealFadeMs: 320,
       bondsColor: '#9b5de5', // the sixth Ancient, purple (owner 2026-09-26)
     });
     expect(ANCIENT_ART_IDS).toHaveLength(6);
@@ -19,9 +20,9 @@ describe('the Ancients tuner defaults', () => {
     // docs/devlog/2026-09-27-ancient-pick-research.md): the backdrop fades, the card pinches into a core (200 ms), the
     // triple's trail launches at 70% of it, lands, a 60 ms hit-stop, then the ring + shake + crack.
     expect(ANCIENTS_DEFAULTS).toMatchObject({
-      pickFadeMs: 380, collapseMs: 200, trailAt: 0.7, trailTime: 1, trailIntensity: 0.7, coreGlow: 1, hitStopMs: 60,
+      pickFadeMs: 380, collapseMs: 200, trailAt: 0.7, trailTime: 0.75, trailIntensity: 0.55, coreGlow: 1, hitStopMs: 60,
       pickWooshClip: 'fx/metal-woosh', pickSealClip: 'fx/triple-impact', // the triple's own two clips
-      shakeMs: 280, shakePx: 5, punchZoom: 0.012, recoil: 0.1, burstScale: 1, impactFlash: 0.55, impactFlashMs: 200,
+      shakeMs: 280, shakePx: 5, punchZoom: 0.012, recoil: 0.1, burstScale: 0.6, impactFlash: 0.55, impactFlashMs: 200,
       crackOpenMs: 260, splitMs: 440, shineMs: 560, // the follow-through, tightened the same day
     });
     for (const k of ['closeMs', 'pickLiftMs', 'pickFlightMs']) expect(ANCIENTS_DEFAULTS).not.toHaveProperty(k); // retired: no circle collapse, no flying art square

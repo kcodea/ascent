@@ -76,7 +76,9 @@ export const AncientMeter = memo(function AncientMeter({ run }: { run: RunState 
       setFlashKey((k) => k + 1);
       if (cfg.revealGain > 0) sfx.goodLuckShine(cfg.revealGain);
     }, land);
-    const t2 = window.setTimeout(() => markRingSettled(offerSeq), land + cfg.flashMs);
+    // The awakening starts as the flash PEAKS, not after it has faded (whole-sequence pass 2026-09-27: waiting out the
+    // flash left ~0.5 s of nothing between the full ring and the omen). The flash plays on under the omen's first beat.
+    const t2 = window.setTimeout(() => markRingSettled(offerSeq), land + cfg.flashMs * 0.4);
     return () => { window.clearTimeout(t1); window.clearTimeout(t2); };
   }, [offerOpen, offerSeq, shown, total, canAnimate, sweep, cfg.flashMs, cfg.fillMs, cfg.revealGain]);
 

@@ -231,14 +231,14 @@ export const ANCIENTS_DEFAULTS: AncientsFullConfig = {
   omenTremor: 2.5,
   eruptionMs: 520,
   seamGlow: 0.9,
-  titleHoldMs: 1500,
-  revealFadeMs: 480,
-  revealDelayMs: 220, // owner 2026-09-26: "speed up the ancient reveal slightly" (was 280)
+  titleHoldMs: 1050, // was 1500: ~1 s of an unchanging title card (whole-sequence pass 2026-09-27)
+  revealFadeMs: 320, // was 480 (2026-09-27 whole-sequence pass: shorter + ease-in, no murky mid-fade)
+  revealDelayMs: 80, // owner 2026-09-26: "speed up the ancient reveal slightly" (was 280, then 220); 80 = the first Ancient rises through the curtain's fade (2026-09-27)
   cardStaggerMs: 460,
   cardRevealMs: 700,
   revealStyle: 1,
   beat1Ms: 460, // was 720, then 600 (owner 2026-09-26: "speed up the first ancient slam even more")
-  beatGapMs: 250, // was 360
+  beatGapMs: 140, // was 360, then 250 (2026-09-27: the sides hide behind the middle, so the gap read as a stall)
   beat2Ms: 470, // was 560
   slamStrength: 1,
   hpDustLife: 0.45,
@@ -358,14 +358,21 @@ export const ANCIENTS_RANGES: Record<NumKey, [number, number, number]> = {
 };
 
 const KEY = 'ascent.ancients';
+const REV_KEY = 'ascent.ancients.rev';
+const REV = 1;
+/** The defaults retuned at `REV` (see the loader). */
+const RETUNED = ['splitMs', 'shineMs', 'crackOpenMs', 'titleHoldMs', 'revealFadeMs', 'revealDelayMs', 'beatGapMs', 'hitStopMs', 'burstScale'];
 let cfg: AncientsFullConfig = (() => {
   if (!import.meta.env.DEV) return { ...ANCIENTS_DEFAULTS };
   try {
     const saved: unknown = JSON.parse(localStorage.getItem(KEY) ?? '{}');
     const s = (saved && typeof saved === 'object' ? { ...(saved as Record<string, unknown>) } : {}) as Record<string, unknown>;
-    // A save from before the pick → slam rework (2026-09-27) stored EVERY value, so it would pin the old follow-through
-    // timings: let the retuned ones take their new defaults (the owner's other dials are kept).
-    if (!('pickFadeMs' in s)) { for (const k of ['splitMs', 'shineMs', 'crackOpenMs', 'closeMs']) delete s[k]; }
+    // A save stores EVERY value, so a save from before a retune would pin the old numbers. When the defaults are
+    // retuned, bump `REV` and list the keys: an older save lets exactly those take their new defaults (the owner's
+    // other dials are kept). Rev 1 = the 2026-09-27 whole-sequence pass.
+    let rev = 0;
+    try { rev = Number(localStorage.getItem(REV_KEY) ?? 0); } catch { /* ignore */ }
+    if (rev < REV) { for (const k of RETUNED) delete s[k]; try { localStorage.setItem(REV_KEY, String(REV)); } catch { /* ignore */ } }
     for (const k of ['closeMs', 'pickLiftMs', 'pickFlightMs']) delete s[k]; // retired keys
     return { ...ANCIENTS_DEFAULTS, ...(s as Partial<AncientsFullConfig>) };
   } catch {

@@ -2,14 +2,12 @@ import { memo, useCallback, useEffect, useLayoutEffect, useRef, useState, useSyn
 import { ANCIENTS, type AncientId, type RunState } from '@game/sim';
 import { useGame } from '../store';
 import { sfx } from '../sfx';
-import { canPlayDefs, playDef } from '../fx/playDef';
-import { getDef } from '../fx/fxDefs';
-import { gildArrivalMs } from '../gildTrailSources';
 import { AncientFace } from './AncientFace';
 import { ancientPowerArt } from '../art';
 import { AncientPreview, useAncientCycler, type PreviewAnchor } from './AncientPreview';
 import { ancientColor, getAncientsConfig, subscribeAncientsConfig, type AncientsFullConfig } from './ancientsConfig';
-import { markRingSettled, prefersReducedMotion, takePickSource, tickAllowed, useAwakenDemo } from './ancientsFx';
+import { markRingSettled, prefersReducedMotion, takePickRelease, tickAllowed, useAwakenDemo } from './ancientsFx';
+import { playPickImpactNow } from './ancientPickSlam';
 import { rectToStage } from '../stage';
 import './ancients.css';
 
@@ -195,10 +193,11 @@ function Flash({ ms }: { ms: number }): JSX.Element {
 
 /**
  * THE SPLIT hero-power face (rendered INSIDE `.heropowerbtn`, over the art): the Ancient's face is the right HALF of
- * the round button, with a fine cream divider. On a fresh pick (or the tuner's ▶) it plays the pick beat:
- *   1. the TRIPLE's reward animation (the `gild-trail` def) flies from the chosen card into the button, and nothing
- *      else (owner 2026-09-25: "dont send the art of the ancient, just send the triple reward animation");
- *   2. at the trail's landing the half fades/slides in, the divider draws, one light shine sweeps, the cue plays.
+ * the round button, with a fine cream divider. On a fresh pick (or the tuner's ▶) it plays the FOLLOW-THROUGH of the
+ * pick's slam (owner 2026-09-27: "give more emphasis on the choice slamming the hero power"; the chosen card itself
+ * now flies in, `ancientPickSlam.ts`, replacing the triple's `gild-trail`):
+ *   at the slam's RELEASE (after its hit-stop) the crack draws, the half slides in through it, one light shine sweeps.
+ *   The tuner's ▶ Awaken has no card to fly, so it plays the impact on the button itself, then the same reveal.
  * It always plays through (no click-to-skip, owner 2026-09-26). Reduced motion: a plain fade.
  */
 export const AncientSplit = memo(function AncientSplit({ run }: { run: RunState }) {
@@ -227,6 +226,7 @@ export const AncientSplit = memo(function AncientSplit({ run }: { run: RunState 
     const half = halfRef.current, seam = seamRef.current, shine = shineRef.current;
     // 1. THE CRACK OPENS: its edge draws top to bottom (a one-shot dash sweep on a static path).
     const openMs = reduced ? 0 : Math.max(0, cfg.crackOpenMs);
+    const inAt = openMs * 0.5; // the half starts through the crack while it is still drawing: one motion, no gap
     if (openMs > 0 && seam) {
       for (const line of Array.from(seam.querySelectorAll<SVGPolylineElement>('polyline'))) {
         if (typeof line.animate === 'function') line.animate([{ strokeDashoffset: 1 }, { strokeDashoffset: 0 }], { duration: openMs, easing: 'cubic-bezier(0.5, 0, 0.3, 1)', fill: 'backwards' });
@@ -237,16 +237,16 @@ export const AncientSplit = memo(function AncientSplit({ run }: { run: RunState 
       half.animate(reduced
         ? [{ opacity: 0 }, { opacity: 1 }]
         : [{ opacity: 0, transform: 'translateX(4%)' }, { opacity: 1, transform: 'translateX(0)' }],
-      { duration: reduced ? 200 : cfg.splitMs, delay: openMs * 0.6, easing: 'cubic-bezier(0.16, 0.9, 0.24, 1)', fill: 'backwards' });
+      { duration: reduced ? 200 : cfg.splitMs, delay: inAt, easing: 'cubic-bezier(0.16, 0.9, 0.24, 1)', fill: 'backwards' });
     }
     if (!reduced && cfg.shineMs > 0 && shine && typeof shine.animate === 'function') {
       shine.animate([
         { transform: 'translateX(-130%) skewX(-18deg)', opacity: 0 },
         { transform: 'translateX(-20%) skewX(-18deg)', opacity: 1, offset: 0.35 },
         { transform: 'translateX(140%) skewX(-18deg)', opacity: 0 },
-      ], { duration: cfg.shineMs, delay: openMs * 0.6 + cfg.splitMs * 0.35, easing: 'cubic-bezier(0.4, 0, 0.3, 1)', fill: 'backwards' });
+      ], { duration: cfg.shineMs, delay: inAt + cfg.splitMs * 0.35, easing: 'cubic-bezier(0.4, 0, 0.3, 1)', fill: 'backwards' });
     }
-    if (cfg.revealGain > 0) { sfx.runeSelectImplosion(cfg.revealGain); sfx.equipmentSheen(cfg.revealGain, (openMs * 0.6 + cfg.splitMs * 0.35) / 1000); }
+    if (cfg.revealGain > 0) { sfx.runeSelectImplosion(cfg.revealGain); sfx.equipmentSheen(cfg.revealGain, (inAt + cfg.splitMs * 0.35) / 1000); }
   }, []);
 
   useLayoutEffect(() => {
@@ -254,16 +254,14 @@ export const AncientSplit = memo(function AncientSplit({ run }: { run: RunState 
     lastPick.current = pickSeq;
     lastDemo.current = Math.max(lastDemo.current, demoSeq);
     if (!id || !fresh) return;
-    const btn = btnRef.current?.closest('.heropowerbtn');
-    const r = btn?.getBoundingClientRect();
-    const from = takePickSource() ?? { x: window.innerWidth / 2, y: window.innerHeight * 0.46, w: 180 };
-    if (!r || r.width <= 0 || prefersReducedMotion()) { reveal(); return; }
-    const to = { x: r.left + r.width / 2, y: r.top + r.height / 2, w: r.width };
-    const ms = Math.max(420, gildArrivalMs(getDef('gild-trail'), 0) || 700);
+    // The pick's slam noted when it releases; the crack opens on that frame. No slam (the tuner's ▶ Awaken): the
+    // impact plays here, now. No click-to-skip (owner 2026-09-26).
+    const releaseAt = takePickRelease();
+    if (releaseAt == null) { playPickImpactNow(id); reveal(); return; }
+    const wait = releaseAt - performance.now();
+    if (wait <= 0) { reveal(); return; }
     setHidden(true);
-    if (canPlayDefs()) playDef('gild-trail', { source: { x: from.x, y: from.y }, target: { x: to.x, y: to.y }, camera: { x: window.innerWidth / 2, y: window.innerHeight / 2 } }, { index: 0 });
-    // No click-to-skip (owner 2026-09-26: "remove the click to skip in the animation, that is not necessary").
-    const t = window.setTimeout(reveal, ms);
+    const t = window.setTimeout(reveal, wait);
     return () => { window.clearTimeout(t); };
   }, [id, pickSeq, demoSeq, reveal]);
 

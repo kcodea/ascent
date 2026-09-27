@@ -110,8 +110,31 @@ export interface AncientsConfig {
   tunerHero: string;
   /** Tuner only: preview another bloom style on that hero (`auto` = the hero's own). Nothing in the game reads it. */
   tunerStyle: string;
-  /** Close: the gate contracting back into the hero power on the pick (ms). */
-  closeMs: number;
+  /** THE PICK → SLAM (owner 2026-09-27: "i dont want the black circle to go back to the hero power, id rather the screen
+   *  fade back and give more emphasis on the choice slamming the hero power"). See `ancientPickSlam.ts` and the
+   *  research note docs/devlog/2026-09-27-ancient-pick-research.md for why these numbers.
+   *  The backdrop (and the unchosen cards + banner) fading off, from the click (ms). */
+  pickFadeMs: number;
+  /** Anticipation: the chosen card lifts and pulls back from the hero power before it goes (ms). */
+  pickLiftMs: number;
+  /** The flight: the card accelerating (ease-in) into the hero power, after the lift (ms). */
+  pickFlightMs: number;
+  /** Hit-stop: the card held squashed against the hero power at contact before the burst releases (ms). 0 = none. */
+  hitStopMs: number;
+  /** Screen react: the board's trauma shake after the release (ms). */
+  shakeMs: number;
+  /** Screen react: the shake's peak offset (design px). It decays with trauma squared. 0 = none. */
+  shakePx: number;
+  /** Screen react: the board's punch-zoom toward the hero power at the release (fraction: 0.012 = 1.2%). 0 = none. */
+  punchZoom: number;
+  /** Screen react: the hero power's recoil (squash, then a small overshoot) at the release (fraction). 0 = none. */
+  recoil: number;
+  /** The Pixi burst at the hero power (ring + sparks, in the Ancient's colour): size (×). 0 = none. */
+  burstScale: number;
+  /** The impact flash: a light bloom on the hero power at contact (peak opacity). 0 = none. */
+  impactFlash: number;
+  /** The impact flash's decay (ms). */
+  impactFlashMs: number;
   /** Sound: the duck on the music + other sounds during the awakening (0 = silent, 1 = none). */
   duckAmount: number;
   /** Sound: the duck's ramp (ms). */
@@ -189,8 +212,8 @@ export const ANCIENTS_DEFAULTS: AncientsFullConfig = {
   ticks: 1,
   fillMs: 520,
   flashMs: 480,
-  splitMs: 520,
-  shineMs: 800,
+  splitMs: 440, // was 520: the follow-through after the slam, tightened 2026-09-27
+  shineMs: 560, // was 800
   tickGain: 0.5, // drives the soft `ancientFillTick` synth now (owner 2026-09-26), not the tally-counter clip
   revealGain: 0.8,
   omenMs: 850,
@@ -219,7 +242,19 @@ export const ANCIENTS_DEFAULTS: AncientsFullConfig = {
   ...ANCIENT_HERO_THEMES.default,
   tunerHero: 'indy',
   tunerStyle: 'auto',
-  closeMs: 420,
+  // The pick → slam (owner 2026-09-27; numbers argued in docs/devlog/2026-09-27-ancient-pick-research.md):
+  // click → contact 480 ms, hit-stop 70, release at 550, split settled ~1.15 s, last glint ~1.4 s.
+  pickFadeMs: 380,
+  pickLiftMs: 120,
+  pickFlightMs: 360,
+  hitStopMs: 70,
+  shakeMs: 280,
+  shakePx: 5,
+  punchZoom: 0.012,
+  recoil: 0.1,
+  burstScale: 1,
+  impactFlash: 0.55,
+  impactFlashMs: 200,
   duckAmount: 0.3,
   duckRampMs: 260,
   pvInMs: 180,
@@ -231,7 +266,7 @@ export const ANCIENTS_DEFAULTS: AncientsFullConfig = {
   crackEdge: 2,
   crackEdgeAlpha: 0.9,
   crackShadow: 0.45,
-  crackOpenMs: 420,
+  crackOpenMs: 320, // was 420 (2026-09-27)
 };
 
 type NumKey = { [K in keyof AncientsFullConfig]: AncientsFullConfig[K] extends number ? K : never }[keyof AncientsFullConfig];
@@ -275,7 +310,17 @@ export const ANCIENTS_RANGES: Record<NumKey, [number, number, number]> = {
   dustOpacity: [0, 1, 0.01],
   slamDust: [0, 4, 0.05],
   slamSparks: [0, 3, 0.05],
-  closeMs: [100, 1500, 10],
+  pickFadeMs: [60, 1500, 10],
+  pickLiftMs: [0, 600, 10],
+  pickFlightMs: [120, 1500, 10],
+  hitStopMs: [0, 300, 5],
+  shakeMs: [0, 1000, 10],
+  shakePx: [0, 20, 0.5],
+  punchZoom: [0, 0.06, 0.001],
+  recoil: [0, 0.4, 0.01],
+  burstScale: [0, 3, 0.05],
+  impactFlash: [0, 1, 0.01],
+  impactFlashMs: [40, 800, 10],
   duckAmount: [0, 1, 0.01],
   duckRampMs: [0, 1500, 10],
   pvInMs: [0, 600, 10],
@@ -301,7 +346,12 @@ let cfg: AncientsFullConfig = (() => {
   if (!import.meta.env.DEV) return { ...ANCIENTS_DEFAULTS };
   try {
     const saved: unknown = JSON.parse(localStorage.getItem(KEY) ?? '{}');
-    return { ...ANCIENTS_DEFAULTS, ...(saved && typeof saved === 'object' ? (saved as Partial<AncientsFullConfig>) : {}) };
+    const s = (saved && typeof saved === 'object' ? { ...(saved as Record<string, unknown>) } : {}) as Record<string, unknown>;
+    // A save from before the pick → slam rework (2026-09-27) stored EVERY value, so it would pin the old follow-through
+    // timings: let the retuned ones take their new defaults (the owner's other dials are kept).
+    if (!('pickFadeMs' in s)) { for (const k of ['splitMs', 'shineMs', 'crackOpenMs', 'closeMs']) delete s[k]; }
+    delete s.closeMs;
+    return { ...ANCIENTS_DEFAULTS, ...(s as Partial<AncientsFullConfig>) };
   } catch {
     return { ...ANCIENTS_DEFAULTS };
   }

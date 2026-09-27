@@ -8,8 +8,8 @@ import type { AncientId } from '@game/sim';
  *
  *  · `ringSettled` — the meter has finished its drain and its completion flash for offer #N. The offer overlay
  *    waits for it (with a safety timeout), so the Discover never rises over a ring that is still draining.
- *  · `pickSource` — where the chosen Ancient's face stood when it was clicked. The split reads it once, to fly
- *    the face from there into the hero power (the triple's `gild-trail`).
+ *  · `pickRelease` — when the chosen card's slam into the hero power releases (after its hit-stop). The split
+ *    reads it once, so the crack opens on that frame.
  *  · `demo` — the tuner's ▶: play the whole pick beat for an Ancient without touching run state.
  *
  * Pure presentation: nothing here reads or writes the run.
@@ -18,7 +18,6 @@ type Listener = () => void;
 const listeners = new Set<Listener>();
 let ringSettledSeq = 0;
 let demo: { id: AncientId; seq: number } | null = null;
-let pickSource: { x: number; y: number; w: number } | null = null;
 
 function emit(): void { for (const fn of listeners) fn(); }
 function subscribe(fn: Listener): () => void { listeners.add(fn); return () => { listeners.delete(fn); }; }
@@ -62,14 +61,15 @@ export function useGateDemo(): GateDemo | null {
   return useSyncExternalStore(subscribe, () => gateDemo, () => gateDemo);
 }
 
-export function notePickSource(el: Element | null): void {
-  const r = el?.getBoundingClientRect();
-  pickSource = r && r.width > 0 ? { x: r.left + r.width / 2, y: r.top + r.height / 2, w: r.width } : null;
-}
-export function takePickSource(): { x: number; y: number; w: number } | null {
-  const s = pickSource;
-  pickSource = null;
-  return s;
+/** THE PICK'S RELEASE: when (a `performance.now()` time) the chosen card's slam releases on the hero power, noted by
+ *  the flight (`ancientPickSlam.ts`) at the click. The split reads it once, so its crack opens on the release frame;
+ *  with none noted (the tuner's ▶ Awaken) the split plays the impact itself. */
+let pickReleaseAt: number | null = null;
+export function notePickRelease(at: number): void { pickReleaseAt = at; }
+export function takePickRelease(): number | null {
+  const at = pickReleaseAt;
+  pickReleaseAt = null;
+  return at;
 }
 
 let demoSeq = 0;

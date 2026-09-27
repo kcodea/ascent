@@ -2,7 +2,8 @@ import { memo, useEffect, useLayoutEffect, useRef, useState, type CSSProperties 
 import { ANCIENTS, ancientOfferText, type Action, type AncientId, type RunState } from '@game/sim';
 import { OfferBanner } from '../discoverEntrance/OfferBanner';
 import { AncientCard } from './AncientCard';
-import { notePickSource, prefersReducedMotion, setAwakenStage, useAwakenStage } from './ancientsFx';
+import { playAwakenDemo, prefersReducedMotion, setAwakenStage, useAwakenStage } from './ancientsFx';
+import { pickTimeline, playPickSlam } from './ancientPickSlam';
 import { ancientColor, getAncientsConfig } from './ancientsConfig';
 import { playCue } from './ancientsSound';
 import { ancientLandDust, ancientSlam, ancientSlamSparks } from './ancientsSmoke';
@@ -33,8 +34,15 @@ export const AncientOfferOverlay = memo(function AncientOfferOverlay({ held, run
   const offerSeq = run.ancients?.offerSeq ?? 0;
   const stage = useAwakenStage();
   const demo = stage.seq < 0;
-  const offer = demo ? DEMO_OFFER : realOffer;
   const inReveal = (stage.stage === 'reveal' || stage.stage === 'settled') && (demo || stage.seq === offerSeq);
+  // THE PICK (owner 2026-09-27): the reveal stays up while the awakening CLOSES, so the chosen card can fly into the
+  // hero power and the rest fade with the backdrop. The run's offer is already gone by then, so the last one shown
+  // is kept for its seq.
+  const shown = useRef<{ seq: number; offer: AncientId[] } | null>(null);
+  const live = demo ? DEMO_OFFER : realOffer;
+  if (inReveal && live?.length) shown.current = { seq: stage.seq, offer: live };
+  const closing = stage.stage === 'closing' && shown.current?.seq === stage.seq;
+  const offer = closing ? shown.current!.offer : live;
   // Safety net: an awakening that never reaches its reveal (the hero power not on screen) still releases the offer.
   const [timedOut, setTimedOut] = useState(0);
   useEffect(() => {
@@ -44,22 +52,37 @@ export const AncientOfferOverlay = memo(function AncientOfferOverlay({ held, run
     return () => window.clearTimeout(id);
   }, [realOffer, offerSeq]);
   if (!offer?.length || held || run.phase !== 'recruit') return null;
-  if (!inReveal && !(timedOut === offerSeq && !demo)) return null;
-  return <Reveal key={`${stage.seq}`} gated={inReveal} offer={offer} heroId={run.heroId} seq={demo ? stage.seq : offerSeq}
+  if (!inReveal && !closing && !(timedOut === offerSeq && !demo)) return null;
+  return <Reveal key={`${stage.seq}`} gated={inReveal || closing} closing={closing} offer={offer} heroId={run.heroId} seq={demo ? stage.seq : offerSeq}
     onPick={(id, el) => {
-      notePickSource(el);
-      if (demo) setAwakenStage('closing', stage.seq);
+      // The slam measures the card where it was clicked, before anything re-renders; the awakening then closes
+      // (the backdrop fades) in the same render as the pick lands in the run.
+      playPickSlam(el as HTMLElement, id);
+      if (inReveal) setAwakenStage('closing', stage.seq);
+      if (demo) playAwakenDemo(id, pickTimeline().end + 3000); // a demo's hero power splits too, run untouched
       else dispatch({ type: 'pickAncient', id });
     }} />;
 });
 
-function Reveal({ gated, offer, heroId, seq, onPick }: { gated: boolean; offer: AncientId[]; heroId: string; seq: number; onPick: (id: AncientId, el: Element) => void }): JSX.Element {
+function Reveal({ gated, closing, offer, heroId, seq, onPick }: { gated: boolean; closing: boolean; offer: AncientId[]; heroId: string; seq: number; onPick: (id: AncientId, el: Element) => void }): JSX.Element {
   const rootRef = useRef<HTMLDivElement | null>(null);
   const anims = useRef<Animation[]>([]);
   const timers = useRef<number[]>([]);
   const [landed, setLanded] = useState<boolean[]>(() => offer.map(() => false));
   const [settled, setSettled] = useState(false);
+  const picked = useRef<Element | null>(null);
 
+  // THE PICK: everything but the chosen card fades off with the backdrop (the card itself is flying, see
+  // `ancientPickSlam.ts`). One-shot opacity.
+  useLayoutEffect(() => {
+    const root = rootRef.current;
+    if (!closing || !root) return;
+    const { fade } = pickTimeline();
+    const going = [root.querySelector('.disc-ornate'), ...Array.from(root.querySelectorAll('.anc-card')).filter((el) => el !== picked.current)];
+    for (const el of going) {
+      if (el && typeof (el as HTMLElement).animate === 'function') (el as HTMLElement).animate([{ opacity: 1 }, { opacity: 0 }], { duration: fade, easing: 'cubic-bezier(0.4, 0, 0.2, 1)', fill: 'forwards' });
+    }
+  }, [closing]);
 
   // Once per reveal (the component is keyed by the awakening's seq).
   useLayoutEffect(() => {
@@ -189,7 +212,7 @@ function Reveal({ gated, offer, heroId, seq, onPick }: { gated: boolean; offer: 
   }, []);
 
   return (
-    <div ref={rootRef} className={`discover-ov dce disc-look anc-offer${gated ? ' gated' : ''}${settled ? ' settled' : ''}`} role="dialog" aria-label="An Ancient Awakens"
+    <div ref={rootRef} className={`discover-ov dce disc-look anc-offer${gated ? ' gated' : ''}${settled ? ' settled' : ''}${closing ? ' closing' : ''}`} role="dialog" aria-label="An Ancient Awakens"
       onPointerDownCapture={(e) => {
         // No click-to-skip (owner 2026-09-26): a click during the emergence is swallowed and the reveal plays through.
         if (!settled) { e.stopPropagation(); e.preventDefault(); }
@@ -201,7 +224,7 @@ function Reveal({ gated, offer, heroId, seq, onPick }: { gated: boolean; offer: 
             <div className="disc-slot anc-slot" key={id} style={{ '--anc-c': ancientColor(id) } as CSSProperties}>
               <button type="button" className="anc-card" disabled={!landed[i]}
                 aria-label={`${ANCIENTS[id].name}: ${ancientOfferText(heroId, id).replace(/\*\*/g, '')}`}
-                onClick={(e) => { if (landed[i]) onPick(id, e.currentTarget); }}>
+                onClick={(e) => { if (landed[i] && !closing && !picked.current) { picked.current = e.currentTarget; onPick(id, e.currentTarget); } }}>
                 <AncientCard id={id} heroId={heroId} />
               </button>
             </div>

@@ -60,3 +60,12 @@ export function ancientSlam(at: Pt): void {
   if (!canPlayDefs()) return;
   playDef('ancient-slam', { target: at }, { scale: Math.max(0.3, getAncientsConfig().slamStrength) });
 }
+
+/** THE PICK'S IMPACT on the hero power (owner 2026-09-27: "a slight pixi burst"): one crisp round ring and a few
+ *  fast sparks (`ancient-pick-impact`), in the chosen Ancient's colour, at the moment its slam releases. No
+ *  confetti, no lingering particles. `scale` is the tuner's "Burst size" (0 = none). */
+export function ancientPickBurst(color: string, at: Pt, scale: number, intensity = 1, alpha?: number): void {
+  if (!canPlayDefs() || scale <= 0) return;
+  // Brighter than the dust's muted tint: this is a flash of light off the hit, rim in the colour, core white-hot.
+  playDef('ancient-pick-impact', { source: at, target: at, cursor: at }, { scale, intensity, recolor: [shade(color, -0.1), shade(color, 0.2), shade(color, 0.55), 0xffffff], slot: 'over', ...(alpha != null ? { alpha } : {}) });
+}

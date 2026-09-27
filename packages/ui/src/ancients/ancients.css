@@ -268,7 +268,9 @@ body:has(.anc-pv) .heropanel .herotip, .heropanel:has(.anc-meter .tt-on) .heroti
 
 /* While the awakening is up, the Shop row steps fully back (a one-shot opacity fade), so no offer peeks through the
    title or between the Ancient cards. */
-body.ancoffer [data-zone="tavern"], body.ancgate [data-zone="tavern"] { opacity: 0; transition: opacity 0.18s ease; }
+body.ancoffer:not(.ancclosing) [data-zone="tavern"], body.ancgate:not(.ancclosing) [data-zone="tavern"] { opacity: 0; transition: opacity 0.18s ease; }
+/* THE PICK (owner 2026-09-27): the Shop row fades back in step with the backdrop's fade (`--anc-pick-fade`). */
+body.ancclosing [data-zone="tavern"] { transition: opacity var(--anc-pick-fade, 380ms) cubic-bezier(0.4, 0, 0.2, 1); }
 /* The awakening layers like a Discover: `.app`'s stacking context dissolves so the offer (z 160) sorts above the gate (z 158). */
 body.ancgate .app { z-index: auto; }
 
@@ -543,3 +545,12 @@ body.ancgate .app { z-index: auto; }
 
 .anc-slot { position: relative; }
 .anc-card:disabled { opacity: 1; }
+
+/* THE PICK's impact flash (`ancientPickSlam.ts`): a light bloom on the hero power at the slam's contact frame. Static
+   paint (a radial gradient in the Ancient-agnostic warm white, screen-blended); only its opacity + transform animate,
+   once, then the node is removed. Over the status bar (z 40) and the fading gate (z 105), under the Pixi FX (z 110). */
+.anc-impact-flash {
+  position: fixed; z-index: 108; pointer-events: none; border-radius: 50%; opacity: 0;
+  transform: translate(-50%, -50%); mix-blend-mode: screen;
+  background: radial-gradient(closest-side, rgba(255, 250, 236, 0.95) 0%, rgba(255, 232, 186, 0.55) 38%, rgba(255, 214, 150, 0) 100%);
+}

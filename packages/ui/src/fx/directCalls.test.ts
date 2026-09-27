@@ -163,6 +163,8 @@ describe('DIRECT_CALL_SITES is a derivation, not a list', () => {
       // 'amplified-slot' joined on 2026-09-22: the owner-authored Amplified glow, a looping play on the Equipment slot
       // button from `useAmplifiedSlotFx.ts` while the selected Equipment will Amplify and has a charge to spend.
       'amplified-slot',
+      // 'ancient-pick-impact' joined on 2026-09-27: the Ancients pick's ring + sparks on the hero power (`ancients/ancientsSmoke.ts`).
+      'ancient-pick-impact',
       // 'ancient-slam' joined on 2026-09-25: the Ancients reveal's slam shockwave (`ancients/ancientsSmoke.ts`). The
       // Ancients' own smoke/burst defs left the same day: they reuse the Runeforge landing dust instead.
       'ancient-slam',

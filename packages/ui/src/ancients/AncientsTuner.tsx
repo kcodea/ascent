@@ -9,7 +9,7 @@ import { ANCIENT_HERO_THEMES, BLOOM_STYLES, heroThemeKey, isThemedHero, STYLE_FA
 /**
  * DEV ✦ ANCIENTS tuner (proof of concept 2026-09-25). The METER group is balance: moving it re-stamps the live
  * Scene Builder run's meter (the sim still does all the counting) and is what the next Set 3 sandbox starts with.
- * The rest is presentation. ▶ plays the awakening pick beat (the triple trail into the hero power + the split)
+ * The rest is presentation. ▶ plays the awakening pick beat (the impact on the hero power + the split)
  * without touching run state; the Scene Builder's "Fill meter" plays the real thing end to end.
  */
 type Key = keyof AncientsFullConfig;
@@ -82,7 +82,17 @@ const ROWS: [Key, string, TunerUnit | undefined, string, string, ('color' | 'tog
   ['slamSparks', 'Slam sparks', '×', 'The turbulent spark blast on each slam. 0 turns it off.', 'Dust'],
   ['slamDust', 'Slam dust', '×', 'How much dust bursts out when a revealed Ancient slams into place.', 'Dust'],
   ['hpDustLife', 'Hero-power dust life', '×', 'How long the burst from the hero power lasts. Low clears it before the curtain.', 'Dust'],
-  ['closeMs', 'Gate closes', 'ms', 'The gate contracting back into the hero power on the pick.', 'Awakening beats'],
+  ['pickFadeMs', 'Backdrop fade', 'ms', 'On the pick, the dark backdrop, the banner and the other Ancients fade off (the Shop fades back in step).', 'Pick → slam'],
+  ['pickLiftMs', 'Lift (anticipation)', 'ms', 'The chosen card lifts and pulls back from the hero power before it goes. 0 = straight off.', 'Pick → slam'],
+  ['pickFlightMs', 'Flight', 'ms', 'The card accelerating into the hero power (fastest at contact).', 'Pick → slam'],
+  ['hitStopMs', 'Hit-stop', 'ms', 'The card held against the hero power at contact before the burst releases. 0 = none.', 'Pick → slam'],
+  ['impactFlash', 'Impact flash', 'opacity', 'A light bloom on the hero power at contact. 0 = none.', 'Pick → slam'],
+  ['impactFlashMs', 'Impact flash decay', 'ms', 'How quickly the impact flash fades.', 'Pick → slam'],
+  ['burstScale', 'Burst size', '×', 'The Pixi ring + sparks at the hero power, in the Ancient’s colour. 0 = none.', 'Pick → slam'],
+  ['shakeMs', 'Shake length', 'ms', 'The board’s shake after the release (it decays fast).', 'Pick → slam'],
+  ['shakePx', 'Shake strength', 'px', 'The shake’s peak offset. The board art moves, never the HUD. 0 = none.', 'Pick → slam'],
+  ['punchZoom', 'Punch zoom', '×', 'The board’s brief zoom toward the hero power at the release (0.012 = 1.2%). 0 = none.', 'Pick → slam'],
+  ['recoil', 'Hero power recoil', '×', 'The hero power squashing in, then settling, as it is hit. 0 = none.', 'Pick → slam'],
   ['duckAmount', 'Duck level', 'opacity', 'Music and other sounds dip to this during the awakening (1 = no duck).', 'Awakening sound'],
   ['duckRampMs', 'Duck ramp', 'ms', 'How quickly the duck goes in and comes back.', 'Awakening sound'],
   ...ANCIENT_CUES.flatMap((cue): [Key, string, TunerUnit | undefined, string, string, ('text')?][] => [
@@ -127,7 +137,7 @@ const BASE_CONTROLS: TunerControl<Key>[] = ROWS.map(([key, label, unit, hint, gr
 });
 
 /** The hero-theme group goes where the theme groups always sat: after the Dust group. */
-const HERO_AT = BASE_CONTROLS.findIndex((c) => c.key === 'closeMs');
+const HERO_AT = BASE_CONTROLS.findIndex((c) => c.key === 'pickFadeMs');
 function controls(): TunerControl<Key>[] {
   return [...BASE_CONTROLS.slice(0, HERO_AT), ...heroThemeControls(), ...BASE_CONTROLS.slice(HERO_AT)];
 }
@@ -176,7 +186,7 @@ export const SPEC: TunerSpec<AncientsFullConfig> = {
     },
     {
       label: '▶ Awaken',
-      hint: 'Plays the pick beat on the hero power: the triple trail flies an Ancient in and the button splits. Cycles the five. Run state is untouched.',
+      hint: 'Plays the pick’s impact on the hero power (flash, burst, shake) and the split, with no card to fly. To see the full pick, use ▶ Play full sequence and click an Ancient. Cycles the Ancients. Run state is untouched.',
       run: () => { const id: AncientId = ANCIENT_IDS[demoIx++ % ANCIENT_IDS.length]!; playAwakenDemo(id); },
     },
   ],

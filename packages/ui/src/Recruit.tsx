@@ -35,7 +35,7 @@ if (import.meta.env.DEV) {
 }
 import { chooseBothText } from './cardText';
 import { relatedCardIds, relatedPickOneIds } from './cardRefs';
-import { type Action, ancientRiseTint, spiritsPlayedThisTurn, anySpellsCastThisTurn, unusedEquipmentCount, playerOpponent, alignmentsOf, boardHasCelestial, chooseBothActive, chooseBothStateOf, type ChooseBothState, chooseOneNeedsChoice, computeCombatOdds, type CombatOdds, rubyCastCount, giftCastCount, rubyStatBonus, CONFIG, RIFTS, hasTier7Access, maxTierFor, conjuredStats, cardBuff, getHero, isTribe, defIsTribe, magnetizesTo, magnetizeTargets, endOfTurnRepeats, endOfTurnTicksOf, projectEndOfTurnSteps, questEndOfTurnBeats, sellValueWithBonus, spellDisplayText, chooseOneBranchText, spellAttackBonus, spellHealthBonus, spellAttackBonusLive, spellHealthBonusLive, spellEscalationLive, squirlScoutBuffLive, spellCasts, runeExtraCasts, spellCostReduction, implosionCasts, dragonflameCasts, nextOpponent, lossDamageCap, playerLossDamage, minionCostOf, heroOfferPrice, offerBuyPrice, dominantBoardTribe, effectiveTargetTribe, boardManaBonus, upgradeCostOf, nextRefreshCostOf, poolOf, type RunState, type ShopCard, type CardBuff, type BoardCard, type BoardSnapshot, gildCopiesNeeded, activePowers, gateUses, runeStacksOf, starformSpellAimsToken, createOddsProbe, selectedEquipment, selectedEquipmentDef } from '@game/sim';
+import { type Action, EQUIPMENT_FX_ANCHOR, ancientRiseTint, spiritsPlayedThisTurn, anySpellsCastThisTurn, unusedEquipmentCount, playerOpponent, alignmentsOf, boardHasCelestial, chooseBothActive, chooseBothStateOf, type ChooseBothState, chooseOneNeedsChoice, computeCombatOdds, type CombatOdds, rubyCastCount, giftCastCount, rubyStatBonus, CONFIG, RIFTS, hasTier7Access, maxTierFor, conjuredStats, cardBuff, getHero, isTribe, defIsTribe, magnetizesTo, magnetizeTargets, endOfTurnRepeats, endOfTurnTicksOf, projectEndOfTurnSteps, questEndOfTurnBeats, sellValueWithBonus, spellDisplayText, chooseOneBranchText, spellAttackBonus, spellHealthBonus, spellAttackBonusLive, spellHealthBonusLive, spellEscalationLive, squirlScoutBuffLive, spellCasts, runeExtraCasts, spellCostReduction, implosionCasts, dragonflameCasts, nextOpponent, lossDamageCap, playerLossDamage, minionCostOf, heroOfferPrice, offerBuyPrice, dominantBoardTribe, effectiveTargetTribe, boardManaBonus, upgradeCostOf, nextRefreshCostOf, poolOf, type RunState, type ShopCard, type CardBuff, type BoardCard, type BoardSnapshot, gildCopiesNeeded, activePowers, gateUses, runeStacksOf, starformSpellAimsToken, createOddsProbe, selectedEquipment, selectedEquipmentDef } from '@game/sim';
 import { createPortal } from 'react-dom';
 import { setCardId, setCardStats, toggleCardKeyword, setEnemyStats, setEnemyCardId, toggleEnemyKeyword, removeEnemy, foeSnapshotOf } from './sandboxEdit';
 import { UnitEditor } from './UnitEditor';
@@ -1248,7 +1248,8 @@ export function Recruit() {
       // Over the CARD that caused the gain (owner ask 2026-07-21) — read a frame late so React has committed
       // it to the board. A sourceless gain (quest reward, rune tick) has no uid, and a card that LEAVES play
       // as it resolves won't be found, so both fall back to the shop row rather than firing nowhere.
-      const el = (uid && document.querySelector(`[data-uid="${uid}"]`))
+      const el = (uid === EQUIPMENT_FX_ANCHOR ? document.querySelector('.equipslot .heropowerbtn') : null)
+        ?? (uid && document.querySelector(`[data-uid="${uid}"]`))
         ?? document.querySelector('[data-zone="tavern"]');
       if (!el) return;
       const r = el.getBoundingClientRect();
@@ -1278,7 +1279,9 @@ export function Recruit() {
       // Over the card that caused it when there is one; otherwise over the player's HAND, because that's where
       // the Rubies that just got stronger actually are (the spell-power twin falls back to the tavern instead,
       // which is the right anchor for ITS "your spells got stronger" read but the wrong one here).
-      const el = (uid && document.querySelector(`[data-uid="${uid}"]`))
+      // An Equipment use (Dual Rubetta's) anchors on the Equipment slot, not the hand (owner report 2026-09-27).
+      const el = (uid === EQUIPMENT_FX_ANCHOR ? document.querySelector('.equipslot .heropowerbtn') : null)
+        ?? (uid && document.querySelector(`[data-uid="${uid}"]`))
         ?? document.querySelector('.row.hand .card.rubycard')
         ?? document.querySelector('.row.hand')
         ?? document.querySelector('[data-zone="tavern"]');

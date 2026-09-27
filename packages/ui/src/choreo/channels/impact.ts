@@ -4,6 +4,7 @@ import { pixiFx } from '../../pixiFx';
 import { canPlayDefs, playDef } from '../../fx/playDef';
 import { attackHitMilestoneKind, bindingFor, type FxBinding } from '../bindings';
 import { setTransition } from './lunge';
+import { toStage } from '../../stage';
 
 /** Map an attack's swing damage → the impact's `power` scale (1 = baseline). Ramps gently: a 1-3 dmg chip
  *  stays at the familiar burst, ~8 dmg reads clearly heavier, and it caps at 2× so a 40-damage finisher
@@ -167,7 +168,8 @@ export function playContactImpact(defender: Element | null, dx: number, dy: numb
   // soft drift. Restored on completion so reposition slides keep their transition.
   setTransition(defender, 'none');
   gsap.fromTo(defender, { x: 0, y: 0, rotation: 0 }, {
-    x: dx * kb, y: dy * kb, rotation: spinDeg, duration: 0.1 / speed, yoyo: true, repeat: 1, ease: 'power2.out',
+    // dx/dy are screen px; GSAP writes layout px (stage.ts)
+    x: toStage(dx * kb), y: toStage(dy * kb), rotation: spinDeg, duration: 0.1 / speed, yoyo: true, repeat: 1, ease: 'power2.out',
     onComplete: () => {
       setTransition(defender, '');
       gsap.set(defender, { clearProps: 'transform' });

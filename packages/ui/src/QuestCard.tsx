@@ -7,6 +7,7 @@ import { Card, type CardView } from './Card';
 import { Icon } from './Icon';
 import { questArt } from './art';
 import { questObjectiveLines, questObjectiveText, questRewardText } from './questText';
+import { rectToStage, stageHost, stageViewport } from './stage';
 
 const TIER_LABEL: Record<QuestDef['tier'], string> = { lesser: 'Lesser', greater: 'Greater', capstone: 'Capstone' };
 /** Each tribe's emblem glyph — the canonical set (mirrors Card.tsx's footer icons). */
@@ -54,15 +55,16 @@ export function QuestCard({ quest, onBuy, readOnly = false }: { quest: QuestDef;
     if (!hasPreview) return;
     if (timer.current) window.clearTimeout(timer.current);
     timer.current = window.setTimeout(() => {
-      const r = el.getBoundingClientRect();
+      const r = rectToStage(el.getBoundingClientRect()); // stage px (stage.ts): written as the tip's CSS left/top
+      const vp = stageViewport();
       const n = rewardCards.length;
       const gap = 10;
       const cardW = r.width * 0.82; // reward previews render at roughly a warband card's width
       const tipW = cardW * n + (n - 1) * gap;
-      const flip = r.right + gap + tipW > window.innerWidth - 6;
+      const flip = r.right + gap + tipW > vp.w - 6;
       const left = flip ? Math.max(6, r.left - gap - tipW) : r.right + gap;
       const estH = cardW * 1.34;
-      const top = Math.max(6, Math.min(r.top, window.innerHeight - estH - 6));
+      const top = Math.max(6, Math.min(r.top, vp.h - estH - 6));
       setTip({ left, top, origin: flip ? 'right' : 'left' });
     }, 220);
   };
@@ -108,7 +110,7 @@ export function QuestCard({ quest, onBuy, readOnly = false }: { quest: QuestDef;
             ))}
           </div>
         </div>,
-        document.body,
+        stageHost(),
       )}
     </button>
   );

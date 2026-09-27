@@ -153,7 +153,7 @@ describe('score', () => {
     const c2 = baseCtx([{ type: 'shield', target: 's' }] as CombatEvent[]);
     runMomentCues(moment('shieldPop', c2.events), c2);
     vi.advanceTimersByTime(300); // auraBreak +300ms scaled (speed 1)
-    expect(c2.onShieldBreak).toHaveBeenCalledWith('s');
+    expect(c2.onShieldBreak).toHaveBeenCalledWith('s', 0); // + the event index (a lunge-shattered Ward is skipped by it)
     const c3 = baseCtx([{ type: 'reborn', target: 'r', hp: 1, attack: 2, keywords: [] }] as CombatEvent[]);
     runMomentCues(moment('reborn', c3.events), c3);
     vi.advanceTimersByTime(460); // auraReform +460ms fixed
@@ -201,7 +201,7 @@ describe('score', () => {
     const cleanup = runMomentCues(moment('shieldPop', c.events), c);
     expect(c.onShieldBreak).not.toHaveBeenCalled();  // auraBreak 300 ÷2 = 150ms
     vi.advanceTimersByTime(149); expect(c.onShieldBreak).not.toHaveBeenCalled();
-    vi.advanceTimersByTime(2); expect(c.onShieldBreak).toHaveBeenCalledWith('s');
+    vi.advanceTimersByTime(2); expect(c.onShieldBreak).toHaveBeenCalledWith('s', 0);
     cleanup(); vi.useRealTimers();
   });
   it('a scaled:false offset does NOT divide by speed (reborn re-form)', () => {

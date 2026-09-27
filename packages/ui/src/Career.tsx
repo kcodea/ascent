@@ -20,6 +20,7 @@ import {
   TREND_WINDOWS, TRIBE_LABEL, careerAggregates, heroCareers, matchResultOf, mmrAxisOf, ordinalOf, outcomeOf, playedOnText, polylineOf, runLengthText,
   trendSeries, trendWindowLabel, type CareerRun, type HeroCareer, type TrendSeries, type TrendWindow,
 } from './careerData';
+import { rectToStage, stageHost, stageViewport } from './stage';
 
 /**
  * CAREER (owner rebuild 2026-09-19/20) — three columns on the game's page backdrop, after the Battlegrounds-style
@@ -125,10 +126,11 @@ function RuneEmblem({ runeId }: { runeId: string }) {
     timer.current = window.setTimeout(() => {
       // One layout read per hover (never per frame): anchor the panel under the emblem, centred, flipping
       // above when the row sits near the bottom of the screen.
-      const r = el.getBoundingClientRect();
+      const r = rectToStage(el.getBoundingClientRect()); // stage px (stage.ts): written as the tip's CSS left/top
+      const vp = stageViewport();
       const w = 280;
-      const left = Math.max(8, Math.min(window.innerWidth - w - 8, r.left + r.width / 2 - w / 2));
-      const above = r.bottom + 150 > window.innerHeight;
+      const left = Math.max(8, Math.min(vp.w - w - 8, r.left + r.width / 2 - w / 2));
+      const above = r.bottom + 150 > vp.h;
       setTip({ left, top: above ? r.top - 10 : r.bottom + 10, above });
     }, 160);
   };
@@ -147,7 +149,7 @@ function RuneEmblem({ runeId }: { runeId: string }) {
           <div className="cv2-rune-tip-name">{rune.name}<span className="cv2-rune-tip-kind">{rune.epic ? 'Epic Rune' : 'Rune'}</span></div>
           <div className="cv2-rune-tip-body" dangerouslySetInnerHTML={{ __html: mdBold(rune.text) }} />
         </div>,
-        document.body,
+        stageHost(),
       )}
     </div>
   );
@@ -326,12 +328,13 @@ function HeroTile({ h }: { h: HeroCareer }) {
   useEffect(() => () => { if (timer.current) window.clearTimeout(timer.current); }, []);
   const place = (el: HTMLElement): void => {
     // One layout read per show (never per frame).
-    const r = el.getBoundingClientRect();
+    const r = rectToStage(el.getBoundingClientRect()); // stage px (stage.ts): written as the tip's CSS left/top
+    const vp = stageViewport();
     const gap = 12;
-    const fitsRight = r.right + gap + HERO_TIP_W + 8 <= window.innerWidth;
+    const fitsRight = r.right + gap + HERO_TIP_W + 8 <= vp.w;
     const side: 'right' | 'left' = fitsRight ? 'right' : 'left';
     const left = fitsRight ? r.right + gap : Math.max(8, r.left - gap - HERO_TIP_W);
-    const top = Math.max(8, Math.min(window.innerHeight - HERO_TIP_H - 8, r.top + r.height / 2 - HERO_TIP_H / 2));
+    const top = Math.max(8, Math.min(vp.h - HERO_TIP_H - 8, r.top + r.height / 2 - HERO_TIP_H / 2));
     setTip({ left, top, side });
   };
   const show = (el: HTMLElement, delay: number): void => {
@@ -389,7 +392,7 @@ function HeroTile({ h }: { h: HeroCareer }) {
             <span className="cv2-herotip-sv">{last || '—'}</span>
           </div>
         </div>,
-        document.body,
+        stageHost(),
       )}
     </div>
   );

@@ -15,6 +15,8 @@ import { createPlayer } from './player';
 import { playLifetimeMs } from './playLifetime';
 import { hasPrimitives } from './registry';
 import { scaleDef, type FxScaleAxes } from './scaleDef';
+import { stageScale } from '../stage';
+import type { FxHeadSink } from './anchors';
 import { recolorDef } from './recolorDef';
 import { holdStat, revealStat } from './statHold';
 
@@ -67,6 +69,17 @@ import { holdStat, revealStat } from './statHold';
  * Nothing in here throws. A miss (unknown id, no renderer, no playable layers) is `null`, which the caller
  * treats as "no FX for this moment" and moves on.
  */
+
+/** A head sink that maps SCREEN anchors into an effect container scaled by `k` (see the scaled-stage note in
+ *  `playDefInner`). `k === 1` hands back the sink itself: the exact pre-stage path. */
+export function stageSink(sink: FxHeadSink, k: number): FxHeadSink {
+  if (k === 1) return sink;
+  const inv = 1 / k;
+  return {
+    setHead: (i, x, y) => sink.setHead(i, x * inv, y * inv),
+    ...(sink.setAim ? { setAim: (i: number, sx: number, sy: number, tx: number, ty: number) => sink.setAim!.call(sink, i, sx * inv, sy * inv, tx * inv, ty * inv) } : {}),
+  };
+}
 
 export interface PlayDefOptions extends FxScaleAxes {
   /** Playback rate multiplier (e.g. the combat-speed dial). Non-finite or ≤ 0 falls back to 1 — a paused
@@ -588,6 +601,12 @@ function playDefInner(
 
   const container = new Container();
   if (opts.alpha !== undefined && Number.isFinite(opts.alpha) && opts.alpha < 1) container.alpha = Math.max(0, opts.alpha);
+  // THE SCALED STAGE (stage.ts): a def is authored in px at the 1080p layout, and the renderer is in SCREEN px. On
+  // a scaled stage the whole effect shrinks with the board: its container scales by `s` and every anchor is fed
+  // in divided by `s` (`stageSink`), so sizes, speeds, gravity and positions all land where they would at 1080p,
+  // uniformly smaller. `s === 1` (desktop) is the identity: no scale, the player itself is the sink.
+  const k = stageScale();
+  if (k !== 1) container.scale.set(k);
   const unmountLayer = pixiFx.mountLayer(container, slot);
   const player = createPlayer(
     def,
@@ -608,7 +627,8 @@ function playDefInner(
   // Position every layer BEFORE anything can render. `fireOnce` spawns the t=0 layers but a primitive's head
   // starts at (0,0), so this is what guarantees a layer never exists un-positioned — independent of the
   // ticker's updater-vs-render ordering, which lives in another module.
-  driveLayerHeads(player, layers, anchors, 0, null, { timeMs: 0, durationMs: def.duration });
+  const sink = stageSink(player, k);
+  driveLayerHeads(sink, layers, anchors, 0, null, { timeMs: 0, durationMs: def.duration });
 
   let wallMs = 0;
   let removeUpdater: (() => void) | null = null;
@@ -677,7 +697,7 @@ function playDefInner(
       const t = opts.target();
       if (t) live = { ...anchors, target: t };
     }
-    driveLayerHeads(player, layers, live, fireProgress(nowMs, def.duration), null, {
+    driveLayerHeads(sink, layers, live, fireProgress(nowMs, def.duration), null, {
       timeMs: nowMs,
       durationMs: def.duration,
     });

@@ -44,6 +44,7 @@ vi.mock('./replay/replayPlayer', () => ({ startReplay: (...a: unknown[]) => star
 
 import { Career } from './Career';
 import { useGame } from './store';
+import { stageHost } from './stage';
 
 const DAY = 86_400_000;
 const NOW = Date.now();
@@ -199,7 +200,7 @@ describe('Match History', () => {
       act(() => { vi.advanceTimersByTime(200); });
       const tip = document.querySelector('.cv2-rune-tip');
       expect(tip).not.toBeNull();
-      expect(tip!.parentElement).toBe(document.body);
+      expect(tip!.parentElement).toBe(stageHost()); // portalled into the scaled stage (stage.ts)
       expect(tip!.querySelector('.cv2-rune-tip-name')?.textContent).toContain('Rune of the Broodpit');
       expect(tip!.querySelector('.cv2-rune-tip-kind')?.textContent).toBe('Epic Rune');
       expect(tip!.querySelector('.cv2-rune-tip-body')?.textContent).toMatch(/Avenge \(4\):.*summon.*2 Imps with Taunt/);
@@ -540,7 +541,7 @@ describe('the Heroes tab', () => {
       act(() => { vi.advanceTimersByTime(200); });
       const tip = document.querySelector('.cv2-herotip');
       expect(tip).not.toBeNull();
-      expect(tip!.parentElement).toBe(document.body); // portalled — the scrolling grid can't clip it
+      expect(tip!.parentElement).toBe(stageHost()); // portalled (into the scaled stage) — the scrolling grid can't clip it
       expect(tip!.getAttribute('role')).toBe('tooltip');
       expect(tip!.classList.contains('right') || tip!.classList.contains('left')).toBe(true); // seated BESIDE the portrait
       expect((tip as HTMLElement).style.position || getComputedStyle(tip!).position).toMatch(/fixed|^$/);

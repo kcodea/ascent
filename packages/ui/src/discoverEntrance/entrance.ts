@@ -1,5 +1,6 @@
 import { canPlayDefs, playDef } from '../fx/playDef';
 import { playTailedClip } from '../sfx';
+import { toStage } from '../stage';
 import {
   CUE_CATEGORY, cueSetting, entranceTimeline, flyKeyframes, getDiscoverEntranceConfig, startOffset,
   type DiscoverEntranceConfig, type EntranceCue, type EntranceTimeline,
@@ -134,7 +135,8 @@ export function runEntrance(root: HTMLElement, opts: EntranceOptions = {}): Entr
     slots.forEach((el, i) => {
       const b = t.cards[i]!;
       const r = rects[i];
-      const from = startOffset(c, i, slots.length, r && mid ? mid.cx - r.cx : 0);
+      // The fan offset is a screen delta written as a WAAPI translate -> stage px (stage.ts).
+      const from = startOffset(c, i, slots.length, r && mid ? toStage(mid.cx - r.cx) : 0);
       anim(el, flyKeyframes(c, from, i), { duration: Math.max(1, b.settledAt - b.startAt), delay: b.startAt, fill: 'backwards' }, animations);
 
       // The shimmer: one light band across the card as it arrives (opacity via the band's own static alpha).

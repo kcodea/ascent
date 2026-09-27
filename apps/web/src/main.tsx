@@ -1,7 +1,7 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import gsap from 'gsap';
-import { Boot, Game } from '@game/ui';
+import { Boot, Game, installStage } from '@game/ui';
 
 // A main-thread frame hitch (a Pixi FX burst, GC, a heavy render) makes GSAP apply the whole missed
 // delta on its next tick — JUMPING an in-flight lunge past its motion, so the swing snaps home unseen
@@ -14,6 +14,10 @@ gsap.ticker.lagSmoothing(50, 33);
 
 const root = document.getElementById('root');
 if (!root) throw new Error('Missing #root');
+
+// The scaled stage (packages/ui/src/stage.ts): wrap #root in #stage and apply the first fit BEFORE the first
+// render, so a phone never paints a frame of the unscaled layout.
+installStage();
 
 // Disable the browser context menu — right-click does nothing in-game.
 window.addEventListener('contextmenu', (e) => e.preventDefault());

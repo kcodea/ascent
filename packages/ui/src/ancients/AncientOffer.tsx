@@ -6,6 +6,7 @@ import { notePickSource, prefersReducedMotion, setAwakenStage, useAwakenStage } 
 import { ancientColor, getAncientsConfig } from './ancientsConfig';
 import { playCue } from './ancientsSound';
 import { ancientLandDust, ancientSlam, ancientSlamSparks } from './ancientsSmoke';
+import { toStage } from '../stage';
 import '../discoverEntrance/discoverEntrance.css';
 import './ancients.css';
 
@@ -150,7 +151,7 @@ function Reveal({ gated, offer, heroId, seq, onPick }: { gated: boolean; offer: 
         if (i === mid) return;
         const card = slot.querySelector<HTMLElement>('.anc-card');
         if (!card || typeof card.animate !== 'function') return;
-        const dx = cx(mid) - cx(i); // start stacked BEHIND the middle
+        const dx = toStage(cx(mid) - cx(i)); // start stacked BEHIND the middle; screen -> stage (stage.ts) for the translate
         const over = (i < mid ? -1 : 1) * 16 * k;
         slot.style.zIndex = '0';
         push(card.animate([

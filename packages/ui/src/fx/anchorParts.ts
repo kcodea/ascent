@@ -1,5 +1,6 @@
 import type { FxAnchorPart } from './def';
 import type { FxAnchorPartPoints, FxAnchors, FxPartPoints, FxPoint } from './anchors';
+import { toScreen } from '../stage';
 
 export type { FxAnchorPartPoints, FxPartPoints } from './anchors';
 
@@ -104,7 +105,8 @@ function settledCardRect(unit: UnitElementLike, raw: PartRect): PartRect {
   const t = getComputedStyle(el).transform;
   if (t === 'none' || t === '') return raw;
   const p = (el.offsetParent as HTMLElement).getBoundingClientRect();
-  return { left: p.left + el.offsetLeft, top: p.top + el.offsetTop, width: el.offsetWidth, height: el.offsetHeight };
+  // Screen space (feeds Pixi): offset* are layout px, so they go through toScreen (stage.ts).
+  return { left: p.left + toScreen(el.offsetLeft), top: p.top + toScreen(el.offsetTop), width: toScreen(el.offsetWidth), height: toScreen(el.offsetHeight) };
 }
 
 /**

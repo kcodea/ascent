@@ -107,6 +107,7 @@ import { commitSlidePlan } from './rowSlides';
 import { resolveGildSources, snapshotGildCandidates, type GildSnap, type Pt } from './gildTrailSources';
 import { playBuySlide, type BuyFrom } from './buySlide';
 import { fireBuffFx } from './buffFxRender';
+import { holdSotGains, planSotBeats, releaseSotGain, sotBeatsMayPlay, sotShownStats, type SotCue, type SotHeld } from './sotBeats';
 import { resolveBuffSource } from './choreo/buffSource';
 import { ASCEND_PRESETS, ascendPreset } from './ascendPresets';
 import { getDragFeel } from './dragFeel';
@@ -133,6 +134,7 @@ import { DiceRoll } from './DiceRoll';
 import { diceCosmetics, diceSeed, type DieFace } from './diceRollTimeline';
 import { DICE_TEST_EVENT, FLICK_WINDOW_MS, diceRollParamsFor, flickDistanceScale, flickOf, throwLanding, towardBoard, type PointerSample } from './diceRollConfig';
 import { Flip } from 'gsap/Flip';
+import { fromSimpleState, getSimpleState, type StageFlipState } from './stageFlip';
 import { recordCursorSample, useGame } from './store';
 import { gateBlocks as tutorialGateBlocks, notifyGateNudge as notifyTutorialGateNudge } from './tutorial/gateBus';
 import { Unit } from './Unit';
@@ -146,6 +148,8 @@ import { wipeFx } from './wipeFx';
 import { wipeOriginFor, type WipeOrigin } from './wipeGeometry';
 import { afterBeat, afterSweep, barClassFor, combatBackdropShown, curtainClassFor, frontClassFor, wipeExiting, wipeSweeping, wipeUp, type WipeState } from './wipeMachine';
 import { getScreenWipeConfig, wipeCssVars } from './screenWipeConfig';
+import { stageHost, toStage, toScreen, rectToStage, stageScale } from './stage';
+import { TAP_SLOP } from './touchInput';
 
 /** Golden Ruby's coin cue: a beat after its gem (so the two read as "Ruby, then Gold"), and spaced when a
  *  multi-cast Golden Ruby pays several times in one action. */
@@ -246,6 +250,12 @@ const SHOP_RUBY_DELIVER_MS = 200;
 /** Delay between the cursor volley and each Edward Keg-hands echo of a buff-ale cast (owner-set 2026-08-12). */
 const SPELLCAST_EDWARD_ECHO_MS = 80;
 
+/** A measured (screen) rect as a stage-px DOMRect, for a consumer that only writes it as CSS (the sandbox
+ *  UnitEditor's anchor). The same object when the stage is unscaled (stage.ts). */
+function stageDomRect(r: DOMRect): DOMRect {
+  return stageScale() === 1 ? r : DOMRect.fromRect(rectToStage(r));
+}
+
 /**
  * A card's RESTING centre in viewport coordinates — where it will BE once the layout settles, not where it
  * happens to be drawn right now.
@@ -274,7 +284,8 @@ function restingCenterOf(el: HTMLElement): { x: number; y: number } | null {
   const parent = el.offsetParent as HTMLElement | null;
   if (!parent) return null;
   const p = parent.getBoundingClientRect();
-  return { x: p.left + el.offsetLeft + el.offsetWidth / 2, y: p.top + el.offsetTop + el.offsetHeight / 2 };
+  // offset* are stage px; the result feeds FX (screen) — toScreen (stage.ts)
+  return { x: p.left + toScreen(el.offsetLeft + el.offsetWidth / 2), y: p.top + toScreen(el.offsetTop + el.offsetHeight / 2) };
 }
 
 type DragSource = 'shop' | 'hand' | 'board';
@@ -1130,12 +1141,13 @@ export function Recruit() {
         setDevourBolt(null);
       },
     });
+    // Measured screen points -> stage px for the GSAP x/y (stage.ts).
     tl.fromTo(
       el,
-      { x: devourBolt.fromX, y: devourBolt.fromY, xPercent: -50, yPercent: -50, scale: 0.5, opacity: 0 },
+      { x: toStage(devourBolt.fromX), y: toStage(devourBolt.fromY), xPercent: -50, yPercent: -50, scale: 0.5, opacity: 0 },
       { opacity: 1, scale: 1, duration: 0.12, ease: 'power2.out' },
     )
-      .to(el, { x: toX, y: toY, duration: 0.32, ease: 'power2.in' })
+      .to(el, { x: toStage(toX), y: toStage(toY), duration: 0.32, ease: 'power2.in' })
       .to(el, { scale: 1.5, opacity: 0, duration: 0.12, ease: 'power1.in' });
     return () => {
       tl.kill();
@@ -1159,7 +1171,7 @@ export function Recruit() {
     const dx = p.left + p.width / 2 - (c.left + c.width / 2);
     const dy = p.top + p.height / 2 - (c.top + c.height / 2);
     const tween = gsap.from(card, {
-      x: dx, y: dy, scale: 0.2, opacity: 0, rotate: -20, duration: 0.55, ease: 'back.out(1.4)',
+      x: toStage(dx), y: toStage(dy), scale: 0.2, opacity: 0, rotate: -20, duration: 0.55, ease: 'back.out(1.4)', // screen delta -> stage px (stage.ts)
       onComplete: () => gsap.set(card, { clearProps: 'all' }), // hand back to its CSS-driven transforms
     });
     return () => { tween.kill(); };
@@ -1843,6 +1855,9 @@ export function Recruit() {
   // During the End-of-Turn animation, the per-proc stats to *show* on each minion (uid → live stats),
   // so the board's numbers climb one proc at a time. Null outside the animation (show the real stats).
   const [eotAnimStats, setEotAnimStats] = useState<Record<string, { attack: number; health: number }> | null>(null);
+  // START OF TURN BEATS (R-SOT-BEAT-01, `sotBeats.ts`): the Start-of-Turn gains still HELD off the shown board stats
+  // (a delta per uid) until their beat lands them, after the return wipe. Null when nothing is held.
+  const [sotHeld, setSotHeld] = useState<SotHeld | null>(null);
   // During the same animation, the running SHOP-offer buff delta per offer uid — so a shop minion buffed by an
   // End-of-Turn effect (Moira re-firing Market Tormentor / Contract Butcher) shows its stats climb in real time
   // on the beat, not jump only after the phase commits (owner ask 2026-08-12). Null outside the animation.
@@ -1953,8 +1968,9 @@ export function Recruit() {
     const gem = document.querySelector('.etbwrap .etb-gembox') ?? document.querySelector('.etbwrap');
     const c = getScreenWipeConfig();
     const o = wipeOriginFor(window.innerWidth, window.innerHeight, gem ? gem.getBoundingClientRect() : null, { ellipse: c.ellipse, ringLine: c.ringLine });
-    wipeOriginRef.current = o;
-    setWipeOrigin(o);
+    wipeOriginRef.current = o; // screen px: the wipeFx Pixi layer reads the ref
+    // The state feeds CSS vars (wipeCssVars) -> stage px (stage.ts); frontScale is a ratio, unchanged.
+    setWipeOrigin({ ...o, cx: toStage(o.cx), cy: toStage(o.cy), rx: toStage(o.rx), ry: toStage(o.ry), r: toStage(o.r) });
   }, []);
   useLayoutEffect(() => {
     // Both tells precede their bloom, so measuring here commits the vars (and the ref the FX reads)
@@ -2203,9 +2219,10 @@ export function Recruit() {
       const ids = Object.keys(RUNE_INDEX).slice(0, 3);
       // RuneCard's own natural size, so the preview is laid out like the real forge row rather than at an
       // invented size. Measured from a live card; the real ceremony never guesses — it reads each card's rect.
-      const w = 159;
-      const h = 257;
-      const gap = 28;
+      // Layout px -> screen px: the lock-in rect contract is screen space (captureRuneLockIn), see stage.ts.
+      const w = toScreen(159);
+      const h = toScreen(257);
+      const gap = toScreen(28);
       const x0 = window.innerWidth / 2 - (w * 3 + gap * 2) / 2;
       const y = window.innerHeight / 2 - h / 2;
       const cards = ids.map((id, i) => ({
@@ -2444,10 +2461,10 @@ export function Recruit() {
         if (!at) continue;
         const n = document.createElement('div');
         n.className = `equipflash${isRe ? ' reequip' : ''}`;
-        n.style.left = `${at.x}px`;
-        n.style.top = `${at.y}px`;
+        n.style.left = `${toStage(at.x)}px`; // measured screen point -> stage px (stage.ts)
+        n.style.top = `${toStage(at.y)}px`;
         n.style.animationDelay = `${base}ms`;
-        document.body.appendChild(n);
+        stageHost().appendChild(n);
         retire.push(() => n.remove());
       }
     });
@@ -3160,11 +3177,11 @@ export function Recruit() {
     }
   }, [handPreviews, inCombat, run.combatSettled]);
 
-  const flipStateRef = useRef<ReturnType<typeof Flip.getState> | null>(null);
+  const flipStateRef = useRef<StageFlipState | null>(null);
   // Hand reorder (drag a hand card sideways): the GSAP Flip state captured at drop, glided by a dedicated
   // layout effect. Separate from the warband/shop FLIP above — the hand's translateY tuck breaks the manual
   // x-tween that path uses, so Flip.from (which preserves the full transform) drives the hand instead.
-  const handReorderFlipRef = useRef<ReturnType<typeof Flip.getState> | null>(null);
+  const handReorderFlipRef = useRef<StageFlipState | null>(null);
   // Set true for the ONE commit in which the reorder-Flip above handles a drag-reorder, so the make-room
   // `--hand-glide` effect stands down that commit. Both effects key off `handOrderKey` and would otherwise BOTH
   // fire on a reorder (the drag is already null by the layout phase, so `--hand-glide`'s drag guard misses),
@@ -3588,14 +3605,14 @@ export function Recruit() {
   const boardViews = useMemo(
     () => perfMonitor.measure('view:board', () => {
       const fresh = new Map(displayBoard.map((m) => {
-        const v = instView(m, run.tier, eotAnimStats?.[m.uid], spellBonus, spellBonusH, run.spellsThisTurn, run.deathrattlesTriggered, run.undeadAttackBonus, run.undeadHealthBonus, ftbBonus, run.wave, run.spellsCast, run.cardBuffs?.cling, run.fodderConsumedThisTurn, { ...live, onBoard: true, eotTickOverride: eotAnimTick?.[m.uid] });
+        const v = instView(m, run.tier, eotAnimStats?.[m.uid] ?? sotShownStats(sotHeld, m.uid, m.attack, m.health), spellBonus, spellBonusH, run.spellsThisTurn, run.deathrattlesTriggered, run.undeadAttackBonus, run.undeadHealthBonus, ftbBonus, run.wave, run.spellsCast, run.cardBuffs?.cling, run.fodderConsumedThisTurn, { ...live, onBoard: true, eotTickOverride: eotAnimTick?.[m.uid] });
         const tint = ancientRiseTint(run, m); // Ancients × Lord of the Risen (War): the Undying target's Rise is RED
         return [m.uid, tint ? { ...v, riseTint: tint } : v] as const;
       }));
       boardViewCache.current = stabilizeViewMap(fresh, boardViewCache.current);
       return boardViewCache.current;
     }),
-    [displayBoard, run.ancients, run.ancientsEnabled, run.heroId, run.tier, eotAnimStats, eotAnimTick, spellBonus, spellBonusH, run.spellsThisTurn, run.deathrattlesTriggered, run.undeadAttackBonus, run.undeadHealthBonus, ftbBonus, run.wave, run.spellsCast, run.cardBuffs, run.fodderConsumedThisTurn, live],
+    [displayBoard, run.ancients, run.ancientsEnabled, run.heroId, run.tier, eotAnimStats, sotHeld, eotAnimTick, spellBonus, spellBonusH, run.spellsThisTurn, run.deathrattlesTriggered, run.undeadAttackBonus, run.undeadHealthBonus, ftbBonus, run.wave, run.spellsCast, run.cardBuffs, run.fodderConsumedThisTurn, live],
   );
   // R-HAND-02 (owner 2026-09-09): a hand card a combat effect buffs grows ON ITS BEAT. The replay's reached
   // deltas ride the same stat-override slot the End-of-Turn animation uses, on top of the run hand's stats;
@@ -3707,7 +3724,7 @@ export function Recruit() {
           if (editUid !== null && editUid !== undefined && liveRun.board.some((c) => c.uid === editUid)) {
             e.preventDefault();
             e.stopPropagation();
-            setSbEditing({ uid: editUid, rect: (editEl as HTMLElement).getBoundingClientRect() });
+            setSbEditing({ uid: editUid, rect: stageDomRect((editEl as HTMLElement).getBoundingClientRect()) });
             return;
           }
         }
@@ -3749,8 +3766,9 @@ export function Recruit() {
       // the layout size (`offsetWidth/Height`, which ignore transforms) for the wrapper, and take the grab
       // point as a scale-invariant FRACTION of the rect mapped onto the full size. For an untransformed
       // board/shop card `offsetWidth === r.width`, so this is a no-op there.
-      const w = el.offsetWidth || r.width;
-      const h = el.offsetHeight || r.height;
+      // The drag's geometry (w/h/ox/oy/grab) is SCREEN px like the pointer; offset* are stage px -> toScreen (stage.ts).
+      const w = toScreen(el.offsetWidth) || r.width;
+      const h = toScreen(el.offsetHeight) || r.height;
       const fracX = r.width ? (e.clientX - r.left) / r.width : 0.5;
       const fracY = r.height ? (e.clientY - r.top) / r.height : 0.5;
       // capture the pointer so move/up keep firing even if it leaves the window or races
@@ -3793,6 +3811,9 @@ export function Recruit() {
    * already replaced with a new one cannot tear the new one down (the old `setDrag(null)` in a timeout could).
    */
   const startDragSession = (drag: DragState, touch: boolean): void => {
+    // A finger always wobbles: below TAP_SLOP a touch stays a TAP (inspect / pick), never a micro-drag. Mouse keeps
+    // the DEV-tuned threshold (0 = engage at once). Screen px on purpose: the slop is a physical distance.
+    const dragThreshold = (): number => (touch ? Math.max(TAP_SLOP, getDragFeel().threshold) : getDragFeel().threshold);
     endSessionRef.current?.(); // never two sessions at once
     const token = ++dragSessionSeq.current;
     dragStore.pos = null;
@@ -3805,11 +3826,11 @@ export function Recruit() {
     // Dev Layout Lab "Buy/Sell zones": nudge the sell/buy boundaries (both the overlay + the drop hit-test).
     // getLayout() is a cheap singleton read (defaults → 0 in prod, so a no-op there). Read once per drag start.
     const zoneCfg = getLayout();
-    const wbTop = (document.querySelector('[data-zone="warband"]')?.getBoundingClientRect().top ?? 0) + (zoneCfg.sellZoneY ?? 0);
+    const wbTop = (document.querySelector('[data-zone="warband"]')?.getBoundingClientRect().top ?? 0) + toScreen(zoneCfg.sellZoneY ?? 0); // tuned offsets are layout px (stage.ts)
     // The board's horizontal midline (background divider): the .app's vertical centre, since the board art is
     // cover-centred so its centre split maps there. Buying requires releasing a shop card BELOW this line.
     const appR = document.querySelector('.app')?.getBoundingClientRect();
-    const midlineY = (appR ? appR.top + appR.height / 2 : wbTop) + (zoneCfg.buyZoneY ?? 0);
+    const midlineY = (appR ? appR.top + appR.height / 2 : wbTop) + toScreen(zoneCfg.buyZoneY ?? 0);
     const zoneRects = [...document.querySelectorAll<HTMLElement>('[data-zone]')].map((el) => ({
       zone: el.getAttribute('data-zone') as Zone,
       r: el.getBoundingClientRect(),
@@ -3878,7 +3899,7 @@ export function Recruit() {
     // The FLIP baseline for the drag's pre-emptive slides — captured HERE, on the layout the drag starts from
     // (one more read on the flush the measurements above already forced), instead of on every non-drag commit
     // (see `RowFlip`'s read pass). `simple: true`: these rows only translate horizontally.
-    flipStateRef.current = Flip.getState(FLIP_SELECTOR, { simple: true });
+    flipStateRef.current = getSimpleState(FLIP_SELECTOR); // Flip simple, scaled-stage safe (stageFlip.ts)
     // Hand slot spacing = the gap between consecutive card lefts (they overlap, so it's < card width). Used to
     // size the reorder parting so cards shift exactly one slot. Falls back to the card width for a 1-card hand.
     const handSlotW = handSlots.length >= 2 ? handSlots[1]!.left - handSlots[0]!.left : handSlots[0]?.width ?? 0;
@@ -3953,7 +3974,7 @@ export function Recruit() {
       if (!e) return;
       lastMove = null;
       const d0 = dragStore.get().drag;
-      const willBeActive = !!d0 && (d0.active || Math.hypot(e.clientX - d0.startX, e.clientY - d0.startY) > getDragFeel().threshold);
+      const willBeActive = !!d0 && (d0.active || Math.hypot(e.clientX - d0.startX, e.clientY - d0.startY) > dragThreshold());
       // The spell aim line follows the cursor EXACTLY (every frame), even though the state behind it only
       // advances on the decision gate — otherwise the line would visibly step.
       if (castAimRef.current.casting && d0) {
@@ -4029,7 +4050,7 @@ export function Recruit() {
       const d = dragStore.get().drag;
       // Recompute "did it move" from the up event too: with the rAF-throttle a flick completed inside one
       // frame may not have flushed `active` yet, but it's still a drag if the pointer cleared the threshold.
-      const moved = !!d && (d.active || Math.hypot(e.clientX - d.startX, e.clientY - d.startY) > getDragFeel().threshold);
+      const moved = !!d && (d.active || Math.hypot(e.clientX - d.startX, e.clientY - d.startY) > dragThreshold());
       if (!d || !moved) {
         cancelDragTrace(); // a click, not a drag — nothing to replay
         document.body.classList.remove('dragging');
@@ -4165,11 +4186,11 @@ export function Recruit() {
     const app = document.querySelector<HTMLElement>('.app');
     if (!app) return;
     const update = (): void => {
-      const ar = app.getBoundingClientRect();
+      const ah = toStage(app.getBoundingClientRect().height); // a CSS length -> stage px (stage.ts)
       // The art divider sits a touch above the exact centre, so bias the anchor up a smidge to land on it. The
       // bias must SCALE with the stage (19 reference px = the tuned 14px at the owner's 0.745-scale stage) —
       // fixed px rode proportionally higher on a short phone stage ("rope too high", owner's mobile test).
-      app.style.setProperty('--charge-y', `${ar.height / 2 - 19 * (ar.height / 1440)}px`);
+      app.style.setProperty('--charge-y', `${ah / 2 - 19 * (ah / 1440)}px`);
     };
     update();
     const ro = new ResizeObserver(update);
@@ -4791,7 +4812,10 @@ export function Recruit() {
     // this channel with its seq bumped while the phase is still `combat`. The warband is not in the DOM under
     // the arena, so `findEl` found nothing, the ribbon was dropped and the seq consumed: back in the shop the
     // recipient simply stood there with bigger numbers. Park the wave and play it on the reveal instead.
-    if (inCombat) { settleFxRef.current = [...settleFxRef.current, ...events]; return; }
+    // The same park holds for a capture made UNDER THE RETURN CURTAIN (owner 2026-09-26, R-SOT-BEAT-01): every
+    // Start-of-Turn effect resolves inside `resolveCombat`, which lands while the exit wipe fully covers the scene
+    // (`coveredOut`), so its wave played under the blue. It waits for the wipe to rest, like the settle wave.
+    if (inCombat || wipe !== 'idle') { settleFxRef.current = [...settleFxRef.current, ...events]; return; }
     // A REPEAT-pattern play (Squirl Scout's "Repeat for every Beast you own", a Dragonflame cast) tags one wave
     // per repeat (R-REPEAT-01, owner 2026-09-22). Pace those waves apart, as the End-of-Turn beats do, so the
     // repeats read as repeats rather than one burst; an untagged action keeps its simultaneous replay.
@@ -4808,6 +4832,78 @@ export function Recruit() {
     settleFxRef.current = [];
     replayBuffFxEvents(pending);
   }, [inCombat, wipe, run.phase, replayBuffFxEvents]);
+
+  /**
+   * START OF TURN BEATS (owner 2026-09-26, R-SOT-BEAT-01: "this also does not have a start of turn beat, please wire
+   * one in and make sure we bake time for the screen wipe transition"). Lord of the Risen × Ancient of Time's grant
+   * is the first effect on this channel (`RunState.sotBeatFx`, planned in `sotBeats.ts`).
+   *
+   * The batch arrives with `resolveCombat`, under the fully covered exit curtain. It is QUEUED and its gains are held
+   * off the shown stats at once (a layout effect, so no frame shows the raised numbers), then it plays only once the
+   * wipe is at rest on the revealed Shop, plus a pad: the source pulses (a hero source: the power button's burst +
+   * the hero's power sound), then each recipient's gain lands with the buff tendril from the button and its number
+   * rises on that cue. Timers live in a ref, not an effect cleanup, so a re-render mid-beat never strands a hold; a
+   * phase change away from the Shop (the next fight, the end screen) drops the queue and releases every hold.
+   */
+  const prevSotSeq = useRef(run.sotBeatFxSeq ?? 0); // inits to current: a resumed save never replays a stale beat
+  const sotQueueRef = useRef<NonNullable<RunState['sotBeatFx']>>([]);
+  const sotTimersRef = useRef<number[]>([]);
+  const [sotQueued, setSotQueued] = useState(0);
+  useLayoutEffect(() => {
+    const seq = run.sotBeatFxSeq ?? 0;
+    if (seq === prevSotSeq.current) return;
+    prevSotSeq.current = seq;
+    const beats = run.sotBeatFx ?? [];
+    if (beats.length === 0) return;
+    sotQueueRef.current = [...sotQueueRef.current, ...beats];
+    setSotHeld((prev) => holdSotGains(prev, beats));
+    setSotQueued((n) => n + 1);
+  }, [run.sotBeatFxSeq]);
+  useEffect(() => {
+    if (inCombat || run.phase !== 'recruit') {
+      // Left the Shop before (or while) the beat played: nothing to land on. Drop it and show the real stats.
+      if (sotQueueRef.current.length || sotTimersRef.current.length) {
+        sotQueueRef.current = [];
+        sotTimersRef.current.forEach(window.clearTimeout);
+        sotTimersRef.current = [];
+        setSotHeld(null);
+      }
+      return;
+    }
+    if (!sotBeatsMayPlay(run.phase, wipe) || sotQueueRef.current.length === 0) return;
+    const beats = sotQueueRef.current;
+    sotQueueRef.current = [];
+    const powerBtn = (): HTMLElement | null =>
+      document.querySelector<HTMLElement>('.statusbar .heropanel:not(.heropanel2):not(.equipslot) .heropowerbtn')
+      ?? document.querySelector<HTMLElement>('.statusbar .heropowerbtn');
+    const btnCentre = (): { x: number; y: number } | undefined => {
+      const r = powerBtn()?.getBoundingClientRect();
+      return r && (r.width > 0 || r.height > 0) ? { x: r.left + r.width / 2, y: r.top + r.height / 2 } : undefined;
+    };
+    const fire = (cue: SotCue): void => {
+      if (cue.kind === 'pulse') {
+        // The hero-power trigger pulse: the power button's activation burst + the hero's power sound.
+        const c = btnCentre();
+        if (c) pixiFx.heroPowerBurst(c.x, c.y, getAimFxConfig());
+        sfx.heroPower(cue.source.id);
+        return;
+      }
+      setSotHeld((prev) => releaseSotGain(prev, cue.uid, cue.attack, cue.health));
+      const el = document.querySelector<HTMLElement>(`[data-uid="${cue.uid}"]`);
+      const target = el ? restingCenterOf(el) : null;
+      if (!target) return;
+      const source = btnCentre();
+      fireBuffFx({ source, target, cardId: '', tribe: 'neutral', sourceless: !source, uids: { source: null, target: cue.uid } });
+    };
+    for (const cue of planSotBeats(beats).cues) {
+      const id = window.setTimeout(() => {
+        sotTimersRef.current = sotTimersRef.current.filter((t) => t !== id);
+        fire(cue);
+      }, cue.at);
+      sotTimersRef.current.push(id);
+    }
+  }, [inCombat, wipe, run.phase, sotQueued]);
+  useEffect(() => () => { sotTimersRef.current.forEach(window.clearTimeout); sotTimersRef.current = []; }, []);
 
   // AURA WAVE: a run-wide tribe-aura channel rose this action (auraFxSeq bumped) — bloom a tribe-colored wave
   // from the board CENTRE out to both edges. It's a GLOBAL cue (the aura touched the whole board), so it fires
@@ -5212,7 +5308,8 @@ export function Recruit() {
               const s = tp < shakePhase ? 1 - tp / shakePhase : 0;
               const jx = s * cfg.shakeAmp * Math.sin(tp * cfg.shakeFreq * Math.PI * 2);
               const jy = s * cfg.shakeAmp * Math.cos(tp * cfg.shakeFreq * Math.PI * 2 * 1.3);
-              el.style.transform = `translate(${tf.tx + jx}px, ${tf.ty + jy}px) rotate(${tf.rotDeg}deg) scale(${tf.scaleX}, ${tf.scaleY})`;
+              // tf is a screen delta (rects) -> stage px for the CSS translate (stage.ts)
+              el.style.transform = `translate(${toStage(tf.tx) + jx}px, ${toStage(tf.ty) + jy}px) rotate(${tf.rotDeg}deg) scale(${tf.scaleX}, ${tf.scaleY})`;
               el.style.opacity = String(tp < cfg.fadeStart ? 1 : (1 - tp) / fadeDenom);
             },
             onComplete: () => { el.style.opacity = '0'; },
@@ -5673,7 +5770,7 @@ export function Recruit() {
     if (!Number.isInteger(index) || index < 0) return;
     e.preventDefault();
     e.stopPropagation();
-    setSbEditingFoe({ index, rect: (el as HTMLElement).getBoundingClientRect() });
+    setSbEditingFoe({ index, rect: stageDomRect((el as HTMLElement).getBoundingClientRect()) });
   }, []);
   // The spell stays rendered (dimmed) while being bought — like a minion offer — so the row keeps its width and
   // the offers slide to fill its slot. So it's always "shown" for FLIP-key purposes until the buy commits.
@@ -5701,13 +5798,13 @@ export function Recruit() {
     // dragged card's slide resets to 0 and the neighbours' slides clear, and if the base transition is live it
     // animates those resets AT THE SAME TIME as this Flip — the two fight and that's the drop judder. Flip owns
     // the settle; restore the transition on complete.
-    const glide = (st: ReturnType<typeof Flip.getState>): void => {
+    const glide = (st: StageFlipState): void => {
       const targets = gsap.utils.toArray<HTMLElement>('.row.hand > .card');
       gsap.set(targets, { transition: 'none' });
-      Flip.from(st, {
+      // Simple on both sides (2026-09-04), via stageFlip so a scaled stage slides the right distance.
+      fromSimpleState(st, {
         duration: getFlipConfig().commitMs / 1000,
         ease: 'power2.out',
-        simple: true, // the state was captured simple (2026-09-04); the "to" side must be too, or it takes the per-card matrix path
         onComplete: () => gsap.set(targets, { clearProps: 'transition' }),
       });
     };
@@ -6867,7 +6964,7 @@ export function Recruit() {
         // commit, 36 ms each, fired every time the dragged card crossed a hand slot: 13 dropped frames on a
         // 360 Hz display per crossing. The hand fan has no rotation (`--fan-rot: 0deg`), so the bounding-box
         // capture is exact; the board's own drag flip already used it (see `flipStateRef`).
-        handReorderFlipRef.current = Flip.getState(els, { simple: true });
+        handReorderFlipRef.current = getSimpleState(els);
         dispatch({ type: 'reorderHand', uid: d.uid, toIndex: to });
       }
       return true;
@@ -7030,7 +7127,7 @@ export function Recruit() {
           reveal runs L→R from its LEFT home). Opacity rides `sweeping` on both, so parking is invisible. */}
       <div className={frontClassFor(wipe)} aria-hidden="true" style={wipeVars} />
       <div className={barClassFor(wipe)} aria-hidden="true" style={wipeVars} />
-      </>, document.body)}
+      </>, stageHost())}
       {/* Charge glyph — the board's etched sigil, anchored to the board midline. Lives HERE (a direct child of
           `.app`, before the zones) rather than inside the warband zone, so the warband layout offset (x/y/scale)
           never moves it; it stays on the board sigil. z:0 + earliest tree position keeps it BEHIND the cards but
@@ -7108,12 +7205,14 @@ export function Recruit() {
       {/* The warband / tavern FLIP + the shop death cues, in the commit where a row moves (see RowFlip). */}
       <RowFlip rowsKey={rowsKey} shopFxSeq={run.shopFxSeq} shopDeathFx={run.shopDeathFx} findEl={findEl} refs={flipRefs} />
 
+      {/* Measured overlay positions below (loss tally, replay floats/bolts, sell floats) are SCREEN px, converted
+          to stage px here at the CSS write (stage.ts); the producers keep screen px because Pixi shares them. */}
       {/* Loss-damage tally — surviving enemy tiers + the opponent's tier fly up into a damage counter
           above the enemy board (clamped to the round cap), then blast the Resolve bar. */}
       {fighting && (lossPhase === 'tally' || lossPhase === 'blast') && lossPos && (   /* hidden once launched — no re-show on the board (owner 2026-08-25) */
         <div
           className={`lossdmg${lossPhase === 'blast' ? ' launch' : ''}`}
-          style={{ left: lossPos.x, top: lossPos.y } as CSSProperties}
+          style={{ left: toStage(lossPos.x), top: toStage(lossPos.y) } as CSSProperties}
           aria-hidden="true"
         >
           <div className="lossdmg-n">{lossCount}</div>
@@ -7124,7 +7223,7 @@ export function Recruit() {
         <div
           key={`lossfly-${f.id}`}
           className={`lossfly${f.isOpp ? ' opp' : ''}`}
-          style={{ left: f.x, top: f.y, '--tx': `${f.tx - f.x}px`, '--ty': `${f.ty - f.y}px`, animationDelay: `${f.delay}ms` } as CSSProperties}
+          style={{ left: toStage(f.x), top: toStage(f.y), '--tx': `${toStage(f.tx - f.x)}px`, '--ty': `${toStage(f.ty - f.y)}px`, animationDelay: `${f.delay}ms` } as CSSProperties}
           aria-hidden="true"
         >
           +{f.tier}
@@ -7137,7 +7236,7 @@ export function Recruit() {
           <span
             key={`proj-${p.id}`}
             className={p.kind === 'blast' ? 'proj blast' : 'proj'}
-            style={{ left: p.x, top: p.y, '--dx': `${p.dx}px`, '--dy': `${p.dy}px` } as CSSProperties}
+            style={{ left: toStage(p.x), top: toStage(p.y), '--dx': `${toStage(p.dx)}px`, '--dy': `${toStage(p.dy)}px` } as CSSProperties}
           />
         ))}
 
@@ -7198,7 +7297,7 @@ export function Recruit() {
                 <div
                   key={`float-${f.id}`}
                   className={`floatanchor${sym ? ' symanchor' : ''}`}
-                  style={{ left: f.x, top: f.y, width: f.w, height: f.h } as CSSProperties}
+                  style={{ left: toStage(f.x), top: toStage(f.y), width: toStage(f.w), height: toStage(f.h) } as CSSProperties}
                   aria-hidden="true"
                 >
                   <span className={`float ${f.kind}${sym ? ' sym' : ''}${f.climb ? ' climb' : ''}`} style={splashStyle}>
@@ -7211,7 +7310,7 @@ export function Recruit() {
             {/* Killing-blow numbers for units that died this beat — never inside the unit (which collapses +
                 is removed), so the number reads + lingers at the spot the minion fell. */}
             {replay.deathFloats.map((f) => (
-              <div key={`death-${f.id}`} className="deathfloat" style={{ left: f.x, top: f.y } as CSSProperties} aria-hidden="true">
+              <div key={`death-${f.id}`} className="deathfloat" style={{ left: toStage(f.x), top: toStage(f.y) } as CSSProperties} aria-hidden="true">
                 <span className={`float ${f.kind}`}>
                   {f.kind === 'dmg' && <img className="dmgsplash" src={splashImgSrc(f.atkTier)} alt="" aria-hidden draggable={false} decoding="sync" />}
                   {f.text}
@@ -7219,7 +7318,7 @@ export function Recruit() {
               </div>
             ))}
           </>,
-          document.body,
+          stageHost(),
         )}
 
       {/* Gold gained from a sale, floating at the spot the minion was released (the actual sell value).
@@ -7227,7 +7326,7 @@ export function Recruit() {
           the FX canvas is the sell-coin sprinkle — which is meant to read as coins spilling AROUND the pill,
           not as something burying a damage number. Moving it would be churn for a defect nobody has. */}
       {sellFloats.map((f) => (
-        <div key={`sell-${f.id}`} className="deathfloat" style={{ left: f.x, top: f.y } as CSSProperties}>
+        <div key={`sell-${f.id}`} className="deathfloat" style={{ left: toStage(f.x), top: toStage(f.y) } as CSSProperties}>
           {/* Above-base sells (Hoarder, Trail Forager, Rune of Bartering) float GREEN so the bonus reads. */}
           <span className={`float ${f.amount > 1 ? 'sellup' : 'gold'}`}>+{f.amount}</span>
         </div>
@@ -7261,7 +7360,7 @@ export function Recruit() {
 
       {/* Spell spark: a one-shot radiating burst where a cast spell resolved. */}
       {spark && (
-        <div className="spellspark" key={spark.key} style={{ left: spark.x, top: spark.y }} aria-hidden="true">
+        <div className="spellspark" key={spark.key} style={{ left: toStage(spark.x), top: toStage(spark.y) }} aria-hidden="true">
           <span className="ss-flash" />
           {[18, 70, 128, 162, 215, 268, 305, 340].map((a) => (
             <span className="ss-ray" key={a} style={{ '--a': `${a}deg` } as CSSProperties} />
@@ -7293,7 +7392,7 @@ export function Recruit() {
               key={`${fodderAnim.key}-${i}`}
               className={`fodderghost${showStats ? '' : ' nostats'}`}
               data-gidx={i}
-              style={{ left: g.x0, top: g.y0, width: g.w, height: g.h } as CSSProperties}
+              style={{ left: toStage(g.x0), top: toStage(g.y0), width: toStage(g.w), height: toStage(g.h) } as CSSProperties}
               aria-hidden="true"
             >
               <Card card={view} />
@@ -7907,7 +8006,7 @@ const HandRow = memo(function HandRow({
                 dragging={viewerDrag}
                 dimmed={isDragging(m.uid)}
                 spent={combatHandSummoned?.has(m.uid) ?? false}
-                handSlidePx={handSlide(i) * handSlotW}
+                handSlidePx={toStage(handSlide(i) * handSlotW)} /* handSlotW is measured (screen) -> stage px (stage.ts) */
                 fanRot={fanRot}
                 onPointerDown={onCardPointerDown}
                 locked={locked}
@@ -7945,7 +8044,7 @@ const RenderMark = memo(function RenderMark({ start, phase }: { start: number; p
 /** The mutable bookkeeping the FLIP runner shares with `Recruit`'s handlers — created once in `Recruit` (the
  *  drop handlers and the End-of-Turn presenters write into it) and handed to `RowFlip` as one stable object. */
 interface FlipRefs {
-  flipStateRef: { current: ReturnType<typeof Flip.getState> | null };
+  flipStateRef: { current: StageFlipState | null };
   commitRectsRef: { current: CommitSweep | null };
   handPlaySnapRef: { current: boolean };
   handFlipRef: { current: Map<string, number> | null };
@@ -8160,7 +8259,7 @@ const RowFlip = memo(function RowFlip({ rowsKey, shopFxSeq, shopDeathFx, findEl,
         // `Flip.from` builds its own "to" state for the same targets and, without the flag, resolves a global
         // matrix per card — GSAP appends a temp element beside each and reads it, a forced layout per card.
         // These cards only translate, so the simple path is the same slide; this was ~9 ms per slot crossing.
-        if (prevFlipState) Flip.from(prevFlipState, { duration: flipCfg.dragMs / 1000, ease: 'power2.out', simple: true });
+        if (prevFlipState) fromSimpleState(prevFlipState, { duration: flipCfg.dragMs / 1000, ease: 'power2.out' });
       } else if (handPlaySnapRef.current) {
         // A drag-drop just committed (a hand card landed, or a board / shop card was reordered). We do a MANUAL
         // FLIP on the settled row's cards only (never a full Flip.from — for a hand-play the freshly played card
@@ -8184,7 +8283,8 @@ const RowFlip = memo(function RowFlip({ rowsKey, shopFxSeq, shopDeathFx, findEl,
         for (const el of targets) {
           const uid = el.dataset.uid;
           const old = uid ? rects?.get(uid) : undefined;
-          const delta = old === undefined ? 0 : old - el.getBoundingClientRect().left;
+          // Two rect lefts = a screen delta; GSAP x is stage px (stage.ts).
+          const delta = old === undefined ? 0 : toStage(old - el.getBoundingClientRect().left);
           if (Math.abs(delta) < 0.5) {
             el.style.transition = ''; // static card (or the new one) — restore its base transition
             continue;
@@ -8241,7 +8341,7 @@ const RowFlip = memo(function RowFlip({ rowsKey, shopFxSeq, shopDeathFx, findEl,
       // nothing else, so outside a drag it was a forced layout per commit for a value the next drag START now
       // captures fresh (`startDragSession`) — where it is also correct by construction, whereas a state kept
       // from the last commit could predate a viewport resize.
-      flipStateRef.current = Flip.getState(flipSel, { simple: true });
+      flipStateRef.current = getSimpleState(flipSel);
     });
     if (commitLefts) commitRectsRef.current = { key: rowsKey, lefts: commitLefts };
    });
@@ -8325,8 +8425,9 @@ const DragOverlay = memo(function DragOverlay({ timeUp, heroArmed, equipArmed, h
     const writePos = (f: ReturnType<typeof getDragFeel>): void => {
       el.style.setProperty('zoom', String(f.scale));
       el.style.perspective = `${f.perspective}px`;
-      el.style.transformOrigin = `${m.ax}px ${m.ay}px`;
-      el.style.transform = `translate(${m.rx / f.scale - m.ax}px, ${m.ry / f.scale - m.ay}px) rotate(${f.staticRotate}deg)`;
+      // m.* are screen px (pointer + grab) -> stage px for the CSS writes (stage.ts)
+      el.style.transformOrigin = `${toStage(m.ax)}px ${toStage(m.ay)}px`;
+      el.style.transform = `translate(${toStage(m.rx) / f.scale - toStage(m.ax)}px, ${toStage(m.ry) / f.scale - toStage(m.ay)}px) rotate(${f.staticRotate}deg)`;
     };
     if (d0) {
       m.rx = d0.x; m.ry = d0.y;        // start at the cursor so the lift doesn't jump
@@ -8417,13 +8518,13 @@ const DragOverlay = memo(function DragOverlay({ timeUp, heroArmed, equipArmed, h
       {/* Sell zone — the whole screen above the warband lights up while dragging a board minion, and
           releasing anywhere in it sells (handled by inSellRegion in the drop handler). */}
       {drag?.active && !drag.ghost && drag.source === 'board' && !drag.view.spell && !timeUp && (
-        <div className={`sellzone${overZone === 'tavern' ? ' on' : ''}`} style={{ height: sellTop } as CSSProperties} aria-hidden="true" />
+        <div className={`sellzone${overZone === 'tavern' ? ' on' : ''}`} style={{ height: toStage(sellTop) } as CSSProperties} aria-hidden="true" />
       )}
 
       {/* Buy zone — mirror of the sell zone: the whole screen *below* the warband lights up while dragging
           a shop card, and releasing anywhere in it buys (handled by inBuyRegion in the drop handler). */}
       {drag?.active && !drag.ghost && drag.source === 'shop' && (
-        <div className={`buyzone${overZone === 'hand' ? ' on' : ''}`} style={{ top: buyTop } as CSSProperties} aria-hidden="true" />
+        <div className={`buyzone${overZone === 'hand' ? ' on' : ''}`} style={{ top: toStage(buyTop) } as CSSProperties} aria-hidden="true" />
       )}
 
       {/* Portaled to <body> so the floating drag copy escapes `.app`'s stacking context (`.app` is
@@ -8438,8 +8539,8 @@ const DragOverlay = memo(function DragOverlay({ timeUp, heroArmed, equipArmed, h
           ref={dragCardRef}
           className={`dragcard${snapping ? ' snap' : ''}${wouldMagnetize ? ' electric' : ''}${magSlide ? ' magslide' : ''}${overWarband && drag.source === 'hand' ? ' willplay' : ''}${drag.source === 'hand' ? ' fromhand' : ''}`}
           style={{
-            width: drag.w,
-            height: drag.h,
+            width: toStage(drag.w), // drag geometry is screen px -> stage (stage.ts)
+            height: toStage(drag.h),
             // Normal drag lifts via `zoom` (crisp), written by the rAF — leave it undefined here so React
             // doesn't fight it. The React-driven release animations (snap / magnet-slide) keep `transform:
             // scale`, so force zoom back to 1 for them or the rAF's leftover zoom would stack (double-size).
@@ -8449,11 +8550,11 @@ const DragOverlay = memo(function DragOverlay({ timeUp, heroArmed, equipArmed, h
             // `.dragtilt`. Written straight to the nodes so React re-renders don't fight them. Snap-back /
             // magnet-slide use a CSS transition, so React drives those here — the origin is the card centre
             // (matching the recentred anchor), the durations come from the config.
-            transformOrigin: reactDrivesDrag ? `${drag.w / 2}px ${drag.h / 2}px` : undefined,
+            transformOrigin: reactDrivesDrag ? `${toStage(drag.w / 2)}px ${toStage(drag.h / 2)}px` : undefined,
             transform: magSlide
-              ? dragTransform(getDragFeel().perspective, drag.x - drag.ox, drag.y - drag.oy, 0, 0, 0.06, 0)
+              ? dragTransform(getDragFeel().perspective, toStage(drag.x - drag.ox), toStage(drag.y - drag.oy), 0, 0, 0.06, 0)
               : snapping
-                ? dragTransform(getDragFeel().perspective, drag.x - drag.ox, drag.y - drag.oy, 0, 0, getDragFeel().scale, getDragFeel().staticRotate)
+                ? dragTransform(getDragFeel().perspective, toStage(drag.x - drag.ox), toStage(drag.y - drag.oy), 0, 0, getDragFeel().scale, getDragFeel().staticRotate)
                 : undefined,
             transitionDuration: magSlide ? `${getDragFeel().magSlideMs}ms` : snapping ? `${getDragFeel().snapMs}ms` : undefined,
             // accelerate + fade fully out as it shrinks in, so it vanishes cleanly into the Mech
@@ -8470,7 +8571,7 @@ const DragOverlay = memo(function DragOverlay({ timeUp, heroArmed, equipArmed, h
             </div>
           </div>
         </div>
-      ), document.body)}
+      ), stageHost())}
     </>
   );
 });

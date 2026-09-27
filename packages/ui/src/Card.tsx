@@ -98,11 +98,13 @@ import { Icon } from './Icon';
 import { Sprite } from './Sprite';
 import { spriteForTribe } from './sprites';
 import { useGame } from './store';
+import { lastPointerWasTouch, tapInspectAllowed } from './touchInput';
 import { FLURRY_RINGS, flurryBoxStyle, flurryWrapStyle, flurryRingStyle } from './flurryConfig';
 import { pixiFx } from './pixiFx';
 import { getStepProcFxConfig, isStepProcTick } from './stepProcFxConfig';
 import { getExecuteSnapshot, subscribeExecute } from './executeConfig';
 import { getCardPlateConfig, plateTextBucket } from './cardPlateConfig';
+import { rectToStage, stageHost, stageViewport, toStage } from './stage';
 
 // TAUNT frame — pipeline layer 2 (the authored shield). Prefer an authored raster PNG (painterly, drops into
 // `apps/web/public/frames/`); until it exists the SVG placeholder renders instead. `tauntFrameAvailable` flips
@@ -717,9 +719,9 @@ export const Card = memo(function Card({
   // Shield). Measuring the mounted element and settling `top` once is what puts it back beside the card.
   useLayoutEffect(() => {
     if (!refPos || !popRef.current) return;
-    const h = popRef.current.getBoundingClientRect().height;
+    const h = toStage(popRef.current.getBoundingClientRect().height); // screen -> stage (stage.ts): refPos is stage px
     if (h <= 0) return;
-    const top = Math.max(6, Math.min(refPos.cardTop, window.innerHeight - h - 6));
+    const top = Math.max(6, Math.min(refPos.cardTop, stageViewport().h - h - 6));
     if (Math.abs(top - refPos.top) > 0.5) setRefPos({ ...refPos, top });
   }, [refPos]);
   // Open after a short hover (so it doesn't flash while skimming the board); position is measured when
@@ -730,10 +732,12 @@ export const Card = memo(function Card({
     if (refTimer.current) window.clearTimeout(refTimer.current);
     if (refPool.length > 1) setPickIdx(Math.floor(Math.random() * refPool.length)); // presentation only — never the sim's RNG
     refTimer.current = window.setTimeout(() => perfMonitor.measure('input:hover-preview', () => {
-      const r = el.getBoundingClientRect();
+      // All placement math in STAGE px (stage.ts): the result is written as the portalled popup's CSS left/top.
+      const r = rectToStage(el.getBoundingClientRect());
+      const vp = stageViewport();
       const n = popupCards.length;
       const gap = 10;
-      // The popup is `zoom`ed by --inspect-zoom (1.3 on mobile) × the Layout Lab's --z-inspect-s size dial, so its
+      // The popup is `zoom`ed by --inspect-zoom (no longer set since the stage; falls back to 1) × the Layout Lab's --z-inspect-s size dial, so its
       // rendered footprint is that much bigger than a natural card — fold the SAME product into the width/height
       // estimates so it stays on-screen.
       const cs = getComputedStyle(document.documentElement);
@@ -748,15 +752,15 @@ export const Card = memo(function Card({
       // screen: without it a card + referenced card + defs runs off the right edge and laps the hovered tile
       // and the right-side UI. 0 when the card references no keyword defs.
       const nDefs = detectCardKeywords(card).length;
-      const defsW = nDefs > 0 ? gap + Math.min(144, window.innerWidth * 0.25) * zoom : 0;
+      const defsW = nDefs > 0 ? gap + Math.min(144, vp.w * 0.25) * zoom : 0;
       const tipW = cardW * n + (n - 1) * gap + defsW; // cards laid left→right, plus the defs column
       // Placement is `refPopupLeft`'s (its own module, and its own tests): right if it fits, else left, else
       // CENTRED — never slammed against the left edge, which is what "shoved off to the left side of the
       // screen" was (owner report 2026-08-31).
-      const left = refPopupLeft({ cardLeft: r.left, cardRight: r.right, tipW, viewportW: window.innerWidth, gap });
+      const left = refPopupLeft({ cardLeft: r.left, cardRight: r.right, tipW, viewportW: vp.w, gap });
       const flip = left < r.left;
       const estH = cardW * 1.5550; // plate aspect (800×1244) — clamp so it stays on-screen
-      const top = Math.max(6, Math.min(r.top, window.innerHeight - estH - 6));
+      const top = Math.max(6, Math.min(r.top, vp.h - estH - 6));
       setRefPos({ left, top, origin: flip ? 'right' : 'left', cardTop: r.top });
     }), showText ? 250 : 100);
   };
@@ -825,7 +829,8 @@ export const Card = memo(function Card({
         transform: handSlidePx
           ? `translateX(${handSlidePx}px) translateY(var(--hand-tuck, 0px)) rotate(var(--fan-rot, 0deg))` /* hand reorder: keep the tuck + fan tilt while parting */
           : slideDir ? `translateX(calc((var(--ccw) + 22px) * ${slideDir}))` : undefined } as CSSProperties}
-      onClick={onClick}
+      /* TOUCH: with no click action of its own, a finger tap opens the Inspect overlay (touchInput.ts). */
+      onClick={onClick ?? ((e) => { if (tapInspectAllowed(e.currentTarget)) inspectCard(card); })}
       /* Card Art tuner: double-click targets this card. Only while that panel is open (`isPickingCardArt`),
          so normal play never has a hidden double-click meaning. `onDoubleClick` rather than `onClick`
          deliberately - a single click is already play/drag, and stealing it would break the board. */
@@ -837,7 +842,9 @@ export const Card = memo(function Card({
         // not the base card's, so the two can be framed independently.
         beginEditCardArt(artVariantKey(card.cardId!, card.chosenOption));
       } : undefined}
-      onMouseEnter={hasPopup && !dragging ? (e) => perfMonitor.measure('input:pointerenter', () => showRefTip(e.currentTarget)) : undefined}
+      // Mouse only: a finger tap opens the full Inspect overlay instead (touchInput.ts), and the compatibility
+      // mouseenter a tap fires would otherwise stack this reveal under it.
+      onMouseEnter={hasPopup && !dragging ? (e) => { if (!lastPointerWasTouch()) perfMonitor.measure('input:pointerenter', () => showRefTip(e.currentTarget)); } : undefined}
       onMouseLeave={hasPopup ? () => perfMonitor.measure('input:pointerleave', hideRefTip) : undefined}
       onContextMenu={(e) => {
         e.preventDefault();
@@ -1286,7 +1293,7 @@ export const Card = memo(function Card({
             {refPos.origin === 'left' && <KeywordDefs card={card} mech={mech} />}
           </div>
         </div>,
-        document.body,
+        stageHost(),
       )}
     </div>
   );

@@ -317,4 +317,39 @@ export const HEROES_RULES: GameRule[] = [
     currentBehaviour: 'Conforms (built 2026-09-26). Dev-only (Scene Builder, Set 3, the Ancients flag).',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsRisen.test.ts'], lastVerifiedAt: '2026-09-26' },
   },
+  {
+    id: 'R-ANCRISEN-07',
+    title: 'Lord of the Risen x Ancient of Time: the summon tally ticks live during the fight, and the grant pays the previous combat only',
+    statement:
+      'The Undying (Time) power text counts friendly summons IN REAL TIME: during a fight it prints "This combat: N '
+      + 'summoned (+3N/+2N)" and N climbs on the replay beat of each summon (the same step-tagged tally the quest panel '
+      + 'reads), never jumping to the final number at combat start or appearing only at resolution. Once the fight '
+      + 'settles it prints "Last combat: N summoned", exactly the count the next Start of Turn pays. The payout uses the '
+      + 'previous combat only, never a running total, and plays as its own Start of Turn beat (R-SOT-BEAT-01).',
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-26 (Undying (Time) tooltip screenshot)', quote: 'this hero power is tallying at resolution, not in real time. please confirm our oracle states we default to real time updates and fix this.' },
+      { kind: 'code', ref: 'packages/sim/src/ancients.ts ancientPowerText ({timeWhen}, AncientPowerLive.combatSummons); packages/sim/src/recruit.ts HeroPowerLive.summons; packages/ui/src/StatusBar.tsx (combatQuestDelta.summonCombat); packages/ui/src/useCombatReplay.ts questDelta' },
+    ],
+    currentBehaviour: 'Conforms, FIXED 2026-09-26: the text printed the banked count of the previous fight for the whole fight and changed only at settle (R-REALTIME-01).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/risenTimeRealtime.test.ts'], lastVerifiedAt: '2026-09-26' },
+  },
+  {
+    id: 'R-ENCHANTFX-01',
+    title: 'Ayse: the Enchanted shop-card sparkle hides while an overlay covers the shop',
+    statement:
+      'The looping Enchanted effect on a shop card (Ayse, Lucky Seat) draws on the shared effects canvas, which sits '
+      + 'above board-covering overlays. While one is open (Discover, Choose One, a quest or Runeforge offer, a scouted '
+      + 'board, the Fight Recap, the Ancient awakening and offer) the loop hides, and it shows again when the overlay '
+      + 'closes. It never bleeds through an overlay. (It already stops for combat and while the card is dragged.)',
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-26 (Ancient awakening screenshot)', quote: 'small bug - an ayse card bleeds through the animation' },
+      { kind: 'code', ref: 'packages/ui/src/useCiaEnchantedFx.ts overlayCoversShop (the follow returns null under modalup / ancgate / ancoffer)' },
+    ],
+    currentBehaviour: 'Conforms, FIXED 2026-09-26: the sparkle showed through the Ancient awakening backdrop.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/enchantedUnderOverlays.test.ts'], lastVerifiedAt: '2026-09-26' },
+  },
 ];

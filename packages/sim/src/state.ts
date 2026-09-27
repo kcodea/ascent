@@ -526,6 +526,14 @@ export interface RubyLandedFx { uid: string; count: number; }
  */
 export interface BounceFx { kind: BounceKind; fromUid: string; toUid: string; }
 
+/** One START OF TURN beat (R-SOT-BEAT-01): the source that fired and what each board recipient gained. The UI plays
+ *  it after the return-to-shop wipe: the source pulses (a hero source pulses the hero-power button), then each gain
+ *  lands on its recipient with the buff FX, and the shown stats rise on that beat, not under the curtain. */
+export interface SotBeatFx {
+  source: { kind: 'hero'; id: string; label: string };
+  gains: { uid: string; attack: number; health: number }[];
+}
+
 /** Record one bounce hop on the per-action `bounceFx` channel. A no-op when both ends are the same body — the
  *  bounce cue is CROSS-TARGET ONLY (owner ruling 2026-09-15); same-target recasts get their own cue later. */
 export function recordBounceFx(s: RunState, kind: BounceKind, fromUid: string, toUid: string): void {
@@ -1403,6 +1411,13 @@ export interface RunState {
   collapseExtraTargets?: number;
   /** Bumps each time a Starform pull is recorded — the UI keys the `starform-pull` play off this. */
   starformFxSeq: number;
+  /** START OF TURN BEATS (owner 2026-09-26, R-SOT-BEAT-01): every Start-of-Turn effect that stamps here gets its
+   *  OWN beat in the Shop, played after the return-to-shop wipe has finished (never under the curtain). One entry
+   *  per firing source, in resolution order, with each recipient's gain; the UI holds those gains off the shown
+   *  stats until the beat lands them. Per-action (cleared on the reducer's clone), gated by `sotBeatFxSeq`. */
+  sotBeatFx?: SotBeatFx[];
+  /** Monotonic gate for `sotBeatFx` — the UI plays a batch when this changes, never on payload identity. */
+  sotBeatFxSeq?: number;
   /** The bounce hops recorded this action (see `BounceFx`). Cleared at the top of `reduce`, like `starformFx`. */
   bounceFx?: BounceFx[];
   /** Bumps per recorded bounce hop — the UI keys the `spell-bounce` / `ruby-bounce` plays off this. Optional:

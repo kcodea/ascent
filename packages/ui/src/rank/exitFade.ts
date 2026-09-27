@@ -1,4 +1,5 @@
 import { gsap } from 'gsap';
+import { stageHost } from '../stage';
 
 /**
  * THE CONTINUE CROSS-FADE (owner 2026-09-20): the rank screen fades INTO the main menu instead of cutting.
@@ -24,7 +25,7 @@ export function beginExitFade(overlay: HTMLElement, reduced: boolean): gsap.core
     el.removeAttribute('id');
     if (el instanceof HTMLButtonElement) el.disabled = true;
   }
-  document.body.appendChild(clone);
+  stageHost().appendChild(clone);
   return gsap.to(clone, {
     opacity: 0,
     duration: (reduced ? EXIT_FADE_REDUCED_MS : EXIT_FADE_MS) / 1000,

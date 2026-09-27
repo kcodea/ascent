@@ -10,6 +10,7 @@ import { withImpStats } from './cardText';
 import { KeywordDefs } from './KeywordDefs';
 import { detectCardKeywords } from './detectCardKeywords';
 import { useGame } from './store';
+import { rectToStage, stageHost, stageViewport } from './stage';
 
 /** The card ids a rune's reward GRANTS (Pillaging → the Pillager) — for the hover preview. GILDED grants
  *  (Frontline Glory's Gilded Yazzus) are included and marked, so the preview shows the golden card. */
@@ -87,16 +88,17 @@ export function RuneCard({ rune, affordable, onBuy, cost, duplicating, pickSfx }
     if (!hasPreview) return;
     if (timer.current) window.clearTimeout(timer.current);
     timer.current = window.setTimeout(() => {
-      const r = el.getBoundingClientRect();
+      const r = rectToStage(el.getBoundingClientRect()); // stage px (stage.ts): written as the tip's CSS left/top
+      const vp = stageViewport();
       const gap = 10;
       const cardW = r.width * 0.82;
       // The defs column is `min(144px, 25vw)` wide (styles.css) and sits after the cards, zoomed like them.
-      const defsW = hasDefs ? Math.min(144, window.innerWidth * 0.25) * 1.52 : 0;
+      const defsW = hasDefs ? Math.min(144, vp.w * 0.25) * 1.52 : 0;
       const tipW = cardW * rewardCards.length + Math.max(0, rewardCards.length - 1) * gap + (hasDefs && rewardCards.length ? gap : 0) + defsW;
-      const flip = r.right + gap + tipW > window.innerWidth - 6;
+      const flip = r.right + gap + tipW > vp.w - 6;
       const left = flip ? Math.max(6, r.left - gap - tipW) : r.right + gap;
       const estH = cardW * 1.34;
-      const top = Math.max(6, Math.min(r.top, window.innerHeight - estH - 6));
+      const top = Math.max(6, Math.min(r.top, vp.h - estH - 6));
       setTip({ left, top, origin: flip ? 'right' : 'left' });
     }, 220);
   };
@@ -159,7 +161,7 @@ export function RuneCard({ rune, affordable, onBuy, cost, duplicating, pickSfx }
             {hasDefs && <KeywordDefs card={kwCard} />}
           </div>
         </div>,
-        document.body,
+        stageHost(),
       )}
     </button>
   );

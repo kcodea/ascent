@@ -3,6 +3,7 @@ import { getLungeConfig, strikeEaseFor } from '../../lungeConfig';
 import { getTrailConfig } from '../../trailConfig';
 import { pixiFx } from '../../pixiFx';
 import { sfx } from '../../sfx';
+import { toScreen } from '../../stage';
 
 export interface LungeCtx {
   attacker: Element;
@@ -116,8 +117,9 @@ export function playLunge(ctx: LungeCtx): ReturnType<typeof gsap.timeline> {
   // (a killed settle / knockback-recover still in flight), and `onUpdate` adds the live GSAP x/y on top —
   // without subtracting the residual here it would be counted twice and the trail would ride offset.
   const rest = attacker.getBoundingClientRect();
-  const cx0 = rest.left + rest.width / 2 - (Number(gsap.getProperty(attacker, 'x')) || 0);
-  const cy0 = rest.top + rest.height / 2 - (Number(gsap.getProperty(attacker, 'y')) || 0);
+  // Screen space (the trail is Pixi): GSAP x/y are layout px, so they go through toScreen (stage.ts).
+  const cx0 = rest.left + rest.width / 2 - toScreen(Number(gsap.getProperty(attacker, 'x')) || 0);
+  const cy0 = rest.top + rest.height / 2 - toScreen(Number(gsap.getProperty(attacker, 'y')) || 0);
   // NB: in combat `findEl` resolves the `.unit` WRAPPER (its data-uid matches first), so the marker classes
   // live on the `.card` DESCENDANT — the querySelector is the live path, not a dead fallback.
   const variant = attacker.classList.contains('dscard') || attacker.querySelector('.dscard')
@@ -146,8 +148,8 @@ export function playLunge(ctx: LungeCtx): ReturnType<typeof gsap.timeline> {
     },
     onUpdate: () => {
       if (tl.time() > trailCutoff) return; // no trail on the elastic settle
-      const cx = cx0 + Number(gsap.getProperty(attacker, 'x'));
-      const cy = cy0 + Number(gsap.getProperty(attacker, 'y'));
+      const cx = cx0 + toScreen(Number(gsap.getProperty(attacker, 'x')));
+      const cy = cy0 + toScreen(Number(gsap.getProperty(attacker, 'y')));
       const tdx = cx - trailLast.x;
       const tdy = cy - trailLast.y;
       if (Math.hypot(tdx, tdy) >= getTrailConfig().emitSpacing) {

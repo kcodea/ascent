@@ -1,3 +1,5 @@
+import { toStage } from './stage';
+
 /**
  * CARD SLIDE — the "into the slot from where you released it" transition.
  *
@@ -77,7 +79,8 @@ export function playBuySlide(from: BuyFrom, card: HTMLElement, durationScale = 1
 
   const anim = card.animate(
     [
-      { transform: `translate(${dx}px, ${dy}px) scale(${sc}) ${base}`.trim() },
+      // dx/dy are screen deltas (rects) -> stage px for the CSS translate (stage.ts)
+      { transform: `translate(${toStage(dx)}px, ${toStage(dy)}px) scale(${sc}) ${base}`.trim() },
       { transform: base || 'none' },
     ],
     { duration: Math.max(1, MS * durationScale), easing: EASE },

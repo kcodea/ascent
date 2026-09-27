@@ -1219,7 +1219,7 @@ The hardening gate before ASCENT faces a public (non-friend-scale) audience.
   - **Accepted coupling:** pinning to a `contentRevision` with CI drift-failure freezes the twelve minions the
     course uses — retuning any of them becomes a tutorial re-authoring task.
 - **Accessibility** — keyboard nav, screen-reader labels, reduced-motion, colorblind-safe threat/tribe cues.
-- **Touch** support + the COMPACT-fan hand redo.
+- The COMPACT-fan hand redo. (Touch support + the scaled stage landed 2026-09-26; a real-device iOS/Android pass is still owed, see docs/devlog/2026-09-26-responsive-stage.md.)
 - **Distribution** — WebP art is done (4.3 MB); decide web (CDN / versioned deploy) vs a desktop **exe**
   beyond the itch zip. An **Electron shell now exists** (`apps/desktop`, `npm run package:desktop`) and the
   build runs unmodified in it — but it is a TEST HARNESS, not a release: no installer, no code signing, no

@@ -52,6 +52,15 @@ paint it, or, when an element genuinely needs its own cursor, use the gauntlet U
 (`cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer`). Check any new button/overlay for this before
 shipping.
 
+**The game is one scaled stage** (`packages/ui/src/stage.ts`, 2026-09-26). Below 1920×1080 it lays out AT
+1920×1080 inside `#stage` and one `transform: scale(s)` fits it to the window; at or above that `s === 1` and
+nothing changes. So: **portal / append into `stageHost()`, never `document.body`**; **no raw `vw`/`vh` or viewport
+`@media` in CSS** (use `var(--lvw)` / `calc(N * var(--vw))`, or a `[data-lv~=…]` breakpoint); and **the coordinate
+rule: measure in screen space (`getBoundingClientRect`, `clientX`), convert with `toStage` / `rectToStage` /
+`stageViewport()` only where a measured value is written into a DOM CSS length.** Pixi stays in screen space (feed
+it rects raw). `stageTripwire.test.ts` enforces the mechanical parts. Touch: a tap is a parked hover
+(`touchInput.ts` + the `.tt-on` mirrors in styles.css), so a new hover-only tip needs its `.tt-on` twin.
+
 **Never a `title=` attribute (or an SVG `<title>`, or `el.title = …`) on rendered DOM**: the native browser tooltip
 breaks immersion (owner 2026-09-24). Use `aria-label` / `aria-description` for screen readers and the game's own
 `.gtip[data-tip]` bubble for hover text; ESLint (`banTitleTooltips`) fails the build on it.

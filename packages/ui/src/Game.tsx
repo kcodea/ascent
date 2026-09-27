@@ -59,13 +59,15 @@ import { ReplayCursorGhost } from './replay/ReplayCursorGhost';
 import { RoundRail } from './replay/RoundRail';
 import { PixiFxLayer } from './PixiFxLayer';
 import { CastPreviewLayer } from './CastPreviewLayer';
-import { pixiFx, warmDiscoverFx } from './pixiFx';
+import { discoverFx, pixiFx, warmDiscoverFx } from './pixiFx';
 import { applyFpsCap } from './fpsCap';
 import { warmArt } from './art';
 import { audioContext, onStopAllAudio, sfx } from './sfx';
 import { cancelAnnouncer, setAnnouncerAudioContextProvider, syncAnnouncer } from './announcer';
 import { setMusicAudioContextProvider, syncMusic } from './music';
 import { useGame, isPreRun } from './store';
+import { installStage, onStageChange, stageScale, stageViewport } from './stage';
+import { installTouchInput } from './touchInput';
 
 /** Root of the playable game. `Recruit` owns the board and stays mounted across every
  *  phase — combat plays out *in place* (the shop closes, the enemies arrive, the
@@ -328,55 +330,37 @@ export function Game() {
   // The game now fills the window at a fixed 16:9 (no resolution picker → no `data-res`), draws one board
   // (`--board` = the CSS default), and applies no readability dim — so there's no res/scrim/board state to persist.
 
-  // Uniform stage scale: --scale = the 16:9 stage height ÷ the 1440 design reference (clamped), as a UNITLESS
-  // number the CSS multiplies every authored size/offset by, so the whole UI shrinks/grows as ONE unit with the
-  // window. Set pre-paint + on every resize. (CSS can't turn a length into a unitless ratio, hence JS.)
+  // Uniform stage scale: --scale = the 16:9 stage height ÷ the 1440 design reference, as a UNITLESS number the CSS
+  // multiplies every authored size/offset by. Set pre-paint + on every stage change. (CSS can't turn a length into
+  // a unitless ratio, hence JS.)
+  //
+  // It reads the LAYOUT viewport from stage.ts, not the window: below the 1920×1080 design size the game lays out
+  // AT the design size and `#root` is scaled down by one transform (owner ask 2026-09-26, "when the screen shrinks
+  // our art pieces fly all over the place"). So the layout viewport is never smaller than 1920×1080, --gh never
+  // under 1080 and --scale never under 0.75. That retired the old phone-only reflow (gh < 600: +36% cards, a 1.3×
+  // wider board, re-tuned row drops, a bigger inspect popup, tighter gaps): a phone now shows the exact desktop
+  // layout, uniformly smaller, so nothing can drift against the board art. Those vars stay at their identity
+  // values (styles.css still multiplies them in) so no stylesheet rule had to change.
   useLayoutEffect(() => {
     const apply = (): void => {
+      const { w, h } = stageViewport();
       // Cap at 1440 to match the PINNED CSS `--gh` (min(..., 1440px)): the stage never grows past the tuned
       // 2560×1440 reference, so `--scale` tops out at 1.0 in lockstep. Without this cap the CSS stage pinned but
       // JS still drove --scale above 1.0 on tall windows, so anything mixing `--bar` position (capped) with
       // `--scale` size (uncapped) — the hero panel: portrait, Health pill, rune chains — drifted off the board.
-      const gh = Math.min(window.innerHeight, (window.innerWidth * 9) / 16, 1440); // matches the CSS --gh (16:9 stage, pinned)
-      // No meaningful floor: a phone's landscape stage is only ~380-460px tall (true ratio ~0.27-0.32), and
-      // flooring at 0.45 oversized everything 1.5× → overlapping HUD/hero/shop (owner's iPhone report). The
-      // whole point of the uniform scale is that the layout stays proportional at ANY size.
-      const scale = Math.max(0.2, Math.min(1.25, gh / 1440));
+      const gh = Math.min(h, (w * 9) / 16, 1440); // matches the CSS --gh (16:9 stage, pinned)
+      const scale = gh / 1440;
       document.documentElement.style.setProperty('--scale', String(scale));
-      // Phone-height stages get a CARD zoom (--ch-base multiplies by this; chrome/--u stays put) so minions are
-      // bigger to read + tap (owner: "everything is impossible to read"). +36% under a 600px-tall stage — paired with
-      // the wider board frame (--board-mobile-zoom) so 7 minions still fit, and re-tuned rope offsets below. This is
-      // ~the vertical max: two full card rows + HUD + hero must fit 430px, so a bigger boost overlaps the hero panel.
-      const mobile = gh < 600;
-      const boost = mobile ? 1.36 : 1;
-      document.documentElement.style.setProperty('--mobile-boost', String(boost));
-      // Tighten the warband/shop card gaps on a phone so the wider (7-minion) board still fits the frame after the
-      // card zoom above — the bigger cards would otherwise re-overflow the floor. Desktop keeps the full gap (1).
-      document.documentElement.style.setProperty('--gap-tighten', mobile ? '0.48' : '1');
-      // Mobile-only chrome/layout tweaks (owner 2026-07-14) — every one is a MULTIPLIER/offset that defaults to the
-      // desktop identity (1 / 0px) so desktop is provably untouched; only phone stages (gh<600) get the non-1 value.
-      //  · --hud-mobile: grow the non-shop HUD chrome ~10% (folded into the global --u + the top status bar's --u,
-      //    NOT the shop controls' --u — see styles.css).
-      //  · --board-mobile-zoom: enlarge the board backdrop art ~30% so the frame is WIDER — the room the +36% cards
-      //    need to still fit 7 across (composed with the Lab's --board-zoom so it isn't clobbered).
-      //  · --wb-drop / --shop-drop: nudge the Warband DOWN and the Shop UP (reference px, ×--scale in CSS) so the
-      //    shop bottom + warband top sit ~symmetric ~8px above/below the centre rope after the bigger cards made the
-      //    rows taller. The rope is fixed at the .app centre; these just close the gaps evenly.
-      document.documentElement.style.setProperty('--hud-mobile', mobile ? '1.1' : '1');
-      document.documentElement.style.setProperty('--board-mobile-zoom', mobile ? '1.3' : '1');
-      document.documentElement.style.setProperty('--wb-drop', mobile ? '112px' : '0px');
-      document.documentElement.style.setProperty('--shop-drop', mobile ? '-47px' : '0px');
-      //  · --inspect-zoom: enlarge the tap/hover card-reveal popup ~30% on a phone so a minion's text is readable
-      //    (Card.tsx's showRefTip folds the same factor into its on-screen placement math).
-      document.documentElement.style.setProperty('--inspect-zoom', mobile ? '1.3' : '1');
-      // Keep the WebGL combat particles proportional to the (shrinking) cards. The FX px dials were tuned at the
-      // owner's ~0.745 desktop scale, so divide that reference out → 1.0 on desktop, ~0.45 on a phone. Fold in the
-      // card boost so bursts match the boosted card size, not the bare stage.
-      pixiFx.setScale((scale * boost) / 0.745);
+      // Keep the WebGL combat particles proportional to the cards ON SCREEN. The Pixi renderers stay in screen
+      // space (stage.ts), so fold the stage transform in: the on-screen scale is `--scale × s`. The FX px dials
+      // were tuned at the owner's ~0.745 desktop scale, so divide that reference out → 1.0 on the owner's desktop.
+      pixiFx.setScale((scale * stageScale()) / 0.745);
+      // The Discover overlay's own controller: identity on desktop (as before), shrunk with a scaled stage.
+      discoverFx.setScale(stageScale() === 1 ? 1 : (scale * stageScale()) / 0.745);
     };
+    installStage();
     apply();
-    window.addEventListener('resize', apply);
-    return () => window.removeEventListener('resize', apply);
+    return onStageChange(apply);
   }, []);
 
   // Esc toggles the menu — but if the menu is closed and a card is being inspected, let the
@@ -400,6 +384,8 @@ export function Game() {
   // focus) lives in the store's `openBugReport`; the modal's own capture-phase handler claims Esc/Tab while
   // it is open, so the two listeners below never fire underneath it.
   useEffect(() => installBugReportHotkey(), []);
+  // TOUCH (owner ask 2026-09-26): a finger tap reaches everything a mouse hover reaches; tap-away closes it.
+  useEffect(() => installTouchInput(), []);
 
   // Tab toggles the Compendium — from the title (browse the whole set) or in a run (scoped to it). Not
   // during hero select. `preventDefault` stops the browser's focus-cycling.

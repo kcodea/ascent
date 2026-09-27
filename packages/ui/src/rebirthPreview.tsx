@@ -2,6 +2,7 @@ import { createRoot, type Root } from 'react-dom/client';
 import { CARD_INDEX } from '@game/content';
 import { Card, type CardView } from './Card';
 import { reformRebirth } from './choreo/channels/aura';
+import { rectToStage, stageHost, stageViewport } from './stage';
 
 /**
  * DEV preview rig for the 🔥 Rebirth tuner: a sample Rebirth card floated beside the tuner panel (the idle crown
@@ -26,13 +27,15 @@ export function isRebirthPreviewShown(): boolean { return host !== null; }
 /** Show (or hide) the sample Rebirth card to the LEFT of the tuner panel. */
 export function toggleRebirthPreview(panelEl: HTMLElement | null): void {
   if (host) { root?.unmount(); host.remove(); host = null; root = null; return; }
-  const r = panelEl?.getBoundingClientRect();
+  const sr = panelEl?.getBoundingClientRect();
+  const r = sr && rectToStage(sr); // stage px (stage.ts): the host is placed with CSS left/top
+  const vp = stageViewport();
   host = document.createElement('div');
   host.className = 'rbpreview';
-  const left = r ? Math.max(12, r.left - 300) : window.innerWidth / 2 - 130;
-  const top = r ? Math.max(90, r.top + 110) : window.innerHeight / 2 - 160;
+  const left = r ? Math.max(12, r.left - 300) : vp.w / 2 - 130;
+  const top = r ? Math.max(90, r.top + 110) : vp.h / 2 - 160;
   host.style.cssText = `position:fixed;left:${left}px;top:${top}px;z-index:900;pointer-events:none;`;
-  document.body.appendChild(host);
+  stageHost().appendChild(host);
   root = createRoot(host);
   root.render(<div className="unit rbpreview-unit"><Card card={sampleView()} uid="rbpreview" /></div>);
 }

@@ -60,6 +60,21 @@ export const PATCH_NOTES: PatchNote[] = [
     date: '2026-09-26',
     changes: [
       {
+        category: 'Systems',
+        text: 'The game now fits phones held sideways and small windows, and works with touch.',
+        details: [
+          'On a smaller screen the whole game shrinks evenly, so the board, cards and buttons stay exactly where they belong.',
+          'Tap a card to see it up close. Tap anything with a tip, like your hero or the Gold pill, to read it. Tap somewhere else to close it.',
+          'Drag cards with your finger to buy, play and sell.',
+          'Hold your phone sideways to play.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-09-26',
+    changes: [
+      {
         category: 'Balance',
         text: 'Gravetwin, Auric Runemaster and Graverobber now pick a random target when their Shout is triggered again.',
         details: [

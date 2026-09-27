@@ -218,7 +218,7 @@
 
 /* The hero power's own tip stands down while the meter (or its preview) is the thing being hovered. */
 .heropanel:has(.anc-meter :hover) .herotip,
-body:has(.anc-pv) .heropanel .herotip { opacity: 0 !important; transition-delay: 0s !important; }
+body:has(.anc-pv) .heropanel .herotip, .heropanel:has(.anc-meter .tt-on) .herotip { opacity: 0 !important; transition-delay: 0s !important; }
 
 /* The hero-power NAME pill stays ABOVE the meter ring (owner 2026-09-25: "it is behind the progress bar"). */
 .statusbar .heropanel .hplabel { position: relative; z-index: 7; }
@@ -248,7 +248,7 @@ body:has(.anc-pv) .heropanel .herotip { opacity: 0 !important; transition-delay:
      ends on it and the offer takes over seamlessly. */
   position: absolute; inset: 0;
   background:
-    radial-gradient(ellipse calc(var(--dcl-spot-r, 40) * 1.6vh) calc(var(--dcl-spot-r, 40) * 1vh) at 50% 51%,
+    radial-gradient(ellipse calc(var(--dcl-spot-r, 40) * calc(1.6 * var(--vh, 1vh))) calc(var(--dcl-spot-r, 40) * calc(1 * var(--vh, 1vh))) at 50% 51%,
       rgba(255, 196, 112, calc(var(--dcl-spot, 0.4) * 0.34)) 0%,
       rgba(255, 170, 80, calc(var(--dcl-spot, 0.4) * 0.14)) 50%,
       rgba(255, 160, 70, 0) 100%),
@@ -294,10 +294,10 @@ body.ancgate .app { z-index: auto; }
 .anc-gate-center {
   position: absolute; left: 50%; top: 47%; transform: translate(-50%, -50%);
   display: flex; flex-direction: column; align-items: center; gap: calc(26 * var(--u, 1px));
-  max-width: 94vw;
+  max-width: calc(94 * var(--vw, 1vw));
 }
 .anc-gate-medal {
-  --anc-md: min(calc(230 * var(--u, 1px)), 30vh, 56vw);
+  --anc-md: min(calc(230 * var(--u, 1px)), calc(30 * var(--vh, 1vh)), calc(56 * var(--vw, 1vw)));
   position: relative; width: var(--anc-md); height: var(--anc-md); flex: none; border-radius: 50%; overflow: hidden;
   will-change: transform, opacity;
   /* Static paint: a rim in the seam colour, a hairline, a soft glow in the title glow, a drop shadow. */
@@ -311,7 +311,7 @@ body.ancgate .app { z-index: auto; }
 /* THE HERO SIGNATURES (owner 2026-09-26; motion in ancientHeroBloom.ts). Every layer is STATIC paint; only its
    transform / opacity is animated, one shot. Every accent part is a box the size of the medallion with its mark drawn at
    the centre, so the motion's translate(%) is a fraction of the medallion, with no layout read. */
-.anc-gate-medalwrap { --anc-md: min(calc(230 * var(--u, 1px)), 30vh, 56vw); position: relative; width: var(--anc-md); height: var(--anc-md); flex: none; }
+.anc-gate-medalwrap { --anc-md: min(calc(230 * var(--u, 1px)), calc(30 * var(--vh, 1vh)), calc(56 * var(--vw, 1vw))); position: relative; width: var(--anc-md); height: var(--anc-md); flex: none; }
 .anc-gate-medalwrap > .anc-gate-medal { z-index: 1; }
 .anc-medal-fx, .anc-acc-p { position: absolute; inset: 0; opacity: 0; pointer-events: none; will-change: transform, opacity; }
 .anc-acc { position: absolute; inset: 0; pointer-events: none; z-index: 2; }
@@ -482,12 +482,12 @@ body.ancgate .app { z-index: auto; }
 .anc-acc-swap svg circle.dot { fill: #ffffff; }
 .anc-acc-swap .s-tether::before { width: calc(1.2 * var(--u, 1px)); height: 124%;
   background: linear-gradient(0deg, transparent, color-mix(in srgb, var(--anc-seam) 80%, transparent) 20%, color-mix(in srgb, var(--anc-seam) 40%, transparent) 50%, color-mix(in srgb, var(--anc-seam) 80%, transparent) 80%, transparent); }
-.anc-gate-title { display: flex; flex-direction: column; align-items: center; opacity: 0; max-width: 94vw; }
+.anc-gate-title { display: flex; flex-direction: column; align-items: center; opacity: 0; max-width: calc(94 * var(--vw, 1vw)); }
 .anc-gate-title.in { opacity: 1; animation: ancgatetitle 900ms cubic-bezier(0.16, 1, 0.3, 1) backwards; }
 @keyframes ancgatetitle { from { opacity: 0; transform: translateY(24%) scale(0.9); letter-spacing: 0.3em; } }
 .anc-gate-label {
   font-family: var(--title-font, 'Cinzel Decorative'), 'Cinzel Decorative', serif; font-weight: var(--title-weight, 700);
-  font-size: min(calc(58 * var(--u, 1px)), 6.4vw); letter-spacing: 0.06em; font-kerning: none; white-space: nowrap;
+  font-size: min(calc(58 * var(--u, 1px)), calc(6.4 * var(--vw, 1vw))); letter-spacing: 0.06em; font-kerning: none; white-space: nowrap;
   color: transparent; background: linear-gradient(180deg, #fff4cf 0%, #f6d77e 40%, #d9a441 65%, #a8701c 100%);
   -webkit-background-clip: text; background-clip: text;
   filter: drop-shadow(0 2px 0 rgba(40, 20, 60, 0.95)) drop-shadow(0 0 14px color-mix(in srgb, var(--anc-tglow, #9effd5) 55%, transparent)) drop-shadow(0 0 30px rgba(255, 190, 90, 0.3));

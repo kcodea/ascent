@@ -51,7 +51,9 @@ export function layoutBreakpoints(f: StageFit): string[] {
   return out;
 }
 
-let fit: StageFit = typeof window === 'undefined' ? { s: 1, lw: DESIGN_W, lh: DESIGN_H } : fitStage(window.innerWidth, window.innerHeight);
+// The identity until `installStage()` / `applyStage()` runs: nothing is scaled before the transform exists, and a
+// test environment (jsdom's 1024x768 window) never installs it, so its helpers stay exact no-ops.
+let fit: StageFit = { s: 1, lw: typeof window === 'undefined' ? DESIGN_W : window.innerWidth, lh: typeof window === 'undefined' ? DESIGN_H : window.innerHeight };
 const listeners = new Set<(f: StageFit) => void>();
 
 /** The current stage scale (screen px per layout px). */

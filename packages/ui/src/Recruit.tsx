@@ -133,6 +133,7 @@ import { DiceRoll } from './DiceRoll';
 import { diceCosmetics, diceSeed, type DieFace } from './diceRollTimeline';
 import { DICE_TEST_EVENT, FLICK_WINDOW_MS, diceRollParamsFor, flickDistanceScale, flickOf, throwLanding, towardBoard, type PointerSample } from './diceRollConfig';
 import { Flip } from 'gsap/Flip';
+import { fromSimpleState, getSimpleState, type StageFlipState } from './stageFlip';
 import { recordCursorSample, useGame } from './store';
 import { gateBlocks as tutorialGateBlocks, notifyGateNudge as notifyTutorialGateNudge } from './tutorial/gateBus';
 import { Unit } from './Unit';
@@ -3172,11 +3173,11 @@ export function Recruit() {
     }
   }, [handPreviews, inCombat, run.combatSettled]);
 
-  const flipStateRef = useRef<ReturnType<typeof Flip.getState> | null>(null);
+  const flipStateRef = useRef<StageFlipState | null>(null);
   // Hand reorder (drag a hand card sideways): the GSAP Flip state captured at drop, glided by a dedicated
   // layout effect. Separate from the warband/shop FLIP above — the hand's translateY tuck breaks the manual
   // x-tween that path uses, so Flip.from (which preserves the full transform) drives the hand instead.
-  const handReorderFlipRef = useRef<ReturnType<typeof Flip.getState> | null>(null);
+  const handReorderFlipRef = useRef<StageFlipState | null>(null);
   // Set true for the ONE commit in which the reorder-Flip above handles a drag-reorder, so the make-room
   // `--hand-glide` effect stands down that commit. Both effects key off `handOrderKey` and would otherwise BOTH
   // fire on a reorder (the drag is already null by the layout phase, so `--hand-glide`'s drag guard misses),
@@ -3894,7 +3895,7 @@ export function Recruit() {
     // The FLIP baseline for the drag's pre-emptive slides — captured HERE, on the layout the drag starts from
     // (one more read on the flush the measurements above already forced), instead of on every non-drag commit
     // (see `RowFlip`'s read pass). `simple: true`: these rows only translate horizontally.
-    flipStateRef.current = Flip.getState(FLIP_SELECTOR, { simple: true });
+    flipStateRef.current = getSimpleState(FLIP_SELECTOR); // Flip simple, scaled-stage safe (stageFlip.ts)
     // Hand slot spacing = the gap between consecutive card lefts (they overlap, so it's < card width). Used to
     // size the reorder parting so cards shift exactly one slot. Falls back to the card width for a 1-card hand.
     const handSlotW = handSlots.length >= 2 ? handSlots[1]!.left - handSlots[0]!.left : handSlots[0]?.width ?? 0;
@@ -5718,13 +5719,13 @@ export function Recruit() {
     // dragged card's slide resets to 0 and the neighbours' slides clear, and if the base transition is live it
     // animates those resets AT THE SAME TIME as this Flip — the two fight and that's the drop judder. Flip owns
     // the settle; restore the transition on complete.
-    const glide = (st: ReturnType<typeof Flip.getState>): void => {
+    const glide = (st: StageFlipState): void => {
       const targets = gsap.utils.toArray<HTMLElement>('.row.hand > .card');
       gsap.set(targets, { transition: 'none' });
-      Flip.from(st, {
+      // Simple on both sides (2026-09-04), via stageFlip so a scaled stage slides the right distance.
+      fromSimpleState(st, {
         duration: getFlipConfig().commitMs / 1000,
         ease: 'power2.out',
-        simple: true, // the state was captured simple (2026-09-04); the "to" side must be too, or it takes the per-card matrix path
         onComplete: () => gsap.set(targets, { clearProps: 'transition' }),
       });
     };
@@ -6884,7 +6885,7 @@ export function Recruit() {
         // commit, 36 ms each, fired every time the dragged card crossed a hand slot: 13 dropped frames on a
         // 360 Hz display per crossing. The hand fan has no rotation (`--fan-rot: 0deg`), so the bounding-box
         // capture is exact; the board's own drag flip already used it (see `flipStateRef`).
-        handReorderFlipRef.current = Flip.getState(els, { simple: true });
+        handReorderFlipRef.current = getSimpleState(els);
         dispatch({ type: 'reorderHand', uid: d.uid, toIndex: to });
       }
       return true;
@@ -7964,7 +7965,7 @@ const RenderMark = memo(function RenderMark({ start, phase }: { start: number; p
 /** The mutable bookkeeping the FLIP runner shares with `Recruit`'s handlers — created once in `Recruit` (the
  *  drop handlers and the End-of-Turn presenters write into it) and handed to `RowFlip` as one stable object. */
 interface FlipRefs {
-  flipStateRef: { current: ReturnType<typeof Flip.getState> | null };
+  flipStateRef: { current: StageFlipState | null };
   commitRectsRef: { current: CommitSweep | null };
   handPlaySnapRef: { current: boolean };
   handFlipRef: { current: Map<string, number> | null };
@@ -8179,7 +8180,7 @@ const RowFlip = memo(function RowFlip({ rowsKey, shopFxSeq, shopDeathFx, findEl,
         // `Flip.from` builds its own "to" state for the same targets and, without the flag, resolves a global
         // matrix per card — GSAP appends a temp element beside each and reads it, a forced layout per card.
         // These cards only translate, so the simple path is the same slide; this was ~9 ms per slot crossing.
-        if (prevFlipState) Flip.from(prevFlipState, { duration: flipCfg.dragMs / 1000, ease: 'power2.out', simple: true });
+        if (prevFlipState) fromSimpleState(prevFlipState, { duration: flipCfg.dragMs / 1000, ease: 'power2.out' });
       } else if (handPlaySnapRef.current) {
         // A drag-drop just committed (a hand card landed, or a board / shop card was reordered). We do a MANUAL
         // FLIP on the settled row's cards only (never a full Flip.from — for a hand-play the freshly played card
@@ -8261,7 +8262,7 @@ const RowFlip = memo(function RowFlip({ rowsKey, shopFxSeq, shopDeathFx, findEl,
       // nothing else, so outside a drag it was a forced layout per commit for a value the next drag START now
       // captures fresh (`startDragSession`) — where it is also correct by construction, whereas a state kept
       // from the last commit could predate a viewport resize.
-      flipStateRef.current = Flip.getState(flipSel, { simple: true });
+      flipStateRef.current = getSimpleState(flipSel);
     });
     if (commitLefts) commitRectsRef.current = { key: rowsKey, lefts: commitLefts };
    });

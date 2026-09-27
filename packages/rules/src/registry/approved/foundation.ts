@@ -1355,6 +1355,70 @@ export const FOUNDATION_RULES: GameRule[] = [
       lastVerifiedAt: '2026-09-25',
     },
   },
+  // ── The scaled stage (owner ask 2026-09-26: small screens + phones) ─────────────────────────────────────────
+  {
+    id: 'R-PRESENT-21',
+    title: 'Below 1920x1080 the whole game shrinks as one piece; nothing reflows or drifts off the board art',
+    statement:
+      'The game never lays out smaller than its 1920x1080 design size. On a smaller window or a phone held '
+      + 'sideways it lays out at the design size and one uniform scale shrinks everything to fit: board art, '
+      + 'cards, text, buttons, overlays, tooltips, floats, the drag card and the FX. Nothing is repositioned or '
+      + 'resized on its own, so every piece stays where it sits on the 1080p desktop, just smaller. Extra window '
+      + 'width or height is filled by the board backdrop, never by bars. At or above the design size (desktop, '
+      + '1440p, 21:9 and 32:9 ultrawide) nothing changes. Portals and FX layers live inside the scaled stage; a '
+      + 'screen-measured position is converted to stage space before it is written into CSS. A phone held '
+      + 'upright shows a rotate-your-device screen.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      {
+        kind: 'owner-chat',
+        ref: 'Owner ask 2026-09-26 (responsive pass)',
+        quote: 'when the screen shrinks our art pieces fly all over the place, and the mobile experience is really bad',
+      },
+      { kind: 'code', ref: 'packages/ui/src/stage.ts (fitStage, applyStage, toStage/rectToStage/stageViewport, stageHost); packages/ui/src/styles.css #stage + [data-stage-scaled]; packages/ui/src/fx/playDef.ts stageSink' },
+    ],
+    currentBehaviour:
+      'Conforms as of 2026-09-26. Before, the layout was scaled with a CSS variable that raw-px borders, gaps, fonts '
+      + 'and clamp() floors ignored, plus a phone-only mode (stage under 600px tall) that zoomed cards 1.36x and the '
+      + 'board art 1.3x, so below ~1080px tall the pieces pulled apart from the board and each other. Now #stage '
+      + 'wraps #root and every portal, lays out at a layout viewport of at least 1920x1080 and carries one '
+      + 'transform: scale(s).',
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/ui/src/stage.test.ts', 'packages/ui/src/stageTripwire.test.ts'],
+      lastVerifiedAt: '2026-09-26',
+    },
+  },
+  {
+    id: 'R-PRESENT-22',
+    title: 'On touch, a tap reaches everything a mouse hover reaches, and a tap on a card inspects it',
+    statement:
+      'Nothing important is hover-only. On a touch screen a tap on anything with a hover tip or preview opens it '
+      + 'and it stays open until the next tap lands somewhere else. A tap on a card in the shop, warband, hand or '
+      + 'combat opens the enlarged Inspect view (tap outside it to close), except while a hero power, Equipment, '
+      + 'targeted Battlecry or spell is being aimed, where the tap picks the target. A finger must move about 10px '
+      + 'before a card press becomes a drag, so a tap never turns into a tiny drag. Mouse behaviour is unchanged.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      {
+        kind: 'owner-chat',
+        ref: 'Owner answers 2026-09-26 (responsive pass)',
+        quote: 'no hover-only information anywhere critical',
+      },
+      { kind: 'code', ref: 'packages/ui/src/touchInput.ts (installTouchInput, tapInspectAllowed, TAP_SLOP); Card.tsx onClick; Recruit.tsx dragThreshold; styles.css .tt-on mirrors' },
+    ],
+    currentBehaviour:
+      'Conforms as of 2026-09-26. Before, tips were CSS :hover or onPointerEnter only, a tap either never opened them '
+      + 'or closed them on release, card inspect was right-click only, and the drag threshold was 0px, so a finger tap '
+      + 'on a card started a drag.',
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/ui/src/touchInput.test.ts'],
+      lastVerifiedAt: '2026-09-26',
+    },
+  },
   // ── One authored buff effect per buff (owner ruling 2026-09-24, King Oona's banana) ───────────────────────
   {
     id: 'R-BUFFFX-01',

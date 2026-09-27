@@ -53,6 +53,21 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-09-27',
     changes: [
+      {
+        category: 'Systems',
+        text: 'Career has a new Practice tab with your finished Practice games, including the bot level, and you can watch their replays.',
+        details: [
+          'Each game shows your hero, placement, fight record, rounds, length, final team and runes.',
+          'Pills show who you played (Bots with their level, or Players) and the Health mode.',
+          'Practice games now record a replay. Watch it from the Career or Recent Games Practice tab.',
+          'Games finished before this update show their results but have no replay.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-09-27',
+    changes: [
       { category: 'Systems', text: 'Finished Practice games now show up in Recent Games. Before, they were never saved.' },
     ],
   },

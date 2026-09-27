@@ -11,7 +11,7 @@ import { recordText } from './leaderboardData';
 import { sfx } from './sfx';
 import { MenuSidebar, SidebarHost } from './MenuSidebar';
 import { useGame, syncProfileFromServer, tempHandle, type CareerFocus } from './store';
-import { fetchMyRuns, fetchPlayerById, fetchReplayPayload, remoteEnabled } from './remoteBoards';
+import { fetchMyPracticeGames, fetchMyRuns, fetchPracticeReplay, fetchPlayerById, fetchReplayPayload, remoteEnabled, type PracticeGameConfig, type PracticeGameRow } from './remoteBoards';
 import { startReplay } from './replay/replayPlayer';
 import { RankBar } from './rank/RankBar';
 import { scalarCaption } from './rank/rankFormat';
@@ -30,7 +30,7 @@ import { rectToStage, stageHost, stageViewport } from './stage';
  *          .heroimg` markup + rules from StatusBar, re-seated here without the tray transforms), its name
  *          plate, and five stat tiles — 1st Place Wins · Top 4 Finish · Losses · Avg Placement · Favorite Tribe
  *          (Losses = bottom-4 finishes, the count of match losses; owner ask 2026-09-21).
- *  CENTRE  two tabs in the column header (MATCH HISTORY | HEROES, the choice persisted per browser):
+ *  CENTRE  three tabs in the column header (MATCH HISTORY | HEROES | PRACTICE, the choice persisted per browser):
  *          Match History — the account's last 25 runs FROM THE SERVER (`fetchMyRuns`; never local-only runs),
  *          each a TALL BANNER that reads top to bottom (owner 2026-09-20: "chunky and fully readable"):
  *            head   hero portrait + name + the MATCH result (WIN / LOSS — by placement, see below; the fight
@@ -44,6 +44,15 @@ import { rectToStage, stageHost, stageViewport } from './stage';
  *          and "N games played", sorted by games played then win rate; hovering / focusing a portrait floats a
  *          styled panel beside it (portalled, never clipped) with the match W–L + win rate, avg placement, and
  *          1st-place wins / best placement / last played as secondary lines. No per-hero rows.
+ *          Practice (owner ask 2026-09-27: "add practice games as a tab in the career as well so players can see
+ *          practice games they played ... the practice bot games should include the bot level"): the career
+ *          owner's finished practice games from their own `practice_games` table (`fetchMyPracticeGames`, by
+ *          user id; never mixed into the runs above, which stay ladder-only), each the SAME banner as Match
+ *          History with the practice options as pills ("Bots · Level N" / "Players", "Unlimited HP" / "Normal
+ *          HP") beside the Watch button. WATCH REPLAY (owner 2026-09-27, "okay go ahead and do it") only on a
+ *          row that carries a replay (`hasReplay`: games finished after the `replay` column landed); an older
+ *          row shows the pills alone, never a dead button. Read the first time the tab is shown for that
+ *          player, then kept while the page stays open.
  *          Only this column scrolls; the side columns stay put. All three columns share one header row
  *          (`.cv2-colhead`), so their panels start level.
  *  RIGHT   Seasonal Ranked — the MEDAL RANK as the shared `RankBar` (crest, bar, points, name; the scalar as a
@@ -69,9 +78,12 @@ import { rectToStage, stageHost, stageViewport } from './stage';
 const FETCH_LIMIT = 1000;
 /** Which centre tab is open, persisted per browser (owner ask 2026-09-20). */
 const TAB_KEY = 'ascent.career.tab';
-type CenterTab = 'history' | 'heroes';
+type CenterTab = 'history' | 'heroes' | 'practice';
 function loadTab(): CenterTab {
-  try { return localStorage.getItem(TAB_KEY) === 'heroes' ? 'heroes' : 'history'; } catch { return 'history'; }
+  try {
+    const t = localStorage.getItem(TAB_KEY);
+    return t === 'heroes' || t === 'practice' ? t : 'history';
+  } catch { return 'history'; }
 }
 function saveTab(t: CenterTab): void {
   try { localStorage.setItem(TAB_KEY, t); } catch { /* storage unavailable — the choice just doesn't persist */ }
@@ -312,6 +324,92 @@ function MatchRow({ run, focus, busy, unplayable, onWatch }: {
   );
 }
 
+/** "Bots · Level 5" / "Players": the practice row's opponents pill. */
+export function practiceOpponentsPill(cfg: PracticeGameConfig): string {
+  return cfg.opponents === 'bots' ? `Bots · Level ${cfg.botDifficulty}` : 'Players';
+}
+/** "Unlimited HP" / "Normal HP": the practice row's health pill. */
+export function practiceHealthPill(cfg: PracticeGameConfig): string {
+  return cfg.health === 'normal' ? 'Normal HP' : 'Unlimited HP';
+}
+
+/** One practice banner (owner ask 2026-09-27): Match History's banner (hero + match result by placement + the
+ *  fight record, the outcome block with date / length / rounds, the final team, the runes) with the practice
+ *  options as pills, and WATCH REPLAY only when the row carries a replay (no disabled placeholder otherwise). */
+function PracticeRow({ game, busy, unplayable, onWatch }: { game: PracticeGameRow; busy: boolean; unplayable: boolean; onWatch: () => void }) {
+  const o = outcomeOf(game.placement);
+  const result = matchResultOf(game.placement);
+  const atMs = game.createdAt ? Date.parse(game.createdAt) : NaN;
+  const when = playedOnText(atMs);
+  const hasBoard = !!game.board && game.board.minions.length > 0;
+  const runes = game.runes.filter((id) => RUNE_INDEX[id]);
+  const rec = game.record;
+  const fights = rec ? rec.wins + rec.losses + rec.draws : 0;
+  const heroName = game.heroId ? getHero(game.heroId).name : '—';
+  const cfg = game.practice;
+  return (
+    <article className={`cv2-row cv2-prow ${o.cls}`} aria-label={`Practice, ${heroName}: ${o.label}`}>
+      <header className="cv2-row-head">
+        <div className="cv2-row-hero">
+          <HeroFrame heroId={game.heroId} small />
+          <div className="cv2-row-heroid">
+            <div className="cv2-row-heroname">{heroName}</div>
+            <div className={`cv2-row-result ${result.cls}`} aria-label={result.cls === 'none' ? 'No placement recorded' : `Match ${result.label.toLowerCase()}`}>
+              {result.label}
+            </div>
+            {rec && fights > 0 && (
+              <div className="cv2-row-fights" aria-label={`Fights: ${rec.wins} won, ${rec.losses} lost${rec.draws ? `, ${rec.draws} drawn` : ''}`}>
+                {recordText(rec)}
+              </div>
+            )}
+          </div>
+        </div>
+        <div className="cv2-row-outcome">
+          <div className="cv2-row-label">Match Outcome</div>
+          <div className={`cv2-verdict ${o.cls}`}>{o.label}</div>
+          <div className="cv2-row-meta">
+            <span className="cv2-meta"><span className="cv2-meta-l">Played</span><span className="cv2-meta-v cv2-row-when">{when || '—'}</span></span>
+            <span className="cv2-meta"><span className="cv2-meta-l">Length</span><span className="cv2-meta-v cv2-row-length">{runLengthText(game.durationMs)}</span></span>
+            <span className="cv2-meta"><span className="cv2-meta-l">Rounds</span><span className="cv2-meta-v cv2-row-rounds">{game.wave ?? '—'}</span></span>
+          </div>
+        </div>
+      </header>
+      <div className="cv2-row-team">
+        {hasBoard
+          ? <FinalTeam board={game.board!} />
+          : <div className="cv2-row-none">No final team recorded for this game.</div>}
+      </div>
+      <footer className="cv2-row-foot">
+        <div className="cv2-row-runes">
+          <div className="cv2-row-label">Runes</div>
+          {runes.length > 0
+            ? <div className="cv2-runes" aria-label="Runes picked this game">{runes.map((id, i) => <RuneEmblem runeId={id} key={`${id}#${i}`} />)}</div>
+            : <div className="cv2-row-none cv2-norunes">No runes recorded</div>}
+        </div>
+        <div className="cv2-prow-side">
+          {cfg && (
+            <div className="cv2-ppills" aria-label="Practice options">
+              <span className={`cv2-ppill${cfg.opponents === 'bots' ? ' bots' : ''}`}><Icon name={cfg.opponents === 'bots' ? 'gear' : 'taunt'} />{practiceOpponentsPill(cfg)}</span>
+              <span className="cv2-ppill"><Icon name="heart" />{practiceHealthPill(cfg)}</span>
+            </div>
+          )}
+          {game.hasReplay && (
+            <button
+              type="button"
+              className="cv2-btn cv2-watch pressable"
+              disabled={busy || unplayable}
+              onClick={onWatch}
+              aria-label="Watch this practice game’s replay"
+            >
+              <Icon name="eye" />{busy ? 'Loading…' : unplayable ? 'No replay' : 'Watch Replay'}
+            </button>
+          )}
+        </div>
+      </footer>
+    </article>
+  );
+}
+
 /** The hero panel's footprint (px) — used to seat it beside the portrait and keep it on screen. The height is
  *  the measured render (the content is fixed: a name, two headline rows, three secondary lines). */
 const HERO_TIP_W = 250, HERO_TIP_H = 208;
@@ -420,6 +518,11 @@ export function Career() {
   const [tab, setTab] = useState<CenterTab>(loadTab);
   const [watching, setWatching] = useState<number | null>(null); // run id whose replay is loading
   const [noReplay, setNoReplay] = useState<number | null>(null); // run id whose payload came back unplayable
+  // PRACTICE tab rows, per career owner (`rows: null` = the read failed; no entry for this player = not read yet).
+  const [practice, setPractice] = useState<{ userId: string; rows: PracticeGameRow[] | null } | null>(null);
+  const [practiceTick, setPracticeTick] = useState(0); // the Practice tab's Retry
+  const [watchingPractice, setWatchingPractice] = useState<number | null>(null); // practice row id whose replay is loading
+  const [noPracticeReplay, setNoPracticeReplay] = useState<number | null>(null); // practice row id whose payload came back unplayable
 
   useEffect(() => {
     if (!show) return;
@@ -458,6 +561,19 @@ export function Career() {
     return () => { live = false; };
   }, [show, viewing, viewedRank]);
 
+  // The Practice tab reads the career owner's practice games the first time it is shown for them (never on
+  // open: most visits never look), then keeps them while the page stays open. Closing forgets them, so the
+  // next open (a practice game may have finished since) reads fresh.
+  const practiceRows = practice && practice.userId === userId ? practice.rows : undefined;
+  useEffect(() => {
+    if (!show) { setPractice(null); return; }
+    if (tab !== 'practice' || !userId || !remoteEnabled() || practiceRows !== undefined) return;
+    let live = true;
+    const who = userId;
+    void fetchMyPracticeGames(who, MATCH_ROWS).then((rows) => { if (live) setPractice({ userId: who, rows }); });
+    return () => { live = false; };
+  }, [show, tab, userId, practiceRows, practiceTick]);
+
   const aggregates = useMemo(() => careerAggregates(runs ?? []), [runs]);
   const trends = useMemo(() => trendSeries(runs ?? [], window_, Date.now()), [runs, window_]);
   const heroes = useMemo(() => heroCareers(runs ?? []), [runs]);
@@ -493,6 +609,21 @@ export function Career() {
         else setNoReplay(run.id);
       })
       .finally(() => setWatching(null));
+  };
+
+  // Watch a practice game back: the twin of `watchRun`, reading the practice row's own `replay->v2` by id.
+  const watchPractice = (game: PracticeGameRow): void => {
+    if (!game.hasReplay || game.rowId === null || watchingPractice !== null) return;
+    const id = game.rowId;
+    sfx.pulse();
+    setNoPracticeReplay(null);
+    setWatchingPractice(id);
+    void fetchPracticeReplay(id)
+      .then((rep) => {
+        if (rep) startReplay(rep, { authorName: shownName || undefined });
+        else setNoPracticeReplay(id);
+      })
+      .finally(() => setWatchingPractice(null));
   };
 
   const heroId = aggregates.mostPlayedHero ?? viewing?.favoriteHero ?? '';
@@ -547,7 +678,7 @@ export function Career() {
         </aside>
 
         {/* CENTRE — Match History | Heroes (the only column that scrolls) */}
-        <section className="cv2-col cv2-center" aria-label={tab === 'heroes' ? 'Heroes' : 'Match History'}>
+        <section className="cv2-col cv2-center" aria-label={tab === 'heroes' ? 'Heroes' : tab === 'practice' ? 'Practice' : 'Match History'}>
           <div className="cv2-colhead cv2-center-head">
             <div className="cv2-tabs" role="tablist" aria-label="Career view">
               <button type="button" role="tab" className={`cv2-tab${tab === 'history' ? ' on' : ''}`} aria-selected={tab === 'history'} onClick={() => pickTab('history')}>
@@ -556,14 +687,50 @@ export function Career() {
               <button type="button" role="tab" className={`cv2-tab${tab === 'heroes' ? ' on' : ''}`} aria-selected={tab === 'heroes'} onClick={() => pickTab('heroes')}>
                 <Icon name="taunt" />Heroes
               </button>
+              <button type="button" role="tab" className={`cv2-tab${tab === 'practice' ? ' on' : ''}`} aria-selected={tab === 'practice'} onClick={() => pickTab('practice')}>
+                <Icon name="target" />Practice
+              </button>
             </div>
             <span className="cv2-sec-sub">
               {tab === 'heroes'
                 ? (heroes.length ? `${heroes.length} hero${heroes.length === 1 ? '' : 'es'} played` : '')
+                : tab === 'practice'
+                ? (practiceRows?.length ? `Last ${practiceRows.length} practice game${practiceRows.length === 1 ? '' : 's'}` : '')
                 : (matchRows.length ? `Last ${matchRows.length} run${matchRows.length === 1 ? '' : 's'}` : '')}
             </span>
           </div>
-          {tab === 'heroes' ? (
+          {tab === 'practice' ? (
+            <div className="cv2-list cv2-practicelist" role="tabpanel">
+              {practiceRows === undefined ? (
+                <div className="cv2-panel cv2-none" role="status" aria-busy="true">
+                  <div className="cv2-state-ico spin"><Icon name="refresh" /></div>
+                  <div className="cv2-state-title">Loading practice games</div>
+                  <div className="cv2-state-body">Fetching finished practice games from the server…</div>
+                </div>
+              ) : practiceRows === null ? (
+                <div className="cv2-panel cv2-none">
+                  <div className="cv2-state-ico"><Icon name="mute" /></div>
+                  <div className="cv2-state-title">Couldn’t reach the server</div>
+                  <div className="cv2-state-body">Check your connection and try again.</div>
+                  <button type="button" className="cv2-btn pressable" onClick={() => { sfx.pulse(); setPractice(null); setPracticeTick((t) => t + 1); }}>Retry</button>
+                </div>
+              ) : practiceRows.length === 0 ? (
+                <div className="cv2-panel cv2-none">
+                  <div className="cv2-state-ico"><Icon name="target" /></div>
+                  <div className="cv2-state-title">No practice games yet</div>
+                  <div className="cv2-state-body">{viewing ? `${shownName} hasn’t finished a practice game yet.` : 'Finish a practice game to see it here.'}</div>
+                </div>
+              ) : practiceRows.map((g, i) => (
+                <PracticeRow
+                  key={g.rowId ?? `${g.createdAt ?? ''}-${i}`}
+                  game={g}
+                  busy={watchingPractice !== null && watchingPractice === g.rowId}
+                  unplayable={noPracticeReplay !== null && noPracticeReplay === g.rowId}
+                  onWatch={() => watchPractice(g)}
+                />
+              ))}
+            </div>
+          ) : tab === 'heroes' ? (
             <div className="cv2-list cv2-herolist" role="tabpanel">
               {heroes.length === 0 ? (
                 <div className="cv2-panel cv2-none">

@@ -4,7 +4,7 @@ import { Icon } from './Icon';
 import { sfx } from './sfx';
 import { MenuSidebar, SidebarHost } from './MenuSidebar';
 import { useGame } from './store';
-import { fetchPracticeGames, fetchRecentGames, fetchPlayerById, fetchReplayPayload, remoteEnabled, type PracticeGameConfig, type PracticeGameRow, type RecentGameRow } from './remoteBoards';
+import { fetchPracticeGames, fetchPracticeReplay, fetchRecentGames, fetchPlayerById, fetchReplayPayload, remoteEnabled, type PracticeGameConfig, type PracticeGameRow, type RecentGameRow } from './remoteBoards';
 import { startReplay } from './replay/replayPlayer';
 import { LbHeroFrame, LbLabel, LbRunes, LbTeam } from './LadderBits';
 import { outcomeOf, partialText, playedAtText, recordText, runLengthText } from './leaderboardData';
@@ -24,7 +24,8 @@ import { outcomeOf, partialText, playedAtText, recordText, runLengthText } from 
  * mode games played?"), in the Career page's tab style: RANKED (the feed above, unchanged) and PRACTICE, the
  * last 20 finished practice games, read from their own `practice_games` table (`fetchPracticeGames`) so a
  * practice row can never reach the ladder's tables. A practice row is the same banner with the practice options
- * as facts (opponents, health) and no Watch (practice uploads no recording); its banner opens the player's
+ * as facts (opponents with the bot level, health) and a Watch only when the row carries a replay (owner
+ * 2026-09-27: practice games record replays from then on; older rows show no button); its banner opens the player's
  * Career on its default view (practice runs are not in the Career's match history, so there is no run to focus).
  * Each tab fetches when it is first shown and keeps its rows while the page stays open.
  */
@@ -103,7 +104,8 @@ export function RecentGames(): JSX.Element | null {
     sfx.pulse();
     setNoReplay(null);
     setWatching(key);
-    void fetchReplayPayload(r.rowId)
+    // A practice row's replay lives on its own table (`practice_games.replay`), a ranked row's on run_telemetry.
+    void ('practice' in r ? fetchPracticeReplay(r.rowId) : fetchReplayPayload(r.rowId))
       .then((rep) => {
         if (rep) startReplay(rep, { authorName: r.author || undefined });
         else setNoReplay(key);
@@ -180,7 +182,7 @@ export function RecentGames(): JSX.Element | null {
                       {r.lobbyStrength && <span className="lb-fact"><span className="lb-fact-l">Lobby</span><span className="lb-fact-v lb-fact-lobby" aria-label={`Lobby strength ${r.lobbyStrength.value} percent`}>{strengthText(r.lobbyStrength)}</span></span>}
                     </div>
                     {r.partial && <div className="lb-partial"><Icon name="clock" />{partialText(r.firstRecordedWave)}</div>}
-                    {!practice && <button
+                    {(!practice || watchable) && <button
                       type="button"
                       className="lb-btn lb-watch pressable"
                       onClick={(e) => watchGame(e, r, key)}

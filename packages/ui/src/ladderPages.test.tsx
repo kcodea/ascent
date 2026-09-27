@@ -25,6 +25,7 @@ const fetchRecentGames = vi.fn<() => Promise<RecentGameRow[]>>();
 const fetchReplayPayload = vi.fn<(id: number) => Promise<unknown>>();
 const fetchPlayerById = vi.fn<(id: string) => Promise<PlayerRow | null>>();
 const fetchPracticeGames = vi.fn<() => Promise<PracticeGameRow[]>>();
+const fetchPracticeReplay = vi.fn<(id: number) => Promise<unknown>>();
 const startReplay = vi.fn();
 let remote = true;
 
@@ -40,6 +41,7 @@ vi.mock('./remoteBoards', async (importOriginal) => ({
   fetchReplayPayload: (id: number) => fetchReplayPayload(id),
   fetchPlayerById: (id: string) => fetchPlayerById(id),
   fetchPracticeGames: () => fetchPracticeGames(),
+  fetchPracticeReplay: (id: number) => fetchPracticeReplay(id),
 }));
 vi.mock('./replay/replayPlayer', () => ({ startReplay: (...a: unknown[]) => startReplay(...a) }));
 
@@ -118,6 +120,7 @@ beforeEach(() => {
   fetchReplayPayload.mockReset().mockResolvedValue({ version: 2, seed: 1, frames: [{}] });
   fetchPlayerById.mockReset().mockResolvedValue(null);
   fetchPracticeGames.mockReset().mockResolvedValue(PRACTICE);
+  fetchPracticeReplay.mockReset().mockResolvedValue({ version: 2, seed: 9, frames: [{}] });
   startReplay.mockReset();
   // jsdom has no scrollIntoView — the own-row scroll must call it exactly once when the list lands.
   scrollIntoView.mockReset();
@@ -474,6 +477,21 @@ describe('RecentGames — the Practice tab (owner ask 2026-09-24)', () => {
     expect(text('.lb-fact-v')).toEqual(['18 min', '15', 'Bots Lv 5', 'Unlimited', '18 min', '9', 'Players', 'Normal']);
     expect(ui.container.querySelectorAll('.lb-watch')).toHaveLength(0);
     expect(ui.container.querySelector('.lbsub')?.textContent).toContain('practice games');
+  });
+
+  it('a practice row WITH a replay (owner 2026-09-27) offers Watch, reading the practice table by id; rows without one still show none', async () => {
+    fetchPracticeGames.mockResolvedValue([{ ...PRACTICE[0]!, hasReplay: true }, PRACTICE[1]!]);
+    click(tabs()[1]!);
+    await flush();
+    const watches = [...ui.container.querySelectorAll('.lb-watch')];
+    expect(watches).toHaveLength(1);
+    expect(ui.container.querySelectorAll('.lb-row')[1]!.querySelector('.lb-watch')).toBeNull();
+    click(watches[0]!);
+    await flush();
+    expect(fetchPracticeReplay).toHaveBeenCalledWith(5);
+    expect(fetchReplayPayload).not.toHaveBeenCalled();
+    expect(startReplay).toHaveBeenCalledTimes(1);
+    expect(useGame.getState().showCareer).toBeFalsy(); // the Watch click never bubbles to the banner
   });
 
   it('a practice banner opens the player’s Career without focusing a run (practice is not in their match history)', async () => {

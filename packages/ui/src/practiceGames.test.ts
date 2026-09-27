@@ -4,6 +4,13 @@
  *    practice options, never offers a replay; `[]` when the table does not exist yet (pre-migration);
  *  - `uploadPracticeGame`: inserts into `practice_games` alone, and not at all without a session;
  *  - `practiceGameOf`: the placement the practice end screen shows, the record, the length and the options.
+ * THE CAREER PRACTICE TAB + PRACTICE REPLAYS (owner 2026-09-27, R-CAREER-PRACTICE-01):
+ *  - `fetchMyPracticeGames`: ONE player's rows, filtered by `user_id` server-side; `[]` without a user id, `null`
+ *    when the read fails (the tab's Retry);
+ *  - the lists probe `replay->v2->version` only (never the payload) and fall back to a select without it on a
+ *    backend that has not run the `replay` migration; `hasReplay` = that probe is 2;
+ *  - `uploadPracticeGame` sends the replay, and retries WITHOUT it on an unknown-column error so the result
+ *    still records; `fetchPracticeReplay` reads one row's `replay->v2` by id.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { createLobbyRun, DEFAULT_PRACTICE_CONFIG, type RunState } from '@game/sim';
@@ -90,6 +97,82 @@ describe('uploadPracticeGame', () => {
     userId = null;
     await (await load()).uploadPracticeGame(g);
     expect(queries).toHaveLength(0);
+  });
+});
+
+describe('fetchMyPracticeGames (the Career Practice tab)', () => {
+  it('reads practice_games filtered by THIS user id, newest first, and maps the rows', async () => {
+    respond = () => ({ data: [{ ...PRACTICE_ROW, user_id: 'me-1', replay_v2_version: 2 }], error: null });
+    const rows = await (await load()).fetchMyPracticeGames('me-1', 25);
+    expect(queries.map((q) => q.table)).toEqual(['practice_games']);
+    expect(queries[0]!.eqs).toEqual([['user_id', 'me-1']]);
+    expect(queries[0]!.limit).toBe(25);
+    expect(rows).toHaveLength(1);
+    expect(rows![0]).toMatchObject({ userId: 'me-1', rowId: 5, hasReplay: true, practice: { opponents: 'bots', botDifficulty: 5, health: 'unlimited' } });
+  });
+  it('without a user id there is nothing to ask ([] and no query); a failed read is null (the Retry), not "no games"', async () => {
+    expect(await (await load()).fetchMyPracticeGames(null)).toEqual([]);
+    expect(queries).toHaveLength(0);
+    respond = () => ({ data: null, error: { code: '500' } });
+    expect(await (await load()).fetchMyPracticeGames('me-1')).toBeNull();
+  });
+});
+
+describe('practice replays (owner 2026-09-27)', () => {
+  it('the list probes replay->v2->version only, never the payload; hasReplay = a v2 probe on a row with an id', async () => {
+    respond = () => ({ data: [{ ...PRACTICE_ROW, replay_v2_version: 2 }, { ...PRACTICE_ROW, id: 6, replay_v2_version: null }], error: null });
+    const rows = await (await load()).fetchPracticeGames(20);
+    expect(queries[0]!.select).toContain('replay_v2_version:replay->v2->version');
+    expect(queries[0]!.select).not.toMatch(/replay->v2(,|$)|frames/);
+    expect(rows.map((r) => r.hasReplay)).toEqual([true, false]);
+  });
+  it('a backend without the replay column falls back to the plain select (rows, no Watch)', async () => {
+    respond = (q) => (q.select?.includes('replay') ? { data: null, error: { code: '42703' } } : { data: [PRACTICE_ROW], error: null });
+    const rows = await (await load()).fetchMyPracticeGames('me-1');
+    expect(queries).toHaveLength(2);
+    expect(queries[1]!.select).not.toContain('replay');
+    expect(rows).toHaveLength(1);
+    expect(rows![0]!.hasReplay).toBe(false);
+  });
+  const replay = { seed: 42, heroId: 'sable', mode: 'practice', actions: [{ type: 'roll' }], v2: { version: 2, seed: 42, heroId: 'sable', frames: [], result: { placement: 2 } } as never };
+  const g = { author: 'Kev', patch: 'p', heroId: 'sable', placement: 2, wins: 5, record: { wins: 5, losses: 4, draws: 0 }, wave: 12, finalBoard: null, runes: [], durationMs: 60_000, config: { opponents: 'bots' as const, botDifficulty: 6, health: 'unlimited' as const }, replay };
+  it('the upload carries the replay payload (the action log + v2), the same shape a ranked row uploads', async () => {
+    await (await load()).uploadPracticeGame(g);
+    expect(queries).toHaveLength(1);
+    expect(queries[0]!.insert).toEqual([expect.objectContaining({ user_id: 'me-1', config: g.config, replay })]);
+  });
+  it('no replay column yet (42703 / PGRST204): the result row is retried WITHOUT the replay, so it still records', async () => {
+    for (const code of ['42703', 'PGRST204']) {
+      queries.length = 0;
+      respond = (q) => (q.insert && 'replay' in (q.insert[0] as object) ? { data: null, error: { code } } : { data: [], error: null });
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      const err = vi.spyOn(console, 'error').mockImplementation(() => {});
+      await (await load()).uploadPracticeGame(g);
+      expect(queries).toHaveLength(2);
+      expect(queries[1]!.insert).toEqual([expect.objectContaining({ user_id: 'me-1', hero_id: 'sable', placement: 2 })]);
+      expect('replay' in (queries[1]!.insert![0] as object)).toBe(false);
+      expect(warn).toHaveBeenCalled();
+      expect(err).not.toHaveBeenCalled();
+      warn.mockRestore(); err.mockRestore();
+    }
+  });
+  it('any other rejection is NOT retried (it is logged)', async () => {
+    respond = () => ({ data: null, error: { code: '22P02', message: 'bad' } });
+    const err = vi.spyOn(console, 'error').mockImplementation(() => {});
+    await (await load()).uploadPracticeGame(g);
+    expect(queries).toHaveLength(1);
+    expect(err).toHaveBeenCalled();
+    err.mockRestore();
+  });
+  it('fetchPracticeReplay reads ONE row\'s replay->v2 by id from practice_games; a malformed payload is null', async () => {
+    const v2 = { version: 2, seed: 42, heroId: 'sable', mode: 'practice', frames: [{ tMs: 0 }], result: { placement: 2, record: { wins: 1, losses: 0, draws: 0 }, finalBoard: null } };
+    respond = () => ({ data: [{ v2 }], error: null });
+    const got = await (await load()).fetchPracticeReplay(5);
+    expect(queries.map((q) => [q.table, q.select])).toEqual([['practice_games', 'v2:replay->v2']]);
+    expect(queries[0]!.eqs).toEqual([['id', 5]]);
+    expect(got).toMatchObject({ version: 2, seed: 42 });
+    respond = () => ({ data: [{ v2: { version: 1 } }], error: null });
+    expect(await (await load()).fetchPracticeReplay(5)).toBeNull();
   });
 });
 

@@ -1058,6 +1058,45 @@ function persistReplayWave(run: RunState, frames: readonly ReplayFrame[], trail:
   void replayDrafts.putChunk(meta, chunk).catch(() => { replayPartialReason ??= 'storage_failure'; });
 }
 
+/**
+ * THE v2 state-replay payload of a finished run: the recorded frames + the recorded outcome. One builder for
+ * every upload that carries a replay, so a ranked row (`run_telemetry.replay.v2`) and a practice row
+ * (`practice_games.replay.v2`, owner ask 2026-09-27) are the same shape and play in the same viewer. The run's
+ * `lobbyStrength` stamp is added by the caller when it has one (ranked only).
+ */
+function assembleReplayV2(next: RunState, o: {
+  author: string; partial: boolean; frames: ReplayFrame[]; inspectTrail: InspectEvent[];
+  cursorTrail: ReturnType<typeof takeCursorTrail>; placement: number; finalBoard: BoardSnapshot | null;
+}): ReplayV2 {
+  return {
+    version: 2,
+    seed: next.seed, heroId: next.heroId, mode: next.mode ?? 'lobby',
+    author: o.author, patch: `${__APP_VERSION__}+${__BUILD_SHA__}`,
+    createdAtMs: Date.now(),
+    // A recording that does not reach back to wave 1 — draft persistence missing or failed. Carry the
+    // RANGE and the REASON, so a viewer can say "rounds 7-18 recorded" instead of implying the earlier
+    // rounds were filtered out.
+    ...(o.partial
+      ? {
+          partial: true as const,
+          ...(firstRecordedWave(o.frames) != null ? { firstRecordedWave: firstRecordedWave(o.frames)! } : {}),
+          partialReason: replayPartialReason ?? 'resumed_without_frames',
+        }
+      : {}),
+    frames: o.frames,
+    // The inspect trail (open/close events of the card-inspect overlay, same clock as the frames).
+    ...(o.inspectTrail.length ? { inspectTrail: o.inspectTrail } : {}),
+    // The free-cursor trail (2026-09-19) — optional, the version stays 2.
+    ...(o.cursorTrail.length ? { cursorTrail: o.cursorTrail } : {}),
+    result: {
+      placement: o.placement,
+      record: runRecord(next),
+      // `ratingDelta` + `rank` are patched in by `applyRankOutcome` once the server confirms.
+      finalBoard: o.finalBoard,
+    },
+  };
+}
+
 /** Drop the draft once its recording has been assembled for upload — or when the run is discarded. */
 function discardReplayDraft(): void {
   const id = replayDraftId;
@@ -1505,33 +1544,10 @@ function commitResolvedAction(
         // REPLAY V2 (state replay): the recorded frames + the recorded outcome. Assembled for EVERY run that
         // reaches this block (lobby or not) and stashed on the store so "Rewatch last game" (Phase B) can play
         // it back locally; the lobby telemetry upload below rides the same object.
-        const v2: ReplayV2 = {
-          version: 2,
-          seed: next.seed, heroId: next.heroId, mode: next.mode ?? 'lobby',
-          author, patch: `${__APP_VERSION__}+${__BUILD_SHA__}`,
-          createdAtMs: Date.now(),
-          // A recording that does not reach back to wave 1 — draft persistence missing or failed. Carry the
-          // RANGE and the REASON, so a viewer can say "rounds 7-18 recorded" instead of implying the earlier
-          // rounds were filtered out.
-          ...(s.replayPartial
-            ? {
-                partial: true as const,
-                ...(firstRecordedWave(replayFrames) != null ? { firstRecordedWave: firstRecordedWave(replayFrames)! } : {}),
-                partialReason: replayPartialReason ?? 'resumed_without_frames',
-              }
-            : {}),
-          frames: replayFrames,
-          // The inspect trail (open/close events of the card-inspect overlay, same clock as the frames).
-          ...(inspectTrail.length ? { inspectTrail } : {}),
-          // The free-cursor trail (2026-09-19) — optional, the version stays 2.
-          ...(cursorTrail.length ? { cursorTrail } : {}),
-          result: {
-            placement: lobbyPlacement ?? 0,
-            record: runRecord(next),
-            // `ratingDelta` + `rank` are patched in by `applyRankOutcome` once the server confirms.
-            finalBoard,
-          },
-        };
+        const v2 = assembleReplayV2(next, {
+          author, partial: s.replayPartial, frames: replayFrames, inspectTrail, cursorTrail,
+          placement: lobbyPlacement ?? 0, finalBoard,
+        });
         set({ lastReplay: v2 });
         // The recording is assembled and now lives on the store (and inside the upload closure below), so the
         // on-disk draft has done its job. Dropping it here is what keeps IndexedDB from accumulating one
@@ -1599,11 +1615,14 @@ function commitResolvedAction(
         }
       }, 0);
     }
-    // PRACTICE GAMES (owner ask 2026-09-24): a finished PRACTICE run writes ONE light row to its own table
-    // (`practice_games`), for Recent Games' Practice tab. It never touches the ladder tables above (no telemetry,
-    // history, boards, fight ledger or rating), which is why it is its own block and not a relaxed gate on that
-    // one. Never a sandbox (Scene Builder / a loaded bug scenario) and never the tutorial. Deferred like the
-    // uploads above so it never hitches the end screen; best-effort, dropped quietly without a backend/session.
+    // PRACTICE GAMES (owner ask 2026-09-24): a finished PRACTICE run writes ONE row to its own table
+    // (`practice_games`), for Recent Games' and the Career's Practice tabs. It never touches the ladder tables
+    // above (no telemetry, history, boards, fight ledger or rating), which is why it is its own block and not a
+    // relaxed gate on that one. Never a sandbox (Scene Builder / a loaded bug scenario) and never the tutorial.
+    // Deferred like the uploads above so it never hitches the end screen; best-effort, dropped quietly without a
+    // backend/session. REPLAYS (owner 2026-09-27, "okay go ahead and do it"): the row carries the SAME `replay`
+    // payload a ranked row uploads (the action log + the v2 state replay from `assembleReplayV2`), so a practice
+    // game can be watched from either Practice tab. No lobby-strength stamp: practice has no fight ledger.
     if (
       (next.phase === 'gameover' || next.phase === 'victory') &&
       s.run.phase !== 'gameover' &&
@@ -1613,9 +1632,19 @@ function commitResolvedAction(
     ) {
       const author = s.playerName || tempHandle(s.account.userId);
       const frames = replayFrames;
+      // Copied SYNCHRONOUSLY, as the ranked block does: the module-level trails reset the moment a new run seeds.
+      const inspectTrail = replayInspectTrail.slice();
+      const cursorTrail = takeCursorTrail();
+      const partial = s.replayPartial;
+      const actions = [...s.replayActions, action];
       setTimeout(() => {
         try {
-          void uploadPracticeGame(practiceGameOf(next, { author, patch: `${__APP_VERSION__}+${__BUILD_SHA__}`, finalBoard: endStateBoard(next), frames }));
+          const finalBoard = endStateBoard(next);
+          const patch = `${__APP_VERSION__}+${__BUILD_SHA__}`;
+          const row = practiceGameOf(next, { author, patch, finalBoard, frames });
+          // The recorded outcome is the placement the practice end screen showed (the row's own placement).
+          const v2 = assembleReplayV2(next, { author, partial, frames, inspectTrail, cursorTrail, placement: row.placement ?? 0, finalBoard });
+          void uploadPracticeGame({ ...row, replay: { seed: next.seed, heroId: next.heroId, mode: next.mode, actions, v2 } });
         } catch { /* best-effort: a practice row must never disrupt the end screen */ }
       }, 0);
     }

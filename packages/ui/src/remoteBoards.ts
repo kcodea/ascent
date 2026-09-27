@@ -1281,12 +1281,15 @@ export async function fetchTopPlayers(limit = 10): Promise<PlayerRow[]> {
 
 // ── Practice games (owner ask 2026-09-24: a Practice tab on Recent Games) ─────────────────────────────────────
 // Practice runs upload NOTHING to the ladder tables (no telemetry, no history, no boards, no rating), and that
-// stays true: the Balance Report, the Hall and the Career must never see a practice row. The Practice tab reads
+// stays true: the Balance Report, the Hall and the Career's ladder numbers never see a practice row. The Practice tabs read
 // its OWN table, `practice_games` (supabase/migrations/2026-09-24-practice-games.sql), one LIGHT row per finished
 // practice game: who, which hero, where they placed, the record, the final board, the runes, the length and the
-// practice options. No replay payload rides along (practice is played far more often than the ladder, and a
-// ~100-450 KB recording per game is not worth the storage), so a practice row offers no Watch. Until the owner
-// runs the migration, the insert fails quietly and the tab shows its empty state.
+// practice options. REPLAYS (owner 2026-09-27, "okay go ahead and do it"; reversing the 2026-09-24 call): the
+// row also carries the SAME `replay` payload a ranked `run_telemetry` row does (the action log + the v2 state
+// replay), in the `replay` column added by supabase/migrations/2026-09-27-practice-games-replay.sql. The lists
+// never download it: they probe `replay->v2->version` only, and the Watch click fetches that one row's
+// `replay->v2` (`fetchPracticeReplay`). Until the owner runs that migration, the upload retries WITHOUT the
+// replay (so the result row still records) and the lists fall back to a select without the probe (no Watch).
 
 /** One finished practice game, as the client uploads it. */
 export interface PracticeGameUpload {
@@ -1301,6 +1304,24 @@ export interface PracticeGameUpload {
   runes: string[];
   durationMs: number | null;
   config: PracticeGameConfig | null;
+  /** The run's replay, the same shape a ranked row uploads to `run_telemetry.replay`: the action log + `v2`. */
+  replay?: PracticeReplayPayload | null;
+}
+
+/** A practice row's `replay` jsonb: the v1 action log (kept for parity with the ranked payload) + the v2 state
+ *  replay the viewer plays. */
+export interface PracticeReplayPayload {
+  seed: number;
+  heroId: string;
+  mode?: string;
+  actions: readonly unknown[];
+  v2: ReplayV2;
+}
+
+/** PostgREST / Postgres errors that mean "the `replay` column is not there yet" (the owner has not run the
+ *  2026-09-27 migration): an unknown column in the insert (PGRST204, schema cache) or in SQL (42703). */
+function isMissingColumnError(error: { code?: string } | null | undefined): boolean {
+  return !!error && (error.code === 'PGRST204' || error.code === '42703');
 }
 
 /** The practice options the game ran under — the facts the Practice tab prints beside the outcome. */
@@ -1317,13 +1338,19 @@ export async function uploadPracticeGame(g: PracticeGameUpload): Promise<void> {
   const userId = currentUserId();
   if (!c || !userId) return;
   try {
-    const { error } = await c.from('practice_games').insert([{
+    const row = {
       user_id: userId, author: g.author, patch: g.patch, hero_id: g.heroId,
       placement: g.placement, wins: g.wins, record: g.record, wave: g.wave,
       final_board: g.finalBoard, picked_runes: g.runes,
       // int column: never send a fractional value (see `practiceGameOf`), whatever the caller passes.
       duration_ms: g.durationMs === null ? null : Math.round(g.durationMs), config: g.config,
-    }]);
+    };
+    let { error } = await c.from('practice_games').insert([g.replay ? { ...row, replay: g.replay } : row]);
+    // No `replay` column yet (the 2026-09-27 migration not run): record the RESULT anyway, without the replay.
+    if (error && g.replay && isMissingColumnError(error)) {
+      console.warn('[practice_games] no replay column yet; recording the result without its replay:', error.code);
+      ({ error } = await c.from('practice_games').insert([row]));
+    }
     // A rejected row used to vanish without a trace (the client RETURNS the error, it doesn't throw), which is how
     // every practice game went unrecorded for days. Surface it so the next rejection is visible in the console.
     if (error) console.error('[practice_games] upload rejected:', error.code, error.message);
@@ -1338,7 +1365,24 @@ export interface PracticeGameRow extends RecentGameRow {
   practice: PracticeGameConfig | null;
 }
 
-const PRACTICE_SELECT = 'id, user_id, author, hero_id, wins, placement, created_at, picked_runes, final_board, record, wave, duration_ms, config';
+const PRACTICE_BASE = 'id, user_id, author, hero_id, wins, placement, created_at, picked_runes, final_board, record, wave, duration_ms, config';
+/** The practice list selects, richest first: with the light replay probe (`replay->v2->version`, never the
+ *  payload), then without it for a backend that has not run the 2026-09-27 `replay` migration. */
+const PRACTICE_SELECTS: readonly string[] = [`${PRACTICE_BASE}, replay_v2_version:replay->v2->version`, PRACTICE_BASE];
+
+/** Run one practice list query down the select ladder: a query ERROR (the `replay` column missing) tries the
+ *  plainer select; a timeout or a clean answer ends the walk. Null on timeout. */
+async function practiceQuery(
+  build: (select: string) => PromiseLike<{ data: unknown; error: unknown }>,
+): Promise<{ data: unknown; error: unknown } | null> {
+  const timeout = () => new Promise<null>((resolve) => setTimeout(() => resolve(null), FETCH_TIMEOUT_MS));
+  let result: { data: unknown; error: unknown } | null = null;
+  for (const select of PRACTICE_SELECTS) {
+    result = await Promise.race([Promise.resolve(build(select)), timeout()]);
+    if (!result || !result.error) break;
+  }
+  return result;
+}
 
 /** Map one raw `practice_games` row → a `PracticeGameRow` (the Recent Games mapper, then the practice-only
  *  columns). Exported pure for tests; never throws on a sparse row. */
@@ -1348,7 +1392,9 @@ export function asPracticeGameRow(r: Record<string, unknown>): PracticeGameRow {
   const duration = numOf(r.duration_ms);
   return {
     ...base,
-    hasReplay: false, // practice rows carry no recording
+    // The light probe (`replay_v2_version`): a watchable v2 replay rides on the row. Older rows (before
+    // 2026-09-27) and the pre-migration fallback select have none, so they offer no Watch.
+    hasReplay: (r.replay_v2_version === 2 || r.replay_v2_version === '2') && typeof r.id === 'number',
     durationMs: duration !== null && duration >= 0 ? duration : null,
     practice: cfg && (cfg.opponents === 'players' || cfg.opponents === 'bots')
       ? { opponents: cfg.opponents, botDifficulty: numOf(cfg.botDifficulty) ?? 0, health: cfg.health === 'normal' ? 'normal' : 'unlimited' }
@@ -1362,15 +1408,46 @@ export async function fetchPracticeGames(limit = 20): Promise<PracticeGameRow[]>
   const c = client();
   if (!c) return [];
   try {
-    const timeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), FETCH_TIMEOUT_MS));
-    const result = await Promise.race([
-      Promise.resolve(c.from('practice_games').select(PRACTICE_SELECT).order('created_at', { ascending: false }).limit(limit)),
-      timeout,
-    ]);
+    const result = await practiceQuery((select) => c.from('practice_games').select(select).order('created_at', { ascending: false }).limit(limit));
     if (!result || result.error || !result.data) return [];
     return (result.data as unknown as Array<Record<string, unknown>>).map(asPracticeGameRow);
   } catch {
     return [];
+  }
+}
+
+/** ONE player's finished practice games (the Career's Practice tab, owner ask 2026-09-27), newest first, read
+ *  by `user_id` (never by the mutable display name). Best-effort + time-boxed like the others: `[]` with no
+ *  backend or no user id (nothing to ask), `null` when the read failed or timed out (the tab offers a Retry). */
+export async function fetchMyPracticeGames(userId: string | null | undefined, limit = 25): Promise<PracticeGameRow[] | null> {
+  const c = client();
+  if (!c || !userId) return [];
+  try {
+    const result = await practiceQuery((select) => c.from('practice_games').select(select).eq('user_id', userId).order('created_at', { ascending: false }).limit(limit));
+    if (!result || result.error || !result.data) return null;
+    return (result.data as unknown as Array<Record<string, unknown>>).map(asPracticeGameRow);
+  } catch {
+    return null;
+  }
+}
+
+/** Fetch ONE practice row's v2 replay by its `practice_games` PK: the heavy half of the practice Watch, the
+ *  twin of `fetchReplayPayload` (selects `replay->v2` alone, so the action log never crosses the wire).
+ *  Best-effort + time-boxed; null on any failure / malformed payload, so the caller shows "No replay". */
+export async function fetchPracticeReplay(rowId: number): Promise<ReplayV2 | null> {
+  const c = client();
+  if (!c || !Number.isFinite(rowId)) return null;
+  try {
+    const timeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), FETCH_TIMEOUT_MS));
+    const result = await Promise.race([
+      Promise.resolve(c.from('practice_games').select('v2:replay->v2').eq('id', rowId).limit(1)),
+      timeout,
+    ]);
+    if (!result || result.error || !result.data?.length) return null;
+    const v2 = (result.data[0] as unknown as { v2: unknown }).v2;
+    return isReplayV2(v2) ? v2 : null;
+  } catch {
+    return null;
   }
 }
 

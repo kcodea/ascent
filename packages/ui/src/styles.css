@@ -7633,6 +7633,14 @@ body:has(.lb-ladder) .cardref { z-index: 490; }
 .cv2-rune-tip-kind { font-size: 13px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: #a8d8ef; }
 .cv2-rune-tip-body b { color: #a8d8ef; font-weight: 800; }
 .cv2-watch { flex: none; }
+/* PRACTICE tab (owner 2026-09-27): the practice options as small pills beside the Watch button (the button only
+   on rows that carry a replay). Static styling only; nothing here animates. */
+.cv2-prow-side { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 12px; flex: none; max-width: 60%; }
+.cv2-ppills { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; flex: none; }
+.cv2-ppill { display: inline-flex; align-items: center; gap: 7px; font-family: var(--font-ui); font-weight: 800; font-size: 14px; letter-spacing: 0.04em; color: #f4eee2; white-space: nowrap; padding: 6px 12px; border-radius: 999px; background: rgba(0, 0, 0, 0.3); border: 1px solid rgba(196, 160, 92, 0.4); }
+.cv2-ppill svg { width: 16px; height: 16px; color: #e8c877; flex: none; }
+.cv2-ppill.bots { border-color: rgba(168, 216, 239, 0.5); }
+.cv2-ppill.bots svg { color: #a8d8ef; }
 /* HEROES tab (owner 2026-09-20) — a portrait grid: every hero played in the game's circular frame (the same
    `.cv2-heroframe` the left column wears), name + "N games played" beneath. The grid fills the centre column
    and wraps to the width; only the column's list scrolls. */

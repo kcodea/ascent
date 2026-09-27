@@ -21,7 +21,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act } from 'react';
 import { mount, type Mounted } from './renderedText.mount';
 import type { CareerRun } from './careerData';
-import type { PlayerRow } from './remoteBoards';
+import type { PlayerRow, PracticeGameRow } from './remoteBoards';
 
 // The real `Card` mounts a <canvas> sprite fallback; jsdom has no 2D context (and logs "not implemented" per
 // card without this). `drawSprite` returns early on a null context.
@@ -31,6 +31,8 @@ const fetchMyRuns = vi.fn<(limit?: number, opts?: { userId?: string }) => Promis
 const fetchReplayPayload = vi.fn<(rowId: number) => Promise<unknown>>();
 const fetchPlayerById = vi.fn<(userId: string) => Promise<PlayerRow | null>>();
 const startReplay = vi.fn();
+const fetchPracticeReplay = vi.fn<(rowId: number) => Promise<unknown>>();
+const fetchMyPracticeGames = vi.fn<(userId: string | null | undefined, limit?: number) => Promise<PracticeGameRow[] | null>>();
 
 vi.mock('./remoteBoards', async (importOriginal) => ({
   ...(await importOriginal<typeof import('./remoteBoards')>()),
@@ -38,6 +40,8 @@ vi.mock('./remoteBoards', async (importOriginal) => ({
   fetchMyRuns: (...a: [number?, { userId?: string }?]) => fetchMyRuns(...a),
   fetchReplayPayload: (id: number) => fetchReplayPayload(id),
   fetchPlayerById: (id: string) => fetchPlayerById(id),
+  fetchMyPracticeGames: (id: string | null | undefined, limit?: number) => fetchMyPracticeGames(id, limit),
+  fetchPracticeReplay: (id: number) => fetchPracticeReplay(id),
   fetchPlayerRating: async () => undefined, // syncProfileFromServer: "couldn't ask" → keep the local rating
 }));
 vi.mock('./replay/replayPlayer', () => ({ startReplay: (...a: unknown[]) => startReplay(...a) }));
@@ -74,6 +78,18 @@ const RUNS: CareerRun[] = [
   run({ id: 10, heroId: 'brackus', atMs: NOW - 40 * DAY, wins: 2, losses: 5, placement: 7, goldSpent: null, apt: null, durationMs: null, board: null, runes: [], dominantTribe: 'beast', detailed: false }), // no settle stamp → no MMR point
 ];
 
+/** Two finished practice games (the Career's Practice tab, owner ask 2026-09-27): a Bots game (level 5, the full
+ *  team, a rune, a replay) and an older Players game on Normal HP with no board and no replay. */
+const practiceGame = (over: Partial<PracticeGameRow>): PracticeGameRow => ({
+  userId: 'me-1', author: 'Kev', heroId: 'sable', wins: 7, placement: 2, createdAt: new Date(NOW - DAY).toISOString(), rowId: 1,
+  hasReplay: false, board: null, record: { wins: 7, losses: 5, draws: 1 }, durationMs: 1_260_000, partial: false, firstRecordedWave: null,
+  runes: [], wave: 15, lobbyStrength: null, practice: { opponents: 'bots', botDifficulty: 5, health: 'unlimited' }, ...over,
+});
+const PRACTICE: PracticeGameRow[] = [
+  practiceGame({ rowId: 2, board: FULL_TEAM, runes: ['rune_broodpit'], hasReplay: true }),
+  practiceGame({ rowId: 1, heroId: 'brackus', placement: 6, record: { wins: 3, losses: 6, draws: 0 }, wave: 9, createdAt: new Date(NOW - 3 * DAY).toISOString(), practice: { opponents: 'players', botDifficulty: 3, health: 'normal' } }),
+];
+
 let ui: Mounted;
 const flush = async (): Promise<void> => { await act(async () => { await Promise.resolve(); await Promise.resolve(); }); };
 const text = (sel: string): string[] => [...ui.container.querySelectorAll(sel)].map((n) => (n.textContent ?? '').trim());
@@ -85,6 +101,8 @@ beforeEach(async () => {
   fetchReplayPayload.mockReset().mockResolvedValue({ version: 2, seed: 1, frames: [{}] });
   fetchPlayerById.mockReset().mockResolvedValue(null);
   startReplay.mockReset();
+  fetchMyPracticeGames.mockReset().mockResolvedValue(PRACTICE);
+  fetchPracticeReplay.mockReset().mockResolvedValue({ version: 2, seed: 7, frames: [{}] });
   useGame.setState({
     showCareer: true, careerOf: null, careerCache: null, playerName: 'Kev',
     account: { userId: 'me-1', email: null, anonymous: true, discriminator: null },
@@ -122,12 +140,12 @@ describe('the column header row', () => {
   it('all three columns start with the SAME header row (Career Stats · the Match History | Heroes tabs · Seasonal Ranked), so their panels start level', () => {
     const heads = [...ui.container.querySelectorAll('.cv2-cols > .cv2-col > .cv2-colhead')];
     expect(heads).toHaveLength(3);
-    expect(heads.map((h) => h.textContent)).toEqual(['Career Stats', 'Match HistoryHeroesLast 3 runs', 'Seasonal Ranked']);
+    expect(heads.map((h) => h.textContent)).toEqual(['Career Stats', 'Match HistoryHeroesPracticeLast 3 runs', 'Seasonal Ranked']);
     // Each column's first panel is the header's next sibling — nothing else sits above a panel in any column.
     for (const h of heads) expect(h.nextElementSibling?.classList.contains('cv2-panel') || h.nextElementSibling?.classList.contains('cv2-list')).toBe(true);
     const tabs = [...ui.container.querySelectorAll<HTMLButtonElement>('.cv2-tabs [role=tab]')];
-    expect(tabs.map((t) => t.textContent)).toEqual(['Match History', 'Heroes']);
-    expect(tabs.map((t) => t.getAttribute('aria-selected'))).toEqual(['true', 'false']);
+    expect(tabs.map((t) => t.textContent)).toEqual(['Match History', 'Heroes', 'Practice']);
+    expect(tabs.map((t) => t.getAttribute('aria-selected'))).toEqual(['true', 'false', 'false']);
   });
 });
 
@@ -620,5 +638,104 @@ describe('the Heroes tab', () => {
     expect(none?.querySelector('.cv2-state-title')?.textContent).toBe('No games played yet');
     expect(none?.querySelector('.cv2-state-ico svg')).not.toBeNull();
     expect(ui.container.querySelector('.cv2-herogrid')).toBeNull();
+  });
+});
+
+/**
+ * R-CAREER-PRACTICE-01 (owner ask 2026-09-27: "add practice games as a tab in the career as well so players can
+ * see practice games they played ... the practice bot games should include the bot level"; "we dont need to store
+ * replays for practice i guess, will we be able to at least show the results?", then "okay go ahead and do it" for
+ * replays): a third centre tab lists the career owner's finished practice games as Match History banners with the
+ * options as pills, and Watch Replay only on a row that carries a replay.
+ */
+describe('the Practice tab', () => {
+  const practiceTab = (): HTMLButtonElement => ui.container.querySelectorAll<HTMLButtonElement>('.cv2-tabs [role=tab]')[2]!;
+  const openPractice = async (): Promise<void> => { click(practiceTab()); await flush(); };
+
+  it('is not read until picked, then lists THIS player\'s practice games, newest first, as Match History banners', async () => {
+    expect(fetchMyPracticeGames).not.toHaveBeenCalled();
+    await openPractice();
+    expect(fetchMyPracticeGames).toHaveBeenCalledTimes(1);
+    expect(fetchMyPracticeGames.mock.calls[0]![0]).toBe('me-1');
+    expect(practiceTab().getAttribute('aria-selected')).toBe('true');
+    const rows = [...ui.container.querySelectorAll('.cv2-practicelist .cv2-row')];
+    expect(rows).toHaveLength(2);
+    expect(ui.container.querySelector('.cv2-sec-sub')?.textContent).toBe('Last 2 practice games');
+    expect(text('.cv2-practicelist .cv2-row-heroname')).toEqual(['Sable', 'Brackus']);
+    // The result by placement (2nd = WIN, 6th = LOSS), the fight record caption, the outcome block.
+    expect(text('.cv2-practicelist .cv2-row-result')).toEqual(['WIN', 'LOSS']);
+    expect(text('.cv2-practicelist .cv2-row-fights')).toEqual(['7–5–1', '3–6']);
+    expect(text('.cv2-practicelist .cv2-verdict')).toEqual(['2ND', '6TH']);
+    expect(text('.cv2-practicelist .cv2-row-rounds')).toEqual(['15', '9']);
+    expect(text('.cv2-practicelist .cv2-row-length')).toEqual(['21 min', '21 min']);
+    expect(text('.cv2-practicelist .cv2-row-when').every((w) => w.length > 0 && w !== '—')).toBe(true);
+    // The final team strip (7 slots) where one was recorded; runes as emblems.
+    expect(rows[0]!.querySelectorAll('.cv2-team .cv2-tile')).toHaveLength(7);
+    expect(rows[1]!.querySelector('.cv2-row-none')?.textContent).toBe('No final team recorded for this game.');
+    expect(rows[0]!.querySelectorAll('.cv2-rune')).toHaveLength(1);
+    // The Match History list is not shown underneath.
+    expect(ui.container.querySelectorAll('.cv2-row')).toHaveLength(2);
+  });
+
+  it('prints the practice options as pills: "Bots · Level N" with the bot level, "Players" otherwise, and the Health', async () => {
+    await openPractice();
+    const pills = [...ui.container.querySelectorAll('.cv2-practicelist .cv2-row')].map((r) => [...r.querySelectorAll('.cv2-ppill')].map((p) => p.textContent));
+    expect(pills).toEqual([['Bots · Level 5', 'Unlimited HP'], ['Players', 'Normal HP']]);
+  });
+
+  it('Watch Replay only on a row that carries a replay; a row without one has no button at all (not a disabled one)', async () => {
+    await openPractice();
+    const rows = [...ui.container.querySelectorAll('.cv2-practicelist .cv2-row')];
+    expect(rows[0]!.querySelectorAll('button')).toHaveLength(1);
+    expect(rows[0]!.querySelector('.cv2-watch')?.textContent).toBe('Watch Replay');
+    expect(rows[1]!.querySelectorAll('button')).toHaveLength(0);
+    expect(rows[1]!.textContent).not.toMatch(/replay/i);
+  });
+
+  it('Watch fetches THAT practice row\'s replay by id and hands it to the replay viewer; an unplayable one degrades to "No replay"', async () => {
+    await openPractice();
+    click(ui.container.querySelector('.cv2-practicelist .cv2-watch'));
+    await flush();
+    expect(fetchPracticeReplay).toHaveBeenCalledWith(2);
+    expect(fetchReplayPayload).not.toHaveBeenCalled();
+    expect(startReplay).toHaveBeenCalledTimes(1);
+    expect(startReplay.mock.calls[0]![0]).toMatchObject({ version: 2, seed: 7 });
+    fetchPracticeReplay.mockResolvedValue(null);
+    click(ui.container.querySelector('.cv2-practicelist .cv2-watch'));
+    await flush();
+    expect(ui.container.querySelector('.cv2-practicelist .cv2-watch')?.textContent).toBe('No replay');
+  });
+
+  it('with no practice games it shows the empty state; a failed read offers a Retry that reads again', async () => {
+    fetchMyPracticeGames.mockResolvedValue([]);
+    await openPractice();
+    const none = ui.container.querySelector('.cv2-practicelist .cv2-none');
+    expect(`${none?.querySelector('.cv2-state-title')?.textContent}. ${none?.querySelector('.cv2-state-body')?.textContent}`)
+      .toBe('No practice games yet. Finish a practice game to see it here.');
+    ui.unmount();
+    fetchMyPracticeGames.mockReset().mockResolvedValue(null);
+    ui = mount(<Career />); // the tab choice persisted: it opens on Practice
+    await flush();
+    expect(practiceTab().getAttribute('aria-selected')).toBe('true');
+    expect(ui.container.querySelector('.cv2-practicelist .cv2-state-title')?.textContent).toBe('Couldn’t reach the server');
+    fetchMyPracticeGames.mockResolvedValue(PRACTICE);
+    click(ui.container.querySelector('.cv2-practicelist .cv2-btn'));
+    await flush();
+    expect(fetchMyPracticeGames).toHaveBeenCalledTimes(2);
+    expect(ui.container.querySelectorAll('.cv2-practicelist .cv2-row')).toHaveLength(2);
+  });
+
+  it('the choice persists per browser like the other tabs', async () => {
+    await openPractice();
+    expect(localStorage.getItem('ascent.career.tab')).toBe('practice');
+  });
+
+  it('a viewed player\'s Career reads THEIR practice games, by their user id', async () => {
+    ui.unmount();
+    useGame.setState({ careerOf: { userId: 'u-other', author: 'Nadja', rating: 900, gamesPlayed: 4 }, careerCache: null });
+    ui = mount(<Career />);
+    await flush();
+    await openPractice();
+    expect(fetchMyPracticeGames.mock.calls.at(-1)![0]).toBe('u-other');
   });
 });

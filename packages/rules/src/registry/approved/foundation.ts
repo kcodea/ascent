@@ -1576,4 +1576,26 @@ export const FOUNDATION_RULES: GameRule[] = [
     currentBehaviour: 'Conforms, FIXED 2026-09-27: the length was a fractional frame-clock value (e.g. 23031.7), so Postgres rejected every real practice row (22P02, invalid input syntax for type integer) and the client ignored the returned error. Reproduced end to end against the live table before the fix.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/practiceGames.test.ts'], lastVerifiedAt: '2026-09-27' },
   },
+  {
+    id: 'R-CAREER-PRACTICE-01',
+    title: 'The Career has a Practice tab: your finished Practice games with their results, the bot level, and a Watch when a replay was recorded',
+    statement:
+      'The Career centre column has a third tab, PRACTICE (after Match History and Heroes, persisted per browser like them). '
+      + 'It lists the career owner’s finished practice games from practice_games (read by user_id, newest first, up to 25), '
+      + 'each as the Match History banner: hero, WIN/LOSS by placement, the fight record, the placement verdict, date, length, '
+      + 'rounds, the final team and the runes, plus the options as pills: "Bots · Level N" (or "Players") and "Unlimited HP" / '
+      + '"Normal HP". A practice game records the SAME replay payload a ranked run uploads (practice_games.replay); the lists only '
+      + 'probe replay->v2->version, and a row carrying a v2 replay offers Watch Replay (Career and Recent Games Practice tabs), '
+      + 'which fetches that row’s replay by id and plays it in the replay viewer. A row without a replay shows no button. Before '
+      + 'the replay column exists the upload retries without it, so the result still records.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-27 (Career practice tab)', quote: 'add practice games as a tab in the career as well so players can see practice games they played ... the practice bot games should include the bot level' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-27 (practice replays)', quote: 'okay go ahead and do it' },
+      { kind: 'code', ref: 'packages/ui/src/Career.tsx PracticeRow; packages/ui/src/remoteBoards.ts fetchMyPracticeGames / fetchPracticeReplay / uploadPracticeGame; packages/ui/src/store.ts assembleReplayV2; supabase/migrations/2026-09-27-practice-games-replay.sql' },
+    ],
+    currentBehaviour: 'Conforms since 2026-09-27. Only practice games finished after the replay migration runs carry a replay; older rows show results only.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/Career.test.tsx', 'packages/ui/src/practiceGames.test.ts', 'packages/ui/src/ladderPages.test.tsx'], lastVerifiedAt: '2026-09-27' },
+  },
 ];

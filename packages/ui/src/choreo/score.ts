@@ -286,10 +286,11 @@ export interface CueContext {
    *  the pull-back's `landed`), NOT here — the runner skips `rise` deaths. */
   onAuraBurst: (uid: string) => void;
   /** A Divine Shield was consumed this moment (uid) → the delayed gold shatter. */
-  onShieldBreak: (uid: string) => void;
+  /** `i` = the event index, so a caller can skip a Ward it already shattered at a lunge's contact. */
+  onShieldBreak: (uid: string, i?: number) => void;
   /** A RESILIENT Ward took its first hit this moment (uid) → its crack cue (the Ward-break beat). Optional so the
    *  older harness contexts need not supply it. */
-  onWardDowngrade?: (uid: string) => void;
+  onWardDowngrade?: (uid: string, i?: number) => void;
   /** A unit was reborn this moment (uid) → schedule the re-form glow. */
   onReborn: (uid: string, rebirth?: boolean, tint?: RiseTint) => void;
   /** This moment's `poison` targets — minions destroyed by an Execute proc. The replay fires the Execution
@@ -523,8 +524,8 @@ export function runMomentCues(moment: Moment, ctx: CueContext): () => void {
     else if (cue.ch === 'auraBreak') at(cue, () => {  // DS consumed: delayed gold shatter
       for (let i = moment.start; i < moment.end; i++) {
         const e = ctx.events[i];
-        if (e?.type === 'shield') ctx.onShieldBreak(e.target);
-        else if (e?.type === 'wardDowngrade') ctx.onWardDowngrade?.(e.target);
+        if (e?.type === 'shield') ctx.onShieldBreak(e.target, i);
+        else if (e?.type === 'wardDowngrade') ctx.onWardDowngrade?.(e.target, i);
       }
     });
     // Execute proc: the crescent strike at each victim. SKIPPED on `attackExchange` — there the impact channel

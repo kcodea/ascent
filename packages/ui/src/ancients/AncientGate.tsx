@@ -7,6 +7,7 @@ import { wipeAspect, wipeCoverEllipse, wipeFrontScale } from '../wipeGeometry';
 import { getAncientsConfig, subscribeAncientsConfig } from './ancientsConfig';
 import { getAwakenStage, prefersReducedMotion, setAwakenStage, useAwakenStage, useGateDemo, useRingSettledSeq } from './ancientsFx';
 import { duckForAwakening, playCue, warmAncientCues } from './ancientsSound';
+import { pickTimeline, warmPickBurst } from './ancientPickSlam';
 import { ancientLandDust } from './ancientsSmoke';
 import { heroMotePalette, isBloomStyle, isThemedHero, resolveAncientHeroSignature, resolveAncientHeroTheme, type BloomStyle } from './ancientHeroThemes';
 import { playHeroBloom } from './ancientHeroBloom';
@@ -22,8 +23,8 @@ import { stageHost, toStage } from '../stage';
  *
  *   OMEN      the world holds its breath: music + other sounds duck, a low rumble swells, the screen's edges darken,
  *             arcane glyphs flicker around the hero power and embers drift up from it (`omenRumble`).
- *   ERUPTION  a deep boom and a violet/gold flash from the hero power, the burst def's shockwave, a violet/gold smoke
- *             burst (`ancient-gate-smoke`), and the violet curtain blooming out in the go-to-combat wipe's language (the wipe's
+ *   ERUPTION  a deep boom and a flash in the hero's theme from the hero power, one short dust burst in the theme's
+ *             seam colour, and the curtain blooming out in the go-to-combat wipe's language (the wipe's
  *             aspect-stretched ellipse, its seam ring — here carrying runes — and `wipeFx` stardust) (`eruptionBoom`,
  *             `eruptionFlash`).
  *             The curtain wears the HERO'S theme (`ancientHeroThemes.ts`, owner 2026-09-26: Indy gold, everyone else the
@@ -33,8 +34,9 @@ import { stageHost, toStage } from '../stage';
  *   REVEAL    the curtain fades onto the Discover view's backdrop and the offer runs its OWN emergence
  *             (`AncientOffer`: one Ancient at a time out of a flash of its colour, `cardReveal` each).
  *   SETTLED   drifting motes behind the cards and a quiet hum under the (still ducked) music (`ambientHum`).
- *   PICK      the gate contracts back into the hero power with inhaling motes (`pickSeal`); the triple trail and the
- *             crack reveal play from `AncientSplit`.
+ *   PICK      the backdrop FADES off (owner 2026-09-27: no more contracting back into the hero power) while the chosen
+ *             card collapses into the triple's trail and slams into the hero power (`ancientPickSlam.ts`: collapse,
+ *             recoloured `gild-trail`, hit-stop, `pickSeal`, ring, shake) and the crack reveal plays from `AncientSplit`. The duck lets go on the impact.
  *
  * The hero-power button and its art NEVER change; every layer here is separate and only emanates from its position.
  * All one-shot WAAPI (transform / opacity, plus the curtain's one-shot clip, like the wipe's). A click steps it
@@ -110,6 +112,7 @@ export const AncientGate = memo(function AncientGate({ run }: { run: RunState })
   const flashRef = useRef<HTMLDivElement | null>(null);
   const timers = useRef<number[]>([]);
   const seqRef = useRef(0);
+  const closingRef = useRef(false); // the pick's close has begun (see `close`)
   const rumble = useRef<{ stop: (ms?: number) => void } | null>(null);
   const hum = useRef<{ stop: (ms?: number) => void } | null>(null);
   // The hero power's dust burst (retired outright the moment the curtain covers it).
@@ -143,12 +146,18 @@ export const AncientGate = memo(function AncientGate({ run }: { run: RunState })
     sigRef.current = resolveAncientHeroSignature(heroId, style);
     setGeo({ x, y, rx, ry, r: Math.max(rx, ry), hp: w, art: (asHero ? heroPowerArt(asHero) : undefined) ?? art ?? heroPowerArt(heroIdRef.current), pal });
     seqRef.current = seq;
+    closingRef.current = false;
     duckForAwakening(true);
     if (fromReveal || prefersReducedMotion()) {
       if (prefersReducedMotion() && !fromReveal) { playCue('eruptionBoom'); playCue('titleSting', 200); }
       toReveal(seq);
       return;
     }
+    // The pick's Pixi (the triple trail + the ring), pre-played invisibly NOW: a cold first play of the trail is a ~70 ms
+    // task, and here it lands on the meter flash's peak, before any omen frame has drawn, where a held frame reads as
+    // nothing. Warmed at the settled offer it hitched the last slam's dust; not warmed it hitched the pick (measured
+    // 2026-09-27, headless Chrome).
+    warmPickBurst();
     go('omen', seq);
     rumble.current = playCue('omenRumble', 0, { fadeInMs: Math.min(600, c.omenMs) });
     wipeFx.charge(x, y, c.omenMs, pal);
@@ -158,9 +167,11 @@ export const AncientGate = memo(function AncientGate({ run }: { run: RunState })
       playCue('eruptionBoom');
       playCue('eruptionFlash');
       wipeFx.bloom(x, y, rx, ry, c.eruptionMs, EASE, pal);
-      // ONE crisp, short burst of the Runeforge landing dust from the hero power, in the curtain's colour. Its life is
+      // ONE crisp, short burst of the Runeforge landing dust from the hero power. Its life is
       // cut by the "Hero-power dust life" dial so it has played out by the time the curtain has bloomed: no fog.
-      const burst = ancientLandDust(theme.curtainInner, { x, y }, c.hpDustLife);
+      // In the theme's SEAM colour (light): tinted to the curtain centre it read as dark smudges over the bright bloom
+      // (whole-sequence pass 2026-09-27).
+      const burst = ancientLandDust(theme.seamColor, { x, y }, c.hpDustLife);
       if (burst) hpFx.current.push(burst);
     }, c.omenMs));
     timers.current.push(window.setTimeout(() => { go('title', seq); playCue('titleSting'); }, c.omenMs + c.eruptionMs));
@@ -169,9 +180,12 @@ export const AncientGate = memo(function AncientGate({ run }: { run: RunState })
 
   // While the awakening is up, the page is in its modal layering (`.app`'s stacking context dissolved, as every Discover
   // does, so the offer sorts above this layer) and the Shop row steps back. Also covers a tuner demo (no run offer).
+  // While it closes, the Shop row fades back in step with the backdrop (`ancclosing`, `--anc-pick-fade`).
   useEffect(() => {
     document.body.classList.toggle('ancgate', phase !== 'idle');
-    return () => document.body.classList.remove('ancgate');
+    document.body.classList.toggle('ancclosing', phase === 'closing');
+    if (phase === 'closing') document.body.style.setProperty('--anc-pick-fade', `${pickTimeline().fade}ms`);
+    return () => { document.body.classList.remove('ancgate'); document.body.classList.remove('ancclosing'); };
   }, [phase]);
 
   // No click-to-skip (owner 2026-09-26: "remove the click to skip in the animation, that is not necessary"): the
@@ -198,19 +212,23 @@ export const AncientGate = memo(function AncientGate({ run }: { run: RunState })
     }
   }, [stage, phase]);
 
+  // THE PICK: the backdrop fades off while the chosen card slams into the hero power (`ancientPickSlam.ts`, started by
+  // the offer's click); the music comes back on the impact, and the gate goes idle once the slam has played.
   const close = useCallback(() => {
+    if (closingRef.current) return; // the offer clearing and the stage both ask; once is enough
+    closingRef.current = true;
     clearTimers();
     retireHpFx();
     rumble.current?.stop(300); rumble.current = null;
-    hum.current?.stop(500); hum.current = null;
-    playCue('pickSeal');
+    hum.current?.stop(300); hum.current = null;
     setPhase('closing');
     setAwakenStage('closing', seqRef.current);
-    const c = getAncientsConfig();
+    const t = pickTimeline();
+    timers.current.push(window.setTimeout(() => duckForAwakening(false), t.contact));
     timers.current.push(window.setTimeout(() => {
-      duckForAwakening(false);
-      setPhase('idle'); setGeo(null); setAwakenStage('idle', 0); seqRef.current = seqRef.current > 0 ? seqRef.current : 0;
-    }, prefersReducedMotion() ? 160 : c.closeMs));
+      closingRef.current = false;
+      setPhase('idle'); setGeo(null); setAwakenStage('idle', 0);
+    }, t.end));
   }, []);
   // The real offer answered → close. A demo's pick asks for it through the stage.
   useEffect(() => {
@@ -223,6 +241,7 @@ export const AncientGate = memo(function AncientGate({ run }: { run: RunState })
   useEffect(() => {
     if (run.phase !== 'recruit' && phase !== 'idle') {
       clearTimers(); rumble.current?.stop(150); hum.current?.stop(150); duckForAwakening(false); retireHpFx();
+      closingRef.current = false;
       setPhase('idle'); setGeo(null); setAwakenStage('idle', 0);
     }
   }, [run.phase, phase]);
@@ -310,13 +329,19 @@ export const AncientGate = memo(function AncientGate({ run }: { run: RunState })
       if (reduced) { bg?.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 220, fill: 'forwards' }); }
       if (curtain) {
         curtain.getAnimations().forEach((a) => a.finish());
-        curtain.animate([{ opacity: 1 }, { opacity: 0 }], { duration: c.revealFadeMs, easing: 'ease-out', fill: 'forwards' });
-        curtain.querySelector('.anc-gate-center')?.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 160, easing: 'ease-out', fill: 'forwards' });
+        // Holds, then DROPS (ease-in), so it never lingers half-transparent over the dim backdrop: an ease-out fade
+        // spent most of its time as a murky mid-tone (whole-sequence pass 2026-09-27).
+        curtain.animate([{ opacity: 1 }, { opacity: 0 }], { duration: c.revealFadeMs, easing: 'cubic-bezier(0.45, 0, 0.9, 0.55)', fill: 'forwards' });
+        // The TITLE leaves at once: the offer's banner is born exactly where it stands and carries it up (a FLIP, see
+        // `AncientOffer`), so there is only ever one title on screen. The medallion fades with the curtain.
+        const handoff = c.handoffMs > 0;
+        curtain.querySelector('.anc-gate-title')?.animate([{ opacity: 1 }, { opacity: 0 }], { duration: handoff ? 50 : 160, easing: 'ease-out', fill: 'forwards' });
+        curtain.querySelector('.anc-gate-medalwrap')?.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 200, easing: 'ease-out', fill: 'forwards' });
       }
     } else if (phase === 'closing') {
-      if (reduced) { bg?.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 160, fill: 'forwards' }); return; }
-      bg?.animate([{ clipPath: ell(1) }, { clipPath: ell(0) }], { duration: c.closeMs, easing: 'cubic-bezier(0.6, 0, 0.8, 0.4)', fill: 'forwards' });
-      wipeFx.inhale(geo.x, geo.y, geo.r, c.closeMs, geo.pal);
+      // A clean opacity fade back to the Shop (owner 2026-09-27), in step with the offer's own fade.
+      bg?.getAnimations().forEach((a) => a.cancel());
+      bg?.animate([{ opacity: reduced ? 1 : Number(getComputedStyle(bg).opacity) || 1 }, { opacity: 0 }], { duration: pickTimeline(c, reduced).fade, easing: 'cubic-bezier(0.4, 0, 0.2, 1)', fill: 'forwards' });
     }
   }, [phase, geo]);
 
@@ -356,7 +381,7 @@ export const AncientGate = memo(function AncientGate({ run }: { run: RunState })
     } as CSSProperties}>
       {/* The Discover view's backdrop: what the awakening ends on, under the offer. */}
       {phase !== 'omen' && (
-        <div ref={bgRef} className="anc-gate-bg" style={reduced || phase === 'reveal' || phase === 'settled' ? (reduced ? { opacity: 0 } : undefined) : { clipPath: `ellipse(0px 0px at ${sg.x}px ${sg.y}px)` }} />
+        <div ref={bgRef} className="anc-gate-bg" style={reduced || phase === 'reveal' || phase === 'settled' || phase === 'closing' ? (reduced ? { opacity: 0 } : undefined) : { clipPath: `ellipse(0px 0px at ${sg.x}px ${sg.y}px)` }} />
       )}
       {/* OMEN: darkening edges, glyphs flickering around the hero power, embers drifting up from it. */}
       {(phase === 'omen' || phase === 'eruption') && !reduced && (

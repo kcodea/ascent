@@ -22,14 +22,20 @@ import type { FxDef } from './def';
  * `version`/`seed`/`label`/`tags` through the call (same reason `scaleDef`/`applyVariant` are). The base is
  * never mutated; only the layers that change are cloned.
  */
-export function recolorDef<T extends FxDef>(def: T, palette: readonly number[] | undefined): T {
+export function recolorDef<T extends FxDef>(def: T, palette: readonly number[] | undefined, opts: { glow?: boolean } = {}): T {
   if (!palette || palette.length === 0) return def;
   const stops = [...palette];
+  // OPT-IN (`glow`, 2026-09-27, the Ancients pick's recoloured triple trail): a layer's GLOW FILTER keeps its own
+  // authored tint (`glow_color`) under a palette swap, so a gold-glowing ribbon recoloured blue still read gold. With
+  // `glow` the filter takes the palette's CORE stop too. Off by default: every existing caller is unchanged.
+  const core = stops[stops.length - 1];
   let changed = false;
   const layers = def.layers.map((layer) => {
-    if (!Array.isArray((layer.params as { palette?: unknown }).palette)) return layer;
+    const p = layer.params as { palette?: unknown; glow_color?: unknown };
+    if (!Array.isArray(p.palette)) return layer;
     changed = true;
-    return { ...layer, params: { ...layer.params, palette: [...stops] } };
+    const glow = opts.glow && typeof p.glow_color === 'number' && typeof core === 'number' ? { glow_color: core } : {};
+    return { ...layer, params: { ...layer.params, palette: [...stops], ...glow } };
   });
   // No palette-bearing layer touched → the recolor did nothing; hand back the input untouched.
   return changed ? ({ ...def, layers } as T) : def;

@@ -31,7 +31,10 @@ export const DIRECT_CALL_SITES: Readonly<Record<string, readonly string[]>> = {
   // The persistent AMPLIFIED glow on the Equipment slot (owner-authored 2026-09-22): a looping, slot-centred play
   // started while the selected Equipment will Amplify AND has a charge to spend, fired by literal id from its hook.
   'amplified-slot': ['useAmplifiedSlotFx.ts'],
-  'ancient-slam': ['ancients/ancientsSmoke.ts'],
+  // The Ancients PICK's impact on the hero power (2026-09-27): a ring + a few sparks in the Ancient's colour.
+  'ancient-pick-impact': ['ancients/ancientsSmoke.ts'],
+  // The Ancients reveal's spark (2026-09-27): each Ancient appears out of a point of its colour.
+  'ancient-reveal-spark': ['ancients/ancientsSmoke.ts'],
   'ancient-slam-sparks': ['ancients/ancientsSmoke.ts'],
   // The Auctioneer's Pulse — played on the TARGET minion instead of the generic `hero-power-target` spark.
   'auctioneer-hp': ['Recruit.tsx'],
@@ -64,7 +67,9 @@ export const DIRECT_CALL_SITES: Readonly<Record<string, readonly string[]>> = {
   'freeze-blast': ['FreezeButton.tsx'],
   // THE GILD (owner redesign 2026-09-24, replacing plateGild's centre-screen fuse): one play PER consumed copy,
   // from where it stood into the new gilded card — the poof, the arc and the landing are all this one def.
-  'gild-trail': ['ancients/AncientMeter.tsx', 'gildTrail.ts'],
+  // The Ancients PICK (2026-09-27, owner: "collapse it into the same pixi style effect we use for when the player gets
+  // a triple"): the chosen Ancient collapses into this same trail, recoloured, flying into the hero power.
+  'gild-trail': ['ancients/ancientPickSlam.ts', 'gildTrail.ts'],
   // A HAND card getting stronger — minion, spell, Ruby or token (owner-authored 2026-09-15, replacing the CSS
   // spell-buff grow/shrink + mote blast). Fired from the one `playHandBuffOn` every surface's fan-out lands on:
   // the shop's hand diff, the End-of-Turn presenters and the combat replay's `handBuff` beat scan.

@@ -2,14 +2,14 @@ import { ANCIENT_IDS, type AncientId } from '@game/sim';
 import { TunerPanel } from '../TunerPanel';
 import type { TunerControl, TunerSpec, TunerUnit } from '../tunerSchema';
 import { useGame } from '../store';
-import { ANCIENTS_DEFAULTS, ANCIENTS_RANGES, getAncientsConfig, resetAncientsConfig, setAncientsValue, type AncientsFullConfig, type AncientsNumKey, ANCIENT_ART_IDS, ANCIENT_CUES, ART_FIELDS } from './ancientsConfig';
+import { REVEAL_STYLES, ANCIENTS_DEFAULTS, ANCIENTS_RANGES, getAncientsConfig, resetAncientsConfig, setAncientsValue, type AncientsFullConfig, type AncientsNumKey, ANCIENT_ART_IDS, ANCIENT_CUES, ART_FIELDS } from './ancientsConfig';
 import { playAwakenDemo, playGateDemo } from './ancientsFx';
 import { ANCIENT_HERO_THEMES, BLOOM_STYLES, heroThemeKey, isThemedHero, STYLE_FAMILY, THEME_FIELDS, THEMED_HEROES, type ThemeField } from './ancientHeroThemes';
 
 /**
  * DEV ✦ ANCIENTS tuner (proof of concept 2026-09-25). The METER group is balance: moving it re-stamps the live
  * Scene Builder run's meter (the sim still does all the counting) and is what the next Set 3 sandbox starts with.
- * The rest is presentation. ▶ plays the awakening pick beat (the triple trail into the hero power + the split)
+ * The rest is presentation. ▶ plays the awakening pick beat (the impact on the hero power + the split)
  * without touching run state; the Scene Builder's "Fill meter" plays the real thing end to end.
  */
 type Key = keyof AncientsFullConfig;
@@ -68,21 +68,38 @@ const ROWS: [Key, string, TunerUnit | undefined, string, string, ('color' | 'tog
   ['titleHoldMs', 'Title hold', 'ms', 'How long "An Ancient Awakens" holds before the Ancients emerge.', 'Awakening beats'],
   ['revealFadeMs', 'Curtain fade', 'ms', 'The curtain fading off into the reveal.', 'Awakening beats'],
   ['revealDelayMs', 'First Ancient delay', 'ms', 'The pause before the first Ancient emerges.', 'Awakening beats'],
-  ['cardStaggerMs', 'Between Ancients', 'ms', 'The gap between one Ancient emerging and the next.', 'Awakening beats'],
-  ['cardRevealMs', 'One Ancient emerges', 'ms', 'How long each Ancient takes to materialise.', 'Awakening beats'],
-  ['revealStyle', 'Reveal style', undefined, 'Two beats (the middle slams, then the sides slide out and slam together) or sequential (left → middle → right).', 'Reveal', 'toggle'],
-  ['beat1Ms', 'Two beats: middle', 'ms', 'The middle Ancient rising up the centre and slamming down.', 'Reveal'],
-  ['beatGapMs', 'Two beats: gap', 'ms', 'The pause before the sides.', 'Reveal'],
-  ['beat2Ms', 'Two beats: sides', 'ms', 'The left and right Ancients sliding out from behind and slamming together.', 'Reveal'],
-  ['slamStrength', 'Slam weight', '×', 'The slam’s overshoot, card shake and landing burst.', 'Reveal'],
-  ['dustAmount', 'Dust count', '×', 'The Runeforge landing dust when each Ancient slams, and from the hero power. 0 turns it off.', 'Dust'],
+  ['handoffMs', 'Title handoff', 'ms', 'The banner is born where the curtain’s title stands and rises into place. 0 = a plain fade.', 'Reveal'],
+  ['sparkMs', 'Spark gathers', 'ms', 'The point of light gathering (motes drawn in, a ring closing) before it bursts.', 'Reveal'],
+  ['materialiseMs', 'Card appears', 'ms', 'The card appearing out of the burst.', 'Reveal'],
+  ['overexposeMs', 'Light settles', 'ms', 'The art’s overexposure resolving back to normal.', 'Reveal'],
+  ['burstRing', 'Burst ring', '×', 'The ring on each burst (the pick’s own ring). 0 = none.', 'Reveal'],
+  ['sideDelayMs', 'Sides after middle', 'ms', 'After the middle Ancient’s burst, before the sides’ sparks light.', 'Reveal'],
+  ['sideStaggerMs', 'Left to right', 'ms', 'The left side’s spark to the right side’s.', 'Reveal'],
+  ['textInMs', 'Text arrives', 'ms', 'Each card’s name, then its effect, rising in after the card lands. 0 = shown with the card.', 'Reveal'],
+  ['landFlash', 'Overexposure', 'opacity', 'How hard each card’s art is flooded with its colour and white as it appears. 0 = none.', 'Reveal'],
+  ['idleFloat', 'Idle float', 'px', 'The cards’ slow float once the choice is open. 0 = still.', 'Reveal'],
+  ['idleMs', 'Idle float cycle', 'ms', 'One float cycle.', 'Reveal'],
+  ['hoverDim', 'Hover: others dim to', 'opacity', 'While one Ancient is hovered, the other two step back to this. 1 = no dim.', 'Reveal'],
+  ['dustAmount', 'Dust count', '×', 'The Runeforge landing dust burst from the hero power as it erupts. 0 turns it off.', 'Dust'],
   ['dustSize', 'Dust size', '×', 'How big and how wide the dust puffs out.', 'Dust'],
   ['dustLife', 'Dust life', '×', 'How long the dust hangs before it settles.', 'Dust'],
   ['dustOpacity', 'Dust opacity', undefined, 'How opaque the dust is.', 'Dust'],
-  ['slamSparks', 'Slam sparks', '×', 'The turbulent spark blast on each slam. 0 turns it off.', 'Dust'],
-  ['slamDust', 'Slam dust', '×', 'How much dust bursts out when a revealed Ancient slams into place.', 'Dust'],
+  ['slamSparks', 'Burst sparks', '×', 'The turbulent spark blast as each Ancient bursts out of its spark. 0 turns it off.', 'Reveal'],
   ['hpDustLife', 'Hero-power dust life', '×', 'How long the burst from the hero power lasts. Low clears it before the curtain.', 'Dust'],
-  ['closeMs', 'Gate closes', 'ms', 'The gate contracting back into the hero power on the pick.', 'Awakening beats'],
+  ['pickFadeMs', 'Backdrop fade', 'ms', 'On the pick, the dark backdrop, the banner and the other Ancients fade off (the Shop fades back in step).', 'Pick → slam'],
+  ['collapseMs', 'Collapse', 'ms', 'The chosen Ancient pinching into a bright core of its colour.', 'Pick → slam'],
+  ['coreGlow', 'Core glow', 'opacity', 'How bright the core gathers as the card collapses. 0 = none.', 'Pick → slam'],
+  ['trailAt', 'Trail launch', '×', 'When the triple trail leaves the core, as a fraction of the collapse (the core hands off to it).', 'Pick → slam'],
+  ['trailTime', 'Trail speed', '×', 'The triple trail’s flight to the hero power, × the triple’s own 420 ms. Lower is faster.', 'Pick → slam'],
+  ['trailIntensity', 'Trail particles', '×', 'How many sparks the triple trail’s poof and landing throw. Its colour is the Ancient’s (Colours group).', 'Pick → slam'],
+  ['hitStopMs', 'Hit-stop', 'ms', 'The hero power held squashed at contact before the shake and the crack release. 0 = none.', 'Pick → slam'],
+  ['impactFlash', 'Impact flash', 'opacity', 'A light bloom on the hero power at contact. 0 = none.', 'Pick → slam'],
+  ['impactFlashMs', 'Impact flash decay', 'ms', 'How quickly the impact flash fades.', 'Pick → slam'],
+  ['burstScale', 'Burst size', '×', 'The crisp ring + sparks at the hero power on the release, in the Ancient’s colour. 0 = none.', 'Pick → slam'],
+  ['shakeMs', 'Shake length', 'ms', 'The board’s shake after the release (it decays fast).', 'Pick → slam'],
+  ['shakePx', 'Shake strength', 'px', 'The shake’s peak offset. The board art moves, never the HUD. 0 = none.', 'Pick → slam'],
+  ['punchZoom', 'Punch zoom', '×', 'The board’s brief zoom toward the hero power at the release (0.012 = 1.2%). 0 = none.', 'Pick → slam'],
+  ['recoil', 'Hero power recoil', '×', 'The hero power squashing in on contact, holding through the hit-stop, then springing back. 0 = none.', 'Pick → slam'],
   ['duckAmount', 'Duck level', 'opacity', 'Music and other sounds dip to this during the awakening (1 = no duck).', 'Awakening sound'],
   ['duckRampMs', 'Duck ramp', 'ms', 'How quickly the duck goes in and comes back.', 'Awakening sound'],
   ...ANCIENT_CUES.flatMap((cue): [Key, string, TunerUnit | undefined, string, string, ('text')?][] => [
@@ -122,14 +139,22 @@ const BASE_CONTROLS: TunerControl<Key>[] = ROWS.map(([key, label, unit, hint, gr
   if (kind === 'color' || kind === 'text') return { key, label, hint, group, kind, min: 0, max: 0, step: 0 };
   const [min, max, step] = ANCIENTS_RANGES[key as AncientsNumKey];
   return kind === 'toggle'
-    ? { key, label, hint, group, kind, min, max, step, onValue: 1, offValue: 0, ...(key === 'revealStyle' ? { onOffLabels: ['two beats', 'sequential'] as [string, string] } : {}) }
+    ? { key, label, hint, group, kind, min, max, step, onValue: 1, offValue: 0 }
     : { key, label, unit, hint, group, min, max, step };
 });
 
 /** The hero-theme group goes where the theme groups always sat: after the Dust group. */
-const HERO_AT = BASE_CONTROLS.findIndex((c) => c.key === 'closeMs');
+const HERO_AT = BASE_CONTROLS.findIndex((c) => c.key === 'pickFadeMs');
+/** THE REVEAL STYLE (owner 2026-09-27): how each Ancient appears out of its spark, a select above the spark dials. */
+const REVEAL_STYLE_CONTROL: TunerControl<Key> = {
+  key: 'revealStyle', label: 'Reveal style', group: 'Reveal', kind: 'select', min: 0, max: 0, step: 0, options: REVEAL_STYLES,
+  hint: 'How each Ancient appears out of its spark. Burst: it expands from the spark. Seam: a slash of light opens and it is inside. Bloom: the spark swells into light that resolves into it.',
+  optionLabels: { burst: 'Burst (expands from the spark)', seam: 'Seam (a slash of light opens)', bloom: 'Bloom (light resolves into it)' },
+};
 function controls(): TunerControl<Key>[] {
-  return [...BASE_CONTROLS.slice(0, HERO_AT), ...heroThemeControls(), ...BASE_CONTROLS.slice(HERO_AT)];
+  const base = [...BASE_CONTROLS.slice(0, HERO_AT), ...heroThemeControls(), ...BASE_CONTROLS.slice(HERO_AT)];
+  const at = base.findIndex((ctl) => ctl.key === 'sparkMs');
+  return [...base.slice(0, at), REVEAL_STYLE_CONTROL, ...base.slice(at)];
 }
 
 /** Push the meter's balance numbers into the live sandbox run (only a run that has Ancients, before it awakens). */
@@ -176,7 +201,7 @@ export const SPEC: TunerSpec<AncientsFullConfig> = {
     },
     {
       label: '▶ Awaken',
-      hint: 'Plays the pick beat on the hero power: the triple trail flies an Ancient in and the button splits. Cycles the five. Run state is untouched.',
+      hint: 'Plays the pick’s impact on the hero power (flash, burst, shake) and the split, with no card to fly. To see the full pick, use ▶ Play full sequence and click an Ancient. Cycles the Ancients. Run state is untouched.',
       run: () => { const id: AncientId = ANCIENT_IDS[demoIx++ % ANCIENT_IDS.length]!; playAwakenDemo(id); },
     },
   ],

@@ -53,6 +53,12 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-09-27',
     changes: [
+      { category: 'Systems', text: 'Practice has a new Unlimited time option: no shop timer at all.' },
+    ],
+  },
+  {
+    date: '2026-09-27',
+    changes: [
       { category: 'Systems', text: "Practice's Tribes option now explains itself: pick as many tribes as you like, and Neutrals are always included." },
     ],
   },

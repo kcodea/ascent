@@ -359,7 +359,8 @@ const ShopTimer = memo(function ShopTimer({ practice }: { practice?: boolean }) 
   return (
     <div className={`statcell time${s <= 5 ? ' low' : ''}`} aria-label="Time left this turn">
       <span className="sc-ic"><Icon name="clock" /></span>
-      <span className="sc-v">{Math.floor(s / 60)}:{String(s % 60).padStart(2, '0')}</span>
+      {/* Practice on Unlimited time: no countdown to read, so show the symbol, not an absurd 1666:39. */}
+      <span className="sc-v">{practice && practiceTimer === 0 ? '∞' : `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`}</span>
       {/* PRACTICE only — practice is the unscored mode, so letting the player slow the clock costs nothing.
           Deliberately absent in scored runs: the turn timer is part of the challenge there. `stopPropagation`
           on the pointer keeps a click on the select from reaching the board's drag handler. */}
@@ -372,11 +373,12 @@ const ShopTimer = memo(function ShopTimer({ practice }: { practice?: boolean }) 
           aria-label="Practice shop timer speed"
         >
           {[1, 2, 3, 4].map((m) => <option key={m} value={m}>{m}×</option>)}
+          <option value={0}>∞</option>
         </select>
       )}
       <span className="sbtip">
         {practice
-          ? 'Time left this turn. Practice only: pick 1–4× to lengthen the shop timer (1× matches a scored run).'
+          ? 'Time left this turn. Practice only: pick 1–4× to lengthen the shop timer (1× matches a scored run), or ∞ for no timer.'
           : 'Time left this turn. At 0 your actions lock, so hit End Turn first.'}
       </span>
     </div>
@@ -1072,7 +1074,9 @@ export function Recruit() {
   // be rushed while reading a lesson (blueprint §6.4: "Timer — Disabled"), and the rig is for building. Under
   // NORMAL rules (2026-09-09) the sandbox runs the REAL clock — 1×, not the practice multiplier, since the point
   // of the switch is to feel the shipped pace.
-  const infiniteClock = (run.sandbox === true && sbRules === 'god') || run.mode === 'tutorial';
+  // Practice's UNLIMITED time (owner 2026-09-27, `practiceTimer` 0) is the same effectively-infinite clock.
+  const infiniteClock = (run.sandbox === true && sbRules === 'god') || run.mode === 'tutorial'
+    || (run.mode === 'practice' && !run.sandbox && practiceTimer === 0);
   const turnSeconds = infiniteClock ? 99999 : Math.max(CHARGE_SECONDS + 1, (Math.min(80, TURN_SECONDS + (run.wave - 1) * 4 + (run.wave >= 6 ? 6 : 0)) + (run.wave >= 12 ? 12 : 0)) * (run.mode === 'practice' && !run.sandbox ? practiceTimer : 1));
 
   // Projected STARTING Gold for the next two waves (the Gold-cell hover) — cap-aware, folding in board mana

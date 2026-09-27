@@ -838,6 +838,9 @@ function loadSbBotLevel(): BotLevel {
 function loadPracticeTimer(): number {
   try {
     const v = Number(localStorage.getItem('ascent.practicetimer'));
+    // 0 = Unlimited (no turn clock, owner 2026-09-27); 1-4 = the multiplier.
+    const raw = localStorage.getItem('ascent.practicetimer');
+    if (raw === '0') return 0;
     return v >= 1 && v <= 4 ? Math.round(v) : 3;
   } catch { return 3; }
 }
@@ -1826,7 +1829,8 @@ export const useGame = create<GameStore>((rawSet, get) => {
   practiceSetupOpen: false,
   practiceDraft: loadPracticeConfig(),
   setPracticeTimer: (mult) => {
-    const practiceTimer = Math.min(4, Math.max(1, Math.round(mult)));
+    // 0 = Unlimited (no turn clock); otherwise clamp to the 1-4x multiplier.
+    const practiceTimer = mult === 0 ? 0 : Math.min(4, Math.max(1, Math.round(mult)));
     try { localStorage.setItem('ascent.practicetimer', String(practiceTimer)); } catch { /* ignore */ }
     set({ practiceTimer });
   },

@@ -402,7 +402,8 @@ export interface PracticeConfig {
   /** `unlimited` = the classic Practice invulnerability + round-15 curtain; `normal` = real elimination. */
   health: 'unlimited' | 'normal';
   /** Shop-timer multiplier (1–4×), the same knob the in-run Practice timer dropdown drives. */
-  timeMult: 1 | 2 | 3 | 4;
+  /** Shop-timer multiplier; 0 = UNLIMITED (no turn clock at all, owner 2026-09-27). */
+  timeMult: 0 | 1 | 2 | 3 | 4;
   /** The tribes this Practice game is played with (owner 2026-09-27): the run's active tribes become exactly these,
    *  so only their cards plus neutral cards (and their spells) appear. EMPTY = "Normal", the usual random run
    *  tribes. Read through `practiceRunTribes`, which drops any tribe the run's set does not have. A draft or run

@@ -264,4 +264,23 @@ export const KEYWORDS_RULES: GameRule[] = [
       lastVerifiedAt: '2026-09-26',
     },
   },
+  {
+    id: 'R-WARDFX-01',
+    title: 'A Ward that breaks from an attack bursts AT THE CONTACT of that swing, once',
+    statement:
+      'When a swing breaks a Ward (on the attacker or the defender), the ward-lost-blast burst and the Ward-break '
+      + 'sound play at the lunge contact, on the same frame as the strike impact, never after the death dissolve that '
+      + 'follows. The hit results of the swing sit in the beat after the attack beat, so the lunge reads that beat too; the '
+      + 'result moment then skips any Ward the lunge already burst, so it plays exactly once. The first '
+      + 'hit on a Resilient Ward (the downgrade) follows the same rule. A Ward broken with no lunge (a non-attack hit) keeps the result '
+      + 'moment Ward-break cue.',
+    domain: 'keywords',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-26 (Ward break FX)', quote: 'i feel like the ward lost isnt playing when a normal ward breaks for some reason - can you check on this' },
+      { kind: 'code', ref: 'packages/ui/src/useCombatReplay.ts (the attack branch claims the shield / wardDowngrade events into breakWards; contactWardIdxRef); packages/ui/src/choreo/score.ts auraBreak passes the event index' },
+    ],
+    currentBehaviour: 'Conforms, FIXED 2026-09-26: measured on the dev build, the burst played 313ms after contact (after the death dissolve); it now plays 2ms after contact, once.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/wardBreakContact.test.ts'], lastVerifiedAt: '2026-09-26' },
+  },
 ];

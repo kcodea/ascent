@@ -107,6 +107,12 @@ describe('practiceGameOf', () => {
     expect(row.config).toEqual({ opponents: 'bots', botDifficulty: 7, health: 'unlimited' });
     expect(row.runes).toEqual([]);
   });
+  it('the length is WHOLE milliseconds: the frame clock is fractional and duration_ms is an int column (2026-09-27)', () => {
+    // A fractional length (23031.7) made Postgres reject every practice row with 22P02, so nothing ever recorded.
+    const row = practiceGameOf(run(), { author: null, patch: 'p', finalBoard: null, frames: [{ tMs: 1000.25 }, { tMs: 24031.95 }] });
+    expect(row.durationMs).toBe(23032);
+    expect(Number.isInteger(row.durationMs)).toBe(true);
+  });
   it('an unplaced seat (the round-15 curtain on unlimited Health) reads the standing count, as the end screen does', () => {
     const r = run({ wave: 15 });
     const standing = r.lobby!.seats.filter((s) => s.alive).length;

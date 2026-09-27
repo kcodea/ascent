@@ -53,6 +53,12 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-09-27',
     changes: [
+      { category: 'Systems', text: 'Finished Practice games now show up in Recent Games. Before, they were never saved.' },
+    ],
+  },
+  {
+    date: '2026-09-27',
+    changes: [
       {
         category: 'Systems',
         text: 'Start of Turn effects now each play their own moment after the screen returns from combat.',

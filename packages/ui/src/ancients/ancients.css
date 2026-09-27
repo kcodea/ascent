@@ -190,8 +190,13 @@
 .anc-pv-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 10px; }
 .anc-pv-kicker { font-family: var(--font-ui); font-weight: 800; font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase; color: #ffd98a; }
 .anc-pv-hint { font-family: var(--font-ui); font-size: 11px; color: rgba(238, 242, 248, 0.5); }
-.anc-pv-stage { position: relative; height: 420px; overflow: hidden; }
-.anc-pv-page { position: absolute; inset: 0; }
+/* The stage is a one-cell grid: the invisible SIZER (every Ancient's page) sets its height to the tallest page, and
+   the live page + the outgoing ghost stack in the same cell (owner 2026-09-27: the long text was clipped at 420px). */
+.anc-pv-stage { position: relative; display: grid; min-height: 420px; overflow: hidden; }
+.anc-pv-stage > .anc-pv-page, .anc-pv-sizer { grid-area: 1 / 1; }
+.anc-pv-page { position: relative; }
+.anc-pv-sizer { display: grid; visibility: hidden; pointer-events: none; }
+.anc-pv-sizer > .anc-pv-page { grid-area: 1 / 1; }
 .anc-pv-page.ghost { pointer-events: none; }
 .anc-pv-nav { display: flex; align-items: center; justify-content: space-between; margin-top: 10px; }
 .anc-pv-arrow {

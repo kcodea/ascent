@@ -122,7 +122,7 @@ export function PracticeOptions() {
         />
         <Segmented
           label="Tribes"
-          hint="Only these tribes and neutral cards appear. Normal uses the usual random tribes."
+          hint={`Select as many as you'd like. Selected tribes will be included in the game in addition to Neutrals. Normal contains all ${TRIBE_OPTIONS.length - 1}.`}
           isOn={(v) => (v === null ? cfg.tribes.length === 0 : cfg.tribes.includes(v))}
           options={TRIBE_OPTIONS}
           onPick={(v) => setDraft({ tribes: togglePracticeTribe(cfg.tribes, v) })}

@@ -1993,3 +1993,21 @@ drop policy if exists "read practice_games"       on public.practice_games;
 drop policy if exists "insert own practice_games" on public.practice_games;
 create policy "read practice_games"       on public.practice_games for select using (true);
 create policy "insert own practice_games" on public.practice_games for insert to authenticated with check (auth.uid() = user_id);
+
+-- ══════════════════════════════════════════════════════════════════════════════════════════════════════════
+-- PRACTICE GAMES REPLAYS — a Watch on the Practice tabs  (2026-09-27)
+-- ══════════════════════════════════════════════════════════════════════════════════════════════════════════
+--
+-- Paste into the Supabase SQL Editor and Run. Idempotent (safe to re-run). The same block is appended to
+-- schema.sql (the cumulative paste file); keep the two identical. Owner runbook: the devlog
+-- docs/devlog/2026-09-27-career-practice-tab.md.
+--
+-- WHAT THIS IS. Owner 2026-09-27, "okay go ahead and do it": practice games get replays after all (reversing the
+-- 2026-09-24 "no replay payload" call). One nullable jsonb column carrying the SAME `replay` payload a ranked
+-- run_telemetry row uploads (the action log + `v2`, the state replay the viewer plays). The Career and Recent
+-- Games Practice tabs probe `replay->v2->version` only, and the Watch click fetches that one row's `replay->v2`.
+--
+-- RLS and policies are unchanged: "read practice_games" (public read) and "insert own practice_games" already
+-- cover the new column. Additive: until this is run, the client uploads the result row WITHOUT its replay (it
+-- retries on the unknown-column error) and the lists show no Watch. Only games finished after this runs have one.
+alter table public.practice_games add column if not exists replay jsonb;

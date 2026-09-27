@@ -337,4 +337,20 @@ export const TEXT_RULES: GameRule[] = [
       lastVerifiedAt: '2026-09-25',
     },
   },
+  {
+    id: 'R-TEXT-ANCPREVIEW-01',
+    title: 'The Ancients preview shows every Ancient name and effect in full, never clipped',
+    statement:
+      'The hover preview of the Ancients (the scroll-to-browse panel beside the hero power) sizes its page area to the '
+      + 'tallest Ancient page for that hero, so a two-line name plus a long effect is always fully visible, and the panel '
+      + 'keeps one height while browsing. It stays inside the viewport (its real height is read once when it opens).',
+    domain: 'text',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-27 (Ancient of Genesis preview clipped)', quote: 'also fix this text error - the full text should show' },
+      { kind: 'code', ref: 'packages/ui/src/ancients/AncientPreview.tsx (the invisible sizer of every page; H read once); packages/ui/src/ancients/ancients.css .anc-pv-stage one-cell grid' },
+    ],
+    currentBehaviour: 'Conforms, FIXED 2026-09-27: the stage was a fixed 420px with absolutely positioned pages, so Genesis text ran past the bottom.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/ancients/ancientPreviewFit.test.ts'], lastVerifiedAt: '2026-09-27' },
+  },
 ];

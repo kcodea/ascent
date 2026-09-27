@@ -378,6 +378,11 @@ export type Phase = 'recruit' | 'combat' | 'gameover' | 'victory';
  *  it is excluded from every one of those gates for free. */
 export type RunMode = 'ascent' | 'rift' | 'practice' | 'lobby' | 'tutorial';
 
+/** The `spellPowerFxUid` / `rubyPowerFxUid` value for a gain an EQUIPMENT use drove (Dual Rubetta's improving your
+ *  Rubies): there is no card to play the flourish over, so the UI anchors it on the Equipment slot instead of
+ *  falling back to the hand / shop row (owner report 2026-09-27). Not a real uid (it can never match a card). */
+export const EQUIPMENT_FX_ANCHOR = '@equipment';
+
 /** A tribe the Practice "Tribes" row can pick (any real tribe; the screen offers only the tribes of the set a new
  *  run will use, `practiceTribeOptions`). */
 export type PracticeTribe = Exclude<Tribe, 'neutral'>;

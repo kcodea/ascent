@@ -54,6 +54,7 @@ export const PATCH_NOTES: PatchNote[] = [
     date: '2026-09-27',
     changes: [
       { category: 'Systems', text: 'Practice now lets you pick which tribes are in the game. Pick one or more tribes, or Normal for the usual random tribes.' },
+      { category: 'Systems', text: "Dual Rubetta's Ruby boost now shows over the Equipment, and the Buffs panel opens on top of the Equipment." },
     ],
   },
   {

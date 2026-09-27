@@ -8630,6 +8630,10 @@ button.frzwrap.frzwrap:focus-visible {
    ABOVE the portrait and is bottom-anchored, so the panel grows UP as more buffs accrue. Toggled by clicking
    the portrait. `--bfd-body-*` still nudge/scale the panel; the old tab knobs (`--bfd-tab-*`) are now inert. */
 .herobuffs { position: absolute; left: 0; bottom: calc(100% + calc(6 * var(--u))); z-index: 60; display: flex; pointer-events: none; }
+/* The hero square carries a transform, so it is its own stacking context and the pop-out's z-index is trapped
+   inside it, under the Equipment slot (z 42). While the Buffs panel is open, lift the whole hero block above the
+   slot so the panel reads on top (owner report 2026-09-27). */
+.statusbar .hero:has(> .herobuffs.open) { z-index: 43; }
 /* The VERTICAL tab — a narrow dark-glass sliver straddling the portrait's edge. */
 .herobuffs-tab {
   position: relative; z-index: 2; pointer-events: auto; /* the only always-interactive part (container is none) */

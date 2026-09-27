@@ -1041,13 +1041,16 @@ export const COMMISSION_TEXT: Record<CommissionKind, string> = {
 export interface HeroPowerLive {
   /** Friendly attacks made SO FAR in the fight being replayed (`combatQuestDelta.attack`). */
   attacks?: number;
+  /** Friendly minions summoned SO FAR in the fight being replayed (`combatQuestDelta.summonCombat`); undefined
+   *  outside a fight. Lord of the Risen × Ancient of Time prints it live (R-ANCRISEN-07). */
+  summons?: number;
 }
 
 export function heroPowerText(state: RunState, which = 0, live: HeroPowerLive = {}): string {
   const base = baseHeroPowerText(state, which, live);
   // ANCIENTS (owner ruling 2026-09-25): an awakened Ancient's pairing prints the COMBINED power on the main slot.
   // `ancientPowerText` is undefined unless the run has Ancients on and a written pairing is picked.
-  return (which === 0 ? ancientPowerText(state, base) : undefined) ?? base;
+  return (which === 0 ? ancientPowerText(state, base, { combatSummons: live.summons }) : undefined) ?? base;
 }
 
 function baseHeroPowerText(state: RunState, which: number, live: HeroPowerLive): string {

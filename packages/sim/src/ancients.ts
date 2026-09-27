@@ -82,7 +82,7 @@
  */
 import { makeRng, type EffectDef, type Keyword, type QuestCombatMods, type RiseTint } from '@game/core';
 import { CARD_INDEX } from '@game/content';
-import { mixSeed, type BoardCard, type RunState } from './state';
+import { mixSeed, type BoardCard, type RunState, type SotBeatFx } from './state';
 import type { HeroPower } from './heroes';
 import type { CombatResult } from '@game/core';
 import { addBuff, aegisGrantOf, captureBuffFx, destroyMinionInShop, fireShopEchoOf, grantMinionToHandOrBoard, instanceEffects, makeContext } from './recruit';
@@ -180,7 +180,9 @@ export interface AncientPairing {
    *  text; `{recharge}` = Indy's live recharge Gold; `{gilds}` / `{gildA}` / `{gildH}` = the run's gild count and
    *  the live Bonds total it grants right now; `{aegis}` = Warden's live Aegis grant ("+5 Attack"); `{wardLeft}` =
    *  Ward breaks still needed for Genesis' next copy; `{riseGold}` = Gold the Risen's last combat banked;
-   *  `{summons}` / `{timeA}` / `{timeH}` = the Risen's last-combat summon count and the Start-of-Turn grant it paid. */
+   *  `{summons}` / `{timeA}` / `{timeH}` = the Risen's summon count and the Start-of-Turn grant it pays: LIVE during a
+   *  fight (the replay's running count, `{timeWhen}` = "This combat"), else the last combat's (`{timeWhen}` = "Last
+   *  combat"), R-ANCRISEN-07. */
   powerText: string;
   /** Changes to the hero power's own SHAPE while this pairing is live (Auctioneer: Time makes Pulse passive, Genesis
    *  makes it an untargeted 2 Gold Discover). Stamped on the run at the pick (`AncientsState.powerOverride`) and
@@ -354,7 +356,7 @@ export const ANCIENT_PAIRINGS: Record<string, Partial<Record<AncientId, AncientP
       // "Start of Turn: Give your minions +3/+2 for every minion summoned in combat." (owner: the previous combat only;
       // "summoned counts anything from hand, echo summons, and rising bodies")
       offerText: '**Start of Turn:** give your minions **+3/+2** for each minion you summoned last combat.',
-      powerText: '{base} **Start of Turn:** give your minions **+3/+2** for each minion you summoned last combat. Last combat: **{summons}** summoned (**+{timeA}/+{timeH}**).',
+      powerText: '{base} **Start of Turn:** give your minions **+3/+2** for each minion you summoned last combat. {timeWhen}: **{summons}** summoned (**+{timeA}/+{timeH}**).',
       effects: [{ do: 'sotBuffPerCombatSummon', attack: 3, health: 2 }],
     },
     bonds: {
@@ -520,8 +522,15 @@ function effectOf<K extends AncientEffect['do']>(state: RunState, kind: K): Extr
   return activeAncientPairing(state)?.effects.find((e): e is Extract<AncientEffect, { do: K }> => e.do === kind);
 }
 
+/** Live combat values the Ancient power text folds in (undefined outside a fight being replayed). */
+export interface AncientPowerLive {
+  /** Friendly minions summoned SO FAR in the fight on screen (the replay's step-tagged `summonCombat` tally, the same
+   *  summon-entry chokepoint `ancientCountSummons` counts), so Time's printed count follows the replay beat. */
+  combatSummons?: number;
+}
+
 /** The resolved hero-power text, or undefined when no pairing is active (the caller keeps its base text). */
-export function ancientPowerText(state: RunState, base: string): string | undefined {
+export function ancientPowerText(state: RunState, base: string, combat: AncientPowerLive = {}): string | undefined {
   const p = activeAncientPairing(state);
   if (!p) return undefined;
   const per = effectOf(state, 'powerBuffPerGild');
@@ -534,8 +543,11 @@ export function ancientPowerText(state: RunState, base: string): string | undefi
   const wardLeft = copy ? copy.every - ((a?.wardWindow?.length ?? 0) % copy.every) : 0;
   const shoutGold = a?.shoutGold?.wave === state.wave ? a.shoutGold.gold : 0;
   const time = effectOf(state, 'sotBuffPerCombatSummon');
-  const summons = a?.lastSummons ?? 0;
-  return text.replace('{base}', base).replace('{shoutGold}', String(shoutGold))
+  // RISEN × TIME, REAL TIME (R-REALTIME-01 / R-ANCRISEN-07): during a fight the count is the replay's running tally of
+  // friendly summons up to the beat on screen, so it ticks with each summon instead of jumping at resolution.
+  const liveSummons = !!time && combat.combatSummons !== undefined;
+  const summons = liveSummons ? combat.combatSummons! : a?.lastSummons ?? 0;
+  return text.replace('{base}', base).replace('{timeWhen}', liveSummons ? 'This combat' : 'Last combat').replace('{shoutGold}', String(shoutGold))
     .replace('{riseGold}', String(a?.riseGold ?? 0)).replace('{summons}', String(summons))
     .replace('{timeA}', String((time?.attack ?? 0) * summons)).replace('{timeH}', String((time?.health ?? 0) * summons)).replace('{aegis}', aegis).replace('{wardLeft}', String(wardLeft)).replace('{recharge}', String(INDY_GILD_RECHARGE_GOLD))
     .replace('{gilds}', String(gilds)).replace('{gildA}', String((per?.attack ?? 0) * gilds)).replace('{gildH}', String((per?.health ?? 0) * gilds));
@@ -807,9 +819,22 @@ export function ancientStartOfTurn(state: RunState): void {
   const e = effectOf(state, 'sotBuffPerCombatSummon');
   const n = a?.lastSummons ?? 0;
   if (!a || !e || n <= 0 || state.board.length === 0) return;
-  captureBuffFx(state, undefined, 'spell', () => {
-    for (const c of state.board) addBuff(c, ANCIENTS.time.name, e.attack * n, e.health * n);
-  });
+  // ITS OWN START-OF-TURN BEAT (owner 2026-09-26, R-SOT-BEAT-01): the grant is recorded on the Start-of-Turn beat
+  // channel (the power button pulses, then each minion's gain lands, after the return wipe), NOT the per-action
+  // buff-FX channel, whose replay fired under the return-to-shop curtain where nobody saw it. Gains are the real
+  // per-minion deltas (a buff multiplier or mirror can change them), measured around the grant.
+  const before = new Map(state.board.map((c) => [c.uid, { attack: c.attack, health: c.health }]));
+  for (const c of state.board) addBuff(c, ANCIENTS.time.name, e.attack * n, e.health * n);
+  const gains: SotBeatFx['gains'] = [];
+  for (const c of state.board) {
+    const p = before.get(c.uid);
+    if (!p) continue;
+    const da = c.attack - p.attack, dh = c.health - p.health;
+    if (da > 0 || dh > 0) gains.push({ uid: c.uid, attack: da, health: dh });
+  }
+  if (gains.length === 0) return;
+  (state.sotBeatFx ??= []).push({ source: { kind: 'hero', id: state.heroId, label: ANCIENTS.time.name }, gains });
+  state.sotBeatFxSeq = (state.sotBeatFxSeq ?? 0) + 1;
 }
 
 /** BONDS, Shop half: a friendly minion Rose in the Shop (a shop destroy's Rise return). Trigger the Echo of a

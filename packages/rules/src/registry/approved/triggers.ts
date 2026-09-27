@@ -745,4 +745,34 @@ export const TRIGGERS_RULES: GameRule[] = [
     currentBehaviour: 'Conforms (the #1755 SHOP_ONLY_SHOUTS list). No behaviour change: the owner confirmed it.',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/combatShoutsRealtime.test.ts'], lastVerifiedAt: '2026-09-26' },
   },
+  {
+    id: 'R-SOT-BEAT-01',
+    title: 'Every Start of Turn effect gets its OWN beat in the Shop, played after the return-to-shop wipe has finished',
+    statement:
+      'ALL Start of Turn effects (hero powers, Ancients, runes, quests, minions, Equipment) get their own presentation '
+      + 'beat in the Shop: the source announces itself (a hero source pulses the hero-power button, a rune its node, a '
+      + 'minion its body), then each consequence lands on its recipient with its FX, and the shown numbers rise on that '
+      + 'beat. The beat plays only once the return-to-shop wipe has fully finished (the curtain at rest on the revealed '
+      + 'Shop) plus a short pad, never under the curtain, and a Start of Turn effect never resolves silently. Gameplay '
+      + 'is unchanged: the state resolves with the turn setup and the beat is presentation. The Runeforge entrance '
+      + 'follows the same wait (R-RUNE-18).',
+    domain: 'triggers',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-26 (Lord of the Risen x Ancient of Time report)', quote: 'this also does not have a start of turn beat, please wire one in and make sure we bake time for the screen wipe transition. make a note in the oracle that ALL start of turns get their own beat as well. i believe this is already in there.' },
+      { kind: 'code', ref: 'packages/sim/src/state.ts SotBeatFx / sotBeatFx / sotBeatFxSeq (the Start-of-Turn beat channel); packages/sim/src/ancients.ts ancientStartOfTurn (stamps it); packages/ui/src/sotBeats.ts (sotBeatsMayPlay, planSotBeats, the stat hold); packages/ui/src/Recruit.tsx (the Start-of-Turn beat player; the per-action buff wave parks while the wipe is up)' },
+    ],
+    currentBehaviour:
+      'Partly conforms (2026-09-26). No such rule existed before (only R-RUNE-18 for the Runeforge entrance). Lord of the '
+      + 'Risen x Ancient of Time is on the beat channel: the power button pulses, the +3/+2 per summon lands on each minion '
+      + 'with its tendril and its numbers rise on that cue, after the wipe. Every other Start of Turn buff captured '
+      + 'on the per-action buff-FX channel (Gemline Martyr, the Start-of-Turn runes) now WAITS for the wipe instead of '
+      + 'playing under the curtain, but still shows its FX as one wave on stats that are already up, not as its own '
+      + 'source-pulsed beat; moving them onto the beat channel is follow-up work.',
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/ui/src/sotBeats.test.ts', 'packages/sim/src/risenTimeRealtime.test.ts'],
+      lastVerifiedAt: '2026-09-26',
+    },
+  },
 ];

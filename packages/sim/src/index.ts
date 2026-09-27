@@ -6,6 +6,7 @@ export * from './shop';
 export * from './starform';
 export * from './ancients';
 export * from './state';
+export * from './practiceTribes';
 export { alignmentAt, alignmentsOf, alignmentOf, boardHasCelestial } from './alignment';
 export { poolOf, setIdOf } from './cardPool';
 export * from './quests';

@@ -250,7 +250,7 @@ export const HERO_PICK_TAKES: KeyedTakes<string> = { byKey: { brackus: ['hero-pi
 export const OPPONENT_HERO_TAKES: KeyedTakes<string> = { byKey: { midas: ['opponent-hero-1'] }, generic: [] }; // "Midas and his Gold again."
 /** TribeTakeover: the tribe with 5+ minions on the board. */
 export const TRIBE_TAKEOVER_TAKES: KeyedTakes<Tribe> = { byKey: { kobold: ['tribe-takeover-1'] }, generic: [] }; // "Kobolds everywhere!"
-/** TribeSurge: the Practice tribe surge (`practiceConfig.tribeSurge`). */
+/** TribeSurge: a Practice game played with picked tribes (`practiceConfig.tribes`), keyed by a picked tribe. */
 export const TRIBE_SURGE_TAKES: KeyedTakes<Tribe> = { byKey: { dragon: ['tribe-surge-1'] }, generic: [] }; // "Dragons are surging this game."
 /** The takes a keyed moment may speak for `key`: its own, else the generic ones (none = the moment stays silent). */
 export function keyedTakes<K extends string>(t: KeyedTakes<K>, key: K | null | undefined): readonly string[] {
@@ -636,7 +636,7 @@ export interface AnnouncerRunLike {
   /** The player's hero (HeroPick). */
   heroId?: string | undefined;
   /** The Practice setup (TribeSurge reads its surge). */
-  practiceConfig?: { tribeSurge?: string | null | undefined } | undefined;
+  practiceConfig?: { tribes?: readonly string[] | undefined } | undefined;
   lobby?: {
     round?: number | undefined;
     seats: readonly {
@@ -1964,11 +1964,13 @@ function detectOpponentHero(run: AnnouncerRunLike, at: number): void {
   const takes = keyedTakes(OPPONENT_HERO_TAKES, foeHeroId(run));
   if (takes.length) enqueue({ event: 'opponentHero', shelf: 'combat', notBefore: at, wave: run.wave, takes });
 }
-/** TribeSurge: a Practice game with a tribe surge, on the return to the ANNOUNCER_TRIBE_SURGE_WAVE Shop. */
+/** TribeSurge: a Practice game played with picked tribes (the Practice "Tribes" row, 2026-09-27), on the return
+ *  to the ANNOUNCER_TRIBE_SURGE_WAVE Shop. Several picked: the first (in set order) that has a take of its own
+ *  speaks; Normal (none picked) stays silent. */
 function detectTribeSurge(s: AnnouncedSlice, run: AnnouncerRunLike, at: number): void {
-  const surge = run.practiceConfig?.tribeSurge as Tribe | null | undefined;
-  if (run.wave !== ANNOUNCER_TRIBE_SURGE_WAVE || !surge || hasFired(s, 'tribeSurge')) return;
-  const takes = keyedTakes(TRIBE_SURGE_TAKES, surge);
+  const picked = (run.practiceConfig?.tribes ?? []) as readonly Tribe[];
+  if (run.wave !== ANNOUNCER_TRIBE_SURGE_WAVE || picked.length === 0 || hasFired(s, 'tribeSurge')) return;
+  const takes = keyedTakes(TRIBE_SURGE_TAKES, picked.find((t) => TRIBE_SURGE_TAKES.byKey[t]?.length) ?? picked[0]);
   if (takes.length) enqueue({ event: 'tribeSurge', shelf: 'shop', notBefore: at, wave: run.wave, takes });
 }
 

@@ -1,4 +1,4 @@
-import type { CardDef } from '@game/core';
+import { inRunTribes, type CardDef } from '@game/core';
 import { poolOf } from './cardPool';
 import type { RunState } from './state';
 
@@ -15,5 +15,5 @@ import type { RunState } from './state';
  */
 export function runSpells(state: Pick<RunState, 'setId' | 'tribes'>): CardDef[] {
   const tribes = state.tribes ?? [];
-  return poolOf(state).spells.filter((c: CardDef) => c.tribe === 'neutral' || tribes.includes(c.tribe));
+  return poolOf(state).spells.filter((c: CardDef) => inRunTribes(c, tribes));
 }

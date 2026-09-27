@@ -13,7 +13,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { CARD_INDEX, RUNE_INDEX } from '@game/content';
 import { ALE_IDS, TRIBES, type CardDef, type CombatEvent, type MinionSnapshot, type Tribe } from '@game/core';
-import { HEROES, type SurgeTribe } from '@game/sim';
+import { HEROES, type PracticeTribe } from '@game/sim';
 import {
   __setAnnouncerDepsForTests, ANNOUNCER_BACK_TO_SHOP_DELAY_MS, ANNOUNCER_BIG_STAT, ANNOUNCER_COMBAT_SILENCE_MS, ANNOUNCER_COOLDOWN_MS,
   ANNOUNCER_END_DELAY_MS, ANNOUNCER_EQUIPMENT_DELAY_MS, ANNOUNCER_FACE_OMEN_DELAY_MS, ANNOUNCER_GAME_START_DELAY_MS,
@@ -2348,20 +2348,23 @@ describe('the moment catalog\'s group D (owner 2026-09-25): per-hero / per-tribe
   });
 
   describe('TribeSurge', () => {
-    const surgeRun = (tribeSurge: SurgeTribe | null): AnnouncerRunLike => openShop({ wave: 1, practiceConfig: { tribeSurge } });
-    it('a Practice surge with a take speaks on the first return to the Shop, over BackToShop', async () => {
-      const r = await fight(surgeRun('dragon'), 'win');
-      await tick(ANNOUNCER_COOLDOWN_MS);
-      plays = [];
-      backToShop(r);
-      expect(r.wave + 1).toBe(ANNOUNCER_TRIBE_SURGE_WAVE);
-      expect(await first(ANNOUNCER_BACK_TO_SHOP_DELAY_MS + 20)).toBe('tribe-surge');
-      expect(dropped('backToShop')).toBe(true);
-    });
-    it('no surge, or a surge without a take: BackToShop as before', async () => {
-      for (const surge of [null, 'beast'] as const) {
+    const surgeRun = (tribes: PracticeTribe[]): AnnouncerRunLike => openShop({ wave: 1, practiceConfig: { tribes } });
+    it('a Practice game with a picked tribe that has a take speaks on the first return to the Shop, over BackToShop', async () => {
+      for (const tribes of [['dragon'], ['demon', 'dragon']] as PracticeTribe[][]) {
         fresh();
-        const r = await fight(surgeRun(surge), 'win');
+        const r = await fight(surgeRun(tribes), 'win');
+        await tick(ANNOUNCER_COOLDOWN_MS);
+        plays = [];
+        backToShop(r);
+        expect(r.wave + 1).toBe(ANNOUNCER_TRIBE_SURGE_WAVE);
+        expect(await first(ANNOUNCER_BACK_TO_SHOP_DELAY_MS + 20), tribes.join('+')).toBe('tribe-surge');
+        expect(dropped('backToShop')).toBe(true);
+      }
+    });
+    it('Normal (no tribes picked), or picked tribes without a take: BackToShop as before', async () => {
+      for (const tribes of [[], ['beast']] as PracticeTribe[][]) {
+        fresh();
+        const r = await fight(surgeRun(tribes), 'win');
         await tick(ANNOUNCER_COOLDOWN_MS);
         plays = [];
         backToShop(r);

@@ -1,4 +1,4 @@
-import { type PresentationCollector, type ConsequenceDraft, type CombatEvent, beatIdentity, socTwilightExtraFires, COMBATATIVE_RUBIES_ATTACKS, BODY_COUNTING_DEATHS, ALE_IDS, combatSide, makeCollector, makeRng, simulate, type BoardMinion, type CardDef, type CombatConfig, type CombatResult, type CombatSideState, type Keyword, type PendingCombatQuest, type PresentationBatch, type QuestCombatMods, type QuestDef, type QuestObjective, type QuestObjectiveEvent, type Tribe, TRIBES } from '@game/core';
+import { type PresentationCollector, type ConsequenceDraft, type CombatEvent, beatIdentity, inRunTribes, socTwilightExtraFires, COMBATATIVE_RUBIES_ATTACKS, BODY_COUNTING_DEATHS, ALE_IDS, combatSide, makeCollector, makeRng, simulate, type BoardMinion, type CardDef, type CombatConfig, type CombatResult, type CombatSideState, type Keyword, type PendingCombatQuest, type PresentationBatch, type QuestCombatMods, type QuestDef, type QuestObjective, type QuestObjectiveEvent, type Tribe, TRIBES } from '@game/core';
 import { ancientCombatMods, ancientAfterPowerGild, ancientOfferOpen, ancientPowerTargetsGilded, ancientReplacesPowerGild, ancientsCombatTick, ancientsRefreshTick, ancientsSetMeter, pickAncient, ancientPulseExtraThenDestroy, ancientPulseDiscovers, ancientPulsePassive, ancientAfterPulse, ancientAegisDestroys, ancientAegisRecipient, ancientAegisDestroyAndGive, ancientAegisResilient, ancientAfterCombat, ancientBondsReact, ancientStartOfTurn } from './ancients';
 import { runSpells } from './spellPool';
 import { currentCollector, withActiveCollector } from './activeCollector';
@@ -15,7 +15,7 @@ import { activePowers, getHero, gildCopiesNeeded, hasPower, powerDiscoverPool } 
 import { buildEnemyBoard, selectThreat } from './threats';
 import { pickOpponent, opponentBoard, oppKey } from './opponents';
 import type { BoardSnapshot } from './snapshot';
-import { EQUIPMENT_INDEX, forkedCardId, REVELER_IDS, STAR_DESTROYER, equipmentOf } from '@game/content';
+import { EQUIPMENT_INDEX, forkedCardId, REVELER_IDS, STAR_DESTROYER, equipmentOf, poolFor } from '@game/content';
 const STAR_DESTROYER_ID = STAR_DESTROYER.id;
 import {
   equipmentChargesOf, equipmentCostOf, expireEquipmentTurn, rebuildEquipment, spendEquipmentCharge,
@@ -3630,8 +3630,11 @@ function reduceCore(state: RunState, action: Action): RunState {
       // built its own bare `combatSide({ tier })`, which silently dropped all seventeen run-level scalers below
       // — so the identical board was materially weaker as a lobby seat than as an Ascent opponent. Sharing the
       // function is the point: a new scaler added here reaches both, and neither can drift from the other.
+      // The ENEMY side draws from the FULL set pool, never a Practice-narrowed one (owner 2026-09-27: "they can use
+      // the full set, the tribe surge is just for the player"). `enemyPoolIds` is that set's whole pool.
+      const enemyPoolIds = poolFor(setIdOf(s)).all.map((c) => c.id);
       const enemySideFrom = (snap: BoardSnapshot, fallbackTier: number): CombatSideState =>
-        sideFromSnapshot(snap, fallbackTier, poolOf(s).all.map((c) => c.id));
+        sideFromSnapshot(snap, fallbackTier, enemyPoolIds);
       const servedState: CombatSideState = served
         ? enemySideFrom(served, s.tier)
         : combatSide();
@@ -3651,7 +3654,7 @@ function reduceCore(state: RunState, action: Action): RunState {
         // spell power, auras, fodder and quest/rune modifiers exactly as it would in Ascent.
         const enemyState = lobbyFoe?.snapshot
           ? enemySideFrom(lobbyFoe.snapshot, e.tier)
-          : lobbyFoe || !served ? combatSide({ tier: e.tier, poolIds: poolOf(s).all.map((c) => c.id) }) : servedState;
+          : lobbyFoe || !served ? combatSide({ tier: e.tier, poolIds: enemyPoolIds }) : servedState;
         s.lastCombat = resolveCombatVs(e.enemy, enemyState);
       } catch {
         const e = proceduralEnemy();
@@ -5817,7 +5820,7 @@ function grantRandomTribeMinion(s: RunState, tribe: Tribe, reps: number, overflo
 /** Conjure `reps` random buyable minions of EXACTLY `tier` (in your tribes / neutral) — Rune of the Pair's
  *  "2 random Tier 4 minions". */
 function grantRandomTierMinion(s: RunState, tier: number, reps: number, overflow = false): void {
-  const pool = poolOf(s).buyable.filter((c) => c.tier === tier && (c.tribe === 'neutral' || s.tribes.includes(c.tribe)));
+  const pool = poolOf(s).buyable.filter((c) => c.tier === tier && inRunTribes(c, s.tribes));
   conjureToHand(s, pool, reps, overflow);
 }
 

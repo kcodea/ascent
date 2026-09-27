@@ -1,11 +1,12 @@
 import type { BoardMinion, CombatOutcome, CombatResult, Tribe } from '@game/core';
-import type { SetId } from '@game/content';
+import { activeSet, type SetId } from '@game/content';
 import type { BoardSnapshot } from '../snapshot';
 import { combatSide, makeRng, simulate } from '@game/core';
 import { CARD_INDEX } from '@game/content';
 import { HEROES, playableHeroes } from '../heroes';
 import { lossDamageCap } from '../reducer';
 import { createRun, type RunState, type PracticeConfig } from '../state';
+import { normalizePracticeTribes } from '../practiceTribes';
 import { createPracticeBotLobby } from './practiceBots';
 import { botSeat, hybridSeat, type SeatPolicy } from './seats';
 import { playerRunByKey, playerRunsFrom, snapshotSeat } from './snapshotSeats';
@@ -787,7 +788,11 @@ export function createLobbyRun(
   // opponents replace recorded ones, and `health: 'normal'` turns off the invulnerability + curtain.
   // `setId` (optional) pins the run to a specific card set — the Scene Builder plays an unreleased set this
   // way. Omitted = the live set, exactly as `createRun` defaults it.
-  const run = setId === undefined ? createRun(seed, heroId, mode) : createRun(seed, heroId, mode, undefined, setId);
+  // PRACTICE TRIBES (owner 2026-09-27): picked tribes replace the run's seeded tribe roll, so the pool, shop,
+  // Discovers, spells, runes and quests all follow them. None picked (Normal) = the usual roll.
+  const pinnedSet = setId ?? activeSet().id;
+  const picked = mode === 'practice' && practiceConfig ? normalizePracticeTribes(practiceConfig.tribes, pinnedSet) : [];
+  const run = createRun(seed, heroId, mode, undefined, pinnedSet, picked.length > 0 ? picked : undefined);
   // The run pins its set at creation; the lobby seats from the SAME set, so a set-2 run never faces a seat
   // driven by a set-1 recording (whose bodies are cards this run cannot otherwise see).
   // BOTS opponents: seat seven authored, scaling omen boards instead of recorded player runs.
@@ -798,7 +803,7 @@ export function createLobbyRun(
   // The seat's pools ARE the run's health, so the HUD and every health-aware effect read one number.
   me.resolve = run.resolve;
   me.armor = run.armor;
-  return { ...run, lobby, ...(practiceConfig ? { practiceConfig } : {}) };
+  return { ...run, lobby, ...(practiceConfig ? { practiceConfig: { ...practiceConfig, tribes: picked } } : {}) };
 }
 
 /**

@@ -17,7 +17,7 @@ describe('bot damage ramp × end-of-combat health timing', () => {
   for (const botDifficulty of [1, 3, 5, 10] as const) {
     it(`${botDifficulty}: the end-of-combat value is the final value (no second jump in the shop)`, () => {
       let s: RunState = createLobbyRun(11, 'aster', {}, 'practice', {
-        opponents: 'bots', botDifficulty, health: 'normal', timeMult: 1, tribeSurge: null,
+        opponents: 'bots', botDifficulty, health: 'normal', timeMult: 1, tribes: [],
       });
       // A later round (bots have ramped) with an empty board, so the loss is certain and the hit is meaningful.
       s = { ...s, wave: 6, board: [] as never, lobby: { ...s.lobby!, round: 6 } };
@@ -38,7 +38,7 @@ describe('bot damage ramp × end-of-combat health timing', () => {
   it('a harder difficulty costs more for the same fight', () => {
     const costOf = (botDifficulty: 1 | 5 | 10): number => {
       let s: RunState = createLobbyRun(11, 'aster', {}, 'practice', {
-        opponents: 'bots', botDifficulty, health: 'normal', timeMult: 1, tribeSurge: null,
+        opponents: 'bots', botDifficulty, health: 'normal', timeMult: 1, tribes: [],
       });
       s = { ...s, wave: 6, board: [] as never, lobby: { ...s.lobby!, round: 6 } };
       const before = s.resolve + s.armor;

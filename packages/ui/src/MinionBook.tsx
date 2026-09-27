@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { CSSProperties } from 'react';
-import type { CardDef, QuestReward, Tribe } from '@game/core';
+import { inRunTribes, type CardDef, type QuestReward, type Tribe } from '@game/core';
 import { CARD_INDEX, EPIC_RUNES, GIFTS, QUEST_DEFS, RUNES, SETS, activeSet, poolFor, type SetId } from '@game/content';
 import { HEROES, chooseBothActive, rubyStatBonus, type RunState } from '@game/sim';
 import { Card, mdBold, type CardView } from './Card';
@@ -375,7 +375,7 @@ export function MinionBook() {
   // quest-reward card whose granting quest is in scope. Buyable tokens are dropped by `BUYABLE_CARDS`; the
   // quest-reward tokens are re-added here (they're the whole point of the Quest Rewards category).
   const allCards = useMemo(() => {
-    const inScope = (c: CardDef): boolean => c.tribe === 'neutral' || tribes.includes(c.tribe);
+    const inScope = (c: CardDef): boolean => inRunTribes(c, tribes); // the engine's own run-tribe gate (dual types count)
     const minions = pool.buyable.filter(inScope);
     // Evolution units (Spirit Worgen, Taragosa) — shown alongside their tribe's minions though never buyable.
     // Already scoped to THIS set (their source card is in its pool); `inScope` then narrows to the run's tribes.

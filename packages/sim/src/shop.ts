@@ -1,10 +1,10 @@
-import { makeRng, type CardDef, type Rng, type Tribe } from '@game/core';
+import { inRunTribes, makeRng, type CardDef, type Rng, type Tribe } from '@game/core';
 import { runSpells } from './spellPool';
 import { CARD_INDEX } from '@game/content';
 import { poolOf } from './cardPool';
 import { CIA_ENCHANT_CHANCE, POOL_QUANTITIES, maxTierFor } from './config';
 import { getHero, hasPower } from './heroes';
-import type { RunState, SurgeTribe } from './state';
+import type { RunState } from './state';
 import { stampVeinstormRubies } from './recruit';
 import { buffStarform, starformOf, starformRefreshLand, withStarformPinned } from './starform';
 
@@ -51,7 +51,7 @@ export const tierSlots = (tier: number): number =>
 export function stockPool(tribes: Tribe[], buyable: readonly CardDef[]): Record<string, number> {
   const pool: Record<string, number> = {};
   for (const card of buyable) {
-    if (card.tribe === 'neutral' || tribes.includes(card.tribe)) {
+    if (inRunTribes(card, tribes)) {
       pool[card.id] = POOL_QUANTITIES[card.tier] ?? POOL_FALLBACK;
     }
   }
@@ -63,7 +63,7 @@ const availableOffers = (state: RunState): CardDef[] =>
   poolOf(state).buyable.filter(
     (card) =>
       card.tier <= state.tier &&
-      (card.tribe === 'neutral' || state.tribes.includes(card.tribe)) &&
+      inRunTribes(card, state.tribes) &&
       (state.pool[card.id] ?? 0) > 0,
   );
 
@@ -72,16 +72,16 @@ const availableOffers = (state: RunState): CardDef[] =>
  * copies should directly impact how likely a card is to be found"). Every remaining copy is one ticket, so a
  * card with one copy left is one-fifteenth as likely as a fully stocked one and the odds slide as the shared
  * pool drains — a trackable, gradual shift rather than the cliff the old uniform-by-identity draw produced
- * (a last copy was as likely as a full stack until it hit zero). A Practice `tribeSurge` doubles that tribe's
- * tickets ("100% increase in chance to find that tribe's cards"). The caller decrements the pool. Returns null
- * only when the pool is exhausted.
+ * (a last copy was as likely as a full stack until it hit zero). The caller decrements the pool. Returns null
+ * only when the pool is exhausted. (The Practice tribe surge that once doubled a tribe's tickets was replaced on
+ * 2026-09-27 by Practice's picked run tribes, which narrow `state.tribes` itself.)
  *
  * Seeds: this changed every shop roll from the old `rng.int(len)` draw (2026-09-10) — replays and goldens that
  * pinned specific offers were re-pinned in the same PR.
  */
-export function drawOfferId(rng: Rng, pool: CardDef[], surge: SurgeTribe | null, stock: Readonly<Record<string, number>>): string | null {
+export function drawOfferId(rng: Rng, pool: CardDef[], stock: Readonly<Record<string, number>>): string | null {
   if (pool.length === 0) return null;
-  const weight = (c: CardDef): number => Math.max(0, stock[c.id] ?? 0) * (c.tribe === surge ? 2 : 1);
+  const weight = (c: CardDef): number => Math.max(0, stock[c.id] ?? 0);
   let total = 0;
   for (const c of pool) total += weight(c);
   if (total <= 0) return null;
@@ -159,7 +159,7 @@ function rollShopRow(state: RunState, slots: number): void {
   const candlePool = lockTier === undefined ? [] : poolOf(state).buyable.filter(
     (card) =>
       card.tier === lockTier &&
-      (card.tribe === 'neutral' || state.tribes.includes(card.tribe)) &&
+      inRunTribes(card, state.tribes) &&
       (state.pool[card.id] ?? 0) > 0,
   );
   for (let i = kept.length; i < slots; i++) {
@@ -167,7 +167,7 @@ function rollShopRow(state: RunState, slots: number): void {
     // Re-filtered per slot so the stock decrements below are respected; falls back only when the tier is
     // genuinely exhausted, which is the one case where a narrowed shop cannot be filled.
     const narrowed = lockTier === undefined ? pool : candlePool.filter((c) => (state.pool[c.id] ?? 0) > 0);
-    const id = drawOfferId(rng, narrowed.length > 0 ? narrowed : pool, state.practiceConfig?.tribeSurge ?? null, state.pool);
+    const id = drawOfferId(rng, narrowed.length > 0 ? narrowed : pool, state.pool);
     if (!id) break; // pool exhausted — fewer offers
     state.pool[id] -= 1;
     offers.push({ uid: `s${state.uidSeq++}`, cardId: id });
@@ -313,7 +313,7 @@ export function elevateShop(state: RunState): void {
     // but a same-tier re-roll is allowed to pick it again.
     const avail = (id: string): number => (state.pool[id] ?? 0) + (id === offer.cardId ? 1 : 0);
     const pool = poolOf(state).buyable.filter(
-      (c) => c.tier === target && (c.tribe === 'neutral' || state.tribes.includes(c.tribe)) && avail(c.id) > 0,
+      (c) => c.tier === target && inRunTribes(c, state.tribes) && avail(c.id) > 0,
     );
     if (pool.length === 0) { next.push(offer); continue; } // genuinely dry pool → keep the offer
     returnToPool(state, offer.cardId);
@@ -334,7 +334,7 @@ export function topUpTavern(state: RunState): void {
   const rng = makeRng(state.rngCursor);
   const slots = tierSlots(state.tier);
   while (state.shop.length < slots) {
-    const id = drawOfferId(rng, availableOffers(state), state.practiceConfig?.tribeSurge ?? null, state.pool);
+    const id = drawOfferId(rng, availableOffers(state), state.pool);
     if (!id) break;
     state.pool[id] -= 1;
     state.shop.push({ uid: `s${state.uidSeq++}`, cardId: id });

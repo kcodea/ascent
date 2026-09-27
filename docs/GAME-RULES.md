@@ -200,7 +200,7 @@ happens (R-TARGET-06, owner 2026-09-26).
 minion of the run's tribes starts with a fixed number of copies per tier; buying takes one, selling or
 discarding returns one. Each roll picks a card with probability proportional to the copies it has left, so
 a card down to its last copy is rarer in proportion, and the odds shift gradually as the pool drains rather
-than falling off a cliff at zero. (Practice tribe surge doubles that tribe's tickets.)
+than falling off a cliff at zero.
 
 ### Equipment (owner rulings 2026-08-28 + 2026-09-11)
 
@@ -1041,3 +1041,7 @@ rider that fires only when the Ruby's **target is a Kobold** (dual-tribe and All
 - **Practice mode** is a lobby that "can't be lost" (unlimited health, longer
   per-turn clock) per the config comment — the exact per-turn clock difference is
   **(unverified — confirm)** against the recruit timer.
+- **Practice Tribes** (2026-09-27, R-PRACTICE-SURGE-01): the Practice setup's multi-select "Tribes" row picks
+  the run's active tribes outright (Normal = the usual seeded roll). With tribes picked, the run's pool is
+  narrowed to those tribes plus neutral (a dual type counts when either tribe is picked; tokens stay), so the
+  shop, Discovers, spells and random grants, and the hero, rune and quest tribe gates, all follow them.

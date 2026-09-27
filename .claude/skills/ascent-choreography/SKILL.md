@@ -43,6 +43,13 @@ Two failures worth knowing because both shipped here:
   caused them parks (the Echohorn hold) and strikes on its own damage beat. Staggered cues inside a stretched
   wind-up were tried for Shout re-fires and rejected: every effect committed at once, then a frozen pause.
 
+- **Start of Turn beats wait for the return wipe** (R-SOT-BEAT-01). Start of Turn resolves inside `resolveCombat`,
+  which the Shop dispatches while the exit curtain fully covers the scene, so anything played then plays under the
+  blue. Record the firing on the Start-of-Turn beat channel (`RunState.sotBeatFx` / `sotBeatFxSeq`, one entry per
+  source with each recipient's gain) and the Shop plays it after the wipe rests (`packages/ui/src/sotBeats.ts`:
+  source pulse, then each gain, stats held until their cue). Lord of the Risen x Ancient of Time is the first user;
+  the per-action buff wave (`recruitBuffFx`) only PARKS until the wipe, it is not a beat.
+
 Other rules:
 
 - Separate trigger presentation from consequences: a source may pulse first, with buffs/summons/casts landing

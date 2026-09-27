@@ -107,6 +107,7 @@ import { commitSlidePlan } from './rowSlides';
 import { resolveGildSources, snapshotGildCandidates, type GildSnap, type Pt } from './gildTrailSources';
 import { playBuySlide, type BuyFrom } from './buySlide';
 import { fireBuffFx } from './buffFxRender';
+import { holdSotGains, planSotBeats, releaseSotGain, sotBeatsMayPlay, sotShownStats, type SotCue, type SotHeld } from './sotBeats';
 import { resolveBuffSource } from './choreo/buffSource';
 import { ASCEND_PRESETS, ascendPreset } from './ascendPresets';
 import { getDragFeel } from './dragFeel';
@@ -1854,6 +1855,9 @@ export function Recruit() {
   // During the End-of-Turn animation, the per-proc stats to *show* on each minion (uid → live stats),
   // so the board's numbers climb one proc at a time. Null outside the animation (show the real stats).
   const [eotAnimStats, setEotAnimStats] = useState<Record<string, { attack: number; health: number }> | null>(null);
+  // START OF TURN BEATS (R-SOT-BEAT-01, `sotBeats.ts`): the Start-of-Turn gains still HELD off the shown board stats
+  // (a delta per uid) until their beat lands them, after the return wipe. Null when nothing is held.
+  const [sotHeld, setSotHeld] = useState<SotHeld | null>(null);
   // During the same animation, the running SHOP-offer buff delta per offer uid — so a shop minion buffed by an
   // End-of-Turn effect (Moira re-firing Market Tormentor / Contract Butcher) shows its stats climb in real time
   // on the beat, not jump only after the phase commits (owner ask 2026-08-12). Null outside the animation.
@@ -3601,14 +3605,14 @@ export function Recruit() {
   const boardViews = useMemo(
     () => perfMonitor.measure('view:board', () => {
       const fresh = new Map(displayBoard.map((m) => {
-        const v = instView(m, run.tier, eotAnimStats?.[m.uid], spellBonus, spellBonusH, run.spellsThisTurn, run.deathrattlesTriggered, run.undeadAttackBonus, run.undeadHealthBonus, ftbBonus, run.wave, run.spellsCast, run.cardBuffs?.cling, run.fodderConsumedThisTurn, { ...live, onBoard: true, eotTickOverride: eotAnimTick?.[m.uid] });
+        const v = instView(m, run.tier, eotAnimStats?.[m.uid] ?? sotShownStats(sotHeld, m.uid, m.attack, m.health), spellBonus, spellBonusH, run.spellsThisTurn, run.deathrattlesTriggered, run.undeadAttackBonus, run.undeadHealthBonus, ftbBonus, run.wave, run.spellsCast, run.cardBuffs?.cling, run.fodderConsumedThisTurn, { ...live, onBoard: true, eotTickOverride: eotAnimTick?.[m.uid] });
         const tint = ancientRiseTint(run, m); // Ancients × Lord of the Risen (War): the Undying target's Rise is RED
         return [m.uid, tint ? { ...v, riseTint: tint } : v] as const;
       }));
       boardViewCache.current = stabilizeViewMap(fresh, boardViewCache.current);
       return boardViewCache.current;
     }),
-    [displayBoard, run.ancients, run.ancientsEnabled, run.heroId, run.tier, eotAnimStats, eotAnimTick, spellBonus, spellBonusH, run.spellsThisTurn, run.deathrattlesTriggered, run.undeadAttackBonus, run.undeadHealthBonus, ftbBonus, run.wave, run.spellsCast, run.cardBuffs, run.fodderConsumedThisTurn, live],
+    [displayBoard, run.ancients, run.ancientsEnabled, run.heroId, run.tier, eotAnimStats, sotHeld, eotAnimTick, spellBonus, spellBonusH, run.spellsThisTurn, run.deathrattlesTriggered, run.undeadAttackBonus, run.undeadHealthBonus, ftbBonus, run.wave, run.spellsCast, run.cardBuffs, run.fodderConsumedThisTurn, live],
   );
   // R-HAND-02 (owner 2026-09-09): a hand card a combat effect buffs grows ON ITS BEAT. The replay's reached
   // deltas ride the same stat-override slot the End-of-Turn animation uses, on top of the run hand's stats;
@@ -4808,7 +4812,10 @@ export function Recruit() {
     // this channel with its seq bumped while the phase is still `combat`. The warband is not in the DOM under
     // the arena, so `findEl` found nothing, the ribbon was dropped and the seq consumed: back in the shop the
     // recipient simply stood there with bigger numbers. Park the wave and play it on the reveal instead.
-    if (inCombat) { settleFxRef.current = [...settleFxRef.current, ...events]; return; }
+    // The same park holds for a capture made UNDER THE RETURN CURTAIN (owner 2026-09-26, R-SOT-BEAT-01): every
+    // Start-of-Turn effect resolves inside `resolveCombat`, which lands while the exit wipe fully covers the scene
+    // (`coveredOut`), so its wave played under the blue. It waits for the wipe to rest, like the settle wave.
+    if (inCombat || wipe !== 'idle') { settleFxRef.current = [...settleFxRef.current, ...events]; return; }
     // A REPEAT-pattern play (Squirl Scout's "Repeat for every Beast you own", a Dragonflame cast) tags one wave
     // per repeat (R-REPEAT-01, owner 2026-09-22). Pace those waves apart, as the End-of-Turn beats do, so the
     // repeats read as repeats rather than one burst; an untagged action keeps its simultaneous replay.
@@ -4825,6 +4832,78 @@ export function Recruit() {
     settleFxRef.current = [];
     replayBuffFxEvents(pending);
   }, [inCombat, wipe, run.phase, replayBuffFxEvents]);
+
+  /**
+   * START OF TURN BEATS (owner 2026-09-26, R-SOT-BEAT-01: "this also does not have a start of turn beat, please wire
+   * one in and make sure we bake time for the screen wipe transition"). Lord of the Risen × Ancient of Time's grant
+   * is the first effect on this channel (`RunState.sotBeatFx`, planned in `sotBeats.ts`).
+   *
+   * The batch arrives with `resolveCombat`, under the fully covered exit curtain. It is QUEUED and its gains are held
+   * off the shown stats at once (a layout effect, so no frame shows the raised numbers), then it plays only once the
+   * wipe is at rest on the revealed Shop, plus a pad: the source pulses (a hero source: the power button's burst +
+   * the hero's power sound), then each recipient's gain lands with the buff tendril from the button and its number
+   * rises on that cue. Timers live in a ref, not an effect cleanup, so a re-render mid-beat never strands a hold; a
+   * phase change away from the Shop (the next fight, the end screen) drops the queue and releases every hold.
+   */
+  const prevSotSeq = useRef(run.sotBeatFxSeq ?? 0); // inits to current: a resumed save never replays a stale beat
+  const sotQueueRef = useRef<NonNullable<RunState['sotBeatFx']>>([]);
+  const sotTimersRef = useRef<number[]>([]);
+  const [sotQueued, setSotQueued] = useState(0);
+  useLayoutEffect(() => {
+    const seq = run.sotBeatFxSeq ?? 0;
+    if (seq === prevSotSeq.current) return;
+    prevSotSeq.current = seq;
+    const beats = run.sotBeatFx ?? [];
+    if (beats.length === 0) return;
+    sotQueueRef.current = [...sotQueueRef.current, ...beats];
+    setSotHeld((prev) => holdSotGains(prev, beats));
+    setSotQueued((n) => n + 1);
+  }, [run.sotBeatFxSeq]);
+  useEffect(() => {
+    if (inCombat || run.phase !== 'recruit') {
+      // Left the Shop before (or while) the beat played: nothing to land on. Drop it and show the real stats.
+      if (sotQueueRef.current.length || sotTimersRef.current.length) {
+        sotQueueRef.current = [];
+        sotTimersRef.current.forEach(window.clearTimeout);
+        sotTimersRef.current = [];
+        setSotHeld(null);
+      }
+      return;
+    }
+    if (!sotBeatsMayPlay(run.phase, wipe) || sotQueueRef.current.length === 0) return;
+    const beats = sotQueueRef.current;
+    sotQueueRef.current = [];
+    const powerBtn = (): HTMLElement | null =>
+      document.querySelector<HTMLElement>('.statusbar .heropanel:not(.heropanel2):not(.equipslot) .heropowerbtn')
+      ?? document.querySelector<HTMLElement>('.statusbar .heropowerbtn');
+    const btnCentre = (): { x: number; y: number } | undefined => {
+      const r = powerBtn()?.getBoundingClientRect();
+      return r && (r.width > 0 || r.height > 0) ? { x: r.left + r.width / 2, y: r.top + r.height / 2 } : undefined;
+    };
+    const fire = (cue: SotCue): void => {
+      if (cue.kind === 'pulse') {
+        // The hero-power trigger pulse: the power button's activation burst + the hero's power sound.
+        const c = btnCentre();
+        if (c) pixiFx.heroPowerBurst(c.x, c.y, getAimFxConfig());
+        sfx.heroPower(cue.source.id);
+        return;
+      }
+      setSotHeld((prev) => releaseSotGain(prev, cue.uid, cue.attack, cue.health));
+      const el = document.querySelector<HTMLElement>(`[data-uid="${cue.uid}"]`);
+      const target = el ? restingCenterOf(el) : null;
+      if (!target) return;
+      const source = btnCentre();
+      fireBuffFx({ source, target, cardId: '', tribe: 'neutral', sourceless: !source, uids: { source: null, target: cue.uid } });
+    };
+    for (const cue of planSotBeats(beats).cues) {
+      const id = window.setTimeout(() => {
+        sotTimersRef.current = sotTimersRef.current.filter((t) => t !== id);
+        fire(cue);
+      }, cue.at);
+      sotTimersRef.current.push(id);
+    }
+  }, [inCombat, wipe, run.phase, sotQueued]);
+  useEffect(() => () => { sotTimersRef.current.forEach(window.clearTimeout); sotTimersRef.current = []; }, []);
 
   // AURA WAVE: a run-wide tribe-aura channel rose this action (auraFxSeq bumped) — bloom a tribe-colored wave
   // from the board CENTRE out to both edges. It's a GLOBAL cue (the aura touched the whole board), so it fires

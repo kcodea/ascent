@@ -15,6 +15,15 @@ import { playDef } from './fx/playDef';
  * out of the DOM) hides the effect for that frame without ending the loop. (Follow-up, owner ask: seamless-loop
  * controls in the FX workbench.)
  */
+/** A board-covering overlay is up (the body marks Recruit / the Ancients gate set): Discover, Choose One, a quest or
+ *  Runeforge offer, a scouted board, the Fight Recap, the Ancient awakening. The shared FX canvas draws above those,
+ *  so a looping shop-card effect must hide itself while this is true. */
+export function overlayCoversShop(): boolean {
+  if (typeof document === 'undefined') return false;
+  const b = document.body.classList;
+  return b.contains('modalup') || b.contains('ancgate') || b.contains('ancoffer');
+}
+
 export function useCiaEnchantedFx(enchantedUids: readonly string[]): void {
   const key = enchantedUids.join(',');
   const active = useRef<Map<string, () => void>>(new Map());
@@ -28,13 +37,18 @@ export function useCiaEnchantedFx(enchantedUids: readonly string[]): void {
     for (const uid of now) {
       if (active.current.has(uid)) continue;
       // The live centre of THIS card's rect, or null while it is being dragged / not in the DOM.
-      const at = (): { x: number; y: number } | null => {
+      const pos = (): { x: number; y: number } | null => {
         const el = document.querySelector<HTMLElement>(`.card.enchanted[data-uid="${uid}"]`);
         if (!el || el.classList.contains('dragsrc')) return null;
         const r = el.getBoundingClientRect();
         return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
       };
-      const start = at();
+      // HIDDEN UNDER OVERLAYS (owner report 2026-09-26: "an ayse card bleeds through the animation"): the loop draws
+      // on the shared FX canvas, which sits ABOVE a board-covering overlay (the Ancient awakening, Discover, a
+      // Runeforge or quest offer…), so its sparkles showed through the backdrop. While the body carries one of the
+      // overlay marks the follow returns null, which hides the effect for that frame without ending the loop.
+      const at = (): { x: number; y: number } | null => (overlayCoversShop() ? null : pos());
+      const start = pos();
       if (!start) continue; // card not mounted yet — a later enchant tick picks it up
       const dispose = playDef('cia-hp', { source: start, target: start, cursor: start }, { loop: true, follow: at });
       if (dispose) active.current.set(uid, dispose);

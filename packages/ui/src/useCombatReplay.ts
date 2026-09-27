@@ -15,7 +15,7 @@ import { sfx } from './sfx';
 import { getChoreoConfig } from './choreo/choreoConfig';
 import { applyFloatSpeed } from './floatConfig';
 import { buildAuthoredTimeline, getCombatRampConfig, rampSpeed } from './combatRampConfig';
-import { attackerOfImpact, meleePairOfImpact, type Beat } from './combatBeats';
+import { RESULT_TYPES, attackerOfImpact, meleePairOfImpact, type Beat } from './combatBeats';
 import { holdMs } from './choreo/clock';
 import { finalHoldMs, pummelReadMs, pummelRemainingMs, type PummelFire } from './choreo/finalHold';
 import { PUMMEL_STACK_MS } from './choreo/channels/pummelFired';
@@ -1405,6 +1405,10 @@ export function useCombatReplay(
   /** A PARKED lunge: the attacker, the body it was swinging at, and the timeline holding its pose. The
    *  `defender` is what lets a CANCELLED swing be told apart from a pending one — see the release below. */
   const heldLungeRef = useRef<{ uid: string; defender: string; tl: ReturnType<typeof gsap.timeline>; resumed: boolean } | null>(null);
+  /** Event indices of Ward breaks / Resilient downgrades already shattered AT A LUNGE'S CONTACT (`breakWards`), so
+   *  the swing's result moment does not play them a second time through its `auraBreak` cue (owner report
+   *  2026-09-26: "the ward lost isnt playing when a normal ward breaks"). */
+  const contactWardIdxRef = useRef<Set<number>>(new Set());
 
   // Schedule a buff's strike-delay timer in the combat-lifetime registry above (not the caller's per-beat
   // `timers`), so an ordinary beat advance cannot cancel it. When the delay elapses, hand off to `driveRoll`
@@ -1503,6 +1507,7 @@ export function useCombatReplay(
     // A parked held-windup lunge from a swing this instance already replayed must not survive a fresh combat or
     // a re-seek — kill it and drop the frozen pose.
     if (heldLungeRef.current) { heldLungeRef.current.tl.kill(); heldLungeRef.current = null; }
+    contactWardIdxRef.current.clear(); // indices belong to the previous combat's event log
     parkedCommitRef.uid = null; // a reset/re-seek drops the park, so it must drop its commit hold too
     parkedContactRef.current = null;
   }, []);
@@ -2461,8 +2466,9 @@ export function useCombatReplay(
         floatTimersRef.current.push(window.setTimeout(() => setDeathFloats((arr) => arr.filter((x) => !ids.has(x.id))), getChoreoConfig().deathFloatMs / combatSpeedRef.current));
       },
       onAuraBurst: (uid) => burstDeathAuras(uid, rectOf(uid)),
-      onShieldBreak: (uid) => breakShieldAura(rectOf(uid), uid),
-      onWardDowngrade: (uid) => crackResilientWard(rectOf(uid), uid),
+      // Skipped when the swing's lunge already shattered this Ward at contact (see `contactWardIdxRef`).
+      onShieldBreak: (uid, i) => { if (i !== undefined && contactWardIdxRef.current.delete(i)) return; breakShieldAura(rectOf(uid), uid); },
+      onWardDowngrade: (uid, i) => { if (i !== undefined && contactWardIdxRef.current.delete(i)) return; crackResilientWard(rectOf(uid), uid); },
       // Rise re-forms in aqua; REBIRTH bursts into its phoenix flame (owner 2026-09-25) — one call per event.
       onReborn: (uid, rebirth, tint) => (rebirth ? reformRebirth(rebornRects.get(uid) ?? rectOf(uid), uid) : reformReborn(rebornRects.get(uid) ?? rectOf(uid), tint)),
       // Execute proc → the crescent strike at the VICTIM's slot (the unit being destroyed), read at fire time
@@ -2774,11 +2780,30 @@ export function useCombatReplay(
       // ward is CSS now, so the shatter fires at the unit's live rect (no Pixi bubble to read coords from).
       const wardTargets: string[] = [];
       for (let i = cur.start; i < cur.end; i++) { const e = events[i]; if (e?.type === 'shield') wardTargets.push(e.target); }
+      // THE SWING'S OWN RESULTS: `buildBeats` puts the hit (dmg / shield / death) in the NEXT beat, right after the
+      // attack's wind-up beat, so the Wards this swing breaks live THERE, not in `cur`. Without this the loop above
+      // found nothing, the burst never rode the contact, and it played ~300ms late off the result moment's
+      // `auraBreak` cue, after the death dissolve had already taken the eye (owner report 2026-09-26). Claim them
+      // here; the result moment's `auraBreak` skips claimed indices, so nothing plays twice.
+      const hit = beats[beatIdx];
+      const hitIsThisSwing = !!hit && hit.start === cur.end && RESULT_TYPES.has(hit.primary.type);
+      if (hitIsThisSwing) {
+        for (let i = hit.start; i < hit.end; i++) {
+          const e = events[i];
+          if (e?.type === 'shield') { wardTargets.push(e.target); contactWardIdxRef.current.add(i); }
+        }
+      }
       // A Resilient Ward's first hit (its orange layer shatters on the card itself — see `WardGlass`): the small
       // `resilient-ward-shatter` sparks + the Ward-break SOUND at the same contact, and no Ward blast, since a Ward
       // is still standing. One sound per exchange: quiet when a real Ward break (or an earlier downgrade) plays it.
       const downgrades: string[] = [];
       for (let i = cur.start; i < cur.end; i++) { const e = events[i]; if (e?.type === 'wardDowngrade') downgrades.push(e.target); }
+      if (hitIsThisSwing) {
+        for (let i = hit.start; i < hit.end; i++) {
+          const e = events[i];
+          if (e?.type === 'wardDowngrade') { downgrades.push(e.target); contactWardIdxRef.current.add(i); }
+        }
+      }
       // EXECUTE proc inside this exchange → the strike REPLACES the standard hit FX at contact (see impact.ts).
       // Gated on a `poison` EVENT, not on the attacker carrying `V`: the keyword is spent after one kill, so a
       // keyword check would keep slashing on later swings that no longer execute anything.

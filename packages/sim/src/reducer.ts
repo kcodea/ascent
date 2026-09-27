@@ -1423,6 +1423,7 @@ function reduceCore(state: RunState, action: Action): RunState {
   //     made the fifth Alchemist Frank play the equip animation five times (owner report 2026-08-28).
   if (s.shopDeathFx?.length) s.shopDeathFx = [];
   if (s.equipFx?.length) s.equipFx = [];
+  if (s.sotBeatFx?.length) s.sotBeatFx = []; // Start-of-Turn beats (R-SOT-BEAT-01) — same per-action contract
   s.lastCombat = lastCombat;
   s.servedBoards = servedBoards;
   // Sable: mirror this turn's Soulbind onto the stateless `addBuff` hook. MUST be stamped from the DRAFT `s`,

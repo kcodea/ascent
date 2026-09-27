@@ -401,20 +401,24 @@ export interface PracticeConfig {
   botDifficulty: BotLevel;
   /** `unlimited` = the classic Practice invulnerability + round-15 curtain; `normal` = real elimination. */
   health: 'unlimited' | 'normal';
-  /** Shop-timer multiplier (1–4×), the same knob the in-run Practice timer dropdown drives. */
-  /** Shop-timer multiplier; 0 = UNLIMITED (no turn clock at all, owner 2026-09-27). */
+  /** Shop-timer multiplier (1–4×), the same knob the in-run Practice timer dropdown drives; 0 = UNLIMITED (no turn
+   *  clock at all, owner 2026-09-27). */
   timeMult: 0 | 1 | 2 | 3 | 4;
   /** The tribes this Practice game is played with (owner 2026-09-27): the run's active tribes become exactly these,
    *  so only their cards plus neutral cards (and their spells) appear. EMPTY = "Normal", the usual random run
    *  tribes. Read through `practiceRunTribes`, which drops any tribe the run's set does not have. A draft or run
    *  saved before 2026-09-27 may carry the retired `tribeSurge` field instead: it is ignored (reads as Normal). */
   tribes: PracticeTribe[];
+  /** Which heroes the Practice hero picker offers (owner 2026-09-27): `beginner` = exactly the three starter heroes
+   *  (`BEGINNER_HERO_IDS`: Indy, Warden, Keshi), shown as the usual three-choice pick; `all` = every Practice hero.
+   *  Absent on drafts/runs saved before this existed: read it through `practiceHeroMode`. */
+  heroes?: 'beginner' | 'all';
 }
 
 /** The default Practice options — the classic Practice experience, so an untouched setup screen plays exactly
  *  as Practice always has (recorded opponents, invulnerable, 1× timer, Normal tribes). */
 export const DEFAULT_PRACTICE_CONFIG: PracticeConfig = {
-  opponents: 'players', botDifficulty: 3, health: 'unlimited', timeMult: 1, tribes: [],
+  opponents: 'players', botDifficulty: 3, health: 'unlimited', timeMult: 1, tribes: [], heroes: 'beginner',
 };
 
 export type DiscoverSpec =

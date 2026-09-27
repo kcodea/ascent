@@ -53,7 +53,7 @@ Two failures worth knowing because both shipped here:
   `Recruit.tsx`) derives the holds DURING RENDER (stats as a delta, new cards out of their rows), waits for the wipe to
   rest + 300 ms, then per beat pulses the source, lands each gain, then each arrival; a rune's badge burst is held via
   `RunState.sotRuneProcs` / `sotRuneHold.ts`. The per-action buff wave and the equip cue pass skip the records a beat owns (same
-  objects). `sotPlaying` gates the turn timer (`turnClockMayTick`) and the Shop's overlays until the last tail; a turn
+  objects). `sotPlaying` gates the Shop's overlays (NOT the turn timer, owner 2026-09-27; the clock waits only for the wipe) until the last tail; a turn
   with no beats starts the clock at the wipe's rest. Input is not blocked while they play.
 
 Other rules:

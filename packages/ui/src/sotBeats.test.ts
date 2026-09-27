@@ -127,7 +127,7 @@ describe('every Start of Turn source gets its own beat, and the turn waits for t
   it('THE TURN TIMER does not tick until the return wipe has rested AND the Start of Turn beats have played', () => {
     const base = { recruitPhase: true, decisionOpen: false, heroSelecting: false, overlayOpen: false, introPlaying: false };
     expect(turnClockMayTick({ ...base, transitionPlaying: true, startOfTurnPlaying: false }), 'the wipe is still up').toBe(false);
-    expect(turnClockMayTick({ ...base, transitionPlaying: false, startOfTurnPlaying: true }), 'beats still playing').toBe(false);
+    expect(turnClockMayTick({ ...base, transitionPlaying: false }), 'the clock does not wait for the beats (owner 2026-09-27)').toBe(true);
     expect(turnClockMayTick({ ...base, transitionPlaying: false, startOfTurnPlaying: false }), 'no beats: starts at the wipe rest').toBe(true);
   });
 });
@@ -161,7 +161,7 @@ describe('the Shop plays the beats after the wipe (source pins)', () => {
 
   it('the turn timer waits for the wipe and the beats; the offers wait for the beats', () => {
     expect(RECRUIT).toContain("transitionPlaying: wipe !== 'idle',");
-    expect(RECRUIT).toContain('startOfTurnPlaying: sotPlaying,');
+    expect(RECRUIT).not.toContain('startOfTurnPlaying: sotPlaying,');
     expect(RECRUIT).toContain("const overlaysHeld = !inCombat && (wipe !== 'idle' || sotPlaying);");
   });
 

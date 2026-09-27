@@ -4539,10 +4539,10 @@ export function Recruit() {
       heroSelecting,
       overlayOpen,
       introPlaying,
-      // The turn starts only once the return wipe has come to rest AND the turn's Start of Turn beats have played
-      // (owner 2026-09-27, R-SOT-TIMER-01). A turn with no Start of Turn effect starts right at the wipe's rest.
+      // The clock starts once the return wipe has come to rest (nothing is playable under the curtain). It does NOT
+      // wait for the Start of Turn beats: the Shop is playable while they play (owner 2026-09-27: "maybe just start
+      // the clock as normal though since you can play right away"; R-SOT-TIMER-01).
       transitionPlaying: wipe !== 'idle',
-      startOfTurnPlaying: sotPlaying,
     })) return;
     let id = 0;
     const tick = (): void => {

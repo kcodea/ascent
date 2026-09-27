@@ -1,4 +1,4 @@
-# 2026-09-27: every Start of Turn effect gets its own beat, and the turn timer waits for them
+# 2026-09-27: every Start of Turn effect gets its own beat
 
 Owner ruling (verbatim): "yes they all need their own beat, and the timer/turn shouldnt start until after they
 complete. also, they need to wait until the transition back from combat finishes."
@@ -95,3 +95,11 @@ branch resets only when there is a queue or timers to drop. It is pinned in the 
 - `packages/ui/src/sotBeats.test.ts`: sequence and timing (pulse, gains, arrivals, tails; no overlap); an empty batch
   plans nothing and adds no delay; holds and releases; the rune hold; `turnClockMayTick` holds for the wipe and the
   beats; source pins for the render-phase holds, the player, the timer and overlay gates, and the owned records.
+
+
+## Revision (same day, owner review of PR #1765)
+
+"start of turn stuff looks fine for now - maybe just start the clock as normal though since you can play right away".
+The turn clock no longer waits for the Start of Turn beats (`startOfTurnPlaying` is no longer passed to
+`turnClockMayTick`); it still waits for the return wipe to come to rest, since nothing is playable under the curtain.
+Offers raised at Start of Turn still open after the beats (`overlaysHeld`). R-SOT-TIMER-01 is rewritten to match.

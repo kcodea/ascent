@@ -55,12 +55,12 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
-        text: 'Start of Turn effects now each play their own moment after the screen returns from combat, and the turn timer waits for them.',
+        text: 'Start of Turn effects now each play their own moment after the screen returns from combat.',
         details: [
           'Each Start of Turn effect plays on its own, one after another: your minions, runes, quests, hero power and Equipment.',
           'The source lights up first, then its stats and new cards land. Numbers no longer jump up while the screen is still covered.',
           'Nothing plays until the return from combat has finished.',
-          'The turn timer starts once they are done. A turn with nothing to show starts right away.',
+          'The turn timer starts as usual, so you can shop while they play.',
           'Offers from Start of Turn, like a Discover, open after these moments.',
         ],
       },

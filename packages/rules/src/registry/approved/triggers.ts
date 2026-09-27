@@ -781,18 +781,19 @@ export const TRIGGERS_RULES: GameRule[] = [
   },
   {
     id: 'R-SOT-TIMER-01',
-    title: 'The turn timer starts only after every Start of Turn beat has played, which starts only after the return-from-combat transition finishes',
+    title: 'The turn timer starts when the return-from-combat transition finishes; it does not wait for Start of Turn beats',
     statement:
-      'The Shop turn timer starts only after every Start of Turn beat has played, which starts only after the '
-      + 'return-from-combat transition finishes. While the wipe is up or a Start of Turn beat is still playing the clock '
-      + 'does not tick (it is not shortened either). A turn with no Start of Turn effect starts its clock the moment the '
-      + 'wipe comes to rest, with no added delay. The Shop stays usable while the beats play. The timer is the local '
-      + 'player\'s presentation clock: the engine is untimed, so the recorded run, replays and the other seats are unchanged.',
+      'The Shop turn timer starts the moment the return-from-combat transition comes to rest (nothing is playable under '
+      + 'the curtain). It does NOT wait for the Start of Turn beats: the Shop is playable while they play, so the clock '
+      + 'runs as normal. Offers raised at Start of Turn (a Discover, a quest offer, the Runeforge) still open after the '
+      + 'beats. The timer is the local player presentation clock: the engine is untimed, so the recorded run, replays '
+      + 'and the other seats are unchanged.',
     domain: 'triggers',
     status: 'approved',
     evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-27 (PR #1765 review)', quote: 'start of turn stuff looks fine for now - maybe just start the clock as normal though since you can play right away' },
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-27 (every Start of Turn source)', quote: 'yes they all need their own beat, and the timer/turn shouldnt start until after they complete. also, they need to wait until the transition back from combat finishes.' },
-      { kind: 'code', ref: 'packages/ui/src/turnClock.ts turnClockMayTick (transitionPlaying, startOfTurnPlaying); packages/ui/src/Recruit.tsx (the countdown passes the wipe and sotPlaying; overlaysHeld waits for sotPlaying)' },
+      { kind: 'code', ref: 'packages/ui/src/turnClock.ts turnClockMayTick (transitionPlaying); packages/ui/src/Recruit.tsx (the countdown passes the wipe only; overlaysHeld waits for sotPlaying)' },
     ],
     currentBehaviour: 'Conforms (2026-09-27). Before this the clock started as the combat resolved, under the return curtain.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/sotBeats.test.ts'], lastVerifiedAt: '2026-09-27' },

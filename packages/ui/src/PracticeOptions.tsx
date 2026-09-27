@@ -45,6 +45,11 @@ function Segmented<T extends string | number | null>(props: {
   );
 }
 
+/** Practice hero offer (owner 2026-09-27): the three starters, or every hero. */
+const HERO_MODES: { value: 'beginner' | 'all'; label: string }[] = [
+  { value: 'beginner', label: 'Beginner' },
+  { value: 'all', label: 'All' },
+];
 const OPPONENTS: { value: PracticeConfig['opponents']; label: string }[] = [
   { value: 'players', label: 'Players' },
   { value: 'bots', label: 'Bots' },
@@ -91,6 +96,13 @@ export function PracticeOptions() {
         <h1 className="disp mptitle">PRACTICE</h1>
         <p className="posub">A sandbox to try things out. Nothing here is rated.</p>
 
+        <Segmented
+          label="Heroes"
+          hint={(cfg.heroes ?? 'beginner') === 'beginner' ? 'Pick from three starter heroes: Indy, Warden and Keshi.' : 'Pick from every hero.'}
+          value={cfg.heroes ?? 'beginner'}
+          options={HERO_MODES}
+          onPick={(v) => setDraft({ heroes: v })}
+        />
         <Segmented
           label="Opponents"
           hint={cfg.opponents === 'bots' ? 'Simple, effectless enemies that only grow in stats.' : "Real players' recorded warbands."}

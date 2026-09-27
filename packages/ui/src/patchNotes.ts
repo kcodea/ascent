@@ -54,6 +54,7 @@ export const PATCH_NOTES: PatchNote[] = [
     date: '2026-09-27',
     changes: [
       { category: 'Systems', text: 'Practice has a new Unlimited time option: no shop timer at all.' },
+      { category: 'Systems', text: 'Practice has a new Heroes option. Beginner offers three starter heroes (Indy, Warden and Keshi); All offers every hero.' },
     ],
   },
   {

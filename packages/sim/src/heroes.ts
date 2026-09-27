@@ -1146,6 +1146,17 @@ export function playableHeroes(tribes?: readonly Tribe[]): HeroDef[] {
   return HEROES.filter((h) => !isArchivedHero(h) && !h.practiceOnly && tribeAllowed(h, tribes));
 }
 
+/** Practice's BEGINNER hero offer (owner 2026-09-27: "the starter selector should give the 3 hero choices like
+ *  the main game does, except it only offers these 3 heroes: Indy, Warden, Keshi"). */
+export const BEGINNER_HERO_IDS: readonly string[] = ['indy', 'warden', 'keshi'];
+
+/** The hero ids the Practice picker offers for a heroes mode: Beginner = the three starters, in that order; All =
+ *  every Practice hero allowed by the run's tribes. A missing/unknown mode reads as Beginner (the default). */
+export function practiceHeroChoiceIds(mode: 'beginner' | 'all' | undefined, tribes?: readonly Tribe[]): string[] {
+  if (mode === 'all') return practiceHeroes(tribes).map((h) => h.id);
+  return BEGINNER_HERO_IDS.filter((id) => HEROES.some((h) => h.id === id && !isArchivedHero(h)));
+}
+
 /** The heroes PRACTICE may use — everything except `wip`. */
 export function practiceHeroes(tribes?: readonly Tribe[]): HeroDef[] {
   return HEROES.filter((h) => !isArchivedHero(h) && tribeAllowed(h, tribes));

@@ -1592,4 +1592,20 @@ export const FOUNDATION_RULES: GameRule[] = [
     currentBehaviour: 'Conforms (built 2026-09-27).',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/practiceUnlimitedTime.test.ts'], lastVerifiedAt: '2026-09-27' },
   },
+  {
+    id: 'R-PRACTICE-HEROES-01',
+    title: 'Practice Heroes: Beginner offers Indy, Warden and Keshi as a three-choice pick; All offers every hero',
+    statement:
+      'The Practice setup screen has a Heroes row (Beginner / All), Beginner by default. Beginner shows the usual '
+      + 'three-choice hero pick, always exactly Indy, Warden and Keshi. All shows every Practice hero (tribe-gated as '
+      + 'before). A draft saved before the row existed opens on Beginner.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-27 (Practice options)', quote: 'add heroes tab in practice that says Beginner / All. the starter selector should give the 3 hero choices like the main game does, except it only offers these 3 heroes: Indy, Warden, Keshi' },
+      { kind: 'code', ref: 'packages/sim/src/heroes.ts BEGINNER_HERO_IDS / practiceHeroChoiceIds; packages/sim/src/state.ts PracticeConfig.heroes; packages/ui/src/store.ts confirmPracticeSetup + loadPracticeConfig; packages/ui/src/PracticeOptions.tsx Heroes row' },
+    ],
+    currentBehaviour: 'Conforms (built 2026-09-27).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/practiceBeginnerHeroes.test.ts'], lastVerifiedAt: '2026-09-27' },
+  },
 ];

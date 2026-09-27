@@ -147,7 +147,11 @@ export function StatusBar() {
   // it. `combatQuestDelta.attack` is the friendly-attack tally the replay already keeps for quests; folding it
   // in makes the text count down with the swings, and it is null outside a fight so the shop is unchanged.
   const combatAttacks = useGame((s) => s.combatQuestDelta?.attack ?? 0);
-  const heroPowerLive = useMemo(() => ({ attacks: combatAttacks }), [combatAttacks]);
+  // RISEN × TIME, LIVE (owner 2026-09-26, R-ANCRISEN-07): friendly summons replayed SO FAR this fight, from the same
+  // step-tagged quest tally. Undefined outside a fight (and once it settles), so the text falls back to the banked
+  // "Last combat" count the next Start of Turn pays.
+  const combatSummons = useGame((s) => s.combatQuestDelta?.summonCombat);
+  const heroPowerLive = useMemo(() => ({ attacks: combatAttacks, summons: combatSummons }), [combatAttacks, combatSummons]);
   // While spectating a replay, the hero panel belongs to the RECORDED player, so show their name — not the
   // local account's. Falls back to your own name for normal play (replaySession is null outside playback).
   const playerName = useGame((s) => s.replaySession?.authorName ?? s.playerName);

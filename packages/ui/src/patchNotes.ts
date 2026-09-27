@@ -53,6 +53,12 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-09-27',
     changes: [
+      { category: 'Systems', text: "Practice's Tribes option now explains itself: pick as many tribes as you like, and Neutrals are always included." },
+    ],
+  },
+  {
+    date: '2026-09-27',
+    changes: [
       { category: 'Systems', text: 'Finished Practice games now show up in Recent Games. Before, they were never saved.' },
     ],
   },

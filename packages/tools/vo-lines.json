@@ -12,5 +12,33 @@
       }
     }
   },
-  "lines": []
+  "lines": [],
+  "sfx": [],
+  "designs": [
+    {
+      "key": "dwarf-oldguard",
+      "name": "ASCENT Dwarf - Old Guard",
+      "description": "A grizzled veteran dwarf soldier in his sixties. Deep, gravelly, barrel-chested voice with a thick Scottish brogue. Gruff and commanding, barks short orders like a sergeant on a battlefield. Close-mic, dry studio recording, no reverb."
+    },
+    {
+      "key": "dwarf-alekeeper",
+      "name": "ASCENT Dwarf - Ale Keeper",
+      "description": "A jolly, round-bellied dwarf tavern keeper in his fifties. Warm, booming, hearty voice with a broad Northern English accent, always on the edge of a laugh and a little tipsy. Loud and friendly, like a publican greeting his regulars. Close-mic, dry studio recording, no reverb."
+    },
+    {
+      "key": "dwarf-coincounter",
+      "name": "ASCENT Dwarf - Coin Counter",
+      "description": "A shrewd, wiry dwarf merchant and paymaster. Quick, slightly nasal, sly tenor voice with a clipped Scottish accent. Talks fast, always counting coins, delighted by a good deal and a little greedy. Close-mic, dry studio recording, no reverb."
+    },
+    {
+      "key": "dwarf-forewoman",
+      "name": "ASCENT Dwarf - Forewoman",
+      "description": "A tough, no-nonsense female dwarf mine forewoman in her forties. Strong, husky, raspy alto voice with a thick Scottish accent. Blunt, confident and energetic, used to shouting over a roaring forge. Close-mic, dry studio recording, no reverb."
+    },
+    {
+      "key": "dwarf-runeelder",
+      "name": "ASCENT Dwarf - Rune Elder",
+      "description": "An ancient dwarf rune-king. Very deep, slow, resonant bass voice with a gentle Scottish lilt. Regal and mystical, every word weighty and deliberate, like a king speaking in a vast stone hall. Close-mic, dry studio recording, no reverb."
+    }
+  ]
 }

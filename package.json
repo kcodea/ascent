@@ -89,6 +89,7 @@
     "sfx:manifest": "tsx packages/tools/src/sfx-manifest.ts",
     "vo:generate": "tsx packages/tools/src/vo-generate.ts",
     "vo:approve": "tsx packages/tools/src/vo-approve.ts",
+    "vo:design": "tsx packages/tools/src/vo-design.ts",
     "dump-cards": "tsx packages/tools/src/dump-cards.ts",
     "tutorial:sync": "tsx packages/tools/src/tutorial-copy-sync.ts",
     "optimize-art": "node scripts/optimize-art.mjs",

@@ -5,7 +5,7 @@ import { gildArrivalMs } from '../gildTrailSources';
 import { stageHost, toStage } from '../stage';
 import { ancientColor, getAncientsConfig, type AncientsFullConfig } from './ancientsConfig';
 import { notePickRelease, prefersReducedMotion } from './ancientsFx';
-import { ancientPickBurst, ancientTrailPalette } from './ancientsSmoke';
+import { ancientPickBurst, ancientTrailPalette, warmSlamFx } from './ancientsSmoke';
 import { playCue } from './ancientsSound';
 
 /**
@@ -233,4 +233,5 @@ export function warmPickBurst(): void {
   const at = { x: -4000, y: -4000 };
   ancientPickBurst('#ffffff', at, 1, 1, 0.001); // not 0: a fully transparent container may be skipped, not drawn
   playDef('gild-trail', { source: at, target: at, camera: at }, { alpha: 0.001, muteSound: true, intensity: 0.1 });
+  warmSlamFx(); // and the reveal's slams
 }

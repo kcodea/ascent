@@ -155,14 +155,16 @@
   position: relative; display: flex; flex-direction: column; justify-content: flex-start;
   width: calc(290 * var(--u)); padding: 0; border: 0; background: none; box-shadow: none;
   color: #eef2f8; text-align: center;
-  transition: transform 0.2s cubic-bezier(0.2, 0.9, 0.3, 1.2);
+  transition: transform 0.2s cubic-bezier(0.2, 0.9, 0.3, 1.2), opacity 0.22s ease;
 }
 .anc-card .anc-art-frame::before { /* the hover glow: static paint, opacity only */
   content: ''; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; z-index: 2;
   box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--anc-c, #e6b45a) 80%, #fff), inset 0 0 calc(30 * var(--u)) color-mix(in srgb, var(--anc-c, #e6b45a) 45%, transparent);
   opacity: 0; transition: opacity 0.2s ease;
 }
-.anc-card:hover { transform: translateY(calc(-8 * var(--u))); }
+.anc-card:hover { transform: translateY(calc(-10 * var(--u))) scale(1.02); }
+/* SELECTION FOCUS (reveal pass 2026-09-27): while one Ancient is hovered, the other two step back (opacity only). */
+.anc-offer.settled:not(.closing) .anc-cards:has(.anc-card:hover) .anc-card:not(:hover) { opacity: var(--anc-hover-dim, 0.7); }
 .anc-card:hover .anc-art-frame::before { opacity: 1; }
 .anc-card .anc-cardx { flex: 1; }
 .anc-card .anc-cardx-rule { min-height: calc(72 * var(--u)); display: flex; align-items: center; justify-content: center; }
@@ -567,3 +569,38 @@ body.ancgate .app { z-index: auto; }
   background: radial-gradient(closest-side, #fff 0%, color-mix(in srgb, var(--anc-c, #e6b45a) 40%, #fff) 30%,
     var(--anc-c, #e6b45a) 72%, color-mix(in srgb, var(--anc-c, #e6b45a) 70%, #000) 100%);
 }
+
+/* ── THE REVEAL PASS (2026-09-27) ── */
+/* Each card's colour bloom over its art as it lands (static gradient, screen blend; opacity/scale one-shot). Sits over
+   the art frame's square (the card is 290 design px wide), under nothing that takes input. */
+.anc-land-flash {
+  position: absolute; left: 0; top: 0; width: 100%; aspect-ratio: 1 / 1;
+  border-radius: calc(16 * var(--u)); pointer-events: none; opacity: 0; z-index: 3; mix-blend-mode: screen;
+  background: radial-gradient(closest-side, color-mix(in srgb, var(--anc-c, #e6b45a) 40%, #fff) 0%, color-mix(in srgb, var(--anc-c, #e6b45a) 80%, transparent) 55%, transparent 100%);
+}
+/* The anticipation: a tall soft column of the first Ancient's colour where it will rise (opacity/scale one-shot). */
+.anc-gather {
+  position: absolute; left: 50%; top: calc(145 * var(--u)); width: calc(200 * var(--u)); height: calc(560 * var(--u));
+  pointer-events: none; opacity: 0; z-index: -1; transform: translate(-50%, -50%); mix-blend-mode: screen;
+  background: radial-gradient(ellipse closest-side, color-mix(in srgb, var(--anc-c, #e6b45a) 55%, #fff) 0%, color-mix(in srgb, var(--anc-c, #e6b45a) 60%, transparent) 35%, transparent 100%);
+}
+/* The invitation once every Ancient has landed: small gold caps between two fine rules, under the cards. */
+.anc-choose {
+  position: absolute; left: 0; right: 0; bottom: calc(-6 * var(--u)); display: flex; justify-content: center; align-items: center;
+  gap: calc(12 * var(--u)); pointer-events: none; opacity: 0; transform: translateY(calc(6 * var(--u)));
+  font-family: var(--font-ui); font-weight: 800; font-size: calc(16 * var(--u)); letter-spacing: 0.22em; text-transform: uppercase; color: #efdcaa;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9);
+  transition: opacity 0.35s ease, transform 0.35s cubic-bezier(0.2, 0.8, 0.3, 1);
+}
+.anc-choose::before, .anc-choose::after { content: ''; width: calc(46 * var(--u)); height: 1px; background: linear-gradient(90deg, rgba(233, 196, 106, 0), #e9c46a); }
+.anc-choose::after { transform: scaleX(-1); }
+.anc-choose.in { opacity: 1; transform: none; }
+/* IDLE LIFE once the choice is open: the only loop in the awakening, and it is TRANSFORM ONLY (the individual
+   `translate`, on the slot, so it composes with the card's hover lift and the pick's collapse). Staggered starts
+   (positive delays, so nothing jumps). Paused while the pick plays; off under reduced motion. */
+@keyframes ancidle { 0%, 100% { translate: 0 0; } 50% { translate: 0 calc(-1 * var(--anc-idle-px, 3) * var(--u)); } }
+.anc-offer.settled .anc-slot { animation: ancidle var(--anc-idle-ms, 4800ms) ease-in-out infinite; }
+.anc-offer.settled .anc-slot:nth-child(2) { animation-delay: 0.7s; }
+.anc-offer.settled .anc-slot:nth-child(3) { animation-delay: 1.4s; }
+.anc-offer.closing .anc-slot { animation-play-state: paused; }
+@media (prefers-reduced-motion: reduce) { .anc-offer.settled .anc-slot { animation: none; } }

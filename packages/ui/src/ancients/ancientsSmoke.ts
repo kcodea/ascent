@@ -77,3 +77,13 @@ export function ancientTrailPalette(color: string): number[] {
   // as cream on the tan board (passes 1 + 2). The top stop is only a light tint of the colour.
   return [shade(color, -0.35), shade(color, 0), shade(color, 0.1), shade(color, 0.3)];
 }
+
+/** The reveal slams' Pixi (shockwave + spark blast), pre-played invisibly and off screen when the awakening starts, so
+ *  the first slam pays no first-play cost on its landing frame (reveal pass 2026-09-27: the first slam's dust + sparks
+ *  read ~130 ms after the card had landed). */
+export function warmSlamFx(): void {
+  if (!canPlayDefs()) return;
+  const at = { x: -4000, y: -4000 };
+  playDef('ancient-slam', { target: at }, { alpha: 0.001 });
+  playDef('ancient-slam-sparks', { source: at, target: at, cursor: at }, { alpha: 0.001, intensity: 0.1 });
+}

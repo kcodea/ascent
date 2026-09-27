@@ -203,3 +203,96 @@ other dials are kept.
 - Warm run: 0 long tasks, worst frame 21 ms. Cold run: 1 task (77 ms), deliberately placed on the flash peak.
 
 This was measured on the dev server, not the prod build: the dev store handle the capture needs is stripped from prod.
+
+## Part 3: the reveal pass
+
+Owner, after the whole-sequence pass: "it's definitely better. can you make the ancient reveal sequence better
+specifically? the before + after are a lot better now". The before (meter, omen, eruption, bloom) and the after (the
+pick) stayed exactly as they were. This pass covers the middle only: from the title, through the two-beat reveal,
+to the cards at rest and hovered.
+
+### Research (short)
+
+- **Hearthstone pack opening** stages each card with its own moment. The rarity colour shows as a glow before the
+  card is seen, and a rarer card flips with a burst of its colour plus an audio cue, so a second channel carries the
+  reveal ([Hearthstone wiki: Card pack](https://hearthstone.wiki.gg/wiki/Card_pack);
+  [Gutjahr, "Opening card packs"](https://www.isaacgutjahr.com/understanding-the-gaming-experience/opening-card-packs-a-mini-exemplar-collection)).
+- **Gacha / rarity reveals, done tastefully.** The cue comes before the object: a colour flare, a held beat, and the
+  motion slowing just before the reveal. "Even before the reward appears, the player is being told that something
+  important may be about to happen" ([COGconnected](https://cogconnected.com/2026/09/why-loot-boxes-feel-like-winning/)).
+  We took the staging, not the slot-machine part: one short gather in the Ancient's colour, no escalating tiers.
+- **Discover / boss relic choices (Hearthstone, Slay the Spire)**:
+  - the title stays one continuous element above the choices;
+  - each choice's name and effect read after the art;
+  - the non-hovered choices step back while one is considered;
+  - the choice is plainly open once everything has landed.
+- **Disney principles (motion design):**
+  - the eye follows motion, so move the title rather than cross-fading two copies;
+  - anticipation before the main action;
+  - secondary action (the text) after the primary action (the card) lands;
+  - the idle "life" should be slow and small ([Marvel blog](https://marvelapp.com/blog/disneys-motion-principles-in-designing-interface-animations/)).
+
+### What the reveal does now
+
+R = the moment the curtain starts to drop (3132 ms after the refresh in the timing map above).
+
+| R (ms) | Beat |
+| --- | --- |
+| 0 | **Title handoff.** The curtain's title vanishes (50 ms) and the offer's banner is born in its exact place and size, then rises into its position over 440 ms (ease-in-out). There is one title on screen the whole time and the eye rides it up. The medallion fades with the curtain (320 ms, ease-in drop). |
+| ~40 → 460 | **Anticipation.** A soft vertical column of the first Ancient's colour gathers where it will stand, peaks as the card appears, then gives way to it. |
+| 180 → 640 | **Beat 1.** The middle Ancient rises (opaque by 22%, so it never ghosts over the curtain) to a higher peak (56 px, was 34), then drops hard, ease-in, straight to rest at R 539. The same moment brings its dust, sparks and shockwave, plus a **bloom of its colour over the art**. No dip below rest and no side wobble (owner 2026-09-26). Its name rises in at +30 ms after landing and its effect at +90/+120 (240 ms each). |
+| 780 → 1250 | **Beat 2.** The side two slide out from behind it and slam together at R 1156, each with its dust, sparks, card shake and colour bloom (the bloom sits inside the card, so it rides the card's motion). Their text rises in after they land, so three cards' text never overlaps mid-slide as it used to. |
+| 1250 | **Settled.** Clicks open. "Choose one" (small gold caps between two fine rules) rises in under the cards. |
+| idle | The three cards float very slowly (3 px, 4.8 s cycle, staggered starts). This is the only loop in the whole awakening: transform only, on the slot, paused during the pick and off under reduced motion. |
+| hover | The hovered Ancient lifts 10 px and scales 2%, its rim lights in its colour, and the other two step back to 70% opacity (opacity only). |
+
+Curtain drop to settled: about 1250 ms. It was about 1150 ms, and the 100 ms difference is the new anticipation
+beat. The overall sequence is unchanged in length.
+
+### Pass-by-pass critique
+
+**Pass 1:**
+- The handoff read as **two titles crossing**: the banner's flight began fast and was already near the top while the
+  curtain's copy was still fading in the centre.
+- The gather was a wide teal oval, which read as a lens blob.
+- The rising card was low-opacity for its first half, so it ghosted over the curtain.
+- The slam's drop (34 px) was too small to read, which made the dust look ~150 ms late even though it fired on the
+  landing frame.
+- Kept: the text arriving after landing, with no overlap mid-slide; the colour blooms; "Choose one"; the hover dim.
+
+**Pass 2:**
+- The curtain's title now leaves instantly and the banner starts opaque-ish, eased in-out. **One title travels up,
+  and reads well.**
+- The gather is a narrower column, peaking later. The card is opaque by 22%, with a 56 px peak and a harder ease-in
+  drop.
+- Remaining: the side cards' colour blooms sat in the slot, so they bloomed beside a card still settling from its
+  overshoot (blobs of colour outside the art).
+
+**Pass 3 (final):**
+- The bloom moved inside the card.
+- Clean at 16:9 (Indy, War in the middle), 21:9 (Warden) and phone landscape (Auctioneer).
+- A frame-gap check found no hitches in the reveal. The gaps in the screencast were the capture itself: a rAF probe
+  over the same window shows 0 frames over 30 ms on a warm run.
+- The reveal slams' Pixi (the shockwave and spark defs) now pre-plays off screen at the awakening's start with the
+  trail (`warmSlamFx`).
+
+### Tuner and pins
+
+New dials in "✦ Ancients › Reveal":
+- title handoff (440)
+- anticipation glow (420)
+- text arrives (240)
+- landing colour bloom (0.7)
+- idle float (3 px) and its cycle (4800)
+- hover dim (0.7)
+
+`revealDelayMs` 80 → 180 (room for the gather). All of these are pinned in `ancientsConfig.test.ts`. The retune
+revision is now 2, so an existing dev save takes the retuned values once.
+
+### Perf
+
+Profiled twice in headless Chrome, refresh to pick, on the dev server:
+- Warm run: 0 long tasks, worst frame 17 ms.
+- Cold run: one 78 ms task on the flash peak (the deliberate warm-up) and a 38 ms frame at the pick.
+- New motion is transform/opacity one-shots and one transform-only loop (the idle float).
+- One layout read each for the title and the banner at the reveal's start.

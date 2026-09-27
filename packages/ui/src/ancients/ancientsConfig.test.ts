@@ -11,7 +11,8 @@ describe('the Ancients tuner defaults', () => {
       cardRevealGain: 0.19, pickSealGain: 0.62,
       revealStyle: 1, // 1 = two beats (the middle slams, then the sides together); 0 = sequential
       hpDustLife: 0.45, dustAmount: 1, dustSize: 1, dustLife: 1, dustOpacity: 0.85, slamDust: 1.7, slamSparks: 1,
-      revealDelayMs: 80, beat1Ms: 460, beatGapMs: 140, beat2Ms: 470, // owner 2026-09-26 faster reveal; 2026-09-27 whole-sequence pass
+      revealDelayMs: 180, beat1Ms: 460, beatGapMs: 140, beat2Ms: 470, // owner 2026-09-26 faster reveal; 2026-09-27 whole-sequence + reveal passes
+      handoffMs: 440, gatherMs: 420, textInMs: 240, landFlash: 0.7, idleFloat: 3, idleMs: 4800, hoverDim: 0.7, // the reveal pass
       titleHoldMs: 1050, revealFadeMs: 320,
       bondsColor: '#9b5de5', // the sixth Ancient, purple (owner 2026-09-26)
     });

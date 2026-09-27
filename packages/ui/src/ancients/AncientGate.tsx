@@ -332,7 +332,11 @@ export const AncientGate = memo(function AncientGate({ run }: { run: RunState })
         // Holds, then DROPS (ease-in), so it never lingers half-transparent over the dim backdrop: an ease-out fade
         // spent most of its time as a murky mid-tone (whole-sequence pass 2026-09-27).
         curtain.animate([{ opacity: 1 }, { opacity: 0 }], { duration: c.revealFadeMs, easing: 'cubic-bezier(0.45, 0, 0.9, 0.55)', fill: 'forwards' });
-        curtain.querySelector('.anc-gate-center')?.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 160, easing: 'ease-out', fill: 'forwards' });
+        // The TITLE leaves at once: the offer's banner is born exactly where it stands and carries it up (a FLIP, see
+        // `AncientOffer`), so there is only ever one title on screen. The medallion fades with the curtain.
+        const handoff = c.handoffMs > 0;
+        curtain.querySelector('.anc-gate-title')?.animate([{ opacity: 1 }, { opacity: 0 }], { duration: handoff ? 50 : 160, easing: 'ease-out', fill: 'forwards' });
+        curtain.querySelector('.anc-gate-medalwrap')?.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 200, easing: 'ease-out', fill: 'forwards' });
       }
     } else if (phase === 'closing') {
       // A clean opacity fade back to the Shop (owner 2026-09-27), in step with the offer's own fade.

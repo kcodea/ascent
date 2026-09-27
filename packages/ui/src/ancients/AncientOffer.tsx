@@ -27,6 +27,12 @@ import './ancients.css';
  */
 const DEMO_OFFER: AncientId[] = ['death', 'fortune', 'war'];
 
+/** The idle float + hover dim dials, as the CSS reads them. */
+function idleVars(): CSSProperties {
+  const c = getAncientsConfig();
+  return { '--anc-idle-px': String(c.idleFloat), '--anc-idle-ms': `${c.idleMs}ms`, '--anc-hover-dim': String(c.hoverDim) } as CSSProperties;
+}
+
 export const AncientOfferOverlay = memo(function AncientOfferOverlay({ held, run, dispatch }: {
   held: boolean; run: RunState; dispatch: (a: Action) => void;
 }) {
@@ -93,9 +99,27 @@ function Reveal({ gated, closing, offer, heroId, seq, onPick }: { gated: boolean
     const push = (a: Animation | undefined): void => { if (a) anims.current.push(a); };
     const at = (ms: number, fn: () => void): void => { timers.current.push(window.setTimeout(fn, ms)); };
     const land = (i: number): void => setLanded((l) => l.map((v, k) => (k === i ? true : v)));
+    // THE TITLE HANDS OFF (reveal pass 2026-09-27): the curtain's centred "An Ancient Awakens" does not fade out while a
+    // second copy fades in at the top: the banner is BORN where the curtain's title stands (same centre, same size) and
+    // rises into its place as the curtain drops, so the eye rides the title up and lands on the cards. One layout read
+    // of each, now; a transform/opacity one-shot.
     const banner = root.querySelector<HTMLElement>('.disc-ornate');
     if (banner && typeof banner.animate === 'function') {
-      push(banner.animate([{ opacity: 0, transform: 'translateX(-50%) translateY(10px)' }, { opacity: 1, transform: 'translateX(-50%)' }], { duration: 500, delay: 180, easing: 'ease-out', fill: 'backwards' })); // after the curtain's title has gone
+      const from = reduced ? null : document.querySelector('.anc-gate-title .anc-gate-label')?.getBoundingClientRect();
+      const bt = banner.querySelector('.disc-ornate-title')?.getBoundingClientRect();
+      const br = banner.getBoundingClientRect();
+      if (from && bt && from.width > 0 && bt.width > 0 && c.handoffMs > 0) {
+        const dx = toStage(from.left + from.width / 2 - (br.left + br.width / 2));
+        const dy = toStage(from.top + from.height / 2 - (bt.top + bt.height / 2));
+        const sc = Math.max(0.3, Math.min(3, from.width / bt.width));
+        push(banner.animate([
+          { opacity: 0.4, transform: `translateX(-50%) translate(${dx.toFixed(1)}px, ${dy.toFixed(1)}px) scale(${sc.toFixed(3)})` },
+          { opacity: 1, offset: 0.12 },
+          { opacity: 1, transform: 'translateX(-50%)' },
+        ], { duration: c.handoffMs, easing: 'cubic-bezier(0.5, 0, 0.15, 1)', fill: 'backwards' }));
+      } else {
+        push(banner.animate([{ opacity: 0, transform: 'translateX(-50%) translateY(10px)' }, { opacity: 1, transform: 'translateX(-50%)' }], { duration: 400, easing: 'ease-out', fill: 'backwards' }));
+      }
     }
     const slots = Array.from(root.querySelectorAll<HTMLElement>('.anc-slot'));
     // ONE layout read, at rest: each card's centre (smoke / slam anchors) and its offset from the middle.
@@ -116,6 +140,7 @@ function Reveal({ gated, closing, offer, heroId, seq, onPick }: { gated: boolean
       const foot = r ? { x: r.left + r.width / 2, y: r.bottom } : base(i);
       ancientLandDust(col, foot, 1, w, Math.max(0, c.slamDust));
       ancientSlamSparks(col, foot);
+      colourFlash(i);
       const g = slots[i]?.querySelector<HTMLElement>('.anc-glint');
       if (g && typeof g.animate === 'function') {
         push(g.animate([
@@ -124,6 +149,29 @@ function Reveal({ gated, closing, offer, heroId, seq, onPick }: { gated: boolean
           { opacity: 0, transform: 'translateX(260%) skewX(-14deg)' },
         ], { duration: 620, easing: 'cubic-bezier(0.3, 0, 0.4, 1)' }));
       }
+    };
+    // THE TEXT ARRIVES AFTER THE CARD (reveal pass 2026-09-27): the name, then the effect, each a short rise + fade once
+    // its card has landed, so the art lands alone and the words read in order (and three cards' text never overlap
+    // while the sides slide out from behind the middle). Scheduled up front; `fill: backwards` holds them hidden.
+    const textIn = (i: number, landAt: number): void => {
+      if (reduced || c.textInMs <= 0) return;
+      const card = slots[i]?.querySelector('.anc-cardx');
+      const parts: [string, number][] = [['.anc-cardx-name', 30], ['.anc-cardx-rulebar', 90], ['.anc-cardx-rule', 120]];
+      for (const [sel, off] of parts) {
+        const el = card?.querySelector<HTMLElement>(sel);
+        if (el && typeof el.animate === 'function') {
+          push(el.animate([{ opacity: 0, transform: 'translateY(8px)' }, { opacity: 1, transform: 'translateY(0)' }],
+            { duration: c.textInMs, delay: Math.max(0, landAt + off), easing: 'cubic-bezier(0.2, 0.7, 0.3, 1)', fill: 'backwards' }));
+        }
+      }
+    };
+    // EACH CARD'S OWN COLOUR MOMENT on landing: a bloom of its colour over the art (static gradient, screen blend,
+    // opacity + scale one-shot).
+    const colourFlash = (i: number): void => {
+      const f = slots[i]?.querySelector<HTMLElement>('.anc-land-flash');
+      if (!f || c.landFlash <= 0 || typeof f.animate !== 'function') return;
+      push(f.animate([{ opacity: c.landFlash, transform: 'scale(0.96)' }, { opacity: 0, transform: 'scale(1.06)' }],
+        { duration: 440, easing: 'cubic-bezier(0.1, 0.6, 0.3, 1)' }));
     };
     const finish = (total: number): void => {
       at(total, () => { setSettled(true); setAwakenStage('settled', seq); });
@@ -149,13 +197,27 @@ function Reveal({ gated, closing, offer, heroId, seq, onPick }: { gated: boolean
       // it and slam together, one shared sound.
       const b1 = c.revealDelayMs, slam1 = b1 + c.beat1Ms * 0.78;
       const b2 = b1 + c.beat1Ms + c.beatGapMs, slam2 = b2 + c.beat2Ms * 0.8;
+      // ANTICIPATION (reveal pass 2026-09-27): a column of the first Ancient's colour gathers where it will stand, a beat
+      // before it rises (the rarity flare / charge-up every reveal in the research leads with), and gives way to it.
+      const gather = slots[mid]!.querySelector<HTMLElement>('.anc-gather');
+      if (gather && c.gatherMs > 0 && typeof gather.animate === 'function') {
+        push(gather.animate([
+          { opacity: 0, transform: 'translate(-50%, -50%) scale(0.5, 0.12)' },
+          { opacity: 0.9, transform: 'translate(-50%, -50%) scale(0.85, 1)', offset: 0.55 },
+          { opacity: 0, transform: 'translate(-50%, -50%) scale(1.1, 1.25)' },
+        ], { duration: c.gatherMs, delay: Math.max(0, b1 - c.gatherMs * 0.35), easing: 'cubic-bezier(0.3, 0, 0.4, 1)', fill: 'backwards' }));
+      }
+      textIn(mid, slam1);
       const mCard = slots[mid]!.querySelector<HTMLElement>('.anc-card');
       if (mCard && typeof mCard.animate === 'function') {
         // NO WOBBLE (owner 2026-09-26: "make the first one not wobble"): it rises, then slams STRAIGHT down to rest at
         // the slam frame, with no dip below its resting spot and no side-to-side shake. The dust sells the impact.
         push(mCard.animate([
           { opacity: 0, transform: 'translateY(120px) scale(0.82)' },
-          { opacity: 1, transform: `translateY(${-34 * (0.6 + 0.4 * k)}px) scale(1.07)`, offset: 0.6, easing: 'cubic-bezier(0.55, 0, 0.9, 0.4)' },
+          { opacity: 1, offset: 0.22 },
+          // A higher peak and a harder ease-in drop (reveal pass 2026-09-27: at 34 px the slam was too small to read, so
+          // the dust looked late). Still straight down to rest: no dip, no side shake.
+          { opacity: 1, transform: `translateY(${-56 * (0.6 + 0.4 * k)}px) scale(1.09)`, offset: 0.6, easing: 'cubic-bezier(0.7, 0, 0.95, 0.35)' },
           { opacity: 1, transform: 'translateY(0) scale(1)', offset: 0.78 },
           { opacity: 1, transform: 'translateY(0) scale(1)' },
         ], { duration: c.beat1Ms, delay: b1, easing: 'cubic-bezier(0.3, 0, 0.6, 1)', fill: 'backwards' }));
@@ -184,6 +246,7 @@ function Reveal({ gated, closing, offer, heroId, seq, onPick }: { gated: boolean
           { opacity: 1, transform: 'translateX(0) scale(1)' },
         ], { duration: c.beat2Ms, delay: b2, easing: 'cubic-bezier(0.5, 0, 0.75, 0)', fill: 'backwards' }));
         slamShake(card, slam2);
+        textIn(i, slam2);
         at(slam2, () => { ancientSlam(base(i)); landFx(i); });
         at(b2 + c.beat2Ms, () => land(i));
       });
@@ -203,6 +266,7 @@ function Reveal({ gated, closing, offer, heroId, seq, onPick }: { gated: boolean
           ], { duration: c.cardRevealMs, delay, easing: 'cubic-bezier(0.22, 0.8, 0.3, 1)', fill: 'backwards' }));
         }
         at(delay + c.cardRevealMs * 0.7, () => landFx(i));
+        textIn(i, delay + c.cardRevealMs * 0.7);
         playCue('cardReveal', delay, { rateMul: 1 - i * 0.07 });
         at(delay + c.cardRevealMs, () => land(i));
       });
@@ -213,6 +277,7 @@ function Reveal({ gated, closing, offer, heroId, seq, onPick }: { gated: boolean
 
   return (
     <div ref={rootRef} className={`discover-ov dce disc-look anc-offer${gated ? ' gated' : ''}${settled ? ' settled' : ''}${closing ? ' closing' : ''}`} role="dialog" aria-label="An Ancient Awakens"
+      style={idleVars()}
       onPointerDownCapture={(e) => {
         // No click-to-skip (owner 2026-09-26): a click during the emergence is swallowed and the reveal plays through.
         if (!settled) { e.stopPropagation(); e.preventDefault(); }
@@ -226,10 +291,16 @@ function Reveal({ gated, closing, offer, heroId, seq, onPick }: { gated: boolean
                 aria-label={`${ANCIENTS[id].name}: ${ancientOfferText(heroId, id).replace(/\*\*/g, '')}`}
                 onClick={(e) => { if (landed[i] && !closing && !picked.current) { picked.current = e.currentTarget; onPick(id, e.currentTarget); } }}>
                 <AncientCard id={id} heroId={heroId} />
+                {/* Inside the card, so the bloom rides the card's own landing motion (it spilled beside a side card
+                    still settling from its overshoot when it sat in the slot, reveal pass 2). */}
+                <span className="anc-land-flash" aria-hidden="true" />
               </button>
+              {i === Math.floor((offer.length - 1) / 2) && <span className="anc-gather" aria-hidden="true" />}
             </div>
           ))}
         </div>
+        {/* THE INVITATION (reveal pass 2026-09-27): once every Ancient has landed, a quiet line says the choice is open. */}
+        <div className={`anc-choose${settled && !closing ? ' in' : ''}`} aria-hidden="true">Choose one</div>
       </div>
     </div>
   );

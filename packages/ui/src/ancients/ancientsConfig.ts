@@ -72,6 +72,21 @@ export interface AncientsConfig {
   /** Reveal style: 1 = TWO BEATS (the middle rises and slams, then left + right slide out from behind it and slam
    *  together), 0 = SEQUENTIAL (left → middle → right). */
   revealStyle: number;
+  /** REVEAL PASS (owner 2026-09-27: "make the ancient reveal sequence better"). The title handoff: the banner is born
+   *  where the curtain's title stands and rises into place (ms). 0 = a plain fade. */
+  handoffMs: number;
+  /** Anticipation: the column of the first Ancient's colour gathering where it will stand (ms). 0 = none. */
+  gatherMs: number;
+  /** Each card's name and effect rising in after it lands (ms each). 0 = shown with the card. */
+  textInMs: number;
+  /** Each card's colour bloom over its art as it lands (peak opacity). 0 = none. */
+  landFlash: number;
+  /** Idle: the three cards' slow float once the choice is open (design px). 0 = still. The only loop: transform only. */
+  idleFloat: number;
+  /** Idle: one float cycle (ms). */
+  idleMs: number;
+  /** Hover: the other two cards step back to this opacity while one is hovered. 1 = no dim. */
+  hoverDim: number;
   /** Two beats: the middle's rise + slam (ms). */
   beat1Ms: number;
   /** Two beats: the gap before the sides (ms). */
@@ -233,10 +248,17 @@ export const ANCIENTS_DEFAULTS: AncientsFullConfig = {
   seamGlow: 0.9,
   titleHoldMs: 1050, // was 1500: ~1 s of an unchanging title card (whole-sequence pass 2026-09-27)
   revealFadeMs: 320, // was 480 (2026-09-27 whole-sequence pass: shorter + ease-in, no murky mid-fade)
-  revealDelayMs: 80, // owner 2026-09-26: "speed up the ancient reveal slightly" (was 280, then 220); 80 = the first Ancient rises through the curtain's fade (2026-09-27)
+  revealDelayMs: 180, // was 280, 220, then 80; 180 (reveal pass 2026-09-27) leaves room for the gather beat before the rise
   cardStaggerMs: 460,
   cardRevealMs: 700,
   revealStyle: 1,
+  handoffMs: 440,
+  gatherMs: 420,
+  textInMs: 240,
+  landFlash: 0.7,
+  idleFloat: 3,
+  idleMs: 4800,
+  hoverDim: 0.7,
   beat1Ms: 460, // was 720, then 600 (owner 2026-09-26: "speed up the first ancient slam even more")
   beatGapMs: 140, // was 360, then 250 (2026-09-27: the sides hide behind the middle, so the gap read as a stall)
   beat2Ms: 470, // was 560
@@ -312,6 +334,13 @@ export const ANCIENTS_RANGES: Record<NumKey, [number, number, number]> = {
   cardStaggerMs: [0, 1500, 10],
   cardRevealMs: [100, 2000, 10],
   revealStyle: [0, 1, 1],
+  handoffMs: [0, 1200, 10],
+  gatherMs: [0, 1200, 10],
+  textInMs: [0, 800, 10],
+  landFlash: [0, 1, 0.01],
+  idleFloat: [0, 12, 0.5],
+  idleMs: [1500, 10000, 100],
+  hoverDim: [0.3, 1, 0.01],
   beat1Ms: [200, 2000, 10],
   beatGapMs: [0, 1500, 10],
   beat2Ms: [200, 2000, 10],
@@ -359,9 +388,9 @@ export const ANCIENTS_RANGES: Record<NumKey, [number, number, number]> = {
 
 const KEY = 'ascent.ancients';
 const REV_KEY = 'ascent.ancients.rev';
-const REV = 1;
+const REV = 2;
 /** The defaults retuned at `REV` (see the loader). */
-const RETUNED = ['splitMs', 'shineMs', 'crackOpenMs', 'titleHoldMs', 'revealFadeMs', 'revealDelayMs', 'beatGapMs', 'hitStopMs', 'burstScale'];
+const RETUNED = ['splitMs', 'shineMs', 'crackOpenMs', 'titleHoldMs', 'revealFadeMs', 'revealDelayMs', 'beatGapMs', 'hitStopMs', 'burstScale', 'trailTime', 'trailIntensity'];
 let cfg: AncientsFullConfig = (() => {
   if (!import.meta.env.DEV) return { ...ANCIENTS_DEFAULTS };
   try {
@@ -369,7 +398,7 @@ let cfg: AncientsFullConfig = (() => {
     const s = (saved && typeof saved === 'object' ? { ...(saved as Record<string, unknown>) } : {}) as Record<string, unknown>;
     // A save stores EVERY value, so a save from before a retune would pin the old numbers. When the defaults are
     // retuned, bump `REV` and list the keys: an older save lets exactly those take their new defaults (the owner's
-    // other dials are kept). Rev 1 = the 2026-09-27 whole-sequence pass.
+    // other dials are kept). Rev 1 = the 2026-09-27 whole-sequence pass; rev 2 = the reveal pass.
     let rev = 0;
     try { rev = Number(localStorage.getItem(REV_KEY) ?? 0); } catch { /* ignore */ }
     if (rev < REV) { for (const k of RETUNED) delete s[k]; try { localStorage.setItem(REV_KEY, String(REV)); } catch { /* ignore */ } }

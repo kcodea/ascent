@@ -534,12 +534,47 @@ export interface RubyLandedFx { uid: string; count: number; }
  */
 export interface BounceFx { kind: BounceKind; fromUid: string; toUid: string; }
 
-/** One START OF TURN beat (R-SOT-BEAT-01): the source that fired and what each board recipient gained. The UI plays
- *  it after the return-to-shop wipe: the source pulses (a hero source pulses the hero-power button), then each gain
- *  lands on its recipient with the buff FX, and the shown stats rise on that beat, not under the curtain. */
+/** What fired a Start of Turn beat — the thing the UI pulses first (R-SOT-BEAT-01): the hero-power button, the
+ *  minion's own medallion, a rune or quest badge, the Equipment slot + its source body, or (a Gift, which has no
+ *  standing node) nothing but the consequence itself. */
+export type SotBeatSource =
+  | { kind: 'hero'; id: string; label: string }
+  | { kind: 'minion'; uid: string; cardId: string; label: string }
+  | { kind: 'rune'; id: string; label: string }
+  | { kind: 'quest'; id: string; label: string }
+  | { kind: 'equipment'; uid: string; cardId: string; equipmentId?: string; label: string }
+  | { kind: 'gift'; id: string; label: string };
+
+/** One START OF TURN beat (R-SOT-BEAT-01, owner 2026-09-27: "yes they all need their own beat, and the timer/turn
+ *  shouldnt start until after they complete"): ONE firing source and everything it produced, in the order the sim
+ *  applied it. The UI plays the batch after the return-to-shop wipe: per beat the source pulses, then each gain lands
+ *  on its recipient (the shown stats rise on that beat, not under the curtain), then each new card arrives (hand /
+ *  board / shop). Presentation only — nothing in the sim reads it back; cleared per action, seq-bumped per beat.
+ *  Every consequence list is a DIFF measured around the source (`recordSotBeat`), so a source needs no wiring of
+ *  its own to be presented. */
 export interface SotBeatFx {
-  source: { kind: 'hero'; id: string; label: string };
+  source: SotBeatSource;
+  /** Board recipients' stat gains (the real deltas). */
   gains: { uid: string; attack: number; health: number }[];
+  /** Cards that arrived in the HAND this beat (uids, in arrival order). */
+  handGrants?: string[];
+  /** Bodies that arrived on the BOARD this beat (a summon, an overflowed grant). */
+  summons?: string[];
+  /** Offers that arrived in the SHOP this beat (Rune of First Light's Starform). */
+  shopAdds?: string[];
+  /** Board bodies turned golden this beat (Rune of the Pendant). */
+  gilds?: string[];
+  /** Gold gained this beat (Rune of the Treasure Map, a Commission). */
+  gold?: number;
+  /** Discovers (open or queued) this beat raised — the overlay opens after the last beat. */
+  discovers?: number;
+  /** Rune pulses (`runeProcs` increments) this beat made, by rune id — the badge bursts on the beat's pulse. */
+  procs?: Record<string, number>;
+  /** The per-action buff-FX records this beat captured (the SAME objects `recruitBuffFx` holds), so the settle wave
+   *  can leave them to the beat. */
+  buffFx?: BuffFxEvent[];
+  /** The equip cues this beat stamped (the SAME objects `equipFx` holds): the rebuild's re-equip ring. */
+  equipFx?: EquipFx[];
 }
 
 /** Record one bounce hop on the per-action `bounceFx` channel. A no-op when both ends are the same body — the
@@ -1426,6 +1461,10 @@ export interface RunState {
   sotBeatFx?: SotBeatFx[];
   /** Monotonic gate for `sotBeatFx` — the UI plays a batch when this changes, never on payload identity. */
   sotBeatFxSeq?: number;
+  /** Cumulative rune pulses made INSIDE Start-of-Turn beats (`recordSotBeat`), by rune id. Display only: the rune
+   *  badges subtract it from `runeProcs` so a Start-of-Turn proc bursts on its beat (the UI releases it), not under
+   *  the return curtain. Never read by the sim. */
+  sotRuneProcs?: Record<string, number>;
   /** The bounce hops recorded this action (see `BounceFx`). Cleared at the top of `reduce`, like `starformFx`. */
   bounceFx?: BounceFx[];
   /** Bumps per recorded bounce hop — the UI keys the `spell-bounce` / `ruby-bounce` plays off this. Optional:

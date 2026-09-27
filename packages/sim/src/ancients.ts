@@ -83,6 +83,7 @@
 import { makeRng, type EffectDef, type Keyword, type QuestCombatMods, type RiseTint } from '@game/core';
 import { CARD_INDEX } from '@game/content';
 import { mixSeed, type BoardCard, type RunState, type SotBeatFx } from './state';
+import { pushSotBeat } from './sotBeat';
 import type { HeroPower } from './heroes';
 import type { CombatResult } from '@game/core';
 import { addBuff, aegisGrantOf, captureBuffFx, destroyMinionInShop, fireShopEchoOf, grantMinionToHandOrBoard, instanceEffects, makeContext } from './recruit';
@@ -833,8 +834,7 @@ export function ancientStartOfTurn(state: RunState): void {
     if (da > 0 || dh > 0) gains.push({ uid: c.uid, attack: da, health: dh });
   }
   if (gains.length === 0) return;
-  (state.sotBeatFx ??= []).push({ source: { kind: 'hero', id: state.heroId, label: ANCIENTS.time.name }, gains });
-  state.sotBeatFxSeq = (state.sotBeatFxSeq ?? 0) + 1;
+  pushSotBeat(state, { source: { kind: 'hero', id: state.heroId, label: ANCIENTS.time.name }, gains });
 }
 
 /** BONDS, Shop half: a friendly minion Rose in the Shop (a shop destroy's Rise return). Trigger the Echo of a

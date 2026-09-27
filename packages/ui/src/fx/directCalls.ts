@@ -33,7 +33,8 @@ export const DIRECT_CALL_SITES: Readonly<Record<string, readonly string[]>> = {
   'amplified-slot': ['useAmplifiedSlotFx.ts'],
   // The Ancients PICK's impact on the hero power (2026-09-27): a ring + a few sparks in the Ancient's colour.
   'ancient-pick-impact': ['ancients/ancientsSmoke.ts'],
-  'ancient-slam': ['ancients/ancientsSmoke.ts'],
+  // The Ancients reveal's spark (2026-09-27): each Ancient appears out of a point of its colour.
+  'ancient-reveal-spark': ['ancients/ancientsSmoke.ts'],
   'ancient-slam-sparks': ['ancients/ancientsSmoke.ts'],
   // The Auctioneer's Pulse — played on the TARGET minion instead of the generic `hero-power-target` spark.
   'auctioneer-hp': ['Recruit.tsx'],

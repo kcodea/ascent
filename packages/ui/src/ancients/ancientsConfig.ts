@@ -65,21 +65,29 @@ export interface AncientsConfig {
   revealFadeMs: number;
   /** Reveal: the pause before the first Ancient emerges (ms). */
   revealDelayMs: number;
-  /** Reveal: between one Ancient emerging and the next (ms). */
-  cardStaggerMs: number;
-  /** Reveal: one Ancient's emergence (ms). */
-  cardRevealMs: number;
-  /** Reveal style: 1 = TWO BEATS (the middle rises and slams, then left + right slide out from behind it and slam
-   *  together), 0 = SEQUENTIAL (left → middle → right). */
-  revealStyle: number;
+  /** THE SPARK REVEAL (owner 2026-09-27: "if they revealed out of the spark or something that may be cool? i think the
+   *  rise and slam in general is pretty bad"). How each Ancient appears out of its spark: `burst` (expands from the
+   *  spark's centre), `seam` (a slash of light opens like a seam) or `bloom` (the spark swells into light that resolves
+   *  into the card). */
+  revealStyle: string;
+  /** Spark reveal: the spark gathering before it bursts (ms): the anticipation. */
+  sparkMs: number;
+  /** Spark reveal: the card appearing out of the burst (ms). */
+  materialiseMs: number;
+  /** Spark reveal: after the middle Ancient's burst, before the sides' sparks light (ms). */
+  sideDelayMs: number;
+  /** Spark reveal: the left side's spark to the right side's (ms). */
+  sideStaggerMs: number;
+  /** Spark reveal: the art's overexposure resolving back to normal (ms). */
+  overexposeMs: number;
+  /** Spark reveal: the burst's ring size (×, the pick's own ring). 0 = none. */
+  burstRing: number;
   /** REVEAL PASS (owner 2026-09-27: "make the ancient reveal sequence better"). The title handoff: the banner is born
    *  where the curtain's title stands and rises into place (ms). 0 = a plain fade. */
   handoffMs: number;
-  /** Anticipation: the column of the first Ancient's colour gathering where it will stand (ms). 0 = none. */
-  gatherMs: number;
   /** Each card's name and effect rising in after it lands (ms each). 0 = shown with the card. */
   textInMs: number;
-  /** Each card's colour bloom over its art as it lands (peak opacity). 0 = none. */
+  /** The overexposure: a flood of each Ancient's colour and white over its art as it appears (peak opacity). 0 = none. */
   landFlash: number;
   /** Idle: the three cards' slow float once the choice is open (design px). 0 = still. The only loop: transform only. */
   idleFloat: number;
@@ -87,17 +95,9 @@ export interface AncientsConfig {
   idleMs: number;
   /** Hover: the other two cards step back to this opacity while one is hovered. 1 = no dim. */
   hoverDim: number;
-  /** Two beats: the middle's rise + slam (ms). */
-  beat1Ms: number;
-  /** Two beats: the gap before the sides (ms). */
-  beatGapMs: number;
-  /** Two beats: the sides sliding out + slamming (ms). */
-  beat2Ms: number;
-  /** The slam's weight: overshoot, card shake and the landing FX size (×). */
-  slamStrength: number;
   /** Hero-power dust: its lifetime as a fraction of the landing dust's (short, so it has cleared by the curtain). */
   hpDustLife: number;
-  /** Landing dust (the Runeforge tablet landing's own dust, tinted; each slam + the eruption): count (×). 0 = none. */
+  /** The eruption's dust burst (the Runeforge tablet landing's own dust, tinted): count (×). 0 = none. */
   dustAmount: number;
   /** Landing dust: size and spread (×). */
   dustSize: number;
@@ -105,10 +105,7 @@ export interface AncientsConfig {
   dustLife: number;
   /** Landing dust: opacity (0..1). */
   dustOpacity: number;
-  /** The reveal SLAMS' dust burst (×, on top of the dust settings; owner 2026-09-26: "have dust pop out when it slams
-   *  in place a bit more"). 1 = the plain landing puff. */
-  slamDust: number;
-  /** The reveal slams' turbulent SPARK BLAST (×; owner 2026-09-26). 0 = none. */
+  /** Each reveal burst's turbulent SPARK BLAST (×; owner 2026-09-26). 0 = none. */
   slamSparks: number;
   /** Screen colours: the curtain gradient's centre. */
   curtainInner: string;
@@ -194,7 +191,7 @@ const ART_DEFAULTS = Object.fromEntries(
 export type AncientColorKey = `${'death' | 'fortune' | 'war' | 'genesis' | 'time' | 'bonds'}Color`;
 /** THE AWAKENING SOUND CUES (owner: "i can help source sounds if you set up a tuner with timing cues"). Each cue is a
  *  clip id (swap in the owner's SFX in the tuner), a gain, an offset (ms, relative to its beat) and a rate (pitch). */
-export const ANCIENT_CUES = ['omenRumble', 'eruptionBoom', 'eruptionFlash', 'titleSting', 'cardReveal', 'ambientHum', 'pickWoosh', 'pickSeal'] as const;
+export const ANCIENT_CUES = ['omenRumble', 'eruptionBoom', 'eruptionFlash', 'titleSting', 'revealSpark', 'cardReveal', 'ambientHum', 'pickWoosh', 'pickSeal'] as const;
 export type AncientCue = (typeof ANCIENT_CUES)[number];
 export type AncientCueKey = `${AncientCue}${'Clip' | 'Gain' | 'Offset' | 'Rate'}`;
 /** The shipped picks (existing repo clips, pitched where it helps). Gains baked from the owner's tuner 2026-09-26. */
@@ -203,7 +200,10 @@ export const ANCIENT_CUE_DEFAULTS: Record<AncientCue, { clip: string; gain: numb
   eruptionBoom: { clip: 'fx/universfield-ground-impact-352053', gain: 0.9, offset: 0, rate: 0.82 },
   eruptionFlash: { clip: 'fx/universfield-cinematic-swoosh-impact-454392', gain: 0.6, offset: 40, rate: 0.9 },
   titleSting: { clip: 'fx/waking-rift', gain: 0.75, offset: 60, rate: 1 },
-  cardReveal: { clip: 'runeselectimplosion', gain: 0.19, offset: 0, rate: 0.9 },
+  // The reveal, re-scored as MAGIC not impact (owner 2026-09-27: "a bit less BOOMING"): the trigger glow rising as
+  // each spark gathers, and the equipment sheen (the Good Luck shine's clip) as it blooms. Was `runeselectimplosion`.
+  revealSpark: { clip: 'triggerglow', gain: 0.22, offset: 0, rate: 1.15 },
+  cardReveal: { clip: 'equipmentsheen', gain: 0.3, offset: 0, rate: 1 },
   ambientHum: { clip: 'turncharge', gain: 0.18, offset: 0, rate: 0.45 },
   // The pick's trail: the triple's own woosh + impact clips (the gild-trail def's sound layers, muted there so these
   // play on the undiminished hero bus and land exactly on the collapse / contact frames).
@@ -248,27 +248,25 @@ export const ANCIENTS_DEFAULTS: AncientsFullConfig = {
   seamGlow: 0.9,
   titleHoldMs: 1050, // was 1500: ~1 s of an unchanging title card (whole-sequence pass 2026-09-27)
   revealFadeMs: 320, // was 480 (2026-09-27 whole-sequence pass: shorter + ease-in, no murky mid-fade)
-  revealDelayMs: 180, // was 280, 220, then 80; 180 (reveal pass 2026-09-27) leaves room for the gather beat before the rise
-  cardStaggerMs: 460,
-  cardRevealMs: 700,
-  revealStyle: 1,
+  revealDelayMs: 120, // the middle Ancient's spark lights as the title starts rising (spark reveal 2026-09-27)
+  revealStyle: 'burst',
+  sparkMs: 280,
+  materialiseMs: 380,
+  sideDelayMs: 120,
+  sideStaggerMs: 90,
+  overexposeMs: 520,
+  burstRing: 1.3,
   handoffMs: 440,
-  gatherMs: 420,
   textInMs: 240,
-  landFlash: 0.7,
+  landFlash: 0.85,
   idleFloat: 3,
   idleMs: 4800,
   hoverDim: 0.7,
-  beat1Ms: 460, // was 720, then 600 (owner 2026-09-26: "speed up the first ancient slam even more")
-  beatGapMs: 140, // was 360, then 250 (2026-09-27: the sides hide behind the middle, so the gap read as a stall)
-  beat2Ms: 470, // was 560
-  slamStrength: 1,
   hpDustLife: 0.45,
   dustAmount: 1,
   dustSize: 1,
   dustLife: 1,
   dustOpacity: 0.85,
-  slamDust: 1.7,
   slamSparks: 1,
   // The DEFAULT hero theme (every hero without its own entry): the owner-baked screen colours, from the theme table.
   ...ANCIENT_HERO_THEMES.default,
@@ -331,26 +329,23 @@ export const ANCIENTS_RANGES: Record<NumKey, [number, number, number]> = {
   titleHoldMs: [0, 4000, 10],
   revealFadeMs: [60, 2000, 10],
   revealDelayMs: [0, 2000, 10],
-  cardStaggerMs: [0, 1500, 10],
-  cardRevealMs: [100, 2000, 10],
-  revealStyle: [0, 1, 1],
+  sparkMs: [80, 1000, 10],
+  materialiseMs: [120, 1200, 10],
+  sideDelayMs: [0, 1000, 10],
+  sideStaggerMs: [0, 600, 10],
+  overexposeMs: [0, 1500, 10],
+  burstRing: [0, 3, 0.05],
   handoffMs: [0, 1200, 10],
-  gatherMs: [0, 1200, 10],
   textInMs: [0, 800, 10],
   landFlash: [0, 1, 0.01],
   idleFloat: [0, 12, 0.5],
   idleMs: [1500, 10000, 100],
   hoverDim: [0.3, 1, 0.01],
-  beat1Ms: [200, 2000, 10],
-  beatGapMs: [0, 1500, 10],
-  beat2Ms: [200, 2000, 10],
-  slamStrength: [0, 3, 0.05],
   hpDustLife: [0.1, 1.5, 0.05],
   dustAmount: [0, 4, 0.05],
   dustSize: [0.2, 3, 0.05],
   dustLife: [0.3, 3, 0.05],
   dustOpacity: [0, 1, 0.01],
-  slamDust: [0, 4, 0.05],
   slamSparks: [0, 3, 0.05],
   pickFadeMs: [60, 1500, 10],
   collapseMs: [60, 800, 10],
@@ -388,9 +383,9 @@ export const ANCIENTS_RANGES: Record<NumKey, [number, number, number]> = {
 
 const KEY = 'ascent.ancients';
 const REV_KEY = 'ascent.ancients.rev';
-const REV = 2;
+const REV = 4;
 /** The defaults retuned at `REV` (see the loader). */
-const RETUNED = ['splitMs', 'shineMs', 'crackOpenMs', 'titleHoldMs', 'revealFadeMs', 'revealDelayMs', 'beatGapMs', 'hitStopMs', 'burstScale', 'trailTime', 'trailIntensity'];
+const RETUNED = ['splitMs', 'shineMs', 'crackOpenMs', 'titleHoldMs', 'revealFadeMs', 'revealDelayMs', 'beatGapMs', 'hitStopMs', 'burstScale', 'trailTime', 'trailIntensity', 'revealStyle', 'landFlash', 'cardRevealClip', 'cardRevealGain', 'cardRevealRate', 'cardRevealOffset'];
 let cfg: AncientsFullConfig = (() => {
   if (!import.meta.env.DEV) return { ...ANCIENTS_DEFAULTS };
   try {
@@ -398,11 +393,13 @@ let cfg: AncientsFullConfig = (() => {
     const s = (saved && typeof saved === 'object' ? { ...(saved as Record<string, unknown>) } : {}) as Record<string, unknown>;
     // A save stores EVERY value, so a save from before a retune would pin the old numbers. When the defaults are
     // retuned, bump `REV` and list the keys: an older save lets exactly those take their new defaults (the owner's
-    // other dials are kept). Rev 1 = the 2026-09-27 whole-sequence pass; rev 2 = the reveal pass.
+    // other dials are kept). Rev 1 = the 2026-09-27 whole-sequence pass; rev 2 = the reveal pass; rev 3 = the spark reveal; rev 4 = the
+    // reveal's magic re-score (a save stamped rev 3 before the re-score kept the old `runeselectimplosion` boom).
     let rev = 0;
     try { rev = Number(localStorage.getItem(REV_KEY) ?? 0); } catch { /* ignore */ }
     if (rev < REV) { for (const k of RETUNED) delete s[k]; try { localStorage.setItem(REV_KEY, String(REV)); } catch { /* ignore */ } }
-    for (const k of ['closeMs', 'pickLiftMs', 'pickFlightMs']) delete s[k]; // retired keys
+    for (const k of ['closeMs', 'pickLiftMs', 'pickFlightMs', 'beat1Ms', 'beatGapMs', 'beat2Ms', 'slamStrength', 'slamDust', 'gatherMs', 'cardStaggerMs', 'cardRevealMs']) delete s[k]; // retired keys
+    if (typeof s.revealStyle !== 'string') delete s.revealStyle;
     return { ...ANCIENTS_DEFAULTS, ...(s as Partial<AncientsFullConfig>) };
   } catch {
     return { ...ANCIENTS_DEFAULTS };
@@ -432,4 +429,12 @@ export function ancientMeterOverride(): { cost: number; refresh: number; combat:
 /** The Ancient's colour — the tuner's override, else the sim's colour table. */
 export function ancientColor(id: string): string {
   return (cfg as unknown as Record<string, string>)[`${id}Color`] ?? '#c8922e';
+}
+
+/** The spark reveal's styles (the ✦ tuner's "Reveal style"). */
+export const REVEAL_STYLES = ['burst', 'seam', 'bloom'] as const;
+export type RevealStyle = (typeof REVEAL_STYLES)[number];
+/** A config value as a reveal style (anything unknown = the default, `burst`). */
+export function revealStyleOf(v: unknown): RevealStyle {
+  return (REVEAL_STYLES as readonly unknown[]).includes(v) ? (v as RevealStyle) : 'burst';
 }

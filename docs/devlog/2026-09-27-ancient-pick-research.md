@@ -296,3 +296,128 @@ Profiled twice in headless Chrome, refresh to pick, on the dev server:
 - Cold run: one 78 ms task on the flash peak (the deliberate warm-up) and a 38 ms frame at the pick.
 - New motion is transform/opacity one-shots and one transform-only loop (the idle float).
 - One layout read each for the title and the banner at the reveal's start.
+
+## Part 4: the spark reveal (the rise-and-slam retired)
+
+Owner, watching Part 3: "the soft column is pretty ugly right now cause then the ancient still slides up. if they
+revealed out of the spark or something that may be cool? i think the rise and slam in general is pretty bad." Then:
+"the sounds can be replaced with something a bit less BOOMING since it's more of a magic reveal than a slam now".
+Then: "i dont want that slammy boom sound when they pop in."
+
+These were kept: the single moving title, the name then the effect after the card, "Choose one", the idle float and
+the hover focus. These were removed with no dead code left:
+- the rise-and-slam and its sequential variant;
+- the gather column;
+- the `beat1/2`, `beatGap`, `slamStrength`, `slamDust`, `gatherMs`, `cardStagger` and `cardReveal` dials;
+- `ancientSlam` and its now-unused `ancient-slam` def.
+
+### Each Ancient out of its spark (three styles, "✦ Ancients › Reveal › Reveal style")
+
+Common to every style, for each Ancient from its `t0`:
+- **Spark (280 ms)** — a crisp four-point star of its colour lights at its art's centre, swells a touch with a slow
+  turn, then tightens. Meanwhile motes are drawn in and a faint ring contracts onto it: the new `ancient-reveal-spark`
+  (a reverse burst + a reverse shockwave).
+- **Burst** — the pick's own ring (`ancient-pick-impact`, × 1.3) and the turbulent sparks (`ancient-slam-sparks`), in
+  its colour, fly out of the point. The card appears out of the light (by style, below), its art **overexposed**: a
+  flood of its colour and white, held briefly, then resolving over 520 ms.
+- **Text** — the name, then the effect, from 55% of the appearance.
+
+The three styles:
+- **Burst (the default)** — the card expands from the spark's centre (6% → a hair past full → settles, 380 ms). A
+  round clip opens it as a **disc** of light, so it never reads as a growing square. It is the pick's collapse played
+  backwards, so the reveal and the pick are one language.
+- **Seam** — the spark draws a vertical slash of light as tall as the art. The slash opens like a seam (a one-shot
+  inset clip) and the card is inside it.
+- **Bloom** — the spark swells into a disc of light filling the art, which resolves into the card at full size (no
+  scale motion, just 97% → 100%).
+
+**Order:** the middle first (the eye is already at the centre, under the rising title), then the sides left → right
+90 ms apart, so the eye sweeps outward in reading order.
+
+**Timing** (R = the curtain drop):
+
+| | Spark | Burst | Present |
+| --- | --- | --- | --- |
+| Middle | R 120 | R 400 | R 780 |
+| Left | R 520 | R 800 | R 1180 |
+| Right | R 610 | R 890 | R 1270 |
+
+All three are present and clickable at about R 1270, and "Choose one" appears then.
+
+**Why Burst is the default:**
+- It is the only style where the card visibly comes *out of* the spark's point.
+- Its disc opening mirrors the pick's collapse exactly.
+- It reads at every size.
+
+Seam is the most elegant for a single card, but three vertical slashes in quick succession read busier. Bloom shows
+the card's square edge at full size from its first frame, the weakest silhouette of the three.
+
+### Sound: a magic reveal, not a slam
+
+Every sound from the curtain drop to "Choose one" (the default Burst style):
+
+| When | Cue (clip) | Gain / rate |
+| --- | --- | --- |
+| R 120 | `revealSpark` (`triggerglow`), the middle's spark gathering | 0.22 / 1.15 |
+| R 380 | `cardReveal` (`equipmentsheen`, the Good Luck shine's clip), the middle's bloom | 0.30 / 1.0 |
+| R 520 | `revealSpark` (`triggerglow`), shared by both sides | 0.22 / 1.24 |
+| R 780 | `cardReveal` (`equipmentsheen`), shared by both sides | 0.30 / 1.12 |
+| R ~1270 (settled) | `ambientHum` (`turncharge` at 0.45 rate, a quiet looping hum under the music, approved 2026-09-25) | 0.18 |
+
+Checked, and silent on the reveal:
+- the reveal's Pixi defs (`ancient-reveal-spark`, `ancient-pick-impact`, `ancient-slam-sparks`) have **no sound
+  layers**;
+- no `sfx.*` call runs at reveal time;
+- the only def with sound layers anywhere in the awakening (`gild-trail`) plays muted, and only at the pick and in
+  the off-screen warm-up.
+
+The two sides share one cue of each kind, so three reveals never stack three sounds.
+
+The "boom" the owner still heard came from a **stale dev save**: 5173 had stamped the save revision to 3 before the
+re-score, so its saved `cardRevealClip: 'runeselectimplosion'` survived. The revision is now 4 (the `cardReveal*`
+keys are in the retuned list). A new `revealSound.test.ts` pins both halves: the defs carry no sound layer, and
+neither reveal cue is an impact / implosion / boom clip. The pick's impact on the hero power is unchanged (that one
+IS a slam).
+
+### Passes
+
+**Pass 1** (all three styles):
+- A stacking bug: each spark (and seam) had two one-shot animations with `fill: backwards`, and the later one's first
+  keyframe won, so **all three sparks showed from the start**. They were merged into one animation per element with
+  computed offsets.
+- The gather's contracting ring was bolder than the burst: alpha 0.8 → 0.45, and thinner.
+
+**Pass 2:**
+- Burst's first frames read as a growing bright square. The round clip was added (disc → square).
+- Bloom's flares streaked across the screen at the swollen size, so the flares are shorter in that style.
+
+**Pass 3:**
+- All three are clean at 16:9 (Indy), 21:9 (Warden) and phone landscape (Auctioneer).
+
+**Perf:**
+- Warm run: 0 long tasks, worst frame 25 ms.
+- Cold run: the deliberate warm-up task on the flash peak (90 ms), and two ~40–46 ms frames at the reveal's first
+  mount and first burst (cold first plays).
+- The idle float is the only loop the Ancients code adds.
+
+### Tuner (✦ Ancients › Reveal)
+
+| Dial | Default |
+| --- | --- |
+| Reveal style | burst / seam / bloom |
+| Spark gathers | 280 |
+| Card appears | 380 |
+| Light settles | 520 |
+| Burst ring | 1.3 |
+| Sides after middle | 120 |
+| Left to right | 90 |
+| Overexposure | 0.85 |
+| Burst sparks | 1 |
+| Title handoff | 440 |
+| Text arrives | 240 |
+| Idle float | 3 px / 4800 |
+| Hover dim | 0.7 |
+| First spark delay (`revealDelayMs`) | 120 |
+
+The reveal cues `revealSpark` / `cardReveal` are in the Sound group (clip / gain / offset / rate). All are pinned in
+`ancientsConfig.test.ts`.

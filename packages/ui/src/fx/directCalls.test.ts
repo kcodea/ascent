@@ -165,9 +165,9 @@ describe('DIRECT_CALL_SITES is a derivation, not a list', () => {
       'amplified-slot',
       // 'ancient-pick-impact' joined on 2026-09-27: the Ancients pick's ring + sparks on the hero power (`ancients/ancientsSmoke.ts`).
       'ancient-pick-impact',
-      // 'ancient-slam' joined on 2026-09-25: the Ancients reveal's slam shockwave (`ancients/ancientsSmoke.ts`). The
-      // Ancients' own smoke/burst defs left the same day: they reuse the Runeforge landing dust instead.
-      'ancient-slam',
+      // 'ancient-reveal-spark' joined on 2026-09-27: the Ancients reveal's spark (`ancients/ancientsSmoke.ts`).
+      // ('ancient-slam' left the same day: the rise-and-slam reveal was retired for the spark reveal.)
+      'ancient-reveal-spark',
       // 'ancient-slam-sparks' joined on 2026-09-26: the reveal slams' turbulent spark blast (`ancients/ancientsSmoke.ts`).
       'ancient-slam-sparks',
       'auctioneer-hp', 'choose-one-both', 'cia-hp', 'click-puff', 'coin', 'coins', 'consume-pull', 'damage-burst', 'death-dissolve',

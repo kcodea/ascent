@@ -150,3 +150,16 @@ function onTribeFor(tribe: PracticeTribe, id: string): boolean {
   if (!c) return true;
   return c.token === true || c.tribe === 'neutral' || c.tribe === tribe || c.tribe2 === tribe;
 }
+
+// The tribe filter is for the PLAYER only (owner 2026-09-27: "they can use the full set, the tribe surge is just
+// for the player"): the enemy side of the player's fights draws from the set's FULL pool.
+import { readFileSync as __read } from 'node:fs';
+import { join as __join } from 'node:path';
+describe('Practice tribes: the enemy side keeps the full set pool', () => {
+  it('the reducer builds every enemy side from poolFor(setIdOf(s)), not the narrowed poolOf(s)', () => {
+    const src = __read(__join(__dirname, 'reducer.ts'), 'utf8');
+    expect(src).toContain('const enemyPoolIds = poolFor(setIdOf(s)).all.map((c) => c.id);');
+    expect(src).toContain('sideFromSnapshot(snap, fallbackTier, enemyPoolIds);');
+    expect(src).toContain("combatSide({ tier: e.tier, poolIds: enemyPoolIds })");
+  });
+});

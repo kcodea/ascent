@@ -10,7 +10,9 @@ it multi select. so i can choose demons + dragons and have demons/dragons/neutra
   tribe roll has its own RNG stream; skipping it moves no other seed.
 - `poolOf(state)` narrows the set pool to the picked tribes + neutral (tokens kept) for a practice run with picks.
   That covers the ungated "random minion" grants and combat-generated cards (combat `poolIds` come from `poolOf`,
-  for BOTH sides of the player's fight). Every other run gets the untouched set pool.
+  for the PLAYER side of the fight). The ENEMY side keeps the full set pool (owner 2026-09-27: "they can use
+  the full set, the tribe surge is just for the player"): the reducer builds every enemy side from
+  `poolFor(setIdOf(s))`. Every other run gets the untouched set pool.
 - New core `inRunTribes(card, tribes)`: neutral, tribe or `tribe2` in the run. Replaced the inline
   `tribe === 'neutral' || tribes.includes(tribe)` gates (dual types now count by either tribe; a no-op while every
   set rolls all five of its tribes). Tribe ratchet pins lowered accordingly.

@@ -15,7 +15,7 @@ import { activePowers, getHero, gildCopiesNeeded, hasPower, powerDiscoverPool } 
 import { buildEnemyBoard, selectThreat } from './threats';
 import { pickOpponent, opponentBoard, oppKey } from './opponents';
 import type { BoardSnapshot } from './snapshot';
-import { EQUIPMENT_INDEX, forkedCardId, REVELER_IDS, STAR_DESTROYER, equipmentOf } from '@game/content';
+import { EQUIPMENT_INDEX, forkedCardId, REVELER_IDS, STAR_DESTROYER, equipmentOf, poolFor } from '@game/content';
 const STAR_DESTROYER_ID = STAR_DESTROYER.id;
 import {
   equipmentChargesOf, equipmentCostOf, expireEquipmentTurn, rebuildEquipment, spendEquipmentCharge,
@@ -3630,8 +3630,11 @@ function reduceCore(state: RunState, action: Action): RunState {
       // built its own bare `combatSide({ tier })`, which silently dropped all seventeen run-level scalers below
       // — so the identical board was materially weaker as a lobby seat than as an Ascent opponent. Sharing the
       // function is the point: a new scaler added here reaches both, and neither can drift from the other.
+      // The ENEMY side draws from the FULL set pool, never a Practice-narrowed one (owner 2026-09-27: "they can use
+      // the full set, the tribe surge is just for the player"). `enemyPoolIds` is that set's whole pool.
+      const enemyPoolIds = poolFor(setIdOf(s)).all.map((c) => c.id);
       const enemySideFrom = (snap: BoardSnapshot, fallbackTier: number): CombatSideState =>
-        sideFromSnapshot(snap, fallbackTier, poolOf(s).all.map((c) => c.id));
+        sideFromSnapshot(snap, fallbackTier, enemyPoolIds);
       const servedState: CombatSideState = served
         ? enemySideFrom(served, s.tier)
         : combatSide();
@@ -3651,7 +3654,7 @@ function reduceCore(state: RunState, action: Action): RunState {
         // spell power, auras, fodder and quest/rune modifiers exactly as it would in Ascent.
         const enemyState = lobbyFoe?.snapshot
           ? enemySideFrom(lobbyFoe.snapshot, e.tier)
-          : lobbyFoe || !served ? combatSide({ tier: e.tier, poolIds: poolOf(s).all.map((c) => c.id) }) : servedState;
+          : lobbyFoe || !served ? combatSide({ tier: e.tier, poolIds: enemyPoolIds }) : servedState;
         s.lastCombat = resolveCombatVs(e.enemy, enemyState);
       } catch {
         const e = proceduralEnemy();

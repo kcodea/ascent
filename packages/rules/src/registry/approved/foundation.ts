@@ -1527,10 +1527,12 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'Discover, spell and random card is a minion of a picked tribe (a dual type counts when either tribe is '
       + 'picked), a neutral minion, or a spell that is neutral or of a picked tribe. The hero offer, rune and quest '
       + 'tribe gates follow the same tribes. Normal plays exactly as before (the seeded roll, the full set pool). A '
-      + 'saved draft with a tribe from another set, or the retired single tribe surge, opens on Normal.',
+      + 'saved draft with a tribe from another set, or the retired single tribe surge, opens on Normal. '
+      + 'The filter is for the PLAYER only: the enemy side of the player fights (random cards made for the opponent) draws from the FULL set pool.',
     domain: 'foundation',
     status: 'approved',
     evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-27 (Practice tribes, enemy pool)', quote: 'they can use the full set, the tribe surge is just for the player' },
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-27 (Practice screen)', quote: "practice tribe surge should only have the active set's tribes." },
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-27 (Practice screen, follow-up)', quote: "yeah let's change tribe surge to that tribe's cards plus neutral cards, and all spells associated, but make it multi select. so i can choose demons + dragons and have demons/dragons/neutrals in the game. reword 'none' to 'Normal'" },
       { kind: 'code', ref: 'packages/sim/src/practiceTribes.ts (options, toggle, practiceRunTribes); packages/sim/src/lobby/runLobby.ts createLobbyRun; packages/sim/src/cardPool.ts poolOf; packages/core/src/tribeGate.ts inRunTribes; packages/ui/src/PracticeOptions.tsx' },

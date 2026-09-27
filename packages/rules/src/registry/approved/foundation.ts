@@ -1559,4 +1559,21 @@ export const FOUNDATION_RULES: GameRule[] = [
     currentBehaviour: 'Conforms, FIXED 2026-09-27: an Equipment gain had no card uid, so the flourish fell back to the hand; the Buffs panel was trapped under the slot by the hero block stacking context.',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/equipmentFxAnchor.test.ts'], lastVerifiedAt: '2026-09-27' },
   },
+  {
+    id: 'R-PRACTICE-UPLOAD-01',
+    title: 'A finished Practice game (bots or players, any Health) always records to Recent Games',
+    statement:
+      'When a Practice game ends (the placement screen: round 15 on Unlimited Health, every bot out, or knocked out on '
+      + 'Normal), exactly one row is written to practice_games and shows on the Recent Games Practice tab. Every value '
+      + 'matches its column type: the game length is whole milliseconds (duration_ms is an int column). A rejected '
+      + 'upload is logged to the console with the database code and message, never swallowed.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-27 (Recent Games empty after a friend finished a practice game)', quote: 'my friend just finished a practice game vs bots but it isnt showing on games played. why not?' },
+      { kind: 'code', ref: 'packages/ui/src/practiceGames.ts practiceGameOf (Math.round on durationMs); packages/ui/src/remoteBoards.ts uploadPracticeGame (rounds again, logs the returned error)' },
+    ],
+    currentBehaviour: 'Conforms, FIXED 2026-09-27: the length was a fractional frame-clock value (e.g. 23031.7), so Postgres rejected every real practice row (22P02, invalid input syntax for type integer) and the client ignored the returned error. Reproduced end to end against the live table before the fix.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/practiceGames.test.ts'], lastVerifiedAt: '2026-09-27' },
+  },
 ];

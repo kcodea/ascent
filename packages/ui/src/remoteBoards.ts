@@ -1317,13 +1317,19 @@ export async function uploadPracticeGame(g: PracticeGameUpload): Promise<void> {
   const userId = currentUserId();
   if (!c || !userId) return;
   try {
-    await c.from('practice_games').insert([{
+    const { error } = await c.from('practice_games').insert([{
       user_id: userId, author: g.author, patch: g.patch, hero_id: g.heroId,
       placement: g.placement, wins: g.wins, record: g.record, wave: g.wave,
-      final_board: g.finalBoard, picked_runes: g.runes, duration_ms: g.durationMs, config: g.config,
+      final_board: g.finalBoard, picked_runes: g.runes,
+      // int column: never send a fractional value (see `practiceGameOf`), whatever the caller passes.
+      duration_ms: g.durationMs === null ? null : Math.round(g.durationMs), config: g.config,
     }]);
-  } catch {
+    // A rejected row used to vanish without a trace (the client RETURNS the error, it doesn't throw), which is how
+    // every practice game went unrecorded for days. Surface it so the next rejection is visible in the console.
+    if (error) console.error('[practice_games] upload rejected:', error.code, error.message);
+  } catch (e) {
     /* best-effort — a practice row must never disrupt the end screen */
+    console.error('[practice_games] upload failed:', e);
   }
 }
 

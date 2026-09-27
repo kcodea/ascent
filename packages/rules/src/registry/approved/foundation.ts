@@ -1516,4 +1516,21 @@ export const FOUNDATION_RULES: GameRule[] = [
       lastVerifiedAt: '2026-09-25',
     },
   },
+  {
+    id: 'R-EQUIPFX-ANCHOR-01',
+    title: 'An Equipment-driven Spell or Ruby power gain plays over the Equipment slot; the Buffs panel draws above it',
+    statement:
+      'When using an Equipment raises Spell Power or Ruby power (Dual Rubetta’s improving your Rubies), the '
+      + 'power flourish and its number float play over the Equipment slot, not over the hand or the Shop row. And the '
+      + 'run Buffs panel, when open, draws above the Equipment slot (the hero block lifts above the slot while the '
+      + 'panel is open).',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-27 (Dual Rubettas screenshot)', quote: 'fix - ruby buff goes over hand instead of the equipment for dual rubettas, also the spell panel should go on top of equipment z axis wise' },
+      { kind: 'code', ref: 'packages/sim/src/reducer.ts rubyPowerFxUid / spellPowerFxUid = EQUIPMENT_FX_ANCHOR on activateEquipment; packages/ui/src/Recruit.tsx anchor lookup; packages/ui/src/styles.css .statusbar .hero:has(> .herobuffs.open)' },
+    ],
+    currentBehaviour: 'Conforms, FIXED 2026-09-27: an Equipment gain had no card uid, so the flourish fell back to the hand; the Buffs panel was trapped under the slot by the hero block stacking context.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/equipmentFxAnchor.test.ts'], lastVerifiedAt: '2026-09-27' },
+  },
 ];

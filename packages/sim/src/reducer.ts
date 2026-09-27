@@ -22,7 +22,7 @@ import {
   selectEquipment, selectedEquipment, amplifyAllHeld, amplifyUnactivated, consumeAmplified,
 } from './equipment';
 import { applyChooseOnePlayed, spendChooseBothCharge, noteSpellCast, applyCastEffects, makeContext, discoverSpecFor, heroPowerCostOf, commissionOffer, COMMISSION_DELAY, aegisGrantOf, allInPayoutOf, threeDistinctTypes, exhibitionGrantOf, stampSableBond, stampSharedSpoils, heroOfferPrice, addBuff, addOfferBuff, applyBattlecryTarget, applyCardsBought, applyCardsPlayed, applyChooseOne, applyChooseOneTarget, chooseBothActive, chooseOneNeedsChoice, applyEndOfTurn, applyStartOfTurn, applyOnBuy, applyGoldSpent, advanceRuneThresholds, applySecondLife, effectiveTargetTribe, dominantBoardTribe, uncontrolledTribes, gainGold, applyRunShopBuff, applyShoutsForEndlessVerse, applyShoutsForShopBuff, auraFxTargets, boardManaBonus, buffImpsRunWide, buffUndeadAttackEverywhere, buffCardTypeRunWide, buffFodderRunWide, cardBuff, captureBuffFx, conjuredStats, castSpell, castSpellOnOffer, conjureToHand, consumeTavernFodder, fireGravetwinEchoes, fireOnGainAttack, fireOnRubyCast, fireOnRubyPlayed, applyRubyRiderAction, mintRandomRubies, recordRubyRiderFx, fireOnMinionSold, fireOnSell, fireOnGainCard, fireSummonBuffs, fireDemonPlayRunes, foldOfferBuffs, creditShopBuffSource, gildMinion, grantMinionToHandOrBoard, grantTopTypeMinion, hasBattlecry, isTribe, mintRubies, modalOpen, openDiscover, playCard, queueDiscover, replayBattlecry, replayEconomyBattlecry, replayEndOfTurn, restoreHeldOffer, replayRecurringEndOfTurn, withEotDiscoverGrantBeat, sellValueOf, sellValueWithBonus, rubyCastCount, giftCastCount, rubyStatBonus, yazzusExtraCasts, consumeGrimoireCharge, countRubyAsShopSpell, fireSpellCastWatchersForRuby, spellAttackBonus, spellCasts, spellCostReduction, spellHealthBonus, stampImproveReps, swapWithTavern, applySpellBought, applyShopRefreshed, taughtAimSpell, triggerBorrowedEcho, landBorrowed, settlePendingDeath, stampEquipFx, equipmentFxMark, buffedFxTargets, fireEquipmentTriggers, fireEquipmentActivated, buyHealthAura, undeadBuyBonus, weldMagnetic, defIsTribe, handCardLocked, fireStatGainReactors, fireEquipmentFree, applyRuneGrafts, noteSpellForCountRunes, settleMinionSale, distillationEdges, fireRunicHoard, applyLorekeeping, runeExtraCasts, castWithRuneRepeats, withCastActor, withHandCast, fireSoldChoice, noteGilded, destroyMinionInShop } from './recruit';
-import { handCap, recordBounceFx, mixSeed, reservedHandSlots, TAG, henchmanOffer, type Action, type DeferredFight, type PreparedCombatSide, type ActiveQuest, type AuraFxTribe, type BoardCard, type CardBuff, type ShopCard, type CiaSuit, type Commission, type CommissionKind, type RunState, type RubyLandedFx, gateUses, procRune, procRuneId, runeBuffMagnitude, PACKCRAFT_STEP, REINVESTMENT_PER_SUMMON, SLAYING_KILLS } from './state';
+import { handCap, recordBounceFx, mixSeed, reservedHandSlots, TAG, henchmanOffer, type Action, type DeferredFight, type PreparedCombatSide, type ActiveQuest, type AuraFxTribe, type BoardCard, type CardBuff, type ShopCard, type CiaSuit, type Commission, type CommissionKind, type RunState, type RubyLandedFx, gateUses, procRune, procRuneId, runeBuffMagnitude, PACKCRAFT_STEP, REINVESTMENT_PER_SUMMON, SLAYING_KILLS, EQUIPMENT_FX_ANCHOR } from './state';
 import { alignmentsOf } from './alignment';
 import { RUNE_DUP_SWEETENER, RUNE_DUP_UNIQUE, forgeFilteredDuplicate, runeStacksOf } from './runeDup';
 import { spellFizzles } from './spellFizzle';
@@ -980,7 +980,8 @@ export function reduce(state: RunState, action: Action): RunState {
       next.spellPowerFxHp = Math.max(0, spDeltaH);
       // The acting card, when there is one — `play`/`buy`/`sell` all carry the uid, so the UI can anchor the
       // flourish to the minion that caused it. Left undefined for sourceless gains (quest/rune ticks).
-      next.spellPowerFxUid = 'uid' in action && typeof action.uid === 'string' ? action.uid : undefined;
+      next.spellPowerFxUid = action.type === 'activateEquipment' ? EQUIPMENT_FX_ANCHOR
+        : 'uid' in action && typeof action.uid === 'string' ? action.uid : undefined;
     }
     // RUBY POWER FX: the exact same contract for Ruby strength (owner ask 2026-07-24) — one bump per action in
     // which `rubyBonus` WENT UP, by any source and any amount. Derived from the before/after delta rather than a
@@ -995,7 +996,9 @@ export function reduce(state: RunState, action: Action): RunState {
       next.rubyPowerFxSeq = (next.rubyPowerFxSeq ?? 0) + 1;
       next.rubyPowerFxAtk = Math.max(0, rpDeltaA);
       next.rubyPowerFxHp = Math.max(0, rpDeltaH);
-      next.rubyPowerFxUid = 'uid' in action && typeof action.uid === 'string' ? action.uid : undefined;
+      // An Equipment use (Dual Rubetta's) has no card: anchor on the Equipment slot (owner report 2026-09-27).
+      next.rubyPowerFxUid = action.type === 'activateEquipment' ? EQUIPMENT_FX_ANCHOR
+        : 'uid' in action && typeof action.uid === 'string' ? action.uid : undefined;
     }
     // RUBY LANDED FX: which minions had a Ruby played ON them this action, for the per-cast cue. Read as a delta
     // of `rubiesOnThisTurn` (bumped by `fireOnRubyPlayed` on every recruit Ruby, whatever played it) so no play

@@ -379,6 +379,11 @@ export type Phase = 'recruit' | 'combat' | 'gameover' | 'victory';
 export type RunMode = 'ascent' | 'rift' | 'practice' | 'lobby' | 'tutorial';
 
 /** The tribes a Practice "tribe surge" can favour (a 100% draw-weight boost for that tribe's shop cards). */
+/** The `spellPowerFxUid` / `rubyPowerFxUid` value for a gain an EQUIPMENT use drove (Dual Rubetta's improving your
+ *  Rubies): there is no card to play the flourish over, so the UI anchors it on the Equipment slot instead of
+ *  falling back to the hand / shop row (owner report 2026-09-27). Not a real uid (it can never match a card). */
+export const EQUIPMENT_FX_ANCHOR = '@equipment';
+
 export type SurgeTribe = 'beast' | 'dragon' | 'kobold' | 'demon' | 'dwarf' | 'spirit';
 
 /** Practice-bot difficulty, 1 (gentlest) to 10. 1/3/5 are the retired Easy/Medium/Hard; 6+ add utility minions.

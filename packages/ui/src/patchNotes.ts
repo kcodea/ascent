@@ -53,6 +53,17 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-09-27',
     changes: [
+      {
+        category: 'Systems',
+        text: 'Start of Turn effects now each play their own moment after the screen returns from combat.',
+        details: [
+          'Each Start of Turn effect plays on its own, one after another: your minions, runes, quests, hero power and Equipment.',
+          'The source lights up first, then its stats and new cards land. Numbers no longer jump up while the screen is still covered.',
+          'Nothing plays until the return from combat has finished.',
+          'The turn timer starts as usual, so you can shop while they play.',
+          'Offers from Start of Turn, like a Discover, open after these moments.',
+        ],
+      },
       { category: 'Systems', text: 'Practice now lets you pick which tribes are in the game. Pick one or more tribes, or Normal for the usual random tribes.' },
       { category: 'Systems', text: "Dual Rubetta's Ruby boost now shows over the Equipment, and the Buffs panel opens on top of the Equipment." },
     ],

@@ -3204,12 +3204,16 @@ export function fireOnRise(state: RunState, risen: BoardCard): void {
  * fire each surviving Gravetwin's copied Echo out of combat (golden → twice). Called by the reducer as the next
  * recruit turn opens. Copied summons/buffs bake into the board, Sylus-doubled + tallied like any Echo.
  */
-export function fireGravetwinEchoes(state: RunState): void {
+/** `wrap` (optional): the Start of Turn beat recorder, one beat per firing Gravetwin (R-SOT-BEAT-01). It must call
+ *  `fire` exactly once. */
+export function fireGravetwinEchoes(state: RunState, wrap?: (twin: BoardCard, fire: () => void) => void): void {
   if (!state.lastSurvivorCardIds?.includes('gravetwin')) return;
   const ctx = makeContext(state);
   for (const c of state.board) {
     if (c.cardId !== 'gravetwin' || !c.copiedEcho?.length) continue;
-    for (let t = 0; t < (c.golden ? 2 : 1); t++) fireRecruitDeathrattles(ctx, c, c.copiedEcho);
+    const echo = c.copiedEcho;
+    const fire = (): void => { for (let t = 0; t < (c.golden ? 2 : 1); t++) fireRecruitDeathrattles(ctx, c, echo); };
+    if (wrap) wrap(c, fire); else fire();
   }
 }
 
@@ -13775,15 +13779,20 @@ export function isRallyDef(c: CardDef): boolean {
   return !c.spell && !c.token && c.keywords.includes('RL') && (c.effects ?? []).some((e) => e.on === 'onAttack');
 }
 
-export function applyStartOfTurn(state: RunState): void {
+/** `wrap` (optional) runs each FIRING minion's Start of Turn inside the caller's frame: the reducer passes the Start
+ *  of Turn beat recorder so every minion gets its own beat (R-SOT-BEAT-01). It must call `fire` exactly once. */
+export function applyStartOfTurn(state: RunState, wrap?: (card: BoardCard, fire: () => void) => void): void {
   const ctx = makeContext(state);
   for (const card of [...state.board]) {
     const def = CARD_INDEX[card.cardId];
-    if (!def) continue;
-    for (const effect of def.effects) {
-      if (effect.on !== 'startOfTurn') continue;
-      RECRUIT_FACTORIES[effect.do]?.(ctx, card, effect.params ?? {}, { minion: card });
-    }
+    if (!def || !def.effects.some((e) => e.on === 'startOfTurn')) continue;
+    const fire = (): void => {
+      for (const effect of def.effects) {
+        if (effect.on !== 'startOfTurn') continue;
+        RECRUIT_FACTORIES[effect.do]?.(ctx, card, effect.params ?? {}, { minion: card });
+      }
+    };
+    if (wrap) wrap(card, fire); else fire();
   }
 }
 

@@ -9,6 +9,7 @@ import { questObjectiveLines, questObjectiveText, questProgressText, questReward
 import { questTally, runeCombatTally, runeTally } from './runeTally';
 import { useRuneTriggerFx, type RuneSlotPulse } from './runeTriggerFx';
 import { useRuneArrivalFx } from './useRuneArrivalFx';
+import { heldSotRuneProcs, sotRunKey, useSotRuneReleased } from './sotRuneHold';
 import { arrivalClasses } from './runeArrival';
 import { getRuneLockInConfig } from './runeLockInConfig';
 import { useGame, type CombatQuestDelta } from './store';
@@ -135,6 +136,8 @@ export function QuestBadges() {
   // can never disagree about when a rune went off. Per SLOT, because Rune of Duplication puts one id in
   // `ownedRunes` twice (see `runeTriggerFx.ts`). Built unconditionally — hooks cannot sit behind the early
   // return below — and `useMemo`'d so the effect's dep is stable across the row's frequent re-renders.
+  const sotKey = sotRunKey(run);
+  const sotReleased = useSotRuneReleased(sotKey);
   const runeSlots = useMemo<RuneSlotPulse[]>(() => runes.map((id, slot) => {
     const r = RUNE_INDEX[id]!.reward;
     // A recurring End-of-Turn reward proc'ing THIS action, stamped with the per-action seq so a re-proc of
@@ -148,8 +151,11 @@ export function QuestBadges() {
     // `pulse` takes only true COUNTS (combat triggers + shop procs); the End-of-Turn tendril stamp is a
     // global action SEQUENCE and rides `seq`, where any change is exactly one fire. Folding it into `pulse`
     // would make one End-of-Turn proc burst once per intervening action.
-    return { slot, id, epic: !!RUNE_INDEX[id]?.epic, pulse: (triggered[id] ?? 0) + (run.runeProcs?.[id] ?? 0), seq: procced };
-  }), [runes.join('|'), triggered, run.questTendrilFx, run.questTendrilSeq, run.runeProcs]);
+    // A START-OF-TURN proc (R-SOT-BEAT-01) is HELD until the Shop's beat player releases it after the return wipe, so
+    // the burst lands on the rune's own beat instead of under the curtain (`sotRuneHold.ts`).
+    const held = heldSotRuneProcs(sotKey, run.sotRuneProcs, id, sotReleased);
+    return { slot, id, epic: !!RUNE_INDEX[id]?.epic, pulse: (triggered[id] ?? 0) + (run.runeProcs?.[id] ?? 0) - held, seq: procced };
+  }), [runes.join('|'), triggered, run.questTendrilFx, run.questTendrilSeq, run.runeProcs, run.sotRuneProcs, sotReleased, sotKey]);
   useRuneTriggerFx(runeSlots);
   // Chains on the LOCKED third rune slot — shown from the very start for EVERY run, until they BREAK (above).
   // The badge row renders for the chains alone, even with no quests and no runes yet.

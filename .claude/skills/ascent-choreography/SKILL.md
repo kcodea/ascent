@@ -43,12 +43,18 @@ Two failures worth knowing because both shipped here:
   caused them parks (the Echohorn hold) and strikes on its own damage beat. Staggered cues inside a stretched
   wind-up were tried for Shout re-fires and rejected: every effect committed at once, then a frozen pause.
 
-- **Start of Turn beats wait for the return wipe** (R-SOT-BEAT-01). Start of Turn resolves inside `resolveCombat`,
-  which the Shop dispatches while the exit curtain fully covers the scene, so anything played then plays under the
-  blue. Record the firing on the Start-of-Turn beat channel (`RunState.sotBeatFx` / `sotBeatFxSeq`, one entry per
-  source with each recipient's gain) and the Shop plays it after the wipe rests (`packages/ui/src/sotBeats.ts`:
-  source pulse, then each gain, stats held until their cue). Lord of the Risen x Ancient of Time is the first user;
-  the per-action buff wave (`recruitBuffFx`) only PARKS until the wipe, it is not a beat.
+- **Every Start of Turn source is its own beat, after the return wipe, and the turn waits for them** (R-SOT-BEAT-01,
+  R-SOT-TIMER-01). Start of Turn resolves inside `resolveCombat`, which the Shop dispatches while the exit curtain fully
+  covers the scene, so anything played then plays under the blue. In `advanceCombat` every source runs through
+  `recordSotBeat` (`packages/sim/src/sotBeat.ts`): a READ-ONLY diff around the source (gains, new hand/board/shop cards,
+  gilds, Gold, Discovers, rune procs, the buff-FX and equip cues it stamped) pushed as ONE beat on `RunState.sotBeatFx`
+  (seq `sotBeatFxSeq`), in sim order. A NEW Start of Turn source only needs wrapping in `recordSotBeat` with its
+  source (hero / minion / rune / quest / equipment / gift); the UI needs nothing. The Shop (`sotBeats.ts` +
+  `Recruit.tsx`) derives the holds DURING RENDER (stats as a delta, new cards out of their rows), waits for the wipe to
+  rest + 300 ms, then per beat pulses the source, lands each gain, then each arrival; a rune's badge burst is held via
+  `RunState.sotRuneProcs` / `sotRuneHold.ts`. The per-action buff wave and the equip cue pass skip the records a beat owns (same
+  objects). `sotPlaying` gates the Shop's overlays (NOT the turn timer, owner 2026-09-27; the clock waits only for the wipe) until the last tail; a turn
+  with no beats starts the clock at the wipe's rest. Input is not blocked while they play.
 
 Other rules:
 

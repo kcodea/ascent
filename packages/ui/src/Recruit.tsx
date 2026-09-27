@@ -107,7 +107,8 @@ import { commitSlidePlan } from './rowSlides';
 import { resolveGildSources, snapshotGildCandidates, type GildSnap, type Pt } from './gildTrailSources';
 import { playBuySlide, type BuyFrom } from './buySlide';
 import { fireBuffFx } from './buffFxRender';
-import { holdSotGains, planSotBeats, releaseSotGain, sotBeatsMayPlay, sotShownStats, type SotCue, type SotHeld } from './sotBeats';
+import { NO_SOT_HOLDS, holdSotBeats, planSotBeats, releaseSotCue, sotBeatsMayPlay, sotShownStats, type SotCue, type SotHolds } from './sotBeats';
+import { releaseSotRuneProcs, sotRunKey } from './sotRuneHold';
 import { resolveBuffSource } from './choreo/buffSource';
 import { ASCEND_PRESETS, ascendPreset } from './ascendPresets';
 import { getDragFeel } from './dragFeel';
@@ -1796,8 +1797,26 @@ export function Recruit() {
   // hold. BOTH hiders narrow `handShown` in the one expression, so the row can only ever iterate cards the
   // view map was built from (`handRowViews.test.ts` pins that rule) — and the unheld case keeps the array's
   // identity, so the memoized hand row still bails out.
-  const handHeldBack = (uid: string): boolean => !!gambleHold?.includes(uid) || lassoHolds.hand.has(uid);
-  const gambleHand = gambleHold || lassoHolds.hand.size ? handShown.filter((c) => !handHeldBack(c.uid)) : handShown;
+  /* START OF TURN HOLDS (R-SOT-BEAT-01, `sotBeats.ts`). A Start-of-Turn batch arrives with `resolveCombat`, under the
+     return curtain, but its consequences belong to beats that play after the wipe. Everything a batch produced is held
+     back until its own cue: the recipients' stat gains (a delta off the real stats) and the new cards (out of the hand,
+     board and shop rows). DERIVED DURING RENDER on the seq (the `heldConsume` pattern), never in an effect, so no frame
+     ever paints the raised numbers or the new cards, and no row FLIPs toward them early. `sotPlaying` stays true from
+     the batch's arrival until its last beat's tail: the turn timer and the Shop's offers wait on it. */
+  const [sotHolds, setSotHolds] = useState<SotHolds>(NO_SOT_HOLDS);
+  const [sotPlaying, setSotPlaying] = useState(false);
+  const [sotSeqSeen, setSotSeqSeen] = useState(run.sotBeatFxSeq ?? 0); // inits to current: a resumed save never holds a stale batch
+  if ((run.sotBeatFxSeq ?? 0) !== sotSeqSeen) {
+    setSotSeqSeen(run.sotBeatFxSeq ?? 0);
+    const batch = run.sotBeatFx ?? [];
+    if (batch.length > 0) {
+      setSotHolds((prev) => holdSotBeats(prev, batch));
+      setSotPlaying(true);
+    }
+  }
+  const sotHeld = sotHolds.stats;
+  const handHeldBack = (uid: string): boolean => !!gambleHold?.includes(uid) || lassoHolds.hand.has(uid) || !!sotHolds.hand?.has(uid);
+  const gambleHand = gambleHold || lassoHolds.hand.size || sotHolds.hand?.size ? handShown.filter((c) => !handHeldBack(c.uid)) : handShown;
   // Minions summoned to the BOARD during End-of-Turn playback (Moira re-firing a summoner) — injected into the
   // rendered board on their beat so they arrive in real time, replaced by the real cards at commit (same uid).
   const [eotSummons, setEotSummons] = useState<{ uid: string; cardId: string; index?: number }[]>([]);
@@ -1858,9 +1877,7 @@ export function Recruit() {
   // During the End-of-Turn animation, the per-proc stats to *show* on each minion (uid → live stats),
   // so the board's numbers climb one proc at a time. Null outside the animation (show the real stats).
   const [eotAnimStats, setEotAnimStats] = useState<Record<string, { attack: number; health: number }> | null>(null);
-  // START OF TURN BEATS (R-SOT-BEAT-01, `sotBeats.ts`): the Start-of-Turn gains still HELD off the shown board stats
-  // (a delta per uid) until their beat lands them, after the return wipe. Null when nothing is held.
-  const [sotHeld, setSotHeld] = useState<SotHeld | null>(null);
+  // (The Start-of-Turn stat hold, `sotHeld`, is derived with the other Start-of-Turn holds above the hand filter.)
   // During the same animation, the running SHOP-offer buff delta per offer uid — so a shop minion buffed by an
   // End-of-Turn effect (Moira re-firing Market Tormentor / Contract Butcher) shows its stats climb in real time
   // on the beat, not jump only after the phase commits (owner ask 2026-08-12). Null outside the animation.
@@ -2068,7 +2085,9 @@ export function Recruit() {
   // open over the exit curtain: hold their RENDER (state is untouched — the shop timer's pause already keys
   // on the offers' existence, so nothing ticks while held) until the reveal sweep finishes, the same way
   // the start-of-combat beat waits for the entry reveal.
-  const overlaysHeld = !inCombat && wipe !== 'idle';
+  // …and for the turn's Start of Turn beats (owner 2026-09-27, R-SOT-TIMER-01): an offer a Start-of-Turn source raised
+  // (Rune of Fresh Pages' Discover, a quest turn's offer) opens once the beats have played, not over them.
+  const overlaysHeld = !inCombat && (wipe !== 'idle' || sotPlaying);
   // A DISCOVER WAITS FOR THE DEATH IT FOLLOWS (owner 2026-09-18: Cage Breaker's Shout destroys a minion and opens a
   // Discover in the SAME commit, and the overlay used to land on top of the body before it had even begun to die).
   // Presentation only — the reducer's order is untouched (`run.discover` is set at once; the pending death settles on
@@ -2312,10 +2331,11 @@ export function Recruit() {
   /**
    * EQUIP / RE-EQUIP CUES (owner handoff 2026-08-28) — a body granting its Equipment.
    *
-   * Rides the per-action scratch channel every other shop FX uses, NOT a beat: only End of Turn plays beats,
-   * so a Start-of-Turn re-equip beat would be recorded and never performed (owner decision, after that gap was
-   * found). One cue per SOURCE BODY in board order — duplicates collapse into one selector entry but each
-   * source still announces itself, which is what the handoff asks for.
+   * Rides the per-action scratch channel every other shop FX uses. The one exception is the Start-of-Turn
+   * REBUILD: since 2026-09-27 each source body's re-equip is its own Start of Turn beat (R-SOT-BEAT-01), played by
+   * the Start-of-Turn beat player after the return wipe, so this pass skips the cues a beat owns. One cue per
+   * SOURCE BODY in board order — duplicates collapse into one selector entry but each source still announces
+   * itself, which is what the handoff asks for.
    *
    * THREE things fire, and their relative timing is the owner's to dial (⚙ Equip FX tuner): the authored
    * `equipment-spark` def on the SOURCE, the same def on the SLOT as the icon lands, and the metallic clang.
@@ -2363,7 +2383,10 @@ export function Recruit() {
     const seq = run.equipFxSeq;
     if (seq === undefined || seq === prevEquipFxSeq.current) return;
     prevEquipFxSeq.current = seq; // advance FIRST — exactly once per action
-    const cues = run.equipFx ?? [];
+    // The Start-of-Turn re-equip cues ride their own beats after the return wipe (R-SOT-BEAT-01), not this immediate
+    // pass, which fired them under the curtain.
+    const sotOwned = run.sotBeatFx?.length ? new Set(run.sotBeatFx.flatMap((b) => b.equipFx ?? [])) : null;
+    const cues = sotOwned?.size ? (run.equipFx ?? []).filter((c) => !sotOwned.has(c)) : (run.equipFx ?? []);
     if (cues.length === 0) return;
     const cfg = getEquipFxConfig(); // read at FIRE TIME, so a tuner edit applies to the next equip
     // Where the icon lands. Absent (no second slot rendered yet) → the source half still plays.
@@ -3571,13 +3594,16 @@ export function Recruit() {
   }, [chooseOneHeld, run.hand, run.board.length]);
 
   const displayBoard = useMemo<BoardCard[]>(() => {
+    // A body a Start-of-Turn beat summons stays off the row until its beat lands it (R-SOT-BEAT-01).
+    const sotOff = sotHolds.board;
+    const board = sotOff?.size ? run.board.filter((c) => !sotOff.has(c.uid)) : run.board;
     if (chooseOnePreview) {
-      const out = [...run.board];
-      out.splice(chooseOnePreview.at, 0, chooseOnePreview.card);
+      const out = [...board];
+      out.splice(Math.min(chooseOnePreview.at, out.length), 0, chooseOnePreview.card);
       return out;
     }
-    if (!eotSummons.length && !eotKeywords.size && !eotTransforms.size) return run.board;
-    const withKw = run.board.map((m) => {
+    if (!eotSummons.length && !eotKeywords.size && !eotTransforms.size) return board;
+    const withKw = board.map((m) => {
       // TRANSFORMED THIS BEAT (Skybound Ascendant): swap the identity IN PLACE, keeping the uid and slot, so
       // the new card is rendered from the frame its beat lands rather than snapping in at the commit. Stats
       // are NOT taken from the new def — `eotAnimStats` already carries the projected absolute values (the
@@ -3601,7 +3627,7 @@ export function Recruit() {
       out.splice(s.index !== undefined ? Math.min(s.index, out.length) : out.length, 0, ghost);
     }
     return out;
-  }, [run.board, eotSummons, eotKeywords, eotTransforms, chooseOnePreview]);
+  }, [run.board, sotHolds.board, eotSummons, eotKeywords, eotTransforms, chooseOnePreview]);
   // `view:board` / `view:hand` (perf export): building the per-card view + live text for every board/hand card.
   // Memoized, but rebuilds whenever `run.board`/`run.hand` identity changes — i.e. every dispatch (buy/play/weld).
   // If a heavily-attached late-game board makes these dominate a fanout frame, this is where it shows.
@@ -4513,6 +4539,10 @@ export function Recruit() {
       heroSelecting,
       overlayOpen,
       introPlaying,
+      // The clock starts once the return wipe has come to rest (nothing is playable under the curtain). It does NOT
+      // wait for the Start of Turn beats: the Shop is playable while they play (owner 2026-09-27: "maybe just start
+      // the clock as normal though since you can play right away"; R-SOT-TIMER-01).
+      transitionPlaying: wipe !== 'idle',
     })) return;
     let id = 0;
     const tick = (): void => {
@@ -4532,7 +4562,7 @@ export function Recruit() {
     };
     id = window.setTimeout(tick, tickMs());
     return () => window.clearTimeout(id);
-  }, [run.phase, run.discover, run.questOffer, run.powerOffer, run.runeforgeOffer, run.pendingTarget, run.chooseOne, run.ancients?.offer, heroSelecting, overlayOpen, introPlaying, run.wave, replaySpeed]);
+  }, [run.phase, run.discover, run.questOffer, run.powerOffer, run.runeforgeOffer, run.pendingTarget, run.chooseOne, run.ancients?.offer, heroSelecting, overlayOpen, introPlaying, run.wave, replaySpeed, wipe, sotPlaying]);
 
   // Detect a self-buff (a minion's own stats jump in the recruit phase) and fire its self-buff cue. The
   // readout itself is the badge's own job now — see the cut below.
@@ -4806,7 +4836,11 @@ export function Recruit() {
     const owned = (rubyOwned.size > 0 || aleOwned.size > 0) ? new Set<string>([...rubyOwned, ...aleOwned]) : null;
     // An Ale's claim covers only the SPELL-kind entries on its targets: a reaction the Ale caused on the same
     // body (Kneel's self-buff) is a separate cue that still plays as itself.
-    const events = owned ? run.recruitBuffFx.filter((e) => !(rubyOwned.has(e.targetUid) || (aleOwned.has(e.targetUid) && e.kind === 'spell' && !e.sourceRuneId && !e.castByUid))) : run.recruitBuffFx;
+    const owned0 = owned ? run.recruitBuffFx.filter((e) => !(rubyOwned.has(e.targetUid) || (aleOwned.has(e.targetUid) && e.kind === 'spell' && !e.sourceRuneId && !e.castByUid))) : run.recruitBuffFx;
+    // A record a START OF TURN beat captured is presented BY that beat, after the wipe (R-SOT-BEAT-01): the same
+    // objects ride `sotBeatFx[i].buffFx`, so they are left out of this wave rather than played twice.
+    const sotOwned = run.sotBeatFx?.length ? new Set(run.sotBeatFx.flatMap((b) => b.buffFx ?? [])) : null;
+    const events = sotOwned?.size ? owned0.filter((e) => !sotOwned.has(e)) : owned0;
     if (events.length === 0) return;
     // A BUFF CAPTURED UNDER THE ARENA WAITS FOR THE SHOP (owner report 2026-09-19: Gangplank buffed Han Gover —
     // "the stats went up but the animation didn't play"). A card a COMBAT grants to hand (Han Gover's Ale at
@@ -4837,20 +4871,28 @@ export function Recruit() {
   }, [inCombat, wipe, run.phase, replayBuffFxEvents]);
 
   /**
-   * START OF TURN BEATS (owner 2026-09-26, R-SOT-BEAT-01: "this also does not have a start of turn beat, please wire
-   * one in and make sure we bake time for the screen wipe transition"). Lord of the Risen × Ancient of Time's grant
-   * is the first effect on this channel (`RunState.sotBeatFx`, planned in `sotBeats.ts`).
+   * START OF TURN BEATS (R-SOT-BEAT-01). Owner 2026-09-26: "this also does not have a start of turn beat, please wire
+   * one in and make sure we bake time for the screen wipe transition." Owner 2026-09-27: "yes they all need their own
+   * beat, and the timer/turn shouldnt start until after they complete. also, they need to wait until the transition
+   * back from combat finishes."
    *
-   * The batch arrives with `resolveCombat`, under the fully covered exit curtain. It is QUEUED and its gains are held
-   * off the shown stats at once (a layout effect, so no frame shows the raised numbers), then it plays only once the
-   * wipe is at rest on the revealed Shop, plus a pad: the source pulses (a hero source: the power button's burst +
-   * the hero's power sound), then each recipient's gain lands with the buff tendril from the button and its number
-   * rises on that cue. Timers live in a ref, not an effect cleanup, so a re-render mid-beat never strands a hold; a
-   * phase change away from the Shop (the next fight, the end screen) drops the queue and releases every hold.
+   * The batch (`RunState.sotBeatFx`, one entry per Start-of-Turn SOURCE in sim order, recorded by
+   * `packages/sim/src/sotBeat.ts`) arrives with `resolveCombat`, under the fully covered exit curtain. Its holds are
+   * derived during render (above the hand filter); here it is QUEUED, then played only once the wipe is at rest on the
+   * revealed Shop, plus a pad (`planSotBeats`). Per beat: the source pulses (the hero-power button's burst + the hero's
+   * power sound; a minion's medallion; a rune's badge burst, released from `sotRuneHold`; a quest badge; the Equipment
+   * body + slot ring), then each recipient's gain lands with the buff tendril from the source and its number rises on
+   * that cue, then each new card arrives in its row with the materialise. When the last beat's tail ends,
+   * `sotPlaying` drops: the turn timer starts and the Shop's offers open. Timers live in a ref, not an effect cleanup,
+   * so a re-render mid-beat never strands a hold; a phase change away from the Shop drops the queue and every hold.
+   *
+   * INPUT is NOT blocked while the beats play (blocking read as sluggish): the Shop stays usable, only the clock waits.
+   * The holds are deltas / uid sets over the live run, so an action taken mid-beat still reads right.
    */
   const prevSotSeq = useRef(run.sotBeatFxSeq ?? 0); // inits to current: a resumed save never replays a stale beat
   const sotQueueRef = useRef<NonNullable<RunState['sotBeatFx']>>([]);
   const sotTimersRef = useRef<number[]>([]);
+  const sotArrivedRef = useRef<Set<string>>(new Set()); // released arrivals waiting for their element to materialise
   const [sotQueued, setSotQueued] = useState(0);
   useLayoutEffect(() => {
     const seq = run.sotBeatFxSeq ?? 0;
@@ -4859,53 +4901,141 @@ export function Recruit() {
     const beats = run.sotBeatFx ?? [];
     if (beats.length === 0) return;
     sotQueueRef.current = [...sotQueueRef.current, ...beats];
-    setSotHeld((prev) => holdSotGains(prev, beats));
     setSotQueued((n) => n + 1);
   }, [run.sotBeatFxSeq]);
+  const sotRunKeyNow = sotRunKey(run);
   useEffect(() => {
     if (inCombat || run.phase !== 'recruit') {
-      // Left the Shop before (or while) the beat played: nothing to land on. Drop it and show the real stats.
+      // Left the Shop before (or while) the batch played: nothing to land on. Drop it and show the real state.
+      // ONLY when there is something to drop: this effect re-runs on every wipe step of the return, and an
+      // unconditional reset queued at `coveredOut` could land AFTER the batch that `resolveCombat` brings in the
+      // same tick had set its holds during render — un-holding it and starting the clock under the beats (caught
+      // on the prod build, 2026-09-27).
       if (sotQueueRef.current.length || sotTimersRef.current.length) {
         sotQueueRef.current = [];
         sotTimersRef.current.forEach(window.clearTimeout);
         sotTimersRef.current = [];
-        setSotHeld(null);
+        sotArrivedRef.current.clear();
+        setSotHolds(NO_SOT_HOLDS);
+        setSotPlaying(false);
       }
       return;
     }
     if (!sotBeatsMayPlay(run.phase, wipe) || sotQueueRef.current.length === 0) return;
     const beats = sotQueueRef.current;
     sotQueueRef.current = [];
+    const runKey = sotRunKeyNow;
+    const centreOf = (el: Element | null | undefined): { x: number; y: number } | undefined => {
+      const r = el?.getBoundingClientRect();
+      return r && (r.width > 0 || r.height > 0) ? { x: r.left + r.width / 2, y: r.top + r.height / 2 } : undefined;
+    };
     const powerBtn = (): HTMLElement | null =>
       document.querySelector<HTMLElement>('.statusbar .heropanel:not(.heropanel2):not(.equipslot) .heropowerbtn')
       ?? document.querySelector<HTMLElement>('.statusbar .heropowerbtn');
-    const btnCentre = (): { x: number; y: number } | undefined => {
-      const r = powerBtn()?.getBoundingClientRect();
-      return r && (r.width > 0 || r.height > 0) ? { x: r.left + r.width / 2, y: r.top + r.height / 2 } : undefined;
+    const badge = (id: string, rune: boolean): Element | null =>
+      document.querySelector(`${rune ? '.runebadge' : '.questbadge'}[data-source-id="${CSS.escape(id)}"]`);
+    const slotEl = (): Element | null => document.querySelector('.equipslot .heropowerbtn');
+    const unitEl = (uid: string): HTMLElement | null => document.querySelector<HTMLElement>(`.card[data-uid="${CSS.escape(uid)}"]`);
+    /** Where a beat's source stands on screen (the tendril's origin). A Gift has no standing node: sourceless. */
+    const sourceAt = (src: SotCue['source']): { x: number; y: number } | undefined => {
+      switch (src.kind) {
+        case 'hero': return centreOf(powerBtn());
+        case 'minion': { const el = unitEl(src.uid); return el ? restingCenterOf(el) ?? undefined : undefined; }
+        case 'rune': return centreOf(badge(src.id, true));
+        case 'quest': return centreOf(badge(src.id, false));
+        case 'equipment': return centreOf(slotEl());
+        default: return undefined;
+      }
+    };
+    /** A one-shot ring on a source (transform + opacity only, `.sotflash`). */
+    const ring = (at: { x: number; y: number } | undefined, cls = ''): void => {
+      if (!at) return;
+      const n = document.createElement('div');
+      n.className = `sotflash${cls}`;
+      n.style.left = `${toStage(at.x)}px`; // measured screen point -> stage px (stage.ts)
+      n.style.top = `${toStage(at.y)}px`;
+      stageHost().appendChild(n);
+      const t = window.setTimeout(() => n.remove(), 900);
+      sotTimersRef.current.push(t);
+    };
+    const pulseUnit = (uid: string): void => {
+      setBattlecryUids((prev) => (prev.has(uid) ? prev : new Set([...prev, uid])));
+      const t = window.setTimeout(() => setBattlecryUids((prev) => {
+        if (!prev.has(uid)) return prev;
+        const n = new Set(prev);
+        n.delete(uid);
+        return n;
+      }), 760);
+      sotTimersRef.current.push(t);
     };
     const fire = (cue: SotCue): void => {
       if (cue.kind === 'pulse') {
-        // The hero-power trigger pulse: the power button's activation burst + the hero's power sound.
-        const c = btnCentre();
-        if (c) pixiFx.heroPowerBurst(c.x, c.y, getAimFxConfig());
-        sfx.heroPower(cue.source.id);
+        const src = cue.source;
+        releaseSotRuneProcs(runKey, cue.procs); // the rune badge bursts on its own beat (`sotRuneHold.ts`)
+        if (src.kind === 'hero') {
+          // The hero-power trigger pulse: the power button's activation burst + the hero's power sound.
+          const c = centreOf(powerBtn());
+          if (c) pixiFx.heroPowerBurst(c.x, c.y, getAimFxConfig());
+          sfx.heroPower(src.id);
+        } else if (src.kind === 'minion') {
+          pulseUnit(src.uid); // the minion's own medallion
+          sfx.triggerPulse();
+        } else if (src.kind === 'rune' || src.kind === 'quest') {
+          ring(sourceAt(src));
+        } else if (src.kind === 'equipment') {
+          // The re-equip: the source body and the slot ring on this beat (the old immediate cue played under the curtain).
+          const body = unitEl(src.uid);
+          ring(body ? restingCenterOf(body) ?? undefined : undefined, ' reequip');
+          ring(centreOf(slotEl()), ' reequip');
+          if (getEquipFxConfig().reequipSparkOn) sfx.equipClang(0);
+        }
         return;
       }
-      setSotHeld((prev) => releaseSotGain(prev, cue.uid, cue.attack, cue.health));
-      const el = document.querySelector<HTMLElement>(`[data-uid="${cue.uid}"]`);
+      setSotHolds((prev) => releaseSotCue(prev, cue));
+      if (cue.kind === 'arrive') {
+        sotArrivedRef.current.add(cue.uid); // materialised by the layout pass below once the row renders it
+        return;
+      }
+      const el = unitEl(cue.uid);
       const target = el ? restingCenterOf(el) : null;
       if (!target) return;
-      const source = btnCentre();
-      fireBuffFx({ source, target, cardId: '', tribe: 'neutral', sourceless: !source, uids: { source: null, target: cue.uid } });
+      const source = sourceAt(cue.source);
+      const srcCard = cue.source.kind === 'minion' ? CARD_INDEX[cue.source.cardId] : undefined;
+      fireBuffFx({
+        source, target, cardId: srcCard?.id ?? '', tribe: srcCard?.tribe ?? 'neutral', sourceless: !source,
+        uids: { source: cue.source.kind === 'minion' ? cue.source.uid : null, target: cue.uid },
+      });
     };
-    for (const cue of planSotBeats(beats).cues) {
+    const plan = planSotBeats(beats);
+    for (const cue of plan.cues) {
       const id = window.setTimeout(() => {
         sotTimersRef.current = sotTimersRef.current.filter((t) => t !== id);
         fire(cue);
       }, cue.at);
       sotTimersRef.current.push(id);
     }
+    // The batch has played: release anything still held (a card sold mid-beat) and let the turn start.
+    const done = window.setTimeout(() => {
+      sotTimersRef.current = sotTimersRef.current.filter((t) => t !== done);
+      if (sotQueueRef.current.length > 0) return; // a later batch is queued behind: it ends the hold
+      setSotHolds(NO_SOT_HOLDS);
+      setSotPlaying(false);
+    }, plan.durationMs);
+    sotTimersRef.current.push(done);
   }, [inCombat, wipe, run.phase, sotQueued]);
+  // A released arrival materialises out of arcane dust in its row, the same coalesce a conjured card plays. Runs every
+  // commit (no deps) but costs one Set read when nothing is pending.
+  useLayoutEffect(() => {
+    if (sotArrivedRef.current.size === 0) return;
+    for (const uid of [...sotArrivedRef.current]) {
+      const el = document.querySelector<HTMLElement>(`.card[data-uid="${CSS.escape(uid)}"]`);
+      if (!el) continue;
+      sotArrivedRef.current.delete(uid);
+      const plate = el.querySelector<HTMLElement>('.cardplate');
+      const r = (plate ?? el).getBoundingClientRect();
+      if (r.width > 0) playPlateCoalesce(r, el);
+    }
+  });
   useEffect(() => () => { sotTimersRef.current.forEach(window.clearTimeout); sotTimersRef.current = []; }, []);
 
   // AURA WAVE: a run-wide tribe-aura channel rose this action (auraFxSeq bumped) — bloom a tribe-colored wave
@@ -5737,6 +5867,8 @@ export function Recruit() {
     });
   }
   let displayShop = eotConsumedUids.size ? shopWithHolds.filter((o) => !eotConsumedUids.has(o.uid)) : shopWithHolds;
+  // An offer a Start-of-Turn beat creates (Rune of First Light's Starform) arrives on its beat (R-SOT-BEAT-01).
+  if (sotHolds.shop?.size) { const off = sotHolds.shop; displayShop = displayShop.filter((o) => !off.has(o.uid)); }
   if (heldConsume.length) {
     const arr = [...displayShop];
     for (const h of [...heldConsume].sort((a, b) => a.index - b.index)) {

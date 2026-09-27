@@ -760,19 +760,42 @@ export const TRIGGERS_RULES: GameRule[] = [
     status: 'approved',
     evidence: [
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-26 (Lord of the Risen x Ancient of Time report)', quote: 'this also does not have a start of turn beat, please wire one in and make sure we bake time for the screen wipe transition. make a note in the oracle that ALL start of turns get their own beat as well. i believe this is already in there.' },
-      { kind: 'code', ref: 'packages/sim/src/state.ts SotBeatFx / sotBeatFx / sotBeatFxSeq (the Start-of-Turn beat channel); packages/sim/src/ancients.ts ancientStartOfTurn (stamps it); packages/ui/src/sotBeats.ts (sotBeatsMayPlay, planSotBeats, the stat hold); packages/ui/src/Recruit.tsx (the Start-of-Turn beat player; the per-action buff wave parks while the wipe is up)' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-27 (every Start of Turn source)', quote: 'yes they all need their own beat, and the timer/turn shouldnt start until after they complete. also, they need to wait until the transition back from combat finishes.' },
+      { kind: 'code', ref: 'packages/sim/src/sotBeat.ts recordSotBeat / pushSotBeat (the read-only per-source diff recorder); packages/sim/src/reducer.ts advanceCombat (every Start of Turn source wrapped, in sim order); packages/sim/src/state.ts SotBeatFx / SotBeatSource / sotBeatFx / sotBeatFxSeq / sotRuneProcs; packages/ui/src/sotBeats.ts (sotBeatsMayPlay, planSotBeats, holdSotBeats, releaseSotCue); packages/ui/src/sotRuneHold.ts (the rune badge hold); packages/ui/src/Recruit.tsx (the holds derived during render, the beat player, the buff wave + equip cues leaving a beat\'s records to it)' },
     ],
     currentBehaviour:
-      'Partly conforms (2026-09-26). No such rule existed before (only R-RUNE-18 for the Runeforge entrance). Lord of the '
-      + 'Risen x Ancient of Time is on the beat channel: the power button pulses, the +3/+2 per summon lands on each minion '
-      + 'with its tendril and its numbers rise on that cue, after the wipe. Every other Start of Turn buff captured '
-      + 'on the per-action buff-FX channel (Gemline Martyr, the Start-of-Turn runes) now WAITS for the wipe instead of '
-      + 'playing under the curtain, but still shows its FX as one wave on stats that are already up, not as its own '
-      + 'source-pulsed beat; moving them onto the beat channel is follow-up work.',
+      'Conforms (2026-09-27). Every Start of Turn source runs through the beat recorder in advanceCombat and gets ONE beat, '
+      + 'in the order the sim applied them: hero powers (Cassen\'s Commission, Chaos, Gildmaster, Great Presence, Lord of '
+      + 'the Risen x Ancient of Time), runes (Treasure Map, Long Shift, Resonance, Astral Draft, Traveling Festival, Merry '
+      + 'Christmas, Happy Birthday, the recurring and cadenced grants, the Deep, the tribe drips, Pendant, Grand Workshop, '
+      + 'Copies, Summit, First Light, Strange Caravan, Fresh Pages), quests (banked repeats, recurring grants), the Royal '
+      + 'Allowance Gift, each surviving Gravetwin, each Equipment source body (the re-equip) and each board minion with a '
+      + 'Start of Turn effect. After the wipe rests (+300 ms) each beat pulses its source, then lands its gains one by one, '
+      + 'then its new cards (hand, board, shop), with the stats and cards held back until their cue. Modals the turn '
+      + 'opens (quest offer, Runeforge, power pick, a Discover a rune raised) open after the last beat.',
     enforcement: {
       kind: 'scenario',
-      refs: ['packages/ui/src/sotBeats.test.ts', 'packages/sim/src/risenTimeRealtime.test.ts'],
-      lastVerifiedAt: '2026-09-26',
+      refs: ['packages/sim/src/sotBeatsAll.test.ts', 'packages/ui/src/sotBeats.test.ts', 'packages/sim/src/risenTimeRealtime.test.ts'],
+      lastVerifiedAt: '2026-09-27',
     },
+  },
+  {
+    id: 'R-SOT-TIMER-01',
+    title: 'The turn timer starts when the return-from-combat transition finishes; it does not wait for Start of Turn beats',
+    statement:
+      'The Shop turn timer starts the moment the return-from-combat transition comes to rest (nothing is playable under '
+      + 'the curtain). It does NOT wait for the Start of Turn beats: the Shop is playable while they play, so the clock '
+      + 'runs as normal. Offers raised at Start of Turn (a Discover, a quest offer, the Runeforge) still open after the '
+      + 'beats. The timer is the local player presentation clock: the engine is untimed, so the recorded run, replays '
+      + 'and the other seats are unchanged.',
+    domain: 'triggers',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-27 (PR #1765 review)', quote: 'start of turn stuff looks fine for now - maybe just start the clock as normal though since you can play right away' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-27 (every Start of Turn source)', quote: 'yes they all need their own beat, and the timer/turn shouldnt start until after they complete. also, they need to wait until the transition back from combat finishes.' },
+      { kind: 'code', ref: 'packages/ui/src/turnClock.ts turnClockMayTick (transitionPlaying); packages/ui/src/Recruit.tsx (the countdown passes the wipe only; overlaysHeld waits for sotPlaying)' },
+    ],
+    currentBehaviour: 'Conforms (2026-09-27). Before this the clock started as the combat resolved, under the return curtain.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/sotBeats.test.ts'], lastVerifiedAt: '2026-09-27' },
   },
 ];

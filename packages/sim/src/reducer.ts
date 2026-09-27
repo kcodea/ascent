@@ -22,8 +22,9 @@ import {
   selectEquipment, selectedEquipment, amplifyAllHeld, amplifyUnactivated, consumeAmplified,
 } from './equipment';
 import { applyChooseOnePlayed, spendChooseBothCharge, noteSpellCast, applyCastEffects, makeContext, discoverSpecFor, heroPowerCostOf, commissionOffer, COMMISSION_DELAY, aegisGrantOf, allInPayoutOf, threeDistinctTypes, exhibitionGrantOf, stampSableBond, stampSharedSpoils, heroOfferPrice, addBuff, addOfferBuff, applyBattlecryTarget, applyCardsBought, applyCardsPlayed, applyChooseOne, applyChooseOneTarget, chooseBothActive, chooseOneNeedsChoice, applyEndOfTurn, applyStartOfTurn, applyOnBuy, applyGoldSpent, advanceRuneThresholds, applySecondLife, effectiveTargetTribe, dominantBoardTribe, uncontrolledTribes, gainGold, applyRunShopBuff, applyShoutsForEndlessVerse, applyShoutsForShopBuff, auraFxTargets, boardManaBonus, buffImpsRunWide, buffUndeadAttackEverywhere, buffCardTypeRunWide, buffFodderRunWide, cardBuff, captureBuffFx, conjuredStats, castSpell, castSpellOnOffer, conjureToHand, consumeTavernFodder, fireGravetwinEchoes, fireOnGainAttack, fireOnRubyCast, fireOnRubyPlayed, applyRubyRiderAction, mintRandomRubies, recordRubyRiderFx, fireOnMinionSold, fireOnSell, fireOnGainCard, fireSummonBuffs, fireDemonPlayRunes, foldOfferBuffs, creditShopBuffSource, gildMinion, grantMinionToHandOrBoard, grantTopTypeMinion, hasBattlecry, isTribe, mintRubies, modalOpen, openDiscover, playCard, queueDiscover, replayBattlecry, replayEconomyBattlecry, replayEndOfTurn, restoreHeldOffer, replayRecurringEndOfTurn, withEotDiscoverGrantBeat, sellValueOf, sellValueWithBonus, rubyCastCount, giftCastCount, rubyStatBonus, yazzusExtraCasts, consumeGrimoireCharge, countRubyAsShopSpell, fireSpellCastWatchersForRuby, spellAttackBonus, spellCasts, spellCostReduction, spellHealthBonus, stampImproveReps, swapWithTavern, applySpellBought, applyShopRefreshed, taughtAimSpell, triggerBorrowedEcho, landBorrowed, settlePendingDeath, stampEquipFx, equipmentFxMark, buffedFxTargets, fireEquipmentTriggers, fireEquipmentActivated, buyHealthAura, undeadBuyBonus, weldMagnetic, defIsTribe, handCardLocked, fireStatGainReactors, fireEquipmentFree, applyRuneGrafts, noteSpellForCountRunes, settleMinionSale, distillationEdges, fireRunicHoard, applyLorekeeping, runeExtraCasts, castWithRuneRepeats, withCastActor, withHandCast, fireSoldChoice, noteGilded, destroyMinionInShop } from './recruit';
-import { handCap, recordBounceFx, mixSeed, reservedHandSlots, TAG, henchmanOffer, type Action, type DeferredFight, type PreparedCombatSide, type ActiveQuest, type AuraFxTribe, type BoardCard, type CardBuff, type ShopCard, type CiaSuit, type Commission, type CommissionKind, type RunState, type RubyLandedFx, gateUses, procRune, procRuneId, runeBuffMagnitude, PACKCRAFT_STEP, REINVESTMENT_PER_SUMMON, SLAYING_KILLS, EQUIPMENT_FX_ANCHOR } from './state';
+import { handCap, recordBounceFx, mixSeed, reservedHandSlots, TAG, henchmanOffer, type Action, type DeferredFight, type PreparedCombatSide, type ActiveQuest, type AuraFxTribe, type BoardCard, type CardBuff, type ShopCard, type CiaSuit, type Commission, type CommissionKind, type RunState, type RubyLandedFx, type SotBeatSource, gateUses, procRune, procRuneId, runeBuffMagnitude, PACKCRAFT_STEP, REINVESTMENT_PER_SUMMON, SLAYING_KILLS, EQUIPMENT_FX_ANCHOR } from './state';
 import { alignmentsOf } from './alignment';
+import { pushSotBeat, recordSotBeat } from './sotBeat';
 import { RUNE_DUP_SWEETENER, RUNE_DUP_UNIQUE, forgeFilteredDuplicate, runeStacksOf } from './runeDup';
 import { spellFizzles } from './spellFizzle';
 import { buyStarform, fireStarformGainRemainder, starformFollowShopBuff, starformRefreshTick, starformSnapshot, starformSoulScriptBake, starformSpellAimsToken, starformStandIn, withStarformPinned, buffStarform, createStarform, hasStarform } from './starform';
@@ -5231,6 +5232,12 @@ function advanceCombat(s: RunState): void {
 
   // Advance to the next wave (handoff A.1 step 5).
   s.wave += 1;
+  // START OF TURN BEATS (R-SOT-BEAT-01, owner 2026-09-27: "yes they all need their own beat"): every Start of Turn
+  // source below runs through `recordSotBeat`, which DIFFS what it changed into its own beat on `sotBeatFx` for the
+  // Shop to play after the return wipe. Read-only: nothing here draws from the RNG or changes what the source does.
+  const heroSource = (): SotBeatSource => ({ kind: 'hero', id: s.heroId, label: getHero(s.heroId).power.name });
+  const runeSource = (id: string): SotBeatSource => ({ kind: 'rune', id, label: RUNE_INDEX[id]?.name ?? id });
+  const runeKindSource = (kind: string): SotBeatSource => runeSource(s.runeIdByKind?.[kind] ?? kind);
   // Grow toward the cap (10) but never DROP maxEmbers — so Nadja / Mana Font bonuses that pushed it
   // past the cap persist instead of being clamped away each wave.
   s.maxEmbers = Math.max(s.maxEmbers, Math.min(CONFIG.embersCap, s.maxEmbers + CONFIG.embersPerWave));
@@ -5247,7 +5254,7 @@ function advanceCombat(s: RunState): void {
   if (s.tutorialShopScript) s.tutorialShopRoll = 0;
   // Cassen: a commission that has come due pays out as this shop opens. Checked AFTER the wave bump, so
   // `dueWave` names the turn the reward actually lands on.
-  if (s.commission && s.wave >= s.commission.dueWave) payCommission(s, s.commission);
+  if (s.commission && s.wave >= s.commission.dueWave) { const due = s.commission; recordSotBeat(s, heroSource(), () => payCommission(s, due)); }
   // Pin the opponent match to the board you START the turn with, so it won't shift as you shop today.
   s.turnStartPower = s.board.reduce((sum, b) => sum + b.attack + b.health, 0);
   // PER-TURN-RESET BEGIN — Doc Bot's carry-over scan (docbot/carryOverScan.ts) parses the `s.<field> = …`
@@ -5383,7 +5390,8 @@ function advanceCombat(s: RunState): void {
   s.rubyCastsThisTurn = 0;
   s.gemscriptRubyUsed = false;
   // Rune of the Treasure Map: tick the countdown at each new shop; pay out and retire at zero.
-  if (s.runeTreasureMap) {
+  if (s.runeTreasureMap) recordSotBeat(s, runeKindSource('runeTreasureMap'), () => {
+    if (!s.runeTreasureMap) return;
     const tm = { ...s.runeTreasureMap, turns: s.runeTreasureMap.turns - 1 };
     if (tm.turns <= 0) {
       procRune(s, 'runeTreasureMap'); // the countdown REACHED zero — ticking down is not a fire
@@ -5392,10 +5400,11 @@ function advanceCombat(s: RunState): void {
     } else {
       s.runeTreasureMap = tm;
     }
-  }
+  });
   // The ARRAY variant (every purchase since the 2026-08-27 duplicate rulings) — each entry ticks and pays
   // independently, so a duplicate Map is a real second payout on its own schedule.
-  if (s.runeTreasureMaps?.length) {
+  if (s.runeTreasureMaps?.length) recordSotBeat(s, runeKindSource('runeTreasureMap'), () => {
+    if (!s.runeTreasureMaps?.length) return;
     const still: { turns: number; gold: number }[] = [];
     for (const tm of s.runeTreasureMaps) {
       if (tm.turns - 1 <= 0) {
@@ -5406,7 +5415,7 @@ function advanceCombat(s: RunState): void {
       }
     }
     s.runeTreasureMaps = still.length > 0 ? still : undefined;
-  }
+  });
   s.fodderConsumedThisTurn = { attack: 0, health: 0 }; // Abhorrent Horror's SoC window resets each wave
   // PER-TURN-RESET END — see the BEGIN marker above (Doc Bot carry-over scan boundary).
   for (const c of s.board) {
@@ -5519,35 +5528,36 @@ function advanceCombat(s: RunState): void {
   // Rune of the Long Shift (owner 2026-08-11): Discover 2 Shop spells at the start of each turn. Queued AFTER
   // the start-of-turn modal so any quest offer / forge takes priority and the two Discovers stack behind it.
   // These are shop-phase Discovers, so the window opens normally (the no-window rule is END-of-turn only).
-  if (s.runeLongShift) { procRuneId(s, 'rune_long_shift'); queueDiscover(s, { kind: 'spell' }); queueDiscover(s, { kind: 'spell' }); }
+  if (s.runeLongShift) recordSotBeat(s, runeSource('rune_long_shift'), () => { procRuneId(s, 'rune_long_shift'); queueDiscover(s, { kind: 'spell' }); queueDiscover(s, { kind: 'spell' }); });
   // Rune of Resonance (owner Ruby batch 2026-09-24): "Start of Turn: get a random Ruby." — one per copy held.
-  if (s.runeRubyDrip) { procRuneId(s, 'rune_resonance'); mintRandomRubies(s, runeStacksOf(s, 'rune_resonance')); }
+  if (s.runeRubyDrip) recordSotBeat(s, runeSource('rune_resonance'), () => { procRuneId(s, 'rune_resonance'); mintRandomRubies(s, runeStacksOf(s, 'rune_resonance')); });
   // Set 3 batch 2 (2026-09-16): Rune of the Astral Draft (a Shop-spell Discover that casts an additional time) and
   // Rune of the Traveling Festival (a random Reveler per copy) — the same start-of-turn slot as the Long Shift.
-  if (s.runeAstralDraft) payAstralDraft(s);
-  if (s.runeRevelerDrip) payRevelerDrip(s, s.runeRevelerDrip);
+  if (s.runeAstralDraft) recordSotBeat(s, runeSource('rune_astral_draft'), () => payAstralDraft(s));
+  if (s.runeRevelerDrip) { const n = s.runeRevelerDrip; recordSotBeat(s, runeSource('rune_traveling_festival'), () => payRevelerDrip(s, n)); }
   // GIFTS (owner design 2026-08-26). Merry Christmas offers a Gift every Start of Turn; Happy Birthday hands
   // one over every SECOND turn (its tick counts the waves between payouts). Both queue behind the start-of-turn
   // modal like the Long Shift, so a quest offer or forge still takes priority.
-  if (s.runeMerryChristmas) { procRuneId(s, 'rune_merry_christmas'); queueDiscover(s, { kind: 'pool', ids: [...GIFT_IDS] }); }
+  if (s.runeMerryChristmas) recordSotBeat(s, runeSource('rune_merry_christmas'), () => { procRuneId(s, 'rune_merry_christmas'); queueDiscover(s, { kind: 'pool', ids: [...GIFT_IDS] }); });
   if (s.runeHappyBirthday) {
     s.giftBirthdayTick = (s.giftBirthdayTick ?? 0) + 1;
     // Same 2-turn cadence, one Gift per copy held (recurring family, owner 2026-08-27).
-    if (s.giftBirthdayTick >= 2) { s.giftBirthdayTick = 0; procRuneId(s, 'rune_happy_birthday'); for (let k = 0; k < runeStacksOf(s, 'rune_happy_birthday'); k++) grantRandomGift(s); }
+    if (s.giftBirthdayTick >= 2) { s.giftBirthdayTick = 0; recordSotBeat(s, runeSource('rune_happy_birthday'), () => { procRuneId(s, 'rune_happy_birthday'); for (let k = 0; k < runeStacksOf(s, 'rune_happy_birthday'); k++) grantRandomGift(s); }); }
   }
   // GIFT — Royal Allowance: once cast, a Gold Pouch every Start of Turn for the rest of the run.
   if (s.giftAllowance) {
     const pouch = CARD_INDEX['emberpouch'];
-    if (pouch) conjureToHand(s, [pouch], 1);
+    if (pouch) recordSotBeat(s, { kind: 'gift', id: 'giftAllowance', label: 'Royal Allowance' }, () => conjureToHand(s, [pouch], 1));
   }
   // Gravetwin: if it survived the last combat, fire its copied Echo now (start of the shop). Then clear the
   // survivor list so it fires exactly once per fight.
-  fireGravetwinEchoes(s);
+  // One beat per surviving Gravetwin (its own medallion), in board order: the same order the Echoes fire.
+  fireGravetwinEchoes(s, (twin, fire) => recordSotBeat(s, { kind: 'minion', uid: twin.uid, cardId: twin.cardId, label: CARD_INDEX[twin.cardId]?.name ?? twin.cardId }, fire, { always: true }));
   s.lastSurvivorCardIds = undefined;
   // Chaos hero power: at the START of every 5th turn, add a Chaos Attachment token to the hand
   // (the checkTriples below also combines it if it completes a triple). The hero starts with one token
   // (createRun); this is the recurring grant — turns 5, 10, 15, …
-  if (hasPower(s, 'chaos') && s.wave % 5 === 0) {
+  if (hasPower(s, 'chaos') && s.wave % 5 === 0) recordSotBeat(s, heroSource(), () => {
     const def = CARD_INDEX['symbioticattachment'];
     if (def && s.hand.length < handCap(s)) {
       const grantUid = `b${s.uidSeq++}`;
@@ -5567,17 +5577,17 @@ function advanceCombat(s: RunState): void {
       s.chaosGrantSeq = (s.chaosGrantSeq ?? 0) + 1;
       s.chaosGrantUid = grantUid;
     }
-  }
+  });
   // Gildmaster: get a Goldcrafter (a spell that makes a friendly minion golden) at the START of every 4th
   // turn — turns 4, 8, 12, …. Conjured to hand (hand-cap-safe); a granted spell can't complete a triple.
   if (hasPower(s, 'recurringGoldcrafter') && s.wave % 4 === 0) {
-    conjureToHand(s, CARD_INDEX['goldcrafter'] ? [CARD_INDEX['goldcrafter']!] : [], 1);
+    recordSotBeat(s, heroSource(), () => conjureToHand(s, CARD_INDEX['goldcrafter'] ? [CARD_INDEX['goldcrafter']!] : [], 1));
   }
   // KINDNESS — Great Presence (owner design 2026-08-26): Discover a Gift at the start of every 4th turn
   // (4, 8, 12, …), the same cadence Gildmaster's grant uses. Queued like the other start-of-turn Discovers,
   // so a quest offer or forge still takes priority.
   if (hasPower(s, 'greatPresence') && s.wave % 4 === 0) {
-    queueDiscover(s, { kind: 'pool', ids: [...GIFT_IDS] });
+    recordSotBeat(s, heroSource(), () => queueDiscover(s, { kind: 'pool', ids: [...GIFT_IDS] }));
   }
   // Quest delayed rewards (Trail Rations' "repeat in 2 turns"): tick each pending grant down a turn and
   // re-apply the ones that come due — WITHOUT re-scheduling (allowRepeat=false) — here with the other
@@ -5588,7 +5598,7 @@ function advanceCombat(s: RunState): void {
       if (p.turnsLeft - 1 <= 0) {
         // Resolve the scheduling def — a quest OR a rune (Rune of the Gilded Spark's "get another in 2 turns").
         const d = QUEST_INDEX[p.questId] ?? (RUNE_INDEX[p.questId] as unknown as QuestDef | undefined);
-        if (d) applyQuestReward(s, d, false);
+        if (d) recordSotBeat(s, QUEST_INDEX[p.questId] ? { kind: 'quest', id: p.questId, label: d.name } : runeSource(p.questId), () => applyQuestReward(s, d, false));
       } else {
         remaining.push({ questId: p.questId, turnsLeft: p.turnsLeft - 1 });
       }
@@ -5599,10 +5609,12 @@ function advanceCombat(s: RunState): void {
   // rest of the run (one Feed the Alpha spell per turn). Hand-cap-safe (conjureToHand no-ops on a full hand).
   if (s.questRecurringGrants?.length) {
     for (const id of s.questRecurringGrants) {
-      conjureToHand(s, CARD_INDEX[id] ? [CARD_INDEX[id]!] : [], 1);
-      if (id === 'hoardflame') procRuneId(s, 'rune_hoardflame');
-      if (id === 'sp_dragonflame') procRuneId(s, 'rune_dragon_breath');
-      if (id === 'starcrash') procRuneId(s, 'rune_falling_embers');
+      recordSotBeat(s, recurringGrantSource(s, id), () => {
+        conjureToHand(s, CARD_INDEX[id] ? [CARD_INDEX[id]!] : [], 1);
+        if (id === 'hoardflame') procRuneId(s, 'rune_hoardflame');
+        if (id === 'sp_dragonflame') procRuneId(s, 'rune_dragon_breath');
+        if (id === 'starcrash') procRuneId(s, 'rune_falling_embers');
+      });
     }
   }
   // The CADENCED twin of the list above (Clockwork Promotion / the Muckbroker / Rare Goods): a card every
@@ -5614,22 +5626,26 @@ function advanceCombat(s: RunState): void {
     g.tick = 0;
     const def2 = CARD_INDEX[g.cardId];
     if (!def2) continue;
-    conjureToHand(s, [def2], 1, true);
-    procRuneId(s, g.sourceId);
+    const src = g.sourceId ?? '';
+    recordSotBeat(s, QUEST_INDEX[src] ? { kind: 'quest', id: src, label: QUEST_INDEX[src]!.name } : runeSource(src), () => {
+      conjureToHand(s, [def2], 1, true);
+      procRuneId(s, g.sourceId);
+    });
   }
   // Rune of Shifting Facets: one tick per turn setup is the whole alternation — the axis is DERIVED from its
   // parity (see `questCombatMods`), so nothing can drift out of step with the printed side.
   if (s.questFlags?.runeShiftingFacets) s.runeShiftingFacetsTick = (s.runeShiftingFacetsTick ?? 0) + 1;
   // Rune of the Deep (Epic): each turn setup, a random minion of the armed tier — `payDeep`, the SAME payout
   // the purchase fires immediately ("Get … Repeat at Start of Turn", owner 2026-09-23).
-  payDeep(s);
+  if (s.runeDeep) recordSotBeat(s, runeSource('rune_deep'), () => payDeep(s));
   // Rune of Basic/Epic <tribe>: the same turn-setup faucet as the Deep, filtered by TRIBE instead of tier.
   // `payTribeDrip` is THE payout — shared verbatim with the immediate one at purchase, so the tier cap, the
   // tribe filter and the count can never drift between "the turn it was taken" and every turn after.
-  for (const drip of s.runeTribeDrip ?? []) payTribeDrip(s, drip);
+  for (const drip of s.runeTribeDrip ?? []) recordSotBeat(s, runeSource(`rune_${drip.count >= 2 ? 'epic' : 'basic'}_${drip.tribe}`), () => payTribeDrip(s, drip));
   // Rune of the Pendant: gild a random friendly minion at or below the armed tier. Seeded off the run cursor
   // like every other random pick, and a no-op when nothing on the board qualifies (or it is already gilded).
-  if (s.runePendant) {
+  if (s.runePendant) recordSotBeat(s, runeSource('rune_pendant'), () => {
+    if (!s.runePendant) return;
     // One gild per copy held (recurring family, owner 2026-08-27) — each draws a fresh eligible pick.
     for (let k = 0; k < runeStacksOf(s, 'rune_pendant'); k++) {
       const eligible = s.board.filter((c) => !c.golden && (CARD_INDEX[c.cardId]?.tier ?? 99) <= (typeof s.runePendant === 'number' ? s.runePendant : 99));
@@ -5640,7 +5656,7 @@ function advanceCombat(s: RunState): void {
       gildMinion(pick, s);
       procRuneId(s, 'rune_pendant');
     }
-  }
+  });
   // Rune of the Guiding Candle: the per-turn allowance of tier-locked refreshes refills at each shop.
   if (s.runeGuidingCandle) s.runeGuidingCandle = { ...s.runeGuidingCandle, left: s.runeGuidingCandle.count };
   // ── EQUIPMENT REBUILD — THE FIRST Start-of-Turn operation (owner handoff 2026-08-28) ──────────────────
@@ -5652,19 +5668,32 @@ function advanceCombat(s: RunState): void {
   // Clears the collection, resets the shared allowance, re-equips every surviving source left to right, and
   // restores the last-used Equipment when its source survived. One cue per SOURCE BODY for the UI, even
   // though duplicates collapse into a single selector entry.
+  // One Start of Turn beat PER SOURCE BODY (R-SOT-BEAT-01): the body and the slot ring on its own beat. The rebuild
+  // itself is one operation (it must finish before anything reads Equipment), so each cue is recorded after it.
   for (const cue of rebuildEquipment(s)) {
     stampEquipFx(s, { kind: 'reequip', uid: cue.uid, cardId: cue.cardId, equipmentId: cue.equipmentId });
+    pushSotBeat(s, {
+      source: { kind: 'equipment', uid: cue.uid, cardId: cue.cardId, equipmentId: cue.equipmentId, label: CARD_INDEX[cue.cardId]?.name ?? cue.cardId },
+      gains: [],
+      equipFx: [s.equipFx![s.equipFx!.length - 1]!],
+    });
   }
   // RUNE OF THE GRAND WORKSHOP (Epic; set 3 batch 2, 2026-09-16): "Start of Turn: repeat this" — Amplify every
   // Equipment the rebuild just handed back (capped at one stack each, so a stack that carried over is untouched).
   if (s.runeGrandWorkshop) {
-    const amped = amplifyAllHeld(s);
-    if (amped.length > 0) procRuneId(s, 'rune_grand_workshop', amped.length);
+    recordSotBeat(s, runeSource('rune_grand_workshop'), () => {
+      const amped = amplifyAllHeld(s);
+      if (amped.length > 0) procRuneId(s, 'rune_grand_workshop', amped.length);
+    });
   }
   // Rune of Copies (Epic): each turn setup, copy a random board minion to hand (the immediate copy fired on
   // buy) — one copy per rune copy held (recurring family, owner 2026-08-27).
-  if (s.runeCopies && s.board.length > 0) procRuneId(s, 'rune_copies');
-  if (s.runeCopies) for (let k = 0; k < runeStacksOf(s, 'rune_copies'); k++) copyRandomBoardMinion(s);
+  if (s.runeCopies) {
+    recordSotBeat(s, runeSource('rune_copies'), () => {
+      if (s.board.length > 0) procRuneId(s, 'rune_copies');
+      for (let k = 0; k < runeStacksOf(s, 'rune_copies'); k++) copyRandomBoardMinion(s);
+    });
+  }
   // Rune of the Conductor (Epic): the shop OPENS by triggering all your End of Turn effects — the warband's
   // EoT minions + quest/rune recurring rewards, exactly like a real End of Turn (Chronos repeats included).
   // Per-turn scalers (Rune of Spending / Rune of Action read Gold-spent / cards-played) see the FRESH turn's
@@ -5679,19 +5708,20 @@ function advanceCombat(s: RunState): void {
     s.runeSummitTick = (s.runeSummitTick ?? 0) + 1;
     // Only the 2nd shop pays; the one in between is the countdown, not the rune firing (balance 9/23: every 2nd,
     // was every 3rd). Same cadence, one Discover per copy held (recurring family, owner 2026-08-27) — they queue in sequence.
-    if (s.runeSummitTick % 2 === 0) { procRune(s, 'runeSummit'); for (let k = 0; k < runeStacksOf(s, 'rune_summit'); k++) queueDiscover(s, { kind: 'minion', tier: 7, exactTier: 7 }); } // every 2nd shop
+    if (s.runeSummitTick % 2 === 0) recordSotBeat(s, runeKindSource('runeSummit'), () => { procRune(s, 'runeSummit'); for (let k = 0; k < runeStacksOf(s, 'rune_summit'); k++) queueDiscover(s, { kind: 'minion', tier: 7, exactTier: 7 }); }); // every 2nd shop
   }
   // Set 2 — the warband's own Start-of-Turn effects (Gemline Martyr), the symmetric twin of End of Turn. Fired
   // here as the shop opens, alongside the Start-of-Turn rune rewards below.
-  applyStartOfTurn(s);
+  // Each board minion's Start of Turn is its OWN beat (its medallion pulses, then what it made lands), left to right.
+  applyStartOfTurn(s, (card, fire) => recordSotBeat(s, { kind: 'minion', uid: card.uid, cardId: card.cardId, label: CARD_INDEX[card.cardId]?.name ?? card.cardId }, fire, { always: true }));
   // ANCIENT OF TIME x Lord of the Risen (a no-op unless the run has it): Start of Turn, +3/+2 to your minions for each
   // minion you summoned in the last combat.
   ancientStartOfTurn(s);
   // RUNE OF FIRST LIGHT (Set 3 batch 2): Start of Turn — no Starform out → create one (it arrives with the rune's
   // +8/+8 like every creation, and eats the right-most minion when the row is full, as any create does).
-  if (s.runeFirstLight && !hasStarform(s)) createStarform(s, { cardId: 'rune_first_light', name: 'Rune of First Light' });
+  if (s.runeFirstLight && !hasStarform(s)) recordSotBeat(s, runeSource('rune_first_light'), () => createStarform(s, { cardId: 'rune_first_light', name: 'Rune of First Light' }), { always: true });
   // Rune of the Strange Caravan: Start of Turn, get a random minion from a type you do NOT control.
-  if (s.runeStrangeCaravan) {
+  if (s.runeStrangeCaravan) recordSotBeat(s, runeKindSource('runeStrangeCaravan'), () => {
     procRune(s, 'runeStrangeCaravan');
     // One minion per copy held (recurring family, owner 2026-08-27) — each re-reads what is uncontrolled.
     for (let k = 0; k < runeStacksOf(s, 'rune_strange_caravan'); k++) {
@@ -5702,9 +5732,9 @@ function advanceCombat(s: RunState): void {
       s.rngCursor = rng.state();
       grantRandomTribeMinion(s, tribe, 1, true);
     }
-  }
+  });
   // Rune of Fresh Pages: Start of Turn, Discover a Shop spell (queues behind any start-of-turn modal).
-  if (s.runeFreshPages) { procRune(s, 'runeFreshPages'); queueDiscover(s, { kind: 'spell' }); }
+  if (s.runeFreshPages) recordSotBeat(s, runeKindSource('runeFreshPages'), () => { procRune(s, 'runeFreshPages'); queueDiscover(s, { kind: 'spell' }); });
   // Triples can be completed by a combat carry-back that lands a 3rd copy in the hand (e.g. a
   // Deathrattle-granted minion) AFTER the last recruit action that would have checked. Every other
   // path checks on the mutation; this is the one entry the player never triggers, so check once here
@@ -6128,6 +6158,19 @@ export function payDeep(s: RunState): void {
   if (!s.runeDeep) return;
   const pool = poolOf(s).all.filter((c) => !c.spell && !c.token && !c.ruby && c.tier === s.runeDeep);
   if (pool.length > 0) { procRuneId(s, 'rune_deep'); conjureToHand(s, pool, runeStacksOf(s, 'rune_deep'), true); }
+}
+
+/** Who a recurring hand grant (`questRecurringGrants`) belongs to, for its Start of Turn beat's pulse: the rune that
+ *  armed it when one did (Hoardflame / Dragon Breath / Falling Embers), else the active quest whose reward lists the
+ *  card (Feed the Alpha), else a sourceless Gift-style beat. Display only. */
+function recurringGrantSource(s: RunState, cardId: string): SotBeatSource {
+  const rune = cardId === 'hoardflame' ? 'rune_hoardflame' : cardId === 'sp_dragonflame' ? 'rune_dragon_breath' : cardId === 'starcrash' ? 'rune_falling_embers' : null;
+  if (rune && (s.ownedRunes ?? []).includes(rune)) return { kind: 'rune', id: rune, label: RUNE_INDEX[rune]?.name ?? rune };
+  for (const aq of s.activeQuests ?? []) {
+    const def = QUEST_INDEX[aq.questId];
+    if (def && JSON.stringify(def.reward).includes(`"${cardId}"`)) return { kind: 'quest', id: aq.questId, label: def.name };
+  }
+  return { kind: 'gift', id: cardId, label: CARD_INDEX[cardId]?.name ?? cardId };
 }
 
 function copyRandomBoardMinion(s: RunState): void {

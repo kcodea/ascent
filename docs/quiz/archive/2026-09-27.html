@@ -1,0 +1,526 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ascent Quiz #46 — 2026-09-27</title>
+<style>
+  :root {
+    --bg: #12141c;
+    --panel: #1b1f2c;
+    --panel-border: #2c3244;
+    --text: #e8eaf2;
+    --muted: #9096ab;
+    --accent: #7c9cff;
+    --accent-dim: #4a5a8f;
+    --good: #4ade80;
+    --good-bg: rgba(74, 222, 128, 0.12);
+    --bad: #f87171;
+    --bad-bg: rgba(248, 113, 113, 0.12);
+    --choice-bg: #232838;
+    --choice-hover: #2a3040;
+  }
+  @media (prefers-color-scheme: light) {
+    :root:not([data-theme="dark"]) {
+      --bg: #f4f5fa;
+      --panel: #ffffff;
+      --panel-border: #dfe2ee;
+      --text: #1c2030;
+      --muted: #5c6178;
+      --accent: #3d5cd6;
+      --accent-dim: #b9c4f0;
+      --good: #16a34a;
+      --good-bg: rgba(22, 163, 74, 0.1);
+      --bad: #dc2626;
+      --bad-bg: rgba(220, 38, 38, 0.1);
+      --choice-bg: #f0f1f8;
+      --choice-hover: #e4e7f5;
+    }
+  }
+  :root[data-theme="light"] {
+    --bg: #f4f5fa;
+    --panel: #ffffff;
+    --panel-border: #dfe2ee;
+    --text: #1c2030;
+    --muted: #5c6178;
+    --accent: #3d5cd6;
+    --accent-dim: #b9c4f0;
+    --good: #16a34a;
+    --good-bg: rgba(22, 163, 74, 0.1);
+    --bad: #dc2626;
+    --bad-bg: rgba(220, 38, 38, 0.1);
+    --choice-bg: #f0f1f8;
+    --choice-hover: #e4e7f5;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    min-height: 100vh;
+    padding: 24px 16px 60px;
+  }
+  .wrap {
+    max-width: 640px;
+    margin: 0 auto;
+  }
+  header {
+    text-align: center;
+    margin-bottom: 20px;
+  }
+  header .emoji { font-size: 34px; line-height: 1; }
+  h1 {
+    font-size: 20px;
+    margin: 8px 0 4px;
+    font-weight: 700;
+  }
+  .subtitle {
+    color: var(--muted);
+    font-size: 13px;
+  }
+  .progress-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 18px 0 14px;
+  }
+  .progress-track {
+    flex: 1;
+    height: 6px;
+    background: var(--panel-border);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+  .progress-fill {
+    height: 100%;
+    background: var(--accent);
+    border-radius: 4px;
+    transition: width 0.25s ease;
+    width: 0%;
+  }
+  .progress-label {
+    font-size: 12px;
+    color: var(--muted);
+    white-space: nowrap;
+    min-width: 62px;
+    text-align: right;
+  }
+  .score-label {
+    font-size: 12px;
+    color: var(--muted);
+    text-align: center;
+    margin-bottom: 18px;
+  }
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 14px;
+    padding: 22px 20px;
+    margin-bottom: 16px;
+  }
+  .topic-tag {
+    display: inline-block;
+    font-size: 11px;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    color: var(--accent);
+    background: var(--accent-dim);
+    opacity: 0.9;
+    padding: 3px 9px;
+    border-radius: 999px;
+    margin-bottom: 12px;
+  }
+  .question {
+    font-size: 16px;
+    line-height: 1.5;
+    margin: 0 0 16px;
+    font-weight: 600;
+  }
+  .question code {
+    background: var(--choice-bg);
+    padding: 1px 5px;
+    border-radius: 4px;
+    font-size: 0.9em;
+  }
+  .choices {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .choice {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    text-align: left;
+    background: var(--choice-bg);
+    border: 1px solid var(--panel-border);
+    color: var(--text);
+    border-radius: 10px;
+    padding: 12px 14px;
+    font-size: 14.5px;
+    line-height: 1.45;
+    cursor: url('data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%221%22 height=%221%22%3E%3C/svg%3E') 0 0, pointer;
+    font-family: inherit;
+  }
+  .choice:hover:not(.locked) {
+    background: var(--choice-hover);
+    border-color: var(--accent-dim);
+  }
+  .choice .letter {
+    flex: none;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: var(--panel-border);
+    color: var(--text);
+    font-size: 12px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .choice.correct {
+    background: var(--good-bg);
+    border-color: var(--good);
+  }
+  .choice.correct .letter { background: var(--good); color: #08240f; }
+  .choice.incorrect {
+    background: var(--bad-bg);
+    border-color: var(--bad);
+  }
+  .choice.incorrect .letter { background: var(--bad); color: #2a0808; }
+  .choice.locked { cursor: default; }
+  .choice.dim { opacity: 0.55; }
+  .explanation {
+    margin-top: 16px;
+    padding: 14px 16px;
+    border-radius: 10px;
+    background: var(--choice-bg);
+    border: 1px solid var(--panel-border);
+    font-size: 13.5px;
+    line-height: 1.55;
+    color: var(--text);
+    display: none;
+  }
+  .explanation.show { display: block; }
+  .explanation .verdict {
+    font-weight: 700;
+    margin-bottom: 6px;
+    display: block;
+  }
+  .explanation .verdict.good { color: var(--good); }
+  .explanation .verdict.bad { color: var(--bad); }
+  .nav-row {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 4px;
+  }
+  .btn {
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: 9px;
+    padding: 10px 20px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: url('data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%221%22 height=%221%22%3E%3C/svg%3E') 0 0, pointer;
+    font-family: inherit;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease;
+  }
+  .btn.show { opacity: 1; pointer-events: auto; }
+  .btn:active { transform: translateY(1px); }
+  .summary {
+    text-align: center;
+    padding: 30px 20px;
+  }
+  .summary .big {
+    font-size: 42px;
+    font-weight: 800;
+    margin: 6px 0 4px;
+  }
+  .summary .line {
+    color: var(--muted);
+    font-size: 14px;
+    margin-bottom: 18px;
+  }
+  .summary .encourage {
+    font-size: 15px;
+    line-height: 1.5;
+    max-width: 440px;
+    margin: 0 auto;
+  }
+  .hidden { display: none; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="emoji">🎓</div>
+    <h1>Ascent Quiz #46</h1>
+    <div class="subtitle">2026-09-27 · how the game is coded, not how it plays</div>
+  </header>
+
+  <div id="quizArea">
+    <div class="progress-row">
+      <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+      <div class="progress-label" id="progressLabel">Q1 / 10</div>
+    </div>
+    <div class="score-label" id="scoreLabel">Score: 0 / 0 answered</div>
+
+    <div class="card" id="questionCard">
+      <div class="topic-tag" id="topicTag"></div>
+      <p class="question" id="questionText"></p>
+      <div class="choices" id="choicesArea"></div>
+      <div class="explanation" id="explanationArea">
+        <span class="verdict" id="verdictText"></span>
+        <span id="explanationText"></span>
+      </div>
+      <div class="nav-row">
+        <button class="btn" id="nextBtn">Next question →</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="summaryArea" class="card summary hidden">
+    <div class="topic-tag">Final score</div>
+    <div class="big" id="summaryScore">0 / 10</div>
+    <div class="line" id="summaryPct"></div>
+    <div class="encourage" id="summaryEncourage"></div>
+  </div>
+</div>
+
+<script>
+(function () {
+  var QUESTIONS = [
+    {
+      topicId: "what-is-a-function",
+      topicLabel: "What a function is",
+      question: "packages/core/src/rng.ts defines <code>int(maxExclusive)</code> as: <code>(maxExclusive) =&gt; (maxExclusive &lt;= 0 ? 0 : Math.floor(next() * maxExclusive))</code>. In plain terms — ignoring the ternary/Math.floor syntax for a moment — what KIND of thing is this?",
+      choices: [
+        "A function: something that takes input(s) (here, `maxExclusive`) and computes/returns an output (a whole number) each time it's called — and here, calling it twice with the same input can give different results, because it also reads from `next()`.",
+        "A variable holding a fixed number, computed once when the file loads and never changing again.",
+        "A type definition describing the shape of a number.",
+        "A comment explaining what `int` should do, not code that actually runs."
+      ],
+      answer: 0,
+      explanation: "The arrow syntax `(maxExclusive) => ...` is a function: it accepts an input and produces a value on demand, every time something calls it — that's the everyday shape you'll see constantly across Ascent's code, `name: (inputs) => computation`. It's not a fixed value (B — a plain variable wouldn't take an input at all), not a type (C — a type looks like `type Foo = number`, it never runs), and it IS executable code the engine actually calls, not documentation (D).",
+    },
+    {
+      topicId: "deterministic-sim",
+      topicLabel: "Deterministic simulation",
+      question: "packages/core/src/presentation/collector.ts's doc comment says: \"Determinism is structural: ids come from a batch-local counter, so the same resolution always produces byte-identical events (no time/random).\" Why does using a plain counter (instead of something like `Date.now()` or a random id) matter for keeping combat deterministic?",
+      choices: [
+        "It's purely a speed optimization — a counter is faster to compute than reading the clock.",
+        "Counters use less memory than timestamps, which matters for save-file size.",
+        "A counter's value only depends on how many times it's been incremented THIS run — fully controlled by the deterministic simulation logic — so replaying the same combat produces the exact same sequence of ids every time. `Date.now()` or a random id would depend on the real-world clock or true randomness, breaking that guarantee.",
+        "It doesn't really matter — ids are cosmetic and never compared between runs."
+      ],
+      answer: 2,
+      explanation: "\"Deterministic\" means same inputs → same outputs, always. A batch-local counter's value is entirely a function of the simulation's own logic (how many times it counted up), so two runs of the identical combat produce identical ids. A timestamp or a true-random id would depend on something OUTSIDE the simulation — exactly the class of thing the seeded-RNG rule and the `Math.random` ban (see eslint-rules) exist to keep out of core/content/sim. (A), (B), and (D) miss the actual reason: reproducibility, not speed, memory, or cosmetics.",
+    },
+    {
+      topicId: "seeded-rng",
+      topicLabel: "The seeded RNG",
+      question: "rng.ts's <code>fork()</code> is implemented as <code>fork: () =&gt; makeRng((next() * 4294967296) &gt;&gt;&gt; 0)</code> — notice it calls `next()`. What effect does calling `.fork()` have on the PARENT rng's own future `.next()` calls?",
+      choices: [
+        "None — `fork()` only reads the parent's current state, it doesn't consume from its sequence.",
+        "Calling `fork()` advances the parent's internal sequence by one step (because it calls `next()` to seed the child), so the very next `.next()` call on the parent returns a different value than if `fork()` had never been called.",
+        "`fork()` resets the parent back to its original seed.",
+        "`fork()` pauses the parent rng until the child rng is discarded."
+      ],
+      answer: 1,
+      explanation: "`fork()`'s body calls `next()` on the parent to generate the child's seed, and `next()` always advances the parent's internal counter `a` as a side effect — exactly like any other call to `.next()`. So the parent \"spends\" one step of its own sequence to create the child. This stays fully deterministic (same seed + same sequence of calls, forks included, still reproduces identically) — but it does mean fork order is part of what makes a replay reproducible. (A) is wrong because `next()` is never free of that side effect; (C) and (D) invent behavior the code doesn't have.",
+    },
+    {
+      topicId: "sim-ui-decoupling",
+      topicLabel: "Sim/UI decoupling",
+      question: "packages/core/src/presentation/collector.ts ships a `NOOP_COLLECTOR` — \"a zero-allocation stand-in ... so instrumented mutation helpers cost nothing when nobody is watching\" — used by headless bots and balance sims. Why would the ENGINE need a version of itself that records no presentation events at all?",
+      choices: [
+        "Because the UI can't handle that many events at once and would crash.",
+        "Because `NOOP_COLLECTOR` is leftover code from an old version that nobody has removed yet.",
+        "Because bots and balance sims aren't allowed to use randomness.",
+        "Because bots and balance sims (which run thousands of simulated games with nobody watching) don't need a UI to animate anything — building presentation data for no audience would be pure waste, so the SAME gameplay logic runs either way, just swapping in a do-nothing recorder instead of the real one."
+      ],
+      answer: 3,
+      explanation: "This is the sim/UI split in action: the same gameplay logic that would normally hand presentation events off to a UI needs to run identically for balance sims and bots too — there's just nothing watching. Rather than branching the gameplay code itself, the engine swaps in a \"do-nothing\" collector so the exact same code path runs, minus the bookkeeping cost. (A) misreads it — headless runs have no UI involved at all; (B) is false, it's documented, deliberate design; (C) is unrelated.",
+    },
+    {
+      topicId: "monorepo-packages",
+      topicLabel: "Monorepo packages",
+      question: "packages/core/src/index.ts is about a dozen lines, all <code>export * from './types'</code>, <code>export * from './rng'</code>, <code>export * from './combat/simulate'</code>, etc. — no logic. packages/ui then writes <code>import { simulate } from '@game/core'</code>, never <code>from '@game/core/src/combat/simulate'</code>. What's the point of routing every import through this one file?",
+      choices: [
+        "`index.ts` is the package's PUBLIC entrypoint: it defines exactly what's available outside `core`. Reaching straight into an internal file instead is what CLAUDE.md calls \"the boundary leaked\" — routing through `index.ts` means core's internals can be freely reorganized as long as it keeps re-exporting the same names.",
+        "It's required by TypeScript — importing from a subfolder of another package is never technically possible.",
+        "It makes the final bundled file smaller.",
+        "It's purely a style preference with no functional effect either way."
+      ],
+      answer: 0,
+      explanation: "The barrel file is the contract between `@game/core` and everything downstream. As long as `index.ts` keeps exporting `simulate`, the maintainer can move `simulate.ts` to a different folder or split it in two without breaking any consumer. Reaching past it with a deep import couples a consumer to internal file layout — the exact thing CLAUDE.md's \"ui depends on the others through public package entrypoints only\" rule is guarding against. (B) is false (deep imports are technically legal, just against convention); (C)/(D) aren't the real reason this pattern exists.",
+    },
+    {
+      topicId: "pure-functions",
+      topicLabel: "Pure functions",
+      question: "packages/core/src/combat/minion.ts's <code>instantiate()</code> doc comment: \"Clone a board minion into a live combat instance. Pulls identity/effects from the (immutable) CardDef and current stats from the BoardMinion. The CardDef is never mutated.\" Why is \"never mutated\" the important word, rather than just \"copied\"?",
+      choices: [
+        "Because mutating an object is measurably slower than copying one in JavaScript.",
+        "Because CardDefs are stored on disk and can't technically be changed at runtime.",
+        "Because a `CardDef` is shared — the SAME object backs every minion of that card, across every board and every combat — so if `instantiate()` edited it directly, changing one minion's stats in one fight would silently corrupt every other minion built from that card, anywhere.",
+        "It isn't actually important — the comment is just stylistic phrasing."
+      ],
+      answer: 2,
+      explanation: "A `CardDef` (\"this is what a Gnasher is\") is loaded once and reused everywhere that card appears — not a fresh copy per minion. If combat code mutated it directly, that change would leak into every OTHER Gnasher anywhere in the game, since they all point at the same object. `instantiate()` avoids this by building a brand-new `Minion` with its own fields, leaving the shared `CardDef` untouched — the same idea CLAUDE.md states directly: \"Never mutate shared CardDefs — clone into combat Minion instances.\" (A)/(B) aren't the documented reason.",
+    },
+    {
+      topicId: "data-vs-code",
+      topicLabel: "Data vs. code",
+      question: "packages/content/src/schema.ts's <code>EffectFactoryIdSchema</code> is a `z.enum([...])` listing over a hundred string ids like `'deathrattleSummon'`, `'onKillBuffSelf'`, `'rallyCastSpell'`. A card's effect just picks one of these ids (plus params) — it is NOT a chunk of code that runs. Assuming `'deathrattleSummon'` already exists, what does this tell you about adding a new card whose ability is \"summon a copy of itself when it dies\"?",
+      choices: [
+        "Nothing — every new card requires writing new TypeScript code regardless of whether the ability already exists.",
+        "The card would need its own dedicated class written from scratch, since every card is its own program.",
+        "The enum is just documentation and has no bearing on what's actually possible in-game.",
+        "If the desired behavior already has a matching id in this list, the new card can be added as pure DATA — an entry in the card's `effects` array referencing `'deathrattleSummon'` plus its params — with no new code. New code is only needed when the desired behavior needs an effect primitive that ISN'T already in this enum."
+      ],
+      answer: 3,
+      explanation: "This is CLAUDE.md's \"cards are data, not bespoke classes\" rule made concrete: as long as the mechanic already exists as one of these ~100+ registered factory ids, a new card is just a data entry (`{ on: 'death', do: 'deathrattleSummon', params: {...} }`) — filling in a form, no programming needed. You only touch code — write a new factory function AND add its id here — when the behavior has genuinely never existed before. (A)/(B) overstate how much new content needs; (C) is wrong: this schema is zod-validated and actively restricts which `do` values are legal.",
+    },
+    {
+      topicId: "event-log-replay",
+      topicLabel: "Event log & replay",
+      question: "packages/core/src/events.ts's `CombatBus.emit()` loops with <code>for (const handler of [...list]) handler(payload)</code> — spreading `list` into a brand-new array — instead of the simpler <code>for (const handler of list) handler(payload)</code>. Its comment notes: \"handlers may themselves cause emits (a Deathrattle summon → onSummon).\" Why does that make the plain, no-copy loop risky?",
+      choices: [
+        "It has no real effect — `[...list]` is just a stylistic habit some developers have.",
+        "If a handler running mid-loop registers a NEW handler for the same event (e.g. a freshly-summoned minion joining combat), that push modifies the very array the `for...of` loop is iterating over live — hard to reason about. Snapshotting the list first means `emit()` always runs exactly the handlers that existed when it started; a new registration only affects the NEXT emit.",
+        "`[...list]` makes the array sort itself into the correct order before iterating.",
+        "It's required because JavaScript arrays can only be iterated with `for...of` a single time, ever."
+      ],
+      answer: 1,
+      explanation: "This is a classic \"don't mutate the thing you're iterating\" bug shape: a `for...of` over a live array behaves unpredictably if something pushes to it mid-loop. Since a Deathrattle-summoned minion can register its own event handlers as a side effect of an event still being processed, `emit()` snapshots the list (`[...list]`) up front so the current call always processes a fixed, predictable set of handlers. This is exactly what keeps the resulting event log — the thing replay reads — consistent and reproducible. (A) understates a real correctness guard; (C)/(D) describe things spread syntax doesn't do.",
+    },
+    {
+      topicId: "eslint-rules",
+      topicLabel: "ESLint rules",
+      question: "eslint.config.mjs's `banMathRandom` targets `packages/core/**`, `packages/content/**`, `packages/sim/**`, AND `packages/tools/**` — its comment explains the last one: `npm run pool` generates the COMMITTED opponent pool, so nondeterminism there \"means unreproducible pool builds.\" `packages/tools` isn't part of the live game engine at all — it's balance/build tooling. Why ban `Math.random` there too?",
+      choices: [
+        "Any code that GENERATES committed, checked-in game data (like the opponent pool file) needs to be just as reproducible as the engine itself — if two runs of the generator gave different random results, the committed output would differ every time it's regenerated, with no way to verify or reproduce a specific build of it.",
+        "It's an oversight — tools shouldn't really be included, nobody's cleaned up the lint config yet.",
+        "Tools code runs in the browser, where `Math.random` behaves differently than in Node.",
+        "It's banned everywhere in the whole repo, including packages/ui — this rule just happens to also mention tools."
+      ],
+      answer: 0,
+      explanation: "Determinism isn't only a \"live engine\" concern — it matters anywhere output gets committed to the repo and needs to be exactly reproducible on demand. `npm run pool`'s output becomes checked-in data everyone relies on being stable; if it used `Math.random`, running the generator twice could produce two different \"correct\" pools with no way to tell which is right or regenerate a specific one. So the same discipline — route all randomness through the seeded `Rng` — extends to any tool producing committed artifacts. (D) is wrong: the UI is explicitly exempt (\"cosmetic only\") per the same comment; (B)/(C) aren't the documented reason.",
+    },
+    {
+      topicId: "performance-memo",
+      topicLabel: "Performance architecture",
+      question: "docs/performance.md says to judge a performance change by the WORST frame in the affected window first, then long/jank counts, then p95 — calling the mean \"context, not a verdict.\" Its real example: a fix cut the MEAN frame time by 24%, but the WORST frame in that same window was still ~4x over budget. Why is \"worst frame,\" not the average, the number that decides whether a change actually fixed the game feeling smooth?",
+      choices: [
+        "The average is harder to compute in practice, so worst-case is used as a cheaper shortcut.",
+        "Worst-case numbers are always bigger, so reporting them makes a change look more impressive.",
+        "A player doesn't experience \"the average\" — they experience individual frames, and even one badly-late frame reads as a stutter regardless of how fast every other frame was. A mean can improve a lot while the exact moment that felt bad (the hitch) is completely unchanged.",
+        "The mean is actually the more reliable number; the doc only recommends worst-case as a secondary check."
+      ],
+      answer: 2,
+      explanation: "This is a general measurement lesson, not just a game-specific rule: averages hide outliers. If 99 frames take 2ms and one takes 20ms, the mean looks fine, but the player still feels that one 20ms hitch — averaging masks the exact thing performance work is trying to catch. The doc's own example (mean improved 24%, worst frame stayed ~4x over budget) is a case where a good-looking number papered over an unfixed problem. (D) has it backwards — the doc explicitly ranks worst frame ABOVE mean.",
+    }
+  ];
+
+  var current = 0;
+  var score = 0;
+  var answered = 0;
+  var letters = ["A", "B", "C", "D"];
+
+  var progressFill = document.getElementById("progressFill");
+  var progressLabel = document.getElementById("progressLabel");
+  var scoreLabel = document.getElementById("scoreLabel");
+  var topicTag = document.getElementById("topicTag");
+  var questionText = document.getElementById("questionText");
+  var choicesArea = document.getElementById("choicesArea");
+  var explanationArea = document.getElementById("explanationArea");
+  var verdictText = document.getElementById("verdictText");
+  var explanationText = document.getElementById("explanationText");
+  var nextBtn = document.getElementById("nextBtn");
+  var quizArea = document.getElementById("quizArea");
+  var summaryArea = document.getElementById("summaryArea");
+
+  function renderQuestion() {
+    var q = QUESTIONS[current];
+    topicTag.textContent = q.topicLabel;
+    questionText.innerHTML = q.question;
+    choicesArea.innerHTML = "";
+    explanationArea.classList.remove("show");
+    nextBtn.classList.remove("show");
+    progressFill.style.width = ((current) / QUESTIONS.length * 100) + "%";
+    progressLabel.textContent = "Q" + (current + 1) + " / " + QUESTIONS.length;
+    scoreLabel.textContent = "Score: " + score + " / " + answered + " answered";
+
+    q.choices.forEach(function (choiceHtml, idx) {
+      var btn = document.createElement("button");
+      btn.className = "choice";
+      btn.innerHTML = '<span class="letter">' + letters[idx] + '</span><span>' + choiceHtml + '</span>';
+      btn.addEventListener("click", function () { handleAnswer(idx, btn); });
+      choicesArea.appendChild(btn);
+    });
+  }
+
+  function handleAnswer(idx, btnEl) {
+    var q = QUESTIONS[current];
+    var allBtns = choicesArea.querySelectorAll(".choice");
+    allBtns.forEach(function (b, i) {
+      b.classList.add("locked");
+      if (i === q.answer) b.classList.add("correct");
+      else if (i === idx) b.classList.add("incorrect");
+      else b.classList.add("dim");
+      b.onclick = null;
+    });
+
+    var correct = idx === q.answer;
+    if (correct) score++;
+    answered++;
+    scoreLabel.textContent = "Score: " + score + " / " + answered + " answered";
+
+    verdictText.textContent = correct ? "✓ Correct!" : "✗ Not quite — correct answer is " + letters[q.answer] + ".";
+    verdictText.className = "verdict " + (correct ? "good" : "bad");
+    explanationText.innerHTML = q.explanation;
+    explanationArea.classList.add("show");
+    nextBtn.classList.add("show");
+    nextBtn.textContent = (current === QUESTIONS.length - 1) ? "See final score →" : "Next question →";
+  }
+
+  nextBtn.addEventListener("click", function () {
+    current++;
+    if (current >= QUESTIONS.length) {
+      showSummary();
+    } else {
+      renderQuestion();
+    }
+  });
+
+  function showSummary() {
+    quizArea.classList.add("hidden");
+    summaryArea.classList.remove("hidden");
+    document.getElementById("summaryScore").textContent = score + " / " + QUESTIONS.length;
+    var pct = Math.round((score / QUESTIONS.length) * 100);
+    document.getElementById("summaryPct").textContent = pct + "%";
+    var msg;
+    if (score === QUESTIONS.length) {
+      msg = "Perfect score! You're reading this codebase like it's your own — because it is. 🎉";
+    } else if (score >= 8) {
+      msg = "Great run — you clearly know your way around this engine. A couple of these were genuinely tricky.";
+    } else if (score >= 6) {
+      msg = "Solid! You're picking up the architecture steadily — reply with your score and which ones tripped you up, and tomorrow's quiz will circle back to them.";
+    } else if (score >= 4) {
+      msg = "Good effort — this is how learning a codebase actually feels. Tell me your score and we'll re-teach the tricky spots from a fresh angle.";
+    } else {
+      msg = "That's alright — these were dense ones today. Reply with your score and we'll slow down and revisit these topics soon.";
+    }
+    document.getElementById("summaryEncourage").textContent = msg;
+  }
+
+  renderQuestion();
+})();
+</script>
+</body>
+</html>

@@ -63,6 +63,14 @@ export const PATCH_NOTES: PatchNote[] = [
           'Games finished before this update show their results but have no replay.',
         ],
       },
+      { category: 'Systems', text: 'Practice has a new Unlimited time option: no shop timer at all.' },
+      { category: 'Systems', text: 'Practice has a new Heroes option. Beginner offers three starter heroes (Indy, Warden and Keshi); All offers every hero.' },
+    ],
+  },
+  {
+    date: '2026-09-27',
+    changes: [
+      { category: 'Systems', text: "Practice's Tribes option now explains itself: pick as many tribes as you like, and Neutrals are always included." },
     ],
   },
   {

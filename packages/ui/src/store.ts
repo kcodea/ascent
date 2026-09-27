@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { loadFpsCap, saveFpsCap } from './fpsCap';
 import { CARD_INDEX, activeSet, type SetId } from '@game/content';
-import { type CombatOdds, HEROES, playableHeroes, practiceHeroes, runTribesForSeed, OPPONENT_POOL, OPPONENT_POOL_DATA, registerOpponents, createRun, deserialize, initialProfile, resolveServerRank, adoptServerRank, legacyRatingChangeOf, rankedRunIdOf, type RankResult, type RankedProfile, isPlayerAction, missingCardIds, nextOpponent, parseQaScenario, reconstructRunTelemetry, recordTelemetryAction, emptyTelemetryLog, withLiveTelemetry, telemetrySourceOf, setIdOf, type TelemetryLog, beginDerive, observeAction, finishDerive, type DeriveState, reduce, reduceWithPresentation, serialize, snapshotBoard, type Action, type BoardSnapshot, type PlayerProfile, type RatingChange, type Replay, type RunMode, type RunState, combatFrameOf, deltaShopFrameOf, shopFrameOf, runRecord, type DragPath, type ReplayFrame, type ReplayV2, type ShopView, appendInspectEvent, type InspectEvent, type InspectSnapshot, createLobbyRun, enableAncients, createTutorialRun, type TutorialCourse, type PracticeConfig, type BotLevel, DEFAULT_PRACTICE_CONFIG, normalizeBotDifficulty, normalizePracticeTribes, practiceRunTribes, warmLobbySeat, prepareActionWithPresentation, type PreparedPresentationAction, fightRowsOf, opponentFightKeys, type LobbyStrength, type FightRow } from '@game/sim';
+import { type CombatOdds, HEROES, playableHeroes, practiceHeroChoiceIds, runTribesForSeed, OPPONENT_POOL, OPPONENT_POOL_DATA, registerOpponents, createRun, deserialize, initialProfile, resolveServerRank, adoptServerRank, legacyRatingChangeOf, rankedRunIdOf, type RankResult, type RankedProfile, isPlayerAction, missingCardIds, nextOpponent, parseQaScenario, reconstructRunTelemetry, recordTelemetryAction, emptyTelemetryLog, withLiveTelemetry, telemetrySourceOf, setIdOf, type TelemetryLog, beginDerive, observeAction, finishDerive, type DeriveState, reduce, reduceWithPresentation, serialize, snapshotBoard, type Action, type BoardSnapshot, type PlayerProfile, type RatingChange, type Replay, type RunMode, type RunState, combatFrameOf, deltaShopFrameOf, shopFrameOf, runRecord, type DragPath, type ReplayFrame, type ReplayV2, type ShopView, appendInspectEvent, type InspectEvent, type InspectSnapshot, createLobbyRun, enableAncients, createTutorialRun, type TutorialCourse, type PracticeConfig, type BotLevel, DEFAULT_PRACTICE_CONFIG, normalizeBotDifficulty, normalizePracticeTribes, practiceRunTribes, warmLobbySeat, prepareActionWithPresentation, type PreparedPresentationAction, fightRowsOf, opponentFightKeys, type LobbyStrength, type FightRow } from '@game/sim';
 import type { PresentationBatch } from '@game/core';
 import { combatTimelineFrom } from './choreographer/combatTimeline';
 import type { RuneLockInCard } from './RuneLockIn';
@@ -838,6 +838,9 @@ function loadSbBotLevel(): BotLevel {
 function loadPracticeTimer(): number {
   try {
     const v = Number(localStorage.getItem('ascent.practicetimer'));
+    // 0 = Unlimited (no turn clock, owner 2026-09-27); 1-4 = the multiplier.
+    const raw = localStorage.getItem('ascent.practicetimer');
+    if (raw === '0') return 0;
     return v >= 1 && v <= 4 ? Math.round(v) : 3;
   } catch { return 3; }
 }
@@ -861,6 +864,8 @@ function loadPracticeConfig(): PracticeConfig {
       botDifficulty: normalizeBotDifficulty(parsed.botDifficulty),
       // Only the live set's tribes, in set order (a tribe saved while another set was live is dropped).
       tribes: normalizePracticeTribes(parsed.tribes),
+      // Practice hero offer (2026-09-27): only the two known modes; anything else (an old draft) opens on Beginner.
+      heroes: parsed.heroes === 'all' ? 'all' : 'beginner',
     };
   } catch { return { ...DEFAULT_PRACTICE_CONFIG }; }
 }
@@ -1855,7 +1860,8 @@ export const useGame = create<GameStore>((rawSet, get) => {
   practiceSetupOpen: false,
   practiceDraft: loadPracticeConfig(),
   setPracticeTimer: (mult) => {
-    const practiceTimer = Math.min(4, Math.max(1, Math.round(mult)));
+    // 0 = Unlimited (no turn clock); otherwise clamp to the 1-4x multiplier.
+    const practiceTimer = mult === 0 ? 0 : Math.min(4, Math.max(1, Math.round(mult)));
     try { localStorage.setItem('ascent.practicetimer', String(practiceTimer)); } catch { /* ignore */ }
     set({ practiceTimer });
   },
@@ -2110,7 +2116,7 @@ export const useGame = create<GameStore>((rawSet, get) => {
     // both start where the setup screen left them.
     try { localStorage.setItem('ascent.practicetimer', String(s.practiceDraft.timeMult)); } catch { /* ignore */ }
     const seed = randomSeed();
-    return { practiceSetupOpen: false, practiceTimer: s.practiceDraft.timeMult, pendingMode: 'practice', pendingSeed: seed, heroChoices: practiceHeroes(practiceRunTribes(seed, s.practiceDraft)).map((h) => h.id) };
+    return { practiceSetupOpen: false, practiceTimer: s.practiceDraft.timeMult, pendingMode: 'practice', pendingSeed: seed, heroChoices: practiceHeroChoiceIds(s.practiceDraft.heroes, practiceRunTribes(seed, s.practiceDraft)) };
   }),
   cancelPracticeSetup: () => set({ practiceSetupOpen: false, showTitle: true, titleView: 'menu' }),
   startRift: () => set(() => { const seed = randomSeed(); return { showTitle: false, pendingMode: 'rift', pendingSeed: seed, heroChoices: rollHeroChoices(tribesForSeed(seed)), avatarPickerOpen: false }; }),

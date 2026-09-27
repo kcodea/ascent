@@ -97,7 +97,12 @@ export function AncientPreview({ heroId, anchor, leaving = false, inMs = 180, ou
   // Placement: to the right of the hero power, vertically centred on it, clamped to the viewport.
   const vp = stageViewport(); // the window in stage px, matching the anchor
   const W = Math.min(300, vp.w - 32);
-  const H = 505;
+  // The panel's REAL height (owner 2026-09-27: "the full text should show"): the stage now sizes to the tallest
+  // Ancient's page, so a long name + effect is never clipped. Read ONCE after mount (not per frame) to clamp the
+  // panel inside the viewport; 505 is the first-paint estimate.
+  const rootRef = useRef<HTMLDivElement | null>(null);
+  const [H, setH] = useState(505);
+  useLayoutEffect(() => { const h = rootRef.current?.offsetHeight; if (h && h !== H) setH(h); }, [heroId, H]);
   const flip = anchor.right + 18 + W > vp.w - 12;
   const left = flip ? Math.max(12, anchor.left - 18 - W) : anchor.right + 18;
   const top = Math.max(12, Math.min((anchor.top + anchor.bottom) / 2 - H / 2, vp.h - H - 12));
@@ -105,7 +110,7 @@ export function AncientPreview({ heroId, anchor, leaving = false, inMs = 180, ou
   useEffect(() => { const r = requestAnimationFrame(() => setShown(true)); return () => cancelAnimationFrame(r); }, []);
 
   return createPortal(
-    <div className={`anc-pv${shown && !leaving ? ' shown' : ''}${leaving ? ' leaving' : ''}${flip ? ' flip' : ''}`}
+    <div ref={rootRef} className={`anc-pv${shown && !leaving ? ' shown' : ''}${leaving ? ' leaving' : ''}${flip ? ' flip' : ''}`}
       style={{ left, top, width: W, '--anc-pv-in': `${inMs}ms`, '--anc-pv-out': `${outMs}ms` } as CSSProperties}
       role="dialog" aria-label="The Ancients" tabIndex={-1}
       onWheel={onWheel} onKeyDown={onKeyDown} onPointerEnter={onPointerEnter} onPointerLeave={onPointerLeave}>
@@ -114,6 +119,11 @@ export function AncientPreview({ heroId, anchor, leaving = false, inMs = 180, ou
         <span className="anc-pv-hint">scroll to browse</span>
       </div>
       <div className="anc-pv-stage">
+        {/* SIZER: every Ancient's page, invisible, stacked in the same cell, so the stage is exactly as tall as the
+            tallest one. Every page then shows in full, and the panel keeps one height while you browse. */}
+        <div className="anc-pv-sizer" aria-hidden="true">
+          {ANCIENT_IDS.map((a) => <div key={a} className="anc-pv-page"><Page id={a} heroId={heroId} picked={a === pickedId} /></div>)}
+        </div>
         {ghost && <div ref={ghostRef} className="anc-pv-page ghost" aria-hidden="true"><Page id={ghost} heroId={heroId} picked={ghost === pickedId} /></div>}
         <div ref={pageRef} key={id} className="anc-pv-page" aria-live="polite"><Page id={id} heroId={heroId} picked={id === pickedId} /></div>
       </div>

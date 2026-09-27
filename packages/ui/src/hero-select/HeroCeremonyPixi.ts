@@ -22,6 +22,7 @@
  */
 import { Application, Container, Graphics, Sprite, Texture } from 'pixi.js';
 import type { RectSnapshot } from './heroCeremonyMachine';
+import { stageScale } from '../stage';
 
 // ─── pure math (exported for tests) ───────────────────────────────────────────────────────────────────────
 
@@ -233,7 +234,10 @@ class HeroCeremonyFx implements HeroCeremonyFxController {
   }
 
   private async init(host: HTMLElement): Promise<void> {
-    const res = Math.min(window.devicePixelRatio || 1, 2); // same DPR cap as the gameplay overlay
+    // Same DPR cap as the gameplay overlay, times the stage scale: `resizeTo: host` sizes this renderer in LAYOUT px,
+    // which on a scaled stage (stage.ts) is up to ~2.8x the screen size per axis, so without the factor a phone
+    // rendered ~8x the pixels it shows (measured: ceremony frame 9 ms -> 64 ms at 844x390 under 4x throttle).
+    const res = Math.min(window.devicePixelRatio || 1, 2) * stageScale();
     const app = new Application();
     await app.init({
       resizeTo: host,

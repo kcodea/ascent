@@ -71,6 +71,16 @@ describe('the scaled stage: nothing escapes #stage', () => {
     expect(offenders).toEqual([]);
   });
 
+  it('a Pixi renderer sized to a DOM host folds the stage scale into its resolution', () => {
+    // `resizeTo: <element>` sizes the renderer in LAYOUT px; on a phone that is ~2.8x the screen per axis, so a
+    // bare devicePixelRatio renders ~8x the pixels shown (the hero ceremony did: 9 ms -> 64 ms a frame).
+    const offenders = code.filter((f) => {
+      const src = readFileSync(f, 'utf8');
+      return /resizeTo:\s*(?!window\b)[A-Za-z_]/.test(src) && !src.includes('stageScale()');
+    }).map(rel);
+    expect(offenders).toEqual([]);
+  });
+
   it('TSX inline styles do not use raw viewport units', () => {
     const offenders: string[] = [];
     for (const f of code) {

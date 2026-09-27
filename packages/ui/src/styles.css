@@ -4058,6 +4058,19 @@ body.dragging .statusbar .heropanel { pointer-events: none; } /* let a corner-re
 .equipflash.reequip { width: 56px; height: 56px; border-color: rgba(232, 198, 106, 0.7);
   box-shadow: 0 0 16px 3px rgba(232, 198, 106, 0.35); animation-duration: 260ms; }
 
+/* START OF TURN BEAT source ring (R-SOT-BEAT-01): a rune / quest badge, or the Equipment body + slot, announcing its own
+   Start of Turn beat after the return wipe. ONE-SHOT and compositor-only (transform + opacity; the shadow is static),
+   appended to #stage at a measured point converted with toStage. */
+.sotflash { position: fixed; z-index: 60; pointer-events: none; width: 84px; height: 84px; border-radius: 50%;
+  border: 3px solid rgba(255, 226, 150, 0.95); box-shadow: 0 0 24px 6px rgba(255, 214, 120, 0.5);
+  animation: sotflash 560ms ease-out forwards; }
+.sotflash.reequip { width: 60px; height: 60px; border-color: rgba(232, 198, 106, 0.8); animation-duration: 420ms; }
+@keyframes sotflash {
+  0%   { opacity: 0; transform: translate(-50%, -50%) scale(0.55); }
+  30%  { opacity: 1; transform: translate(-50%, -50%) scale(1.08); }
+  100% { opacity: 0; transform: translate(-50%, -50%) scale(1.35); }
+}
+
 /* HERO-POWER DISCOVER (Mimic / Void) — the pick plaques inside the quest-shop chrome. */
 .power-ov-cards { display: flex; gap: 22px; justify-content: center; }
 .powerpick { display: flex; flex-direction: column; align-items: center; gap: 8px; width: 240px; padding: 18px 16px 16px;

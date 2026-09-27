@@ -79,6 +79,13 @@ export function turnClockReset(
  * a Choose One, a scouting reveal), while the hero picker or any full-screen overlay is open, and while the
  * "Good Luck" intro is playing (owner ask 2026-09-24: the clock begins only once the intro has faded, or the
  * player skipped it). A held clock is not reset, so the turn is never shortened by any of these.
+ *
+ * THE TURN STARTS AFTER THE RETURN AND ITS START OF TURN BEATS (owner 2026-09-27, R-SOT-TIMER-01: "the timer/turn
+ * shouldnt start until after they complete. also, they need to wait until the transition back from combat
+ * finishes."): the clock also holds while the combat<->shop curtain is up (`transitionPlaying`) and while the Shop is
+ * still playing the turn's Start of Turn beats (`startOfTurnPlaying`, `sotBeats.ts`). A turn with no Start of Turn
+ * effect has nothing to play, so its clock starts the moment the wipe comes to rest, with no added delay. Both are
+ * optional so a caller that predates them (a test, a tool) keeps its old answer.
  */
 export function turnClockMayTick(g: {
   recruitPhase: boolean;
@@ -86,6 +93,9 @@ export function turnClockMayTick(g: {
   heroSelecting: boolean;
   overlayOpen: boolean;
   introPlaying: boolean;
+  transitionPlaying?: boolean;
+  startOfTurnPlaying?: boolean;
 }): boolean {
-  return g.recruitPhase && !g.decisionOpen && !g.heroSelecting && !g.overlayOpen && !g.introPlaying;
+  return g.recruitPhase && !g.decisionOpen && !g.heroSelecting && !g.overlayOpen && !g.introPlaying
+    && !g.transitionPlaying && !g.startOfTurnPlaying;
 }

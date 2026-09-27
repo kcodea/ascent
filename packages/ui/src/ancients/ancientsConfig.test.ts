@@ -15,14 +15,16 @@ describe('the Ancients tuner defaults', () => {
       bondsColor: '#9b5de5', // the sixth Ancient, purple (owner 2026-09-26)
     });
     expect(ANCIENT_ART_IDS).toHaveLength(6);
-    // THE PICK → SLAM (owner 2026-09-27; the numbers are argued in docs/devlog/2026-09-27-ancient-pick-research.md):
-    // the backdrop fades, the card lifts 120 + flies 360 (contact at 480), a 70 ms hit-stop, then the burst + shake.
+    // THE PICK → COLLAPSE → TRIPLE TRAIL → SLAM (owner 2026-09-27; numbers argued in
+    // docs/devlog/2026-09-27-ancient-pick-research.md): the backdrop fades, the card pinches into a core (200 ms), the
+    // triple's trail launches at 70% of it, lands, a 60 ms hit-stop, then the ring + shake + crack.
     expect(ANCIENTS_DEFAULTS).toMatchObject({
-      pickFadeMs: 380, pickLiftMs: 120, pickFlightMs: 360, hitStopMs: 70,
+      pickFadeMs: 380, collapseMs: 200, trailAt: 0.7, trailTime: 1, trailIntensity: 0.7, coreGlow: 1, hitStopMs: 60,
+      pickWooshClip: 'fx/metal-woosh', pickSealClip: 'fx/triple-impact', // the triple's own two clips
       shakeMs: 280, shakePx: 5, punchZoom: 0.012, recoil: 0.1, burstScale: 1, impactFlash: 0.55, impactFlashMs: 200,
-      crackOpenMs: 320, splitMs: 440, shineMs: 560, // the follow-through, tightened the same day
+      crackOpenMs: 260, splitMs: 440, shineMs: 560, // the follow-through, tightened the same day
     });
-    expect(ANCIENTS_DEFAULTS).not.toHaveProperty('closeMs'); // the gate no longer contracts back into the hero power
+    for (const k of ['closeMs', 'pickLiftMs', 'pickFlightMs']) expect(ANCIENTS_DEFAULTS).not.toHaveProperty(k); // retired: no circle collapse, no flying art square
     expect(ANCIENTS_DEFAULTS).toMatchObject({ tunerHero: 'indy', tunerStyle: 'auto' }); // tuner-only pickers
   });
   it('fit every Ancient’s hero-power art at the neutral offset (0) and scale (1)', () => {

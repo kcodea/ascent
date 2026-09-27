@@ -554,3 +554,13 @@ body.ancgate .app { z-index: auto; }
   transform: translate(-50%, -50%); mix-blend-mode: screen;
   background: radial-gradient(closest-side, rgba(255, 250, 236, 0.95) 0%, rgba(255, 232, 186, 0.55) 38%, rgba(255, 214, 150, 0) 100%);
 }
+
+/* THE PICK's collapse core (`ancientPickSlam.ts`): light gathering to the centre of the chosen Ancient's art as it
+   pinches into the triple trail. Static gradient in the Ancient's colour; only opacity + transform animate, once. */
+.anc-collapse-core {
+  position: absolute; inset: 0; z-index: 3; pointer-events: none; opacity: 0;
+  /* At full opacity it FLOODS the frame (white-hot centre into the Ancient's colour to the edge), so the art is gone
+     into light before it gets small. */
+  background: radial-gradient(closest-side, #fff 0%, color-mix(in srgb, var(--anc-c, #e6b45a) 40%, #fff) 30%,
+    var(--anc-c, #e6b45a) 72%, color-mix(in srgb, var(--anc-c, #e6b45a) 70%, #000) 100%);
+}

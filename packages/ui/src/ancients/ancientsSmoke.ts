@@ -69,3 +69,11 @@ export function ancientPickBurst(color: string, at: Pt, scale: number, intensity
   // Brighter than the dust's muted tint: this is a flash of light off the hit, rim in the colour, core white-hot.
   playDef('ancient-pick-impact', { source: at, target: at, cursor: at }, { scale, intensity, recolor: [shade(color, -0.1), shade(color, 0.2), shade(color, 0.55), 0xffffff], slot: 'over', ...(alpha != null ? { alpha } : {}) });
 }
+
+/** The TRIPLE trail's palette in an Ancient's colour: the gild's own ramp shape (a deep rim through to a near-white
+ *  core, `gild-trail`'s gold 8A5A0C → C9901F → F1CB5E → FFF3C4), so the recoloured trail reads as the same light. */
+export function ancientTrailPalette(color: string): number[] {
+  // Saturated all the way up: the ribbon's banding (gain 2) pushes it toward the top stops, so a near-white top read
+  // as cream on the tan board (passes 1 + 2). The top stop is only a light tint of the colour.
+  return [shade(color, -0.35), shade(color, 0), shade(color, 0.1), shade(color, 0.3)];
+}

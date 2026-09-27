@@ -38,6 +38,7 @@ const UNIT_LESS: { file: string; id: string; why: string }[] = [
   { file: 'ancientsSmoke.ts', id: 'ancient-slam', why: 'the Ancients reveal slam: lands under an Ancient offer card, not a unit' },
   { file: 'ancientsSmoke.ts', id: 'ancient-slam-sparks', why: 'the Ancients reveal slam sparks: burst from under an Ancient offer card, not a unit' },
   { file: 'ancientsSmoke.ts', id: 'runeforge-land-dust', why: 'the Ancients landing dust: under an Ancient offer card or the hero-power BUTTON (HUD chrome), not a unit' },
+  { file: 'ancientPickSlam.ts', id: 'gild-trail', why: 'the Ancients pick: the chosen offer card collapses into the triple trail, which flies to the hero-power BUTTON (HUD chrome), no unit on either end' },
   { file: 'ancientsSmoke.ts', id: 'ancient-pick-impact', why: 'the Ancients pick impact: bursts on the hero-power BUTTON (HUD chrome), no unit' },
   { file: 'TavernUpButton.tsx', id: 'shop-tier-up', why: 'fires at the button' },
   { file: 'FreezeButton.tsx', id: 'freeze-blast', why: 'fires at the button' },

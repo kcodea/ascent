@@ -62,4 +62,12 @@ describe('recolorDef', () => {
     expect(out.label).toBe('x');
     expect(out.tags).toEqual(['a']);
   });
+
+  it('leaves an authored glow tint alone by default, and tints it to the core stop only when asked (`glow`)', () => {
+    const d = def([layer({ palette: [1, 2, 3, 4], glow_color: 0xffe9a8 }, 'ribbon')]);
+    expect(recolorDef(d, PAL).layers[0].params.glow_color).toBe(0xffe9a8);
+    expect(recolorDef(d, PAL, { glow: true }).layers[0].params.glow_color).toBe(PAL[3]);
+    // a layer with no glow filter gains no glow_color
+    expect(recolorDef(def([layer({ palette: [1, 2, 3, 4] })]), PAL, { glow: true }).layers[0].params).not.toHaveProperty('glow_color');
+  });
 });

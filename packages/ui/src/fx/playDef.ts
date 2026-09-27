@@ -159,6 +159,9 @@ export interface PlayDefOptions extends FxScaleAxes {
    * exact no-op — the def object is not even copied.
    */
   recolor?: readonly number[];
+  /** With `recolor`: also tint each recoloured layer's GLOW FILTER (`glow_color`) to the palette's core stop, so an
+   *  authored glow does not keep its old colour round the new one (see `recolorDef`). Off = exact old behaviour. */
+  recolorGlow?: boolean;
   /**
    * A VOLUME multiplier for this play's Sound layers, on the def's own authored `gain`: `1` (or omitted) is an
    * exact no-op, `0.5` half, `0` silent. Used by a card binding's per-card volume (see `FxBinding.gain`) so the
@@ -580,7 +583,7 @@ function playDefInner(
   // Per-call sizing, applied AFTER `getDef` — `scaleDef` reads the primitive registry, and nothing may do
   // that before `playDef`'s own `canPlayDefs()`-gated path (see `fxDefs.ts`'s ORDER MATTERS note). With both
   // axes at their default 1 this returns `playableDef`'s object by identity: an exact no-op.
-  const def = gainScaledDef(staggerLayers(recolorDef(scaleDef(playableDef(stored), opts), opts.recolor), opts.index ?? 0), opts.gain, opts.muteSound);
+  const def = gainScaledDef(staggerLayers(recolorDef(scaleDef(playableDef(stored), opts), opts.recolor, { glow: opts.recolorGlow }), opts.index ?? 0), opts.gain, opts.muteSound);
   const layers = def.layers;
   // Every layer muted = an effect that renders nothing. Declining is cheaper and more honest than mounting
   // a container and running an updater for a guaranteed-empty play.

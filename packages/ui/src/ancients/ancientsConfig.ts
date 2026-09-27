@@ -115,11 +115,18 @@ export interface AncientsConfig {
    *  research note docs/devlog/2026-09-27-ancient-pick-research.md for why these numbers.
    *  The backdrop (and the unchosen cards + banner) fading off, from the click (ms). */
   pickFadeMs: number;
-  /** Anticipation: the chosen card lifts and pulls back from the hero power before it goes (ms). */
-  pickLiftMs: number;
-  /** The flight: the card accelerating (ease-in) into the hero power, after the lift (ms). */
-  pickFlightMs: number;
-  /** Hit-stop: the card held squashed against the hero power at contact before the burst releases (ms). 0 = none. */
+  /** THE COLLAPSE (owner 2026-09-27, second pass: "do not use the art square ... collapse it into the same pixi style
+   *  effect we use for when the player gets a triple"): the chosen card pinches into a bright core of its colour (ms). */
+  collapseMs: number;
+  /** When the triple's trail launches out of the core, as a fraction of the collapse (the core hands off to it). */
+  trailAt: number;
+  /** The triple's trail (`gild-trail`, recoloured to the Ancient): its speed (× the triple's own 420 ms flight). */
+  trailTime: number;
+  /** The triple's trail: particle amount (×). */
+  trailIntensity: number;
+  /** The core's glow as the card collapses (peak opacity). */
+  coreGlow: number;
+  /** Hit-stop: the hero power held squashed at contact before the shake + crack release (ms). 0 = none. */
   hitStopMs: number;
   /** Screen react: the board's trauma shake after the release (ms). */
   shakeMs: number;
@@ -172,7 +179,7 @@ const ART_DEFAULTS = Object.fromEntries(
 export type AncientColorKey = `${'death' | 'fortune' | 'war' | 'genesis' | 'time' | 'bonds'}Color`;
 /** THE AWAKENING SOUND CUES (owner: "i can help source sounds if you set up a tuner with timing cues"). Each cue is a
  *  clip id (swap in the owner's SFX in the tuner), a gain, an offset (ms, relative to its beat) and a rate (pitch). */
-export const ANCIENT_CUES = ['omenRumble', 'eruptionBoom', 'eruptionFlash', 'titleSting', 'cardReveal', 'ambientHum', 'pickSeal'] as const;
+export const ANCIENT_CUES = ['omenRumble', 'eruptionBoom', 'eruptionFlash', 'titleSting', 'cardReveal', 'ambientHum', 'pickWoosh', 'pickSeal'] as const;
 export type AncientCue = (typeof ANCIENT_CUES)[number];
 export type AncientCueKey = `${AncientCue}${'Clip' | 'Gain' | 'Offset' | 'Rate'}`;
 /** The shipped picks (existing repo clips, pitched where it helps). Gains baked from the owner's tuner 2026-09-26. */
@@ -183,6 +190,9 @@ export const ANCIENT_CUE_DEFAULTS: Record<AncientCue, { clip: string; gain: numb
   titleSting: { clip: 'fx/waking-rift', gain: 0.75, offset: 60, rate: 1 },
   cardReveal: { clip: 'runeselectimplosion', gain: 0.19, offset: 0, rate: 0.9 },
   ambientHum: { clip: 'turncharge', gain: 0.18, offset: 0, rate: 0.45 },
+  // The pick's trail: the triple's own woosh + impact clips (the gild-trail def's sound layers, muted there so these
+  // play on the undiminished hero bus and land exactly on the collapse / contact frames).
+  pickWoosh: { clip: 'fx/metal-woosh', gain: 0.32, offset: 0, rate: 0.8 },
   pickSeal: { clip: 'fx/triple-impact', gain: 0.62, offset: 0, rate: 0.85 },
 };
 const CUE_DEFAULTS = Object.fromEntries(ANCIENT_CUES.flatMap((c) => {
@@ -242,17 +252,20 @@ export const ANCIENTS_DEFAULTS: AncientsFullConfig = {
   ...ANCIENT_HERO_THEMES.default,
   tunerHero: 'indy',
   tunerStyle: 'auto',
-  // The pick → slam (owner 2026-09-27; numbers argued in docs/devlog/2026-09-27-ancient-pick-research.md):
-  // click → contact 480 ms, hit-stop 70, release at 550, split settled ~1.15 s, last glint ~1.4 s.
+  // The pick → collapse → triple trail → slam (owner 2026-09-27; numbers argued in
+  // docs/devlog/2026-09-27-ancient-pick-research.md). See `pickTimeline` for the resulting clock.
   pickFadeMs: 380,
-  pickLiftMs: 120,
-  pickFlightMs: 360,
-  hitStopMs: 70,
+  collapseMs: 200,
+  trailAt: 0.7,
+  trailTime: 0.75, // passes 1-2: at the triple's own 420 ms the ribbon's tail kept arriving ~180 ms after the hit
+  trailIntensity: 0.55,
+  coreGlow: 1,
+  hitStopMs: 60,
   shakeMs: 280,
   shakePx: 5,
   punchZoom: 0.012,
   recoil: 0.1,
-  burstScale: 1,
+  burstScale: 0.6, // the triple's landing is the main burst now; this is only the crisp ring on the release
   impactFlash: 0.55,
   impactFlashMs: 200,
   duckAmount: 0.3,
@@ -266,7 +279,7 @@ export const ANCIENTS_DEFAULTS: AncientsFullConfig = {
   crackEdge: 2,
   crackEdgeAlpha: 0.9,
   crackShadow: 0.45,
-  crackOpenMs: 320, // was 420 (2026-09-27)
+  crackOpenMs: 260, // was 420, then 320 (2026-09-27 pass 3: the crack read late under the landing's sparks)
 };
 
 type NumKey = { [K in keyof AncientsFullConfig]: AncientsFullConfig[K] extends number ? K : never }[keyof AncientsFullConfig];
@@ -311,8 +324,11 @@ export const ANCIENTS_RANGES: Record<NumKey, [number, number, number]> = {
   slamDust: [0, 4, 0.05],
   slamSparks: [0, 3, 0.05],
   pickFadeMs: [60, 1500, 10],
-  pickLiftMs: [0, 600, 10],
-  pickFlightMs: [120, 1500, 10],
+  collapseMs: [60, 800, 10],
+  trailAt: [0, 1, 0.05],
+  trailTime: [0.4, 2.5, 0.05],
+  trailIntensity: [0, 2, 0.05],
+  coreGlow: [0, 1, 0.01],
   hitStopMs: [0, 300, 5],
   shakeMs: [0, 1000, 10],
   shakePx: [0, 20, 0.5],
@@ -350,7 +366,7 @@ let cfg: AncientsFullConfig = (() => {
     // A save from before the pick → slam rework (2026-09-27) stored EVERY value, so it would pin the old follow-through
     // timings: let the retuned ones take their new defaults (the owner's other dials are kept).
     if (!('pickFadeMs' in s)) { for (const k of ['splitMs', 'shineMs', 'crackOpenMs', 'closeMs']) delete s[k]; }
-    delete s.closeMs;
+    for (const k of ['closeMs', 'pickLiftMs', 'pickFlightMs']) delete s[k]; // retired keys
     return { ...ANCIENTS_DEFAULTS, ...(s as Partial<AncientsFullConfig>) };
   } catch {
     return { ...ANCIENTS_DEFAULTS };

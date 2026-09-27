@@ -66,8 +66,9 @@ export const DIRECT_CALL_SITES: Readonly<Record<string, readonly string[]>> = {
   'freeze-blast': ['FreezeButton.tsx'],
   // THE GILD (owner redesign 2026-09-24, replacing plateGild's centre-screen fuse): one play PER consumed copy,
   // from where it stood into the new gilded card — the poof, the arc and the landing are all this one def.
-  // (The Ancients pick beat stopped playing it on 2026-09-27: the chosen card itself flies in now, `ancient-pick-impact`.)
-  'gild-trail': ['gildTrail.ts'],
+  // The Ancients PICK (2026-09-27, owner: "collapse it into the same pixi style effect we use for when the player gets
+  // a triple"): the chosen Ancient collapses into this same trail, recoloured, flying into the hero power.
+  'gild-trail': ['ancients/ancientPickSlam.ts', 'gildTrail.ts'],
   // A HAND card getting stronger — minion, spell, Ruby or token (owner-authored 2026-09-15, replacing the CSS
   // spell-buff grow/shrink + mote blast). Fired from the one `playHandBuffOn` every surface's fan-out lands on:
   // the shop's hand diff, the End-of-Turn presenters and the combat replay's `handBuff` beat scan.

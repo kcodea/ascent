@@ -17,32 +17,18 @@ describe('the shop draw weights each card by the copies left in the shared pool'
     const counts: Record<string, number> = { alley: 0, stray: 0, sandbag: 0 };
     const rng = makeRng(11);
     const N = 6000;
-    for (let i = 0; i < N; i++) counts[drawOfferId(rng, defs, null, stock)!]! += 1;
+    for (let i = 0; i < N; i++) counts[drawOfferId(rng, defs, stock)!]! += 1;
     expect(counts.sandbag, 'no copies → never offered').toBe(0);
     const strayShare = counts.stray! / N;
     expect(strayShare, 'a single copy among sixteen tickets').toBeGreaterThan(1 / 16 - 0.02);
     expect(strayShare).toBeLessThan(1 / 16 + 0.02);
   });
 
-  it('is deterministic for a seed, and a Practice tribe surge doubles that tribe\'s tickets', () => {
+  it('is deterministic for a seed', () => {
     const stock = { alley: 4, stray: 4, sandbag: 4 };
-    const a = drawOfferId(makeRng(5), defs, null, stock);
-    const b = drawOfferId(makeRng(5), defs, null, stock);
+    const a = drawOfferId(makeRng(5), defs, stock);
+    const b = drawOfferId(makeRng(5), defs, stock);
     expect(a).toBe(b);
-    // Under a Beast surge every Beast holds twice its copies in tickets; the expectation is computed from the
-    // real tribes so the assertion cannot drift with a retribe.
-    const counts: Record<string, number> = { alley: 0, stray: 0, sandbag: 0 };
-    const rng = makeRng(3);
-    const N = 6000;
-    for (let i = 0; i < N; i++) counts[drawOfferId(rng, defs, 'beast', stock)!]! += 1;
-    const w = (id: string): number => 4 * (CARD_INDEX[id]!.tribe === 'beast' ? 2 : 1);
-    const total = defs.reduce((n, d) => n + w(d.id), 0);
-    expect(defs.some((d) => d.tribe === 'beast') && defs.some((d) => d.tribe !== 'beast'), 'the fixture needs both a Beast and a non-Beast').toBe(true);
-    for (const d of defs) {
-      const share = counts[d.id]! / N;
-      expect(share, d.id).toBeGreaterThan(w(d.id) / total - 0.03);
-      expect(share, d.id).toBeLessThan(w(d.id) / total + 0.03);
-    }
   });
 
   it('end to end: a card down to its last copy appears far less often than a full stack across seeds', () => {

@@ -187,7 +187,7 @@ const EVENT_LABEL: Record<AnnouncerEvent, string> = {
   heroPick: 'Hero picked, per hero (with Game start, replaces it)',
   tribeTakeover: '5+ of one tribe on the board, per tribe (0 ms)',
   opponentHero: 'Facing a hero, per hero (1600 ms)',
-  tribeSurge: 'Practice tribe surge, per tribe (1000 ms after the round-2 return)',
+  tribeSurge: 'Practice picked tribes, per tribe (1000 ms after the round-2 return)',
   rankUp: 'Rank up on the rank screen (after the end line)',
   grimPayout: 'Grim pays out with 6+ Echoes counted (as shown, 3 s in)',
   hanGover: 'Han Gover Pummel pays out (as shown, 3 s in)',

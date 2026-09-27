@@ -53,7 +53,7 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-09-27',
     changes: [
-      { category: 'Systems', text: "Practice's Tribe surge now lists only the tribes in the current set." },
+      { category: 'Systems', text: 'Practice now lets you pick which tribes are in the game. Pick one or more tribes, or Normal for the usual random tribes.' },
     ],
   },
   {

@@ -40,12 +40,13 @@ export const RANDOMNESS_RULES: GameRule[] = [
       + 'card has left: every remaining copy is one ticket. A card down to its last copy is rarer in exact '
       + 'proportion, and the odds shift gradually as the pool drains — never a cliff where a last copy is as likely '
       + 'as a full stack until it hits zero. Eligibility (tavern tier, active tribes, at least one copy) is '
-      + 'unchanged; a Practice tribe surge doubles that tribe\'s tickets.',
+      + 'unchanged. (The Practice tribe surge that doubled a tribe\'s tickets was retired 2026-09-27 for picked run '
+      + 'tribes, R-PRACTICE-SURGE-01.)',
     domain: 'randomness',
     status: 'approved',
     evidence: [
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-10 (on Codex\'s review)', quote: 'we need to fix the copies issue - the # of copies should directly impact how likely a card is to be found. the way it is working today is not correct.' },
-      { kind: 'code', ref: 'packages/sim/src/shop.ts drawOfferId (ticket weights = stock × surge), called from rollShop and topUpTavern with state.pool' },
+      { kind: 'code', ref: 'packages/sim/src/shop.ts drawOfferId (ticket weights = stock), called from rollShop and topUpTavern with state.pool' },
     ],
     currentBehaviour:
       'Conforms — 2026-09-10 (PR #1406). The draw was uniform by card identity while any copy remained (the only '

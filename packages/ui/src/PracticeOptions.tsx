@@ -1,26 +1,29 @@
-import { useEffect } from 'react';
 import { useGame } from './store';
 import { sfx } from './sfx';
-import { BOT_LEVELS, MAX_BOT_LEVEL, MIN_BOT_LEVEL, newRunSurgeTribes, type BotLevel, type PracticeConfig, type SurgeTribe } from '@game/sim';
+import { BOT_LEVELS, MAX_BOT_LEVEL, MIN_BOT_LEVEL, practiceTribeOptions, togglePracticeTribe, type BotLevel, type PracticeConfig, type PracticeTribe } from '@game/sim';
 
 /**
  * PRACTICE OPTIONS (owner ask 2026-08-24) — the setup screen shown after choosing Practice and before the hero
  * picker. A dedicated menu of knobs: who fills the table, whether the player can die, the shop-timer speed, and
- * an optional tribe surge. `Start` applies them and opens the hero picker; the choices are pinned onto the run.
+ * which tribes are in the game. `Start` applies them and opens the hero picker; the choices are pinned onto the run.
  *
  * Pure over the store draft (`practiceDraft`) — every control writes back through `setPracticeDraft`, which also
  * persists, so a returning player keeps their last setup.
  */
 
-/** A labelled segmented control: one row of options, the selected one lit. Generic over the option value. */
+/** A labelled segmented control: one row of options, the lit ones selected. Generic over the option value.
+ *  Single-select passes `value`; MULTI-select passes `isOn` (which options are lit) and does its own toggling in
+ *  `onPick`, so both share one look (the `poseg` pills, the global gauntlet cursor). */
 function Segmented<T extends string | number | null>(props: {
   label: string;
   hint?: string;
-  value: T;
+  value?: T;
+  isOn?: (v: T) => boolean;
   options: { value: T; label: string }[];
   onPick: (v: T) => void;
   disabled?: boolean;
 }) {
+  const lit = (v: T): boolean => (props.isOn ? props.isOn(v) : v === props.value);
   return (
     <div className={`porow${props.disabled ? ' podisabled' : ''}`}>
       <div className="polabel">
@@ -31,8 +34,8 @@ function Segmented<T extends string | number | null>(props: {
         {props.options.map((o) => (
           <button
             key={String(o.value)}
-            className={`poseg-btn${o.value === props.value ? ' on' : ''}`}
-            aria-pressed={o.value === props.value}
+            className={`poseg-btn${lit(o.value) ? ' on' : ''}`}
+            aria-pressed={lit(o.value)}
             disabled={props.disabled}
             onPointerDown={() => { if (!props.disabled) { sfx.tick(); props.onPick(o.value); } }}
           >{o.label}</button>
@@ -64,12 +67,12 @@ const HEALTH: { value: PracticeConfig['health']; label: string }[] = [
 const TIMES: { value: PracticeConfig['timeMult']; label: string }[] = [
   { value: 1, label: '1×' }, { value: 2, label: '2×' }, { value: 3, label: '3×' }, { value: 4, label: '4×' },
 ];
-/** Only the tribes of the set a new run uses (owner 2026-09-27), in that set's order, after "None". */
-const SURGES: { value: SurgeTribe | null; label: string }[] = [
-  { value: null, label: 'None' },
-  ...newRunSurgeTribes().map((t) => ({ value: t, label: t.charAt(0).toUpperCase() + t.slice(1) })),
+/** "Normal" (the usual random tribes) plus the tribes of the set a new run uses, in that set's order (owner
+ *  2026-09-27: multi-select, "reword 'none' to 'Normal'"). Normal is `null`; the draft holds the picked list. */
+const TRIBE_OPTIONS: { value: PracticeTribe | null; label: string }[] = [
+  { value: null, label: 'Normal' },
+  ...practiceTribeOptions().map((t) => ({ value: t, label: t.charAt(0).toUpperCase() + t.slice(1) })),
 ];
-const SURGE_VALUES = new Set<SurgeTribe | null>(SURGES.map((o) => o.value));
 
 export function PracticeOptions() {
   const open = useGame((s) => s.practiceSetupOpen);
@@ -77,10 +80,6 @@ export function PracticeOptions() {
   const setDraft = useGame((s) => s.setPracticeDraft);
   const confirm = useGame((s) => s.confirmPracticeSetup);
   const cancel = useGame((s) => s.cancelPracticeSetup);
-  // A surge saved from another set (e.g. Spirit while Set 2 is live) is not offered: drop it back to None.
-  useEffect(() => {
-    if (open && !SURGE_VALUES.has(cfg.tribeSurge)) setDraft({ tribeSurge: null });
-  }, [open, cfg.tribeSurge, setDraft]);
   if (!open) return null;
 
   return (
@@ -120,11 +119,11 @@ export function PracticeOptions() {
           onPick={(v) => setDraft({ timeMult: v })}
         />
         <Segmented
-          label="Tribe surge"
-          hint="Doubles how often the chosen tribe's cards appear in the shop."
-          value={cfg.tribeSurge}
-          options={SURGES}
-          onPick={(v) => setDraft({ tribeSurge: v })}
+          label="Tribes"
+          hint="Only these tribes and neutral cards appear. Normal uses the usual random tribes."
+          isOn={(v) => (v === null ? cfg.tribes.length === 0 : cfg.tribes.includes(v))}
+          options={TRIBE_OPTIONS}
+          onPick={(v) => setDraft({ tribes: togglePracticeTribe(cfg.tribes, v) })}
         />
 
         <button className="postart pressable" onPointerDown={() => { sfx.pulse(); confirm(); }}>Start</button>

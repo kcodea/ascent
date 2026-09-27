@@ -1,4 +1,4 @@
-import { ALE_IDS, RUBY_TYPE_IDS, SPECIAL_RUBY_IDS, TRIBES, alignAllows, makeRng, SILENT_ONPLAY, isShopPoolSpell, shopSpellGrowth, COMBAT_REPLAYABLE_BATTLECRIES, NO_COPY_SPELL_IDS, extraTriggerFires, foldEchoExtraFires, socTwilightExtraFires, BODY_COUNTING_DEATHS, ARENA_EFFECTS, beatIdentity, type EffectArena, type PresentationCollector, type PresentationPhase, type PresentationPolicy, type Rng, type CardDef, type EffectDef, type Keyword, type TriggerFamily, type TriggerSourceRef, type Tribe } from '@game/core';
+import { ALE_IDS, RUBY_TYPE_IDS, SPECIAL_RUBY_IDS, TRIBES, inRunTribes, alignAllows, makeRng, SILENT_ONPLAY, isShopPoolSpell, shopSpellGrowth, COMBAT_REPLAYABLE_BATTLECRIES, NO_COPY_SPELL_IDS, extraTriggerFires, foldEchoExtraFires, socTwilightExtraFires, BODY_COUNTING_DEATHS, ARENA_EFFECTS, beatIdentity, type EffectArena, type PresentationCollector, type PresentationPhase, type PresentationPolicy, type Rng, type CardDef, type EffectDef, type Keyword, type TriggerFamily, type TriggerSourceRef, type Tribe } from '@game/core';
 import { ancientOnSale, ancientOnShopDeath, ancientOnShopShout, ancientOnShopRise, ancientPowerText, ancientEotWardBuff, ancientRunEotWardBuff, ancientBondsReact, ANCIENTS } from './ancients';
 import { runSpells } from './spellPool';
 import { REVELER_IDS, RUNE_INDEX, CARD_INDEX, EQUIPMENT_INDEX, STAR_DESTROYER, equipmentOf, recurringEotOwner, type EquipmentDefinition } from '@game/content';
@@ -3265,7 +3265,7 @@ export function grantTopTypeMinion(state: RunState): boolean {
   const pool = poolOf(state).buyable.filter(
     (c) =>
       (c.tribe === tribe || c.tribe2 === tribe) &&
-      (c.tribe === 'neutral' || state.tribes.includes(c.tribe)) &&
+      inRunTribes(c, state.tribes) &&
       c.tier <= state.tier && // bound by your tavern tier — no T6 grant at T2
       (state.pool[c.id] ?? 0) > 0,
   );
@@ -5433,7 +5433,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
         (filter !== 'shout' || hasBattlecry(c)) &&
         (tribe
           ? c.tribe === tribe || c.tribe2 === tribe
-          : c.tribe === 'neutral' || ctx.state.tribes.includes(c.tribe)),
+          : inRunTribes(c, ctx.state.tribes)),
     );
     if (pool.length === 0) return;
     const rng = makeRng(ctx.state.rngCursor);
@@ -5706,7 +5706,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     const oldDef = CARD_INDEX[self.cardId];
     if (!oldDef) return;
     const pool = poolOf(ctx.state).buyable.filter(
-      (c) => c.tier === oldDef.tier && c.id !== self.cardId && (c.tribe === 'neutral' || ctx.state.tribes.includes(c.tribe)),
+      (c) => c.tier === oldDef.tier && c.id !== self.cardId && inRunTribes(c, ctx.state.tribes),
     );
     if (pool.length === 0) return; // nothing to become → no-op (spell still consumed)
     const rng = makeRng(ctx.state.rngCursor);
@@ -6427,7 +6427,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     const pool = poolOf(ctx.state).buyable.filter(
       (c) =>
         (c.tribe === tribe || c.tribe2 === tribe) &&
-        (c.tribe === 'neutral' || ctx.state.tribes.includes(c.tribe)) &&
+        inRunTribes(c, ctx.state.tribes) &&
         c.tier <= ctx.state.tier &&
         (ctx.state.pool[c.id] ?? 0) > 0,
     );
@@ -7302,7 +7302,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     const tier = num(params.tier, 1);
     const spells = runSpells(ctx.state).filter((c) => c.tier === tier);
     const minions = poolOf(ctx.state).buyable.filter(
-      (c) => c.tier === tier && !c.spell && (c.tribe === 'neutral' || ctx.state.tribes.includes(c.tribe)),
+      (c) => c.tier === tier && !c.spell && inRunTribes(c, ctx.state.tribes),
     );
     conjureToHand(ctx.state, [...spells, ...minions], num(params.count, 1) * gold(self));
   },
@@ -8001,7 +8001,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     const pool = poolOf(ctx.state).buyable.filter(
       (c) =>
         c.tier === tier &&
-        (c.tribe === 'neutral' || ctx.state.tribes.includes(c.tribe)) &&
+        inRunTribes(c, ctx.state.tribes) &&
         (ctx.state.pool[c.id] ?? 0) > 0,
     );
     conjureToHand(ctx.state, pool, 1);
@@ -8015,7 +8015,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     const pool = poolOf(ctx.state).buyable.filter(
       (c) =>
         (c.tribe === tribe || c.tribe2 === tribe) &&
-        (c.tribe === 'neutral' || ctx.state.tribes.includes(c.tribe)) &&
+        inRunTribes(c, ctx.state.tribes) &&
         c.tier <= ctx.state.tier && // bound by your tavern tier
         (ctx.state.pool[c.id] ?? 0) > 0,
     );
@@ -9319,7 +9319,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
       if (!oldDef) return;
       const want = Math.min(ceiling, oldDef.tier + 1);
       const pool = poolOf(ctx.state).buyable.filter(
-        (c) => c.tier === want && c.id !== target.cardId && (c.tribe === 'neutral' || ctx.state.tribes.includes(c.tribe)),
+        (c) => c.tier === want && c.id !== target.cardId && inRunTribes(c, ctx.state.tribes),
       );
       if (pool.length === 0) continue;
       const rng = makeRng(ctx.state.rngCursor);
@@ -9642,7 +9642,7 @@ export function offerDiscover(
     pool = poolOf(state).buyable.filter(
       (c) =>
         c.tier === opts.tier &&
-        (c.tribe === 'neutral' || state.tribes.includes(c.tribe)) &&
+        inRunTribes(c, state.tribes) &&
         (state.pool[c.id] ?? 0) > 0 &&
         filter(c),
     );
@@ -9656,7 +9656,7 @@ export function offerDiscover(
         (c) =>
           c.tier <= target &&
           c.tier >= floor &&
-          (c.tribe === 'neutral' || state.tribes.includes(c.tribe)) &&
+          inRunTribes(c, state.tribes) &&
           (state.pool[c.id] ?? 0) > 0 &&
           filter(c),
       );
@@ -9669,7 +9669,7 @@ export function offerDiscover(
     pool = poolOf(state).buyable.filter(
       (c) =>
         c.tier <= target &&
-        (c.tribe === 'neutral' || state.tribes.includes(c.tribe)) &&
+        inRunTribes(c, state.tribes) &&
         (state.pool[c.id] ?? 0) > 0 && // only offer cards with copies left — Discover draws from the finite pool
         filter(c),
     );

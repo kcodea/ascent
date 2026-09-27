@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { loadFpsCap, saveFpsCap } from './fpsCap';
 import { CARD_INDEX, activeSet, type SetId } from '@game/content';
-import { type CombatOdds, HEROES, playableHeroes, practiceHeroes, runTribesForSeed, OPPONENT_POOL, OPPONENT_POOL_DATA, registerOpponents, createRun, deserialize, initialProfile, resolveServerRank, adoptServerRank, legacyRatingChangeOf, rankedRunIdOf, type RankResult, type RankedProfile, isPlayerAction, missingCardIds, nextOpponent, parseQaScenario, reconstructRunTelemetry, recordTelemetryAction, emptyTelemetryLog, withLiveTelemetry, telemetrySourceOf, setIdOf, type TelemetryLog, beginDerive, observeAction, finishDerive, type DeriveState, reduce, reduceWithPresentation, serialize, snapshotBoard, type Action, type BoardSnapshot, type PlayerProfile, type RatingChange, type Replay, type RunMode, type RunState, combatFrameOf, deltaShopFrameOf, shopFrameOf, runRecord, type DragPath, type ReplayFrame, type ReplayV2, type ShopView, appendInspectEvent, type InspectEvent, type InspectSnapshot, createLobbyRun, enableAncients, createTutorialRun, type TutorialCourse, type PracticeConfig, type BotLevel, DEFAULT_PRACTICE_CONFIG, normalizeBotDifficulty, warmLobbySeat, prepareActionWithPresentation, type PreparedPresentationAction, fightRowsOf, opponentFightKeys, type LobbyStrength, type FightRow } from '@game/sim';
+import { type CombatOdds, HEROES, playableHeroes, practiceHeroes, runTribesForSeed, OPPONENT_POOL, OPPONENT_POOL_DATA, registerOpponents, createRun, deserialize, initialProfile, resolveServerRank, adoptServerRank, legacyRatingChangeOf, rankedRunIdOf, type RankResult, type RankedProfile, isPlayerAction, missingCardIds, nextOpponent, parseQaScenario, reconstructRunTelemetry, recordTelemetryAction, emptyTelemetryLog, withLiveTelemetry, telemetrySourceOf, setIdOf, type TelemetryLog, beginDerive, observeAction, finishDerive, type DeriveState, reduce, reduceWithPresentation, serialize, snapshotBoard, type Action, type BoardSnapshot, type PlayerProfile, type RatingChange, type Replay, type RunMode, type RunState, combatFrameOf, deltaShopFrameOf, shopFrameOf, runRecord, type DragPath, type ReplayFrame, type ReplayV2, type ShopView, appendInspectEvent, type InspectEvent, type InspectSnapshot, createLobbyRun, enableAncients, createTutorialRun, type TutorialCourse, type PracticeConfig, type BotLevel, DEFAULT_PRACTICE_CONFIG, normalizeBotDifficulty, normalizePracticeTribes, practiceRunTribes, warmLobbySeat, prepareActionWithPresentation, type PreparedPresentationAction, fightRowsOf, opponentFightKeys, type LobbyStrength, type FightRow } from '@game/sim';
 import type { PresentationBatch } from '@game/core';
 import { combatTimelineFrom } from './choreographer/combatTimeline';
 import type { RuneLockInCard } from './RuneLockIn';
@@ -848,9 +848,20 @@ function loadPracticeConfig(): PracticeConfig {
   try {
     const raw = localStorage.getItem('ascent.practiceconfig');
     if (!raw) return { ...DEFAULT_PRACTICE_CONFIG };
-    const parsed = JSON.parse(raw) as Partial<PracticeConfig>;
-    // Drafts saved before 2026-09-02 hold 'easy' | 'medium' | 'hard'; the ladder is 1–10 now.
-    return { ...DEFAULT_PRACTICE_CONFIG, ...parsed, botDifficulty: normalizeBotDifficulty(parsed.botDifficulty) };
+    const parsed = JSON.parse(raw) as Partial<PracticeConfig> & { tribeSurge?: unknown };
+    // Drafts saved before 2026-09-27 hold the retired single `tribeSurge` (a shop-odds boost, not a filter). It is
+    // DROPPED, not carried into `tribes`: turning an old "more Dragons" into a Dragons-only game would be a
+    // different game the player never picked. So an old draft opens on Normal.
+    const { tribeSurge: _retired, ...rest } = parsed;
+    void _retired;
+    return {
+      ...DEFAULT_PRACTICE_CONFIG,
+      ...rest,
+      // Drafts saved before 2026-09-02 hold 'easy' | 'medium' | 'hard'; the ladder is 1–10 now.
+      botDifficulty: normalizeBotDifficulty(parsed.botDifficulty),
+      // Only the live set's tribes, in set order (a tribe saved while another set was live is dropped).
+      tribes: normalizePracticeTribes(parsed.tribes),
+    };
   } catch { return { ...DEFAULT_PRACTICE_CONFIG }; }
 }
 function savePracticeConfig(cfg: PracticeConfig): void {
@@ -2070,7 +2081,7 @@ export const useGame = create<GameStore>((rawSet, get) => {
     // both start where the setup screen left them.
     try { localStorage.setItem('ascent.practicetimer', String(s.practiceDraft.timeMult)); } catch { /* ignore */ }
     const seed = randomSeed();
-    return { practiceSetupOpen: false, practiceTimer: s.practiceDraft.timeMult, pendingMode: 'practice', pendingSeed: seed, heroChoices: practiceHeroes(tribesForSeed(seed)).map((h) => h.id) };
+    return { practiceSetupOpen: false, practiceTimer: s.practiceDraft.timeMult, pendingMode: 'practice', pendingSeed: seed, heroChoices: practiceHeroes(practiceRunTribes(seed, s.practiceDraft)).map((h) => h.id) };
   }),
   cancelPracticeSetup: () => set({ practiceSetupOpen: false, showTitle: true, titleView: 'menu' }),
   startRift: () => set(() => { const seed = randomSeed(); return { showTitle: false, pendingMode: 'rift', pendingSeed: seed, heroChoices: rollHeroChoices(tribesForSeed(seed)), avatarPickerOpen: false }; }),
@@ -2119,7 +2130,7 @@ export const useGame = create<GameStore>((rawSet, get) => {
       // players onto it — the run pins it like any other, so nothing leaks into the live set.
       // GOD rules start on 999 Gold (the panel keeps it topped up); NORMAL rules start on the real opening Gold.
       const level = botLevel ?? s.sbBotLevel;
-      const config: PracticeConfig = { opponents: 'bots', botDifficulty: level, health: 'unlimited', timeMult: 1, tribeSurge: null };
+      const config: PracticeConfig = { opponents: 'bots', botDifficulty: level, health: 'unlimited', timeMult: 1, tribes: [] };
       const base = createLobbyRun(randomSeed(), heroId, {}, 'practice', config, setId);
       const plain: RunState = { ...base, sandbox: true, tier: 1, ...(s.sbRules === 'god' ? { embers: 999 } : {}) };
       // ANCIENTS (owner ruling 2026-09-25): Scene Builder + Set 3 only, behind the rig's toggle.

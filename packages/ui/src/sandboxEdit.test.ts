@@ -180,7 +180,7 @@ import { foeSnapshotOf } from './sandboxEdit';
 
 describe('foeSnapshotOf — what the row shows and the fight serves', () => {
   const lobbyRun = () => ({
-    ...createLobbyRun(7, 'warden', {}, 'practice', { opponents: 'bots', botDifficulty: 5, health: 'unlimited', timeMult: 1, tribeSurge: null }),
+    ...createLobbyRun(7, 'warden', {}, 'practice', { opponents: 'bots', botDifficulty: 5, health: 'unlimited', timeMult: 1, tribes: [] }),
     sandbox: true,
   });
 

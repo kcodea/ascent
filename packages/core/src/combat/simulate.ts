@@ -23,6 +23,7 @@ import type {
 import { ALE_IDS, RUBY_TYPE_IDS, damageMeterOf, alignAllows, extraTriggerFires, foldEchoExtraFires, socTwilightExtraFires, COMBATATIVE_RUBIES_ATTACKS, BODY_COUNTING_DEATHS, RUPTURED_RUBY_BOUNCES } from '../types';
 import { makeRng, type Rng } from '../rng';
 import { CombatBus } from '../events';
+import { inRunTribes } from '../tribeGate';
 import { FACTORIES, playRubyOn, castInCombat, combatCastable, resolveCombatSpellCast, replayCombatBattlecry, deferShopOnlyShout, drakkoRepeats, fireShout, livingNeighbours, triggerEcho, SILENT_ONPLAY, isShopPoolSpell, shopSpellGrowth } from '../effects/factories';
 import { instantiate, type CardIndex } from './minion';
 import { EMPTY_SIDE } from './side';
@@ -1442,7 +1443,7 @@ export function simulate(
       const pool = ctx.poolCards(side).filter(
         (c) =>
           !c.token && !c.spell && (fixedTier ? c.tier === fixedTier : c.tier <= sideState.tier) && c.id !== exclude &&
-          (c.tribe === 'neutral' || sideState.tribes.includes(c.tribe)) &&
+          inRunTribes(c, sideState.tribes) &&
           inTribe(c) &&
           // Roarcollector: restrict to SHOUT minions — a real (non-silent) `onPlay`.
           (!shoutOnly || c.effects.some((e) => e.on === 'onPlay' && !SILENT_ONPLAY.has(e.do))),

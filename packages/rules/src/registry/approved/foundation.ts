@@ -1518,18 +1518,26 @@ export const FOUNDATION_RULES: GameRule[] = [
   },
   {
     id: 'R-PRACTICE-SURGE-01',
-    title: 'Practice Tribe surge offers only the tribes of the set a new run uses',
+    title: "Practice Tribes: pick one or more of the set's tribes and the game has only their cards plus neutral",
     statement:
-      'The Practice screen Tribe surge row lists None plus exactly the tribes of the set a new run is created on (the '
-      + 'set createRun defaults to), in that set order. A tribe from another set (Spirit while Set 2 is live) is never '
-      + 'offered, and a saved surge that is not in the list resets to None.',
+      'The Practice screen "Tribes" row lists Normal plus exactly the tribes of the set a new run is created on, in '
+      + 'that set order, and is multi-select. Normal is exclusive: picking it clears every tribe, picking a tribe '
+      + "clears Normal, and unpicking the last tribe returns to Normal. With tribes picked, the run's active tribes "
+      + "ARE the picked tribes (not the seeded roll), and the run's card pool is narrowed to them: every shop offer, "
+      + 'Discover, spell and random card is a minion of a picked tribe (a dual type counts when either tribe is '
+      + 'picked), a neutral minion, or a spell that is neutral or of a picked tribe. The hero offer, rune and quest '
+      + 'tribe gates follow the same tribes. Normal plays exactly as before (the seeded roll, the full set pool). A '
+      + 'saved draft with a tribe from another set, or the retired single tribe surge, opens on Normal.',
     domain: 'foundation',
     status: 'approved',
     evidence: [
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-27 (Practice screen)', quote: "practice tribe surge should only have the active set's tribes." },
-      { kind: 'code', ref: 'packages/sim/src/state.ts newRunSurgeTribes; packages/ui/src/PracticeOptions.tsx SURGES' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-27 (Practice screen, follow-up)', quote: "yeah let's change tribe surge to that tribe's cards plus neutral cards, and all spells associated, but make it multi select. so i can choose demons + dragons and have demons/dragons/neutrals in the game. reword 'none' to 'Normal'" },
+      { kind: 'code', ref: 'packages/sim/src/practiceTribes.ts (options, toggle, practiceRunTribes); packages/sim/src/lobby/runLobby.ts createLobbyRun; packages/sim/src/cardPool.ts poolOf; packages/core/src/tribeGate.ts inRunTribes; packages/ui/src/PracticeOptions.tsx' },
     ],
-    currentBehaviour: 'Conforms, FIXED 2026-09-27: the list was hard-coded (Beast, Dragon, Kobold, Demon, Dwarf, Spirit).',
-    enforcement: { kind: 'scenario', refs: ['packages/sim/src/practiceSurgeTribes.test.ts'], lastVerifiedAt: '2026-09-27' },
+    currentBehaviour:
+      "Conforms, 2026-09-27. Was a single-select Tribe surge that doubled one tribe's shop odds (the list was "
+      + 'first hard-coded across sets, then narrowed to the active set earlier the same day).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/practiceTribes.test.ts'], lastVerifiedAt: '2026-09-27' },
   },
 ];

@@ -378,9 +378,9 @@ export type Phase = 'recruit' | 'combat' | 'gameover' | 'victory';
  *  it is excluded from every one of those gates for free. */
 export type RunMode = 'ascent' | 'rift' | 'practice' | 'lobby' | 'tutorial';
 
-/** The tribes a Practice "tribe surge" can favour (a 100% draw-weight boost for that tribe's shop cards). Any real
- *  tribe; the Practice screen offers only the tribes of the set a new run will use (`newRunSurgeTribes`). */
-export type SurgeTribe = Exclude<Tribe, 'neutral'>;
+/** A tribe the Practice "Tribes" row can pick (any real tribe; the screen offers only the tribes of the set a new
+ *  run will use, `practiceTribeOptions`). */
+export type PracticeTribe = Exclude<Tribe, 'neutral'>;
 
 /** Practice-bot difficulty, 1 (gentlest) to 10. 1/3/5 are the retired Easy/Medium/Hard; 6+ add utility minions.
  *  The per-level dials live in `lobby/practiceBots.ts` (`BOT_LEVELS`). */
@@ -398,14 +398,17 @@ export interface PracticeConfig {
   health: 'unlimited' | 'normal';
   /** Shop-timer multiplier (1–4×), the same knob the in-run Practice timer dropdown drives. */
   timeMult: 1 | 2 | 3 | 4;
-  /** A tribe whose shop cards are twice as likely to appear, or null for the ordinary flat draw. */
-  tribeSurge: SurgeTribe | null;
+  /** The tribes this Practice game is played with (owner 2026-09-27): the run's active tribes become exactly these,
+   *  so only their cards plus neutral cards (and their spells) appear. EMPTY = "Normal", the usual random run
+   *  tribes. Read through `practiceRunTribes`, which drops any tribe the run's set does not have. A draft or run
+   *  saved before 2026-09-27 may carry the retired `tribeSurge` field instead: it is ignored (reads as Normal). */
+  tribes: PracticeTribe[];
 }
 
 /** The default Practice options — the classic Practice experience, so an untouched setup screen plays exactly
- *  as Practice always has (recorded opponents, invulnerable, 1× timer, no surge). */
+ *  as Practice always has (recorded opponents, invulnerable, 1× timer, Normal tribes). */
 export const DEFAULT_PRACTICE_CONFIG: PracticeConfig = {
-  opponents: 'players', botDifficulty: 3, health: 'unlimited', timeMult: 1, tribeSurge: null,
+  opponents: 'players', botDifficulty: 3, health: 'unlimited', timeMult: 1, tribes: [],
 };
 
 export type DiscoverSpec =
@@ -2720,21 +2723,16 @@ export const metLine = (status: LineStatus): boolean =>
  */
 /** The tribes a run created from `seed` on `setId` rolls: THE derivation `createRun` uses, exported so the hero
  *  offer can be filtered by the upcoming run's tribes BEFORE the run exists (TRIBE GATE, owner 2026-09-10). */
-/** The tribes a Practice "tribe surge" may pick: the tribes of the set a NEW run is created on (the same
- *  `activeSet()` `createRun` defaults to), so a set's surge list never offers another set's tribe (owner
- *  2026-09-27: "practice tribe surge should only have the active set's tribes"). */
-export function newRunSurgeTribes(setId: SetId = activeSet().id): SurgeTribe[] {
-  return (SETS[setId]?.tribes ?? PLAYABLE_TRIBES).filter((t): t is SurgeTribe => t !== 'neutral');
-}
-
 export function runTribesForSeed(seed: number, setId: SetId = activeSet().id): Tribe[] {
   return selectRunTribes(makeRng(mixSeed(seed, 0, TAG.TRIBES)), SETS[setId]?.tribes ?? PLAYABLE_TRIBES);
 }
 
-export function createRun(seed: number, heroId: string = DEFAULT_HERO_ID, mode: RunMode = 'ascent', line: number = CONFIG.defaultLine, setId: SetId = activeSet().id): RunState {
+export function createRun(seed: number, heroId: string = DEFAULT_HERO_ID, mode: RunMode = 'ascent', line: number = CONFIG.defaultLine, setId: SetId = activeSet().id, tribesOverride?: readonly Tribe[]): RunState {
   // Draw the run's active tribes from the PINNED set's roster (set 1's five, set 2's Kobolds) — never the
-  // global list, so a set-2 tribe can't leak into a set-1 run and vice-versa.
-  const tribes = runTribesForSeed(seed, setId);
+  // global list, so a set-2 tribe can't leak into a set-1 run and vice-versa. `tribesOverride` (a Practice game
+  // with picked tribes, `practiceRunTribes`) replaces the roll outright; the roll has its own RNG stream, so
+  // skipping it moves no other seed.
+  const tribes = tribesOverride && tribesOverride.length > 0 ? [...tribesOverride] : runTribesForSeed(seed, setId);
   // The hero's Resolve is the run's starting (and max) HP; Armor is extra effective HP layered on top.
   const hero = getHero(heroId);
   const startResolve = hero.resolve;

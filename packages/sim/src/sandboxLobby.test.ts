@@ -10,7 +10,7 @@
 import { describe, expect, it } from 'vitest';
 import { createLobbyRun, reduce, CONFIG, type RunState, type Action, type BoardSnapshot, type PracticeConfig } from './index';
 
-const BOTS: PracticeConfig = { opponents: 'bots', botDifficulty: 5, health: 'unlimited', timeMult: 1, tribeSurge: null };
+const BOTS: PracticeConfig = { opponents: 'bots', botDifficulty: 5, health: 'unlimited', timeMult: 1, tribes: [] };
 
 const sandbox = (seed = 7): RunState => ({ ...createLobbyRun(seed, 'warden', {}, 'practice', BOTS), sandbox: true });
 

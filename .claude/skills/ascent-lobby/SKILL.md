@@ -23,8 +23,9 @@ behaviour from a legacy symbol.**
   Attack. Old 'easy'/'medium'/'hard' strings in saves/drafts go through `normalizeBotDifficulty`),
   `health` (`unlimited` = the classic invulnerability + round-15 curtain, gated in the reducer; `normal` =
   real elimination — the reducer gates now read `practiceConfig?.health !== 'normal'`), `timeMult` (feeds
-  `practiceTimer`), and `tribeSurge` (a tribe whose shop cards get 2× draw weight in `shop.ts drawOfferId` —
-  only the surge branch changes the RNG, so non-surge seeds are untouched). Practice is **always unrated**
+  `practiceTimer`), and `tribes` (the picked run tribes, empty = Normal; `practiceTribes.ts`: `createLobbyRun`
+  passes them to `createRun` as the run's tribes, and `poolOf` narrows the pool to them plus neutral for a
+  practice run with picks. Replaced the 2x-weight `tribeSurge` on 2026-09-27; old drafts drop it to Normal). Practice is **always unrated**
   regardless of these (rating/upload gates key on `mode === 'lobby'`). There is no standalone `bots` RunMode —
   bots live inside Practice.
 - `DEFAULT_LOBBY_RULES`: `seatCount: 8`, `startingResolve: 30`, `startingArmor: 15`, `maxRounds: 60`. The

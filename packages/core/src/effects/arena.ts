@@ -1,5 +1,6 @@
 import type { Rng } from '../rng';
 import { ALE_IDS, type CardDef, type EffectDef } from '../types';
+import { inRunTribes } from '../tribeGate';
 
 /**
  * ── EFFECT ARENA (Step 1 spike — see docs/effect-arena-spec.md) ────────────────────────────────────────
@@ -1041,8 +1042,8 @@ export const ARENA_EFFECTS = {
     const tribes = arena.activeTribes();
     arena.grantRandomFromPool(
       (c) => {
-        const d = c as { tier?: number; tribe?: string };
-        return d.tier === tier && (d.tribe === 'neutral' || tribes.includes(d.tribe ?? ''));
+        const d = c as { tier?: number; tribe?: string; tribe2?: string };
+        return d.tier === tier && inRunTribes(d, tribes);
       },
       (typeof params.count === 'number' ? params.count : 1) * (arena.self.golden ? 2 : 1));
   },

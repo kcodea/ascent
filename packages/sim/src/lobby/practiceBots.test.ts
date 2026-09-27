@@ -1,11 +1,12 @@
 /**
  * PRACTICE OPTIONS — the sandbox knobs (owner ask 2026-08-24): bot opponents with a difficulty curve, a
- * health toggle (invulnerable vs real elimination), and a tribe surge that doubles a tribe's shop odds.
+ * health toggle (invulnerable vs real elimination). (Practice's picked tribes: practiceTribes.test.ts.)
  */
 import { describe, expect, it } from 'vitest';
 import { practiceBotBoard, createLobbyRun, createPracticeBotLobby, adjectiveHandle, BOT_LEVELS, UTILITY_ROSTER, botTierFor, eligibleUtility, normalizeBotDifficulty, authoredTierFor, omenBoardMinions, type BotLevel } from './index';
 import { reduce, type RunState, type Action } from '../index';
 import { HEROES } from '../heroes';
+import { CARD_INDEX } from '@game/content';
 
 const totals = (b: { attack: number; health: number }[]) => ({
   atk: b.reduce((n, m) => n + m.attack, 0),
@@ -52,14 +53,14 @@ describe('difficulty scales the right rounds', () => {
 describe('createLobbyRun — Practice opponents', () => {
   it('BOTS opponents seat seven authored omen bots; PLAYERS seat recorded/hybrid runs', () => {
     const bots = createLobbyRun(7, 'aster', {}, 'practice', {
-      opponents: 'bots', botDifficulty: 3, health: 'unlimited', timeMult: 1, tribeSurge: null,
+      opponents: 'bots', botDifficulty: 3, health: 'unlimited', timeMult: 1, tribes: [],
     });
     expect(bots.mode).toBe('practice');
     expect(bots.practiceConfig?.opponents).toBe('bots');
     for (const seat of bots.lobby!.seats.slice(1)) expect(seat.kind).toBe('authored');
 
     const players = createLobbyRun(7, 'aster', {}, 'practice', {
-      opponents: 'players', botDifficulty: 3, health: 'unlimited', timeMult: 1, tribeSurge: null,
+      opponents: 'players', botDifficulty: 3, health: 'unlimited', timeMult: 1, tribes: [],
     });
     for (const seat of players.lobby!.seats.slice(1)) expect(seat.kind).not.toBe('authored');
   });
@@ -67,7 +68,7 @@ describe('createLobbyRun — Practice opponents', () => {
 
 describe('health: unlimited vs normal', () => {
   const cfg = (health: 'unlimited' | 'normal') => ({
-    opponents: 'bots' as const, botDifficulty: 5 as const, health, timeMult: 1 as const, tribeSurge: null,
+    opponents: 'bots' as const, botDifficulty: 5 as const, health, timeMult: 1 as const, tribes: [],
   });
   const playARound = (s: RunState): RunState => {
     for (const a of [{ type: 'faceOmen' }, { type: 'resolveCombat' }, { type: 'settleCombat' }] as Action[]) s = reduce(s, a);
@@ -95,38 +96,10 @@ describe('health: unlimited vs normal', () => {
   });
 });
 
-describe('tribe surge doubles a tribe in the shop', () => {
-  it('a beast surge yields more Beast offers than the same seed without it', () => {
-    const roll = (tribeSurge: 'beast' | null): number => {
-      let s = createLobbyRun(11, 'aster', {}, 'practice', {
-        opponents: 'players', botDifficulty: 3, health: 'unlimited', timeMult: 1, tribeSurge,
-      });
-      // Tier up so the pool is broad, then reroll many times and count Beast offers.
-      s = { ...s, tier: 4, embers: 999, maxEmbers: 999 };
-      let beasts = 0;
-      for (let i = 0; i < 60; i++) {
-        s = reduce(s, { type: 'roll' } as Action);
-        beasts += s.shop.filter((o) => (poolTribe(o.cardId) === 'beast')).length;
-      }
-      return beasts;
-    };
-    const surged = roll('beast');
-    const flat = roll(null);
-    // With 2× weight the surged count should be clearly higher — allow slack, but it must not be a tie/lower.
-    expect(surged).toBeGreaterThan(flat);
-  });
-});
-
-// Local helper: a card's tribe by id (the test only needs Beast identification).
-import { CARD_INDEX } from '@game/content';
-function poolTribe(cardId: string): string {
-  return CARD_INDEX[cardId]?.tribe ?? 'neutral';
-}
-
 describe('practice-bots placement reflects performance (owner bug 2026-08-24: won but finished 8th)', () => {
   const runToEnd = (attack: number): number | undefined => {
     let s: RunState = createLobbyRun(77, 'aster', {}, 'practice', {
-      opponents: 'bots', botDifficulty: 1, health: 'unlimited', timeMult: 1, tribeSurge: null,
+      opponents: 'bots', botDifficulty: 1, health: 'unlimited', timeMult: 1, tribes: [],
     });
     const board = Array.from({ length: 7 }, (_, i) => ({ uid: `p${i}`, cardId: 'b2_packstrider', attack, health: attack, keywords: [], effects: [], buffs: [] }));
     let guard = 0;
@@ -174,7 +147,7 @@ describe('duplicate lobby handles get an adjective, not "(2)"', () => {
 describe('practice bots sit at a real lobby seat (owner ask 2026-08-30)', () => {
   it('every bot starts on the SAME Resolve and Armor the player does', () => {
     const s = createLobbyRun(42, 'aster', {}, 'practice', {
-      opponents: 'bots', botDifficulty: 3, health: 'normal', timeMult: 1, tribeSurge: null,
+      opponents: 'bots', botDifficulty: 3, health: 'normal', timeMult: 1, tribes: [],
     } as never);
     const seats = s.lobby!.seats.filter((x) => x.id !== 's0');
     expect(seats.length, 'a full bot table').toBeGreaterThan(3);
@@ -195,7 +168,7 @@ describe('practice-bot games resolve on a sane clock (owner ask 2026-08-25: they
   /** Play a full bots game with a player board that scales at `skill` per wave (0 = do nothing). */
   const roundsToFinish = (difficulty: BotLevel, skill: number): number => {
     let s: RunState = createLobbyRun(42, 'aster', {}, 'practice', {
-      opponents: 'bots', botDifficulty: difficulty, health: 'normal', timeMult: 1, tribeSurge: null,
+      opponents: 'bots', botDifficulty: difficulty, health: 'normal', timeMult: 1, tribes: [],
     });
     let rounds = 0;
     while (s.phase !== 'gameover' && rounds++ < 80) {
@@ -316,7 +289,7 @@ describe('the 1–10 ladder (owner ask 2026-09-02: 5 = the old Hard)', () => {
 
   it('a level-10 bot board fights through simulate without blowing up (effects actually run)', () => {
     let s: RunState = createLobbyRun(5, 'aster', {}, 'practice', {
-      opponents: 'bots', botDifficulty: 10, health: 'normal', timeMult: 1, tribeSurge: null,
+      opponents: 'bots', botDifficulty: 10, health: 'normal', timeMult: 1, tribes: [],
     });
     s = { ...s, wave: 12, lobby: { ...s.lobby!, round: 12 } };
     const board = Array.from({ length: 7 }, (_, i) => ({ uid: `p${i}`, cardId: 'b2_packstrider', attack: 60, health: 60, keywords: [], effects: [], buffs: [] }));

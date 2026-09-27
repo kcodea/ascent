@@ -66,6 +66,8 @@ const HEALTH: { value: PracticeConfig['health']; label: string }[] = [
 ];
 const TIMES: { value: PracticeConfig['timeMult']; label: string }[] = [
   { value: 1, label: '1×' }, { value: 2, label: '2×' }, { value: 3, label: '3×' }, { value: 4, label: '4×' },
+  // Owner 2026-09-27: "add an unlimited time option in practice". 0 = no turn clock.
+  { value: 0, label: 'Unlimited' },
 ];
 /** "Normal" (the usual random tribes) plus the tribes of the set a new run uses, in that set's order (owner
  *  2026-09-27: multi-select, "reword 'none' to 'Normal'"). Normal is `null`; the draft holds the picked list. */
@@ -113,7 +115,7 @@ export function PracticeOptions() {
         />
         <Segmented
           label="Time"
-          hint="Shop-timer speed."
+          hint={cfg.timeMult === 0 ? 'No shop timer. Take as long as you like.' : 'Shop-timer speed.'}
           value={cfg.timeMult}
           options={TIMES}
           onPick={(v) => setDraft({ timeMult: v })}

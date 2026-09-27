@@ -1576,4 +1576,20 @@ export const FOUNDATION_RULES: GameRule[] = [
     currentBehaviour: 'Conforms, FIXED 2026-09-27: the length was a fractional frame-clock value (e.g. 23031.7), so Postgres rejected every real practice row (22P02, invalid input syntax for type integer) and the client ignored the returned error. Reproduced end to end against the live table before the fix.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/practiceGames.test.ts'], lastVerifiedAt: '2026-09-27' },
   },
+  {
+    id: 'R-PRACTICE-TIME-01',
+    title: 'Practice has an Unlimited time option: no shop timer at all',
+    statement:
+      'The Practice Time row offers 1x, 2x, 3x, 4x and Unlimited. Unlimited (timeMult 0) runs the shop with no turn '
+      + 'clock (the same effectively-infinite clock the tutorial uses): the timer shows the infinity symbol and never '
+      + 'locks actions. The in-game timer dropdown offers the same choice. Scored modes never read it.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-27 (Practice options)', quote: 'add an unlimited time option in practice' },
+      { kind: 'code', ref: 'packages/sim/src/state.ts PracticeConfig.timeMult 0; packages/ui/src/Recruit.tsx infiniteClock + ShopTimer; packages/ui/src/store.ts setPracticeTimer / loadPracticeTimer; packages/ui/src/PracticeOptions.tsx TIMES' },
+    ],
+    currentBehaviour: 'Conforms (built 2026-09-27).',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/practiceUnlimitedTime.test.ts'], lastVerifiedAt: '2026-09-27' },
+  },
 ];

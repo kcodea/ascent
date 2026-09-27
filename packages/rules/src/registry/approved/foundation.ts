@@ -1452,4 +1452,20 @@ export const FOUNDATION_RULES: GameRule[] = [
       lastVerifiedAt: '2026-09-25',
     },
   },
+  {
+    id: 'R-PRACTICE-SURGE-01',
+    title: 'Practice Tribe surge offers only the tribes of the set a new run uses',
+    statement:
+      'The Practice screen Tribe surge row lists None plus exactly the tribes of the set a new run is created on (the '
+      + 'set createRun defaults to), in that set order. A tribe from another set (Spirit while Set 2 is live) is never '
+      + 'offered, and a saved surge that is not in the list resets to None.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-27 (Practice screen)', quote: "practice tribe surge should only have the active set's tribes." },
+      { kind: 'code', ref: 'packages/sim/src/state.ts newRunSurgeTribes; packages/ui/src/PracticeOptions.tsx SURGES' },
+    ],
+    currentBehaviour: 'Conforms, FIXED 2026-09-27: the list was hard-coded (Beast, Dragon, Kobold, Demon, Dwarf, Spirit).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/practiceSurgeTribes.test.ts'], lastVerifiedAt: '2026-09-27' },
+  },
 ];

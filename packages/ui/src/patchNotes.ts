@@ -51,6 +51,12 @@ export interface PatchNote {
 /** Newest first. PREPEND new entries. */
 export const PATCH_NOTES: PatchNote[] = [
   {
+    date: '2026-09-27',
+    changes: [
+      { category: 'Systems', text: "Practice's Tribe surge now lists only the tribes in the current set." },
+    ],
+  },
+  {
     date: '2026-09-26',
     changes: [
       {

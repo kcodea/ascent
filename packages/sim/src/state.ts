@@ -378,8 +378,9 @@ export type Phase = 'recruit' | 'combat' | 'gameover' | 'victory';
  *  it is excluded from every one of those gates for free. */
 export type RunMode = 'ascent' | 'rift' | 'practice' | 'lobby' | 'tutorial';
 
-/** The tribes a Practice "tribe surge" can favour (a 100% draw-weight boost for that tribe's shop cards). */
-export type SurgeTribe = 'beast' | 'dragon' | 'kobold' | 'demon' | 'dwarf' | 'spirit';
+/** The tribes a Practice "tribe surge" can favour (a 100% draw-weight boost for that tribe's shop cards). Any real
+ *  tribe; the Practice screen offers only the tribes of the set a new run will use (`newRunSurgeTribes`). */
+export type SurgeTribe = Exclude<Tribe, 'neutral'>;
 
 /** Practice-bot difficulty, 1 (gentlest) to 10. 1/3/5 are the retired Easy/Medium/Hard; 6+ add utility minions.
  *  The per-level dials live in `lobby/practiceBots.ts` (`BOT_LEVELS`). */
@@ -2704,6 +2705,13 @@ export const metLine = (status: LineStatus): boolean =>
  */
 /** The tribes a run created from `seed` on `setId` rolls: THE derivation `createRun` uses, exported so the hero
  *  offer can be filtered by the upcoming run's tribes BEFORE the run exists (TRIBE GATE, owner 2026-09-10). */
+/** The tribes a Practice "tribe surge" may pick: the tribes of the set a NEW run is created on (the same
+ *  `activeSet()` `createRun` defaults to), so a set's surge list never offers another set's tribe (owner
+ *  2026-09-27: "practice tribe surge should only have the active set's tribes"). */
+export function newRunSurgeTribes(setId: SetId = activeSet().id): SurgeTribe[] {
+  return (SETS[setId]?.tribes ?? PLAYABLE_TRIBES).filter((t): t is SurgeTribe => t !== 'neutral');
+}
+
 export function runTribesForSeed(seed: number, setId: SetId = activeSet().id): Tribe[] {
   return selectRunTribes(makeRng(mixSeed(seed, 0, TAG.TRIBES)), SETS[setId]?.tribes ?? PLAYABLE_TRIBES);
 }

@@ -128,7 +128,10 @@ const SWEEP = runTextSweep({ contracts: CONTRACTS });
 // 2026-09-27 (Set 3 rune design pass, tranche 3): 109 → 112, CONSCIOUSLY. Call and Answer's "After a friendly Spirit
 // triggers a Shout or Rally," trigger, the Anvil's "it also gains that much Health." mirror, and the Encore's
 // "also gives its bonus to the left-most minion in your hand" relay. The other four parse fully.
-const UNRESOLVED_CAP = 112;
+// 2026-09-27 (Set 3 rune design pass, tranche 4): 112 → 115, CONSCIOUSLY. The Gem Crypt's "Friendly minions that Rise
+// keep their Rubies.", the Grim Toast's "Your Dwarves also get your Undead Aura." and the Keepsake Gem's "Your Rubies
+// also cast on the left-most minion in your hand." (three rule-shaped texts). The other five parse fully.
+const UNRESOLVED_CAP = 115;
 /** Collapse floor: the parser fully consuming fewer objects than this means a grammar regression. */
 const PARSED_FLOOR = 900;
 /** The HARD ceiling (2026-09-11): the unresolved share of active objects may never reach this fraction again. A

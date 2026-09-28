@@ -603,6 +603,13 @@ export function simulate(
       const a = ua.attack + (fromBase ? ua.buyAtk : 0);
       if (a > 0) m.attack = Math.max(0, m.attack + a);
       if (ua.health > 0) { m.health += ua.health; m.maxHealth += ua.health; }
+    } else if (grimToastDwarf(m)) {
+      // RUNE OF THE GRIM TOAST (Set 3 design pass): a NON-Undead Dwarf gets the whole Undead Aura. The buy channel is
+      // never baked into a Dwarf, so it applies to every body, not only a from-base one.
+      const ua = undeadAura[m.side];
+      const a = ua.attack + ua.buyAtk;
+      if (a > 0) m.attack = Math.max(0, m.attack + a);
+      if (ua.health > 0) { m.health += ua.health; m.maxHealth += ua.health; }
     }
     // Beast / Attachment auras: baked into starting stats at buy time, so re-added only to a from-base body.
     // Both are per-side — a served enemy carries its own captured aura value (`beastAtkAuraFor` / `magneticAuraFor`),
@@ -1552,6 +1559,7 @@ export function simulate(
       // enemy side too, so a captured board's Undead-granter now buffs enemy Undead it summons afterward.
       undeadAura[side].buyAtk += amount;
       undeadBuyAtkGain[side] += amount; // carry-back delta
+      grimToastLive(side, amount, 0); // the Grim Toast's Dwarves feel the Aura rise too
       resyncSoulFurnace(side); // the Aura's Attack rose: the Soul Furnace's Health term follows, live
     },
     grantUndeadAura: (attack, health, side) => {
@@ -1561,6 +1569,7 @@ export function simulate(
       undeadAura[side].attack += attack;
       undeadAura[side].health += health;
       undeadAuraGain[side].attack += attack; undeadAuraGain[side].health += health;
+      grimToastLive(side, attack, health); // the Grim Toast's Dwarves feel the Aura rise too
       resyncSoulFurnace(side); // the Aura's Attack rose: the Soul Furnace's Health term follows, live
     },
     castSpell: (side) => {
@@ -1580,6 +1589,12 @@ export function simulate(
       bus.emit('spellCast', { side, count: spellTotals[side] });
     },
     spellResolved: (side, spellId) => {
+      // RUNE OF THE STAR TAP (Set 3 design pass): a Dwarven Ale cast in combat banks +3/+3 for the Starform (per copy).
+      if (ALE_IDS.includes(spellId) && modsFor(side).runeStarTap) {
+        fireTrigger('runeStarTap', side);
+        const n = 3 * flagCopiesOf(side, 'runeStarTap');
+        ctx.gainStarform(n, n, side, 'Rune of the Star Tap');
+      }
       // GOLDILOX (owner 2026-09-24): "shop spells cast from anywhere count, not rubies, clues or generic spells …
       // this should work in combat, so if spells are cast in combat, goldilox gains stats and those stats are
       // permanent". `castInCombat` reports each finished repetition with the spell it cast; only a Shop-POOL
@@ -1626,6 +1641,7 @@ export function simulate(
     growthBonusFor: (side) => (side === 'player' ? playerState : enemyState).growthBonus ?? 0,
     starCrashBonusFor: (side) => modsFor(side).starCrashBonus ?? { attack: 0, health: 0 },
     onStarCrashCast: (side, caster, target) => runeMeteorStorm(side, caster, target),
+    onRubyCast: (side, caster, target, per, attack, health) => runeRubyCastCombat(side, caster, target, per, attack, health),
     alesLastTurnFor: (side) => (side === 'player' ? playerState : enemyState).alesLastTurn ?? 0,
     crit: (sourceUid, mult) => emit({ type: 'proccrit', source: sourceUid, mult }),
     spellCastRepsFor: (side) => 1 + spellCastExtra[side],
@@ -2864,6 +2880,11 @@ export function simulate(
       minion.dead = false;
       const def = cards[minion.cardId];
       const mul = minion.golden ? 2 : 1;
+      // RUNE OF THE GEM CRYPT (Set 3 design pass): the Ruby stats this body carries (its Shop Rubies + this fight's) are
+      // read BEFORE the Rise resets its stats, and come back with it below.
+      const gemCryptRuby = modsFor(minion.side).runeGemCrypt
+        ? { attack: (minion.buffs?.find((b) => b.source === 'Ruby')?.attack ?? 0) + (minion.rubyGain?.attack ?? 0), health: (minion.buffs?.find((b) => b.source === 'Ruby')?.health ?? 0) + (minion.rubyGain?.health ?? 0) }
+        : null;
       // (Rune of Rebirth no longer alters this path — as of 2026-07-21 it GRANTS Rise to 2 random allies at
       // Start of Combat instead of changing the Health a Rise returns at.)
       if (def) {
@@ -2914,6 +2935,12 @@ export function simulate(
       // for this body. Stamped AFTER its own rise-death was tallied, so that death isn't "progress" either.
       minion.avengeBaseline = deaths[minion.side];
       applyAuras(minion, true); // Reborn reset stats to base — re-apply every run-wide aura on top
+      if (gemCryptRuby && (gemCryptRuby.attack > 0 || gemCryptRuby.health > 0)) {
+        minion.attack += gemCryptRuby.attack;
+        minion.health += gemCryptRuby.health;
+        minion.maxHealth += gemCryptRuby.health;
+        fireTrigger('runeGemCrypt', minion.side);
+      }
       // Re-slot the risen body to just after the contiguous block its Deathrattle summoned into its old slot
       // (each freshly-summoned token isn't in `before`) → it returns to their RIGHT. No summons → it stays put.
       let at = arr.indexOf(minion);
@@ -4807,6 +4834,7 @@ export function simulate(
     furnaceHp[side] += delta;
     ua.health += delta;
     for (const m of living(side)) if (isUndeadMinion(m)) ctx.buff(m, 0, delta, 'Rune of the Soul Furnace');
+    grimToastLive(side, 0, delta);
   }
   /** "Give your Undead Aura +N Attack" in combat: the living Undead feel it now, the side's Aura rises for later
    *  bodies, and the gain is carried back to the run (the Lantern channel, R-AURA-02). */
@@ -4834,6 +4862,50 @@ export function simulate(
       for (let k = 0; k < flagCopiesOf(side, 'runeRestless'); k++) triggerEcho(ctx, minion, minion, 1);
     }
   }
+  /** RUNE OF THE GRIM TOAST: is this a NON-Undead Dwarf on a side holding the rune (an Undead Dwarf has the Aura already)? */
+  function grimToastDwarf(m: Minion): boolean {
+    return !!modsFor(m.side).runeGrimToast && !isUndeadMinion(m) && isTribeOf(m, 'dwarf', cards);
+  }
+  /** The Undead Aura rose by `attack`/`health` on `side` mid-fight: the Grim Toast's living Dwarves feel it now (later
+   *  bodies inherit it through `applyAuras`). */
+  function grimToastLive(side: Side, attack: number, health: number): void {
+    if ((attack <= 0 && health <= 0) || !modsFor(side).runeGrimToast) return;
+    for (const m of living(side)) if (grimToastDwarf(m)) ctx.buff(m, attack, health, 'Rune of the Grim Toast');
+  }
+  /** A combat Ruby cast landed `per` Rubies (`attack`/`health` in total) on `target`. The Keepsake Gem lands the same on
+   *  the left-most hand minion (a hand buff, permanent, per copy; an empty hand = nothing). The Gem Star gives the
+   *  Starform one Ruby's stats for each of the turn's remaining `gemStarLeft` Rubies (per copy; banked for settle). */
+  const gemStarUsed: Record<Side, number> = { player: 0, enemy: 0 };
+  function runeRubyCastCombat(side: Side, caster: Minion, target: Minion, per: number, attack: number, health: number): void {
+    const m = modsFor(side);
+    if (m.runeKeepsakeGem && (attack > 0 || health > 0)) {
+      const left = ctx.handMinionsFor(side)[0];
+      if (left) {
+        fireTrigger('runeKeepsakeGem', side);
+        const n = flagCopiesOf(side, 'runeKeepsakeGem');
+        ctx.buffHand(left.uid, attack * n, health * n, side, caster.uid);
+      }
+    }
+    const left = m.runeGemStar ? Math.max(0, (m.gemStarLeft ?? 0) - gemStarUsed[side]) : 0;
+    if (left > 0 && per > 0) {
+      const k = Math.min(left, per);
+      gemStarUsed[side] += k;
+      const n = flagCopiesOf(side, 'runeGemStar');
+      fireTrigger('runeGemStar', side);
+      ctx.gainStarform(Math.round((attack / per) * k) * n, Math.round((health / per) * k) * n, side, 'Rune of the Gem Star');
+    }
+    void target;
+  }
+  // RUNE OF THE PALLBEARER (Set 3 design pass): every friendly UNDEAD death gives the left-most hand minion +2/+2 per copy.
+  bus.on('avenge', (payload) => {
+    const { side, victim } = payload as { side: Side; victim?: Minion };
+    if (!victim || !modsFor(side).runePallbearer || !isUndeadMinion(victim)) return;
+    const left = ctx.handMinionsFor(side)[0];
+    if (!left) return;
+    const n = 2 * flagCopiesOf(side, 'runePallbearer');
+    fireTrigger('runePallbearer', side);
+    ctx.buffHand(left.uid, n, n, side, victim.uid);
+  });
   /** RUNE OF THE METEOR STORM (owner pick 2026-09-27): a Star Crash just resolved on `target` → cast it again, once per
    *  copy, on a DIFFERENT random living friendly Celestial (a real cast, the rune as caster). The extra casts run under
    *  a latch, so they never repeat themselves (no loop). No other Celestial: nothing. */

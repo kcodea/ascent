@@ -1,4 +1,4 @@
-import { kindredHandValue, runeStacksOf, PACKCRAFT_STEP, REINVESTMENT_PER_SUMMON, REVELER_METER, SLAYING_KILLS, INVESTMENT_SELLS, ANCESTRAL_ROAR_STEP, recurringTickCount, type RunState } from '@game/sim';
+import { kindredHandValue, grimToastFold, GEM_STAR_CAP, runeStacksOf, PACKCRAFT_STEP, REINVESTMENT_PER_SUMMON, REVELER_METER, SLAYING_KILLS, INVESTMENT_SELLS, ANCESTRAL_ROAR_STEP, recurringTickCount, type RunState } from '@game/sim';
 import { CARD_INDEX } from '@game/content';
 import { COMBATATIVE_RUBIES_ATTACKS, BODY_COUNTING_DEATHS } from '@game/core';
 
@@ -60,6 +60,10 @@ export function runeTally(run: RunState, runeId: string): string | null {
   // RUNE OF THE KINDRED HAND (owner pick 2026-09-27): what the NEXT Spirit you play pays right now: +1/+1 for each
   // Spirit you will control once it lands (the board's Spirits plus that one), the live-value rule.
   if (runeId === 'rune_kindred_hand' && run.questFlags?.runeKindredHand) { const n = kindredHandValue(run, 1); return `next +${n}/+${n}`; }
+  // RUNE OF THE GRIM TOAST (Set 3 design pass tranche 4): the Undead Aura your Dwarves get RIGHT NOW (the live-value rule).
+  if (runeId === 'rune_grim_toast') { const g = grimToastFold(run); if (g) return `+${g.attack}/+${g.health}`; }
+  // RUNE OF THE GEM STAR: the turn's Rubies that already fed the Starform, out of the cap ("the first 4 each turn").
+  if (runeId === 'rune_gem_star' && run.questFlags?.runeGemStar) return `${Math.min(GEM_STAR_CAP, run.gemStarThisTurn ?? 0)}/${GEM_STAR_CAP}`;
   // RUNE OF THE OPEN GRAVE: its one charge a turn, as the War Drum shows it (1 ready, 0 spent).
   if (runeId === 'rune_open_grave' && run.questFlags?.runeOpenGrave) return run.openGraveUsedThisTurn ? '0/1' : '1/1';
   // Rune of the Wheel: refreshes toward the aura's next +2/+2 improve (`shopAuraGrow`).

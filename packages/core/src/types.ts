@@ -1367,6 +1367,8 @@ export type QuestReward =
    * at one per turn (the Merchant's Chorus).
    */
   | { kind: 'runeThreshold'; meter: 'gold' | 'spellCast' | 'anySpell' | 'spellCastNonAle' | 'castRuby' | 'cardsBought' | 'cardsPlayed' | 'playDragon' | 'shout' | 'consume' | 'playSpirit'; per: number;
+      /** Rune of Minted Gems (Set 3 design pass): get that many RANDOM Rubies (all six types) when the meter trips. */
+      grantRandomRuby?: number;
       grantSpell?: number; grantAle?: number; grantRuby?: number;
       /** Rune of the Deep Feast: hand over these exact card ids when the meter trips (the `grant` reward's
        *  `cards`, on a meter). Overflow-safe like every other earned reward. */
@@ -1844,7 +1846,12 @@ export type QuestCombatFlag = 'bloodTrail' | 'echoingCoop' | 'lawOfTeeth' | 'old
   // left-most hand minion +1/+1 per Spirit you control (Shop); whetstone = a Dwarf played gives your other Dwarves +1
   // Attack (Shop); anvil = a Dwarf's Attack gain also gives that much Health; satchel = a card to hand gives your
   // Dwarves +1/+1.
-  | 'runeCallAndAnswer' | 'runeEncore' | 'runeKindredHand' | 'runeWhetstone' | 'runeAnvil' | 'runeSatchel';
+  | 'runeCallAndAnswer' | 'runeEncore' | 'runeKindredHand' | 'runeWhetstone' | 'runeAnvil' | 'runeSatchel'
+  // Tranche 4 (hybrids): gemCrypt = a Rise keeps its Rubies; pallbearer = a friendly Undead death gives the left-most
+  // hand minion +2/+2; starTap = an Ale cast gives the Starform +3/+3; closingTime = a Reveler sold gets an Ale (Shop);
+  // grimToast = your Dwarves also get the Undead Aura; gemStar = the first 4 Rubies cast each turn also give the
+  // Starform their stats; keepsakeGem = every Ruby also casts on the left-most hand minion.
+  | 'runeGemCrypt' | 'runePallbearer' | 'runeStarTap' | 'runeClosingTime' | 'runeGrimToast' | 'runeGemStar' | 'runeKeepsakeGem';
 /** Quest-armed combat modifiers threaded into `simulate()` (one trailing options arg). Beast quest capstones +
  *  greaters live here so the pure combat engine can honor them without new positional params per flag. */
 export interface QuestCombatMods {
@@ -2132,6 +2139,22 @@ export interface QuestCombatMods {
   runeAnvil?: boolean;
   /** Rune of the Satchel: every card reaching this side's hand gives its living Dwarves +1/+1 (for the fight). */
   runeSatchel?: boolean;
+  // ── Set 3 rune design pass (owner 2026-09-27), tranche 4: hybrids ──
+  /** Rune of the Gem Crypt: a risen body comes back with the Ruby stats it had (Shop Rubies + this fight's). */
+  runeGemCrypt?: boolean;
+  /** Rune of the Pallbearer: a friendly Undead death gives the left-most hand minion +2/+2 (R-HAND-02). */
+  runePallbearer?: boolean;
+  /** Rune of the Star Tap: a Dwarven Ale cast banks +3/+3 for the Starform. */
+  runeStarTap?: boolean;
+  /** Rune of the Grim Toast: this side's NON-Undead Dwarves also get its Undead Aura (Attack + buy Attack, Health),
+   *  at seeding and on every live Aura rise. */
+  runeGrimToast?: boolean;
+  /** Rune of the Gem Star: the first 4 Rubies cast each turn also give the Starform their stats. */
+  runeGemStar?: boolean;
+  /** Rune of the Gem Star: how many more Rubies may still feed the Starform this turn (4 minus the Shop's). */
+  gemStarLeft?: number;
+  /** Rune of the Keepsake Gem: every Ruby cast also lands its stats on the left-most hand minion (a hand buff). */
+  runeKeepsakeGem?: boolean;
   /** Rune of Falling Embers' Star Crash bonus (the run's `starCrashBonus`), so a combat Star Crash pays it too. */
   starCrashBonus?: { attack: number; health: number };
   /** Rune of the War Drum's UNSPENT shop charge (owner ruling 2026-08-26: "1/1 use, resets at start of turn —
@@ -3706,6 +3729,9 @@ export interface CombatContext {
   /** A Star Crash just resolved in combat on `target` (Rune of the Meteor Storm listens: it casts it again on a
    *  different friendly Celestial). Absent = nothing listens. */
   onStarCrashCast?(side: Side, caster: Minion, target: Minion): void;
+  /** A combat Ruby cast just landed `per` Rubies worth `attack`/`health` in total on `target` (the Keepsake Gem and
+   *  the Gem Star listen). Called by `playRubyOn` only: a bounce hop is not a cast and never reaches it. */
+  onRubyCast?(side: Side, caster: Minion, target: Minion, per: number, attack: number, health: number): void;
   /** Runesnout Archivist's journal for this side (see `CombatSideState.rememberedSpellIds`). */
   rememberedSpellsFor?(side: Side): readonly string[];
   /** Mossmemory Colossus — resummon up to `count` of the Beasts that died EARLIEST this combat on `side`,

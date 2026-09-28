@@ -713,6 +713,19 @@ that much Health; a Health gain never re-fires it), the Satchel (Epic: a card ad
 "The left-most minion in your hand" skips spells. Oracle R-SET3RUNE-23..29; details in
 `docs/devlog/2026-09-27-set3-runes-t3.md`.
 
+**Design pass tranche 4: hybrids (owner 2026-09-27)** adds 8 Set-3-only runes, each gated to its two tribes (**200
+runes, 107 Basic / 93 Epic**; with the restored Festival Circuit and Soul Script, 10 hybrids, one per tribe pair).
+Basic: Minted Gems (Kobold + Dwarf: every 8 Gold spent gets a random Ruby), the Gem Crypt (Kobold + Undead: a friendly
+minion that Rises comes back with the Ruby stats it had), the Pallbearer (Undead + Spirit: a friendly Undead death gives
+the left-most minion in your hand +2/+2), the Star Tap (Dwarf + Celestial: a Dwarven Ale cast gives your Starform
++3/+3), **Closing Time** (Dwarf + Spirit, the owner's "Last Call", renamed because Set 2's Rune of Last Call owns that
+name: selling a Reveler gets a Dwarven Ale). Epic: the **Grim Toast** (Dwarf + Undead: your non-Undead Dwarves get the
+whole live Undead Aura, Attack and Health, through the same Aura fold; an Undead Dwarf is never paid twice), the Gem Star
+(Kobold + Celestial: the first 4 Rubies cast each turn, Shop through that turn's combat, also give your Starform their
+stats), the **Keepsake Gem** (Kobold + Spirit, the owner's stronger version: every Ruby cast also lands its stats on the
+left-most minion in your hand, as a plain grant that no Ruby trigger hears, so it cannot loop). Oracle
+R-SET3RUNE-30..37; details in `docs/devlog/2026-09-27-set3-runes-t4.md`.
+
 **Set 3-original runes (batch 2, 2026-09-16).** Set 3 now also has runes of its own — `sets: ['set3']` alone,
 no origin scope — starting with tranche A's 24 Spirit / Celestial / Undead runes (11 Basic + 13 Epic, taking the
 set-3 static pool to **126 Basic / 111 Epic**), plus the rune-exclusive **Handy Flame** token. The two combat-side

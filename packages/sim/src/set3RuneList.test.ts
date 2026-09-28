@@ -90,8 +90,10 @@ const OWNER_LIST: Record<string, { basic: Record<string, string>; epic: Record<s
   // HYBRIDS (2026-09-27 design pass): one per natural tribe pair, each gated to BOTH its tribes (HYBRID_TRIBES).
   // Soul Script predates the group and stays listed under Undead (owner 2026-09-25).
   hybrid: {
-    basic: {},
-    epic: { 'festival circuit': 'rune_festival_circuit' /* RESTORED */ },
+    // Design pass tranche 4 (owner 2026-09-27). No Tavern Tab: its Dwarf + Spirit slot is the owner's pick, the Last
+    // Call, shipped as "Rune of Closing Time" (the Set 2 Dwarf rune `rune_last_call` already owns "Rune of Last Call").
+    basic: { 'minted gems': 'rune_minted_gems', 'gem crypt': 'rune_gem_crypt', pallbearer: 'rune_pallbearer', 'star tap': 'rune_star_tap', 'closing time': 'rune_closing_time' },
+    epic: { 'festival circuit': 'rune_festival_circuit' /* RESTORED */, 'grim toast': 'rune_grim_toast', 'gem star': 'rune_gem_star', 'keepsake gem': 'rune_keepsake_gem' },
   },
   neutral: {
     basic: {
@@ -134,13 +136,17 @@ const NOWHERE = ['rune_charted_skies',
 /** The hybrid group's tribe gates (2026-09-27 design pass). */
 const HYBRID_TRIBES: Record<string, readonly Tribe[]> = {
   rune_festival_circuit: ['spirit', 'celestial'],
+  // tranche 4 (2026-09-27)
+  rune_minted_gems: ['kobold', 'dwarf'], rune_gem_crypt: ['kobold', 'undead'], rune_pallbearer: ['undead', 'spirit'],
+  rune_star_tap: ['dwarf', 'celestial'], rune_closing_time: ['dwarf', 'spirit'], rune_grim_toast: ['dwarf', 'undead'],
+  rune_gem_star: ['kobold', 'celestial'], rune_keepsake_gem: ['kobold', 'spirit'],
 };
 
 describe("the owner's Set 3 rune list (2026-09-25)", () => {
-  it('names 192 distinct runes, every one a live (non-archived) rune def', () => {
+  it('names 200 distinct runes, every one a live (non-archived) rune def', () => {
     // 163 + 11 from Set 3 rune batch 3 (2026-09-25) = 174; the 2026-09-27 design pass: tranche 0 cut 10, restored 5 (169);
-    // tranche 1 added 8 Undead (177); tranche 2 added 8 Celestial (185); tranche 3 added 4 Spirit + 3 Dwarf (192).
-    expect(LISTED).toHaveLength(192);
+    // tranche 1 added 8 Undead (177); tranche 2 added 8 Celestial (185); tranche 3 added 4 Spirit + 3 Dwarf (192); tranche 4 added 8 hybrids (200).
+    expect(LISTED).toHaveLength(200);
     expect(new Set(LISTED).size, 'no rune named twice').toBe(LISTED.length);
     for (const id of LISTED) {
       expect(LIVE.some((r) => r.id === id), `${id} is a live rune`).toBe(true);
@@ -164,9 +170,9 @@ describe("the owner's Set 3 rune list (2026-09-25)", () => {
     expect([...offered].sort()).toEqual([...LISTED].sort());
   });
 
-  it('counts: 102 Basic / 90 Epic (91 / 83 on 2026-09-25; 2026-09-27 tranche 0: 87 / 82; tranche 1: + 5 / + 3 Undead; tranche 2: + 5 / + 3 Celestial; tranche 3: + 5 / + 2 Spirit + Dwarf)', () => {
-    expect(LISTED.filter((id) => RUNES.some((r) => r.id === id))).toHaveLength(102);
-    expect(LISTED.filter((id) => EPIC_RUNES.some((r) => r.id === id))).toHaveLength(90);
+  it('counts: 107 Basic / 93 Epic (91 / 83 on 2026-09-25; 2026-09-27 tranche 0: 87 / 82; tranche 1: + 5 / + 3 Undead; tranche 2: + 5 / + 3 Celestial; tranche 3: + 5 / + 2 Spirit + Dwarf; tranche 4: + 5 / + 3 hybrids)', () => {
+    expect(LISTED.filter((id) => RUNES.some((r) => r.id === id))).toHaveLength(107);
+    expect(LISTED.filter((id) => EPIC_RUNES.some((r) => r.id === id))).toHaveLength(93);
   });
 
   it('every rune NOT named is out of Set 3, still resolves, and keeps its other sets (never archived)', () => {

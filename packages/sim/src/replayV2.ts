@@ -453,6 +453,8 @@ export function oddsInputFromCombatFrame(
     const def = CARD_INDEX[snap.cardId];
     if (def?.imp) { m.attack = Math.max(0, m.attack - playerState.impAtk); m.health -= playerState.impHp; }
     if (defIsTribe(def, 'undead') || m.universalTribe) { m.attack = Math.max(0, m.attack - playerState.undeadAtk); m.health -= playerState.undeadHp; }
+    // Rune of the Grim Toast (Set 3 design pass): a non-Undead Dwarf carried the whole Aura (buy Attack included).
+    else if (playerState.questMods.runeGrimToast && defIsTribe(def, 'dwarf')) { m.attack = Math.max(0, m.attack - playerState.undeadAtk - playerState.undeadBuyAtk); m.health -= playerState.undeadHp; }
     // Fleeting Vigor covered the run board only — not the Imps appended after it.
     if (fleeting && fromBoard) { m.attack += fleeting.attack; m.health += fleeting.health; }
   });

@@ -98,6 +98,8 @@ async function poolIds(u: string): Promise<string[]> {
 }
 
 const SKIN_IDS = COSMETICS.filter((c) => c.category === 'hero_skin' || c.category === 'minion_skin').map((c) => c.id).sort();
+/** Every crate item that is not a title: the skins, plus the hero attacks since 2026-09-28. */
+const NON_TITLE_CRATE_IDS = COSMETICS.filter((c) => c.category !== 'title' && c.acquisition.type === 'crate').map((c) => c.id).sort();
 const TITLE_CRATE_IDS = COSMETICS.filter((c) => c.category === 'title' && c.acquisition.type === 'crate').map((c) => c.id);
 
 beforeAll(async () => {
@@ -118,7 +120,7 @@ afterAll(async () => { await db?.close(); });
 describe('the migration', () => {
   it('after the first sync: the two skin categories are on and the four skins exist (rows equal the TS catalog)', async () => {
     const cats = (await db.query<{ category: string }>('select category from public.cosmetic_categories where enabled order by category')).rows.map((r) => r.category);
-    expect(cats).toEqual(['hero_skin', 'minion_skin', 'title']);
+    expect(cats).toEqual(['hero_attack', 'hero_skin', 'minion_skin', 'title']);
     const rows = (await db.query<{ cosmetic_id: string; category: string; target_type: string; target_id: string; active: boolean }>(
       "select cosmetic_id, category, target_type, target_id, active from public.cosmetic_catalog where category in ('hero_skin', 'minion_skin') order by cosmetic_id")).rows;
     expect(rows).toEqual(COSMETICS.filter((c) => c.target).sort((a, b) => (a.id < b.id ? -1 : 1))
@@ -145,9 +147,9 @@ describe('the migration', () => {
 describe('the crate pool', () => {
   it('a crate can now give a skin: with every title owned, the next openings give each skin once, then pool_exhausted', async () => {
     const u = await playerOwning(TITLE_CRATE_IDS);
-    expect((await poolIds(u)).sort()).toEqual(SKIN_IDS);
+    expect((await poolIds(u)).sort()).toEqual(NON_TITLE_CRATE_IDS);
     // enough crates: grant levels directly as sealed crates
-    for (let lvl = 2; lvl <= 6; lvl++) await db.query('insert into public.loot_crates (user_id, earned_level) values ($1, $2) on conflict do nothing', [u, lvl]);
+    for (let lvl = 2; lvl <= 8; lvl++) await db.query('insert into public.loot_crates (user_id, earned_level) values ($1, $2) on conflict do nothing', [u, lvl]);
     const ids = (await db.query<{ crate_id: string }>("select crate_id from public.loot_crates where user_id = $1 and state = 'sealed' order by earned_level", [u])).rows.map((r) => r.crate_id);
     const got: string[] = [];
     for (const id of ids) {
@@ -155,7 +157,7 @@ describe('the crate pool', () => {
       if (r.status === 'opened') got.push(r.rewardId!);
       else expect(r.status).toBe('pool_exhausted');
     }
-    expect(got.sort()).toEqual(SKIN_IDS);
+    expect(got.sort()).toEqual(NON_TITLE_CRATE_IDS);
   });
 
   it('the SQL pool and the TS eligible list agree for a fresh player (titles + skins)', async () => {
@@ -335,10 +337,10 @@ describe('the catalog sync (owner 2026-09-28: "make it automated when i add skin
     const p = base();
     const categories = p.categories.filter((c) => c.category !== 'title').map((c) => (c.category === 'hero_skin' ? { ...c, enabled: false } : c));
     expect((await sync({ ...p, categories }, 'test-hash-cat-1')).status).toBe('synced');
-    expect(await enabledCats()).toEqual(['minion_skin']);
+    expect(await enabledCats()).toEqual(['hero_attack', 'minion_skin']);
     expect((await poolIds(await playerOwning([]))).filter((id) => id.startsWith('skin_albus') || id.startsWith('title_'))).toEqual([]);
     await sync();
-    expect(await enabledCats()).toEqual(['hero_skin', 'minion_skin', 'title']);
+    expect(await enabledCats()).toEqual(['hero_attack', 'hero_skin', 'minion_skin', 'title']);
   });
 
   it('the emergency switch WINS: admin_off on an item and a category survives any number of syncs', async () => {

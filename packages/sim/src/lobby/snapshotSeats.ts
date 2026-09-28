@@ -34,12 +34,18 @@ export interface PlayerRun {
 function runCosmetics(snaps: readonly BoardSnapshot[]): RunCosmeticSnapshot | undefined {
   const hero: Record<string, string> = {};
   const minion: Record<string, string> = {};
+  let attack: string | undefined;
   for (const s of snaps) {
     for (const [k, v] of Object.entries(s.cosmetics?.heroSkinByHeroId ?? {})) if (!(k in hero) && typeof v === 'string') hero[k] = v;
     for (const [k, v] of Object.entries(s.cosmetics?.minionSkinByCardId ?? {})) if (!(k in minion) && typeof v === 'string') minion[k] = v;
+    // The account-wide hero attack (2026-09-28): first board that recorded one wins, like the skins.
+    if (attack === undefined && typeof s.cosmetics?.heroAttack === 'string') attack = s.cosmetics.heroAttack;
   }
-  if (!Object.keys(hero).length && !Object.keys(minion).length) return undefined;
-  return { ...(Object.keys(hero).length ? { heroSkinByHeroId: hero } : {}), ...(Object.keys(minion).length ? { minionSkinByCardId: minion } : {}) };
+  if (!Object.keys(hero).length && !Object.keys(minion).length && !attack) return undefined;
+  return {
+    ...(Object.keys(hero).length ? { heroSkinByHeroId: hero } : {}), ...(Object.keys(minion).length ? { minionSkinByCardId: minion } : {}),
+    ...(attack ? { heroAttack: attack } : {}),
+  };
 }
 
 /** A run is only worth a seat if it has enough material to hold one for a while. */

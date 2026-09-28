@@ -24,9 +24,11 @@ const board = (author: string, heroId: string, seed: number, wave: number, cardI
   seed, origin: 'self', author, setId: 'set1', ...(cosmetics ? { cosmetics } : {}),
 } as BoardSnapshot);
 
-// A skinned run: the hero skin on every board, the Brian skin only on the boards where Brian was fielded.
+// A skinned run: the hero skin on every board, the Brian skin only on the boards where Brian was fielded, and the
+// account-wide hero attack (2026-09-28) on every board.
 const SKINNED = Array.from({ length: 8 }, (_, i) => board('Skye', 'albus', 4242, i + 1, i >= 5 ? 'blackbelt' : 'pack',
-  i >= 5 ? { heroSkinByHeroId: { albus: 'skin_albus_1' }, minionSkinByCardId: { blackbelt: 'skin_blackbelt_2' } } : { heroSkinByHeroId: { albus: 'skin_albus_1' } }));
+  i >= 5 ? { heroSkinByHeroId: { albus: 'skin_albus_1' }, minionSkinByCardId: { blackbelt: 'skin_blackbelt_2' }, heroAttack: 'attack_blast' } : { heroSkinByHeroId: { albus: 'skin_albus_1' }, heroAttack: 'attack_blast' }));
+const SKYE = { heroSkinByHeroId: { albus: 'skin_albus_1' }, minionSkinByCardId: { blackbelt: 'skin_blackbelt_2' }, heroAttack: 'attack_blast' };
 // A run from before skins: no field anywhere.
 const LEGACY = Array.from({ length: 8 }, (_, i) => board('Olde', 'warden', 4343, i + 1, 'pack'));
 
@@ -39,6 +41,14 @@ describe('scopeCosmetics (what a captured board records)', () => {
     expect(scopeCosmetics(c, ['albus'], ['pack'])).toEqual({ heroSkinByHeroId: { albus: 'skin_albus_1' } });
     expect(scopeCosmetics(c, ['cia'], ['pack'])).toBeUndefined();
     expect(scopeCosmetics(undefined, ['albus'], ['blackbelt'])).toBeUndefined();
+  });
+
+  it('the account-wide hero attack rides every board, even one with no skin in it (owner 2026-09-28)', () => {
+    const a = { ...c, heroAttack: 'attack_blast' };
+    expect(scopeCosmetics(a, ['cia'], ['pack'])).toEqual({ heroAttack: 'attack_blast' });
+    expect(scopeCosmetics(a, ['albus'], [])).toEqual({ heroSkinByHeroId: { albus: 'skin_albus_1' }, heroAttack: 'attack_blast' });
+    const run = { ...createRun(7, 'albus'), cosmetics: { heroAttack: 'attack_blast' } };
+    expect(snapshotBoard(run).cosmetics).toEqual({ heroAttack: 'attack_blast' });
   });
 });
 
@@ -71,7 +81,7 @@ describe('snapshotBoard records the run\'s skins, scoped', () => {
 describe('the pool and the lobby carry the owner\'s skins', () => {
   it('a reassembled player run UNIONS its boards\' skins (the wave-6 Brian skin is known from round 1)', () => {
     const skye = playerRunsFrom().find((r) => r.author === 'Skye')!;
-    expect(skye.cosmetics).toEqual({ heroSkinByHeroId: { albus: 'skin_albus_1' }, minionSkinByCardId: { blackbelt: 'skin_blackbelt_2' } });
+    expect(skye.cosmetics).toEqual(SKYE);
     expect(playerRunsFrom().find((r) => r.author === 'Olde')!.cosmetics).toBeUndefined();
   });
 
@@ -79,7 +89,7 @@ describe('the pool and the lobby carry the owner\'s skins', () => {
     const lobby = createRunLobby(1234, 'cia');
     const skye = lobby.seats.find((s) => s.kind === 'snapshot' && s.heroId === 'albus');
     const olde = lobby.seats.find((s) => s.kind === 'snapshot' && s.heroId === 'warden');
-    expect(skye?.cosmetics).toEqual({ heroSkinByHeroId: { albus: 'skin_albus_1' }, minionSkinByCardId: { blackbelt: 'skin_blackbelt_2' } });
+    expect(skye?.cosmetics).toEqual(SKYE); // so the foe's hero attack plays when that seat strikes you
     expect(olde && 'cosmetics' in olde).toBe(false);
     for (const s of lobby.seats.filter((x) => x.kind !== 'snapshot')) expect('cosmetics' in s, s.id).toBe(false);
     // the seat is plain data: it survives the JSON round trip a save / replay frame takes
@@ -94,7 +104,7 @@ describe('replay v2 fidelity: the recorded skins ride the frames', () => {
     const frame = JSON.parse(JSON.stringify(shopFrameOf(run, 'turnStart', 0)));
     expect(frame.view.cosmetics).toEqual(run.cosmetics);
     const seat = frame.view.lobby.seats.find((s: { heroId: string; kind: string }) => s.kind === 'snapshot' && s.heroId === 'albus');
-    expect(seat.cosmetics).toEqual({ heroSkinByHeroId: { albus: 'skin_albus_1' }, minionSkinByCardId: { blackbelt: 'skin_blackbelt_2' } });
+    expect(seat.cosmetics).toEqual(SKYE); // a replay plays the foe's recorded hero attack
   });
 
   it('skins never change mid-run, so a delta frame never re-sends them (no replay bloat)', () => {

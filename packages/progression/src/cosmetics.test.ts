@@ -45,12 +45,13 @@ describe('the launch catalog', () => {
     expect(titleName('title_the_unbroken')).toBe('The Unbroken');
   });
 
-  it('every handoff category exists with its weight; title and the two skin slots are switched on', () => {
+  it('every handoff category exists with its weight; title, the two skin slots and hero attacks are switched on', () => {
     expect([...COSMETIC_CATEGORIES].sort()).toEqual(['announcer', 'board', 'hero_attack', 'hero_skin', 'minion_skin', 'music', 'title']);
     expect(COSMETIC_CATEGORIES.map((c) => [c, COSMETIC_CATEGORY_DEFS[c].weight])).toEqual([
       ['announcer', 10], ['hero_skin', 20], ['minion_skin', 35], ['title', 10], ['hero_attack', 15], ['board', 5], ['music', 5],
     ]);
-    expect(COSMETIC_CATEGORIES.filter((c) => COSMETIC_CATEGORY_DEFS[c].enabled)).toEqual(['hero_skin', 'minion_skin', 'title']);
+    // Owner 2026-09-28: "the new blast attack is going to be a cosmetic unlock, not a new default" (hero_attack on).
+    expect(COSMETIC_CATEGORIES.filter((c) => COSMETIC_CATEGORY_DEFS[c].enabled)).toEqual(['hero_skin', 'minion_skin', 'title', 'hero_attack']);
     expect(RARITY_WEIGHTS).toEqual({ common: 55, rare: 30, epic: 12, legendary: 3 });
   });
 });
@@ -101,16 +102,19 @@ describe('the roll', () => {
   });
 
   // Re-pinned 2026-09-28 when the Legendary Black Belt Brian and the Epic Bellringer Voss skins joined (was Common
-  // 50.9 / Rare 33.7 / Epic 15.1 / Legendary 0.4 / skin 25.8). Weights (rarity x category) of the full pool: Common
-  // 3850, Rare 2550, Epic 1560, Legendary 135 (the Unbroken title 30 + Grandmaster Brian 105) of 8095; the skins 2475.
-  it('the odds of a first crate with the skins in (2026-09-28): Common 47.6%, Rare 31.5%, Epic 19.3%, Legendary 1.7%; a skin 30.6%', () => {
+  // 50.9 / Rare 33.7 / Epic 15.1 / Legendary 0.4 / skin 25.8), and AGAIN on 2026-09-28 when the first hero attack
+  // (Arcane Barrage, `attack_blast`, Epic x hero_attack 15 = weight 180) joined: was Common 47.6 / Rare 31.5 /
+  // Epic 19.3 / Legendary 1.7 / non-title 30.6 of 8095. Weights of the full pool now: Common 3850, Rare 2550, Epic
+  // 1740, Legendary 135 of 8275; the non-title items (skins 2475 + the attack 180) 2655; the attack alone 2.2%.
+  it('the odds of a first crate with the skins and the first hero attack in (2026-09-28): Common 46.5%, Rare 30.8%, Epic 21.0%, Legendary 1.6%; a non-title 32.1%', () => {
     const all = eligibleCrateCosmetics([]);
     const total = crateTotalWeight(all);
     const pct = (xs: typeof all): number => Math.round((1000 * xs.reduce((s, c) => s + crateWeightOf(c), 0)) / total) / 10;
     const share = (r: string): number => pct(all.filter((c) => c.rarity === r));
-    expect([share('common'), share('rare'), share('epic'), share('legendary')]).toEqual([47.6, 31.5, 19.3, 1.7]);
-    expect(pct(all.filter((c) => c.category !== 'title'))).toBe(30.6);
-    expect(total).toBe(8095);
+    expect([share('common'), share('rare'), share('epic'), share('legendary')]).toEqual([46.5, 30.8, 21.0, 1.6]);
+    expect(pct(all.filter((c) => c.category !== 'title'))).toBe(32.1);
+    expect(pct(all.filter((c) => c.category === 'hero_attack'))).toBe(2.2);
+    expect(total).toBe(8275);
     // the titles-only launch odds are unchanged when the skins are switched off (the kill switch path)
     const titlesOnly = all.filter((c) => c.category === 'title');
     const t = crateTotalWeight(titlesOnly);

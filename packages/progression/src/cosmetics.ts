@@ -65,7 +65,8 @@ export const COSMETIC_CATEGORY_DEFS: Readonly<Record<CosmeticCategory, CosmeticC
   hero_skin:   { id: 'hero_skin',   label: 'Heroes',            weight: 20, enabled: true,  target: 'hero' },
   minion_skin: { id: 'minion_skin', label: 'Minions',           weight: 35, enabled: true,  target: 'card' },
   title:       { id: 'title',       label: 'Titles',            weight: 10, enabled: true,  target: 'global' },
-  hero_attack: { id: 'hero_attack', label: 'Attack Animations', weight: 15, enabled: false, target: 'global' },
+  // Owner 2026-09-28: "the new blast attack is going to be a cosmetic unlock, not a new default". Live since then.
+  hero_attack: { id: 'hero_attack', label: 'Attack Animations', weight: 15, enabled: true,  target: 'global' },
   board:       { id: 'board',       label: 'Boards',            weight: 5,  enabled: false, target: 'global' },
   music:       { id: 'music',       label: 'Music',             weight: 5,  enabled: false, target: 'global' },
 });
@@ -92,7 +93,8 @@ export interface CosmeticDef {
   /** Hero / minion skins: the stable hero id or card id (never a display name). */
   target?: { type: 'hero' | 'card'; id: string };
   acquisition: CosmeticAcquisition;
-  /** Asset keys → paths (the owner's art slots in here). Titles are text and need none. */
+  /** Asset keys → paths (the owner's art slots in here). Titles are text and need none. A hero attack names the
+   *  animation it plays in `style` (a style this client does not know plays Classic). */
   assets: Readonly<Record<string, string>>;
   /** False = retired: never acquired again, never removed from an owner. */
   active: boolean;
@@ -112,6 +114,13 @@ const title = (id: string, name: string, rarity: CosmeticRarity): CosmeticDef =>
  */
 const skin = (id: string, category: 'hero_skin' | 'minion_skin', name: string, rarity: CosmeticRarity, targetId: string, master: string): CosmeticDef =>
   ({ id, category, name, rarity, target: { type: category === 'hero_skin' ? 'hero' : 'card', id: targetId }, acquisition: { type: 'crate' }, assets: { art: id, master }, active: true });
+
+/**
+ * A HERO ATTACK: one account-wide item (target `global`, no hero or card) that changes how YOUR hero lands the
+ * post-combat blow, seen by you and by the player you hit. `assets.style` is the animation id the client plays.
+ */
+const heroAttack = (id: string, name: string, rarity: CosmeticRarity, style: string): CosmeticDef =>
+  ({ id, category: 'hero_attack', name, rarity, acquisition: { type: 'crate' }, assets: { style }, active: true });
 
 /**
  * THE LAUNCH CATALOG. Owner 2026-09-27: "let's just do 15 titles to start." 7 Common, 5 Rare, 2 Epic,
@@ -146,6 +155,10 @@ export const COSMETICS: readonly CosmeticDef[] = Object.freeze([
   skin('skin_bellringer_1', 'minion_skin', 'Clocktower Voss', 'epic', 'n2_bellringer', 'BellringerVossSkinEpic.png'),
   skin('skin_albus_1', 'hero_skin', 'Surf Day Albus', 'epic', 'albus', 'Albus1.png'),
   skin('skin_warden_1', 'hero_skin', 'Bath Day Warden', 'epic', 'warden', 'Warden1.png'),
+  // HERO ATTACKS. Owner 2026-09-28: "the new blast attack is going to be a cosmetic unlock, not a new default". The
+  // numbers combine, the hero charges, the view shakes and pushes in, bolts carry the blow. The name is a placeholder
+  // for the owner to rename (the id stays).
+  heroAttack('attack_blast', 'Arcane Barrage', 'epic', 'blast'),
 ]);
 
 export const COSMETIC_INDEX: Readonly<Record<string, CosmeticDef>> = Object.freeze(
@@ -312,6 +325,9 @@ export const liveCosmetics = (catalog: readonly CosmeticDef[] = COSMETICS): Cosm
 
 export type SkinSlot = 'hero_skin' | 'minion_skin';
 export const SKIN_SLOTS: readonly SkinSlot[] = ['hero_skin', 'minion_skin'];
+/** Every slot `equip_cosmetic` accepts: the two per-target skin slots and the account-wide hero attack (target ''). */
+export type EquipSlot = SkinSlot | 'hero_attack';
+export const EQUIP_SLOTS: readonly EquipSlot[] = ['hero_skin', 'minion_skin', 'hero_attack'];
 
 /**
  * Who wears what, keyed by the TARGET (handoff §6.7 `cosmetic_loadouts` / §13 `RunCosmeticSnapshot`). The same
@@ -320,6 +336,8 @@ export const SKIN_SLOTS: readonly SkinSlot[] = ['hero_skin', 'minion_skin'];
 export interface RunCosmeticSnapshot {
   heroSkinByHeroId?: Readonly<Record<string, string>>;
   minionSkinByCardId?: Readonly<Record<string, string>>;
+  /** The equipped `hero_attack` item (account-wide). Absent = Classic. */
+  heroAttack?: string;
 }
 
 /** Hard caps on what a snapshot may carry, so a hostile or corrupt payload stays tiny. */
@@ -349,8 +367,12 @@ export function parseCosmeticSnapshot(v: unknown): RunCosmeticSnapshot | null {
   const o = v as Record<string, unknown>;
   const heroSkinByHeroId = parseSkinMap(o.heroSkinByHeroId);
   const minionSkinByCardId = parseSkinMap(o.minionSkinByCardId);
-  if (!heroSkinByHeroId && !minionSkinByCardId) return null;
-  return { ...(heroSkinByHeroId ? { heroSkinByHeroId } : {}), ...(minionSkinByCardId ? { minionSkinByCardId } : {}) };
+  const heroAttack = typeof o.heroAttack === 'string' && ID_RE.test(o.heroAttack) ? o.heroAttack : undefined;
+  if (!heroSkinByHeroId && !minionSkinByCardId && !heroAttack) return null;
+  return {
+    ...(heroSkinByHeroId ? { heroSkinByHeroId } : {}), ...(minionSkinByCardId ? { minionSkinByCardId } : {}),
+    ...(heroAttack ? { heroAttack } : {}),
+  };
 }
 
 /** A loadout row as the SQL returns it (`progression_profile_json.loadout`). */
@@ -360,12 +382,16 @@ export interface LoadoutRow { slot: string; targetId: string; cosmeticId: string
 export function loadoutFromRows(rows: unknown): RunCosmeticSnapshot {
   const hero: Record<string, string> = {};
   const minion: Record<string, string> = {};
+  let attack: string | undefined;
   if (Array.isArray(rows)) {
     for (const r of rows) {
       if (!r || typeof r !== 'object') continue;
       const o = r as Record<string, unknown>;
       const slot = o.slot; const target = o.targetId ?? o.target_id; const id = o.cosmeticId ?? o.cosmetic_id;
-      if (typeof target !== 'string' || typeof id !== 'string' || !ID_RE.test(target) || !ID_RE.test(id)) continue;
+      if (typeof id !== 'string' || !ID_RE.test(id)) continue;
+      // The hero attack is account-wide: its row's target is '' (the global slot).
+      if (slot === 'hero_attack') { if (target === '' || target === undefined) attack = id; continue; }
+      if (typeof target !== 'string' || !ID_RE.test(target)) continue;
       if (slot === 'hero_skin') hero[target] = id;
       else if (slot === 'minion_skin') minion[target] = id;
     }
@@ -373,6 +399,7 @@ export function loadoutFromRows(rows: unknown): RunCosmeticSnapshot {
   return {
     ...(Object.keys(hero).length ? { heroSkinByHeroId: hero } : {}),
     ...(Object.keys(minion).length ? { minionSkinByCardId: minion } : {}),
+    ...(attack ? { heroAttack: attack } : {}),
   };
 }
 
@@ -393,6 +420,15 @@ export function minionSkinOf(snapshot: RunCosmeticSnapshot | null | undefined, c
   if (!snapshot || !cardId) return null;
   const c = cosmeticOf(snapshot.minionSkinByCardId?.[cardId]);
   return c && c.category === 'minion_skin' && c.target?.type === 'card' && c.target.id === cardId && isCosmeticLive(c.id) ? c : null;
+}
+
+/**
+ * The hero attack this snapshot plays, or null for Classic. Null whenever the item is unknown, retired (item or
+ * category, TS or server) or not a hero attack, so a stale or forged id always falls back to Classic.
+ */
+export function heroAttackOf(snapshot: RunCosmeticSnapshot | null | undefined): CosmeticDef | null {
+  const c = cosmeticOf(snapshot?.heroAttack);
+  return c && c.category === 'hero_attack' && isCosmeticLive(c.id) ? c : null;
 }
 
 /** The skins that target one hero or card (the Collection's per-target list). */
@@ -416,10 +452,13 @@ export function snapshotForRun(
   const minion: Record<string, string> = {};
   for (const [h, id] of Object.entries(loadout.heroSkinByHeroId ?? {})) if ((!heroes || heroes.has(h)) && heroSkinOf(loadout, h)) hero[h] = id;
   for (const [k, id] of Object.entries(loadout.minionSkinByCardId ?? {})) if ((!cards || cards.has(k)) && minionSkinOf(loadout, k)) minion[k] = id;
-  if (!Object.keys(hero).length && !Object.keys(minion).length) return null;
+  // The hero attack is account-wide, so every run records it (the hero it strikes with is always in the run).
+  const attack = heroAttackOf(loadout)?.id;
+  if (!Object.keys(hero).length && !Object.keys(minion).length && !attack) return null;
   return {
     ...(Object.keys(hero).length ? { heroSkinByHeroId: hero } : {}),
     ...(Object.keys(minion).length ? { minionSkinByCardId: minion } : {}),
+    ...(attack ? { heroAttack: attack } : {}),
   };
 }
 

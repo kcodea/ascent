@@ -2,9 +2,18 @@ import { useEffect, useRef, useState } from 'react';
 import { Application, type Container, type Ticker } from 'pixi.js';
 import { sfx } from '../sfx';
 import { stageScale } from '../stage';
-import { playHeroBlast, type HeroBlastHandle } from './heroBlast';
+import type { HeroAttackHandle, HeroAttackOptions } from '../heroAttack/options';
+import { playHeroQuake } from '../heroQuake/heroQuake';
+import { heroQuakePreviewSpeed } from '../heroQuake/heroQuakeConfig';
+import { playHeroBlast } from './heroBlast';
 import { heroBlastPreviewSpeed } from './heroBlastConfig';
 import './heroAttackPreview.css';
+
+/** The styles the sandbox can play, and the runner for each (every runner takes the same options). */
+const RUNNERS: Record<string, { play: (o: HeroAttackOptions & { textures?: null }) => HeroAttackHandle; speed: () => number }> = {
+  blast: { play: (o) => playHeroBlast(o), speed: heroBlastPreviewSpeed },
+  quake: { play: (o) => playHeroQuake(o), speed: heroQuakePreviewSpeed },
+};
 
 /**
  * THE HERO ATTACK SANDBOX (owner 2026-09-28: the Collection's "Attack Animations" tab gets a preview that plays the
@@ -22,7 +31,7 @@ export function HeroAttackPreview({ style, reducedMotion }: { style: string; red
   const cardRefs = useRef<(HTMLDivElement | null)[]>([]);
   const app = useRef<Application | null>(null);
   const booting = useRef<Promise<Application | null> | null>(null);
-  const live = useRef<HeroBlastHandle | null>(null);
+  const live = useRef<HeroAttackHandle | null>(null);
   const gone = useRef(false);
   const [playing, setPlaying] = useState(false);
 
@@ -58,6 +67,8 @@ export function HeroAttackPreview({ style, reducedMotion }: { style: string; red
   const play = async (): Promise<void> => {
     sfx.pulse();
     live.current?.cancel();
+    const runner = RUNNERS[style];
+    if (!runner) return;
     const a = reducedMotion ? null : await boot();
     const stage = stageRef.current, you = youRef.current, foe = foeRef.current;
     if (gone.current || !stage || !you || !foe) return;
@@ -71,11 +82,11 @@ export function HeroAttackPreview({ style, reducedMotion }: { style: string; red
       return { value, from: el ? centre(el) : null };
     });
     setPlaying(true);
-    live.current = playHeroBlast({
+    live.current = runner.play({
       parts, total: values.reduce((s, v) => s + v, 0), attacker: aPt, defender: dPt,
       combineAt: { x: stage.offsetWidth * 0.5, y: stage.offsetHeight * 0.52 },
-      side: 'player', defenderRadius: foe.offsetWidth / 2, space: 'local', pixiScale: 0.42, host: stage, camera: stage, attackerEl: you, defenderEl: foe,
-      reduced: reducedMotion || undefined, speed: heroBlastPreviewSpeed(),
+      side: 'player', defenderRadius: foe.offsetWidth / 2, attackerRadius: you.offsetWidth / 2, space: 'local', pixiScale: 0.42, host: stage, camera: stage, attackerEl: you, defenderEl: foe,
+      reduced: reducedMotion || undefined, speed: runner.speed(),
       textures: a ? undefined : null,
       mount: a ? (c: Container) => { a.stage.addChild(c); return () => { a.stage.removeChild(c); }; } : () => () => {},
       frames: a
@@ -86,7 +97,7 @@ export function HeroAttackPreview({ style, reducedMotion }: { style: string; red
     });
   };
 
-  const known = style === 'blast';
+  const known = style in RUNNERS;
   return (
     <div className="hapv">
       <div className="hapv-box">

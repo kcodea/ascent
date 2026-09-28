@@ -5,6 +5,8 @@ export interface PortraitGeometry {
   d: { x: number; y: number };
   /** The struck portrait's radius (screen px). */
   radius: number;
+  /** The striking portrait's radius (screen px). */
+  attackerRadius: number;
   attackerEl: HTMLElement;
   defenderEl: HTMLElement;
 }
@@ -19,8 +21,9 @@ export function portraitGeometry(side: 'player' | 'opp'): PortraitGeometry | nul
   if (pr.width === 0 || or.width === 0) return null;
   const centre = (r: DOMRect): { x: number; y: number } => ({ x: r.left + r.width / 2, y: r.top + r.height / 2 });
   const dr = side === 'player' ? or : pr;
+  const ar = side === 'player' ? pr : or;
   return {
-    a: centre(side === 'player' ? pr : or), d: centre(dr), radius: Math.min(dr.width, dr.height) / 2,
+    a: centre(ar), d: centre(dr), radius: Math.min(dr.width, dr.height) / 2, attackerRadius: Math.min(ar.width, ar.height) / 2,
     attackerEl: side === 'player' ? playerEl : oppEl, defenderEl: side === 'player' ? oppEl : playerEl,
   };
 }

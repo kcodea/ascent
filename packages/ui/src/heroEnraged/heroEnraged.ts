@@ -24,7 +24,10 @@ import type { Container } from 'pixi.js';
 import { pixiFx } from '../pixiFx';
 import { playEmberCrackle, playRageTone, playRumble } from '../sfx';
 import { stageScale } from '../stage';
+import { hitPower, playContactImpact } from '../choreo/channels/impact';
 import { AttackVoices } from '../heroAttack/attackSound';
+import { getClassicConfig } from '../heroAttack/classicConfig';
+import { classicSwing } from '../heroAttack/heroClassic';
 import { DamageFormation, planFormation } from '../heroAttack/damageFormation';
 import { withFormation, type FormationCue } from '../heroAttack/formationConfig';
 import { hexToNum, prefersReducedMotion, spring, type Pt } from '../heroAttack/easing';
@@ -41,6 +44,8 @@ import { heroEnragedTextures, portraitGhostTexture } from './heroEnragedTextures
 export interface HeroEnragedOptions extends HeroAttackOptions {
   cfg?: HeroEnragedConfig;
   textures?: HeroEnragedTextures | null;
+  /** Fire Classic's own strike burst and smack under the enraged impact (default: yes; tests switch it off). */
+  impactFx?: boolean;
 }
 
 export interface HeroEnragedHandle extends HeroAttackHandle {
@@ -57,14 +62,16 @@ export function enragedSeed(total: number, distance: number, side: 'player' | 'o
   return (Math.round(total) * 7919 + Math.round(distance) * 41 + (side === 'opp' ? 173 : 9)) >>> 0;
 }
 
-/** Screen px per the element's own transform px (its ancestors' scale), measured once. 1 when it cannot be read. */
-function unitOf(el: HTMLElement | null | undefined): number {
-  if (!el) return 1;
+/**
+ * One measure of a portrait (the swing's geometry and its own transform scale), exactly as Classic takes it: its
+ * screen size, and `inv` = its own transform px per screen px (it may sit inside a scaled wrapper).
+ */
+function rectOf(el: HTMLElement | null | undefined, r: number): { width: number; height: number; inv: number } {
   try {
-    const w = el.offsetWidth;
-    const r = el.getBoundingClientRect().width;
-    return w > 0 && r > 0 ? r / w : 1;
-  } catch { return 1; }
+    const b = el?.getBoundingClientRect();
+    if (!el || !b || !(b.width > 0)) return { width: r * 2, height: r * 2, inv: 1 };
+    return { width: b.width, height: b.height, inv: el.offsetWidth > 0 ? el.offsetWidth / b.width : 1 };
+  } catch { return { width: r * 2, height: r * 2, inv: 1 }; }
 }
 
 /** Play the Enraged Strike. Returns a handle; the blow lands via `onImpact` on the impact beat. */
@@ -77,15 +84,22 @@ export function playHeroEnraged(o: HeroEnragedOptions): HeroEnragedHandle {
   const sideHex = o.side === 'opp' ? c.colorFoe : c.colorPlayer;
   const dist = Math.hypot(o.defender.x - o.attacker.x, o.defender.y - o.attacker.y);
   // THE DAMAGE FORMATION plays first (shared by every style); this style's own attack starts where it ends.
-  const { fcfg, fplan } = planFormation(o.formation, o.formationCfg, reduced);
-  const plan = enragedPlan({ total: o.total, reduced, leadIn: fplan.endAt }, c);
-  const cues = withFormation(fplan, enragedCues(plan));
   const s = o.pixiScale ?? (typeof window === 'undefined' ? 1 : stageScale());
   const doc = typeof document !== 'undefined' ? document : null;
   const radius = o.defenderRadius ?? 120 * s;
   const aRadius = o.attackerRadius ?? radius;
-  // The Tier IV rise never lifts the hero off the top of the screen (or the sandbox box).
-  const geo = enragedGeo(o.attacker, o.defender, aRadius, radius, c, (local ? 4 : 24) * s);
+  // CLASSIC'S SWING between these two portraits (one measure of each; in a sandbox the host px are already the
+  // portrait's own px), so the coil, the corner-first contact, the strike's length and ease are exactly Classic's.
+  const aRect = local ? { width: aRadius * 2, height: aRadius * 2, inv: 1 } : rectOf(o.attackerEl, aRadius);
+  const dRect = local ? { width: radius * 2, height: radius * 2, inv: 1 } : rectOf(o.defenderEl, radius);
+  const swing = classicSwing(o.attacker, o.defender, aRect, dRect, aRect.inv);
+  const { fcfg, fplan } = planFormation(o.formation, o.formationCfg, reduced);
+  const plan = enragedPlan({ total: o.total, reduced, leadIn: fplan.endAt, swing: swing.times, tempo: getClassicConfig().tempo }, c);
+  const cues = withFormation(fplan, enragedCues(plan));
+  // The coil and the Tier IV rise never take the hero off the screen (or out of the sandbox box).
+  const vw = local ? (o.host?.clientWidth || 400) : (typeof window !== 'undefined' ? window.innerWidth : 1920);
+  const vh = local ? (o.host?.clientHeight || 300) : (typeof window !== 'undefined' ? window.innerHeight : 1080);
+  const geo = enragedGeo(o.attacker, o.defender, aRadius, radius, c, { x0: 0, y0: 0, x1: vw, y1: vh }, swing, aRect.inv);
   const pose = (t: number): HeroPose => enragedPose(plan, geo, c, t);
   const first = plan.strikes[0];
 
@@ -103,7 +117,7 @@ export function playHeroEnraged(o: HeroEnragedOptions): HeroEnragedHandle {
     ? new HeroEnragedScene(textures, {
       core: hexToNum(c.colorCore), hot: hexToNum(c.colorHot), side: hexToNum(sideHex), shade: hexToNum(c.colorShade), smoke: hexToNum(c.colorSmoke),
     }, {
-      auraSize: c.auraSize, flames: c.flames, flameLength: c.flameLength, ghosts: c.ghosts, ghostStepMs: c.ghostStepMs, ghostAlpha: c.ghostAlpha,
+      auraSize: c.auraSize, flames: c.flames, flameLength: c.flameLength, ghosts: c.ghosts, ghostSpacing: c.ghostSpacing, ghostAlpha: c.ghostAlpha, ghostFadeMs: c.ghostFadeMs,
       wakeWidth: c.wakeWidth, wakeMs: c.wakeMs, ringSize: c.ringSize, ring2Size: c.ring2Size, slashLength: c.slashLength, slashWidth: c.slashWidth,
       sparkSpeed: c.sparkSpeed, emberLife: c.emberLife, craterSize: c.craterSize, debris: c.debris,
     }, s, enragedSeed(o.total, dist, o.side))
@@ -121,8 +135,8 @@ export function playHeroEnraged(o: HeroEnragedOptions): HeroEnragedHandle {
   const cam = new StageCamera(cameraEl, scene);
   const hero = new PortraitMover(reduced ? null : (o.attackerEl ?? null));
   const foe = new PortraitMover(reduced ? null : (o.defenderEl ?? null));
-  const heroUnit = local ? 1 : unitOf(hero.el);
-  const foeUnit = local ? 1 : unitOf(foe.el);
+  const heroUnit = 1 / (aRect.inv || 1);
+  const foeUnit = 1 / (dRect.inv || 1);
   const heroInCam = !!(cameraEl && hero.el && cameraEl.contains(hero.el));
   const foeInCam = !!(cameraEl && foe.el && cameraEl.contains(foe.el));
   // Raise the striking portrait over the struck one for the lunge (Classic's own duel z-order classes).
@@ -155,7 +169,7 @@ export function playHeroEnraged(o: HeroEnragedOptions): HeroEnragedHandle {
         cue(c.sfxRoarClip, c.sfxRoarGain * (0.85 + 0.15 * plan.tier / 2), c.sfxRoarRate - 0.08 * plan.k, { lenMs: 1400, fadeMs: 400, delayMs: real(60) });
         voices.keep(playRageTone('attack', { gain: c.sfxToneGain * (0.8 + 0.3 * plan.k), buildMs: real(buildTo - plan.windupAt), lowHz: c.sfxToneLowHz, highHz: c.sfxToneHighHz * (1 + 0.25 * plan.k) }));
         voices.keep(playEmberCrackle('attack', { gain: c.sfxCrackleGain * 0.6, durMs: real(buildTo - plan.windupAt + 400) }));
-        scene?.startWindup(plan.aura, c.dust * (plan.meteor ? 1.6 : 1), buildTo - plan.windupAt);
+        scene?.startWindup(plan.aura, c.motes * (plan.meteor ? 1.6 : 1), buildTo - plan.windupAt);
         if (lift && !lifted) { doc!.body.classList.add(zClass); lifted = true; }
         break;
       }
@@ -180,7 +194,6 @@ export function playHeroEnraged(o: HeroEnragedOptions): HeroEnragedHandle {
         cue(c.sfxSlashClip, c.sfxSlashGain * 0.8, c.sfxSlashRate + 0.08 * q.i, { lenMs: 500, fadeMs: 180 });
         cue(c.sfxPunchClip, c.sfxPunchGain * 0.6, c.sfxPunchRate + 0.05 * q.i);
         scene?.tick(o.defender.x, o.defender.y, geo.u, radius, q.i, plan.k);
-        seq.hitStop(Math.round(plan.hitStopMs * 0.4));
         break;
       case 'impact': {
         // THE BLOW: a heavy hammer, a punch, a low (tight, never boomy) thump, a rip; a crack on the big tiers; the meteor
@@ -193,14 +206,18 @@ export function playHeroEnraged(o: HeroEnragedOptions): HeroEnragedHandle {
         if (plan.tier >= 3) cue(c.sfxBigClip, c.sfxBigGain, c.sfxBigRate, { lenMs: 700, fadeMs: 250 });
         if (plan.meteor) cue(c.sfxMeteorClip, c.sfxMeteorGain, c.sfxMeteorRate, { tail: c.sfxTailMix, lenMs: c.sfxImpactLenMs * 1.3, fadeMs: 500 });
         voices.keep(playEmberCrackle('attack', { gain: c.sfxCrackleGain, durMs: real(c.smoulderMs + 300) }));
-        const vw = local ? (host?.clientWidth || 400) : (typeof window !== 'undefined' ? window.innerWidth : 1920);
-        const vh = local ? (host?.clientHeight || 300) : (typeof window !== 'undefined' ? window.innerHeight : 1080);
         const u = plan.meteor ? meteorDir() : geo.u;
+        if (o.impactFx !== false && !local && o.defenderEl) {
+          // Classic's own strike burst and smack underneath (the struck portrait's recoil is ours): the enraged blow is
+          // unmistakably the same blow, amplified.
+          try {
+            playContactImpact(o.defenderEl, u.x, u.y, hitPower(o.total * getClassicConfig().impactPower * (1.4 + 0.3 * k)), speed, o.defender, 0, false, false, false, false, false, true);
+          } catch { /* no FX layer here */ }
+        }
         scene?.impact(o.defender.x, o.defender.y, u, radius, {
           k, burst: plan.burst, sparks: plan.sparks, embers: plan.embers, slashes: plan.slashes, flashAlpha: c.flashAlpha,
           meteor: plan.meteor, smoulderMs: c.smoulderMs, screen: Math.hypot(vw, vh),
         });
-        seq.hitStop(plan.hitStopMs);
         seq.land();
         break;
       }
@@ -226,6 +243,7 @@ export function playHeroEnraged(o: HeroEnragedOptions): HeroEnragedHandle {
     return { x: dx / l, y: dy / l };
   }
   const shakeDir = plan.meteor ? meteorDir() : geo.u;
+  const blowDeg = (Math.atan2(shakeDir.y, shakeDir.x) * 180) / Math.PI;
 
   const paintStage = (t: number): void => {
     if (plan.reduced) return;
@@ -244,8 +262,10 @@ export function playHeroEnraged(o: HeroEnragedOptions): HeroEnragedHandle {
       const moved = Math.abs(p.x) > 0.05 || Math.abs(p.y) > 0.05 || Math.abs(p.scale - 1) > 1e-4 || Math.abs(p.rot) > 0.01;
       const off = place(o.attacker, p, heroInCam);
       const sc = p.scale * (heroInCam || !cam.active ? 1 : cm.zoom);
-      hero.set(!moved && !cam.active ? null
-        : `translate(${(off.x / heroUnit).toFixed(2)}px, ${(off.y / heroUnit).toFixed(2)}px) rotate(${p.rot.toFixed(2)}deg) scale(${sc.toFixed(4)})`);
+      // The contact squash: compressed along the blow, bulging across it (a rotate-scale-rotate sandwich).
+      const sq = p.squash > 0.002 ? ` rotate(${blowDeg.toFixed(2)}deg) scale(${(1 - p.squash).toFixed(4)}, ${(1 + p.squash * 0.6).toFixed(4)}) rotate(${(-blowDeg).toFixed(2)}deg)` : '';
+      hero.set(!moved && !cam.active && !sq ? null
+        : `translate(${(off.x / heroUnit).toFixed(2)}px, ${(off.y / heroUnit).toFixed(2)}px)${sq} rotate(${p.rot.toFixed(2)}deg) scale(${sc.toFixed(4)})`);
     }
     scene?.follow(t);
     if (foe.el) {
@@ -268,11 +288,13 @@ export function playHeroEnraged(o: HeroEnragedOptions): HeroEnragedHandle {
   };
 
   const seq: Sequence<EnragedCue | FormationCue> = new Sequence<EnragedCue | FormationCue>({
-    cues, speed, fire, freezeKinds: ['impact', 'tick'],
+    // NO hit-stop and no pinned beats (owner 2026-09-28: "remove the freezeing frame from all of the animations. it looks
+    // like lag"): the clock never stops; the weight comes from the flash, the squash, the knockback, the shake and sound.
+    cues, speed, fire,
     paint: (t) => { nums.paint(t); paintStage(t); },
     scene, unmount,
     frames: o.frames ?? ((fn: (dt: number) => void) => pixiFx.addUpdater(fn)),
-    safetyMs: o.safety !== false ? (plan.endAt + plan.hitStopMs * 2) / speed + 2500 : null,
+    safetyMs: o.safety !== false ? plan.endAt / speed + 2500 : null,
     onImpact: o.onImpact, onDone: o.onDone,
     teardownDom: () => {
       nums.remove(); cam.reset(); hero.reset(); foe.reset(); voices.unduck();

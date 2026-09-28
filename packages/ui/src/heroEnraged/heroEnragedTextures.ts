@@ -22,49 +22,28 @@ function canvas(w: number, h: number): { c: HTMLCanvasElement; g: CanvasRenderin
 
 const tex = (c: HTMLCanvasElement): Texture => new Texture({ source: new CanvasSource({ resource: c }) });
 
-/** A flame tongue: a teardrop pointing UP (-y), its base soft and round, tapering to a flickering tip. */
+/**
+ * A flame tongue: a curved lick of fire pointing UP (its round base at the bottom centre, a tip that curls a little to
+ * one side), bright at the base and fading to nothing at the tip. Drawn as one smooth shape (never a bead or a petal).
+ */
 function paintFlame(W: number, H: number): HTMLCanvasElement | null {
   const k = canvas(W, H); if (!k) return null;
   const g = k.g;
   const cx = W / 2;
-  const base = H * 0.78;
+  const tip = { x: cx + W * 0.16, y: H * 0.02 };
+  const base = H * 0.9;
   g.beginPath();
-  g.moveTo(cx, 0);
-  g.bezierCurveTo(cx + W * 0.1, H * 0.3, cx + W * 0.5, H * 0.52, cx + W * 0.42, base);
-  g.bezierCurveTo(cx + W * 0.34, H * 0.98, cx - W * 0.34, H * 0.98, cx - W * 0.42, base);
-  g.bezierCurveTo(cx - W * 0.5, H * 0.52, cx - W * 0.1, H * 0.3, cx, 0);
+  g.moveTo(tip.x, tip.y);
+  // Down the right side (a gentle S), round the base, and back up the left side to the tip.
+  g.bezierCurveTo(cx - W * 0.02, H * 0.3, cx + W * 0.5, H * 0.52, cx + W * 0.4, H * 0.78);
+  g.bezierCurveTo(cx + W * 0.3, H * 0.99, cx - W * 0.3, H * 0.99, cx - W * 0.4, H * 0.78);
+  g.bezierCurveTo(cx - W * 0.5, H * 0.55, cx - W * 0.12, H * 0.34, tip.x, tip.y);
   g.closePath();
-  const v = g.createLinearGradient(0, 0, 0, H);
-  v.addColorStop(0, 'rgba(255,255,255,0)'); v.addColorStop(0.3, 'rgba(255,255,255,0.55)');
-  v.addColorStop(0.7, 'rgba(255,255,255,1)'); v.addColorStop(1, 'rgba(255,255,255,0.9)');
+  const v = g.createLinearGradient(0, 0, 0, base);
+  v.addColorStop(0, 'rgba(255,255,255,0)'); v.addColorStop(0.28, 'rgba(255,255,255,0.35)');
+  v.addColorStop(0.62, 'rgba(255,255,255,0.9)'); v.addColorStop(1, 'rgba(255,255,255,1)');
+  g.shadowColor = 'rgba(255,255,255,0.8)'; g.shadowBlur = W * 0.12;
   g.fillStyle = v; g.fill();
-  // Feather the sides: a soft horizontal mask so the tongue has no hard outline.
-  g.globalCompositeOperation = 'destination-in';
-  const h = g.createLinearGradient(0, 0, W, 0);
-  h.addColorStop(0, 'rgba(255,255,255,0)'); h.addColorStop(0.28, 'rgba(255,255,255,1)');
-  h.addColorStop(0.72, 'rgba(255,255,255,1)'); h.addColorStop(1, 'rgba(255,255,255,0)');
-  g.fillStyle = h; g.fillRect(0, 0, W, H);
-  return k.c;
-}
-
-/** A claw rip: a long lens (thick in the middle, tapering to needle points), +X aligned, with a softer glow round it. */
-function paintSlash(W: number, H: number): HTMLCanvasElement | null {
-  const k = canvas(W, H); if (!k) return null;
-  const g = k.g;
-  const cy = H / 2;
-  const lens = (hh: number, a: number): void => {
-    g.beginPath();
-    g.moveTo(0, cy);
-    g.quadraticCurveTo(W * 0.45, cy - hh * 1.9, W, cy);
-    g.quadraticCurveTo(W * 0.55, cy + hh * 1.9, 0, cy);
-    g.closePath();
-    g.fillStyle = `rgba(255,255,255,${a})`;
-    g.fill();
-  };
-  g.shadowColor = '#fff'; g.shadowBlur = H * 0.35;
-  lens(H * 0.3, 0.35);
-  g.shadowBlur = 0;
-  lens(H * 0.16, 1);
   return k.c;
 }
 
@@ -165,18 +144,41 @@ function paintDisc(D: number): HTMLCanvasElement | null {
   return k.c;
 }
 
+/** A thin crisp ring with a soft bloom (radius 118 of 256). */
+function paintRim(D: number): HTMLCanvasElement | null {
+  const k = canvas(D, D); if (!k) return null;
+  const g = k.g;
+  g.shadowColor = '#fff'; g.shadowBlur = D * 0.03;
+  g.strokeStyle = '#fff'; g.lineWidth = D * 0.022;
+  g.beginPath(); g.arc(D / 2, D / 2, D * 0.46, 0, Math.PI * 2); g.stroke();
+  return k.c;
+}
+
+/**
+ * A soft ANNULUS (the aura's halo): clear in the middle, brightest just outside the portrait's rim (radius 0.5 of the
+ * 0.5 half-size, i.e. the texture's half-width maps to 1.6 portrait radii), so the glow never sits over the face.
+ */
+function paintHalo(D: number): HTMLCanvasElement | null {
+  const k = canvas(D, D); if (!k) return null;
+  const g = k.g;
+  const c = D / 2;
+  const gr = g.createRadialGradient(c, c, 0, c, c, c);
+  gr.addColorStop(0, 'rgba(255,255,255,0)'); gr.addColorStop(0.55, 'rgba(255,255,255,0)');
+  gr.addColorStop(0.64, 'rgba(255,255,255,0.85)'); gr.addColorStop(0.75, 'rgba(255,255,255,0.35)'); gr.addColorStop(1, 'rgba(255,255,255,0)');
+  g.fillStyle = gr; g.fillRect(0, 0, D, D);
+  return k.c;
+}
+
 let cached: HeroEnragedTextures | null = null;
 
 /** The session's textures, painted on first use. Null when no 2D canvas is available (the style then skips Pixi). */
 export function heroEnragedTextures(): HeroEnragedTextures | null {
   if (cached) return cached;
   const base = heroArcanaTextures();
-  const flame = paintFlame(48, 112), slash = paintSlash(256, 40), smoke = paintSmoke(96), rock = paintRock(40);
-  const scorch = paintScorch(192), cracks = paintCracks(256), disc = paintDisc(128);
-  if (!base || !flame || !slash || !smoke || !rock || !scorch || !cracks || !disc) return null;
-  cached = {
-    ...base, flame: tex(flame), slash: tex(slash), smoke: tex(smoke), rock: tex(rock), scorch: tex(scorch), cracks: tex(cracks), disc: tex(disc),
-  };
+  const flame = paintFlame(40, 128), smoke = paintSmoke(96), rock = paintRock(40);
+  const scorch = paintScorch(192), cracks = paintCracks(256), disc = paintDisc(128), rim = paintRim(256), halo = paintHalo(128);
+  if (!base || !flame || !smoke || !rock || !scorch || !cracks || !disc || !rim || !halo) return null;
+  cached = { ...base, flame: tex(flame), smoke: tex(smoke), rock: tex(rock), scorch: tex(scorch), cracks: tex(cracks), disc: tex(disc), rim: tex(rim), halo: tex(halo) };
   return cached;
 }
 

@@ -1689,4 +1689,31 @@ export const FOUNDATION_RULES: GameRule[] = [
     currentBehaviour: 'Conforms, built 2026-09-27. Lobby name plates do not show titles yet (Career only).',
     enforcement: { kind: 'scenario', refs: ['packages/progression/src/sqlParity.test.ts', 'packages/progression/src/rules.test.ts', 'packages/ui/src/progression/ProgressionPostgame.test.tsx', 'packages/ui/src/Career.test.tsx'], lastVerifiedAt: '2026-09-27' },
   },
+  {
+    id: 'R-PRESENT-23',
+    title: 'A spell cast in combat plays its effect on the CASTER\x27s side of the board',
+    statement:
+      'When a minion (or rune) casts a spell in combat, the spell\x27s own cast effect plays on the board of the side that '
+      + 'owns the caster. A board-wide effect authored on the screen-centre camera (Growth\x27s `growth-effect`, laid over '
+      + 'the player\x27s row) is moved onto the ENEMY\x27s row when an opponent cast it: its camera is translated by the '
+      + 'player-row to enemy-row distance, so the authored effect keeps the same relation to the caster\x27s own board. The '
+      + 'player\x27s own casts keep the authored placement. The caster\x27s side comes from the event\x27s own `side` stamp, else '
+      + 'the replay\x27s uid to side map (initial boards plus summons), else the row the body renders in. Presentation only: '
+      + 'the engine outcome and the event log are unchanged.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      {
+        kind: 'owner-chat',
+        ref: 'Owner bug report, 2026-09-27',
+        quote: 'fatecarver\x27s growth animation plays on the player\x27s board when the fatecarver is an opponent.',
+      },
+      { kind: 'code', ref: 'packages/ui/src/fx/spellCastFx.ts (`playCombatSpellCastFx`, `combatCastCamera`, `sideCameraFromRows`); packages/ui/src/choreo/score.ts (the `spellCastFx` cue, `ScoreCtx.sideOf`); packages/ui/src/useCombatReplay.ts (`unitSides`); packages/ui/src/choreo/channels/castPreview.ts (`spellCastsIn` carries `side`)' },
+    ],
+    currentBehaviour:
+      'Conforms as of 2026-09-27. Before this, every combat cast of a camera-anchored spell effect played at the viewport '
+      + 'centre whatever the caster\x27s side, so an enemy Fatecarver / Taragosa / Hoardbreaker Growth (and an enemy '
+      + 'rune\x27s bound cast) bloomed over the player\x27s board.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/fx/spellCastFx.test.ts'], lastVerifiedAt: '2026-09-27' },
+  },
 ];

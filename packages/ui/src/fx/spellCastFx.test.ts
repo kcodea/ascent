@@ -20,7 +20,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { CARD_INDEX } from '@game/content';
 import { combatSide, makeRng, simulate, type CombatEvent } from '@game/core';
 import { canPlayDefs, playDef } from './playDef';
-import { playCombatSpellCastFx, playRecordedCastFx, playSpellCastFx } from './spellCastFx';
+import { playCombatSpellCastFx, playRecordedCastFx, playSpellCastFx, sideCameraFromRows } from './spellCastFx';
 import { castFxReplacesTendril, spellCastFxFor } from '../choreo/bindings';
 import { groupBuffCasts } from '../choreo/channels/buffCast';
 import { runRecruitMomentCues } from '../choreo/recruitCues';
@@ -211,5 +211,87 @@ describe('a bound spell cast by a card replaces the tendril; an unbound one keep
     presentConsequence({ consequence: gain('spiritfire'), beat, ctx } as never);
     presentConsequence({ consequence: gain(), beat, ctx } as never);
     expect(statGain).toHaveBeenCalledTimes(2);
+  });
+});
+
+/**
+ * AN ENEMY'S GROWTH PLAYS ON THE ENEMY'S BOARD (owner bug 2026-09-27): *"fatecarver's growth animation plays on the
+ * player's board when the fatecarver is an opponent."* `growth-effect` is authored on the `camera` anchor (viewport
+ * centre, layers offset down onto the player's row), so an enemy cast must move the camera by the player-row ->
+ * enemy-row distance. Oracle: R-PRESENT-23.
+ */
+describe('an ENEMY caster\'s board-wide cast effect plays on the enemy\'s board', () => {
+  const PLAYER_ROW = { left: 100, top: 600, width: 800, height: 200 }; // centre y 700
+  const ENEMY_ROW = { left: 100, top: 150, width: 800, height: 200 };  // centre y 250
+  let rows: HTMLElement[] = [];
+  const mountRows = (): void => {
+    for (const [zone, rect] of [['warband', PLAYER_ROW], ['tavern', ENEMY_ROW]] as const) {
+      const z = document.createElement('div');
+      z.setAttribute('data-zone', zone);
+      const row = document.createElement('div');
+      row.className = 'row';
+      row.getBoundingClientRect = () => ({ ...rect, right: rect.left + rect.width, bottom: rect.top + rect.height, x: rect.left, y: rect.top, toJSON: () => ({}) }) as DOMRect;
+      z.appendChild(row);
+      document.body.appendChild(z);
+      rows.push(z);
+    }
+  };
+  beforeEach(() => { mountRows(); });
+  afterEach(() => { for (const r of rows) r.remove(); rows = []; });
+
+  function scoreWithSides(events: CombatEvent[], sides: Map<string, 'player' | 'enemy'>): void {
+    const noop = (): void => {};
+    const ctx = new Proxy({ events, combatSpeed: 1, slotRectOf: () => null, attackerUid: null, meleePair: null,
+      cardIds: new Map<string, string>(), sideOf: (uid: string) => sides.get(uid) ?? null } as Record<string, unknown>, {
+      get: (t, k: string) => (k in t ? t[k] : noop),
+    });
+    for (const m of compileMoments(events)) runMomentCues(m, ctx as never);
+    vi.runAllTimers();
+  }
+  const fight = (fatecarverSide: 'player' | 'enemy') => {
+    const carver = [{ cardId: 'n2_fatecarver', attack: 4, health: 900, chosenOption: 1 }, { cardId: 'sandbag', attack: 1, health: 900 }];
+    const wall = [{ cardId: 'sandbag', attack: 0, health: 90000 }];
+    const r = fatecarverSide === 'player'
+      ? simulate(carver, wall, makeRng(3), CARD_INDEX, combatSide({ tier: 6 }), combatSide({ tier: 1 }))
+      : simulate(wall, carver, makeRng(3), CARD_INDEX, combatSide({ tier: 1 }), combatSide({ tier: 6 }));
+    const sides = new Map<string, 'player' | 'enemy'>();
+    for (const u of r.initial.player) sides.set(u.uid, 'player');
+    for (const u of r.initial.enemy) sides.set(u.uid, 'enemy');
+    return { events: r.events as CombatEvent[], sides, fc: [...r.initial.player, ...r.initial.enemy].find((m) => m.cardId === 'n2_fatecarver')!.uid };
+  };
+
+  it('the pure rule: the enemy camera is the centre moved by the row distance; the player camera is untouched', () => {
+    const c = { x: 500, y: 400 };
+    expect(sideCameraFromRows(c, 'enemy', PLAYER_ROW, ENEMY_ROW)).toEqual({ x: 500, y: -50 });
+    expect(sideCameraFromRows(c, 'player', PLAYER_ROW, ENEMY_ROW)).toEqual(c);
+    expect(sideCameraFromRows(c, 'enemy', null, ENEMY_ROW), 'a missing row keeps the camera').toEqual(c);
+  });
+
+  it('an ENEMY Fatecarver\'s Growth: every growth-effect play targets the ENEMY board', () => {
+    vi.useFakeTimers();
+    const { events, sides, fc } = fight('enemy');
+    expect(sides.get(fc)).toBe('enemy');
+    scoreWithSides(events, sides);
+    const growth = plays('growth-effect');
+    expect(growth.length, 'the enemy Fatecarver cast Growth in combat').toBeGreaterThan(0);
+    const enemyCamera = { x: camera().x, y: camera().y + (250 - 700) };
+    for (const call of growth) expect((call[1] as { camera: unknown }).camera).toEqual(enemyCamera);
+  });
+
+  it('a PLAYER Fatecarver\'s Growth keeps the authored camera (viewport centre)', () => {
+    vi.useFakeTimers();
+    const { events, sides } = fight('player');
+    scoreWithSides(events, sides);
+    const growth = plays('growth-effect');
+    expect(growth.length).toBeGreaterThan(0);
+    for (const call of growth) expect((call[1] as { camera: unknown }).camera).toEqual(camera());
+  });
+
+  it('with no uid -> side lookup, the caster\'s row decides (an enemy body in the tavern zone)', () => {
+    const body = document.createElement('div');
+    body.setAttribute('data-uid', 'e-fc');
+    rows[1]!.firstElementChild!.appendChild(body);
+    expect(playCombatSpellCastFx([{ source: 'e-fc', spellId: 'growth' }])).toBe(1);
+    expect((plays('growth-effect')[0]![1] as { camera: unknown }).camera).toEqual({ x: camera().x, y: camera().y - 450 });
   });
 });

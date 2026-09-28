@@ -1710,6 +1710,17 @@ export function useCombatReplay(
     return m;
   }, [combat]);
 
+  // uid → side for the whole fight (initial boards + every summon), so a side-scoped presentation never has to
+  // guess from the DOM: an ENEMY Fatecarver's Growth plays on the enemy's board (owner bug 2026-09-27).
+  const unitSides = useMemo(() => {
+    const m = new Map<string, 'player' | 'enemy'>();
+    if (!combat) return m;
+    for (const u of combat.initial.player) m.set(u.uid, 'player');
+    for (const u of combat.initial.enemy) m.set(u.uid, 'enemy');
+    for (const e of combat.events) if (e.type === 'summon') m.set(e.minion.uid, e.side);
+    return m;
+  }, [combat]);
+
   // Fire a moment's buff-OTHER casts: a source→target tendril per cast (or a rain-down descend when the source is
   // a Deathrattle buffer), then roll each target's badge from its pre-buff value to the new one at the
   // strike/landing. Shared by the `buffWave` path (`onBuffCasts`) and the attack-wind-up path (on-attack / Rally
@@ -2490,6 +2501,7 @@ export function useCombatReplay(
       // burn its one preview for the fight. `Once per fight` is a Cast Preview tuner switch (default on).
       // OFF for now (owner 2026-09-24: runes only) — the gate lives in `showCombatCastPreviews`.
       onSpellCastPreviews: (casts) => { showCombatCastPreviews(casts, rectOf, castPreviewMemoryRef.current); },
+      sideOf: (uid) => unitSides.get(uid) ?? null,
       onSelfBuffs: (selfBuffs) => fireSelfBuffs(selfBuffs),
       // An aura STRENGTHENED (Kennelmaster's Avenge bump, Mama Bear / Flowing Monk growth) → a bare in-place pulse
       // at the unit. No badge hold/flash: an `improve` grows the unit's AURA (future grants), not its own Atk/HP.
@@ -2702,7 +2714,7 @@ export function useCombatReplay(
       stop();
     };
     // `seekNonce`: see the trigger-pulse effect above — a re-seek to the same beat must re-fire these cues.
-  }), [active, beatIdx, seekNonce, beats, events, findEl, cardIds, fireBuffCasts, fireSelfBuffs]);
+  }), [active, beatIdx, seekNonce, beats, events, findEl, cardIds, unitSides, fireBuffCasts, fireSelfBuffs]);
 
   // No verdict sting when the replay finishes (the round won / lost chimes were removed 2026-09-23 with the
   // lobby background music, owner ask): the music carries the verdict through uninterrupted.

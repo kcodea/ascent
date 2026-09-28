@@ -85,6 +85,9 @@ interface GlobalConfig {
   sfxThumpClip: string; sfxThumpGain: number; sfxThumpRate: number;
   sfxBigClip: string; sfxBigGain: number; sfxBigRate: number;
   sfxBoomClip: string; sfxBoomGain: number; sfxBoomRate: number;
+  sfxTickLenMs: number;
+  sfxImpactLenMs: number;
+  sfxBoomLenMs: number;
   sfxTailMix: number;
   sfxDuck: number;
   // Preview only (the tuner's Play buttons). Never read by a real fight, and left out of Copy JSON.
@@ -183,6 +186,9 @@ export const HERO_BLAST_DEFAULTS: HeroBlastConfig = {
   sfxThumpClip: 'smack2', sfxThumpGain: 0.5, sfxThumpRate: 0.82,
   sfxBigClip: 'crit', sfxBigGain: 0.45, sfxBigRate: 0.9,
   sfxBoomClip: 'fx/triple-impact', sfxBoomGain: 0.35, sfxBoomRate: 1.1,
+  sfxTickLenMs: 420,
+  sfxImpactLenMs: 1300,
+  sfxBoomLenMs: 700,
   sfxTailMix: 0.12,
   sfxDuck: 0.5,
   previewDamage: 12,
@@ -225,6 +231,9 @@ const GLOBAL_RANGES: Record<Exclude<keyof GlobalConfig, HeroBlastStrKey>, [numbe
   sfxThumpGain: [0, 2, 0.05], sfxThumpRate: [0.5, 2, 0.01],
   sfxBigGain: [0, 2, 0.05], sfxBigRate: [0.5, 2, 0.01],
   sfxBoomGain: [0, 2, 0.05], sfxBoomRate: [0.5, 2, 0.01],
+  sfxTickLenMs: [80, 2000, 10],
+  sfxImpactLenMs: [150, 3500, 10],
+  sfxBoomLenMs: [100, 3000, 10],
   sfxTailMix: [0, 0.6, 0.01],
   sfxDuck: [0, 1, 0.05],
   previewDamage: [1, 60, 1],

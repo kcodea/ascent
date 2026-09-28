@@ -20,7 +20,7 @@
  */
 import type { Container } from 'pixi.js';
 import { pixiFx } from '../pixiFx';
-import { duckSfxBuses, playTailedClip, type SfxHandle } from '../sfx';
+import { duckSfxBuses, getFxClipBuffer, playTailedClip, type SfxHandle } from '../sfx';
 import { stageFit, stageScale, toStage } from '../stage';
 import {
   blastCues, blastPlan, getHeroBlastConfig, hexToNum, type BlastCue, type BlastPlan, type HeroBlastConfig,
@@ -301,10 +301,31 @@ export function playHeroBlast(o: HeroBlastOptions): HeroBlastHandle {
   let ducked = false;
   const voices: SfxHandle[] = [];
 
-  const cue = (clip: string, gain: number, rate: number, tail = 0): void => {
+  interface CueOpts { tail?: number; lenMs?: number; fadeMs?: number; startMs?: number; delayMs?: number }
+  const cue = (clip: string, gain: number, rate: number, opts: CueOpts = {}): void => {
     if (!sound || !clip || !(gain > 0)) return;
-    const h = playTailedClip(clip, 'attack', { gain, rate, tail: { fadeOutMs: 0, reverbMix: tail, reverbSec: tail > 0 ? 0.6 : 0 } });
+    const tail = opts.tail ?? 0;
+    const h = playTailedClip(clip, 'attack', {
+      gain, rate, startMs: opts.startMs, lenMs: opts.lenMs, delayMs: opts.delayMs,
+      tail: { fadeOutMs: opts.fadeMs ?? 0, reverbMix: tail, reverbSec: tail > 0 ? 0.6 : 0 },
+    });
     if (h) voices.push(h);
+  };
+  // Warm every clip now, so the first cue of a session is not the one that has to wait for its decode.
+  if (sound) for (const k of ['sfxGatherClip', 'sfxTickClip', 'sfxSlamClip', 'sfxChargeClip', 'sfxFireClip', 'sfxBeamClip', 'sfxImpactClip', 'sfxThumpClip', 'sfxBigClip', 'sfxBoomClip'] as const) {
+    try { if (c[k]) getFxClipBuffer(c[k]); } catch { /* no audio here */ }
+  }
+  /** The riser, placed so its climax lands exactly on the release: its tail when it is longer than the charge, a
+   *  delayed start when shorter. */
+  const riser = (): void => {
+    const buf = (() => { try { return getFxClipBuffer(c.sfxChargeClip); } catch { return null; } })();
+    const chargeReal = (plan.fireAt - plan.chargeAt) / speed;
+    const r = c.sfxChargeRate > 0 ? c.sfxChargeRate : 1;
+    if (!buf) { cue(c.sfxChargeClip, c.sfxChargeGain, r); return; }
+    const clipMs = buf.duration * 1000;
+    const heard = chargeReal * r; // clip-time consumed over the charge
+    if (clipMs > heard) cue(c.sfxChargeClip, c.sfxChargeGain, r, { startMs: clipMs - heard });
+    else cue(c.sfxChargeClip, c.sfxChargeGain, r, { delayMs: chargeReal - clipMs / r });
   };
 
   const land = (): void => { if (impacted) return; impacted = true; o.onImpact(); };
@@ -342,13 +363,13 @@ export function playHeroBlast(o: HeroBlastOptions): HeroBlastHandle {
   const fire = (q: BlastCue): void => {
     switch (q.kind) {
       case 'launch':
-        if (q.i === 0) cue(c.sfxGatherClip, c.sfxGatherGain, 1);
+        if (q.i === 0) cue(c.sfxGatherClip, c.sfxGatherGain, 1, { lenMs: 800, fadeMs: 250 });
         break;
       case 'arrive': {
         lastArriveAt = q.at;
         arrivedN = q.i + 1;
         // Balatro: every landing ticks the total with its own pop and a pitch step up.
-        if (!plan.reduced) cue(c.sfxTickClip, c.sfxTickGain, c.sfxTickRate + q.i * c.sfxTickStep);
+        if (!plan.reduced) cue(c.sfxTickClip, c.sfxTickGain, c.sfxTickRate + q.i * c.sfxTickStep, { lenMs: c.sfxTickLenMs, fadeMs: 140 });
         if (q.i < plan.arrivals.length - 1) scene?.mergeTick(o.combineAt.x, o.combineAt.y, q.i);
         break;
       }
@@ -358,7 +379,7 @@ export function playHeroBlast(o: HeroBlastOptions): HeroBlastHandle {
         scene?.mergeSlam(o.combineAt.x, o.combineAt.y);
         break;
       case 'charge':
-        cue(c.sfxChargeClip, c.sfxChargeGain, c.sfxChargeRate);
+        riser();
         if (sound && c.sfxDuck < 1) { duckSfxBuses(c.sfxDuck, 'combat'); ducked = true; }
         scene?.startCharge(o.attacker.x, o.attacker.y, plan.fireAt - plan.chargeAt, 0.9 + 0.6 * plan.k, plan.motes);
         startCamera();
@@ -376,9 +397,9 @@ export function playHeroBlast(o: HeroBlastOptions): HeroBlastHandle {
         break;
       }
       case 'impact':
-        cue(c.sfxImpactClip, c.sfxImpactGain, c.sfxImpactRate, c.sfxTailMix);
-        cue(c.sfxThumpClip, c.sfxThumpGain, c.sfxThumpRate);
-        if (plan.tier >= 3) cue(c.sfxBigClip, c.sfxBigGain, c.sfxBigRate);
+        cue(c.sfxImpactClip, c.sfxImpactGain * (0.85 + 0.05 * plan.tier), c.sfxImpactRate, { tail: c.sfxTailMix, lenMs: c.sfxImpactLenMs, fadeMs: 450 });
+        cue(c.sfxThumpClip, c.sfxThumpGain, c.sfxThumpRate - 0.03 * (plan.tier - 1), { lenMs: 600, fadeMs: 200 });
+        if (plan.tier >= 3) cue(c.sfxBigClip, c.sfxBigGain, c.sfxBigRate, { lenMs: 700, fadeMs: 250 });
         scene?.impact(o.defender.x, o.defender.y, dir, plan.k, plan.flashScale, c.flashAlpha, plan.sparks, radius, plan.tier);
         stopLeft = plan.hitStopMs;
         land();
@@ -393,7 +414,7 @@ export function playHeroBlast(o: HeroBlastOptions): HeroBlastHandle {
         // Secondary explosions ring the struck hero, alternating sides, each a little higher in pitch.
         const a = (q.i * 2.4) + Math.atan2(dir.y, dir.x);
         const rr = radius * (0.55 + 0.2 * (q.i % 2));
-        cue(c.sfxBoomClip, c.sfxBoomGain, c.sfxBoomRate + q.i * 0.06);
+        cue(c.sfxBoomClip, c.sfxBoomGain, c.sfxBoomRate + q.i * 0.06, { lenMs: c.sfxBoomLenMs, fadeMs: 260 });
         scene?.boom(o.defender.x + Math.cos(a) * rr, o.defender.y + Math.sin(a) * rr, 0.8 + 0.15 * plan.tier);
         break;
       }

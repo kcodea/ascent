@@ -72,6 +72,9 @@ const SPECS: Record<GlobalNumKey, Spec> = {
   sfxBigRate: ['big hit: pitch', '×', 'Pitch of the big-hit layer.', 'Sound: big hit'],
   sfxBoomGain: ['booms: gain', undefined, 'Tiers III and IV: each secondary explosion (pitch climbs per boom).', 'Sound: booms'],
   sfxBoomRate: ['booms: pitch', '×', 'Pitch of the first secondary explosion.', 'Sound: booms'],
+  sfxTickLenMs: ['tick length', 'ms', 'Each tick is cut to this long (with a short fade) so a long run of numbers stays crisp.', 'Sound: mix'],
+  sfxImpactLenMs: ['impact length', 'ms', 'The impact clip is cut to this long (with a fade).', 'Sound: mix'],
+  sfxBoomLenMs: ['boom length', 'ms', 'Each secondary explosion is cut to this long (with a fade).', 'Sound: mix'],
   sfxTailMix: ['impact tail', undefined, 'A short reverb tail on the hit. 0 = dry.', 'Sound: mix'],
   sfxDuck: ['duck others', '×', 'Other sound buses dip to this while the blast plays (1 = no duck).', 'Sound: mix'],
 };

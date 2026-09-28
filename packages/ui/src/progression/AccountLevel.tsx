@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { levelProgress, titleName, type ProgressionProfile } from '@game/progression';
+import { levelProgress, type ProgressionProfile } from '@game/progression';
 import { useGame } from '../store';
 import { sfx } from '../sfx';
 import { fetchPublicProgression } from './progressionRemote';
@@ -39,9 +39,8 @@ export function AccountLevelCard({ profile, own }: { profile: ProgressionProfile
   const sealed = useProgression((s) => (s.crateList ?? []).filter((c) => c.state === 'sealed').length);
   const openCollection = useGame((s) => s.openCollection);
   const p = levelProgress(profile.accountXp);
-  const title = titleName(profile.equippedTitleId);
   return (
-    <div className="cv2-panel cv2-acctlevel" aria-label="Account Level">
+    <div className="cv2-acctlevel" role="group" aria-label="Account Level">
       <div className="cv2-acctlevel-row">
         <span className="cv2-acctlevel-badge" aria-label={`Level ${p.level}`}><span className="acctxp-level-l">Lv</span>{p.level}</span>
         <div className="cv2-acctlevel-body">
@@ -52,7 +51,6 @@ export function AccountLevelCard({ profile, own }: { profile: ProgressionProfile
           <div className="cv2-acctlevel-num">{p.xpIntoLevel} / {p.xpForNextLevel} XP</div>
         </div>
       </div>
-      {title && <div className="cv2-acctlevel-title"><span className="cv2-acctlevel-title-l">Title</span>{title}</div>}
       {own && cratesOn && (
         <button type="button" className="cv2-btn cv2-btn-sm cv2-acctlevel-coll pressable" onClick={() => { sfx.pulse(); openCollection(); }}>
           Collection

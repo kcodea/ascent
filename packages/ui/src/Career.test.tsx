@@ -751,13 +751,19 @@ describe('Account Level (account progression, 2026-09-27)', () => {
     expect(text('.cv2-right .cv2-sec')[0]).toBe('Seasonal Ranked');
   });
 
-  it('your own page: Level + XP bar + the equipped title (card and under the name), and the guest reminder', async () => {
+  it('your own page: Level + XP bar under the portrait (owner 2026-09-28), the equipped title under the name, and the guest reminder', async () => {
     act(() => { useProgression.setState({ capability: 'on', mirror: { userId: 'me-1', accountXp: 325, accountLevel: 2, revision: 3, equippedTitleId: 'alpha_tester', titles: ['alpha_tester'] } }); });
     await remount();
-    expect(text('.cv2-right .cv2-sec').slice(0, 2)).toEqual(['Account Level', 'Seasonal Ranked']);
+    // The card sits in the left Career Stats panel, after the portrait block and before the stat tiles; Seasonal
+    // Ranked now leads the right column.
+    expect(text('.cv2-right .cv2-sec')[0]).toBe('Seasonal Ranked');
+    expect(ui.container.querySelector('.cv2-right .cv2-acctlevel')).toBeNull();
+    const left = ui.container.querySelector('.cv2-left')!;
+    const order = [...left.children].map((c) => c.className.split(' ')[0]);
+    expect(order.indexOf('cv2-playertitle')).toBeLessThan(order.indexOf('cv2-acctlevel'));
+    expect(order.indexOf('cv2-acctlevel')).toBeLessThan(order.indexOf('cv2-tiles'));
     expect(text('.cv2-acctlevel-label')).toEqual(['Account Level 2']);
     expect(text('.cv2-acctlevel-num')).toEqual(['75 / 250 XP']);
-    expect(text('.cv2-acctlevel-title')).toEqual(['TitleAlpha Tester']);
     expect(text('.cv2-left .cv2-playertitle')).toEqual(['Alpha Tester']);
     // anonymous owner: the small save-your-progress reminder, which opens the account panel
     expect(text('.cv2-acctlevel-save span')).toEqual(['Playing as a guest. Create an account to save your progress.']);
@@ -798,7 +804,6 @@ describe('Account Level (account progression, 2026-09-27)', () => {
     await remount();
     expect(text('.cv2-acctlevel-label')).toEqual(['Account Level 1']);
     expect(text('.cv2-acctlevel-num')).toEqual(['0 / 250 XP']);
-    expect(ui.container.querySelector('.cv2-acctlevel-title')).toBeNull();
     expect(ui.container.querySelector('.cv2-acctlevel-save')).toBeNull();
   });
 });

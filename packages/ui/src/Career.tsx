@@ -671,6 +671,9 @@ export function Career() {
             <div className="cv2-heroname">{heroName}</div>
             <div className="cv2-playername">{shownName}</div>
             {titleName(accountProgression?.equippedTitleId) && <div className="cv2-playertitle">{titleName(accountProgression?.equippedTitleId)}</div>}
+            {/* ACCOUNT LEVEL (owner ask 2026-09-28: "move the account level to under the character portrait so it's
+                not on top of ranked"): under the portrait block, above the stat tiles; Seasonal Ranked leads the right. */}
+            {accountProgression && <AccountLevelCard profile={accountProgression} own={!viewing} />}
             <div className="cv2-tiles">
               <StatTile icon="crown" label="1st Place Wins" value={String(aggregates.firsts)} />
               <StatTile icon="shield" label="Top 4 Finish" value={aggregates.top4Pct === null ? '—' : `${aggregates.top4Pct}%`} />
@@ -773,12 +776,6 @@ export function Career() {
 
         {/* RIGHT — Seasonal Ranked + Performance Trends */}
         <aside className="cv2-col cv2-right">
-          {accountProgression && (
-            <>
-              <div className="cv2-colhead"><div className="cv2-sec"><Icon name="crown" />Account Level</div></div>
-              <AccountLevelCard profile={accountProgression} own={!viewing} />
-            </>
-          )}
           <div className="cv2-colhead"><div className="cv2-sec"><Icon name="star" />Seasonal Ranked</div></div>
           <div className="cv2-panel cv2-ranked">
             {rank ? (

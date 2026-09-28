@@ -12327,7 +12327,10 @@ body:has(.heroselect.rankend) .pixifx-above { z-index: 470; }
   .acctxp, .acctxp *, .acctxp-levelup, .acctxp-titlereveal { animation: none !important; transition: none !important; }
 }
 /* Career: the Account Level card sits above Seasonal Ranked in the right column; the title under the name. */
-.cv2-acctlevel { flex: none; margin-bottom: 14px; padding: 12px 18px 14px; gap: 10px; }
+/* Since 2026-09-28 the card sits INSIDE the Career Stats panel, under the portrait block and above the tiles: a
+   tile-width inset in the tiles' own style rather than a panel of its own. */
+.cv2-acctlevel { flex: none; align-self: stretch; display: flex; flex-direction: column; gap: 10px; margin-top: 14px; padding: 12px 14px; text-align: left;
+  border-radius: 12px; background: rgba(0, 0, 0, 0.28); border: 1px solid rgba(196, 160, 92, 0.28); }
 .cv2-acctlevel-row { display: flex; align-items: center; gap: 14px; }
 .cv2-acctlevel-badge { font-size: 24px; min-width: 66px; padding: 6px 12px; }
 .cv2-acctlevel-body { flex: 1 1 auto; display: flex; flex-direction: column; gap: 5px; min-width: 0; }

@@ -1302,4 +1302,185 @@ export const RUNES_RULES: GameRule[] = [
       lastVerifiedAt: '2026-09-27',
     },
   },
+  // ── Set 3 rune design pass (owner 2026-09-27), tranche 2: Celestial (the Event Horizon slot is left empty) ──
+  {
+    id: 'R-SET3RUNE-14',
+    title: "Rune of the Heralding Star: a friendly Celestial Shout gives your Starform +3/+3",
+    statement:
+      "Every time a friendly Celestial triggers its Shout (a play, a re-fire, each extra fire), your Starform gains +3/+3 per copy. With no Starform nothing happens. In combat the gain is banked and lands on the Starform when the Shop opens (the Starform is a Shop token), after any Shop-only Shout that creates one.",
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Owner rulings 2026-09-27 on the Set 3 rune design pass (set3-rune-design.md)", quote: "Approved as written: Every Undead, Celestial, Spirit and Dwarf rune in section 4, EXCEPT the four noted below." },
+      { kind: 'code', ref: "packages/sim/src/recruit.ts fireBattlecryTriggered (runeCelestialShoutShop); packages/core/src/combat/simulate.ts battlecryTriggered listener + gainStarform; packages/sim/src/reducer.ts settle (playerStarformGain)" },
+    ],
+    contentIds: ["rune_heralding_star"],
+    cardText: "After a friendly **Celestial** triggers its **Shout**, give your **Starform +3/+3**.",
+    currentBehaviour: 'Conforms (built with the rune, 2026-09-27).',
+    enforcement: {
+      kind: 'scenario',
+      refs: ["packages/sim/src/set3RuneDesignT2.test.ts", "packages/core/src/combat/set3RuneDesignT2.test.ts"],
+      lastVerifiedAt: '2026-09-27',
+    },
+  },
+  {
+    id: 'R-SET3RUNE-15',
+    title: "Rune of Stellar Echoes: your Celestials have \"Echo: give your Starform +2/+2\"",
+    statement:
+      "Every friendly Celestial (board, hand, later arrivals, combat summons) carries \"Echo: give your Starform +2/+2\" (per copy). A Gilded Celestial pays the same. In the Shop the Starform grows at once; in combat the gain is banked and lands when the Shop opens.",
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Owner rulings 2026-09-27 on the Set 3 rune design pass (set3-rune-design.md)", quote: "Approved as written: Every Undead, Celestial, Spirit and Dwarf rune in section 4, EXCEPT the four noted below." },
+      { kind: 'code', ref: "packages/sim/src/recruit.ts applyRuneGrafts + RECRUIT_FACTORIES.deathrattleBuffStarform; packages/core/src/combat/simulate.ts graftBatch3Runes; packages/core/src/effects/factories.ts deathrattleBuffStarform" },
+    ],
+    contentIds: ["rune_stellar_echoes"],
+    cardText: "Give your **Celestials** \"**Echo:** give your **Starform +2/+2**.\"",
+    currentBehaviour: 'Conforms (built with the rune, 2026-09-27).',
+    enforcement: {
+      kind: 'scenario',
+      refs: ["packages/sim/src/set3RuneDesignT2.test.ts", "packages/core/src/combat/set3RuneDesignT2.test.ts"],
+      lastVerifiedAt: '2026-09-27',
+    },
+  },
+  {
+    id: 'R-SET3RUNE-16',
+    title: "Rune of Scattered Light: buying your Starform Collapses it instead",
+    statement:
+      "When you buy your Starform, it Collapses instead of being consumed by your left-most Celestial: half its stats, rounded up, to 3 unique random Celestials plus any extra Collapse hits. The price is still paid and it still counts as a buy; the Collapse listeners (Zenith, Eventide) hear a Collapse.",
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Owner rulings 2026-09-27 on the Set 3 rune design pass (set3-rune-design.md)", quote: "Approved as written: Every Undead, Celestial, Spirit and Dwarf rune in section 4, EXCEPT the four noted below." },
+      { kind: 'code', ref: "packages/sim/src/starform.ts buyStarform" },
+    ],
+    contentIds: ["rune_scattered_light"],
+    cardText: "When you buy your **Starform**, it **Collapses** instead.",
+    currentBehaviour: 'Conforms (built with the rune, 2026-09-27).',
+    enforcement: {
+      kind: 'scenario',
+      refs: ["packages/sim/src/set3RuneDesignT2.test.ts"],
+      lastVerifiedAt: '2026-09-27',
+    },
+  },
+  {
+    id: 'R-SET3RUNE-17',
+    title: "Rune of Gravity: each minion your Starform consumes gives your Celestials +2/+2",
+    statement:
+      "Every Shop minion your Starform consumes (a full-row creation, Accretion, extra bites) gives the Celestials on your board +2/+2 per copy. Only the Starform's own consumes count (a Demon's does not).",
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Owner rulings 2026-09-27 on the Set 3 rune design pass (set3-rune-design.md)", quote: "Approved as written: Every Undead, Celestial, Spirit and Dwarf rune in section 4, EXCEPT the four noted below." },
+      { kind: 'code', ref: "packages/sim/src/recruit.ts consumeShopOffer (runeGravityShop, the Starform as eater)" },
+    ],
+    contentIds: ["rune_gravity"],
+    cardText: "When your **Starform** Consumes a minion, give your **Celestials +2/+2**.",
+    currentBehaviour: 'Conforms (built with the rune, 2026-09-27).',
+    enforcement: {
+      kind: 'scenario',
+      refs: ["packages/sim/src/set3RuneDesignT2.test.ts"],
+      lastVerifiedAt: '2026-09-27',
+    },
+  },
+  {
+    id: 'R-SET3RUNE-18',
+    title: "Rune of the Afterglow: your Starform leaving the Shop gets a Star Crash",
+    statement:
+      "When your Starform leaves the Shop by a buy, a Collapse or a consume, you get a Star Crash (per copy). The Star Destroyer's silent exit does not count.",
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Owner rulings 2026-09-27 on the Set 3 rune design pass (set3-rune-design.md)", quote: "Approved as written: Every Undead, Celestial, Spirit and Dwarf rune in section 4, EXCEPT the four noted below." },
+      { kind: 'code', ref: "packages/sim/src/recruit.ts fireStarformRemoved" },
+    ],
+    contentIds: ["rune_afterglow"],
+    cardText: "When your **Starform** leaves the **Shop**, get a **Star Crash**.",
+    currentBehaviour: 'Conforms (built with the rune, 2026-09-27).',
+    enforcement: {
+      kind: 'scenario',
+      refs: ["packages/sim/src/set3RuneDesignT2.test.ts"],
+      lastVerifiedAt: '2026-09-27',
+    },
+  },
+  {
+    id: 'R-SET3RUNE-19',
+    title: "Rune of the Starsong: a friendly Celestial Shout gives your Celestials +2/+2",
+    statement:
+      "Every time a friendly Celestial triggers its Shout, your Celestials gain +2/+2 (per copy): the board in the Shop (permanent), the living Celestials in combat (for that fight).",
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Owner rulings 2026-09-27 on the Set 3 rune design pass (set3-rune-design.md)", quote: "Approved as written: Every Undead, Celestial, Spirit and Dwarf rune in section 4, EXCEPT the four noted below." },
+      { kind: 'code', ref: "packages/sim/src/recruit.ts runeCelestialShoutShop; packages/core/src/combat/simulate.ts battlecryTriggered listener" },
+    ],
+    contentIds: ["rune_starsong"],
+    cardText: "After a friendly **Celestial** triggers its **Shout**, give your **Celestials +2/+2**.",
+    currentBehaviour: 'Conforms (built with the rune, 2026-09-27).',
+    enforcement: {
+      kind: 'scenario',
+      refs: ["packages/sim/src/set3RuneDesignT2.test.ts", "packages/core/src/combat/set3RuneDesignT2.test.ts"],
+      lastVerifiedAt: '2026-09-27',
+    },
+  },
+  {
+    id: 'R-SET3RUNE-20',
+    title: "Rune of the Guiding Star: a friendly Celestial Echo casts a Star Crash on a random friendly Celestial",
+    statement:
+      "Every time a friendly Celestial triggers its Echo (Shop, End of Turn or combat, each extra trigger included), the rune casts a Star Crash (per copy) on a random other friendly Celestial. It is a real cast: spell counters and cast watchers hear it. A Gilded Echo body does not double it. No other Celestial: no cast.",
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Owner rulings 2026-09-27 on the Set 3 rune design pass (set3-rune-design.md)", quote: "Approved as written: Every Undead, Celestial, Spirit and Dwarf rune in section 4, EXCEPT the four noted below." },
+      { kind: 'code', ref: "packages/sim/src/recruit.ts fireRecruitDeathrattles (runeGuidingStarShop); packages/core/src/combat/simulate.ts asEcho (runeCastStarCrash)" },
+    ],
+    contentIds: ["rune_guiding_star"],
+    cardText: "Whenever a friendly **Celestial** triggers its **Echo**, cast a **Star Crash** on a random friendly **Celestial**.",
+    currentBehaviour: 'Conforms (built with the rune, 2026-09-27).',
+    enforcement: {
+      kind: 'scenario',
+      refs: ["packages/sim/src/set3RuneDesignT2.test.ts", "packages/core/src/combat/set3RuneDesignT2.test.ts"],
+      lastVerifiedAt: '2026-09-27',
+    },
+  },
+  {
+    id: 'R-SET3RUNE-21',
+    title: "Star Crash resolves in combat",
+    statement:
+      "A Star Crash cast in combat (the Guiding Star, or any combat re-cast) gives the aimed Celestial +5/+7 plus spell power, then the same on a random living friendly minion (the target may be picked again), with Rune of Falling Embers' bonus folded into both, exactly as in the Shop. It used to fizzle in combat.",
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Owner rulings 2026-09-27 on the Set 3 rune design pass (set3-rune-design.md)", quote: "Rune of the Guiding Star: Whenever a friendly Celestial triggers its Echo, cast a Star Crash on a random friendly Celestial. (approved as written)" },
+      { kind: 'code', ref: "packages/core/src/effects/factories.ts resolveCombatSpellCastInner (spellBuffTargetAndRandomFriendly); packages/sim/src/reducer.ts questCombatMods starCrashBonus" },
+    ],
+    contentIds: ["starcrash", "rune_guiding_star", "rune_falling_embers"],
+    cardText: "Give a **Celestial +5/+7**. It also casts on a random friendly minion.",
+    currentBehaviour: 'Conforms (built with the rune, 2026-09-27).',
+    enforcement: {
+      kind: 'scenario',
+      refs: ["packages/core/src/combat/set3RuneDesignT2.test.ts"],
+      lastVerifiedAt: '2026-09-27',
+    },
+  },
+  {
+    id: 'R-SET3RUNE-22',
+    title: "Rune of the Meteor Storm: every Star Crash you cast is cast again on a different friendly Celestial",
+    statement:
+      "Whenever you cast a Star Crash (Shop, End of Turn or combat, any caster, a cast on the Starform included), it is cast again (per copy) on a different random friendly Celestial. The extra cast is a real cast but never repeats itself (no loop). With no other friendly Celestial nothing happens. It fills the Celestial Epic slot the Event Horizon left; it is named the Meteor Storm because the owner's name, Meteor Shower, is already the Set 3 Celestial Epic rune_meteor_shower.",
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Owner rulings 2026-09-27 on the Set 3 rune design pass (set3-rune-design.md)", quote: "meteor shower is fine" },
+      { kind: 'code', ref: "packages/sim/src/recruit.ts castSpell (runeMeteorStormShop, METEOR_ECHOING latch); packages/core/src/combat/simulate.ts runeMeteorStorm via ctx.onStarCrashCast; packages/core/src/effects/factories.ts the Star Crash combat case" },
+    ],
+    contentIds: ["rune_meteor_storm"],
+    cardText: "Whenever you cast a **Star Crash**, cast it again on a different friendly **Celestial**.",
+    currentBehaviour: 'Conforms (built with the rune, 2026-09-27).',
+    enforcement: {
+      kind: 'scenario',
+      refs: ["packages/sim/src/set3RuneDesignT2.test.ts", "packages/core/src/combat/set3RuneDesignT2.test.ts"],
+      lastVerifiedAt: '2026-09-27',
+    },
+  },
 ];

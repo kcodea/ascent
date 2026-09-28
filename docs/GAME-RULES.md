@@ -686,6 +686,22 @@ first friendly Shop destroy each turn gains Rise first). Rules worth knowing:
   (multipliers apply, the Wake counts it). The Open Grave skips a body that already has Rise.
 Oracle R-SET3RUNE-06..13; details in `docs/devlog/2026-09-27-set3-runes-t1.md`.
 
+**Design pass tranche 2: Celestial (owner 2026-09-27)** adds 8 Set-3-only Celestial runes (**185 runes, 97 Basic / 88
+Epic**); there is no Event Horizon, and its Epic slot went to the owner's pick the same day, the **Meteor Storm** (every
+Star Crash you cast is cast again on a different friendly Celestial; the extra cast never repeats itself; named Storm
+because Meteor Shower is an existing rune). Basic: the Heralding Star (a friendly
+Celestial Shout gives your Starform +3/+3), Stellar Echoes (your Celestials have "Echo: give your Starform +2/+2"),
+Scattered Light (buying your Starform Collapses it instead), Gravity (each minion your Starform consumes gives your
+Celestials +2/+2), the Afterglow (your Starform leaving the Shop gets a Star Crash). Epic: the Starsong (a friendly
+Celestial Shout gives your Celestials +2/+2), the Guiding Star (a friendly Celestial Echo casts a Star Crash on a random
+friendly Celestial). Rules worth knowing:
+- *Starform growth earned in combat* is banked per source and lands on the Starform when the Shop opens (the Starform
+  is a Shop token; `playerStarformGain`), after any Shop-only Shout that creates one. No Starform = nothing.
+- *Star Crash now resolves in combat* (it used to fizzle): the aimed Celestial and a random living friendly minion
+  each take +5/+7 plus spell power plus Rune of Falling Embers' bonus.
+- *Gravity* counts only the Starform's own consumes, on the board.
+Oracle R-SET3RUNE-14..22; details in `docs/devlog/2026-09-27-set3-runes-t2.md`.
+
 **Set 3-original runes (batch 2, 2026-09-16).** Set 3 now also has runes of its own — `sets: ['set3']` alone,
 no origin scope — starting with tranche A's 24 Spirit / Celestial / Undead runes (11 Basic + 13 Epic, taking the
 set-3 static pool to **126 Basic / 111 Epic**), plus the rune-exclusive **Handy Flame** token. The two combat-side

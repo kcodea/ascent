@@ -26,7 +26,7 @@ const ALL = [...RUNES, ...EPIC_RUNES];
 const reducerSrc = fs.readFileSync(path.join(__dirname, 'reducer.ts'), 'utf-8');
 /** The Shop chokepoints (2026-09-27, Set 3 rune design pass): a SHOP-ONLY combatFlag rune ("after you destroy a
  *  friendly minion in the Shop") is read here and nowhere in combat, which is its legitimate home. */
-const recruitSrc = fs.readFileSync(path.join(__dirname, 'recruit.ts'), 'utf-8');
+const recruitSrc = fs.readFileSync(path.join(__dirname, 'recruit.ts'), 'utf-8') + fs.readFileSync(path.join(__dirname, 'starform.ts'), 'utf-8'); // + the Starform's own buy path (Rune of Scattered Light)
 const simulateSrc = fs.readFileSync(
   path.join(__dirname, '..', '..', 'core', 'src', 'combat', 'simulate.ts'), 'utf-8');
 

@@ -1742,6 +1742,68 @@ export const RUNES: RuneDef[] = [
     reward: { kind: 'combatFlag', flag: 'runeGravedigger' },
     sets: ['set3'],
   },
+  // ── SET 3 RUNE DESIGN PASS (owner 2026-09-27), tranche 2: Celestial Basics. All Set-3-only, Celestial-gated. ──
+  {
+    // Every friendly Celestial Shout FIRE (Shop: the Shout-triggered notify; combat: the `battlecryTriggered` bus) gives
+    // the Starform +3/+3 per copy. A combat gain is banked and lands when the Shop opens (the Starform deferral).
+    id: 'rune_heralding_star',
+    tribes: ['celestial'],
+    name: 'Rune of the Heralding Star',
+    cost: 3,
+    text: 'After a friendly **Celestial** triggers its **Shout**, give your **Starform +3/+3**.',
+    previewCards: ['ce3_starform'],
+    reward: { kind: 'combatFlag', flag: 'runeHeraldingStar' },
+    sets: ['set3'],
+  },
+  {
+    // An aura-style GRAFT (the Echoing Kobolds shape): every friendly Celestial, now and later, combat summons
+    // included, carries "Echo: give your Starform +2/+2" (per copy; a rune-granted Echo, so gilding does not double it).
+    id: 'rune_stellar_echoes',
+    tribes: ['celestial'],
+    name: 'Rune of Stellar Echoes',
+    cost: 3,
+    text: 'Give your **Celestials** "**Echo:** give your **Starform +2/+2**."',
+    previewCards: ['ce3_starform'],
+    reward: { kind: 'combatFlag', flag: 'runeStellarEchoes' },
+    sets: ['set3'],
+  },
+  {
+    // Buying the Starform runs the Collapse (half its stats, rounded up, to 3 unique random Celestials + the extras)
+    // instead of the left-most consume. The price is still paid; Zenith and the Collapse runes hear a Collapse.
+    id: 'rune_scattered_light',
+    tribes: ['celestial'],
+    name: 'Rune of Scattered Light',
+    cost: 3,
+    text: 'When you buy your **Starform**, it **Collapses** instead.',
+    previewCards: ['ce3_starform'],
+    reward: { kind: 'combatFlag', flag: 'runeScatteredLight' },
+    sets: ['set3'],
+  },
+  {
+    // Every minion the STARFORM consumes (`consumeShopOffer` with the token as the eater: Accretion, a full-row
+    // creation, Red Giant's extra bites) gives your board Celestials +2/+2 per copy. NOT the generic `consume` meter the
+    // design doc named: that meter only counts FODDER consumes (`noteFodderConsumed`), never a Shop-minion consume.
+    id: 'rune_gravity',
+    tribes: ['celestial'],
+    name: 'Rune of Gravity',
+    cost: 4,
+    text: 'When your **Starform** Consumes a minion, give your **Celestials +2/+2**.',
+    previewCards: ['ce3_starform'],
+    reward: { kind: 'combatFlag', flag: 'runeGravity' },
+    sets: ['set3'],
+  },
+  {
+    // The Starform leaving the Shop (a buy, a Collapse, a card's consume: `fireStarformRemoved`, the one exit) gets a
+    // Star Crash per copy. The Star Destroyer's silent exit does not count (rule 9).
+    id: 'rune_afterglow',
+    tribes: ['celestial'],
+    name: 'Rune of the Afterglow',
+    cost: 3,
+    text: 'When your **Starform** leaves the **Shop**, get a **Star Crash**.',
+    previewCards: ['ce3_starform', 'starcrash'],
+    reward: { kind: 'combatFlag', flag: 'runeAfterglow' },
+    sets: ['set3'],
+  },
 ];
 
 /**
@@ -3640,6 +3702,47 @@ export const EPIC_RUNES: RuneDef[] = [
     reward: { kind: 'combatFlag', flag: 'runeOpenGrave' },
     sets: ['set3'],
   },
+  // ── SET 3 RUNE DESIGN PASS (owner 2026-09-27), tranche 2: Celestial Epics. No Event Horizon (owner); its slot is
+  //    filled by the Meteor Storm (owner pick, same day). ──
+  {
+    // Every friendly Celestial Shout FIRE gives your Celestials +2/+2 per copy (Shop: permanent; combat: this fight).
+    id: 'rune_starsong',
+    tribes: ['celestial'],
+    name: 'Rune of the Starsong',
+    cost: 4,
+    epic: true,
+    text: 'After a friendly **Celestial** triggers its **Shout**, give your **Celestials +2/+2**.',
+    reward: { kind: 'combatFlag', flag: 'runeStarsong' },
+    sets: ['set3'],
+  },
+  {
+    // Owner ruling 2026-09-27 ("meteor shower is fine"): fills the Celestial Epic slot the Event Horizon left. RENAMED
+    // from the owner's "Rune of the Meteor Shower": that name is already the Set 3 Celestial Epic `rune_meteor_shower`
+    // (E2, "get another Star Crash"), and two runes cannot share a name. Every Star Crash cast (Shop or combat, any
+    // caster) casts once more per copy on a DIFFERENT random friendly Celestial; the extra cast never repeats itself.
+    id: 'rune_meteor_storm',
+    tribes: ['celestial'],
+    name: 'Rune of the Meteor Storm',
+    cost: 5,
+    epic: true,
+    text: 'Whenever you cast a **Star Crash**, cast it again on a different friendly **Celestial**.',
+    previewCards: ['starcrash'],
+    reward: { kind: 'combatFlag', flag: 'runeMeteorStorm' },
+    sets: ['set3'],
+  },
+  {
+    // Every friendly Celestial Echo TRIGGER (both Echo chokepoints) casts a Star Crash on a random friendly Celestial,
+    // the rune as caster (a real cast: spell counters and cast watchers hear it). Once per copy.
+    id: 'rune_guiding_star',
+    tribes: ['celestial'],
+    name: 'Rune of the Guiding Star',
+    cost: 5,
+    epic: true,
+    text: 'Whenever a friendly **Celestial** triggers its **Echo**, cast a **Star Crash** on a random friendly **Celestial**.',
+    previewCards: ['starcrash'],
+    reward: { kind: 'combatFlag', flag: 'runeGuidingStar' },
+    sets: ['set3'],
+  },
 ];
 
 /**
@@ -4007,6 +4110,9 @@ export const RUNE_DUP_SWEETENER: ReadonlySet<string> = new Set([
   // Set 3 batch 2, tranche B (2026-09-16): a rules change already fully on (Supernova), an idempotent graft
   // (the Last Tool), an idempotent 0-cost arm (Quick Release).
   'rune_supernova', 'rune_last_tool', 'rune_quick_release',
+  // Set 3 design pass (2026-09-27): a rules change already fully on (Scattered Light) and a one-charge-a-turn arm
+  // (the Open Grave: a second copy has no second 'first destroy').
+  'rune_scattered_light', 'rune_open_grave',
 ]);
 
 /** Duplicates that do NOTHING — owner ruled unique ("rune of the ornate clock should do nothing if

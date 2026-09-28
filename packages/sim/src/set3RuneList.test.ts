@@ -69,11 +69,18 @@ const OWNER_LIST: Record<string, { basic: Record<string, string>; epic: Record<s
     },
   },
   celestial: {
-    basic: { 'basic celestial': 'rune_basic_celestial', accretion: 'rune_accretion', eventide: 'rune_eventide', 'falling embers': 'rune_falling_embers', 'first light': 'rune_first_light' },
+    basic: {
+      'basic celestial': 'rune_basic_celestial', accretion: 'rune_accretion', eventide: 'rune_eventide', 'falling embers': 'rune_falling_embers', 'first light': 'rune_first_light',
+      // Design pass tranche 2 (owner 2026-09-27).
+      'heralding star': 'rune_heralding_star', 'stellar echoes': 'rune_stellar_echoes', 'scattered light': 'rune_scattered_light', gravity: 'rune_gravity', afterglow: 'rune_afterglow',
+    },
     epic: {
       'epic celestial': 'rune_epic_celestial', spellweaving: 'rune_spellweaving', 'stolen constellations': 'rune_stolen_constellations',
       'meteor shower': 'rune_meteor_shower', 'red giant': 'rune_red_giant', supernova: 'rune_supernova',
       'open constellation': 'rune_open_constellation', // RESTORED (2026-09-27 design pass)
+      // Design pass tranche 2 (owner 2026-09-27). No Event Horizon; its slot went to the owner's pick the same day, the
+      // Meteor Storm (the owner named it "Meteor Shower", which is already this list's `rune_meteor_shower`).
+      starsong: 'rune_starsong', 'guiding star': 'rune_guiding_star', 'meteor storm': 'rune_meteor_storm',
     },
   },
   // HYBRIDS (2026-09-27 design pass): one per natural tribe pair, each gated to BOTH its tribes (HYBRID_TRIBES).
@@ -126,10 +133,10 @@ const HYBRID_TRIBES: Record<string, readonly Tribe[]> = {
 };
 
 describe("the owner's Set 3 rune list (2026-09-25)", () => {
-  it('names 177 distinct runes, every one a live (non-archived) rune def', () => {
+  it('names 185 distinct runes, every one a live (non-archived) rune def', () => {
     // 163 + 11 from Set 3 rune batch 3 (2026-09-25) = 174; the 2026-09-27 design pass: tranche 0 cut 10, restored 5 (169);
-    // tranche 1 added 8 Undead (177).
-    expect(LISTED).toHaveLength(177);
+    // tranche 1 added 8 Undead (177); tranche 2 added 8 Celestial (185).
+    expect(LISTED).toHaveLength(185);
     expect(new Set(LISTED).size, 'no rune named twice').toBe(LISTED.length);
     for (const id of LISTED) {
       expect(LIVE.some((r) => r.id === id), `${id} is a live rune`).toBe(true);
@@ -153,9 +160,9 @@ describe("the owner's Set 3 rune list (2026-09-25)", () => {
     expect([...offered].sort()).toEqual([...LISTED].sort());
   });
 
-  it('counts: 92 Basic / 85 Epic (91 / 83 on 2026-09-25; 2026-09-27 tranche 0: 87 / 82; tranche 1: + 5 / + 3 Undead)', () => {
-    expect(LISTED.filter((id) => RUNES.some((r) => r.id === id))).toHaveLength(92);
-    expect(LISTED.filter((id) => EPIC_RUNES.some((r) => r.id === id))).toHaveLength(85);
+  it('counts: 97 Basic / 88 Epic (91 / 83 on 2026-09-25; 2026-09-27 tranche 0: 87 / 82; tranche 1: + 5 / + 3 Undead; tranche 2: + 5 / + 3 Celestial)', () => {
+    expect(LISTED.filter((id) => RUNES.some((r) => r.id === id))).toHaveLength(97);
+    expect(LISTED.filter((id) => EPIC_RUNES.some((r) => r.id === id))).toHaveLength(88);
   });
 
   it('every rune NOT named is out of Set 3, still resolves, and keeps its other sets (never archived)', () => {

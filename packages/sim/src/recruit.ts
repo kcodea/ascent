@@ -2772,6 +2772,9 @@ function fireRecruitDeathrattles(ctx: RecruitContext, minion: BoardCard, effects
     // RUNE OF THE WAKE (Set 3 design pass): every Undead Echo TRIGGER (the base fire and each extra) raises the
     // Undead Aura, here at the shop's one Echo chokepoint so a destroy, a forced Echo and a hand Echo all count.
     if (ctx.state.questFlags?.runeWake && isTribe(minion, 'undead')) runeWakeShop(ctx.state, 1 + extra);
+    // RUNE OF THE GUIDING STAR (Set 3 design pass): each Celestial Echo trigger casts a Star Crash on a random OTHER
+    // friendly Celestial (the dying body is still on the board, vacating).
+    if (ctx.state.questFlags?.runeGuidingStar && isTribe(minion, 'celestial')) runeGuidingStarShop(ctx.state, minion, 1 + extra);
   }
 }
 
@@ -3658,6 +3661,11 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   // Rune of Echoing Kobolds' graft (2026-09-25): a Shop Echo (a destroy, a forced Echo) mints the Rubies now.
   deathrattleGetRubies: (ctx, self, params) => {
     ARENA_EFFECTS.deathrattleGetRubies(shopArena(ctx.state, self), params);
+  },
+  // Rune of Stellar Echoes' graft (Set 3 design pass): a Shop Echo gives the Starform the stats now (none = nothing).
+  deathrattleBuffStarform: (ctx, self, params) => {
+    const g = params.fixed ? 1 : gold(self);
+    if (buffStarform(ctx.state, num(params.attack, 2) * g, num(params.health, 2) * g, 'Rune of Stellar Echoes')) procRuneId(ctx.state, 'rune_stellar_echoes');
   },
   rallyDoubleSelf: (ctx, self, params, payload) => {
     if (payload.minion !== self) return;
@@ -10700,6 +10708,12 @@ export function fireStarformRemoved(state: RunState, reason: 'consume' | 'collap
   // RUNE OF THE OPEN CONSTELLATION: the first CONSUME each turn re-creates a token carrying the consumed one's
   // stats — created, then topped up to EXACTLY those stats (a Zenith rebirth that fired in the watcher loop above
   // already made the token; it is topped up, never doubled). Latched once per turn.
+  // RUNE OF THE AFTERGLOW (Set 3 design pass): the token LEFT the Shop (a buy, a Collapse, a card's consume) → a Star
+  // Crash per copy. The Star Destroyer's silent exit never reaches this function (rule 9).
+  if (state.questFlags?.runeAfterglow) {
+    const sc = CARD_INDEX['starcrash'];
+    if (sc) { procRuneId(state, 'rune_afterglow'); conjureToHand(state, [sc], runeStacksOf(state, 'rune_afterglow'), true); }
+  }
   if (reason === 'consume' && state.runeOpenConstellation && !state.openConstellationUsedThisTurn) {
     state.openConstellationUsedThisTurn = true;
     procRuneId(state, 'rune_open_constellation');
@@ -11218,6 +11232,8 @@ function fireBattlecryTriggered(state: RunState, source?: BoardCard): void {
       });
     }
   }
+  // SET 3 DESIGN PASS: a friendly CELESTIAL Shout fire (the Heralding Star, the Starsong).
+  if (source && isTribe(source, 'celestial')) runeCelestialShoutShop(state);
 }
 
 /** Fire a single card's `onGainAttack` recruit effects (Hunter) — called by the reducer boundary for every
@@ -11698,7 +11714,7 @@ export function applySecondLife(state: RunState, card: BoardCard): void {
 export const ENDLESS_MARCH_TOKEN = 'knit';
 
 export function applyRuneGrafts(state: RunState, card: BoardCard): void {
-  if (!state.runeEndlessMarch && !state.runeLastTool && !state.questFlags?.runeEchoingKobolds && !state.questFlags?.runeAggressiveGolems) return;
+  if (!state.runeEndlessMarch && !state.runeLastTool && !state.questFlags?.runeEchoingKobolds && !state.questFlags?.runeAggressiveGolems && !state.questFlags?.runeStellarEchoes) return;
   const def = CARD_INDEX[card.cardId];
   if (!def || def.spell || def.ruby) return;
   const graft = (effect: EffectDef): void => {
@@ -11717,6 +11733,11 @@ export function applyRuneGrafts(state: RunState, card: BoardCard): void {
   // the Rally keyword and "give this minion's Attack to the minion to the right".
   if (state.questFlags?.runeEchoingKobolds && isTribe(card, 'kobold')) {
     graft({ on: 'onDeath', do: 'deathrattleGetRubies', params: { count: runeStacksOf(state, 'rune_echoing_kobolds'), fixed: true } });
+  }
+  // SET 3 DESIGN PASS, Rune of Stellar Echoes: every friendly Celestial carries "Echo: give your Starform +2/+2" (per copy).
+  if (state.questFlags?.runeStellarEchoes && isTribe(card, 'celestial')) {
+    const n = 2 * runeStacksOf(state, 'rune_stellar_echoes');
+    graft({ on: 'onDeath', do: 'deathrattleBuffStarform', params: { attack: n, health: n, fixed: true } });
   }
   if (state.questFlags?.runeAggressiveGolems && card.cardId === 'gemheart-shard') {
     graft({ on: 'onAttack', do: 'rallyGiveAttackToRight', params: {} });
@@ -11980,6 +12001,9 @@ export function consumeShopOffer(
   // consumes) — its Star Destroyer leaves with it (rule 9), and the Zenith-style watchers hear it leave with
   // reason 'consume' and its full stats.
   if (offer.starform) { syncStarDestroyer(state); fireStarformRemoved(state, 'consume', { attack: fa, health: fh }); }
+  // RUNE OF GRAVITY (Set 3 design pass): the STARFORM was the eater (only the token's consumes pass `skipUid`, its own
+  // uid) → your board Celestials +2/+2 per copy, per minion eaten.
+  if (skipUid !== undefined && state.questFlags?.runeGravity) runeGravityShop(state);
   // Record the consume BEFORE notifying: an `onConsume` watcher has to be able to see WHAT was eaten, and
   // `fodderEaten` is the only carrier of that (Avarice Incarnate pays Gold equal to the eaten minion's tier and
   // read an empty list when this was appended afterwards). APPENDED rather than replacing, so several consumes
@@ -12466,6 +12490,9 @@ export function castSpell(state: RunState, spellDef: CardDef, target?: BoardCard
   }
   // …then the bookkeeping every cast owes the run, shared with the Discover-spell path in the reducer.
   noteSpellCast(state, spellDef);
+  // RUNE OF THE METEOR STORM (Set 3 design pass): a Star Crash cast (any caster, a cast on the Starform included) casts
+  // again on a different friendly Celestial; the extra cast never repeats itself.
+  if (spellDef.id === 'starcrash' && state.questFlags?.runeMeteorStorm && !METEOR_ECHOING) runeMeteorStormShop(state, spellDef, target);
 }
 
 
@@ -15071,3 +15098,76 @@ function runeRiseRunesShop(state: RunState, risen: BoardCard): void {
     for (let k = 0; k < runeStacksOf(state, 'rune_restless'); k++) fireRecruitDeathrattles(makeContext(state), risen);
   }
 }
+
+// ── SET 3 RUNE DESIGN PASS (owner 2026-09-27): the Shop halves of the tranche-2 Celestial runes ──────────────────
+
+/** A friendly Celestial Shout FIRE in the Shop: the Heralding Star gives the Starform +3/+3 per copy (none = nothing),
+ *  the Starsong gives your board Celestials +2/+2 per copy (permanent: a Shop buff is). */
+export const HERALDING_STAR_GRANT = { attack: 3, health: 3 } as const;
+export const STARSONG_GRANT = { attack: 2, health: 2 } as const;
+function runeCelestialShoutShop(state: RunState): void {
+  const f = state.questFlags;
+  if (f?.runeHeraldingStar) {
+    const n = runeStacksOf(state, 'rune_heralding_star');
+    if (buffStarform(state, HERALDING_STAR_GRANT.attack * n, HERALDING_STAR_GRANT.health * n, 'Rune of the Heralding Star')) procRuneId(state, 'rune_heralding_star');
+  }
+  if (f?.runeStarsong) {
+    const cels = state.board.filter((c) => isTribe(c, 'celestial'));
+    if (cels.length > 0) {
+      procRuneId(state, 'rune_starsong');
+      const n = runeStacksOf(state, 'rune_starsong');
+      captureBuffFx(state, undefined, 'spell', () => {
+        for (const c of cels) addBuff(c, 'Rune of the Starsong', STARSONG_GRANT.attack * n, STARSONG_GRANT.health * n);
+      });
+    }
+  }
+}
+
+/** RUNE OF THE GUIDING STAR, Shop half: `triggers` Celestial Echo triggers, each casting a Star Crash (per copy) on a
+ *  random OTHER friendly board Celestial, through the Shop's real cast pipeline with the rune as the caster. */
+function runeGuidingStarShop(state: RunState, echoing: BoardCard, triggers: number): void {
+  const sc = CARD_INDEX['starcrash'];
+  if (!sc?.spell) return;
+  const casts = triggers * runeStacksOf(state, 'rune_guiding_star');
+  for (let k = 0; k < casts; k++) {
+    const pool = state.board.filter((c) => c.uid !== echoing.uid && c.uid !== state.vacatingUid && isTribe(c, 'celestial'));
+    if (pool.length === 0) return;
+    const rng = makeRng(state.rngCursor);
+    const target = pool[rng.int(pool.length)]!;
+    state.rngCursor = rng.state();
+    procRuneId(state, 'rune_guiding_star');
+    withCastActor({ kind: 'rune', id: 'rune_guiding_star' }, () => castSpell(state, sc, target));
+  }
+}
+
+/** RUNE OF GRAVITY: the Starform consumed a minion → your board Celestials +2/+2 per copy (a Shop buff: permanent). */
+export const GRAVITY_GRANT = { attack: 2, health: 2 } as const;
+function runeGravityShop(state: RunState): void {
+  const cels = state.board.filter((c) => isTribe(c, 'celestial'));
+  procRuneId(state, 'rune_gravity');
+  if (cels.length === 0) return;
+  const n = runeStacksOf(state, 'rune_gravity');
+  captureBuffFx(state, undefined, 'spell', () => {
+    for (const c of cels) addBuff(c, 'Rune of Gravity', GRAVITY_GRANT.attack * n, GRAVITY_GRANT.health * n);
+  });
+}
+
+/** RUNE OF THE METEOR STORM, Shop half: the latch that keeps its extra Star Crash from repeating itself. */
+let METEOR_ECHOING = false;
+function runeMeteorStormShop(state: RunState, spellDef: CardDef, target: BoardCard | undefined): void {
+  const others = (): BoardCard[] => state.board.filter((c) => c.uid !== target?.uid && c.uid !== state.vacatingUid && isTribe(c, 'celestial'));
+  if (others().length === 0) return;
+  METEOR_ECHOING = true;
+  try {
+    for (let k = 0; k < runeStacksOf(state, 'rune_meteor_storm'); k++) {
+      const pool = others();
+      if (pool.length === 0) break;
+      const rng = makeRng(state.rngCursor);
+      const pick = pool[rng.int(pool.length)]!;
+      state.rngCursor = rng.state();
+      procRuneId(state, 'rune_meteor_storm');
+      withCastActor({ kind: 'rune', id: 'rune_meteor_storm' }, () => castSpell(state, spellDef, pick));
+    }
+  } finally { METEOR_ECHOING = false; }
+}
+

@@ -895,6 +895,21 @@ function resolveCombatSpellCastInner(ctx: CombatContext, self: Minion, def: Card
         for (const m of chosen()) ctx.buff(m, t + sp.attack, t + sp.health, self.uid);
         did = true; break;
       }
+      // STAR CRASH (Set 3 design pass, 2026-09-27; it had no combat resolution, so a combat cast fizzled). The aimed
+      // Celestial +a/+h, then the same on a random living friendly minion, target included (R-TARGET-01), exactly as
+      // the Shop factory. Rune of Falling Embers' bonus folds into both landings. The Rune of the Guiding Star is its
+      // first combat caster; any other combat re-cast of a Star Crash now resolves too.
+      case 'spellBuffTargetAndRandomFriendly': {
+        const t = chosen()[0];
+        if (!t) break;
+        const sc = def.id === 'starcrash' ? (ctx.starCrashBonusFor?.(side) ?? { attack: 0, health: 0 }) : { attack: 0, health: 0 };
+        const sa = a + sp.attack + sc.attack, sh = h + sp.health + sc.health;
+        ctx.buff(t, sa, sh, self.uid);
+        const friends = alive();
+        if (friends.length > 0) ctx.buff(ctx.rng.pick(friends), sa, sh, self.uid);
+        if (def.id === 'starcrash') ctx.onStarCrashCast?.(side, self, t); // Rune of the Meteor Storm
+        did = true; break;
+      }
       case 'spellBuffTargetAndNeighbours': {
         const seen = new Set<Minion>();
         for (const t of chosen()) {
@@ -2068,6 +2083,14 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
   deathrattleGetRubies: (ctx, self, params, payload) => {
     if ((payload as MinionPayload).minion !== self) return;
     ARENA_EFFECTS.deathrattleGetRubies(combatArena(ctx, self), params);
+  },
+  /** Rune of Stellar Echoes' graft (Set 3 design pass): this body's Echo gives your Starform +a/+h. The Starform is a
+   *  Shop token, so combat banks the gain (`gainStarform`) and settle applies it. `fixed`: a rune-granted Echo, so a
+   *  Gilded body pays the same. */
+  deathrattleBuffStarform: (ctx, self, params, payload) => {
+    if ((payload as MinionPayload).minion !== self) return;
+    const g = params.fixed ? 1 : mul(self);
+    ctx.gainStarform(num(params.attack, 2) * g, num(params.health, 2) * g, self.side, 'Rune of Stellar Echoes');
   },
 
   // ── Set 3 Undead (owner roster 2026-09-09) ──────────────────────────────────────────────────────────────

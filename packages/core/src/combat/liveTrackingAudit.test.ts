@@ -68,6 +68,7 @@ const EXEMPT: Record<string, string> = {
   playerLastKill: "ditto — 'the last one' is only knowable once the fight is over, so it cannot have a live surface",
   playerDiscoverCasts: 'the Discover MODAL cannot open mid-fight — queueing at settle is the whole design',
   playerNextShopBuff: 'its subject (the next shop) does not exist until the fight ends',
+  playerStarformGain: 'its subject (the Starform, a Shop token) does not exist mid-fight: the sanctioned Starform deferral, it lands when the Shop opens (Set 3 design pass, 2026-09-27)',
   playerRightmostSlotBuff: 'its subject (the next shop right-most slot) does not exist until the fight ends (Right Hand Hank)',
   playerBeastialSwarmLevel: 'a run-persisted rune LEVEL (Rune of Beastial Swarm), not a board buff — no combat surface',
   playerPackcraftLevel: 'a run-persisted rune LEVEL (Rune of Packcraft) — the grant itself lands on each summon as its entry stats; the level is what the NEXT summon gets, shown on the rune badge',

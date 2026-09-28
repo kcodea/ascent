@@ -129,6 +129,7 @@ export const EffectFactoryIdSchema = z.enum([
   'collapseExtraTargets', // Nova Herald (passive marker, never dispatched): +N extra Collapse hits while on board — read by `collapseExtraTargetsOf`
   'equipmentRemoveStarform', // Star Destroyer (the Starform's own Equipment): the silent exit — the token leaves the Shop, nothing else fires
   'spellCastBuffStarform',
+  'deathrattleBuffStarform', // Set 3 design pass: Rune of Stellar Echoes' graft
   'onStarformRemovedRecreateHalf',
   'spellStarformConsumeShop',
   'spellGrantSpell',
@@ -743,7 +744,9 @@ export const QuestCombatFlagSchema = z.enum(['bloodTrail', 'echoingCoop', 'lawOf
   // Set 3 rune batch 3 (2026-09-25)
   'runeEchoingKobolds', 'runeRubywire', 'runeCombatativeRubies', 'runeBodyCounting', 'runeAggressiveGolems', 'runeRupturedRubies',
   // Set 3 rune design pass (2026-09-27), tranche 1: Undead
-  'runeWake', 'runeSecondWind', 'runeSoulToll', 'runeGravedigger', 'runeSoulFurnace', 'runeRestless', 'runeOpenGrave']);
+  'runeWake', 'runeSecondWind', 'runeSoulToll', 'runeGravedigger', 'runeSoulFurnace', 'runeRestless', 'runeOpenGrave',
+  // tranche 2: Celestial
+  'runeHeraldingStar', 'runeStellarEchoes', 'runeScatteredLight', 'runeAfterglow', 'runeStarsong', 'runeGuidingStar', 'runeGravity', 'runeMeteorStorm']);
 
 // The reward palette — a discriminated union kept in lockstep with the `QuestReward` type in @game/core.
 export const QuestRewardSchema: z.ZodType = z.lazy(() => z.discriminatedUnion('kind', [

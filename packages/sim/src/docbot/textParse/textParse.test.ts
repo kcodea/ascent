@@ -119,7 +119,13 @@ const SWEEP = runTextSweep({ contracts: CONTRACTS });
 // the grammar has no rule for yet: Rune of the Gravedigger's "After you destroy a friendly minion in the Shop," trigger,
 // Rune of the Wake's "Whenever a friendly Undead triggers its Echo," trigger, Rune of the Open Grave's "before it
 // dies." timing tail, and Rune of the Soul Furnace's derived-Aura sentence. The other four parse fully.
-const UNRESOLVED_CAP = 101;
+// 2026-09-27 (Set 3 rune design pass, tranche 2): 101 → 108, CONSCIOUSLY. All seven Celestial runes carry a clause the
+// grammar has no rule for yet: the tribe-filtered Shout trigger ("After a friendly Celestial triggers its Shout," —
+// the Heralding Star, the Starsong), the tribe-filtered Echo trigger (the Guiding Star), the Starform triggers ("When
+// your Starform leaves the Shop," — the Afterglow; "When your Starform Consumes a minion," — Gravity), Scattered
+// Light's "it Collapses instead." replacement and Stellar Echoes' quoted granted Echo. +1 → 109 the same day: the
+// Meteor Storm's (the owner's Event Horizon replacement) "cast it again on a different friendly Celestial".
+const UNRESOLVED_CAP = 109;
 /** Collapse floor: the parser fully consuming fewer objects than this means a grammar regression. */
 const PARSED_FLOOR = 900;
 /** The HARD ceiling (2026-09-11): the unresolved share of active objects may never reach this fraction again. A

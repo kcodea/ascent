@@ -4,7 +4,7 @@ import {
   TIERS, TIER_SUFFIXES, type HeroBlastConfig, type HeroBlastNumKey, type HeroBlastStrKey, type TierNum, type TierSuffix,
 } from './heroBlast/heroBlastConfig';
 import { clipNames } from './sfx';
-import { DEV_HERO_ATTACK_CHOICES, devHeroAttackChoice, setDevHeroAttackChoice } from './heroBlast/heroAttackStyle';
+import { DEV_HERO_ATTACK_CHOICES, DEV_HERO_ATTACK_LABELS, devHeroAttackChoice, setDevHeroAttackChoice } from './heroBlast/heroAttackStyle';
 import { playHeroBlast, type HeroBlastHandle, type HeroBlastOptions } from './heroBlast/heroBlast';
 import { playAttackDemo, previewParts } from './heroAttack/attackDemo';
 import { TunerPanel } from './TunerPanel';
@@ -123,7 +123,7 @@ function clipOptions(): string[] {
 function buildControls(): Ctl[] {
   const out: Ctl[] = [{
     key: 'attackStyle', label: 'Attack style', kind: 'select', options: DEV_HERO_ATTACK_CHOICES, group: 'Style',
-    optionLabels: { auto: 'Auto (equipped cosmetic)', classic: 'Classic (lunge)', blast: 'Blast', quake: 'Quake' },
+    optionLabels: DEV_HERO_ATTACK_LABELS,
     hint: 'Which hero attack real fights play in this dev build, for both sides. Auto = what a player sees.', min: 0, max: 0, step: 0,
   }];
   const clips = clipOptions();

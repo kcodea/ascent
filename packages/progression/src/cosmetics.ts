@@ -165,6 +165,11 @@ export const COSMETICS: readonly CosmeticDef[] = Object.freeze([
   // The hero slams the ground, a quake cracks across the board, the ground erupts under the target. Legendary like
   // Blast (a matching showpiece); the name is a placeholder for the owner to rename (the id stays).
   heroAttack('attack_quake', 'Tectonic Slam', 'legendary', 'quake'),
+  // Owner 2026-09-28: "let's branch out and make one more attack animation, same setup as the last 2, but let's make
+  // like a magic one called arcana". Clean magic ribbons lobbed from the hero (one, two, a barrage of five), and the
+  // top tier swirls them into a vortex over the target that explodes outward. Named by the owner ("Arcana"; note the
+  // Blast cosmetic's placeholder name "Arcane Barrage" is close). Legendary like the other two (the owner's call).
+  heroAttack('attack_arcana', 'Arcana', 'legendary', 'arcana'),
 ]);
 
 export const COSMETIC_INDEX: Readonly<Record<string, CosmeticDef>> = Object.freeze(

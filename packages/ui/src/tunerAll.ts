@@ -62,6 +62,7 @@ import { SPEC as MilestoneFrameSpec } from './milestoneFrameConfig';
 import { SPEC as HeroDuelSpec } from './HeroDuelTuner';
 import { SPEC as HeroBlastSpec } from './HeroBlastTuner';
 import { SPEC as HeroQuakeSpec } from './HeroQuakeTuner';
+import { SPEC as HeroArcanaSpec } from './HeroArcanaTuner';
 import { SPEC as LoadScreenSpec } from './LoadScreenTuner';
 import { SPEC as LungeSpec } from './LungeTuner';
 import { SPEC as PlateCoalesceSpec } from './PlateCoalesceTuner';
@@ -137,6 +138,7 @@ export const ALL_TUNER_SPECS: TunerSpec<never>[] = [
   HeroDuelSpec,
   HeroBlastSpec,
   HeroQuakeSpec,
+  HeroArcanaSpec,
   LoadScreenSpec,
   LungeSpec,
   PlateCoalesceSpec,

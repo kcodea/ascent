@@ -71,6 +71,8 @@ Design prompt, 20-1000 characters).
 3. Keep the one you like: `npm run vo:design -- save dwarf-oldguard 2`. It becomes a permanent voice in the
    account and is added to `voices` under the same key, with `dest` = the card audio folder. Paste the new voice
    ID into the tracker's cast card too.
+4. To keep more than one preview of a design (variety inside a big archetype), save the extras under their
+   own key: `npm run vo:design -- save dwarf-oldguard 3 --as dwarf-oldguard-3`.
 
 Mind the account's custom-voice limit (it depends on the plan): the cast is kept small for that reason.
 

@@ -5,9 +5,11 @@
  *   npm run vo:design -- [--dry] [--only key1,key2] [--redo]
  *       Ask Voice Design for previews of each design (a few voices per description). The samples land in
  *       vo-drafts/voices/<key>.preview<N>.mp3. Designs that already have previews are skipped unless --redo.
- *   npm run vo:design -- save <key> <N>
+ *   npm run vo:design -- save <key> <N> [--as <voice-key>]
  *       Keep preview N: saves it as a permanent voice in the account and adds it to `voices` in vo-lines.json
- *       under <key>, so lines can use `"voice": "<key>"` straight away.
+ *       under <key>, so lines can use `"voice": "<key>"` straight away. To keep SEVERAL previews of one design
+ *       (more variety inside a big archetype), save the extra ones under their own key with --as, e.g.
+ *       `save dwarf-oldguard 2 --as dwarf-oldguard-2`.
  *
  * Needs ELEVENLABS_API_KEY in the repo-root .env (gitignored) or the shell. Previews cost credits (the sample
  * text is billed like a line); saving a preview does not.
@@ -23,7 +25,8 @@ import {
 const args = process.argv.slice(2);
 const has = (n: string): boolean => args.includes(`--${n}`);
 const flag = (n: string): string | undefined => { const i = args.indexOf(`--${n}`); return i >= 0 ? args[i + 1] : undefined; };
-const positional = args.filter((a, i) => !a.startsWith('--') && !(i > 0 && args[i - 1] === '--only'));
+const VALUE_FLAGS = ['--only', '--as'];
+const positional = args.filter((a, i) => !a.startsWith('--') && !(i > 0 && VALUE_FLAGS.includes(args[i - 1]!)));
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../../..');
 const MANIFEST = resolve(ROOT, MANIFEST_PATH);
@@ -45,23 +48,29 @@ function apiKey(): string {
 if (positional[0] === 'save') {
   const [, key, nArg] = positional;
   const design = manifest.designs.find((d) => d.key === key);
-  if (!design || !nArg) { console.error('Usage: npm run vo:design -- save <key> <preview-number>'); process.exit(1); }
-  if (manifest.voices[design.key]) {
-    console.error(`REFUSED: "${design.key}" is already a voice in ${MANIFEST_PATH}. Remove it by hand first to replace it.`);
+  if (!design || !nArg) { console.error('Usage: npm run vo:design -- save <key> <preview-number> [--as <voice-key>]'); process.exit(1); }
+  const as = flag('as');
+  const voiceKey = as ?? design.key;
+  if (!/^[a-z0-9]+(-[a-z0-9]+)*$/.test(voiceKey)) { console.error(`--as keys are kebab-case, e.g. ${design.key}-2.`); process.exit(1); }
+  if (manifest.voices[voiceKey]) {
+    console.error(`REFUSED: "${voiceKey}" is already a voice in ${MANIFEST_PATH}. Use --as <another-key> to keep a second ` +
+      'preview of this design, or remove the old voice by hand to replace it.');
     process.exit(1);
   }
   if (!existsSync(idsFile(design.key))) { console.error(`No previews for "${key}" — run npm run vo:design first.`); process.exit(1); }
   const ids: string[] = JSON.parse(readFileSync(idsFile(design.key), 'utf8')).generatedVoiceIds;
   const generated = ids[Number(nArg) - 1];
   if (!generated) { console.error(`"${key}" has previews 1–${ids.length}.`); process.exit(1); }
-  const { url, init } = saveVoiceRequest(design, generated, apiKey());
+  // Extra keeps get the preview number in their ElevenLabs name so the voices are told apart in the library.
+  const named = as ? { ...design, name: `${design.name} ${nArg}` } : design;
+  const { url, init } = saveVoiceRequest(named, generated, apiKey());
   const res = await fetch(url, init);
   if (!res.ok) { console.error(`✗ HTTP ${res.status} ${(await res.text()).slice(0, 300)}`); process.exit(1); }
   const { voice_id: voiceId } = (await res.json()) as { voice_id: string };
-  raw.voices[design.key] = voiceFromDesign(design, voiceId);
+  raw.voices[voiceKey] = voiceFromDesign(design, voiceId);
   writeFileSync(MANIFEST, JSON.stringify(raw, null, 2) + '\n');
-  console.log(`Saved "${design.name}" as voice ${voiceId} → added to ${MANIFEST_PATH} as "${design.key}".`);
-  console.log('Lines can now use  "voice": "' + design.key + '"  and npm run vo:generate.');
+  console.log(`Saved "${named.name}" as voice ${voiceId} → added to ${MANIFEST_PATH} as "${voiceKey}".`);
+  console.log('Lines can now use  "voice": "' + voiceKey + '"  and npm run vo:generate.');
   process.exit(0);
 }
 

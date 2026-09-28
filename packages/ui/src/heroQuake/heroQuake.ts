@@ -187,7 +187,7 @@ export function playHeroQuake(o: HeroQuakeOptions): HeroQuakeHandle {
         });
         // Straight UP out of the ground; near the top edge (the foe's corner) the column is shorter and the jets round
         // its base carry the read, so it never becomes a sideways beam.
-        if (plan.pillar) scene?.pillar(o.defender.x, o.defender.y, radius, c.pillarHoldMs, plan.eruption, Math.round(plan.rocks * 0.5), Math.max(radius * 1.8, o.defender.y + 40 * s));
+        if (plan.pillar) scene?.pillar(o.defender.x, o.defender.y, radius, c.pillarHoldMs, plan.eruption, Math.round(plan.rocks * 0.5));
         seq.hitStop(plan.hitStopMs);
         seq.land();
         break;

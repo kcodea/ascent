@@ -24,7 +24,7 @@ import { SPEC } from '../HeroQuakeTuner';
 
 const W = Texture.WHITE;
 const TEX: HeroQuakeTextures = {
-  glow: W, spark: W, streak: W, ring: W, beam: W, crack: W, seamGlow: W, rocks: [W, W, W], dust: W, dustRing: W, scorch: W, boulder: W, spike: W,
+  glow: W, spark: W, streak: W, ring: W, beam: W, crack: W, seamGlow: W, rocks: [W, W, W], dust: W, dustRing: W, scorch: W, boulder: W, shards: [W, W],
 };
 const C = HERO_QUAKE_DEFAULTS;
 const plan = (values: number[], total: number, distance = 1600, reduced = false) => quakePlan({ values, total, distance, reduced }, C);

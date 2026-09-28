@@ -169,8 +169,8 @@ const TIER_DEFAULTS: Record<QuakeTierSuffix, [number, number, number, number]> =
   FlightMs: [460, 440, 420, 0],
   ThrowGapMs: [0, 150, 120, 0],
   ArcLift: [0.2, 0.22, 0.24, 0],
-  Spikes: [4, 6, 8, 9],
-  SpikeHeight: [1.1, 1.25, 1.4, 1.6],
+  Spikes: [4, 5, 6, 7],
+  SpikeHeight: [1.2, 1.3, 1.4, 1.5],
   Spray: [10, 14, 22, 44],
 };
 

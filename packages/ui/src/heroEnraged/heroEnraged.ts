@@ -181,7 +181,10 @@ export function playHeroEnraged(o: HeroEnragedOptions): HeroEnragedHandle {
       case 'drive': {
         const st = plan.strikes[q.i]!;
         // The dash: a whoosh, each a little higher (the meteor lower and heavier); speed lines along the line of it.
-        cue(c.sfxWhooshClip, c.sfxWhooshGain * (st.final ? 1 : 0.8), st.meteor ? c.sfxWhooshRate * 0.8 : c.sfxWhooshRate + 0.06 * q.i, { lenMs: 700, fadeMs: 250 });
+        // Classic's strike hangs, then blurs: the whoosh enters as it blurs, so it rushes INTO the hit instead of ahead of it.
+        cue(c.sfxWhooshClip, c.sfxWhooshGain * (st.final ? 1 : 0.8), st.meteor ? c.sfxWhooshRate * 0.8 : c.sfxWhooshRate + 0.06 * q.i, {
+          lenMs: 700, fadeMs: 250, delayMs: real((st.contactAt - st.driveAt) * (st.meteor ? 0.2 : 0.45)),
+        });
         const from = heroScreen(t);
         const to = { x: o.attacker.x + geo.contact.x, y: o.attacker.y + geo.contact.y };
         const len = Math.hypot(to.x - from.x, to.y - from.y) || 1;

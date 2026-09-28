@@ -93,7 +93,11 @@ function LobbyEndScreen({ lobby, run, onPlayAgain }: {
             runId={rankSource?.runId ?? rankSource?.result?.runId ?? String(run.seed)}
             onContinue={onPlayAgain}
             onRetry={practice ? undefined : rankSource!.retry}
-            extra={(settled) => <ProgressionPostgame localKey={String(run.seed)} active={settled} />}
+            // ACCOUNT XP waits its turn: not while the rank is still settling (its sequence would re-arm and hide
+            // the panel again) and not while the rank celebration plays.
+            extra={(settled) => (
+              <ProgressionPostgame localKey={String(run.seed)} active={settled && (practice || rankSource!.submission !== 'pending')} />
+            )}
           />
         </div>
       </div>

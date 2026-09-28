@@ -191,10 +191,13 @@ export const ACHIEVEMENT_GROUP_LABELS: Readonly<Record<string, string>> = Object
  *   tutorial The Learn Ascent graduation only.
  *   account  Every settlement (server-owned account state: the Career-best rank, distinct heroes, completions).
  */
-export type AchievementMode = 'any' | 'ranked' | 'tutorial' | 'account';
-export type AchievementAgg = 'max' | 'sum';
+export const ACHIEVEMENT_MODES = ['any', 'ranked', 'tutorial', 'account'] as const;
+export type AchievementMode = typeof ACHIEVEMENT_MODES[number];
+export const ACHIEVEMENT_AGGS = ['max', 'sum'] as const;
+export type AchievementAgg = typeof ACHIEVEMENT_AGGS[number];
 /** Handoff §7.4: S = server-known, O = ordinary (accepted facts, replay kept), P = prestige (replay-verified; none in batch 1). */
-export type AchievementTrust = 'S' | 'O' | 'P';
+export const ACHIEVEMENT_TRUSTS = ['S', 'O', 'P'] as const;
+export type AchievementTrust = typeof ACHIEVEMENT_TRUSTS[number];
 
 /** What completing pays. `titleId` is the reserved slot for a title reward (null for every batch 1 def). */
 export interface AchievementRewards { xp: number; titleId: string | null }

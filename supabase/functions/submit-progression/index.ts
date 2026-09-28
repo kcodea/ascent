@@ -10,6 +10,11 @@
  * check the progression epoch, compute XP, cross levels, grant Alpha Tester at Level 2, write the profile +
  * revision + ledger row together.
  *
+ * ACHIEVEMENTS (2026-09-28): on the first request of every cold start it also pushes this build's achievement
+ * definitions into `achievement_catalog` (`sync_achievement_catalog`), and `settle_progression` evaluates them in the
+ * same transaction as the match XP. So adding or retuning an achievement is: edit
+ * packages/progression/src/achievements.ts, `npm run progression:shared`, merge, redeploy THIS function.
+ *
  * All the decision logic lives in `_shared/progressionServer.ts`, GENERATED from packages/progression/src/
  * server.ts (`npm run progression:shared`) and unit tested there with a mocked database. This file only
  * verifies the caller's JWT and wires the service-role client. The same module re-derives every settlement

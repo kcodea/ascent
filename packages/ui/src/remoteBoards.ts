@@ -1329,6 +1329,10 @@ export interface PracticeGameConfig {
   opponents: 'players' | 'bots';
   botDifficulty: number;
   health: 'unlimited' | 'normal';
+  /** The shop-timer multiplier (0 = no turn clock). Recorded since achievements batch 1 (2026-09-28): a Practice
+   *  counts for "any game" achievements only with Normal Health AND a turn timer, and the server reads it here.
+   *  Absent on older rows (read as no timer). */
+  timeMult?: number;
 }
 
 /** Upload one finished practice game. Fire-and-forget; never throws / blocks. Needs a session (the insert

@@ -18,6 +18,9 @@
  * returns whether anything still moves; `destroy()` leaves nothing behind. Math.random is presentation only.
  */
 import { Container, Sprite, type Texture } from 'pixi.js';
+import { clamp01, easeOutCubic, easeOutQuint, whiten, type Pt } from '../heroAttack/easing';
+
+export { easeOutCubic, easeOutQuint, whiten };
 
 export interface HeroBlastTextures { glow: Texture; spark: Texture; streak: Texture; ring: Texture; beam: Texture }
 
@@ -25,8 +28,6 @@ export interface HeroBlastTextures { glow: Texture; spark: Texture; streak: Text
 export const MAX_SPRITES = 420;
 /** Trail samples per bolt (the comet tail). */
 export const TRAIL_SAMPLES = 16;
-
-type Pt = { x: number; y: number };
 
 interface Particle {
   s: Sprite; x: number; y: number; vx: number; vy: number; drag: number; grav: number;
@@ -48,9 +49,6 @@ interface Charge { core: Sprite; bloom: Sprite; ring: Sprite; x: number; y: numb
 
 export interface BlastColors { core: number; side: number }
 
-const clamp01 = (t: number): number => (Number.isFinite(t) ? Math.min(1, Math.max(0, t)) : 0);
-export const easeOutCubic = (t: number): number => 1 - Math.pow(1 - clamp01(t), 3);
-export const easeOutQuint = (t: number): number => 1 - Math.pow(1 - clamp01(t), 5);
 /** The bolt's progress curve: leaves fast and still ACCELERATES into the target (weight on arrival). */
 export const boltEase = (u: number): number => { const t = clamp01(u); return 0.3 * t + 0.7 * t * t; };
 
@@ -65,13 +63,6 @@ export function arcControl(a: Pt, b: Pt, curve: number): Pt {
   const dx = b.x - a.x, dy = b.y - a.y;
   const d = Math.hypot(dx, dy) || 1;
   return { x: (a.x + b.x) / 2 + (-dy / d) * curve * d, y: (a.y + b.y) / 2 + (dx / d) * curve * d };
-}
-
-/** Blend 0xRRGGBB toward white by `t`. */
-export function whiten(c: number, t: number): number {
-  const k = clamp01(t);
-  const ch = (s: number): number => { const v = (c >> s) & 0xff; return Math.round(v + (255 - v) * k) & 0xff; };
-  return (ch(16) << 16) | (ch(8) << 8) | ch(0);
 }
 
 export class HeroBlastScene {

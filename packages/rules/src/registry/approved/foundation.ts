@@ -2032,9 +2032,9 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'Nobody plays Blast by default: without an equipped hero attack the post-combat blow is the Classic lunge. It is '
       + 'equipped in the Collection\'s Attack Animations tab (Equip, or "Use Classic" to take it off) through equip_cosmetic '
       + 'with slot hero_attack and target \'\' (the SQL refuses any other target, an unowned item, a skin in the attack slot '
-      + 'and the attack in a skin slot). The owner approved the animation and made it a Legendary reward, which re-pinned '
-      + 'the first-crate odds to Common 47.3%, Rare 31.3%, Epic 19.2%, Legendary 2.2%; a non-title item 31.0%; the '
-      + 'attack itself 0.6%.',
+      + 'and the attack in a skin slot). The owner approved the animation and made it a Legendary reward. The second hero '
+      + 'attack, attack_quake ("Tectonic Slam", Legendary, style quake: R-PROG-ATTACK-05), re-pinned the first-crate odds '
+      + 'to Common 47.0%, Rare 31.2%, Epic 19.1%, Legendary 2.7%; a non-title item 31.3%; the two attacks together 1.1%.',
     domain: 'foundation',
     status: 'approved',
     evidence: [
@@ -2083,5 +2083,50 @@ export const FOUNDATION_RULES: GameRule[] = [
     ],
     currentBehaviour: 'Conforms, built 2026-09-28.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/heroBlast/heroBlast.test.ts'], lastVerifiedAt: '2026-09-28' },
+  },
+  {
+    id: 'R-PROG-ATTACK-04',
+    title: 'Every hero attack anchors on the centre of each round portrait AT REST (never a wrapper, never mid-entrance)',
+    statement:
+      'Blast and Quake both measure the two heroes once, at the start of the attack, on the round portrait ART (the player\x27s '
+      + '.heroimg, the foe\x27s .combatopp-img), not on a wrapper (the player\x27s also holds the name pill). Any CSS animation '
+      + 'still running on the foe portrait (its drop-in, mid-flight when a tuner preview mounts it) is seeked to its end for '
+      + 'that one measure and put back, so the impact, the ring and the -N always land centred on the portrait, in combat, '
+      + 'in replays and in the shop preview. This fix changed Blast too (it shares the anchor).',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-28 (Quake anchor bug)', quote: 'you can see the foe area isnt centered. can you fix that? may be wrong for blast too' },
+      { kind: 'code', ref: 'packages/ui/src/heroBlast/portraits.ts (portraitGeometry, restingRect)' },
+    ],
+    currentBehaviour: 'Conforms, fixed 2026-09-28.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/heroBlast/portraits.test.ts'], lastVerifiedAt: '2026-09-28' },
+  },
+  {
+    id: 'R-PROG-ATTACK-05',
+    title: 'Quake ("Tectonic Slam", attack_quake, Legendary): tiers I-III hurl boulders into stone spikes; only the huge hit (IV) is an earthquake that erupts; the SAME damage tiers as Blast',
+    statement:
+      'attack_quake (placeholder name "Tectonic Slam", Legendary, crate, account-wide, style quake) plays the Quake: the shared '
+      + 'combine (the Tier and each Minion number fly into one total that ends on the engine\x27s blow), then the attacking hero '
+      + 'rises and stomps. Tiers I-III (1-19) have NO crack line: boulders are ripped out of the ground and lobbed onto the '
+      + 'target (I one, II two, III three hot ones; earlier boulders land as ticks), and a crown of stone spikes bursts out '
+      + 'round the struck portrait with a spray of molten grit. Only Tier IV (20+) is an EARTHQUAKE: the board rumbles, a '
+      + 'quick fracture (under 350 ms) races to the target and the ground ERUPTS: a light burst, a shock ring, spikes, a '
+      + 'violent upward spray of magma, a geyser of molten streaks, dust and tumbling rock (an emitter, never a solid column), '
+      + 'embers, a crater, follow-up explosions. The spikes are clusters of seeded, hand-painted rock shards (lit, mid and '
+      + 'shadow faces, grain, a rim highlight, a contact scorch), never cones or cylinders. One shared tierOf and the shared '
+      + 'thresholds 6 / 12 / 20. Presentation only: the consequence lands once, on the last boulder or the eruption; reduced '
+      + 'motion is fades only; an unknown or retired id plays Classic.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-28 (Quake hero attack)', quote: 'branch off and make a new attack animation called quake. same attack dmg threshold logic as blast. the concept being an earthquake attack essentially with varying degrees of strength/cracks/explosions' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-28 (Quake review)', quote: 'quake looks solid' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-28 (Quake rework)', quote: 'the quake animation is not up to par with the others. can you take a quick pass at improving that? maybe only the huge hit should quake, and the others can be slightly different? i think the line animation is over used. i also think the quake itself could look a bit better, maybe faster but then have pixi burst out of it almost like an eruption.' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-28 (Quake polish)', quote: 'i dont like the cylinder/cones you put in here, it looks pretty sloppy and obviously ai. can you please add some more polish to this?' },
+      { kind: 'code', ref: 'packages/progression/src/cosmetics.ts (attack_quake); packages/ui/src/heroQuake/ (heroQuakeConfig quakePlan, heroQuake playHeroQuake, heroQuakeScene); packages/ui/src/heroAttack/ (the shared core: tiers, combine numbers, one clock, stage camera, voices)' },
+    ],
+    currentBehaviour: 'Conforms, built 2026-09-28. The item reaches the database on the next deploy of progression-inventory (the catalog sync); the equip SQL already accepts the hero_attack slot.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/heroQuake/heroQuake.test.ts', 'packages/progression/src/cosmetics.test.ts', 'packages/ui/src/progression/CollectionHeroAttack.test.tsx'], lastVerifiedAt: '2026-09-28' },
   },
 ];

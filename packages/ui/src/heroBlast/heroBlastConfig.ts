@@ -30,14 +30,19 @@
  * plays DEFAULTS. The preview speed is how you are LOOKING and is never saved.
  */
 
+import { hexToNum } from '../heroAttack/easing';
+import {
+  HERO_ATTACK_TIER_THRESHOLDS, TIERS, combineCounts, combineTimeline, reducedCombineTimeline, tierOf as sharedTierOf, type TierNum,
+} from '../heroAttack/tiers';
+
+export { TIERS, hexToNum, type TierNum };
+
 /** The per-tier dials. A config key is `t1..t4` + one of these. */
 export const TIER_SUFFIXES = [
   'FlyMs', 'StaggerMs', 'SlamPop', 'HoldMs', 'ChargeMs', 'Motes', 'Bolts', 'BoltSize', 'HitStop', 'Shake', 'Zoom', 'Punch',
   'Sparks', 'SettleMs', 'Dim', 'Booms', 'Beam',
 ] as const;
 export type TierSuffix = (typeof TIER_SUFFIXES)[number];
-export const TIERS = [1, 2, 3, 4] as const;
-export type TierNum = (typeof TIERS)[number];
 type TierKey = `t${TierNum}${TierSuffix}`;
 
 interface GlobalConfig {
@@ -150,7 +155,8 @@ export const TIER_RANGES: Record<TierSuffix, [number, number, number]> = {
 const tierDefaults = Object.fromEntries(TIERS.flatMap((t) => TIER_SUFFIXES.map((s) => [`t${t}${s}`, TIER_DEFAULTS[s][t - 1]]))) as Record<TierKey, number>;
 
 export const HERO_BLAST_DEFAULTS: HeroBlastConfig = {
-  tier2At: 6, tier3At: 12, tier4At: 20,
+  // The shared, owner-approved thresholds (6 / 12 / 20): every hero attack steps up on the same blow.
+  ...HERO_ATTACK_TIER_THRESHOLDS,
   popInMs: 140,
   combineBackPx: 24,
   combineArc: 0.14,
@@ -324,10 +330,7 @@ export function setHeroBlastPreviewSpeed(s: HeroBlastSpeed): void { speed = s; }
 
 /** The damage tier of a blow (1..4), from the tuned thresholds. */
 export function tierOf(total: number, c: HeroBlastConfig = cfg): TierNum {
-  if (total >= c.tier4At) return 4;
-  if (total >= c.tier3At) return 3;
-  if (total >= c.tier2At) return 2;
-  return 1;
+  return sharedTierOf(total, c);
 }
 
 /** One tier's dials, read out of the config. */
@@ -405,11 +408,7 @@ export function boltTravelMs(distance: number, pxPerSec: number): number {
 
 /** The running totals the counter shows: each part adds, clamped to the engine's total, and the last is the total. */
 export function blastCounts(values: readonly number[], total: number): number[] {
-  const t = Math.max(0, Math.round(total));
-  let run = 0;
-  const out = values.map((v) => { run += Math.max(0, v); return Math.min(run, t); });
-  if (out.length) out[out.length - 1] = t;
-  return out;
+  return combineCounts(values, total);
 }
 
 /** The whole Blast, in base ms (divide by the playback speed for real time). Pure and deterministic. */
@@ -426,22 +425,16 @@ export function blastPlan(input: BlastPlanInput, c: HeroBlastConfig = cfg): Blas
 
   if (input.reduced) {
     // The numbers fade in where they are, then the total; the blow lands; everything fades. No motion at all.
-    const f = c.reducedFadeMs;
-    const arrivals = values.map(() => f + 120);
-    const mergeAt = f + 120;
-    const impactAt = mergeAt + f + 200;
+    const r = reducedCombineTimeline(n, c.reducedFadeMs);
+    const { arrivals, mergeAt, impactAt } = r;
     return {
-      reduced: true, tier, k, total, capped, spawns: values.map(() => 0), launches: arrivals.slice(), arrivals, counts,
+      reduced: true, tier, k, total, capped, spawns: r.spawns, launches: arrivals.slice(), arrivals, counts,
       mergeAt, slamPop: 1, chargeAt: impactAt, absorbEnd: impactAt, fireAt: impactAt, motes: 0, beam: false, bolts: [], impactAt,
-      hitStopMs: 0, booms: [], endAt: impactAt + f + 120, shakePx: 0, zoom: 0, punch: 0, sparks: 0, flashScale: 0, dim: 0,
+      hitStopMs: 0, booms: [], endAt: r.endAt, shakePx: 0, zoom: 0, punch: 0, sparks: 0, flashScale: 0, dim: 0,
     };
   }
 
-  const spawns = values.map((_, i) => i * T.StaggerMs * 0.6);
-  const launches = values.map((_, i) => c.popInMs + i * T.StaggerMs);
-  const arrivals = launches.map((l) => l + T.FlyMs);
-  const mergeAt = n ? arrivals[n - 1]! : c.popInMs;
-  const chargeAt = mergeAt + T.HoldMs;
+  const { spawns, launches, arrivals, mergeAt, holdEnd: chargeAt } = combineTimeline(n, T, c.popInMs);
   const absorbEnd = chargeAt + c.absorbMs;
   const fireAt = chargeAt + Math.max(T.ChargeMs, c.absorbMs);
 
@@ -498,8 +491,3 @@ export function blastCues(p: BlastPlan): BlastCue[] {
   return out.map((c, idx) => ({ c, idx })).sort((a, b) => a.c.at - b.c.at || order[a.c.kind] - order[b.c.kind] || a.idx - b.idx).map((x) => x.c);
 }
 
-/** '#rrggbb' -> 0xRRGGBB (bad input = white). */
-export function hexToNum(hex: string): number {
-  const v = Number.parseInt(hex.replace('#', ''), 16);
-  return Number.isFinite(v) ? v : 0xffffff;
-}

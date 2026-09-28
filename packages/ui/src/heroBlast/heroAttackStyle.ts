@@ -8,6 +8,9 @@
  *  - `blast` is the first `hero_attack` COSMETIC (`attack_blast`, "Arcane Barrage" until the owner renames it): every
  *    contributing number combines into one total, the hero charges, the view pushes in and shakes, and Pixi bolts
  *    carry the blow (`heroBlast.ts`).
+ *  - `quake` is the second (`attack_quake`, "Tectonic Slam" until the owner renames it; owner ask 2026-09-28: "an
+ *    earthquake attack essentially with varying degrees of strength/cracks/explosions"): the numbers combine, the hero
+ *    slams the ground, a quake cracks across the board and the ground erupts under the target (`../heroQuake/`).
  *
  * The style is the ATTACKER's: the equipped item recorded in the striking player's cosmetic snapshot (yours when you
  * win; the foe's seat snapshot when they win, and only while "Show opponent cosmetics" is on). The catalog item names
@@ -21,7 +24,7 @@
  */
 import { heroAttackOf } from '@game/progression';
 
-export const HERO_ATTACK_STYLES = ['classic', 'blast'] as const;
+export const HERO_ATTACK_STYLES = ['classic', 'blast', 'quake'] as const;
 export type HeroAttackStyle = (typeof HERO_ATTACK_STYLES)[number];
 
 /** What a player without an equipped hero attack sees (owner 2026-09-28: Blast is a cosmetic, not a new default). */
@@ -38,7 +41,7 @@ export function styleOfCosmetic(id: string | null | undefined): HeroAttackStyle 
 }
 
 /** The dev override: `auto` = what a player would see; the others force one style for BOTH sides. */
-export const DEV_HERO_ATTACK_CHOICES = ['auto', 'classic', 'blast'] as const;
+export const DEV_HERO_ATTACK_CHOICES = ['auto', 'classic', 'blast', 'quake'] as const;
 export type DevHeroAttackChoice = (typeof DEV_HERO_ATTACK_CHOICES)[number];
 
 const KEY = 'ascent.heroattackstyle';

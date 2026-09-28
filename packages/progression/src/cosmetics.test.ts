@@ -87,8 +87,8 @@ describe('the roll', () => {
   it('never rolls a rarity first: with every Common owned, a crate still always gives an item', () => {
     const noCommons = eligibleCrateCosmetics(crateItems.filter((c) => c.rarity !== 'legendary').map((c) => c.id));
     // 2026-09-28: the Legendary Black Belt Brian skin joined the one Legendary title, then the Legendary Blast hero
-    // attack (owner: "make it a legendary reward"), so three items remain.
-    expect(noCommons.map((c) => c.id)).toEqual(['attack_blast', 'skin_blackbelt_3', 'title_the_unbroken']);
+    // attack (owner: "make it a legendary reward"), then (2026-09-28) the Legendary Quake hero attack, so four remain.
+    expect(noCommons.map((c) => c.id)).toEqual(['attack_blast', 'attack_quake', 'skin_blackbelt_3', 'title_the_unbroken']);
     expect(pickCrateReward(noCommons, 0)!.id).toBe('attack_blast');
     expect(pickCrateReward(noCommons, crateTotalWeight(noCommons) - 1)!.id).toBe('title_the_unbroken');
   });
@@ -108,15 +108,18 @@ describe('the roll', () => {
   // of 8095. It first landed as Epic (weight 12 x 15 = 180); re-pinned the same day when the owner made it LEGENDARY
   // ("make it a legendary reward"): weight 3 x 15 = 45. Weights of the full pool now: Common 3850, Rare 2550, Epic
   // 1560, Legendary 180 (the Unbroken 30 + Grandmaster Brian 105 + the attack 45) of 8140; non-title 2520; the attack 0.6%.
-  it('the odds of a first crate with the skins and the Legendary hero attack in (2026-09-28): Common 47.3%, Rare 31.3%, Epic 19.2%, Legendary 2.2%; a non-title 31.0%', () => {
+  // Re-pinned AGAIN 2026-09-28 when the second hero attack, Quake (`attack_quake`, "Tectonic Slam", Legendary, weight
+  // 3 x 15 = 45) joined: was Common 47.3 / Rare 31.3 / Epic 19.2 / Legendary 2.2 / non-title 31.0 of 8140. Now
+  // Legendary 225 of 8185; non-title 2565; the two attacks together 1.1% (each 0.55%).
+  it('the odds of a first crate with the skins and both Legendary hero attacks in (2026-09-28): Common 47.0%, Rare 31.2%, Epic 19.1%, Legendary 2.7%; a non-title 31.3%', () => {
     const all = eligibleCrateCosmetics([]);
     const total = crateTotalWeight(all);
     const pct = (xs: typeof all): number => Math.round((1000 * xs.reduce((s, c) => s + crateWeightOf(c), 0)) / total) / 10;
     const share = (r: string): number => pct(all.filter((c) => c.rarity === r));
-    expect([share('common'), share('rare'), share('epic'), share('legendary')]).toEqual([47.3, 31.3, 19.2, 2.2]);
-    expect(pct(all.filter((c) => c.category !== 'title'))).toBe(31.0);
-    expect(pct(all.filter((c) => c.category === 'hero_attack'))).toBe(0.6);
-    expect(total).toBe(8140);
+    expect([share('common'), share('rare'), share('epic'), share('legendary')]).toEqual([47.0, 31.2, 19.1, 2.7]);
+    expect(pct(all.filter((c) => c.category !== 'title'))).toBe(31.3);
+    expect(pct(all.filter((c) => c.category === 'hero_attack'))).toBe(1.1);
+    expect(total).toBe(8185);
     // the titles-only launch odds are unchanged when the skins are switched off (the kill switch path)
     const titlesOnly = all.filter((c) => c.category === 'title');
     const t = crateTotalWeight(titlesOnly);

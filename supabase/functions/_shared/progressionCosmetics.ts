@@ -163,6 +163,11 @@ export const COSMETICS: readonly CosmeticDef[] = Object.freeze([
   // are good thresholds, this blast animation looks good! make it a legendary reward" (Epic -> Legendary). The name is
   // a placeholder for the owner to rename (the id stays).
   heroAttack('attack_blast', 'Arcane Barrage', 'legendary', 'blast'),
+  // Owner 2026-09-28: "branch off and make a new attack animation called quake. same attack dmg threshold logic as
+  // blast. the concept being an earthquake attack essentially with varying degrees of strength/cracks/explosions".
+  // The hero slams the ground, a quake cracks across the board, the ground erupts under the target. Legendary like
+  // Blast (a matching showpiece); the name is a placeholder for the owner to rename (the id stays).
+  heroAttack('attack_quake', 'Tectonic Slam', 'legendary', 'quake'),
 ]);
 
 export const COSMETIC_INDEX: Readonly<Record<string, CosmeticDef>> = Object.freeze(

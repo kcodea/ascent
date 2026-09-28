@@ -69,8 +69,11 @@ import { LobbyPanel } from './LobbyPanel';
 import { CombatOpponent } from './CombatOpponent';
 import { playHeroStrike } from './choreo/heroStrike';
 import { getHeroDuelConfig } from './heroDuelConfig';
-import { playHeroBlast, type HeroBlastHandle } from './heroBlast/heroBlast';
+import { playHeroBlast } from './heroBlast/heroBlast';
+import type { HeroAttackHandle } from './heroAttack/options';
 import { getHeroBlastConfig, heroBlastPreviewSpeed } from './heroBlast/heroBlastConfig';
+import { playHeroQuake } from './heroQuake/heroQuake';
+import { getHeroQuakeConfig, heroQuakePreviewSpeed } from './heroQuake/heroQuakeConfig';
 import { resolveHeroAttackStyle } from './heroBlast/heroAttackStyle';
 import { attackerCosmeticOf } from './heroBlast/attackerCosmetic';
 import { heroStrikeDamage } from './heroBlast/heroStrikeDamage';
@@ -1869,7 +1872,7 @@ export function Recruit() {
   const seqTimersRef = useRef<number[]>([]);
   /** Monotonic strike counter — keys the red damage-taken number so it remounts + replays its pop each swing. */
   const lossSeqSeqRef = useRef(0);                // guards single-run per combat
-  const blastRef = useRef<HeroBlastHandle | null>(null); // the Blast hero attack in flight (cancelled on leaving the fight)
+  const blastRef = useRef<HeroAttackHandle | null>(null); // the cosmetic hero attack in flight (Blast or Quake; cancelled on leaving the fight)
   const endTurnPendingRef = useRef(false); // the end-of-turn beat sequence is playing before combat
   /** +padding between the LAST End-of-Turn beat and the combat curtain (owner ask 2026-08-29) — the final
    *  proc gets a breath before the blue sweeps. Turns with NO beats skip it (their fast paths dispatch
@@ -2918,11 +2921,14 @@ export function Recruit() {
     const buffAmount = Math.max(0, fullDmg - baseTier);
     const tallyContribs = contribs.slice(1);   // drop the base-tier term — it is already worn on the pill
 
-    // THE BLAST hero attack (owner ask 2026-09-28): when the striking hero's attack style is Blast, every number
-    // (the tier AND the survivors) combines into one total, the hero charges, the view pushes in and shakes, and
-    // bolts carry the blow. Same blow, same consequence (`land` below is the Classic one), only drawn differently;
-    // the style is the ATTACKER's (their equipped cosmetic, or the dev override).
-    if (resolveHeroAttackStyle({ attacker: side, attackerCosmeticId: attackerCosmeticOf(run0, side, useGame.getState().showOpponentSkins) }) === 'blast') {
+    // THE COSMETIC hero attacks (owner asks 2026-09-28): when the striking hero's attack style is Blast or Quake,
+    // every number (the tier AND the survivors) combines into one total, then the style carries the blow (Blast: the
+    // hero charges and bolts fly; Quake: the hero slams the ground and a quake erupts under the target). Same blow,
+    // same consequence (`land` below is the Classic one), only drawn differently; the style is the ATTACKER's (their
+    // equipped cosmetic, or the dev override). Both runners take the same options (`heroAttack/options.ts`).
+    const attackStyle = resolveHeroAttackStyle({ attacker: side, attackerCosmeticId: attackerCosmeticOf(run0, side, useGame.getState().showOpponentSkins) });
+    if (attackStyle === 'blast' || attackStyle === 'quake') {
+      const quake = attackStyle === 'quake';
       lossSeqSeqRef.current += 1; // keeps a later Classic blow's damage number keyed fresh
       const centreOf = (r: DOMRect | null | undefined): { x: number; y: number } | null =>
         r && r.width > 0 ? { x: r.left + r.width / 2, y: r.top + r.height / 2 } : null;
@@ -2932,7 +2938,7 @@ export function Recruit() {
       const youPt = { x: cx, y: cy + bh * 0.42 }, foePt = { x: cx, y: cy - bh * 0.42 };
       const aPt = geo?.a ?? (playerWon ? youPt : foePt);
       const dPt = geo?.d ?? (playerWon ? foePt : youPt);
-      const bias = getHeroBlastConfig().combineBias;
+      const bias = quake ? getHeroQuakeConfig().combineBias : getHeroBlastConfig().combineBias;
       setLossPhase('blast');
       const landBlast = (): void => {
         // The Blast punches its own big hit number onto the struck hero (above every flash), so the portrait's small
@@ -2940,7 +2946,7 @@ export function Recruit() {
         if (playerWon) useGame.getState().setOppDmgDealt(strikeDmg);
         dispatch({ type: 'settleCombat' }); // the health drop lands on the impact beat, exactly as Classic's
       };
-      blastRef.current = playHeroBlast({
+      blastRef.current = (quake ? playHeroQuake : playHeroBlast)({
         parts: contribs.map((c, i) => ({
           value: c.tier,
           // The tier flies out of the attacking hero; each survivor's from its card.
@@ -2953,10 +2959,11 @@ export function Recruit() {
         attacker: aPt,
         defender: dPt,
         defenderRadius: geo?.radius,
+        attackerRadius: geo?.attackerRadius,
         combineAt: { x: cx + (aPt.x - cx) * bias, y: cy + (aPt.y - cy) * bias },
         // The combat-speed setting nudges the blow's pace but never rushes it (owner: "satisfying and chunky, not
         // rushed"): the square root, kept between 0.75x and 1.5x. The tuner's slow motion rides on top.
-        speed: Math.min(1.5, Math.max(0.75, Math.sqrt(combatSpeed > 0 ? combatSpeed : 1))) * heroBlastPreviewSpeed(),
+        speed: Math.min(1.5, Math.max(0.75, Math.sqrt(combatSpeed > 0 ? combatSpeed : 1))) * (quake ? heroQuakePreviewSpeed() : heroBlastPreviewSpeed()),
         attackerEl: geo?.attackerEl ?? null,
         defenderEl: geo?.defenderEl ?? null,
         onImpact: landBlast,

@@ -489,6 +489,73 @@ export function playTailedClip(
   return playTailedSample(clip, category, vol, Math.max(0, opts.delayMs ?? 0) / 1000, opts.tail ?? NO_TAIL, slice, opts.rate ?? 1);
 }
 
+/** Two seconds of brown noise per AudioContext, built once (the rumble loops it). */
+let rumbleNoise: { ctx: AudioContext; buf: AudioBuffer } | null = null;
+function brownNoise(a: AudioContext): AudioBuffer {
+  if (rumbleNoise?.ctx === a) return rumbleNoise.buf;
+  const len = Math.floor(a.sampleRate * 2);
+  const buf = a.createBuffer(1, len, a.sampleRate);
+  const d = buf.getChannelData(0);
+  let last = 0;
+  // Presentation noise, not gameplay: the Math.random ban covers core/content/sim only.
+  for (let i = 0; i < len; i++) { last = (last + 0.02 * (Math.random() * 2 - 1)) / 1.02; d[i] = last * 3.5; }
+  // Cross-fade the loop seam so the loop never clicks.
+  const x = Math.floor(a.sampleRate * 0.05);
+  for (let i = 0; i < x; i++) { const k = i / x; d[len - x + i] = d[len - x + i]! * (1 - k) + d[i]! * k; }
+  rumbleNoise = { ctx: a, buf };
+  return buf;
+}
+
+/**
+ * A SYNTH GROUND RUMBLE (the Quake hero attack, 2026-09-28): looped brown noise through a high-pass (no sub mud below
+ * `lowHz`) and a low-pass whose cutoff OPENS as it builds (a far tremor into a near roar), on `category`'s fader. The
+ * level builds over `buildMs`, holds `holdMs`, then dies over `tailMs`. Returns a handle whose `stop()` fades it in
+ * `SKIP_FADE_S`; null when nothing was queued (muted, hidden, suspended, no Web Audio).
+ */
+export function playRumble(category: string, o: { gain: number; buildMs: number; holdMs: number; tailMs: number; lowHz: number; highHz: number; delayMs?: number }): SfxHandle | null {
+  if (isHidden() || audioSuspended || !(o.gain > 0)) return null;
+  const a = audio();
+  if (!a || muted) return null;
+  const src = a.createBufferSource();
+  src.buffer = brownNoise(a);
+  src.loop = true;
+  const hp = a.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = Math.max(15, o.lowHz); hp.Q.value = 0.7;
+  const lp = a.createBiquadFilter(); lp.type = 'lowpass'; lp.Q.value = 0.9;
+  const env = a.createGain();
+  const out = a.createGain();
+  out.gain.value = effectiveGain(cfg, category, 'rumble') * o.gain;
+  src.connect(hp).connect(lp).connect(env).connect(out).connect(busInput(a, category));
+  const t0 = a.currentTime + Math.max(0, o.delayMs ?? 0) / 1000;
+  const b = Math.max(0.01, o.buildMs / 1000), h = Math.max(0, o.holdMs / 1000), tl = Math.max(0.05, o.tailMs / 1000);
+  const hi = Math.max(o.lowHz + 20, o.highHz);
+  lp.frequency.setValueAtTime(Math.max(o.lowHz + 10, hi * 0.35), t0);
+  lp.frequency.exponentialRampToValueAtTime(hi, t0 + b);
+  lp.frequency.setValueAtTime(hi, t0 + b + h);
+  lp.frequency.exponentialRampToValueAtTime(Math.max(o.lowHz + 10, hi * 0.4), t0 + b + h + tl);
+  env.gain.setValueAtTime(0.0001, t0);
+  env.gain.exponentialRampToValueAtTime(0.3, t0 + Math.min(0.06, b));
+  env.gain.exponentialRampToValueAtTime(1, t0 + b);
+  env.gain.setValueAtTime(1, t0 + b + h);
+  env.gain.exponentialRampToValueAtTime(0.0001, t0 + b + h + tl);
+  const end = t0 + b + h + tl + 0.05;
+  src.start(t0);
+  src.stop(end);
+  let done = false;
+  const release = (): void => { if (done) return; done = true; for (const n of [src, hp, lp, env, out]) { try { n.disconnect(); } catch { /* already */ } } };
+  src.onended = release;
+  return {
+    stop: () => {
+      if (done) return;
+      try {
+        const landAt = scheduleSkipFade(out.gain, a.currentTime);
+        src.onended = null;
+        src.stop(landAt + 0.01);
+        setTimeout(release, SKIP_FADE_S * 1000 + 60);
+      } catch { release(); }
+    },
+  };
+}
+
 // The end-of-turn CHARGE build (`turncharge`) is a long (~25–40s) clip. Web Audio sources are fire-and-forget, so
 // we keep a handle to the live nodes and ramp them down when the turn ends early (End Turn pressed / a new charge
 // starts) — otherwise the build keeps playing under combat. See `stopTurnCharge` + `sfx.turnCharge`.

@@ -5,9 +5,8 @@ import {
 } from './heroBlast/heroBlastConfig';
 import { clipNames } from './sfx';
 import { DEV_HERO_ATTACK_CHOICES, devHeroAttackChoice, setDevHeroAttackChoice } from './heroBlast/heroAttackStyle';
-import { playHeroBlast, type HeroBlastHandle, type HeroBlastOptions, type HeroBlastPart } from './heroBlast/heroBlast';
-import { useGame } from './store';
-import { portraitGeometry } from './heroBlast/portraits';
+import { playHeroBlast, type HeroBlastHandle, type HeroBlastOptions } from './heroBlast/heroBlast';
+import { playAttackDemo, previewParts } from './heroAttack/attackDemo';
 import { TunerPanel } from './TunerPanel';
 import type { TunerControl, TunerSpec, TunerUnit } from './tunerSchema';
 
@@ -124,7 +123,7 @@ function clipOptions(): string[] {
 function buildControls(): Ctl[] {
   const out: Ctl[] = [{
     key: 'attackStyle', label: 'Attack style', kind: 'select', options: DEV_HERO_ATTACK_CHOICES, group: 'Style',
-    optionLabels: { auto: 'Auto (equipped cosmetic)', classic: 'Classic (lunge)', blast: 'Blast' },
+    optionLabels: { auto: 'Auto (equipped cosmetic)', classic: 'Classic (lunge)', blast: 'Blast', quake: 'Quake' },
     hint: 'Which hero attack real fights play in this dev build, for both sides. Auto = what a player sees.', min: 0, max: 0, step: 0,
   }];
   const clips = clipOptions();
@@ -162,56 +161,19 @@ function buildControls(): Ctl[] {
 
 let live: HeroBlastHandle | null = null;
 
-/** Split a blow into `n` numbers the way a fight does: the tier first, then the survivors (all at least 1). */
-export function previewParts(damage: number, n: number): number[] {
-  const d = Math.max(1, Math.round(damage));
-  const k = Math.max(1, Math.min(8, Math.round(n), d));
-  const base = Math.max(1, Math.round(d / k));
-  const out = [Math.min(base, d - (k - 1))];
-  let left = d - out[0]!;
-  for (let i = 1; i < k; i++) { const v = i === k - 1 ? left : Math.max(1, Math.round(left / (k - i))); out.push(v); left -= v; }
-  return out;
-}
+export { previewParts };
 
 /** Play the real Blast between the two portraits, from the shop or a fight, without touching the run. */
 export function demo(
   side: 'player' | 'opp',
   opts: { damage?: number; parts?: number; reduced?: boolean; frames?: HeroBlastOptions['frames']; sound?: boolean; safety?: boolean } = {},
 ): Promise<HeroBlastHandle | null> {
-  const st = useGame.getState();
   live?.cancel();
-  st.setDuelPreview(true);
-  return new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => {
-    const cfg = getHeroBlastConfig();
-    const geo = portraitGeometry(side);
-    if (!geo) { st.setDuelPreview(false); resolve(null); return; }
-    const board = document.querySelector('.app')?.getBoundingClientRect();
-    const cx = board ? board.left + board.width / 2 : window.innerWidth / 2;
-    const cy = board ? board.top + board.height / 2 : window.innerHeight / 2;
-    const values = previewParts(opts.damage ?? cfg.previewDamage, opts.parts ?? cfg.previewParts);
-    // Survivors fly from real cards when there are any on the board, else from a spread across the middle.
-    const cards = [...document.querySelectorAll<HTMLElement>(side === 'player' ? "[data-zone='warband'] .card" : "[data-zone='tavern'] .card")];
-    const bw = board?.width ?? window.innerWidth;
-    const parts: HeroBlastPart[] = values.map((value, i) => {
-      if (i === 0) return { value, from: geo.a, base: true };
-      const el = cards[i - 1];
-      if (el) { const r = el.getBoundingClientRect(); return { value, from: { x: r.left + r.width / 2, y: r.top + r.height / 2 } }; }
-      return { value, from: { x: cx + (i - values.length / 2) * bw * 0.12, y: cy + (side === 'player' ? 1 : -1) * bw * 0.06 } };
-    });
-    const total = values.reduce((s, v) => s + v, 0);
-    live = playHeroBlast({
-      parts, total, side, attacker: geo.a, defender: geo.d, defenderRadius: geo.radius,
-      combineAt: { x: cx + (geo.a.x - cx) * cfg.combineBias, y: cy + (geo.a.y - cy) * cfg.combineBias },
-      speed: heroBlastPreviewSpeed(), reduced: opts.reduced, attackerEl: geo.attackerEl, defenderEl: geo.defenderEl,
-      frames: opts.frames, sound: opts.sound, safety: opts.safety,
-      onImpact: () => { /* a preview never touches the run; the Blast shows its own hit number */ },
-      onDone: () => {
-        live = null;
-        window.setTimeout(() => { useGame.getState().setDuelPreview(false); }, 500 / heroBlastPreviewSpeed());
-      },
-    });
-    resolve(live);
-  })));
+  const cfg = getHeroBlastConfig();
+  return playAttackDemo(side, (o) => playHeroBlast(o), {
+    damage: opts.damage ?? cfg.previewDamage, parts: opts.parts ?? cfg.previewParts, combineBias: cfg.combineBias,
+    speed: heroBlastPreviewSpeed(), reduced: opts.reduced, frames: opts.frames, sound: opts.sound, safety: opts.safety,
+  }, () => { live = null; }).then((h) => { live = h; return h; });
 }
 
 // DEV: a console / capture-rig handle on the same player the buttons use.

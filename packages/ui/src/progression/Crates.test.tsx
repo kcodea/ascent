@@ -67,7 +67,7 @@ const result = (over: Partial<ProgressionResult> = {}): ProgressionResult => ({
   runId: 'run-1', mode: 'ranked', rulesVersion: 1, placement: 6, comeback: false,
   xp: { base: 100, topFour: 0, firstPlace: 0, comeback: 0, total: 100 },
   before: { lifetimeXp: 225, level: 1 }, after: { lifetimeXp: 325, level: 2 }, unlockedTitles: [], cratesAwarded: 1, crateIds: ['c-2'],
-  revisionAfter: 8, settledAt: new Date().toISOString(), ...over,
+  revisionAfter: 8, settledAt: new Date().toISOString(), achievements: [], achievementXp: 0, ...over,
 });
 const opened = (crateId: string, rewardId: string, earnedLevel = 2, sealedRemaining = 0): OpenCrateResult => ({
   status: 'opened', rewardId, sealedRemaining, crate: { crateId, earnedLevel, state: 'opened', rewardId, earnedAt: 't0', openedAt: 't1' },

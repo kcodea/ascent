@@ -26,7 +26,7 @@
  */
 import { create } from 'zustand';
 import {
-  setServerCatalogState, titleName, type ServerCatalogState, type SkinSlot, type CrateRow, type OpenCrateResult, type ProgressionMode, type ProgressionProfile, type ProgressionResult, type ProgressionRunFactsV1,
+  setServerCatalogState, titleName, type ServerCatalogState, type SkinSlot, type CrateRow, type OpenCrateResult, type ProgressionMode, type ProgressionProfile, type ProgressionResult, type ProgressionRunFacts,
 } from '@game/progression';
 import { currentUserId } from '../identity';
 import { remoteEnabled } from '../remoteBoards';
@@ -200,7 +200,7 @@ export function expectRunProgression(localKey: string, mode: ProgressionMode): v
  * Queue and submit one finished run's facts. Durable first (the queue), then a flush. Returns whether it was
  * queued. `sourceId` is the practice row id.
  */
-export function beginRunProgression(localKey: string, facts: ProgressionRunFactsV1, sourceId?: number): boolean {
+export function beginRunProgression(localKey: string, facts: ProgressionRunFacts, sourceId?: number): boolean {
   const st = useProgression.getState();
   const none = (): false => {
     useProgression.setState({ current: { localKey, mode: facts.mode, runId: facts.runId, state: 'none', result: null, deduped: false, error: null } });

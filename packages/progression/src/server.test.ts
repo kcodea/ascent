@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
-import { handleSubmitProgression, validateSubmitBody, type RpcCall } from './server';
+import { handleSubmitProgression, resetAchievementSyncForTests, settlementParity, validateSubmitBody, type RpcCall } from './server';
+import { parseProgressionResult } from './rules';
 
 /**
  * The `submit-progression` Edge Function's logic with a MOCKED database (no live Supabase, no Deno): input
@@ -119,5 +120,53 @@ describe('handleSubmitProgression', () => {
     });
     const res = await handleSubmitProgression(USER, practice, rpcReturning({ status: 'ok', result, profile: { ...okProfile, accountXp: 135, accountLevel: 1, titles: [], equippedTitleId: null } }));
     expect(res.body).toMatchObject({ parity: true });
+  });
+});
+
+describe('achievements (batch 1, 2026-09-28)', () => {
+  const v2facts = { version: 2, runId: 'run-1', mode: 'ranked', setId: 'set2', patch: 'p', heroId: 'warden', placement: 3, waveReached: 9, terminal: true, comebackAfterFourLosses: false, combats: { wins: 1, losses: 1, draws: 0 }, metrics: { rubyPlays: 12, futureThing: 3, goldSpent: -4 } };
+
+  it('accepts V2 facts and passes them SANITIZED (unknown or bad metrics dropped, never a refusal)', async () => {
+    const v = validateSubmitBody({ ...ranked, facts: v2facts });
+    expect(v).toMatchObject({ ok: true });
+    expect(v.ok && v.request.facts).toEqual({ ...v2facts, metrics: { rubyPlays: 12 } });
+  });
+
+  it('syncs the achievement catalog ONCE per isolate, before the first settlement, and a failed sync never blocks XP', async () => {
+    resetAchievementSyncForTests();
+    const calls: string[] = [];
+    const rpc: RpcCall = vi.fn(async (fn: string) => {
+      calls.push(fn);
+      if (fn === 'sync_achievement_catalog') return { data: null, error: { message: 'function public.sync_achievement_catalog does not exist' } };
+      return { data: { status: 'ok', result: okResult(), profile: okProfile }, error: null };
+    });
+    expect((await handleSubmitProgression(USER, ranked, rpc)).status).toBe(200);
+    expect((await handleSubmitProgression(USER, ranked, rpc)).status).toBe(200); // retried only after the back-off
+    expect(calls).toEqual(['sync_achievement_catalog', 'settle_progression', 'settle_progression']);
+    resetAchievementSyncForTests();
+    const ok: RpcCall = vi.fn(async (fn: string, args: Record<string, unknown>) => {
+      calls.push(fn);
+      if (fn === 'sync_achievement_catalog') {
+        expect(args.p_hash).toMatch(/^a1-/);
+        expect((args.p_catalog as { items: unknown[] }).items.length).toBe(248);
+        return { data: { status: 'synced' }, error: null };
+      }
+      return { data: { status: 'ok', result: okResult(), profile: okProfile }, error: null };
+    });
+    calls.length = 0;
+    await handleSubmitProgression(USER, ranked, ok);
+    await handleSubmitProgression(USER, ranked, ok);
+    expect(calls).toEqual(['sync_achievement_catalog', 'settle_progression', 'settle_progression']);
+  });
+
+  it('parity covers achievement XP: known ids, each once, paying exactly what the SQL added', () => {
+    const base = okResult({ after: { lifetimeXp: 340 + 125, level: 2 }, achievements: ['career.games.1', 'ranked.first_win'], achievementXp: 125 });
+    const parse = (o: Record<string, unknown>) => parseProgressionResult(o)!;
+    expect(settlementParity(parse(base))).toBe(true);
+    expect(settlementParity(parse({ ...base, achievementXp: 100 }))).toBe(false);
+    expect(settlementParity(parse({ ...base, achievements: ['career.games.1', 'career.games.1'], achievementXp: 50 }))).toBe(false);
+    expect(settlementParity(parse({ ...base, achievements: ['made.up'], achievementXp: 0, after: { lifetimeXp: 340, level: 2 } }))).toBe(false);
+    // a pre-achievements server's result reads as none and still passes
+    expect(settlementParity(parse(okResult()))).toBe(true);
   });
 });

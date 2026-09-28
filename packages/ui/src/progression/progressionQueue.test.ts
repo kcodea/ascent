@@ -60,6 +60,13 @@ describe('the request', () => {
     expect(req).toMatchObject({ mode: 'ranked', runId: 'run-1', rulesVersion: 1, comeback: true });
     expect(JSON.stringify(req)).not.toMatch(/"xp"|"level"|"total"/);
   });
+  it('achievements (2026-09-28): V2 facts go up as V1 unless the server evaluates achievements (an older server refuses V2)', () => {
+    const v2 = { ...facts(), version: 2 as const, metrics: { rubyPlays: 4 } };
+    const plain = progressionRequestFor(v2);
+    expect(plain.facts).toMatchObject({ version: 1, runId: 'run-1' });
+    expect(plain.facts).not.toHaveProperty('metrics');
+    expect(progressionRequestFor(v2, undefined, true).facts).toEqual(v2);
+  });
   it('practice carries its source row id; tutorial carries the course pin', () => {
     expect(progressionRequestFor(facts({ mode: 'practice', runId: 'practice:9' }), 9)).toMatchObject({ mode: 'practice', sourceId: 9, runId: 'practice:9' });
     expect(progressionRequestFor(facts({ mode: 'tutorial', runId: 'learn-ascent:v1', placement: null }))).toMatchObject({ courseId: 'learn-ascent', courseVersion: 1 });

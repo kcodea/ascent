@@ -12,6 +12,7 @@ export const SHARED_ARTIFACTS: ReadonlyArray<{ source: string; target: string }>
   { source: 'server.ts', target: 'progressionServer.ts' },
   { source: 'cosmetics.ts', target: 'progressionCosmetics.ts' },
   { source: 'inventory.ts', target: 'progressionInventory.ts' },
+  { source: 'achievements.ts', target: 'progressionAchievements.ts' },
 ];
 
 const HEADER = (source: string): string =>

@@ -19,10 +19,11 @@
  * sanity-checks it against the run's recorded win/loss counts where one exists.
  */
 import {
-  PROGRESSION_MODES, PROGRESSION_RULES_VERSION, TUTORIAL_COURSE_ID, TUTORIAL_COURSE_VERSION, isProgressionFacts, levelOfXp,
-  parseProgressionProfile, parseProgressionResult, practiceRunId, sameXpBreakdown, titlesForLevel, titlesUnlockedBetween, tutorialRunId, xpForSettlement,
-  type ProgressionMode, type ProgressionRunFactsV1,
+  PROGRESSION_MODES, PROGRESSION_RULES_VERSION, TUTORIAL_COURSE_ID, TUTORIAL_COURSE_VERSION, levelOfXp,
+  parseProgressionProfile, parseProgressionResult, practiceRunId, sameXpBreakdown, sanitizeProgressionFacts, titlesForLevel, titlesUnlockedBetween, tutorialRunId, xpForSettlement,
+  type ProgressionMode, type ProgressionRunFacts,
 } from './rules';
+import { achievementCatalogHash, achievementCatalogPayload, achievementOf, achievementXpOf } from './achievements';
 
 /** A validated request, ready for `settle_progression`. */
 export interface SettleRequest {
@@ -30,7 +31,8 @@ export interface SettleRequest {
   runId: string;
   sourceId: number | null;
   comeback: boolean;
-  facts: ProgressionRunFactsV1 | null;
+  /** Sanitized (V2 metrics: known keys, sane values only). */
+  facts: ProgressionRunFacts | null;
 }
 
 export type ValidationResult = { ok: true; request: SettleRequest } | { ok: false; status: number; error: string; expected?: unknown };
@@ -44,7 +46,7 @@ export function validateSubmitBody(body: unknown): ValidationResult {
   if (b.rulesVersion !== PROGRESSION_RULES_VERSION) return { ok: false, status: 409, error: 'unsupported_rules', expected: PROGRESSION_RULES_VERSION };
   const runId = typeof b.runId === 'string' ? b.runId.trim() : '';
   if (!runId || runId.length > 128) return { ok: false, status: 400, error: 'bad_run_id' };
-  const facts = b.facts === undefined || b.facts === null ? null : isProgressionFacts(b.facts) ? b.facts : undefined;
+  const facts = b.facts === undefined || b.facts === null ? null : sanitizeProgressionFacts(b.facts) ?? undefined;
   if (facts === undefined) return { ok: false, status: 400, error: 'bad_facts' };
   if (facts && (facts.runId !== runId || facts.mode !== mode)) return { ok: false, status: 400, error: 'bad_facts' };
 
@@ -92,6 +94,10 @@ export async function handleSubmitProgression(userId: string | null, body: unkno
   const v = validateSubmitBody(body);
   if (!v.ok) return { status: v.status, body: v.expected === undefined ? { error: v.error } : { error: v.error, expected: v.expected } };
   const r = v.request;
+  // ACHIEVEMENTS (2026-09-28): this function is the ONE writer of `achievement_catalog`. Once per cold start, before
+  // the first settlement, it pushes this build's definitions (hash-short-circuited). Never throws, never blocks XP:
+  // a failed sync settles against whatever catalog the database already holds.
+  await syncAchievementCatalogOnce(rpc, log);
   let settled: Awaited<ReturnType<RpcCall>>;
   try {
     settled = await rpc('settle_progression', {
@@ -130,7 +136,11 @@ export async function handleSubmitProgression(userId: string | null, body: unkno
 export function settlementParity(result: NonNullable<ReturnType<typeof parseProgressionResult>>): boolean {
   const expected = xpForSettlement({ mode: result.mode, placement: result.placement, comeback: result.comeback, terminal: true });
   if (!sameXpBreakdown(expected, result.xp)) return false;
-  if (result.after.lifetimeXp !== result.before.lifetimeXp + result.xp.total) return false;
+  // Achievements: every id is one this build knows, each at most once, and they pay exactly the XP reported.
+  if (new Set(result.achievements).size !== result.achievements.length) return false;
+  if (!result.achievements.every((id) => achievementOf(id) !== null)) return false;
+  if (achievementXpOf(result.achievements) !== result.achievementXp) return false;
+  if (result.after.lifetimeXp !== result.before.lifetimeXp + result.xp.total + result.achievementXp) return false;
   if (levelOfXp(result.before.lifetimeXp) !== result.before.level) return false;
   if (levelOfXp(result.after.lifetimeXp) !== result.after.level) return false;
   // Every title the SQL reports as newly unlocked must be one the rules grant at the level reached, and every
@@ -144,3 +154,44 @@ export function settlementParity(result: NonNullable<ReturnType<typeof parseProg
   if (result.cratesAwarded < gained || result.cratesAwarded > gained + 1) return false;
   return titlesUnlockedBetween(result.before.level, result.after.level).every((t) => result.unlockedTitles.includes(t));
 }
+
+// ── The achievement catalog sync (2026-09-28) ─────────────────────────────────────────────────────────────────
+
+export type AchievementSyncOutcome = { status: 'synced' | 'unchanged' | 'failed'; hash: string; detail?: unknown };
+
+/** After a FAILED sync (the SQL not pasted yet, a blip), the next attempt waits this long. */
+export const ACHIEVEMENT_SYNC_RETRY_MS = 60_000;
+
+let achievementSync: { promise: Promise<AchievementSyncOutcome>; at: number; ok: boolean } | null = null;
+
+/**
+ * Push this build's achievement definitions into `achievement_catalog` ONCE per cold start (an isolate keeps module
+ * state between requests). `sync_achievement_catalog` compares the hash first, so an unchanged catalog is one read.
+ * Only `submit-progression` calls this (one writer, one deploy: the same rule the cosmetic sync follows). NEVER throws.
+ */
+export function syncAchievementCatalogOnce(rpc: RpcCall, log: (msg: string, detail?: unknown) => void = () => {}, now: () => number = Date.now): Promise<AchievementSyncOutcome> {
+  if (achievementSync && (achievementSync.ok || now() - achievementSync.at < ACHIEVEMENT_SYNC_RETRY_MS)) return achievementSync.promise;
+  const payload = achievementCatalogPayload();
+  const hash = achievementCatalogHash(payload);
+  const entry: { promise: Promise<AchievementSyncOutcome>; at: number; ok: boolean } = { promise: Promise.resolve({ status: 'failed', hash }), at: now(), ok: false };
+  entry.promise = (async (): Promise<AchievementSyncOutcome> => {
+    try {
+      const res = await rpc('sync_achievement_catalog', { p_catalog: payload, p_hash: hash });
+      if (res.error) {
+        log('achievement catalog sync failed', res.error);
+        return { status: 'failed', hash, detail: res.error };
+      }
+      entry.ok = true;
+      const status = (res.data as { status?: unknown } | null)?.status === 'unchanged' ? 'unchanged' : 'synced';
+      return { status, hash, detail: res.data };
+    } catch (e) {
+      log('achievement catalog sync threw', e);
+      return { status: 'failed', hash, detail: String(e) };
+    }
+  })();
+  achievementSync = entry;
+  return entry.promise;
+}
+
+/** Tests: forget the per-isolate sync. */
+export function resetAchievementSyncForTests(): void { achievementSync = null; }

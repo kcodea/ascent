@@ -14,7 +14,7 @@ const okResult = (over: Record<string, unknown> = {}) => ({
   runId: 'run-1', mode: 'ranked', rulesVersion: 1, placement: 3, comeback: false,
   xp: { base: 100, topFour: 40, firstPlace: 0, comeback: 0, total: 140 },
   before: { lifetimeXp: 200, level: 1 }, after: { lifetimeXp: 340, level: 2 },
-  unlockedTitles: ['alpha_tester'], revisionAfter: 2, settledAt: '2026-09-27T12:00:00Z',
+  unlockedTitles: ['alpha_tester'], cratesAwarded: 1, crateIds: ['c-2'], revisionAfter: 2, settledAt: '2026-09-27T12:00:00Z',
   ...over,
 });
 const okProfile = { accountXp: 340, accountLevel: 2, revision: 2, equippedTitleId: 'alpha_tester', titles: ['alpha_tester'] };
@@ -98,6 +98,16 @@ describe('handleSubmitProgression', () => {
     expect((await handleSubmitProgression(USER, ranked, rpcReturning({ status: 'ok', result: badLevel, profile: okProfile }))).body.parity).toBe(false);
     const noTitle = okResult({ unlockedTitles: [] });
     expect((await handleSubmitProgression(USER, ranked, rpcReturning({ status: 'ok', result: noTitle, profile: okProfile }))).body.parity).toBe(false);
+  });
+
+  it('crate parity (2026-09-28): one crate per level gained, plus at most the Welcome Crate; ids match the count', async () => {
+    const parityOf = async (over: Record<string, unknown>): Promise<unknown> =>
+      (await handleSubmitProgression(USER, ranked, rpcReturning({ status: 'ok', result: okResult(over), profile: okProfile }))).body.parity;
+    expect(await parityOf({})).toBe(true); // L1 → L2, one crate
+    expect(await parityOf({ cratesAwarded: 2, crateIds: ['c-1', 'c-2'] })).toBe(true); // + the Welcome Crate (enrolling)
+    expect(await parityOf({ cratesAwarded: 0, crateIds: [] })).toBe(false); // a level with no crate
+    expect(await parityOf({ cratesAwarded: 3, crateIds: ['a', 'b', 'c'] })).toBe(false); // too many
+    expect(await parityOf({ cratesAwarded: 1, crateIds: [] })).toBe(false); // count without ids
   });
 
   it('practice parity: the scaled numbers', async () => {

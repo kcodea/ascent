@@ -51,6 +51,22 @@ export interface PatchNote {
 /** Newest first. PREPEND new entries. */
 export const PATCH_NOTES: PatchNote[] = [
   {
+    date: '2026-09-28',
+    changes: [
+      {
+        category: 'Systems',
+        text: 'Level crates: every Account Level now gives you a crate, and your first game gives you a Welcome Crate.',
+        details: [
+          'Open a crate to get a new title. There are 15 to find, from Common to Legendary.',
+          'You never get a title you already own.',
+          'Open it right after the game, or later from the Collection button on your Career.',
+          'Pick the title you wear in the Collection. Other players see it on your Career.',
+          'Already leveled up? Your crates are waiting for you.',
+        ],
+      },
+    ],
+  },
+  {
     date: '2026-09-27',
     changes: [
       { category: 'Systems', text: 'Fix: when an opponent casts Growth in combat (like their Fatecarver), the effect now plays on their board, not yours.' },

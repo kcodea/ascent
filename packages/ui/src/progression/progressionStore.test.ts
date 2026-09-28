@@ -19,6 +19,7 @@ vi.mock('../remoteBoards', () => ({ remoteEnabled: () => remote }));
 vi.mock('./progressionRemote', async (orig) => ({
   ...(await orig<typeof import('./progressionRemote')>()),
   fetchProgressionEnabled: () => enabled(),
+  fetchCratesEnabled: () => Promise.resolve(false),
   fetchOwnProgression: () => own(),
 }));
 vi.mock('./progressionQueue', () => ({
@@ -37,7 +38,7 @@ const facts = (over: Partial<ProgressionRunFactsV1> = {}): ProgressionRunFactsV1
 const result = (over: Partial<ProgressionResult> = {}): ProgressionResult => ({
   runId: 'run-1', mode: 'ranked', rulesVersion: 1, placement: 1, comeback: false,
   xp: { base: 100, topFour: 40, firstPlace: 60, comeback: 0, total: 200 },
-  before: { lifetimeXp: 100, level: 1 }, after: { lifetimeXp: 300, level: 2 }, unlockedTitles: ['alpha_tester'], revisionAfter: 4, settledAt: null, ...over,
+  before: { lifetimeXp: 100, level: 1 }, after: { lifetimeXp: 300, level: 2 }, unlockedTitles: ['alpha_tester'], cratesAwarded: 0, crateIds: [], revisionAfter: 4, settledAt: null, ...over,
 });
 
 beforeEach(() => {

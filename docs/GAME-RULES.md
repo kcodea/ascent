@@ -152,7 +152,7 @@ _shared/lobbyRating.ts`, `supabase/migrations/2026-09-20-medal-rank.sql` (`settl
 
 ---
 
-## Account Level — permanent XP (MVP, owner decisions 2026-09-27; R-PROG-XP-01, R-PROG-CURVE-01, R-PROG-TITLE-01)
+## Account Level — permanent XP (owner decisions 2026-09-27; R-PROG-XP-01, R-PROG-CURVE-01, R-PROG-TITLE-01, R-PROG-CRATE-01, R-PROG-CRATE-02, R-PROG-CATALOG-01)
 
 Account Level is a **permanent, earn-only** number that grows with every completed game. It never resets and
 never touches the ranked ladder (Ranked answers "how am I doing right now"; Account Level answers "how much have
@@ -168,9 +168,26 @@ progression **epoch**; nothing finished before the epoch counts (no backfill).
   earns the bonus. Once per run.
 - **Curve.** 250 XP per level from Level 1 to 11, 400 per level to Level 26, 500 per level after, uncapped.
   Lifetime XP is stored; the level is derived from it (versioned), so one game can cross several levels.
-- **Reward (MVP).** The title **Alpha Tester**, unlocked by **every** account at Level 2 and equipped when no
-  title is equipped. Shown in the post-game XP panel (reveal) and on the Career (public). No crates, cosmetics or
-  achievements yet.
+- **Level title.** The title **Alpha Tester**, unlocked by **every** account at Level 2 (a level milestone, never
+  in a crate) and equipped when no title is equipped. Shown in the post-game XP panel (reveal) and on the Career
+  (public).
+- **Level crates (2026-09-28).** **Every level grants one sealed crate**; an account's first settled game
+  (enrollment) also grants the Level 1 **Welcome Crate**. So an account at Level L has earned L crates. Earn only:
+  no keys, currency, purchases or rerolls. Accounts enrolled before crates shipped received their Welcome Crate
+  plus one crate per level already reached (a one-time backfill).
+- **Opening.** Optional and never forced (Continue is always available): right after the game ("Crate earned",
+  Open) or later from the **Collection** (Career). The reward is chosen **when the crate is opened**, on the
+  server, from the items the player does not own yet: each remaining item weighs rarity x category (rarity
+  Common 55, Rare 30, Epic 12, Legendary 3), normalized over what remains, never a rarity rolled first. **Never a
+  duplicate.** With nothing left to give, the crate stays **sealed** (`pool_exhausted`) until new items arrive;
+  it is never converted into anything. A new title is worn at once only when none is worn.
+- **The catalog (2026-09-28).** Data in `packages/progression/src/cosmetics.ts`, seeded into the database. Shaped
+  for every cosmetic category (announcer, hero skin, minion skin, title, hero attack, board, music), but only
+  **titles** are switched on: **15 crate titles** (7 Common, 5 Rare, 2 Epic, 1 Legendary). The other categories
+  are feature-flagged off until their art exists.
+- **Titles.** The Collection lists the titles you own and lets you equip one (or none); the server checks
+  ownership. The equipped title and the owned titles are public (Career); crates are private.
+- **Achievements** are not built yet.
 - **Guests.** An anonymous session is a real account id and the email upgrade keeps it, so guests earn XP from
   their first game. Reaching Level 2 as a guest shows a gentle "Save your progress" prompt (never a gate). With
   no session at all, a game earns nothing.
@@ -179,9 +196,11 @@ progression **epoch**; nothing finished before the epoch counts (no backfill).
   rank result / the player's own practice row / a unique tutorial claim, and a duplicate returns the original
   result. The client queues the request durably and retries; a failure reads "Progress pending".
 
-Source: `packages/progression/src/rules.ts` (curve, XP, titles), `packages/sim/src/runDerive.ts`
-(`progressionFactsOf`), `supabase/migrations/2026-09-27-account-progression.sql` (`settle_progression`),
-`supabase/functions/submit-progression`, `packages/ui/src/progression/`.
+Source: `packages/progression/src/rules.ts` (curve, XP, level titles, crates per level),
+`packages/progression/src/cosmetics.ts` (catalog, weights, the roll), `packages/sim/src/runDerive.ts`
+(`progressionFactsOf`), `supabase/migrations/2026-09-27-account-progression.sql` and
+`supabase/migrations/2026-09-28-progression-crates.sql` (`settle_progression`, `open_crate`, `equip_title`),
+`supabase/functions/submit-progression`, `supabase/functions/progression-inventory`, `packages/ui/src/progression/`.
 
 ---
 

@@ -1673,7 +1673,7 @@ export const FOUNDATION_RULES: GameRule[] = [
     id: 'R-PROG-TITLE-01',
     title: 'Every account unlocks the Alpha Tester title at Account Level 2; guests earn XP too and are gently asked to save it',
     statement:
-      'The MVP has exactly one reward: the title "Alpha Tester", granted to EVERY account that reaches Account Level 2 '
+      'The Level 2 reward is the title "Alpha Tester" (a level milestone, never in a crate), granted to EVERY account that reaches Account Level 2 '
       + '(level-based, so an existing account that reaches Level 2 gets it too) and equipped automatically when no title is '
       + 'equipped. The post-game XP panel reveals it; the Career shows the level, the XP bar and the equipped title publicly. '
       + 'Anonymous (guest) players earn XP from their first game, because a guest session is a real account id that the email '
@@ -1688,6 +1688,66 @@ export const FOUNDATION_RULES: GameRule[] = [
     ],
     currentBehaviour: 'Conforms, built 2026-09-27. Lobby name plates do not show titles yet (Career only).',
     enforcement: { kind: 'scenario', refs: ['packages/progression/src/sqlParity.test.ts', 'packages/progression/src/rules.test.ts', 'packages/ui/src/progression/ProgressionPostgame.test.tsx', 'packages/ui/src/Career.test.tsx'], lastVerifiedAt: '2026-09-27' },
+  },
+  {
+    id: 'R-PROG-CRATE-01',
+    title: 'Every Account Level grants one sealed crate; the first settled game grants the Level 1 Welcome Crate; enrolled accounts were backfilled',
+    statement:
+      'An account earns exactly one sealed crate per Account Level: the settlement that enrolls an account (its first '
+      + 'settled game) creates the Level 1 Welcome Crate, and every settlement creates one crate for each level it newly '
+      + 'reaches (a jump across several levels creates several). So an account at Level L has earned L crates. The ledger row '
+      + 'records how many crates the settlement created and their ids, and a duplicate settlement returns the same crates. '
+      + 'Crates need no key and are earned even while the crates switch is off (banked). Accounts already enrolled when crates '
+      + 'shipped received their Welcome Crate plus one crate per level already reached, through an idempotent backfill.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-handoff', ref: 'C:/Users/kevin/.codex/visualizations/2026/09/10/01a08bcd-7027-7c60-a951-4c941ed57d4a/ascent-account-progression-achievements-claude-handoff.md §2 + §5.1', quote: 'Every level grants one crate.' },
+      { kind: 'owner-handoff', ref: 'C:/Users/kevin/.codex/visualizations/2026/09/10/01a08bcd-7027-7c60-a951-4c941ed57d4a/ascent-account-progression-achievements-claude-handoff.md §5.1', quote: 'Level 1 creates one Welcome Crate on progression enrollment.' },
+      { kind: 'code', ref: 'settle_progression step 9b + section 14c backfill in supabase/migrations/2026-09-28-progression-crates.sql; cratesForSettlement in packages/progression/src/rules.ts; settlementParity in packages/progression/src/server.ts' },
+    ],
+    currentBehaviour: 'Conforms, built 2026-09-28. Live once the owner runs the crates migration.',
+    enforcement: { kind: 'scenario', refs: ['packages/progression/src/crates.db.test.ts', 'packages/progression/src/server.test.ts', 'packages/progression/src/cosmetics.test.ts'], lastVerifiedAt: '2026-09-28' },
+  },
+  {
+    id: 'R-PROG-CRATE-02',
+    title: 'A crate picks its reward when OPENED, weighted over what remains, never a duplicate; an exhausted pool keeps it sealed; opening is never forced',
+    statement:
+      'Opening a crate is optional (right after the game or later from the Collection; Continue is always available) and '
+      + 'happens on the server in one transaction under the per-user progression lock. The reward is chosen at OPEN time from '
+      + 'the active, crate-sourced items in an enabled category that the player does not own: each weighs rarity x category '
+      + '(rarity Common 55, Rare 30, Epic 12, Legendary 3), normalized across what actually remains, never a rarity rolled '
+      + 'first. The player never receives an item they already own (unique ownership is the final guard), and a second open of '
+      + 'the same crate returns the committed reward. When nothing eligible remains the crate stays sealed and the answer is '
+      + '"pool_exhausted"; it is never converted into currency or anything else. Earn only: no keys, purchases or rerolls.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-handoff', ref: 'C:/Users/kevin/.codex/visualizations/2026/09/10/01a08bcd-7027-7c60-a951-4c941ed57d4a/ascent-account-progression-achievements-claude-handoff.md §5.1', quote: 'Choose the reward when the crate is opened, not when earned.' },
+      { kind: 'owner-handoff', ref: 'C:/Users/kevin/.codex/visualizations/2026/09/10/01a08bcd-7027-7c60-a951-4c941ed57d4a/ascent-account-progression-achievements-claude-handoff.md §2', quote: 'A player can never receive a cosmetic they already own.' },
+      { kind: 'owner-handoff', ref: 'C:/Users/kevin/.codex/visualizations/2026/09/10/01a08bcd-7027-7c60-a951-4c941ed57d4a/ascent-account-progression-achievements-claude-handoff.md §5.4', quote: 'Do not roll a rarity first and fail when that rarity is exhausted.' },
+      { kind: 'code', ref: 'open_crate + progression_crate_pool in supabase/migrations/2026-09-28-progression-crates.sql; pickCrateReward / eligibleCrateCosmetics in packages/progression/src/cosmetics.ts; packages/ui/src/progression/CrateOpener.tsx' },
+    ],
+    currentBehaviour: 'Conforms, built 2026-09-28.',
+    enforcement: { kind: 'scenario', refs: ['packages/progression/src/crates.db.test.ts', 'packages/progression/src/cosmetics.test.ts', 'packages/progression/src/sqlParity.test.ts', 'packages/progression/src/inventory.test.ts', 'packages/ui/src/progression/Crates.test.tsx'], lastVerifiedAt: '2026-09-28' },
+  },
+  {
+    id: 'R-PROG-CATALOG-01',
+    title: 'The launch cosmetic catalog is 15 crate titles; every other category exists but is switched off; equipping checks ownership on the server',
+    statement:
+      'The cosmetic catalog is data shaped for every category (announcer, hero skin, minion skin, title, hero attack, board, '
+      + 'music), with only titles enabled at launch: 15 crate titles (7 Common, 5 Rare, 2 Epic, 1 Legendary) with permanent '
+      + 'ids. Alpha Tester stays the Level 2 grant and is never in the crate pool. A player equips one owned title (or none) '
+      + 'from the Collection; the server checks ownership. The equipped title and the owned titles are public; crates are '
+      + 'private. Clients can never write ownership, crates or the loadout.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-27 (level crates + catalog brief)', quote: "let's just do 15 titles to start. we'll start creating assets for the catalog as well." },
+      { kind: 'code', ref: 'COSMETICS / COSMETIC_CATEGORY_DEFS in packages/progression/src/cosmetics.ts; cosmetic_categories + cosmetic_catalog seeds and equip_title in supabase/migrations/2026-09-28-progression-crates.sql; packages/ui/src/progression/CollectionPanel.tsx' },
+    ],
+    currentBehaviour: 'Conforms, built 2026-09-28. Title names are placeholders for the owner to rename (ids stay).',
+    enforcement: { kind: 'scenario', refs: ['packages/progression/src/cosmetics.test.ts', 'packages/progression/src/sqlParity.test.ts', 'packages/progression/src/crates.db.test.ts', 'packages/ui/src/progression/Crates.test.tsx', 'packages/ui/src/Career.test.tsx'], lastVerifiedAt: '2026-09-28' },
   },
   {
     id: 'R-PRESENT-23',

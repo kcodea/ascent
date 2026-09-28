@@ -141,5 +141,9 @@ export function settlementParity(result: NonNullable<ReturnType<typeof parseProg
   // migration's backfill, legitimately reports nothing new).
   const owned = new Set(titlesForLevel(result.after.level));
   if (!result.unlockedTitles.every((t) => owned.has(t))) return false;
+  // Crates: one per level gained, plus the Welcome Crate when this settlement enrolled the account.
+  const gained = result.after.level - result.before.level;
+  if (result.crateIds.length !== result.cratesAwarded) return false;
+  if (result.cratesAwarded < gained || result.cratesAwarded > gained + 1) return false;
   return titlesUnlockedBetween(result.before.level, result.after.level).every((t) => result.unlockedTitles.includes(t));
 }

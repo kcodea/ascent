@@ -13,17 +13,25 @@
  *
  * Entry points (called from store.ts): `probeProgression` (identity boot / change), `expectRunProgression` +
  * `beginRunProgression` (run end), `flushProgression` (a rank answer landed).
+ *
+ * CRATES (2026-09-28): `cratesCapability` is a second flag (the crates migration has run and `crates_enabled` is
+ * on), probed after the first; `crateList` is this account's crates (owner-only read). `openCrate` and
+ * `equipTitle` go through the `progression-inventory` Edge Function and adopt the profile it returns, so the
+ * owned titles and the equipped title update everywhere at once. Opening is interactive, never queued.
  */
 import { create } from 'zustand';
 import {
-  titleName, type ProgressionMode, type ProgressionProfile, type ProgressionResult, type ProgressionRunFactsV1,
+  titleName, type CrateRow, type OpenCrateResult, type ProgressionMode, type ProgressionProfile, type ProgressionResult, type ProgressionRunFactsV1,
 } from '@game/progression';
 import { currentUserId } from '../identity';
 import { remoteEnabled } from '../remoteBoards';
 import {
   enqueuePendingProgression, flushPendingProgressions, installProgressionRetryTriggers, type PendingProgression,
 } from './progressionQueue';
-import { fetchOwnProgression, fetchProgressionEnabled, progressionRequestFor, type ProgressionSubmitOutcome } from './progressionRemote';
+import {
+  equipTitleRemote, fetchCratesEnabled, fetchOwnCrates, fetchOwnProgression, fetchProgressionEnabled, openCrateRemote, progressionRequestFor,
+  type ProgressionSubmitOutcome,
+} from './progressionRemote';
 
 export type ProgressionCapability = 'unknown' | 'on' | 'off';
 /** `none`: this run earns nothing we can settle (no session, no source row). */
@@ -45,6 +53,10 @@ interface ProgressionStore {
   capability: ProgressionCapability;
   mirror: ProgressionMirror | null;
   current: CurrentRunProgression | null;
+  /** Crates + Collection shown only while `on` (and `capability` is `on`). */
+  cratesCapability: ProgressionCapability;
+  /** This account's crates, oldest level first (null until read). */
+  crateList: CrateRow[] | null;
 }
 
 const MIRROR_KEY = 'ascent.progression';
@@ -66,6 +78,8 @@ export const useProgression = create<ProgressionStore>(() => ({
   capability: 'unknown',
   mirror: typeof localStorage === 'undefined' ? null : loadMirror(),
   current: null,
+  cratesCapability: 'unknown',
+  crateList: null,
 }));
 
 /** The mirror, only when it belongs to the account that is live right now. */
@@ -89,6 +103,8 @@ export function adoptProgressionProfile(userId: string, profile: ProgressionProf
 /** One queue answer lands: adopt the profile, and update the end screen when it is the run it shows. */
 export function applyProgressionOutcome(item: Pick<PendingProgression, 'userId' | 'runId' | 'mode'>, outcome: ProgressionSubmitOutcome): void {
   if (outcome.status === 'confirmed') adoptProgressionProfile(item.userId, outcome.profile);
+  // New crates: re-read the list so the Collection and the post-game Open button see them.
+  if (outcome.status === 'confirmed' && outcome.result.cratesAwarded > 0 && !outcome.deduped) void refreshCrates();
   const cur = useProgression.getState().current;
   if (!cur || cur.runId !== item.runId || cur.mode !== item.mode) return;
   if (outcome.status === 'confirmed') {
@@ -117,6 +133,10 @@ export function probeProgression(): Promise<void> {
     const profile = await fetchOwnProgression();
     if (profile) adoptProgressionProfile(userId, profile);
     await flushPendingProgressions(applyProgressionOutcome, { force: true });
+    // The crates probe: a separate switch, so the XP panel works before the crates migration runs.
+    const crates = await fetchCratesEnabled();
+    if (crates !== undefined) useProgression.setState({ cratesCapability: crates ? 'on' : 'off' });
+    if (crates) await refreshCrates();
   };
   const p = run().catch(() => { /* never throws */ }).finally(() => { if (probing === p) probing = null; });
   probing = p;
@@ -170,6 +190,49 @@ export function installProgression(): void {
   installProgressionRetryTriggers(applyProgressionOutcome);
 }
 
+// ── Crates + titles (2026-09-28) ─────────────────────────────────────────────────────────────────────────────
+
+/** Crates and the Collection are visible: progression is on AND the crates migration is live. */
+export const cratesVisible = (s: Pick<ProgressionStore, 'capability' | 'cratesCapability'>): boolean => s.capability === 'on' && s.cratesCapability === 'on';
+
+/** Re-read this account's crates. Never throws; an unanswerable read keeps the list as it was. */
+export async function refreshCrates(): Promise<void> {
+  if (!currentUserId()) return;
+  const list = await fetchOwnCrates().catch(() => undefined);
+  if (list) useProgression.setState({ crateList: list });
+}
+
+export type CrateOpenOutcome = { status: 'ok'; result: OpenCrateResult } | { status: 'error'; reason: string };
+
+/** Replace one crate in the list (or add it when the list has not been read yet). */
+function mergeCrate(crate: CrateRow): void {
+  const list = useProgression.getState().crateList ?? [];
+  const next = list.some((c) => c.crateId === crate.crateId) ? list.map((c) => (c.crateId === crate.crateId ? crate : c)) : [...list, crate];
+  next.sort((a, b) => a.earnedLevel - b.earnedLevel);
+  useProgression.setState({ crateList: next });
+}
+
+/** Open one crate through the server. The reward (or `pool_exhausted`) comes back; the profile is adopted. */
+export async function openCrate(crateId: string): Promise<CrateOpenOutcome> {
+  const userId = currentUserId();
+  if (!userId) return { status: 'error', reason: 'no_session' };
+  const out = await openCrateRemote(crateId).catch((e: unknown) => ({ status: 'error' as const, reason: String((e as Error)?.message ?? e) }));
+  if (out.status !== 'ok') return out;
+  adoptProgressionProfile(userId, out.profile);
+  mergeCrate(out.value.crate);
+  return { status: 'ok', result: out.value };
+}
+
+/** Equip an owned title (null takes it off). Returns whether the server accepted it. */
+export async function equipTitle(titleId: string | null): Promise<boolean> {
+  const userId = currentUserId();
+  if (!userId) return false;
+  const out = await equipTitleRemote(titleId).catch(() => null);
+  if (!out || out.status !== 'ok') return false;
+  adoptProgressionProfile(userId, out.profile);
+  return true;
+}
+
 /** The equipped title's display name for a mirror/profile, or null. */
 export const equippedTitleName = (p: Pick<ProgressionProfile, 'equippedTitleId'> | null | undefined): string | null => titleName(p?.equippedTitleId ?? null);
 
@@ -204,5 +267,5 @@ export function markProgressionPresented(mode: ProgressionMode, runId: string): 
 export function resetProgressionForTests(): void {
   presented = [];
   try { localStorage.removeItem(PRESENTED_KEY); localStorage.removeItem(MIRROR_KEY); } catch { /* ignore */ }
-  useProgression.setState({ capability: 'unknown', mirror: null, current: null });
+  useProgression.setState({ capability: 'unknown', mirror: null, current: null, cratesCapability: 'unknown', crateList: null });
 }

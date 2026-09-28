@@ -2,10 +2,15 @@ import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import {
-  ALPHA_TESTER_TITLE_ID, CURVE_BANDS, PROGRESSION_CURVE_VERSION, PROGRESSION_MODES, PROGRESSION_RULES_VERSION, TITLES, TUTORIAL_COURSE_ID,
+  CURVE_BANDS, PROGRESSION_CURVE_VERSION, PROGRESSION_MODES, PROGRESSION_RULES_VERSION, TITLES, TUTORIAL_COURSE_ID,
   TUTORIAL_COURSE_VERSION, XP_RULES, levelOfXp, xpForSettlement,
 } from './rules';
+import {
+  ALPHA_TESTER_TITLE_ID, COSMETICS, COSMETIC_CATEGORIES, COSMETIC_CATEGORY_DEFS, COSMETIC_RARITIES, CRATE_ROLL_VERSION, RARITY_WEIGHTS,
+  crateWeightOf, eligibleCrateCosmetics, pickCrateReward,
+} from './cosmetics';
 import { SQL_ERROR_STATUS } from './server';
+import { INVENTORY_ERROR_STATUS } from './inventory';
 
 /**
  * TS ↔ SQL PARITY for the progression writer. There is no Postgres in CI, so (like the medal-rank parity test)
@@ -16,14 +21,18 @@ import { SQL_ERROR_STATUS } from './server';
  */
 const root = join(__dirname, '../../..');
 const sql = readFileSync(join(root, 'supabase/migrations/2026-09-27-account-progression.sql'), 'utf8');
+/** The crates migration REPLACES `settle_progression` and the JSON shapes: the live definitions are read from it. */
+const crates = readFileSync(join(root, 'supabase/migrations/2026-09-28-progression-crates.sql'), 'utf8');
 const schema = readFileSync(join(root, 'schema.sql'), 'utf8');
 
-function fnBody(name: string): string {
-  const start = sql.indexOf(`create or replace function public.${name}(`);
+/** The body of a function's LATEST definition (the crates migration when it defines it, else the MVP's). */
+function fnBody(name: string, from?: string): string {
+  const text = from ?? (crates.includes(`create or replace function public.${name}(`) ? crates : sql);
+  const start = text.indexOf(`create or replace function public.${name}(`);
   if (start < 0) throw new Error(`no function ${name} in the migration`);
-  const open = sql.indexOf('$$', start);
-  const close = sql.indexOf('$$', open + 2);
-  return sql.slice(open + 2, close);
+  const open = text.indexOf('$$', start);
+  const close = text.indexOf('$$', open + 2);
+  return text.slice(open + 2, close);
 }
 function constOf(body: string, name: string): string {
   const m = new RegExp(`${name}\\s+constant\\s+[a-z]+\\s*:=\\s*([^;]+);`).exec(body);
@@ -31,6 +40,7 @@ function constOf(body: string, name: string): string {
   return m[1]!.trim().replace(/^'(.*)'$/, '$1');
 }
 const settle = fnBody('settle_progression');
+const settleMvp = fnBody('settle_progression', sql);
 const curve = fnBody('progression_level_of');
 const n = (body: string, name: string): number => Number(constOf(body, name));
 
@@ -116,13 +126,21 @@ describe('the migration shape', () => {
     for (const k of ['accountXp', 'accountLevel', 'revision', 'equippedTitleId', 'titles']) expect(profileJson, k).toContain(`'${k}'`);
   });
 
-  it('the writer is SECURITY DEFINER with a pinned search_path, and service-role only', () => {
-    const head = sql.slice(sql.indexOf('create or replace function public.settle_progression('), sql.indexOf('as $$', sql.indexOf('create or replace function public.settle_progression(')));
-    expect(head).toContain('security definer');
-    expect(head).toContain('set search_path = public');
-    expect(sql).toContain('revoke all on function public.settle_progression(uuid, text, text, bigint, boolean, int, jsonb) from public, anon, authenticated;');
-    expect(sql).toContain('grant execute on function public.settle_progression(uuid, text, text, bigint, boolean, int, jsonb) to service_role;');
-    expect(settle).toContain('pg_advisory_xact_lock');
+  it('every writer is SECURITY DEFINER with a pinned search_path, and service-role only', () => {
+    for (const [text, fn, sig] of [
+      [sql, 'settle_progression', 'uuid, text, text, bigint, boolean, int, jsonb'],
+      [crates, 'settle_progression', 'uuid, text, text, bigint, boolean, int, jsonb'],
+      [crates, 'open_crate', 'uuid, uuid'],
+      [crates, 'equip_title', 'uuid, text'],
+    ] as const) {
+      const at = text.indexOf(`create or replace function public.${fn}(`);
+      const head = text.slice(at, text.indexOf('as $$', at));
+      expect(head, fn).toContain('security definer');
+      expect(head, fn).toContain('set search_path = public');
+      expect(text).toContain(`revoke all on function public.${fn}(${sig}) from public, anon, authenticated;`);
+      expect(text).toContain(`grant execute on function public.${fn}(${sig}) to service_role;`);
+      expect(fnBody(fn, text), fn).toContain('pg_advisory_xact_lock');
+    }
     expect(settle).toMatch(/for update;/);
   });
 
@@ -133,7 +151,96 @@ describe('the migration shape', () => {
     expect(sql).not.toMatch(/^update public\.progression_config set epoch/m);
   });
 
-  it('schema.sql (the cumulative paste file) carries the migration verbatim', () => {
-    expect(schema.replace(/\r\n/g, '\n')).toContain(sql.replace(/\r\n/g, '\n').trim());
+  it('schema.sql (the cumulative paste file) carries both migrations verbatim, the crates one AFTER the MVP', () => {
+    const flat = schema.replace(/\r\n/g, '\n');
+    const mvp = sql.replace(/\r\n/g, '\n').trim();
+    const crt = crates.replace(/\r\n/g, '\n').trim();
+    expect(flat).toContain(mvp);
+    expect(flat).toContain(crt);
+    expect(flat.indexOf(crt)).toBeGreaterThan(flat.indexOf(mvp));
+  });
+});
+
+describe('the crates migration (2026-09-28)', () => {
+  it('replaces settle_progression WITHOUT changing a single XP / curve / title constant', () => {
+    const consts = (body: string): string[] => [...body.matchAll(/^\s*(c_[a-z_]+)\s+constant\s+[a-z]+\s*:=\s*([^;]+);/gm)].map((m) => `${m[1]}=${m[2]!.trim()}`);
+    expect(consts(settle)).toEqual(consts(settleMvp));
+    expect(consts(settle).length).toBeGreaterThan(10);
+  });
+
+  it('every SQL error open_crate / equip_title raise is mapped by the inventory Edge Function', () => {
+    for (const fn of ['open_crate', 'equip_title']) {
+      const raised = [...fnBody(fn).matchAll(/raise exception '([a-z_]+)'/g)].map((x) => x[1]!);
+      expect(raised.length, fn).toBeGreaterThan(0);
+      for (const code of new Set(raised)) expect(INVENTORY_ERROR_STATUS[code], `${fn}: ${code}`).toBeDefined();
+    }
+  });
+
+  it('the result JSON carries the crates; the crate JSON carries every CrateRow key', () => {
+    const resultJson = fnBody('progression_result_json');
+    for (const k of ['cratesAwarded', 'crateIds']) expect(resultJson, k).toContain(`'${k}'`);
+    const crateJson = fnBody('progression_crate_json');
+    for (const k of ['crateId', 'earnedLevel', 'state', 'rewardId', 'earnedAt', 'openedAt']) expect(crateJson, k).toContain(`'${k}'`);
+  });
+
+  it('the rarity weights and roll version equal the TS rules', () => {
+    const pool = fnBody('progression_crate_pool');
+    expect(COSMETIC_RARITIES.map((r) => n(pool, `c_w_${r}`))).toEqual(COSMETIC_RARITIES.map((r) => RARITY_WEIGHTS[r]));
+    expect(RARITY_WEIGHTS).toEqual({ common: 55, rare: 30, epic: 12, legendary: 3 });
+    expect(n(fnBody('open_crate'), 'c_roll_version')).toBe(CRATE_ROLL_VERSION);
+  });
+
+  /** The rows of one `insert into public.<table> (...) values (...), ... on conflict` seed. */
+  function seedRows(table: string): string[][] {
+    const at = crates.indexOf(`insert into public.${table} (`);
+    const block = crates.slice(crates.indexOf('values', at) + 6, crates.indexOf('on conflict', at));
+    return [...block.matchAll(/\(([^()]*)\)/g)].map((m) => m[1]!.split(',').map((x) => x.trim().replace(/^'(.*)'$/, '$1')));
+  }
+
+  it('the category seed equals COSMETIC_CATEGORY_DEFS (weights + the feature flags: only title on)', () => {
+    const rows = seedRows('cosmetic_categories');
+    expect(rows.map((r) => r[0])).toEqual([...COSMETIC_CATEGORIES]);
+    for (const [id, weight, enabled, target] of rows) {
+      const def = COSMETIC_CATEGORY_DEFS[id as keyof typeof COSMETIC_CATEGORY_DEFS];
+      expect({ weight: Number(weight), enabled: enabled === 'true', target }, id).toEqual({ weight: def.weight, enabled: def.enabled, target: def.target });
+    }
+    expect(COSMETIC_CATEGORIES.filter((c) => COSMETIC_CATEGORY_DEFS[c].enabled)).toEqual(['title']);
+  });
+
+  it('the catalog seed equals COSMETICS row for row (ids, category, rarity, acquisition, active)', () => {
+    const rows = seedRows('cosmetic_catalog');
+    const nul = (v: string | undefined): string | null => (v === undefined || v === 'null' ? null : v);
+    const sqlRows = rows.map(([id, category, rarity, source, level, targetType, targetId, achievementId, active]) => ({
+      id, category, rarity, source, level: nul(level) === null ? null : Number(level),
+      targetType: nul(targetType), targetId: nul(targetId), achievementId: nul(achievementId), active: active === 'true',
+    }));
+    const tsRows = COSMETICS.map((c) => ({
+      id: c.id, category: c.category, rarity: c.rarity, source: c.acquisition.type,
+      level: c.acquisition.type === 'level_milestone' ? c.acquisition.level : null,
+      targetType: c.target?.type ?? null, targetId: c.target?.id ?? null,
+      achievementId: c.acquisition.type === 'achievement' ? c.acquisition.id : null, active: c.active,
+    }));
+    expect(sqlRows).toEqual(tsRows);
+    // the settlement's Alpha Tester constants agree with the catalog's level milestone
+    expect(constOf(settle, 'c_alpha_title')).toBe(ALPHA_TESTER_TITLE_ID);
+    expect(n(settle, 'c_alpha_level')).toBe(TITLES[ALPHA_TESTER_TITLE_ID]!.unlockLevel);
+  });
+
+  it('the SQL walk (cumulative weight in id order, first bucket above the roll) picks exactly what pickCrateReward picks, for every roll', () => {
+    const pool = fnBody('progression_crate_pool');
+    const w = (r: string): number => n(pool, `c_w_${r}`);
+    const catWeight = Object.fromEntries(seedRows('cosmetic_categories').map((r) => [r[0], Number(r[1])]));
+    for (const owned of [[], ['title_wanderer', 'title_the_unbroken'], eligibleCrateCosmetics([]).slice(1).map((c) => c.id)]) {
+      const eligible = eligibleCrateCosmetics(owned);
+      // SQL: order by id collate "C" (byte order), weight = rarity x category
+      const sqlPool = [...eligible].sort((a, b) => (Buffer.from(a.id) < Buffer.from(b.id) ? -1 : 1)).map((c) => ({ id: c.id, weight: w(c.rarity) * catWeight[c.category]! }));
+      expect(sqlPool.map((p) => p.weight)).toEqual(eligible.map(crateWeightOf));
+      const total = sqlPool.reduce((s, p) => s + p.weight, 0);
+      for (let roll = 0; roll < total; roll++) {
+        let acc = 0;
+        const sqlPick = sqlPool.find((p) => (acc += p.weight) > roll)!.id;
+        expect(sqlPick, `roll ${roll}`).toBe(pickCrateReward(eligible, roll)!.id);
+      }
+    }
   });
 });

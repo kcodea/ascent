@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { ALPHA_TESTER_TITLE_ID, levelProgress, titleName, type ProgressionResult } from '@game/progression';
 import { useGame } from '../store';
-import { markProgressionPresented, useProgression, wasProgressionPresented, type CurrentRunProgression } from './progressionStore';
+import { cratesVisible, markProgressionPresented, useProgression, wasProgressionPresented, type CurrentRunProgression } from './progressionStore';
 import { breakdownLines, xpText } from './progressionFormat';
+import { CrateOpener, type CrateQueueItem } from './CrateOpener';
 
 /**
  * THE POST-GAME ACCOUNT XP PANEL (account progression MVP, 2026-09-27; handoff §10).
@@ -14,6 +15,10 @@ import { breakdownLines, xpText } from './progressionFormat';
  * ANONYMOUS player at that moment, a gentle "Save your progress" prompt (never a gate) that opens the existing
  * account panel. A failed settlement reads "Progress pending. It will sync automatically." Continue is never
  * here: it stays the screen's own button, always available.
+ *
+ * CRATES (2026-09-28): when the settlement created crates (one per new level, plus the Welcome Crate on the
+ * first game), "Crate earned" appears after the bar settles, with an OPTIONAL Open button (the reveal plays
+ * inline; opening is never required to continue). A guest who earns a crate gets the same save prompt.
  *
  * MOTION: the fill is a `transform: scaleX` transition (compositor only, one-shot); the level badge pop is a
  * one-shot keyframe. Reduced motion, or a result already presented (a remount, a reload, a duplicate answer):
@@ -105,7 +110,9 @@ function SettledPanel({ result, reduced }: { result: ProgressionResult; reduced:
   const lines = breakdownLines(result);
   const unlockedAlpha = result.unlockedTitles.includes(ALPHA_TESTER_TITLE_ID);
   const reachedTwo = result.before.level < 2 && result.after.level >= 2;
-  const showSavePrompt = done && anonymous && (unlockedAlpha || reachedTwo);
+  const cratesOn = useProgression(cratesVisible);
+  const showCrates = done && cratesOn && result.crateIds.length > 0;
+  const showSavePrompt = done && anonymous && (unlockedAlpha || reachedTwo || showCrates);
   const levelsGained = after.level - before.level;
 
   return (
@@ -145,6 +152,7 @@ function SettledPanel({ result, reduced }: { result: ProgressionResult; reduced:
           <span className="acctxp-titlereveal-name">{titleName(ALPHA_TESTER_TITLE_ID)}</span>
         </div>
       )}
+      {showCrates && <PostgameCrates result={result} reduced={reduced} />}
       {showSavePrompt && (
         <div className="acctxp-save">
           <div className="acctxp-save-head">Save your progress</div>
@@ -153,5 +161,34 @@ function SettledPanel({ result, reduced }: { result: ProgressionResult; reduced:
         </div>
       )}
     </section>
+  );
+}
+
+/** "Crate earned" + the optional Open button, for the crates THIS settlement created (oldest level first). */
+function PostgameCrates({ result, reduced }: { result: ProgressionResult; reduced: boolean }): JSX.Element | null {
+  const crateList = useProgression((s) => s.crateList);
+  const [opening, setOpening] = useState(false);
+  const n = result.crateIds.length;
+  const queue: CrateQueueItem[] = useMemo(() => result.crateIds.map((crateId, i) => ({
+    crateId, earnedLevel: Math.max(1, result.after.level - (n - 1 - i)),
+  })), [result.crateIds, result.after.level, n]);
+  // Crates already opened elsewhere (the Collection, an earlier visit to this screen) drop out.
+  const sealed = queue.filter((c) => crateList?.find((x) => x.crateId === c.crateId)?.state !== 'opened');
+  if (!opening && sealed.length === 0) return null;
+  return (
+    <div className="acctxp-crates">
+      {!opening ? (
+        <div className="acctxp-crates-row">
+          <span className="acctxp-crates-icon" aria-hidden />
+          <div className="acctxp-crates-text">
+            <span className="acctxp-crates-head">{n === 1 ? 'Crate earned' : `${n} crates earned`}</span>
+            <span className="acctxp-crates-sub">Open now, or later from your Career.</span>
+          </div>
+          <button type="button" className="crate-btn pressable" onClick={() => setOpening(true)}>Open</button>
+        </div>
+      ) : (
+        <CrateOpener queue={sealed.length ? sealed : queue} autoOpen reducedMotion={reduced} />
+      )}
+    </div>
   );
 }

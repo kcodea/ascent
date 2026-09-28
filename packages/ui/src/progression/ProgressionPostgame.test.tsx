@@ -26,7 +26,7 @@ beforeEach(() => {
 const result = (over: Partial<ProgressionResult> = {}): ProgressionResult => ({
   runId: 'run-1', mode: 'ranked', rulesVersion: 1, placement: 1, comeback: true,
   xp: { base: 100, topFour: 40, firstPlace: 60, comeback: 25, total: 225 },
-  before: { lifetimeXp: 100, level: 1 }, after: { lifetimeXp: 325, level: 2 }, unlockedTitles: ['alpha_tester'], revisionAfter: 1,
+  before: { lifetimeXp: 100, level: 1 }, after: { lifetimeXp: 325, level: 2 }, unlockedTitles: ['alpha_tester'], cratesAwarded: 0, crateIds: [], revisionAfter: 1,
   settledAt: new Date().toISOString(), ...over,
 });
 function setCurrent(over: Partial<CurrentRunProgression> = {}, capability: 'on' | 'off' | 'unknown' = 'on'): void {

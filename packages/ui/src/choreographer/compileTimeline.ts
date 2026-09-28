@@ -18,6 +18,7 @@
  */
 import type { BeatConfigSnapshot } from './resolveTiming';
 import { EMPTY_CONFIG, clampTiming, resolveTiming, timingViolations } from './resolveTiming';
+import { repeatChainSchedule, type RepeatTickPace } from './repeatPacing';
 import type {
   AuthoredBeatConfig,
   CompiledBeat,
@@ -25,6 +26,7 @@ import type {
   CompiledTimeline,
   NormalizedTimelineInput,
   PresentationMode,
+  ResolvedBeatConfig,
   TimelineDiagnostic,
   TimelineSourceNode,
 } from './timelineTypes';
@@ -122,8 +124,11 @@ export function compileTimeline(input: NormalizedTimelineInput, options: Compile
   const deliveries: CompiledConsequenceDelivery[] = [];
   const beatById = new Map<string, CompiledBeat>();
 
-  const makeBeat = (node: TimelineSourceNode, startMs: number, lane: 'source' | 'reaction', parentBeatId?: string): CompiledBeat => {
-    const { value, provenance } = resolved.get(node.id)!;
+  const makeBeat = (node: TimelineSourceNode, startMs: number, lane: 'source' | 'reaction', parentBeatId?: string, pace?: { scale: number; accent: boolean; sharesSlot: boolean }): CompiledBeat => {
+    const { value: authored, provenance } = resolved.get(node.id)!;
+    // A paced repeat tick (R-REPEAT-04) plays the same beat SHAPE, scaled: every offset shrinks by one factor,
+    // so the delivery still lands inside the beat and the stagger still reads as a wave.
+    const value = pace && pace.scale !== 1 ? scaleTiming(authored, pace.scale) : authored;
     const beat: CompiledBeat = {
       id: `beat:${node.id}`,
       nodeId: node.id,
@@ -142,6 +147,7 @@ export function compileTimeline(input: NormalizedTimelineInput, options: Compile
       config: value,
       provenance,
       runtimeRef: node.runtimeRef,
+      ...(pace ? { pace: { scale: pace.scale, accent: pace.accent, sharesSlot: pace.sharesSlot } } : {}),
     };
     beats.push(beat);
     beatById.set(node.id, beat);
@@ -175,7 +181,7 @@ export function compileTimeline(input: NormalizedTimelineInput, options: Compile
 
   /** Pass 7 — place one beat's consequences at their delivery markers, staggered per target group. */
   const placeConsequences = (node: TimelineSourceNode, beat: CompiledBeat): void => {
-    const { value } = resolved.get(node.id)!;
+    const value = beat.config; // the beat's own (possibly repeat-paced) timing
     // Stagger counts PER MARKER: two effects delivering at different markers should not stagger each other.
     const seenPerMarker = new Map<string, number>();
     for (const c of node.consequences) {
@@ -208,7 +214,8 @@ export function compileTimeline(input: NormalizedTimelineInput, options: Compile
       const { value } = resolved.get(child.id)!;
       const start = resolveAnchorStart(child, parentBeat.deliveryMs, parentBeat);
       // A silent reaction still delivers its consequences (the projection must update) but occupies no time.
-      const beat = makeBeat(child, start, 'reaction', parentBeat.id);
+      // A reaction inside a PACED repeat tick is paced with it, or it would stretch the tick back out.
+      const beat = makeBeat(child, start, 'reaction', parentBeat.id, parentBeat.pace);
       placeConsequences(child, beat);
       placeChildren(child, beat);
       if (value.mode !== 'silent' && beat.completionMs > parentBeat.completionMs) {
@@ -221,10 +228,28 @@ export function compileTimeline(input: NormalizedTimelineInput, options: Compile
   // ── Pass 4–5: root order + placement ─────────────────────────────────────────────────────────────────
   let cursorMs = 0;
   const ordered = orderRoots(roots, diagnostics);
+  // REPEAT CHAIN PACING (owner 2026-09-27, R-REPEAT-04): End of Turn only. The previous paced tick, so a batched
+  // tick can share its slot's start.
+  const schedules = new Map<string, RepeatTickPace[]>();
+  let prevPaced: { key: string; index: number; startMs: number } | null = null;
   let i = 0;
   while (i < ordered.length) {
     const node = ordered[i];
     const groupId = node.simultaneousGroupId;
+    const pace = input.phase === 'endOfTurn' && !groupId ? repeatPaceOf(node, resolved.get(node.id)!.value, schedules) : null;
+    if (pace) {
+      const prev: { key: string; index: number; startMs: number } | null = prevPaced;
+      const shares: boolean = pace.tick.sharesSlot && prev !== null && prev.key === pace.key && prev.index === pace.index - 1;
+      const start: number = shares && prev ? prev.startMs : resolveAnchorStart(node, cursorMs);
+      const beat = makeBeat(node, start, 'source', undefined, { scale: pace.scale, accent: pace.tick.accent, sharesSlot: shares });
+      placeConsequences(node, beat);
+      placeChildren(node, beat);
+      cursorMs = Math.max(cursorMs, beat.recoveryEndMs);
+      prevPaced = { key: pace.key, index: pace.index, startMs: start };
+      i += 1;
+      continue;
+    }
+    prevPaced = null;
     // Simultaneous roots share a start and advance the cursor to the LATEST recovery end (§11 pass 5).
     const group = [node];
     if (groupId) {
@@ -245,8 +270,10 @@ export function compileTimeline(input: NormalizedTimelineInput, options: Compile
     i += group.length;
   }
 
-  // Deterministic output ordering — never rely on insertion order surviving a refactor.
-  beats.sort((a, b) => a.startMs - b.startMs || a.nodeId.localeCompare(b.nodeId));
+  // Deterministic output ordering — never rely on insertion order surviving a refactor. Ties break on the TIMELINE
+  // position before the id, so the ticks of one batched repeat slot (same start) stay in tick order.
+  const placedOrder = new Map(beats.map((b, k) => [b.id, k]));
+  beats.sort((a, b) => a.startMs - b.startMs || (a.pace && b.pace ? placedOrder.get(a.id)! - placedOrder.get(b.id)! : 0) || a.nodeId.localeCompare(b.nodeId));
   deliveries.sort((a, b) => a.atMs - b.atMs || a.id.localeCompare(b.id));
 
   const durationMs = Math.max(
@@ -264,4 +291,42 @@ export function compileTimeline(input: NormalizedTimelineInput, options: Compile
     diagnostics,
     configRevision: config.revision ?? 'default',
   };
+}
+
+/** Every offset of a resolved beat, scaled by one factor (a paced repeat tick). Mode, anchor and repeat mode stay. */
+function scaleTiming(v: ResolvedBeatConfig, k: number): ResolvedBeatConfig {
+  const markers: Record<string, number> = {};
+  for (const [key, ms] of Object.entries(v.deliveryMarkers)) markers[key] = ms * k;
+  return {
+    ...v,
+    deliveryOffsetMs: v.deliveryOffsetMs * k,
+    completionOffsetMs: v.completionOffsetMs * k,
+    recoveryMs: v.recoveryMs * k,
+    targetStaggerMs: v.targetStaggerMs * k,
+    repeatGapMs: v.repeatGapMs * k,
+    deliveryMarkers: markers,
+  };
+}
+
+/**
+ * The pace of one root node, or null when it is not a paced repeat tick. A tick is paced when it is an own
+ * beat that carries a repeat of 2 or more (a "Repeat for every …" tick, a Chronos repeat, a rune replay), keyed
+ * by its source + identity + count so two chains never share a schedule slot.
+ */
+function repeatPaceOf(
+  node: TimelineSourceNode,
+  value: ResolvedBeatConfig,
+  schedules: Map<string, RepeatTickPace[]>,
+): { key: string; index: number; scale: number; tick: RepeatTickPace } | null {
+  const rep = node.repeat;
+  if (!rep || rep.count < 2 || rep.index < 0 || rep.index >= rep.count) return null;
+  if (value.mode !== 'ownBeat') return null;
+  const full = value.completionOffsetMs + value.recoveryMs;
+  if (!(full > 0)) return null;
+  const s = node.source;
+  const key = `${s.kind}:${s.id}:${s.uid ?? ''}:${node.policyKey ?? node.trigger}:${rep.count}:${full}`;
+  let schedule = schedules.get(key);
+  if (!schedule) { schedule = repeatChainSchedule(rep.count, full); schedules.set(key, schedule); }
+  const tick = schedule[rep.index]!;
+  return { key, index: rep.index, scale: tick.spanMs / full, tick };
 }

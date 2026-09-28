@@ -256,6 +256,19 @@ const CARD_BINDINGS: Record<string, Record<string, { def: string; fanOut?: strin
   wo_health: { spellCast: { def: 'defensive-ale', fanOut: 'buffed' } },
   wo_mine: { spellCast: { def: 'coin-ale', fanOut: 'buffed' } },
   wo_reinforcement: { spellCast: { def: 'reinforcing-ale', fanOut: 'buffed' } },
+  // The Dwarf voices pilot (owner 2026-09-28): generated clips bound through the By-card view by `vo:approve`,
+  // a spoken line or grunt On Play and a sound On Death. Each def is a one-layer Sound def (`sfx-vo-<card>`).
+  dw_orin: { minionPlayed: { def: 'sfx-vo-dw-orin' }, death: { def: 'sfx-vo-dw-orin-death' } },
+  dw_ironlung: { minionPlayed: { def: 'sfx-vo-dw-ironlung' }, death: { def: 'sfx-vo-dw-ironlung-death' } },
+  dw_brunni: { minionPlayed: { def: 'sfx-vo-dw-brunni' }, death: { def: 'sfx-vo-dw-brunni-death' } },
+  dw_edward: { minionPlayed: { def: 'sfx-vo-dw-edward' }, death: { def: 'sfx-vo-dw-edward-death' } },
+  dw_coinfire: { minionPlayed: { def: 'sfx-vo-dw-coinfire' }, death: { def: 'sfx-vo-dw-coinfire-death' } },
+  dw_billings: { minionPlayed: { def: 'sfx-vo-dw-billings' }, death: { def: 'sfx-vo-dw-billings-death' } },
+  dw_runemaster: { minionPlayed: { def: 'sfx-vo-dw-runemaster' }, death: { def: 'sfx-vo-dw-runemaster-death' } },
+  dw_brakka: { minionPlayed: { def: 'sfx-vo-dw-brakka' }, death: { def: 'sfx-vo-dw-brakka-death' } },
+  dw_chickenbrawl: { minionPlayed: { def: 'sfx-vo-dw-chickenbrawl' }, death: { def: 'sfx-vo-dw-chickenbrawl-death' } },
+  dw_dorrin: { minionPlayed: { def: 'sfx-vo-dw-dorrin' }, death: { def: 'sfx-vo-dw-dorrin-death' } },
+  dw_kegheart: { minionPlayed: { def: 'sfx-vo-dw-kegheart' }, death: { def: 'sfx-vo-dw-kegheart-death' } },
 };
 
 /** Bindings that FAN OUT rather than playing once at the moment's own pair. `attackExchange` is in here for a

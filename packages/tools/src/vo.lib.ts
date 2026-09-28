@@ -17,8 +17,17 @@ export const DRAFTS_DIR = 'vo-drafts';
 export const VOICE_DRAFTS_DIR = 'vo-drafts/voices';
 export const STATE_FILE = 'state.json';
 export const MANIFEST_PATH = 'packages/tools/vo-lines.json';
-/** Where a card's clips go: the game plays `cards/<cardId>.mp3` / `.death.mp3` / `.effect.mp3` with no wiring. */
-export const CARD_AUDIO_DIR = 'packages/ui/src/audio/cards';
+/**
+ * The `dest` of a CARD clip: approving it binds the sound to that card's slot in the FX workbench's "By card" view,
+ * exactly as the workbench's own import does. The mp3 lands in `audio/fx/<slug>.mp3`, a one-layer Sound def in
+ * `fx/defs/sfx-<slug>.json`, and the binding in `choreo/bindings.json`. The clip id names the slot: `<cardId>` =
+ * On Play, `<cardId>.death` = On Death.
+ */
+export const CARD_DEST = 'card';
+export const FX_AUDIO_DIR = 'packages/ui/src/audio/fx';
+export const FX_DEFS_DIR = 'packages/ui/src/fx/defs';
+export const BINDINGS_PATH = 'packages/ui/src/choreo/bindings.json';
+const CARD_CLIP_ID = /^([a-z0-9]+(?:_[a-z0-9]+)*)(\.death)?$/;
 
 /** A clip id is its final file name (no extension): kebab-case announcer ids, or card ids like `dw_orin.death`. */
 const FILE_ID = z.string().regex(/^[a-z0-9]+([._-][a-z0-9]+)*$/, 'ids are lowercase file names, e.g. triple-3 or dw_orin.death');
@@ -45,7 +54,7 @@ const LineSchema = z.object({
   id: FILE_ID,
   voice: z.string().min(1),
   text: z.string().min(1),
-  /** Overrides the voice's `dest` (e.g. a cast voice speaking a card line into audio/cards). */
+  /** Overrides the voice's `dest` (e.g. `card` for a cast voice speaking a card's line). */
   dest: z.string().min(1).optional(),
 });
 
@@ -71,8 +80,8 @@ const DesignSchema = z.object({
   description: z.string().min(20).max(1000),
   /** What the previews say (100–1000 characters); omitted → ElevenLabs writes a sample for the description. */
   text: z.string().min(100).max(1000).optional(),
-  /** The saved voice's `dest` (defaults to the card audio folder). */
-  dest: z.string().min(1).default(CARD_AUDIO_DIR),
+  /** The saved voice's `dest` (defaults to `card`: the cast speaks card lines). */
+  dest: z.string().min(1).default(CARD_DEST),
   /** TTS model the saved voice speaks with. */
   model: z.string().min(1).default('eleven_multilingual_v2'),
 });
@@ -91,6 +100,11 @@ export const ManifestSchema = z.object({
   }
   for (const l of m.lines) {
     if (!m.voices[l.voice]) ctx.addIssue({ code: 'custom', message: `line "${l.id}" uses unknown voice "${l.voice}"` });
+  }
+  for (const c of clipsOf(m as Manifest)) {
+    if (clipDest(c) === CARD_DEST && !CARD_CLIP_ID.test(c.id)) {
+      ctx.addIssue({ code: 'custom', message: `card clip "${c.id}" must be <cardId> (On Play) or <cardId>.death (On Death)` });
+    }
   }
   const keys = new Set<string>();
   for (const d of m.designs) {
@@ -113,7 +127,8 @@ export type Clip =
 
 export function clipsOf(m: Manifest): Clip[] {
   return [
-    ...m.lines.map((line): Clip => ({ kind: 'line', id: line.id, line, voice: m.voices[line.voice]! })),
+    ...m.lines.filter((line) => m.voices[line.voice])
+      .map((line): Clip => ({ kind: 'line', id: line.id, line, voice: m.voices[line.voice]! })),
     ...m.sfx.map((sfx): Clip => ({ kind: 'sfx', id: sfx.id, sfx })),
   ];
 }
@@ -121,6 +136,57 @@ export function clipsOf(m: Manifest): Clip[] {
 /** Repo-relative folder the clip's approved take lands in. */
 export function clipDest(c: Clip): string {
   return c.kind === 'line' ? c.line.dest ?? c.voice.dest : c.sfx.dest;
+}
+
+/** The By-card slot a card clip fills: which card, which binding kind, and the file/def names it gets. */
+export interface CardSlot {
+  cardId: string;
+  /** `minionPlayed` (a minion's On Play), `spellCast` (a spell's On Play) or `death` (On Death). */
+  kind: 'minionPlayed' | 'spellCast' | 'death';
+  /** The clip's slug: `audio/fx/<slug>.mp3`, clip id `fx/<slug>`. `vo-` marks a generated clip. */
+  slug: string;
+  /** The Sound def the binding names: `fx/defs/<defId>.json`. */
+  defId: string;
+}
+
+/** The slot a card clip id names. `spell` picks spellCast over minionPlayed for On Play. */
+export function cardSlot(id: string, spell = false): CardSlot {
+  const m = CARD_CLIP_ID.exec(id);
+  if (!m) throw new Error(`"${id}" is not a card clip id (<cardId> or <cardId>.death)`);
+  const cardId = m[1]!;
+  const death = !!m[2];
+  const slug = `vo-${cardId.replace(/_/g, '-')}${death ? '-death' : ''}`;
+  return { cardId, kind: death ? 'death' : spell ? 'spellCast' : 'minionPlayed', slug, defId: `sfx-${slug}` };
+}
+
+/** The repo-relative file an approved take becomes. */
+export function clipFile(c: Clip): string {
+  const dest = clipDest(c);
+  return dest === CARD_DEST ? `${FX_AUDIO_DIR}/${cardSlot(c.id).slug}.mp3` : `${dest}/${c.id}.mp3`;
+}
+
+/** The one-layer Sound def a card clip is bound through (the same shape the workbench's import writes). */
+export function soundDef(slot: CardSlot): Record<string, unknown> {
+  return {
+    version: 1,
+    id: slot.defId,
+    duration: 1000,
+    layers: [{ primitive: 'sound', anchor: 'travel', at: 0, params: { clip: `fx/${slot.slug}` } }],
+  };
+}
+
+export interface Bindings { version?: number; kinds?: Record<string, unknown>; cards: Record<string, Record<string, { def: string } & Record<string, unknown>>> }
+
+/**
+ * Bind a card slot to its def in bindings.json (pure: returns the new object). A slot already bound to ANOTHER def
+ * is `taken` and left alone, so an approval never replaces a sound someone chose in the workbench.
+ */
+export function bindCardSlot(b: Bindings, slot: CardSlot): { bindings: Bindings; status: 'added' | 'same' | 'taken'; existing?: string } {
+  const existing = b.cards[slot.cardId]?.[slot.kind]?.def;
+  if (existing === slot.defId) return { bindings: b, status: 'same' };
+  if (existing) return { bindings: b, status: 'taken', existing };
+  const card = { ...(b.cards[slot.cardId] ?? {}), [slot.kind]: { def: slot.defId } };
+  return { bindings: { ...b, cards: { ...b.cards, [slot.cardId]: card } }, status: 'added' };
 }
 
 /** What the clip says or is, for printing. */

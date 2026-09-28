@@ -196,7 +196,7 @@ progression **epoch**; nothing finished before the epoch counts (no backfill).
   **titles** (15 crate titles: 7 Common, 5 Rare, 2 Epic, 1 Legendary) and, since the skins shipped the same day,
   **hero skins** and **minion skins** (all from crates) and **hero attacks** (the first, Arcane Barrage). The other
   categories are feature-flagged off until their art exists. Crate odds are rarity weight x category weight over what
-  remains: a fresh account's first crate is about 32% a skin or hero attack (the attack alone about 2.2%).
+  remains: a fresh account's first crate is about 31% a skin or hero attack (the Legendary attack alone about 0.6%).
 - **Skins (2026-09-28; oracle R-PROG-SKINS-01, R-PROG-SKINS-04).** A hero skin replaces one hero's portrait; a
   minion skin replaces one card's art, by stable id. Equipped per target from the Collection's Heroes / Minions
   tabs through the server (`equip_cosmetic`: owned, made for that hero or card, live); **"Use default art"** is
@@ -211,8 +211,8 @@ progression **epoch**; nothing finished before the epoch counts (no backfill).
   history show the skins worn in **that** run, never anyone's current loadout; any payload from before skins is
   default art.
 - **Hero attacks (2026-09-28; oracle R-PROG-ATTACK-01..03).** How your hero lands the post-combat blow. **Classic**
-  (the lunge) is everyone's default; **Blast** is the first cosmetic, `attack_blast` ("Arcane Barrage", Epic, from
-  crates): the contributing numbers combine into one total, the hero charges, the view pushes in, and bolts (a single
+  (the lunge) is everyone's default; **Blast** is the first cosmetic, `attack_blast` ("Arcane Barrage", Legendary,
+  from crates; animation and tier thresholds owner-approved): the contributing numbers combine into one total, the hero charges, the view pushes in, and bolts (a single
   beam on the biggest hits) carry the blow, escalating by damage tier (I 1-5, II 6-11, III 12-19, IV 20+). Equipped
   account-wide in the Collection's Attack Animations tab ("Use Classic" takes it off). The STRIKER's attack plays:
   yours when you win, the opponent's (from their recorded snapshot) when they win. Recorded per run like skins;

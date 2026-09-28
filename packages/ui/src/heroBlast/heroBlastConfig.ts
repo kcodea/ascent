@@ -21,7 +21,8 @@
  *     add secondary explosions, lingering embers and a scorch. Then everything settles.
  *
  * DAMAGE TIERS (Hearthstone's Strikes step up with the blow; our thresholds follow the engine's per-round loss caps of
- * 5 / 10 / 15 / 20): I 1-5, II 6-11, III 12-19, IV 20+. Every tier escalates the numbers' flight, the slam, the charge,
+ * 5 / 10 / 15 / 20): I 1-5, II 6-11, III 12-19, IV 20+. APPROVED by the owner 2026-09-28 ("those are good thresholds,
+ * this blast animation looks good! make it a legendary reward"): 6 / 12 / 20 are the shipped defaults. Every tier escalates the numbers' flight, the slam, the charge,
  * the volley, the hit-stop, the camera, the impact and the audio. Small hits stay brisk (~1.8 s); the top tier earns a
  * ~3.5 s show. Reduced motion: no flight, bolts, shake, zoom or hit-stop; the numbers and the total fade.
  *

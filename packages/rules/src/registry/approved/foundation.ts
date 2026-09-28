@@ -2025,19 +2025,21 @@ export const FOUNDATION_RULES: GameRule[] = [
   },
   {
     id: 'R-PROG-ATTACK-01',
-    title: 'Hero attacks are cosmetics: Classic is everyone\'s default, Blast ("Arcane Barrage", attack_blast, Epic) drops from crates',
+    title: 'Hero attacks are cosmetics: Classic is everyone\'s default, Blast ("Arcane Barrage", attack_blast, Legendary) drops from crates',
     statement:
-      'The hero_attack cosmetic category is live. Its first item is attack_blast (placeholder name "Arcane Barrage", Epic, '
+      'The hero_attack cosmetic category is live. Its first item is attack_blast (placeholder name "Arcane Barrage", Legendary, '
       + 'crate-sourced, account-wide: target global, no hero or card), whose assets name the animation it plays (style blast). '
       + 'Nobody plays Blast by default: without an equipped hero attack the post-combat blow is the Classic lunge. It is '
       + 'equipped in the Collection\'s Attack Animations tab (Equip, or "Use Classic" to take it off) through equip_cosmetic '
       + 'with slot hero_attack and target \'\' (the SQL refuses any other target, an unowned item, a skin in the attack slot '
-      + 'and the attack in a skin slot). Adding it re-pinned the first-crate odds to Common 46.5%, Rare 30.8%, Epic 21.0%, '
-      + 'Legendary 1.6%; a non-title item 32.1%; the attack itself 2.2%.',
+      + 'and the attack in a skin slot). The owner approved the animation and made it a Legendary reward, which re-pinned '
+      + 'the first-crate odds to Common 47.3%, Rare 31.3%, Epic 19.2%, Legendary 2.2%; a non-title item 31.0%; the '
+      + 'attack itself 0.6%.',
     domain: 'foundation',
     status: 'approved',
     evidence: [
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-28 (Blast hero attack)', quote: 'the new blast attack is going to be a cosmetic unlock, not a new default' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-28 (Blast approval)', quote: 'those are good thresholds, this blast animation looks good! make it a legendary reward' },
       { kind: 'code', ref: 'packages/progression/src/cosmetics.ts (hero_attack enabled, attack_blast, heroAttackOf, EQUIP_SLOTS); supabase/migrations/2026-09-28-progression-hero-attack.sql; packages/ui/src/progression/CollectionScreen.tsx' },
     ],
     currentBehaviour: 'Conforms, built 2026-09-28. The item reaches the database on the next deploy of progression-inventory (the catalog sync); equipping needs the hero attack migration run.',
@@ -2070,11 +2072,12 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'on a lobby loss). Blast combines the contributing numbers into a total that always ends on exactly that value (never '
       + 'a DOM sum), and fires the consequence (the health drop, Armor first, via settleCombat) exactly once, on the frame the '
       + 'lead bolt or beam lands; if frames stop, a safety timer still lands it. It escalates by damage tier (I 1-5, II 6-11, '
-      + 'III 12-19, IV 20+; IV fires a beam) and under reduced motion it is fades only (no flight, bolts, shake, zoom or '
+      + 'III 12-19, IV 20+; IV fires a beam; the thresholds 6 / 12 / 20 are owner-approved) and under reduced motion it is fades only (no flight, bolts, shake, zoom or '
       + 'hit-stop). Leaving the fight mid-animation cancels it without landing, exactly as Classic\'s timers are cleared.',
     domain: 'foundation',
     status: 'approved',
     evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-28 (Blast approval)', quote: 'those are good thresholds, this blast animation looks good! make it a legendary reward' },
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-28 (Blast hero attack)', quote: 'i want the numbers to all combine, and then the screen slightly shakes and zooms as he blasts pixi blasts from the hero to the opponent to deal the damage' },
       { kind: 'code', ref: 'packages/ui/src/heroBlast/heroBlastConfig.ts (blastPlan, blastCounts, tierOf); packages/ui/src/heroBlast/heroBlast.ts (playHeroBlast); packages/ui/src/heroBlast/heroStrikeDamage.ts; packages/ui/src/Recruit.tsx' },
     ],

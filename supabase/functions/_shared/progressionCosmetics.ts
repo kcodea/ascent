@@ -159,9 +159,10 @@ export const COSMETICS: readonly CosmeticDef[] = Object.freeze([
   skin('skin_albus_1', 'hero_skin', 'Surf Day Albus', 'epic', 'albus', 'Albus1.png'),
   skin('skin_warden_1', 'hero_skin', 'Bath Day Warden', 'epic', 'warden', 'Warden1.png'),
   // HERO ATTACKS. Owner 2026-09-28: "the new blast attack is going to be a cosmetic unlock, not a new default". The
-  // numbers combine, the hero charges, the view shakes and pushes in, bolts carry the blow. The name is a placeholder
-  // for the owner to rename (the id stays).
-  heroAttack('attack_blast', 'Arcane Barrage', 'epic', 'blast'),
+  // numbers combine, the hero charges, the view shakes and pushes in, bolts carry the blow. Then, on seeing it: "those
+  // are good thresholds, this blast animation looks good! make it a legendary reward" (Epic -> Legendary). The name is
+  // a placeholder for the owner to rename (the id stays).
+  heroAttack('attack_blast', 'Arcane Barrage', 'legendary', 'blast'),
 ]);
 
 export const COSMETIC_INDEX: Readonly<Record<string, CosmeticDef>> = Object.freeze(

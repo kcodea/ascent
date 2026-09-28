@@ -32,14 +32,16 @@ everyone's default; Blast only plays for a player who owns and equips "Arcane Ba
   Pixi on the above-portrait slot, moves the camera on `#stage` (composed with the stage's own scale) and mirrors it
   onto the Pixi root, dims inside `#stage`, and puts its numbers in a top-level layer above the FX.
 - **The cosmetic** (`packages/progression/src/cosmetics.ts`): `hero_attack` enabled; `attack_blast` (placeholder name
-  "Arcane Barrage", Epic, crate, global target, `assets.style: 'blast'`). The loadout and run snapshot carry
+  "Arcane Barrage", Legendary, crate, global target, `assets.style: 'blast'`). The loadout and run snapshot carry
   `heroAttack`; `scopeCosmetics` and the seat union keep it, so an opponent's attack plays when they strike you, and
   replays play the recorded one. Unknown or retired ids play Classic. `equip_cosmetic` accepts slot `hero_attack` with
   target `''` (new migration). The Collection's Attack Animations tab is live, with a sandbox preview.
 - **Setting renamed**: "Show opponent skins" is now "Show opponent cosmetics" (same stored key) and also covers an
   opponent's hero attack: off, they strike you with Classic. One switch for everything other players wear.
-- **Crate odds** re-pinned (first crate): Common 46.5%, Rare 30.8%, Epic 21.0%, Legendary 1.6%; a non-title 32.1%;
-  the attack 2.2% (was 47.6 / 31.5 / 19.3 / 1.7, non-title 30.6).
+- **Owner approval**: "those are good thresholds, this blast animation looks good! make it a legendary reward". So
+  `attack_blast` is **Legendary** (it landed as Epic) and the tier thresholds 6 / 12 / 20 are the approved defaults.
+- **Crate odds** re-pinned (first crate): Common 47.3%, Rare 31.3%, Epic 19.2%, Legendary 2.2%; a non-title 31.0%;
+  the attack 0.6% (was 47.6 / 31.5 / 19.3 / 1.7, non-title 30.6 before it; 46.5 / 30.8 / 21.0 / 1.6 while Epic).
 - **Tuner** (dev menu, "Hero Attack: Blast"): every global and per-tier dial, colours, a clip / gain / pitch per sound
   cue, Play both directions, Small / Medium / Huge, reduced motion, 1x / 0.5x / 0.25x, Copy JSON, and the Attack style
   row (Auto / Classic / Blast) that forces a style in dev builds. Production plays the baked defaults.
@@ -72,6 +74,6 @@ the dev override), so it is part of the owner's post-deploy pass.
 
 ## Open for the owner
 
-- The name "Arcane Barrage" and the Epic rarity are placeholders.
+- The name "Arcane Barrage" is a placeholder (the Legendary rarity is the owner's call).
 - Sounds are layered from existing clips (listed in the PR). Purpose-made clips would lift it further: a short
   bright number tick, a punchy total slam, a 0.3 to 0.8 s riser, a beam tear, and a tight impact with a low thump.

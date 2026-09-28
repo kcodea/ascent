@@ -63,7 +63,7 @@ describe('the Attack Animations tab', () => {
     expect(t.className).not.toMatch(/\blocked\b/);
     expect(t.querySelector('.colls-tab-count')?.textContent).toBe('1/1');
     act(() => t.click());
-    expect(tile('Arcane Barrage').getAttribute('aria-label')).toBe('Arcane Barrage, Epic, owned');
+    expect(tile('Arcane Barrage').getAttribute('aria-label')).toBe('Arcane Barrage, Legendary, owned');
     expect(text('.colls-detail .colls-kicker')).toBe('Hero attack');
     expect($('.colls-detail .hapv-box')).not.toBeNull();
     expect(button('▶ Preview')).toBeTruthy();

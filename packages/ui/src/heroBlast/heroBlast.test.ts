@@ -371,7 +371,7 @@ describe('the attack style', () => {
   });
 
   it('an equipped cosmetic picks its style (Arcane Barrage plays Blast); a retired or unknown id falls back to Classic', () => {
-    expect(COSMETIC_INDEX.attack_blast).toMatchObject({ category: 'hero_attack', rarity: 'epic', assets: { style: 'blast' } });
+    expect(COSMETIC_INDEX.attack_blast).toMatchObject({ category: 'hero_attack', rarity: 'legendary', assets: { style: 'blast' } });
     expect(styleOfCosmetic('attack_blast')).toBe('blast');
     expect(resolveHeroAttackStyle({ attacker: 'opp', devChoice: 'auto', attackerCosmeticId: 'attack_blast' })).toBe('blast');
     for (const bad of ['attack_gone', 'toString', 'skin_albus_1', 'title_wanderer', null, undefined]) {

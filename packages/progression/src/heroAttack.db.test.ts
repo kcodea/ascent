@@ -83,11 +83,11 @@ beforeAll(async () => {
 afterAll(async () => { await db?.close(); });
 
 describe('the hero attack slot', () => {
-  it('the sync switches the category on and adds attack_blast as a global (targetless) Epic crate item', async () => {
+  it('the sync switches the category on and adds attack_blast as a global (targetless) Legendary crate item', async () => {
     const cat = await one<{ enabled: boolean; target: string }>("select enabled, target from public.cosmetic_categories where category = 'hero_attack'");
     expect(cat).toEqual({ enabled: true, target: 'global' });
     const item = await one("select category, rarity, acquisition_source, target_type, target_id, active from public.cosmetic_catalog where cosmetic_id = 'attack_blast'");
-    expect(item).toEqual({ category: 'hero_attack', rarity: 'epic', acquisition_source: 'crate', target_type: null, target_id: null, active: true });
+    expect(item).toEqual({ category: 'hero_attack', rarity: 'legendary', acquisition_source: 'crate', target_type: null, target_id: null, active: true });
   });
 
   it('equips an owned attack with target \'\'; the profile loadout carries it; null goes back to Classic', async () => {

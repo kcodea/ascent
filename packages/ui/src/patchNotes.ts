@@ -76,7 +76,7 @@ export const PATCH_NOTES: PatchNote[] = [
       },
       {
         category: 'Systems',
-        text: 'A new unlockable hero attack, Arcane Barrage, can drop from crates.',
+        text: 'A new Legendary hero attack, Arcane Barrage, can drop from crates.',
         details: [
           'Your numbers combine into one total, your hero charges up, and a volley of bolts hits the other hero. The biggest hits fire one huge beam.',
           'The bigger the hit, the bigger the show.',

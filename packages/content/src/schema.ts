@@ -750,7 +750,9 @@ export const QuestCombatFlagSchema = z.enum(['bloodTrail', 'echoingCoop', 'lawOf
   // tranche 3: Spirit + Dwarf
   'runeCallAndAnswer', 'runeEncore', 'runeKindredHand', 'runeWhetstone', 'runeAnvil', 'runeSatchel',
   // tranche 4: hybrids
-  'runeGemCrypt', 'runePallbearer', 'runeStarTap', 'runeClosingTime', 'runeGrimToast', 'runeGemStar', 'runeKeepsakeGem']);
+  'runeGemCrypt', 'runePallbearer', 'runeStarTap', 'runeClosingTime', 'runeGrimToast', 'runeGemStar', 'runeKeepsakeGem',
+  // tranche 5: Menagerie + neutral
+  'runeHeavyHand', 'runeUnity']);
 
 // The reward palette — a discriminated union kept in lockstep with the `QuestReward` type in @game/core.
 export const QuestRewardSchema: z.ZodType = z.lazy(() => z.discriminatedUnion('kind', [

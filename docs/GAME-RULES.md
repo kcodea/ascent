@@ -726,6 +726,16 @@ stats), the **Keepsake Gem** (Kobold + Spirit, the owner's stronger version: eve
 left-most minion in your hand, as a plain grant that no Ruby trigger hears, so it cannot loop). Oracle
 R-SET3RUNE-30..37; details in `docs/devlog/2026-09-27-set3-runes-t4.md`.
 
+**Design pass tranche 5: Menagerie + neutral (owner 2026-09-27)** adds 3 Set-3-only runes (**203 runes, 109 Basic / 94
+Epic**): the Set 3 **Menagerie** (Basic 5: a random Kobold, Dwarf, Undead, Spirit and Celestial), the **Heavy Hand**
+(Neutral Basic 2: damage your minions deal counts double toward Pummel; the per-combat caps still bind) and **Unity**
+(Epic 6: while you control all 5 minion types, your minions count as every type). Unity reads only NATURAL types
+(printed tribes, All-types cards), so it cannot hold itself up: lose the last minion of a type and the grant ends at
+once, in the Shop and mid-fight. It covers board minions, not the hand. A Unity body counts as Undead, so it takes the
+whole Undead Aura as a fold (never baked). Combat tribe checks now also honour a per-instance "every type" mark
+(`universalTribe` on the body), which is also what an Anomaly Reactor "All" body always meant. Oracle R-SET3RUNE-38..40;
+details in `docs/devlog/2026-09-27-set3-runes-t5.md`.
+
 **Set 3-original runes (batch 2, 2026-09-16).** Set 3 now also has runes of its own — `sets: ['set3']` alone,
 no origin scope — starting with tranche A's 24 Spirit / Celestial / Undead runes (11 Basic + 13 Epic, taking the
 set-3 static pool to **126 Basic / 111 Epic**), plus the rune-exclusive **Handy Flame** token. The two combat-side

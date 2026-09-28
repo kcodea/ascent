@@ -93,6 +93,7 @@ function boardCardExemplar(): Required<BoardCard> {
     golden: true,
     addedTribes: ['mech'],
     allTribes: true,
+    unityTribes: true, // Rune of Unity's Shop mark: combat re-derives Unity from the run flag, see the registry
     chosenOption: 1,
     chosenBoth: true, // Rune of Sold Choices' (Both) record — shop-only, see the registry
     grantedTier: 3,

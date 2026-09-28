@@ -1851,7 +1851,9 @@ export type QuestCombatFlag = 'bloodTrail' | 'echoingCoop' | 'lawOfTeeth' | 'old
   // hand minion +2/+2; starTap = an Ale cast gives the Starform +3/+3; closingTime = a Reveler sold gets an Ale (Shop);
   // grimToast = your Dwarves also get the Undead Aura; gemStar = the first 4 Rubies cast each turn also give the
   // Starform their stats; keepsakeGem = every Ruby also casts on the left-most hand minion.
-  | 'runeGemCrypt' | 'runePallbearer' | 'runeStarTap' | 'runeClosingTime' | 'runeGrimToast' | 'runeGemStar' | 'runeKeepsakeGem';
+  | 'runeGemCrypt' | 'runePallbearer' | 'runeStarTap' | 'runeClosingTime' | 'runeGrimToast' | 'runeGemStar' | 'runeKeepsakeGem'
+  // Tranche 5: heavyHand = friendly damage counts double toward Pummel; unity = all 5 types controlled → every type.
+  | 'runeHeavyHand' | 'runeUnity';
 /** Quest-armed combat modifiers threaded into `simulate()` (one trailing options arg). Beast quest capstones +
  *  greaters live here so the pure combat engine can honor them without new positional params per flag. */
 export interface QuestCombatMods {
@@ -2155,6 +2157,11 @@ export interface QuestCombatMods {
   gemStarLeft?: number;
   /** Rune of the Keepsake Gem: every Ruby cast also lands its stats on the left-most hand minion (a hand buff). */
   runeKeepsakeGem?: boolean;
+  // ── tranche 5 ──
+  /** Rune of the Heavy Hand: this side's damage counts double toward Pummel (one extra share per copy). */
+  runeHeavyHand?: boolean;
+  /** Rune of Unity: while this side controls every active minion type (naturally), its minions count as every type. */
+  runeUnity?: boolean;
   /** Rune of Falling Embers' Star Crash bonus (the run's `starCrashBonus`), so a combat Star Crash pays it too. */
   starCrashBonus?: { attack: number; health: number };
   /** Rune of the War Drum's UNSPENT shop charge (owner ruling 2026-08-26: "1/1 use, resets at start of turn —

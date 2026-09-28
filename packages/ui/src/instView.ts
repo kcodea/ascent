@@ -1,6 +1,6 @@
 import { damageMeterOf, type Keyword, type Tribe } from '@game/core';
 import { CARD_INDEX } from '@game/content';
-import { spiritsPlayedThisTurn, playedThisTurnFor, anySpellsCastThisTurn, CONFIG, chooseBothActive, dominantBoardTribe, hasTier7Access, rubyStatBonus, runeStacksOf, spellAttackBonus, spellDisplayText, spellHealthBonus, type BoardCard, type RunState, grimToastFold, defIsTribe } from '@game/sim';
+import { spiritsPlayedThisTurn, playedThisTurnFor, anySpellsCastThisTurn, CONFIG, chooseBothActive, dominantBoardTribe, hasTier7Access, rubyStatBonus, runeStacksOf, spellAttackBonus, spellDisplayText, spellHealthBonus, type BoardCard, type RunState, grimToastFold, unityAuraFold, defIsTribe } from '@game/sim';
 import type { CardView } from './Card';
 import {
   abhorrentHorrorText, ascendProgressText, asymSummonBuffText, cadenceProgressText, cardTypeTallyText, chefRaagText, clingProgressText,
@@ -292,7 +292,7 @@ export function instView(
   spellsCast = 0,
   clingEnchant?: { attack: number; health: number },
   fodderConsumed?: { attack: number; health: number },
-  live?: { grimToast?: { attack: number; health: number }; nextSpellBonus?: { attack: number; health: number }; undeadBuyAtk?: number; soulsmanGold?: number; impAura?: { attack: number; health: number }; cardBuffs?: Record<string, { attack: number; health: number }>; castMult?: number; goldSpent?: number; goldSpentRun?: number; goldPouchValue?: number; playedThisTurn?: string[]; squirlScoutBuff?: number; conductorBuff?: number; lastSpellName?: string; rememberedSpellNames?: readonly string[]; impBank?: { attack: number; health: number }; firstSpellThisTurnName?: string; lastSpellThisTurnName?: string; topTribe?: string | null; frontToBackBonusH?: number; onBoard?: boolean; inHand?: boolean; eotTickOverride?: number; improveReps?: number; rubyCasts?: number; rubyBonus?: { attack: number; health: number }; clueBonus?: number; starCrashBonus?: { attack: number; health: number }; revelerX?: number; spiritDiscount?: number; spiritsPlayed?: number; anySpellsThisTurn?: number; grimoireCharged?: boolean; runeMammoth?: boolean; runeFlags?: RuneTextFlags; tier7Access?: boolean; alesThisTurn?: number; unusedEquipment?: number; /** The run flags the (Both) predicate reads (`runeFacetwright` / `runeUnbrokenVein`) — passed rather than a precomputed boolean so the ONE predicate stays the only place the rule lives. */ chooseBothState?: { runeFacetwright?: boolean; runeUnbrokenVein?: boolean } },
+  live?: { grimToast?: { attack: number; health: number }; unityAura?: { attack: number; health: number }; nextSpellBonus?: { attack: number; health: number }; undeadBuyAtk?: number; soulsmanGold?: number; impAura?: { attack: number; health: number }; cardBuffs?: Record<string, { attack: number; health: number }>; castMult?: number; goldSpent?: number; goldSpentRun?: number; goldPouchValue?: number; playedThisTurn?: string[]; squirlScoutBuff?: number; conductorBuff?: number; lastSpellName?: string; rememberedSpellNames?: readonly string[]; impBank?: { attack: number; health: number }; firstSpellThisTurnName?: string; lastSpellThisTurnName?: string; topTribe?: string | null; frontToBackBonusH?: number; onBoard?: boolean; inHand?: boolean; eotTickOverride?: number; improveReps?: number; rubyCasts?: number; rubyBonus?: { attack: number; health: number }; clueBonus?: number; starCrashBonus?: { attack: number; health: number }; revelerX?: number; spiritDiscount?: number; spiritsPlayed?: number; anySpellsThisTurn?: number; grimoireCharged?: boolean; runeMammoth?: boolean; runeFlags?: RuneTextFlags; tier7Access?: boolean; alesThisTurn?: number; unusedEquipment?: number; /** The run flags the (Both) predicate reads (`runeFacetwright` / `runeUnbrokenVein`) — passed rather than a precomputed boolean so the ONE predicate stays the only place the rule lives. */ chooseBothState?: { runeFacetwright?: boolean; runeUnbrokenVein?: boolean } },
 ): CardView {
   const c = CARD_INDEX[inst.cardId];
   const spell = c.spell === true || c.id === 'discoverspell';
@@ -338,7 +338,9 @@ export function instView(
   // the board/hand reflect it in the shop too (combat re-derives the same bump). Spells are never Undead.
   const undead = !spell && (inst.tribe === 'undead' || c.tribe2 === 'undead' || !!c.universalTribe);
   // RUNE OF THE GRIM TOAST (Set 3 design pass): a NON-Undead Dwarf folds the whole Undead Aura too (`grimToastFold`).
-  const grim = !spell && !undead && live?.grimToast && defIsTribe(c, 'dwarf') ? live.grimToast : undefined;
+  const grim = !spell && !undead && live?.grimToast && defIsTribe(c, 'dwarf') ? live.grimToast
+    // Rune of Unity: a board body the full house made "every type" folds the whole Aura too (`unityAuraFold`).
+    : !spell && !undead && live?.unityAura && (inst as { unityTribes?: boolean }).unityTribes ? live.unityAura : undefined;
   const auraAtk = undead ? undeadAtkBonus : grim?.attack ?? 0;
   const auraHp = undead ? undeadHpBonus : grim?.health ?? 0;
   const shownAtk = (override?.attack ?? inst.attack) + auraAtk;
@@ -362,7 +364,7 @@ export function instView(
     // (Both) MARKER hook — a card still WAITING to be played (hand). A body already on the board has resolved
     // its Choose One, so it is not a promise any more and carries no marker.
     chooseBothKey: chooseBoth && !live?.onBoard ? inst.uid : undefined,
-    universalTribe: !!c.universalTribe || !!(inst as { allTribes?: boolean }).allTribes,
+    universalTribe: !!c.universalTribe || !!(inst as { allTribes?: boolean }).allTribes || !!(inst as { unityTribes?: boolean }).unityTribes, // + Rune of Unity's full house (Set 3 design pass)
     attack: shownAtk, health: shownHp,
     keywords: shownKeywords, text: shownText + tempTags,
     goldenText,
@@ -413,6 +415,7 @@ export function liveBoardView(m: BoardCard, run: RunState): CardView {
     // the Dragon copiers / rune notes all read base on the final warband). Mirrors Recruit's `live` memo.
     {
       grimToast: grimToastFold(run), // Rune of the Grim Toast: the Dwarves' share of the Undead Aura
+      unityAura: unityAuraFold(run), // Rune of Unity: a full-house body's share of the Undead Aura
       undeadBuyAtk: run.undeadBuyAtk, soulsmanGold: run.soulsmanGold ?? 0, nextSpellBonus: run.nextSpellBonus, cardBuffs: run.cardBuffs,
       improveReps: run.runeMastery ? 1 + runeStacksOf(run, 'rune_mastery') : 1, impAura: run.impBuff, // +1 per Mastery copy (owner 2026-08-27)
       rubyCasts: run.rubyCasts, // Vaultkeeper's spell umbrella — dropped here until the 2026-09-10 parity pass

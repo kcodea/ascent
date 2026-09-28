@@ -705,6 +705,14 @@ export function defIsTribe(def: CardDef | undefined, tribe: Tribe): boolean {
 }
 
 export function isTribe(card: BoardCard, tribe: Tribe): boolean {
+  if (tribe !== 'neutral' && card.unityTribes) return true; // Rune of Unity: the board's full house counts as every type
+  return isTribeNatural(card, tribe);
+}
+
+/** `isTribe` WITHOUT Rune of Unity's grant: the printed tribe(s), All-types cards and the Anomaly Reactor's marks. The
+ *  Unity condition reads this, so the rune can never hold itself up; the buy-channel Undead bake reads it too, since a
+ *  Unity body takes the whole Aura as a fold (`foldedAuraOf`), never baked. */
+export function isTribeNatural(card: BoardCard, tribe: Tribe): boolean {
   if (tribe !== 'neutral' && (CARD_INDEX[card.cardId]?.universalTribe || card.allTribes)) return true; // Anomaly Reactor: "All" types
   if (card.tribe === tribe || CARD_INDEX[card.cardId]?.tribe2 === tribe) return true;
   return (card.addedTribes ?? []).includes(tribe); // Anomaly Reactor: a spell-added tribe (e.g. Mech)
@@ -767,7 +775,7 @@ export function undeadBuyBonus(state: RunState, def: CardDef): number {
 export function buffUndeadAttackEverywhere(state: RunState, amount: number, source: string): void {
   if (amount <= 0) return;
   for (const card of [...state.board, ...state.hand]) {
-    if (isTribe(card, 'undead')) addBuff(card, source, amount, 0);
+    if (isTribeNatural(card, 'undead')) addBuff(card, source, amount, 0); // a Unity body folds it instead (foldedAuraOf)
   }
   state.undeadBuyAtk = (state.undeadBuyAtk ?? 0) + amount;
   // Rune of Soul Script: the Starform counts as Undead, so the Aura reaches the token too (a gain — rule 8).
@@ -1438,7 +1446,11 @@ export function foldedAuraOf(state: RunState, card: BoardCard): { attack: number
   // RUNE OF THE GRIM TOAST (Set 3 design pass): a NON-Undead Dwarf folds the whole Undead Aura (the buy channel is
   // not baked into a Dwarf, so it folds here too).
   const grim = defIsTribe(def, 'dwarf') ? grimToastFold(state) : undefined;
-  return grim ?? { attack: 0, health: 0 };
+  if (grim) return grim;
+  // RUNE OF UNITY: a body the full house made "every type" is Undead too, and takes the WHOLE Aura (its buy channel is
+  // never baked into a non-Undead), exactly what combat hands it at the grant (`syncUnityCombat`).
+  if (card.unityTribes) return unityAuraFold(state) ?? { attack: 0, health: 0 };
+  return { attack: 0, health: 0 };
 }
 
 /** What the PLAYER reads on the card: stored plus the display fold. */
@@ -10552,6 +10564,7 @@ function fire(
 const FRIEND_DEATH_WATCHERS: ReadonlySet<string> = new Set(['onFriendDeathSummon', 'onFriendDeathGainEcho', 'impInheritOnDeath']);
 
 export function fireOnFriendDeath(state: RunState, dead: BoardCard): void {
+  syncUnity(state); // Rune of Unity: a Shop death can break the full house
   const ctx = makeContext(state);
   // RUNE OF THE PALLBEARER (Set 3 design pass): a friendly Undead died → the left-most minion in hand +2/+2 per copy.
   if (state.questFlags?.runePallbearer && isTribe(dead, 'undead')) runePallbearerShop(state);
@@ -10913,6 +10926,7 @@ export function fireOnRubyPlayed(state: RunState, card: BoardCard, rubyAttack: n
 export const REVELER_METER = 3;
 
 export function fireOnMinionSold(state: RunState, sold: BoardCard): void {
+  syncUnity(state); // Rune of Unity: a sale can break the full house
   // ── Set 3 batch 2: the REVELER-SOLD runes. Both key on the sold body being a Reveler and both read ONE per-turn
   //    meter (owner rework 2026-09-18: "after you sell 3 Revelers" — every third sale this turn pays; the meter's
   //    scope is the Festival Circuit's original per-turn window). Selling is a shop action, so the meter resets
@@ -13313,6 +13327,7 @@ export function socRuneReplaysOf(state: RunState): SocRuneReplay[] {
 /** End-of-Turn triggers — fire when the recruit turn ends (End Turn / timer hits 0),
  *  just before the board faces the Omen. Each minion's effect acts on itself. */
 export function applyEndOfTurn(state: RunState): void {
+  syncUnity(state); // Rune of Unity: End of Turn reads the board as it stands
   endOfTurnDepth += 1; // casts recorded in here are End-of-Turn casts (see `castActorStack`)
   try { applyEndOfTurnInner(state); } finally { endOfTurnDepth -= 1; }
 }
@@ -14934,6 +14949,7 @@ function withPlayTrigger(ctx: RecruitContext, played: BoardCard, effect: EffectD
 }
 
 export function playCard(state: RunState, played: BoardCard): void {
+  syncUnity(state); // Rune of Unity: the played body may complete the full house, before any of its triggers read tribes
   state.karwindFlash = []; // Karwind's battlecry-triggered buff repopulates this for the flame flash
   const ctx = makeContext(state);
   // ── 2026-08-20 rune batch: the three PLAY-A-MINION runes. All fired here, the single "played from hand"
@@ -15320,4 +15336,36 @@ function runeRubyCastShop(state: RunState, card: BoardCard, a: number, h: number
     const n = runeStacksOf(state, 'rune_gem_star');
     if (buffStarform(state, a * n, h * n, 'Rune of the Gem Star')) procRuneId(state, 'rune_gem_star');
   }
+}
+
+// ── SET 3 RUNE DESIGN PASS (owner 2026-09-27), tranche 5: Rune of Unity, Shop half ─────────────────────────────────
+
+/** RUNE OF UNITY: does the board NATURALLY control every active minion type (the run's rolled tribes)? */
+export function unityHolds(state: Pick<RunState, 'board' | 'tribes'>): boolean {
+  const { have, of } = unityTypeCount(state);
+  return of > 0 && have === of;
+}
+
+/** RUNE OF UNITY's badge: how many of the active minion types the board NATURALLY controls, out of how many. */
+export function unityTypeCount(state: Pick<RunState, 'board' | 'tribes'>): { have: number; of: number } {
+  const wanted = state.tribes.filter((t) => t !== 'neutral');
+  return { have: wanted.filter((t) => state.board.some((c) => isTribeNatural(c, t))).length, of: wanted.length };
+}
+
+/** RUNE OF UNITY: stamp (or clear) `unityTribes` on the board so `isTribe` reads the full house as every type. Called
+ *  at every reducer action boundary and at the Shop chokepoints that change the board mid-action (a play, a sale, a
+ *  death, End of Turn). Hand cards never carry it: "your minions" is the board. Idempotent. */
+export function syncUnity(state: RunState): void {
+  const on = !!state.questFlags?.runeUnity && unityHolds(state);
+  for (const c of state.board) {
+    if (on) { if (!c.unityTribes) c.unityTribes = true; } else if (c.unityTribes) delete c.unityTribes;
+  }
+  for (const c of state.hand) if (c.unityTribes) delete c.unityTribes;
+}
+
+/** RUNE OF UNITY: the Undead Aura a board body that Unity made "every type" folds (the WHOLE Aura, like the Grim
+ *  Toast's). Undefined without the rune. The badge and the display fold both read it. */
+export function unityAuraFold(state: Pick<RunState, 'questFlags' | 'undeadAttackBonus' | 'undeadBuyAtk' | 'undeadHealthBonus'>): { attack: number; health: number } | undefined {
+  if (!state.questFlags?.runeUnity) return undefined;
+  return { attack: undeadAuraAttack(state), health: state.undeadHealthBonus ?? 0 };
 }

@@ -29,7 +29,7 @@ import { RUNE_DUP_SWEETENER, RUNE_DUP_UNIQUE, forgeFilteredDuplicate, runeStacks
 import { spellFizzles } from './spellFizzle';
 import { buyStarform, fireStarformGainRemainder, starformFollowShopBuff, starformRefreshTick, starformSnapshot, starformSoulScriptBake, starformSpellAimsToken, starformStandIn, withStarformPinned, buffStarform, createStarform, hasStarform } from './starform';
 import { syncStarDestroyer, overchargeFree, consumeCalibration, equipmentPermanentlyAmplified, quickReleaseApplies } from './equipment';
-import { fireOnBuyWatchers, tribesPlayedThisTurn, fireHandCardEcho, syncSoulFurnace, GEM_STAR_CAP } from './recruit';
+import { fireOnBuyWatchers, tribesPlayedThisTurn, fireHandCardEcho, syncSoulFurnace, GEM_STAR_CAP, syncUnity, isTribeNatural } from './recruit';
 import { MATCHMAKING } from './matchmaking';
 
 /** Spend `amount` Gold and fire any `goldSpent` payoffs (Acid, Banksly) — the single Gold-spend chokepoint
@@ -896,6 +896,7 @@ export function reduce(state: RunState, action: Action): RunState {
     // RUNE OF THE SOUL FURNACE (Set 3 design pass): the Aura's derived Health term follows the Aura Attack at every
     // action boundary, whichever writer raised it (a Lantern, a Deathswarmer, a combat carry-back at settle).
     syncSoulFurnace(next);
+    syncUnity(next); // RUNE OF UNITY: the board's full house, re-read after every action
   }
   // onGainAttack reactors (Hunter — "when this gains Attack, give your minions +Health") fire whenever a
   // recruit action raises a BOARD minion's Attack, from ANY source (Fortify, spells, tribe Battlecries,
@@ -4980,7 +4981,7 @@ function settleCombat(s: RunState, result: CombatResult): void {
     const gain = result.playerUndeadBuyAtkGain;
     s.undeadBuyAtk = (s.undeadBuyAtk ?? 0) + gain;
     for (const c of [...s.board, ...s.hand]) {
-      if (isTribe(c, 'undead')) addBuff(c, 'Undead Bond', gain, 0);
+      if (isTribeNatural(c, 'undead')) addBuff(c, 'Undead Bond', gain, 0); // a Unity body folds the Aura instead
     }
   }
   // Elderhorn refired in combat: extra BEAST trigger fires, stacked into the run exactly as its shop half does.
@@ -7671,6 +7672,9 @@ export function questCombatMods(s: RunState): QuestCombatMods {
     runeGemStar: f?.runeGemStar,                     // the first 4 Rubies cast each turn also feed the Starform
     gemStarLeft: f?.runeGemStar ? Math.max(0, GEM_STAR_CAP - (s.gemStarThisTurn ?? 0)) : undefined, // the turn's remaining Gem Star Rubies
     runeKeepsakeGem: f?.runeKeepsakeGem,             // every Ruby also lands on the left-most hand minion
+    // ── tranche 5 ──
+    runeHeavyHand: f?.runeHeavyHand,                 // friendly damage counts double toward Pummel
+    runeUnity: f?.runeUnity,                         // all 5 types controlled → every minion counts as every type
     starCrashBonus: s.starCrashBonus && (s.starCrashBonus.attack || s.starCrashBonus.health) ? { ...s.starCrashBonus } : undefined, // Falling Embers, for a combat Star Crash
     // SHOP→COMBAT CARRY-OVER (owner ruling 2026-08-26): "war drum should have a 1/1 use, and that use resets
     // at start of turn, therefore if it is not used in shop, then the first shout triggered in combat should

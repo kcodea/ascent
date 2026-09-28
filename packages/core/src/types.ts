@@ -3132,6 +3132,17 @@ export interface CombatCarryBacks {
   summonsMade?: number;
 }
 
+/** One side's hero damage, itemized (`CombatResult.damageBreakdown` / `enemyDamageBreakdown`). */
+export interface DamageBreakdown {
+  /** The STRIKING side's tavern tier (the opponent's on the player's loss, the player's own on the mirror). */
+  oppTier: number;
+  /** Each surviving minion's tier on the striking side, in board order (left to right). A token counts 1. */
+  survivorTiers: number[];
+  /** The same survivors' combat uids, index-aligned with `survivorTiers`, so the presentation can pulse each one's
+   *  own tier badge. Absent on results recorded before 2026-09-28. */
+  survivorUids?: string[];
+}
+
 export interface CombatResult {
   events: CombatEvent[];
   result: CombatOutcome;
@@ -3156,7 +3167,19 @@ export interface CombatResult {
    *  shows and the hit that lands can never be two different numbers; it used to recompute them from
    *  `nextOpponent()` and the replay frame, which can disagree with what the fight actually used.
    *  Sums to `playerDamage` (before the run loop's round cap). */
-  damageBreakdown?: { oppTier: number; survivorTiers: number[] };
+  damageBreakdown?: DamageBreakdown;
+  /** The itemized contributions behind `enemyDamage`: the mirror of `damageBreakdown` for a WIN (the player's own
+   *  tavern tier as `oppTier`, the striking side's term, plus one entry per surviving PLAYER minion, left to right).
+   *  Present only on a win. The hero damage formation (owner ask 2026-09-28) shows THESE, so a winning blow no
+   *  longer has to rebuild its contributions from the replay frame. Sums to `enemyDamage` (before the round cap). */
+  enemyDamageBreakdown?: DamageBreakdown;
+  /** The round's loss-damage cap, stamped by the RUN LOOP (not `simulate`, which does not know the round). Absent
+   *  when the round is uncapped (round 16 on), and on a result recorded before 2026-09-28. Presentation reads it to
+   *  show the "Damage capped" beat; the settle keeps applying `lossDamageCap` itself. */
+  damageCap?: number;
+  /** The player's loss damage BEFORE the round cap (after a Practice-bot multiplier), stamped by the run loop right
+   *  before it caps `playerDamage`. Absent on a win and on results recorded before 2026-09-28. */
+  playerDamageUncapped?: number;
   /** Damage the ENEMY side takes on ITS loss — the exact mirror of `playerDamage`, by the same formula.
    *  Unused by a single-player run (the enemy has no Resolve pool); the lobby needs both sides' damage out of
    *  ONE authoritative fight, since resolving it twice with the sides swapped can disagree.

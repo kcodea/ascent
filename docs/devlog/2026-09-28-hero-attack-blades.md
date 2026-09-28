@@ -1,5 +1,9 @@
 # 2026-09-28: Phantom Blades, the fourth hero attack (a surprise)
 
+> **Update 2026-09-28:** every hit-stop / freeze frame was removed from all hero attacks (owner: "it looks like lag";
+> oracle R-PROG-ATTACK-10). Mentions of a hit-stop below are history, and the timelines include it; the current end
+> times are in `2026-09-28-damage-formation.md`.
+
 Owner ask (2026-09-28): "branch off and make a new style animation and surprise me with it. arcana is top tier good.
 use that as your benchmark for quality. make it unique".
 

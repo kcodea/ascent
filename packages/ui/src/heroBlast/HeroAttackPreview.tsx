@@ -23,8 +23,8 @@ const RUNNERS: Record<string, { play: (o: HeroAttackOptions & { textures?: null 
 
 /**
  * THE HERO ATTACK SANDBOX (owner 2026-09-28: the Collection's "Attack Animations" tab gets a preview that plays the
- * animation in place). A small stage with your hero, the foe and three survivors; ▶ runs the REAL Blast runner on it
- * in the box's own coordinates: the numbers combine, your hero charges, the box pushes in and shakes, the bolts fly.
+ * animation in place). A small stage with your hero, the foe and two survivors; ▶ runs the REAL runner on it in the
+ * box's own coordinates: the damage formation builds the blow, your hero charges, the box pushes in and shakes, the bolts fly.
  *
  * It owns a tiny Pixi Application of its own (the gameplay overlay is not mounted on the menus), created on the first
  * play and destroyed on unmount. The shared Blast textures are NOT destroyed with it (the gameplay layer reuses them).
@@ -81,16 +81,17 @@ export function HeroAttackPreview({ style, reducedMotion }: { style: string; red
     // Host-local centres, measured once per play (offset* never forces a style flush on a static layout).
     const centre = (el: HTMLElement): { x: number; y: number } => ({ x: el.offsetLeft + el.offsetWidth / 2, y: el.offsetTop + el.offsetHeight / 2 });
     const aPt = centre(you), dPt = centre(foe);
-    const values = [3, 2, 4];
-    const parts = values.map((value, i) => {
-      if (i === 0) return { value, from: aPt, base: true };
-      const el = cardRefs.current[i - 1];
-      return { value, from: el ? centre(el) : null };
+    // A made-up board (this is a preview, not a fight): your hero's tier 3, two survivors of tier 2 and 4. Each number
+    // rises off the top of its card, and the card itself pulses.
+    const tiers = [2, 4];
+    const minions = tiers.map((value, i) => {
+      const el = cardRefs.current[i];
+      return { value, at: el ? { x: el.offsetLeft + el.offsetWidth / 2, y: el.offsetTop + 4 } : null, badges: el ? [el] : [] };
     });
+    const full = 3 + tiers.reduce((s, v) => s + v, 0);
     setPlaying(true);
     live.current = runner.play({
-      parts, total: values.reduce((s, v) => s + v, 0), attacker: aPt, defender: dPt,
-      combineAt: { x: stage.offsetWidth * 0.5, y: stage.offsetHeight * 0.52 },
+      formation: { minions, hero: { value: 3 }, full, total: full, cap: null }, total: full, attacker: aPt, defender: dPt,
       side: 'player', defenderRadius: foe.offsetWidth / 2, attackerRadius: you.offsetWidth / 2, space: 'local', pixiScale: 0.42, host: stage, camera: stage, attackerEl: you, defenderEl: foe,
       reduced: reducedMotion || undefined, speed: runner.speed(),
       textures: a ? undefined : null,

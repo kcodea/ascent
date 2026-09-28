@@ -1,5 +1,9 @@
 # 2026-09-28: the Blast hero attack, and hero attacks as cosmetics
 
+> **Update 2026-09-28:** every hit-stop / freeze frame was removed from all hero attacks (owner: "it looks like lag";
+> oracle R-PROG-ATTACK-10). Mentions of a hit-stop below are history, and the timelines include it; the current end
+> times are in `2026-09-28-damage-formation.md`.
+
 Owner asks, in order (2026-09-28):
 
 - "branch off and make a new attack animation. instead of the hero attacking for this animation, i want the numbers

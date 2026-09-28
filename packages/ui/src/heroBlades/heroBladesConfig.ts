@@ -8,8 +8,8 @@
  * in dead-straight lines that stab into the target, stick there quivering, and finally shatter.
  *
  * THE BEATS (base ms before the playback speed):
- *  1. COMBINE (shared, `../heroAttack/combineNumbers.ts`): the Tier and every surviving Minion fly into ONE total that
- *     ticks up and slams on the ENGINE's number.
+ *  1. THE DAMAGE FORMATION (shared by every style, `../heroAttack/damageFormation.ts`, owner ask 2026-09-28): minion
+ *     tiers pulse left to right and merge, the hero tier joins, the full blow, the cap. Its end is this style's start.
  *  2. SUMMON. The total dives into the attacking hero; spectral swords unfurl one by one on an arc around the portrait,
  *     each pointing at the sky (a crown of raised blades).
  *  3. AIM. Every blade swings round to point at the target (a snappy turn with a little overshoot) and LOCKS: a glint
@@ -17,7 +17,7 @@
  *  4. LOOSE. Each blade kicks back a few px and then thrusts in a straight line, fast, leaving ghost afterimages and a
  *     thin cut of light: I one blade; II two that cross in an X; III a fan of five that hammer in, in rhythm.
  *  5. STAB. Each blade that lands before the last STICKS in the portrait (a spark spray and a cut flash) and quivers.
- *     The LAST one is THE impact: the hit-stop, the big `-N`, a cross-cut flash. The consequence (the damage, Armor,
+ *     The LAST one is THE impact: the big `-N`, a cross-cut flash. The consequence (the damage, Armor,
  *     Resolve) lands ONCE, there. A beat later every stuck blade SHATTERS into shards.
  *  IV. JUDGEMENT. Six blades hammer in as ticks, then a GREATSWORD is summoned over the hero, raised, swung round to
  *     aim, and held trembling while the stuck blades are bound to it by beams of light and a reticle locks onto the
@@ -25,23 +25,22 @@
  *     greatsword and every blade shatter together, with a pillar of light and a shockwave.
  *
  * TIERS are the shared, owner-approved thresholds (I 1-5, II 6-11, III 12-19, IV 20+). About 2 s at Tier I, about
- * 4 s at Tier IV. Reduced motion: no blades, shake, zoom or hit-stop; the numbers fade and the blow lands.
+ * 4 s at Tier IV. Reduced motion: no blades, shake or zoom; the numbers fade and the blow lands.
  *
  * Tuner convention (the Blast's): localStorage in DEV only, values clamped on write and on load; production always
  * plays DEFAULTS. The preview speed is how you are LOOKING and is never saved.
  */
 import { clamp, easeInOutSine, easeOutBack, easeOutCubic, hexToNum, spring, type Pt } from '../heroAttack/easing';
 import {
-  HERO_ATTACK_TIER_THRESHOLDS, TIERS, combineCounts, combineTimeline, reducedCombineTimeline, tierOf, type TierNum,
+  HERO_ATTACK_TIER_THRESHOLDS, TIERS, reducedAttackTimeline, tierOf, type TierNum,
 } from '../heroAttack/tiers';
 
 export { TIERS, hexToNum, type TierNum };
 
 /** The per-tier dials. A config key is `t1..t4` + one of these. */
 export const BLADES_TIER_SUFFIXES = [
-  'FlyMs', 'StaggerMs', 'SlamPop', 'HoldMs',
   'Blades', 'SummonStaggerMs', 'AimHoldMs', 'LooseStaggerMs', 'FlightMs', 'Spread', 'FormRadius', 'BladeSize', 'Scatter', 'Great',
-  'HitStop', 'Shake', 'Zoom', 'Punch', 'Shards', 'Burst', 'SettleMs', 'Dim',
+  'Shake', 'Zoom', 'Punch', 'Shards', 'Burst', 'SettleMs', 'Dim',
 ] as const;
 export type BladesTierSuffix = (typeof BLADES_TIER_SUFFIXES)[number];
 type TierKey = `t${TierNum}${BladesTierSuffix}`;
@@ -50,14 +49,6 @@ interface GlobalConfig {
   // Tiers (the shared thresholds; DEV-tunable only)
   tier2At: number; tier3At: number; tier4At: number;
   // Combine (the shared beat)
-  popInMs: number;
-  combineBackPx: number;
-  combineArc: number;
-  combineBias: number;
-  chipSize: number;
-  totalSize: number;
-  tickPop: number;
-  slamMs: number;
   // Summon and aim
   absorbMs: number;
   heroSwell: number;
@@ -102,9 +93,6 @@ interface GlobalConfig {
   colorHilt: string;
   colorShade: string;
   // Sound: a clip, a gain and a pitch per cue ('' = silent)
-  sfxGatherClip: string; sfxGatherGain: number;
-  sfxTickClip: string; sfxTickGain: number; sfxTickRate: number; sfxTickStep: number;
-  sfxSlamClip: string; sfxSlamGain: number; sfxSlamRate: number;
   sfxSummonClip: string; sfxSummonGain: number; sfxSummonRate: number; sfxSummonStep: number;
   sfxRingClip: string; sfxRingGain: number; sfxRingRate: number;
   sfxAimClip: string; sfxAimGain: number; sfxAimRate: number;
@@ -121,7 +109,6 @@ interface GlobalConfig {
   sfxSlamDownClip: string; sfxSlamDownGain: number; sfxSlamDownRate: number;
   sfxBoomClip: string; sfxBoomGain: number; sfxBoomRate: number;
   sfxHumGain: number; sfxHumHz: number; sfxHumRise: number;
-  sfxTickLenMs: number;
   sfxLooseLenMs: number;
   sfxImpactLenMs: number;
   sfxTailMix: number;
@@ -134,7 +121,7 @@ export type HeroBladesConfig = GlobalConfig & Record<TierKey, number>;
 
 export const HERO_BLADES_COLOR_KEYS = ['colorCore', 'colorEdge', 'colorPlayer', 'colorFoe', 'colorHilt', 'colorShade'] as const;
 export const HERO_BLADES_CLIP_KEYS = [
-  'sfxGatherClip', 'sfxTickClip', 'sfxSlamClip', 'sfxSummonClip', 'sfxRingClip', 'sfxAimClip', 'sfxLockClip', 'sfxLooseClip',
+  'sfxSummonClip', 'sfxRingClip', 'sfxAimClip', 'sfxLockClip', 'sfxLooseClip',
   'sfxCrackClip', 'sfxStabClip', 'sfxClangClip', 'sfxImpactClip', 'sfxBigClip', 'sfxThumpClip', 'sfxShatterClip', 'sfxGreatClip',
   'sfxSlamDownClip', 'sfxBoomClip',
 ] as const;
@@ -145,10 +132,6 @@ export type HeroBladesNumKey = Exclude<keyof HeroBladesConfig, HeroBladesStrKey>
 
 /** Tier I .. IV per suffix: the escalation ladder. */
 const TIER_DEFAULTS: Record<BladesTierSuffix, [number, number, number, number]> = {
-  FlyMs: [300, 330, 360, 380],
-  StaggerMs: [95, 100, 105, 110],
-  SlamPop: [1.4, 1.55, 1.75, 2],
-  HoldMs: [120, 190, 240, 260],
   Blades: [1, 2, 5, 6],
   SummonStaggerMs: [0, 70, 55, 40],
   AimHoldMs: [30, 50, 60, 20],
@@ -159,7 +142,6 @@ const TIER_DEFAULTS: Record<BladesTierSuffix, [number, number, number, number]> 
   BladeSize: [1.12, 1.05, 0.9, 0.82],
   Scatter: [0.05, 0.28, 0.4, 0.46],
   Great: [0, 0, 0, 1],
-  HitStop: [60, 75, 95, 150],
   Shake: [5, 8, 12, 22],
   Zoom: [0.02, 0.03, 0.045, 0.07],
   Punch: [0.02, 0.028, 0.038, 0.065],
@@ -170,10 +152,6 @@ const TIER_DEFAULTS: Record<BladesTierSuffix, [number, number, number, number]> 
 };
 
 export const BLADES_TIER_RANGES: Record<BladesTierSuffix, [number, number, number]> = {
-  FlyMs: [120, 900, 10],
-  StaggerMs: [0, 300, 5],
-  SlamPop: [1, 3, 0.01],
-  HoldMs: [0, 1000, 10],
   Blades: [1, 8, 1],
   SummonStaggerMs: [0, 300, 5],
   AimHoldMs: [0, 600, 10],
@@ -184,7 +162,6 @@ export const BLADES_TIER_RANGES: Record<BladesTierSuffix, [number, number, numbe
   BladeSize: [0.4, 2, 0.01],
   Scatter: [0, 0.9, 0.01],
   Great: [0, 1, 1],
-  HitStop: [0, 250, 5],
   Shake: [0, 40, 0.5],
   Zoom: [0, 0.14, 0.002],
   Punch: [0, 0.1, 0.001],
@@ -200,14 +177,6 @@ export const HERO_BLADES_DEFAULTS: HeroBladesConfig = {
   // The shared, owner-approved thresholds (6 / 12 / 20): the same blow steps the Blades up exactly where it steps the
   // Blast, the Quake and the Arcana up.
   ...HERO_ATTACK_TIER_THRESHOLDS,
-  popInMs: 140,
-  combineBackPx: 24,
-  combineArc: 0.14,
-  combineBias: 0,
-  chipSize: 52,
-  totalSize: 132,
-  tickPop: 0.26,
-  slamMs: 340,
   absorbMs: 170,
   heroSwell: 0.07,
   recoilPx: 9,
@@ -244,9 +213,6 @@ export const HERO_BLADES_DEFAULTS: HeroBladesConfig = {
   colorFoe: '#ff4468',
   colorHilt: '#ffc85a',
   colorShade: '#0a2240',
-  sfxGatherClip: 'TallyTravel', sfxGatherGain: 0.45,
-  sfxTickClip: 'AttackPillAdd', sfxTickGain: 0.6, sfxTickRate: 0.9, sfxTickStep: 0.07,
-  sfxSlamClip: 'tallyimpact', sfxSlamGain: 0.9, sfxSlamRate: 1.05,
   sfxSummonClip: 'equipmentsheen', sfxSummonGain: 1.2, sfxSummonRate: 1.25, sfxSummonStep: 0.06,
   sfxRingClip: 'equipclang', sfxRingGain: 0.2, sfxRingRate: 1.7,
   sfxAimClip: 'fx/metal-woosh', sfxAimGain: 0.35, sfxAimRate: 1.35,
@@ -263,7 +229,6 @@ export const HERO_BLADES_DEFAULTS: HeroBladesConfig = {
   sfxSlamDownClip: 'titanhammer', sfxSlamDownGain: 0.7, sfxSlamDownRate: 1.1,
   sfxBoomClip: 'fx/triple-impact', sfxBoomGain: 0.28, sfxBoomRate: 1.3,
   sfxHumGain: 0.3, sfxHumHz: 220, sfxHumRise: 1.6,
-  sfxTickLenMs: 420,
   sfxLooseLenMs: 520,
   sfxImpactLenMs: 1100,
   sfxTailMix: 0.14,
@@ -275,14 +240,6 @@ export const HERO_BLADES_DEFAULTS: HeroBladesConfig = {
 
 const GLOBAL_RANGES: Record<Exclude<keyof GlobalConfig, HeroBladesStrKey>, [number, number, number]> = {
   tier2At: [2, 40, 1], tier3At: [2, 60, 1], tier4At: [2, 80, 1],
-  popInMs: [0, 500, 10],
-  combineBackPx: [0, 80, 1],
-  combineArc: [0, 0.5, 0.01],
-  combineBias: [0, 1, 0.05],
-  chipSize: [20, 110, 1],
-  totalSize: [50, 220, 1],
-  tickPop: [0, 0.8, 0.01],
-  slamMs: [80, 900, 10],
   absorbMs: [60, 600, 10],
   heroSwell: [0, 0.3, 0.01],
   recoilPx: [0, 60, 1],
@@ -313,9 +270,6 @@ const GLOBAL_RANGES: Record<Exclude<keyof GlobalConfig, HeroBladesStrKey>, [numb
   shakeMs: [0, 1200, 10],
   zoomOutMs: [60, 1500, 10],
   reducedFadeMs: [60, 1000, 10],
-  sfxGatherGain: [0, 2, 0.05],
-  sfxTickGain: [0, 2, 0.05], sfxTickRate: [0.5, 2, 0.01], sfxTickStep: [0, 0.3, 0.005],
-  sfxSlamGain: [0, 2, 0.05], sfxSlamRate: [0.5, 2, 0.01],
   sfxSummonGain: [0, 2, 0.05], sfxSummonRate: [0.5, 2.5, 0.01], sfxSummonStep: [0, 0.3, 0.005],
   sfxRingGain: [0, 2, 0.05], sfxRingRate: [0.5, 2.5, 0.01],
   sfxAimGain: [0, 2, 0.05], sfxAimRate: [0.5, 2.5, 0.01],
@@ -332,7 +286,6 @@ const GLOBAL_RANGES: Record<Exclude<keyof GlobalConfig, HeroBladesStrKey>, [numb
   sfxSlamDownGain: [0, 2, 0.05], sfxSlamDownRate: [0.5, 2, 0.01],
   sfxBoomGain: [0, 2, 0.05], sfxBoomRate: [0.5, 2, 0.01],
   sfxHumGain: [0, 2, 0.05], sfxHumHz: [60, 1200, 5], sfxHumRise: [1, 4, 0.05],
-  sfxTickLenMs: [80, 2000, 10],
   sfxLooseLenMs: [100, 2500, 10],
   sfxImpactLenMs: [150, 3500, 10],
   sfxTailMix: [0, 0.6, 0.01],
@@ -348,7 +301,7 @@ export const HERO_BLADES_RANGES: Record<HeroBladesNumKey, [number, number, numbe
 };
 
 /** The hard ceilings a plan can never exceed, whatever the sliders say (so a 40 stays clean, not cluttered). */
-export const BLADES_CAPS = { blades: 8, shards: 20, hitStopMs: 250, shakePx: 40, zoom: 0.14 } as const;
+export const BLADES_CAPS = { blades: 8, shards: 20, shakePx: 40, zoom: 0.14 } as const;
 
 const HEX = /^#[0-9a-f]{6}$/i;
 const isColorKey = (k: string): k is ColorKey => (HERO_BLADES_COLOR_KEYS as readonly string[]).includes(k);
@@ -474,9 +427,9 @@ export interface BladePlan {
 }
 
 export interface BladesPlanInput {
-  /** Each contributing number, in the order they fly (the attacker's tier first). */
-  values: readonly number[];
-  /** THE blow, as the engine decided it. The combine always ends on exactly this. */
+  /** When the style's own attack starts: the end of the shared damage formation (`formationPlan().endAt`). */
+  leadIn?: number;
+  /** THE blow, as the engine decided it. */
   total: number;
   /** Screen px between the attacker's and the defender's centres. */
   distance: number;
@@ -489,13 +442,6 @@ export interface BladesPlan {
   /** 0..1 across the tiers (I = 0, IV = 1). */
   k: number;
   total: number;
-  capped: boolean;
-  spawns: number[];
-  launches: number[];
-  arrivals: number[];
-  counts: number[];
-  mergeAt: number;
-  slamPop: number;
   /** The total dives into the hero; the summoning starts. */
   chargeAt: number;
   absorbEnd: number;
@@ -513,7 +459,6 @@ export interface BladesPlan {
   impactAt: number;
   /** Everything stuck in the target shatters. */
   shatterAt: number;
-  hitStopMs: number;
   /** Aftershocks round the target (IV). */
   booms: number[];
   endAt: number;
@@ -531,27 +476,23 @@ export interface BladesPlan {
 /** The whole Phantom Blades, in base ms (divide by the playback speed for real time). Pure and deterministic. */
 export function bladesPlan(input: BladesPlanInput, c: HeroBladesConfig = cfg): BladesPlan {
   const total = Math.max(0, Math.round(input.total));
-  const values = input.values.filter((v) => Number.isFinite(v));
-  const rawSum = values.reduce((s, v) => s + Math.max(0, v), 0);
   const tier = tierOf(total, c);
   const T = bladesTierDials(tier, c);
   const k = (tier - 1) / 3;
-  const counts = combineCounts(values, total);
-  const capped = rawSum > total;
-  const nParts = values.length;
 
   if (input.reduced) {
-    const r = reducedCombineTimeline(nParts, c.reducedFadeMs);
-    const { arrivals, mergeAt, impactAt } = r;
+    const r = reducedAttackTimeline(input.leadIn ?? 0, c.reducedFadeMs);
+    const { impactAt } = r;
     return {
-      reduced: true, tier, k, total, capped, spawns: r.spawns, launches: arrivals.slice(), arrivals, counts, mergeAt, slamPop: 1,
+      reduced: true, tier, k, total,
       chargeAt: impactAt, absorbEnd: impactAt, fireAt: impactAt, blades: [], great: null, hangAt: impactAt, hits: [], impactAt,
-      shatterAt: impactAt, hitStopMs: 0, booms: [], endAt: r.endAt, spread: 0, formRadius: 0, scatter: 0, shakePx: 0, zoom: 0,
+      shatterAt: impactAt, booms: [], endAt: r.endAt, spread: 0, formRadius: 0, scatter: 0, shakePx: 0, zoom: 0,
       punch: 0, shards: 0, burst: 0, dim: 0,
     };
   }
 
-  const { spawns, launches, arrivals, mergeAt, holdEnd: chargeAt } = combineTimeline(nParts, T, c.popInMs);
+  // The shared damage formation plays first; the style's own attack starts when it ends.
+  const chargeAt = Math.max(0, input.leadIn ?? 0);
   const absorbEnd = chargeAt + c.absorbMs;
   const count = clamp(Math.round(T.Blades), 1, BLADES_CAPS.blades);
   const withGreat = T.Great >= 1;
@@ -606,9 +547,9 @@ export function bladesPlan(input: BladesPlanInput, c: HeroBladesConfig = cfg): B
   const endAt = lastBeat + T.SettleMs;
 
   return {
-    reduced: false, tier, k, total, capped, spawns, launches, arrivals, counts, mergeAt, slamPop: T.SlamPop, chargeAt, absorbEnd,
+    reduced: false, tier, k, total, chargeAt, absorbEnd,
     fireAt: blades[0]!.launchAt, blades, great, hangAt, hits, impactAt, shatterAt,
-    hitStopMs: Math.round(clamp(T.HitStop, 0, BLADES_CAPS.hitStopMs)), booms, endAt,
+    booms, endAt,
     spread: T.Spread, formRadius: T.FormRadius, scatter: T.Scatter,
     shakePx: clamp(T.Shake, 0, BLADES_CAPS.shakePx),
     zoom: clamp(T.Zoom, 0, BLADES_CAPS.zoom),
@@ -620,17 +561,13 @@ export function bladesPlan(input: BladesPlanInput, c: HeroBladesConfig = cfg): B
 }
 
 export type BladesCueKind =
-  | 'spawn' | 'launch' | 'arrive' | 'merge' | 'charge' | 'summon' | 'aim' | 'lock' | 'loose' | 'hit'
+  | 'charge' | 'summon' | 'aim' | 'lock' | 'loose' | 'hit'
   | 'great' | 'greatAim' | 'hang' | 'greatLoose' | 'impact' | 'shatter' | 'boom' | 'end';
 export interface BladesCue { at: number; kind: BladesCueKind; i: number }
 
 /** Every beat the runner fires, in time order (ties keep this declaration order, so a hit precedes the impact). */
 export function bladesCues(p: BladesPlan, c: HeroBladesConfig = cfg): BladesCue[] {
   const out: BladesCue[] = [];
-  p.spawns.forEach((at, i) => out.push({ at, kind: 'spawn', i }));
-  if (!p.reduced) p.launches.forEach((at, i) => out.push({ at, kind: 'launch', i }));
-  p.arrivals.forEach((at, i) => out.push({ at, kind: 'arrive', i }));
-  out.push({ at: p.mergeAt, kind: 'merge', i: 0 });
   if (!p.reduced) {
     out.push({ at: p.chargeAt, kind: 'charge', i: 0 });
     p.blades.forEach((b, i) => out.push({ at: b.manifestAt, kind: 'summon', i }));
@@ -652,7 +589,7 @@ export function bladesCues(p: BladesPlan, c: HeroBladesConfig = cfg): BladesCue[
   p.booms.forEach((at, i) => out.push({ at, kind: 'boom', i }));
   out.push({ at: p.endAt, kind: 'end', i: 0 });
   const order: Record<BladesCueKind, number> = {
-    spawn: 0, launch: 1, arrive: 2, merge: 3, charge: 4, summon: 5, aim: 6, lock: 7, loose: 8, hit: 9, great: 10, greatAim: 11,
+    charge: 4, summon: 5, aim: 6, lock: 7, loose: 8, hit: 9, great: 10, greatAim: 11,
     hang: 12, greatLoose: 13, impact: 14, shatter: 15, boom: 16, end: 17,
   };
   return out.map((q, idx) => ({ q, idx })).sort((a, b) => a.q.at - b.q.at || order[a.q.kind] - order[b.q.kind] || a.idx - b.idx).map((x) => x.q);
@@ -856,8 +793,6 @@ const springAt = (ms: number, hz: number, tau: number): number => (ms < 0 ? 0 : 
 export function bladesCameraAt(p: BladesPlan, c: HeroBladesConfig, t: number, dir: Pt = { x: 1, y: 0 }): { zoom: number; x: number; y: number } {
   if (p.reduced) return { zoom: 1, x: 0, y: 0 };
   let z = 0;
-  const slamPop = t - p.mergeAt;
-  if (slamPop >= 0 && slamPop < 260) z += 0.012 * Math.exp(-slamPop / 70);
   const sine = (u: number): number => easeInOutSine(u);
   if (t >= p.chargeAt && t < p.impactAt) {
     let push = p.zoom * sine((t - p.chargeAt) / Math.max(1, p.fireAt - p.chargeAt));

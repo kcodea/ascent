@@ -638,7 +638,7 @@ export class HeroQuakeScene {
   }
 
   /**
-   * THE ERUPTION under the struck hero. Every light element starts AT its peak, so the hit-stop freezes the brightest
+   * THE ERUPTION under the struck hero. Every light element starts AT its peak, so the first frame is the brightest
    * frame. `r` is the struck portrait's radius (the flash covers it; the cracks and the crater ring it, never covering
    * the face).
    */
@@ -728,7 +728,7 @@ export class HeroQuakeScene {
 
   // ─── the frame ─────────────────────────────────────────────────────────────────────────────────────────────
 
-  /** Advance by `dtMs` (sequence ms; the runner applies the speed and holds 0 through a hit-stop). */
+  /** Advance by `dtMs` (sequence ms; the runner applies the speed). */
   update(dtMs: number): boolean {
     if (this.destroyed) return false;
     const dt = Math.max(0, Math.min(100, dtMs));

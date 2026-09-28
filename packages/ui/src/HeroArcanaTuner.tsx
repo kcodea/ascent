@@ -6,7 +6,7 @@ import {
 import { clipNames } from './sfx';
 import { DEV_HERO_ATTACK_CHOICES, DEV_HERO_ATTACK_LABELS, devHeroAttackChoice, setDevHeroAttackChoice } from './heroBlast/heroAttackStyle';
 import { playHeroArcana, type HeroArcanaHandle, type HeroArcanaOptions } from './heroArcana/heroArcana';
-import { playAttackDemo, previewParts } from './heroAttack/attackDemo';
+import { boardOfDamage, playAttackDemo, previewLeadIn, previewParts } from './heroAttack/attackDemo';
 import { TunerPanel } from './TunerPanel';
 import type { TunerControl, TunerSpec, TunerUnit } from './tunerSchema';
 
@@ -28,14 +28,6 @@ const SPECS: Record<GlobalNumKey, Spec> = {
   tier2At: ['Tier II from', undefined, 'Damage at which Arcana steps up to Tier II (two ribbons). Shared with Blast and Quake (6).', 'Damage tiers'],
   tier3At: ['Tier III from', undefined, 'Damage at which Arcana becomes the barrage of five. Shared (12).', 'Damage tiers'],
   tier4At: ['Tier IV from', undefined, 'Damage at which Arcana becomes the vortex and explosion. Shared (20).', 'Damage tiers'],
-  popInMs: ['Pop in', 'ms', 'Each number popping in where it comes from.', 'Combine'],
-  combineBackPx: ['Pull back', 'px', 'How far a number pulls back before it flies (anticipation).', 'Combine'],
-  combineArc: ['Arc', '×', 'How much the numbers curve on the way in.', 'Combine'],
-  combineBias: ['Merge point', '×', 'Where the numbers meet: 0 = the board centre, 1 = the attacking hero.', 'Combine'],
-  chipSize: ['Number size', 'px', 'Size of each contributing number.', 'Combine'],
-  totalSize: ['Total size', 'px', 'Size of the combined total.', 'Combine'],
-  tickPop: ['Tick pop', '×', 'How hard the total squashes as each number lands.', 'Combine'],
-  slamMs: ['Total slam', 'ms', 'The total slamming in: overshoot and settle.', 'Combine'],
   absorbMs: ['Absorb', 'ms', 'The total diving into the hero.', 'Charge'],
   heroSwell: ['Hero swell', '×', 'How much the hero swells as the spell gathers.', 'Charge'],
   recoilPx: ['Recoil', 'px', 'How far the hero dips as each ribbon leaves.', 'Charge'],
@@ -62,12 +54,6 @@ const SPECS: Record<GlobalNumKey, Spec> = {
   shakeMs: ['Shake length', 'ms', 'How long the impact shake takes to die away.', 'Camera and portraits'],
   zoomOutMs: ['Settle back', 'ms', 'The view easing back to rest after the impact.', 'Camera and portraits'],
   reducedFadeMs: ['Reduced motion fade', 'ms', 'With reduced motion on, the numbers and total just fade over this.', 'Camera and portraits'],
-  sfxGatherGain: ['gather: gain', undefined, 'The whoosh as the numbers leave.', 'Sound: gather'],
-  sfxTickGain: ['tick: gain', undefined, 'Each number landing in the total.', 'Sound: tick'],
-  sfxTickRate: ['tick: pitch', '×', 'The first tick pitch (1 = as recorded).', 'Sound: tick'],
-  sfxTickStep: ['tick: pitch step', '×', 'Each following tick rises by this much.', 'Sound: tick'],
-  sfxSlamGain: ['total slam: gain', undefined, 'The total slamming in.', 'Sound: total slam'],
-  sfxSlamRate: ['total slam: pitch', '×', 'Pitch of the total slam.', 'Sound: total slam'],
   sfxCastGain: ['cast: gain', undefined, 'The spell being cast as the charge starts.', 'Sound: cast'],
   sfxCastRate: ['cast: pitch', '×', 'Pitch of the cast.', 'Sound: cast'],
   sfxChargeGain: ['charge: gain', undefined, 'The riser climbing to the first launch.', 'Sound: charge'],
@@ -95,7 +81,6 @@ const SPECS: Record<GlobalNumKey, Spec> = {
   sfxSwirlGain: ['swirl: gain', undefined, 'Tier IV: the synth tone rising as the vortex spins up (peaks on the explosion).', 'Sound: swirl'],
   sfxSwirlLowHz: ['swirl: from', undefined, 'Hz. Where the swirl tone starts.', 'Sound: swirl'],
   sfxSwirlHighHz: ['swirl: to', undefined, 'Hz. Where it has risen to at the explosion.', 'Sound: swirl'],
-  sfxTickLenMs: ['tick length', 'ms', 'Each tick is cut to this long (with a short fade).', 'Sound: mix'],
   sfxLaunchLenMs: ['launch length', 'ms', 'Each launch whoosh is cut to this long (with a fade).', 'Sound: mix'],
   sfxImpactLenMs: ['impact length', 'ms', 'The impact and explosion clips are cut to this long (with a fade).', 'Sound: mix'],
   sfxTailMix: ['impact tail', undefined, 'A short reverb tail on the impact. 0 = dry.', 'Sound: mix'],
@@ -103,10 +88,6 @@ const SPECS: Record<GlobalNumKey, Spec> = {
 };
 
 const TIER_SPECS: Record<ArcanaTierSuffix, [string, TunerUnit | undefined, string]> = {
-  FlyMs: ['Number flight', 'ms', 'How long each number takes to reach the total.'],
-  StaggerMs: ['Number stagger', 'ms', 'Gap between each number leaving.'],
-  SlamPop: ['Total pop', '×', 'How big the total punches up when the last number lands.'],
-  HoldMs: ['Hold', 'ms', 'The total holds before the hero absorbs it.'],
   ChargeMs: ['Charge', 'ms', 'The spell gathering before the first ribbon leaves. The view pushes in over this.'],
   Ribbons: ['Ribbons', undefined, 'How many ribbons are lobbed (I one, II two, III the barrage of five, IV the vortex).'],
   LaunchStaggerMs: ['Launch stagger', 'ms', 'Gap between each ribbon leaving (the barrage rhythm).'],
@@ -115,7 +96,6 @@ const TIER_SPECS: Record<ArcanaTierSuffix, [string, TunerUnit | undefined, strin
   Fan: ['Fan', '×', 'How far a volley spreads its arcs apart.'],
   RibbonWidth: ['Ribbon width', 'px', 'The body width of each ribbon (the last is a little bigger).'],
   Swirl: ['Vortex', undefined, 'The ribbons swirl over the target, converge and explode instead of striking.'],
-  HitStop: ['Hit-stop', 'ms', 'The freeze on the impact frame.'],
   Shake: ['Shake', 'px', 'How hard the view shakes on the impact.'],
   Zoom: ['Push in', '×', 'How far the view pushes in through the charge (and the vortex).'],
   Punch: ['Impact punch', '×', 'Extra push on the impact before the view settles.'],
@@ -128,7 +108,7 @@ const TIER_SPECS: Record<ArcanaTierSuffix, [string, TunerUnit | undefined, strin
 const TIER_NAMES: Record<TierNum, string> = { 1: 'Tier I', 2: 'Tier II', 3: 'Tier III', 4: 'Tier IV' };
 
 const CLIP_OF: Partial<Record<string, HeroArcanaStrKey>> = {
-  'Sound: gather': 'sfxGatherClip', 'Sound: tick': 'sfxTickClip', 'Sound: total slam': 'sfxSlamClip', 'Sound: cast': 'sfxCastClip',
+  'Sound: cast': 'sfxCastClip',
   'Sound: charge': 'sfxChargeClip', 'Sound: launch': 'sfxLaunchClip', 'Sound: shimmer': 'sfxShimmerClip', 'Sound: tick hit': 'sfxHitClip',
   'Sound: impact': 'sfxImpactClip', 'Sound: chime': 'sfxChimeClip', 'Sound: thump': 'sfxThumpClip', 'Sound: collapse': 'sfxImplodeClip',
   'Sound: explosion': 'sfxExplodeClip', 'Sound: big hit': 'sfxBigClip', 'Sound: aftershock': 'sfxBoomClip',
@@ -199,7 +179,7 @@ export function demo(
   live?.cancel();
   const cfg = getHeroArcanaConfig();
   return playAttackDemo(side, (o) => playHeroArcana(o), {
-    damage: opts.damage ?? cfg.previewDamage, parts: opts.parts ?? cfg.previewParts, combineBias: cfg.combineBias,
+    board: boardOfDamage(opts.damage ?? cfg.previewDamage, opts.parts ?? cfg.previewParts),
     speed: heroArcanaPreviewSpeed(), reduced: opts.reduced, frames: opts.frames, sound: opts.sound, safety: opts.safety,
   }, () => { live = null; }).then((h) => { live = h; return h; });
 }
@@ -214,7 +194,7 @@ export const SPEC: TunerSpec<ArcanaTunerValues> = {
   title: 'Hero Attack: Arcana',
   note: () => {
     const c = getHeroArcanaConfig();
-    const p = arcanaPlan({ values: previewParts(c.previewDamage, c.previewParts), total: c.previewDamage, distance: 1600 }, c);
+    const p = arcanaPlan({ leadIn: previewLeadIn(c.previewDamage, c.previewParts), total: c.previewDamage, distance: 1600 }, c);
     return `dev · ${heroArcanaPreviewSpeed()}x · tier ${p.tier} · ${p.swirl ? 'vortex' : `${p.ribbons.length} ribbon${p.ribbons.length === 1 ? '' : 's'}`} · fire ${Math.round(p.fireAt)} · impact ${Math.round(p.impactAt)} · end ${Math.round(p.endAt)} ms`;
   },
   read: () => ({ ...getHeroArcanaConfig(), attackStyle: devHeroAttackChoice() }),
@@ -236,7 +216,7 @@ export const SPEC: TunerSpec<ArcanaTunerValues> = {
     { label: '▶ Foe tier II (8)', hint: 'The foe casts at your hero for 8.', run: () => { void demo('opp', { damage: 8, parts: 3 }); } },
     { label: '▶ Foe medium (12)', hint: 'The foe casts at your hero for 12.', run: () => { void demo('opp', { damage: 12, parts: 4 }); } },
     { label: '▶ Foe huge (40)', hint: 'The foe casts at your hero for 40.', run: () => { void demo('opp', { damage: 40, parts: 7 }); } },
-    { label: '▶ Reduced motion', hint: 'What a player with reduced motion on sees: fades, no ribbons, shake, zoom or hit-stop.', run: () => { void demo('player', { reduced: true }); } },
+    { label: '▶ Reduced motion', hint: 'What a player with reduced motion on sees: fades, no ribbons, shake or zoom.', run: () => { void demo('player', { reduced: true }); } },
     ...HERO_ARCANA_SPEEDS.map((s) => ({
       label: `Speed ${s}x`,
       hint: 'Slow motion for the next plays (the tuner only; never saved, never in production).',

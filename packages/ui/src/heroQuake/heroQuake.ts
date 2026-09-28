@@ -3,8 +3,8 @@
  * its impact beat (the eruption). Presentation only: the total it shows and the blow it lands are handed in, already
  * decided by the engine; this file only decides WHEN on screen they happen.
  *
- * It runs on the SHARED hero-attack core (`../heroAttack/`), exactly as the Blast does: one clock with a hit-stop, the
- * combine numbers, the `#stage` camera mirrored onto the Pixi root, the portraits (transform only, restored after), the
+ * It runs on the SHARED hero-attack core (`../heroAttack/`), exactly as the Blast does: one clock (it never pauses), the
+ * damage formation, the `#stage` camera mirrored onto the Pixi root, the portraits (transform only, restored after), the
  * voices, the dim, reduced motion, finish / cancel and the safety timer. What is the Quake's own: the rumbling camera,
  * the hero's rise and slam, the struck hero jolted up and down, the ground scene and its sound.
  *
@@ -17,7 +17,8 @@ import { pixiFx } from '../pixiFx';
 import { playRumble } from '../sfx';
 import { stageScale } from '../stage';
 import { AttackVoices } from '../heroAttack/attackSound';
-import { CombineNumbers, type CombinePart } from '../heroAttack/combineNumbers';
+import { DamageFormation, planFormation } from '../heroAttack/damageFormation';
+import { withFormation, type FormationCue } from '../heroAttack/formationConfig';
 import { clamp01, easeInOutSine, easeOutCubic, hexToNum, prefersReducedMotion, spring } from '../heroAttack/easing';
 import type { HeroAttackHandle, HeroAttackOptions } from '../heroAttack/options';
 import { Sequence } from '../heroAttack/sequence';
@@ -27,9 +28,6 @@ import {
 } from './heroQuakeConfig';
 import { HeroQuakeScene, type HeroQuakeTextures } from './heroQuakeScene';
 import { heroQuakeTextures } from './heroQuakeTextures';
-import '../heroBlast/heroBlast.css';
-
-export type HeroQuakePart = CombinePart;
 
 export interface HeroQuakeOptions extends HeroAttackOptions {
   cfg?: HeroQuakeConfig;
@@ -58,8 +56,10 @@ export function playHeroQuake(o: HeroQuakeOptions): HeroQuakeHandle {
   const dist = Math.hypot(o.defender.x - o.attacker.x, o.defender.y - o.attacker.y);
   const dir = { x: (o.defender.x - o.attacker.x) / (dist || 1), y: (o.defender.y - o.attacker.y) / (dist || 1) };
   const heading = Math.atan2(dir.y, dir.x);
-  const plan = quakePlan({ values: o.parts.map((p) => p.value), total: o.total, distance: dist, reduced }, c);
-  const cues = quakeCues(plan);
+  // THE DAMAGE FORMATION plays first (shared by every style); this style's own attack starts where it ends.
+  const { fcfg, fplan } = planFormation(o.formation, o.formationCfg, reduced);
+  const plan = quakePlan({ total: o.total, distance: dist, reduced, leadIn: fplan.endAt }, c);
+  const cues = withFormation(fplan, quakeCues(plan));
   const s = o.pixiScale ?? (typeof window === 'undefined' ? 1 : stageScale());
   const doc = typeof document !== 'undefined' ? document : null;
   const radius = o.defenderRadius ?? 120 * s;
@@ -67,9 +67,10 @@ export function playHeroQuake(o: HeroQuakeOptions): HeroQuakeHandle {
 
   // ── DOM: the numbers (shared with the Blast) ──
   const host = o.host !== undefined ? o.host : (doc ? doc.body : null);
-  const nums = new CombineNumbers({
-    parts: o.parts, combineAt: o.combineAt, attacker: o.attacker, defender: o.defender, defenderRadius: o.defenderRadius,
-    side: o.side, sideHex, local, host, scale: s, cfg: c, plan, className: 'hquake',
+  const voices = new AttackVoices(sound);
+  const nums = new DamageFormation({
+    data: o.formation, plan: fplan, beats: plan, cfg: fcfg, attacker: o.attacker, attackerRadius: o.attackerRadius,
+    defender: o.defender, defenderRadius: o.defenderRadius, side: o.side, sideHex, local, host, scale: s, voices, className: 'hquake',
   });
 
   // ── Pixi (the above-portrait slot, warmed now so it is up well before the slam) ──
@@ -91,25 +92,14 @@ export function playHeroQuake(o: HeroQuakeOptions): HeroQuakeHandle {
   const hero = new PortraitMover(reduced ? null : (o.attackerEl ?? null));
   const foe = new PortraitMover(reduced ? null : (o.defenderEl ?? null));
 
-  const voices = new AttackVoices(sound);
   const cue = voices.cue.bind(voices);
-  voices.warm([c.sfxGatherClip, c.sfxTickClip, c.sfxSlamClip, c.sfxWindupClip, c.sfxGroundClip, c.sfxThumpClip, c.sfxCrackClip, c.sfxEruptClip, c.sfxBigClip, c.sfxBoomClip, c.sfxPatterClip, c.sfxThrowClip]);
+  voices.warm([c.sfxWindupClip, c.sfxGroundClip, c.sfxThumpClip, c.sfxCrackClip, c.sfxEruptClip, c.sfxBigClip, c.sfxBoomClip, c.sfxPatterClip, c.sfxThrowClip]);
   /** Real ms from sequence ms (the playback speed). */
   const real = (ms: number): number => ms / speed;
 
-  const fire = (q: QuakeCue): void => {
+  const fire = (q: QuakeCue | FormationCue): void => {
+    if (q.kind === 'form') { nums.fire(fplan.beats[q.i]!); return; }
     switch (q.kind) {
-      case 'launch':
-        if (q.i === 0) cue(c.sfxGatherClip, c.sfxGatherGain, 1, { lenMs: 800, fadeMs: 250 });
-        break;
-      case 'arrive':
-        nums.arrive(q.i, q.at);
-        if (!plan.reduced) cue(c.sfxTickClip, c.sfxTickGain, c.sfxTickRate + q.i * c.sfxTickStep, { lenMs: c.sfxTickLenMs, fadeMs: 140 });
-        break;
-      case 'merge':
-        nums.merge(q.at);
-        cue(c.sfxSlamClip, c.sfxSlamGain, c.sfxSlamRate);
-        break;
       case 'charge':
         // The hero rises: a low grinding riser whose climax lands ON the slam, pebbles lift, a tremor starts.
         voices.riser(c.sfxWindupClip, c.sfxWindupGain, c.sfxWindupRate - 0.05 * (plan.tier - 1), real(plan.slamAt - plan.chargeAt));
@@ -128,7 +118,7 @@ export function playHeroQuake(o: HeroQuakeOptions): HeroQuakeHandle {
           cue(c.sfxCrackClip, c.sfxCrackGain * 0.8, c.sfxCrackRate + 0.05, { lenMs: 600, fadeMs: 220 });
           voices.keep(playRumble('attack', {
             gain: c.sfxRumbleGain * (0.45 + 0.2 * plan.tier), buildMs: real(plan.travelMs), holdMs: real(120),
-            tailMs: real(Math.max(300, plan.rumbleTailMs + plan.hitStopMs)), lowHz: c.sfxRumbleLowHz, highHz: c.sfxRumbleHighHz * (0.8 + 0.1 * plan.tier),
+            tailMs: real(Math.max(300, plan.rumbleTailMs)), lowHz: c.sfxRumbleLowHz, highHz: c.sfxRumbleHighHz * (0.8 + 0.1 * plan.tier),
           }));
         }
         scene?.slam(o.attacker.x, o.attacker.y, aRadius, {
@@ -141,7 +131,6 @@ export function playHeroQuake(o: HeroQuakeOptions): HeroQuakeHandle {
             segPx: c.crackSegPx, jag: c.crackJag, openPx: c.crackOpenPx, branchLength: c.branchLength, grit: 0.4 + 0.3 * plan.tier,
           });
         }
-        seq.hitStop(plan.slamStopMs);
         break;
       }
       case 'throw': {
@@ -188,7 +177,6 @@ export function playHeroQuake(o: HeroQuakeOptions): HeroQuakeHandle {
         // Straight UP out of the ground; near the top edge (the foe's corner) the column is shorter and the jets round
         // its base carry the read, so it never becomes a sideways beam.
         if (plan.pillar) scene?.pillar(o.defender.x, o.defender.y, radius, c.pillarHoldMs, plan.eruption, Math.round(plan.rocks * 0.5));
-        seq.hitStop(plan.hitStopMs);
         seq.land();
         break;
       case 'boom': {
@@ -244,12 +232,12 @@ export function playHeroQuake(o: HeroQuakeOptions): HeroQuakeHandle {
     }
   };
 
-  const seq: Sequence<QuakeCue> = new Sequence<QuakeCue>({
-    cues, speed, fire, freezeKinds: ['slam', 'impact'],
+  const seq: Sequence<QuakeCue | FormationCue> = new Sequence<QuakeCue | FormationCue>({
+    cues, speed, fire,
     paint: (t) => { nums.paint(t); paintStage(t); },
     scene, unmount,
     frames: o.frames ?? ((fn: (dt: number) => void) => pixiFx.addUpdater(fn)),
-    safetyMs: o.safety !== false ? (plan.endAt + plan.hitStopMs + plan.slamStopMs) / speed + 2500 : null,
+    safetyMs: o.safety !== false ? plan.endAt / speed + 2500 : null,
     onImpact: o.onImpact, onDone: o.onDone,
     teardownDom: () => { nums.remove(); cam.reset(); hero.reset(); foe.reset(); voices.unduck(); },
     stopVoices: () => voices.stopAll(),

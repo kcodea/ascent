@@ -8,14 +8,14 @@
  * should be satisfying and chunky, not rushed. it should be fun to watch, especially at higher dmg thresholds."
  *
  * THE BEATS (base ms before the playback speed; the reference each borrows from in brackets):
- *  1. COMBINE [Balatro scoring]. Each contributing number (the attacker's Tier, then every surviving minion) pops in
- *     big and outlined where it comes from, pulls back a hair, and flies on an arc into ONE total. Every arrival ticks
- *     the total up with its own squash and a rising pitch step. The last lands the ENGINE's number with a slam.
+ *  1. THE DAMAGE FORMATION (shared by every style, `../heroAttack/damageFormation.ts`, owner ask 2026-09-28): minion
+ *     tiers pulse left to right and merge, the hero tier joins, the full blow, the cap. Its end is this style's start.
  *  2. CHARGE [anticipation]. The total dives into the attacking hero, who swells while light gathers under a riser;
  *     the view pushes in on the hero; on the big tiers the rest of the screen dims around the two heroes.
  *  3. FIRE. The hero recoils; a muzzle flash; THICK bolts (white-hot core, side-coloured glow, a tapering comet tail)
  *     accelerate into the target. The top tier fires ONE colossal beam instead.
- *  4. IMPACT [hit-stop + directional shake: Vlambeer, Hearthstone Strikes]. Everything FREEZES on the brightest frame,
+ *  4. IMPACT [directional shake: Vlambeer, Hearthstone Strikes]. The flash starts at its brightest (no hit-stop: the owner
+ *     ruled it out 2026-09-28, "it looks like lag"),
  *     the portrait squashes and is knocked back, the camera punches in on the target and shakes ALONG the line of fire,
  *     chunky sparks fall. THIS is the beat the consequence lands on (the damage number, Armor, Resolve). The big tiers
  *     add secondary explosions, lingering embers and a scorch. Then everything settles.
@@ -23,8 +23,8 @@
  * DAMAGE TIERS (Hearthstone's Strikes step up with the blow; our thresholds follow the engine's per-round loss caps of
  * 5 / 10 / 15 / 20): I 1-5, II 6-11, III 12-19, IV 20+. APPROVED by the owner 2026-09-28 ("those are good thresholds,
  * this blast animation looks good! make it a legendary reward"): 6 / 12 / 20 are the shipped defaults. Every tier escalates the numbers' flight, the slam, the charge,
- * the volley, the hit-stop, the camera, the impact and the audio. Small hits stay brisk (~1.8 s); the top tier earns a
- * ~3.5 s show. Reduced motion: no flight, bolts, shake, zoom or hit-stop; the numbers and the total fade.
+ * the volley, the camera, the impact and the audio. Small hits stay brisk (~1.8 s); the top tier earns a
+ * ~3.5 s show. Reduced motion: no flight, bolts, shake or zoom; the numbers and the total fade.
  *
  * Tuner convention (the crate's): localStorage in DEV only, values clamped on write and on load; production always
  * plays DEFAULTS. The preview speed is how you are LOOKING and is never saved.
@@ -32,14 +32,14 @@
 
 import { hexToNum } from '../heroAttack/easing';
 import {
-  HERO_ATTACK_TIER_THRESHOLDS, TIERS, combineCounts, combineTimeline, reducedCombineTimeline, tierOf as sharedTierOf, type TierNum,
+  HERO_ATTACK_TIER_THRESHOLDS, TIERS, reducedAttackTimeline, tierOf as sharedTierOf, type TierNum,
 } from '../heroAttack/tiers';
 
 export { TIERS, hexToNum, type TierNum };
 
 /** The per-tier dials. A config key is `t1..t4` + one of these. */
 export const TIER_SUFFIXES = [
-  'FlyMs', 'StaggerMs', 'SlamPop', 'HoldMs', 'ChargeMs', 'Motes', 'Bolts', 'BoltSize', 'HitStop', 'Shake', 'Zoom', 'Punch',
+  'ChargeMs', 'Motes', 'Bolts', 'BoltSize', 'Shake', 'Zoom', 'Punch',
   'Sparks', 'SettleMs', 'Dim', 'Booms', 'Beam',
 ] as const;
 export type TierSuffix = (typeof TIER_SUFFIXES)[number];
@@ -48,15 +48,6 @@ type TierKey = `t${TierNum}${TierSuffix}`;
 interface GlobalConfig {
   // Tiers
   tier2At: number; tier3At: number; tier4At: number;
-  // Combine
-  popInMs: number;
-  combineBackPx: number;
-  combineArc: number;
-  combineBias: number;
-  chipSize: number;
-  totalSize: number;
-  tickPop: number;
-  slamMs: number;
   // Charge
   absorbMs: number;
   heroSwell: number;
@@ -81,9 +72,6 @@ interface GlobalConfig {
   colorPlayer: string;
   colorFoe: string;
   // Sound: a clip, a gain and a pitch per cue ('' = silent)
-  sfxGatherClip: string; sfxGatherGain: number;
-  sfxTickClip: string; sfxTickGain: number; sfxTickRate: number; sfxTickStep: number;
-  sfxSlamClip: string; sfxSlamGain: number; sfxSlamRate: number;
   sfxChargeClip: string; sfxChargeGain: number; sfxChargeRate: number;
   sfxFireClip: string; sfxFireGain: number; sfxFireRate: number;
   sfxBeamClip: string; sfxBeamGain: number; sfxBeamRate: number;
@@ -91,7 +79,6 @@ interface GlobalConfig {
   sfxThumpClip: string; sfxThumpGain: number; sfxThumpRate: number;
   sfxBigClip: string; sfxBigGain: number; sfxBigRate: number;
   sfxBoomClip: string; sfxBoomGain: number; sfxBoomRate: number;
-  sfxTickLenMs: number;
   sfxImpactLenMs: number;
   sfxBoomLenMs: number;
   sfxTailMix: number;
@@ -104,7 +91,7 @@ export type HeroBlastConfig = GlobalConfig & Record<TierKey, number>;
 
 export const HERO_BLAST_COLOR_KEYS = ['colorCore', 'colorPlayer', 'colorFoe'] as const;
 export const HERO_BLAST_CLIP_KEYS = [
-  'sfxGatherClip', 'sfxTickClip', 'sfxSlamClip', 'sfxChargeClip', 'sfxFireClip', 'sfxBeamClip', 'sfxImpactClip', 'sfxThumpClip', 'sfxBigClip', 'sfxBoomClip',
+  'sfxChargeClip', 'sfxFireClip', 'sfxBeamClip', 'sfxImpactClip', 'sfxThumpClip', 'sfxBigClip', 'sfxBoomClip',
 ] as const;
 type ColorKey = (typeof HERO_BLAST_COLOR_KEYS)[number];
 type ClipKey = (typeof HERO_BLAST_CLIP_KEYS)[number];
@@ -113,15 +100,10 @@ export type HeroBlastNumKey = Exclude<keyof HeroBlastConfig, HeroBlastStrKey>;
 
 /** Tier I .. IV per suffix: the escalation ladder. */
 const TIER_DEFAULTS: Record<TierSuffix, [number, number, number, number]> = {
-  FlyMs: [300, 330, 360, 380],
-  StaggerMs: [95, 100, 105, 110],
-  SlamPop: [1.4, 1.55, 1.75, 2],
-  HoldMs: [130, 200, 280, 380],
   ChargeMs: [300, 400, 560, 820],
   Motes: [12, 18, 28, 44],
   Bolts: [1, 2, 3, 1],
   BoltSize: [1, 1.2, 1.4, 2.2],
-  HitStop: [55, 75, 95, 130],
   Shake: [5, 8, 12, 18],
   Zoom: [0.02, 0.03, 0.045, 0.065],
   Punch: [0.02, 0.028, 0.038, 0.055],
@@ -133,15 +115,10 @@ const TIER_DEFAULTS: Record<TierSuffix, [number, number, number, number]> = {
 };
 
 export const TIER_RANGES: Record<TierSuffix, [number, number, number]> = {
-  FlyMs: [120, 900, 10],
-  StaggerMs: [0, 300, 5],
-  SlamPop: [1, 3, 0.01],
-  HoldMs: [0, 1000, 10],
   ChargeMs: [60, 1500, 10],
   Motes: [0, 80, 1],
   Bolts: [1, 6, 1],
   BoltSize: [0.4, 4, 0.05],
-  HitStop: [0, 250, 5],
   Shake: [0, 40, 0.5],
   Zoom: [0, 0.14, 0.002],
   Punch: [0, 0.1, 0.001],
@@ -157,14 +134,6 @@ const tierDefaults = Object.fromEntries(TIERS.flatMap((t) => TIER_SUFFIXES.map((
 export const HERO_BLAST_DEFAULTS: HeroBlastConfig = {
   // The shared, owner-approved thresholds (6 / 12 / 20): every hero attack steps up on the same blow.
   ...HERO_ATTACK_TIER_THRESHOLDS,
-  popInMs: 140,
-  combineBackPx: 24,
-  combineArc: 0.14,
-  combineBias: 0,
-  chipSize: 52,
-  totalSize: 132,
-  tickPop: 0.26,
-  slamMs: 340,
   absorbMs: 190,
   heroSwell: 0.09,
   boltSpeed: 5600,
@@ -183,9 +152,6 @@ export const HERO_BLAST_DEFAULTS: HeroBlastConfig = {
   colorCore: '#fffaf0',
   colorPlayer: '#ffb627',
   colorFoe: '#ff4057',
-  sfxGatherClip: 'TallyTravel', sfxGatherGain: 0.45,
-  sfxTickClip: 'AttackPillAdd', sfxTickGain: 0.6, sfxTickRate: 0.9, sfxTickStep: 0.07,
-  sfxSlamClip: 'tallyimpact', sfxSlamGain: 0.9, sfxSlamRate: 1.05,
   sfxChargeClip: 'fx/oona-powerup', sfxChargeGain: 0.6, sfxChargeRate: 1.1,
   sfxFireClip: 'fx/oona-launch', sfxFireGain: 0.7, sfxFireRate: 1,
   sfxBeamClip: 'fx/universfield-cinematic-swoosh-impact-454392', sfxBeamGain: 0.7, sfxBeamRate: 1,
@@ -193,7 +159,6 @@ export const HERO_BLAST_DEFAULTS: HeroBlastConfig = {
   sfxThumpClip: 'smack2', sfxThumpGain: 0.5, sfxThumpRate: 0.82,
   sfxBigClip: 'crit', sfxBigGain: 0.45, sfxBigRate: 0.9,
   sfxBoomClip: 'fx/triple-impact', sfxBoomGain: 0.35, sfxBoomRate: 1.1,
-  sfxTickLenMs: 420,
   sfxImpactLenMs: 1300,
   sfxBoomLenMs: 700,
   sfxTailMix: 0.12,
@@ -205,14 +170,6 @@ export const HERO_BLAST_DEFAULTS: HeroBlastConfig = {
 
 const GLOBAL_RANGES: Record<Exclude<keyof GlobalConfig, HeroBlastStrKey>, [number, number, number]> = {
   tier2At: [2, 40, 1], tier3At: [2, 60, 1], tier4At: [2, 80, 1],
-  popInMs: [0, 500, 10],
-  combineBackPx: [0, 80, 1],
-  combineArc: [0, 0.5, 0.01],
-  combineBias: [0, 1, 0.05],
-  chipSize: [20, 110, 1],
-  totalSize: [50, 220, 1],
-  tickPop: [0, 0.8, 0.01],
-  slamMs: [80, 900, 10],
   absorbMs: [60, 600, 10],
   heroSwell: [0, 0.3, 0.01],
   boltSpeed: [1500, 12000, 50],
@@ -228,9 +185,6 @@ const GLOBAL_RANGES: Record<Exclude<keyof GlobalConfig, HeroBlastStrKey>, [numbe
   shakeMs: [0, 1200, 10],
   zoomOutMs: [60, 1500, 10],
   reducedFadeMs: [60, 1000, 10],
-  sfxGatherGain: [0, 2, 0.05],
-  sfxTickGain: [0, 2, 0.05], sfxTickRate: [0.5, 2, 0.01], sfxTickStep: [0, 0.3, 0.005],
-  sfxSlamGain: [0, 2, 0.05], sfxSlamRate: [0.5, 2, 0.01],
   sfxChargeGain: [0, 2, 0.05], sfxChargeRate: [0.5, 2, 0.01],
   sfxFireGain: [0, 2, 0.05], sfxFireRate: [0.5, 2, 0.01],
   sfxBeamGain: [0, 2, 0.05], sfxBeamRate: [0.5, 2, 0.01],
@@ -238,7 +192,6 @@ const GLOBAL_RANGES: Record<Exclude<keyof GlobalConfig, HeroBlastStrKey>, [numbe
   sfxThumpGain: [0, 2, 0.05], sfxThumpRate: [0.5, 2, 0.01],
   sfxBigGain: [0, 2, 0.05], sfxBigRate: [0.5, 2, 0.01],
   sfxBoomGain: [0, 2, 0.05], sfxBoomRate: [0.5, 2, 0.01],
-  sfxTickLenMs: [80, 2000, 10],
   sfxImpactLenMs: [150, 3500, 10],
   sfxBoomLenMs: [100, 3000, 10],
   sfxTailMix: [0, 0.6, 0.01],
@@ -254,7 +207,7 @@ export const HERO_BLAST_RANGES: Record<HeroBlastNumKey, [number, number, number]
 };
 
 /** The hard ceilings a plan can never exceed, whatever the sliders say (so a 40 stays clean, not cluttered). */
-export const BLAST_CAPS = { bolts: 6, shakePx: 40, zoom: 0.14, sparks: 70, hitStopMs: 250, booms: 6 } as const;
+export const BLAST_CAPS = { bolts: 6, shakePx: 40, zoom: 0.14, sparks: 70, booms: 6 } as const;
 
 const HEX = /^#[0-9a-f]{6}$/i;
 const isColorKey = (k: string): k is ColorKey => (HERO_BLAST_COLOR_KEYS as readonly string[]).includes(k);
@@ -339,9 +292,9 @@ export function tierDials(tier: TierNum, c: HeroBlastConfig = cfg): Record<TierS
 }
 
 export interface BlastPlanInput {
-  /** Each contributing number, in the order they fly (the attacker's tier first). */
-  values: readonly number[];
-  /** THE blow, as the engine decided it. The combine always ends on exactly this. */
+  /** When the style's own attack starts: the end of the shared damage formation (`formationPlan().endAt`). */
+  leadIn?: number;
+  /** THE blow, as the engine decided it. */
   total: number;
   /** Screen px between the attacker's and the defender's centres (bolt travel scales with it). */
   distance: number;
@@ -365,15 +318,6 @@ export interface BlastPlan {
   /** 0..1 across the tiers (I = 0, IV = 1), for the few things that scale smoothly. */
   k: number;
   total: number;
-  /** The parts summed past the blow (the round cap). */
-  capped: boolean;
-  spawns: number[];
-  launches: number[];
-  arrivals: number[];
-  /** The total shown after each arrival. Never exceeds `total`; the last is exactly `total`. */
-  counts: number[];
-  mergeAt: number;
-  slamPop: number;
   chargeAt: number;
   absorbEnd: number;
   fireAt: number;
@@ -381,10 +325,8 @@ export interface BlastPlan {
   /** The top tier fires one colossal beam (the lead "bolt" is the beam's front). */
   beam: boolean;
   bolts: BlastBolt[];
-  /** THE consequence beat: the lead bolt (or the beam's front) lands. The hit-stop freezes the clock right after. */
+  /** THE consequence beat: the lead bolt (or the beam's front) lands. */
   impactAt: number;
-  /** How long the world freezes on the impact frame (real ms at 1x; slow motion stretches it too). */
-  hitStopMs: number;
   /** Secondary explosions around the target, sequence ms. */
   booms: number[];
   endAt: number;
@@ -406,35 +348,26 @@ export function boltTravelMs(distance: number, pxPerSec: number): number {
   return Math.round(clamp((d / v) * 1000, 180, 420));
 }
 
-/** The running totals the counter shows: each part adds, clamped to the engine's total, and the last is the total. */
-export function blastCounts(values: readonly number[], total: number): number[] {
-  return combineCounts(values, total);
-}
-
 /** The whole Blast, in base ms (divide by the playback speed for real time). Pure and deterministic. */
 export function blastPlan(input: BlastPlanInput, c: HeroBlastConfig = cfg): BlastPlan {
   const total = Math.max(0, Math.round(input.total));
-  const values = input.values.filter((v) => Number.isFinite(v));
-  const rawSum = values.reduce((s, v) => s + Math.max(0, v), 0);
   const tier = tierOf(total, c);
   const T = tierDials(tier, c);
   const k = (tier - 1) / 3;
-  const counts = blastCounts(values, total);
-  const capped = rawSum > total;
-  const n = values.length;
 
   if (input.reduced) {
-    // The numbers fade in where they are, then the total; the blow lands; everything fades. No motion at all.
-    const r = reducedCombineTimeline(n, c.reducedFadeMs);
-    const { arrivals, mergeAt, impactAt } = r;
+    // The formation has faded through its stages; the blow lands; everything fades. No motion at all.
+    const r = reducedAttackTimeline(input.leadIn ?? 0, c.reducedFadeMs);
+    const { impactAt } = r;
     return {
-      reduced: true, tier, k, total, capped, spawns: r.spawns, launches: arrivals.slice(), arrivals, counts,
-      mergeAt, slamPop: 1, chargeAt: impactAt, absorbEnd: impactAt, fireAt: impactAt, motes: 0, beam: false, bolts: [], impactAt,
-      hitStopMs: 0, booms: [], endAt: r.endAt, shakePx: 0, zoom: 0, punch: 0, sparks: 0, flashScale: 0, dim: 0,
+      reduced: true, tier, k, total,
+      chargeAt: impactAt, absorbEnd: impactAt, fireAt: impactAt, motes: 0, beam: false, bolts: [], impactAt,
+      booms: [], endAt: r.endAt, shakePx: 0, zoom: 0, punch: 0, sparks: 0, flashScale: 0, dim: 0,
     };
   }
 
-  const { spawns, launches, arrivals, mergeAt, holdEnd: chargeAt } = combineTimeline(n, T, c.popInMs);
+  // The shared damage formation plays first; the style's own attack starts when it ends.
+  const chargeAt = Math.max(0, input.leadIn ?? 0);
   const absorbEnd = chargeAt + c.absorbMs;
   const fireAt = chargeAt + Math.max(T.ChargeMs, c.absorbMs);
 
@@ -457,9 +390,7 @@ export function blastPlan(input: BlastPlanInput, c: HeroBlastConfig = cfg): Blas
   const endAt = lastBeat + T.SettleMs;
 
   return {
-    reduced: false, tier, k, total, capped, spawns, launches, arrivals, counts,
-    mergeAt, slamPop: T.SlamPop, chargeAt, absorbEnd, fireAt, motes: Math.round(T.Motes), beam, bolts, impactAt,
-    hitStopMs: Math.round(clamp(T.HitStop, 0, BLAST_CAPS.hitStopMs)),
+    reduced: false, tier, k, total, chargeAt, absorbEnd, fireAt, motes: Math.round(T.Motes), beam, bolts, impactAt,
     booms,
     endAt,
     shakePx: clamp(T.Shake, 0, BLAST_CAPS.shakePx),
@@ -471,23 +402,19 @@ export function blastPlan(input: BlastPlanInput, c: HeroBlastConfig = cfg): Blas
   };
 }
 
-export type BlastCueKind = 'spawn' | 'launch' | 'arrive' | 'merge' | 'charge' | 'fire' | 'impact' | 'hit' | 'boom' | 'end';
+export type BlastCueKind = 'charge' | 'fire' | 'impact' | 'hit' | 'boom' | 'end';
 export interface BlastCue { at: number; kind: BlastCueKind; i: number }
 
 /** Every beat the runner fires, in time order (ties keep this declaration order, so impact precedes end). */
 export function blastCues(p: BlastPlan): BlastCue[] {
   const out: BlastCue[] = [];
-  p.spawns.forEach((at, i) => out.push({ at, kind: 'spawn', i }));
-  if (!p.reduced) p.launches.forEach((at, i) => out.push({ at, kind: 'launch', i }));
-  p.arrivals.forEach((at, i) => out.push({ at, kind: 'arrive', i }));
-  out.push({ at: p.mergeAt, kind: 'merge', i: 0 });
   if (!p.reduced) out.push({ at: p.chargeAt, kind: 'charge', i: 0 });
   p.bolts.forEach((b, i) => out.push({ at: b.fireAt, kind: 'fire', i }));
   out.push({ at: p.impactAt, kind: 'impact', i: 0 });
   p.bolts.forEach((b, i) => { if (i > 0) out.push({ at: b.arriveAt, kind: 'hit', i }); });
   p.booms.forEach((at, i) => out.push({ at, kind: 'boom', i }));
   out.push({ at: p.endAt, kind: 'end', i: 0 });
-  const order: Record<BlastCueKind, number> = { spawn: 0, launch: 1, arrive: 2, merge: 3, charge: 4, fire: 5, impact: 6, hit: 7, boom: 8, end: 9 };
+  const order: Record<BlastCueKind, number> = { charge: 4, fire: 5, impact: 6, hit: 7, boom: 8, end: 9 };
   return out.map((c, idx) => ({ c, idx })).sort((a, b) => a.c.at - b.c.at || order[a.c.kind] - order[b.c.kind] || a.idx - b.idx).map((x) => x.c);
 }
 

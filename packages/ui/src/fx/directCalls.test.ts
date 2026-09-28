@@ -211,7 +211,9 @@ describe('DIRECT_CALL_SITES is a derivation, not a list', () => {
       'rune-buff-unit', 'rune-cast-flourish', 'rune-cast-mote', 'rune-select-implosion', 'rune-slot-break',
       // 'runeforge-embers' / 'runeforge-epic-flare' / 'runeforge-land-dust' joined on 2026-09-24: the Runeforge entrance
       // (`runeforgeEntrance/entrance.ts`): embers as the forge opens, the Epic flare, and the dust under each landing tablet.
-      'runeforge-embers', 'runeforge-epic-flare', 'runeforge-land-dust', 'shop-buff-purple', 'shop-tier-up', 'spell-bounce', 'starform-create', 'starform-pull', 'strike-impact', 'tallyanimation1', 'tendril-trail',
+      'runeforge-embers', 'runeforge-epic-flare', 'runeforge-land-dust', 'shop-buff-purple', 'shop-tier-up', 'spell-bounce', 'starform-create', 'starform-pull', 'strike-impact',
+      // 'tallyanimation1' left on 2026-09-28: Classic's centre tally was replaced by the shared damage formation (DOM).
+      'tendril-trail',
       // 'tendril-trail-spirit' joined on 2026-09-17: the Spirit ribbon fires by literal id so its hits can be staggered.
       'tendril-trail-spirit',
       // 'test-ascent-frame-attack' / '…-health' joined on 2026-09-19: the owner-authored persistent milestone

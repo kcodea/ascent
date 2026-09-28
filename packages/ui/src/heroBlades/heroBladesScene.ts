@@ -205,22 +205,6 @@ export class HeroBladesScene {
 
   // ── beats ──────────────────────────────────────────────────────────────────────────────────────────────────
 
-  /** A number lands in the total: a crisp ring and a glint. */
-  mergeTick(x: number, y: number, step: number): void {
-    const g = 1 + 0.12 * step;
-    this.fxs('air', this.tex.ring, this.colors.edge, x, y, { dur: 240, from: 0.35 * g, to: 1.15 * g, a0: 0.8 });
-    this.glint(x, y, 0.55 * g, 200, step * 0.4);
-  }
-
-  /** The total slams in: a flash, a ring, a four-point glint, a few sparks. */
-  mergeSlam(x: number, y: number): void {
-    this.fxs('air', this.tex.glow, this.colors.core, x, y, { dur: 220, from: 0.5, to: 2.1, a0: 0.8, mode: 'punch', peakAt: 0.12 });
-    this.fxs('air', this.tex.glow, this.colors.side, x, y, { dur: 380, from: 0.8, to: 3.2, a0: 0.45, mode: 'punch', peakAt: 0.15 });
-    this.fxs('air', this.tex.ring, this.colors.core, x, y, { dur: 360, from: 0.4, to: 2.5, a0: 0.9 });
-    this.glint(x, y, 1.3, 320, 0.3);
-    this.sparks(x, y, 10, 520, -Math.PI / 2, Math.PI * 2, 360);
-  }
-
   /** A four-point glint: two thin lenses crossed (a sharp gleam off steel). */
   private glint(x: number, y: number, size: number, dur: number, rot = 0): void {
     this.fxs('air', this.tex.slash, this.colors.core, x, y, { dur, from: 0.3 * size, to: 1.1 * size, a0: 1, mode: 'punch', peakAt: 0.25, sy: 0.9 }, rot);
@@ -337,7 +321,7 @@ export class HeroBladesScene {
   }
 
   /**
-   * THE impact (I-III, and Tier IV's greatsword): everything starts AT its peak so the hit-stop freezes the brightest
+   * THE impact (I-III, and Tier IV's greatsword): everything starts AT its peak so the first frame is the brightest
    * frame: a short flash over the portrait, a white burst, a side bloom, a big CROSS CUT (two lenses at +-45 degrees to
    * the blow), two rings, a spray of sparks carried through, and an afterglow. Fills are short (the big -N must read).
    */
@@ -464,7 +448,7 @@ export class HeroBladesScene {
 
   // ── the frame ──────────────────────────────────────────────────────────────────────────────────────────────
 
-  /** Advance by `dtMs` (sequence ms; the runner applies the speed and holds 0 through the hit-stop). */
+  /** Advance by `dtMs` (sequence ms; the runner applies the speed). */
   update(dtMs: number): boolean {
     if (this.destroyed) return false;
     const dt = Math.max(0, Math.min(100, dtMs));

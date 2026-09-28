@@ -2,20 +2,20 @@ import {
   HERO_DUEL_DEFAULTS, HERO_DUEL_DESC, HERO_DUEL_RANGES,
   getHeroDuelConfig, resetHeroDuelConfig, setHeroDuelValue, type HeroDuelConfig,
 } from './heroDuelConfig';
-import { playHeroStrike } from './choreo/heroStrike';
-import { useGame } from './store';
+import { playHeroClassic } from './heroAttack/heroClassic';
+import { playAttackDemo } from './heroAttack/attackDemo';
+import { formationPreviewSpeed } from './heroAttack/formationConfig';
 import { TunerPanel } from './TunerPanel';
 import type { TunerControl, TunerSpec, TunerUnit } from './tunerSchema';
 
 /**
- * DEV tuner for the HERO DUEL — the post-combat sequence (tally → attack pill → wind-up → lunge → impact).
+ * DEV tuner for the HERO DUEL: the foe portrait's placement (it drops in for the fight), its name, health, hero power
+ * and runes.
  *
- * The two Test buttons play the real thing: they mount the foe portrait (via `duelPreview`, so it works from
- * the shop), put the pill on the striking hero, and run the SAME `playHeroStrike` the sequence runs — so what
- * you tune here is what you see in a fight.
- *
- * The lunge's own curve lives in the 🗡️ Lunge tuner and its impact FX in the workbench defs; the hero strike
- * goes through those channels deliberately, so they are tuned there rather than duplicated here.
+ * The post-combat blow itself moved 2026-09-28: the damage formation and Classic (the lunge) are tuned in the
+ * 🧮 Damage Formation tuner, on the same one clock as every cosmetic attack. The old tally, attack pill, red damage
+ * number and strike dials here drive nothing any more, so they are hidden (their saved values are harmless). The Test
+ * buttons play the real Classic between the two portraits (they mount the foe, so they work from the shop).
  */
 const LABELS: Record<keyof HeroDuelConfig, [string, TunerUnit | undefined]> = {
   oppScale:     ['Portrait size', '×'],
@@ -104,65 +104,36 @@ const ORDERED: (keyof HeroDuelConfig)[] = [
   ...(Object.keys(HERO_DUEL_DEFAULTS) as (keyof HeroDuelConfig)[]).filter((k) => !ORDER.includes(k)),
 ];
 
-const controls: TunerControl<Extract<keyof HeroDuelConfig, string>>[] = ORDERED.map((key) => {
+/** Retired 2026-09-28 with the old tally / attack pill / red damage number / GSAP strike: hidden, drive nothing. */
+const RETIRED = new Set<keyof HeroDuelConfig>([
+  'pillScale', 'pillX', 'pillY', 'pillPlayerScale', 'pillPlayerX', 'pillPlayerY', 'dmgScale', 'dmgX', 'dmgY',
+  'tallyStagger', 'tallyFly', 'pillHold', 'strikeSpeed', 'impactPower', 'settleMs',
+  'sfxTravelDelay', 'sfxTravelVol', 'sfxAddDelay', 'sfxAddVol', 'sfxImpactDelay', 'sfxImpactVol', 'sfxCounterDelay', 'sfxCounterVol',
+]);
+
+const controls: TunerControl<Extract<keyof HeroDuelConfig, string>>[] = ORDERED.filter((key) => !RETIRED.has(key)).map((key) => {
   const [label, unit] = LABELS[key];
   const [min, max, step] = HERO_DUEL_RANGES[key];
   return { key, label, unit, hint: HERO_DUEL_DESC[key], group: GROUP[key], min, max, step };
 });
 
-/** Play the real strike between the two hero portraits, mounting the foe first if we are not in a fight. */
+/** Play the real Classic (the formation, then the lunge) between the two hero portraits, without touching the run. */
 function demo(side: 'player' | 'opp'): void {
-  const st = useGame.getState();
-  st.setDuelPreview(true);
-  // Next frame, so the portrait has mounted and can be measured.
-  requestAnimationFrame(() => {
-    const cfg = getHeroDuelConfig();
-    const playerEl = document.querySelector('.statusbar .hero .herolunge');
-    const oppEl = document.querySelector('.combatopp-body');
-    if (!playerEl || !oppEl) { st.setDuelPreview(false); return; }
-    const dmg = 7; // a representative blow — the pill and the impact both read off it
-    st.setHeroAtkPill({ side, amount: dmg });
-    const attacker = side === 'player' ? playerEl : oppEl;
-    const defender = side === 'player' ? oppEl : playerEl;
-    const appEl = document.body; // .app and .statusbar are siblings — body reaches both (see styles.css)
-    const zClass = side === 'player' ? 'duel-attacker-player' : 'duel-attacker-opp';
-    window.setTimeout(() => {
-      const done = (): void => {
-        appEl?.classList.remove(zClass, 'duel-striking');
-        useGame.getState().setHeroAtkPill(null);
-        useGame.getState().setHeroDmgTaken(null);
-        useGame.getState().setDuelPreview(false);
-      };
-      appEl?.classList.add(zClass, 'duel-striking'); // raise the attacker + fade the pills for the swing
-      const tl = playHeroStrike({
-        attacker, defender, damage: dmg * cfg.impactPower, combatSpeed: cfg.strikeSpeed,
-        // Pop the RED damage-taken number on the DEFENDER (the side not attacking), same as a real strike.
-        onImpact: () => useGame.getState().setHeroDmgTaken({ side: side === 'player' ? 'opp' : 'player', amount: dmg, seq: Date.now() }),
-      });
-      // Retire on the swing's ACTUAL completion, plus the tuner's settle — a guessed timeout can fire mid-swing
-      // and yank the foe portrait out from under the blow (seen while wiring this). CHAIN onto the timeline's
-      // existing onComplete (playLunge's cleanup — clearProps transform/zIndex — lives there); replacing it
-      // left the attacker at inline z-index 12, painted over its own name/health after settling.
-      if (tl) {
-        const lungeDone = tl.eventCallback('onComplete');
-        tl.eventCallback('onComplete', () => { lungeDone?.(); window.setTimeout(done, cfg.settleMs); });
-      } else done();
-    }, cfg.pillHold);
-  });
+  void playAttackDemo(side, playHeroClassic, { board: { minionTiers: [2, 3, 4], heroTier: 3, cap: 10 }, speed: formationPreviewSpeed() });
 }
 
 export const SPEC: TunerSpec<HeroDuelConfig> = {
   id: 'heroduel',                    // FROZEN — indexes this panel's dragged position in localStorage
   title: 'Hero Duel',
-  note: 'dev · post-combat strike',
+  note: 'dev · the foe portrait (the blow itself: 🧮 Damage Formation)',
   read: getHeroDuelConfig,
   write: (key, value) => setHeroDuelValue(key, value),
   reset: resetHeroDuelConfig,
   defaults: HERO_DUEL_DEFAULTS,
   controls,
   actions: [
-    { label: 'Test — your hero strikes', hint: 'Plays the full swing from your portrait at the foe.', run: () => demo('player') },
-    { label: 'Test — foe strikes', hint: 'Plays the full swing from the foe at your portrait.', run: () => demo('opp') },
+    { label: 'Test: your hero strikes', hint: 'Plays Classic from your portrait at the foe (capped 12 to 10).', run: () => demo('player') },
+    { label: 'Test: foe strikes', hint: 'Plays Classic from the foe at your portrait.', run: () => demo('opp') },
   ],
 };
 

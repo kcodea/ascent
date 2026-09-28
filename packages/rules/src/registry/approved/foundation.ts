@@ -2071,11 +2071,11 @@ export const FOUNDATION_RULES: GameRule[] = [
     title: 'A hero attack is presentation only: it shows the ENGINE\'s blow and lands the consequence exactly once, on its impact beat',
     statement:
       'Whatever style plays, the blow is the engine\'s (heroStrikeDamage: the capped enemyDamage on a win, playerLossDamage '
-      + 'on a lobby loss). Blast combines the contributing numbers into a total that always ends on exactly that value (never '
-      + 'a DOM sum), and fires the consequence (the health drop, Armor first, via settleCombat) exactly once, on the frame the '
+      + 'on a lobby loss). The shared damage formation (R-PROG-ATTACK-08) builds that value on screen from the engine\'s own numbers '
+      + '(never a DOM sum), and Blast fires the consequence (the health drop, Armor first, via settleCombat) exactly once, on the frame the '
       + 'lead bolt or beam lands; if frames stop, a safety timer still lands it. It escalates by damage tier (I 1-5, II 6-11, '
-      + 'III 12-19, IV 20+; IV fires a beam; the thresholds 6 / 12 / 20 are owner-approved) and under reduced motion it is fades only (no flight, bolts, shake, zoom or '
-      + 'hit-stop). Leaving the fight mid-animation cancels it without landing, exactly as Classic\'s timers are cleared.',
+      + 'III 12-19, IV 20+; IV fires a beam; the thresholds 6 / 12 / 20 are owner-approved) and under reduced motion it is fades only (no flight, bolts, shake or '
+      + 'zoom). No hero attack ever freezes its clock (R-PROG-ATTACK-10). Leaving the fight mid-animation cancels it without landing, exactly as Classic\'s timers are cleared.',
     domain: 'foundation',
     status: 'approved',
     evidence: [
@@ -2109,7 +2109,7 @@ export const FOUNDATION_RULES: GameRule[] = [
     title: 'Quake ("Tectonic Slam", attack_quake, Legendary): tiers I-III hurl boulders into stone spikes; only the huge hit (IV) is an earthquake that erupts; the SAME damage tiers as Blast',
     statement:
       'attack_quake (placeholder name "Tectonic Slam", Legendary, crate, account-wide, style quake) plays the Quake: the shared '
-      + 'combine (the Tier and each Minion number fly into one total that ends on the engine\x27s blow), then the attacking hero '
+      + 'damage formation (R-PROG-ATTACK-08: the minion tiers and the hero tier build the engine\x27s blow), then the attacking hero '
       + 'rises and stomps. Tiers I-III (1-19) have NO crack line: boulders are ripped out of the ground and lobbed onto the '
       + 'target (I one, II two, III three hot ones; earlier boulders land as ticks), and a crown of stone spikes bursts out '
       + 'round the struck portrait with a spray of molten grit. Only Tier IV (20+) is an EARTHQUAKE: the board rumbles, a '
@@ -2135,8 +2135,8 @@ export const FOUNDATION_RULES: GameRule[] = [
     id: 'R-PROG-ATTACK-06',
     title: 'Arcana (attack_arcana, Legendary) is the third hero attack: magic ribbons lobbed from the hero, 1 / 2 / a barrage of 5 / a vortex that explodes, on the SAME damage tiers; the blow lands ONCE',
     statement:
-      'attack_arcana ("Arcana", the owner\x27s name; Legendary, crate, account-wide, style arcana) plays Arcana: the shared combine '
-      + '(the Tier and each Minion number fly into one total that ends on the engine\x27s blow), a charge (an arcane circle opens '
+      'attack_arcana ("Arcana", the owner\x27s name; Legendary, crate, account-wide, style arcana) plays Arcana: the shared damage '
+      + 'formation (R-PROG-ATTACK-08: the minion tiers and the hero tier build the engine\x27s blow), a charge (an arcane circle opens '
       + 'under the striking hero), then clean magic RIBBONS (a tapering strip with a violet body, a white-hot core, a cyan strand '
       + 'and a sigil orb at the head) lobbed on high arcs from the hero. It escalates on exactly the tiers Blast and Quake use '
       + '(one shared tierOf, thresholds 6 / 12 / 20): I 1-5 ONE ribbon; II 6-11 TWO on different heights and opposite sides; '
@@ -2160,7 +2160,7 @@ export const FOUNDATION_RULES: GameRule[] = [
     title: 'Phantom Blades (attack_blades, Legendary) is the fourth hero attack: summoned swords aim, lock and thrust straight in, 1 / a crossed 2 / a fan of 5 / 6 and a greatsword, on the SAME damage tiers; the blow lands ONCE',
     statement:
       'attack_blades ("Phantom Blades", a placeholder name for the owner to rename; Legendary, crate, account-wide, style blades) '
-      + 'plays the Blades: the shared combine (the Tier and each Minion number fly into one total that ends on the engine\x27s '
+      + 'plays the Blades: the shared damage formation (R-PROG-ATTACK-08: the minion tiers and the hero tier build the engine\x27s '
       + 'blow), then spectral swords are SUMMONED round the striking hero (each assembles out of flying slivers, raised to the sky), '
       + 'swing round to AIM at the target, LOCK dead still for a breath, and are loosed in dead-straight THRUSTS (a kick back, '
       + 'afterimages, a cut of light) that STICK in the struck hero and quiver. It escalates on exactly the tiers every other '
@@ -2178,5 +2178,75 @@ export const FOUNDATION_RULES: GameRule[] = [
     ],
     currentBehaviour: 'Conforms, built 2026-09-28. The item reaches the database on the next deploy of progression-inventory (the catalog sync); the equip SQL already accepts the hero_attack slot.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/heroBlades/heroBlades.test.ts', 'packages/progression/src/cosmetics.test.ts', 'packages/ui/src/progression/CollectionHeroAttack.test.tsx'], lastVerifiedAt: '2026-09-28' },
+  },
+  {
+    id: 'R-PROG-ATTACK-08',
+    title: 'Every hero attack (Classic and every cosmetic) opens with ONE shared damage formation: minion tiers pulse left to right and merge, the hero tier joins, the full blow shows, then reduces to the cap; every number is the engine\x27s',
+    statement:
+      'Before the attack itself, identically for Classic, Blast, Quake, Arcana and Phantom Blades (one implementation, '
+      + 'packages/ui/src/heroAttack/damageFormation.ts and formationConfig.ts): (1) each surviving minion of the striking side, '
+      + 'LEFT TO RIGHT, pulses its tier badge and its tier number pops up above it with a rising tick (the stagger compresses '
+      + 'on a big board); (2) the numbers flow toward the middle (up off your row, down off the foe\x27s) and MERGE into one '
+      + 'minion number; (3) the striking hero\x27s tier number pops in at the hero; (4) the minion number JOINS it (the default; '
+      + 'the tuner can play the other direction); (5) the FULL blow slams in; (6) ONLY when the round cap cut the blow: a slash '
+      + 'hits the full number (a flash and a jolt, never a freeze) and it counts down to the cap at once and a "Damage capped" stamp slams on and holds; then '
+      + '(7) the style\x27s own attack carries the final number and lands the consequence once, on its impact beat (Classic: the '
+      + 'hero lunges, R-PROG-ATTACK-09). Every number is the ENGINE\x27s: the fight\x27s own breakdown '
+      + '(damageBreakdown on a loss, enemyDamageBreakdown on a win, each with the survivors\x27 uids), the blow before the cap '
+      + '(playerDamageUncapped / enemyDamage) and the round cap the run loop stamped (damageCap); a result recorded before '
+      + 'those fields plays what it knows (no breakdown: just the blow; no cap stamp: no cap beat). Reduced motion keeps every '
+      + 'stage as quick fades. Presentation only.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-28 (the damage formation)', quote: 'we need to change the dmg numbers / should have the tier section pulse with the number showing up from left to right / have them all flow up and merge into a single numbere / then the hero tier dmg shows / and joins / or the minion tier dmg number joins the hero number / and then have the full dmg show / then a moment where it reduces to the cap / and said damage capped / and then the attack happens / purely a change in how the dmg formation happens/shows' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-28 (scope)', quote: 'apply it to ALL attacks' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-28 (first review)', quote: 'dmg tally looks decent, i think it needs to slow down between steps slightly so it\x27s a bit more obvious what\x27s happening. like when it gets slashed and says capped - it all looks fantastic just needs to be a bit slower and oomphier in general but it is a great start' },
+      { kind: 'code', ref: 'packages/ui/src/heroAttack/ (damageFormation, formationConfig, formationRunner, badgeAnchors); packages/ui/src/heroBlast/heroStrikeDamage.ts (heroStrikeNumbers); packages/core/src/combat/simulate.ts (enemyDamageBreakdown, survivorUids); packages/sim/src/reducer.ts (damageCap, playerDamageUncapped)' },
+    ],
+    currentBehaviour: 'Conforms, built 2026-09-28.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/heroAttack/damageFormation.test.ts', 'packages/sim/src/damageFormationData.test.ts'], lastVerifiedAt: '2026-09-28' },
+  },
+  {
+    id: 'R-PROG-ATTACK-09',
+    title: 'Classic, the free default hero attack, plays on the same one clock as the cosmetic attacks: no green / red number pill, the ORIGINAL swing speed, a basic but impactful hit with a subtle camera',
+    statement:
+      'After the shared damage formation (R-PROG-ATTACK-08) the number sinks into the striking hero, who plays the ORIGINAL '
+      + 'Classic swing: a minion attack\x27s wind-up, the distance-scaled strike leading with a corner and its ease, the '
+      + 'rebound off the clack and the elastic settle (the Lunge tuner\x27s values, run at the old 1.15 tempo). On contact: a '
+      + 'the shared strike burst and smack (no freeze), a small squash and knockback on the struck portrait, a SUBTLE '
+      + 'camera punch and shake (well under the Legendary attacks\x27), and the same big -N every attack punches onto the '
+      + 'target; the consequence lands exactly once, on contact. The old green attack pill on the striking hero and the red '
+      + 'damage-taken number on the struck one are retired (both directions). The stretch from the join to the capped '
+      + 'number plays slower (a longer join, more hold on the full total, a longer count-down, a longer stamp hold). '
+      + 'Presentation only; reduced motion is fades only.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-28 (Classic cleanup)', quote: 'do we just remove the green/red number pill from the hero windup for the normal animation? can you clean up the normal animation so it\x27s a bit more in line with these? i think slightly slowing down the combination -> capped speed so it\x27s a bit more readable in general is important too' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-28 (Classic speed)', quote: 'try and match the same speed as how it was for the wind up and normal hit. it should be basic but impactful. dont over do the zoom/shake.' },
+      { kind: 'code', ref: 'packages/ui/src/heroAttack/heroClassic.ts (classicSwing, strikePose, playHeroClassic); packages/ui/src/heroAttack/classicConfig.ts; packages/ui/src/heroAttack/formationConfig.ts (the slower join-to-cap defaults)' },
+    ],
+    currentBehaviour: 'Conforms, built 2026-09-28.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/heroAttack/damageFormation.test.ts'], lastVerifiedAt: '2026-09-28' },
+  },
+  {
+    id: 'R-PROG-ATTACK-10',
+    title: 'No hero attack ever freezes: no hit-stop or freeze frame in Classic, Blast, Quake, Arcana, Phantom Blades or the damage formation',
+    statement:
+      'The hero-attack clock never stops. There is no hit-stop on any impact (Classic, Blast, Quake, Arcana, Phantom Blades), '
+      + 'no freeze on Quake\x27s slam, no freeze on the damage formation\x27s cap slash (the count-down starts on the '
+      + 'slash), and no pinning of the clock to a beat: every frame advances it by exactly the time played. Impacts keep '
+      + 'their weight through the flash (each impact starts at its brightest), the squash and knockback, the shake, the '
+      + 'particles and the sound. The shared clock (packages/ui/src/heroAttack/sequence.ts) has no way to hold, and no tuner '
+      + 'offers a hit-stop. The consequence still lands exactly once, on the impact beat.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-28 (hit-stop removal)', quote: 'all of them seem to have some hit stun freeze frame? i dont want that. remove the freezeing frame from all of the animations. it looks like lag' },
+      { kind: 'code', ref: 'packages/ui/src/heroAttack/sequence.ts (no hitStop, no freeze beats); every style config (no HitStop / SlamStop dials); packages/ui/src/heroAttack/formationConfig.ts (crunchAt = capFrom); packages/ui/src/heroAttack/classicConfig.ts' },
+    ],
+    currentBehaviour: 'Conforms, fixed 2026-09-28.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/heroAttack/damageFormation.test.ts'], lastVerifiedAt: '2026-09-28' },
   },
 ];

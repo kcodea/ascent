@@ -55,9 +55,23 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: "Hero damage now builds up on screen before every hero attack: your minions' tiers, then your hero's, then the cap.",
+        details: [
+          "Each surviving minion's tier badge pulses from left to right, and its number pops up above it.",
+          'The numbers flow together into one minion number.',
+          "Your hero's tier number appears at your hero, and the minion number joins it.",
+          `The full damage shows. If this round's damage cap cuts it, it gets slashed down to the cap and stamped "Damage capped".`,
+          'Then the attack happens. This plays for Classic and every hero attack from the Collection.',
+          'Classic, the free attack, is cleaned up: the green and red number pills are gone, and your hero lunges and hits with the same big damage number the other attacks show.',
+          'The numbers are the real ones from the fight. Nothing about the damage itself changed.',
+          'No hero attack freezes on the hit any more, so none of them stutters like lag.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'A new Legendary hero attack, Phantom Blades, can drop from crates.',
         details: [
-          'Your numbers combine into one total, then glowing swords appear around your hero, turn to aim, and fly straight at the other hero.',
+          'Your damage builds up, then glowing swords appear around your hero, turn to aim, and fly straight at the other hero.',
           'The bigger the hit, the more blades: one, then a crossed pair, then a fan of five that sticks in and shatters.',
           'On the biggest hits a giant greatsword forms, locks on, and impales the other hero.',
           'Equip it from the Attack Animations tab of the Collection. There is a preview button there too.',
@@ -102,7 +116,7 @@ export const PATCH_NOTES: PatchNote[] = [
         category: 'Systems',
         text: 'A new Legendary hero attack, Arcana, can drop from crates.',
         details: [
-          'Your numbers combine into one total, then your hero lobs ribbons of arcane light at the other hero.',
+          'Your damage builds up, then your hero lobs ribbons of arcane light at the other hero.',
           'The bigger the hit, the bigger the spell: one ribbon, then two, then a barrage of five.',
           'On the biggest hits the ribbons swirl into a vortex over the other hero, then explode outward.',
           'Equip it from the Attack Animations tab of the Collection. There is a preview button there too.',
@@ -113,7 +127,7 @@ export const PATCH_NOTES: PatchNote[] = [
         category: 'Systems',
         text: 'A new Legendary hero attack, Tectonic Slam, can drop from crates.',
         details: [
-          'Your numbers combine into one total, then your hero hurls boulders at the other hero, and stone spikes burst out of the ground around them.',
+          'Your damage builds up, then your hero hurls boulders at the other hero, and stone spikes burst out of the ground around them.',
           'Bigger hits throw more boulders, and they start to glow with magma.',
           'The biggest hits are a true earthquake: the ground cracks open to the other hero and erupts under them.',
           'Equip it from the Attack Animations tab of the Collection. There is a preview button there too.',
@@ -125,7 +139,7 @@ export const PATCH_NOTES: PatchNote[] = [
         category: 'Systems',
         text: 'A new Legendary hero attack, Arcane Barrage, can drop from crates.',
         details: [
-          'Your numbers combine into one total, your hero charges up, and a volley of bolts hits the other hero. The biggest hits fire one huge beam.',
+          'Your damage builds up, your hero charges up, and a volley of bolts hits the other hero. The biggest hits fire one huge beam.',
           'The bigger the hit, the bigger the show.',
           'Equip it from the Attack Animations tab of the Collection. "Use Classic" puts the original attack back. There is a preview button there too.',
           'The player you hit sees your hero attack, and you see theirs.',

@@ -38,7 +38,7 @@ if (import.meta.env.DEV) {
 }
 import { chooseBothText } from './cardText';
 import { relatedCardIds, relatedPickOneIds } from './cardRefs';
-import { type Action, grimToastFold, unityAuraFold, EQUIPMENT_FX_ANCHOR, ancientRiseTint, spiritsPlayedThisTurn, anySpellsCastThisTurn, unusedEquipmentCount, playerOpponent, alignmentsOf, boardHasCelestial, chooseBothActive, chooseBothStateOf, type ChooseBothState, chooseOneNeedsChoice, computeCombatOdds, type CombatOdds, rubyCastCount, giftCastCount, rubyStatBonus, CONFIG, RIFTS, hasTier7Access, maxTierFor, conjuredStats, cardBuff, getHero, isTribe, defIsTribe, magnetizesTo, magnetizeTargets, endOfTurnRepeats, endOfTurnTicksOf, projectEndOfTurnSteps, questEndOfTurnBeats, sellValueWithBonus, spellDisplayText, chooseOneBranchText, spellAttackBonus, spellHealthBonus, spellAttackBonusLive, spellHealthBonusLive, spellEscalationLive, squirlScoutBuffLive, spellCasts, runeExtraCasts, spellCostReduction, implosionCasts, dragonflameCasts, nextOpponent, lossDamageCap, minionCostOf, heroOfferPrice, offerBuyPrice, dominantBoardTribe, effectiveTargetTribe, boardManaBonus, upgradeCostOf, nextRefreshCostOf, poolOf, type RunState, type ShopCard, type CardBuff, type BoardCard, type BoardSnapshot, gildCopiesNeeded, activePowers, gateUses, runeStacksOf, starformSpellAimsToken, createOddsProbe, selectedEquipment, selectedEquipmentDef } from '@game/sim';
+import { type Action, grimToastFold, unityAuraFold, EQUIPMENT_FX_ANCHOR, ancientRiseTint, spiritsPlayedThisTurn, anySpellsCastThisTurn, unusedEquipmentCount, playerOpponent, alignmentsOf, boardHasCelestial, chooseBothActive, chooseBothStateOf, type ChooseBothState, chooseOneNeedsChoice, computeCombatOdds, type CombatOdds, rubyCastCount, giftCastCount, rubyStatBonus, CONFIG, RIFTS, hasTier7Access, maxTierFor, conjuredStats, cardBuff, getHero, isTribe, defIsTribe, magnetizesTo, magnetizeTargets, endOfTurnRepeats, endOfTurnTicksOf, projectEndOfTurnSteps, questEndOfTurnBeats, sellValueWithBonus, spellDisplayText, chooseOneBranchText, spellAttackBonus, spellHealthBonus, spellAttackBonusLive, spellHealthBonusLive, spellEscalationLive, squirlScoutBuffLive, spellCasts, runeExtraCasts, spellCostReduction, implosionCasts, dragonflameCasts, minionCostOf, heroOfferPrice, offerBuyPrice, dominantBoardTribe, effectiveTargetTribe, boardManaBonus, upgradeCostOf, nextRefreshCostOf, poolOf, type RunState, type ShopCard, type CardBuff, type BoardCard, type BoardSnapshot, gildCopiesNeeded, activePowers, gateUses, runeStacksOf, starformSpellAimsToken, createOddsProbe, selectedEquipment, selectedEquipmentDef } from '@game/sim';
 import { createPortal } from 'react-dom';
 import { setCardId, setCardStats, toggleCardKeyword, setEnemyStats, setEnemyCardId, toggleEnemyKeyword, removeEnemy, foeSnapshotOf } from './sandboxEdit';
 import { UnitEditor } from './UnitEditor';
@@ -67,20 +67,22 @@ import { diffHandBuffs, fireHandBuff, fireHandBuffOnHandSpells, fireHandBuffOnHa
 import { HudBar } from './HudBar';
 import { LobbyPanel } from './LobbyPanel';
 import { CombatOpponent } from './CombatOpponent';
-import { playHeroStrike } from './choreo/heroStrike';
-import { getHeroDuelConfig } from './heroDuelConfig';
 import { playHeroBlast } from './heroBlast/heroBlast';
 import type { HeroAttackHandle } from './heroAttack/options';
-import { getHeroBlastConfig, heroBlastPreviewSpeed } from './heroBlast/heroBlastConfig';
+import { heroBlastPreviewSpeed } from './heroBlast/heroBlastConfig';
 import { playHeroQuake } from './heroQuake/heroQuake';
-import { getHeroQuakeConfig, heroQuakePreviewSpeed } from './heroQuake/heroQuakeConfig';
+import { heroQuakePreviewSpeed } from './heroQuake/heroQuakeConfig';
 import { playHeroArcana } from './heroArcana/heroArcana';
-import { getHeroArcanaConfig, heroArcanaPreviewSpeed } from './heroArcana/heroArcanaConfig';
+import { heroArcanaPreviewSpeed } from './heroArcana/heroArcanaConfig';
 import { playHeroBlades } from './heroBlades/heroBlades';
-import { getHeroBladesConfig, heroBladesPreviewSpeed } from './heroBlades/heroBladesConfig';
+import { heroBladesPreviewSpeed } from './heroBlades/heroBladesConfig';
 import { resolveHeroAttackStyle } from './heroBlast/heroAttackStyle';
 import { attackerCosmeticOf } from './heroBlast/attackerCosmetic';
-import { heroStrikeDamage } from './heroBlast/heroStrikeDamage';
+import { heroStrikeDamage, heroStrikeNumbers } from './heroBlast/heroStrikeDamage';
+import { tierBadgeAnchor } from './heroAttack/badgeAnchors';
+import type { FormationData } from './heroAttack/damageFormation';
+import { formationPreviewSpeed } from './heroAttack/formationConfig';
+import { playHeroClassic } from './heroAttack/heroClassic';
 import { portraitGeometry } from './heroBlast/portraits';
 import { EndTurnButton } from './EndTurnButton';
 import { RiftButton } from './RiftButton';
@@ -320,12 +322,6 @@ const END_TURN_LOCK_MS = 2000; // 5000 → 2000 (owner re-tune 2026-07-31: the l
 const INSERT_FRAC = 0.5; // insert after a card once the *dragged card's centre* passes its midpoint
 const TURN_SECONDS = 18; // base round timer; grows +4s/wave (+6s more from round 6 — owner 2026-07-16), capped at 80 — and floored at CHARGE_SECONDS+1, so wave 1 actually kicks off at 21s (see turnSeconds)
 const CHARGE_SECONDS = 20;
-/** The strike's own window (wind-up + lunge + recoil) before the tuner's Settle is added — the outer bound for
- *  the cleanup timer. The lunge's timeline is speed-scaled; the beats around it live in the ⚔️ Hero Duel tuner. */
-const STRIKE_BASE = 1500;
-/** The tally def's ribbon travel (ms) — the burst fires at its end. Keep in sync with `tallyanimation1.json`
- *  (the ribbon layer's `travelMs` and the burst layer's `at`). The pill buffs when the tally lands here. */
-const TALLY_TRAVEL_MS = 800; // the charge glyph fills over the final 20s of the turn
 const CHARGE_MAX_FEATHER = 24; // % — the reveal feather = this × (1−charge): soft incoming fronts, 0 at completion (no sigil dimming)
 const CHARGE_FADEOUT_MS = 450; // when the glyph stops being lit (End Turn / timer end) it fades out over this, not a snap-cut (keep in sync with `.chargeglyph.fading` transition in styles.css)
 
@@ -1861,22 +1857,10 @@ export function Recruit() {
   // Loss-damage sequence: on a defeat, surviving enemy tiers + the opponent's tier fly up into a damage
   // counter above the enemy board, then a Pixi bolt blasts it into the Resolve bar (which drops on impact).
   const [lossPhase, setLossPhase] = useState<null | 'tally' | 'blast' | 'done'>(null);
-  const [lossCount, setLossCount] = useState(0);   // the damage tally as it climbs
-  const [lossDmg, setLossDmg] = useState(0);       // final (capped) damage
-  const [lossCapped, setLossCapped] = useState(false); // raw total exceeded the round cap
-  const [lossPos, setLossPos] = useState<{ x: number; y: number } | null>(null); // counter screen pos
-  const [lossFlyers, setLossFlyers] = useState<{ id: number; tier: number; x: number; y: number; tx: number; ty: number; delay: number; isOpp?: boolean }[]>([]);
-  const [lossShake, setLossShake] = useState(false); // screen shake on the blast impact
   const lossSeqRef = useRef(false);
-  /** The post-combat hero-strike sequence's timers. Held in a REF, not in the effect's closure, because the
-   *  effect's deps (`replay.frame`) keep changing after the replay ends — a cleanup tied to those deps tore the
-   *  in-flight strike down mid-swing (measured: the pill appeared, then died ~1s early and the blow never
-   *  landed). `lossSeqRef` already guarantees the sequence starts once; these are cleared when combat actually
-   *  ends, and on unmount. */
-  const seqTimersRef = useRef<number[]>([]);
-  /** Monotonic strike counter — keys the red damage-taken number so it remounts + replays its pop each swing. */
-  const lossSeqSeqRef = useRef(0);                // guards single-run per combat
-  const blastRef = useRef<HeroAttackHandle | null>(null); // the cosmetic hero attack in flight (any style; cancelled on leaving the fight)
+  /** The hero attack in flight (Classic or a cosmetic style), held in a REF because the effect's deps (`replay.frame`)
+   *  keep changing after the replay ends: it is cancelled only when combat actually ends, and on unmount. */
+  const blastRef = useRef<HeroAttackHandle | null>(null);
   const endTurnPendingRef = useRef(false); // the end-of-turn beat sequence is playing before combat
   /** +padding between the LAST End-of-Turn beat and the combat curtain (owner ask 2026-08-29) — the final
    *  proc gets a breath before the blue sweeps. Turns with NO beats skip it (their fast paths dispatch
@@ -2863,119 +2847,80 @@ export function Recruit() {
     // SFX play whether or not the fight was skipped. A no-op when nothing suspended it.
     resumeAudio();
 
-    // The tally flies from the WINNER's surviving board — theirs on a loss, YOURS on a win (owner ask
-    // 2026-08-25: a win must tally and strike exactly like a loss does).
+    // The blow comes from the WINNER's surviving board: theirs on a loss, YOURS on a win (owner ask 2026-08-25: a win
+    // must build and strike exactly like a loss does).
     const won = replay.result === 'win';
     const survivors = won ? replay.frame.player : replay.frame.enemy;
-    const cap = lossDamageCap(run0.wave);
-    const oppTier = nextOpponent(run0)?.tier ?? run0.tier; // the just-fought board (wave advances only on Climb On)
     // The blow the WINNER lands. On a loss that is what the player takes (`playerLossDamage`, the same function the
     // settle uses: COMBAT DAMAGE ONLY, owner ruling 2026-08-04); on a win it is what the foe takes, the sim's mirror
-    // of the same formula capped the same way. One definition (`heroStrikeDamage`) so the counter can't drift.
+    // of the same formula capped the same way. One definition (`heroStrikeDamage`) so the numbers can't drift.
     const strikeDmg = heroStrikeDamage(run0, won);
 
-    // The tally always sits at the CENTRE OF THE BOARD (owner ask 2026-08-25), whichever side won — it tallies
-    // the minion damage there, then the projectile flies to the appropriate hero's attack pill.
-    const rectOf = (uid: string): DOMRect | undefined => findEl(uid)?.getBoundingClientRect() ?? undefined;
+    // THE DAMAGE FORMATION (owner ask 2026-09-28), shared by Classic and every cosmetic attack: each surviving
+    // minion's tier badge pulses left to right as its number pops up; they flow up and merge into one minion number;
+    // the hero's tier number pops in at the hero; the minion number joins it; the full blow slams in; when the round
+    // cap cut it, it crunches down to the cap under a "Damage capped" stamp; then the style's attack carries it.
+    // EVERY number is the engine's (`heroStrikeNumbers`: the fight's own breakdown, the uncapped blow, the stamped
+    // cap); the badges are only WHERE a number rises from (by the engine's own survivor uid, else the replay's
+    // survivor in the same slot, as the old tally paired them).
+    const strike = heroStrikeNumbers(run0, won);
+    const formation: FormationData = {
+      minions: strike.minions.map((m, i) => {
+        const a = tierBadgeAnchor(findEl(m.uid ?? survivors[i]?.uid ?? ''));
+        return { value: m.tier, at: a?.at ?? null, badges: a?.badges };
+      }),
+      hero: strike.hero !== null ? { value: strike.hero } : null,
+      full: strike.full,
+      total: strikeDmg,
+      cap: strike.cap,
+    };
+
+    const playerWon = won;
+    const side: 'player' | 'opp' = playerWon ? 'player' : 'opp';
     const boardRect = document.querySelector('.app')?.getBoundingClientRect();
     const cx = boardRect ? boardRect.left + boardRect.width / 2 : window.innerWidth / 2;
     const cy = boardRect ? boardRect.top + boardRect.height / 2 : window.innerHeight / 2;
+    const bh = boardRect?.height ?? window.innerHeight;
+    // Both portraits, measured once. A run with no foe portrait still plays, toward the enemy side of the board.
+    const geo = portraitGeometry(side);
+    const youPt = { x: cx, y: cy + bh * 0.42 }, foePt = { x: cx, y: cy - bh * 0.42 };
+    const aPt = geo?.a ?? (playerWon ? youPt : foePt);
+    const dPt = geo?.d ?? (playerWon ? foePt : youPt);
+    // The combat-speed setting nudges the blow's pace but never rushes it (owner: "satisfying and chunky, not
+    // rushed"): the square root, kept between 0.75x and 1.5x. The tuners' slow motion rides on top (DEV only).
+    const pace = Math.min(1.5, Math.max(0.75, Math.sqrt(combatSpeed > 0 ? combatSpeed : 1))) * formationPreviewSpeed();
 
-    // Contributions: opponent tier (flies from its intel frame) + each survivor's tier (from its card).
-    //
-    // Taken from the FIGHT's own breakdown when it has one (owner report 2026-08-08: the counter read 11
-    // while Resolve dropped by more). Deriving them here from `nextOpponent()` and the replay's final frame
-    // meant the animation and the hit were computed from different inputs — a procedural fallback, a
-    // snapshot without a tier, or a body still shown mid-death is enough to make them disagree. The sim's
-    // numbers are what actually land, so they are what the counter tallies; the local derivation stays only
-    // as a fallback for a combat recorded before this field existed (a saved run mid-defeat).
-    const oppRect = document.querySelector('.oppframe')?.getBoundingClientRect();
-    const bd = run0.lastCombat?.damageBreakdown;
-    // A WIN has no `damageBreakdown` — the sim only records one for the side that LOST — so its contributions
-    // are derived: your tavern tier plus each of your surviving minions, which is the same formula `simulate`
-    // uses for `enemyDamage`. The loss path keeps using the sim's own breakdown, which stays authoritative.
-    const contribs: { tier: number; r?: DOMRect; isOpp?: boolean }[] = won
-      ? [
-        { tier: run0.tier, r: document.querySelector('.statusbar .hero .f')?.getBoundingClientRect() ?? undefined, isOpp: true },
-        ...survivors.map((u) => ({ tier: CARD_INDEX[u.cardId]?.tier ?? 1, r: rectOf(u.uid) })),
-      ]
-      : bd
-      ? [
-        { tier: bd.oppTier, r: oppRect ?? undefined, isOpp: true },
-        // Pair each real tier with a surviving card's rect where one exists, purely so the numbers fly from
-        // somewhere sensible; the VALUES are the sim's, never the DOM's.
-        ...bd.survivorTiers.map((tier, i) => ({ tier, r: rectOf(survivors[i]?.uid ?? '') })),
-      ]
-      : [
-        { tier: oppTier, r: oppRect ?? undefined, isOpp: true },
-        ...survivors.map((u) => ({ tier: CARD_INDEX[u.cardId]?.tier ?? 1, r: rectOf(u.uid) })),
-      ];
-    const rawTotal = contribs.reduce((s, c) => s + c.tier, 0);
-
-    // THE HERO STRIKE (owner ask 2026-08-25). The winner "gains the attack": their pill shows their BASE tier
-    // damage in YELLOW from the start; the TALLY is only the REST — the minion (survivor) damage — so pill +
-    // tally add up to the full damage WITHOUT double-counting the tier the pill already shows (owner ask
-    // 2026-08-25). When the tally lands the pill buffs to full and flips GREEN (a buffed minion reads green);
-    // only then does the hero wind up and lunge, dropping the loser's health with a minion's motion / FX / sounds.
-    const playerWon = won;
-    const side: 'player' | 'opp' = playerWon ? 'player' : 'opp';
-    const fullDmg = strikeDmg;
-    // Base = the attacker's tavern tier (the formula's leading term, contribs[0]); the tally is contribs[1..].
-    const baseTier = Math.min(contribs[0]?.tier ?? 1, fullDmg);
-    const buffAmount = Math.max(0, fullDmg - baseTier);
-    const tallyContribs = contribs.slice(1);   // drop the base-tier term — it is already worn on the pill
-
-    // THE COSMETIC hero attacks (owner asks 2026-09-28): when the striking hero's attack style is Blast or Quake,
-    // every number (the tier AND the survivors) combines into one total, then the style carries the blow (Blast: the
+    // THE COSMETIC hero attacks (owner asks 2026-09-28): the formation, then the style carries the blow (Blast: the
     // hero charges and bolts fly; Quake: the hero slams the ground and a quake erupts under the target; Arcana: magic
     // ribbons are lobbed, and the top tier swirls them into a vortex that explodes; Phantom Blades: swords are summoned,
     // aimed and loosed in straight thrusts that stick and shatter, and the top tier brings down a greatsword). Same blow,
-    // same consequence (`land` below is the Classic one), only drawn differently; the style is the ATTACKER's (their
-    // equipped cosmetic, or the dev override). Every runner takes the same options (`heroAttack/options.ts`).
+    // same consequence, only drawn differently; the style is the ATTACKER's (their equipped cosmetic, or the dev
+    // override). Every runner takes the same options (`heroAttack/options.ts`).
     const attackStyle = resolveHeroAttackStyle({ attacker: side, attackerCosmeticId: attackerCosmeticOf(run0, side, useGame.getState().showOpponentSkins) });
     if (attackStyle === 'blast' || attackStyle === 'quake' || attackStyle === 'arcana' || attackStyle === 'blades') {
       const runner = attackStyle === 'blades'
-        ? { play: playHeroBlades, bias: getHeroBladesConfig().combineBias, preview: heroBladesPreviewSpeed() }
+        ? { play: playHeroBlades, preview: heroBladesPreviewSpeed() }
         : attackStyle === 'arcana'
-        ? { play: playHeroArcana, bias: getHeroArcanaConfig().combineBias, preview: heroArcanaPreviewSpeed() }
+        ? { play: playHeroArcana, preview: heroArcanaPreviewSpeed() }
         : attackStyle === 'quake'
-          ? { play: playHeroQuake, bias: getHeroQuakeConfig().combineBias, preview: heroQuakePreviewSpeed() }
-          : { play: playHeroBlast, bias: getHeroBlastConfig().combineBias, preview: heroBlastPreviewSpeed() };
-      lossSeqSeqRef.current += 1; // keeps a later Classic blow's damage number keyed fresh
-      const centreOf = (r: DOMRect | null | undefined): { x: number; y: number } | null =>
-        r && r.width > 0 ? { x: r.left + r.width / 2, y: r.top + r.height / 2 } : null;
-      const bh = boardRect?.height ?? window.innerHeight;
-      // Both portraits, measured once. A run with no foe portrait still plays, toward the enemy side of the board.
-      const geo = portraitGeometry(side);
-      const youPt = { x: cx, y: cy + bh * 0.42 }, foePt = { x: cx, y: cy - bh * 0.42 };
-      const aPt = geo?.a ?? (playerWon ? youPt : foePt);
-      const dPt = geo?.d ?? (playerWon ? foePt : youPt);
-      const bias = runner.bias;
+          ? { play: playHeroQuake, preview: heroQuakePreviewSpeed() }
+          : { play: playHeroBlast, preview: heroBlastPreviewSpeed() };
       setLossPhase('blast');
       const landBlast = (): void => {
-        // The Blast punches its own big hit number onto the struck hero (above every flash), so the portrait's small
+        // The style punches its own big hit number onto the struck hero (above every flash), so the portrait's small
         // red number is not shown too.
         if (playerWon) useGame.getState().setOppDmgDealt(strikeDmg);
         dispatch({ type: 'settleCombat' }); // the health drop lands on the impact beat, exactly as Classic's
       };
       blastRef.current = runner.play({
-        parts: contribs.map((c, i) => ({
-          value: c.tier,
-          // The tier flies out of the attacking hero; each survivor's from its card.
-          from: i === 0 ? aPt : centreOf(c.r),
-          base: i === 0,
-        })),
+        formation,
         total: strikeDmg,
-        capped: rawTotal > cap && strikeDmg >= cap,
         side,
         attacker: aPt,
         defender: dPt,
         defenderRadius: geo?.radius,
         attackerRadius: geo?.attackerRadius,
-        combineAt: { x: cx + (aPt.x - cx) * bias, y: cy + (aPt.y - cy) * bias },
-        // The combat-speed setting nudges the blow's pace but never rushes it (owner: "satisfying and chunky, not
-        // rushed"): the square root, kept between 0.75x and 1.5x. The tuner's slow motion rides on top.
-        speed: Math.min(1.5, Math.max(0.75, Math.sqrt(combatSpeed > 0 ? combatSpeed : 1))) * runner.preview,
+        speed: pace * runner.preview,
         attackerEl: geo?.attackerEl ?? null,
         defenderEl: geo?.defenderEl ?? null,
         onImpact: landBlast,
@@ -2987,119 +2932,38 @@ export function Recruit() {
       return;
     }
 
-    // Every beat below is tunable live (⚔️ Hero Duel). Read once per sequence, so a mid-swing slider change
-    // never retimes a swing that is already in the air.
-    const duel = getHeroDuelConfig();
-    const STAGGER = duel.tallyStagger, FLY = duel.tallyFly;
-    setLossPos({ x: cx, y: cy });
-    setLossPhase('tally');
-    setLossCount(0);
-    setLossDmg(buffAmount);
-    setLossCapped(rawTotal > cap);
-    setLossFlyers(tallyContribs.map((c, i) => ({
-      id: i, tier: c.tier,
-      x: c.r ? c.r.left + c.r.width / 2 : cx,
-      y: c.r ? c.r.top + c.r.height / 2 : cy,
-      tx: cx, ty: cy, delay: i * STAGGER, isOpp: c.isOpp,
-    })));
-
-    const timers = seqTimersRef.current;
-    let running = 0;
-    tallyContribs.forEach((c, i) => {
-      timers.push(window.setTimeout(() => { running += c.tier; setLossCount(Math.min(running, buffAmount)); }, i * STAGGER + FLY));
-    });
-    const tallyEnd = tallyContribs.length ? (tallyContribs.length - 1) * STAGGER + FLY + 340 : 220;
-
-    const strikeSeq = (lossSeqSeqRef.current += 1);
-    const setPill = useGame.getState().setHeroAtkPill;
-    setPill({ side, amount: baseTier, buffed: false });
-    // Retire the pill with a FADE (owner ask 2026-08-25): flag it `leaving` so CSS animates it out, then unmount.
-    const fadePillOut = (): void => {
-      const cur = useGame.getState().heroAtkPill;
-      if (cur) setPill({ ...cur, leaving: true });
-      timers.push(window.setTimeout(() => setPill(null), 260));
-    };   // the yellow base pill rides the hero from tally start
-    // HERO-DUEL SFX, scheduled from the SEQUENCE START so their tuner offsets can pull them EARLIER (negative)
-    // or later (positive) than the natural cue — travel fires at the launch (tallyEnd), the pill-add at the
-    // landing (tallyEnd + the def's travel). Clamped to >= 0 so a big negative just fires at the start.
-    // The tally-COUNTER sound plays as the numbers begin to climb (sequence start + its signed offset).
-    timers.push(window.setTimeout(() => sfx.tallyCounter(duel.sfxCounterVol), Math.max(0, duel.sfxCounterDelay)));
-    timers.push(window.setTimeout(() => sfx.tallyTravel(duel.sfxTravelVol), Math.max(0, tallyEnd + duel.sfxTravelDelay)));
-    timers.push(window.setTimeout(() => sfx.attackPillAdd(duel.sfxAddVol), Math.max(0, tallyEnd + TALLY_TRAVEL_MS + duel.sfxAddDelay)));
-    timers.push(window.setTimeout(() => sfx.tallyImpact(duel.sfxImpactVol), Math.max(0, tallyEnd + TALLY_TRAVEL_MS + duel.sfxImpactDelay)));
-
-    timers.push(window.setTimeout(() => {
-      // Dissolve the centre tally into particles that fly to the ATTACKER's portrait ("gaining the attack").
-      setLossPhase('blast');   // the centre number launches (fades) and does NOT re-show (see the render guard)
-      setLossFlyers([]);
-      // Fly to the ATTACK PILL (owner ask 2026-08-25), not the portrait centre — the damage is "gained" INTO the
-      // pill. Only one `.hero-atk` exists at a time (the attacker's). Fall back to the portrait if it's missing.
-      const pillEl = document.querySelector('.hero-atk');
-      const pr = pillEl?.getBoundingClientRect();
-      const aRect0 = document.querySelector(playerWon ? '.statusbar .hero .herolunge' : '.combatopp-body')?.getBoundingClientRect();
-      const ax = pr ? pr.left + pr.width / 2 : (aRect0 ? aRect0.left + aRect0.width / 2 : cx);
-      const ay = pr ? pr.top + pr.height / 2 : (aRect0 ? aRect0.top + aRect0.height / 2 : cy);
-      // Play the AUTHORED def (ribbon travels source→pill, then a burst on the pill) instead of the old bolt.
-      playDef('tallyanimation1', { source: { x: cx, y: cy }, target: { x: ax, y: ay } });
-      // WHEN the tally lands on the pill (after the def's ~800ms travel): buff the pill to full + GREEN (it
-      // re-pops on the value change), play the pill-add sound, and the pill sheens (via its `buffed` remount).
-      timers.push(window.setTimeout(() => {
-        setLossPhase('done');   // centre number gone for good — never returns to the board
-        setPill({ side, amount: fullDmg, buffed: fullDmg > baseTier });
-      }, TALLY_TRAVEL_MS));
-
-      // The portraits: the player's own in the status bar, the foe's the frame that dropped in for the fight.
-      const playerEl = document.querySelector('.statusbar .hero .herolunge');
-      const oppEl = document.querySelector('.combatopp-body');
-      const attacker = playerWon ? playerEl : oppEl;
-      const defender = playerWon ? oppEl : playerEl;
-      const setDmg = useGame.getState().setHeroDmgTaken;
-      const land = (): void => {
-        setLossShake(true);
-        window.setTimeout(() => setLossShake(false), 360);
-        // The struck hero does NOT react (owner ruling) — the Pixi FX + the health drop carry the blow. Pop the
-        // RED damage-taken number in the centre of the DEFENDER (the side NOT attacking).
-        setDmg({ side: playerWon ? 'opp' : 'player', amount: strikeDmg, seq: strikeSeq });
-        // The FOE's shown health drops HERE too when the player struck it — the mirror of the player's own live
-        // drop (which `settleCombat` applies to the run). Its lobby seat settles later, at resolveCombat.
+    // CLASSIC, the free default (owner review 2026-09-28: the green / red number pills are gone, and Classic now
+    // plays on the same one clock as the cosmetic styles): the formation, then the hero coils, LUNGES into the loser
+    // and connects with the hit-stop, the strike burst, the knockback and the same big -N; the health drops on
+    // contact. Only the attacking side is raised above the other portrait for the swing (see `.duel-attacker-*`).
+    setLossPhase('blast');
+    const zClass = playerWon ? 'duel-attacker-player' : 'duel-attacker-opp';
+    document.body.classList.add(zClass);
+    blastRef.current = playHeroClassic({
+      formation, total: strikeDmg, side, attacker: aPt, defender: dPt, defenderRadius: geo?.radius, attackerRadius: geo?.attackerRadius,
+      attackerEl: geo?.attackerEl ?? null, defenderEl: geo?.defenderEl ?? null,
+      speed: pace,
+      onImpact: () => {
         if (playerWon) useGame.getState().setOppDmgDealt(strikeDmg);
-        dispatch({ type: 'settleCombat' }); // player's own health drops HERE, on the blow landing
-      };
-      // Raise ONLY the attacking side above the other portrait for the swing (see `.duel-attacker-*`), which
-      // ALSO fades that side's own name/health — attacker-only, the struck hero keeps its pills up (owner ask).
-      const appEl = document.body;
-      const zClass = playerWon ? 'duel-attacker-player' : 'duel-attacker-opp';
-      const dropZ = (): void => { appEl?.classList.remove(zClass); };
-      // Wind up AFTER the pill has buffed (particles landed + pillHold), so the green full-damage pill reads
-      // before the lunge carries it into the loser.
-      timers.push(window.setTimeout(() => {
-        appEl?.classList.add(zClass);
-        const tl = attacker && defender
-          ? playHeroStrike({ attacker, defender, damage: strikeDmg * duel.impactPower, combatSpeed: combatSpeed * duel.strikeSpeed, onImpact: land })
-          : null;
-        // No portraits to swing (a non-lobby run has no foe frame) → still land the consequence on time.
-        if (!tl) { land(); dropZ(); }
-        // CHAIN onto the timeline's own onComplete (playLunge's cleanup — clearProps transform/zIndex — lives
-        // there); replacing it left the attacker at inline z-index 12, painted over its name/health after settle.
-        else {
-          const lungeDone = tl.eventCallback('onComplete');
-          tl.eventCallback('onComplete', () => { lungeDone?.(); dropZ(); timers.push(window.setTimeout(() => fadePillOut(), duel.settleMs)); });
-        }
-      }, TALLY_TRAVEL_MS + duel.pillHold));
-    }, tallyEnd));
-
-    timers.push(window.setTimeout(() => { if (useGame.getState().heroAtkPill) fadePillOut(); useGame.getState().setHeroDmgTaken(null); setLossPhase('done'); }, tallyEnd + pixiFx.blastTravelMs + duel.pillHold + STRIKE_BASE + duel.settleMs));
+        dispatch({ type: 'settleCombat' }); // the health drop lands on contact, exactly as every style's
+      },
+      onDone: () => {
+        blastRef.current = null;
+        document.body.classList.remove(zClass);
+        setLossPhase('done');
+      },
+    });
     // NO cleanup here on purpose: this effect re-runs whenever `replay.frame` ticks, and tearing the timers
     // down on those re-runs killed the swing mid-flight. The sequence is short, self-completing and
     // single-entry (`lossSeqRef`); its timers are cleared when combat ends (below) and on unmount.
   }, [fighting, replay.done, replay.result, replay.frame, findEl, dispatch]);
 
   // Unmount safety for the strike's timers (leaving the run mid-sequence).
-  useEffect(() => () => { seqTimersRef.current.forEach((t) => window.clearTimeout(t)); seqTimersRef.current = []; blastRef.current?.cancel(); blastRef.current = null; }, []);
+  useEffect(() => () => { blastRef.current?.cancel(); blastRef.current = null; }, []);
 
   // Reset the loss sequence when leaving combat (ready for the next fight).
   useEffect(() => {
-    if (!fighting) { seqTimersRef.current.forEach((t) => window.clearTimeout(t)); seqTimersRef.current = []; blastRef.current?.cancel(); blastRef.current = null; document.body.classList.remove('duel-attacker-player', 'duel-attacker-opp', 'duel-striking'); useGame.getState().setHeroDmgTaken(null); useGame.getState().setOppDmgDealt(0); lossSeqRef.current = false; setLossPhase(null); setLossFlyers([]); setLossCount(0); setLossPos(null); setLossShake(false); useGame.getState().setHeroAtkPill(null); }
+    if (!fighting) { blastRef.current?.cancel(); blastRef.current = null; document.body.classList.remove('duel-attacker-player', 'duel-attacker-opp', 'duel-striking'); useGame.getState().setOppDmgDealt(0); lossSeqRef.current = false; setLossPhase(null); }
   }, [fighting]);
 
   // Returning to recruit after a fight. The warband re-mounts (it was combat Units) and re-enters
@@ -7303,7 +7167,7 @@ export function Recruit() {
 
   return (
     <div
-      className={`app${run.lobby ? ' lobby' : ''}${compactCards ? ' compactui' : ''}${inCombat ? ' combat' : ''}${combatBgShown ? ' staged' : ''}${fighting ? ' fighting' : ''}${replay.shaking || lossShake ? ' shaking' : ''}${replay.critShaking ? ' shaking-crit' : ''}${
+      className={`app${run.lobby ? ' lobby' : ''}${compactCards ? ' compactui' : ''}${inCombat ? ' combat' : ''}${combatBgShown ? ' staged' : ''}${fighting ? ' fighting' : ''}${replay.shaking ? ' shaking' : ''}${replay.critShaking ? ' shaking-crit' : ''}${
         inCombat && replay.done ? ` done ${replay.result}` : ''
       }${combatOutro === 'out' || skipFade === 'out' ? ' combatout' : combatOutro === 'in' || skipFade === 'in' ? ' combatin' : ''}${
         skipFade === 'out' ? ' combatfrozen' : ''
@@ -7433,31 +7297,8 @@ export function Recruit() {
       {/* The warband / tavern FLIP + the shop death cues, in the commit where a row moves (see RowFlip). */}
       <RowFlip rowsKey={rowsKey} shopFxSeq={run.shopFxSeq} shopDeathFx={run.shopDeathFx} findEl={findEl} refs={flipRefs} />
 
-      {/* Measured overlay positions below (loss tally, replay floats/bolts, sell floats) are SCREEN px, converted
+      {/* Measured overlay positions below (replay floats/bolts, sell floats) are SCREEN px, converted
           to stage px here at the CSS write (stage.ts); the producers keep screen px because Pixi shares them. */}
-      {/* Loss-damage tally — surviving enemy tiers + the opponent's tier fly up into a damage counter
-          above the enemy board (clamped to the round cap), then blast the Resolve bar. */}
-      {fighting && (lossPhase === 'tally' || lossPhase === 'blast') && lossPos && (   /* hidden once launched — no re-show on the board (owner 2026-08-25) */
-        <div
-          className={`lossdmg${lossPhase === 'blast' ? ' launch' : ''}`}
-          style={{ left: toStage(lossPos.x), top: toStage(lossPos.y) } as CSSProperties}
-          aria-hidden="true"
-        >
-          <div className="lossdmg-n">{lossCount}</div>
-          <div className="lossdmg-l">{lossCapped && lossCount >= lossDmg ? 'Max Damage' : 'Damage'}</div>
-        </div>
-      )}
-      {fighting && lossFlyers.map((f) => (
-        <div
-          key={`lossfly-${f.id}`}
-          className={`lossfly${f.isOpp ? ' opp' : ''}`}
-          style={{ left: toStage(f.x), top: toStage(f.y), '--tx': `${toStage(f.tx - f.x)}px`, '--ty': `${toStage(f.ty - f.y)}px`, animationDelay: `${f.delay}ms` } as CSSProperties}
-          aria-hidden="true"
-        >
-          +{f.tier}
-        </div>
-      ))}
-
       {/* Start-of-Combat bolts fly from caster to target (measured in the replay). */}
       {fighting &&
         replay.projectiles.map((p) => (

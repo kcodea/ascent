@@ -27,7 +27,6 @@ const UNIT_LESS: { file: string; id: string; why: string }[] = [
   { file: 'useCombatReplay.ts', id: 'undead-aura-buff', why: 'the same run-wide surge on the `tribeAura` beat mid-combat — board-wide, camera-anchored, no unit subject' },
   { file: 'runeCastFlourish.ts', id: 'rune-cast-flourish', why: 'plays on a RUNE badge on the HUD rail (the node of the casting rune), not at a board unit' },
   { file: 'runeCastFlourish.ts', id: 'rune-cast-mote', why: 'flies from a RUNE badge on the HUD rail to a screen point (where the single effect of the spell lands), not at a unit' },
-  { file: 'Recruit.tsx', id: 'tallyanimation1', why: 'flies from the tally centre to the attack pill by coords, not at a unit' },
   { file: 'Recruit.tsx', id: 'click-puff', why: 'fires at the cursor' },
   { file: 'Recruit.tsx', id: 'coin', why: 'fires at the gold pill' },
   { file: 'EndTurnButton.tsx', id: 'impact-dust', why: 'fires at the button' },

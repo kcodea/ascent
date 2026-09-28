@@ -26,11 +26,12 @@ import {
 import { HeroArcanaScene, MAX_ARCANA_MESHES, MAX_ARCANA_SPRITES, RIBBON_POINTS, type HeroArcanaTextures } from './heroArcanaScene';
 import { arcanaSeed, playHeroArcana, type HeroArcanaOptions } from './heroArcana';
 import { SPEC } from '../HeroArcanaTuner';
+import { formationOf, leadInOf } from '../heroAttack/formationFixtures';
 
 const W = Texture.WHITE;
 const TEX: HeroArcanaTextures = { glow: W, spark: W, streak: W, ring: W, beam: W, ribbonSoft: W, ribbonBody: W, sigil: W, star: W };
 const C = HERO_ARCANA_DEFAULTS;
-const plan = (values: number[], total: number, distance = 1600, reduced = false) => arcanaPlan({ values, total, distance, reduced }, C);
+const plan = (values: number[], total: number, distance = 1600, reduced = false) => arcanaPlan({ total, distance, reduced, leadIn: leadInOf(values, reduced) }, C);
 const COLORS = { core: 0xffffff, accent: 0x72f1ff, side: 0xa45bff, shade: 0x1a0833 };
 const LOOK = { lengthMs: 150, glow: 2.6, core: 0.34, shade: 0.34, twist: 0.4, strand: 0.55, headSize: 1, sigilSize: 1 };
 const A = { x: 200, y: 850 }, D = { x: 1500, y: 180 };
@@ -42,8 +43,8 @@ describe('the damage tiers (shared with Blast and Quake)', () => {
     for (let d = 0; d <= 60; d++) {
       const t = plan([d], d).tier;
       expect(t, `dmg ${d}`).toBe(sharedTierOf(d));
-      expect(t).toBe(blastPlan({ values: [d], total: d, distance: 1600 }, HERO_BLAST_DEFAULTS).tier);
-      expect(t).toBe(quakePlan({ values: [d], total: d, distance: 1600 }, HERO_QUAKE_DEFAULTS).tier);
+      expect(t).toBe(blastPlan({ total: d, distance: 1600 }, HERO_BLAST_DEFAULTS).tier);
+      expect(t).toBe(quakePlan({ total: d, distance: 1600 }, HERO_QUAKE_DEFAULTS).tier);
     }
   });
 
@@ -105,13 +106,6 @@ describe('the tuner values', () => {
 });
 
 describe('the plan', () => {
-  it('the combine ends on EXACTLY the engine total, even when the parts sum past the cap', () => {
-    const p = plan([6, 6, 6], 10);
-    expect(p.total).toBe(10);
-    expect(p.counts).toEqual([6, 10, 10]);
-    expect(p.capped).toBe(true);
-  });
-
   it('THE BARRAGE: five ribbons land in rhythm, the first four are ticks, the LAST is the impact (only one impact beat)', () => {
     const arr = P3.ribbons.map((r) => r.arriveAt);
     for (let i = 1; i < arr.length; i++) expect(arr[i]!, `arrival ${i}`).toBeGreaterThan(arr[i - 1]!);
@@ -156,15 +150,16 @@ describe('the plan', () => {
   it('every tier escalates: more shake, zoom, hit-stop, glitter and burst; II+ dims', () => {
     const ps = [P1, P2, P3, P4];
     for (let i = 1; i < 4; i++) {
-      for (const k of ['shakePx', 'zoom', 'hitStopMs', 'motes', 'burst', 'dim'] as const) expect(ps[i]![k], `${k} ${i}`).toBeGreaterThan(ps[i - 1]![k]);
+      for (const k of ['shakePx', 'zoom', 'motes', 'burst', 'dim'] as const) expect(ps[i]![k], `${k} ${i}`).toBeGreaterThan(ps[i - 1]![k]);
     }
     expect(P1.dim).toBe(0);
   });
 
-  it('the shipped per-tier timeline (1600 px apart): first launch, impact and end (+ the hit-stop), ms', () => {
-    const t = (p: ReturnType<typeof plan>): number[] => [Math.round(p.fireAt), Math.round(p.impactAt), Math.round(p.endAt + p.hitStopMs)];
+  it('the shipped per-tier timeline (1600 px apart): first launch, impact and end, ms', () => {
+    // Timed from the charge: the style's own attack, after the shared damage formation (pinned in formation.test.ts).
+    const t = (p: ReturnType<typeof plan>): number[] => [Math.round(p.fireAt - p.chargeAt), Math.round(p.impactAt - p.chargeAt), Math.round(p.endAt - p.chargeAt)];
     expect([t(P1), t(P2), t(P3), t(P4)]).toEqual([
-      [915, 1475, 2043], [1200, 1945, 2608], [1600, 2605, 3348], [1900, 3334, 4194],
+      [260, 820, 1328], [340, 1085, 1673], [420, 1425, 2073], [420, 1854, 2574],
     ]);
     // Brisk at Tier I (about 2 s), about 4 s at Tier IV (owner: "satisfying and chunky, not rushed").
     expect(t(P1)[2]).toBeLessThanOrEqual(2100);
@@ -179,12 +174,11 @@ describe('the plan', () => {
   });
 
   it('the caps always hold, whatever the sliders say; flight scales gently with distance', () => {
-    const wild: HeroArcanaConfig = { ...C, t3Ribbons: 8, t4Motes: 80, t4HitStop: 250, t4Shake: 40, t4Zoom: 0.14 };
-    const w = arcanaPlan({ values: [15], total: 15, distance: 800 }, wild);
+    const wild: HeroArcanaConfig = { ...C, t3Ribbons: 8, t4Motes: 80, t4Shake: 40, t4Zoom: 0.14 };
+    const w = arcanaPlan({ total: 15, distance: 800 }, wild);
     expect(w.ribbons.length).toBeLessThanOrEqual(ARCANA_CAPS.ribbons);
-    const v = arcanaPlan({ values: [99], total: 99, distance: 800 }, wild);
+    const v = arcanaPlan({ total: 99, distance: 800 }, wild);
     expect(v.motes).toBeLessThanOrEqual(ARCANA_CAPS.motes);
-    expect(v.hitStopMs).toBeLessThanOrEqual(ARCANA_CAPS.hitStopMs);
     expect(arcanaFlightMs(1600, 500)).toBe(500);
     expect(arcanaFlightMs(100, 500)).toBe(310);
     expect(arcanaFlightMs(99999, 500)).toBe(575);
@@ -192,7 +186,7 @@ describe('the plan', () => {
 
   it('reduced motion: no ribbons, charge, shake, zoom, dim or hit-stop; the blow still lands once', () => {
     const p = plan([3, 4], 25, 800, true);
-    expect([p.shakePx, p.zoom, p.hitStopMs, p.dim, p.ribbons.length]).toEqual([0, 0, 0, 0, 0]);
+    expect([p.shakePx, p.zoom, p.dim, p.ribbons.length]).toEqual([0, 0, 0, 0]);
     const kinds = arcanaCues(p).map((q) => q.kind);
     for (const k of ['charge', 'fire', 'hit', 'swirl', 'orbit']) expect(kinds).not.toContain(k);
     expect(kinds.filter((k) => k === 'impact')).toHaveLength(1);
@@ -327,8 +321,8 @@ function run(over: Partial<HeroArcanaOptions> = {}) {
   const defenderEl = document.createElement('div');
   document.body.append(host, camera);
   const h = playHeroArcana({
-    parts: [{ value: 3, from: { x: 100, y: 800 }, base: true }, { value: 2, from: { x: 500, y: 500 } }, { value: 4, from: { x: 700, y: 500 } }],
-    total: 9, side: 'player', attacker: { x: 100, y: 800 }, defender: { x: 1400, y: 150 }, combineAt: { x: 900, y: 500 }, defenderRadius: 80,
+    formation: formationOf([3, 2, 4], 9),
+    total: 9, side: 'player', attacker: { x: 100, y: 800 }, defender: { x: 1400, y: 150 }, defenderRadius: 80,
     reduced: false, cfg: C, onImpact, onDone, frames: f.frames, textures: TEX, sound: false, safety: false,
     mount: (c) => { root.addChild(c); return () => root.removeChild(c); }, host, camera, attackerEl, defenderEl,
     ...over,
@@ -340,7 +334,7 @@ describe('the runner (the shared clock)', () => {
   afterEach(() => { document.body.innerHTML = ''; });
 
   it('THE BARRAGE lands the blow EXACTLY ONCE, on the LAST ribbon: never on a tick; holds the hit-stop; ends clean', () => {
-    const { h, f, root, onImpact, onDone, host, camera, attackerEl, defenderEl } = run({ total: 14, parts: [{ value: 14, from: null, base: true }] });
+    const { h, f, root, onImpact, onDone, host, camera, attackerEl, defenderEl } = run({ total: 14, formation: formationOf([14], 14) });
     expect(h.plan.ribbons).toHaveLength(5);
     expect(host.querySelector('.hblast.harcana')).not.toBeNull();
     // through every tick: no consequence yet
@@ -352,14 +346,12 @@ describe('the runner (the shared clock)', () => {
     expect(onImpact).not.toHaveBeenCalled();
     f.tick(24, 4);
     expect(onImpact).toHaveBeenCalledTimes(1);
-    expect(h.elapsed()).toBe(h.plan.impactAt);
-    f.tick(h.plan.hitStopMs - 16, 4);
-    expect(h.elapsed()).toBe(h.plan.impactAt); // frozen on the brightest frame
+    expect(h.elapsed()).toBeGreaterThanOrEqual(h.plan.impactAt); // the clock never pauses on it
     expect(camera.style.transform).toContain('scale(');
     expect(defenderEl.style.transform).toContain('translate(');
     expect(host.querySelector<HTMLElement>('.hblast-hit')!.style.opacity).toBe('1');
     expect(host.querySelector('.hblast-hit')!.textContent).toBe('-14');
-    f.tick(h.plan.endAt - h.plan.impactAt + h.plan.hitStopMs + 32, 8);
+    f.tick(h.plan.endAt - h.plan.impactAt + 32, 8);
     expect(onDone).toHaveBeenCalledTimes(1);
     expect(onImpact).toHaveBeenCalledTimes(1);
     expect(host.querySelector('.hblast')).toBeNull();
@@ -372,7 +364,7 @@ describe('the runner (the shared clock)', () => {
   });
 
   it('Tier IV: the vortex forms and the blow lands ONCE, on the explosion (not on any ribbon joining the ring)', () => {
-    const { h, f, onImpact } = run({ total: 40, parts: [{ value: 40, from: null, base: true }] });
+    const { h, f, onImpact } = run({ total: 40, formation: formationOf([40], 40) });
     expect(h.plan.swirl).toBe(true);
     f.tick(h.plan.swirlAt + 40, 4);
     expect(h.scene!.swirling).toBe(true);
@@ -394,7 +386,7 @@ describe('the runner (the shared clock)', () => {
       for (const total of [3, 8, 14, 40]) {
         const a = side === 'player' ? { x: 100, y: 800 } : { x: 1400, y: 150 };
         const d = side === 'player' ? { x: 1400, y: 150 } : { x: 100, y: 800 };
-        const { h, f, onImpact } = run({ side, attacker: a, defender: d, total, parts: [{ value: total, from: null, base: true }] });
+        const { h, f, onImpact } = run({ side, attacker: a, defender: d, total, formation: formationOf([total], total) });
         let peakS = 0, peakM = 0;
         for (let t = 0; t < h.plan.impactAt + 400; t += 16) { f.tick(16, 16); peakS = Math.max(peakS, h.scene!.liveSprites); peakM = Math.max(peakM, h.scene!.liveMeshes); }
         expect(onImpact, `${side} ${total}`).toHaveBeenCalledTimes(1);
@@ -449,7 +441,7 @@ describe('the runner (the shared clock)', () => {
   });
 
   it('reduced motion: no Pixi layer, no camera or portrait move, just fades; the blow lands once', () => {
-    const { h, f, root, onImpact, camera, host, defenderEl, attackerEl } = run({ reduced: true, total: 40 });
+    const { h, f, root, onImpact, camera, host, defenderEl, attackerEl } = run({ reduced: true, total: 40, formation: formationOf([40], 40) });
     expect(root.children).toHaveLength(0);
     expect(h.scene).toBeNull();
     expect(h.motions).toEqual([]);
@@ -468,11 +460,11 @@ describe('the runner (the shared clock)', () => {
     try {
       const onImpact = vi.fn();
       const h = playHeroArcana({
-        parts: [{ value: 25, from: null }], total: 25, attacker: { x: 0, y: 0 }, defender: { x: 800, y: 0 }, combineAt: { x: 400, y: 0 },
+        formation: formationOf([25], 25), total: 25, attacker: { x: 0, y: 0 }, defender: { x: 800, y: 0 },
         cfg: C, reduced: false, onImpact, frames: () => () => {}, textures: TEX, sound: false,
         mount: () => () => {}, host: null, camera: null,
       });
-      vi.advanceTimersByTime(h.plan.endAt + h.plan.hitStopMs + 2600);
+      vi.advanceTimersByTime(h.plan.endAt + 2600);
       expect(onImpact).toHaveBeenCalledTimes(1);
       expect(h.done).toBe(true);
     } finally { vi.useRealTimers(); }

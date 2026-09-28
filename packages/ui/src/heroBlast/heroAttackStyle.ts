@@ -2,21 +2,23 @@
  * WHICH HERO ATTACK PLAYS at the end of a won combat.
  *
  * Owner 2026-09-28: first "branch off and make a new attack animation", then "the new blast attack is going to be a
- * cosmetic unlock, not a new default". So:
- *  - `classic` is everyone's default: the tally counts up at the board centre, rides into the attack pill, and the
- *    winning hero lunges into the loser (`choreo/heroStrike.ts`).
- *  - `blast` is the first `hero_attack` COSMETIC (`attack_blast`, "Arcane Barrage" until the owner renames it): every
- *    contributing number combines into one total, the hero charges, the view pushes in and shakes, and Pixi bolts
+ * cosmetic unlock, not a new default". EVERY style opens with the same damage formation (owner ask 2026-09-28,
+ * `../heroAttack/damageFormation.ts`): minion tiers pulse left to right and merge, the hero tier joins, the full blow,
+ * the cap. So:
+ *  - `classic` is everyone's default: after the damage formation the hero wears the blow on its attack pill and
+ *    lunges into the loser (`choreo/heroStrike.ts`).
+ *  - `blast` is the first `hero_attack` COSMETIC (`attack_blast`, "Arcane Barrage" until the owner renames it): the hero
+ *    charges, the view pushes in and shakes, and Pixi bolts
  *    carry the blow (`heroBlast.ts`).
  *  - `quake` is the second (`attack_quake`, "Tectonic Slam" until the owner renames it; owner ask 2026-09-28: "an
- *    earthquake attack essentially with varying degrees of strength/cracks/explosions"): the numbers combine, the hero
+ *    earthquake attack essentially with varying degrees of strength/cracks/explosions"): the hero
  *    slams the ground, a quake cracks across the board and the ground erupts under the target (`../heroQuake/`).
  *  - `arcana` is the third (`attack_arcana`, "Arcana"; owner ask 2026-09-28: "one more attack animation, same setup as
- *    the last 2, but let's make like a magic one called arcana"): the numbers combine, then clean magic ribbons are
+ *    the last 2, but let's make like a magic one called arcana"): clean magic ribbons are
  *    lobbed from the hero (one, two, a barrage of five), and the top tier swirls them into a vortex over the target that
  *    explodes outward (`../heroArcana/`).
  *  - `blades` is the fourth (`attack_blades`, "Phantom Blades"; owner ask 2026-09-28: "make a new style animation and
- *    surprise me with it ... make it unique"): the numbers combine, spectral swords are summoned round the hero, swing
+ *    surprise me with it ... make it unique"): spectral swords are summoned round the hero, swing
  *    round to aim, lock, and are loosed in dead-straight thrusts that stick in the target and shatter; the top tier
  *    brings down a greatsword (`../heroBlades/`).
  *

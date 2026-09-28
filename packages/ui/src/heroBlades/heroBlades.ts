@@ -4,8 +4,8 @@
  * shows and the blow it lands are handed in, already decided by the engine; this file only decides WHEN on screen
  * they happen.
  *
- * It runs on the SHARED hero-attack core (`../heroAttack/`), exactly as Blast, Quake and Arcana do: one clock with a
- * hit-stop, the combine numbers, the `#stage` camera mirrored onto the Pixi root, the portraits (transform only,
+ * It runs on the SHARED hero-attack core (`../heroAttack/`), exactly as Blast, Quake and Arcana do: one clock
+ * (it never pauses), the damage formation, the `#stage` camera mirrored onto the Pixi root, the portraits (transform only,
  * restored after), the voices, the dim, reduced motion, finish / cancel and the safety timer. What is the Blades' own:
  * the formation, the aim and the lock, the straight thrusts, the stuck blades and the shatter, the Tier IV greatsword
  * and its judgement, its camera and its sound.
@@ -23,7 +23,8 @@ import { pixiFx } from '../pixiFx';
 import { playSteelHum } from '../sfx';
 import { stageScale } from '../stage';
 import { AttackVoices } from '../heroAttack/attackSound';
-import { CombineNumbers, type CombinePart } from '../heroAttack/combineNumbers';
+import { DamageFormation, planFormation } from '../heroAttack/damageFormation';
+import { withFormation, type FormationCue } from '../heroAttack/formationConfig';
 import { clamp01, easeInOutSine, hexToNum, prefersReducedMotion, spring } from '../heroAttack/easing';
 import type { HeroAttackHandle, HeroAttackOptions } from '../heroAttack/options';
 import { Sequence } from '../heroAttack/sequence';
@@ -34,9 +35,6 @@ import {
 } from './heroBladesConfig';
 import { HeroBladesScene, type HeroBladesTextures } from './heroBladesScene';
 import { heroBladesTextures } from './heroBladesTextures';
-import '../heroBlast/heroBlast.css';
-
-export type HeroBladesPart = CombinePart;
 
 /** Where the greatsword clip (`fx/universfield-cinematic-swoosh-impact`) hits, ms in at pitch 1 (measured 2026-09-28). */
 const GREAT_CLIP_HIT_MS = 480;
@@ -70,8 +68,10 @@ export function playHeroBlades(o: HeroBladesOptions): HeroBladesHandle {
   const local = o.space === 'local';
   const sideHex = o.side === 'opp' ? c.colorFoe : c.colorPlayer;
   const dist = Math.hypot(o.defender.x - o.attacker.x, o.defender.y - o.attacker.y);
-  const plan = bladesPlan({ values: o.parts.map((p) => p.value), total: o.total, distance: dist, reduced }, c);
-  const cues = bladesCues(plan, c);
+  // THE DAMAGE FORMATION plays first (shared by every style); this style's own attack starts where it ends.
+  const { fcfg, fplan } = planFormation(o.formation, o.formationCfg, reduced);
+  const plan = bladesPlan({ total: o.total, distance: dist, reduced, leadIn: fplan.endAt }, c);
+  const cues = withFormation(fplan, bladesCues(plan, c));
   const s = o.pixiScale ?? (typeof window === 'undefined' ? 1 : stageScale());
   const doc = typeof document !== 'undefined' ? document : null;
   const radius = o.defenderRadius ?? 120 * s;
@@ -91,9 +91,10 @@ export function playHeroBlades(o: HeroBladesOptions): HeroBladesHandle {
   const dir = blowDir(last, o.attacker, o.defender);
 
   // ── DOM: the numbers (shared) ──
-  const nums = new CombineNumbers({
-    parts: o.parts, combineAt: o.combineAt, attacker: o.attacker, defender: o.defender, defenderRadius: o.defenderRadius,
-    side: o.side, sideHex, local, host, scale: s, cfg: c, plan, className: 'hblades',
+  const voices = new AttackVoices(sound);
+  const nums = new DamageFormation({
+    data: o.formation, plan: fplan, beats: plan, cfg: fcfg, attacker: o.attacker, attackerRadius: o.attackerRadius,
+    defender: o.defender, defenderRadius: o.defenderRadius, side: o.side, sideHex, local, host, scale: s, voices, className: 'hblades',
   });
 
   // ── Pixi (the above-portrait slot, warmed now so it is up well before the first blade) ──
@@ -112,10 +113,9 @@ export function playHeroBlades(o: HeroBladesOptions): HeroBladesHandle {
   const hero = new PortraitMover(reduced ? null : (o.attackerEl ?? null));
   const foe = new PortraitMover(reduced ? null : (o.defenderEl ?? null));
 
-  const voices = new AttackVoices(sound);
   const cue = voices.cue.bind(voices);
   voices.warm([
-    c.sfxGatherClip, c.sfxTickClip, c.sfxSlamClip, c.sfxSummonClip, c.sfxRingClip, c.sfxAimClip, c.sfxLockClip, c.sfxLooseClip,
+    c.sfxSummonClip, c.sfxRingClip, c.sfxAimClip, c.sfxLockClip, c.sfxLooseClip,
     c.sfxCrackClip, c.sfxStabClip, c.sfxClangClip, c.sfxImpactClip, c.sfxBigClip, c.sfxThumpClip, c.sfxShatterClip, c.sfxGreatClip,
     c.sfxSlamDownClip, c.sfxBoomClip,
   ]);
@@ -123,22 +123,10 @@ export function playHeroBlades(o: HeroBladesOptions): HeroBladesHandle {
   const n = plan.blades.length;
   let hitStep = 0;
 
-  const fire = (q: BladesCue): void => {
+  const fire = (q: BladesCue | FormationCue): void => {
+    if (q.kind === 'form') { nums.fire(fplan.beats[q.i]!); return; }
     const t = seq.t;
     switch (q.kind) {
-      case 'launch':
-        if (q.i === 0) cue(c.sfxGatherClip, c.sfxGatherGain, 1, { lenMs: 800, fadeMs: 250 });
-        break;
-      case 'arrive':
-        nums.arrive(q.i, q.at);
-        if (!plan.reduced) cue(c.sfxTickClip, c.sfxTickGain, c.sfxTickRate + q.i * c.sfxTickStep, { lenMs: c.sfxTickLenMs, fadeMs: 140 });
-        if (q.i < plan.arrivals.length - 1) scene?.mergeTick(o.combineAt.x, o.combineAt.y, q.i);
-        break;
-      case 'merge':
-        nums.merge(q.at);
-        cue(c.sfxSlamClip, c.sfxSlamGain, c.sfxSlamRate);
-        scene?.mergeSlam(o.combineAt.x, o.combineAt.y);
-        break;
       case 'charge':
         if (c.sfxDuck < 1) voices.duck(c.sfxDuck);
         scene?.startCharge(o.attacker.x, o.attacker.y, aRadius, n, plan.k);
@@ -221,7 +209,6 @@ export function playHeroBlades(o: HeroBladesOptions): HeroBladesHandle {
         }
         if (last) scene?.hit(last, hitStep);
         scene?.impact(o.defender.x, o.defender.y, dir, radius, { tier: plan.tier, k: plan.k, burst: plan.burst, great: !!plan.great });
-        seq.hitStop(plan.hitStopMs);
         seq.land();
         break;
       case 'shatter':
@@ -282,12 +269,12 @@ export function playHeroBlades(o: HeroBladesOptions): HeroBladesHandle {
     }
   };
 
-  const seq: Sequence<BladesCue> = new Sequence<BladesCue>({
-    cues, speed, fire, freezeKinds: ['impact'],
+  const seq: Sequence<BladesCue | FormationCue> = new Sequence<BladesCue | FormationCue>({
+    cues, speed, fire,
     paint: (t) => { nums.paint(t); paintStage(t); },
     scene, unmount,
     frames: o.frames ?? ((fn: (dt: number) => void) => pixiFx.addUpdater(fn)),
-    safetyMs: o.safety !== false ? (plan.endAt + plan.hitStopMs) / speed + 2500 : null,
+    safetyMs: o.safety !== false ? plan.endAt / speed + 2500 : null,
     onImpact: o.onImpact, onDone: o.onDone,
     teardownDom: () => { nums.remove(); cam.reset(); hero.reset(); foe.reset(); voices.unduck(); },
     stopVoices: () => voices.stopAll(),

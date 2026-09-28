@@ -5,8 +5,8 @@
  * blast. the concept being an earthquake attack essentially with varying degrees of strength/cracks/explosions".
  *
  * THE BEATS (base ms before the playback speed):
- *  1. COMBINE (shared with Blast, `../heroAttack/combineNumbers.ts`). The attacker's Tier and every surviving minion
- *     fly into one total that ticks up with a rising pitch and slams on the ENGINE's number.
+ *  1. THE DAMAGE FORMATION (shared by every style, `../heroAttack/damageFormation.ts`, owner ask 2026-09-28): minion
+ *     tiers pulse left to right and merge, the hero tier joins, the full blow, the cap. Its end is this style's start.
  * REWORKED the same day (owner: "the quake animation is not up to par with the others ... maybe only the huge hit should
  * quake, and the others can be slightly different? i think the line animation is over used. i also think the quake
  * itself could look a bit better, maybe faster but then have pixi burst out of it almost like an eruption"):
@@ -24,30 +24,28 @@
  *     its tip, kicking up dust and grit; branches split off it (II+), parallel fissures and magma seams glow (III+),
  *     and secondary eruptions go off along the path (III+). The camera RUMBLES, mostly vertically, building as it goes.
  *  5. IMPACT. The ground ERUPTS under the target: a white flash, a magma bloom, a spurt of light, a burst of cracks
- *     around the portrait, rock chunks thrown up under gravity (with shadows, one bounce), a dust cloud, a hit-stop,
+ *     around the portrait, rock chunks thrown up under gravity (with shadows, one bounce), a dust cloud,
  *     and the portrait jolted UP then down. THIS is the beat the consequence lands on. Tier IV adds a pillar of magma
  *     and rock, follow-up explosions and a lingering glowing crater; the heaviest, longest rumble.
  *
  * TIERS are the shared, owner-approved thresholds (I 1-5, II 6-11, III 12-19, IV 20+). Small hits stay brisk (~1.9 s);
- * the top tier earns a ~4 s show. Reduced motion: no flight, cracks, shake, zoom or hit-stop; the numbers fade.
+ * the top tier earns a ~4 s show. Reduced motion: no flight, cracks, shake or zoom; the numbers fade.
  *
  * Tuner convention (the Blast's): localStorage in DEV only, values clamped on write and on load; production always
  * plays DEFAULTS. The preview speed is how you are LOOKING and is never saved.
  */
 import { clamp, hexToNum } from '../heroAttack/easing';
 import {
-  HERO_ATTACK_TIER_THRESHOLDS, TIERS, combineCounts, combineTimeline, reducedCombineTimeline, tierOf, type TierNum,
+  HERO_ATTACK_TIER_THRESHOLDS, TIERS, reducedAttackTimeline, tierOf, type TierNum,
 } from '../heroAttack/tiers';
 
 export { TIERS, hexToNum, type TierNum };
 
 /** The per-tier dials. A config key is `t1..t4` + one of these. */
 export const QUAKE_TIER_SUFFIXES = [
-  'FlyMs', 'StaggerMs', 'SlamPop', 'HoldMs',
-  'LiftMs', 'LiftPx', 'SlamStop',
-  'TravelMs', 'CrackWidth', 'Branches', 'Fissures', 'Magma', 'Bursts', 'BoardCracks',
+  'LiftMs', 'LiftPx', 'TravelMs', 'CrackWidth', 'Branches', 'Fissures', 'Magma', 'Bursts', 'BoardCracks',
   'Rocks', 'Dust', 'Eruption', 'Pillar', 'Crater',
-  'HitStop', 'Rumble', 'Shake', 'Zoom', 'Punch', 'RumbleTailMs', 'Booms', 'SettleMs', 'Dim',
+  'Rumble', 'Shake', 'Zoom', 'Punch', 'RumbleTailMs', 'Booms', 'SettleMs', 'Dim',
   'Quake', 'Boulders', 'BoulderSize', 'FlightMs', 'ThrowGapMs', 'ArcLift', 'Spikes', 'SpikeHeight', 'Spray',
 ] as const;
 export type QuakeTierSuffix = (typeof QUAKE_TIER_SUFFIXES)[number];
@@ -56,15 +54,6 @@ type TierKey = `t${TierNum}${QuakeTierSuffix}`;
 interface GlobalConfig {
   // Tiers (the shared thresholds; DEV-tunable only)
   tier2At: number; tier3At: number; tier4At: number;
-  // Combine (the shared beat)
-  popInMs: number;
-  combineBackPx: number;
-  combineArc: number;
-  combineBias: number;
-  chipSize: number;
-  totalSize: number;
-  tickPop: number;
-  slamMs: number;
   // Wind-up and slam
   absorbMs: number;
   heroSwell: number;
@@ -97,9 +86,6 @@ interface GlobalConfig {
   colorDust: string;
   colorRock: string;
   // Sound: a clip, a gain and a pitch per cue ('' = silent)
-  sfxGatherClip: string; sfxGatherGain: number;
-  sfxTickClip: string; sfxTickGain: number; sfxTickRate: number; sfxTickStep: number;
-  sfxSlamClip: string; sfxSlamGain: number; sfxSlamRate: number;
   sfxWindupClip: string; sfxWindupGain: number; sfxWindupRate: number;
   sfxGroundClip: string; sfxGroundGain: number; sfxGroundRate: number;
   sfxThumpClip: string; sfxThumpGain: number; sfxThumpRate: number;
@@ -110,7 +96,6 @@ interface GlobalConfig {
   sfxPatterClip: string; sfxPatterGain: number; sfxPatterRate: number;
   sfxThrowClip: string; sfxThrowGain: number; sfxThrowRate: number;
   sfxRumbleGain: number; sfxRumbleLowHz: number; sfxRumbleHighHz: number;
-  sfxTickLenMs: number;
   sfxEruptLenMs: number;
   sfxBoomLenMs: number;
   sfxTailMix: number;
@@ -123,7 +108,7 @@ export type HeroQuakeConfig = GlobalConfig & Record<TierKey, number>;
 
 export const HERO_QUAKE_COLOR_KEYS = ['colorCore', 'colorPlayer', 'colorFoe', 'colorChasm', 'colorLip', 'colorDust', 'colorRock'] as const;
 export const HERO_QUAKE_CLIP_KEYS = [
-  'sfxGatherClip', 'sfxTickClip', 'sfxSlamClip', 'sfxWindupClip', 'sfxGroundClip', 'sfxThumpClip', 'sfxCrackClip', 'sfxEruptClip',
+  'sfxWindupClip', 'sfxGroundClip', 'sfxThumpClip', 'sfxCrackClip', 'sfxEruptClip',
   'sfxBigClip', 'sfxBoomClip', 'sfxPatterClip', 'sfxThrowClip',
 ] as const;
 type ColorKey = (typeof HERO_QUAKE_COLOR_KEYS)[number];
@@ -133,13 +118,8 @@ export type HeroQuakeNumKey = Exclude<keyof HeroQuakeConfig, HeroQuakeStrKey>;
 
 /** Tier I .. IV per suffix: the escalation ladder. */
 const TIER_DEFAULTS: Record<QuakeTierSuffix, [number, number, number, number]> = {
-  FlyMs: [300, 330, 360, 380],
-  StaggerMs: [95, 100, 105, 110],
-  SlamPop: [1.4, 1.55, 1.75, 2],
-  HoldMs: [110, 180, 240, 300],
   LiftMs: [230, 270, 330, 380],
   LiftPx: [4, 6, 9, 12],
-  SlamStop: [0, 30, 40, 70],
   TravelMs: [0, 0, 0, 280],
   CrackWidth: [8, 12, 17, 26],
   Branches: [0, 0, 0, 8],
@@ -152,7 +132,6 @@ const TIER_DEFAULTS: Record<QuakeTierSuffix, [number, number, number, number]> =
   Eruption: [0.7, 0.9, 1.15, 1.5],
   Pillar: [0, 0, 0, 1],
   Crater: [0, 0, 0.5, 1],
-  HitStop: [55, 75, 95, 130],
   Rumble: [2, 4, 7, 11],
   Shake: [6, 10, 15, 22],
   Zoom: [0.012, 0.02, 0.032, 0.05],
@@ -175,13 +154,8 @@ const TIER_DEFAULTS: Record<QuakeTierSuffix, [number, number, number, number]> =
 };
 
 export const QUAKE_TIER_RANGES: Record<QuakeTierSuffix, [number, number, number]> = {
-  FlyMs: [120, 900, 10],
-  StaggerMs: [0, 300, 5],
-  SlamPop: [1, 3, 0.01],
-  HoldMs: [0, 1000, 10],
   LiftMs: [60, 1500, 10],
   LiftPx: [0, 60, 1],
-  SlamStop: [0, 200, 5],
   TravelMs: [0, 1600, 10],
   CrackWidth: [2, 48, 0.5],
   Branches: [0, 14, 1],
@@ -194,7 +168,6 @@ export const QUAKE_TIER_RANGES: Record<QuakeTierSuffix, [number, number, number]
   Eruption: [0.3, 2.5, 0.05],
   Pillar: [0, 1, 1],
   Crater: [0, 1, 0.01],
-  HitStop: [0, 250, 5],
   Rumble: [0, 30, 0.5],
   Shake: [0, 40, 0.5],
   Zoom: [0, 0.14, 0.002],
@@ -219,14 +192,6 @@ const tierDefaults = Object.fromEntries(TIERS.flatMap((t) => QUAKE_TIER_SUFFIXES
 export const HERO_QUAKE_DEFAULTS: HeroQuakeConfig = {
   // The shared, owner-approved thresholds (6 / 12 / 20): the same blow steps Quake up exactly where it steps Blast up.
   ...HERO_ATTACK_TIER_THRESHOLDS,
-  popInMs: 140,
-  combineBackPx: 24,
-  combineArc: 0.14,
-  combineBias: 0,
-  chipSize: 52,
-  totalSize: 132,
-  tickPop: 0.26,
-  slamMs: 340,
   absorbMs: 190,
   heroSwell: 0.1,
   heroSquash: 0.14,
@@ -253,9 +218,6 @@ export const HERO_QUAKE_DEFAULTS: HeroQuakeConfig = {
   colorLip: '#e2c294',
   colorDust: '#8f7a62',
   colorRock: '#9b8570',
-  sfxGatherClip: 'TallyTravel', sfxGatherGain: 0.45,
-  sfxTickClip: 'AttackPillAdd', sfxTickGain: 0.6, sfxTickRate: 0.9, sfxTickStep: 0.07,
-  sfxSlamClip: 'tallyimpact', sfxSlamGain: 0.9, sfxSlamRate: 1.05,
   sfxWindupClip: 'windup', sfxWindupGain: 0.45, sfxWindupRate: 0.8,
   sfxGroundClip: 'fx/universfield-ground-impact-352053', sfxGroundGain: 0.95, sfxGroundRate: 0.92,
   sfxThumpClip: 'smack2', sfxThumpGain: 0.5, sfxThumpRate: 0.72,
@@ -266,7 +228,6 @@ export const HERO_QUAKE_DEFAULTS: HeroQuakeConfig = {
   sfxPatterClip: 'cardlanding', sfxPatterGain: 0.18, sfxPatterRate: 1.7,
   sfxThrowClip: 'woosh2', sfxThrowGain: 0.55, sfxThrowRate: 0.78,
   sfxRumbleGain: 0.55, sfxRumbleLowHz: 38, sfxRumbleHighHz: 190,
-  sfxTickLenMs: 420,
   sfxEruptLenMs: 1300,
   sfxBoomLenMs: 700,
   sfxTailMix: 0.12,
@@ -278,14 +239,6 @@ export const HERO_QUAKE_DEFAULTS: HeroQuakeConfig = {
 
 const GLOBAL_RANGES: Record<Exclude<keyof GlobalConfig, HeroQuakeStrKey>, [number, number, number]> = {
   tier2At: [2, 40, 1], tier3At: [2, 60, 1], tier4At: [2, 80, 1],
-  popInMs: [0, 500, 10],
-  combineBackPx: [0, 80, 1],
-  combineArc: [0, 0.5, 0.01],
-  combineBias: [0, 1, 0.05],
-  chipSize: [20, 110, 1],
-  totalSize: [50, 220, 1],
-  tickPop: [0, 0.8, 0.01],
-  slamMs: [80, 900, 10],
   absorbMs: [60, 600, 10],
   heroSwell: [0, 0.3, 0.01],
   heroSquash: [0, 0.4, 0.01],
@@ -305,9 +258,6 @@ const GLOBAL_RANGES: Record<Exclude<keyof GlobalConfig, HeroQuakeStrKey>, [numbe
   shakeMs: [0, 1200, 10],
   zoomOutMs: [60, 1500, 10],
   reducedFadeMs: [60, 1000, 10],
-  sfxGatherGain: [0, 2, 0.05],
-  sfxTickGain: [0, 2, 0.05], sfxTickRate: [0.5, 2, 0.01], sfxTickStep: [0, 0.3, 0.005],
-  sfxSlamGain: [0, 2, 0.05], sfxSlamRate: [0.5, 2, 0.01],
   sfxWindupGain: [0, 2, 0.05], sfxWindupRate: [0.5, 2, 0.01],
   sfxGroundGain: [0, 2, 0.05], sfxGroundRate: [0.5, 2, 0.01],
   sfxThumpGain: [0, 2, 0.05], sfxThumpRate: [0.5, 2, 0.01],
@@ -318,7 +268,6 @@ const GLOBAL_RANGES: Record<Exclude<keyof GlobalConfig, HeroQuakeStrKey>, [numbe
   sfxPatterGain: [0, 2, 0.05], sfxPatterRate: [0.5, 2.5, 0.01],
   sfxThrowGain: [0, 2, 0.05], sfxThrowRate: [0.5, 2, 0.01],
   sfxRumbleGain: [0, 2, 0.05], sfxRumbleLowHz: [20, 120, 1], sfxRumbleHighHz: [60, 600, 5],
-  sfxTickLenMs: [80, 2000, 10],
   sfxEruptLenMs: [150, 3500, 10],
   sfxBoomLenMs: [100, 3000, 10],
   sfxTailMix: [0, 0.6, 0.01],
@@ -335,7 +284,7 @@ export const HERO_QUAKE_RANGES: Record<HeroQuakeNumKey, [number, number, number]
 
 /** The hard ceilings a plan can never exceed, whatever the sliders say (so a 40 stays clean, not cluttered). */
 export const QUAKE_CAPS = {
-  branches: 14, fissures: 5, bursts: 8, boardCracks: 12, rocks: 40, booms: 6, boulders: 5, spikes: 12, spray: 80, hitStopMs: 250, slamStopMs: 200, shakePx: 40, rumblePx: 30, zoom: 0.14,
+  branches: 14, fissures: 5, bursts: 8, boardCracks: 12, rocks: 40, booms: 6, boulders: 5, spikes: 12, spray: 80, shakePx: 40, rumblePx: 30, zoom: 0.14,
 } as const;
 
 const HEX = /^#[0-9a-f]{6}$/i;
@@ -434,9 +383,9 @@ export function quakeTravelMs(distance: number, tierMs: number): number {
 }
 
 export interface QuakePlanInput {
-  /** Each contributing number, in the order they fly (the attacker's tier first). */
-  values: readonly number[];
-  /** THE blow, as the engine decided it. The combine always ends on exactly this. */
+  /** When the style's own attack starts: the end of the shared damage formation (`formationPlan().endAt`). */
+  leadIn?: number;
+  /** THE blow, as the engine decided it. */
   total: number;
   /** Screen px between the attacker's and the defender's centres. */
   distance: number;
@@ -449,20 +398,11 @@ export interface QuakePlan {
   /** 0..1 across the tiers (I = 0, IV = 1). */
   k: number;
   total: number;
-  capped: boolean;
-  spawns: number[];
-  launches: number[];
-  arrivals: number[];
-  counts: number[];
-  mergeAt: number;
-  slamPop: number;
   /** The wind-up starts: the total dives into the hero, who rises. */
   chargeAt: number;
   absorbEnd: number;
   /** The hero hits the ground. The quake starts. */
   slamAt: number;
-  /** The slam's own small hit-stop (real ms at 1x). */
-  slamStopMs: number;
   /** Tier IV (or any tier the tuner switches to it): a true EARTHQUAKE, the crack racing to the target. Otherwise the
    *  hero hurls boulders (no crack line). */
   quake: boolean;
@@ -478,7 +418,6 @@ export interface QuakePlan {
   burstFracs: number[];
   /** THE consequence beat: the ground erupts under the target. */
   impactAt: number;
-  hitStopMs: number;
   /** Follow-up explosions around the target. */
   booms: number[];
   /** Tier IV's pillar of magma and rock. */
@@ -513,31 +452,27 @@ export interface QuakePlan {
 /** The whole Quake, in base ms (divide by the playback speed for real time). Pure and deterministic. */
 export function quakePlan(input: QuakePlanInput, c: HeroQuakeConfig = cfg): QuakePlan {
   const total = Math.max(0, Math.round(input.total));
-  const values = input.values.filter((v) => Number.isFinite(v));
-  const rawSum = values.reduce((s, v) => s + Math.max(0, v), 0);
   const tier = tierOf(total, c);
   const T = quakeTierDials(tier, c);
   const k = (tier - 1) / 3;
-  const counts = combineCounts(values, total);
-  const capped = rawSum > total;
-  const n = values.length;
   const zeroes = {
     liftPx: 0, rumblePx: 0, rumbleTailMs: 0, shakePx: 0, zoom: 0, punch: 0, dim: 0, crackWidth: 0, branches: 0, fissures: 0,
     magma: 0, boardCracks: 0, rocks: 0, dust: 0, eruption: 0, crater: 0, boulderSize: 0, arcLift: 0, spikes: 0, spikeHeight: 0, spray: 0,
   };
 
   if (input.reduced) {
-    const r = reducedCombineTimeline(n, c.reducedFadeMs);
-    const { arrivals, mergeAt, impactAt } = r;
+    const r = reducedAttackTimeline(input.leadIn ?? 0, c.reducedFadeMs);
+    const { impactAt } = r;
     return {
-      reduced: true, tier, k, total, capped, spawns: r.spawns, launches: arrivals.slice(), arrivals, counts, mergeAt, slamPop: 1,
-      chargeAt: impactAt, absorbEnd: impactAt, slamAt: impactAt, slamStopMs: 0, quake: false, throws: [], lands: [], travelAt: impactAt,
+      reduced: true, tier, k, total,
+      chargeAt: impactAt, absorbEnd: impactAt, slamAt: impactAt, quake: false, throws: [], lands: [], travelAt: impactAt,
       travelMs: 0, bursts: [], burstFracs: [], impactAt,
-      hitStopMs: 0, booms: [], pillar: false, fadeAt: r.endAt, endAt: r.endAt, ...zeroes,
+      booms: [], pillar: false, fadeAt: r.endAt, endAt: r.endAt, ...zeroes,
     };
   }
 
-  const { spawns, launches, arrivals, mergeAt, holdEnd: chargeAt } = combineTimeline(n, T, c.popInMs);
+  // The shared damage formation plays first; the style's own attack starts when it ends.
+  const chargeAt = Math.max(0, input.leadIn ?? 0);
   const absorbEnd = chargeAt + c.absorbMs;
   const slamAt = chargeAt + Math.max(T.LiftMs, c.absorbMs);
   const quake = T.Quake >= 1 || !(T.Boulders >= 1);
@@ -569,10 +504,9 @@ export function quakePlan(input: QuakePlanInput, c: HeroQuakeConfig = cfg): Quak
   const fadeAt = Math.max(impactAt + 120, endAt - c.crackFadeMs);
 
   return {
-    reduced: false, tier, k, total, capped, spawns, launches, arrivals, counts, mergeAt, slamPop: T.SlamPop,
-    chargeAt, absorbEnd, slamAt, slamStopMs: Math.round(clamp(T.SlamStop, 0, QUAKE_CAPS.slamStopMs)), quake, throws, lands, travelAt,
+    reduced: false, tier, k, total, chargeAt, absorbEnd, slamAt, quake, throws, lands, travelAt,
     travelMs, bursts, burstFracs, impactAt,
-    hitStopMs: Math.round(clamp(T.HitStop, 0, QUAKE_CAPS.hitStopMs)), booms, pillar, fadeAt, endAt,
+    booms, pillar, fadeAt, endAt,
     liftPx: T.LiftPx,
     rumblePx: clamp(T.Rumble, 0, QUAKE_CAPS.rumblePx),
     rumbleTailMs: T.RumbleTailMs,
@@ -597,16 +531,12 @@ export function quakePlan(input: QuakePlanInput, c: HeroQuakeConfig = cfg): Quak
   };
 }
 
-export type QuakeCueKind = 'spawn' | 'launch' | 'arrive' | 'merge' | 'charge' | 'slam' | 'throw' | 'burst' | 'land' | 'impact' | 'boom' | 'fade' | 'end';
+export type QuakeCueKind = 'charge' | 'slam' | 'throw' | 'burst' | 'land' | 'impact' | 'boom' | 'fade' | 'end';
 export interface QuakeCue { at: number; kind: QuakeCueKind; i: number }
 
 /** Every beat the runner fires, in time order (ties keep this declaration order, so impact precedes end). */
 export function quakeCues(p: QuakePlan): QuakeCue[] {
   const out: QuakeCue[] = [];
-  p.spawns.forEach((at, i) => out.push({ at, kind: 'spawn', i }));
-  if (!p.reduced) p.launches.forEach((at, i) => out.push({ at, kind: 'launch', i }));
-  p.arrivals.forEach((at, i) => out.push({ at, kind: 'arrive', i }));
-  out.push({ at: p.mergeAt, kind: 'merge', i: 0 });
   if (!p.reduced) {
     out.push({ at: p.chargeAt, kind: 'charge', i: 0 });
     out.push({ at: p.slamAt, kind: 'slam', i: 0 });
@@ -619,7 +549,7 @@ export function quakeCues(p: QuakePlan): QuakeCue[] {
   p.booms.forEach((at, i) => out.push({ at, kind: 'boom', i }));
   if (!p.reduced) out.push({ at: p.fadeAt, kind: 'fade', i: 0 });
   out.push({ at: p.endAt, kind: 'end', i: 0 });
-  const order: Record<QuakeCueKind, number> = { spawn: 0, launch: 1, arrive: 2, merge: 3, charge: 4, slam: 5, throw: 6, burst: 7, land: 8, impact: 9, boom: 10, fade: 11, end: 12 };
+  const order: Record<QuakeCueKind, number> = { charge: 4, slam: 5, throw: 6, burst: 7, land: 8, impact: 9, boom: 10, fade: 11, end: 12 };
   return out.map((q, idx) => ({ q, idx })).sort((a, b) => a.q.at - b.q.at || order[a.q.kind] - order[b.q.kind] || a.idx - b.idx).map((x) => x.q);
 }
 
@@ -634,13 +564,11 @@ const sine01 = (t: number): number => 0.5 - 0.5 * Math.cos(Math.PI * Math.min(1,
  * push in on the hero through the wind-up; a hard DOWNWARD kick on the slam; a rumble that builds from a tremor to a
  * roar as the crack travels; the impact jolts the view UP (the ground erupting under the target), punches in and rings
  * out through a long rumble tail (longest at Tier IV); each burst and boom adds a vertical kick. At `t === impactAt`
- * the frame is already displaced upward, which is the frame the hit-stop holds. Pure, so it is tested directly.
+ * the frame is already displaced upward. Pure, so it is tested directly.
  */
 export function quakeCameraAt(p: QuakePlan, c: HeroQuakeConfig, t: number): { zoom: number; x: number; y: number } {
   if (p.reduced) return { zoom: 1, x: 0, y: 0 };
   let z = 0;
-  const slamPop = t - p.mergeAt;
-  if (slamPop >= 0 && slamPop < 260) z += 0.012 * Math.exp(-slamPop / 70);
   if (t >= p.chargeAt && t < p.impactAt) {
     z += p.zoom * sine01((t - p.chargeAt) / Math.max(1, p.slamAt - p.chargeAt));
     if (t >= p.travelAt) z += p.zoom * 0.35 * sine01((t - p.travelAt) / Math.max(1, p.travelMs)); // the blow builds

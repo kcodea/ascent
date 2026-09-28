@@ -3616,7 +3616,12 @@ function reduceCore(state: RunState, action: Action): RunState {
         // 30 Resolve + 15 Armor that is ~10 losing rounds, and far longer for a player winning some. Scale the
         // bot's damage by difficulty BEFORE the round cap, so the cap still bounds the early rounds.
         combat.playerDamage = Math.round(combat.playerDamage * practiceBotDamageMult(s));
-        combat.playerDamage = Math.min(combat.playerDamage, lossDamageCap(s.wave)); // round cap
+        // The presentation's hero damage formation (owner ask 2026-09-28) shows the blow before and after the cap:
+        // stamp both here, where the cap is applied, so the screen never recomputes either.
+        const roundCap = lossDamageCap(s.wave);
+        if (combat.result === 'lose') combat.playerDamageUncapped = combat.playerDamage;
+        if (Number.isFinite(roundCap)) combat.damageCap = roundCap;
+        combat.playerDamage = Math.min(combat.playerDamage, roundCap); // round cap
         // DEFERRED odds (perf audit 2026-08-01, owner call): the 200 Monte Carlo sims used to run right here —
         // ~10 ms on the End Turn click, feeding nothing but the Combat Summary's display bar. Stash the sim
         // inputs instead (post-Marked-Target, so the probe sees the same enemy board the real fight did) and

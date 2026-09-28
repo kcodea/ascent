@@ -1,6 +1,6 @@
 /**
- * THE DAMAGE TIERS every hero attack escalates by, and the COMBINE timeline they all open with (shared by Blast and
- * Quake since 2026-09-28).
+ * THE DAMAGE TIERS every hero attack escalates by (shared by every style since 2026-09-28). The numbers each attack opens
+ * with are the shared damage formation (`formationConfig.ts`).
  *
  * Tiers follow the engine's per-round loss caps of 5 / 10 / 15 / 20: I 1-5, II 6-11, III 12-19, IV 20+. APPROVED by
  * the owner 2026-09-28 for Blast ("those are good thresholds, this blast animation looks good!") and carried to Quake
@@ -25,47 +25,13 @@ export function tierOf(total: number, c: TierThresholds = HERO_ATTACK_TIER_THRES
   return 1;
 }
 
-/** The running totals the counter shows: each part adds, clamped to the engine's total, and the last is the total. */
-export function combineCounts(values: readonly number[], total: number): number[] {
-  const t = Math.max(0, Math.round(total));
-  let run = 0;
-  const out = values.map((v) => { run += Math.max(0, v); return Math.min(run, t); });
-  if (out.length) out[out.length - 1] = t;
-  return out;
-}
-
-/** The combine's per-tier dials. */
-export interface CombineDials { FlyMs: number; StaggerMs: number; HoldMs: number }
-
-/** The combine beats: where each number pops in, leaves and lands; the merge (the slam); and when the hold ends. */
-export interface CombineTimeline {
-  spawns: number[];
-  launches: number[];
-  arrivals: number[];
-  mergeAt: number;
-  /** The hold after the slam is over: the style's own wind-up starts here. */
-  holdEnd: number;
-}
-
 /**
- * The combine for `n` numbers. Every number pops in where it comes from (staggered), leaves after `popInMs`, lands
- * `FlyMs` later; the last landing IS the merge; the total holds `HoldMs` before the style takes over. Pure.
+ * Reduced motion: the shared damage formation has faded through its stages by `leadIn`; the blow lands there and the
+ * total fades out. No motion at all.
  */
-export function combineTimeline(n: number, T: CombineDials, popInMs: number): CombineTimeline {
-  const spawns = Array.from({ length: n }, (_, i) => i * T.StaggerMs * 0.6);
-  const launches = Array.from({ length: n }, (_, i) => popInMs + i * T.StaggerMs);
-  const arrivals = launches.map((l) => l + T.FlyMs);
-  const mergeAt = n ? arrivals[n - 1]! : popInMs;
-  return { spawns, launches, arrivals, mergeAt, holdEnd: mergeAt + T.HoldMs };
-}
-
-/** Reduced motion: the numbers fade in where they are, then the total; the blow lands; everything fades. */
-export function reducedCombineTimeline(n: number, fadeMs: number): { spawns: number[]; arrivals: number[]; mergeAt: number; impactAt: number; endAt: number } {
-  const f = fadeMs;
-  const arrivals = Array.from({ length: n }, () => f + 120);
-  const mergeAt = f + 120;
-  const impactAt = mergeAt + f + 200;
-  return { spawns: Array.from({ length: n }, () => 0), arrivals, mergeAt, impactAt, endAt: impactAt + f + 120 };
+export function reducedAttackTimeline(leadIn: number, fadeMs: number): { impactAt: number; endAt: number } {
+  const impactAt = Math.max(0, leadIn);
+  return { impactAt, endAt: impactAt + fadeMs + 120 };
 }
 
 /** A per-tier dial read off a config (`t1FlyMs` ... `t4FlyMs`). */

@@ -2,9 +2,10 @@
  * THE ONE CLOCK every hero attack runs on (moved out of the Blast, 2026-09-28, when Quake joined it).
  *
  * The numbers (DOM), the camera, the portraits, the Pixi scene and the sound cues all read one sequence clock advanced
- * per frame by `dt x speed`. A HIT-STOP holds that clock still for some real ms (everything freezes on the brightest
- * frame), and a freezing cue pins the clock exactly on its beat, which is why the consequence, the flash and the
- * damage number can never drift apart, and why slow motion and `finish()` are exact.
+ * per frame by `dt x speed`, which is why the consequence, the flash and the damage number can never drift apart, and
+ * why slow motion and `finish()` are exact. The clock NEVER stops (owner 2026-09-28: "remove the freezeing frame from
+ * all of the animations. it looks like lag"): there is no hit-stop and no freeze on a beat; weight comes from the
+ * flash, the squash and knockback, the shake, the particles and the sound.
  *
  * The CONSEQUENCE (`onImpact`) fires exactly once: on the impact cue, or from `finish()` / the safety timer if the
  * sequence never got there (a hidden tab); never from `cancel()` (leaving the fight, as Classic's timers are cleared).
@@ -18,10 +19,8 @@ export interface SequenceOptions<Q extends SequenceCue> {
   /** Every beat, in time order; one of kind `end`. */
   cues: readonly Q[];
   speed: number;
-  /** A beat fires. The style calls `land()` and `hitStop()` from its impact beat. */
+  /** A beat fires. The style calls `land()` from its impact beat. */
   fire: (q: Q) => void;
-  /** Kinds that pin the clock ON their beat (the impact; Quake's slam). */
-  freezeKinds: readonly string[];
   /** Paint the DOM (numbers, camera, portraits) for the current time. Not called once done. */
   paint: (t: number) => void;
   scene: SequenceScene | null;
@@ -38,7 +37,6 @@ export interface SequenceOptions<Q extends SequenceCue> {
 
 export class Sequence<Q extends SequenceCue> {
   private tNow = 0;
-  private stopLeft = 0;
   private cueIdx = 0;
   private impactedF = false;
   private doneF = false;
@@ -56,9 +54,6 @@ export class Sequence<Q extends SequenceCue> {
   get t(): number { return this.tNow; }
   get impacted(): boolean { return this.impactedF; }
   get done(): boolean { return this.doneF; }
-
-  /** Hold the clock for `ms` (sequence-scaled real ms: slow motion stretches it too). */
-  hitStop(ms: number): void { this.stopLeft = Math.max(this.stopLeft, ms); }
 
   /** Land the consequence (once). */
   land(): void { if (this.impactedF) return; this.impactedF = true; this.o.onImpact(); }
@@ -80,16 +75,13 @@ export class Sequence<Q extends SequenceCue> {
   private readonly step = (dtMs: number): void => {
     const { o } = this;
     if (this.doneF && !o.scene) return;
-    let adv = Math.max(0, Math.min(100, dtMs)) * o.speed;
-    // THE HIT-STOP: real time is spent holding the frame before the clock moves again.
-    if (this.stopLeft > 0) { const hold = Math.min(this.stopLeft, adv); this.stopLeft -= hold; adv -= hold; }
+    const adv = Math.max(0, Math.min(100, dtMs)) * o.speed;
     if (!this.doneF) {
       this.tNow += adv;
       while (this.cueIdx < o.cues.length && o.cues[this.cueIdx]!.at <= this.tNow) {
         const q = o.cues[this.cueIdx++]!;
         if (q.kind === 'end') this.ended = true;
         o.fire(q);
-        if (o.freezeKinds.includes(q.kind)) { this.tNow = q.at; break; } // freeze exactly ON the beat
       }
       o.paint(this.tNow);
     }

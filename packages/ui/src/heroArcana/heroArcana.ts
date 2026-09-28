@@ -3,8 +3,8 @@
  * its impact beat (the last ribbon landing, or Tier IV's explosion). Presentation only: the total it shows and the
  * blow it lands are handed in, already decided by the engine; this file only decides WHEN on screen they happen.
  *
- * It runs on the SHARED hero-attack core (`../heroAttack/`), exactly as Blast and Quake do: one clock with a hit-stop,
- * the combine numbers, the `#stage` camera mirrored onto the Pixi root, the portraits (transform only, restored
+ * It runs on the SHARED hero-attack core (`../heroAttack/`), exactly as Blast and Quake do: one clock (it never pauses),
+ * the damage formation, the `#stage` camera mirrored onto the Pixi root, the portraits (transform only, restored
  * after), the voices, the dim, reduced motion, finish / cancel and the safety timer. What is Arcana's own: the ribbon
  * paths, the barrage rhythm, the Tier IV vortex, its camera and its sound.
  *
@@ -20,7 +20,8 @@ import { pixiFx } from '../pixiFx';
 import { playSwirlTone } from '../sfx';
 import { stageScale } from '../stage';
 import { AttackVoices } from '../heroAttack/attackSound';
-import { CombineNumbers, type CombinePart } from '../heroAttack/combineNumbers';
+import { DamageFormation, planFormation } from '../heroAttack/damageFormation';
+import { withFormation, type FormationCue } from '../heroAttack/formationConfig';
 import { clamp01, easeInOutSine, hexToNum, prefersReducedMotion, spring } from '../heroAttack/easing';
 import type { HeroAttackHandle, HeroAttackOptions } from '../heroAttack/options';
 import { Sequence } from '../heroAttack/sequence';
@@ -31,9 +32,6 @@ import {
 } from './heroArcanaConfig';
 import { HeroArcanaScene, type HeroArcanaTextures } from './heroArcanaScene';
 import { heroArcanaTextures } from './heroArcanaTextures';
-import '../heroBlast/heroBlast.css';
-
-export type HeroArcanaPart = CombinePart;
 
 export interface HeroArcanaOptions extends HeroAttackOptions {
   cfg?: HeroArcanaConfig;
@@ -62,8 +60,10 @@ export function playHeroArcana(o: HeroArcanaOptions): HeroArcanaHandle {
   const local = o.space === 'local';
   const sideHex = o.side === 'opp' ? c.colorFoe : c.colorPlayer;
   const dist = Math.hypot(o.defender.x - o.attacker.x, o.defender.y - o.attacker.y);
-  const plan = arcanaPlan({ values: o.parts.map((p) => p.value), total: o.total, distance: dist, reduced }, c);
-  const cues = arcanaCues(plan);
+  // THE DAMAGE FORMATION plays first (shared by every style); this style's own attack starts where it ends.
+  const { fcfg, fplan } = planFormation(o.formation, o.formationCfg, reduced);
+  const plan = arcanaPlan({ total: o.total, distance: dist, reduced, leadIn: fplan.endAt }, c);
+  const cues = withFormation(fplan, arcanaCues(plan));
   const s = o.pixiScale ?? (typeof window === 'undefined' ? 1 : stageScale());
   const doc = typeof document !== 'undefined' ? document : null;
   const radius = o.defenderRadius ?? 120 * s;
@@ -77,9 +77,10 @@ export function playHeroArcana(o: HeroArcanaOptions): HeroArcanaHandle {
 
   // ── DOM: the numbers (shared) ──
   const host = o.host !== undefined ? o.host : (doc ? doc.body : null);
-  const nums = new CombineNumbers({
-    parts: o.parts, combineAt: o.combineAt, attacker: o.attacker, defender: o.defender, defenderRadius: o.defenderRadius,
-    side: o.side, sideHex, local, host, scale: s, cfg: c, plan, className: 'harcana',
+  const voices = new AttackVoices(sound);
+  const nums = new DamageFormation({
+    data: o.formation, plan: fplan, beats: plan, cfg: fcfg, attacker: o.attacker, attackerRadius: o.attackerRadius,
+    defender: o.defender, defenderRadius: o.defenderRadius, side: o.side, sideHex, local, host, scale: s, voices, className: 'harcana',
   });
 
   // ── Pixi (the above-portrait slot, warmed now so it is up well before the first ribbon) ──
@@ -101,32 +102,19 @@ export function playHeroArcana(o: HeroArcanaOptions): HeroArcanaHandle {
   const hero = new PortraitMover(reduced ? null : (o.attackerEl ?? null));
   const foe = new PortraitMover(reduced ? null : (o.defenderEl ?? null));
 
-  const voices = new AttackVoices(sound);
   const cue = voices.cue.bind(voices);
   voices.warm([
-    c.sfxGatherClip, c.sfxTickClip, c.sfxSlamClip, c.sfxCastClip, c.sfxChargeClip, c.sfxLaunchClip, c.sfxShimmerClip, c.sfxHitClip,
+    c.sfxCastClip, c.sfxChargeClip, c.sfxLaunchClip, c.sfxShimmerClip, c.sfxHitClip,
     c.sfxImpactClip, c.sfxChimeClip, c.sfxThumpClip, c.sfxImplodeClip, c.sfxExplodeClip, c.sfxBigClip, c.sfxBoomClip,
   ]);
   const real = (ms: number): number => ms / speed;
   const n = plan.ribbons.length;
   let hitStep = 0;
 
-  const fire = (q: ArcanaCue): void => {
+  const fire = (q: ArcanaCue | FormationCue): void => {
+    if (q.kind === 'form') { nums.fire(fplan.beats[q.i]!); return; }
     const t = seq.t;
     switch (q.kind) {
-      case 'launch':
-        if (q.i === 0) cue(c.sfxGatherClip, c.sfxGatherGain, 1, { lenMs: 800, fadeMs: 250 });
-        break;
-      case 'arrive':
-        nums.arrive(q.i, q.at);
-        if (!plan.reduced) cue(c.sfxTickClip, c.sfxTickGain, c.sfxTickRate + q.i * c.sfxTickStep, { lenMs: c.sfxTickLenMs, fadeMs: 140 });
-        if (q.i < plan.arrivals.length - 1) scene?.mergeTick(o.combineAt.x, o.combineAt.y, q.i);
-        break;
-      case 'merge':
-        nums.merge(q.at);
-        cue(c.sfxSlamClip, c.sfxSlamGain, c.sfxSlamRate);
-        scene?.mergeSlam(o.combineAt.x, o.combineAt.y);
-        break;
       case 'charge':
         // The spell is cast: a shimmer of casting, and a riser whose climax lands on the first launch.
         cue(c.sfxCastClip, c.sfxCastGain, c.sfxCastRate, { lenMs: 900, fadeMs: 250 });
@@ -192,7 +180,6 @@ export function playHeroArcana(o: HeroArcanaOptions): HeroArcanaHandle {
           if (plan.tier >= 3) cue(c.sfxBigClip, c.sfxBigGain, c.sfxBigRate, { lenMs: 700, fadeMs: 250 });
           scene?.impact(o.defender.x, o.defender.y, dir, radius, { tier: plan.tier, k: plan.k, burst: plan.burst, flashAlpha: c.flashAlpha, motes: plan.motes });
         }
-        seq.hitStop(plan.hitStopMs);
         seq.land();
         break;
       case 'boom': {
@@ -248,12 +235,12 @@ export function playHeroArcana(o: HeroArcanaOptions): HeroArcanaHandle {
     }
   };
 
-  const seq: Sequence<ArcanaCue> = new Sequence<ArcanaCue>({
-    cues, speed, fire, freezeKinds: ['impact'],
+  const seq: Sequence<ArcanaCue | FormationCue> = new Sequence<ArcanaCue | FormationCue>({
+    cues, speed, fire,
     paint: (t) => { nums.paint(t); paintStage(t); },
     scene, unmount,
     frames: o.frames ?? ((fn: (dt: number) => void) => pixiFx.addUpdater(fn)),
-    safetyMs: o.safety !== false ? (plan.endAt + plan.hitStopMs) / speed + 2500 : null,
+    safetyMs: o.safety !== false ? plan.endAt / speed + 2500 : null,
     onImpact: o.onImpact, onDone: o.onDone,
     teardownDom: () => { nums.remove(); cam.reset(); hero.reset(); foe.reset(); voices.unduck(); },
     stopVoices: () => voices.stopAll(),

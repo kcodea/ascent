@@ -6,7 +6,7 @@ import {
 import { clipNames } from './sfx';
 import { DEV_HERO_ATTACK_CHOICES, DEV_HERO_ATTACK_LABELS, devHeroAttackChoice, setDevHeroAttackChoice } from './heroBlast/heroAttackStyle';
 import { playHeroBlades, type HeroBladesHandle, type HeroBladesOptions } from './heroBlades/heroBlades';
-import { playAttackDemo, previewParts } from './heroAttack/attackDemo';
+import { boardOfDamage, playAttackDemo, previewLeadIn, previewParts } from './heroAttack/attackDemo';
 import { TunerPanel } from './TunerPanel';
 import type { TunerControl, TunerSpec, TunerUnit } from './tunerSchema';
 
@@ -28,14 +28,6 @@ const SPECS: Record<GlobalNumKey, Spec> = {
   tier2At: ['Tier II from', undefined, 'Damage at which the Blades step up to Tier II (a crossed pair). Shared with every hero attack (6).', 'Damage tiers'],
   tier3At: ['Tier III from', undefined, 'Damage at which the Blades become the fan of five. Shared (12).', 'Damage tiers'],
   tier4At: ['Tier IV from', undefined, 'Damage at which the Blades bring down the greatsword. Shared (20).', 'Damage tiers'],
-  popInMs: ['Pop in', 'ms', 'Each number popping in where it comes from.', 'Combine'],
-  combineBackPx: ['Pull back', 'px', 'How far a number pulls back before it flies (anticipation).', 'Combine'],
-  combineArc: ['Arc', '×', 'How much the numbers curve on the way in.', 'Combine'],
-  combineBias: ['Merge point', '×', 'Where the numbers meet: 0 = the board centre, 1 = the attacking hero.', 'Combine'],
-  chipSize: ['Number size', 'px', 'Size of each contributing number.', 'Combine'],
-  totalSize: ['Total size', 'px', 'Size of the combined total.', 'Combine'],
-  tickPop: ['Tick pop', '×', 'How hard the total squashes as each number lands.', 'Combine'],
-  slamMs: ['Total slam', 'ms', 'The total slamming in: overshoot and settle.', 'Combine'],
   absorbMs: ['Absorb', 'ms', 'The total diving into the hero before the blades appear.', 'Summon and aim'],
   heroSwell: ['Hero swell', '×', 'How much the hero swells as the blades are summoned.', 'Summon and aim'],
   recoilPx: ['Recoil', 'px', 'How far the hero kicks back as each blade is loosed.', 'Summon and aim'],
@@ -66,12 +58,6 @@ const SPECS: Record<GlobalNumKey, Spec> = {
   shakeMs: ['Shake length', 'ms', 'How long the impact shake takes to die away.', 'Camera and portraits'],
   zoomOutMs: ['Settle back', 'ms', 'The view easing back to rest after the impact.', 'Camera and portraits'],
   reducedFadeMs: ['Reduced motion fade', 'ms', 'With reduced motion on, the numbers and total just fade over this.', 'Camera and portraits'],
-  sfxGatherGain: ['gather: gain', undefined, 'The whoosh as the numbers leave.', 'Sound: gather'],
-  sfxTickGain: ['tick: gain', undefined, 'Each number landing in the total.', 'Sound: tick'],
-  sfxTickRate: ['tick: pitch', '×', 'The first tick pitch (1 = as recorded).', 'Sound: tick'],
-  sfxTickStep: ['tick: pitch step', '×', 'Each following tick rises by this much.', 'Sound: tick'],
-  sfxSlamGain: ['total slam: gain', undefined, 'The total slamming in.', 'Sound: total slam'],
-  sfxSlamRate: ['total slam: pitch', '×', 'Pitch of the total slam.', 'Sound: total slam'],
   sfxSummonGain: ['summon: gain', undefined, 'The steel shimmer of each blade forming.', 'Sound: summon'],
   sfxSummonRate: ['summon: pitch', '×', 'Pitch of the first blade.', 'Sound: summon'],
   sfxSummonStep: ['summon: pitch step', '×', 'Each following blade rises by this much.', 'Sound: summon'],
@@ -107,7 +93,6 @@ const SPECS: Record<GlobalNumKey, Spec> = {
   sfxHumGain: ['steel hum: gain', undefined, 'Tier IV: the synth ring of the greatsword straining, peaking on the loose.', 'Sound: steel hum'],
   sfxHumHz: ['steel hum: pitch', undefined, 'Hz. The hum\'s base pitch.', 'Sound: steel hum'],
   sfxHumRise: ['steel hum: rise', '×', 'How far the hum climbs by the loose (1 = flat).', 'Sound: steel hum'],
-  sfxTickLenMs: ['tick length', 'ms', 'Each tick is cut to this long (with a short fade).', 'Sound: mix'],
   sfxLooseLenMs: ['loose length', 'ms', 'Each loose whoosh is cut to this long (with a fade).', 'Sound: mix'],
   sfxImpactLenMs: ['impact length', 'ms', 'The impact clips are cut to this long (with a fade).', 'Sound: mix'],
   sfxTailMix: ['impact tail', undefined, 'A short reverb tail on the impact. 0 = dry.', 'Sound: mix'],
@@ -115,10 +100,6 @@ const SPECS: Record<GlobalNumKey, Spec> = {
 };
 
 const TIER_SPECS: Record<BladesTierSuffix, [string, TunerUnit | undefined, string]> = {
-  FlyMs: ['Number flight', 'ms', 'How long each number takes to reach the total.'],
-  StaggerMs: ['Number stagger', 'ms', 'Gap between each number leaving.'],
-  SlamPop: ['Total pop', '×', 'How big the total punches up when the last number lands.'],
-  HoldMs: ['Hold', 'ms', 'The total holds before the hero absorbs it.'],
   Blades: ['Blades', undefined, 'How many blades are summoned (I one, II a crossed pair, III the fan of five, IV six before the greatsword).'],
   SummonStaggerMs: ['Summon stagger', 'ms', 'Gap between each blade appearing.'],
   AimHoldMs: ['Hover', 'ms', 'The raised blades hover before they swing round to aim.'],
@@ -129,7 +110,6 @@ const TIER_SPECS: Record<BladesTierSuffix, [string, TunerUnit | undefined, strin
   BladeSize: ['Blade size', '×', 'Each blade, as a multiple of the blade length (the last is a little bigger).'],
   Scatter: ['Cross', '×', 'How far across the portrait the points go in (the blades cross: a pair makes an X).'],
   Great: ['Greatsword', undefined, 'After the blades, a greatsword is summoned, hangs, and impales the target.'],
-  HitStop: ['Hit-stop', 'ms', 'The freeze on the impact frame.'],
   Shake: ['Shake', 'px', 'How hard the view shakes on the impact.'],
   Zoom: ['Push in', '×', 'How far the view pushes in through the summon (and the greatsword).'],
   Punch: ['Impact punch', '×', 'Extra push on the impact before the view settles.'],
@@ -142,7 +122,7 @@ const TIER_SPECS: Record<BladesTierSuffix, [string, TunerUnit | undefined, strin
 const TIER_NAMES: Record<TierNum, string> = { 1: 'Tier I', 2: 'Tier II', 3: 'Tier III', 4: 'Tier IV' };
 
 const CLIP_OF: Partial<Record<string, HeroBladesStrKey>> = {
-  'Sound: gather': 'sfxGatherClip', 'Sound: tick': 'sfxTickClip', 'Sound: total slam': 'sfxSlamClip', 'Sound: summon': 'sfxSummonClip',
+  'Sound: summon': 'sfxSummonClip',
   'Sound: ring': 'sfxRingClip', 'Sound: aim': 'sfxAimClip', 'Sound: lock': 'sfxLockClip', 'Sound: loose': 'sfxLooseClip',
   'Sound: crack': 'sfxCrackClip', 'Sound: stab': 'sfxStabClip', 'Sound: clang': 'sfxClangClip', 'Sound: impact': 'sfxImpactClip',
   'Sound: big hit': 'sfxBigClip', 'Sound: thump': 'sfxThumpClip', 'Sound: shatter': 'sfxShatterClip', 'Sound: greatsword': 'sfxGreatClip',
@@ -215,7 +195,7 @@ export function demo(
   live?.cancel();
   const cfg = getHeroBladesConfig();
   return playAttackDemo(side, (o) => playHeroBlades(o), {
-    damage: opts.damage ?? cfg.previewDamage, parts: opts.parts ?? cfg.previewParts, combineBias: cfg.combineBias,
+    board: boardOfDamage(opts.damage ?? cfg.previewDamage, opts.parts ?? cfg.previewParts),
     speed: heroBladesPreviewSpeed(), reduced: opts.reduced, frames: opts.frames, sound: opts.sound, safety: opts.safety,
   }, () => { live = null; }).then((h) => { live = h; return h; });
 }
@@ -230,7 +210,7 @@ export const SPEC: TunerSpec<BladesTunerValues> = {
   title: 'Hero Attack: Phantom Blades',
   note: () => {
     const c = getHeroBladesConfig();
-    const p = bladesPlan({ values: previewParts(c.previewDamage, c.previewParts), total: c.previewDamage, distance: 1600 }, c);
+    const p = bladesPlan({ leadIn: previewLeadIn(c.previewDamage, c.previewParts), total: c.previewDamage, distance: 1600 }, c);
     return `dev · ${heroBladesPreviewSpeed()}x · tier ${p.tier} · ${p.blades.length} blade${p.blades.length === 1 ? '' : 's'}${p.great ? ' + greatsword' : ''} · loose ${Math.round(p.fireAt)} · impact ${Math.round(p.impactAt)} · end ${Math.round(p.endAt)} ms`;
   },
   read: () => ({ ...getHeroBladesConfig(), attackStyle: devHeroAttackChoice() }),
@@ -252,7 +232,7 @@ export const SPEC: TunerSpec<BladesTunerValues> = {
     { label: '▶ Foe tier II (8)', hint: 'The foe strikes your hero for 8.', run: () => { void demo('opp', { damage: 8, parts: 3 }); } },
     { label: '▶ Foe medium (12)', hint: 'The foe strikes your hero for 12.', run: () => { void demo('opp', { damage: 12, parts: 4 }); } },
     { label: '▶ Foe huge (40)', hint: 'The foe strikes your hero for 40.', run: () => { void demo('opp', { damage: 40, parts: 7 }); } },
-    { label: '▶ Reduced motion', hint: 'What a player with reduced motion on sees: fades, no blades, shake, zoom or hit-stop.', run: () => { void demo('player', { reduced: true }); } },
+    { label: '▶ Reduced motion', hint: 'What a player with reduced motion on sees: fades, no blades, shake or zoom.', run: () => { void demo('player', { reduced: true }); } },
     ...HERO_BLADES_SPEEDS.map((s) => ({
       label: `Speed ${s}x`,
       hint: 'Slow motion for the next plays (the tuner only; never saved, never in production).',

@@ -33,8 +33,6 @@ export const CombatOpponent = memo(function CombatOpponent(): JSX.Element | null
   // the portrait already seated (and the shop reveal never shows it mid-fall). See store.combatStaged.
   const staged = useGame((s) => s.combatStaged);
   const inCombat = useGame((s) => s.run.phase === 'combat');
-  const pill = useGame((s) => s.heroAtkPill);
-  const dmg = useGame((s) => s.heroDmgTaken);
   const preview = useGame((s) => s.duelPreview);
   const dmgDealt = useGame((s) => s.oppDmgDealt);
   const showOppSkins = useGame((s) => s.showOpponentSkins);
@@ -105,8 +103,6 @@ export const CombatOpponent = memo(function CombatOpponent(): JSX.Element | null
             onClick={() => { if (hasBuffs) setBuffsOpen((o) => !o); }}
             role={hasBuffs ? 'button' : undefined}
           >
-            {/* The foe's ATTACK PILL — same badge the player wears; inside the body so it rides the lunge. */}
-            {pill?.side === 'opp' && <span key="hero-atk-opp" className={`hero-atk hero-atk-opp${pill.buffed ? ' buffed' : ''}${pill.leaving ? ' leaving' : ''}`}>{pill.buffed && <span className="atk-sheen" aria-hidden="true"><span className="atk-sheen-bar" /></span>}{pill.amount}</span>}
             {art ? <img decoding="sync" className="combatopp-img" src={art} alt="" draggable={false} /> : <Icon name="anvil" />}
             {/* Hover affordance — the same darkened prompt the player's portrait wears (owner ask 2026-08-30). */}
             {hasBuffs && (
@@ -115,8 +111,6 @@ export const CombatOpponent = memo(function CombatOpponent(): JSX.Element | null
               </span>
             )}
           </div>
-          {/* The RED damage-taken number — centred on the portrait, OUTSIDE the clipped circle so it can overrun. */}
-          {dmg?.side === 'opp' && <span key={`dmg${dmg.seq}`} className="hero-dmgtaken">−{dmg.amount}</span>}
         </div>
         <div className="combatopp-hp">
           <Icon name="heart" />{shownResolve}

@@ -10,6 +10,9 @@ import {
   catalogSyncPayload, crateWeightOf, eligibleCrateCosmetics, pickCrateReward,
 } from './cosmetics';
 import { SQL_ERROR_STATUS } from './server';
+import {
+  ACHIEVEMENT_AGGS, ACHIEVEMENT_MODES, ACHIEVEMENT_TRUSTS, ASCENDANT_DIVISION, BRUTAL_LOBBY_STRENGTH, META_METRIC, SERVER_METRICS, achievementCatalogPayload,
+} from './achievements';
 import { INVENTORY_ERROR_STATUS } from './inventory';
 
 /**
@@ -25,12 +28,14 @@ const sql = readFileSync(join(root, 'supabase/migrations/2026-09-27-account-prog
 const crates = readFileSync(join(root, 'supabase/migrations/2026-09-28-progression-crates.sql'), 'utf8');
 /** The skins migration adds the code-owned catalog sync and REPLACES `progression_crate_pool` + `progression_profile_json`. */
 const skins = readFileSync(join(root, 'supabase/migrations/2026-09-28-progression-skins.sql'), 'utf8');
+/** The achievements migration (2026-09-28) REPLACES `settle_progression` + `progression_result_json` and adds the catalog sync. */
+const ach = readFileSync(join(root, 'supabase/migrations/2026-09-28-achievements.sql'), 'utf8');
 const schema = readFileSync(join(root, 'schema.sql'), 'utf8');
 
-/** The body of a function's LATEST definition (skins, else crates, else the MVP's). */
+/** The body of a function's LATEST definition (achievements, else skins, else crates, else the MVP's). */
 function fnBody(name: string, from?: string): string {
   const defines = (t: string): boolean => t.includes(`create or replace function public.${name}(`);
-  const text = from ?? (defines(skins) ? skins : defines(crates) ? crates : sql);
+  const text = from ?? (defines(ach) ? ach : defines(skins) ? skins : defines(crates) ? crates : sql);
   const start = text.indexOf(`create or replace function public.${name}(`);
   if (start < 0) throw new Error(`no function ${name} in the migration`);
   const open = text.indexOf('$$', start);
@@ -122,7 +127,7 @@ describe('the migration shape', () => {
 
   it('the JSON shapes carry every key the client parses', () => {
     const resultJson = fnBody('progression_result_json');
-    for (const k of ['runId', 'mode', 'rulesVersion', 'placement', 'comeback', 'xp', 'base', 'topFour', 'firstPlace', 'total', 'before', 'after', 'lifetimeXp', 'level', 'unlockedTitles', 'revisionAfter', 'settledAt']) {
+    for (const k of ['runId', 'mode', 'rulesVersion', 'placement', 'comeback', 'xp', 'base', 'topFour', 'firstPlace', 'total', 'before', 'after', 'lifetimeXp', 'level', 'unlockedTitles', 'cratesAwarded', 'crateIds', 'achievements', 'achievementXp', 'revisionAfter', 'settledAt']) {
       expect(resultJson, k).toContain(`'${k}'`);
     }
     const profileJson = fnBody('progression_profile_json');
@@ -137,6 +142,8 @@ describe('the migration shape', () => {
       [crates, 'equip_title', 'uuid, text'],
       [skins, 'equip_cosmetic', 'uuid, text, text, text'],
       [skins, 'sync_cosmetic_catalog', 'jsonb, text'],
+      [ach, 'settle_progression', 'uuid, text, text, bigint, boolean, int, jsonb'],
+      [ach, 'sync_achievement_catalog', 'jsonb, text'],
     ] as const) {
       const at = text.indexOf(`create or replace function public.${fn}(`);
       const head = text.slice(at, text.indexOf('as $$', at));
@@ -156,21 +163,21 @@ describe('the migration shape', () => {
     expect(sql).not.toMatch(/^update public\.progression_config set epoch/m);
   });
 
-  it('schema.sql (the cumulative paste file) carries both migrations verbatim, the crates one AFTER the MVP', () => {
+  it('schema.sql (the cumulative paste file) carries every progression migration verbatim, in order', () => {
     const flat = schema.replace(/\r\n/g, '\n');
-    const mvp = sql.replace(/\r\n/g, '\n').trim();
-    const crt = crates.replace(/\r\n/g, '\n').trim();
-    expect(flat).toContain(mvp);
-    expect(flat).toContain(crt);
-    expect(flat.indexOf(crt)).toBeGreaterThan(flat.indexOf(mvp));
+    const at = [sql, crates, skins, ach].map((t) => flat.indexOf(t.replace(/\r\n/g, '\n').trim()));
+    expect(at.every((i) => i >= 0)).toBe(true);
+    expect([...at].sort((a, b) => a - b)).toEqual(at);
   });
 });
 
 describe('the crates migration (2026-09-28)', () => {
-  it('replaces settle_progression WITHOUT changing a single XP / curve / title constant', () => {
+  it('replaces settle_progression WITHOUT changing a single XP / curve / title constant (every later writer keeps the MVP ones)', () => {
     const consts = (body: string): string[] => [...body.matchAll(/^\s*(c_[a-z_]+)\s+constant\s+[a-z]+\s*:=\s*([^;]+);/gm)].map((m) => `${m[1]}=${m[2]!.trim()}`);
-    expect(consts(settle)).toEqual(consts(settleMvp));
-    expect(consts(settle).length).toBeGreaterThan(10);
+    const mvp = consts(settleMvp);
+    expect(consts(fnBody('settle_progression', crates))).toEqual(mvp);
+    expect(consts(settle).slice(0, mvp.length)).toEqual(mvp);
+    expect(mvp.length).toBeGreaterThan(10);
   });
 
   it('every SQL error open_crate / equip_title raise is mapped by the inventory Edge Function', () => {
@@ -292,5 +299,54 @@ describe('the skins migration (2026-09-28): the code-owned catalog sync + the em
     for (const code of ['bad_slot', 'bad_target', 'bad_cosmetic_id', 'wrong_target', 'not_equippable', 'not_owned']) expect(body, code).toContain(`'${code}'`);
     expect(body).not.toMatch(/delete from public\.player_cosmetics/);
     expect(skins).not.toMatch(/delete from public\.(player_cosmetics|cosmetic_catalog|cosmetic_categories)/);
+  });
+});
+
+describe('the achievements migration (2026-09-28)', () => {
+  const body = fnBody('settle_progression');
+  it('the achievement constants equal the TS registry', () => {
+    expect(constOf(body, 'c_meta_metric')).toBe(META_METRIC);
+    expect(n(body, 'c_brutal_strength')).toBe(BRUTAL_LOBBY_STRENGTH);
+    expect(n(body, 'c_ascendant_div')).toBe(ASCENDANT_DIVISION);
+  });
+
+  it('the settlement computes EVERY server metric (and only those), so a client can never supply one', () => {
+    const built = body.slice(body.indexOf('v_metrics := v_metrics || jsonb_build_object('), body.indexOf('-- Pass 1'));
+    const keys = [...built.matchAll(/'([A-Za-z]+)',/g)].map((m) => m[1]!);
+    expect(new Set([...keys, META_METRIC])).toEqual(new Set(SERVER_METRICS));
+    expect(built).toContain('c_meta_metric, 0');
+  });
+
+  it('the catalog check constraints equal the TS unions', () => {
+    const list = (col: string): string[] => {
+      const m = new RegExp(`${col}\\s+text not null(?: default '[A-Z]')? check \\(${col} in \\(([^)]+)\\)\\)`).exec(ach);
+      expect(m, col).toBeTruthy();
+      return m![1]!.split(',').map((x) => x.trim().replace(/'/g, ''));
+    };
+    expect(list('mode')).toEqual([...ACHIEVEMENT_MODES]);
+    expect(list('agg')).toEqual([...ACHIEVEMENT_AGGS]);
+    expect(list('trust')).toEqual([...ACHIEVEMENT_TRUSTS]);
+  });
+
+  it('sync_achievement_catalog reads every payload key, checks the hash first, never writes admin_off or deletes', () => {
+    const sync = fnBody('sync_achievement_catalog');
+    for (const k of Object.keys(achievementCatalogPayload().items[0]!)) expect(sync, k).toContain(`'${k}'`);
+    expect(sync.indexOf('achievements_hash')).toBeLessThan(sync.indexOf('insert into'));
+    expect(sync).not.toMatch(/admin_off/);
+    expect(sync).not.toMatch(/\bdelete\b/);
+  });
+
+  it('evaluation skips retired, emergency-off and prestige rows; completions are keyed once per account; progress is private', () => {
+    expect(body).toMatch(/c\.active and not c\.admin_off and c\.trust <> 'P'/);
+    expect(ach).toMatch(/primary key \(user_id, achievement_id\)/);
+    expect(ach).toContain('create policy "read achievement_completions" on public.achievement_completions for select using (true);');
+    expect(ach).toContain('create policy "read own achievement_progress" on public.achievement_progress for select to authenticated using (auth.uid() = user_id);');
+    expect(ach).not.toMatch(/delete from public\.achievement_(completions|progress|catalog)/);
+  });
+
+  it('the switch ships OFF and is commented out (a re-run can never move the epoch)', () => {
+    expect(ach).toMatch(/^-- update public\.progression_config set achievements_epoch = now\(\)/m);
+    expect(ach).not.toMatch(/^update public\.progression_config set achievements_epoch/m);
+    expect(ach).toMatch(/^update public\.progression_config set achievements_hash = null where id = 1;/m);
   });
 });

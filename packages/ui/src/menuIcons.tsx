@@ -22,3 +22,11 @@ export const IconTrophy = () => (
 export const IconHelm = () => (
   <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 2a8 8 0 0 0-8 8v5a3 3 0 0 0 3 3h1v3h8v-3h1a3 3 0 0 0 3-3v-5a8 8 0 0 0-8-8zm-3 8h1.5v4H9a1 1 0 0 1-1-1v-2a1 1 0 0 1 1-1zm6 0a1 1 0 0 1 1 1v2a1 1 0 0 1-1 1h-1.5v-4H15z" /></svg>
 );
+
+/** The crate: the Collection (sealed crates, titles and, later, the other cosmetics). */
+export const IconChest = () => (
+  <svg viewBox="0 0 24 24" aria-hidden="true">
+    <path fill="currentColor" d="M4 5.5A2.5 2.5 0 0 1 6.5 3h11A2.5 2.5 0 0 1 20 5.5V9H4V5.5z" />
+    <path fill="currentColor" d="M3 10.5h18V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-8.5zm7.5 1.5v3.2a1.5 1.5 0 0 0 3 0V12h-3z" />
+  </svg>
+);

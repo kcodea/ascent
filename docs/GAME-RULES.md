@@ -176,11 +176,17 @@ progression **epoch**; nothing finished before the epoch counts (no backfill).
   no keys, currency, purchases or rerolls. Accounts enrolled before crates shipped received their Welcome Crate
   plus one crate per level already reached (a one-time backfill).
 - **Opening.** Optional and never forced (Continue is always available): right after the game ("Crate earned",
-  Open) or later from the **Collection** (Career). The reward is chosen **when the crate is opened**, on the
+  Open) or later from the **Collection** (its own screen since 2026-09-28: the title's Collection plaque, the menu
+  sidebar, or the Account Level card on your Career; Open one crate, or Open all). The reward is chosen **when the crate is opened**, on the
   server, from the items the player does not own yet: each remaining item weighs rarity x category (rarity
   Common 55, Rare 30, Epic 12, Legendary 3), normalized over what remains, never a rarity rolled first. **Never a
   duplicate.** With nothing left to give, the crate stays **sealed** (`pool_exhausted`) until new items arrive;
   it is never converted into anything. A new title is worn at once only when none is worn.
+- **The opening (presentation, 2026-09-28).** A full-screen opening that starts on the click while the server
+  answers (anticipation), then plays the answer's rarity: a charge, a burst and the reward rising out of the light.
+  It escalates with rarity (Common quick, Rare blue, Epic purple and longer, Legendary gold with god rays and a
+  sting). A click or a key skips to the reward; reduced motion is a short fade; a failed answer says "Could not open
+  the crate. Try again." Presentation only (oracle R-PROG-COLLECTION-01).
 - **The catalog (2026-09-28).** Data in `packages/progression/src/cosmetics.ts`, seeded into the database. Shaped
   for every cosmetic category (announcer, hero skin, minion skin, title, hero attack, board, music), but only
   **titles** are switched on: **15 crate titles** (7 Common, 5 Rare, 2 Epic, 1 Legendary). The other categories

@@ -37,9 +37,9 @@ export interface CareerView {
 /** The title screen's view: the main menu, the MODE picker, or the LEARN hub inside it. */
 export type TitleView = 'menu' | 'modes' | 'learn';
 /** Where the menu sidebar can send the player: the title menu / mode picker, or one of the four ladder pages. */
-export type MenuDest = 'menu' | 'modes' | 'career' | 'rankings' | 'hall' | 'recent';
+export type MenuDest = 'menu' | 'modes' | 'career' | 'rankings' | 'hall' | 'recent' | 'collection';
 /** Every ladder page closed — the set `goTo` / `openTitle` clear (and the one `startReplay` clears). */
-const PAGES_CLOSED = { showCareer: false, careerOf: null, showRankings: false, showLeaderboard: false, showRecentGames: false } as const;
+const PAGES_CLOSED = { showCareer: false, careerOf: null, showRankings: false, showLeaderboard: false, showRecentGames: false, showCollection: false } as const;
 /** The clock `navHopAt` is stamped with — the reader (`useMountedFromHop`) MUST use the same one. */
 export const navClockNow = (): number => (typeof performance !== 'undefined' ? performance.now() : Date.now());
 
@@ -709,6 +709,12 @@ interface GameStore {
   careerOf: CareerView | null;
   openCareer: (of?: CareerView) => void;
   closeCareer: () => void;
+  /** THE COLLECTION page (owner ask 2026-09-28: "make the collection screen separate"): sealed crates, owned
+   *  titles with equip, and the categories still to come. A ladder-page sibling of Career, reached from the
+   *  title's Collection plaque, the menu sidebar, and the Career page's Account Level card. */
+  showCollection: boolean;
+  openCollection: () => void;
+  closeCollection: () => void;
   /** The Career page's fetched runs, cached so reopening the page paints instantly and refreshes behind.
    *  `key` = whose career + the `careerVersion` it was read under (a finished run / reset invalidates it). */
   careerCache: { key: string; runs: CareerRun[] } | null;
@@ -2288,6 +2294,7 @@ export const useGame = create<GameStore>((rawSet, get) => {
       case 'rankings': set({ ...PAGES_CLOSED, showRankings: true, navHopAt }); break;
       case 'hall': set({ ...PAGES_CLOSED, showLeaderboard: true, navHopAt }); break;
       case 'recent': set({ ...PAGES_CLOSED, showRecentGames: true, navHopAt }); break;
+      case 'collection': set({ ...PAGES_CLOSED, showCollection: true, navHopAt }); break;
     }
   },
   navHopAt: -1e9,
@@ -2310,6 +2317,12 @@ export const useGame = create<GameStore>((rawSet, get) => {
   openCareer: (of) => set({ showCareer: true, careerOf: of ?? null }),
   // Clear WHOSE career on close, so reopening your own from the title never inherits the last player viewed.
   closeCareer: () => set({ showCareer: false, careerOf: null }),
+  showCollection: false,
+  // Opened from the title plaque or the Career card: the plain open (no hop stamp), so the page fades in whole.
+  // Like `openCareer` it leaves the page beneath open (the Collection mounts after Career, so it paints on top):
+  // Back from a Collection opened on your Career returns to that Career.
+  openCollection: () => set({ showCollection: true }),
+  closeCollection: () => set({ showCollection: false }),
   careerCache: null,
   setCareerCache: (key, runs) => set({ careerCache: { key, runs } }),
   showBook: false,

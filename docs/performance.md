@@ -572,6 +572,16 @@ Two rules came out of adding the third:
   over and under halves of the same effect can never tear apart by a frame, and an idle under canvas costs
   one array-length read per frame rather than a full clear + present.
 
+### The crate opening's canvas (2026-09-28)
+
+The Collection's crate theatre (`packages/ui/src/progression/crateFx/`) follows both rules: its own Application
+exists only while the theatre is open (created on open, `destroy({ removeView, releaseGlobalResources })` on
+close), its ticker runs only while the scene has work and stops the frame it settles, sprites are pooled
+(cap 260), and the renderer resolution folds in `stageScale()`. The DEV tuner's practice crates are stripped
+from production, so to profile the opening on a PROD bundle, build with `VITE_CRATE_PREVIEW=1` (it bakes the
+practice-crate listener in; player builds never set it), serve with `vite preview`, and fire
+`window.dispatchEvent(new CustomEvent('ascent:cratefx-play', { detail: { mode: 'legendary' } }))`.
+
 ## 3d. Shop-phase audit, 2026-08-01 (A/B-measured)
 
 An idle-shop audit against the 240 Hz budget, in a live lobby shop (dev build — magnitudes shift in prod, the

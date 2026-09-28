@@ -1483,4 +1483,145 @@ export const RUNES_RULES: GameRule[] = [
       lastVerifiedAt: '2026-09-27',
     },
   },
+  // ── Set 3 rune design pass (owner 2026-09-27), tranche 3: Spirit + Dwarf ──
+  {
+    id: 'R-SET3RUNE-23',
+    title: "Rune of Call and Answer: a friendly Spirit Shout or Rally gives the left-most minion in your hand +2/+2",
+    statement:
+      "Every time a friendly Spirit triggers a Shout or a Rally (Shop, End of Turn or combat, each extra fire included), the left-most minion in your hand (spells skipped) gains +2/+2 per copy. A hand buff is permanent (R-HAND-02); in combat it lands live on the hand card. An empty hand: nothing.",
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Owner rulings 2026-09-27 on the Set 3 rune design pass (set3-rune-design.md)", quote: "Approved as written: Every Undead, Celestial, Spirit and Dwarf rune in section 4, EXCEPT the four noted below." },
+      { kind: 'code', ref: "packages/sim/src/recruit.ts fireBattlecryTriggered + fireShopRally (runeCallAndAnswerShop); packages/core/src/combat/simulate.ts battlecryTriggered listener + bumpRally (callAndAnswer, buffHand)" },
+    ],
+    contentIds: ["rune_call_and_answer"],
+    cardText: "After a friendly **Spirit** triggers a **Shout** or **Rally**, give the left-most minion in your hand **+2/+2**.",
+    currentBehaviour: 'Conforms (built with the rune, 2026-09-27).',
+    enforcement: {
+      kind: 'scenario',
+      refs: ["packages/sim/src/set3RuneDesignT3.test.ts", "packages/core/src/combat/set3RuneDesignT3.test.ts"],
+      lastVerifiedAt: '2026-09-27',
+    },
+  },
+  {
+    id: 'R-SET3RUNE-24',
+    title: "Rune of the Encore: the first Reveler you sell each turn also pays the left-most minion in your hand",
+    statement:
+      "The first Reveler you sell each turn also gives the bonus it just paid your board (the Traveling Festival's extra included) to the left-most minion in your hand, per copy. Only a real sale counts; a Reveler re-fire (Shared Revelry) does not. The charge returns each turn.",
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Owner rulings 2026-09-27 on the Set 3 rune design pass (set3-rune-design.md)", quote: "Approved as written: Every Undead, Celestial, Spirit and Dwarf rune in section 4, EXCEPT the four noted below." },
+      { kind: 'code', ref: "packages/sim/src/recruit.ts revelerSell (lastRevelerPay) + fireOnMinionSold (runeEncoreShop); packages/sim/src/reducer.ts turn reset" },
+    ],
+    contentIds: ["rune_encore"],
+    cardText: "The first **Reveler** you sell each turn also gives its bonus to the left-most minion in your hand.",
+    currentBehaviour: 'Conforms (built with the rune, 2026-09-27).',
+    enforcement: {
+      kind: 'scenario',
+      refs: ["packages/sim/src/set3RuneDesignT3.test.ts"],
+      lastVerifiedAt: '2026-09-27',
+    },
+  },
+  {
+    id: 'R-SET3RUNE-25',
+    title: "Rune of the Overture: a Crescendo now, then every 2 turns",
+    statement:
+      "Taking the rune gets a Crescendo at once, then another every 2 turn setups. The badge counts the turns toward the next one.",
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Owner rulings 2026-09-27 on the Set 3 rune design pass (set3-rune-design.md)", quote: "Approved as written: Every Undead, Celestial, Spirit and Dwarf rune in section 4, EXCEPT the four noted below." },
+      { kind: 'code', ref: "packages/content/src/runes.ts rune_overture (grant + recurringGrant everyTurns 2)" },
+    ],
+    contentIds: ["rune_overture"],
+    cardText: "Get a **Crescendo**. Repeat every **2 turns**.",
+    currentBehaviour: 'Conforms (built with the rune, 2026-09-27).',
+    enforcement: {
+      kind: 'scenario',
+      refs: ["packages/sim/src/set3RuneDesignT3.test.ts"],
+      lastVerifiedAt: '2026-09-27',
+    },
+  },
+  {
+    id: 'R-SET3RUNE-26',
+    title: "Rune of the Kindred Hand: a Spirit played gives the left-most minion in your hand +1/+1 per Spirit you control",
+    statement:
+      "After you play a Spirit, the left-most minion in your hand (spells skipped) gains +1/+1 for each Spirit on your board, the played one included (per copy). The badge prints what the next Spirit you play will pay. Replaces the Beckoning in the Spirit Basic slot.",
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Owner rulings 2026-09-27 on the Set 3 rune design pass (set3-rune-design.md)", quote: "kindred hand is fine" },
+      { kind: 'code', ref: "packages/sim/src/recruit.ts runeDesignPlayRunes + kindredHandValue; packages/ui/src/runeTally.ts" },
+    ],
+    contentIds: ["rune_kindred_hand"],
+    cardText: "After you play a **Spirit**, give the left-most minion in your hand **+1/+1** for each **Spirit** you control.",
+    currentBehaviour: 'Conforms (built with the rune, 2026-09-27).',
+    enforcement: {
+      kind: 'scenario',
+      refs: ["packages/sim/src/set3RuneDesignT3.test.ts"],
+      lastVerifiedAt: '2026-09-27',
+    },
+  },
+  {
+    id: 'R-SET3RUNE-27',
+    title: "Rune of the Whetstone: a Dwarf played gives your other Dwarves +1 Attack",
+    statement:
+      "Whenever you play a Dwarf, your other Dwarves on the board gain +1 Attack (per copy). Each is a \"gains Attack\" event for Kneel, Tankerchief and the Anvil.",
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Owner rulings 2026-09-27 on the Set 3 rune design pass (set3-rune-design.md)", quote: "Approved as written: Every Undead, Celestial, Spirit and Dwarf rune in section 4, EXCEPT the four noted below." },
+      { kind: 'code', ref: "packages/sim/src/recruit.ts runeDesignPlayRunes (playCard's chokepoint)" },
+    ],
+    contentIds: ["rune_whetstone"],
+    cardText: "Whenever you play a **Dwarf**, give your other **Dwarves +1 Attack**.",
+    currentBehaviour: 'Conforms (built with the rune, 2026-09-27).',
+    enforcement: {
+      kind: 'scenario',
+      refs: ["packages/sim/src/set3RuneDesignT3.test.ts"],
+      lastVerifiedAt: '2026-09-27',
+    },
+  },
+  {
+    id: 'R-SET3RUNE-28',
+    title: "Rune of the Anvil: a friendly Dwarf's Attack gain also gives that much Health",
+    statement:
+      "Whenever a friendly Dwarf on the board gains Attack (Shop, End of Turn or combat, per gain), it also gains that much Health (per copy). A Health gain never re-fires it, so it cannot loop with Kneel or Tankerchief.",
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Owner rulings 2026-09-27 on the Set 3 rune design pass (set3-rune-design.md)", quote: "Approved as written: Every Undead, Celestial, Spirit and Dwarf rune in section 4, EXCEPT the four noted below." },
+      { kind: 'code', ref: "packages/sim/src/recruit.ts fireOnGainAttack (gained); packages/core/src/combat/simulate.ts ctx.buff" },
+    ],
+    contentIds: ["rune_anvil"],
+    cardText: "Whenever a friendly **Dwarf** gains **Attack**, it also gains that much **Health**.",
+    currentBehaviour: 'Conforms (built with the rune, 2026-09-27).',
+    enforcement: {
+      kind: 'scenario',
+      refs: ["packages/sim/src/set3RuneDesignT3.test.ts", "packages/core/src/combat/set3RuneDesignT3.test.ts"],
+      lastVerifiedAt: '2026-09-27',
+    },
+  },
+  {
+    id: 'R-SET3RUNE-29',
+    title: "Rune of the Satchel: a card added to your hand gives your Dwarves +1/+1",
+    statement:
+      "Whenever a card is added to your hand, from any source, your Dwarves gain +1/+1 (per copy): the board in the Shop (permanent), the living Dwarves in combat (for that fight). A card that reaches the hand in combat arrives in the run at settle, and that arrival pays the board too, exactly as the other \"card added to hand\" reactors (Gangplank) do.",
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Owner rulings 2026-09-27 on the Set 3 rune design pass (set3-rune-design.md)", quote: "Approved as written: Every Undead, Celestial, Spirit and Dwarf rune in section 4, EXCEPT the four noted below." },
+      { kind: 'code', ref: "packages/sim/src/recruit.ts fireOnGainCard (runeSatchelShop); packages/core/src/combat/simulate.ts emitGainCard" },
+    ],
+    contentIds: ["rune_satchel"],
+    cardText: "Whenever a card is added to your hand, give your **Dwarves +1/+1**.",
+    currentBehaviour: 'Conforms (built with the rune, 2026-09-27).',
+    enforcement: {
+      kind: 'scenario',
+      refs: ["packages/sim/src/set3RuneDesignT3.test.ts", "packages/core/src/combat/set3RuneDesignT3.test.ts"],
+      lastVerifiedAt: '2026-09-27',
+    },
+  },
 ];

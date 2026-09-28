@@ -125,7 +125,10 @@ const SWEEP = runTextSweep({ contracts: CONTRACTS });
 // your Starform leaves the Shop," — the Afterglow; "When your Starform Consumes a minion," — Gravity), Scattered
 // Light's "it Collapses instead." replacement and Stellar Echoes' quoted granted Echo. +1 → 109 the same day: the
 // Meteor Storm's (the owner's Event Horizon replacement) "cast it again on a different friendly Celestial".
-const UNRESOLVED_CAP = 109;
+// 2026-09-27 (Set 3 rune design pass, tranche 3): 109 → 112, CONSCIOUSLY. Call and Answer's "After a friendly Spirit
+// triggers a Shout or Rally," trigger, the Anvil's "it also gains that much Health." mirror, and the Encore's
+// "also gives its bonus to the left-most minion in your hand" relay. The other four parse fully.
+const UNRESOLVED_CAP = 112;
 /** Collapse floor: the parser fully consuming fewer objects than this means a grammar regression. */
 const PARSED_FLOOR = 900;
 /** The HARD ceiling (2026-09-11): the unresolved share of active objects may never reach this fraction again. A

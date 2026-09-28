@@ -702,6 +702,17 @@ friendly Celestial). Rules worth knowing:
 - *Gravity* counts only the Starform's own consumes, on the board.
 Oracle R-SET3RUNE-14..22; details in `docs/devlog/2026-09-27-set3-runes-t2.md`.
 
+**Design pass tranche 3: Spirit + Dwarf (owner 2026-09-27)** adds 7 Set-3-only runes (**192 runes, 102 Basic / 90
+Epic**). Spirit Basic: Call and Answer (a friendly Spirit Shout or Rally gives the left-most minion in your hand
++2/+2), the Encore (the first Reveler you sell each turn also pays the left-most minion in your hand), the Overture (a
+Crescendo now and every 2 turns), the **Kindred Hand** (the owner's pick replacing the Beckoning: a Spirit played gives
+the left-most minion in your hand +1/+1 per Spirit you control; the badge shows the next payout). Dwarf: the Whetstone
+(Basic: a Dwarf played gives your other Dwarves +1 Attack), the Anvil (Epic: a friendly Dwarf's Attack gain also gives
+that much Health; a Health gain never re-fires it), the Satchel (Epic: a card added to your hand gives your Dwarves
++1/+1; in combat the living Dwarves for that fight, and the card's arrival at settle pays the board as Gangplank's does).
+"The left-most minion in your hand" skips spells. Oracle R-SET3RUNE-23..29; details in
+`docs/devlog/2026-09-27-set3-runes-t3.md`.
+
 **Set 3-original runes (batch 2, 2026-09-16).** Set 3 now also has runes of its own — `sets: ['set3']` alone,
 no origin scope — starting with tranche A's 24 Spirit / Celestial / Undead runes (11 Basic + 13 Epic, taking the
 set-3 static pool to **126 Basic / 111 Epic**), plus the rune-exclusive **Handy Flame** token. The two combat-side

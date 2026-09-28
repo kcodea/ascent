@@ -746,7 +746,9 @@ export const QuestCombatFlagSchema = z.enum(['bloodTrail', 'echoingCoop', 'lawOf
   // Set 3 rune design pass (2026-09-27), tranche 1: Undead
   'runeWake', 'runeSecondWind', 'runeSoulToll', 'runeGravedigger', 'runeSoulFurnace', 'runeRestless', 'runeOpenGrave',
   // tranche 2: Celestial
-  'runeHeraldingStar', 'runeStellarEchoes', 'runeScatteredLight', 'runeAfterglow', 'runeStarsong', 'runeGuidingStar', 'runeGravity', 'runeMeteorStorm']);
+  'runeHeraldingStar', 'runeStellarEchoes', 'runeScatteredLight', 'runeAfterglow', 'runeStarsong', 'runeGuidingStar', 'runeGravity', 'runeMeteorStorm',
+  // tranche 3: Spirit + Dwarf
+  'runeCallAndAnswer', 'runeEncore', 'runeKindredHand', 'runeWhetstone', 'runeAnvil', 'runeSatchel']);
 
 // The reward palette — a discriminated union kept in lockstep with the `QuestReward` type in @game/core.
 export const QuestRewardSchema: z.ZodType = z.lazy(() => z.discriminatedUnion('kind', [

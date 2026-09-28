@@ -1804,6 +1804,64 @@ export const RUNES: RuneDef[] = [
     reward: { kind: 'combatFlag', flag: 'runeAfterglow' },
     sets: ['set3'],
   },
+  // ── SET 3 RUNE DESIGN PASS (owner 2026-09-27), tranche 3: Spirit + Dwarf Basics. All Set-3-only, tribe-gated.
+  //    No Beckoning (owner); its Spirit Basic slot is filled by the owner's pick, the Kindred Hand. ──
+  {
+    // A friendly Spirit's Shout fire or Rally (both phases: the Shout-fire notify / bus, `fireShopRally` / `bumpRally`)
+    // gives the left-most MINION in your hand +2/+2 per copy (a hand buff is permanent, R-HAND-02).
+    id: 'rune_call_and_answer',
+    tribes: ['spirit'],
+    name: 'Rune of Call and Answer',
+    cost: 3,
+    text: 'After a friendly **Spirit** triggers a **Shout** or **Rally**, give the left-most minion in your hand **+2/+2**.',
+    reward: { kind: 'combatFlag', flag: 'runeCallAndAnswer' },
+    sets: ['set3'],
+  },
+  {
+    // The turn's first Reveler SALE also pays its bonus (what it just gave the board, Traveling Festival included) to
+    // the left-most minion in your hand, per copy. Selling is a Shop action.
+    id: 'rune_encore',
+    tribes: ['spirit'],
+    name: 'Rune of the Encore',
+    cost: 3,
+    text: 'The first **Reveler** you sell each turn also gives its bonus to the left-most minion in your hand.',
+    previewCards: ['sp3_flamereveler', 'sp3_tidereveler', 'sp3_grovereveler'],
+    reward: { kind: 'combatFlag', flag: 'runeEncore' },
+    sets: ['set3'],
+  },
+  {
+    // The Spirit signature spell on the Rare Goods cadence: a Crescendo now, then every 2 turns.
+    id: 'rune_overture',
+    tribes: ['spirit'],
+    name: 'Rune of the Overture',
+    cost: 4,
+    text: 'Get a **Crescendo**. Repeat every **2 turns**.',
+    reward: { kind: 'multi', rewards: [{ kind: 'grant', cards: ['crescendo'] }, { kind: 'recurringGrant', cards: ['crescendo'], everyTurns: 2 }] },
+    sets: ['set3'],
+  },
+  {
+    // Owner pick 2026-09-27 ("kindred hand is fine"), replacing the Beckoning. Every Spirit PLAYED (`playCard`'s Spirit
+    // runes) gives the left-most minion in hand +1/+1 per Spirit on your board (the played one included), per copy.
+    // The badge prints the current value.
+    id: 'rune_kindred_hand',
+    tribes: ['spirit'],
+    name: 'Rune of the Kindred Hand',
+    cost: 3,
+    text: 'After you play a **Spirit**, give the left-most minion in your hand **+1/+1** for each **Spirit** you control.',
+    reward: { kind: 'combatFlag', flag: 'runeKindredHand' },
+    sets: ['set3'],
+  },
+  {
+    // Every Dwarf PLAYED gives your OTHER board Dwarves +1 Attack per copy: "gains Attack" events for Kneel,
+    // Tankerchief and the Anvil.
+    id: 'rune_whetstone',
+    tribes: ['dwarf'],
+    name: 'Rune of the Whetstone',
+    cost: 3,
+    text: 'Whenever you play a **Dwarf**, give your other **Dwarves +1 Attack**.',
+    reward: { kind: 'combatFlag', flag: 'runeWhetstone' },
+    sets: ['set3'],
+  },
 ];
 
 /**
@@ -3741,6 +3799,31 @@ export const EPIC_RUNES: RuneDef[] = [
     text: 'Whenever a friendly **Celestial** triggers its **Echo**, cast a **Star Crash** on a random friendly **Celestial**.',
     previewCards: ['starcrash'],
     reward: { kind: 'combatFlag', flag: 'runeGuidingStar' },
+    sets: ['set3'],
+  },
+  // ── SET 3 RUNE DESIGN PASS (owner 2026-09-27), tranche 3: Dwarf Epics. All Set-3-only, Dwarf-gated. ──
+  {
+    // Every Attack gain on a friendly BOARD Dwarf, both phases, also gives that much Health (per copy). A Health gain
+    // never re-fires it, so it cannot loop with Kneel / Tankerchief.
+    id: 'rune_anvil',
+    tribes: ['dwarf'],
+    name: 'Rune of the Anvil',
+    cost: 5,
+    epic: true,
+    text: 'Whenever a friendly **Dwarf** gains **Attack**, it also gains that much **Health**.',
+    reward: { kind: 'combatFlag', flag: 'runeAnvil' },
+    sets: ['set3'],
+  },
+  {
+    // Every card added to your hand (the shared "card to hand" event: `fireOnGainCard` / combat `onGainCard`) gives
+    // your Dwarves +1/+1 per copy: the board in the Shop (permanent), the living Dwarves in combat (for the fight).
+    id: 'rune_satchel',
+    tribes: ['dwarf'],
+    name: 'Rune of the Satchel',
+    cost: 4,
+    epic: true,
+    text: 'Whenever a card is added to your hand, give your **Dwarves +1/+1**.',
+    reward: { kind: 'combatFlag', flag: 'runeSatchel' },
     sets: ['set3'],
   },
 ];

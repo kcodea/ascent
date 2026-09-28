@@ -1838,7 +1838,13 @@ export type QuestCombatFlag = 'bloodTrail' | 'echoingCoop' | 'lawOfTeeth' | 'old
   // gravity = every minion the Starform consumes gives your Celestials +2/+2 (Shop only: the Starform is a Shop token)
   | 'runeGravity'
   // meteorStorm = every Star Crash cast casts once more on a different friendly Celestial (never re-echoes)
-  | 'runeMeteorStorm';
+  | 'runeMeteorStorm'
+  // Tranche 3 (Spirit + Dwarf): callAndAnswer = a Spirit Shout / Rally gives the left-most hand minion +2/+2; encore = the
+  // first Reveler sold each turn also pays the left-most hand minion (Shop); kindredHand = a Spirit played gives the
+  // left-most hand minion +1/+1 per Spirit you control (Shop); whetstone = a Dwarf played gives your other Dwarves +1
+  // Attack (Shop); anvil = a Dwarf's Attack gain also gives that much Health; satchel = a card to hand gives your
+  // Dwarves +1/+1.
+  | 'runeCallAndAnswer' | 'runeEncore' | 'runeKindredHand' | 'runeWhetstone' | 'runeAnvil' | 'runeSatchel';
 /** Quest-armed combat modifiers threaded into `simulate()` (one trailing options arg). Beast quest capstones +
  *  greaters live here so the pure combat engine can honor them without new positional params per flag. */
 export interface QuestCombatMods {
@@ -2119,6 +2125,13 @@ export interface QuestCombatMods {
   /** Rune of the Meteor Storm: every Star Crash cast this side makes casts once more (per copy) on a different
    *  random living friendly Celestial; the extra cast never repeats itself. */
   runeMeteorStorm?: boolean;
+  // ── Set 3 rune design pass (owner 2026-09-27), tranche 3: Spirit + Dwarf ──
+  /** Rune of Call and Answer: a friendly Spirit's Shout fire or Rally gives the left-most hand minion +2/+2 (R-HAND-02). */
+  runeCallAndAnswer?: boolean;
+  /** Rune of the Anvil: an Attack gain on a friendly Dwarf also gives that much Health (a Health gain never re-fires). */
+  runeAnvil?: boolean;
+  /** Rune of the Satchel: every card reaching this side's hand gives its living Dwarves +1/+1 (for the fight). */
+  runeSatchel?: boolean;
   /** Rune of Falling Embers' Star Crash bonus (the run's `starCrashBonus`), so a combat Star Crash pays it too. */
   starCrashBonus?: { attack: number; health: number };
   /** Rune of the War Drum's UNSPENT shop charge (owner ruling 2026-08-26: "1/1 use, resets at start of turn —

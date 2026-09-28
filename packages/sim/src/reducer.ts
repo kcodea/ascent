@@ -29,7 +29,7 @@ import { RUNE_DUP_SWEETENER, RUNE_DUP_UNIQUE, forgeFilteredDuplicate, runeStacks
 import { spellFizzles } from './spellFizzle';
 import { buyStarform, fireStarformGainRemainder, starformFollowShopBuff, starformRefreshTick, starformSnapshot, starformSoulScriptBake, starformSpellAimsToken, starformStandIn, withStarformPinned, buffStarform, createStarform, hasStarform } from './starform';
 import { syncStarDestroyer, overchargeFree, consumeCalibration, equipmentPermanentlyAmplified, quickReleaseApplies } from './equipment';
-import { fireOnBuyWatchers, tribesPlayedThisTurn, fireHandCardEcho } from './recruit';
+import { fireOnBuyWatchers, tribesPlayedThisTurn, fireHandCardEcho, syncSoulFurnace } from './recruit';
 import { MATCHMAKING } from './matchmaking';
 
 /** Spend `amount` Gold and fire any `goldSpent` payoffs (Acid, Banksly) — the single Gold-spend chokepoint
@@ -893,6 +893,9 @@ export function reduce(state: RunState, action: Action): RunState {
     if (next.runeEndlessMarch || next.runeLastTool || next.questFlags?.runeEchoingKobolds || next.questFlags?.runeAggressiveGolems) {
       for (const c of [...next.board, ...next.hand]) applyRuneGrafts(next, c);
     }
+    // RUNE OF THE SOUL FURNACE (Set 3 design pass): the Aura's derived Health term follows the Aura Attack at every
+    // action boundary, whichever writer raised it (a Lantern, a Deathswarmer, a combat carry-back at settle).
+    syncSoulFurnace(next);
   }
   // onGainAttack reactors (Hunter — "when this gains Attack, give your minions +Health") fire whenever a
   // recruit action raises a BOARD minion's Attack, from ANY source (Fortify, spells, tribe Battlecries,
@@ -5287,6 +5290,7 @@ function advanceCombat(s: RunState): void {
   s.tavernBuyBonusTurn = undefined; // Merchant's Chorus: the THIS-TURN shop buff does not carry across the rollover
   for (const c of s.board) if (c.bredThisTurn) c.bredThisTurn = 0; // Brood Matron's shop breed cap resets per turn (owner ruling 2026-08-26)
   s.runeWarDrumUsedThisTurn = undefined; // Rune of the War Drum: its one charge comes back each turn
+  s.openGraveUsedThisTurn = undefined;   // Rune of the Open Grave: the first Shop destroy of the new turn gains Rise
   // Batch-4 per-turn gates (Shared Pour / Aftermarket read "the first … each turn").
   s.sharedPourUsedThisTurn = undefined;
   s.aftermarketUsedThisTurn = undefined;
@@ -7637,6 +7641,12 @@ export function questCombatMods(s: RunState): QuestCombatMods {
     runeBodyCountTick: f?.runeBodyCounting ? (s.runeBodyCountTick ?? 0) : undefined, // the carried meter
     runeAggressiveGolems: f?.runeAggressiveGolems,   // combat-summoned Gemheart Golems get the Rally graft
     runeRupturedRubies: f?.runeRupturedRubies,       // every combat Ruby bounces twice
+    // ── Set 3 rune design pass (owner 2026-09-27), tranche 1: Undead ──
+    runeWake: f?.runeWake,                           // an Undead Echo trigger raises the Undead Aura +1 Attack
+    runeSecondWind: f?.runeSecondWind,               // a risen body gains +2/+2 permanently
+    runeSoulToll: f?.runeSoulToll,                   // Avenge (4): the Undead Aura +1 Attack
+    runeSoulFurnace: f?.runeSoulFurnace,             // the Undead Aura's Health term re-derives live mid-fight
+    runeRestless: f?.runeRestless,                   // a risen body's Echo triggers
     // SHOP→COMBAT CARRY-OVER (owner ruling 2026-08-26): "war drum should have a 1/1 use, and that use resets
     // at start of turn, therefore if it is not used in shop, then the first shout triggered in combat should
     // work." Present only while the per-turn charge is UNSPENT; combat consumes it on the first triggered

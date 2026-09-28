@@ -55,6 +55,10 @@ export function runeTally(run: RunState, runeId: string): string | null {
     if (t.oncePerTurn && t.usedThisTurn) return `${t.per}/${t.per}${METER_SUFFIX[t.meter] ?? ''}`;
     return `${Math.min(t.tick, t.per)}/${t.per}${METER_SUFFIX[t.meter] ?? ''}`;
   }
+  // RUNE OF THE SOUL FURNACE (Set 3 design pass): the Health the Undead Aura gives RIGHT NOW (the live-value rule).
+  if (runeId === 'rune_soul_furnace' && run.questFlags?.runeSoulFurnace) return `+${run.soulFurnaceHp ?? 0} Health`;
+  // RUNE OF THE OPEN GRAVE: its one charge a turn, as the War Drum shows it (1 ready, 0 spent).
+  if (runeId === 'rune_open_grave' && run.questFlags?.runeOpenGrave) return run.openGraveUsedThisTurn ? '0/1' : '1/1';
   // Rune of the Wheel: refreshes toward the aura's next +2/+2 improve (`shopAuraGrow`).
   if (runeId === 'rune_wheel' && run.shopAuraGrow?.per) {
     return `${Math.min(run.shopAuraGrow.tick, run.shopAuraGrow.per)}/${run.shopAuraGrow.per}`;
@@ -272,6 +276,7 @@ const RUNE_DEATHS_PER: Record<string, number> = {
   rune_beastial_swarm: 2, // Beastial Swarm: Avenge (2) — raises the per-death buff amount
   // 2026-08-20 batch — both Avenge (3), both improving Rubies.
   rune_shifting_facets: 3, rune_deepening_vein: 3,
+  rune_soul_toll: 4, // Set 3 design pass (2026-09-27): Avenge (4) raises the Undead Aura
 };
 const RUNE_SUMMONS_PER: Record<string, number> = { rune_remains: 5 };
 

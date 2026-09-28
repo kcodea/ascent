@@ -24,6 +24,9 @@ import { createRun, reduce, type RunState } from './index';
 
 const ALL = [...RUNES, ...EPIC_RUNES];
 const reducerSrc = fs.readFileSync(path.join(__dirname, 'reducer.ts'), 'utf-8');
+/** The Shop chokepoints (2026-09-27, Set 3 rune design pass): a SHOP-ONLY combatFlag rune ("after you destroy a
+ *  friendly minion in the Shop") is read here and nowhere in combat, which is its legitimate home. */
+const recruitSrc = fs.readFileSync(path.join(__dirname, 'recruit.ts'), 'utf-8');
 const simulateSrc = fs.readFileSync(
   path.join(__dirname, '..', '..', 'core', 'src', 'combat', 'simulate.ts'), 'utf-8');
 
@@ -81,7 +84,8 @@ describe('combatFlag runes reach combat', () => {
     // fine. NEITHER means the rune arms and then does nothing at all, which is the failure worth catching.
     const inCombat = simulateSrc.includes(flag);
     const atSettle = new RegExp(`questFlags\\?\\.${flag}\\b`).test(reducerSrc);
-    expect(inCombat || atSettle, `${flag} is granted but nothing reads it — the rune is inert`).toBe(true);
+    const inShop = new RegExp(`questFlags\\?\\.${flag}\\b`).test(recruitSrc);
+    expect(inCombat || atSettle || inShop, `${flag} is granted but nothing reads it — the rune is inert`).toBe(true);
   });
 
   it.each(flagRunes)('%s: if combat reads %s, the reducer threads it there', (_id, flag) => {

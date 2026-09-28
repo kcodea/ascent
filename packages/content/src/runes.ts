@@ -1688,6 +1688,60 @@ export const RUNES: RuneDef[] = [
     reward: { kind: 'combatFlag', flag: 'runeBodyCounting' },
     sets: ['set3'],
   },
+  // ── SET 3 RUNE DESIGN PASS (owner 2026-09-27), tranche 1: Undead Basics. All Set-3-only, Undead-gated. ──
+  {
+    // The Undead Aura line's enabler: Lantern of Souls now, then every 2 turns (the Rare Goods shape).
+    id: 'rune_lantern_keeper',
+    tribes: ['undead'],
+    name: 'Rune of the Lantern Keeper',
+    cost: 4,
+    text: 'Get a **Lantern of Souls**. Repeat every **2 turns**.',
+    reward: { kind: 'multi', rewards: [{ kind: 'grant', cards: ['lanternofsouls'] }, { kind: 'recurringGrant', cards: ['lanternofsouls'], everyTurns: 2 }] },
+    sets: ['set3'],
+  },
+  {
+    // Every friendly Undead Echo TRIGGER (the Echo chokepoint of each phase, so forced Echoes count and each
+    // multiplier proc is its own trigger) raises the Lantern channel +1 Attack per copy: permanent from any phase
+    // (R-AURA-02), felt live mid-fight.
+    id: 'rune_wake',
+    tribes: ['undead'],
+    name: 'Rune of the Wake',
+    cost: 4,
+    text: 'Whenever a friendly **Undead** triggers its **Echo**, give your **Undead Aura +1 Attack**.',
+    reward: { kind: 'combatFlag', flag: 'runeWake' },
+    sets: ['set3'],
+  },
+  {
+    // Every Rise, both phases (the Rise watchers' own moment): the risen body gains +2/+2 for good.
+    id: 'rune_second_wind',
+    tribes: ['undead'], // owner-ruled (Rise is the Undead keyword), see tribeGate.test.ts
+    name: 'Rune of the Second Wind',
+    cost: 3,
+    text: 'After a friendly minion **Rises**, give it **+2/+2** permanently.',
+    reward: { kind: 'combatFlag', flag: 'runeSecondWind' },
+    sets: ['set3'],
+  },
+  {
+    // Owner 2026-09-27: built INSTEAD of the doc's Rune of the Unquiet. Avenge runs in combat (the Avenge runes'
+    // shared `runeAvenge`, so Rune of Fury doubles it); the Aura gain is permanent (R-AURA-02).
+    id: 'rune_soul_toll',
+    tribes: ['undead'],
+    name: 'Rune of the Soul Toll',
+    cost: 3,
+    text: '**Avenge (4):** give your **Undead Aura +1 Attack**.',
+    reward: { kind: 'combatFlag', flag: 'runeSoulToll' },
+    sets: ['set3'],
+  },
+  {
+    // Every Shop destroy of a friendly minion (`afterShopDestroy`, both destroy paths): +2/+2 to your Undead.
+    id: 'rune_gravedigger',
+    tribes: ['undead'],
+    name: 'Rune of the Gravedigger',
+    cost: 3,
+    text: 'After you destroy a friendly minion in the **Shop**, give your **Undead +2/+2**.',
+    reward: { kind: 'combatFlag', flag: 'runeGravedigger' },
+    sets: ['set3'],
+  },
 ];
 
 /**
@@ -3546,6 +3600,44 @@ export const EPIC_RUNES: RuneDef[] = [
     text: 'Your **Rubies** cast in combat bounce **twice**.',
     previewCards: ['ruby'],
     reward: { kind: 'combatFlag', flag: 'runeRupturedRubies' },
+    sets: ['set3'],
+  },
+  // ── SET 3 RUNE DESIGN PASS (owner 2026-09-27), tranche 1: Undead Epics. All Set-3-only, Undead-gated. ──
+  {
+    // A DERIVED Aura Health term, ceil(Aura Attack / 2) per copy, where Aura Attack is the whole Undead Aura (the
+    // Lantern channel + the buy channel). Kept inside `undeadHealthBonus` by `syncSoulFurnace`, so every fold
+    // (board, hand, Shop, combat seeding, served snapshots) reads it; combat re-derives it live.
+    id: 'rune_soul_furnace',
+    tribes: ['undead'],
+    name: 'Rune of the Soul Furnace',
+    cost: 5,
+    epic: true,
+    text: 'Your **Undead Aura** also gives **Health** equal to **half** its **Attack**.',
+    reward: { kind: 'combatFlag', flag: 'runeSoulFurnace' },
+    sets: ['set3'],
+  },
+  {
+    // Every Rise, both phases: the risen body's Echo triggers (the shared forced-Echo path, so every Echo
+    // multiplier and every "an Echo fired" rune hears it). Once per copy held.
+    id: 'rune_restless',
+    tribes: ['undead'], // owner-ruled (Rise is the Undead keyword), see tribeGate.test.ts
+    name: 'Rune of the Restless',
+    cost: 5,
+    epic: true,
+    text: 'After a friendly minion **Rises**, trigger its **Echo**.',
+    reward: { kind: 'combatFlag', flag: 'runeRestless' },
+    sets: ['set3'],
+  },
+  {
+    // The first friendly minion you destroy in the Shop each turn (and that lacks Rise) gains Rise before it dies,
+    // so the shared Rise return brings it back. Both destroy paths; the latch resets each turn.
+    id: 'rune_open_grave',
+    tribes: ['undead'], // owner-ruled (Rise is the Undead keyword), see tribeGate.test.ts
+    name: 'Rune of the Open Grave',
+    cost: 4,
+    epic: true,
+    text: 'The first friendly minion you destroy in the **Shop** each turn gains **Rise** before it dies.',
+    reward: { kind: 'combatFlag', flag: 'runeOpenGrave' },
     sets: ['set3'],
   },
 ];

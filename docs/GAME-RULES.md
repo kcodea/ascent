@@ -659,6 +659,21 @@ Ruptured Rubies hops every combat Ruby twice (stats only), the Shop unaffected. 
 
 Oracle R-SET3RUNE-01..05; details in `docs/devlog/2026-09-27-set3-runes-t0.md`; ids pinned in `set3RuneList.test.ts`.
 
+**Design pass tranche 1: Undead (owner 2026-09-27)** adds 8 Set-3-only Undead runes (**177 runes, 92 Basic / 85
+Epic**). Basic: the Lantern Keeper (a Lantern of Souls now and every 2 turns), the Wake (a friendly Undead Echo
+trigger gives the Undead Aura +1 Attack), the Second Wind (a risen minion gains +2/+2 permanently), the Soul Toll
+(Avenge (4): the Undead Aura +1 Attack; built instead of the Unquiet), the Gravedigger (a friendly Shop destroy gives
+your Undead +2/+2). Epic: the Soul Furnace, the Restless (a risen minion triggers its Echo), the Open Grave (the
+first friendly Shop destroy each turn gains Rise first). Rules worth knowing:
+- *"Give your Undead Aura +N Attack"* raises the Lantern channel: permanent from any phase (R-AURA-02), felt live by
+  the living Undead mid-fight.
+- *The Soul Furnace's* Health is **ceil(Aura Attack / 2)** per copy, where the Aura Attack is the whole Undead Aura (the
+  Lantern channel plus the buy channel). It is kept inside the run's Undead Aura Health, so every fold shows it, and
+  it rises the moment the Aura's Attack rises (mid-fight too; that rise is re-derived by the run, never carried back).
+- *Rise runes* fire after the minion Rise watchers, Second Wind first; the Restless' Echo is a real Echo trigger
+  (multipliers apply, the Wake counts it). The Open Grave skips a body that already has Rise.
+Oracle R-SET3RUNE-06..13; details in `docs/devlog/2026-09-27-set3-runes-t1.md`.
+
 **Set 3-original runes (batch 2, 2026-09-16).** Set 3 now also has runes of its own — `sets: ['set3']` alone,
 no origin scope — starting with tranche A's 24 Spirit / Celestial / Undead runes (11 Basic + 13 Epic, taking the
 set-3 static pool to **126 Basic / 111 Epic**), plus the rune-exclusive **Handy Flame** token. The two combat-side

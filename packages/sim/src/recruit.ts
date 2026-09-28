@@ -1,4 +1,4 @@
-import { ALE_IDS, RUBY_TYPE_IDS, SPECIAL_RUBY_IDS, TRIBES, inRunTribes, alignAllows, makeRng, SILENT_ONPLAY, isShopPoolSpell, shopSpellGrowth, COMBAT_REPLAYABLE_BATTLECRIES, NO_COPY_SPELL_IDS, extraTriggerFires, foldEchoExtraFires, socTwilightExtraFires, BODY_COUNTING_DEATHS, ARENA_EFFECTS, beatIdentity, type EffectArena, type PresentationCollector, type PresentationPhase, type PresentationPolicy, type Rng, type CardDef, type EffectDef, type Keyword, type TriggerFamily, type TriggerSourceRef, type Tribe } from '@game/core';
+import { soulFurnaceHealth, ALE_IDS, RUBY_TYPE_IDS, SPECIAL_RUBY_IDS, TRIBES, inRunTribes, alignAllows, makeRng, SILENT_ONPLAY, isShopPoolSpell, shopSpellGrowth, COMBAT_REPLAYABLE_BATTLECRIES, NO_COPY_SPELL_IDS, extraTriggerFires, foldEchoExtraFires, socTwilightExtraFires, BODY_COUNTING_DEATHS, ARENA_EFFECTS, beatIdentity, type EffectArena, type PresentationCollector, type PresentationPhase, type PresentationPolicy, type Rng, type CardDef, type EffectDef, type Keyword, type TriggerFamily, type TriggerSourceRef, type Tribe } from '@game/core';
 import { ancientOnSale, ancientOnShopDeath, ancientOnShopShout, ancientOnShopRise, ancientPowerText, ancientEotWardBuff, ancientRunEotWardBuff, ancientBondsReact, ANCIENTS } from './ancients';
 import { runSpells } from './spellPool';
 import { REVELER_IDS, RUNE_INDEX, CARD_INDEX, EQUIPMENT_INDEX, STAR_DESTROYER, equipmentOf, recurringEotOwner, type EquipmentDefinition } from '@game/content';
@@ -2769,6 +2769,9 @@ function fireRecruitDeathrattles(ctx: RecruitContext, minion: BoardCard, effects
     // out-of-combat Echo like a combat one (Grave Contract / Ossuary Rite / Author's Hand, …). Accumulates across
     // multiple fires in one action (e.g. several Gravetwins on turn-open).
     ctx.state.lastEchoFires = (ctx.state.lastEchoFires ?? 0) + 1 + extra;
+    // RUNE OF THE WAKE (Set 3 design pass): every Undead Echo TRIGGER (the base fire and each extra) raises the
+    // Undead Aura, here at the shop's one Echo chokepoint so a destroy, a forced Echo and a hand Echo all count.
+    if (ctx.state.questFlags?.runeWake && isTribe(minion, 'undead')) runeWakeShop(ctx.state, 1 + extra);
   }
 }
 
@@ -2983,6 +2986,8 @@ export function destroyMinionInShop(
   const idx = state.board.indexOf(target);
   if (idx < 0) return;
   const def = CARD_INDEX[target.cardId];
+  // RUNE OF THE OPEN GRAVE (Set 3 design pass): the first Shop destroy each turn gains Rise BEFORE the Rise check.
+  if (opts?.rise !== false) armOpenGrave(state, target);
   // REBIRTH (owner 2026-09-16) resolves BEFORE Rise, exactly as combat's `killOrReborn` orders them: a body holding
   // both comes back whole (its Rise still armed for the next death). A shop Rebirth returns the SAME body —
   // buffs, keywords (Rebirth spent), per-instance state — see `rebirthReturn`.
@@ -3036,6 +3041,7 @@ export function destroyMinionInShop(
 export function afterShopDestroy(state: RunState, destroyed: BoardCard): void {
   noteShopCardDeath(state, destroyed);
   ancientOnShopDeath(state, destroyed); // ANCIENT OF WAR, Shop half (a no-op unless the run has it)
+  runeGravediggerShop(state, destroyed); // RUNE OF THE GRAVEDIGGER (Set 3 design pass)
   if (!state.runeLastRites || state.lastRitesUsedThisTurn || !isTribe(destroyed, 'undead')) return;
   const def = CARD_INDEX[destroyed.cardId];
   if (!def) return;
@@ -3197,6 +3203,9 @@ export function fireOnRise(state: RunState, risen: BoardCard): void {
       if (fn) captureBuffFx(state, card, 'minion', () => fn(ctx, card, effect.params ?? {}, { minion: risen }));
     }
   }
+  // SET 3 DESIGN PASS Rise runes, after the minion watchers (combat's order): the Second Wind grows the risen body,
+  // then the Restless fires its Echo (so the Echo sees the grown body).
+  runeRiseRunesShop(state, risen);
 }
 
 /**
@@ -12199,6 +12208,7 @@ export function settlePendingDeath(state: RunState): void {
   state.pendingDeath = undefined;
   const card = state.board.find((c) => c.uid === pending.uid);
   if (!card) return; // already gone (a save round-trip, an odd path) — nothing owed
+  if (pending.kind === 'destroy') armOpenGrave(state, card); // RUNE OF THE OPEN GRAVE (a destroy, never a loan expiry)
   const willRebirth = card.keywords.includes('RB'); // Rebirth before Rise (combat's order)
   const willRise = !willRebirth && card.keywords.includes('R');
   // Where the body was and how big the board was, captured inside the death beat for the Rise beat that follows.
@@ -14984,4 +14994,80 @@ export function playCard(state: RunState, played: BoardCard): void {
   // each Battlecry fire (incl. Drakko repeats) procs Battlecry-triggered watchers (Karwind)
   if (hasBattlecry) for (let r = 0; r < repeats; r++) fireBattlecryTriggered(state, played);
   if (state.karwindFlash && state.karwindFlash.length) state.karwindFlashSeq = (state.karwindFlashSeq ?? 0) + 1;
+}
+
+// ── SET 3 RUNE DESIGN PASS (owner 2026-09-27): the Shop halves of the tranche-1 Undead runes ─────────────────────
+
+/** The whole Undead Aura's Attack: the Lantern channel (`undeadAttackBonus`, folded at display) plus the buy channel
+ *  (`undeadBuyAtk`, baked into Undead at creation). The two are one Aura to the player (the Aura pill sums them). */
+export function undeadAuraAttack(state: Pick<RunState, 'undeadAttackBonus' | 'undeadBuyAtk'>): number {
+  return (state.undeadAttackBonus ?? 0) + (state.undeadBuyAtk ?? 0);
+}
+
+/**
+ * RUNE OF THE SOUL FURNACE: keep the Aura's derived Health term inside `undeadHealthBonus`. `soulFurnaceHp` records
+ * the slice the term currently holds, so a re-sync moves only the difference. Every reader of `undeadHealthBonus`
+ * (the board / hand / Shop fold, combat seeding, served snapshots, the Aura pill) therefore folds it for free.
+ * Called at every reducer action boundary and inline by the Aura raiser below, so it is live within an action too.
+ */
+export function syncSoulFurnace(state: RunState): void {
+  const copies = state.questFlags?.runeSoulFurnace ? runeStacksOf(state, 'rune_soul_furnace') : 0;
+  const target = soulFurnaceHealth(undeadAuraAttack(state), copies);
+  const delta = target - (state.soulFurnaceHp ?? 0);
+  if (delta === 0) return;
+  state.undeadHealthBonus = (state.undeadHealthBonus ?? 0) + delta;
+  state.soulFurnaceHp = target || undefined;
+}
+
+/** Raise the Lantern channel of the Undead Aura by `attack` (the Shop half of "give your Undead Aura +N Attack"),
+ *  then re-derive the Soul Furnace term. The fold shows it on every Undead at once (no per-card buff). */
+export function raiseUndeadAuraShop(state: RunState, attack: number): void {
+  if (attack <= 0) return;
+  state.undeadAttackBonus = (state.undeadAttackBonus ?? 0) + attack;
+  syncSoulFurnace(state);
+}
+
+/** RUNE OF THE WAKE, Shop half: `triggers` Undead Echo triggers each raise the Undead Aura +1 Attack per copy. */
+function runeWakeShop(state: RunState, triggers: number): void {
+  procRuneId(state, 'rune_wake', triggers);
+  raiseUndeadAuraShop(state, triggers * runeStacksOf(state, 'rune_wake'));
+}
+
+/** RUNE OF THE GRAVEDIGGER: after a friendly Shop destroy, your Undead on the board gain +2/+2 per copy (the dying
+ *  body itself excluded: in the deferred path it is still on the board when this runs). */
+export const GRAVEDIGGER_GRANT = { attack: 2, health: 2 } as const;
+function runeGravediggerShop(state: RunState, destroyed: BoardCard): void {
+  if (!state.questFlags?.runeGravedigger) return;
+  const undead = state.board.filter((c) => c.uid !== destroyed.uid && isTribe(c, 'undead'));
+  procRuneId(state, 'rune_gravedigger');
+  if (undead.length === 0) return;
+  const n = runeStacksOf(state, 'rune_gravedigger');
+  captureBuffFx(state, undefined, 'spell', () => {
+    for (const c of undead) addBuff(c, 'Rune of the Gravedigger', GRAVEDIGGER_GRANT.attack * n, GRAVEDIGGER_GRANT.health * n);
+  });
+}
+
+/** RUNE OF THE OPEN GRAVE: the first friendly minion destroyed in the Shop each turn gains Rise before it dies. A
+ *  body that already has Rise does not spend the turn's charge (there is nothing to give it). */
+function armOpenGrave(state: RunState, target: BoardCard): void {
+  if (!state.questFlags?.runeOpenGrave || state.openGraveUsedThisTurn || target.keywords.includes('R')) return;
+  state.openGraveUsedThisTurn = true;
+  target.keywords = [...target.keywords, 'R'];
+  procRuneId(state, 'rune_open_grave');
+}
+
+/** RUNE OF THE SECOND WIND / THE RESTLESS, Shop half: a friendly Rise grows the risen body +2/+2 per copy (permanent:
+ *  a Shop buff is), then triggers its Echo once per Restless copy through the shop's Echo chokepoint. */
+export const SECOND_WIND_GRANT = { attack: 2, health: 2 } as const;
+function runeRiseRunesShop(state: RunState, risen: BoardCard): void {
+  const f = state.questFlags;
+  if (f?.runeSecondWind && state.board.includes(risen)) {
+    procRuneId(state, 'rune_second_wind');
+    const n = runeStacksOf(state, 'rune_second_wind');
+    captureBuffFx(state, risen, 'spell', () => addBuff(risen, 'Rune of the Second Wind', SECOND_WIND_GRANT.attack * n, SECOND_WIND_GRANT.health * n));
+  }
+  if (f?.runeRestless && state.board.includes(risen) && instanceEffects(risen).some((e) => e.on === 'onDeath')) {
+    procRuneId(state, 'rune_restless');
+    for (let k = 0; k < runeStacksOf(state, 'rune_restless'); k++) fireRecruitDeathrattles(makeContext(state), risen);
+  }
 }

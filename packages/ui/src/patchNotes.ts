@@ -55,6 +55,22 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: 'Collection now has its own screen, and opening a crate got a big new animation.',
+        details: [
+          'Find the Collection on the main menu, in the side menu, or on your Career.',
+          'Open your crates one at a time, or Open all to go through every one.',
+          'The crate builds up while it opens, then bursts. The rarer the reward, the bigger the show.',
+          'Click or press a key to skip straight to your reward.',
+          'Reduced motion on? The reward simply fades in.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-09-28',
+    changes: [
+      {
+        category: 'Systems',
         text: 'Level crates: every Account Level now gives you a crate, and your first game gives you a Welcome Crate.',
         details: [
           'Open a crate to get a new title. There are 15 to find, from Common to Legendary.',

@@ -13,7 +13,7 @@
  *  - The renderer's resolution folds in the stage scale (`stageScale()`), so a phone never renders ~8x the pixels
  *    it shows (the stage tripwire enforces this).
  */
-import { Application, Assets, Container, Graphics, type Texture } from 'pixi.js';
+import { Application, Assets, CanvasSource, Container, Graphics, Texture } from 'pixi.js';
 import { stageScale } from '../../stage';
 import type { CratePreset } from './crateFxConfig';
 import { CrateScene, GLOW_TEX_R, RAY_TEX_LEN, RING_TEX_R, type CrateAnticipation, type CrateSceneTextures } from './crateScene';
@@ -169,10 +169,27 @@ function makeSpark(app: Application): Texture {
   for (let r = 8; r >= 1; r--) g.circle(0, 0, r).fill({ color: 0xffffff, alpha: 0.2 });
   return bake(app, g);
 }
+/** The big soft glow (aura, flash, crate glow). A canvas radial gradient rather than stacked circles: scaled up
+ *  ten times for the aura, stacked translucent circles show visible bands. */
 function makeGlow(app: Application): Texture {
-  const g = new Graphics();
-  for (let r = GLOW_TEX_R; r >= 2; r -= 2) g.circle(0, 0, r).fill({ color: 0xffffff, alpha: 0.05 });
-  return bake(app, g);
+  const size = GLOW_TEX_R * 2 * 4; // drawn at 4x so the upscaled aura stays smooth
+  const c = document.createElement('canvas');
+  c.width = c.height = size;
+  const ctx = c.getContext('2d');
+  if (!ctx) {
+    const g = new Graphics();
+    for (let r = GLOW_TEX_R; r >= 2; r -= 2) g.circle(0, 0, r).fill({ color: 0xffffff, alpha: 0.05 });
+    return bake(app, g);
+  }
+  const grad = ctx.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2);
+  grad.addColorStop(0, 'rgba(255,255,255,1)');
+  grad.addColorStop(0.25, 'rgba(255,255,255,0.55)');
+  grad.addColorStop(0.55, 'rgba(255,255,255,0.18)');
+  grad.addColorStop(1, 'rgba(255,255,255,0)');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, size, size);
+  // The scene sizes sprites against a GLOW_TEX_R-radius texture; this one is drawn at 4x, so it reports 1x.
+  return new Texture({ source: new CanvasSource({ resource: c, resolution: 4 }) });
 }
 function makeRing(app: Application): Texture {
   const g = new Graphics();

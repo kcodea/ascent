@@ -444,3 +444,21 @@ describe('the Collection screen', () => {
     expect(text('.colls-titles .coll-titlename')).toBe('Alpha Tester');
   });
 });
+
+describe('React StrictMode + autoOpen (the Collection and post-game path)', () => {
+  it('the dev double mount does not strand the opening: the reveal lands, with one request and a live Pixi layer', async () => {
+    vi.useFakeTimers();
+    useProgression.setState({ capability: 'on', cratesCapability: 'on', mirror: { userId: 'u-1', ...profile() } });
+    openCrateRemote.mockResolvedValue({ status: 'ok', value: opened('c-9', 'title_wanderer', 9), profile: profile() });
+    ui = mount(<StrictMode><CrateOpener queue={[{ crateId: 'c-9', earnedLevel: 9 }]} autoOpen reducedMotion={false} /></StrictMode>);
+    await settle();
+    expect(openCrateRemote).toHaveBeenCalledTimes(1);
+    // the second controller was brought into the anticipation the first one had started
+    expect(fxCalls.filter((c) => c === 'anticipate').length).toBe(2);
+    advance(CRATE_FX_DEFAULTS.anticipationMs);
+    expect(phase()).toBe('charge');
+    advance(10000);
+    expect(phase()).toBe('settled');
+    expect(text('.crate-reward-name')).toBe('Wanderer');
+  });
+});

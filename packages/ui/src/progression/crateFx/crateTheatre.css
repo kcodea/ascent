@@ -6,17 +6,19 @@
    Buttons take the global gauntlet cursor (no cursor rules here). */
 
 .crate.crth { position: fixed; inset: 0; z-index: 700; display: grid; place-items: center; width: auto; gap: 0; animation: crth-in 0.2s ease-out both; }
-.crth-scrim { position: absolute; inset: 0; background: radial-gradient(ellipse 55% 60% at 50% 46%, rgba(26, 34, 58, 0.9) 0%, rgba(5, 7, 14, 0.96) 70%); }
-.crth-box { position: relative; display: flex; flex-direction: column; align-items: center; gap: 14px; width: 980px; max-width: 100%; }
-.crth .crate-name { font-size: 20px; letter-spacing: 0.22em; color: #e8c877; text-shadow: 0 2px 12px rgba(0, 0, 0, 0.8); }
-.crth .crate-stage.crth-stage { position: relative; width: 980px; max-width: 100%; height: 560px; display: grid; place-items: center; }
-.crth-stage canvas { z-index: 0; }
+.crth-scrim { position: absolute; inset: 0; background: radial-gradient(ellipse 55% 60% at 50% 50%, rgba(22, 30, 54, 0.93) 0%, rgba(4, 6, 12, 0.97) 70%); }
+/* Everything is placed around the theatre's centre, where the Pixi scene puts the crate (crateScene.layout). */
+.crth-box { position: absolute; inset: 0; }
+.crth-fx { position: absolute; inset: 0; pointer-events: none; }
+.crth .crate-name { position: absolute; left: 50%; top: calc(50% - 300px); transform: translateX(-50%); white-space: nowrap;
+  font-size: 22px; letter-spacing: 0.22em; color: #e8c877; text-shadow: 0 2px 12px rgba(0, 0, 0, 0.8); }
+.crth .crate-stage.crth-stage { position: absolute; inset: 0; width: auto; height: auto; display: grid; place-items: center; pointer-events: none; }
 
 /* The DOM crate: reduced motion, or a machine where Pixi cannot start. Bigger than the inline one. */
-.crth.domcrate .crate-box { transform-origin: 50% 80%; scale: 1.9; }
+.crth.domcrate .crate-box { transform-origin: 50% 60%; scale: 2.4; }
 
 /* The reward plate: rises out of the light, then the name stamps in. One-shot, keyed to its mount. */
-.crth .crate-reward { position: absolute; left: 50%; top: 44%; z-index: 2; min-width: 320px; max-width: 80%; padding: 18px 30px 16px; gap: 4px; border-radius: 18px;
+.crth .crate-reward { position: absolute; left: 50%; top: 50%; z-index: 2; min-width: 320px; max-width: 80%; padding: 18px 30px 16px; gap: 4px; border-radius: 18px;
   background: linear-gradient(180deg, rgba(20, 28, 46, 0.94), rgba(8, 12, 24, 0.96)); border: 2px solid var(--rc);
   box-shadow: 0 16px 34px -14px rgba(0, 0, 0, 0.8); transform: translate(-50%, -50%);
   animation: crth-rise var(--cr-rise, 520ms) cubic-bezier(0.2, 1.1, 0.35, 1) both; }
@@ -34,7 +36,8 @@
 .crth.reduced .crate-reward-name, .crth.reduced .crate-reward-rarity { animation: none !important; }
 .crth.reduced .crate-reward::before { animation: none !important; }
 
-.crth-foot { display: flex; flex-direction: column; align-items: center; gap: 12px; min-height: 96px; }
+.crth-foot { position: absolute; left: 50%; top: calc(50% + 230px); transform: translateX(-50%); width: 900px; max-width: 100%;
+  display: flex; flex-direction: column; align-items: center; gap: 12px; }
 .crth .crate-note { font-size: 17px; max-width: 520px; }
 .crth-skip { font-family: var(--font-ui); font-weight: 700; font-size: 14px; letter-spacing: 0.12em; text-transform: uppercase; color: rgba(255, 246, 228, 0.45); }
 .crth-btns { display: flex; gap: 12px; }

@@ -151,8 +151,9 @@ export class CrateScene {
     this.w = w;
     this.h = h;
     this.scale = crateScale;
+    // The crate sits at the theatre's centre, which is where the DOM reward plate is centred too.
     this.cx = w / 2;
-    this.cy = h * 0.52;
+    this.cy = h / 2;
     const size = crateSizeFor(w, h, crateScale);
     if (Math.abs(size - this.size) > 0.5) { this.size = size; this.buildCrate(); }
     this.place();
@@ -182,9 +183,9 @@ export class CrateScene {
     this.crate.position.set(this.cx, this.cy);
     this.glow.position.set(this.cx, this.cy - this.size * 0.05);
     this.glow.scale.set((this.size * 1.6) / GLOW_TEX_R / 2);
-    this.aura.position.set(this.cx, this.cy - this.size * 0.2);
+    this.aura.position.set(this.cx, this.cy);
     this.aura.scale.set((this.size * 2.4) / GLOW_TEX_R / 2);
-    this.rays.position.set(this.cx, this.cy - this.size * 0.2);
+    this.rays.position.set(this.cx, this.cy);
     for (const r of this.raySprites) r.scale.set(1.2, (Math.max(this.w, this.h) * 0.55) / RAY_TEX_LEN);
     this.seam.position.set(0, -this.size * 0.31);
     this.seam.scale.set((this.size * 0.62) / GLOW_TEX_R, (this.size * 0.07) / GLOW_TEX_R);

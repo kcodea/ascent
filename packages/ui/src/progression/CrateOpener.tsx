@@ -128,6 +128,11 @@ export function CrateOpener({ queue, autoOpen = false, openAll = false, reducedM
     fx.current = ctl;
     ctl.setArt(c.crateArt);
     ctl.resize(host.clientWidth, host.clientHeight, c.crateScale);
+    // A remount mid-opening (React StrictMode mounts every effect twice in dev) gets a fresh controller: bring it
+    // to where the opening already is, so the request that is already in flight lands on a live crate.
+    const f = flow.current;
+    if (f.phase === 'anticipation') ctl.anticipate({ antMs: c.anticipationMs, antShake: c.anticipationShake, antGlow: c.anticipationGlow });
+    else if (f.preset && f.phase !== 'sealed' && f.phase !== 'error' && f.phase !== 'exhausted') ctl.skipToSettled(f.preset);
     let alive = true;
     void ctl.mount(host).then((ok) => { if (alive && live.current) setFxLive(ok); });
     // Event-driven geometry: the host only changes size when the window does.
@@ -138,8 +143,9 @@ export function CrateOpener({ queue, autoOpen = false, openAll = false, reducedM
     return () => { alive = false; ro?.disconnect(); ctl.destroy(); if (fx.current === ctl) fx.current = null; };
   }, [reduced]);
 
-  // Unmount: nothing may fire into a dead theatre.
-  useEffect(() => () => { clearTimers(); stopAll(); gen.current++; }, []);
+  // Unmount: nothing may fire into a dead theatre. (The in-flight request checks `live`, which a StrictMode
+  // remount sets back to true, so the dev double mount does not strand an opening.)
+  useEffect(() => () => { clearTimers(); stopAll(); }, []);
 
   const pendingOf = (activeId: string | null, doneSet: ReadonlySet<string>): CrateQueueItem[] =>
     queueRef.current.filter((c) => !doneSet.has(c.crateId) && c.crateId !== activeId);
@@ -338,8 +344,10 @@ export function CrateOpener({ queue, autoOpen = false, openAll = false, reducedM
     >
       <div className="crth-scrim" aria-hidden />
       <div className="crth-box" ref={boxRef}>
+        {/* The Pixi canvas covers the whole theatre, so the flash, rings and rays never clip at a box edge. */}
+        <div className="crth-fx" ref={hostRef} aria-hidden />
         <div className="crate-name">{crateName(shown.earnedLevel)}</div>
-        <div className="crate-stage crth-stage" ref={hostRef}>
+        <div className="crate-stage crth-stage">
           {domCrate && (
             <div className={`crate-box${phase === 'anticipation' || phase === 'charge' ? ' shaking' : ''}${revealed ? ' open' : ''}${reward?.rarity ? ` r-${reward.rarity}` : ''}`} aria-hidden>
               <span className="crate-glow" />

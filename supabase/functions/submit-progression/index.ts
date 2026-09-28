@@ -28,7 +28,7 @@
  */
 // @ts-nocheck: Deno globals + remote imports aren't visible to the repo's Node TypeScript config.
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import { handleSubmitProgression } from '../_shared/progressionServer.ts';
+import { handleSubmitProgression, syncAchievementCatalogOnce } from '../_shared/progressionServer.ts';
 
 const CORS: Record<string, string> = {
   'Access-Control-Allow-Origin': '*',
@@ -47,6 +47,13 @@ Deno.serve(async (req: Request): Promise<Response> => {
   const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
   if (!url || !anonKey || !serviceKey) return json(500, { error: 'not_configured' });
 
+  const admin = createClient(url, serviceKey);
+  const rpc = (fn: string, args: Record<string, unknown>) => admin.rpc(fn, args);
+  const log = (msg: string, detail?: unknown) => console.error(msg, detail);
+  // ACHIEVEMENTS: push the catalog once per cold start, BEFORE the auth check, so the owner's unauthenticated
+  // probe POST (runbook) syncs it. Never throws; an unchanged catalog is one read.
+  await syncAchievementCatalogOnce(rpc, log);
+
   // WHO is calling: a client scoped to the caller's JWT. `getUser()` verifies the token server-side. An
   // anonymous Supabase session is a real user id, so anonymous players earn XP too (owner 2026-09-27).
   const authHeader = req.headers.get('Authorization') ?? '';
@@ -57,12 +64,6 @@ Deno.serve(async (req: Request): Promise<Response> => {
   let body: unknown;
   try { body = await req.json(); } catch { return json(400, { error: 'bad_json' }); }
 
-  const admin = createClient(url, serviceKey);
-  const res = await handleSubmitProgression(
-    userId,
-    body,
-    (fn, args) => admin.rpc(fn, args),
-    (msg, detail) => console.error(msg, detail),
-  );
+  const res = await handleSubmitProgression(userId, body, rpc, log);
   return json(res.status, res.body);
 });

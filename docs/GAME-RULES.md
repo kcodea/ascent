@@ -228,7 +228,28 @@ progression **epoch**; nothing finished before the epoch counts (no backfill).
   it is found, a preview under your name, and Equip / Take off. The crate bay (count, Open, Open all) stays in
   view on every tab. An owned item you have not looked at wears NEW until you select it; that flag lives on the
   device only. Oracle R-PROG-COLLECTION-02.
-- **Achievements** are not built yet.
+- **Achievements (batch 1, 2026-09-28).** XP rewards only (owner: "let's just get the normal xp related
+  achievements in for now though"). 248 achievements: Career 17, Ranked 28, Heroes 132 (Debut, Contender, Victory,
+  Mastery for each of the 33 playable heroes), Economy and Build 15, Mechanics 7, Runes 5, Set 2 44 (by tribe, plus
+  cross-tribe and rune feats); 30,825 XP in all. Definitions are code (`packages/progression/src/achievements.ts`),
+  pushed into `achievement_catalog` by `submit-progression` on each cold start; the owner's emergency switch is
+  `admin_off` on a catalog row. **Evaluation is part of the settlement**: `settle_progression` checks every live
+  achievement against the game it settles, in the same transaction as the match XP; a completion is written once per
+  account and its XP lands on the same ledger row (so it levels the account and earns crates). Each achievement reads
+  one metric: a SERVER metric (the game, placement, accepted comeback, the rank result, the Career-best division,
+  streaks, distinct heroes, completions so far) or a RUN metric the run observer counted (facts V2 `metrics`,
+  `packages/sim/src/achievementMetrics.ts`; ordinary trust, stored with the ledger row). `max` achievements keep the
+  best game; `sum` ones add up across games. Which games count (assumed defaults, the owner can flip them):
+  **any** = Ranked, or Practice with Normal Health AND a turn timer; **ranked** = Ranked only (every "Finish 1st" feat,
+  hero Victory / Mastery); **tutorial** = the Learn Ascent graduation ("Ready to Ascend"; the step achievements were
+  cut); **account** = every settlement (rank reached, distinct heroes, "Complete N achievements"). Rank achievements
+  read the Career best, so the first game after launch pays every rank already reached; they use the ascending UI
+  numerals ("Silver 1" is the first Silver). Set 2 feats count only in Set 2 runs and read "Legacy" once Set 2 rotates
+  out. **Nothing counts before the achievements epoch** (`progression_config.achievements_epoch`, off until the owner
+  sets it); a game recorded before it still earns match XP. Titles, hidden achievements (the framework and the blurred
+  "Hidden" tile exist; none ship), prestige (replay-verified) feats and the 3 Career showcase slots come later. The
+  Career's **Achievements** tab (after Practice) shows every achievement with its reward, completions publicly with
+  their date, and progress bars on your own page only. Oracle R-ACH-01..03.
 - **Guests.** An anonymous session is a real account id and the email upgrade keeps it, so guests earn XP from
   their first game. Reaching Level 2 as a guest shows a gentle "Save your progress" prompt (never a gate). With
   no session at all, a game earns nothing.

@@ -1,0 +1,96 @@
+/* THE CAREER ACHIEVEMENTS TAB (achievements batch 1, 2026-09-28, `AchievementsTab.tsx`). The Collection's visual
+   language inside Career's centre column: a summary line, a category strip with done / total, filter chips, and
+   grouped tile grids.
+
+   Rules this file keeps (the same ones collection.css keeps):
+   - Layout px only: no viewport units, no viewport @media (the stage tripwire).
+   - No looping animation at all. Hover is a short one-shot transform / border transition. The progress fill is a
+     static transform: scaleX.
+   - No cursor rules: every control is a <button>, which the global rule gives the gauntlet.
+   - A hidden achievement's placeholder text is blurred statically (never animated). */
+
+.ach-tab { --ach-gold: #e8c877; --ach-ink: #fff6e4; --ach-dim: rgba(255, 246, 228, 0.62); --ach-line: rgba(196, 160, 92, 0.32);
+  display: flex; flex-direction: column; gap: 12px; flex: none; font-family: var(--font-ui); }
+.ach-tab button { font-family: var(--font-ui); }
+
+.ach-summary { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding: 0 4px; }
+.ach-summary-n { font-weight: 700; font-size: 16px; color: var(--ach-dim); font-variant-numeric: tabular-nums; }
+.ach-summary-n b { font-weight: 900; font-size: 24px; color: var(--ach-ink); }
+.ach-summary-xp { font-weight: 900; font-size: 15px; letter-spacing: 0.06em; color: #8ff0a4; font-variant-numeric: tabular-nums; }
+
+/* The category strip: icon, name, done / total. A category completed in full keeps a gold rim. */
+.ach-cats { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 8px; flex: none; }
+.ach-cat { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; min-height: 86px; padding: 8px 6px; border-radius: 12px;
+  text-align: center; color: var(--ach-ink); background: rgba(8, 16, 34, 0.66); border: 1.5px solid var(--ach-line);
+  transition: transform 0.14s ease, border-color 0.14s ease, background-color 0.14s ease; }
+.ach-cat:hover { transform: translateY(-2px); border-color: rgba(232, 200, 119, 0.7); }
+.ach-cat:focus-visible { outline: 2px solid var(--acc); outline-offset: 3px; }
+.ach-cat-ico { display: inline-flex; width: 24px; height: 24px; color: var(--ach-gold); }
+.ach-cat-ico svg { width: 100%; height: 100%; }
+.ach-cat-name { font-weight: 900; font-size: 13px; letter-spacing: 0.04em; line-height: 1.1; text-transform: uppercase; max-width: 100%; overflow-wrap: anywhere; }
+.ach-cat-count { font-weight: 800; font-size: 13px; color: var(--ach-gold); font-variant-numeric: tabular-nums; }
+.ach-cat.on { background: linear-gradient(180deg, rgba(232, 200, 119, 0.24), rgba(120, 88, 36, 0.2)); border-color: var(--ach-gold);
+  box-shadow: inset 0 0 0 1px rgba(255, 224, 138, 0.25), 0 8px 18px -10px rgba(0, 0, 0, 0.8); }
+.ach-cat.full .ach-cat-count { color: #8ff0a4; }
+
+/* The filter chips (the Collection's chip shape; >= 54px tall for the scaled-down phone). */
+.ach-filters { display: flex; flex-wrap: wrap; gap: 8px; flex: none; }
+.ach-chip { display: inline-flex; align-items: center; gap: 8px; min-height: 54px; padding: 8px 18px; border-radius: 999px; font-weight: 900; font-size: 14px; letter-spacing: 0.06em;
+  text-transform: uppercase; color: var(--ach-dim); background: rgba(8, 16, 34, 0.66); border: 1.5px solid var(--ach-line); transition: border-color 0.14s ease, color 0.14s ease; }
+.ach-chip:hover { color: var(--ach-ink); border-color: rgba(232, 200, 119, 0.7); }
+.ach-chip:focus-visible { outline: 2px solid var(--acc); outline-offset: 3px; }
+.ach-chip.on { color: #1a1206; background: linear-gradient(180deg, #f0d089, #c99d4e); border-color: #8a6428; }
+.ach-chip-n { font-weight: 800; font-size: 12px; opacity: 0.8; font-variant-numeric: tabular-nums; }
+
+/* The album (the Career column around it is what scrolls). */
+.ach-list { display: flex; flex-direction: column; gap: 16px; padding: 2px 4px 16px; }
+.ach-group-head { margin: 0 0 8px; font-weight: 900; font-size: 13px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--ach-gold); }
+.ach-grid { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px; }
+.ach-grid > li { display: flex; }
+
+.ach-tile { position: relative; flex: 1; display: flex; flex-direction: column; gap: 8px; min-height: 126px; padding: 14px 16px 12px; border-radius: 14px; color: var(--ach-ink);
+  background: linear-gradient(180deg, rgba(13, 22, 40, 0.82), rgba(8, 14, 28, 0.9)); border: 1.5px solid rgba(196, 160, 92, 0.28);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.04), 0 8px 18px -14px #000; }
+/* The inner gold filet of the house style. */
+.ach-tile::after { content: ''; position: absolute; inset: 4px; border-radius: 10px; border: 1px solid rgba(232, 200, 119, 0.1); pointer-events: none; }
+.ach-tile-top { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.ach-tile-name { font-family: var(--font-title); font-weight: 800; font-size: 19px; line-height: 1.12; color: var(--ach-ink); overflow-wrap: anywhere; }
+.ach-tile-xp { flex: none; font-weight: 900; font-size: 14px; color: #8ff0a4; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.ach-tile-req { font-weight: 600; font-size: 14px; line-height: 1.35; color: var(--ach-dim); }
+.ach-tile-foot { margin-top: auto; display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 20px; }
+.ach-open { font-weight: 700; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: rgba(255, 246, 228, 0.38); }
+.ach-done { display: inline-flex; align-items: center; gap: 6px; font-weight: 900; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ach-gold); }
+.ach-done svg { width: 14px; height: 14px; }
+.ach-legacy { padding: 2px 8px; border-radius: 999px; font-weight: 900; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase;
+  color: rgba(255, 246, 228, 0.7); background: rgba(255, 255, 255, 0.07); border: 1px solid rgba(255, 246, 228, 0.25); }
+
+/* Completed: a gold rim and a warm wash (static). */
+.ach-tile.done { border-color: rgba(232, 200, 119, 0.85);
+  background: radial-gradient(120% 90% at 50% 0%, rgba(232, 200, 119, 0.16), rgba(8, 14, 28, 0.92) 70%);
+  box-shadow: inset 0 0 0 1px rgba(255, 224, 138, 0.18), inset 0 0 22px rgba(232, 200, 119, 0.12), 0 8px 18px -14px #000; }
+.ach-tile.done::after { border-color: rgba(232, 200, 119, 0.24); }
+.ach-tile.done .ach-tile-req { color: rgba(255, 246, 228, 0.78); }
+
+/* Progress (the owner's own page only): a static fill, scaled once. */
+.ach-prog { display: flex; align-items: center; gap: 10px; }
+.ach-prog-track { position: relative; flex: 1; height: 8px; border-radius: 999px; overflow: hidden; background: rgba(0, 0, 0, 0.45); box-shadow: inset 0 0 0 1px rgba(196, 160, 92, 0.25); }
+.ach-prog-fill { position: absolute; inset: 0; transform-origin: 0 50%; background: linear-gradient(90deg, #3f9ae0, #7fd0ff); }
+.ach-prog-num { flex: none; font-weight: 800; font-size: 12px; color: var(--ach-dim); font-variant-numeric: tabular-nums; }
+
+/* Hidden: a blurred placeholder (no name, requirement or reward) under a plain "Hidden" label. */
+.ach-tile.concealed { align-items: center; justify-content: center; text-align: center; background: rgba(4, 9, 20, 0.6); border-style: dashed; }
+.ach-blur { filter: blur(5px); user-select: none; opacity: 0.5; }
+.ach-hidden-label { position: absolute; inset: 0; display: grid; place-items: center; font-weight: 900; font-size: 16px; letter-spacing: 0.22em; text-transform: uppercase; color: var(--ach-gold); }
+
+/* ── The post-game "Achievement unlocked" rows (in the Account XP panel) ─────────────────────────────────── */
+.acctxp-ach { list-style: none; margin: 0; padding: 10px 0 0; display: flex; flex-direction: column; gap: 6px; border-top: 1px solid rgba(196, 160, 92, 0.25); }
+.acctxp-ach-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 7px 10px; border-radius: 10px;
+  background: linear-gradient(90deg, rgba(232, 200, 119, 0.16), rgba(232, 200, 119, 0.04)); border: 1px solid rgba(232, 200, 119, 0.4); }
+.acctxp-ach-text { display: flex; flex-direction: column; min-width: 0; }
+.acctxp-ach-eyebrow { font-weight: 800; font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase; color: rgba(232, 200, 119, 0.85); }
+.acctxp-ach-name { font-weight: 900; font-size: 16px; color: #fff6e4; overflow-wrap: anywhere; }
+.acctxp-ach-row b { flex: none; font-weight: 900; font-size: 15px; font-variant-numeric: tabular-nums; color: #8ff0a4; }
+.acctxp-ach-more { text-align: center; font-weight: 800; font-size: 13px; color: rgba(255, 246, 228, 0.7); }
+/* One-shot entrance, staggered by the inline delay (the panel's own acctxp-in keyframes: transform + opacity). */
+.acctxp.animated .acctxp-ach-row, .acctxp.animated .acctxp-ach-more { animation: acctxp-in 0.3s ease-out both; }
+@media (prefers-reduced-motion: reduce) { .acctxp-ach-row, .acctxp-ach-more { animation: none !important; } }

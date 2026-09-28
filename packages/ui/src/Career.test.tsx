@@ -847,3 +847,21 @@ describe('skins on a Career page (2026-09-28)', () => {
     expect(srcs('img.heroimg').some((s) => s.includes('skin_'))).toBe(false);
   });
 });
+
+describe('the Achievements tab (batch 1, owner 2026-09-28: "an achievements tab in career next to practice")', () => {
+  const tabs = (): string[] => text('.cv2-tabs [role="tab"]');
+  it('is absent until the owner switches achievements on, then sits right after Practice', async () => {
+    expect(tabs()).toEqual(['Match History', 'Heroes', 'Practice']);
+    act(() => { useProgression.setState({ capability: 'on', achievementsCapability: 'on' }); });
+    expect(tabs()).toEqual(['Match History', 'Heroes', 'Practice', 'Achievements']);
+    click([...ui.container.querySelectorAll('.cv2-tabs [role="tab"]')].find((b) => b.textContent === 'Achievements')!);
+    await flush();
+    expect(ui.container.querySelector('.cv2-center')!.getAttribute('aria-label')).toBe('Achievements');
+    expect(ui.container.querySelector('.cv2-achlist')).not.toBeNull();
+    // a remembered Achievements tab reads as Match History while the switch is off
+    act(() => { useProgression.setState({ achievementsCapability: 'off' }); });
+    expect(tabs()).toEqual(['Match History', 'Heroes', 'Practice']);
+    expect(ui.container.querySelector('.cv2-center')!.getAttribute('aria-label')).toBe('Match History');
+    act(() => { resetProgressionForTests(); });
+  });
+});

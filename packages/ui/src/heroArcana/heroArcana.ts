@@ -68,7 +68,8 @@ export function playHeroArcana(o: HeroArcanaOptions): HeroArcanaHandle {
   const doc = typeof document !== 'undefined' ? document : null;
   const radius = o.defenderRadius ?? 120 * s;
   const aRadius = o.attackerRadius ?? radius;
-  const motions = ribbonMotions(plan, o.attacker, o.defender, radius, c);
+  // The lobs never arc above the top of the screen (or the sandbox box): a lob at the foe's corner flattens instead.
+  const motions = ribbonMotions(plan, o.attacker, o.defender, radius, c, (local ? 8 : 36) * s);
   const last = motions[motions.length - 1];
   // The direction the blow ARRIVES from (the last ribbon's dive into the target): the shake and the spray follow it.
   const dir = plan.swirl ? { x: 0, y: 1 } : arrivalDir(last, o.attacker, o.defender);

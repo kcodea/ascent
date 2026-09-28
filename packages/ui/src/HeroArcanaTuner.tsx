@@ -42,7 +42,7 @@ const SPECS: Record<GlobalNumKey, Spec> = {
   ribbonLength: ['Ribbon length', 'ms', 'How much of its flight a ribbon trails behind it (longer = a longer streak).', 'Ribbons'],
   ribbonGlow: ['Glow width', '×', 'The arcane glow around the ribbon, as a multiple of its body.', 'Ribbons'],
   ribbonCore: ['Core width', '×', 'The white-hot core, as a fraction of the body.', 'Ribbons'],
-  ribbonShade: ['Underlay', 'opacity', 'A dark underlay that gives the ribbon a silhouette on bright boards (0 = none).', 'Ribbons'],
+  ribbonShade: ['Halo', 'opacity', 'A soft violet halo round the ribbon (normal blend, so the glow reads on light boards too; 0 = none).', 'Ribbons'],
   ribbonTwist: ['Twist', '×', 'How much the width breathes as the ribbon twists (0 = a plain taper).', 'Ribbons'],
   strand: ['Strand', '×', 'The thin cyan strand winding round the ribbon (0 = none).', 'Ribbons'],
   headSize: ['Head size', '×', 'The orb and flare at the ribbon head.', 'Ribbons'],
@@ -139,7 +139,7 @@ const COLORS: [HeroArcanaStrKey, string, string][] = [
   ['colorFoe', 'Foe arcana', 'The ribbon glow, sigils and total colour when THEY strike.'],
   ['colorAccent', 'Accent', 'The cyan strand, rings and glitter.'],
   ['colorCore', 'Core', 'The white-hot core of the ribbons and flashes.'],
-  ['colorShade', 'Underlay', 'The dark underlay beneath each ribbon.'],
+  ['colorShade', 'Halo', 'The soft halo round each ribbon (it shows on light boards, where the additive glow cannot).'],
 ];
 
 type Ctl = TunerControl<Extract<keyof ArcanaTunerValues, string>>;

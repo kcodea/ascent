@@ -11,7 +11,7 @@
  *     ticks up and slams on the ENGINE's number.
  *  2. CHARGE. The total dives into the attacking hero; an arcane sigil opens under the portrait and spins up, light
  *     gathers, a riser climbs; the view pushes in on the hero.
- *  3. LOB. Clean magic RIBBONS (a tapering strip: a dark underlay, an arcane glow, a violet body, a white-hot core and a
+ *  3. LOB. Clean magic RIBBONS (a tapering strip: a soft violet halo, an arcane glow, a violet body, a white-hot core and a
  *     thin cyan strand winding round it; an orb and a spinning sigil at the head) are LOBBED from the hero on high
  *     arcs: I one; II two (different heights, opposite sides); III a barrage of five, fanned, landing in rhythm.
  *  4. IMPACT. Each ribbon that lands before the last is a small arcane tick (a sigil flash, a crisp ring, glitter). The
@@ -141,9 +141,9 @@ const TIER_DEFAULTS: Record<ArcanaTierSuffix, [number, number, number, number]> 
   Ribbons: [1, 2, 5, 6],
   LaunchStaggerMs: [0, 130, 100, 60],
   FlightMs: [560, 580, 590, 520],
-  ArcHeight: [0.3, 0.32, 0.28, 0.2],
-  Fan: [0, 0.26, 0.15, 0.12],
-  RibbonWidth: [26, 27, 24, 22],
+  ArcHeight: [0.32, 0.32, 0.28, 0.2],
+  Fan: [0, 0.18, 0.32, 0.14],
+  RibbonWidth: [52, 52, 44, 38],
   Swirl: [0, 0, 0, 1],
   HitStop: [60, 75, 95, 140],
   Shake: [5, 8, 12, 20],
@@ -195,10 +195,10 @@ export const HERO_ARCANA_DEFAULTS: HeroArcanaConfig = {
   heroSwell: 0.08,
   recoilPx: 10,
   ribbonLength: 150,
-  ribbonGlow: 2.6,
-  ribbonCore: 0.34,
-  ribbonShade: 0.34,
-  ribbonTwist: 0.4,
+  ribbonGlow: 2.3,
+  ribbonCore: 0.46,
+  ribbonShade: 0.55,
+  ribbonTwist: 0.35,
   strand: 0.55,
   headSize: 1,
   sigilSize: 1,
@@ -221,7 +221,7 @@ export const HERO_ARCANA_DEFAULTS: HeroArcanaConfig = {
   colorAccent: '#72f1ff',
   colorPlayer: '#a45bff',
   colorFoe: '#ff3fb0',
-  colorShade: '#1a0833',
+  colorShade: '#5a1fa8',
   sfxGatherClip: 'TallyTravel', sfxGatherGain: 0.45,
   sfxTickClip: 'AttackPillAdd', sfxTickGain: 0.6, sfxTickRate: 0.9, sfxTickStep: 0.07,
   sfxSlamClip: 'tallyimpact', sfxSlamGain: 0.9, sfxSlamRate: 1.05,
@@ -422,8 +422,10 @@ export interface ArcanaRibbonPlan {
   launchAt: number;
   flightMs: number;
   arriveAt: number;
-  /** How far the arc bows off the line (a fraction of the distance; signed: which side). */
-  bow: number;
+  /** How high the lob rises (a fraction of the distance, toward the top of the screen). */
+  lift: number;
+  /** How far the arc swings off to one side of the line (a fraction of the distance; signed). */
+  side: number;
   /** Size multiplier (the last is the biggest). */
   size: number;
 }
@@ -512,14 +514,14 @@ export function arcanaPlan(input: ArcanaPlanInput, c: HeroArcanaConfig = cfg): A
   const maxSlot = Math.max(1, ...slots.map((s) => Math.abs(s)));
   const ribbons: ArcanaRibbonPlan[] = slots.map((slot, i) => {
     const launchAt = fireAt + i * T.LaunchStaggerMs;
-    // Two ribbons read as a PAIR: one high, one low, on opposite sides. A volley fans out evenly both sides of the
-    // base arc (the base arc always bows the same way, so the volley reads as one lobbed spray, not a scatter).
-    const height = count === 2 ? T.ArcHeight * (slot < 0 ? 1.18 : 0.62) : T.ArcHeight;
-    const bow = count === 2 ? (slot < 0 ? height : -height * 0.9) : height + (slot / maxSlot) * T.Fan * maxSlot * 0.5;
+    // Two ribbons read as a PAIR: one lobbed high and swung wide one way, one lower and swung the other way. A volley
+    // fans out evenly either side of the line, the outer arcs a touch lower (one lobbed spray, not a scatter).
+    const lift = count === 2 ? T.ArcHeight * (slot < 0 ? 1.15 : 0.55) : T.ArcHeight * (1 - 0.1 * (Math.abs(slot) / maxSlot));
+    const side = count === 2 ? slot * T.Fan : (slot / maxSlot) * T.Fan;
     const last = i === count - 1;
     // Outer ribbons travel a longer arc: a hair more time, so the rhythm stays even and the centre lands last.
     const fl = Math.round(flight * (1 + 0.06 * Math.abs(slot)));
-    return { launchAt, flightMs: fl, arriveAt: launchAt + fl, bow, size: last ? 1.12 : count > 2 ? 0.86 : 1 };
+    return { launchAt, flightMs: fl, arriveAt: launchAt + fl, lift, side, size: last ? 1.12 : count > 2 ? 0.86 : 1 };
   });
   // Keep the launch order's rhythm on arrival: each lands at least `gap` after the one before (III's barrage).
   const gap = count > 2 && !swirl ? Math.max(60, T.LaunchStaggerMs * 0.8) : 0;
@@ -616,32 +618,30 @@ export function lobPoint(l: Lob, e: number): Pt {
 /** The ribbon's progress along its lob: it leaves with pace and still ACCELERATES into the target (weight). */
 export const lobEase = (u: number): number => { const t = Math.min(1, Math.max(0, Number.isFinite(u) ? u : 0)); return 0.62 * t + 0.38 * t * t; };
 
-/**
- * Which way "up" is for an arc between two points: the perpendicular with the smaller y (screen up), so a lob always
- * rises. A vertical line has no up; it bows left.
- */
-export function upNormal(a: Pt, b: Pt): Pt {
+/** The side normal of a line (a fixed turn of its direction), so a signed `side` always swings the same way. */
+export function sideNormal(a: Pt, b: Pt): Pt {
   const dx = b.x - a.x, dy = b.y - a.y;
   const d = Math.hypot(dx, dy) || 1;
-  const n = { x: -dy / d, y: dx / d };
-  if (Math.abs(n.y) < 0.2) return n.x <= 0 ? n : { x: -n.x, y: -n.y };
-  return n.y < 0 ? n : { x: -n.x, y: -n.y };
+  return { x: -dy / d, y: dx / d };
 }
 
 /**
- * A lob from `a` to `b`, bowed by `bow` x the distance off the line (positive = up). It leaves the hero steeply (the
- * first control is pulled high) and dives into the target; `tail`, when given, is the direction it should be moving
- * as it arrives (the vortex's tangent), so a ribbon slides into its orbit instead of kinking.
+ * A LOB from `a` to `b`: it rises toward the top of the screen by `lift` x the distance (whichever way the target
+ * lies, so it always reads as a thrown arc that comes DOWN onto the target, never a sideways bolt), swung off to one
+ * side by `side` x the distance. It leaves the hero steeply and dives into the target. The controls never rise above
+ * `ceilY` (the top of the screen), so a lob at a hero near the top edge flattens instead of leaving the frame.
+ * `tail`, when given, is the direction it should be moving as it arrives (the vortex's tangent), so a ribbon slides
+ * into its orbit instead of kinking.
  */
-export function lobPath(a: Pt, b: Pt, bow: number, tail: Pt | null = null): Lob {
+export function lobPath(a: Pt, b: Pt, lift: number, side = 0, tail: Pt | null = null, ceilY = Number.NEGATIVE_INFINITY): Lob {
   const dx = b.x - a.x, dy = b.y - a.y;
   const d = Math.hypot(dx, dy) || 1;
   const u = { x: dx / d, y: dy / d };
-  const n = upNormal(a, b);
-  const c1 = { x: a.x + u.x * d * 0.18 + n.x * bow * d * 1.3, y: a.y + u.y * d * 0.18 + n.y * bow * d * 1.3 };
+  const n = sideNormal(a, b);
+  const c1 = { x: a.x + u.x * d * 0.2 + n.x * side * d * 0.9, y: Math.max(ceilY, a.y + u.y * d * 0.2 - lift * d * 1.25 + n.y * side * d * 0.9) };
   const c2 = tail
-    ? { x: b.x - tail.x * d * 0.3, y: b.y - tail.y * d * 0.3 }
-    : { x: b.x - u.x * d * 0.22 + n.x * bow * d * 0.7, y: b.y - u.y * d * 0.22 + n.y * bow * d * 0.7 };
+    ? { x: b.x - tail.x * d * 0.3, y: Math.max(ceilY, b.y - tail.y * d * 0.3 - lift * d * 0.35) }
+    : { x: b.x - u.x * d * 0.12 + n.x * side * d * 0.85, y: Math.max(ceilY, b.y - u.y * d * 0.12 - lift * d * 0.85 + n.y * side * d * 0.85) };
   return { a: { ...a }, c1, c2, b: { ...b } };
 }
 
@@ -683,7 +683,7 @@ export function ribbonPos(m: RibbonMotion, t: number): Pt {
  * vortex (evenly spaced when the vortex collapses) and brings it in along the spin. Pure, so a replay flies the same
  * paths and the tests can check them.
  */
-export function ribbonMotions(p: ArcanaPlan, a: Pt, d: Pt, radius: number, c: HeroArcanaConfig = cfg): RibbonMotion[] {
+export function ribbonMotions(p: ArcanaPlan, a: Pt, d: Pt, radius: number, c: HeroArcanaConfig = cfg, ceilY = Number.NEGATIVE_INFINITY): RibbonMotion[] {
   if (p.reduced) return [];
   const n = p.ribbons.length;
   const dir: 1 | -1 = a.x <= d.x ? 1 : -1;
@@ -693,7 +693,7 @@ export function ribbonMotions(p: ArcanaPlan, a: Pt, d: Pt, radius: number, c: He
   // Slots start at the side the volley comes in from, so the first ribbon slides straight onto the ring.
   const inAng = Math.atan2(a.y - d.y, a.x - d.x);
   return p.ribbons.map((r, i) => {
-    if (!p.swirl) return { lob: lobPath(a, d, r.bow), flightMs: r.flightMs, vortex: null };
+    if (!p.swirl) return { lob: lobPath(a, d, r.lift, r.side, null, ceilY), flightMs: r.flightMs, vortex: null };
     const base = inAng + (i / n) * Math.PI * 2;
     // The RING has been spinning since the first ribbon joined; this one joins `joinTau` ms later.
     const joinTau = r.arriveAt - p.swirlAt;
@@ -706,7 +706,7 @@ export function ribbonMotions(p: ArcanaPlan, a: Pt, d: Pt, radius: number, c: He
     const th = v.base + v.dir * vortexPhase(v, joinTau);
     const tan = { x: -Math.sin(th) * v.dir, y: Math.cos(th) * v.tilt * v.dir };
     const tl = Math.hypot(tan.x, tan.y) || 1;
-    const lob = lobPath(a, at, r.bow, { x: tan.x / tl, y: tan.y / tl });
+    const lob = lobPath(a, at, r.lift, r.side, { x: tan.x / tl, y: tan.y / tl }, ceilY);
     return { lob, flightMs: r.flightMs, vortex: v };
   });
 }

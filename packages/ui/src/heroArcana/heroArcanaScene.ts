@@ -4,7 +4,8 @@
  *
  * Design rule (owner bar 2026-09-28: "clean", "thicker and cleaner", Blizzard polish): the RIBBON is the whole show,
  * so it is one bold, smooth, readable stroke, never particle soup. Each ribbon is FIVE triangle-strip meshes sharing
- * one centreline: a dark underlay (normal blend: it gives the ribbon a silhouette on any board), a wide arcane glow, a
+ * one centreline: a soft violet halo (normal blend: the arcane glow still reads on a LIGHT board, where additive light
+ * vanishes), a wide additive glow (it blooms on dark ground), a
  * violet body, a white-hot core, and one thin cyan strand winding round it. It tapers from a rounded head to a point,
  * and TWISTS as it flies (its width breathes along its length, like a flat ribbon turning to show its edge). An orb, a
  * spinning sigil and a star flare ride its head; a few glitter motes fall off it.
@@ -13,8 +14,9 @@
  * fixed steps, so it is perfectly smooth at any frame rate, identical in a replay, and needs no per-frame buffer: the
  * lob, the vortex and the converge all trail correctly for free, and a faster ribbon draws a longer streak.
  *
- * LAYERS, bottom to top: shade (normal) | ground sigils, glow strips, body strips, core strips, air (all additive), so
- * the whole scene batches in two runs. The vertex arrays are rewritten in place (no allocation per strip per frame);
+ * LAYERS, bottom to top: shade (normal) | ground sigils, glow strips (additive) | body strips (NORMAL: a solid, vivid
+ * violet that keeps its colour on a light board, where additive light would wash to white) | core strips, air
+ * (additive), so the whole scene batches in four runs. The vertex arrays are rewritten in place (no allocation per strip per frame);
  * every mesh is `RIBBON_POINTS` x 2 = 48 vertices, under Pixi's 100-vertex batching limit.
  *
  * Contract: sprites and strip meshes are POOLED per layer (hidden and reused) and bounded by `MAX_ARCANA_SPRITES` /
@@ -47,7 +49,7 @@ export interface RibbonLook {
   glow: number;
   /** Core width as a fraction of the body. */
   core: number;
-  /** The dark underlay's opacity (0 = none). */
+  /** The soft violet halo's opacity (0 = none). */
   shade: number;
   /** How far the width breathes as it twists (0 = a plain taper). */
   twist: number;
@@ -66,7 +68,7 @@ export const RIBBON_POINTS = 24;
 
 type LayerId = 'shade' | 'under' | 'glow' | 'body' | 'core' | 'air';
 const LAYERS: readonly [LayerId, 'normal' | 'add'][] = [
-  ['shade', 'normal'], ['under', 'add'], ['glow', 'add'], ['body', 'add'], ['core', 'add'], ['air', 'add'],
+  ['shade', 'normal'], ['under', 'add'], ['glow', 'add'], ['body', 'normal'], ['core', 'add'], ['air', 'add'],
 ];
 const BLEND: Record<LayerId, 'normal' | 'add'> = Object.fromEntries(LAYERS) as Record<LayerId, 'normal' | 'add'>;
 const SIGIL_PX = 160;
@@ -157,7 +159,7 @@ export class HeroArcanaScene {
       this.freeMeshes[id] = [];
     }
     this.hot = whiten(colors.side, 0.5);
-    this.body = mixColor(whiten(colors.side, 0.28), colors.accent, 0.12);
+    this.body = mixColor(whiten(colors.side, 0.1), colors.accent, 0.06);
     this.rnd = seededRng(seed);
     const n = RIBBON_POINTS;
     this.uvs = new Float32Array(n * 4);
@@ -305,7 +307,7 @@ export class HeroArcanaScene {
   private addRibbon(at: Path, landAt: number, width: number, trailMs: number, age0: number, ring: Ribbon['ring'], head: boolean, thin: number, endAt?: number, fadeMs?: number): void {
     const L = this.look;
     const S = this.scale;
-    const shade = L.shade > 0 ? this.strip('shade', this.tex.ribbonBody, this.colors.shade) : null;
+    const shade = L.shade > 0 ? this.strip('shade', this.tex.ribbonSoft, this.colors.shade) : null;
     const glow = this.strip('glow', this.tex.ribbonSoft, this.colors.side);
     const body = this.strip('body', this.tex.ribbonBody, this.body);
     const core = this.strip('core', this.tex.ribbonBody, this.colors.core);
@@ -331,10 +333,12 @@ export class HeroArcanaScene {
   hit(x: number, y: number, dir: Pt, size: number, step: number): void {
     const g = size * (1 + 0.1 * step);
     const head = Math.atan2(dir.y, dir.x);
-    this.fxs('air', this.tex.glow, this.colors.core, x, y, { dur: 170, from: 1, to: 2 * g, a0: 0.9 });
-    this.fxs('air', this.tex.glow, this.colors.side, x, y, { dur: 380, from: 1.2, to: 3 * g, a0: 0.55 });
-    this.fxs('air', this.tex.sigil, whiten(this.colors.accent, 0.3), x, y, { dur: 360, from: 0.45 * g, to: 1.25 * g, a0: 0.95, spin: 0.008 * (step % 2 ? -1 : 1) });
-    this.fxs('air', this.tex.ring, this.colors.accent, x, y, { dur: 300, from: 0.4, to: 2 * g, a0: 0.95 });
+    // A tick is LINE WORK (a sigil flash and a ring) over a small, quick flash: several stack in a few hundred ms, and
+    // the big fill is saved for the impact.
+    this.fxs('air', this.tex.glow, this.colors.core, x, y, { dur: 120, from: 0.8, to: 1.6 * g, a0: 0.55 });
+    this.fxs('air', this.tex.glow, this.colors.side, x, y, { dur: 300, from: 1, to: 2.4 * g, a0: 0.28 });
+    this.fxs('air', this.tex.sigil, whiten(this.colors.accent, 0.3), x, y, { dur: 340, from: 0.4 * g, to: 1.05 * g, a0: 0.85, spin: 0.008 * (step % 2 ? -1 : 1) });
+    this.fxs('air', this.tex.ring, this.colors.accent, x, y, { dur: 280, from: 0.4, to: 1.8 * g, a0: 0.8 });
     this.glitter(x, y, 8, 560, { dir: head, spread: 2.4, life: 420, size: 0.5 });
   }
 
@@ -348,14 +352,16 @@ export class HeroArcanaScene {
     const fs = o.burst;
     const portrait = (radius * 2) / GLOW_PX / this.scale;
     const sig = (radius * 2) / SIGIL_PX / this.scale;
-    this.fxs('air', this.tex.glow, c.core, x, y, { dur: 120, from: portrait * 1.05, to: portrait * 1.3, a0: 0.7 * o.flashAlpha });
-    this.fxs('air', this.tex.glow, c.core, x, y, { dur: 180, from: 1 * fs, to: Math.min(3.2, 2.3 * fs), a0: o.flashAlpha });
-    this.fxs('air', this.tex.glow, c.side, x, y, { dur: 480, from: 1.6 * fs, to: Math.min(5.5, 4 * fs), a0: 0.55 * o.flashAlpha });
-    this.fxs('air', this.tex.glow, c.accent, x, y, { dur: 300, from: 0.8 * fs, to: 2.4 * fs, a0: 0.35 });
+    // Short and bright, then GONE by the time the big -N has popped (it pops over ~140 ms): the number is never washed
+    // out. What lingers is line work (the sigils and rings), not fill.
+    this.fxs('air', this.tex.glow, c.core, x, y, { dur: 110, from: portrait * 1.05, to: portrait * 1.25, a0: 0.6 * o.flashAlpha });
+    this.fxs('air', this.tex.glow, c.core, x, y, { dur: 150, from: 1 * fs, to: Math.min(3.2, 2.2 * fs), a0: o.flashAlpha });
+    this.fxs('air', this.tex.glow, c.side, x, y, { dur: 420, from: 1.6 * fs, to: Math.min(5.5, 3.8 * fs), a0: 0.4 * o.flashAlpha });
+    this.fxs('air', this.tex.glow, c.accent, x, y, { dur: 180, from: 0.8 * fs, to: 2.2 * fs, a0: 0.22 });
     this.fxs('air', this.tex.sigil, whiten(c.accent, 0.35), x, y, { dur: 620, from: sig * 0.7, to: sig * (1.7 + 0.5 * o.k), a0: 1, spin: 0.009 });
-    this.fxs('under', this.tex.sigil, c.side, x, y, { dur: 820, from: sig * 1.1, to: sig * (1.5 + 0.4 * o.k), a0: 0.8, spin: -0.004 });
-    this.fxs('air', this.tex.ring, c.core, x, y, { dur: 340, from: 0.5, to: 3 * (0.85 + 0.45 * o.k), a0: 1 });
-    this.fxs('air', this.tex.ring, c.accent, x, y, { dur: 580, from: 0.5, to: 4.6 * (0.85 + 0.45 * o.k), a0: 0.8 });
+    this.fxs('under', this.tex.sigil, c.side, x, y, { dur: 820, from: sig * 1.1, to: sig * (1.5 + 0.4 * o.k), a0: 0.75, spin: -0.004 });
+    this.fxs('air', this.tex.ring, c.core, x, y, { dur: 320, from: 0.5, to: 3 * (0.85 + 0.45 * o.k), a0: 1 });
+    this.fxs('air', this.tex.ring, c.accent, x, y, { dur: 560, from: 0.5, to: 4.4 * (0.85 + 0.45 * o.k), a0: 0.65 });
     const head = Math.atan2(dir.y, dir.x);
     const spikes = 8;
     for (let i = 0; i < spikes; i++) {
@@ -367,7 +373,7 @@ export class HeroArcanaScene {
     }
     this.glitter(x, y, Math.round(o.motes * 0.6), 900, { dir: head, spread: 1.8, life: 620, size: 0.6, grav: 380 });
     this.glitter(x, y, Math.round(o.motes * 0.4), 620, { life: 700, size: 0.5, grav: 60 });
-    this.fxs('air', this.tex.glow, c.side, x, y, { dur: o.tier >= 3 ? 1150 : 850, from: 2.3 * fs, to: 2.8 * fs, a0: o.tier >= 3 ? 0.5 : 0.4 });
+    this.fxs('air', this.tex.glow, c.side, x, y, { dur: o.tier >= 3 ? 1100 : 800, from: 2.2 * fs, to: 2.7 * fs, a0: o.tier >= 3 ? 0.32 : 0.26 });
     if (o.tier >= 3) this.embers(x, y, radius, 12);
   }
 
@@ -421,10 +427,11 @@ export class HeroArcanaScene {
     const fs = o.burst * o.size;
     const portrait = (radius * 2) / GLOW_PX / S;
     const sig = (radius * 2) / SIGIL_PX / S;
-    this.fxs('air', this.tex.glow, c.core, x, y, { dur: 150, from: portrait * 1.2, to: portrait * 1.6, a0: 0.85 * o.flashAlpha });
-    this.fxs('air', this.tex.glow, c.core, x, y, { dur: 240, from: 1.4 * fs, to: Math.min(5, 3.2 * fs), a0: o.flashAlpha });
-    this.fxs('air', this.tex.glow, c.side, x, y, { dur: 620, from: 2 * fs, to: Math.min(8, 5.2 * fs), a0: 0.6 * o.flashAlpha });
-    this.fxs('air', this.tex.glow, c.accent, x, y, { dur: 420, from: 1.2 * fs, to: 3.6 * fs, a0: 0.4 });
+    // The fills are SHORT (the ribbons and the rings carry the explosion, and the big -N must read through it).
+    this.fxs('air', this.tex.glow, c.core, x, y, { dur: 130, from: portrait * 1.2, to: portrait * 1.5, a0: 0.8 * o.flashAlpha });
+    this.fxs('air', this.tex.glow, c.core, x, y, { dur: 170, from: 1.4 * fs, to: Math.min(5, 3 * fs), a0: o.flashAlpha });
+    this.fxs('air', this.tex.glow, c.side, x, y, { dur: 520, from: 2 * fs, to: Math.min(8, 5 * fs), a0: 0.42 * o.flashAlpha });
+    this.fxs('air', this.tex.glow, c.accent, x, y, { dur: 240, from: 1.2 * fs, to: 3.2 * fs, a0: 0.22 });
     this.fxs('air', this.tex.ring, c.core, x, y, { dur: 320, from: 0.4, to: 3.4 * o.size, a0: 1 });
     this.fxs('air', this.tex.ring, c.side, x, y, { dur: 560, from: 0.5, to: 5.2 * o.size, a0: 0.9 });
     this.fxs('air', this.tex.ring, c.accent, x, y, { dur: 860, from: 0.6, to: 7.5 * o.size, a0: 0.7, sy: 0.55 + 0.45 * o.tilt });
@@ -434,21 +441,23 @@ export class HeroArcanaScene {
     const n = Math.max(0, Math.round(o.ribbons));
     for (let i = 0; i < n; i++) {
       const a0 = (i / n) * Math.PI * 2 + (this.rnd() - 0.5) * 0.35;
-      const L = radius * (2.4 + this.rnd() * 1.6) * o.size;
-      const D = 480 + this.rnd() * 240;
-      const curl = (0.55 + this.rnd() * 0.4) * o.dir;
-      const r0 = radius * 0.2;
+      const L = radius * (3 + this.rnd() * 1.8) * o.size;
+      const D = 560 + this.rnd() * 220;
+      const curl = (0.7 + this.rnd() * 0.5) * o.dir;
+      const r0 = radius * 0.15;
+      // Out fast, easing off (a cubic, not harder: the trail is sampled back in time, so a ribbon that stops dead
+      // would shrink to a stub), curling away with the vortex's spin.
       const at: Path = (t) => {
         const u = clamp01(t / D);
-        const e = easeOutQuint(u);
-        const th = a0 + curl * easeOutCubic(u);
+        const e = easeOutCubic(u);
+        const th = a0 + curl * e;
         const r = r0 + L * e;
         return { x: x + Math.cos(th) * r, y: y + Math.sin(th) * r * (0.65 + 0.35 * o.tilt) };
       };
-      this.addStreak(at, D, o.width * (0.8 + this.rnd() * 0.5), i % 2 ? c.accent : c.side);
+      this.addStreak(at, D, o.width * (1.1 + this.rnd() * 0.5), i % 2 ? c.accent : c.side);
     }
-    for (let i = 0; i < 14; i++) {
-      const a = (i / 14) * Math.PI * 2 + (this.rnd() - 0.5) * 0.25;
+    for (let i = 0; i < 10; i++) {
+      const a = (i / 10) * Math.PI * 2 + (this.rnd() - 0.5) * 0.25;
       const len = (1 + this.rnd() * 0.6) * o.size;
       this.fxs('air', this.tex.streak, i % 2 ? c.accent : c.core, x + Math.cos(a) * 80 * S * len, y + Math.sin(a) * 80 * S * len,
         { dur: 320, from: 3.6 * len, to: 6.2 * len, a0: 0.95, sy: 0.18 });
@@ -469,9 +478,9 @@ export class HeroArcanaScene {
     if (!glow || !body || !core) { for (const s of [glow, body, core]) this.giveStrip(s); return; }
     const p0 = at(0);
     this.ribbons.push({
-      at, landAt: -1, endAt: durMs, fadeMs: durMs * 0.7, age: 0, width: width * S, trailMs: 110, ring: null,
+      at, landAt: -1, endAt: durMs, fadeMs: durMs * 0.45, age: 0, width: width * S, trailMs: 190, ring: null,
       shade: null, glow, body, core, strand: null, head: null, phase: this.rnd() * Math.PI * 2, alpha: 1,
-      lastX: p0.x, lastY: p0.y, moteAcc: 0, thin: 0.25,
+      lastX: p0.x, lastY: p0.y, moteAcc: 0, thin: 0.5,
     });
   }
 
@@ -649,15 +658,16 @@ export class HeroArcanaScene {
     rb.phase += dt * 0.011;
     for (let j = 0; j < N; j++) {
       const f = j / (N - 1);
-      const taper = f < 0.07 ? 0.72 + 0.28 * (f / 0.07) : Math.pow(1 - (f - 0.07) / 0.93, 0.85);
+      const taper = f < 0.07 ? 0.72 + 0.28 * (f / 0.07) : Math.pow(1 - (f - 0.07) / 0.93, 0.6);
       const twist = 1 - L.twist * Math.pow(Math.sin(rb.phase + f * 3.4), 2);
       hw[j] = rb.width * 0.5 * taper * twist * grow * (0.4 + 0.6 * born);
     }
     const a = alpha * depth * rb.alpha;
-    this.writeStrip(rb.shade, 1.3, L.shade * a);
-    this.writeStrip(rb.glow, L.glow, 0.6 * a);
-    this.writeStrip(rb.body, 1, 0.92 * a);
-    this.writeStrip(rb.core, L.core, a);
+    this.writeStrip(rb.shade, L.glow * 0.8, L.shade * a, 0);
+    this.writeStrip(rb.glow, L.glow, 0.75 * a, 0);
+    this.writeStrip(rb.body, 1, 0.96 * a, 0);
+    // The core tapers faster than the body: white-hot at the head, the tail left violet.
+    this.writeStrip(rb.core, L.core, a, 0.9);
     if (rb.strand) {
       // One thin strand winding round the ribbon: offset along the normal by a sine that travels down the ribbon.
       const v = rb.strand.v;
@@ -680,8 +690,8 @@ export class HeroArcanaScene {
       const ha = onLob ? (1 - conv) * clamp01(rb.age / 40) * depth : 0;
       const W = rb.width / S;
       const hs = L.headSize * (ring && rb.age > rb.landAt ? 0.8 : 1);
-      hd.halo.position.set(hx, hy); hd.halo.scale.set((W / 34) * 1.25 * hs * S); hd.halo.alpha = 0.75 * ha;
-      hd.orb.position.set(hx, hy); hd.orb.scale.set((W / 34) * 0.55 * hs * (1 + 0.08 * Math.sin(rb.age * 0.05)) * S); hd.orb.alpha = ha;
+      hd.halo.position.set(hx, hy); hd.halo.scale.set((W / 34) * 1.5 * hs * S); hd.halo.alpha = 0.85 * ha;
+      hd.orb.position.set(hx, hy); hd.orb.scale.set((W / 34) * 0.72 * hs * (1 + 0.08 * Math.sin(rb.age * 0.05)) * S); hd.orb.alpha = ha;
       hd.sigil.position.set(hx, hy); hd.sigil.scale.set(((W * 1.9) / SIGIL_PX) * L.sigilSize * hs * S); hd.sigil.rotation += dt * 0.012; hd.sigil.alpha = 0.9 * ha * (L.sigilSize > 0 ? 1 : 0);
       hd.flare.position.set(hx, hy); hd.flare.scale.set((W / 26) * hs * (0.9 + 0.25 * Math.sin(rb.age * 0.031)) * S); hd.flare.rotation += dt * 0.002; hd.flare.alpha = 0.9 * ha;
       // Glitter shed off the head as it travels (a few, bounded by the pool).
@@ -698,12 +708,12 @@ export class HeroArcanaScene {
     rb.lastX = hx; rb.lastY = hy;
   }
 
-  private writeStrip(st: Strip | null, mult: number, alpha: number): void {
+  private writeStrip(st: Strip | null, mult: number, alpha: number, sharpen: number): void {
     if (!st) return;
     const { px, py, nx, ny, hw } = this;
     const v = st.v;
     for (let j = 0; j < RIBBON_POINTS; j++) {
-      const h = hw[j]! * mult;
+      const h = hw[j]! * mult * (sharpen ? Math.pow(1 - j / (RIBBON_POINTS - 1), sharpen) : 1);
       v[j * 4] = px[j]! + nx[j]! * h; v[j * 4 + 1] = py[j]! + ny[j]! * h;
       v[j * 4 + 2] = px[j]! - nx[j]! * h; v[j * 4 + 3] = py[j]! - ny[j]! * h;
     }

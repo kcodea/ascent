@@ -7,7 +7,7 @@
  * tooltips, no em dashes.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { act } from 'react';
+import { StrictMode, act } from 'react';
 import type { OpenCrateResult, ProgressionProfile, ProgressionResult } from '@game/progression';
 import { mount, type Mounted } from '../renderedText.mount';
 
@@ -189,6 +189,18 @@ describe('the reveal motion', () => {
     act(() => button('Open')!.click());
     await settle();
     expect(text('.crate-reward-name')).toBe('Kingbreaker');
+  });
+});
+
+describe('React StrictMode (dev mounts every effect twice)', () => {
+  it('the reveal still lands after the double mount', async () => {
+    useProgression.setState({ capability: 'on', cratesCapability: 'on', mirror: { userId: 'u-1', ...profile() } });
+    openCrateRemote.mockResolvedValue({ status: 'ok', value: opened('c-9', 'title_kingbreaker', 9), profile: profile() });
+    ui = mount(<StrictMode><CrateOpener queue={[{ crateId: 'c-9', earnedLevel: 9 }]} reducedMotion /></StrictMode>);
+    act(() => button('Open')!.click());
+    await settle();
+    expect(text('.crate-reward-name')).toBe('Kingbreaker');
+    expect(openCrateRemote).toHaveBeenCalledTimes(1);
   });
 });
 

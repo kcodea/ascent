@@ -57,7 +57,8 @@ export function CrateOpener({ queue, autoOpen = false, reducedMotion, minShakeMs
   const [result, setResult] = useState<OpenCrateResult | null>(null);
   const [done, setDone] = useState<ReadonlySet<string>>(() => new Set());
   const live = useRef(true);
-  useEffect(() => () => { live.current = false; }, []);
+  // Set on every mount (StrictMode mounts twice; a cleanup-only effect would leave it false for good).
+  useEffect(() => { live.current = true; return () => { live.current = false; }; }, []);
 
   const pending = queue.filter((c) => !done.has(c.crateId) && c.crateId !== active?.crateId);
   const shown = active ?? pending[0] ?? null;

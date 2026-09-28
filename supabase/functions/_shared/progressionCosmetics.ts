@@ -10,9 +10,16 @@
  * never converted to anything. Earn only: no purchases, keys, currency or rerolls.
  *
  * THIS FILE IS THE CATALOG AS DATA. It is shaped for every category in handoff §5.3 (announcer, hero skin, minion
- * skin, title, hero attack, board, music). Only `title` is enabled today (owner 2026-09-27: "let's just do 15
- * titles to start"); the rest are switched off here AND in the SQL seed, so the owner's art slots in later as new
- * rows plus a flag flip, with no schema change.
+ * skin, title, hero attack, board, music). `title` shipped first (owner 2026-09-27: "let's just do 15 titles to
+ * start"); `hero_skin` and `minion_skin` joined on 2026-09-28 (the first two of each). The rest are switched off
+ * here AND in the SQL seed, so the owner's art slots in later as new rows plus a flag flip, with no schema change.
+ *
+ * THE KILL SWITCH (owner 2026-09-28: "we need to have the ability to remove any rewards from the game if we want
+ * to"). An item with `active: false`, or any item of a category with `enabled: false`, is RETIRED: it leaves the
+ * crate pool, the Collection hides it, and every renderer falls back to default art even when a player has it
+ * equipped or an old snapshot names it (`isCosmeticLive`). Ownership is never deleted, so flipping it back
+ * restores the item exactly as it was. The SQL copy has the same switch (the one-line statements are in
+ * docs/devlog/2026-09-28-skins-v1.md); the client also honours the server's catalog state (`setServerCatalogState`).
  *
  * THE SQL COPY. The database controls eligibility and ownership: `cosmetic_categories` + `cosmetic_catalog` are
  * seeded from this file by the 2026-09-28 migration, and `open_crate` carries the rarity weights as constants.
@@ -51,8 +58,8 @@ export interface CosmeticCategoryDef {
 
 export const COSMETIC_CATEGORY_DEFS: Readonly<Record<CosmeticCategory, CosmeticCategoryDef>> = Object.freeze({
   announcer:   { id: 'announcer',   label: 'Announcers',        weight: 10, enabled: false, target: 'global' },
-  hero_skin:   { id: 'hero_skin',   label: 'Heroes',            weight: 20, enabled: false, target: 'hero' },
-  minion_skin: { id: 'minion_skin', label: 'Minions',           weight: 35, enabled: false, target: 'card' },
+  hero_skin:   { id: 'hero_skin',   label: 'Heroes',            weight: 20, enabled: true,  target: 'hero' },
+  minion_skin: { id: 'minion_skin', label: 'Minions',           weight: 35, enabled: true,  target: 'card' },
   title:       { id: 'title',       label: 'Titles',            weight: 10, enabled: true,  target: 'global' },
   hero_attack: { id: 'hero_attack', label: 'Attack Animations', weight: 15, enabled: false, target: 'global' },
   board:       { id: 'board',       label: 'Boards',            weight: 5,  enabled: false, target: 'global' },
@@ -94,6 +101,15 @@ const title = (id: string, name: string, rarity: CosmeticRarity): CosmeticDef =>
   ({ id, category: 'title', name, rarity, acquisition: { type: 'crate' }, assets: {}, active: true });
 
 /**
+ * A SKIN: one item that replaces the art of ONE hero (`hero_skin`) or ONE card (`minion_skin`), by stable id.
+ * `assets.art` is the key of the in-repo art (`packages/ui/src/art/skins/<key>.webp`); `assets.master` is the
+ * owner's master filename under `C:/Game Assets/Ascent Art/Skins/`, which is how `npm run art:wire` attributes
+ * the file (strict, never guessed).
+ */
+const skin = (id: string, category: 'hero_skin' | 'minion_skin', name: string, rarity: CosmeticRarity, targetId: string, master: string): CosmeticDef =>
+  ({ id, category, name, rarity, target: { type: category === 'hero_skin' ? 'hero' : 'card', id: targetId }, acquisition: { type: 'crate' }, assets: { art: id, master }, active: true });
+
+/**
  * THE LAUNCH CATALOG. Owner 2026-09-27: "let's just do 15 titles to start." 7 Common, 5 Rare, 2 Epic,
  * 1 Legendary. Names are placeholders for the owner to rename (ids stay).
  */
@@ -114,6 +130,12 @@ export const COSMETICS: readonly CosmeticDef[] = Object.freeze([
   title('title_kingbreaker', 'Kingbreaker', 'epic'),
   title('title_voice_of_the_deep', 'Voice of the Deep', 'epic'),
   title('title_the_unbroken', 'The Unbroken', 'legendary'),
+  // SKINS (owner 2026-09-28: "let's use these 2 black belt brian skins as our first 2 skin concepts" and "these 2
+  // hero skins as our first 2 hero skin concepts"). Names and rarities are placeholders for the owner to rename.
+  skin('skin_blackbelt_1', 'minion_skin', 'Sheriff Brian', 'rare', 'blackbelt', 'BlackBeltBrianSkin1.png'),
+  skin('skin_blackbelt_2', 'minion_skin', 'Glitch Brian', 'epic', 'blackbelt', 'BlackBeltBrianSkin2.png'),
+  skin('skin_albus_1', 'hero_skin', 'Surf Day Albus', 'epic', 'albus', 'Albus1.png'),
+  skin('skin_warden_1', 'hero_skin', 'Bath Day Warden', 'epic', 'warden', 'Warden1.png'),
 ]);
 
 export const COSMETIC_INDEX: Readonly<Record<string, CosmeticDef>> = Object.freeze(
@@ -219,4 +241,169 @@ export function parseOpenCrateResult(v: unknown): OpenCrateResult | null {
   const rewardId = str(o.rewardId);
   if (status !== 'pool_exhausted' && !rewardId) return null;
   return { status, crate, rewardId: status === 'pool_exhausted' ? null : rewardId, sealedRemaining };
+}
+
+// ── The kill switch: is an item still part of the game? ───────────────────────────────────────────────────
+
+/**
+ * The SERVER's copy of the switch, as last read from the public `cosmetic_catalog` / `cosmetic_categories` tables.
+ * The owner retires an item with one SQL line; a client that only consulted its own bundled catalog would keep
+ * rendering it until the next build. So the client reads the two tables on boot and records what the server has
+ * switched OFF here. It can only ever REMOVE: an item the TS catalog retires stays retired whatever the server
+ * says, and an unreadable server leaves the bundled catalog in charge.
+ */
+export interface ServerCatalogState {
+  /** Item ids the server has `active = false`. */
+  retiredIds: readonly string[];
+  /** Categories the server has `enabled = false`. */
+  disabledCategories: readonly string[];
+}
+let serverRetired: ReadonlySet<string> = new Set();
+let serverDisabled: ReadonlySet<string> = new Set();
+let catalogEpoch = 0;
+
+/** Record the server's catalog switches (null clears them). Bumps `catalogStateEpoch` so memoized lookups refresh. */
+export function setServerCatalogState(state: ServerCatalogState | null): void {
+  serverRetired = new Set(state?.retiredIds ?? []);
+  serverDisabled = new Set(state?.disabledCategories ?? []);
+  catalogEpoch++;
+}
+/** Changes whenever the server catalog state does: a memo key for anything that caches `isCosmeticLive`. */
+export const catalogStateEpoch = (): number => catalogEpoch;
+
+/** Parse the two public table reads into a state. Tolerant: bad rows are skipped, never thrown on. */
+export function parseServerCatalogState(catalogRows: unknown, categoryRows: unknown): ServerCatalogState {
+  const rows = (v: unknown): Record<string, unknown>[] => (Array.isArray(v) ? v.filter((r): r is Record<string, unknown> => !!r && typeof r === 'object') : []);
+  return {
+    retiredIds: rows(catalogRows).filter((r) => typeof r.cosmetic_id === 'string' && r.active === false).map((r) => r.cosmetic_id as string),
+    disabledCategories: rows(categoryRows).filter((r) => typeof r.category === 'string' && r.enabled === false).map((r) => r.category as string),
+  };
+}
+
+/**
+ * LIVE = known to this client's catalog, `active`, in an ENABLED category, and not switched off by the server.
+ * Everything a player can see or use goes through this: the Collection, equip, and every skin renderer. An
+ * unknown id (a newer server's item, a removed one, garbage from an old replay) is simply not live.
+ */
+export function isCosmeticLive(id: string | null | undefined): boolean {
+  const c = cosmeticOf(id);
+  return !!c && c.active && COSMETIC_CATEGORY_DEFS[c.category].enabled && !serverRetired.has(c.id) && !serverDisabled.has(c.category);
+}
+
+/** The catalog items the player can see at all (the Collection's universe). */
+export const liveCosmetics = (catalog: readonly CosmeticDef[] = COSMETICS): CosmeticDef[] => catalog.filter((c) => isCosmeticLive(c.id));
+
+// ── Skins: loadouts, the per-run snapshot, and the one resolver every renderer uses ───────────────────────
+
+export type SkinSlot = 'hero_skin' | 'minion_skin';
+export const SKIN_SLOTS: readonly SkinSlot[] = ['hero_skin', 'minion_skin'];
+
+/**
+ * Who wears what, keyed by the TARGET (handoff §6.7 `cosmetic_loadouts` / §13 `RunCosmeticSnapshot`). The same
+ * shape serves the live loadout and the snapshot a run records, so a renderer never cares which it was given.
+ */
+export interface RunCosmeticSnapshot {
+  heroSkinByHeroId?: Readonly<Record<string, string>>;
+  minionSkinByCardId?: Readonly<Record<string, string>>;
+}
+
+/** Hard caps on what a snapshot may carry, so a hostile or corrupt payload stays tiny. */
+const SNAPSHOT_MAX_ENTRIES = 64;
+const ID_RE = /^[A-Za-z0-9_.:-]{1,64}$/;
+
+function parseSkinMap(v: unknown): Record<string, string> | undefined {
+  if (!v || typeof v !== 'object' || Array.isArray(v)) return undefined;
+  const out: Record<string, string> = {};
+  let n = 0;
+  for (const [k, id] of Object.entries(v as Record<string, unknown>)) {
+    if (n >= SNAPSHOT_MAX_ENTRIES) break;
+    if (!ID_RE.test(k) || typeof id !== 'string' || !ID_RE.test(id)) continue;
+    out[k] = id;
+    n++;
+  }
+  return n > 0 ? out : undefined;
+}
+
+/**
+ * Parse a recorded snapshot (from a board, a seat, a replay frame or a Career entry). Tolerant by design: an old
+ * payload has none (null = default art), junk is dropped, and ids this client does not know are KEPT (a newer
+ * client's item simply resolves to nothing here) so a snapshot never loses information by passing through.
+ */
+export function parseCosmeticSnapshot(v: unknown): RunCosmeticSnapshot | null {
+  if (!v || typeof v !== 'object' || Array.isArray(v)) return null;
+  const o = v as Record<string, unknown>;
+  const heroSkinByHeroId = parseSkinMap(o.heroSkinByHeroId);
+  const minionSkinByCardId = parseSkinMap(o.minionSkinByCardId);
+  if (!heroSkinByHeroId && !minionSkinByCardId) return null;
+  return { ...(heroSkinByHeroId ? { heroSkinByHeroId } : {}), ...(minionSkinByCardId ? { minionSkinByCardId } : {}) };
+}
+
+/** A loadout row as the SQL returns it (`progression_profile_json.loadout`). */
+export interface LoadoutRow { slot: string; targetId: string; cosmeticId: string }
+
+/** Fold loadout rows (camelCase from the SQL JSON, or snake_case from a table read) into the snapshot shape. */
+export function loadoutFromRows(rows: unknown): RunCosmeticSnapshot {
+  const hero: Record<string, string> = {};
+  const minion: Record<string, string> = {};
+  if (Array.isArray(rows)) {
+    for (const r of rows) {
+      if (!r || typeof r !== 'object') continue;
+      const o = r as Record<string, unknown>;
+      const slot = o.slot; const target = o.targetId ?? o.target_id; const id = o.cosmeticId ?? o.cosmetic_id;
+      if (typeof target !== 'string' || typeof id !== 'string' || !ID_RE.test(target) || !ID_RE.test(id)) continue;
+      if (slot === 'hero_skin') hero[target] = id;
+      else if (slot === 'minion_skin') minion[target] = id;
+    }
+  }
+  return {
+    ...(Object.keys(hero).length ? { heroSkinByHeroId: hero } : {}),
+    ...(Object.keys(minion).length ? { minionSkinByCardId: minion } : {}),
+  };
+}
+
+/**
+ * The skin a HERO renders with under this snapshot, or null for default art. Null whenever the named item is
+ * unknown, retired (item or category, TS or server), the wrong category, or made for a DIFFERENT hero, so a
+ * stale, forged or removed id can never put the wrong art on screen.
+ */
+export function heroSkinOf(snapshot: RunCosmeticSnapshot | null | undefined, heroId: string | null | undefined): CosmeticDef | null {
+  if (!snapshot || !heroId) return null;
+  const c = cosmeticOf(snapshot.heroSkinByHeroId?.[heroId]);
+  return c && c.category === 'hero_skin' && c.target?.type === 'hero' && c.target.id === heroId && isCosmeticLive(c.id) ? c : null;
+}
+
+/** The skin a CARD renders with under this snapshot, or null. Same guarantees as `heroSkinOf`; a token has its
+ *  own card id, so a parent's skin never reaches its tokens (handoff §5.6). */
+export function minionSkinOf(snapshot: RunCosmeticSnapshot | null | undefined, cardId: string | null | undefined): CosmeticDef | null {
+  if (!snapshot || !cardId) return null;
+  const c = cosmeticOf(snapshot.minionSkinByCardId?.[cardId]);
+  return c && c.category === 'minion_skin' && c.target?.type === 'card' && c.target.id === cardId && isCosmeticLive(c.id) ? c : null;
+}
+
+/** The skins that target one hero or card (the Collection's per-target list). */
+export const skinsForTarget = (slot: SkinSlot, targetId: string, catalog: readonly CosmeticDef[] = COSMETICS): CosmeticDef[] =>
+  catalog.filter((c) => c.category === slot && c.target?.id === targetId);
+
+/**
+ * The snapshot a run RECORDS: the live loadout narrowed to what this run can show (handoff §13: "only include
+ * cosmetics actually relevant to the participants"), and to LIVE items only (a retired skin is not recorded).
+ * `heroIds` / `cardIds` absent = keep every entry of that kind. Null when nothing is left, so old and new
+ * payloads without skins look identical.
+ */
+export function snapshotForRun(
+  loadout: RunCosmeticSnapshot | null | undefined,
+  scope: { heroIds?: Iterable<string>; cardIds?: Iterable<string> } = {},
+): RunCosmeticSnapshot | null {
+  if (!loadout) return null;
+  const heroes = scope.heroIds ? new Set(scope.heroIds) : null;
+  const cards = scope.cardIds ? new Set(scope.cardIds) : null;
+  const hero: Record<string, string> = {};
+  const minion: Record<string, string> = {};
+  for (const [h, id] of Object.entries(loadout.heroSkinByHeroId ?? {})) if ((!heroes || heroes.has(h)) && heroSkinOf(loadout, h)) hero[h] = id;
+  for (const [k, id] of Object.entries(loadout.minionSkinByCardId ?? {})) if ((!cards || cards.has(k)) && minionSkinOf(loadout, k)) minion[k] = id;
+  if (!Object.keys(hero).length && !Object.keys(minion).length) return null;
+  return {
+    ...(Object.keys(hero).length ? { heroSkinByHeroId: hero } : {}),
+    ...(Object.keys(minion).length ? { minionSkinByCardId: minion } : {}),
+  };
 }

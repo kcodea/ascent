@@ -23,11 +23,14 @@ const root = join(__dirname, '../../..');
 const sql = readFileSync(join(root, 'supabase/migrations/2026-09-27-account-progression.sql'), 'utf8');
 /** The crates migration REPLACES `settle_progression` and the JSON shapes: the live definitions are read from it. */
 const crates = readFileSync(join(root, 'supabase/migrations/2026-09-28-progression-crates.sql'), 'utf8');
+/** The skins migration re-seeds the catalog + categories and REPLACES `progression_profile_json`. */
+const skins = readFileSync(join(root, 'supabase/migrations/2026-09-28-progression-skins.sql'), 'utf8');
 const schema = readFileSync(join(root, 'schema.sql'), 'utf8');
 
-/** The body of a function's LATEST definition (the crates migration when it defines it, else the MVP's). */
+/** The body of a function's LATEST definition (skins, else crates, else the MVP's). */
 function fnBody(name: string, from?: string): string {
-  const text = from ?? (crates.includes(`create or replace function public.${name}(`) ? crates : sql);
+  const defines = (t: string): boolean => t.includes(`create or replace function public.${name}(`);
+  const text = from ?? (defines(skins) ? skins : defines(crates) ? crates : sql);
   const start = text.indexOf(`create or replace function public.${name}(`);
   if (start < 0) throw new Error(`no function ${name} in the migration`);
   const open = text.indexOf('$$', start);
@@ -123,7 +126,7 @@ describe('the migration shape', () => {
       expect(resultJson, k).toContain(`'${k}'`);
     }
     const profileJson = fnBody('progression_profile_json');
-    for (const k of ['accountXp', 'accountLevel', 'revision', 'equippedTitleId', 'titles']) expect(profileJson, k).toContain(`'${k}'`);
+    for (const k of ['accountXp', 'accountLevel', 'revision', 'equippedTitleId', 'titles', 'cosmetics', 'loadout', 'slot', 'targetId', 'cosmeticId']) expect(profileJson, k).toContain(`'${k}'`);
   });
 
   it('every writer is SECURITY DEFINER with a pinned search_path, and service-role only', () => {
@@ -132,6 +135,7 @@ describe('the migration shape', () => {
       [crates, 'settle_progression', 'uuid, text, text, bigint, boolean, int, jsonb'],
       [crates, 'open_crate', 'uuid, uuid'],
       [crates, 'equip_title', 'uuid, text'],
+      [skins, 'equip_cosmetic', 'uuid, text, text, text'],
     ] as const) {
       const at = text.indexOf(`create or replace function public.${fn}(`);
       const head = text.slice(at, text.indexOf('as $$', at));
@@ -169,7 +173,7 @@ describe('the crates migration (2026-09-28)', () => {
   });
 
   it('every SQL error open_crate / equip_title raise is mapped by the inventory Edge Function', () => {
-    for (const fn of ['open_crate', 'equip_title']) {
+    for (const fn of ['open_crate', 'equip_title', 'equip_cosmetic']) {
       const raised = [...fnBody(fn).matchAll(/raise exception '([a-z_]+)'/g)].map((x) => x[1]!);
       expect(raised.length, fn).toBeGreaterThan(0);
       for (const code of new Set(raised)) expect(INVENTORY_ERROR_STATUS[code], `${fn}: ${code}`).toBeDefined();
@@ -190,21 +194,24 @@ describe('the crates migration (2026-09-28)', () => {
     expect(n(fnBody('open_crate'), 'c_roll_version')).toBe(CRATE_ROLL_VERSION);
   });
 
-  /** The rows of one `insert into public.<table> (...) values (...), ... on conflict` seed. */
-  function seedRows(table: string): string[][] {
-    const at = crates.indexOf(`insert into public.${table} (`);
-    const block = crates.slice(crates.indexOf('values', at) + 6, crates.indexOf('on conflict', at));
+  /** The rows of one `insert into public.<table> (...) values (...), ... on conflict` seed, from the LATEST
+   *  migration that seeds it (the skins file re-seeds both tables). */
+  function seedRows(table: string, from: string = skins): string[][] {
+    const at = from.indexOf(`insert into public.${table} (`);
+    const block = from.slice(from.indexOf('values', at) + 6, from.indexOf('on conflict', at));
     return [...block.matchAll(/\(([^()]*)\)/g)].map((m) => m[1]!.split(',').map((x) => x.trim().replace(/^'(.*)'$/, '$1')));
   }
 
-  it('the category seed equals COSMETIC_CATEGORY_DEFS (weights + the feature flags: only title on)', () => {
+  it('the category seed equals COSMETIC_CATEGORY_DEFS (weights + the feature flags: title and the two skin slots on)', () => {
     const rows = seedRows('cosmetic_categories');
     expect(rows.map((r) => r[0])).toEqual([...COSMETIC_CATEGORIES]);
     for (const [id, weight, enabled, target] of rows) {
       const def = COSMETIC_CATEGORY_DEFS[id as keyof typeof COSMETIC_CATEGORY_DEFS];
       expect({ weight: Number(weight), enabled: enabled === 'true', target }, id).toEqual({ weight: def.weight, enabled: def.enabled, target: def.target });
     }
-    expect(COSMETIC_CATEGORIES.filter((c) => COSMETIC_CATEGORY_DEFS[c].enabled)).toEqual(['title']);
+    expect(COSMETIC_CATEGORIES.filter((c) => COSMETIC_CATEGORY_DEFS[c].enabled)).toEqual(['hero_skin', 'minion_skin', 'title']);
+    // the crates file's seed is history: titles only, the skins off (never re-run it after the skins file)
+    expect(seedRows('cosmetic_categories', crates).filter((r) => r[2] === 'true').map((r) => r[0])).toEqual(['title']);
   });
 
   it('the catalog seed equals COSMETICS row for row (ids, category, rarity, acquisition, active)', () => {
@@ -242,5 +249,35 @@ describe('the crates migration (2026-09-28)', () => {
         expect(sqlPick, `roll ${roll}`).toBe(pickCrateReward(eligible, roll)!.id);
       }
     }
+  });
+});
+
+describe('the skins migration (2026-09-28)', () => {
+  it('the catalog upsert never overwrites `active` on an existing row (a retire survives any re-run)', () => {
+    const at = skins.indexOf('insert into public.cosmetic_catalog (');
+    const onConflict = skins.slice(skins.indexOf('on conflict', at), skins.indexOf(';', skins.indexOf('on conflict', at)));
+    expect(onConflict).toContain('do update set');
+    expect(onConflict).not.toMatch(/\bactive\b/);
+  });
+
+  it('documents the one-line kill switch for an item, a category, and both restores', () => {
+    for (const line of [
+      "update public.cosmetic_catalog set active = false where cosmetic_id = 'skin_blackbelt_2';",
+      "update public.cosmetic_categories set enabled = false, updated_at = now() where category = 'minion_skin';",
+      "update public.cosmetic_catalog set active = true where cosmetic_id = 'skin_blackbelt_2';",
+      "update public.cosmetic_categories set enabled = true, updated_at = now() where category = 'minion_skin';",
+    ]) expect(skins).toContain(line);
+  });
+
+  it('equip_cosmetic checks slot, target, liveness and ownership, and never deletes ownership', () => {
+    const body = fnBody('equip_cosmetic');
+    for (const code of ['bad_slot', 'bad_target', 'bad_cosmetic_id', 'wrong_target', 'not_equippable', 'not_owned']) expect(body, code).toContain(`'${code}'`);
+    expect(body).not.toMatch(/delete from public\.player_cosmetics/);
+    expect(skins).not.toMatch(/delete from public\.(player_cosmetics|cosmetic_catalog|cosmetic_categories)/);
+  });
+
+  it('the profile loadout lists only LIVE items (item active and category enabled)', () => {
+    const body = fnBody('progression_profile_json');
+    expect(body).toMatch(/where l\.user_id = p\.user_id and c\.active and k\.enabled/);
   });
 });

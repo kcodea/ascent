@@ -22,6 +22,9 @@ import { parseProgressionProfile, parseProgressionResult } from './rules';
  */
 
 const root = join(__dirname, '../../..');
+/** What a crate can give under THIS file's schema: the crates migration alone ships titles only (the skin
+ *  categories arrive with the 2026-09-28 skins migration, exercised in skins.db.test.ts). */
+const titlePool = (owned: Iterable<string>): ReturnType<typeof eligibleCrateCosmetics> => eligibleCrateCosmetics(owned).filter((c) => c.category === 'title');
 const MVP = readFileSync(join(root, 'supabase/migrations/2026-09-27-account-progression.sql'), 'utf8');
 const CRATES = readFileSync(join(root, 'supabase/migrations/2026-09-28-progression-crates.sql'), 'utf8');
 
@@ -204,7 +207,7 @@ describe('opening crates', () => {
     await settleRanked(u, 'o1', 6); // Welcome Crate
     // bank 15 more crates by hand (as a long career would), so 16 sealed crates exist for a pool of 15
     await db.query("insert into public.loot_crates (user_id, earned_level, source_id) select $1, g, 'test' from generate_series(2, 16) g", [u]);
-    const pool = eligibleCrateCosmetics([]).map((c) => c.id);
+    const pool = titlePool([]).map((c) => c.id);
     expect(pool).toHaveLength(15);
     const got: string[] = [];
     for (const c of (await crates(u)).slice(0, 15)) {
@@ -246,7 +249,7 @@ describe('opening crates', () => {
   it('a crate never draws an item the player already owns (a title granted another way is excluded)', async () => {
     const u = await newUser();
     await settleRanked(u, 'e1', 6);
-    const pool = eligibleCrateCosmetics([]).map((c) => c.id);
+    const pool = titlePool([]).map((c) => c.id);
     const keep = pool[7]!;
     for (const id of pool.filter((x) => x !== keep)) {
       await db.query("insert into public.player_cosmetics (user_id, cosmetic_id, source) values ($1, $2, 'test')", [u, id]);
@@ -341,7 +344,7 @@ describe('equip_title', () => {
     expect(parseProgressionProfile(off.j.profile)!.equippedTitleId).toBeNull();
     const on = await one<{ j: { profile: unknown } }>('select public.equip_title($1, $2) as j', [u, got]);
     expect(parseProgressionProfile(on.j.profile)!.equippedTitleId).toBe(got);
-    const notMine = eligibleCrateCosmetics([got])[0]!.id;
+    const notMine = titlePool([got])[0]!.id;
     expect(await raises('select public.equip_title($1, $2)', [u, notMine])).toContain('not_owned');
     expect(await raises('select public.equip_title($1, $2)', [u, 'no_such_title'])).toContain('not_owned');
     expect((await one<{ equipped_title_id: string }>('select equipped_title_id from public.profiles where user_id = $1', [u])).equipped_title_id).toBe(got);

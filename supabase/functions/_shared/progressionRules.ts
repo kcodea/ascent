@@ -23,7 +23,7 @@
  * curve re-derives every account's level without touching its XP.
  */
 
-import { COSMETICS, milestoneLevelOf } from './progressionCosmetics.ts';
+import { COSMETICS, loadoutFromRows, milestoneLevelOf, type RunCosmeticSnapshot } from './progressionCosmetics.ts';
 
 // ── Versions ────────────────────────────────────────────────────────────────────────────────────────────────
 
@@ -332,6 +332,11 @@ export interface ProgressionProfile {
   revision: number;
   equippedTitleId: string | null;
   titles: string[];
+  /** Every cosmetic the account owns, any category (skins included). Absent from a pre-skins server: read as the
+   *  titles alone. Retired items are still listed (ownership is never deleted); the client hides them. */
+  cosmetics?: string[];
+  /** The equipped skins, by target (only LIVE items: the SQL drops a retired one). Absent from a pre-skins server. */
+  loadout?: RunCosmeticSnapshot;
 }
 
 const int = (v: unknown): number | null => (typeof v === 'number' && Number.isFinite(v) ? Math.trunc(v) : typeof v === 'string' && /^-?\d+$/.test(v) ? Number(v) : null);
@@ -385,5 +390,7 @@ export function parseProgressionProfile(v: unknown): ProgressionProfile | null {
     accountXp, accountLevel, revision,
     equippedTitleId: typeof o.equippedTitleId === 'string' ? o.equippedTitleId : null,
     titles: stringList(o.titles),
+    ...(Array.isArray(o.cosmetics) ? { cosmetics: stringList(o.cosmetics) } : {}),
+    ...(Array.isArray(o.loadout) ? { loadout: loadoutFromRows(o.loadout) } : {}),
   };
 }

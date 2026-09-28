@@ -6,7 +6,7 @@ import { stageHost } from '../stage';
 import { openCrate, type CrateOpenOutcome } from './progressionStore';
 import {
   CRATE_CUE_CATEGORY, crateBeats, crateCue, crateFxSpeed, getCrateFxConfig, presetFor,
-  type CrateCue, type CratePreset,
+  type CrateCue, type CrateFxConfig, type CratePreset,
 } from './crateFx/crateFxConfig';
 import { createCrateFx, type CrateFx } from './crateFx/crateFxPixi';
 import './crateFx/crateTheatre.css';
@@ -33,12 +33,20 @@ import './crateFx/crateTheatre.css';
  * transform. Buttons take the global gauntlet cursor (no cursor rules). Rendered into `stageHost()`.
  */
 
+/** The painted gem the nameplate wears (recoloured per rarity in CSS, a static filter). */
+const GEM_ART = '/frames/end_button_gem.webp';
+
 export interface CrateQueueItem { crateId: string; earnedLevel: number }
 
 type Phase = 'sealed' | 'anticipation' | 'charge' | 'burst' | 'reveal' | 'settled' | 'exhausted' | 'error';
 
 /** Phases a click or key skips out of. */
 const SKIPPABLE: readonly Phase[] = ['anticipation', 'charge', 'burst', 'reveal'];
+
+/** The anticipation's dials from the config. */
+function anticipation(c: CrateFxConfig): { antMs: number; antShake: number; antGlow: number; pulseMs: number } {
+  return { antMs: c.anticipationMs, antShake: c.anticipationShake, antGlow: c.anticipationGlow, pulseMs: c.pulseStartMs };
+}
 
 export function prefersReducedMotion(): boolean {
   try { return window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch { return false; }
@@ -90,7 +98,6 @@ export function CrateOpener({ queue, autoOpen = false, openAll = false, reducedM
   const cues = useRef<SfxHandle[]>([]);
   const fx = useRef<CrateFx | null>(null);
   const hostRef = useRef<HTMLDivElement>(null);
-  const boxRef = useRef<HTMLDivElement>(null);
   /** The opening in progress: its answer, whether a skip is waiting for it, when it began. */
   const flow = useRef<{ outcome: CrateOpenOutcome | null; skip: boolean; began: number; preset: CratePreset | null; phase: Phase }>(
     { outcome: null, skip: false, began: 0, preset: null, phase: 'sealed' },
@@ -109,13 +116,26 @@ export function CrateOpener({ queue, autoOpen = false, openAll = false, reducedM
     if (ms <= 0) { fn(); return; }
     timers.current.push(window.setTimeout(fn, ms));
   };
-  const cue = (name: CrateCue): void => {
+  /** The current rarity's pitch (1 until the answer is in). Every cue plays at it, times its own `rate`. */
+  const pitch = useRef(1);
+  const cue = (name: CrateCue, o: { rate?: number; gain?: number } = {}): void => {
     const s = crateCue(getCrateFxConfig(), name);
-    const h = playTailedClip(s.clip, CRATE_CUE_CATEGORY[name], { gain: s.gain, startMs: s.startMs, lenMs: s.lenMs, tail: s.tail });
+    const rate = Math.max(0.5, Math.min(2, pitch.current * (o.rate ?? 1) * (crateFxSpeed() < 1 ? 1 : 1)));
+    const h = playTailedClip(s.clip, CRATE_CUE_CATEGORY[name], { gain: s.gain * (o.gain ?? 1), startMs: s.startMs, lenMs: s.lenMs, tail: s.tail, rate });
     if (!h) return;
     if (name === 'hum') hum.current = h; else cues.current.push(h);
-    if (cues.current.length > 8) cues.current.shift();
+    if (cues.current.length > 12) cues.current.shift();
   };
+  /** The heartbeat tick, on the Pixi pulse (rising in pitch with the pulse's intensity). */
+  const lastTick = useRef(0);
+  const tick = (k: number): void => {
+    const now = typeof performance === 'undefined' ? Date.now() : performance.now();
+    if (now - lastTick.current < 70) return;
+    lastTick.current = now;
+    cue('pulse', { rate: 0.85 + 0.45 * k, gain: 0.5 + 0.5 * k });
+  };
+  const tickRef = useRef(tick);
+  tickRef.current = tick;
   const stopHum = (): void => { hum.current?.stop(); hum.current = null; };
   const stopAll = (): void => { stopHum(); for (const h of cues.current) h.stop(); cues.current = []; };
 
@@ -127,11 +147,12 @@ export function CrateOpener({ queue, autoOpen = false, openAll = false, reducedM
     const ctl = createCrateFx();
     fx.current = ctl;
     ctl.setArt(c.crateArt);
+    ctl.onPulse((k) => tickRef.current(k));
     ctl.resize(host.clientWidth, host.clientHeight, c.crateScale);
     // A remount mid-opening (React StrictMode mounts every effect twice in dev) gets a fresh controller: bring it
     // to where the opening already is, so the request that is already in flight lands on a live crate.
     const f = flow.current;
-    if (f.phase === 'anticipation') ctl.anticipate({ antMs: c.anticipationMs, antShake: c.anticipationShake, antGlow: c.anticipationGlow });
+    if (f.phase === 'anticipation') ctl.anticipate(anticipation(c));
     else if (f.preset && f.phase !== 'sealed' && f.phase !== 'error' && f.phase !== 'exhausted') ctl.skipToSettled(f.preset);
     let alive = true;
     void ctl.mount(host).then((ok) => { if (alive && live.current) setFxLive(ok); });
@@ -150,26 +171,19 @@ export function CrateOpener({ queue, autoOpen = false, openAll = false, reducedM
   const pendingOf = (activeId: string | null, doneSet: ReadonlySet<string>): CrateQueueItem[] =>
     queueRef.current.filter((c) => !doneSet.has(c.crateId) && c.crateId !== activeId);
 
-  const screenShake = (p: CratePreset, ms: number): void => {
-    const el = boxRef.current;
-    if (!el || !(p.screenShake > 0) || !(ms > 0) || typeof el.animate !== 'function') return;
-    const a = p.screenShake;
-    const frames: Keyframe[] = [];
-    const n = 8;
-    for (let i = 0; i <= n; i++) {
-      const k = 1 - i / n;
-      const x = i === n ? 0 : (i % 2 ? -1 : 1) * a * k;
-      const y = i === n ? 0 : ((i * 7) % 3 - 1) * a * 0.6 * k;
-      frames.push({ transform: `translate(${x.toFixed(2)}px, ${y.toFixed(2)}px)` });
-    }
-    el.animate(frames, { duration: ms, easing: 'linear' });
-  };
 
   const settleAndMaybeNext = (g: number, speedK: number): void => {
     if (!openAll) return;
     const next = pendingOf(null, doneRef.current)[0];
     if (!next) return;
     at(getCrateFxConfig().autoNextMs * speedK, () => { if (g === gen.current && live.current) start(next); });
+  };
+
+  /** A few coin clinks at random pitches, spread over the shower. */
+  const coinClinks = (): void => {
+    const g = gen.current;
+    const k = 1 / crateFxSpeed();
+    for (let i = 0; i < 4; i++) at((60 + i * 110 + Math.random() * 60) * k, () => { if (g === gen.current) cue('coin', { rate: 0.95 + Math.random() * 0.4, gain: 1 - i * 0.18 }); });
   };
 
   /** Jump to the settled reveal (a skip, or a skip that was waiting for the answer). */
@@ -217,25 +231,41 @@ export function CrateOpener({ queue, autoOpen = false, openAll = false, reducedM
     }
     if (flow.current.skip) { skipNow(g, p, speedK); return; }
     const b = crateBeats(p, c, { speed: crateFxSpeed() });
+    const big = p.rarity === 'epic' || p.rarity === 'legendary';
+    pitch.current = p.pitch;
     go('charge');
     fx.current?.charge(p);
-    at(Math.max(0, b.chargeAt + c.sfxChargeOffsetMs * speedK), () => { if (g === gen.current) cue('charge'); });
+    cue('charge');
+    // The hum cuts at the hitch: a beat of near-silence before the hit.
+    at(b.hitchAt, () => { if (g === gen.current) stopHum(); });
     at(b.burstAt, () => {
       if (g !== gen.current) return;
       go('burst');
       fx.current?.burst(p);
       stopHum();
-      screenShake(p, b.screenShakeMs);
+      cue('burst');
+      if (big) cue('crack', { rate: 1.05 });
+      if (!p.doubleBurst && p.coins > 0) coinClinks();
     });
-    at(Math.max(0, b.burstAt + c.sfxBurstOffsetMs * speedK), () => { if (g === gen.current) cue('burst'); });
+    if (b.burst2At >= 0) {
+      at(b.burst2At, () => {
+        if (g !== gen.current) return;
+        cue('burst', { rate: 1.12, gain: 0.7 });
+        if (p.coins > 0) coinClinks();
+      });
+    }
     at(b.revealAt, () => {
       if (g !== gen.current) return;
       go('reveal');
       fx.current?.reveal(p);
-      cue('reveal');
+      cue('whoosh');
+    });
+    at(b.gemAt, () => { if (g === gen.current) cue('reveal'); });
+    at(b.ribbonAt, () => {
+      if (g !== gen.current) return;
+      cue('stamp');
       if (p.sting) cue('sting');
     });
-    at(b.stampAt, () => { if (g === gen.current) cue('stamp'); });
     at(b.settleAt, () => {
       if (g !== gen.current) return;
       go('settled');
@@ -256,6 +286,7 @@ export function CrateOpener({ queue, autoOpen = false, openAll = false, reducedM
     setPreset(null);
     setSkipped(false);
     setSlow(false);
+    pitch.current = 1;
     flow.current = { outcome: null, skip: false, began: Date.now(), preset: null, phase: 'anticipation' };
     go('anticipation');
     const ctl = fx.current;
@@ -263,7 +294,7 @@ export function CrateOpener({ queue, autoOpen = false, openAll = false, reducedM
       ctl.setSpeed(crateFxSpeed());
       ctl.setArt(c.crateArt);
       ctl.reset();
-      ctl.anticipate({ antMs: c.anticipationMs, antShake: c.anticipationShake, antGlow: c.anticipationGlow });
+      ctl.anticipate(anticipation(c));
     }
     if (!reduced) cue('hum');
     at(c.slowNoteMs * speedK, () => { if (g === gen.current && flow.current.outcome === null) setSlow(true); });
@@ -320,11 +351,18 @@ export function CrateOpener({ queue, autoOpen = false, openAll = false, reducedM
   const next = phase === 'settled' ? pending[0] ?? null : null;
   const c = getCrateFxConfig();
   const k = 1 / crateFxSpeed();
+  const ms = (v: number): string => `${Math.round(v * k)}ms`;
   const vars = {
     '--cr-color': preset?.colorCss ?? '#ffd88a',
-    '--cr-rise': `${Math.round(c.riseMs * k)}ms`,
-    '--cr-stamp': `${Math.round(c.stampMs * k)}ms`,
-    '--cr-stamp-delay': `${Math.round(c.stampDelayMs * k)}ms`,
+    '--cr-rise': ms(c.riseMs),
+    '--cr-gem-delay': ms(c.gemDelayMs),
+    '--cr-stamp': ms(c.stampMs),
+    '--cr-stamp-delay': ms(c.stampDelayMs),
+    '--cr-ribbon-delay': ms(c.ribbonDelayMs),
+    '--cr-shine-delay': ms(c.shineDelayMs),
+    '--cr-shine': ms(c.shineMs),
+    '--cr-rays': String(preset ? Math.min(1, preset.rays) : 0),
+    '--cr-blur': `${c.backdropBlur}px`,
     '--cr-fade': `${Math.round(c.reducedFadeMs)}ms`,
   } as CSSProperties;
   const domCrate = reduced || !fxLive;
@@ -345,7 +383,7 @@ export function CrateOpener({ queue, autoOpen = false, openAll = false, reducedM
       onPointerDown={onPointerDown}
     >
       <div className="crth-scrim" aria-hidden />
-      <div className="crth-box" ref={boxRef}>
+      <div className="crth-box">
         {/* The Pixi canvas covers the whole theatre, so the flash, rings and rays never clip at a box edge. */}
         <div className="crth-fx" ref={hostRef} aria-hidden />
         <div className="crate-name">{crateName(shown.earnedLevel)}</div>
@@ -358,11 +396,16 @@ export function CrateOpener({ queue, autoOpen = false, openAll = false, reducedM
               {revealed && !reduced && <span className="crate-burst" />}
             </div>
           )}
+          {/* The slow god-ray backdrop behind the plate: DOM, turning on transform only, so the Pixi ticker can
+              stop once the scene settles while the rays keep turning. */}
+          {revealed && !reduced && <div className="crth-rays" aria-hidden />}
           {revealed && reward && (
-            <div className={`crate-reward${reward.rarity ? ` r-${reward.rarity}` : ''}`} role="status">
+            <div className={`crate-reward crth-plate${reward.rarity ? ` r-${reward.rarity}` : ''}`} role="status">
+              <span className="crth-plate-gem" aria-hidden><img src={GEM_ART} alt="" draggable={false} /></span>
               <span className="crate-reward-kind">{reward.kind}</span>
               <span className="crate-reward-name">{reward.name}</span>
-              {reward.rarityLabel && <span className="crate-reward-rarity">{reward.rarityLabel}</span>}
+              {reward.rarityLabel && <span className="crate-reward-rarity crth-ribbon"><span>{reward.rarityLabel}</span></span>}
+              <span className="crth-plate-shine" aria-hidden />
             </div>
           )}
         </div>

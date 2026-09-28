@@ -1,22 +1,28 @@
 /**
- * THE CRATE FX CONTROLLER: owns its OWN Pixi `Application` (a transparent, pointer-events:none canvas inside the
- * crate theatre), never the gameplay `pixiFx` singleton, which is not mounted on the menus anyway. The drawing
- * lives in `CrateScene` (headless-testable); this file is only the renderer, the ticker and the art loader.
+ * THE CRATE FX CONTROLLER: owns its OWN Pixi `Application` (a transparent, pointer-events:none canvas over the
+ * whole crate theatre), never the gameplay `pixiFx` singleton, which is not mounted on the menus anyway. The
+ * drawing lives in `CrateScene` (headless-testable); the pictures are painted once in `crateTextures.ts`. This
+ * file is the renderer, the ticker, the texture bake and the art loader.
  *
  * The hero ceremony's contract (`HeroCeremonyPixi.ts`):
  *  - `mount` resolves false (and every call becomes a no-op) if Pixi cannot start: the theatre then draws its
- *    DOM crate and the opening still works, just without particles.
+ *    DOM crate and the opening still works, just without the Pixi layer.
  *  - `destroy()` is safe at any moment, including before the async init resolves (the late Application is
  *    destroyed on arrival). It removes the canvas and destroys every sprite, texture and the renderer.
  *  - The ticker runs only while the scene has work, and stops the frame it goes idle.
  *  - Geometry comes from `resize()` (mount + a ResizeObserver), never a per-frame DOM read.
  *  - The renderer's resolution folds in the stage scale (`stageScale()`), so a phone never renders ~8x the pixels
  *    it shows (the stage tripwire enforces this).
+ *  - Every texture is painted once at mount: nothing is redrawn per frame.
  */
-import { Application, Assets, CanvasSource, Container, Graphics, Texture } from 'pixi.js';
+import { Application, Assets, CanvasSource, Container, Texture } from 'pixi.js';
 import { stageScale } from '../../stage';
-import type { CratePreset } from './crateFxConfig';
-import { CrateScene, GLOW_TEX_R, RAY_TEX_LEN, RING_TEX_R, type CrateAnticipation, type CrateSceneTextures } from './crateScene';
+import type { CratePreset, CrateRarity } from './crateFxConfig';
+import { CrateScene, type CrateAnticipation, type CrateSceneTextures } from './crateScene';
+import {
+  GEM_FILTER, paintChestBody, paintChestLid, paintCoin, paintCracks, paintGemFallback, paintGlow, paintPedestal,
+  paintRays, paintRing, paintRuneRing, paintSeamLight, paintShards, paintSpark, paintStreak, recolourGem,
+} from './crateTextures';
 
 export interface CrateFx {
   /** Start Pixi in `host`. Resolves true when it is live, false when it is not (DOM fallback). */
@@ -25,8 +31,10 @@ export interface CrateFx {
   resize(w: number, h: number, crateScale: number): void;
   /** Playback speed (the tuner's slow motion). Scales the scene clock. */
   setSpeed(speed: number): void;
-  /** The one art key: a URL for the crate picture ('' = the drawn crate). */
+  /** The one art key: a URL for the crate picture ('' = the painted chest). */
   setArt(url: string): void;
+  /** Called on every heartbeat pulse (`k` = 0..1 intensity), so the theatre can tick a sound on the beat. */
+  onPulse(fn: ((k: number) => void) | null): void;
   reset(): void;
   anticipate(a: CrateAnticipation): void;
   charge(p: CratePreset): void;
@@ -38,6 +46,13 @@ export interface CrateFx {
   destroy(): void;
 }
 
+/** The painted chest's texture width (px). The sprites scale to the layout size from here. */
+const CHEST_TEX_W = 720;
+/** The gem art every rarity's gem is recoloured from. */
+const GEM_ART = '/frames/end_button_gem.webp';
+
+const fromCanvas = (c: HTMLCanvasElement): Texture => new Texture({ source: new CanvasSource({ resource: c }) });
+
 class CrateFxPixi implements CrateFx {
   private app: Application | null = null;
   private scene: CrateScene | null = null;
@@ -47,6 +62,7 @@ class CrateFxPixi implements CrateFx {
   private artUrl = '';
   private artToken = 0;
   private pendingSize: [number, number, number] | null = null;
+  private pulseFn: ((k: number) => void) | null = null;
 
   async mount(host: HTMLElement): Promise<boolean> {
     if (this.destroyed) return false;
@@ -67,31 +83,73 @@ class CrateFxPixi implements CrateFx {
         app.destroy({ removeView: true, releaseGlobalResources: true }, { children: true });
         return false;
       }
+      const tex = await this.bake();
+      if (this.destroyed) {
+        for (const t of this.textures) t.destroy(true);
+        this.textures = [];
+        app.destroy({ removeView: true, releaseGlobalResources: true }, { children: true });
+        return false;
+      }
       const canvas = app.canvas;
       canvas.style.position = 'absolute';
       canvas.style.inset = '0';
       canvas.style.pointerEvents = 'none';
       canvas.style.display = 'block';
       host.appendChild(canvas);
-      const tex: CrateSceneTextures = {
-        spark: makeSpark(app), glow: makeGlow(app), ring: makeRing(app), frag: makeFrag(app), ray: makeRay(app),
-      };
-      this.textures = Object.values(tex);
       const root = new Container();
       app.stage.addChild(root);
-      this.scene = new CrateScene(root, tex);
+      this.scene = new CrateScene(root, tex, { onPulse: (k) => this.pulseFn?.(k) });
       this.app = app;
       const [w, h, k] = this.pendingSize ?? [host.clientWidth, host.clientHeight, 1];
       this.scene.layout(w, h, k);
       if (this.artUrl) this.loadArt(this.artUrl);
       app.ticker.add(this.tick);
       app.ticker.stop();
-      app.render(); // paint the sealed crate once; the ticker wakes on the first beat
+      app.render(); // paint the sealed chest once; the ticker wakes on the first beat
       return true;
     } catch (e) {
       console.error('[crateFx] pixi init failed; the crate opening falls back to the DOM crate:', e);
       return false;
     }
+  }
+
+  /** Paint every texture once. The gem art is recoloured per rarity; a painted gem stands in if it cannot load. */
+  private async bake(): Promise<CrateSceneTextures> {
+    const keep = (t: Texture): Texture => { this.textures.push(t); return t; };
+    const pad = CHEST_TEX_W * 0.02;
+    let gemImg: HTMLImageElement | null = null;
+    try {
+      gemImg = await new Promise<HTMLImageElement>((resolve, reject) => {
+        const im = new Image();
+        im.onload = () => resolve(im);
+        im.onerror = reject;
+        im.src = GEM_ART;
+      });
+    } catch { gemImg = null; }
+    const gemTex = (filter: string): Texture => keep(fromCanvas(gemImg
+      ? recolourGem(gemImg, 180, Math.round(180 * (gemImg.naturalHeight / Math.max(1, gemImg.naturalWidth))), filter)
+      : paintGemFallback(160)));
+    const gems = {} as Record<CrateRarity, Texture>;
+    for (const r of ['common', 'rare', 'epic', 'legendary'] as const) gems[r] = gemTex(GEM_FILTER[r]);
+    return {
+      body: keep(fromCanvas(paintChestBody(CHEST_TEX_W))),
+      lid: keep(fromCanvas(paintChestLid(CHEST_TEX_W))),
+      seam: keep(fromCanvas(paintSeamLight(CHEST_TEX_W))),
+      cracks: keep(fromCanvas(paintCracks(CHEST_TEX_W))),
+      pedestal: keep(fromCanvas(paintPedestal(900))),
+      runeRing: keep(fromCanvas(paintRuneRing(900))),
+      rays: keep(fromCanvas(paintRays(1024, 22))),
+      glow: keep(fromCanvas(paintGlow(256))),
+      spark: keep(fromCanvas(paintSpark(64))),
+      streak: keep(fromCanvas(paintStreak(96))),
+      ring: keep(fromCanvas(paintRing(512))),
+      coin: keep(fromCanvas(paintCoin(64))),
+      shards: paintShards(90, 6).map((c) => keep(fromCanvas(c))),
+      gemSealed: gemTex(GEM_FILTER.sealed),
+      gems,
+      chestTexW: CHEST_TEX_W,
+      chestPad: pad,
+    };
   }
 
   private tick = (): void => {
@@ -114,6 +172,7 @@ class CrateFxPixi implements CrateFx {
   }
 
   setSpeed(speed: number): void { this.speed = Math.max(0.05, speed || 1); }
+  onPulse(fn: ((k: number) => void) | null): void { this.pulseFn = fn; }
 
   setArt(url: string): void {
     if (url === this.artUrl) return;
@@ -128,7 +187,7 @@ class CrateFxPixi implements CrateFx {
       if (this.destroyed || token !== this.artToken) return;
       this.scene?.setCrateArt(t);
       if (this.app && !this.app.ticker.started) this.app.render();
-    }).catch(() => { /* a bad URL keeps the drawn crate */ });
+    }).catch(() => { /* a bad URL keeps the painted chest */ });
   }
 
   reset(): void { this.scene?.reset(); if (this.app && !this.app.ticker.started) this.app.render(); }
@@ -137,17 +196,18 @@ class CrateFxPixi implements CrateFx {
   burst(p: CratePreset): void { this.scene?.burst(p); this.wake(); }
   reveal(p: CratePreset): void { this.scene?.reveal(p); this.wake(); }
   settle(ms: number): void { this.scene?.settle(ms); this.wake(); }
-  skipToSettled(p: CratePreset): void { this.scene?.skipToSettled(p); this.app?.render(); }
+  skipToSettled(p: CratePreset): void { this.scene?.skipToSettled(p); this.wake(); }
   windDown(ms: number): void { this.scene?.windDown(ms); this.wake(); }
 
   destroy(): void {
     if (this.destroyed) return;
     this.destroyed = true;
     this.artToken++;
+    this.pulseFn = null;
     const app = this.app;
     this.scene?.destroy();
     this.scene = null;
-    if (!app) return; // pre-init: mount()'s "still wanted?" check destroys the late Application
+    if (!app) return; // pre-init: mount()'s "still wanted?" checks destroy the late Application
     app.ticker.remove(this.tick);
     app.ticker.stop();
     for (const t of this.textures) t.destroy(true);
@@ -155,66 +215,6 @@ class CrateFxPixi implements CrateFx {
     app.destroy({ removeView: true, releaseGlobalResources: true }, { children: true });
     this.app = null;
   }
-}
-
-// ─── textures (built once per mount) ────────────────────────────────────────────────────────────────────────
-
-function bake(app: Application, g: Graphics): Texture {
-  const tex = app.renderer.generateTexture({ target: g, resolution: 2 });
-  g.destroy();
-  return tex;
-}
-function makeSpark(app: Application): Texture {
-  const g = new Graphics();
-  for (let r = 8; r >= 1; r--) g.circle(0, 0, r).fill({ color: 0xffffff, alpha: 0.2 });
-  return bake(app, g);
-}
-/** The big soft glow (aura, flash, crate glow). A canvas radial gradient rather than stacked circles: scaled up
- *  ten times for the aura, stacked translucent circles show visible bands. */
-function makeGlow(app: Application): Texture {
-  const size = GLOW_TEX_R * 2 * 4; // drawn at 4x so the upscaled aura stays smooth
-  const c = document.createElement('canvas');
-  c.width = c.height = size;
-  const ctx = c.getContext('2d');
-  if (!ctx) {
-    const g = new Graphics();
-    for (let r = GLOW_TEX_R; r >= 2; r -= 2) g.circle(0, 0, r).fill({ color: 0xffffff, alpha: 0.05 });
-    return bake(app, g);
-  }
-  const grad = ctx.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2);
-  grad.addColorStop(0, 'rgba(255,255,255,1)');
-  grad.addColorStop(0.25, 'rgba(255,255,255,0.55)');
-  grad.addColorStop(0.55, 'rgba(255,255,255,0.18)');
-  grad.addColorStop(1, 'rgba(255,255,255,0)');
-  ctx.fillStyle = grad;
-  ctx.fillRect(0, 0, size, size);
-  // The scene sizes sprites against a GLOW_TEX_R-radius texture; this one is drawn at 4x, so it reports 1x.
-  return new Texture({ source: new CanvasSource({ resource: c, resolution: 4 }) });
-}
-function makeRing(app: Application): Texture {
-  const g = new Graphics();
-  g.circle(0, 0, RING_TEX_R).stroke({ width: 10, color: 0xffffff, alpha: 0.14 });
-  g.circle(0, 0, RING_TEX_R).stroke({ width: 3, color: 0xffffff, alpha: 0.95 });
-  return bake(app, g);
-}
-function makeFrag(app: Application): Texture {
-  const g = new Graphics();
-  g.rect(-7, -3, 14, 6).fill({ color: 0xffffff, alpha: 0.95 });
-  g.rect(-7, -3, 14, 1.5).fill({ color: 0xffffff, alpha: 1 });
-  return bake(app, g);
-}
-/** A soft wedge: narrow at its base (the reward), widening and fading out to its tip. */
-function makeRay(app: Application): Texture {
-  const g = new Graphics();
-  const steps = 16;
-  for (let i = 0; i < steps; i++) {
-    const y0 = -(i / steps) * RAY_TEX_LEN;
-    const y1 = -((i + 1) / steps) * RAY_TEX_LEN;
-    const w0 = 2 + (i / steps) * 22;
-    const w1 = 2 + ((i + 1) / steps) * 22;
-    g.poly([-w0 / 2, y0, w0 / 2, y0, w1 / 2, y1, -w1 / 2, y1]).fill({ color: 0xffffff, alpha: 0.22 * (1 - i / steps) });
-  }
-  return bake(app, g);
 }
 
 let factory: () => CrateFx = () => new CrateFxPixi();

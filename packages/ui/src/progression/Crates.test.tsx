@@ -45,7 +45,7 @@ let fxCalls: string[] = [];
 function recorder(): CrateFx {
   const rec = (name: string) => (p?: CratePreset | number | object): void => { fxCalls.push(p && typeof p === 'object' && 'rarity' in p ? `${name}:${p.rarity}` : name); };
   return {
-    mount: async () => true, resize: () => {}, setSpeed: () => {}, setArt: () => {},
+    mount: async () => true, resize: () => {}, setSpeed: () => {}, setArt: () => {}, onPulse: () => {},
     reset: rec('reset'), anticipate: rec('anticipate'), charge: rec('charge'), burst: rec('burst'), reveal: rec('reveal'),
     settle: rec('settle'), skipToSettled: rec('skipToSettled'), windDown: rec('windDown'), destroy: rec('destroy'),
   };

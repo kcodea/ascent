@@ -1,54 +1,74 @@
 /**
- * THE CRATE SCENE: everything the crate opening DRAWS, as a plain Pixi scene graph with no renderer, so it runs
- * (and is tested) headless. `crateFxPixi.ts` owns the Application + ticker and feeds `update(dtMs)`; this file owns
- * the crate, the particles, the rings, the flash, the aura and the god rays.
+ * THE CRATE SCENE (2026-09-28, redone the same day after the owner's "looks like a 2/10"): everything the crate
+ * opening DRAWS, as a plain Pixi scene graph with no renderer, so it runs (and is tested) headless.
+ * `crateFxPixi.ts` owns the Application + ticker, paints the textures once (`crateTextures.ts`) and feeds
+ * `update(dtMs)`; this file owns the staging, the chest, the particles, the camera and every beat.
  *
- * Contract (the hero ceremony's, `HeroCeremonyPixi.ts`):
- *  - Geometry arrives only through `layout(w, h)` (event-driven), never read per frame.
- *  - Sprites are pooled; every live list is bounded (`MAX_PARTICLES`); the textures are built once per mount by
- *    the caller and passed in, and destroyed by the caller.
- *  - `update` returns whether anything is still moving, so the ticker can stop the moment the scene is idle.
- *  - `destroy()` empties every list, destroys every display object it created, and leaves the root empty.
- *  - Math.random is fine here (presentation only; the engine RNG ban covers core/content/sim).
+ * STAGING: a CAMERA container holds the whole set (pedestal + rune ring, floor glow, contact shadow, the chest, the
+ * burst). It pushes in slowly through the charge, snaps back past rest on the burst, and carries the screen shake
+ * (a decaying impulse). A full-screen white flash and a rarity-coloured punch sit outside it.
  *
- * THE CRATE is drawn procedurally (layered Graphics: wood, planks, gold bands, a lock plate with a gem) as two
- * parts, the body and the lid, so the lid can blow off. `setCrateArt(texture)` swaps both for one Sprite: that is
- * the drop-in for the owner's crate art (config key `crateArt`), which then shakes, charges and bursts whole.
+ * THE BEATS:
+ *  - anticipation: the chest breathes in PULSES (a squash kick, a flare of warm light from the seam and keyhole,
+ *    the floor glow answering), a rattling lid, a shake that escalates. `onPulse` fires per pulse so the theatre can
+ *    play a tick on the beat.
+ *  - charge: the rarity is known. The gem turns the rarity's colour with a flare, rarity light floods the seam and
+ *    then the CRACKS across the body, the pulses accelerate, energy streaks are pulled INTO the chest, the camera
+ *    pushes in, the rune ring and backdrop rays wake, the chest compresses. The last `hitchMs` run in slow motion
+ *    (the held breath before a big burst).
+ *  - burst: white-hot flash, then the rarity punch and a bloom; 2-3 shockwave rings at different speeds; a ray
+ *    burst; the lid flies with gravity and spin; wood and bronze shards; fast sparks and slow embers; the camera
+ *    snaps back with a heavy decaying shake. Legendary bursts TWICE and throws a gold coin shower.
+ *  - reveal / settle: an aura and rising motes behind the reward (the reward plate itself is DOM), then the
+ *    scene quiets and goes IDLE (the ticker stops; the DOM keeps the slow ray backdrop on transform only).
+ *
+ * Contract: geometry only via `layout(w, h)`; sprites pooled, every list bounded (`MAX_PARTICLES`); textures are
+ * the caller's (built once, destroyed by the caller); `update` returns whether anything still moves; `destroy()`
+ * leaves the root empty. Math.random is fine here (presentation only).
  */
-import { Container, Graphics, Sprite, type Texture } from 'pixi.js';
-import type { CratePreset } from './crateFxConfig';
+import { Container, Sprite, Texture } from 'pixi.js';
+import type { CratePreset, CrateRarity } from './crateFxConfig';
+import { CHEST } from './crateTextures';
 
 export interface CrateSceneTextures {
-  /** Small soft dot: motes, sparks, pulled particles. */
-  spark: Texture;
-  /** Large soft glow: the crate glow, the seam light, the flash, the aura. */
+  body: Texture;
+  lid: Texture;
+  seam: Texture;
+  cracks: Texture;
+  pedestal: Texture;
+  runeRing: Texture;
+  rays: Texture;
   glow: Texture;
-  /** A thin bright ring, natural radius `RING_TEX_R`. */
+  spark: Texture;
+  streak: Texture;
   ring: Texture;
-  /** A sliver: debris chips. */
-  frag: Texture;
-  /** A long soft wedge pointing up from its base: one god ray. */
-  ray: Texture;
+  coin: Texture;
+  shards: Texture[];
+  /** The gem before the rarity is known, and per rarity. */
+  gemSealed: Texture;
+  gems: Record<CrateRarity, Texture>;
+  /** Width in texture px the body/lid/seam/cracks were painted at (their sprites scale from it). */
+  chestTexW: number;
+  /** Padding painted around the body and lid, in texture px. */
+  chestPad: number;
 }
 
-export interface CrateAnticipation { antMs: number; antShake: number; antGlow: number }
+export interface CrateAnticipation { antMs: number; antShake: number; antGlow: number; pulseMs: number }
 
 export type ScenePhase = 'idle' | 'anticipation' | 'charge' | 'burst' | 'reveal' | 'settle' | 'settled' | 'winddown';
 
-export const RING_TEX_R = 60;
-/** Natural radius of the glow texture (the caller draws it at this size). */
-export const GLOW_TEX_R = 40;
-/** Natural length of the ray texture. */
-export const RAY_TEX_LEN = 128;
 /** Hard cap on live particles. */
-export const MAX_PARTICLES = 260;
-/** The neutral gold the crate glows before the rarity is known. */
-export const NEUTRAL_GLOW = 0xffd88a;
+export const MAX_PARTICLES = 320;
+/** The warm light the chest leaks before the rarity is known. */
+export const NEUTRAL_GLOW = 0xffe2a8;
 
 const clamp01 = (t: number): number => (Number.isFinite(t) ? Math.min(1, Math.max(0, t)) : 0);
 export const easeOutCubic = (t: number): number => 1 - Math.pow(1 - clamp01(t), 3);
 export const easeInQuad = (t: number): number => clamp01(t) * clamp01(t);
 export const easeInCubic = (t: number): number => Math.pow(clamp01(t), 3);
+export const easeInOutSine = (t: number): number => 0.5 - 0.5 * Math.cos(Math.PI * clamp01(t));
+/** Overshoot then settle (back-out). */
+export const easeOutBack = (t: number, k = 1.7): number => { const x = clamp01(t) - 1; return 1 + (k + 1) * x * x * x + k * x * x; };
 
 /** Linear blend of two 0xRRGGBB colours (pure, tested). */
 export function lerpColor(a: number, b: number, t: number): number {
@@ -61,87 +81,137 @@ export function lerpColor(a: number, b: number, t: number): number {
   return (ch(16) << 16) | (ch(8) << 8) | ch(0);
 }
 
-/** The crate's width for a stage of `w` × `h` (pure): a quarter of the short side, clamped, times the tuner's size. */
+/** The chest's width for a stage of `w` × `h` (pure): a third of the short side, clamped, times the tuner's size. */
 export function crateSizeFor(w: number, h: number, scale = 1): number {
   const short = Math.max(1, Math.min(w > 0 ? w : 600, h > 0 ? h : 400));
-  return Math.max(70, Math.min(280, short * 0.3)) * Math.max(0.5, Math.min(2, scale || 1));
+  return Math.max(120, Math.min(420, short * 0.34)) * Math.max(0.5, Math.min(2, scale || 1));
 }
 
 interface Particle {
   sprite: Sprite;
-  kind: 'mote' | 'pull' | 'spark' | 'debris' | 'rise';
+  kind: 'mote' | 'pull' | 'spark' | 'streak' | 'ember' | 'shard' | 'coin' | 'rise';
   x: number; y: number;
   vx: number; vy: number;
-  sx: number; sy: number; // pull: start point (it travels to the crate centre)
   drag: number;
   gravity: number;
   spin: number;
   life: number; maxLife: number;
   fromScale: number; toScale: number;
   peakAlpha: number;
+  seed: number;
 }
-interface Ring { sprite: Sprite; age: number; dur: number; fromR: number; toR: number; peak: number; delay: number }
-interface Flash { sprite: Sprite; age: number; dur: number; peak: number; fromScale: number; toScale: number }
+interface Ring { sprite: Sprite; age: number; dur: number; fromR: number; toR: number; peak: number; delay: number; thin: number }
+interface Flash { sprite: Sprite; age: number; dur: number; peak: number; fromScale: number; toScale: number; delay: number; attack: number }
+
+export interface CrateSceneOptions {
+  /** Fires on every anticipation/charge pulse (the theatre ticks a sound on the beat). `k` is 0..1 intensity. */
+  onPulse?: (k: number) => void;
+}
 
 export class CrateScene {
   readonly root: Container;
   private readonly tex: CrateSceneTextures;
-  private readonly back = new Container();   // rays + aura (behind the crate)
-  private readonly rays = new Container();
-  private readonly crate = new Container();  // the crate (shaken, squashed)
-  private readonly front = new Container();  // particles, rings, flash
-  private body: Container | null = null;
-  private lid: Container | null = null;
-  private gem: Graphics | null = null;
-  private art: Sprite | null = null;
-  private glow: Sprite;
-  private seam: Sprite;
+  private readonly opts: CrateSceneOptions;
+  private readonly cam = new Container();
+  private readonly set = new Container();   // pedestal, glow pool, shadow
+  private readonly crate = new Container(); // the chest (squash pivot at its base)
+  private readonly front = new Container(); // particles, rings, flashes
+  private readonly overlay = new Container(); // full-screen flash + punch (outside the camera)
+  private pedestal: Sprite;
+  private runeRing: Sprite;
+  private floorGlow: Sprite;
+  private shadow: Sprite;
+  private backRays: Sprite;
+  private burstRays: Sprite;
   private aura: Sprite;
+  private pillar: Sprite;
+  private body: Sprite;
+  private cracks: Sprite;
+  private seam: Sprite;
+  private lid: Sprite;
+  private gem: Sprite;
+  private gemGlow: Sprite;
+  private innerGlow: Sprite;
+  private art: Sprite | null = null;
+  private white: Sprite;
+  private punch: Sprite;
   private pool: Sprite[] = [];
   private particles: Particle[] = [];
   private rings: Ring[] = [];
   private flashes: Flash[] = [];
-  private raySprites: Sprite[] = [];
   private destroyed = false;
 
   private w = 0;
   private h = 0;
   private cx = 0;
   private cy = 0;
-  private size = 120;
+  private baseY = 0;
+  private size = 300;
   private scale = 1;
 
   private phase: ScenePhase = 'idle';
   private age = 0;
   private dur = 0;
-  private ant: CrateAnticipation = { antMs: 700, antShake: 1.4, antGlow: 0.5 };
+  private ant: CrateAnticipation = { antMs: 600, antShake: 1.6, antGlow: 0.5, pulseMs: 520 };
   private preset: CratePreset | null = null;
-  private spawnAcc = 0;
-  private pulled = 0;
   private color = NEUTRAL_GLOW;
-  // the lid in flight
+  private pulseAcc = 0;
+  private pulseEvery = 520;
+  private pullAcc = 0;
+  private pulled = 0;
+  private moteAcc = 0;
+  private kick = 0;          // squash impulse from a pulse (decays)
+  private seamKick = 0;      // light impulse from a pulse (decays)
+  private camShake = 0;      // screen shake amplitude (decays)
+  private camShakeHold = 0;  // sustained ground shake (charge)
+  private zoom = 1;
+  private zoomVel = 0;
+  private zoomTarget = 1;
   private lidV = { x: 0, y: 0, r: 0 };
   private lidFlying = false;
-  // values the phases blend between
-  private glowFrom = 0.25;
-  private glowTo = 0.25;
-  private auraFrom = 0;
-  private auraTo = 0;
+  private secondBurstIn = -1;
+  private timeScale = 1;
   private raysFrom = 0;
   private raysTo = 0;
-  private bodyAlpha = 1;
+  private auraFrom = 0;
+  private auraTo = 0;
 
-  constructor(root: Container, textures: CrateSceneTextures) {
+  constructor(root: Container, textures: CrateSceneTextures, opts: CrateSceneOptions = {}) {
     this.root = root;
     this.tex = textures;
-    this.rays.alpha = 0;
-    this.glow = this.makeSprite(textures.glow, 0.25);
-    this.seam = this.makeSprite(textures.glow, 0);
-    this.aura = this.makeSprite(textures.glow, 0);
-    this.back.addChild(this.aura, this.rays);
-    root.addChild(this.back, this.glow, this.crate, this.front);
-    this.crate.addChild(this.seam);
-    this.buildCrate();
+    this.opts = opts;
+    const add = (t: Texture, alpha: number, blend: 'add' | 'normal' = 'add', parent: Container = this.set): Sprite => {
+      const s = new Sprite(t);
+      s.anchor.set(0.5);
+      s.blendMode = blend;
+      s.alpha = alpha;
+      parent.addChild(s);
+      return s;
+    };
+    this.backRays = add(textures.rays, 0, 'add', this.cam);
+    this.aura = add(textures.glow, 0, 'add', this.cam);
+    this.pillar = add(textures.glow, 0, 'add', this.cam);
+    this.cam.addChild(this.set);
+    this.floorGlow = add(textures.glow, 0.25);
+    this.pedestal = add(textures.pedestal, 1, 'normal');
+    this.runeRing = add(textures.runeRing, 0.12);
+    this.shadow = add(textures.glow, 0.75, 'normal');
+    this.shadow.tint = 0x000000;
+    this.cam.addChild(this.crate);
+    this.innerGlow = add(textures.glow, 0, 'add', this.crate);
+    this.body = add(textures.body, 1, 'normal', this.crate);
+    this.cracks = add(textures.cracks, 0, 'add', this.crate);
+    this.lid = add(textures.lid, 1, 'normal', this.crate);
+    this.seam = add(textures.seam, 0, 'add', this.crate); // over the lid: the light spills out of the gap
+    this.gemGlow = add(textures.glow, 0, 'add', this.crate);
+    this.gem = add(textures.gemSealed, 1, 'normal', this.crate);
+    this.burstRays = add(textures.rays, 0, 'add', this.cam);
+    this.cam.addChild(this.front);
+    this.white = add(Texture.WHITE, 0, 'add', this.overlay);
+    this.punch = add(Texture.WHITE, 0, 'add', this.overlay);
+    root.addChild(this.cam, this.overlay);
+    this.layout(800, 500);
+    this.reset();
   }
 
   // ─── geometry ───────────────────────────────────────────────────────────────────────────────────────────
@@ -151,186 +221,249 @@ export class CrateScene {
     this.w = w;
     this.h = h;
     this.scale = crateScale;
-    // The crate sits at the theatre's centre, which is where the DOM reward plate is centred too.
+    this.size = crateSizeFor(w, h, crateScale);
     this.cx = w / 2;
     this.cy = h / 2;
-    const size = crateSizeFor(w, h, crateScale);
-    if (Math.abs(size - this.size) > 0.5) { this.size = size; this.buildCrate(); }
     this.place();
   }
 
-  /** The drop-in art: a texture replaces the drawn crate (null = back to the drawn crate). */
+  private place(): void {
+    const S = this.size;
+    const T = this.tex;
+    const k = S / Math.max(1, T.chestTexW);
+    const pad = T.chestPad;
+    const bodyH = T.chestTexW * CHEST.bodyH;
+    const lidH = T.chestTexW * CHEST.lidH;
+    this.baseY = this.cy + S * 0.36;
+    this.cam.pivot.set(this.cx, this.cy);
+    this.cam.position.set(this.cx, this.cy);
+    // the chest: pivot at its base centre so squash/stretch reads as weight
+    this.crate.pivot.set(this.cx, this.baseY);
+    this.crate.position.set(this.cx, this.baseY);
+    const bodyTop = this.baseY - bodyH * k;
+    for (const s of [this.body, this.cracks, this.seam]) {
+      s.anchor.set(0.5, (pad + bodyH) / (bodyH + pad * 2));
+      s.scale.set(k);
+      s.position.set(this.cx, this.baseY);
+    }
+    if (!this.lidFlying) {
+      this.lid.anchor.set(0.5, (pad + lidH) / (lidH + pad * 2));
+      this.lid.scale.set(k);
+      this.lid.position.set(this.cx, bodyTop + S * 0.004);
+      this.lid.rotation = 0;
+    }
+    const gemY = bodyTop + bodyH * k * 0.58 * 0.42;
+    const gemD = S * 0.1;
+    this.gem.position.set(this.cx, gemY);
+    this.gem.scale.set(gemD / Math.max(1, this.gem.texture.width));
+    this.gemGlow.position.set(this.cx, gemY);
+    this.gemGlow.scale.set((S * 0.5) / Math.max(1, T.glow.width));
+    this.innerGlow.position.set(this.cx, bodyTop);
+    this.innerGlow.scale.set((S * 1.5) / Math.max(1, T.glow.width), (S * 0.9) / Math.max(1, T.glow.width));
+    // the set
+    const pw = S * 1.55;
+    const pk = pw / Math.max(1, T.pedestal.width);
+    const faceY = (T.pedestal.width * 0.16) / 2;
+    this.pedestal.anchor.set(0.5, faceY / Math.max(1, T.pedestal.height));
+    this.pedestal.scale.set(pk);
+    this.pedestal.position.set(this.cx, this.baseY + S * 0.02);
+    this.runeRing.scale.set(pk);
+    this.runeRing.position.set(this.cx, this.baseY + S * 0.02);
+    this.floorGlow.position.set(this.cx, this.baseY + S * 0.02);
+    this.floorGlow.scale.set((S * 2.6) / Math.max(1, T.glow.width), (S * 0.6) / Math.max(1, T.glow.width));
+    this.shadow.position.set(this.cx, this.baseY + S * 0.01);
+    this.shadow.scale.set((S * 1.25) / Math.max(1, T.glow.width), (S * 0.2) / Math.max(1, T.glow.width));
+    const diag = Math.hypot(this.w, this.h) * 1.1;
+    for (const r of [this.backRays, this.burstRays]) { r.position.set(this.cx, this.cy - S * 0.08); r.scale.set(diag / Math.max(1, T.rays.width)); }
+    this.aura.position.set(this.cx, this.cy - S * 0.05);
+    // the light pillar: a tall column rising from the pedestal (the reward comes up out of it)
+    this.pillar.position.set(this.cx, this.baseY - S * 0.6);
+    this.pillar.scale.set((S * 0.9) / Math.max(1, T.glow.width), (S * 3.2) / Math.max(1, T.glow.width));
+    this.aura.scale.set((S * 3.2) / Math.max(1, T.glow.width));
+    for (const s of [this.white, this.punch]) { s.anchor.set(0); s.position.set(0, 0); s.width = this.w; s.height = this.h; }
+    if (this.art) this.fitArt(this.art);
+  }
+
+  /** The drop-in art: a texture replaces the painted chest (null = back to the painted chest). */
   setCrateArt(texture: Texture | null): void {
     if (this.destroyed) return;
     if (this.art) { this.crate.removeChild(this.art); this.art.destroy(); this.art = null; }
     if (texture) {
       const s = new Sprite(texture);
-      s.anchor.set(0.5, 0.62);
-      const k = (this.size * 1.1) / Math.max(1, texture.width);
-      s.scale.set(k);
+      s.anchor.set(0.5, 1);
       this.art = s;
       this.crate.addChild(s);
+      this.fitArt(s);
     }
-    if (this.body) this.body.visible = !texture;
-    if (this.lid) this.lid.visible = !texture;
+    for (const part of [this.body, this.lid, this.cracks, this.seam, this.gem, this.gemGlow]) part.visible = !texture;
+  }
+
+  private fitArt(s: Sprite): void {
+    s.scale.set((this.size * 1.05) / Math.max(1, s.texture.width));
+    s.position.set(this.cx, this.baseY);
   }
 
   get center(): { x: number; y: number } { return { x: this.cx, y: this.cy }; }
   get crateSize(): number { return this.size; }
   get currentPhase(): ScenePhase { return this.phase; }
-
-  private place(): void {
-    this.crate.position.set(this.cx, this.cy);
-    this.glow.position.set(this.cx, this.cy - this.size * 0.05);
-    this.glow.scale.set((this.size * 1.6) / GLOW_TEX_R / 2);
-    this.aura.position.set(this.cx, this.cy);
-    this.aura.scale.set((this.size * 2.4) / GLOW_TEX_R / 2);
-    this.rays.position.set(this.cx, this.cy);
-    for (const r of this.raySprites) r.scale.set(1.2, (Math.max(this.w, this.h) * 0.55) / RAY_TEX_LEN);
-    this.seam.position.set(0, -this.size * 0.31);
-    this.seam.scale.set((this.size * 0.62) / GLOW_TEX_R, (this.size * 0.07) / GLOW_TEX_R);
-  }
-
-  /** The procedural crate: a body and a lid, in crate-local px (origin = the crate's centre). */
-  private buildCrate(): void {
-    const S = this.size;
-    const hadArt = !!this.art;
-    for (const part of [this.body, this.lid]) { if (part) { this.crate.removeChild(part); part.destroy({ children: true }); } }
-    const bw = S;
-    const bh = S * 0.62;
-    const x = -bw / 2;
-    const y = -S * 0.31; // the seam; the body hangs below it
-    const body = new Container();
-    const g = new Graphics();
-    g.ellipse(0, y + bh + S * 0.06, bw * 0.58, S * 0.08).fill({ color: 0x000000, alpha: 0.4 });
-    g.roundRect(x, y, bw, bh, S * 0.06).fill(0x4a2a10).stroke({ width: Math.max(1.5, S * 0.022), color: 0x21110a });
-    g.roundRect(x + S * 0.03, y + S * 0.03, bw - S * 0.06, bh * 0.5, S * 0.04).fill({ color: 0x8a5628, alpha: 0.9 });
-    g.roundRect(x + S * 0.03, y + bh * 0.52, bw - S * 0.06, bh * 0.42, S * 0.04).fill({ color: 0x6b3e18, alpha: 0.9 });
-    for (let i = 1; i <= 2; i++) g.rect(x + S * 0.04, y + (bh * i) / 3, bw - S * 0.08, Math.max(1, S * 0.012)).fill({ color: 0x21110a, alpha: 0.55 });
-    const band = S * 0.1;
-    for (const bx of [x + bw * 0.14, x + bw * 0.86 - band]) {
-      g.rect(bx, y, band, bh).fill(0xb8893e);
-      g.rect(bx, y, band * 0.3, bh).fill({ color: 0xf6dc98, alpha: 0.75 });
-      g.rect(bx + band * 0.82, y, band * 0.18, bh).fill({ color: 0x6e4d1c, alpha: 0.8 });
-      for (const ry of [y + S * 0.07, y + bh - S * 0.07]) g.circle(bx + band / 2, ry, S * 0.018).fill(0xfff0c0);
-    }
-    g.roundRect(-S * 0.1, y + S * 0.02, S * 0.2, S * 0.22, S * 0.03).fill(0xd8ad5e).stroke({ width: Math.max(1, S * 0.012), color: 0x6e4d1c });
-    g.roundRect(-S * 0.075, y + S * 0.035, S * 0.15, S * 0.06, S * 0.02).fill({ color: 0xfff0c0, alpha: 0.55 });
-    body.addChild(g);
-    const gem = new Graphics();
-    gem.circle(0, 0, S * 0.045).fill(0xffffff);
-    gem.circle(-S * 0.014, -S * 0.014, S * 0.014).fill({ color: 0xffffff, alpha: 0.9 });
-    gem.position.set(0, y + S * 0.14);
-    gem.tint = NEUTRAL_GLOW;
-    body.addChild(gem);
-
-    const lid = new Container();
-    const lg = new Graphics();
-    const lw = bw * 1.06;
-    const lh = S * 0.3;
-    lg.roundRect(-lw / 2, -lh, lw, lh, S * 0.07).fill(0x5a3314).stroke({ width: Math.max(1.5, S * 0.022), color: 0x21110a });
-    lg.roundRect(-lw / 2 + S * 0.03, -lh + S * 0.025, lw - S * 0.06, lh * 0.45, S * 0.05).fill({ color: 0xa26a34, alpha: 0.95 });
-    for (const bx of [-lw / 2 + lw * 0.15, lw / 2 - lw * 0.15 - band]) {
-      lg.rect(bx, -lh, band, lh).fill(0xb8893e);
-      lg.rect(bx, -lh, band * 0.3, lh).fill({ color: 0xf6dc98, alpha: 0.75 });
-    }
-    lg.rect(-lw / 2, -S * 0.02, lw, S * 0.02).fill({ color: 0x21110a, alpha: 0.6 });
-    lid.addChild(lg);
-    lid.position.set(0, y);
-
-    this.body = body;
-    this.lid = lid;
-    this.gem = gem;
-    this.crate.addChildAt(body, 0);
-    this.crate.addChild(lid);
-    this.crate.setChildIndex(this.seam, this.crate.children.length - 1);
-    body.visible = !hadArt;
-    lid.visible = !hadArt;
-    if (this.art) this.crate.setChildIndex(this.art, this.crate.children.length - 1);
-  }
+  get cameraZoom(): number { return this.zoom; }
 
   // ─── beats ──────────────────────────────────────────────────────────────────────────────────────────────
 
-  /** Back to a sealed crate at rest (a fresh crate, or after Try again). */
+  /** Back to a sealed chest at rest (a fresh crate, or after Try again). */
   reset(): void {
     this.clearFx();
     this.setPhase('idle', 0);
     this.color = NEUTRAL_GLOW;
     this.preset = null;
     this.lidFlying = false;
-    if (this.lid) { this.lid.position.set(0, -this.size * 0.31); this.lid.rotation = 0; this.lid.alpha = 1; }
-    this.bodyAlpha = 1;
+    this.secondBurstIn = -1;
+    this.timeScale = 1;
+    this.kick = this.seamKick = this.camShake = this.camShakeHold = 0;
+    this.zoom = this.zoomTarget = 1;
+    this.zoomVel = 0;
     this.crate.alpha = 1;
     this.crate.scale.set(1);
     this.crate.rotation = 0;
-    if (this.art) { this.art.alpha = 1; this.art.scale.set((this.size * 1.1) / Math.max(1, this.art.texture.width)); }
-    this.glow.alpha = 0.25;
-    this.glow.tint = NEUTRAL_GLOW;
+    this.body.alpha = 1;
+    this.lid.alpha = 1;
+    this.gem.alpha = 1;
+    this.gem.texture = this.tex.gemSealed;
+    this.gem.tint = 0xffffff;
+    this.cracks.alpha = 0;
     this.seam.alpha = 0;
+    this.gemGlow.alpha = 0;
+    this.innerGlow.alpha = 0;
+    this.backRays.alpha = 0;
+    this.burstRays.alpha = 0;
     this.aura.alpha = 0;
-    this.rays.alpha = 0;
-    if (this.gem) this.gem.tint = NEUTRAL_GLOW;
+    this.pillar.alpha = 0;
+    this.white.alpha = 0;
+    this.punch.alpha = 0;
+    this.runeRing.alpha = 0.12;
+    this.runeRing.tint = NEUTRAL_GLOW;
+    this.floorGlow.alpha = 0.22;
+    this.floorGlow.tint = 0x6a86c8;
+    this.shadow.alpha = 0.75;
+    this.pedestal.alpha = 1;
+    if (this.art) this.art.alpha = 1;
+    for (const s of [this.seam, this.cracks, this.gemGlow, this.innerGlow]) s.tint = NEUTRAL_GLOW;
     this.place();
   }
 
   anticipate(a: CrateAnticipation): void {
     this.ant = a;
-    this.glowFrom = this.glow.alpha;
-    this.glowTo = a.antGlow;
+    this.pulseEvery = Math.max(120, a.pulseMs);
+    this.pulseAcc = this.pulseEvery * 0.6; // the first pulse lands quickly after the click
     this.setPhase('anticipation', Math.max(1, a.antMs));
   }
 
   charge(p: CratePreset): void {
     this.preset = p;
     this.pulled = 0;
-    this.spawnAcc = 0;
-    this.glowFrom = this.glow.alpha;
-    this.glowTo = Math.min(1, this.ant.antGlow + 0.35);
-    this.buildRays(p.rays);
-    this.raysFrom = 0;
-    this.raysTo = p.rays > 0 ? 0.3 : 0;
+    this.pullAcc = 0;
+    this.timeScale = 1;
+    this.gem.texture = this.tex.gems[p.rarity];
+    this.place(); // the gem texture may differ in size
+    // the gem ignites: a flare at the gem, the first rarity pulse
+    this.spawnFlash(this.gem.position.x, this.gem.position.y, p.color, 0.9, 0.05, 0.9, 380, 0, 0.15);
+    this.seamKick = 1;
+    this.kick = 1;
+    this.opts.onPulse?.(0.6);
+    this.zoomTarget = 1 + p.push;
     this.setPhase('charge', Math.max(1, p.chargeMs));
   }
 
   burst(p: CratePreset): void {
     this.preset = p;
     this.color = p.color;
+    this.timeScale = 1;
     this.setPhase('burst', Math.max(1, p.burstMs));
+    this.detonate(p, 1);
+    // the light stays up from the hit on, so there is no dark beat between the burst and the plate
+    this.aura.tint = p.color;
+    this.aura.alpha = 0.9;
+    this.pillar.tint = p.color;
+    this.pillar.alpha = 1;
+    if (p.doubleBurst) this.secondBurstIn = Math.min(320, p.burstMs * 0.3);
+    // the camera snaps back past rest, then settles (a spring from here)
+    this.zoomTarget = 1;
+    this.zoom = 1 + p.push * 0.35;
+    this.zoomVel = -p.push * 14;
+  }
+
+  private detonate(p: CratePreset, weight: number): void {
     const S = this.size;
-    const cy = this.cy - S * 0.3;
-    // the flash: a broad bloom plus a hot white core
-    this.spawnFlash(this.cx, cy, p.color, p.flash, S / GLOW_TEX_R * 0.6, S / GLOW_TEX_R * 3.2, p.burstMs * 0.7);
-    this.spawnFlash(this.cx, cy, 0xffffff, p.flash * 0.9, S / GLOW_TEX_R * 0.3, S / GLOW_TEX_R * 1.4, p.burstMs * 0.35);
-    // shockwave rings, staggered
-    for (let i = 0; i < p.rings; i++) this.spawnRing(this.cx, cy, S * 0.3, S * (2.2 + i * 0.8), p.burstMs * (0.8 + i * 0.15), i === 0 ? 0xffffff : p.color, 0.9 - i * 0.18, i * 90);
-    // sparks, radial
-    for (let i = 0; i < p.burstSparks; i++) {
-      const a = (i / Math.max(1, p.burstSparks)) * Math.PI * 2 + (Math.random() - 0.5) * 0.4;
-      const sp = S * (3 + Math.random() * 5);
-      this.spawn('spark', this.tex.spark, this.cx, cy, i % 3 === 0 ? 0xffffff : p.color, {
-        vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - S * 1.2, drag: 0.08, gravity: S * 3,
-        life: p.burstMs * (0.7 + Math.random() * 0.6), fromScale: 0.8 + Math.random() * 0.7, toScale: 0.1, peakAlpha: 1,
+    const bx = this.cx;
+    const by = this.baseY - S * CHEST.bodyH * 0.9;
+    // white-hot flash (screen), then the rarity punch and a bloom
+    this.white.alpha = Math.min(0.85, p.flash * 0.8 * weight);
+    this.punch.tint = p.color;
+    this.punch.alpha = 0;
+    this.spawnFlash(bx, by, p.color, 0.3 * weight, 0, 0, 320, 50, 0.12, this.punch);
+    this.spawnFlash(bx, by, 0xffffff, 1 * weight, (S * 0.3) / this.tex.glow.width, (S * 2.4) / this.tex.glow.width, 260, 0, 0.1);
+    this.spawnFlash(bx, by, p.color, 0.95 * weight, (S * 0.8) / this.tex.glow.width, (S * 5.5) / this.tex.glow.width, p.burstMs * 0.8, 30, 0.12);
+    // shockwave rings: the first white and fast, then rarity-coloured, slower and wider
+    const n = weight < 1 ? 1 : p.rings;
+    for (let i = 0; i < n; i++) {
+      this.spawnRing(bx, by, S * (0.2 + i * 0.1), S * (1.9 + i * 1.3) * (weight < 1 ? 0.8 : 1), p.burstMs * (0.42 + i * 0.3), i === 0 ? 0xffffff : p.color, 0.95 - i * 0.15, i * 70);
+    }
+    // the ray burst
+    this.burstRays.tint = p.color;
+    this.burstRays.alpha = 0.9 * weight;
+    this.burstRays.rotation = Math.random() * Math.PI;
+    this.burstRays.scale.set((S * 0.8) / this.tex.rays.width);
+    // sparks: fast radial streaks, a hot white core
+    const sparks = Math.round(p.burstSparks * weight);
+    for (let i = 0; i < sparks; i++) {
+      const a = (i / Math.max(1, sparks)) * Math.PI * 2 + (Math.random() - 0.5) * 0.5;
+      const sp = S * (4 + Math.random() * 7);
+      const streak = i % 2 === 0;
+      this.spawn(streak ? 'streak' : 'spark', streak ? this.tex.streak : this.tex.spark, bx, by, i % 4 === 0 ? 0xffffff : p.color, {
+        vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - S * 1.5, drag: 0.03, gravity: S * 5,
+        life: 420 + Math.random() * 420, fromScale: streak ? 0.55 + Math.random() * 0.4 : 0.35 + Math.random() * 0.35, toScale: 0.05, peakAlpha: 1,
       });
     }
-    // debris: wood + gold chips, heavier, spinning
-    for (let i = 0; i < p.debris; i++) {
-      const a = -Math.PI / 2 + (Math.random() - 0.5) * Math.PI * 1.3;
-      const sp = S * (2.5 + Math.random() * 3.5);
-      this.spawn('debris', this.tex.frag, this.cx + (Math.random() - 0.5) * S * 0.6, cy, i % 2 ? 0x8a5628 : 0xd8ad5e, {
-        vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, drag: 0.4, gravity: S * 9, spin: (Math.random() - 0.5) * 16,
-        life: p.burstMs * (1 + Math.random() * 0.6), fromScale: 0.6 + Math.random() * 0.8, toScale: 0.5, peakAlpha: 1,
+    if (weight < 1) { this.shake(p.screenShake * 0.6); this.spawnCoins(p); return; }
+    // embers: slow, drifting, falling, flickering
+    for (let i = 0; i < p.embers; i++) {
+      const a = -Math.PI / 2 + (Math.random() - 0.5) * Math.PI * 1.6;
+      const sp = S * (0.8 + Math.random() * 2.2);
+      this.spawn('ember', this.tex.spark, bx + (Math.random() - 0.5) * S * 0.5, by, Math.random() < 0.3 ? 0xffffff : p.color, {
+        vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, drag: 0.25, gravity: S * 0.5,
+        life: 1400 + Math.random() * 1400, fromScale: 0.22 + Math.random() * 0.2, toScale: 0.06, peakAlpha: 0.95,
       });
     }
-    // the lid blows off (the art crate pops instead)
-    if (this.lid && this.lid.visible) {
+    // the chest comes apart: the body pops and fades, shards fly
+    if (!this.art) {
+      for (let i = 0; i < p.debris; i++) {
+        const a = -Math.PI / 2 + (Math.random() - 0.5) * Math.PI * 1.4;
+        const sp = S * (2.5 + Math.random() * 4.5);
+        const tex = this.tex.shards[i % Math.max(1, this.tex.shards.length)] ?? this.tex.spark;
+        this.spawn('shard', tex, bx + (Math.random() - 0.5) * S * 0.8, by + Math.random() * S * 0.3, 0xffffff, {
+          vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, drag: 0.5, gravity: S * 11, spin: (Math.random() - 0.5) * 22,
+          life: 900 + Math.random() * 600, fromScale: (S * (0.09 + Math.random() * 0.1)) / Math.max(1, tex.width), toScale: (S * 0.08) / Math.max(1, tex.width), peakAlpha: 1,
+        }, 'normal');
+      }
+      // the lid blows off
       this.lidFlying = true;
-      this.lidV = { x: S * (1 + Math.random()) * (Math.random() < 0.5 ? -1 : 1), y: -S * 7, r: (Math.random() < 0.5 ? -1 : 1) * (4 + Math.random() * 3) };
+      this.lidV = { x: S * (1.2 + Math.random() * 1.2) * (Math.random() < 0.5 ? -1 : 1), y: -S * 6.5, r: (Math.random() < 0.5 ? -1 : 1) * (5 + Math.random() * 4) };
     }
-    this.crate.scale.set(1.08, 0.94);
-    this.seam.alpha = 0;
-    this.glow.alpha = 1;
-    this.glow.tint = p.color;
-    if (this.gem) this.gem.tint = p.color;
+    this.crate.scale.set(1.12, 0.9);
+    this.shake(p.screenShake);
+    if (!p.doubleBurst) this.spawnCoins(p);
+  }
+
+  private spawnCoins(p: CratePreset): void {
+    const S = this.size;
+    for (let i = 0; i < p.coins; i++) {
+      const a = -Math.PI / 2 + (Math.random() - 0.5) * 1.5;
+      const sp = S * (5 + Math.random() * 5);
+      this.spawn('coin', this.tex.coin, this.cx + (Math.random() - 0.5) * S * 0.4, this.baseY - S * 0.4, 0xffffff, {
+        vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, drag: 0.35, gravity: S * 12, spin: 6 + Math.random() * 10,
+        life: 1500 + Math.random() * 700, fromScale: (S * (0.11 + Math.random() * 0.05)) / Math.max(1, this.tex.coin.width), toScale: (S * 0.1) / Math.max(1, this.tex.coin.width), peakAlpha: 1,
+      }, 'normal');
+    }
   }
 
   reveal(p: CratePreset): void {
@@ -338,22 +471,21 @@ export class CrateScene {
     this.color = p.color;
     this.aura.tint = p.color;
     this.auraFrom = this.aura.alpha;
-    this.auraTo = 0.85;
-    if (this.raySprites.length !== p.rays) this.buildRays(p.rays);
-    this.raysFrom = this.rays.alpha;
-    this.raysTo = p.rays > 0 ? 0.55 : 0;
-    for (const r of this.raySprites) r.tint = p.color;
-    this.spawnAcc = 0;
-    this.setPhase('reveal', Math.max(1, p.burstMs * 0.6 + p.revealHoldMs));
+    this.auraTo = 0.75;
+    this.raysFrom = this.backRays.alpha;
+    this.raysTo = 0; // the DOM ray backdrop takes over (it keeps turning after the ticker stops)
+    this.backRays.tint = p.color;
+    this.runeRing.tint = p.color;
+    this.floorGlow.tint = p.color;
+    this.moteAcc = 0;
+    this.setPhase('reveal', Math.max(1, p.burstMs * 0.7 + p.revealHoldMs));
   }
 
   settle(ms: number): void {
     this.auraFrom = this.aura.alpha;
     this.auraTo = 0.35;
-    this.raysFrom = this.rays.alpha;
+    this.raysFrom = this.backRays.alpha;
     this.raysTo = 0;
-    this.glowFrom = this.glow.alpha;
-    this.glowTo = 0;
     this.setPhase('settle', Math.max(1, ms));
   }
 
@@ -363,24 +495,33 @@ export class CrateScene {
     this.preset = p;
     this.color = p.color;
     this.lidFlying = false;
-    if (this.lid) this.lid.alpha = 0;
-    this.bodyAlpha = 0;
+    this.secondBurstIn = -1;
+    this.timeScale = 1;
+    this.kick = this.seamKick = this.camShake = this.camShakeHold = 0;
+    this.zoom = this.zoomTarget = 1;
+    this.zoomVel = 0;
     this.crate.alpha = 0;
     this.crate.scale.set(1);
     this.crate.rotation = 0;
-    this.crate.position.set(this.cx, this.cy);
-    this.glow.alpha = 0;
-    this.seam.alpha = 0;
+    this.white.alpha = 0;
+    this.punch.alpha = 0;
+    this.burstRays.alpha = 0;
+    this.backRays.alpha = 0;
     this.aura.tint = p.color;
     this.aura.alpha = 0.35;
-    this.rays.alpha = 0;
+    this.pillar.alpha = 0;
+    this.runeRing.tint = p.color;
+    this.runeRing.alpha = 0.5;
+    this.floorGlow.tint = p.color;
+    this.floorGlow.alpha = 0.35;
+    this.shadow.alpha = 0;
+    this.applyCamera(0);
     this.setPhase('settled', 0);
   }
 
-  /** A failed or empty answer: the glow and shake die down to a sealed crate at rest. */
+  /** A failed or empty answer: the light and shake die down to a sealed chest at rest. */
   windDown(ms: number): void {
-    this.glowFrom = this.glow.alpha;
-    this.glowTo = 0.25;
+    this.zoomTarget = 1;
     this.setPhase('winddown', Math.max(1, ms));
   }
 
@@ -390,84 +531,117 @@ export class CrateScene {
     this.dur = dur;
   }
 
+  private shake(amp: number): void { this.camShake = Math.max(this.camShake, amp); }
+
   // ─── the frame ──────────────────────────────────────────────────────────────────────────────────────────
 
   /** Whether anything is still moving (the ticker stops when this is false). */
   hasWork(): boolean {
     if (this.destroyed) return false;
     return this.particles.length > 0 || this.rings.length > 0 || this.flashes.length > 0 || this.lidFlying
+      || this.camShake > 0.05 || Math.abs(this.zoom - this.zoomTarget) > 0.0005 || Math.abs(this.zoomVel) > 0.001
+      || this.white.alpha > 0.01 || this.burstRays.alpha > 0.01 || this.secondBurstIn >= 0
       || (this.phase !== 'idle' && this.phase !== 'settled');
   }
 
   /** Advance by `dtMs` of (speed-scaled) time. Returns `hasWork()`. */
   update(dtMs: number): boolean {
     if (this.destroyed) return false;
-    const dt = Math.min(Math.max(0, dtMs), 64);
-    const sec = dt / 1000;
-    this.age += dt;
+    const real = Math.min(Math.max(0, dtMs), 64);
+    this.age += real;
     const t = this.dur > 0 ? clamp01(this.age / this.dur) : 1;
-    const S = this.size;
     const p = this.preset;
-    let shake = 0;
+    const S = this.size;
+    // the Legendary hitch: the last `hitchMs` of the charge run in slow motion
+    if (this.phase === 'charge' && p && p.hitchMs > 0 && this.age > this.dur - p.hitchMs) this.timeScale = p.hitchScale;
+    const dt = real * this.timeScale;
+    const sec = dt / 1000;
+    let crateShake = 0;
+    let seamBase = 0;
+    let cracksTo = this.cracks.alpha;
 
     switch (this.phase) {
       case 'anticipation': {
-        shake = this.ant.antShake * easeInQuad(t) + (t >= 1 ? this.ant.antShake * 0.25 * Math.sin(this.age * 0.009) : 0);
-        this.glow.alpha = this.glowFrom + (this.glowTo - this.glowFrom) * easeOutCubic(t) + 0.05 * Math.sin(this.age * 0.012);
-        this.spawnAcc += dt;
-        if (this.spawnAcc >= 110) { this.spawnAcc -= 110; this.spawnMote(NEUTRAL_GLOW); }
+        crateShake = this.ant.antShake * (0.35 + 0.65 * easeInQuad(t));
+        seamBase = this.ant.antGlow * (0.45 + 0.35 * easeOutCubic(t));
+        this.runeRing.alpha = 0.12 + 0.18 * t;
+        this.gemGlow.alpha = 0.2 + 0.2 * t + this.seamKick * 0.5;
+        this.pulse(dt, 0.35 + 0.35 * t);
+        this.moteAcc += dt;
+        if (this.moteAcc >= 140) { this.moteAcc -= 140; this.spawnMote(NEUTRAL_GLOW); }
         break;
       }
       case 'charge': {
         if (!p) break;
-        this.color = lerpColor(NEUTRAL_GLOW, p.color, easeOutCubic(t));
-        this.glow.tint = this.color;
-        if (this.gem) this.gem.tint = this.color;
-        this.seam.tint = this.color;
-        shake = this.ant.antShake + (p.shake - this.ant.antShake) * easeInQuad(t);
-        this.glow.alpha = this.glowFrom + (this.glowTo - this.glowFrom) * t;
-        this.glow.scale.set(((S * 1.6) / GLOW_TEX_R / 2) * (1 + 0.35 * t));
-        this.seam.alpha = easeInQuad(t);
-        this.crate.scale.set(1 + 0.03 * easeInQuad(t), 1 - 0.05 * easeInQuad(t));
-        this.rays.alpha = this.raysFrom + (this.raysTo - this.raysFrom) * t;
-        this.rays.rotation += 0.25 * sec;
-        // pulled particles, spread over the first 80% of the charge
-        const want = Math.min(p.chargeParticles, Math.floor(p.chargeParticles * Math.min(1, t / 0.8)));
+        const ct = clamp01(this.age / Math.max(1, this.dur - p.hitchMs));
+        this.color = lerpColor(NEUTRAL_GLOW, p.color, easeOutCubic(Math.min(1, ct / 0.3)));
+        for (const s of [this.seam, this.cracks, this.gemGlow, this.innerGlow, this.runeRing, this.floorGlow]) s.tint = this.color;
+        this.backRays.tint = this.color;
+        crateShake = this.ant.antShake + (p.shake - this.ant.antShake) * easeInQuad(ct);
+        this.camShakeHold = p.screenShake * 0.22 * easeInCubic(ct);
+        seamBase = 0.45 + 0.55 * easeInQuad(ct);
+        cracksTo = easeInQuad(Math.max(0, (ct - 0.15) / 0.85));
+        this.gemGlow.alpha = 0.5 + 0.5 * ct;
+        this.innerGlow.alpha = 0.25 * easeInQuad(ct);
+        this.runeRing.alpha = 0.3 + 0.6 * ct;
+        this.floorGlow.alpha = 0.25 + 0.5 * ct;
+        this.backRays.alpha = p.rays * 0.16 * easeInQuad(ct);
+        this.backRays.rotation += 0.2 * sec;
+        // the pulses accelerate toward the burst
+        this.pulseEvery = this.ant.pulseMs + (p.pulseEndMs - this.ant.pulseMs) * easeInQuad(ct);
+        this.pulse(dt, 0.6 + 0.4 * ct);
+        // compress, lid rattling harder
+        this.crate.scale.set(1 + 0.04 * easeInQuad(ct), 1 - 0.06 * easeInQuad(ct));
+        // energy pulled in: spread over the first 85%
+        this.pullAcc += dt;
+        const want = Math.min(p.chargeParticles, Math.ceil(p.chargeParticles * Math.min(1, ct / 0.85)));
         while (this.pulled < want) { this.pulled++; this.spawnPull(p); }
-        // At t = 1 the charge simply holds at its peak until the director calls the burst.
         break;
       }
       case 'burst': {
-        this.crate.scale.set(1 + (this.crate.scale.x - 1) * Math.pow(0.001, sec), 1 + (this.crate.scale.y - 1) * Math.pow(0.001, sec));
-        this.glow.alpha = Math.max(0, 1 - easeOutCubic(t) * 0.6);
-        this.rays.rotation += 0.2 * sec;
+        this.backRays.alpha = Math.max(0, this.backRays.alpha - sec * 1.5);
+        this.body.alpha = Math.max(0, this.body.alpha - sec * 7);
+        this.cracks.alpha = this.body.alpha;
+        this.seam.alpha = this.body.alpha;
+        this.gem.alpha = this.body.alpha;
+        this.gemGlow.alpha = this.body.alpha;
+        this.innerGlow.alpha = this.body.alpha * 0.5;
+        this.shadow.alpha = 0.75 * this.body.alpha;
+        if (this.art) this.art.alpha = this.body.alpha;
+        this.runeRing.alpha = 0.9;
+        this.floorGlow.alpha = Math.max(0.35, this.floorGlow.alpha - sec);
         break;
       }
       case 'reveal': {
-        const rt = clamp01(this.age / 420);
+        const rt = clamp01(this.age / 500);
         this.aura.alpha = this.auraFrom + (this.auraTo - this.auraFrom) * easeOutCubic(rt);
-        this.aura.scale.set(((S * 2.4) / GLOW_TEX_R / 2) * (0.85 + 0.15 * easeOutCubic(rt)));
-        this.rays.alpha = this.raysFrom + (this.raysTo - this.raysFrom) * easeOutCubic(rt);
-        this.rays.rotation += 0.15 * sec;
-        this.glow.alpha = Math.max(0, this.glow.alpha - sec * 1.5);
-        this.bodyAlpha = Math.max(0, 1 - this.age / 450);
-        this.crate.alpha = this.bodyAlpha;
-        this.crate.position.y = this.cy + S * 0.12 * easeOutCubic(1 - this.bodyAlpha);
-        this.spawnAcc += dt;
-        if (this.spawnAcc >= 90) { this.spawnAcc -= 90; this.spawnRise(this.color); }
+        this.aura.scale.set((S * 3.2 / Math.max(1, this.tex.glow.width)) * (0.8 + 0.2 * easeOutBack(rt)));
+        this.backRays.alpha = this.raysFrom + (this.raysTo - this.raysFrom) * easeOutCubic(rt);
+        this.backRays.rotation += 0.12 * sec;
+        this.crate.alpha = Math.max(0, this.crate.alpha - sec * 4);
+        this.runeRing.alpha = 0.9 - 0.35 * rt;
+        this.pillar.alpha = Math.max(0, 1 - easeOutCubic(clamp01(this.age / 900)));
+        this.pillar.scale.x = ((S * 0.9) / Math.max(1, this.tex.glow.width)) * (1 - 0.5 * easeOutCubic(clamp01(this.age / 900)));
+        this.moteAcc += dt;
+        if (this.moteAcc >= 70) { this.moteAcc -= 70; this.spawnRise(this.color); }
         break;
       }
       case 'settle': {
         this.aura.alpha = this.auraFrom + (this.auraTo - this.auraFrom) * easeOutCubic(t);
-        this.rays.alpha = this.raysFrom + (this.raysTo - this.raysFrom) * easeOutCubic(t);
-        this.rays.rotation += 0.1 * sec;
-        this.glow.alpha = this.glowFrom * (1 - t);
+        this.backRays.alpha = this.raysFrom + (this.raysTo - this.raysFrom) * easeOutCubic(t);
+        this.backRays.rotation += 0.1 * sec;
+        this.runeRing.alpha = 0.55 - 0.1 * t;
         if (t >= 1) this.setPhase('settled', 0);
         break;
       }
       case 'winddown': {
-        this.glow.alpha = this.glowFrom + (this.glowTo - this.glowFrom) * easeOutCubic(t);
-        this.seam.alpha = Math.max(0, this.seam.alpha - sec * 3);
+        seamBase = Math.max(0, this.seam.alpha - sec * 3);
+        cracksTo = Math.max(0, this.cracks.alpha - sec * 3);
+        this.gemGlow.alpha = Math.max(0, this.gemGlow.alpha - sec * 3);
+        this.innerGlow.alpha = Math.max(0, this.innerGlow.alpha - sec * 3);
+        this.runeRing.alpha = Math.max(0.12, this.runeRing.alpha - sec);
+        this.backRays.alpha = Math.max(0, this.backRays.alpha - sec * 2);
+        this.camShakeHold = 0;
         this.crate.scale.set(1);
         if (t >= 1) this.setPhase('idle', 0);
         break;
@@ -475,29 +649,75 @@ export class CrateScene {
       default: break;
     }
 
-    // the crate shake (transform only; never read back)
-    if (shake > 0 && this.phase !== 'reveal') {
+    // the seam light: its base level plus the pulse flare
+    if (this.phase === 'anticipation' || this.phase === 'charge' || this.phase === 'winddown') {
+      this.seam.alpha = Math.min(1, seamBase + this.seamKick * 0.6);
+      this.cracks.alpha = Math.min(1, cracksTo + (this.phase === 'charge' ? this.seamKick * 0.25 * cracksTo : 0));
+      this.floorGlow.alpha = Math.max(this.floorGlow.alpha, 0.2 + this.seamKick * 0.3);
+    }
+    this.seamKick *= Math.exp(-dt / 140);
+    this.kick *= Math.exp(-dt / 110);
+
+    // the chest: squash from pulses, shake, the lid rattling
+    if (this.phase === 'anticipation' || this.phase === 'charge') {
+      const q = this.kick;
+      const baseX = this.phase === 'charge' ? this.crate.scale.x : 1;
+      const baseY = this.phase === 'charge' ? this.crate.scale.y : 1;
+      this.crate.scale.set(baseX * (1 + 0.035 * q), baseY * (1 - 0.05 * q));
       const a = this.age;
-      this.crate.position.set(this.cx + shake * Math.sin(a * 0.071) * Math.cos(a * 0.023), this.cy + shake * 0.6 * Math.sin(a * 0.053));
-      this.crate.rotation = (shake / Math.max(20, S)) * 0.9 * Math.sin(a * 0.061);
-    } else if (this.phase !== 'reveal') {
-      this.crate.position.set(this.cx, this.cy);
+      this.crate.position.set(this.cx + crateShake * Math.sin(a * 0.071) * Math.cos(a * 0.019), this.baseY);
+      this.crate.rotation = (crateShake / Math.max(40, S)) * 0.8 * Math.sin(a * 0.057);
+      if (!this.lidFlying) {
+        const rattle = crateShake * 0.5 + q * S * 0.012;
+        this.lid.position.y = this.baseY - S * CHEST.bodyH + S * 0.004 - Math.abs(Math.sin(a * 0.09)) * rattle;
+        this.lid.rotation = Math.sin(a * 0.11) * rattle * 0.002;
+      }
+    } else if (this.phase === 'burst') {
+      // spring the squash back
+      const sx = 1 + (this.crate.scale.x - 1) * Math.exp(-dt / 70);
+      const sy = 1 + (this.crate.scale.y - 1) * Math.exp(-dt / 70);
+      this.crate.scale.set(sx, sy);
+      this.crate.position.set(this.cx, this.baseY);
       this.crate.rotation = 0;
+    } else if (this.phase === 'idle' || this.phase === 'winddown') {
+      this.crate.position.set(this.cx, this.baseY);
+      this.crate.rotation = 0;
+      if (!this.lidFlying) { this.lid.position.y = this.baseY - S * CHEST.bodyH + S * 0.004; this.lid.rotation = 0; }
     }
 
     // the lid in flight
-    if (this.lidFlying && this.lid) {
-      this.lidV.y += S * 16 * sec;
+    if (this.lidFlying) {
+      this.lidV.y += S * 14 * sec;
       this.lid.position.x += this.lidV.x * sec;
       this.lid.position.y += this.lidV.y * sec;
       this.lid.rotation += this.lidV.r * sec;
-      this.lid.alpha = Math.max(0, this.lid.alpha - sec * 1.8);
-      if (this.lid.alpha <= 0) this.lidFlying = false;
+      this.lid.alpha = Math.max(0, this.lid.alpha - sec * 1.4);
+      if (this.lid.alpha <= 0 || this.lid.position.y > this.h + S) this.lidFlying = false;
     }
-    // the art crate pops and fades at the burst instead
-    if (this.art && this.phase === 'burst') {
-      this.art.alpha = Math.max(0, 1 - t * 1.6);
+
+    // the second (Legendary) burst
+    if (this.secondBurstIn >= 0) {
+      this.secondBurstIn -= dt;
+      if (this.secondBurstIn < 0 && p) this.detonate(p, 0.7);
     }
+
+    // screen flash (fast) and the burst rays (scale out, fade)
+    this.white.alpha = Math.max(0, this.white.alpha - sec * 8);
+    if (this.burstRays.alpha > 0) {
+      this.burstRays.alpha = Math.max(0, this.burstRays.alpha - sec * 1.6);
+      const target = (Math.hypot(this.w, this.h) * 1.1) / Math.max(1, this.tex.rays.width);
+      this.burstRays.scale.set(this.burstRays.scale.x + (target - this.burstRays.scale.x) * (1 - Math.exp(-dt / 120)));
+      this.burstRays.rotation += 0.4 * sec;
+    }
+
+    // camera: the push-in spring, the ground shake, the decaying burst shake
+    this.zoomTarget = this.phase === 'charge' && p ? 1 + p.push * easeInOutSine(clamp01(this.age / Math.max(1, this.dur))) + (this.timeScale < 1 ? p.push * 0.25 : 0) : this.zoomTarget;
+    const k = 180, damp = 18;
+    this.zoomVel += ((this.zoomTarget - this.zoom) * k - this.zoomVel * damp) * (real / 1000);
+    this.zoom += this.zoomVel * (real / 1000);
+    this.camShake *= Math.exp(-real / 130);
+    if (this.camShake < 0.05) this.camShake = 0;
+    this.applyCamera(this.age);
 
     this.stepParticles(dt, sec);
     this.stepRings(dt);
@@ -505,7 +725,30 @@ export class CrateScene {
     return this.hasWork();
   }
 
+  private applyCamera(a: number): void {
+    const amp = this.camShake + this.camShakeHold;
+    const sx = amp * (Math.sin(a * 0.093) * 0.7 + Math.sin(a * 0.171) * 0.3);
+    const sy = amp * (Math.cos(a * 0.081) * 0.7 + Math.sin(a * 0.143) * 0.3);
+    this.cam.scale.set(this.zoom);
+    this.cam.position.set(this.cx + sx, this.cy + sy);
+  }
+
+  /** The heartbeat: a kick every `pulseEvery` ms, with a flare of light and a sound hook. */
+  private pulse(dt: number, intensity: number): void {
+    this.pulseAcc += dt;
+    if (this.pulseAcc >= this.pulseEvery) {
+      this.pulseAcc -= this.pulseEvery;
+      this.kick = 1;
+      this.seamKick = intensity;
+      this.opts.onPulse?.(intensity);
+      // a faint ring breathing out from the base on each beat
+      this.spawnRing(this.cx, this.baseY + this.size * 0.02, this.size * 0.5, this.size * 0.9, 420, this.color, 0.25 * intensity, 0, true);
+    }
+  }
+
   private stepParticles(dt: number, sec: number): void {
+    const S = this.size;
+    const tx = this.cx, ty = this.baseY - S * CHEST.bodyH * 0.8;
     for (let i = this.particles.length - 1; i >= 0; i--) {
       const q = this.particles[i];
       q.life -= dt;
@@ -513,21 +756,41 @@ export class CrateScene {
       const lived = 1 - q.life / q.maxLife;
       const s = q.sprite;
       if (q.kind === 'pull') {
-        const e = easeInCubic(lived);
-        q.x = q.sx + (this.cx - q.sx) * e;
-        q.y = q.sy + (this.cy - this.size * 0.3 - q.sy) * e;
-        s.alpha = q.peakAlpha * Math.min(1, lived * 4);
+        // accelerate toward the chest, oriented along the flight
+        const dx = tx - q.x, dy = ty - q.y;
+        const d = Math.max(1, Math.hypot(dx, dy));
+        const acc = S * 14;
+        q.vx += (dx / d) * acc * sec;
+        q.vy += (dy / d) * acc * sec;
+        q.x += q.vx * sec;
+        q.y += q.vy * sec;
+        s.rotation = Math.atan2(q.vy, q.vx);
+        s.alpha = q.peakAlpha * Math.min(1, lived * 5);
+        if (d < S * 0.12) q.life = 0;
       } else {
         const k = Math.pow(q.drag, sec);
         q.vx *= k;
         q.vy = q.vy * k + q.gravity * sec;
         q.x += q.vx * sec;
         q.y += q.vy * sec;
-        s.alpha = q.kind === 'mote' || q.kind === 'rise' ? q.peakAlpha * Math.sin(Math.PI * lived) : q.peakAlpha * (1 - easeInQuad(lived));
+        if (q.kind === 'streak') s.rotation = Math.atan2(q.vy, q.vx);
+        else s.rotation += q.spin * sec;
+        if (q.kind === 'mote' || q.kind === 'rise') s.alpha = q.peakAlpha * Math.sin(Math.PI * lived);
+        else if (q.kind === 'ember') s.alpha = q.peakAlpha * (1 - easeInQuad(lived)) * (0.65 + 0.35 * Math.sin(q.seed + lived * 40));
+        else if (q.kind === 'coin') s.alpha = lived > 0.8 ? (1 - lived) / 0.2 : 1;
+        else s.alpha = q.peakAlpha * (1 - easeInQuad(lived));
       }
       s.position.set(q.x, q.y);
-      s.scale.set(q.fromScale + (q.toScale - q.fromScale) * lived);
-      s.rotation += q.spin * sec;
+      const sc = q.fromScale + (q.toScale - q.fromScale) * lived;
+      if (q.kind === 'coin') {
+        const spinX = Math.cos(q.seed + lived * q.spin * 3);
+        s.scale.set(sc * Math.max(0.08, Math.abs(spinX)), sc);
+        s.tint = spinX < 0 ? 0xc89a40 : 0xffffff;
+        s.rotation = 0;
+      } else if (q.kind === 'streak' || q.kind === 'pull') {
+        const v = Math.hypot(q.vx, q.vy);
+        s.scale.set(sc * Math.min(3, 0.4 + v / (S * 6)), sc);
+      } else s.scale.set(sc);
     }
   }
 
@@ -538,7 +801,9 @@ export class CrateScene {
       r.age += dt;
       const t = r.age / r.dur;
       if (t >= 1) { this.release(r.sprite); this.rings.splice(i, 1); continue; }
-      r.sprite.scale.set((r.fromR + (r.toR - r.fromR) * easeOutCubic(t)) / RING_TEX_R);
+      const rad = r.fromR + (r.toR - r.fromR) * easeOutCubic(t);
+      const base = rad / (this.tex.ring.width * 0.42);
+      r.sprite.scale.set(base, base * r.thin);
       r.sprite.alpha = r.peak * (1 - easeInQuad(t));
     }
   }
@@ -546,28 +811,24 @@ export class CrateScene {
   private stepFlashes(dt: number): void {
     for (let i = this.flashes.length - 1; i >= 0; i--) {
       const f = this.flashes[i];
+      if (f.delay > 0) { f.delay -= dt; continue; }
       f.age += dt;
       const t = f.age / f.dur;
-      if (t >= 1) { this.release(f.sprite); this.flashes.splice(i, 1); continue; }
-      f.sprite.scale.set(f.fromScale + (f.toScale - f.fromScale) * easeOutCubic(t));
-      f.sprite.alpha = f.peak * (t < 0.12 ? t / 0.12 : 1 - easeOutCubic((t - 0.12) / 0.88));
+      if (t >= 1) {
+        if (f.sprite === this.punch) this.punch.alpha = 0; else this.release(f.sprite);
+        this.flashes.splice(i, 1);
+        continue;
+      }
+      if (f.sprite !== this.punch) f.sprite.scale.set(f.fromScale + (f.toScale - f.fromScale) * easeOutCubic(t));
+      f.sprite.alpha = f.peak * (t < f.attack ? t / f.attack : 1 - easeOutCubic((t - f.attack) / (1 - f.attack)));
     }
   }
 
   // ─── spawning (pooled) ──────────────────────────────────────────────────────────────────────────────────
 
-  private makeSprite(tex: Texture, alpha: number): Sprite {
-    const s = new Sprite(tex);
-    s.anchor.set(0.5);
-    s.blendMode = 'add';
-    s.alpha = alpha;
-    s.tint = NEUTRAL_GLOW;
-    return s;
-  }
-
   private acquire(tex: Texture): Sprite | null {
     if (this.destroyed) return null;
-    if (this.front.children.length >= MAX_PARTICLES + 16) return null;
+    if (this.front.children.length >= MAX_PARTICLES + 24) return null;
     const s = this.pool.pop() ?? new Sprite();
     s.texture = tex;
     s.anchor.set(0.5);
@@ -586,94 +847,74 @@ export class CrateScene {
   }
 
   private spawn(kind: Particle['kind'], tex: Texture, x: number, y: number, tint: number,
-    o: { vx?: number; vy?: number; drag?: number; gravity?: number; spin?: number; life: number; fromScale?: number; toScale?: number; peakAlpha?: number }): void {
+    o: { vx?: number; vy?: number; drag?: number; gravity?: number; spin?: number; life: number; fromScale?: number; toScale?: number; peakAlpha?: number },
+    blend: 'add' | 'normal' = 'add'): void {
     if (this.particles.length >= MAX_PARTICLES) return;
     const s = this.acquire(tex);
     if (!s) return;
     s.tint = tint;
+    s.blendMode = blend;
     s.rotation = Math.random() * Math.PI * 2;
     const q: Particle = {
-      sprite: s, kind, x, y, sx: x, sy: y,
+      sprite: s, kind, x, y,
       vx: o.vx ?? 0, vy: o.vy ?? 0, drag: o.drag ?? 1, gravity: o.gravity ?? 0, spin: o.spin ?? 0,
       life: Math.max(1, o.life), maxLife: Math.max(1, o.life),
-      fromScale: o.fromScale ?? 1, toScale: o.toScale ?? 1, peakAlpha: o.peakAlpha ?? 1,
+      fromScale: o.fromScale ?? 1, toScale: o.toScale ?? 1, peakAlpha: o.peakAlpha ?? 1, seed: Math.random() * 10,
     };
     s.position.set(x, y);
     s.scale.set(q.fromScale);
-    s.alpha = kind === 'spark' || kind === 'debris' ? q.peakAlpha : 0;
+    s.alpha = kind === 'mote' || kind === 'rise' || kind === 'pull' ? 0 : q.peakAlpha;
     this.particles.push(q);
   }
 
   private spawnMote(tint: number): void {
     const S = this.size;
-    this.spawn('mote', this.tex.spark, this.cx + (Math.random() - 0.5) * S * 1.4, this.cy + S * (0.1 + Math.random() * 0.25), tint, {
-      vx: (Math.random() - 0.5) * S * 0.12, vy: -S * (0.3 + Math.random() * 0.35), life: 1200 + Math.random() * 700,
-      fromScale: 0.35 + Math.random() * 0.3, toScale: 0.15, peakAlpha: 0.6,
+    this.spawn('mote', this.tex.spark, this.cx + (Math.random() - 0.5) * S * 1.3, this.baseY - Math.random() * S * 0.1, tint, {
+      vx: (Math.random() - 0.5) * S * 0.1, vy: -S * (0.25 + Math.random() * 0.35), life: 1400 + Math.random() * 800,
+      fromScale: 0.12 + Math.random() * 0.12, toScale: 0.05, peakAlpha: 0.7,
     });
   }
 
   private spawnPull(p: CratePreset): void {
     const S = this.size;
     const a = Math.random() * Math.PI * 2;
-    const r = S * (1.3 + Math.random() * 1.1);
-    const life = Math.max(160, p.chargeMs * (0.35 + Math.random() * 0.3));
-    this.spawn('pull', this.tex.spark, this.cx + Math.cos(a) * r, this.cy - S * 0.3 + Math.sin(a) * r * 0.8, Math.random() < 0.3 ? 0xffffff : p.color, {
-      life, fromScale: 0.9 + Math.random() * 0.5, toScale: 0.25, peakAlpha: 0.95,
+    const r = S * (1.4 + Math.random() * 1.3);
+    this.spawn('pull', this.tex.streak, this.cx + Math.cos(a) * r, this.baseY - S * 0.4 + Math.sin(a) * r * 0.75, Math.random() < 0.25 ? 0xffffff : p.color, {
+      life: 1200, fromScale: 0.6 + Math.random() * 0.4, toScale: 0.35, peakAlpha: 1,
     });
   }
 
   private spawnRise(tint: number): void {
     const S = this.size;
-    this.spawn('rise', this.tex.spark, this.cx + (Math.random() - 0.5) * S * 1.6, this.cy - S * (Math.random() * 0.2), tint, {
-      vx: (Math.random() - 0.5) * S * 0.1, vy: -S * (0.45 + Math.random() * 0.5), life: 1400 + Math.random() * 900,
-      fromScale: 0.4 + Math.random() * 0.4, toScale: 0.1, peakAlpha: 0.7,
+    this.spawn('rise', this.tex.spark, this.cx + (Math.random() - 0.5) * S * 1.8, this.cy + S * (0.1 + Math.random() * 0.3), tint, {
+      vx: (Math.random() - 0.5) * S * 0.08, vy: -S * (0.35 + Math.random() * 0.45), life: 1600 + Math.random() * 900,
+      fromScale: 0.12 + Math.random() * 0.14, toScale: 0.04, peakAlpha: 0.8,
     });
   }
 
-  private spawnRing(x: number, y: number, fromR: number, toR: number, dur: number, tint: number, peak: number, delay: number): void {
+  private spawnRing(x: number, y: number, fromR: number, toR: number, dur: number, tint: number, peak: number, delay: number, flat = false): void {
     const s = this.acquire(this.tex.ring);
     if (!s) return;
     s.tint = tint;
     s.position.set(x, y);
-    s.scale.set(fromR / RING_TEX_R);
     s.alpha = 0;
-    this.rings.push({ sprite: s, age: 0, dur: Math.max(1, dur), fromR, toR, peak: Math.max(0.1, peak), delay });
+    // a flat ring lies on the floor (squashed); a burst ring is round
+    this.rings.push({ sprite: s, age: 0, dur: Math.max(1, dur), fromR, toR, peak: Math.max(0.05, peak), delay, thin: flat ? 0.2 : 1 });
   }
 
-  private spawnFlash(x: number, y: number, tint: number, peak: number, fromScale: number, toScale: number, dur: number): void {
+  private spawnFlash(x: number, y: number, tint: number, peak: number, fromScale: number, toScale: number, dur: number, delay: number, attack: number, sprite?: Sprite): void {
     if (!(peak > 0)) return;
-    const s = this.acquire(this.tex.glow);
+    const s = sprite ?? this.acquire(this.tex.glow);
     if (!s) return;
-    s.tint = tint;
-    s.position.set(x, y);
-    s.scale.set(fromScale);
+    if (!sprite) { s.tint = tint; s.position.set(x, y); s.scale.set(fromScale); }
     s.alpha = 0;
-    this.flashes.push({ sprite: s, age: 0, dur: Math.max(1, dur), peak, fromScale, toScale });
-  }
-
-  /** God rays: `n` wedges fanned evenly around the reward. Rebuilt only when the count changes. */
-  private buildRays(n: number): void {
-    const count = Math.max(0, Math.min(24, Math.round(n)));
-    if (count === this.raySprites.length) return;
-    for (const r of this.raySprites) { this.rays.removeChild(r); r.destroy(); }
-    this.raySprites = [];
-    for (let i = 0; i < count; i++) {
-      const s = new Sprite(this.tex.ray);
-      s.anchor.set(0.5, 1); // the wedge's base sits on the reward
-      s.blendMode = 'add';
-      s.rotation = (i / count) * Math.PI * 2;
-      s.tint = this.color;
-      s.alpha = i % 2 ? 0.6 : 1;
-      this.raySprites.push(s);
-      this.rays.addChild(s);
-    }
-    this.place();
+    this.flashes.push({ sprite: s, age: 0, dur: Math.max(1, dur), peak, fromScale, toScale, delay, attack: Math.min(0.9, Math.max(0.01, attack)) });
   }
 
   private clearFx(): void {
     for (const q of this.particles) this.release(q.sprite);
     for (const r of this.rings) this.release(r.sprite);
-    for (const f of this.flashes) this.release(f.sprite);
+    for (const f of this.flashes) { if (f.sprite === this.punch) this.punch.alpha = 0; else this.release(f.sprite); }
     this.particles.length = 0;
     this.rings.length = 0;
     this.flashes.length = 0;
@@ -693,10 +934,9 @@ export class CrateScene {
     this.destroyed = true;
     for (const s of this.pool) s.destroy();
     this.pool.length = 0;
-    this.raySprites.length = 0;
-    this.body = this.lid = this.gem = this.art = null;
-    // children:true destroys every container, sprite and Graphics below; textures stay (the caller owns them).
-    for (const c of [this.back, this.glow, this.crate, this.front]) {
+    this.art = null;
+    // children:true destroys every container and sprite below; textures stay (the caller owns them).
+    for (const c of [this.cam, this.overlay]) {
       this.root.removeChild(c);
       c.destroy({ children: true });
     }

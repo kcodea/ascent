@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { COSMETICS, type OpenCrateResult } from '@game/progression';
 import { CrateOpener, type CrateQueueItem } from '../CrateOpener';
 import type { CrateOpenOutcome } from '../progressionStore';
-import { CRATE_FX_PLAY_EVENT, CRATE_RARITIES, type CrateFxPlayDetail, type CrateFxPlayMode, type CrateRarity } from './crateFxConfig';
+import { CRATE_FX_PLAY_EVENT, CRATE_FX_SPEEDS, CRATE_RARITIES, setCrateFxSpeed, type CrateFxPlayDetail, type CrateFxPlayMode, type CrateRarity } from './crateFxConfig';
 
 /**
  * DEV: the Crate opening tuner's sandbox. Its Play buttons open a PRACTICE crate in the real theatre with a local
@@ -46,7 +46,9 @@ export function CratePreview(): JSX.Element | null {
 
   useEffect(() => {
     const onPlay = (e: Event): void => {
-      const mode = (e as CustomEvent<CrateFxPlayDetail>).detail?.mode ?? 'replay';
+      const detail = (e as CustomEvent<CrateFxPlayDetail>).detail;
+      const mode = detail?.mode ?? 'replay';
+      if (detail?.speed && (CRATE_FX_SPEEDS as readonly number[]).includes(detail.speed)) setCrateFxSpeed(detail.speed);
       if ((CRATE_RARITIES as readonly string[]).includes(mode)) last.current = mode as CrateRarity;
       n.current += 1;
       setSession(sessionFor(mode, n.current, last.current));

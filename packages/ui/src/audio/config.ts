@@ -45,6 +45,7 @@ export const CATEGORY_GAINS: Record<string, number> = {
   // The CRATE OPENING (owner 2026-09-28): the hum from the click, the charge pull, the burst crack, the reveal sparkle,
   // the title stamp and the Legendary sting. One fader each; the crate tuner's gains ride on top.
   crateHum: 0.45, crateCharge: 0.5, crateBurst: 0.45, crateReveal: 0.45, crateStamp: 0.5, crateSting: 0.5,
+  cratePulse: 0.3, crateWhoosh: 0.45, crateCoin: 0.35,
   // ── Equipment (owner ask 2026-08-31: "add an equipment section for me ... named/titled based on the
   //    card/effect so it is easier to understand what each effect is tied to"). One category PER CLIP, so a
   //    fader moves exactly one sound, and every name says which card it belongs to (see CATEGORY_LABEL).
@@ -73,6 +74,7 @@ export const CATEGORY_BUS: Record<string, BusName> = {
   goodLuckShine: 'ui', goodLuckSpark: 'ui',
   discoverWhoosh: 'ui', discoverArrive: 'ui', discoverSparkle: 'ui',
   crateHum: 'ui', crateCharge: 'ui', crateBurst: 'ui', crateReveal: 'ui', crateStamp: 'ui', crateSting: 'ui',
+  cratePulse: 'ui', crateWhoosh: 'ui', crateCoin: 'ui',
   // All FX-primitive clips imported through the workbench (`fx/<slug>`) share this one desk fader (see
   // `familyOf`). Grouped on the combat bus — the `sound` primitive's own default bus — though playback routes
   // through the layer's chosen bus, so this is where they GROUP on the desk, not what they play through.
@@ -105,6 +107,9 @@ export const CATEGORY_LABEL: Record<string, string> = {
   crateReveal: 'Crate opening: reveal sparkle',
   crateStamp: 'Crate opening: title stamp',
   crateSting: 'Crate opening: Legendary sting',
+  cratePulse: 'Crate opening: heartbeat tick',
+  crateWhoosh: 'Crate opening: whoosh under the reveal',
+  crateCoin: 'Crate opening: coin clinks',
   fx: 'FX clips — imported sound-primitive layers',
   eqEquipClang: 'Equip clang — any Equip minion',
   eqSelect: 'Equipment slot — swap',

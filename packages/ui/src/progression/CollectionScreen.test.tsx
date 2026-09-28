@@ -117,8 +117,8 @@ describe('the Collection screen: the album', () => {
     expect(missing.querySelector('.colls-tile-rar')?.textContent).toBe('Epic');
     expect(missing.querySelector('.colls-tile-lock')).not.toBeNull();
     expect(missing.getAttribute('aria-label')).toBe('Kingbreaker, Epic, not owned');
-    // "N / M collected" counts every live item: 16 titles + the 4 skins (2026-09-28)
-    expect(text('.colls-meter-num')).toBe('2 / 20');
+    // "N / M collected" counts every live item: 16 titles + the 6 skins (2026-09-28; the Legendary Brian and Bellringer Voss made it 6)
+    expect(text('.colls-meter-num')).toBe('2 / 22');
     expect(text('.colls-tab.on .colls-tab-count')).toBe('2/16');
     clean();
   });

@@ -15,7 +15,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act } from 'react';
 import { CARD_INDEX } from '@game/content';
 import { HEROES } from '@game/sim';
-import { COSMETICS, cosmeticOf, type RunCosmeticSnapshot } from '@game/progression';
+import { COSMETICS, cosmeticOf, minionSkinOf, type RunCosmeticSnapshot } from '@game/progression';
 
 vi.mock('../identity', async (orig) => ({ ...(await orig<typeof import('../identity')>()), currentUserId: () => 'u-1' }));
 
@@ -49,6 +49,23 @@ describe('the catalog <-> the bundle', () => {
       expect(keys.has(c.assets.art!), `${c.id} has no art/skins/${c.assets.art}.webp`).toBe(true);
       expect(skinArtOf(c), c.id).toBeTruthy();
     }
+  });
+  it('the Legendary Black Belt Brian (owner 2026-09-28: "i added a legendary black belt brian skin") exists, targets blackbelt, and ships its art', () => {
+    const c = cosmeticOf('skin_blackbelt_3')!;
+    expect(c).toBeTruthy();
+    expect([c.category, c.rarity, c.target, c.assets.master]).toEqual(['minion_skin', 'legendary', { type: 'card', id: 'blackbelt' }, 'BlackBeltBrianSkinLegendary.png']);
+    expect(skinArtKeys()).toContain('skin_blackbelt_3');
+    expect(skinArtOf(c)).toBeTruthy();
+    expect(minionSkinOf({ minionSkinByCardId: { blackbelt: 'skin_blackbelt_3' } }, 'blackbelt')?.id).toBe('skin_blackbelt_3');
+  });
+  it('the Bellringer Voss skin (owner 2026-09-28: "put the bellringer voss skin in too") exists, targets n2_bellringer, and ships its art', () => {
+    const c = cosmeticOf('skin_bellringer_1')!;
+    expect(c).toBeTruthy();
+    expect([c.category, c.rarity, c.target, c.assets.master]).toEqual(['minion_skin', 'epic', { type: 'card', id: 'n2_bellringer' }, 'BellringerVossSkinEpic.png']);
+    expect(CARD_INDEX['n2_bellringer']?.name).toBe('Bellringer Voss');
+    expect(skinArtKeys()).toContain('skin_bellringer_1');
+    expect(skinArtOf(c)).toBeTruthy();
+    expect(minionSkinOf({ minionSkinByCardId: { n2_bellringer: 'skin_bellringer_1' } }, 'n2_bellringer')?.id).toBe('skin_bellringer_1');
   });
   it('every skin targets a REAL collectible card (never a token) or a REAL hero, by stable id', () => {
     for (const c of skins) {

@@ -1842,7 +1842,7 @@ export const FOUNDATION_RULES: GameRule[] = [
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-28 (skins v1 brief)', quote: "let's use these 2 hero skins as our first 2 hero skin concepts" },
       { kind: 'code', ref: 'packages/ui/src/skins/skinArt.ts (heroPortrait / minionSkinMap / the Card context); packages/sim/src/snapshot.ts (scopeCosmetics); packages/sim/src/lobby/snapshotSeats.ts + runLobby.ts (seat cosmetics); packages/ui/src/store.ts (recordRunCosmetics)' },
     ],
-    currentBehaviour: 'Conforms, built 2026-09-28: Sheriff Brian and Glitch Brian (Black Belt Brian), Surf Day Albus, Bath Day Warden (placeholder names).',
+    currentBehaviour: 'Conforms, built 2026-09-28: Sheriff Brian, Glitch Brian and Grandmaster Brian (Black Belt Brian), Clocktower Voss (Bellringer Voss), Surf Day Albus, Bath Day Warden (placeholder names).',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/skins/skins.test.tsx', 'packages/ui/src/skins/lobbySkins.test.tsx', 'packages/sim/src/lobby/seatCosmetics.test.ts', 'packages/ui/src/Career.test.tsx'], lastVerifiedAt: '2026-09-28' },
   },
   {
@@ -1922,5 +1922,23 @@ export const FOUNDATION_RULES: GameRule[] = [
     ],
     currentBehaviour: 'Conforms, built 2026-09-28.',
     enforcement: { kind: 'scenario', refs: ['packages/progression/src/skins.db.test.ts', 'packages/progression/src/skins.test.ts', 'packages/ui/src/progression/CollectionSkins.test.tsx'], lastVerifiedAt: '2026-09-28' },
+  },  {
+    id: 'R-PROG-SKINS-06',
+    title: 'Black Belt Brian has three crate skins, one per rarity (Rare, Epic, Legendary); Bellringer Voss has an Epic one',
+    statement:
+      'Black Belt Brian (card id blackbelt) has three minion skins in the crate pool: skin_blackbelt_1 (Rare), skin_blackbelt_2 '
+      + '(Epic) and skin_blackbelt_3 (Legendary). Each ships its own art (packages/ui/src/art/skins/<id>.webp), and its master '
+      + 'is named for its rarity (BlackBeltBrianSkinRare / SkinEpic / SkinLegendary.png). Bellringer Voss (card id '
+      + 'n2_bellringer) has one Epic minion skin, skin_bellringer_1 (master BellringerVossSkinEpic.png). With both added, '
+      + 'the first-crate odds are Common 47.6%, Rare 31.5%, Epic 19.3%, Legendary 1.7%, and a skin 30.6%.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-28 (Legendary Brian skin)', quote: 'i added a legendary black belt brian skin and renaemd skins to match their rarity' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-28 (Bellringer Voss skin)', quote: 'put the bellringer voss skin in too' },
+      { kind: 'code', ref: 'packages/progression/src/cosmetics.ts (COSMETICS, skin_blackbelt_3, skin_bellringer_1); packages/ui/src/art/skins/skin_blackbelt_3.webp + skin_bellringer_1.webp' },
+    ],
+    currentBehaviour: 'Conforms, built 2026-09-28. Reaches the database on the next deploy of progression-inventory (the catalog sync, R-PROG-SKINS-05).',
+    enforcement: { kind: 'scenario', refs: ['packages/progression/src/skins.test.ts', 'packages/progression/src/cosmetics.test.ts', 'packages/ui/src/skins/skins.test.tsx'], lastVerifiedAt: '2026-09-28' },
   },
 ];

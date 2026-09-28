@@ -5,7 +5,7 @@
  * Back semantics: a page closes itself, so a Career opened from the Leaderboard still returns there; the
  * mode picker backs out to the main menu, the Learn hub to the picker), and the menu plaques stack
  * vertically centred in the remaining height: Play · Career · Leaderboard · Hall of Champions · Recent
- * Games · Settings. Since 2026-09-21 the TITLE folds the four ladder pages into one SOCIAL plaque (which
+ * Games · Collection (once crates are live, 2026-09-28) · Settings. Since 2026-09-21 the TITLE folds the four ladder pages into one SOCIAL plaque (which
  * opens Career through `openCareer()`, NOT `goTo`, so it carries no hop stamp and the page fades in whole);
  * this sidebar is where the four are reached from, so it keeps them listed one by one. The current
  * screen's plaque wears the title's blue (`.active`) and `aria-current="page"`.
@@ -31,7 +31,8 @@
  */
 import { useState, type HTMLAttributes, type ReactNode } from 'react';
 import { Icon } from './Icon';
-import { Crest, IconHelm, IconTrophy } from './menuIcons';
+import { Crest, IconChest, IconHelm, IconTrophy } from './menuIcons';
+import { cratesVisible, useProgression } from './progression/progressionStore';
 import { sfx } from './sfx';
 import { navClockNow, useGame, type MenuDest } from './store';
 import { getTitleText } from './titleTextConfig';
@@ -64,6 +65,8 @@ export function MenuSidebar({ current, onBack }: { current: SidebarCurrent; onBa
   const openSettings = useGame((s) => s.openSettings);
   const savedRun = useGame((s) => s.savedRun);
   const txt = getTitleText();
+  // The Collection plaque shows once crates are live (always in DEV, so the screen and its tuner are reachable).
+  const collectionOn = useProgression(cratesVisible) || import.meta.env.DEV;
 
   const items: Item[] = [
     { dest: 'modes', label: txt.play, icon: <Crest /> },
@@ -71,6 +74,7 @@ export function MenuSidebar({ current, onBack }: { current: SidebarCurrent; onBa
     { dest: 'rankings', label: txt.leaderboard, icon: <IconTrophy /> },
     { dest: 'hall', label: txt.champions, icon: <Icon name="crown" /> },
     { dest: 'recent', label: 'Recent Games', icon: <Icon name="clock" /> },
+    ...(collectionOn ? [{ dest: 'collection' as const, label: 'Collection', icon: <IconChest /> }] : []),
   ];
 
   return (

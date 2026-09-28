@@ -42,6 +42,9 @@ export const CATEGORY_GAINS: Record<string, number> = {
   // The Discover ENTRANCE (owner 2026-09-25): the whoosh under the cards' flight, the settle as each arrives, and the
   // sparkle once the set is in. One fader each. (The open cue keeps the existing `discover` fader.)
   discoverWhoosh: 0.5, discoverArrive: 0.4, discoverSparkle: 0.45,
+  // The CRATE OPENING (owner 2026-09-28): the hum from the click, the charge pull, the burst crack, the reveal sparkle,
+  // the title stamp and the Legendary sting. One fader each; the crate tuner's gains ride on top.
+  crateHum: 0.45, crateCharge: 0.5, crateBurst: 0.45, crateReveal: 0.45, crateStamp: 0.5, crateSting: 0.5,
   // ── Equipment (owner ask 2026-08-31: "add an equipment section for me ... named/titled based on the
   //    card/effect so it is easier to understand what each effect is tied to"). One category PER CLIP, so a
   //    fader moves exactly one sound, and every name says which card it belongs to (see CATEGORY_LABEL).
@@ -69,6 +72,7 @@ export const CATEGORY_BUS: Record<string, BusName> = {
   rank: 'ui',
   goodLuckShine: 'ui', goodLuckSpark: 'ui',
   discoverWhoosh: 'ui', discoverArrive: 'ui', discoverSparkle: 'ui',
+  crateHum: 'ui', crateCharge: 'ui', crateBurst: 'ui', crateReveal: 'ui', crateStamp: 'ui', crateSting: 'ui',
   // All FX-primitive clips imported through the workbench (`fx/<slug>`) share this one desk fader (see
   // `familyOf`). Grouped on the combat bus — the `sound` primitive's own default bus — though playback routes
   // through the layer's chosen bus, so this is where they GROUP on the desk, not what they play through.
@@ -95,6 +99,12 @@ export const CATEGORY_LABEL: Record<string, string> = {
   discoverWhoosh: 'Discover entrance — whoosh under the flight',
   discoverArrive: 'Discover entrance — settle as a card arrives',
   discoverSparkle: 'Discover entrance — sparkle once the set is in',
+  crateHum: 'Crate opening: hum while it opens',
+  crateCharge: 'Crate opening: charge pull',
+  crateBurst: 'Crate opening: burst crack',
+  crateReveal: 'Crate opening: reveal sparkle',
+  crateStamp: 'Crate opening: title stamp',
+  crateSting: 'Crate opening: Legendary sting',
   fx: 'FX clips — imported sound-primitive layers',
   eqEquipClang: 'Equip clang — any Equip minion',
   eqSelect: 'Equipment slot — swap',

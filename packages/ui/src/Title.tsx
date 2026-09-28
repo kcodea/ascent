@@ -10,7 +10,8 @@ import { Icon } from './Icon';
 import { sfx } from './sfx';
 import { useGame, tempHandle } from './store';
 import { MenuSidebar, SidebarHost } from './MenuSidebar';
-import { Crest, IconHelm } from './menuIcons';
+import { Crest, IconChest, IconHelm } from './menuIcons';
+import { cratesVisible, useProgression } from './progression/progressionStore';
 import { startReplay } from './replay/replayPlayer';
 import { getCourseProgress, skipCourse } from './tutorial/tutorialProfile';
 import { RankCrest } from './rank/RankBar';
@@ -23,7 +24,8 @@ import { rankLabel } from './rank/rankFormat';
  * left-aligned menu, the account corner (portrait / name / rank), and the build version. A single store
  * flag (`showTitle`) drives it, no router.
  *
- * THE MENU (owner ask 2026-09-21): Play · Social · Patch Notes · Scene Builder (DEV only) · Settings.
+ * THE MENU (owner ask 2026-09-21): Play · Social · Collection (2026-09-28, once crates are live) · Patch Notes ·
+ * Scene Builder (DEV only) · Settings.
  * SOCIAL consolidates the four ladder pages — it opens the player's own Career page (`openCareer()`, the
  * un-stamped open, so the page fades in whole rather than as a sidebar hop), whose menu sidebar
  * (`MenuSidebar.tsx`) still lists Career · Leaderboard · Hall of Champions · Recent Games, so every page
@@ -55,6 +57,11 @@ export function Title({ onSettings }: { onSettings: () => void }) {
   // (review 2026-09-21). `careerOf` is already null here (`openTitle` spreads PAGES_CLOSED), so it is your
   // own page; the sidebar on that page leads to the other three.
   const openCareer = useGame((s) => s.openCareer);
+  // COLLECTION (owner ask 2026-09-28: "make the collection screen separate"): its own plaque, with the sealed-crate
+  // count. Shown once crates are live (always in DEV, so the screen and its tuner are reachable before the SQL).
+  const openCollection = useGame((s) => s.openCollection);
+  const collectionOn = useProgression(cratesVisible) || import.meta.env.DEV;
+  const sealedCrates = useProgression((s) => (s.crateList ?? []).filter((c) => c.state === 'sealed').length);
   const openBalance = useGame((s) => s.openBalance);
   const openPatchNotes = useGame((s) => s.openPatchNotes);
   const openBugReport = useGame((s) => s.openBugReport);
@@ -221,6 +228,13 @@ export function Title({ onSettings }: { onSettings: () => void }) {
             <span className="mbicon"><IconHelm /></span>
             <span className="mblabel">Social</span>
           </button>
+          {collectionOn && (
+            <button className="menubtn" onClick={() => { sfx.pulse(); openCollection(); }} data-tip="Open your crates and wear your titles">
+              <span className="mbicon"><IconChest /></span>
+              <span className="mblabel">Collection</span>
+              {sealedCrates > 0 && <span className="mbnote" aria-label={`${sealedCrates} sealed ${sealedCrates === 1 ? 'crate' : 'crates'}`}>{sealedCrates} sealed</span>}
+            </button>
+          )}
           <button className="menubtn" onClick={() => { sfx.pulse(); openPatchNotes(); }} data-tip="Gameplay changes by date">
             <span className="mbicon"><Icon name="clock" /></span>
             <span className="mblabel">Patch Notes</span>

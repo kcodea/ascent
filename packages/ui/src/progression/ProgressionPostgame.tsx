@@ -182,12 +182,12 @@ function PostgameCrates({ result, reduced }: { result: ProgressionResult; reduce
           <span className="acctxp-crates-icon" aria-hidden />
           <div className="acctxp-crates-text">
             <span className="acctxp-crates-head">{n === 1 ? 'Crate earned' : `${n} crates earned`}</span>
-            <span className="acctxp-crates-sub">Open now, or later from your Career.</span>
+            <span className="acctxp-crates-sub">Open now, or later from your Collection.</span>
           </div>
           <button type="button" className="crate-btn pressable" onClick={() => setOpening(true)}>Open</button>
         </div>
       ) : (
-        <CrateOpener queue={sealed.length ? sealed : queue} autoOpen reducedMotion={reduced} />
+        <CrateOpener queue={sealed.length ? sealed : queue} autoOpen reducedMotion={reduced} onClose={() => setOpening(false)} />
       )}
     </div>
   );

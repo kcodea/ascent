@@ -765,7 +765,7 @@ describe('Account Level (account progression, 2026-09-27)', () => {
     expect(useGame.getState().accountPanelOpen).toBe(true);
   });
 
-  it('crates live (2026-09-28): your own card gets a Collection button with the sealed count; it opens the Collection', async () => {
+  it('crates live (2026-09-28): your own card gets a Collection button with the sealed count; it opens the Collection screen', async () => {
     act(() => {
       useProgression.setState({
         capability: 'on', cratesCapability: 'off',
@@ -784,8 +784,10 @@ describe('Account Level (account progression, 2026-09-27)', () => {
     expect(text('.cv2-acctlevel-coll')).toEqual(['Collection1']);
     click(ui.container.querySelector('.cv2-acctlevel-coll'));
     await flush();
-    expect(ui.container.querySelector('.coll-box')).not.toBeNull();
-    expect(text('.coll-titlename')).toEqual(['Alpha Tester', 'Ironbeard']);
+    // The Collection is its own screen now (2026-09-28): the card opens it over the Career (Back returns here).
+    expect(useGame.getState().showCollection).toBe(true);
+    expect(useGame.getState().showCareer).toBe(true);
+    act(() => { useGame.setState({ showCollection: false }); });
   });
 
   it('a fresh account reads Level 1, 0 / 250 with no title; a signed-in owner gets no reminder', async () => {

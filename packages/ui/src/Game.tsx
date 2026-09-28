@@ -15,6 +15,8 @@ import { Title } from './Title';
 import { Leaderboard } from './Leaderboard';
 import { Rankings } from './Rankings';
 import { RecentGames } from './RecentGames';
+import { CollectionScreen } from './progression/CollectionScreen';
+import { CratePreview } from './progression/crateFx/CratePreview';
 import { Career } from './Career';
 import { PerfScreen } from './PerfScreen';
 import { AvatarPicker } from './AvatarPicker';
@@ -495,6 +497,12 @@ export function Game() {
       <Rankings />
       <RecentGames />
       <Career />
+      {/* The Collection page (2026-09-28). After Career in DOM order, so a Collection opened from your Career's
+          Account Level card paints on top of it and Back returns there. */}
+      <CollectionScreen />
+      {/* DEV: the Crate opening tuner's practice crates (▶ Common … ▶ Legendary). Local only; renders nothing until
+          a Play is pressed. */}
+      {import.meta.env.DEV && <CratePreview />}
       {/* Perf analytics — self-gates on `showPerf`, renders nothing until opened from the dev menu. */}
       <PerfScreen />
       <AvatarPicker />

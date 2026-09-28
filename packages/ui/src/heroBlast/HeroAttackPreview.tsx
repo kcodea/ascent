@@ -72,7 +72,7 @@ export function HeroAttackPreview({ style, reducedMotion }: { style: string; red
     live.current = playHeroBlast({
       parts, total: values.reduce((s, v) => s + v, 0), attacker: aPt, defender: dPt,
       combineAt: { x: stage.offsetWidth * 0.5, y: stage.offsetHeight * 0.52 },
-      space: 'local', pixiScale: 0.55, host: stage, camera: stage, attackerEl: you,
+      side: 'player', defenderRadius: foe.offsetWidth / 2, space: 'local', pixiScale: 0.42, host: stage, camera: stage, attackerEl: you, defenderEl: foe,
       reduced: reducedMotion || undefined, speed: heroBlastPreviewSpeed(),
       textures: a ? undefined : null,
       mount: a ? (c: Container) => { a.stage.addChild(c); return () => { a.stage.removeChild(c); }; } : () => () => {},

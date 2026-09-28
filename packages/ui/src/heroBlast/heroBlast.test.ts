@@ -1,25 +1,27 @@
 // @vitest-environment jsdom
 /**
- * THE BLAST HERO ATTACK (owner ask 2026-09-28): the tuner defaults + clamping, the pure plan (the total is the
- * engine's number, the impact beat, scaling with damage inside caps, reduced motion), the one-clock runner (the
- * consequence lands exactly once on the impact beat, at any speed, in both directions; finish/cancel; cleanup), the
- * headless Pixi scene (pooled, bounded, drains, destroy leaves nothing), and the style resolver.
+ * THE BLAST HERO ATTACK (owner 2026-09-28): the tuner defaults + clamping; the pure plan (the total is the engine's
+ * number, the damage tiers escalate, the impact beat, reduced motion, determinism); the one-clock runner (the
+ * consequence lands exactly once on the impact beat, the hit-stop freezes the clock, both directions, any speed,
+ * finish/cancel, cleanup); the headless Pixi scene (pooled, bounded, drains, destroy leaves nothing); and the style
+ * resolver (Classic by default, Blast as the `attack_blast` cosmetic).
  */
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { Container, Texture } from 'pixi.js';
+import { COSMETIC_INDEX } from '@game/progression';
 import {
   BLAST_CAPS, HERO_BLAST_DEFAULTS, HERO_BLAST_RANGES, blastCounts, blastCues, blastPlan, boltTravelMs,
-  clampHeroBlastValue, heroBlastConfigJson, sanitizeHeroBlastConfig, type HeroBlastConfig, type HeroBlastNumKey,
+  clampHeroBlastValue, heroBlastConfigJson, sanitizeHeroBlastConfig, tierOf, type HeroBlastConfig, type HeroBlastNumKey,
 } from './heroBlastConfig';
-import { HeroBlastScene, MAX_SPRITES, arcControl, bezier, boltEase } from './heroBlastScene';
-import { cameraAt, playHeroBlast, type HeroBlastOptions } from './heroBlast';
+import { HeroBlastScene, MAX_SPRITES, arcControl, bezier, boltEase, whiten } from './heroBlastScene';
+import { cameraAt, cameraFocus, playHeroBlast, type HeroBlastOptions } from './heroBlast';
 import { DEFAULT_HERO_ATTACK_STYLE, resolveHeroAttackStyle, styleOfCosmetic } from './heroAttackStyle';
 import { attackerCosmeticOf } from './attackerCosmetic';
-import { COSMETIC_INDEX } from '@game/progression';
-import { SPEC } from '../HeroBlastTuner';
+import { SPEC, previewParts } from '../HeroBlastTuner';
 
-const TEX = { glow: Texture.WHITE, spark: Texture.WHITE, streak: Texture.WHITE, ring: Texture.WHITE };
+const TEX = { glow: Texture.WHITE, spark: Texture.WHITE, streak: Texture.WHITE, ring: Texture.WHITE, beam: Texture.WHITE };
 const C = HERO_BLAST_DEFAULTS;
+const plan = (values: number[], total: number, distance = 1600, reduced = false) => blastPlan({ values, total, distance, reduced }, C);
 
 describe('the tuner values', () => {
   it('every shipped default sits inside its slider range, and colours are #rrggbb', () => {
@@ -29,21 +31,22 @@ describe('the tuner values', () => {
       expect(v, k).toBeLessThanOrEqual(max);
       expect(step, k).toBeGreaterThan(0);
     }
-    for (const k of ['colorCore', 'colorBolt', 'colorImpact'] as const) expect(C[k]).toMatch(/^#[0-9a-f]{6}$/);
+    for (const k of ['colorCore', 'colorPlayer', 'colorFoe'] as const) expect(C[k]).toMatch(/^#[0-9a-f]{6}$/);
   });
 
   it('clamps numbers into range; junk falls back to the default; colours must be #rrggbb; unknown keys drop', () => {
-    expect(clampHeroBlastValue('boltsMax', 99)).toBe(8);
-    expect(clampHeroBlastValue('shakeMax', -3)).toBe(0);
-    expect(clampHeroBlastValue('zoomMax', 5)).toBe(0.12);
-    expect(clampHeroBlastValue('chargeMs', Number.NaN)).toBe(C.chargeMs);
-    expect(clampHeroBlastValue('chargeMs', 'abc')).toBe(C.chargeMs);
-    expect(clampHeroBlastValue('chargeMs', '300')).toBe(300);
-    expect(clampHeroBlastValue('colorBolt', '#ABCDEF')).toBe('#abcdef');
-    expect(clampHeroBlastValue('colorBolt', 'red')).toBe(C.colorBolt);
+    expect(clampHeroBlastValue('t2Bolts', 99)).toBe(6);
+    expect(clampHeroBlastValue('t4Shake', -3)).toBe(0);
+    expect(clampHeroBlastValue('t4Zoom', 5)).toBe(0.14);
+    expect(clampHeroBlastValue('absorbMs', Number.NaN)).toBe(C.absorbMs);
+    expect(clampHeroBlastValue('absorbMs', 'abc')).toBe(C.absorbMs);
+    expect(clampHeroBlastValue('absorbMs', '300')).toBe(300);
+    expect(clampHeroBlastValue('colorPlayer', '#ABCDEF')).toBe('#abcdef');
+    expect(clampHeroBlastValue('colorPlayer', 'red')).toBe(C.colorPlayer);
+    expect(clampHeroBlastValue('sfxImpactClip', '  fx/x  ')).toBe('fx/x');
     expect(clampHeroBlastValue('nope' as keyof HeroBlastConfig, 1)).toBeUndefined();
-    const s = sanitizeHeroBlastConfig({ boltsMin: 40, colorCore: 'x', bogus: 3 });
-    expect(s.boltsMin).toBe(8);
+    const s = sanitizeHeroBlastConfig({ t1Bolts: 40, colorCore: 'x', bogus: 3 });
+    expect(s.t1Bolts).toBe(6);
     expect(s.colorCore).toBe(C.colorCore);
     expect('bogus' in s).toBe(false);
     expect(sanitizeHeroBlastConfig('junk')).toEqual(C);
@@ -55,91 +58,123 @@ describe('the tuner values', () => {
     const json = JSON.parse(heroBlastConfigJson(C)) as Record<string, unknown>;
     expect(json.previewDamage).toBeUndefined();
     expect(json.previewParts).toBeUndefined();
-    expect(json.boltSpeed).toBe(C.boltSpeed);
+    expect(json.t4Beam).toBe(1);
+  });
+
+  it('the preview splits a blow the way a fight does and always sums to it', () => {
+    for (const [d, n] of [[3, 2], [12, 4], [40, 7], [1, 5]] as const) {
+      const v = previewParts(d, n);
+      expect(v.reduce((s, x) => s + x, 0), `${d}/${n}`).toBe(d);
+      expect(v.every((x) => x >= 1)).toBe(true);
+    }
   });
 });
 
 describe('the plan', () => {
   it('the combine ends on EXACTLY the engine total, even when the parts sum past the cap or fall short', () => {
     expect(blastCounts([3, 2, 4], 9)).toEqual([3, 5, 9]);
-    expect(blastCounts([6, 6, 6], 10)).toEqual([6, 10, 10]);   // capped: never shows past the blow
-    expect(blastCounts([2, 1], 5)).toEqual([2, 5]);            // short: the last arrival lands the real number
-    const p = blastPlan({ values: [6, 6, 6], total: 10, distance: 800 }, C);
+    expect(blastCounts([6, 6, 6], 10)).toEqual([6, 10, 10]);
+    expect(blastCounts([2, 1], 5)).toEqual([2, 5]);
+    const p = plan([6, 6, 6], 10);
     expect(p.total).toBe(10);
     expect(p.counts[p.counts.length - 1]).toBe(10);
     expect(p.capped).toBe(true);
   });
 
-  it('beats run in order: numbers launch and arrive, merge, charge, fire, IMPACT (lead bolt lands), end', () => {
-    const p = blastPlan({ values: [3, 1, 2, 4], total: 10, distance: 900 }, C);
-    p.launches.forEach((l, i) => expect(p.arrivals[i]).toBe(l + C.combineFlyMs));
-    expect(p.mergeAt).toBe(p.arrivals[3]);
-    expect(p.chargeAt).toBe(p.mergeAt + C.mergeHoldMs);
-    expect(p.fireAt).toBeGreaterThan(p.chargeAt);
+  it('damage tiers: I 1-5, II 6-11, III 12-19, IV 20+ (the engine caps are 5 / 10 / 15 / 20 by round)', () => {
+    expect([1, 5, 6, 11, 12, 19, 20, 60].map((d) => tierOf(d, C))).toEqual([1, 1, 2, 2, 3, 3, 4, 4]);
+  });
+
+  it('every tier escalates: longer charge, stronger hit-stop, harder shake and push, more sparks; IV is the beam', () => {
+    const ps = [plan([3], 3), plan([3, 5], 8), plan([4, 4, 3, 3], 14), plan([6, 6, 6, 6, 6, 5, 5], 40)];
+    expect(ps.map((p) => p.tier)).toEqual([1, 2, 3, 4]);
+    for (let i = 1; i < 4; i++) {
+      const a = ps[i - 1]!, b = ps[i]!;
+      expect(b.fireAt - b.chargeAt, `charge ${i}`).toBeGreaterThan(a.fireAt - a.chargeAt);
+      expect(b.hitStopMs, `hit-stop ${i}`).toBeGreaterThan(a.hitStopMs);
+      expect(b.shakePx, `shake ${i}`).toBeGreaterThan(a.shakePx);
+      expect(b.zoom, `zoom ${i}`).toBeGreaterThan(a.zoom);
+      expect(b.sparks, `sparks ${i}`).toBeGreaterThan(a.sparks);
+      expect(b.slamPop, `slam ${i}`).toBeGreaterThan(a.slamPop);
+    }
+    expect(ps.map((p) => p.bolts.length)).toEqual([1, 2, 3, 1]);
+    expect(ps.map((p) => p.beam)).toEqual([false, false, false, true]);
+    expect(ps.map((p) => p.booms.length)).toEqual([0, 0, 2, 4]);
+    expect(ps[0]!.dim).toBe(0);
+    expect(ps[3]!.dim).toBeGreaterThan(ps[1]!.dim);
+  });
+
+  it('the shipped per-tier timeline (1600 px apart): impact and end (+ hit-stop), ms', () => {
+    const t = (p: ReturnType<typeof plan>): number[] => [Math.round(p.impactAt), Math.round(p.endAt + p.hitStopMs)];
+    expect([t(plan([2, 1], 3)), t(plan([3, 3, 2], 8)), t(plan([3, 3, 3, 3, 2], 14)), t(plan([6, 6, 6, 6, 6, 5, 5], 40))]).toEqual([
+      [1251, 1950], [1556, 2375], [2046, 3036], [2609, 4004],
+    ]);
+  });
+
+  it('beats run in order: numbers launch and arrive, merge, charge, fire, IMPACT, hits and booms, end', () => {
+    const p = plan([3, 1, 2, 4, 4], 14);
+    p.launches.forEach((l, i) => expect(p.arrivals[i]).toBe(l + C.t3FlyMs));
+    expect(p.mergeAt).toBe(p.arrivals[4]);
+    expect(p.chargeAt).toBe(p.mergeAt + C.t3HoldMs);
     expect(p.impactAt).toBe(p.bolts[0]!.fireAt + p.bolts[0]!.travelMs);
-    expect(p.endAt).toBeGreaterThan(Math.max(...p.bolts.map((b) => b.arriveAt)));
     const kinds = blastCues(p).map((c) => c.kind);
     expect(kinds.indexOf('merge')).toBeLessThan(kinds.indexOf('charge'));
     expect(kinds.indexOf('charge')).toBeLessThan(kinds.indexOf('fire'));
     expect(kinds.indexOf('fire')).toBeLessThan(kinds.indexOf('impact'));
+    expect(kinds.indexOf('impact')).toBeLessThan(kinds.indexOf('boom'));
     expect(kinds.filter((k) => k === 'impact')).toHaveLength(1);
     expect(kinds[kinds.length - 1]).toBe('end');
   });
 
-  it('the shipped timeline (4 parts, 900 px): impact and end, ms', () => {
-    const p = blastPlan({ values: [3, 1, 2, 4], total: 10, distance: 900 }, C);
-    expect([p.mergeAt, p.chargeAt, p.fireAt, p.impactAt, Math.round(p.endAt)]).toEqual([760, 930, 1190, 1455, 2043]);
-  });
-
-  it('bigger blows read bigger: more bolts, harder shake, deeper push, more sparks; always inside the caps', () => {
-    const small = blastPlan({ values: [1], total: 1, distance: 800 }, C);
-    const big = blastPlan({ values: [5, 6, 6, 6, 6], total: 40, distance: 800 }, C);
-    expect(small.bolts).toHaveLength(C.boltsMin);
-    expect(big.bolts).toHaveLength(C.boltsMax);
-    expect(big.shakePx).toBeGreaterThan(small.shakePx);
-    expect(big.zoom).toBeGreaterThan(small.zoom);
-    expect(big.sparks).toBeGreaterThan(small.sparks);
-    expect(big.bolts[0]!.size).toBeGreaterThan(small.bolts[0]!.size);
-    const wild: HeroBlastConfig = { ...C, boltsMax: 8, shakeMax: 20, zoomMax: 0.12, sparksMax: 80 };
+  it('bolt flight scales with distance inside a readable band; the caps always hold', () => {
+    expect(boltTravelMs(560, 5600)).toBe(180);
+    expect(boltTravelMs(1680, 5600)).toBe(300);
+    expect(boltTravelMs(99999, 5600)).toBe(420);
+    const wild: HeroBlastConfig = { ...C, t4Beam: 0, t4Bolts: 6, t4Shake: 40, t4Zoom: 0.14, t4Sparks: 70, t4HitStop: 250, t4Booms: 6 };
     const w = blastPlan({ values: [99], total: 99, distance: 800 }, wild);
     expect(w.bolts.length).toBeLessThanOrEqual(BLAST_CAPS.bolts);
     expect(w.shakePx).toBeLessThanOrEqual(BLAST_CAPS.shakePx);
     expect(w.zoom).toBeLessThanOrEqual(BLAST_CAPS.zoom);
+    expect(w.hitStopMs).toBeLessThanOrEqual(BLAST_CAPS.hitStopMs);
+    expect(w.booms.length).toBeLessThanOrEqual(BLAST_CAPS.booms);
   });
 
-  it('bolt flight scales with distance inside a readable band', () => {
-    expect(boltTravelMs(340, 3400)).toBe(140);
-    expect(boltTravelMs(1020, 3400)).toBe(300);
-    expect(boltTravelMs(99999, 3400)).toBe(520);
-  });
-
-  it('reduced motion: no flight, no bolts, no shake, no zoom; the blow still lands once', () => {
-    const p = blastPlan({ values: [3, 4], total: 7, distance: 800, reduced: true }, C);
+  it('reduced motion: no flight, bolts, shake, zoom, dim or hit-stop; the blow still lands once', () => {
+    const p = plan([3, 4], 7, 800, true);
     expect(p.bolts).toEqual([]);
-    expect(p.shakePx).toBe(0);
-    expect(p.zoom).toBe(0);
-    expect(p.impactAt).toBe(C.reducedFadeMs + 220);
+    expect([p.shakePx, p.zoom, p.hitStopMs, p.dim]).toEqual([0, 0, 0, 0]);
     expect(blastCues(p).filter((c) => c.kind === 'impact')).toHaveLength(1);
     expect(cameraAt(p, C, p.impactAt + 10)).toEqual({ zoom: 1, x: 0, y: 0 });
   });
 
-  it('the camera pushes in through the charge, punches on impact, and is back at rest by the end', () => {
-    const p = blastPlan({ values: [3, 4], total: 7, distance: 800 }, C);
-    expect(cameraAt(p, C, p.chargeAt - 1).zoom).toBe(1);
-    expect(cameraAt(p, C, p.fireAt).zoom).toBeCloseTo(1 + p.zoom, 5);
-    expect(cameraAt(p, C, p.impactAt + 70).zoom).toBeGreaterThan(1 + p.zoom);
-    const rest = cameraAt(p, C, p.endAt);
-    expect(rest.zoom).toBeCloseTo(1, 4);
-    expect(Math.abs(rest.x) + Math.abs(rest.y)).toBeLessThan(0.01);
-    const shake = cameraAt(p, C, p.impactAt + 20);
-    expect(Math.abs(shake.x) + Math.abs(shake.y)).toBeGreaterThan(0);
+  it('the camera: pushes in through the charge, punches on impact, shakes ALONG the line of fire, rests by the end', () => {
+    const p = plan([3, 4], 7);
+    const dir = { x: 0.8, y: -0.6 };
+    expect(cameraAt(p, C, p.mergeAt - 1, dir).zoom).toBeCloseTo(1, 5);
+    expect(cameraAt(p, C, p.fireAt, dir).zoom).toBeCloseTo(1 + p.zoom, 5);
+    const hit = cameraAt(p, C, p.impactAt, dir);
+    expect(hit.zoom).toBeCloseTo(1 + p.zoom + p.punch, 5);
+    // the impact frame is displaced along the bolt (the frame the hit-stop holds)
+    expect(hit.x / p.shakePx).toBeCloseTo(dir.x, 1);
+    expect(hit.y / p.shakePx).toBeCloseTo(dir.y, 1);
+    const rest = cameraAt(p, C, p.endAt, dir);
+    expect(rest.zoom).toBeCloseTo(1, 2);
+    expect(Math.abs(rest.x) + Math.abs(rest.y)).toBeLessThan(0.1);
+  });
+
+  it('the camera anchors on the attacker through the charge and on the target from the impact', () => {
+    const p = plan([3, 4], 7);
+    const a = { x: 100, y: 900 }, d = { x: 1700, y: 150 };
+    expect(cameraFocus(p, p.chargeAt, a, d)).toEqual(a);
+    expect(cameraFocus(p, p.impactAt, a, d)).toEqual(d);
+    const mid = cameraFocus(p, (p.fireAt + p.impactAt) / 2, a, d);
+    expect(mid.x).toBeGreaterThan(a.x);
+    expect(mid.x).toBeLessThan(d.x);
   });
 
   it('is deterministic: the same fight plans the same beats (a replay plays what the live fight did)', () => {
-    const a = blastPlan({ values: [4, 2, 3], total: 9, distance: 720 }, C);
-    const b = blastPlan({ values: [4, 2, 3], total: 9, distance: 720 }, C);
-    expect(b).toEqual(a);
-    expect(blastCues(b)).toEqual(blastCues(a));
+    expect(plan([4, 2, 3], 9, 720)).toEqual(plan([4, 2, 3], 9, 720));
+    expect(blastCues(plan([4, 2, 3], 9, 720))).toEqual(blastCues(plan([4, 2, 3], 9, 720)));
   });
 });
 
@@ -160,63 +195,74 @@ function run(over: Partial<HeroBlastOptions> = {}) {
   const onDone = vi.fn();
   const host = document.createElement('div');
   const camera = document.createElement('div');
+  const attackerEl = document.createElement('div');
+  const defenderEl = document.createElement('div');
   document.body.append(host, camera);
   const h = playHeroBlast({
     parts: [{ value: 3, from: { x: 100, y: 800 }, base: true }, { value: 2, from: { x: 500, y: 500 } }, { value: 4, from: { x: 700, y: 500 } }],
-    total: 9, attacker: { x: 100, y: 800 }, defender: { x: 1400, y: 150 }, combineAt: { x: 900, y: 500 },
+    total: 9, side: 'player', attacker: { x: 100, y: 800 }, defender: { x: 1400, y: 150 }, combineAt: { x: 900, y: 500 },
     reduced: false, cfg: C, onImpact, onDone, frames: f.frames, textures: TEX, sound: false, safety: false,
-    mount: (c) => { root.addChild(c); return () => root.removeChild(c); }, host, camera,
+    mount: (c) => { root.addChild(c); return () => root.removeChild(c); }, host, camera, attackerEl, defenderEl,
     ...over,
   });
-  return { h, f, root, onImpact, onDone, host, camera };
+  return { h, f, root, onImpact, onDone, host, camera, attackerEl, defenderEl };
 }
 
 describe('the runner', () => {
   afterEach(() => { document.body.innerHTML = ''; });
 
-  it('lands the blow EXACTLY ONCE, on the impact beat (the lead bolt arriving), then ends and cleans up', () => {
-    const { h, f, root, onImpact, onDone, host, camera } = run();
+  it('lands the blow EXACTLY ONCE on the impact beat, HOLDS the hit-stop, then ends and cleans everything up', () => {
+    const { h, f, root, onImpact, onDone, host, camera, attackerEl, defenderEl } = run();
     expect(host.querySelectorAll('.hblast-chip')).toHaveLength(3);
-    f.tick(h.plan.impactAt - 20, 1);
+    f.tick(h.plan.impactAt - 8, 4);
     expect(onImpact).not.toHaveBeenCalled();
-    f.tick(20, 1);
+    f.tick(12, 4);
     expect(onImpact).toHaveBeenCalledTimes(1);
-    expect(h.elapsed()).toBeGreaterThanOrEqual(h.plan.impactAt);
+    expect(h.elapsed()).toBe(h.plan.impactAt);
+    // the hit-stop: real time passes, the sequence clock does not
+    f.tick(h.plan.hitStopMs - 12, 4);
+    expect(h.elapsed()).toBe(h.plan.impactAt);
     expect(camera.style.transform).toContain('scale(');
-    f.tick(h.plan.endAt - h.plan.impactAt + 16, 16);
+    expect(defenderEl.style.transform).toContain('scale(');
+    expect(host.querySelector<HTMLElement>('.hblast-hit')!.style.opacity).toBe('1');
+    f.tick(h.plan.endAt - h.plan.impactAt + h.plan.hitStopMs + 32, 8);
     expect(onDone).toHaveBeenCalledTimes(1);
     expect(onImpact).toHaveBeenCalledTimes(1);
     expect(host.querySelector('.hblast')).toBeNull();
     expect(camera.style.transform).toBe('');
-    f.tick(2000, 16); // the embers drain, then the updater unhooks and the layer unmounts
+    expect(attackerEl.style.transform).toBe('');
+    expect(defenderEl.style.transform).toBe('');
+    f.tick(3000, 16); // the embers drain, then the updater unhooks and the layer unmounts
     expect(f.hooked()).toBe(0);
     expect(root.children).toHaveLength(0);
   });
 
-  it('works in both directions (the impact lands at whichever hero is struck)', () => {
-    for (const dir of ['you', 'them'] as const) {
-      const a = dir === 'you' ? { x: 100, y: 800 } : { x: 1400, y: 150 };
-      const d = dir === 'you' ? { x: 1400, y: 150 } : { x: 100, y: 800 };
-      const { h, f, onImpact } = run({ attacker: a, defender: d });
-      f.tick(h.plan.impactAt + 16);
-      expect(onImpact, dir).toHaveBeenCalledTimes(1);
+  it('works in both directions (the impact lands at whichever hero is struck), and the top tier fires the beam', () => {
+    for (const side of ['player', 'opp'] as const) {
+      const a = side === 'player' ? { x: 100, y: 800 } : { x: 1400, y: 150 };
+      const d = side === 'player' ? { x: 1400, y: 150 } : { x: 100, y: 800 };
+      const { h, f, onImpact } = run({ side, attacker: a, defender: d, total: 40 });
+      expect(h.plan.beam).toBe(true);
+      f.tick(h.plan.impactAt + 16, 4);
+      expect(onImpact, side).toHaveBeenCalledTimes(1);
       h.cancel();
     }
   });
 
   it('slow motion stretches real time but the impact is still the same sequence beat', () => {
     const { h, f, onImpact } = run({ speed: 0.25 });
-    f.tick(h.plan.impactAt * 4 - 40);
+    f.tick(h.plan.impactAt * 4 - 40, 4);
     expect(onImpact).not.toHaveBeenCalled();
-    f.tick(60);
+    f.tick(60, 4);
     expect(onImpact).toHaveBeenCalledTimes(1);
     h.cancel();
   });
 
-  it('the counter shows the ENGINE total at the merge', () => {
+  it('the counter shows the ENGINE total at the merge, and the hit number shows the same blow', () => {
     const { h, f, host } = run({ total: 7 }); // parts sum to 9, the capped blow is 7
     f.tick(h.plan.mergeAt + 20, 4);
     expect(host.querySelector('.hblast-total-n')!.textContent).toBe('7');
+    expect(host.querySelector('.hblast-hit')!.textContent).toBe('-7');
     h.cancel();
   });
 
@@ -229,7 +275,7 @@ describe('the runner', () => {
     expect(a.f.hooked()).toBe(0);
     expect(a.root.children).toHaveLength(0);
     const b = run();
-    b.f.tick(200);
+    b.f.tick(1200);
     b.h.cancel();
     b.f.tick(5000);
     expect(b.onImpact).not.toHaveBeenCalled();
@@ -238,12 +284,13 @@ describe('the runner', () => {
     expect(b.camera.style.transform).toBe('');
   });
 
-  it('reduced motion: no Pixi layer, no camera move, just the total fading; the blow lands once', () => {
-    const { h, f, root, onImpact, camera, host } = run({ reduced: true });
+  it('reduced motion: no Pixi layer, no camera or portrait move, just fades; the blow lands once', () => {
+    const { h, f, root, onImpact, camera, host, defenderEl } = run({ reduced: true });
     expect(root.children).toHaveLength(0);
     f.tick(h.plan.impactAt + 16);
     expect(onImpact).toHaveBeenCalledTimes(1);
     expect(camera.style.transform).toBe('');
+    expect(defenderEl.style.transform).toBe('');
     expect(host.querySelector('.hblast-total-n')!.textContent).toBe('9');
     f.tick(h.plan.endAt);
     expect(f.hooked()).toBe(0);
@@ -258,7 +305,7 @@ describe('the runner', () => {
         cfg: C, reduced: false, onImpact, frames: () => () => {}, textures: TEX, sound: false,
         mount: () => () => {}, host: null, camera: null,
       });
-      vi.advanceTimersByTime(h.plan.endAt + 2600);
+      vi.advanceTimersByTime(h.plan.endAt + h.plan.hitStopMs + 2600);
       expect(onImpact).toHaveBeenCalledTimes(1);
       expect(h.done).toBe(true);
     } finally { vi.useRealTimers(); }
@@ -266,30 +313,34 @@ describe('the runner', () => {
 });
 
 describe('the scene (headless Pixi)', () => {
-  it('pure helpers: the bolt accelerates, the arc bows sideways and ends on target', () => {
+  it('pure helpers: the bolt accelerates, the arc bows sideways and ends on target, whiten blends to white', () => {
     expect(boltEase(0)).toBe(0);
     expect(boltEase(1)).toBe(1);
     expect(boltEase(0.75) - boltEase(0.5)).toBeGreaterThan(boltEase(0.25) - boltEase(0));
     const a = { x: 0, y: 0 }, b = { x: 100, y: 0 };
     expect(arcControl(a, b, 0.2).y).toBeCloseTo(20);
     expect(bezier(a, arcControl(a, b, 0.2), b, 1)).toEqual(b);
+    expect(whiten(0x000000, 1)).toBe(0xffffff);
+    expect(whiten(0xff0000, 0)).toBe(0xff0000);
   });
 
-  it('a whole blast charges, fires, impacts, drains to idle; the pool stays bounded; destroy leaves nothing', () => {
-    const s = new HeroBlastScene(TEX, { core: 0xffffff, bolt: 0xffaa00, impact: 0xff4400 });
-    s.mergeBurst(500, 500, true);
-    s.startCharge(100, 800, 260, 1, 30);
+  it('a whole top-tier blast (charge, beam, impact, booms) drains to idle inside the pool cap; destroy leaves nothing', () => {
+    const s = new HeroBlastScene(TEX, { core: 0xffffff, side: 0xffaa00 });
+    s.mergeTick(500, 500, 0);
+    s.mergeSlam(500, 500);
+    s.startCharge(100, 800, 260, 1.4, 44);
     for (let i = 0; i < 16; i++) s.update(16);
     expect(s.charging).toBe(true);
-    for (let i = 0; i < 8; i++) s.fire({ x: 100, y: 800 }, { x: 1400, y: 150 }, 300, 1.4, (i % 2 ? 1 : -1) * 0.12);
-    expect(s.liveBolts).toBe(8);
+    s.beam({ x: 100, y: 800 }, { x: 1400, y: 150 }, 240, 230, 2.2);
+    for (let i = 0; i < 6; i++) s.fire({ x: 100, y: 800 }, { x: 1400, y: 150 }, 300, 1.4, (i % 2 ? 1 : -1) * 0.12);
     for (let i = 0; i < 25; i++) s.update(16);
-    s.impact(1400, 150, { x: 1, y: -0.5 }, 1, 1.4, 0.9, 80);
+    s.impact(1400, 150, { x: 1, y: -0.5 }, 1, 1.6, 1, 60, 130, 4);
+    for (let i = 0; i < 4; i++) s.boom(1400 + i * 20, 150, 1.4);
     s.hit(1400, 150, { x: 1, y: -0.5 }, 1);
     expect(s.liveSprites).toBeLessThanOrEqual(MAX_SPRITES);
     expect(s.pooledSprites).toBeLessThanOrEqual(MAX_SPRITES);
     let alive = true;
-    for (let i = 0; i < 200 && alive; i++) alive = s.update(16);
+    for (let i = 0; i < 400 && alive; i++) alive = s.update(16);
     expect(alive).toBe(false);
     expect(s.liveSprites).toBe(0);
     expect(s.liveBolts).toBe(0);
@@ -299,9 +350,10 @@ describe('the scene (headless Pixi)', () => {
   });
 
   it('clear() drops everything in flight at once', () => {
-    const s = new HeroBlastScene(TEX, { core: 1, bolt: 2, impact: 3 });
+    const s = new HeroBlastScene(TEX, { core: 1, side: 2 });
     s.startCharge(0, 0, 200, 1, 20);
     s.fire({ x: 0, y: 0 }, { x: 500, y: 0 }, 200, 1, 0);
+    s.beam({ x: 0, y: 0 }, { x: 500, y: 0 }, 200, 200, 2);
     s.impact(500, 0, { x: 1, y: 0 }, 0.5, 1, 1, 30);
     s.clear();
     expect(s.liveSprites).toBe(0);

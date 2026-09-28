@@ -1,25 +1,42 @@
-/* THE BLAST HERO ATTACK's numbers (heroBlast.ts). Positioned once at their source, then moved by `transform` /
-   `opacity` written from the sequence clock: nothing here animates, so no paint property ever loops. The look
-   matches the Classic tally (`.lossfly` / `.lossdmg`) so the two styles read as one family. */
-.hblast { position: fixed; inset: 0; z-index: 2001; pointer-events: none; }
-.hblast-chip {
-  position: fixed; transform: translate(-50%, -50%); will-change: transform, opacity; white-space: nowrap;
-  font-family: var(--font-ui); font-weight: 900; font-size: calc(34 * var(--u, 1px)); line-height: 1; color: #fff;
-  text-shadow: 0 0 8px var(--threat), 0 2px 5px rgba(0, 0, 0, 0.55);
+/* THE BLAST HERO ATTACK's numbers (heroBlast.ts). Built for READABILITY over any background (owner 2026-09-28: "more
+   readability"): heavy weight, a thick dark outline painted UNDER the fill (paint-order), a static drop shadow, and the
+   attacker's side colour (yours gold, theirs red) as `--hb-side`. Positioned once at their source, then moved by
+   `transform` / `opacity` written from the sequence clock: nothing here animates, so no paint property ever loops.
+   Lives in `#stage`, above the portraits (the foe's portrait is a `#stage` portal). */
+.hblast { position: fixed; left: 0; top: 0; width: 100%; height: 100%; transform-origin: 0 0; z-index: 240; pointer-events: none; --hb-side: #ffb627; --hb-chip: 50px; --hb-total: 128px; }
+.hblast-chip, .hblast-total, .hblast-hit { position: absolute; transform: translate(-50%, -50%); will-change: transform, opacity; text-align: center; white-space: nowrap; }
+.hblast-chip b {
+  display: block; font-family: var(--font-ui); font-weight: 900; font-style: normal; font-size: var(--hb-chip); line-height: 1;
+  color: #fff; -webkit-text-stroke: calc(var(--hb-chip) * 0.16) #1b0f06; paint-order: stroke fill;
+  text-shadow: 0 0 calc(var(--hb-chip) * 0.3) var(--hb-side), 0 calc(var(--hb-chip) * 0.08) 0 #1b0f06;
 }
-.hblast-chip.base { color: #ffe6a8; text-shadow: 0 0 8px #d6a83e, 0 2px 5px rgba(0, 0, 0, 0.55); }
-.hblast-total { position: fixed; transform: translate(-50%, -50%); will-change: transform, opacity; text-align: center; }
+.hblast-chip.base b { color: #ffe9a8; }
+.hblast-chip i {
+  display: block; margin-top: calc(var(--hb-chip) * 0.04); font-family: var(--font-ui); font-weight: 800; font-style: normal;
+  font-size: calc(var(--hb-chip) * 0.3); letter-spacing: 0.12em; text-transform: uppercase; color: #fff3dc;
+  -webkit-text-stroke: calc(var(--hb-chip) * 0.07) #1b0f06; paint-order: stroke fill;
+}
+.hblast-total { display: grid; justify-items: center; }
 .hblast-total-n {
-  font-family: var(--font-ui); font-weight: 900; font-size: calc(78 * var(--u, 1px)); line-height: 1; color: #fff;
-  text-shadow: 0 0 10px var(--threat), 0 0 24px var(--threat), 0 3px 8px rgba(0, 0, 0, 0.5);
+  grid-area: 1 / 1; font-family: var(--font-ui); font-weight: 900; font-size: var(--hb-total); line-height: 0.95; color: var(--hb-side);
+  -webkit-text-stroke: calc(var(--hb-total) * 0.12) #1b0f06; paint-order: stroke fill;
+  text-shadow: 0 calc(var(--hb-total) * 0.06) 0 #1b0f06, 0 0 calc(var(--hb-total) * 0.35) color-mix(in srgb, var(--hb-side) 70%, transparent);
 }
+/* The slam's white-hot copy, stacked on the number and faded out by OPACITY (never a colour transition). */
+.hblast-total-flash { color: #fff; text-shadow: 0 0 calc(var(--hb-total) * 0.25) #fff; }
 .hblast-total-l {
-  font-family: var(--font-ui); font-weight: 800; font-size: calc(15 * var(--u, 1px)); letter-spacing: 0.14em;
-  text-transform: uppercase; color: #ffd9c0; text-shadow: 0 1px 4px rgba(0, 0, 0, 0.6); margin-top: 4px;
+  grid-area: 2 / 1; margin-top: calc(var(--hb-total) * 0.02); font-family: var(--font-ui); font-weight: 900;
+  font-size: calc(var(--hb-total) * 0.17); letter-spacing: 0.2em; text-transform: uppercase; color: #fff;
+  -webkit-text-stroke: calc(var(--hb-total) * 0.05) #1b0f06; paint-order: stroke fill;
 }
+/* The hit number on the struck hero: white-hot fill, a thick dark outline, the attacker's glow. */
+.hblast-hit {
+  font-family: var(--font-ui); font-weight: 900; font-size: calc(var(--hb-total) * 0.8); line-height: 1; color: #fff;
+  -webkit-text-stroke: calc(var(--hb-total) * 0.1) #1b0f06; paint-order: stroke fill;
+  text-shadow: 0 calc(var(--hb-total) * 0.05) 0 #1b0f06, 0 0 calc(var(--hb-total) * 0.3) var(--hb-side);
+}
+/* The big tiers' dim: everything but the two heroes (two static mask spotlights set once), faded by opacity only. */
+.hblast-dim { position: fixed; z-index: 150; pointer-events: none; background: rgba(6, 3, 14, 0.9); will-change: opacity; mask-composite: intersect; -webkit-mask-composite: source-in; }
 /* The sandbox (the Collection preview): the same numbers inside a small box, in the box's own px. */
 .hblast.local { position: absolute; inset: 0; z-index: 3; }
-.hblast.local .hblast-chip, .hblast.local .hblast-total { position: absolute; }
-.hblast.local .hblast-chip { font-size: 20px; }
-.hblast.local .hblast-total-n { font-size: 40px; }
-.hblast.local .hblast-total-l { font-size: 10px; margin-top: 2px; }
+.hblast.local { width: auto; height: auto; }

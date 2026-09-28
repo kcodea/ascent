@@ -74,6 +74,7 @@ import { getHeroBlastConfig, heroBlastPreviewSpeed } from './heroBlast/heroBlast
 import { resolveHeroAttackStyle } from './heroBlast/heroAttackStyle';
 import { attackerCosmeticOf } from './heroBlast/attackerCosmetic';
 import { heroStrikeDamage } from './heroBlast/heroStrikeDamage';
+import { portraitGeometry } from './heroBlast/portraits';
 import { EndTurnButton } from './EndTurnButton';
 import { RiftButton } from './RiftButton';
 import { RefreshButton } from './RefreshButton';
@@ -2922,20 +2923,20 @@ export function Recruit() {
     // bolts carry the blow. Same blow, same consequence (`land` below is the Classic one), only drawn differently;
     // the style is the ATTACKER's (their equipped cosmetic, or the dev override).
     if (resolveHeroAttackStyle({ attacker: side, attackerCosmeticId: attackerCosmeticOf(run0, side, useGame.getState().showOpponentSkins) }) === 'blast') {
-      const strikeSeqB = (lossSeqSeqRef.current += 1);
-      const playerEl = document.querySelector<HTMLElement>('.statusbar .hero .herolunge');
-      const oppEl = document.querySelector<HTMLElement>('.combatopp-body');
+      lossSeqSeqRef.current += 1; // keeps a later Classic blow's damage number keyed fresh
       const centreOf = (r: DOMRect | null | undefined): { x: number; y: number } | null =>
         r && r.width > 0 ? { x: r.left + r.width / 2, y: r.top + r.height / 2 } : null;
       const bh = boardRect?.height ?? window.innerHeight;
-      const pPt = centreOf(playerEl?.getBoundingClientRect()) ?? { x: cx, y: cy + bh * 0.42 };
-      const oPt = centreOf(oppEl?.getBoundingClientRect()) ?? { x: cx, y: cy - bh * 0.42 };
-      const aPt = playerWon ? pPt : oPt;
-      const dPt = playerWon ? oPt : pPt;
+      // Both portraits, measured once. A run with no foe portrait still plays, toward the enemy side of the board.
+      const geo = portraitGeometry(side);
+      const youPt = { x: cx, y: cy + bh * 0.42 }, foePt = { x: cx, y: cy - bh * 0.42 };
+      const aPt = geo?.a ?? (playerWon ? youPt : foePt);
+      const dPt = geo?.d ?? (playerWon ? foePt : youPt);
       const bias = getHeroBlastConfig().combineBias;
       setLossPhase('blast');
       const landBlast = (): void => {
-        useGame.getState().setHeroDmgTaken({ side: playerWon ? 'opp' : 'player', amount: strikeDmg, seq: strikeSeqB });
+        // The Blast punches its own big hit number onto the struck hero (above every flash), so the portrait's small
+        // red number is not shown too.
         if (playerWon) useGame.getState().setOppDmgDealt(strikeDmg);
         dispatch({ type: 'settleCombat' }); // the health drop lands on the impact beat, exactly as Classic's
       };
@@ -2948,16 +2949,18 @@ export function Recruit() {
         })),
         total: strikeDmg,
         capped: rawTotal > cap && strikeDmg >= cap,
+        side,
         attacker: aPt,
         defender: dPt,
+        defenderRadius: geo?.radius,
         combineAt: { x: cx + (aPt.x - cx) * bias, y: cy + (aPt.y - cy) * bias },
         speed: (combatSpeed > 0 ? combatSpeed : 1) * heroBlastPreviewSpeed(),
-        attackerEl: playerWon ? playerEl : oppEl,
+        attackerEl: geo?.attackerEl ?? null,
+        defenderEl: geo?.defenderEl ?? null,
         onImpact: landBlast,
         onDone: () => {
           blastRef.current = null;
           setLossPhase('done');
-          seqTimersRef.current.push(window.setTimeout(() => useGame.getState().setHeroDmgTaken(null), 420));
         },
       });
       return;

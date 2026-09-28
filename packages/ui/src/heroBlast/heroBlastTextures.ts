@@ -38,7 +38,7 @@ function paintSpark(D: number): HTMLCanvasElement | null {
 
 /** +X aligned: dim tail on the left, white-hot tip on the right. */
 function paintStreak(L: number): HTMLCanvasElement | null {
-  const H = Math.max(6, Math.round(L / 5));
+  const H = Math.max(8, Math.round(L / 3.5));
   const k = canvas(L, H); if (!k) return null;
   const gr = k.g.createLinearGradient(0, 0, L, 0);
   gr.addColorStop(0, 'rgba(255,255,255,0)'); gr.addColorStop(0.6, 'rgba(255,255,255,0.5)'); gr.addColorStop(1, 'rgba(255,255,255,1)');
@@ -49,9 +49,20 @@ function paintStreak(L: number): HTMLCanvasElement | null {
 
 function paintRing(D: number): HTMLCanvasElement | null {
   const k = canvas(D, D); if (!k) return null;
-  k.g.shadowColor = '#fff'; k.g.shadowBlur = D * 0.05;
-  k.g.strokeStyle = 'rgba(255,255,255,0.95)'; k.g.lineWidth = D * 0.04;
+  k.g.shadowColor = '#fff'; k.g.shadowBlur = D * 0.06;
+  k.g.strokeStyle = 'rgba(255,255,255,1)'; k.g.lineWidth = D * 0.075;
   k.g.beginPath(); k.g.arc(D / 2, D / 2, D * 0.4, 0, Math.PI * 2); k.g.stroke();
+  return k.c;
+}
+
+/** The beam: a horizontal bar, soft top and bottom, white-hot along its middle. Stretched along the line of fire. */
+function paintBeam(W: number, H: number): HTMLCanvasElement | null {
+  const k = canvas(W, H); if (!k) return null;
+  const gr = k.g.createLinearGradient(0, 0, 0, H);
+  gr.addColorStop(0, 'rgba(255,255,255,0)'); gr.addColorStop(0.3, 'rgba(255,255,255,0.35)');
+  gr.addColorStop(0.45, 'rgba(255,255,255,0.95)'); gr.addColorStop(0.55, 'rgba(255,255,255,0.95)');
+  gr.addColorStop(0.7, 'rgba(255,255,255,0.35)'); gr.addColorStop(1, 'rgba(255,255,255,0)');
+  k.g.fillStyle = gr; k.g.fillRect(0, 0, W, H);
   return k.c;
 }
 
@@ -60,8 +71,8 @@ let cached: HeroBlastTextures | null = null;
 /** The session's textures, painted on first use. Null when no 2D canvas is available (the Blast then skips Pixi). */
 export function heroBlastTextures(): HeroBlastTextures | null {
   if (cached) return cached;
-  const glow = paintGlow(128), spark = paintSpark(32), streak = paintStreak(64), ring = paintRing(160);
-  if (!glow || !spark || !streak || !ring) return null;
-  cached = { glow: tex(glow), spark: tex(spark), streak: tex(streak), ring: tex(ring) };
+  const glow = paintGlow(128), spark = paintSpark(32), streak = paintStreak(64), ring = paintRing(160), beam = paintBeam(64, 64);
+  if (!glow || !spark || !streak || !ring || !beam) return null;
+  cached = { glow: tex(glow), spark: tex(spark), streak: tex(streak), ring: tex(ring), beam: tex(beam) };
   return cached;
 }

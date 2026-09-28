@@ -1,11 +1,13 @@
 import {
   HERO_BLAST_DEFAULTS, HERO_BLAST_RANGES, HERO_BLAST_SPEEDS, blastPlan, getHeroBlastConfig, heroBlastConfigJson,
   heroBlastPreviewSpeed, resetHeroBlastConfig, setHeroBlastPreviewSpeed, setHeroBlastValue,
-  type HeroBlastConfig, type HeroBlastNumKey,
+  TIERS, TIER_SUFFIXES, type HeroBlastConfig, type HeroBlastNumKey, type HeroBlastStrKey, type TierNum, type TierSuffix,
 } from './heroBlast/heroBlastConfig';
+import { clipNames } from './sfx';
 import { DEV_HERO_ATTACK_CHOICES, devHeroAttackChoice, setDevHeroAttackChoice } from './heroBlast/heroAttackStyle';
-import { playHeroBlast, type HeroBlastHandle, type HeroBlastPart } from './heroBlast/heroBlast';
+import { playHeroBlast, type HeroBlastHandle, type HeroBlastOptions, type HeroBlastPart } from './heroBlast/heroBlast';
 import { useGame } from './store';
+import { portraitGeometry } from './heroBlast/portraits';
 import { TunerPanel } from './TunerPanel';
 import type { TunerControl, TunerSpec, TunerUnit } from './tunerSchema';
 
@@ -18,58 +20,103 @@ import type { TunerControl, TunerSpec, TunerUnit } from './tunerSchema';
  */
 type BlastTunerValues = HeroBlastConfig & { attackStyle: string };
 
-const SPECS: Record<HeroBlastNumKey, [string, TunerUnit | undefined, string, string]> = {
+type Spec = [string, TunerUnit | undefined, string, string];
+type GlobalNumKey = Exclude<HeroBlastNumKey, `t${number}${string}`>;
+
+const SPECS: Record<GlobalNumKey, Spec> = {
+  previewDamage: ['Preview damage', undefined, 'The blow the Play buttons use (preview only, never shipped).', 'Preview'],
+  previewParts: ['Preview numbers', undefined, 'How many numbers combine in the preview (the tier plus survivors).', 'Preview'],
+  tier2At: ['Tier II from', undefined, 'Damage at which the blast steps up to Tier II.', 'Damage tiers'],
+  tier3At: ['Tier III from', undefined, 'Damage at which the blast steps up to Tier III (secondary explosions, embers).', 'Damage tiers'],
+  tier4At: ['Tier IV from', undefined, 'Damage at which the blast becomes the colossal beam.', 'Damage tiers'],
   popInMs: ['Pop in', 'ms', 'Each number popping in where it comes from.', 'Combine'],
-  combineStaggerMs: ['Stagger', 'ms', 'Gap between each number leaving.', 'Combine'],
-  combineFlyMs: ['Flight', 'ms', 'How long a number takes to reach the total.', 'Combine'],
   combineBackPx: ['Pull back', 'px', 'How far a number pulls back before it flies (anticipation).', 'Combine'],
   combineArc: ['Arc', '×', 'How much the numbers curve on the way in.', 'Combine'],
   combineBias: ['Merge point', '×', 'Where the numbers meet: 0 = the board centre, 1 = the attacking hero.', 'Combine'],
-  mergePop: ['Merge pop', '×', 'How big the total pops when the last number lands.', 'Combine'],
-  mergeHoldMs: ['Merge hold', 'ms', 'The total holds this long before the hero absorbs it.', 'Combine'],
-  absorbMs: ['Absorb', 'ms', 'The total diving into the hero.', 'Charge'],
-  chargeMs: ['Charge', 'ms', 'The hero gathering light before the first shot. The view pushes in over this.', 'Charge'],
-  chargeMotes: ['Charge motes', undefined, 'Motes pulled into the hero while it charges.', 'Charge'],
-  boltsMin: ['Bolts (small hit)', undefined, 'Bolts fired for a 1 damage blow.', 'Bolts'],
-  boltsMax: ['Bolts (big hit)', undefined, 'Bolts fired for a blow at Big damage or more.', 'Bolts'],
-  boltSpeed: ['Bolt speed', 'px/s', 'How fast the bolts fly (the flight stays between 140 and 520 ms).', 'Bolts'],
-  boltStaggerMs: ['Bolt stagger', 'ms', 'Gap between each bolt in the volley.', 'Bolts'],
-  boltSizeMin: ['Bolt size (small)', '×', 'Bolt size for a 1 damage blow.', 'Bolts'],
-  boltSizeMax: ['Bolt size (big)', '×', 'Bolt size at Big damage or more.', 'Bolts'],
-  boltCurve: ['Bolt curve', '×', 'How far the trailing bolts arc to the sides (the lead bolt flies straight).', 'Bolts'],
-  trailDensity: ['Trail', '×', 'How dense the bolt trails are (0 = no trail).', 'Bolts'],
-  bigDamage: ['Big damage', undefined, 'The blow at which everything reads at full size.', 'Impact'],
-  flashSize: ['Hit flash size', '×', 'The white-hot flash on the struck hero.', 'Impact'],
-  flashAlpha: ['Hit flash', 'opacity', 'How bright the hit flash is.', 'Impact'],
-  sparksMin: ['Sparks (small)', undefined, 'Sparks thrown by a 1 damage impact.', 'Impact'],
-  sparksMax: ['Sparks (big)', undefined, 'Sparks thrown at Big damage or more.', 'Impact'],
-  shakeMin: ['Shake (small)', 'px', 'Screen shake for a 1 damage blow.', 'Camera'],
-  shakeMax: ['Shake (big)', 'px', 'Screen shake at Big damage or more.', 'Camera'],
-  shakeMs: ['Shake length', 'ms', 'How long the impact shake takes to die away.', 'Camera'],
-  zoomMin: ['Push in (small)', '×', 'How far the view pushes in for a 1 damage blow (0.02 = 2%).', 'Camera'],
-  zoomMax: ['Push in (big)', '×', 'How far the view pushes in at Big damage or more.', 'Camera'],
-  zoomPunch: ['Impact punch', '×', 'Extra push on impact, before the view settles back.', 'Camera'],
-  zoomOutMs: ['Settle back', 'ms', 'The view easing back to rest after the impact.', 'Camera'],
-  settleMs: ['Settle', 'ms', 'Hold after the last bolt lands before the sequence ends.', 'Camera'],
-  reducedFadeMs: ['Reduced motion fade', 'ms', 'With reduced motion on, the total just fades in and out over this.', 'Camera'],
-  sfxGatherGain: ['Numbers fly', undefined, 'The tally travel whoosh as the numbers leave.', 'Sound'],
-  sfxCountGain: ['Count up', undefined, 'The tally counter as the total climbs.', 'Sound'],
-  sfxMergeGain: ['Merge', undefined, 'The pill-add ting on the final merge.', 'Sound'],
-  sfxChargeGain: ['Charge', undefined, 'The rune implosion as the hero gathers.', 'Sound'],
-  sfxFireGain: ['Fire', undefined, 'The gust as the volley leaves.', 'Sound'],
-  sfxImpactGain: ['Impact', undefined, 'The tally impact on the struck hero.', 'Sound'],
-  sfxSmackGain: ['Impact smack', undefined, 'A soft smack layered under the impact.', 'Sound'],
-  previewDamage: ['Preview damage', undefined, 'The blow the Play buttons use (preview only, never shipped).', 'Preview'],
-  previewParts: ['Preview numbers', undefined, 'How many numbers combine in the preview (the tier plus survivors).', 'Preview'],
+  chipSize: ['Number size', 'px', 'Size of each contributing number.', 'Combine'],
+  totalSize: ['Total size', 'px', 'Size of the combined total.', 'Combine'],
+  tickPop: ['Tick pop', '×', 'How hard the total squashes as each number lands.', 'Combine'],
+  slamMs: ['Slam', 'ms', 'The slam: overshoot and settle.', 'Combine'],
+  absorbMs: ['Absorb', 'ms', 'The total diving into the hero.', 'Charge and fire'],
+  heroSwell: ['Hero swell', '×', 'How much the hero swells while charging.', 'Charge and fire'],
+  boltSpeed: ['Bolt speed', 'px/s', 'How fast the bolts fly (the flight stays between 180 and 420 ms).', 'Charge and fire'],
+  boltStaggerMs: ['Bolt stagger', 'ms', 'Gap between each bolt in the volley.', 'Charge and fire'],
+  boltCurve: ['Bolt fan', '×', 'How far the trailing bolts arc to the sides (the lead bolt flies straight).', 'Charge and fire'],
+  trailLength: ['Trail', '×', 'Length of the comet tail (0 = none).', 'Charge and fire'],
+  recoilPx: ['Hero recoil', 'px', 'How far the hero kicks back when it fires.', 'Charge and fire'],
+  beamHoldMs: ['Beam hold', 'ms', 'Tier IV: how long the beam holds on the target before it thins out.', 'Charge and fire'],
+  flashSize: ['Hit flash size', '×', 'The white-hot burst on the struck hero.', 'Impact and camera'],
+  flashAlpha: ['Hit flash', 'opacity', 'How bright the hit flash is.', 'Impact and camera'],
+  knockPx: ['Knockback', 'px', 'How far the struck portrait is knocked along the bolt.', 'Impact and camera'],
+  squash: ['Squash', '×', 'How much the struck portrait squashes.', 'Impact and camera'],
+  shakeMs: ['Shake length', 'ms', 'How long the impact shake takes to die away.', 'Impact and camera'],
+  zoomOutMs: ['Settle back', 'ms', 'The view easing back to rest after the impact.', 'Impact and camera'],
+  reducedFadeMs: ['Reduced motion fade', 'ms', 'With reduced motion on, the numbers and total just fade over this.', 'Impact and camera'],
+  sfxGatherGain: ['gather: gain', undefined, 'The whoosh as the numbers leave.', 'Sound: gather'],
+  sfxTickGain: ['tick: gain', undefined, 'Each number landing in the total.', 'Sound: tick'],
+  sfxTickRate: ['tick: pitch', '×', 'The first tick pitch (1 = as recorded).', 'Sound: tick'],
+  sfxTickStep: ['tick: pitch step', '×', 'Each following tick rises by this much (the Balatro climb).', 'Sound: tick'],
+  sfxSlamGain: ['slam: gain', undefined, 'The total slamming in.', 'Sound: slam'],
+  sfxSlamRate: ['slam: pitch', '×', 'Pitch of the slam.', 'Sound: slam'],
+  sfxChargeGain: ['charge: gain', undefined, 'The riser as the hero gathers.', 'Sound: charge'],
+  sfxChargeRate: ['charge: pitch', '×', 'Pitch of the riser.', 'Sound: charge'],
+  sfxFireGain: ['fire: gain', undefined, 'The release as the volley leaves.', 'Sound: fire'],
+  sfxFireRate: ['fire: pitch', '×', 'Pitch of the release.', 'Sound: fire'],
+  sfxBeamGain: ['beam: gain', undefined, 'Tier IV: the beam tearing across the board.', 'Sound: beam'],
+  sfxBeamRate: ['beam: pitch', '×', 'Pitch of the beam.', 'Sound: beam'],
+  sfxImpactGain: ['impact: gain', undefined, 'The hit on the struck hero.', 'Sound: impact'],
+  sfxImpactRate: ['impact: pitch', '×', 'Pitch of the hit.', 'Sound: impact'],
+  sfxThumpGain: ['thump: gain', undefined, 'The low punch layered under the hit (keep it punchy, not boomy).', 'Sound: thump'],
+  sfxThumpRate: ['thump: pitch', '×', 'Pitch of the thump (lower = heavier).', 'Sound: thump'],
+  sfxBigGain: ['big hit: gain', undefined, 'Tiers III and IV: a crack layered on the impact.', 'Sound: big hit'],
+  sfxBigRate: ['big hit: pitch', '×', 'Pitch of the big-hit layer.', 'Sound: big hit'],
+  sfxBoomGain: ['booms: gain', undefined, 'Tiers III and IV: each secondary explosion (pitch climbs per boom).', 'Sound: booms'],
+  sfxBoomRate: ['booms: pitch', '×', 'Pitch of the first secondary explosion.', 'Sound: booms'],
+  sfxTailMix: ['impact tail', undefined, 'A short reverb tail on the hit. 0 = dry.', 'Sound: mix'],
+  sfxDuck: ['duck others', '×', 'Other sound buses dip to this while the blast plays (1 = no duck).', 'Sound: mix'],
 };
 
-const COLORS: [keyof HeroBlastConfig, string, string][] = [
-  ['colorCore', 'Core', 'The white-hot core: bolt heads, the charge, the hit flash.'],
-  ['colorBolt', 'Bolt', 'The bolt halos, trails and the charge ring.'],
-  ['colorImpact', 'Impact', 'The impact bloom, the outer shockwave and the embers.'],
+const TIER_SPECS: Record<TierSuffix, [string, TunerUnit | undefined, string]> = {
+  FlyMs: ['Number flight', 'ms', 'How long each number takes to reach the total.'],
+  StaggerMs: ['Number stagger', 'ms', 'Gap between each number leaving.'],
+  SlamPop: ['Slam pop', '×', 'How big the total punches up when the last number lands.'],
+  HoldMs: ['Hold', 'ms', 'The total holds before the hero absorbs it.'],
+  ChargeMs: ['Charge', 'ms', 'The hero gathering power. The view pushes in over this.'],
+  Motes: ['Charge motes', undefined, 'Energy spiralling into the hero.'],
+  Bolts: ['Bolts', undefined, 'Bolts in the volley (ignored when Beam is on).'],
+  BoltSize: ['Bolt size', '×', 'Bolt (or beam) thickness.'],
+  HitStop: ['Hit-stop', 'ms', 'The freeze on the impact frame.'],
+  Shake: ['Shake', 'px', 'Screen shake along the line of fire.'],
+  Zoom: ['Push in', '×', 'How far the view pushes in through the charge (0.03 = 3%).'],
+  Punch: ['Impact punch', '×', 'Extra push on impact before the view settles.'],
+  Sparks: ['Sparks', undefined, 'Chunky sparks the impact throws.'],
+  SettleMs: ['Settle', 'ms', 'Hold after the last hit before the sequence ends.'],
+  Dim: ['Dim', 'opacity', 'How far everything but the two heroes dims through the charge and the hit.'],
+  Booms: ['Secondary booms', undefined, 'Explosions ringing the struck hero after the hit.'],
+  Beam: ['Beam', undefined, 'Fire one colossal beam instead of bolts.'],
+};
+
+const TIER_NAMES: Record<TierNum, string> = { 1: 'Tier I', 2: 'Tier II', 3: 'Tier III', 4: 'Tier IV' };
+
+const CLIP_OF: Partial<Record<string, HeroBlastStrKey>> = {
+  'Sound: gather': 'sfxGatherClip', 'Sound: tick': 'sfxTickClip', 'Sound: slam': 'sfxSlamClip', 'Sound: charge': 'sfxChargeClip',
+  'Sound: fire': 'sfxFireClip', 'Sound: beam': 'sfxBeamClip', 'Sound: impact': 'sfxImpactClip', 'Sound: thump': 'sfxThumpClip',
+  'Sound: big hit': 'sfxBigClip', 'Sound: booms': 'sfxBoomClip',
+};
+
+const COLORS: [HeroBlastStrKey, string, string][] = [
+  ['colorPlayer', 'Your side', 'The glow, rings and total colour when YOU strike.'],
+  ['colorFoe', 'Foe side', 'The glow, rings and total colour when THEY strike.'],
+  ['colorCore', 'Core', 'The white-hot core of the bolts, flashes and sparks.'],
 ];
 
 type Ctl = TunerControl<Extract<keyof BlastTunerValues, string>>;
+
+function clipOptions(): string[] {
+  let names: string[] = [];
+  try { names = clipNames(); } catch { /* no audio here */ }
+  return ['', ...names];
+}
 
 function buildControls(): Ctl[] {
   const out: Ctl[] = [{
@@ -77,19 +124,36 @@ function buildControls(): Ctl[] {
     optionLabels: { auto: 'Auto (equipped cosmetic)', classic: 'Classic (lunge)', blast: 'Blast' },
     hint: 'Which hero attack real fights play in this dev build, for both sides. Auto = what a player sees.', min: 0, max: 0, step: 0,
   }];
-  const byGroup = new Map<string, Ctl[]>();
-  for (const [key, [label, unit, hint, group]] of Object.entries(SPECS) as [HeroBlastNumKey, [string, TunerUnit | undefined, string, string]][]) {
-    if (key === 'trailDensity') continue; // appended to Bolts below, after the curve
+  const clips = clipOptions();
+  const push = (key: HeroBlastNumKey, [label, unit, hint, group]: Spec): void => {
     const [min, max, step] = HERO_BLAST_RANGES[key];
-    const list = byGroup.get(group) ?? [];
-    list.push({ key, label, unit, hint, group, min, max, step });
-    byGroup.set(group, list);
+    out.push({ key, label, unit, hint, group, min, max, step });
+  };
+  const globals = Object.entries(SPECS) as [GlobalNumKey, Spec][];
+  for (const [key, spec] of globals) if (!spec[3].startsWith('Sound')) push(key, spec);
+  for (const t of TIERS) {
+    for (const s of TIER_SUFFIXES) {
+      const [label, unit, hint] = TIER_SPECS[s];
+      const key = `t${t}${s}` as HeroBlastNumKey;
+      const [min, max, step] = HERO_BLAST_RANGES[key];
+      const group = TIER_NAMES[t];
+      out.push(s === 'Beam'
+        ? { key, label, hint, group, min, max, step, kind: 'toggle', onValue: 1, offValue: 0 }
+        : { key, label, unit, hint, group, min, max, step });
+    }
   }
-  const td = HERO_BLAST_RANGES.trailDensity;
-  byGroup.get('Bolts')!.push({ key: 'trailDensity', label: SPECS.trailDensity[0], unit: '×', hint: SPECS.trailDensity[2], group: 'Bolts', min: td[0], max: td[1], step: td[2] });
-  for (const g of ['Preview', 'Combine', 'Charge', 'Bolts', 'Impact', 'Camera']) out.push(...(byGroup.get(g) ?? []));
-  for (const [key, label, hint] of COLORS) out.push({ key, label, hint, group: 'Colours', kind: 'color', min: 0, max: 0, step: 0 });
-  out.push(...(byGroup.get('Sound') ?? []));
+  for (const [ck, cl, ch] of COLORS) out.push({ key: ck, label: cl, hint: ch, group: 'Colours', kind: 'color', min: 0, max: 0, step: 0 });
+  let lastGroup = '';
+  for (const [key, spec] of globals) {
+    const group = spec[3];
+    if (!group.startsWith('Sound')) continue;
+    const clipKey = CLIP_OF[group];
+    if (clipKey && group !== lastGroup) {
+      out.push({ key: clipKey, label: `${group.replace('Sound: ', '')}: clip`, hint: 'Which clip this cue plays. (none) = silent.', group, kind: 'select', options: clips, optionLabels: { '': '(none)' }, min: 0, max: 0, step: 0 });
+    }
+    lastGroup = group;
+    push(key, spec);
+  }
   return out;
 }
 
@@ -107,44 +171,49 @@ export function previewParts(damage: number, n: number): number[] {
 }
 
 /** Play the real Blast between the two portraits, from the shop or a fight, without touching the run. */
-function demo(side: 'player' | 'opp', opts: { damage?: number; reduced?: boolean } = {}): void {
+export function demo(
+  side: 'player' | 'opp',
+  opts: { damage?: number; parts?: number; reduced?: boolean; frames?: HeroBlastOptions['frames']; sound?: boolean; safety?: boolean } = {},
+): Promise<HeroBlastHandle | null> {
   const st = useGame.getState();
   live?.cancel();
   st.setDuelPreview(true);
-  requestAnimationFrame(() => requestAnimationFrame(() => {
+  return new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => {
     const cfg = getHeroBlastConfig();
-    const playerEl = document.querySelector<HTMLElement>('.statusbar .hero .herolunge');
-    const oppEl = document.querySelector<HTMLElement>('.combatopp-body');
-    if (!playerEl || !oppEl) { st.setDuelPreview(false); return; }
-    const centre = (r: DOMRect): { x: number; y: number } => ({ x: r.left + r.width / 2, y: r.top + r.height / 2 });
-    const pPt = centre(playerEl.getBoundingClientRect());
-    const oPt = centre(oppEl.getBoundingClientRect());
-    const a = side === 'player' ? pPt : oPt, d = side === 'player' ? oPt : pPt;
+    const geo = portraitGeometry(side);
+    if (!geo) { st.setDuelPreview(false); resolve(null); return; }
     const board = document.querySelector('.app')?.getBoundingClientRect();
     const cx = board ? board.left + board.width / 2 : window.innerWidth / 2;
     const cy = board ? board.top + board.height / 2 : window.innerHeight / 2;
-    const values = previewParts(opts.damage ?? cfg.previewDamage, cfg.previewParts);
+    const values = previewParts(opts.damage ?? cfg.previewDamage, opts.parts ?? cfg.previewParts);
     // Survivors fly from real cards when there are any on the board, else from a spread across the middle.
     const cards = [...document.querySelectorAll<HTMLElement>(side === 'player' ? "[data-zone='warband'] .card" : "[data-zone='tavern'] .card")];
+    const bw = board?.width ?? window.innerWidth;
     const parts: HeroBlastPart[] = values.map((value, i) => {
-      if (i === 0) return { value, from: a, base: true };
+      if (i === 0) return { value, from: geo.a, base: true };
       const el = cards[i - 1];
-      const bw = board?.width ?? window.innerWidth;
-      return { value, from: el ? centre(el.getBoundingClientRect()) : { x: cx + (i - values.length / 2) * bw * 0.1, y: cy + (side === 'player' ? 1 : -1) * 40 } };
+      if (el) { const r = el.getBoundingClientRect(); return { value, from: { x: r.left + r.width / 2, y: r.top + r.height / 2 } }; }
+      return { value, from: { x: cx + (i - values.length / 2) * bw * 0.12, y: cy + (side === 'player' ? 1 : -1) * bw * 0.06 } };
     });
     const total = values.reduce((s, v) => s + v, 0);
-    const seq = Date.now();
     live = playHeroBlast({
-      parts, total, attacker: a, defender: d,
-      combineAt: { x: cx + (a.x - cx) * cfg.combineBias, y: cy + (a.y - cy) * cfg.combineBias },
-      speed: heroBlastPreviewSpeed(), reduced: opts.reduced, attackerEl: side === 'player' ? playerEl : oppEl,
-      onImpact: () => useGame.getState().setHeroDmgTaken({ side: side === 'player' ? 'opp' : 'player', amount: total, seq }),
+      parts, total, side, attacker: geo.a, defender: geo.d, defenderRadius: geo.radius,
+      combineAt: { x: cx + (geo.a.x - cx) * cfg.combineBias, y: cy + (geo.a.y - cy) * cfg.combineBias },
+      speed: heroBlastPreviewSpeed(), reduced: opts.reduced, attackerEl: geo.attackerEl, defenderEl: geo.defenderEl,
+      frames: opts.frames, sound: opts.sound, safety: opts.safety,
+      onImpact: () => { /* a preview never touches the run; the Blast shows its own hit number */ },
       onDone: () => {
         live = null;
-        window.setTimeout(() => { useGame.getState().setHeroDmgTaken(null); useGame.getState().setDuelPreview(false); }, 500 / heroBlastPreviewSpeed());
+        window.setTimeout(() => { useGame.getState().setDuelPreview(false); }, 500 / heroBlastPreviewSpeed());
       },
     });
-  }));
+    resolve(live);
+  })));
+}
+
+// DEV: a console / capture-rig handle on the same player the buttons use.
+if (import.meta.env.DEV && typeof window !== 'undefined') {
+  (window as unknown as { __heroBlast?: unknown }).__heroBlast = { demo, previewParts };
 }
 
 export const SPEC: TunerSpec<BlastTunerValues> = {
@@ -164,11 +233,13 @@ export const SPEC: TunerSpec<BlastTunerValues> = {
   copy: () => heroBlastConfigJson(),
   copyLabel: 'Copy JSON',
   actions: [
-    { label: '▶ You blast', hint: 'Your hero blasts the foe for the preview damage.', run: () => demo('player') },
-    { label: '▶ Foe blasts', hint: 'The foe blasts your hero for the preview damage.', run: () => demo('opp') },
-    { label: '▶ Small (2)', hint: 'Your hero blasts for 2: the smallest volley.', run: () => demo('player', { damage: 2 }) },
-    { label: '▶ Big (20)', hint: 'Your hero blasts for 20: the full volley, shake and push.', run: () => demo('player', { damage: 20 }) },
-    { label: '▶ Reduced motion', hint: 'What a player with reduced motion on sees: a fade, no flight, bolts, shake or zoom.', run: () => demo('player', { reduced: true }) },
+    { label: '▶ You blast', hint: 'Your hero blasts the foe for the preview damage.', run: () => { void demo('player'); } },
+    { label: '▶ Foe blasts', hint: 'The foe blasts your hero for the preview damage.', run: () => { void demo('opp'); } },
+    { label: '▶ Small (3)', hint: 'Your hero blasts for 3: the smallest volley.', run: () => { void demo('player', { damage: 3, parts: 2 }); } },
+    { label: '▶ Medium (12)', hint: 'Your hero blasts for 12 from four numbers.', run: () => { void demo('player', { damage: 12, parts: 4 }); } },
+    { label: '▶ Huge (40)', hint: 'Your hero blasts for 40 from seven numbers: the full volley, hit-stop, shake and push.', run: () => { void demo('player', { damage: 40, parts: 7 }); } },
+    { label: '▶ Foe huge (40)', hint: 'The foe blasts your hero for 40.', run: () => { void demo('opp', { damage: 40, parts: 7 }); } },
+    { label: '▶ Reduced motion', hint: 'What a player with reduced motion on sees: fades, no flight, bolts, shake, zoom or hit-stop.', run: () => { void demo('player', { reduced: true }); } },
     ...HERO_BLAST_SPEEDS.map((s) => ({
       label: `Speed ${s}x`,
       hint: 'Slow motion for the next plays (the tuner only; never saved, never in production).',

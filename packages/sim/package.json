@@ -10,8 +10,9 @@
     "./balance/*": "./src/balance/*.ts"
   },
   "dependencies": {
-    "@game/core": "*",
     "@game/content": "*",
+    "@game/core": "*",
+    "@game/progression": "*",
     "@game/rules": "*"
   }
 }

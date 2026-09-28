@@ -438,6 +438,12 @@ offsets in `styles.css`).
 
 ## Next
 
+- **Account progression, after the MVP** (MVP built 2026-09-27, see
+  `docs/devlog/2026-09-27-account-progression-mvp.md`; owner runs its runbook first). The handoff's later phases:
+  level crates + the cosmetic catalog (the ledger already carries `crates_awarded`), achievements on the
+  `ProgressionRunFactsV1` observer, titles on lobby name plates (needs the title in the seat snapshot), an
+  equip-title control, and replay verification for practice-sourced XP.
+
 - **Apply the owner's writing rule to the engine-side player copy** (rule + the `packages/ui` sweep shipped
   2026-09-21, see `docs/devlog/2026-09-21-player-text-style.md`): ~35 hero blurbs / power texts in
   `packages/sim/src/heroes.ts`, ~15 printed card / equipment texts in `packages/content/src`, the Fleeting

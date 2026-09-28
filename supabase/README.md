@@ -124,6 +124,16 @@ isn't enforcing yet.
 The function reads its config from the standard Edge-Function env (`SUPABASE_URL`, `SUPABASE_ANON_KEY`,
 `SUPABASE_SERVICE_ROLE_KEY`), which Supabase injects automatically — no secrets to set by hand.
 
+## `functions/submit-progression` — account XP + titles (2026-09-27)
+
+The **only** writer of `profiles.account_xp` / `account_level` and `player_titles`. A client sends
+`{ mode, runId, rulesVersion, ... }` (never an XP number); the function verifies the JWT and calls the
+`settle_progression` database function as the service role. Its logic lives in `_shared/progressionServer.ts`
+and `_shared/progressionRules.ts`, both **GENERATED** from `packages/progression` by `npm run progression:shared`
+(CI fails if they drift, so never edit them by hand). Deploy: `supabase functions deploy submit-progression`.
+The full owner runbook (migration, deploy, the epoch switch, anon probes) is in
+`docs/devlog/2026-09-27-account-progression-mvp.md`.
+
 ### Note
 
 This directory is **Deno**, not part of the Node monorepo build: the repo's `tsc`/`eslint` skip it

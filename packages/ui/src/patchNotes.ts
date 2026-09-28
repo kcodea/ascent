@@ -53,6 +53,23 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-09-27',
     changes: [
+      { category: 'Systems', text: 'Rune of Basic Dwarves now reads "Get a Dwarf", and the Runeforge now counts it as a fit for a Dwarf board.' },
+    ],
+  },
+  {
+    date: '2026-09-27',
+    changes: [
+      {
+        category: 'Systems',
+        text: 'Account Levels: earn XP from every game. Reach Level 2 to unlock the Alpha Tester title.',
+        details: [
+          'Ranked: 100 XP for finishing, plus 40 for Top 4, 60 for 1st, and 25 for a comeback (a win right after 4 losses in a row).',
+          'Practice earns 60% of that. Practice on Unlimited Health earns 60 XP.',
+          'Finishing the Learn Ascent tutorial the first time earns 250 XP.',
+          'Your level, XP and title show after each game and on your Career.',
+          'Playing as a guest? Your XP counts. Create an account to keep it on any device.',
+        ],
+      },
       {
         category: 'Systems',
         text: 'End of Turn effects that repeat now speed up. A big Kringle no longer takes minutes to finish.',

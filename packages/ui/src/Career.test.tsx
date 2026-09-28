@@ -48,6 +48,7 @@ vi.mock('./replay/replayPlayer', () => ({ startReplay: (...a: unknown[]) => star
 
 import { Career } from './Career';
 import { useGame } from './store';
+import { resetProgressionForTests, useProgression } from './progression/progressionStore';
 import { stageHost } from './stage';
 
 const DAY = 86_400_000;
@@ -737,5 +738,42 @@ describe('the Practice tab', () => {
     await flush();
     await openPractice();
     expect(fetchMyPracticeGames.mock.calls.at(-1)![0]).toBe('u-other');
+  });
+});
+
+describe('Account Level (account progression, 2026-09-27)', () => {
+  const remount = async (): Promise<void> => { ui.unmount(); ui = mount(<Career />); await flush(); };
+  afterEach(() => { act(() => { resetProgressionForTests(); }); });
+
+  it('hidden entirely until the feature is on (the capability probe): the page is unchanged before the SQL runs', () => {
+    expect(ui.container.querySelector('.cv2-acctlevel')).toBeNull();
+    expect(ui.container.querySelector('.cv2-playertitle')).toBeNull();
+    expect(text('.cv2-right .cv2-sec')[0]).toBe('Seasonal Ranked');
+  });
+
+  it('your own page: Level + XP bar + the equipped title (card and under the name), and the guest reminder', async () => {
+    act(() => { useProgression.setState({ capability: 'on', mirror: { userId: 'me-1', accountXp: 325, accountLevel: 2, revision: 3, equippedTitleId: 'alpha_tester', titles: ['alpha_tester'] } }); });
+    await remount();
+    expect(text('.cv2-right .cv2-sec').slice(0, 2)).toEqual(['Account Level', 'Seasonal Ranked']);
+    expect(text('.cv2-acctlevel-label')).toEqual(['Account Level 2']);
+    expect(text('.cv2-acctlevel-num')).toEqual(['75 / 250 XP']);
+    expect(text('.cv2-acctlevel-title')).toEqual(['TitleAlpha Tester']);
+    expect(text('.cv2-left .cv2-playertitle')).toEqual(['Alpha Tester']);
+    // anonymous owner: the small save-your-progress reminder, which opens the account panel
+    expect(text('.cv2-acctlevel-save span')).toEqual(['Playing as a guest. Create an account to save your progress.']);
+    click(ui.container.querySelector('.cv2-acctlevel-save button'));
+    expect(useGame.getState().accountPanelOpen).toBe(true);
+  });
+
+  it('a fresh account reads Level 1, 0 / 250 with no title; a signed-in owner gets no reminder', async () => {
+    act(() => {
+      useGame.setState({ account: { userId: 'me-1', email: 'kev@example.com', anonymous: false, discriminator: null }, accountPanelOpen: false });
+      useProgression.setState({ capability: 'on', mirror: null });
+    });
+    await remount();
+    expect(text('.cv2-acctlevel-label')).toEqual(['Account Level 1']);
+    expect(text('.cv2-acctlevel-num')).toEqual(['0 / 250 XP']);
+    expect(ui.container.querySelector('.cv2-acctlevel-title')).toBeNull();
+    expect(ui.container.querySelector('.cv2-acctlevel-save')).toBeNull();
   });
 });

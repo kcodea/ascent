@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { loadFpsCap, saveFpsCap } from './fpsCap';
 import { CARD_INDEX, activeSet, type SetId } from '@game/content';
-import { type CombatOdds, HEROES, playableHeroes, practiceHeroChoiceIds, runTribesForSeed, OPPONENT_POOL, OPPONENT_POOL_DATA, registerOpponents, createRun, deserialize, initialProfile, resolveServerRank, adoptServerRank, legacyRatingChangeOf, rankedRunIdOf, type RankResult, type RankedProfile, isPlayerAction, missingCardIds, nextOpponent, parseQaScenario, reconstructRunTelemetry, recordTelemetryAction, emptyTelemetryLog, withLiveTelemetry, telemetrySourceOf, setIdOf, type TelemetryLog, beginDerive, observeAction, finishDerive, type DeriveState, reduce, reduceWithPresentation, serialize, snapshotBoard, type Action, type BoardSnapshot, type PlayerProfile, type RatingChange, type Replay, type RunMode, type RunState, combatFrameOf, deltaShopFrameOf, shopFrameOf, runRecord, type DragPath, type ReplayFrame, type ReplayV2, type ShopView, appendInspectEvent, type InspectEvent, type InspectSnapshot, createLobbyRun, enableAncients, createTutorialRun, type TutorialCourse, type PracticeConfig, type BotLevel, DEFAULT_PRACTICE_CONFIG, normalizeBotDifficulty, normalizePracticeTribes, practiceRunTribes, warmLobbySeat, prepareActionWithPresentation, type PreparedPresentationAction, fightRowsOf, opponentFightKeys, type LobbyStrength, type FightRow } from '@game/sim';
+import { type CombatOdds, HEROES, playableHeroes, practiceHeroChoiceIds, runTribesForSeed, OPPONENT_POOL, OPPONENT_POOL_DATA, registerOpponents, createRun, deserialize, initialProfile, resolveServerRank, adoptServerRank, legacyRatingChangeOf, rankedRunIdOf, type RankResult, type RankedProfile, isPlayerAction, missingCardIds, nextOpponent, parseQaScenario, reconstructRunTelemetry, recordTelemetryAction, emptyTelemetryLog, withLiveTelemetry, telemetrySourceOf, setIdOf, type TelemetryLog, beginDerive, observeAction, finishDerive, progressionFactsOf, type DeriveState, reduce, reduceWithPresentation, serialize, snapshotBoard, type Action, type BoardSnapshot, type PlayerProfile, type RatingChange, type Replay, type RunMode, type RunState, combatFrameOf, deltaShopFrameOf, shopFrameOf, runRecord, type DragPath, type ReplayFrame, type ReplayV2, type ShopView, appendInspectEvent, type InspectEvent, type InspectSnapshot, createLobbyRun, enableAncients, createTutorialRun, type TutorialCourse, type PracticeConfig, type BotLevel, DEFAULT_PRACTICE_CONFIG, normalizeBotDifficulty, normalizePracticeTribes, practiceRunTribes, warmLobbySeat, prepareActionWithPresentation, type PreparedPresentationAction, fightRowsOf, opponentFightKeys, type LobbyStrength, type FightRow } from '@game/sim';
 import type { PresentationBatch } from '@game/core';
 import { combatTimelineFrom } from './choreographer/combatTimeline';
 import type { RuneLockInCard } from './RuneLockIn';
@@ -81,6 +81,8 @@ import { beginCourseFresh } from './tutorial/tutorialProfile';
 import { buildRunHistoryEntry, careerStats, clearRunHistory, type RunHistoryEntry } from './runHistory';
 import { clearProfile, loadProfile, saveProfile } from './profileStore';
 import { enqueuePendingRank, flushPendingRanks, installRankRetryTriggers, rankRequestFor, type PendingRank } from './rank/rankSubmission';
+import { TUTORIAL_COURSE_ID, practiceRunId, tutorialRunId } from '@game/progression';
+import { beginRunProgression, expectRunProgression, flushProgression, installProgression, markRunProgressionUnavailable, probeProgression } from './progression/progressionStore';
 import type { RankSubmissionState, RankSubmitOutcome } from './rank/types';
 import { turnClock } from './turnClock';
 import { BUG_REPORT_TX_TOAST, bugReportAvailability, buildBugReportEnvelope, buildClientContext, captureIncidentCapsule, captureMenuCapsule, exportBugReportJson } from './bug-report/bugReportCapture';
@@ -1546,6 +1548,14 @@ function commitResolvedAction(
         const rankedRunId = next.mode === 'lobby' && lobbyPlacement != null ? rankedRunIdOf(next) : null;
         if (rankedRunId && lobbyPlacement != null) beginRankSubmission(rankedRunId, lobbyPlacement, next.seed, seatKeys);
         else set({ lastRating: null, rankResult: null, rankSubmission: 'unrated', rankSubmissionError: null, rankRunId: null });
+        // ACCOUNT PROGRESSION (2026-09-27): queued AFTER the rank request (the server reads the ranked placement
+        // from the ACCEPTED rank result, so the progression queue holds this item until that settles). The facts
+        // come off the run observer; the XP is the server's to compute.
+        if (rankedRunId && lobbyPlacement != null) {
+          beginRunProgression(String(next.seed), progressionFactsOf(deriveState, next, {
+            runId: rankedRunId, mode: 'ranked', patch: `${__APP_VERSION__}+${__BUILD_SHA__}`, placement: lobbyPlacement,
+          }));
+        }
         // REPLAY V2 (state replay): the recorded frames + the recorded outcome. Assembled for EVERY run that
         // reaches this block (lobby or not) and stashed on the store so "Rewatch last game" (Phase B) can play
         // it back locally; the lobby telemetry upload below rides the same object.
@@ -1642,6 +1652,10 @@ function commitResolvedAction(
       const cursorTrail = takeCursorTrail();
       const partial = s.replayPartial;
       const actions = [...s.replayActions, action];
+      // ACCOUNT PROGRESSION (2026-09-27): the practice ROW is this game's XP source, so the settlement waits for its
+      // id. The end screen shows "pending" from now; no row (no backend / session / a rejected insert) = no XP.
+      const localKey = String(next.seed);
+      expectRunProgression(localKey, 'practice');
       setTimeout(() => {
         try {
           const finalBoard = endStateBoard(next);
@@ -1649,9 +1663,29 @@ function commitResolvedAction(
           const row = practiceGameOf(next, { author, patch, finalBoard, frames });
           // The recorded outcome is the placement the practice end screen showed (the row's own placement).
           const v2 = assembleReplayV2(next, { author, partial, frames, inspectTrail, cursorTrail, placement: row.placement ?? 0, finalBoard });
-          void uploadPracticeGame({ ...row, replay: { seed: next.seed, heroId: next.heroId, mode: next.mode, actions, v2 } });
-        } catch { /* best-effort: a practice row must never disrupt the end screen */ }
+          const facts = progressionFactsOf(deriveState, next, { runId: '', mode: 'practice', patch });
+          void uploadPracticeGame({ ...row, replay: { seed: next.seed, heroId: next.heroId, mode: next.mode, actions, v2 } })
+            .then((id) => {
+              if (typeof id !== 'number') markRunProgressionUnavailable(localKey);
+              else beginRunProgression(localKey, { ...facts, runId: practiceRunId(id) }, id);
+            });
+        } catch { markRunProgressionUnavailable(localKey); /* best-effort: a practice row must never disrupt the end screen */ }
       }, 0);
+    }
+    // ACCOUNT PROGRESSION (2026-09-27): finishing the Learn Ascent course earns its one-time XP. The server dedupes
+    // on the course version, so replaying the course never pays twice. Never a sandbox.
+    if (
+      (next.phase === 'gameover' || next.phase === 'victory') &&
+      s.run.phase !== 'gameover' &&
+      s.run.phase !== 'victory' &&
+      next.mode === 'tutorial' &&
+      next.tutorialCourseId === TUTORIAL_COURSE_ID &&
+      !next.sandbox
+    ) {
+      const facts = progressionFactsOf(deriveState, next, {
+        runId: tutorialRunId(), mode: 'tutorial', patch: `${__APP_VERSION__}+${__BUILD_SHA__}`, placement: null,
+      });
+      setTimeout(() => { beginRunProgression(String(next.seed), facts); }, 0); // deferred like every run-end write
     }
     const changed = next !== s.run;
     const replayActions = changed ? [...s.replayActions, action] : s.replayActions;
@@ -2531,6 +2565,9 @@ function beginRankSubmission(runId: string, placement: number, seed: number, sea
  * surfaces that still read numbers show the applied delta.
  */
 function applyRankOutcome(item: Pick<PendingRank, 'runId'>, outcome: RankSubmitOutcome): void {
+  // ACCOUNT PROGRESSION: a ranked run's XP waits in its own queue for exactly this answer (confirmed: the source
+  // row now exists; rejected: the server will refuse it too). Deferred a tick so the rank queue has dropped it.
+  if (outcome.status !== 'retryable') setTimeout(() => { void flushProgression(); }, 0);
   const st = useGame.getState();
   const isCurrent = st.rankRunId === item.runId;
   if (outcome.status === 'confirmed') {
@@ -2568,6 +2605,7 @@ function initAccounts(): void {
     useGame.setState((st) => ({ account: { ...st.account, userId: id.userId, email: id.email, anonymous: id.anonymous } }));
     void flushUploadQueue(); // a session now exists — replay anything queued while offline
     void flushPendingRanks(applyRankOutcome); // …and any rated result stranded pending under THIS account
+    void probeProgression(); // ACCOUNT PROGRESSION: is the feature on? then the mirror + any XP stranded pending
     void flushBugReportQueue(); // …and any bug reports stranded offline / pre-handshake (§6.2 auth trigger)
     // Ensure this account carries a `#tag` (and its author/email are current) once identity exists.
     if (name) void claimHandle(name).then((h) => { if (h) useGame.setState((st) => ({ account: { ...st.account, discriminator: h.discriminator } })); });
@@ -2580,6 +2618,7 @@ function initAccounts(): void {
     }));
     if (id) void flushUploadQueue(); // session (re)established → flush the offline queue
     if (id) void flushPendingRanks(applyRankOutcome); // rated results parked under this account resume here
+    if (id) void probeProgression(); // …and progression (same user id across the magic-link upgrade)
     if (id) void flushBugReportQueue(); // §6.2: retry bug reports after authentication restoration
     if (id && !id.anonymous) {
       syncProfileFromServer(loadPlayerName()); // a real account just landed — pull its authoritative row
@@ -2591,6 +2630,7 @@ function initAccounts(): void {
 }
 initAccounts();
 installRankRetryTriggers(applyRankOutcome); // MEDAL RANK: network return → retry pending settlements
+installProgression(); // ACCOUNT PROGRESSION: network return → retry pending XP settlements
 
 // BUG REPORTER (PR 2): wire the environment retry triggers — flush at app boot (reports stranded by a
 // previous session) + on the browser `online` event. The auth trigger rides `initAccounts` above.

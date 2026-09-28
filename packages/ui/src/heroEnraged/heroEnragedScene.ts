@@ -33,8 +33,6 @@ import type { HeroArcanaTextures } from '../heroArcana/heroArcanaScene';
 import { clamp01, easeOutCubic, easeOutQuint, mixColor, seededRng, whiten, type Pt } from '../heroAttack/easing';
 
 export interface HeroEnragedTextures extends HeroArcanaTextures {
-  /** A curved flame tongue pointing up (its base at the bottom centre). */
-  flame: Texture;
   smoke: Texture;
   rock: Texture;
   /** The crater's scorch ring (tinted dark; clear in the middle) and its glowing cracks. */
@@ -75,8 +73,8 @@ export interface HeroAt { x: number; y: number; s: number; heat: number }
 
 /** Hard cap on sprites alive at once (a Tier IV meteor peaks around 350). */
 export const MAX_ENRAGED_SPRITES = 900;
-/** Hard cap on strip meshes alive at once (the streak: three; a claw stroke: three; an X of claws: eighteen). */
-export const MAX_ENRAGED_MESHES = 72;
+/** Hard cap on strip meshes alive at once (the flames: three each; the streak: three; an X of claws: eighteen). */
+export const MAX_ENRAGED_MESHES = 96;
 /** Points along every strip: 28 vertices, so every strip still batches. */
 export const STRIP_POINTS = 14;
 /** Afterimages alive at once, at most. */
@@ -88,7 +86,7 @@ const LAYERS: readonly [LayerId, 'normal' | 'add'][] = [
 ];
 const BLEND: Record<LayerId, 'normal' | 'add'> = Object.fromEntries(LAYERS) as Record<LayerId, 'normal' | 'add'>;
 /** Texture sizes (px) the sprite scales divide by. */
-const GLOW_PX = 128, RING_R = 64, RIM_R = 118, GHOST_PX = 128, SCORCH_PX = 192, CRACK_PX = 256, FLAME_W = 40, FLAME_H = 128, SMOKE_PX = 96;
+const GLOW_PX = 128, RING_R = 64, RIM_R = 118, GHOST_PX = 128, SCORCH_PX = 192, CRACK_PX = 256, SMOKE_PX = 96;
 
 type AlphaMode = 'out' | 'punch' | 'hold';
 interface Fx { s: Sprite; age: number; dur: number; from: number; to: number; a0: number; mode: AlphaMode; peakAt: number; sy: number; delay: number }
@@ -111,7 +109,8 @@ interface Stroke {
   age: number; delay: number; draw: number; hold: number; fade: number;
 }
 
-interface Flame { glow: Sprite; body: Sprite; core: Sprite; ang: number; phase: number; len: number }
+/** A flame tongue: three strips (glow, body, core) on one swaying spine rooted on the portrait's rim. */
+interface Flame { glow: Strip | null; body: Strip | null; core: Strip | null; ang: number; phase: number; len: number; speed: number }
 interface Aura { flames: Flame[]; ring: Sprite; halo: Sprite; shade: Sprite; heat: number; age: number; emberAcc: number; moteLeft: number; moteAcc: number; moteRate: number; comet: number }
 interface Ghost { art: Sprite; rim: Sprite; age: number; fade: number; a0: number }
 interface Wake { glow: Strip; body: Strip; core: Strip }
@@ -185,7 +184,7 @@ export class HeroEnragedScene {
     for (let j = 0; j < n - 1; j++) { const a = j * 2; this.idx.set([a, a + 1, a + 2, a + 1, a + 3, a + 2], j * 6); }
     // PRE-WARM: one near-invisible sprite per texture for the first few hundred ms (the damage formation is still
     // playing), so every texture is on the GPU long before the aura or the first claw needs it (no first-play spike).
-    const warmTex = [tex.glow, tex.spark, tex.streak, tex.ring, tex.flame, tex.smoke, tex.rock, tex.scorch, tex.cracks, tex.disc, tex.rim, tex.halo, tex.ribbonSoft, tex.ribbonBody];
+    const warmTex = [tex.glow, tex.spark, tex.streak, tex.ring, tex.smoke, tex.rock, tex.scorch, tex.cracks, tex.disc, tex.rim, tex.halo, tex.ribbonSoft, tex.ribbonBody];
     for (const t of warmTex) { const s = this.take('air', t, 0xffffff); if (s) { s.alpha = 0.004; s.position.set(-40, -40); s.scale.set(0.05); this.warm.push(s); } }
     this.warmLeft = 400;
   }
@@ -334,21 +333,21 @@ export class HeroEnragedScene {
     const n = Math.max(0, Math.min(16, Math.round(L.flames)));
     const flames: Flame[] = [];
     for (let i = 0; i < n; i++) {
-      const glow = this.take('glow', this.tex.flame, this.glowC);
-      const body = this.take('body', this.tex.flame, this.deep);
-      const core = this.take('core', this.tex.flame, this.colors.hot);
-      if (!glow || !body || !core) { for (const s of [glow, body, core]) if (s) this.give(s); break; }
-      for (const s of [glow, body, core]) { s.anchor.set(0.5, 0.94); s.alpha = 0; }
-      // Spread over the TOP of the rim (fire rises): from 10 o'clock round to 2 o'clock, the middle ones tallest.
-      const f = n === 1 ? 0.5 : i / (n - 1);
-      const ang = -Math.PI / 2 + (f - 0.5) * 2.3 + (this.rnd() - 0.5) * 0.12;
-      flames.push({ glow, body, core, ang, phase: this.rnd() * Math.PI * 2, len: (0.62 + 0.5 * Math.sin(Math.PI * f)) * (0.7 + this.rnd() * 0.55) });
+      // All round the rim, offset so none sits dead at the bottom; the tallest licks rise off the top (fire rises).
+      const ang = -Math.PI / 2 + ((i + 0.5) / n - 0.5) * Math.PI * 2 + (this.rnd() - 0.5) * (Math.PI / n);
+      const up = 0.5 - 0.5 * Math.sin(ang); // 1 at the top of the rim, 0 at the bottom
+      flames.push({
+        glow: this.strip('glow', this.tex.ribbonSoft, this.glowC),
+        body: this.strip('body', this.tex.ribbonBody, this.deep),
+        core: this.strip('core', this.tex.ribbonBody, this.colors.hot),
+        ang, phase: this.rnd() * Math.PI * 2, len: (0.28 + 0.9 * Math.pow(up, 1.3)) * (0.75 + this.rnd() * 0.5), speed: 0.8 + this.rnd() * 0.5,
+      });
     }
     const ring = this.take('glow', this.tex.rim, this.colors.hot);
     const halo = this.take('glow', this.tex.halo, this.glowC);
     const shade = this.take('shade', this.tex.halo, this.colors.shade);
     if (!ring || !halo || !shade) {
-      for (const f of flames) for (const s of [f.glow, f.body, f.core]) this.give(s);
+      for (const f of flames) this.dropFlame(f);
       for (const s of [ring, halo, shade]) if (s) this.give(s);
       return;
     }
@@ -367,6 +366,31 @@ export class HeroEnragedScene {
   }
 
   private auraMul = 1;
+
+  private dropFlame(f: Flame): void { this.giveStrip(f.glow); this.giveStrip(f.body); this.giveStrip(f.core); }
+
+  /**
+   * One flame tongue: a spine rooted on the rim, rising along `(dx, dy)` for `len` px, bending more toward its tip and
+   * swaying with a wave that travels up it (so it licks, never a rigid petal); wide at the root, a point at the tip.
+   */
+  private drawFlame(f: Flame, bx: number, by: number, dx: number, dy: number, len: number, wid: number, age: number, heat: number, flick: number): void {
+    const N = STRIP_POINTS;
+    const { px, py, hw } = this;
+    const nx0 = -dy, ny0 = dx;
+    const t = age * 0.012 * f.speed;
+    for (let j = 0; j < N; j++) {
+      const u = j / (N - 1); // 0 = the root (the texture's bright end), 1 = the tip
+      const sway = len * 0.16 * Math.pow(u, 1.5) * Math.sin(f.phase + t - u * 3.2);
+      px[j] = bx + dx * len * u + nx0 * sway;
+      py[j] = by + dy * len * u + ny0 * sway;
+      hw[j] = wid * 0.5 * (u < 0.12 ? 0.75 + 0.25 * (u / 0.12) : Math.pow(1 - (u - 0.12) / 0.88, 0.9));
+    }
+    this.normals();
+    const a = clamp01(heat * 1.3);
+    this.writeStrip(f.glow, 2.1, 0.45 * a, 0);
+    this.writeStrip(f.body, 1, 0.9 * a, 0);
+    this.writeStrip(f.core, 0.42, a * flick, 1.1);
+  }
   /** The charge rings follow the hero (they close in on it wherever the coil takes it). */
   private chargeRings: Fx[] = [];
 
@@ -406,7 +430,7 @@ export class HeroEnragedScene {
     this.fxs('glow', this.tex.ring, this.colors.hot, x, y, { dur: 300, from: (R * 0.6) / RING_R, to: (R * (1.9 + 0.2 * k) * this.look.ringSize) / RING_R, a0: 0.9 });
     // One claw set raked across the blow, leaning the other way each strike.
     this.claws(x, y, u, R * 2.1, i % 2 ? -1 : 1, 0.85, 0);
-    this.sparks(x, y, 12 + 3 * i, u, { speed: 850, size: 0.65 });
+    this.sparks(x, y, 12 + 3 * i, u, { speed: 850, size: 0.65, spread: 2, back: 0.45 });
   }
 
   /**
@@ -460,7 +484,8 @@ export class HeroEnragedScene {
     const sets = Math.max(0, Math.min(3, Math.round(o.slashes)));
     for (let i = 0; i < sets; i++) this.claws(x, y, u, R * (2.5 + 0.35 * o.k), i % 2 ? -1 : 1, 1.1 + 0.25 * o.k, i * 90);
     // Sparks and embers along the blow; a couple of dark puffs for contrast.
-    this.sparks(x, y, Math.round(o.sparks * b), u, { speed: 1050 + 250 * o.k, size: 0.85 + 0.25 * o.k, life: 600 });
+    // A wide fan (and a good share sprayed back toward the striker), so they read even when the foe sits at an edge.
+    this.sparks(x, y, Math.round(o.sparks * b), u, { speed: 1050 + 250 * o.k, size: 0.85 + 0.25 * o.k, life: 650, spread: 2.2, back: 0.45 });
     this.embers(x, y, o.embers, R * 0.6, { speed: 320 + 120 * o.k, lift: 220, life: 1100 });
     this.smoke(x, y, o.meteor ? 5 : 2, R * (o.meteor ? 1.2 : 0.8), { rise: 55, size: o.meteor ? 1.3 : 0.9, life: o.meteor ? 1400 : 900, alpha: 0.38 });
     if (o.meteor) {
@@ -472,7 +497,7 @@ export class HeroEnragedScene {
       const rot = this.rnd() * Math.PI * 2;
       const cs = ((R * 3.1 * L.craterSize) / CRACK_PX) * 2;
       const crD = this.fxs('shade', this.tex.cracks, dark, x, y, { dur: 2000, from: cs * 0.88, to: cs, a0: 0.9, mode: 'hold' });
-      const crH = this.fxs('glow', this.tex.cracks, this.colors.hot, x, y, { dur: 900, from: cs * 0.88, to: cs, a0: 1, mode: 'hold' });
+      const crH = this.fxs('glow', this.tex.cracks, this.colors.hot, x, y, { dur: 650, from: cs * 0.88, to: cs, a0: 0.55, mode: 'hold' });
       for (const cr of [crD, crH]) if (cr) cr.rotation = rot;
       if (crD) crD.scale.set(cs * 0.88 * 1.02);
       // Rock chunks (solid: normal blend), flung up and out, falling with spin.
@@ -527,6 +552,7 @@ export class HeroEnragedScene {
     // How fast it is going over the streak's span (0 = still, 1 = a full dash): the streak follows it.
     const back = this.path(t - L.wakeMs);
     const speed = clamp01(Math.hypot(h.x - back.x, h.y - back.y) / (this.radius * 1.6));
+    this.wakeDt = dt;
     this.drawWake(t, speed);
     const a = this.aura;
     if (a) {
@@ -534,35 +560,30 @@ export class HeroEnragedScene {
       a.age += dt;
       const heat = clamp01(h.heat) * this.auraMul;
       const comet = a.comet * clamp01(h.heat);
-      // Lean: fast motion streams the flames back; otherwise they lick upward (fire rises).
-      const fast = dt > 0 ? clamp01(moved / dt / (1.4 * S)) : 0;
-      const lx = moved > 0.01 ? -vx / moved : 0, ly = moved > 0.01 ? -vy / moved : -1;
+      // Lean: a DASH streams the flames back; otherwise they lick upward (fire rises). Measured over 50 ms of the smooth
+      // motion, so the windup's tremble never flails them.
+      const was = this.path(t - 50);
+      const mvx = h.x - was.x, mvy = h.y - was.y;
+      const mv = Math.hypot(mvx, mvy);
+      const fast = clamp01((mv / 50 - 0.9 * S) / (3 * S));
+      const lx = mv > 0.01 ? -mvx / mv : 0, ly = mv > 0.01 ? -mvy / mv : -1;
       const flick = 0.88 + 0.12 * Math.sin(a.age * 0.057) + 0.06 * Math.sin(a.age * 0.131);
       a.ring.position.set(h.x, h.y); a.ring.scale.set((R * 1.02) / RIM_R); a.ring.alpha = Math.min(1, 0.85 * heat) * flick;
       // The halo annulus: its bright band sits at 0.64 of the texture's half-width, so it maps onto 1.04 radii at 1.6R.
-      a.halo.position.set(h.x, h.y); a.halo.scale.set(((R * 1.62 * (1 + 0.25 * comet)) / GLOW_PX) * 2 * L.auraSize); a.halo.alpha = (0.5 + 0.25 * comet) * heat * flick;
+      a.halo.position.set(h.x, h.y); a.halo.scale.set(((R * 1.62 * (1 + 0.12 * comet)) / GLOW_PX) * 2 * L.auraSize); a.halo.alpha = (0.5 + 0.12 * comet) * heat * flick;
       a.shade.position.set(h.x, h.y); a.shade.scale.set(((R * 1.75) / GLOW_PX) * 2 * L.auraSize); a.shade.alpha = 0.35 * heat;
-      const n = a.flames.length;
-      for (let i = 0; i < n; i++) {
-        const f = a.flames[i]!;
-        const ang = f.ang;
-        const rx = Math.cos(ang), ry = Math.sin(ang);
+      for (const f of a.flames) {
+        const rx = Math.cos(f.ang), ry = Math.sin(f.ang);
         // Streaming back when fast: the flames on the leading side of the rim shrink (they would cross the face).
-        const facing = fast > 0.05 ? clamp01(0.5 + 0.8 * (rx * lx + ry * ly)) : 1;
-        // Up (and a little outward), or streaming back when fast; a slow sway so they live.
-        const sway = 0.18 * Math.sin(f.phase + a.age * 0.006);
-        let dx = rx * 0.45 + (fast > 0.05 ? lx : 0) * (0.55 + fast) + sway;
-        let dy = ry * 0.45 + (fast > 0.05 ? ly : -1) * (0.55 + fast);
+        const facing = fast > 0.05 ? clamp01(0.45 + 0.9 * (rx * lx + ry * ly)) : 1;
+        // Outward and up (fire rises), or streaming back when fast.
+        let dx = rx + (fast > 0.05 ? lx * (0.8 + 1.6 * fast) : 0);
+        let dy = ry + (fast > 0.05 ? ly * (0.8 + 1.6 * fast) : -0.75);
         const dl = Math.hypot(dx, dy) || 1; dx /= dl; dy /= dl;
-        const wob = 0.78 + 0.16 * Math.sin(f.phase + a.age * 0.019) + 0.1 * Math.sin(f.phase * 2.7 + a.age * 0.043);
-        const len = R * 1.15 * L.flameLength * f.len * wob * heat * (1 + 0.6 * comet + 0.5 * fast) * (0.25 + 0.75 * facing);
-        const wid = R * 0.27 * (0.75 + 0.25 * heat) * (1 + 0.2 * comet);
-        const bx = h.x + rx * R * 0.9, by = h.y + ry * R * 0.9;
-        const rot = Math.atan2(dy, dx) + Math.PI / 2;
-        const sy = Math.max(0.001, len / FLAME_H);
-        f.glow.position.set(bx, by); f.glow.rotation = rot; f.glow.scale.set((wid * 1.9) / FLAME_W, sy * 1.12); f.glow.alpha = 0.55 * clamp01(heat * 1.3);
-        f.body.position.set(bx, by); f.body.rotation = rot; f.body.scale.set(wid / FLAME_W, sy); f.body.alpha = 0.92 * clamp01(heat * 1.4);
-        f.core.position.set(bx, by); f.core.rotation = rot; f.core.scale.set((wid * 0.4) / FLAME_W, sy * 0.55); f.core.alpha = clamp01(heat * 1.2) * flick;
+        const wob = 0.8 + 0.14 * Math.sin(f.phase + a.age * 0.017 * f.speed) + 0.1 * Math.sin(f.phase * 2.7 + a.age * 0.041);
+        const len = R * 0.95 * L.flameLength * f.len * wob * heat * (1 + 0.55 * comet + 0.7 * fast) * (0.2 + 0.8 * facing);
+        const wid = R * 0.42 * (0.7 + 0.3 * heat) * (0.75 + 0.35 * f.len) * (1 + 0.15 * comet);
+        this.drawFlame(f, h.x + rx * R * 0.9, h.y + ry * R * 0.9, dx, dy, Math.max(1, len), wid, a.age, heat, flick);
       }
       // Embers off the flame tips, rising.
       a.emberAcc += dt * heat * (1 + comet);
@@ -645,11 +666,14 @@ export class HeroEnragedScene {
   }
 
   /** The rage streak: three strips on the hero's centreline sampled back in time (Arcana's trail), while it moves. */
+  private wakeOn = 0;
+  private wakeDt = 0;
+
   private drawWake(t: number, speed: number): void {
     const L = this.look;
     if (!this.path || L.wakeWidth <= 0) return;
     if (!this.wake) {
-      if (speed < 0.1) return;
+      if (speed < 0.1 || !(this.dashing || this.lastStretch)) return;
       const glow = this.strip('glow', this.tex.ribbonSoft, this.glowC);
       const body = this.strip('body', this.tex.ribbonBody, this.deep);
       const core = this.strip('core', this.tex.ribbonBody, this.colors.core);
@@ -677,11 +701,14 @@ export class HeroEnragedScene {
     }
     this.normals();
     const w0 = this.radius * head.s * 0.5 * L.wakeWidth * (0.8 + 0.6 * (this.aura?.comet ?? 0));
-    for (let j = 0; j < N; j++) { const f = j / (N - 1); hw[j] = w0 * (f < 0.08 ? 0.7 + 0.3 * (f / 0.08) : Math.pow(1 - (f - 0.08) / 0.92, 0.8)); }
-    const a = clamp01((speed - 0.1) * 1.6);
-    this.writeStrip(this.wake.glow, 1.8, 0.55 * a, 0);
-    this.writeStrip(this.wake.body, 1, 0.9 * a, 0);
-    this.writeStrip(this.wake.core, 0.26, 0.9 * a, 1.3);
+    // Pointed at BOTH ends (it swells out of the portrait's back rim and thins to a point): a streak, never a baton.
+    for (let j = 0; j < N; j++) { const f = j / (N - 1); hw[j] = w0 * (f < 0.2 ? 0.35 + 0.65 * Math.sin((f / 0.2) * Math.PI * 0.5) : Math.pow(1 - (f - 0.2) / 0.8, 1.2)); }
+    // Only a DASH trails a streak (never the spring home): it fades in with the dash and out in ~80 ms after it lands.
+    this.wakeOn = this.dashing || this.lastStretch ? 1 : Math.max(0, this.wakeOn - this.wakeDt / 80);
+    const a = clamp01((speed - 0.1) * 1.6) * this.wakeOn;
+    this.writeStrip(this.wake.glow, 1.7, 0.5 * a, 0);
+    this.writeStrip(this.wake.body, 0.8, 0.6 * a, 0);
+    this.writeStrip(this.wake.core, 0.18, 0.55 * a, 1.6);
     if (a <= 0 && this.lastHero.heat <= 0.01) this.dropWake();
   }
 
@@ -752,7 +779,7 @@ export class HeroEnragedScene {
     // The aura goes once the rage has cooled (the hero is home, or the clock stopped following it).
     const a = this.aura;
     if (a && a.heat <= 0.01 && a.age > 200) {
-      for (const f of a.flames) for (const s of [f.glow, f.body, f.core]) this.give(s);
+      for (const f of a.flames) this.dropFlame(f);
       this.give(a.ring); this.give(a.halo); this.give(a.shade);
       this.aura = null;
     }
@@ -846,7 +873,7 @@ export class HeroEnragedScene {
     for (const p of this.particles) this.give(p.s);
     for (const g of this.ghosts) { this.give(g.art); this.give(g.rim); }
     for (const k of this.strokes) { this.giveStrip(k.glow); this.giveStrip(k.body); this.giveStrip(k.core); }
-    if (this.aura) { for (const f of this.aura.flames) for (const s of [f.glow, f.body, f.core]) this.give(s); this.give(this.aura.ring); this.give(this.aura.halo); this.give(this.aura.shade); }
+    if (this.aura) { for (const f of this.aura.flames) this.dropFlame(f); this.give(this.aura.ring); this.give(this.aura.halo); this.give(this.aura.shade); }
     for (const s of this.warm) this.give(s);
     this.dropWake();
     this.fx = []; this.particles = []; this.ghosts = []; this.strokes = []; this.aura = null; this.smoulders = []; this.warm = []; this.chargeRings = [];

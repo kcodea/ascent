@@ -22,31 +22,6 @@ function canvas(w: number, h: number): { c: HTMLCanvasElement; g: CanvasRenderin
 
 const tex = (c: HTMLCanvasElement): Texture => new Texture({ source: new CanvasSource({ resource: c }) });
 
-/**
- * A flame tongue: a curved lick of fire pointing UP (its round base at the bottom centre, a tip that curls a little to
- * one side), bright at the base and fading to nothing at the tip. Drawn as one smooth shape (never a bead or a petal).
- */
-function paintFlame(W: number, H: number): HTMLCanvasElement | null {
-  const k = canvas(W, H); if (!k) return null;
-  const g = k.g;
-  const cx = W / 2;
-  const tip = { x: cx + W * 0.16, y: H * 0.02 };
-  const base = H * 0.9;
-  g.beginPath();
-  g.moveTo(tip.x, tip.y);
-  // Down the right side (a gentle S), round the base, and back up the left side to the tip.
-  g.bezierCurveTo(cx - W * 0.02, H * 0.3, cx + W * 0.5, H * 0.52, cx + W * 0.4, H * 0.78);
-  g.bezierCurveTo(cx + W * 0.3, H * 0.99, cx - W * 0.3, H * 0.99, cx - W * 0.4, H * 0.78);
-  g.bezierCurveTo(cx - W * 0.5, H * 0.55, cx - W * 0.12, H * 0.34, tip.x, tip.y);
-  g.closePath();
-  const v = g.createLinearGradient(0, 0, 0, base);
-  v.addColorStop(0, 'rgba(255,255,255,0)'); v.addColorStop(0.28, 'rgba(255,255,255,0.35)');
-  v.addColorStop(0.62, 'rgba(255,255,255,0.9)'); v.addColorStop(1, 'rgba(255,255,255,1)');
-  g.shadowColor = 'rgba(255,255,255,0.8)'; g.shadowBlur = W * 0.12;
-  g.fillStyle = v; g.fill();
-  return k.c;
-}
-
 /** A smoke puff: a few overlapping soft blobs (seeded), so it reads as billowing, not as a perfect disc. */
 function paintSmoke(D: number): HTMLCanvasElement | null {
   const k = canvas(D, D); if (!k) return null;
@@ -175,10 +150,10 @@ let cached: HeroEnragedTextures | null = null;
 export function heroEnragedTextures(): HeroEnragedTextures | null {
   if (cached) return cached;
   const base = heroArcanaTextures();
-  const flame = paintFlame(40, 128), smoke = paintSmoke(96), rock = paintRock(40);
+  const smoke = paintSmoke(96), rock = paintRock(40);
   const scorch = paintScorch(192), cracks = paintCracks(256), disc = paintDisc(128), rim = paintRim(256), halo = paintHalo(128);
-  if (!base || !flame || !smoke || !rock || !scorch || !cracks || !disc || !rim || !halo) return null;
-  cached = { ...base, flame: tex(flame), smoke: tex(smoke), rock: tex(rock), scorch: tex(scorch), cracks: tex(cracks), disc: tex(disc), rim: tex(rim), halo: tex(halo) };
+  if (!base || !smoke || !rock || !scorch || !cracks || !disc || !rim || !halo) return null;
+  cached = { ...base, smoke: tex(smoke), rock: tex(rock), scorch: tex(scorch), cracks: tex(cracks), disc: tex(disc), rim: tex(rim), halo: tex(halo) };
   return cached;
 }
 

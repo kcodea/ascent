@@ -1,4 +1,4 @@
-import { createRef, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { createRef, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { sfx } from '../sfx';
 import { RankBar, type RankBarAnimRefs } from './RankBar';
 import { announcement, deltaText, ordinal, outcomeText, placementText } from './rankFormat';
@@ -44,6 +44,9 @@ export interface RankScreenProps {
   preview?: boolean;
   /** Test/DEV override for `prefers-reduced-motion`. */
   reducedMotion?: boolean;
+  /** ACCOUNT PROGRESSION (2026-09-27): content shown under the rank result, above Continue (the Account XP
+   *  panel). Handed whether the rank sequence has settled, so it can wait its turn. */
+  extra?: (rankSettled: boolean) => ReactNode;
 }
 
 function prefersReducedMotion(): boolean {
@@ -61,7 +64,7 @@ const cues = {
 };
 
 export function RankScreen(props: RankScreenProps): JSX.Element {
-  const { placement, seatCount, submission, result, current, error, unratedReason, runId, onContinue, onRetry, preview = false } = props;
+  const { placement, seatCount, submission, result, current, error, unratedReason, runId, onContinue, onRetry, preview = false, extra } = props;
   const reduced = props.reducedMotion ?? prefersReducedMotion();
   const confirmed = submission === 'confirmed' && !!result;
   // The celebration plays only for a freshly confirmed result that has not been presented before.
@@ -223,6 +226,8 @@ export function RankScreen(props: RankScreenProps): JSX.Element {
       {submission === 'unrated' && (
         <div className="rankend-status unrated">Unrated{unratedReason ? ` · ${unratedReason}` : ''}</div>
       )}
+
+      {extra?.(settled)}
 
       <div className="rankend-actions">
         <button ref={continueRef} type="button" className="endplay pressable rankend-continue" onClick={leave} disabled={leaving}>Continue</button>

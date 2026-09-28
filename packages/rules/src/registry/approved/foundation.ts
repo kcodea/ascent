@@ -1630,4 +1630,63 @@ export const FOUNDATION_RULES: GameRule[] = [
     currentBehaviour: 'Conforms (built 2026-09-27).',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/practiceBeginnerHeroes.test.ts'], lastVerifiedAt: '2026-09-27' },
   },
+  {
+    id: 'R-PROG-XP-01',
+    title: 'Account XP per game: Ranked 100 + 40 Top 4 + 60 first + 25 comeback; Practice 60% of that; the tutorial 250 once',
+    statement:
+      'Account XP is permanent, earn-only and separate from the ranked ladder. A completed Ranked game earns 100, plus 40 '
+      + 'for a Top 4 finish, plus 60 for 1st, plus 25 for a comeback (a combat win right after 4 or more consecutive combat '
+      + 'losses; a draw neither adds to nor clears the streak; once per run). A standard Practice game earns 60% of the '
+      + 'equivalent Ranked XP, summed then rounded (60 / 84 / 120 / 135). A Practice game with no meaningful placement '
+      + '(Unlimited Health, played to the curtain) earns a flat 60. The first completion of the current Learn Ascent course '
+      + 'earns 250 once per account. The Scene Builder, sandboxes and quit games earn 0. No caps, no diminishing returns. '
+      + 'The server computes the XP from its own source rows (the accepted rank result, the player\'s own practice row, a '
+      + 'unique tutorial claim), never from a number the client sends, and a duplicate settlement returns the original result.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-27 (account progression MVP brief)', quote: 'XP values and curve exactly as the handoff: Ranked 100 complete + 40 Top 4 + 60 first + 25 comeback' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-27 (account progression MVP brief)', quote: 'Practice = round(0.60 × equivalent ranked XP)' },
+      { kind: 'code', ref: 'packages/progression/src/rules.ts xpForSettlement / comebackAfterLosses; supabase/migrations/2026-09-27-account-progression.sql settle_progression; supabase/functions/_shared/progressionRules.ts (generated)' },
+    ],
+    currentBehaviour: 'Conforms, built 2026-09-27 (account progression MVP). Earns nothing until the owner runs the migration, deploys submit-progression and sets the progression epoch.',
+    enforcement: { kind: 'scenario', refs: ['packages/progression/src/rules.test.ts', 'packages/progression/src/sqlParity.test.ts', 'packages/progression/src/server.test.ts', 'packages/sim/src/progressionFacts.test.ts'], lastVerifiedAt: '2026-09-27' },
+  },
+  {
+    id: 'R-PROG-CURVE-01',
+    title: 'Account Level curve: 250 XP per level to Level 11, 400 to Level 26, 500 after; lifetime XP stored, no backfill',
+    statement:
+      'Every account starts at Level 1 with 0 XP. Levels 1 to 10 each need 250 XP to advance, 11 to 25 need 400 each, and '
+      + '26 onward need 500 each, uncapped (Level 11 begins at 2500 lifetime XP, Level 26 at 8500). The server stores '
+      + 'LIFETIME XP and derives the level (versioned curve), so one game can cross several levels. No game finished before '
+      + 'the progression epoch counts: there is no retroactive backfill.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-27 (account progression MVP brief)', quote: 'Curve: 250 per level for levels 1→11, 400 for 11→26, 500 after; store LIFETIME xp; level derived; versioned. No caps, no diminishing returns. No retroactive backfill' },
+      { kind: 'code', ref: 'packages/progression/src/rules.ts CURVE_BANDS / levelOfXp / levelProgress; progression_level_of in supabase/migrations/2026-09-27-account-progression.sql; progression_config.epoch' },
+    ],
+    currentBehaviour: 'Conforms, built 2026-09-27.',
+    enforcement: { kind: 'scenario', refs: ['packages/progression/src/rules.test.ts', 'packages/progression/src/sqlParity.test.ts'], lastVerifiedAt: '2026-09-27' },
+  },
+  {
+    id: 'R-PROG-TITLE-01',
+    title: 'Every account unlocks the Alpha Tester title at Account Level 2; guests earn XP too and are gently asked to save it',
+    statement:
+      'The MVP has exactly one reward: the title "Alpha Tester", granted to EVERY account that reaches Account Level 2 '
+      + '(level-based, so an existing account that reaches Level 2 gets it too) and equipped automatically when no title is '
+      + 'equipped. The post-game XP panel reveals it; the Career shows the level, the XP bar and the equipped title publicly. '
+      + 'Anonymous (guest) players earn XP from their first game, because a guest session is a real account id that the email '
+      + 'upgrade keeps. When a guest reaches Level 2 the post-game panel shows a gentle "Save your progress" prompt (never a '
+      + 'gate) that opens the account panel, and the Career shows a small reminder. With no session at all, a game earns no XP.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-27 (account progression MVP brief)', quote: 'ONE title, "Alpha Tester", unlocked by EVERYONE at Account Level 2' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-27 (account progression MVP brief)', quote: 'Anonymous players: they ACCUMULATE XP from their first game' },
+      { kind: 'code', ref: 'settle_progression c_alpha_title / c_alpha_level in supabase/migrations/2026-09-27-account-progression.sql; packages/progression/src/rules.ts TITLES; packages/ui/src/progression/ProgressionPostgame.tsx; packages/ui/src/progression/AccountLevel.tsx' },
+    ],
+    currentBehaviour: 'Conforms, built 2026-09-27. Lobby name plates do not show titles yet (Career only).',
+    enforcement: { kind: 'scenario', refs: ['packages/progression/src/sqlParity.test.ts', 'packages/progression/src/rules.test.ts', 'packages/ui/src/progression/ProgressionPostgame.test.tsx', 'packages/ui/src/Career.test.tsx'], lastVerifiedAt: '2026-09-27' },
+  },
 ];

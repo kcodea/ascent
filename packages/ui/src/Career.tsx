@@ -14,6 +14,8 @@ import { useGame, syncProfileFromServer, tempHandle, type CareerFocus } from './
 import { fetchMyPracticeGames, fetchMyRuns, fetchPracticeReplay, fetchPlayerById, fetchReplayPayload, remoteEnabled, type PracticeGameConfig, type PracticeGameRow } from './remoteBoards';
 import { startReplay } from './replay/replayPlayer';
 import { RankBar } from './rank/RankBar';
+import { titleName } from '@game/progression';
+import { AccountLevelCard, useCareerProgression } from './progression/AccountLevel';
 import { scalarCaption } from './rank/rankFormat';
 import { rankPositionOf, type RankedProfile } from './rank/types';
 import {
@@ -578,6 +580,8 @@ export function Career() {
   const trends = useMemo(() => trendSeries(runs ?? [], window_, Date.now()), [runs, window_]);
   const heroes = useMemo(() => heroCareers(runs ?? []), [runs]);
   const focusIndex = useMemo(() => (runs ? focusIndexOf(runs, viewing?.focus) : -1), [runs, viewing?.focus]);
+  // ACCOUNT LEVEL (2026-09-27): your own mirror, or the viewed player's public row. Null until the feature is on.
+  const accountProgression = useCareerProgression(show ? userId : null, !viewing);
 
   if (!show) return null;
 
@@ -666,6 +670,7 @@ export function Career() {
             <HeroFrame heroId={heroId} />
             <div className="cv2-heroname">{heroName}</div>
             <div className="cv2-playername">{shownName}</div>
+            {titleName(accountProgression?.equippedTitleId) && <div className="cv2-playertitle">{titleName(accountProgression?.equippedTitleId)}</div>}
             <div className="cv2-tiles">
               <StatTile icon="crown" label="1st Place Wins" value={String(aggregates.firsts)} />
               <StatTile icon="shield" label="Top 4 Finish" value={aggregates.top4Pct === null ? '—' : `${aggregates.top4Pct}%`} />
@@ -768,6 +773,12 @@ export function Career() {
 
         {/* RIGHT — Seasonal Ranked + Performance Trends */}
         <aside className="cv2-col cv2-right">
+          {accountProgression && (
+            <>
+              <div className="cv2-colhead"><div className="cv2-sec"><Icon name="crown" />Account Level</div></div>
+              <AccountLevelCard profile={accountProgression} own={!viewing} />
+            </>
+          )}
           <div className="cv2-colhead"><div className="cv2-sec"><Icon name="star" />Seasonal Ranked</div></div>
           <div className="cv2-panel cv2-ranked">
             {rank ? (

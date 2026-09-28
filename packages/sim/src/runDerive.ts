@@ -3,6 +3,8 @@ import { createRun, isPlayerAction, runRecord, type Action, type BoardCard, type
 import { reduce, upgradeCostOf } from './reducer';
 import type { Replay } from './snapshot';
 import type { TelemetrySource } from './runTelemetry';
+import { setIdOf } from './cardPool';
+import { comebackAfterLosses, PROGRESSION_FACTS_VERSION, type ProgressionMode, type ProgressionRunFactsV1 } from '@game/progression';
 
 /**
  * THE RUN DERIVATION — every balance event stream, derived from a replay.
@@ -493,6 +495,50 @@ export function finishDerive(
     diverged: st.diverged,
     offers: st.offers, acquisitions: st.acquisitions, gold: st.gold, upgrades: st.upgrades,
     combats: st.combats, triggers: st.triggers, boards: st.boards, playerActions: st.playerActions,
+  };
+}
+
+// ── Account progression facts (2026-09-27) ────────────────────────────────────────────────────────────────
+
+/**
+ * The placement a run's ACCOUNT XP is scored on: the lobby seat's stamped placement (else the seats still
+ * standing, the same number the practice end screen shows), or null when the game has no meaningful placement:
+ * no lobby at all, or a Practice on Unlimited Health (it plays to the round-15 curtain and is never eliminated,
+ * so its "placement" is only the standing count). The server applies the same rule to its source row.
+ */
+export function progressionPlacementOf(run: RunState): number | null {
+  if (!run.lobby) return null;
+  if (run.mode === 'practice' && (run.practiceConfig?.health ?? 'unlimited') !== 'normal') return null;
+  const seat = run.lobby.seats.find((x) => x.id === 's0');
+  const p = seat?.placement ?? run.lobby.seats.filter((x) => x.alive).length;
+  return Number.isInteger(p) && p >= 1 && p <= 8 ? p : null;
+}
+
+/**
+ * THE PROGRESSION FACT DOCUMENT for a finished run, read off the SAME observer the balance derivation uses
+ * (`observeAction` recorded every combat's result in order), never off scattered checks in card scripts or the
+ * UI. Facts, not rewards: `@game/progression`'s `matchXp` turns them into XP, and the server recomputes it from
+ * its own source rows. The comeback streak is the observer's ordered combat results through the one shared rule
+ * (`comebackAfterLosses`: a loss grows the streak, a draw neither grows nor clears it, a win after 4+ earns it).
+ */
+export function progressionFactsOf(
+  st: DeriveState, final: RunState,
+  meta: { runId: string; mode: ProgressionMode; patch: string; placement?: number | null },
+): ProgressionRunFactsV1 {
+  const results = st.combats.map((c) => c.result);
+  const count = (r: 'win' | 'loss' | 'draw'): number => results.filter((x) => x === r).length;
+  return {
+    version: PROGRESSION_FACTS_VERSION,
+    runId: meta.runId,
+    mode: meta.mode,
+    setId: setIdOf(final),
+    patch: meta.patch,
+    heroId: final.heroId,
+    placement: meta.placement !== undefined ? meta.placement : progressionPlacementOf(final),
+    waveReached: final.wave,
+    terminal: (final.phase === 'gameover' || final.phase === 'victory') && !final.sandbox,
+    comebackAfterFourLosses: comebackAfterLosses(results),
+    combats: { wins: count('win'), losses: count('loss'), draws: count('draw') },
   };
 }
 

@@ -61,6 +61,17 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: 'Account Levels: earn XP from every game. Reach Level 2 to unlock the Alpha Tester title.',
+        details: [
+          'Ranked: 100 XP for finishing, plus 40 for Top 4, 60 for 1st, and 25 for a comeback (a win right after 4 losses in a row).',
+          'Practice earns 60% of that. Practice on Unlimited Health earns 60 XP.',
+          'Finishing the Learn Ascent tutorial the first time earns 250 XP.',
+          'Your level, XP and title show after each game and on your Career.',
+          'Playing as a guest? Your XP counts. Create an account to keep it on any device.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'Career has a new Practice tab with your finished Practice games, including the bot level, and you can watch their replays.',
         details: [
           'Each game shows your hero, placement, fight record, rounds, length, final team and runes.',

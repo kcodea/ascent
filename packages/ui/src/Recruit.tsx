@@ -76,6 +76,8 @@ import { playHeroArcana } from './heroArcana/heroArcana';
 import { heroArcanaPreviewSpeed } from './heroArcana/heroArcanaConfig';
 import { playHeroBlades } from './heroBlades/heroBlades';
 import { heroBladesPreviewSpeed } from './heroBlades/heroBladesConfig';
+import { playHeroEnraged } from './heroEnraged/heroEnraged';
+import { heroEnragedPreviewSpeed } from './heroEnraged/heroEnragedConfig';
 import { resolveHeroAttackStyle } from './heroBlast/heroAttackStyle';
 import { attackerCosmeticOf } from './heroBlast/attackerCosmetic';
 import { heroStrikeDamage, heroStrikeNumbers } from './heroBlast/heroStrikeDamage';
@@ -2893,12 +2895,15 @@ export function Recruit() {
     // THE COSMETIC hero attacks (owner asks 2026-09-28): the formation, then the style carries the blow (Blast: the
     // hero charges and bolts fly; Quake: the hero slams the ground and a quake erupts under the target; Arcana: magic
     // ribbons are lobbed, and the top tier swirls them into a vortex that explodes; Phantom Blades: swords are summoned,
-    // aimed and loosed in straight thrusts that stick and shatter, and the top tier brings down a greatsword). Same blow,
+    // aimed and loosed in straight thrusts that stick and shatter, and the top tier brings down a greatsword; Enraged Strike:
+    // Classic's own lunge, enraged, with a double strike, a flurry of three and a Tier IV meteor slam). Same blow,
     // same consequence, only drawn differently; the style is the ATTACKER's (their equipped cosmetic, or the dev
     // override). Every runner takes the same options (`heroAttack/options.ts`).
     const attackStyle = resolveHeroAttackStyle({ attacker: side, attackerCosmeticId: attackerCosmeticOf(run0, side, useGame.getState().showOpponentSkins) });
-    if (attackStyle === 'blast' || attackStyle === 'quake' || attackStyle === 'arcana' || attackStyle === 'blades') {
-      const runner = attackStyle === 'blades'
+    if (attackStyle === 'blast' || attackStyle === 'quake' || attackStyle === 'arcana' || attackStyle === 'blades' || attackStyle === 'enraged') {
+      const runner = attackStyle === 'enraged'
+        ? { play: playHeroEnraged, preview: heroEnragedPreviewSpeed() }
+        : attackStyle === 'blades'
         ? { play: playHeroBlades, preview: heroBladesPreviewSpeed() }
         : attackStyle === 'arcana'
         ? { play: playHeroArcana, preview: heroArcanaPreviewSpeed() }

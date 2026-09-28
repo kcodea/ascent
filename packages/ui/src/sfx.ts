@@ -668,6 +668,117 @@ export function playSteelHum(category: string, o: { gain: number; buildMs: numbe
   };
 }
 
+/**
+ * A SYNTH RAGE GROWL (the Enraged Strike hero attack's windup, 2026-09-28): two detuned sawtooths gliding from `lowHz` to
+ * `highHz` over `buildMs`, roughened by a fast amplitude flutter (18 to 34 Hz: a throat growl, not a hum), through a
+ * high-pass at 70 Hz (no sub mud: the owner rejects boomy) and a low-pass that OPENS as it builds (a muffled rumble into
+ * a snarl), on `category`'s fader. It swells to its peak exactly at `buildMs` (the drive) and is cut in 50 ms there, so
+ * the whoosh and the hit land on silence. Returns a handle whose `stop()` fades it in `SKIP_FADE_S`; null when nothing
+ * was queued (muted, hidden, suspended, no Web Audio).
+ */
+export function playRageTone(category: string, o: { gain: number; buildMs: number; lowHz: number; highHz: number; delayMs?: number }): SfxHandle | null {
+  if (isHidden() || audioSuspended || !(o.gain > 0)) return null;
+  const a = audio();
+  if (!a || muted) return null;
+  const t0 = a.currentTime + Math.max(0, o.delayMs ?? 0) / 1000;
+  const b = Math.max(0.05, o.buildMs / 1000);
+  const lo = Math.max(30, o.lowHz), hi = Math.max(lo + 10, o.highHz);
+  const o1 = a.createOscillator(); o1.type = 'sawtooth'; o1.detune.value = -9;
+  const o2 = a.createOscillator(); o2.type = 'sawtooth'; o2.detune.value = 11;
+  const hp = a.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 70; hp.Q.value = 0.7;
+  const lp = a.createBiquadFilter(); lp.type = 'lowpass'; lp.Q.value = 3;
+  const flutter = a.createGain(); flutter.gain.value = 0.65;
+  const lfo = a.createOscillator(); lfo.type = 'square';
+  const lfoAmt = a.createGain(); lfoAmt.gain.value = 0.35;
+  const env = a.createGain();
+  const out = a.createGain();
+  out.gain.value = effectiveGain(cfg, category, 'ragetone') * o.gain * 0.5;
+  o1.connect(hp); o2.connect(hp);
+  hp.connect(lp).connect(flutter).connect(env).connect(out).connect(busInput(a, category));
+  lfo.connect(lfoAmt).connect(flutter.gain);
+  for (const osc of [o1, o2]) { osc.frequency.setValueAtTime(lo, t0); osc.frequency.exponentialRampToValueAtTime(hi, t0 + b); }
+  lp.frequency.setValueAtTime(280, t0); lp.frequency.exponentialRampToValueAtTime(2200, t0 + b);
+  lfo.frequency.setValueAtTime(18, t0); lfo.frequency.exponentialRampToValueAtTime(34, t0 + b);
+  env.gain.setValueAtTime(0.0001, t0);
+  env.gain.exponentialRampToValueAtTime(0.3, t0 + Math.min(0.12, b * 0.3));
+  env.gain.exponentialRampToValueAtTime(1, t0 + b);
+  env.gain.exponentialRampToValueAtTime(0.0001, t0 + b + 0.05);
+  const end = t0 + b + 0.09;
+  for (const n of [o1, o2, lfo]) { n.start(t0); n.stop(end); }
+  let done = false;
+  const release = (): void => { if (done) return; done = true; for (const n of [o1, o2, hp, lp, flutter, lfo, lfoAmt, env, out]) { try { n.disconnect(); } catch { /* already */ } } };
+  o1.onended = release;
+  return {
+    stop: () => {
+      if (done) return;
+      try {
+        const landAt = scheduleSkipFade(out.gain, a.currentTime);
+        o1.onended = null;
+        for (const n of [o1, o2, lfo]) n.stop(landAt + 0.01);
+        setTimeout(release, SKIP_FADE_S * 1000 + 60);
+      } catch { release(); }
+    },
+  };
+}
+
+/** Two seconds of sparse crackle (random clicks of random size) per AudioContext, built once. */
+let crackleNoise: { ctx: AudioContext; buf: AudioBuffer } | null = null;
+function crackleBuffer(a: AudioContext): AudioBuffer {
+  if (crackleNoise?.ctx === a) return crackleNoise.buf;
+  const len = Math.floor(a.sampleRate * 2);
+  const buf = a.createBuffer(1, len, a.sampleRate);
+  const d = buf.getChannelData(0);
+  // Presentation noise, not gameplay: the Math.random ban covers core/content/sim only.
+  for (let i = 0; i < len; i++) {
+    if (Math.random() < 0.0016) {
+      const amp = 0.25 + Math.random() * 0.75, n = 20 + Math.floor(Math.random() * 90);
+      for (let j = 0; j < n && i + j < len; j++) d[i + j]! += amp * (Math.random() * 2 - 1) * Math.exp(-j / (n * 0.3));
+    }
+  }
+  crackleNoise = { ctx: a, buf };
+  return buf;
+}
+
+/**
+ * A SYNTH EMBER CRACKLE (the Enraged Strike's embers and smouldering foe, 2026-09-28): sparse clicks through a high-pass
+ * (a dry fire crackle, all top end), fading over `durMs`, on `category`'s fader. Returns a handle whose `stop()` fades
+ * it in `SKIP_FADE_S`; null when nothing was queued (muted, hidden, suspended, no Web Audio).
+ */
+export function playEmberCrackle(category: string, o: { gain: number; durMs: number; delayMs?: number }): SfxHandle | null {
+  if (isHidden() || audioSuspended || !(o.gain > 0)) return null;
+  const a = audio();
+  if (!a || muted) return null;
+  const src = a.createBufferSource();
+  src.buffer = crackleBuffer(a);
+  src.loop = true;
+  const hp = a.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 1400; hp.Q.value = 0.6;
+  const env = a.createGain();
+  const out = a.createGain();
+  out.gain.value = effectiveGain(cfg, category, 'crackle') * o.gain;
+  src.connect(hp).connect(env).connect(out).connect(busInput(a, category));
+  const t0 = a.currentTime + Math.max(0, o.delayMs ?? 0) / 1000;
+  const dur = Math.max(0.1, o.durMs / 1000);
+  env.gain.setValueAtTime(1, t0);
+  env.gain.setValueAtTime(1, t0 + dur * 0.3);
+  env.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+  src.start(t0, Math.random() * 1.5);
+  src.stop(t0 + dur + 0.05);
+  let done = false;
+  const release = (): void => { if (done) return; done = true; for (const n of [src, hp, env, out]) { try { n.disconnect(); } catch { /* already */ } } };
+  src.onended = release;
+  return {
+    stop: () => {
+      if (done) return;
+      try {
+        const landAt = scheduleSkipFade(out.gain, a.currentTime);
+        src.onended = null;
+        src.stop(landAt + 0.01);
+        setTimeout(release, SKIP_FADE_S * 1000 + 60);
+      } catch { release(); }
+    },
+  };
+}
+
 // The end-of-turn CHARGE build (`turncharge`) is a long (~25–40s) clip. Web Audio sources are fire-and-forget, so
 // we keep a handle to the live nodes and ramp them down when the turn ends early (End Turn pressed / a new charge
 // starts) — otherwise the build keeps playing under combat. See `stopTurnCharge` + `sfx.turnCharge`.

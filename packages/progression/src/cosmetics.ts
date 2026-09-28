@@ -175,6 +175,12 @@ export const COSMETICS: readonly CosmeticDef[] = Object.freeze([
   // and loosed in straight thrusts that stick in the target and shatter; the top tier brings down a greatsword. The
   // name is the builder's pick for the owner to rename (the id stays). Legendary like the other three.
   heroAttack('attack_blades', 'Phantom Blades', 'legendary', 'blades'),
+  // Owner 2026-09-28: "branch off and make one more animation, which is just a legendary version of this strike. it
+  // should be a 10x more exciting and oomphier more impactful and pixi animation dense attack animation, but basically a
+  // legendary version of this attack, just amplified or enraged." Classic's lunge, ENRAGED: a burning rage aura, a brutal
+  // dash with afterimages, white-hot impacts with claw rips; II a double strike, III a flurry of three, IV a meteor slam.
+  // The name is the builder's placeholder for the owner to rename (the id stays). Legendary like the other four.
+  heroAttack('attack_enraged', 'Enraged Strike', 'legendary', 'enraged'),
 ]);
 
 export const COSMETIC_INDEX: Readonly<Record<string, CosmeticDef>> = Object.freeze(

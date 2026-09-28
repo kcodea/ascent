@@ -21,6 +21,7 @@ import { playHeroBlast } from '../heroBlast/heroBlast';
 import { playHeroQuake } from '../heroQuake/heroQuake';
 import { playHeroArcana } from '../heroArcana/heroArcana';
 import { playHeroBlades } from '../heroBlades/heroBlades';
+import { playHeroEnraged } from '../heroEnraged/heroEnraged';
 import { SPEC, boardOf } from '../DamageFormationTuner';
 import { Sequence } from './sequence';
 import type { HeroAttackHandle, HeroAttackOptions } from './options';
@@ -300,6 +301,7 @@ describe('the runners', () => {
       ['quake', (o) => playHeroQuake({ ...o, textures: TEX })],
       ['arcana', (o) => playHeroArcana({ ...o, textures: TEX })],
       ['blades', (o) => playHeroBlades({ ...o, textures: TEX })],
+      ['enraged', (o) => playHeroEnraged({ ...o, textures: TEX, impactFx: false })],
     ];
     const lead = leadInOf([4, 2, 3, 4], false, true);
     for (const [name, play] of styles) {
@@ -441,6 +443,7 @@ describe('no attack ever pauses its clock (owner 2026-09-28: "remove the freezei
     ['quake', (o) => playHeroQuake({ ...o, textures: null })],
     ['arcana', (o) => playHeroArcana({ ...o, textures: null })],
     ['blades', (o) => playHeroBlades({ ...o, textures: null })],
+    ['enraged', (o) => playHeroEnraged({ ...o, textures: null, impactFx: false })],
   ];
 
   it('every style (and the formation inside it, through the capped slash) advances the clock by exactly the time played, every frame', () => {

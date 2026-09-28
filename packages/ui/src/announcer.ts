@@ -330,7 +330,9 @@ export const ANNOUNCER_LINES: Record<AnnouncerEvent, readonly string[]> = {
   sellSpree: ['sell-spree-1'],
   sellGilded: ['sell-gilded-1'],
   spellChain: ['spell-chain-1'],
-  tierUp: ['tier-up-1'],
+  // tier-up-1 ("Tier four. Better stock ahead.") retired 2026-09-28: this plays for tiers 2-5, so it names no tier
+  // (R-TEXT-ANNOUNCER-01).
+  tierUp: ['tier-up-2'],
   allGolden: ['all-golden-1'],
   bigTurn: ['big-turn-1'],
   boardTotal: ['board-total-1'],

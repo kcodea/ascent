@@ -353,4 +353,24 @@ export const TEXT_RULES: GameRule[] = [
     currentBehaviour: 'Conforms, FIXED 2026-09-27: the stage was a fixed 420px with absolutely positioned pages, so Genesis text ran past the bottom.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/ancients/ancientPreviewFit.test.ts'], lastVerifiedAt: '2026-09-27' },
   },
+  {
+    id: 'R-TEXT-ANNOUNCER-01',
+    title: 'An announcer line never names a value its moment does not guarantee',
+    statement:
+      'A spoken line only states what is true every time its moment plays. A moment that fires for several values '
+      + '(any Tavern tier from 2 to 5, any streak length, any round) gets lines that fit all of them, or one line '
+      + 'per value wired to that value. It never has a line that names one specific value.',
+    domain: 'text',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-28 (Tier up line)', quote: 'it shouldnt say "tier four" it should say  "Ooh, another tier unlocked. Better units ahead!"' },
+      { kind: 'fix-pr', ref: 'fix/tier-up-line: packages/ui/src/announcer.ts (tierUp now plays tier-up-2), apps/web/public/announcer/tier-up-2.mp3 (new), tier-up-1.mp3 removed' },
+    ],
+    currentBehaviour:
+      'Conforms for Tier up as of 2026-09-28: tier-up-1 ("Tier four. Better stock ahead.") played on every upgrade to '
+      + 'tiers 2-5 and is retired for tier-up-2. PARTIAL as a general check: clips are audio, so the test pins the '
+      + 'Tier up takes only. New lines are checked by hand in the tracker before they are generated.',
+    example: 'Upgrading to tier 3 plays "Ooh, another tier unlocked. Better units ahead!", never "Tier four".',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/announcer.test.ts'], lastVerifiedAt: '2026-09-28' },
+  },
 ];

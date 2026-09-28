@@ -13,7 +13,7 @@ import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
 import { parseEnvFile } from './bug-inbox.lib';
 import {
-  DRAFTS_DIR, MANIFEST_PATH, ManifestSchema, STATE_FILE, clipDest, clipHash, clipRequest, clipText, clipsOf, draftName,
+  DRAFTS_DIR, MANIFEST_PATH, ManifestSchema, STATE_FILE, clipFile, clipHash, clipRequest, clipText, clipsOf, draftName,
   planCost, planGenerate, type Clip, type DraftState,
 } from './vo.lib';
 
@@ -32,7 +32,7 @@ const STATE = resolve(DRAFTS, STATE_FILE);
 
 const manifest = ManifestSchema.parse(JSON.parse(readFileSync(resolve(ROOT, MANIFEST_PATH), 'utf8')));
 const state: DraftState = existsSync(STATE) ? JSON.parse(readFileSync(STATE, 'utf8')) : {};
-const shipped = (c: Clip): boolean => existsSync(resolve(ROOT, clipDest(c), `${c.id}.mp3`));
+const shipped = (c: Clip): boolean => existsSync(resolve(ROOT, clipFile(c)));
 const all = clipsOf(manifest);
 
 for (const id of only) {

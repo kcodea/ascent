@@ -10,6 +10,31 @@
         "similarity_boost": 0.75,
         "style": 0.45
       }
+    },
+    "dwarf-oldguard": {
+      "id": "OTEOmvwlLiYyPGmSRtaV",
+      "model": "eleven_multilingual_v2",
+      "dest": "packages/ui/src/audio/cards"
+    },
+    "dwarf-alekeeper": {
+      "id": "RUxKSb7bpWh8eCf2FmoV",
+      "model": "eleven_multilingual_v2",
+      "dest": "packages/ui/src/audio/cards"
+    },
+    "dwarf-coincounter": {
+      "id": "2OyePUzM2T7xrNqFCjfg",
+      "model": "eleven_multilingual_v2",
+      "dest": "packages/ui/src/audio/cards"
+    },
+    "dwarf-forewoman": {
+      "id": "tjyKTrdoXl0VOy5aOe7k",
+      "model": "eleven_multilingual_v2",
+      "dest": "packages/ui/src/audio/cards"
+    },
+    "dwarf-runeelder": {
+      "id": "o6aDCCdugIEPO7gUGjpb",
+      "model": "eleven_multilingual_v2",
+      "dest": "packages/ui/src/audio/cards"
     }
   },
   "lines": [],

@@ -35,7 +35,11 @@ vi.mock('@supabase/supabase-js', () => ({
         eq: (col: string, val: unknown) => { q.eqs.push([col, val]); return chain; },
         order: () => chain,
         limit: (n: number) => { q.limit = n; return Promise.resolve(respond(q)); },
-        insert: (rows: unknown[]) => { q.insert = rows; return Promise.resolve(respond(q)); },
+        // `insert(rows)` is awaitable on its own AND chains `.select('id')` (return=representation), like supabase-js.
+        insert: (rows: unknown[]) => {
+          q.insert = rows;
+          return Object.assign(Promise.resolve(respond(q)), { select: (sel: string) => { q.select = sel; return Promise.resolve(respond(q)); } });
+        },
       };
       return chain;
     },
@@ -95,8 +99,19 @@ describe('uploadPracticeGame', () => {
   });
   it('without a session it is dropped (no insert, no queue)', async () => {
     userId = null;
-    await (await load()).uploadPracticeGame(g);
+    expect(await (await load()).uploadPracticeGame(g)).toBeNull();
     expect(queries).toHaveLength(0);
+  });
+  it('resolves to the new row id (the practice XP source), or null when nothing was recorded', async () => {
+    respond = () => ({ data: [{ id: 77 }], error: null });
+    expect(await (await load()).uploadPracticeGame(g)).toBe(77);
+    expect(queries[0]!.select).toBe('id');
+    respond = () => ({ data: null, error: { code: '22P02', message: 'bad' } });
+    const err = vi.spyOn(console, 'error').mockImplementation(() => {});
+    expect(await (await load()).uploadPracticeGame(g)).toBeNull();
+    err.mockRestore();
+    respond = () => ({ data: [], error: null });
+    expect(await (await load()).uploadPracticeGame(g)).toBeNull();
   });
 });
 

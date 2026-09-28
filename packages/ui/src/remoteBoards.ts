@@ -1332,11 +1332,13 @@ export interface PracticeGameConfig {
 }
 
 /** Upload one finished practice game. Fire-and-forget; never throws / blocks. Needs a session (the insert
- *  policy checks `auth.uid() = user_id`); with none it is simply dropped — practice is not worth queueing. */
-export async function uploadPracticeGame(g: PracticeGameUpload): Promise<void> {
+ *  policy checks `auth.uid() = user_id`); with none it is simply dropped — practice is not worth queueing.
+ *  Resolves to the new row's id (ACCOUNT PROGRESSION, 2026-09-27: the row IS the practice game's XP source, so
+ *  its id is what `submit-progression` settles), or null when nothing was recorded. */
+export async function uploadPracticeGame(g: PracticeGameUpload): Promise<number | null> {
   const c = client();
   const userId = currentUserId();
-  if (!c || !userId) return;
+  if (!c || !userId) return null;
   try {
     const row = {
       user_id: userId, author: g.author, patch: g.patch, hero_id: g.heroId,
@@ -1345,18 +1347,21 @@ export async function uploadPracticeGame(g: PracticeGameUpload): Promise<void> {
       // int column: never send a fractional value (see `practiceGameOf`), whatever the caller passes.
       duration_ms: g.durationMs === null ? null : Math.round(g.durationMs), config: g.config,
     };
-    let { error } = await c.from('practice_games').insert([g.replay ? { ...row, replay: g.replay } : row]);
+    let { data, error } = await c.from('practice_games').insert([g.replay ? { ...row, replay: g.replay } : row]).select('id');
     // No `replay` column yet (the 2026-09-27 migration not run): record the RESULT anyway, without the replay.
     if (error && g.replay && isMissingColumnError(error)) {
       console.warn('[practice_games] no replay column yet; recording the result without its replay:', error.code);
-      ({ error } = await c.from('practice_games').insert([row]));
+      ({ data, error } = await c.from('practice_games').insert([row]).select('id'));
     }
     // A rejected row used to vanish without a trace (the client RETURNS the error, it doesn't throw), which is how
     // every practice game went unrecorded for days. Surface it so the next rejection is visible in the console.
-    if (error) console.error('[practice_games] upload rejected:', error.code, error.message);
+    if (error) { console.error('[practice_games] upload rejected:', error.code, error.message); return null; }
+    const id = (data as Array<{ id?: unknown }> | null)?.[0]?.id;
+    return typeof id === 'number' && Number.isSafeInteger(id) && id > 0 ? id : null;
   } catch (e) {
     /* best-effort — a practice row must never disrupt the end screen */
     console.error('[practice_games] upload failed:', e);
+    return null;
   }
 }
 

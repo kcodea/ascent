@@ -152,6 +152,39 @@ _shared/lobbyRating.ts`, `supabase/migrations/2026-09-20-medal-rank.sql` (`settl
 
 ---
 
+## Account Level — permanent XP (MVP, owner decisions 2026-09-27; R-PROG-XP-01, R-PROG-CURVE-01, R-PROG-TITLE-01)
+
+Account Level is a **permanent, earn-only** number that grows with every completed game. It never resets and
+never touches the ranked ladder (Ranked answers "how am I doing right now"; Account Level answers "how much have
+I played"). Live only once the owner has run the migration, deployed `submit-progression` and set the
+progression **epoch**; nothing finished before the epoch counts (no backfill).
+
+- **Match XP.** Ranked: **100** for a completed game, **+40** Top 4, **+60** for 1st, **+25** comeback.
+  Practice: **60%** of the equivalent Ranked XP, summed then rounded (60 / 84 / 120 / 135); a Practice game with
+  no meaningful placement (Unlimited Health, played to the curtain) earns a flat **60**. The first completion of
+  the current **Learn Ascent** course: **250**, once per account. Scene Builder, sandboxes and quit games: 0.
+  No caps, no diminishing returns, no repeat penalties.
+- **Comeback.** A loss adds to a streak, a draw neither adds nor clears it, a win after 4+ consecutive losses
+  earns the bonus. Once per run.
+- **Curve.** 250 XP per level from Level 1 to 11, 400 per level to Level 26, 500 per level after, uncapped.
+  Lifetime XP is stored; the level is derived from it (versioned), so one game can cross several levels.
+- **Reward (MVP).** The title **Alpha Tester**, unlocked by **every** account at Level 2 and equipped when no
+  title is equipped. Shown in the post-game XP panel (reveal) and on the Career (public). No crates, cosmetics or
+  achievements yet.
+- **Guests.** An anonymous session is a real account id and the email upgrade keeps it, so guests earn XP from
+  their first game. Reaching Level 2 as a guest shows a gentle "Save your progress" prompt (never a gate). With
+  no session at all, a game earns nothing.
+- **The server is the authority.** The client sends the run id and mode (plus the practice row id or the course
+  pin, and the comeback fact), never an XP number. `settle_progression` reads the placement from the accepted
+  rank result / the player's own practice row / a unique tutorial claim, and a duplicate returns the original
+  result. The client queues the request durably and retries; a failure reads "Progress pending".
+
+Source: `packages/progression/src/rules.ts` (curve, XP, titles), `packages/sim/src/runDerive.ts`
+(`progressionFactsOf`), `supabase/migrations/2026-09-27-account-progression.sql` (`settle_progression`),
+`supabase/functions/submit-progression`, `packages/ui/src/progression/`.
+
+---
+
 ## Health & economy
 
 - **Health** is the hero's life total. All heroes start with **30 Health**, plus per-hero **Armor**

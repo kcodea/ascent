@@ -22,8 +22,10 @@ export function AccountPanel() {
   const sendMagicLink = useGame((s) => s.sendMagicLink);
   const verifyEmailCode = useGame((s) => s.verifyEmailCode);
   const signOutAccount = useGame((s) => s.signOutAccount);
-  // Only ever over the Title — never over gameplay (same defensive gate as AvatarPicker).
+  // Only ever over the Title or a FINISHED run's end screen, never over live gameplay (same defensive gate as
+  // AvatarPicker). The end screen case is the Account XP panel's "Save your progress" prompt (2026-09-27).
   const onTitle = useGame((s) => s.showTitle);
+  const runEnded = useGame((s) => s.run.phase === 'gameover' || s.run.phase === 'victory');
 
   const [email, setEmail] = useState('');
   const [code, setCode] = useState('');
@@ -32,7 +34,7 @@ export function AccountPanel() {
   const [status, setStatus] = useState<'idle' | 'sending' | 'sent' | 'verifying'>('idle');
   const [error, setError] = useState<string | null>(null);
 
-  if (!open || !onTitle) return null;
+  if (!open || (!onTitle && !runEnded)) return null;
 
   const signedIn = !account.anonymous && !!account.email;
 

@@ -10,6 +10,7 @@ import { useGame } from './store';
 import { startReplay } from './replay/replayPlayer';
 import { RankScreen } from './rank/RankScreen';
 import { useRankSource } from './rank/rankSource';
+import { ProgressionPostgame } from './progression/ProgressionPostgame';
 
 /** A live `CardView` for a final-warband minion — shared with the final-board capture (see `liveBoardView`),
  *  so scaling cards show their *accumulated* magnitude at run's end, not the printed base. */
@@ -92,6 +93,11 @@ function LobbyEndScreen({ lobby, run, onPlayAgain }: {
             runId={rankSource?.runId ?? rankSource?.result?.runId ?? String(run.seed)}
             onContinue={onPlayAgain}
             onRetry={practice ? undefined : rankSource!.retry}
+            // ACCOUNT XP waits its turn: not while the rank is still settling (its sequence would re-arm and hide
+            // the panel again) and not while the rank celebration plays.
+            extra={(settled) => (
+              <ProgressionPostgame localKey={String(run.seed)} active={settled && (practice || rankSource!.submission !== 'pending')} />
+            )}
           />
         </div>
       </div>
@@ -138,6 +144,7 @@ function TutorialGraduationScreen({ run, onDone }: { run: RunState; onDone: () =
             ? <span className="endempty">— empty —</span>
             : run.board.map((m) => <Card key={m.uid} card={boardView(m, run)} suppressPop />)}
         </div>
+        <ProgressionPostgame localKey={String(run.seed)} active />
         <button className="endplay pressable" onClick={onDone}>Enter Ascent</button>
       </div>
     </div>

@@ -1009,7 +1009,7 @@ export const RUNES: RuneDef[] = [
     tribes: ['dwarf'], // TRIBE GATE (2026-09-10): the text names dwarfs on the board
     name: 'Rune of Basic Dwarves',
     cost: 3,
-    text: 'Get a **Dwarve**. Repeat every **Start of Turn**.',
+    text: 'Get a **Dwarf**. Repeat every **Start of Turn**.',
     reward: { kind: 'runeTribeDrip', tribe: 'dwarf', count: 1 },
     sets: ['set2', 'set3'], // + set3 2026-09-14 (rune roster handoff: mechanically compatible carryover)
   },

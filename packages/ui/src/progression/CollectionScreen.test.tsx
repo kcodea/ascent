@@ -39,10 +39,11 @@ import { resetProgressionForTests, useProgression } from './progressionStore';
 import { setCrateFxFactoryForTests } from './crateFx/crateFxPixi';
 import { useGame } from '../store';
 
-const noopFx = (): CrateFx => {
-  const f = (): void => {};
-  return { mount: async () => true, resize: f, setSpeed: f, setArt: f, reset: f, anticipate: f, charge: f, burst: f, reveal: f, settle: f, skipToSettled: f, windDown: f, destroy: f };
-};
+/** The Pixi layer as a no-op: every method does nothing, `mount` succeeds. A Proxy, so a method the opener's
+ *  owner adds later (the opener is not this screen's file) never breaks these layout tests. */
+const noopFx = (): CrateFx => new Proxy({}, {
+  get: (_t, k) => (k === 'then' ? undefined : k === 'mount' ? async () => true : () => {}),
+}) as CrateFx;
 
 let ui: Mounted | null = null;
 afterEach(() => { ui?.unmount(); ui = null; setCrateFxFactoryForTests(null); });

@@ -796,7 +796,7 @@ export function bladeMotions(p: BladesPlan, a: Pt, d: Pt, radius: number, aRadiu
     const tipLen = length * BLADE_TIP_FRACTION;
     // Raised to the sky, splayed out a little by its slot (a crown); kept on screen with the whole raised blade.
     const ang0 = -Math.PI / 2 + u * 0.32;
-    const home = inset({ x: a.x + Math.cos(ang) * r, y: a.y + Math.sin(ang) * r }, length * 0.25, tipLen * 0.95);
+    const home = inset({ x: a.x + Math.cos(ang) * r, y: a.y + Math.sin(ang) * r }, length * 0.25, tipLen + 8 * scale);
     // The tip's mark: the blades CROSS (the left of the arc goes in right of centre), in toward the centre for the last.
     const cross = -u * p.scatter * radius;
     const deep = radius * (0.05 + 0.1 * Math.abs(u));
@@ -813,7 +813,7 @@ export function bladeMotions(p: BladesPlan, a: Pt, d: Pt, radius: number, aRadiu
   if (g) {
     const length = c.bladeLength * c.greatSize * scale;
     const tipLen = length * BLADE_TIP_FRACTION;
-    const home = inset({ x: a.x + Math.cos(theta) * aRadius * c.greatForm, y: a.y + Math.sin(theta) * aRadius * c.greatForm }, length * 0.2, tipLen * 0.9);
+    const home = inset({ x: a.x + Math.cos(theta) * aRadius * c.greatForm, y: a.y + Math.sin(theta) * aRadius * c.greatForm }, length * 0.2, tipLen + 8 * scale);
     // It goes in dead centre, a little past it (it impales).
     const tipTo = { x: d.x + (along.x / L) * radius * 0.12, y: d.y + (along.y / L) * radius * 0.12 };
     const aim = Math.atan2(tipTo.y - home.y, tipTo.x - home.x);

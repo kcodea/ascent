@@ -271,6 +271,21 @@ export class HeroBladesScene {
     }
     this.fxs('air', this.tex.glow, this.colors.core, m.home.x, m.home.y, { dur: 200, from: 0.4 * size, to: 1.3 * size, a0: 0.9, mode: 'punch', peakAt: 0.2 });
     this.fxs('air', this.tex.ring, this.colors.edge, m.home.x, m.home.y, { dur: 260, from: 0.3 * size, to: 1.2 * size, a0: 0.8 });
+    // It ASSEMBLES: slivers of steel fly in from round it and meet along its length (the shatter, played backwards).
+    const shards = m.great ? 14 : 7;
+    const up = { x: Math.cos(m.ang0), y: Math.sin(m.ang0) };
+    for (let j = 0; j < shards; j++) {
+      const f = (j + 0.5) / shards;
+      const tx = m.home.x + up.x * m.tipLen * (f * 1.1 - 0.1), ty = m.home.y + up.y * m.tipLen * (f * 1.1 - 0.1);
+      const a = this.rnd() * Math.PI * 2;
+      const r = (60 + this.rnd() * 50) * S * Math.min(1.6, size);
+      const life = m.manifestMs * (0.55 + 0.3 * this.rnd());
+      const sp = r / (life / 1000);
+      this.particle('air', this.tex.shard, j % 2 ? this.colors.core : this.colors.edge, {
+        x: tx + Math.cos(a) * r, y: ty + Math.sin(a) * r, vx: -Math.cos(a) * sp, vy: -Math.sin(a) * sp, drag: 1, grav: 0,
+        life, from: 0.55 * S * Math.min(1.5, size), to: 0.25 * S, alpha: 1, spin: 0.02, streak: false,
+      });
+    }
     // A gleam down the length of the sword as it forms.
     this.fxs('air', this.tex.slash, this.colors.core, m.home.x, m.home.y - m.tipLen * 0.35, { dur: 240, from: (m.length / 128 / S) * 0.5, to: (m.length / 128 / S) * 1.05, a0: 0.9, mode: 'punch', peakAt: 0.3, sy: 0.35 }, m.ang0);
   }
@@ -469,13 +484,13 @@ export class HeroBladesScene {
         ch.ring.rotation += dt * 0.002;
         ch.ring.alpha = 0.8 * u;
         ch.glow.scale.set((ch.r * 3.2) / GLOW_PX * (1 + 0.2 * ch.k));
-        ch.glow.alpha = 0.45 * u;
+        ch.glow.alpha = 0.18 * u;
       } else {
         ch.releasing += dt;
         const r = clamp01(ch.releasing / 220);
         ch.ring.scale.set(rs * (1 + 0.35 * r));
         ch.ring.alpha = 0.85 * (1 - r);
-        ch.glow.alpha = 0.45 * (1 - r);
+        ch.glow.alpha = 0.18 * (1 - r);
         if (r >= 1) { this.give(ch.ring); this.give(ch.glow); this.charge = null; }
       }
     }
@@ -570,7 +585,7 @@ export class HeroBladesScene {
     const glowA = L.glow * (m.great ? 0.7 : 1) * ((stuck ? 0.42 : p.phase === 'flight' ? 0.95 : 0.62) + 0.6 * b.flare + pulse + hangGlow) * fadeIn;
     for (const s of all) { s.position.set(x, y); s.rotation = p.ang; s.scale.set(sx, sy); }
     b.shade.scale.set(sx * 1.03, sy * 1.25);
-    b.glow.scale.set(sx * 1.02, sy * 1.35);
+    b.glow.scale.set(sx * 1.02, sy * (p.phase === 'flight' ? 1.7 : 1.35));
     b.shade.alpha = L.outline * 0.6 * fadeIn;
     b.glow.alpha = Math.min(1, glowA);
     b.body.alpha = 0.97 * fadeIn;

@@ -2033,9 +2033,10 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'equipped in the Collection\'s Attack Animations tab (Equip, or "Use Classic" to take it off) through equip_cosmetic '
       + 'with slot hero_attack and target \'\' (the SQL refuses any other target, an unowned item, a skin in the attack slot '
       + 'and the attack in a skin slot). The owner approved the animation and made it a Legendary reward. The second hero '
-      + 'attack, attack_quake ("Tectonic Slam", Legendary, style quake: R-PROG-ATTACK-05), and the third, attack_arcana '
-      + '("Arcana", Legendary, style arcana: R-PROG-ATTACK-06), re-pinned the first-crate odds to Common 46.8%, Rare 31.0%, '
-      + 'Epic 19.0%, Legendary 3.3%; a non-title item 31.7%; the three attacks together 1.6%.',
+      + 'attack, attack_quake ("Tectonic Slam", Legendary, style quake: R-PROG-ATTACK-05), the third, attack_arcana '
+      + '("Arcana", Legendary, style arcana: R-PROG-ATTACK-06), and the fourth, attack_blades ("Phantom Blades", Legendary, '
+      + 'style blades: R-PROG-ATTACK-07), re-pinned the first-crate odds to Common 46.5%, Rare 30.8%, Epic 18.9%, '
+      + 'Legendary 3.8%; a non-title item 32.1%; the four attacks together 2.2%.',
     domain: 'foundation',
     status: 'approved',
     evidence: [
@@ -2153,5 +2154,29 @@ export const FOUNDATION_RULES: GameRule[] = [
     ],
     currentBehaviour: 'Conforms, built 2026-09-28. The item reaches the database on the next deploy of progression-inventory (the catalog sync); the equip SQL already accepts the hero_attack slot.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/heroArcana/heroArcana.test.ts', 'packages/progression/src/cosmetics.test.ts', 'packages/ui/src/progression/CollectionHeroAttack.test.tsx'], lastVerifiedAt: '2026-09-28' },
+  },
+  {
+    id: 'R-PROG-ATTACK-07',
+    title: 'Phantom Blades (attack_blades, Legendary) is the fourth hero attack: summoned swords aim, lock and thrust straight in, 1 / a crossed 2 / a fan of 5 / 6 and a greatsword, on the SAME damage tiers; the blow lands ONCE',
+    statement:
+      'attack_blades ("Phantom Blades", a placeholder name for the owner to rename; Legendary, crate, account-wide, style blades) '
+      + 'plays the Blades: the shared combine (the Tier and each Minion number fly into one total that ends on the engine\x27s '
+      + 'blow), then spectral swords are SUMMONED round the striking hero (each assembles out of flying slivers, raised to the sky), '
+      + 'swing round to AIM at the target, LOCK dead still for a breath, and are loosed in dead-straight THRUSTS (a kick back, '
+      + 'afterimages, a cut of light) that STICK in the struck hero and quiver. It escalates on exactly the tiers every other '
+      + 'hero attack uses (one shared tierOf, thresholds 6 / 12 / 20): I 1-5 ONE blade; II 6-11 a PAIR whose thrusts cross in '
+      + 'an X; III 12-19 a FAN of FIVE that hammer in, in rhythm; IV 20+ six blades hammer in as ticks, then a GREATSWORD is '
+      + 'summoned, swung round to aim and held trembling while a reticle locks onto the target and the stuck blades are bound '
+      + 'to it, and is loosed to impale the target. The consequence (the damage, Armor, Resolve) lands exactly ONCE: on the '
+      + 'LAST blade (every earlier blade is a tick with FX only) or, at IV, on the greatsword; every stuck blade then SHATTERS '
+      + '(FX only). Presentation only; reduced motion is fades only; an unknown or retired id plays Classic.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-28 (the fourth hero attack)', quote: 'branch off and make a new style animation and surprise me with it. arcana is top tier good. use that as your benchmark for quality. make it unique' },
+      { kind: 'code', ref: 'packages/progression/src/cosmetics.ts (attack_blades); packages/ui/src/heroBlades/ (heroBladesConfig bladesPlan / bladesCues / bladeMotions / bladePose, heroBlades playHeroBlades, heroBladesScene); the shared core in packages/ui/src/heroAttack/' },
+    ],
+    currentBehaviour: 'Conforms, built 2026-09-28. The item reaches the database on the next deploy of progression-inventory (the catalog sync); the equip SQL already accepts the hero_attack slot.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/heroBlades/heroBlades.test.ts', 'packages/progression/src/cosmetics.test.ts', 'packages/ui/src/progression/CollectionHeroAttack.test.tsx'], lastVerifiedAt: '2026-09-28' },
   },
 ];

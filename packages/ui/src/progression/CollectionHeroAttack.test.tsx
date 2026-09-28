@@ -60,7 +60,7 @@ describe('the Attack Animations tab', () => {
   it('Arcana (owner 2026-09-28: "one more attack animation ... a magic one called arcana") has its own tile and plays its own preview; Equip sends attack_arcana', async () => {
     open({ cosmetics: ['alpha_tester', 'attack_blast', 'attack_quake', 'attack_arcana'] });
     act(() => tab('Attack Animations').click());
-    expect(tab('Attack Animations').querySelector('.colls-tab-count')?.textContent).toBe('3/3');
+    expect(tab('Attack Animations').querySelector('.colls-tab-count')?.textContent).toBe('3/4'); // 2026-09-28: Phantom Blades joined, so three of four
     act(() => tile('Arcana').click());
     expect(tile('Arcana').getAttribute('aria-label')).toBe('Arcana, Legendary, owned');
     expect(text('.colls-detail .colls-kicker')).toBe('Hero attack');
@@ -80,8 +80,8 @@ describe('the Attack Animations tab', () => {
   it('Tectonic Slam (Quake, owner 2026-09-28) has its own tile and plays its own preview; Equip sends attack_quake', async () => {
     open({ cosmetics: ['alpha_tester', 'attack_blast', 'attack_quake'] });
     act(() => tab('Attack Animations').click());
-    // 2026-09-28: Arcana joined, so two of three are owned here.
-    expect(tab('Attack Animations').querySelector('.colls-tab-count')?.textContent).toBe('2/3');
+    // 2026-09-28: Arcana then Phantom Blades joined, so two of four are owned here.
+    expect(tab('Attack Animations').querySelector('.colls-tab-count')?.textContent).toBe('2/4');
     act(() => tile('Tectonic Slam').click());
     expect(tile('Tectonic Slam').getAttribute('aria-label')).toBe('Tectonic Slam, Legendary, owned');
     expect(text('.colls-detail .colls-kicker')).toBe('Hero attack');
@@ -98,12 +98,32 @@ describe('the Attack Animations tab', () => {
     clean();
   });
 
+  it('Phantom Blades (owner 2026-09-28: "surprise me") has its own tile and plays its own preview; Equip sends attack_blades', async () => {
+    open({ cosmetics: ['alpha_tester', 'attack_blast', 'attack_blades'] });
+    act(() => tab('Attack Animations').click());
+    expect(tab('Attack Animations').querySelector('.colls-tab-count')?.textContent).toBe('2/4');
+    act(() => tile('Phantom Blades').click());
+    expect(tile('Phantom Blades').getAttribute('aria-label')).toBe('Phantom Blades, Legendary, owned');
+    expect(text('.colls-detail .colls-kicker')).toBe('Hero attack');
+    expect($('.colls-detail .hapv-box')).not.toBeNull();
+    const preview = button('▶ Preview');
+    expect(preview).toBeTruthy();
+    expect(preview!.disabled).toBe(false);
+    equipCosmeticRemote.mockResolvedValue({ status: 'ok', value: null, profile: { ...base, cosmetics: [...base.cosmetics!, 'attack_blades'], revision: 10, loadout: { heroAttack: 'attack_blades' } } });
+    await act(async () => { button('Equip')!.click(); });
+    await settle();
+    expect(equipCosmeticRemote).toHaveBeenCalledWith('hero_attack', '', 'attack_blades');
+    expect(tile('Phantom Blades').className).toMatch(/\bworn\b/);
+    expect(tile('Arcane Barrage').className).not.toMatch(/\bworn\b/);
+    clean();
+  });
+
   it('is live with its count; Arcane Barrage has a tile and a detail panel with an in-place preview', () => {
     open();
     const t = tab('Attack Animations');
     expect(t.className).not.toMatch(/\blocked\b/);
-    // 2026-09-28: Quake ("Tectonic Slam") then Arcana joined Blast, so one of three is owned here.
-    expect(t.querySelector('.colls-tab-count')?.textContent).toBe('1/3');
+    // 2026-09-28: Quake ("Tectonic Slam"), Arcana and Phantom Blades joined Blast, so one of four is owned here.
+    expect(t.querySelector('.colls-tab-count')?.textContent).toBe('1/4');
     act(() => t.click());
     expect(tile('Arcane Barrage').getAttribute('aria-label')).toBe('Arcane Barrage, Legendary, owned');
     expect(text('.colls-detail .colls-kicker')).toBe('Hero attack');

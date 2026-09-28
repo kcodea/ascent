@@ -148,9 +148,9 @@ describe('the crate pool', () => {
   it('a crate can now give a skin: with every title owned, the next openings give each skin once, then pool_exhausted', async () => {
     const u = await playerOwning(TITLE_CRATE_IDS);
     expect((await poolIds(u)).sort()).toEqual(NON_TITLE_CRATE_IDS);
-    // enough crates: grant levels directly as sealed crates (one per non-title item: 6 skins + 3 hero attacks since
-    // Arcana joined on 2026-09-28, so levels 2..9 plus the Welcome Crate)
-    for (let lvl = 2; lvl <= 9; lvl++) await db.query('insert into public.loot_crates (user_id, earned_level) values ($1, $2) on conflict do nothing', [u, lvl]);
+    // enough crates (one more than the pool, so the last finds it exhausted): grant levels directly as sealed crates.
+    // Sized off the pool since 2026-09-28, when the third and fourth hero attacks outgrew the fixed seven.
+    for (let lvl = 2; lvl <= NON_TITLE_CRATE_IDS.length + 2; lvl++) await db.query('insert into public.loot_crates (user_id, earned_level) values ($1, $2) on conflict do nothing', [u, lvl]);
     const ids = (await db.query<{ crate_id: string }>("select crate_id from public.loot_crates where user_id = $1 and state = 'sealed' order by earned_level", [u])).rows.map((r) => r.crate_id);
     const got: string[] = [];
     for (const id of ids) {

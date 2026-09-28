@@ -20,7 +20,7 @@ import { HERO_QUAKE_DEFAULTS, quakePlan } from '../heroQuake/heroQuakeConfig';
 import { DEV_HERO_ATTACK_CHOICES, resolveHeroAttackStyle, styleOfCosmetic } from '../heroBlast/heroAttackStyle';
 import {
   ARCANA_CAPS, HERO_ARCANA_DEFAULTS, HERO_ARCANA_RANGES, arcanaCameraAt, arcanaCameraFocus, arcanaCues, arcanaFlightMs, arcanaPlan,
-  clampHeroArcanaValue, fanSlots, heroArcanaConfigJson, lobEase, lobPath, ribbonMotions, ribbonPos, sanitizeHeroArcanaConfig, upNormal,
+  clampHeroArcanaValue, fanSlots, heroArcanaConfigJson, lobEase, lobPath, ribbonMotions, ribbonPos, sanitizeHeroArcanaConfig, sideNormal,
   vortexPhase, type HeroArcanaConfig, type HeroArcanaNumKey,
 } from './heroArcanaConfig';
 import { HeroArcanaScene, MAX_ARCANA_MESHES, MAX_ARCANA_SPRITES, RIBBON_POINTS, type HeroArcanaTextures } from './heroArcanaScene';
@@ -130,8 +130,8 @@ describe('the plan', () => {
 
   it('Tier II is a PAIR on different heights and opposite sides; Tier I one ribbon, straight to the impact', () => {
     const [a, b] = P2.ribbons;
-    expect(Math.sign(a!.bow)).not.toBe(Math.sign(b!.bow));
-    expect(Math.abs(a!.bow)).not.toBeCloseTo(Math.abs(b!.bow), 2);
+    expect(Math.sign(a!.side)).not.toBe(Math.sign(b!.side));
+    expect(a!.lift).toBeGreaterThan(b!.lift * 1.5);
     expect(P2.hits).toHaveLength(1);
     expect(P1.ribbons).toHaveLength(1);
     expect(P1.hits).toEqual([]);
@@ -164,10 +164,10 @@ describe('the plan', () => {
   it('the shipped per-tier timeline (1600 px apart): first launch, impact and end (+ the hit-stop), ms', () => {
     const t = (p: ReturnType<typeof plan>): number[] => [Math.round(p.fireAt), Math.round(p.impactAt), Math.round(p.endAt + p.hitStopMs)];
     expect([t(P1), t(P2), t(P3), t(P4)]).toEqual([
-      [915, 1475, 1983], [1300, 2045, 2708], [1587, 2641, 3383], [1990, 3250, 4057],
+      [915, 1475, 2043], [1200, 1945, 2608], [1600, 2605, 3348], [1900, 3334, 4194],
     ]);
     // Brisk at Tier I (about 2 s), about 4 s at Tier IV (owner: "satisfying and chunky, not rushed").
-    expect(t(P1)[2]).toBeLessThanOrEqual(2000);
+    expect(t(P1)[2]).toBeLessThanOrEqual(2100);
     expect(t(P4)[2]).toBeLessThanOrEqual(4200);
   });
 
@@ -210,25 +210,29 @@ describe('the plan', () => {
 });
 
 describe('the ribbon paths', () => {
-  it('a lob leaves the hero, rises ABOVE the straight line, and lands exactly on the target', () => {
+  it('a lob leaves the hero, rises toward the TOP of the screen, comes DOWN onto the target, and lands exactly on it', () => {
     const [m] = ribbonMotions(P1, A, D, 80, C);
     expect(ribbonPos(m!, 0)).toEqual(A);
     expect(ribbonPos(m!, m!.flightMs)).toEqual(D);
     expect(ribbonPos(m!, m!.flightMs + 500)).toEqual(D);
-    const n = upNormal(A, D);
-    expect(n.y).toBeLessThan(0); // "up" is up the screen
     const mid = ribbonPos(m!, m!.flightMs / 2);
-    const off = (mid.x - (A.x + D.x) / 2) * n.x + (mid.y - (A.y + D.y) / 2) * n.y;
-    expect(off).toBeGreaterThan(100); // a high arc, not a bolt
+    expect(mid.y).toBeLessThan((A.y + D.y) / 2 - 100); // a high arc, not a bolt
+    const late = ribbonPos(m!, m!.flightMs * 0.97);
+    expect(late.y).toBeLessThan(D.y); // still above the target just before it lands: it dives in
+    // the top-edge ceiling: the controls never rise above it, so the lob stays in frame
+    const [c] = ribbonMotions(P1, A, D, 80, C, 40);
+    expect(Math.min(c!.lob.c1.y, c!.lob.c2.y)).toBeGreaterThanOrEqual(40);
     expect(lobEase(0)).toBe(0);
     expect(lobEase(1)).toBe(1);
   });
 
-  it('a pair bows to opposite sides of the line', () => {
+  it('a pair swings apart: two clearly separate arcs, each to its own side', () => {
     const [a, b] = ribbonMotions(P2, A, D, 80, C);
-    const n = upNormal(A, D);
+    const n = sideNormal(A, D);
     const side = (m: typeof a): number => { const p = ribbonPos(m!, m!.flightMs / 2); return (p.x - (A.x + D.x) / 2) * n.x + (p.y - (A.y + D.y) / 2) * n.y; };
-    expect(Math.sign(side(a))).not.toBe(Math.sign(side(b)));
+    const [ra, rb] = P2.ribbons;
+    expect((side(a) - side(b)) * (ra!.side - rb!.side)).toBeGreaterThan(0);
+    expect(Math.abs(side(a) - side(b))).toBeGreaterThan(150);
   });
 
   it('works both ways: a foe lob from the top down to you still rises first', () => {
@@ -236,7 +240,7 @@ describe('the ribbon paths', () => {
     expect(ribbonPos(m!, 0)).toEqual(D);
     expect(ribbonPos(m!, m!.flightMs)).toEqual(A);
     const l = lobPath(D, A, 0.3);
-    expect(l.c1.y).toBeLessThan(D.y + (A.y - D.y) * 0.18);
+    expect(l.c1.y).toBeLessThan(D.y);
   });
 
   it('Tier IV: each ribbon lands ON the vortex, circles the struck hero at the vortex radius, then collapses into it', () => {

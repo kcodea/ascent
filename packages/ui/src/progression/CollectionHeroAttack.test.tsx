@@ -57,10 +57,31 @@ const settle = async (): Promise<void> => { await act(async () => { await Promis
 const clean = (): void => { expect(document.body.textContent).not.toMatch(/[—–]/); expect(document.querySelector('[title]')).toBeNull(); };
 
 describe('the Attack Animations tab', () => {
+  it('Arcana (owner 2026-09-28: "one more attack animation ... a magic one called arcana") has its own tile and plays its own preview; Equip sends attack_arcana', async () => {
+    open({ cosmetics: ['alpha_tester', 'attack_blast', 'attack_quake', 'attack_arcana'] });
+    act(() => tab('Attack Animations').click());
+    expect(tab('Attack Animations').querySelector('.colls-tab-count')?.textContent).toBe('3/3');
+    act(() => tile('Arcana').click());
+    expect(tile('Arcana').getAttribute('aria-label')).toBe('Arcana, Legendary, owned');
+    expect(text('.colls-detail .colls-kicker')).toBe('Hero attack');
+    expect($('.colls-detail .hapv-box')).not.toBeNull();
+    const preview = button('▶ Preview');
+    expect(preview).toBeTruthy();
+    expect(preview!.disabled).toBe(false);
+    equipCosmeticRemote.mockResolvedValue({ status: 'ok', value: null, profile: { ...base, cosmetics: [...base.cosmetics!, 'attack_quake', 'attack_arcana'], revision: 10, loadout: { heroAttack: 'attack_arcana' } } });
+    await act(async () => { button('Equip')!.click(); });
+    await settle();
+    expect(equipCosmeticRemote).toHaveBeenCalledWith('hero_attack', '', 'attack_arcana');
+    expect(tile('Arcana').className).toMatch(/\bworn\b/);
+    expect(tile('Tectonic Slam').className).not.toMatch(/\bworn\b/);
+    clean();
+  });
+
   it('Tectonic Slam (Quake, owner 2026-09-28) has its own tile and plays its own preview; Equip sends attack_quake', async () => {
     open({ cosmetics: ['alpha_tester', 'attack_blast', 'attack_quake'] });
     act(() => tab('Attack Animations').click());
-    expect(tab('Attack Animations').querySelector('.colls-tab-count')?.textContent).toBe('2/2');
+    // 2026-09-28: Arcana joined, so two of three are owned here.
+    expect(tab('Attack Animations').querySelector('.colls-tab-count')?.textContent).toBe('2/3');
     act(() => tile('Tectonic Slam').click());
     expect(tile('Tectonic Slam').getAttribute('aria-label')).toBe('Tectonic Slam, Legendary, owned');
     expect(text('.colls-detail .colls-kicker')).toBe('Hero attack');
@@ -81,8 +102,8 @@ describe('the Attack Animations tab', () => {
     open();
     const t = tab('Attack Animations');
     expect(t.className).not.toMatch(/\blocked\b/);
-    // 2026-09-28: Quake ("Tectonic Slam") joined Blast, so one of two is owned here.
-    expect(t.querySelector('.colls-tab-count')?.textContent).toBe('1/2');
+    // 2026-09-28: Quake ("Tectonic Slam") then Arcana joined Blast, so one of three is owned here.
+    expect(t.querySelector('.colls-tab-count')?.textContent).toBe('1/3');
     act(() => t.click());
     expect(tile('Arcane Barrage').getAttribute('aria-label')).toBe('Arcane Barrage, Legendary, owned');
     expect(text('.colls-detail .colls-kicker')).toBe('Hero attack');

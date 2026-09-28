@@ -117,8 +117,8 @@ describe('the Collection screen: the album', () => {
     expect(missing.querySelector('.colls-tile-rar')?.textContent).toBe('Epic');
     expect(missing.querySelector('.colls-tile-lock')).not.toBeNull();
     expect(missing.getAttribute('aria-label')).toBe('Kingbreaker, Epic, not owned');
-    // "N / M collected" counts every live item: 16 titles + the 6 skins + 2 hero attacks (2026-09-28; Quake made it 24)
-    expect(text('.colls-meter-num')).toBe('2 / 24');
+    // "N / M collected" counts every live item: 16 titles + the 6 skins + 3 hero attacks (2026-09-28; Quake made it 24, Arcana 25)
+    expect(text('.colls-meter-num')).toBe('2 / 25');
     expect(text('.colls-tab.on .colls-tab-count')).toBe('2/16');
     clean();
   });

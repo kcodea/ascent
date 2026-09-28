@@ -7,6 +7,8 @@ import { playHeroQuake } from '../heroQuake/heroQuake';
 import { heroQuakePreviewSpeed } from '../heroQuake/heroQuakeConfig';
 import { playHeroArcana } from '../heroArcana/heroArcana';
 import { heroArcanaPreviewSpeed } from '../heroArcana/heroArcanaConfig';
+import { playHeroBlades } from '../heroBlades/heroBlades';
+import { heroBladesPreviewSpeed } from '../heroBlades/heroBladesConfig';
 import { playHeroBlast } from './heroBlast';
 import { heroBlastPreviewSpeed } from './heroBlastConfig';
 import './heroAttackPreview.css';
@@ -16,6 +18,7 @@ const RUNNERS: Record<string, { play: (o: HeroAttackOptions & { textures?: null 
   blast: { play: (o) => playHeroBlast(o), speed: heroBlastPreviewSpeed },
   quake: { play: (o) => playHeroQuake(o), speed: heroQuakePreviewSpeed },
   arcana: { play: (o) => playHeroArcana(o), speed: heroArcanaPreviewSpeed },
+  blades: { play: (o) => playHeroBlades(o), speed: heroBladesPreviewSpeed },
 };
 
 /**

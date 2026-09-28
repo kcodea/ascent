@@ -76,6 +76,8 @@ import { playHeroQuake } from './heroQuake/heroQuake';
 import { getHeroQuakeConfig, heroQuakePreviewSpeed } from './heroQuake/heroQuakeConfig';
 import { playHeroArcana } from './heroArcana/heroArcana';
 import { getHeroArcanaConfig, heroArcanaPreviewSpeed } from './heroArcana/heroArcanaConfig';
+import { playHeroBlades } from './heroBlades/heroBlades';
+import { getHeroBladesConfig, heroBladesPreviewSpeed } from './heroBlades/heroBladesConfig';
 import { resolveHeroAttackStyle } from './heroBlast/heroAttackStyle';
 import { attackerCosmeticOf } from './heroBlast/attackerCosmetic';
 import { heroStrikeDamage } from './heroBlast/heroStrikeDamage';
@@ -1874,7 +1876,7 @@ export function Recruit() {
   const seqTimersRef = useRef<number[]>([]);
   /** Monotonic strike counter — keys the red damage-taken number so it remounts + replays its pop each swing. */
   const lossSeqSeqRef = useRef(0);                // guards single-run per combat
-  const blastRef = useRef<HeroAttackHandle | null>(null); // the cosmetic hero attack in flight (Blast, Quake or Arcana; cancelled on leaving the fight)
+  const blastRef = useRef<HeroAttackHandle | null>(null); // the cosmetic hero attack in flight (any style; cancelled on leaving the fight)
   const endTurnPendingRef = useRef(false); // the end-of-turn beat sequence is playing before combat
   /** +padding between the LAST End-of-Turn beat and the combat curtain (owner ask 2026-08-29) — the final
    *  proc gets a breath before the blue sweeps. Turns with NO beats skip it (their fast paths dispatch
@@ -2926,12 +2928,15 @@ export function Recruit() {
     // THE COSMETIC hero attacks (owner asks 2026-09-28): when the striking hero's attack style is Blast or Quake,
     // every number (the tier AND the survivors) combines into one total, then the style carries the blow (Blast: the
     // hero charges and bolts fly; Quake: the hero slams the ground and a quake erupts under the target; Arcana: magic
-    // ribbons are lobbed, and the top tier swirls them into a vortex that explodes). Same blow, same consequence
-    // (`land` below is the Classic one), only drawn differently; the style is the ATTACKER's (their equipped cosmetic,
-    // or the dev override). Every runner takes the same options (`heroAttack/options.ts`).
+    // ribbons are lobbed, and the top tier swirls them into a vortex that explodes; Phantom Blades: swords are summoned,
+    // aimed and loosed in straight thrusts that stick and shatter, and the top tier brings down a greatsword). Same blow,
+    // same consequence (`land` below is the Classic one), only drawn differently; the style is the ATTACKER's (their
+    // equipped cosmetic, or the dev override). Every runner takes the same options (`heroAttack/options.ts`).
     const attackStyle = resolveHeroAttackStyle({ attacker: side, attackerCosmeticId: attackerCosmeticOf(run0, side, useGame.getState().showOpponentSkins) });
-    if (attackStyle === 'blast' || attackStyle === 'quake' || attackStyle === 'arcana') {
-      const runner = attackStyle === 'arcana'
+    if (attackStyle === 'blast' || attackStyle === 'quake' || attackStyle === 'arcana' || attackStyle === 'blades') {
+      const runner = attackStyle === 'blades'
+        ? { play: playHeroBlades, bias: getHeroBladesConfig().combineBias, preview: heroBladesPreviewSpeed() }
+        : attackStyle === 'arcana'
         ? { play: playHeroArcana, bias: getHeroArcanaConfig().combineBias, preview: heroArcanaPreviewSpeed() }
         : attackStyle === 'quake'
           ? { play: playHeroQuake, bias: getHeroQuakeConfig().combineBias, preview: heroQuakePreviewSpeed() }

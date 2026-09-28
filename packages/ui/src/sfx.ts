@@ -609,6 +609,65 @@ export function playSwirlTone(category: string, o: { gain: number; buildMs: numb
   };
 }
 
+/**
+ * A SYNTH STEEL HUM (the Phantom Blades hero attack's Tier IV greatsword, 2026-09-28): a struck-metal ring built from
+ * four sine partials at a bell's inharmonic ratios (1, 2.76, 5.4, 8.93), each doubled a few cents sharp so it BEATS
+ * like a blade still singing, gliding up by `rise` (x the pitch) over `buildMs` under a tremolo that tightens from 6
+ * to 22 Hz (the sword straining against its hold), on `category`'s fader. It swells to its peak exactly at `buildMs`
+ * (the loose) and is cut in 50 ms there, so the crack of the loose lands on silence. Returns a handle whose `stop()`
+ * fades it in `SKIP_FADE_S`; null when nothing was queued (muted, hidden, suspended, no Web Audio).
+ */
+export function playSteelHum(category: string, o: { gain: number; buildMs: number; hz: number; rise: number; delayMs?: number }): SfxHandle | null {
+  if (isHidden() || audioSuspended || !(o.gain > 0)) return null;
+  const a = audio();
+  if (!a || muted) return null;
+  const t0 = a.currentTime + Math.max(0, o.delayMs ?? 0) / 1000;
+  const b = Math.max(0.05, o.buildMs / 1000);
+  const f0 = Math.max(40, o.hz), f1 = f0 * Math.max(1, o.rise);
+  const trem = a.createGain(); trem.gain.value = 0.72;
+  const lfo = a.createOscillator(); lfo.type = 'sine';
+  const lfoAmt = a.createGain(); lfoAmt.gain.value = 0.28;
+  const env = a.createGain();
+  const out = a.createGain();
+  out.gain.value = effectiveGain(cfg, category, 'steelhum') * o.gain;
+  const partials: [number, number][] = [[1, 1], [2.76, 0.5], [5.4, 0.22], [8.93, 0.1]];
+  const oscs: OscillatorNode[] = [];
+  const mixes: GainNode[] = [];
+  for (const [ratio, g] of partials) {
+    for (const cents of [0, 6]) {
+      const osc = a.createOscillator(); osc.type = 'sine'; osc.detune.value = cents;
+      const mix = a.createGain(); mix.gain.value = g * 0.22;
+      osc.frequency.setValueAtTime(f0 * ratio, t0);
+      osc.frequency.exponentialRampToValueAtTime(f1 * ratio, t0 + b);
+      osc.connect(mix).connect(trem);
+      oscs.push(osc); mixes.push(mix);
+    }
+  }
+  trem.connect(env).connect(out).connect(busInput(a, category));
+  lfo.connect(lfoAmt).connect(trem.gain);
+  lfo.frequency.setValueAtTime(6, t0); lfo.frequency.exponentialRampToValueAtTime(22, t0 + b);
+  env.gain.setValueAtTime(0.0001, t0);
+  env.gain.exponentialRampToValueAtTime(0.3, t0 + Math.min(0.08, b * 0.3));
+  env.gain.exponentialRampToValueAtTime(1, t0 + b);
+  env.gain.exponentialRampToValueAtTime(0.0001, t0 + b + 0.05);
+  const end = t0 + b + 0.09;
+  for (const n of [...oscs, lfo]) { n.start(t0); n.stop(end); }
+  let done = false;
+  const release = (): void => { if (done) return; done = true; for (const n of [...oscs, ...mixes, trem, lfo, lfoAmt, env, out]) { try { n.disconnect(); } catch { /* already */ } } };
+  oscs[0]!.onended = release;
+  return {
+    stop: () => {
+      if (done) return;
+      try {
+        const landAt = scheduleSkipFade(out.gain, a.currentTime);
+        oscs[0]!.onended = null;
+        for (const n of [...oscs, lfo]) n.stop(landAt + 0.01);
+        setTimeout(release, SKIP_FADE_S * 1000 + 60);
+      } catch { release(); }
+    },
+  };
+}
+
 // The end-of-turn CHARGE build (`turncharge`) is a long (~25–40s) clip. Web Audio sources are fire-and-forget, so
 // we keep a handle to the live nodes and ramp them down when the turn ends early (End Turn pressed / a new charge
 // starts) — otherwise the build keeps playing under combat. See `stopTurnCharge` + `sfx.turnCharge`.

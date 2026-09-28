@@ -170,6 +170,11 @@ export const COSMETICS: readonly CosmeticDef[] = Object.freeze([
   // top tier swirls them into a vortex over the target that explodes outward. Named by the owner ("Arcana"; note the
   // Blast cosmetic's placeholder name "Arcane Barrage" is close). Legendary like the other two (the owner's call).
   heroAttack('attack_arcana', 'Arcana', 'legendary', 'arcana'),
+  // Owner 2026-09-28: "branch off and make a new style animation and surprise me with it. arcana is top tier good. use
+  // that as your benchmark for quality. make it unique". Spectral swords summoned round the hero, swung round to aim
+  // and loosed in straight thrusts that stick in the target and shatter; the top tier brings down a greatsword. The
+  // name is the builder's pick for the owner to rename (the id stays). Legendary like the other three.
+  heroAttack('attack_blades', 'Phantom Blades', 'legendary', 'blades'),
 ]);
 
 export const COSMETIC_INDEX: Readonly<Record<string, CosmeticDef>> = Object.freeze(

@@ -1799,4 +1799,27 @@ export const FOUNDATION_RULES: GameRule[] = [
     currentBehaviour: 'Conforms, built 2026-09-28. The crate is drawn procedurally until the crate art from the owner drops in through the `crateArt` tuner key.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/progression/Crates.test.tsx', 'packages/ui/src/progression/crateFx/crateFx.test.ts', 'packages/ui/src/Career.test.tsx'], lastVerifiedAt: '2026-09-28' },
   },
+  {
+    id: 'R-PROG-COLLECTION-02',
+    title: 'The Collection lays out as a full album: category tabs, filters, every item owned or not, a detail panel, and a crate bay always in view',
+    statement:
+      'The Collection shows the WHOLE catalog of a category, owned or not, in a stable order (rarest first): owned items '
+      + 'bright in their rarity frame, missing items dimmed with the rarity still readable and a lock, the equipped item '
+      + 'with a full gold rim and an Equipped ribbon. The header shows overall completion ("N / M") and the Account Level with '
+      + 'its XP bar. Categories are tabs with an owned / total count; the ones not switched on yet are locked tabs that open '
+      + 'a coming-soon view. Show (All / Owned / Missing) and Rarity filters carry counts. Selecting an item opens it in a '
+      + 'detail panel: large on a nameplate, its rarity, its status, how it is found ("Found in crates.", "Reach Level 2."), a '
+      + 'preview under your name, and Equip or Take off (a missing item says how to get it instead). A crate bay (count, '
+      + 'next crate, Open, Open all) stays in view whatever tab is open and starts the unchanged crate opening. An owned item '
+      + 'you have not looked at wears NEW until you select it; that flag is local to the device and never sent to the '
+      + 'server. A guest sees a slim save row.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-28 (Collection layout brief)', quote: 'i think the layout is horrible. research best in class collection screens and mimic them' },
+      { kind: 'code', ref: 'packages/ui/src/progression/CollectionScreen.tsx; packages/ui/src/progression/collectionModel.ts (albumOf / filterAlbum / loadSeen / saveSeen); packages/ui/src/progression/collection.css' },
+    ],
+    currentBehaviour: 'Conforms, built 2026-09-28. Titles are the only live category; the other six are locked tabs until their art ships.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/progression/CollectionScreen.test.tsx'], lastVerifiedAt: '2026-09-28' },
+  },
 ];

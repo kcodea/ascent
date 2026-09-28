@@ -17,7 +17,7 @@
 import {
   COSMETIC_INDEX, parseServerCatalogState, type ServerCatalogState, type SkinSlot, PROGRESSION_RULES_VERSION, TUTORIAL_COURSE_ID, TUTORIAL_COURSE_VERSION, parseCrate, parseOpenCrateResult, parseProgressionProfile,
   parseProgressionResult, type CrateRow, type OpenCrateResult, type ProgressionMode, type ProgressionProfile, type ProgressionResult,
-  type ProgressionRunFactsV1,
+  type ProgressionRunFacts, factsAsV1,
 } from '@game/progression';
 import { currentUserId } from '../identity';
 import { supabaseClient } from '../remoteBoards';
@@ -37,7 +37,7 @@ export interface ProgressionSubmitRequest {
   courseId?: string;
   courseVersion?: number;
   /** The run's fact document, stored with the ledger row for audit. */
-  facts?: ProgressionRunFactsV1 | null;
+  facts?: ProgressionRunFacts | null;
 }
 
 export type ProgressionSubmitOutcome =
@@ -45,9 +45,16 @@ export type ProgressionSubmitOutcome =
   | { status: 'retryable'; reason: string }
   | { status: 'rejected'; reason: string };
 
-/** Build the request for one finished run's facts (tutorial requests carry the course pin instead). */
-export function progressionRequestFor(facts: ProgressionRunFactsV1, sourceId?: number): ProgressionSubmitRequest {
-  const base = { mode: facts.mode, runId: facts.runId, rulesVersion: PROGRESSION_RULES_VERSION, facts };
+/**
+ * Build the request for one finished run's facts (tutorial requests carry the course pin instead).
+ *
+ * ACHIEVEMENTS (2026-09-28): the facts go up as V2 (with the run metrics) ONLY when `withMetrics` says the server
+ * evaluates achievements (the owner has set the achievements epoch, which follows the Edge Function deploy). Any
+ * other time they go up as V1: a server from before achievements refuses a V2 document as `bad_facts`, which the
+ * queue would treat as permanent, and the game's XP would be lost.
+ */
+export function progressionRequestFor(facts: ProgressionRunFacts, sourceId?: number, withMetrics = false): ProgressionSubmitRequest {
+  const base = { mode: facts.mode, runId: facts.runId, rulesVersion: PROGRESSION_RULES_VERSION, facts: withMetrics ? facts : factsAsV1(facts) };
   if (facts.mode === 'tutorial') return { ...base, courseId: TUTORIAL_COURSE_ID, courseVersion: TUTORIAL_COURSE_VERSION };
   return { ...base, comeback: facts.comebackAfterFourLosses, ...(facts.mode === 'practice' && sourceId != null ? { sourceId } : {}) };
 }
@@ -326,4 +333,92 @@ export async function equipCosmeticRemote(slot: SkinSlot, targetId: string, cosm
   const profile = parseProgressionProfile(r.data.profile);
   if (!profile) return { status: 'error', reason: 'server_outdated' };
   return { status: 'ok', value: null, profile };
+}
+
+// ── Achievements (2026-09-28) ─────────────────────────────────────────────────────────────────────────────────
+
+/**
+ * THE ACHIEVEMENTS PROBE. `true` = the achievements migration has run AND the owner set `achievements_epoch`
+ * (which follows the `submit-progression` deploy); `false` = asked, and it is off; `undefined` = could not ask.
+ * While it is not `true` there is no Achievements tab and settlements send V1 facts.
+ */
+export async function fetchAchievementsEnabled(): Promise<boolean | undefined> {
+  const c = supabaseClient();
+  if (!c) return undefined;
+  try {
+    const res = await Promise.race([
+      Promise.resolve(c.from('progression_config').select('achievements_epoch').eq('id', 1).limit(1)),
+      timeout(READ_TIMEOUT_MS, null),
+    ]);
+    if (!res) return undefined;
+    if (res.error) {
+      const code = String((res.error as { code?: string }).code ?? '');
+      return code === '42P01' || code === 'PGRST205' || code === 'PGRST204' || code === '42703' ? false : undefined;
+    }
+    const v = (res.data as Array<{ achievements_epoch?: unknown }> | null)?.[0]?.achievements_epoch;
+    return typeof v === 'string' && v.length > 0;
+  } catch {
+    return undefined;
+  }
+}
+
+/** One completed achievement (public: anyone's Career shows them). */
+export interface AchievementCompletionRow { id: string; completedAt: string | null }
+
+/** A player's completed achievements, newest first. `undefined` = could not ask. */
+export async function fetchAchievementCompletions(userId: string): Promise<AchievementCompletionRow[] | undefined> {
+  const c = supabaseClient();
+  if (!c || !userId) return undefined;
+  try {
+    const res = await Promise.race([
+      Promise.resolve(c.from('achievement_completions').select('achievement_id, completed_at').eq('user_id', userId).order('completed_at', { ascending: false })),
+      timeout(READ_TIMEOUT_MS, null),
+    ]);
+    if (!res || res.error) return undefined;
+    return ((res.data as Array<{ achievement_id?: unknown; completed_at?: unknown }> | null) ?? [])
+      .filter((r) => typeof r.achievement_id === 'string')
+      .map((r) => ({ id: r.achievement_id as string, completedAt: typeof r.completed_at === 'string' ? r.completed_at : null }));
+  } catch {
+    return undefined;
+  }
+}
+
+/** THIS account's in-progress values (owner-only by RLS; another player's page never asks). `undefined` = could not ask. */
+export async function fetchOwnAchievementProgress(): Promise<Record<string, number> | undefined> {
+  const c = supabaseClient();
+  const userId = currentUserId();
+  if (!c || !userId) return undefined;
+  try {
+    const res = await Promise.race([
+      Promise.resolve(c.from('achievement_progress').select('achievement_id, progress').eq('user_id', userId)),
+      timeout(READ_TIMEOUT_MS, null),
+    ]);
+    if (!res || res.error) return undefined;
+    const out: Record<string, number> = {};
+    for (const r of (res.data as Array<{ achievement_id?: unknown; progress?: unknown }> | null) ?? []) {
+      const n = typeof r.progress === 'number' ? r.progress : typeof r.progress === 'string' && /^\d+$/.test(r.progress) ? Number(r.progress) : null;
+      if (typeof r.achievement_id === 'string' && n !== null) out[r.achievement_id] = n;
+    }
+    return out;
+  } catch {
+    return undefined;
+  }
+}
+
+/** The ids the SERVER has switched off (`active = false` or the owner's `admin_off`). `undefined` = could not ask. */
+export async function fetchRetiredAchievementIds(): Promise<string[] | undefined> {
+  const c = supabaseClient();
+  if (!c) return undefined;
+  try {
+    const res = await Promise.race([
+      Promise.resolve(c.from('achievement_catalog').select('achievement_id, active, admin_off')),
+      timeout(READ_TIMEOUT_MS, null),
+    ]);
+    if (!res || res.error) return undefined;
+    return ((res.data as Array<{ achievement_id?: unknown; active?: unknown; admin_off?: unknown }> | null) ?? [])
+      .filter((r) => typeof r.achievement_id === 'string' && (r.active === false || r.admin_off === true))
+      .map((r) => r.achievement_id as string);
+  } catch {
+    return undefined;
+  }
 }

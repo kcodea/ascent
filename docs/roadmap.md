@@ -445,8 +445,11 @@ offsets in `styles.css`).
   the owner's other cosmetic ART (attack animations, announcers, boards, music; each needs its category switched on
   in `cosmetics.ts` AND the SQL seed, plus its in-game rendering), skins on the leaderboard / Rankings strips,
   server-side verification of a recorded skin snapshot against ownership, more titles before players exhaust 15 (about
-  Level 15), achievements on the `ProgressionRunFactsV1` observer, titles on lobby name plates (needs the title in
-  the seat snapshot), level-milestone rewards (handoff §5.7), and replay verification for practice-sourced XP.
+  Level 15), titles on lobby name plates (needs the title in the seat snapshot), level-milestone rewards (handoff §5.7),
+  and replay verification for practice-sourced XP. Achievements batch 1 (XP only) shipped 2026-09-28
+  (`docs/devlog/2026-09-28-achievements-b1.md`); next for achievements: title rewards, the hidden set and their fun
+  rewards, the 3 Career showcase slots, prestige replay verification, and batch 2 (the new engine counters and the
+  tuned thresholds listed in that devlog).
 
 - **Apply the owner's writing rule to the engine-side player copy** (rule + the `packages/ui` sweep shipped
   2026-09-21, see `docs/devlog/2026-09-21-player-text-style.md`): ~35 hero blurbs / power texts in

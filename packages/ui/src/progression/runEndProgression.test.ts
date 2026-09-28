@@ -89,7 +89,8 @@ describe('run-end progression', () => {
     const [localKey, facts] = vi.mocked(beginRunProgression).mock.calls[0]!;
     const rankReq = vi.mocked(enqueuePendingRank).mock.calls[0]![0];
     expect(localKey).toBe('7');
-    expect(facts).toMatchObject({ version: 1, mode: 'ranked', runId: rankReq.runId, placement: 1, terminal: true, heroId: 'brackus' });
+    expect(facts).toMatchObject({ version: 2, mode: 'ranked', runId: rankReq.runId, placement: 1, terminal: true, heroId: 'brackus' });
+    expect((facts as { metrics?: unknown }).metrics).toBeTypeOf('object'); // the observer's run metrics ride along (achievements batch 1)
   });
 
   it('practice: expected at once, then settled on the uploaded row id', async () => {

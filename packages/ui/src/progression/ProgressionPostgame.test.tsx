@@ -27,7 +27,7 @@ const result = (over: Partial<ProgressionResult> = {}): ProgressionResult => ({
   runId: 'run-1', mode: 'ranked', rulesVersion: 1, placement: 1, comeback: true,
   xp: { base: 100, topFour: 40, firstPlace: 60, comeback: 25, total: 225 },
   before: { lifetimeXp: 100, level: 1 }, after: { lifetimeXp: 325, level: 2 }, unlockedTitles: ['alpha_tester'], cratesAwarded: 0, crateIds: [], revisionAfter: 1,
-  settledAt: new Date().toISOString(), ...over,
+  settledAt: new Date().toISOString(), achievements: [], achievementXp: 0, ...over,
 });
 function setCurrent(over: Partial<CurrentRunProgression> = {}, capability: 'on' | 'off' | 'unknown' = 'on'): void {
   useProgression.setState({
@@ -171,5 +171,35 @@ describe('motion', () => {
     expect(ui!.container.querySelector('.acctxp.animated')).toBeNull();
     expect(ui!.container.querySelector<HTMLElement>('.acctxp-fill')!.style.transition).toBe('none');
     expect(text('.acctxp-level')).toBe('Lv2');
+  });
+});
+
+describe('achievements unlocked (batch 1, 2026-09-28)', () => {
+  const ids = ['career.games.1', 'ranked.first_game', 'ranked.first_top_four', 'ranked.first_win', 'ranked.reach_bronze_2', 'ranked.reach_bronze_3', 'ranked.reach_silver_1', 'hero.warden.victory'];
+  it('lists "Achievement unlocked: <name> +N XP" rows after the bar; the headline total includes their XP', () => {
+    setCurrent({ result: result({ achievements: ['career.games.1', 'ranked.first_win'], achievementXp: 125, after: { lifetimeXp: 450, level: 2 } }) });
+    render();
+    expect(text('.acctxp-total')).toBe('+350 XP');
+    expect(all('.acctxp-ach-row')).toEqual(['Achievement unlocked: First Steps +25 XP', 'Achievement unlocked: First Among Eight +100 XP']);
+    expect(ui!.container.querySelector('.acctxp-ach')!.getAttribute('aria-label')).toBe('Achievements unlocked');
+  });
+  it('shows the first six, then "+N more"; unknown ids (a newer server) are skipped', () => {
+    setCurrent({ result: result({ achievements: [...ids, 'future.thing'], achievementXp: 0 }) });
+    render();
+    expect(all('.acctxp-ach-row')).toHaveLength(6);
+    expect(text('.acctxp-ach-more')).toBe('+2 more achievements. See your Career.');
+  });
+  it('none completed (or a pre-achievements server): no rows at all', () => {
+    setCurrent();
+    render();
+    expect(ui!.container.querySelector('.acctxp-ach')).toBeNull();
+  });
+  it('the rows wait for the bar to settle when animated, then enter one-shot', () => {
+    vi.useFakeTimers();
+    setCurrent({ result: result({ achievements: ['career.games.1'], achievementXp: 25 }) });
+    render({ reducedMotion: false });
+    expect(ui!.container.querySelector('.acctxp-ach')).toBeNull();
+    act(() => { vi.advanceTimersByTime(5000); });
+    expect(all('.acctxp-ach-row')).toEqual(['Achievement unlocked: First Steps +25 XP']);
   });
 });

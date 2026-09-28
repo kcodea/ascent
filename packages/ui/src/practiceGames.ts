@@ -35,6 +35,6 @@ export function practiceGameOf(run: RunState, opts: {
     // WHOLE milliseconds: the frame clock is fractional (performance.now), and `practice_games.duration_ms` is an int
     // column, so an unrounded value made Postgres reject EVERY practice row (22P02, found 2026-09-27).
     durationMs: typeof first === 'number' && typeof last === 'number' && last >= first ? Math.round(last - first) : null,
-    config: { opponents: cfg.opponents, botDifficulty: normalizeBotDifficulty(cfg.botDifficulty), health: cfg.health },
+    config: { opponents: cfg.opponents, botDifficulty: normalizeBotDifficulty(cfg.botDifficulty), health: cfg.health, timeMult: cfg.timeMult ?? 1 },
   };
 }

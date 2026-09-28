@@ -55,6 +55,19 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: 'Achievements are here. Complete them for Account XP and track them on the new Achievements tab in your Career.',
+        details: [
+          'Over 240 achievements across Career, Ranked, Heroes, Economy and Build, Mechanics, Runes and Set 2.',
+          'Set 2 has feats for each tribe: Kobolds, Dwarves, Dragons, Beasts and Demons, plus cross-tribe and rune feats.',
+          'Every hero has four: Debut, Contender, Victory and Mastery.',
+          'Each one shows what it asks and its XP reward. Your own page shows your progress; other players see what you completed.',
+          'Ranked and standard Practice games count. Practice needs Normal Health and a turn timer. Some feats are Ranked only.',
+          'Rank achievements count your best rank so far, so your first game pays for every rank you already reached.',
+          'After a game, the Account XP panel lists every achievement you unlocked.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'The crate is now a real treasure chest.',
         details: [
           'The lid rattles as it builds up, and light leaks from the seam and the keyhole in the rarity colour.',

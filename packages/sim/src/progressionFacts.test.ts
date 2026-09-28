@@ -31,8 +31,9 @@ describe('progressionFactsOf: fixtures', () => {
   it('the four-loss comeback: LLLLW earns it, and the record is counted from the observer', () => {
     const facts = progressionFactsOf(stateWith('WLLLLWWD'), finished('lobby', 3), { runId: 'run-a', mode: 'ranked', patch: 'p' });
     expect(facts).toEqual({
-      version: 1, runId: 'run-a', mode: 'ranked', setId: facts.setId, patch: 'p', heroId: 'warden', placement: 3, waveReached: 14,
+      version: 2, runId: 'run-a', mode: 'ranked', setId: facts.setId, patch: 'p', heroId: 'warden', placement: 3, waveReached: 14,
       terminal: true, comebackAfterFourLosses: true, combats: { wins: 3, losses: 4, draws: 1 },
+      metrics: {}, // an empty observer on an empty board counted nothing (achievements batch 1, 2026-09-28)
     });
     expect(matchXp(facts).total).toBe(100 + 40 + 25);
   });

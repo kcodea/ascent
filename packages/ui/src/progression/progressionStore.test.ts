@@ -10,6 +10,7 @@ import type { ProgressionProfile, ProgressionResult, ProgressionRunFactsV1 } fro
 let userId: string | null = 'u-1';
 let remote = true;
 const enabled = vi.fn<() => Promise<boolean | undefined>>();
+const achEnabled = vi.fn<() => Promise<boolean | undefined>>(async () => false);
 const own = vi.fn<() => Promise<ProgressionProfile | null | undefined>>();
 const flush = vi.fn(async () => {});
 const enqueue = vi.fn((req: { runId: string }) => (userId && remote ? { ...req, userId, at: '', attempts: 0 } : null));
@@ -20,6 +21,7 @@ vi.mock('./progressionRemote', async (orig) => ({
   ...(await orig<typeof import('./progressionRemote')>()),
   fetchProgressionEnabled: () => enabled(),
   fetchCratesEnabled: () => Promise.resolve(false),
+  fetchAchievementsEnabled: () => achEnabled(),
   fetchOwnProgression: () => own(),
 }));
 vi.mock('./progressionQueue', () => ({
@@ -38,7 +40,7 @@ const facts = (over: Partial<ProgressionRunFactsV1> = {}): ProgressionRunFactsV1
 const result = (over: Partial<ProgressionResult> = {}): ProgressionResult => ({
   runId: 'run-1', mode: 'ranked', rulesVersion: 1, placement: 1, comeback: false,
   xp: { base: 100, topFour: 40, firstPlace: 60, comeback: 0, total: 200 },
-  before: { lifetimeXp: 100, level: 1 }, after: { lifetimeXp: 300, level: 2 }, unlockedTitles: ['alpha_tester'], cratesAwarded: 0, crateIds: [], revisionAfter: 4, settledAt: null, ...over,
+  before: { lifetimeXp: 100, level: 1 }, after: { lifetimeXp: 300, level: 2 }, unlockedTitles: ['alpha_tester'], cratesAwarded: 0, crateIds: [], revisionAfter: 4, settledAt: null, achievements: [], achievementXp: 0, ...over,
 });
 
 beforeEach(() => {
@@ -86,6 +88,26 @@ describe('the capability probe (the feature flag)', () => {
     remote = false;
     await S.probeProgression();
     expect(S.useProgression.getState().capability).toBe('off');
+  });
+});
+
+describe('achievements (batch 1, 2026-09-28)', () => {
+  it('the probe sets the achievements capability; the run metrics ride along only while it is on', async () => {
+    enabled.mockResolvedValue(true);
+    own.mockResolvedValue(profile());
+    achEnabled.mockResolvedValueOnce(true);
+    await S.probeProgression();
+    expect(S.useProgression.getState().achievementsCapability).toBe('on');
+    expect(S.achievementsVisible(S.useProgression.getState())).toBe(true);
+    enqueue.mockClear();
+    const v2 = { ...facts(), version: 2 as const, metrics: { rubyPlays: 3 } };
+    S.beginRunProgression('7', v2);
+    expect((enqueue.mock.calls[0]![0] as unknown as { facts: { version: number } }).facts).toMatchObject({ version: 2, metrics: { rubyPlays: 3 } });
+    S.useProgression.setState({ achievementsCapability: 'off' });
+    enqueue.mockClear();
+    S.beginRunProgression('8', { ...v2, runId: 'run-2' });
+    expect((enqueue.mock.calls[0]![0] as unknown as { facts: Record<string, unknown> }).facts).not.toHaveProperty('metrics');
+    expect(S.achievementsVisible(S.useProgression.getState())).toBe(false);
   });
 });
 

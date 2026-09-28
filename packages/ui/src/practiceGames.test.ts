@@ -202,7 +202,7 @@ describe('practiceGameOf', () => {
     expect(row.wave).toBe(9);
     expect(row.wins).toBe(row.record.wins);
     expect(row.durationMs).toBe(60_000);
-    expect(row.config).toEqual({ opponents: 'bots', botDifficulty: 7, health: 'unlimited' });
+    expect(row.config).toEqual({ opponents: 'bots', botDifficulty: 7, health: 'unlimited', timeMult: 1 });
     expect(row.runes).toEqual([]);
   });
   it('the length is WHOLE milliseconds: the frame clock is fractional and duration_ms is an int column (2026-09-27)', () => {
@@ -221,6 +221,11 @@ describe('practiceGameOf', () => {
   it('a default-options practice run (no pinned config) records the default options', () => {
     const r = run();
     delete r.practiceConfig;
-    expect(practiceGameOf(r, { author: null, patch: 'p', finalBoard: null, frames: [] }).config).toEqual({ opponents: 'players', botDifficulty: 3, health: 'unlimited' });
+    expect(practiceGameOf(r, { author: null, patch: 'p', finalBoard: null, frames: [] }).config).toEqual({ opponents: 'players', botDifficulty: 3, health: 'unlimited', timeMult: 1 });
+  });
+  it('records the turn timer (achievements 2026-09-28: a no-timer Practice never counts for "any game" feats)', () => {
+    const r = run();
+    r.practiceConfig = { ...r.practiceConfig!, health: 'normal', timeMult: 0 };
+    expect(practiceGameOf(r, { author: null, patch: 'p', finalBoard: null, frames: [] }).config).toMatchObject({ health: 'normal', timeMult: 0 });
   });
 });

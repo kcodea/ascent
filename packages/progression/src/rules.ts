@@ -21,6 +21,7 @@
  */
 
 import { COSMETICS, loadoutFromRows, milestoneLevelOf, type RunCosmeticSnapshot } from './cosmetics';
+import { sanitizeRunMetrics, type RunMetric } from './achievements';
 
 // ── Versions ────────────────────────────────────────────────────────────────────────────────────────────────
 
@@ -28,8 +29,9 @@ import { COSMETICS, loadoutFromRows, milestoneLevelOf, type RunCosmeticSnapshot 
 export const PROGRESSION_RULES_VERSION = 1;
 /** The XP curve. Stored on the profile beside the lifetime XP it was derived with. */
 export const PROGRESSION_CURVE_VERSION = 1;
-/** `ProgressionRunFactsV1`. */
-export const PROGRESSION_FACTS_VERSION = 1;
+/** The fact document the client builds: `ProgressionRunFactsV2` (V1 + the achievement run metrics, 2026-09-28).
+ *  The server still accepts V1 (an older client, or a client that has not seen the achievements switch). */
+export const PROGRESSION_FACTS_VERSION = 2;
 
 // ── The curve (handoff §4.2) ───────────────────────────────────────────────────────────────────────────────
 
@@ -240,13 +242,23 @@ export function matchXp(facts: Pick<ProgressionRunFactsV1, 'mode' | 'placement' 
   return xpForSettlement({ mode: facts.mode, placement: facts.placement, comeback: facts.comebackAfterFourLosses, terminal: facts.terminal });
 }
 
-/** Structural check the server runs on the (optional, audit-only) facts a client sends. */
-export function isProgressionFacts(v: unknown): v is ProgressionRunFactsV1 {
+/**
+ * V2 (achievements batch 1, 2026-09-28): V1 plus `metrics`, the run metrics the observer counted (see
+ * `RUN_METRICS` in achievements.ts). Additive: every V1 key keeps its meaning, and the server accepts both.
+ */
+export interface ProgressionRunFactsV2 extends Omit<ProgressionRunFactsV1, 'version'> {
+  version: 2;
+  metrics: Partial<Record<RunMetric, number>>;
+}
+export type ProgressionRunFacts = ProgressionRunFactsV1 | ProgressionRunFactsV2;
+
+/** Structural check the server runs on the facts a client sends (V1 or V2; V2's metrics are sanitized separately). */
+export function isProgressionFacts(v: unknown): v is ProgressionRunFacts {
   if (!v || typeof v !== 'object') return false;
   const o = v as Record<string, unknown>;
   const c = o.combats as Record<string, unknown> | undefined;
   const nonNegInt = (x: unknown): boolean => typeof x === 'number' && Number.isInteger(x) && x >= 0 && x <= 1000;
-  return o.version === 1
+  return (o.version === 1 || (o.version === 2 && !!o.metrics && typeof o.metrics === 'object' && !Array.isArray(o.metrics)))
     && typeof o.runId === 'string' && o.runId.length > 0 && o.runId.length <= 128
     && typeof o.mode === 'string' && (PROGRESSION_MODES as readonly string[]).includes(o.mode)
     && typeof o.setId === 'string' && o.setId.length <= 32
@@ -257,6 +269,30 @@ export function isProgressionFacts(v: unknown): v is ProgressionRunFactsV1 {
     && typeof o.terminal === 'boolean'
     && typeof o.comebackAfterFourLosses === 'boolean'
     && !!c && nonNegInt(c.wins) && nonNegInt(c.losses) && nonNegInt(c.draws);
+}
+
+/**
+ * The facts exactly as the server stores and evaluates them: the V1 keys copied, and (V2) only the known run
+ * metrics with sane values. Null for anything that is not a fact document. Unknown or out-of-range metrics are
+ * DROPPED, never an error: a bad counter must never cost a player the game's XP.
+ */
+export function sanitizeProgressionFacts(v: unknown): ProgressionRunFacts | null {
+  if (!isProgressionFacts(v)) return null;
+  const base = {
+    runId: v.runId, mode: v.mode, setId: v.setId, patch: v.patch, heroId: v.heroId, placement: v.placement,
+    waveReached: v.waveReached, terminal: v.terminal, comebackAfterFourLosses: v.comebackAfterFourLosses,
+    combats: { wins: v.combats.wins, losses: v.combats.losses, draws: v.combats.draws },
+  };
+  return v.version === 2 ? { version: 2, ...base, metrics: sanitizeRunMetrics(v.metrics) } : { version: 1, ...base };
+}
+
+/** The V1 document for a server that predates achievements (or while the achievements switch is off). */
+export function factsAsV1(f: ProgressionRunFacts): ProgressionRunFactsV1 {
+  if (f.version === 1) return f;
+  return {
+    version: 1, runId: f.runId, mode: f.mode, setId: f.setId, patch: f.patch, heroId: f.heroId, placement: f.placement,
+    waveReached: f.waveReached, terminal: f.terminal, comebackAfterFourLosses: f.comebackAfterFourLosses, combats: f.combats,
+  };
 }
 
 // ── Titles (level milestones; the catalog lives in cosmetics.ts) ──────────────────────────────────────────
@@ -319,6 +355,11 @@ export interface ProgressionResult {
   cratesAwarded: number;
   /** Their ids, oldest level first (the post-game Open button opens these). */
   crateIds: string[];
+  /** Achievements this settlement completed (2026-09-28), in completion order, and the XP they paid on top of
+   *  `xp.total` (so `after.lifetimeXp = before.lifetimeXp + xp.total + achievementXp`). Absent from a
+   *  pre-achievements server: read as none. */
+  achievements: string[];
+  achievementXp: number;
   revisionAfter: number;
   settledAt: string | null;
 }
@@ -372,6 +413,8 @@ export function parseProgressionResult(v: unknown): ProgressionResult | null {
     unlockedTitles: stringList(o.unlockedTitles),
     // A pre-crates server (the 2026-09-27 SQL) sends neither: read as none.
     cratesAwarded: Math.max(0, int(o.cratesAwarded) ?? 0), crateIds: stringList(o.crateIds),
+    // A pre-achievements server sends neither: read as none.
+    achievements: stringList(o.achievements), achievementXp: Math.max(0, int(o.achievementXp) ?? 0),
     revisionAfter,
     settledAt: typeof o.settledAt === 'string' ? o.settledAt : null,
   };

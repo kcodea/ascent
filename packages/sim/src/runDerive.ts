@@ -4,7 +4,8 @@ import { reduce, upgradeCostOf } from './reducer';
 import type { Replay } from './snapshot';
 import type { TelemetrySource } from './runTelemetry';
 import { setIdOf } from './cardPool';
-import { comebackAfterLosses, PROGRESSION_FACTS_VERSION, type ProgressionMode, type ProgressionRunFactsV1 } from '@game/progression';
+import { comebackAfterLosses, PROGRESSION_FACTS_VERSION, type ProgressionMode, type ProgressionRunFactsV2 } from '@game/progression';
+import { emptyAchTally, finalAchMetrics, observeAchAction, observeAchCombat, type AchTally } from './achievementMetrics';
 
 /**
  * THE RUN DERIVATION — every balance event stream, derived from a replay.
@@ -202,11 +203,14 @@ export interface DeriveState {
   goldSpentThisTurn: number;
   lastResult?: 'win' | 'loss' | 'draw';
   diverged: boolean;
+  /** ACHIEVEMENT run metrics (2026-09-28, `achievementMetrics.ts`). Absent on a save from before achievements:
+   *  created on the first observed action, so a resumed run counts from there on. */
+  ach?: AchTally;
 }
 
 export const emptyDeriveState = (): DeriveState => ({
   offers: [], acquisitions: [], gold: [], upgrades: [], combats: [], triggers: [], boards: [],
-  playerActions: 0, offerIdx: {}, acqIdx: {}, boughtThisTurn: 0, goldSpentThisTurn: 0, diverged: false,
+  playerActions: 0, offerIdx: {}, acqIdx: {}, boughtThisTurn: 0, goldSpentThisTurn: 0, diverged: false, ach: emptyAchTally(),
 });
 
 const boardAttack = (b: readonly BoardCard[]): number => b.reduce((n, c) => n + c.attack, 0);
@@ -436,6 +440,10 @@ export function observeAction(st: DeriveState, before: RunState, action: Action,
     if (row) { row.soldWave = before.wave; row.sellValue = Math.max(0, after.embers - before.embers); }
   }
 
+  // ── Achievement metrics (shop side): after the buy count above, before the turn boundary resets it.
+  const ach = (st.ach ??= emptyAchTally());
+  observeAchAction(ach, before, action, after, st.boughtThisTurn);
+
   // ── Combat.
   if (action.type === 'resolveCombat' || action.type === 'settleCombat') {
     const summary = summariseCombat(after, before.wave);
@@ -443,6 +451,7 @@ export function observeAction(st: DeriveState, before: RunState, action: Action,
       st.combats.push(summary);
       st.triggers.push(...avengeDetails(after, before.wave, summary));
       st.lastResult = summary.result;
+      if (after.lastCombat) observeAchCombat(ach, after.lastCombat, before.wave);
     }
   }
 
@@ -524,7 +533,7 @@ export function progressionPlacementOf(run: RunState): number | null {
 export function progressionFactsOf(
   st: DeriveState, final: RunState,
   meta: { runId: string; mode: ProgressionMode; patch: string; placement?: number | null },
-): ProgressionRunFactsV1 {
+): ProgressionRunFactsV2 {
   const results = st.combats.map((c) => c.result);
   const count = (r: 'win' | 'loss' | 'draw'): number => results.filter((x) => x === r).length;
   return {
@@ -539,6 +548,8 @@ export function progressionFactsOf(
     terminal: (final.phase === 'gameover' || final.phase === 'victory') && !final.sandbox,
     comebackAfterFourLosses: comebackAfterLosses(results),
     combats: { wins: count('win'), losses: count('loss'), draws: count('draw') },
+    // Achievements batch 1 (2026-09-28): the observer's run metrics (see achievementMetrics.ts).
+    metrics: finalAchMetrics(st.ach ?? emptyAchTally(), final),
   };
 }
 

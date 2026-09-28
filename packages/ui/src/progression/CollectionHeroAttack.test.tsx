@@ -60,7 +60,7 @@ describe('the Attack Animations tab', () => {
   it('Arcana (owner 2026-09-28: "one more attack animation ... a magic one called arcana") has its own tile and plays its own preview; Equip sends attack_arcana', async () => {
     open({ cosmetics: ['alpha_tester', 'attack_blast', 'attack_quake', 'attack_arcana'] });
     act(() => tab('Attack Animations').click());
-    expect(tab('Attack Animations').querySelector('.colls-tab-count')?.textContent).toBe('3/3');
+    expect(tab('Attack Animations').querySelector('.colls-tab-count')?.textContent).toBe('3/4'); // 2026-09-28: Phantom Blades joined, so three of four
     act(() => tile('Arcana').click());
     expect(tile('Arcana').getAttribute('aria-label')).toBe('Arcana, Legendary, owned');
     expect(text('.colls-detail .colls-kicker')).toBe('Hero attack');

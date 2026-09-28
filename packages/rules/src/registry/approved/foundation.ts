@@ -2088,8 +2088,8 @@ export const FOUNDATION_RULES: GameRule[] = [
     id: 'R-PROG-ATTACK-04',
     title: 'Every hero attack anchors on the centre of each round portrait AT REST (never a wrapper, never mid-entrance)',
     statement:
-      'Blast and Quake both measure the two heroes once, at the start of the attack, on the round portrait ART (the player's '
-      + '.heroimg, the foe's .combatopp-img), not on a wrapper (the player's also holds the name pill). Any CSS animation '
+      'Blast and Quake both measure the two heroes once, at the start of the attack, on the round portrait ART (the player\x27s '
+      + '.heroimg, the foe\x27s .combatopp-img), not on a wrapper (the player\x27s also holds the name pill). Any CSS animation '
       + 'still running on the foe portrait (its drop-in, mid-flight when a tuner preview mounts it) is seeked to its end for '
       + 'that one measure and put back, so the impact, the ring and the -N always land centred on the portrait, in combat, '
       + 'in replays and in the shop preview. This fix changed Blast too (it shares the anchor).',
@@ -2107,7 +2107,7 @@ export const FOUNDATION_RULES: GameRule[] = [
     title: 'Quake ("Tectonic Slam", attack_quake, Legendary) is the second hero attack: the hero slams the ground and it erupts under the target, on the SAME damage tiers as Blast',
     statement:
       'attack_quake (placeholder name "Tectonic Slam", Legendary, crate, account-wide, style quake) plays the Quake: the shared '
-      + 'combine (the Tier and each Minion number fly into one total that ends on the engine's blow), then the attacking hero '
+      + 'combine (the Tier and each Minion number fly into one total that ends on the engine\x27s blow), then the attacking hero '
       + 'rises and slams the ground, a crack races across the board to the target (building a mostly vertical camera rumble), '
       + 'and the ground erupts under the struck hero (the hit-stop, the -N, the portrait jolted up and down). It escalates on '
       + 'exactly the tiers Blast uses (one shared tierOf and the shared thresholds 6 / 12 / 20: I 1-5 one thin crack and a pop '
@@ -2118,6 +2118,7 @@ export const FOUNDATION_RULES: GameRule[] = [
     status: 'approved',
     evidence: [
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-28 (Quake hero attack)', quote: 'branch off and make a new attack animation called quake. same attack dmg threshold logic as blast. the concept being an earthquake attack essentially with varying degrees of strength/cracks/explosions' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-28 (Quake review)', quote: 'quake looks solid' },
       { kind: 'code', ref: 'packages/progression/src/cosmetics.ts (attack_quake); packages/ui/src/heroQuake/ (heroQuakeConfig quakePlan, heroQuake playHeroQuake, heroQuakeScene); packages/ui/src/heroAttack/ (the shared core: tiers, combine numbers, one clock, stage camera, voices)' },
     ],
     currentBehaviour: 'Conforms, built 2026-09-28. The item reaches the database on the next deploy of progression-inventory (the catalog sync); the equip SQL already accepts the hero_attack slot.',

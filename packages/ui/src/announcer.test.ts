@@ -199,6 +199,16 @@ describe('GameStart', () => {
     expect(seen.size).toBe(25);
     expect(announcerPick(2, 0.1)).not.toBe(announcerPick(2, 0.9));
   });
+  it('R-TEXT-ANNOUNCER-01: Tier up plays for tiers 2-5, so its takes never name one tier', async () => {
+    const { existsSync } = await import('node:fs');
+    const { resolve } = await import('node:path');
+    const dir = `${resolve(process.cwd(), 'apps/web/public/announcer')}/`;
+    // tier-up-1 said "Tier four. Better stock ahead." and played on every upgrade (owner 2026-09-28).
+    expect(ANNOUNCER_LINES.tierUp).not.toContain('tier-up-1');
+    expect(existsSync(`${dir}tier-up-1.mp3`)).toBe(false);
+    expect(ANNOUNCER_LINES.tierUp).toContain('tier-up-2'); // "Ooh, another tier unlocked. Better units ahead!"
+    for (const name of ANNOUNCER_LINES.tierUp) expect(existsSync(`${dir}${name}.mp3`), name).toBe(true);
+  });
   it('owner 2026-09-25: GameStart has 25 takes, every file exists, and no two share the same audio', async () => {
     const { readFileSync, existsSync } = await import('node:fs');
     const { createHash } = await import('node:crypto');

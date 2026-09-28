@@ -55,6 +55,10 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: 'The announcer no longer says "Tier four" on every Tavern upgrade. It has a new line that fits any tier.',
+      },
+      {
+        category: 'Systems',
         text: 'Achievements are here. Complete them for Account XP and track them on the new Achievements tab in your Career.',
         details: [
           'Over 240 achievements across Career, Ranked, Heroes, Economy and Build, Mechanics, Runes and Set 2.',

@@ -194,9 +194,9 @@ progression **epoch**; nothing finished before the epoch counts (no backfill).
   R-PROG-SKINS-05), so a new or retired cosmetic is a code change plus one deploy, never SQL. Shaped
   for every cosmetic category (announcer, hero skin, minion skin, title, hero attack, board, music). Switched on:
   **titles** (15 crate titles: 7 Common, 5 Rare, 2 Epic, 1 Legendary) and, since the skins shipped the same day,
-  **hero skins** and **minion skins** (all from crates) and **hero attacks** (the first, Arcane Barrage). The other
+  **hero skins** and **minion skins** (all from crates) and **hero attacks** (Arcane Barrage, then Tectonic Slam). The other
   categories are feature-flagged off until their art exists. Crate odds are rarity weight x category weight over what
-  remains: a fresh account's first crate is about 31% a skin or hero attack (the Legendary attack alone about 0.6%).
+  remains: a fresh account's first crate is about 31% a skin or hero attack (the two Legendary attacks together about 1.1%).
 - **Skins (2026-09-28; oracle R-PROG-SKINS-01, R-PROG-SKINS-04).** A hero skin replaces one hero's portrait; a
   minion skin replaces one card's art, by stable id. Equipped per target from the Collection's Heroes / Minions
   tabs through the server (`equip_cosmetic`: owned, made for that hero or card, live); **"Use default art"** is
@@ -213,7 +213,11 @@ progression **epoch**; nothing finished before the epoch counts (no backfill).
 - **Hero attacks (2026-09-28; oracle R-PROG-ATTACK-01..03).** How your hero lands the post-combat blow. **Classic**
   (the lunge) is everyone's default; **Blast** is the first cosmetic, `attack_blast` ("Arcane Barrage", Legendary,
   from crates; animation and tier thresholds owner-approved): the contributing numbers combine into one total, the hero charges, the view pushes in, and bolts (a single
-  beam on the biggest hits) carry the blow, escalating by damage tier (I 1-5, II 6-11, III 12-19, IV 20+). Equipped
+  beam on the biggest hits) carry the blow, escalating by damage tier (I 1-5, II 6-11, III 12-19, IV 20+). **Quake** is the
+  second, `attack_quake` ("Tectonic Slam", Legendary, from crates; R-PROG-ATTACK-05): the same combine, then the hero slams
+  the ground, a crack races to the target under a building rumble and the ground erupts under the struck hero, on the SAME
+  tiers (I a thin crack and a pop of dust; II branches and rocks; III fissures, magma and bursts along the path; IV the board
+  cracks, a pillar of magma, follow-up explosions). Both anchor on the round portrait art at rest (R-PROG-ATTACK-04). Equipped
   account-wide in the Collection's Attack Animations tab ("Use Classic" takes it off). The STRIKER's attack plays:
   yours when you win, the opponent's (from their recorded snapshot) when they win. Recorded per run like skins;
   unknown or retired ids play Classic. Presentation only: the same blow, landed once on the impact beat.

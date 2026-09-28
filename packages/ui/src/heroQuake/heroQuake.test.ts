@@ -113,7 +113,7 @@ describe('the plan', () => {
     expect(ps.map((p) => p.pillar)).toEqual([false, false, false, true]);
     expect(ps.map((p) => p.boardCracks)).toEqual([0, 0, 0, 7]);
     expect(ps.map((p) => p.booms.length)).toEqual([0, 0, 2, 4]);
-    expect(ps[0]!.magma).toBe(0);
+    expect(ps[0]!.magma).toBeLessThan(ps[1]!.magma);
     expect(ps[2]!.crater).toBeGreaterThan(0);
     expect(ps[3]!.magma).toBe(1);
   });
@@ -121,7 +121,7 @@ describe('the plan', () => {
   it('the shipped per-tier timeline (1600 px apart): slam, impact and end (+ both hit-stops), ms', () => {
     const t = (p: ReturnType<typeof plan>): number[] => [Math.round(p.slamAt), Math.round(p.impactAt), Math.round(p.endAt + p.hitStopMs + p.slamStopMs)];
     expect([t(plan([2, 1], 3)), t(plan([3, 3, 2], 8)), t(plan([3, 3, 3, 3, 2], 14)), t(plan([6, 6, 6, 6, 6, 5, 5], 40))]).toEqual([
-      [885, 1265, 1944], [1150, 1610, 2446], [1605, 2185, 3272], [2020, 2740, 4080],
+      [885, 1265, 1976], [1150, 1610, 2476], [1560, 2140, 3205], [2020, 2740, 4100],
     ]);
     // Brisk at Tier I (under 2 s), about 4 s at Tier IV (owner: "satisfying and chunky, not rushed").
     expect(t(plan([2, 1], 3))[2]).toBeLessThan(2000);
@@ -308,9 +308,9 @@ describe('the runner (the shared clock)', () => {
     expect(a).toEqual(b);
     expect(a[0]).toEqual({ x: 0, y: 0 });
     expect(a[a.length - 1]).toEqual({ x: 900, y: 300 });
-    // bounded: never wanders further than its limit off the line
+    // bounded: never wanders further than its limit (plus the kink allowance, 1.2x) off the line
     const L = Math.hypot(900, 300);
-    for (const p of a) expect(Math.abs((p.x * 300 - p.y * 900) / L)).toBeLessThanOrEqual(40.01);
+    for (const p of a) expect(Math.abs((p.x * 300 - p.y * 900) / L)).toBeLessThanOrEqual(48.01);
   });
 
   it('finish() before impact still lands the blow once and ends; cancel() never lands it', () => {

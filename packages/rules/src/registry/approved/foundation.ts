@@ -2032,9 +2032,9 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'Nobody plays Blast by default: without an equipped hero attack the post-combat blow is the Classic lunge. It is '
       + 'equipped in the Collection\'s Attack Animations tab (Equip, or "Use Classic" to take it off) through equip_cosmetic '
       + 'with slot hero_attack and target \'\' (the SQL refuses any other target, an unowned item, a skin in the attack slot '
-      + 'and the attack in a skin slot). The owner approved the animation and made it a Legendary reward, which re-pinned '
-      + 'the first-crate odds to Common 47.3%, Rare 31.3%, Epic 19.2%, Legendary 2.2%; a non-title item 31.0%; the '
-      + 'attack itself 0.6%.',
+      + 'and the attack in a skin slot). The owner approved the animation and made it a Legendary reward. The second hero '
+      + 'attack, attack_quake ("Tectonic Slam", Legendary, style quake: R-PROG-ATTACK-05), re-pinned the first-crate odds '
+      + 'to Common 47.0%, Rare 31.2%, Epic 19.1%, Legendary 2.7%; a non-title item 31.3%; the two attacks together 1.1%.',
     domain: 'foundation',
     status: 'approved',
     evidence: [
@@ -2101,5 +2101,26 @@ export const FOUNDATION_RULES: GameRule[] = [
     ],
     currentBehaviour: 'Conforms, fixed 2026-09-28.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/heroBlast/portraits.test.ts'], lastVerifiedAt: '2026-09-28' },
+  },
+  {
+    id: 'R-PROG-ATTACK-05',
+    title: 'Quake ("Tectonic Slam", attack_quake, Legendary) is the second hero attack: the hero slams the ground and it erupts under the target, on the SAME damage tiers as Blast',
+    statement:
+      'attack_quake (placeholder name "Tectonic Slam", Legendary, crate, account-wide, style quake) plays the Quake: the shared '
+      + 'combine (the Tier and each Minion number fly into one total that ends on the engine's blow), then the attacking hero '
+      + 'rises and slams the ground, a crack races across the board to the target (building a mostly vertical camera rumble), '
+      + 'and the ground erupts under the struck hero (the hit-stop, the -N, the portrait jolted up and down). It escalates on '
+      + 'exactly the tiers Blast uses (one shared tierOf and the shared thresholds 6 / 12 / 20: I 1-5 one thin crack and a pop '
+      + 'of dust; II 6-11 branches, a stronger rumble, rocks; III 12-19 fissures, magma seams, bursts along the path, a crater; '
+      + 'IV 20+ the slam cracks the board, a pillar of magma, follow-up explosions, the longest rumble). Presentation only: '
+      + 'the consequence lands once, on the eruption beat; reduced motion is fades only; an unknown or retired id plays Classic.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-28 (Quake hero attack)', quote: 'branch off and make a new attack animation called quake. same attack dmg threshold logic as blast. the concept being an earthquake attack essentially with varying degrees of strength/cracks/explosions' },
+      { kind: 'code', ref: 'packages/progression/src/cosmetics.ts (attack_quake); packages/ui/src/heroQuake/ (heroQuakeConfig quakePlan, heroQuake playHeroQuake, heroQuakeScene); packages/ui/src/heroAttack/ (the shared core: tiers, combine numbers, one clock, stage camera, voices)' },
+    ],
+    currentBehaviour: 'Conforms, built 2026-09-28. The item reaches the database on the next deploy of progression-inventory (the catalog sync); the equip SQL already accepts the hero_attack slot.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/heroQuake/heroQuake.test.ts', 'packages/progression/src/cosmetics.test.ts', 'packages/ui/src/progression/CollectionHeroAttack.test.tsx'], lastVerifiedAt: '2026-09-28' },
   },
 ];

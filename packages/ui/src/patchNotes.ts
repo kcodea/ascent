@@ -76,6 +76,17 @@ export const PATCH_NOTES: PatchNote[] = [
       },
       {
         category: 'Systems',
+        text: 'A new Legendary hero attack, Tectonic Slam, can drop from crates.',
+        details: [
+          'Your numbers combine into one total, then your hero slams the ground. A crack races across the board and the ground erupts under the other hero.',
+          'The bigger the hit, the bigger the quake: more cracks, glowing magma, rocks and explosions.',
+          'Equip it from the Attack Animations tab of the Collection. There is a preview button there too.',
+          'Hero attacks now land centred on the hero portrait every time.',
+          'Hero attacks are looks only. The damage is exactly the same.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'A new Legendary hero attack, Arcane Barrage, can drop from crates.',
         details: [
           'Your numbers combine into one total, your hero charges up, and a volley of bolts hits the other hero. The biggest hits fire one huge beam.',

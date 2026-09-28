@@ -427,7 +427,7 @@ function combatArena(ctx: CombatContext, self: Minion): EffectArena {
     },
     grantUndeadAttackAura: (a) => {
       for (const m of ctx.living(self.side)) {
-        if (m.tribe !== 'undead' && m.tribe2 !== 'undead' && !ctx.getCard(m.cardId)?.universalTribe) continue;
+        if (m.tribe !== 'undead' && m.tribe2 !== 'undead' && !(!!m.universalTribe || !!ctx.getCard(m.cardId)?.universalTribe)) continue;
         ctx.buff(m, a, 0, self.uid);
       }
       ctx.grantUndeadBuyAtk(a, self.side);
@@ -451,7 +451,7 @@ function combatArena(ctx: CombatContext, self: Minion): EffectArena {
       const dem = ctx.baneDemonWidenFor(self.side);
       if (!dem || (dem.attack === 0 && dem.health === 0)) return;
       for (const m of ctx.living(self.side)) {
-        if (m.tribe === 'demon' || m.tribe2 === 'demon' || ctx.getCard(m.cardId)?.universalTribe) {
+        if (m.tribe === 'demon' || m.tribe2 === 'demon' || (!!m.universalTribe || !!ctx.getCard(m.cardId)?.universalTribe)) {
           ctx.buff(m, dem.attack, dem.health, self.uid);
           if (!m.keywords.includes('EG')) {
             m.permaGain = { attack: (m.permaGain?.attack ?? 0) + dem.attack, health: (m.permaGain?.health ?? 0) + dem.health };
@@ -502,7 +502,7 @@ function combatArena(ctx: CombatContext, self: Minion): EffectArena {
     },
     isTribe: (t, tribe) => {
       const m = t as Minion;
-      return m.tribe === tribe || m.tribe2 === tribe || !!ctx.getCard(m.cardId)?.universalTribe;
+      return m.tribe === tribe || m.tribe2 === tribe || (!!m.universalTribe || !!ctx.getCard(m.cardId)?.universalTribe);
     },
 
     // ── RALLY FAMILY verbs (Step 3 item 4) ──────────────────────────────────────────────────────────────
@@ -537,7 +537,7 @@ function combatArena(ctx: CombatContext, self: Minion): EffectArena {
       // The Lantern channel's whole combat ritual: the living Undead feel it NOW, and the run-wide aura is
       // carried back at settle (which is what makes it permanent + visible on the shop board).
       for (const m of ctx.living(self.side)) {
-        if (m.tribe === 'undead' || m.tribe2 === 'undead' || ctx.getCard(m.cardId)?.universalTribe) ctx.buff(m, a, h, self.uid);
+        if (m.tribe === 'undead' || m.tribe2 === 'undead' || (!!m.universalTribe || !!ctx.getCard(m.cardId)?.universalTribe)) ctx.buff(m, a, h, self.uid);
       }
       ctx.grantUndeadAura(a, h, self.side);
     },
@@ -627,7 +627,7 @@ function combatArena(ctx: CombatContext, self: Minion): EffectArena {
       const i = board.indexOf(self);
       if (i < 0) return;
       const targets = [board[i - 1], board[i + 1]].filter((m): m is Minion =>
-        !!m && (m.tribe === tribe || m.tribe2 === tribe || !!ctx.getCard(m.cardId)?.universalTribe));
+        !!m && (m.tribe === tribe || m.tribe2 === tribe || (!!m.universalTribe || !!ctx.getCard(m.cardId)?.universalTribe)));
       if (targets.length === 0 || !combatCastable(def)) return; // pure tavern work never even counts a cast
       let announced = false;
       castInCombat(ctx, self, () => {
@@ -954,7 +954,7 @@ function resolveCombatSpellCastInner(ctx: CombatContext, self: Minion, def: Card
       case 'spellBuffRandomPerTribe': {
         const tribe = str(eff.params?.tribe);
         const count = alive().filter((m) =>
-          !tribe || m.tribe === tribe || m.tribe2 === tribe || ctx.getCard(m.cardId)?.universalTribe).length;
+          !tribe || m.tribe === tribe || m.tribe2 === tribe || (!!m.universalTribe || !!ctx.getCard(m.cardId)?.universalTribe)).length;
         const reps = num(eff.params?.base, 1) + count;
         for (let i = 0; i < reps; i++) {
           const pool = alive();
@@ -967,7 +967,7 @@ function resolveCombatSpellCastInner(ctx: CombatContext, self: Minion, def: Card
       case 'spellBuffHealthGrantFlurryDragon': {
         for (const t of chosen()) {
           ctx.buff(t, sp.attack, num(eff.params?.health, 10) + sp.health, self.uid);
-          const isDragon = t.tribe === 'dragon' || t.tribe2 === 'dragon' || !!ctx.getCard(t.cardId)?.universalTribe;
+          const isDragon = t.tribe === 'dragon' || t.tribe2 === 'dragon' || (!!t.universalTribe || !!ctx.getCard(t.cardId)?.universalTribe);
           if (isDragon && !t.keywords.includes('W')) t.keywords.push('W');
         }
         did = true; break;
@@ -1142,7 +1142,7 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     const { minion, side } = payload as MinionPayload;
     if (self.dead || side !== self.side || minion === self) return;
     const tribe = str(params.tribe) as Tribe | 'any';
-    if (tribe !== 'any' && minion.tribe !== tribe && minion.tribe2 !== tribe && !ctx.getCard(minion.cardId)?.universalTribe) return;
+    if (tribe !== 'any' && minion.tribe !== tribe && minion.tribe2 !== tribe && !(!!minion.universalTribe || !!ctx.getCard(minion.cardId)?.universalTribe)) return;
     const bonus = self.summonBonus;
     ctx.buff(minion, num(params.attack) + bonus, num(params.health) + bonus, self.uid);
   },
@@ -1366,7 +1366,7 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     if (seen <= 0 || seen % x !== 0) return;
     const mechs = ctx
       .living(self.side)
-      .filter((m) => m.tribe === 'mech' || m.tribe2 === 'mech' || ctx.getCard(m.cardId)?.universalTribe);
+      .filter((m) => m.tribe === 'mech' || m.tribe2 === 'mech' || (!!m.universalTribe || !!ctx.getCard(m.cardId)?.universalTribe));
     if (mechs.length === 0) return;
     const target = mechs.reduce((a, b) => (b.health < a.health ? b : a)); // lowest Health
     const pick = randomStatSpellBuff(ctx, mul(self), self.side);
@@ -1941,7 +1941,7 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     const per = num(params.perTribe, 3) * mul(self);
     const tribe = str(params.tribe) as Tribe;
     for (const t of ctx.living(foe)) ctx.damage(t, base);
-    const others = ctx.living(self.side).filter((m) => m !== self && (m.tribe === tribe || m.tribe2 === tribe || ctx.getCard(m.cardId)?.universalTribe)).length;
+    const others = ctx.living(self.side).filter((m) => m !== self && (m.tribe === tribe || m.tribe2 === tribe || (!!m.universalTribe || !!ctx.getCard(m.cardId)?.universalTribe))).length;
     for (let i = 0; i < others; i++) {
       const targets = ctx.living(foe);
       if (targets.length === 0) break;
@@ -1969,7 +1969,7 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     if (self.dead) return;
     const tribe = (str(params.tribe) || 'dragon') as Tribe;
     const isTribe = (m: Minion | undefined): m is Minion =>
-      !!m && !m.dead && m.health > 0 && (m.tribe === tribe || m.tribe2 === tribe || !!ctx.getCard(m.cardId)?.universalTribe);
+      !!m && !m.dead && m.health > 0 && (m.tribe === tribe || m.tribe2 === tribe || (!!m.universalTribe || !!ctx.getCard(m.cardId)?.universalTribe));
     const a = num(params.attack, 3) * mul(self);
     const h = num(params.health, 3) * mul(self);
     if (a <= 0 && h <= 0) return;
@@ -2353,7 +2353,7 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     const ids = ctx.rememberedSpellsFor?.(self.side) ?? [];
     if (ids.length === 0) return;
     const beastPool = (): Minion[] => otherFriends(ctx, self, (m) => // never itself (R-TARGET-03)
-      m.tribe === 'beast' || m.tribe2 === 'beast' || !!ctx.getCard(m.cardId)?.universalTribe);
+      m.tribe === 'beast' || m.tribe2 === 'beast' || (!!m.universalTribe || !!ctx.getCard(m.cardId)?.universalTribe));
     for (const id of ids) {
       const def = ctx.getCard(id);
       if (!def?.spell || !combatCastable(def)) continue;
@@ -2390,7 +2390,7 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     // An aimed spell with no living Beast to aim at fizzles BEFORE the cast counts — same reason as the
     // castability gate: a cast that resolves onto nothing is not a cast the watchers should see.
     const beastPool = (): Minion[] => otherFriends(ctx, self, (m) => // never itself (R-TARGET-03)
-      m.tribe === 'beast' || m.tribe2 === 'beast' || !!ctx.getCard(m.cardId)?.universalTribe);
+      m.tribe === 'beast' || m.tribe2 === 'beast' || (!!m.universalTribe || !!ctx.getCard(m.cardId)?.universalTribe));
     if (def.target && beastPool().length === 0) return;
     castInCombat(ctx, self, () => {
       const beasts = beastPool();
@@ -2411,7 +2411,7 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
   rallyCastRandomTargetedSpell: (ctx, self, _params, payload) => {
     if ((payload as MinionPayload).minion !== self) return;
     const beasts = ctx.living(self.side).filter((m) => m !== self &&
-      (m.tribe === 'beast' || m.tribe2 === 'beast' || ctx.getCard(m.cardId)?.universalTribe));
+      (m.tribe === 'beast' || m.tribe2 === 'beast' || (!!m.universalTribe || !!ctx.getCard(m.cardId)?.universalTribe)));
     if (beasts.length === 0) return;
     const pool = ctx.poolCards(self.side).filter((c) =>
       c.spell && !c.token && !!c.target && c.effects.some((e) => e.on === 'cast' && COMBAT_TARGETED_SPELL_DOS.has(e.do)));
@@ -2819,7 +2819,7 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     weakest.health = 0;
     ctx.log({ type: 'death', target: weakest.uid, side: self.side });
     for (const m of ctx.living(self.side)) {
-      if (m.tribe === 'demon' || m.tribe2 === 'demon' || ctx.getCard(m.cardId)?.universalTribe) ctx.buff(m, ga, gh, self.uid);
+      if (m.tribe === 'demon' || m.tribe2 === 'demon' || (!!m.universalTribe || !!ctx.getCard(m.cardId)?.universalTribe)) ctx.buff(m, ga, gh, self.uid);
     }
   },
 
@@ -3354,7 +3354,7 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
    *  primitive — currently unused after Omega Bulwark's removal, kept for a future Mech wall card). */
   scGrantShieldTribe: (ctx, self, params) => {
     const tribe = (str(params.tribe) || 'mech') as Tribe;
-    const friends = ctx.living(self.side).filter((m) => m.tribe === tribe || m.tribe2 === tribe || ctx.getCard(m.cardId)?.universalTribe);
+    const friends = ctx.living(self.side).filter((m) => m.tribe === tribe || m.tribe2 === tribe || (!!m.universalTribe || !!ctx.getCard(m.cardId)?.universalTribe));
     if (friends.length === 0) return;
     ctx.log({ type: 'sc', source: self.uid, text: str(params.text) || `${self.name} raises the shieldwall` });
     for (const m of friends) grantShield(ctx, m);
@@ -3395,7 +3395,7 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
   /** Arclight Reactor — when a friendly Mech's Shield breaks, deal `amount` to a random enemy. */
   onShieldBreakDamage: (ctx, self, params, payload) => {
     const { minion, side } = payload as MinionPayload;
-    if (self.dead || side !== self.side || (minion.tribe !== 'mech' && minion.tribe2 !== 'mech' && !ctx.getCard(minion.cardId)?.universalTribe)) return;
+    if (self.dead || side !== self.side || (minion.tribe !== 'mech' && minion.tribe2 !== 'mech' && !(!!minion.universalTribe || !!ctx.getCard(minion.cardId)?.universalTribe))) return;
     const foe: Side = self.side === 'player' ? 'enemy' : 'player';
     const targets = ctx.living(foe);
     if (targets.length === 0) return;
@@ -3483,7 +3483,7 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     if (a <= 0 && h <= 0) return;
     ctx.log({ type: 'sc', source: self.uid, text: str(params.text) || `${self.name} channels the runes` });
     for (const m of ctx.living(self.side)) {
-      if (m.tribe === tribe || m.tribe2 === tribe || ctx.getCard(m.cardId)?.universalTribe) ctx.buff(m, a, h, self.uid);
+      if (m.tribe === tribe || m.tribe2 === tribe || (!!m.universalTribe || !!ctx.getCard(m.cardId)?.universalTribe)) ctx.buff(m, a, h, self.uid);
     }
   },
 
@@ -3498,7 +3498,7 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     if (a <= 0 && h <= 0) return;
     ctx.log({ type: 'sc', source: self.uid, text: str(params.text) || `${self.name} channels the runes` });
     for (const m of ctx.living(self.side)) {
-      if (m.tribe === tribe || m.tribe2 === tribe || ctx.getCard(m.cardId)?.universalTribe) ctx.buff(m, a, h, self.uid);
+      if (m.tribe === tribe || m.tribe2 === tribe || (!!m.universalTribe || !!ctx.getCard(m.cardId)?.universalTribe)) ctx.buff(m, a, h, self.uid);
     }
   },
 
@@ -3524,7 +3524,7 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     if (a <= 0 && h <= 0) return;
     ctx.log({ type: 'sc', source: self.uid, text: str(params.text) || `${self.name} rallies the pack` });
     for (const m of ctx.living(self.side)) {
-      if (m.tribe === tribe || m.tribe2 === tribe || ctx.getCard(m.cardId)?.universalTribe) ctx.buff(m, a, h, self.uid);
+      if (m.tribe === tribe || m.tribe2 === tribe || (!!m.universalTribe || !!ctx.getCard(m.cardId)?.universalTribe)) ctx.buff(m, a, h, self.uid);
     }
   },
 
@@ -3598,7 +3598,7 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     const h = num(params.health, 2) * mul(self);
     const engrave = params.engrave === true;
     for (const m of ctx.living(self.side)) {
-      if (tribe && m.tribe !== tribe && m.tribe2 !== tribe && !ctx.getCard(m.cardId)?.universalTribe) continue;
+      if (tribe && m.tribe !== tribe && m.tribe2 !== tribe && !(!!m.universalTribe || !!ctx.getCard(m.cardId)?.universalTribe)) continue;
       ctx.buff(m, a, h, self.uid);
       // Engraved overflow: carry the gift back to the run board (ctx.buff already does this for an EG
       // recipient; record it here for everyone else, mirroring overflowBuffRandom).
@@ -3750,7 +3750,7 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     const step = num(params.attack, 3) * mul(self);
     const amount = step + self.summonBonus; // base + the accrued permanent improvement
     for (const m of ctx.living(self.side)) {
-      if (m.tribe !== 'undead' && m.tribe2 !== 'undead' && !ctx.getCard(m.cardId)?.universalTribe) continue;
+      if (m.tribe !== 'undead' && m.tribe2 !== 'undead' && !(!!m.universalTribe || !!ctx.getCard(m.cardId)?.universalTribe)) continue;
       ctx.buff(m, amount, 0, self.uid);
     }
     ctx.grantUndeadBuyAtk(amount, self.side);
@@ -3871,7 +3871,7 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     const repeats = drakkoRepeats(ctx, self.side) * mul(self);
     for (const m of ctx.living(self.side)) {
       if (!hasBattlecry(m)) continue;
-      if (tribe && !(m.tribe === tribe || m.tribe2 === tribe || ctx.getCard(m.cardId)?.universalTribe)) continue;
+      if (tribe && !(m.tribe === tribe || m.tribe2 === tribe || (!!m.universalTribe || !!ctx.getCard(m.cardId)?.universalTribe))) continue;
       for (let r = 0; r < repeats; r++) fireShout(ctx, self, m);
     }
   },
@@ -3893,7 +3893,7 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     const tribe = str(params.tribe);
     const target = ctx.living(self.side).find(
       (m) => hasBattlecry(m)
-        && (!tribe || m.tribe === tribe || m.tribe2 === tribe || !!ctx.getCard(m.cardId)?.universalTribe),
+        && (!tribe || m.tribe === tribe || m.tribe2 === tribe || (!!m.universalTribe || !!ctx.getCard(m.cardId)?.universalTribe)),
     );
     if (!target) return;
     const repeats = drakkoRepeats(ctx, self.side) * mul(self);
@@ -3918,7 +3918,7 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     // Golden "+2/+2 twice" = the buff applied twice (mul = 2), not one doubled grant — two visible buff pulses.
     for (let i = 0; i < mul(self); i++) {
       for (const m of ctx.living(self.side)) {
-        if (tribe && tribe !== 'any' && m.tribe !== tribe && m.tribe2 !== tribe && !ctx.getCard(m.cardId)?.universalTribe) continue;
+        if (tribe && tribe !== 'any' && m.tribe !== tribe && m.tribe2 !== tribe && !(!!m.universalTribe || !!ctx.getCard(m.cardId)?.universalTribe)) continue;
         ctx.buff(m, ca, ch, self.uid);
       }
     }
@@ -3957,7 +3957,7 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     if (a === 0 && h === 0) return;
     ctx.addTribeAura(self.side, tribe, a, h, self.uid);
     for (const m of ctx.living(self.side)) {
-      if (tribe === 'any' || m.tribe === tribe || m.tribe2 === tribe || ctx.getCard(m.cardId)?.universalTribe) ctx.buff(m, a, h, self.uid);
+      if (tribe === 'any' || m.tribe === tribe || m.tribe2 === tribe || (!!m.universalTribe || !!ctx.getCard(m.cardId)?.universalTribe)) ctx.buff(m, a, h, self.uid);
     }
   },
 
@@ -3977,7 +3977,7 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
   rallyGiveDemonAttack: (ctx, self, _params, payload) => {
     const { minion } = payload as MinionPayload;
     if (self.dead || minion !== self) return; // only on this minion's own attack
-    const pool = ctx.living(self.side).filter((m) => m !== self && (m.tribe === 'demon' || m.tribe2 === 'demon' || ctx.getCard(m.cardId)?.universalTribe));
+    const pool = ctx.living(self.side).filter((m) => m !== self && (m.tribe === 'demon' || m.tribe2 === 'demon' || (!!m.universalTribe || !!ctx.getCard(m.cardId)?.universalTribe)));
     if (pool.length === 0) return;
     ctx.buff(ctx.rng.pick(pool), self.attack, 0, self.uid);
   },
@@ -4380,7 +4380,7 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     const victims: Minion[] = [];
     for (const sideKey of ['player', 'enemy'] as Side[]) {
       for (const m of ctx.onBoard(sideKey)) {
-        if (sideKey === self.side && exc && (m.tribe === exc || m.tribe2 === exc || ctx.getCard(m.cardId)?.universalTribe)) continue;
+        if (sideKey === self.side && exc && (m.tribe === exc || m.tribe2 === exc || (!!m.universalTribe || !!ctx.getCard(m.cardId)?.universalTribe))) continue;
         victims.push(m);
       }
     }
@@ -4475,7 +4475,7 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     const { minion } = payload as MinionPayload;
     if (self.dead || !minion || minion === self || minion.side !== self.side || minion.dead) return;
     const tribe = (str(params.tribe) || 'beast') as Tribe;
-    if (!(minion.tribe === tribe || minion.tribe2 === tribe || ctx.getCard(minion.cardId)?.universalTribe)) return;
+    if (!(minion.tribe === tribe || minion.tribe2 === tribe || (!!minion.universalTribe || !!ctx.getCard(minion.cardId)?.universalTribe))) return;
     const step = self.summonBonus ?? 0;
     const a = (num(params.attack, 1) + step * num(params.stepAttack, 1)) * mul(self);
     const h = (num(params.health, 1) + step * num(params.stepHealth, 1)) * mul(self);
@@ -4502,7 +4502,7 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     const { minion } = payload as MinionPayload;
     if (self.dead || !minion || minion === self || minion.side !== self.side || minion.dead) return;
     const tribe = (str(params.tribe) || 'beast') as Tribe;
-    if (!(minion.tribe === tribe || minion.tribe2 === tribe || ctx.getCard(minion.cardId)?.universalTribe)) return;
+    if (!(minion.tribe === tribe || minion.tribe2 === tribe || (!!minion.universalTribe || !!ctx.getCard(minion.cardId)?.universalTribe))) return;
     const procs = self.summonBonus ?? 0;
     const a = (num(params.attack, 3) + procs * num(params.stepAttack, 3)) * mul(self);
     // Rune of the Mammoth (owner 2026-08-02): the Attack-only grant becomes 1:1 symmetric — +3/+3, +6/+6, …
@@ -4535,7 +4535,7 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     // pays nobody.
     if (!ctx.groveweaverSelfFor?.(self.side)) return;
     const tribe = str(params.tribe);
-    if (tribe && minion.tribe !== tribe && minion.tribe2 !== tribe && !ctx.getCard(minion.cardId)?.universalTribe) return;
+    if (tribe && minion.tribe !== tribe && minion.tribe2 !== tribe && !(!!minion.universalTribe || !!ctx.getCard(minion.cardId)?.universalTribe)) return;
     const g = mul(self);
     const bonus = self.summonBonus ?? 0;
     const a = (num(params.attack, 2) + bonus) * g;
@@ -4550,7 +4550,7 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     const { minion } = payload as MinionPayload;
     if (self.dead || !minion || minion === self || minion.side !== self.side || minion.dead) return;
     const tribe = str(params.tribe);
-    if (tribe && minion.tribe !== tribe && minion.tribe2 !== tribe && !ctx.getCard(minion.cardId)?.universalTribe) return;
+    if (tribe && minion.tribe !== tribe && minion.tribe2 !== tribe && !(!!minion.universalTribe || !!ctx.getCard(minion.cardId)?.universalTribe)) return;
     // Rune of the Zoo scales the grant by the running combat-summon ordinal (1× on the 1st summon, 2× on the
     // 2nd, …). Off the rune it returns 1. Stacks across Beardsleys (each fires) and composes with golden (`mul`).
     const g = mul(self) * (ctx.zooReps?.(self.side) ?? 1);

@@ -910,6 +910,10 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'rune:rune_grim_toast:combat': { policy: 'foldedCue', family: 'combatModifier' },
   'rune:rune_gem_star:combat': { policy: 'foldedCue', family: 'combatModifier' },
   'rune:rune_keepsake_gem:combat': { policy: 'foldedCue', family: 'combatModifier' },
+  // ── tranche 5 ──
+  'rune:rune_menagerie_set3:onAcquire': { policy: 'ownBeat', family: 'rewardGrant' },
+  'rune:rune_heavy_hand:combat': { policy: 'foldedCue', family: 'combatModifier' },
+  'rune:rune_unity:combat': { policy: 'foldedCue', family: 'combatModifier' },
   'rune:rune_shared_revelry:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
   'rune:rune_grand_procession:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
   'rune:rune_festival_circuit:recruit': { policy: 'ownBeat', family: 'runeMechanic' },

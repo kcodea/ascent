@@ -1785,4 +1785,65 @@ export const RUNES_RULES: GameRule[] = [
       lastVerifiedAt: '2026-09-27',
     },
   },
+  // ── Set 3 rune design pass (owner 2026-09-27), tranche 5: Menagerie + neutral ──
+  {
+    id: 'R-SET3RUNE-38',
+    title: "Rune of the Menagerie (Set 3): get a random Kobold, Dwarf, Undead, Spirit and Celestial",
+    statement:
+      "Taking the rune gets one random minion of each Set 3 tribe at or below your tier (the set-1 and set-2 Menageries' shape, this set's tribes). A second copy re-grants.",
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Owner rulings 2026-09-27 on the Set 3 rune design pass (set3-rune-design.md)", quote: "Build tranche 5: Menagerie (Set 3), Unity (build last, behind a prototype and tests), and Heavy Hand." },
+      { kind: 'code', ref: "packages/content/src/runes.ts rune_menagerie_set3 (multi grant randomTribe)" },
+    ],
+    contentIds: ["rune_menagerie_set3"],
+    cardText: "Get a random **Kobold, Dwarf, Undead, Spirit, and Celestial**.",
+    currentBehaviour: 'Conforms (built with the rune, 2026-09-27).',
+    enforcement: {
+      kind: 'scenario',
+      refs: ["packages/sim/src/set3RuneDesignT5.test.ts"],
+      lastVerifiedAt: '2026-09-27',
+    },
+  },
+  {
+    id: 'R-SET3RUNE-39',
+    title: "Rune of Unity: while you control all 5 minion types, your minions count as every type",
+    statement:
+      "While your board NATURALLY controls every active minion type (printed tribes and All-types cards; Unity's own grant never counts, so it cannot hold itself up), every board minion counts as every type: in the Shop through isTribe (re-read at every action boundary and at a play, a sale, a Shop death and End of Turn), in combat through universalTribe on the living minions, re-read after every death and summon. When the full house breaks, the grant is withdrawn at once. Hand cards are not \"your minions\". A Unity body counts as Undead and so takes the whole Undead Aura (Lantern and buy Attack, Health) as a fold, never baked; in combat once, and not taken back mid-fight.",
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Owner rulings 2026-09-27 on the Set 3 rune design pass (set3-rune-design.md)", quote: "Unity (build last, behind a prototype and tests; E6: \"While you control all 5 minion types, your minions count as every type\")" },
+      { kind: 'code', ref: "packages/sim/src/recruit.ts isTribe / isTribeNatural / syncUnity / unityAuraFold; packages/sim/src/reducer.ts action boundary; packages/core/src/combat/simulate.ts syncUnityCombat (seeding, noteCardDeath, summonEntryEffects)" },
+    ],
+    contentIds: ["rune_unity"],
+    cardText: "While you control all **5** minion types, your minions count as **every type**.",
+    currentBehaviour: 'Conforms (built with the rune, 2026-09-27).',
+    enforcement: {
+      kind: 'scenario',
+      refs: ["packages/sim/src/set3RuneDesignT5.test.ts", "packages/core/src/combat/set3RuneDesignT5.test.ts"],
+      lastVerifiedAt: '2026-09-27',
+    },
+  },
+  {
+    id: 'R-SET3RUNE-40',
+    title: "Rune of the Heavy Hand: damage your minions deal counts double toward Pummel",
+    statement:
+      "Every landed hit a friendly minion deals advances its Pummel meter by double the damage (one extra share per copy). The tally carries over as every Pummel tally does; the per-combat payout cap still binds. Damage is dealt only in combat, so the rune acts only there.",
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Owner rulings 2026-09-27 on the Set 3 rune design pass (set3-rune-design.md)", quote: "Build tranche 5: Menagerie (Set 3), Unity (build last, behind a prototype and tests), and Heavy Hand." },
+      { kind: 'code', ref: "packages/core/src/combat/simulate.ts noteDamageDealt" },
+    ],
+    contentIds: ["rune_heavy_hand"],
+    cardText: "Damage your minions deal counts **double** toward **Pummel**.",
+    currentBehaviour: 'Conforms (built with the rune, 2026-09-27).',
+    enforcement: {
+      kind: 'scenario',
+      refs: ["packages/sim/src/set3RuneDesignT5.test.ts", "packages/core/src/combat/set3RuneDesignT5.test.ts"],
+      lastVerifiedAt: '2026-09-27',
+    },
+  },
 ];

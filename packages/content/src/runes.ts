@@ -408,6 +408,23 @@ export const RUNES: RuneDef[] = [
       { kind: 'grant', randomTribe: 'dwarf', randomCount: 1 },
     ] },
   },
+  {
+    // The set-3 twin of the Menagerie (Set 3 rune design pass, owner 2026-09-27, tranche 5): same shape and cost, this
+    // set's five tribes. Its own id, so `ownedRunes` stays unambiguous.
+    id: 'rune_menagerie_set3',
+    tribes: ['kobold', 'dwarf', 'undead', 'spirit', 'celestial'], // five tribe grants: worth a slot if any is in the run
+    name: 'Rune of the Menagerie',
+    cost: 5,
+    text: 'Get a random **Kobold, Dwarf, Undead, Spirit, and Celestial**.',
+    sets: ['set3'],
+    reward: { kind: 'multi', rewards: [
+      { kind: 'grant', randomTribe: 'kobold', randomCount: 1 },
+      { kind: 'grant', randomTribe: 'dwarf', randomCount: 1 },
+      { kind: 'grant', randomTribe: 'undead', randomCount: 1 },
+      { kind: 'grant', randomTribe: 'spirit', randomCount: 1 },
+      { kind: 'grant', randomTribe: 'celestial', randomCount: 1 },
+    ] },
+  },
   // ── Set 2 rune batch (owner roster 2026-07-29) — the GRANT-shaped ones, which need no new reward kind. ──
   {
     // Rubies are ordinary Set 2 cards, so "get 5 Rubies" is a plain card grant.
@@ -1921,6 +1938,17 @@ export const RUNES: RuneDef[] = [
     text: 'When you sell a **Reveler**, get a **Dwarven Ale**.',
     previewCards: ['sp3_flamereveler', 'sp3_tidereveler', 'sp3_grovereveler'],
     reward: { kind: 'combatFlag', flag: 'runeClosingTime' },
+    sets: ['set3'],
+  },
+  // ── SET 3 RUNE DESIGN PASS (owner 2026-09-27), tranche 5: the Neutral Pummel rune. ──
+  {
+    // Pummel (Goldvein, Kobe, Han Gover, Maestro Lux) had no rune. Every landed hit a friendly minion deals advances its
+    // Pummel meter by double the damage (one extra share per copy); the per-combat payout caps still bind.
+    id: 'rune_heavy_hand',
+    name: 'Rune of the Heavy Hand',
+    cost: 2,
+    text: 'Damage your minions deal counts **double** toward **Pummel**.',
+    reward: { kind: 'combatFlag', flag: 'runeHeavyHand' },
     sets: ['set3'],
   },
 ];
@@ -3930,6 +3958,20 @@ export const EPIC_RUNES: RuneDef[] = [
     reward: { kind: 'combatFlag', flag: 'runeKeepsakeGem' },
     sets: ['set3'],
   },
+  // ── SET 3 RUNE DESIGN PASS (owner 2026-09-27), tranche 5: the Menagerie capstone. ──
+  {
+    // "While you control all 5 minion types, your minions count as every type." The condition reads NATURAL types only
+    // (printed tribes, All-types cards, a spell-added tribe), never Unity's own grant, so it cannot sustain itself. Shop:
+    // the board carries `unityTribes` while it holds (`syncUnity`, read by `isTribe`). Combat: the side's living
+    // minions carry `universalTribe` while it holds, re-checked after every death and summon (`syncUnityCombat`).
+    id: 'rune_unity',
+    name: 'Rune of Unity',
+    cost: 6,
+    epic: true,
+    text: 'While you control all **5** minion types, your minions count as **every type**.',
+    reward: { kind: 'combatFlag', flag: 'runeUnity' },
+    sets: ['set3'],
+  },
 ];
 
 /**
@@ -4302,6 +4344,8 @@ export const RUNE_DUP_SWEETENER: ReadonlySet<string> = new Set([
   'rune_scattered_light', 'rune_open_grave',
   // …and the Grim Toast (tranche 4): the Aura is either shared with your Dwarves or not.
   'rune_grim_toast',
+  // …and Unity (tranche 5): your minions either count as every type or not.
+  'rune_unity',
 ]);
 
 /** Duplicates that do NOTHING — owner ruled unique ("rune of the ornate clock should do nothing if

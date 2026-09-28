@@ -26,6 +26,7 @@ import { CombatBus } from '../events';
 import { inRunTribes } from '../tribeGate';
 import { FACTORIES, playRubyOn, castInCombat, combatCastable, resolveCombatSpellCast, replayCombatBattlecry, deferShopOnlyShout, drakkoRepeats, fireShout, livingNeighbours, triggerEcho, SILENT_ONPLAY, isShopPoolSpell, shopSpellGrowth } from '../effects/factories';
 import { instantiate, type CardIndex } from './minion';
+import { defIsTribe } from './tribe';
 import { EMPTY_SIDE } from './side';
 
 /** Rune of Enchantment's combat grant (balance 9/23: +4/+6 → +6/+8, and the rune is combat-only). */
@@ -59,7 +60,7 @@ const IMMEDIATE_ATTACK_GUARD = 64; // bounds a chain of attack-on-summon Whelps 
 /** Set 2 — does this combat minion count as `tribe`? Reads its snapshot tribes plus the CardDef's
  *  `universalTribe` (Lab Experiment counts as every tribe), matching the tribe checks in the effect factories. */
 function isTribeOf(m: Minion, tribe: string, cards: Record<string, CardDef>): boolean {
-  return m.tribe === tribe || m.tribe2 === tribe || !!cards[m.cardId]?.universalTribe;
+  return m.tribe === tribe || m.tribe2 === tribe || (!!m.universalTribe || !!cards[m.cardId]?.universalTribe);
 }
 
 /** The enemy side's run-level scalers for the UI's live card text — EVERY run-scoped input the text chain reads,
@@ -464,7 +465,7 @@ export function simulate(
   function applyNextSummonBuff(minion: Minion, side: Side): void {
     if (minion.dead || nextSummonBuffs[side].length === 0) return;
     const matches = (b: { tribe: Tribe }): boolean =>
-      minion.tribe === b.tribe || minion.tribe2 === b.tribe || !!cards[minion.cardId]?.universalTribe;
+      minion.tribe === b.tribe || minion.tribe2 === b.tribe || (!!minion.universalTribe || !!cards[minion.cardId]?.universalTribe);
     let a = 0, h = 0;
     let sourceUid: string | undefined;
     for (const b of nextSummonBuffs[side]) if (matches(b)) { a += b.attack; h += b.health; sourceUid ??= b.sourceUid; }
@@ -555,6 +556,11 @@ export function simulate(
     player: soulFurnaceHealth(undeadAura.player.attack + undeadAura.player.buyAtk, furnaceCopies('player')),
     enemy: soulFurnaceHealth(undeadAura.enemy.attack + undeadAura.enemy.buyAtk, furnaceCopies('enemy')),
   };
+
+  // RUNE OF UNITY (Set 3 design pass tranche 5): the bodies Unity made "every type" on each side (their `universalTribe`
+  // is Unity's, not printed), and the bodies it already handed the Undead Aura to (never twice in one fight).
+  const unityGranted: Record<Side, Set<Minion>> = { player: new Set(), enemy: new Set() };
+  const unityAuraGiven = new Set<Minion>();
 
   // Attachment/Magnetic aura (Scrap Herald / Banksly welds), PER SIDE — a served enemy carries its own captured
   // value, so enemy from-base Magnetics (summoned/Reborn) get it too, just like Beasts.
@@ -653,6 +659,7 @@ export function simulate(
     enemy: enemy.map((b) => instantiate(b, 'enemy', cards, mkUid)),
   };
   for (const m of boards.player) applyAuras(m, false); // fold run-wide auras into starting minions (already baked → live part only)
+  syncUnityCombat('player'); syncUnityCombat('enemy'); // Rune of Unity: the starting boards, before Start of Combat
   // ANCIENTS × Lord of the Risen: find the Undying bodies (the run card's uid rides in as `sourceUid`). War's Rise on
   // them is RED (Death's BLUE) from the first frame (the `initial` snapshot reads `riseTint`).
   for (const side of ['player', 'enemy'] as const) {
@@ -2086,6 +2093,7 @@ export function simulate(
     enemy: enemyState.questMods?.summonTaunts ?? 0,
   };
   function summonEntryEffects(minion: Minion, side: Side): void {
+    syncUnityCombat(side); // Rune of Unity: a summon can complete the full house, and a new body joins it
     if (summonTauntsLeft[side] > 0 && !minion.dead && !minion.keywords.includes('T')) {
       summonTauntsLeft[side] -= 1;
       minion.keywords.push('T');
@@ -2116,7 +2124,7 @@ export function simulate(
     // rides `playerHandGrants`, and a served enemy has no hand.
     const packN = modsFor(side).runeReturningPack ?? 0;
     if (packN > 0 && minion.side === side
-        && (minion.tribe === 'beast' || minion.tribe2 === 'beast' || !!cards[minion.cardId]?.universalTribe)) {
+        && (minion.tribe === 'beast' || minion.tribe2 === 'beast' || (!!minion.universalTribe || !!cards[minion.cardId]?.universalTribe))) {
       packSummonTick[side] += 1;
       if (packSummonTick[side] % packN === 0) {
         if (side === 'player') fireTrigger('runeReturningPack', 'player');
@@ -2148,7 +2156,7 @@ export function simulate(
     // on the copy is the standard no-recursion guard (Echo Warden's) — the copy must not itself be "the first
     // Beast" and spawn a third. Fired after the triggers so the copy is made from the body as it landed.
     if (modsFor(side).runeSecondLitter && !secondLitterUsed[side] && !minion.dead
-        && (minion.tribe === 'beast' || minion.tribe2 === 'beast' || !!cards[minion.cardId]?.universalTribe)) {
+        && (minion.tribe === 'beast' || minion.tribe2 === 'beast' || (!!minion.universalTribe || !!cards[minion.cardId]?.universalTribe))) {
       const def = cards[minion.cardId];
       if (def) {
         secondLitterUsed[side] = true;
@@ -2169,7 +2177,7 @@ export function simulate(
     // beside a Groveweaver went 1 → 2 → 5 Attack, when the rune's whole point is that it should go
     // 1 → 4 → 8. Doubling last is what makes it compose with the summon payoffs it is meant to reward.
     if (modsFor(side).runeSavagery && minion.attack > 0 && !minion.dead
-        && (minion.tribe === 'beast' || minion.tribe2 === 'beast' || !!cards[minion.cardId]?.universalTribe)) {
+        && (minion.tribe === 'beast' || minion.tribe2 === 'beast' || (!!minion.universalTribe || !!cards[minion.cardId]?.universalTribe))) {
       fireTrigger('runeSavagery', side);
       // One doubling per copy held (boolean-flag family, owner 2026-08-27) — each reads the grown Attack.
       for (let k = 0; k < flagCopiesOf(side, 'runeSavagery'); k++) ctx.buff(minion, minion.attack, 0, 'Rune of Savagery');
@@ -2177,7 +2185,7 @@ export function simulate(
     // RUNE OF THE JUNGLE: a Beast summoned in combat doubles its Health. Sibling of Savagery (Attack), applied
     // here so it composes with the summon payoffs; `minion.health` (current) is added again to double it.
     if (modsFor(side).runeJungle && minion.health > 0 && !minion.dead
-        && (minion.tribe === 'beast' || minion.tribe2 === 'beast' || !!cards[minion.cardId]?.universalTribe)) {
+        && (minion.tribe === 'beast' || minion.tribe2 === 'beast' || (!!minion.universalTribe || !!cards[minion.cardId]?.universalTribe))) {
       fireTrigger('runeJungle', side);
       // One doubling per copy held (boolean-flag family, owner 2026-08-27) — each reads the grown Health.
       for (let k = 0; k < flagCopiesOf(side, 'runeJungle'); k++) ctx.buff(minion, 0, minion.health, 'Rune of the Jungle');
@@ -2615,6 +2623,7 @@ export function simulate(
    * Rise brings it back through `applyAuras`, which re-reads `cardBuffs`.
    */
   function noteCardDeath(minion: Minion): void {
+    syncUnityCombat(minion.side); // Rune of Unity: a death can break the full house (every death path notes here)
     const eff = cards[minion.cardId]?.effects.find((e) => e.on === 'passive' && e.do === 'cardDeathScaler');
     if (!eff) return;
     const p = eff.params ?? {};
@@ -2659,7 +2668,11 @@ export function simulate(
     const p = eff.params ?? {};
     const every = meter.every;
     const before = dealer.damageDealt ?? 0;
-    const after = before + amount;
+    // RUNE OF THE HEAVY HAND (Set 3 design pass tranche 5): this side's damage counts double toward Pummel, one extra
+    // share per copy. It scales the TALLY only; the per-combat payout cap below still binds.
+    const heavy = modsFor(dealer.side).runeHeavyHand ? flagCopiesOf(dealer.side, 'runeHeavyHand') : 0;
+    if (heavy > 0) fireTrigger('runeHeavyHand', dealer.side);
+    const after = before + amount * (1 + heavy);
     dealer.damageDealt = after;
     // The crossing math (pre-#1607, restored 2026-09-21): a payout is owed only when this hit carried the
     // lifetime tally over a multiple of X (47 → 52 owes nothing; 35 → 40 owes one; 0 → 120 owes three, paid up to the cap).
@@ -3096,11 +3109,11 @@ export function simulate(
         for (let k = 0; k < flagCopiesOf(minion.side, 'runeBackbeat'); k++) fireFreeRally(lead, minion.side);
       }
     }
-    if ((minion.tribe === 'beast' || minion.tribe2 === 'beast' || cards[minion.cardId]?.universalTribe)
+    if ((minion.tribe === 'beast' || minion.tribe2 === 'beast' || (!!minion.universalTribe || !!cards[minion.cardId]?.universalTribe))
         && !raisedBodies.has(minion.uid)) {
       deadBeasts[minion.side].push({ uid: minion.uid, cardId: minion.cardId, golden: minion.golden, attack: minion.attack, maxHealth: minion.maxHealth ?? minion.health });
     }
-    const dyingIsBeast = minion.tribe === 'beast' || minion.tribe2 === 'beast' || !!cards[minion.cardId]?.universalTribe;
+    const dyingIsBeast = minion.tribe === 'beast' || minion.tribe2 === 'beast' || (!!minion.universalTribe || !!cards[minion.cardId]?.universalTribe);
     // RUNE OF BEASTIAL SWARM: a friendly Beast dying pumps your living Beasts by the current per-death amount
     // (starts 2, raised by the Avenge(2) improvement below). A combat stat-gain; only the LEVEL persists.
     //
@@ -3118,7 +3131,7 @@ export function simulate(
         beastAtkAuraFor[side] += bs;
         beastHpAuraFor[side] += bs;
         beastBuyAtkGain[side] += bs; beastBuyHpGain[side] += bs;
-        for (const m of living(side)) if (m.tribe === 'beast' || m.tribe2 === 'beast' || !!cards[m.cardId]?.universalTribe) ctx.buff(m, bs, bs, 'Rune of Beastial Swarm');
+        for (const m of living(side)) if (m.tribe === 'beast' || m.tribe2 === 'beast' || (!!m.universalTribe || !!cards[m.cardId]?.universalTribe)) ctx.buff(m, bs, bs, 'Rune of Beastial Swarm');
       }
     }
     // Candlelight Toll: your Kobolds have "Echo: get a Ruby". Implemented as a run-wide rule rather than by
@@ -3141,7 +3154,7 @@ export function simulate(
     // The Golem is itself a Kobold, so a dying Golem is EXCLUDED — otherwise every Golem death would summon the
     // next one and the chain would never end (the old Ruby gate was what stopped it at one link).
     if (modsFor(minion.side).runeGemGolem && minion.cardId !== 'gemheart-shard'
-        && (minion.tribe === 'kobold' || minion.tribe2 === 'kobold' || !!cards[minion.cardId]?.universalTribe)) {
+        && (minion.tribe === 'kobold' || minion.tribe2 === 'kobold' || (!!minion.universalTribe || !!cards[minion.cardId]?.universalTribe))) {
       const carried = minion.buffs?.find((b) => b.source === 'Ruby');
       const tally = {
         attack: (carried?.attack ?? 0) + (minion.rubyGain?.attack ?? 0),
@@ -3596,7 +3609,7 @@ export function simulate(
         const banked = attacker.chefGrantedLast ?? 0;
         if (banked > 0 && modsFor(attacker.side).runeChef && !attacker.dead && attacker.cardId === 'dw_chef') {
           const dwarves = boards[attacker.side].filter((m) => m !== attacker && !m.dead && m.health > 0
-            && (m.tribe === 'dwarf' || m.tribe2 === 'dwarf' || !!cards[m.cardId]?.universalTribe));
+            && (m.tribe === 'dwarf' || m.tribe2 === 'dwarf' || (!!m.universalTribe || !!cards[m.cardId]?.universalTribe)));
           if (dwarves.length > 0) {
             fireTrigger('runeChef', attacker.side);
             ctx.buff(rng.pick(dwarves), banked, banked, attacker.uid);
@@ -3609,7 +3622,7 @@ export function simulate(
       {
         const dsLeft = runeDragonscaleLeft[attacker.side];
         const isDragon = attacker.tribe === 'dragon' || attacker.tribe2 === 'dragon'
-          || !!cards[attacker.cardId]?.universalTribe;
+          || (!!attacker.universalTribe || !!cards[attacker.cardId]?.universalTribe);
         if (dsLeft > 0 && isDragon && !attacker.divineShield && !attacker.dead) {
           runeDragonscaleLeft[attacker.side] = dsLeft - 1;
           fireTrigger('runeDragonscale', attacker.side);
@@ -4862,6 +4875,50 @@ export function simulate(
       for (let k = 0; k < flagCopiesOf(side, 'runeRestless'); k++) triggerEcho(ctx, minion, minion, 1);
     }
   }
+  /** RUNE OF UNITY: does `side` NATURALLY control every active minion type? Printed tribes and All-types cards only
+   *  (the Stoked Menagerie's reading), never Unity's own grant, so the rune cannot hold itself up. */
+  function unityHolds(side: Side): boolean {
+    const wanted = (side === 'player' ? playerState : enemyState).tribes.filter((t) => t !== 'neutral');
+    if (wanted.length === 0) return false;
+    const have = new Set<string>();
+    for (const m of boards[side]) {
+      if (m.dead || m.health <= 0) continue;
+      const def = cards[m.cardId];
+      if (def?.universalTribe) return true;
+      for (const t of [def?.tribe, def?.tribe2]) if (t && t !== 'neutral') have.add(t);
+    }
+    return wanted.every((t) => have.has(t));
+  }
+  /** RUNE OF UNITY in combat: while the side controls every active type, its living minions count as every type
+   *  (`universalTribe`, which every combat tribe check reads); when a death breaks the full house, Unity's grant is
+   *  withdrawn (a printed All-types body keeps its own). A body that newly counts as Undead takes the whole Undead
+   *  Aura once, as the Shop fold shows it (`foldedAuraOf`); an Aura already given is not taken back mid-fight. */
+  function syncUnityCombat(side: Side): void {
+    if (!modsFor(side).runeUnity) return;
+    const granted = unityGranted[side];
+    if (unityHolds(side)) {
+      let fresh = false;
+      for (const m of boards[side]) {
+        if (m.dead || m.health <= 0 || m.universalTribe) continue;
+        const naturalUndead = defIsTribe(cards[m.cardId], 'undead');
+        const hadAura = naturalUndead || grimToastDwarf(m);
+        m.universalTribe = true;
+        granted.add(m);
+        fresh = true;
+        if (!hadAura && !unityAuraGiven.has(m)) {
+          unityAuraGiven.add(m);
+          const ua = undeadAura[side];
+          const a = ua.attack + ua.buyAtk;
+          if (a > 0) m.attack = Math.max(0, m.attack + a);
+          if (ua.health > 0) { m.health += ua.health; m.maxHealth += ua.health; }
+        }
+      }
+      if (fresh) fireTrigger('runeUnity', side);
+    } else if (granted.size > 0) {
+      for (const m of granted) m.universalTribe = undefined;
+      granted.clear();
+    }
+  }
   /** RUNE OF THE GRIM TOAST: is this a NON-Undead Dwarf on a side holding the rune (an Undead Dwarf has the Aura already)? */
   function grimToastDwarf(m: Minion): boolean {
     return !!modsFor(m.side).runeGrimToast && !isUndeadMinion(m) && isTribeOf(m, 'dwarf', cards);
@@ -5117,7 +5174,7 @@ export function simulate(
   runeAvenge(3, 'runeDeepeningVein', (m) => !!m.runeDeepeningVein, (side) => {
     nextStep();
     ctx.gainRubyBonus(1, 1, side, undefined);
-    const kobolds = boards[side].filter((m) => !m.dead && m.health > 0 && (m.tribe === 'kobold' || m.tribe2 === 'kobold' || !!cards[m.cardId]?.universalTribe));
+    const kobolds = boards[side].filter((m) => !m.dead && m.health > 0 && (m.tribe === 'kobold' || m.tribe2 === 'kobold' || (!!m.universalTribe || !!cards[m.cardId]?.universalTribe)));
     for (const k of kobolds) playRubyOn(ctx, k, k, 1);
   });
   runeAvenge(2, 'runeGemstorm', (m) => !!m.runeGemstorm, (side) => {

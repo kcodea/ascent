@@ -131,7 +131,10 @@ const SWEEP = runTextSweep({ contracts: CONTRACTS });
 // 2026-09-27 (Set 3 rune design pass, tranche 4): 112 → 115, CONSCIOUSLY. The Gem Crypt's "Friendly minions that Rise
 // keep their Rubies.", the Grim Toast's "Your Dwarves also get your Undead Aura." and the Keepsake Gem's "Your Rubies
 // also cast on the left-most minion in your hand." (three rule-shaped texts). The other five parse fully.
-const UNRESOLVED_CAP = 115;
+// 2026-09-27 (Set 3 rune design pass, tranche 5): 115 → 117, CONSCIOUSLY. Unity's "While you control all 5 minion
+// types, your minions count as every type." and the Heavy Hand's "Damage your minions deal counts double toward
+// Pummel." (two rule-shaped texts). The Set 3 Menagerie parses fully.
+const UNRESOLVED_CAP = 117;
 /** Collapse floor: the parser fully consuming fewer objects than this means a grammar regression. */
 const PARSED_FLOOR = 900;
 /** The HARD ceiling (2026-09-11): the unresolved share of active objects may never reach this fraction again. A

@@ -821,8 +821,10 @@ export function simulate(
   };
   // Player Rally (on-attack) triggers — the `rally` objective + live-tick timeline. Each fire (base + doubler
   // re-fires) counts one Rally trigger, matching the Shout/Echo convention.
-  const bumpRally = (n: number, side: Side): void => {
+  const bumpRally = (n: number, side: Side, rallier?: Minion): void => {
     if (n <= 0) return;
+    // RUNE OF CALL AND ANSWER (Set 3 design pass): each Rally fire of a friendly SPIRIT pays the left-most hand minion.
+    if (rallier && modsFor(side).runeCallAndAnswer && isTribeOf(rallier, 'spirit', cards)) for (let i = 0; i < n; i++) callAndAnswer(side, rallier.uid);
     ralliesFired[side] += n;
     for (let i = 0; i < n; i++) questEventsFor[side].push({ step: stepN, kind: 'rally', tribes: [] });
     // RUNE OF THE HERDING HORN: every Rally banks a free Shop refresh, carried back at settle. Hooked HERE
@@ -943,7 +945,19 @@ export function simulate(
   function emitGainCard(cardId: string, side: Side): void {
     if (gainCardDepth > 0) return;
     gainCardDepth++;
-    try { bus.emit('onGainCard', { cardId, side }); } finally { gainCardDepth--; }
+    try {
+      bus.emit('onGainCard', { cardId, side });
+      // RUNE OF THE SATCHEL (Set 3 design pass): a card reached this side's hand → its living Dwarves +1/+1 per copy
+      // (a combat buff, for the fight; the card's arrival at settle pays the Shop half on the board).
+      if (modsFor(side).runeSatchel) {
+        const dwarves = living(side).filter((m) => isTribeOf(m, 'dwarf', cards));
+        if (dwarves.length > 0) {
+          fireTrigger('runeSatchel', side);
+          const n = flagCopiesOf(side, 'runeSatchel');
+          for (const m of dwarves) ctx.buff(m, n, n, 'Rune of the Satchel');
+        }
+      }
+    } finally { gainCardDepth--; }
   }
   const ctx: CombatContext = {
     rng,
@@ -1101,6 +1115,12 @@ export function simulate(
       // handlers, so this nested emit is safe; health-only buffs (the common case) skip it, and onGainAttack
       // handlers grant Health only (no further Attack gain) so it can't loop. Cheap when unsubscribed (a Map miss).
       if (attack > 0) bus.emit('onGainAttack', { minion: target, side: target.side });
+      // RUNE OF THE ANVIL (Set 3 design pass): a friendly Dwarf's Attack gain also gives that much Health (per copy).
+      // Health-only, so the nested buff never emits `onGainAttack` again: no loop.
+      if (attack > 0 && !target.dead && modsFor(target.side).runeAnvil && isTribeOf(target, 'dwarf', cards)) {
+        fireTrigger('runeAnvil', target.side);
+        ctx.buff(target, 0, attack * flagCopiesOf(target.side, 'runeAnvil'), 'Rune of the Anvil');
+      }
       // Sable's Soulbind: a stat gain on one bound body is gained by the other, in full and ONCE. The mirrored
       // grant re-enters this very function, so `soulbindMirroring` is the load-bearing guard — without it the
       // pair buff each other forever. Player-side only: the bond is forged in the player's shop.
@@ -2225,7 +2245,7 @@ export function simulate(
     emit({ type: 'sc', source: minion.uid, text: 'Rally' });
     // A free rally is still a Rally TRIGGER — it counts toward the Rally quests and the Author's Hand rally
     // half exactly like an attack-path rally. Player-only, like every tally.
-    bumpRally(1, side);
+    bumpRally(1, side, minion);
     if (minion.keywords.includes('RL') && minion.effects.some((e) => e.on === 'onAttack')) {
       for (const effect of minion.effects) {
         if (effect.on !== 'onAttack') continue;
@@ -3663,7 +3683,7 @@ export function simulate(
       // (Law of Teeth / Rallying Offensive / Infinite Assembly / Spark Permit) already do. Missing this was
       // a real bug: with Uron out, two rallying minions read as 2 toward "Trigger 7 Rallies" instead of 4
       // (owner report). Player-only, matching every other quest tally.
-      bumpRally(rallyExtra, attacker.side);
+      bumpRally(rallyExtra, attacker.side, attacker);
       // The Old Hunt: each Beast attack pumps that SIDE's run-wide Beast Attack aura by `oldHuntStep` — live
       // (every current Beast gains it; later summons inherit via the grown aura). A served enemy pumps its own
       // captured aura; the player also carries the gain back (the enemy has no run to persist to).
@@ -3731,7 +3751,7 @@ export function simulate(
       // Direct calls, not via the bus, so other minions' on-attack watchers don't double-fire. The rally quest
       // TALLY (base + extras) is player-only.
       if (attacker.keywords.includes('RL') && !attacker.dead && attacker.health > 0) {
-        bumpRally(1, attacker.side);
+        bumpRally(1, attacker.side, attacker);
         const extras = playerRallyExtras(attacker);
         for (let r = 0; r < extras && !attacker.dead && attacker.health > 0; r++) {
           for (const effect of attacker.effects) {
@@ -3740,7 +3760,7 @@ export function simulate(
           }
           refireRallyWatchers(attacker); // Paragon scales with the additive rally doublers too
         }
-        bumpRally(extras, attacker.side);
+        bumpRally(extras, attacker.side, attacker);
       }
       bumpQuestTally('attack', attacker, attacker.side); // "Attack N times with Beasts" quest
       // RUNE OF COMBATATIVE RUBIES (owner 2026-09-25): a RUNNING meter over friendly attacks, carried in from the run
@@ -4857,6 +4877,20 @@ export function simulate(
       }
     }, spell.id);
   }
+  /** RUNE OF CALL AND ANSWER, combat half: the left-most minion in this side's hand (the fight's hand snapshot, minus
+   *  any summoned out) +2/+2 per copy, through `buffHand` (permanent, R-HAND-02; player-only like every hand). */
+  function callAndAnswer(side: Side, sourceUid: string): void {
+    const left = ctx.handMinionsFor(side)[0];
+    if (!left) return;
+    const n = 2 * flagCopiesOf(side, 'runeCallAndAnswer');
+    fireTrigger('runeCallAndAnswer', side);
+    ctx.buffHand(left.uid, n, n, side, sourceUid);
+  }
+  // RUNE OF CALL AND ANSWER: a friendly SPIRIT Shout fire (the Rally half rides `bumpRally`).
+  bus.on('battlecryTriggered', (payload) => {
+    const { side, minion } = payload as { side: Side; minion?: Minion };
+    if (minion && modsFor(side).runeCallAndAnswer && isTribeOf(minion, 'spirit', cards)) callAndAnswer(side, minion.uid);
+  });
   // RUNE OF THE HERALDING STAR / THE STARSONG (Set 3 design pass): every friendly CELESTIAL Shout fire. The Heralding
   // Star banks +3/+3 for the Starform (settle applies it: the token lives in the Shop); the Starsong gives the living
   // Celestials +2/+2 now (a combat buff, for this fight). One payout per fire and per copy held.

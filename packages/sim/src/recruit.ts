@@ -4135,6 +4135,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
       if (!all && !isTribe(c, 'spirit') && !(circuit && isTribe(c, 'celestial'))) continue;
       addBuff(c, nameOf(self), a, h);
     }
+    ctx.state.lastRevelerPay = { uid: self.uid, attack: a, health: h }; // Rune of the Encore reads it at the sale
     ctx.state.revelerX = revelerValue(ctx.state) + 1;
   },
 
@@ -6671,7 +6672,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
         for (const target of ends) {
           if (!ctx.state.board.some((c) => c.uid === target.uid)) continue;
           (ctx.state.gainAttackFiredUids ??= []).push(target.uid);
-          captureBuffFx(ctx.state, target, 'minion', () => fireOnGainAttack(ctx.state, target));
+          captureBuffFx(ctx.state, target, 'minion', () => fireOnGainAttack(ctx.state, target, a));
         }
       }
     }
@@ -10737,6 +10738,8 @@ export function fireOnGainCard(state: RunState, cardId?: string): void {
   // this game (a conjured / rewarded / drip-fed Dwarf all count; a purchase is `applyOnBuy`).
   const payroll = state.runeHeavyPayroll;
   const gained = cardId ? CARD_INDEX[cardId] : undefined;
+  // RUNE OF THE SATCHEL (Set 3 design pass): ANY card reaching the hand gives your board Dwarves +1/+1 per copy.
+  if (state.questFlags?.runeSatchel) runeSatchelShop(state);
   if (payroll && gained && defIsTribe(gained, 'dwarf') && state.board.length > 0) {
     procRuneId(state, 'rune_heavy_payroll');
     captureBuffFx(state, undefined, 'spell', () => addBuff(state.board[0]!, 'Rune of Heavy Payroll', payroll.attack, payroll.health));
@@ -10903,6 +10906,7 @@ export function fireOnMinionSold(state: RunState, sold: BoardCard): void {
   //    at the flip with the other per-turn counters. ──
   if (REVELER_IDS.includes(sold.cardId)) {
     const sold3 = state.revelersSoldThisTurn = (state.revelersSoldThisTurn ?? 0) + 1;
+    runeEncoreShop(state, sold); // RUNE OF THE ENCORE (Set 3 design pass): the turn's first Reveler sale pays the hand too
     // RUNE OF FESTIVAL WAGES: every `REVELER_METER` Revelers sold arm a free card — the next Shop buy (minion or
     // spell, either row) costs 0. One charge per copy held (repeat family); the charges carry until spent.
     if (state.runeFestivalWages && sold3 % REVELER_METER === 0) {
@@ -11234,6 +11238,8 @@ function fireBattlecryTriggered(state: RunState, source?: BoardCard): void {
   }
   // SET 3 DESIGN PASS: a friendly CELESTIAL Shout fire (the Heralding Star, the Starsong).
   if (source && isTribe(source, 'celestial')) runeCelestialShoutShop(state);
+  // RUNE OF CALL AND ANSWER (Set 3 design pass): a friendly SPIRIT Shout fire pays the left-most hand minion.
+  if (source && isTribe(source, 'spirit')) runeCallAndAnswerShop(state);
 }
 
 /** Fire a single card's `onGainAttack` recruit effects (Hunter) — called by the reducer boundary for every
@@ -11312,7 +11318,7 @@ function eotRepeatTick(state: RunState, self: BoardCard, targets: readonly Board
     for (const target of targets) {
       if (!state.board.some((c) => c.uid === target.uid)) continue;
       (state.gainAttackFiredUids ??= []).push(target.uid);
-      captureBuffFx(state, target, 'minion', () => fireOnGainAttack(state, target));
+      captureBuffFx(state, target, 'minion', () => fireOnGainAttack(state, target, a));
     }
   }
 }
@@ -11326,7 +11332,13 @@ function eotRepeatTick(state: RunState, self: BoardCard, targets: readonly Board
  */
 const GAIN_ATTACK_WATCHERS: ReadonlySet<string> = new Set(['onTribeGainAttackBuffSelf']);
 
-export function fireOnGainAttack(state: RunState, card: BoardCard): void {
+export function fireOnGainAttack(state: RunState, card: BoardCard, gained = 0): void {
+  // RUNE OF THE ANVIL (Set 3 design pass): a board Dwarf that gained `gained` Attack also gains that much Health (per
+  // copy). Health-only, so it never re-fires this dispatcher (no loop with Kneel / Tankerchief).
+  if (gained > 0 && state.questFlags?.runeAnvil && isTribe(card, 'dwarf') && state.board.includes(card)) {
+    procRuneId(state, 'rune_anvil');
+    addBuff(card, 'Rune of the Anvil', 0, gained * runeStacksOf(state, 'rune_anvil'));
+  }
   const def = CARD_INDEX[card.cardId];
   // Fast path: the reducer calls this for EVERY board minion whose Attack rose, so bail before the
   // (relatively costly) makeContext unless this card actually has a dispatchable onGainAttack reactor — or
@@ -12887,6 +12899,7 @@ export function fireShopRally(state: RunState, card: BoardCard): void {
   // "a Rally", never two drifting ones. The reducer consumes `lastRallyFires` per action (the
   // `lastShoutFires` pattern); Rune of the Herding Horn pays inline, as its combat half does.
   state.lastRallyFires = (state.lastRallyFires ?? 0) + 1;
+  if (isTribe(card, 'spirit')) runeCallAndAnswerShop(state); // RUNE OF CALL AND ANSWER: a Spirit's Shop Rally
   // One free refresh per copy held (boolean-flag family, owner 2026-08-27 — `flagCopies` is the copy channel).
   if (state.questFlags?.runeHerdingHorn) { procRuneId(state, 'rune_herding_horn'); state.freeRolls += Math.max(1, state.flagCopies?.runeHerdingHorn ?? 1); }
 }
@@ -14296,7 +14309,7 @@ function projectEndOfTurnStepsInner(state: RunState): {
     });
     for (const c of gainers) {
       gainFired.add(c.uid);
-      captureBuffFx(clone, c, 'minion', () => fireOnGainAttack(clone, c));
+      captureBuffFx(clone, c, 'minion', () => fireOnGainAttack(clone, c, c.attack - (atkBefore.get(c.uid) ?? c.attack)));
     }
     // Welds this beat produced — diffed by host `attachments`, so EVERY auto-weld path is caught
     // (Combinator, Cling Drones, Money Bots, and any future EoT welder) without per-effect wiring.
@@ -14926,6 +14939,7 @@ export function playCard(state: RunState, played: BoardCard): void {
   // Rune of the Spirit Crown) — same engine, same cross-turn banking.
   if (isTribe(played, 'spirit')) advanceRuneThresholds(state, 'playSpirit', 1);
   fireSpiritPlayRunes(state, played); // Chosen Vessel / Deep Currents / Growing Chorus / the Grand Procession rune
+  runeDesignPlayRunes(state, played); // Set 3 design pass: the Kindred Hand (a Spirit played), the Whetstone (a Dwarf played)
   // ECHOED ARRIVAL: every `per`-th ECHO minion played fires its Echo on arrival. Counted per ECHO BODY (not
   // per play), which is what "every 5th Echo minion" says; the fire itself is the shop-side Echo path
   // Gravetwin / the Reliquary use, so nothing about it is bespoke.
@@ -15171,3 +15185,69 @@ function runeMeteorStormShop(state: RunState, spellDef: CardDef, target: BoardCa
   } finally { METEOR_ECHOING = false; }
 }
 
+// ── SET 3 RUNE DESIGN PASS (owner 2026-09-27): the tranche-3 Spirit + Dwarf runes ─────────────────────────────────
+
+/** The left-most MINION in the hand (spells skipped: they have no stats), or undefined. */
+function leftmostHandMinion(state: RunState): BoardCard | undefined {
+  return state.hand.find((c) => { const d = CARD_INDEX[c.cardId]; return !!d && !d.spell && !d.ruby; });
+}
+
+/** RUNE OF CALL AND ANSWER, Shop half: the left-most minion in hand +2/+2 per copy (a hand buff is permanent). */
+export const CALL_AND_ANSWER_GRANT = { attack: 2, health: 2 } as const;
+function runeCallAndAnswerShop(state: RunState): void {
+  if (!state.questFlags?.runeCallAndAnswer) return;
+  const left = leftmostHandMinion(state);
+  if (!left) return;
+  procRuneId(state, 'rune_call_and_answer');
+  const n = runeStacksOf(state, 'rune_call_and_answer');
+  addBuff(left, 'Rune of Call and Answer', CALL_AND_ANSWER_GRANT.attack * n, CALL_AND_ANSWER_GRANT.health * n);
+}
+
+/** RUNE OF THE ENCORE: the turn's first Reveler SALE also pays what that Reveler just gave the board to the left-most
+ *  minion in hand, per copy. `lastRevelerPay` is set by the sold body's own `revelerSell` a moment earlier. */
+function runeEncoreShop(state: RunState, sold: BoardCard): void {
+  const pay = state.lastRevelerPay;
+  state.lastRevelerPay = undefined;
+  if (!state.questFlags?.runeEncore || state.encoreUsedThisTurn || !pay || pay.uid !== sold.uid) return;
+  if (pay.attack <= 0 && pay.health <= 0) return;
+  const left = leftmostHandMinion(state);
+  if (!left) return;
+  state.encoreUsedThisTurn = true;
+  procRuneId(state, 'rune_encore');
+  const n = runeStacksOf(state, 'rune_encore');
+  addBuff(left, 'Rune of the Encore', pay.attack * n, pay.health * n);
+}
+
+/** RUNE OF THE KINDRED HAND's value: +N/+N, N = the Spirits on your board (per copy), plus `extra` Spirits not landed
+ *  yet. The payout reads it with the played Spirit already on the board; the badge reads `extra` = 1 ("the next Spirit
+ *  you play pays this"). */
+export function kindredHandValue(state: Pick<RunState, 'board' | 'runeStacks'>, extra = 0): number {
+  return (state.board.filter((c) => isTribe(c, 'spirit')).length + extra) * runeStacksOf(state, 'rune_kindred_hand');
+}
+
+/** The PLAY-chokepoint runes of tranche 3: the Kindred Hand (a Spirit played → the left-most hand minion +1/+1 per
+ *  Spirit you control) and the Whetstone (a Dwarf played → your OTHER board Dwarves +1 Attack). */
+function runeDesignPlayRunes(state: RunState, played: BoardCard): void {
+  if (state.questFlags?.runeKindredHand && isTribe(played, 'spirit')) {
+    const n = kindredHandValue(state);
+    const left = leftmostHandMinion(state);
+    if (left && n > 0) { procRuneId(state, 'rune_kindred_hand'); addBuff(left, 'Rune of the Kindred Hand', n, n); }
+  }
+  if (state.questFlags?.runeWhetstone && isTribe(played, 'dwarf')) {
+    const others = state.board.filter((c) => c.uid !== played.uid && isTribe(c, 'dwarf'));
+    if (others.length > 0) {
+      procRuneId(state, 'rune_whetstone');
+      const n = runeStacksOf(state, 'rune_whetstone');
+      captureBuffFx(state, undefined, 'spell', () => { for (const c of others) addBuff(c, 'Rune of the Whetstone', n, 0); });
+    }
+  }
+}
+
+/** RUNE OF THE SATCHEL, Shop half: a card reached the hand → your board Dwarves +1/+1 per copy. */
+function runeSatchelShop(state: RunState): void {
+  const dwarves = state.board.filter((c) => isTribe(c, 'dwarf'));
+  if (dwarves.length === 0) return;
+  procRuneId(state, 'rune_satchel');
+  const n = runeStacksOf(state, 'rune_satchel');
+  captureBuffFx(state, undefined, 'spell', () => { for (const c of dwarves) addBuff(c, 'Rune of the Satchel', n, n); });
+}

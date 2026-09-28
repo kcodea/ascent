@@ -918,7 +918,7 @@ export function reduce(state: RunState, action: Action): RunState {
     });
     // Wrap the reactor so Hunter's "give your minions +Health" buff-to-others is captured as shop-buff FX,
     // sourced from the reacting minion `c` (a minion tendril), same as any other buff-other.
-    for (const c of gainers) captureBuffFx(next, c, 'minion', () => fireOnGainAttack(next, c));
+    for (const c of gainers) captureBuffFx(next, c, 'minion', () => fireOnGainAttack(next, c, c.attack - (before.get(c.uid) ?? c.attack)));
     // "Give Dragons N total stats" (Skybound Pact / Taragosa's Inheritance): sum the +Attack/+Health BUFFS a
     // Dragon present BEFORE and AFTER this action received (base stats of new Dragons are excluded — only gains
     // on existing Dragons, board + hand). Advances the `tribeStats` objective by that total.
@@ -5295,6 +5295,7 @@ function advanceCombat(s: RunState): void {
   for (const c of s.board) if (c.bredThisTurn) c.bredThisTurn = 0; // Brood Matron's shop breed cap resets per turn (owner ruling 2026-08-26)
   s.runeWarDrumUsedThisTurn = undefined; // Rune of the War Drum: its one charge comes back each turn
   s.openGraveUsedThisTurn = undefined;   // Rune of the Open Grave: the first Shop destroy of the new turn gains Rise
+  s.encoreUsedThisTurn = undefined;      // Rune of the Encore: the first Reveler sale of the new turn pays the hand
   // Batch-4 per-turn gates (Shared Pour / Aftermarket read "the first … each turn").
   s.sharedPourUsedThisTurn = undefined;
   s.aftermarketUsedThisTurn = undefined;
@@ -7657,6 +7658,10 @@ export function questCombatMods(s: RunState): QuestCombatMods {
     runeStarsong: f?.runeStarsong,                   // a Celestial Shout gives the living Celestials +2/+2
     runeGuidingStar: f?.runeGuidingStar,             // a Celestial Echo casts a Star Crash on a random Celestial
     runeMeteorStorm: f?.runeMeteorStorm,             // every Star Crash casts again on a different Celestial
+    // ── tranche 3: Spirit + Dwarf ──
+    runeCallAndAnswer: f?.runeCallAndAnswer,         // a Spirit Shout / Rally buffs the left-most hand minion
+    runeAnvil: f?.runeAnvil,                         // a Dwarf's Attack gain also gives that much Health
+    runeSatchel: f?.runeSatchel,                     // a card to hand gives the living Dwarves +1/+1
     starCrashBonus: s.starCrashBonus && (s.starCrashBonus.attack || s.starCrashBonus.health) ? { ...s.starCrashBonus } : undefined, // Falling Embers, for a combat Star Crash
     // SHOP→COMBAT CARRY-OVER (owner ruling 2026-08-26): "war drum should have a 1/1 use, and that use resets
     // at start of turn, therefore if it is not used in shop, then the first shout triggered in combat should

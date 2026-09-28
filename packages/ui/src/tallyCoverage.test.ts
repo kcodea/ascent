@@ -98,6 +98,7 @@ const armedRun = (): RunState => ({
     { cardId: 'n2_muckslinger', everyTurns: 2, tick: 1, sourceId: 'rune_muckbroker' },
     { cardId: 'n2_salesman', everyTurns: 2, tick: 1, sourceId: 'rune_rare_goods' },
     { cardId: 'lanternofsouls', everyTurns: 2, tick: 1, sourceId: 'rune_lantern_keeper' }, // Set 3 design pass (2026-09-27)
+    { cardId: 'crescendo', everyTurns: 2, tick: 1, sourceId: 'rune_overture' }, // Set 3 design pass tranche 3
   ],
   runeSeasonedLedger: { attack: 1, health: 1, per: 5, played: 2 },
   runeEchoedArrival: { per: 5, tick: 2 },

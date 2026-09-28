@@ -1,4 +1,4 @@
-import { runeStacksOf, PACKCRAFT_STEP, REINVESTMENT_PER_SUMMON, REVELER_METER, SLAYING_KILLS, INVESTMENT_SELLS, ANCESTRAL_ROAR_STEP, recurringTickCount, type RunState } from '@game/sim';
+import { kindredHandValue, runeStacksOf, PACKCRAFT_STEP, REINVESTMENT_PER_SUMMON, REVELER_METER, SLAYING_KILLS, INVESTMENT_SELLS, ANCESTRAL_ROAR_STEP, recurringTickCount, type RunState } from '@game/sim';
 import { CARD_INDEX } from '@game/content';
 import { COMBATATIVE_RUBIES_ATTACKS, BODY_COUNTING_DEATHS } from '@game/core';
 
@@ -57,6 +57,9 @@ export function runeTally(run: RunState, runeId: string): string | null {
   }
   // RUNE OF THE SOUL FURNACE (Set 3 design pass): the Health the Undead Aura gives RIGHT NOW (the live-value rule).
   if (runeId === 'rune_soul_furnace' && run.questFlags?.runeSoulFurnace) return `+${run.soulFurnaceHp ?? 0} Health`;
+  // RUNE OF THE KINDRED HAND (owner pick 2026-09-27): what the NEXT Spirit you play pays right now: +1/+1 for each
+  // Spirit you will control once it lands (the board's Spirits plus that one), the live-value rule.
+  if (runeId === 'rune_kindred_hand' && run.questFlags?.runeKindredHand) { const n = kindredHandValue(run, 1); return `next +${n}/+${n}`; }
   // RUNE OF THE OPEN GRAVE: its one charge a turn, as the War Drum shows it (1 ready, 0 spent).
   if (runeId === 'rune_open_grave' && run.questFlags?.runeOpenGrave) return run.openGraveUsedThisTurn ? '0/1' : '1/1';
   // Rune of the Wheel: refreshes toward the aura's next +2/+2 improve (`shopAuraGrow`).

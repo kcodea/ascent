@@ -42,10 +42,12 @@ const OWNER_LIST: Record<string, { basic: Record<string, string>; epic: Record<s
     basic: {
       'basic dwarves': 'rune_basic_dwarf', 'full measure': 'rune_full_measure', 'compounding wages': 'rune_compounding_wages', 'heavy payroll': 'rune_heavy_payroll',
       kegheart: 'rune_kegheart', overtime: 'rune_overtime', 'first round': 'rune_first_round', brew: 'rune_brew', flagship: 'rune_flagship',
+      whetstone: 'rune_whetstone', // design pass tranche 3 (owner 2026-09-27)
     },
     epic: {
       'epic dwarves': 'rune_epic_dwarf', bucky: 'rune_bucky', 'double fisting': 'rune_double_fisting', 'profit sharing': 'rune_profit_sharing',
       'dwarf king brill': 'rune_high_king', 'muster general': 'rune_muster_general', 'shared table': 'rune_shared_table', 'sellers market': 'rune_sellers_market',
+      anvil: 'rune_anvil', satchel: 'rune_satchel', // design pass tranche 3 (owner 2026-09-27)
     },
   },
   undead: {
@@ -61,6 +63,8 @@ const OWNER_LIST: Record<string, { basic: Record<string, string>; epic: Record<s
     basic: {
       'basic spirit': 'rune_basic_spirit', 'deep currents': 'rune_deep_currents', 'festival wages': 'rune_festival_wages', 'chosen vessel': 'rune_chosen_vessel',
       'growing chorus': 'rune_growing_chorus', 'traveling festival': 'rune_traveling_festival',
+      // Design pass tranche 3 (owner 2026-09-27): no Beckoning; its slot is the owner's pick, the Kindred Hand.
+      'call and answer': 'rune_call_and_answer', encore: 'rune_encore', overture: 'rune_overture', 'kindred hand': 'rune_kindred_hand',
     },
     epic: {
       'epic spirit': 'rune_epic_spirit', 'shared revelry': 'rune_shared_revelry', 'grand procession': 'rune_grand_procession', 'handy flame': 'rune_handy_flame',
@@ -133,10 +137,10 @@ const HYBRID_TRIBES: Record<string, readonly Tribe[]> = {
 };
 
 describe("the owner's Set 3 rune list (2026-09-25)", () => {
-  it('names 185 distinct runes, every one a live (non-archived) rune def', () => {
+  it('names 192 distinct runes, every one a live (non-archived) rune def', () => {
     // 163 + 11 from Set 3 rune batch 3 (2026-09-25) = 174; the 2026-09-27 design pass: tranche 0 cut 10, restored 5 (169);
-    // tranche 1 added 8 Undead (177); tranche 2 added 8 Celestial (185).
-    expect(LISTED).toHaveLength(185);
+    // tranche 1 added 8 Undead (177); tranche 2 added 8 Celestial (185); tranche 3 added 4 Spirit + 3 Dwarf (192).
+    expect(LISTED).toHaveLength(192);
     expect(new Set(LISTED).size, 'no rune named twice').toBe(LISTED.length);
     for (const id of LISTED) {
       expect(LIVE.some((r) => r.id === id), `${id} is a live rune`).toBe(true);
@@ -160,9 +164,9 @@ describe("the owner's Set 3 rune list (2026-09-25)", () => {
     expect([...offered].sort()).toEqual([...LISTED].sort());
   });
 
-  it('counts: 97 Basic / 88 Epic (91 / 83 on 2026-09-25; 2026-09-27 tranche 0: 87 / 82; tranche 1: + 5 / + 3 Undead; tranche 2: + 5 / + 3 Celestial)', () => {
-    expect(LISTED.filter((id) => RUNES.some((r) => r.id === id))).toHaveLength(97);
-    expect(LISTED.filter((id) => EPIC_RUNES.some((r) => r.id === id))).toHaveLength(88);
+  it('counts: 102 Basic / 90 Epic (91 / 83 on 2026-09-25; 2026-09-27 tranche 0: 87 / 82; tranche 1: + 5 / + 3 Undead; tranche 2: + 5 / + 3 Celestial; tranche 3: + 5 / + 2 Spirit + Dwarf)', () => {
+    expect(LISTED.filter((id) => RUNES.some((r) => r.id === id))).toHaveLength(102);
+    expect(LISTED.filter((id) => EPIC_RUNES.some((r) => r.id === id))).toHaveLength(90);
   });
 
   it('every rune NOT named is out of Set 3, still resolves, and keeps its other sets (never archived)', () => {

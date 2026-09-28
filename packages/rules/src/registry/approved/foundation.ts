@@ -2033,8 +2033,9 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'equipped in the Collection\'s Attack Animations tab (Equip, or "Use Classic" to take it off) through equip_cosmetic '
       + 'with slot hero_attack and target \'\' (the SQL refuses any other target, an unowned item, a skin in the attack slot '
       + 'and the attack in a skin slot). The owner approved the animation and made it a Legendary reward. The second hero '
-      + 'attack, attack_quake ("Tectonic Slam", Legendary, style quake: R-PROG-ATTACK-05), re-pinned the first-crate odds '
-      + 'to Common 47.0%, Rare 31.2%, Epic 19.1%, Legendary 2.7%; a non-title item 31.3%; the two attacks together 1.1%.',
+      + 'attack, attack_quake ("Tectonic Slam", Legendary, style quake: R-PROG-ATTACK-05), and the third, attack_arcana '
+      + '("Arcana", Legendary, style arcana: R-PROG-ATTACK-06), re-pinned the first-crate odds to Common 46.8%, Rare 31.0%, '
+      + 'Epic 19.0%, Legendary 3.3%; a non-title item 31.7%; the three attacks together 1.6%.',
     domain: 'foundation',
     status: 'approved',
     evidence: [
@@ -2128,5 +2129,29 @@ export const FOUNDATION_RULES: GameRule[] = [
     ],
     currentBehaviour: 'Conforms, built 2026-09-28. The item reaches the database on the next deploy of progression-inventory (the catalog sync); the equip SQL already accepts the hero_attack slot.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/heroQuake/heroQuake.test.ts', 'packages/progression/src/cosmetics.test.ts', 'packages/ui/src/progression/CollectionHeroAttack.test.tsx'], lastVerifiedAt: '2026-09-28' },
+  },
+  {
+    id: 'R-PROG-ATTACK-06',
+    title: 'Arcana (attack_arcana, Legendary) is the third hero attack: magic ribbons lobbed from the hero, 1 / 2 / a barrage of 5 / a vortex that explodes, on the SAME damage tiers; the blow lands ONCE',
+    statement:
+      'attack_arcana ("Arcana", the owner\x27s name; Legendary, crate, account-wide, style arcana) plays Arcana: the shared combine '
+      + '(the Tier and each Minion number fly into one total that ends on the engine\x27s blow), a charge (an arcane circle opens '
+      + 'under the striking hero), then clean magic RIBBONS (a tapering strip with a violet body, a white-hot core, a cyan strand '
+      + 'and a sigil orb at the head) lobbed on high arcs from the hero. It escalates on exactly the tiers Blast and Quake use '
+      + '(one shared tierOf, thresholds 6 / 12 / 20): I 1-5 ONE ribbon; II 6-11 TWO on different heights and opposite sides; '
+      + 'III 12-19 a BARRAGE of FIVE fanned arcs landing in rhythm; IV 20+ the ribbons swirl into a vortex over the struck '
+      + 'hero\x27s frame that tightens and speeds up, converge and EXPLODE outward. The consequence (the damage, Armor, Resolve) '
+      + 'lands exactly ONCE: on the LAST ribbon (every earlier barrage ribbon is a tick with FX only) or, at IV, on the explosion. '
+      + 'Presentation only; reduced motion is fades only; an unknown or retired id plays Classic. The owner named Arcana the '
+      + 'quality bar for hero attack animations.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-28 (Arcana hero attack)', quote: "let's branch out and make one more attack animation, same setup as the last 2, but let's make like a magic one called arcana. tier 1 attack will be s clean pixi ribbon arc'd and lobbed from hero location. tier 2 attack will be 2 of those. tier 3 attack will be barrage of 5 of those. tier 4 attack will be a swirl of them over the opponent hero frame and then they explode and ribbon/pixi blast outward" },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-28 (Arcana review)', quote: 'arcana looks so god damn good' },
+      { kind: 'code', ref: 'packages/progression/src/cosmetics.ts (attack_arcana); packages/ui/src/heroArcana/ (heroArcanaConfig arcanaPlan / arcanaCues / ribbonMotions, heroArcana playHeroArcana, heroArcanaScene); the shared core in packages/ui/src/heroAttack/' },
+    ],
+    currentBehaviour: 'Conforms, built 2026-09-28. The item reaches the database on the next deploy of progression-inventory (the catalog sync); the equip SQL already accepts the hero_attack slot.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/heroArcana/heroArcana.test.ts', 'packages/progression/src/cosmetics.test.ts', 'packages/ui/src/progression/CollectionHeroAttack.test.tsx'], lastVerifiedAt: '2026-09-28' },
   },
 ];

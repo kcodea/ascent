@@ -89,6 +89,17 @@ export const PATCH_NOTES: PatchNote[] = [
       },
       {
         category: 'Systems',
+        text: 'A new Legendary hero attack, Arcana, can drop from crates.',
+        details: [
+          'Your numbers combine into one total, then your hero lobs ribbons of arcane light at the other hero.',
+          'The bigger the hit, the bigger the spell: one ribbon, then two, then a barrage of five.',
+          'On the biggest hits the ribbons swirl into a vortex over the other hero, then explode outward.',
+          'Equip it from the Attack Animations tab of the Collection. There is a preview button there too.',
+          'Hero attacks are looks only. The damage is exactly the same.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'A new Legendary hero attack, Tectonic Slam, can drop from crates.',
         details: [
           'Your numbers combine into one total, then your hero hurls boulders at the other hero, and stone spikes burst out of the ground around them.',

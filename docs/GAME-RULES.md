@@ -194,9 +194,9 @@ progression **epoch**; nothing finished before the epoch counts (no backfill).
   R-PROG-SKINS-05), so a new or retired cosmetic is a code change plus one deploy, never SQL. Shaped
   for every cosmetic category (announcer, hero skin, minion skin, title, hero attack, board, music). Switched on:
   **titles** (15 crate titles: 7 Common, 5 Rare, 2 Epic, 1 Legendary) and, since the skins shipped the same day,
-  **hero skins** and **minion skins** (all from crates) and **hero attacks** (Arcane Barrage, then Tectonic Slam). The other
+  **hero skins** and **minion skins** (all from crates) and **hero attacks** (Arcane Barrage, Tectonic Slam, then Arcana). The other
   categories are feature-flagged off until their art exists. Crate odds are rarity weight x category weight over what
-  remains: a fresh account's first crate is about 31% a skin or hero attack (the two Legendary attacks together about 1.1%).
+  remains: a fresh account's first crate is about 31% a skin or hero attack (the three Legendary attacks together about 1.6%).
 - **Skins (2026-09-28; oracle R-PROG-SKINS-01, R-PROG-SKINS-04).** A hero skin replaces one hero's portrait; a
   minion skin replaces one card's art, by stable id. Equipped per target from the Collection's Heroes / Minions
   tabs through the server (`equip_cosmetic`: owned, made for that hero or card, live); **"Use default art"** is
@@ -210,14 +210,18 @@ progression **epoch**; nothing finished before the epoch counts (no backfill).
   lobby seat built from a recorded run copies its owner's (`LobbySeatState.cosmetics`). So opponents, replays and
   history show the skins worn in **that** run, never anyone's current loadout; any payload from before skins is
   default art.
-- **Hero attacks (2026-09-28; oracle R-PROG-ATTACK-01..03).** How your hero lands the post-combat blow. **Classic**
+- **Hero attacks (2026-09-28; oracle R-PROG-ATTACK-01..06).** How your hero lands the post-combat blow. **Classic**
   (the lunge) is everyone's default; **Blast** is the first cosmetic, `attack_blast` ("Arcane Barrage", Legendary,
   from crates; animation and tier thresholds owner-approved): the contributing numbers combine into one total, the hero charges, the view pushes in, and bolts (a single
   beam on the biggest hits) carry the blow, escalating by damage tier (I 1-5, II 6-11, III 12-19, IV 20+). **Quake** is the
   second, `attack_quake` ("Tectonic Slam", Legendary, from crates; R-PROG-ATTACK-05): the same combine, then the hero
   stomps. Tiers I-III hurl boulders (one, two, three hot ones) that burst a crown of stone spikes out round the struck hero;
   only Tier IV is an earthquake: a quick fracture races to the target and the ground erupts (a light burst, a shock ring, a
-  spray of magma, a pillar, follow-up explosions). Same tiers as Blast. Both anchor on the round portrait art at rest (R-PROG-ATTACK-04). Equipped
+  spray of magma, a pillar, follow-up explosions). Same tiers as Blast. **Arcana** is the third, `attack_arcana` ("Arcana",
+  Legendary, from crates; R-PROG-ATTACK-06): the same combine, then magic ribbons are lobbed on high arcs from the hero (I one;
+  II two on different heights and sides; III a barrage of five that lands in rhythm, the blow landing once on the last; IV the
+  ribbons swirl into a vortex over the struck hero, converge and explode outward, the blow landing on the explosion). All three
+  anchor on the round portrait art at rest (R-PROG-ATTACK-04). Equipped
   account-wide in the Collection's Attack Animations tab ("Use Classic" takes it off). The STRIKER's attack plays:
   yours when you win, the opponent's (from their recorded snapshot) when they win. Recorded per run like skins;
   unknown or retired ids play Classic. Presentation only: the same blow, landed once on the impact beat.

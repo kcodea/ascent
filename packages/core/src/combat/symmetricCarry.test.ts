@@ -40,7 +40,7 @@ function playerCarry(r: CombatResult): CombatCarryBacks {
     deferredBattlecries: r.playerDeferredBattlecries, maxGoldGain: r.playerMaxGoldGain, bonusGold: r.playerBonusGold,
     freeRolls: r.playerFreeRolls, guaranteedAttachments: r.playerGuaranteedAttachments, spellsCast: r.playerSpellsCast,
     spellEscalationGain: r.playerSpellEscalationGain, discoverCasts: r.playerDiscoverCasts, nextShopBuff: r.playerNextShopBuff,
-    undeadBuyAtkGain: r.playerUndeadBuyAtkGain, slaughterCopy: r.playerSlaughterCopy, undeadAuraGain: r.playerUndeadAuraGain,
+    undeadBuyAtkGain: r.playerUndeadBuyAtkGain, slaughterCopy: r.playerSlaughterCopy, undeadAuraGain: r.playerUndeadAuraGain, starformGain: r.playerStarformGain,
     impBuffGain: r.playerImpBuffGain, hoardGain: r.playerHoardGain, rightmostSlotBuff: r.playerRightmostSlotBuff,
     beastialSwarmLevel: r.playerBeastialSwarmLevel, boardBuffGain: r.playerBoardBuffGain, magneticBuffGain: r.playerMagneticBuffGain,
     fodderBuffGain: r.playerFodderBuffGain,

@@ -390,6 +390,17 @@ export function starformReceives(state: Pick<RunState, 'runeSoulScript'>, c: Boa
 
 export function buyStarform(state: RunState): { receiver: BoardCard | null; stats: { attack: number; health: number } } | null {
   if (!hasStarform(state)) return null;
+  // RUNE OF SCATTERED LIGHT (Set 3 design pass, owner 2026-09-27): the buy COLLAPSES the token instead (rule 7's
+  // Collapse: half its stats, rounded up, to 3 unique random receivers + the extras). The price was already paid; a
+  // Collapse fires `starformRemoved('collapse')`, so Zenith and the Collapse listeners hear it. `receiver` = the first hit.
+  if (state.questFlags?.runeScatteredLight) {
+    procRuneId(state, 'rune_scattered_light');
+    let hits: BoardCard[] = [];
+    const half = collapseStarform(state, () => (hits = collapseHits(state)));
+    if (!half) return null;
+    for (const t of hits) addBuff(t, 'Starform', half.attack, half.health);
+    return { receiver: hits[0] ?? null, stats: half };
+  }
   // The left-most eligible receiver — a Celestial, or under Rune of Soul Script an Undead too (owner report
   // 2026-09-16: the buy-consume fell through to the plain removal on an all-Undead board while the Collapse worked).
   const receiver = state.board.find((c) => starformReceives(state, c)) ?? null;

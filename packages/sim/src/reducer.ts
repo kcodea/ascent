@@ -890,7 +890,7 @@ export function reduce(state: RunState, action: Action): RunState {
     syncStarDestroyer(next);
     // Set 3 batch 2 rune-graft tripwire: every arrival path stamps the Endless March / Last Tool grafts inline;
     // this sweep catches the ones that do not (a Discover, a conjure, a restored displaced body …).
-    if (next.runeEndlessMarch || next.runeLastTool || next.questFlags?.runeEchoingKobolds || next.questFlags?.runeAggressiveGolems) {
+    if (next.runeEndlessMarch || next.runeLastTool || next.questFlags?.runeEchoingKobolds || next.questFlags?.runeAggressiveGolems || next.questFlags?.runeStellarEchoes) {
       for (const c of [...next.board, ...next.hand]) applyRuneGrafts(next, c);
     }
     // RUNE OF THE SOUL FURNACE (Set 3 design pass): the Aura's derived Health term follows the Aura Attack at every
@@ -4827,6 +4827,10 @@ function settleCombat(s: RunState, result: CombatResult): void {
   if (result.playerDeferredBattlecries) {
     for (const { cardId, golden, uid } of result.playerDeferredBattlecries) replayEconomyBattlecry(s, cardId, golden, uid);
   }
+  // SET 3 DESIGN PASS: Starform growth banked in the fight (the Heralding Star, Stellar Echoes' graft …) lands now that
+  // the Shop exists: AFTER the deferred Shop-only Shouts, so a combat Star Seed's creation is there to take it. No
+  // Starform = nothing (exactly as in the Shop).
+  for (const g of result.playerStarformGain ?? []) buffStarform(s, g.attack, g.health, g.source);
   // SHOUTS IN REAL TIME (R-REALTIME-03): the run-state grants Shouts made AT THE MOMENT they fired in combat (each
   // was logged live). Folded in exactly once here; nothing is replayed as a Shout.
   if (result.playerShoutCarry) {
@@ -6636,7 +6640,7 @@ function applyQuestRewardInner(s: RunState, def: QuestDef, allowRepeat: boolean)
       s.flagCopies[r.flag] = (s.flagCopies[r.flag] ?? 0) + 1;
       // Set 3 rune batch 3: the two AURA-STYLE grafts (Echoing Kobolds, Aggressive Golems) land on every body the
       // run already holds, board and hand; later arrivals are stamped at their arrival + the action-boundary sweep.
-      if (r.flag === 'runeEchoingKobolds' || r.flag === 'runeAggressiveGolems') for (const c of [...s.board, ...s.hand]) applyRuneGrafts(s, c);
+      if (r.flag === 'runeEchoingKobolds' || r.flag === 'runeAggressiveGolems' || r.flag === 'runeStellarEchoes') for (const c of [...s.board, ...s.hand]) applyRuneGrafts(s, c);
       break;
     }
     case 'questGoldTribeBuff':
@@ -7647,6 +7651,13 @@ export function questCombatMods(s: RunState): QuestCombatMods {
     runeSoulToll: f?.runeSoulToll,                   // Avenge (4): the Undead Aura +1 Attack
     runeSoulFurnace: f?.runeSoulFurnace,             // the Undead Aura's Health term re-derives live mid-fight
     runeRestless: f?.runeRestless,                   // a risen body's Echo triggers
+    // ── tranche 2: Celestial ──
+    runeHeraldingStar: f?.runeHeraldingStar,         // a Celestial Shout banks +3/+3 for the Starform
+    runeStellarEchoes: f?.runeStellarEchoes,         // combat-summoned Celestials get the Starform Echo graft
+    runeStarsong: f?.runeStarsong,                   // a Celestial Shout gives the living Celestials +2/+2
+    runeGuidingStar: f?.runeGuidingStar,             // a Celestial Echo casts a Star Crash on a random Celestial
+    runeMeteorStorm: f?.runeMeteorStorm,             // every Star Crash casts again on a different Celestial
+    starCrashBonus: s.starCrashBonus && (s.starCrashBonus.attack || s.starCrashBonus.health) ? { ...s.starCrashBonus } : undefined, // Falling Embers, for a combat Star Crash
     // SHOP→COMBAT CARRY-OVER (owner ruling 2026-08-26): "war drum should have a 1/1 use, and that use resets
     // at start of turn, therefore if it is not used in shop, then the first shout triggered in combat should
     // work." Present only while the per-turn charge is UNSPENT; combat consumes it on the first triggered

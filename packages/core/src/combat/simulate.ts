@@ -132,6 +132,11 @@ export function simulate(
     if (m.runeEchoingKobolds && isTribeOf(minion, 'kobold', cards) && !minion.effects.some((e) => e.do === 'deathrattleGetRubies' && e.params?.fixed)) {
       minion.effects = [...minion.effects, { on: 'onDeath', do: 'deathrattleGetRubies', params: { count: flagCopiesOf(side, 'runeEchoingKobolds'), fixed: true } }];
     }
+    // Set 3 design pass, Rune of Stellar Echoes: a summoned Celestial carries "Echo: give your Starform +2/+2" (per copy).
+    if (m.runeStellarEchoes && isTribeOf(minion, 'celestial', cards) && !minion.effects.some((e) => e.do === 'deathrattleBuffStarform')) {
+      const n = 2 * flagCopiesOf(side, 'runeStellarEchoes');
+      minion.effects = [...minion.effects, { on: 'onDeath', do: 'deathrattleBuffStarform', params: { attack: n, health: n, fixed: true } }];
+    }
     if (m.runeAggressiveGolems && card.id === 'gemheart-shard' && !minion.effects.some((e) => e.do === 'rallyGiveAttackToRight')) {
       minion.effects = [...minion.effects, { on: 'onAttack', do: 'rallyGiveAttackToRight', params: {} }];
       if (!minion.keywords.includes('RL')) minion.keywords.push('RL');
@@ -363,6 +368,13 @@ export function simulate(
     enemy: { hunt: 0, ritual: 0 },
   };
   const undeadAuraGain = perSide(zero); // permanent Undead aura (attack+health) from this combat (Watcher's Lantern)
+  // Set 3 design pass: Starform growth banked this fight, per source (the Starform is a Shop token: settle applies it).
+  const starformGain = perSide<{ source: string; attack: number; health: number }[]>(() => []);
+  const bankStarform = (side: Side, attack: number, health: number, source: string): void => {
+    if (attack <= 0 && health <= 0) return;
+    const row = starformGain[side].find((g) => g.source === source);
+    if (row) { row.attack += attack; row.health += health; } else starformGain[side].push({ source, attack, health });
+  };
   const impBuffGain = perSide(zero); // permanent Imp buff from this combat (Imp King / Brood Avenge)
   const rightmostSlotGain = perSide(zero); // permanent right-most Shop-slot buff (Right Hand Hank's Echo)
   const magneticBuffGain = perSide(zero); // permanent Attachment enchant from this combat (Chorus Engine)
@@ -1347,6 +1359,9 @@ export function simulate(
     deferBattlecry: (cardId, golden, side, sourceUid) => {
       deferredBattlecries[side].push({ cardId, golden, ...(sourceUid ? { uid: sourceUid } : {}) });
     },
+    gainStarform: (attack, health, side, source) => {
+      bankStarform(side, attack, health, source);
+    },
     // ── SHOUTS IN REAL TIME (R-REALTIME-03): run-state grants made the moment a combat Shout fires ──
     grantNextSpellExtraCasts: (count, side, sourceUid) => {
       if (count <= 0) return;
@@ -1589,6 +1604,8 @@ export function simulate(
       return living(side).reduce((n, m) => n + (m.cardId === 'k_prismcaster' ? (m.golden ? 2 : 1) : 0), 0);
     },
     growthBonusFor: (side) => (side === 'player' ? playerState : enemyState).growthBonus ?? 0,
+    starCrashBonusFor: (side) => modsFor(side).starCrashBonus ?? { attack: 0, health: 0 },
+    onStarCrashCast: (side, caster, target) => runeMeteorStorm(side, caster, target),
     alesLastTurnFor: (side) => (side === 'player' ? playerState : enemyState).alesLastTurn ?? 0,
     crit: (sourceUid, mult) => emit({ type: 'proccrit', source: sourceUid, mult }),
     spellCastRepsFor: (side) => 1 + spellCastExtra[side],
@@ -2154,6 +2171,12 @@ export function simulate(
       // RUNE OF THE WAKE (Set 3 design pass): an Undead Echo TRIGGER raises the Undead Aura +1 Attack per copy, live
       // (the living Undead feel it now) and carried back (R-AURA-02). Forced Echoes reach this chokepoint too.
       if (source && modsFor(side).runeWake && isUndeadMinion(source)) { fireTrigger('runeWake', side); raiseUndeadAura(side, flagCopiesOf(side, 'runeWake'), 'Rune of the Wake'); }
+      // RUNE OF THE GUIDING STAR (Set 3 design pass): a Celestial Echo TRIGGER casts a Star Crash on a random living
+      // friendly Celestial, once per copy (a real combat cast: spell counters and cast watchers hear it).
+      if (source && modsFor(side).runeGuidingStar && isTribeOf(source, 'celestial', cards)) {
+        fireTrigger('runeGuidingStar', side);
+        for (let k = 0; k < flagCopiesOf(side, 'runeGuidingStar'); k++) runeCastStarCrash(side, source);
+      }
       // RUNE OF GRAVE REFRESHMENT: every Nth friendly Echo TRIGGER banks a free Shop refresh for next turn.
       // The same chokepoint as the Burrow above (not the death site), so a forced Echo — Echohorn, Hawkus,
       // Spots, the Herald — counts exactly like one that came from dying. The meter is combat-local: it
@@ -4791,6 +4814,67 @@ export function simulate(
       for (let k = 0; k < flagCopiesOf(side, 'runeRestless'); k++) triggerEcho(ctx, minion, minion, 1);
     }
   }
+  /** RUNE OF THE METEOR STORM (owner pick 2026-09-27): a Star Crash just resolved on `target` → cast it again, once per
+   *  copy, on a DIFFERENT random living friendly Celestial (a real cast, the rune as caster). The extra casts run under
+   *  a latch, so they never repeat themselves (no loop). No other Celestial: nothing. */
+  let meteorEchoing = false;
+  function runeMeteorStorm(side: Side, caster: Minion, target: Minion): void {
+    if (meteorEchoing || !modsFor(side).runeMeteorStorm) return;
+    const spell = cards['starcrash'];
+    if (!spell?.spell) return;
+    const others = (): Minion[] => living(side).filter((m) => m !== target && isTribeOf(m, 'celestial', cards));
+    if (others().length === 0) return;
+    meteorEchoing = true;
+    try {
+      fireTrigger('runeMeteorStorm', side);
+      const shim = { ...caster, golden: false } as Minion;
+      for (let k = 0; k < flagCopiesOf(side, 'runeMeteorStorm'); k++) {
+        const pool = others();
+        if (pool.length === 0) break;
+        const pick = rng.pick(pool);
+        castInCombat(ctx, shim, () => {
+          if (resolveCombatSpellCast(ctx, shim, spell, [pick]) && side === 'player') emit({ type: 'sc', source: caster.uid, text: `Rune of the Meteor Storm casts ${spell.name} again`, spellId: spell.id, rune: 'rune_meteor_storm' });
+        }, spell.id);
+      }
+    } finally { meteorEchoing = false; }
+  }
+  /** RUNE OF THE GUIDING STAR: one rune cast of Star Crash from a Celestial Echo, aimed at a random living friendly
+   *  Celestial (none = no cast). The rune is the caster: an ungilded stand-in for the Echo body, so a Gilded Celestial
+   *  does not double it, and `castInCombat` counts it as a real spell cast (spell counters, multi-cast, watchers). */
+  function runeCastStarCrash(side: Side, source: Minion): void {
+    const spell = cards['starcrash'];
+    if (!spell?.spell) return;
+    const cels = living(side).filter((m) => isTribeOf(m, 'celestial', cards));
+    if (cels.length === 0) return;
+    const caster = { ...source, golden: false } as Minion;
+    nextStep();
+    castInCombat(ctx, caster, () => {
+      const pool = living(side).filter((m) => isTribeOf(m, 'celestial', cards));
+      if (pool.length === 0) return;
+      const target = rng.pick(pool);
+      if (resolveCombatSpellCast(ctx, caster, spell, [target]) && side === 'player') {
+        emit({ type: 'sc', source: source.uid, text: `Rune of the Guiding Star casts ${spell.name}`, spellId: spell.id, rune: 'rune_guiding_star' });
+      }
+    }, spell.id);
+  }
+  // RUNE OF THE HERALDING STAR / THE STARSONG (Set 3 design pass): every friendly CELESTIAL Shout fire. The Heralding
+  // Star banks +3/+3 for the Starform (settle applies it: the token lives in the Shop); the Starsong gives the living
+  // Celestials +2/+2 now (a combat buff, for this fight). One payout per fire and per copy held.
+  bus.on('battlecryTriggered', (payload) => {
+    const { side, minion } = payload as { side: Side; minion?: Minion };
+    if (!minion || !isTribeOf(minion, 'celestial', cards)) return;
+    const m = modsFor(side);
+    if (m.runeHeraldingStar) {
+      const n = 3 * flagCopiesOf(side, 'runeHeraldingStar');
+      fireTrigger('runeHeraldingStar', side);
+      ctx.gainStarform(n, n, side, 'Rune of the Heralding Star');
+    }
+    if (m.runeStarsong) {
+      const n = 2 * flagCopiesOf(side, 'runeStarsong');
+      fireTrigger('runeStarsong', side);
+      for (const c of living(side)) if (isTribeOf(c, 'celestial', cards)) ctx.buff(c, n, n, 'Rune of the Starsong');
+    }
+  });
   // Rune-granted run-wide AVENGE effects (no minion source): a bus handler fires every N friendly deaths. Rune of
   // Fury doubles them, matching how a minion's Avenge doubles (see registerEffect). Registered before the attack
   // loop so they catch every death.
@@ -5320,6 +5404,7 @@ export function simulate(
       undeadBuyAtkGain: undeadBuyAtkGain[side] > 0 ? undeadBuyAtkGain[side] : undefined,
       slaughterCopy: slaughterCopyId[side],
       undeadAuraGain: undeadAuraGain[side].attack > 0 || undeadAuraGain[side].health > 0 ? undeadAuraGain[side] : undefined,
+      starformGain: starformGain[side].length > 0 ? starformGain[side] : undefined,
       impBuffGain: impBuffGain[side].attack > 0 || impBuffGain[side].health > 0 ? impBuffGain[side] : undefined,
       // Cindara: only the GROWTH, not the level — settle adds it to the run's banked total, so a re-simulated
       // combat cannot double-count the improvement it started with.
@@ -5399,6 +5484,7 @@ export function simulate(
     playerUndeadBuyAtkGain: pc.undeadBuyAtkGain,
     playerSlaughterCopy: pc.slaughterCopy,
     playerUndeadAuraGain: pc.undeadAuraGain,
+    playerStarformGain: pc.starformGain,
     playerImpBuffGain: pc.impBuffGain,
     playerHoardGain: pc.hoardGain,
     playerRightmostSlotBuff: pc.rightmostSlotBuff,

@@ -110,8 +110,8 @@ describe('Set 3 rune cuts (owner 2026-09-24)', () => {
 
   it('the Set 3 static pool counts: 91 Basic / 83 Epic (owner Set 3 rune list 2026-09-25: 84 / 79 after Engraving Gems moved Epic → Basic, then rune batch 3 +7 / +4; was 119 / 108)', () => {
     const inS3 = (arr: typeof RUNES) => arr.filter((r) => !r.sets || r.sets.includes('set3'));
-    expect(inS3(RUNES)).toHaveLength(92); // 87 → 92 on 2026-09-27 (design pass tranche 1); 91 → 87 on 2026-09-27 (design pass tranche 0: −7 cut, +3 restored); 84 → 91 on 2026-09-25 (Set 3 rune batch 3); 83 → 84 on 2026-09-25: Engraving Gems moved Epic → Basic (owner); 119 → 83 on 2026-09-25 (set3RuneList.test.ts pins the exact ids)
-    expect(inS3(EPIC_RUNES)).toHaveLength(85); // 82 → 85 on 2026-09-27 (design pass tranche 1); 83 → 82 on 2026-09-27 (design pass tranche 0: −3 cut, +2 restored); 79 → 83 on 2026-09-25 (Set 3 rune batch 3); 80 → 79 on 2026-09-25: Engraving Gems moved Epic → Basic (owner); 108 → 80 on 2026-09-25
+    expect(inS3(RUNES)).toHaveLength(97); // 92 → 97 on 2026-09-27 (design pass tranche 2); 87 → 92 on 2026-09-27 (design pass tranche 1); 91 → 87 on 2026-09-27 (design pass tranche 0: −7 cut, +3 restored); 84 → 91 on 2026-09-25 (Set 3 rune batch 3); 83 → 84 on 2026-09-25: Engraving Gems moved Epic → Basic (owner); 119 → 83 on 2026-09-25 (set3RuneList.test.ts pins the exact ids)
+    expect(inS3(EPIC_RUNES)).toHaveLength(88); // 85 → 88 on 2026-09-27 (design pass tranche 2); 82 → 85 on 2026-09-27 (design pass tranche 1); 83 → 82 on 2026-09-27 (design pass tranche 0: −3 cut, +2 restored); 79 → 83 on 2026-09-25 (Set 3 rune batch 3); 80 → 79 on 2026-09-25: Engraving Gems moved Epic → Basic (owner); 108 → 80 on 2026-09-25
     // 26/28 → 25/27 on 2026-09-24: Full Hand (Basic) and Grave Orbit (Epic) left the cut list for the archive
     expect(CUT.filter((id) => !isEpic(id))).toHaveLength(25);
     expect(CUT.filter(isEpic)).toHaveLength(27);

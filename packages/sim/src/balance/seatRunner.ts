@@ -389,6 +389,7 @@ export function mirrorForEnemySeat(result: CombatResult): CombatResult {
     playerUndeadBuyAtkGain: c.undeadBuyAtkGain,
     playerSlaughterCopy: c.slaughterCopy,
     playerUndeadAuraGain: c.undeadAuraGain,
+    playerStarformGain: c.starformGain,
     playerImpBuffGain: c.impBuffGain,
     playerHoardGain: c.hoardGain,
     playerRightmostSlotBuff: c.rightmostSlotBuff,

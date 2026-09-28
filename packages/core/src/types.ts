@@ -377,6 +377,7 @@ export type EffectFactoryId =
   | 'rallyProcDeathrattle' // Rally: when this attacks, fire your leftmost minion's Deathrattle first (Deathsayer)
   | 'deathrattleGrantSpell' // Deathrattle: add a spell to your hand after combat (Arcane Weaver)
   | 'deathrattleGetRubies' // Rune of Echoing Kobolds' graft (2026-09-25): Echo, get `count` Rubies (minted at the live Ruby line)
+  | 'deathrattleBuffStarform' // Set 3 design pass — Rune of Stellar Echoes' graft: Echo: give your Starform +a/+h (combat: carried back via `gainStarform`)
   | 'deathrattleBuffHandTribe' // Echo: give the <tribe> minions IN YOUR HAND +a/+h — both phases; in combat it is permanent (R-HAND-02)
   | 'onRiseBuffSelfWard' // Set 3 Undead — Revenant: after a friendly minion Rises, this gains Ward and +a/+h (stacks)
   | 'onRiseBuffBoardAndHand' // Set 3 Undead — Rising Tide: when a friendly minion Rises, your minions on board AND in hand +a/+h
@@ -1828,7 +1829,16 @@ export type QuestCombatFlag = 'bloodTrail' | 'echoingCoop' | 'lawOfTeeth' | 'old
   // +1 Attack; gravedigger = a Shop destroy gives your Undead +2/+2 (Shop only); soulFurnace = the Undead Aura also
   // gives Health = ceil(Attack / 2); restless = a risen body's Echo triggers; openGrave = the first Shop destroy each
   // turn gains Rise first (Shop only).
-  | 'runeWake' | 'runeSecondWind' | 'runeSoulToll' | 'runeGravedigger' | 'runeSoulFurnace' | 'runeRestless' | 'runeOpenGrave';
+  | 'runeWake' | 'runeSecondWind' | 'runeSoulToll' | 'runeGravedigger' | 'runeSoulFurnace' | 'runeRestless' | 'runeOpenGrave'
+  // Tranche 2 (Celestial): heraldingStar = a Celestial Shout gives your Starform +3/+3; stellarEchoes = Celestials carry
+  // "Echo: give your Starform +2/+2"; scatteredLight = buying the Starform Collapses it instead (Shop only);
+  // afterglow = the Starform leaving the Shop gets a Star Crash (Shop only); starsong = a Celestial Shout gives your
+  // Celestials +2/+2; guidingStar = a Celestial Echo casts a Star Crash on a random friendly Celestial.
+  | 'runeHeraldingStar' | 'runeStellarEchoes' | 'runeScatteredLight' | 'runeAfterglow' | 'runeStarsong' | 'runeGuidingStar'
+  // gravity = every minion the Starform consumes gives your Celestials +2/+2 (Shop only: the Starform is a Shop token)
+  | 'runeGravity'
+  // meteorStorm = every Star Crash cast casts once more on a different friendly Celestial (never re-echoes)
+  | 'runeMeteorStorm';
 /** Quest-armed combat modifiers threaded into `simulate()` (one trailing options arg). Beast quest capstones +
  *  greaters live here so the pure combat engine can honor them without new positional params per flag. */
 export interface QuestCombatMods {
@@ -2097,6 +2107,20 @@ export interface QuestCombatMods {
   runeSoulFurnace?: boolean;
   /** Rune of the Restless: every friendly Rise triggers the risen body's Echo (the shared forced-Echo path). */
   runeRestless?: boolean;
+  // ── Set 3 rune design pass (owner 2026-09-27), tranche 2: Celestial ──
+  /** Rune of the Heralding Star: a friendly Celestial's Shout fire banks +3/+3 for your Starform (`starformGain`). */
+  runeHeraldingStar?: boolean;
+  /** Rune of Stellar Echoes: every Celestial SUMMONED this fight is grafted "Echo: give your Starform +2/+2". */
+  runeStellarEchoes?: boolean;
+  /** Rune of the Starsong: a friendly Celestial's Shout fire gives your living Celestials +2/+2 (for the fight). */
+  runeStarsong?: boolean;
+  /** Rune of the Guiding Star: a friendly Celestial Echo trigger casts a Star Crash on a random living friendly Celestial. */
+  runeGuidingStar?: boolean;
+  /** Rune of the Meteor Storm: every Star Crash cast this side makes casts once more (per copy) on a different
+   *  random living friendly Celestial; the extra cast never repeats itself. */
+  runeMeteorStorm?: boolean;
+  /** Rune of Falling Embers' Star Crash bonus (the run's `starCrashBonus`), so a combat Star Crash pays it too. */
+  starCrashBonus?: { attack: number; health: number };
   /** Rune of the War Drum's UNSPENT shop charge (owner ruling 2026-08-26: "1/1 use, resets at start of turn —
    *  if it is not used in shop, the first shout triggered in combat should work"). Present ONLY when the
    *  per-turn charge went unspent; the FIRST Shout triggered in combat on this side fires this many extra
@@ -3042,6 +3066,10 @@ export interface CombatCarryBacks {
   undeadBuyAtkGain?: number;
   slaughterCopy?: string;
   undeadAuraGain?: { attack: number; health: number };
+  /** Starform growth earned this fight (Set 3 design pass: Rune of the Heralding Star, Stellar Echoes' graft …), per
+   *  source. The Starform is a SHOP token, so it lands when the Shop exists again (the sanctioned Starform deferral):
+   *  settle applies it through `buffStarform`, AFTER the deferred Shop-only Shouts (a combat Star Seed's creation). */
+  starformGain?: { source: string; attack: number; health: number }[];
   impBuffGain?: { attack: number; health: number };
   hoardGain?: { attack: number; health: number };
   rightmostSlotBuff?: { attack: number; health: number };
@@ -3279,6 +3307,9 @@ export interface CombatResult {
    *  Undead everywhere). Added to `undeadAttackBonus`/`undeadHealthBonus` in settleCombat — the same channel a
    *  shop-cast Lantern uses. Absent if 0/0. */
   playerUndeadAuraGain?: { attack: number; health: number };
+  /** Starform growth earned this fight, per source (the `starformGain` carry-back): applied at settle through
+   *  `buffStarform` when a Starform stands in the Shop (none = nothing, as in the Shop). */
+  playerStarformGain?: { source: string; attack: number; health: number }[];
   /** Permanent Imp buff gained this combat (Imp King Deathrattle, Brood Matron Avenge) — added to
    *  RunState.impBuff so future Imps inherit it. Absent if 0/0. */
   playerImpBuffGain?: { attack: number; health: number };
@@ -3571,6 +3602,9 @@ export interface CombatContext {
    *  `CombatResult.playerDeferredBattlecries`. `golden` is the re-fired minion's golden state (so the factory
    *  doubles correctly). */
   deferBattlecry(cardId: string, golden: boolean, side: Side, sourceUid?: string): void;
+  /** "Give your Starform +A/+H" in combat (Set 3 design pass): the Starform is a Shop token, so the gain is banked
+   *  per source and carried back (`starformGain`); settle applies it. Both sides accumulate (symmetric carry). */
+  gainStarform(attack: number, health: number, side: Side, source: string): void;
   /** SHOUTS IN REAL TIME (R-REALTIME-03, owner 2026-09-26). The run-state grants a Shout makes AT THE MOMENT it
    *  fires in combat, carried back once at settle via `CombatResult.playerShoutCarry` (player-only, like every
    *  carry-back; the enemy half accumulates silently for self-play). Each logs its own live line. */
@@ -3653,6 +3687,12 @@ export interface CombatContext {
   rubyRuptureBouncesFor?(side: Side): number;
   /** Rune of Living Growth — this side's accrued Growth improvement (added to combat Growth casts). */
   growthBonusFor?(side: Side): number;
+  /** Rune of Falling Embers' "your Star Crashes give an additional +A/+H" for this side (Set 3 design pass: Star Crash
+   *  resolves in combat now, so the bonus folds in there too, as in the Shop). Absent = none. */
+  starCrashBonusFor?(side: Side): { attack: number; health: number };
+  /** A Star Crash just resolved in combat on `target` (Rune of the Meteor Storm listens: it casts it again on a
+   *  different friendly Celestial). Absent = nothing listens. */
+  onStarCrashCast?(side: Side, caster: Minion, target: Minion): void;
   /** Runesnout Archivist's journal for this side (see `CombatSideState.rememberedSpellIds`). */
   rememberedSpellsFor?(side: Side): readonly string[];
   /** Mossmemory Colossus — resummon up to `count` of the Beasts that died EARLIEST this combat on `side`,

@@ -103,7 +103,9 @@
 /* Missing: dimmed, the rarity frame still readable, a lock in the corner. */
 .colls-tile.missing { background: radial-gradient(120% 95% at 50% 0%, color-mix(in srgb, var(--rc) 9%, #0a1226), #060b17 78%);
   border-color: color-mix(in srgb, var(--rc) 34%, #0a1226); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.03), 0 8px 18px -14px #000; }
-.colls-tile.missing .colls-tile-name { color: rgba(255, 246, 228, 0.34); text-shadow: none; }
+.colls-tile.missing .colls-tile-name { color: rgba(255, 246, 228, 0.34); text-shadow: none; filter: blur(4px); user-select: none; }
+/* Owner 2026-09-28: "blur unowned titles". The name of a title you do not own is blurred (static, never animated),
+   on the tile, the detail nameplate and the preview; the rarity stays readable. */
 .colls-tile.missing .colls-tile-rar { opacity: 0.6; }
 .colls-tile.missing .colls-gem { opacity: 0.5; box-shadow: none; }
 .colls-tile.missing::after { border-color: rgba(232, 200, 119, 0.07); }
@@ -184,7 +186,7 @@
 .colls-plate-rar::before, .colls-plate-rar::after { content: ''; width: 46px; height: 2px; border-radius: 2px; background: linear-gradient(90deg, transparent, var(--rc)); }
 .colls-plate-rar::after { background: linear-gradient(90deg, var(--rc), transparent); }
 .colls-detail.missing .colls-plate { background: radial-gradient(120% 110% at 50% 0%, color-mix(in srgb, var(--rc) 10%, #0a1226), #060b17 80%); border-color: color-mix(in srgb, var(--rc) 45%, #0a1226); }
-.colls-detail.missing .colls-plate-name { color: rgba(255, 246, 228, 0.5); }
+.colls-detail.missing .colls-plate-name { color: rgba(255, 246, 228, 0.5); filter: blur(6px); user-select: none; }
 .colls-facts { display: grid; gap: 8px; }
 .colls-fact { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding: 9px 12px; border-radius: 10px; background: rgba(0, 0, 0, 0.25);
   border: 1px solid rgba(196, 160, 92, 0.16); font-size: 15px; }
@@ -195,7 +197,7 @@
 .colls-preview-lbl { align-self: flex-start; font-weight: 800; font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--colls-dim); margin-bottom: 4px; }
 .colls-preview-name { font-weight: 800; font-size: 17px; letter-spacing: 0.1em; text-transform: uppercase; color: rgba(232, 200, 119, 0.8); max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .colls-preview-title { font-weight: 800; font-size: 15px; letter-spacing: 0.12em; text-transform: uppercase; color: #ffe08a; }
-.colls-detail.missing .colls-preview-title { opacity: 0.55; }
+.colls-detail.missing .colls-preview-title { opacity: 0.55; filter: blur(4px); user-select: none; }
 .colls-detail-actions { display: flex; align-items: center; gap: 10px; margin-top: auto; }
 .colls-worn-tag { flex: 1; display: grid; place-items: center; min-height: 56px; border-radius: 10px; font-weight: 900; font-size: 16px; letter-spacing: 0.12em; text-transform: uppercase;
   color: #ffe08a; background: rgba(232, 200, 119, 0.12); border: 1.5px solid rgba(232, 200, 119, 0.6); }

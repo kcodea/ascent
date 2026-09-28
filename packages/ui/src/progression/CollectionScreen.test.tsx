@@ -304,4 +304,12 @@ describe('the Collection screen: stage and performance tripwires', () => {
       for (const p of props) expect(['transform', 'opacity'], `${name}: ${p}`).toContain(p);
     }
   });
+  // Owner 2026-09-28: "blur unowned titles". A static blur on the name (tile, nameplate, preview), never animated.
+  it('an unowned title name is blurred on the tile, the detail nameplate and the preview', () => {
+    for (const sel of ['.colls-tile.missing .colls-tile-name', '.colls-detail.missing .colls-plate-name', '.colls-detail.missing .colls-preview-title']) {
+      const rule = css.match(new RegExp(`${sel.replace(/\./g, '\\.')}\\s*\\{([^}]*)\\}`))?.[1] ?? '';
+      expect(rule, sel).toMatch(/filter:\s*blur\(\d+px\)/);
+    }
+    expect(css).not.toMatch(/transition:[^;]*filter/);
+  });
 });

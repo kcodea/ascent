@@ -212,6 +212,12 @@ export function extraTriggerFires(
 export const COMBATATIVE_RUBIES_ATTACKS = 3;
 export const BODY_COUNTING_DEATHS = 6; // owner 2026-09-27 (Set 3 rune design pass): was 8
 export const RUPTURED_RUBY_BOUNCES = 2;
+/** Rune of the Soul Furnace (Set 3 design pass, owner 2026-09-27): "Your Undead Aura also gives Health equal to half
+ *  its Attack." The derived Health term for an Aura Attack of `auraAttack` (the whole Undead Aura: the Lantern channel
+ *  plus the buy channel), per copy held. Half rounds UP (the design doc's ceil). One function for both phases. */
+export function soulFurnaceHealth(auraAttack: number, copies: number): number {
+  return copies > 0 ? Math.ceil(Math.max(0, auraAttack) / 2) * copies : 0;
+}
 
 export function socTwilightExtraFires(mods: { runeTwilight?: boolean; flagCopies?: Record<string, number> } | undefined): number {
   // +1 extra Start-of-Combat pass per Twilight copy held (boolean-flag family, owner 2026-08-27) — the
@@ -1816,7 +1822,13 @@ export type QuestCombatFlag = 'bloodTrail' | 'echoingCoop' | 'lawOfTeeth' | 'old
   // casts a permanent Ruby on 2 friendly Kobolds; bodyCounting = every 8th friendly death (a running meter) gets a
   // random Undead; aggressiveGolems = Gemheart Golems carry "Rally: give this minion's Attack to the minion to the
   // right"; rupturedRubies = every combat Ruby bounces twice after it lands.
-  | 'runeEchoingKobolds' | 'runeRubywire' | 'runeCombatativeRubies' | 'runeBodyCounting' | 'runeAggressiveGolems' | 'runeRupturedRubies';
+  | 'runeEchoingKobolds' | 'runeRubywire' | 'runeCombatativeRubies' | 'runeBodyCounting' | 'runeAggressiveGolems' | 'runeRupturedRubies'
+  // Set 3 rune design pass (owner 2026-09-27), tranche 1 (Undead): wake = an Undead Echo trigger raises the Undead
+  // Aura +1 Attack; secondWind = a risen body gains +2/+2 permanently; soulToll = Avenge (4) raises the Undead Aura
+  // +1 Attack; gravedigger = a Shop destroy gives your Undead +2/+2 (Shop only); soulFurnace = the Undead Aura also
+  // gives Health = ceil(Attack / 2); restless = a risen body's Echo triggers; openGrave = the first Shop destroy each
+  // turn gains Rise first (Shop only).
+  | 'runeWake' | 'runeSecondWind' | 'runeSoulToll' | 'runeGravedigger' | 'runeSoulFurnace' | 'runeRestless' | 'runeOpenGrave';
 /** Quest-armed combat modifiers threaded into `simulate()` (one trailing options arg). Beast quest capstones +
  *  greaters live here so the pure combat engine can honor them without new positional params per flag. */
 export interface QuestCombatMods {
@@ -2073,6 +2085,18 @@ export interface QuestCombatMods {
   runeAggressiveGolems?: boolean;
   /** Rune of Ruptured Rubies: every Ruby played in combat bounces twice (per copy held) after it lands. */
   runeRupturedRubies?: boolean;
+  // ── Set 3 rune design pass (owner 2026-09-27), tranche 1: Undead. Copies ride `flagCopies`. ──
+  /** Rune of the Wake: every friendly Undead Echo TRIGGER (the `asEcho` chokepoint) raises the Undead Aura +1 Attack. */
+  runeWake?: boolean;
+  /** Rune of the Second Wind: every friendly Rise gives the risen body +2/+2, permanently (carried back). */
+  runeSecondWind?: boolean;
+  /** Rune of the Soul Toll: Avenge (4) raises the Undead Aura +1 Attack (a `runeAvenge`, so Fury doubles it). */
+  runeSoulToll?: boolean;
+  /** Rune of the Soul Furnace: the Undead Aura also gives Health = ceil(Aura Attack / 2) per copy. The fight is
+   *  seeded with the term already inside `undeadHp`; a mid-fight Aura Attack rise re-derives it live. */
+  runeSoulFurnace?: boolean;
+  /** Rune of the Restless: every friendly Rise triggers the risen body's Echo (the shared forced-Echo path). */
+  runeRestless?: boolean;
   /** Rune of the War Drum's UNSPENT shop charge (owner ruling 2026-08-26: "1/1 use, resets at start of turn —
    *  if it is not used in shop, the first shout triggered in combat should work"). Present ONLY when the
    *  per-turn charge went unspent; the FIRST Shout triggered in combat on this side fires this many extra

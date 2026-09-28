@@ -20,7 +20,7 @@ import type {
   Side,
   Tribe,
 } from '../types';
-import { ALE_IDS, RUBY_TYPE_IDS, damageMeterOf, alignAllows, extraTriggerFires, foldEchoExtraFires, socTwilightExtraFires, COMBATATIVE_RUBIES_ATTACKS, BODY_COUNTING_DEATHS, RUPTURED_RUBY_BOUNCES } from '../types';
+import { ALE_IDS, RUBY_TYPE_IDS, damageMeterOf, alignAllows, extraTriggerFires, foldEchoExtraFires, socTwilightExtraFires, COMBATATIVE_RUBIES_ATTACKS, BODY_COUNTING_DEATHS, RUPTURED_RUBY_BOUNCES, soulFurnaceHealth } from '../types';
 import { makeRng, type Rng } from '../rng';
 import { CombatBus } from '../events';
 import { inRunTribes } from '../tribeGate';
@@ -533,6 +533,15 @@ export function simulate(
   const undeadAura: Record<Side, { attack: number; health: number; buyAtk: number }> = {
     player: { attack: playerState.undeadAtk, health: playerState.undeadHp, buyAtk: playerState.undeadBuyAtk },
     enemy: { attack: enemyState.undeadAtk, health: enemyState.undeadHp, buyAtk: enemyState.undeadBuyAtk },
+  };
+  // RUNE OF THE SOUL FURNACE (Set 3 design pass, 2026-09-27): the Undead Aura also gives Health = ceil(Aura Attack / 2)
+  // per copy. The run keeps the term inside `undeadHealthBonus`, so the fight is SEEDED with it (inside `undeadHp`);
+  // `furnaceHp` records that slice so a mid-fight Aura Attack rise re-derives it live (`resyncSoulFurnace`). The live
+  // delta is never carried back: the run re-derives its own term from the carried-back Attack at settle.
+  const furnaceCopies = (side: Side): number => (modsFor(side).runeSoulFurnace ? flagCopiesOf(side, 'runeSoulFurnace') : 0);
+  const furnaceHp: Record<Side, number> = {
+    player: soulFurnaceHealth(undeadAura.player.attack + undeadAura.player.buyAtk, furnaceCopies('player')),
+    enemy: soulFurnaceHealth(undeadAura.enemy.attack + undeadAura.enemy.buyAtk, furnaceCopies('enemy')),
   };
 
   // Attachment/Magnetic aura (Scrap Herald / Banksly welds), PER SIDE — a served enemy carries its own captured
@@ -1508,6 +1517,7 @@ export function simulate(
       // enemy side too, so a captured board's Undead-granter now buffs enemy Undead it summons afterward.
       undeadAura[side].buyAtk += amount;
       undeadBuyAtkGain[side] += amount; // carry-back delta
+      resyncSoulFurnace(side); // the Aura's Attack rose: the Soul Furnace's Health term follows, live
     },
     grantUndeadAura: (attack, health, side) => {
       // Watcher casting Lantern of Souls: bump the granting side's run-wide Undead aura (+Attack/+Health to its
@@ -1516,6 +1526,7 @@ export function simulate(
       undeadAura[side].attack += attack;
       undeadAura[side].health += health;
       undeadAuraGain[side].attack += attack; undeadAuraGain[side].health += health;
+      resyncSoulFurnace(side); // the Aura's Attack rose: the Soul Furnace's Health term follows, live
     },
     castSpell: (side) => {
       spellTotals[side] += 1; // count the cast first (the triggering spell is included, like recruit-phase Guel)
@@ -2140,6 +2151,9 @@ export function simulate(
       // it now fires on forced Echoes too, which is the point: the badge should burst whenever it pays.
       // One free refresh per copy held (boolean-flag family, owner 2026-08-27).
       if (source && modsFor(side).runeBurrow && isBeast(source)) { fireTrigger('runeBurrow', side); ctx.grantFreeRolls(flagCopiesOf(side, 'runeBurrow'), side); }
+      // RUNE OF THE WAKE (Set 3 design pass): an Undead Echo TRIGGER raises the Undead Aura +1 Attack per copy, live
+      // (the living Undead feel it now) and carried back (R-AURA-02). Forced Echoes reach this chokepoint too.
+      if (source && modsFor(side).runeWake && isUndeadMinion(source)) { fireTrigger('runeWake', side); raiseUndeadAura(side, flagCopiesOf(side, 'runeWake'), 'Rune of the Wake'); }
       // RUNE OF GRAVE REFRESHMENT: every Nth friendly Echo TRIGGER banks a free Shop refresh for next turn.
       // The same chokepoint as the Burrow above (not the death site), so a forced Echo — Echohorn, Hawkus,
       // Spots, the Herald — counts exactly like one that came from dying. The meter is combat-local: it
@@ -2888,6 +2902,7 @@ export function simulate(
       // re-slotted) so a watcher that buffs "your minions" reaches the risen body itself. The shop's twin is
       // `fireOnRise` in recruit.ts, off the same return (owner 2026-09-09: both phases, shop payouts permanent).
       bus.emit('onRise', { minion, side: minion.side });
+      runeRiseRunes(minion); // Set 3 design pass: the Second Wind, then the Restless (after the minion watchers)
       // A Rise IS a summon, in FULL (owner ruling 2026-08-12, superseding the 2026-07-13 "quest count only"
       // carve-out): the returned body runs the same summon-entry suite as any placed summon — onSummon
       // watchers (Beardsley / King Oona / Groveweaver), tribe auras, the Zoo ordinal, Remains, Emberline,
@@ -4737,6 +4752,45 @@ export function simulate(
     const twilightPasses = socTwilightExtraFires(modsFor(rside));
     for (let pass = 0; pass <= twilightPasses; pass++) runRuneStartOfCombat(rside, pass);
   }
+  // ── SET 3 RUNE DESIGN PASS (owner 2026-09-27): shared combat halves ───────────────────────────────────────────
+  /** Re-derive the Soul Furnace's Health term after the side's Undead Aura Attack rose: the living Undead gain the
+   *  difference now, and bodies summoned or risen later inherit it through `applyAuras` (it rides `undeadAura.health`). */
+  function resyncSoulFurnace(side: Side): void {
+    const copies = furnaceCopies(side);
+    if (copies === 0) return;
+    const ua = undeadAura[side];
+    const delta = soulFurnaceHealth(ua.attack + ua.buyAtk, copies) - furnaceHp[side];
+    if (delta <= 0) return;
+    furnaceHp[side] += delta;
+    ua.health += delta;
+    for (const m of living(side)) if (isUndeadMinion(m)) ctx.buff(m, 0, delta, 'Rune of the Soul Furnace');
+  }
+  /** "Give your Undead Aura +N Attack" in combat: the living Undead feel it now, the side's Aura rises for later
+   *  bodies, and the gain is carried back to the run (the Lantern channel, R-AURA-02). */
+  function raiseUndeadAura(side: Side, attack: number, source: string): void {
+    if (attack <= 0) return;
+    for (const m of living(side)) if (isUndeadMinion(m)) ctx.buff(m, attack, 0, source);
+    ctx.grantUndeadAura(attack, 0, side);
+  }
+  /** RUNE OF THE SECOND WIND / THE RESTLESS, combat half: after a friendly Rise the risen body gains +2/+2 per copy,
+   *  permanently (carried back like any permanent gift), then its Echo triggers once per Restless copy through the
+   *  shared forced-Echo path (every Echo multiplier, the `asEcho` chokepoint). */
+  function runeRiseRunes(minion: Minion): void {
+    const side = minion.side;
+    const m = modsFor(side);
+    if (m.runeSecondWind && !minion.dead && minion.health > 0) {
+      const n = 2 * flagCopiesOf(side, 'runeSecondWind');
+      nextStep();
+      fireTrigger('runeSecondWind', side);
+      ctx.buff(minion, n, n, 'Rune of the Second Wind');
+      if (!minion.keywords.includes('EG')) minion.permaGain = { attack: (minion.permaGain?.attack ?? 0) + n, health: (minion.permaGain?.health ?? 0) + n };
+    }
+    if (m.runeRestless && !minion.dead && minion.health > 0 && minion.effects.some((e) => e.on === 'onDeath')) {
+      nextStep();
+      fireTrigger('runeRestless', side);
+      for (let k = 0; k < flagCopiesOf(side, 'runeRestless'); k++) triggerEcho(ctx, minion, minion, 1);
+    }
+  }
   // Rune-granted run-wide AVENGE effects (no minion source): a bus handler fires every N friendly deaths. Rune of
   // Fury doubles them, matching how a minion's Avenge doubles (see registerEffect). Registered before the attack
   // loop so they catch every death.
@@ -4802,6 +4856,8 @@ export function simulate(
     }
     lvl.attack += 2; lvl.health += 2;
   });
+  // RUNE OF THE SOUL TOLL (Set 3 design pass, owner 2026-09-27): Avenge (4) raises the Undead Aura +1 Attack.
+  runeAvenge(4, 'runeSoulToll', (m) => !!m.runeSoulToll, (side) => { nextStep(); raiseUndeadAura(side, 1, 'Rune of the Soul Toll'); });
   runeAvenge(4, 'runeSpearline', (m) => !!m.runeSpearline, (side) => { // summon a Spear Warden that attacks immediately
     const knit = cards['knit'];
     if (knit) { nextStep(); summonMinion(side, knit, undefined, undefined, false, true); }

@@ -115,7 +115,11 @@ const SWEEP = runTextSweep({ contracts: CONTRACTS });
 // no grammar rule yet: Rune of Echoing Kobolds' quoted granted Echo ('Give your Kobolds "Echo: get a Ruby."'), Rune of
 // Body Counting's friendly-death count trigger ("When 8 friendly minions die,") and Rune of Sold Choices' "when sold
 // as well" re-trigger. Rune of Resonance's reordered text now parses fully (it was one of the Ruby batch's five).
-const UNRESOLVED_CAP = 97;
+// 2026-09-27 (Set 3 rune design pass, tranche 1): 97 → 101, CONSCIOUSLY. Four of the eight Undead runes carry a clause
+// the grammar has no rule for yet: Rune of the Gravedigger's "After you destroy a friendly minion in the Shop," trigger,
+// Rune of the Wake's "Whenever a friendly Undead triggers its Echo," trigger, Rune of the Open Grave's "before it
+// dies." timing tail, and Rune of the Soul Furnace's derived-Aura sentence. The other four parse fully.
+const UNRESOLVED_CAP = 101;
 /** Collapse floor: the parser fully consuming fewer objects than this means a grammar regression. */
 const PARSED_FLOOR = 900;
 /** The HARD ceiling (2026-09-11): the unresolved share of active objects may never reach this fraction again. A

@@ -43,6 +43,8 @@ const OWNER_TRIBE_RULINGS: Readonly<Record<string, Tribe>> = {
   // Set 3 rune design pass (owner 2026-09-27, the 5 approved re-tags): Gemheart Golems are Kobold only; Rise and
   // Overflow are Undead in Set 3; a minion summoned from hand is the Spirit line.
   rune_living_treasure: 'kobold', rune_rising_echoes: 'undead', rune_crowded_crypt: 'undead', rune_overflow: 'undead', rune_dreamed_graves: 'spirit',
+  // Design pass tranche 1 (owner-approved Undead runes, 2026-09-27): Rise is the Undead keyword.
+  rune_second_wind: 'undead', rune_restless: 'undead', rune_open_grave: 'undead',
 };
 
 /** The tribes of the bodies a reward GRANTS (Rune of Lazarus → Lazarus is Undead) — the 2026-09-10 ruling's

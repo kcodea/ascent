@@ -218,6 +218,7 @@ export const CARRY_OVER_EXCUSED: Readonly<Record<string, CarryOverExcuse>> = {
   meteorShowerUsedThisTurn: { kind: 'no-combat-meaning', why: 'Rune of the Meteor Shower\'s per-turn first-Star-Crash latch; keyed at noteSpellCast, a shop cast' },
   spellIdsThisTurn: { kind: 'no-combat-meaning', why: 'the turn\'s spell cast list, every kind (Charted Skies / Astral Refrain); shop casts only, and the runes pay in the shop' },
   revelryDoubledThisTurn: { kind: 'no-combat-meaning', why: 'Rune of Shared Revelry: which Reveler types already fired twice this turn — a per-turn sell latch' },
+  openGraveUsedThisTurn: { kind: 'no-combat-meaning', why: 'Rune of the Open Grave (Set 3 design pass): the per-turn charge for a SHOP destroy; combat never destroys in the Shop' },
   processionPlayedThisTurn: { kind: 'no-combat-meaning', why: 'Rune of the Grand Procession: Revelers PLAYED this turn toward its cap; playing is a shop action' },
   rubyCastsThisTurn: { kind: 'no-combat-meaning', why: 'per-turn shop Ruby-cast tally for threshold runes; combat Ruby casts ride the arena lane' },
 

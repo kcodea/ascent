@@ -1141,4 +1141,165 @@ export const RUNES_RULES: GameRule[] = [
     currentBehaviour: 'Conforms, FIXED 2026-09-27: it read "Get a Dwarve", which also missed the dwarf board-fit word.',
     enforcement: { kind: 'scenario', refs: ['packages/content/src/basicDwarvesText.test.ts'], lastVerifiedAt: '2026-09-27' },
   },
+  // ── Set 3 rune design pass (owner 2026-09-27), tranche 1: Undead ──
+  {
+    id: 'R-SET3RUNE-06',
+    title: "Rune of the Lantern Keeper: a Lantern of Souls now, then every 2 turns",
+    statement:
+      "Taking the rune gets a Lantern of Souls at once, then another every 2 turn setups (the Rare Goods cadence). The badge counts the turns toward the next one.",
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Owner rulings 2026-09-27 on the Set 3 rune design pass (set3-rune-design.md)", quote: "Approved as written: Every Undead, Celestial, Spirit and Dwarf rune in section 4, EXCEPT the four noted below." },
+      { kind: 'code', ref: "packages/content/src/runes.ts rune_lantern_keeper (grant + recurringGrant everyTurns 2)" },
+    ],
+    contentIds: ["rune_lantern_keeper"],
+    cardText: "Get a **Lantern of Souls**. Repeat every **2 turns**.",
+    currentBehaviour: 'Conforms (built with the rune, 2026-09-27).',
+    enforcement: {
+      kind: 'scenario',
+      refs: ["packages/sim/src/set3RuneDesignT1.test.ts"],
+      lastVerifiedAt: '2026-09-27',
+    },
+  },
+  {
+    id: 'R-SET3RUNE-07',
+    title: "Rune of the Wake: every friendly Undead Echo trigger gives the Undead Aura +1 Attack",
+    statement:
+      "Every time a friendly Undead triggers its Echo, in the Shop, at End of Turn or in combat, the Undead Aura gains +1 Attack (per copy held). Each extra trigger (Sylus, a forced Echo, the Restless) counts on its own. In combat the living Undead feel it at once and the gain is permanent (R-AURA-02).",
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Owner rulings 2026-09-27 on the Set 3 rune design pass (set3-rune-design.md)", quote: "Approved as written: Every Undead, Celestial, Spirit and Dwarf rune in section 4, EXCEPT the four noted below." },
+      { kind: 'code', ref: "packages/sim/src/recruit.ts fireRecruitDeathrattles (runeWakeShop); packages/core/src/combat/simulate.ts asEcho (raiseUndeadAura)" },
+    ],
+    contentIds: ["rune_wake"],
+    cardText: "Whenever a friendly **Undead** triggers its **Echo**, give your **Undead Aura +1 Attack**.",
+    currentBehaviour: 'Conforms (built with the rune, 2026-09-27).',
+    enforcement: {
+      kind: 'scenario',
+      refs: ["packages/sim/src/set3RuneDesignT1.test.ts", "packages/core/src/combat/set3RuneDesignT1.test.ts"],
+      lastVerifiedAt: '2026-09-27',
+    },
+  },
+  {
+    id: 'R-SET3RUNE-08',
+    title: "Rune of the Second Wind: a risen minion gains +2/+2 permanently",
+    statement:
+      "After a friendly minion Rises (Shop or combat), it gains +2/+2. The gain is permanent: a Shop buff is, and a combat gain is carried back to its board card.",
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Owner rulings 2026-09-27 on the Set 3 rune design pass (set3-rune-design.md)", quote: "Approved as written: Every Undead, Celestial, Spirit and Dwarf rune in section 4, EXCEPT the four noted below." },
+      { kind: 'code', ref: "packages/sim/src/recruit.ts fireOnRise (runeRiseRunesShop); packages/core/src/combat/simulate.ts runeRiseRunes (permaGain)" },
+    ],
+    contentIds: ["rune_second_wind"],
+    cardText: "After a friendly minion **Rises**, give it **+2/+2** permanently.",
+    currentBehaviour: 'Conforms (built with the rune, 2026-09-27).',
+    enforcement: {
+      kind: 'scenario',
+      refs: ["packages/sim/src/set3RuneDesignT1.test.ts", "packages/core/src/combat/set3RuneDesignT1.test.ts"],
+      lastVerifiedAt: '2026-09-27',
+    },
+  },
+  {
+    id: 'R-SET3RUNE-09',
+    title: "Rune of the Soul Toll: Avenge (4) gives the Undead Aura +1 Attack",
+    statement:
+      "Every 4th friendly death in a fight gives the Undead Aura +1 Attack: the living Undead feel it at once and the gain is permanent (R-AURA-02). It is an Avenge, so Rune of Fury doubles it. Built instead of the design doc's Rune of the Unquiet.",
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Owner rulings 2026-09-27 on the Set 3 rune design pass (set3-rune-design.md)", quote: "Undead: do NOT build Rune of the Unquiet. Build Rune of the Soul Toll instead (B3: \"Avenge (4): give your Undead Aura +1 Attack.\"). Do not build Mortal Coil." },
+      { kind: 'code', ref: "packages/core/src/combat/simulate.ts runeAvenge(4, 'runeSoulToll')" },
+    ],
+    contentIds: ["rune_soul_toll"],
+    cardText: "**Avenge (4):** give your **Undead Aura +1 Attack**.",
+    currentBehaviour: 'Conforms (built with the rune, 2026-09-27).',
+    enforcement: {
+      kind: 'scenario',
+      refs: ["packages/core/src/combat/set3RuneDesignT1.test.ts", "packages/sim/src/set3RuneDesignT1.test.ts"],
+      lastVerifiedAt: '2026-09-27',
+    },
+  },
+  {
+    id: 'R-SET3RUNE-10',
+    title: "Rune of the Gravedigger: a friendly Shop destroy gives your Undead +2/+2",
+    statement:
+      "After you destroy a friendly minion in the Shop (either destroy path, End of Turn included), every other Undead on your board gains +2/+2 (per copy held).",
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Owner rulings 2026-09-27 on the Set 3 rune design pass (set3-rune-design.md)", quote: "Approved as written: Every Undead, Celestial, Spirit and Dwarf rune in section 4, EXCEPT the four noted below." },
+      { kind: 'code', ref: "packages/sim/src/recruit.ts afterShopDestroy (runeGravediggerShop)" },
+    ],
+    contentIds: ["rune_gravedigger"],
+    cardText: "After you destroy a friendly minion in the **Shop**, give your **Undead +2/+2**.",
+    currentBehaviour: 'Conforms (built with the rune, 2026-09-27).',
+    enforcement: {
+      kind: 'scenario',
+      refs: ["packages/sim/src/set3RuneDesignT1.test.ts"],
+      lastVerifiedAt: '2026-09-27',
+    },
+  },
+  {
+    id: 'R-SET3RUNE-11',
+    title: "Rune of the Soul Furnace: the Undead Aura also gives Health equal to half its Attack",
+    statement:
+      "The Undead Aura (the Lantern channel plus the buy channel) also gives every Undead Health equal to half its Attack, rounded up, per copy. The term lives in the run's Undead Aura Health, so it shows on the board, in hand, in the Shop and in combat, and it rises the moment the Aura's Attack rises, mid-fight included. The mid-fight rise is not carried back; the run re-derives it from the Aura's Attack.",
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Owner rulings 2026-09-27 on the Set 3 rune design pass (set3-rune-design.md)", quote: "Approved as written: Every Undead, Celestial, Spirit and Dwarf rune in section 4, EXCEPT the four noted below." },
+      { kind: 'code', ref: "packages/sim/src/recruit.ts syncSoulFurnace (reducer action boundary); packages/core/src/combat/simulate.ts resyncSoulFurnace; packages/core/src/types.ts soulFurnaceHealth" },
+    ],
+    contentIds: ["rune_soul_furnace"],
+    cardText: "Your **Undead Aura** also gives **Health** equal to **half** its **Attack**.",
+    currentBehaviour: 'Conforms (built with the rune, 2026-09-27).',
+    enforcement: {
+      kind: 'scenario',
+      refs: ["packages/sim/src/set3RuneDesignT1.test.ts", "packages/core/src/combat/set3RuneDesignT1.test.ts"],
+      lastVerifiedAt: '2026-09-27',
+    },
+  },
+  {
+    id: 'R-SET3RUNE-12',
+    title: "Rune of the Restless: a risen minion triggers its Echo",
+    statement:
+      "After a friendly minion Rises (Shop or combat), its Echo triggers once per copy held, through the shared Echo path: every Echo multiplier applies and every rune that hears an Echo (the Wake) counts it.",
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Owner rulings 2026-09-27 on the Set 3 rune design pass (set3-rune-design.md)", quote: "Approved as written: Every Undead, Celestial, Spirit and Dwarf rune in section 4, EXCEPT the four noted below." },
+      { kind: 'code', ref: "packages/sim/src/recruit.ts runeRiseRunesShop (fireRecruitDeathrattles); packages/core/src/combat/simulate.ts runeRiseRunes (triggerEcho)" },
+    ],
+    contentIds: ["rune_restless"],
+    cardText: "After a friendly minion **Rises**, trigger its **Echo**.",
+    currentBehaviour: 'Conforms (built with the rune, 2026-09-27).',
+    enforcement: {
+      kind: 'scenario',
+      refs: ["packages/sim/src/set3RuneDesignT1.test.ts", "packages/core/src/combat/set3RuneDesignT1.test.ts"],
+      lastVerifiedAt: '2026-09-27',
+    },
+  },
+  {
+    id: 'R-SET3RUNE-13',
+    title: "Rune of the Open Grave: the first friendly Shop destroy each turn gains Rise first",
+    statement:
+      "The first friendly minion you destroy in the Shop each turn gains Rise before it dies, so it Rises. A minion that already has Rise does not use up the turn's charge. The charge comes back at the start of each turn.",
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Owner rulings 2026-09-27 on the Set 3 rune design pass (set3-rune-design.md)", quote: "Approved as written: Every Undead, Celestial, Spirit and Dwarf rune in section 4, EXCEPT the four noted below." },
+      { kind: 'code', ref: "packages/sim/src/recruit.ts armOpenGrave (destroyMinionInShop + settlePendingDeath); packages/sim/src/reducer.ts turn reset" },
+    ],
+    contentIds: ["rune_open_grave"],
+    cardText: "The first friendly minion you destroy in the **Shop** each turn gains **Rise** before it dies.",
+    currentBehaviour: 'Conforms (built with the rune, 2026-09-27).',
+    enforcement: {
+      kind: 'scenario',
+      refs: ["packages/sim/src/set3RuneDesignT1.test.ts"],
+      lastVerifiedAt: '2026-09-27',
+    },
+  },
 ];

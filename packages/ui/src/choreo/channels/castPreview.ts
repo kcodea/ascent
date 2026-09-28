@@ -22,7 +22,8 @@ export interface CombatSpellCast {
   /** The RUNE that cast it (Rune of Spellhide), when a rune is the caster: `source` is then only the body the cast
    *  resolved through. Its effect stems from the rune's node (owner ruling 2026-09-24). */
   rune?: string;
-  /** The side of a rune cast, so only the PLAYER's rune (the one on screen) is used as an anchor. */
+  /** The caster's side when the event stamps it (every rune cast does): only the PLAYER's rune (the one on screen)
+   *  is used as an anchor, and an ENEMY's cast plays its board-wide effect on the enemy's board. */
   side?: 'player' | 'enemy';
 }
 
@@ -32,7 +33,7 @@ export function spellCastsIn(moment: Pick<Moment, 'start' | 'end'>, events: read
   const out: CombatSpellCast[] = [];
   for (let i = moment.start; i < moment.end; i++) {
     const e = events[i];
-    if (e?.type === 'sc' && typeof e.spellId === 'string' && typeof e.source === 'string') out.push({ source: e.source, spellId: e.spellId, ...(e.rune ? { rune: e.rune, side: e.side } : {}) });
+    if (e?.type === 'sc' && typeof e.spellId === 'string' && typeof e.source === 'string') out.push({ source: e.source, spellId: e.spellId, ...(e.rune ? { rune: e.rune } : {}), ...(e.side ? { side: e.side } : {}) });
   }
   return out;
 }

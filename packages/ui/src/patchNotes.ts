@@ -130,6 +130,10 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: 'A golden book button next to the Settings gear opens the Compendium, no Tab key needed.',
+      },
+      {
+        category: 'Systems',
         text: 'New skins in crates: 13 more minion looks.',
         details: [
           'Drakko: Rock Star Drakko, Crowd Surf Drakko and Cashier Drakko.',

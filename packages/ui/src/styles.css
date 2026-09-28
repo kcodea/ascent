@@ -6141,6 +6141,11 @@ svg { width: 18px; height: 18px; }
 .gearbtn { position: fixed; bottom: calc(var(--bar-y) + 16px + env(safe-area-inset-bottom)); right: calc(var(--bar-x) + 16px + env(safe-area-inset-right)); width: calc(40 * var(--u)); height: calc(40 * var(--u)); border-radius: calc(12 * var(--u)); border: 2px solid var(--line); background: color-mix(in srgb, var(--card) 88%, transparent); color: var(--ink2); display: grid; place-items: center; cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; z-index: 85; box-shadow: 0 6px 18px -8px rgba(0, 0, 0, 0.5); }
 .gearbtn:hover { border-color: var(--acc); color: var(--ink); transform: rotate(35deg); transition: transform 0.2s ease; }
 .gearbtn svg { width: calc(21 * var(--u)); height: calc(21 * var(--u)); }
+/* The Compendium book, one gear-width + a 10px gap left of the gear (Game.tsx). Same plate as the gear so the
+   pair reads as one cluster; the gold art sits inside. `.gtip` (the global hover bubble) names it. */
+.bookbtn { position: fixed; bottom: calc(var(--bar-y) + 16px + env(safe-area-inset-bottom)); right: calc(var(--bar-x) + 16px + 40 * var(--u) + 10px + env(safe-area-inset-right)); width: calc(40 * var(--u)); height: calc(40 * var(--u)); padding: 0; border-radius: calc(12 * var(--u)); border: 2px solid var(--line); background: color-mix(in srgb, var(--card) 88%, transparent); display: grid; place-items: center; z-index: 85; box-shadow: 0 6px 18px -8px rgba(0, 0, 0, 0.5); transition: transform 0.15s ease, border-color 0.15s ease; }
+.bookbtn:hover { border-color: var(--acc); transform: translateY(-2px); }
+.bookbtn img { width: calc(30 * var(--u)); height: calc(30 * var(--u)); pointer-events: none; }
 /* Build badge — sits just above the gear (scales with --u so it clears the gear at any resolution box). */
 .version { position: fixed; right: calc(var(--bar-x) + 16px + env(safe-area-inset-right)); bottom: calc(var(--bar-y) + 16px + 40 * var(--u) + 7px + env(safe-area-inset-bottom)); z-index: 84; pointer-events: none; user-select: none; text-align: right; font-family: var(--font-ui); font-weight: 800; font-size: calc(11 * var(--u)); letter-spacing: 0.03em; color: var(--ink3); opacity: 0.72; }
 .version span { font-weight: 600; opacity: 0.7; }

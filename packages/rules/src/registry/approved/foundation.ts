@@ -2084,4 +2084,22 @@ export const FOUNDATION_RULES: GameRule[] = [
     currentBehaviour: 'Conforms, built 2026-09-28.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/heroBlast/heroBlast.test.ts'], lastVerifiedAt: '2026-09-28' },
   },
+  {
+    id: 'R-PROG-ATTACK-04',
+    title: 'Every hero attack anchors on the centre of each round portrait AT REST (never a wrapper, never mid-entrance)',
+    statement:
+      'Blast and Quake both measure the two heroes once, at the start of the attack, on the round portrait ART (the player's '
+      + '.heroimg, the foe's .combatopp-img), not on a wrapper (the player's also holds the name pill). Any CSS animation '
+      + 'still running on the foe portrait (its drop-in, mid-flight when a tuner preview mounts it) is seeked to its end for '
+      + 'that one measure and put back, so the impact, the ring and the -N always land centred on the portrait, in combat, '
+      + 'in replays and in the shop preview. This fix changed Blast too (it shares the anchor).',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-28 (Quake anchor bug)', quote: 'you can see the foe area isnt centered. can you fix that? may be wrong for blast too' },
+      { kind: 'code', ref: 'packages/ui/src/heroBlast/portraits.ts (portraitGeometry, restingRect)' },
+    ],
+    currentBehaviour: 'Conforms, fixed 2026-09-28.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/heroBlast/portraits.test.ts'], lastVerifiedAt: '2026-09-28' },
+  },
 ];

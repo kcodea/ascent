@@ -8,7 +8,41 @@ Owner review: "quake looks solid" (the visual direction approved). Owner bug rep
 Nothing changes for players until the owner deploys `progression-inventory` (the catalog sync adds `attack_quake`). The
 equip SQL already accepts the `hero_attack` slot, so no new migration.
 
-## What shipped
+## The rework (same day)
+
+Owner: "the quake animation is not up to par with the others. can you take a quick pass at improving that? maybe only the
+huge hit should quake, and the others can be slightly different? i think the line animation is over used. i also think
+the quake itself could look a bit better, maybe faster but then have pixi burst out of it almost like an eruption." The
+bar is Arcana ("arcana looks so god damn good"), so the rework copies its rules: one bold hero element per tier, normal
+blend for solid stone and additive only for light, short fills and lingering line work, ticks before the impact.
+
+- **Tiers I-III: boulders, no crack line.** The hero stomps (no cracks), a boulder is ripped out of the ground and lobbed
+  (the arc rises toward screen-up with a ceiling, a shadow slides along the ground under it, dust streams off it), and a
+  crown of STONE SPIKES bursts out round the struck portrait (pointing outward, so the face is never covered) with a
+  spray of molten grit. I: one boulder; II: two (the first lands as a tick); III: three hot, glowing boulders, magma in
+  the spray. Only the last boulder lands the blow.
+- **Tier IV: the only earthquake, faster.** The fracture now takes 280 ms (was 720) and the board cracks are fewer, then
+  the ERUPTION: a short light burst, two shock rings, the spike crown, a violent upward spray of molten streaks, the
+  pillar with jets, embers, the crater, follow-up booms. The impact fills were cut down (shorter, smaller) so the `-N`
+  never sits in a white disc.
+- New tuner dials per tier: Earthquake (toggle), Boulders, Boulder size, Boulder flight, Throw gap, Arc height, Stone
+  spikes, Spike height, Magma spray; a "throw" sound cue (`woosh2`); a Tier II (8) Play button.
+
+Timeline after the rework (ms at 1x, 1600 px apart; end includes both hit-stops):
+
+| tier | concept | slam | impact | end |
+| --- | --- | --- | --- | --- |
+| I (3) | one boulder | 875 | 1335 | 2046 |
+| II (8) | two boulders | 1120 | 1710 | 2571 |
+| III (14) | three hot boulders | 1490 | 2150 | 3205 |
+| IV (40) | quake + eruption | 1860 | 2140 | 3490 |
+
+Perf after the rework (PROD build, same rig): IV you 1432 frames p50 4.2 / p99 4.3 / worst 20.8 (1 over budget); IV foe
+worst 12.5 (0 over); III, II and I p99 4.3, worst 16.7 (1 over each).
+
+The first pass, below, is kept as the history; its per-tier crack ladder (I one crack ... IV the cataclysm) is replaced.
+
+## What shipped (first pass)
 
 - **Shared core** (`packages/ui/src/heroAttack/`), factored out of Blast with its behaviour unchanged (all 27 Blast
   tests, including the pinned per-tier timeline, pass untouched): `tiers.ts` (the owner-approved thresholds 6 / 12 / 20,

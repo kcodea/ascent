@@ -214,10 +214,10 @@ progression **epoch**; nothing finished before the epoch counts (no backfill).
   (the lunge) is everyone's default; **Blast** is the first cosmetic, `attack_blast` ("Arcane Barrage", Legendary,
   from crates; animation and tier thresholds owner-approved): the contributing numbers combine into one total, the hero charges, the view pushes in, and bolts (a single
   beam on the biggest hits) carry the blow, escalating by damage tier (I 1-5, II 6-11, III 12-19, IV 20+). **Quake** is the
-  second, `attack_quake` ("Tectonic Slam", Legendary, from crates; R-PROG-ATTACK-05): the same combine, then the hero slams
-  the ground, a crack races to the target under a building rumble and the ground erupts under the struck hero, on the SAME
-  tiers (I a thin crack and a pop of dust; II branches and rocks; III fissures, magma and bursts along the path; IV the board
-  cracks, a pillar of magma, follow-up explosions). Both anchor on the round portrait art at rest (R-PROG-ATTACK-04). Equipped
+  second, `attack_quake` ("Tectonic Slam", Legendary, from crates; R-PROG-ATTACK-05): the same combine, then the hero
+  stomps. Tiers I-III hurl boulders (one, two, three hot ones) that burst a crown of stone spikes out round the struck hero;
+  only Tier IV is an earthquake: a quick fracture races to the target and the ground erupts (a light burst, a shock ring, a
+  spray of magma, a pillar, follow-up explosions). Same tiers as Blast. Both anchor on the round portrait art at rest (R-PROG-ATTACK-04). Equipped
   account-wide in the Collection's Attack Animations tab ("Use Classic" takes it off). The STRIKER's attack plays:
   yours when you win, the opponent's (from their recorded snapshot) when they win. Recorded per run like skins;
   unknown or retired ids play Classic. Presentation only: the same blow, landed once on the impact beat.

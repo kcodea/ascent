@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Application, type Container, type Ticker } from 'pixi.js';
 import { sfx } from '../sfx';
+import { stageScale } from '../stage';
 import { playHeroBlast, type HeroBlastHandle } from './heroBlast';
 import { heroBlastPreviewSpeed } from './heroBlastConfig';
 import './heroAttackPreview.css';
@@ -43,7 +44,7 @@ export function HeroAttackPreview({ style, reducedMotion }: { style: string; red
       if (!host) return null;
       try {
         const a = new Application();
-        await a.init({ resizeTo: host, backgroundAlpha: 0, antialias: true, autoDensity: true, resolution: Math.min(window.devicePixelRatio || 1, 2), preference: 'webgl' });
+        await a.init({ resizeTo: host, backgroundAlpha: 0, antialias: true, autoDensity: true, resolution: Math.min(window.devicePixelRatio || 1, 2) * stageScale(), preference: 'webgl' });
         if (gone.current) { a.destroy(true, { children: true, texture: false }); return null; }
         a.canvas.setAttribute('aria-hidden', 'true');
         host.appendChild(a.canvas);

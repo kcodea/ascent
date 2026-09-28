@@ -304,7 +304,9 @@ export function resetHeroBlastConfig(): void {
 
 /** The tuned values as JSON for pasting back into DEFAULTS (the preview-only keys left out). */
 export function heroBlastConfigJson(c: HeroBlastConfig = cfg): string {
-  const { previewDamage: _d, previewParts: _p, ...ship } = c;
+  const ship: Partial<HeroBlastConfig> = { ...c };
+  delete ship.previewDamage;
+  delete ship.previewParts;
   return JSON.stringify(ship, null, 2);
 }
 

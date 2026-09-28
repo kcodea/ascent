@@ -278,8 +278,9 @@ for (const e of EQUIPMENT) equipmentByName.set(norm(e.name), e.id);
  * is attributed by the CATALOG, not by a name match: each skin item in packages/progression/src/cosmetics.ts names
  * its master file (`assets.master`) and the in-repo art key (`assets.art`, = the cosmetic id). That is stricter than
  * a name match (a file wires only when an item claims it by its exact filename) and it survives a rename of the
- * skin, the card or the hero. Registered as FULL-STEM aliases so the trailing `1`/`2` in `BlackBeltBrianSkin2.png`
- * is never read as the `<id>2` variant convention. An item whose target no longer exists is skipped and reported.
+ * skin, the card or the hero. Registered as FULL-STEM aliases so a trailing digit in a master (`Albus1.png`,
+ * `Warden1.png`) is never read as the `<id>2` variant convention; the rarity-named masters (`BlackBeltBrianSkinEpic.png`,
+ * `BellringerVossSkinEpic.png`) are matched by their full stem the same way. An item whose target no longer exists is skipped and reported.
  */
 const SKIN_MASTERS: Record<string, string> = {};
 for (const c of COSMETICS) {

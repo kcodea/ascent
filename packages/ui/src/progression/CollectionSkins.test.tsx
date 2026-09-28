@@ -67,14 +67,15 @@ describe('the Heroes and Minions tabs', () => {
     open();
     expect(tab('Heroes').className).not.toMatch(/\blocked\b/);
     expect(tab('Heroes').querySelector('.colls-tab-count')?.textContent).toBe('1/2');
-    expect(tab('Minions').querySelector('.colls-tab-count')?.textContent).toBe('1/2');
-    expect(text('.colls-meter-num')).toBe('3 / 20');
+    // 2026-09-28: three Black Belt Brian skins and one Bellringer Voss skin, so Minions is 1/4 and the album 22 items
+    expect(tab('Minions').querySelector('.colls-tab-count')?.textContent).toBe('1/4');
+    expect(text('.colls-meter-num')).toBe('3 / 22');
   });
 
   it('tiles show the art and the target; unowned are dimmed + blurred (missing) with a lock', () => {
     open();
     act(() => tab('Minions').click());
-    expect(tileNames().sort()).toEqual(['Glitch Brian', 'Sheriff Brian']);
+    expect(tileNames().sort()).toEqual(['Clocktower Voss', 'Glitch Brian', 'Grandmaster Brian', 'Sheriff Brian']);
     const owned = tile('Sheriff Brian');
     expect(owned.className).toMatch(/\bskin\b/);
     expect(owned.className).toMatch(/\bowned\b/);
@@ -142,12 +143,12 @@ describe('the kill switch in the Collection (retired = hidden, owned or not; res
     act(() => tab('Minions').click());
     expect(tileNames()).toContain('Sheriff Brian');
     act(() => applyServerCatalogState({ retiredIds: ['skin_blackbelt_1'], disabledCategories: [] }));
-    expect(tileNames()).toEqual(['Glitch Brian']);
-    expect(tab('Minions').querySelector('.colls-tab-count')?.textContent).toBe('0/1');
-    expect(text('.colls-meter-num')).toBe('2 / 19');
+    expect(tileNames()).toEqual(['Grandmaster Brian', 'Glitch Brian', 'Clocktower Voss']); // rarest first, then catalog order
+    expect(tab('Minions').querySelector('.colls-tab-count')?.textContent).toBe('0/3');
+    expect(text('.colls-meter-num')).toBe('2 / 21');
     act(() => applyServerCatalogState({ retiredIds: [], disabledCategories: [] }));
     expect(tile('Sheriff Brian').className).toMatch(/\bowned\b/);
-    expect(text('.colls-meter-num')).toBe('3 / 20');
+    expect(text('.colls-meter-num')).toBe('3 / 22');
   });
 
   it('a disabled CATEGORY becomes a locked Soon tab', () => {
@@ -155,6 +156,6 @@ describe('the kill switch in the Collection (retired = hidden, owned or not; res
     act(() => applyServerCatalogState({ retiredIds: [], disabledCategories: ['hero_skin'] }));
     expect(tab('Heroes').className).toMatch(/\blocked\b/);
     expect(tab('Heroes').textContent).toContain('Soon');
-    expect(text('.colls-meter-num')).toBe('2 / 18');
+    expect(text('.colls-meter-num')).toBe('2 / 20');
   });
 });

@@ -55,6 +55,10 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: 'A Legendary Black Belt Brian skin joins the crates.',
+      },
+      {
+        category: 'Systems',
         text: 'Skins are here. Crates can now give hero and minion skins, and you can equip them in the Collection.',
         details: [
           'The first four: two looks for Black Belt Brian, one for Albus and one for Warden.',

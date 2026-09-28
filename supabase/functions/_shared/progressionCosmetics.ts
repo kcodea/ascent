@@ -139,8 +139,12 @@ export const COSMETICS: readonly CosmeticDef[] = Object.freeze([
   title('title_the_unbroken', 'The Unbroken', 'legendary'),
   // SKINS (owner 2026-09-28: "let's use these 2 black belt brian skins as our first 2 skin concepts" and "these 2
   // hero skins as our first 2 hero skin concepts"). Names and rarities are placeholders for the owner to rename.
-  skin('skin_blackbelt_1', 'minion_skin', 'Sheriff Brian', 'rare', 'blackbelt', 'BlackBeltBrianSkin1.png'),
-  skin('skin_blackbelt_2', 'minion_skin', 'Glitch Brian', 'epic', 'blackbelt', 'BlackBeltBrianSkin2.png'),
+  // Owner 2026-09-28 renamed the masters by rarity (Skin1 -> SkinRare, Skin2 -> SkinEpic; same art) and added a
+  // Legendary: "i added a legendary black belt brian skin and renaemd skins to match their rarity". The name is a
+  // placeholder for the owner to rename.
+  skin('skin_blackbelt_1', 'minion_skin', 'Sheriff Brian', 'rare', 'blackbelt', 'BlackBeltBrianSkinRare.png'),
+  skin('skin_blackbelt_2', 'minion_skin', 'Glitch Brian', 'epic', 'blackbelt', 'BlackBeltBrianSkinEpic.png'),
+  skin('skin_blackbelt_3', 'minion_skin', 'Grandmaster Brian', 'legendary', 'blackbelt', 'BlackBeltBrianSkinLegendary.png'),
   skin('skin_albus_1', 'hero_skin', 'Surf Day Albus', 'epic', 'albus', 'Albus1.png'),
   skin('skin_warden_1', 'hero_skin', 'Bath Day Warden', 'epic', 'warden', 'Warden1.png'),
 ]);

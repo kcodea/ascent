@@ -1922,5 +1922,21 @@ export const FOUNDATION_RULES: GameRule[] = [
     ],
     currentBehaviour: 'Conforms, built 2026-09-28.',
     enforcement: { kind: 'scenario', refs: ['packages/progression/src/skins.db.test.ts', 'packages/progression/src/skins.test.ts', 'packages/ui/src/progression/CollectionSkins.test.tsx'], lastVerifiedAt: '2026-09-28' },
+  },  {
+    id: 'R-PROG-SKINS-06',
+    title: 'Black Belt Brian has three crate skins, one per rarity: Rare, Epic and Legendary',
+    statement:
+      'Black Belt Brian (card id blackbelt) has three minion skins in the crate pool: skin_blackbelt_1 (Rare), skin_blackbelt_2 '
+      + '(Epic) and skin_blackbelt_3 (Legendary). Each ships its own art (packages/ui/src/art/skins/<id>.webp), and its master '
+      + 'is named for its rarity (BlackBeltBrianSkinRare / SkinEpic / SkinLegendary.png). Adding the Legendary changes the '
+      + 'first-crate odds to Common 50.2%, Rare 33.2%, Epic 14.9%, Legendary 1.8%, and a skin 26.8%.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-28 (Legendary Brian skin)', quote: 'i added a legendary black belt brian skin and renaemd skins to match their rarity' },
+      { kind: 'code', ref: 'packages/progression/src/cosmetics.ts (COSMETICS, skin_blackbelt_3); packages/ui/src/art/skins/skin_blackbelt_3.webp' },
+    ],
+    currentBehaviour: 'Conforms, built 2026-09-28. Reaches the database on the next deploy of progression-inventory (the catalog sync, R-PROG-SKINS-05).',
+    enforcement: { kind: 'scenario', refs: ['packages/progression/src/skins.test.ts', 'packages/progression/src/cosmetics.test.ts', 'packages/ui/src/skins/skins.test.tsx'], lastVerifiedAt: '2026-09-28' },
   },
 ];

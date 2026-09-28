@@ -85,8 +85,9 @@ describe('the roll', () => {
 
   it('never rolls a rarity first: with every Common owned, a crate still always gives an item', () => {
     const noCommons = eligibleCrateCosmetics(crateItems.filter((c) => c.rarity !== 'legendary').map((c) => c.id));
-    expect(noCommons.map((c) => c.id)).toEqual(['title_the_unbroken']);
-    expect(pickCrateReward(noCommons, 0)!.id).toBe('title_the_unbroken');
+    // 2026-09-28: the Legendary Black Belt Brian skin joined the one Legendary title, so two items remain.
+    expect(noCommons.map((c) => c.id)).toEqual(['skin_blackbelt_3', 'title_the_unbroken']);
+    expect(pickCrateReward(noCommons, 0)!.id).toBe('skin_blackbelt_3');
     expect(pickCrateReward(noCommons, crateTotalWeight(noCommons) - 1)!.id).toBe('title_the_unbroken');
   });
 
@@ -99,13 +100,17 @@ describe('the roll', () => {
     expect(pickCrateReward(all, 1e9)!.id).toBe(all[all.length - 1]!.id);
   });
 
-  it('the odds of a first crate with the skins in (2026-09-28): Common 50.9%, Rare 33.7%, Epic 15.1%, Legendary 0.4%; a skin 25.8%', () => {
+  // Re-pinned 2026-09-28 when the Legendary Black Belt Brian skin joined (was Common 50.9 / Rare 33.7 / Epic 15.1 /
+  // Legendary 0.4 / skin 25.8). Weights (rarity x category) of the full pool: Common 3850, Rare 2550, Epic 1140,
+  // Legendary 135 (the Unbroken title 30 + Grandmaster Brian 105) of 7675; the skins 2055.
+  it('the odds of a first crate with the skins in (2026-09-28): Common 50.2%, Rare 33.2%, Epic 14.9%, Legendary 1.8%; a skin 26.8%', () => {
     const all = eligibleCrateCosmetics([]);
     const total = crateTotalWeight(all);
     const pct = (xs: typeof all): number => Math.round((1000 * xs.reduce((s, c) => s + crateWeightOf(c), 0)) / total) / 10;
     const share = (r: string): number => pct(all.filter((c) => c.rarity === r));
-    expect([share('common'), share('rare'), share('epic'), share('legendary')]).toEqual([50.9, 33.7, 15.1, 0.4]);
-    expect(pct(all.filter((c) => c.category !== 'title'))).toBe(25.8);
+    expect([share('common'), share('rare'), share('epic'), share('legendary')]).toEqual([50.2, 33.2, 14.9, 1.8]);
+    expect(pct(all.filter((c) => c.category !== 'title'))).toBe(26.8);
+    expect(total).toBe(7675);
     // the titles-only launch odds are unchanged when the skins are switched off (the kill switch path)
     const titlesOnly = all.filter((c) => c.category === 'title');
     const t = crateTotalWeight(titlesOnly);

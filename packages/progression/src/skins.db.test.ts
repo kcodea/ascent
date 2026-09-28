@@ -243,7 +243,7 @@ describe('the kill switch (owner 2026-09-28: "remove any rewards from the game")
     expect((await profile(holder)).cosmetics!.sort()).toEqual(['skin_albus_1', 'skin_blackbelt_1']);
 
     await db.exec(RESTORE_CATEGORY);
-    expect((await poolIds(fresh)).filter((id) => id.startsWith('skin_blackbelt')).sort()).toEqual(['skin_blackbelt_1', 'skin_blackbelt_2']);
+    expect((await poolIds(fresh)).filter((id) => id.startsWith('skin_blackbelt')).sort()).toEqual(['skin_blackbelt_1', 'skin_blackbelt_2', 'skin_blackbelt_3']);
     await equip(holder, 'minion_skin', 'blackbelt', 'skin_blackbelt_1');
     expect((await profile(holder)).loadout).toEqual({ heroSkinByHeroId: { albus: 'skin_albus_1' }, minionSkinByCardId: { blackbelt: 'skin_blackbelt_1' } });
   });
@@ -304,30 +304,31 @@ describe('the catalog sync (owner 2026-09-28: "make it automated when i add skin
   });
 
   it('INSERTS a new item and UPDATES a changed one', async () => {
+    // skin_blackbelt_9 is a hypothetical item that is NOT in code (skin_blackbelt_3 became real on 2026-09-28).
     const p = base();
     p.items = [...p.items.map((i) => (i.cosmeticId === 'skin_albus_1' ? { ...i, rarity: 'legendary' } : i)),
-      { cosmeticId: 'skin_blackbelt_3', category: 'minion_skin', rarity: 'rare', acquisitionSource: 'crate', milestoneLevel: null, targetType: 'card', targetId: 'blackbelt', achievementId: null, active: true }];
+      { cosmeticId: 'skin_blackbelt_9', category: 'minion_skin', rarity: 'rare', acquisitionSource: 'crate', milestoneLevel: null, targetType: 'card', targetId: 'blackbelt', achievementId: null, active: true }];
     const res = await sync(p, 'test-hash-add-1');
     expect(res).toMatchObject({ status: 'synced', itemsChanged: 2, itemsDeactivated: 0 });
-    expect(await itemRow('skin_blackbelt_3')).toMatchObject({ category: 'minion_skin', rarity: 'rare', active: true, admin_off: false });
+    expect(await itemRow('skin_blackbelt_9')).toMatchObject({ category: 'minion_skin', rarity: 'rare', active: true, admin_off: false });
     expect((await itemRow('skin_albus_1'))!.rarity).toBe('legendary');
-    expect(await poolIds(await playerOwning([]))).toContain('skin_blackbelt_3');
+    expect(await poolIds(await playerOwning([]))).toContain('skin_blackbelt_9');
   });
 
   it('an item REMOVED from code is marked inactive, never deleted (ownership keeps it); active:false in code retires too', async () => {
-    const owner = await playerOwning(['skin_blackbelt_3']);
+    const owner = await playerOwning(['skin_blackbelt_9']);
     const items = base().items.map((i) => (i.cosmeticId === 'skin_warden_1' ? { ...i, active: false } : i));
     const res = await sync({ ...base(), items }, 'test-hash-remove-1');
     expect(res).toMatchObject({ status: 'synced', itemsDeactivated: 1 });
-    expect(await itemRow('skin_blackbelt_3')).toMatchObject({ active: false });
-    expect((await profile(owner)).cosmetics).toContain('skin_blackbelt_3');
+    expect(await itemRow('skin_blackbelt_9')).toMatchObject({ active: false });
+    expect((await profile(owner)).cosmetics).toContain('skin_blackbelt_9');
     const pool = await poolIds(await playerOwning([]));
-    expect(pool).not.toContain('skin_blackbelt_3');
+    expect(pool).not.toContain('skin_blackbelt_9');
     expect(pool).not.toContain('skin_warden_1');
     expect((await sync()).status).toBe('synced'); // the real catalog again
     expect(await itemRow('skin_warden_1')).toMatchObject({ active: true });
     expect((await itemRow('skin_albus_1'))!.rarity).toBe('epic');
-    expect(await itemRow('skin_blackbelt_3')).toMatchObject({ active: false }); // still not in code
+    expect(await itemRow('skin_blackbelt_9')).toMatchObject({ active: false }); // still not in code
   });
 
   it('a category switched off in code, or missing from code, switches off in the database', async () => {

@@ -765,6 +765,29 @@ describe('Account Level (account progression, 2026-09-27)', () => {
     expect(useGame.getState().accountPanelOpen).toBe(true);
   });
 
+  it('crates live (2026-09-28): your own card gets a Collection button with the sealed count; it opens the Collection', async () => {
+    act(() => {
+      useProgression.setState({
+        capability: 'on', cratesCapability: 'off',
+        mirror: { userId: 'me-1', accountXp: 325, accountLevel: 2, revision: 3, equippedTitleId: 'title_ironbeard', titles: ['alpha_tester', 'title_ironbeard'] },
+        crateList: [
+          { crateId: 'c-1', earnedLevel: 1, state: 'opened', rewardId: 'title_ironbeard', earnedAt: null, openedAt: null },
+          { crateId: 'c-2', earnedLevel: 2, state: 'sealed', rewardId: null, earnedAt: null, openedAt: null },
+        ],
+      });
+    });
+    await remount();
+    expect(ui.container.querySelector('.cv2-acctlevel-coll')).toBeNull(); // crates switch off: no Collection
+    expect(text('.cv2-left .cv2-playertitle')).toEqual(['Ironbeard']); // a crate title shows under the name
+    act(() => { useProgression.setState({ cratesCapability: 'on' }); });
+    await remount();
+    expect(text('.cv2-acctlevel-coll')).toEqual(['Collection1']);
+    click(ui.container.querySelector('.cv2-acctlevel-coll'));
+    await flush();
+    expect(ui.container.querySelector('.coll-box')).not.toBeNull();
+    expect(text('.coll-titlename')).toEqual(['Alpha Tester', 'Ironbeard']);
+  });
+
   it('a fresh account reads Level 1, 0 / 250 with no title; a signed-in owner gets no reminder', async () => {
     act(() => {
       useGame.setState({ account: { userId: 'me-1', email: 'kev@example.com', anonymous: false, discriminator: null }, accountPanelOpen: false });

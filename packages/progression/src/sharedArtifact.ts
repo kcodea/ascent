@@ -10,6 +10,8 @@
 export const SHARED_ARTIFACTS: ReadonlyArray<{ source: string; target: string }> = [
   { source: 'rules.ts', target: 'progressionRules.ts' },
   { source: 'server.ts', target: 'progressionServer.ts' },
+  { source: 'cosmetics.ts', target: 'progressionCosmetics.ts' },
+  { source: 'inventory.ts', target: 'progressionInventory.ts' },
 ];
 
 const HEADER = (source: string): string =>

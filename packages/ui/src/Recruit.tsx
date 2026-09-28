@@ -13,6 +13,9 @@ import type { CompiledBeat } from './choreographer/timelineTypes';
 import type { ConsequenceEvent, Keyword } from '@game/core';
 import { ALE_IDS } from '@game/core';
 
+/** Consequence types whose cosmetic cue a QUIET paced repeat tick skips (its stats still land). R-REPEAT-04. */
+const QUIET_TICK_SKIPS: ReadonlySet<string> = new Set(['statsChanged', 'spellResolved']);
+
 /**
  * CHOREOGRAPHER PR 4 — opt into the authoritative End-of-Turn player.
  *
@@ -6436,10 +6439,19 @@ export function Recruit() {
     const player = createTimelinePlayer(timeline, {
       onConsequence: (delivery) => {
         const beat = beatsById.get(delivery.beatId);
-        if (beat) presentConsequence({ consequence: delivery.consequence.payload as ConsequenceEvent, beat, ctx: presenterCtx });
+        if (!beat) return;
+        const consequence = delivery.consequence.payload as ConsequenceEvent;
+        // A QUIET repeat tick (R-REPEAT-04, `choreographer/repeatPacing.ts`): its stats still land (the projection
+        // folds every delivery), but its ribbon and cast flourish are skipped, so 100+ fast ticks do not throw 200
+        // ribbons at the board. Accent ticks (the lead-in, spaced slot starts, the final tick) still draw theirs.
+        if (beat.pace && !beat.pace.accent && QUIET_TICK_SKIPS.has(consequence.type)) return;
+        presentConsequence({ consequence, beat, ctx: presenterCtx });
       },
       onBeatActivate: (beat) => {
         beatsById.set(beat.id, beat); // indexed here so a consequence can always resolve its source beat
+        // A QUIET repeat tick plays no source cue and no trigger sound: the chain's accents already carry them,
+        // spaced at least `accentGapMs` apart, so a fast chain ticks without a wall of noise (R-REPEAT-04).
+        if (beat.pace && !beat.pace.accent) return;
         // Only a beat with a card instance can light a medallion; rune/quest beats animate via their rail.
         const uid = beat.source.uid;
         // A MINION-sourced beat that belongs to a RUNE (Rune of the Reliquary firing an Echo, Lasting Cadence

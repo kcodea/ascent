@@ -3,13 +3,14 @@
  *
  * Account Level is a permanent, earn-only number that grows with every completed game. It never touches the
  * ranked ladder. This file is THE rules: the versioned XP curve, match XP for Ranked / Practice / Tutorial, the
- * comeback streak, the one MVP title (Alpha Tester at Level 2), the fact document the client derives at run end,
+ * comeback streak, the level-milestone titles (Alpha Tester at Level 2) and crates per level, the fact document the client derives at run end,
  * and the presentation payload the server returns.
  *
- * DEPENDENCY-FREE ON PURPOSE. `scripts/gen-progression-shared.mjs` copies this file VERBATIM into
+ * DEPENDENCY-FREE ON PURPOSE (its one import is the sibling catalog, `cosmetics.ts`, generated alongside).
+ * `npm run progression:shared` copies this file VERBATIM into
  * `supabase/functions/_shared/progressionRules.ts`, the module the `submit-progression` Edge Function (Deno)
  * imports. `sharedArtifact.test.ts` fails CI when the two drift, so there is exactly ONE hand-edited copy of the
- * TypeScript rules. The SQL writer (`settle_progression` in the 2026-09-27 migration) carries the same numbers
+ * TypeScript rules. The SQL writer (`settle_progression`, latest in the 2026-09-28 crates migration) carries the same numbers
  * as plpgsql constants; `sqlParity.test.ts` reads them out of the migration text and compares, and the Edge
  * Function re-derives every settlement from this file at runtime and flags `parity: false` on a mismatch.
  *
@@ -18,6 +19,8 @@
  * A CURVE change also bumps `PROGRESSION_CURVE_VERSION`: lifetime XP is stored, the level is derived, so a new
  * curve re-derives every account's level without touching its XP.
  */
+
+import { COSMETICS, milestoneLevelOf } from './cosmetics';
 
 // ── Versions ────────────────────────────────────────────────────────────────────────────────────────────────
 
@@ -256,21 +259,20 @@ export function isProgressionFacts(v: unknown): v is ProgressionRunFactsV1 {
     && !!c && nonNegInt(c.wins) && nonNegInt(c.losses) && nonNegInt(c.draws);
 }
 
-// ── Titles (MVP: one) ──────────────────────────────────────────────────────────────────────────────────────
+// ── Titles (level milestones; the catalog lives in cosmetics.ts) ──────────────────────────────────────────
 
 export interface TitleDef {
   id: string;
   /** Player-facing. */
   name: string;
-  /** Unlocked by reaching this Account Level (null: granted some other way, reserved for later). */
+  /** Unlocked by reaching this Account Level (null: from a crate or some other source). */
   unlockLevel: number | null;
 }
 
-/** Owner 2026-09-27: the MVP's only reward. Everyone unlocks it at Level 2. */
-export const ALPHA_TESTER_TITLE_ID = 'alpha_tester';
-export const TITLES: Readonly<Record<string, TitleDef>> = Object.freeze({
-  [ALPHA_TESTER_TITLE_ID]: { id: ALPHA_TESTER_TITLE_ID, name: 'Alpha Tester', unlockLevel: 2 },
-});
+/** Every title in the catalog (level milestones AND crate titles), keyed by id. */
+export const TITLES: Readonly<Record<string, TitleDef>> = Object.freeze(Object.fromEntries(
+  COSMETICS.filter((c) => c.category === 'title').map((c) => [c.id, { id: c.id, name: c.name, unlockLevel: milestoneLevelOf(c) }]),
+));
 
 /** The display name of a title id, or null for an unknown id (a newer server's title on an older client). */
 export const titleName = (id: string | null | undefined): string | null => (id && TITLES[id] ? TITLES[id]!.name : null);
@@ -287,6 +289,17 @@ export function titlesUnlockedBetween(levelBefore: number, levelAfter: number): 
     .map((t) => t.id);
 }
 
+// ── Crates per level (handoff §5.1) ──────────────────────────────────────────────────────────────────────
+
+/**
+ * The crates an account holds for reaching `level`: one per level, Level 1's being the Welcome Crate granted on
+ * enrollment. So an account at Level L has earned exactly L crates, and a settlement from `before` to `after`
+ * creates `after - before` (plus the Welcome Crate when it is the account's first settlement).
+ */
+export const cratesEarnedThrough = (level: number): number => Math.max(0, Math.floor(level));
+export const cratesForSettlement = (levelBefore: number, levelAfter: number, enrolling: boolean): number =>
+  Math.max(0, levelAfter - levelBefore) + (enrolling ? 1 : 0);
+
 // ── The presentation payload (what `settle_progression` returns, key for key) ─────────────────────────────
 
 export interface ProgressionResult {
@@ -302,6 +315,10 @@ export interface ProgressionResult {
   after: { lifetimeXp: number; level: number };
   /** Titles this settlement unlocked for the first time (the reveal list). */
   unlockedTitles: string[];
+  /** Sealed crates this settlement created (one per new level, plus the Welcome Crate on enrollment). */
+  cratesAwarded: number;
+  /** Their ids, oldest level first (the post-game Open button opens these). */
+  crateIds: string[];
   revisionAfter: number;
   settledAt: string | null;
 }
@@ -347,7 +364,10 @@ export function parseProgressionResult(v: unknown): ProgressionResult | null {
     runId: o.runId, mode: o.mode as ProgressionMode, rulesVersion,
     placement: placement !== null && isValidPlacement(placement) ? placement : null,
     comeback: o.comeback === true, xp, before, after,
-    unlockedTitles: stringList(o.unlockedTitles), revisionAfter,
+    unlockedTitles: stringList(o.unlockedTitles),
+    // A pre-crates server (the 2026-09-27 SQL) sends neither: read as none.
+    cratesAwarded: Math.max(0, int(o.cratesAwarded) ?? 0), crateIds: stringList(o.crateIds),
+    revisionAfter,
     settledAt: typeof o.settledAt === 'string' ? o.settledAt : null,
   };
 }

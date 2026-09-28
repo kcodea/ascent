@@ -19,14 +19,23 @@ describe('generated Deno copies of the progression rules', () => {
     });
   }
 
-  it('the rules file stays dependency-free (Deno bundles it with no import map)', () => {
-    const rules = readFileSync(join(root, 'packages/progression/src/rules.ts'), 'utf8');
-    expect(rules).not.toMatch(/^\s*import\s/m);
+  it('the shared sources stay dependency-free: they import only each other (Deno bundles them with no import map)', () => {
+    const siblings = new Set(SHARED_ARTIFACTS.map((a) => `./${a.source.replace(/\.ts$/, '')}`));
+    for (const a of SHARED_ARTIFACTS) {
+      const text = readFileSync(join(root, 'packages/progression/src', a.source), 'utf8');
+      const froms = [...text.matchAll(/^\s*(?:import|export)\s[^;]*?from\s+'([^']+)';/gms)].map((m) => m[1]!);
+      for (const f of froms) expect(siblings.has(f), `${a.source} imports ${f}`).toBe(true);
+    }
+    // cosmetics.ts is the leaf: it imports nothing at all
+    expect(readFileSync(join(root, 'packages/progression/src/cosmetics.ts'), 'utf8')).not.toMatch(/^\s*import\s/m);
   });
 
-  it('the Edge Function entry imports the generated modules, never the package', () => {
+  it('the Edge Function entries import the generated modules, never the package', () => {
     const entry = readFileSync(join(root, 'supabase/functions/submit-progression/index.ts'), 'utf8');
     expect(entry).toContain("from '../_shared/progressionServer.ts'");
     expect(entry).not.toContain('@game/');
+    const inventory = readFileSync(join(root, 'supabase/functions/progression-inventory/index.ts'), 'utf8');
+    expect(inventory).toContain("from '../_shared/progressionInventory.ts'");
+    expect(inventory).not.toContain('@game/');
   });
 });

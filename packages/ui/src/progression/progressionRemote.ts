@@ -8,12 +8,16 @@
  *  - `fetchProgressionEnabled`: the CAPABILITY PROBE. The feature is off until the owner has run the migration
  *    AND set `progression_config.epoch`; until then the client queues nothing and shows nothing.
  *  - `fetchOwnProgression` / `fetchPublicProgression`: the profile columns (+ titles) for the mirror and Career.
+ *  - CRATES (2026-09-28): `fetchCratesEnabled` (the second probe: the crates migration has run and
+ *    `crates_enabled` is on), `fetchOwnCrates`, and the `progression-inventory` Edge Function (`openCrateRemote`,
+ *    `equipTitleRemote`). Opening and equipping are interactive and never queued: a failure is shown, not retried.
  *
  * Never throws; every read is time-boxed.
  */
 import {
-  PROGRESSION_RULES_VERSION, TUTORIAL_COURSE_ID, TUTORIAL_COURSE_VERSION, parseProgressionProfile, parseProgressionResult,
-  type ProgressionMode, type ProgressionProfile, type ProgressionResult, type ProgressionRunFactsV1,
+  COSMETIC_INDEX, PROGRESSION_RULES_VERSION, TUTORIAL_COURSE_ID, TUTORIAL_COURSE_VERSION, parseCrate, parseOpenCrateResult, parseProgressionProfile,
+  parseProgressionResult, type CrateRow, type OpenCrateResult, type ProgressionMode, type ProgressionProfile, type ProgressionResult,
+  type ProgressionRunFactsV1,
 } from '@game/progression';
 import { currentUserId } from '../identity';
 import { supabaseClient } from '../remoteBoards';
@@ -138,21 +142,127 @@ async function fetchProgressionOf(userId: string): Promise<ProgressionProfile | 
     const [prof, titles] = await Promise.race([
       Promise.all([
         Promise.resolve(c.from('profiles').select(PROFILE_COLUMNS).eq('user_id', userId).limit(1)),
-        Promise.resolve(c.from('player_titles').select('title_id, unlocked_at').eq('user_id', userId).order('unlocked_at', { ascending: true })),
+        fetchOwnedTitleIds(userId),
       ]),
       timeout(READ_TIMEOUT_MS, [null, null] as const),
     ]);
     if (!prof || prof.error) return undefined; // pre-migration columns, offline, timeout
     const row = (prof.data as Array<Record<string, unknown>> | null)?.[0];
     if (!row) return null;
-    const titleIds = titles && !titles.error
-      ? ((titles.data as Array<{ title_id?: unknown }> | null) ?? []).map((t) => t.title_id).filter((t): t is string => typeof t === 'string')
-      : [];
     return parseProgressionProfile({
       accountXp: row.account_xp, accountLevel: row.account_level, revision: row.progression_revision,
-      equippedTitleId: row.equipped_title_id, titles: titleIds,
+      equippedTitleId: row.equipped_title_id, titles: titles ?? [],
     }) ?? undefined;
   } catch {
     return undefined;
   }
+}
+
+/**
+ * A player's owned titles, oldest first. Since 2026-09-28 ownership of every cosmetic is `player_cosmetics`
+ * (public read), filtered to titles through the catalog; before the crates migration runs it falls back to the
+ * MVP's `player_titles`. Null = could not ask.
+ */
+async function fetchOwnedTitleIds(userId: string): Promise<string[] | null> {
+  const c = supabaseClient();
+  if (!c) return null;
+  const owned = await Promise.resolve(
+    c.from('player_cosmetics').select('cosmetic_id, unlocked_at, cosmetic_catalog(category)').eq('user_id', userId).order('unlocked_at', { ascending: true }),
+  );
+  if (!owned.error) {
+    const rows = (owned.data as Array<{ cosmetic_id?: unknown; cosmetic_catalog?: { category?: unknown } | null }> | null) ?? [];
+    return rows
+      .filter((r) => (r.cosmetic_catalog?.category ?? COSMETIC_INDEX[String(r.cosmetic_id)]?.category) === 'title')
+      .map((r) => r.cosmetic_id)
+      .filter((t): t is string => typeof t === 'string');
+  }
+  const legacy = await Promise.resolve(c.from('player_titles').select('title_id, unlocked_at').eq('user_id', userId).order('unlocked_at', { ascending: true }));
+  if (legacy.error) return null;
+  return ((legacy.data as Array<{ title_id?: unknown }> | null) ?? []).map((r) => r.title_id).filter((t): t is string => typeof t === 'string');
+}
+
+// ── Crates (2026-09-28) ───────────────────────────────────────────────────────────────────────────────────
+
+/**
+ * THE CRATES PROBE. `true` = the crates migration has run and `progression_config.crates_enabled` is on;
+ * `false` = asked, and it is not (no column yet, or switched off); `undefined` = could not ask.
+ */
+export async function fetchCratesEnabled(): Promise<boolean | undefined> {
+  const c = supabaseClient();
+  if (!c) return undefined;
+  try {
+    const res = await Promise.race([
+      Promise.resolve(c.from('progression_config').select('crates_enabled').eq('id', 1).limit(1)),
+      timeout(READ_TIMEOUT_MS, null),
+    ]);
+    if (!res) return undefined;
+    if (res.error) {
+      const code = String((res.error as { code?: string }).code ?? '');
+      return code === '42P01' || code === 'PGRST205' || code === 'PGRST204' || code === '42703' ? false : undefined;
+    }
+    return (res.data as Array<{ crates_enabled?: unknown }> | null)?.[0]?.crates_enabled === true;
+  } catch {
+    return undefined;
+  }
+}
+
+/** THIS account's crates (owner-only read), oldest level first. `undefined` = could not ask. */
+export async function fetchOwnCrates(): Promise<CrateRow[] | undefined> {
+  const c = supabaseClient();
+  const userId = currentUserId();
+  if (!c || !userId) return undefined;
+  try {
+    const res = await Promise.race([
+      Promise.resolve(c.from('loot_crates').select('crate_id, earned_level, state, reward_cosmetic_id, earned_at, opened_at').eq('user_id', userId).order('earned_level', { ascending: true })),
+      timeout(READ_TIMEOUT_MS, null),
+    ]);
+    if (!res || res.error) return undefined;
+    return ((res.data as unknown[] | null) ?? []).map(parseCrate).filter((x): x is CrateRow => !!x);
+  } catch {
+    return undefined;
+  }
+}
+
+export type InventoryOutcome<T> = { status: 'ok'; value: T; profile: ProgressionProfile } | { status: 'error'; reason: string };
+
+async function invokeInventory(body: Record<string, unknown>): Promise<{ data: Record<string, unknown> } | { error: string }> {
+  const c = supabaseClient();
+  if (!c) return { error: 'no_backend' };
+  if (!currentUserId()) return { error: 'no_session' };
+  try {
+    const call = c.functions.invoke('progression-inventory', { body }) as Promise<{ data: unknown; error: unknown }>;
+    const raced = await Promise.race([call, timeout(SUBMIT_TIMEOUT_MS, { timedOut: true } as const)]);
+    if ('timedOut' in raced) return { error: 'timeout' };
+    if (raced.error) {
+      const e = raced.error as { context?: { status?: number; json?: () => Promise<unknown> }; message?: string };
+      let code = '';
+      try {
+        const parsed = e.context?.json ? await e.context.json() : null;
+        code = typeof (parsed as { error?: unknown } | null)?.error === 'string' ? (parsed as { error: string }).error : '';
+      } catch { /* no readable body */ }
+      return { error: code || (e.context?.status ? `http_${e.context.status}` : e.message || 'function_error') };
+    }
+    return { data: (raced.data ?? {}) as Record<string, unknown> };
+  } catch (e) {
+    return { error: `network:${(e as Error)?.message ?? 'unknown'}` };
+  }
+}
+
+/** Open one crate. The server picks the reward; the client only names the crate. */
+export async function openCrateRemote(crateId: string): Promise<InventoryOutcome<OpenCrateResult>> {
+  const r = await invokeInventory({ action: 'open_crate', crateId });
+  if ('error' in r) return { status: 'error', reason: r.error };
+  const value = parseOpenCrateResult(r.data);
+  const profile = parseProgressionProfile(r.data.profile);
+  if (!value || !profile) return { status: 'error', reason: 'server_outdated' };
+  return { status: 'ok', value, profile };
+}
+
+/** Equip an owned title (null takes it off). The server checks ownership. */
+export async function equipTitleRemote(titleId: string | null): Promise<InventoryOutcome<null>> {
+  const r = await invokeInventory({ action: 'equip_title', titleId });
+  if ('error' in r) return { status: 'error', reason: r.error };
+  const profile = parseProgressionProfile(r.data.profile);
+  if (!profile) return { status: 'error', reason: 'server_outdated' };
+  return { status: 'ok', value: null, profile };
 }

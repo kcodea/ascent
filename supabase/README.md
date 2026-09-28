@@ -134,6 +134,15 @@ and `_shared/progressionRules.ts`, both **GENERATED** from `packages/progression
 The full owner runbook (migration, deploy, the epoch switch, anon probes) is in
 `docs/devlog/2026-09-27-account-progression-mvp.md`.
 
+## `functions/progression-inventory` — open crates, equip titles (2026-09-28)
+
+The **only** path that opens a level crate, grants a cosmetic from one, or changes the equipped title. A client
+sends `{ action: 'open_crate', crateId }` or `{ action: 'equip_title', titleId }`; the function verifies the JWT and
+calls `open_crate` / `equip_title` as the service role (reward chosen at open time, never a duplicate, an empty
+pool keeps the crate sealed; equip checks ownership). Logic in `_shared/progressionInventory.ts` +
+`_shared/progressionCosmetics.ts`, both **GENERATED** by `npm run progression:shared`. Deploy:
+`npx supabase functions deploy progression-inventory`. Runbook: `docs/devlog/2026-09-28-progression-crates.md`.
+
 ### Note
 
 This directory is **Deno**, not part of the Node monorepo build: the repo's `tsc`/`eslint` skip it

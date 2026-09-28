@@ -51,6 +51,28 @@ export interface PatchNote {
 /** Newest first. PREPEND new entries. */
 export const PATCH_NOTES: PatchNote[] = [
   {
+    date: '2026-09-28',
+    changes: [
+      {
+        category: 'Systems',
+        text: 'Level crates: every Account Level now gives you a crate, and your first game gives you a Welcome Crate.',
+        details: [
+          'Open a crate to get a new title. There are 15 to find, from Common to Legendary.',
+          'You never get a title you already own.',
+          'Open it right after the game, or later from the Collection button on your Career.',
+          'Pick the title you wear in the Collection. Other players see it on your Career.',
+          'Already leveled up? Your crates are waiting for you.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-09-27',
+    changes: [
+      { category: 'Systems', text: 'Fix: when an opponent casts Growth in combat (like their Fatecarver), the effect now plays on their board, not yours.' },
+    ],
+  },
+  {
     date: '2026-09-27',
     label: 'Rune tuning',
     changes: [
@@ -85,6 +107,17 @@ export const PATCH_NOTES: PatchNote[] = [
           'Finishing the Learn Ascent tutorial the first time earns 250 XP.',
           'Your level, XP and title show after each game and on your Career.',
           'Playing as a guest? Your XP counts. Create an account to keep it on any device.',
+        ],
+      },
+      {
+        category: 'Systems',
+        text: 'End of Turn effects that repeat now speed up. A big Kringle no longer takes minutes to finish.',
+        details: [
+          'Every repeat still lands on its own, and the numbers still climb as they land.',
+          'The first few repeats play at normal speed, then they speed up fast.',
+          'The repeats of one card never take longer than about two and a half seconds, however many there are.',
+          'Sounds and buff trails are thinned out on the fast repeats, so it stays clean to watch.',
+          'Covers Kringle, Striker, Mother Moss, Rope Wrangler, Rune of Action and doubled End of Turn effects.',
         ],
       },
       {

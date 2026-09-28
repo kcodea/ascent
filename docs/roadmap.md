@@ -438,11 +438,13 @@ offsets in `styles.css`).
 
 ## Next
 
-- **Account progression, after the MVP** (MVP built 2026-09-27, see
-  `docs/devlog/2026-09-27-account-progression-mvp.md`; owner runs its runbook first). The handoff's later phases:
-  level crates + the cosmetic catalog (the ledger already carries `crates_awarded`), achievements on the
-  `ProgressionRunFactsV1` observer, titles on lobby name plates (needs the title in the seat snapshot), an
-  equip-title control, and replay verification for practice-sourced XP.
+- **Account progression, after crates** (MVP 2026-09-27 and level crates + the 15-title catalog 2026-09-28, see
+  `docs/devlog/2026-09-27-account-progression-mvp.md` and `docs/devlog/2026-09-28-progression-crates.md`; the owner
+  runs each runbook). Next: the owner's cosmetic ART as catalog rows (minion / hero skins, attack animations,
+  announcers, boards, music; each needs its category switched on in `cosmetics.ts` AND the SQL seed, plus the
+  in-game rendering and a run cosmetic snapshot, handoff §13), more titles before players exhaust 15 (about
+  Level 15), achievements on the `ProgressionRunFactsV1` observer, titles on lobby name plates (needs the title in
+  the seat snapshot), level-milestone rewards (handoff §5.7), and replay verification for practice-sourced XP.
 
 - **Apply the owner's writing rule to the engine-side player copy** (rule + the `packages/ui` sweep shipped
   2026-09-21, see `docs/devlog/2026-09-21-player-text-style.md`): ~35 hero blurbs / power texts in

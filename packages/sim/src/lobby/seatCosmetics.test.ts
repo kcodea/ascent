@@ -3,7 +3,8 @@ import type { BoardSnapshot } from '../snapshot';
 import { scopeCosmetics, snapshotBoard } from '../snapshot';
 import { registerOpponents } from '../opponents';
 import { createRun, serialize, deserialize } from '../state';
-import { createRunLobby } from './runLobby';
+import { createLobbyRun, createRunLobby } from './runLobby';
+import { deltaShopFrameOf, shopFrameOf } from '../replayV2';
 import { playerRunsFrom } from './snapshotSeats';
 
 /**
@@ -83,5 +84,25 @@ describe('the pool and the lobby carry the owner\'s skins', () => {
     for (const s of lobby.seats.filter((x) => x.kind !== 'snapshot')) expect('cosmetics' in s, s.id).toBe(false);
     // the seat is plain data: it survives the JSON round trip a save / replay frame takes
     expect(JSON.parse(JSON.stringify(skye)).cosmetics).toEqual(skye!.cosmetics);
+  });
+});
+
+describe('replay v2 fidelity: the recorded skins ride the frames', () => {
+  it('a shop frame carries the run skins AND every seat recorded skins, through JSON (the IndexedDB round trip)', () => {
+    // (createRunLobby with no set filter, so the test pool's set-1 boards seat; createLobbyRun pins the active set)
+    const run = { ...createLobbyRun(1234, 'cia', {}, 'lobby'), lobby: createRunLobby(1234, 'cia'), cosmetics: { heroSkinByHeroId: { cia: 'skin_x' }, minionSkinByCardId: { blackbelt: 'skin_blackbelt_1' } } };
+    const frame = JSON.parse(JSON.stringify(shopFrameOf(run, 'turnStart', 0)));
+    expect(frame.view.cosmetics).toEqual(run.cosmetics);
+    const seat = frame.view.lobby.seats.find((s: { heroId: string; kind: string }) => s.kind === 'snapshot' && s.heroId === 'albus');
+    expect(seat.cosmetics).toEqual({ heroSkinByHeroId: { albus: 'skin_albus_1' }, minionSkinByCardId: { blackbelt: 'skin_blackbelt_2' } });
+  });
+
+  it('skins never change mid-run, so a delta frame never re-sends them (no replay bloat)', () => {
+    const run = { ...createLobbyRun(1234, 'cia', {}, 'lobby'), cosmetics: { heroSkinByHeroId: { cia: 'skin_x' } } };
+    const first = shopFrameOf(run, 'turnStart', 0);
+    const next = { ...run, embers: run.embers + 1 };
+    const d = deltaShopFrameOf(first.view, next, 'turnStart', 10);
+    expect(JSON.stringify(d.frame)).not.toContain('cosmetics');
+    expect(d.view.cosmetics).toEqual(run.cosmetics);
   });
 });

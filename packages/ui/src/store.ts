@@ -1461,7 +1461,7 @@ function commitResolvedAction(
       // A victory also logs a leaderboard run (its final warband for the hover). Deferred so it never hitches
       // the end screen; all best-effort and never throw.
       setTimeout(() => {
-        const fresh = lobbyBoards ? saveCapturedBoards(lobbyBoards, setId, author) : saveRunBoards(replay, author);
+        const fresh = lobbyBoards ? saveCapturedBoards(lobbyBoards, setId, author) : saveRunBoards(replay, author, next.cosmetics);
         set({ lastRunBoards: fresh.length }); // A6: surface "you contributed N boards" on the end screen
         void uploadBoards(fresh);
         // Between-runs pool + win-rate refresh (owner ask 2026-07-18): the NEXT run in this session sees

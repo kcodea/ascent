@@ -814,3 +814,36 @@ describe('Account Level (account progression, 2026-09-27)', () => {
     expect(ui.container.querySelector('.cv2-acctlevel-save')).toBeNull();
   });
 });
+
+describe('skins on a Career page (2026-09-28)', () => {
+  // A run recorded WITH skins: the board carries what its owner wore then (never the current loadout).
+  const SKINNED = [run({ id: 30, heroId: 'albus', placement: 1, board: {
+    minions: [{ cardId: 'blackbelt', name: 'Black Belt Brian', attack: 3, health: 4 }], wave: 10, heroId: 'albus',
+    cosmetics: { heroSkinByHeroId: { albus: 'skin_albus_1' }, minionSkinByCardId: { blackbelt: 'skin_blackbelt_1' } },
+  } as never })];
+  const srcs = (sel: string): string[] => [...ui.container.querySelectorAll<HTMLImageElement>(sel)].map((i) => i.getAttribute('src') ?? '');
+  async function remount(careerOf: { userId: string; author: string; rating: number; gamesPlayed: number } | null): Promise<void> {
+    ui.unmount();
+    fetchMyRuns.mockReset().mockResolvedValue(SKINNED);
+    useGame.setState({ careerOf, careerCache: null });
+    ui = mount(<Career />);
+    await flush();
+  }
+  afterEach(() => { useGame.setState({ showOpponentSkins: true }); });
+
+  it('YOUR match history shows the skins recorded on that run, whatever "Show opponent skins" says', async () => {
+    useGame.setState({ showOpponentSkins: false });
+    await remount(null);
+    expect(srcs('.cv2-team img.artimg').some((s) => s.includes('skin_blackbelt_1'))).toBe(true);
+    expect(srcs('img.heroimg').some((s) => s.includes('skin_albus_1'))).toBe(true);
+  });
+
+  it('ANOTHER player\'s page shows their recorded skins; with the toggle off, default art', async () => {
+    await remount({ userId: 'them-9', author: 'Mika', rating: 763, gamesPlayed: 4 });
+    expect(srcs('.cv2-team img.artimg').some((s) => s.includes('skin_blackbelt_1'))).toBe(true);
+    expect(srcs('img.heroimg').some((s) => s.includes('skin_albus_1'))).toBe(true);
+    act(() => useGame.getState().setShowOpponentSkins(false));
+    expect(srcs('.cv2-team img.artimg').some((s) => s.includes('skin_'))).toBe(false);
+    expect(srcs('img.heroimg').some((s) => s.includes('skin_'))).toBe(false);
+  });
+});

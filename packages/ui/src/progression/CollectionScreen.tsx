@@ -331,7 +331,7 @@ function DetailPanel({ item, owned, equipped, busy, error, playerName, onEquip, 
   const target = skinTargetName(item);
   const skin = item.category === 'hero_skin' || item.category === 'minion_skin';
   return (
-    <section className={`colls-panel colls-detail r-${item.rarity}${owned ? '' : ' missing'}`} aria-label="Details">
+    <section className={`colls-panel colls-detail r-${item.rarity}${owned ? '' : ' missing'}${skin ? ' skin' : ''}`} aria-label="Details">
       <div className="colls-kicker">{skin ? (item.category === 'hero_skin' ? 'Hero skin' : 'Minion skin') : COSMETIC_CATEGORY_DEFS[item.category].label.replace(/s$/, '')}</div>
       {/* A skin's art, large (Valorant's big preview). Missing items stay blurred, like a title's name. */}
       {art && (

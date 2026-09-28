@@ -1819,7 +1819,84 @@ export const FOUNDATION_RULES: GameRule[] = [
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-28 (Collection layout brief)', quote: 'i think the layout is horrible. research best in class collection screens and mimic them' },
       { kind: 'code', ref: 'packages/ui/src/progression/CollectionScreen.tsx; packages/ui/src/progression/collectionModel.ts (albumOf / filterAlbum / loadSeen / saveSeen); packages/ui/src/progression/collection.css' },
     ],
-    currentBehaviour: 'Conforms, built 2026-09-28. Titles are the only live category; the other six are locked tabs until their art ships.',
+    currentBehaviour: 'Conforms, built 2026-09-28. Titles, Heroes and Minions are live (the skins joined the same day, R-PROG-SKINS-01); the other four are locked tabs until their art ships.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/progression/CollectionScreen.test.tsx'], lastVerifiedAt: '2026-09-28' },
+  },
+  {
+    id: 'R-PROG-SKINS-01',
+    title: 'A skin replaces the art of ONE hero or ONE card everywhere it appears, for its owner, as recorded on that run',
+    statement:
+      'A hero skin replaces one hero\'s portrait; a minion skin replaces one card\'s art, by stable id. It shows wherever '
+      + 'that target appears for the player who wears it: hero select, the seat list, your portrait (also the combat hero), '
+      + 'the NOW FACING and fight-recap portraits, the end screen, the Career (favourite hero, match history), and every '
+      + 'card of that id in the shop, hand, board, combat, Discover, the end screen board, the Career boards and the Minion '
+      + 'Book. A Gilded copy wears the skin with the normal Gilded frame and effects on top (no separate unlock). Tokens are '
+      + 'their own card ids and stay unskinned. Balance, targeting and hitboxes never change. A run RECORDS the loadout when '
+      + 'it starts (equipping mid-run changes the next run); every board it captures carries it scoped to that board, and a '
+      + 'lobby seat built from a recorded run copies its owner\'s, so opponents, replays and history show the skins worn in '
+      + 'THAT run, never anyone\'s current loadout. A payload with no skins (every older one) is default art.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-28 (skins v1 brief)', quote: "let's use these 2 black belt brian skins as our first 2 skin concepts" },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-28 (skins v1 brief)', quote: "let's use these 2 hero skins as our first 2 hero skin concepts" },
+      { kind: 'code', ref: 'packages/ui/src/skins/skinArt.ts (heroPortrait / minionSkinMap / the Card context); packages/sim/src/snapshot.ts (scopeCosmetics); packages/sim/src/lobby/snapshotSeats.ts + runLobby.ts (seat cosmetics); packages/ui/src/store.ts (recordRunCosmetics)' },
+    ],
+    currentBehaviour: 'Conforms, built 2026-09-28: Sheriff Brian and Glitch Brian (Black Belt Brian), Surf Day Albus, Bath Day Warden (placeholder names).',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/skins/skins.test.tsx', 'packages/ui/src/skins/lobbySkins.test.tsx', 'packages/sim/src/lobby/seatCosmetics.test.ts', 'packages/ui/src/Career.test.tsx'], lastVerifiedAt: '2026-09-28' },
+  },
+  {
+    id: 'R-PROG-SKINS-02',
+    title: '"Show opponent skins" (Settings, on by default) hides OPPONENTS\' skins only, never your own',
+    statement:
+      'Settings has a "Show opponent skins" switch, on by default and stored like the other client settings. Off, every '
+      + 'opponent\'s hero and minion skins render as default art everywhere they appear: the lobby seat list, combat, the '
+      + 'NOW FACING and fight-recap portraits, the scouted board, replays, and another player\'s Career page. Your own '
+      + 'equipped skins always show. It is a pure display switch: it changes nothing recorded or sent.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-28 (skins v1 brief)', quote: 'this is an opponent toggle only, because they will be manually equipping skins on their own anyways' },
+      { kind: 'code', ref: 'packages/ui/src/store.ts (showOpponentSkins); packages/ui/src/skins/skins.tsx (useOpponentSkins / opponentSkins); packages/ui/src/EscMenu.tsx' },
+    ],
+    currentBehaviour: 'Conforms, built 2026-09-28.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/skins/skins.test.tsx', 'packages/ui/src/skins/lobbySkins.test.tsx', 'packages/ui/src/Career.test.tsx'], lastVerifiedAt: '2026-09-28' },
+  },
+  {
+    id: 'R-PROG-SKINS-03',
+    title: 'The reward kill switch: one line retires an item or a category; ownership is never deleted, so restoring puts it back',
+    statement:
+      'Setting a catalog item\'s active flag to false, or switching its category off (in the database with one documented '
+      + 'line, or in the bundled catalog), RETIRES it: it leaves the crate pool, it cannot be equipped, it drops out of every '
+      + 'profile\'s loadout, the Collection hides it (owned or not, and the counts move with it), and every renderer shows '
+      + 'default art even where a player has it equipped or an old board, seat or replay names it. The client reads the '
+      + 'server\'s switches on boot and caches the last answer. An unknown or removed id (an old replay, a newer client) never '
+      + 'crashes: it is default art. Ownership rows and loadout rows are never deleted, so flipping the switch back restores '
+      + 'the item exactly as it was, still owned and still equipped.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-28 (skins v1 brief)', quote: 'we need to have the ability to remove any rewards from the game if we want to as well' },
+      { kind: 'code', ref: 'packages/progression/src/cosmetics.ts (isCosmeticLive / setServerCatalogState); supabase/migrations/2026-09-28-progression-skins.sql (the four one-line switches in its header); packages/ui/src/progression/collectionModel.ts (albumOf)' },
+    ],
+    currentBehaviour: 'Conforms, built 2026-09-28.',
+    enforcement: { kind: 'scenario', refs: ['packages/progression/src/skins.db.test.ts', 'packages/progression/src/skins.test.ts', 'packages/ui/src/skins/skins.test.tsx', 'packages/ui/src/progression/CollectionSkins.test.tsx'], lastVerifiedAt: '2026-09-28' },
+  },
+  {
+    id: 'R-PROG-SKINS-04',
+    title: 'Equipping a skin goes through the server: owned, made for that target, live; Default is always selectable',
+    statement:
+      'A player equips a skin per target (one hero, or one card) from the Collection\'s Heroes and Minions tabs. The server '
+      + 'accepts it only when the player owns it, it is made for that exact hero or card and slot, and it is live (not '
+      + 'retired); anything else is refused and the loadout stays as it was. "Use default art" (Default) is always '
+      + 'selectable, even for a retired item. The client never writes ownership or the loadout itself.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-28 (skins v1 brief)', quote: 'they will be manually equipping skins on their own anyways' },
+      { kind: 'code', ref: 'supabase/migrations/2026-09-28-progression-skins.sql (equip_cosmetic); packages/progression/src/inventory.ts (equip_cosmetic); packages/ui/src/progression/CollectionScreen.tsx' },
+    ],
+    currentBehaviour: 'Conforms, built 2026-09-28.',
+    enforcement: { kind: 'scenario', refs: ['packages/progression/src/skins.db.test.ts', 'packages/progression/src/skins.test.ts', 'packages/ui/src/progression/CollectionSkins.test.tsx'], lastVerifiedAt: '2026-09-28' },
   },
 ];

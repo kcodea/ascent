@@ -188,12 +188,37 @@ progression **epoch**; nothing finished before the epoch counts (no backfill).
   sting). A click or a key skips to the reward; reduced motion is a short fade; a failed answer says "Could not open
   the crate. Try again." Presentation only (oracle R-PROG-COLLECTION-01).
 - **The catalog (2026-09-28).** Data in `packages/progression/src/cosmetics.ts`, seeded into the database. Shaped
-  for every cosmetic category (announcer, hero skin, minion skin, title, hero attack, board, music), but only
-  **titles** are switched on: **15 crate titles** (7 Common, 5 Rare, 2 Epic, 1 Legendary). The other categories
-  are feature-flagged off until their art exists.
+  for every cosmetic category (announcer, hero skin, minion skin, title, hero attack, board, music). Switched on:
+  **titles** (15 crate titles: 7 Common, 5 Rare, 2 Epic, 1 Legendary) and, since the skins shipped the same day,
+  **hero skins** and **minion skins** (the first four, all from crates). The other categories are feature-flagged
+  off until their art exists. Crate odds are rarity weight x category weight over what remains, so with the skins in,
+  about a quarter of a fresh account's first crate is a skin.
+- **Skins (2026-09-28; oracle R-PROG-SKINS-01, R-PROG-SKINS-04).** A hero skin replaces one hero's portrait; a
+  minion skin replaces one card's art, by stable id. Equipped per target from the Collection's Heroes / Minions
+  tabs through the server (`equip_cosmetic`: owned, made for that hero or card, live); **"Use default art"** is
+  always selectable. It shows wherever that target appears for the player wearing it: hero select, the seat list,
+  your portrait (also the combat hero), the NOW FACING and fight-recap portraits, the end screen, the Career
+  (favourite hero, match history) and every card of that id in the shop, hand, board, combat, Discover, the end
+  screen board, Career boards and the Minion Book. **Gilded** copies wear the skin under the normal Gilded frame
+  (no separate unlock). **Tokens** are their own ids and stay unskinned. Looks only: balance, targeting and
+  hitboxes never change. **Recorded per run:** the loadout is captured when a run starts (`run.cosmetics`;
+  equipping mid-run changes the next run), every captured board carries it scoped to its hero and cards, and a
+  lobby seat built from a recorded run copies its owner's (`LobbySeatState.cosmetics`). So opponents, replays and
+  history show the skins worn in **that** run, never anyone's current loadout; any payload from before skins is
+  default art.
+- **Show opponent skins (Settings, on by default; R-PROG-SKINS-02).** Off, every OPPONENT's skins render as
+  default art (lobby, combat, the scouted board, replays, another player's Career). Your own always show. Display
+  only; stored locally like the other settings.
+- **The reward kill switch (R-PROG-SKINS-03).** Any reward can be removed from the game in one line: an item's
+  `active = false`, or its category's `enabled = false` (SQL lines in the header of
+  `supabase/migrations/2026-09-28-progression-skins.sql`; mirror it in `cosmetics.ts`). A retired item leaves the
+  crate pool, cannot be equipped, drops out of every loadout, is **hidden** from the Collection (owned or not; the
+  counts move with it) and renders as default art everywhere, including old boards and replays that name it. The
+  client reads the server's switches on boot. Ownership and loadout rows are never deleted: restoring puts the item
+  back exactly as it was. An unknown id never crashes anything.
 - **Titles.** The Collection lists the titles you own and lets you equip one (or none); the server checks
   ownership. The equipped title and the owned titles are public (Career); crates are private.
-- **The Collection layout (2026-09-28).** An album: category tabs (Titles live, the rest locked as coming soon),
+- **The Collection layout (2026-09-28).** An album: category tabs (Heroes, Minions and Titles live, the rest locked as coming soon; it opens on Titles),
   Show (All / Owned / Missing) and Rarity filters with counts, and every item of the category, owned or not
   (missing ones dimmed, rarity still shown; the equipped one ribboned). Selecting an item shows it large with how
   it is found, a preview under your name, and Equip / Take off. The crate bay (count, Open, Open all) stays in
@@ -212,6 +237,7 @@ Source: `packages/progression/src/rules.ts` (curve, XP, level titles, crates per
 `packages/progression/src/cosmetics.ts` (catalog, weights, the roll), `packages/sim/src/runDerive.ts`
 (`progressionFactsOf`), `supabase/migrations/2026-09-27-account-progression.sql` and
 `supabase/migrations/2026-09-28-progression-crates.sql` (`settle_progression`, `open_crate`, `equip_title`),
+`supabase/migrations/2026-09-28-progression-skins.sql` (the skins, `equip_cosmetic`, the kill switch), `packages/ui/src/skins/`,
 `supabase/functions/submit-progression`, `supabase/functions/progression-inventory`, `packages/ui/src/progression/`.
 
 ---

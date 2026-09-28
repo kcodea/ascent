@@ -40,6 +40,12 @@ console.log('set2 buyable:', poolFor('set2').buyable.length);"
 - **Henchmen** — `packages/content/src/cards/henchmen.ts` (`HENCHMEN`). ⚠️ **Also ARCHIVED** (owner
   2026-08-28, `HENCHMEN_ARCHIVED`) — resolvable, never offered.
 - **Heroes** — `packages/sim/src/heroes.ts` (`HEROES`).
+- **Cosmetics (titles, hero skins, minion skins)** — `packages/progression/src/cosmetics.ts` (`COSMETICS`), mirrored
+  row for row into the database by the progression migrations (`sqlParity.test.ts` fails CI on drift). A skin
+  targets a hero or card by stable id; its art is `packages/ui/src/art/skins/<cosmeticId>.webp`, wired by
+  `npm run art:wire -- --only=skins --apply` from the master named in the item's `assets.master` (then
+  `npm run optimize-art`). A live skin without its art fails CI (`packages/ui/src/skins/skins.test.tsx`).
+  Count them with `npx tsx -e "import {COSMETICS} from '@game/progression'; console.log(COSMETICS.length)"`.
 - **Global id→def resolution** — `CARD_INDEX` is global by design, so an out-of-set card granted by a rune
   still resolves. Draw pools come from the run's pinned set via `poolOf(state)` / `poolFor(setId)`.
 

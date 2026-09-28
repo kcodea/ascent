@@ -80,6 +80,12 @@ Spec: `docs/replay-v2-handoff.md`.
 
 ## Compatibility
 
+- **Skins ride the recorded payloads (2026-09-28).** `RunState.cosmetics` (recorded at run start),
+  `BoardSnapshot.cosmetics` (scoped to that board) and `LobbySeatState.cosmetics` (copied from the player run at
+  lobby creation) are display-only and optional: absent = default art. Render them only through
+  `packages/ui/src/skins/` (it applies liveness, the target check and the opponent toggle); never read them in
+  combat or matchmaking.
+
 Changes must consider saved lobbies, replays, telemetry, Career/Recent Games, the End Screen, tutorial
 authored seats, bot ladders, and remote snapshot availability.
 

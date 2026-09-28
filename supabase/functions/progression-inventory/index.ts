@@ -1,5 +1,7 @@
 /**
- * progression-inventory: open a level crate, equip a title (2026-09-28, account progression crates).
+ * progression-inventory: open a level crate, equip a title, equip a skin (2026-09-28, account progression crates;
+ * `equip_cosmetic` added with skins v1 the same day: `{ action: 'equip_cosmetic', slot, targetId, cosmeticId }`,
+ * cosmeticId null = Default).
  *
  * The only path that opens a crate, grants a cosmetic from one, or changes the equipped title. A client sends
  * `{ action: 'open_crate', crateId }` or `{ action: 'equip_title', titleId }` (null takes the title off); it never

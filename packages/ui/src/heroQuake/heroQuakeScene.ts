@@ -11,28 +11,37 @@
  * LAYERS, bottom to top (each one blend mode, so the whole scene batches in four runs): scorch, crack lips, chasms |
  * magma glow, magma seams | rock shadows, dust, rocks | air light (flashes, rings, pillar, embers).
  *
- * CRACKS are pooled capsule sprites laid along a jagged polyline and REVEALED by a front (each segment grows from its
- * start as the front passes), so a crack is one continuous stroke at any frame rate. A segment OPENS behind the tip
+ * CRACKS are triangle-strip meshes (one per layer: lip, chasm, magma glow, magma seam) along a jagged, angular
+ * polyline with mitred joints, REVEALED by a front: every point behind it sits on the path, every point ahead is
+ * collapsed onto it, so a crack is one continuous stroke with a sharp tip at any frame rate. It OPENS behind the tip
  * (its width grows over `openPx`), the tip glows hottest, the seams cool after the impact, and everything fades on
- * `fade()`. Paths come from a seeded generator, so the same fight draws the same cracks (a replay looks identical).
+ * `fade()`. The vertex arrays are rewritten in place (no allocation per frame); each mesh stays under 100 vertices so
+ * Pixi batches it. Paths come from a seeded generator, so the same fight draws the same cracks (a replay looks identical).
  *
- * Contract: sprites POOLED per layer (hidden and reused), every list bounded by `MAX_QUAKE_SPRITES`; textures are the
+ * Contract: sprites POOLED per layer (hidden and reused), bounded by `MAX_QUAKE_SPRITES`; crack meshes bounded by
+ * `MAX_QUAKE_MESHES`, built per quake and destroyed as they fade; textures are the
  * caller's; the positions are the overlay's px; `setCamera` mirrors the DOM camera; `update` returns whether anything
  * still draws; `destroy()` leaves nothing behind.
  */
-import { Container, Sprite, type Texture } from 'pixi.js';
+import { Container, MeshSimple, Sprite, type Texture } from 'pixi.js';
 import type { HeroBlastTextures } from '../heroBlast/heroBlastScene';
 import { clamp01, easeOutCubic, easeOutQuint, mixColor, whiten, type Pt } from '../heroAttack/easing';
 import { quakeEase } from './heroQuakeConfig';
 
 export interface HeroQuakeTextures extends HeroBlastTextures {
-  crack: Texture; seamGlow: Texture; rocks: Texture[]; dust: Texture; dustRing: Texture; scorch: Texture;
+  /** A crisp bar (feathered 1-2 px across its width): the chasm and its lip. */
+  crack: Texture;
+  /** A soft bar (feathered across its width): the magma seam and its glow. */
+  seamGlow: Texture;
+  rocks: Texture[]; dust: Texture; dustRing: Texture; scorch: Texture;
 }
 
 export interface QuakeColors { core: number; side: number; chasm: number; lip: number; dust: number; rock: number }
 
-/** Hard cap on sprites alive at once (a Tier IV quake peaks around 900). */
-export const MAX_QUAKE_SPRITES = 1500;
+/** Hard cap on sprites alive at once (a Tier IV quake peaks around 1100). */
+export const MAX_QUAKE_SPRITES = 1600;
+/** Hard cap on crack meshes (four per crack). */
+export const MAX_QUAKE_MESHES = 320;
 
 type LayerId = 'scorch' | 'lips' | 'chasms' | 'glow' | 'seams' | 'shadows' | 'dust' | 'rocks' | 'air';
 const LAYERS: readonly [LayerId, 'normal' | 'add'][] = [
@@ -41,9 +50,12 @@ const LAYERS: readonly [LayerId, 'normal' | 'add'][] = [
 ];
 const BLEND: Record<LayerId, 'normal' | 'add'> = Object.fromEntries(LAYERS) as Record<LayerId, 'normal' | 'add'>;
 /** A rock's drawn size per unit of `size` (the rock texture is 48 px across). */
-const ROCK_PX = 34 / 48;
+const ROCK_PX = 50 / 48;
+/** Points per crack are capped so each mesh stays small enough for Pixi to batch (<= 100 vertices). */
+const MAX_CRACK_POINTS = 50;
 
-interface Seg { x: number; y: number; len: number; ang: number; d0: number; w: number; lip: Sprite; chasm: Sprite; seam: Sprite | null; glow: Sprite | null }
+/** One crack layer: a triangle strip along the path, two vertices per point, rewritten in place each frame. */
+interface Strip { mesh: MeshSimple; v: Float32Array; half: (w: number) => number }
 
 type Drive =
   | { kind: 'main'; t0: number; dur: number }
@@ -51,7 +63,13 @@ type Drive =
   | { kind: 'timed'; t0: number; dur: number };
 
 interface Crack {
-  segs: Seg[]; L: number; f: number; drive: Drive; magma: number; openPx: number;
+  pts: Pt[];
+  /** Distance along the path at each point, and each point's base width (px, stage scale folded in). */
+  cum: number[]; w: number[];
+  /** Per-point miter normal (unit, scaled by the miter length, clamped). */
+  nx: number[]; ny: number[];
+  L: number; f: number; drive: Drive; magma: number; openPx: number;
+  lip: Strip; chasm: Strip; seam: Strip; glow: Strip | null;
   /** When the front reached the end (scene ms; -1 = still running): the crack keeps opening after. */
   doneAt: number;
   /** Seams on this crack stay warm this long after the cool starts (the crater's own cracks linger). */
@@ -76,7 +94,7 @@ interface Fx {
 
 interface Particle { s: Sprite; x: number; y: number; vx: number; vy: number; drag: number; grav: number; life: number; max: number; from: number; to: number; alpha: number }
 
-interface Pillar { outer: Sprite; core: Sprite; cap: Sprite; x: number; y: number; age: number; rise: number; hold: number; width: number; height: number }
+interface Pillar { outer: Sprite; core: Sprite; cap: Sprite; x: number; y: number; ang: number; age: number; rise: number; hold: number; width: number; height: number }
 
 interface Windup { ring: Sprite; pool: Sprite; x: number; y: number; age: number; dur: number; size: number }
 
@@ -100,15 +118,20 @@ export function crackPath(a: Pt, b: Pt, segPx: number, jag: number, rnd: () => n
   const dx = b.x - a.x, dy = b.y - a.y;
   const L = Math.hypot(dx, dy) || 1;
   const ux = dx / L, uy = dy / L;
-  const n = Math.max(2, Math.round(L / Math.max(4, segPx)));
+  const n = Math.min(MAX_CRACK_POINTS - 1, Math.max(2, Math.round(L / Math.max(4, segPx))));
+  const step = L / n;
   const pts: Pt[] = [{ x: a.x, y: a.y }];
-  let off = 0;
+  let off = 0, kink = rnd() < 0.5 ? 1 : -1;
   for (let i = 1; i < n; i++) {
-    off += (rnd() - 0.5) * 2 * jag * segPx * 0.6;
+    // A drifting walk plus a sharp alternating kink: rock splits in angular zigzags, not smooth curves.
+    off += (rnd() - 0.5) * 2 * jag * step * 0.5;
     off = Math.max(-maxDevPx, Math.min(maxDevPx, off));
+    if (rnd() < 0.7) kink = -kink;
+    const k = kink * jag * step * (0.12 + 0.28 * rnd());
     const env = Math.sin((Math.PI * i) / n);
-    const along = (L * i) / n + (rnd() - 0.5) * segPx * 0.25;
-    pts.push({ x: a.x + ux * along - uy * off * env, y: a.y + uy * along + ux * off * env });
+    const along = step * i + (rnd() - 0.5) * step * 0.3;
+    const o = Math.max(-maxDevPx * 1.2, Math.min(maxDevPx * 1.2, (off + k) * env));
+    pts.push({ x: a.x + ux * along - uy * o, y: a.y + uy * along + ux * o });
   }
   pts.push({ x: b.x, y: b.y });
   return pts;
@@ -119,6 +142,7 @@ export class HeroQuakeScene {
   private readonly layers: Record<LayerId, Container>;
   private readonly free: Record<LayerId, Sprite[]>;
   private used = 0;
+  private meshes = 0;
   private age = 0;
   private cracks: Crack[] = [];
   private rocks: Rock[] = [];
@@ -153,7 +177,8 @@ export class HeroQuakeScene {
   }
 
   get liveSprites(): number { return this.used; }
-  get pooledSprites(): number { let n = 0; for (const [id] of LAYERS) n += this.layers[id].children.length; return n; }
+  get pooledSprites(): number { let n = 0; for (const [id] of LAYERS) for (const ch of this.layers[id].children) if (ch instanceof Sprite) n++; return n; }
+  get liveMeshes(): number { return this.meshes; }
   get liveCracks(): number { return this.cracks.length; }
   get liveRocks(): number { return this.rocks.length; }
   /** The main crack's front, 0..1 of its length (-1 = none). */
@@ -205,33 +230,67 @@ export class HeroQuakeScene {
 
   // ─── cracks ────────────────────────────────────────────────────────────────────────────────────────────────
 
-  private buildCrack(pts: Pt[], width: number, magma: number, drive: Drive, profile: (u: number) => number, openPx: number, kick = 0, linger = 0): Crack | null {
-    const S = this.scale;
-    let L = 0;
-    for (let i = 1; i < pts.length; i++) L += Math.hypot(pts[i]!.x - pts[i - 1]!.x, pts[i]!.y - pts[i - 1]!.y);
-    const segs: Seg[] = [];
-    let d = 0;
-    const seamOn = magma > 0.01;
-    for (let i = 1; i < pts.length; i++) {
-      const a = pts[i - 1]!, b = pts[i]!;
-      const len = Math.hypot(b.x - a.x, b.y - a.y);
-      if (len < 0.5) continue;
-      const lip = this.take('lips', this.tex.crack, this.colors.lip);
-      const chasm = this.take('chasms', this.tex.crack, this.colors.chasm);
-      const glow = seamOn ? this.take('glow', this.tex.seamGlow, this.colors.side) : null;
-      const seam = this.take('seams', this.tex.crack, this.hot);
-      if (!lip || !chasm || !seam) { for (const s of [lip, chasm, glow, seam]) if (s) this.giveAny(s); break; }
-      const ang = Math.atan2(b.y - a.y, b.x - a.x);
-      const w = width * S * profile((d + len / 2) / Math.max(1, L)) * (0.85 + 0.3 * this.rnd());
-      for (const s of [lip, chasm, seam, glow]) {
-        if (!s) continue;
-        s.anchor.set(0, 0.5); s.position.set(a.x, a.y); s.rotation = ang; s.scale.set(0, 0); s.alpha = 0;
-      }
-      segs.push({ x: a.x, y: a.y, len, ang, d0: d, w, lip, chasm, seam, glow });
-      d += len;
+  /** A strip mesh for one crack layer (`n` points). */
+  private strip(layer: LayerId, n: number, tex: Texture, tint: number, half: (w: number) => number): Strip {
+    const v = new Float32Array(n * 4);
+    const uvs = new Float32Array(n * 4);
+    for (let i = 0; i < n; i++) { uvs[i * 4] = 0.5; uvs[i * 4 + 1] = 0; uvs[i * 4 + 2] = 0.5; uvs[i * 4 + 3] = 1; }
+    const idx = new Uint32Array(Math.max(0, n - 1) * 6);
+    for (let i = 0; i < n - 1; i++) {
+      const a = i * 2;
+      idx.set([a, a + 1, a + 2, a + 1, a + 3, a + 2], i * 6);
     }
-    if (!segs.length) return null;
-    const c: Crack = { segs, L: d, f: 0, drive, magma, openPx: openPx * S, doneAt: -1, linger, kick, lastKick: 0 };
+    const mesh = new MeshSimple({ texture: tex, vertices: v, uvs, indices: idx });
+    mesh.tint = tint;
+    mesh.blendMode = BLEND[layer];
+    mesh.alpha = 0;
+    this.layers[layer].addChild(mesh);
+    this.meshes++;
+    return { mesh, v: mesh.vertices as Float32Array, half };
+  }
+
+  private dropStrip(st: Strip | null): void {
+    if (!st) return;
+    st.mesh.parent?.removeChild(st.mesh);
+    st.mesh.destroy();
+    this.meshes--;
+  }
+
+  private dropCrack(c: Crack): void { this.dropStrip(c.lip); this.dropStrip(c.chasm); this.dropStrip(c.seam); this.dropStrip(c.glow); }
+
+  private buildCrack(pts: Pt[], width: number, magma: number, drive: Drive, profile: (u: number) => number, openPx: number, kick = 0, linger = 0, withGlow = true): Crack | null {
+    const S = this.scale;
+    const n = pts.length;
+    if (n < 2 || this.meshes + 4 > MAX_QUAKE_MESHES) return null;
+    const cum: number[] = [0];
+    for (let i = 1; i < n; i++) cum.push(cum[i - 1]! + Math.hypot(pts[i]!.x - pts[i - 1]!.x, pts[i]!.y - pts[i - 1]!.y));
+    const L = cum[n - 1]!;
+    if (L < 1) return null;
+    // Miter normals: the average of the two neighbouring segment normals, lengthened so the width holds at a kink.
+    const nx: number[] = [], ny: number[] = [];
+    for (let i = 0; i < n; i++) {
+      const a = pts[Math.max(0, i - 1)]!, b = pts[i]!, c = pts[Math.min(n - 1, i + 1)]!;
+      let t1x = b.x - a.x, t1y = b.y - a.y, t2x = c.x - b.x, t2y = c.y - b.y;
+      const l1 = Math.hypot(t1x, t1y) || 1, l2 = Math.hypot(t2x, t2y) || 1;
+      t1x /= l1; t1y /= l1; t2x /= l2; t2y /= l2;
+      if (i === 0) { t1x = t2x; t1y = t2y; }
+      if (i === n - 1) { t2x = t1x; t2y = t1y; }
+      let mx = -(t1y + t2y), my = t1x + t2x;
+      const ml = Math.hypot(mx, my) || 1;
+      mx /= ml; my /= ml;
+      const dot = mx * -t1y + my * t1x;
+      const k = Math.min(2, 1 / Math.max(0.35, dot));
+      nx.push(mx * k); ny.push(my * k);
+    }
+    const w = cum.map((d) => width * S * profile(d / L) * (0.75 + 0.5 * this.rnd()));
+    const seamOn = magma > 0.01;
+    const c: Crack = {
+      pts, cum, w, nx, ny, L, f: 0, drive, magma, openPx: openPx * S, doneAt: -1, linger, kick, lastKick: 0,
+      lip: this.strip('lips', n, this.tex.crack, this.colors.lip, (x) => x * 0.5 + 1.3 * S),
+      chasm: this.strip('chasms', n, this.tex.crack, this.colors.chasm, (x) => x * 0.5),
+      seam: this.strip('seams', n, this.tex.seamGlow, this.hot, (x) => x * (0.18 + 0.1 * magma) + 0.5 * S),
+      glow: withGlow && seamOn ? this.strip('glow', n, this.tex.seamGlow, this.colors.side, (x) => x * 0.8 + 4 * S) : null,
+    };
     this.cracks.push(c);
     return c;
   }
@@ -266,18 +325,21 @@ export class HeroQuakeScene {
       const ang = Math.atan2(uy, ux) + side * (0.45 + this.rnd() * 0.5);
       const bl = main.L * o.branchLength * (0.6 + this.rnd() * 0.6);
       const end = { x: root.x + Math.cos(ang) * bl, y: root.y + Math.sin(ang) * bl };
-      const bp = crackPath(root, end, seg * 0.75, o.jag * 1.2, this.rnd, bl * 0.12);
-      this.buildCrack(bp, o.width * 0.55, o.magma * 0.8, { kind: 'child', parent: main, rootD, ratio: 0.85 }, (u) => 1 - 0.7 * u, o.openPx * 0.6);
+      const bp = crackPath(root, end, seg * 0.7, o.jag * 1.5, this.rnd, bl * 0.14);
+      this.buildCrack(bp, o.width * 0.38, o.magma * 0.8, { kind: 'child', parent: main, rootD, ratio: 0.85 }, (u) => 1 - 0.7 * u, o.openPx * 0.6, 0, 0, false);
     }
-    // FISSURES: parallel cracks running beside the main one (a wide fissure network, Tier III+).
+    // FISSURES (Tier III+): long cracks peeling off the main one at a shallow angle, so the ground reads as a torn
+    // NETWORK rather than one line (never parallel rails).
     for (let i = 0; i < o.fissures; i++) {
       const side = i % 2 ? 1 : -1;
-      const gap = (o.width * 1.6 + 16 + 10 * Math.floor(i / 2)) * S * side;
-      const s0 = main.L * (0.1 + 0.18 * this.rnd()), s1 = main.L * (0.78 + 0.16 * this.rnd());
-      const p0 = this.pointOn(main, s0), p1 = this.pointOn(main, s1);
-      const fp = crackPath({ x: p0.x - uy * gap, y: p0.y + ux * gap }, { x: p1.x - uy * gap, y: p1.y + ux * gap }, seg * 1.1, o.jag, this.rnd, 18 * S);
-      this.buildCrack(fp, o.width * 0.45, o.magma * 0.7, { kind: 'child', parent: main, rootD: s0, ratio: 1 }, (u) => 0.5 + 0.5 * Math.sin(Math.PI * u), o.openPx * 0.5);
-    }
+      const rootD = main.L * (0.08 + 0.3 * ((i + this.rnd()) / Math.max(1, o.fissures)));
+      const root = this.pointOn(main, rootD);
+      const ang = Math.atan2(uy, ux) + side * (0.16 + this.rnd() * 0.16);
+      const fl = main.L * (0.24 + 0.16 * this.rnd());
+      const end = { x: root.x + Math.cos(ang) * fl, y: root.y + Math.sin(ang) * fl };
+      const fp = crackPath(root, end, seg * 1.2, o.jag, this.rnd, fl * 0.07);
+      this.buildCrack(fp, o.width * 0.42, o.magma * 0.75, { kind: 'child', parent: main, rootD, ratio: 0.95 }, (u) => 0.9 - 0.75 * u, o.openPx * 0.5, 0, 0, false);
+  }
   }
 
   /** A starburst of short cracks around a point (the slam, the eruption, the board-splitting slam at Tier IV). */
@@ -294,18 +356,21 @@ export class HeroQuakeScene {
       const l = len[0] + (len[1] - len[0]) * this.rnd();
       const a = { x: x + Math.cos(ang) * r0, y: y + Math.sin(ang) * r0 };
       const b = { x: a.x + Math.cos(ang) * l, y: a.y + Math.sin(ang) * l };
-      const pts = crackPath(a, b, Math.max(14 * S, l / 6), 0.5, this.rnd, l * 0.1);
+      const pts = crackPath(a, b, Math.max(14 * S, l / 9), 0.6, this.rnd, l * 0.08);
       this.buildCrack(pts, width, magma, { kind: 'timed', t0: this.age + i * 12, dur: durMs * (0.8 + 0.4 * this.rnd()) }, (u) => 1 - 0.75 * u, 40, 0, linger);
     }
   }
 
   private pointOn(c: Crack, d: number): Pt {
     const dd = Math.max(0, Math.min(c.L, d));
-    for (const s of c.segs) {
-      if (dd <= s.d0 + s.len) { const u = (dd - s.d0) / Math.max(1e-6, s.len); return { x: s.x + Math.cos(s.ang) * s.len * u, y: s.y + Math.sin(s.ang) * s.len * u }; }
+    for (let i = 1; i < c.pts.length; i++) {
+      if (dd <= c.cum[i]!) {
+        const a = c.pts[i - 1]!, b = c.pts[i]!;
+        const u = (dd - c.cum[i - 1]!) / Math.max(1e-6, c.cum[i]! - c.cum[i - 1]!);
+        return { x: a.x + (b.x - a.x) * u, y: a.y + (b.y - a.y) * u };
+      }
     }
-    const last = c.segs[c.segs.length - 1]!;
-    return { x: last.x + Math.cos(last.ang) * last.len, y: last.y + Math.sin(last.ang) * last.len };
+    return { ...c.pts[c.pts.length - 1]! };
   }
 
   /** The point `frac` (0..1) of the way along the main crack (null before the quake). */
@@ -329,9 +394,9 @@ export class HeroQuakeScene {
   }
 
   /** A soft dust puff rolling out and rising. */
-  private puff(x: number, y: number, size: number, vx: number, vy: number, dur: number, delay = 0, a0 = 0.6): void {
+  private puff(x: number, y: number, size: number, vx: number, vy: number, dur: number, delay = 0, a0 = 0.6, light = 0): void {
     const S = this.scale;
-    this.addFx('dust', this.tex.dust, this.colors.dust, x, y, {
+    this.addFx('dust', this.tex.dust, light > 0 ? whiten(this.colors.dust, light) : this.colors.dust, x, y, {
       dur, from: 0.45 * size * S, to: 1.35 * size * S, a0, alpha: 'puff', vx: vx * S, vy: vy * S, drag: 0.25, rise: -26 * S, spin: 0.4, delay,
     });
   }
@@ -367,20 +432,20 @@ export class HeroQuakeScene {
     this.addFx('air', this.tex.glow, this.colors.core, x, y, { dur: 150, from: 1.2 * size, to: 2 * size, a0: 0.85 });
     this.addFx('air', this.tex.glow, this.colors.side, x, y, { dur: 380, from: 1.6 * size, to: (2.8 + o.k) * size, a0: 0.55, alpha: 'punch', peakAt: 0.1 });
     // The dust shockwave: a thick ring rolling out, then a lighter one behind it.
-    const ringTo = (r * (2.6 + 1.6 * o.k) * Math.max(0.5, o.dust)) / 96;
-    this.addFx('dust', this.tex.dustRing, this.colors.dust, x, y, { dur: 560, from: (r * 0.9) / 96, to: ringTo, a0: 0.75 });
-    this.addFx('dust', this.tex.dustRing, whiten(this.colors.dust, 0.35), x, y, { dur: 420, from: (r * 0.7) / 96, to: ringTo * 0.7, a0: 0.45, delay: 40 });
+    const ringTo = (r * (2.1 + 1.1 * o.k) * Math.max(0.5, o.dust)) / 96;
+    this.addFx('dust', this.tex.dustRing, this.colors.dust, x, y, { dur: 560, from: (r * 1.3) / 96, to: ringTo * 1.25, a0: 0.55 });
+    this.addFx('dust', this.tex.dustRing, whiten(this.colors.dust, 0.25), x, y, { dur: 420, from: (r * 1.25) / 96, to: ringTo, a0: 0.3, delay: 40 });
     if (o.tier >= 2) this.addFx('air', this.tex.ring, this.colors.side, x, y, { dur: 300, from: 0.5 * size, to: (1.8 + 0.8 * o.k) * size, a0: 0.8 });
     // A starburst of short cracks around the hero.
     this.radial(x, y, [2, 3, 5, 6][o.tier - 1] ?? 3, r * 0.9, [r * 0.45, r * (0.9 + 0.5 * o.k)], Math.max(3, o.width * 0.7), o.magma, 130, o.heading);
     // Tier IV: the slam cracks the WHOLE BOARD.
-    if (o.boardCracks > 0) this.radial(x, y, o.boardCracks, r * 1.1, [o.reach * 0.3, o.reach * 0.62], o.width * 0.6, o.magma * 0.8, 380, o.heading);
+    if (o.boardCracks > 0) this.radial(x, y, o.boardCracks, r * 1.05, [o.reach * 0.2, o.reach * 0.42], o.width * 0.7, o.magma * 0.85, 360, o.heading);
     // Dust puffs around the rim, staggered so they roll out as one wave.
     const puffs = Math.round((4 + 6 * o.k) * Math.max(0.3, o.dust));
     for (let i = 0; i < puffs; i++) {
       const a = (i / puffs) * Math.PI * 2 + this.rnd() * 0.4;
       const rr = r * (0.9 + this.rnd() * 0.3);
-      this.puff(x + Math.cos(a) * rr, y + Math.sin(a) * rr * 0.85, (r / 40) * (0.8 + 0.5 * o.dust) * (0.8 + 0.4 * this.rnd()), Math.cos(a) * 140, Math.sin(a) * 110, 650 + 300 * o.k, i * 8, 0.55);
+      this.puff(x + Math.cos(a) * rr * 1.15, y + Math.sin(a) * rr, (r / 60) * (0.8 + 0.5 * o.dust) * (0.8 + 0.4 * this.rnd()), Math.cos(a) * 150, Math.sin(a) * 120, 650 + 300 * o.k, i * 8, 0.45);
     }
     for (let i = 0; i < o.rocks; i++) {
       const a = this.rnd() * Math.PI * 2;
@@ -431,8 +496,8 @@ export class HeroQuakeScene {
       if (sp) { sp.s.anchor.set(0, 0.5); sp.s.rotation = -Math.PI / 2; }
     }
     // Rings: the dust shockwave on the ground and (II+) a hot ring of light.
-    this.addFx('dust', this.tex.dustRing, c.dust, x, y, { dur: 600 + 200 * o.k, from: (r * 0.9) / 96, to: (r * (2.5 + 1.4 * o.k) * E) / 96, a0: 0.8 });
-    if (o.tier >= 2) this.addFx('air', this.tex.ring, c.side, x, y, { dur: 380, from: (r * 0.7) / 64, to: (r * (2.2 + 1.2 * o.k) * E) / 64, a0: 0.9 });
+    this.addFx('dust', this.tex.dustRing, c.dust, x, y, { dur: 600 + 200 * o.k, from: (r * 1.3) / 96, to: (r * (2.8 + 1.4 * o.k) * E) / 96, a0: 0.7 });
+    if (o.tier >= 2) this.addFx('air', this.tex.ring, c.side, x, y, { dur: 340, from: (r * 0.9) / 64, to: (r * (1.7 + 0.7 * o.k) * E) / 64, a0: 0.85 });
     // The cracks burst open around the portrait, magma glowing from them.
     this.radial(x, y, [2, 4, 7, 10][o.tier - 1] ?? 4, r * 0.92, [r * 0.5 * E, r * (0.9 + 0.8 * o.k) * E], Math.max(4, o.width * 0.8), Math.max(o.magma, o.tier >= 2 ? 0.35 : 0.15), 150, o.heading + Math.PI, 700 * o.crater);
     // Rock chunks thrown up and out under gravity (a shadow each, one bounce).
@@ -449,7 +514,7 @@ export class HeroQuakeScene {
       const a = (i / puffs) * Math.PI * 2 + this.rnd() * 0.5;
       const rr = r * (0.8 + this.rnd() * 0.5);
       const sz = (r / 38) * (0.85 + 0.5 * o.dust) * (0.8 + 0.4 * this.rnd());
-      this.puff(x + Math.cos(a) * rr, y + Math.sin(a) * rr * 0.85, sz, Math.cos(a) * (120 + 80 * o.k), Math.sin(a) * 90 - 30, 900 + 500 * o.k, 20 + i * 10, 0.6);
+      this.puff(x + Math.cos(a) * rr, y + Math.sin(a) * rr * 0.85, sz, Math.cos(a) * (120 + 80 * o.k), Math.sin(a) * 90 - 30, 900 + 500 * o.k, 20 + i * 10, 0.75, i % 2 ? 0.45 : 0.2);
     }
     // Embers rising off the eruption (III+).
     const embers = o.tier >= 4 ? 22 : o.tier >= 3 ? 12 : 0;
@@ -474,17 +539,26 @@ export class HeroQuakeScene {
   }
 
   /** TIER IV: a pillar of magma and rock erupting under the target, holding, then collapsing. */
-  pillar(x: number, y: number, r: number, holdMs: number, eruption: number, rocks: number): void {
+  pillar(x: number, y: number, r: number, holdMs: number, eruption: number, rocks: number, maxHeight = Infinity, angle = -Math.PI / 2): void {
     const outer = this.take('air', this.tex.beam, this.colors.side);
     const core = this.take('air', this.tex.beam, this.colors.core);
     const cap = this.take('air', this.tex.glow, this.hot);
     if (!outer || !core || !cap) { for (const s of [outer, core, cap]) if (s) this.give(s, 'air'); return; }
-    for (const s of [outer, core]) { s.anchor.set(0, 0.5); s.rotation = -Math.PI / 2; s.position.set(x, y + r * 0.35); s.scale.set(0, 0); }
+    for (const s of [outer, core]) { s.anchor.set(0, 0.5); s.rotation = angle; s.position.set(x - Math.cos(angle) * r * 0.35, y - Math.sin(angle) * r * 0.35); s.scale.set(0, 0); }
     cap.alpha = 0;
-    this.pillars.push({ outer, core, cap, x, y: y + r * 0.35, age: 0, rise: 150, hold: holdMs, width: r * 1.35 * eruption, height: r * 4.2 * eruption });
+    this.pillars.push({ outer, core, cap, x: x - Math.cos(angle) * r * 0.35, y: y - Math.sin(angle) * r * 0.35, ang: angle, age: 0, rise: 150, hold: holdMs, width: r * 1.35 * eruption, height: Math.max(r * 1.8, Math.min(r * 4.2 * eruption, maxHeight)) });
+    // Magma jets thrown out all round the base (the geyser reads even where the column has little room to rise).
+    for (let i = 0; i < 8; i++) {
+      const a = (i / 8) * Math.PI * 2 + this.rnd() * 0.4;
+      const d = r * (0.9 + 0.2 * this.rnd());
+      this.addFx('air', this.tex.streak, i % 2 ? this.hot : this.colors.core, x + Math.cos(a) * d, y + Math.sin(a) * d,
+        { dur: 320 + 80 * this.rnd(), from: (r * 0.5) / 64, to: (r * 1.6 * eruption) / 64, a0: 0.9, sy: 0.22, delay: 30 + i * 12 });
+      const j = this.fx[this.fx.length - 1];
+      if (j) j.s.rotation = a;
+    }
     // Rocks shot HIGH out of the pillar.
     for (let i = 0; i < rocks; i++) {
-      const a = -Math.PI / 2 + (this.rnd() - 0.5) * 1.6;
+      const a = this.rnd() * Math.PI * 2;
       this.rock(x + (this.rnd() - 0.5) * r * 0.6, y, a, 40 + this.rnd() * 160, 1100 + this.rnd() * 700, (0.6 + this.rnd() * 0.6) * 1.1, this.rnd() < 0.6 ? 1 : 0.4, 1500 + this.rnd() * 400);
     }
     this.addFx('air', this.tex.glow, this.colors.side, x, y, { dur: holdMs + 400, from: (r * 3) / 128, to: (r * 4) / 128, a0: 0.55, alpha: 'hold' });
@@ -544,41 +618,52 @@ export class HeroQuakeScene {
       const extra = done ? (age - c.doneAt) * 1.1 * S : 0;
       const coolFor = this.coolMs + c.linger;
       const cool = age < this.coolAt ? 1 : 1 - clamp01((age - this.coolAt) / coolFor);
-      for (const s of c.segs) {
-        const prog = clamp01((c.f - s.d0) / s.len);
-        if (prog <= 0) { s.lip.visible = false; s.chasm.visible = false; if (s.seam) s.seam.visible = false; if (s.glow) s.glow.visible = false; continue; }
-        const behind = c.f - (s.d0 + s.len * 0.5) + extra;
-        const open = 0.3 + 0.7 * easeOutCubic(c.openPx > 0 ? behind / c.openPx : 1);
-        const wpx = Math.max(1.2 * S, s.w * open);
-        const tip = clamp01(1 - behind / (150 * S));
-        const heat = Math.max(0.7, tip) * cool;
-        const sx = (s.len * prog + wpx * 0.5) / 64;
-        s.lip.visible = true; s.chasm.visible = true;
-        s.lip.scale.set(sx, (wpx * 1.7 + 2.5 * S) / 16); s.lip.alpha = 0.5 * fade;
-        s.chasm.scale.set(sx, wpx / 16); s.chasm.alpha = 0.95 * fade;
-        if (s.seam) {
-          s.seam.visible = true;
-          s.seam.scale.set(sx, (wpx * (0.32 + 0.18 * c.magma)) / 16);
-          s.seam.alpha = (0.14 + 0.86 * c.magma) * heat * flick * fade;
-        }
-        if (s.glow) {
-          s.glow.visible = true;
-          s.glow.scale.set(sx, (wpx * 3.4 + 10 * S) / 32);
-          s.glow.alpha = 0.5 * c.magma * heat * flick * fade;
+      const n = c.pts.length;
+      // The front: where the crack has got to (a point between two path points), drawn as a sharp tip.
+      let fx = c.pts[0]!.x, fy = c.pts[0]!.y;
+      if (c.f > 0) { const p = this.pointOn(c, c.f); fx = p.x; fy = p.y; }
+      let heatSum = 0;
+      for (let k = 0; k < n; k++) {
+        const d = c.cum[k]!;
+        let x: number, y: number, wpx: number;
+        if (d <= c.f) {
+          x = c.pts[k]!.x; y = c.pts[k]!.y;
+          const behind = c.f - d + extra;
+          const open = 0.35 + 0.65 * easeOutCubic(c.openPx > 0 ? behind / c.openPx : 1);
+          const tip = clamp01(behind / (46 * S)); // the tip tapers to a point
+          wpx = c.w[k]! * open * Math.sqrt(tip);
+          if (k === 0 && c.drive.kind !== 'main') wpx *= 0.6;
+          heatSum += Math.max(0.7, 1 - behind / (170 * S));
+        } else { x = fx; y = fy; wpx = 0; }
+        const ex = c.nx[k]!, ey = c.ny[k]!;
+        for (const st of [c.lip, c.chasm, c.seam, c.glow]) {
+          if (!st) continue;
+          const h = wpx > 0 ? st.half(wpx) : 0;
+          st.v[k * 4] = x + ex * h; st.v[k * 4 + 1] = y + ey * h;
+          st.v[k * 4 + 2] = x - ex * h; st.v[k * 4 + 3] = y - ey * h;
         }
       }
+      const seen = c.f > 0 ? 1 : 0;
+      const heat = (heatSum > 0 ? Math.min(1, heatSum / Math.max(1, n * 0.5)) : 1) * cool;
+      c.lip.mesh.alpha = 0.38 * fade * seen;
+      c.chasm.mesh.alpha = fade * seen;
+      // Magma seams cool to a dull ember (never fully dark while the crack shows); dry cracks show a hint of light.
+      const ember = Math.max(cool, 0.3 * c.magma);
+      c.seam.mesh.alpha = (0.16 + 0.84 * c.magma) * Math.max(0.75, heat) * ember * flick * fade * seen;
+      // Cooling magma sinks from white-hot through the side colour to a deep ember red.
+      c.seam.mesh.tint = cool >= 1 ? this.hot : mixColor(mixColor(this.colors.side, 0x3a0600, 0.55), this.hot, cool);
+      if (c.glow) c.glow.mesh.alpha = 0.3 * c.magma * Math.max(0.6, heat) * cool * flick * fade * seen;
       // The main crack kicks dust and grit up at its front as it runs.
-      if (c.kick > 0 && c.f > 0 && !done && c.f - c.lastKick > 64 * S) {
+      if (c.kick > 0 && c.f > 0 && !done && c.f - c.lastKick > 70 * S) {
         c.lastKick = c.f;
-        const p = this.pointOn(c, c.f);
-        this.puff(p.x, p.y, 0.9 + 0.5 * c.kick, (this.rnd() - 0.5) * 80, -30 - this.rnd() * 40, 520 + 200 * c.kick, 0, 0.5);
+        this.puff(fx, fy, 0.8 + 0.4 * c.kick, (this.rnd() - 0.5) * 80, -30 - this.rnd() * 40, 520 + 200 * c.kick, 0, 0.42);
         if (c.kick >= 1) {
           const a = this.rnd() * Math.PI * 2;
-          this.rock(p.x, p.y, a, 40 + this.rnd() * 90, 240 + this.rnd() * 260, 0.28 + 0.12 * this.rnd(), c.magma > 0.5 && this.rnd() < 0.4 ? 0.9 : 0, 600);
+          this.rock(fx, fy, a, 40 + this.rnd() * 90, 260 + this.rnd() * 280, 0.3 + 0.15 * this.rnd(), c.magma > 0.5 && this.rnd() < 0.4 ? 0.9 : 0, 650);
         }
       }
       if (fade <= 0) {
-        for (const s of c.segs) { this.give(s.lip, 'lips'); this.give(s.chasm, 'chasms'); if (s.seam) this.give(s.seam, 'seams'); if (s.glow) this.give(s.glow, 'glow'); }
+        this.dropCrack(c);
         if (this.main === c) this.main = null;
         this.cracks.splice(i, 1);
       }
@@ -677,16 +762,16 @@ export class HeroQuakeScene {
       const wd = pl.width * (pl.age < pl.rise ? 0.6 + 0.4 * up : fl) * (1 - 0.8 * out);
       pl.outer.scale.set(h / 64, (wd * 1.6) / 64); pl.outer.alpha = 0.9 * (1 - out);
       pl.core.scale.set((h * 0.92) / 64, (wd * 0.55) / 64); pl.core.alpha = 1 - out;
-      pl.cap.position.set(pl.x, pl.y - h * 0.9); pl.cap.scale.set((wd * 2.2) / 128); pl.cap.alpha = 0.8 * up * (1 - out);
+      pl.cap.position.set(pl.x + Math.cos(pl.ang) * h * 0.9, pl.y + Math.sin(pl.ang) * h * 0.9); pl.cap.scale.set((wd * 2.2) / 128); pl.cap.alpha = 0.8 * up * (1 - out);
       if (out >= 1) { this.give(pl.outer, 'air'); this.give(pl.core, 'air'); this.give(pl.cap, 'air'); this.pillars.splice(i, 1); }
     }
 
-    return this.used > 0;
+    return this.used > 0 || this.cracks.length > 0;
   }
 
   /** Drop every in-flight effect at once (a cancel). The pools are kept for reuse. */
   clear(): void {
-    for (const c of this.cracks) for (const s of c.segs) { this.give(s.lip, 'lips'); this.give(s.chasm, 'chasms'); if (s.seam) this.give(s.seam, 'seams'); if (s.glow) this.give(s.glow, 'glow'); }
+    for (const c of this.cracks) this.dropCrack(c);
     for (const r of this.rocks) { this.give(r.s, 'rocks'); this.give(r.sh, 'shadows'); if (r.glow) this.give(r.glow, 'air'); }
     for (const q of this.fx) this.giveAny(q.s);
     for (const p of this.particles) this.giveAny(p.s);

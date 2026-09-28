@@ -20,7 +20,8 @@ function canvas(w: number, h: number): { c: HTMLCanvasElement; g: CanvasRenderin
 
 const tex = (c: HTMLCanvasElement): Texture => new Texture({ source: new CanvasSource({ resource: c }) });
 
-/** A crack segment: a crisp capsule along +X (drawn stretched along the segment, so its round caps overlap cleanly). */
+/** A crack strip's cross-section: a bar along +X, crisp (the chasm, the lip) or soft (the magma seam, its glow). A strip
+ *  mesh samples its middle column, so only the profile ACROSS the width matters. */
 function paintCapsule(W: number, H: number, soft: boolean): HTMLCanvasElement | null {
   const k = canvas(W, H); if (!k) return null;
   const g = k.g;
@@ -36,14 +37,12 @@ function paintCapsule(W: number, H: number, soft: boolean): HTMLCanvasElement | 
     g.fillStyle = h; g.fillRect(0, 0, W, H);
     return k.c;
   }
-  const r = H / 2 - 1;
-  g.fillStyle = '#fff';
-  g.beginPath();
-  g.moveTo(r + 1, 1); g.lineTo(W - r - 1, 1);
-  g.arc(W - r - 1, H / 2, r, -Math.PI / 2, Math.PI / 2);
-  g.lineTo(r + 1, H - 1);
-  g.arc(r + 1, H / 2, r, Math.PI / 2, -Math.PI / 2);
-  g.closePath(); g.fill();
+  // A crisp bar: solid across the middle, feathered over ~2 px at each edge so a thin crack still anti-aliases.
+  const v = g.createLinearGradient(0, 0, 0, H);
+  const e = 2 / H;
+  v.addColorStop(0, 'rgba(255,255,255,0)'); v.addColorStop(e, 'rgba(255,255,255,1)');
+  v.addColorStop(1 - e, 'rgba(255,255,255,1)'); v.addColorStop(1, 'rgba(255,255,255,0)');
+  g.fillStyle = v; g.fillRect(0, 0, W, H);
   return k.c;
 }
 
@@ -90,9 +89,10 @@ function paintDust(D: number): HTMLCanvasElement | null {
 function paintDustRing(D: number): HTMLCanvasElement | null {
   const k = canvas(D, D); if (!k) return null;
   const r = D / 2;
-  const gr = k.g.createRadialGradient(r, r, r * 0.45, r, r, r);
-  gr.addColorStop(0, 'rgba(255,255,255,0)'); gr.addColorStop(0.55, 'rgba(255,255,255,0.85)');
-  gr.addColorStop(0.75, 'rgba(255,255,255,0.6)'); gr.addColorStop(1, 'rgba(255,255,255,0)');
+  // A clear middle (so a ring started around a portrait never washes over the face), a thick soft band outside.
+  const gr = k.g.createRadialGradient(r, r, r * 0.6, r, r, r);
+  gr.addColorStop(0, 'rgba(255,255,255,0)'); gr.addColorStop(0.45, 'rgba(255,255,255,0.85)');
+  gr.addColorStop(0.7, 'rgba(255,255,255,0.55)'); gr.addColorStop(1, 'rgba(255,255,255,0)');
   k.g.fillStyle = gr; k.g.fillRect(0, 0, D, D);
   return k.c;
 }
@@ -115,7 +115,7 @@ let cached: HeroQuakeTextures | null = null;
 export function heroQuakeTextures(): HeroQuakeTextures | null {
   if (cached) return cached;
   const light = heroBlastTextures();
-  const crack = paintCapsule(64, 16, false), seamGlow = paintCapsule(64, 32, true);
+  const crack = paintCapsule(8, 32, false), seamGlow = paintCapsule(64, 32, true);
   const rocks = [paintRock(48, 7), paintRock(48, 19), paintRock(48, 43)];
   const dust = paintDust(96), dustRing = paintDustRing(192), scorch = paintScorch(192);
   if (!light || !crack || !seamGlow || rocks.some((r) => !r) || !dust || !dustRing || !scorch) return null;

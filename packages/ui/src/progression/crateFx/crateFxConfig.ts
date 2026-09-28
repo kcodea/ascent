@@ -234,7 +234,7 @@ export const CRATE_FX_DEFAULTS: CrateFxConfig = {
   sfxPulseClip: 'triggerpulse',
   sfxPulseGain: 0.5,
   sfxChargeClip: 'runeselectimplosion',
-  sfxChargeGain: 0.8,
+  sfxChargeGain: 0, // owner-tuned 2026-09-28: the charge implosion is muted (tuner Copy JSON baked in)
   sfxBurstClip: 'rebornshatter',
   sfxBurstGain: 1,
   sfxCrackClip: 'divineshieldbreak',

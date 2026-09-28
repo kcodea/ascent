@@ -63,6 +63,6 @@ describe('the rune data', () => {
     const r = byName('Rune of the Hunting Bell')!;
     expect(r.cost).toBe(4);
     expect(!!r.epic).toBe(false);
-    expect(r.sets).toBeUndefined(); // Rally exists in both sets
+    expect(r.sets).toEqual(['set1', 'set2']); // Rally exists in both sets; CUT FROM SET 3 2026-09-27 (owner, design pass tranche 0)
   });
 });

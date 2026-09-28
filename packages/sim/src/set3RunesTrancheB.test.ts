@@ -47,7 +47,7 @@ for (const c of [CEL, CEL2, CEL3, UNDEAD2, STAT_SPELL]) CARD_INDEX[c.id] = c;
 
 // ── the roster ──────────────────────────────────────────────────────────────────────────────────────────
 const BASIC: [string, number][] = [
-  ['rune_first_light', 4], ['rune_accretion', 5], ['rune_eventide', 4], ['rune_efficient_tooling', 3],
+  ['rune_first_light', 4], ['rune_accretion', 5], ['rune_eventide', 3] /* 4 → 3 (owner 2026-09-27, design pass) */, ['rune_efficient_tooling', 3],
   ['rune_quick_release', 4], ['rune_resonant_arms', 5], ['rune_last_rites', 4], ['rune_crowded_crypt', 4],
 ];
 const EPIC: [string, number][] = [
@@ -61,22 +61,25 @@ describe('tranche B — the roster', () => {
     for (const [id, cost] of BASIC) {
       const r = RUNE_INDEX[id]!;
       expect(RUNES.some((x) => x.id === id), `${id} lives in RUNES`).toBe(true);
-      expect([r.cost, r.epic ?? false, r.sets], id).toEqual([cost, false, ['set3']]);
+      // Quick Release CUT FROM SET 3 2026-09-27 (owner, design pass tranche 0): offered in no set
+      expect([r.cost, r.epic ?? false, r.sets], id).toEqual([cost, false, id === 'rune_quick_release' ? [] : ['set3']]);
     }
     for (const [id, cost] of EPIC) {
       const r = RUNE_INDEX[id]!;
       // the Grave Orbit was ARCHIVED 2026-09-24 (owner rulings: "remove them") — out of EPIC_RUNES, into ARCHIVED_RUNES
       expect(EPIC_RUNES.some((x) => x.id === id), `${id} lives in EPIC_RUNES`).toBe(id !== 'rune_grave_orbit');
       // the Grave Orbit CUT FROM SET 3 2026-09-24 (owner): offered in no set; the Open Constellation CUT FROM SET 3 2026-09-25 (owner's Set 3 rune list)
-      expect([r.cost, r.epic, r.sets], id).toEqual([cost, true, id === 'rune_grave_orbit' || id === 'rune_open_constellation' ? [] : ['set3']]);
+      // (the Open Constellation was RESTORED to Set 3 on 2026-09-27, design pass tranche 0)
+      expect([r.cost, r.epic, r.sets], id).toEqual([cost, true, id === 'rune_grave_orbit' ? [] : ['set3']]);
     }
   });
   it('tribe-gates exactly the runes whose text names a tribe on the board', () => {
     const gate = (id: string) => RUNE_INDEX[id]!.tribes;
     for (const id of ['rune_first_light', 'rune_accretion', 'rune_eventide', 'rune_open_constellation', 'rune_supernova', 'rune_stolen_constellations', 'rune_spellweaving']) expect(gate(id), id).toEqual(['celestial']);
-    for (const id of ['rune_last_rites', 'rune_endless_march']) expect(gate(id), id).toEqual(['undead']);
+    // the Crowded Crypt: re-tagged Undead by the owner 2026-09-27 (design pass tranche 0)
+    for (const id of ['rune_last_rites', 'rune_endless_march', 'rune_crowded_crypt']) expect(gate(id), id).toEqual(['undead']);
     expect(gate('rune_grave_orbit')).toEqual(['undead', 'celestial']);
-    for (const id of ['rune_efficient_tooling', 'rune_quick_release', 'rune_resonant_arms', 'rune_crowded_crypt', 'rune_overcharge', 'rune_dismantling', 'rune_counterrotation', 'rune_empty_hands', 'rune_last_tool']) expect(gate(id), id).toBeUndefined();
+    for (const id of ['rune_efficient_tooling', 'rune_quick_release', 'rune_resonant_arms', 'rune_overcharge', 'rune_dismantling', 'rune_counterrotation', 'rune_empty_hands', 'rune_last_tool']) expect(gate(id), id).toBeUndefined();
   });
   it('the three idempotent runes pay the duplicate sweetener; the Skeleton token exists out of every pool', () => {
     for (const id of ['rune_supernova', 'rune_last_tool', 'rune_quick_release']) expect(RUNE_DUP_SWEETENER.has(id), id).toBe(true);

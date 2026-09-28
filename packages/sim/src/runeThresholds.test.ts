@@ -104,7 +104,7 @@ describe('the seven runes', () => {
     const want: [string, number][] = [
       ['Rune of the Chorus', 3], ['Rune of Overtime', 1], ['Rune of Infernal Ink', 3], // Ink 4 -> 3 (owner 2026-08-07)
       ['Rune of the Showcase', 3], ["Rune of the Merchant's Chorus", 3], // Cindergem archived 2026-09-23 (Balance 9/23)
-      ['Rune of the Long Shift', 2],
+      ['Rune of the Long Shift', 3], // 2 → 3 (owner 2026-09-27, Set 3 rune design pass)
     ];
     for (const [name, cost] of want) {
       const r = byName(name);

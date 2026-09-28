@@ -52,6 +52,23 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-09-27',
+    label: 'Rune tuning',
+    changes: [
+      {
+        category: 'Balance',
+        text: 'Three runes have new prices, the War Drum rune explains itself better, and two Undead runes now need Undead in the game.',
+        details: [
+          'Rune of Bartering costs 4 Gold (was 6).',
+          'Rune of the First Round costs 5 Gold (was 4).',
+          'Rune of the Long Shift costs 3 Gold (was 2).',
+          'Rune of the War Drum now reads: the first Shout you trigger each turn triggers 2 more times. It works as before.',
+          'Rune of Overflow and Rune of Rising Echoes are Undead runes now. They only appear in games with Undead.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-09-27',
     changes: [
       {
         category: 'Systems',

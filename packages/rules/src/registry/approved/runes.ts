@@ -912,12 +912,12 @@ export const RUNES_RULES: GameRule[] = [
   },
   {
     id: 'R-RUNE-29',
-    title: 'Rune of Body Counting: every 8th friendly death, Shop or combat, gets a random Undead at or below your tier',
+    title: 'Rune of Body Counting: every 6th friendly death, Shop or combat, gets a random Undead at or below your tier',
     statement:
       'Friendly deaths feed one running meter shared by combat and the Shop. A Shop destroy, a Shop devour and a '
-      + 'Shop damage death count; a sale is not a death and never counts. Every 8th death gets a random Undead minion '
+      + 'Shop damage death count; a sale is not a death and never counts. Every 6th death (8th before the 2026-09-27 reprice) gets a random Undead minion '
       + "from the run's pool at or below your Tavern tier (in combat it reaches the hand after the fight). The "
-      + 'progress carries across fights and turns, and the badge shows the countdown (x/8). It is not an Avenge, so '
+      + 'progress carries across fights and turns, and the badge shows the countdown (x/6). It is not an Avenge, so '
       + 'Rune of Fury does not double it. One Undead per copy held.',
     domain: 'runes',
     status: 'approved',
@@ -926,8 +926,8 @@ export const RUNES_RULES: GameRule[] = [
       { kind: 'code', ref: 'packages/sim/src/recruit.ts fireOnFriendDeath (the Shop deaths); packages/core/src/combat/simulate.ts the avenge-bus handler; packages/sim/src/reducer.ts settle (runeBodyCountTick)' },
     ],
     contentIds: ['rune_body_counting'],
-    cardText: 'When **8** friendly minions die, get a random **Undead** minion.',
-    currentBehaviour: 'Conforms (built with the rune, 2026-09-25).',
+    cardText: 'When **6** friendly minions die, get a random **Undead** minion.',
+    currentBehaviour: 'Conforms (built with the rune, 2026-09-25; threshold 8 -> 6 by the owner-approved reprice, 2026-09-27).',
     enforcement: {
       kind: 'scenario',
       refs: ['packages/sim/src/set3RunesBatch3.test.ts', 'packages/core/src/combat/set3RunesBatch3.test.ts'],
@@ -1023,6 +1023,107 @@ export const RUNES_RULES: GameRule[] = [
       kind: 'scenario',
       refs: ['packages/sim/src/set3RunesBatch3.test.ts', 'packages/core/src/combat/set3RunesBatch3.test.ts'],
       lastVerifiedAt: '2026-09-25',
+    },
+  },
+  // ── Set 3 rune design pass (owner 2026-09-27), tranche 0: cuts, restores, re-tags, reprices, rename. ──
+  {
+    id: 'R-SET3RUNE-01',
+    title: 'Set 3 rune design pass: ten runes cut from Set 3 only, never archived',
+    statement:
+      'Rubywire, Living Magic, Recurrence, the Astral Draft, Refrain, the Hunting Bell, Sylus, the Pair, Quick Release and Grave Refreshment are no longer offered in Set 3. Each keeps every other set it was in and still resolves by id (saves and replays); a Set-3-only one is offered in no set. The Golden Splinter and the Deep Feast stay in Set 3.',
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner rulings 2026-09-27 on the Set 3 rune design pass (set3-rune-design.md)', quote: 'Cuts: cut 10 of the 12. KEEP The Golden Splinter and The Deep Feast in Set 3. The other 10 cuts proceed: Set 3 only, keep other sets, never archive.' },
+      { kind: 'code', ref: 'packages/content/src/runes.ts (the rune defs: sets / tribes / cost / name / text)' },
+    ],
+    contentIds: ['rune_rubywire', 'rune_living_magic', 'rune_recurrence', 'rune_astral_draft', 'rune_refrain', 'rune_hunting_bell', 'rune_sylus', 'rune_pair', 'rune_quick_release', 'rune_grave_refreshment', 'rune_golden_splinter', 'rune_deep_feast'],
+    cardText: 'Rune of the Pair: Get **2 random Tier 4 minions**. (One of the ten cut from Set 3.)',
+    currentBehaviour: 'Conforms (built with the tranche, 2026-09-27).',
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/sim/src/set3RuneDesignT0.test.ts', 'packages/sim/src/set3RuneList.test.ts'],
+      lastVerifiedAt: '2026-09-27',
+    },
+  },
+  {
+    id: 'R-SET3RUNE-02',
+    title: 'Set 3 rune design pass: five runes restored to Set 3',
+    statement:
+      "The Open Constellation, the Festival Circuit, the Five Banners, the Strange Caravan and the Wishbone are offered in Set 3 again. The Festival Circuit is the first Set 3 hybrid rune, gated to Spirit and Celestial. The Five Banners and the Strange Caravan read the run's own tribes, so they work with Set 3's five.",
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner rulings 2026-09-27 on the Set 3 rune design pass (set3-rune-design.md)', quote: 'All 5 restores.' },
+      { kind: 'code', ref: 'packages/content/src/runes.ts (the rune defs: sets / tribes / cost / name / text)' },
+    ],
+    contentIds: ['rune_open_constellation', 'rune_festival_circuit', 'rune_five_banners', 'rune_strange_caravan', 'rune_wishbone'],
+    cardText: 'Rune of the Strange Caravan: **Start of Turn:** get a random minion from a type you **do not control**.',
+    currentBehaviour: 'Conforms (built with the tranche, 2026-09-27).',
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/sim/src/set3RuneDesignT0.test.ts', 'packages/sim/src/set3RuneList.test.ts'],
+      lastVerifiedAt: '2026-09-27',
+    },
+  },
+  {
+    id: 'R-SET3RUNE-03',
+    title: 'Set 3 rune design pass: five runes re-tagged from Neutral to a tribe',
+    statement:
+      'Living Treasure is a Kobold rune; Rising Echoes, the Crowded Crypt and Overflow are Undead runes; Dreamed Graves is a Spirit rune. Each is offered only when its tribe is in the run. The gate applies in every set, so Set 2 (no Undead) no longer offers Overflow or Rising Echoes.',
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner rulings 2026-09-27 on the Set 3 rune design pass (set3-rune-design.md)', quote: 'The 5 re-tags.' },
+      { kind: 'code', ref: 'packages/content/src/runes.ts (the rune defs: sets / tribes / cost / name / text)' },
+    ],
+    contentIds: ['rune_living_treasure', 'rune_rising_echoes', 'rune_crowded_crypt', 'rune_overflow', 'rune_dreamed_graves'],
+    cardText: 'Rune of Overflow: **Overflow:** give your minions **+4/+4 permanently**.',
+    currentBehaviour: 'Conforms (built with the tranche, 2026-09-27).',
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/sim/src/set3RuneDesignT0.test.ts', 'packages/sim/src/tribeGate.test.ts'],
+      lastVerifiedAt: '2026-09-27',
+    },
+  },
+  {
+    id: 'R-SET3RUNE-04',
+    title: 'Set 3 rune design pass: seven reprices',
+    statement:
+      'Spearline costs 6 (was 7), Bartering 4 (was 6), the Spirit Crown 4 (was 6), Eventide 3 (was 4), the First Round 5 (was 4) and the Long Shift 3 (was 2). Body Counting pays every 6th friendly death (was every 8th); its badge counts x/6. Costs are global, so the Set 2 copies of Bartering, the First Round and the Long Shift change too.',
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner rulings 2026-09-27 on the Set 3 rune design pass (set3-rune-design.md)', quote: 'ALL the reprices in section 5 (Spearline 7->6, Bartering 6->4, Spirit Crown 6->4, Eventide 4->3, Body Counting 8 deaths->6, First Round 4->5, Long Shift 2->3).' },
+      { kind: 'code', ref: 'packages/content/src/runes.ts (the rune defs: sets / tribes / cost / name / text)' },
+    ],
+    contentIds: ['rune_spearline', 'rune_bartering', 'rune_spirit_crown', 'rune_eventide', 'rune_body_counting', 'rune_first_round', 'rune_long_shift'],
+    cardText: 'Rune of Body Counting: When **6** friendly minions die, get a random **Undead** minion.',
+    currentBehaviour: 'Conforms (built with the tranche, 2026-09-27).',
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/sim/src/set3RuneDesignT0.test.ts', 'packages/sim/src/set3RunesBatch3.test.ts'],
+      lastVerifiedAt: '2026-09-27',
+    },
+  },
+  {
+    id: 'R-SET3RUNE-05',
+    title: 'Rune of the Second Showing (was the Grand Procession) and the War Drum wording',
+    statement:
+      'Rune of the Grand Procession is renamed Rune of the Second Showing, so it no longer shares a name with the T7 minion Grand Procession; its id and behaviour are unchanged. The War Drum reads "The first Shout you trigger each turn triggers 2 more times.", which is what it already did (one per-turn charge, the first Shout, Shop or combat).',
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner rulings 2026-09-27 on the Set 3 rune design pass (set3-rune-design.md)', quote: 'Tranche 0: hygiene, re-tags, cuts, restores, reprices, Grand Procession rename, War Drum wording.' },
+      { kind: 'code', ref: 'packages/content/src/runes.ts (the rune defs: sets / tribes / cost / name / text)' },
+    ],
+    contentIds: ['rune_grand_procession', 'rune_war_drum'],
+    cardText: 'The first **Shout** you trigger each turn triggers **2** more times.',
+    currentBehaviour: 'Conforms (built with the tranche, 2026-09-27).',
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/sim/src/set3RuneDesignT0.test.ts'],
+      lastVerifiedAt: '2026-09-27',
     },
   },
 ];

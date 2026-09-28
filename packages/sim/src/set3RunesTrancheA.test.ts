@@ -54,7 +54,7 @@ const EPIC: [string, number, string[] | undefined][] = [
   ['rune_dream_mirror', 5, ['spirit']], ['rune_waking_dreams', 5, ['spirit']], // Spirit-gated 2026-09-25 (owner Set 3 rune list)
   ['rune_shared_revelry', 5, ['spirit']],
   ['rune_grand_procession', 6, ['spirit']], ['rune_festival_circuit', 4, ['spirit', 'celestial']], // Circuit 5 → 4 (2026-09-18)
-  ['rune_spirit_crown', 6, ['spirit']], ['rune_handy_flame', 5, ['spirit']], // Handy Flame is a Spirit body → gated (tag pass 2026-09-18)
+  ['rune_spirit_crown', 4, ['spirit']], /* 6 → 4 (owner 2026-09-27, design pass) */ ['rune_handy_flame', 5, ['spirit']], // Handy Flame is a Spirit body → gated (tag pass 2026-09-18)
 ];
 
 describe('tranche A — pool membership, cost, scope and tribe gates', () => {
@@ -80,7 +80,9 @@ describe('tranche A — pool membership, cost, scope and tribe gates', () => {
     expect(RUNES.some((x) => x.id === id)).toBe(false);
     expect(r.epic).toBe(true);
     expect(r.cost).toBe(cost);
-    expect(r.sets).toEqual(id === 'rune_festival_circuit' || id === 'rune_open_constellation' ? [] : ['set3']); // CUT FROM SET 3 2026-09-25 (owner's Set 3 rune list): offered in no set
+    // Astral Draft CUT FROM SET 3 2026-09-27 (owner, design pass tranche 0): offered in no set. (The Festival Circuit and the
+    // Open Constellation were cut 2026-09-25 and RESTORED 2026-09-27.)
+    expect(r.sets).toEqual(id === 'rune_astral_draft' ? [] : ['set3']);
     expect(r.tribes).toEqual(tribes);
   });
   it('the Crown rename: the sheet\'s "Rune of the Crown" ships as Rune of the Spirit Crown beside the existing Crown', () => {

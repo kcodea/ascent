@@ -40,7 +40,8 @@ const nextTurn = (s: RunState): RunState => {
 
 // ── roster ─────────────────────────────────────────────────────────────────────────────────────────────────────
 const BASIC: [string, number, Tribe][] = [
-  ['rune_gemmed_decisions', 3, 'kobold'], ['rune_echoing_kobolds', 3, 'kobold'], ['rune_red_storm', 4, 'kobold'], ['rune_rubywire', 4, 'kobold'],
+  // Rubywire was CUT FROM SET 3 on 2026-09-27 (owner, design pass tranche 0): it is now `sets: []`, pinned in set3RuneDesignT0.test.ts.
+  ['rune_gemmed_decisions', 3, 'kobold'], ['rune_echoing_kobolds', 3, 'kobold'], ['rune_red_storm', 4, 'kobold'],
   ['rune_choices', 3, 'kobold'], ['rune_combatative_rubies', 3, 'kobold'], ['rune_body_counting', 3, 'undead'],
 ];
 const EPIC: [string, number, Tribe][] = [

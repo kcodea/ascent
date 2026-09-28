@@ -27,13 +27,15 @@ const OWNER_LIST: Record<string, { basic: Record<string, string>; epic: Record<s
     basic: {
       'basic kobolds': 'rune_basic_kobold', engraving: 'rune_engraving', 'living geode': 'rune_living_geode', resonance: 'rune_resonance', 'engraving gems': 'rune_engraving_gems',
       // Set 3 rune batch 3 (owner 2026-09-25): the new Kobold Basics JOIN the list.
-      'gemmed decisions': 'rune_gemmed_decisions', 'echoing kobolds': 'rune_echoing_kobolds', 'red storm': 'rune_red_storm', rubywire: 'rune_rubywire',
+      'gemmed decisions': 'rune_gemmed_decisions', 'echoing kobolds': 'rune_echoing_kobolds', 'red storm': 'rune_red_storm',
       choices: 'rune_choices', 'combatative rubies': 'rune_combatative_rubies',
     },
     epic: {
       'epic kobolds': 'rune_epic_kobold', 'attacking gems': 'rune_attacking_gems', investment: 'rune_investment', 'gem golem': 'rune_gem_golem', motherlode: 'rune_motherlode',
       // Set 3 rune batch 3 (owner 2026-09-25): the new Kobold Epics JOIN the list.
       'storming veins': 'rune_storming_veins', 'sold choices': 'rune_sold_choices', 'aggressive golems': 'rune_aggressive_golems', 'ruptured rubies': 'rune_ruptured_rubies',
+      // Set 3 rune design pass (owner 2026-09-27): re-tagged Neutral -> Kobold.
+      'living treasure': 'rune_living_treasure',
     },
   },
   dwarf: {
@@ -47,8 +49,10 @@ const OWNER_LIST: Record<string, { basic: Record<string, string>; epic: Record<s
     },
   },
   undead: {
-    basic: { 'basic undead': 'rune_basic_undead', 'last rites': 'rune_last_rites', 'spear warden': 'rune_warden', 'soul script': 'rune_soul_script', 'body counting': 'rune_body_counting' /* batch 3, 2026-09-25 */ },
-    epic: { 'epic undead': 'rune_epic_undead', 'death touched apple': 'rune_deathtouched_apple', 'endless march': 'rune_endless_march', 'final gate': 'rune_final_gate', spearline: 'rune_spearline' },
+    basic: { 'basic undead': 'rune_basic_undead', 'last rites': 'rune_last_rites', 'spear warden': 'rune_warden', 'soul script': 'rune_soul_script', 'body counting': 'rune_body_counting' /* batch 3, 2026-09-25 */,
+      'crowded crypt': 'rune_crowded_crypt' /* re-tagged Neutral -> Undead, 2026-09-27 design pass */ },
+    epic: { 'epic undead': 'rune_epic_undead', 'death touched apple': 'rune_deathtouched_apple', 'endless march': 'rune_endless_march', 'final gate': 'rune_final_gate', spearline: 'rune_spearline',
+      overflow: 'rune_overflow', 'rising echoes': 'rune_rising_echoes' /* re-tagged Neutral -> Undead, 2026-09-27 design pass */ },
   },
   spirit: {
     basic: {
@@ -58,6 +62,7 @@ const OWNER_LIST: Record<string, { basic: Record<string, string>; epic: Record<s
     epic: {
       'epic spirit': 'rune_epic_spirit', 'shared revelry': 'rune_shared_revelry', 'grand procession': 'rune_grand_procession', 'handy flame': 'rune_handy_flame',
       'spirit crown': 'rune_spirit_crown', 'dream mirror': 'rune_dream_mirror', 'open hand': 'rune_open_hand', 'waking reserve': 'rune_waking_reserve', 'waking dreams': 'rune_waking_dreams',
+      'dreamed graves': 'rune_dreamed_graves', // re-tagged Neutral -> Spirit (2026-09-27 design pass)
     },
   },
   celestial: {
@@ -65,30 +70,34 @@ const OWNER_LIST: Record<string, { basic: Record<string, string>; epic: Record<s
     epic: {
       'epic celestial': 'rune_epic_celestial', spellweaving: 'rune_spellweaving', 'stolen constellations': 'rune_stolen_constellations',
       'meteor shower': 'rune_meteor_shower', 'red giant': 'rune_red_giant', supernova: 'rune_supernova',
+      'open constellation': 'rune_open_constellation', // RESTORED (2026-09-27 design pass)
     },
+  },
+  // HYBRIDS (2026-09-27 design pass): one per natural tribe pair, each gated to BOTH its tribes (HYBRID_TRIBES).
+  // Soul Script predates the group and stays listed under Undead (owner 2026-09-25).
+  hybrid: {
+    basic: {},
+    epic: { 'festival circuit': 'rune_festival_circuit' /* RESTORED */ },
   },
   neutral: {
     basic: {
       'happy birthday': 'rune_happy_birthday', action: 'rune_action', amplification: 'rune_amplification', backbeat: 'rune_backbeat', bartering: 'rune_bartering',
       'bulk order': 'rune_scale', 'carrion coin': 'rune_carrion_coin', distillation: 'rune_distillation', duplication: 'rune_duplication',
       'echoed arrival': 'rune_echoed_arrival', 'efficient tooling': 'rune_efficient_tooling', forthcoming: 'rune_forthcoming', 'fresh pages': 'rune_fresh_pages',
-      fury: 'rune_fury', gambling: 'rune_gambling', 'grave refreshment': 'rune_grave_refreshment', kindling: 'rune_kindling', lassoing: 'rune_lassoing',
-      'living magic': 'rune_living_magic', lorekeeping: 'rune_lorekeeping', 'open enrollment': 'rune_open_enrollment', 'quick release': 'rune_quick_release',
-      'quick study': 'rune_quick_study', rallying: 'rune_rallying', 'rare goods': 'rune_rare_goods', recollection: 'rune_recollection', reflector: 'rune_refraction',
-      refrain: 'rune_refrain', 'resonant arms': 'rune_resonant_arms', shopkeep: 'rune_shopkeep', spellslinging: 'rune_spellslinging', spending: 'rune_spending',
-      baller: 'rune_baller', 'bubble crown': 'rune_bubble_crown', catacomb: 'rune_catacomb', chorus: 'rune_chorus', coffers: 'rune_coffers', collector: 'rune_collector',
-      'crowded crypt': 'rune_crowded_crypt', 'deep feast': 'rune_deep_feast', 'epic forge': 'rune_epic_forge', 'gilded ledger': 'rune_gilded_ledger',
-      'golden splinter': 'rune_golden_splinter', 'herding horn': 'rune_herding_horn', 'hunting bell': 'rune_hunting_bell', 'ornate clock': 'rune_ornate_clock',
-      pair: 'rune_pair', scout: 'rune_scout', 'seasoned ledger': 'rune_seasoned_ledger', showcase: 'rune_showcase', 'merchants chorus': 'rune_merchants_chorus',
+      fury: 'rune_fury', gambling: 'rune_gambling', kindling: 'rune_kindling', lassoing: 'rune_lassoing', lorekeeping: 'rune_lorekeeping', 'open enrollment': 'rune_open_enrollment',
+      'quick study': 'rune_quick_study', rallying: 'rune_rallying', 'rare goods': 'rune_rare_goods', recollection: 'rune_recollection', reflector: 'rune_refraction', 'resonant arms': 'rune_resonant_arms', shopkeep: 'rune_shopkeep', spellslinging: 'rune_spellslinging', spending: 'rune_spending',
+      baller: 'rune_baller', 'bubble crown': 'rune_bubble_crown', catacomb: 'rune_catacomb', chorus: 'rune_chorus', coffers: 'rune_coffers', collector: 'rune_collector', 'deep feast': 'rune_deep_feast', 'epic forge': 'rune_epic_forge', 'gilded ledger': 'rune_gilded_ledger',
+      'golden splinter': 'rune_golden_splinter', 'herding horn': 'rune_herding_horn', 'ornate clock': 'rune_ornate_clock', scout: 'rune_scout', 'seasoned ledger': 'rune_seasoned_ledger', showcase: 'rune_showcase', 'merchants chorus': 'rune_merchants_chorus',
       spellmarket: 'rune_spellmarket', stampede: 'rune_stampede', 'war drum': 'rune_war_drum', transcription: 'rune_transcription',
+      // RESTORED (2026-09-27 design pass): the two menagerie Basics and the Hero Power rune.
+      'five banners': 'rune_five_banners', 'strange caravan': 'rune_strange_caravan', wishbone: 'rune_wishbone',
     },
     epic: {
       lazarus: 'rune_lazarus', 'merry christmas': 'rune_merry_christmas', adventuring: 'rune_adventuring', cadence: 'rune_cadence', 'combat prowess': 'rune_combat_prowess',
-      copies: 'rune_copies', copycat: 'rune_copycat', counterrotation: 'rune_counterrotation', dismantling: 'rune_dismantling', 'dreamed graves': 'rune_dreamed_graves',
+      copies: 'rune_copies', copycat: 'rune_copycat', counterrotation: 'rune_counterrotation', dismantling: 'rune_dismantling',
       'empty hands': 'rune_empty_hands', enchantment: 'rune_enchantment', 'held strength': 'rune_held_strength', 'lasting cadence': 'rune_lasting_cadence',
-      'living treasure': 'rune_living_treasure', might: 'rune_might', 'ninefold commerce': 'rune_ninefold_commerce', overcharge: 'rune_overcharge', overflow: 'rune_overflow',
-      'perfect recall': 'rune_perfect_recall', recurrence: 'rune_recurrence', 'rising echoes': 'rune_rising_echoes', sylus: 'rune_sylus', abomination: 'rune_abomination',
-      'astral draft': 'rune_astral_draft', 'astral refrain': 'rune_astral_refrain', 'bargain bin': 'rune_bargain_bin', champion: 'rune_champion', choir: 'rune_choir',
+      might: 'rune_might', 'ninefold commerce': 'rune_ninefold_commerce', overcharge: 'rune_overcharge',
+      'perfect recall': 'rune_perfect_recall', abomination: 'rune_abomination', 'astral refrain': 'rune_astral_refrain', 'bargain bin': 'rune_bargain_bin', champion: 'rune_champion', choir: 'rune_choir',
       conductor: 'rune_conductor', 'corrupted tome': 'rune_corrupted_tome', crucible: 'rune_crucible', deep: 'rune_deep', 'grand workshop': 'rune_grand_workshop',
       'guiding candle': 'rune_guiding_candle', herald: 'rune_herald', 'long shift': 'rune_long_shift', 'last tool': 'rune_last_tool', muster: 'rune_muster',
       procession: 'rune_procession', 'second path': 'rune_second_path', 'stoked menagerie': 'rune_stoked_menagerie', 'tip jar': 'rune_tip_jar', twilight: 'rune_twilight',
@@ -103,11 +112,20 @@ const inSet3 = (r: { sets?: readonly string[] }): boolean => !r.sets || r.sets.i
 
 /** Runes that were Set-3-only before the list: leaving Set 3 leaves them offered in NO set (`sets: []`), not
  *  archived. The owner decides whether to archive or re-home them. */
-const NOWHERE = ['rune_charted_skies', 'rune_festival_circuit', 'rune_open_constellation'];
+const NOWHERE = ['rune_charted_skies',
+  // Set-3-only runes cut on 2026-09-27 (design pass): now offered in no set. (Festival Circuit and Open
+  // Constellation left this list the same day: restored to Set 3.)
+  'rune_rubywire', 'rune_astral_draft', 'rune_quick_release'];
+
+/** The hybrid group's tribe gates (2026-09-27 design pass). */
+const HYBRID_TRIBES: Record<string, readonly Tribe[]> = {
+  rune_festival_circuit: ['spirit', 'celestial'],
+};
 
 describe("the owner's Set 3 rune list (2026-09-25)", () => {
-  it('names 174 distinct runes, every one a live (non-archived) rune def', () => {
-    expect(LISTED).toHaveLength(174); // 163 + 11 from Set 3 rune batch 3 (2026-09-25)
+  it('names 169 distinct runes, every one a live (non-archived) rune def', () => {
+    // 163 + 11 from Set 3 rune batch 3 (2026-09-25) = 174; the 2026-09-27 design pass (tranche 0) cut 10, restored 5.
+    expect(LISTED).toHaveLength(169);
     expect(new Set(LISTED).size, 'no rune named twice').toBe(LISTED.length);
     for (const id of LISTED) {
       expect(LIVE.some((r) => r.id === id), `${id} is a live rune`).toBe(true);
@@ -121,7 +139,8 @@ describe("the owner's Set 3 rune list (2026-09-25)", () => {
 
   it('a Set 3 Runeforge with every Set 3 tribe rolled can offer exactly the list (Basic forge + Epic forge)', () => {
     const offered = new Set<string>();
-    for (const hero of ['warden', 'runesmith']) {
+    // Keshi joins 2026-09-27: her power doubles, so the restored Wishbone (requiresDoublePower) is reachable.
+    for (const hero of ['warden', 'runesmith', 'keshi']) {
       for (const epic of [false, true]) {
         const s = { ...createRun(7, hero, 'ascent', undefined, 'set3'), tribes: [...SETS.set3.tribes] as Tribe[], ownedRunes: [], runeforgeEpic: epic || undefined } as RunState;
         for (const id of runeforgePool(s)) offered.add(id);
@@ -130,9 +149,9 @@ describe("the owner's Set 3 rune list (2026-09-25)", () => {
     expect([...offered].sort()).toEqual([...LISTED].sort());
   });
 
-  it('counts: 91 Basic / 83 Epic (the game rarity; 84 / 79 after Engraving Gems moved Epic → Basic, + 7 / + 4 from rune batch 3, 2026-09-25)', () => {
-    expect(LISTED.filter((id) => RUNES.some((r) => r.id === id))).toHaveLength(91);
-    expect(LISTED.filter((id) => EPIC_RUNES.some((r) => r.id === id))).toHaveLength(83);
+  it('counts: 87 Basic / 82 Epic (91 / 83 on 2026-09-25; the 2026-09-27 tranche 0 cut 7 Basic + 3 Epic and restored 3 Basic + 2 Epic)', () => {
+    expect(LISTED.filter((id) => RUNES.some((r) => r.id === id))).toHaveLength(87);
+    expect(LISTED.filter((id) => EPIC_RUNES.some((r) => r.id === id))).toHaveLength(82);
   });
 
   it('every rune NOT named is out of Set 3, still resolves, and keeps its other sets (never archived)', () => {
@@ -165,6 +184,7 @@ describe("the owner's Set 3 rune list (2026-09-25)", () => {
       for (const id of [...Object.values(g.basic), ...Object.values(g.epic)]) {
         const tribes = [...(RUNE_INDEX[id]!.tribes ?? [])].sort();
         if (group === 'neutral') expect(tribes, `${id} is Neutral: no tribe gate`).toEqual([]);
+        else if (group === 'hybrid') expect(tribes, `${id} is a hybrid`).toEqual([...HYBRID_TRIBES[id]!].sort());
         else expect(tribes, `${id} is gated to ${group}`).toEqual([group as Tribe, ...(EXTRA[id] ?? [])].sort());
       }
     }

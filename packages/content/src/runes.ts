@@ -156,7 +156,7 @@ export const RUNES: RuneDef[] = [
     id: 'rune_first_round',
     tribes: ['dwarf'], // TRIBE GATE (owner tag pass 2026-09-18): the text names the tribe / its Rubies, Ales, Attachments, Imps, or it grants that tribe's minion
     name: 'Rune of the First Round',
-    cost: 4, // balance 9/23 (was 5)
+    cost: 5, // owner 2026-09-27, Set 3 rune design pass (was 4; 5 before balance 9/23)
     text: '**End of Turn:** get **2 random Dwarven Ales**.',
     reward: { kind: 'recurringEndOfTurn', effect: 'grantAles' },
     sets: ['set2', 'set3'], // Ales // + set3 2026-09-14 (rune roster handoff: mechanically compatible carryover)
@@ -287,6 +287,7 @@ export const RUNES: RuneDef[] = [
     cost: 4,
     text: '**Avenge (3):** trigger your **left-most Rally**.',
     reward: { kind: 'combatFlag', flag: 'runeHuntingBell' },
+    sets: ['set1', 'set2'], // CUT FROM SET 3 (owner 2026-09-27, Set 3 rune design pass: tranche 0 cut list; keeps its other sets, never archived)
   },
   {
     // Bounded per combat: unbounded, a slot refills the instant it empties and the board can never shrink.
@@ -371,6 +372,7 @@ export const RUNES: RuneDef[] = [
     cost: 3, // balance 9/23 (was 5)
     text: 'Get **2 random Tier 4 minions**.',
     reward: { kind: 'grant', randomTier: 4, randomCount: 2 },
+    sets: ['set1', 'set2'], // CUT FROM SET 3 (owner 2026-09-27, Set 3 rune design pass: tranche 0 cut list; keeps its other sets, never archived)
   },
   {
     id: 'rune_menagerie',
@@ -469,7 +471,7 @@ export const RUNES: RuneDef[] = [
   {
     id: 'rune_bartering',
     name: 'Rune of Bartering',
-    cost: 6, // owner balance 2026-08-11
+    cost: 4, // owner 2026-09-27, Set 3 rune design pass (was 6)
     text: '**Shout** minions sell for **2 Gold**.',
     reward: { kind: 'runeBartering' },
   },
@@ -537,6 +539,7 @@ export const RUNES: RuneDef[] = [
     cost: 3, // owner balance 2026-08-07
     text: 'Your **Shout** minions have a **25%** chance to return to your hand after you play them.',
     reward: { kind: 'runeRefrain' },
+    sets: ['set1', 'set2'], // CUT FROM SET 3 (owner 2026-09-27, Set 3 rune design pass: tranche 0 cut list; keeps its other sets, never archived)
   },
   {
     id: 'rune_trophy',
@@ -717,7 +720,7 @@ export const RUNES: RuneDef[] = [
     cost: 4,
     text: '**End of Turn:** give a minion of **each type +5/+4**.',
     reward: { kind: 'runeFiveBanners' },
-    sets: ['set1', 'set2'], // CUT FROM SET 3 (owner 2026-09-25: not on the owner's Set 3 rune list)
+    sets: ['set1', 'set2', 'set3'], // RESTORED to Set 3 (owner 2026-09-27, Set 3 rune design pass)
   },
   {
     id: 'rune_shared_pour',
@@ -893,7 +896,7 @@ export const RUNES: RuneDef[] = [
     cost: 2, // balance 9/23 (was 3)
     text: '**Start of Turn:** get a random minion from a type you **do not control**.',
     reward: { kind: 'runeStrangeCaravan' },
-    sets: ['set1', 'set2'], // CUT FROM SET 3 (owner 2026-09-25: not on the owner's Set 3 rune list)
+    sets: ['set1', 'set2', 'set3'], // RESTORED to Set 3 (owner 2026-09-27, Set 3 rune design pass)
   },
   {
     // Owner rework 2026-09-23: hands over a Rope Wrangler (the End-of-Turn Lasso caster) and pays your board
@@ -1141,7 +1144,7 @@ export const RUNES: RuneDef[] = [
     id: 'rune_war_drum',
     name: 'Rune of the War Drum',
     cost: 2,
-    text: 'One **Shout** triggers **2 extra times** per turn.',
+    text: 'The first **Shout** you trigger each turn triggers **2** more times.', // reworded (owner 2026-09-27, Set 3 rune design pass); behaviour unchanged
     reward: { kind: 'runeWarDrum', extra: 2 },
   },
   {
@@ -1163,7 +1166,7 @@ export const RUNES: RuneDef[] = [
     text: 'Your **Hero Power** triggers **twice**.',
     requiresDoublePower: true,
     reward: { kind: 'runeWishbone' },
-    sets: ['set1', 'set2'], // CUT FROM SET 3 (owner 2026-09-25: not on the owner's Set 3 rune list)
+    sets: ['set1', 'set2', 'set3'], // RESTORED to Set 3 (owner 2026-09-27, Set 3 rune design pass)
   },
 
   // -- 2026-08-20 owner rune batch: BASIC --------------------------------------------------------------
@@ -1237,6 +1240,7 @@ export const RUNES: RuneDef[] = [
     cost: 4,
     text: '**Once per turn**, after you cast a spell, get a **copy** of it.',
     reward: { kind: 'runeSpellEcho', uses: 1 },
+    sets: ['set1', 'set2'], // CUT FROM SET 3 (owner 2026-09-27, Set 3 rune design pass: tranche 0 cut list; keeps its other sets, never archived)
   },
   {
     id: 'rune_draconic_curiosity',
@@ -1278,6 +1282,7 @@ export const RUNES: RuneDef[] = [
     cost: 3,
     text: 'For every **2** friendly **Echoes** triggered in combat, gain a **free refresh** next turn.',
     reward: { kind: 'combatFlag', flag: 'runeGraveRefreshment', amount: 2 },
+    sets: ['set1', 'set2'], // CUT FROM SET 3 (owner 2026-09-27, Set 3 rune design pass: tranche 0 cut list; keeps its other sets, never archived)
   },
   {
     id: 'rune_seasoned_ledger',
@@ -1535,7 +1540,7 @@ export const RUNES: RuneDef[] = [
     // (per copy held) remains.
     id: 'rune_eventide',
     name: 'Rune of Eventide',
-    cost: 4,
+    cost: 3, // owner 2026-09-27, Set 3 rune design pass (was 4)
     tribes: ['celestial'],
     text: 'After you **Consume** or **Collapse** a **Starform**, give your **Shop spells +1/+1**. (Once per turn)',
     previewCards: ['ce3_starform'], // the text names the token — the forge hover shows it
@@ -1561,7 +1566,7 @@ export const RUNES: RuneDef[] = [
     cost: 4,
     text: "After you sell an **Equip** minion, your next Equipment activation costs **0** this turn. (Doesn't discount its own Equipment)",
     reward: { kind: 'runeQuickRelease' },
-    sets: ['set3'],
+    sets: [], // CUT FROM SET 3 (owner 2026-09-27, Set 3 rune design pass): was Set-3-only, so it is now offered in no set (never archived)
   },
   {
     // A run-wide meter over Equipment TRIGGERS (a repeat, a Dismantling or Counterrotation re-fire each count);
@@ -1588,6 +1593,7 @@ export const RUNES: RuneDef[] = [
     // The Basic +1/+1 sibling of Rune of Overflow (Epic, +4/+4). Combat: the SAME `runeOverflow` flag (amounts
     // add, so both held = +5/+5 per overflow). Shop: `fireSummonOverflow` pays the +1/+1 TWICE per copy held.
     id: 'rune_crowded_crypt',
+    tribes: ['undead'], // RE-TAG Neutral -> Undead (owner 2026-09-27, Set 3 rune design pass): in Set 3 only Undead print Overflow
     name: 'Rune of the Crowded Crypt',
     cost: 4,
     text: '**Overflow:** give your minions **+1/+1 permanently**. Triggers **twice** in the Shop.',
@@ -1646,7 +1652,7 @@ export const RUNES: RuneDef[] = [
     text: 'When you cast a **Shop Spell**, cast a **Ruby** on **2** friendly **Kobolds**.',
     previewCards: ['ruby'],
     reward: { kind: 'combatFlag', flag: 'runeRubywire' },
-    sets: ['set3'],
+    sets: [], // CUT FROM SET 3 (owner 2026-09-27, Set 3 rune design pass): was Set-3-only, so it is now offered in no set (never archived)
   },
   {
     // Owner ruling 2026-09-25: FIRST EACH TURN, the Prismatic Pick mechanism: one Choose-Both charge armed at every
@@ -1672,13 +1678,13 @@ export const RUNES: RuneDef[] = [
     sets: ['set3'],
   },
   {
-    // A RUNNING meter over friendly DEATHS (`runeBodyCountTick`), shared by combat and the Shop: every 8th pays a
+    // A RUNNING meter over friendly DEATHS (`runeBodyCountTick`), shared by combat and the Shop: every 6th (owner 2026-09-27; was 8th) pays a
     // random Undead from the run's pool at or below your tier. Sales are not deaths; Shop destroys and devours are.
     id: 'rune_body_counting',
     tribes: ['undead'],
     name: 'Rune of Body Counting',
     cost: 3,
-    text: 'When **8** friendly minions die, get a random **Undead** minion.',
+    text: 'When **6** friendly minions die, get a random **Undead** minion.',
     reward: { kind: 'combatFlag', flag: 'runeBodyCounting' },
     sets: ['set3'],
   },
@@ -1750,7 +1756,7 @@ export const EPIC_RUNES: RuneDef[] = [
     tribes: ['undead'], // TRIBE GATE (owner 2026-09-25, Set 3 rune list): offered only when Undead is in the run, in every set
     sets: ['set1', 'set3'], // + set3 2026-09-14 (rune roster handoff: mechanically compatible carryover)
     name: 'Rune of the Spearline',
-    cost: 7,
+    cost: 6, // owner 2026-09-27, Set 3 rune design pass (was 7)
     epic: true,
     text: '**Avenge (4):** summon a **Spear Warden**. It attacks immediately.',
     previewCards: ['knit'], // text names it — the forge hover shows the card
@@ -1985,6 +1991,7 @@ export const EPIC_RUNES: RuneDef[] = [
     epic: true,
     text: '**End of Turn:** cast the **first Shop spell** you cast this turn again, **twice**.',
     reward: { kind: 'recurringEndOfTurn', effect: 'recastFirstSpell' },
+    sets: ['set1', 'set2'], // CUT FROM SET 3 (owner 2026-09-27, Set 3 rune design pass: tranche 0 cut list; keeps its other sets, never archived)
   },
   {
     id: 'rune_replication',
@@ -2189,7 +2196,7 @@ export const EPIC_RUNES: RuneDef[] = [
   {
     id: 'rune_long_shift',
     name: 'Rune of the Long Shift',
-    cost: 2,
+    cost: 3, // owner 2026-09-27, Set 3 rune design pass (was 2)
     epic: true,
     // Owner rework 2026-08-11: from a buy-meter to a double Discover. Reworded 2026-08-17 — the pair now fires
     // IMMEDIATELY on taking the rune and repeats every Start of Turn, rather than waiting for the next turn.
@@ -2302,6 +2309,7 @@ export const EPIC_RUNES: RuneDef[] = [
     // then because it resummons the PRINTED body). Granted at Start of Combat to the shards already on the
     // board and at the summon site to every shard that lands mid-fight.
     id: 'rune_living_treasure',
+    tribes: ['kobold'], // RE-TAG Neutral -> Kobold (owner 2026-09-27, Set 3 rune design pass): Gemheart Golems are Kobold only
     name: 'Rune of Living Treasure',
     cost: 4,
     epic: true,
@@ -2361,6 +2369,7 @@ export const EPIC_RUNES: RuneDef[] = [
     // "Permanently" required a new carry-back channel — every other one is tribe-scoped, so an untyped
     // whole-warband buff had nowhere to land and would have vanished at settle.
     id: 'rune_overflow',
+    tribes: ['undead'], // RE-TAG Neutral -> Undead (owner 2026-09-27, Set 3 rune design pass): in Set 3 only Undead print Overflow
     name: 'Rune of Overflow',
     cost: 4, // owner balance 2026-08-11
     epic: true,
@@ -2728,6 +2737,7 @@ export const EPIC_RUNES: RuneDef[] = [
     text: "Get a **Sylus**. Your **Sylus** gain **Start of Combat:** double this minion's **Health**.",
     previewCards: ['sylus'],
     reward: { kind: 'multi', rewards: [{ kind: 'grant', cards: ['sylus'] }, { kind: 'combatFlag', flag: 'runeSylus' }] },
+    sets: ['set1', 'set2'], // CUT FROM SET 3 (owner 2026-09-27, Set 3 rune design pass: tranche 0 cut list; keeps its other sets, never archived)
   },
   {
     id: 'rune_kobold_bebes',
@@ -2964,6 +2974,7 @@ export const EPIC_RUNES: RuneDef[] = [
   },
   {
     id: 'rune_rising_echoes',
+    tribes: ['undead'], // RE-TAG Neutral -> Undead (owner 2026-09-27, Set 3 rune design pass): the Rise half is the Undead keyword
     name: 'Rune of Rising Echoes',
     cost: 4,
     epic: true,
@@ -3139,8 +3150,7 @@ export const EPIC_RUNES: RuneDef[] = [
   {
     // "Summoned from your hand" = a Spirit hand-summon or Rope Wrangler's Echo in combat (`pendingHandSummon`).
     id: 'rune_dreamed_graves',
-    // NOT tribe-gated: the owner's sheet files it under Undead, but the codified rule (owner 2026-09-10, `tribeGate.test.ts`)
-    // gates only where the TEXT names a tribe on the board — and this text names none. Flagged in the tranche-C PR.
+    tribes: ['spirit'], // RE-TAG Neutral -> Spirit (owner 2026-09-27, Set 3 rune design pass): hand summons are the Spirit line
     name: 'Rune of Dreamed Graves',
     cost: 4,
     epic: true,
@@ -3216,7 +3226,7 @@ export const EPIC_RUNES: RuneDef[] = [
     epic: true,
     text: '**Start of Turn:** **Discover** a Shop spell. It casts an additional time.',
     reward: { kind: 'runeAstralDraft' },
-    sets: ['set3'],
+    sets: [], // CUT FROM SET 3 (owner 2026-09-27, Set 3 rune design pass): was Set-3-only, so it is now offered in no set (never archived)
   },
   {
     // "A minion in your hand gains stats" = the reducer's per-action HAND stat diff (shop phase; every source).
@@ -3259,7 +3269,7 @@ export const EPIC_RUNES: RuneDef[] = [
     // RUNES, and the card's own return is on SELL where this one is on PLAY.
     id: 'rune_grand_procession',
     tribes: ['spirit'],
-    name: 'Rune of the Grand Procession',
+    name: 'Rune of the Second Showing', // RENAMED (owner 2026-09-27, Set 3 rune design pass): clashed with the T7 minion Grand Procession; id unchanged
     cost: 6,
     epic: true,
     text: 'The first **2 Revelers** you play each turn return a plain copy to your hand.',
@@ -3281,7 +3291,7 @@ export const EPIC_RUNES: RuneDef[] = [
     text: 'After you sell **3 Revelers**, get a random **Celestial**. Your **Revelers** buff **Celestials**.',
     previewCards: ['sp3_flamereveler', 'sp3_tidereveler', 'sp3_grovereveler'],
     reward: { kind: 'runeFestivalCircuit', count: 3 },
-    sets: [], // CUT FROM SET 3 (owner 2026-09-25: not on the owner's Set 3 rune list)
+    sets: ['set3'], // RESTORED to Set 3 (owner 2026-09-27, Set 3 rune design pass)
   },
   {
     // RENAMED from the owner's "Rune of the Crown" (2026-09-16) — Rune of the Crown already exists (the Epic
@@ -3290,7 +3300,7 @@ export const EPIC_RUNES: RuneDef[] = [
     id: 'rune_spirit_crown',
     tribes: ['spirit'], // the sheet tagged Spirit + Celestial; the text names only Spirits, so only Spirit gates it (owner rule)
     name: 'Rune of the Spirit Crown',
-    cost: 6,
+    cost: 4, // owner 2026-09-27, Set 3 rune design pass (was 6)
     epic: true,
     text: 'When you play **3** Spirits, improve your Shop spells by **+1/+1**.',
     reward: { kind: 'runeThreshold', meter: 'playSpirit', per: 3, buff: { target: 'spells', attack: 1, health: 1 } },
@@ -3321,7 +3331,7 @@ export const EPIC_RUNES: RuneDef[] = [
     text: "After you **Consume** your first Starform each turn, create another Starform with the consumed Starform's stats.",
     previewCards: ['ce3_starform'], // the text names the token — the forge hover shows it
     reward: { kind: 'runeOpenConstellation' },
-    sets: [], // CUT FROM SET 3 (owner 2026-09-25: not on the owner's Set 3 rune list)
+    sets: ['set3'], // RESTORED to Set 3 (owner 2026-09-27, Set 3 rune design pass)
   },
   {
     // `collapseHits`: the "2 unique originals" become EVERY friendly Celestial; Nova Herald's extras still land

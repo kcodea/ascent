@@ -585,10 +585,27 @@ knowing: Echoing Kobolds and Aggressive Golems are aura-style GRAFTS (every Kobo
 summons included; a Gilded Kobold still gets one Ruby); Rubywire's "Shop Spell" is R-SHOPSPELL-01's (Ales count, Rubies /
 Clues / tokens do not) in every phase; Choices is a per-turn Choose-Both charge (the Prismatic Pick mechanism); Sold
 Choices repeats the branch recorded at play (`chosenOption`, or both via `chosenBoth`) and does nothing for a body that
-never chose; Combatative Rubies (every 3rd friendly attack) and Body Counting (every 8th friendly death, Shop deaths
+never chose; Combatative Rubies (every 3rd friendly attack) and Body Counting (every 6th friendly death since 2026-09-27, Shop deaths
 included, sales not) are RUNNING meters carried across fights; Storming Veins adds 2 casts from hand only (R-MULT-06);
 Ruptured Rubies hops every combat Ruby twice (stats only), the Shop unaffected. Oracle R-RUNE-23..33; details in
 `docs/devlog/2026-09-25-set3-runes-batch3.md`.
+
+**Set 3 rune design pass, tranche 0 (owner 2026-09-27)** supersedes the count above: **169 runes, 87 Basic / 82 Epic**.
+- *Cut from Set 3 only (10):* Rubywire, Living Magic, Recurrence, the Astral Draft, Refrain, the Hunting Bell, Sylus,
+  the Pair, Quick Release, Grave Refreshment. Each keeps its other sets and is never archived; the three that were
+  Set-3-only (Rubywire, the Astral Draft, Quick Release) are now `sets: []`. The Golden Splinter and the Deep Feast stay.
+- *Restored to Set 3 (5):* the Open Constellation, the Festival Circuit (the first **hybrid**: gated Spirit + Celestial),
+  the Five Banners, the Strange Caravan, the Wishbone.
+- *Re-tagged (5):* Living Treasure is Kobold; Rising Echoes, the Crowded Crypt and Overflow are Undead; Dreamed Graves
+  is Spirit. A tribe gate applies in every set, so Overflow and Rising Echoes are no longer offered in Set 2 (it fields
+  no Undead).
+- *Repriced:* Spearline 7 -> 6, Bartering 6 -> 4, the Spirit Crown 6 -> 4, Eventide 4 -> 3, the First Round 4 -> 5, the
+  Long Shift 2 -> 3; Body Counting now pays every **6th** friendly death (was 8th). Costs are global, so Bartering, the
+  First Round and the Long Shift change in Set 2 too.
+- *Renamed / reworded:* Rune of the Grand Procession is now **Rune of the Second Showing** (id unchanged); the War
+  Drum reads "The first Shout you trigger each turn triggers 2 more times." (behaviour unchanged).
+
+Oracle R-SET3RUNE-01..05; details in `docs/devlog/2026-09-27-set3-runes-t0.md`; ids pinned in `set3RuneList.test.ts`.
 
 **Set 3-original runes (batch 2, 2026-09-16).** Set 3 now also has runes of its own — `sets: ['set3']` alone,
 no origin scope — starting with tranche A's 24 Spirit / Celestial / Undead runes (11 Basic + 13 Epic, taking the

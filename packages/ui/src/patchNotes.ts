@@ -76,6 +76,18 @@ export const PATCH_NOTES: PatchNote[] = [
       },
       {
         category: 'Systems',
+        text: 'A new Legendary hero attack, Arcane Barrage, can drop from crates.',
+        details: [
+          'Your numbers combine into one total, your hero charges up, and a volley of bolts hits the other hero. The biggest hits fire one huge beam.',
+          'The bigger the hit, the bigger the show.',
+          'Equip it from the Attack Animations tab of the Collection. "Use Classic" puts the original attack back. There is a preview button there too.',
+          'The player you hit sees your hero attack, and you see theirs.',
+          'The setting Show opponent skins is now Show opponent cosmetics. Turn it off to see other players with the default look and the Classic attack.',
+          'Hero attacks are looks only. The damage is exactly the same.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'A Legendary Black Belt Brian skin and an Epic Bellringer Voss skin join the crates.',
       },
       {

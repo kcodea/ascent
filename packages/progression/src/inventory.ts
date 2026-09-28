@@ -12,7 +12,8 @@
  *                                         → `equip_cosmetic` (2026-09-28, skins): wear a hero or minion skin the
  *                                           caller OWNS on the target it was made for, or null for Default. The
  *                                           SQL checks ownership, category = slot, target and that the item is
- *                                           live (a retired skin cannot be equipped).
+ *                                           live (a retired skin cannot be equipped). Also the account-wide
+ *                                           `hero_attack` slot (target '', null = Classic), same checks.
  *
  * WHY A SEPARATE FUNCTION (not an extension of submit-progression): settlement is a queued, retried, byte-pinned
  * request whose contract is already live; opening and equipping are interactive, never queued, and fail
@@ -23,14 +24,14 @@
  * the SQL decides. `npm run progression:shared` generates this file VERBATIM into
  * supabase/functions/_shared/progressionInventory.ts; `sharedArtifact.test.ts` fails CI on drift.
  */
-import { COSMETIC_CATEGORY_DEFS, SKIN_SLOTS, catalogHash, catalogSyncPayload, cosmeticOf, parseOpenCrateResult, type OpenCrateResult, type SkinSlot } from './cosmetics';
+import { COSMETIC_CATEGORY_DEFS, EQUIP_SLOTS, catalogHash, catalogSyncPayload, cosmeticOf, parseOpenCrateResult, type EquipSlot, type OpenCrateResult } from './cosmetics';
 import { parseProgressionProfile, type ProgressionProfile } from './rules';
 import type { HandlerResponse, RpcCall } from './server';
 
 export type InventoryRequest =
   | { action: 'open_crate'; crateId: string }
   | { action: 'equip_title'; titleId: string | null }
-  | { action: 'equip_cosmetic'; slot: SkinSlot; targetId: string; cosmeticId: string | null };
+  | { action: 'equip_cosmetic'; slot: EquipSlot; targetId: string; cosmeticId: string | null };
 
 export type InventoryValidation = { ok: true; request: InventoryRequest } | { ok: false; status: number; error: string };
 
@@ -53,10 +54,11 @@ export function validateInventoryBody(body: unknown): InventoryValidation {
     return { ok: true, request: { action: 'equip_title', titleId: b.titleId } };
   }
   if (b.action === 'equip_cosmetic') {
-    if (typeof b.slot !== 'string' || !(SKIN_SLOTS as readonly string[]).includes(b.slot)) return { ok: false, status: 400, error: 'bad_slot' };
-    if (typeof b.targetId !== 'string' || !TARGET_ID.test(b.targetId)) return { ok: false, status: 400, error: 'bad_target' };
+    if (typeof b.slot !== 'string' || !(EQUIP_SLOTS as readonly string[]).includes(b.slot)) return { ok: false, status: 400, error: 'bad_slot' };
+    // A hero attack is account-wide: its target is always '' (the global slot). A skin names its hero or card.
+    if (typeof b.targetId !== 'string' || (b.slot === 'hero_attack' ? b.targetId !== '' : !TARGET_ID.test(b.targetId))) return { ok: false, status: 400, error: 'bad_target' };
     if (b.cosmeticId !== null && (typeof b.cosmeticId !== 'string' || !COSMETIC_ID.test(b.cosmeticId))) return { ok: false, status: 400, error: 'bad_cosmetic_id' };
-    return { ok: true, request: { action: 'equip_cosmetic', slot: b.slot as SkinSlot, targetId: b.targetId, cosmeticId: b.cosmeticId as string | null } };
+    return { ok: true, request: { action: 'equip_cosmetic', slot: b.slot as EquipSlot, targetId: b.targetId, cosmeticId: b.cosmeticId as string | null } };
   }
   return { ok: false, status: 400, error: 'bad_action' };
 }

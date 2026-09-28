@@ -14,6 +14,7 @@ import {
   loadSeen, missingHint, ownedIds, rarityCounts, saveSeen, skinTargetName, type RarityFilter, type ShowFilter,
 } from './collectionModel';
 import { skinArtOf } from '../skins/skinArt';
+import { HeroAttackPreview } from '../heroBlast/HeroAttackPreview';
 import './collection.css';
 
 /**
@@ -122,17 +123,20 @@ export function CollectionPage({ reducedMotion }: { reducedMotion?: boolean }): 
   }, [markSeen, owned]);
 
   /** Wear `item`, or (`on` false) take it off: a title clears the title slot; a skin puts its hero / minion back in
-   *  its default art. The server checks ownership and the target either way. */
+   *  its default art; a hero attack goes back to Classic. The server checks ownership and the target either way. */
   const onEquip = async (item: CosmeticDef, on: boolean): Promise<void> => {
     sfx.pulse();
     setBusy(true);
     setError(null);
     const skin = item.category === 'hero_skin' || item.category === 'minion_skin';
-    const ok = skin && item.target
+    const attack = item.category === 'hero_attack';
+    const ok = attack
+      ? await equipCosmetic('hero_attack', '', on ? item.id : null)
+      : skin && item.target
       ? await equipCosmetic(item.category as 'hero_skin' | 'minion_skin', item.target.id, on ? item.id : null)
       : await equipTitle(on ? item.id : null);
     setBusy(false);
-    if (!ok) setError(skin ? 'Could not change your skin. Try again.' : 'Could not change your title. Try again.');
+    if (!ok) setError(attack ? 'Could not change your hero attack. Try again.' : skin ? 'Could not change your skin. Try again.' : 'Could not change your title. Try again.');
   };
 
   const begin = (openAll: boolean): void => {
@@ -257,6 +261,7 @@ export function CollectionPage({ reducedMotion }: { reducedMotion?: boolean }): 
           {live && selected && (
             <DetailPanel
               item={selected} owned={owned.has(selected.id)} equipped={isEquipped(selected, me)} busy={busy} error={error} playerName={name}
+              reducedMotion={reducedMotion}
               onEquip={() => { void onEquip(selected, true); }} onTakeOff={() => { void onEquip(selected, false); }}
             />
           )}
@@ -324,15 +329,19 @@ const ItemTile = memo(function ItemTile({ id, name, rarity, owned, equipped, fre
 
 // ── The detail panel ───────────────────────────────────────────────────────────────────────────────────────
 
-function DetailPanel({ item, owned, equipped, busy, error, playerName, onEquip, onTakeOff }: {
-  item: CosmeticDef; owned: boolean; equipped: boolean; busy: boolean; error: string | null; playerName: string; onEquip: () => void; onTakeOff: () => void;
+function DetailPanel({ item, owned, equipped, busy, error, playerName, reducedMotion, onEquip, onTakeOff }: {
+  item: CosmeticDef; owned: boolean; equipped: boolean; busy: boolean; error: string | null; playerName: string; reducedMotion?: boolean; onEquip: () => void; onTakeOff: () => void;
 }): JSX.Element {
   const art = skinArtOf(item);
   const target = skinTargetName(item);
   const skin = item.category === 'hero_skin' || item.category === 'minion_skin';
+  const attack = item.category === 'hero_attack';
   return (
     <section className={`colls-panel colls-detail r-${item.rarity}${owned ? '' : ' missing'}${skin ? ' skin' : ''}`} aria-label="Details">
-      <div className="colls-kicker">{skin ? (item.category === 'hero_skin' ? 'Hero skin' : 'Minion skin') : COSMETIC_CATEGORY_DEFS[item.category].label.replace(/s$/, '')}</div>
+      <div className="colls-kicker">{skin ? (item.category === 'hero_skin' ? 'Hero skin' : 'Minion skin') : attack ? 'Hero attack' : COSMETIC_CATEGORY_DEFS[item.category].label.replace(/s$/, '')}</div>
+      {/* A hero attack plays in place (the Blast tuner's own runner, in a sandbox box): owned or not, so you can
+          see what a crate might give. Keyed by item so switching items starts a fresh stage. */}
+      {attack && <HeroAttackPreview key={item.id} style={typeof item.assets.style === 'string' ? item.assets.style : ''} reducedMotion={reducedMotion} />}
       {/* A skin's art, large (Valorant's big preview). Missing items stay blurred, like a title's name. */}
       {art && (
         <div className={`colls-skinart${item.category === 'hero_skin' ? ' hero' : ' minion'}`} aria-label="Preview">
@@ -347,6 +356,7 @@ function DetailPanel({ item, owned, equipped, busy, error, playerName, onEquip, 
       <div className="colls-facts">
         <div className="colls-fact"><span>Status</span><b className={owned ? 'yes' : 'no'}>{equipped ? 'Equipped' : owned ? 'Owned' : 'Not owned'}</b></div>
         {target && <div className="colls-fact"><span>For</span><b>{target}</b></div>}
+        {attack && <div className="colls-fact"><span>For</span><b>Your hero, seen by the players you hit</b></div>}
         <div className="colls-fact"><span>How to get</span><b>{acquisitionText(item)}</b></div>
       </div>
       {item.category === 'title' && (
@@ -362,7 +372,7 @@ function DetailPanel({ item, owned, equipped, busy, error, playerName, onEquip, 
         ) : equipped ? (
           <>
             <div className="colls-worn-tag" role="status">Equipped</div>
-            <button type="button" className="colls-quiet pressable quiet" disabled={busy} onClick={onTakeOff} aria-label={skin ? `Use the default art for ${target ?? 'this target'}` : `Take off ${item.name}`}>{skin ? 'Use default art' : 'Take off'}</button>
+            <button type="button" className="colls-quiet pressable quiet" disabled={busy} onClick={onTakeOff} aria-label={skin ? `Use the default art for ${target ?? 'this target'}` : attack ? 'Use the Classic hero attack' : `Take off ${item.name}`}>{skin ? 'Use default art' : attack ? 'Use Classic' : 'Take off'}</button>
           </>
         ) : (
           <button type="button" className="cv2-btn pressable colls-equip" disabled={busy} onClick={onEquip} aria-label={`Equip ${item.name}`}>{busy ? 'Equipping' : 'Equip'}</button>

@@ -1,0 +1,22 @@
+/* The Collection's hero attack sandbox (HeroAttackPreview.tsx). Static paint only; the runner moves things by
+   transform / opacity. The damage number is a one-shot pop. */
+.hapv { display: flex; flex-direction: column; align-items: center; gap: 8px; align-self: stretch; }
+.hapv-box {
+  position: relative; width: 100%; max-width: 300px; height: 176px; overflow: hidden; border-radius: 12px;
+  border: 1px solid color-mix(in srgb, var(--rc, #b98cff) 55%, #000);
+  background: radial-gradient(120% 90% at 50% 100%, #2a2140 0%, #141022 60%, #0b0914 100%);
+}
+.hapv-stage { position: absolute; inset: 0; }
+.hapv-floor { position: absolute; left: 8%; right: 8%; bottom: 14px; height: 38px; border-radius: 50%; background: radial-gradient(closest-side, rgba(170, 140, 255, 0.18), transparent); }
+.hapv-cards { position: absolute; left: 50%; bottom: 22px; transform: translateX(-10%); display: flex; gap: 10px; }
+.hapv-card { width: 30px; height: 40px; border-radius: 5px; background: linear-gradient(#4b3d6e, #2b2342); border: 1px solid #6d5aa0; }
+.hapv-hero {
+  position: absolute; width: 52px; height: 52px; border-radius: 50%; display: grid; place-items: center;
+  font-family: var(--font-ui); font-weight: 800; font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: #f3e9ff;
+  background: radial-gradient(circle at 35% 30%, #6a58a8, #2c2346 70%); border: 2px solid #b79cff; box-shadow: 0 3px 10px rgba(0, 0, 0, 0.5);
+}
+.hapv-hero.you { left: 22px; bottom: 18px; }
+.hapv-hero.foe { right: 26px; top: 16px; border-color: #ff8a6a; background: radial-gradient(circle at 35% 30%, #8a4a4a, #3a1e24 70%); }
+.hapv-pixi { position: absolute; inset: 0; pointer-events: none; z-index: 2; }
+.hapv-pixi canvas { display: block; width: 100%; height: 100%; }
+.hapv-play { min-width: 120px; }

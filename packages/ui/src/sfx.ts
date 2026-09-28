@@ -644,6 +644,10 @@ export const sfx = {
     tone({ freq: 1320, slideTo: 1760, dur: 0.09, type: 'sine', vol: 0.035 * v });
   },
   tallyCounter: (vol = 1) => { playSample('tallycounter', 'attack', 0, (n) => { n.gain.gain.value *= Math.max(0, vol); }); },
+  // BLAST hero attack (2026-09-28): the volley leaving the hero (the flurry gust) and a soft smack under the impact,
+  // each at a Blast-tuner gain on the `attack` mix. Existing clips only; silent until they decode (layered flavour).
+  blastFire: (vol = 1) => { if (vol > 0) playSample('flurrylunge', 'attack', 0, (n) => { n.gain.gain.value *= vol; }); },
+  blastSmack: (vol = 1) => { if (vol > 0) playSample(pickVariant('smack'), 'attack', 0, (n) => { n.gain.gain.value *= vol; }); },
   // A shop minion (or Tavern Fodder) is CONSUMED — the sourced "consume" clip; low synth gulp fallback until it
   // decodes / if absent. Drop the clip at `packages/ui/src/audio/consume.mp3`. De-duped by a short cooldown so
   // several consumes on one beat play a SINGLE gulp (owner ask 2026-08-18) — see `CONSUME_SFX_COOLDOWN_MS`.

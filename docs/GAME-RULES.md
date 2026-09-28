@@ -194,9 +194,9 @@ progression **epoch**; nothing finished before the epoch counts (no backfill).
   R-PROG-SKINS-05), so a new or retired cosmetic is a code change plus one deploy, never SQL. Shaped
   for every cosmetic category (announcer, hero skin, minion skin, title, hero attack, board, music). Switched on:
   **titles** (15 crate titles: 7 Common, 5 Rare, 2 Epic, 1 Legendary) and, since the skins shipped the same day,
-  **hero skins** and **minion skins** (the first four, all from crates). The other categories are feature-flagged
-  off until their art exists. Crate odds are rarity weight x category weight over what remains, so with the skins in,
-  about a quarter of a fresh account's first crate is a skin.
+  **hero skins** and **minion skins** (all from crates) and **hero attacks** (the first, Arcane Barrage). The other
+  categories are feature-flagged off until their art exists. Crate odds are rarity weight x category weight over what
+  remains: a fresh account's first crate is about 31% a skin or hero attack (the Legendary attack alone about 0.6%).
 - **Skins (2026-09-28; oracle R-PROG-SKINS-01, R-PROG-SKINS-04).** A hero skin replaces one hero's portrait; a
   minion skin replaces one card's art, by stable id. Equipped per target from the Collection's Heroes / Minions
   tabs through the server (`equip_cosmetic`: owned, made for that hero or card, live); **"Use default art"** is
@@ -210,9 +210,17 @@ progression **epoch**; nothing finished before the epoch counts (no backfill).
   lobby seat built from a recorded run copies its owner's (`LobbySeatState.cosmetics`). So opponents, replays and
   history show the skins worn in **that** run, never anyone's current loadout; any payload from before skins is
   default art.
-- **Show opponent skins (Settings, on by default; R-PROG-SKINS-02).** Off, every OPPONENT's skins render as
-  default art (lobby, combat, the scouted board, replays, another player's Career). Your own always show. Display
-  only; stored locally like the other settings.
+- **Hero attacks (2026-09-28; oracle R-PROG-ATTACK-01..03).** How your hero lands the post-combat blow. **Classic**
+  (the lunge) is everyone's default; **Blast** is the first cosmetic, `attack_blast` ("Arcane Barrage", Legendary,
+  from crates; animation and tier thresholds owner-approved): the contributing numbers combine into one total, the hero charges, the view pushes in, and bolts (a single
+  beam on the biggest hits) carry the blow, escalating by damage tier (I 1-5, II 6-11, III 12-19, IV 20+). Equipped
+  account-wide in the Collection's Attack Animations tab ("Use Classic" takes it off). The STRIKER's attack plays:
+  yours when you win, the opponent's (from their recorded snapshot) when they win. Recorded per run like skins;
+  unknown or retired ids play Classic. Presentation only: the same blow, landed once on the impact beat.
+- **Show opponent cosmetics (Settings, on by default; was "Show opponent skins"; R-PROG-SKINS-02).** Off, every
+  OPPONENT's skins render as default art (lobby, combat, the scouted board, replays, another player's Career) and an
+  opponent who strikes you plays the Classic attack. Your own always show. Display only; stored locally like the
+  other settings.
 - **The reward kill switch (R-PROG-SKINS-03).** Any reward can be removed from the game two ways. Permanently:
   `active: false` on the item (or `enabled: false` on its category) in `cosmetics.ts`, then deploy. Right now: the
   owner's one-line emergency switch, `admin_off = true` on the item or category (lines in the header of

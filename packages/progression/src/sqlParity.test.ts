@@ -7,7 +7,7 @@ import {
 } from './rules';
 import {
   ALPHA_TESTER_TITLE_ID, COSMETICS, COSMETIC_CATEGORIES, COSMETIC_CATEGORY_DEFS, COSMETIC_RARITIES, CRATE_ROLL_VERSION, RARITY_WEIGHTS,
-  catalogSyncPayload, crateWeightOf, eligibleCrateCosmetics, pickCrateReward,
+  EQUIP_SLOTS, catalogSyncPayload, crateWeightOf, eligibleCrateCosmetics, pickCrateReward,
 } from './cosmetics';
 import { SQL_ERROR_STATUS } from './server';
 import {
@@ -30,12 +30,14 @@ const crates = readFileSync(join(root, 'supabase/migrations/2026-09-28-progressi
 const skins = readFileSync(join(root, 'supabase/migrations/2026-09-28-progression-skins.sql'), 'utf8');
 /** The achievements migration (2026-09-28) REPLACES `settle_progression` + `progression_result_json` and adds the catalog sync. */
 const ach = readFileSync(join(root, 'supabase/migrations/2026-09-28-achievements.sql'), 'utf8');
+/** The hero attack migration (2026-09-28) REPLACES `equip_cosmetic` to accept the account-wide `hero_attack` slot. */
+const heroAttack = readFileSync(join(root, 'supabase/migrations/2026-09-28-progression-hero-attack.sql'), 'utf8');
 const schema = readFileSync(join(root, 'schema.sql'), 'utf8');
 
-/** The body of a function's LATEST definition (achievements, else skins, else crates, else the MVP's). */
+/** The body of a function's LATEST definition (hero attack, else achievements, else skins, else crates, else the MVP's). */
 function fnBody(name: string, from?: string): string {
   const defines = (t: string): boolean => t.includes(`create or replace function public.${name}(`);
-  const text = from ?? (defines(ach) ? ach : defines(skins) ? skins : defines(crates) ? crates : sql);
+  const text = from ?? (defines(heroAttack) ? heroAttack : defines(ach) ? ach : defines(skins) ? skins : defines(crates) ? crates : sql);
   const start = text.indexOf(`create or replace function public.${name}(`);
   if (start < 0) throw new Error(`no function ${name} in the migration`);
   const open = text.indexOf('$$', start);
@@ -165,9 +167,16 @@ describe('the migration shape', () => {
 
   it('schema.sql (the cumulative paste file) carries every progression migration verbatim, in order', () => {
     const flat = schema.replace(/\r\n/g, '\n');
-    const at = [sql, crates, skins, ach].map((t) => flat.indexOf(t.replace(/\r\n/g, '\n').trim()));
+    const at = [sql, crates, skins, ach, heroAttack].map((t) => flat.indexOf(t.replace(/\r\n/g, '\n').trim()));
     expect(at.every((i) => i >= 0)).toBe(true);
     expect([...at].sort((a, b) => a - b)).toEqual(at);
+  });
+
+  it('equip_cosmetic accepts exactly the TS equip slots, and the hero attack slot only with the global target', () => {
+    const body = fnBody('equip_cosmetic');
+    const slots = /p_slot not in \(([^)]*)\)/.exec(body)![1]!.split(',').map((x) => x.trim().replace(/^'(.*)'$/, '$1'));
+    expect(slots).toEqual([...EQUIP_SLOTS]);
+    expect(body).toContain("if p_target_id is distinct from '' then raise exception 'bad_target'");
   });
 });
 

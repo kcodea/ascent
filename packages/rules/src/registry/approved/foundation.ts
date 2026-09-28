@@ -1942,6 +1942,27 @@ export const FOUNDATION_RULES: GameRule[] = [
     enforcement: { kind: 'scenario', refs: ['packages/progression/src/skins.test.ts', 'packages/progression/src/cosmetics.test.ts', 'packages/ui/src/skins/skins.test.tsx'], lastVerifiedAt: '2026-09-28' },
   },
   {
+    id: 'R-PROG-COLLECTION-03',
+    title: 'The crate opening draws the owner\x27s two-layer treasure chest: the lid blasts off, the open body stays',
+    statement:
+      'The crate in the opening is the owner\x27s chest art in two layers, a body and a lid (apps/web/public/collection/'
+      + 'crate_body.webp and crate_lid.webp), the lid seated on the rim with its notch over the lock spike. While it waits '
+      + 'the whole chest breathes and shakes and the lid jumps on each pulse; light in the rarity colour leaks from the seam '
+      + 'between lid and body and from the keyhole, never from cracks. At the burst the lid blasts off (up, spinning, under '
+      + 'gravity) and a light column pours out of the open body, with shards from the rim; the open body stays on the '
+      + 'pedestal, glowing, while the nameplate rises above it. Legendary: the lid pops on the first burst, the body '
+      + 'flashes on the second. If either layer cannot load, a painted chest stands in whole; a single-picture override '
+      + '(the crateArt tuner key) still replaces the two layers. Presentation only.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-28 (chest art)', quote: 'added new chest pngs here: C:\\Game Assets\\Ascent Art\\Collection Stuff can you wire this up to work' },
+      { kind: 'code', ref: 'packages/ui/src/progression/crateFx/chestModel.ts (CHEST_ART, artChestModel, loadChestImages); crateScene.ts (the lid, seam and keyhole light, launchLid); crateFxPixi.ts (bake: the art or the painted fallback)' },
+    ],
+    currentBehaviour: 'Conforms, built 2026-09-28.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/progression/crateFx/crateFx.test.ts', 'packages/ui/src/progression/Crates.test.tsx'], lastVerifiedAt: '2026-09-28' },
+  },
+  {
     id: 'R-ACH-01',
     title: 'Achievements batch 1 pay XP only: 248 achievements, no titles yet, nothing hidden yet; the reward slot can take a title later',
     statement:

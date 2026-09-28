@@ -2954,7 +2954,9 @@ export function Recruit() {
         defender: dPt,
         defenderRadius: geo?.radius,
         combineAt: { x: cx + (aPt.x - cx) * bias, y: cy + (aPt.y - cy) * bias },
-        speed: (combatSpeed > 0 ? combatSpeed : 1) * heroBlastPreviewSpeed(),
+        // The combat-speed setting nudges the blow's pace but never rushes it (owner: "satisfying and chunky, not
+        // rushed"): the square root, kept between 0.75x and 1.5x. The tuner's slow motion rides on top.
+        speed: Math.min(1.5, Math.max(0.75, Math.sqrt(combatSpeed > 0 ? combatSpeed : 1))) * heroBlastPreviewSpeed(),
         attackerEl: geo?.attackerEl ?? null,
         defenderEl: geo?.defenderEl ?? null,
         onImpact: landBlast,

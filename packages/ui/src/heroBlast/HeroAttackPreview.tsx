@@ -24,15 +24,16 @@ export function HeroAttackPreview({ style, reducedMotion }: { style: string; red
   const live = useRef<HeroBlastHandle | null>(null);
   const gone = useRef(false);
   const [playing, setPlaying] = useState(false);
-  const [hit, setHit] = useState(0);
 
-  useEffect(() => () => {
+  // Mount / unmount (StrictMode mounts twice in dev: the body re-arms what the first cleanup disarmed).
+  useEffect(() => { gone.current = false; return () => {
     gone.current = true;
     live.current?.cancel();
     live.current = null;
     app.current?.destroy(true, { children: true, texture: false });
     app.current = null;
-  }, []);
+    booting.current = null;
+  }; }, []);
 
   const boot = (): Promise<Application | null> => {
     if (app.current) return Promise.resolve(app.current);
@@ -79,7 +80,7 @@ export function HeroAttackPreview({ style, reducedMotion }: { style: string; red
       frames: a
         ? (fn) => { const cb = (t: Ticker): void => fn(t.deltaMS); a.ticker.add(cb); return () => { a.ticker.remove(cb); }; }
         : undefined,
-      onImpact: () => setHit((h) => h + 1),
+      onImpact: () => { /* the sandbox has no run: the Blast shows its own hit number */ },
       onDone: () => { live.current = null; if (!gone.current) setPlaying(false); },
     });
   };
@@ -96,7 +97,6 @@ export function HeroAttackPreview({ style, reducedMotion }: { style: string; red
           <div className="hapv-hero you" ref={youRef} aria-hidden><span>You</span></div>
           <div className="hapv-hero foe" ref={foeRef} aria-hidden>
             <span>Foe</span>
-            {hit > 0 && <b key={hit} className="hapv-dmg">−9</b>}
           </div>
           <div className="hapv-pixi" ref={pixiRef} aria-hidden />
         </div>

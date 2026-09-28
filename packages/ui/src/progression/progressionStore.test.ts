@@ -102,11 +102,11 @@ describe('achievements (batch 1, 2026-09-28)', () => {
     enqueue.mockClear();
     const v2 = { ...facts(), version: 2 as const, metrics: { rubyPlays: 3 } };
     S.beginRunProgression('7', v2);
-    expect((enqueue.mock.calls[0]![0] as { facts: { version: number } }).facts).toMatchObject({ version: 2, metrics: { rubyPlays: 3 } });
+    expect((enqueue.mock.calls[0]![0] as unknown as { facts: { version: number } }).facts).toMatchObject({ version: 2, metrics: { rubyPlays: 3 } });
     S.useProgression.setState({ achievementsCapability: 'off' });
     enqueue.mockClear();
     S.beginRunProgression('8', { ...v2, runId: 'run-2' });
-    expect((enqueue.mock.calls[0]![0] as { facts: Record<string, unknown> }).facts).not.toHaveProperty('metrics');
+    expect((enqueue.mock.calls[0]![0] as unknown as { facts: Record<string, unknown> }).facts).not.toHaveProperty('metrics');
     expect(S.achievementsVisible(S.useProgression.getState())).toBe(false);
   });
 });

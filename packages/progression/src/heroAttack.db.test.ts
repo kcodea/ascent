@@ -7,7 +7,7 @@ import { parseProgressionProfile } from './rules';
 
 /**
  * THE HERO ATTACK SQL, EXECUTED (owner 2026-09-28: "the new blast attack is going to be a cosmetic unlock, not a
- * new default"). PGlite runs the MVP, crates, skins and hero attack migrations in order, syncs the code catalog, and
+ * new default"). PGlite runs the MVP, crates, skins, achievements and hero attack migrations in order, syncs the code catalog, and
  * drives `equip_cosmetic` on the account-wide `hero_attack` slot: an owned attack equips with target '' and shows in
  * the profile's loadout; null goes back to Classic; any other target, an unowned item, a skin in the attack slot or
  * the attack in a skin slot is refused; the category kill switch makes it unequippable and drops it from the
@@ -18,6 +18,7 @@ const read = (f: string): string => readFileSync(join(root, 'supabase/migrations
 const MVP = read('2026-09-27-account-progression.sql');
 const CRATES = read('2026-09-28-progression-crates.sql');
 const SKINS = read('2026-09-28-progression-skins.sql');
+const ACH = read('2026-09-28-achievements.sql');
 const ATTACK = read('2026-09-28-progression-hero-attack.sql');
 
 const STUB = `
@@ -25,13 +26,16 @@ const STUB = `
   create schema auth;
   create table auth.users (id uuid primary key);
   create function auth.uid() returns uuid language sql stable as $$ select nullif(current_setting('request.jwt.claim.sub', true), '')::uuid $$;
-  create table public.profiles (user_id uuid primary key references auth.users(id), rating int not null default 0, updated_at timestamptz not null default now());
+  create table public.profiles (user_id uuid primary key references auth.users(id), rating int not null default 0,
+    rank_highest_division int not null default 0, updated_at timestamptz not null default now());
   alter table public.profiles enable row level security;
   create policy "read profiles" on public.profiles for select using (true);
   create policy "update own profile" on public.profiles for update to authenticated using (auth.uid() = user_id);
-  create table public.rank_results (user_id uuid, run_id text, placement int, seed bigint, created_at timestamptz default now(), primary key (user_id, run_id));
+  create table public.rank_results (user_id uuid, run_id text, placement int, seed bigint, created_at timestamptz default now(),
+    promoted boolean not null default false, division_before int not null default 0, was_demotion_game boolean not null default false,
+    demoted boolean not null default false, lobby_strength int, primary key (user_id, run_id));
   create table public.run_history (user_id uuid, mode text, entry jsonb, wins int, created_at timestamptz default now());
-  create table public.practice_games (id bigserial primary key, user_id uuid, placement int, config jsonb, record jsonb, created_at timestamptz default now());
+  create table public.practice_games (id bigserial primary key, user_id uuid, hero_id text, placement int, config jsonb, record jsonb, created_at timestamptz default now());
   grant usage on schema public to anon, authenticated, service_role;
   grant usage on schema auth to anon, authenticated, service_role;
   grant execute on function auth.uid() to anon, authenticated;
@@ -73,7 +77,7 @@ beforeAll(async () => {
   await db.exec(MVP);
   await db.exec(API_GRANTS);
   await db.exec(`update public.progression_config set epoch = now() - interval '1 day' where id = 1;`);
-  for (const f of [CRATES, SKINS, ATTACK]) { await db.exec(f); await db.exec(API_GRANTS); }
+  for (const f of [CRATES, SKINS, ACH, ATTACK]) { await db.exec(f); await db.exec(API_GRANTS); }
   expect(await sync()).toBe('synced');
 }, 60_000);
 afterAll(async () => { await db?.close(); });

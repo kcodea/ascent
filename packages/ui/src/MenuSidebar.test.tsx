@@ -2,7 +2,7 @@
 /**
  * THE MENU SIDEBAR (owner ask 2026-09-21) — jsdom renders of the four ladder pages (backend disabled, so each
  * paints its designed "unavailable" state; the sidebar is the subject) plus the store's `goTo`. Pins: the
- * sidebar renders inside every page's `.lbpage` with Back first and the six plaques in the title's order;
+ * sidebar renders inside every page's `.lbpage` with Back first and the seven plaques in the title's order;
  * the CURRENT page's plaque is the blue `.active` one and `aria-current="page"`; a plaque hop goes through
  * `goTo`, which closes EVERY page flag before opening the destination (the pages are z-470 siblings that
  * stack in DOM order, so a hop that only opened a flag would leave the current page painted on top); Back
@@ -29,7 +29,8 @@ import { EscMenu } from './EscMenu';
 import { sfx } from './sfx';
 import { useGame } from './store';
 
-const LABELS = ['Play', 'Career', 'Leaderboard', 'Hall of Champions', 'Recent Games', 'Settings'];
+// Collection (2026-09-28) shows once crates are live, and always in DEV builds, which is what this test runs as.
+const LABELS = ['Play', 'Career', 'Leaderboard', 'Hall of Champions', 'Recent Games', 'Collection', 'Settings'];
 const PAGES_CLOSED = { showRankings: false, showLeaderboard: false, showRecentGames: false, showCareer: false, careerOf: null } as const;
 const flagsOf = () => {
   const s = useGame.getState();
@@ -57,7 +58,7 @@ describe('the sidebar on each ladder page', () => {
     ['Recent Games', () => <RecentGames />, { showRecentGames: true }, 'Recent Games'],
   ];
   for (const [name, render, open, active] of cases) {
-    it(`${name}: renders inside .lbpage with Back first, the six plaques in the title's order, and its own plaque current`, () => {
+    it(`${name}: renders inside .lbpage with Back first, the seven plaques in the title's order, and its own plaque current`, () => {
       useGame.setState(open);
       ui = mount(render());
       const page = ui.container.querySelector('.lbpage');

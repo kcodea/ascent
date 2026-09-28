@@ -174,12 +174,14 @@ export function CrateOpener({ queue, autoOpen = false, openAll = false, reducedM
 
   /** Jump to the settled reveal (a skip, or a skip that was waiting for the answer). */
   const skipNow = (g: number, p: CratePreset, speedK: number): void => {
+    // The reveal sparkle has already played if the skip came during the reveal itself.
+    const sparkled = flow.current.phase === 'reveal';
     clearTimers();
     stopHum();
     fx.current?.skipToSettled(p);
     setSkipped(true);
     go('settled');
-    if (!reduced) cue('reveal');
+    if (!reduced && !sparkled) cue('reveal');
     settleAndMaybeNext(g, speedK);
   };
 
@@ -284,7 +286,7 @@ export function CrateOpener({ queue, autoOpen = false, openAll = false, reducedM
     // Answered: either still in the anticipation's minimum (branch pending) or mid-sequence.
     if (!f.preset) { f.skip = true; clearTimers(); const item = active; if (item) branch(gen.current, f.outcome, item); return; }
     skipNow(gen.current, f.preset, 1 / crateFxSpeed());
-  }, [active]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [active]); // the beats it calls are read from this render on purpose
 
   // Keys: Escape closes; any other key skips while the sequence is running.
   useEffect(() => {

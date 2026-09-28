@@ -52,6 +52,7 @@ import { fireBuffFx } from '../buffFxRender';
 import { sfx } from '../sfx';
 import { anchorsForUnits } from './combatAnchors';
 import type { FxAnchors } from './anchors';
+import type { RectLike } from './boardAnchors';
 import { canPlayDefs, playDef } from './playDef';
 import { afterMs, playRuneCastFlourish, runeCastRepeatGapMs, runeCastTrailLeadMs } from './runeCastFlourish';
 import { getCastPreviewConfig, runeCastFlourishLook } from '../castPreviewConfig';
@@ -140,10 +141,12 @@ export function spellCastShopTarget(spellId: string | null | undefined): { point
 /** Play `spellId`'s own cast effect once. False when the spell has no card-level cast binding (or defs can't
  *  play yet), the common case, and free: one map read. `runeId` names the rune that cast it: its node becomes
  *  the effect's `source` / `cursor` when it is on screen. */
-export function playSpellCastFx(spellId: string, where: { anchors?: FxAnchors | null; uid?: string | null; runeId?: string | null } = {}): boolean {
+export function playSpellCastFx(spellId: string, where: { anchors?: FxAnchors | null; uid?: string | null; runeId?: string | null; camera?: Point | null } = {}): boolean {
   const binding = spellCastFxFor(spellId);
   if (!binding || !canPlayDefs()) return false;
-  const camera = viewportCentre();
+  // `camera` is the viewport centre unless the caller moved it onto the caster's own board (an ENEMY's combat
+  // cast, `combatCastCamera`): a board-wide def is authored against the player's board from the centre.
+  const camera = where.camera ?? viewportCentre();
   let base: FxAnchors = where.anchors ?? { source: camera, target: camera, cursor: camera };
   const node = runeNodeCentre(where.runeId);
   if (node) base = { ...base, source: node, cursor: node };
@@ -252,9 +255,50 @@ export function playRecordedCastFx(
   return played;
 }
 
+type CastSide = 'player' | 'enemy';
+
+/**
+ * THE CAMERA FOR A CAST ON `side`'s BOARD (owner bug 2026-09-27: *"fatecarver's growth animation plays on the
+ * player's board when the fatecarver is an opponent."*). A board-wide spell effect (Growth's `growth-effect`) is
+ * authored on the `camera` anchor, the viewport centre, with its layers offset down onto the PLAYER's row. In combat
+ * the enemy row sits above it, so an enemy's cast played on the unmoved camera lands on the player's board. The
+ * enemy's camera is the viewport centre TRANSLATED by the player-row -> enemy-row distance, so the authored effect
+ * keeps exactly its relation to the caster's own board. The player's camera is untouched (the authored placement).
+ * PURE: a missing row (not on screen) keeps the unmoved camera rather than guessing.
+ */
+export function sideCameraFromRows(camera: Point, side: CastSide, playerRow: RectLike | null, enemyRow: RectLike | null): Point {
+  if (side !== 'enemy' || !playerRow || !enemyRow) return camera;
+  const dy = (enemyRow.top + enemyRow.height / 2) - (playerRow.top + playerRow.height / 2);
+  const dx = (enemyRow.left + enemyRow.width / 2) - (playerRow.left + playerRow.width / 2);
+  return { x: camera.x + dx, y: camera.y + dy };
+}
+
+/** A combat row's rect (the player's `warband` zone, the enemy's `tavern` zone), or null when not laid out. */
+function combatRowRect(side: CastSide): RectLike | null {
+  if (typeof document === 'undefined') return null;
+  const r = document.querySelector(`[data-zone="${side === 'enemy' ? 'tavern' : 'warband'}"] .row`)?.getBoundingClientRect();
+  return r && (r.width > 0 || r.height > 0) ? r : null;
+}
+
+/** The DOM side of a combat body: the enemy row renders in the `tavern` zone, the player's in `warband`. */
+function domSideOf(uid: string): CastSide | null {
+  if (typeof document === 'undefined') return null;
+  if (document.querySelector(`[data-zone="tavern"] [data-uid="${uid}"]`)) return 'enemy';
+  if (document.querySelector(`[data-zone="warband"] [data-uid="${uid}"]`)) return 'player';
+  return null;
+}
+
+/** The camera for a combat cast by `side` (`sideCameraFromRows` on the live rows). */
+export function combatCastCamera(side: CastSide): Point {
+  const camera = viewportCentre();
+  return side === 'enemy' ? sideCameraFromRows(camera, side, combatRowRect('player'), combatRowRect('enemy')) : camera;
+}
+
 /** A combat moment's casts (`spellCastsIn`): one play per cast, anchored on the caster when it is on screen, and
- *  stemming from the rune's node when a PLAYER rune cast it (Rune of Spellhide). */
-export function playCombatSpellCastFx(casts: readonly CombatSpellCast[]): number {
+ *  stemming from the rune's node when a PLAYER rune cast it (Rune of Spellhide). The caster's SIDE is the event's
+ *  own stamp, else the replay's uid -> side lookup (`sideOf`), else the row its body renders in; an ENEMY's cast
+ *  plays its board-wide effect on the enemy's board (`combatCastCamera`). */
+export function playCombatSpellCastFx(casts: readonly CombatSpellCast[], sideOf?: (uid: string) => CastSide | null): number {
   let played = 0;
   const perRune = new Map<string, number>();
   const gap = repeatGap();
@@ -273,7 +317,9 @@ export function playCombatSpellCastFx(casts: readonly CombatSpellCast[]): number
       if (sourceOnlyCastRow(c.spellId) && playCastAtSource(c.spellId, anchorsForUnits(c.source, c.source)?.source ?? null, c.source)) played++;
       continue;
     }
-    if (playSpellCastFx(c.spellId, { anchors: anchorsForUnits(c.source, c.source), uid: c.source })) played++;
+    const side = c.side ?? sideOf?.(c.source) ?? domSideOf(c.source) ?? 'player';
+    const camera = side === 'enemy' ? combatCastCamera('enemy') : null;
+    if (playSpellCastFx(c.spellId, { anchors: anchorsForUnits(c.source, c.source), uid: c.source, camera })) played++;
   }
   return played;
 }

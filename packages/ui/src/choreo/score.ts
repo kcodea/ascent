@@ -302,6 +302,10 @@ export interface CueContext {
   /** This moment's "X casts Y" announcements (`sc` + `spellId`), in order — the cast preview above each caster
    *  (owner ask 2026-09-23). Optional: older callers / tests build contexts without it. */
   onSpellCastPreviews?: (casts: CombatSpellCast[]) => void;
+  /** Which side a combat uid fights on (the replay's initial boards + summons), or null when unknown. The
+   *  `spellCastFx` cue plays an ENEMY caster's board-wide spell effect on the enemy's board. Optional: older
+   *  callers / tests omit it, and the cue then reads the side off the body's row. */
+  sideOf?: (uid: string) => 'player' | 'enemy' | null;
   /** This moment's SELF-buffs (source === target), grouped per uid. The replay fires a pulse per unit and holds
    *  then flashes its badge to the new value (Task 6). */
   onSelfBuffs: (selfBuffs: import('./channels/buffSelf').SelfBuff[]) => void;
@@ -574,7 +578,7 @@ export function runMomentCues(moment: Moment, ctx: CueContext): () => void {
     // Guarded before `at()` like `rubyFx`: with no defs ready this allocates nothing.
     else if (cue.ch === 'spellCastFx') {
       if (!canPlayDefs()) continue;
-      at(cue, () => { playCombatSpellCastFx(spellCastsIn(moment, ctx.events)); });
+      at(cue, () => { playCombatSpellCastFx(spellCastsIn(moment, ctx.events), ctx.sideOf); });
     }
     else if (cue.ch === 'improveSelf') at(cue, () => {
       const uids: string[] = [];

@@ -38,7 +38,7 @@ const settled = (runId: string, mode = 'ranked') => ({
   data: {
     status: 'confirmed', deduped: false,
     result: { runId, mode, rulesVersion: 1, placement: 2, comeback: true, xp: { base: 100, topFour: 40, firstPlace: 0, comeback: 25, total: 165 },
-      before: { lifetimeXp: 0, level: 1 }, after: { lifetimeXp: 165, level: 1 }, unlockedTitles: [], revisionAfter: 1, settledAt: null },
+      before: { lifetimeXp: 0, level: 1 }, after: { lifetimeXp: 165, level: 1 }, unlockedTitles: [], cratesAwarded: 0, crateIds: [], revisionAfter: 1, settledAt: null },
     profile: { accountXp: 165, accountLevel: 1, revision: 1, equippedTitleId: null, titles: [] },
   },
   error: null,

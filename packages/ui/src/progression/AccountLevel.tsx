@@ -3,12 +3,16 @@ import { levelProgress, titleName, type ProgressionProfile } from '@game/progres
 import { useGame } from '../store';
 import { sfx } from '../sfx';
 import { fetchPublicProgression } from './progressionRemote';
-import { mirrorFor, useProgression } from './progressionStore';
+import { cratesVisible, mirrorFor, useProgression } from './progressionStore';
+import { CollectionPanel } from './CollectionPanel';
 
 /**
  * ACCOUNT LEVEL on the Career page (2026-09-27): Level + XP bar + equipped title, public for every player, plus
  * a small "save your progress" reminder on an ANONYMOUS owner's own page. Hidden entirely until the feature is
  * on (the capability probe), so the page is unchanged before the owner runs the SQL.
+ *
+ * CRATES (2026-09-28): on your OWN page, once the crates migration is live, a Collection button (with the count
+ * of sealed crates) opens the Collection: open crates, see and equip your titles.
  */
 
 /** The progression a Career page shows: your own mirror, or a viewed player's public row (read once per id).
@@ -31,6 +35,9 @@ export function useCareerProgression(userId: string | null, own: boolean): Progr
 export function AccountLevelCard({ profile, own }: { profile: ProgressionProfile; own: boolean }): JSX.Element {
   const anonymous = useGame((s) => s.account.anonymous);
   const openAccountPanel = useGame((s) => s.openAccountPanel);
+  const cratesOn = useProgression(cratesVisible);
+  const sealed = useProgression((s) => (s.crateList ?? []).filter((c) => c.state === 'sealed').length);
+  const [collection, setCollection] = useState(false);
   const p = levelProgress(profile.accountXp);
   const title = titleName(profile.equippedTitleId);
   return (
@@ -46,6 +53,13 @@ export function AccountLevelCard({ profile, own }: { profile: ProgressionProfile
         </div>
       </div>
       {title && <div className="cv2-acctlevel-title"><span className="cv2-acctlevel-title-l">Title</span>{title}</div>}
+      {own && cratesOn && (
+        <button type="button" className="cv2-btn cv2-btn-sm cv2-acctlevel-coll pressable" onClick={() => { sfx.pulse(); setCollection(true); }}>
+          Collection
+          {sealed > 0 && <span className="cv2-acctlevel-crates" aria-label={`${sealed} sealed ${sealed === 1 ? 'crate' : 'crates'}`}>{sealed}</span>}
+        </button>
+      )}
+      {collection && <CollectionPanel onClose={() => setCollection(false)} />}
       {own && anonymous && (
         <div className="cv2-acctlevel-save">
           <span>Playing as a guest. Create an account to save your progress.</span>

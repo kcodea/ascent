@@ -4,7 +4,7 @@ import {
   type HeroQuakeConfig, type HeroQuakeNumKey, type HeroQuakeStrKey, type QuakeTierSuffix, type TierNum,
 } from './heroQuake/heroQuakeConfig';
 import { clipNames } from './sfx';
-import { DEV_HERO_ATTACK_CHOICES, devHeroAttackChoice, setDevHeroAttackChoice } from './heroBlast/heroAttackStyle';
+import { DEV_HERO_ATTACK_CHOICES, DEV_HERO_ATTACK_LABELS, devHeroAttackChoice, setDevHeroAttackChoice } from './heroBlast/heroAttackStyle';
 import { playHeroQuake, type HeroQuakeHandle, type HeroQuakeOptions } from './heroQuake/heroQuake';
 import { playAttackDemo, previewParts } from './heroAttack/attackDemo';
 import { TunerPanel } from './TunerPanel';
@@ -158,7 +158,7 @@ function clipOptions(): string[] {
 function buildControls(): Ctl[] {
   const out: Ctl[] = [{
     key: 'attackStyle', label: 'Attack style', kind: 'select', options: DEV_HERO_ATTACK_CHOICES, group: 'Style',
-    optionLabels: { auto: 'Auto (equipped cosmetic)', classic: 'Classic (lunge)', blast: 'Blast', quake: 'Quake' },
+    optionLabels: DEV_HERO_ATTACK_LABELS,
     hint: 'Which hero attack real fights play in this dev build, for both sides. Auto = what a player sees.', min: 0, max: 0, step: 0,
   }];
   const clips = clipOptions();

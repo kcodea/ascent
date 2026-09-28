@@ -556,6 +556,59 @@ export function playRumble(category: string, o: { gain: number; buildMs: number;
   };
 }
 
+/**
+ * A SYNTH SWIRL TONE (the Arcana hero attack's Tier IV vortex, 2026-09-28): two detuned oscillators (a triangle and a
+ * soft sawtooth a fifth up) gliding from `lowHz` to `highHz` over `buildMs`, through a band-pass that opens with them,
+ * with a tremolo whose rate climbs from 5 to 20 Hz (the vortex spinning up), on `category`'s fader. It swells to its
+ * peak exactly at `buildMs` (the explosion) and is cut in 60 ms there, so the blast lands on silence. Returns a handle
+ * whose `stop()` fades it in `SKIP_FADE_S`; null when nothing was queued (muted, hidden, suspended, no Web Audio).
+ */
+export function playSwirlTone(category: string, o: { gain: number; buildMs: number; lowHz: number; highHz: number; delayMs?: number }): SfxHandle | null {
+  if (isHidden() || audioSuspended || !(o.gain > 0)) return null;
+  const a = audio();
+  if (!a || muted) return null;
+  const t0 = a.currentTime + Math.max(0, o.delayMs ?? 0) / 1000;
+  const b = Math.max(0.05, o.buildMs / 1000);
+  const lo = Math.max(40, o.lowHz), hi = Math.max(lo + 20, o.highHz);
+  const o1 = a.createOscillator(); o1.type = 'triangle';
+  const o2 = a.createOscillator(); o2.type = 'sawtooth'; o2.detune.value = 7;
+  const mix2 = a.createGain(); mix2.gain.value = 0.35;
+  const bp = a.createBiquadFilter(); bp.type = 'bandpass'; bp.Q.value = 1.4;
+  const trem = a.createGain(); trem.gain.value = 0.7;
+  const lfo = a.createOscillator(); lfo.type = 'sine';
+  const lfoAmt = a.createGain(); lfoAmt.gain.value = 0.3;
+  const env = a.createGain();
+  const out = a.createGain();
+  out.gain.value = effectiveGain(cfg, category, 'swirl') * o.gain;
+  o1.connect(bp); o2.connect(mix2).connect(bp);
+  bp.connect(trem).connect(env).connect(out).connect(busInput(a, category));
+  lfo.connect(lfoAmt).connect(trem.gain);
+  o1.frequency.setValueAtTime(lo, t0); o1.frequency.exponentialRampToValueAtTime(hi, t0 + b);
+  o2.frequency.setValueAtTime(lo * 1.5, t0); o2.frequency.exponentialRampToValueAtTime(hi * 1.5, t0 + b);
+  bp.frequency.setValueAtTime(lo * 1.2, t0); bp.frequency.exponentialRampToValueAtTime(hi * 1.6, t0 + b);
+  lfo.frequency.setValueAtTime(5, t0); lfo.frequency.exponentialRampToValueAtTime(20, t0 + b);
+  env.gain.setValueAtTime(0.0001, t0);
+  env.gain.exponentialRampToValueAtTime(0.25, t0 + Math.min(0.15, b * 0.3));
+  env.gain.exponentialRampToValueAtTime(1, t0 + b);
+  env.gain.exponentialRampToValueAtTime(0.0001, t0 + b + 0.06);
+  const end = t0 + b + 0.1;
+  for (const n of [o1, o2, lfo]) { n.start(t0); n.stop(end); }
+  let done = false;
+  const release = (): void => { if (done) return; done = true; for (const n of [o1, o2, mix2, bp, trem, lfo, lfoAmt, env, out]) { try { n.disconnect(); } catch { /* already */ } } };
+  o1.onended = release;
+  return {
+    stop: () => {
+      if (done) return;
+      try {
+        const landAt = scheduleSkipFade(out.gain, a.currentTime);
+        o1.onended = null;
+        for (const n of [o1, o2, lfo]) n.stop(landAt + 0.01);
+        setTimeout(release, SKIP_FADE_S * 1000 + 60);
+      } catch { release(); }
+    },
+  };
+}
+
 // The end-of-turn CHARGE build (`turncharge`) is a long (~25–40s) clip. Web Audio sources are fire-and-forget, so
 // we keep a handle to the live nodes and ramp them down when the turn ends early (End Turn pressed / a new charge
 // starts) — otherwise the build keeps playing under combat. See `stopTurnCharge` + `sfx.turnCharge`.

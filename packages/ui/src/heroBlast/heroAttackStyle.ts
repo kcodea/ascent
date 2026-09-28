@@ -11,12 +11,16 @@
  *  - `quake` is the second (`attack_quake`, "Tectonic Slam" until the owner renames it; owner ask 2026-09-28: "an
  *    earthquake attack essentially with varying degrees of strength/cracks/explosions"): the numbers combine, the hero
  *    slams the ground, a quake cracks across the board and the ground erupts under the target (`../heroQuake/`).
+ *  - `arcana` is the third (`attack_arcana`, "Arcana"; owner ask 2026-09-28: "one more attack animation, same setup as
+ *    the last 2, but let's make like a magic one called arcana"): the numbers combine, then clean magic ribbons are
+ *    lobbed from the hero (one, two, a barrage of five), and the top tier swirls them into a vortex over the target that
+ *    explodes outward (`../heroArcana/`).
  *
  * The style is the ATTACKER's: the equipped item recorded in the striking player's cosmetic snapshot (yours when you
  * win; the foe's seat snapshot when they win, and only while "Show opponent cosmetics" is on). The catalog item names
  * its animation in `assets.style`; an unknown, retired or unrecognised item plays Classic.
  *
- * Both styles are PRESENTATION ONLY. The damage, the Armor absorb and the Resolve drop are the engine's; a style only
+ * Every style is PRESENTATION ONLY. The damage, the Armor absorb and the Resolve drop are the engine's; a style only
  * decides how that already-decided blow is drawn, and it lands the consequence on its impact beat.
  *
  * The DEV override (the Blast tuner's "Attack style" row) forces a style for both sides in dev builds only, for
@@ -24,7 +28,7 @@
  */
 import { heroAttackOf } from '@game/progression';
 
-export const HERO_ATTACK_STYLES = ['classic', 'blast', 'quake'] as const;
+export const HERO_ATTACK_STYLES = ['classic', 'blast', 'quake', 'arcana'] as const;
 export type HeroAttackStyle = (typeof HERO_ATTACK_STYLES)[number];
 
 /** What a player without an equipped hero attack sees (owner 2026-09-28: Blast is a cosmetic, not a new default). */
@@ -41,8 +45,13 @@ export function styleOfCosmetic(id: string | null | undefined): HeroAttackStyle 
 }
 
 /** The dev override: `auto` = what a player would see; the others force one style for BOTH sides. */
-export const DEV_HERO_ATTACK_CHOICES = ['auto', 'classic', 'blast', 'quake'] as const;
+export const DEV_HERO_ATTACK_CHOICES = ['auto', 'classic', 'blast', 'quake', 'arcana'] as const;
 export type DevHeroAttackChoice = (typeof DEV_HERO_ATTACK_CHOICES)[number];
+
+/** The dev "Attack style" row's labels, shared by every hero attack tuner. */
+export const DEV_HERO_ATTACK_LABELS: Record<DevHeroAttackChoice, string> = {
+  auto: 'Auto (equipped cosmetic)', classic: 'Classic (lunge)', blast: 'Blast', quake: 'Quake', arcana: 'Arcana',
+};
 
 const KEY = 'ascent.heroattackstyle';
 const isChoice = (v: unknown): v is DevHeroAttackChoice => typeof v === 'string' && (DEV_HERO_ATTACK_CHOICES as readonly string[]).includes(v);

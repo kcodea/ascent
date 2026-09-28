@@ -19,6 +19,7 @@ import { LoadScreenTuner } from './LoadScreenTuner';
 import { HeroDuelTuner } from './HeroDuelTuner';
 import { HeroBlastTuner } from './HeroBlastTuner';
 import { HeroQuakeTuner } from './HeroQuakeTuner';
+import { HeroArcanaTuner } from './HeroArcanaTuner';
 import { RankScreenPreview } from './rank/RankScreenPreview';
 import { RulebookTriage } from './RulebookTriage';
 import { BugBoard } from './BugBoard';
@@ -178,6 +179,7 @@ const GROUPS: Group[] = [
       { key: 'loadscreen', icon: '⏳', label: 'Load Screen', C: LoadScreenTuner, hint: 'The boot splash — resize the AscentIcon and size/position the loading bar. "Toggle load screen" re-shows it live', alt: 'boot loading splash screen' },
       { key: 'heroblast', icon: '💥', label: 'Hero Attack: Blast', C: HeroBlastTuner, hint: 'The Blast hero attack (the Arcane Barrage cosmetic): the numbers combining, the charge, the bolts, the impact, the camera push and shake, colours and sound gains. Attack style row forces Classic or Blast in real fights (dev only). Has ▶ Play both directions, Small / Big, Reduced motion and 1x / 0.5x / 0.25x', alt: 'hero attack blast barrage bolts combine numbers damage cosmetic shake zoom' },
       { key: 'heroquake', icon: '🌋', label: 'Hero Attack: Quake', C: HeroQuakeTuner, hint: 'The Quake hero attack (the Tectonic Slam cosmetic): the numbers combining, the hero slamming the ground, the cracks racing to the target, the eruption, the rumble, colours and sound gains, per damage tier. Attack style row forces Classic, Blast or Quake in real fights (dev only). Has ▶ Play both directions at Small 3 / Medium 12 / Huge 40, Reduced motion and 1x / 0.5x / 0.25x', alt: 'hero attack quake earthquake slam cracks magma eruption rumble cosmetic tectonic' },
+      { key: 'heroarcana', icon: '🔮', label: 'Hero Attack: Arcana', C: HeroArcanaTuner, hint: 'The Arcana hero attack (the Arcana cosmetic): the numbers combining, the charge, the magic ribbons lobbed from the hero (one, two, a barrage of five), the Tier IV vortex and explosion, ribbon width, length, glow and twist, arc height, launch stagger, the swirl, colours and sound gains, per damage tier. Attack style row forces any style in real fights (dev only). Has ▶ Play both directions at Small 3 / Tier II 8 / Medium 12 / Huge 40, Reduced motion and 1x / 0.5x / 0.25x', alt: 'hero attack arcana magic ribbons arc lob barrage vortex swirl explosion sigil cosmetic' },
       { key: 'heroduel', icon: '⚔️', label: 'Hero Duel', C: HeroDuelTuner, hint: 'The post-combat sequence — foe portrait, attack pill, and the winning hero lunge. Has Test buttons', alt: 'combat end hero attack strike pill' },
       { key: 'rankscreen', icon: '🎖️', label: 'Rank Screen', C: RankScreenPreview, hint: 'The post-game medal rank screen — plays every fixture state (gain, loss, gate unlocked, promotion won, medal promotion, promotion failed, demotion, floor, Ascendant uncapped, pending, retryable, rejected, unrated) plus the pending → confirmed arrival, the demotion-gate variants, the rank-up and down-rank FX hits and the Continue cross-fade', alt: 'medal mmr rank end screen placement promotion division points bar' },
     ],

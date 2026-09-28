@@ -5,6 +5,8 @@ import { stageScale } from '../stage';
 import type { HeroAttackHandle, HeroAttackOptions } from '../heroAttack/options';
 import { playHeroQuake } from '../heroQuake/heroQuake';
 import { heroQuakePreviewSpeed } from '../heroQuake/heroQuakeConfig';
+import { playHeroArcana } from '../heroArcana/heroArcana';
+import { heroArcanaPreviewSpeed } from '../heroArcana/heroArcanaConfig';
 import { playHeroBlast } from './heroBlast';
 import { heroBlastPreviewSpeed } from './heroBlastConfig';
 import './heroAttackPreview.css';
@@ -13,6 +15,7 @@ import './heroAttackPreview.css';
 const RUNNERS: Record<string, { play: (o: HeroAttackOptions & { textures?: null }) => HeroAttackHandle; speed: () => number }> = {
   blast: { play: (o) => playHeroBlast(o), speed: heroBlastPreviewSpeed },
   quake: { play: (o) => playHeroQuake(o), speed: heroQuakePreviewSpeed },
+  arcana: { play: (o) => playHeroArcana(o), speed: heroArcanaPreviewSpeed },
 };
 
 /**

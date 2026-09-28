@@ -45,6 +45,21 @@ export function hexToNum(hex: string): number {
   return Number.isFinite(v) ? v : 0xffffff;
 }
 
+/**
+ * A tiny seeded generator (mulberry32) for presentation scatter, so the same fight throws the same sparks (a replay
+ * looks identical). Added 2026-09-28 with Arcana; presentation only, never gameplay.
+ */
+export function seededRng(seed: number): () => number {
+  let a = seed >>> 0;
+  return () => {
+    a = (a + 0x6d2b79f5) >>> 0;
+    let t = a;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
 /** The OS "reduce motion" preference (false where it cannot be read). */
 export function prefersReducedMotion(): boolean {
   try { return typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch { return false; }

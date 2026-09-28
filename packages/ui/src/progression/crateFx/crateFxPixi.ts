@@ -49,7 +49,7 @@ export interface CrateFx {
 /** The painted chest's texture width (px). The sprites scale to the layout size from here. */
 const CHEST_TEX_W = 720;
 /** The gem art every rarity's gem is recoloured from. */
-const GEM_ART = '/frames/end_button_gem.webp';
+const GEM_ART = `${import.meta.env.BASE_URL}frames/end_button_gem.webp`;
 
 const fromCanvas = (c: HTMLCanvasElement): Texture => new Texture({ source: new CanvasSource({ resource: c }) });
 

@@ -34,7 +34,7 @@ import './crateFx/crateTheatre.css';
  */
 
 /** The painted gem the nameplate wears (recoloured per rarity in CSS, a static filter). */
-const GEM_ART = '/frames/end_button_gem.webp';
+const GEM_ART = `${import.meta.env.BASE_URL}frames/end_button_gem.webp`;
 
 export interface CrateQueueItem { crateId: string; earnedLevel: number }
 
@@ -401,7 +401,7 @@ export function CrateOpener({ queue, autoOpen = false, openAll = false, reducedM
           {revealed && !reduced && <div className="crth-rays" aria-hidden />}
           {revealed && reward && (
             <div className={`crate-reward crth-plate${reward.rarity ? ` r-${reward.rarity}` : ''}`} role="status">
-              <span className="crth-plate-gem" aria-hidden><img src={GEM_ART} alt="" draggable={false} /></span>
+              <span className="crth-plate-gem" aria-hidden><img src={GEM_ART} alt="" draggable={false} decoding="sync" /></span>
               <span className="crate-reward-kind">{reward.kind}</span>
               <span className="crate-reward-name">{reward.name}</span>
               {reward.rarityLabel && <span className="crate-reward-rarity crth-ribbon"><span>{reward.rarityLabel}</span></span>}

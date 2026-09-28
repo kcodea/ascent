@@ -64,6 +64,14 @@ export const PATCH_NOTES: PatchNote[] = [
           'Reduced motion on? The reward simply fades in.',
         ],
       },
+      {
+        category: 'Systems',
+        text: 'Career: your name and title now sit big at the top of the page.',
+        details: [
+          'Your Account Level moved under your favorite hero, so Seasonal Ranked leads the right side.',
+          'The hero portrait is now labelled Favorite hero.',
+        ],
+      },
     ],
   },
   {

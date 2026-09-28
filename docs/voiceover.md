@@ -51,13 +51,23 @@ plan, which grants no commercial rights, so it is not used.
 
 ## Unit sounds and the voice cast
 
-Every card can have its own clips, and the game plays them with no code: drop `<cardId>.mp3` (when it is
-played), `<cardId>.death.mp3` (when it dies in combat) or `<cardId>.effect.mp3` (when its effect fires) into
-`packages/ui/src/audio/cards/`. The generator can make all three.
+A card's own sounds live in the **FX workbench's "By card" view**: each card has an **On Play** and an **On Death**
+slot (plus Rally, Start of Combat and so on when the card has them), and each slot holds a Sound def. The generator
+writes into those same slots, so a generated clip shows up there, plays in game, and can be re-tuned or swapped in
+the workbench like any imported sound.
 
-The plan lives in the tracker's **Unit sounds** tab: each tribe has a small **cast** of voices (about 5), and
-each unit is a **Talker** (speaks a short line in its cast voice) or a **Grunter** (a sound only). Death clips
-are sound effects. The row id in the tracker is the clip id here.
+A card clip has `"dest": "card"` and is named after its slot: `dw_orin` = On Play, `dw_orin.death` = On Death.
+Approving it writes three things, the same as the workbench's own import:
+
+- the mp3 → `packages/ui/src/audio/fx/vo-dw-orin.mp3` (clip id `fx/vo-dw-orin`);
+- a one-layer Sound def → `packages/ui/src/fx/defs/sfx-vo-dw-orin.json`;
+- the binding → `packages/ui/src/choreo/bindings.json` (`cards.dw_orin.minionPlayed`, or `.death`).
+
+It refuses when a slot is already bound to a different sound, so a sound picked by hand is never replaced.
+
+The plan lives in the tracker's **Unit sounds** tab: each tribe has a small **cast** of voices, and each unit is a
+**Talker** (speaks a short line in its cast voice) or a **Grunter** (a sound only). Death clips are sound effects.
+The row id in the tracker is the clip id here.
 
 ### 1. Design the cast (once per tribe)
 
@@ -69,7 +79,7 @@ Design prompt, 20-1000 characters).
    `vo-drafts/voices/<key>.preview1.mp3`, `.preview2.mp3`, ... Previews cost credits (the sample text is billed
    like a line). `--only <key>` limits the run; `--redo` re-rolls a design that already has previews.
 3. Keep the one you like: `npm run vo:design -- save dwarf-oldguard 2`. It becomes a permanent voice in the
-   account and is added to `voices` under the same key, with `dest` = the card audio folder. Paste the new voice
+   account and is added to `voices` under the same key, with `dest` = `card`. Paste the new voice
    ID into the tracker's cast card too.
 4. To keep more than one preview of a design (variety inside a big archetype), save the extras under their
    own key: `npm run vo:design -- save dwarf-oldguard 3 --as dwarf-oldguard-3`.
@@ -91,7 +101,7 @@ A line may also carry its own `"dest"`, which overrides the voice's folder.
 Sound effects go under `sfx`:
 
 ```json
-{ "id": "dw_brakka.death", "dest": "packages/ui/src/audio/cards",
+{ "id": "dw_brakka.death", "dest": "card",
   "prompt": "gruff older male dwarf soldier pained death groan, single short vocal sound, no words, no music, dry, close-mic",
   "duration": 1 }
 ```
@@ -103,6 +113,6 @@ Sound effects go under `sfx`:
 
 `npm run vo:generate` makes lines and sound effects together (`--sfx` or `--lines` limits it to one kind). The
 dry run prints both costs: characters for lines, and seconds for sound effects. `npm run vo:approve -- <id> <take>`
-copies a take into the game. For card clips no wiring is needed: restart `npm run dev` (the audio folder is read
-once at startup), run `npm run sfx:manifest`, and commit the mp3.
+puts a take in the game. For a card clip that means the file, the def and the By-card binding (above): restart
+`npm run dev` (the audio folder is read once at startup), then commit all three.
 

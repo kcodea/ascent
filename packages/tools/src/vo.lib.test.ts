@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import {
-  CARD_AUDIO_DIR, ManifestSchema, clipDest, clipsOf, designRequest, lineHash, planCost, planGenerate, saveVoiceRequest,
+  BINDINGS_PATH, CARD_DEST, ManifestSchema, bindCardSlot, cardSlot, clipDest, clipFile, clipsOf, designRequest, lineHash, planCost, planGenerate, saveVoiceRequest,
   sfxHash, sfxRequest, ttsRequest, voiceFromDesign, type Clip, type Manifest, type ManifestInput,
 } from './vo.lib';
 
@@ -13,7 +13,7 @@ const raw = (lines: ManifestInput['lines'], sfx: ManifestInput['sfx'] = []): Man
   ({ voices: { announcer: voice }, lines, sfx });
 const a = { id: 'triple-3', voice: 'announcer', text: 'Triple!' };
 const b = { id: 'tier-six-3', voice: 'announcer', text: 'Tier six!' };
-const growl = { id: 'dw_brakka.death', prompt: 'dwarf roar, no words', dest: CARD_AUDIO_DIR, duration: 1 };
+const growl = { id: 'dw_brakka.death', prompt: 'dwarf roar, no words', dest: CARD_DEST, duration: 1 };
 const none = (): boolean => false;
 const opts = { takes: 1, more: 0, only: [] as string[] };
 const ids = (plan: { clip: Clip }[]): string[] => plan.map((p) => p.clip.id);
@@ -63,15 +63,18 @@ describe('vo sound effects', () => {
   });
 
   it('costs sfx by seconds generated and counts auto-length takes apart', () => {
-    const m = manifest([a], [growl, { id: 'dw_orin.death', prompt: 'grunt', dest: CARD_AUDIO_DIR }]);
+    const m = manifest([a], [growl, { id: 'dw_orin.death', prompt: 'grunt', dest: CARD_DEST }]);
     expect(planCost(planGenerate(m, {}, none, { ...opts, takes: 2 }))).toEqual({
       characters: 'Triple!'.length * 2, sfxTakes: 4, sfxSeconds: 2, sfxAuto: 2,
     });
   });
 
   it('a card clip lands where the game plays it; a line may override its voice folder', () => {
-    const m = manifest([{ id: 'dw_orin', voice: 'announcer', text: 'Shield up.', dest: CARD_AUDIO_DIR }, a], [growl]);
-    expect(clipsOf(m).map(clipDest)).toEqual([CARD_AUDIO_DIR, 'apps/web/public/announcer', CARD_AUDIO_DIR]);
+    const m = manifest([{ id: 'dw_orin', voice: 'announcer', text: 'Shield up.', dest: CARD_DEST }, a], [growl]);
+    expect(clipsOf(m).map(clipDest)).toEqual([CARD_DEST, 'apps/web/public/announcer', CARD_DEST]);
+    expect(clipsOf(m).map(clipFile)).toEqual([
+      'packages/ui/src/audio/fx/vo-dw-orin.mp3', 'apps/web/public/announcer/triple-3.mp3', 'packages/ui/src/audio/fx/vo-dw-brakka-death.mp3',
+    ]);
   });
 
   it('builds the sound-generation request', () => {
@@ -84,6 +87,46 @@ describe('vo sound effects', () => {
   });
 });
 
+describe('vo card clips bind to the By-card view', () => {
+  it('the clip id names the slot: <cardId> = On Play, <cardId>.death = On Death', () => {
+    expect(cardSlot('dw_orin')).toEqual({ cardId: 'dw_orin', kind: 'minionPlayed', slug: 'vo-dw-orin', defId: 'sfx-vo-dw-orin' });
+    expect(cardSlot('n2_muster.death')).toEqual({ cardId: 'n2_muster', kind: 'death', slug: 'vo-n2-muster-death', defId: 'sfx-vo-n2-muster-death' });
+    expect(cardSlot('sp_dragonflame', true).kind).toBe('spellCast');
+    expect(() => cardSlot('dw_orin.effect')).toThrow();
+  });
+
+  it('every slug is one the workbench accepts, and the def is the workbench import shape', () => {
+    for (const id of ['dw_orin', 'dw_orin.death', 'n2_muster.death']) expect(cardSlot(id).slug).toMatch(/^[a-z0-9][a-z0-9-]{0,63}$/);
+    const def = JSON.parse(readFileSync(resolve(__dirname, '../../ui/src/fx/defs/sfx-voidpanther.json'), 'utf8'));
+    const ours = { ...def, id: 'sfx-vo-dw-orin', layers: [{ ...def.layers[0], params: { clip: 'fx/vo-dw-orin' } }] };
+    expect(ours).toMatchObject({ version: 1, duration: 1000 });
+    expect(ours.layers[0]).toMatchObject({ primitive: 'sound', anchor: 'travel', at: 0 });
+  });
+
+  it('binds a free slot, keeps an identical one, and never replaces a sound chosen in the workbench', () => {
+    const slot = cardSlot('dw_orin');
+    const empty = { version: 1, kinds: {}, cards: { manasaber: { minionPlayed: { def: 'sfx-voidpanther' } } } };
+    const added = bindCardSlot(empty, slot);
+    expect(added.status).toBe('added');
+    expect(added.bindings.cards.dw_orin).toEqual({ minionPlayed: { def: 'sfx-vo-dw-orin' } });
+    expect(added.bindings.cards.manasaber).toEqual(empty.cards.manasaber);
+    expect(bindCardSlot(added.bindings, slot).status).toBe('same');
+    const taken = bindCardSlot({ cards: { dw_orin: { minionPlayed: { def: 'sfx-hand-picked' } } } }, slot);
+    expect(taken).toMatchObject({ status: 'taken', existing: 'sfx-hand-picked' });
+    // The death slot is independent of On Play.
+    expect(bindCardSlot(taken.bindings, cardSlot('dw_orin.death')).status).toBe('added');
+  });
+
+  it('a card clip id must name a slot', () => {
+    expect(() => ManifestSchema.parse(raw([], [{ ...growl, id: 'dw_brakka.effect' }]))).toThrow(/card clip/);
+  });
+
+  it('the committed bindings.json is where the binder reads', () => {
+    expect(BINDINGS_PATH).toBe('packages/ui/src/choreo/bindings.json');
+    expect(JSON.parse(readFileSync(resolve(__dirname, '../../ui/src/choreo/bindings.json'), 'utf8')).cards).toBeTypeOf('object');
+  });
+});
+
 describe('vo voice design', () => {
   const d = ManifestSchema.parse({
     voices: {}, lines: [],
@@ -91,8 +134,8 @@ describe('vo voice design', () => {
   }).designs[0]!;
 
   it('defaults a design to the card folder and the v2 model', () => {
-    expect(d).toMatchObject({ dest: CARD_AUDIO_DIR, model: 'eleven_multilingual_v2' });
-    expect(voiceFromDesign(d, 'NEWID')).toEqual({ id: 'NEWID', model: 'eleven_multilingual_v2', dest: CARD_AUDIO_DIR });
+    expect(d).toMatchObject({ dest: CARD_DEST, model: 'eleven_multilingual_v2' });
+    expect(voiceFromDesign(d, 'NEWID')).toEqual({ id: 'NEWID', model: 'eleven_multilingual_v2', dest: CARD_DEST });
   });
 
   it('asks for previews (auto sample text when none is given), then saves the chosen one', () => {

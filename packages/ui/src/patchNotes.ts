@@ -55,6 +55,15 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: 'Dwarves have voices. Eleven Dwarves now speak or grunt when you play them and cry out when they die.',
+        details: [
+          'Talkers: Oathshield Orin, Warhorn Captain, Brunni, Edward Keg-hands, Coinfire Forewoman, Billings and Auric Runemaster.',
+          'Grunts and growls: Broad-Axe Brakka, Chicken Brawl, Baby Gastrid and Kegheart Dwarf.',
+          'The rest of the Dwarves, and the other tribes, follow.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'The announcer no longer says "Tier four" on every Tavern upgrade. It has a new line that fits any tier.',
       },
       {

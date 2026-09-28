@@ -263,6 +263,94 @@
         "def": "reinforcing-ale",
         "fanOut": "buffed"
       }
+    },
+    "dw_orin": {
+      "minionPlayed": {
+        "def": "sfx-vo-dw-orin"
+      },
+      "death": {
+        "def": "sfx-vo-dw-orin-death"
+      }
+    },
+    "dw_ironlung": {
+      "minionPlayed": {
+        "def": "sfx-vo-dw-ironlung"
+      },
+      "death": {
+        "def": "sfx-vo-dw-ironlung-death"
+      }
+    },
+    "dw_brunni": {
+      "minionPlayed": {
+        "def": "sfx-vo-dw-brunni"
+      },
+      "death": {
+        "def": "sfx-vo-dw-brunni-death"
+      }
+    },
+    "dw_edward": {
+      "minionPlayed": {
+        "def": "sfx-vo-dw-edward"
+      },
+      "death": {
+        "def": "sfx-vo-dw-edward-death"
+      }
+    },
+    "dw_coinfire": {
+      "minionPlayed": {
+        "def": "sfx-vo-dw-coinfire"
+      },
+      "death": {
+        "def": "sfx-vo-dw-coinfire-death"
+      }
+    },
+    "dw_billings": {
+      "minionPlayed": {
+        "def": "sfx-vo-dw-billings"
+      },
+      "death": {
+        "def": "sfx-vo-dw-billings-death"
+      }
+    },
+    "dw_runemaster": {
+      "minionPlayed": {
+        "def": "sfx-vo-dw-runemaster"
+      },
+      "death": {
+        "def": "sfx-vo-dw-runemaster-death"
+      }
+    },
+    "dw_brakka": {
+      "minionPlayed": {
+        "def": "sfx-vo-dw-brakka"
+      },
+      "death": {
+        "def": "sfx-vo-dw-brakka-death"
+      }
+    },
+    "dw_chickenbrawl": {
+      "minionPlayed": {
+        "def": "sfx-vo-dw-chickenbrawl"
+      },
+      "death": {
+        "def": "sfx-vo-dw-chickenbrawl-death"
+      }
+    },
+    "dw_dorrin": {
+      "minionPlayed": {
+        "def": "sfx-vo-dw-dorrin"
+      },
+      "death": {
+        "def": "sfx-vo-dw-dorrin-death"
+      }
+    },
+    "dw_kegheart": {
+      "minionPlayed": {
+        "def": "sfx-vo-dw-kegheart"
+      },
+      "death": {
+        "def": "sfx-vo-dw-kegheart-death"
+      }
     }
   }
 }

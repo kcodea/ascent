@@ -58,6 +58,15 @@ describe('the catalog <-> the bundle', () => {
     expect(skinArtOf(c)).toBeTruthy();
     expect(minionSkinOf({ minionSkinByCardId: { blackbelt: 'skin_blackbelt_3' } }, 'blackbelt')?.id).toBe('skin_blackbelt_3');
   });
+  it('the Bellringer Voss skin (owner 2026-09-28: "put the bellringer voss skin in too") exists, targets n2_bellringer, and ships its art', () => {
+    const c = cosmeticOf('skin_bellringer_1')!;
+    expect(c).toBeTruthy();
+    expect([c.category, c.rarity, c.target, c.assets.master]).toEqual(['minion_skin', 'epic', { type: 'card', id: 'n2_bellringer' }, 'BellringerVossSkinEpic.png']);
+    expect(CARD_INDEX['n2_bellringer']?.name).toBe('Bellringer Voss');
+    expect(skinArtKeys()).toContain('skin_bellringer_1');
+    expect(skinArtOf(c)).toBeTruthy();
+    expect(minionSkinOf({ minionSkinByCardId: { n2_bellringer: 'skin_bellringer_1' } }, 'n2_bellringer')?.id).toBe('skin_bellringer_1');
+  });
   it('every skin targets a REAL collectible card (never a token) or a REAL hero, by stable id', () => {
     for (const c of skins) {
       if (c.category === 'minion_skin') {

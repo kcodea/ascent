@@ -55,13 +55,13 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
-        text: 'A Legendary Black Belt Brian skin joins the crates.',
+        text: 'A Legendary Black Belt Brian skin and an Epic Bellringer Voss skin join the crates.',
       },
       {
         category: 'Systems',
         text: 'Skins are here. Crates can now give hero and minion skins, and you can equip them in the Collection.',
         details: [
-          'The first four: two looks for Black Belt Brian, one for Albus and one for Warden.',
+          'The first skins: three looks for Black Belt Brian, one for Bellringer Voss, one for Albus and one for Warden.',
           'Equip a skin from the Heroes or Minions tab of the Collection. "Use default art" puts the original back.',
           'Your skin shows everywhere that hero or minion appears: the shop, your hand and board, combat, Discover, the end screen, your Career and the Minion Book.',
           'Gilded copies keep their gold frame on top of the skin.',

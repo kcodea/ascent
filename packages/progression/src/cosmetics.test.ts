@@ -100,17 +100,17 @@ describe('the roll', () => {
     expect(pickCrateReward(all, 1e9)!.id).toBe(all[all.length - 1]!.id);
   });
 
-  // Re-pinned 2026-09-28 when the Legendary Black Belt Brian skin joined (was Common 50.9 / Rare 33.7 / Epic 15.1 /
-  // Legendary 0.4 / skin 25.8). Weights (rarity x category) of the full pool: Common 3850, Rare 2550, Epic 1140,
-  // Legendary 135 (the Unbroken title 30 + Grandmaster Brian 105) of 7675; the skins 2055.
-  it('the odds of a first crate with the skins in (2026-09-28): Common 50.2%, Rare 33.2%, Epic 14.9%, Legendary 1.8%; a skin 26.8%', () => {
+  // Re-pinned 2026-09-28 when the Legendary Black Belt Brian and the Epic Bellringer Voss skins joined (was Common
+  // 50.9 / Rare 33.7 / Epic 15.1 / Legendary 0.4 / skin 25.8). Weights (rarity x category) of the full pool: Common
+  // 3850, Rare 2550, Epic 1560, Legendary 135 (the Unbroken title 30 + Grandmaster Brian 105) of 8095; the skins 2475.
+  it('the odds of a first crate with the skins in (2026-09-28): Common 47.6%, Rare 31.5%, Epic 19.3%, Legendary 1.7%; a skin 30.6%', () => {
     const all = eligibleCrateCosmetics([]);
     const total = crateTotalWeight(all);
     const pct = (xs: typeof all): number => Math.round((1000 * xs.reduce((s, c) => s + crateWeightOf(c), 0)) / total) / 10;
     const share = (r: string): number => pct(all.filter((c) => c.rarity === r));
-    expect([share('common'), share('rare'), share('epic'), share('legendary')]).toEqual([50.2, 33.2, 14.9, 1.8]);
-    expect(pct(all.filter((c) => c.category !== 'title'))).toBe(26.8);
-    expect(total).toBe(7675);
+    expect([share('common'), share('rare'), share('epic'), share('legendary')]).toEqual([47.6, 31.5, 19.3, 1.7]);
+    expect(pct(all.filter((c) => c.category !== 'title'))).toBe(30.6);
+    expect(total).toBe(8095);
     // the titles-only launch odds are unchanged when the skins are switched off (the kill switch path)
     const titlesOnly = all.filter((c) => c.category === 'title');
     const t = crateTotalWeight(titlesOnly);

@@ -142,7 +142,8 @@ describe('no redundant PNG masters ship alongside their WebP builds', () => {
     // → 1276: owner-supplied Ancient art 2026-09-26 (+2: the Ancient of Bonds' full art + hero-power half).
     // → 1280: the first SKINS 2026-09-28 (+4 in a new `art/skins/` dir: two Black Belt Brian minion skins, the Albus
     // and Warden hero skins; owner-named, WebP only, the masters stay under `C:\Game Assets\Ascent Art\Skins\`).
-    // → 1281: the Legendary Black Belt Brian skin 2026-09-28 (+1: `art/skins/skin_blackbelt_3.webp`, owner-named).
-    expect(total, `art files: ${total} — the WHOLE-ZIP count (~${total + 176}) is what itch caps at 1000`).toBeLessThan(1281);
+    // → 1282: the Legendary Black Belt Brian and the Epic Bellringer Voss skins 2026-09-28 (+2:
+    // `art/skins/skin_blackbelt_3.webp` and `skin_bellringer_1.webp`, both owner-named).
+    expect(total, `art files: ${total} — the WHOLE-ZIP count (~${total + 176}) is what itch caps at 1000`).toBeLessThan(1282);
   });
 });

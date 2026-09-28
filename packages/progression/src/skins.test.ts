@@ -17,14 +17,16 @@ afterEach(() => setServerCatalogState(null));
 
 const skins = COSMETICS.filter((c) => c.category === 'hero_skin' || c.category === 'minion_skin');
 
-describe('the five skins', () => {
+describe('the six skins', () => {
   // 2026-09-28: a third Black Belt Brian (Legendary) joined; owner: "i added a legendary black belt brian skin and
-  // renaemd skins to match their rarity" (masters renamed SkinRare / SkinEpic / SkinLegendary; ids unchanged).
-  it('three Black Belt Brian minion skins (Rare, Epic, Legendary), one Albus and one Warden hero skin; crate items with art keys and attributed masters', () => {
+  // renaemd skins to match their rarity" (masters renamed SkinRare / SkinEpic / SkinLegendary; ids unchanged); then
+  // "put the bellringer voss skin in too" (an Epic for Bellringer Voss).
+  it('three Black Belt Brian minion skins (Rare, Epic, Legendary), one Bellringer Voss minion skin, one Albus and one Warden hero skin; crate items with art keys and attributed masters', () => {
     expect(skins.map((c) => [c.id, c.category, c.target, c.rarity])).toEqual([
       ['skin_blackbelt_1', 'minion_skin', { type: 'card', id: 'blackbelt' }, 'rare'],
       ['skin_blackbelt_2', 'minion_skin', { type: 'card', id: 'blackbelt' }, 'epic'],
       ['skin_blackbelt_3', 'minion_skin', { type: 'card', id: 'blackbelt' }, 'legendary'],
+      ['skin_bellringer_1', 'minion_skin', { type: 'card', id: 'n2_bellringer' }, 'epic'],
       ['skin_albus_1', 'hero_skin', { type: 'hero', id: 'albus' }, 'epic'],
       ['skin_warden_1', 'hero_skin', { type: 'hero', id: 'warden' }, 'epic'],
     ]);
@@ -38,6 +40,7 @@ describe('the five skins', () => {
     expect(skins.map((c) => c.assets.master).filter((m) => m!.startsWith('BlackBeltBrian'))).toEqual([
       'BlackBeltBrianSkinRare.png', 'BlackBeltBrianSkinEpic.png', 'BlackBeltBrianSkinLegendary.png',
     ]);
+    expect(skinsForTarget('minion_skin', 'n2_bellringer').map((c) => c.id)).toEqual(['skin_bellringer_1']);
     expect(skinsForTarget('hero_skin', 'warden').map((c) => c.id)).toEqual(['skin_warden_1']);
   });
 });

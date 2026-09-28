@@ -55,6 +55,17 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: 'A new Legendary hero attack, Phantom Blades, can drop from crates.',
+        details: [
+          'Your numbers combine into one total, then glowing swords appear around your hero, turn to aim, and fly straight at the other hero.',
+          'The bigger the hit, the more blades: one, then a crossed pair, then a fan of five that sticks in and shatters.',
+          'On the biggest hits a giant greatsword forms, locks on, and impales the other hero.',
+          'Equip it from the Attack Animations tab of the Collection. There is a preview button there too.',
+          'Hero attacks are looks only. The damage is exactly the same.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'Dwarves have voices. Eleven Dwarves now speak or grunt when you play them and cry out when they die.',
         details: [
           'Talkers: Oathshield Orin, Warhorn Captain, Brunni, Edward Keg-hands, Coinfire Forewoman, Billings and Auric Runemaster.',

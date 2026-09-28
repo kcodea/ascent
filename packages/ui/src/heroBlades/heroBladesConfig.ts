@@ -151,7 +151,7 @@ const TIER_DEFAULTS: Record<BladesTierSuffix, [number, number, number, number]> 
   HoldMs: [120, 190, 240, 260],
   Blades: [1, 2, 5, 6],
   SummonStaggerMs: [0, 70, 55, 40],
-  AimHoldMs: [50, 60, 60, 20],
+  AimHoldMs: [30, 50, 60, 20],
   LooseStaggerMs: [0, 120, 95, 65],
   FlightMs: [250, 250, 240, 220],
   Spread: [0, 46, 108, 150],
@@ -165,7 +165,7 @@ const TIER_DEFAULTS: Record<BladesTierSuffix, [number, number, number, number]> 
   Punch: [0.02, 0.028, 0.038, 0.065],
   Shards: [10, 9, 8, 10],
   Burst: [1, 1.15, 1.35, 1.9],
-  SettleMs: [240, 300, 340, 300],
+  SettleMs: [200, 260, 320, 240],
   Dim: [0, 0.18, 0.32, 0.5],
 };
 
@@ -211,9 +211,9 @@ export const HERO_BLADES_DEFAULTS: HeroBladesConfig = {
   absorbMs: 170,
   heroSwell: 0.07,
   recoilPx: 9,
-  manifestMs: 200,
-  aimMs: 180,
-  lockMs: 80,
+  manifestMs: 180,
+  aimMs: 170,
+  lockMs: 75,
   pullMs: 75,
   pullPx: 22,
   bladeLength: 230,
@@ -228,8 +228,8 @@ export const HERO_BLADES_DEFAULTS: HeroBladesConfig = {
   greatSize: 2.1,
   greatForm: 2.1,
   greatManifestMs: 280,
-  greatAimMs: 240,
-  greatHangMs: 230,
+  greatAimMs: 210,
+  greatHangMs: 220,
   greatPullMs: 110,
   greatFlight: 0.95,
   bindBeams: 0.8,
@@ -247,7 +247,7 @@ export const HERO_BLADES_DEFAULTS: HeroBladesConfig = {
   sfxGatherClip: 'TallyTravel', sfxGatherGain: 0.45,
   sfxTickClip: 'AttackPillAdd', sfxTickGain: 0.6, sfxTickRate: 0.9, sfxTickStep: 0.07,
   sfxSlamClip: 'tallyimpact', sfxSlamGain: 0.9, sfxSlamRate: 1.05,
-  sfxSummonClip: 'equipmentsheen', sfxSummonGain: 0.4, sfxSummonRate: 1.25, sfxSummonStep: 0.06,
+  sfxSummonClip: 'equipmentsheen', sfxSummonGain: 1.2, sfxSummonRate: 1.25, sfxSummonStep: 0.06,
   sfxRingClip: 'equipclang', sfxRingGain: 0.2, sfxRingRate: 1.7,
   sfxAimClip: 'fx/metal-woosh', sfxAimGain: 0.35, sfxAimRate: 1.35,
   sfxLockClip: 'equipclang', sfxLockGain: 0.3, sfxLockRate: 2,
@@ -259,7 +259,7 @@ export const HERO_BLADES_DEFAULTS: HeroBladesConfig = {
   sfxBigClip: 'crit', sfxBigGain: 0.4, sfxBigRate: 1.05,
   sfxThumpClip: 'smack2', sfxThumpGain: 0.45, sfxThumpRate: 0.85,
   sfxShatterClip: 'rebornshatter', sfxShatterGain: 0.55, sfxShatterRate: 1.15,
-  sfxGreatClip: 'fx/universfield-cinematic-swoosh-impact-454392', sfxGreatGain: 0.5, sfxGreatRate: 1,
+  sfxGreatClip: 'fx/universfield-cinematic-swoosh-impact-454392', sfxGreatGain: 0.55, sfxGreatRate: 1,
   sfxSlamDownClip: 'titanhammer', sfxSlamDownGain: 0.7, sfxSlamDownRate: 1.1,
   sfxBoomClip: 'fx/triple-impact', sfxBoomGain: 0.28, sfxBoomRate: 1.3,
   sfxHumGain: 0.3, sfxHumHz: 220, sfxHumRise: 1.6,
@@ -597,7 +597,7 @@ export function bladesPlan(input: BladesPlanInput, c: HeroBladesConfig = cfg): B
   }
   const hits = blades.map((b) => b.arriveAt).filter((at) => at < impactAt).sort((a, b) => a - b);
   const shatterAt = impactAt + c.shatterDelayMs;
-  const booms = withGreat ? [shatterAt + 150, shatterAt + 300] : [];
+  const booms = withGreat ? [shatterAt + 120, shatterAt + 240] : [];
   const lastBeat = Math.max(
     shatterAt + 200,
     booms.length ? booms[booms.length - 1]! + 120 : 0,

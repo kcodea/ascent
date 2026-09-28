@@ -38,6 +38,9 @@ import '../heroBlast/heroBlast.css';
 
 export type HeroBladesPart = CombinePart;
 
+/** Where the greatsword clip (`fx/universfield-cinematic-swoosh-impact`) hits, ms in at pitch 1 (measured 2026-09-28). */
+const GREAT_CLIP_HIT_MS = 480;
+
 export interface HeroBladesOptions extends HeroAttackOptions {
   cfg?: HeroBladesConfig;
   textures?: HeroBladesTextures | null;
@@ -160,24 +163,25 @@ export function playHeroBlades(o: HeroBladesOptions): HeroBladesHandle {
       case 'loose': {
         const m = small[q.i];
         const lastOne = q.i === n - 1;
-        cue(c.sfxLooseClip, c.sfxLooseGain * (lastOne ? 1 : 0.75), c.sfxLooseRate + q.i * c.sfxLooseStep, { lenMs: c.sfxLooseLenMs, fadeMs: 200 });
-        if (q.i === 0 || lastOne) cue(c.sfxCrackClip, c.sfxCrackGain * (lastOne && q.i > 0 ? 0.8 : 1), c.sfxCrackRate + 0.05 * q.i, { lenMs: 300, fadeMs: 120 });
+        // Clips are entered at their attack (the woosh's rush, the snap's crack), so what you hear IS the thrust.
+        cue(c.sfxLooseClip, c.sfxLooseGain * (lastOne ? 1 : 0.75), c.sfxLooseRate + q.i * c.sfxLooseStep, { startMs: 110, lenMs: c.sfxLooseLenMs, fadeMs: 200 });
+        if (q.i === 0 || lastOne) cue(c.sfxCrackClip, c.sfxCrackGain * (lastOne && q.i > 0 ? 0.8 : 1), c.sfxCrackRate + 0.05 * q.i, { startMs: 440, lenMs: 260, fadeMs: 120 });
         if (m) scene?.loose(m);
         break;
       }
       case 'hit': {
         // A blade goes in before the last: a stab and a clang pitched up each tick (the rhythm), FX only.
         const m = small[q.i];
-        cue(c.sfxStabClip, c.sfxStabGain, c.sfxStabRate + 0.05 * hitStep, { lenMs: 420, fadeMs: 160 });
+        cue(c.sfxStabClip, c.sfxStabGain, c.sfxStabRate + 0.05 * hitStep, { startMs: 100, lenMs: 380, fadeMs: 160 });
         cue(c.sfxClangClip, c.sfxClangGain, c.sfxClangRate + 0.07 * hitStep, { lenMs: 380, fadeMs: 200 });
         if (m) scene?.hit(m, hitStep);
         hitStep++;
         break;
       }
       case 'great':
-        // The greatsword forms: a deep cinematic swoosh, a heavier shimmer.
-        cue(c.sfxGreatClip, c.sfxGreatGain, c.sfxGreatRate, { lenMs: 1400, fadeMs: 400 });
-        cue(c.sfxSummonClip, c.sfxSummonGain * 1.2, c.sfxSummonRate * 0.7, { lenMs: 700, fadeMs: 250 });
+        // The greatsword forms: a heavy, low steel shimmer and a deep ring.
+        cue(c.sfxSummonClip, c.sfxSummonGain * 1.3, c.sfxSummonRate * 0.7, { lenMs: 900, fadeMs: 300 });
+        cue(c.sfxRingClip, c.sfxRingGain * 1.6, c.sfxRingRate * 0.55, { lenMs: 700, fadeMs: 300 });
         if (greatM) scene?.summon(greatM, o.attacker, t - q.at);
         break;
       case 'greatAim':
@@ -187,27 +191,33 @@ export function playHeroBlades(o: HeroBladesOptions): HeroBladesHandle {
         // THE JUDGEMENT locks on: a ting, and the steel hum swells to the loose.
         cue(c.sfxLockClip, c.sfxLockGain * 1.2, c.sfxLockRate * 0.85, { lenMs: 500, fadeMs: 250 });
         if (greatM) voices.keep(playSteelHum('attack', { gain: c.sfxHumGain, buildMs: real(greatM.flightStart - greatM.aimEnd), hz: c.sfxHumHz, rise: c.sfxHumRise }));
+        // The cinematic swoosh-impact is placed so its own hit (0.48 s in, at pitch 1) lands ON the greatsword's impact.
+        if (greatM && c.sfxGreatClip) {
+          const r = c.sfxGreatRate > 0 ? c.sfxGreatRate : 1;
+          const lead = real(plan.impactAt - t) - GREAT_CLIP_HIT_MS / r;
+          cue(c.sfxGreatClip, c.sfxGreatGain, r, lead >= 0 ? { delayMs: lead, lenMs: 1600, fadeMs: 400 } : { startMs: -lead * r, lenMs: 1600, fadeMs: 400 });
+        }
         if (greatM) scene?.lockOn(o.defender.x, o.defender.y, radius, greatM.flightStart - greatM.aimEnd, c.bindBeams);
         break;
       case 'greatLoose':
-        cue(c.sfxCrackClip, c.sfxCrackGain * 1.3, c.sfxCrackRate * 0.8, { lenMs: 360, fadeMs: 140 });
-        cue(c.sfxLooseClip, c.sfxLooseGain * 1.3, c.sfxLooseRate * 0.7, { lenMs: c.sfxLooseLenMs * 1.4, fadeMs: 240 });
+        cue(c.sfxCrackClip, c.sfxCrackGain * 1.3, c.sfxCrackRate * 0.8, { startMs: 440, lenMs: 320, fadeMs: 140 });
+        cue(c.sfxLooseClip, c.sfxLooseGain * 1.3, c.sfxLooseRate * 0.7, { startMs: 90, lenMs: c.sfxLooseLenMs * 1.4, fadeMs: 240 });
         if (greatM) scene?.loose(greatM);
         break;
       case 'impact':
         if (plan.great) {
           // THE GREATSWORD goes in: a slam, a cleave, a crack, a deep thump.
           cue(c.sfxSlamDownClip, c.sfxSlamDownGain, c.sfxSlamDownRate, { tail: c.sfxTailMix, lenMs: c.sfxImpactLenMs, fadeMs: 450 });
-          cue(c.sfxImpactClip, c.sfxImpactGain, c.sfxImpactRate * 0.9, { tail: c.sfxTailMix, lenMs: c.sfxImpactLenMs, fadeMs: 450 });
-          cue(c.sfxBigClip, c.sfxBigGain * 1.15, c.sfxBigRate - 0.05, { lenMs: 700, fadeMs: 250 });
-          cue(c.sfxThumpClip, c.sfxThumpGain * 1.15, c.sfxThumpRate - 0.08, { lenMs: 500, fadeMs: 180 });
+          cue(c.sfxImpactClip, c.sfxImpactGain, c.sfxImpactRate * 0.9, { startMs: 60, tail: c.sfxTailMix, lenMs: c.sfxImpactLenMs, fadeMs: 450 });
+          cue(c.sfxBigClip, c.sfxBigGain * 1.15, c.sfxBigRate - 0.05, { startMs: 40, lenMs: 700, fadeMs: 250 });
+          cue(c.sfxThumpClip, c.sfxThumpGain * 1.15, c.sfxThumpRate - 0.08, { startMs: 60, lenMs: 500, fadeMs: 180 });
         } else {
           // THE LAST BLADE: a cleave, a stab, a clang, a low punch (bigger per tier).
-          cue(c.sfxImpactClip, c.sfxImpactGain * (0.85 + 0.05 * plan.tier), c.sfxImpactRate, { tail: c.sfxTailMix, lenMs: c.sfxImpactLenMs, fadeMs: 450 });
-          cue(c.sfxStabClip, c.sfxStabGain * 1.1, c.sfxStabRate + 0.05 * hitStep - 0.05, { lenMs: 500, fadeMs: 200 });
+          cue(c.sfxImpactClip, c.sfxImpactGain * (0.85 + 0.05 * plan.tier), c.sfxImpactRate, { startMs: 60, tail: c.sfxTailMix, lenMs: c.sfxImpactLenMs, fadeMs: 450 });
+          cue(c.sfxStabClip, c.sfxStabGain * 1.1, c.sfxStabRate + 0.05 * hitStep - 0.05, { startMs: 100, lenMs: 420, fadeMs: 200 });
           cue(c.sfxClangClip, c.sfxClangGain * 1.2, c.sfxClangRate - 0.1, { lenMs: 500, fadeMs: 220 });
-          cue(c.sfxThumpClip, c.sfxThumpGain, c.sfxThumpRate - 0.03 * (plan.tier - 1), { lenMs: 500, fadeMs: 180 });
-          if (plan.tier >= 3) cue(c.sfxBigClip, c.sfxBigGain, c.sfxBigRate, { lenMs: 700, fadeMs: 250 });
+          cue(c.sfxThumpClip, c.sfxThumpGain, c.sfxThumpRate - 0.03 * (plan.tier - 1), { startMs: 60, lenMs: 500, fadeMs: 180 });
+          if (plan.tier >= 3) cue(c.sfxBigClip, c.sfxBigGain, c.sfxBigRate, { startMs: 40, lenMs: 700, fadeMs: 250 });
         }
         if (last) scene?.hit(last, hitStep);
         scene?.impact(o.defender.x, o.defender.y, dir, radius, { tier: plan.tier, k: plan.k, burst: plan.burst, great: !!plan.great });
@@ -221,7 +231,7 @@ export function playHeroBlades(o: HeroBladesOptions): HeroBladesHandle {
       case 'boom': {
         const a = q.i * 2.4 + 0.6;
         const rr = radius * (0.8 + 0.2 * (q.i % 2));
-        cue(c.sfxBoomClip, c.sfxBoomGain, c.sfxBoomRate + q.i * 0.08, { lenMs: 600, fadeMs: 220 });
+        cue(c.sfxBoomClip, c.sfxBoomGain, c.sfxBoomRate + q.i * 0.08, { startMs: 100, lenMs: 600, fadeMs: 220 });
         scene?.boom(o.defender.x + Math.cos(a) * rr, o.defender.y + Math.sin(a) * rr * 0.7, 0.9 + 0.1 * q.i);
         break;
       }

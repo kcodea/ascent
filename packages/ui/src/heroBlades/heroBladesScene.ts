@@ -269,8 +269,8 @@ export class HeroBladesScene {
       this.fxs('air', this.tex.streak, this.colors.edge, (from.x + m.home.x) / 2, (from.y + m.home.y) / 2,
         { dur: 200, from: L / 64 / S, to: L / 64 / S, a0: 0.8, sy: (6 * S) / (L / 64) / 18 }, Math.atan2(dy, dx));
     }
-    this.fxs('air', this.tex.glow, this.colors.core, m.home.x, m.home.y, { dur: 200, from: 0.4 * size, to: 1.3 * size, a0: 0.9, mode: 'punch', peakAt: 0.2 });
-    this.fxs('air', this.tex.ring, this.colors.edge, m.home.x, m.home.y, { dur: 260, from: 0.3 * size, to: 1.2 * size, a0: 0.8 });
+    this.fxs('air', this.tex.glow, this.colors.core, m.home.x, m.home.y, { dur: 200, from: 0.4 * size, to: 1.2 * size, a0: 0.8, mode: 'punch', peakAt: 0.2 });
+    this.fxs('air', this.tex.ring, this.colors.edge, m.home.x, m.home.y, { dur: 200, from: 0.25 * size, to: 0.8 * size, a0: 0.55 });
     // It ASSEMBLES: slivers of steel fly in from round it and meet along its length (the shatter, played backwards).
     const shards = m.great ? 14 : 7;
     const up = { x: Math.cos(m.ang0), y: Math.sin(m.ang0) };
@@ -283,7 +283,7 @@ export class HeroBladesScene {
       const sp = r / (life / 1000);
       this.particle('air', this.tex.shard, j % 2 ? this.colors.core : this.colors.edge, {
         x: tx + Math.cos(a) * r, y: ty + Math.sin(a) * r, vx: -Math.cos(a) * sp, vy: -Math.sin(a) * sp, drag: 1, grav: 0,
-        life, from: 0.55 * S * Math.min(1.5, size), to: 0.25 * S, alpha: 1, spin: 0.02, streak: false,
+        life, from: 0.9 * S * Math.min(1.5, size), to: 0.45 * S, alpha: 1, spin: 0.02, streak: false,
       });
     }
     // A gleam down the length of the sword as it forms.

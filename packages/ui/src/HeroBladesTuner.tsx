@@ -98,7 +98,7 @@ const SPECS: Record<GlobalNumKey, Spec> = {
   sfxThumpRate: ['thump: pitch', '×', 'Pitch of the thump (lower = heavier).', 'Sound: thump'],
   sfxShatterGain: ['shatter: gain', undefined, 'The stuck blades shattering.', 'Sound: shatter'],
   sfxShatterRate: ['shatter: pitch', '×', 'Pitch of the shatter.', 'Sound: shatter'],
-  sfxGreatGain: ['greatsword: gain', undefined, 'Tier IV: the deep swoosh of the greatsword forming.', 'Sound: greatsword'],
+  sfxGreatGain: ['greatsword: gain', undefined, 'Tier IV: a cinematic swoosh timed so its hit lands exactly on the greatsword going in.', 'Sound: greatsword'],
   sfxGreatRate: ['greatsword: pitch', '×', 'Pitch of the greatsword swoosh.', 'Sound: greatsword'],
   sfxSlamDownGain: ['judgement: gain', undefined, 'Tier IV: the greatsword going in.', 'Sound: judgement'],
   sfxSlamDownRate: ['judgement: pitch', '×', 'Pitch of the judgement.', 'Sound: judgement'],

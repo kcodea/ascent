@@ -40,6 +40,19 @@ Timeline after the rework (ms at 1x, 1600 px apart; end includes both hit-stops)
 Perf after the rework (PROD build, same rig): IV you 1432 frames p50 4.2 / p99 4.3 / worst 20.8 (1 over budget); IV foe
 worst 12.5 (0 over); III, II and I p99 4.3, worst 16.7 (1 over each).
 
+**Polish pass** (owner: "i dont like the cylinder/cones you put in here, it looks pretty sloppy and obviously ai. can you
+please add some more polish to this?"). The spikes were single flat two-tone triangles and the Tier IV pillar was a
+solid light column; both are gone.
+- **Rock shards**: eight seeded variants painted once (96x192): jagged flanks with ledges and shallow notches, some broken
+  tips, THREE faces split by kinked ridges (lit, mid, shadow), chipped planes, painted grain and a hairline fracture, a
+  darkened foot, a warm rim highlight and an inked outline. They spawn in uneven CLUSTERS (a main shard plus one or two
+  leaning off it), random variant, flip, lean and size, each over a contact scorch; they punch up with an overshoot,
+  wobble as they settle, then crumble (chips break off, a slump, a fade), never shrinking like a cone.
+- **The geyser** (Tier IV) is an emitter, not a shape: a flickering hot core at the ground (additive), a tight fan of
+  molten streaks every 14 ms, billowing dust every 70 ms, tumbling rock every 85 ms. The path bursts and the
+  eruption lost their light "spurt" beams (a small spray instead). Rock chunks and the boulder gained grain and a rim.
+- Timeline and perf are unchanged from the rework (see above; the same emitters run inside the pooled sprite cap).
+
 The first pass, below, is kept as the history; its per-tier crack ladder (I one crack ... IV the cataclysm) is replaced.
 
 ## What shipped (first pass)

@@ -25,9 +25,9 @@ type GlobalNumKey = Exclude<HeroQuakeNumKey, `t${number}${string}`>;
 const SPECS: Record<GlobalNumKey, Spec> = {
   previewDamage: ['Preview damage', undefined, 'The blow the Play buttons use (preview only, never shipped).', 'Preview'],
   previewParts: ['Preview numbers', undefined, 'How many numbers combine in the preview (the tier plus survivors).', 'Preview'],
-  tier2At: ['Tier II from', undefined, 'Damage at which the quake steps up to Tier II. Shared with Blast (6 by default).', 'Damage tiers'],
-  tier3At: ['Tier III from', undefined, 'Damage at which the quake steps up to Tier III (magma, fissures, bursts). Shared with Blast (12).', 'Damage tiers'],
-  tier4At: ['Tier IV from', undefined, 'Damage at which the quake becomes the cataclysm. Shared with Blast (20).', 'Damage tiers'],
+  tier2At: ['Tier II from', undefined, 'Damage at which it steps up to Tier II (two boulders). Shared with Blast (6 by default).', 'Damage tiers'],
+  tier3At: ['Tier III from', undefined, 'Damage at which it steps up to Tier III (three hot boulders, magma). Shared with Blast (12).', 'Damage tiers'],
+  tier4At: ['Tier IV from', undefined, 'Damage at which it becomes the true earthquake and eruption. Shared with Blast (20).', 'Damage tiers'],
   popInMs: ['Pop in', 'ms', 'Each number popping in where it comes from.', 'Combine'],
   combineBackPx: ['Pull back', 'px', 'How far a number pulls back before it flies (anticipation).', 'Combine'],
   combineArc: ['Arc', '×', 'How much the numbers curve on the way in.', 'Combine'],
@@ -77,6 +77,8 @@ const SPECS: Record<GlobalNumKey, Spec> = {
   sfxBoomRate: ['booms: pitch', '×', 'Pitch of the first explosion.', 'Sound: booms'],
   sfxPatterGain: ['debris: gain', undefined, 'Rocks pattering down after the eruption.', 'Sound: debris'],
   sfxPatterRate: ['debris: pitch', '×', 'Pitch of the patter.', 'Sound: debris'],
+  sfxThrowGain: ['throw: gain', undefined, 'Tiers I-III: each boulder hurled (pitch climbs per boulder).', 'Sound: throw'],
+  sfxThrowRate: ['throw: pitch', '×', 'Pitch of the first throw.', 'Sound: throw'],
   sfxRumbleGain: ['rumble: gain', undefined, 'The synth rumble that builds from the slam to the eruption, then rings out.', 'Sound: rumble'],
   sfxRumbleLowHz: ['rumble: low cut', undefined, 'Hz. Nothing below this (keeps the low end punchy, not muddy).', 'Sound: rumble'],
   sfxRumbleHighHz: ['rumble: top', undefined, 'Hz. How bright the rumble opens up to at its peak.', 'Sound: rumble'],
@@ -116,6 +118,15 @@ const TIER_SPECS: Record<QuakeTierSuffix, [string, TunerUnit | undefined, string
   Booms: ['Follow-up booms', undefined, 'Explosions ringing the struck hero after the eruption.'],
   SettleMs: ['Settle', 'ms', 'Hold after the last beat before the sequence ends.'],
   Dim: ['Dim', 'opacity', 'How far everything but the two heroes dims.'],
+  Quake: ['Earthquake', undefined, 'On: a true quake (the crack races to the target). Off: the hero hurls boulders instead (Tier IV only by default).'],
+  Boulders: ['Boulders', undefined, 'Boulders hurled (the last is the hit; earlier ones land as ticks).'],
+  BoulderSize: ['Boulder size', '×', 'Size of the hurled boulder.'],
+  FlightMs: ['Boulder flight', 'ms', 'How long a boulder is in the air (at 1600 px; scales gently with distance).'],
+  ThrowGapMs: ['Throw gap', 'ms', 'Gap between boulders in a volley.'],
+  ArcLift: ['Arc height', '×', 'How high the boulder is lobbed (a fraction of the distance; kept in frame).'],
+  Spikes: ['Stone spikes', undefined, 'Spikes that burst out of the ground round the struck hero.'],
+  SpikeHeight: ['Spike height', '×', 'How tall the spikes grow.'],
+  Spray: ['Magma spray', undefined, 'Molten streaks thrown up out of the eruption.'],
 };
 
 const TIER_NAMES: Record<TierNum, string> = { 1: 'Tier I', 2: 'Tier II', 3: 'Tier III', 4: 'Tier IV' };
@@ -123,7 +134,7 @@ const TIER_NAMES: Record<TierNum, string> = { 1: 'Tier I', 2: 'Tier II', 3: 'Tie
 const CLIP_OF: Partial<Record<string, HeroQuakeStrKey>> = {
   'Sound: gather': 'sfxGatherClip', 'Sound: tick': 'sfxTickClip', 'Sound: total slam': 'sfxSlamClip', 'Sound: wind-up': 'sfxWindupClip',
   'Sound: ground slam': 'sfxGroundClip', 'Sound: thump': 'sfxThumpClip', 'Sound: crack': 'sfxCrackClip', 'Sound: eruption': 'sfxEruptClip',
-  'Sound: big blast': 'sfxBigClip', 'Sound: booms': 'sfxBoomClip', 'Sound: debris': 'sfxPatterClip',
+  'Sound: big blast': 'sfxBigClip', 'Sound: booms': 'sfxBoomClip', 'Sound: debris': 'sfxPatterClip', 'Sound: throw': 'sfxThrowClip',
 };
 
 const COLORS: [HeroQuakeStrKey, string, string][] = [
@@ -163,7 +174,7 @@ function buildControls(): Ctl[] {
       const key = `t${t}${s}` as HeroQuakeNumKey;
       const [min, max, step] = HERO_QUAKE_RANGES[key];
       const group = TIER_NAMES[t];
-      out.push(s === 'Pillar'
+      out.push(s === 'Pillar' || s === 'Quake'
         ? { key, label, hint, group, min, max, step, kind: 'toggle', onValue: 1, offValue: 0 }
         : { key, label, unit, hint, group, min, max, step });
     }
@@ -222,9 +233,10 @@ export const SPEC: TunerSpec<QuakeTunerValues> = {
   actions: [
     { label: '▶ You quake', hint: 'Your hero quakes the foe for the preview damage.', run: () => { void demo('player'); } },
     { label: '▶ Foe quakes', hint: 'The foe quakes your hero for the preview damage.', run: () => { void demo('opp'); } },
-    { label: '▶ Small (3)', hint: 'Your hero quakes for 3: Tier I, one thin crack.', run: () => { void demo('player', { damage: 3, parts: 2 }); } },
-    { label: '▶ Medium (12)', hint: 'Your hero quakes for 12 from four numbers: Tier III, magma and bursts.', run: () => { void demo('player', { damage: 12, parts: 4 }); } },
-    { label: '▶ Huge (40)', hint: 'Your hero quakes for 40 from seven numbers: the Tier IV cataclysm.', run: () => { void demo('player', { damage: 40, parts: 7 }); } },
+    { label: '▶ Small (3)', hint: 'Your hero strikes for 3: Tier I, one hurled boulder.', run: () => { void demo('player', { damage: 3, parts: 2 }); } },
+    { label: '▶ Tier II (8)', hint: 'Your hero strikes for 8 from three numbers: Tier II, two boulders.', run: () => { void demo('player', { damage: 8, parts: 3 }); } },
+    { label: '▶ Medium (12)', hint: 'Your hero strikes for 12 from four numbers: Tier III, three hot boulders.', run: () => { void demo('player', { damage: 12, parts: 4 }); } },
+    { label: '▶ Huge (40)', hint: 'Your hero quakes for 40 from seven numbers: the Tier IV earthquake and eruption.', run: () => { void demo('player', { damage: 40, parts: 7 }); } },
     { label: '▶ Foe small (3)', hint: 'The foe quakes your hero for 3.', run: () => { void demo('opp', { damage: 3, parts: 2 }); } },
     { label: '▶ Foe medium (12)', hint: 'The foe quakes your hero for 12.', run: () => { void demo('opp', { damage: 12, parts: 4 }); } },
     { label: '▶ Foe huge (40)', hint: 'The foe quakes your hero for 40.', run: () => { void demo('opp', { damage: 40, parts: 7 }); } },

@@ -34,6 +34,8 @@ export interface HeroQuakeTextures extends HeroBlastTextures {
   /** A soft bar (feathered across its width): the magma seam and its glow. */
   seamGlow: Texture;
   rocks: Texture[]; dust: Texture; dustRing: Texture; scorch: Texture;
+  /** The hurled boulder (tiers I-III) and the stone spike (every eruption). */
+  boulder: Texture; spike: Texture;
 }
 
 export interface QuakeColors { core: number; side: number; chasm: number; lip: number; dust: number; rock: number }
@@ -51,6 +53,8 @@ const LAYERS: readonly [LayerId, 'normal' | 'add'][] = [
 const BLEND: Record<LayerId, 'normal' | 'add'> = Object.fromEntries(LAYERS) as Record<LayerId, 'normal' | 'add'>;
 /** A rock's drawn size per unit of `size` (the rock texture is 48 px across). */
 const ROCK_PX = 50 / 48;
+/** A size-1 boulder's drawn diameter (px at stage scale 1). */
+const BOULDER_PX = 96;
 /** Points per crack are capped so each mesh stays small enough for Pixi to batch (<= 100 vertices). */
 const MAX_CRACK_POINTS = 50;
 
@@ -92,7 +96,20 @@ interface Fx {
   sy: number; vx: number; vy: number; drag: number; rise: number; spin: number; delay: number;
 }
 
-interface Particle { s: Sprite; x: number; y: number; vx: number; vy: number; drag: number; grav: number; life: number; max: number; from: number; to: number; alpha: number }
+interface Particle {
+  s: Sprite; x: number; y: number; vx: number; vy: number; drag: number; grav: number; life: number; max: number; from: number; to: number; alpha: number;
+  /** Drawn as a streak along its velocity (the magma spray), not a dot. */
+  streak?: boolean;
+}
+
+/** A hurled boulder (tiers I-III): flies a lob that rises toward screen-up and comes DOWN onto the target. */
+interface Boulder {
+  s: Sprite; sh: Sprite; glow: Sprite | null; from: Pt; to: Pt; ctrl: Pt; age: number; dur: number; size: number; rot: number; vr: number;
+  hot: number; lastX: number; lastY: number; trail: number;
+}
+
+/** A stone spike bursting out of the ground: grows fast with an overshoot, holds, then sinks back. */
+interface Spike { s: Sprite; age: number; delay: number; w: number; h: number; hold: number; sink: number }
 
 interface Pillar { outer: Sprite; core: Sprite; cap: Sprite; x: number; y: number; ang: number; age: number; rise: number; hold: number; width: number; height: number }
 
@@ -149,6 +166,8 @@ export class HeroQuakeScene {
   private fx: Fx[] = [];
   private particles: Particle[] = [];
   private pillars: Pillar[] = [];
+  private boulders: Boulder[] = [];
+  private spikeList: Spike[] = [];
   private windupFx: Windup | null = null;
   private main: Crack | null = null;
   private coolAt = Infinity;
@@ -181,6 +200,8 @@ export class HeroQuakeScene {
   get liveMeshes(): number { return this.meshes; }
   get liveCracks(): number { return this.cracks.length; }
   get liveRocks(): number { return this.rocks.length; }
+  get liveBoulders(): number { return this.boulders.length; }
+  get liveSpikes(): number { return this.spikeList.length; }
   /** The main crack's front, 0..1 of its length (-1 = none). */
   get front(): number { return this.main ? this.main.f / Math.max(1, this.main.L) : -1; }
 
@@ -422,6 +443,8 @@ export class HeroQuakeScene {
   /** THE SLAM: the hero hits the ground. Dust shockwave, a starburst of cracks, held pebbles slammed down, a flash. */
   slam(x: number, y: number, r: number, o: {
     tier: number; k: number; width: number; magma: number; rocks: number; dust: number; boardCracks: number; reach: number; heading: number;
+    /** A true quake cracks the ground round the hero; a boulder throw only shakes it (no crack lines). */
+    cracks?: boolean;
   }): void {
     const S = this.scale;
     const w = this.windupFx;
@@ -437,7 +460,7 @@ export class HeroQuakeScene {
     this.addFx('dust', this.tex.dustRing, whiten(this.colors.dust, 0.25), x, y, { dur: 420, from: (r * 1.25) / 96, to: ringTo, a0: 0.3, delay: 40 });
     if (o.tier >= 2) this.addFx('air', this.tex.ring, this.colors.side, x, y, { dur: 300, from: 0.5 * size, to: (1.8 + 0.8 * o.k) * size, a0: 0.8 });
     // A starburst of short cracks around the hero.
-    this.radial(x, y, [2, 3, 5, 6][o.tier - 1] ?? 3, r * 0.9, [r * 0.45, r * (0.9 + 0.5 * o.k)], Math.max(3, o.width * 0.7), o.magma, 130, o.heading);
+    if (o.cracks !== false) this.radial(x, y, [2, 3, 5, 6][o.tier - 1] ?? 3, r * 0.9, [r * 0.45, r * (0.9 + 0.5 * o.k)], Math.max(3, o.width * 0.7), o.magma, 130, o.heading);
     // Tier IV: the slam cracks the WHOLE BOARD.
     if (o.boardCracks > 0) this.radial(x, y, o.boardCracks, r * 1.05, [o.reach * 0.2, o.reach * 0.42], o.width * 0.7, o.magma * 0.85, 360, o.heading);
     // Dust puffs around the rim, staggered so they roll out as one wave.
@@ -474,6 +497,108 @@ export class HeroQuakeScene {
   }
 
   /**
+   * HURL A BOULDER (tiers I-III; owner 2026-09-28: "the line animation is over used"): it leaves the attacker's rim and
+   * lands on the target's in exactly `durMs` (the plan's beat). The lob lifts toward the TOP of the screen (so it comes
+   * down onto the target), each boulder of a volley bowed a little to its own side so they arrive from different angles,
+   * with a ceiling so the apex stays in frame. A shadow slides along the ground under it, dust streams behind, and a
+   * hot boulder (III) glows and sheds embers. `age0` = ms already elapsed.
+   */
+  boulder(a: Pt, d: Pt, rA: number, rD: number, o: { durMs: number; size: number; lift: number; side: number; hot: number; age0?: number }): void {
+    const S = this.scale;
+    const dx = d.x - a.x, dy = d.y - a.y;
+    const dist = Math.hypot(dx, dy) || 1;
+    const ux = dx / dist, uy = dy / dist;
+    const from = { x: a.x + ux * rA * 0.6, y: a.y + uy * rA * 0.6 };
+    const to = { x: d.x - ux * rD * 0.15, y: d.y - uy * rD * 0.15 };
+    const mid = { x: (from.x + to.x) / 2, y: (from.y + to.y) / 2 };
+    const lift = o.lift * dist;
+    const ceiling = 90 * S; // the apex (0.25 from + 0.5 ctrl + 0.25 to) never above this
+    const cy = Math.max(Math.min(from.y, to.y) - lift, (ceiling - 0.25 * (from.y + to.y)) / 0.5);
+    const ctrl = { x: mid.x - uy * o.side * dist * 0.12, y: cy + ux * o.side * dist * 0.05 };
+    const tx = this.tex.boulder;
+    const sh = this.take('shadows', this.tex.glow, this.colors.chasm);
+    const s = this.take('rocks', tx, o.hot > 0 ? mixColor(whiten(this.colors.rock, 0.35), this.hot, 0.35 * o.hot) : whiten(this.colors.rock, 0.45));
+    if (!s || !sh) { if (s) this.give(s, 'rocks'); if (sh) this.give(sh, 'shadows'); return; }
+    const glow = o.hot > 0 ? this.take('air', this.tex.glow, this.colors.side) : null;
+    s.position.set(from.x, from.y); sh.position.set(from.x, from.y); sh.alpha = 0; s.scale.set(0);
+    if (glow) glow.alpha = 0;
+    this.boulders.push({
+      s, sh, glow, from, to, ctrl, age: Math.max(0, o.age0 ?? 0), dur: Math.max(1, o.durMs), size: BOULDER_PX * o.size * S, rot: this.rnd() * Math.PI * 2,
+      vr: (o.side >= 0 ? 1 : -1) * (7 + this.rnd() * 3), hot: o.hot, lastX: from.x, lastY: from.y, trail: 0,
+    });
+    // It rips out of the ground: a burst of grit and dust at the launch.
+    for (let i = 0; i < 4; i++) {
+      const ang = this.rnd() * Math.PI * 2;
+      this.rock(from.x, from.y, ang, 60 + this.rnd() * 120, 260 + this.rnd() * 240, 0.25 + 0.15 * this.rnd(), 0, 600);
+    }
+    this.puff(from.x, from.y, 1.2 * o.size, ux * 60, -40, 520, 0, 0.5);
+  }
+
+  /** The position of a boulder at progress `e` (0..1), and its height above the ground line. */
+  private boulderAt(b: Boulder, e: number): { x: number; y: number; gx: number; gy: number } {
+    const m = 1 - e;
+    return {
+      x: m * m * b.from.x + 2 * m * e * b.ctrl.x + e * e * b.to.x,
+      y: m * m * b.from.y + 2 * m * e * b.ctrl.y + e * e * b.to.y,
+      gx: b.from.x + (b.to.x - b.from.x) * e, gy: b.from.y + (b.to.y - b.from.y) * e,
+    };
+  }
+
+  /**
+   * STONE SPIKES burst out of the ground in a crown round the struck portrait (every tier's eruption): each grows in
+   * ~110 ms with an overshoot, staggered round the ring, holds, then sinks back. Longer at the bottom and the sides (the
+   * ground), shorter over the top, always pointing outward so the face is never covered.
+   */
+  spikes(x: number, y: number, r: number, n: number, height: number, holdMs: number, hot: number): void {
+    const off = -Math.PI / 2 + (this.rnd() - 0.5) * 0.4;
+    for (let i = 0; i < n; i++) {
+      const a = off + ((i + 0.5) / n) * Math.PI * 2 + (this.rnd() - 0.5) * (Math.PI / n) * 0.6;
+      const low = 0.5 + 0.5 * Math.sin(a); // 1 at the bottom, 0 at the top
+      const h = r * 0.62 * height * (0.62 + 0.38 * low) * (0.8 + 0.4 * this.rnd());
+      const w = h * (0.36 + 0.1 * this.rnd());
+      const sp = this.take('rocks', this.tex.spike, hot > 0 && this.rnd() < 0.5 * hot ? mixColor(this.colors.rock, this.hot, 0.3) : whiten(this.colors.rock, 0.15));
+      if (!sp) break;
+      const base = r * 0.84;
+      sp.anchor.set(0.5, 1);
+      sp.position.set(x + Math.cos(a) * base, y + Math.sin(a) * base);
+      sp.rotation = a + Math.PI / 2;
+      sp.scale.set(w / 48, 0);
+      this.spikeList.push({ s: sp, age: 0, delay: i * 14, w, h, hold: holdMs, sink: 240 });
+    }
+  }
+
+  /**
+   * THE ERUPTION SPRAY (owner 2026-09-28: "have pixi burst out of it almost like an eruption"): a violent fountain of
+   * molten streaks thrown UP out of the ground, fanned, falling back under gravity. Additive (they are light). `n` of
+   * them, their speed scaled by `power`.
+   */
+  spray(x: number, y: number, r: number, n: number, power: number): void {
+    const S = this.scale;
+    for (let i = 0; i < n; i++) {
+      const a = -Math.PI / 2 + (this.rnd() - 0.5) * (1.1 + 0.5 * this.rnd());
+      const sp = (650 + this.rnd() * 900) * power * S;
+      const b = this.rnd() * Math.PI * 2, rr = this.rnd() * r * 0.55;
+      this.particle('air', this.tex.streak, i % 3 === 0 ? this.colors.core : i % 3 === 1 ? this.hot : this.colors.side, {
+        x: x + Math.cos(b) * rr, y: y + Math.sin(b) * rr * 0.6, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, drag: 0.5, grav: 2200 * S,
+        life: 520 + this.rnd() * 420, from: (1.3 + this.rnd() * 0.9) * S, to: 0.35 * S, alpha: 1, streak: true,
+      });
+    }
+  }
+
+  /** A boulder that is NOT the last lands (a tick): line work only, never a fill (Arcana's rule), and a few chips. */
+  landTick(x: number, y: number, r: number, size: number): void {
+    const S = this.scale;
+    this.addFx('dust', this.tex.dustRing, this.colors.dust, x, y, { dur: 420, from: (r * 0.9) / 96, to: (r * 1.8 * size) / 96, a0: 0.55 });
+    this.addFx('air', this.tex.ring, this.hot, x, y, { dur: 260, from: (r * 0.6) / 64, to: (r * 1.3) / 64, a0: 0.7 });
+    this.spikes(x, y, r, 3, 0.6 * size, 120, 0);
+    for (let i = 0; i < 5; i++) {
+      const a = this.rnd() * Math.PI * 2;
+      this.rock(x + Math.cos(a) * r * 0.5, y + Math.sin(a) * r * 0.4, a, 80 + this.rnd() * 160, 300 + this.rnd() * 300, 0.3 + 0.2 * this.rnd(), 0, 700);
+    }
+    void S;
+  }
+
+  /**
    * THE ERUPTION under the struck hero. Every light element starts AT its peak, so the hit-stop freezes the brightest
    * frame. `r` is the struck portrait's radius (the flash covers it; the cracks and the crater ring it, never covering
    * the face).
@@ -481,6 +606,8 @@ export class HeroQuakeScene {
   erupt(x: number, y: number, r: number, o: {
     tier: number; k: number; flashAlpha: number; width: number; magma: number; rocks: number; dust: number; eruption: number;
     crater: number; craterMs: number; heading: number; rockSize: number;
+    /** A true quake (Tier IV): the ground cracks round the target. Otherwise the boulder bursts spikes out of it. */
+    quake: boolean; spikes: number; spikeHeight: number; spray: number;
   }): void {
     const S = this.scale;
     const E = o.eruption;
@@ -488,7 +615,7 @@ export class HeroQuakeScene {
     const c = this.colors;
     // Short and bright, then gone by the time the damage number has popped.
     this.addFx('air', this.tex.glow, c.core, x, y, { dur: 130, from: portrait * 1.05, to: portrait * 1.35, a0: 0.8 * o.flashAlpha });
-    this.addFx('air', this.tex.glow, c.side, x, y, { dur: 520, from: portrait * 1.3 * E, to: portrait * (2.4 + 0.8 * o.k) * E, a0: 0.55 * o.flashAlpha });
+    this.addFx('air', this.tex.glow, c.side, x, y, { dur: 340, from: portrait * 1.2, to: portrait * (1.8 + 0.5 * o.k) * E, a0: 0.42 * o.flashAlpha });
     // The spurt: a column of light punching UP out of the ground (the Tier IV pillar is its own, bigger thing).
     if (o.tier >= 2) {
       this.addFx('air', this.tex.beam, this.hot, x, y + r * 0.2, { dur: 240 + 80 * o.k, from: (r * 0.6) / 64, to: (r * (1.6 + 1.2 * o.k) * E) / 64, a0: 0.85, sy: 0.5 + 0.3 * o.k });
@@ -498,8 +625,17 @@ export class HeroQuakeScene {
     // Rings: the dust shockwave on the ground and (II+) a hot ring of light.
     this.addFx('dust', this.tex.dustRing, c.dust, x, y, { dur: 600 + 200 * o.k, from: (r * 1.3) / 96, to: (r * (2.8 + 1.4 * o.k) * E) / 96, a0: 0.7 });
     if (o.tier >= 2) this.addFx('air', this.tex.ring, c.side, x, y, { dur: 340, from: (r * 0.9) / 64, to: (r * (1.7 + 0.7 * o.k) * E) / 64, a0: 0.85 });
-    // The cracks burst open around the portrait, magma glowing from them.
-    this.radial(x, y, [2, 4, 7, 10][o.tier - 1] ?? 4, r * 0.92, [r * 0.5 * E, r * (0.9 + 0.8 * o.k) * E], Math.max(4, o.width * 0.8), Math.max(o.magma, o.tier >= 2 ? 0.35 : 0.15), 150, o.heading + Math.PI, 700 * o.crater);
+    // STONE SPIKES burst out round the portrait (every tier), then the magma SPRAY fountains up out of the ground.
+    this.spikes(x, y, r, o.spikes, o.spikeHeight * E, 380 + 260 * o.k, o.magma);
+    this.spray(x, y, r, o.spray, 0.75 + 0.35 * o.k + (o.quake ? 0.25 : 0));
+    if (o.quake) {
+      // The cataclysm's LIGHT BURST (a short, huge fill that is gone before the -N settles) and a wide SHOCK RING.
+      this.addFx('air', this.tex.glow, c.core, x, y, { dur: 140, from: portrait * 1.4, to: portrait * 2.2, a0: 0.85 * o.flashAlpha });
+      this.addFx('air', this.tex.ring, c.core, x, y, { dur: 380, from: (r * 1.1) / 64, to: (r * 3.4) / 64, a0: 0.85 });
+      this.addFx('air', this.tex.ring, c.side, x, y, { dur: 520, from: (r * 1.2) / 64, to: (r * 4.4) / 64, a0: 0.6, delay: 50 });
+    }
+    // The cracks burst open around the portrait, magma glowing from them (a quake only: the boulders use spikes).
+    if (o.quake) this.radial(x, y, [2, 4, 7, 10][o.tier - 1] ?? 4, r * 0.92, [r * 0.5 * E, r * (0.9 + 0.8 * o.k) * E], Math.max(4, o.width * 0.8), Math.max(o.magma, o.tier >= 2 ? 0.35 : 0.15), 150, o.heading + Math.PI, 700 * o.crater);
     // Rock chunks thrown up and out under gravity (a shadow each, one bounce).
     for (let i = 0; i < o.rocks; i++) {
       const a = this.rnd() * Math.PI * 2;
@@ -561,7 +697,7 @@ export class HeroQuakeScene {
       const a = this.rnd() * Math.PI * 2;
       this.rock(x + (this.rnd() - 0.5) * r * 0.6, y, a, 40 + this.rnd() * 160, 1100 + this.rnd() * 700, (0.6 + this.rnd() * 0.6) * 1.1, this.rnd() < 0.6 ? 1 : 0.4, 1500 + this.rnd() * 400);
     }
-    this.addFx('air', this.tex.glow, this.colors.side, x, y, { dur: holdMs + 400, from: (r * 3) / 128, to: (r * 4) / 128, a0: 0.55, alpha: 'hold' });
+    this.addFx('air', this.tex.glow, this.colors.side, x, y, { dur: holdMs + 300, from: (r * 2) / 128, to: (r * 2.6) / 128, a0: 0.3, alpha: 'hold' });
   }
 
   /** A follow-up explosion around the target (Tier III+). */
@@ -747,8 +883,62 @@ export class HeroQuakeScene {
       p.x += p.vx * sec; p.y += p.vy * sec;
       const t = 1 - p.life / p.max;
       p.s.position.set(p.x, p.y);
-      p.s.scale.set(p.from + (p.to - p.from) * t);
+      const sc = p.from + (p.to - p.from) * t;
+      if (p.streak) {
+        // A streak along its velocity, longer the faster it moves (the spray reads as liquid fire, not dots).
+        p.s.rotation = Math.atan2(p.vy, p.vx);
+        const spd = Math.hypot(p.vx, p.vy) / Math.max(0.001, S);
+        p.s.scale.set(sc * (0.7 + Math.min(2.2, spd / 450)), sc * 0.42);
+      } else p.s.scale.set(sc);
       p.s.alpha = p.alpha * (1 - t * t);
+    }
+
+    for (let i = this.boulders.length - 1; i >= 0; i--) {
+      const b = this.boulders[i]!;
+      b.age += dt;
+      const u = clamp01(b.age / b.dur);
+      const e = 0.88 * u + 0.12 * u * u; // a touch of weight on the way down
+      const p = this.boulderAt(b, e);
+      const h = Math.hypot(p.x - p.gx, p.y - p.gy);
+      const pop = easeOutCubic(Math.min(1, b.age / 90)); // ripped out of the ground: grows in fast
+      const sz = (b.size / 128) * 1.2 * pop * (1 + 0.22 * Math.sin(Math.PI * e));
+      b.rot += b.vr * sec;
+      b.s.position.set(p.x, p.y); b.s.rotation = b.rot; b.s.scale.set(sz);
+      const lift = Math.min(0.7, h / (320 * S));
+      b.sh.position.set(p.gx, p.gy + b.size * 0.35);
+      b.sh.scale.set((b.size / 128) * 1.5 * (1 - lift), (b.size / 128) * 0.6 * (1 - lift));
+      b.sh.alpha = 0.45 * (1 - lift) * pop;
+      if (b.glow) { b.glow.position.set(p.x, p.y); b.glow.scale.set((b.size / 128) * 2.4 * pop); b.glow.alpha = 0.55 * b.hot * pop; }
+      // Dust streams off it (and embers off a hot one), every ~60 px of flight.
+      b.trail += Math.hypot(p.x - b.lastX, p.y - b.lastY);
+      if (b.trail > 60 * S && u < 0.95) {
+        b.trail = 0;
+        this.puff(p.x, p.y, 0.5 + 0.35 * (b.size / (BOULDER_PX * S)), (b.lastX - p.x) * 2, (b.lastY - p.y) * 2 - 20, 420, 0, 0.35);
+        if (b.hot > 0) {
+          const a = Math.atan2(b.lastY - p.y, b.lastX - p.x) + (this.rnd() - 0.5) * 0.8;
+          this.particle('air', this.tex.spark, this.hot, {
+            x: p.x, y: p.y, vx: Math.cos(a) * 160 * S, vy: Math.sin(a) * 160 * S, drag: 0.3, grav: 300 * S, life: 380, from: 0.9 * S, to: 0.1 * S, alpha: 1,
+          });
+        }
+      }
+      b.lastX = p.x; b.lastY = p.y;
+      if (u >= 1) { this.give(b.s, 'rocks'); this.give(b.sh, 'shadows'); if (b.glow) this.give(b.glow, 'air'); this.boulders.splice(i, 1); }
+    }
+
+    for (let i = this.spikeList.length - 1; i >= 0; i--) {
+      const k = this.spikeList[i]!;
+      if (k.delay > 0) { k.delay -= dt; if (k.delay > 0) continue; }
+      k.age += dt;
+      const grow = 110;
+      let hy: number;
+      if (k.age < grow) {
+        const x = k.age / grow - 1; // back-out: overshoot, settle
+        hy = 1 + 3.2 * x * x * x + 2.2 * x * x;
+      } else if (k.age < grow + k.hold) hy = 1;
+      else hy = 1 - easeOutCubic((k.age - grow - k.hold) / k.sink);
+      k.s.scale.set((k.w / 48) * (0.85 + 0.15 * Math.min(1, hy)), (k.h / 128) * Math.max(0, hy));
+      k.s.alpha = k.age < grow + k.hold ? 1 : Math.max(0, hy);
+      if (k.age >= grow + k.hold + k.sink) { this.give(k.s, 'rocks'); this.spikeList.splice(i, 1); }
     }
 
     for (let i = this.pillars.length - 1; i >= 0; i--) {
@@ -776,6 +966,9 @@ export class HeroQuakeScene {
     for (const q of this.fx) this.giveAny(q.s);
     for (const p of this.particles) this.giveAny(p.s);
     for (const pl of this.pillars) { this.give(pl.outer, 'air'); this.give(pl.core, 'air'); this.give(pl.cap, 'air'); }
+    for (const b of this.boulders) { this.give(b.s, 'rocks'); this.give(b.sh, 'shadows'); if (b.glow) this.give(b.glow, 'air'); }
+    for (const k of this.spikeList) this.give(k.s, 'rocks');
+    this.boulders = []; this.spikeList = [];
     if (this.windupFx) { this.give(this.windupFx.ring, 'air'); this.give(this.windupFx.pool, 'glow'); }
     this.cracks = []; this.rocks = []; this.fx = []; this.particles = []; this.pillars = []; this.windupFx = null; this.main = null;
   }

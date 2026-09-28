@@ -109,6 +109,68 @@ function paintScorch(D: number): HTMLCanvasElement | null {
   return k.c;
 }
 
+/**
+ * THE BOULDER (tiers I-III): one big faceted chunk, the hero element of the throw. Nine facets lit from the top left
+ * (a bright face, two mid faces, a shadowed underside), a few dark fracture lines, and a THICK dark outline so it reads
+ * as a bold silhouette on any board. Grayscale, tinted at draw.
+ */
+function paintBoulder(D: number): HTMLCanvasElement | null {
+  const k = canvas(D, D); if (!k) return null;
+  const g = k.g;
+  let s = 91;
+  const rnd = (): number => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; };
+  const cx = D / 2, cy = D / 2, R = D * 0.42;
+  const n = 9;
+  const pts = Array.from({ length: n }, (_, i) => {
+    const a = (i / n) * Math.PI * 2 - Math.PI / 2 + (rnd() - 0.5) * 0.35;
+    const r = R * (0.82 + rnd() * 0.18);
+    return { x: cx + Math.cos(a) * r, y: cy + Math.sin(a) * r * 0.92 };
+  });
+  const c = { x: cx - R * 0.12, y: cy - R * 0.14 }; // the facet apex, up-left (the lit side)
+  const shade = (i: number): string => {
+    const mid = (Math.atan2((pts[i]!.y + pts[(i + 1) % n]!.y) / 2 - cy, (pts[i]!.x + pts[(i + 1) % n]!.x) / 2 - cx));
+    const light = 0.5 - 0.5 * Math.cos(mid - (-Math.PI * 0.75)); // 1 facing the light (up-left), 0 away
+    const v = Math.round(62 + 180 * (1 - light));
+    return `rgb(${v},${v - 4},${v - 10})`;
+  };
+  for (let i = 0; i < n; i++) {
+    g.beginPath(); g.moveTo(c.x, c.y); g.lineTo(pts[i]!.x, pts[i]!.y); g.lineTo(pts[(i + 1) % n]!.x, pts[(i + 1) % n]!.y); g.closePath();
+    g.fillStyle = shade(i); g.fill();
+  }
+  // A few fracture lines across the faces.
+  g.strokeStyle = 'rgba(28,20,14,0.75)'; g.lineWidth = D * 0.018; g.lineCap = 'round';
+  for (let i = 0; i < 3; i++) {
+    const a = rnd() * Math.PI * 2, r0 = R * 0.15, r1 = R * (0.55 + rnd() * 0.3);
+    g.beginPath(); g.moveTo(c.x + Math.cos(a) * r0, c.y + Math.sin(a) * r0);
+    g.lineTo(c.x + Math.cos(a + 0.25) * r1 * 0.6, c.y + Math.sin(a + 0.25) * r1 * 0.6);
+    g.lineTo(c.x + Math.cos(a - 0.1) * r1, c.y + Math.sin(a - 0.1) * r1); g.stroke();
+  }
+  g.beginPath(); pts.forEach((p, i) => (i ? g.lineTo(p.x, p.y) : g.moveTo(p.x, p.y))); g.closePath();
+  g.lineJoin = 'round'; g.lineWidth = D * 0.06; g.strokeStyle = '#140d08'; g.stroke();
+  return k.c;
+}
+
+/**
+ * A STONE SPIKE (every tier's eruption under the target): a tall angular shard, tip up, its base on the bottom edge
+ * (drawn with anchor (0.5, 1), so it grows OUT of the ground). A lit left face, a shadowed right face, a thick outline.
+ */
+function paintSpike(W: number, H: number): HTMLCanvasElement | null {
+  const k = canvas(W, H); if (!k) return null;
+  const g = k.g;
+  const pad = W * 0.08;
+  const tip = { x: W * 0.54, y: pad }, bl = { x: pad, y: H - 1 }, br = { x: W - pad, y: H - 1 }, ridge = { x: W * 0.5, y: H - 1 };
+  g.beginPath(); g.moveTo(tip.x, tip.y); g.lineTo(bl.x, bl.y); g.lineTo(ridge.x, ridge.y); g.closePath();
+  g.fillStyle = '#e4dccf'; g.fill();
+  g.beginPath(); g.moveTo(tip.x, tip.y); g.lineTo(ridge.x, ridge.y); g.lineTo(br.x, br.y); g.closePath();
+  g.fillStyle = '#6e645a'; g.fill();
+  // A notch of chipped stone on each side (breaks the perfect triangle).
+  g.fillStyle = '#a89e92';
+  g.beginPath(); g.moveTo(W * 0.3, H * 0.55); g.lineTo(W * 0.45, H * 0.5); g.lineTo(W * 0.42, H * 0.66); g.closePath(); g.fill();
+  g.beginPath(); g.moveTo(tip.x, tip.y); g.lineTo(bl.x, bl.y); g.lineTo(br.x, br.y); g.closePath();
+  g.lineJoin = 'round'; g.lineWidth = W * 0.09; g.strokeStyle = '#140d08'; g.stroke();
+  return k.c;
+}
+
 let cached: HeroQuakeTextures | null = null;
 
 /** The session's textures, painted on first use. Null when no 2D canvas is available (the Quake then skips Pixi). */
@@ -118,10 +180,12 @@ export function heroQuakeTextures(): HeroQuakeTextures | null {
   const crack = paintCapsule(8, 32, false), seamGlow = paintCapsule(64, 32, true);
   const rocks = [paintRock(48, 7), paintRock(48, 19), paintRock(48, 43)];
   const dust = paintDust(96), dustRing = paintDustRing(192), scorch = paintScorch(192);
-  if (!light || !crack || !seamGlow || rocks.some((r) => !r) || !dust || !dustRing || !scorch) return null;
+  const boulder = paintBoulder(128), spike = paintSpike(48, 128);
+  if (!light || !crack || !seamGlow || rocks.some((r) => !r) || !dust || !dustRing || !scorch || !boulder || !spike) return null;
   cached = {
     ...light,
     crack: tex(crack), seamGlow: tex(seamGlow), rocks: rocks.map((r) => tex(r!)), dust: tex(dust), dustRing: tex(dustRing), scorch: tex(scorch),
+    boulder: tex(boulder), spike: tex(spike),
   };
   return cached;
 }

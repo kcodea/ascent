@@ -93,7 +93,7 @@ export function playHeroQuake(o: HeroQuakeOptions): HeroQuakeHandle {
 
   const voices = new AttackVoices(sound);
   const cue = voices.cue.bind(voices);
-  voices.warm([c.sfxGatherClip, c.sfxTickClip, c.sfxSlamClip, c.sfxWindupClip, c.sfxGroundClip, c.sfxThumpClip, c.sfxCrackClip, c.sfxEruptClip, c.sfxBigClip, c.sfxBoomClip, c.sfxPatterClip]);
+  voices.warm([c.sfxGatherClip, c.sfxTickClip, c.sfxSlamClip, c.sfxWindupClip, c.sfxGroundClip, c.sfxThumpClip, c.sfxCrackClip, c.sfxEruptClip, c.sfxBigClip, c.sfxBoomClip, c.sfxPatterClip, c.sfxThrowClip]);
   /** Real ms from sequence ms (the playback speed). */
   const real = (ms: number): number => ms / speed;
 
@@ -122,20 +122,46 @@ export function playHeroQuake(o: HeroQuakeOptions): HeroQuakeHandle {
         // eruption, then rings out through the tail.
         cue(c.sfxGroundClip, c.sfxGroundGain * (0.8 + 0.07 * plan.tier), c.sfxGroundRate - 0.04 * (plan.tier - 1), { lenMs: 1200, fadeMs: 350 });
         cue(c.sfxThumpClip, c.sfxThumpGain, c.sfxThumpRate - 0.03 * (plan.tier - 1), { lenMs: 500, fadeMs: 180 });
-        if (plan.tier >= 2) cue(c.sfxCrackClip, c.sfxCrackGain * 0.8, c.sfxCrackRate + 0.05, { lenMs: 600, fadeMs: 220 });
-        voices.keep(playRumble('attack', {
-          gain: c.sfxRumbleGain * (0.45 + 0.2 * plan.tier), buildMs: real(plan.travelMs), holdMs: real(120),
-          tailMs: real(Math.max(300, plan.rumbleTailMs + plan.hitStopMs)), lowHz: c.sfxRumbleLowHz, highHz: c.sfxRumbleHighHz * (0.8 + 0.1 * plan.tier),
-        }));
+        if (plan.quake) {
+          // Only the huge hit is a true earthquake (owner 2026-09-28: "maybe only the huge hit should quake"): the board
+          // rumbles, a crack races to the target, the ground splits round the hero.
+          cue(c.sfxCrackClip, c.sfxCrackGain * 0.8, c.sfxCrackRate + 0.05, { lenMs: 600, fadeMs: 220 });
+          voices.keep(playRumble('attack', {
+            gain: c.sfxRumbleGain * (0.45 + 0.2 * plan.tier), buildMs: real(plan.travelMs), holdMs: real(120),
+            tailMs: real(Math.max(300, plan.rumbleTailMs + plan.hitStopMs)), lowHz: c.sfxRumbleLowHz, highHz: c.sfxRumbleHighHz * (0.8 + 0.1 * plan.tier),
+          }));
+        }
         scene?.slam(o.attacker.x, o.attacker.y, aRadius, {
-          tier: plan.tier, k: plan.k, width: plan.crackWidth, magma: plan.magma, rocks: Math.round(plan.rocks * 0.4), dust: plan.dust,
-          boardCracks: plan.boardCracks, reach: Math.max(dist, 400 * s), heading,
+          tier: plan.tier, k: plan.k, width: plan.crackWidth, magma: plan.magma, rocks: Math.round(plan.rocks * (plan.quake ? 0.4 : 0.2)), dust: plan.dust,
+          boardCracks: plan.boardCracks, reach: Math.max(dist, 400 * s), heading, cracks: plan.quake,
         });
-        scene?.quake(o.attacker, o.defender, aRadius, radius, {
-          travelMs: plan.travelMs, width: plan.crackWidth, branches: plan.branches, fissures: plan.fissures, magma: plan.magma,
-          segPx: c.crackSegPx, jag: c.crackJag, openPx: c.crackOpenPx, branchLength: c.branchLength, grit: 0.4 + 0.3 * plan.tier,
-        });
+        if (plan.quake) {
+          scene?.quake(o.attacker, o.defender, aRadius, radius, {
+            travelMs: plan.travelMs, width: plan.crackWidth, branches: plan.branches, fissures: plan.fissures, magma: plan.magma,
+            segPx: c.crackSegPx, jag: c.crackJag, openPx: c.crackOpenPx, branchLength: c.branchLength, grit: 0.4 + 0.3 * plan.tier,
+          });
+        }
         seq.hitStop(plan.slamStopMs);
+        break;
+      }
+      case 'throw': {
+        // A boulder ripped out of the ground and HURLED (tiers I-III): a heavy whoosh, pitch stepping up per boulder.
+        const n = plan.throws.length;
+        cue(c.sfxThrowClip, c.sfxThrowGain, c.sfxThrowRate + 0.08 * q.i, { lenMs: 700, fadeMs: 250 });
+        if (q.i > 0) cue(c.sfxCrackClip, c.sfxCrackGain * 0.45, c.sfxCrackRate + 0.2, { lenMs: 300, fadeMs: 120 });
+        const last = q.i === n - 1;
+        scene?.boulder(o.attacker, o.defender, aRadius, radius, {
+          durMs: (plan.lands[q.i] ?? plan.impactAt) - q.at, size: plan.boulderSize * (last ? 1 : 0.8), lift: plan.arcLift,
+          side: n === 1 ? 0 : (q.i - (n - 1) / 2) * 1.4, hot: plan.magma >= 0.5 ? plan.magma : 0, age0: seq.t - q.at,
+        });
+        break;
+      }
+      case 'land': {
+        // An earlier boulder lands (a tick: FX and a knock only; the blow lands once, on the last).
+        const a = heading + Math.PI + (q.i % 2 ? 0.9 : -0.9);
+        cue(c.sfxThumpClip, c.sfxThumpGain * 0.8, c.sfxThumpRate + 0.1 + 0.05 * q.i, { lenMs: 400, fadeMs: 150 });
+        cue(c.sfxCrackClip, c.sfxCrackGain * 0.55, c.sfxCrackRate + 0.15 + 0.05 * q.i, { lenMs: 350, fadeMs: 140 });
+        scene?.landTick(o.defender.x + Math.cos(a) * radius * 0.35, o.defender.y + Math.sin(a) * radius * 0.35, radius, 0.9);
         break;
       }
       case 'burst': {
@@ -157,6 +183,7 @@ export function playHeroQuake(o: HeroQuakeOptions): HeroQuakeHandle {
         scene?.erupt(o.defender.x, o.defender.y, radius, {
           tier: plan.tier, k: plan.k, flashAlpha: c.flashAlpha, width: plan.crackWidth, magma: plan.magma, rocks: plan.rocks, dust: plan.dust,
           eruption: plan.eruption, crater: plan.crater, craterMs: c.craterMs, heading, rockSize: c.rockSize,
+          quake: plan.quake, spikes: plan.spikes, spikeHeight: plan.spikeHeight, spray: plan.spray,
         });
         // Straight UP out of the ground; near the top edge (the foe's corner) the column is shorter and the jets round
         // its base carry the read, so it never becomes a sideways beam.
@@ -201,9 +228,9 @@ export function playHeroQuake(o: HeroQuakeOptions): HeroQuakeHandle {
       }
     }
     if (foe.el) {
-      if (t >= plan.slamAt && t < plan.impactAt) {
-        // The ground under the target trembles harder as the quake closes in (anticipation).
-        const u = (t - plan.slamAt) / Math.max(1, plan.travelMs);
+      if (t >= plan.travelAt && t < plan.impactAt) {
+        // The ground under the target trembles harder as the blow closes in (anticipation).
+        const u = (t - plan.travelAt) / Math.max(1, plan.travelMs);
         const a = (1 + 2.5 * plan.k) * u * u * (local ? 0.5 : 1);
         foe.set(`translate(${(a * 0.4 * Math.sin(t * 0.21)).toFixed(2)}px, ${(a * Math.sin(t * 0.37)).toFixed(2)}px)`);
       } else if (t >= plan.impactAt) {
@@ -238,3 +265,4 @@ export function playHeroQuake(o: HeroQuakeOptions): HeroQuakeHandle {
     cancel: () => seq.cancel(),
   };
 }
+

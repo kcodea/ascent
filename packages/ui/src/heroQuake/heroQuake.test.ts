@@ -24,10 +24,11 @@ import { SPEC } from '../HeroQuakeTuner';
 
 const W = Texture.WHITE;
 const TEX: HeroQuakeTextures = {
-  glow: W, spark: W, streak: W, ring: W, beam: W, crack: W, seamGlow: W, rocks: [W, W, W], dust: W, dustRing: W, scorch: W,
+  glow: W, spark: W, streak: W, ring: W, beam: W, crack: W, seamGlow: W, rocks: [W, W, W], dust: W, dustRing: W, scorch: W, boulder: W, spike: W,
 };
 const C = HERO_QUAKE_DEFAULTS;
 const plan = (values: number[], total: number, distance = 1600, reduced = false) => quakePlan({ values, total, distance, reduced }, C);
+const TIMELINE = [[875,1335,2046],[1120,1710,2571],[1490,2150,3205],[1860,2140,3490]];
 const COLORS = { core: 0xffffff, side: 0xff9a1f, chasm: 0x140904, lip: 0xe2c294, dust: 0xa58c70, rock: 0x9b8570 };
 
 describe('the damage tiers (shared with Blast)', () => {
@@ -97,40 +98,55 @@ describe('the plan', () => {
     expect(p.capped).toBe(true);
   });
 
-  it('every tier escalates: more cracks, magma, rocks, rumble, jolt, hit-stop; III adds bursts and a crater; IV the pillar and board cracks', () => {
+  it('only the HUGE hit quakes (owner 2026-09-28: "maybe only the huge hit should quake"): I-III hurl boulders, no crack line', () => {
     const ps = [plan([2, 1], 3), plan([3, 3, 2], 8), plan([3, 3, 3, 3], 12), plan([6, 6, 6, 6, 6, 5, 5], 40)];
     expect(ps.map((p) => p.tier)).toEqual([1, 2, 3, 4]);
+    expect(ps.map((p) => p.quake)).toEqual([false, false, false, true]);
+    expect(ps.map((p) => p.throws.length)).toEqual([1, 2, 3, 0]);
+    // No crack line below IV: no path, no branches, no fissures, no path bursts, no board cracks.
+    for (const p of ps.slice(0, 3)) expect([p.branches, p.fissures, p.bursts.length, p.boardCracks]).toEqual([0, 0, 0, 0]);
+    expect(ps[3]!.branches).toBeGreaterThan(0);
+    expect(ps[3]!.boardCracks).toBeGreaterThan(0);
+    expect(ps[3]!.bursts.length).toBeGreaterThan(0);
+  });
+
+  it('every tier escalates: more boulders, spikes, spray, rocks, jolt, hit-stop; IV is the quake, the pillar and the booms', () => {
+    const ps = [plan([2, 1], 3), plan([3, 3, 2], 8), plan([3, 3, 3, 3], 12), plan([6, 6, 6, 6, 6, 5, 5], 40)];
     for (let i = 1; i < 4; i++) {
       const a = ps[i - 1]!, b = ps[i]!;
-      for (const k of ['crackWidth', 'rocks', 'rumblePx', 'shakePx', 'hitStopMs', 'zoom', 'eruption', 'rumbleTailMs'] as const) {
-        expect(b[k], `${k} ${i}`).toBeGreaterThan(a[k]);
+      for (const k of ['spikes', 'spikeHeight', 'spray', 'rocks', 'shakePx', 'hitStopMs', 'zoom', 'eruption', 'rumbleTailMs', 'magma'] as const) {
+        expect(b[k], `${k} ${i}`).toBeGreaterThanOrEqual(a[k]);
       }
-      expect(b.travelMs, `travel ${i}`).toBeGreaterThan(a.travelMs);
+      expect(b.spray, `spray ${i}`).toBeGreaterThan(a.spray);
+      expect(b.hitStopMs, `hit-stop ${i}`).toBeGreaterThan(a.hitStopMs);
       expect(b.slamAt - b.chargeAt, `wind-up ${i}`).toBeGreaterThan(a.slamAt - a.chargeAt);
     }
-    expect(ps.map((p) => p.branches)).toEqual([0, 3, 6, 9]);
-    expect(ps.map((p) => p.bursts.length)).toEqual([0, 0, 3, 5]);
+    for (let i = 1; i < 3; i++) expect(ps[i]!.boulderSize).toBeGreaterThan(ps[i - 1]!.boulderSize);
     expect(ps.map((p) => p.pillar)).toEqual([false, false, false, true]);
-    expect(ps.map((p) => p.boardCracks)).toEqual([0, 0, 0, 7]);
     expect(ps.map((p) => p.booms.length)).toEqual([0, 0, 2, 4]);
-    expect(ps[0]!.magma).toBeLessThan(ps[1]!.magma);
     expect(ps[2]!.crater).toBeGreaterThan(0);
     expect(ps[3]!.magma).toBe(1);
+    // The earlier boulders land first; the LAST one is the impact.
+    for (const p of ps.slice(0, 3)) {
+      expect(p.impactAt).toBe(p.lands[p.lands.length - 1]);
+      p.lands.forEach((l, i) => { expect(l).toBeGreaterThan(p.throws[i]!); if (i) expect(l).toBeGreaterThan(p.lands[i - 1]!); });
+    }
   });
 
   it('the shipped per-tier timeline (1600 px apart): slam, impact and end (+ both hit-stops), ms', () => {
     const t = (p: ReturnType<typeof plan>): number[] => [Math.round(p.slamAt), Math.round(p.impactAt), Math.round(p.endAt + p.hitStopMs + p.slamStopMs)];
-    expect([t(plan([2, 1], 3)), t(plan([3, 3, 2], 8)), t(plan([3, 3, 3, 3, 2], 14)), t(plan([6, 6, 6, 6, 6, 5, 5], 40))]).toEqual([
-      [885, 1265, 1976], [1150, 1610, 2476], [1560, 2140, 3205], [2020, 2740, 4100],
-    ]);
-    // Brisk at Tier I (under 2 s), about 4 s at Tier IV (owner: "satisfying and chunky, not rushed").
-    expect(t(plan([2, 1], 3))[2]).toBeLessThan(2000);
-    expect(t(plan([6, 6, 6, 6, 6, 5, 5], 40))[2]).toBeLessThanOrEqual(4200);
+    expect([t(plan([2, 1], 3)), t(plan([3, 3, 2], 8)), t(plan([3, 3, 3, 3, 2], 14)), t(plan([6, 6, 6, 6, 6, 5, 5], 40))]).toEqual(TIMELINE);
+    // Brisk at Tier I (about 2 s); the quake is FASTER than before (owner: "maybe faster"): under 3.6 s at IV.
+    expect(t(plan([2, 1], 3))[2]).toBeLessThan(2100);
+    expect(t(plan([6, 6, 6, 6, 6, 5, 5], 40))[2]).toBeLessThan(3600);
+    // The fracture itself is quick: under 350 ms from the slam to the eruption.
+    const iv = plan([6, 6, 6, 6, 6, 5, 5], 40);
+    expect(iv.impactAt - iv.slamAt).toBeLessThan(350);
   });
 
-  it('beats run in order: numbers, merge, wind-up, SLAM, bursts on the way, IMPACT, booms, fade, end', () => {
-    const p = plan([3, 1, 2, 4, 4], 14);
-    expect(p.mergeAt).toBe(p.arrivals[4]);
+  it('beats run in order (the quake): numbers, merge, wind-up, SLAM, bursts on the way, IMPACT, booms, fade, end', () => {
+    const p = plan([6, 6, 6, 6, 6, 5, 5], 40);
+    expect(p.mergeAt).toBe(p.arrivals[6]);
     expect(p.impactAt).toBe(p.slamAt + p.travelMs);
     const kinds = quakeCues(p).map((c) => c.kind);
     const at = (k: string): number => kinds.indexOf(k as never);
@@ -144,6 +160,17 @@ describe('the plan', () => {
     expect(kinds[kinds.length - 1]).toBe('end');
     // each burst goes off where the front is when it fires
     p.bursts.forEach((b, i) => expect(quakeEase((b - p.slamAt) / p.travelMs)).toBeCloseTo(p.burstFracs[i]!, 2));
+  });
+
+  it('beats run in order (the boulders): SLAM, each THROW, earlier boulders LAND as ticks, the last lands as the IMPACT', () => {
+    const p = plan([3, 1, 2, 4, 4], 14);
+    const kinds = quakeCues(p).map((c) => c.kind);
+    expect(kinds.filter((k) => k === 'throw')).toHaveLength(3);
+    expect(kinds.filter((k) => k === 'land')).toHaveLength(2);
+    expect(kinds).not.toContain('burst');
+    expect(kinds.indexOf('slam')).toBeLessThan(kinds.indexOf('throw'));
+    expect(kinds.lastIndexOf('land')).toBeLessThan(kinds.indexOf('impact'));
+    expect(kinds.filter((k) => k === 'impact')).toHaveLength(1);
   });
 
   it('the front accelerates into the target; its inverse is exact; travel scales gently with distance', () => {
@@ -185,11 +212,19 @@ describe('the plan', () => {
 describe('the camera', () => {
   it('RUMBLES mostly vertically and builds through the travel; kicks down on the slam; jolts UP on the eruption; rests by the end', () => {
     const p = plan([6, 6, 6, 6, 6, 5, 5], 40);
+    // The rumble alone (the jolts switched off): it builds from the slam to the eruption, mostly vertically.
+    const rc: HeroQuakeConfig = { ...C, t4Shake: 0 };
+    const rp = quakePlan({ values: [6, 6, 6, 6, 6, 5, 5], total: 40, distance: 1600 }, rc);
     let early = 0, late = 0, xs = 0, ys = 0;
-    for (let t = p.slamAt + 200; t < p.slamAt + 200 + p.travelMs * 0.25; t += 4) { const c = quakeCameraAt(p, C, t); early = Math.max(early, Math.abs(c.y)); }
-    for (let t = p.slamAt + p.travelMs * 0.75; t < p.impactAt; t += 4) { const c = quakeCameraAt(p, C, t); late = Math.max(late, Math.abs(c.y)); xs += Math.abs(c.x); ys += Math.abs(c.y); }
+    for (let t = rp.slamAt; t < rp.slamAt + rp.travelMs * 0.3; t += 2) { const c = quakeCameraAt(rp, rc, t); early = Math.max(early, Math.abs(c.y)); }
+    for (let t = rp.slamAt + rp.travelMs * 0.7; t < rp.impactAt; t += 2) { const c = quakeCameraAt(rp, rc, t); late = Math.max(late, Math.abs(c.y)); xs += Math.abs(c.x); ys += Math.abs(c.y); }
     expect(late).toBeGreaterThan(early);
     expect(ys).toBeGreaterThan(xs * 2);
+    // Only the quake rumbles along the way: a boulder throw has no travelling rumble.
+    const b = plan([3, 3, 3, 3, 2], 14);
+    const mid = (b.travelAt + b.impactAt) / 2;
+    const bc = { ...C, t3Shake: 0 };
+    expect(Math.abs(quakeCameraAt(quakePlan({ values: [3, 3, 3, 3, 2], total: 14, distance: 1600 }, bc), bc, mid).y)).toBeLessThan(0.01);
     expect(quakeCameraAt(p, C, p.slamAt).y).toBeGreaterThan(0);
     const hit = quakeCameraAt(p, C, p.impactAt);
     expect(hit.y).toBeLessThan(-p.shakePx * 0.5);
@@ -252,8 +287,10 @@ describe('the runner (the shared clock)', () => {
     expect(h.elapsed()).toBe(h.plan.slamAt);
     f.tick(h.plan.slamStopMs - 12, 4);
     expect(h.elapsed()).toBe(h.plan.slamAt);
-    expect(h.scene!.liveCracks).toBeGreaterThan(0);
-    // the quake runs; the blow lands on the eruption and not a frame before
+    expect(h.plan.quake).toBe(false); // 9 = Tier II: boulders
+    expect(h.scene!.liveBoulders).toBeGreaterThan(0);
+    expect(h.scene!.liveCracks).toBe(0); // no crack line below Tier IV
+    // the boulders fly; the blow lands on the last one and not a frame before
     f.tick(h.plan.impactAt - h.plan.slamAt - 12, 4);
     expect(onImpact).not.toHaveBeenCalled();
     f.tick(24, 4);
@@ -376,7 +413,7 @@ describe('the ground scene (headless Pixi)', () => {
     for (let i = 0; i < 5; i++) expect(s.burst(0.3 + i * 0.12, 1, 1)).not.toBeNull();
     for (let i = 0; i < 25; i++) { s.update(16); peak = Math.max(peak, s.liveSprites); }
     expect(s.front).toBe(1);
-    s.erupt(1400, 150, 80, { tier: 4, k: 1, flashAlpha: 0.9, width: 22, magma: 1, rocks: 26, dust: 1.4, eruption: 1.5, crater: 1, craterMs: 1500, heading: -0.46, rockSize: 1 });
+    s.erupt(1400, 150, 80, { tier: 4, k: 1, flashAlpha: 0.9, width: 22, magma: 1, rocks: 26, dust: 1.4, eruption: 1.5, crater: 1, craterMs: 1500, heading: -0.46, rockSize: 1, quake: true, spikes: 9, spikeHeight: 1.5, spray: 44 });
     s.pillar(1400, 150, 80, 380, 1.5, 13);
     for (let i = 0; i < 4; i++) s.boom(1400 + i * 20, 150, 1.2, 1);
     peak = Math.max(peak, s.liveSprites);

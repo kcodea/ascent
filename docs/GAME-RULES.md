@@ -186,7 +186,9 @@ progression **epoch**; nothing finished before the epoch counts (no backfill).
   answers (anticipation), then plays the answer's rarity: a charge, a burst and the reward rising out of the light.
   It escalates with rarity (Common quick, Rare blue, Epic purple and longer, Legendary gold with god rays and a
   sting). A click or a key skips to the reward; reduced motion is a short fade; a failed answer says "Could not open
-  the crate. Try again." Presentation only (oracle R-PROG-COLLECTION-01).
+  the crate. Try again." Presentation only (oracle R-PROG-COLLECTION-01). The crate is the owner's treasure chest in
+  two layers (body + lid): the lid rattles, light leaks from the seam and the keyhole, the lid blasts off at the burst
+  and the open body stays on the pedestal while the reward rises above it (oracle R-PROG-COLLECTION-03).
 - **The catalog (2026-09-28).** Data in `packages/progression/src/cosmetics.ts`, which OWNS the database copy: the
   `progression-inventory` Edge Function syncs it on its first request per cold start (`sync_cosmetic_catalog`;
   R-PROG-SKINS-05), so a new or retired cosmetic is a code change plus one deploy, never SQL. Shaped

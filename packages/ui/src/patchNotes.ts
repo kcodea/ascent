@@ -55,6 +55,14 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: 'The crate is now a real treasure chest.',
+        details: [
+          'The lid rattles as it builds up, and light leaks from the seam and the keyhole in the rarity colour.',
+          'Then the lid blasts off and light pours out of the open chest as your reward rises above it.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'A Legendary Black Belt Brian skin and an Epic Bellringer Voss skin join the crates.',
       },
       {

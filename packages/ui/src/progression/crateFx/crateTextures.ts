@@ -4,10 +4,10 @@
  * what flat Pixi polygons cannot: layered gradients, bevels, grain, soft shadows and blurred light. Math.random is
  * fine here (presentation only).
  *
- * The chest is painted in TWO parts, the body and the domed lid, so the lid can blow off. Extra layers sit on top
- * of them additively and are tinted by rarity at run time: the seam light (the lid/body gap and the keyhole), and
- * the cracks (a web of fractures across the body that brightens through the charge). All are painted white so a
- * tint can colour them. Sizes are in texture px; the scene scales sprites to the crate's layout size.
+ * The CHEST itself is the owner's two-layer art (`chestModel.ts`, 2026-09-28); the painted body and domed lid here
+ * are only its FALLBACK, drawn when the art cannot load. The seam bar and the keyhole mask (cut from the art) are the
+ * light the scene lays over the chest, painted white so a tint can colour them. Sizes are in texture px; the scene
+ * scales sprites to the crate's layout size.
  */
 
 /** The chest's proportions, in units of its width. */

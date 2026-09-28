@@ -2034,9 +2034,10 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'with slot hero_attack and target \'\' (the SQL refuses any other target, an unowned item, a skin in the attack slot '
       + 'and the attack in a skin slot). The owner approved the animation and made it a Legendary reward. The second hero '
       + 'attack, attack_quake ("Tectonic Slam", Legendary, style quake: R-PROG-ATTACK-05), the third, attack_arcana '
-      + '("Arcana", Legendary, style arcana: R-PROG-ATTACK-06), and the fourth, attack_blades ("Phantom Blades", Legendary, '
-      + 'style blades: R-PROG-ATTACK-07), re-pinned the first-crate odds to Common 46.5%, Rare 30.8%, Epic 18.9%, '
-      + 'Legendary 3.8%; a non-title item 32.1%; the four attacks together 2.2%.',
+      + '("Arcana", Legendary, style arcana: R-PROG-ATTACK-06), the fourth, attack_blades ("Phantom Blades", Legendary, '
+      + 'style blades: R-PROG-ATTACK-07), and the fifth, attack_enraged ("Enraged Strike", Legendary, style enraged: '
+      + 'R-PROG-ATTACK-11), re-pinned the first-crate odds to Common 46.3%, Rare 30.6%, Epic 18.8%, Legendary 4.3%; a '
+      + 'non-title item 32.5%; the five attacks together 2.7%.',
     domain: 'foundation',
     status: 'approved',
     evidence: [
@@ -2248,5 +2249,35 @@ export const FOUNDATION_RULES: GameRule[] = [
     ],
     currentBehaviour: 'Conforms, fixed 2026-09-28.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/heroAttack/damageFormation.test.ts'], lastVerifiedAt: '2026-09-28' },
+  },
+  {
+    id: 'R-PROG-ATTACK-11',
+    title: 'Enraged Strike (attack_enraged, Legendary) is the fifth hero attack: CLASSIC\'s own lunge, enraged; one hit / a double / a flurry of three / a meteor slam on the SAME damage tiers; the blow lands ONCE; no freeze',
+    statement:
+      'attack_enraged ("Enraged Strike", a placeholder name for the owner to rename; Legendary, crate, account-wide, style '
+      + 'enraged) plays Classic\x27s swing enraged: after the shared damage formation (R-PROG-ATTACK-08) the striking hero '
+      + 'plays the SAME swing Classic does (R-PROG-ATTACK-09: its coil direction, its corner-first contact point, its '
+      + 'distance-scaled strike and ease, its rebound and elastic settle, at its tempo), amplified: a deeper coil and a bigger '
+      + 'swell while a rage aura burns round the portrait (flame tongues licking off the rim, a hot rim and a halo, charge '
+      + 'rings closing in, hot motes pulled in, a rising growl), a dash that leaves crisp afterimages of the portrait and a '
+      + 'rage streak, and on contact a white flash, a shockwave ring and a second ring, claw rips torn across the struck '
+      + 'portrait, chunky sparks and embers, a squash on the striker, a hard knockback and squash on the struck hero and a '
+      + 'controlled camera punch and shake. It escalates on exactly the tiers every other hero attack uses (one shared '
+      + 'tierOf, thresholds 6 / 12 / 20): I 1-5 ONE enraged hit; II 6-11 a DOUBLE strike; III 12-19 a FLURRY of three, the '
+      + 'last a finisher after a deeper wind; IV 20+ the hero RISES up the screen and swells, hangs, and SLAMS down on the '
+      + 'struck hero like a meteor (a short screen flash, a scorched crater with glowing fissures, rock debris, an ember '
+      + 'fountain, aftershocks). The consequence (the damage, Armor, Resolve) lands exactly ONCE: on the LAST strike (every '
+      + 'earlier strike is a tick with FX only) or, at IV, on the meteor. No hit-stop or freeze anywhere (R-PROG-ATTACK-10). '
+      + 'The coil and the rise are shortened, never bent, so a portrait in a corner stays on screen. Presentation only; '
+      + 'reduced motion is fades only; an unknown or retired id plays Classic.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-28 (the fifth hero attack)', quote: 'branch off and make one more animation, which is just a legendary version of this strike. it should be a 10x more exciting and oomphier more impactful and pixi animation dense attack animation, but basically a legendary version of this attack, just amplified or enraged.' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-28 (Enraged first review)', quote: 'enraged needs way more polish. it\x27s a 4/10. pleaes take a huge pass at improving it and cleaning it up' },
+      { kind: 'code', ref: 'packages/progression/src/cosmetics.ts (attack_enraged); packages/ui/src/heroEnraged/ (heroEnragedConfig enragedPlan / enragedCues / enragedGeo / enragedPose / enragedCameraAt, heroEnraged playHeroEnraged, heroEnragedScene); classicSwing in packages/ui/src/heroAttack/heroClassic.ts' },
+    ],
+    currentBehaviour: 'Conforms, built 2026-09-28. The item reaches the database on the next deploy of progression-inventory (the catalog sync); the equip SQL already accepts the hero_attack slot.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/heroEnraged/heroEnraged.test.ts', 'packages/progression/src/cosmetics.test.ts', 'packages/ui/src/progression/CollectionHeroAttack.test.tsx'], lastVerifiedAt: '2026-09-28' },
   },
 ];

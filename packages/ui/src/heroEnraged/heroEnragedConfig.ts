@@ -163,7 +163,7 @@ export const ENRAGED_TIER_RANGES: Record<EnragedTierSuffix, [number, number, num
   WindupX: [0.3, 4, 0.05],
   Strikes: [1, 5, 1],
   DriveX: [0.3, 4, 0.05],
-  GapMs: [60, 600, 5],
+  GapMs: [0, 600, 5],
   FinisherMs: [0, 600, 5],
   Meteor: [0, 1, 1],
   Shake: [0, 40, 0.5],

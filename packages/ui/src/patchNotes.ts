@@ -55,6 +55,17 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: 'A new Legendary hero attack, Enraged Strike, can drop from crates.',
+        details: [
+          'It is the Classic lunge, enraged. Your damage builds up, then your hero burns with rage, dashes in leaving afterimages, and tears into the other hero.',
+          'The bigger the hit, the more it hits: one strike, then a double, then a flurry of three with a big finisher.',
+          'On the biggest hits your hero rises up and slams down like a meteor, leaving a crater.',
+          'Equip it from the Attack Animations tab of the Collection. There is a preview button there too.',
+          'Hero attacks are looks only. The damage is exactly the same.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: "Hero damage now builds up on screen before every hero attack: your minions' tiers, then your hero's, then the cap.",
         details: [
           "Each surviving minion's tier badge pulses from left to right, and its number pops up above it.",

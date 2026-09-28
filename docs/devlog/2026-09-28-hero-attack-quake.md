@@ -3,7 +3,7 @@
 Owner ask (2026-09-28): "branch off and make a new attack animation called quake. same attack dmg threshold logic as
 blast. the concept being an earthquake attack essentially with varying degrees of strength/cracks/explosions".
 
-Owner bug report, same day: "you can see the foe area isnt centered. can you fix that? may be wrong for blast too".
+Owner review: "quake looks solid" (the visual direction approved). Owner bug report, same day: "you can see the foe area isnt centered. can you fix that? may be wrong for blast too".
 
 Nothing changes for players until the owner deploys `progression-inventory` (the catalog sync adds `attack_quake`). The
 equip SQL already accepts the `hero_attack` slot, so no new migration.
@@ -63,6 +63,9 @@ Common 47.0%, Rare 31.2%, Epic 19.1%, Legendary 2.7%; a non-title item 31.3%; th
 | IV you quake (40) | 1568 | 4.2 | 4.3 | 4.3 | 20.8 | 2 |
 | III (14) | 1399 | 4.2 | 4.3 | 4.3 | 33.3 | 3 |
 | I (3) | 1098 | 4.2 | 4.3 | 4.3 | 20.9 | 1 |
+
+PROD build (vite build + preview, same rig, a temporary uncommitted hook to reach the runner): IV 1577 frames p50 4.2 /
+p99 4.3 / worst 16.7 / 0 over budget; IV foe worst 20.8 (1 over); III p99 8.3, worst 37.4 (3 over); I worst 20.8 (1 over).
 
 No DOM left behind and the `#stage` transform restored after each run. Sprites are pooled per layer (cap 1600), crack
 meshes are capped (320) and destroyed as they fade, textures are painted once per session.

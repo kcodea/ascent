@@ -69,6 +69,12 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-09-27',
     changes: [
+      { category: 'Systems', text: 'Fix: when an opponent casts Growth in combat (like their Fatecarver), the effect now plays on their board, not yours.' },
+    ],
+  },
+  {
+    date: '2026-09-27',
+    changes: [
       { category: 'Systems', text: 'Rune of Basic Dwarves now reads "Get a Dwarf", and the Runeforge now counts it as a fit for a Dwarf board.' },
     ],
   },

@@ -748,7 +748,9 @@ export const QuestCombatFlagSchema = z.enum(['bloodTrail', 'echoingCoop', 'lawOf
   // tranche 2: Celestial
   'runeHeraldingStar', 'runeStellarEchoes', 'runeScatteredLight', 'runeAfterglow', 'runeStarsong', 'runeGuidingStar', 'runeGravity', 'runeMeteorStorm',
   // tranche 3: Spirit + Dwarf
-  'runeCallAndAnswer', 'runeEncore', 'runeKindredHand', 'runeWhetstone', 'runeAnvil', 'runeSatchel']);
+  'runeCallAndAnswer', 'runeEncore', 'runeKindredHand', 'runeWhetstone', 'runeAnvil', 'runeSatchel',
+  // tranche 4: hybrids
+  'runeGemCrypt', 'runePallbearer', 'runeStarTap', 'runeClosingTime', 'runeGrimToast', 'runeGemStar', 'runeKeepsakeGem']);
 
 // The reward palette — a discriminated union kept in lockstep with the `QuestReward` type in @game/core.
 export const QuestRewardSchema: z.ZodType = z.lazy(() => z.discriminatedUnion('kind', [
@@ -898,6 +900,7 @@ z.object({ kind: z.literal('runeThreshold'), meter: z.enum(['gold', 'spellCast',
   grantOneOf: z.array(z.string().min(1)).min(1).optional(),
   grantRandomTribe: TribeSchema.optional(),
   castCards: z.array(z.string().min(1)).min(1).optional(),
+  grantRandomRuby: z.number().int().positive().optional(), // Set 3 design pass: Rune of Minted Gems
   oncePerTurn: z.boolean().optional(), once: z.boolean().optional() }).strict(),
 z.object({ kind: z.literal('runeBrokerage') }).strict(),
 z.object({ kind: z.literal('runeSharedTable'), attack: z.number().int(), health: z.number().int() }).strict(),

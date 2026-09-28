@@ -45,6 +45,13 @@ const OWNER_TRIBE_RULINGS: Readonly<Record<string, Tribe>> = {
   rune_living_treasure: 'kobold', rune_rising_echoes: 'undead', rune_crowded_crypt: 'undead', rune_overflow: 'undead', rune_dreamed_graves: 'spirit',
   // Design pass tranche 1 (owner-approved Undead runes, 2026-09-27): Rise is the Undead keyword.
   rune_second_wind: 'undead', rune_restless: 'undead', rune_open_grave: 'undead',
+  // Design pass tranche 4 (owner 2026-09-27: "When you spend 8 Gold, get a random Ruby."): a Kobold + Dwarf hybrid, and
+  // Gold spent is the Dwarf line (Mountainbond's seam), which the name-matcher cannot read.
+  rune_minted_gems: 'dwarf',
+  // …and the Gem Crypt (Kobold + Undead): its Undead half is Rise, the Undead keyword (as the Second Wind's).
+  rune_gem_crypt: 'undead',
+  // …and the Pallbearer + the Keepsake Gem: "the left-most minion in your hand" is the Spirit hand line.
+  rune_pallbearer: 'spirit', rune_keepsake_gem: 'spirit',
 };
 
 /** The tribes of the bodies a reward GRANTS (Rune of Lazarus → Lazarus is Undead) — the 2026-09-10 ruling's

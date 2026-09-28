@@ -1624,4 +1624,165 @@ export const RUNES_RULES: GameRule[] = [
       lastVerifiedAt: '2026-09-27',
     },
   },
+  // ── Set 3 rune design pass (owner 2026-09-27), tranche 4: hybrids ──
+  {
+    id: 'R-SET3RUNE-30',
+    title: "Rune of Minted Gems: every 8 Gold you spend gets a random Ruby",
+    statement:
+      "The Gold-spent meter (every spend, any phase that spends Gold) trips every 8 Gold; each trip gets one random Ruby, drawn from all six Ruby types on the run cursor, into your hand (hand cap respected, like every meter grant). The badge prints the meter (x/8).",
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Owner rulings 2026-09-27 on the Set 3 rune design pass (set3-rune-design.md)", quote: "When you spend 8 Gold, get a random Ruby." },
+      { kind: 'code', ref: "packages/content/src/runes.ts rune_minted_gems (runeThreshold gold per 8, grantRandomRuby); packages/sim/src/recruit.ts payRuneThresholdInner (mintRandomRubies)" },
+    ],
+    contentIds: ["rune_minted_gems"],
+    cardText: "When you spend **8 Gold**, get a random **Ruby**.",
+    currentBehaviour: 'Conforms (built with the rune, 2026-09-27).',
+    enforcement: {
+      kind: 'scenario',
+      refs: ["packages/sim/src/set3RuneDesignT4.test.ts"],
+      lastVerifiedAt: '2026-09-27',
+    },
+  },
+  {
+    id: 'R-SET3RUNE-31',
+    title: "Rune of the Gem Crypt: a friendly minion that Rises keeps its Rubies",
+    statement:
+      "When a friendly minion Rises (Shop or combat), the returned printed body also gets back the Ruby stats it carried when it died: its Shop Ruby ledger, plus in combat the Ruby stats it gained that fight. A body with no Rubies returns as printed (R-RISE-01).",
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Owner rulings 2026-09-27 on the Set 3 rune design pass (set3-rune-design.md)", quote: "Not built: Event Horizon, Beckoning, Tavern Tab." },
+      { kind: 'code', ref: "packages/sim/src/recruit.ts riseReturn; packages/core/src/combat/simulate.ts the Rise body (gemCryptRuby)" },
+    ],
+    contentIds: ["rune_gem_crypt"],
+    cardText: "Friendly minions that **Rise** keep their **Rubies**.",
+    currentBehaviour: 'Conforms (built with the rune, 2026-09-27).',
+    enforcement: {
+      kind: 'scenario',
+      refs: ["packages/sim/src/set3RuneDesignT4.test.ts", "packages/core/src/combat/set3RuneDesignT4.test.ts"],
+      lastVerifiedAt: '2026-09-27',
+    },
+  },
+  {
+    id: 'R-SET3RUNE-32',
+    title: "Rune of the Pallbearer: a friendly Undead death gives the left-most minion in your hand +2/+2",
+    statement:
+      "Every friendly Undead death (a Shop destroy or a combat death, never a sale) gives the left-most minion in your hand (spells and Rubies skipped) +2/+2 per copy. A hand buff is permanent (R-HAND-02); in combat it lands live on the hand card. An empty hand: nothing.",
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Owner rulings 2026-09-27 on the Set 3 rune design pass (set3-rune-design.md)", quote: "Not built: Event Horizon, Beckoning, Tavern Tab." },
+      { kind: 'code', ref: "packages/sim/src/recruit.ts fireOnFriendDeath (runePallbearerShop); packages/core/src/combat/simulate.ts avenge bus listener (buffHand)" },
+    ],
+    contentIds: ["rune_pallbearer"],
+    cardText: "When a friendly **Undead** dies, give the left-most minion in your hand **+2/+2**.",
+    currentBehaviour: 'Conforms (built with the rune, 2026-09-27).',
+    enforcement: {
+      kind: 'scenario',
+      refs: ["packages/sim/src/set3RuneDesignT4.test.ts", "packages/core/src/combat/set3RuneDesignT4.test.ts"],
+      lastVerifiedAt: '2026-09-27',
+    },
+  },
+  {
+    id: 'R-SET3RUNE-33',
+    title: "Rune of the Star Tap: a Dwarven Ale cast gives your Starform +3/+3",
+    statement:
+      "Every Dwarven Ale cast (Shop, End of Turn or combat) gives your Starform +3/+3 per copy. A combat gain is banked and lands when the Shop exists again (the Starform deferral). No Starform: nothing.",
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Owner rulings 2026-09-27 on the Set 3 rune design pass (set3-rune-design.md)", quote: "Not built: Event Horizon, Beckoning, Tavern Tab." },
+      { kind: 'code', ref: "packages/sim/src/recruit.ts castSpell (runeStarTapShop); packages/core/src/combat/simulate.ts spellResolved (gainStarform)" },
+    ],
+    contentIds: ["rune_star_tap"],
+    cardText: "When you cast a **Dwarven Ale**, give your **Starform +3/+3**.",
+    currentBehaviour: 'Conforms (built with the rune, 2026-09-27).',
+    enforcement: {
+      kind: 'scenario',
+      refs: ["packages/sim/src/set3RuneDesignT4.test.ts", "packages/core/src/combat/set3RuneDesignT4.test.ts"],
+      lastVerifiedAt: '2026-09-27',
+    },
+  },
+  {
+    id: 'R-SET3RUNE-34',
+    title: "Rune of Closing Time (the owner's Last Call): selling a Reveler gets a Dwarven Ale",
+    statement:
+      "Every Reveler you sell gets a random Dwarven Ale per copy (hand cap overflow-safe, like every earned grant). Shipped as \"Rune of Closing Time\" because the Set 2 Dwarf rune rune_last_call already owns the name \"Rune of Last Call\".",
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Owner rulings 2026-09-27 on the Set 3 rune design pass (set3-rune-design.md)", quote: "last call is good" },
+      { kind: 'code', ref: "packages/sim/src/recruit.ts fireOnMinionSold (REVELER_IDS branch)" },
+    ],
+    contentIds: ["rune_closing_time"],
+    cardText: "When you sell a **Reveler**, get a **Dwarven Ale**.",
+    currentBehaviour: 'Conforms (built with the rune, 2026-09-27).',
+    enforcement: {
+      kind: 'scenario',
+      refs: ["packages/sim/src/set3RuneDesignT4.test.ts"],
+      lastVerifiedAt: '2026-09-27',
+    },
+  },
+  {
+    id: 'R-SET3RUNE-35',
+    title: "Rune of the Grim Toast: your Dwarves also get your Undead Aura (the whole live Aura)",
+    statement:
+      "A non-Undead Dwarf gets the full live Undead Aura: its Attack (the Lantern channel and the buy channel) and its Health (the Soul Furnace term included), through the same Aura fold the Undead use: board, hand, Shop offers, combat seeding, and every live mid-fight Aura rise. An Undead Dwarf already has the Aura and is never paid twice. It is the Aura itself, not a mirror of Attack gains.",
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Owner rulings 2026-09-27 on the Set 3 rune design pass (set3-rune-design.md)", quote: "should just inherit the undead aura stat not just attack" },
+      { kind: 'code', ref: "packages/sim/src/recruit.ts foldedAuraOf + grimToastFold; packages/core/src/combat/simulate.ts applyAuras + grimToastLive; packages/ui/src/Recruit.tsx + instView.ts" },
+    ],
+    contentIds: ["rune_grim_toast"],
+    cardText: "Your **Dwarves** also get your **Undead Aura**.",
+    currentBehaviour: 'Conforms (built with the rune, 2026-09-27).',
+    enforcement: {
+      kind: 'scenario',
+      refs: ["packages/sim/src/set3RuneDesignT4.test.ts", "packages/core/src/combat/set3RuneDesignT4.test.ts", "packages/ui/src/set3RuneT4Tally.test.ts"],
+      lastVerifiedAt: '2026-09-27',
+    },
+  },
+  {
+    id: 'R-SET3RUNE-36',
+    title: "Rune of the Gem Star: the first 4 Rubies you cast each turn also give your Starform their stats",
+    statement:
+      "The first 4 Rubies cast each turn (Shop, End of Turn, then that turn's combat, one shared count reset at turn setup) also give your Starform the stats that Ruby gave, per copy. A bounce or relay is not a cast and does not count. In the Shop it needs a Starform; a combat gain is banked. The badge prints this turn's count out of 4.",
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Owner rulings 2026-09-27 on the Set 3 rune design pass (set3-rune-design.md)", quote: "Not built: Event Horizon, Beckoning, Tavern Tab." },
+      { kind: 'code', ref: "packages/sim/src/recruit.ts runeRubyCastShop (gemStarThisTurn); packages/sim/src/reducer.ts questCombatMods (gemStarLeft); packages/core/src/effects/factories.ts playRubyOn (onRubyCast)" },
+    ],
+    contentIds: ["rune_gem_star"],
+    cardText: "The first **4 Rubies** you cast each turn also give your **Starform** their stats.",
+    currentBehaviour: 'Conforms (built with the rune, 2026-09-27).',
+    enforcement: {
+      kind: 'scenario',
+      refs: ["packages/sim/src/set3RuneDesignT4.test.ts", "packages/core/src/combat/set3RuneDesignT4.test.ts", "packages/ui/src/set3RuneT4Tally.test.ts"],
+      lastVerifiedAt: '2026-09-27',
+    },
+  },
+  {
+    id: 'R-SET3RUNE-37',
+    title: "Rune of the Keepsake Gem: every Ruby also casts on the left-most minion in your hand",
+    statement:
+      "Every Ruby cast on a minion (Shop, End of Turn or combat, every Ruby, not only the first each turn) also gives its stats (and in the Shop its Ruby rider) to the left-most minion in your hand, per copy. The relay is a plain stat grant, never a Ruby cast, so no Ruby-cast trigger hears it and it cannot loop. An empty hand: nothing.",
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Owner rulings 2026-09-27 on the Set 3 rune design pass (set3-rune-design.md)", quote: "do keepsake gem made stronger" },
+      { kind: 'code', ref: "packages/sim/src/recruit.ts fireOnRubyPlayed (runeRubyCastShop); packages/core/src/effects/factories.ts playRubyOn (onRubyCast) + simulate.ts runeRubyCastCombat" },
+    ],
+    contentIds: ["rune_keepsake_gem"],
+    cardText: "Your **Rubies** also cast on the left-most minion in your hand.",
+    currentBehaviour: 'Conforms (built with the rune, 2026-09-27).',
+    enforcement: {
+      kind: 'scenario',
+      refs: ["packages/sim/src/set3RuneDesignT4.test.ts", "packages/core/src/combat/set3RuneDesignT4.test.ts"],
+      lastVerifiedAt: '2026-09-27',
+    },
+  },
 ];

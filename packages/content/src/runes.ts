@@ -1862,6 +1862,67 @@ export const RUNES: RuneDef[] = [
     reward: { kind: 'combatFlag', flag: 'runeWhetstone' },
     sets: ['set3'],
   },
+  // ── SET 3 RUNE DESIGN PASS (owner 2026-09-27), tranche 4: HYBRID Basics. Set-3-only, gated to BOTH tribes. No Tavern
+  //    Tab (its Dwarf + Spirit slot is the owner's pick, Closing Time). ──
+  {
+    // Kobold + Dwarf. Owner 2026-09-27: "When you spend 8 Gold, get a random Ruby." The `gold` meter, per 8, paying a
+    // random Ruby (all six types, `mintRandomRubies`, the Pummel / Gem Sage "random Ruby" path).
+    id: 'rune_minted_gems',
+    tribes: ['kobold', 'dwarf'],
+    name: 'Rune of Minted Gems',
+    cost: 2,
+    text: 'When you spend **8 Gold**, get a random **Ruby**.',
+    previewCards: ['ruby'],
+    reward: { kind: 'runeThreshold', meter: 'gold', per: 8, grantRandomRuby: 1 },
+    sets: ['set3'],
+  },
+  {
+    // Kobold + Undead: a Rise (both phases) brings the body back WITH the Ruby stats it had (the 'Ruby' ledger in the
+    // Shop; the Shop Rubies + the fight's Ruby gains in combat). The Rise's printed body otherwise sheds them.
+    id: 'rune_gem_crypt',
+    tribes: ['kobold', 'undead'],
+    name: 'Rune of the Gem Crypt',
+    cost: 3,
+    text: 'Friendly minions that **Rise** keep their **Rubies**.',
+    reward: { kind: 'combatFlag', flag: 'runeGemCrypt' },
+    sets: ['set3'],
+  },
+  {
+    // Undead + Spirit: every friendly Undead death (Shop deaths and combat deaths) gives the left-most minion in your
+    // hand +2/+2 per copy (a hand buff is permanent).
+    id: 'rune_pallbearer',
+    tribes: ['undead', 'spirit'],
+    name: 'Rune of the Pallbearer',
+    cost: 4,
+    text: 'When a friendly **Undead** dies, give the left-most minion in your hand **+2/+2**.',
+    reward: { kind: 'combatFlag', flag: 'runePallbearer' },
+    sets: ['set3'],
+  },
+  {
+    // Dwarf + Celestial: every Dwarven Ale CAST (Shop, End of Turn, combat) gives the Starform +3/+3 per copy (combat:
+    // banked, lands when the Shop opens).
+    id: 'rune_star_tap',
+    tribes: ['dwarf', 'celestial'],
+    name: 'Rune of the Star Tap',
+    cost: 3,
+    text: 'When you cast a **Dwarven Ale**, give your **Starform +3/+3**.',
+    previewCards: ['ce3_starform'],
+    reward: { kind: 'combatFlag', flag: 'runeStarTap' },
+    sets: ['set3'],
+  },
+  {
+    // Dwarf + Spirit. Owner pick 2026-09-27 ("last call is good"), replacing the Tavern Tab. RENAMED from the owner's
+    // "Rune of the Last Call": the Set 2 Dwarf rune `rune_last_call` is already "Rune of Last Call". Every Reveler
+    // SOLD gets a random Dwarven Ale per copy.
+    id: 'rune_closing_time',
+    tribes: ['dwarf', 'spirit'],
+    name: 'Rune of Closing Time',
+    cost: 3,
+    text: 'When you sell a **Reveler**, get a **Dwarven Ale**.',
+    previewCards: ['sp3_flamereveler', 'sp3_tidereveler', 'sp3_grovereveler'],
+    reward: { kind: 'combatFlag', flag: 'runeClosingTime' },
+    sets: ['set3'],
+  },
 ];
 
 /**
@@ -3826,6 +3887,49 @@ export const EPIC_RUNES: RuneDef[] = [
     reward: { kind: 'combatFlag', flag: 'runeSatchel' },
     sets: ['set3'],
   },
+  // ── SET 3 RUNE DESIGN PASS (owner 2026-09-27), tranche 4: HYBRID Epics. Set-3-only, gated to BOTH tribes. ──
+  {
+    // Dwarf + Undead. Owner 2026-09-27: "should just inherit the undead aura stat not just attack". Your non-Undead
+    // Dwarves get the WHOLE live Undead Aura (the Lantern channel + the buy channel as Attack, the Aura's Health incl.
+    // the Soul Furnace's term) through the same fold the Undead use: board, hand, Shop, combat seeding, and live
+    // mid-fight rises. An Undead Dwarf already has it (never twice).
+    id: 'rune_grim_toast',
+    tribes: ['dwarf', 'undead'],
+    name: 'Rune of the Grim Toast',
+    cost: 4,
+    epic: true,
+    text: 'Your **Dwarves** also get your **Undead Aura**.',
+    reward: { kind: 'combatFlag', flag: 'runeGrimToast' },
+    sets: ['set3'],
+  },
+  {
+    // Kobold + Celestial: the first 4 Rubies cast each turn (Shop through that turn's combat) also give the Starform
+    // their stats, per copy (combat: banked, lands when the Shop opens).
+    id: 'rune_gem_star',
+    tribes: ['kobold', 'celestial'],
+    name: 'Rune of the Gem Star',
+    cost: 4,
+    epic: true,
+    text: 'The first **4 Rubies** you cast each turn also give your **Starform** their stats.',
+    previewCards: ['ce3_starform'],
+    reward: { kind: 'combatFlag', flag: 'runeGemStar' },
+    sets: ['set3'],
+  },
+  {
+    // Kobold + Spirit. Owner 2026-09-27: "do keepsake gem made stronger" — EVERY Ruby (not the first each turn) and
+    // Epic 4. Each Ruby cast on a minion (Shop: `fireOnRubyPlayed`, every landing site; combat: `playRubyOn`) also
+    // lands its stats on the left-most minion in your hand, per copy, as a plain stat grant that fires no Ruby watcher
+    // (so it cannot loop). An empty hand: nothing.
+    id: 'rune_keepsake_gem',
+    tribes: ['kobold', 'spirit'],
+    name: 'Rune of the Keepsake Gem',
+    cost: 4,
+    epic: true,
+    text: 'Your **Rubies** also cast on the left-most minion in your hand.',
+    previewCards: ['ruby'],
+    reward: { kind: 'combatFlag', flag: 'runeKeepsakeGem' },
+    sets: ['set3'],
+  },
 ];
 
 /**
@@ -4196,6 +4300,8 @@ export const RUNE_DUP_SWEETENER: ReadonlySet<string> = new Set([
   // Set 3 design pass (2026-09-27): a rules change already fully on (Scattered Light) and a one-charge-a-turn arm
   // (the Open Grave: a second copy has no second 'first destroy').
   'rune_scattered_light', 'rune_open_grave',
+  // …and the Grim Toast (tranche 4): the Aura is either shared with your Dwarves or not.
+  'rune_grim_toast',
 ]);
 
 /** Duplicates that do NOTHING — owner ruled unique ("rune of the ornate clock should do nothing if

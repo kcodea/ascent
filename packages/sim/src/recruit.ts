@@ -1434,9 +1434,11 @@ export function bakedAuraOf(state: RunState, card: BoardCard): { attack: number;
 export function foldedAuraOf(state: RunState, card: BoardCard): { attack: number; health: number } {
   const def = CARD_INDEX[card.cardId];
   const undead = !!def && (def.tribe === 'undead' || def.tribe2 === 'undead' || !!def.universalTribe);
-  return undead
-    ? { attack: state.undeadAttackBonus ?? 0, health: state.undeadHealthBonus ?? 0 }
-    : { attack: 0, health: 0 };
+  if (undead) return { attack: state.undeadAttackBonus ?? 0, health: state.undeadHealthBonus ?? 0 };
+  // RUNE OF THE GRIM TOAST (Set 3 design pass): a NON-Undead Dwarf folds the whole Undead Aura (the buy channel is
+  // not baked into a Dwarf, so it folds here too).
+  const grim = defIsTribe(def, 'dwarf') ? grimToastFold(state) : undefined;
+  return grim ?? { attack: 0, health: 0 };
 }
 
 /** What the PLAYER reads on the card: stored plus the display fold. */
@@ -1843,6 +1845,7 @@ function payRuneThresholdInner(state: RunState, t: NonNullable<RunState['runeThr
   if (t.grantSpell) conjureToHand(state, runSpells(state).filter((c) => c.tier <= state.tier && !ALE_IDS.includes(c.id)), t.grantSpell, true);
   if (t.grantAle) conjureToHand(state, runSpells(state).filter((c) => ALE_IDS.includes(c.id)), t.grantAle, true);
   if (t.grantRuby) mintRubies(state, t.grantRuby);
+  if (t.grantRandomRuby) mintRandomRubies(state, t.grantRandomRuby); // Rune of Minted Gems (Set 3 design pass)
   // Rune of the Deep Feast: a NAMED body on a meter. `overflow` because an earned reward is never dropped to
   // a full hand — the same rule every quest/rune grant follows.
   for (const id of t.grantCards ?? []) {
@@ -3121,6 +3124,11 @@ function riseReturn(state: RunState, target: BoardCard, slot: number, summonedFr
     keywords: (def?.keywords ?? []).filter((k) => k !== 'R'),
     golden: target.golden,
   };
+  // RUNE OF THE GEM CRYPT (Set 3 design pass): the risen body keeps the Rubies the dying one had (its 'Ruby' ledger).
+  if (state.questFlags?.runeGemCrypt) {
+    const ruby = (target.buffs ?? []).filter((b) => b.source === 'Ruby').reduce((acc, b) => ({ a: acc.a + b.attack, h: acc.h + b.health }), { a: 0, h: 0 });
+    if (ruby.a > 0 || ruby.h > 0) { procRuneId(state, 'rune_gem_crypt'); addBuff(risen, 'Ruby', ruby.a, ruby.h); }
+  }
   const grew = state.board.length - summonedFrom;
   const at = Math.min(state.board.length, slot + Math.max(0, grew));
   state.board.splice(at, 0, risen);
@@ -10545,6 +10553,8 @@ const FRIEND_DEATH_WATCHERS: ReadonlySet<string> = new Set(['onFriendDeathSummon
 
 export function fireOnFriendDeath(state: RunState, dead: BoardCard): void {
   const ctx = makeContext(state);
+  // RUNE OF THE PALLBEARER (Set 3 design pass): a friendly Undead died → the left-most minion in hand +2/+2 per copy.
+  if (state.questFlags?.runePallbearer && isTribe(dead, 'undead')) runePallbearerShop(state);
   // RUNE OF BODY COUNTING (owner 2026-09-25), the SHOP half of its running death meter: every Shop death path (a
   // destroy, a pending destroy, Fel Spikes, a devour) notifies here exactly once; a SALE never does. Every 8th death
   // (the same `runeBodyCountTick` combat continues) gets a random Undead at or below your tier, per copy held.
@@ -10859,6 +10869,9 @@ export function fireOnRubyPlayed(state: RunState, card: BoardCard, rubyAttack: n
   // landing site routes through here (hand-cast, Redirection, Distillation, Motherlode, the Lapidary), and a
   // Candle Conduit / Resonance BOUNCE deliberately does not (stats only, never a cast), so it pays nothing.
   if (state.board.includes(card)) applyLorekeeping(state, card);
+  // SET 3 DESIGN PASS: a Ruby CAST on a minion (every landing site, never a bounce hop): the Keepsake Gem lands its
+  // stats on the left-most hand minion too; the Gem Star feeds the Starform the first 4 each turn.
+  runeRubyCastShop(state, card, rubyAttack, rubyHealth, rubyKeyword);
   // CANDLE CONDUIT (rework 2026-08-07): every Ruby played on your side bounces its stats to 1 more random
   // friendly minion per Conduit (golden 2). Stats only — addBuff('Ruby') directly, never back through this
   // function — which is the same no-rebounce guard Resonance Idol's bounce relies on.
@@ -10907,6 +10920,11 @@ export function fireOnMinionSold(state: RunState, sold: BoardCard): void {
   if (REVELER_IDS.includes(sold.cardId)) {
     const sold3 = state.revelersSoldThisTurn = (state.revelersSoldThisTurn ?? 0) + 1;
     runeEncoreShop(state, sold); // RUNE OF THE ENCORE (Set 3 design pass): the turn's first Reveler sale pays the hand too
+    // RUNE OF CLOSING TIME (Set 3 design pass): every Reveler sold gets a random Dwarven Ale per copy.
+    if (state.questFlags?.runeClosingTime) {
+      const ales = runSpells(state).filter((c) => ALE_IDS.includes(c.id));
+      if (ales.length > 0) { procRuneId(state, 'rune_closing_time'); conjureToHand(state, ales, runeStacksOf(state, 'rune_closing_time'), true); }
+    }
     // RUNE OF FESTIVAL WAGES: every `REVELER_METER` Revelers sold arm a free card — the next Shop buy (minion or
     // spell, either row) costs 0. One charge per copy held (repeat family); the charges carry until spent.
     if (state.runeFestivalWages && sold3 % REVELER_METER === 0) {
@@ -12505,6 +12523,8 @@ export function castSpell(state: RunState, spellDef: CardDef, target?: BoardCard
   // RUNE OF THE METEOR STORM (Set 3 design pass): a Star Crash cast (any caster, a cast on the Starform included) casts
   // again on a different friendly Celestial; the extra cast never repeats itself.
   if (spellDef.id === 'starcrash' && state.questFlags?.runeMeteorStorm && !METEOR_ECHOING) runeMeteorStormShop(state, spellDef, target);
+  // RUNE OF THE STAR TAP (Set 3 design pass): every Dwarven Ale cast feeds the Starform +3/+3 per copy.
+  if (ALE_IDS.includes(spellDef.id) && state.questFlags?.runeStarTap) runeStarTapShop(state);
 }
 
 
@@ -15250,4 +15270,54 @@ function runeSatchelShop(state: RunState): void {
   procRuneId(state, 'rune_satchel');
   const n = runeStacksOf(state, 'rune_satchel');
   captureBuffFx(state, undefined, 'spell', () => { for (const c of dwarves) addBuff(c, 'Rune of the Satchel', n, n); });
+}
+
+// ── SET 3 RUNE DESIGN PASS (owner 2026-09-27): the Shop halves of the tranche-4 hybrid runes ─────────────────────
+
+/** RUNE OF THE GRIM TOAST: the Undead Aura a NON-Undead Dwarf also gets (the whole Aura: the Lantern channel and the
+ *  buy channel as Attack, the Aura's Health, Soul Furnace term included). Undefined without the rune. */
+export function grimToastFold(state: Pick<RunState, 'questFlags' | 'undeadAttackBonus' | 'undeadBuyAtk' | 'undeadHealthBonus'>): { attack: number; health: number } | undefined {
+  if (!state.questFlags?.runeGrimToast) return undefined;
+  return { attack: undeadAuraAttack(state), health: state.undeadHealthBonus ?? 0 };
+}
+
+/** RUNE OF THE PALLBEARER, Shop half: the left-most minion in hand +2/+2 per copy. */
+export const PALLBEARER_GRANT = { attack: 2, health: 2 } as const;
+function runePallbearerShop(state: RunState): void {
+  const left = leftmostHandMinion(state);
+  if (!left) return;
+  procRuneId(state, 'rune_pallbearer');
+  const n = runeStacksOf(state, 'rune_pallbearer');
+  addBuff(left, 'Rune of the Pallbearer', PALLBEARER_GRANT.attack * n, PALLBEARER_GRANT.health * n);
+}
+
+/** RUNE OF THE STAR TAP, Shop half: the Starform +3/+3 per copy (none = nothing). */
+export const STAR_TAP_GRANT = { attack: 3, health: 3 } as const;
+function runeStarTapShop(state: RunState): void {
+  const n = runeStacksOf(state, 'rune_star_tap');
+  if (buffStarform(state, STAR_TAP_GRANT.attack * n, STAR_TAP_GRANT.health * n, 'Rune of the Star Tap')) procRuneId(state, 'rune_star_tap');
+}
+
+/** RUNE OF THE GEM STAR's per-turn cap: the first N Rubies cast each turn. */
+export const GEM_STAR_CAP = 4;
+
+/** A Ruby just landed on `card` as a CAST (the Shop's one landing chokepoint). The Keepsake Gem relays its stats (and its
+ *  Kobold keyword rider) to the left-most minion in hand as a plain grant, per copy: `addBuff('Ruby')`, never back
+ *  through `fireOnRubyPlayed`, so nothing that listens for a Ruby hears it and it cannot loop. The Gem Star gives the
+ *  Starform the Ruby's stats for the turn's first `GEM_STAR_CAP` Rubies (per copy), while a Starform stands. */
+function runeRubyCastShop(state: RunState, card: BoardCard, a: number, h: number, kw?: Keyword): void {
+  const f = state.questFlags;
+  if (!f?.runeKeepsakeGem && !f?.runeGemStar) return;
+  if (state.questFlags?.runeKeepsakeGem && (a > 0 || h > 0)) {
+    const left = leftmostHandMinion(state);
+    if (left && left !== card) {
+      procRuneId(state, 'rune_keepsake_gem');
+      for (let k = 0; k < runeStacksOf(state, 'rune_keepsake_gem'); k++) { addBuff(left, 'Ruby', a, h); grantRubyKeyword(left, kw); }
+    }
+  }
+  if (state.questFlags?.runeGemStar && (state.gemStarThisTurn ?? 0) < GEM_STAR_CAP && hasStarform(state)) {
+    state.gemStarThisTurn = (state.gemStarThisTurn ?? 0) + 1;
+    const n = runeStacksOf(state, 'rune_gem_star');
+    if (buffStarform(state, a * n, h * n, 'Rune of the Gem Star')) procRuneId(state, 'rune_gem_star');
+  }
 }

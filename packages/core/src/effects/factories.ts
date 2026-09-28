@@ -180,6 +180,8 @@ export function playRubyOn(ctx: CombatContext, self: Minion, target: Minion, per
   // equivalent of `fireTrigger` — same channel, no new context hook (see the runeFloodedVault stamp).
   if (runeEngraved) ctx.log({ type: 'questTrigger', flag: 'runeEngravingGems', side: self.side });
   applyRubyStats(ctx, self, target, a, h, engraved);
+  // Set 3 design pass: the Keepsake Gem / the Gem Star hear the CAST (a hop below never reaches this).
+  ctx.onRubyCast?.(self.side, self, target, per, a, h);
   // RUNE OF RUPTURED RUBIES (owner 2026-09-25): "Your Rubies cast in combat bounce twice." Every combat Ruby, from any
   // source, hops to a random OTHER living friendly minion twice (per copy held) after it lands, carrying its stats
   // only (the R-RUBY-02 hop: `applyRubyStats`, no watchers, so a hop never re-bounces) and inheriting the landing's

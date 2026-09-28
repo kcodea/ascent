@@ -52,6 +52,7 @@ export const PANEL_EMBLEMS: Record<string, string> = {
   titleaccount: '👤',
   loadscreen: '⏳',
   heroduel: '⚔️',
+  heroblast: '💥',
   rankscreen: '🎖️',
   milestoneframe: '🏅',
   medallion: '🎖️',

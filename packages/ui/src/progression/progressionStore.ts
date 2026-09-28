@@ -26,7 +26,7 @@
  */
 import { create } from 'zustand';
 import {
-  setServerCatalogState, titleName, type ServerCatalogState, type SkinSlot, type CrateRow, type OpenCrateResult, type ProgressionMode, type ProgressionProfile, type ProgressionResult, type ProgressionRunFacts,
+  setServerCatalogState, titleName, type ServerCatalogState, type EquipSlot, type CrateRow, type OpenCrateResult, type ProgressionMode, type ProgressionProfile, type ProgressionResult, type ProgressionRunFacts,
 } from '@game/progression';
 import { currentUserId } from '../identity';
 import { remoteEnabled } from '../remoteBoards';
@@ -285,8 +285,9 @@ export async function refreshServerCatalog(): Promise<void> {
   if (state) applyServerCatalogState(state);
 }
 
-/** Wear an owned skin on its hero / card, or Default (null). Returns whether the server accepted it. */
-export async function equipCosmetic(slot: SkinSlot, targetId: string, cosmeticId: string | null): Promise<boolean> {
+/** Wear an owned skin on its hero / card, or an owned hero attack (target ''), or Default (null). Returns whether
+ *  the server accepted it. */
+export async function equipCosmetic(slot: EquipSlot, targetId: string, cosmeticId: string | null): Promise<boolean> {
   const userId = currentUserId();
   if (!userId) return false;
   const out = await equipCosmeticRemote(slot, targetId, cosmeticId).catch(() => null);

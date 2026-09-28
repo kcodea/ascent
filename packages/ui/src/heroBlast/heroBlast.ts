@@ -63,6 +63,10 @@ export interface HeroBlastOptions {
   camera?: HTMLElement | null;
   sound?: boolean;
   safety?: boolean;
+  /** `local`: every point is in the HOST's own px (a sandbox box, like the Collection preview), not screen px. */
+  space?: 'screen' | 'local';
+  /** Pixi size multiplier (default: the stage scale). A small sandbox box draws smaller. */
+  pixiScale?: number;
 }
 
 export interface HeroBlastHandle {
@@ -139,16 +143,19 @@ export function playHeroBlast(o: HeroBlastOptions): HeroBlastHandle {
   const dist = Math.hypot(o.defender.x - o.attacker.x, o.defender.y - o.attacker.y);
   const plan = blastPlan({ values: o.parts.map((p) => p.value), total: o.total, distance: dist, reduced }, c);
   const cues = blastCues(plan);
-  const s = typeof window === 'undefined' ? 1 : stageScale();
+  const s = o.pixiScale ?? (typeof window === 'undefined' ? 1 : stageScale());
+  const local = o.space === 'local';
+  /** Screen (or host-local) px -> the CSS px written into the DOM. */
+  const css = (v: number): number => (local ? v : toStage(v));
 
   // ── DOM: the numbers ──
   const host = o.host !== undefined ? o.host : (typeof document !== 'undefined' ? (document.getElementById('root') ?? document.body) : null);
   const layer = host ? document.createElement('div') : null;
   const chips: HTMLDivElement[] = [];
   let totalEl: HTMLDivElement | null = null, totalNum: HTMLDivElement | null = null, totalLbl: HTMLDivElement | null = null;
-  const place = (el: HTMLElement, p: Pt): void => { el.style.left = `${toStage(p.x)}px`; el.style.top = `${toStage(p.y)}px`; };
+  const place = (el: HTMLElement, p: Pt): void => { el.style.left = `${css(p.x)}px`; el.style.top = `${css(p.y)}px`; };
   if (layer && host) {
-    layer.className = 'hblast';
+    layer.className = local ? 'hblast local' : 'hblast';
     layer.setAttribute('aria-hidden', 'true');
     o.parts.forEach((p) => {
       const el = document.createElement('div');
@@ -231,7 +238,7 @@ export function playHeroBlast(o: HeroBlastOptions): HeroBlastHandle {
         scene?.startCharge(o.attacker.x, o.attacker.y, plan.fireAt - plan.chargeAt, 0.8 + 0.5 * plan.k, c.chargeMotes);
         if (camera && !cameraOn) {
           camera.style.willChange = 'transform';
-          camera.style.transformOrigin = `${toStage(focus.x)}px ${toStage(focus.y)}px`;
+          camera.style.transformOrigin = `${css(focus.x)}px ${css(focus.y)}px`;
           cameraOn = true;
         }
         break;
@@ -293,7 +300,7 @@ export function playHeroBlast(o: HeroBlastOptions): HeroBlastHandle {
         sc = 1 + 0.12 * Math.max(0, -e / 0.08) - 0.35 * u;
       }
       el.style.opacity = String(op);
-      el.style.transform = `translate(-50%, -50%) translate(${toStage(pos.x - from.x)}px, ${toStage(pos.y - from.y)}px) scale(${sc})`;
+      el.style.transform = `translate(-50%, -50%) translate(${css(pos.x - from.x)}px, ${css(pos.y - from.y)}px) scale(${sc})`;
     });
     if (!totalEl || !totalNum) return;
     const firstIn = plan.arrivals.length ? plan.arrivals[0]! : plan.mergeAt;
@@ -317,7 +324,7 @@ export function playHeroBlast(o: HeroBlastOptions): HeroBlastHandle {
       op = 1 - clamp01((u - 0.55) / 0.45);
     }
     totalEl.style.opacity = String(op);
-    totalEl.style.transform = `translate(-50%, -50%) translate(${toStage(pos.x - o.combineAt.x)}px, ${toStage(pos.y - o.combineAt.y)}px) scale(${Math.max(0.05, sc)})`;
+    totalEl.style.transform = `translate(-50%, -50%) translate(${css(pos.x - o.combineAt.x)}px, ${css(pos.y - o.combineAt.y)}px) scale(${Math.max(0.05, sc)})`;
   };
 
   const paintCamera = (): void => {

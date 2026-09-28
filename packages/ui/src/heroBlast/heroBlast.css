@@ -17,3 +17,9 @@
   font-family: var(--font-ui); font-weight: 800; font-size: calc(15 * var(--u, 1px)); letter-spacing: 0.14em;
   text-transform: uppercase; color: #ffd9c0; text-shadow: 0 1px 4px rgba(0, 0, 0, 0.6); margin-top: 4px;
 }
+/* The sandbox (the Collection preview): the same numbers inside a small box, in the box's own px. */
+.hblast.local { position: absolute; inset: 0; z-index: 3; }
+.hblast.local .hblast-chip, .hblast.local .hblast-total { position: absolute; }
+.hblast.local .hblast-chip { font-size: 20px; }
+.hblast.local .hblast-total-n { font-size: 40px; }
+.hblast.local .hblast-total-l { font-size: 10px; margin-top: 2px; }

@@ -60,10 +60,12 @@ export function collectibleItems(catalog: readonly CosmeticDef[] = COSMETICS): C
 /** Every owned id: the profile's `cosmetics` (every category, since skins), else its titles (a pre-skins server). */
 export const ownedIds = (p: Pick<ProgressionProfile, 'titles' | 'cosmetics'> | null | undefined): readonly string[] => p?.cosmetics ?? p?.titles ?? [];
 
-/** Whether this item is the one worn: the title slot, or the skin slot of the item's own hero / card. */
+/** Whether this item is the one worn: the title slot, the skin slot of the item's own hero / card, or the
+ *  account-wide hero attack slot. */
 export function isEquipped(item: CosmeticDef, p: Pick<ProgressionProfile, 'equippedTitleId' | 'loadout'> | null | undefined): boolean {
   if (!p) return false;
   if (item.category === 'title') return p.equippedTitleId === item.id;
+  if (item.category === 'hero_attack') return p.loadout?.heroAttack === item.id;
   const target = item.target?.id;
   if (!target) return false;
   if (item.category === 'hero_skin') return p.loadout?.heroSkinByHeroId?.[target] === item.id;

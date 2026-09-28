@@ -17,6 +17,7 @@ import { ScoutCardTuner } from './ScoutCardTuner';
 import { TitleLogoTuner } from './TitleLogoTuner';
 import { LoadScreenTuner } from './LoadScreenTuner';
 import { HeroDuelTuner } from './HeroDuelTuner';
+import { HeroBlastTuner } from './HeroBlastTuner';
 import { RankScreenPreview } from './rank/RankScreenPreview';
 import { RulebookTriage } from './RulebookTriage';
 import { BugBoard } from './BugBoard';
@@ -174,6 +175,7 @@ const GROUPS: Group[] = [
       { key: 'titleveil', icon: '🌒', label: 'Title Veil', C: TitleVeilTuner, hint: 'The dark navy gradient behind the main menu — colour, intensity and the bowed clear zone over the floating city', alt: 'main menu background darken vignette overlay' },
       { key: 'titleaccount', icon: '👤', label: 'Title Account', C: TitleAccountTuner, hint: 'The main-menu account corner — the portrait ring, the name plate on its bottom edge and the rank badge beneath: size + position of each', alt: 'main menu avatar portrait name plate rank badge account corner' },
       { key: 'loadscreen', icon: '⏳', label: 'Load Screen', C: LoadScreenTuner, hint: 'The boot splash — resize the AscentIcon and size/position the loading bar. "Toggle load screen" re-shows it live', alt: 'boot loading splash screen' },
+      { key: 'heroblast', icon: '💥', label: 'Hero Attack: Blast', C: HeroBlastTuner, hint: 'The Blast hero attack (the Arcane Barrage cosmetic): the numbers combining, the charge, the bolts, the impact, the camera push and shake, colours and sound gains. Attack style row forces Classic or Blast in real fights (dev only). Has ▶ Play both directions, Small / Big, Reduced motion and 1x / 0.5x / 0.25x', alt: 'hero attack blast barrage bolts combine numbers damage cosmetic shake zoom' },
       { key: 'heroduel', icon: '⚔️', label: 'Hero Duel', C: HeroDuelTuner, hint: 'The post-combat sequence — foe portrait, attack pill, and the winning hero lunge. Has Test buttons', alt: 'combat end hero attack strike pill' },
       { key: 'rankscreen', icon: '🎖️', label: 'Rank Screen', C: RankScreenPreview, hint: 'The post-game medal rank screen — plays every fixture state (gain, loss, gate unlocked, promotion won, medal promotion, promotion failed, demotion, floor, Ascendant uncapped, pending, retryable, rejected, unrated) plus the pending → confirmed arrival, the demotion-gate variants, the rank-up and down-rank FX hits and the Continue cross-fade', alt: 'medal mmr rank end screen placement promotion division points bar' },
     ],

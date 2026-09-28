@@ -180,14 +180,16 @@ export function EscMenu({ onClose }: { onClose: () => void }) {
           <span className="ebl">Auto-ramp speed{combatRampUp ? ' ✓' : ''}</span>
           <span className="ebs">Long fights speed up, then ease back down for the finish</span>
         </button>
-        <div className="escsec">Skins</div>
+        {/* One switch for EVERY opponent cosmetic (2026-09-28): their skins and, since hero attacks became cosmetics,
+            the attack they strike you with. Same stored setting (`showOpponentSkins`), renamed to say so. */}
+        <div className="escsec">Cosmetics</div>
         <button
           className={`escbtn pressable${showOpponentSkins ? ' on' : ''}`}
           onPointerDown={() => { setShowOpponentSkins(!showOpponentSkins); sfx.pulse(); }}
           aria-pressed={showOpponentSkins}
         >
-          <span className="ebl">Show opponent skins{showOpponentSkins ? ' ✓' : ''}</span>
-          <span className="ebs">Off shows other players' heroes and minions in their default art. Your own skins always show.</span>
+          <span className="ebl">Show opponent cosmetics{showOpponentSkins ? ' ✓' : ''}</span>
+          <span className="ebs">Off shows other players in their default art and hero attack. Your own cosmetics always show.</span>
         </button>
         <div className="escsec">Performance</div>
         {/* EFFECTS FRAME CAP (owner ask 2026-09-04; relabelled the same day). Caps the Pixi effects + GSAP clocks

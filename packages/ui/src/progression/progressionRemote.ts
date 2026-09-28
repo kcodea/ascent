@@ -15,7 +15,7 @@
  * Never throws; every read is time-boxed.
  */
 import {
-  COSMETIC_INDEX, parseServerCatalogState, type ServerCatalogState, type SkinSlot, PROGRESSION_RULES_VERSION, TUTORIAL_COURSE_ID, TUTORIAL_COURSE_VERSION, parseCrate, parseOpenCrateResult, parseProgressionProfile,
+  COSMETIC_INDEX, parseServerCatalogState, type ServerCatalogState, type EquipSlot, PROGRESSION_RULES_VERSION, TUTORIAL_COURSE_ID, TUTORIAL_COURSE_VERSION, parseCrate, parseOpenCrateResult, parseProgressionProfile,
   parseProgressionResult, type CrateRow, type OpenCrateResult, type ProgressionMode, type ProgressionProfile, type ProgressionResult,
   type ProgressionRunFacts, factsAsV1,
 } from '@game/progression';
@@ -327,7 +327,7 @@ export async function equipTitleRemote(titleId: string | null): Promise<Inventor
 }
 
 /** Wear an owned skin on its target, or Default (null). The server checks ownership, target and that it is live. */
-export async function equipCosmeticRemote(slot: SkinSlot, targetId: string, cosmeticId: string | null): Promise<InventoryOutcome<null>> {
+export async function equipCosmeticRemote(slot: EquipSlot, targetId: string, cosmeticId: string | null): Promise<InventoryOutcome<null>> {
   const r = await invokeInventory({ action: 'equip_cosmetic', slot, targetId, cosmeticId });
   if ('error' in r) return { status: 'error', reason: r.error };
   const profile = parseProgressionProfile(r.data.profile);

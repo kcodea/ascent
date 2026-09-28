@@ -1744,7 +1744,7 @@ export const FOUNDATION_RULES: GameRule[] = [
     status: 'approved',
     evidence: [
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-27 (level crates + catalog brief)', quote: "let's just do 15 titles to start. we'll start creating assets for the catalog as well." },
-      { kind: 'code', ref: 'COSMETICS / COSMETIC_CATEGORY_DEFS in packages/progression/src/cosmetics.ts; cosmetic_categories + cosmetic_catalog seeds and equip_title in supabase/migrations/2026-09-28-progression-crates.sql; packages/ui/src/progression/CollectionPanel.tsx' },
+      { kind: 'code', ref: 'COSMETICS / COSMETIC_CATEGORY_DEFS in packages/progression/src/cosmetics.ts; cosmetic_categories + cosmetic_catalog seeds and equip_title in supabase/migrations/2026-09-28-progression-crates.sql; packages/ui/src/progression/CollectionScreen.tsx' },
     ],
     currentBehaviour: 'Conforms, built 2026-09-28. Title names are placeholders for the owner to rename (ids stay).',
     enforcement: { kind: 'scenario', refs: ['packages/progression/src/cosmetics.test.ts', 'packages/progression/src/sqlParity.test.ts', 'packages/progression/src/crates.db.test.ts', 'packages/ui/src/progression/Crates.test.tsx', 'packages/ui/src/Career.test.tsx'], lastVerifiedAt: '2026-09-28' },
@@ -1775,5 +1775,51 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'centre whatever the caster\x27s side, so an enemy Fatecarver / Taragosa / Hoardbreaker Growth (and an enemy '
       + 'rune\x27s bound cast) bloomed over the player\x27s board.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/fx/spellCastFx.test.ts'], lastVerifiedAt: '2026-09-27' },
+  },
+  {
+    id: 'R-PROG-COLLECTION-01',
+    title: 'The Collection is its own screen, and opening a crate plays a rarity-escalated, skippable opening that starts on the click',
+    statement:
+      'The Collection is a screen of its own (a menu-sidebar page, reached from the title Collection plaque, the menu '
+      + 'sidebar and the Account Level card on your Career), not a panel of the Career: sealed crates with Open and Open all, '
+      + 'owned titles with Equip, and the categories not yet switched on shown as coming soon. Opening a crate (there, or from '
+      + 'the post-game row) plays a full-screen opening: the anticipation starts on the click while the server is asked and '
+      + 'holds for as long as the answer takes; the rarity of the answer then picks the charge, burst and reveal, escalating '
+      + 'from Common (quick and clean) through Rare (blue) and Epic (purple, a longer charge, more particles) to Legendary '
+      + '(gold, the longest build, the heaviest burst, god rays and a sting). A failed answer winds down to "Could not open '
+      + 'the crate. Try again." A click or a key skips to the reveal (pressed before the answer, the reveal lands the moment '
+      + 'it arrives); reduced motion shows a short fade instead. Presentation only: the server still picks the reward at open '
+      + 'time (R-PROG-CRATE-02).',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-28 (Collection screen + crate opening brief)', quote: 'make the collection screen separate and build a AAA animation for crate opening, with pixi and everything. put a tuner in for it to test it' },
+      { kind: 'code', ref: 'packages/ui/src/progression/CollectionScreen.tsx; packages/ui/src/progression/CrateOpener.tsx (the theatre + flow); packages/ui/src/progression/crateFx/crateFxConfig.ts (presetFor / crateBeats); packages/ui/src/progression/crateFx/crateScene.ts + crateFxPixi.ts (the Pixi layer); showCollection / openCollection / goTo(collection) in packages/ui/src/store.ts' },
+    ],
+    currentBehaviour: 'Conforms, built 2026-09-28. The crate is drawn procedurally until the crate art from the owner drops in through the `crateArt` tuner key.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/progression/Crates.test.tsx', 'packages/ui/src/progression/crateFx/crateFx.test.ts', 'packages/ui/src/Career.test.tsx'], lastVerifiedAt: '2026-09-28' },
+  },
+  {
+    id: 'R-PROG-COLLECTION-02',
+    title: 'The Collection lays out as a full album: category tabs, filters, every item owned or not, a detail panel, and a crate bay always in view',
+    statement:
+      'The Collection shows the WHOLE catalog of a category, owned or not, in a stable order (rarest first): owned items '
+      + 'bright in their rarity frame, missing items dimmed with the rarity still readable and a lock, the equipped item '
+      + 'with a full gold rim and an Equipped ribbon. The header shows overall completion ("N / M") and the Account Level with '
+      + 'its XP bar. Categories are tabs with an owned / total count; the ones not switched on yet are locked tabs that open '
+      + 'a coming-soon view. Show (All / Owned / Missing) and Rarity filters carry counts. Selecting an item opens it in a '
+      + 'detail panel: large on a nameplate, its rarity, its status, how it is found ("Found in crates.", "Reach Level 2."), a '
+      + 'preview under your name, and Equip or Take off (a missing item says how to get it instead). A crate bay (count, '
+      + 'next crate, Open, Open all) stays in view whatever tab is open and starts the unchanged crate opening. An owned item '
+      + 'you have not looked at wears NEW until you select it; that flag is local to the device and never sent to the '
+      + 'server. A guest sees a slim save row.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-28 (Collection layout brief)', quote: 'i think the layout is horrible. research best in class collection screens and mimic them' },
+      { kind: 'code', ref: 'packages/ui/src/progression/CollectionScreen.tsx; packages/ui/src/progression/collectionModel.ts (albumOf / filterAlbum / loadSeen / saveSeen); packages/ui/src/progression/collection.css' },
+    ],
+    currentBehaviour: 'Conforms, built 2026-09-28. Titles are the only live category; the other six are locked tabs until their art ships.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/progression/CollectionScreen.test.tsx'], lastVerifiedAt: '2026-09-28' },
   },
 ];

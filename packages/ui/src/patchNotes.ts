@@ -55,6 +55,42 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: 'Collection now has its own screen, and opening a crate got a big new animation.',
+        details: [
+          'Find the Collection on the main menu, in the side menu, or on your Career.',
+          'Open your crates one at a time, or Open all to go through every one.',
+          'The crate builds up while it opens, then bursts. The rarer the reward, the bigger the show.',
+          'Click or press a key to skip straight to your reward.',
+          'Reduced motion on? The reward simply fades in.',
+        ],
+      },
+      {
+        category: 'Systems',
+        text: 'Career: your name and title now sit big at the top of the page.',
+        details: [
+          'Your Account Level moved under your favorite hero, so Seasonal Ranked leads the right side.',
+          'The hero portrait is now labelled Favorite hero.',
+        ],
+      },
+      {
+        category: 'Systems',
+        text: 'The Collection has a new layout. See every title, even the ones you have not found yet.',
+        details: [
+          'Every title shows, found or not. Missing ones are dimmed, so you can see what is left to find.',
+          'Filter by Owned, Missing or rarity. Counts show how many you have.',
+          'Pick a title to see it large, how to get it, and how it looks under your name.',
+          'Your sealed crates stay in view on the side, ready to open.',
+          'New titles wear a NEW badge until you look at them.',
+          'Heroes, Minions, Boards and more have their own tabs, marked as coming soon.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-09-28',
+    changes: [
+      {
+        category: 'Systems',
         text: 'Level crates: every Account Level now gives you a crate, and your first game gives you a Welcome Crate.',
         details: [
           'Open a crate to get a new title. There are 15 to find, from Common to Legendary.',

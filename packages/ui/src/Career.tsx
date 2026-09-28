@@ -14,7 +14,7 @@ import { useGame, syncProfileFromServer, tempHandle, type CareerFocus } from './
 import { fetchMyPracticeGames, fetchMyRuns, fetchPracticeReplay, fetchPlayerById, fetchReplayPayload, remoteEnabled, type PracticeGameConfig, type PracticeGameRow } from './remoteBoards';
 import { startReplay } from './replay/replayPlayer';
 import { RankBar } from './rank/RankBar';
-import { titleName } from '@game/progression';
+import { cosmeticOf, titleName } from '@game/progression';
 import { AccountLevelCard, useCareerProgression } from './progression/AccountLevel';
 import { scalarCaption } from './rank/rankFormat';
 import { rankPositionOf, type RankedProfile } from './rank/types';
@@ -582,6 +582,9 @@ export function Career() {
   const focusIndex = useMemo(() => (runs ? focusIndexOf(runs, viewing?.focus) : -1), [runs, viewing?.focus]);
   // ACCOUNT LEVEL (2026-09-27): your own mirror, or the viewed player's public row. Null until the feature is on.
   const accountProgression = useCareerProgression(show ? userId : null, !viewing);
+  // The equipped title for the name header, with its rarity for the colour.
+  const headerTitle = titleName(accountProgression?.equippedTitleId ?? null);
+  const headerTitleRarity = cosmeticOf(accountProgression?.equippedTitleId ?? null)?.rarity ?? null;
 
   if (!show) return null;
 
@@ -667,10 +670,14 @@ export function Career() {
         <aside className="cv2-col cv2-leftcol">
           <div className="cv2-colhead"><div className="cv2-sec"><Icon name="crown" />Career Stats</div></div>
           <div className="cv2-panel cv2-left">
+            {/* FAVORITE HERO (owner ask 2026-09-28: "clearly say favorite hero in the box"): the most-played hero,
+                labelled. The player's name and title moved up into the page header. */}
+            <div className="cv2-favlabel">Favorite hero</div>
             <HeroFrame heroId={heroId} />
             <div className="cv2-heroname">{heroName}</div>
-            <div className="cv2-playername">{shownName}</div>
-            {titleName(accountProgression?.equippedTitleId) && <div className="cv2-playertitle">{titleName(accountProgression?.equippedTitleId)}</div>}
+            {/* ACCOUNT LEVEL (owner ask 2026-09-28: "move the account level to under the character portrait so it's
+                not on top of ranked"): under the portrait block, above the stat tiles; Seasonal Ranked leads the right. */}
+            {accountProgression && <AccountLevelCard profile={accountProgression} own={!viewing} />}
             <div className="cv2-tiles">
               <StatTile icon="crown" label="1st Place Wins" value={String(aggregates.firsts)} />
               <StatTile icon="shield" label="Top 4 Finish" value={aggregates.top4Pct === null ? '—' : `${aggregates.top4Pct}%`} />
@@ -773,12 +780,6 @@ export function Career() {
 
         {/* RIGHT — Seasonal Ranked + Performance Trends */}
         <aside className="cv2-col cv2-right">
-          {accountProgression && (
-            <>
-              <div className="cv2-colhead"><div className="cv2-sec"><Icon name="crown" />Account Level</div></div>
-              <AccountLevelCard profile={accountProgression} own={!viewing} />
-            </>
-          )}
           <div className="cv2-colhead"><div className="cv2-sec"><Icon name="star" />Seasonal Ranked</div></div>
           <div className="cv2-panel cv2-ranked">
             {rank ? (
@@ -828,11 +829,17 @@ export function Career() {
           close, so a Career opened from the Leaderboard still returns there. */}
       <MenuSidebar current="career" onBack={back} />
       <div className="lbtopbar">
-        <div className="lbtitle">
+        {/* THE NAME HEADER (owner ask 2026-09-28: "the player's name and title should be at the top of the career
+            page and more obvious ... dont push everything down much at all"): a small "Career" kicker, then the
+            player's name large with the equipped title beside it in its rarity colour. Same for someone else's page. */}
+        <div className="lbtitle cv2-namehead">
           <Icon name="taunt" />
-          <div>
-            <div className="esch disp">{viewing ? `${shownName}’s Career` : 'Career'}</div>
-            <div className="lbsub">{viewing ? 'Their record of climbs' : 'Your record of climbs'}</div>
+          <div className="cv2-namehead-body">
+            <div className="cv2-kicker">{viewing ? 'Career' : 'Your Career'}</div>
+            <div className="cv2-nameline">
+              <span className="esch disp cv2-name">{shownName}</span>
+              {headerTitle && <span className={`cv2-titlechip${headerTitleRarity ? ` r-${headerTitleRarity}` : ''}`}>{headerTitle}</span>}
+            </div>
           </div>
         </div>
       </div>

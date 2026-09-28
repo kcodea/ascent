@@ -1,0 +1,219 @@
+/* THE COLLECTION SCREEN (2026-09-28, `CollectionScreen.tsx`), relaid out after the owner's "i think the layout is
+   horrible": header meters, a category tab strip, a filter bar, the album grid, and a side column with the crate
+   bay (always in view) over the detail panel.
+
+   Rules this file keeps:
+   - Layout px only. The stage scales the whole page on a small screen, so no viewport units and no viewport
+     @media (the stage tripwire). The layout viewport is never below 1920 x 1080, so one layout serves phone
+     landscape and small desktop; touch targets are sized for the scaled-down phone (buttons >= 54px tall).
+   - No looping paint animation. The loops are the crate's float (transform) and two glows that breathe by
+     OPACITY over a static shadow / gradient (the kwglow pattern). Hover and select are short one-shot transitions.
+   - No cursor rules: every control is a <button>, which the global rule gives the gauntlet.
+   The rarity colours are the shared `.r-common` .. `.r-legendary` tokens (`--rc`, `--rc-a`) in styles.css. */
+
+.colls-page { --colls-gold: #e8c877; --colls-ink: #fff6e4; --colls-dim: rgba(255, 246, 228, 0.62); --colls-line: rgba(196, 160, 92, 0.32);
+  --colls-panel: linear-gradient(180deg, rgba(13, 22, 40, 0.82), rgba(8, 14, 28, 0.9)); font-family: var(--font-ui); }
+.colls-page button { font-family: var(--font-ui); }
+
+/* ── Header: title + the two meters ─────────────────────────────────────────────────────────────────────── */
+.colls-top { justify-content: space-between; }
+.colls-meters { display: flex; align-items: stretch; gap: 14px; }
+.colls-meter { display: grid; grid-template-columns: auto; align-content: center; gap: 4px; min-width: 200px; padding: 10px 18px; border-radius: 14px;
+  background: var(--colls-panel); border: 1.5px solid var(--colls-line); box-shadow: inset 0 0 0 1px rgba(196, 160, 92, 0.08); }
+.colls-meter-num { font-weight: 700; font-size: 17px; color: var(--colls-dim); font-variant-numeric: tabular-nums; line-height: 1; }
+.colls-meter-num b { font-weight: 900; font-size: 26px; color: var(--colls-ink); }
+.colls-meter-lbl { font-weight: 900; font-size: 12px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--colls-gold); }
+.colls-bar { position: relative; height: 8px; border-radius: 999px; overflow: hidden; background: rgba(0, 0, 0, 0.45); box-shadow: inset 0 0 0 1px rgba(196, 160, 92, 0.25); }
+.colls-bar-fill { position: absolute; inset: 0; transform-origin: 0 50%; background: linear-gradient(90deg, #c99d4e, #ffe08a); }
+.colls-bar-xp .colls-bar-fill { background: linear-gradient(90deg, #3f9ae0, #7fd0ff); }
+.colls-level { grid-template-columns: auto 1fr; align-items: center; column-gap: 12px; min-width: 250px; }
+.colls-lvbadge { display: grid; place-items: center; width: 52px; height: 52px; border-radius: 50%; font-weight: 900; font-size: 22px; line-height: 0.9; color: #1a1206;
+  background: radial-gradient(circle at 50% 35%, #ffe7a8, #c99d4e 70%); border: 2px solid #8a6428; box-shadow: 0 0 0 3px rgba(10, 19, 38, 0.9), 0 0 0 4.5px rgba(232, 200, 119, 0.5); }
+.colls-lvbadge span { display: block; font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; }
+.colls-level-body { display: grid; gap: 5px; }
+.colls-level-xp { font-weight: 800; font-size: 12px; color: var(--colls-dim); font-variant-numeric: tabular-nums; }
+
+/* ── Body: main (tabs, filters, album) | side (crate bay, detail) ───────────────────────────────────────── */
+.colls-body { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) 460px; gap: 24px; padding: 4px 30px 26px; }
+.colls-main { display: flex; flex-direction: column; gap: 14px; min-width: 0; min-height: 0; }
+.colls-side { display: flex; flex-direction: column; gap: 14px; min-height: 0; overflow-y: auto; padding: 2px; }
+
+.colls-panel { display: flex; flex-direction: column; gap: 14px; padding: 18px 20px; border-radius: 16px; background: var(--colls-panel);
+  border: 2px solid rgba(196, 160, 92, 0.5); box-shadow: inset 0 0 0 1px rgba(196, 160, 92, 0.14), inset 0 0 40px rgba(0, 0, 0, 0.3), 0 12px 30px -14px rgba(0, 0, 0, 0.7); }
+
+/* Category tabs: icon, name, owned / total. A locked tab says Soon; a NEW count sits on the corner. */
+.colls-tabs { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 10px; flex: none; }
+.colls-tab { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; min-height: 100px; padding: 10px 8px;
+  border-radius: 12px; text-align: center; color: var(--colls-ink); background: rgba(8, 16, 34, 0.66); border: 1.5px solid var(--colls-line);
+  transition: transform 0.14s ease, border-color 0.14s ease, background-color 0.14s ease; }
+.colls-tab:hover { transform: translateY(-2px); border-color: rgba(232, 200, 119, 0.7); }
+.colls-tab:focus-visible { outline: 2px solid var(--acc); outline-offset: 3px; }
+.colls-tab .colls-caticon { width: 28px; height: 28px; flex: none; color: var(--colls-gold); }
+.colls-tab-name { font-weight: 900; font-size: 14px; letter-spacing: 0.04em; line-height: 1.1; text-transform: uppercase; max-width: 100%; overflow-wrap: anywhere; }
+.colls-tab-count { font-weight: 800; font-size: 13px; color: var(--colls-gold); font-variant-numeric: tabular-nums; }
+.colls-tab-soon { display: inline-flex; align-items: center; gap: 4px; font-weight: 800; font-size: 12px; letter-spacing: 0.1em; text-transform: uppercase; color: rgba(255, 246, 228, 0.45); }
+.colls-tab-soon .colls-lock { width: 12px; height: 12px; }
+.colls-tab.on { background: linear-gradient(180deg, rgba(232, 200, 119, 0.24), rgba(120, 88, 36, 0.2)); border-color: var(--colls-gold);
+  box-shadow: inset 0 0 0 1px rgba(255, 224, 138, 0.25), 0 8px 18px -10px rgba(0, 0, 0, 0.8); }
+.colls-tab.locked { background: rgba(4, 9, 20, 0.5); border-style: dashed; }
+.colls-tab.locked .colls-caticon { color: rgba(232, 200, 119, 0.4); }
+.colls-tab.locked .colls-tab-name { color: rgba(255, 246, 228, 0.55); }
+.colls-tab.locked.on { border-style: solid; }
+.colls-tab-new { position: absolute; top: -8px; right: -6px; min-width: 24px; height: 24px; padding: 0 7px; border-radius: 999px; display: grid; place-items: center;
+  font-weight: 900; font-size: 13px; color: #1a0c02; background: linear-gradient(180deg, #ffb45e, #f0902e); border: 2px solid #0a1326; }
+
+/* Filter bar: Show x Rarity, as chips with counts. */
+.colls-filters { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 18px; flex: none; }
+.colls-seg { display: flex; flex-wrap: wrap; gap: 8px; }
+.colls-chip { display: inline-flex; align-items: center; gap: 8px; min-height: 54px; padding: 8px 18px; border-radius: 999px; font-weight: 900; font-size: 14px; letter-spacing: 0.06em;
+  text-transform: uppercase; color: var(--colls-dim); background: rgba(8, 16, 34, 0.66); border: 1.5px solid var(--colls-line); transition: border-color 0.14s ease, color 0.14s ease; }
+.colls-chip:hover { color: var(--colls-ink); border-color: rgba(232, 200, 119, 0.7); }
+.colls-chip:focus-visible { outline: 2px solid var(--acc); outline-offset: 3px; }
+.colls-chip.on { color: #1a1206; background: linear-gradient(180deg, #f0d089, #c99d4e); border-color: #8a6428; }
+.colls-chip-n { font-weight: 800; font-size: 12px; letter-spacing: 0.02em; opacity: 0.8; font-variant-numeric: tabular-nums; }
+.colls-chip-r { color: var(--rc); }
+.colls-chip-r.on { color: #0a1326; background: var(--rc); border-color: rgba(0, 0, 0, 0.5); }
+.colls-chip-r.on .colls-gem { background: #0a1326; box-shadow: none; }
+
+/* The rarity gem: a small cut diamond in the rarity colour. */
+.colls-gem { display: inline-block; flex: none; width: 12px; height: 12px; transform: rotate(45deg); border-radius: 2px;
+  background: linear-gradient(135deg, #fff 0%, var(--rc) 45%, color-mix(in srgb, var(--rc) 55%, #000) 100%); box-shadow: 0 0 6px var(--rc-a); }
+.colls-gem-lg { width: 22px; height: 22px; border-radius: 3px; }
+
+/* ── The album ──────────────────────────────────────────────────────────────────────────────────────────── */
+.colls-gridwrap { flex: 1; min-height: 0; overflow-y: auto; margin: -8px; padding: 8px 8px 16px; }
+.colls-grid { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 14px; }
+.colls-grid > li { display: flex; }
+
+.colls-tile { position: relative; flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; min-height: 150px; padding: 18px 14px 22px;
+  border-radius: 14px; text-align: center; color: var(--colls-ink);
+  background: radial-gradient(120% 95% at 50% 0%, color-mix(in srgb, var(--rc) 24%, #0e1a33), #080f1f 78%);
+  border: 2px solid color-mix(in srgb, var(--rc) 72%, #000);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06), inset 0 0 26px color-mix(in srgb, var(--rc) 16%, transparent), 0 10px 22px -14px #000;
+  transition: transform 0.14s ease, border-color 0.14s ease; }
+/* The inner gold filet: the ornate double frame of the house style. */
+.colls-tile::after { content: ''; position: absolute; inset: 5px; border-radius: 10px; border: 1px solid rgba(232, 200, 119, 0.18); pointer-events: none; }
+.colls-tile:hover { transform: translateY(-3px); border-color: var(--rc); }
+.colls-tile:focus-visible { outline: 3px solid var(--acc); outline-offset: 3px; }
+.colls-tile-top { display: inline-flex; align-items: center; gap: 8px; }
+.colls-tile-rar { font-weight: 900; font-size: 12px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--rc); }
+.colls-tile-name { font-family: var(--font-title); font-weight: 800; font-size: 24px; line-height: 1.08; color: var(--colls-ink); text-shadow: 0 2px 6px rgba(0, 0, 0, 0.7);
+  max-width: 100%; overflow-wrap: anywhere; }
+
+/* Missing: dimmed, the rarity frame still readable, a lock in the corner. */
+.colls-tile.missing { background: radial-gradient(120% 95% at 50% 0%, color-mix(in srgb, var(--rc) 9%, #0a1226), #060b17 78%);
+  border-color: color-mix(in srgb, var(--rc) 34%, #0a1226); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.03), 0 8px 18px -14px #000; }
+.colls-tile.missing .colls-tile-name { color: rgba(255, 246, 228, 0.34); text-shadow: none; filter: blur(4px); user-select: none; }
+/* Owner 2026-09-28: "blur unowned titles". The name of a title you do not own is blurred (static, never animated),
+   on the tile, the detail nameplate and the preview; the rarity stays readable. */
+.colls-tile.missing .colls-tile-rar { opacity: 0.6; }
+.colls-tile.missing .colls-gem { opacity: 0.5; box-shadow: none; }
+.colls-tile.missing::after { border-color: rgba(232, 200, 119, 0.07); }
+.colls-tile-lock { position: absolute; top: 12px; right: 12px; color: rgba(255, 246, 228, 0.4); }
+.colls-tile-lock .colls-lock { width: 18px; height: 18px; display: block; }
+
+/* Epic and Legendary owned tiles read richer: Epic a stronger static glow, Legendary a gold rim that breathes
+   (the OPACITY of a pseudo-element with a static shadow). */
+.colls-tile.owned.r-epic { box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08), inset 0 0 34px color-mix(in srgb, var(--rc) 28%, transparent), 0 0 18px -6px var(--rc-a), 0 10px 22px -14px #000; }
+.colls-tile.owned.r-legendary { border-color: #ffcf7a; }
+.colls-tile.owned.r-legendary::before { content: ''; position: absolute; inset: -3px; border-radius: 16px; pointer-events: none; opacity: 0.35;
+  box-shadow: 0 0 22px 3px rgba(255, 190, 92, 0.6), inset 0 0 18px rgba(255, 214, 120, 0.35); animation: colls-breathe 2.8s ease-in-out infinite; will-change: opacity; }
+
+/* Selected: a bright ring and a lift. Equipped: a full gold rim and the ribbon (visible while scanning). */
+.colls-tile.sel { transform: translateY(-3px); outline: 3px solid #fff1c4; outline-offset: 3px; }
+.colls-tile.worn { border-color: var(--colls-gold); box-shadow: inset 0 0 0 1px rgba(255, 224, 138, 0.3), inset 0 0 30px rgba(232, 200, 119, 0.18), 0 0 0 2px rgba(232, 200, 119, 0.55), 0 10px 22px -14px #000; }
+.colls-tile-ribbon { position: absolute; left: 10px; right: 10px; bottom: -2px; height: 24px; display: grid; place-items: center; border-radius: 8px 8px 12px 12px;
+  font-weight: 900; font-size: 12px; letter-spacing: 0.16em; text-transform: uppercase; color: #1a1206; background: linear-gradient(180deg, #ffe7a8, #c99d4e);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.5); }
+.colls-new { position: absolute; top: 10px; right: 10px; padding: 3px 9px; border-radius: 999px; font-weight: 900; font-size: 12px; letter-spacing: 0.12em; text-transform: uppercase;
+  color: #1a0c02; background: linear-gradient(180deg, #ffb45e, #f0902e); border: 1.5px solid #0a1326; animation: colls-pop 0.36s cubic-bezier(0.2, 1.4, 0.4, 1) both; }
+
+.colls-nomatch { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; min-height: 260px; border-radius: 16px;
+  border: 1.5px dashed var(--colls-line); font-weight: 700; font-size: 17px; color: var(--colls-dim); text-align: center; padding: 20px; }
+
+/* ── A switched-off category: the icon, a line, and a ghost album ───────────────────────────────────────── */
+.colls-soon { display: flex; flex-direction: column; gap: 18px; min-height: 0; overflow: hidden; }
+.colls-soon-head { display: flex; align-items: center; gap: 18px; padding: 6px 4px; }
+.colls-soon-icon { display: grid; place-items: center; width: 72px; height: 72px; border-radius: 50%; color: var(--colls-gold);
+  background: radial-gradient(circle, rgba(232, 200, 119, 0.14), rgba(8, 16, 34, 0.8) 70%); border: 2px solid rgba(232, 200, 119, 0.45); }
+.colls-soon-icon .colls-caticon { width: 36px; height: 36px; }
+.colls-soon-title { font-family: var(--font-title); font-weight: 800; font-size: 30px; color: var(--colls-ink); }
+.colls-soon-sub { font-weight: 700; font-size: 16px; color: var(--colls-dim); }
+.colls-ghost { flex: 1; display: grid; place-items: center; min-height: 150px; border-radius: 14px; color: rgba(232, 200, 119, 0.22);
+  border: 1.5px dashed rgba(196, 160, 92, 0.22); background: repeating-linear-gradient(135deg, rgba(255, 255, 255, 0.02) 0 12px, transparent 12px 24px), rgba(4, 9, 20, 0.4); }
+.colls-ghost .colls-lock { width: 30px; height: 30px; }
+
+/* ── The crate bay: always in view ──────────────────────────────────────────────────────────────────────── */
+.colls-bay { display: grid; grid-template-columns: 150px minmax(0, 1fr); align-items: center; gap: 16px; flex: none; }
+.colls-bay.ready { border-color: rgba(232, 200, 119, 0.8); }
+.colls-bay-art { position: relative; width: 150px; height: 140px; display: grid; place-items: center; }
+.colls-bay-body { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.colls-bay-head { font-weight: 900; font-size: 17px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--colls-ink); }
+.colls-bay-sub { font-weight: 700; font-size: 15px; line-height: 1.35; color: var(--colls-dim); }
+.colls-bay-sub b { font-weight: 900; color: #ffe08a; }
+.colls-bay-actions { display: flex; flex-wrap: wrap; gap: 10px; }
+.colls-hero-glow { position: absolute; inset: -6px; border-radius: 50%; pointer-events: none;
+  background: radial-gradient(closest-side, rgba(255, 214, 120, 0.42), rgba(255, 214, 120, 0) 72%); animation: colls-breathe 2.8s ease-in-out infinite; will-change: opacity; }
+.colls-crate { position: relative; display: block; width: 122px; height: 100px; border-radius: 12px; border: 3px solid #21110a;
+  background:
+    linear-gradient(90deg, transparent 13%, #c99d4e 13%, #f0d089 16%, #b8893e 22%, transparent 22%, transparent 78%, #c99d4e 78%, #f0d089 81%, #b8893e 87%, transparent 87%),
+    linear-gradient(180deg, #a26a34 0 31%, #21110a 31% 34%, #8a5628 34% 60%, #6b3e18 60%);
+  box-shadow: inset 0 3px 0 rgba(255, 220, 160, 0.3), inset 0 -8px 0 rgba(0, 0, 0, 0.22), 0 18px 22px -16px rgba(0, 0, 0, 0.85); }
+.colls-crate::after { content: ''; position: absolute; left: 50%; top: 29%; width: 22px; height: 26px; margin-left: -11px; border-radius: 5px;
+  background: linear-gradient(180deg, #ffe39a, #c99d4e); border: 2px solid #6e4d1c; box-shadow: inset 0 -6px 0 rgba(0, 0, 0, 0.12); }
+.colls-bay.ready .colls-crate { animation: colls-float 3.2s ease-in-out infinite; will-change: transform; }
+.colls-bay:not(.ready) .colls-crate { opacity: 0.4; filter: grayscale(0.7); }
+.colls-hero-count { position: absolute; right: 2px; top: 6px; min-width: 38px; height: 38px; padding: 0 9px; border-radius: 999px; display: grid; place-items: center;
+  background: #1a1206; border: 2px solid var(--colls-gold); color: #ffe08a; font-weight: 900; font-size: 19px; box-shadow: 0 6px 14px -6px rgba(0, 0, 0, 0.8); }
+
+/* The big gold buttons (the Career's `.cv2-btn`), sized for a thumb on a scaled-down phone. */
+.colls-page .colls-open, .colls-page .colls-equip { justify-content: center; min-height: 56px; padding: 12px 30px; font-size: 17px; }
+.colls-page .colls-equip { width: 100%; }
+.colls-quiet { display: inline-flex; align-items: center; justify-content: center; min-height: 54px; padding: 10px 18px; border-radius: 10px; font-weight: 900; font-size: 14px;
+  letter-spacing: 0.08em; text-transform: uppercase; color: #ffe08a; background: rgba(0, 0, 0, 0.35); border: 1.5px solid rgba(232, 200, 119, 0.6); --pr-edge-c: rgba(0, 0, 0, 0.55); }
+.colls-quiet:hover:not(:disabled) { border-color: #ffe08a; }
+.colls-quiet:disabled { opacity: 0.5; }
+
+/* ── The detail panel ───────────────────────────────────────────────────────────────────────────────────── */
+.colls-detail { flex: 1 0 auto; }
+.colls-detail .colls-plate { flex: 1 0 auto; justify-content: center; min-height: 190px; }
+.colls-kicker { font-weight: 900; font-size: 13px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--colls-gold); }
+.colls-plate { position: relative; display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 26px 18px 22px; border-radius: 14px; text-align: center;
+  background: radial-gradient(120% 110% at 50% 0%, color-mix(in srgb, var(--rc) 30%, #0e1a33), #070d1c 80%);
+  border: 2px solid var(--rc); box-shadow: 0 0 0 4px #0a1326, 0 0 0 5.5px rgba(232, 200, 119, 0.45), inset 0 0 40px color-mix(in srgb, var(--rc) 20%, transparent); margin: 6px; }
+.colls-plate-name { font-family: var(--font-title); font-weight: 800; font-size: 36px; line-height: 1.05; color: var(--colls-ink); text-shadow: 0 3px 10px rgba(0, 0, 0, 0.8); overflow-wrap: anywhere; }
+.colls-plate-rar { display: flex; align-items: center; gap: 12px; font-weight: 900; font-size: 14px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--rc); }
+.colls-plate-rar::before, .colls-plate-rar::after { content: ''; width: 46px; height: 2px; border-radius: 2px; background: linear-gradient(90deg, transparent, var(--rc)); }
+.colls-plate-rar::after { background: linear-gradient(90deg, var(--rc), transparent); }
+.colls-detail.missing .colls-plate { background: radial-gradient(120% 110% at 50% 0%, color-mix(in srgb, var(--rc) 10%, #0a1226), #060b17 80%); border-color: color-mix(in srgb, var(--rc) 45%, #0a1226); }
+.colls-detail.missing .colls-plate-name { color: rgba(255, 246, 228, 0.5); filter: blur(6px); user-select: none; }
+.colls-facts { display: grid; gap: 8px; }
+.colls-fact { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding: 9px 12px; border-radius: 10px; background: rgba(0, 0, 0, 0.25);
+  border: 1px solid rgba(196, 160, 92, 0.16); font-size: 15px; }
+.colls-fact span { font-weight: 800; font-size: 12px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--colls-dim); }
+.colls-fact b { font-weight: 900; color: var(--colls-ink); text-align: right; }
+.colls-fact b.no { color: rgba(255, 246, 228, 0.55); }
+.colls-preview { display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 14px 12px; border-radius: 12px; background: rgba(0, 0, 0, 0.35); border: 1px dashed rgba(196, 160, 92, 0.3); }
+.colls-preview-lbl { align-self: flex-start; font-weight: 800; font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--colls-dim); margin-bottom: 4px; }
+.colls-preview-name { font-weight: 800; font-size: 17px; letter-spacing: 0.1em; text-transform: uppercase; color: rgba(232, 200, 119, 0.8); max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.colls-preview-title { font-weight: 800; font-size: 15px; letter-spacing: 0.12em; text-transform: uppercase; color: #ffe08a; }
+.colls-detail.missing .colls-preview-title { opacity: 0.55; filter: blur(4px); user-select: none; }
+.colls-detail-actions { display: flex; align-items: center; gap: 10px; margin-top: auto; }
+.colls-worn-tag { flex: 1; display: grid; place-items: center; min-height: 56px; border-radius: 10px; font-weight: 900; font-size: 16px; letter-spacing: 0.12em; text-transform: uppercase;
+  color: #ffe08a; background: rgba(232, 200, 119, 0.12); border: 1.5px solid rgba(232, 200, 119, 0.6); }
+.colls-hint { flex: 1; font-weight: 700; font-size: 15px; line-height: 1.35; color: var(--colls-dim); padding: 12px; text-align: center; border-radius: 10px; background: rgba(0, 0, 0, 0.25); }
+.colls-detail.colls-detail-soon { flex: none; }
+.colls-soon-note { font-weight: 700; font-size: 16px; line-height: 1.4; color: var(--colls-dim); }
+
+/* The guest row: slim, at the foot of the side column. */
+.colls-guest .colls-quiet { flex: none; white-space: nowrap; font-size: 13px; }
+.colls-guest { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 12px 10px 16px; border-radius: 12px; flex: none;
+  border: 1px dashed var(--colls-line); background: rgba(4, 9, 20, 0.5); font-weight: 700; font-size: 14px; line-height: 1.3; color: var(--colls-dim); }
+
+@keyframes colls-float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-7px); } }
+@keyframes colls-breathe { 0%, 100% { opacity: 0.35; } 50% { opacity: 1; } }
+@keyframes colls-pop { from { transform: scale(0.6); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+.colls-still .colls-crate, .colls-still .colls-hero-glow, .colls-still .colls-tile::before, .colls-still .colls-new { animation: none !important; }
+@media (prefers-reduced-motion: reduce) {
+  .colls-crate, .colls-hero-glow, .colls-tile::before, .colls-new { animation: none !important; }
+}

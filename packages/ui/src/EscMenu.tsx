@@ -36,7 +36,7 @@ export function EscMenu({ onClose }: { onClose: () => void }) {
   // page and the mode picker, not only from a run — review 2026-09-21): a replay leaves the replay; a title
   // surface (a ladder page or a picker view over the title) goes to the main menu; the main menu itself has
   // nowhere to go, so the section is omitted; a run saves & quits.
-  const onPage = useGame((s) => s.showCareer || s.showRankings || s.showLeaderboard || s.showRecentGames || s.titleView !== 'menu');
+  const onPage = useGame((s) => s.showCareer || s.showRankings || s.showLeaderboard || s.showRecentGames || s.showCollection || s.titleView !== 'menu');
   const primary: 'replay' | 'menu' | 'none' | 'run' = replaying ? 'replay' : onTitle ? (onPage ? 'menu' : 'none') : 'run';
   // Audio is owned by sfx.ts (persisted to localStorage); mirror it into local state so the slider +
   // mute button re-render as they change. Dragging the slider previews the level on release.

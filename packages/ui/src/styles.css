@@ -7540,7 +7540,16 @@ body:has(.lb-ladder) .cardref { z-index: 490; }
 .cv2-heroframe .hero .f svg { width: 44%; height: 44%; }
 /* The name plate overlaps the frame's bottom edge, like the recruit screen's. */
 .cv2-heroname { margin-top: -16px; z-index: 1; max-width: 100%; padding: 5px 20px; background: linear-gradient(180deg, #fff, #f3ead4); color: var(--ink); border: 2px solid var(--gold); border-radius: 999px; font-family: var(--font-ui); font-weight: 800; font-size: 17px; letter-spacing: 0.02em; line-height: 1.1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; box-shadow: 0 2px 6px -2px var(--shadow); }
-.cv2-playername { margin-top: 4px; font-family: var(--font-ui); font-weight: 800; font-size: 13px; letter-spacing: 0.1em; text-transform: uppercase; color: rgba(232, 200, 119, 0.75); max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cv2-favlabel { margin: -8px 0 8px; font-family: var(--font-ui); font-weight: 900; font-size: 12px; letter-spacing: 0.2em; text-transform: uppercase; color: rgba(232, 200, 119, 0.85); }
+/* The name header (2026-09-28): a small kicker, the name large, the equipped title beside it in its rarity colour.
+   The same height as the old "Career / Your record of climbs" pair within a few px. */
+.cv2-namehead { min-width: 0; }
+.cv2-namehead-body { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.cv2-kicker { font-family: var(--font-ui); font-weight: 900; font-size: 12px; letter-spacing: 0.22em; text-transform: uppercase; color: rgba(232, 200, 119, 0.85); line-height: 1; }
+.cv2-nameline { display: flex; align-items: baseline; gap: 14px; min-width: 0; }
+.lbtitle .esch.cv2-name { font-size: 34px; line-height: 1; letter-spacing: 0.01em; max-width: 900px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cv2-titlechip { flex: none; transform: translateY(-4px); padding: 4px 12px; border-radius: 999px; font-family: var(--font-ui); font-weight: 900; font-size: 14px; letter-spacing: 0.14em; text-transform: uppercase; white-space: nowrap;
+  color: var(--rc, #ffe08a); border: 1.5px solid var(--rc, #ffe08a); background: rgba(0, 0, 0, 0.35); }
 .cv2-tiles { display: flex; flex-direction: column; gap: 10px; align-self: stretch; margin-top: 16px; }
 .cv2-stat { display: grid; grid-template-columns: 40px minmax(0, 1fr); grid-template-rows: auto auto; column-gap: 12px; align-items: center; padding: 12px 14px; border-radius: 12px; background: rgba(0, 0, 0, 0.3); border: 1px solid rgba(196, 160, 92, 0.3); text-align: left; }
 .cv2-stat-ico { grid-row: 1 / span 2; width: 40px; height: 40px; border-radius: 10px; display: grid; place-items: center; background: rgba(196, 160, 92, 0.16); color: #f0c977; }
@@ -12327,7 +12336,10 @@ body:has(.heroselect.rankend) .pixifx-above { z-index: 470; }
   .acctxp, .acctxp *, .acctxp-levelup, .acctxp-titlereveal { animation: none !important; transition: none !important; }
 }
 /* Career: the Account Level card sits above Seasonal Ranked in the right column; the title under the name. */
-.cv2-acctlevel { flex: none; margin-bottom: 14px; padding: 12px 18px 14px; gap: 10px; }
+/* Since 2026-09-28 the card sits INSIDE the Career Stats panel, under the portrait block and above the tiles: a
+   tile-width inset in the tiles' own style rather than a panel of its own. */
+.cv2-acctlevel { flex: none; align-self: stretch; display: flex; flex-direction: column; gap: 10px; margin-top: 14px; padding: 12px 14px; text-align: left;
+  border-radius: 12px; background: rgba(0, 0, 0, 0.28); border: 1px solid rgba(196, 160, 92, 0.28); }
 .cv2-acctlevel-row { display: flex; align-items: center; gap: 14px; }
 .cv2-acctlevel-badge { font-size: 24px; min-width: 66px; padding: 6px 12px; }
 .cv2-acctlevel-body { flex: 1 1 auto; display: flex; flex-direction: column; gap: 5px; min-width: 0; }
@@ -12339,7 +12351,6 @@ body:has(.heroselect.rankend) .pixifx-above { z-index: 470; }
 .cv2-acctlevel-save { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; padding-top: 10px; border-top: 1px solid rgba(196, 160, 92, 0.25);
   font-family: var(--font-ui); font-weight: 600; font-size: 13px; line-height: 1.35; color: rgba(238, 244, 251, 0.82); }
 .cv2-btn.cv2-btn-sm { padding: 7px 14px; font-size: 12px; }
-.cv2-playertitle { margin-top: 2px; font-family: var(--font-ui); font-weight: 800; font-size: 12px; letter-spacing: 0.12em; text-transform: uppercase; color: #ffe08a; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* ── LEVEL CRATES + COLLECTION (2026-09-28) ─────────────────────────────────────────────────────────────────────
    The crate opener (post-game "Crate earned" and the Collection), and the Collection overlay. Performance rules:
@@ -12398,7 +12409,7 @@ body:has(.heroselect.rankend) .pixifx-above { z-index: 470; }
 @keyframes crate-reward-in { 0% { opacity: 0; transform: translate(-50%, -30%) scale(0.6); } 100% { opacity: 1; transform: translate(-50%, -50%) scale(1); } }
 @keyframes crate-fade { from { opacity: 0; } to { opacity: 1; } }
 @media (prefers-reduced-motion: reduce) {
-  .crate *, .crate-box, .coll-box { animation: none !important; }
+  .crate *, .crate-box { animation: none !important; }
   .crate-reward { animation: crate-fade 0.2s ease-out both !important; }
   .crate-burst { display: none; }
   .crate-box.open .crate-lid { opacity: 0; }
@@ -12419,14 +12430,6 @@ body:has(.heroselect.rankend) .pixifx-above { z-index: 470; }
 .cv2-acctlevel-crates { display: inline-grid; place-items: center; min-width: 20px; height: 20px; padding: 0 6px; border-radius: 999px; background: #1a1206; color: #ffe08a; font-size: 12px; letter-spacing: 0; }
 
 /* The Collection overlay (below the account panel, 540, so "Create account" opens over it). */
-.coll-scrim { position: fixed; inset: 0; z-index: 530; display: grid; place-items: center; padding: 16px; background: rgba(8, 10, 20, 0.74); }
-.coll-box { display: flex; flex-direction: column; gap: 14px; width: min(560px, 100%); max-height: calc(var(--lvh, 100vh) - 32px); overflow-y: auto; padding: 16px 20px 20px; border-radius: 16px;
-  background: linear-gradient(180deg, rgba(20, 28, 46, 0.98), rgba(10, 15, 28, 0.99)); border: 2px solid rgba(196, 160, 92, 0.55);
-  box-shadow: inset 0 0 0 1px rgba(196, 160, 92, 0.16), 0 20px 50px -16px rgba(0, 0, 0, 0.8); font-family: var(--font-ui); color: #fff6e4; animation: acctxp-in 0.25s ease-out both; }
-.coll-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-.coll-title { font-weight: 900; font-size: 20px; letter-spacing: 0.14em; text-transform: uppercase; color: #e8c877; }
-.coll-close { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 10px; border: 1.5px solid rgba(196, 160, 92, 0.5); background: rgba(0, 0, 0, 0.35); color: #fff6e4; font-size: 16px; font-weight: 900; }
-.coll-close:hover, .coll-close:focus-visible { background: rgba(196, 160, 92, 0.25); }
 .coll-sec { display: flex; flex-direction: column; gap: 10px; padding: 12px 14px; border-radius: 12px; background: rgba(0, 0, 0, 0.25); border: 1px solid rgba(196, 160, 92, 0.2); }
 .coll-sec-head { display: flex; align-items: baseline; justify-content: space-between; font-weight: 900; font-size: 14px; letter-spacing: 0.12em; text-transform: uppercase; color: #fff6e4; }
 .coll-count { font-weight: 800; font-size: 12px; letter-spacing: 0.08em; color: rgba(232, 200, 119, 0.85); }

@@ -220,7 +220,7 @@ function scheduleOddsBackfill(myEpoch: number, seed: number): void {
 const SNAPSHOT_KEYS = [
   'run', 'showTitle', 'heroChoices', 'inspect', 'heroArmed', 'endTurnAnimating',
   'combatEnemyDeaths', 'combatBuffs', 'combatQuestDelta', 'combatTriggeredQuests', 'combatCompletedQuests',
-  'showLeaderboard', 'showRankings', 'showRecentGames', 'showCareer', 'careerOf', 'titleView',
+  'showLeaderboard', 'showRankings', 'showRecentGames', 'showCareer', 'careerOf', 'showCollection', 'titleView',
 ] as const;
 type SnapshotKey = (typeof SNAPSHOT_KEYS)[number];
 type StoreState = ReturnType<typeof useGame.getState>;
@@ -793,7 +793,7 @@ export function startReplay(replay: ReplayV2, meta?: { authorName?: string }): v
     // Close every launcher overlay so exiting the replay lands back where the viewer came from (the
     // snapshot restores the flags), and nothing floats above the playback.
     showTitle: false, heroChoices: null, inspect: null,
-    showLeaderboard: false, showRankings: false, showRecentGames: false, showCareer: false, careerOf: null,
+    showLeaderboard: false, showRankings: false, showRecentGames: false, showCareer: false, careerOf: null, showCollection: false,
     // Bump the seek epoch on ENTRY too: rewatching your OWN run keeps the same seed+hero mount key, so
     // without this the recruit FX refs would diff the live run's sequence counters against frame 0's and
     // fire a stale burst.

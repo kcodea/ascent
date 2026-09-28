@@ -13,6 +13,8 @@ import { cratesEarnedThrough, cratesForSettlement, titleName, titlesForLevel } f
  */
 
 const crateTitles = COSMETICS.filter((c) => c.category === 'title' && c.acquisition.type === 'crate');
+/** Everything a crate can give (titles + skins since 2026-09-28). */
+const crateItems = COSMETICS.filter((c) => c.acquisition.type === 'crate');
 
 describe('the launch catalog', () => {
   it('owner 2026-09-27: 15 crate titles (7 Common, 5 Rare, 2 Epic, 1 Legendary), unique permanent ids', () => {
@@ -43,23 +45,24 @@ describe('the launch catalog', () => {
     expect(titleName('title_the_unbroken')).toBe('The Unbroken');
   });
 
-  it('every handoff category exists with its weight; only title is switched on', () => {
+  it('every handoff category exists with its weight; title and the two skin slots are switched on', () => {
     expect([...COSMETIC_CATEGORIES].sort()).toEqual(['announcer', 'board', 'hero_attack', 'hero_skin', 'minion_skin', 'music', 'title']);
     expect(COSMETIC_CATEGORIES.map((c) => [c, COSMETIC_CATEGORY_DEFS[c].weight])).toEqual([
       ['announcer', 10], ['hero_skin', 20], ['minion_skin', 35], ['title', 10], ['hero_attack', 15], ['board', 5], ['music', 5],
     ]);
-    expect(COSMETIC_CATEGORIES.filter((c) => COSMETIC_CATEGORY_DEFS[c].enabled)).toEqual(['title']);
+    expect(COSMETIC_CATEGORIES.filter((c) => COSMETIC_CATEGORY_DEFS[c].enabled)).toEqual(['hero_skin', 'minion_skin', 'title']);
     expect(RARITY_WEIGHTS).toEqual({ common: 55, rare: 30, epic: 12, legendary: 3 });
   });
 });
 
 describe('the roll', () => {
   it('draws only eligible items: active, crate-sourced, enabled category, not owned', () => {
-    const skin: CosmeticDef = { id: 'skin_x', category: 'minion_skin', name: 'X', rarity: 'common', target: { type: 'card', id: 'x' }, acquisition: { type: 'crate' }, assets: {}, active: true };
+    // an item in a category that is still switched OFF (announcers) never drops
+    const skin: CosmeticDef = { id: 'skin_x', category: 'announcer', name: 'X', rarity: 'common', acquisition: { type: 'crate' }, assets: {}, active: true };
     const retired: CosmeticDef = { ...crateTitles[0]!, id: 'title_retired', active: false };
     const feat: CosmeticDef = { ...crateTitles[0]!, id: 'title_feat', acquisition: { type: 'achievement', id: 'a' } };
     const ids = eligibleCrateCosmetics(['title_wanderer'], [...COSMETICS, skin, retired, feat]).map((c) => c.id);
-    expect(ids).toHaveLength(14);
+    expect(ids).toHaveLength(crateItems.length - 1);
     expect(ids).not.toContain('title_wanderer');
     for (const bad of ['skin_x', 'title_retired', 'title_feat', ALPHA_TESTER_TITLE_ID]) expect(ids).not.toContain(bad);
     expect(ids).toEqual([...ids].sort());
@@ -81,14 +84,14 @@ describe('the roll', () => {
   });
 
   it('never rolls a rarity first: with every Common owned, a crate still always gives an item', () => {
-    const noCommons = eligibleCrateCosmetics(crateTitles.filter((c) => c.rarity !== 'legendary').map((c) => c.id));
+    const noCommons = eligibleCrateCosmetics(crateItems.filter((c) => c.rarity !== 'legendary').map((c) => c.id));
     expect(noCommons.map((c) => c.id)).toEqual(['title_the_unbroken']);
     expect(pickCrateReward(noCommons, 0)!.id).toBe('title_the_unbroken');
     expect(pickCrateReward(noCommons, crateTotalWeight(noCommons) - 1)!.id).toBe('title_the_unbroken');
   });
 
   it('an exhausted pool gives nothing (the crate stays sealed); out-of-range rolls clamp', () => {
-    const none = eligibleCrateCosmetics(crateTitles.map((c) => c.id));
+    const none = eligibleCrateCosmetics(crateItems.map((c) => c.id));
     expect(none).toEqual([]);
     expect(pickCrateReward(none, 0)).toBeNull();
     const all = eligibleCrateCosmetics([]);
@@ -96,11 +99,18 @@ describe('the roll', () => {
     expect(pickCrateReward(all, 1e9)!.id).toBe(all[all.length - 1]!.id);
   });
 
-  it('the launch odds of a first crate (titles only): Common 68.5%, Rare 26.7%, Epic 4.3%, Legendary 0.5%', () => {
+  it('the odds of a first crate with the skins in (2026-09-28): Common 50.9%, Rare 33.7%, Epic 15.1%, Legendary 0.4%; a skin 25.8%', () => {
     const all = eligibleCrateCosmetics([]);
     const total = crateTotalWeight(all);
-    const share = (r: string): number => Math.round((1000 * all.filter((c) => c.rarity === r).reduce((s, c) => s + crateWeightOf(c), 0)) / total) / 10;
-    expect([share('common'), share('rare'), share('epic'), share('legendary')]).toEqual([68.5, 26.7, 4.3, 0.5]);
+    const pct = (xs: typeof all): number => Math.round((1000 * xs.reduce((s, c) => s + crateWeightOf(c), 0)) / total) / 10;
+    const share = (r: string): number => pct(all.filter((c) => c.rarity === r));
+    expect([share('common'), share('rare'), share('epic'), share('legendary')]).toEqual([50.9, 33.7, 15.1, 0.4]);
+    expect(pct(all.filter((c) => c.category !== 'title'))).toBe(25.8);
+    // the titles-only launch odds are unchanged when the skins are switched off (the kill switch path)
+    const titlesOnly = all.filter((c) => c.category === 'title');
+    const t = crateTotalWeight(titlesOnly);
+    const tShare = (r: string): number => Math.round((1000 * titlesOnly.filter((c) => c.rarity === r).reduce((s, c) => s + crateWeightOf(c), 0)) / t) / 10;
+    expect([tShare('common'), tShare('rare'), tShare('epic'), tShare('legendary')]).toEqual([68.5, 26.7, 4.3, 0.5]);
   });
 });
 

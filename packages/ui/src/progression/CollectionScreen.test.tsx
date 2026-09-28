@@ -117,7 +117,8 @@ describe('the Collection screen: the album', () => {
     expect(missing.querySelector('.colls-tile-rar')?.textContent).toBe('Epic');
     expect(missing.querySelector('.colls-tile-lock')).not.toBeNull();
     expect(missing.getAttribute('aria-label')).toBe('Kingbreaker, Epic, not owned');
-    expect(text('.colls-meter-num')).toBe('2 / 16');
+    // "N / M collected" counts every live item: 16 titles + the 4 skins (2026-09-28)
+    expect(text('.colls-meter-num')).toBe('2 / 20');
     expect(text('.colls-tab.on .colls-tab-count')).toBe('2/16');
     clean();
   });
@@ -151,13 +152,15 @@ describe('the Collection screen: the album', () => {
 describe('the Collection screen: categories', () => {
   it('the switched-off categories are locked tabs that open a coming-soon view; the crate bay stays in view', () => {
     open();
-    expect(tab('Heroes').className).toMatch(/\blocked\b/);
-    expect(tab('Heroes').textContent).toContain('Soon');
-    act(() => tab('Heroes').click());
-    expect(tab('Heroes').getAttribute('aria-selected')).toBe('true');
+    // Heroes and Minions went live with the skins (2026-09-28); Announcers is still switched off.
+    expect(tab('Heroes').className).not.toMatch(/\blocked\b/);
+    expect(tab('Announcers').className).toMatch(/\blocked\b/);
+    expect(tab('Announcers').textContent).toContain('Soon');
+    act(() => tab('Announcers').click());
+    expect(tab('Announcers').getAttribute('aria-selected')).toBe('true');
     expect($$('.colls-tile')).toHaveLength(0);
-    expect(text('.colls-soon-title')).toBe('Heroes');
-    expect(text('.colls-soon-sub')).toBe('New looks for your heroes. Coming soon.');
+    expect(text('.colls-soon-title')).toBe('Announcers');
+    expect(text('.colls-soon-sub')).toBe('New voices to call your games. Coming soon.');
     expect($$('.colls-ghost')).toHaveLength(8);
     expect($('.colls-bay')).not.toBeNull();
     expect(button('Open')).toBeTruthy();

@@ -4,7 +4,7 @@ import type { BoardMinion } from '@game/core';
 import { buildTags, CONFIG, getHero, isCalibrationRound, isPlayerAction, lineResult, metLine, replayRun, runMvp, runRecord, TAG_INFO, topMechanic, type LineStatus, playerLobbySeat, type RunState } from '@game/sim';
 import { Card, type CardView } from './Card';
 import { liveBoardView } from './instView';
-import { heroArt } from './art';
+import { heroPortrait, useRunSkins } from './skins/skins';
 import { Icon } from './Icon';
 import { useGame } from './store';
 import { startReplay } from './replay/replayPlayer';
@@ -153,6 +153,7 @@ function TutorialGraduationScreen({ run, onDone }: { run: RunState; onDone: () =
 
 export function EndScreen({ won }: { won: boolean }) {
   const run = useGame((s) => s.run);
+  const runSkins = useRunSkins();
   const openTitle = useGame((s) => s.openTitle);
   const actions = useGame((s) => s.replayActions);
   // A lobby result is a placement, not a graded climb — its own screen, before any of the scored-run
@@ -217,8 +218,8 @@ export function EndScreen({ won }: { won: boolean }) {
       <div className="hsbox endbox">
         <div className="endhero">
           <div className="endhero-portrait">
-            {heroArt(hero.id) ? (
-              <img decoding="sync" className="endhero-img" src={heroArt(hero.id)} alt={hero.name} draggable={false} />
+            {heroPortrait(hero.id, runSkins) ? (
+              <img decoding="sync" className="endhero-img" src={heroPortrait(hero.id, runSkins)} alt={hero.name} draggable={false} />
             ) : (
               <Icon name="anvil" />
             )}

@@ -125,6 +125,17 @@ const HERO_ART = indexArt(
 );
 export const heroArt = (name: string): string | undefined => HERO_ART[name];
 
+/** SKIN art (skins v1, owner 2026-09-28) — `packages/ui/src/art/skins/<cosmeticId>.webp`, keyed by the catalog item's
+ *  `assets.art`. Wired by `npm run art:wire -- --only=skins` from `C:/Game Assets/Ascent Art/Skins/`. Never read
+ *  directly by a renderer: `skins/skins.tsx` resolves a skin (live, right target) and falls back to `heroArt` /
+ *  `artFor` when the file is missing, so a lost file can never blank a portrait or block a match. */
+const SKIN_ART = indexArt(
+  import.meta.glob('./art/skins/*.{png,webp}', { eager: true, query: '?url', import: 'default' }) as ArtModules,
+);
+export const skinArt = (key: string | undefined): string | undefined => (key ? SKIN_ART[key] : undefined);
+/** Every skin art key in the bundle (the CI check that no live skin ships without its art). */
+export const skinArtKeys = (): string[] => Object.keys(SKIN_ART);
+
 /** Hero-POWER button art — drop a PNG into `packages/ui/src/art/powers/<heroId>.png` (e.g. `warden.png`).
  *  The button is a circle (object-fit: cover), so use a square master with the subject centred. Falls back
  *  to the placeholder glyph when absent. */

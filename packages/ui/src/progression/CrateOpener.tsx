@@ -56,7 +56,11 @@ export function prefersReducedMotion(): boolean {
 export function rewardLabel(rewardId: string | null): { name: string; kind: string; rarity: string | null; rarityLabel: string | null } {
   const def = cosmeticOf(rewardId);
   if (!def) return { name: 'New reward', kind: 'Update the game to see it', rarity: null, rarityLabel: null };
-  const kind = def.category === 'title' ? 'New title' : `New ${COSMETIC_CATEGORY_DEFS[def.category].label.replace(/s$/, '').toLowerCase()}`;
+  // Skins name themselves as skins ("New hero skin"), not "New hero" (the Collection tab is called Heroes).
+  const kind = def.category === 'title' ? 'New title'
+    : def.category === 'hero_skin' ? 'New hero skin'
+    : def.category === 'minion_skin' ? 'New minion skin'
+    : `New ${COSMETIC_CATEGORY_DEFS[def.category].label.replace(/s$/, '').toLowerCase()}`;
   return { name: def.name, kind, rarity: def.rarity, rarityLabel: RARITY_LABELS[def.rarity] };
 }
 

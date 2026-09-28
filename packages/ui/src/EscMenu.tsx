@@ -63,6 +63,9 @@ export function EscMenu({ onClose }: { onClose: () => void }) {
   const setCombatSpeed = useGame((s) => s.setCombatSpeed);
   const combatRampUp = useGame((s) => s.combatRampUp);
   const setCombatRampUp = useGame((s) => s.setCombatRampUp);
+  // SKINS (owner 2026-09-28): an OPPONENT-only display switch. Your own equipped skins always show.
+  const showOpponentSkins = useGame((s) => s.showOpponentSkins);
+  const setShowOpponentSkins = useGame((s) => s.setShowOpponentSkins);
   const fpsCap = useGame((s) => s.fpsCap);
   const setFpsCap = useGame((s) => s.setFpsCap);
   const displayHz = perfThresholds().refreshHz;
@@ -176,6 +179,15 @@ export function EscMenu({ onClose }: { onClose: () => void }) {
         >
           <span className="ebl">Auto-ramp speed{combatRampUp ? ' ✓' : ''}</span>
           <span className="ebs">Long fights speed up, then ease back down for the finish</span>
+        </button>
+        <div className="escsec">Skins</div>
+        <button
+          className={`escbtn pressable${showOpponentSkins ? ' on' : ''}`}
+          onPointerDown={() => { setShowOpponentSkins(!showOpponentSkins); sfx.pulse(); }}
+          aria-pressed={showOpponentSkins}
+        >
+          <span className="ebl">Show opponent skins{showOpponentSkins ? ' ✓' : ''}</span>
+          <span className="ebs">Off shows other players' heroes and minions in their default art. Your own skins always show.</span>
         </button>
         <div className="escsec">Performance</div>
         {/* EFFECTS FRAME CAP (owner ask 2026-09-04; relabelled the same day). Caps the Pixi effects + GSAP clocks

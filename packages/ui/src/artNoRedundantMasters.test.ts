@@ -140,6 +140,8 @@ describe('no redundant PNG masters ship alongside their WebP builds', () => {
     // → 1274: owner-supplied Ancient art 2026-09-25 (+6: War, Genesis and Time full art + hero-power halves; the owner
     // was told the cap would need raising for these).
     // → 1276: owner-supplied Ancient art 2026-09-26 (+2: the Ancient of Bonds' full art + hero-power half).
-    expect(total, `art files: ${total} — the WHOLE-ZIP count (~${total + 176}) is what itch caps at 1000`).toBeLessThan(1276);
+    // → 1280: the first SKINS 2026-09-28 (+4 in a new `art/skins/` dir: two Black Belt Brian minion skins, the Albus
+    // and Warden hero skins; owner-named, WebP only, the masters stay under `C:\Game Assets\Ascent Art\Skins\`).
+    expect(total, `art files: ${total} — the WHOLE-ZIP count (~${total + 176}) is what itch caps at 1000`).toBeLessThan(1280);
   });
 });

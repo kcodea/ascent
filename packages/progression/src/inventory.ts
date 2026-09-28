@@ -1,11 +1,18 @@
 /**
- * ACCOUNT PROGRESSION: the `progression-inventory` Edge Function's logic, as a pure function (2026-09-28).
+ * ACCOUNT PROGRESSION: the `progression-inventory` Edge Function's logic, as a pure function (2026-09-28). Also the
+ * once-per-cold-start CATALOG SYNC (`syncCatalogOnce`, at the end): this function is the one place the database's
+ * cosmetic catalog is written from code.
  *
- * Two actions, both for the authenticated caller only, both a single SQL transaction under the same per-user lock
+ * Three actions, all for the authenticated caller only, each a single SQL transaction under the same per-user lock
  * the settlement takes:
  *   { action: 'open_crate', crateId }     → `open_crate`: pick one unowned, eligible item AT OPEN TIME, weighted
  *                                           over what actually remains, insert ownership, mark the crate opened.
  *   { action: 'equip_title', titleId }    → `equip_title`: equip a title the caller OWNS (null takes it off).
+ *   { action: 'equip_cosmetic', slot, targetId, cosmeticId }
+ *                                         → `equip_cosmetic` (2026-09-28, skins): wear a hero or minion skin the
+ *                                           caller OWNS on the target it was made for, or null for Default. The
+ *                                           SQL checks ownership, category = slot, target and that the item is
+ *                                           live (a retired skin cannot be equipped).
  *
  * WHY A SEPARATE FUNCTION (not an extension of submit-progression): settlement is a queued, retried, byte-pinned
  * request whose contract is already live; opening and equipping are interactive, never queued, and fail
@@ -16,15 +23,20 @@
  * the SQL decides. `npm run progression:shared` generates this file VERBATIM into
  * supabase/functions/_shared/progressionInventory.ts; `sharedArtifact.test.ts` fails CI on drift.
  */
-import { COSMETIC_CATEGORY_DEFS, cosmeticOf, parseOpenCrateResult, type OpenCrateResult } from './cosmetics';
+import { COSMETIC_CATEGORY_DEFS, SKIN_SLOTS, catalogHash, catalogSyncPayload, cosmeticOf, parseOpenCrateResult, type OpenCrateResult, type SkinSlot } from './cosmetics';
 import { parseProgressionProfile, type ProgressionProfile } from './rules';
 import type { HandlerResponse, RpcCall } from './server';
 
 export type InventoryRequest =
   | { action: 'open_crate'; crateId: string }
-  | { action: 'equip_title'; titleId: string | null };
+  | { action: 'equip_title'; titleId: string | null }
+  | { action: 'equip_cosmetic'; slot: SkinSlot; targetId: string; cosmeticId: string | null };
 
 export type InventoryValidation = { ok: true; request: InventoryRequest } | { ok: false; status: number; error: string };
+
+/** A hero or card id, and a cosmetic id: the same conservative shape the SQL enforces. */
+const TARGET_ID = /^[A-Za-z0-9_.:-]{1,64}$/;
+const COSMETIC_ID = /^[a-z0-9_]{1,64}$/;
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -40,6 +52,12 @@ export function validateInventoryBody(body: unknown): InventoryValidation {
     if (typeof b.titleId !== 'string' || b.titleId.length < 1 || b.titleId.length > 64) return { ok: false, status: 400, error: 'bad_title_id' };
     return { ok: true, request: { action: 'equip_title', titleId: b.titleId } };
   }
+  if (b.action === 'equip_cosmetic') {
+    if (typeof b.slot !== 'string' || !(SKIN_SLOTS as readonly string[]).includes(b.slot)) return { ok: false, status: 400, error: 'bad_slot' };
+    if (typeof b.targetId !== 'string' || !TARGET_ID.test(b.targetId)) return { ok: false, status: 400, error: 'bad_target' };
+    if (b.cosmeticId !== null && (typeof b.cosmeticId !== 'string' || !COSMETIC_ID.test(b.cosmeticId))) return { ok: false, status: 400, error: 'bad_cosmetic_id' };
+    return { ok: true, request: { action: 'equip_cosmetic', slot: b.slot as SkinSlot, targetId: b.targetId, cosmeticId: b.cosmeticId as string | null } };
+  }
   return { ok: false, status: 400, error: 'bad_action' };
 }
 
@@ -51,6 +69,11 @@ export const INVENTORY_ERROR_STATUS: Readonly<Record<string, number>> = Object.f
   not_owned: 409,
   crates_disabled: 409,
   duplicate_reward: 409,
+  bad_slot: 400,
+  bad_target: 400,
+  bad_cosmetic_id: 400,
+  wrong_target: 409,
+  not_equippable: 409,
 });
 
 /**
@@ -70,9 +93,11 @@ export async function handleInventory(userId: string | null, body: unknown, rpc:
   const v = validateInventoryBody(body);
   if (!v.ok) return { status: v.status, body: { error: v.error } };
   const r = v.request;
-  const [fn, args] = r.action === 'open_crate'
-    ? ['open_crate', { p_user: userId, p_crate_id: r.crateId }] as const
-    : ['equip_title', { p_user: userId, p_title_id: r.titleId }] as const;
+  const [fn, args]: [string, Record<string, unknown>] = r.action === 'open_crate'
+    ? ['open_crate', { p_user: userId, p_crate_id: r.crateId }]
+    : r.action === 'equip_title'
+      ? ['equip_title', { p_user: userId, p_title_id: r.titleId }]
+      : ['equip_cosmetic', { p_user: userId, p_slot: r.slot, p_target_id: r.targetId, p_cosmetic_id: r.cosmeticId }];
   let res: Awaited<ReturnType<RpcCall>>;
   try {
     res = await rpc(fn, args);
@@ -90,10 +115,56 @@ export async function handleInventory(userId: string | null, body: unknown, rpc:
   const out = (res.data ?? null) as Record<string, unknown> | null;
   const profile: ProgressionProfile | null = parseProgressionProfile(out?.profile);
   if (!out || !profile) return { status: 500, body: { error: 'inventory_malformed' } };
-  if (r.action === 'equip_title') return { status: 200, body: { status: 'equipped', profile: out.profile } };
+  if (r.action === 'equip_title' || r.action === 'equip_cosmetic') return { status: 200, body: { status: 'equipped', profile: out.profile } };
   const opened = parseOpenCrateResult(out);
   if (!opened) return { status: 500, body: { error: 'inventory_malformed' } };
   const parity = openParity(opened);
   if (!parity) log('crate parity mismatch', { userId, crateId: r.crateId, sql: out });
   return { status: 200, body: { ...out, parity } };
 }
+
+// ── The catalog sync (owner 2026-09-28: "make it automated when i add skins") ──────────────────────────────
+
+export type CatalogSyncOutcome = { status: 'synced' | 'unchanged' | 'failed'; hash: string; detail?: unknown };
+
+/** After a FAILED sync (the SQL not pasted yet, a blip), the next attempt waits this long, so a missing function
+ *  costs one extra round trip a minute rather than one per request. */
+export const CATALOG_SYNC_RETRY_MS = 60_000;
+
+let syncState: { promise: Promise<CatalogSyncOutcome>; at: number; ok: boolean } | null = null;
+
+/**
+ * Push this build's catalog to the database ONCE per cold start (an Edge Function isolate keeps module state
+ * between requests). `sync_cosmetic_catalog` compares the hash first, so an unchanged catalog is one cheap read.
+ * NEVER throws: a failed sync is logged, the request carries on, and it is retried after `CATALOG_SYNC_RETRY_MS`.
+ *
+ * Only `progression-inventory` calls this. `submit-progression` bundles the same catalog but deliberately does NOT
+ * sync: two functions deployed at different times carry different catalogs, and each cold start would push its own
+ * copy back (an older `submit-progression` would re-deactivate a skin you had just added). One writer, one deploy.
+ */
+export function syncCatalogOnce(rpc: RpcCall, log: (msg: string, detail?: unknown) => void = () => {}, now: () => number = Date.now): Promise<CatalogSyncOutcome> {
+  if (syncState && (syncState.ok || now() - syncState.at < CATALOG_SYNC_RETRY_MS)) return syncState.promise;
+  const payload = catalogSyncPayload();
+  const hash = catalogHash(payload);
+  const entry: { promise: Promise<CatalogSyncOutcome>; at: number; ok: boolean } = { promise: Promise.resolve({ status: 'failed', hash }), at: now(), ok: false };
+  entry.promise = (async (): Promise<CatalogSyncOutcome> => {
+    try {
+      const res = await rpc('sync_cosmetic_catalog', { p_catalog: payload, p_hash: hash });
+      if (res.error) {
+        log('catalog sync failed', res.error);
+        return { status: 'failed', hash, detail: res.error };
+      }
+      entry.ok = true;
+      const status = (res.data as { status?: unknown } | null)?.status === 'unchanged' ? 'unchanged' : 'synced';
+      return { status, hash, detail: res.data };
+    } catch (e) {
+      log('catalog sync threw', e);
+      return { status: 'failed', hash, detail: String(e) };
+    }
+  })();
+  syncState = entry;
+  return entry.promise;
+}
+
+/** Tests: forget the per-isolate sync. */
+export function resetCatalogSyncForTests(): void { syncState = null; }

@@ -1,11 +1,13 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { RUNE_INDEX } from '@game/content';
 import { getHero, strengthText } from '@game/sim';
 import type { BoardSnapshot } from '@game/sim';
 import { Card, mdBold } from './Card';
 import { storedCardView } from './storedBoardView';
-import { heroArt, runeArt } from './art';
+import { runeArt } from './art';
+import { MinionSkins, heroPortrait, opponentSkins } from './skins/skins';
+import type { RunCosmeticSnapshot } from '@game/progression';
 import { Icon } from './Icon';
 import { recordText } from './leaderboardData';
 import { sfx } from './sfx';
@@ -94,11 +96,24 @@ function saveTab(t: CenterTab): void {
 const MATCH_ROWS = 25;
 const BOARD_SLOTS = 7;
 
+/**
+ * SKINS on a Career page (2026-09-28). Whose page it is decides the toggle: YOUR page shows your skins as recorded
+ * (never filtered: "this is an opponent toggle only"); SOMEONE ELSE's shows theirs through "Show opponent skins".
+ * `loadout` is the page owner's CURRENT loadout (the favourite-hero portrait + the hero tiles); a match row always
+ * shows the skins RECORDED on that run's board, never the current loadout.
+ */
+const CareerSkinContext = createContext<{ own: boolean; loadout: RunCosmeticSnapshot | null }>({ own: true, loadout: null });
+function useCareerSkins(snapshot: RunCosmeticSnapshot | null | undefined): RunCosmeticSnapshot | null {
+  const { own } = useContext(CareerSkinContext);
+  const show = useGame((s) => s.showOpponentSkins);
+  return own ? snapshot ?? null : opponentSkins(show, snapshot);
+}
+
 /** The in-run hero frame, re-seated: the same `.hero > .f > img.heroimg` markup StatusBar renders (so the
  *  ring, disc and portrait rules are shared), scoped under `.cv2-heroframe` which only undoes the tray's
- *  transforms. `small` is the match-row portrait. */
-function HeroFrame({ heroId, small }: { heroId: string; small?: boolean }) {
-  const art = heroArt(heroId);
+ *  transforms. `small` is the match-row portrait. `skins` = the skins to paint it with (see CareerSkinContext). */
+function HeroFrame({ heroId, small, skins }: { heroId: string; small?: boolean; skins?: RunCosmeticSnapshot | null }) {
+  const art = heroPortrait(heroId, useCareerSkins(skins));
   const name = heroId ? getHero(heroId).name : '';
   return (
     <div className={`cv2-heroframe${small ? ' small' : ''}`}>
@@ -114,7 +129,10 @@ function HeroFrame({ heroId, small }: { heroId: string; small?: boolean }) {
 /** The final team — exactly 7 slots, the real `Card` at the leaderboard's tile size, empty slots blank. */
 function FinalTeam({ board }: { board: BoardSnapshot }) {
   const minions = board.minions.slice(0, BOARD_SLOTS);
+  // SKINS: the board wears the skins RECORDED on it (an old board has none: default art).
+  const skins = useCareerSkins(board.cosmetics);
   return (
+    <MinionSkins snapshot={skins}>
     <div className="cv2-team" aria-label="Final team">
       {Array.from({ length: BOARD_SLOTS }, (_, i) => {
         const m = minions[i];
@@ -123,6 +141,7 @@ function FinalTeam({ board }: { board: BoardSnapshot }) {
           : <div className="cv2-tile empty" key={i} aria-hidden="true" />;
       })}
     </div>
+    </MinionSkins>
   );
 }
 
@@ -267,7 +286,7 @@ function MatchRow({ run, focus, busy, unplayable, onWatch }: {
     <article className={`cv2-row ${o.cls}${focus ? ' focus' : ''}`} aria-label={`${run.heroId ? getHero(run.heroId).name : 'Run'}: ${o.label}`}>
       <header className="cv2-row-head">
         <div className="cv2-row-hero">
-          <HeroFrame heroId={run.heroId} small />
+          <HeroFrame heroId={run.heroId} small skins={run.board?.cosmetics} />
           <div className="cv2-row-heroid">
             <div className="cv2-row-heroname">{run.heroId ? getHero(run.heroId).name : '—'}</div>
             {/* The MATCH result — by placement (top 4 = WIN, 5th–8th = LOSS; owner 2026-09-20). The fight
@@ -353,7 +372,7 @@ function PracticeRow({ game, busy, unplayable, onWatch }: { game: PracticeGameRo
     <article className={`cv2-row cv2-prow ${o.cls}`} aria-label={`Practice, ${heroName}: ${o.label}`}>
       <header className="cv2-row-head">
         <div className="cv2-row-hero">
-          <HeroFrame heroId={game.heroId} small />
+          <HeroFrame heroId={game.heroId} small skins={game.board?.cosmetics} />
           <div className="cv2-row-heroid">
             <div className="cv2-row-heroname">{heroName}</div>
             <div className={`cv2-row-result ${result.cls}`} aria-label={result.cls === 'none' ? 'No placement recorded' : `Match ${result.label.toLowerCase()}`}>
@@ -422,6 +441,7 @@ const HERO_TIP_W = 250, HERO_TIP_H = 208;
  *  to the viewport), portalled to <body> so the scrolling grid never clips it. Never a native `title`. */
 function HeroTile({ h }: { h: HeroCareer }) {
   const name = getHero(h.heroId).name;
+  const careerLoadout = useContext(CareerSkinContext).loadout;
   const [tip, setTip] = useState<{ left: number; top: number; side: 'right' | 'left' } | null>(null);
   const timer = useRef<number | null>(null);
   const tipId = `cv2-herotip-${h.heroId}`;
@@ -460,7 +480,7 @@ function HeroTile({ h }: { h: HeroCareer }) {
       onFocus={(e) => show(e.currentTarget, 0)}
       onBlur={hide}
     >
-      <HeroFrame heroId={h.heroId} />
+      <HeroFrame heroId={h.heroId} skins={careerLoadout} />
       <div className="cv2-hcard-name">{name}</div>
       <div className="cv2-hcard-games">{games}</div>
       {tip && createPortal(
@@ -634,6 +654,10 @@ export function Career() {
   };
 
   const heroId = aggregates.mostPlayedHero ?? viewing?.favoriteHero ?? '';
+  // SKINS: whose page this is, and the page owner's CURRENT loadout (public, read with their progression).
+  const pageLoadout = accountProgression?.loadout ?? null;
+  // (After Career's early return, so a plain object: this page re-renders rarely and its consumers are few.)
+  const careerSkins = { own: !viewing, loadout: pageLoadout };
   const heroName = heroId ? getHero(heroId).name : '—';
   const matchRows = (runs ?? []).slice(0, MATCH_ROWS);
   const pickTab = (t: CenterTab): void => { if (t === tab) return; sfx.pulse(); setTab(t); saveTab(t); };
@@ -673,7 +697,7 @@ export function Career() {
             {/* FAVORITE HERO (owner ask 2026-09-28: "clearly say favorite hero in the box"): the most-played hero,
                 labelled. The player's name and title moved up into the page header. */}
             <div className="cv2-favlabel">Favorite hero</div>
-            <HeroFrame heroId={heroId} />
+            <HeroFrame heroId={heroId} skins={accountProgression?.loadout} />
             <div className="cv2-heroname">{heroName}</div>
             {/* ACCOUNT LEVEL (owner ask 2026-09-28: "move the account level to under the character portrait so it's
                 not on top of ranked"): under the portrait block, above the stat tiles; Seasonal Ranked leads the right. */}
@@ -843,7 +867,9 @@ export function Career() {
           </div>
         </div>
       </div>
-      <div className="lbscroll cv2-body">{body}</div>
+      <CareerSkinContext.Provider value={careerSkins}>
+        <div className="lbscroll cv2-body">{body}</div>
+      </CareerSkinContext.Provider>
     </SidebarHost>
   );
 }

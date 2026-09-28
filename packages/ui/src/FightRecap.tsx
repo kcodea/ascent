@@ -1,7 +1,9 @@
 import { memo, useMemo, useState } from 'react';
 import type { CombatResult } from '@game/core';
 import { getHero, lossDamageCap, playerLossDamage, playerOpponent, type CombatOdds, type RunState } from '@game/sim';
-import { artFor, heroArt } from './art';
+import { artFor } from './art';
+import { heroPortrait, opponentSkins, seatCosmetics, useMinionSkinMap } from './skins/skins';
+import { useGame } from './store';
 import { Icon } from './Icon';
 import { combatGainItems, oddsRecap, type GainItem } from './fightRecapData';
 
@@ -80,6 +82,8 @@ function OddsDmg({ kind, value }: { kind: 'win' | 'lose'; value: number | null }
 export const FightRecap = memo(function FightRecap({ result, combatOdds, lastCombat, lobby, board, wave, mode, procs, fullLog, onWatchReplay, onClose }: FightRecapProps) {
   const [details, setDetails] = useState(false);
   const [detailTab, setDetailTab] = useState<'procs' | 'log'>('procs');
+  const showOppSkins = useGame((s) => s.showOpponentSkins);
+  const ownSkinArt = useMinionSkinMap();
 
   // The foe + the damage both ways. The summary only exists during the combat phase, BEFORE the lobby round
   // settles (that happens on End Combat), so `playerOpponent` still names this fight's foe and every seat's
@@ -93,7 +97,7 @@ export const FightRecap = memo(function FightRecap({ result, combatOdds, lastCom
     const dealt = !lastCombat || lastCombat.result !== 'win' || foe?.ghost ? 0 : Math.min(lastCombat.enemyDamage ?? 0, cap);
     return {
       round: lobby ? lobby.round : wave,
-      foe: foe?.seat ? { label: foe.seat.label, heroId: foe.seat.heroId, heroName: getHero(foe.seat.heroId)?.name, ghost: !!foe.ghost } : null,
+      foe: foe?.seat ? { label: foe.seat.label, heroId: foe.seat.heroId, heroName: getHero(foe.seat.heroId)?.name, ghost: !!foe.ghost, cosmetics: seatCosmetics(foe.seat, foe.board) } : null,
       dealt,
       taken,
     };
@@ -114,8 +118,8 @@ export const FightRecap = memo(function FightRecap({ result, combatOdds, lastCom
           </div>
           <div className="fr-foe">
             <div className="fr-foe-pic">
-              {head.foe && heroArt(head.foe.heroId)
-                ? <img decoding="sync" src={heroArt(head.foe.heroId)} alt="" draggable={false} />
+              {head.foe && heroPortrait(head.foe.heroId, opponentSkins(showOppSkins, head.foe.cosmetics))
+                ? <img decoding="sync" src={heroPortrait(head.foe.heroId, opponentSkins(showOppSkins, head.foe.cosmetics))} alt="" draggable={false} />
                 : <Icon name="sword" />}
             </div>
             <div className="fr-foe-name">{head.foe ? head.foe.label : 'Your opponent'}</div>
@@ -156,7 +160,7 @@ export const FightRecap = memo(function FightRecap({ result, combatOdds, lastCom
               <div className="fr-sechead">What you keep</div>
               <div className="fr-row wrap">
                 {gains.map((g) => (
-                  <RecapMini key={g.key} art={g.cardId ? artFor(g.cardId) : undefined} icon={g.icon} name={g.label} chips={g.chip} />
+                  <RecapMini key={g.key} art={g.cardId ? (ownSkinArt.get(g.cardId) ?? artFor(g.cardId)) : undefined} icon={g.icon} name={g.label} chips={g.chip} />
                 ))}
               </div>
             </section>

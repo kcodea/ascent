@@ -1,7 +1,8 @@
 import type { CSSProperties } from 'react';
 import { getHero, nextOpponent, dominantTribe, THREATS } from '@game/sim';
 import { QUEST_INDEX, RUNE_INDEX } from '@game/content';
-import { heroArt, questArt, runeArt } from './art';
+import { questArt, runeArt } from './art';
+import { heroPortrait, opponentSkins } from './skins/skins';
 import { Icon } from './Icon';
 import { mdBold } from './Card';
 import { questRewardText } from './questText';
@@ -27,6 +28,7 @@ const tribeLabel = (tribe: string, count: number): string =>
  */
 export function OpponentFrame() {
   const run = useGame((s) => s.run);
+  const showOppSkins = useGame((s) => s.showOpponentSkins);
   if (run.phase !== 'recruit' && run.phase !== 'combat') return null;
   const snap = nextOpponent(run);
 
@@ -49,7 +51,7 @@ export function OpponentFrame() {
 
   const hero = getHero(snap.heroId);
   const dom = dominantTribe(snap);
-  const art = heroArt(snap.heroId);
+  const art = heroPortrait(snap.heroId, opponentSkins(showOppSkins, snap.cosmetics));
   // The opponent's ACTIVE reward trophies (runes bought + quests completed), captured in the snapshot — shown
   // UNDER the frame, mirroring the player's badges above their own frame. Read-only (no live chip — we only
   // know the opponent's state at capture). Filtered to ids this build still knows.

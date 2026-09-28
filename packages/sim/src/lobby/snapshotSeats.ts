@@ -1,5 +1,6 @@
 import type { SetId } from '@game/content';
 import type { BoardSnapshot } from '../snapshot';
+import type { RunCosmeticSnapshot } from '@game/progression';
 import { OPPONENT_POOL } from '../opponents';
 import { recordedSeat, type SeatPolicy } from './seats';
 import type { PreparedBoard, SeatDriver } from './types';
@@ -24,6 +25,21 @@ export interface PlayerRun {
   heroId: string;
   /** Per-wave boards, ascending. */
   snaps: BoardSnapshot[];
+  /** The skins the run's owner wore: the UNION of every board's scoped `cosmetics` (a card skinned on wave 9 is
+   *  known to the seat from round 1). Absent for runs from before skins. */
+  cosmetics?: RunCosmeticSnapshot;
+}
+
+/** Union of the boards' recorded skins (first wins per key; a run records one loadout, so they agree). */
+function runCosmetics(snaps: readonly BoardSnapshot[]): RunCosmeticSnapshot | undefined {
+  const hero: Record<string, string> = {};
+  const minion: Record<string, string> = {};
+  for (const s of snaps) {
+    for (const [k, v] of Object.entries(s.cosmetics?.heroSkinByHeroId ?? {})) if (!(k in hero) && typeof v === 'string') hero[k] = v;
+    for (const [k, v] of Object.entries(s.cosmetics?.minionSkinByCardId ?? {})) if (!(k in minion) && typeof v === 'string') minion[k] = v;
+  }
+  if (!Object.keys(hero).length && !Object.keys(minion).length) return undefined;
+  return { ...(Object.keys(hero).length ? { heroSkinByHeroId: hero } : {}), ...(Object.keys(minion).length ? { minionSkinByCardId: minion } : {}) };
 }
 
 /** A run is only worth a seat if it has enough material to hold one for a while. */
@@ -62,7 +78,8 @@ export function playerRunsFrom(
     for (const s of snaps) if (!byWave.has(s.wave)) byWave.set(s.wave, s);
     const ordered = [...byWave.values()].sort((a, b) => a.wave - b.wave);
     if (ordered.length < minWaves) continue;
-    runs.push({ key, author: ordered[0]!.author ?? 'anon', heroId: ordered[0]!.heroId, snaps: ordered });
+    const cosmetics = runCosmetics(ordered);
+    runs.push({ key, author: ordered[0]!.author ?? 'anon', heroId: ordered[0]!.heroId, snaps: ordered, ...(cosmetics ? { cosmetics } : {}) });
   }
   // Deterministic order — the pool's iteration order is an accident of registration, and seat selection must
   // reproduce across sessions and replays.

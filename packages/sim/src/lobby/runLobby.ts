@@ -1,6 +1,7 @@
 import type { BoardMinion, CombatOutcome, CombatResult, Tribe } from '@game/core';
 import { activeSet, type SetId } from '@game/content';
 import type { BoardSnapshot } from '../snapshot';
+import type { RunCosmeticSnapshot } from '@game/progression';
 import { combatSide, makeRng, simulate } from '@game/core';
 import { CARD_INDEX } from '@game/content';
 import { HEROES, playableHeroes } from '../heroes';
@@ -65,6 +66,10 @@ export interface LobbySeatState {
    *  from a render to answer "what tier is seat 5 on" would stall the shop phase once per hovered seat. Settle
    *  already prepares every board, so this is free there. */
   intel?: SeatIntel;
+  /** `snapshot` seats only (skins v1, 2026-09-28): the skins that seat's OWNER wore in the recorded run, copied at
+   *  lobby creation so the seat is its own record: a saved lobby, a replay and the end screen all show exactly
+   *  these, whatever the pool or the owner's loadout does later. Display only. Absent = default art. */
+  cosmetics?: RunCosmeticSnapshot;
 }
 
 /** What one seat's last-fielded board looked like, for the rail's hover card. */
@@ -261,6 +266,7 @@ export function createRunLobby(seed: number, playerHeroId: string, rules: Partia
       resolve: r.startingResolve,
       armor: r.startingArmor,
       alive: true,
+      ...(run.cosmetics ? { cosmetics: run.cosmetics } : {}),
     };
     if (!canPlay(seat)) continue; // no round-1 board — skip rather than seat a ghost
     taken.add(seat.label.toLowerCase());
@@ -522,6 +528,8 @@ export interface SeatResult {
   foeLabel: string;
   /** The foe's hero id, so the rail's scout card can show their PORTRAIT rather than just a name. */
   foeHeroId: string;
+  /** The foe's seat id (skins v1: the scout card's foe portrait wears THAT seat's recorded skin). */
+  foeId: string;
   outcome: CombatOutcome;
   dealt: number;
   taken: number;
@@ -546,6 +554,7 @@ export function seatResults(lobby: RunLobby, seatId: string, n = 3): SeatResult[
       round: e.round,
       foeLabel: foe?.label ?? (isA ? e.b : e.a),
       foeHeroId: foe?.heroId ?? '',
+      foeId: foe?.id ?? (isA ? e.b : e.a),
       // `outcome` is written from A's side, so B reads it inverted.
       outcome: isA ? e.outcome : (e.outcome === 'win' ? 'lose' : e.outcome === 'lose' ? 'win' : 'draw'),
       dealt: isA ? e.damageToB : e.damageToA,

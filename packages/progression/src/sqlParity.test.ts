@@ -7,7 +7,7 @@ import {
 } from './rules';
 import {
   ALPHA_TESTER_TITLE_ID, COSMETICS, COSMETIC_CATEGORIES, COSMETIC_CATEGORY_DEFS, COSMETIC_RARITIES, CRATE_ROLL_VERSION, RARITY_WEIGHTS,
-  crateWeightOf, eligibleCrateCosmetics, pickCrateReward,
+  catalogSyncPayload, crateWeightOf, eligibleCrateCosmetics, pickCrateReward,
 } from './cosmetics';
 import { SQL_ERROR_STATUS } from './server';
 import { INVENTORY_ERROR_STATUS } from './inventory';
@@ -23,11 +23,14 @@ const root = join(__dirname, '../../..');
 const sql = readFileSync(join(root, 'supabase/migrations/2026-09-27-account-progression.sql'), 'utf8');
 /** The crates migration REPLACES `settle_progression` and the JSON shapes: the live definitions are read from it. */
 const crates = readFileSync(join(root, 'supabase/migrations/2026-09-28-progression-crates.sql'), 'utf8');
+/** The skins migration adds the code-owned catalog sync and REPLACES `progression_crate_pool` + `progression_profile_json`. */
+const skins = readFileSync(join(root, 'supabase/migrations/2026-09-28-progression-skins.sql'), 'utf8');
 const schema = readFileSync(join(root, 'schema.sql'), 'utf8');
 
-/** The body of a function's LATEST definition (the crates migration when it defines it, else the MVP's). */
+/** The body of a function's LATEST definition (skins, else crates, else the MVP's). */
 function fnBody(name: string, from?: string): string {
-  const text = from ?? (crates.includes(`create or replace function public.${name}(`) ? crates : sql);
+  const defines = (t: string): boolean => t.includes(`create or replace function public.${name}(`);
+  const text = from ?? (defines(skins) ? skins : defines(crates) ? crates : sql);
   const start = text.indexOf(`create or replace function public.${name}(`);
   if (start < 0) throw new Error(`no function ${name} in the migration`);
   const open = text.indexOf('$$', start);
@@ -123,7 +126,7 @@ describe('the migration shape', () => {
       expect(resultJson, k).toContain(`'${k}'`);
     }
     const profileJson = fnBody('progression_profile_json');
-    for (const k of ['accountXp', 'accountLevel', 'revision', 'equippedTitleId', 'titles']) expect(profileJson, k).toContain(`'${k}'`);
+    for (const k of ['accountXp', 'accountLevel', 'revision', 'equippedTitleId', 'titles', 'cosmetics', 'loadout', 'slot', 'targetId', 'cosmeticId']) expect(profileJson, k).toContain(`'${k}'`);
   });
 
   it('every writer is SECURITY DEFINER with a pinned search_path, and service-role only', () => {
@@ -132,6 +135,8 @@ describe('the migration shape', () => {
       [crates, 'settle_progression', 'uuid, text, text, bigint, boolean, int, jsonb'],
       [crates, 'open_crate', 'uuid, uuid'],
       [crates, 'equip_title', 'uuid, text'],
+      [skins, 'equip_cosmetic', 'uuid, text, text, text'],
+      [skins, 'sync_cosmetic_catalog', 'jsonb, text'],
     ] as const) {
       const at = text.indexOf(`create or replace function public.${fn}(`);
       const head = text.slice(at, text.indexOf('as $$', at));
@@ -169,7 +174,7 @@ describe('the crates migration (2026-09-28)', () => {
   });
 
   it('every SQL error open_crate / equip_title raise is mapped by the inventory Edge Function', () => {
-    for (const fn of ['open_crate', 'equip_title']) {
+    for (const fn of ['open_crate', 'equip_title', 'equip_cosmetic']) {
       const raised = [...fnBody(fn).matchAll(/raise exception '([a-z_]+)'/g)].map((x) => x[1]!);
       expect(raised.length, fn).toBeGreaterThan(0);
       for (const code of new Set(raised)) expect(INVENTORY_ERROR_STATUS[code], `${fn}: ${code}`).toBeDefined();
@@ -190,37 +195,37 @@ describe('the crates migration (2026-09-28)', () => {
     expect(n(fnBody('open_crate'), 'c_roll_version')).toBe(CRATE_ROLL_VERSION);
   });
 
-  /** The rows of one `insert into public.<table> (...) values (...), ... on conflict` seed. */
-  function seedRows(table: string): string[][] {
-    const at = crates.indexOf(`insert into public.${table} (`);
-    const block = crates.slice(crates.indexOf('values', at) + 6, crates.indexOf('on conflict', at));
+  /** The rows of one `insert into public.<table> (...) values (...), ... on conflict` seed in the CRATES file (the
+   *  first seed; since the skins file the sync writes both tables from code). */
+  function seedRows(table: string, from: string = crates): string[][] {
+    const at = from.indexOf(`insert into public.${table} (`);
+    const block = from.slice(from.indexOf('values', at) + 6, from.indexOf('on conflict', at));
     return [...block.matchAll(/\(([^()]*)\)/g)].map((m) => m[1]!.split(',').map((x) => x.trim().replace(/^'(.*)'$/, '$1')));
   }
 
-  it('the category seed equals COSMETIC_CATEGORY_DEFS (weights + the feature flags: only title on)', () => {
+  it('the crates file first seed: every category with the code weight and target (titles on), never re-writing a flag', () => {
     const rows = seedRows('cosmetic_categories');
     expect(rows.map((r) => r[0])).toEqual([...COSMETIC_CATEGORIES]);
-    for (const [id, weight, enabled, target] of rows) {
+    for (const [id, weight, , target] of rows) {
       const def = COSMETIC_CATEGORY_DEFS[id as keyof typeof COSMETIC_CATEGORY_DEFS];
-      expect({ weight: Number(weight), enabled: enabled === 'true', target }, id).toEqual({ weight: def.weight, enabled: def.enabled, target: def.target });
+      expect({ weight: Number(weight), target }, id).toEqual({ weight: def.weight, target: def.target });
     }
-    expect(COSMETIC_CATEGORIES.filter((c) => COSMETIC_CATEGORY_DEFS[c].enabled)).toEqual(['title']);
+    expect(rows.filter((r) => r[2] === 'true').map((r) => r[0])).toEqual(['title']);
+    // a re-run can never flip a flag the sync (or the owner) set
+    for (const table of ['cosmetic_categories', 'cosmetic_catalog']) {
+      const at = crates.indexOf(`insert into public.${table} (`);
+      expect(crates.slice(crates.indexOf('on conflict', at), crates.indexOf(';', crates.indexOf('on conflict', at))), table).toMatch(/do nothing$/);
+    }
   });
 
-  it('the catalog seed equals COSMETICS row for row (ids, category, rarity, acquisition, active)', () => {
-    const rows = seedRows('cosmetic_catalog');
+  it('the crates file first seed of items equals the code catalog\'s titles row for row', () => {
     const nul = (v: string | undefined): string | null => (v === undefined || v === 'null' ? null : v);
-    const sqlRows = rows.map(([id, category, rarity, source, level, targetType, targetId, achievementId, active]) => ({
-      id, category, rarity, source, level: nul(level) === null ? null : Number(level),
+    const sqlRows = seedRows('cosmetic_catalog').map(([id, category, rarity, source, level, targetType, targetId, achievementId, active]) => ({
+      cosmeticId: id!, category: category!, rarity: rarity!, acquisitionSource: source!, milestoneLevel: nul(level) === null ? null : Number(level),
       targetType: nul(targetType), targetId: nul(targetId), achievementId: nul(achievementId), active: active === 'true',
     }));
-    const tsRows = COSMETICS.map((c) => ({
-      id: c.id, category: c.category, rarity: c.rarity, source: c.acquisition.type,
-      level: c.acquisition.type === 'level_milestone' ? c.acquisition.level : null,
-      targetType: c.target?.type ?? null, targetId: c.target?.id ?? null,
-      achievementId: c.acquisition.type === 'achievement' ? c.acquisition.id : null, active: c.active,
-    }));
-    expect(sqlRows).toEqual(tsRows);
+    const titles = catalogSyncPayload().items.filter((i) => i.category === 'title');
+    expect([...sqlRows].sort((a, b) => (a.cosmeticId < b.cosmeticId ? -1 : 1))).toEqual(titles);
     // the settlement's Alpha Tester constants agree with the catalog's level milestone
     expect(constOf(settle, 'c_alpha_title')).toBe(ALPHA_TESTER_TITLE_ID);
     expect(n(settle, 'c_alpha_level')).toBe(TITLES[ALPHA_TESTER_TITLE_ID]!.unlockLevel);
@@ -229,7 +234,8 @@ describe('the crates migration (2026-09-28)', () => {
   it('the SQL walk (cumulative weight in id order, first bucket above the roll) picks exactly what pickCrateReward picks, for every roll', () => {
     const pool = fnBody('progression_crate_pool');
     const w = (r: string): number => n(pool, `c_w_${r}`);
-    const catWeight = Object.fromEntries(seedRows('cosmetic_categories').map((r) => [r[0], Number(r[1])]));
+    // the category weights the database holds after a sync
+    const catWeight = Object.fromEntries(catalogSyncPayload().categories.map((c) => [c.category, c.weight]));
     for (const owned of [[], ['title_wanderer', 'title_the_unbroken'], eligibleCrateCosmetics([]).slice(1).map((c) => c.id)]) {
       const eligible = eligibleCrateCosmetics(owned);
       // SQL: order by id collate "C" (byte order), weight = rarity x category
@@ -242,5 +248,49 @@ describe('the crates migration (2026-09-28)', () => {
         expect(sqlPick, `roll ${roll}`).toBe(pickCrateReward(eligible, roll)!.id);
       }
     }
+  });
+});
+
+describe('the skins migration (2026-09-28): the code-owned catalog sync + the emergency switch', () => {
+  it('seeds NO catalog or category rows and writes no flag (the sync owns them), and forces a resync', () => {
+    expect(skins).not.toMatch(/insert into public\.cosmetic_categories \([^)]*\) values/);
+    expect(skins).not.toMatch(/insert into public\.cosmetic_catalog \([^)]*\) values/);
+    expect(skins).not.toMatch(/^update public\.cosmetic_(catalog|categories) set/m);
+    expect(skins).toMatch(/^update public\.progression_config set catalog_hash = null where id = 1;/m);
+  });
+
+  it('sync_cosmetic_catalog reads every payload key, checks the hash first, and never writes admin_off or deletes', () => {
+    const body = fnBody('sync_cosmetic_catalog');
+    const payload = catalogSyncPayload();
+    for (const k of Object.keys(payload.categories[0]!)) expect(body, k).toContain(`'${k}'`);
+    for (const k of Object.keys(payload.items[0]!)) expect(body, k).toContain(`'${k}'`);
+    expect(body.indexOf('catalog_hash')).toBeLessThan(body.indexOf('insert into'));
+    expect(body).not.toMatch(/admin_off/);
+    expect(body).not.toMatch(/\bdelete\b/);
+    expect(body).toContain("'unchanged'");
+  });
+
+  it('the effective state (active AND NOT admin_off; enabled AND NOT admin_off) gates the pool, equip and the loadout', () => {
+    expect(fnBody('progression_crate_pool')).toMatch(/c\.active and not c\.admin_off and k\.enabled and not k\.admin_off/);
+    expect(fnBody('progression_profile_json')).toMatch(/c\.active and not c\.admin_off and k\.enabled and not k\.admin_off/);
+    const equip = fnBody('equip_cosmetic');
+    expect(equip).toMatch(/k\.enabled and not k\.admin_off/);
+    expect(equip).toMatch(/not v_cat\.active or v_cat\.admin_off/);
+  });
+
+  it('documents the one-line emergency switch (admin_off) for an item, a category, and both restores', () => {
+    for (const line of [
+      "update public.cosmetic_catalog set admin_off = true where cosmetic_id = 'skin_blackbelt_2';",
+      "update public.cosmetic_categories set admin_off = true, updated_at = now() where category = 'minion_skin';",
+      "update public.cosmetic_catalog set admin_off = false where cosmetic_id = 'skin_blackbelt_2';",
+      "update public.cosmetic_categories set admin_off = false, updated_at = now() where category = 'minion_skin';",
+    ]) expect(skins).toContain(line);
+  });
+
+  it('equip_cosmetic checks slot, target, liveness and ownership, and never deletes ownership', () => {
+    const body = fnBody('equip_cosmetic');
+    for (const code of ['bad_slot', 'bad_target', 'bad_cosmetic_id', 'wrong_target', 'not_equippable', 'not_owned']) expect(body, code).toContain(`'${code}'`);
+    expect(body).not.toMatch(/delete from public\.player_cosmetics/);
+    expect(skins).not.toMatch(/delete from public\.(player_cosmetics|cosmetic_catalog|cosmetic_categories)/);
   });
 });

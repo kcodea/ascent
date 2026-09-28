@@ -217,3 +217,27 @@
 @media (prefers-reduced-motion: reduce) {
   .colls-crate, .colls-hero-glow, .colls-tile::before, .colls-new { animation: none !important; }
 }
+
+/* ── SKINS (2026-09-28) ───────────────────────────────────────────────────────────────────────────────────
+   A skin tile is its art, full-bleed under the rarity frame, with the name on a dark foot. Unowned: dimmed and
+   blurred (the owner's "blur unowned" rule for titles, applied to the art). Every filter here is STATIC; nothing
+   loops, and the tile's hover lift is the existing transform. */
+.colls-tile.skin { justify-content: flex-end; min-height: 230px; overflow: hidden; padding-bottom: 16px; }
+.colls-tile-art { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; border-radius: 12px; pointer-events: none; }
+.colls-tile.skin::before { content: ''; position: absolute; inset: 0; border-radius: 12px; pointer-events: none;
+  background: linear-gradient(180deg, rgba(4, 8, 18, 0.55) 0%, rgba(4, 8, 18, 0) 26%, rgba(4, 8, 18, 0) 48%, rgba(4, 8, 18, 0.92) 100%); }
+.colls-tile.skin .colls-tile-top, .colls-tile.skin .colls-tile-name, .colls-tile.skin .colls-tile-for { position: relative; }
+.colls-tile.skin .colls-tile-name { font-size: 22px; }
+.colls-tile-for { font-weight: 800; font-size: 12px; letter-spacing: 0.12em; text-transform: uppercase; color: rgba(255, 246, 228, 0.85); text-shadow: 0 1px 4px #000; }
+.colls-tile.skin.missing .colls-tile-art { filter: blur(6px) saturate(0.35) brightness(0.45); transform: scale(1.08); }
+.colls-tile.skin.missing .colls-tile-for { color: rgba(255, 246, 228, 0.55); }
+
+.colls-skinart { position: relative; align-self: center; overflow: hidden; border: 2px solid color-mix(in srgb, var(--rc) 72%, #000);
+  box-shadow: 0 0 0 1px rgba(232, 200, 119, 0.25), 0 12px 28px -14px #000; }
+.colls-skinart.minion { width: 220px; height: 220px; border-radius: 14px; }
+.colls-skinart.hero { width: 220px; height: 220px; border-radius: 50%; }
+/* The art IS the preview: a skin's nameplate drops the title plate's tall min-height so Equip stays in view. */
+.colls-detail.skin .colls-plate { flex: 0 0 auto; min-height: 0; padding: 14px 14px 12px; }
+.colls-detail.skin .colls-plate-name { font-size: 30px; }
+.colls-skinart img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.colls-detail.missing .colls-skinart img { filter: blur(8px) saturate(0.35) brightness(0.5); transform: scale(1.08); }

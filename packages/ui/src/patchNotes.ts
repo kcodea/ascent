@@ -55,6 +55,23 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: 'Skins are here. Crates can now give hero and minion skins, and you can equip them in the Collection.',
+        details: [
+          'The first four: two looks for Black Belt Brian, one for Albus and one for Warden.',
+          'Equip a skin from the Heroes or Minions tab of the Collection. "Use default art" puts the original back.',
+          'Your skin shows everywhere that hero or minion appears: the shop, your hand and board, combat, Discover, the end screen, your Career and the Minion Book.',
+          'Gilded copies keep their gold frame on top of the skin.',
+          'Opponents see the skins you wore in that game, and you see theirs.',
+          'The skins you wear are locked in when a game starts. Changes apply to your next game.',
+          'Skins are looks only. Nothing about how a card plays changes.',
+        ],
+      },
+      {
+        category: 'Systems',
+        text: 'New setting: Show opponent skins. Turn it off to see other players in their default art. Your own skins always show.',
+      },
+      {
+        category: 'Systems',
         text: 'Collection now has its own screen, and opening a crate got a big new animation.',
         details: [
           'Find the Collection on the main menu, in the side menu, or on your Career.',

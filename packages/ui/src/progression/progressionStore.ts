@@ -18,10 +18,15 @@
  * on), probed after the first; `crateList` is this account's crates (owner-only read). `openCrate` and
  * `equipTitle` go through the `progression-inventory` Edge Function and adopt the profile it returns, so the
  * owned titles and the equipped title update everywhere at once. Opening is interactive, never queued.
+ *
+ * SKINS (2026-09-28): `equipCosmetic` wears a hero / minion skin (or Default) through the same Edge Function; the
+ * mirror carries the owned cosmetics and the loadout. `catalogEpoch` moves whenever the SERVER's kill switch is
+ * (re)read (`refreshServerCatalog`), so every skin renderer re-resolves; the last answer is cached so an offline
+ * client still honours a retire it has already seen.
  */
 import { create } from 'zustand';
 import {
-  titleName, type CrateRow, type OpenCrateResult, type ProgressionMode, type ProgressionProfile, type ProgressionResult, type ProgressionRunFactsV1,
+  setServerCatalogState, titleName, type ServerCatalogState, type SkinSlot, type CrateRow, type OpenCrateResult, type ProgressionMode, type ProgressionProfile, type ProgressionResult, type ProgressionRunFactsV1,
 } from '@game/progression';
 import { currentUserId } from '../identity';
 import { remoteEnabled } from '../remoteBoards';
@@ -29,7 +34,7 @@ import {
   enqueuePendingProgression, flushPendingProgressions, installProgressionRetryTriggers, type PendingProgression,
 } from './progressionQueue';
 import {
-  equipTitleRemote, fetchCratesEnabled, fetchOwnCrates, fetchOwnProgression, fetchProgressionEnabled, openCrateRemote, progressionRequestFor,
+  equipCosmeticRemote, equipTitleRemote, fetchCratesEnabled, fetchOwnCrates, fetchOwnProgression, fetchProgressionEnabled, fetchServerCatalogState, openCrateRemote, progressionRequestFor,
   type ProgressionSubmitOutcome,
 } from './progressionRemote';
 
@@ -57,9 +62,29 @@ interface ProgressionStore {
   cratesCapability: ProgressionCapability;
   /** This account's crates, oldest level first (null until read). */
   crateList: CrateRow[] | null;
+  /** Bumps whenever the server's catalog switches are applied: a render key for every skin lookup. */
+  catalogEpoch: number;
 }
 
 const MIRROR_KEY = 'ascent.progression';
+const SERVER_CATALOG_KEY = 'ascent.cosmetics.server';
+
+/** Apply (and cache) the server's catalog switches, then bump the render epoch. */
+export function applyServerCatalogState(state: ServerCatalogState | null, persist = true): void {
+  setServerCatalogState(state);
+  if (persist) {
+    try { if (state) localStorage.setItem(SERVER_CATALOG_KEY, JSON.stringify(state)); else localStorage.removeItem(SERVER_CATALOG_KEY); } catch { /* ignore */ }
+  }
+  useProgression.setState((s) => ({ catalogEpoch: s.catalogEpoch + 1 }));
+}
+function loadServerCatalogState(): ServerCatalogState | null {
+  try {
+    const o = JSON.parse(localStorage.getItem(SERVER_CATALOG_KEY) ?? 'null') as ServerCatalogState | null;
+    return o && Array.isArray(o.retiredIds) && Array.isArray(o.disabledCategories) ? o : null;
+  } catch {
+    return null;
+  }
+}
 
 function loadMirror(): ProgressionMirror | null {
   try {
@@ -80,7 +105,14 @@ export const useProgression = create<ProgressionStore>(() => ({
   current: null,
   cratesCapability: 'unknown',
   crateList: null,
+  catalogEpoch: 0,
 }));
+
+// The last server kill-switch answer we saw, applied before anything renders (never un-retires on its own).
+if (typeof localStorage !== 'undefined') {
+  const cached = loadServerCatalogState();
+  if (cached) setServerCatalogState(cached);
+}
 
 /** The mirror, only when it belongs to the account that is live right now. */
 export function mirrorFor(userId: string | null | undefined, mirror: ProgressionMirror | null): ProgressionMirror | null {
@@ -124,6 +156,9 @@ export function probeProgression(): Promise<void> {
   if (probing) return probing;
   const run = async (): Promise<void> => {
     if (!remoteEnabled()) { useProgression.setState({ capability: 'off' }); return; }
+    // The kill switch first and independently of the XP feature: a retired item must stop rendering even while
+    // progression is switched off. Unanswerable = keep the cached / bundled state.
+    void refreshServerCatalog();
     const enabled = await fetchProgressionEnabled();
     if (enabled === undefined) return;
     useProgression.setState({ capability: enabled ? 'on' : 'off' });
@@ -233,6 +268,22 @@ export async function equipTitle(titleId: string | null): Promise<boolean> {
   return true;
 }
 
+/** Re-read the server's catalog switches (retired items / disabled categories). Never throws. */
+export async function refreshServerCatalog(): Promise<void> {
+  const state = await fetchServerCatalogState().catch(() => undefined);
+  if (state) applyServerCatalogState(state);
+}
+
+/** Wear an owned skin on its hero / card, or Default (null). Returns whether the server accepted it. */
+export async function equipCosmetic(slot: SkinSlot, targetId: string, cosmeticId: string | null): Promise<boolean> {
+  const userId = currentUserId();
+  if (!userId) return false;
+  const out = await equipCosmeticRemote(slot, targetId, cosmeticId).catch(() => null);
+  if (!out || out.status !== 'ok') return false;
+  adoptProgressionProfile(userId, out.profile);
+  return true;
+}
+
 /** The equipped title's display name for a mirror/profile, or null. */
 export const equippedTitleName = (p: Pick<ProgressionProfile, 'equippedTitleId'> | null | undefined): string | null => titleName(p?.equippedTitleId ?? null);
 
@@ -267,5 +318,7 @@ export function markProgressionPresented(mode: ProgressionMode, runId: string): 
 export function resetProgressionForTests(): void {
   presented = [];
   try { localStorage.removeItem(PRESENTED_KEY); localStorage.removeItem(MIRROR_KEY); } catch { /* ignore */ }
-  useProgression.setState({ capability: 'unknown', mirror: null, current: null, cratesCapability: 'unknown', crateList: null });
+  try { localStorage.removeItem(SERVER_CATALOG_KEY); } catch { /* ignore */ }
+  setServerCatalogState(null);
+  useProgression.setState({ capability: 'unknown', mirror: null, current: null, cratesCapability: 'unknown', crateList: null, catalogEpoch: 0 });
 }

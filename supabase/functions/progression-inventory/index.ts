@@ -1,5 +1,13 @@
 /**
- * progression-inventory: open a level crate, equip a title (2026-09-28, account progression crates).
+ * progression-inventory: open a level crate, equip a title, equip a skin (2026-09-28, account progression crates;
+ * `equip_cosmetic` added with skins v1 the same day: `{ action: 'equip_cosmetic', slot, targetId, cosmeticId }`,
+ * cosmeticId null = Default).
+ *
+ * THE CATALOG SYNC (owner 2026-09-28: "make it automated when i add skins"). On the first request of every cold
+ * start, BEFORE anything else (so even the anon 401 probe triggers it), this function pushes the catalog it was
+ * deployed with (`_shared/progressionCosmetics.ts`, generated from packages/progression/src/cosmetics.ts) to
+ * `sync_cosmetic_catalog`. So deploying this function IS how a new cosmetic reaches the database. It is the only
+ * writer of the catalog; see `syncCatalogOnce` for why submit-progression does not sync.
  *
  * The only path that opens a crate, grants a cosmetic from one, or changes the equipped title. A client sends
  * `{ action: 'open_crate', crateId }` or `{ action: 'equip_title', titleId }` (null takes the title off); it never
@@ -23,7 +31,7 @@
  */
 // @ts-nocheck: Deno globals + remote imports aren't visible to the repo's Node TypeScript config.
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import { handleInventory } from '../_shared/progressionInventory.ts';
+import { handleInventory, syncCatalogOnce } from '../_shared/progressionInventory.ts';
 
 const CORS: Record<string, string> = {
   'Access-Control-Allow-Origin': '*',
@@ -42,6 +50,12 @@ Deno.serve(async (req: Request): Promise<Response> => {
   const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
   if (!url || !anonKey || !serviceKey) return json(500, { error: 'not_configured' });
 
+  const admin = createClient(url, serviceKey);
+  const rpc = (fn: string, args: Record<string, unknown>) => admin.rpc(fn, args);
+  const log = (msg: string, detail?: unknown) => console.error(msg, detail);
+  // Once per cold start; never throws; an unchanged catalog is one read (see progressionInventory.ts).
+  await syncCatalogOnce(rpc, log);
+
   // WHO is calling: `getUser()` verifies the token server-side. Anonymous sessions are real user ids.
   const authHeader = req.headers.get('Authorization') ?? '';
   const userClient = createClient(url, anonKey, { global: { headers: { Authorization: authHeader } } });
@@ -51,12 +65,6 @@ Deno.serve(async (req: Request): Promise<Response> => {
   let body: unknown;
   try { body = await req.json(); } catch { return json(400, { error: 'bad_json' }); }
 
-  const admin = createClient(url, serviceKey);
-  const res = await handleInventory(
-    userId,
-    body,
-    (fn, args) => admin.rpc(fn, args),
-    (msg, detail) => console.error(msg, detail),
-  );
+  const res = await handleInventory(userId, body, rpc, log);
   return json(res.status, res.body);
 });

@@ -43,7 +43,8 @@ import { createPortal } from 'react-dom';
 import { setCardId, setCardStats, toggleCardKeyword, setEnemyStats, setEnemyCardId, toggleEnemyKeyword, removeEnemy, foeSnapshotOf } from './sandboxEdit';
 import { UnitEditor } from './UnitEditor';
 import { Card, mdBold, type CardView } from './Card';
-import { heroPowerArt, heroArt, equipmentBranchArtFor } from './art';
+import { heroPowerArt, equipmentBranchArtFor } from './art';
+import { MinionSkins, heroPortrait, opponentSkins, seatCosmetics, useCombatFoeSkins, useOpponentSkins } from './skins/skins';
 import { beginDragTrace, cancelDragTrace, endDragTrace, sampleDragTrace } from './replay/dragTrace';
 import { SYM_KINDS } from './choreo/channels/float';
 import { stabilizeViewMap, stabilizeRefMap, stabilizeView } from './cardViewEqual';
@@ -1977,6 +1978,8 @@ export function Recruit() {
   // curtain stays parked while wipeFx spirals motes into the gem, then the bloom erupts. The EXIT reuses
   // `primeOut` for the same tell — it already parks the zero circle, so it just holds for the charge
   // duration instead of one frame.
+  // SKINS: "Show opponent skins" (the NOW FACING portrait honours it; your own portrait never does).
+  const showOppSkins = useGame((s) => s.showOpponentSkins);
   const [wipe, setWipe] = useState<WipeState>(() => (run.phase === 'combat' ? 'combat' : 'idle'));
   // Every duration, the easing, the shape and the edge come from the Screen wipe tuner (screenWipeConfig.ts;
   // production plays its baked defaults). Read per render: the machine only moves between wipes, so a slider
@@ -7262,7 +7265,7 @@ export function Recruit() {
           return (
             <div className="wipevs">
               <div className="wipevs-label">Now Facing</div>
-              <img decoding="sync" className="wipevs-face" src={heroArt(foe.seat.heroId)} alt="" draggable={false} />
+              <img decoding="sync" className="wipevs-face" src={heroPortrait(foe.seat.heroId, opponentSkins(showOppSkins, seatCosmetics(foe.seat, foe.board)))} alt="" draggable={false} />
               <div className="wipevs-name">{foe.seat.label}</div>
             </div>
           );
@@ -7903,11 +7906,16 @@ const TavernRow = memo(function TavernRow({
     const p = i < draggedShopIdx ? i : i - 1;
     return (p < shopGapIndex ? p : p + 1) - i;
   };
+  // SKINS (2026-09-28): the enemy row is the FOE's, so it paints with their recorded skins (or default art when
+  // "Show opponent skins" is off); the shop offers below stay in your own scope.
+  const foeSkins = useCombatFoeSkins();
+  const sbFoeSkins = useOpponentSkins(sbEnemySnap?.cosmetics);
   return (
       <div className={`zone${frozen ? ' frozen' : ''}`} data-zone="tavern">
         <div className="row">
           {replay ? (
-            replay.visibleFrame.enemy.map((u) => (
+            <MinionSkins snapshot={foeSkins}>
+            {replay.visibleFrame.enemy.map((u) => (
               <Unit
                 key={u.uid}
                 u={u}
@@ -7919,8 +7927,10 @@ const TavernRow = memo(function TavernRow({
                 framePulse={replay.framePulseUids.get(u.uid)}
                 holdStep={replay.done}
               />
-            ))
+            ))}
+            </MinionSkins>
           ) : sbEnemyShown ? (
+            <MinionSkins snapshot={sbFoeSkins}>{
             /* SANDBOX: the board pinned for the coming fight, shown in the row enemies actually occupy — so
                the on-screen distance an effect travels here is the distance it will travel in the real fight.
                Gated on `run.sandbox` (belt-and-braces alongside the store flag) and nested INSIDE the
@@ -7942,7 +7952,7 @@ const TavernRow = memo(function TavernRow({
                 }}
                 onPointerDown={sbEditMode ? onSbEnemyPointerDown : undefined}
               />
-            ))
+            ))}</MinionSkins>
           ) : (
           <>
           {displayShop.map((o, i) => (
@@ -8948,7 +8958,16 @@ const DiscoverOverlay = memo(function DiscoverOverlay({ overlaysHeld, run, disco
 const ScoutOverlay = memo(function ScoutOverlay({ overlaysHeld, scouted, dispatch }: {
   overlaysHeld: boolean; scouted: RunState['scoutedNextOpponent']; dispatch: (a: Action) => void;
 }) {
+  // SKINS: these are the NEXT foe's minions, so they wear that seat's recorded skins. Read once per report (keyed
+  // on the scouted list), never on a shop click: the pairing is what the report was scouted against.
+  const scoutedFoe = useMemo(() => {
+    const lobby = scouted && scouted.length > 0 ? useGame.getState().run.lobby : undefined;
+    const foe = lobby ? playerOpponent(lobby) : null;
+    return foe ? seatCosmetics(foe.seat, foe.board) : null;
+  }, [scouted]);
+  const scoutedSkins = useOpponentSkins(scoutedFoe);
   return (
+    <MinionSkins snapshot={scoutedSkins}>
     <>
       {/* Farseer's Report — a read-only Discover-style reveal of the next opponent's scouted minions, at their
           actual stats (green above the printed base; golden treatment for a triple). No pick; the Close button
@@ -8982,6 +9001,7 @@ const ScoutOverlay = memo(function ScoutOverlay({ overlaysHeld, scouted, dispatc
         </div>
       )}
     </>
+    </MinionSkins>
   );
 });
 

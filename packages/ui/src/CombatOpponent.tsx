@@ -3,7 +3,8 @@ import { createPortal } from 'react-dom';
 import { useGame } from './store';
 import { playerOpponent, getHero } from '@game/sim';
 import { RUNE_INDEX } from '@game/content';
-import { heroArt, runeArt, heroPowerArt } from './art';
+import { runeArt, heroPowerArt } from './art';
+import { heroPortrait, opponentSkins, seatCosmetics } from './skins/skins';
 import { mdBold } from './Card';
 import { Icon } from './Icon';
 import { BuffsFrame } from './BuffsFrame';
@@ -36,6 +37,7 @@ export const CombatOpponent = memo(function CombatOpponent(): JSX.Element | null
   const dmg = useGame((s) => s.heroDmgTaken);
   const preview = useGame((s) => s.duelPreview);
   const dmgDealt = useGame((s) => s.oppDmgDealt);
+  const showOppSkins = useGame((s) => s.showOpponentSkins);
 
   // ENTRANCE + EXIT. The drop-in animation still plays (behind the curtain — invisible, but it keeps the dev
   // tuner's Test preview honest), while the old visible fade-and-fall exit is GONE: the curtain fully covers
@@ -63,7 +65,8 @@ export const CombatOpponent = memo(function CombatOpponent(): JSX.Element | null
   const next = shown;
   const seat = shown.seat;
   const leaving = phase === 'out';
-  const art = heroArt(seat.heroId);
+  // SKINS: the foe's recorded hero skin, or default art when "Show opponent skins" is off.
+  const art = heroPortrait(seat.heroId, opponentSkins(showOppSkins, seatCosmetics(seat, next.board)));
   // The foe's health drops the moment the blow lands, not at resolve — mirroring the player's live drop. The
   // seat itself settles later (resolveCombat); `dmgDealt` carries the reduction until then. Armor absorbs first.
   const shownArmor = Math.max(0, seat.armor - dmgDealt);

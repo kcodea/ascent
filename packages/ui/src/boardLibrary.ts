@@ -8,7 +8,7 @@
  * deterministic: a finished run is `{ seed, heroId, actions }`, and `replayRun` re-derives its per-wave
  * boards byte-identically, so we store the replay's snapshots rather than capturing live.
  */
-import { registerOpponents, replayRun, type BoardSnapshot, type Replay } from '@game/sim';
+import { registerOpponents, replayRun, scopeCosmetics, type BoardSnapshot, type Replay, type RunState } from '@game/sim';
 
 const KEY = 'ascent.boards';
 const CAP = 300; // keep the most recent N captured boards (≈ 15–30 runs); FIFO so the pool stays fresh
@@ -71,7 +71,7 @@ function storeBoards(snapshots: readonly BoardSnapshot[], setId: BoardSnapshot['
  *
  *  NOT for lobby runs — see `saveCapturedBoards`. Replaying a lobby run re-simulates all seven opponent seats
  *  from scratch, which measured at ~20 SECONDS of blocked main thread on a 12-round run. */
-export function saveRunBoards(replay: Replay, author?: string): BoardSnapshot[] {
+export function saveRunBoards(replay: Replay, author?: string, cosmetics?: RunState['cosmetics']): BoardSnapshot[] {
   try {
     // A lobby replay without its seats attached diverges from the first combat and captures boards that were
     // never played. Refusing it is deliberate: attaching them costs ~20 s, and the caller already has the real
@@ -82,7 +82,12 @@ export function saveRunBoards(replay: Replay, author?: string): BoardSnapshot[] 
     // on the gameover/victory transition; this guard makes it impossible for an in-progress / abandoned run
     // to be snapshotted even if anything ever calls this wrongly.
     if (final.phase !== 'gameover' && final.phase !== 'victory') return [];
-    return storeBoards(snapshots, final.setId, author);
+    // SKINS: a replayed run is rebuilt from (seed, actions) and never carries the recorded skins, so the live run's
+    // are stamped back on here, scoped per board exactly as `snapshotBoard` scopes a live capture.
+    const skinned = cosmetics
+      ? snapshots.map((b) => { const c = scopeCosmetics(cosmetics, [b.heroId], b.minions.map((m) => m.cardId)); return c ? { ...b, cosmetics: c } : b; })
+      : snapshots;
+    return storeBoards(skinned, final.setId, author);
   } catch {
     return []; // capture is best-effort, never fatal
   }

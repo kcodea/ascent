@@ -440,9 +440,11 @@ offsets in `styles.css`).
 
 - **Account progression, after crates** (MVP 2026-09-27 and level crates + the 15-title catalog 2026-09-28, see
   `docs/devlog/2026-09-27-account-progression-mvp.md` and `docs/devlog/2026-09-28-progression-crates.md`; the owner
-  runs each runbook). Next: the owner's cosmetic ART as catalog rows (minion / hero skins, attack animations,
-  announcers, boards, music; each needs its category switched on in `cosmetics.ts` AND the SQL seed, plus the
-  in-game rendering and a run cosmetic snapshot, handoff §13), more titles before players exhaust 15 (about
+  runs each runbook). Hero + minion skins shipped 2026-09-28 (the first four, the opponent toggle, the kill switch,
+  the run cosmetic snapshot; `docs/devlog/2026-09-28-skins-v1.md`); more skins are catalog rows + art only. Next:
+  the owner's other cosmetic ART (attack animations, announcers, boards, music; each needs its category switched on
+  in `cosmetics.ts` AND the SQL seed, plus its in-game rendering), skins on the leaderboard / Rankings strips,
+  server-side verification of a recorded skin snapshot against ownership, more titles before players exhaust 15 (about
   Level 15), achievements on the `ProgressionRunFactsV1` observer, titles on lobby name plates (needs the title in
   the seat snapshot), level-milestone rewards (handoff §5.7), and replay verification for practice-sourced XP.
 

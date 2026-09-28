@@ -26,7 +26,7 @@ import { NewPill, useHasNewRewards } from './progression/NewRewardsPopup';
  * left-aligned menu, the account corner (portrait / name / rank), and the build version. A single store
  * flag (`showTitle`) drives it, no router.
  *
- * THE MENU (owner ask 2026-09-21): Play · Social · Collection (2026-09-28, once crates are live) · Patch Notes ·
+ * THE MENU (owner ask 2026-09-21): Play · Social · Collection (2026-09-28, once crates are live) · Rules (2026-09-28) · Patch Notes ·
  * Scene Builder (DEV only) · Settings.
  * SOCIAL consolidates the four ladder pages — it opens the player's own Career page (`openCareer()`, the
  * un-stamped open, so the page fades in whole rather than as a sidebar hop), whose menu sidebar
@@ -67,6 +67,7 @@ export function Title({ onSettings }: { onSettings: () => void }) {
   const sealedCrates = useProgression((s) => (s.crateList ?? []).filter((c) => c.state === 'sealed').length);
   const openBalance = useGame((s) => s.openBalance);
   const openPatchNotes = useGame((s) => s.openPatchNotes);
+  const openRules = useGame((s) => s.openRules);
   const openBugReport = useGame((s) => s.openBugReport);
   const playerName = useGame((s) => s.playerName);
   const setPlayerName = useGame((s) => s.setPlayerName);
@@ -242,6 +243,12 @@ export function Title({ onSettings }: { onSettings: () => void }) {
               {sealedCrates > 0 && <span className="mbnote" aria-label={`${sealedCrates} sealed ${sealedCrates === 1 ? 'crate' : 'crates'}`}>{sealedCrates} sealed</span>}
             </button>
           )}
+          {/* RULES (owner ask 2026-09-28, for friends trying the game): opens the Compendium straight onto its searchable
+              Rules page. The Compendium itself stays off the title (2026-09-21); this is the how-does-it-work door. */}
+          <button className="menubtn" onClick={() => { sfx.pulse(); openRules(); }} data-tip="How everything works. Search any question.">
+            <span className="mbicon"><Icon name="eye" /></span>
+            <span className="mblabel">Rules</span>
+          </button>
           <button className="menubtn" onClick={() => { sfx.pulse(); openPatchNotes(); }} data-tip="Gameplay changes by date">
             <span className="mbicon"><Icon name="clock" /></span>
             <span className="mblabel">Patch Notes</span>

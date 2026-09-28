@@ -79,3 +79,19 @@ describe('Compendium Rules panel', () => {
     expect(target.querySelector('.wiki-q')!.getAttribute('aria-expanded')).toBe('true');
   });
 });
+
+describe('Title Rules button → Compendium on the Rules page', () => {
+  afterEach(() => useGame.getState().closeBook());
+
+  it('openRules opens the book on Rules; Tab (toggleBook) opens it on the cards', () => {
+    act(() => useGame.getState().openRules());
+    expect(useGame.getState().showBook).toBe(true);
+    const m = mount(<MinionBook />);
+    expect(q(m.container, '.wiki-body')).not.toBeNull();
+    m.unmount();
+    act(() => { useGame.getState().closeBook(); useGame.getState().toggleBook(); });
+    const m2 = mount(<MinionBook />);
+    expect(q(m2.container, '.wiki-body')).toBeNull();
+    m2.unmount();
+  });
+});

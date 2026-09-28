@@ -303,7 +303,7 @@ export function MinionBook() {
   });
   useEffect(() => { try { localStorage.setItem('ascent.bookzoom', String(zoom)); } catch { /* ignore */ } }, [zoom]);
   const [glossary, setGlossary] = useState(false); // swap the gallery for the keyword codex
-  const [rules, setRules] = useState(false); // swap the gallery for the Rules wiki (searchable Q&A); exclusive with glossary
+  const [rules, setRules] = useState(() => useGame.getState().bookOpensTo === 'rules'); // swap the gallery for the Rules wiki (searchable Q&A); exclusive with glossary
   const codex = glossary || rules; // a text panel is up: the card-gallery controls (search, Gilded, zoom) step aside
   const [kw, setKw] = useState<{ term: string; icon: string; mechId?: string; match: (c: CardDef) => boolean } | null>(null); // active keyword filter (from the glossary)
   // RUNES TAB tribe filter (owner ask 2026-09-18): the tier row's chart space shows one button per tribe; a rune

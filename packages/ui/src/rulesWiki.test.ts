@@ -36,6 +36,8 @@ describe('rules wiki: integrity', () => {
       ...(e.q.trim().endsWith('?') ? [] : [`${e.id}: question should end with "?"`]),
       ...(e.a.trim() ? [] : [`${e.id}: empty answer`]),
       ...(BANNED.test(e.a) || BANNED.test(e.q) ? [`${e.id}: dev jargon (${(BANNED.exec(e.a) ?? BANNED.exec(e.q))![0]})`] : []),
+      // Owner writing rule 2026-09-21 (noEmDashPlayerText.test.ts): no em dash or double hyphen as a separator.
+      ...(/—| -- /.test(e.a + e.q) ? [`${e.id}: em dash / double hyphen (house style: short plain sentences)`] : []),
     ]);
     expect(bad).toEqual([]);
   });

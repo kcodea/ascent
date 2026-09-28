@@ -1,3 +1,4 @@
+import type { RunCosmeticSnapshot } from '@game/progression';
 import type { AncientId, AncientsState } from './ancients';
 import { makeRng } from '@game/core';
 import type { BoardMinion, BounceKind, CombatConfig, CombatOutcome, CombatResult, CombatSideState, EffectDef, Keyword, QuestObjectiveEvent, Rng, RubyRider, Tribe } from '@game/core';
@@ -752,6 +753,12 @@ export interface RunState {
    *  lobby (bot vs recorded opponents), the reducer (health → invulnerability + curtain), and the shop (tribe
    *  surge). Plain data, so it serializes with the run. See `PracticeConfig`. */
   practiceConfig?: PracticeConfig;
+  /** COSMETICS (skins v1, owner 2026-09-28): the player's equipped skins, RECORDED when the run starts (handoff
+   *  §5.6 / §13). Display only: nothing in the sim reads it for an outcome. It travels with the save, the replay
+   *  shop frames (every RunState key does) and, scoped to the board, into every `BoardSnapshot` this run captures,
+   *  so opponents, replays and history show the skins worn in THIS run, never anyone's current loadout. Absent on
+   *  every run from before skins, and on runs the sim creates itself: default art. */
+  cosmetics?: RunCosmeticSnapshot;
   /** Current wave (Altitude). Score = waves survived. */
   wave: number;
   /** Result of each combat resolved this run, in order — drives the end-screen W-L-W summary. */

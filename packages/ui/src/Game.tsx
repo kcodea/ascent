@@ -70,6 +70,7 @@ import { setMusicAudioContextProvider, syncMusic } from './music';
 import { useGame, isPreRun } from './store';
 import { installStage, onStageChange, stageScale, stageViewport } from './stage';
 import { installTouchInput } from './touchInput';
+import { OwnSkins } from './skins/skins';
 
 /** Root of the playable game. `Recruit` owns the board and stays mounted across every
  *  phase — combat plays out *in place* (the shop closes, the enemies arrive, the
@@ -415,6 +416,11 @@ export function Game() {
 
           Unmounting rather than hiding is the point. A hidden board still runs — Recruit owns the shop clock
           and the FX canvas keeps its ticker — and the ruling is "or happening", not just "displayed". */}
+      {/* SKINS (2026-09-28): every card from here to <Inspect /> is YOURS (shop, hand, board, Discover, your combat
+          row, the end screen, the cast preview, the Minion Book), so it paints with your skins: the run's recorded
+          ones in a run, your live loadout before one. Opponent surfaces inside (the enemy combat row, the scouted
+          board) open their own scope with THEIR recorded skins. A context, not a DOM node: nothing lays out. */}
+      <OwnSkins live={preRun}>
       {!preRun && (
         <>
           <Recruit key={runKey} />
@@ -443,6 +449,7 @@ export function Game() {
       {!preRun && <CastPreviewLayer />}
       {showBook && <MinionBook />}
       <Inspect />
+      </OwnSkins>
       <button className="gearbtn" onPointerDown={openSettings} aria-label="Settings">
         <Icon name="gear" />
       </button>

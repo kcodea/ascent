@@ -1,7 +1,9 @@
 import {
-  COSMETICS, COSMETIC_CATEGORIES, COSMETIC_CATEGORY_DEFS, COSMETIC_RARITIES,
-  type CosmeticCategory, type CosmeticDef, type CosmeticRarity,
+  COSMETICS, COSMETIC_CATEGORIES, COSMETIC_RARITIES, isCategoryLive, isCosmeticLive,
+  type CosmeticCategory, type CosmeticDef, type CosmeticRarity, type ProgressionProfile,
 } from '@game/progression';
+import { CARD_INDEX } from '@game/content';
+import { HEROES } from '@game/sim';
 
 /**
  * THE COLLECTION SCREEN'S MODEL (2026-09-28, owner ask: "i think the layout is horrible. research best in class
@@ -13,6 +15,13 @@ import {
  *   counts       owned / total, per category, per rarity, and overall;
  *   NEW          an owned item you have not looked at yet. A LOCAL flag per account (localStorage), never written
  *                to the server: it clears when you select the item (Fortnite's "clears on view").
+ *
+ * RETIRED ITEMS ARE HIDDEN (the kill switch, owner 2026-09-28: "we need to have the ability to remove any rewards
+ * from the game"). An item that is not LIVE (`isCosmeticLive`: retired in the TS catalog or by the server's one-line
+ * switch, or in a category switched off) is left out of the album, the counts and the tabs, owned or not. The
+ * choice (over "owned but retired"): a removal is usually made because the item must not be SEEN any more (its art,
+ * its name), and showing it in the owner's album keeps exactly that on screen; ownership is untouched on the server,
+ * so a restore brings it back, still owned (and still equipped). The "N / M collected" total moves with it.
  */
 
 export type ShowFilter = 'all' | 'owned' | 'missing';
@@ -22,25 +31,51 @@ export type RarityFilter = 'all' | CosmeticRarity;
 const RARITY_RANK: Readonly<Record<CosmeticRarity, number>> = { legendary: 0, epic: 1, rare: 2, common: 3 };
 const CATALOG_INDEX = new Map(COSMETICS.map((c, i) => [c.id, i]));
 
-/** The categories in rail order: the live ones first, then the ones still switched off. */
-export const COLLECTION_CATEGORIES: readonly CosmeticCategory[] = [
-  ...COSMETIC_CATEGORIES.filter((c) => COSMETIC_CATEGORY_DEFS[c].enabled),
-  ...COSMETIC_CATEGORIES.filter((c) => !COSMETIC_CATEGORY_DEFS[c].enabled),
+/** The categories in rail order: the live ones first, then the ones switched off (a function: the server's switch
+ *  can change which are live while the game runs). */
+export const collectionCategories = (): CosmeticCategory[] => [
+  ...COSMETIC_CATEGORIES.filter((c) => isCategoryLive(c)),
+  ...COSMETIC_CATEGORIES.filter((c) => !isCategoryLive(c)),
 ];
+/** The rail order at load (the bundled flags only). Prefer `collectionCategories()`. */
+export const COLLECTION_CATEGORIES: readonly CosmeticCategory[] = collectionCategories();
 
-export const categoryLive = (c: CosmeticCategory): boolean => COSMETIC_CATEGORY_DEFS[c].enabled;
+export const categoryLive = (c: CosmeticCategory): boolean => isCategoryLive(c);
 
-/** Every active item of a live category, in album order. A switched-off category shows none. */
+/** Every LIVE item of a live category, in album order. A switched-off category shows none; a retired item never. */
 export function albumOf(category: CosmeticCategory, catalog: readonly CosmeticDef[] = COSMETICS): CosmeticDef[] {
   if (!categoryLive(category)) return [];
   return catalog
-    .filter((c) => c.category === category && c.active)
+    .filter((c) => c.category === category && c.active && isCosmeticLive(c.id))
     .sort((a, b) => RARITY_RANK[a.rarity] - RARITY_RANK[b.rarity] || (CATALOG_INDEX.get(a.id) ?? 0) - (CATALOG_INDEX.get(b.id) ?? 0));
 }
 
 /** Every item the collection can show today (all live categories): the header's "N / M collected". */
 export function collectibleItems(catalog: readonly CosmeticDef[] = COSMETICS): CosmeticDef[] {
-  return COLLECTION_CATEGORIES.flatMap((c) => albumOf(c, catalog));
+  return collectionCategories().flatMap((c) => albumOf(c, catalog));
+}
+
+// ── Ownership + what is worn (titles AND skins) ───────────────────────────────────────────────────────────
+
+/** Every owned id: the profile's `cosmetics` (every category, since skins), else its titles (a pre-skins server). */
+export const ownedIds = (p: Pick<ProgressionProfile, 'titles' | 'cosmetics'> | null | undefined): readonly string[] => p?.cosmetics ?? p?.titles ?? [];
+
+/** Whether this item is the one worn: the title slot, or the skin slot of the item's own hero / card. */
+export function isEquipped(item: CosmeticDef, p: Pick<ProgressionProfile, 'equippedTitleId' | 'loadout'> | null | undefined): boolean {
+  if (!p) return false;
+  if (item.category === 'title') return p.equippedTitleId === item.id;
+  const target = item.target?.id;
+  if (!target) return false;
+  if (item.category === 'hero_skin') return p.loadout?.heroSkinByHeroId?.[target] === item.id;
+  if (item.category === 'minion_skin') return p.loadout?.minionSkinByCardId?.[target] === item.id;
+  return false;
+}
+
+/** A skin's target, by display name ("Black Belt Brian", "Albus"); null for anything else. */
+export function skinTargetName(item: CosmeticDef): string | null {
+  if (!item.target) return null;
+  if (item.target.type === 'card') return CARD_INDEX[item.target.id]?.name ?? null;
+  return HEROES.find((h) => h.id === item.target!.id)?.name ?? null;
 }
 
 export interface Count { owned: number; total: number }
@@ -64,6 +99,7 @@ export function filterAlbum(items: readonly CosmeticDef[], owned: ReadonlySet<st
 
 /** How an item is found, in plain words for the detail panel. */
 export function acquisitionText(c: CosmeticDef): string {
+  // (Titles and skins share the sources; a skin's target is its own line in the detail panel.)
   switch (c.acquisition.type) {
     case 'crate': return 'Found in crates.';
     case 'level_milestone': return `Reach Level ${c.acquisition.level}.`;

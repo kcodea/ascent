@@ -74,15 +74,15 @@ import { type AnnouncedSlice, type AnnouncerEvent, announcedFor, emptyAnnounced,
 import { perfMonitor } from './perfMonitor';
 import { fetchRankedProfile, remoteEnabled, fetchAndRegisterBoardRecords, fetchAndRegisterPool, recordFightResult, recordLobbyFights, fetchLobbyStrength, refreshOpponentPoolAndRecords, supabaseAuthProvider, uploadBoards, uploadPlayerProfile, uploadRunHistory, uploadRunTelemetry, uploadVictory, uploadPracticeGame, fetchRunHistory, claimHandle, flushUploadQueue } from './remoteBoards';
 import { practiceGameOf } from './practiceGames';
-import { initIdentity, currentIdentity } from './identity';
+import { initIdentity, currentIdentity, currentUserId as currentProgressionUserId } from './identity';
 import { notifyTutorialActions } from './tutorial/actionBus';
 import { gateBlocks, notifyGateNudge } from './tutorial/gateBus';
 import { beginCourseFresh } from './tutorial/tutorialProfile';
 import { buildRunHistoryEntry, careerStats, clearRunHistory, type RunHistoryEntry } from './runHistory';
 import { clearProfile, loadProfile, saveProfile } from './profileStore';
 import { enqueuePendingRank, flushPendingRanks, installRankRetryTriggers, rankRequestFor, type PendingRank } from './rank/rankSubmission';
-import { TUTORIAL_COURSE_ID, practiceRunId, tutorialRunId } from '@game/progression';
-import { beginRunProgression, expectRunProgression, flushProgression, installProgression, markRunProgressionUnavailable, probeProgression } from './progression/progressionStore';
+import { TUTORIAL_COURSE_ID, practiceRunId, snapshotForRun, tutorialRunId } from '@game/progression';
+import { beginRunProgression, expectRunProgression, flushProgression, installProgression, markRunProgressionUnavailable, mirrorFor, probeProgression, useProgression } from './progression/progressionStore';
 import type { RankSubmissionState, RankSubmitOutcome } from './rank/types';
 import { turnClock } from './turnClock';
 import { BUG_REPORT_TX_TOAST, bugReportAvailability, buildBugReportEnvelope, buildClientContext, captureIncidentCapsule, captureMenuCapsule, exportBugReportJson } from './bug-report/bugReportCapture';
@@ -405,6 +405,12 @@ interface GameStore {
    *  then back down for the finish. On by default. See combatRampConfig.ts. */
   combatRampUp: boolean;
   setCombatRampUp: (on: boolean) => void;
+  /** SKINS (owner 2026-09-28): "a setting in the settings menu to toggle skins on/off so that players can turn off
+   *  skins if they want to not see skins on their opponents. this is an opponent toggle only". On by default. Off =
+   *  every OPPONENT's hero and minion skins render as default art (lobby, combat, replays, their Career). Your own
+   *  equipped skins are never affected. A pure display switch, persisted like the other client settings. */
+  showOpponentSkins: boolean;
+  setShowOpponentSkins: (on: boolean) => void;
   /** Frame-rate cap for the effects + GSAP clocks (0 = display refresh). Persisted; applied by Game.tsx. */
   fpsCap: number;
   setFpsCap: (cap: number) => void;
@@ -887,6 +893,26 @@ function loadCombatSpeed(): number {
     const v = Number(localStorage.getItem('ascent.combatspeed'));
     return v >= 0.5 && v <= 5 ? v : 1;
   } catch { return 1; }
+}
+
+/** Persisted "Show opponent skins" toggle. Defaults to ON (true) on anything missing/malformed. Best-effort. */
+export function loadShowOpponentSkins(): boolean {
+  try {
+    return localStorage.getItem('ascent.showopponentskins') !== 'false';
+  } catch { return true; }
+}
+
+/**
+ * SKINS: record the player's equipped skins on a NEW run (handoff §5.6: history and replays use "the cosmetic
+ * snapshot recorded for that run", never the current loadout). Read from the progression mirror of the live
+ * account; nothing recorded when signed out or wearing nothing, so the run serializes exactly as before. Locked
+ * in for the run: equipping mid-run changes the NEXT run.
+ */
+function recordRunCosmetics(run: RunState): RunState {
+  const loadout = mirrorFor(currentProgressionUserId(), useProgression.getState().mirror)?.loadout;
+  const cosmetics = snapshotForRun(loadout);
+  if (cosmetics) run.cosmetics = cosmetics;
+  return run;
 }
 
 /** Persisted auto-ramp toggle. Defaults to ON (true) on anything missing/malformed. Best-effort. */
@@ -1921,6 +1947,11 @@ export const useGame = create<GameStore>((rawSet, get) => {
     try { localStorage.setItem('ascent.combatrampup', String(on)); } catch { /* ignore */ }
     set({ combatRampUp: on });
   },
+  showOpponentSkins: loadShowOpponentSkins(),
+  setShowOpponentSkins: (on) => {
+    try { localStorage.setItem('ascent.showopponentskins', String(on)); } catch { /* ignore */ }
+    set({ showOpponentSkins: on });
+  },
   replayActions: BOOT_SAVE?.actions ?? [],
   // REPLAY V2: seed the resume point synchronously (the store must be constructible without awaiting storage),
   // then splice the persisted earlier rounds in front of it as soon as IndexedDB answers — see
@@ -2125,6 +2156,7 @@ export const useGame = create<GameStore>((rawSet, get) => {
       // MEDAL RANK: a RATED lobby is minted its stable ranked identity HERE, once, and it travels with the save
       // — a retried settlement always names the same run. Practice (and every other mode) gets none.
       if (s.pendingMode === 'lobby') run.runId = mintRunId();
+      recordRunCosmetics(run);
       // Get the opponent seats built while the player reads their opening shop, not while they wait for it.
       if (run.lobby) warmLobbyDrivers(run);
       writeSave(run, []); // the new run is now the resumable save
@@ -2134,7 +2166,7 @@ export const useGame = create<GameStore>((rawSet, get) => {
   newRun: (seed, heroId) => {
     dropBoardFx();
     set((s) => {
-      const run = createRun(seed ?? randomSeed(), heroId, s.pendingMode, s.profile.currentLine);
+      const run = recordRunCosmetics(createRun(seed ?? randomSeed(), heroId, s.pendingMode, s.profile.currentLine));
       writeSave(run, []);
       return { run, savedRun: run, lastRunBoards: 0, presentationTx: null, heroArmed: false, endTurnAnimating: false, sellTick: 0, inspect: null, heroChoices: null, showTitle: false, avatarPickerOpen: false, replayActions: [], capturedBoards: [], replayFrames: beginReplayCapture(run), replayPartial: false, ...freshObservers(run), ...RANK_SLICE_RESET };
     });
@@ -2186,6 +2218,7 @@ export const useGame = create<GameStore>((rawSet, get) => {
       for (const t of course.turns) if (t.runeOffer) runeScript[t.turn] = t.runeOffer;
       const run = createTutorialRun(seed, course.heroId, course.id, authoredBoards, course.opponentNames, course.rounds, shopScript, attackFirst, forceEnemyTarget, course.discoverTribe, course.seatsRemaining);
       if (Object.keys(runeScript).length > 0) run.tutorialRuneScript = runeScript;
+      recordRunCosmetics(run);
       if (run.lobby) warmLobbyDrivers(run); // authored drivers are cheap; keep the warm path uniform
       writeSave(run, []);
       return { run, savedRun: run, lastRunBoards: 0, presentationTx: null, heroArmed: false, endTurnAnimating: false, sellTick: 0, inspect: null, heroChoices: null, showTitle: false, avatarPickerOpen: false, replayActions: [], capturedBoards: [], replayFrames: beginReplayCapture(run), replayPartial: false, ...freshObservers(run), ...RANK_SLICE_RESET };
@@ -2209,7 +2242,7 @@ export const useGame = create<GameStore>((rawSet, get) => {
       const base = createLobbyRun(randomSeed(), heroId, {}, 'practice', config, setId);
       const plain: RunState = { ...base, sandbox: true, tier: 1, ...(s.sbRules === 'god' ? { embers: 999 } : {}) };
       // ANCIENTS (owner ruling 2026-09-25): Scene Builder + Set 3 only, behind the rig's toggle.
-      const run: RunState = s.sbAncients && setId === 'set3' ? enableAncients(plain, ancientMeterOverride()) : plain;
+      const run: RunState = recordRunCosmetics(s.sbAncients && setId === 'set3' ? enableAncients(plain, ancientMeterOverride()) : plain);
       warmLobbyDrivers(run); // build the bot seats while the shop opens, not on the first End Turn
       if (level !== s.sbBotLevel) try { localStorage.setItem(SB_BOT_KEY, String(level)); } catch { /* ignore */ }
       return { run, sbBotLevel: level, savedRun: null, lastRunBoards: 0, presentationTx: null, heroArmed: false, endTurnAnimating: false, sellTick: 0, inspect: null, heroChoices: null, showTitle: false, avatarPickerOpen: false, replayActions: [], capturedBoards: [], replayFrames: beginReplayCapture(run), replayPartial: false, ...RANK_SLICE_RESET, sandboxReplay: false };

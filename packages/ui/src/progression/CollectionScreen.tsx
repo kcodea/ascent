@@ -8,11 +8,12 @@ import { sfx } from '../sfx';
 import { MenuSidebar, SidebarHost } from '../MenuSidebar';
 import { IconChest } from '../menuIcons';
 import { CrateOpener, type CrateQueueItem } from './CrateOpener';
-import { cratesVisible, equipTitle, mirrorFor, refreshCrates, useProgression } from './progressionStore';
+import { cratesVisible, equipCosmetic, equipTitle, mirrorFor, refreshCrates, useProgression } from './progressionStore';
 import {
-  COLLECTION_CATEGORIES, COMING_BLURB, acquisitionText, albumOf, categoryLive, collectibleItems, countOf, filterAlbum, isNew,
-  loadSeen, missingHint, rarityCounts, saveSeen, type RarityFilter, type ShowFilter,
+  COMING_BLURB, acquisitionText, albumOf, categoryLive, collectibleItems, collectionCategories, countOf, filterAlbum, isEquipped, isNew,
+  loadSeen, missingHint, ownedIds, rarityCounts, saveSeen, skinTargetName, type RarityFilter, type ShowFilter,
 } from './collectionModel';
+import { skinArtOf } from '../skins/skinArt';
 import './collection.css';
 
 /**
@@ -35,6 +36,10 @@ import './collection.css';
  *               name, how it is found, and Equip / Take off.
  *   CRATE BAY   sealed crates always in view, whatever tab is open: the crate, the count, Open and Open all, and
  *               the next crate's level when none are sealed. It mounts the crate theatre (`CrateOpener`) as-is.
+ *   SKINS       (2026-09-28) Heroes and Minions are live tabs. Their tiles show the skin's art (dimmed and blurred
+ *               until owned, like a title's name) with the hero / minion it is for; the detail panel shows the art
+ *               large, and Equip / "Use default art" wear it on that one target (Default is always selectable).
+ *               A RETIRED item (the kill switch) is not in the album at all; see collectionModel.ts.
  *
  * A guest sees a slim save-progress row. Sizes are layout px (the stage scales the page on a small screen); no
  * native tooltips; buttons take the global gauntlet cursor. Tiles are memoized with primitive props; the only
@@ -58,11 +63,14 @@ export function CollectionPage({ reducedMotion }: { reducedMotion?: boolean }): 
   const userId = useGame((s) => s.account.userId);
   const playerName = useGame((s) => s.playerName);
   const me = mirrorFor(userId, mirror);
-  const ownedList = me?.titles ?? EMPTY;
+  const ownedList = me ? ownedIds(me) : EMPTY;
   const owned = useMemo(() => new Set(ownedList), [ownedList]);
-  const equipped = me?.equippedTitleId ?? null;
+  // The server's kill switch can retire an item or a category while the page is open: every list re-derives.
+  const catalogEpoch = useProgression((s) => s.catalogEpoch);
+  const categories = useMemo(() => collectionCategories(), [catalogEpoch]);
 
-  const [category, setCategory] = useState<CosmeticCategory>(COLLECTION_CATEGORIES[0]!);
+  // Lands on Titles (the page's first and largest shelf) while it is live; else the first live category.
+  const [category, setCategory] = useState<CosmeticCategory>(() => (categoryLive('title') ? 'title' : collectionCategories()[0]!));
   const [show, setShow] = useState<ShowFilter>('all');
   const [rarity, setRarity] = useState<RarityFilter>('all');
   const [seen, setSeen] = useState<Set<string>>(() => loadSeen(userId));
@@ -79,9 +87,10 @@ export function CollectionPage({ reducedMotion }: { reducedMotion?: boolean }): 
     [crateList],
   );
 
-  const everything = useMemo(() => collectibleItems(), []);
+  const everything = useMemo(() => collectibleItems(), [catalogEpoch]);
   const total = useMemo(() => countOf(everything, owned), [everything, owned]);
-  const album = useMemo(() => albumOf(category), [category]);
+  const album = useMemo(() => albumOf(category), [category, catalogEpoch]);
+  const wornId = album.find((c) => isEquipped(c, me))?.id ?? null;
   const shown = useMemo(() => filterAlbum(album, owned, show, rarity), [album, owned, show, rarity]);
   const byRarity = useMemo(() => rarityCounts(album, owned), [album, owned]);
   const albumCount = useMemo(() => countOf(album, owned), [album, owned]);
@@ -90,8 +99,8 @@ export function CollectionPage({ reducedMotion }: { reducedMotion?: boolean }): 
   // Only a PICK clears NEW (Fortnite's "clears on view"): a default selection never does, so opening the page
   // never wipes the badges before you have looked.
   const selectedId = picked && album.some((c) => c.id === picked) ? picked
-    : equipped && album.some((c) => c.id === equipped) ? equipped
-    : album.find((c) => owned.has(c.id))?.id ?? album[0]?.id ?? null;
+    : wornId
+    ?? album.find((c) => owned.has(c.id))?.id ?? album[0]?.id ?? null;
   const selected = album.find((c) => c.id === selectedId) ?? null;
 
   const markSeen = useCallback((id: string) => {
@@ -112,13 +121,18 @@ export function CollectionPage({ reducedMotion }: { reducedMotion?: boolean }): 
     if (owned.has(id)) markSeen(id);
   }, [markSeen, owned]);
 
-  const onEquip = async (id: string | null): Promise<void> => {
+  /** Wear `item`, or (`on` false) take it off: a title clears the title slot; a skin puts its hero / minion back in
+   *  its default art. The server checks ownership and the target either way. */
+  const onEquip = async (item: CosmeticDef, on: boolean): Promise<void> => {
     sfx.pulse();
     setBusy(true);
     setError(null);
-    const ok = await equipTitle(id);
+    const skin = item.category === 'hero_skin' || item.category === 'minion_skin';
+    const ok = skin && item.target
+      ? await equipCosmetic(item.category as 'hero_skin' | 'minion_skin', item.target.id, on ? item.id : null)
+      : await equipTitle(on ? item.id : null);
     setBusy(false);
-    if (!ok) setError('Could not change your title. Try again.');
+    if (!ok) setError(skin ? 'Could not change your skin. Try again.' : 'Could not change your title. Try again.');
   };
 
   const begin = (openAll: boolean): void => {
@@ -167,7 +181,7 @@ export function CollectionPage({ reducedMotion }: { reducedMotion?: boolean }): 
       <div className="colls-body">
         <main className="colls-main">
           <div className="colls-tabs" role="tablist" aria-label="Categories">
-            {COLLECTION_CATEGORIES.map((c) => {
+            {categories.map((c) => {
               const on = categoryLive(c);
               const cnt = on ? countOf(albumOf(c), owned) : null;
               const fresh = on ? newIn(c) : 0;
@@ -220,8 +234,8 @@ export function CollectionPage({ reducedMotion }: { reducedMotion?: boolean }): 
                     {shown.map((c) => (
                       <li key={c.id}>
                         <ItemTile
-                          id={c.id} name={c.name} rarity={c.rarity}
-                          owned={owned.has(c.id)} equipped={equipped === c.id} fresh={isNew(c.id, owned, seen)} selected={selectedId === c.id}
+                          id={c.id} name={c.name} rarity={c.rarity} art={skinArtOf(c)} target={skinTargetName(c) ?? undefined}
+                          owned={owned.has(c.id)} equipped={isEquipped(c, me)} fresh={isNew(c.id, owned, seen)} selected={selectedId === c.id}
                           onPick={onPick}
                         />
                       </li>
@@ -242,8 +256,8 @@ export function CollectionPage({ reducedMotion }: { reducedMotion?: boolean }): 
           />
           {live && selected && (
             <DetailPanel
-              item={selected} owned={owned.has(selected.id)} equipped={equipped === selected.id} busy={busy} error={error} playerName={name}
-              onEquip={() => { void onEquip(selected.id); }} onTakeOff={() => { void onEquip(null); }}
+              item={selected} owned={owned.has(selected.id)} equipped={isEquipped(selected, me)} busy={busy} error={error} playerName={name}
+              onEquip={() => { void onEquip(selected, true); }} onTakeOff={() => { void onEquip(selected, false); }}
             />
           )}
           {!live && (
@@ -276,18 +290,26 @@ export function CollectionPage({ reducedMotion }: { reducedMotion?: boolean }): 
 
 // ── The album tile (memoized: primitive props + one stable callback) ───────────────────────────────────────
 
-interface TileProps { id: string; name: string; rarity: CosmeticRarity; owned: boolean; equipped: boolean; fresh: boolean; selected: boolean; onPick: (id: string) => void }
+interface TileProps {
+  id: string; name: string; rarity: CosmeticRarity; owned: boolean; equipped: boolean; fresh: boolean; selected: boolean; onPick: (id: string) => void;
+  /** A skin's art (its tile shows it, dimmed and blurred until owned). Undefined for a title, or a missing file. */
+  art?: string;
+  /** A skin's hero / minion, by name. */
+  target?: string;
+}
 
-const ItemTile = memo(function ItemTile({ id, name, rarity, owned, equipped, fresh, selected, onPick }: TileProps): JSX.Element {
+const ItemTile = memo(function ItemTile({ id, name, rarity, owned, equipped, fresh, selected, onPick, art, target }: TileProps): JSX.Element {
   const state = equipped ? 'equipped' : owned ? 'owned' : 'not owned';
   return (
     <button
       type="button"
-      className={`colls-tile r-${rarity}${owned ? ' owned' : ' missing'}${equipped ? ' worn' : ''}${selected ? ' sel' : ''}${fresh ? ' fresh' : ''}`}
+      className={`colls-tile r-${rarity}${owned ? ' owned' : ' missing'}${equipped ? ' worn' : ''}${selected ? ' sel' : ''}${fresh ? ' fresh' : ''}${art ? ' skin' : ''}`}
       aria-pressed={selected}
-      aria-label={`${name}, ${RARITY_LABELS[rarity]}, ${state}${fresh ? ', new' : ''}`}
+      aria-label={`${name}${target ? `, for ${target}` : ''}, ${RARITY_LABELS[rarity]}, ${state}${fresh ? ', new' : ''}`}
       onClick={() => onPick(id)}
     >
+      {art && <img className="colls-tile-art" src={art} alt="" draggable={false} decoding="async" loading="lazy" />}
+      {target && <span className="colls-tile-for">{target}</span>}
       <span className="colls-tile-top">
         <span className="colls-gem" aria-hidden />
         <span className="colls-tile-rar">{RARITY_LABELS[rarity]}</span>
@@ -305,9 +327,18 @@ const ItemTile = memo(function ItemTile({ id, name, rarity, owned, equipped, fre
 function DetailPanel({ item, owned, equipped, busy, error, playerName, onEquip, onTakeOff }: {
   item: CosmeticDef; owned: boolean; equipped: boolean; busy: boolean; error: string | null; playerName: string; onEquip: () => void; onTakeOff: () => void;
 }): JSX.Element {
+  const art = skinArtOf(item);
+  const target = skinTargetName(item);
+  const skin = item.category === 'hero_skin' || item.category === 'minion_skin';
   return (
     <section className={`colls-panel colls-detail r-${item.rarity}${owned ? '' : ' missing'}`} aria-label="Details">
-      <div className="colls-kicker">{COSMETIC_CATEGORY_DEFS[item.category].label.replace(/s$/, '')}</div>
+      <div className="colls-kicker">{skin ? (item.category === 'hero_skin' ? 'Hero skin' : 'Minion skin') : COSMETIC_CATEGORY_DEFS[item.category].label.replace(/s$/, '')}</div>
+      {/* A skin's art, large (Valorant's big preview). Missing items stay blurred, like a title's name. */}
+      {art && (
+        <div className={`colls-skinart${item.category === 'hero_skin' ? ' hero' : ' minion'}`} aria-label="Preview">
+          <img src={art} alt="" draggable={false} decoding="async" />
+        </div>
+      )}
       <div className="colls-plate">
         <span className="colls-gem colls-gem-lg" aria-hidden />
         <div className="colls-plate-name">{item.name}</div>
@@ -315,6 +346,7 @@ function DetailPanel({ item, owned, equipped, busy, error, playerName, onEquip, 
       </div>
       <div className="colls-facts">
         <div className="colls-fact"><span>Status</span><b className={owned ? 'yes' : 'no'}>{equipped ? 'Equipped' : owned ? 'Owned' : 'Not owned'}</b></div>
+        {target && <div className="colls-fact"><span>For</span><b>{target}</b></div>}
         <div className="colls-fact"><span>How to get</span><b>{acquisitionText(item)}</b></div>
       </div>
       {item.category === 'title' && (
@@ -330,7 +362,7 @@ function DetailPanel({ item, owned, equipped, busy, error, playerName, onEquip, 
         ) : equipped ? (
           <>
             <div className="colls-worn-tag" role="status">Equipped</div>
-            <button type="button" className="colls-quiet pressable quiet" disabled={busy} onClick={onTakeOff} aria-label={`Take off ${item.name}`}>Take off</button>
+            <button type="button" className="colls-quiet pressable quiet" disabled={busy} onClick={onTakeOff} aria-label={skin ? `Use the default art for ${target ?? 'this target'}` : `Take off ${item.name}`}>{skin ? 'Use default art' : 'Take off'}</button>
           </>
         ) : (
           <button type="button" className="cv2-btn pressable colls-equip" disabled={busy} onClick={onEquip} aria-label={`Equip ${item.name}`}>{busy ? 'Equipping' : 'Equip'}</button>

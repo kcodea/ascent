@@ -12,7 +12,8 @@ import { equipmentWillAmplify, equipmentCostOf, equipmentPool, equipmentState, e
 import { CARD_INDEX, EQUIPMENT_INDEX } from '@game/content';
 import type { Keyword } from '@game/core';
 import { equipmentArtFor } from './art';
-import { heroArt, heroPowerArt, questArt, runeArt } from './art';
+import { heroPowerArt, questArt, runeArt } from './art';
+import { heroPortrait, useRunSkins } from './skins/skins';
 import { Icon } from './Icon';
 import { BuffsFrame } from './BuffsFrame';
 import { QuestBadges } from './QuestBadges';
@@ -168,6 +169,9 @@ export function StatusBar() {
   // `activePowers`, not `hero.power`: Mimic wields a different hero's power each turn and Void wields TWO —
   // the main button always shows slot 0, and a second button (below) appears for slot 1.
   const hero = getHero(run.heroId);
+  // SKINS: your portrait (the combat hero too: it is the lunge target) wears the skin recorded on this run.
+  const runSkins = useRunSkins();
+  const heroImg = heroPortrait(hero.id, runSkins);
   const powers = activePowers(run);
   const power = powers[0]!;
   const secondPower = powers[1];
@@ -723,8 +727,8 @@ export function StatusBar() {
             {heroDmgTaken?.side === 'player' && (
               <span key={`dmg${heroDmgTaken.seq}`} className="hero-dmgtaken" aria-hidden="true">−{heroDmgTaken.amount}</span>
             )}
-            {heroArt(hero.id) ? (
-              <img decoding="sync" className="heroimg" src={heroArt(hero.id)} alt={hero.name} draggable={false} />
+            {heroImg ? (
+              <img decoding="sync" className="heroimg" src={heroImg} alt={hero.name} draggable={false} />
             ) : (
               <Icon name="anvil" />
             )}

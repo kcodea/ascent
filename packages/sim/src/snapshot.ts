@@ -12,6 +12,7 @@
  */
 import { makeRng, type BoardMinion, type CombatOutcome, type CombatResult, type Keyword, type QuestCombatMods, type Rng, type Tribe } from '@game/core';
 import type { SetId } from '@game/content';
+import type { RunCosmeticSnapshot } from '@game/progression';
 import { CARD_INDEX } from '@game/content';
 import { HEROES } from './heroes';
 import { createRun, type Action, type RunState, type ShopCard, type RunMode } from './state';
@@ -74,6 +75,10 @@ export interface BoardSnapshot {
    *  `'self'` — so `pickOpponent` uses this flag to prefer the live shared pool. Absent for committed +
    *  local-captured boards. */
   remote?: boolean;
+  /** The skins its owner wore (skins v1, 2026-09-28): the run's recorded `cosmetics`, SCOPED to this board's
+   *  hero and cards (handoff §13: only what the payload can show). Display only, never read by combat or
+   *  matchmaking. Absent on every board from before skins = default art. */
+  cosmetics?: RunCosmeticSnapshot;
   /** Display name of the board's author — you or a friend. Shown on the opponent frame ("by Sam"). */
   author?: string;
   /** ISO date (YYYY-MM-DD) the board was captured or generated. Wall-clock, so it's stamped by the UI/tool
@@ -298,8 +303,29 @@ export function socBoard(result: CombatResult): BoardMinion[] {
   return units.map(({ uid: _uid, ...m }) => m as BoardMinion);
 }
 
+/**
+ * The run's recorded skins narrowed to one board: its hero's skin and the skins of cards actually on it. Pure
+ * key scoping (no catalog lookup, so capture stays deterministic and a retired item is still RECORDED: the
+ * renderer decides whether it shows, and a restore brings it back on old boards too). Undefined when nothing
+ * applies, so a skinless board serializes exactly as before.
+ */
+export function scopeCosmetics(c: RunCosmeticSnapshot | undefined, heroIds: readonly string[], cardIds: readonly string[]): RunCosmeticSnapshot | undefined {
+  if (!c) return undefined;
+  const pick = (m: Readonly<Record<string, string>> | undefined, keys: readonly string[]): Record<string, string> | undefined => {
+    if (!m) return undefined;
+    const out: Record<string, string> = {};
+    for (const k of keys) if (typeof m[k] === 'string') out[k] = m[k]!;
+    return Object.keys(out).length ? out : undefined;
+  };
+  const hero = pick(c.heroSkinByHeroId, heroIds);
+  const minion = pick(c.minionSkinByCardId, cardIds);
+  if (!hero && !minion) return undefined;
+  return { ...(hero ? { heroSkinByHeroId: hero } : {}), ...(minion ? { minionSkinByCardId: minion } : {}) };
+}
+
 export function snapshotBoard(s: RunState): BoardSnapshot {
   const minions = cleanBoard(s);
+  const cosmetics = scopeCosmetics(s.cosmetics, [s.heroId], minions.map((m) => m.cardId));
   // Run-LEVEL combat scalers at capture, so a served opponent's Grim / Taragosa / Pack Leader / Runescale
   // scales with the value THIS run had (threaded per-side into simulate as `enemyScalers`). Beasts-played
   // mirrors the reducer's own combat derivation (playedThisTurn, filtered to Beasts). Each field is omitted
@@ -340,6 +366,7 @@ export function snapshotBoard(s: RunState): BoardSnapshot {
     power: sumPower(minions),
     minions,
     marksCarried: true, // one-combat marks travel on the minions (2026-08-27) — gates the legacy Soren heuristic off
+    ...(cosmetics ? { cosmetics } : {}),
 
     seed: s.seed,
     ...(spellPowerAtk || spellPowerHp ? { spellPower: { attack: spellPowerAtk, health: spellPowerHp } } : {}),

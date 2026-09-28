@@ -3,7 +3,8 @@ import { AscentLogo } from './AscentLogo';
 import { mdBold } from './Card';
 import { getHero, activeRift, heroTip, SHOW_HERO_TIPS } from '@game/sim';
 import { RiftPill } from './RiftPill';
-import { heroArt, heroPowerArt } from './art';
+import { heroPowerArt } from './art';
+import { heroPortrait, useLiveLoadout } from './skins/skins';
 import { Icon } from './Icon';
 import { sfx } from './sfx';
 import { useGame } from './store';
@@ -28,6 +29,8 @@ import { HeroSelectCeremony } from './hero-select/HeroSelectCeremony';
  */
 export function HeroSelect() {
   const choices = useGame((s) => s.heroChoices);
+  // SKINS: the heroes you can pick wear the skins you have equipped for them.
+  const loadout = useLiveLoadout();
   const openTitle = useGame((s) => s.openTitle);
   const mode = useGame((s) => s.pendingMode);
   const profile = useGame((s) => s.profile);
@@ -160,7 +163,7 @@ export function HeroSelect() {
           {shown.map((id, i) => {
             const hero = getHero(id);
             const power = hero.power;
-            const art = heroArt(hero.id);
+            const art = heroPortrait(hero.id, loadout);
             const tip = heroTip(hero.id);
             // THE hero card (owner rework 2026-07-16): big framed hero art with the name pill eclipsing the
             // frame's TOP edge and the HP+Armor pill its BOTTOM edge; hovering crossfades the HERO POWER art

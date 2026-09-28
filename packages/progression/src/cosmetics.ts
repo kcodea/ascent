@@ -287,6 +287,9 @@ export function isCosmeticLive(id: string | null | undefined): boolean {
   return !!c && c.active && COSMETIC_CATEGORY_DEFS[c.category].enabled && !serverRetired.has(c.id) && !serverDisabled.has(c.category);
 }
 
+/** A category is LIVE when enabled in the TS catalog AND not switched off by the server. */
+export const isCategoryLive = (category: CosmeticCategory): boolean => COSMETIC_CATEGORY_DEFS[category].enabled && !serverDisabled.has(category);
+
 /** The catalog items the player can see at all (the Collection's universe). */
 export const liveCosmetics = (catalog: readonly CosmeticDef[] = COSMETICS): CosmeticDef[] => catalog.filter((c) => isCosmeticLive(c.id));
 

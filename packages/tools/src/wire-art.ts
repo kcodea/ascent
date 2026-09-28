@@ -17,6 +17,8 @@ import { join } from 'node:path';
 import sharp from 'sharp';
 import { CARD_INDEX, EPIC_RUNES, EQUIPMENT, QUEST_DEFS, RUNES, poolFor } from '@game/content';
 import { HEROES } from '@game/sim';
+// Relative, like progression-shared.ts: the catalog is dependency-free and @game/tools does not list the package.
+import { COSMETICS } from '../../progression/src/cosmetics';
 
 const APPLY = process.argv.includes('--apply');
 /**
@@ -271,6 +273,24 @@ for (const q of QUEST_DEFS) { questsByName.set(norm(q.name), q.id); questsByName
 const equipmentByName = new Map<string, string>();
 for (const e of EQUIPMENT) equipmentByName.set(norm(e.name), e.id);
 
+/**
+ * SKINS (owner 2026-09-28: "let's use these 2 black belt brian skins ..." / "these 2 hero skins ..."). A skin master
+ * is attributed by the CATALOG, not by a name match: each skin item in packages/progression/src/cosmetics.ts names
+ * its master file (`assets.master`) and the in-repo art key (`assets.art`, = the cosmetic id). That is stricter than
+ * a name match (a file wires only when an item claims it by its exact filename) and it survives a rename of the
+ * skin, the card or the hero. Registered as FULL-STEM aliases so the trailing `1`/`2` in `BlackBeltBrianSkin2.png`
+ * is never read as the `<id>2` variant convention. An item whose target no longer exists is skipped and reported.
+ */
+const SKIN_MASTERS: Record<string, string> = {};
+for (const c of COSMETICS) {
+  const master = c.assets.master;
+  const art = c.assets.art;
+  if (!master || !art || !c.target) continue;
+  const targetExists = c.target.type === 'card' ? !!CARD_INDEX[c.target.id] : HEROES.some((h) => h.id === c.target!.id);
+  if (!targetExists) { console.log(`skin ${c.id}: target ${c.target.type} "${c.target.id}" does not exist; not wired`); continue; }
+  SKIN_MASTERS[norm(master.replace(/\.(png|webp|jpe?g)$/i, ''))] = art;
+}
+
 const JOBS: Job[] = [
   {
     // SET-3 minions (2026-08-28). Scoped like the set-1 job and placed FIRST for the same reason: if a name
@@ -365,6 +385,11 @@ const JOBS: Job[] = [
     // hand, which is exactly the "hand-rolled script beside the pipeline" this file's header warns against.
     label: 'gifts', src: 'C:/Game Assets/Ascent Art/Gifts',
     dirs: ['.'], dest: 'packages/ui/src/art/spells', index: spellsByName, aliases: {},
+  },
+  {
+    // SKINS: hero and minion skins both land in art/skins/<cosmeticId>, keyed by the catalog (see SKIN_MASTERS).
+    label: 'skins', src: 'C:/Game Assets/Ascent Art/Skins',
+    dirs: ['Minion Skins', 'Hero Skins'], dest: 'packages/ui/src/art/skins', index: new Map(), aliases: SKIN_MASTERS,
   },
 ];
 

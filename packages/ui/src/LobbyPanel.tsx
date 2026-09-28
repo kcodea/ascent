@@ -6,7 +6,8 @@ import {
 } from '@game/sim';
 import { QUEST_INDEX, RUNE_INDEX } from '@game/content';
 import { floatLobbyDamageOnSeat, whenCurtainDown } from './lobbyDamageFx';
-import { heroArt, questArt, runeArt } from './art';
+import { questArt, runeArt } from './art';
+import { heroPortrait, opponentSkins, useRunSkins } from './skins/skins';
 import { mdBold } from './Card';
 import { Icon } from './Icon';
 import { useGame } from './store';
@@ -29,6 +30,10 @@ import { stageHost, stageViewport, toStage } from './stage';
  */
 export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby }): JSX.Element | null {
   // Hooks must run unconditionally — the early return for a missing lobby lives after them.
+  // SKINS: your seat wears your run's recorded skin; every other seat its owner's (default art when "Show
+  // opponent skins" is off).
+  const runSkins = useRunSkins();
+  const showOppSkins = useGame((st) => st.showOpponentSkins);
   const firedRound = useRef(0);
   const pendingFloatRef = useRef<(() => void) | null>(null);
   // The hovered seat AND where it sits on screen. The anchor is measured because the card is `position: fixed`
@@ -151,7 +156,7 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
               onClick={isYou ? undefined : (e) => pinScout(e, seat.id)}
               onContextMenu={isYou ? undefined : (e) => pinScout(e, seat.id)}
             >
-              <img decoding="sync" className="lobbyface" src={heroArt(seat.heroId)} alt="" />
+              <img decoding="sync" className="lobbyface" src={heroPortrait(seat.heroId, isYou ? runSkins : opponentSkins(showOppSkins, seat.cosmetics))} alt="" />
               {/* The opponent name owns its own full-width row (styles.css `.lobbynameline`). The next foe is
                   marked by the seat's own bright pulsing glow (the `foe` class → `.lobbyseat.foe`), not a pill. */}
               <span className="lobbynameline">
@@ -234,6 +239,13 @@ function ScoutCard({ lobby, seat, intel, at, pinned }: {
   pinned?: boolean;
 }): JSX.Element {
   const results = seatResults(lobby, seat.id, 3);
+  // SKINS: a fight-log face is that foe's seat; when the foe was YOU, it is your run's skin.
+  const runSkins = useRunSkins();
+  const showOppSkins = useGame((st) => st.showOpponentSkins);
+  const faceOf = (r: { foeId: string; foeHeroId: string }): string | undefined => heroPortrait(
+    r.foeHeroId,
+    r.foeId === 's0' ? runSkins : opponentSkins(showOppSkins, lobby.seats.find((x) => x.id === r.foeId)?.cosmetics),
+  );
   // KEEP IT ON-SCREEN. The card is position:fixed and opens to the LEFT of the seat; on a large / fullscreen
   // viewport a seat can push it partly off-screen (owner report 2026-08-28). We measure it once and clamp its
   // `right`/`top` into the viewport with an 8px margin, keeping the CSS `translateY(-50%)` centring (so `top` is
@@ -315,7 +327,7 @@ function ScoutCard({ lobby, seat, intel, at, pinned }: {
               <span className="lobbyscout-round">{r.round}</span>
               <span className="lobbyscout-vs">
                 {r.foeHeroId
-                  ? <img decoding="sync" className="lobbyscout-foeface" src={heroArt(r.foeHeroId)} alt={r.foeLabel} />
+                  ? <img decoding="sync" className="lobbyscout-foeface" src={faceOf(r)} alt={r.foeLabel} />
                   : <span className="lobbyscout-vslabel">vs {r.foeLabel}</span>}
               </span>
               {/* The outcome sits BETWEEN the portrait and the damage (owner ask 2026-08-31). */}

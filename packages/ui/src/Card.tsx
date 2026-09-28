@@ -87,6 +87,7 @@ function useBadgePop(value: number): RefObject<HTMLSpanElement> {
 // without this, any non-identity default baked into that file would silently never apply to players.
 import './cardPillsConfig';
 import { artFor, artVariantKey } from './art';
+import { useMinionSkinMap } from './skins/skinArt';
 import { renameTerms } from './terms';
 import { getRebirthConfig } from './rebirthConfig';
 import { CROWN_FRAMES } from './rebirthCrown';
@@ -773,7 +774,12 @@ export const Card = memo(function Card({
   useEffect(() => { if (dragging) hideRefTip(); }, [dragging]);
   // Illustrated art (if any). `uid` lets multi-variant cards (Pup) pick a stable per-instance image.
   // An explicit `card.artUrl` wins over the id lookup — see `CardView.artUrl` for the one caller that needs it.
-  const artUrl = card.artUrl ?? artFor(card.cardId, uid, card.chosenOption);
+  // SKINS (2026-09-28): the nearest skin scope's art for this card id (the owner's skin; none = default art). One
+  // Map.get against a map resolved once per snapshot (skins/skinArt.ts), and a context read, not a prop, so the
+  // memo comparators (Card's and Unit's) are untouched. The Gilded frame + effects still paint on top: gilding is
+  // the frame, never the illustration. A token has its own card id, so it never matches a parent's skin.
+  const skinArtUrl = useMinionSkinMap().get(card.cardId);
+  const artUrl = card.artUrl ?? skinArtUrl ?? artFor(card.cardId, uid, card.chosenOption);
   // TAUNT frame: render the raster shield if the asset loads; on 404 fall back to the SVG placeholder.
   const [frameOk, setFrameOk] = useState(tauntFrameAvailable);
   const [starsOk, setStarsOk] = useState(tierStarsAvailable);

@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type Dispatch, type MutableRefObject } from 'react';
 import { getHero, heroTip, SHOW_HERO_TIPS } from '@game/sim';
-import { heroArt } from '../art';
+import { heroPortrait, useLiveLoadout } from '../skins/skins';
 import { Icon } from '../Icon';
 import { sfx } from '../sfx';
 import {
@@ -92,7 +92,8 @@ export function HeroSelectCeremony({ state, dispatch, cardEls }: Props) {
   const heroId = state.heroId!;
   const source = state.sourceRect!;
   const hero = getHero(heroId);
-  const art = heroArt(heroId);
+  const loadout = useLiveLoadout();
+  const art = heroPortrait(heroId, loadout);
   const tip = heroTip(heroId);
   const pi = phaseIndex(state.phase);
   const crossed = (p: HeroCeremonyPhase): boolean => pi >= phaseIndex(p);

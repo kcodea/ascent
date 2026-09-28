@@ -15,7 +15,7 @@
  * Never throws; every read is time-boxed.
  */
 import {
-  COSMETIC_INDEX, PROGRESSION_RULES_VERSION, TUTORIAL_COURSE_ID, TUTORIAL_COURSE_VERSION, parseCrate, parseOpenCrateResult, parseProgressionProfile,
+  COSMETIC_INDEX, parseServerCatalogState, type ServerCatalogState, type SkinSlot, PROGRESSION_RULES_VERSION, TUTORIAL_COURSE_ID, TUTORIAL_COURSE_VERSION, parseCrate, parseOpenCrateResult, parseProgressionProfile,
   parseProgressionResult, type CrateRow, type OpenCrateResult, type ProgressionMode, type ProgressionProfile, type ProgressionResult,
   type ProgressionRunFactsV1,
 } from '@game/progression';
@@ -139,19 +139,23 @@ async function fetchProgressionOf(userId: string): Promise<ProgressionProfile | 
   const c = supabaseClient();
   if (!c || !userId) return undefined;
   try {
-    const [prof, titles] = await Promise.race([
+    const [prof, owned, loadout] = await Promise.race([
       Promise.all([
         Promise.resolve(c.from('profiles').select(PROFILE_COLUMNS).eq('user_id', userId).limit(1)),
-        fetchOwnedTitleIds(userId),
+        fetchOwnedCosmeticIds(userId),
+        fetchLoadoutRows(userId),
       ]),
-      timeout(READ_TIMEOUT_MS, [null, null] as const),
+      timeout(READ_TIMEOUT_MS, [null, null, null] as const),
     ]);
     if (!prof || prof.error) return undefined; // pre-migration columns, offline, timeout
     const row = (prof.data as Array<Record<string, unknown>> | null)?.[0];
     if (!row) return null;
     return parseProgressionProfile({
       accountXp: row.account_xp, accountLevel: row.account_level, revision: row.progression_revision,
-      equippedTitleId: row.equipped_title_id, titles: titles ?? [],
+      equippedTitleId: row.equipped_title_id, titles: owned?.titles ?? [],
+      // Skins (2026-09-28): every owned id + the loadout rows. Left out when unreadable, so the parser omits them.
+      ...(owned ? { cosmetics: owned.all } : {}),
+      ...(loadout ? { loadout } : {}),
     }) ?? undefined;
   } catch {
     return undefined;
@@ -159,11 +163,11 @@ async function fetchProgressionOf(userId: string): Promise<ProgressionProfile | 
 }
 
 /**
- * A player's owned titles, oldest first. Since 2026-09-28 ownership of every cosmetic is `player_cosmetics`
- * (public read), filtered to titles through the catalog; before the crates migration runs it falls back to the
- * MVP's `player_titles`. Null = could not ask.
+ * A player's owned cosmetics, oldest first: `titles` (the titles, as before) and `all` (every category, skins
+ * included, since 2026-09-28). Ownership of every cosmetic is `player_cosmetics` (public read), classified through
+ * the catalog; before the crates migration runs it falls back to the MVP's `player_titles`. Null = could not ask.
  */
-async function fetchOwnedTitleIds(userId: string): Promise<string[] | null> {
+async function fetchOwnedCosmeticIds(userId: string): Promise<{ titles: string[]; all: string[] } | null> {
   const c = supabaseClient();
   if (!c) return null;
   const owned = await Promise.resolve(
@@ -171,14 +175,58 @@ async function fetchOwnedTitleIds(userId: string): Promise<string[] | null> {
   );
   if (!owned.error) {
     const rows = (owned.data as Array<{ cosmetic_id?: unknown; cosmetic_catalog?: { category?: unknown } | null }> | null) ?? [];
-    return rows
-      .filter((r) => (r.cosmetic_catalog?.category ?? COSMETIC_INDEX[String(r.cosmetic_id)]?.category) === 'title')
-      .map((r) => r.cosmetic_id)
-      .filter((t): t is string => typeof t === 'string');
+    const ids = (xs: typeof rows): string[] => xs.map((r) => r.cosmetic_id).filter((t): t is string => typeof t === 'string');
+    return {
+      titles: ids(rows.filter((r) => (r.cosmetic_catalog?.category ?? COSMETIC_INDEX[String(r.cosmetic_id)]?.category) === 'title')),
+      all: ids(rows),
+    };
   }
   const legacy = await Promise.resolve(c.from('player_titles').select('title_id, unlocked_at').eq('user_id', userId).order('unlocked_at', { ascending: true }));
   if (legacy.error) return null;
-  return ((legacy.data as Array<{ title_id?: unknown }> | null) ?? []).map((r) => r.title_id).filter((t): t is string => typeof t === 'string');
+  const titles = ((legacy.data as Array<{ title_id?: unknown }> | null) ?? []).map((r) => r.title_id).filter((t): t is string => typeof t === 'string');
+  return { titles, all: titles };
+}
+
+/**
+ * A player's equipped skins (`cosmetic_loadouts`, public read), as loadout rows. Retired items are INCLUDED here
+ * (the table keeps them); every renderer drops them through `isCosmeticLive`. Null = could not ask (or the table
+ * is not there yet), which leaves the profile without a loadout: default art.
+ */
+async function fetchLoadoutRows(userId: string): Promise<Array<{ slot: string; targetId: string; cosmeticId: string }> | null> {
+  const c = supabaseClient();
+  if (!c) return null;
+  try {
+    const res = await Promise.resolve(c.from('cosmetic_loadouts').select('slot, target_id, cosmetic_id').eq('user_id', userId));
+    if (res.error) return null;
+    return ((res.data as Array<{ slot?: unknown; target_id?: unknown; cosmetic_id?: unknown }> | null) ?? [])
+      .filter((r) => typeof r.slot === 'string' && typeof r.target_id === 'string' && typeof r.cosmetic_id === 'string')
+      .map((r) => ({ slot: r.slot as string, targetId: r.target_id as string, cosmeticId: r.cosmetic_id as string }));
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * THE SERVER'S KILL SWITCH (2026-09-28): which catalog items and categories the owner has switched off, read
+ * from the two public tables. `undefined` = could not ask (offline, no backend, pre-migration): the bundled
+ * catalog stays in charge.
+ */
+export async function fetchServerCatalogState(): Promise<ServerCatalogState | undefined> {
+  const c = supabaseClient();
+  if (!c) return undefined;
+  try {
+    const res = await Promise.race([
+      Promise.all([
+        Promise.resolve(c.from('cosmetic_catalog').select('cosmetic_id, active')),
+        Promise.resolve(c.from('cosmetic_categories').select('category, enabled')),
+      ]),
+      timeout(READ_TIMEOUT_MS, null),
+    ]);
+    if (!res || res[0].error || res[1].error) return undefined;
+    return parseServerCatalogState(res[0].data, res[1].data);
+  } catch {
+    return undefined;
+  }
 }
 
 // ── Crates (2026-09-28) ───────────────────────────────────────────────────────────────────────────────────
@@ -261,6 +309,15 @@ export async function openCrateRemote(crateId: string): Promise<InventoryOutcome
 /** Equip an owned title (null takes it off). The server checks ownership. */
 export async function equipTitleRemote(titleId: string | null): Promise<InventoryOutcome<null>> {
   const r = await invokeInventory({ action: 'equip_title', titleId });
+  if ('error' in r) return { status: 'error', reason: r.error };
+  const profile = parseProgressionProfile(r.data.profile);
+  if (!profile) return { status: 'error', reason: 'server_outdated' };
+  return { status: 'ok', value: null, profile };
+}
+
+/** Wear an owned skin on its target, or Default (null). The server checks ownership, target and that it is live. */
+export async function equipCosmeticRemote(slot: SkinSlot, targetId: string, cosmeticId: string | null): Promise<InventoryOutcome<null>> {
+  const r = await invokeInventory({ action: 'equip_cosmetic', slot, targetId, cosmeticId });
   if ('error' in r) return { status: 'error', reason: r.error };
   const profile = parseProgressionProfile(r.data.profile);
   if (!profile) return { status: 'error', reason: 'server_outdated' };

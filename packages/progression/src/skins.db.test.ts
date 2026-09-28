@@ -119,7 +119,7 @@ describe('the migration', () => {
     const u = await playerOwning(['skin_albus_1']);
     await equip(u, 'hero_skin', 'albus', 'skin_albus_1');
     const snap = async (): Promise<unknown[]> => [
-      (await db.query('select * from public.cosmetic_catalog order by cosmetic_id')).rows.map((r) => ({ ...r, created_at: null })),
+      (await db.query('select * from public.cosmetic_catalog order by cosmetic_id')).rows.map((r) => ({ ...(r as Record<string, unknown>), created_at: null })),
       (await db.query('select user_id, cosmetic_id from public.player_cosmetics order by 1, 2')).rows,
       (await db.query('select user_id, slot, target_id, cosmetic_id from public.cosmetic_loadouts order by 1, 2, 3')).rows,
     ];

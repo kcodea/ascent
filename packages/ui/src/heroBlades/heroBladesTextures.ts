@@ -1,5 +1,5 @@
 /**
- * The Phantom Blades' textures, painted ONCE per session on 2D canvases and kept (about 650 KB of GPU memory on top of
+ * The Phantom Blades' textures, painted ONCE per session on 2D canvases and kept (about 750 KB of GPU memory on top of
  * the Blast's five, which it shares: glow, spark, streak, ring, beam). Everything is white or grey, so every sprite
  * tints it.
  *

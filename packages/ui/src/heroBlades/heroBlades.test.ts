@@ -183,7 +183,7 @@ describe('the plan', () => {
     expect([t(P1), t(P2), t(P3), t(P4)]).toEqual(TIMELINE);
     // About 2 s at Tier I, about 4 s at Tier IV (owner: "satisfying and chunky, not rushed").
     expect(t(P1)[2]).toBeLessThanOrEqual(2300);
-    expect(t(P4)[2]).toBeLessThanOrEqual(4500);
+    expect(t(P4)[2]).toBeLessThanOrEqual(4300);
   });
 
   it('the formation looses outer blades first and the centre last', () => {
@@ -226,7 +226,7 @@ describe('the plan', () => {
 });
 
 /** The shipped timeline: [first loose, impact, end + hit-stop] per tier at 1600 px. */
-const TIMELINE = [[1267, 1576, 2206], [1622, 2024, 2749], [1897, 2577, 3342], [2222, 3408, 4408]];
+const TIMELINE = [[1212, 1537, 2127], [1507, 1962, 2627], [1967, 2662, 3407], [2187, 3346, 4226]];
 
 describe('the blade poses', () => {
   it('a blade unfurls RAISED to the sky, swings round to AIM, holds dead still on the LOCK, kicks back, thrusts STRAIGHT and its tip goes in on its mark', () => {

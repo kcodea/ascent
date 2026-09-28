@@ -88,7 +88,14 @@ assembly (summon = the shatter played backwards).
 
 ## Timeline (ms at 1x, 1600 px apart; end includes the hit-stop)
 
-TIMELINE_TABLE
+| tier | blades | summon (charge) | aim | first loose | ticks | impact | shatter | end |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| I (3) | 1 | 655 | 967 | 1212 | none | 1537 | 1667 | 2127 |
+| II (8) | 2 (crossed) | 860 | 1262 | 1507 | 1842 | 1962 | 2092 | 2627 |
+| III (14) | 5 (fan) | 1160 | 1722 | 1967 | 2301, 2396, 2482, 2577 | 2662 | 2792 | 3407 |
+| IV (40) | 6 + greatsword | 1440 | 1942 | 2187 | 2504 to 2811 (six) | 3346 (greatsword; hang 2807, loose 3137) | 3476 | 4226 |
+
+Arcana for comparison: I 2043, II 2608, III 3348, IV 4194.
 
 ## Crate odds (first crate)
 
@@ -97,7 +104,28 @@ Common 46.5%, Rare 30.8%, Epic 18.9%, Legendary 3.8%. A non-title item is 32.1%.
 
 ## Perf
 
-PERF_TABLE
+PROD build (`vite build` + `vite preview`, 1600x900, 240 Hz, real `requestAnimationFrame`, a temporary uncommitted
+hook to reach the runner), frame times in ms:
+
+| run | frames | p50 | p95 | p99 | worst | > 16.7 ms | long tasks |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| IV you (40) | 1152 | 4.2 | 4.3 | 4.3 | 12.6 | 0 | 0 |
+| IV foe (40) | 1155 | 4.2 | 4.3 | 4.3 | 8.4 | 0 | 0 |
+| III (14) | 934 | 4.2 | 4.2 | 4.3 | 4.3 | 0 | 0 |
+| II (8) | 770 | 4.2 | 4.3 | 4.3 | 8.3 | 0 | 0 |
+| I (3) | 651 | 4.2 | 4.3 | 4.3 | 8.4 | 0 | 0 |
+
+No DOM is left behind and the `#stage` transform is restored after every run. Sprites only (no meshes), pooled per
+layer with a cap of 800; the seven sword / shard / cut / reticle textures are painted once per session (about 750 KB)
+plus Blast's five, which are shared. DOM moves are transform / opacity only.
+
+## Verified in the browser (own port 5210, never 5173 / 5174)
+
+- The tuner preview, both directions, every tier, on a manual clock stepped to exact beats (the capture technique
+  from the Arcana devlog), including the foe striking you, where the whole sequence has room.
+- A real lobby fight with the dev style forced to Phantom Blades, the foe striking you twice: the blow landed once
+  each time (Armor 10 to 6, then 6 to 2) on the impact beat.
+- The Collection's Attack Animations tab: the Phantom Blades tile and the in-place sandbox preview.
 
 ## Open for the owner
 

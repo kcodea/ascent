@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ALPHA_TESTER_TITLE_ID, levelProgress, titleName, type ProgressionResult } from '@game/progression';
+import { ALPHA_TESTER_TITLE_ID, achievementOf, levelProgress, titleName, type ProgressionResult } from '@game/progression';
 import { useGame } from '../store';
 import { cratesVisible, markProgressionPresented, useProgression, wasProgressionPresented, type CurrentRunProgression } from './progressionStore';
 import { breakdownLines, xpText } from './progressionFormat';
 import { CrateOpener, type CrateQueueItem } from './CrateOpener';
+import './achievements.css';
 
 /**
  * THE POST-GAME ACCOUNT XP PANEL (account progression MVP, 2026-09-27; handoff §10).
@@ -15,6 +16,10 @@ import { CrateOpener, type CrateQueueItem } from './CrateOpener';
  * ANONYMOUS player at that moment, a gentle "Save your progress" prompt (never a gate) that opens the existing
  * account panel. A failed settlement reads "Progress pending. It will sync automatically." Continue is never
  * here: it stays the screen's own button, always available.
+ *
+ * ACHIEVEMENTS (2026-09-28): the achievements this settlement completed follow the bar as "Achievement unlocked:
+ * <name> +N XP" rows (the first `ACH_ROWS_MAX`, then "+N more"), each a one-shot entrance in the panel's own style.
+ * Their XP is part of the headline total and of the bar's sweep (the server paid it in the same settlement).
  *
  * CRATES (2026-09-28): when the settlement created crates (one per new level, plus the Welcome Crate on the
  * first game), "Crate earned" appears after the bar settles, with an OPTIONAL Open button (the reveal plays
@@ -40,6 +45,9 @@ const T_START = 350;
 const T_FILL = 900;
 const T_LEVELUP = 450;
 const T_FILL2 = 700;
+/** Post-game achievement rows shown before "+N more" (a first game after launch can complete a dozen). */
+export const ACH_ROWS_MAX = 6;
+const ACH_ROW_STAGGER_MS = 90;
 
 function prefersReducedMotion(): boolean {
   try { return window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch { return false; }
@@ -119,7 +127,7 @@ function SettledPanel({ result, reduced }: { result: ProgressionResult; reduced:
     <section className={`acctxp${animate ? ' animated' : ''}${done ? ' done' : ''}`} aria-label="Account XP">
       <div className="acctxp-head">
         <span className="acctxp-eyebrow">Account XP</span>
-        <span className="acctxp-total">{xpText(result.xp.total)}</span>
+        <span className="acctxp-total">{xpText(result.xp.total + result.achievementXp)}</span>
       </div>
       <ul className="acctxp-lines" aria-label="XP breakdown">
         {lines.map((l) => (
@@ -146,6 +154,7 @@ function SettledPanel({ result, reduced }: { result: ProgressionResult; reduced:
           {levelsGained > 1 ? `Level up! Level ${after.level} (+${levelsGained} levels)` : `Level up! Level ${after.level}`}
         </div>
       )}
+      {done && result.achievements.length > 0 && <PostgameAchievements ids={result.achievements} />}
       {done && unlockedAlpha && (
         <div className="acctxp-titlereveal" role="status">
           <span className="acctxp-titlereveal-eyebrow">Title unlocked</span>
@@ -161,6 +170,32 @@ function SettledPanel({ result, reduced }: { result: ProgressionResult; reduced:
         </div>
       )}
     </section>
+  );
+}
+
+/** "Achievement unlocked: <name> +N XP", one row per achievement this settlement completed (known ids only). */
+function PostgameAchievements({ ids }: { ids: readonly string[] }): JSX.Element | null {
+  const defs = ids.map((id) => achievementOf(id)).filter((d): d is NonNullable<typeof d> => !!d);
+  if (defs.length === 0) return null;
+  const shown = defs.slice(0, ACH_ROWS_MAX);
+  const more = defs.length - shown.length;
+  return (
+    <ul className="acctxp-ach" aria-label="Achievements unlocked">
+      {shown.map((d, i) => (
+        <li key={d.id} className="acctxp-ach-row" style={{ animationDelay: `${i * ACH_ROW_STAGGER_MS}ms` }}>
+          <span className="acctxp-ach-text">
+            <span className="acctxp-ach-eyebrow">Achievement unlocked:</span>{' '}
+            <span className="acctxp-ach-name">{d.name}</span>
+          </span>{' '}
+          <b>{xpText(d.rewards.xp)}</b>
+        </li>
+      ))}
+      {more > 0 && (
+        <li className="acctxp-ach-more" style={{ animationDelay: `${shown.length * ACH_ROW_STAGGER_MS}ms` }}>
+          {more === 1 ? '+1 more achievement. See your Career.' : `+${more} more achievements. See your Career.`}
+        </li>
+      )}
+    </ul>
   );
 }
 

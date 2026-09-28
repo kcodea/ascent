@@ -1941,4 +1941,62 @@ export const FOUNDATION_RULES: GameRule[] = [
     currentBehaviour: 'Conforms, built 2026-09-28. Reaches the database on the next deploy of progression-inventory (the catalog sync, R-PROG-SKINS-05).',
     enforcement: { kind: 'scenario', refs: ['packages/progression/src/skins.test.ts', 'packages/progression/src/cosmetics.test.ts', 'packages/ui/src/skins/skins.test.tsx'], lastVerifiedAt: '2026-09-28' },
   },
+  {
+    id: 'R-ACH-01',
+    title: 'Achievements batch 1 pay XP only: 248 achievements, no titles yet, nothing hidden yet; the reward slot can take a title later',
+    statement:
+      'The first achievements pay Account XP and nothing else: Career, Ranked, Heroes (Debut, Contender, Victory, Mastery for '
+      + 'each of the 33 playable heroes), Economy and Build, Mechanics, Runes and Set 2 (by tribe, plus cross-tribe and rune '
+      + 'feats). Every definition carries a reward slot for a title, left empty, so a title can be attached later without a '
+      + 'migration. The framework supports hidden achievements, but none ship yet. Set 2 feats count only in Set 2 runs.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-28 (achievements batch 1 brief)', quote: "let's just get the normal xp related achievements in for now though." },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-28 (achievements batch 1 brief)', quote: 'we need set 2 achievements because that is the active set right now.' },
+      { kind: 'code', ref: 'packages/progression/src/achievements.ts (ACHIEVEMENTS, rewards.titleId, hidden)' },
+    ],
+    currentBehaviour: 'Conforms, built 2026-09-28 (off until the owner sets progression_config.achievements_epoch).',
+    enforcement: { kind: 'scenario', refs: ['packages/progression/src/achievements.test.ts'], lastVerifiedAt: '2026-09-28' },
+  },
+  {
+    id: 'R-ACH-02',
+    title: 'Achievements are evaluated inside the settlement: XP in the same transaction as the match XP, never twice, nothing before the epoch',
+    statement:
+      'settle_progression evaluates every live achievement against the game it settles, under the same lock and in the same '
+      + 'transaction as the match XP. A completion is written at most once per account and its XP lands on the same ledger row '
+      + '(so it also levels the account and earns crates). A duplicate settlement returns the original result and evaluates '
+      + 'nothing again. Nothing is evaluated before the owner sets the achievements epoch, and a game recorded before it never '
+      + 'counts. Server-known facts (the game, placement, comeback, rank result, Career-best rank, distinct heroes) come from '
+      + 'the database; a client can never supply them. Assumed defaults (the owner can flip them): Practice counts for any-game '
+      + 'achievements only with Normal Health and a turn timer; rank achievements pay from the Career best on the first game '
+      + 'after launch; rank names use the ascending 1/2/3 numerals; hero Victory and Mastery count Ranked only.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-28 (achievements batch 1 brief)', quote: "let's just get the normal xp related achievements in for now though." },
+      { kind: 'code', ref: 'supabase/migrations/2026-09-28-achievements.sql (settle_progression step 7b, sync_achievement_catalog); packages/progression/src/achievements.ts evaluateAchievements' },
+    ],
+    currentBehaviour: 'Conforms, built 2026-09-28.',
+    enforcement: { kind: 'scenario', refs: ['packages/progression/src/achievements.db.test.ts', 'packages/progression/src/sqlParity.test.ts', 'packages/sim/src/achievementMetrics.test.ts'], lastVerifiedAt: '2026-09-28' },
+  },
+  {
+    id: 'R-ACH-03',
+    title: 'The Career has an Achievements tab after Practice: every achievement shows with its reward; a hidden one is a blurred "Hidden" tile',
+    statement:
+      'Once achievements are switched on, the Career shows an Achievements tab right after Practice, on your own Career and '
+      + "on anyone else's. Categories (Career, Ranked, Heroes, Economy and Build, Mechanics, Runes, Set 2 by tribe) carry "
+      + 'done / total counts, and All / Completed / In progress filters. Each tile shows the name, the exact requirement, the '
+      + 'reward ("+150 XP"), the completion date once done, and on your own page a progress bar for a counting achievement '
+      + '(progress values stay private). A hidden achievement shows as a blurred "Hidden" tile with no name, requirement or '
+      + 'reward until completed. After a game, the Account XP panel lists "Achievement unlocked: <name> +N XP" rows.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-28 (achievements batch 1 brief)', quote: `we'll need an achievements tab in career next to practice. most should show, with their reward, but the hidden ones will be blurred or say "Hidden"` },
+      { kind: 'code', ref: 'packages/ui/src/progression/AchievementsTab.tsx; packages/ui/src/progression/achievementsModel.ts; packages/ui/src/progression/ProgressionPostgame.tsx; packages/ui/src/Career.tsx' },
+    ],
+    currentBehaviour: 'Conforms, built 2026-09-28. The 3 Career showcase slots are a follow-up.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/progression/AchievementsTab.test.tsx', 'packages/ui/src/progression/ProgressionPostgame.test.tsx', 'packages/ui/src/Career.test.tsx'], lastVerifiedAt: '2026-09-28' },
+  },
 ];

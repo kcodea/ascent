@@ -34,7 +34,7 @@ import {
   enqueuePendingProgression, flushPendingProgressions, installProgressionRetryTriggers, type PendingProgression,
 } from './progressionQueue';
 import {
-  equipCosmeticRemote, equipTitleRemote, fetchCratesEnabled, fetchOwnCrates, fetchOwnProgression, fetchProgressionEnabled, fetchServerCatalogState, openCrateRemote, progressionRequestFor,
+  equipCosmeticRemote, equipTitleRemote, fetchAchievementsEnabled, fetchCratesEnabled, fetchOwnCrates, fetchOwnProgression, fetchProgressionEnabled, fetchServerCatalogState, openCrateRemote, progressionRequestFor,
   type ProgressionSubmitOutcome,
 } from './progressionRemote';
 
@@ -64,6 +64,9 @@ interface ProgressionStore {
   crateList: CrateRow[] | null;
   /** Bumps whenever the server's catalog switches are applied: a render key for every skin lookup. */
   catalogEpoch: number;
+  /** ACHIEVEMENTS (2026-09-28): `on` once the owner set `achievements_epoch`. Shows the Career tab and the post-game
+   *  "Achievement unlocked" rows, and makes a settlement carry its run metrics (V2 facts). */
+  achievementsCapability: ProgressionCapability;
 }
 
 const MIRROR_KEY = 'ascent.progression';
@@ -106,6 +109,7 @@ export const useProgression = create<ProgressionStore>(() => ({
   cratesCapability: 'unknown',
   crateList: null,
   catalogEpoch: 0,
+  achievementsCapability: 'unknown',
 }));
 
 // The last server kill-switch answer we saw, applied before anything renders (never un-retires on its own).
@@ -172,6 +176,9 @@ export function probeProgression(): Promise<void> {
     const crates = await fetchCratesEnabled();
     if (crates !== undefined) useProgression.setState({ cratesCapability: crates ? 'on' : 'off' });
     if (crates) await refreshCrates();
+    // The achievements probe: its own switch (the owner flips it after deploying the Edge Function).
+    const ach = await fetchAchievementsEnabled();
+    if (ach !== undefined) useProgression.setState({ achievementsCapability: ach ? 'on' : 'off' });
   };
   const p = run().catch(() => { /* never throws */ }).finally(() => { if (probing === p) probing = null; });
   probing = p;
@@ -207,7 +214,8 @@ export function beginRunProgression(localKey: string, facts: ProgressionRunFacts
     return false;
   };
   if (st.capability === 'off' || !facts.terminal) return none();
-  const item = enqueuePendingProgression(progressionRequestFor(facts, sourceId));
+  // Run metrics ride along only while the server evaluates achievements (an older server refuses V2 facts).
+  const item = enqueuePendingProgression(progressionRequestFor(facts, sourceId, st.achievementsCapability === 'on'));
   if (!item) return none();
   useProgression.setState({ current: { localKey, mode: facts.mode, runId: facts.runId, state: 'pending', result: null, deduped: false, error: null } });
   void flushProgression();
@@ -226,6 +234,9 @@ export function installProgression(): void {
 }
 
 // ── Crates + titles (2026-09-28) ─────────────────────────────────────────────────────────────────────────────
+
+/** Achievements are visible: progression is on AND the owner set the achievements epoch. */
+export const achievementsVisible = (s: Pick<ProgressionStore, 'capability' | 'achievementsCapability'>): boolean => s.capability === 'on' && s.achievementsCapability === 'on';
 
 /** Crates and the Collection are visible: progression is on AND the crates migration is live. */
 export const cratesVisible = (s: Pick<ProgressionStore, 'capability' | 'cratesCapability'>): boolean => s.capability === 'on' && s.cratesCapability === 'on';
@@ -320,5 +331,5 @@ export function resetProgressionForTests(): void {
   try { localStorage.removeItem(PRESENTED_KEY); localStorage.removeItem(MIRROR_KEY); } catch { /* ignore */ }
   try { localStorage.removeItem(SERVER_CATALOG_KEY); } catch { /* ignore */ }
   setServerCatalogState(null);
-  useProgression.setState({ capability: 'unknown', mirror: null, current: null, cratesCapability: 'unknown', crateList: null, catalogEpoch: 0 });
+  useProgression.setState({ capability: 'unknown', mirror: null, current: null, cratesCapability: 'unknown', crateList: null, catalogEpoch: 0, achievementsCapability: 'unknown' });
 }

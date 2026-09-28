@@ -18,6 +18,8 @@ import { startReplay } from './replay/replayPlayer';
 import { RankBar } from './rank/RankBar';
 import { cosmeticOf, titleName } from '@game/progression';
 import { AccountLevelCard, useCareerProgression } from './progression/AccountLevel';
+import { AchievementsTab } from './progression/AchievementsTab';
+import { achievementsVisible, useProgression } from './progression/progressionStore';
 import { scalarCaption } from './rank/rankFormat';
 import { rankPositionOf, type RankedProfile } from './rank/types';
 import {
@@ -82,11 +84,11 @@ import { rectToStage, stageHost, stageViewport } from './stage';
 const FETCH_LIMIT = 1000;
 /** Which centre tab is open, persisted per browser (owner ask 2026-09-20). */
 const TAB_KEY = 'ascent.career.tab';
-type CenterTab = 'history' | 'heroes' | 'practice';
+type CenterTab = 'history' | 'heroes' | 'practice' | 'achievements';
 function loadTab(): CenterTab {
   try {
     const t = localStorage.getItem(TAB_KEY);
-    return t === 'heroes' || t === 'practice' ? t : 'history';
+    return t === 'heroes' || t === 'practice' || t === 'achievements' ? t : 'history';
   } catch { return 'history'; }
 }
 function saveTab(t: CenterTab): void {
@@ -537,7 +539,11 @@ export function Career() {
   const [runs, setRuns] = useState<CareerRun[] | null | undefined>(undefined);
   const [fetchTick, setFetchTick] = useState(0); // the Retry button
   const [window_, setWindow] = useState<TrendWindow>(30);
-  const [tab, setTab] = useState<CenterTab>(loadTab);
+  const [tabPicked, setTab] = useState<CenterTab>(loadTab);
+  // ACHIEVEMENTS (2026-09-28): the tab exists only once the owner has switched achievements on; a remembered
+  // Achievements tab reads as Match History until then.
+  const achievementsOn = useProgression(achievementsVisible);
+  const tab: CenterTab = tabPicked === 'achievements' && !achievementsOn ? 'history' : tabPicked;
   const [watching, setWatching] = useState<number | null>(null); // run id whose replay is loading
   const [noReplay, setNoReplay] = useState<number | null>(null); // run id whose payload came back unplayable
   // PRACTICE tab rows, per career owner (`rows: null` = the read failed; no entry for this player = not read yet).
@@ -714,7 +720,7 @@ export function Career() {
         </aside>
 
         {/* CENTRE — Match History | Heroes (the only column that scrolls) */}
-        <section className="cv2-col cv2-center" aria-label={tab === 'heroes' ? 'Heroes' : tab === 'practice' ? 'Practice' : 'Match History'}>
+        <section className="cv2-col cv2-center" aria-label={tab === 'heroes' ? 'Heroes' : tab === 'practice' ? 'Practice' : tab === 'achievements' ? 'Achievements' : 'Match History'}>
           <div className="cv2-colhead cv2-center-head">
             <div className="cv2-tabs" role="tablist" aria-label="Career view">
               <button type="button" role="tab" className={`cv2-tab${tab === 'history' ? ' on' : ''}`} aria-selected={tab === 'history'} onClick={() => pickTab('history')}>
@@ -726,16 +732,27 @@ export function Career() {
               <button type="button" role="tab" className={`cv2-tab${tab === 'practice' ? ' on' : ''}`} aria-selected={tab === 'practice'} onClick={() => pickTab('practice')}>
                 <Icon name="target" />Practice
               </button>
+              {achievementsOn && (
+                <button type="button" role="tab" className={`cv2-tab${tab === 'achievements' ? ' on' : ''}`} aria-selected={tab === 'achievements'} onClick={() => pickTab('achievements')}>
+                  <Icon name="star" />Achievements
+                </button>
+              )}
             </div>
             <span className="cv2-sec-sub">
-              {tab === 'heroes'
+              {tab === 'achievements'
+                ? ''
+                : tab === 'heroes'
                 ? (heroes.length ? `${heroes.length} hero${heroes.length === 1 ? '' : 'es'} played` : '')
                 : tab === 'practice'
                 ? (practiceRows?.length ? `Last ${practiceRows.length} practice game${practiceRows.length === 1 ? '' : 's'}` : '')
                 : (matchRows.length ? `Last ${matchRows.length} run${matchRows.length === 1 ? '' : 's'}` : '')}
             </span>
           </div>
-          {tab === 'practice' ? (
+          {tab === 'achievements' && userId ? (
+            <div className="cv2-list cv2-achlist" role="tabpanel">
+              <AchievementsTab userId={userId} own={!viewing} ownerName={shownName} />
+            </div>
+          ) : tab === 'practice' ? (
             <div className="cv2-list cv2-practicelist" role="tabpanel">
               {practiceRows === undefined ? (
                 <div className="cv2-panel cv2-none" role="status" aria-busy="true">

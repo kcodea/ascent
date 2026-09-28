@@ -173,3 +173,33 @@ describe('motion', () => {
     expect(text('.acctxp-level')).toBe('Lv2');
   });
 });
+
+describe('achievements unlocked (batch 1, 2026-09-28)', () => {
+  const ids = ['career.games.1', 'ranked.first_game', 'ranked.first_top_four', 'ranked.first_win', 'ranked.reach_bronze_2', 'ranked.reach_bronze_3', 'ranked.reach_silver_1', 'hero.warden.victory'];
+  it('lists "Achievement unlocked: <name> +N XP" rows after the bar; the headline total includes their XP', () => {
+    setCurrent({ result: result({ achievements: ['career.games.1', 'ranked.first_win'], achievementXp: 125, after: { lifetimeXp: 450, level: 2 } }) });
+    render();
+    expect(text('.acctxp-total')).toBe('+350 XP');
+    expect(all('.acctxp-ach-row')).toEqual(['Achievement unlocked: First Steps +25 XP', 'Achievement unlocked: First Among Eight +100 XP']);
+    expect(ui!.container.querySelector('.acctxp-ach')!.getAttribute('aria-label')).toBe('Achievements unlocked');
+  });
+  it('shows the first six, then "+N more"; unknown ids (a newer server) are skipped', () => {
+    setCurrent({ result: result({ achievements: [...ids, 'future.thing'], achievementXp: 0 }) });
+    render();
+    expect(all('.acctxp-ach-row')).toHaveLength(6);
+    expect(text('.acctxp-ach-more')).toBe('+2 more achievements. See your Career.');
+  });
+  it('none completed (or a pre-achievements server): no rows at all', () => {
+    setCurrent();
+    render();
+    expect(ui!.container.querySelector('.acctxp-ach')).toBeNull();
+  });
+  it('the rows wait for the bar to settle when animated, then enter one-shot', () => {
+    vi.useFakeTimers();
+    setCurrent({ result: result({ achievements: ['career.games.1'], achievementXp: 25 }) });
+    render({ reducedMotion: false });
+    expect(ui!.container.querySelector('.acctxp-ach')).toBeNull();
+    act(() => { vi.advanceTimersByTime(5000); });
+    expect(all('.acctxp-ach-row')).toEqual(['Achievement unlocked: First Steps +25 XP']);
+  });
+});

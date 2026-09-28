@@ -2,7 +2,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { PGlite } from '@electric-sql/pglite';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { COSMETICS, eligibleCrateCosmetics, parseOpenCrateResult } from './cosmetics';
+import { COSMETICS, catalogHash, catalogSyncPayload, eligibleCrateCosmetics, parseOpenCrateResult, type CatalogSyncPayload } from './cosmetics';
 import { parseProgressionProfile } from './rules';
 
 /**
@@ -10,10 +10,13 @@ import { parseProgressionProfile } from './rules';
  * migrations in order over the same minimal Supabase stub as crates.db.test.ts, then drives `equip_cosmetic`,
  * `open_crate` and the kill switch exactly as the owner would run them:
  *
+ *   the CATALOG SYNC (owner 2026-09-28: "make it automated when i add skins"): the code's payload inserts,
+ *   updates and deactivates removed items (never deletes); the hash short-circuits an unchanged catalog; it is
+ *   idempotent; the owner's emergency switch (`admin_off`) survives every sync and every re-run;
  *   the skins join the crate pool; equip checks slot, target, liveness and ownership; Default (null) is
  *   selectable; the one-line retire (item or category) removes an item from the pool, from equip and from every
  *   profile's loadout WITHOUT deleting ownership or the loadout row, and the one-line restore brings it all back;
- *   a re-run of the skins file keeps an item retire; clients can never call the writer or write a loadout.
+ *   clients can never call the writers or write a loadout.
  */
 
 const root = join(__dirname, '../../..');
@@ -27,10 +30,15 @@ function switchLine(pattern: RegExp): string {
   if (!m) throw new Error(`no documented line for ${pattern}`);
   return m[0];
 }
-const RETIRE_ITEM = switchLine(/update public\.cosmetic_catalog set active = false where cosmetic_id = 'skin_blackbelt_2';/);
-const RESTORE_ITEM = switchLine(/update public\.cosmetic_catalog set active = true where cosmetic_id = 'skin_blackbelt_2';/);
-const RETIRE_CATEGORY = switchLine(/update public\.cosmetic_categories set enabled = false, updated_at = now\(\) where category = 'minion_skin';/);
-const RESTORE_CATEGORY = switchLine(/update public\.cosmetic_categories set enabled = true, updated_at = now\(\) where category = 'minion_skin';/);
+const RETIRE_ITEM = switchLine(/update public\.cosmetic_catalog set admin_off = true where cosmetic_id = 'skin_blackbelt_2';/);
+const RESTORE_ITEM = switchLine(/update public\.cosmetic_catalog set admin_off = false where cosmetic_id = 'skin_blackbelt_2';/);
+const RETIRE_CATEGORY = switchLine(/update public\.cosmetic_categories set admin_off = true, updated_at = now\(\) where category = 'minion_skin';/);
+const RESTORE_CATEGORY = switchLine(/update public\.cosmetic_categories set admin_off = false, updated_at = now\(\) where category = 'minion_skin';/);
+
+/** What the Edge Function does on a cold start: push a catalog payload with its hash. */
+async function sync(payload: CatalogSyncPayload = catalogSyncPayload(), hash: string = catalogHash(payload)): Promise<Record<string, unknown>> {
+  return (await one<{ j: Record<string, unknown> }>('select public.sync_cosmetic_catalog($1::jsonb, $2) as j', [JSON.stringify(payload), hash])).j;
+}
 
 const STUB = `
   create role anon; create role authenticated; create role service_role;
@@ -102,11 +110,13 @@ beforeAll(async () => {
   await db.exec(API_GRANTS);
   await db.exec(SKINS);
   await db.exec(API_GRANTS);
+  // The first cold start after the deploy.
+  expect((await sync()).status).toBe('synced');
 }, 60_000);
 afterAll(async () => { await db?.close(); });
 
 describe('the migration', () => {
-  it('switches the two skin categories on and adds the four skins (rows equal the TS catalog)', async () => {
+  it('after the first sync: the two skin categories are on and the four skins exist (rows equal the TS catalog)', async () => {
     const cats = (await db.query<{ category: string }>('select category from public.cosmetic_categories where enabled order by category')).rows.map((r) => r.category);
     expect(cats).toEqual(['hero_skin', 'minion_skin', 'title']);
     const rows = (await db.query<{ cosmetic_id: string; category: string; target_type: string; target_id: string; active: boolean }>(
@@ -115,7 +125,7 @@ describe('the migration', () => {
       .map((c) => ({ cosmetic_id: c.id, category: c.category, target_type: c.target!.type, target_id: c.target!.id, active: true })));
   });
 
-  it('is idempotent: running it twice more changes no ownership, loadout or catalog row', async () => {
+  it('is idempotent: re-running it (and re-syncing) changes no ownership, loadout or catalog row', async () => {
     const u = await playerOwning(['skin_albus_1']);
     await equip(u, 'hero_skin', 'albus', 'skin_albus_1');
     const snap = async (): Promise<unknown[]> => [
@@ -126,6 +136,8 @@ describe('the migration', () => {
     const before = await snap();
     await db.exec(SKINS);
     await db.exec(SKINS);
+    expect((await sync()).status).toBe('synced'); // the re-run cleared the hash: the next cold start syncs again
+    expect((await sync()).status).toBe('unchanged');
     expect(await snap()).toEqual(before);
   });
 });
@@ -203,9 +215,11 @@ describe('the kill switch (owner 2026-09-28: "remove any rewards from the game")
     expect(await loadoutRows(holder)).toEqual([{ slot: 'minion_skin', target_id: 'blackbelt', cosmetic_id: 'skin_blackbelt_2' }]);
     expect((await profile(holder)).cosmetics).toContain('skin_blackbelt_2');
     expect(await raises('select public.equip_cosmetic($1, $2, $3, $4)', [holder, 'minion_skin', 'blackbelt', 'skin_blackbelt_2'])).toContain('not_equippable');
-    // a re-run of the skins file keeps the retire
+    // a re-run of the skins file, and the next deploy's sync, keep the emergency retire
     await db.exec(SKINS);
-    expect((await one<{ active: boolean }>("select active from public.cosmetic_catalog where cosmetic_id = 'skin_blackbelt_2'")).active).toBe(false);
+    expect((await sync()).status).toBe('synced');
+    expect((await one<{ admin_off: boolean; active: boolean }>("select admin_off, active from public.cosmetic_catalog where cosmetic_id = 'skin_blackbelt_2'"))).toEqual({ admin_off: true, active: true });
+    expect(await poolIds(fresh)).not.toContain('skin_blackbelt_2');
 
     await db.exec(RESTORE_ITEM);
     expect(await poolIds(fresh)).toContain('skin_blackbelt_2');
@@ -268,5 +282,106 @@ describe('clients can never write a loadout', () => {
     await asClient('anon', u, async () => {
       expect((await db.query('select slot, target_id, cosmetic_id from public.cosmetic_loadouts where user_id = $1', [u])).rows).toEqual([{ slot: 'hero_skin', target_id: 'warden', cosmetic_id: 'skin_warden_1' }]);
     });
+  });
+});
+
+describe('the catalog sync (owner 2026-09-28: "make it automated when i add skins")', () => {
+  const base = (): CatalogSyncPayload => catalogSyncPayload();
+  const itemRow = async (id: string): Promise<Record<string, unknown> | undefined> =>
+    (await db.query<Record<string, unknown>>('select cosmetic_id, category, rarity, active, admin_off from public.cosmetic_catalog where cosmetic_id = $1', [id])).rows[0];
+  const enabledCats = async (): Promise<string[]> =>
+    (await db.query<{ category: string }>('select category from public.cosmetic_categories where enabled order by 1')).rows.map((r) => r.category);
+
+  it('an unchanged catalog is a no-op (the hash short-circuits), even over hand-edited rows', async () => {
+    expect((await sync()).status).toBe('unchanged');
+    await db.exec("update public.cosmetic_catalog set rarity = 'common' where cosmetic_id = 'skin_warden_1'");
+    expect((await sync()).status).toBe('unchanged'); // same hash: nothing is rewritten
+    expect((await itemRow('skin_warden_1'))!.rarity).toBe('common');
+    // a new payload (a new hash) puts code back in charge
+    expect((await sync(base(), 'test-hash-restore-1')).status).toBe('synced');
+    expect((await itemRow('skin_warden_1'))!.rarity).toBe('epic');
+    await sync(); // back to the real catalog's hash
+  });
+
+  it('INSERTS a new item and UPDATES a changed one', async () => {
+    const p = base();
+    p.items = [...p.items.map((i) => (i.cosmeticId === 'skin_albus_1' ? { ...i, rarity: 'legendary' } : i)),
+      { cosmeticId: 'skin_blackbelt_3', category: 'minion_skin', rarity: 'rare', acquisitionSource: 'crate', milestoneLevel: null, targetType: 'card', targetId: 'blackbelt', achievementId: null, active: true }];
+    const res = await sync(p, 'test-hash-add-1');
+    expect(res).toMatchObject({ status: 'synced', itemsChanged: 2, itemsDeactivated: 0 });
+    expect(await itemRow('skin_blackbelt_3')).toMatchObject({ category: 'minion_skin', rarity: 'rare', active: true, admin_off: false });
+    expect((await itemRow('skin_albus_1'))!.rarity).toBe('legendary');
+    expect(await poolIds(await playerOwning([]))).toContain('skin_blackbelt_3');
+  });
+
+  it('an item REMOVED from code is marked inactive, never deleted (ownership keeps it); active:false in code retires too', async () => {
+    const owner = await playerOwning(['skin_blackbelt_3']);
+    const items = base().items.map((i) => (i.cosmeticId === 'skin_warden_1' ? { ...i, active: false } : i));
+    const res = await sync({ ...base(), items }, 'test-hash-remove-1');
+    expect(res).toMatchObject({ status: 'synced', itemsDeactivated: 1 });
+    expect(await itemRow('skin_blackbelt_3')).toMatchObject({ active: false });
+    expect((await profile(owner)).cosmetics).toContain('skin_blackbelt_3');
+    const pool = await poolIds(await playerOwning([]));
+    expect(pool).not.toContain('skin_blackbelt_3');
+    expect(pool).not.toContain('skin_warden_1');
+    expect((await sync()).status).toBe('synced'); // the real catalog again
+    expect(await itemRow('skin_warden_1')).toMatchObject({ active: true });
+    expect((await itemRow('skin_albus_1'))!.rarity).toBe('epic');
+    expect(await itemRow('skin_blackbelt_3')).toMatchObject({ active: false }); // still not in code
+  });
+
+  it('a category switched off in code, or missing from code, switches off in the database', async () => {
+    const p = base();
+    const categories = p.categories.filter((c) => c.category !== 'title').map((c) => (c.category === 'hero_skin' ? { ...c, enabled: false } : c));
+    expect((await sync({ ...p, categories }, 'test-hash-cat-1')).status).toBe('synced');
+    expect(await enabledCats()).toEqual(['minion_skin']);
+    expect((await poolIds(await playerOwning([]))).filter((id) => id.startsWith('skin_albus') || id.startsWith('title_'))).toEqual([]);
+    await sync();
+    expect(await enabledCats()).toEqual(['hero_skin', 'minion_skin', 'title']);
+  });
+
+  it('the emergency switch WINS: admin_off on an item and a category survives any number of syncs', async () => {
+    const retireHeroes = RETIRE_CATEGORY.replace("'minion_skin'", "'hero_skin'");
+    const restoreHeroes = RESTORE_CATEGORY.replace("'minion_skin'", "'hero_skin'");
+    await db.exec(RETIRE_ITEM);
+    await db.exec(retireHeroes);
+    try {
+      for (const h of ['test-hash-admin-1', 'test-hash-admin-2']) await sync(base(), h);
+      await sync();
+      expect(await itemRow('skin_blackbelt_2')).toMatchObject({ active: true, admin_off: true });
+      expect(await one("select enabled, admin_off from public.cosmetic_categories where category = 'hero_skin'")).toEqual({ enabled: true, admin_off: true });
+      const pool = await poolIds(await playerOwning([]));
+      expect(pool).not.toContain('skin_blackbelt_2');
+      expect(pool).not.toContain('skin_albus_1');
+      expect(pool).toContain('skin_blackbelt_1');
+    } finally {
+      await db.exec(RESTORE_ITEM);
+      await db.exec(restoreHeroes);
+    }
+    expect(await poolIds(await playerOwning([]))).toEqual(expect.arrayContaining(['skin_blackbelt_2', 'skin_albus_1']));
+  });
+
+  it('re-running the CRATES file (then the skins file, the documented order) flips no flag', async () => {
+    const flags = async (): Promise<unknown[]> => [
+      (await db.query('select category, enabled, admin_off from public.cosmetic_categories order by 1')).rows,
+      (await db.query('select cosmetic_id, active, admin_off from public.cosmetic_catalog order by 1')).rows,
+    ];
+    const before = await flags();
+    await db.exec(CRATES);
+    expect(await flags()).toEqual(before); // its seeds only insert missing rows
+    await db.exec(SKINS);
+    expect((await sync()).status).toBe('synced');
+    expect(await flags()).toEqual(before);
+  });
+
+  it('refuses a malformed payload or hash; only the service role may call it', async () => {
+    expect(await raises('select public.sync_cosmetic_catalog($1::jsonb, $2)', ['{"items":[]}', 'test-hash-bad-1'])).toContain('bad_catalog');
+    expect(await raises('select public.sync_cosmetic_catalog($1::jsonb, $2)', [JSON.stringify(base()), 'x'])).toContain('bad_catalog');
+    const u = await newUser();
+    await db.query("select set_config('request.jwt.claim.sub', $1, false)", [u]);
+    await db.exec('set role authenticated');
+    try {
+      expect(await raises('select public.sync_cosmetic_catalog($1::jsonb, $2)', [JSON.stringify(base()), 'test-hash-client-1'])).toMatch(/permission denied/);
+    } finally { await db.exec('reset role'); }
   });
 });

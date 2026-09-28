@@ -40,7 +40,8 @@ create table if not exists public.cosmetic_categories (
 alter table public.cosmetic_categories enable row level security;
 drop policy if exists "read cosmetic_categories" on public.cosmetic_categories;
 create policy "read cosmetic_categories" on public.cosmetic_categories for select using (true);
--- MUST match COSMETIC_CATEGORY_DEFS in packages/progression/src/cosmetics.ts (enable a category in BOTH).
+-- The FIRST seed (titles only). Since 2026-09-28 the code owns this table: `sync_cosmetic_catalog` (the skins file)
+-- writes it from packages/progression/src/cosmetics.ts. So a re-run never overwrites an existing row's flag.
 insert into public.cosmetic_categories (category, weight, enabled, target) values
   ('announcer', 10, false, 'global'),
   ('hero_skin', 20, false, 'hero'),
@@ -49,7 +50,7 @@ insert into public.cosmetic_categories (category, weight, enabled, target) value
   ('hero_attack', 15, false, 'global'),
   ('board', 5, false, 'global'),
   ('music', 5, false, 'global')
-on conflict (category) do update set weight = excluded.weight, enabled = excluded.enabled, target = excluded.target, updated_at = now();
+on conflict (category) do nothing;
 
 -- ── 3. cosmetic_catalog: one row per item (handoff §6.5) ───────────────────────────────────────────────────
 -- Ids are PERMANENT. Retire an item with active = false (never delete a row: ownership references it). Display
@@ -71,7 +72,8 @@ create table if not exists public.cosmetic_catalog (
 alter table public.cosmetic_catalog enable row level security;
 drop policy if exists "read cosmetic_catalog" on public.cosmetic_catalog;
 create policy "read cosmetic_catalog" on public.cosmetic_catalog for select using (true);
--- MUST match COSMETICS in packages/progression/src/cosmetics.ts row for row.
+-- The FIRST seed (the 16 titles). Since 2026-09-28 the code owns this table (`sync_cosmetic_catalog`), so a re-run
+-- never overwrites an existing row.
 insert into public.cosmetic_catalog (cosmetic_id, category, rarity, acquisition_source, milestone_level, target_type, target_id, achievement_id, active) values
   ('alpha_tester', 'title', 'rare', 'level_milestone', 2, null, null, null, true),
   ('title_wanderer', 'title', 'common', 'crate', null, null, null, null, true),
@@ -89,10 +91,7 @@ insert into public.cosmetic_catalog (cosmetic_id, category, rarity, acquisition_
   ('title_kingbreaker', 'title', 'epic', 'crate', null, null, null, null, true),
   ('title_voice_of_the_deep', 'title', 'epic', 'crate', null, null, null, null, true),
   ('title_the_unbroken', 'title', 'legendary', 'crate', null, null, null, null, true)
-on conflict (cosmetic_id) do update set
-  category = excluded.category, rarity = excluded.rarity, acquisition_source = excluded.acquisition_source,
-  milestone_level = excluded.milestone_level, target_type = excluded.target_type, target_id = excluded.target_id,
-  achievement_id = excluded.achievement_id, active = excluded.active;
+on conflict (cosmetic_id) do nothing;
 
 -- ── 4. player_cosmetics: ownership of every category (public read, like the MVP's titles) ─────────────────
 -- UNIQUE (user, item) is the final no-duplicate guard. Written only by `settle_progression` / `open_crate`.

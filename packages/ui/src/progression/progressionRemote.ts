@@ -215,13 +215,17 @@ export async function fetchServerCatalogState(): Promise<ServerCatalogState | un
   const c = supabaseClient();
   if (!c) return undefined;
   try {
-    const res = await Promise.race([
+    // The owner's emergency switch (`admin_off`) is read with the code-owned flag. A server from before the skins
+    // SQL has no such column: read the flags alone rather than lose the answer.
+    const read = (withAdmin: boolean) => Promise.race([
       Promise.all([
-        Promise.resolve(c.from('cosmetic_catalog').select('cosmetic_id, active')),
-        Promise.resolve(c.from('cosmetic_categories').select('category, enabled')),
+        Promise.resolve(c.from('cosmetic_catalog').select(withAdmin ? 'cosmetic_id, active, admin_off' : 'cosmetic_id, active')),
+        Promise.resolve(c.from('cosmetic_categories').select(withAdmin ? 'category, enabled, admin_off' : 'category, enabled')),
       ]),
       timeout(READ_TIMEOUT_MS, null),
     ]);
+    let res = await read(true);
+    if (res && (res[0].error || res[1].error)) res = await read(false);
     if (!res || res[0].error || res[1].error) return undefined;
     return parseServerCatalogState(res[0].data, res[1].data);
   } catch {

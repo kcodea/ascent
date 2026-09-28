@@ -187,7 +187,9 @@ progression **epoch**; nothing finished before the epoch counts (no backfill).
   It escalates with rarity (Common quick, Rare blue, Epic purple and longer, Legendary gold with god rays and a
   sting). A click or a key skips to the reward; reduced motion is a short fade; a failed answer says "Could not open
   the crate. Try again." Presentation only (oracle R-PROG-COLLECTION-01).
-- **The catalog (2026-09-28).** Data in `packages/progression/src/cosmetics.ts`, seeded into the database. Shaped
+- **The catalog (2026-09-28).** Data in `packages/progression/src/cosmetics.ts`, which OWNS the database copy: the
+  `progression-inventory` Edge Function syncs it on its first request per cold start (`sync_cosmetic_catalog`;
+  R-PROG-SKINS-05), so a new or retired cosmetic is a code change plus one deploy, never SQL. Shaped
   for every cosmetic category (announcer, hero skin, minion skin, title, hero attack, board, music). Switched on:
   **titles** (15 crate titles: 7 Common, 5 Rare, 2 Epic, 1 Legendary) and, since the skins shipped the same day,
   **hero skins** and **minion skins** (the first four, all from crates). The other categories are feature-flagged
@@ -209,9 +211,11 @@ progression **epoch**; nothing finished before the epoch counts (no backfill).
 - **Show opponent skins (Settings, on by default; R-PROG-SKINS-02).** Off, every OPPONENT's skins render as
   default art (lobby, combat, the scouted board, replays, another player's Career). Your own always show. Display
   only; stored locally like the other settings.
-- **The reward kill switch (R-PROG-SKINS-03).** Any reward can be removed from the game in one line: an item's
-  `active = false`, or its category's `enabled = false` (SQL lines in the header of
-  `supabase/migrations/2026-09-28-progression-skins.sql`; mirror it in `cosmetics.ts`). A retired item leaves the
+- **The reward kill switch (R-PROG-SKINS-03).** Any reward can be removed from the game two ways. Permanently:
+  `active: false` on the item (or `enabled: false` on its category) in `cosmetics.ts`, then deploy. Right now: the
+  owner's one-line emergency switch, `admin_off = true` on the item or category (lines in the header of
+  `supabase/migrations/2026-09-28-progression-skins.sql`), which the code sync never touches, so no deploy undoes it.
+  Effective state: item `active AND NOT admin_off`, category `enabled AND NOT admin_off`. A retired item leaves the
   crate pool, cannot be equipped, drops out of every loadout, is **hidden** from the Collection (owned or not; the
   counts move with it) and renders as default art everywhere, including old boards and replays that name it. The
   client reads the server's switches on boot. Ownership and loadout rows are never deleted: restoring puts the item

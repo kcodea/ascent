@@ -1866,8 +1866,10 @@ export const FOUNDATION_RULES: GameRule[] = [
     id: 'R-PROG-SKINS-03',
     title: 'The reward kill switch: one line retires an item or a category; ownership is never deleted, so restoring puts it back',
     statement:
-      'Setting a catalog item\'s active flag to false, or switching its category off (in the database with one documented '
-      + 'line, or in the bundled catalog), RETIRES it: it leaves the crate pool, it cannot be equipped, it drops out of every '
+      'An item is RETIRED when it is switched off in code (active false, or its category disabled, in cosmetics.ts; the next '
+      + 'deploy syncs it) OR by the owner\'s one-line emergency switch in the database (admin_off on the item or the category, '
+      + 'a column the code sync never writes, so the next deploy can never undo it). The effective state everywhere is active '
+      + 'AND NOT admin_off (items) and enabled AND NOT admin_off (categories). A retired item leaves the crate pool, it cannot be equipped, it drops out of every '
       + 'profile\'s loadout, the Collection hides it (owned or not, and the counts move with it), and every renderer shows '
       + 'default art even where a player has it equipped or an old board, seat or replay names it. The client reads the '
       + 'server\'s switches on boot and caches the last answer. An unknown or removed id (an old replay, a newer client) never '
@@ -1877,10 +1879,32 @@ export const FOUNDATION_RULES: GameRule[] = [
     status: 'approved',
     evidence: [
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-28 (skins v1 brief)', quote: 'we need to have the ability to remove any rewards from the game if we want to as well' },
-      { kind: 'code', ref: 'packages/progression/src/cosmetics.ts (isCosmeticLive / setServerCatalogState); supabase/migrations/2026-09-28-progression-skins.sql (the four one-line switches in its header); packages/ui/src/progression/collectionModel.ts (albumOf)' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-28 (catalog sync ruling)', quote: "yeah let's do option 2 then to make it automated when i add skins" },
+      { kind: 'code', ref: 'packages/progression/src/cosmetics.ts (isCosmeticLive / parseServerCatalogState, which reads admin_off); supabase/migrations/2026-09-28-progression-skins.sql (admin_off, the four one-line switches in its header, the effective state in progression_crate_pool / equip_cosmetic / progression_profile_json); packages/ui/src/progression/collectionModel.ts (albumOf)' },
     ],
     currentBehaviour: 'Conforms, built 2026-09-28.',
     enforcement: { kind: 'scenario', refs: ['packages/progression/src/skins.db.test.ts', 'packages/progression/src/skins.test.ts', 'packages/ui/src/skins/skins.test.tsx', 'packages/ui/src/progression/CollectionSkins.test.tsx'], lastVerifiedAt: '2026-09-28' },
+  },
+  {
+    id: 'R-PROG-SKINS-05',
+    title: 'The cosmetic catalog is owned by code: deploying progression-inventory syncs it; adding a cosmetic needs no SQL',
+    statement:
+      'packages/progression/src/cosmetics.ts is the source of truth for the cosmetic catalog. The progression-inventory Edge '
+      + 'Function carries a generated copy and, on the first request of every cold start, pushes it to the database '
+      + '(sync_cosmetic_catalog): categories and items in code are inserted or updated (weight, enabled, target, rarity, '
+      + 'source, target, active); an item no longer in code is marked inactive, never deleted, because ownership references '
+      + 'it. A content hash makes an unchanged catalog one read. The sync never writes the owner\'s emergency switch '
+      + '(admin_off). So adding or retiring a cosmetic is: its art, a cosmetics.ts entry, npm run progression:shared, merge, '
+      + 'and one deploy of progression-inventory. Only that function syncs; submit-progression does not, so two functions '
+      + 'deployed at different times can never push different catalogs over each other.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-28 (catalog sync ruling)', quote: "yeah let's do option 2 then to make it automated when i add skins" },
+      { kind: 'code', ref: 'packages/progression/src/cosmetics.ts (catalogSyncPayload / catalogHash); packages/progression/src/inventory.ts (syncCatalogOnce); supabase/functions/progression-inventory/index.ts; supabase/migrations/2026-09-28-progression-skins.sql (sync_cosmetic_catalog)' },
+    ],
+    currentBehaviour: 'Conforms, built 2026-09-28. Takes effect once the owner pastes the skins SQL and deploys progression-inventory.',
+    enforcement: { kind: 'scenario', refs: ['packages/progression/src/skins.db.test.ts', 'packages/progression/src/skins.test.ts', 'packages/progression/src/sqlParity.test.ts', 'packages/progression/src/sharedArtifact.test.ts'], lastVerifiedAt: '2026-09-28' },
   },
   {
     id: 'R-PROG-SKINS-04',

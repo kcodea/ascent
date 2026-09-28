@@ -1,10 +1,10 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
-  COSMETICS, COSMETIC_CATEGORY_DEFS, catalogStateEpoch, cosmeticOf, heroSkinOf, isCosmeticLive, liveCosmetics, loadoutFromRows, minionSkinOf,
+  COSMETICS, COSMETIC_CATEGORY_DEFS, catalogHash, catalogStateEpoch, catalogSyncPayload, cosmeticOf, heroSkinOf, isCosmeticLive, liveCosmetics, loadoutFromRows, minionSkinOf,
   parseCosmeticSnapshot, parseServerCatalogState, setServerCatalogState, skinsForTarget, snapshotForRun, type CosmeticDef,
 } from './cosmetics';
 import { parseProgressionProfile } from './rules';
-import { handleInventory, validateInventoryBody } from './inventory';
+import { CATALOG_SYNC_RETRY_MS, handleInventory, resetCatalogSyncForTests, syncCatalogOnce, validateInventoryBody } from './inventory';
 import type { RpcCall } from './server';
 
 /**
@@ -171,3 +171,79 @@ describe('equip_cosmetic (the inventory Edge Function)', () => {
 // Type-level guard: a CosmeticDef literal with a target keeps compiling (the catalog shape is shared with Deno).
 const _typed: CosmeticDef = skins[0]!;
 void _typed;
+
+describe('the catalog sync payload (code is the source of truth, owner 2026-09-28)', () => {
+  it('carries every category and every item, sorted by id, with the columns the SQL writes', () => {
+    const p = catalogSyncPayload();
+    expect(p.version).toBe(1);
+    expect(p.categories.map((c) => c.category)).toEqual([...Object.keys(COSMETIC_CATEGORY_DEFS)].sort());
+    expect(p.items.map((i) => i.cosmeticId)).toEqual(COSMETICS.map((c) => c.id).sort());
+    expect(p.items.find((i) => i.cosmeticId === 'skin_albus_1')).toEqual({
+      cosmeticId: 'skin_albus_1', category: 'hero_skin', rarity: 'epic', acquisitionSource: 'crate', milestoneLevel: null,
+      targetType: 'hero', targetId: 'albus', achievementId: null, active: true,
+    });
+    expect(p.items.find((i) => i.cosmeticId === 'alpha_tester')).toMatchObject({ acquisitionSource: 'level_milestone', milestoneLevel: 2 });
+  });
+
+  it('the hash depends only on content: stable, order-independent, and moves with any change', () => {
+    const h = catalogHash(catalogSyncPayload());
+    expect(h).toMatch(/^v1-[0-9a-f]{16}$/);
+    expect(catalogHash(catalogSyncPayload([...COSMETICS].reverse()))).toBe(h);
+    const renamedOnly = COSMETICS.map((c) => (c.id === 'skin_albus_1' ? { ...c, name: 'Anything' } : c));
+    expect(catalogHash(catalogSyncPayload(renamedOnly))).toBe(h); // a display name is client-only: no resync
+    const rarer = COSMETICS.map((c) => (c.id === 'skin_albus_1' ? { ...c, rarity: 'legendary' as const } : c));
+    expect(catalogHash(catalogSyncPayload(rarer))).not.toBe(h);
+    const retired = COSMETICS.map((c) => (c.id === 'skin_albus_1' ? { ...c, active: false } : c));
+    expect(catalogHash(catalogSyncPayload(retired))).not.toBe(h);
+  });
+});
+
+describe('syncCatalogOnce (the Edge Function, once per cold start)', () => {
+  afterEach(() => resetCatalogSyncForTests());
+
+  it('calls the SQL once with the payload and its hash; later requests reuse the answer', async () => {
+    const rpc = vi.fn(async () => ({ data: { status: 'synced' }, error: null })) as unknown as RpcCall;
+    const a = await syncCatalogOnce(rpc);
+    const b = await syncCatalogOnce(rpc);
+    expect(a.status).toBe('synced');
+    expect(b).toBe(a);
+    expect(rpc).toHaveBeenCalledTimes(1);
+    const payload = catalogSyncPayload();
+    expect(rpc).toHaveBeenCalledWith('sync_cosmetic_catalog', { p_catalog: payload, p_hash: catalogHash(payload) });
+  });
+
+  it('reports unchanged when the database already holds this catalog', async () => {
+    const rpc = vi.fn(async () => ({ data: { status: 'unchanged' }, error: null })) as unknown as RpcCall;
+    expect((await syncCatalogOnce(rpc)).status).toBe('unchanged');
+  });
+
+  it('a failure never throws, is logged, and is retried only after the back-off', async () => {
+    let t = 1_000;
+    const log = vi.fn();
+    const failing = vi.fn(async () => ({ data: null, error: { message: 'function sync_cosmetic_catalog does not exist' } })) as unknown as RpcCall;
+    expect((await syncCatalogOnce(failing, log, () => t)).status).toBe('failed');
+    expect(log).toHaveBeenCalled();
+    t += 5_000;
+    await syncCatalogOnce(failing, log, () => t);
+    expect(failing).toHaveBeenCalledTimes(1); // inside the back-off: no second round trip
+    t += CATALOG_SYNC_RETRY_MS;
+    const ok = vi.fn(async () => ({ data: { status: 'synced' }, error: null })) as unknown as RpcCall;
+    expect((await syncCatalogOnce(ok, log, () => t)).status).toBe('synced');
+    const thrower = vi.fn(async () => { throw new Error('boom'); }) as unknown as RpcCall;
+    resetCatalogSyncForTests();
+    expect((await syncCatalogOnce(thrower, log)).status).toBe('failed');
+  });
+});
+
+describe('the server state reads the emergency switch (admin_off)', () => {
+  it('an item or category with admin_off is retired even though its code flag is on', () => {
+    setServerCatalogState(parseServerCatalogState(
+      [{ cosmetic_id: 'skin_albus_1', active: true, admin_off: true }, { cosmetic_id: 'skin_warden_1', active: true, admin_off: false }],
+      [{ category: 'minion_skin', enabled: true, admin_off: true }],
+    ));
+    expect(isCosmeticLive('skin_albus_1')).toBe(false);
+    expect(isCosmeticLive('skin_warden_1')).toBe(true);
+    expect(isCosmeticLive('skin_blackbelt_1')).toBe(false);
+    expect(heroSkinOf({ heroSkinByHeroId: { albus: 'skin_albus_1' } }, 'albus')).toBeNull();
+  });
+});

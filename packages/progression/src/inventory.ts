@@ -1,5 +1,7 @@
 /**
- * ACCOUNT PROGRESSION: the `progression-inventory` Edge Function's logic, as a pure function (2026-09-28).
+ * ACCOUNT PROGRESSION: the `progression-inventory` Edge Function's logic, as a pure function (2026-09-28). Also the
+ * once-per-cold-start CATALOG SYNC (`syncCatalogOnce`, at the end): this function is the one place the database's
+ * cosmetic catalog is written from code.
  *
  * Three actions, all for the authenticated caller only, each a single SQL transaction under the same per-user lock
  * the settlement takes:
@@ -21,7 +23,7 @@
  * the SQL decides. `npm run progression:shared` generates this file VERBATIM into
  * supabase/functions/_shared/progressionInventory.ts; `sharedArtifact.test.ts` fails CI on drift.
  */
-import { COSMETIC_CATEGORY_DEFS, SKIN_SLOTS, cosmeticOf, parseOpenCrateResult, type OpenCrateResult, type SkinSlot } from './cosmetics';
+import { COSMETIC_CATEGORY_DEFS, SKIN_SLOTS, catalogHash, catalogSyncPayload, cosmeticOf, parseOpenCrateResult, type OpenCrateResult, type SkinSlot } from './cosmetics';
 import { parseProgressionProfile, type ProgressionProfile } from './rules';
 import type { HandlerResponse, RpcCall } from './server';
 
@@ -120,3 +122,49 @@ export async function handleInventory(userId: string | null, body: unknown, rpc:
   if (!parity) log('crate parity mismatch', { userId, crateId: r.crateId, sql: out });
   return { status: 200, body: { ...out, parity } };
 }
+
+// ── The catalog sync (owner 2026-09-28: "make it automated when i add skins") ──────────────────────────────
+
+export type CatalogSyncOutcome = { status: 'synced' | 'unchanged' | 'failed'; hash: string; detail?: unknown };
+
+/** After a FAILED sync (the SQL not pasted yet, a blip), the next attempt waits this long, so a missing function
+ *  costs one extra round trip a minute rather than one per request. */
+export const CATALOG_SYNC_RETRY_MS = 60_000;
+
+let syncState: { promise: Promise<CatalogSyncOutcome>; at: number; ok: boolean } | null = null;
+
+/**
+ * Push this build's catalog to the database ONCE per cold start (an Edge Function isolate keeps module state
+ * between requests). `sync_cosmetic_catalog` compares the hash first, so an unchanged catalog is one cheap read.
+ * NEVER throws: a failed sync is logged, the request carries on, and it is retried after `CATALOG_SYNC_RETRY_MS`.
+ *
+ * Only `progression-inventory` calls this. `submit-progression` bundles the same catalog but deliberately does NOT
+ * sync: two functions deployed at different times carry different catalogs, and each cold start would push its own
+ * copy back (an older `submit-progression` would re-deactivate a skin you had just added). One writer, one deploy.
+ */
+export function syncCatalogOnce(rpc: RpcCall, log: (msg: string, detail?: unknown) => void = () => {}, now: () => number = Date.now): Promise<CatalogSyncOutcome> {
+  if (syncState && (syncState.ok || now() - syncState.at < CATALOG_SYNC_RETRY_MS)) return syncState.promise;
+  const payload = catalogSyncPayload();
+  const hash = catalogHash(payload);
+  const entry: { promise: Promise<CatalogSyncOutcome>; at: number; ok: boolean } = { promise: Promise.resolve({ status: 'failed', hash }), at: now(), ok: false };
+  entry.promise = (async (): Promise<CatalogSyncOutcome> => {
+    try {
+      const res = await rpc('sync_cosmetic_catalog', { p_catalog: payload, p_hash: hash });
+      if (res.error) {
+        log('catalog sync failed', res.error);
+        return { status: 'failed', hash, detail: res.error };
+      }
+      entry.ok = true;
+      const status = (res.data as { status?: unknown } | null)?.status === 'unchanged' ? 'unchanged' : 'synced';
+      return { status, hash, detail: res.data };
+    } catch (e) {
+      log('catalog sync threw', e);
+      return { status: 'failed', hash, detail: String(e) };
+    }
+  })();
+  syncState = entry;
+  return entry.promise;
+}
+
+/** Tests: forget the per-isolate sync. */
+export function resetCatalogSyncForTests(): void { syncState = null; }

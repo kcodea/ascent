@@ -6,4 +6,4 @@
 export * from './rules';
 export * from './cosmetics';
 export { validateSubmitBody, handleSubmitProgression, settlementParity, SQL_ERROR_STATUS, type SettleRequest, type RpcCall, type HandlerResponse } from './server';
-export { validateInventoryBody, handleInventory, openParity, INVENTORY_ERROR_STATUS, type InventoryRequest } from './inventory';
+export { validateInventoryBody, handleInventory, openParity, syncCatalogOnce, resetCatalogSyncForTests, CATALOG_SYNC_RETRY_MS, INVENTORY_ERROR_STATUS, type InventoryRequest, type CatalogSyncOutcome } from './inventory';

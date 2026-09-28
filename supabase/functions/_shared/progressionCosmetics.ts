@@ -14,12 +14,19 @@
  * start"); `hero_skin` and `minion_skin` joined on 2026-09-28 (the first two of each). The rest are switched off
  * here AND in the SQL seed, so the owner's art slots in later as new rows plus a flag flip, with no schema change.
  *
+ * CODE IS THE SOURCE OF TRUTH (owner 2026-09-28: "yeah let's do option 2 then to make it automated when i add
+ * skins"). The database copy is written by `sync_cosmetic_catalog` from `catalogSyncPayload()` (below), which the
+ * `progression-inventory` Edge Function runs on its first request per cold start. Add an item here, or set
+ * `active: false`, then `npm run progression:shared`, merge and deploy that one function: no SQL. An item REMOVED
+ * from this file is marked inactive in the database, never deleted.
+ *
  * THE KILL SWITCH (owner 2026-09-28: "we need to have the ability to remove any rewards from the game if we want
  * to"). An item with `active: false`, or any item of a category with `enabled: false`, is RETIRED: it leaves the
  * crate pool, the Collection hides it, and every renderer falls back to default art even when a player has it
- * equipped or an old snapshot names it (`isCosmeticLive`). Ownership is never deleted, so flipping it back
- * restores the item exactly as it was. The SQL copy has the same switch (the one-line statements are in
- * docs/devlog/2026-09-28-skins-v1.md); the client also honours the server's catalog state (`setServerCatalogState`).
+ * equipped or an old snapshot names it (`isCosmeticLive`). The owner's EMERGENCY switch is the database's
+ * `admin_off` column (one SQL line; the sync never touches it), which the client reads as part of the server's
+ * catalog state (`setServerCatalogState`). Ownership is never deleted, so flipping either back restores the item
+ * exactly as it was. The one-liners are in docs/devlog/2026-09-28-skins-v1.md.
  *
  * THE SQL COPY. The database controls eligibility and ownership: `cosmetic_categories` + `cosmetic_catalog` are
  * seeded from this file by the 2026-09-28 migration, and `open_crate` carries the rarity weights as constants.
@@ -247,9 +254,10 @@ export function parseOpenCrateResult(v: unknown): OpenCrateResult | null {
 
 /**
  * The SERVER's copy of the switch, as last read from the public `cosmetic_catalog` / `cosmetic_categories` tables.
- * The owner retires an item with one SQL line; a client that only consulted its own bundled catalog would keep
- * rendering it until the next build. So the client reads the two tables on boot and records what the server has
- * switched OFF here. It can only ever REMOVE: an item the TS catalog retires stays retired whatever the server
+ * The owner retires an item with one SQL line (`admin_off`); a client that only consulted its own bundled catalog
+ * would keep rendering it until the next build. So the client reads the two tables on boot and records what the
+ * server has switched OFF here: the EFFECTIVE state, `active AND NOT admin_off` (items) and `enabled AND NOT
+ * admin_off` (categories). It can only ever REMOVE: an item the TS catalog retires stays retired whatever the server
  * says, and an unreadable server leaves the bundled catalog in charge.
  */
 export interface ServerCatalogState {
@@ -275,8 +283,9 @@ export const catalogStateEpoch = (): number => catalogEpoch;
 export function parseServerCatalogState(catalogRows: unknown, categoryRows: unknown): ServerCatalogState {
   const rows = (v: unknown): Record<string, unknown>[] => (Array.isArray(v) ? v.filter((r): r is Record<string, unknown> => !!r && typeof r === 'object') : []);
   return {
-    retiredIds: rows(catalogRows).filter((r) => typeof r.cosmetic_id === 'string' && r.active === false).map((r) => r.cosmetic_id as string),
-    disabledCategories: rows(categoryRows).filter((r) => typeof r.category === 'string' && r.enabled === false).map((r) => r.category as string),
+    // Effective state: the code's flag AND the owner's emergency switch (`admin_off`, absent on a pre-sync server).
+    retiredIds: rows(catalogRows).filter((r) => typeof r.cosmetic_id === 'string' && (r.active === false || r.admin_off === true)).map((r) => r.cosmetic_id as string),
+    disabledCategories: rows(categoryRows).filter((r) => typeof r.category === 'string' && (r.enabled === false || r.admin_off === true)).map((r) => r.category as string),
   };
 }
 
@@ -409,4 +418,78 @@ export function snapshotForRun(
     ...(Object.keys(hero).length ? { heroSkinByHeroId: hero } : {}),
     ...(Object.keys(minion).length ? { minionSkinByCardId: minion } : {}),
   };
+}
+
+// ── The catalog sync: code is the source of truth (owner 2026-09-28) ─────────────────────────────────────
+
+/**
+ * THE CATALOG AS THE DATABASE RECEIVES IT (owner 2026-09-28: "yeah let's do option 2 then to make it automated when
+ * i add skins"). The `progression-inventory` Edge Function bundles a generated copy of this file and, on the first
+ * request of every cold start, hands this payload to `sync_cosmetic_catalog`, which upserts the categories and items
+ * and marks any item no longer in code `active = false` (never deleted: ownership references it). So adding or
+ * retiring a cosmetic is: art + an entry here, `npm run progression:shared`, merge, deploy `progression-inventory`.
+ * No SQL.
+ *
+ * The owner's EMERGENCY switch is a different column (`admin_off`) that the sync never writes, so a one-line SQL
+ * retire always wins over the next deploy.
+ *
+ * Sorted by id, so the payload (and its hash) depends only on the catalog's content, never on array order.
+ */
+export interface CatalogSyncCategory { category: string; weight: number; enabled: boolean; target: string }
+export interface CatalogSyncItem {
+  cosmeticId: string;
+  category: string;
+  rarity: string;
+  acquisitionSource: string;
+  milestoneLevel: number | null;
+  targetType: string | null;
+  targetId: string | null;
+  achievementId: string | null;
+  active: boolean;
+}
+export interface CatalogSyncPayload { version: 1; categories: CatalogSyncCategory[]; items: CatalogSyncItem[] }
+
+const byKey = <T>(key: (x: T) => string) => (a: T, b: T): number => (key(a) < key(b) ? -1 : key(a) > key(b) ? 1 : 0);
+
+export function catalogSyncPayload(
+  catalog: readonly CosmeticDef[] = COSMETICS,
+  defs: Readonly<Record<CosmeticCategory, CosmeticCategoryDef>> = COSMETIC_CATEGORY_DEFS,
+): CatalogSyncPayload {
+  return {
+    version: 1,
+    categories: Object.values(defs)
+      .map((d) => ({ category: d.id, weight: d.weight, enabled: d.enabled, target: d.target }))
+      .sort(byKey((c) => c.category)),
+    items: catalog
+      .map((c) => ({
+        cosmeticId: c.id,
+        category: c.category,
+        rarity: c.rarity,
+        acquisitionSource: c.acquisition.type,
+        milestoneLevel: c.acquisition.type === 'level_milestone' ? c.acquisition.level : null,
+        targetType: c.target?.type ?? null,
+        targetId: c.target?.id ?? null,
+        achievementId: c.acquisition.type === 'achievement' ? c.acquisition.id : null,
+        active: c.active,
+      }))
+      .sort(byKey((i) => i.cosmeticId)),
+  };
+}
+
+/**
+ * A short, stable content hash of the payload (a 53-bit-strength string hash, no dependencies so the Deno copy
+ * computes the same value). The database stores the last synced hash; an unchanged catalog is one cheap read.
+ */
+export function catalogHash(payload: CatalogSyncPayload): string {
+  const s = JSON.stringify(payload);
+  let h1 = 0xdeadbeef;
+  let h2 = 0x41c6ce57;
+  for (let i = 0; i < s.length; i++) {
+    const ch = s.charCodeAt(i);
+    h1 = Math.imul(h1 ^ ch, 2654435761);
+    h2 = Math.imul(h2 ^ ch, 1597334677);
+  }
+  h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^ Math.imul(h2 ^ (h2 >>> 13), 3266489909);
+  h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909);
+  return `v1-${(h2 >>> 0).toString(16).padStart(8, '0')}${(h1 >>> 0).toString(16).padStart(8, '0')}`;
 }

@@ -72,6 +72,18 @@ export const PATCH_NOTES: PatchNote[] = [
           'The hero portrait is now labelled Favorite hero.',
         ],
       },
+      {
+        category: 'Systems',
+        text: 'The Collection has a new layout. See every title, even the ones you have not found yet.',
+        details: [
+          'Every title shows, found or not. Missing ones are dimmed, so you can see what is left to find.',
+          'Filter by Owned, Missing or rarity. Counts show how many you have.',
+          'Pick a title to see it large, how to get it, and how it looks under your name.',
+          'Your sealed crates stay in view on the side, ready to open.',
+          'New titles wear a NEW badge until you look at them.',
+          'Heroes, Minions, Boards and more have their own tabs, marked as coming soon.',
+        ],
+      },
     ],
   },
   {

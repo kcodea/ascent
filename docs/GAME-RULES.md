@@ -193,6 +193,12 @@ progression **epoch**; nothing finished before the epoch counts (no backfill).
   are feature-flagged off until their art exists.
 - **Titles.** The Collection lists the titles you own and lets you equip one (or none); the server checks
   ownership. The equipped title and the owned titles are public (Career); crates are private.
+- **The Collection layout (2026-09-28).** An album: category tabs (Titles live, the rest locked as coming soon),
+  Show (All / Owned / Missing) and Rarity filters with counts, and every item of the category, owned or not
+  (missing ones dimmed, rarity still shown; the equipped one ribboned). Selecting an item shows it large with how
+  it is found, a preview under your name, and Equip / Take off. The crate bay (count, Open, Open all) stays in
+  view on every tab. An owned item you have not looked at wears NEW until you select it; that flag lives on the
+  device only. Oracle R-PROG-COLLECTION-02.
 - **Achievements** are not built yet.
 - **Guests.** An anonymous session is a real account id and the email upgrade keeps it, so guests earn XP from
   their first game. Reaching Level 2 as a guest shows a gentle "Save your progress" prompt (never a gate). With

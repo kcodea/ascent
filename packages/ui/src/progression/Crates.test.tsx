@@ -6,7 +6,7 @@
  *  - the theatre's flow states: sealed (idle) -> anticipation (in flight, holds, "Still opening") -> charge -> burst
  *    -> reveal -> settled; a failure winding down to Try again; a skip mid-sequence and a skip BEFORE the answer;
  *    reduced motion; StrictMode; the Pixi controller destroyed on unmount;
- *  - the Collection screen: routing, crates (Open / Open all), titles + equip, coming soon, the guest prompt.
+ *  (the Collection screen's own tests live in CollectionScreen.test.tsx.)
  * The theatre renders into the stage host (a portal), so queries go through `document`. No native tooltips, no em
  * dashes.
  */
@@ -32,7 +32,6 @@ vi.mock('./progressionRemote', async (orig) => ({
 }));
 
 import { ProgressionPostgame } from './ProgressionPostgame';
-import { CollectionPage, CollectionScreen } from './CollectionScreen';
 import { CrateOpener } from './CrateOpener';
 import { resetProgressionForTests, useProgression } from './progressionStore';
 import { setCrateFxFactoryForTests } from './crateFx/crateFxPixi';
@@ -336,112 +335,6 @@ describe('React StrictMode (dev mounts every effect twice)', () => {
     await settle();
     expect(text('.crate-reward-name')).toBe('Kingbreaker');
     expect(openCrateRemote).toHaveBeenCalledTimes(1);
-  });
-});
-
-describe('the Collection screen', () => {
-  const crateList = [
-    { crateId: 'c-1', earnedLevel: 1, state: 'opened' as const, rewardId: 'title_star_chaser', earnedAt: null, openedAt: null },
-    { crateId: 'c-2', earnedLevel: 2, state: 'sealed' as const, rewardId: null, earnedAt: null, openedAt: null },
-    { crateId: 'c-3', earnedLevel: 3, state: 'sealed' as const, rewardId: null, earnedAt: null, openedAt: null },
-  ];
-  function open(over: Partial<ProgressionProfile> = {}): void {
-    useProgression.setState({ capability: 'on', cratesCapability: 'on', crateList, mirror: { userId: 'u-1', ...profile({ titles: ['alpha_tester', 'title_star_chaser'], ...over }) } });
-    ui = mount(<CollectionPage reducedMotion />);
-  }
-
-  it('routes: the store flag (title plaque, sidebar, Career card) mounts it; Back closes it', () => {
-    useProgression.setState({ capability: 'on', cratesCapability: 'on', crateList, mirror: { userId: 'u-1', ...profile() } });
-    ui = mount(<CollectionScreen />);
-    expect($('.colls-page')).toBeNull();
-    act(() => { useGame.getState().goTo('collection'); });
-    expect(useGame.getState().showCollection).toBe(true);
-    expect($('.colls-page')).not.toBeNull();
-    expect($('.msb .sbbtn.active')?.textContent).toBe('Collection');
-    act(() => { useGame.getState().goTo('career'); }); // a sidebar hop closes it
-    expect($('.colls-page')).toBeNull();
-    act(() => { useGame.getState().openCareer(); useGame.getState().openCollection(); });
-    expect(useGame.getState().showCareer).toBe(true); // opened over the Career: Back returns there
-    act(() => $('.msb-back')!.click());
-    expect(useGame.getState().showCollection).toBe(false);
-    expect(useGame.getState().showCareer).toBe(true);
-  });
-
-  it('lists the sealed crates (count, the next one, Open + Open all) and the owned titles with rarity and the equipped one', () => {
-    open();
-    expect(text('.colls-crates .coll-count')).toBe('2 sealed');
-    expect(text('.colls-next')).toBe('Level 2 Crate');
-    expect(button('Open')).toBeTruthy();
-    expect(button('Open all (2)')).toBeTruthy();
-    expect(text('.colls-titles .coll-count')).toBe('2 of 16 found');
-    const rows = [...document.querySelectorAll('.coll-titlerow')].map((r) => [r.querySelector('.coll-titlename')!.textContent, r.querySelector('.coll-rarity')!.textContent, r.querySelector('button')!.textContent]);
-    expect(rows).toEqual([['Alpha Tester', 'Rare', 'Equipped'], ['Star Chaser', 'Rare', 'Equip']]);
-    expect([...document.querySelectorAll('.colls-coming-list li')].map((l) => l.textContent)).toContain('Heroes');
-    noDashes();
-  });
-
-  it('Open plays the oldest crate in the theatre; Open next offers the rest; Done returns to the page', async () => {
-    open();
-    openCrateRemote.mockResolvedValue({ status: 'ok', value: opened('c-2', 'title_hearthkeeper', 2, 1), profile: profile({ titles: ['alpha_tester', 'title_star_chaser', 'title_hearthkeeper'] }) });
-    act(() => button('Open')!.click());
-    await settle();
-    expect(openCrateRemote).toHaveBeenCalledWith('c-2');
-    expect(text('.crate-reward-name')).toBe('Hearthkeeper');
-    expect(button('Open next')).toBeTruthy();
-    expect(text('.colls-crates .coll-count')).toBe('1 sealed'); // the page updates underneath
-    act(() => button('Done')!.click());
-    expect($('.crth')).toBeNull();
-    expect([...document.querySelectorAll('.coll-titlename')].map((n) => n.textContent)).toEqual(['Alpha Tester', 'Star Chaser', 'Hearthkeeper']);
-  });
-
-  it('Open all chains every sealed crate and ends on a summary of what was found', async () => {
-    vi.useFakeTimers();
-    open();
-    openCrateRemote.mockResolvedValueOnce({ status: 'ok', value: opened('c-2', 'title_wanderer', 2, 1), profile: profile() });
-    openCrateRemote.mockResolvedValueOnce({ status: 'ok', value: opened('c-3', 'title_kingbreaker', 3, 0), profile: profile() });
-    act(() => button('Open all (2)')!.click());
-    await settle();
-    expect(text('.crate-reward-name')).toBe('Wanderer');
-    expect(button('Open next')).toBeUndefined(); // Open all moves on by itself
-    advance(CRATE_FX_DEFAULTS.autoNextMs);
-    await settle();
-    expect(openCrateRemote).toHaveBeenLastCalledWith('c-3');
-    expect(text('.crate-reward-name')).toBe('Kingbreaker');
-    expect([...document.querySelectorAll('.crth-summary li')].map((l) => l.textContent)).toEqual(['Wanderer', 'Kingbreaker']);
-  });
-
-  it('Equip goes through the server, and the returned profile moves the equipped marker', async () => {
-    open();
-    equipTitleRemote.mockResolvedValue({ status: 'ok', value: null, profile: profile({ equippedTitleId: 'title_star_chaser', titles: ['alpha_tester', 'title_star_chaser'], revision: 12 }) });
-    act(() => button('Equip')!.click());
-    await settle();
-    expect(equipTitleRemote).toHaveBeenCalledWith('title_star_chaser');
-    expect(useProgression.getState().mirror!.equippedTitleId).toBe('title_star_chaser');
-    expect(text('.coll-titlerow.worn .coll-titlename')).toBe('Star Chaser');
-  });
-
-  it('a refused equip leaves the title as it was and says so', async () => {
-    open();
-    equipTitleRemote.mockResolvedValue({ status: 'error', reason: 'not_owned' });
-    act(() => button('Equip')!.click());
-    await settle();
-    expect(text('.coll-error')).toBe('Could not change your title. Try again.');
-    expect(useProgression.getState().mirror!.equippedTitleId).toBe('alpha_tester');
-  });
-
-  it('no sealed crates, the crates switch off, and a guest', () => {
-    useGame.setState({ account: { userId: 'u-1', email: null, anonymous: true, discriminator: null } });
-    useProgression.setState({ capability: 'on', cratesCapability: 'on', crateList: [crateList[0]!], mirror: { userId: 'u-1', ...profile() } });
-    ui = mount(<CollectionPage reducedMotion />);
-    expect(text('.colls-crates .coll-empty')).toBe('No sealed crates. You earn one every time you level up.');
-    expect(text('.coll-save span')).toBe('Playing as a guest. Create an account to keep your crates and titles.');
-    act(() => $('.coll-save button')!.click());
-    expect(useGame.getState().accountPanelOpen).toBe(true);
-    ui.unmount();
-    useProgression.setState({ cratesCapability: 'off' });
-    ui = mount(<CollectionPage reducedMotion />);
-    expect(text('.colls-crates .coll-empty')).toBe('Crates are not switched on yet. Your titles are below.');
-    expect(text('.colls-titles .coll-titlename')).toBe('Alpha Tester');
   });
 });
 

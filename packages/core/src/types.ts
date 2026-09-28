@@ -208,9 +208,9 @@ export function extraTriggerFires(
  */
 /** Set 3 rune batch 3 (owner 2026-09-25): the running-meter thresholds, shared by combat (the payout) and the run
  *  (the carried tick, the badge's x/N). Rune of Combatative Rubies: "When 3 allies attack". Rune of Body Counting:
- *  "When 8 friendly minions die". Rune of Ruptured Rubies bounces each combat Ruby this many times per copy. */
+ *  "When 6 friendly minions die" (8 before 2026-09-27). Rune of Ruptured Rubies bounces each combat Ruby this many times per copy. */
 export const COMBATATIVE_RUBIES_ATTACKS = 3;
-export const BODY_COUNTING_DEATHS = 8;
+export const BODY_COUNTING_DEATHS = 6; // owner 2026-09-27 (Set 3 rune design pass): was 8
 export const RUPTURED_RUBY_BOUNCES = 2;
 
 export function socTwilightExtraFires(mods: { runeTwilight?: boolean; flagCopies?: Record<string, number> } | undefined): number {

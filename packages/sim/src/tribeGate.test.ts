@@ -40,6 +40,9 @@ const OWNER_TRIBE_RULINGS: Readonly<Record<string, Tribe>> = {
   // Set 3 rune batch 3 (owner 2026-09-25) lists these under Kobold though their text names no tribe word: Choose One
   // is the Kobold keyword (like Rise for the Undead), Veinstorm is the Kobold spell, the Gemheart Golem the Kobold token.
   rune_choices: 'kobold', rune_sold_choices: 'kobold', rune_storming_veins: 'kobold', rune_aggressive_golems: 'kobold',
+  // Set 3 rune design pass (owner 2026-09-27, the 5 approved re-tags): Gemheart Golems are Kobold only; Rise and
+  // Overflow are Undead in Set 3; a minion summoned from hand is the Spirit line.
+  rune_living_treasure: 'kobold', rune_rising_echoes: 'undead', rune_crowded_crypt: 'undead', rune_overflow: 'undead', rune_dreamed_graves: 'spirit',
 };
 
 /** The tribes of the bodies a reward GRANTS (Rune of Lazarus → Lazarus is Undead) — the 2026-09-10 ruling's

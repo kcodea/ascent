@@ -56,7 +56,8 @@ describe('the six defs ship as specced', () => {
     expect(RUNE_INDEX['rune_soul_script']!.tribes).toEqual(['undead', 'celestial']);
     expect(RUNE_INDEX['rune_red_giant']!.tribes).toEqual(['celestial']);
     expect(RUNE_INDEX['rune_final_gate']!.tribes).toEqual(['undead']);
-    expect(RUNE_INDEX['rune_dreamed_graves']!.tribes, 'text names no tribe → no gate (owner rule 2026-09-10)').toBeUndefined();
+    // Re-tagged Spirit by the owner 2026-09-27 (design pass tranche 0): hand summons are the Spirit line (was ungated by the 2026-09-10 text rule).
+    expect(RUNE_INDEX['rune_dreamed_graves']!.tribes).toEqual(['spirit']);
   });
 
   it('Rune of Rebirth (id kept) now grants the Rebirth keyword — its text says so, its reward is unchanged', () => {

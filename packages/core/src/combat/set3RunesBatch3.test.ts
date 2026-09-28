@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { combatSide, makeRng, simulate, type BoardMinion, type CardDef, type CombatEvent, type EffectDef } from '../index';
+import { BODY_COUNTING_DEATHS, combatSide, makeRng, simulate, type BoardMinion, type CardDef, type CombatEvent, type EffectDef } from '../index';
 import { CARD_INDEX } from '@game/content';
 
 /**
@@ -11,7 +11,7 @@ import { CARD_INDEX } from '@game/content';
  *   · Rune of Rubywire: a Shop-pool spell cast in combat casts a Ruby on 2 friendly Kobolds.
  *   · Rune of Combatative Rubies: every 3rd friendly attack, counted from the carried tick, casts a PERMANENT Ruby on
  *     2 friendly Kobolds.
- *   · Rune of Body Counting: every 8th friendly death, counted from the carried tick, gets a random Undead.
+ *   · Rune of Body Counting: every BODY_COUNTING_DEATHS-th (6th since 2026-09-27, was 8th) friendly death, counted from the carried tick, gets a random Undead.
  *   · Rune of Aggressive Golems: a Gemheart Golem's Rally gives its Attack to the minion to its right.
  *   · Rune of Ruptured Rubies: every combat Ruby bounces twice after landing.
  */
@@ -114,8 +114,9 @@ describe('Rune of Combatative Rubies — combat', () => {
 });
 
 describe('Rune of Body Counting — combat', () => {
-  it('the 8th friendly death (counting the carried tick) gets a random Undead at or below the tier', () => {
-    const r = fight([bm('a', 'sandbag', 1, 1), bm('b', 'sandbag', 1, 1)], [foe('f', 50, 500)], { runeBodyCounting: true, runeBodyCountTick: 7 }, { tier: 3 });
+  // Ticks are relative to BODY_COUNTING_DEATHS (8 -> 6 on 2026-09-27, owner design pass reprice).
+  it('the threshold friendly death (counting the carried tick) gets a random Undead at or below the tier', () => {
+    const r = fight([bm('a', 'sandbag', 1, 1), bm('b', 'sandbag', 1, 1)], [foe('f', 50, 500)], { runeBodyCounting: true, runeBodyCountTick: BODY_COUNTING_DEATHS - 1 }, { tier: 3 });
     expect(triggers(r.events, 'runeBodyCounting')).toHaveLength(1);
     const grants = r.playerHandGrants ?? [];
     expect(grants).toHaveLength(1);
@@ -125,9 +126,9 @@ describe('Rune of Body Counting — combat', () => {
     expect(r.playerDeaths).toBe(2);
   });
   it('below the threshold nothing is paid; the rune is not an Avenge (Rune of Fury does not double it)', () => {
-    const r = fight([bm('a', 'sandbag', 1, 1), bm('b', 'sandbag', 1, 1)], [foe('f', 50, 500)], { runeBodyCounting: true, runeBodyCountTick: 5 });
+    const r = fight([bm('a', 'sandbag', 1, 1), bm('b', 'sandbag', 1, 1)], [foe('f', 50, 500)], { runeBodyCounting: true, runeBodyCountTick: BODY_COUNTING_DEATHS - 3 });
     expect(r.playerHandGrants ?? []).toHaveLength(0);
-    const fury = fight([bm('a', 'sandbag', 1, 1), bm('b', 'sandbag', 1, 1)], [foe('f', 50, 500)], { runeBodyCounting: true, runeBodyCountTick: 7, runeFury: true });
+    const fury = fight([bm('a', 'sandbag', 1, 1), bm('b', 'sandbag', 1, 1)], [foe('f', 50, 500)], { runeBodyCounting: true, runeBodyCountTick: BODY_COUNTING_DEATHS - 1, runeFury: true });
     expect(fury.playerHandGrants ?? []).toHaveLength(1);
   });
 });

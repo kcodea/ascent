@@ -4760,7 +4760,7 @@ export function simulate(
       }
     });
   };
-  // RUNE OF BODY COUNTING (owner 2026-09-25): "When 8 friendly minions die" — a RUNNING death meter carried in from
+  // RUNE OF BODY COUNTING (owner 2026-09-25; 8 -> 6 on 2026-09-27): "When 6 friendly minions die" — a RUNNING death meter carried in from
   // the run (`runeBodyCountTick`, which the Shop's deaths advance too). NOT an Avenge (the text never says so), so
   // Rune of Fury does not double it. Every 8th death gets a random Undead (the side's pool, at or below its tier)
   // through the hand carry-back; one per copy held. Settle advances the run's meter by the fight's deaths.

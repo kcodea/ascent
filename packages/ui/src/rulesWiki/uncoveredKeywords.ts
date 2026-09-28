@@ -4,9 +4,9 @@
  * and when a listed keyword is now covered (delete it from here). Target: empty.
  */
 export const UNCOVERED_KEYWORDS: readonly string[] = [
-  'shout', 'echo', 'startofcombat', 'startofturn', 'endofturn', 'avenge', 'pummel', 'rally', 'slaughter', 'overflow',
-  'sell', 'bleed', 'chooseone', 'watcher', 'taunt', 'ward', 'resilientward', 'execute', 'flurry', 'crit', 'rise',
-  'rebirth', 'cleave', 'immune', 'stealth', 'engraved', 'permanent', 'attachment', 'consume', 'fodder', 'discover',
-  'spend', 'improve', 'aura', 'summonfromhand', 'equip', 'equipment', 'amplified', 'gilded', 'shopspell', 'ruby',
+  'shout', 'echo', 'startofturn', 'endofturn', 'avenge', 'pummel', 'rally', 'slaughter', 'overflow',
+  'bleed', 'chooseone', 'watcher', 'execute', 'flurry', 'crit', 'rise',
+  'rebirth', 'cleave', 'immune', 'engraved', 'permanent', 'attachment', 'consume', 'fodder',
+  'spend', 'improve', 'aura', 'summonfromhand', 'equip', 'equipment', 'amplified', 'ruby',
   'ale', 'gift', 'clue', 'starform', 'collapse',
 ];

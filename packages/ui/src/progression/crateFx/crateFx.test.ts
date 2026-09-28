@@ -5,12 +5,14 @@
  * the bursts spawn, everything drains, and nothing is left behind after `destroy()`.
  */
 import { describe, expect, it } from 'vitest';
-import { Container, Sprite, Texture } from 'pixi.js';
+import { Container, Sprite, Texture, TextureSource } from 'pixi.js';
 import {
   CRATE_FX_DEFAULTS, CRATE_FX_RANGES, CRATE_RARITIES, SPEC, clampCrateFxValue, crateBeats, crateCue, crateRarityOf,
   presetFor, sanitizeCrateFxConfig, type CrateFxConfig, type CrateRarity,
 } from './crateFxConfig';
-import { CrateScene, MAX_PARTICLES, crateSizeFor, lerpColor, type CrateSceneTextures } from './crateScene';
+import { CrateScene, DEFAULT_CHEST_TUNING, MAX_PARTICLES, crateSizeFor, lerpColor, type CrateSceneTextures } from './crateScene';
+import { CHEST_ART, artChestModel, loadChestImages, paintedChestModel, type ChestModel } from './chestModel';
+import { CHEST } from './crateTextures';
 
 /** The shipped timeline, ms from the branch: [hitch, burst, second burst, reveal, settled (buttons)]. */
 const TIMELINE: Record<CrateRarity, number[]> = {
@@ -139,10 +141,15 @@ describe('the beats', () => {
 // ─── the scene, headless ──────────────────────────────────────────────────────────────────────────────────────
 
 const W = Texture.WHITE;
-const TEX: CrateSceneTextures = {
-  body: W, lid: W, seam: W, cracks: W, pedestal: W, runeRing: W, rays: W, glow: W, spark: W, streak: W, ring: W, coin: W,
-  shards: [W, W], gemSealed: W, gems: { common: W, rare: W, epic: W, legendary: W }, chestTexW: 1, chestPad: 0,
-};
+/** A blank texture of a given size (headless: no pixels, only the size the model reads). */
+const sized = (width: number, height: number): Texture => new Texture({ source: new TextureSource({ width, height }) });
+/** The owner's art at its shipped size (840x457 body, 819x238 lid). */
+const ART_CHEST: ChestModel = artChestModel(sized(840, 457), sized(819, 238), sized(41, 74));
+const PAINTED_CHEST: ChestModel = paintedChestModel(sized(749, 403), sized(821, 274), 720, 14.4, CHEST);
+const texFor = (chest: ChestModel): CrateSceneTextures => ({
+  chest, seamBar: W, pedestal: W, runeRing: W, rays: W, glow: W, spark: W, streak: W, ring: W, coin: W, shards: [W, W],
+});
+const TEX = texFor(ART_CHEST);
 const ant = {
   antMs: CRATE_FX_DEFAULTS.anticipationMs, antShake: CRATE_FX_DEFAULTS.anticipationShake,
   antGlow: CRATE_FX_DEFAULTS.anticipationGlow, pulseMs: CRATE_FX_DEFAULTS.pulseStartMs,
@@ -243,7 +250,7 @@ describe('the crate scene (headless Pixi)', () => {
     scene.destroy();
   });
 
-  it('the art drop-in swaps the painted chest for one sprite, and back', () => {
+  it('the one-picture override swaps the two-layer chest for one sprite, and back', () => {
     const root = new Container();
     const scene = new CrateScene(root, TEX);
     scene.layout(1920, 1080);
@@ -254,10 +261,104 @@ describe('the crate scene (headless Pixi)', () => {
     scene.setCrateArt(art);
     expect(all(root).filter((o) => o instanceof Sprite && o.texture === art).length).toBe(1);
     expect(all(root).length).toBe(before + 1);
-    expect(visible()).toBe(shown + 1 - 6); // body, lid, cracks, seam, gem, gem glow hidden
+    // body, body flash, lid, seam, seam halo, keyhole mask, keyhole glow, open glow hidden
+    expect(visible()).toBe(shown + 1 - 8);
     scene.setCrateArt(null);
     expect(all(root).length).toBe(before);
     expect(visible()).toBe(shown);
+    scene.destroy();
+  });
+});
+
+describe('the two-layer chest (owner art, 2026-09-28)', () => {
+  it('the art model: the lid notch sits on the lock spike, on the rim; one scale for both layers', () => {
+    const m = ART_CHEST;
+    const k = 840 / CHEST_ART.bodySrcW;
+    expect(m.kind).toBe('art');
+    expect(m.cx).toBeCloseTo(CHEST_ART.spikeX * k);
+    expect(m.lidAtX).toBeCloseTo(m.cx); // centred on the spike
+    expect(m.lidAtY).toBeCloseTo((CHEST_ART.rimY + CHEST_ART.lidOverlap) * k); // on the rim, a touch over it
+    expect(m.lidRel).toBeCloseTo(1, 2); // both layers were scaled by the same factor
+    expect(m.lidAttachX).toBeCloseTo(CHEST_ART.lidAttachX * (819 / CHEST_ART.lidSrcW));
+    expect(m.width).toBeCloseTo((CHEST_ART.bodyX1 - CHEST_ART.bodyX0) * k);
+    // the keyhole sits on the lock plate, below the rim, on the chest's centre line
+    expect(m.keyholeY).toBeGreaterThan(m.rimY);
+    expect(Math.abs(m.keyholeX - m.cx)).toBeLessThan(m.width * 0.02);
+  });
+
+  it('the art loads as two layers; if EITHER fails the painted chest stands in whole', async () => {
+    const ok = await loadChestImages('/', async (url) => url);
+    expect(ok).toEqual({ body: `/${CHEST_ART.bodyUrl}`, lid: `/${CHEST_ART.lidUrl}` });
+    const lidFails = await loadChestImages('/', async (url) => { if (url.endsWith('crate_lid.webp')) throw new Error('404'); return url; });
+    expect(lidFails).toBeNull();
+    const bodyFails = await loadChestImages('/', (url) => (url.includes('crate_body') ? Promise.reject(new Error('decode')) : Promise.resolve(url)));
+    expect(bodyFails).toBeNull();
+  });
+
+  it('the scene draws whichever chest it is given (the art, or the painted fallback)', () => {
+    for (const chest of [ART_CHEST, PAINTED_CHEST]) {
+      const root = new Container();
+      const scene = new CrateScene(root, texFor(chest));
+      scene.layout(1920, 1080);
+      expect(scene.chestKind).toBe(chest.kind);
+      expect(all(root).some((o) => o instanceof Sprite && o.texture === chest.body)).toBe(true);
+      expect(all(root).some((o) => o instanceof Sprite && o.texture === chest.lid)).toBe(true);
+      scene.destroy();
+    }
+  });
+
+  it('the lid jumps on the heartbeat and settles back onto the rim', () => {
+    const root = new Container();
+    const scene = new CrateScene(root, TEX);
+    scene.layout(1920, 1080);
+    scene.anticipate(ant);
+    let lowest = 0;
+    for (let t = 0; t < 1200; t += 16) { scene.update(16); lowest = Math.min(lowest, scene.lidState.dy); }
+    expect(lowest).toBeLessThan(-1); // it rose a pixel or more above the rim
+    expect(scene.lidState.off).toBe(false);
+    scene.windDown(200);
+    run(scene, 2500);
+    expect(Math.abs(scene.lidState.dy)).toBeLessThan(0.5); // back on the rim
+    scene.destroy();
+  });
+
+  it('the lid separates at the burst: it flies up, spins and leaves; the body stays; reset puts it back', () => {
+    const root = new Container();
+    const scene = new CrateScene(root, TEX);
+    scene.layout(1920, 1080);
+    const p = presetFor('rare', CRATE_FX_DEFAULTS);
+    scene.anticipate(ant);
+    scene.charge(p);
+    run(scene, p.chargeMs);
+    scene.burst(p);
+    run(scene, 150);
+    const mid = scene.lidState;
+    expect(mid.off).toBe(true);
+    expect(mid.dy).toBeLessThan(-scene.crateSize * 0.3); // well above where it sat
+    expect(Math.abs(mid.rotation)).toBeGreaterThan(0.3); // tumbling
+    run(scene, 3000);
+    expect(scene.lidState.alpha).toBe(0); // gone
+    const body = all(root).find((o) => o instanceof Sprite && o.texture === ART_CHEST.body && o.blendMode === 'normal')!;
+    expect(body.visible && body.alpha).toBe(1); // the open body stays on the pedestal
+    scene.reset();
+    expect(scene.lidState).toMatchObject({ dx: 0, dy: 0, rotation: 0, off: false, alpha: 1 });
+    scene.destroy();
+  });
+
+  it('the tuner moves the lid: an offset nudges its rest, a zero launch keeps it from rising', () => {
+    const root = new Container();
+    const scene = new CrateScene(root, TEX);
+    scene.layout(1920, 1080);
+    const lid = all(root).find((o) => o instanceof Sprite && o.texture === ART_CHEST.lid) as Sprite;
+    const x0 = lid.position.x;
+    const y0 = lid.position.y;
+    scene.setTuning({ ...DEFAULT_CHEST_TUNING, lidOffsetX: 2, lidOffsetY: -1 });
+    expect(lid.position.x - x0).toBeCloseTo(scene.crateSize * 0.02);
+    expect(lid.position.y - y0).toBeCloseTo(-scene.crateSize * 0.01);
+    scene.setTuning({ ...DEFAULT_CHEST_TUNING, lidLaunchY: 0, lidLaunchX: 0, lidGravity: 0 });
+    scene.burst(presetFor('common', CRATE_FX_DEFAULTS));
+    run(scene, 200);
+    expect(Math.abs(scene.lidState.dy)).toBeLessThan(1);
     scene.destroy();
   });
 });

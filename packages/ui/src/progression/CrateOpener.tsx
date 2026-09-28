@@ -5,7 +5,7 @@ import { playTailedClip, sfx, type SfxHandle } from '../sfx';
 import { stageHost } from '../stage';
 import { openCrate, type CrateOpenOutcome } from './progressionStore';
 import {
-  CRATE_CUE_CATEGORY, crateBeats, crateCue, crateFxSpeed, getCrateFxConfig, presetFor,
+  CRATE_CUE_CATEGORY, chestTuningOf, crateBeats, crateCue, crateFxSpeed, getCrateFxConfig, presetFor,
   type CrateCue, type CrateFxConfig, type CratePreset,
 } from './crateFx/crateFxConfig';
 import { createCrateFx, type CrateFx } from './crateFx/crateFxPixi';
@@ -93,7 +93,8 @@ export function CrateOpener({ queue, autoOpen = false, openAll = false, reducedM
   const [found, setFound] = useState<string[]>([]);
   const [slow, setSlow] = useState(false);
   const [skipped, setSkipped] = useState(false);
-  const [fxLive, setFxLive] = useState(false);
+  /** The Pixi layer: starting, live, or failed (the DOM crate stands in only when it FAILED, never while starting). */
+  const [fxState, setFxState] = useState<'pending' | 'live' | 'failed'>('pending');
   const [preset, setPreset] = useState<CratePreset | null>(null);
   const live = useRef(true);
   const gen = useRef(0);
@@ -151,6 +152,7 @@ export function CrateOpener({ queue, autoOpen = false, openAll = false, reducedM
     const ctl = createCrateFx();
     fx.current = ctl;
     ctl.setArt(c.crateArt);
+    ctl.tune(chestTuningOf(c));
     ctl.onPulse((k) => tickRef.current(k));
     ctl.resize(host.clientWidth, host.clientHeight, c.crateScale);
     // A remount mid-opening (React StrictMode mounts every effect twice in dev) gets a fresh controller: bring it
@@ -159,7 +161,7 @@ export function CrateOpener({ queue, autoOpen = false, openAll = false, reducedM
     if (f.phase === 'anticipation') ctl.anticipate(anticipation(c));
     else if (f.preset && f.phase !== 'sealed' && f.phase !== 'error' && f.phase !== 'exhausted') ctl.skipToSettled(f.preset);
     let alive = true;
-    void ctl.mount(host).then((ok) => { if (alive && live.current) setFxLive(ok); });
+    void ctl.mount(host).then((ok) => { if (alive && live.current) setFxState(ok ? 'live' : 'failed'); });
     // Event-driven geometry: the host only changes size when the window does.
     const ro = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(() => {
       ctl.resize(host.clientWidth, host.clientHeight, getCrateFxConfig().crateScale);
@@ -297,6 +299,7 @@ export function CrateOpener({ queue, autoOpen = false, openAll = false, reducedM
     if (ctl) {
       ctl.setSpeed(crateFxSpeed());
       ctl.setArt(c.crateArt);
+      ctl.tune(chestTuningOf(c));
       ctl.reset();
       ctl.anticipate(anticipation(c));
     }
@@ -369,7 +372,7 @@ export function CrateOpener({ queue, autoOpen = false, openAll = false, reducedM
     '--cr-blur': `${c.backdropBlur}px`,
     '--cr-fade': `${Math.round(c.reducedFadeMs)}ms`,
   } as CSSProperties;
-  const domCrate = reduced || !fxLive;
+  const domCrate = reduced || fxState === 'failed';
   const summary = openAll && phase === 'settled' && !next && found.length > 1;
 
   const onPointerDown = (e: React.PointerEvent): void => {

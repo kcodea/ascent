@@ -80,8 +80,30 @@ interface CrateFxGlobals {
   settleMs: number;
   /** Open all: the pause after one reward settles before the next crate starts. */
   autoNextMs: number;
-  /** The chest's size, as a multiplier on its fitted size. */
+  /** The chest's size (the body's scale), as a multiplier on its fitted size. */
   crateScale: number;
+  // ── The chest (the owner's two layers, 2026-09-28) ──
+  /** Nudge the lid on the body, in % of the chest's width (0 = the measured fit). */
+  lidOffsetX: number;
+  lidOffsetY: number;
+  /** The lid's size against the body (1 = the measured fit). */
+  lidScale: number;
+  /** How far the lid jumps on each heartbeat, in % of the chest's width (it rises with the pressure). */
+  lidJump: number;
+  /** The lid's launch at the burst: sideways and upward speed (chest widths per second), spin (turns per
+   *  second) and gravity (chest widths per second squared). */
+  lidLaunchX: number;
+  lidLaunchY: number;
+  lidSpin: number;
+  lidGravity: number;
+  /** The seam light: its line against the rim (% of the chest's width), its width (x the rim) and strength. */
+  seamOffsetY: number;
+  seamWidth: number;
+  seamGlow: number;
+  /** The keyhole light's strength. */
+  keyholeGlow: number;
+  /** The open body's glow after the lid is gone (the light pouring out). */
+  openGlow: number;
   /** The blur on the page behind the theatre, in px (static: applied once). */
   backdropBlur: number;
   /** Reduced motion: the reward's fade. */
@@ -113,8 +135,9 @@ interface CrateFxGlobals {
   reverbMix: number;
   reverbSec: number;
   // ── Art ──
-  /** THE ONE ART KEY: a URL (e.g. `/crates/crate.webp`) for the crate picture. Empty = the painted chest.
-   *  With art, the whole picture shakes, charges and bursts as one piece (no separate lid). */
+  /** A ONE-PICTURE override: a URL for a single crate picture that replaces the owner's two-layer chest (empty =
+   *  the two-layer chest, `collection/crate_body.webp` + `crate_lid.webp`). A single picture shakes, charges and
+   *  bursts as one piece (no separate lid). */
   crateArt: string;
 }
 
@@ -145,6 +168,19 @@ export const CRATE_FX_DEFAULTS: CrateFxConfig = {
   settleMs: 900,
   autoNextMs: 700,
   crateScale: 1,
+  lidOffsetX: 0,
+  lidOffsetY: 0,
+  lidScale: 1,
+  lidJump: 2.2,
+  lidLaunchX: 1.4,
+  lidLaunchY: 6.2,
+  lidSpin: 1.1,
+  lidGravity: 13,
+  seamOffsetY: 0,
+  seamWidth: 1,
+  seamGlow: 1,
+  keyholeGlow: 1,
+  openGlow: 0.85,
   backdropBlur: 6,
   reducedFadeMs: 240,
 
@@ -301,6 +337,19 @@ export const CRATE_FX_RANGES: Record<NumKey, [number, number, number]> = {
   settleMs: [0, 3000, 10],
   autoNextMs: [0, 3000, 10],
   crateScale: [0.5, 2, 0.01],
+  lidOffsetX: [-10, 10, 0.1],
+  lidOffsetY: [-10, 10, 0.1],
+  lidScale: [0.8, 1.25, 0.005],
+  lidJump: [0, 6, 0.1],
+  lidLaunchX: [0, 5, 0.1],
+  lidLaunchY: [0, 14, 0.1],
+  lidSpin: [0, 4, 0.05],
+  lidGravity: [0, 40, 0.5],
+  seamOffsetY: [-10, 10, 0.1],
+  seamWidth: [0.3, 1.4, 0.01],
+  seamGlow: [0, 2, 0.01],
+  keyholeGlow: [0, 2, 0.01],
+  openGlow: [0, 1, 0.01],
   backdropBlur: [0, 20, 0.5],
   reducedFadeMs: [0, 800, 10],
   sfxHumGain: [0, 2, 0.01],
@@ -475,6 +524,18 @@ export function presetFor(rarity: string | null | undefined, c: CrateFxConfig = 
   };
 }
 
+/** The chest's fit and motion values, as the scene takes them (pure). */
+export function chestTuningOf(c: CrateFxConfig = cfg): {
+  lidOffsetX: number; lidOffsetY: number; lidScale: number; lidJump: number; lidLaunchX: number; lidLaunchY: number;
+  lidSpin: number; lidGravity: number; seamOffsetY: number; seamWidth: number; seamGlow: number; keyholeGlow: number; openGlow: number;
+} {
+  return {
+    lidOffsetX: c.lidOffsetX, lidOffsetY: c.lidOffsetY, lidScale: c.lidScale, lidJump: c.lidJump,
+    lidLaunchX: c.lidLaunchX, lidLaunchY: c.lidLaunchY, lidSpin: c.lidSpin, lidGravity: c.lidGravity,
+    seamOffsetY: c.seamOffsetY, seamWidth: c.seamWidth, seamGlow: c.seamGlow, keyholeGlow: c.keyholeGlow, openGlow: c.openGlow,
+  };
+}
+
 // ─── the beats (pure) ─────────────────────────────────────────────────────────────────────────────────────────
 
 /** One opening's beats in ms, counted from the BRANCH (the answer is in and the anticipation's minimum is over).
@@ -616,7 +677,20 @@ const GLOBAL_SPECS: Partial<Record<NumKey, [string, TunerUnit | undefined, strin
   shineMs: ['Shine', 'ms', 'The shine sweeping across the plate.', 'Reveal'],
   settleMs: ['Settle', 'ms', 'The light dimming to its lingering glow after the hold.', 'Reveal'],
   autoNextMs: ['Open all pause', 'ms', 'Open all: the pause after a reward settles before the next crate starts.', 'Reveal'],
-  crateScale: ['Chest size', '×', 'The chest size, on top of its fitted size.', 'Stage'],
+  crateScale: ['Chest size', '×', 'The chest (body) size, on top of its fitted size.', 'Chest'],
+  lidOffsetX: ['Lid x', '%', 'Nudge the lid sideways on the body (% of the chest width). 0 = the measured fit.', 'Chest'],
+  lidOffsetY: ['Lid y', '%', 'Nudge the lid up or down on the body (% of the chest width). 0 = the measured fit.', 'Chest'],
+  lidScale: ['Lid size', '×', 'The lid against the body. 1 = the measured fit.', 'Chest'],
+  lidJump: ['Lid jump', '%', 'How far the lid jumps on each heartbeat (% of the chest width). It grows with the pressure.', 'Chest'],
+  lidLaunchX: ['Lid launch sideways', undefined, 'The lid’s sideways speed at the burst (chest widths per second, random side).', 'Chest'],
+  lidLaunchY: ['Lid launch up', undefined, 'The lid’s upward speed at the burst (chest widths per second).', 'Chest'],
+  lidSpin: ['Lid spin', undefined, 'How fast the lid tumbles (turns per second).', 'Chest'],
+  lidGravity: ['Lid gravity', undefined, 'How hard the lid falls back (chest widths per second squared).', 'Chest'],
+  seamOffsetY: ['Seam light y', '%', 'Move the seam light up or down against the rim (% of the chest width).', 'Chest'],
+  seamWidth: ['Seam light width', '×', 'The seam light’s length against the rim.', 'Chest'],
+  seamGlow: ['Seam light', '×', 'How bright the light leaking from the seam is.', 'Chest'],
+  keyholeGlow: ['Keyhole light', '×', 'How bright the light in and around the keyhole is.', 'Chest'],
+  openGlow: ['Open chest glow', 'opacity', 'The light pouring out of the open body after the lid is gone.', 'Chest'],
   backdropBlur: ['Backdrop blur', 'px', 'The blur on the page behind the opening (applied once, never animated).', 'Stage'],
   reducedFadeMs: ['Reduced motion fade', 'ms', 'With reduced motion on, the reward just fades in over this long.', 'Stage'],
 };
@@ -679,7 +753,7 @@ function buildControls(): Ctl[] {
       out.push({ key, label, unit, hint, group, min, max, step });
     }
   }
-  out.push({ key: 'crateArt', label: 'Crate art URL', hint: 'A picture for the crate (for example /crates/crate.webp). Empty = the painted chest.', group: 'Art', kind: 'text', placeholder: 'empty = painted chest', maxLength: 300, min: 0, max: 0, step: 0 });
+  out.push({ key: 'crateArt', label: 'One-picture override', hint: 'A single picture to use instead of the two-layer chest (for example /crates/crate.webp). Empty = the two-layer chest.', group: 'Art', kind: 'text', placeholder: 'empty = the two-layer chest', maxLength: 300, min: 0, max: 0, step: 0 });
   return out;
 }
 

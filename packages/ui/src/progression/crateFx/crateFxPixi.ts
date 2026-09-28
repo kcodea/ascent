@@ -15,13 +15,14 @@
  *    it shows (the stage tripwire enforces this).
  *  - Every texture is painted once at mount: nothing is redrawn per frame.
  */
-import { Application, Assets, CanvasSource, Container, Texture } from 'pixi.js';
+import { Application, Assets, CanvasSource, Container, ImageSource, Texture } from 'pixi.js';
 import { stageScale } from '../../stage';
-import type { CratePreset, CrateRarity } from './crateFxConfig';
-import { CrateScene, type CrateAnticipation, type CrateSceneTextures } from './crateScene';
+import type { CratePreset } from './crateFxConfig';
+import { CrateScene, type ChestTuning, type CrateAnticipation, type CrateSceneTextures } from './crateScene';
+import { CHEST_ART, artChestModel, loadChestImages, paintedChestModel, type ChestModel } from './chestModel';
 import {
-  GEM_FILTER, paintChestBody, paintChestLid, paintCoin, paintCracks, paintGemFallback, paintGlow, paintPedestal,
-  paintRays, paintRing, paintRuneRing, paintSeamLight, paintShards, paintSpark, paintStreak, recolourGem,
+  CHEST, cutKeyholeMask, paintChestBody, paintChestLid, paintCoin, paintGlow, paintPedestal, paintRays, paintRing,
+  paintRuneRing, paintSeamBar, paintShards, paintSpark, paintStreak,
 } from './crateTextures';
 
 export interface CrateFx {
@@ -31,8 +32,12 @@ export interface CrateFx {
   resize(w: number, h: number, crateScale: number): void;
   /** Playback speed (the tuner's slow motion). Scales the scene clock. */
   setSpeed(speed: number): void;
-  /** The one art key: a URL for the crate picture ('' = the painted chest). */
+  /** The one-picture override: a URL for a single crate picture ('' = the owner's two-layer chest). */
   setArt(url: string): void;
+  /** The chest's fit and motion (the tuner's Chest group). */
+  tune(t: ChestTuning): void;
+  /** Which chest is drawn: the owner's two layers ('art'), the painted fallback, or none yet (not mounted). */
+  chestKind(): 'art' | 'painted' | null;
   /** Called on every heartbeat pulse (`k` = 0..1 intensity), so the theatre can tick a sound on the beat. */
   onPulse(fn: ((k: number) => void) | null): void;
   reset(): void;
@@ -46,12 +51,21 @@ export interface CrateFx {
   destroy(): void;
 }
 
-/** The painted chest's texture width (px). The sprites scale to the layout size from here. */
+/** The painted fallback chest's texture width (px). */
 const CHEST_TEX_W = 720;
-/** The gem art every rarity's gem is recoloured from. */
-const GEM_ART = `${import.meta.env.BASE_URL}frames/end_button_gem.webp`;
 
 const fromCanvas = (c: HTMLCanvasElement): Texture => new Texture({ source: new CanvasSource({ resource: c }) });
+const fromImage = (img: HTMLImageElement): Texture => new Texture({ source: new ImageSource({ resource: img }) });
+
+function loadImage(url: string): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const im = new Image();
+    im.decoding = 'async';
+    im.onload = () => resolve(im);
+    im.onerror = () => reject(new Error(`could not load ${url}`));
+    im.src = url;
+  });
+}
 
 class CrateFxPixi implements CrateFx {
   private app: Application | null = null;
@@ -63,6 +77,7 @@ class CrateFxPixi implements CrateFx {
   private artToken = 0;
   private pendingSize: [number, number, number] | null = null;
   private pulseFn: ((k: number) => void) | null = null;
+  private tuning: ChestTuning | null = null;
 
   async mount(host: HTMLElement): Promise<boolean> {
     if (this.destroyed) return false;
@@ -99,6 +114,7 @@ class CrateFxPixi implements CrateFx {
       const root = new Container();
       app.stage.addChild(root);
       this.scene = new CrateScene(root, tex, { onPulse: (k) => this.pulseFn?.(k) });
+      if (this.tuning) this.scene.setTuning(this.tuning);
       this.app = app;
       const [w, h, k] = this.pendingSize ?? [host.clientWidth, host.clientHeight, 1];
       this.scene.layout(w, h, k);
@@ -113,29 +129,24 @@ class CrateFxPixi implements CrateFx {
     }
   }
 
-  /** Paint every texture once. The gem art is recoloured per rarity; a painted gem stands in if it cannot load. */
+  /**
+   * Build every texture once. The chest is the owner's two layers (`collection/crate_body.webp` + `crate_lid.webp`,
+   * with the keyhole's light mask cut from the body); if EITHER cannot load, the painted chest stands in whole.
+   */
   private async bake(): Promise<CrateSceneTextures> {
     const keep = (t: Texture): Texture => { this.textures.push(t); return t; };
-    const pad = CHEST_TEX_W * 0.02;
-    let gemImg: HTMLImageElement | null = null;
-    try {
-      gemImg = await new Promise<HTMLImageElement>((resolve, reject) => {
-        const im = new Image();
-        im.onload = () => resolve(im);
-        im.onerror = reject;
-        im.src = GEM_ART;
-      });
-    } catch { gemImg = null; }
-    const gemTex = (filter: string): Texture => keep(fromCanvas(gemImg
-      ? recolourGem(gemImg, 180, Math.round(180 * (gemImg.naturalHeight / Math.max(1, gemImg.naturalWidth))), filter)
-      : paintGemFallback(160)));
-    const gems = {} as Record<CrateRarity, Texture>;
-    for (const r of ['common', 'rare', 'epic', 'legendary'] as const) gems[r] = gemTex(GEM_FILTER[r]);
+    const imgs = await loadChestImages(import.meta.env.BASE_URL, loadImage);
+    let chest: ChestModel;
+    if (imgs) {
+      const mask = cutKeyholeMask(imgs.body, CHEST_ART.bodySrcW, CHEST_ART.keyhole);
+      chest = artChestModel(keep(fromImage(imgs.body)), keep(fromImage(imgs.lid)), mask ? keep(fromCanvas(mask)) : null);
+    } else {
+      console.warn('[crateFx] chest art did not load; painting the fallback chest');
+      chest = paintedChestModel(keep(fromCanvas(paintChestBody(CHEST_TEX_W))), keep(fromCanvas(paintChestLid(CHEST_TEX_W))), CHEST_TEX_W, CHEST_TEX_W * 0.02, CHEST);
+    }
     return {
-      body: keep(fromCanvas(paintChestBody(CHEST_TEX_W))),
-      lid: keep(fromCanvas(paintChestLid(CHEST_TEX_W))),
-      seam: keep(fromCanvas(paintSeamLight(CHEST_TEX_W))),
-      cracks: keep(fromCanvas(paintCracks(CHEST_TEX_W))),
+      chest,
+      seamBar: keep(fromCanvas(paintSeamBar(512))),
       pedestal: keep(fromCanvas(paintPedestal(900))),
       runeRing: keep(fromCanvas(paintRuneRing(900))),
       rays: keep(fromCanvas(paintRays(1024, 22))),
@@ -145,10 +156,6 @@ class CrateFxPixi implements CrateFx {
       ring: keep(fromCanvas(paintRing(512))),
       coin: keep(fromCanvas(paintCoin(64))),
       shards: paintShards(90, 6).map((c) => keep(fromCanvas(c))),
-      gemSealed: gemTex(GEM_FILTER.sealed),
-      gems,
-      chestTexW: CHEST_TEX_W,
-      chestPad: pad,
     };
   }
 
@@ -172,6 +179,12 @@ class CrateFxPixi implements CrateFx {
   }
 
   setSpeed(speed: number): void { this.speed = Math.max(0.05, speed || 1); }
+  tune(t: ChestTuning): void {
+    this.tuning = t;
+    this.scene?.setTuning(t);
+    if (this.app && !this.app.ticker.started) this.app.render();
+  }
+  chestKind(): 'art' | 'painted' | null { return this.scene?.chestKind ?? null; }
   onPulse(fn: ((k: number) => void) | null): void { this.pulseFn = fn; }
 
   setArt(url: string): void {

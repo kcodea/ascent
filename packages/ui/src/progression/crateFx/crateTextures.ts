@@ -236,61 +236,6 @@ export function paintChestLid(W: number): HTMLCanvasElement {
   return c;
 }
 
-/** Light leaking from the lid seam and the keyhole: white, blurred, drawn in body-texture space (same size). */
-export function paintSeamLight(W: number): HTMLCanvasElement {
-  const H = W * CHEST.bodyH;
-  const pad = W * 0.02;
-  const { c, g } = canvas(W + pad * 2, H + pad * 2);
-  g.translate(pad, pad);
-  g.shadowColor = '#fff'; g.shadowBlur = W * 0.05;
-  g.fillStyle = 'rgba(255,255,255,1)';
-  g.fillRect(W * 0.03, -W * 0.008, W * 0.94, Math.max(3, W * 0.018));
-  g.fillRect(W * 0.03, -W * 0.008, W * 0.94, Math.max(3, W * 0.018)); // twice: a hotter core
-  // the keyhole in the socket
-  const ph = H * 0.58, gy = ph * 0.42;
-  g.beginPath(); g.arc(W / 2, gy, W * 0.034, 0, Math.PI * 2); g.fill();
-  // light spilling down the band edges
-  for (const bx of [W * 0.2, W * 0.8]) for (const s of [-1, 1]) g.fillRect(bx + s * W * 0.045 - 1, 0, Math.max(1.5, W * 0.004), H * 0.9);
-  return c;
-}
-
-/** Fractures across the body, white, in body-texture space. Revealed through the charge. */
-export function paintCracks(W: number): HTMLCanvasElement {
-  const H = W * CHEST.bodyH;
-  const pad = W * 0.02;
-  const { c, g } = canvas(W + pad * 2, H + pad * 2);
-  g.translate(pad, pad);
-  g.strokeStyle = '#fff';
-  g.lineCap = 'round';
-  g.shadowColor = '#fff'; g.shadowBlur = W * 0.015;
-  const crack = (x: number, y: number, a: number, len: number, width: number, depth: number): void => {
-    let cx = x, cy = y;
-    g.lineWidth = width;
-    g.beginPath(); g.moveTo(cx, cy);
-    const steps = 5;
-    for (let i = 0; i < steps; i++) {
-      a += (Math.random() - 0.5) * 0.9;
-      cx += Math.cos(a) * (len / steps);
-      cy += Math.sin(a) * (len / steps);
-      g.lineTo(cx, cy);
-      if (depth > 0 && Math.random() < 0.35) {
-        g.stroke();
-        crack(cx, cy, a + (Math.random() < 0.5 ? -1 : 1) * (0.6 + Math.random() * 0.6), len * 0.45, width * 0.6, depth - 1);
-        g.lineWidth = width; g.beginPath(); g.moveTo(cx, cy);
-      }
-    }
-    g.stroke();
-  };
-  // from the lock plate outwards, and up from the base
-  const gy = H * 0.58 * 0.42;
-  for (let i = 0; i < 7; i++) {
-    const a = Math.PI * (0.05 + i * 0.13) + (i % 2 ? Math.PI : 0) * 0.02;
-    crack(W / 2, gy, i < 4 ? a : Math.PI - a + 0.3, W * (0.18 + Math.random() * 0.12), W * 0.006, 2);
-  }
-  for (let i = 0; i < 4; i++) crack(W * (0.3 + i * 0.13), H * 0.95, -Math.PI / 2 + (Math.random() - 0.5) * 0.8, H * 0.5, W * 0.005, 1);
-  return c;
-}
-
 /** A stone pedestal: an ellipse top face and a short drum, seen from slightly above. Width W. */
 export function paintPedestal(W: number): HTMLCanvasElement {
   const top = W * 0.16, drum = W * 0.1;
@@ -451,35 +396,56 @@ export function paintShards(size: number, n: number): HTMLCanvasElement[] {
   return out;
 }
 
-/** The gem art recoloured for a rarity, via a canvas filter (baked once). `img` is the loaded art. */
-export function recolourGem(img: CanvasImageSource, w: number, h: number, filter: string): HTMLCanvasElement {
-  const { c, g } = canvas(w, h);
-  g.filter = filter;
-  g.drawImage(img, 0, 0, w, h);
+/** A soft horizontal bar of light, bright in the middle, fading to both ends and to both edges (the seam light).
+ *  White; tinted and stretched at run time. */
+export function paintSeamBar(L: number): HTMLCanvasElement {
+  const H = Math.max(8, Math.round(L / 8));
+  const { c, g } = canvas(L, H);
+  const along = g.createLinearGradient(0, 0, L, 0);
+  along.addColorStop(0, 'rgba(255,255,255,0)');
+  along.addColorStop(0.12, 'rgba(255,255,255,0.75)');
+  along.addColorStop(0.5, 'rgba(255,255,255,1)');
+  along.addColorStop(0.88, 'rgba(255,255,255,0.75)');
+  along.addColorStop(1, 'rgba(255,255,255,0)');
+  g.fillStyle = along;
+  g.fillRect(0, 0, L, H);
+  // fade across the bar: a hot thin core, soft above and below
+  g.globalCompositeOperation = 'destination-in';
+  const across = g.createLinearGradient(0, 0, 0, H);
+  across.addColorStop(0, 'rgba(0,0,0,0)');
+  across.addColorStop(0.42, 'rgba(0,0,0,0.9)');
+  across.addColorStop(0.5, 'rgba(0,0,0,1)');
+  across.addColorStop(0.58, 'rgba(0,0,0,0.9)');
+  across.addColorStop(1, 'rgba(0,0,0,0)');
+  g.fillStyle = across;
+  g.fillRect(0, 0, L, H);
   return c;
 }
 
-/** The canvas filter that turns the (blue) gem art into each rarity's colour. */
-export const GEM_FILTER: Record<'common' | 'rare' | 'epic' | 'legendary' | 'sealed', string> = {
-  sealed: 'grayscale(1) brightness(0.55) contrast(1.2)',
-  common: 'grayscale(1) brightness(1.35) contrast(1.1)',
-  rare: 'saturate(1.15) brightness(1.1)',
-  epic: 'hue-rotate(55deg) saturate(1.3) brightness(1.1)',
-  legendary: 'hue-rotate(185deg) saturate(1.6) brightness(1.25)',
-};
-
-/** The painted gem when the art cannot load: a faceted diamond in white (tinted at run time). */
-export function paintGemFallback(D: number): HTMLCanvasElement {
-  const { c, g } = canvas(D, D);
-  const m = D / 2;
-  const facets: [number, number, number, number, number, number, string][] = [
-    [m, 0, D, m, m, m, 'rgba(255,255,255,0.95)'],
-    [m, 0, 0, m, m, m, 'rgba(230,230,240,0.85)'],
-    [0, m, m, D, m, m, 'rgba(160,160,180,0.85)'],
-    [D, m, m, D, m, m, 'rgba(200,200,215,0.9)'],
-  ];
-  for (const [ax, ay, bx, by, cx, cy, col] of facets) {
-    g.fillStyle = col; g.beginPath(); g.moveTo(ax, ay); g.lineTo(bx, by); g.lineTo(cx, cy); g.closePath(); g.fill();
+/**
+ * The keyhole's light mask, cut from the owner's body art: white where the keyhole's dark opening is, fading at
+ * its edges, clear elsewhere. `img` is the loaded body; `box` is the keyhole's box in the body's `srcW` space.
+ * Returns the canvas (sized to the box in the IMAGE's px) or null without a 2D canvas.
+ */
+export function cutKeyholeMask(img: CanvasImageSource & { width: number; height: number }, srcW: number, box: { x0: number; y0: number; x1: number; y1: number }): HTMLCanvasElement | null {
+  const k = img.width / srcW;
+  const x = Math.floor(box.x0 * k), y = Math.floor(box.y0 * k);
+  const w = Math.max(1, Math.ceil((box.x1 - box.x0) * k)), h = Math.max(1, Math.ceil((box.y1 - box.y0) * k));
+  try {
+    const { c, g } = canvas(w, h);
+    g.drawImage(img, x, y, w, h, 0, 0, w, h);
+    const d = g.getImageData(0, 0, w, h);
+    const px = d.data;
+    for (let i = 0; i < px.length; i += 4) {
+      const lum = (px[i]! + px[i + 1]! + px[i + 2]!) / 3;
+      const a = px[i + 3]! / 255;
+      // the opening is the dark part of the lock: fully lit under ~40, fading out by ~95
+      const m = Math.max(0, Math.min(1, (95 - lum) / 55)) * a;
+      px[i] = 255; px[i + 1] = 255; px[i + 2] = 255; px[i + 3] = Math.round(m * 255);
+    }
+    g.putImageData(d, 0, 0);
+    return c;
+  } catch {
+    return null;
   }
-  return c;
 }

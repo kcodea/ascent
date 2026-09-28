@@ -9,6 +9,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import { allRules } from '@game/rules';
+import { SETS, activeSet } from '@game/content';
 import { KEYWORD_GLOSSARY } from './keywordGlossary';
 import { WIKI_BY_ID, WIKI_ENTRIES, WIKI_TOPICS } from './rulesWiki';
 import { fingerprint } from './rulesWiki/fingerprint';
@@ -65,6 +66,18 @@ describe('rules wiki: tripwire', () => {
       }
     }
     expect(problems).toEqual([]);
+  });
+});
+
+describe('rules wiki: live-set facts', () => {
+  // The tribe list is the one answer that names live content, so flipping the active set must redden it.
+  it('"Which tribes are in my game?" names exactly the active set\'s tribes', () => {
+    const a = WIKI_BY_ID['tribes-in-a-game']!.a.toLowerCase();
+    const stem = (t: string): string => t.slice(0, 4); // kobold→kobo, dwarf→dwar (matches Dwarves), …
+    const live = activeSet().tribes as readonly string[];
+    expect(live.filter((t) => !a.includes(stem(t)))).toEqual([]);
+    const others = Object.values(SETS).flatMap((s) => s.tribes as readonly string[]).filter((t) => !live.includes(t));
+    expect([...new Set(others)].filter((t) => a.includes(stem(t)))).toEqual([]);
   });
 });
 

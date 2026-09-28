@@ -9,7 +9,7 @@
  *  - BOLTS: a white-hot spear head inside a big side-coloured halo, and a TAPERING TRAIL resampled along the flight
  *    path at fixed arc steps (so it is one continuous thick comet at any frame rate, not dots), plus a rare spark.
  *  - MUZZLE: a white flash, a coloured bloom and a snap ring at the hero, sparks thrown forward.
- *  - IMPACT: starts AT its brightest (so the hit-stop freezes on the peak frame): a white core burst, a white flash
+ *  - IMPACT: starts AT its brightest (the first frame is the peak): a white core burst, a white flash
  *    over the whole portrait, a coloured bloom, a crisp ring and a slower wide one, 8 long spikes, chunky sparks with
  *    gravity carried through the target, and an afterglow that lingers. Trailing bolts land smaller hits.
  *
@@ -122,35 +122,6 @@ export class HeroBlastScene {
     this.pulses.push({ s, age: 0, dur, from, to, a0, peakAt, ease });
   }
 
-  /** A number lands in the total: a tight ring and a pinch of sparks. `step` grows it a little per landing. */
-  mergeTick(x: number, y: number, step: number): void {
-    const g = 1 + 0.12 * step;
-    this.pulse(this.tex.ring, this.colors.side, x, y, 260, 0.35 * g, 1.2 * g, 0.9);
-    this.pulse(this.tex.glow, this.hot, x, y, 200, 0.4, 1.3 * g, 0.55, 'punch', 0.15);
-    for (let i = 0; i < 6; i++) {
-      const a = Math.random() * Math.PI * 2, sp = (260 + Math.random() * 200) * this.scale;
-      this.particle(this.tex.spark, i % 2 ? this.colors.core : this.hot, {
-        x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, drag: 0.02, grav: 0, life: 220 + Math.random() * 120,
-        from: 0.9 * this.scale, to: 0.1 * this.scale, alpha: 1, streak: false,
-      });
-    }
-  }
-
-  /** The total slams in: a bright ring, a wide bloom, a burst of sparks. */
-  mergeSlam(x: number, y: number): void {
-    this.pulse(this.tex.glow, this.colors.core, x, y, 240, 0.5, 2.2, 0.9, 'punch', 0.12);
-    this.pulse(this.tex.glow, this.colors.side, x, y, 420, 0.8, 3.4, 0.55, 'punch', 0.15);
-    this.pulse(this.tex.ring, this.colors.core, x, y, 380, 0.4, 2.6, 1);
-    this.pulse(this.tex.ring, this.colors.side, x, y, 520, 0.4, 3.4, 0.7);
-    for (let i = 0; i < 16; i++) {
-      const a = (i / 16) * Math.PI * 2 + Math.random() * 0.3, sp = (520 + Math.random() * 380) * this.scale;
-      this.particle(this.tex.streak, i % 3 ? this.hot : this.colors.core, {
-        x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, drag: 0.004, grav: 0, life: 260 + Math.random() * 120,
-        from: 0.9 * this.scale, to: 0.2 * this.scale, alpha: 1, streak: true,
-      });
-    }
-  }
-
   /** The hero gathers: a ring closing in, a core swelling, motes spiralling in. Released by `fire`. */
   startCharge(x: number, y: number, durMs: number, size: number, motes: number): void {
     if (this.charge) return;
@@ -229,7 +200,7 @@ export class HeroBlastScene {
   }
 
   /**
-   * The lead bolt lands. Every element starts AT its peak so the hit-stop freezes the brightest frame. `dir` is the
+   * The lead bolt lands. Every element starts AT its peak, so the first frame is the brightest. `dir` is the
    * bolt's heading (the spray carries through the target); `radius` is the struck portrait's radius (the white flash
    * covers it).
    */
@@ -290,7 +261,7 @@ export class HeroBlastScene {
     }
   }
 
-  /** Advance by `dtMs` (sequence ms; the runner applies the speed and holds 0 through the hit-stop). */
+  /** Advance by `dtMs` (sequence ms; the runner applies the speed). */
   update(dtMs: number): boolean {
     if (this.destroyed) return false;
     const dt = Math.max(0, Math.min(100, dtMs));

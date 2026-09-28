@@ -1,0 +1,101 @@
+/* THE DAMAGE FORMATION's numbers (damageFormation.ts), shared by every hero attack. Built for READABILITY over any
+   background: heavy weight, a thick dark outline painted UNDER the fill (paint-order), a static drop shadow, and the
+   attacker's side colour (yours gold, theirs red) as `--hb-side`. Positioned once, then moved by `transform` /
+   `opacity` written from the sequence clock: nothing here animates, so no paint property ever loops. The rings and
+   bursts are static rings faded and scaled by opacity / transform only.
+   (Moved from heroBlast.css 2026-09-28; the `hblast-*` total / hit / dim names are kept so every rig still reads.) */
+.hblast { position: fixed; left: 0; top: 0; width: 100%; height: 100%; transform-origin: 0 0; z-index: 240; pointer-events: none; --hb-side: #ffb627; --hb-total: 128px; --df-chip: 50px; --df-merge: 78px; --df-hero: 70px; --df-stamp: 30px; }
+.hblast-total, .hblast-hit, .dform-chip, .dform-merge, .dform-hero, .dform-ring, .dform-burst, .dform-flare, .dform-slash {
+  position: absolute; transform: translate(-50%, -50%); will-change: transform, opacity; text-align: center; white-space: nowrap;
+}
+
+/* A minion's tier number, rising off its badge. */
+.dform-chip b {
+  display: block; font-family: var(--font-ui); font-weight: 900; font-style: normal; font-size: var(--df-chip); line-height: 1;
+  color: #fff; -webkit-text-stroke: calc(var(--df-chip) * 0.17) #1b0f06; paint-order: stroke fill;
+  text-shadow: 0 calc(var(--df-chip) * 0.08) 0 #1b0f06, 0 0 calc(var(--df-chip) * 0.32) var(--hb-side);
+}
+/* The minion total and the hero's number: a number with its caption under it. */
+.dform-merge, .dform-hero { display: grid; justify-items: center; }
+.dform-merge b, .dform-hero b {
+  grid-area: 1 / 1; display: block; font-family: var(--font-ui); font-weight: 900; font-style: normal; line-height: 0.95;
+}
+.dform-merge b {
+  font-size: var(--df-merge); color: #fff;
+  -webkit-text-stroke: calc(var(--df-merge) * 0.14) #1b0f06; paint-order: stroke fill;
+  text-shadow: 0 calc(var(--df-merge) * 0.07) 0 #1b0f06, 0 0 calc(var(--df-merge) * 0.3) var(--hb-side);
+}
+.dform-hero b {
+  font-size: var(--df-hero); color: #ffe9a8;
+  -webkit-text-stroke: calc(var(--df-hero) * 0.15) #1b0f06; paint-order: stroke fill;
+  text-shadow: 0 calc(var(--df-hero) * 0.07) 0 #1b0f06, 0 0 calc(var(--df-hero) * 0.34) var(--hb-side);
+}
+.dform-merge i, .dform-hero i {
+  grid-area: 2 / 1; display: block; margin-top: 2px; font-family: var(--font-ui); font-weight: 900; font-style: normal;
+  letter-spacing: 0.16em; text-transform: uppercase; color: #fff3dc; paint-order: stroke fill;
+}
+.dform-merge i { font-size: calc(var(--df-merge) * 0.2); -webkit-text-stroke: calc(var(--df-merge) * 0.06) #1b0f06; }
+.dform-hero i { font-size: calc(var(--df-hero) * 0.22); -webkit-text-stroke: calc(var(--df-hero) * 0.065) #1b0f06; }
+
+/* The ring on a pulsing tier badge, and the shockwave under a slam: static rings, scaled and faded only. */
+.dform-ring {
+  width: calc(var(--df-chip) * 1.3); height: calc(var(--df-chip) * 1.3); border-radius: 50%;
+  border: calc(var(--df-chip) * 0.09) solid var(--hb-side);
+  box-shadow: 0 0 calc(var(--df-chip) * 0.35) var(--hb-side), inset 0 0 calc(var(--df-chip) * 0.25) var(--hb-side);
+}
+.dform-burst {
+  width: calc(var(--df-merge) * 1.5); height: calc(var(--df-merge) * 1.5); border-radius: 50%;
+  border: calc(var(--df-merge) * 0.07) solid #fff8e6;
+  box-shadow: 0 0 calc(var(--df-merge) * 0.4) var(--hb-side), inset 0 0 calc(var(--df-merge) * 0.3) var(--hb-side);
+}
+.dform-burst.big { width: calc(var(--hb-total) * 1.25); height: calc(var(--hb-total) * 1.25); border-width: calc(var(--hb-total) * 0.05); }
+.dform-burst.cap { border-color: #ff5a4f; box-shadow: 0 0 calc(var(--hb-total) * 0.3) #ff5a4f; }
+
+/* The glow flash as numbers combine: a static radial glow, scaled and faded only. */
+.dform-flare {
+  width: calc(var(--df-merge) * 2.2); height: calc(var(--df-merge) * 2.2); border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 252, 240, 0.95) 0%, color-mix(in srgb, var(--hb-side) 80%, transparent) 32%, transparent 68%);
+}
+.dform-flare.big { width: calc(var(--hb-total) * 2.1); height: calc(var(--hb-total) * 2.1); }
+.dform-flare.cap { background: radial-gradient(circle, rgba(255, 245, 240, 0.95) 0%, rgba(255, 70, 50, 0.75) 34%, transparent 68%); }
+/* The slash across the capped number: a bright tapered streak, swept in by scale and faded by opacity. */
+.dform-slash {
+  width: calc(var(--hb-total) * 2.4); height: calc(var(--hb-total) * 0.13); border-radius: 50%;
+  background: linear-gradient(90deg, transparent 0%, #ffd1c8 18%, #ffffff 50%, #ffd1c8 82%, transparent 100%);
+  box-shadow: 0 0 calc(var(--hb-total) * 0.18) #ff4a3d, 0 0 calc(var(--hb-total) * 0.06) #fff;
+}
+
+/* The full blow. */
+.hblast-total { display: grid; justify-items: center; }
+.hblast-total-n {
+  grid-area: 1 / 1; font-family: var(--font-ui); font-weight: 900; font-size: var(--hb-total); line-height: 0.95; color: var(--hb-side);
+  -webkit-text-stroke: calc(var(--hb-total) * 0.12) #1b0f06; paint-order: stroke fill;
+  text-shadow: 0 calc(var(--hb-total) * 0.06) 0 #1b0f06, 0 0 calc(var(--hb-total) * 0.35) color-mix(in srgb, var(--hb-side) 70%, transparent);
+}
+/* The slam's white-hot copy, stacked on the number and faded out by OPACITY (never a colour transition). */
+.hblast-total-flash { color: #fff; text-shadow: 0 0 calc(var(--hb-total) * 0.25) #fff; }
+.hblast-total-l {
+  grid-area: 2 / 1; margin-top: calc(var(--hb-total) * 0.02); font-family: var(--font-ui); font-weight: 900;
+  font-size: calc(var(--hb-total) * 0.17); letter-spacing: 0.2em; text-transform: uppercase; color: #fff;
+  -webkit-text-stroke: calc(var(--hb-total) * 0.05) #1b0f06; paint-order: stroke fill;
+}
+/* "Damage capped": a red ink stamp slammed on at an angle under the number. */
+.dform-stamp {
+  grid-area: 2 / 1; margin-top: calc(var(--hb-total) * 0.02); transform-origin: 50% 50%; will-change: transform, opacity;
+  padding: calc(var(--df-stamp) * 0.12) calc(var(--df-stamp) * 0.45); border: calc(var(--df-stamp) * 0.12) solid #ff4a3d; border-radius: calc(var(--df-stamp) * 0.2);
+  background: rgba(40, 6, 4, 0.72);
+  font-family: var(--font-ui); font-weight: 900; font-size: var(--df-stamp); line-height: 1.05; letter-spacing: 0.12em;
+  text-transform: uppercase; white-space: nowrap; color: #ffd9d4;
+  -webkit-text-stroke: calc(var(--df-stamp) * 0.06) #2a0503; paint-order: stroke fill;
+  box-shadow: 0 0 calc(var(--df-stamp) * 0.5) rgba(255, 60, 45, 0.55), 0 calc(var(--df-stamp) * 0.1) 0 #1b0f06;
+}
+/* The hit number on the struck hero: white-hot fill, a thick dark outline, the attacker's glow. */
+.hblast-hit {
+  font-family: var(--font-ui); font-weight: 900; font-size: calc(var(--hb-total) * 0.8); line-height: 1; color: #fff;
+  -webkit-text-stroke: calc(var(--hb-total) * 0.1) #1b0f06; paint-order: stroke fill;
+  text-shadow: 0 calc(var(--hb-total) * 0.05) 0 #1b0f06, 0 0 calc(var(--hb-total) * 0.3) var(--hb-side);
+}
+/* The big tiers' dim: everything but the two heroes (two static mask spotlights set once), faded by opacity only. */
+.hblast-dim { position: fixed; z-index: 150; pointer-events: none; background: rgba(6, 3, 14, 0.9); will-change: opacity; mask-composite: intersect; -webkit-mask-composite: source-in; }
+/* The sandbox (the Collection preview): the same numbers inside a small box, in the box's own px. */
+.hblast.local { position: absolute; inset: 0; z-index: 3; width: auto; height: auto; }

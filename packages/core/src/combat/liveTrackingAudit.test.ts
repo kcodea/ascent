@@ -64,6 +64,7 @@ const LIVE: Record<string, string> = {
 
 /** Carry-backs where a real-time display is genuinely meaningless or already impossible to observe. */
 const EXEMPT: Record<string, string> = {
+  playerDamageUncapped: 'not a carry-back at all: the run loop stamps the blow before the round cap AFTER the fight, for the post-fight damage formation to show (2026-09-28)',
   playerFirstKill: "Flash's claim is paid at settle — the kill itself already animates as an ordinary death, and there is nothing extra to show live for 'this was the first one'",
   playerLastKill: "ditto — 'the last one' is only knowable once the fight is over, so it cannot have a live surface",
   playerDiscoverCasts: 'the Discover MODAL cannot open mid-fight — queueing at settle is the whole design',

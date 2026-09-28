@@ -7,15 +7,15 @@
  * opponent hero frame and then they explode and ribbon/pixi blast outward".
  *
  * THE BEATS (base ms before the playback speed):
- *  1. COMBINE (shared, `../heroAttack/combineNumbers.ts`): the Tier and every surviving Minion fly into ONE total that
- *     ticks up and slams on the ENGINE's number.
+ *  1. THE DAMAGE FORMATION (shared by every style, `../heroAttack/damageFormation.ts`, owner ask 2026-09-28): minion
+ *     tiers pulse left to right and merge, the hero tier joins, the full blow, the cap. Its end is this style's start.
  *  2. CHARGE. The total dives into the attacking hero; an arcane sigil opens under the portrait and spins up, light
  *     gathers, a riser climbs; the view pushes in on the hero.
  *  3. LOB. Clean magic RIBBONS (a tapering strip: a soft violet halo, an arcane glow, a violet body, a white-hot core and a
  *     thin cyan strand winding round it; an orb and a spinning sigil at the head) are LOBBED from the hero on high
  *     arcs: I one; II two (different heights, opposite sides); III a barrage of five, fanned, landing in rhythm.
  *  4. IMPACT. Each ribbon that lands before the last is a small arcane tick (a sigil flash, a crisp ring, glitter). The
- *     LAST one is THE impact: the hit-stop, the big `-N`, a sigil flare, rings, spikes and glitter. The consequence
+ *     LAST one is THE impact: the big `-N`, a sigil flare, rings, spikes and glitter. The consequence
  *     (the damage, Armor, Resolve) lands ONCE, there.
  *  IV. SWIRL. The ribbons do not strike: they arc in and join an orbiting vortex over the struck hero's frame (a tilted
  *     ellipse, so it reads as a ring of light circling the portrait), which TIGHTENS and SPEEDS UP under a rising tone
@@ -23,23 +23,22 @@
  *     shockwave, a sigil flare, sparkles. The damage lands on the explosion.
  *
  * TIERS are the shared, owner-approved thresholds (I 1-5, II 6-11, III 12-19, IV 20+). Brisk at Tier I (~2 s), about
- * 4 s at Tier IV. Reduced motion: no flight, ribbons, shake, zoom or hit-stop; the numbers fade and the blow lands.
+ * 4 s at Tier IV. Reduced motion: no flight, ribbons, shake or zoom; the numbers fade and the blow lands.
  *
  * Tuner convention (the Blast's): localStorage in DEV only, values clamped on write and on load; production always
  * plays DEFAULTS. The preview speed is how you are LOOKING and is never saved.
  */
 import { clamp, easeInOutSine, hexToNum, type Pt } from '../heroAttack/easing';
 import {
-  HERO_ATTACK_TIER_THRESHOLDS, TIERS, combineCounts, combineTimeline, reducedCombineTimeline, tierOf, type TierNum,
+  HERO_ATTACK_TIER_THRESHOLDS, TIERS, reducedAttackTimeline, tierOf, type TierNum,
 } from '../heroAttack/tiers';
 
 export { TIERS, hexToNum, type TierNum };
 
 /** The per-tier dials. A config key is `t1..t4` + one of these. */
 export const ARCANA_TIER_SUFFIXES = [
-  'FlyMs', 'StaggerMs', 'SlamPop', 'HoldMs',
   'ChargeMs', 'Ribbons', 'LaunchStaggerMs', 'FlightMs', 'ArcHeight', 'Fan', 'RibbonWidth', 'Swirl',
-  'HitStop', 'Shake', 'Zoom', 'Punch', 'Motes', 'Burst', 'SettleMs', 'Dim',
+  'Shake', 'Zoom', 'Punch', 'Motes', 'Burst', 'SettleMs', 'Dim',
 ] as const;
 export type ArcanaTierSuffix = (typeof ARCANA_TIER_SUFFIXES)[number];
 type TierKey = `t${TierNum}${ArcanaTierSuffix}`;
@@ -48,14 +47,6 @@ interface GlobalConfig {
   // Tiers (the shared thresholds; DEV-tunable only)
   tier2At: number; tier3At: number; tier4At: number;
   // Combine (the shared beat)
-  popInMs: number;
-  combineBackPx: number;
-  combineArc: number;
-  combineBias: number;
-  chipSize: number;
-  totalSize: number;
-  tickPop: number;
-  slamMs: number;
   // Charge
   absorbMs: number;
   heroSwell: number;
@@ -94,9 +85,6 @@ interface GlobalConfig {
   colorFoe: string;
   colorShade: string;
   // Sound: a clip, a gain and a pitch per cue ('' = silent)
-  sfxGatherClip: string; sfxGatherGain: number;
-  sfxTickClip: string; sfxTickGain: number; sfxTickRate: number; sfxTickStep: number;
-  sfxSlamClip: string; sfxSlamGain: number; sfxSlamRate: number;
   sfxCastClip: string; sfxCastGain: number; sfxCastRate: number;
   sfxChargeClip: string; sfxChargeGain: number; sfxChargeRate: number;
   sfxLaunchClip: string; sfxLaunchGain: number; sfxLaunchRate: number;
@@ -110,7 +98,6 @@ interface GlobalConfig {
   sfxBigClip: string; sfxBigGain: number; sfxBigRate: number;
   sfxBoomClip: string; sfxBoomGain: number; sfxBoomRate: number;
   sfxSwirlGain: number; sfxSwirlLowHz: number; sfxSwirlHighHz: number;
-  sfxTickLenMs: number;
   sfxLaunchLenMs: number;
   sfxImpactLenMs: number;
   sfxTailMix: number;
@@ -123,7 +110,7 @@ export type HeroArcanaConfig = GlobalConfig & Record<TierKey, number>;
 
 export const HERO_ARCANA_COLOR_KEYS = ['colorCore', 'colorAccent', 'colorPlayer', 'colorFoe', 'colorShade'] as const;
 export const HERO_ARCANA_CLIP_KEYS = [
-  'sfxGatherClip', 'sfxTickClip', 'sfxSlamClip', 'sfxCastClip', 'sfxChargeClip', 'sfxLaunchClip', 'sfxShimmerClip', 'sfxHitClip',
+  'sfxCastClip', 'sfxChargeClip', 'sfxLaunchClip', 'sfxShimmerClip', 'sfxHitClip',
   'sfxImpactClip', 'sfxChimeClip', 'sfxThumpClip', 'sfxImplodeClip', 'sfxExplodeClip', 'sfxBigClip', 'sfxBoomClip',
 ] as const;
 type ColorKey = (typeof HERO_ARCANA_COLOR_KEYS)[number];
@@ -133,10 +120,6 @@ export type HeroArcanaNumKey = Exclude<keyof HeroArcanaConfig, HeroArcanaStrKey>
 
 /** Tier I .. IV per suffix: the escalation ladder. */
 const TIER_DEFAULTS: Record<ArcanaTierSuffix, [number, number, number, number]> = {
-  FlyMs: [300, 330, 360, 380],
-  StaggerMs: [95, 100, 105, 110],
-  SlamPop: [1.4, 1.55, 1.75, 2],
-  HoldMs: [120, 190, 260, 300],
   ChargeMs: [260, 340, 420, 420],
   Ribbons: [1, 2, 5, 6],
   LaunchStaggerMs: [0, 130, 100, 60],
@@ -145,7 +128,6 @@ const TIER_DEFAULTS: Record<ArcanaTierSuffix, [number, number, number, number]> 
   Fan: [0, 0.18, 0.32, 0.14],
   RibbonWidth: [52, 52, 44, 38],
   Swirl: [0, 0, 0, 1],
-  HitStop: [60, 75, 95, 140],
   Shake: [5, 8, 12, 20],
   Zoom: [0.02, 0.03, 0.045, 0.07],
   Punch: [0.02, 0.028, 0.038, 0.06],
@@ -156,10 +138,6 @@ const TIER_DEFAULTS: Record<ArcanaTierSuffix, [number, number, number, number]> 
 };
 
 export const ARCANA_TIER_RANGES: Record<ArcanaTierSuffix, [number, number, number]> = {
-  FlyMs: [120, 900, 10],
-  StaggerMs: [0, 300, 5],
-  SlamPop: [1, 3, 0.01],
-  HoldMs: [0, 1000, 10],
   ChargeMs: [60, 1500, 10],
   Ribbons: [1, 8, 1],
   LaunchStaggerMs: [0, 300, 5],
@@ -168,7 +146,6 @@ export const ARCANA_TIER_RANGES: Record<ArcanaTierSuffix, [number, number, numbe
   Fan: [0, 0.6, 0.01],
   RibbonWidth: [6, 60, 0.5],
   Swirl: [0, 1, 1],
-  HitStop: [0, 250, 5],
   Shake: [0, 40, 0.5],
   Zoom: [0, 0.14, 0.002],
   Punch: [0, 0.1, 0.001],
@@ -183,14 +160,6 @@ const tierDefaults = Object.fromEntries(TIERS.flatMap((t) => ARCANA_TIER_SUFFIXE
 export const HERO_ARCANA_DEFAULTS: HeroArcanaConfig = {
   // The shared, owner-approved thresholds (6 / 12 / 20): the same blow steps Arcana up exactly where it steps Blast up.
   ...HERO_ATTACK_TIER_THRESHOLDS,
-  popInMs: 140,
-  combineBackPx: 24,
-  combineArc: 0.14,
-  combineBias: 0,
-  chipSize: 52,
-  totalSize: 132,
-  tickPop: 0.26,
-  slamMs: 340,
   absorbMs: 190,
   heroSwell: 0.08,
   recoilPx: 10,
@@ -222,9 +191,6 @@ export const HERO_ARCANA_DEFAULTS: HeroArcanaConfig = {
   colorPlayer: '#a45bff',
   colorFoe: '#ff3fb0',
   colorShade: '#5a1fa8',
-  sfxGatherClip: 'TallyTravel', sfxGatherGain: 0.45,
-  sfxTickClip: 'AttackPillAdd', sfxTickGain: 0.6, sfxTickRate: 0.9, sfxTickStep: 0.07,
-  sfxSlamClip: 'tallyimpact', sfxSlamGain: 0.9, sfxSlamRate: 1.05,
   sfxCastClip: 'castspell', sfxCastGain: 0.55, sfxCastRate: 1.05,
   sfxChargeClip: 'fx/oona-powerup', sfxChargeGain: 0.45, sfxChargeRate: 1.3,
   sfxLaunchClip: 'fx/djartmusic-christmas-sparkle-whoosh-1-275404', sfxLaunchGain: 0.55, sfxLaunchRate: 1.1,
@@ -238,7 +204,6 @@ export const HERO_ARCANA_DEFAULTS: HeroArcanaConfig = {
   sfxBigClip: 'crit', sfxBigGain: 0.4, sfxBigRate: 1.1,
   sfxBoomClip: 'fx/triple-impact', sfxBoomGain: 0.28, sfxBoomRate: 1.3,
   sfxSwirlGain: 0.32, sfxSwirlLowHz: 180, sfxSwirlHighHz: 880,
-  sfxTickLenMs: 420,
   sfxLaunchLenMs: 700,
   sfxImpactLenMs: 1100,
   sfxTailMix: 0.14,
@@ -250,14 +215,6 @@ export const HERO_ARCANA_DEFAULTS: HeroArcanaConfig = {
 
 const GLOBAL_RANGES: Record<Exclude<keyof GlobalConfig, HeroArcanaStrKey>, [number, number, number]> = {
   tier2At: [2, 40, 1], tier3At: [2, 60, 1], tier4At: [2, 80, 1],
-  popInMs: [0, 500, 10],
-  combineBackPx: [0, 80, 1],
-  combineArc: [0, 0.5, 0.01],
-  combineBias: [0, 1, 0.05],
-  chipSize: [20, 110, 1],
-  totalSize: [50, 220, 1],
-  tickPop: [0, 0.8, 0.01],
-  slamMs: [80, 900, 10],
   absorbMs: [60, 600, 10],
   heroSwell: [0, 0.3, 0.01],
   recoilPx: [0, 60, 1],
@@ -284,9 +241,6 @@ const GLOBAL_RANGES: Record<Exclude<keyof GlobalConfig, HeroArcanaStrKey>, [numb
   shakeMs: [0, 1200, 10],
   zoomOutMs: [60, 1500, 10],
   reducedFadeMs: [60, 1000, 10],
-  sfxGatherGain: [0, 2, 0.05],
-  sfxTickGain: [0, 2, 0.05], sfxTickRate: [0.5, 2, 0.01], sfxTickStep: [0, 0.3, 0.005],
-  sfxSlamGain: [0, 2, 0.05], sfxSlamRate: [0.5, 2, 0.01],
   sfxCastGain: [0, 2, 0.05], sfxCastRate: [0.5, 2, 0.01],
   sfxChargeGain: [0, 2, 0.05], sfxChargeRate: [0.5, 2, 0.01],
   sfxLaunchGain: [0, 2, 0.05], sfxLaunchRate: [0.5, 2, 0.01],
@@ -300,7 +254,6 @@ const GLOBAL_RANGES: Record<Exclude<keyof GlobalConfig, HeroArcanaStrKey>, [numb
   sfxBigGain: [0, 2, 0.05], sfxBigRate: [0.5, 2, 0.01],
   sfxBoomGain: [0, 2, 0.05], sfxBoomRate: [0.5, 2, 0.01],
   sfxSwirlGain: [0, 2, 0.05], sfxSwirlLowHz: [60, 800, 5], sfxSwirlHighHz: [200, 3000, 10],
-  sfxTickLenMs: [80, 2000, 10],
   sfxLaunchLenMs: [100, 2500, 10],
   sfxImpactLenMs: [150, 3500, 10],
   sfxTailMix: [0, 0.6, 0.01],
@@ -316,7 +269,7 @@ export const HERO_ARCANA_RANGES: Record<HeroArcanaNumKey, [number, number, numbe
 };
 
 /** The hard ceilings a plan can never exceed, whatever the sliders say (so a 40 stays clean, not cluttered). */
-export const ARCANA_CAPS = { ribbons: 8, explodeRibbons: 16, motes: 80, hitStopMs: 250, shakePx: 40, zoom: 0.14 } as const;
+export const ARCANA_CAPS = { ribbons: 8, explodeRibbons: 16, motes: 80, shakePx: 40, zoom: 0.14 } as const;
 
 const HEX = /^#[0-9a-f]{6}$/i;
 const isColorKey = (k: string): k is ColorKey => (HERO_ARCANA_COLOR_KEYS as readonly string[]).includes(k);
@@ -431,9 +384,9 @@ export interface ArcanaRibbonPlan {
 }
 
 export interface ArcanaPlanInput {
-  /** Each contributing number, in the order they fly (the attacker's tier first). */
-  values: readonly number[];
-  /** THE blow, as the engine decided it. The combine always ends on exactly this. */
+  /** When the style's own attack starts: the end of the shared damage formation (`formationPlan().endAt`). */
+  leadIn?: number;
+  /** THE blow, as the engine decided it. */
   total: number;
   /** Screen px between the attacker's and the defender's centres. */
   distance: number;
@@ -446,13 +399,6 @@ export interface ArcanaPlan {
   /** 0..1 across the tiers (I = 0, IV = 1). */
   k: number;
   total: number;
-  capped: boolean;
-  spawns: number[];
-  launches: number[];
-  arrivals: number[];
-  counts: number[];
-  mergeAt: number;
-  slamPop: number;
   /** The charge starts: the total dives into the hero, the sigil opens. */
   chargeAt: number;
   absorbEnd: number;
@@ -469,7 +415,6 @@ export interface ArcanaPlan {
   hits: number[];
   /** THE consequence beat: the last ribbon lands (I-III) or the vortex explodes (IV). */
   impactAt: number;
-  hitStopMs: number;
   /** Aftershocks around the target (IV). */
   booms: number[];
   endAt: number;
@@ -485,26 +430,22 @@ export interface ArcanaPlan {
 /** The whole Arcana, in base ms (divide by the playback speed for real time). Pure and deterministic. */
 export function arcanaPlan(input: ArcanaPlanInput, c: HeroArcanaConfig = cfg): ArcanaPlan {
   const total = Math.max(0, Math.round(input.total));
-  const values = input.values.filter((v) => Number.isFinite(v));
-  const rawSum = values.reduce((s, v) => s + Math.max(0, v), 0);
   const tier = tierOf(total, c);
   const T = arcanaTierDials(tier, c);
   const k = (tier - 1) / 3;
-  const counts = combineCounts(values, total);
-  const capped = rawSum > total;
-  const n = values.length;
 
   if (input.reduced) {
-    const r = reducedCombineTimeline(n, c.reducedFadeMs);
-    const { arrivals, mergeAt, impactAt } = r;
+    const r = reducedAttackTimeline(input.leadIn ?? 0, c.reducedFadeMs);
+    const { impactAt } = r;
     return {
-      reduced: true, tier, k, total, capped, spawns: r.spawns, launches: arrivals.slice(), arrivals, counts, mergeAt, slamPop: 1,
+      reduced: true, tier, k, total,
       chargeAt: impactAt, absorbEnd: impactAt, fireAt: impactAt, ribbons: [], swirl: false, swirlAt: impactAt, convergeAt: impactAt,
-      hits: [], impactAt, hitStopMs: 0, booms: [], endAt: r.endAt, width: 0, shakePx: 0, zoom: 0, punch: 0, motes: 0, burst: 0, dim: 0,
+      hits: [], impactAt, booms: [], endAt: r.endAt, width: 0, shakePx: 0, zoom: 0, punch: 0, motes: 0, burst: 0, dim: 0,
     };
   }
 
-  const { spawns, launches, arrivals, mergeAt, holdEnd: chargeAt } = combineTimeline(n, T, c.popInMs);
+  // The shared damage formation plays first; the style's own attack starts when it ends.
+  const chargeAt = Math.max(0, input.leadIn ?? 0);
   const absorbEnd = chargeAt + c.absorbMs;
   const fireAt = chargeAt + Math.max(T.ChargeMs, c.absorbMs);
   const swirl = T.Swirl >= 1;
@@ -545,8 +486,8 @@ export function arcanaPlan(input: ArcanaPlanInput, c: HeroArcanaConfig = cfg): A
   const endAt = lastBeat + T.SettleMs;
 
   return {
-    reduced: false, tier, k, total, capped, spawns, launches, arrivals, counts, mergeAt, slamPop: T.SlamPop, chargeAt, absorbEnd, fireAt,
-    ribbons, swirl, swirlAt, convergeAt, hits, impactAt, hitStopMs: Math.round(clamp(T.HitStop, 0, ARCANA_CAPS.hitStopMs)), booms, endAt,
+    reduced: false, tier, k, total, chargeAt, absorbEnd, fireAt,
+    ribbons, swirl, swirlAt, convergeAt, hits, impactAt, booms, endAt,
     width: T.RibbonWidth,
     shakePx: clamp(T.Shake, 0, ARCANA_CAPS.shakePx),
     zoom: clamp(T.Zoom, 0, ARCANA_CAPS.zoom),
@@ -557,16 +498,12 @@ export function arcanaPlan(input: ArcanaPlanInput, c: HeroArcanaConfig = cfg): A
   };
 }
 
-export type ArcanaCueKind = 'spawn' | 'launch' | 'arrive' | 'merge' | 'charge' | 'fire' | 'hit' | 'orbit' | 'swirl' | 'converge' | 'impact' | 'boom' | 'end';
+export type ArcanaCueKind = 'charge' | 'fire' | 'hit' | 'orbit' | 'swirl' | 'converge' | 'impact' | 'boom' | 'end';
 export interface ArcanaCue { at: number; kind: ArcanaCueKind; i: number }
 
 /** Every beat the runner fires, in time order (ties keep this declaration order, so a hit precedes the impact). */
 export function arcanaCues(p: ArcanaPlan): ArcanaCue[] {
   const out: ArcanaCue[] = [];
-  p.spawns.forEach((at, i) => out.push({ at, kind: 'spawn', i }));
-  if (!p.reduced) p.launches.forEach((at, i) => out.push({ at, kind: 'launch', i }));
-  p.arrivals.forEach((at, i) => out.push({ at, kind: 'arrive', i }));
-  out.push({ at: p.mergeAt, kind: 'merge', i: 0 });
   if (!p.reduced) {
     out.push({ at: p.chargeAt, kind: 'charge', i: 0 });
     p.ribbons.forEach((r, i) => out.push({ at: r.launchAt, kind: 'fire', i }));
@@ -583,7 +520,7 @@ export function arcanaCues(p: ArcanaPlan): ArcanaCue[] {
   p.booms.forEach((at, i) => out.push({ at, kind: 'boom', i }));
   out.push({ at: p.endAt, kind: 'end', i: 0 });
   const order: Record<ArcanaCueKind, number> = {
-    spawn: 0, launch: 1, arrive: 2, merge: 3, charge: 4, fire: 5, hit: 6, orbit: 7, swirl: 8, converge: 9, impact: 10, boom: 11, end: 12,
+    charge: 4, fire: 5, hit: 6, orbit: 7, swirl: 8, converge: 9, impact: 10, boom: 11, end: 12,
   };
   return out.map((q, idx) => ({ q, idx })).sort((a, b) => a.q.at - b.q.at || order[a.q.kind] - order[b.q.kind] || a.idx - b.idx).map((x) => x.q);
 }
@@ -727,15 +664,13 @@ const springAt = (ms: number, hz: number, tau: number): number => (ms < 0 ? 0 : 
 /**
  * The camera at sequence time `t` (px in the space the points are in). A push in on the hero through the charge; a
  * small recoil kick on each launch; a directional kick ALONG the landing ribbon on each barrage tick; on THE impact a
- * punch in and a directional shake along the last ribbon (the frame the hit-stop holds is already displaced). Tier IV
+ * punch in and a directional shake along the last ribbon. Tier IV
  * instead builds: the view pushes in on the vortex as it tightens, a faint tremor grows, and the explosion punches in
  * hardest with a shake that rings both ways. Deterministic (sines and springs): a replay moves identically. Pure.
  */
 export function arcanaCameraAt(p: ArcanaPlan, c: HeroArcanaConfig, t: number, dir: Pt = { x: 1, y: 0 }): { zoom: number; x: number; y: number } {
   if (p.reduced) return { zoom: 1, x: 0, y: 0 };
   let z = 0;
-  const slamPop = t - p.mergeAt;
-  if (slamPop >= 0 && slamPop < 260) z += 0.012 * Math.exp(-slamPop / 70);
   const sine = (u: number): number => easeInOutSine(u);
   if (t >= p.chargeAt && t < p.impactAt) {
     z += p.zoom * sine((t - p.chargeAt) / Math.max(1, p.fireAt - p.chargeAt));

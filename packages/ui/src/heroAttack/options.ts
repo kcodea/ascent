@@ -1,18 +1,20 @@
 import type { Container } from 'pixi.js';
-import type { CombinePart } from './combineNumbers';
+import type { FormationData } from './damageFormation';
+import type { FormationConfig } from './formationConfig';
 import type { Pt } from './easing';
 
 /**
- * What every hero attack runner takes (Blast and Quake share it, so `Recruit.tsx`, the tuners and the Collection
+ * What every hero attack runner takes (every style shares it, so `Recruit.tsx`, the tuners and the Collection
  * sandbox call either the same way). The total and the blow are handed in, already decided by the engine; a runner
  * only decides WHEN on screen they happen.
  */
 export interface HeroAttackOptions {
-  parts: readonly CombinePart[];
+  /** What the shared damage formation builds on screen before the attack (every number the engine's). */
+  formation: FormationData;
+  /** The formation's tuned values (default: the shared config). Tests and tuners pass their own. */
+  formationCfg?: FormationConfig;
   /** THE blow, as the engine decided it. */
   total: number;
-  /** The parts summed past the round cap (the total reads "Max Damage"). */
-  capped?: boolean;
   /** Whose blow: sets the colour language (yours gold, theirs red). */
   side?: 'player' | 'opp';
   /** Centres of the striking and the struck hero (screen px, or host px in `local` space). */
@@ -22,8 +24,6 @@ export interface HeroAttackOptions {
   defenderRadius?: number;
   /** The striking portrait's radius (default: the struck one's). */
   attackerRadius?: number;
-  /** Where the numbers merge. */
-  combineAt: Pt;
   /** Playback speed (combat speed x the tuner's slow motion). */
   speed?: number;
   reduced?: boolean;
@@ -49,7 +49,7 @@ export interface HeroAttackOptions {
 
 /** What every hero attack runner returns. */
 export interface HeroAttackHandle {
-  /** Sequence ms elapsed (at speed; a hit-stop does not advance it). */
+  /** Sequence ms elapsed (at speed; the clock never pauses). */
   elapsed(): number;
   readonly impacted: boolean;
   readonly done: boolean;

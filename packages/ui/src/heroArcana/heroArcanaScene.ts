@@ -258,23 +258,6 @@ export class HeroArcanaScene {
 
   // ── beats ──────────────────────────────────────────────────────────────────────────────────────────────────
 
-  /** A number lands in the total: a small arcane ring and a pinch of glitter. */
-  mergeTick(x: number, y: number, step: number): void {
-    const g = 1 + 0.12 * step;
-    this.fxs('air', this.tex.ring, this.colors.accent, x, y, { dur: 260, from: 0.35 * g, to: 1.2 * g, a0: 0.8 });
-    this.fxs('air', this.tex.glow, this.hot, x, y, { dur: 200, from: 0.4, to: 1.3 * g, a0: 0.5, mode: 'punch', peakAt: 0.15 });
-    this.glitter(x, y, 5, 300, { life: 300, size: 0.4, grav: 0 });
-  }
-
-  /** The total slams in: a sigil flash, a ring, glitter. */
-  mergeSlam(x: number, y: number): void {
-    this.fxs('air', this.tex.glow, this.colors.core, x, y, { dur: 240, from: 0.5, to: 2.2, a0: 0.8, mode: 'punch', peakAt: 0.12 });
-    this.fxs('air', this.tex.glow, this.colors.side, x, y, { dur: 420, from: 0.8, to: 3.4, a0: 0.5, mode: 'punch', peakAt: 0.15 });
-    this.fxs('air', this.tex.sigil, this.colors.accent, x, y, { dur: 460, from: 0.8, to: 1.9, a0: 0.8, spin: 0.006 });
-    this.fxs('air', this.tex.ring, this.colors.core, x, y, { dur: 380, from: 0.4, to: 2.6, a0: 0.9 });
-    this.glitter(x, y, 14, 620, { life: 380, size: 0.55, grav: 0 });
-  }
-
   /**
    * The hero gathers: an arcane circle opens under the portrait and spins up, a ring closes in, the core swells, motes
    * spiral in. Held through the volley; released as the LAST ribbon leaves (`launches` counts them down).
@@ -343,7 +326,7 @@ export class HeroArcanaScene {
   }
 
   /**
-   * THE impact (I-III): the last ribbon lands. Everything starts AT its peak so the hit-stop freezes the brightest
+   * THE impact (I-III): the last ribbon lands. Everything starts AT its peak so the first frame is the brightest
    * frame: a flash over the portrait, a white burst, a side bloom, a big sigil flaring out and a counter-spinning one,
    * two rings, spikes along the ribbon's heading, glitter carried through, an afterglow (and rising motes on III).
    */
@@ -494,7 +477,7 @@ export class HeroArcanaScene {
 
   // ── the frame ──────────────────────────────────────────────────────────────────────────────────────────────
 
-  /** Advance by `dtMs` (sequence ms; the runner applies the speed and holds 0 through the hit-stop). */
+  /** Advance by `dtMs` (sequence ms; the runner applies the speed). */
   update(dtMs: number): boolean {
     if (this.destroyed) return false;
     const dt = Math.max(0, Math.min(100, dtMs));

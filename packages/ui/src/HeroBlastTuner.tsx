@@ -6,7 +6,7 @@ import {
 import { clipNames } from './sfx';
 import { DEV_HERO_ATTACK_CHOICES, DEV_HERO_ATTACK_LABELS, devHeroAttackChoice, setDevHeroAttackChoice } from './heroBlast/heroAttackStyle';
 import { playHeroBlast, type HeroBlastHandle, type HeroBlastOptions } from './heroBlast/heroBlast';
-import { playAttackDemo, previewParts } from './heroAttack/attackDemo';
+import { boardOfDamage, playAttackDemo, previewLeadIn, previewParts } from './heroAttack/attackDemo';
 import { TunerPanel } from './TunerPanel';
 import type { TunerControl, TunerSpec, TunerUnit } from './tunerSchema';
 
@@ -28,14 +28,6 @@ const SPECS: Record<GlobalNumKey, Spec> = {
   tier2At: ['Tier II from', undefined, 'Damage at which the blast steps up to Tier II.', 'Damage tiers'],
   tier3At: ['Tier III from', undefined, 'Damage at which the blast steps up to Tier III (secondary explosions, embers).', 'Damage tiers'],
   tier4At: ['Tier IV from', undefined, 'Damage at which the blast becomes the colossal beam.', 'Damage tiers'],
-  popInMs: ['Pop in', 'ms', 'Each number popping in where it comes from.', 'Combine'],
-  combineBackPx: ['Pull back', 'px', 'How far a number pulls back before it flies (anticipation).', 'Combine'],
-  combineArc: ['Arc', '×', 'How much the numbers curve on the way in.', 'Combine'],
-  combineBias: ['Merge point', '×', 'Where the numbers meet: 0 = the board centre, 1 = the attacking hero.', 'Combine'],
-  chipSize: ['Number size', 'px', 'Size of each contributing number.', 'Combine'],
-  totalSize: ['Total size', 'px', 'Size of the combined total.', 'Combine'],
-  tickPop: ['Tick pop', '×', 'How hard the total squashes as each number lands.', 'Combine'],
-  slamMs: ['Slam', 'ms', 'The slam: overshoot and settle.', 'Combine'],
   absorbMs: ['Absorb', 'ms', 'The total diving into the hero.', 'Charge and fire'],
   heroSwell: ['Hero swell', '×', 'How much the hero swells while charging.', 'Charge and fire'],
   boltSpeed: ['Bolt speed', 'px/s', 'How fast the bolts fly (the flight stays between 180 and 420 ms).', 'Charge and fire'],
@@ -51,12 +43,6 @@ const SPECS: Record<GlobalNumKey, Spec> = {
   shakeMs: ['Shake length', 'ms', 'How long the impact shake takes to die away.', 'Impact and camera'],
   zoomOutMs: ['Settle back', 'ms', 'The view easing back to rest after the impact.', 'Impact and camera'],
   reducedFadeMs: ['Reduced motion fade', 'ms', 'With reduced motion on, the numbers and total just fade over this.', 'Impact and camera'],
-  sfxGatherGain: ['gather: gain', undefined, 'The whoosh as the numbers leave.', 'Sound: gather'],
-  sfxTickGain: ['tick: gain', undefined, 'Each number landing in the total.', 'Sound: tick'],
-  sfxTickRate: ['tick: pitch', '×', 'The first tick pitch (1 = as recorded).', 'Sound: tick'],
-  sfxTickStep: ['tick: pitch step', '×', 'Each following tick rises by this much (the Balatro climb).', 'Sound: tick'],
-  sfxSlamGain: ['slam: gain', undefined, 'The total slamming in.', 'Sound: slam'],
-  sfxSlamRate: ['slam: pitch', '×', 'Pitch of the slam.', 'Sound: slam'],
   sfxChargeGain: ['charge: gain', undefined, 'The riser as the hero gathers.', 'Sound: charge'],
   sfxChargeRate: ['charge: pitch', '×', 'Pitch of the riser.', 'Sound: charge'],
   sfxFireGain: ['fire: gain', undefined, 'The release as the volley leaves.', 'Sound: fire'],
@@ -71,7 +57,6 @@ const SPECS: Record<GlobalNumKey, Spec> = {
   sfxBigRate: ['big hit: pitch', '×', 'Pitch of the big-hit layer.', 'Sound: big hit'],
   sfxBoomGain: ['booms: gain', undefined, 'Tiers III and IV: each secondary explosion (pitch climbs per boom).', 'Sound: booms'],
   sfxBoomRate: ['booms: pitch', '×', 'Pitch of the first secondary explosion.', 'Sound: booms'],
-  sfxTickLenMs: ['tick length', 'ms', 'Each tick is cut to this long (with a short fade) so a long run of numbers stays crisp.', 'Sound: mix'],
   sfxImpactLenMs: ['impact length', 'ms', 'The impact clip is cut to this long (with a fade).', 'Sound: mix'],
   sfxBoomLenMs: ['boom length', 'ms', 'Each secondary explosion is cut to this long (with a fade).', 'Sound: mix'],
   sfxTailMix: ['impact tail', undefined, 'A short reverb tail on the hit. 0 = dry.', 'Sound: mix'],
@@ -79,15 +64,10 @@ const SPECS: Record<GlobalNumKey, Spec> = {
 };
 
 const TIER_SPECS: Record<TierSuffix, [string, TunerUnit | undefined, string]> = {
-  FlyMs: ['Number flight', 'ms', 'How long each number takes to reach the total.'],
-  StaggerMs: ['Number stagger', 'ms', 'Gap between each number leaving.'],
-  SlamPop: ['Slam pop', '×', 'How big the total punches up when the last number lands.'],
-  HoldMs: ['Hold', 'ms', 'The total holds before the hero absorbs it.'],
   ChargeMs: ['Charge', 'ms', 'The hero gathering power. The view pushes in over this.'],
   Motes: ['Charge motes', undefined, 'Energy spiralling into the hero.'],
   Bolts: ['Bolts', undefined, 'Bolts in the volley (ignored when Beam is on).'],
   BoltSize: ['Bolt size', '×', 'Bolt (or beam) thickness.'],
-  HitStop: ['Hit-stop', 'ms', 'The freeze on the impact frame.'],
   Shake: ['Shake', 'px', 'Screen shake along the line of fire.'],
   Zoom: ['Push in', '×', 'How far the view pushes in through the charge (0.03 = 3%).'],
   Punch: ['Impact punch', '×', 'Extra push on impact before the view settles.'],
@@ -101,7 +81,7 @@ const TIER_SPECS: Record<TierSuffix, [string, TunerUnit | undefined, string]> = 
 const TIER_NAMES: Record<TierNum, string> = { 1: 'Tier I', 2: 'Tier II', 3: 'Tier III', 4: 'Tier IV' };
 
 const CLIP_OF: Partial<Record<string, HeroBlastStrKey>> = {
-  'Sound: gather': 'sfxGatherClip', 'Sound: tick': 'sfxTickClip', 'Sound: slam': 'sfxSlamClip', 'Sound: charge': 'sfxChargeClip',
+  'Sound: charge': 'sfxChargeClip',
   'Sound: fire': 'sfxFireClip', 'Sound: beam': 'sfxBeamClip', 'Sound: impact': 'sfxImpactClip', 'Sound: thump': 'sfxThumpClip',
   'Sound: big hit': 'sfxBigClip', 'Sound: booms': 'sfxBoomClip',
 };
@@ -171,7 +151,7 @@ export function demo(
   live?.cancel();
   const cfg = getHeroBlastConfig();
   return playAttackDemo(side, (o) => playHeroBlast(o), {
-    damage: opts.damage ?? cfg.previewDamage, parts: opts.parts ?? cfg.previewParts, combineBias: cfg.combineBias,
+    board: boardOfDamage(opts.damage ?? cfg.previewDamage, opts.parts ?? cfg.previewParts),
     speed: heroBlastPreviewSpeed(), reduced: opts.reduced, frames: opts.frames, sound: opts.sound, safety: opts.safety,
   }, () => { live = null; }).then((h) => { live = h; return h; });
 }
@@ -186,7 +166,7 @@ export const SPEC: TunerSpec<BlastTunerValues> = {
   title: 'Hero Attack: Blast',
   note: () => {
     const c = getHeroBlastConfig();
-    const p = blastPlan({ values: previewParts(c.previewDamage, c.previewParts), total: c.previewDamage, distance: 1000 }, c);
+    const p = blastPlan({ leadIn: previewLeadIn(c.previewDamage, c.previewParts), total: c.previewDamage, distance: 1000 }, c);
     return `dev · ${heroBlastPreviewSpeed()}x · impact ${Math.round(p.impactAt)} · end ${Math.round(p.endAt)} ms`;
   },
   read: () => ({ ...getHeroBlastConfig(), attackStyle: devHeroAttackChoice() }),
@@ -202,9 +182,9 @@ export const SPEC: TunerSpec<BlastTunerValues> = {
     { label: '▶ Foe blasts', hint: 'The foe blasts your hero for the preview damage.', run: () => { void demo('opp'); } },
     { label: '▶ Small (3)', hint: 'Your hero blasts for 3: the smallest volley.', run: () => { void demo('player', { damage: 3, parts: 2 }); } },
     { label: '▶ Medium (12)', hint: 'Your hero blasts for 12 from four numbers.', run: () => { void demo('player', { damage: 12, parts: 4 }); } },
-    { label: '▶ Huge (40)', hint: 'Your hero blasts for 40 from seven numbers: the full volley, hit-stop, shake and push.', run: () => { void demo('player', { damage: 40, parts: 7 }); } },
+    { label: '▶ Huge (40)', hint: 'Your hero blasts for 40 from seven numbers: the full volley, shake and push.', run: () => { void demo('player', { damage: 40, parts: 7 }); } },
     { label: '▶ Foe huge (40)', hint: 'The foe blasts your hero for 40.', run: () => { void demo('opp', { damage: 40, parts: 7 }); } },
-    { label: '▶ Reduced motion', hint: 'What a player with reduced motion on sees: fades, no flight, bolts, shake, zoom or hit-stop.', run: () => { void demo('player', { reduced: true }); } },
+    { label: '▶ Reduced motion', hint: 'What a player with reduced motion on sees: fades, no flight, bolts, shake or zoom.', run: () => { void demo('player', { reduced: true }); } },
     ...HERO_BLAST_SPEEDS.map((s) => ({
       label: `Speed ${s}x`,
       hint: 'Slow motion for the next plays (the tuner only; never saved, never in production).',

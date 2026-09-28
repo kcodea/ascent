@@ -1,5 +1,9 @@
 # 2026-09-28: Arcana, the third hero attack (and the owner's quality bar)
 
+> **Update 2026-09-28:** every hit-stop / freeze frame was removed from all hero attacks (owner: "it looks like lag";
+> oracle R-PROG-ATTACK-10). Mentions of a hit-stop below are history, and the timelines include it; the current end
+> times are in `2026-09-28-damage-formation.md`.
+
 Owner ask (2026-09-28): "let's branch out and make one more attack animation, same setup as the last 2, but let's make
 like a magic one called arcana. tier 1 attack will be s clean pixi ribbon arc'd and lobbed from hero location. tier 2
 attack will be 2 of those. tier 3 attack will be barrage of 5 of those. tier 4 attack will be a swirl of them over the

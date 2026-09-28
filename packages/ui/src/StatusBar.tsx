@@ -163,8 +163,6 @@ export function StatusBar() {
   const dispatch = useGame((s) => s.dispatch);
   const eotAnimating = useGame((s) => s.endTurnAnimating);
   const combatEnemyDeaths = useGame((s) => s.combatEnemyDeaths);
-  const heroAtkPill = useGame((s) => s.heroAtkPill);
-  const heroDmgTaken = useGame((s) => s.heroDmgTaken);
   // The hero + its power are data (HEROES registry); the panel renders whatever the run is on.
   // `activePowers`, not `hero.power`: Mimic wields a different hero's power each turn and Void wields TWO —
   // the main button always shows slot 0, and a second button (below) appears for slot 1.
@@ -718,15 +716,8 @@ export function StatusBar() {
             {/* Buff flash — remounts on `buffFlash` so the one-shot shard+ripple replays each time a run buff
                 grows. `aria-hidden`, pointer-events none; sits over the art, under the name pill. */}
             {buffFlash > 0 && <span key={buffFlash} className="herobuff-blast" aria-hidden="true" />}
-            {/* The post-combat ATTACK PILL — this hero's round damage, worn like a minion's Attack badge while
-                the hero strike plays (owner ask 2026-08-25). A child of the portrait so it rides the lunge. */}
-            {heroAtkPill?.side === 'player' && (
-              <span key="hero-atk-player" className={`hero-atk hero-atk-player${heroAtkPill.buffed ? ' buffed' : ''}${heroAtkPill.leaving ? ' leaving' : ''}`} aria-hidden="true">{heroAtkPill.buffed && <span className="atk-sheen" aria-hidden="true"><span className="atk-sheen-bar" /></span>}{heroAtkPill.amount}</span>
-            )}
-            {/* The RED damage-taken number — pops in the centre of the portrait when the player is struck. */}
-            {heroDmgTaken?.side === 'player' && (
-              <span key={`dmg${heroDmgTaken.seq}`} className="hero-dmgtaken" aria-hidden="true">−{heroDmgTaken.amount}</span>
-            )}
+            {/* (The post-combat green attack pill and the red damage-taken number were retired 2026-09-28: the shared
+                damage formation builds the blow and every hero attack punches the same big -N onto the target.) */}
             {heroImg ? (
               <img decoding="sync" className="heroimg" src={heroImg} alt={hero.name} draggable={false} />
             ) : (

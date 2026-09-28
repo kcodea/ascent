@@ -335,6 +335,7 @@ export function mirrorForEnemySeat(result: CombatResult): CombatResult {
     if (key.startsWith('player')) delete clone[key];
   }
   delete clone.damageBreakdown;
+  delete clone.enemyDamageBreakdown;
   delete clone.enemyScalers;
   delete clone.oddsInput;
   delete clone.enemyCarry; // consumed here — the mirrored view must not carry the other seat's mirror of it
@@ -404,6 +405,9 @@ export function mirrorForEnemySeat(result: CombatResult): CombatResult {
     result: outcome,
     playerDamage: result.enemyDamage ?? 0,
     enemyDamage: result.playerDamage,
+    // The itemized blows swap sides with the damage they explain.
+    ...(result.enemyDamageBreakdown ? { damageBreakdown: result.enemyDamageBreakdown } : {}),
+    ...(result.damageBreakdown ? { enemyDamageBreakdown: result.damageBreakdown } : {}),
     playerDeaths: c ? c.deaths : result.enemyDeaths,
     enemyDeaths: c ? c.foeDeaths : (result.playerDeaths ?? 0),
     ...(survivors.length ? { playerSurvivorCardIds: survivors } : {}),

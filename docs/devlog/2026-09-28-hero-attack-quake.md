@@ -1,5 +1,9 @@
 # 2026-09-28: Quake, the second hero attack, and a shared hero-attack core
 
+> **Update 2026-09-28:** every hit-stop / freeze frame was removed from all hero attacks (owner: "it looks like lag";
+> oracle R-PROG-ATTACK-10). Mentions of a hit-stop below are history, and the timelines include it; the current end
+> times are in `2026-09-28-damage-formation.md`.
+
 Owner ask (2026-09-28): "branch off and make a new attack animation called quake. same attack dmg threshold logic as
 blast. the concept being an earthquake attack essentially with varying degrees of strength/cracks/explosions".
 

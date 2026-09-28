@@ -4,9 +4,9 @@
  * engine; this file only decides WHEN on screen they happen.
  *
  * ONE CLOCK. The numbers (DOM), the camera, the two portraits, the Pixi scene and the sound cues all read one
- * sequence clock advanced per frame by `dt x speed`. The HIT-STOP holds that clock still for 60 to 90 ms on the
- * impact frame (everything freezes on the brightest frame), which is why the consequence, the flash and the damage
- * number can never drift apart, and why slow motion and `finish()` are exact.
+ * sequence clock advanced per frame by `dt x speed`; it never pauses (the hit-stop was removed 2026-09-28: "it looks
+ * like lag"). That is why the consequence, the flash and the damage number can never drift apart, and why slow motion
+ * and `finish()` are exact.
  *
  * LAYERS (why here). The foe's portrait lives in a `#stage` portal that paints above everything inside `#root`, so FX
  * drawn on the in-root overlay land UNDER it. The Blast therefore draws its Pixi on the above-portrait slot, puts
@@ -18,14 +18,15 @@
  * camera layer is promoted (`will-change`) only while it moves; Pixi sprites are pooled and the updater unhooks the
  * moment the scene drains. A safety timer finishes the sequence if frames stop (a hidden tab), so the blow lands.
  *
- * SHARED (2026-09-28, when Quake joined): the clock, the combine numbers, the camera, the portraits and the voices are
+ * SHARED (2026-09-28, when Quake joined): the clock, the damage formation, the camera, the portraits and the voices are
  * the hero-attack core in `../heroAttack/`; this file keeps only what is the Blast's own (its camera curve, its beats).
  */
 import type { Container } from 'pixi.js';
 import { pixiFx } from '../pixiFx';
 import { stageScale } from '../stage';
 import { AttackVoices } from '../heroAttack/attackSound';
-import { CombineNumbers, type CombinePart } from '../heroAttack/combineNumbers';
+import { DamageFormation, planFormation } from '../heroAttack/damageFormation';
+import { withFormation, type FormationCue } from '../heroAttack/formationConfig';
 import { easeInOutSine, hexToNum, prefersReducedMotion, spring, type Pt } from '../heroAttack/easing';
 import type { HeroAttackHandle, HeroAttackOptions } from '../heroAttack/options';
 import { Sequence } from '../heroAttack/sequence';
@@ -35,9 +36,6 @@ import {
 } from './heroBlastConfig';
 import { HeroBlastScene, type HeroBlastTextures } from './heroBlastScene';
 import { heroBlastTextures } from './heroBlastTextures';
-import './heroBlast.css';
-
-export type HeroBlastPart = CombinePart;
 
 export interface HeroBlastOptions extends HeroAttackOptions {
   cfg?: HeroBlastConfig;
@@ -52,16 +50,14 @@ export interface HeroBlastHandle extends HeroAttackHandle {
 
 /**
  * The camera at sequence time `t` (px in the space the points are in): a push toward the line of fire through the
- * charge (anticipation); a small punch on the slam; an instant punch-in on impact that decays exponentially
+ * charge (anticipation); an instant punch-in on impact that decays exponentially
  * (overshoot, settle); and a DIRECTIONAL shake along the bolt's line (a damped spring, a fifth of it across), with
  * smaller kicks on each shot and each trailing hit. At `t === impactAt` the frame is already displaced along the
- * bolt, which is the frame the hit-stop holds. Pure, so it is tested directly.
+ * bolt. Pure, so it is tested directly.
  */
 export function cameraAt(p: BlastPlan, c: HeroBlastConfig, t: number, dir: Pt = { x: 1, y: 0 }): { zoom: number; x: number; y: number } {
   if (p.reduced) return { zoom: 1, x: 0, y: 0 };
   let z = 0;
-  const slam = t - p.mergeAt;
-  if (slam >= 0 && slam < 260) z += 0.012 * Math.exp(-slam / 70);
   if (t >= p.chargeAt && t < p.impactAt) z += p.zoom * easeInOutSine((t - p.chargeAt) / Math.max(1, p.fireAt - p.chargeAt));
   else if (t >= p.impactAt) {
     const since = t - p.impactAt;
@@ -115,8 +111,10 @@ export function playHeroBlast(o: HeroBlastOptions): HeroBlastHandle {
   const sideHex = o.side === 'opp' ? c.colorFoe : c.colorPlayer;
   const dist = Math.hypot(o.defender.x - o.attacker.x, o.defender.y - o.attacker.y);
   const dir = { x: (o.defender.x - o.attacker.x) / (dist || 1), y: (o.defender.y - o.attacker.y) / (dist || 1) };
-  const plan = blastPlan({ values: o.parts.map((p) => p.value), total: o.total, distance: dist, reduced }, c);
-  const cues = blastCues(plan);
+  // THE DAMAGE FORMATION plays first (shared by every style); the Blast's charge starts where it ends.
+  const { fcfg, fplan } = planFormation(o.formation, o.formationCfg, reduced);
+  const plan = blastPlan({ total: o.total, distance: dist, reduced, leadIn: fplan.endAt }, c);
+  const cues = withFormation(fplan, blastCues(plan));
   const s = o.pixiScale ?? (typeof window === 'undefined' ? 1 : stageScale());
   const doc = typeof document !== 'undefined' ? document : null;
 
@@ -124,9 +122,10 @@ export function playHeroBlast(o: HeroBlastOptions): HeroBlastHandle {
   // They sit in a TOP-LEVEL layer (a child of <body>, above the Pixi overlay) so no flash, beam or portrait can ever
   // cover them: readability first. It carries the stage's own scale, so its children are laid out in stage px.
   const host = o.host !== undefined ? o.host : (doc ? doc.body : null);
-  const nums = new CombineNumbers({
-    parts: o.parts, combineAt: o.combineAt, attacker: o.attacker, defender: o.defender, defenderRadius: o.defenderRadius,
-    side: o.side, sideHex, local, host, scale: s, cfg: c, plan,
+  const voices = new AttackVoices(sound);
+  const nums = new DamageFormation({
+    data: o.formation, plan: fplan, beats: plan, cfg: fcfg, attacker: o.attacker, attackerRadius: o.attackerRadius,
+    defender: o.defender, defenderRadius: o.defenderRadius, side: o.side, sideHex, local, host, scale: s, voices,
   });
 
   // ── Pixi (the above-portrait slot, warmed now so it is up well before the charge) ──
@@ -144,29 +143,14 @@ export function playHeroBlast(o: HeroBlastOptions): HeroBlastHandle {
   const foe = new PortraitMover(reduced ? null : (o.defenderEl ?? null));
   const radius = o.defenderRadius ?? 120 * s;
 
-  const voices = new AttackVoices(sound);
   const cue = voices.cue.bind(voices);
   // Warm every clip now, so the first cue of a session is not the one that has to wait for its decode.
-  voices.warm([c.sfxGatherClip, c.sfxTickClip, c.sfxSlamClip, c.sfxChargeClip, c.sfxFireClip, c.sfxBeamClip, c.sfxImpactClip, c.sfxThumpClip, c.sfxBigClip, c.sfxBoomClip]);
+  voices.warm([c.sfxChargeClip, c.sfxFireClip, c.sfxBeamClip, c.sfxImpactClip, c.sfxThumpClip, c.sfxBigClip, c.sfxBoomClip]);
 
-  const fire = (q: BlastCue): void => {
+  const fire = (q: BlastCue | FormationCue): void => {
+    if (q.kind === 'form') { nums.fire(fplan.beats[q.i]!); return; }
     const t = seq.t;
     switch (q.kind) {
-      case 'launch':
-        if (q.i === 0) cue(c.sfxGatherClip, c.sfxGatherGain, 1, { lenMs: 800, fadeMs: 250 });
-        break;
-      case 'arrive': {
-        nums.arrive(q.i, q.at);
-        // Balatro: every landing ticks the total with its own pop and a pitch step up.
-        if (!plan.reduced) cue(c.sfxTickClip, c.sfxTickGain, c.sfxTickRate + q.i * c.sfxTickStep, { lenMs: c.sfxTickLenMs, fadeMs: 140 });
-        if (q.i < plan.arrivals.length - 1) scene?.mergeTick(o.combineAt.x, o.combineAt.y, q.i);
-        break;
-      }
-      case 'merge':
-        nums.merge(q.at);
-        cue(c.sfxSlamClip, c.sfxSlamGain, c.sfxSlamRate);
-        scene?.mergeSlam(o.combineAt.x, o.combineAt.y);
-        break;
       case 'charge':
         // The riser, placed so its climax lands exactly on the release.
         voices.riser(c.sfxChargeClip, c.sfxChargeGain, c.sfxChargeRate, (plan.fireAt - plan.chargeAt) / speed);
@@ -191,7 +175,6 @@ export function playHeroBlast(o: HeroBlastOptions): HeroBlastHandle {
         cue(c.sfxThumpClip, c.sfxThumpGain, c.sfxThumpRate - 0.03 * (plan.tier - 1), { lenMs: 600, fadeMs: 200 });
         if (plan.tier >= 3) cue(c.sfxBigClip, c.sfxBigGain, c.sfxBigRate, { lenMs: 700, fadeMs: 250 });
         scene?.impact(o.defender.x, o.defender.y, dir, plan.k, plan.flashScale, c.flashAlpha, plan.sparks, radius, plan.tier);
-        seq.hitStop(plan.hitStopMs);
         seq.land();
         break;
       case 'hit': {
@@ -243,12 +226,12 @@ export function playHeroBlast(o: HeroBlastOptions): HeroBlastHandle {
     }
   };
 
-  const seq: Sequence<BlastCue> = new Sequence<BlastCue>({
-    cues, speed, fire, freezeKinds: ['impact'],
+  const seq: Sequence<BlastCue | FormationCue> = new Sequence<BlastCue | FormationCue>({
+    cues, speed, fire,
     paint: (t) => { nums.paint(t); paintCamera(t); },
     scene, unmount,
     frames: o.frames ?? ((fn: (dt: number) => void) => pixiFx.addUpdater(fn)),
-    safetyMs: o.safety !== false ? (plan.endAt + plan.hitStopMs) / speed + 2500 : null,
+    safetyMs: o.safety !== false ? plan.endAt / speed + 2500 : null,
     onImpact: o.onImpact, onDone: o.onDone,
     teardownDom: () => { nums.remove(); cam.reset(); hero.reset(); foe.reset(); voices.unduck(); },
     stopVoices: () => voices.stopAll(),

@@ -5402,7 +5402,7 @@ export function simulate(
   // `playerDamage` by construction; the run loop's round cap is applied on top, by the caller.
   const damageBreakdown =
     result === 'lose'
-      ? { oppTier: enemyState.tier, survivorTiers: survivorsE.map((m) => cards[m.cardId]?.tier ?? 1) }
+      ? { oppTier: enemyState.tier, survivorTiers: survivorsE.map((m) => cards[m.cardId]?.tier ?? 1), survivorUids: survivorsE.map((m) => m.uid) }
       : undefined;
   // The MIRROR: what the enemy side would take, by the identical formula. A single-run fight never needed it
   // (only the player has a Resolve pool), but a lobby round has two sides that both take damage from ONE
@@ -5413,6 +5413,11 @@ export function simulate(
     result === 'win'
       ? playerState.tier + survivorsP.reduce((sum, m) => sum + (cards[m.cardId]?.tier ?? 1), 0)
       : 0;
+  // ...itemized the same way (the hero damage formation shows these, owner ask 2026-09-28). Sums to `enemyDamage`.
+  const enemyDamageBreakdown =
+    result === 'win'
+      ? { oppTier: playerState.tier, survivorTiers: survivorsP.map((m) => cards[m.cardId]?.tier ?? 1), survivorUids: survivorsP.map((m) => m.uid) }
+      : undefined;
 
   // Rouge Rogue's escalation is "this combat" BY RULE — it rides `summonBonus` like the permanent improvers
   // (Kennelmaster, Oona, Broodwright) but must NOT persist, or three fights of Imp attacks would compound into
@@ -5595,6 +5600,7 @@ export function simulate(
     result,
     playerDamage,
     ...(damageBreakdown ? { damageBreakdown } : {}),
+    ...(enemyDamageBreakdown ? { enemyDamageBreakdown } : {}),
     enemyDamage,
     playerDeathrattles: pc.deathrattles,
     playerRallies: pc.rallies,

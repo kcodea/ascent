@@ -6,7 +6,7 @@ import {
 import { clipNames } from './sfx';
 import { DEV_HERO_ATTACK_CHOICES, DEV_HERO_ATTACK_LABELS, devHeroAttackChoice, setDevHeroAttackChoice } from './heroBlast/heroAttackStyle';
 import { playHeroQuake, type HeroQuakeHandle, type HeroQuakeOptions } from './heroQuake/heroQuake';
-import { playAttackDemo, previewParts } from './heroAttack/attackDemo';
+import { boardOfDamage, playAttackDemo, previewLeadIn, previewParts } from './heroAttack/attackDemo';
 import { TunerPanel } from './TunerPanel';
 import type { TunerControl, TunerSpec, TunerUnit } from './tunerSchema';
 
@@ -28,14 +28,6 @@ const SPECS: Record<GlobalNumKey, Spec> = {
   tier2At: ['Tier II from', undefined, 'Damage at which it steps up to Tier II (two boulders). Shared with Blast (6 by default).', 'Damage tiers'],
   tier3At: ['Tier III from', undefined, 'Damage at which it steps up to Tier III (three hot boulders, magma). Shared with Blast (12).', 'Damage tiers'],
   tier4At: ['Tier IV from', undefined, 'Damage at which it becomes the true earthquake and eruption. Shared with Blast (20).', 'Damage tiers'],
-  popInMs: ['Pop in', 'ms', 'Each number popping in where it comes from.', 'Combine'],
-  combineBackPx: ['Pull back', 'px', 'How far a number pulls back before it flies (anticipation).', 'Combine'],
-  combineArc: ['Arc', '×', 'How much the numbers curve on the way in.', 'Combine'],
-  combineBias: ['Merge point', '×', 'Where the numbers meet: 0 = the board centre, 1 = the attacking hero.', 'Combine'],
-  chipSize: ['Number size', 'px', 'Size of each contributing number.', 'Combine'],
-  totalSize: ['Total size', 'px', 'Size of the combined total.', 'Combine'],
-  tickPop: ['Tick pop', '×', 'How hard the total squashes as each number lands.', 'Combine'],
-  slamMs: ['Total slam', 'ms', 'The total slamming in: overshoot and settle.', 'Combine'],
   absorbMs: ['Absorb', 'ms', 'The total diving into the hero.', 'Wind-up and slam'],
   heroSwell: ['Hero swell', '×', 'How much the hero swells as it rises.', 'Wind-up and slam'],
   heroSquash: ['Hero squash', '×', 'How hard the hero squashes when it slams the ground.', 'Wind-up and slam'],
@@ -55,12 +47,6 @@ const SPECS: Record<GlobalNumKey, Spec> = {
   shakeMs: ['Jolt length', 'ms', 'How long the slam and impact jolts take to die away.', 'Camera and portraits'],
   zoomOutMs: ['Settle back', 'ms', 'The view easing back to rest after the eruption.', 'Camera and portraits'],
   reducedFadeMs: ['Reduced motion fade', 'ms', 'With reduced motion on, the numbers and total just fade over this.', 'Camera and portraits'],
-  sfxGatherGain: ['gather: gain', undefined, 'The whoosh as the numbers leave.', 'Sound: gather'],
-  sfxTickGain: ['tick: gain', undefined, 'Each number landing in the total.', 'Sound: tick'],
-  sfxTickRate: ['tick: pitch', '×', 'The first tick pitch (1 = as recorded).', 'Sound: tick'],
-  sfxTickStep: ['tick: pitch step', '×', 'Each following tick rises by this much.', 'Sound: tick'],
-  sfxSlamGain: ['total slam: gain', undefined, 'The total slamming in.', 'Sound: total slam'],
-  sfxSlamRate: ['total slam: pitch', '×', 'Pitch of the total slam.', 'Sound: total slam'],
   sfxWindupGain: ['wind-up: gain', undefined, 'The grinding rise as the hero lifts (lands on the slam).', 'Sound: wind-up'],
   sfxWindupRate: ['wind-up: pitch', '×', 'Pitch of the wind-up (lower per tier).', 'Sound: wind-up'],
   sfxGroundGain: ['ground slam: gain', undefined, 'The hero hitting the ground.', 'Sound: ground slam'],
@@ -82,7 +68,6 @@ const SPECS: Record<GlobalNumKey, Spec> = {
   sfxRumbleGain: ['rumble: gain', undefined, 'The synth rumble that builds from the slam to the eruption, then rings out.', 'Sound: rumble'],
   sfxRumbleLowHz: ['rumble: low cut', undefined, 'Hz. Nothing below this (keeps the low end punchy, not muddy).', 'Sound: rumble'],
   sfxRumbleHighHz: ['rumble: top', undefined, 'Hz. How bright the rumble opens up to at its peak.', 'Sound: rumble'],
-  sfxTickLenMs: ['tick length', 'ms', 'Each tick is cut to this long (with a short fade).', 'Sound: mix'],
   sfxEruptLenMs: ['eruption length', 'ms', 'The eruption clip is cut to this long (with a fade).', 'Sound: mix'],
   sfxBoomLenMs: ['boom length', 'ms', 'Each explosion is cut to this long (with a fade).', 'Sound: mix'],
   sfxTailMix: ['eruption tail', undefined, 'A short reverb tail on the eruption. 0 = dry.', 'Sound: mix'],
@@ -90,13 +75,8 @@ const SPECS: Record<GlobalNumKey, Spec> = {
 };
 
 const TIER_SPECS: Record<QuakeTierSuffix, [string, TunerUnit | undefined, string]> = {
-  FlyMs: ['Number flight', 'ms', 'How long each number takes to reach the total.'],
-  StaggerMs: ['Number stagger', 'ms', 'Gap between each number leaving.'],
-  SlamPop: ['Total pop', '×', 'How big the total punches up when the last number lands.'],
-  HoldMs: ['Hold', 'ms', 'The total holds before the hero absorbs it.'],
   LiftMs: ['Wind-up', 'ms', 'The hero rising before the slam. The view pushes in over this.'],
   LiftPx: ['Rise', 'px', 'How high the hero rises before it slams down.'],
-  SlamStop: ['Slam stop', 'ms', 'A small freeze on the slam frame.'],
   TravelMs: ['Travel', 'ms', 'The quake crossing the board (at 1600 px; scales gently with distance).'],
   CrackWidth: ['Crack width', 'px', 'Width of the main crack (branches and fissures are narrower).'],
   Branches: ['Branches', undefined, 'Cracks splitting off the main one.'],
@@ -109,7 +89,6 @@ const TIER_SPECS: Record<QuakeTierSuffix, [string, TunerUnit | undefined, string
   Eruption: ['Eruption size', '×', 'Scale of the eruption under the target.'],
   Pillar: ['Pillar', undefined, 'A pillar of magma and rock erupts under the target.'],
   Crater: ['Crater', 'opacity', 'A glowing scorched crater that lingers around the target.'],
-  HitStop: ['Hit-stop', 'ms', 'The freeze on the eruption frame.'],
   Rumble: ['Rumble', 'px', 'The rolling camera rumble as the quake travels (mostly vertical).'],
   Shake: ['Jolt', 'px', 'The hard jolt on the slam and the eruption.'],
   Zoom: ['Push in', '×', 'How far the view pushes in through the wind-up.'],
@@ -132,7 +111,7 @@ const TIER_SPECS: Record<QuakeTierSuffix, [string, TunerUnit | undefined, string
 const TIER_NAMES: Record<TierNum, string> = { 1: 'Tier I', 2: 'Tier II', 3: 'Tier III', 4: 'Tier IV' };
 
 const CLIP_OF: Partial<Record<string, HeroQuakeStrKey>> = {
-  'Sound: gather': 'sfxGatherClip', 'Sound: tick': 'sfxTickClip', 'Sound: total slam': 'sfxSlamClip', 'Sound: wind-up': 'sfxWindupClip',
+  'Sound: wind-up': 'sfxWindupClip',
   'Sound: ground slam': 'sfxGroundClip', 'Sound: thump': 'sfxThumpClip', 'Sound: crack': 'sfxCrackClip', 'Sound: eruption': 'sfxEruptClip',
   'Sound: big blast': 'sfxBigClip', 'Sound: booms': 'sfxBoomClip', 'Sound: debris': 'sfxPatterClip', 'Sound: throw': 'sfxThrowClip',
 };
@@ -204,7 +183,7 @@ export function demo(
   live?.cancel();
   const cfg = getHeroQuakeConfig();
   return playAttackDemo(side, (o) => playHeroQuake(o), {
-    damage: opts.damage ?? cfg.previewDamage, parts: opts.parts ?? cfg.previewParts, combineBias: cfg.combineBias,
+    board: boardOfDamage(opts.damage ?? cfg.previewDamage, opts.parts ?? cfg.previewParts),
     speed: heroQuakePreviewSpeed(), reduced: opts.reduced, frames: opts.frames, sound: opts.sound, safety: opts.safety,
   }, () => { live = null; }).then((h) => { live = h; return h; });
 }
@@ -219,7 +198,7 @@ export const SPEC: TunerSpec<QuakeTunerValues> = {
   title: 'Hero Attack: Quake',
   note: () => {
     const c = getHeroQuakeConfig();
-    const p = quakePlan({ values: previewParts(c.previewDamage, c.previewParts), total: c.previewDamage, distance: 1600 }, c);
+    const p = quakePlan({ leadIn: previewLeadIn(c.previewDamage, c.previewParts), total: c.previewDamage, distance: 1600 }, c);
     return `dev · ${heroQuakePreviewSpeed()}x · tier ${p.tier} · slam ${Math.round(p.slamAt)} · impact ${Math.round(p.impactAt)} · end ${Math.round(p.endAt)} ms`;
   },
   read: () => ({ ...getHeroQuakeConfig(), attackStyle: devHeroAttackChoice() }),
@@ -240,7 +219,7 @@ export const SPEC: TunerSpec<QuakeTunerValues> = {
     { label: '▶ Foe small (3)', hint: 'The foe quakes your hero for 3.', run: () => { void demo('opp', { damage: 3, parts: 2 }); } },
     { label: '▶ Foe medium (12)', hint: 'The foe quakes your hero for 12.', run: () => { void demo('opp', { damage: 12, parts: 4 }); } },
     { label: '▶ Foe huge (40)', hint: 'The foe quakes your hero for 40.', run: () => { void demo('opp', { damage: 40, parts: 7 }); } },
-    { label: '▶ Reduced motion', hint: 'What a player with reduced motion on sees: fades, no cracks, shake, zoom or hit-stop.', run: () => { void demo('player', { reduced: true }); } },
+    { label: '▶ Reduced motion', hint: 'What a player with reduced motion on sees: fades, no cracks, shake or zoom.', run: () => { void demo('player', { reduced: true }); } },
     ...HERO_QUAKE_SPEEDS.map((s) => ({
       label: `Speed ${s}x`,
       hint: 'Slow motion for the next plays (the tuner only; never saved, never in production).',

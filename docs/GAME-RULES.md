@@ -210,19 +210,31 @@ progression **epoch**; nothing finished before the epoch counts (no backfill).
   lobby seat built from a recorded run copies its owner's (`LobbySeatState.cosmetics`). So opponents, replays and
   history show the skins worn in **that** run, never anyone's current loadout; any payload from before skins is
   default art.
-- **Hero attacks (2026-09-28; oracle R-PROG-ATTACK-01..07).** How your hero lands the post-combat blow. **Classic**
+- **The damage formation (2026-09-28; oracle R-PROG-ATTACK-08).** Before EVERY hero attack (Classic and every cosmetic,
+  one shared implementation), the blow builds on screen from the engine's own numbers: each surviving minion of the
+  striking side pulses its tier badge left to right as its tier number pops up; the numbers flow toward the middle and
+  merge into one minion number; the striking hero's tier number appears at the hero and the minion number joins it; the
+  full blow slams in; only when the round cap cut it, a slash hits it, it counts down to the cap and a "Damage capped"
+  stamp slams on; then the attack carries the final number. **Classic** (the free default, R-PROG-ATTACK-09) then plays the
+  original swing (a minion's wind-up and strike at the old tempo) with a small knockback, a subtle
+  camera and the same big `-N`; the old green attack pill and red damage-taken number are gone. The numbers come from the fight's result
+  (`damageBreakdown` / `enemyDamageBreakdown` with each survivor's uid, `playerDamageUncapped` / `enemyDamage`, and the
+  run loop's `damageCap` stamp); an older result shows what it knows (no breakdown: just the blow; no cap stamp: no cap
+  beat). No hero attack ever freezes (R-PROG-ATTACK-10): no hit-stop on any impact, the slam or the cap slash; weight comes
+  from the flash, squash and knockback, shake, particles and sound. Tuned in the dev hub's Damage Formation tuner; production plays the baked defaults.
+- **Hero attacks (2026-09-28; oracle R-PROG-ATTACK-01..10).** How your hero lands the post-combat blow. **Classic**
   (the lunge) is everyone's default; **Blast** is the first cosmetic, `attack_blast` ("Arcane Barrage", Legendary,
-  from crates; animation and tier thresholds owner-approved): the contributing numbers combine into one total, the hero charges, the view pushes in, and bolts (a single
+  from crates; animation and tier thresholds owner-approved): after the damage formation, the hero charges, the view pushes in, and bolts (a single
   beam on the biggest hits) carry the blow, escalating by damage tier (I 1-5, II 6-11, III 12-19, IV 20+). **Quake** is the
-  second, `attack_quake` ("Tectonic Slam", Legendary, from crates; R-PROG-ATTACK-05): the same combine, then the hero
+  second, `attack_quake` ("Tectonic Slam", Legendary, from crates; R-PROG-ATTACK-05): the same damage formation, then the hero
   stomps. Tiers I-III hurl boulders (one, two, three hot ones) that burst a crown of stone spikes out round the struck hero;
   only Tier IV is an earthquake: a quick fracture races to the target and the ground erupts (a light burst, a shock ring, a
   spray of magma, a pillar, follow-up explosions). Same tiers as Blast. **Arcana** is the third, `attack_arcana` ("Arcana",
-  Legendary, from crates; R-PROG-ATTACK-06): the same combine, then magic ribbons are lobbed on high arcs from the hero (I one;
+  Legendary, from crates; R-PROG-ATTACK-06): the same damage formation, then magic ribbons are lobbed on high arcs from the hero (I one;
   II two on different heights and sides; III a barrage of five that lands in rhythm, the blow landing once on the last; IV the
   ribbons swirl into a vortex over the struck hero, converge and explode outward, the blow landing on the explosion).
   **Phantom Blades** is the fourth, `attack_blades` ("Phantom Blades", a placeholder name; Legendary, from crates;
-  R-PROG-ATTACK-07): the same combine, then spectral swords are summoned round the hero, swing round to aim, lock still,
+  R-PROG-ATTACK-07): the same damage formation, then spectral swords are summoned round the hero, swing round to aim, lock still,
   and are loosed in straight thrusts that stick in the struck hero (I one; II a pair that crosses in an X; III a fan of five
   that hammers in, the blow landing once on the last; IV six blades as ticks, then a greatsword hangs over the hero, locks on
   and impales the target, the blow landing on the greatsword); every stuck blade then shatters (looks only). All four

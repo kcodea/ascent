@@ -80,8 +80,10 @@ describe('nothing in the game paints over the curtain while it is up', () => {
 
   it('the curtain sits at z250', () => { expect(curtainZ).toBe(250); });
 
-  it('the z2000 floats (loss tally, flying tiers, lobby damage) drop UNDER the curtain while it is up', () => {
-    const rule = /body\.wipe-up \.lossdmg, body\.wipe-up \.lossfly, body\.wipe-up \.lobbydmg-float \{ z-index: (\d+); \}/.exec(css);
+  it('the z2000 float (lobby damage) drops UNDER the curtain while it is up', () => {
+    // (The loss tally and its flying tiers were retired 2026-09-28 for the shared damage formation, whose layer sits at
+    // z240, already under the curtain.)
+    const rule = /body\.wipe-up \.lobbydmg-float \{ z-index: (\d+); \}/.exec(css);
     expect(rule).not.toBeNull();
     expect(Number(rule![1])).toBeLessThan(curtainZ);
   });

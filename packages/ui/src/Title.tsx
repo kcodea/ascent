@@ -17,6 +17,7 @@ import { startReplay } from './replay/replayPlayer';
 import { getCourseProgress, skipCourse } from './tutorial/tutorialProfile';
 import { RankCrest } from './rank/RankBar';
 import { useCurrentRank } from './rank/rankSource';
+import rulesQuestionArt from './rules-question.png';
 import { rankLabel } from './rank/rankFormat';
 import { NewPill, useHasNewRewards } from './progression/NewRewardsPopup';
 
@@ -246,7 +247,7 @@ export function Title({ onSettings }: { onSettings: () => void }) {
           {/* RULES (owner ask 2026-09-28, for friends trying the game): opens the Compendium straight onto its searchable
               Rules page. The Compendium itself stays off the title (2026-09-21); this is the how-does-it-work door. */}
           <button className="menubtn" onClick={() => { sfx.pulse(); openRules(); }} data-tip="How everything works. Search any question.">
-            <span className="mbicon"><Icon name="eye" /></span>
+            <span className="mbicon"><img className="mbicon-img" decoding="sync" src={rulesQuestionArt} alt="" draggable={false} /></span>
             <span className="mblabel">Rules</span>
           </button>
           <button className="menubtn" onClick={() => { sfx.pulse(); openPatchNotes(); }} data-tip="Gameplay changes by date">

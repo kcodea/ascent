@@ -18,6 +18,7 @@ import { GLOSSARY_SECTIONS, KEYWORD_GLOSSARY, type KeywordDef } from './keywordG
 import { detectCardKeywords } from './detectCardKeywords';
 import { useGame } from './store';
 import { CompendiumRules } from './CompendiumRules';
+import rulesQuestionArt from './rules-question.png';
 
 /** Evolution units — non-buyable tokens a minion ascends/transforms into (Spirit Pup → Spirit Worgen,
  *  Tara → Taragosa). Detected from the SOURCE cards actually in the given set's pool (ascend targets +
@@ -566,7 +567,7 @@ export function MinionBook() {
             aria-pressed={rules}
             aria-description="Rules. Search how anything in the game works."
           >
-            <Icon name="eye" /> Rules
+            <img className="book-rules-ico" decoding="sync" src={rulesQuestionArt} alt="" draggable={false} /> Rules
           </button>
           <button
             className={`book-gloss${glossary ? ' on' : ''}`}

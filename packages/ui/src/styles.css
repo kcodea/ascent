@@ -7956,6 +7956,9 @@ body:has(.book-ov) .cardref { z-index: 490; }
    list of cream question panels (the Glossary's panel look, ink re-pinned dark the same way). One column so
    answers read as prose; the list is capped in width and centred on wide books. */
 .book-rules + .book-gloss { margin-left: 12px; }
+/* The Rules button wears the owner's golden question mark (rules-question.png), not a glyph. */
+.book-rules-ico { width: 22px; height: 22px; pointer-events: none; }
+.menubtn .mbicon .mbicon-img { width: 30px; height: 30px; pointer-events: none; }
 .wiki-body { flex: 1; min-height: 0; display: flex; flex-direction: column; }
 .wiki-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; padding: 18px 30px 14px; border-bottom: 2px solid var(--line); }
 .wiki-search { height: 42px; width: min(420px, 100%); padding: 0 16px; border-radius: 12px; border: 2px solid var(--line); background: var(--bg2); color: var(--ink2); font-family: var(--font-body), sans-serif; font-weight: 600; font-size: 15px; }

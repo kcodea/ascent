@@ -1847,12 +1847,14 @@ export const FOUNDATION_RULES: GameRule[] = [
   },
   {
     id: 'R-PROG-SKINS-02',
-    title: '"Show opponent skins" (Settings, on by default) hides OPPONENTS\' skins only, never your own',
+    title: '"Show opponent cosmetics" (Settings, on by default; was "Show opponent skins") hides OPPONENTS\' cosmetics only, never your own',
     statement:
-      'Settings has a "Show opponent skins" switch, on by default and stored like the other client settings. Off, every '
+      'Settings has a "Show opponent cosmetics" switch (labelled "Show opponent skins" until hero attacks became cosmetics on '
+      + '2026-09-28; same stored setting), on by default and stored like the other client settings. Off, every '
       + 'opponent\'s hero and minion skins render as default art everywhere they appear: the lobby seat list, combat, the '
-      + 'NOW FACING and fight-recap portraits, the scouted board, replays, and another player\'s Career page. Your own '
-      + 'equipped skins always show. It is a pure display switch: it changes nothing recorded or sent.',
+      + 'NOW FACING and fight-recap portraits, the scouted board, replays, and another player\'s Career page, and an '
+      + 'opponent who strikes you plays the Classic hero attack instead of their equipped one. Your own equipped cosmetics '
+      + 'always show. It is a pure display switch: it changes nothing recorded or sent.',
     domain: 'foundation',
     status: 'approved',
     evidence: [
@@ -1930,7 +1932,8 @@ export const FOUNDATION_RULES: GameRule[] = [
       + '(Epic) and skin_blackbelt_3 (Legendary). Each ships its own art (packages/ui/src/art/skins/<id>.webp), and its master '
       + 'is named for its rarity (BlackBeltBrianSkinRare / SkinEpic / SkinLegendary.png). Bellringer Voss (card id '
       + 'n2_bellringer) has one Epic minion skin, skin_bellringer_1 (master BellringerVossSkinEpic.png). With both added, '
-      + 'the first-crate odds are Common 47.6%, Rare 31.5%, Epic 19.3%, Legendary 1.7%, and a skin 30.6%.',
+      + 'the first-crate odds were Common 47.6%, Rare 31.5%, Epic 19.3%, Legendary 1.7%, and a skin 30.6% (re-pinned when the '
+      + 'first hero attack joined the pool: R-PROG-ATTACK-01).',
     domain: 'foundation',
     status: 'approved',
     evidence: [
@@ -2019,5 +2022,63 @@ export const FOUNDATION_RULES: GameRule[] = [
     ],
     currentBehaviour: 'Conforms, built 2026-09-28. The 3 Career showcase slots are a follow-up.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/progression/AchievementsTab.test.tsx', 'packages/ui/src/progression/ProgressionPostgame.test.tsx', 'packages/ui/src/Career.test.tsx'], lastVerifiedAt: '2026-09-28' },
+  },
+  {
+    id: 'R-PROG-ATTACK-01',
+    title: 'Hero attacks are cosmetics: Classic is everyone\'s default, Blast ("Arcane Barrage", attack_blast, Epic) drops from crates',
+    statement:
+      'The hero_attack cosmetic category is live. Its first item is attack_blast (placeholder name "Arcane Barrage", Epic, '
+      + 'crate-sourced, account-wide: target global, no hero or card), whose assets name the animation it plays (style blast). '
+      + 'Nobody plays Blast by default: without an equipped hero attack the post-combat blow is the Classic lunge. It is '
+      + 'equipped in the Collection\'s Attack Animations tab (Equip, or "Use Classic" to take it off) through equip_cosmetic '
+      + 'with slot hero_attack and target \'\' (the SQL refuses any other target, an unowned item, a skin in the attack slot '
+      + 'and the attack in a skin slot). Adding it re-pinned the first-crate odds to Common 46.5%, Rare 30.8%, Epic 21.0%, '
+      + 'Legendary 1.6%; a non-title item 32.1%; the attack itself 2.2%.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-28 (Blast hero attack)', quote: 'the new blast attack is going to be a cosmetic unlock, not a new default' },
+      { kind: 'code', ref: 'packages/progression/src/cosmetics.ts (hero_attack enabled, attack_blast, heroAttackOf, EQUIP_SLOTS); supabase/migrations/2026-09-28-progression-hero-attack.sql; packages/ui/src/progression/CollectionScreen.tsx' },
+    ],
+    currentBehaviour: 'Conforms, built 2026-09-28. The item reaches the database on the next deploy of progression-inventory (the catalog sync); equipping needs the hero attack migration run.',
+    enforcement: { kind: 'scenario', refs: ['packages/progression/src/cosmetics.test.ts', 'packages/progression/src/heroAttack.db.test.ts', 'packages/ui/src/progression/CollectionHeroAttack.test.tsx'], lastVerifiedAt: '2026-09-28' },
+  },
+  {
+    id: 'R-PROG-ATTACK-02',
+    title: 'The STRIKER\'s hero attack plays: yours when you win, theirs (from their recorded snapshot) when they win; unknown or retired = Classic',
+    statement:
+      'The equipped hero attack is recorded in the run\'s cosmetic snapshot (heroAttack) and rides every captured board and '
+      + 'lobby seat, like skins. When a fight ends, the winning side\'s hero attack plays: yours from your run\'s snapshot, '
+      + 'the opponent\'s from their seat\'s recorded snapshot (only while "Show opponent cosmetics" is on). Replays use the '
+      + 'recorded snapshot. An unknown, retired or unrecognised id always falls back to Classic. A DEV-only override (the '
+      + 'Blast tuner\'s Attack style row) can force a style for both sides; production ignores it, and there is no '
+      + 'player-facing style setting outside the Collection.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-28 (Blast hero attack)', quote: 'the new blast attack is going to be a cosmetic unlock, not a new default' },
+      { kind: 'code', ref: 'packages/ui/src/heroBlast/heroAttackStyle.ts (resolveHeroAttackStyle); packages/ui/src/heroBlast/attackerCosmetic.ts; packages/sim/src/snapshot.ts (scopeCosmetics); packages/sim/src/lobby/snapshotSeats.ts' },
+    ],
+    currentBehaviour: 'Conforms, built 2026-09-28.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/heroBlast/heroBlast.test.ts', 'packages/sim/src/lobby/seatCosmetics.test.ts'], lastVerifiedAt: '2026-09-28' },
+  },
+  {
+    id: 'R-PROG-ATTACK-03',
+    title: 'A hero attack is presentation only: it shows the ENGINE\'s blow and lands the consequence exactly once, on its impact beat',
+    statement:
+      'Whatever style plays, the blow is the engine\'s (heroStrikeDamage: the capped enemyDamage on a win, playerLossDamage '
+      + 'on a lobby loss). Blast combines the contributing numbers into a total that always ends on exactly that value (never '
+      + 'a DOM sum), and fires the consequence (the health drop, Armor first, via settleCombat) exactly once, on the frame the '
+      + 'lead bolt or beam lands; if frames stop, a safety timer still lands it. It escalates by damage tier (I 1-5, II 6-11, '
+      + 'III 12-19, IV 20+; IV fires a beam) and under reduced motion it is fades only (no flight, bolts, shake, zoom or '
+      + 'hit-stop). Leaving the fight mid-animation cancels it without landing, exactly as Classic\'s timers are cleared.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-28 (Blast hero attack)', quote: 'i want the numbers to all combine, and then the screen slightly shakes and zooms as he blasts pixi blasts from the hero to the opponent to deal the damage' },
+      { kind: 'code', ref: 'packages/ui/src/heroBlast/heroBlastConfig.ts (blastPlan, blastCounts, tierOf); packages/ui/src/heroBlast/heroBlast.ts (playHeroBlast); packages/ui/src/heroBlast/heroStrikeDamage.ts; packages/ui/src/Recruit.tsx' },
+    ],
+    currentBehaviour: 'Conforms, built 2026-09-28.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/heroBlast/heroBlast.test.ts'], lastVerifiedAt: '2026-09-28' },
   },
 ];

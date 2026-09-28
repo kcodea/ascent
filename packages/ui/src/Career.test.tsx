@@ -121,7 +121,11 @@ describe('the left column', () => {
     expect(frame!.querySelector('img.heroimg') ?? frame!.querySelector('svg')).not.toBeNull();
     // brackus: 2 of the 3 runs.
     expect(ui.container.querySelector('.cv2-left .cv2-heroname')?.textContent).toBe('Brackus');
-    expect(ui.container.querySelector('.cv2-left .cv2-playername')?.textContent).toBe('Kev');
+    // labelled as the favorite hero (owner 2026-09-28); the player's name is in the page header, large
+    expect(ui.container.querySelector('.cv2-left .cv2-favlabel')?.textContent).toBe('Favorite hero');
+    expect(ui.container.querySelector('.lbtitle .cv2-name')?.textContent).toBe('Kev');
+    expect(ui.container.querySelector('.lbtitle .cv2-kicker')?.textContent).toBe('Your Career');
+    expect(ui.container.querySelector('.cv2-left .cv2-playername')).toBeNull(); // not shown twice
   });
 
   it('prints the five tiles from the server runs: 1st Place Wins · Top 4 Finish · Losses · Avg Placement · Favorite Tribe', () => {
@@ -434,14 +438,14 @@ describe('states', () => {
     ui = mount(<Career />);
     await flush();
     expect(fetchMyRuns).toHaveBeenCalledWith(1000, { userId: 'them-9' }); // ALL their runs (the Heroes tab folds every one)
-    expect(ui.container.querySelector('.lbtitle .esch')?.textContent).toBe('Mika’s Career');
+    expect(ui.container.querySelector('.lbtitle .cv2-name')?.textContent).toBe('Mika');
+    expect(ui.container.querySelector('.lbtitle .cv2-kicker')?.textContent).toBe('Career');
     // No rank handed over → the page asks the server ONCE by user id; a viewed profile without a medal rank
     // (pre-migration backend / no row) keeps the bare number.
     expect(fetchPlayerById).toHaveBeenCalledTimes(1);
     expect(fetchPlayerById).toHaveBeenCalledWith('them-9');
     expect(ui.container.querySelector('.cv2-mmr-v')?.textContent).toBe('763');
     expect(ui.container.querySelector('.cv2-ranked .rankbar')).toBeNull();
-    expect(ui.container.querySelector('.cv2-left .cv2-playername')?.textContent).toBe('Mika');
   });
 
   it('a viewed player whose rank rode in on careerOf (a Rankings row) gets the SAME crest + bar card as the own page: no bare MMR, no fetch', async () => {
@@ -747,11 +751,11 @@ describe('Account Level (account progression, 2026-09-27)', () => {
 
   it('hidden entirely until the feature is on (the capability probe): the page is unchanged before the SQL runs', () => {
     expect(ui.container.querySelector('.cv2-acctlevel')).toBeNull();
-    expect(ui.container.querySelector('.cv2-playertitle')).toBeNull();
+    expect(ui.container.querySelector('.cv2-titlechip')).toBeNull();
     expect(text('.cv2-right .cv2-sec')[0]).toBe('Seasonal Ranked');
   });
 
-  it('your own page: Level + XP bar under the portrait (owner 2026-09-28), the equipped title under the name, and the guest reminder', async () => {
+  it('your own page: Level + XP bar under the portrait (owner 2026-09-28), the equipped title beside the name in the header, and the guest reminder', async () => {
     act(() => { useProgression.setState({ capability: 'on', mirror: { userId: 'me-1', accountXp: 325, accountLevel: 2, revision: 3, equippedTitleId: 'alpha_tester', titles: ['alpha_tester'] } }); });
     await remount();
     // The card sits in the left Career Stats panel, after the portrait block and before the stat tiles; Seasonal
@@ -760,11 +764,14 @@ describe('Account Level (account progression, 2026-09-27)', () => {
     expect(ui.container.querySelector('.cv2-right .cv2-acctlevel')).toBeNull();
     const left = ui.container.querySelector('.cv2-left')!;
     const order = [...left.children].map((c) => c.className.split(' ')[0]);
-    expect(order.indexOf('cv2-playertitle')).toBeLessThan(order.indexOf('cv2-acctlevel'));
+    expect(order.indexOf('cv2-heroname')).toBeLessThan(order.indexOf('cv2-acctlevel'));
     expect(order.indexOf('cv2-acctlevel')).toBeLessThan(order.indexOf('cv2-tiles'));
     expect(text('.cv2-acctlevel-label')).toEqual(['Account Level 2']);
     expect(text('.cv2-acctlevel-num')).toEqual(['75 / 250 XP']);
-    expect(text('.cv2-left .cv2-playertitle')).toEqual(['Alpha Tester']);
+    // the title beside the name in the header, in its rarity colour; not repeated in the left panel
+    expect(text('.lbtitle .cv2-titlechip')).toEqual(['Alpha Tester']);
+    expect(ui.container.querySelector('.lbtitle .cv2-titlechip')!.className).toContain('r-rare');
+    expect(ui.container.querySelector('.cv2-left .cv2-titlechip')).toBeNull();
     // anonymous owner: the small save-your-progress reminder, which opens the account panel
     expect(text('.cv2-acctlevel-save span')).toEqual(['Playing as a guest. Create an account to save your progress.']);
     click(ui.container.querySelector('.cv2-acctlevel-save button'));
@@ -784,7 +791,7 @@ describe('Account Level (account progression, 2026-09-27)', () => {
     });
     await remount();
     expect(ui.container.querySelector('.cv2-acctlevel-coll')).toBeNull(); // crates switch off: no Collection
-    expect(text('.cv2-left .cv2-playertitle')).toEqual(['Ironbeard']); // a crate title shows under the name
+    expect(text('.lbtitle .cv2-titlechip')).toEqual(['Ironbeard']); // a crate title shows beside the name
     act(() => { useProgression.setState({ cratesCapability: 'on' }); });
     await remount();
     expect(text('.cv2-acctlevel-coll')).toEqual(['Collection1']);

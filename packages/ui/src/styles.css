@@ -7540,7 +7540,16 @@ body:has(.lb-ladder) .cardref { z-index: 490; }
 .cv2-heroframe .hero .f svg { width: 44%; height: 44%; }
 /* The name plate overlaps the frame's bottom edge, like the recruit screen's. */
 .cv2-heroname { margin-top: -16px; z-index: 1; max-width: 100%; padding: 5px 20px; background: linear-gradient(180deg, #fff, #f3ead4); color: var(--ink); border: 2px solid var(--gold); border-radius: 999px; font-family: var(--font-ui); font-weight: 800; font-size: 17px; letter-spacing: 0.02em; line-height: 1.1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; box-shadow: 0 2px 6px -2px var(--shadow); }
-.cv2-playername { margin-top: 4px; font-family: var(--font-ui); font-weight: 800; font-size: 13px; letter-spacing: 0.1em; text-transform: uppercase; color: rgba(232, 200, 119, 0.75); max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cv2-favlabel { margin: -8px 0 8px; font-family: var(--font-ui); font-weight: 900; font-size: 12px; letter-spacing: 0.2em; text-transform: uppercase; color: rgba(232, 200, 119, 0.85); }
+/* The name header (2026-09-28): a small kicker, the name large, the equipped title beside it in its rarity colour.
+   The same height as the old "Career / Your record of climbs" pair within a few px. */
+.cv2-namehead { min-width: 0; }
+.cv2-namehead-body { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.cv2-kicker { font-family: var(--font-ui); font-weight: 900; font-size: 12px; letter-spacing: 0.22em; text-transform: uppercase; color: rgba(232, 200, 119, 0.85); line-height: 1; }
+.cv2-nameline { display: flex; align-items: baseline; gap: 14px; min-width: 0; }
+.lbtitle .esch.cv2-name { font-size: 34px; line-height: 1; letter-spacing: 0.01em; max-width: 900px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cv2-titlechip { flex: none; transform: translateY(-4px); padding: 4px 12px; border-radius: 999px; font-family: var(--font-ui); font-weight: 900; font-size: 14px; letter-spacing: 0.14em; text-transform: uppercase; white-space: nowrap;
+  color: var(--rc, #ffe08a); border: 1.5px solid var(--rc, #ffe08a); background: rgba(0, 0, 0, 0.35); }
 .cv2-tiles { display: flex; flex-direction: column; gap: 10px; align-self: stretch; margin-top: 16px; }
 .cv2-stat { display: grid; grid-template-columns: 40px minmax(0, 1fr); grid-template-rows: auto auto; column-gap: 12px; align-items: center; padding: 12px 14px; border-radius: 12px; background: rgba(0, 0, 0, 0.3); border: 1px solid rgba(196, 160, 92, 0.3); text-align: left; }
 .cv2-stat-ico { grid-row: 1 / span 2; width: 40px; height: 40px; border-radius: 10px; display: grid; place-items: center; background: rgba(196, 160, 92, 0.16); color: #f0c977; }
@@ -12342,7 +12351,6 @@ body:has(.heroselect.rankend) .pixifx-above { z-index: 470; }
 .cv2-acctlevel-save { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; padding-top: 10px; border-top: 1px solid rgba(196, 160, 92, 0.25);
   font-family: var(--font-ui); font-weight: 600; font-size: 13px; line-height: 1.35; color: rgba(238, 244, 251, 0.82); }
 .cv2-btn.cv2-btn-sm { padding: 7px 14px; font-size: 12px; }
-.cv2-playertitle { margin-top: 2px; font-family: var(--font-ui); font-weight: 800; font-size: 12px; letter-spacing: 0.12em; text-transform: uppercase; color: #ffe08a; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* ── LEVEL CRATES + COLLECTION (2026-09-28) ─────────────────────────────────────────────────────────────────────
    The crate opener (post-game "Crate earned" and the Collection), and the Collection overlay. Performance rules:

@@ -1025,4 +1025,19 @@ export const RUNES_RULES: GameRule[] = [
       lastVerifiedAt: '2026-09-25',
     },
   },
+  {
+    id: 'R-RUNE-BASICDWARF-01',
+    title: 'Rune of Basic Dwarves reads "Get a Dwarf" and is tagged Dwarf for the Runeforge board-fit',
+    statement:
+      'Rune of Basic Dwarves reads "Get a Dwarf. Repeat every Start of Turn." like the other Basic tribe runes, and its '
+      + 'text carries the Dwarf word the board-fit matcher reads, so it counts as fitting a Dwarf board.',
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-27 (Set 3 rune audit follow-up)', quote: 'fix rune of basic dwarves text as well' },
+      { kind: 'code', ref: 'packages/content/src/runes.ts rune_basic_dwarf text; packages/content/src/runeSynergy.ts dwarf word' },
+    ],
+    currentBehaviour: 'Conforms, FIXED 2026-09-27: it read "Get a Dwarve", which also missed the dwarf board-fit word.',
+    enforcement: { kind: 'scenario', refs: ['packages/content/src/basicDwarvesText.test.ts'], lastVerifiedAt: '2026-09-27' },
+  },
 ];

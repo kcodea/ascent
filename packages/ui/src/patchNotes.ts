@@ -53,6 +53,12 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-09-27',
     changes: [
+      { category: 'Systems', text: 'Rune of Basic Dwarves now reads "Get a Dwarf", and the Runeforge now counts it as a fit for a Dwarf board.' },
+    ],
+  },
+  {
+    date: '2026-09-27',
+    changes: [
       {
         category: 'Systems',
         text: 'Account Levels: earn XP from every game. Reach Level 2 to unlock the Alpha Tester title.',

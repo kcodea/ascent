@@ -78,6 +78,17 @@ export const PATCH_NOTES: PatchNote[] = [
       },
       {
         category: 'Systems',
+        text: 'End of Turn effects that repeat now speed up. A big Kringle no longer takes minutes to finish.',
+        details: [
+          'Every repeat still lands on its own, and the numbers still climb as they land.',
+          'The first few repeats play at normal speed, then they speed up fast.',
+          'The repeats of one card never take longer than about two and a half seconds, however many there are.',
+          'Sounds and buff trails are thinned out on the fast repeats, so it stays clean to watch.',
+          'Covers Kringle, Striker, Mother Moss, Rope Wrangler, Rune of Action and doubled End of Turn effects.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'Career has a new Practice tab with your finished Practice games, including the bot level, and you can watch their replays.',
         details: [
           'Each game shows your hero, placement, fight record, rounds, length, final team and runes.',

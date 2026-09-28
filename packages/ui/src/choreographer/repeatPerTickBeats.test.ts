@@ -94,7 +94,10 @@ describe('Kringle — one ROOT trigger per tick, each its own beat', () => {
     // Reserved time, not just counted beats: more ticks → a longer End of Turn (the owner accepts this).
     expect(compiled(0).durationMs).toBeLessThan(compiled(1).durationMs);
     expect(compiled(1).durationMs).toBeLessThan(compiled(3).durationMs);
-    expect(compiled(3).durationMs - compiled(0).durationMs, 'three extra full beats').toBeGreaterThanOrEqual(3 * (mine[0]!.recoveryEndMs - mine[0]!.startMs));
+    // The extra ticks get REAL room, paced (R-REPEAT-04): the lead-in plays near-normal, so three extra ticks add
+    // at least the 70 % + 45 % lead-in beats plus the settle, never nothing.
+    const full = mine[0]!.recoveryEndMs - mine[0]!.startMs;
+    expect(compiled(3).durationMs - compiled(0).durationMs, 'three extra paced beats').toBeGreaterThanOrEqual(1.25 * full);
   });
 
   it('plays tick by tick: after the first beat the ends have gained exactly ONE +1/+2, and the whole run lands at the end', () => {

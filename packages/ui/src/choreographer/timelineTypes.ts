@@ -170,6 +170,12 @@ export interface CompiledBeat {
   family?: string;
   policyKey?: string;
   repeat?: { index: number; count: number; mode: RepeatMode };
+  /**
+   * A PACED repeat tick (End of Turn, R-REPEAT-04, `repeatPacing.ts`): `scale` is the factor its timing was
+   * shrunk by, `sharesSlot` means it starts with the previous tick (a batched slot), and only `accent` ticks
+   * play the source cue, trigger sound and ribbons. Every tick still delivers its stats. Absent = unpaced.
+   */
+  pace?: { scale: number; accent: boolean; sharesSlot: boolean };
   /** Resolved config + where each field came from, for the inspector. */
   config: ResolvedBeatConfig;
   provenance: BeatProvenance;

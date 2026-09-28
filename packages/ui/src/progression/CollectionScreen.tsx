@@ -308,7 +308,7 @@ const ItemTile = memo(function ItemTile({ id, name, rarity, owned, equipped, fre
       aria-label={`${name}${target ? `, for ${target}` : ''}, ${RARITY_LABELS[rarity]}, ${state}${fresh ? ', new' : ''}`}
       onClick={() => onPick(id)}
     >
-      {art && <img className="colls-tile-art" src={art} alt="" draggable={false} decoding="async" loading="lazy" />}
+      {art && <img className="colls-tile-art" src={art} alt="" draggable={false} decoding="sync" />}
       {target && <span className="colls-tile-for">{target}</span>}
       <span className="colls-tile-top">
         <span className="colls-gem" aria-hidden />
@@ -336,7 +336,7 @@ function DetailPanel({ item, owned, equipped, busy, error, playerName, onEquip, 
       {/* A skin's art, large (Valorant's big preview). Missing items stay blurred, like a title's name. */}
       {art && (
         <div className={`colls-skinart${item.category === 'hero_skin' ? ' hero' : ' minion'}`} aria-label="Preview">
-          <img src={art} alt="" draggable={false} decoding="async" />
+          <img src={art} alt="" draggable={false} decoding="sync" />
         </div>
       )}
       <div className="colls-plate">

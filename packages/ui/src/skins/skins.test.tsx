@@ -24,7 +24,7 @@ import { mount } from '../renderedText.mount';
 import { artFor, heroArt, skinArtKeys } from '../art';
 import { useGame } from '../store';
 import { applyServerCatalogState, resetProgressionForTests, useProgression } from '../progression/progressionStore';
-import { MinionSkins, heroPortrait, minionSkinMap, skinArtOf, useOpponentSkins } from './skins';
+import { MinionSkins, heroPortrait, internSnapshot, minionSkinMap, skinArtOf, useOpponentSkins, useRunSkins } from './skins';
 
 const m = mount(<div />);
 beforeEach(() => { resetProgressionForTests(); localStorage.clear(); useGame.setState({ showOpponentSkins: true }); });
@@ -173,6 +173,25 @@ describe('performance: resolve once per snapshot', () => {
     act(() => applyServerCatalogState({ retiredIds: ['skin_blackbelt_1'], disabledCategories: [] }));
     expect(minionSkinMap(snap)).not.toBe(before); // the kill switch re-resolves
     expect(minionSkinMap(snap).size).toBe(0);
+  });
+
+  it('a structuredClone (what every reducer dispatch produces) resolves to the SAME map and the SAME interned object', () => {
+    const snap = { heroSkinByHeroId: { albus: 'skin_albus_1' }, minionSkinByCardId: { blackbelt: 'skin_blackbelt_2' } };
+    const clone = structuredClone(snap);
+    expect(minionSkinMap(clone)).toBe(minionSkinMap(snap));
+    expect(internSnapshot(clone)).toBe(internSnapshot(snap));
+    expect(internSnapshot(null)).toBeNull();
+  });
+
+  it('the store selector is stable across dispatch clones: a shop click does not re-render a skin scope', () => {
+    useGame.setState({ run: { ...useGame.getState().run, cosmetics: { minionSkinByCardId: { blackbelt: 'skin_blackbelt_2' } } } });
+    let renders = 0;
+    function Probe(): JSX.Element { renders++; useRunSkins(); return <div />; }
+    m.render(<Probe />);
+    const before = renders;
+    act(() => useGame.setState({ run: structuredClone(useGame.getState().run) }));
+    act(() => useGame.setState({ run: structuredClone(useGame.getState().run) }));
+    expect(renders).toBe(before);
   });
 });
 

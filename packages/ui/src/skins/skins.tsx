@@ -8,9 +8,9 @@ import { playerOpponent, type LobbySeatState, type PreparedBoard } from '@game/s
 import { useGame } from '../store';
 import { mirrorFor, useProgression } from '../progression/progressionStore';
 import { currentUserId } from '../identity';
-import { MinionSkinContext, minionSkinMap } from './skinArt';
+import { MinionSkinContext, internSnapshot, minionSkinMap } from './skinArt';
 
-export { heroPortrait, minionSkinMap, skinArtOf, useMinionSkinMap, type MinionSkinMap } from './skinArt';
+export { heroPortrait, internSnapshot, minionSkinMap, skinArtOf, useMinionSkinMap, type MinionSkinMap } from './skinArt';
 
 /** Scope a subtree's minion art to one owner's skins. `snapshot` null = default art for everything inside. */
 export function MinionSkins({ snapshot, children }: { snapshot: RunCosmeticSnapshot | null | undefined; children: ReactNode }): JSX.Element {
@@ -24,20 +24,21 @@ export const useSkinEpoch = (): number => useProgression((s) => s.catalogEpoch);
 /** Your LIVE loadout (hero select, the title's Minion Book, the Collection). Null when signed out / unknown. */
 export function useLiveLoadout(): RunCosmeticSnapshot | null {
   useSkinEpoch();
-  return useProgression((s) => mirrorFor(currentUserId(), s.mirror)?.loadout ?? null);
+  return useProgression((s) => internSnapshot(mirrorFor(currentUserId(), s.mirror)?.loadout));
 }
 
 /** The skins RECORDED on the run on screen (yours; a replay shows the recorded ones). */
 export function useRunSkins(): RunCosmeticSnapshot | null {
   useSkinEpoch();
-  return useGame((s) => s.run.cosmetics ?? null);
+  // Interned: the run is cloned on every dispatch, so the raw `run.cosmetics` is a new object after every click.
+  return useGame((s) => internSnapshot(s.run.cosmetics));
 }
 
 /** An opponent's recorded skins, or null when the player has switched opponent skins off. Never used for your own. */
 export function useOpponentSkins(snapshot: RunCosmeticSnapshot | null | undefined): RunCosmeticSnapshot | null {
   useSkinEpoch();
   const show = useGame((s) => s.showOpponentSkins);
-  return show && snapshot ? snapshot : null;
+  return show && snapshot ? internSnapshot(snapshot) : null;
 }
 
 /** The non-hook form of the toggle, for render helpers that already hold the store state. */
@@ -56,8 +57,10 @@ export const seatCosmetics = (seat: Pick<LobbySeatState, 'cosmetics'> | null | u
  * sets the phase to combat over the recorded lobby, so it reads the recorded seat too.
  */
 export function useCombatFoeSkins(): RunCosmeticSnapshot | null {
-  const lobby = useGame((s) => s.run.lobby);
+  // The lobby is selected ONLY in combat: the reducer hands out a new lobby object on every dispatch, and the
+  // enemy row's host (TavernRow) must not re-render on shop clicks for a value it only reads in a fight.
   const inCombat = useGame((s) => s.run.phase === 'combat');
+  const lobby = useGame((s) => (s.run.phase === 'combat' ? s.run.lobby : undefined));
   const foe = useMemo(() => (inCombat && lobby ? playerOpponent(lobby) : null), [inCombat, lobby]);
   const cached = useRef<RunCosmeticSnapshot | null>(null);
   if (inCombat && foe) cached.current = seatCosmetics(foe.seat, foe.board);

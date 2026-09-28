@@ -34,14 +34,38 @@ export function heroPortrait(heroId: string | null | undefined, snapshot: RunCos
 
 export type MinionSkinMap = ReadonlyMap<string, string>;
 const EMPTY: MinionSkinMap = new Map();
-const mapCache = new WeakMap<object, { epoch: number; map: MinionSkinMap }>();
 
-/** The `cardId -> skin art url` map a snapshot resolves to, cached per snapshot object + catalog epoch. */
+/**
+ * CONTENT-KEYED, not identity-keyed. The reducer `structuredClone`s the whole RunState on every dispatch, so
+ * `run.cosmetics` and every seat's `cosmetics` are NEW objects after each shop click with the SAME content. Keyed
+ * by identity, every click would rebuild the map, change the context value and re-render every Card on screen.
+ * Keyed by content, a clone resolves to the map (and, through `internSnapshot`, the object) it already had.
+ * Both caches are tiny (a handful of distinct loadouts per session) and capped anyway.
+ */
+const CACHE_CAP = 256;
+const keyOf = (s: RunCosmeticSnapshot): string => JSON.stringify([s.heroSkinByHeroId ?? null, s.minionSkinByCardId ?? null]);
+const interned = new Map<string, RunCosmeticSnapshot>();
+const mapCache = new Map<string, { epoch: number; map: MinionSkinMap }>();
+
+/** One canonical object per snapshot CONTENT: a store selector that returns it is stable across clones, so a
+ *  component subscribed to `run.cosmetics` re-renders only when the skins actually change. */
+export function internSnapshot(snapshot: RunCosmeticSnapshot | null | undefined): RunCosmeticSnapshot | null {
+  if (!snapshot || typeof snapshot !== 'object') return null;
+  const k = keyOf(snapshot);
+  const hit = interned.get(k);
+  if (hit) return hit;
+  if (interned.size >= CACHE_CAP) interned.clear();
+  interned.set(k, snapshot);
+  return snapshot;
+}
+
+/** The `cardId -> skin art url` map a snapshot resolves to, cached per snapshot CONTENT + catalog epoch. */
 export function minionSkinMap(snapshot: RunCosmeticSnapshot | null | undefined): MinionSkinMap {
   const byCard = snapshot?.minionSkinByCardId;
-  if (!snapshot || !byCard) return EMPTY;
+  if (!snapshot || !byCard || typeof byCard !== 'object') return EMPTY;
   const epoch = catalogStateEpoch();
-  const hit = mapCache.get(snapshot);
+  const k = JSON.stringify(byCard);
+  const hit = mapCache.get(k);
   if (hit && hit.epoch === epoch) return hit.map;
   const m = new Map<string, string>();
   for (const cardId of Object.keys(byCard)) {
@@ -49,7 +73,8 @@ export function minionSkinMap(snapshot: RunCosmeticSnapshot | null | undefined):
     if (url) m.set(cardId, url);
   }
   const map = m.size ? m : EMPTY;
-  mapCache.set(snapshot, { epoch, map });
+  if (mapCache.size >= CACHE_CAP) mapCache.clear();
+  mapCache.set(k, { epoch, map });
   return map;
 }
 

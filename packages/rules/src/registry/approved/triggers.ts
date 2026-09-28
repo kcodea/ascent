@@ -457,6 +457,40 @@ export const TRIGGERS_RULES: GameRule[] = [
     },
   },
   {
+    id: 'R-REPEAT-04',
+    title: 'A repeating End-of-Turn effect ACCELERATES: every repeat keeps its own tick, the whole chain is capped',
+    statement:
+      'An End-of-Turn effect that repeats (a "Repeat for every ..." tick of Kringle, Striker, Mother Moss, Rope Wrangler '
+      + 'or Rune of Action, and any Chronos or rune repeat of an End-of-Turn trigger) still plays every repeat as its own '
+      + 'tick and beat (R-REPEAT-01), but the chain speeds up: the first three ticks play near-normal (100%, 70% and 45% '
+      + 'of the beat), the next shrink quickly to a floor of about one frame, and once the count outruns the cap several '
+      + 'ticks share one visual slot. The whole chain for one source never takes longer than 2.5 seconds, whatever the '
+      + 'count, and the last tick holds briefly so the final number reads. The stats update as each tick (or slot) lands '
+      + 'and finish on the exact committed values. Only accent ticks (the lead-in, the final tick, and slot starts at least '
+      + '130 ms apart) play the trigger sound, the source cue and the buff ribbons, so a long chain never becomes a wall of '
+      + 'noise. A plain effect and a Chronos double keep their full pace. Presentation only: no outcome changes.',
+    domain: 'triggers',
+    status: 'approved',
+    evidence: [
+      {
+        kind: 'owner-chat',
+        ref: 'Claude Code session, 2026-09-27 (Kringle x106 End of Turn)',
+        quote: 'kringle and other end of turn effects that REPEAT, need to go extremely fast, this is going to take me minutes to finish.',
+      },
+      { kind: 'code', ref: 'packages/ui/src/choreographer/repeatPacing.ts repeatChainSchedule; packages/ui/src/choreographer/compileTimeline.ts repeatPaceOf; packages/ui/src/Recruit.tsx QUIET_TICK_SKIPS' },
+    ],
+    contentIds: ['dw_foreman', 'dw3_striker', 'sp3_nurturer'],
+    currentBehaviour:
+      'Conforms as of 2026-09-27. Before the fix every tick played a full own beat (120 / 540 / 170 ms), so Kringle at '
+      + 'x106 (107 ticks) took about 76 seconds of End of Turn. The paced chain takes about 2.5 seconds (27 visual '
+      + 'slots, 9 accents) and still delivers all 107 ticks.',
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/ui/src/choreographer/fastRepeatPacing.test.ts', 'packages/ui/src/choreographer/repeatPerTickBeats.test.ts'],
+      lastVerifiedAt: '2026-09-27',
+    },
+  },
+  {
     id: 'R-SHOPSPELL-01',
     title: '"When you cast a Shop spell" (Goldilox) hears a Shop-pool spell from any source, in any phase, on the board and in the hand',
     statement:

@@ -1,0 +1,566 @@
+<title>Ascent Quiz #47</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #f6f4ef;
+    --panel: #ffffff;
+    --panel-raised: #fbfaf7;
+    --ink: #1c2026;
+    --muted: #6b7078;
+    --faint: #9aa0a8;
+    --border: #e3e0d8;
+    --accent: #2f6f5e;
+    --accent-ink: #ffffff;
+    --accent-soft: #e4efe9;
+    --wrong: #b1462e;
+    --wrong-soft: #f6e6e0;
+    --correct: #2f6f5e;
+    --correct-soft: #e4efe9;
+    --shadow: 0 1px 2px rgba(28,32,38,0.04), 0 8px 24px rgba(28,32,38,0.06);
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #14171c;
+      --panel: #1a1e25;
+      --panel-raised: #1f242c;
+      --ink: #e9e7e1;
+      --muted: #9aa1ac;
+      --faint: #6d7480;
+      --border: #2b3038;
+      --accent: #7fd6b8;
+      --accent-ink: #0f1512;
+      --accent-soft: #1e2c28;
+      --wrong: #ff9270;
+      --wrong-soft: #2e2019;
+      --correct: #7fd6b8;
+      --correct-soft: #1e2c28;
+      --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 8px 24px rgba(0,0,0,0.35);
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #14171c;
+    --panel: #1a1e25;
+    --panel-raised: #1f242c;
+    --ink: #e9e7e1;
+    --muted: #9aa1ac;
+    --faint: #6d7480;
+    --border: #2b3038;
+    --accent: #7fd6b8;
+    --accent-ink: #0f1512;
+    --accent-soft: #1e2c28;
+    --wrong: #ff9270;
+    --wrong-soft: #2e2019;
+    --correct: #7fd6b8;
+    --correct-soft: #1e2c28;
+    --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 8px 24px rgba(0,0,0,0.35);
+    color-scheme: dark;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: 'IBM Plex Sans', system-ui, sans-serif;
+    padding-inline: 16px;
+    padding-block: 28px;
+    display: flex;
+    justify-content: center;
+  }
+  .wrap { width: 100%; max-width: 620px; }
+
+  .masthead {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 18px;
+    flex-wrap: wrap;
+  }
+  .masthead h1 {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 1.05rem;
+    font-weight: 600;
+    margin: 0;
+    letter-spacing: -0.01em;
+  }
+  .masthead h1 .dim { color: var(--muted); font-weight: 500; }
+  .masthead .tag {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.72rem;
+    color: var(--muted);
+    background: var(--panel-raised);
+    border: 1px solid var(--border);
+    padding: 3px 8px;
+    border-radius: 999px;
+  }
+
+  .console {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    box-shadow: var(--shadow);
+    overflow: hidden;
+  }
+  .titlebar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border);
+    background: var(--panel-raised);
+  }
+  .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--border); }
+  .dot:nth-child(1) { background: #e0625a; }
+  .dot:nth-child(2) { background: #e0b25a; }
+  .dot:nth-child(3) { background: #5ea87f; }
+  .titlebar .path {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.74rem;
+    color: var(--muted);
+    margin-left: 6px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .progressbar {
+    height: 4px;
+    background: var(--border);
+    position: relative;
+  }
+  .progressbar > i {
+    display: block;
+    height: 100%;
+    width: 0%;
+    background: var(--accent);
+    transition: width 0.35s ease;
+  }
+
+  .body-pad { padding: 22px 22px 24px; }
+
+  .qmeta {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.75rem;
+    color: var(--muted);
+    margin-bottom: 10px;
+  }
+  .qmeta .score { color: var(--ink); font-weight: 500; }
+
+  .question {
+    font-size: 1.14rem;
+    line-height: 1.5;
+    font-weight: 500;
+    margin: 0 0 18px;
+    text-wrap: balance;
+  }
+
+  .choices { display: flex; flex-direction: column; gap: 9px; }
+  .choice {
+    display: flex;
+    align-items: flex-start;
+    gap: 11px;
+    width: 100%;
+    text-align: left;
+    background: var(--panel-raised);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 11px 13px;
+    font-family: 'IBM Plex Sans', system-ui, sans-serif;
+    font-size: 0.94rem;
+    line-height: 1.45;
+    color: var(--ink);
+    cursor: url('data:image/svg+xml;utf8,') , pointer;
+    transition: border-color 0.15s ease, background 0.15s ease, transform 0.1s ease;
+  }
+  .choice:hover:not(:disabled) { border-color: var(--accent); }
+  .choice:active:not(:disabled) { transform: scale(0.997); }
+  .choice:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .choice .letter {
+    font-family: 'IBM Plex Mono', monospace;
+    font-weight: 600;
+    font-size: 0.82rem;
+    color: var(--muted);
+    border: 1px solid var(--border);
+    background: var(--panel);
+    width: 22px;
+    height: 22px;
+    min-width: 22px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-top: 1px;
+  }
+  .choice.correct { background: var(--correct-soft); border-color: var(--correct); }
+  .choice.correct .letter { background: var(--correct); border-color: var(--correct); color: var(--accent-ink); }
+  .choice.wrong { background: var(--wrong-soft); border-color: var(--wrong); }
+  .choice.wrong .letter { background: var(--wrong); border-color: var(--wrong); color: #fff; }
+  .choice:disabled { cursor: default; }
+  .choice:disabled:not(.correct):not(.wrong) { opacity: 0.55; }
+
+  .explain {
+    margin-top: 16px;
+    padding: 14px 15px;
+    background: var(--accent-soft);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    font-size: 0.9rem;
+    line-height: 1.55;
+    color: var(--ink);
+    display: none;
+  }
+  .explain.show { display: block; animation: fade-in 0.25s ease; }
+  .explain .verdict {
+    font-family: 'IBM Plex Mono', monospace;
+    font-weight: 600;
+    font-size: 0.78rem;
+    letter-spacing: 0.02em;
+    display: block;
+    margin-bottom: 6px;
+  }
+  .explain.correct-tone .verdict { color: var(--correct); }
+  .explain.wrong-tone .verdict { color: var(--wrong); }
+  .explain code {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.86em;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 1px 5px;
+  }
+
+  @keyframes fade-in { from { opacity: 0; transform: translateY(-3px); } to { opacity: 1; transform: translateY(0); } }
+
+  .footer-row {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 18px;
+  }
+  .next-btn {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.86rem;
+    font-weight: 600;
+    background: var(--accent);
+    color: var(--accent-ink);
+    border: none;
+    border-radius: 8px;
+    padding: 10px 18px;
+    cursor: url('data:image/svg+xml;utf8,'), pointer;
+    display: none;
+    align-items: center;
+    gap: 6px;
+  }
+  .next-btn.show { display: inline-flex; }
+  .next-btn:hover { filter: brightness(1.06); }
+  .next-btn:active { transform: scale(0.98); }
+
+  .final { text-align: center; padding: 10px 4px 6px; }
+  .final .tally {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 2.6rem;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    margin: 6px 0 4px;
+  }
+  .final .tally .of { color: var(--muted); font-weight: 500; font-size: 1.6rem; }
+  .final .headline { font-size: 1.05rem; font-weight: 600; margin: 0 0 6px; }
+  .final .sub { color: var(--muted); font-size: 0.92rem; line-height: 1.55; max-width: 40ch; margin: 0 auto 20px; }
+  .final .recap {
+    text-align: left;
+    border-top: 1px solid var(--border);
+    padding-top: 16px;
+    margin-top: 6px;
+    display: flex;
+    flex-direction: column;
+    gap: 9px;
+  }
+  .recap-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 0.86rem;
+  }
+  .recap-row .badge {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.68rem;
+    font-weight: 700;
+    width: 20px;
+    height: 20px;
+    min-width: 20px;
+    border-radius: 5px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .recap-row .badge.ok { background: var(--correct-soft); color: var(--correct); }
+  .recap-row .badge.no { background: var(--wrong-soft); color: var(--wrong); }
+  .recap-row .topic { color: var(--muted); font-family: 'IBM Plex Mono', monospace; font-size: 0.78rem; }
+
+  .reply-note {
+    margin-top: 18px;
+    padding: 13px 14px;
+    background: var(--panel-raised);
+    border: 1px dashed var(--border);
+    border-radius: 10px;
+    font-size: 0.83rem;
+    color: var(--muted);
+    line-height: 1.5;
+  }
+
+  .hint {
+    text-align: center;
+    font-size: 0.76rem;
+    color: var(--faint);
+    margin-top: 14px;
+    font-family: 'IBM Plex Mono', monospace;
+  }
+</style>
+
+<div class="wrap">
+  <div class="masthead">
+    <h1>Ascent Quiz <span class="dim">#47</span></h1>
+    <span class="tag">Sep 28, 2026 · architecture</span>
+  </div>
+
+  <div class="console">
+    <div class="titlebar">
+      <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+      <span class="path" id="titlePath">docs/quiz/archive/2026-09-28.html</span>
+    </div>
+    <div class="progressbar"><i id="progressFill"></i></div>
+    <div class="body-pad" id="quizRoot"></div>
+  </div>
+
+  <p class="hint">10 questions · one at a time · no build step, just click</p>
+</div>
+
+<script>
+(function () {
+  var QUESTIONS = [
+    {
+      topicId: "reducer-run-state",
+      question: "packages/sim/src/reducer.ts holds Ascent's reducer. In plain terms, what job does a “reducer” do?",
+      choices: [
+        "It takes the current run state plus an action (like “buy this card”) and computes the next run state",
+        "It renders the shop and combat screens to the browser",
+        "It shrinks the save file so runs take less disk space",
+        "It generates the random numbers combat uses"
+      ],
+      answer: 0,
+      explanation: "A reducer is a plain function shaped like <code>(state, action) → newState</code>. <code>reducer.ts</code> takes Mike's <code>RunState</code> and an <code>Action</code> and figures out what comes next — it never touches the DOM, so it isn't rendering (that's <code>packages/ui</code>). And it's not the RNG either — that lives in <code>packages/core/src/rng.ts</code> and gets threaded in as a value, not generated inside the reducer."
+    },
+    {
+      topicId: "zustand-store",
+      question: "packages/ui/src/store.ts is built with Zustand. What is Zustand, at a beginner level?",
+      choices: [
+        "A tiny library for holding state (data) that any React component can read or update, outside the component tree",
+        "The list of every card in the game",
+        "The seeded random number generator the sim uses",
+        "A tool that checks the code for bugs before it ships"
+      ],
+      answer: 0,
+      explanation: "Zustand is a small state-management library: <code>create(...)</code> builds a “store” that holds presentation-side data (like which screen is open), and any component can subscribe to it without passing props down through every layer. It's UI-only state — separate from the sim's <code>RunState</code>, which is why store.ts imports run-state types from <code>@game/sim</code> rather than owning them."
+    },
+    {
+      topicId: "event-bus",
+      question: "packages/core/src/events.ts defines a small CombatBus with <code>on(event, handler)</code> and <code>emit(event, payload)</code>. What does <code>emit</code> actually do?",
+      choices: [
+        "Calls every handler that previously registered for that event, one after another",
+        "Sends the event across the network to the other seat's player",
+        "Deletes the event so the same thing can't trigger twice",
+        "Pauses the whole simulation until the UI finishes animating"
+      ],
+      answer: 0,
+      explanation: "It's a classic pub-sub pattern: minions' effects call <code>bus.on('death', ...)</code> to register interest, and the simulator calls <code>bus.emit('death', payload)</code> when it happens — which just loops over the registered handlers and calls each one. It's local and synchronous, nothing goes over a network (fitting, since Ascent is asynchronous — seats never need to be online together), and it doesn't pause anything; the UI replays the resulting event log later, on its own clock."
+    },
+    {
+      topicId: "cards-in-sets",
+      question: "packages/content/src/sets.ts groups cards into SETS (like Set 1, Set 2). What is a “set,” architecturally?",
+      choices: [
+        "The pool of cards a run is allowed to draw from, chosen once when the run is created and read from then on",
+        "The number of combat rounds a run will play before it ends",
+        "Just a folder for organizing files, with no effect on what happens in a run",
+        "The specific 7 cards currently sitting on the player's board"
+      ],
+      answer: 0,
+      explanation: "A run “pins” its set at creation and reads it forever after via <code>poolOf(state)</code> — so flipping which set is active live (like a rift) never changes an in-flight or replayed run. It's not just folder organization: which set you're in changes which cards can actually appear in your shop. And it's unrelated to the board (your 7 slots) or to round count."
+    },
+    {
+      topicId: "package-boundaries",
+      question: "CLAUDE.md says <code>packages/ui</code> may depend on the other packages “through public package entrypoints only.” What does that mean in practice?",
+      choices: [
+        "The UI should import from a package's index file (its public exports), never reach into an internal file like <code>packages/core/src/combat/simulate.ts</code> directly",
+        "The UI package is not allowed to import anything from <code>@game/core</code>",
+        "Only one developer is allowed to edit <code>packages/ui</code> at a time",
+        "The UI has to fetch <code>@game/core</code>'s code over a network API at runtime"
+      ],
+      answer: 0,
+      explanation: "Each package (like <code>@game/core</code>) exposes an <code>index.ts</code> that re-exports its public surface — that's the “entrypoint.” Importing a deep internal path instead means the UI now depends on core's private file layout, so a harmless internal refactor in core can silently break the UI. The rule isn't “no imports at all” — <code>ui</code> genuinely depends on <code>core</code>, <code>content</code>, and <code>sim</code>; it just has to go through the front door."
+    },
+    {
+      topicId: "effects-as-subscriptions",
+      question: "CLAUDE.md: “Cards are data + effect subscriptions, never bespoke classes.” What does that mean for how a new card gets built?",
+      choices: [
+        "A card is a data object (stats, text, etc.) that points at a reusable effect — like “battlecry: dealDamage” — instead of being its own hand-written class of custom code",
+        "Every new card must be written as its own JavaScript <code>class</code>",
+        "Cards randomly subscribe to a different effect each time they're drawn",
+        "“Subscription” means the card only works while a live event is happening"
+      ],
+      answer: 0,
+      explanation: "Most new cards are pure data validated by a zod schema in <code>packages/content/src/schema.ts</code>, which points at a small whitelist of reusable effect factories (<code>EffectFactoryIdSchema</code>) rather than each card writing its own bespoke logic class. A genuinely new effect shape means adding a new factory (and whitelisting it) — the card itself still stays data. This keeps hundreds of cards manageable without hundreds of one-off classes."
+    },
+    {
+      topicId: "effect-timing-pipeline",
+      question: "CLAUDE.md splits card effects into “recruit-phase” (Battlecry, buff-on-summon) versus “combat-time” (Start-of-Combat, Deathrattle). When does a Battlecry's stat bonus actually get applied?",
+      choices: [
+        "Before combat even starts — it's baked directly into the minion's stats during the recruit/shop phase",
+        "Live, during combat, the instant the minion is targeted",
+        "Only at the very end of the whole run, when placement is scored",
+        "Never — Battlecries are flavor text and don't change anything numerically"
+      ],
+      answer: 0,
+      explanation: "Recruit-phase effects (Battlecry/Shout, buffs, consumes) run and “bake” into a minion's stats before the fight starts. The combat simulator itself only runs combat-time effects — Start-of-Combat, Deathrattle/Echo, on-shield-break, on-kill — and emits log events for them. That split is *why* the two phases live in different code paths: recruit logic in <code>packages/sim</code>, combat-time logic inside <code>simulate()</code> in <code>packages/core</code>."
+    },
+    {
+      topicId: "testing-vitest",
+      question: "<code>npm test</code> runs Vitest, including “determinism” tests. Roughly, what is a determinism test checking?",
+      choices: [
+        "That running the same simulation with the same seed produces the exact same output, every single time",
+        "That the game renders at a steady 60 frames per second",
+        "That every card is listed in docs/CONTENT.md",
+        "That no single test file takes longer than one second to run"
+      ],
+      answer: 0,
+      explanation: "Because Ascent's sim is deterministic (one seeded RNG, <code>Math.random</code> banned in core/content/sim), the same inputs must always produce the same events and outcome — a determinism test runs <code>simulate()</code> twice with the same seed and asserts the results match bit-for-bit. That's what makes replays and shareable seeds trustworthy. It's not about frame rate (that's a rendering concern, not a sim-correctness one) or documentation completeness."
+    },
+    {
+      topicId: "types-basics",
+      question: "packages/core/src/types.ts defines <code>CombatEvent</code> as a big union: <code>{type:'attack',...} | {type:'death',...} | {type:'summon',...} | ...</code>. In plain terms, what is a TypeScript “union type”?",
+      choices: [
+        "A value that must match exactly one of several listed shapes — a <code>CombatEvent</code> is an 'attack' event OR a 'death' event OR ... and nothing outside that list",
+        "A type that merges two unrelated variables into a single variable to save memory",
+        "A special kind of array that can only ever hold one item",
+        "A function that adds (“unions”) two numbers together"
+      ],
+      answer: 0,
+      explanation: "The <code>|</code> symbol between each <code>{ type: '...' }</code> object means “or” — any real <code>CombatEvent</code> value has to be one of those listed shapes. This is genuinely useful here: it makes the union the single source of truth for every kind of thing that can happen in a fight, so if the UI forgets to handle one event type, TypeScript can flag it. It has nothing to do with merging variables, arrays, or arithmetic."
+    },
+    {
+      topicId: "immutability",
+      question: "reducer.ts deep-clones most of the run state on every dispatch, but a comment explains it deliberately keeps <code>lastCombat</code> shared by reference instead of cloning it. Why is that safe to do?",
+      choices: [
+        "<code>lastCombat</code> is a large, already-finished result that nothing mutates afterward, so cloning it every action would just be wasted work — a performance call, not a correctness risk",
+        "Because the UI needs to mutate <code>lastCombat</code> in place as the fight plays out on screen",
+        "Because cloning an object is a TypeScript syntax error",
+        "Because the seeded RNG requires <code>lastCombat</code> to stay the exact same object for security reasons"
+      ],
+      answer: 0,
+      explanation: "The rule “never mutate shared data” exists to prevent hard-to-trace bugs — but it only matters for things that might actually change later. <code>lastCombat</code> is a read-only record of a fight that already happened, so skipping the clone can't cause a mutation bug, and it avoids deep-copying a whole event log + board snapshot on every single dispatch. That's the general lesson: immutability protects you from mutation, so once you're sure nothing will mutate a value, copying it is pure overhead."
+    }
+  ];
+
+  var current = 0;
+  var score = 0;
+  var answered = new Array(QUESTIONS.length).fill(null); // stores chosen index or null
+
+  var root = document.getElementById('quizRoot');
+  var fill = document.getElementById('progressFill');
+
+  function letter(i) { return String.fromCharCode(65 + i); }
+
+  function render() {
+    if (current >= QUESTIONS.length) { renderFinal(); return; }
+    var q = QUESTIONS[current];
+    fill.style.width = (current / QUESTIONS.length * 100) + '%';
+
+    var html = '';
+    html += '<div class="qmeta"><span>Question ' + (current + 1) + ' / ' + QUESTIONS.length + '</span><span class="score">Score: ' + score + '</span></div>';
+    html += '<p class="question">' + q.question + '</p>';
+    html += '<div class="choices" id="choicesRow">';
+    for (var i = 0; i < q.choices.length; i++) {
+      html += '<button class="choice" data-i="' + i + '"><span class="letter">' + letter(i) + '</span><span>' + q.choices[i] + '</span></button>';
+    }
+    html += '</div>';
+    html += '<div class="explain" id="explainBox"></div>';
+    html += '<div class="footer-row"><button class="next-btn" id="nextBtn">' + (current === QUESTIONS.length - 1 ? 'See results →' : 'Next question →') + '</button></div>';
+    root.innerHTML = html;
+
+    var prior = answered[current];
+    if (prior !== null) {
+      lockChoices(prior, false);
+    } else {
+      var buttons = root.querySelectorAll('.choice');
+      for (var j = 0; j < buttons.length; j++) {
+        buttons[j].addEventListener('click', function () {
+          var idx = parseInt(this.getAttribute('data-i'), 10);
+          selectAnswer(idx);
+        });
+      }
+    }
+  }
+
+  function selectAnswer(idx) {
+    var q = QUESTIONS[current];
+    if (answered[current] !== null) return;
+    answered[current] = idx;
+    if (idx === q.answer) score++;
+    lockChoices(idx, true);
+  }
+
+  function lockChoices(chosenIdx, animate) {
+    var q = QUESTIONS[current];
+    var buttons = root.querySelectorAll('.choice');
+    for (var i = 0; i < buttons.length; i++) {
+      buttons[i].disabled = true;
+      if (i === q.answer) buttons[i].classList.add('correct');
+      else if (i === chosenIdx) buttons[i].classList.add('wrong');
+    }
+    var box = document.getElementById('explainBox');
+    var wasRight = chosenIdx === q.answer;
+    box.className = 'explain show ' + (wasRight ? 'correct-tone' : 'wrong-tone');
+    box.innerHTML = '<span class="verdict">' + (wasRight ? '✓ correct' : '✗ not quite — ' + letter(q.answer) + ' was it') + '</span>' + q.explanation;
+    document.getElementById('nextBtn').classList.add('show');
+    document.getElementById('nextBtn').addEventListener('click', goNext);
+    var meta = root.querySelector('.qmeta .score');
+    if (meta) meta.textContent = 'Score: ' + score;
+  }
+
+  function goNext() {
+    current++;
+    render();
+  }
+
+  function renderFinal() {
+    fill.style.width = '100%';
+    var pct = Math.round(score / QUESTIONS.length * 100);
+    var headline, sub;
+    if (pct === 100) { headline = "Clean sweep."; sub = "Every question landed — the architecture is sticking. Tomorrow ramps a notch."; }
+    else if (pct >= 80) { headline = "Strong run."; sub = "That's a solid grip on how these pieces fit together. A couple more days like this and difficulty starts climbing."; }
+    else if (pct >= 50) { headline = "Real progress."; sub = "More than half stuck — the misses are exactly what tomorrow's quiz will circle back to."; }
+    else { headline = "That's the hard part done."; sub = "First exposure to new ideas is always the roughest pass. Reply with which ones tripped you up and they'll get re-taught from a fresh angle."; }
+
+    var html = '<div class="final">';
+    html += '<div class="tally">' + score + '<span class="of"> / ' + QUESTIONS.length + '</span></div>';
+    html += '<p class="headline">' + headline + '</p>';
+    html += '<p class="sub">' + sub + '</p>';
+    html += '<div class="recap">';
+    for (var i = 0; i < QUESTIONS.length; i++) {
+      var ok = answered[i] === QUESTIONS[i].answer;
+      html += '<div class="recap-row"><span class="badge ' + (ok ? 'ok' : 'no') + '">' + (ok ? '✓' : '✗') + '</span><span class="topic">' + QUESTIONS[i].topicId + '</span></div>';
+    }
+    html += '</div>';
+    html += '<div class="reply-note">Reply in chat with your score (e.g. “' + score + '/10, missed the reducer one”) so tomorrow’s quiz adapts — topics you missed get re-taught, topics you’ve got down move on.</div>';
+    html += '</div>';
+    root.innerHTML = html;
+  }
+
+  render();
+})();
+</script>

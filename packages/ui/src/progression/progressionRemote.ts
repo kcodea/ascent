@@ -17,7 +17,7 @@
 import {
   COSMETIC_INDEX, parseServerCatalogState, type ServerCatalogState, type SkinSlot, PROGRESSION_RULES_VERSION, TUTORIAL_COURSE_ID, TUTORIAL_COURSE_VERSION, parseCrate, parseOpenCrateResult, parseProgressionProfile,
   parseProgressionResult, type CrateRow, type OpenCrateResult, type ProgressionMode, type ProgressionProfile, type ProgressionResult,
-  type ProgressionRunFactsV1,
+  type ProgressionRunFacts, factsAsV1,
 } from '@game/progression';
 import { currentUserId } from '../identity';
 import { supabaseClient } from '../remoteBoards';
@@ -37,7 +37,7 @@ export interface ProgressionSubmitRequest {
   courseId?: string;
   courseVersion?: number;
   /** The run's fact document, stored with the ledger row for audit. */
-  facts?: ProgressionRunFactsV1 | null;
+  facts?: ProgressionRunFacts | null;
 }
 
 export type ProgressionSubmitOutcome =
@@ -45,9 +45,16 @@ export type ProgressionSubmitOutcome =
   | { status: 'retryable'; reason: string }
   | { status: 'rejected'; reason: string };
 
-/** Build the request for one finished run's facts (tutorial requests carry the course pin instead). */
-export function progressionRequestFor(facts: ProgressionRunFactsV1, sourceId?: number): ProgressionSubmitRequest {
-  const base = { mode: facts.mode, runId: facts.runId, rulesVersion: PROGRESSION_RULES_VERSION, facts };
+/**
+ * Build the request for one finished run's facts (tutorial requests carry the course pin instead).
+ *
+ * ACHIEVEMENTS (2026-09-28): the facts go up as V2 (with the run metrics) ONLY when `withMetrics` says the server
+ * evaluates achievements (the owner has set the achievements epoch, which follows the Edge Function deploy). Any
+ * other time they go up as V1: a server from before achievements refuses a V2 document as `bad_facts`, which the
+ * queue would treat as permanent, and the game's XP would be lost.
+ */
+export function progressionRequestFor(facts: ProgressionRunFacts, sourceId?: number, withMetrics = false): ProgressionSubmitRequest {
+  const base = { mode: facts.mode, runId: facts.runId, rulesVersion: PROGRESSION_RULES_VERSION, facts: withMetrics ? facts : factsAsV1(facts) };
   if (facts.mode === 'tutorial') return { ...base, courseId: TUTORIAL_COURSE_ID, courseVersion: TUTORIAL_COURSE_VERSION };
   return { ...base, comeback: facts.comebackAfterFourLosses, ...(facts.mode === 'practice' && sourceId != null ? { sourceId } : {}) };
 }

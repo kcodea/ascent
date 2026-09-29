@@ -572,7 +572,7 @@ export const ENTRIES: readonly WikiEntry[] = [
     id: 'spend-what-counts',
     topic: 'keywords',
     q: 'What counts as spending Gold?',
-    a: "Pretty much anything that costs Gold: **buying, refreshing, leveling up your tavern, hero powers**, and so on. Free refreshes don't count, since no Gold actually gets spent.",
+    a: "Pretty much anything that costs Gold: **buying, refreshing, leveling up your tavern, hero powers, runes and using Equipment**. Free refreshes don't count, since no Gold actually gets spent.",
     aliases: ['spend refresh', 'spend tier up', 'spend hero power', 'free refresh', 'gold spent', 'spend', 'spending', 'gold spent this turn', 'spent gold'],
     seeAlso: ['spend', 'refresh-and-freeze-buttons', 'tavern-up-button'],
     covers: [{ keyword: 'spend', fp: '750b1bee' }],

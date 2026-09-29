@@ -1686,7 +1686,7 @@ export const FOUNDATION_RULES: GameRule[] = [
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-27 (account progression MVP brief)', quote: 'Anonymous players: they ACCUMULATE XP from their first game' },
       { kind: 'code', ref: 'settle_progression c_alpha_title / c_alpha_level in supabase/migrations/2026-09-27-account-progression.sql; packages/progression/src/rules.ts TITLES; packages/ui/src/progression/ProgressionPostgame.tsx; packages/ui/src/progression/AccountLevel.tsx' },
     ],
-    currentBehaviour: 'Conforms, built 2026-09-27. Lobby name plates do not show titles yet (Career only).',
+    currentBehaviour: 'Conforms, built 2026-09-27. Where titles show (review surfaces only, never in game) is R-PROG-TITLE-02.',
     enforcement: { kind: 'scenario', refs: ['packages/progression/src/sqlParity.test.ts', 'packages/progression/src/rules.test.ts', 'packages/ui/src/progression/ProgressionPostgame.test.tsx', 'packages/ui/src/Career.test.tsx'], lastVerifiedAt: '2026-09-27' },
   },
   {
@@ -2279,5 +2279,29 @@ export const FOUNDATION_RULES: GameRule[] = [
     ],
     currentBehaviour: 'Conforms, built 2026-09-28. The item reaches the database on the next deploy of progression-inventory (the catalog sync); the equip SQL already accepts the hero_attack slot.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/heroEnraged/heroEnraged.test.ts', 'packages/progression/src/cosmetics.test.ts', 'packages/ui/src/progression/CollectionHeroAttack.test.tsx'], lastVerifiedAt: '2026-09-28' },
+  },
+  {
+    id: 'R-PROG-TITLE-02',
+    title: 'The equipped title is RECORDED with the run and shows on out-of-game review surfaces only (Leaderboard, Hall, Match details, Career), never in game',
+    statement:
+      'The equipped title (profiles.equipped_title_id) is recorded in the run\'s cosmetic snapshot at run start (title), like '
+      + 'skins and the hero attack, and rides every captured board, the snapshot seats and replay frames, so a review '
+      + 'surface can show the title another player wore in THAT run. Only a live catalog title is recorded or shown; an '
+      + 'unknown, retired or non-title id shows nothing; a snapshot from before titles has none; bots and generated seats '
+      + 'have none. Titles show ONLY on out-of-game review surfaces: the Leaderboard rows (the player\'s equipped title, read '
+      + 'in the same profiles select), the Hall of Champions rows (the title recorded with that run), Match details and the '
+      + 'Career. No surface of a live run or a replay\'s gameplay view shows one (the lobby rail, the combat plates, Now '
+      + 'Facing, your hero). Another player\'s title follows "Show opponent cosmetics" (off hides it; your own always shows '
+      + 'where one can be identified). One component (TitleBadge) paints every title: its rarity colour today, a custom '
+      + 'gradient and optional transform-only shimmer keyed by title id later.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-28 (titles in game)', quote: 'it\x27d be cool to show them where possible' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-28 (titles review on 5174)', quote: 'i think it should show in like leaderboard/match details views, but it looks bad in game' },
+      { kind: 'code', ref: 'packages/progression/src/cosmetics.ts (RunCosmeticSnapshot.title, titleOf, withEquippedTitle, snapshotForRun); packages/sim/src/snapshot.ts (scopeCosmetics); packages/sim/src/lobby/snapshotSeats.ts; packages/ui/src/store.ts (recordRunCosmetics); packages/ui/src/titles/ (TitleBadge, titleStyle); packages/ui/src/Rankings.tsx; packages/ui/src/Leaderboard.tsx' },
+    ],
+    currentBehaviour: 'Conforms, built 2026-09-28. Match details rows (PR #1806) are wired as a follow-up once that panel lands.',
+    enforcement: { kind: 'scenario', refs: ['packages/progression/src/titles.test.ts', 'packages/sim/src/lobby/seatCosmetics.test.ts', 'packages/ui/src/titles/titles.test.tsx'], lastVerifiedAt: '2026-09-28' },
   },
 ];

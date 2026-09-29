@@ -262,6 +262,12 @@ progression **epoch**; nothing finished before the epoch counts (no backfill).
   back exactly as it was. An unknown id never crashes anything.
 - **Titles.** The Collection lists the titles you own and lets you equip one (or none); the server checks
   ownership. The equipped title and the owned titles are public (Career); crates are private.
+- **Where titles show (2026-09-28, R-PROG-TITLE-02).** The equipped title is recorded with each run (the run's
+  cosmetic snapshot, like skins), so history can show the title a player wore in THAT run. Titles show only on
+  out-of-game review surfaces, in their rarity colour: the Leaderboard rows (the player's equipped title), the Hall of
+  Champions rows (the title recorded with that run), Match details and the Career. They never show during a live run
+  or a replay's gameplay view (owner review: "it looks bad in game"). Another player's title follows **Show opponent
+  cosmetics**. An unknown or retired title shows nothing; bots and generated seats have none.
 - **The Collection layout (2026-09-28).** An album: category tabs (Heroes, Minions and Titles live, the rest locked as coming soon; it opens on Titles),
   Show (All / Owned / Missing) and Rarity filters with counts, and every item of the category, owned or not
   (missing ones dimmed, rarity still shown; the equipped one ribboned). Selecting an item shows it large with how

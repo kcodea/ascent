@@ -55,6 +55,17 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: 'Titles now show on the Leaderboard and the Hall of Champions, in their rarity colours.',
+        details: [
+          'The Leaderboard shows the title each player has equipped.',
+          'The Hall of Champions shows the title a player wore in that run.',
+          'Your game remembers the title you wore in each run, so Match details can show it too.',
+          'Titles never show during a game. Combat and the lobby stay clean.',
+          'Turning off Show opponent cosmetics hides other players\' titles.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'A new Legendary hero attack, Enraged Strike, can drop from crates.',
         details: [
           'It is the Classic lunge, enraged. Your damage builds up, then your hero burns with rage, dashes in leaving afterimages, and tears into the other hero.',

@@ -87,6 +87,12 @@ import { playHeroHoly } from './heroHoly/heroHoly';
 import { heroHolyPreviewSpeed } from './heroHoly/heroHolyConfig';
 import { playHeroFire } from './heroFire/heroFire';
 import { heroFirePreviewSpeed } from './heroFire/heroFireConfig';
+import { playHeroUndead } from './heroUndead/heroUndead';
+import { heroUndeadPreviewSpeed } from './heroUndead/heroUndeadConfig';
+import { playHeroBeast } from './heroBeast/heroBeast';
+import { heroBeastPreviewSpeed } from './heroBeast/heroBeastConfig';
+import { playHeroBanana } from './heroBanana/heroBanana';
+import { heroBananaPreviewSpeed } from './heroBanana/heroBananaConfig';
 import { playHeroCoin } from './heroCoin/heroCoin';
 import { heroCoinPreviewSpeed } from './heroCoin/heroCoinConfig';
 import { playHeroBoomerang } from './heroBoomerang/heroBoomerang';
@@ -2925,11 +2931,14 @@ export function Recruit() {
     // crystallise and fire, and the top tier rolls a frost nova across the screen that encases and shatters; Consecration:
     // a pillar of light smites, and the top tier drops a holy sword that explodes into light and fires a flat consecrated
     // blast at the target; Inferno: fireballs of live fire are hurled, and the top tier calls down a meteor that detonates
-    // and engulfs the target; the Rares, two tiers each: Pocket Change flicks a coin that pings and ricochets, Come Back
-    // Around throws a boomerang that thwacks and is caught, Bubble Trouble pops a bubble round the face, and Shadow Step
-    // fades the striker into smoke and stabs from behind). Same blow, same consequence, only drawn differently; the style
-    // is the ATTACKER's (their equipped cosmetic, or the dev override). Every runner takes the same options
-    // (`heroAttack/options.ts`).
+    // and engulfs the target; Grave Call: shrieking skulls bite, and the top tier tears a grave rift that a giant skull maw
+    // rises out of to chomp the target; Stampede: spirit beasts leap in and front jaws chomp shut on the target, and
+    // the top tier raises a colossal beast whose jaws slam over the portrait before it roars; Banana Cannon: King Oona's
+    // painted bananas spin in and splat, and the top tier lands a giant golden banana in the target that the hero slams in
+    // six times until it bursts; the Rares, two tiers each: Pocket Change flicks a coin that pings and ricochets, Come
+    // Back Around throws a boomerang that thwacks and is caught, Bubble Trouble pops a bubble round the face, and Shadow
+    // Step fades the striker into smoke and stabs from behind). Same blow, same consequence, only drawn differently; the style is the ATTACKER's (their
+    // equipped cosmetic, or the dev override). Every runner takes the same options (`heroAttack/options.ts`).
     const attackStyle = resolveHeroAttackStyle({ attacker: side, attackerCosmeticId: attackerCosmeticOf(run0, side, useGame.getState().showOpponentSkins) });
     if (attackStyle !== 'classic') {
       const runner = attackStyle === 'backstab'
@@ -2940,6 +2949,12 @@ export function Recruit() {
         ? { play: playHeroBoomerang, preview: heroBoomerangPreviewSpeed() }
         : attackStyle === 'coin'
         ? { play: playHeroCoin, preview: heroCoinPreviewSpeed() }
+        : attackStyle === 'banana'
+        ? { play: playHeroBanana, preview: heroBananaPreviewSpeed() }
+        : attackStyle === 'beast'
+        ? { play: playHeroBeast, preview: heroBeastPreviewSpeed() }
+        : attackStyle === 'undead'
+        ? { play: playHeroUndead, preview: heroUndeadPreviewSpeed() }
         : attackStyle === 'fire'
         ? { play: playHeroFire, preview: heroFirePreviewSpeed() }
         : attackStyle === 'holy'

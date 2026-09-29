@@ -69,6 +69,9 @@ import { SPEC as HeroPoisonSpec } from './HeroPoisonTuner';
 import { SPEC as HeroFrostSpec } from './HeroFrostTuner';
 import { SPEC as HeroHolySpec } from './HeroHolyTuner';
 import { SPEC as HeroFireSpec } from './HeroFireTuner';
+import { SPEC as HeroUndeadSpec } from './HeroUndeadTuner';
+import { SPEC as HeroBeastSpec } from './HeroBeastTuner';
+import { SPEC as HeroBananaSpec } from './HeroBananaTuner';
 import { SPEC as HeroCoinSpec } from './HeroCoinTuner';
 import { SPEC as HeroBoomerangSpec } from './HeroBoomerangTuner';
 import { SPEC as HeroBubbleSpec } from './HeroBubbleTuner';
@@ -156,6 +159,9 @@ export const ALL_TUNER_SPECS: TunerSpec<never>[] = [
   HeroFrostSpec,
   HeroHolySpec,
   HeroFireSpec,
+  HeroUndeadSpec,
+  HeroBeastSpec,
+  HeroBananaSpec,
   HeroCoinSpec,
   HeroBoomerangSpec,
   HeroBubbleSpec,

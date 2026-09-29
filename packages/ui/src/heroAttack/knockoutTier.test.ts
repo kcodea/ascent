@@ -22,6 +22,9 @@ import { playHeroPoison } from '../heroPoison/heroPoison';
 import { playHeroFrost } from '../heroFrost/heroFrost';
 import { playHeroHoly } from '../heroHoly/heroHoly';
 import { playHeroFire } from '../heroFire/heroFire';
+import { playHeroUndead } from '../heroUndead/heroUndead';
+import { playHeroBeast } from '../heroBeast/heroBeast';
+import { playHeroBanana } from '../heroBanana/heroBanana';
 import { playHeroCoin } from '../heroCoin/heroCoin';
 import { playHeroBoomerang } from '../heroBoomerang/heroBoomerang';
 import { playHeroBubble } from '../heroBubble/heroBubble';
@@ -68,6 +71,9 @@ describe('every style plays its Tier IV on a knockout blow of 3, and Tier I on a
     ['frost', (o) => playHeroFrost({ ...o, textures: null })],
     ['holy', (o) => playHeroHoly({ ...o, textures: null })],
     ['fire', (o) => playHeroFire({ ...o, textures: null })],
+    ['undead', (o) => playHeroUndead({ ...o, textures: null })],
+    ['beast', (o) => playHeroBeast({ ...o, textures: null })],
+    ['banana', (o) => playHeroBanana({ ...o, textures: null })],
     ['coin', (o) => playHeroCoin({ ...o, textures: null })],
     ['boomerang', (o) => playHeroBoomerang({ ...o, textures: null })],
     ['bubble', (o) => playHeroBubble({ ...o, textures: null })],

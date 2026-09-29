@@ -1765,6 +1765,28 @@ export const FOUNDATION_RULES: GameRule[] = [
     enforcement: { kind: 'scenario', refs: ['packages/progression/src/sqlParity.test.ts', 'packages/progression/src/rules.test.ts', 'packages/ui/src/progression/ProgressionPostgame.test.tsx', 'packages/ui/src/Career.test.tsx'], lastVerifiedAt: '2026-09-27' },
   },
   {
+    id: 'R-PROG-GUEST-01',
+    title: 'A guest sees a slow-blinking "Sign in!" button left of their portrait, and must sign in to change the portrait',
+    statement:
+      'On the main menu, a guest (an anonymous account) sees a "Sign in!" button just left of their portrait in the top-right '
+      + 'account corner. It blinks slowly (a glow that breathes on about a 2.4 second cycle; still under reduced motion) and '
+      + 'opens the account panel, which upgrades the guest in place. It is gone the moment the account is real, with no reload, '
+      + 'and it never shows when there is no account backend or no session (nothing to sign into). A guest cannot change their '
+      + 'portrait: clicking it opens a "Sign in to change your portrait" prompt (Not now / Create account) instead of the avatar '
+      + 'picker, the picker refuses to render for a guest, and with no backend the prompt says accounts are unavailable. A '
+      + 'signed-in player changes their portrait as before. Client-side only.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-29 (guest sign-in button)', quote: 'add a "sign in!" button that slow flashes/blinks in the top right to the left of the player icon/name. don\x27t let non-signed in players change the portrait either, they need to sign in for that.' },
+      { kind: 'code', ref: 'packages/ui/src/GuestSignIn.tsx (GuestSignInButton, PortraitSignInGate, accountsAvailable); packages/ui/src/Title.tsx (the account corner); packages/ui/src/AvatarPicker.tsx (the guest guard); styles.css .guestsignin / guestsigninblink' },
+    ],
+    currentBehaviour:
+      'Conforms, built 2026-09-29. The title account corner is the only place the player identity and the portrait picker '
+      + 'live. The chosen portrait itself is still stored on the device (localStorage); the gate is a client-side nudge, not a server check.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/GuestSignIn.test.tsx'], lastVerifiedAt: '2026-09-29' },
+  },
+  {
     id: 'R-PROG-NEWREWARDS-01',
     title: 'The end screen stays short; achievements, titles and crates wait in a one-time New rewards pop-up in the Collection',
     statement:

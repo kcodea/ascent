@@ -51,7 +51,7 @@ describe('a settled ranked result', () => {
     setCurrent();
     render();
     expect(text('.acctxp-levelup')).toBe('Level up! Level 2');
-    expect(text('.acctxp-titlereveal-name')).toBe('Alpha Tester');
+    expect(text('.acctxp-waiting span:last-child')).toBe('New rewards are waiting in your Collection.');
     expect(text('.acctxp-level')).toBe('Lv2');
     expect(text('.acctxp-num')).toBe('75 / 250');
   });
@@ -60,7 +60,7 @@ describe('a settled ranked result', () => {
     render();
     expect(all('.acctxp-line')).toEqual(['Game complete+100 XP']);
     expect(ui!.container.querySelector('.acctxp-levelup')).toBeNull();
-    expect(ui!.container.querySelector('.acctxp-titlereveal')).toBeNull();
+    expect(ui!.container.querySelector('.acctxp-waiting')).toBeNull();
     expect(ui!.container.querySelector('.acctxp-save')).toBeNull();
   });
   it('several levels at once: ONE summary, never a ceremony per level', () => {
@@ -84,7 +84,7 @@ describe('practice and tutorial', () => {
     setCurrent({ mode: 'tutorial', runId: 'learn-ascent:v1', result: result({ mode: 'tutorial', runId: 'learn-ascent:v1', placement: null, comeback: false, xp: { base: 250, topFour: 0, firstPlace: 0, comeback: 0, total: 250 }, before: { lifetimeXp: 0, level: 1 }, after: { lifetimeXp: 250, level: 2 } }) });
     render();
     expect(all('.acctxp-line')).toEqual(['Tutorial complete+250 XP']);
-    expect(text('.acctxp-titlereveal-name')).toBe('Alpha Tester');
+    expect(text('.acctxp-waiting span:last-child')).toBe('New rewards are waiting in your Collection.');
     ui!.unmount();
     setCurrent({ mode: 'tutorial', runId: 'learn-ascent:v1', deduped: true, result: result({ mode: 'tutorial', runId: 'learn-ascent:v1', settledAt: '2026-01-01T00:00:00Z' }) });
     render();
@@ -108,7 +108,7 @@ describe('the anonymous save prompt', () => {
     setCurrent();
     render();
     expect(ui!.container.querySelector('.acctxp-save')).toBeNull();
-    expect(text('.acctxp-titlereveal-name')).toBe('Alpha Tester');
+    expect(text('.acctxp-waiting span:last-child')).toBe('New rewards are waiting in your Collection.');
   });
   it('an anonymous player who did not reach Level 2 in this game is not nagged', () => {
     setCurrent({ result: result({ before: { lifetimeXp: 300, level: 2 }, after: { lifetimeXp: 400, level: 2 }, unlockedTitles: [] }) });
@@ -148,7 +148,7 @@ describe('motion', () => {
     render({ reducedMotion: false });
     expect(text('.acctxp-level')).toBe('Lv1');
     expect(text('.acctxp-num')).toBe('100 / 250');
-    expect(ui!.container.querySelector('.acctxp-titlereveal')).toBeNull();
+    expect(ui!.container.querySelector('.acctxp-waiting')).toBeNull();
     act(() => { vi.advanceTimersByTime(350); });
     const fill = ui!.container.querySelector<HTMLElement>('.acctxp-fill')!;
     expect(fill.style.transform).toBe('scaleX(1)');
@@ -156,13 +156,13 @@ describe('motion', () => {
     expect(text('.acctxp-levelup')).toBe('Level up! Level 2');
     expect(text('.acctxp-level')).toBe('Lv2');
     act(() => { vi.advanceTimersByTime(1200); });
-    expect(text('.acctxp-titlereveal-name')).toBe('Alpha Tester');
+    expect(text('.acctxp-waiting span:last-child')).toBe('New rewards are waiting in your Collection.');
     expect(fill.style.transform).toBe('scaleX(0.3)');
     expect(wasProgressionPresented('ranked', 'run-1')).toBe(true);
     // A remount (Rewatch, a reload, a duplicate answer) settles at once: no replayed ceremony.
     ui!.unmount();
     render({ reducedMotion: false });
-    expect(text('.acctxp-titlereveal-name')).toBe('Alpha Tester');
+    expect(text('.acctxp-waiting span:last-child')).toBe('New rewards are waiting in your Collection.');
     expect(ui!.container.querySelector('.acctxp.animated')).toBeNull();
   });
   it('reduced motion: the final state at once, no transition', () => {
@@ -174,32 +174,29 @@ describe('motion', () => {
   });
 });
 
-describe('achievements unlocked (batch 1, 2026-09-28)', () => {
-  const ids = ['career.games.1', 'ranked.first_game', 'ranked.first_top_four', 'ranked.first_win', 'ranked.reach_bronze_2', 'ranked.reach_bronze_3', 'ranked.reach_silver_1', 'hero.warden.victory'];
-  it('lists "Achievement unlocked: <name> +N XP" rows after the bar; the headline total includes their XP', () => {
-    setCurrent({ result: result({ achievements: ['career.games.1', 'ranked.first_win'], achievementXp: 125, after: { lifetimeXp: 450, level: 2 } }) });
+describe('achievements, titles and crates wait in the Collection (owner 2026-09-28: "the end game screen here is full of stuff")', () => {
+  it('no achievement rows, no title box, no crate row: one line points to the Collection; the headline still counts achievement XP', () => {
+    useProgression.setState({ cratesCapability: 'on' });
+    setCurrent({ result: result({ achievements: ['career.games.1', 'ranked.first_win'], achievementXp: 125, after: { lifetimeXp: 450, level: 2 }, crateIds: ['c-2'], cratesAwarded: 1 }) });
     render();
     expect(text('.acctxp-total')).toBe('+350 XP');
-    expect(all('.acctxp-ach-row')).toEqual(['Achievement unlocked: First Steps +25 XP', 'Achievement unlocked: First Among Eight +100 XP']);
-    expect(ui!.container.querySelector('.acctxp-ach')!.getAttribute('aria-label')).toBe('Achievements unlocked');
-  });
-  it('shows the first six, then "+N more"; unknown ids (a newer server) are skipped', () => {
-    setCurrent({ result: result({ achievements: [...ids, 'future.thing'], achievementXp: 0 }) });
-    render();
-    expect(all('.acctxp-ach-row')).toHaveLength(6);
-    expect(text('.acctxp-ach-more')).toBe('+2 more achievements. See your Career.');
-  });
-  it('none completed (or a pre-achievements server): no rows at all', () => {
-    setCurrent();
-    render();
     expect(ui!.container.querySelector('.acctxp-ach')).toBeNull();
+    expect(ui!.container.querySelector('.acctxp-titlereveal')).toBeNull();
+    expect(ui!.container.querySelector('.acctxp-crates')).toBeNull();
+    expect(text('.acctxp-waiting span:last-child')).toBe('New rewards are waiting in your Collection.');
+    expect(text('.acctxp-levelup')).toBe('Level up! Level 2'); // the level-up moment stays
   });
-  it('the rows wait for the bar to settle when animated, then enter one-shot', () => {
+  it('a game that earned nothing new: no pointer line', () => {
+    setCurrent({ result: result({ unlockedTitles: [], before: { lifetimeXp: 300, level: 2 }, after: { lifetimeXp: 400, level: 2 } }) });
+    render();
+    expect(ui!.container.querySelector('.acctxp-waiting')).toBeNull();
+  });
+  it('the line waits for the bar to settle when animated', () => {
     vi.useFakeTimers();
     setCurrent({ result: result({ achievements: ['career.games.1'], achievementXp: 25 }) });
     render({ reducedMotion: false });
-    expect(ui!.container.querySelector('.acctxp-ach')).toBeNull();
+    expect(ui!.container.querySelector('.acctxp-waiting')).toBeNull();
     act(() => { vi.advanceTimersByTime(5000); });
-    expect(all('.acctxp-ach-row')).toEqual(['Achievement unlocked: First Steps +25 XP']);
+    expect(ui!.container.querySelector('.acctxp-waiting')).not.toBeNull();
   });
 });

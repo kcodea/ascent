@@ -15,8 +15,8 @@
  */
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import type { SetId } from '@game/content';
-import type { FightRow, LobbyStrength, StrengthInput } from '@game/sim';
-import { CONFIG, RANK_SEASON, initialRankedProfile, lobbyStrengthOf, excludeOwnFights, parseLobbyStrength, parseRankResult, parseRankedProfile, registerBoardRecords, registerOpponents, type BoardSnapshot, type DerivedRun, type PlayerKeyBasis, type RankedProfile, type ReplayV2, type RunTelemetry, type RunTelemetryRow, type TelemetrySource, isRankPosition, type RankPosition } from '@game/sim';
+import type { FightRow, LobbyStrength, MatchDetails, StrengthInput } from '@game/sim';
+import { CONFIG, RANK_SEASON, initialRankedProfile, lobbyStrengthOf, excludeOwnFights, parseLobbyStrength, parseMatchDetails, parseRankResult, parseRankedProfile, registerBoardRecords, registerOpponents, type BoardSnapshot, type DerivedRun, type PlayerKeyBasis, type RankedProfile, type ReplayV2, type RunTelemetry, type RunTelemetryRow, type TelemetrySource, isRankPosition, type RankPosition } from '@game/sim';
 import { currentIdentity, currentUserId, setIdentity, type AuthProvider, type Identity } from './identity';
 import type { RankSubmitOutcome, RankSubmitRequest } from './rank/types';
 import { careerRunOf, joinTelemetry, type CareerRun, type RunHistoryRowLike, type TelemetryProbeRow } from './careerData';
@@ -1036,6 +1036,9 @@ export interface PlayerRow {
   /** MEDAL RANK (2026-09-20): the row's ladder state, when the table carries the rank columns. Absent on a
    *  pre-migration backend — render the scalar then. */
   rank?: RankedProfile;
+  /** The player's CURRENTLY equipped title (`profiles.equipped_title_id`, owner ask 2026-09-28). Absent when none
+   *  or on a backend without the progression columns. The badge validates it against the catalog. */
+  equippedTitleId?: string;
 }
 
 /**
@@ -1248,15 +1251,19 @@ export async function fetchTopPlayers(limit = 10): Promise<PlayerRow[]> {
     // promoted player must rank above the one still waiting at the gate); games-played breaks the rest.
     // A pre-migration table has no rank columns → that query errors → fall back to the legacy ordering.
     const timeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), FETCH_TIMEOUT_MS));
-    const ranked = await Promise.race([
+    // TITLES (owner ask 2026-09-28): the equipped title rides the SAME row read (one column, no extra query). A
+    // backend without the progression column errors on it, and the select without it runs instead.
+    const rankedSelect = (extra: string) => Promise.race([
       Promise.resolve(
-        c.from('profiles').select(`user_id, author, discriminator, games_played, favorite_hero, ${RANK_COLUMNS}`)
+        c.from('profiles').select(`user_id, author, discriminator, games_played, favorite_hero, ${RANK_COLUMNS}${extra}`)
           .gt('games_played', 0)
           .order('rank_division', { ascending: false }).order('rank_points', { ascending: false })
           .order('games_played', { ascending: false }).limit(limit),
       ),
       timeout,
     ]);
+    const titled = await rankedSelect(', equipped_title_id');
+    const ranked = titled && !titled.error && titled.data ? titled : await rankedSelect('');
     const result = ranked && !ranked.error && ranked.data
       ? ranked
       : await Promise.race([
@@ -1273,6 +1280,7 @@ export async function fetchTopPlayers(limit = 10): Promise<PlayerRow[]> {
         userId: r.user_id, author: r.author, discriminator: r.discriminator ?? undefined, rating: r.rating,
         gamesPlayed: r.games_played, favoriteHero: r.favorite_hero ?? undefined,
         ...(typeof r.rank_revision === 'number' ? { rank: rankedProfileOfRow(r) } : {}),
+        ...(typeof r.equipped_title_id === 'string' && r.equipped_title_id ? { equippedTitleId: r.equipped_title_id } : {}),
       }));
   } catch {
     return [];
@@ -1316,6 +1324,8 @@ export interface PracticeReplayPayload {
   mode?: string;
   actions: readonly unknown[];
   v2: ReplayV2;
+  /** MATCH DETAILS (2026-09-28): the table at this game's end (`buildMatchDetails`). Optional: older rows lack it. */
+  match?: MatchDetails;
 }
 
 /** PostgREST / Postgres errors that mean "the `replay` column is not there yet" (the owner has not run the
@@ -1372,12 +1382,14 @@ export async function uploadPracticeGame(g: PracticeGameUpload): Promise<number 
 /** A Practice-tab row: the Recent Games banner's row plus the practice options it ran under. */
 export interface PracticeGameRow extends RecentGameRow {
   practice: PracticeGameConfig | null;
+  /** MATCH DETAILS (2026-09-28), read off `replay->match`. Null on older rows and without the `replay` column. */
+  match?: MatchDetails | null;
 }
 
 const PRACTICE_BASE = 'id, user_id, author, hero_id, wins, placement, created_at, picked_runes, final_board, record, wave, duration_ms, config';
 /** The practice list selects, richest first: with the light replay probe (`replay->v2->version`, never the
  *  payload), then without it for a backend that has not run the 2026-09-27 `replay` migration. */
-const PRACTICE_SELECTS: readonly string[] = [`${PRACTICE_BASE}, replay_v2_version:replay->v2->version`, PRACTICE_BASE];
+const PRACTICE_SELECTS: readonly string[] = [`${PRACTICE_BASE}, replay_v2_version:replay->v2->version, match:replay->match`, PRACTICE_BASE];
 
 /** Run one practice list query down the select ladder: a query ERROR (the `replay` column missing) tries the
  *  plainer select; a timeout or a clean answer ends the walk. Null on timeout. */
@@ -1408,6 +1420,8 @@ export function asPracticeGameRow(r: Record<string, unknown>): PracticeGameRow {
     practice: cfg && (cfg.opponents === 'players' || cfg.opponents === 'bots')
       ? { opponents: cfg.opponents, botDifficulty: numOf(cfg.botDifficulty) ?? 0, health: cfg.health === 'normal' ? 'normal' : 'unlimited' }
       : null,
+    // MATCH DETAILS (2026-09-28): the small `replay->match` projection (never the replay itself). Absent = older row.
+    match: parseMatchDetails(r.match),
   };
 }
 

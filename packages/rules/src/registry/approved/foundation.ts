@@ -483,6 +483,41 @@ export const FOUNDATION_RULES: GameRule[] = [
     },
   },
   {
+    id: 'R-LOBBY-05',
+    title: 'Every generated seat fields a board, and the player\'s fight is credited to the board they actually fought',
+    statement:
+      'A generated (hybrid) lobby seat is seated only when the RECORDING it will play fields at least one board: '
+      + 'seat selection checks the recording (a one-board prefix of `autoplayRun`), not only the live bot, because '
+      + '`prepare` is recording-only. `autoplayRun` answers every blocking modal a hero can raise, including the '
+      + 'hero-power Discover (`powerOffer`: Mimic every turn, Void on turn 4, Power Shifter), so every hero records '
+      + 'a real run. If the player\'s paired seat still has no board (an older save, a restored lobby), the player '
+      + 'faces the most recently fallen seat\'s ghost instead, as on a bye; the boardless pairing is a sit-out for '
+      + 'both (the seat is neither charged nor credited), and the player\'s fight is logged against the ghost '
+      + '(`bye: s0`, `standInFor: <paired seat>`), so the encounter log, "who knocked you out" and the fight ledger '
+      + 'name the board the player fought. Before anyone has fallen there is no ghost, and the round is a sit-out '
+      + 'for the player too.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      {
+        kind: 'owner-chat',
+        ref: 'Claude Code session, 2026-09-28 (Mimic hybrid lobby seats field no board)',
+        quote: 'the Mimic seat had no board at the player\'s end round. In one game the lobby recorded that seat as the one who knocked the player out',
+      },
+      { kind: 'code', ref: 'packages/sim/src/snapshot.ts autoplayRun (powerOffer branch, maxBoards); packages/sim/src/lobby/seats.ts hybridSeat.canFieldBoard + recordingFieldsBoard; packages/sim/src/lobby/runLobby.ts playerOpponent + settleRunLobbyRound (boardless player foe)' },
+    ],
+    currentBehaviour:
+      'Conforms as of 2026-09-28. Before the fix `autoplayRun` had no `powerOffer` branch, so a Mimic recording '
+      + 'bailed on turn 1 with zero boards; the live-bot probe seated it anyway, and when the player was paired '
+      + 'with it the reducer served an ordinary pool board while the settle charged and credited the empty seat. '
+      + 'Seen in 2 of 6 Practice (players) games. Every hero now records at least 5 waves.',
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/sim/src/lobby/seatRecordings.test.ts', 'packages/sim/src/lobby/seatProbeEmptyRecording.test.ts'],
+      lastVerifiedAt: '2026-09-28',
+    },
+  },
+  {
     id: 'R-HALL-02',
     title: 'Hall of Champions: the own-game line counts the same fights as the record line',
     statement:
@@ -1675,7 +1710,7 @@ export const FOUNDATION_RULES: GameRule[] = [
     statement:
       'The Level 2 reward is the title "Alpha Tester" (a level milestone, never in a crate), granted to EVERY account that reaches Account Level 2 '
       + '(level-based, so an existing account that reaches Level 2 gets it too) and equipped automatically when no title is '
-      + 'equipped. The post-game XP panel reveals it; the Career shows the level, the XP bar and the equipped title publicly. '
+      + 'equipped. The Collection\x27s New rewards pop-up announces it (moved off the post-game panel 2026-09-28, R-PROG-NEWREWARDS-01); the Career shows the level, the XP bar and the equipped title publicly. '
       + 'Anonymous (guest) players earn XP from their first game, because a guest session is a real account id that the email '
       + 'upgrade keeps. When a guest reaches Level 2 the post-game panel shows a gentle "Save your progress" prompt (never a '
       + 'gate) that opens the account panel, and the Career shows a small reminder. With no session at all, a game earns no XP.',
@@ -1686,8 +1721,31 @@ export const FOUNDATION_RULES: GameRule[] = [
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-27 (account progression MVP brief)', quote: 'Anonymous players: they ACCUMULATE XP from their first game' },
       { kind: 'code', ref: 'settle_progression c_alpha_title / c_alpha_level in supabase/migrations/2026-09-27-account-progression.sql; packages/progression/src/rules.ts TITLES; packages/ui/src/progression/ProgressionPostgame.tsx; packages/ui/src/progression/AccountLevel.tsx' },
     ],
-    currentBehaviour: 'Conforms, built 2026-09-27. Lobby name plates do not show titles yet (Career only).',
+    currentBehaviour: 'Conforms, built 2026-09-27. Where titles show (review surfaces only, never in game) is R-PROG-TITLE-02.',
     enforcement: { kind: 'scenario', refs: ['packages/progression/src/sqlParity.test.ts', 'packages/progression/src/rules.test.ts', 'packages/ui/src/progression/ProgressionPostgame.test.tsx', 'packages/ui/src/Career.test.tsx'], lastVerifiedAt: '2026-09-27' },
+  },
+  {
+    id: 'R-PROG-NEWREWARDS-01',
+    title: 'The end screen stays short; achievements, titles and crates wait in a one-time New rewards pop-up in the Collection',
+    statement:
+      'After a game the end screen shows the placement, the XP gained, the level bar and the level-up moment, and, when the game '
+      + 'earned anything new, one line saying new rewards are waiting in the Collection. The achievements, first-time titles and '
+      + 'crates a settlement awarded are queued for that account (they survive a reload) and shown once, as a New rewards pop-up the '
+      + 'next time the Collection opens: achievements with their XP and a link to see them all in the Career, titles, and crates '
+      + 'with Open and Open all through the Collection\x27s own crate opener. Closing it in any way marks them seen, and a reward '
+      + 'is never shown twice. While rewards wait, every Collection entry point wears an orange NEW pill.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Match details review, 2026-09-28', quote: 'can you have the unlocks, achievements, and crates be a pop up when the player gets back to the collection?' },
+      { kind: 'owner-chat', ref: 'Match details review, 2026-09-28', quote: 'just highlight the collection\x27s text in orange or have a "new" pill or something on it so players go there?' },
+      { kind: 'code', ref: 'packages/ui/src/progression/newRewards.ts (queue, localStorage per account, the never-twice set); packages/ui/src/progression/NewRewardsPopup.tsx; progressionStore.ts applyProgressionOutcome; ProgressionPostgame.tsx; Title.tsx, MenuSidebar.tsx, AccountLevel.tsx (the NEW pill)' },
+    ],
+    currentBehaviour:
+      'Conforms as of 2026-09-28. The queue is local (localStorage, per account id), filled when a settlement answer is '
+      + 'confirmed, so rewards earned on another device show there, not here. A queued crate already opened elsewhere drops out of '
+      + 'the pop-up; a pop-up left with nothing never opens. The guest save prompt stays on the end screen.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/progression/newRewards.test.tsx', 'packages/ui/src/progression/Crates.test.tsx', 'packages/ui/src/progression/ProgressionPostgame.test.tsx'], lastVerifiedAt: '2026-09-28' },
   },
   {
     id: 'R-PROG-CRATE-01',
@@ -2036,9 +2094,10 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'attack, attack_quake ("Tectonic Slam", Legendary, style quake: R-PROG-ATTACK-05), the third, attack_arcana '
       + '("Arcana", Legendary, style arcana: R-PROG-ATTACK-06), the fourth, attack_blades ("Phantom Blades", Legendary, '
       + 'style blades: R-PROG-ATTACK-07), the fifth, attack_enraged ("Enraged Strike", Legendary, style enraged: '
-      + 'R-PROG-ATTACK-11), and then attack_holy ("Consecration", Legendary, style holy: R-PROG-ATTACK-14), re-pinned the '
-      + 'first-crate odds to Common 46.0%, Rare 30.5%, Epic 18.6%, Legendary 4.8%; a non-title item 32.8%; the six attacks '
-      + 'together 3.2%.',
+      + 'R-PROG-ATTACK-11), the sixth, attack_poison ("Venom Volley", Legendary, style poison: R-PROG-ATTACK-12), the '
+      + 'seventh, attack_frost ("Frost Nova", Legendary, style frost: R-PROG-ATTACK-13), and the eighth, attack_holy '
+      + '("Consecration", Legendary, style holy: R-PROG-ATTACK-14), re-pinned the first-crate odds to Common 45.5%, Rare '
+      + '30.2%, Epic 18.5%, Legendary 5.9%; a non-title item 33.5%; the eight attacks together 4.3%.',
     domain: 'foundation',
     status: 'approved',
     evidence: [
@@ -2280,6 +2339,87 @@ export const FOUNDATION_RULES: GameRule[] = [
     ],
     currentBehaviour: 'Conforms, built 2026-09-28. The item reaches the database on the next deploy of progression-inventory (the catalog sync); the equip SQL already accepts the hero_attack slot.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/heroEnraged/heroEnraged.test.ts', 'packages/progression/src/cosmetics.test.ts', 'packages/ui/src/progression/CollectionHeroAttack.test.tsx'], lastVerifiedAt: '2026-09-28' },
+  },
+  {
+    id: 'R-PROG-TITLE-02',
+    title: 'The equipped title is RECORDED with the run and shows on out-of-game review surfaces only (Leaderboard, Hall, Match details, Career), never in game',
+    statement:
+      'The equipped title (profiles.equipped_title_id) is recorded in the run\'s cosmetic snapshot at run start (title), like '
+      + 'skins and the hero attack, and rides every captured board, the snapshot seats and replay frames, so a review '
+      + 'surface can show the title another player wore in THAT run. Only a live catalog title is recorded or shown; an '
+      + 'unknown, retired or non-title id shows nothing; a snapshot from before titles has none; bots and generated seats '
+      + 'have none. Titles show ONLY on out-of-game review surfaces: the Leaderboard rows (the player\'s equipped title, read '
+      + 'in the same profiles select), the Hall of Champions rows (the title recorded with that run), Match details and the '
+      + 'Career. No surface of a live run or a replay\'s gameplay view shows one (the lobby rail, the combat plates, Now '
+      + 'Facing, your hero). Another player\'s title follows "Show opponent cosmetics" (off hides it; your own always shows '
+      + 'where one can be identified). One component (TitleBadge) paints every title: its rarity colour today, a custom '
+      + 'gradient and optional transform-only shimmer keyed by title id later.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-28 (titles in game)', quote: 'it\x27d be cool to show them where possible' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-28 (titles review on 5174)', quote: 'i think it should show in like leaderboard/match details views, but it looks bad in game' },
+      { kind: 'code', ref: 'packages/progression/src/cosmetics.ts (RunCosmeticSnapshot.title, titleOf, withEquippedTitle, snapshotForRun); packages/sim/src/snapshot.ts (scopeCosmetics); packages/sim/src/lobby/snapshotSeats.ts; packages/ui/src/store.ts (recordRunCosmetics); packages/ui/src/titles/ (TitleBadge, titleStyle); packages/ui/src/Rankings.tsx; packages/ui/src/Leaderboard.tsx' },
+    ],
+    currentBehaviour: 'Conforms, built 2026-09-28. Match details rows (PR #1806) are wired as a follow-up once that panel lands.',
+    enforcement: { kind: 'scenario', refs: ['packages/progression/src/titles.test.ts', 'packages/sim/src/lobby/seatCosmetics.test.ts', 'packages/ui/src/titles/titles.test.tsx'], lastVerifiedAt: '2026-09-28' },
+  },
+  {
+    id: 'R-PROG-ATTACK-12',
+    title: 'Poison Darts (attack_poison, "Venom Volley", Legendary) is the sixth hero attack: one dart / two / a fan of five / six that stick, swell, IMPLODE and burst in a toxic cloud, on the SAME damage tiers; the blow lands ONCE; no freeze',
+    statement:
+      'attack_poison ("Venom Volley", a placeholder name for the owner to rename; Legendary, crate, account-wide, style '
+      + 'poison): after the shared damage formation (R-PROG-ATTACK-08) the striking hero leans back while venom gathers at '
+      + 'the throwing hand, then flicks small poison darts (a dark needle, a venom vial, fletching, a glowing green tip) on a '
+      + 'slight arc with a thin toxic vapour trail. Each dart THUNKS into the struck portrait and sticks at its own angle, '
+      + 'quivering, on the side of the face clear of the big -N, with a venom splat, green droplets, a tiny toxic puff and a '
+      + 'sickly green tint pulse over the portrait (an opacity overlay, never an animated filter); stuck darts ride the '
+      + 'knockback. It escalates on exactly the tiers every other hero attack uses (one shared tierOf, thresholds 6 / 12 / '
+      + '20): I 1-5 ONE dart; II 6-11 TWO in quick succession; III 12-19 a FAN of five thunking in in rhythm; IV 20+ six '
+      + 'darts stick round the face (every one a tick), then they GLOW and PULSE while the venom SWELLS, everything is '
+      + 'SUCKED inward into one tight point (a dark ring contracting), and a violent TOXIC BURST lands the blow (a '
+      + 'green-black shockwave, bubbling toxic cloud puffs, acid droplets arcing out with gravity, a lingering haze). The '
+      + 'consequence (the damage, Armor, Resolve) lands exactly ONCE: on the LAST dart (every earlier dart is a tick with FX '
+      + 'and sound only; at I-III the poison then seeps and the darts dissolve, looks only) or, at IV, on the burst. No '
+      + 'hit-stop or freeze anywhere (R-PROG-ATTACK-10). Presentation only; reduced motion is fades only; an unknown or '
+      + 'retired id plays Classic.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-28 (the sixth hero attack)', quote: 'branch off and make a poison dart animation. the final one should throw multiple poison darts that implode with poison' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-28 (Poison Darts review; the look is approved as shipped)', quote: 'the dart one is so good. great stuff.' },
+      { kind: 'code', ref: 'packages/progression/src/cosmetics.ts (attack_poison); packages/ui/src/heroPoison/ (heroPoisonConfig poisonPlan / poisonCues / dartMotions / stickOffset / poisonCameraAt, heroPoison playHeroPoison, heroPoisonScene); playAcidSizzle / playToxicFizz in packages/ui/src/sfx.ts' },
+    ],
+    currentBehaviour: 'Conforms, built 2026-09-28. The item reaches the database on the next deploy of progression-inventory (the catalog sync); the equip SQL already accepts the hero_attack slot.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/heroPoison/heroPoison.test.ts', 'packages/progression/src/cosmetics.test.ts', 'packages/ui/src/progression/CollectionHeroAttack.test.tsx', 'packages/ui/src/heroAttack/damageFormation.test.ts'], lastVerifiedAt: '2026-09-28' },
+  },
+  {
+    id: 'R-PROG-ATTACK-13',
+    title: 'Frost ("Frost Nova", attack_frost, Legendary) is a hero attack: icicles crystallise and fire (one / two / a volley of five), and Tier IV adds a frost nova across the screen that encases and shatters; the blow lands ONCE; the ice freezes, the clock never does',
+    statement:
+      'attack_frost ("Frost Nova", a placeholder name for the owner to rename; Legendary, crate, account-wide, style frost) '
+      + 'plays after the shared damage formation (R-PROG-ATTACK-08): a frost rune opens under the striking hero, a cold mist '
+      + 'gathers and faceted ICICLES crystallise one by one round the portrait rim (clear of the face), each aimed at the '
+      + 'struck hero; each draws back a hair and fires fast with an ice-dust trail, and shatters on the struck hero into '
+      + 'faceted shards and snow while frost creeps over the portrait edge. It escalates on exactly the tiers every other '
+      + 'hero attack uses (one shared tierOf, thresholds 6 / 12 / 20): I 1-5 ONE icicle; II 6-11 TWO (from either side); '
+      + 'III 12-19 a VOLLEY of five landing in rhythm, the centre one last and biggest; IV 20+ four icicles, then the hero '
+      + 'gathers the cold and releases a FROST NOVA, a wide rolling wave front that blasts across the screen from the '
+      + 'attacker to the target, freezing an ice sheet with frost ferns behind it; it ENCASES the struck hero in ice, and '
+      + 'the ice SHATTERS outward. The consequence (the damage, Armor, Resolve) lands exactly ONCE: on the LAST icicle '
+      + '(every earlier icicle is a tick with FX only) or, at IV, on the encasement shattering (every icicle a tick). No '
+      + 'hit-stop or freeze anywhere (R-PROG-ATTACK-10): the ice holds still while the shared clock runs on. The camera '
+      + 'follows the volley in, pans home for the gather and rides the nova, so neither hero leaves the frame. Presentation '
+      + 'only; reduced motion is fades only; an unknown or retired id plays Classic.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-28 (the Frost hero attack)', quote: 'branch off and create an ice/freeze blast one. icicles and then a frost nova blast that blasts across the screen from the attacker to the target' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-28 (Frost first review)', quote: 'frost already looks incredibly good.' },
+      { kind: 'code', ref: 'packages/progression/src/cosmetics.ts (attack_frost); packages/ui/src/heroFrost/ (heroFrostConfig frostPlan / frostCues / icicleMotions / novaMotion / frostCameraAt / frostCameraFocus, heroFrost playHeroFrost, heroFrostScene, heroFrostTextures)' },
+    ],
+    currentBehaviour: 'Conforms, built 2026-09-28. The item reaches the database on the next deploy of progression-inventory (the catalog sync); the equip SQL already accepts the hero_attack slot.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/heroFrost/heroFrost.test.ts', 'packages/progression/src/cosmetics.test.ts', 'packages/ui/src/progression/CollectionHeroAttack.test.tsx', 'packages/ui/src/heroAttack/damageFormation.test.ts'], lastVerifiedAt: '2026-09-28' },
   },
   {
     id: 'R-PROG-ATTACK-14',

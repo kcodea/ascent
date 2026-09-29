@@ -549,7 +549,7 @@ describe('the scene (headless Pixi)', () => {
 describe('the cosmetic', () => {
   it('Enraged Strike (attack_enraged) is a Legendary crate hero attack that plays Enraged; the dev override can force it; the others unchanged', () => {
     expect(COSMETIC_INDEX.attack_enraged).toMatchObject({ category: 'hero_attack', rarity: 'legendary', name: 'Enraged Strike', assets: { style: 'enraged' }, active: true, acquisition: { type: 'crate' } });
-    expect(HERO_ATTACK_STYLES).toEqual(['classic', 'blast', 'quake', 'arcana', 'blades', 'enraged', 'holy']); // Consecration (holy) joined 2026-09-28
+    expect(HERO_ATTACK_STYLES).toEqual(['classic', 'blast', 'quake', 'arcana', 'blades', 'enraged', 'poison', 'frost', 'holy']); // Enraged Strike, Poison Darts, Frost, then Consecration (holy) joined 2026-09-28
     expect(styleOfCosmetic('attack_enraged')).toBe('enraged');
     for (const [id, style] of [['attack_blast', 'blast'], ['attack_quake', 'quake'], ['attack_arcana', 'arcana'], ['attack_blades', 'blades']] as const) expect(styleOfCosmetic(id)).toBe(style);
     expect(resolveHeroAttackStyle({ attacker: 'opp', devChoice: 'auto', attackerCosmeticId: 'attack_enraged' })).toBe('enraged');

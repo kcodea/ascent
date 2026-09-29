@@ -7,3 +7,4 @@ export * from './runLobby';
 export * from './fightLedger';
 export * from './tutorialSeats';
 export * from './practiceBots';
+export * from './matchDetails';

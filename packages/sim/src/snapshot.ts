@@ -305,7 +305,7 @@ export function socBoard(result: CombatResult): BoardMinion[] {
 
 /**
  * The run's recorded skins narrowed to one board: its hero's skin and the skins of cards actually on it, plus the
- * account-wide hero attack. Pure
+ * account-wide hero attack and title. Pure
  * key scoping (no catalog lookup, so capture stays deterministic and a retired item is still RECORDED: the
  * renderer decides whether it shows, and a restore brings it back on old boards too). Undefined when nothing
  * applies, so a skinless board serializes exactly as before.
@@ -322,8 +322,13 @@ export function scopeCosmetics(c: RunCosmeticSnapshot | undefined, heroIds: read
   const minion = pick(c.minionSkinByCardId, cardIds);
   // The hero attack is account-wide (2026-09-28): every board keeps it, so the player it strikes sees it.
   const attack = typeof c.heroAttack === 'string' ? c.heroAttack : undefined;
-  if (!hero && !minion && !attack) return undefined;
-  return { ...(hero ? { heroSkinByHeroId: hero } : {}), ...(minion ? { minionSkinByCardId: minion } : {}), ...(attack ? { heroAttack: attack } : {}) };
+  // So is the equipped title (2026-09-28): every board keeps it, so the players it meets see it.
+  const title = typeof c.title === 'string' ? c.title : undefined;
+  if (!hero && !minion && !attack && !title) return undefined;
+  return {
+    ...(hero ? { heroSkinByHeroId: hero } : {}), ...(minion ? { minionSkinByCardId: minion } : {}),
+    ...(attack ? { heroAttack: attack } : {}), ...(title ? { title } : {}),
+  };
 }
 
 export function snapshotBoard(s: RunState): BoardSnapshot {
@@ -473,8 +478,15 @@ export function replayRun(replay: Replay, initial?: RunState): { final: RunState
 const BOOTSTRAP_SEEDS = [1, 2, 3, 7, 11, 42, 101, 777, 1000, 2024, 31337, 90210];
 const BOOTSTRAP_HEROES = HEROES.map((h) => h.id); // vary the hero per seed → varied boards + opponent portraits
 
-/** Greedily auto-play one seeded run as a given hero, capturing the board snapshot at each combat. Deterministic. */
-export function autoplayRun(seed: number, heroId?: string, opts?: BotOptions): BoardSnapshot[] {
+/**
+ * Greedily auto-play one seeded run as a given hero, capturing the board snapshot at each combat. Deterministic.
+ *
+ * `maxBoards` stops the run once that many boards are captured. The boards it returns are an exact PREFIX of the
+ * full recording (same seed, same deterministic loop), which is what makes it a cheap probe: lobby seat
+ * selection asks `autoplayRun(seed, hero, undefined, 1)` "will this seat's recording field anything at all?"
+ * for a fraction of a full recording's cost.
+ */
+export function autoplayRun(seed: number, heroId?: string, opts?: BotOptions, maxBoards = Infinity): BoardSnapshot[] {
   let s = createRun(seed, heroId);
   // Separate RNG for bot pick decisions — doesn't touch the game's own seeded stream.
   const botRng: Rng | null = opts?.preferTribe || opts?.cardWeight ? makeRng(seed ^ 0xb07b07) : null;
@@ -491,11 +503,15 @@ export function autoplayRun(seed: number, heroId?: string, opts?: BotOptions): B
     s = next;
     return true;
   };
-  while (s.phase !== 'gameover' && s.phase !== 'victory' && steps++ < 5000) {
+  while (s.phase !== 'gameover' && s.phase !== 'victory' && snaps.length < maxBoards && steps++ < 5000) {
     if (s.questOffer) { if (step({ type: 'buyQuest', index: 0 })) continue; break; } // quest shop → buy to open the turn
     // The Runeforge (universal on turns 6/9 since Set 2 went live) blocks every non-forge action while open —
     // before this branch existed, recordings silently ended at wave 5. Skip it, like the production bot does.
     if (s.runeforgeOffer) { if (step({ type: 'skipRuneforge' })) continue; break; }
+    // The hero-power Discover (Mimic at the start of EVERY turn, Void on turn 4, the Power Shifter spell) is
+    // mandatory and blocks every other action, faceOmen included. Before this branch existed a Mimic recording
+    // bailed on turn 1 with ZERO boards, so a generated Mimic lobby seat never fielded a board (bug 2026-09-28).
+    if (s.powerOffer) { if (step({ type: 'pickPower', index: 0 })) continue; break; }
     if (s.discover) {
       let idx = 0;
       if (opts?.preferTribe) {

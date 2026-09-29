@@ -1,9 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ALPHA_TESTER_TITLE_ID, achievementOf, levelProgress, titleName, type ProgressionResult } from '@game/progression';
+import { ALPHA_TESTER_TITLE_ID, levelProgress, type ProgressionResult } from '@game/progression';
 import { useGame } from '../store';
 import { cratesVisible, markProgressionPresented, useProgression, wasProgressionPresented, type CurrentRunProgression } from './progressionStore';
 import { breakdownLines, xpText } from './progressionFormat';
-import { CrateOpener, type CrateQueueItem } from './CrateOpener';
 import './achievements.css';
 
 /**
@@ -17,13 +16,12 @@ import './achievements.css';
  * account panel. A failed settlement reads "Progress pending. It will sync automatically." Continue is never
  * here: it stays the screen's own button, always available.
  *
- * ACHIEVEMENTS (2026-09-28): the achievements this settlement completed follow the bar as "Achievement unlocked:
- * <name> +N XP" rows (the first `ACH_ROWS_MAX`, then "+N more"), each a one-shot entrance in the panel's own style.
- * Their XP is part of the headline total and of the bar's sweep (the server paid it in the same settlement).
- *
- * CRATES (2026-09-28): when the settlement created crates (one per new level, plus the Welcome Crate on the
- * first game), "Crate earned" appears after the bar settles, with an OPTIONAL Open button (the reveal plays
- * inline; opening is never required to continue). A guest who earns a crate gets the same save prompt.
+ * DECLUTTERED (owner 2026-09-28: "the end game screen here is full of stuff. can you have the unlocks, achievements,
+ * and crates be a pop up when the player gets back to the collection?"): the panel is the XP headline, the breakdown,
+ * the bar and the level-up moment. Achievements, a new title and crates are NOT shown here any more: the settlement
+ * queues them (`newRewards.ts`) for the Collection's New rewards pop-up, and the Collection entry points wear a NEW
+ * pill. This panel only says, in one line, that new rewards are waiting there. Achievement XP is still part of the
+ * headline total and of the bar's sweep (the server paid it in the same settlement).
  *
  * MOTION: the fill is a `transform: scaleX` transition (compositor only, one-shot); the level badge pop is a
  * one-shot keyframe. Reduced motion, or a result already presented (a remount, a reload, a duplicate answer):
@@ -45,9 +43,6 @@ const T_START = 350;
 const T_FILL = 900;
 const T_LEVELUP = 450;
 const T_FILL2 = 700;
-/** Post-game achievement rows shown before "+N more" (a first game after launch can complete a dozen). */
-export const ACH_ROWS_MAX = 6;
-const ACH_ROW_STAGGER_MS = 90;
 
 function prefersReducedMotion(): boolean {
   try { return window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch { return false; }
@@ -119,8 +114,10 @@ function SettledPanel({ result, reduced }: { result: ProgressionResult; reduced:
   const unlockedAlpha = result.unlockedTitles.includes(ALPHA_TESTER_TITLE_ID);
   const reachedTwo = result.before.level < 2 && result.after.level >= 2;
   const cratesOn = useProgression(cratesVisible);
-  const showCrates = done && cratesOn && result.crateIds.length > 0;
-  const showSavePrompt = done && anonymous && (unlockedAlpha || reachedTwo || showCrates);
+  const earnedCrates = cratesOn && result.crateIds.length > 0;
+  // Anything waiting in the Collection from THIS game: one quiet line points there.
+  const rewardsWaiting = done && (result.achievements.length > 0 || result.unlockedTitles.length > 0 || earnedCrates);
+  const showSavePrompt = done && anonymous && (unlockedAlpha || reachedTwo || earnedCrates);
   const levelsGained = after.level - before.level;
 
   return (
@@ -154,14 +151,12 @@ function SettledPanel({ result, reduced }: { result: ProgressionResult; reduced:
           {levelsGained > 1 ? `Level up! Level ${after.level} (+${levelsGained} levels)` : `Level up! Level ${after.level}`}
         </div>
       )}
-      {done && result.achievements.length > 0 && <PostgameAchievements ids={result.achievements} />}
-      {done && unlockedAlpha && (
-        <div className="acctxp-titlereveal" role="status">
-          <span className="acctxp-titlereveal-eyebrow">Title unlocked</span>
-          <span className="acctxp-titlereveal-name">{titleName(ALPHA_TESTER_TITLE_ID)}</span>
+      {rewardsWaiting && (
+        <div className="acctxp-waiting" role="status">
+          <span className="newpill" aria-hidden="true">New</span>
+          <span>New rewards are waiting in your Collection.</span>
         </div>
       )}
-      {showCrates && <PostgameCrates result={result} reduced={reduced} />}
       {showSavePrompt && (
         <div className="acctxp-save">
           <div className="acctxp-save-head">Save your progress</div>
@@ -170,60 +165,5 @@ function SettledPanel({ result, reduced }: { result: ProgressionResult; reduced:
         </div>
       )}
     </section>
-  );
-}
-
-/** "Achievement unlocked: <name> +N XP", one row per achievement this settlement completed (known ids only). */
-function PostgameAchievements({ ids }: { ids: readonly string[] }): JSX.Element | null {
-  const defs = ids.map((id) => achievementOf(id)).filter((d): d is NonNullable<typeof d> => !!d);
-  if (defs.length === 0) return null;
-  const shown = defs.slice(0, ACH_ROWS_MAX);
-  const more = defs.length - shown.length;
-  return (
-    <ul className="acctxp-ach" aria-label="Achievements unlocked">
-      {shown.map((d, i) => (
-        <li key={d.id} className="acctxp-ach-row" style={{ animationDelay: `${i * ACH_ROW_STAGGER_MS}ms` }}>
-          <span className="acctxp-ach-text">
-            <span className="acctxp-ach-eyebrow">Achievement unlocked:</span>{' '}
-            <span className="acctxp-ach-name">{d.name}</span>
-          </span>{' '}
-          <b>{xpText(d.rewards.xp)}</b>
-        </li>
-      ))}
-      {more > 0 && (
-        <li className="acctxp-ach-more" style={{ animationDelay: `${shown.length * ACH_ROW_STAGGER_MS}ms` }}>
-          {more === 1 ? '+1 more achievement. See your Career.' : `+${more} more achievements. See your Career.`}
-        </li>
-      )}
-    </ul>
-  );
-}
-
-/** "Crate earned" + the optional Open button, for the crates THIS settlement created (oldest level first). */
-function PostgameCrates({ result, reduced }: { result: ProgressionResult; reduced: boolean }): JSX.Element | null {
-  const crateList = useProgression((s) => s.crateList);
-  const [opening, setOpening] = useState(false);
-  const n = result.crateIds.length;
-  const queue: CrateQueueItem[] = useMemo(() => result.crateIds.map((crateId, i) => ({
-    crateId, earnedLevel: Math.max(1, result.after.level - (n - 1 - i)),
-  })), [result.crateIds, result.after.level, n]);
-  // Crates already opened elsewhere (the Collection, an earlier visit to this screen) drop out.
-  const sealed = queue.filter((c) => crateList?.find((x) => x.crateId === c.crateId)?.state !== 'opened');
-  if (!opening && sealed.length === 0) return null;
-  return (
-    <div className="acctxp-crates">
-      {!opening ? (
-        <div className="acctxp-crates-row">
-          <span className="acctxp-crates-icon" aria-hidden />
-          <div className="acctxp-crates-text">
-            <span className="acctxp-crates-head">{n === 1 ? 'Crate earned' : `${n} crates earned`}</span>
-            <span className="acctxp-crates-sub">Open now, or later from your Collection.</span>
-          </div>
-          <button type="button" className="crate-btn pressable" onClick={() => setOpening(true)}>Open</button>
-        </div>
-      ) : (
-        <CrateOpener queue={sealed.length ? sealed : queue} autoOpen reducedMotion={reduced} onClose={() => setOpening(false)} />
-      )}
-    </div>
   );
 }

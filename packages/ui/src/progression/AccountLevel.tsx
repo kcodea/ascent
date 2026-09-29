@@ -4,6 +4,7 @@ import { useGame } from '../store';
 import { sfx } from '../sfx';
 import { fetchPublicProgression } from './progressionRemote';
 import { cratesVisible, mirrorFor, useProgression } from './progressionStore';
+import { NewPill, useHasNewRewards } from './NewRewardsPopup';
 
 /**
  * ACCOUNT LEVEL on the Career page (2026-09-27): Level + XP bar + equipped title, public for every player, plus
@@ -38,6 +39,7 @@ export function AccountLevelCard({ profile, own }: { profile: ProgressionProfile
   const cratesOn = useProgression(cratesVisible);
   const sealed = useProgression((s) => (s.crateList ?? []).filter((c) => c.state === 'sealed').length);
   const openCollection = useGame((s) => s.openCollection);
+  const newRewards = useHasNewRewards();
   const p = levelProgress(profile.accountXp);
   return (
     <div className="cv2-acctlevel" role="group" aria-label="Account Level">
@@ -52,8 +54,9 @@ export function AccountLevelCard({ profile, own }: { profile: ProgressionProfile
         </div>
       </div>
       {own && cratesOn && (
-        <button type="button" className="cv2-btn cv2-btn-sm cv2-acctlevel-coll pressable" onClick={() => { sfx.pulse(); openCollection(); }}>
+        <button type="button" className={`cv2-btn cv2-btn-sm cv2-acctlevel-coll pressable${newRewards ? ' hasnew' : ''}`} onClick={() => { sfx.pulse(); openCollection(); }}>
           Collection
+          {newRewards && <NewPill />}
           {sealed > 0 && <span className="cv2-acctlevel-crates" aria-label={`${sealed} sealed ${sealed === 1 ? 'crate' : 'crates'}`}>{sealed}</span>}
         </button>
       )}

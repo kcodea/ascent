@@ -42,6 +42,10 @@ behaviour from a legacy symbol.**
   `gameover`, so a lobby win is placement 1, not a victory phase.
 - Lobby state is serializable; runtime seat drivers are reconstructed from serializable metadata.
 - Missing snapshot data degrades deterministically — fill the seat, never shrink the table.
+- A generated (hybrid) seat is seated only if its RECORDING fields a board (`hybridSeat.canFieldBoard` checks a
+  one-board `autoplayRun` prefix, not just the live bot). `autoplayRun` must answer every blocking modal a hero
+  can raise (quest, Runeforge, `powerOffer`, Discover, chooseOne, target) or that hero records nothing — the
+  Mimic bug (R-LOBBY-05). A player paired with a boardless seat fights the latest ghost, logged as a ghost fight.
 - Do not synchronously rebuild seven runs inside a render or click handler. Warm expensive seats off the
   interaction path.
 - Scouting reveals only recorded/intended information, never hidden future decisions.
@@ -85,6 +89,13 @@ Spec: `docs/replay-v2-handoff.md`.
   lobby creation) are display-only and optional: absent = default art. Render them only through
   `packages/ui/src/skins/` (it applies liveness, the target check and the opponent toggle); never read them in
   combat or matchmaking.
+
+- **Match details (2026-09-28)** are a RECORD, not a derivation: `buildMatchDetails` (lobby/matchDetails.ts) reads each
+  seat's board through the lobby's own `prepare(round) ?? finalBoard()` ONCE at run end (store `matchDetailsOf`, in
+  the deferred run-end blocks, before the fight ledger's play-out) and it is stored in `run_history.entry.match` /
+  `practice_games.replay.match`. Readers go through `parseMatchDetails` (null for old records) and never touch a
+  driver. It also carries each board's owned runes and each real run's ledger key (the Hall of Champions crown).
+  A change to how a seat fields its board must keep that call the one the settle uses.
 
 Changes must consider saved lobbies, replays, telemetry, Career/Recent Games, the End Screen, tutorial
 authored seats, bot ladders, and remote snapshot availability.

@@ -180,7 +180,9 @@ describe('Match History', () => {
       expect(r.querySelector('.cv2-row-head .cv2-row-outcome .cv2-verdict')).not.toBeNull();
       expect(r.querySelector('.cv2-row-team .cv2-row-label'), 'no "Final Team" label over the tiles (owner 2026-09-20)').toBeNull();
       expect(r.querySelector('.cv2-row-foot .cv2-row-runes .cv2-row-label')?.textContent).toBe('Runes');
-      expect(r.querySelectorAll('button')).toHaveLength(1);
+      // ONE action button (+ the Lobby expand chevron, Match details 2026-09-28, which is not an action).
+      expect(r.querySelectorAll('button:not(.cv2-lobbybtn)')).toHaveLength(1);
+      expect(r.querySelectorAll('.cv2-lobbybtn')).toHaveLength(1);
       expect(r.querySelector('.cv2-row-foot .cv2-watch')).not.toBeNull();
     }
     // Row 1 has a FULL board: exactly 7 slots, all real cards, the gilded one wearing the golden frame.
@@ -691,9 +693,9 @@ describe('the Practice tab', () => {
   it('Watch Replay only on a row that carries a replay; a row without one has no button at all (not a disabled one)', async () => {
     await openPractice();
     const rows = [...ui.container.querySelectorAll('.cv2-practicelist .cv2-row')];
-    expect(rows[0]!.querySelectorAll('button')).toHaveLength(1);
+    expect(rows[0]!.querySelectorAll('button:not(.cv2-lobbybtn)')).toHaveLength(1);
     expect(rows[0]!.querySelector('.cv2-watch')?.textContent).toBe('Watch Replay');
-    expect(rows[1]!.querySelectorAll('button')).toHaveLength(0);
+    expect(rows[1]!.querySelectorAll('button:not(.cv2-lobbybtn)')).toHaveLength(0); // the Lobby chevron is always there
     expect(rows[1]!.textContent).not.toMatch(/replay/i);
   });
 

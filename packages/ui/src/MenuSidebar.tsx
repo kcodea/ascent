@@ -36,6 +36,7 @@ import { cratesVisible, useProgression } from './progression/progressionStore';
 import { sfx } from './sfx';
 import { navClockNow, useGame, type MenuDest } from './store';
 import { getTitleText } from './titleTextConfig';
+import { NewPill, useHasNewRewards } from './progression/NewRewardsPopup';
 
 /** How long after a `goTo` a mounting host counts as "opened by the sidebar". A hop mounts its destination in
  *  the same event turn (a few ms); a title-plaque open or a row click carries no fresh stamp. */
@@ -67,6 +68,7 @@ export function MenuSidebar({ current, onBack }: { current: SidebarCurrent; onBa
   const txt = getTitleText();
   // The Collection plaque shows once crates are live (always in DEV, so the screen and its tuner are reachable).
   const collectionOn = useProgression(cratesVisible) || import.meta.env.DEV;
+  const newRewards = useHasNewRewards();
 
   const items: Item[] = [
     { dest: 'modes', label: txt.play, icon: <Crest /> },
@@ -83,15 +85,17 @@ export function MenuSidebar({ current, onBack }: { current: SidebarCurrent; onBa
       <nav className="msb-nav" aria-label="Main menu">
         {items.map((it) => {
           const active = it.dest === current;
+          const fresh = it.dest === 'collection' && newRewards;
           const btn = (
             <button
               key={it.dest}
-              className={`sbbtn${active ? ' active' : ''}`}
+              className={`sbbtn${active ? ' active' : ''}${fresh ? ' hasnew' : ''}`}
               aria-current={active ? 'page' : undefined}
               onClick={() => { sfx.pulse(); goTo(it.dest); }}
             >
               <span className="mbicon">{it.icon}</span>
               <span className="mblabel">{it.label}</span>
+              {fresh && <NewPill />}
             </button>
           );
           // Play with a run saved: the same warning the title's Play carries, as a styled bubble on a WRAPPER

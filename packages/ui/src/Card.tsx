@@ -405,6 +405,7 @@ export const Card = memo(function Card({
   enchanted,
   soulbound,
   forceFull,
+  forceCompact,
   slideDir,
   handSlidePx,
   fanRot,
@@ -494,6 +495,9 @@ export const Card = memo(function Card({
   soulbound?: boolean;
   /** Render the full-text card regardless of the global compact setting — used by the hover reveal. */
   forceFull?: boolean;
+  /** Render the compact arched tile regardless of the global compact setting (a stored board inside a fixed-size
+   *  panel: the text drawer would hang out of the tile, and the hover reveal already shows the full card). */
+  forceCompact?: boolean;
   /** Pre-emptive reorder slide: -1 shifts the card half a slot LEFT, +1 half a slot RIGHT, 0/undefined none.
    *  A CSS `transition: transform` (active while dragging) glides it as the drop gap moves — the neighbour
    *  "make room" animation. Half-slot each side keeps the row centred and matches the final drop position. */
@@ -613,7 +617,7 @@ export const Card = memo(function Card({
   // renders force-full after a non-force-full one shifts the whole hook order and React throws "Should have a
   // queue" (hit 2026-07-24 adding force-full cards to the Choose One prompt). Read the store unconditionally.
   const compactCards = useGame((s) => s.compactCards);
-  const showText = forceFull || !compactCards;
+  const showText = forceFull || (!forceCompact && !compactCards);
   // Decide the mount-pop exactly once, at mount, so a later prop change never restarts the animation.
   const [popin, setPopin] = useState(() => !suppressPop);
   /* Re-render when this card's art framing is dialled in the tuner. `useSyncExternalStore` rather than a

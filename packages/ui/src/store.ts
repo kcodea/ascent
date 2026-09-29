@@ -381,7 +381,7 @@ interface GameStore {
   closeAccountPanel: () => void;
   /** Send a sign-in email (a 6-digit code + a link). Resolves whether it WAS SENT. The player then either
    *  types the code (`verifyEmailCode`, works in the exe) or clicks the link on web (lands via `onChange`). */
-  sendMagicLink: (email: string) => Promise<{ ok: boolean; error?: string }>;
+  sendMagicLink: (email: string) => Promise<{ ok: boolean; error?: string; existing?: boolean }>;
   /** Finish sign-in by entering the emailed 6-digit code — the desktop path (no web origin needed). On success
    *  the account state updates through the identity `onChange` subscription. */
   verifyEmailCode: (email: string, code: string) => Promise<{ ok: boolean; error?: string }>;

@@ -2979,4 +2979,27 @@ export const FOUNDATION_RULES: GameRule[] = [
     currentBehaviour: 'Conforms, fixed 2026-09-29.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/heroAttack/stageCamera.test.ts'], lastVerifiedAt: '2026-09-29' },
   },
+  {
+    id: 'R-PROG-CRATE-04',
+    title: 'A guest cannot open crates: every Open shows a create-an-account gate; guests still earn and see their sealed crates',
+    statement:
+      'A guest (anonymous account) earns crates and sees them sealed in the Collection, but cannot open them. Every '
+      + 'player-facing crate open (the Collection crate bay\x27s Open and Open all, and the New rewards pop-up\x27s Open and '
+      + 'Open all) shows a small gate instead of the crate opener: "Create an account to open crates", with Create account '
+      + '(closes it and opens the account panel) and Not now; Esc or a click outside closes it. A guest\x27s Open wears a '
+      + 'small lock and the bay says "Create a free account to open them." Creating the account upgrades the guest in place, '
+      + 'so the crates carry over, and the moment the account stops being a guest the gate closes and Open works with no '
+      + 'reload. The gate warns that signing into an EXISTING account switches to it and leaves the guest\x27s crates behind, '
+      + 'and the account panel says the same at the moment that happens. With no account backend the gate says accounts '
+      + 'are unavailable instead of opening a panel that cannot work. Dev tuners and the crate FX preview (practice crates, '
+      + 'never the server) are not gated.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-29 (crate sign-in gate)', quote: 'ask players not signed in to sign in when they try to open a crate? we\x27d like players to create sign ins for account progression' },
+      { kind: 'code', ref: 'packages/ui/src/progression/CrateSignInGate.tsx; CollectionScreen.tsx begin() (the one crate-open path) + CrateBay guest hint; packages/ui/src/AccountPanel.tsx (existing-account warning); remoteBoards.ts signInWithEmail `existing`' },
+    ],
+    currentBehaviour: 'Conforms, built 2026-09-29 (the owner picked a hard gate over a soft nudge). Client-side gate: the server does not yet refuse an anonymous open.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/progression/CollectionScreen.test.tsx', 'packages/ui/src/progression/Crates.test.tsx', 'packages/ui/src/AccountPanel.test.tsx'], lastVerifiedAt: '2026-09-29' },
+  },
 ];

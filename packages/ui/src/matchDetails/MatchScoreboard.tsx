@@ -1,7 +1,7 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
 import { createPortal } from 'react-dom';
 import { getHero, type MatchDetails, type MatchSeat } from '@game/sim';
-import { cosmeticOf, titleName, type RunCosmeticSnapshot } from '@game/progression';
+import type { RunCosmeticSnapshot } from '@game/progression';
 import { Icon } from '../Icon';
 import { StoredTeam } from '../StoredTeam';
 import { RuneEmblem } from '../RuneEmblem';
@@ -10,6 +10,7 @@ import { heroPortrait, internSnapshot, opponentSkins, useSkinEpoch } from '../sk
 import { useGame } from '../store';
 import { sfx } from '../sfx';
 import { stageHost } from '../stage';
+import { TitleBadge } from '../titles/TitleBadge';
 import { useHallKeys } from './hallKeys';
 import { boardCaption, defaultSeatId, placeLabel, statusText, summaryText } from './matchDetailsText';
 import './matchDetails.css';
@@ -26,10 +27,26 @@ import './matchDetails.css';
  * SKINS: `own` = the record belongs to the viewer (the end screen, your own Career). Your own seat then wears your
  * recorded skins as-is; every other seat goes through "Show opponent skins". On someone else's Career every seat
  * is an opponent, their own included.
+ *
+ * TITLES (owner 2026-09-28: "i think it should show in like leaderboard/match details views"): every row shows the
+ * title its player wore in that run, from the seat's recorded cosmetic snapshot, under the SAME rule as skins (your
+ * own seat as recorded; every other seat through "Show opponent cosmetics"). Bots and older records carry none, and
+ * `TitleBadge` renders nothing for an unknown or retired title. Rule: R-PROG-TITLE-03.
  */
 
 function seatSkins(seat: MatchSeat, own: boolean, showOpponents: boolean): RunCosmeticSnapshot | null {
   return internSnapshot(own && seat.self ? seat.cosmetics ?? null : opponentSkins(showOpponents, seat.cosmetics));
+}
+
+/** The title a seat's row shows (a snapshot for `TitleBadge`), or null. The seat's recorded cosmetics carry it; a
+ *  record from before titles rode the snapshot may still carry your own seat's `titleId`. Same gate as skins. Bots
+ *  never show one. Exported for the tests. */
+export function seatTitle(seat: MatchSeat, own: boolean, showOpponents: boolean): RunCosmeticSnapshot | null {
+  if (seat.bot && !seat.self) return null;
+  const id = seat.cosmetics?.title ?? seat.titleId;
+  if (!id) return null;
+  const snap: RunCosmeticSnapshot = seat.cosmetics?.title ? seat.cosmetics : { title: id };
+  return own && seat.self ? snap : opponentSkins(showOpponents, snap);
 }
 
 /** The hero portrait in the game's gold ring (the Career's `.cv2-heroframe` markup, row-sized). */
@@ -55,15 +72,15 @@ interface SeatRowProps {
   /** This seat's run is currently on the Hall of Champions. */
   hall: boolean;
   skins: RunCosmeticSnapshot | null;
+  /** The title to show (already through the opponent cosmetics gate), or null. */
+  title: RunCosmeticSnapshot | null;
   onSelect: (id: string) => void;
   onKey: (e: KeyboardEvent<HTMLButtonElement>, id: string) => void;
 }
 
 /** One seat. Memoised: its props are primitives plus the seat (a stable reference into the recorded details). */
-const SeatRow = memo(function SeatRow({ seat, place, status, selected, killer, hall, skins, onSelect, onKey }: SeatRowProps) {
+const SeatRow = memo(function SeatRow({ seat, place, status, selected, killer, hall, skins, title, onSelect, onKey }: SeatRowProps) {
   const heroName = seat.heroId ? getHero(seat.heroId).name : '';
-  const title = seat.titleId ? titleName(seat.titleId) : null;
-  const rarity = seat.titleId ? cosmeticOf(seat.titleId)?.rarity ?? null : null;
   const standing = seat.eliminatedRound === undefined && !(seat.self && status.startsWith('Out'));
   const winner = status === 'Winner';
   const label = `${place ? `${place}. ` : ''}${seat.name}${seat.self ? ' (you)' : ''}, ${heroName}. ${status}.${killer ? ' Knocked you out.' : ''}${hall ? ' On the Hall of Champions.' : ''}`;
@@ -86,9 +103,10 @@ const SeatRow = memo(function SeatRow({ seat, place, status, selected, killer, h
           {seat.self && <span className="mds-tag you">You</span>}
           {seat.bot && !seat.self && <span className="mds-tag bot">Bot</span>}
         </span>
-        {title
-          ? <span className={`mds-title${rarity ? ` r-${rarity}` : ''}`}>{title}</span>
-          : <span className="mds-hero">{heroName}</span>}
+        <span className="mds-heroline">
+          <span className="mds-hero">{heroName}</span>
+          {title && <TitleBadge snapshot={title} className="mds-row-title" />}
+        </span>
         <span className={`mds-status${winner ? ' winner' : standing ? ' in' : ' out'}`}>
           {winner && <Icon name="crown" />}{status}
           {killer && <span className="mds-killer"><Icon name="sword" />Knocked you out</span>}
@@ -140,6 +158,7 @@ export function MatchScoreboard({ details, own }: { details: MatchDetails; own: 
   // Per-seat derived strings + skins, once per record (never per render of a row).
   const rows = useMemo(() => seats.map((seat) => ({
     seat, place: placeLabel(seat, details), status: statusText(seat, details), skins: seatSkins(seat, own, showOpponents),
+    title: seatTitle(seat, own, showOpponents),
   })), [seats, details, own, showOpponents]);
 
   // The Hall crown: one cached read per panel open (never per render), asked only when a seat is a real run.
@@ -178,6 +197,7 @@ export function MatchScoreboard({ details, own }: { details: MatchDetails; own: 
             killer={r.seat.id === details.knockedOutBy}
             hall={!!r.seat.runKey && hallKeys.has(r.seat.runKey)}
             skins={r.skins}
+            title={r.title}
             onSelect={onSelect}
             onKey={onKey}
           />

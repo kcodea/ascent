@@ -28,6 +28,7 @@ const board = (a: number, wave: number): BoardSnapshot => ({
   ],
   seed: 5000 + a, origin: 'self', author: AUTHORS[a], setId: 'set1',
   ...(a === 0 ? { cosmetics: { heroSkinByHeroId: { albus: 'skin_albus_1' } } } : {}),
+  ...(a >= 2 ? { cosmetics: { title: 'title_wanderer' } } : {}), // the title each of these players wore (R-PROG-TITLE-03)
   ...(a === 1 ? { runes: wave >= 6 ? ['rune_broodpit', 'rune_epic_forge'] : ['rune_broodpit'] } : {}),
 } as unknown as BoardSnapshot);
 
@@ -130,6 +131,17 @@ describe('buildMatchDetails', () => {
     const d = parseMatchDetails({ v: 1, seats: [{ id: 's0', heroId: 'cia', board: { round: 3, tier: 2, minions: [], runes: ['rune_x', 7, 'bad id!'] } }, { id: 's1', heroId: 'cia', board: { round: 3, tier: 2, minions: [] } }] })!;
     expect(d.seats[0]!.board!.runes).toEqual(['rune_x']);
     expect(d.seats[1]!.board!.runes).toBeUndefined();
+  });
+
+  it('TITLES (R-PROG-TITLE-03): every seat carries the title its player wore, in its cosmetics; yours from your run; none for a player without one', () => {
+    const d = buildMatchDetails(lobbyAt(4, {}), { ...input(1), selfCosmetics: { title: 'alpha_tester' } });
+    expect(d.seats.find((s) => s.name === 'Rook')!.cosmetics).toEqual({ title: 'title_wanderer' });
+    expect(d.seats.find((s) => s.name === 'Tam')!.cosmetics?.title).toBe('title_wanderer');
+    expect(d.seats.find((s) => s.name === 'Olde')!.cosmetics).toBeUndefined(); // wore none
+    expect(d.seats.find((s) => s.self)!.cosmetics).toEqual({ title: 'alpha_tester' });
+    // Stored and read back (the Career), the titles survive.
+    const back = parseMatchDetails(JSON.parse(JSON.stringify(d)))!;
+    expect(back.seats.find((s) => s.name === 'Rook')!.cosmetics?.title).toBe('title_wanderer');
   });
 
   it('stays small: a full 8-seat table is well under the cap', () => {

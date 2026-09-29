@@ -29,6 +29,7 @@ import { playHeroFire } from '../heroFire/heroFire';
 import { playHeroUndead } from '../heroUndead/heroUndead';
 import { playHeroBeast } from '../heroBeast/heroBeast';
 import { playHeroBanana } from '../heroBanana/heroBanana';
+import { playHeroBleed } from '../heroBleed/heroBleed';
 import { playHeroCards } from '../heroCards/heroCards';
 import { playHeroStorm } from '../heroStorm/heroStorm';
 import { SPEC, boardOf } from '../DamageFormationTuner';
@@ -318,6 +319,7 @@ describe('the runners', () => {
       ['undead', (o) => playHeroUndead({ ...o, textures: TEX })],
       ['beast', (o) => playHeroBeast({ ...o, textures: TEX })],
       ['banana', (o) => playHeroBanana({ ...o, textures: TEX })],
+      ['bleed', (o) => playHeroBleed({ ...o, textures: TEX })],
       ['cards', (o) => playHeroCards({ ...o, textures: null })],
       ['storm', (o) => playHeroStorm({ ...o, textures: null })],
     ];
@@ -469,6 +471,7 @@ describe('no attack ever pauses its clock (owner 2026-09-28: "remove the freezei
     ['undead', (o) => playHeroUndead({ ...o, textures: null })],
     ['beast', (o) => playHeroBeast({ ...o, textures: null })],
     ['banana', (o) => playHeroBanana({ ...o, textures: null })],
+    ['bleed', (o) => playHeroBleed({ ...o, textures: null })],
     ['cards', (o) => playHeroCards({ ...o, textures: null })],
     ['storm', (o) => playHeroStorm({ ...o, textures: null })],
   ];

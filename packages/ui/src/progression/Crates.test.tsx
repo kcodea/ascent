@@ -128,6 +128,16 @@ describe('crates moved off the end screen (owner 2026-09-28: "can you have the u
     expect($('.nrw-panel')).toBeNull();
   });
 
+  it('a guest: the pop-up Open lands on the sign-in gate, not the theatre (owner 2026-09-29, a hard gate)', async () => {
+    useGame.setState({ account: { userId: 'u-1', email: null, anonymous: true, discriminator: null } });
+    landAndOpen(result(), ['c-2']);
+    act(() => document.querySelector<HTMLButtonElement>('.nrw-crates .crate-btn')!.click());
+    await settle();
+    expect($('.crgate-panel')).not.toBeNull();
+    expect($('.crth')).toBeNull();
+    expect(openCrateRemote).not.toHaveBeenCalled();
+  });
+
   it('several crates: "2 crates earned" with Open all', () => {
     landAndOpen(result({ cratesAwarded: 2, crateIds: ['c-1', 'c-2'], after: { lifetimeXp: 600, level: 3 } }), ['c-1', 'c-2']);
     expect(text('.nrw-crates .nrw-kicker')).toBe('2 crates earned');

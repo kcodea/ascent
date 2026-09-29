@@ -117,4 +117,29 @@ export const ECONOMY_RULES: GameRule[] = [
       lastVerifiedAt: '2026-09-22',
     },
   },
+  {
+    id: 'R-EQUIP-02',
+    title: 'Gold paid to use an Equipment counts as Gold spent',
+    statement:
+      'Gold the player pays to activate an Equipment is Gold spent, exactly like Gold paid to buy, refresh or tier '
+      + 'up: it advances the run and per-turn Gold-spent tallies and every Spend consumer (a card\'s "when you '
+      + 'spend N Gold" meter, Gold-spent runes, "Spend N Gold" quests, "Gold spent this turn" scalers). A use that '
+      + 'costs 0 spends nothing.',
+    domain: 'economy',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-29 (Equipment Gold)', quote: 'this should count as gold spent' },
+      { kind: 'code', ref: "packages/sim/src/reducer.ts — the 'activateEquipment' case now pays through `spendGold` (the single Gold-spend chokepoint) instead of a bare `s.embers -= cost`" },
+    ],
+    contentIds: ['e3_frank', 'dw_coinfire'],
+    currentBehaviour:
+      'Conforms — 2026-09-29. Before this the activation deducted Gold directly (`s.embers -= cost`), so no Gold-spent '
+      + 'tally, meter, rune or quest ever saw an Equipment payment. Equipment can only be paid for in the recruit '
+      + 'phase; the other Equipment fires (Dismantling, Counterrotation, Overcharge) are free.',
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/sim/src/equipmentGoldSpent.test.ts'],
+      lastVerifiedAt: '2026-09-29',
+    },
+  },
 ];

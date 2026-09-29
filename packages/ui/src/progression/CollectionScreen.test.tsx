@@ -27,6 +27,9 @@ const openCrateRemote = vi.fn();
 const equipTitleRemote = vi.fn();
 const fetchOwnCrates = vi.fn(async () => undefined as unknown);
 vi.mock('../identity', async (orig) => ({ ...(await orig<typeof import('../identity')>()), currentUserId: () => 'u-1' }));
+// The account backend's presence (the crate sign-in gate says "unavailable" without one). On unless a test turns it off.
+const backend = vi.hoisted(() => ({ on: true }));
+vi.mock('../remoteBoards', async (orig) => ({ ...(await orig<typeof import('../remoteBoards')>()), remoteEnabled: () => backend.on }));
 vi.mock('./progressionRemote', async (orig) => ({
   ...(await orig<typeof import('./progressionRemote')>()),
   openCrateRemote: (id: string) => openCrateRemote(id),
@@ -53,6 +56,7 @@ beforeEach(() => {
   openCrateRemote.mockReset();
   equipTitleRemote.mockReset();
   setCrateFxFactoryForTests(noopFx);
+  backend.on = true;
   useGame.setState({ account: { userId: 'u-1', email: 'kev@example.com', anonymous: false, discriminator: null }, accountPanelOpen: false, showCollection: false, showCareer: false, playerName: 'Kevin' });
 });
 
@@ -119,8 +123,8 @@ describe('the Collection screen: the album', () => {
     expect(missing.getAttribute('aria-label')).toBe('Kingbreaker, Epic, not owned');
     // "N / M collected" counts every live item: 16 titles + the 6 skins + 8 hero attacks (2026-09-28: Quake made it 24,
     // Arcana and Phantom Blades 26, Enraged Strike 27, Venom Volley 28, Frost Nova 29, Consecration 30; skins batch 2 +13 minion skins, 43)
-    // + 33 hero titles (2026-09-29; each hero's golden master replaces its title once owned, so it never adds a slot), 76; Inferno (2026-09-29), 77; Grave Call (2026-09-29), 78; the Stampede (2026-09-29), 79; Oona's Banana Cannon (2026-09-29), 80
-    expect(text('.colls-meter-num')).toBe('2 / 82');
+    // + 33 hero titles (2026-09-29; each hero's golden master replaces its title once owned, so it never adds a slot), 76; Inferno (2026-09-29), 77; Grave Call (2026-09-29), 78; the Stampede (2026-09-29), 79; Oona's Banana Cannon (2026-09-29), 80; Hemorrhage (2026-09-29), 81; the Epics Card Shark and Storm Call (2026-09-29), 83
+    expect(text('.colls-meter-num')).toBe('2 / 83');
     expect(text('.colls-tab.on .colls-tab-count')).toBe('2/49');
     clean();
   });
@@ -166,7 +170,7 @@ describe('hero titles in the Collection (owner 2026-09-29: "the master title sho
     expect(warded.className).toMatch(/\bworn\b/);
     expect(tileNames()).toHaveLength(49); // the master took the title's slot
     expect(tileNames().slice(0, 2)).toEqual(['The Unbroken', 'Warded']); // the Legendaries lead the album
-    expect(text('.colls-meter-num')).toBe('2 / 82'); // Alpha Tester + Warded (the master stands for both tiers)
+    expect(text('.colls-meter-num')).toBe('2 / 83'); // Alpha Tester + Warded (the master stands for both tiers)
     // the detail panel's nameplate and the preview under your name are the plate too
     expect($('.colls-plate-name .titlebadge.tb-master')?.textContent).toBe('Warded');
     expect($('.colls-preview-title .titlebadge.tb-master')?.textContent).toBe('Warded');
@@ -315,6 +319,96 @@ describe('the Collection screen: a guest', () => {
     expect(text('.colls-guest span')).toBe('Guest account. Save it to keep your collection.');
     act(() => button('Create account')!.click());
     expect(useGame.getState().accountPanelOpen).toBe(true);
+    clean();
+  });
+});
+
+describe('the Collection screen: the crate sign-in gate (owner 2026-09-29, a hard gate)', () => {
+  const guest = (): void => { useGame.setState({ account: { userId: 'u-1', email: null, anonymous: true, discriminator: null } }); };
+  const gateTitle = (): string => text('#crgate-title');
+
+  it('a guest still sees the sealed crates, with a lock on Open and a line saying why', () => {
+    guest();
+    open();
+    expect(text('.colls-bay-sub')).toBe('2 ready. Next: Level 2 Crate');
+    expect(text('.colls-bay-guest')).toBe('Create a free account to open them.');
+    expect(button('Open')!.querySelector('.colls-lock')).not.toBeNull();
+    expect(button('Open')!.getAttribute('aria-label')).toBe('Open (needs an account)');
+    clean();
+  });
+
+  it('a guest pressing Open (or Open all) gets the gate, and nothing opens', async () => {
+    guest();
+    open();
+    act(() => button('Open')!.click());
+    await settle();
+    expect(gateTitle()).toBe('Create an account to open crates');
+    expect(text('.crgate-lead')).toBe('Your crates, level and collection are saved to your account.');
+    expect(text('.crgate-body .nrw-note')).toBe('It is free and takes a minute. You only need an email.');
+    expect(text('.crgate-warn')).toBe('Already have an account? Signing in switches to it. Crates earned as a guest stay on this guest.');
+    expect($('.crth')).toBeNull();
+    expect(openCrateRemote).not.toHaveBeenCalled();
+    clean();
+    act(() => button('Not now')!.click());
+    expect($('.crgate-panel')).toBeNull();
+    act(() => button('Open all (2)')!.click());
+    await settle();
+    expect(gateTitle()).toBe('Create an account to open crates');
+    expect($('.crth')).toBeNull();
+    expect(openCrateRemote).not.toHaveBeenCalled();
+  });
+
+  it('Create account closes the gate and opens the account panel; Esc closes it too', () => {
+    guest();
+    open();
+    act(() => button('Open')!.click());
+    act(() => { window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' })); });
+    expect($('.crgate-panel')).toBeNull();
+    expect(useGame.getState().accountPanelOpen).toBe(false);
+    act(() => button('Open')!.click());
+    act(() => document.querySelector<HTMLButtonElement>('.crgate-foot .cv2-btn')!.click());
+    expect($('.crgate-panel')).toBeNull();
+    expect(useGame.getState().accountPanelOpen).toBe(true);
+  });
+
+  it('once the account is created (anonymous flips false) the open gate closes and Open goes straight through, no reload', async () => {
+    guest();
+    open();
+    act(() => button('Open')!.click());
+    expect($('.crgate-panel')).not.toBeNull();
+    act(() => { useGame.setState({ account: { userId: 'u-1', email: 'kev@example.com', anonymous: false, discriminator: null } }); });
+    expect($('.crgate-panel')).toBeNull();
+    expect($('.colls-bay-guest')).toBeNull();
+    openCrateRemote.mockResolvedValue({ status: 'ok', value: opened('c-2', 'title_hearthkeeper', 2, 1), profile: profile() });
+    act(() => button('Open')!.click());
+    await settle();
+    expect($('.crgate-panel')).toBeNull();
+    expect(openCrateRemote).toHaveBeenCalledWith('c-2');
+  });
+
+  it('a signed-in player never sees the gate', async () => {
+    open();
+    openCrateRemote.mockResolvedValue({ status: 'ok', value: opened('c-2', 'title_hearthkeeper', 2, 1), profile: profile() });
+    expect($('.colls-bay-guest')).toBeNull();
+    expect(button('Open')!.querySelector('.colls-lock')).toBeNull();
+    act(() => button('Open')!.click());
+    await settle();
+    expect($('.crgate-panel')).toBeNull();
+    expect(openCrateRemote).toHaveBeenCalledWith('c-2');
+  });
+
+  it('no account backend: the gate says accounts are unavailable instead of opening a panel that cannot work', () => {
+    backend.on = false;
+    guest();
+    open();
+    act(() => button('Open')!.click());
+    expect(gateTitle()).toBe('Accounts are unavailable');
+    expect(text('.crgate-lead')).toBe('You need an account to open crates, and accounts cannot be reached right now.');
+    expect($('.crgate-foot')!.textContent).toBe('OK');
+    act(() => button('OK')!.click());
+    expect($('.crgate-panel')).toBeNull();
+    expect(useGame.getState().accountPanelOpen).toBe(false);
+    expect(openCrateRemote).not.toHaveBeenCalled();
     clean();
   });
 });

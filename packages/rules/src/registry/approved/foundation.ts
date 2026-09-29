@@ -2240,7 +2240,9 @@ export const FOUNDATION_RULES: GameRule[] = [
       + '("Stampede", Legendary, style beast: R-PROG-ATTACK-18), joined the same day under the same fixed odds, making '
       + 'Legendary fourteen items at 0.357% each and the eleven attacks together 3.93%. The twelfth, attack_banana '
       + '("Oona\x27s Banana Cannon", Legendary, style banana: R-PROG-ATTACK-19), joined the same day under the same fixed '
-      + 'odds, making Legendary fifteen items at 0.333% each and the twelve attacks together 4%.',
+      + 'odds, making Legendary fifteen items at 0.333% each and the twelve attacks together 4%. The thirteenth, '
+      + 'attack_bleed ("Hemorrhage", Legendary, style bleed: R-PROG-ATTACK-21), joined the same day under the same fixed odds, '
+      + 'making Legendary sixteen items at 0.3125% each and the thirteen attacks together 4.06%.',
     domain: 'foundation',
     status: 'approved',
     evidence: [
@@ -2836,6 +2838,46 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'diamond still hits the button, a press on the ring-covered edge arms the power, and the hover tooltip opens.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/portraitFrame/portraitFrameZOrder.test.ts'], lastVerifiedAt: '2026-09-29' },
   },
+  {
+    id: 'R-RANK-05',
+    title: 'Ranked: quitting an unfinished rated game settles it as a finish in the lowest place still open, with the normal Rating change for that place',
+    statement:
+      'A RATED game (Play mode, a lobby with at least one recorded player at the table) that the player abandons before '
+      + 'it ends settles exactly as if they had finished in the lowest placement still available at that moment: the '
+      + 'number of seats still alive. Nobody out yet is 8th; one seat already out is 7th; and so on. The normal placement '
+      + 'award for that place applies unchanged, with every gate that already exists for it (a demotion game, a '
+      + 'promotion game, the top-4 strength bonus, the all-generated refusal). ABANDONING means giving up the one saved '
+      + 'game: discarding it from the title, or starting any new game (Play, Practice, the tutorial) that replaces it. '
+      + 'Save & Quit is NOT quitting: the game stays live, Continue resumes it, and it settles once at its real end. '
+      + 'Practice, the tutorial, the Scene Builder and an unrated all-generated lobby abandon for free. A game already '
+      + 'over (the player out, or the lobby finished) has settled through its normal end and is never settled again. '
+      + 'The literal rule stands at the top too: with 4 or fewer seats alive the lowest open place is 4th or better, so '
+      + 'a quit there GAINS Rating and can win a promotion game. A quit moves Rating ONLY: it earns no Account XP and '
+      + 'writes nothing to Career or Recent Games.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-29 (quitting a rated game)', quote: 'yes, quitting an official game should lose you MMR relative to the lowest available place when you quit. for example. if one player was already out, then quitting would place you in 7th place. losing you MMR' },
+      { kind: 'owner-chat', ref: 'Same session, 2026-09-29 — asked whether a quit with 4 or fewer alive may gain Rating / promote', quote: 'YES' },
+      { kind: 'owner-chat', ref: 'Same session, 2026-09-29 — asked whether a quit should earn Account XP for its placement', quote: 'NO' },
+      { kind: 'owner-chat', ref: 'Same session, 2026-09-29 — asked whether quits should show in Career and Recent Games', quote: 'NO' },
+      { kind: 'owner-chat', ref: 'Same session, 2026-09-29 — asked about closing the wipe-the-save gap server-side', quote: 'Eventually - we will want to write saved and quit games to supabase as well.' },
+      { kind: 'code', ref: 'packages/sim/src/lobby/runLobby.ts abandonPlacementOf; packages/ui/src/rank/ratedRun.ts rankedAbandonOf / abandonWarningOf; packages/ui/src/store.ts settleAbandonedRun (clearRun, pickHero, newRun, startTutorial); settles through the existing rank queue + supabase/functions/submit-rating (unchanged, it already accepts any placement 1-8)' },
+    ],
+    currentBehaviour:
+      'Conforms as of 2026-09-29 (feat/quit-costs-rating). Until then an abandoned rated game never settled and cost '
+      + 'nothing. The quit placement is computed on the client from the saved lobby and submitted like any finish, so '
+      + 'the server settles it with the same rules; the server has no separate quit record and cannot force a settle '
+      + 'for a save that is never discarded (the save lives on the device). A save the game itself drops because the '
+      + 'build no longer has one of its cards is not a player quit and does not settle. The Clear and Play '
+      + 'tips on the title name the placement a rated save would count as. No career row, fight-ledger rows or XP are written for a '
+      + 'quit: only the Rating moves.',
+    example:
+      'Silver II 50, quit on round 3 with all eight alive: an 8th, -40, to 10. The same with one seat out: a 7th, -28, '
+      + 'to 22. At Silver II 0 in a demotion game, quitting with nobody out demotes. Save & Quit on round 6, Continue, '
+      + 'win the lobby: one settlement, a 1st.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/lobby/abandonPlacement.test.ts', 'packages/ui/src/rank/quitCostsRating.test.ts'], lastVerifiedAt: '2026-09-29' },
+  },
   // ── A card's On Death sound plays for the card that died (owner report 2026-09-29) ─────────────────────
   {
     id: 'R-FX-DEATH-01',
@@ -2859,6 +2901,38 @@ export const FOUNDATION_RULES: GameRule[] = [
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/choreo/score.test.ts'], lastVerifiedAt: '2026-09-29' },
   },
   // ── A knockout always plays the hero attack's Huge version (owner ask 2026-09-29) ─────────────────────
+  {
+    id: 'R-PROG-ATTACK-21',
+    title: 'Hemorrhage (attack_bleed, Legendary) is a FLAT slashing hero attack: one gash / a cross / a flurry ending in a claw rake / three rakes, a heartbeat, EIGHT accelerating screen-splitting zips and a bloody explosion, on the SAME damage tiers; the blow lands ONCE; no freeze',
+    statement:
+      'attack_bleed ("Hemorrhage", a placeholder name for the owner to rename; Legendary, crate, account-wide, style bleed) '
+      + 'plays a stylised crimson slashing attack, drawn flat (no faux-3D). After the shared damage formation '
+      + '(R-PROG-ATTACK-08) the striking hero draws back and turns (a blade raised: a crimson glint and a thin crescent at '
+      + 'its striking edge). Each slash is a swing at its rim that looses a flying crimson CRESCENT; as it reaches the '
+      + 'struck portrait it turns to the cut\x27s angle and runs straight through the face, a white-hot seam drawing behind '
+      + 'it, blood spraying along the blade\x27s direction, and the line OPENING into a gash (a dark wound with a bright red '
+      + 'lip). It escalates on exactly the tiers every other hero attack uses (one shared tierOf, thresholds 6 / 12 / 20): '
+      + 'I 1-5 one clean diagonal gash; II 6-11 a CROSS (X) of two gashes, the first a tick; III 12-19 a flurry of four fast '
+      + 'slashes and a three-claw RAKE (every wound bleeding, drips running down the portrait); IV 20+ (owner 2026-09-29: hilariously over the top) three claw rakes (each also sweeping a wide line across the screen) carve the face and the wounds THROB with a heartbeat while the striker winds a huge crescent; '
+      + 'then the screen-splitting MEGA-SLASH zips through the target EIGHT times (tunable) each on its OWN line and each sweeping IN from the far side of the screen across the board, through the '
+      + 'target and out past it (a fan either side of the line to the middle of the screen, so every wide crescent crosses the screen from the very first zip), each with its seam, a spray, a fresh gash and blood flung across the whole screen along its line that PILES UP (more each zip) until after the explosion, the camera whipping along it, the cadence '
+      + 'ACCELERATING into a blur; then a beat of held tension (never a freeze: the wounds pulse faster, blood is drawn in) and a huge BLOODY EXPLOSION '
+      + '(a white-red flash core, five shockwave rings, a huge stain, blood thrown high to rain across the board, big splats PAINTING the whole screen out to the UI edges with a '
+      + 'crimson vignette, dripping stains, arterial spurts; all of it fades out cleanly). The consequence (the damage, Armor, Resolve) lands '
+      + 'exactly ONCE: on the last cut (every earlier cut is a tick with FX only) or, at IV, on the explosion (never on a rake, a heartbeat, a zip or the tension). A knockout plays Tier IV whatever the number (R-PROG-ATTACK-20). Wounds, drips, stains and the tint '
+      + 'ride the struck portrait\x27s knockback. No hit-stop or freeze anywhere (R-PROG-ATTACK-10). Presentation only; '
+      + 'reduced motion is fades only; an unknown or retired id plays Classic.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-29 (more hero attacks)', quote: 'branch off and make some more attack types - we need a fire animation, a bleed/gash animation, some sort of an undead animation, a beast chomp rush animation, and i would love a king oona banana cannon animation. use the same 4 tier strategy we have been.' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-29 (Bleed review)', quote: 'make the bleed one extremely extremely over the top like hilariously over the top for the huge attack. like do 8 zips of the long attack animation and have a bloody explosion at the end' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-29 (Bleed review, blood)', quote: 'bleed\x27s first 2 slash throughs on the huge attack still dont have the line slashes. add way more blood splatters across the screen. it should be hilariously bloody by the end of the combo' },
+      { kind: 'code', ref: 'packages/progression/src/cosmetics.ts (attack_bleed); packages/ui/src/heroBleed/ (heroBleedConfig bleedPlan / bleedCues / slashGeos / wavePos / megaGeo / zipGeos / bleedCameraAt / bleedCameraFocus, heroBleed playHeroBleed, heroBleedScene, heroBleedTextures)' },
+    ],
+    currentBehaviour: 'Conforms, built 2026-09-29. The item reaches the database on the next deploy of progression-inventory (the catalog sync); the equip SQL already accepts the hero_attack slot.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/heroBleed/heroBleed.test.ts', 'packages/progression/src/cosmetics.test.ts', 'packages/ui/src/progression/CollectionHeroAttack.test.tsx', 'packages/ui/src/heroAttack/damageFormation.test.ts'], lastVerifiedAt: '2026-09-29' },
+  },
   {
     id: 'R-PROG-ATTACK-20',
     title: 'A hero attack that knocks the struck player out always plays its Tier IV ("Huge") version, in every style',
@@ -2936,5 +3010,28 @@ export const FOUNDATION_RULES: GameRule[] = [
     ],
     currentBehaviour: 'Conforms, built 2026-09-29. The item reaches the database on the next deploy of progression-inventory (the catalog sync); the equip SQL already accepts the hero_attack slot.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/heroStorm/heroStorm.test.ts', 'packages/ui/src/heroAttack/knockoutTier.test.ts', 'packages/progression/src/cosmetics.test.ts', 'packages/ui/src/progression/CollectionHeroAttack.test.tsx', 'packages/ui/src/heroAttack/damageFormation.test.ts'], lastVerifiedAt: '2026-09-29' },
+  },
+  {
+    id: 'R-PROG-CRATE-04',
+    title: 'A guest cannot open crates: every Open shows a create-an-account gate; guests still earn and see their sealed crates',
+    statement:
+      'A guest (anonymous account) earns crates and sees them sealed in the Collection, but cannot open them. Every '
+      + 'player-facing crate open (the Collection crate bay\x27s Open and Open all, and the New rewards pop-up\x27s Open and '
+      + 'Open all) shows a small gate instead of the crate opener: "Create an account to open crates", with Create account '
+      + '(closes it and opens the account panel) and Not now; Esc or a click outside closes it. A guest\x27s Open wears a '
+      + 'small lock and the bay says "Create a free account to open them." Creating the account upgrades the guest in place, '
+      + 'so the crates carry over, and the moment the account stops being a guest the gate closes and Open works with no '
+      + 'reload. The gate warns that signing into an EXISTING account switches to it and leaves the guest\x27s crates behind, '
+      + 'and the account panel says the same at the moment that happens. With no account backend the gate says accounts '
+      + 'are unavailable instead of opening a panel that cannot work. Dev tuners and the crate FX preview (practice crates, '
+      + 'never the server) are not gated.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-29 (crate sign-in gate)', quote: 'ask players not signed in to sign in when they try to open a crate? we\x27d like players to create sign ins for account progression' },
+      { kind: 'code', ref: 'packages/ui/src/progression/CrateSignInGate.tsx; CollectionScreen.tsx begin() (the one crate-open path) + CrateBay guest hint; packages/ui/src/AccountPanel.tsx (existing-account warning); remoteBoards.ts signInWithEmail `existing`' },
+    ],
+    currentBehaviour: 'Conforms, built 2026-09-29 (the owner picked a hard gate over a soft nudge). Client-side gate: the server does not yet refuse an anonymous open.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/progression/CollectionScreen.test.tsx', 'packages/ui/src/progression/Crates.test.tsx', 'packages/ui/src/AccountPanel.test.tsx'], lastVerifiedAt: '2026-09-29' },
   },
 ];

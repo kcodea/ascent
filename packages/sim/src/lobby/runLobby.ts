@@ -189,6 +189,20 @@ export function lobbyIsUnrated(lobby: Pick<RunLobby, 'seats' | 'unrated'>): bool
   return lobby.unrated === 'all-generated' || lobbyAllGenerated(lobby);
 }
 
+/** QUITTING COSTS RATING (owner 2026-09-29, R-RANK-05). The placement an UNFINISHED lobby run takes when
+ *  the player abandons it: the lowest place still open at that moment, which is the number of seats still
+ *  alive (8th with nobody out, 7th with one seat out, and so on). Null when there is nothing to abandon: no
+ *  lobby, a finished run (`gameover` / `victory` settle through the normal run end), or a player seat already
+ *  out (it holds its own placement). Mode-agnostic: whether the placement is RATED is the caller's gate. */
+export function abandonPlacementOf(run: Pick<RunState, 'phase' | 'lobby'>): number | null {
+  const lobby = run.lobby;
+  if (!lobby || run.phase === 'gameover' || run.phase === 'victory') return null;
+  const me = lobby.seats.find((seat) => seat.id === 's0');
+  if (!me || !me.alive) return null;
+  const alive = lobby.seats.filter((seat) => seat.alive).length;
+  return alive >= 1 ? alive : null;
+}
+
 export function lobbyPoolTelemetryOf(lobby: RunLobby): LobbyPoolTelemetry {
   const seats = { recorded: 0, hybrid: 0, bot: 0, authored: 0 };
   for (const s of lobby.seats) {

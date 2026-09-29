@@ -5840,6 +5840,8 @@ body:has(.titlescreen) .version { visibility: hidden; }
 .acctpanel-email { font-weight: 700; font-size: 15px; color: var(--gl-accent, #a8d8ef); margin: -4px 0 0; word-break: break-all; }
 .acctpanel-note { font-size: 13px; line-height: 1.5; color: rgba(238, 244, 251, 0.82); margin: 0; }
 .acctpanel-note b { color: var(--gl-accent, #a8d8ef); }
+/* The email already has an account: signing in switches to it, and the guest's progress stays behind (2026-09-29). */
+.acctpanel-warn { font-size: 13px; line-height: 1.5; margin: 0; padding: 8px 10px; border-radius: 8px; color: #ffd9a8; background: rgba(240, 138, 36, 0.12); border: 1px solid rgba(255, 180, 90, 0.4); }
 .acctpanel-input { text-align: left; min-width: 0; width: 100%; font-size: 16px; padding: 10px 14px; }
 .acctpanel-code { text-align: center; font-size: 26px; letter-spacing: 0.4em; font-weight: 800; text-indent: 0.4em; }
 .acctpanel-error { font-size: 13px; font-weight: 700; color: #ff9aa6; margin: 0; }
@@ -6141,6 +6143,22 @@ svg { width: 18px; height: 18px; }
 .gearbtn { position: fixed; bottom: calc(var(--bar-y) + 16px + env(safe-area-inset-bottom)); right: calc(var(--bar-x) + 16px + env(safe-area-inset-right)); width: calc(40 * var(--u)); height: calc(40 * var(--u)); border-radius: calc(12 * var(--u)); border: 2px solid var(--line); background: color-mix(in srgb, var(--card) 88%, transparent); color: var(--ink2); display: grid; place-items: center; cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; z-index: 85; box-shadow: 0 6px 18px -8px rgba(0, 0, 0, 0.5); }
 .gearbtn:hover { border-color: var(--acc); color: var(--ink); transform: rotate(35deg); transition: transform 0.2s ease; }
 .gearbtn svg { width: calc(21 * var(--u)); height: calc(21 * var(--u)); }
+/* The Compendium book, one gear-width + a 10px gap left of the gear (Game.tsx). Same plate as the gear so the
+   pair reads as one cluster; the gold art sits inside. `.gtip` (the global hover bubble) names it. */
+.bookbtn, .rulesbtn { position: fixed; bottom: calc(var(--bar-y) + 16px + env(safe-area-inset-bottom)); right: calc(var(--bar-x) + 16px + 40 * var(--u) + 10px + env(safe-area-inset-right)); width: calc(40 * var(--u)); height: calc(40 * var(--u)); padding: 0; border-radius: calc(9 * var(--u)); display: grid; place-items: center; z-index: 85;
+  /* The main-menu plaque look (owner 2026-09-29, matches .menubtn): navy fill, gold rim, inner bevel, a hard bottom edge. */
+  border: 1.5px solid rgba(196, 160, 92, 0.6); background: linear-gradient(180deg, rgba(24, 36, 58, 0.92), rgba(13, 22, 39, 0.94));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), inset 0 0 0 1px rgba(0, 0, 0, 0.35), 0 4px 0 #0a1526, 0 9px 18px -9px rgba(0, 0, 0, 0.7);
+  transition: transform 0.18s cubic-bezier(0.16, 1, 0.3, 1), filter 0.14s ease, border-color 0.14s ease; }
+.bookbtn:hover, .rulesbtn:hover { border-color: rgba(230, 200, 130, 0.95); filter: brightness(1.08); transform: translateY(-2px); }
+.bookbtn:active, .bookbtn:hover:active, .rulesbtn:active, .rulesbtn:hover:active { transform: translateY(3px) scale(0.97); filter: brightness(0.9); transition-duration: 0.06s;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), inset 0 0 0 1px rgba(0, 0, 0, 0.35), 0 1px 0 #0a1526, 0 4px 10px -6px rgba(0, 0, 0, 0.7); }
+.bookbtn img, .rulesbtn img { width: calc(30 * var(--u)); height: calc(30 * var(--u)); pointer-events: none; }
+/* Rules (the golden question mark) sits one more slot left of the book: gear · book · rules, right to left. */
+.rulesbtn { right: calc(var(--bar-x) + 16px + 2 * (40 * var(--u) + 10px) + env(safe-area-inset-right)); }
+/* On the HOME SCREEN (owner 2026-09-29) the book and Rules sit above the title layer (z 450) so they show and
+   take clicks there too; everywhere else they keep the gear's z 85. */
+body:has(.titlescreen) .bookbtn, body:has(.titlescreen) .rulesbtn { z-index: 451; }
 /* Build badge — sits just above the gear (scales with --u so it clears the gear at any resolution box). */
 .version { position: fixed; right: calc(var(--bar-x) + 16px + env(safe-area-inset-right)); bottom: calc(var(--bar-y) + 16px + 40 * var(--u) + 7px + env(safe-area-inset-bottom)); z-index: 84; pointer-events: none; user-select: none; text-align: right; font-family: var(--font-ui); font-weight: 800; font-size: calc(11 * var(--u)); letter-spacing: 0.03em; color: var(--ink3); opacity: 0.72; }
 .version span { font-weight: 600; opacity: 0.7; }
@@ -6167,7 +6185,7 @@ svg { width: 18px; height: 18px; }
    Dressed in the shipped vocabulary (vellum face, gold rim, ink text, warm shadows) so dev chrome reads as
    part of the same object family as the game rather than a bolted-on tool.
    ========================================================================================================== */
-.devmenu-btn { position: fixed; right: calc(var(--bar-x) + 64px); bottom: calc(var(--bar-y) + 16px); z-index: 9990; width: 40px; height: 40px; border-radius: 50%; border: 2px solid var(--line); background: var(--card); font-size: 18px; cursor: pointer; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3); transition: transform 0.12s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.12s ease; }
+.devmenu-btn { position: fixed; right: calc(var(--bar-x) + 16px + 3 * (40 * var(--u) + 10px)); bottom: calc(var(--bar-y) + 16px); z-index: 9990; width: 40px; height: 40px; border-radius: 50%; border: 2px solid var(--line); background: var(--card); font-size: 18px; cursor: pointer; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3); transition: transform 0.12s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.12s ease; }
 .devmenu-btn:hover { transform: translateY(-1px); border-color: var(--acc); }
 .devmenu-btn:active { transform: translateY(1px); }
 /* The button carries a badge when panels are open, so you can tell at a glance that the board is wearing dev
@@ -7956,6 +7974,37 @@ body:has(.book-ov) .cardref { z-index: 490; }
 .gloss-txt { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .gloss-term { font-family: var(--font-ui); font-weight: 800; font-size: 15px; color: var(--ink); }
 .gloss-def { font-family: var(--font-body), sans-serif; font-size: 13px; line-height: 1.4; color: var(--ink2); }
+/* RULES WIKI (the Compendium's Rules panel, CompendiumRules.tsx): a sticky search + topic-chip bar over a scrolling
+   list of cream question panels (the Glossary's panel look, ink re-pinned dark the same way). One column so
+   answers read as prose; the list is capped in width and centred on wide books. */
+.book-rules + .book-gloss { margin-left: 12px; }
+/* The Rules button wears the owner's golden question mark (rules-question.png), not a glyph. */
+.book-rules-ico { width: 22px; height: 22px; pointer-events: none; }
+.wiki-body { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.wiki-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; padding: 18px 30px 14px; border-bottom: 2px solid var(--line); }
+.wiki-search { height: 42px; width: min(420px, 100%); padding: 0 16px; border-radius: 12px; border: 2px solid var(--line); background: var(--bg2); color: var(--ink2); font-family: var(--font-body), sans-serif; font-weight: 600; font-size: 15px; }
+.wiki-search:focus { outline: none; border-color: var(--acc); }
+.wiki-search::placeholder { color: var(--ink3); }
+.wiki-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.wiki-chip { height: 34px; padding: 0 13px; border-radius: 10px; border: 2px solid var(--line); background: var(--bg2); color: var(--ink2); font-family: var(--font-ui); font-weight: 800; font-size: 12px; letter-spacing: 0.05em; text-transform: uppercase; transition: transform 0.1s, border-color 0.1s, background 0.1s; }
+.wiki-chip:hover { transform: translateY(-2px); border-color: var(--acc); }
+.wiki-chip.on { background: var(--acc); color: #fff; border-color: var(--acc-dk); }
+.wiki-list { flex: 1; overflow-y: auto; padding: 20px 30px 30px; display: flex; flex-direction: column; gap: 18px; align-items: stretch; scrollbar-width: none; -ms-overflow-style: none; }
+.wiki-list::-webkit-scrollbar { width: 0; height: 0; display: none; }
+.wiki-group { --ink: #2a2017; --ink2: #6c5d48; width: min(980px, 100%); align-self: center; background: var(--bg2); border: 2px solid var(--line); border-radius: 14px; padding: 6px 12px 12px; }
+.wiki-grouphead { font-family: var(--font-ui); font-weight: 800; font-size: 13px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--acc); margin: 12px 0 4px; padding: 0 6px; }
+.wiki-item { border-radius: 10px; }
+.wiki-item.is-open { background: color-mix(in srgb, var(--acc) 8%, transparent); }
+.wiki-q { display: flex; gap: 12px; align-items: baseline; width: 100%; padding: 10px 10px; border: 0; border-radius: 10px; background: transparent; text-align: left; font-family: var(--font-ui); font-weight: 800; font-size: 16px; color: var(--ink); transition: background 0.1s; }
+.wiki-q:hover { background: color-mix(in srgb, var(--acc) 13%, transparent); }
+.wiki-caret { flex: none; width: 16px; text-align: center; color: var(--acc); font-size: 18px; line-height: 1; }
+.wiki-a { padding: 0 14px 12px 38px; font-family: var(--font-body), sans-serif; font-size: 15px; line-height: 1.5; color: var(--ink2); user-select: text; -webkit-user-select: text; }
+.wiki-a b { color: var(--ink); }
+.wiki-see { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 10px; margin-top: 8px; }
+.wiki-see-cap { font-family: var(--font-ui); font-weight: 800; font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink3); }
+.wiki-see-link { border: 0; padding: 0; background: none; font: inherit; font-size: 14px; font-weight: 700; color: var(--acc-dk); text-decoration: underline; text-underline-offset: 2px; }
+.wiki-see-link:hover { color: var(--acc); }
+.wiki-empty { padding: 40px 0; text-align: center; }
 /* Active keyword filter — a clearable chip at the right of the tier bar (accent normally, threat on hover). */
 .book-kwchip { margin-left: auto; display: inline-flex; align-items: center; gap: 7px; height: 34px; padding: 0 13px; border-radius: 10px; border: 2px solid var(--acc); background: color-mix(in srgb, var(--acc) 15%, var(--card)); color: var(--acc-dk); font-family: var(--font-ui); font-weight: 800; font-size: 13px; letter-spacing: 0.03em; text-transform: uppercase; cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; transition: background 0.1s, border-color 0.1s, color 0.1s; }
 .book-kwchip svg { width: 16px; height: 16px; color: var(--acc); transition: color 0.1s; }

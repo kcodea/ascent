@@ -13,25 +13,28 @@ import type { GameRule } from '../../schema';
 export const TARGETING_RULES: GameRule[] = [
   {
     id: 'R-TARGET-01',
-    title: '"A random friendly <tribe>" includes the source — a lone Gangplank buffs itself',
+    title: '"A random friendly <tribe>" means the whole side, EXCEPT the card doing the picking (amended 2026-09-29)',
     statement:
-      'An effect that gives "a random friendly Dwarf" (or any random friendly member of a type) picks from EVERY '
-      + 'living friendly minion of that type, the source included. Gangplank standing alone as the only Dwarf '
-      + 'gains its own +1/+2 on every card added to hand. Excluding the source needs the word "another" in the '
-      + 'printed text; without it, "friendly" means the whole side.',
+      'An effect that gives "a random friendly Dwarf" (or any random friendly member of a type) picks from every '
+      + 'living friendly minion of that type, with ONE exclusion: a minion never picks itself (R-TARGET-03), whether '
+      + 'or not "another" is printed. A lone Gangplank, the only Dwarf, has no recipient and its buff does nothing. '
+      + 'When the effect has no minion body doing the picking (a spell), "friendly" is the whole side, the spell\'s '
+      + 'own target included.',
     domain: 'targeting',
     status: 'approved',
     evidence: [
       { kind: 'owner-chat', ref: 'decisions.json q-gangplank-self-buff (Rulebook board, 2026-09-09)', quote: 'APPROVE — keep as printed: it may buff itself.' },
       { kind: 'owner-chat', ref: 'Bug Board 38d186a6 (round 2, 2026-09-09) — the report that raised it', quote: 'gangplank can buff itsself if its the only dwarf on board' },
+      { kind: 'owner-chat', ref: 'Rules-wiki review, 2026-09-29 (supersedes the 2026-09-09 "may buff itself" ruling)', quote: 'yes, a card should not be able to pick itself' },
     ],
     cardText: 'When a card is added to your hand, give a **random** friendly **Dwarf +1/+2**.',
     contentIds: ['dw_gangplank'],
     currentBehaviour:
-      'Conforms: `onGainCardBuffTribe` (arena.ts) picks from every living friendly body of the tribe via the shared '
-      + 'tribe predicate, the source among them. Pinned by the lone-Gangplank case in handGainInCombat.test.ts '
-      + '("Gangplank is the only one here, so it is its own recipient").',
-    enforcement: { kind: 'scenario', refs: ['packages/sim/src/handGainInCombat.test.ts'], lastVerifiedAt: '2026-09-09' },
+      'Conforms since R-TARGET-03 (2026-09-18): `onGainCardBuffTribe` (arena.ts) picks via `others()`, so Gangplank '
+      + 'never picks itself. Pinned by handGainInCombat.test.ts ("paying its OTHER Dwarf, never itself"). The '
+      + 'spell half (no picking body, the target stays eligible) is what set3/spells.ts, factories.ts and recruit.ts '
+      + 'cite this rule for.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/handGainInCombat.test.ts'], lastVerifiedAt: '2026-09-29' },
   },
   {
     id: 'R-TARGET-02',

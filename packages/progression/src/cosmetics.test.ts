@@ -139,12 +139,13 @@ describe('the roll', () => {
   // split inside a rarity was by category weight (roll version 2: Common minion skin 16.667 / title 4.762, Legendary
   // attack 0.375 / minion skin 0.875 / title 0.25). The catalog then: Common 8 items, Rare 13, Epic 10, Legendary 11.
   // Adding an item only re-splits its OWN rarity's share; the four rarity numbers never move. Re-pinned the same day when
-  // the ninth to twelfth hero attacks, Inferno (attack_fire), Grave Call (attack_undead), the Stampede (attack_beast) and
-  // Oona's Banana Cannon (attack_banana), all Legendary, joined: Legendary 11 -> 15 items (each 5 / 15).
+  // the ninth to thirteenth hero attacks, Inferno (attack_fire), Grave Call (attack_undead), the Stampede (attack_beast),
+  // Oona's Banana Cannon (attack_banana) and Hemorrhage (attack_bleed), all Legendary, joined: Legendary 11 -> 16 items
+  // (each 5 / 16).
   it('the per-item chances of a first crate (2026-09-29 catalog): each item = its rarity\'s odds / that rarity\'s item count', () => {
     const all = eligibleCrateCosmetics([]);
     const count = (r: string): number => all.filter((c) => c.rarity === r).length;
-    expect(COSMETIC_RARITIES.map(count)).toEqual([8, 13, 12, 15]); // 2026-09-29: Inferno, Grave Call, the Stampede and Oona's Banana Cannon made Legendary 15; the first Epic attacks, Card Shark and Storm Call, made Epic 12
+    expect(COSMETIC_RARITIES.map(count)).toEqual([8, 13, 12, 16]); // 2026-09-29: Inferno, Grave Call, the Stampede, Oona's Banana Cannon and Hemorrhage made Legendary 16; the first Epic attacks, Card Shark and Storm Call, made Epic 12
     const ch = crateChances(all);
     const pct = (id: string): number => Math.round(100000 * ch.get(id)!) / 1000;
     expect(pct('skin_blackbelt_4')).toBe(6.25);       // Common: 50 / 8
@@ -156,15 +157,16 @@ describe('the roll', () => {
     expect(pct('title_kingbreaker')).toBe(1.25);
     expect(pct('attack_cards')).toBe(1.25);
     expect(pct('attack_storm')).toBe(1.25);
-    expect(pct('skin_blackbelt_3')).toBe(0.333);      // Legendary: 5 / 15
-    expect(pct('attack_arcana')).toBe(0.333);
-    expect(pct('attack_fire')).toBe(0.333);
-    expect(pct('attack_undead')).toBe(0.333);
-    expect(pct('attack_beast')).toBe(0.333);
-    expect(pct('attack_banana')).toBe(0.333);
-    expect(pct('title_the_unbroken')).toBe(0.333);
+    expect(pct('skin_blackbelt_3')).toBe(0.313);      // Legendary: 5 / 16
+    expect(pct('attack_arcana')).toBe(0.313);
+    expect(pct('attack_fire')).toBe(0.313);
+    expect(pct('attack_undead')).toBe(0.313);
+    expect(pct('attack_beast')).toBe(0.313);
+    expect(pct('attack_banana')).toBe(0.313);
+    expect(pct('attack_bleed')).toBe(0.313);
+    expect(pct('title_the_unbroken')).toBe(0.313);
     const cat = (k: string): number => Math.round(1000 * all.filter((c) => c.category === k).reduce((a, c) => a + ch.get(c.id)!, 0)) / 10;
-    expect([cat('title'), cat('minion_skin'), cat('hero_skin'), cat('hero_attack')]).toEqual([58.1, 32.9, 2.5, 6.5]); // twelve Legendary attacks x 5 / 15 (Inferno, Grave Call, the Stampede, the Banana Cannon, 2026-09-29) + the two Epic attacks x 15 / 12 (Card Shark, Storm Call)
+    expect([cat('title'), cat('minion_skin'), cat('hero_skin'), cat('hero_attack')]).toEqual([58.1, 32.8, 2.5, 6.6]); // thirteen Legendary attacks x 5 / 16 (Inferno, Grave Call, the Stampede, the Banana Cannon, Hemorrhage, 2026-09-29) + the two Epic attacks x 15 / 12 (Card Shark, Storm Call)
     expect([...ch.values()].reduce((a, b) => a + b, 0)).toBeCloseTo(1, 12);
   });
 

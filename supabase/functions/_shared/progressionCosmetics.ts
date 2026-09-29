@@ -287,6 +287,11 @@ export const COSMETICS: readonly CosmeticDef[] = Object.freeze([
   // top of the screen and slams down into a banana-bunch shower and a golden shockwave. The name is the builder's
   // placeholder for the owner to rename (the id stays). Legendary like the other eight.
   heroAttack('attack_banana', "Oona's Banana Cannon", 'legendary', 'banana'),
+  // Owner 2026-09-29: "branch off and make some more attack types - we need ... a bleed/gash animation ... use the same 4
+  // tier strategy we have been". Crimson crescents fly in and cut gashes that open and bleed: I one diagonal gash, II a
+  // cross, III a flurry ending in a claw rake, IV three rakes, a heartbeat, a mega-slash that splits the screen and a
+  // blood nova. The name is the builder's placeholder for the owner to rename (the id stays). Legendary like the others.
+  heroAttack('attack_bleed', 'Hemorrhage', 'legendary', 'bleed'),
   // Owner 2026-09-29: "build 5 animations that range from rare -> epic. all of the animations we have done so far are
   // legendary. rare and epics should only have 2 or 3 tiers to them and generally be less exciting, but still extremely
   // clean and fun". The first EPIC attacks, three looks each. Card Shark: the hero deals playing cards (one Ace, three

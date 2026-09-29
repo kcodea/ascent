@@ -55,6 +55,10 @@
  *    FX): her painted bananas spin out of the hero on high arcs and burst into her painted juice splats (I one, II a
  *    double, III a barrage of eight), and IV lands a giant golden banana stuck in the target that the striking hero
  *    slams in six times, juice flying, until it bursts (`../heroBanana/`).
+ *  - `bleed` is the thirteenth (`attack_bleed`, "Hemorrhage" until the owner renames it; owner ask 2026-09-29: "a bleed/gash
+ *    animation ... use the same 4 tier strategy"): crimson crescents fly in and cut gashes that open and bleed (I one
+ *    diagonal, II a cross, III a flurry ending in a claw rake); IV throbs with a heartbeat, splits the screen with a
+ *    mega-slash and erupts in a blood nova (`../heroBleed/`).
  *  - `cards` is the first EPIC (`attack_cards`, "Card Shark" until the owner renames it; owner ask 2026-09-29: "build 5
  *    animations that range from rare -> epic ... rare and epics should only have 2 or 3 tiers"): the hero deals playing
  *    cards with a snap. Three looks, not four: one Ace flicked spinning into the target; three Aces thrown thunk thunk
@@ -76,7 +80,7 @@
  */
 import { heroAttackOf } from '@game/progression';
 
-export const HERO_ATTACK_STYLES = ['classic', 'blast', 'quake', 'arcana', 'blades', 'enraged', 'poison', 'frost', 'holy', 'fire', 'undead', 'beast', 'banana', 'cards', 'storm'] as const;
+export const HERO_ATTACK_STYLES = ['classic', 'blast', 'quake', 'arcana', 'blades', 'enraged', 'poison', 'frost', 'holy', 'fire', 'undead', 'beast', 'banana', 'bleed', 'cards', 'storm'] as const;
 export type HeroAttackStyle = (typeof HERO_ATTACK_STYLES)[number];
 
 /** What a player without an equipped hero attack sees (owner 2026-09-28: Blast is a cosmetic, not a new default). */
@@ -93,13 +97,13 @@ export function styleOfCosmetic(id: string | null | undefined): HeroAttackStyle 
 }
 
 /** The dev override: `auto` = what a player would see; the others force one style for BOTH sides. */
-export const DEV_HERO_ATTACK_CHOICES = ['auto', 'classic', 'blast', 'quake', 'arcana', 'blades', 'enraged', 'poison', 'frost', 'holy', 'fire', 'undead', 'beast', 'banana', 'cards', 'storm'] as const;
+export const DEV_HERO_ATTACK_CHOICES = ['auto', 'classic', 'blast', 'quake', 'arcana', 'blades', 'enraged', 'poison', 'frost', 'holy', 'fire', 'undead', 'beast', 'banana', 'bleed', 'cards', 'storm'] as const;
 export type DevHeroAttackChoice = (typeof DEV_HERO_ATTACK_CHOICES)[number];
 
 /** The dev "Attack style" row's labels, shared by every hero attack tuner. */
 export const DEV_HERO_ATTACK_LABELS: Record<DevHeroAttackChoice, string> = {
   auto: 'Auto (equipped cosmetic)', classic: 'Classic (lunge)', blast: 'Blast', quake: 'Quake', arcana: 'Arcana', blades: 'Phantom Blades', enraged: 'Enraged Strike',
-  poison: 'Venom Volley (poison darts)', frost: 'Frost Nova', holy: 'Consecration', fire: 'Inferno', undead: 'Grave Call', beast: 'Stampede (beast chomp rush)', banana: 'Banana Cannon',
+  poison: 'Venom Volley (poison darts)', frost: 'Frost Nova', holy: 'Consecration', fire: 'Inferno', undead: 'Grave Call', beast: 'Stampede (beast chomp rush)', banana: 'Banana Cannon', bleed: 'Hemorrhage (bleed)',
   cards: 'Card Shark (Epic)', storm: 'Storm Call (Epic)',
 };
 

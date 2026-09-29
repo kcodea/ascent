@@ -799,4 +799,22 @@ export const TRIGGERS_RULES: GameRule[] = [
     currentBehaviour: 'Conforms (2026-09-27). Before this the clock started as the combat resolved, under the return curtain.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/sotBeats.test.ts'], lastVerifiedAt: '2026-09-27' },
   },
+  {
+    id: 'R-TIMER-ESC-01',
+    title: 'The Esc / Settings menu pauses the Shop turn timer',
+    statement:
+      'While the Esc / Settings menu is open during a Shop turn, the turn timer is held: it does not count down, and '
+      + 'closing the menu resumes it from the second it showed (the turn is never reset or shortened). This matches '
+      + 'the Compendium, Career and bug reporter. The ruling covers only the Shop clock: opening the menu does not '
+      + 'pause a combat replay. The timer is the local player presentation clock: the engine is untimed, so the '
+      + 'recorded run, replays and the other seats are unchanged.',
+    domain: 'triggers',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-29 (Esc menu and the shop timer)', quote: 'yes, lets have it pause the shop timer for now' },
+      { kind: 'code', ref: 'packages/ui/src/turnClock.ts turnClockMayTick (settingsOpen); packages/ui/src/Recruit.tsx (the countdown gate + ChargeGlyph paused read the store settingsOpen, kept out of overlayOpen)' },
+    ],
+    currentBehaviour: 'Conforms (2026-09-29). Before this the Shop clock kept running behind the Esc menu.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/escMenuPausesTimer.test.ts'], lastVerifiedAt: '2026-09-29' },
+  },
 ];

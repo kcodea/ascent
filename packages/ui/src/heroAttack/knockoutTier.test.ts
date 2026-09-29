@@ -25,6 +25,7 @@ import { playHeroFire } from '../heroFire/heroFire';
 import { playHeroUndead } from '../heroUndead/heroUndead';
 import { playHeroBeast } from '../heroBeast/heroBeast';
 import { playHeroBanana } from '../heroBanana/heroBanana';
+import { playHeroBleed } from '../heroBleed/heroBleed';
 import { playHeroCards } from '../heroCards/heroCards';
 import { playHeroStorm } from '../heroStorm/heroStorm';
 import { heroStrikeDamage, heroStrikeKnockout } from '../heroBlast/heroStrikeDamage';
@@ -72,6 +73,7 @@ describe('every style plays its Tier IV on a knockout blow of 3, and Tier I on a
     ['undead', (o) => playHeroUndead({ ...o, textures: null })],
     ['beast', (o) => playHeroBeast({ ...o, textures: null })],
     ['banana', (o) => playHeroBanana({ ...o, textures: null })],
+    ['bleed', (o) => playHeroBleed({ ...o, textures: null })],
     // The Epics map Tier IV to their Big look (plan.tier stays the shared tier).
     ['cards', (o) => playHeroCards({ ...o, textures: null })],
     ['storm', (o) => playHeroStorm({ ...o, textures: null })],

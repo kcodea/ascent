@@ -25,6 +25,8 @@ import { playHeroBeast } from '../heroBeast/heroBeast';
 import { heroBeastPreviewSpeed } from '../heroBeast/heroBeastConfig';
 import { playHeroBanana } from '../heroBanana/heroBanana';
 import { heroBananaPreviewSpeed } from '../heroBanana/heroBananaConfig';
+import { playHeroBleed } from '../heroBleed/heroBleed';
+import { heroBleedPreviewSpeed } from '../heroBleed/heroBleedConfig';
 import { playHeroCards } from '../heroCards/heroCards';
 import { heroCardsPreviewSpeed } from '../heroCards/heroCardsConfig';
 import { playHeroStorm } from '../heroStorm/heroStorm';
@@ -47,6 +49,7 @@ const RUNNERS: Record<string, { play: (o: HeroAttackOptions & { textures?: null 
   undead: { play: (o) => playHeroUndead(o), speed: heroUndeadPreviewSpeed },
   beast: { play: (o) => playHeroBeast(o), speed: heroBeastPreviewSpeed },
   banana: { play: (o) => playHeroBanana(o), speed: heroBananaPreviewSpeed },
+  bleed: { play: (o) => playHeroBleed(o), speed: heroBleedPreviewSpeed },
   cards: { play: (o) => playHeroCards(o), speed: heroCardsPreviewSpeed },
   storm: { play: (o) => playHeroStorm(o), speed: heroStormPreviewSpeed },
 };

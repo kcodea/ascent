@@ -31,11 +31,15 @@ export type RarityFilter = 'all' | CosmeticRarity;
 const RARITY_RANK: Readonly<Record<CosmeticRarity, number>> = { legendary: 0, epic: 1, rare: 2, common: 3 };
 const CATALOG_INDEX = new Map(COSMETICS.map((c, i) => [c.id, i]));
 
+/** Categories kept OUT of the Collection rail while they are switched off (owner 2026-09-29: "hide music and boards
+ *  from collections for now"). A hidden category still appears the moment the server switches it on. */
+export const HIDDEN_WHEN_OFF: ReadonlySet<CosmeticCategory> = new Set<CosmeticCategory>(['board', 'music']);
+
 /** The categories in rail order: the live ones first, then the ones switched off (a function: the server's switch
  *  can change which are live while the game runs). */
 export const collectionCategories = (): CosmeticCategory[] => [
   ...COSMETIC_CATEGORIES.filter((c) => isCategoryLive(c)),
-  ...COSMETIC_CATEGORIES.filter((c) => !isCategoryLive(c)),
+  ...COSMETIC_CATEGORIES.filter((c) => !isCategoryLive(c) && !HIDDEN_WHEN_OFF.has(c)),
 ];
 /** The rail order at load (the bundled flags only). Prefer `collectionCategories()`. */
 export const COLLECTION_CATEGORIES: readonly CosmeticCategory[] = collectionCategories();

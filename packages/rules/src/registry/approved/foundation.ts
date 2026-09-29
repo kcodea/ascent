@@ -2070,9 +2070,10 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'and the attack in a skin slot). The owner approved the animation and made it a Legendary reward. The second hero '
       + 'attack, attack_quake ("Tectonic Slam", Legendary, style quake: R-PROG-ATTACK-05), the third, attack_arcana '
       + '("Arcana", Legendary, style arcana: R-PROG-ATTACK-06), the fourth, attack_blades ("Phantom Blades", Legendary, '
-      + 'style blades: R-PROG-ATTACK-07), and the fifth, attack_enraged ("Enraged Strike", Legendary, style enraged: '
-      + 'R-PROG-ATTACK-11), re-pinned the first-crate odds to Common 46.3%, Rare 30.6%, Epic 18.8%, Legendary 4.3%; a '
-      + 'non-title item 32.5%; the five attacks together 2.7%.',
+      + 'style blades: R-PROG-ATTACK-07), the fifth, attack_enraged ("Enraged Strike", Legendary, style enraged: '
+      + 'R-PROG-ATTACK-11), and the sixth, attack_poison ("Venom Volley", Legendary, style poison: R-PROG-ATTACK-12), '
+      + 're-pinned the first-crate odds to Common 46.0%, Rare 30.5%, Epic 18.6%, Legendary 4.8%; a non-title item 32.8%; '
+      + 'the six attacks together 3.2%.',
     domain: 'foundation',
     status: 'approved',
     evidence: [
@@ -2314,5 +2315,34 @@ export const FOUNDATION_RULES: GameRule[] = [
     ],
     currentBehaviour: 'Conforms, built 2026-09-28. The item reaches the database on the next deploy of progression-inventory (the catalog sync); the equip SQL already accepts the hero_attack slot.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/heroEnraged/heroEnraged.test.ts', 'packages/progression/src/cosmetics.test.ts', 'packages/ui/src/progression/CollectionHeroAttack.test.tsx'], lastVerifiedAt: '2026-09-28' },
+  },
+  {
+    id: 'R-PROG-ATTACK-12',
+    title: 'Poison Darts (attack_poison, "Venom Volley", Legendary) is the sixth hero attack: one dart / two / a fan of five / six that stick, swell, IMPLODE and burst in a toxic cloud, on the SAME damage tiers; the blow lands ONCE; no freeze',
+    statement:
+      'attack_poison ("Venom Volley", a placeholder name for the owner to rename; Legendary, crate, account-wide, style '
+      + 'poison): after the shared damage formation (R-PROG-ATTACK-08) the striking hero leans back while venom gathers at '
+      + 'the throwing hand, then flicks small poison darts (a dark needle, a venom vial, fletching, a glowing green tip) on a '
+      + 'slight arc with a thin toxic vapour trail. Each dart THUNKS into the struck portrait and sticks at its own angle, '
+      + 'quivering, on the side of the face clear of the big -N, with a venom splat, green droplets, a tiny toxic puff and a '
+      + 'sickly green tint pulse over the portrait (an opacity overlay, never an animated filter); stuck darts ride the '
+      + 'knockback. It escalates on exactly the tiers every other hero attack uses (one shared tierOf, thresholds 6 / 12 / '
+      + '20): I 1-5 ONE dart; II 6-11 TWO in quick succession; III 12-19 a FAN of five thunking in in rhythm; IV 20+ six '
+      + 'darts stick round the face (every one a tick), then they GLOW and PULSE while the venom SWELLS, everything is '
+      + 'SUCKED inward into one tight point (a dark ring contracting), and a violent TOXIC BURST lands the blow (a '
+      + 'green-black shockwave, bubbling toxic cloud puffs, acid droplets arcing out with gravity, a lingering haze). The '
+      + 'consequence (the damage, Armor, Resolve) lands exactly ONCE: on the LAST dart (every earlier dart is a tick with FX '
+      + 'and sound only; at I-III the poison then seeps and the darts dissolve, looks only) or, at IV, on the burst. No '
+      + 'hit-stop or freeze anywhere (R-PROG-ATTACK-10). Presentation only; reduced motion is fades only; an unknown or '
+      + 'retired id plays Classic.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-28 (the sixth hero attack)', quote: 'branch off and make a poison dart animation. the final one should throw multiple poison darts that implode with poison' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-28 (Poison Darts review; the look is approved as shipped)', quote: 'the dart one is so good. great stuff.' },
+      { kind: 'code', ref: 'packages/progression/src/cosmetics.ts (attack_poison); packages/ui/src/heroPoison/ (heroPoisonConfig poisonPlan / poisonCues / dartMotions / stickOffset / poisonCameraAt, heroPoison playHeroPoison, heroPoisonScene); playAcidSizzle / playToxicFizz in packages/ui/src/sfx.ts' },
+    ],
+    currentBehaviour: 'Conforms, built 2026-09-28. The item reaches the database on the next deploy of progression-inventory (the catalog sync); the equip SQL already accepts the hero_attack slot.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/heroPoison/heroPoison.test.ts', 'packages/progression/src/cosmetics.test.ts', 'packages/ui/src/progression/CollectionHeroAttack.test.tsx', 'packages/ui/src/heroAttack/damageFormation.test.ts'], lastVerifiedAt: '2026-09-28' },
   },
 ];

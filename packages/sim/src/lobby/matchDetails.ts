@@ -35,6 +35,8 @@ export const MATCH_DETAILS_MAX_BYTES = 16_000;
 const TEXT_CAP = 280;
 const BOARD_CAP = 7;
 const SEAT_CAP = 8;
+const RUNE_CAP = 12;
+const ID_RE = /^[A-Za-z0-9_.:-]{1,64}$/;
 
 /** One seat's board at the recorded moment: the fields a card needs to render, nothing the engine needs. */
 export interface MatchBoard {
@@ -42,6 +44,10 @@ export interface MatchBoard {
   round: number;
   tier: number;
   minions: BoardMinion[];
+  /** The seat's OWNED rune ids at that moment, in acquisition order (a duplicate rune legitimately repeats). Read off
+   *  the board snapshot (`BoardSnapshot.runes`), capped. Absent = none owned, or a record from before runes rode it
+   *  (2026-09-28); authored practice bots own none. */
+  runes?: string[];
 }
 
 export interface MatchSeat {
@@ -54,6 +60,10 @@ export interface MatchSeat {
   self?: true;
   /** The record owner's equipped title at the time (only known for your own seat). */
   titleId?: string;
+  /** The seat's run key in the fight ledger (`author|heroId|seed`), for seats that ARE a real player's run: a
+   *  recorded snapshot seat, and your own seat in a ranked game. What the Hall of Champions crown is looked up by.
+   *  Absent for generated / bot seats and for your own practice seat (practice writes no ledger). */
+  runKey?: string;
   /** A seat that presents as a bot (Practice's bot table). Generated `hybrid` seats are not tagged. */
   bot?: true;
   /** Final placement, when known at the recorded moment. Absent = still standing then. */
@@ -87,9 +97,11 @@ export interface MatchDetailsInput {
   /** Your placement as the end screen shows it. */
   placement: number;
   /** Your board at the end (the end-state board the Career and the leaderboard show). */
-  selfBoard: Pick<BoardSnapshot, 'minions' | 'tier'> | null;
+  selfBoard: Pick<BoardSnapshot, 'minions' | 'tier' | 'runes'> | null;
   selfCosmetics?: RunCosmeticSnapshot | null;
   titleId?: string | null;
+  /** Your own run's ledger key (ranked only; see `MatchSeat.runKey`). */
+  selfRunKey?: string | null;
 }
 
 /** The round your game ended on: your knockout round, else the last settled round. */
@@ -118,8 +130,15 @@ function compactMinion(m: BoardMinion, keepText: boolean): BoardMinion {
   return out;
 }
 
-function boardOf(minions: readonly BoardMinion[], tier: number, round: number, keepText: boolean): MatchBoard {
-  return { round, tier, minions: minions.slice(0, BOARD_CAP).map((m) => compactMinion(m, keepText)) };
+function runesOf(v: unknown): string[] {
+  return Array.isArray(v) ? v.filter((id): id is string => typeof id === 'string' && ID_RE.test(id)).slice(0, RUNE_CAP) : [];
+}
+
+function boardOf(minions: readonly BoardMinion[], tier: number, round: number, keepText: boolean, runes?: readonly string[]): MatchBoard {
+  const out: MatchBoard = { round, tier, minions: minions.slice(0, BOARD_CAP).map((m) => compactMinion(m, keepText)) };
+  const r = runesOf(runes);
+  if (r.length) out.runes = r;
+  return out;
 }
 
 /** The board the lobby fielded for `seat` in `round` (the lobby's own call; recorded seats are pure lookups). */
@@ -181,6 +200,8 @@ export function buildMatchDetails(lobby: RunLobby, input: MatchDetailsInput): Ma
       };
       if (isSelf) out.self = true;
       if (isSelf && input.titleId) out.titleId = input.titleId;
+      const runKey = isSelf ? input.selfRunKey : seat.kind === 'snapshot' ? seat.runKey : undefined;
+      if (runKey && runKey.length <= 160) out.runKey = runKey;
       // Only a seat that PRESENTS as a bot (Practice's bot table, a balance bot) is tagged. A generated `hybrid` seat
       // sits at the table under a player-style handle, like a recorded run, and stays untagged here too.
       if (seat.kind === 'bot' || seat.kind === 'authored') out.bot = true;
@@ -188,13 +209,13 @@ export function buildMatchDetails(lobby: RunLobby, input: MatchDetailsInput): Ma
       if (seat.eliminatedRound !== undefined) out.eliminatedRound = seat.eliminatedRound;
       if (!seat.alive) { out.health = 0; out.armor = 0; }
       if (isSelf) {
-        if (input.selfBoard) out.board = boardOf(input.selfBoard.minions, input.selfBoard.tier, endRound, keepText);
+        if (input.selfBoard) out.board = boardOf(input.selfBoard.minions, input.selfBoard.tier, endRound, keepText, input.selfBoard.runes);
         const c = parseCosmeticSnapshot(input.selfCosmetics);
         if (c) out.cosmetics = c;
       } else {
         const round = seatBoardRound(seat, endRound);
         const b = fieldedBoard(lobby, seat, round);
-        if (b) out.board = boardOf(b.minions, b.tier, round, keepText);
+        if (b) out.board = boardOf(b.minions, b.tier, round, keepText, b.snapshot?.runes);
         const c = parseCosmeticSnapshot(seat.cosmetics ?? b?.snapshot?.cosmetics);
         if (c) out.cosmetics = c;
       }
@@ -252,7 +273,10 @@ function parseBoard(v: unknown): MatchBoard | null {
   const o = v as Record<string, unknown>;
   if (!Array.isArray(o.minions)) return null;
   const minions = o.minions.slice(0, BOARD_CAP).map(parseMinion).filter((m): m is BoardMinion => m !== null);
-  return { round: num(o.round) ?? 0, tier: num(o.tier) ?? 1, minions };
+  const out: MatchBoard = { round: num(o.round) ?? 0, tier: num(o.tier) ?? 1, minions };
+  const runes = runesOf(o.runes);
+  if (runes.length) out.runes = runes;
+  return out;
 }
 
 function parseSeat(v: unknown): MatchSeat | null {
@@ -269,6 +293,8 @@ function parseSeat(v: unknown): MatchSeat | null {
   if (o.self === true) s.self = true;
   if (str(o.titleId)) s.titleId = str(o.titleId);
   if (o.bot === true) s.bot = true;
+  const rk = str(o.runKey);
+  if (rk && rk.length <= 160) s.runKey = rk;
   const placement = num(o.placement);
   if (placement !== undefined && placement > 0) s.placement = placement;
   const er = num(o.eliminatedRound);

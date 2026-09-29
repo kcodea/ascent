@@ -20,9 +20,12 @@ HTMLCanvasElement.prototype.getContext = (() => null) as unknown as HTMLCanvasEl
 
 const fetchMyRuns = vi.fn<() => Promise<CareerRun[] | null>>();
 const fetchMyPracticeGames = vi.fn<() => Promise<PracticeGameRow[] | null>>();
+const fetchHallRecords = vi.fn<() => Promise<Array<{ runKey: string }>>>(async () => []);
+let backend = true;
 vi.mock('../remoteBoards', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../remoteBoards')>()),
-  remoteEnabled: () => true,
+  remoteEnabled: () => backend,
+  fetchHallRecords: () => fetchHallRecords(),
   fetchMyRuns: () => fetchMyRuns(),
   fetchMyPracticeGames: () => fetchMyPracticeGames(),
   fetchPlayerById: async () => null,
@@ -35,6 +38,7 @@ import { useGame } from '../store';
 import { heroArt } from '../art';
 import { skinArtOf } from '../skins/skins';
 import { MatchDetailsDialog, MatchScoreboard } from './MatchScoreboard';
+import { resetHallKeysForTests } from './hallKeys';
 import { NO_DETAILS_TEXT, boardCaption, defaultSeatId, placeLabel, statusText, summaryText, youWon } from './matchDetailsText';
 
 const seat = (over: Partial<MatchSeat> & { id: string }): MatchSeat => ({
@@ -45,8 +49,8 @@ const seat = (over: Partial<MatchSeat> & { id: string }): MatchSeat => ({
 const LOSS: MatchDetails = {
   v: 1, endRound: 11, placement: 6, eliminated: true, knockedOutBy: 's4',
   seats: [
-    seat({ id: 's3', name: 'Skye', heroId: 'albus', health: 22, armor: 5, cosmetics: { heroSkinByHeroId: { albus: 'skin_albus_1' } } }),
-    seat({ id: 's4', name: 'Rook', health: 18 }),
+    seat({ id: 's3', name: 'Skye', heroId: 'albus', health: 22, armor: 5, runKey: 'Skye|albus|4242', cosmetics: { heroSkinByHeroId: { albus: 'skin_albus_1' } } }),
+    seat({ id: 's4', name: 'Rook', health: 18, board: { round: 11, tier: 5, minions: [{ cardId: 'pack', attack: 3, health: 3 }], runes: ['rune_broodpit', 'rune_epic_forge', 'rune_not_in_this_build'] } }),
     seat({ id: 's5', name: 'Pim', health: 12 }),
     seat({ id: 's6', name: 'Juno', health: 9 }),
     seat({ id: 's2', name: 'Vex', health: 3 }),
@@ -153,6 +157,15 @@ describe('the scoreboard', () => {
     expect(css).toMatch(/body:has\(\.mdd-scrim\) \.cardref \{ z-index: 580; \}/);
   });
 
+  it('RUNES (owner 2026-09-28): the rune choices of the selected player sit under their board; none reads "No runes"', () => {
+    ui = mount(<MatchScoreboard details={LOSS} own />);
+    // opens on Rook (knocked you out), who owned two known runes (+ one this build does not ship: skipped)
+    expect([...ui.container.querySelectorAll('.mds-runes .cv2-rune-name')].map((n) => n.textContent)).toHaveLength(2);
+    click(ui.container.querySelector('.mds-row[data-seat="s3"]'));
+    expect(ui.container.querySelector('.mds-runes .cv2-rune')).toBeNull();
+    expect(ui.container.querySelector('.mds-norunes')?.textContent).toBe('No runes');
+  });
+
   it('an empty or missing board says so plainly', () => {
     ui = mount(<MatchScoreboard details={{ ...WIN, seats: [...WIN.seats, seat({ id: 's9', placement: 4, eliminatedRound: 3, board: null })] }} own />);
     click(ui.container.querySelector('.mds-row[data-seat="s1"]'));
@@ -188,6 +201,53 @@ describe('the scoreboard', () => {
     expect(onClose).toHaveBeenCalledTimes(1);
     click(document.querySelector('.mdd-close'));
     expect(onClose).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe('the Hall of Champions crown (owner ask 2026-09-28)', () => {
+  const crowned = (): string[] => [...ui!.container.querySelectorAll('.mds-row')].filter((r) => r.querySelector('.mds-hall')).map((r) => r.getAttribute('data-seat')!);
+  beforeEach(() => { resetHallKeysForTests(); fetchHallRecords.mockReset().mockResolvedValue([]); backend = true; });
+
+  it('crowns exactly the seats whose run is on the Hall now; ONE read however often the panel re-renders, cached for the session', async () => {
+    fetchHallRecords.mockResolvedValue([{ runKey: 'Skye|albus|4242' }, { runKey: 'Someone|warden|1' }]);
+    ui = mount(<MatchScoreboard details={LOSS} own />);
+    await flush();
+    expect(crowned()).toEqual(['s3']);
+    const crown = ui.container.querySelector('.mds-row[data-seat="s3"] .mds-hall')!;
+    expect(crown.getAttribute('aria-label')).toBe('On the Hall of Champions');
+    expect(crown.getAttribute('data-tip')).toBe('On the Hall of Champions');
+    expect(crown.hasAttribute('title')).toBe(false);
+    click(ui.container.querySelector('.mds-row[data-seat="s3"]'));
+    expect(ui.container.querySelector('.mds-board-name .mds-hall')).not.toBeNull(); // and on the board header
+    for (const id of ['s1', 's4', 's0']) click(ui.container.querySelector(`.mds-row[data-seat="${id}"]`));
+    ui.render(<MatchScoreboard details={LOSS} own />);
+    await flush();
+    ui.unmount(); ui = mount(<MatchScoreboard details={LOSS} own />); // a second panel open
+    await flush();
+    expect(crowned()).toEqual(['s3']);
+    expect(fetchHallRecords).toHaveBeenCalledTimes(1);
+  });
+
+  it('a failed or empty read shows no crown and no error', async () => {
+    fetchHallRecords.mockResolvedValue([]); // fetchHallRecords answers [] on any failure
+    ui = mount(<MatchScoreboard details={LOSS} own />);
+    await flush();
+    expect(crowned()).toEqual([]);
+    expect(ui.container.querySelectorAll('.mds-row')).toHaveLength(8); // the panel renders regardless
+  });
+
+  it('offline (no backend): no read at all, no crown', async () => {
+    backend = false;
+    ui = mount(<MatchScoreboard details={LOSS} own />);
+    await flush();
+    expect(fetchHallRecords).not.toHaveBeenCalled();
+    expect(crowned()).toEqual([]);
+  });
+
+  it('a table with no real runs (all bots) never asks', async () => {
+    ui = mount(<MatchScoreboard details={WIN} own />);
+    await flush();
+    expect(fetchHallRecords).not.toHaveBeenCalled();
   });
 });
 

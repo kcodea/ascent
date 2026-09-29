@@ -1295,12 +1295,12 @@ function endStateBoard(run: RunState): BoardSnapshot | null {
  * (never on the click that ended the run): recorded seats are cheap lookups, but a driver the session has not
  * built yet costs a rebuild. Best-effort: a failure costs the Match details button, never the end screen.
  */
-function matchDetailsOf(run: RunState, author: string, finalBoard: BoardSnapshot | null, placement: number | null): MatchDetails | null {
+function matchDetailsOf(run: RunState, author: string, finalBoard: BoardSnapshot | null, placement: number | null, selfRunKey?: string): MatchDetails | null {
   if (!run.lobby || placement === null || placement <= 0) return null;
   try {
     const titleId = mirrorFor(currentProgressionUserId(), useProgression.getState().mirror)?.equippedTitleId ?? null;
     return buildMatchDetails(run.lobby, {
-      name: author, placement, selfBoard: finalBoard, selfCosmetics: finalBoard?.cosmetics ?? run.cosmetics ?? null, titleId,
+      name: author, placement, selfBoard: finalBoard, selfCosmetics: finalBoard?.cosmetics ?? run.cosmetics ?? null, titleId, selfRunKey,
     });
   } catch (e) {
     if (import.meta.env.DEV) console.warn('[run-end] match details could not be assembled', e);
@@ -1536,7 +1536,9 @@ function commitResolvedAction(
         const lobbyWon = lobbyPlacement === 1;
         // MATCH DETAILS (owner ask 2026-09-28): recorded BEFORE the fight ledger's play-out below, so every board is
         // the one the table fielded up to this player's end, and saved into the career entry (`entry.match`).
-        const match = next.mode === 'lobby' ? matchDetailsOf(next, author, finalBoard, lobbyPlacement) : null;
+        // The own key is the fight ledger's reporter key (`author|heroId|seed`), so a run that later reaches the Hall
+        // of Champions wears the crown in its own Match details too.
+        const match = next.mode === 'lobby' ? matchDetailsOf(next, author, finalBoard, lobbyPlacement, `${author}|${next.heroId}|${next.seed}`) : null;
         set({ lastMatch: match ? { seed: next.seed, details: match } : null });
         // THE FIGHT LEDGER + LOBBY STRENGTH (owner 2026-09-22). Every fight this table resolved — the ones this
         // player witnessed plus, when they fell early, the rounds a deterministic play-out resolves on a CLONE

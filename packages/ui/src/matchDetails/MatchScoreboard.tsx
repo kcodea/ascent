@@ -4,10 +4,13 @@ import { getHero, type MatchDetails, type MatchSeat } from '@game/sim';
 import { cosmeticOf, titleName, type RunCosmeticSnapshot } from '@game/progression';
 import { Icon } from '../Icon';
 import { StoredTeam } from '../StoredTeam';
+import { RuneEmblem } from '../RuneEmblem';
+import { RUNE_INDEX } from '@game/content';
 import { heroPortrait, internSnapshot, opponentSkins, useSkinEpoch } from '../skins/skins';
 import { useGame } from '../store';
 import { sfx } from '../sfx';
 import { stageHost } from '../stage';
+import { useHallKeys } from './hallKeys';
 import { boardCaption, defaultSeatId, placeLabel, statusText, summaryText } from './matchDetailsText';
 import './matchDetails.css';
 
@@ -49,19 +52,21 @@ interface SeatRowProps {
   status: string;
   selected: boolean;
   killer: boolean;
+  /** This seat's run is currently on the Hall of Champions. */
+  hall: boolean;
   skins: RunCosmeticSnapshot | null;
   onSelect: (id: string) => void;
   onKey: (e: KeyboardEvent<HTMLButtonElement>, id: string) => void;
 }
 
 /** One seat. Memoised: its props are primitives plus the seat (a stable reference into the recorded details). */
-const SeatRow = memo(function SeatRow({ seat, place, status, selected, killer, skins, onSelect, onKey }: SeatRowProps) {
+const SeatRow = memo(function SeatRow({ seat, place, status, selected, killer, hall, skins, onSelect, onKey }: SeatRowProps) {
   const heroName = seat.heroId ? getHero(seat.heroId).name : '';
   const title = seat.titleId ? titleName(seat.titleId) : null;
   const rarity = seat.titleId ? cosmeticOf(seat.titleId)?.rarity ?? null : null;
   const standing = seat.eliminatedRound === undefined && !(seat.self && status.startsWith('Out'));
   const winner = status === 'Winner';
-  const label = `${place ? `${place}. ` : ''}${seat.name}${seat.self ? ' (you)' : ''}, ${heroName}. ${status}.${killer ? ' Knocked you out.' : ''}`;
+  const label = `${place ? `${place}. ` : ''}${seat.name}${seat.self ? ' (you)' : ''}, ${heroName}. ${status}.${killer ? ' Knocked you out.' : ''}${hall ? ' On the Hall of Champions.' : ''}`;
   return (
     <button
       type="button"
@@ -77,6 +82,7 @@ const SeatRow = memo(function SeatRow({ seat, place, status, selected, killer, s
       <span className="mds-who">
         <span className="mds-name">
           <span className="mds-name-text">{seat.name}</span>
+          {hall && <HallCrown />}
           {seat.self && <span className="mds-tag you">You</span>}
           {seat.bot && !seat.self && <span className="mds-tag bot">Bot</span>}
         </span>
@@ -98,6 +104,31 @@ const SeatRow = memo(function SeatRow({ seat, place, status, selected, killer, s
   );
 });
 
+/** The selected seat's rune choices at that moment (owner 2026-09-28: "runes are added to the view so you can see
+ *  their rune choices"), in the Career banner's emblem + name style (hover = the rune's text). Unknown ids (a rune
+ *  this build does not ship) are skipped; none (or an older record) reads "No runes". */
+function SeatRunes({ runes }: { runes: readonly string[] | undefined }) {
+  const known = (runes ?? []).filter((id) => RUNE_INDEX[id]);
+  return (
+    <div className="mds-runes">
+      <span className="cv2-row-label">Runes</span>
+      {known.length > 0
+        ? <div className="cv2-runes" aria-label="Runes this player owned">{known.map((id, i) => <RuneEmblem runeId={id} key={`${id}#${i}`} />)}</div>
+        : <span className="mds-norunes">No runes</span>}
+    </div>
+  );
+}
+
+/** The small gold crown for a run currently on the Hall of Champions (the game's `.gtip` hover bubble, never a
+ *  native tooltip). */
+function HallCrown() {
+  return (
+    <span className="mds-hall gtip" role="img" aria-label="On the Hall of Champions" data-tip="On the Hall of Champions">
+      <Icon name="crown" />
+    </span>
+  );
+}
+
 /** The scoreboard itself: rows + the selected seat's board. `own` decides the skin rule (see above). */
 export function MatchScoreboard({ details, own }: { details: MatchDetails; own: boolean }) {
   useSkinEpoch();
@@ -111,6 +142,9 @@ export function MatchScoreboard({ details, own }: { details: MatchDetails; own: 
     seat, place: placeLabel(seat, details), status: statusText(seat, details), skins: seatSkins(seat, own, showOpponents),
   })), [seats, details, own, showOpponents]);
 
+  // The Hall crown: one cached read per panel open (never per render), asked only when a seat is a real run.
+  const wantsHall = useMemo(() => seats.some((s) => !!s.runKey), [seats]);
+  const hallKeys = useHallKeys(wantsHall);
   const onSelect = useCallback((id: string) => {
     setSelected((cur) => { if (cur !== id) sfx.tick(); return id; });
   }, []);
@@ -142,6 +176,7 @@ export function MatchScoreboard({ details, own }: { details: MatchDetails; own: 
             status={r.status}
             selected={r.seat === selected}
             killer={r.seat.id === details.knockedOutBy}
+            hall={!!r.seat.runKey && hallKeys.has(r.seat.runKey)}
             skins={r.skins}
             onSelect={onSelect}
             onKey={onKey}
@@ -151,7 +186,10 @@ export function MatchScoreboard({ details, own }: { details: MatchDetails; own: 
       {selected && (
         <section className="mds-board" aria-live="polite" aria-label={`${selected.name}'s board`}>
           <header className="mds-board-head">
-            <span className="mds-board-name">{selected.self ? 'Your board' : selected.name}<span className="mds-board-hero">{heroName}</span></span>
+            <span className="mds-board-name">
+              {selected.self ? 'Your board' : selected.name}<span className="mds-board-hero">{heroName}</span>
+              {!!selected.runKey && hallKeys.has(selected.runKey) && <HallCrown />}
+            </span>
             {selected.board && <span className="mds-board-tier">Tier {selected.board.tier}</span>}
           </header>
           <div className="mds-board-caption">{boardCaption(selected, details)}</div>
@@ -160,6 +198,7 @@ export function MatchScoreboard({ details, own }: { details: MatchDetails; own: 
               ? <StoredTeam minions={selected.board.minions} skins={selSkins} label={`${selected.name}'s board`} compact />
               : <div className="mds-empty">{selected.board ? 'This board was empty.' : 'No board was recorded for this player.'}</div>}
           </div>
+          <SeatRunes runes={selected.board?.runes} />
         </section>
       )}
     </div>

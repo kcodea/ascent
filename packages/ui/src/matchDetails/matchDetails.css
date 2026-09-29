@@ -28,6 +28,10 @@
 .mds-who { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .mds-name { display: flex; align-items: center; gap: 8px; min-width: 0; }
 .mds-name-text { font-weight: 900; font-size: 18px; line-height: 1.15; color: #fff; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+/* The Hall of Champions crown beside a name (owner ask 2026-09-28). Static: no animation, no paint loop. */
+.mds-hall { flex: none; display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; color: #ffd66b; background: radial-gradient(circle at 50% 40%, rgba(255, 214, 107, 0.28), rgba(0, 0, 0, 0.25)); border: 1px solid rgba(255, 214, 107, 0.6); }
+.mds-hall svg { width: 14px; height: 14px; }
+.mds-board-name .mds-hall { align-self: center; }
 .mds-tag { flex: none; font-weight: 900; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; padding: 2px 7px 1px; border-radius: 999px; }
 .mds-tag.you { color: #0f1a2c; background: #9ccaf5; }
 .mds-tag.bot { color: #a8d8ef; border: 1px solid rgba(168, 216, 239, 0.5); }
@@ -50,7 +54,7 @@
 /* The selected seat's board: a recessed well under the table. */
 .mds-board { display: flex; flex-direction: column; gap: 4px; min-width: 0; padding: 12px 18px 6px; border-radius: 14px; background: rgba(0, 0, 0, 0.26); border: 1px solid rgba(196, 160, 92, 0.24); }
 .mds-board-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; font-family: var(--font-ui); }
-.mds-board-name { display: inline-flex; align-items: baseline; gap: 10px; min-width: 0; font-weight: 900; font-size: 20px; color: #fff; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.mds-board-name { display: inline-flex; align-items: baseline; gap: 10px; min-width: 0; font-weight: 900; font-size: 20px; color: #fff; white-space: nowrap; }
 .mds-board-hero { font-weight: 700; font-size: 15px; color: rgba(255, 255, 255, 0.6); }
 .mds-board-tier { flex: none; font-weight: 900; font-size: 13px; letter-spacing: 0.12em; text-transform: uppercase; color: #e8c877; padding: 3px 10px; border-radius: 999px; border: 1px solid rgba(196, 160, 92, 0.45); background: rgba(0, 0, 0, 0.3); }
 .mds-board-caption { font-family: var(--font-ui); font-weight: 700; font-size: 15px; color: rgba(232, 200, 119, 0.92); }
@@ -58,6 +62,11 @@
    compact (`StoredTeam compact`), so nothing hangs below a tile; the strip keeps one height for every seat (an empty
    board and a full one are the same size, so picking a player never resizes the panel). */
 .mds-team { container-type: inline-size; min-width: 0; min-height: 192px; display: flex; flex-direction: column; justify-content: center; }
+/* The selected seat's runes, under its board (the Career banner's emblem + name pills). One line tall whatever the
+   seat owns, so switching players never changes the panel height. */
+.mds-runes { display: flex; align-items: center; gap: 14px; min-height: 58px; padding: 6px 0 8px; border-top: 1px solid rgba(196, 160, 92, 0.16); overflow: hidden; }
+.mds-runes .cv2-runes { flex-wrap: nowrap; overflow: hidden; }
+.mds-norunes { font-family: var(--font-ui); font-weight: 600; font-size: 15px; color: rgba(255, 255, 255, 0.5); }
 .mds-empty { font-family: var(--font-ui); font-weight: 600; font-size: 15px; color: rgba(255, 255, 255, 0.55); padding: 26px 0 30px; }
 
 /* ── THE END SCREEN DIALOG ── */
@@ -107,3 +116,4 @@
 /* The Card's hover reveal (the full card, portalled at z 460) must float ABOVE this dialog (z 560), or hovering a
    board card opened it hidden behind the scrim. */
 body:has(.mdd-scrim) .cardref { z-index: 580; }
+body:has(.mdd-scrim) .cv2-rune-tip { z-index: 580; }

@@ -28,6 +28,7 @@ const board = (a: number, wave: number): BoardSnapshot => ({
   ],
   seed: 5000 + a, origin: 'self', author: AUTHORS[a], setId: 'set1',
   ...(a === 0 ? { cosmetics: { heroSkinByHeroId: { albus: 'skin_albus_1' } } } : {}),
+  ...(a === 1 ? { runes: wave >= 6 ? ['rune_broodpit', 'rune_epic_forge'] : ['rune_broodpit'] } : {}),
 } as unknown as BoardSnapshot);
 
 beforeAll(() => {
@@ -47,7 +48,7 @@ function lobbyAt(round: number, knockouts: Record<string, { round: number; place
   return lobby;
 }
 
-const input = (placement: number) => ({ name: 'Kev', placement, selfBoard: { tier: 4, minions: [{ cardId: 'pack', attack: 9, health: 9 }] }, titleId: 'alpha_tester' });
+const input = (placement: number) => ({ name: 'Kev', placement, selfBoard: { tier: 4, minions: [{ cardId: 'pack', attack: 9, health: 9 }], runes: ['rune_slaying'] }, titleId: 'alpha_tester' });
 const seatOf = (d: MatchDetails, id: string): MatchSeat => d.seats.find((s) => s.id === id)!;
 
 describe('the recorded moment', () => {
@@ -116,6 +117,19 @@ describe('buildMatchDetails', () => {
     expect(m.text).toContain('Live text');
     expect(skye.board!.minions[1]).toMatchObject({ cardId: 'blackbelt', golden: true, keywords: ['taunt'] });
     expect(d.seats.find((s) => s.name === 'Olde')!.cosmetics).toBeUndefined();
+  });
+
+  it('RUNES (owner 2026-09-28): each board carries the runes its seat owned at that moment; yours from your end board', () => {
+    const late = buildMatchDetails(lobbyAt(9, {}), input(1));
+    expect(late.seats.find((s) => s.name === 'Olde')!.board!.runes).toEqual(['rune_broodpit', 'rune_epic_forge']);
+    const early = buildMatchDetails(lobbyAt(4, {}), input(1));
+    expect(early.seats.find((s) => s.name === 'Olde')!.board!.runes).toEqual(['rune_broodpit']); // the round-4 board had one
+    expect(early.seats.find((s) => s.name === 'Rook')!.board!.runes).toBeUndefined(); // none owned: no field
+    expect(early.seats.find((s) => s.self)!.board!.runes).toEqual(['rune_slaying']);
+    // an older stored record without runes still reads, and junk ids are dropped
+    const d = parseMatchDetails({ v: 1, seats: [{ id: 's0', heroId: 'cia', board: { round: 3, tier: 2, minions: [], runes: ['rune_x', 7, 'bad id!'] } }, { id: 's1', heroId: 'cia', board: { round: 3, tier: 2, minions: [] } }] })!;
+    expect(d.seats[0]!.board!.runes).toEqual(['rune_x']);
+    expect(d.seats[1]!.board!.runes).toBeUndefined();
   });
 
   it('stays small: a full 8-seat table is well under the cap', () => {

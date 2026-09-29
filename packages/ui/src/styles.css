@@ -9038,6 +9038,43 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 .scenebuilder .sb-empty { color: var(--sb-ink3); }
 .scenebuilder .sb-bugpaste { min-height: calc(30 * var(--u)); }
 .scenebuilder .sb-qa-summary { background: var(--sb-well); border: 1px solid #443a2c; }
+/* ---- STAGE BUILDER (DEV, 2026-09-29) — the Gauntlet stage authoring panel. It wears the Scene Builder skin
+   (`.scenebuilder` on the same root) and adds only its own pieces here. No cursor rules: every control is a
+   <button>/<select>/<input>, so the global game-cursor rule paints them. Static styles only, no loops. */
+.scenebuilder.stagebuilder { width: calc(360 * var(--u)); }
+.stagebuilder .stb-grid { display: grid; gap: calc(3 * var(--u)); }
+.stagebuilder .stb-grid-5 { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+.stagebuilder .stb-grid-10 { grid-template-columns: repeat(10, minmax(0, 1fr)); }
+.stagebuilder .stb-stage { padding: calc(4 * var(--u)) calc(3 * var(--u)); font-size: calc(10 * var(--u)); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.stagebuilder .stb-stage b { color: var(--sb-brass); margin-right: calc(2 * var(--u)); }
+.stagebuilder .sb-btn.on { border-color: var(--sb-brass); color: #f6e3b4; background: linear-gradient(180deg, #3b2f17, #2a2212); }
+.stagebuilder .stb-round { position: relative; padding: calc(5 * var(--u)) 0; text-align: center; }
+.stagebuilder .stb-round.err { border-color: #b0402e; color: #ffb3a3; }
+.stagebuilder .stb-round.drift { box-shadow: inset 0 -2px 0 #e0a866; }
+/* the unsaved dot: a round's top-right corner, or beside a section title */
+.stagebuilder .stb-dot { display: inline-block; width: calc(6 * var(--u)); height: calc(6 * var(--u)); border-radius: 50%; background: #f4be35; box-shadow: 0 0 0 1px #241a08; }
+.stagebuilder .stb-round .stb-dot { position: absolute; top: calc(2 * var(--u)); right: calc(2 * var(--u)); }
+.stagebuilder .stb-status { overflow-wrap: anywhere; }
+.stagebuilder .stb-tier { flex-wrap: nowrap; }
+.stagebuilder .stb-tier .sb-mini { font-size: calc(9 * var(--u)); letter-spacing: 0.08em; text-transform: uppercase; font-weight: 800; flex: none; }
+.stagebuilder .stb-tierin { width: calc(110 * var(--u)); }
+.stagebuilder .stb-board { display: flex; flex-direction: column; gap: calc(4 * var(--u)); }
+.stagebuilder .stb-minion { display: flex; flex-direction: column; gap: calc(4 * var(--u)); padding: calc(5 * var(--u)) calc(6 * var(--u)); border: 1px solid var(--sb-line); border-radius: calc(8 * var(--u)); background: linear-gradient(180deg, #24201a, #1c1812); }
+.stagebuilder .stb-mrow { gap: calc(4 * var(--u)); }
+.stagebuilder .stb-mname { flex: 1; min-width: 0; font-size: calc(12 * var(--u)); font-weight: 800; color: var(--sb-ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.stagebuilder .stb-mname.err { color: #ff8a78; }
+.stagebuilder .stb-drift { color: #e0a866; }
+.stagebuilder .stb-ico { padding: calc(2 * var(--u)) calc(6 * var(--u)); font-size: calc(10 * var(--u)); }
+.stagebuilder .stb-x:hover:not(:disabled) { border-color: #b0402e; color: #ffb3a3; }
+.stagebuilder .uned-kwbtn { padding: calc(2 * var(--u)) calc(5 * var(--u)); font-size: calc(10 * var(--u)); }
+.stagebuilder .uned-kwbtn.locked { opacity: 0.55; }
+.stagebuilder .stb-gold.on { background: #f4be35; border-color: #f4be35; }
+.stagebuilder .stb-result { display: flex; align-items: center; gap: calc(7 * var(--u)); padding: calc(2 * var(--u)) calc(4 * var(--u)) calc(2 * var(--u)) calc(7 * var(--u)); border: 1px solid var(--sb-line); border-radius: calc(7 * var(--u)); background: linear-gradient(180deg, #24201a, #1c1812); color: var(--sb-ink2); font-size: calc(12 * var(--u)); }
+.stagebuilder .stb-add { padding: calc(2 * var(--u)) calc(7 * var(--u)); font-size: calc(10 * var(--u)); }
+.stagebuilder .stb-noeffect { color: var(--sb-ink3); }
+.stagebuilder option.stb-noeffect { color: #7d7262; }
+.stagebuilder .stb-confirm { flex-wrap: wrap; }
+.stagebuilder .stb-confirm .sb-warn { display: inline; margin: 0; }
 .bsc-id { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .bsc-banner { background: #3a2413; border: 1px solid #a0632a; border-radius: calc(6 * var(--u)); color: #f0b978; font-size: calc(12 * var(--u)); line-height: 1.4; padding: calc(6 * var(--u)) calc(8 * var(--u)); }
 .bsc-badges { gap: calc(4 * var(--u)); }

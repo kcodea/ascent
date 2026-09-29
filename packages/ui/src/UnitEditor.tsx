@@ -33,7 +33,7 @@ export const EDITABLE_KEYWORDS: readonly Keyword[] = ['T', 'DS', 'V', 'W', 'R', 
 
 // Player-facing labels, matching the B3 rename pass in `terms.ts` (Divine Shield -> Ward, Windfury -> Flurry,
 // Venomous -> Execute, Reborn -> Rise). Taunt and Cleave are kept as-is by that same pass.
-const KEYWORD_LABEL: Record<string, string> = {
+export const KEYWORD_LABEL: Record<string, string> = {
   T: 'Taunt', DS: 'Ward', V: 'Execute', W: 'Flurry', R: 'Rise', C: 'Cleave',
 };
 

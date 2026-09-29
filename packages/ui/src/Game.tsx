@@ -1,6 +1,6 @@
 import './styles.css';
 import './boardEdgeConfig'; // side-effect: apply the ultrawide edge-blend vars (dev: persisted tune; prod: DEFAULTS)
-import { useEffect, useLayoutEffect, useState } from 'react';
+import { lazy, Suspense, useEffect, useLayoutEffect, useState } from 'react';
 import { Recruit } from './Recruit';
 import { PERF_DOM_CONTAINERS } from './perfDomContainers';
 import { EndScreen } from './EndScreen';
@@ -33,6 +33,11 @@ import { EditorOverlay } from './uiEditor/EditorOverlay';
 import { setFxScene } from './fx/fxBudget';
 import { ensureDefsReady } from './fx/playDef';
 import { SceneBuilder } from './SceneBuilder';
+/** The Stage Builder panel (DEV): loaded on demand so it and its store never reach the player chunk — in a production
+ *  build `import.meta.env.DEV` is false, the ternary folds to `null` and the dynamic import is dropped. */
+const StageBuilderMount = import.meta.env.DEV
+  ? lazy(() => import('./stageBuilder/StageBuilder').then((m) => ({ default: m.StageBuilderMount })))
+  : null;
 import { BugScenarioPanel } from './bug-report/BugScenarioPanel';
 import { BalancePanel } from './BalancePanel';
 import { PatchNotes } from './PatchNotesOverlay';
@@ -482,6 +487,8 @@ export function Game() {
       {import.meta.env.DEV && <EditorOverlay />}
       {/* Scene Builder control panel — mounts alongside the live sandbox run (its own title-launched mode). */}
       {import.meta.env.DEV && sandbox && <SceneBuilder />}
+      {/* Stage Builder (Gauntlet authoring) — beside the Scene Builder; renders nothing until opened from the title. */}
+      {StageBuilderMount && sandbox && <Suspense fallback={null}><StageBuilderMount /></Suspense>}
       {/* Bug-scenario report side panel (PR 4) — mounts with a loaded scenario. Independent of `sandbox`:
           a content-mismatch load is READ-ONLY (the run is never entered), but its evidence still shows. */}
       {import.meta.env.DEV && bugScenarioLoaded && <BugScenarioPanel />}

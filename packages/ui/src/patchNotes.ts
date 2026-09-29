@@ -60,11 +60,36 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
-        text: 'Guests now create a free account to open crates. Your crates, level and collection stay with it.',
+        text: 'Hero attack effects now stay on the hero they hit while the view zooms in.',
         details: [
-          'Guests still earn crates. They wait sealed in the Collection until you make an account.',
-          'Making an account keeps everything you earned as a guest. You only need an email.',
-          'Signing into an account you already have switches to it. Crates earned as a guest stay on the guest.',
+          'During the push-in, the effects of every hero attack could drift off the struck hero, by up to about a portrait width.',
+          'They now land right on the portrait, in fights and in the Collection preview.',
+          'The zoom, the shake, the timing and how the portraits move are exactly the same.',
+        ],
+      },
+      {
+        category: 'Systems',
+        text: 'Two new Epic hero attacks, Card Shark and Storm Call, can drop from crates.',
+        details: [
+          'Epic attacks are shorter than the Legendary ones and have three sizes instead of four.',
+          'Card Shark: your hero flicks a spinning Ace into the other hero. Bigger hits throw three Aces. The biggest deal a royal flush that turns gold, then all five cards fly in and burst into confetti.',
+          'Storm Call: a crackling bolt of lightning hits the other hero. Bigger hits fork into two strikes and leave the other hero buzzing with static. The biggest call down a storm cloud that drops one huge lightning strike.',
+          'A knockout always plays the biggest version.',
+          'Equip them from the Attack Animations tab of the Collection. There is a preview button there too.',
+          'Hero attacks are looks only. The damage is exactly the same.',
+        ],
+      },
+      {
+        category: 'Systems',
+        text: 'Four new Rare hero attacks can drop from crates: Pocket Change, Come Back Around, Bubble Trouble and Shadow Step.',
+        details: [
+          'Rare attacks are short and playful, with a small version and a big version. Big hits and knockouts play the big one.',
+          'Pocket Change: your hero flicks a spinning gold coin that pings off the other hero. The big version ricochets it and bursts into a shower of coins.',
+          'Come Back Around: a wooden boomerang whirls out, thwacks the other hero and curves back to be caught. The big version throws two that cross in the air.',
+          'Bubble Trouble: a shimmering bubble drifts over, swallows the other hero\'s face and pops. The big version blows a stream of little bubbles first, then one huge bubble that pops with a splash.',
+          'Shadow Step: your hero vanishes in smoke, appears behind the other hero and strikes. The big version lunges, then strikes from the side, then from behind.',
+          'Equip them from the Attack Animations tab of the Collection. Each has a preview button there.',
+          'Hero attacks are looks only. The damage is exactly the same.',
         ],
       },
       {
@@ -286,6 +311,15 @@ export const PATCH_NOTES: PatchNote[] = [
       {
         category: 'Systems',
         text: 'Unit voices and creature sounds when you play a unit or it dies are now much quieter.',
+      },
+      {
+        category: 'Systems',
+        text: 'Guests now create a free account to open crates. Your crates, level and collection stay with it.',
+        details: [
+          'Guests still earn crates. They wait sealed in the Collection until you make an account.',
+          'Making an account keeps everything you earned as a guest. You only need an email.',
+          'Signing into an account you already have switches to it. Crates earned as a guest stay on the guest.',
+        ],
       },
     ],
   },

@@ -95,6 +95,18 @@ import { playHeroBanana } from './heroBanana/heroBanana';
 import { heroBananaPreviewSpeed } from './heroBanana/heroBananaConfig';
 import { playHeroBleed } from './heroBleed/heroBleed';
 import { heroBleedPreviewSpeed } from './heroBleed/heroBleedConfig';
+import { playHeroCards } from './heroCards/heroCards';
+import { heroCardsPreviewSpeed } from './heroCards/heroCardsConfig';
+import { playHeroStorm } from './heroStorm/heroStorm';
+import { heroStormPreviewSpeed } from './heroStorm/heroStormConfig';
+import { playHeroCoin } from './heroCoin/heroCoin';
+import { heroCoinPreviewSpeed } from './heroCoin/heroCoinConfig';
+import { playHeroBoomerang } from './heroBoomerang/heroBoomerang';
+import { heroBoomerangPreviewSpeed } from './heroBoomerang/heroBoomerangConfig';
+import { playHeroBubble } from './heroBubble/heroBubble';
+import { heroBubblePreviewSpeed } from './heroBubble/heroBubbleConfig';
+import { playHeroBackstab } from './heroBackstab/heroBackstab';
+import { heroBackstabPreviewSpeed } from './heroBackstab/heroBackstabConfig';
 import { resolveHeroAttackStyle } from './heroBlast/heroAttackStyle';
 import { attackerCosmeticOf } from './heroBlast/attackerCosmetic';
 import { heroStrikeDamage, heroStrikeKnockout, heroStrikeNumbers } from './heroBlast/heroStrikeDamage';
@@ -2935,13 +2947,27 @@ export function Recruit() {
     // the top tier raises a colossal beast whose jaws slam over the portrait before it roars; Banana Cannon: King Oona's
     // painted bananas spin in and splat, and the top tier lands a giant golden banana in the target that the hero slams in
     // six times until it bursts; Hemorrhage: crimson crescents cut gashes that bleed, and the top tier zips a mega-slash
-    // across the screen eight times and ends in a bloody explosion). Same blow, same consequence, only drawn differently;
+    // across the screen eight times and ends in a bloody explosion; the Rares, two tiers each: Pocket Change flicks a coin that pings and ricochets,
+    // Come Back Around throws a boomerang that thwacks and is caught, Bubble Trouble pops a bubble round the face, and
+    // Shadow Step fades the striker into smoke and stabs from behind). Same blow, same consequence, only drawn differently;
     // the style is the ATTACKER's (their equipped cosmetic, or the dev override). Every runner takes the same options
     // (`heroAttack/options.ts`).
     const attackStyle = resolveHeroAttackStyle({ attacker: side, attackerCosmeticId: attackerCosmeticOf(run0, side, useGame.getState().showOpponentSkins) });
-    if (attackStyle === 'blast' || attackStyle === 'quake' || attackStyle === 'arcana' || attackStyle === 'blades' || attackStyle === 'enraged' || attackStyle === 'poison' || attackStyle === 'frost' || attackStyle === 'holy' || attackStyle === 'fire' || attackStyle === 'undead' || attackStyle === 'beast' || attackStyle === 'banana' || attackStyle === 'bleed') {
-      const runner = attackStyle === 'bleed'
+    if (attackStyle !== 'classic') {
+      const runner = attackStyle === 'backstab'
+        ? { play: playHeroBackstab, preview: heroBackstabPreviewSpeed() }
+        : attackStyle === 'bubble'
+        ? { play: playHeroBubble, preview: heroBubblePreviewSpeed() }
+        : attackStyle === 'boomerang'
+        ? { play: playHeroBoomerang, preview: heroBoomerangPreviewSpeed() }
+        : attackStyle === 'coin'
+        ? { play: playHeroCoin, preview: heroCoinPreviewSpeed() }
+        : attackStyle === 'bleed'
         ? { play: playHeroBleed, preview: heroBleedPreviewSpeed() }
+        : attackStyle === 'storm'
+        ? { play: playHeroStorm, preview: heroStormPreviewSpeed() }
+        : attackStyle === 'cards'
+        ? { play: playHeroCards, preview: heroCardsPreviewSpeed() }
         : attackStyle === 'banana'
         ? { play: playHeroBanana, preview: heroBananaPreviewSpeed() }
         : attackStyle === 'beast'

@@ -6,7 +6,8 @@
  * happen.
  *
  * It runs on the SHARED hero-attack core (`../heroAttack/`), exactly as the other styles do: one clock (it never
- * pauses), the damage formation, the `#stage` camera mirrored onto the Pixi root, the portraits (transform only,
+ * pauses), the damage formation, the `#stage` camera (on the FX once:
+ * stageCamera.ts), the portraits (transform only,
  * restored after), the voices, the dim, reduced motion, finish / cancel and the safety timer. What is the barrage's own:
  * King Oona's painted bananas and splats (her card FX's art and clips), the fling rhythm, the Tier IV jam (the STRIKING
  * PORTRAIT dashes across and pounds the stuck giant, Mortal Kombat style), its camera and its sound.
@@ -27,7 +28,7 @@ import { withFormation, type FormationCue } from '../heroAttack/formationConfig'
 import { clamp01, easeInOutSine, hexToNum, prefersReducedMotion, spring, type Pt } from '../heroAttack/easing';
 import type { HeroAttackHandle, HeroAttackOptions } from '../heroAttack/options';
 import { Sequence } from '../heroAttack/sequence';
-import { PortraitMover, StageCamera } from '../heroAttack/stageCamera';
+import { heroFxCanvas, PortraitMover, StageCamera } from '../heroAttack/stageCamera';
 import {
   arrivalDir, bananaCameraAt, bananaCameraFocus, bananaCues, bananaPlan, bananaRig, getHeroBananaConfig, jamGeo, jamPose,
   type BananaCue, type BananaPlan, type BananaRig, type HeroBananaConfig,
@@ -123,21 +124,7 @@ export function playHeroBanana(o: HeroBananaOptions): HeroBananaHandle {
 
   // ── camera + the portraits ──
   const cameraEl = reduced ? null : (o.camera !== undefined ? o.camera : (doc?.getElementById('stage') ?? null));
-  // THE MIRROR, only when the canvas is NOT inside the camera element. Since the scaled stage (#1762) the shared
-  // overlay canvas lives INSIDE #stage, so the DOM camera already zooms and shakes it; mirroring the camera onto the
-  // Pixi root as well applied it TWICE, and every splat drifted away from the focus by the zoom (owner 2026-09-29: the
-  // first volley "looks like it is overshot due to the zoom"). Decided once, when the camera starts (the slot is up).
-  let mirrorOn = true;
-  const mirror = scene ? { setCamera: (ax: number, ay: number, z: number): void => { if (mirrorOn) scene.setCamera(ax, ay, z); else scene.setCamera(0, 0, 1); } } : null;
-  const canvasInCamera = (): boolean => {
-    if (!cameraEl) return false;
-    try {
-      if (o.mount) return cameraEl.querySelector('canvas') !== null;
-      const c = doc?.querySelector('canvas.pixifx-above');
-      return !!c && cameraEl.contains(c);
-    } catch { return false; }
-  };
-  const cam = new StageCamera(cameraEl, mirror);
+  const cam = new StageCamera(cameraEl, scene, heroFxCanvas(o)); // the FX get the camera ONCE (stageCamera.ts)
   const hero = new PortraitMover(reduced ? null : (o.attackerEl ?? null));
   const foe = new PortraitMover(reduced ? null : (o.defenderEl ?? null));
   // The jam moves the striking portrait a long way: measured once (its own transform px per screen px), as Enraged does.
@@ -165,7 +152,6 @@ export function playHeroBanana(o: HeroBananaOptions): HeroBananaHandle {
         cue(c.sfxChargeClip, c.sfxChargeGain * 0.6, c.sfxChargeRate * 1.2, { lenMs: 700, fadeMs: 250 });
         if (c.sfxDuck < 1) voices.duck(c.sfxDuck);
         scene?.flourish(o.attacker.x, o.attacker.y, aRadius, plan.fireAt - plan.chargeAt);
-        mirrorOn = !canvasInCamera();
         cam.start();
         break;
       case 'fire': {
@@ -347,7 +333,7 @@ export function playHeroBanana(o: HeroBananaOptions): HeroBananaHandle {
     plan,
     rig,
     scene,
-    get mirrorsCamera() { return mirrorOn; },
+    get mirrorsCamera() { return cam.mirrorsCamera; },
     elapsed: () => seq.t,
     get impacted() { return seq.impacted; },
     get done() { return seq.done; },

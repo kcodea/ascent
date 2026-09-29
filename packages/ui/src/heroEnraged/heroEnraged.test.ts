@@ -626,7 +626,7 @@ describe('the scene (headless Pixi)', () => {
 describe('the cosmetic', () => {
   it('Enraged Strike (attack_enraged) is a Legendary crate hero attack that plays Enraged; the dev override can force it; the others unchanged', () => {
     expect(COSMETIC_INDEX.attack_enraged).toMatchObject({ category: 'hero_attack', rarity: 'legendary', name: 'Enraged Strike', assets: { style: 'enraged' }, active: true, acquisition: { type: 'crate' } });
-    expect(HERO_ATTACK_STYLES).toEqual(['classic', 'blast', 'quake', 'arcana', 'blades', 'enraged', 'poison', 'frost', 'holy', 'fire', 'undead', 'beast', 'banana', 'bleed']); // Enraged Strike, Poison Darts, Frost, then Consecration (holy) joined 2026-09-28 (Inferno, fire, 2026-09-29); Grave Call (undead) 2026-09-29; Stampede (beast) joined 2026-09-29; Banana Cannon (banana) joined 2026-09-29; Hemorrhage (bleed) joined 2026-09-29
+    expect(HERO_ATTACK_STYLES).toEqual(['classic', 'blast', 'quake', 'arcana', 'blades', 'enraged', 'poison', 'frost', 'holy', 'fire', 'undead', 'beast', 'banana', 'bleed', 'cards', 'storm', 'coin', 'boomerang', 'bubble', 'backstab']); // Enraged Strike, Poison Darts, Frost, then Consecration (holy) joined 2026-09-28 (Inferno, fire, 2026-09-29); Grave Call (undead) 2026-09-29; Stampede (beast) joined 2026-09-29; Banana Cannon (banana) joined 2026-09-29; Hemorrhage (bleed) joined 2026-09-29
     expect(styleOfCosmetic('attack_enraged')).toBe('enraged');
     for (const [id, style] of [['attack_blast', 'blast'], ['attack_quake', 'quake'], ['attack_arcana', 'arcana'], ['attack_blades', 'blades']] as const) expect(styleOfCosmetic(id)).toBe(style);
     expect(resolveHeroAttackStyle({ attacker: 'opp', devChoice: 'auto', attackerCosmeticId: 'attack_enraged' })).toBe('enraged');

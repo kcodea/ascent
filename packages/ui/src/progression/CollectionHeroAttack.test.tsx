@@ -242,8 +242,8 @@ describe('the Attack Animations tab', () => {
     open();
     const t = tab('Attack Animations');
     expect(t.className).not.toMatch(/\blocked\b/);
-    // 2026-09-28: Quake ("Tectonic Slam"), Arcana, Phantom Blades, Enraged Strike, Venom Volley and Frost Nova joined Blast, so one of seven is owned.
-    expect(t.querySelector('.colls-tab-count')?.textContent).toBe('1/9');
+    // 2026-09-28: Quake ("Tectonic Slam"), Arcana, Phantom Blades, Enraged Strike, Venom Volley and Frost Nova joined Blast, then Inferno and Grave Call (2026-09-29), so one of ten is owned.
+    expect(t.querySelector('.colls-tab-count')?.textContent).toBe('1/10');
     act(() => t.click());
     expect(tile('Arcane Barrage').getAttribute('aria-label')).toBe('Arcane Barrage, Legendary, owned');
     expect(text('.colls-detail .colls-kicker')).toBe('Hero attack');

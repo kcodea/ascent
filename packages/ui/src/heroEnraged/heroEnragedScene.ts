@@ -154,6 +154,7 @@ export class HeroEnragedScene {
   /** The rage burst's flame surge (1 at the burst, decaying): the flames roar out. */
   private surge = 0;
   private warm: Sprite[] = [];
+  private warmStrips: Strip[] = [];
   private warmLeft = 0;
   private destroyed = false;
   private readonly rnd: () => number;
@@ -209,6 +210,11 @@ export class HeroEnragedScene {
     // playing), so every texture is on the GPU long before the aura or the first claw needs it (no first-play spike).
     const warmTex = [tex.glow, tex.spark, tex.streak, tex.ring, tex.smoke, tex.rock, tex.scorch, tex.cracks, tex.disc, tex.rim, tex.halo, tex.rimCracks, tex.ribbonSoft, tex.ribbonBody];
     for (const t of warmTex) { const s = this.take('air', t, 0xffffff); if (s) { s.alpha = 0.004; s.position.set(-40, -40); s.scale.set(0.05); this.warm.push(s); } }
+    // ...and one strip per strip layer, so the mesh pipeline is built then too, not on the first flame or claw.
+    for (const [layer, t] of [['glow', tex.ribbonSoft], ['glow', tex.ribbonBody], ['body', tex.ribbonBody], ['core', tex.ribbonBody], ['shade', tex.ribbonBody]] as const) {
+      const st = this.strip(layer, t, 0xffffff);
+      if (st) { st.v.fill(-40); st.mesh.alpha = 0.004; this.warmStrips.push(st); }
+    }
     this.warmLeft = 400;
   }
 
@@ -953,7 +959,7 @@ export class HeroEnragedScene {
 
     if (this.warm.length) {
       this.warmLeft -= Math.max(dt, 16);
-      if (this.warmLeft <= 0) { for (const s of this.warm) this.give(s); this.warm = []; }
+      if (this.warmLeft <= 0) { for (const s of this.warm) this.give(s); this.warm = []; for (const st of this.warmStrips) this.giveStrip(st); this.warmStrips = []; }
     }
 
     // The aura goes once the rage has cooled (the hero is home, or the clock stopped following it).
@@ -1055,7 +1061,7 @@ export class HeroEnragedScene {
       p.s.alpha = p.alpha * (1 - t * t) * tw * fade;
     }
 
-    return this.used > this.warm.length || this.meshes > 0 || this.aura !== null || this.smoulders.length > 0 || this.scorches.length > 0;
+    return this.used > this.warm.length || this.meshes > this.warmStrips.length || this.aura !== null || this.smoulders.length > 0 || this.scorches.length > 0;
   }
 
   private dropWake(): void {
@@ -1096,6 +1102,8 @@ export class HeroEnragedScene {
     for (const k of this.strokes) { this.giveStrip(k.glow); this.giveStrip(k.body); this.giveStrip(k.core); }
     if (this.aura) { for (const f of this.aura.flames) this.dropFlame(f); this.give(this.aura.ring); this.give(this.aura.halo); this.give(this.aura.shade); }
     for (const s of this.warm) this.give(s);
+    for (const st of this.warmStrips) this.giveStrip(st);
+    this.warmStrips = [];
     this.dropWake();
     for (const sc of this.scorches) { this.giveStrip(sc.burn); this.giveStrip(sc.heat); }
     this.fx = []; this.particles = []; this.ghosts = []; this.strokes = []; this.aura = null; this.smoulders = []; this.warm = []; this.chargeRings = []; this.scorches = [];

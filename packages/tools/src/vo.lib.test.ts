@@ -108,7 +108,7 @@ describe('vo card clips bind to the By-card view', () => {
     const empty = { version: 1, kinds: {}, cards: { manasaber: { minionPlayed: { def: 'sfx-voidpanther' } } } };
     const added = bindCardSlot(empty, slot);
     expect(added.status).toBe('added');
-    expect(added.bindings.cards.dw_orin).toEqual({ minionPlayed: { def: 'sfx-vo-dw-orin' } });
+    expect(added.bindings.cards.dw_orin).toEqual({ minionPlayed: { def: 'sfx-vo-dw-orin', gain: 0.5 } }); // card voicelines at 50%
     expect(added.bindings.cards.manasaber).toEqual(empty.cards.manasaber);
     expect(bindCardSlot(added.bindings, slot).status).toBe('same');
     const taken = bindCardSlot({ cards: { dw_orin: { minionPlayed: { def: 'sfx-hand-picked' } } } }, slot);

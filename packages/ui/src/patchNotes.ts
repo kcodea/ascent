@@ -55,6 +55,17 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: 'A new Legendary hero attack, Venom Volley, can drop from crates.',
+        details: [
+          'Your hero throws poison darts. They thunk into the other hero and stick, splashing venom.',
+          'The bigger the hit, the more darts fly: one, then two, then a fan of five.',
+          'On the biggest hits the darts glow and swell, get sucked into one point, and burst in a toxic cloud.',
+          'Equip it from the Attack Animations tab of the Collection. There is a preview button there too.',
+          'Hero attacks are looks only. The damage is exactly the same.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'A new Legendary hero attack, Enraged Strike, can drop from crates.',
         details: [
           'It is the Classic lunge, enraged. Your damage builds up, then your hero burns with rage, dashes in leaving afterimages, and tears into the other hero.',

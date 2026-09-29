@@ -71,14 +71,6 @@ export function playHeroPoison(o: HeroPoisonOptions): HeroPoisonHandle {
   const doc = typeof document !== 'undefined' ? document : null;
   const radius = o.defenderRadius ?? 120 * s;
   const aRadius = o.attackerRadius ?? radius;
-  // A dart's arc never rises above the top of the screen (or the sandbox box).
-  const motions = dartMotions(plan, o.attacker, o.defender, radius, aRadius, { ...c, dartLength: c.dartLength * s }, (local ? 8 : 36) * s);
-  const last = motions[motions.length - 1];
-  // The direction the blow ARRIVES from (the last dart's heading): the shake and the knockback follow it. The burst
-  // knocks straight down.
-  const dir = plan.implode ? { x: 0, y: 1 } : arrivalDir(last, o.attacker, o.defender);
-  const toFoe = (() => { const L = dist || 1; return { x: (o.defender.x - o.attacker.x) / L, y: (o.defender.y - o.attacker.y) / L }; })();
-
   // ── DOM: the numbers (shared) ──
   const host = o.host !== undefined ? o.host : (doc ? doc.body : null);
   const voices = new AttackVoices(sound);
@@ -86,6 +78,14 @@ export function playHeroPoison(o: HeroPoisonOptions): HeroPoisonHandle {
     data: o.formation, plan: fplan, beats: plan, cfg: fcfg, attacker: o.attacker, attackerRadius: o.attackerRadius,
     defender: o.defender, defenderRadius: o.defenderRadius, side: o.side, sideHex, local, host, scale: s, voices, className: 'hpoison',
   });
+
+  // A dart's arc never rises above the top of the screen (or the sandbox box); the darts stick clear of the big -N.
+  const motions = dartMotions(plan, o.attacker, o.defender, radius, aRadius, { ...c, dartLength: c.dartLength * s }, (local ? 8 : 36) * s, nums.pts.hit);
+  const last = motions[motions.length - 1];
+  // The direction the blow ARRIVES from (the last dart's heading): the shake and the knockback follow it. The burst
+  // knocks straight down.
+  const dir = plan.implode ? { x: 0, y: 1 } : arrivalDir(last, o.attacker, o.defender);
+  const toFoe = (() => { const L = dist || 1; return { x: (o.defender.x - o.attacker.x) / L, y: (o.defender.y - o.attacker.y) / L }; })();
 
   // ── Pixi (the above-portrait slot, warmed now so it is up well before the first dart) ──
   const textures = o.textures !== undefined ? o.textures : heroPoisonTextures();

@@ -39,29 +39,29 @@ const CY = DART_H / 2;
 /** The dart's parts, as paths on the dart box (shared by the shaft, the glow and the edge so they line up exactly). */
 function needlePath(g: CanvasRenderingContext2D): void {
   g.beginPath();
-  g.moveTo(84, CY - 3.2); g.lineTo(DART_TIP_X, CY - 0.3); g.lineTo(DART_TIP_X + 1.5, CY); g.lineTo(DART_TIP_X, CY + 0.3); g.lineTo(84, CY + 3.2);
+  g.moveTo(84, CY - 4.2); g.lineTo(DART_TIP_X - 2, CY - 0.6); g.lineTo(DART_TIP_X + 1.5, CY); g.lineTo(DART_TIP_X - 2, CY + 0.6); g.lineTo(84, CY + 4.2);
   g.closePath();
 }
 function vialPath(g: CanvasRenderingContext2D): void {
   g.beginPath();
-  g.roundRect(50, CY - 7, 36, 14, 6);
+  g.roundRect(48, CY - 9, 40, 18, 8);
 }
 function shaftPath(g: CanvasRenderingContext2D): void {
   g.beginPath();
-  g.roundRect(14, CY - 2.2, 40, 4.4, 2);
+  g.roundRect(12, CY - 3, 40, 6, 3);
 }
 function vanesPath(g: CanvasRenderingContext2D): void {
   // Two swept vanes (top and bottom), their leading edges curving back from the shaft, trailing edges cut square.
   g.beginPath();
-  g.moveTo(46, CY - 2); g.quadraticCurveTo(30, CY - 6, 16, CY - 16); g.lineTo(6, CY - 16); g.quadraticCurveTo(10, CY - 8, 10, CY - 2); g.closePath();
-  g.moveTo(46, CY + 2); g.quadraticCurveTo(30, CY + 6, 16, CY + 16); g.lineTo(6, CY + 16); g.quadraticCurveTo(10, CY + 8, 10, CY + 2); g.closePath();
+  g.moveTo(48, CY - 2.5); g.quadraticCurveTo(30, CY - 7, 16, CY - 19); g.lineTo(3, CY - 19); g.quadraticCurveTo(8, CY - 9, 8, CY - 2.5); g.closePath();
+  g.moveTo(48, CY + 2.5); g.quadraticCurveTo(30, CY + 7, 16, CY + 19); g.lineTo(3, CY + 19); g.quadraticCurveTo(8, CY + 9, 8, CY + 2.5); g.closePath();
 }
 
 /** The shaft: needle, vial frame, rear shaft and collars, shaded top-lit (grey body, lighter top) so a tint keeps form. */
 function paintShaft(): HTMLCanvasElement | null {
   const k = canvas(DART_W, DART_H); if (!k) return null;
   const g = k.g;
-  const shade = g.createLinearGradient(0, CY - 7, 0, CY + 7);
+  const shade = g.createLinearGradient(0, CY - 9, 0, CY + 9);
   shade.addColorStop(0, 'rgb(255,255,255)'); shade.addColorStop(0.45, 'rgb(190,190,190)'); shade.addColorStop(1, 'rgb(95,95,95)');
   g.fillStyle = shade;
   needlePath(g); g.fill();
@@ -69,13 +69,13 @@ function paintShaft(): HTMLCanvasElement | null {
   // The vial frame: a ring of metal round the glass (the venom shows through the middle), with collars at both ends.
   g.save();
   vialPath(g); g.clip();
-  g.fillStyle = shade; g.fillRect(50, CY - 7, 36, 14);
+  g.fillStyle = shade; g.fillRect(48, CY - 9, 40, 18);
   g.globalCompositeOperation = 'destination-out';
-  g.beginPath(); g.roundRect(55, CY - 4.2, 26, 8.4, 4); g.fill();
+  g.beginPath(); g.roundRect(53, CY - 5.8, 30, 11.6, 5); g.fill();
   g.restore();
   g.fillStyle = shade;
-  g.fillRect(48, CY - 5, 4, 10);
-  g.fillRect(84, CY - 4.5, 4, 9);
+  g.fillRect(45, CY - 7, 5, 14);
+  g.fillRect(86, CY - 6, 5, 12);
   return k.c;
 }
 
@@ -108,20 +108,21 @@ function paintFletch(): HTMLCanvasElement | null {
 function paintVenom(): HTMLCanvasElement | null {
   const k = canvas(DART_W, DART_H); if (!k) return null;
   const g = k.g;
-  const liquid = g.createLinearGradient(0, CY - 4, 0, CY + 4);
+  const liquid = g.createLinearGradient(0, CY - 6, 0, CY + 6);
   liquid.addColorStop(0, 'rgb(255,255,255)'); liquid.addColorStop(0.35, 'rgb(225,225,225)'); liquid.addColorStop(1, 'rgb(170,170,170)');
   g.fillStyle = liquid;
-  g.beginPath(); g.roundRect(55, CY - 4.2, 26, 8.4, 4); g.fill();
-  // A bubble in the vial.
+  g.beginPath(); g.roundRect(53, CY - 5.8, 30, 11.6, 5); g.fill();
+  // Two bubbles in the vial.
   g.globalCompositeOperation = 'destination-out';
-  g.beginPath(); g.arc(62, CY - 1, 1.6, 0, Math.PI * 2); g.fill();
+  g.beginPath(); g.arc(61, CY - 1.5, 2.1, 0, Math.PI * 2); g.fill();
+  g.beginPath(); g.arc(68, CY + 1.8, 1.3, 0, Math.PI * 2); g.fill();
   g.globalCompositeOperation = 'source-over';
   // The coating: the front third of the needle, wet.
   g.fillStyle = 'rgb(255,255,255)';
-  g.beginPath(); g.moveTo(122, CY - 1.9); g.lineTo(DART_TIP_X, CY - 0.6); g.lineTo(DART_TIP_X, CY + 0.6); g.lineTo(122, CY + 1.9); g.closePath(); g.fill();
+  g.beginPath(); g.moveTo(118, CY - 2.6); g.lineTo(DART_TIP_X - 1, CY - 0.8); g.lineTo(DART_TIP_X - 1, CY + 0.8); g.lineTo(118, CY + 2.6); g.closePath(); g.fill();
   // A drip hanging off the coating, and the bead at the tip.
-  g.beginPath(); g.ellipse(134, CY + 2.6, 1.4, 2.2, 0, 0, Math.PI * 2); g.fill();
-  g.beginPath(); g.arc(DART_TIP_X - 1.5, CY, 2.3, 0, Math.PI * 2); g.fill();
+  g.beginPath(); g.ellipse(130, CY + 3.4, 1.8, 2.8, 0, 0, Math.PI * 2); g.fill();
+  g.beginPath(); g.arc(DART_TIP_X - 2, CY, 2.8, 0, Math.PI * 2); g.fill();
   return k.c;
 }
 
@@ -129,11 +130,11 @@ function paintVenom(): HTMLCanvasElement | null {
 function paintEdge(): HTMLCanvasElement | null {
   const k = canvas(DART_W, DART_H); if (!k) return null;
   const g = k.g;
-  g.strokeStyle = 'rgb(255,255,255)'; g.lineCap = 'round'; g.lineWidth = 1.2;
-  g.beginPath(); g.moveTo(88, CY - 2.8); g.lineTo(DART_TIP_X - 2, CY - 0.5); g.stroke();
-  g.beginPath(); g.moveTo(54, CY - 6.2); g.lineTo(82, CY - 6.2); g.stroke();
-  g.lineWidth = 1;
-  g.beginPath(); g.moveTo(16, CY - 1.6); g.lineTo(48, CY - 1.6); g.stroke();
+  g.strokeStyle = 'rgb(255,255,255)'; g.lineCap = 'round'; g.lineWidth = 1.5;
+  g.beginPath(); g.moveTo(90, CY - 3.4); g.lineTo(DART_TIP_X - 3, CY - 0.7); g.stroke();
+  g.beginPath(); g.moveTo(52, CY - 8); g.lineTo(84, CY - 8); g.stroke();
+  g.lineWidth = 1.2;
+  g.beginPath(); g.moveTo(14, CY - 2.2); g.lineTo(46, CY - 2.2); g.stroke();
   return k.c;
 }
 
@@ -222,9 +223,13 @@ function paintPuff(D: number): HTMLCanvasElement | null {
     lumps.push([D / 2 + Math.cos(a) * r, D / 2 + Math.sin(a) * r, D * (0.16 + rnd() * 0.07)]);
   }
   lumps.push([D / 2, D / 2, D * 0.22]);
+  // Back to front (lowest lumps first), each LIT from the top left: a bright crown fading to a shaded underside, so a
+  // tint gives the cloud volume (a billow, not a flat green circle). A soft edge keeps the silhouette lumpy but clean.
+  lumps.sort((p, q) => p[1] - q[1]).reverse();
   for (const [x, y, rr] of lumps) {
-    const gr = g.createRadialGradient(x, y, 0, x, y, rr);
-    gr.addColorStop(0, 'rgba(200,200,200,0.75)'); gr.addColorStop(0.72, 'rgba(215,215,215,0.7)'); gr.addColorStop(0.9, 'rgba(255,255,255,0.55)'); gr.addColorStop(1, 'rgba(255,255,255,0)');
+    const gr = g.createRadialGradient(x - rr * 0.35, y - rr * 0.4, rr * 0.05, x, y, rr);
+    gr.addColorStop(0, 'rgba(255,255,255,0.95)'); gr.addColorStop(0.55, 'rgba(205,205,205,0.9)');
+    gr.addColorStop(0.88, 'rgba(140,140,140,0.8)'); gr.addColorStop(1, 'rgba(120,120,120,0)');
     g.fillStyle = gr; g.beginPath(); g.arc(x, y, rr, 0, Math.PI * 2); g.fill();
   }
   return k.c;

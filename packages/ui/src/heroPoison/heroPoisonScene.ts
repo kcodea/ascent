@@ -92,8 +92,6 @@ const BLEND: Record<LayerId, 'normal' | 'add'> = Object.fromEntries(LAYERS) as R
 const GLOW_PX = 128;
 const DISC_PX = 128;
 const SHOCK_PX = 256;
-/** The ring texture's circle radius (of its 160 px box). */
-const RING_R = 64;
 const TIP_ANCHOR = DART_TIP_X / DART_W;
 
 interface Strip { mesh: MeshSimple; v: Float32Array; layer: LayerId }
@@ -334,9 +332,12 @@ export class HeroPoisonScene {
 
   /** The sickly tint over the struck face: a green disc over the portrait that pulses in and out (opacity only). */
   private tintPulse(x: number, y: number, radius: number, strength: number, dur: number): void {
-    const d = (radius * 2) / DISC_PX / this.scale;
-    this.fxs('haze', this.tex.disc, this.sick, x, y, { dur, from: d * 0.98, to: d * 1.02, a0: this.look.tint * strength, mode: 'punch', peakAt: 0.16, follow: true });
-    this.fxs('glow', this.tex.ring, this.colors.acid, x, y, { dur: dur * 0.8, from: (radius / RING_R / this.scale) * 0.98, to: (radius / RING_R / this.scale) * 1.08, a0: 0.5 * strength, mode: 'punch', peakAt: 0.12, follow: true });
+    // Kept INSIDE the frame (0.9 of the radius): a tint on the face, never a green disc spilling past the portrait.
+    const d = (radius * 1.8) / DISC_PX / this.scale;
+    this.fxs('haze', this.tex.disc, this.sick, x, y, { dur, from: d * 0.97, to: d, a0: this.look.tint * strength, mode: 'punch', peakAt: 0.16, follow: true });
+    // A soft venom bloom breathing at the rim (additive, low): it reads as the poison glowing, not as an outline.
+    const sh = (radius * 2.1) / SHOCK_PX / this.scale;
+    this.fxs('glow', this.tex.shock, this.colors.venom, x, y, { dur: dur * 0.9, from: sh * 0.96, to: sh * 1.04, a0: 0.3 * strength, mode: 'punch', peakAt: 0.14, follow: true });
   }
 
   // ── beats ──────────────────────────────────────────────────────────────────────────────────────────────────
@@ -348,7 +349,7 @@ export class HeroPoisonScene {
    */
   startCharge(x: number, y: number, hand: Pt, radius: number, durMs: number, throws: number, motes: number): void {
     if (this.charge) return;
-    const ring = this.take('glow', this.tex.ring, this.colors.acid);
+    const ring = this.take('glow', this.tex.shock, this.colors.venom);
     const glint = this.take('core', this.tex.glow, this.colors.venom);
     const star = this.take('core', this.tex.star, this.colors.core);
     if (!ring || !glint || !star) { for (const s of [ring, glint, star]) if (s) this.give(s); return; }
@@ -553,20 +554,23 @@ export class HeroPoisonScene {
     const shock = (radius * 2) / SHOCK_PX / S;
     this.fxs('core', this.tex.glow, c.core, x, y, { dur: 120, from: portrait * 1.1, to: portrait * 1.4, a0: 0.75 * o.flashAlpha, follow: true });
     this.fxs('core', this.tex.glow, c.core, x, y, { dur: 160, from: 1.2 * fs, to: Math.min(4.5, 2.6 * fs), a0: o.flashAlpha });
-    this.fxs('glow', this.tex.glow, c.venom, x, y, { dur: 480, from: 1.8 * fs, to: Math.min(7, 4.4 * fs), a0: 0.5 * o.flashAlpha });
+    this.fxs('glow', this.tex.glow, c.venom, x, y, { dur: 240, from: 1.6 * fs, to: Math.min(5, 3.2 * fs), a0: 0.38 * o.flashAlpha });
     // THE SHOCKWAVE: dark (normal blend: it reads on a light board) with venom light riding just inside it.
-    this.fxs('haze', this.tex.shock, c.dark, x, y, { dur: 560, from: shock * 0.5, to: shock * 3.4 * o.size, a0: 0.85 });
-    this.fxs('glow', this.tex.shock, c.venom, x, y, { dur: 480, from: shock * 0.45, to: shock * 3.1 * o.size, a0: 0.9 });
-    this.fxs('glow', this.tex.ring, c.acid, x, y, { dur: 820, from: 0.5, to: 6.8 * o.size, a0: 0.6, sy: 0.5 });
+    // The dark band LEADS (bigger, normal blend, so it reads black-purple on any board); the venom light rides inside it.
+    this.fxs('body', this.tex.shock, c.dark, x, y, { dur: 620, from: shock * 0.6, to: shock * 3.9 * o.size, a0: 0.85 });
+    this.fxs('body', this.tex.shock, mixColor(c.dark, c.venom, 0.2), x, y, { dur: 520, from: shock * 0.5, to: shock * 3.3 * o.size, a0: 0.5 });
+    this.fxs('glow', this.tex.shock, c.venom, x, y, { dur: 440, from: shock * 0.4, to: shock * 2.7 * o.size, a0: 0.75 });
+    this.fxs('glow', this.tex.ring, c.acid, x, y, { dur: 700, from: 0.5, to: 4.4 * o.size, a0: 0.4, sy: 0.5 });
     for (const [t, rr] of [[this.tex.splat, 0], [this.tex.splat2, 0.9]] as const) {
-      const f = this.fxs('body', t, rr ? c.venom : this.deep, x, y, { dur: 800, from: 0.3 * fs, to: (rr ? 0.85 : 1.05) * fs, a0: 0.95, mode: 'hold', follow: true });
+      // Small and quick: the CLOUDS carry the burst; a big held splat would sit over the face as a flat green disc.
+      const f = this.fxs('body', t, rr ? c.venom : this.deep, x, y, { dur: 460, from: 0.2 * fs, to: (rr ? 0.42 : 0.55) * fs, a0: 0.85, follow: true });
       if (f) f.s.rotation = this.rnd() * Math.PI * 2;
     }
     // Venom spurts all round.
-    for (let s = 0; s < 12; s++) {
-      const a = (s / 12) * Math.PI * 2 + (this.rnd() - 0.5) * 0.3;
-      const len = (1 + this.rnd() * 0.6) * o.size;
-      const f = this.fxs('core', this.tex.streak, s % 2 ? c.acid : c.venom, x + Math.cos(a) * 70 * S * len, y + Math.sin(a) * 70 * S * len, { dur: 300, from: 3 * len, to: 5.4 * len, a0: 0.9, sy: 0.2 });
+    for (let s = 0; s < 9; s++) {
+      const a = (s / 9) * Math.PI * 2 + (this.rnd() - 0.5) * 0.5;
+      const len = (0.7 + this.rnd() * 0.6) * o.size;
+      const f = this.fxs('core', this.tex.streak, s % 2 ? c.acid : c.venom, x + Math.cos(a) * 60 * S * len, y + Math.sin(a) * 60 * S * len, { dur: 240, from: 2.2 * len, to: 3.8 * len, a0: 0.8, sy: 0.24 });
       if (f) f.s.rotation = a;
     }
     // BUBBLING TOXIC CLOUDS rolling out (thick, normal blend) and a few dark ones among them.
@@ -575,9 +579,9 @@ export class HeroPoisonScene {
       const a = (p / Math.max(1, puffs)) * Math.PI * 2 + (this.rnd() - 0.5) * 0.5;
       const sp = (160 + this.rnd() * 220) * o.size;
       const sz = (1 + this.rnd() * 0.6) * this.look.cloudSize * o.size;
-      const tint = p % 3 === 2 ? mixColor(c.dark, c.venom, 0.25) : p % 3 === 1 ? mixColor(c.venom, c.acid, 0.35) : this.sick;
+      const tint = p % 2 === 1 ? mixColor(c.dark, c.venom, 0.35) : p % 4 === 0 ? this.deep : this.sick;
       this.fxs('haze', this.tex.puff, tint, x + Math.cos(a) * radius * 0.3, y + Math.sin(a) * radius * 0.3, {
-        dur: 900 + this.rnd() * 400, from: 0.35 * sz, to: 1.35 * sz, a0: 0.62, mode: 'hold', vx: Math.cos(a) * sp * S, vy: (Math.sin(a) * sp - 40) * S, drag: 0.08,
+        dur: 900 + this.rnd() * 400, from: 0.35 * sz, to: 1.3 * sz, a0: 0.55, mode: 'hold', vx: Math.cos(a) * sp * S, vy: (Math.sin(a) * sp - 40) * S, drag: 0.08,
         spin: (this.rnd() - 0.5) * 0.002, wobble: 0.06,
       });
     }
@@ -625,8 +629,8 @@ export class HeroPoisonScene {
       const u = clamp01(ch.age / ch.dur);
       if (ch.releasing < 0) {
         const e = easeOutCubic(u);
-        const rr = (ch.r / RING_R / S) * (2.2 - 1.15 * e);
-        ch.ring.scale.set(rr * S); ch.ring.alpha = 0.75 * Math.min(1, u * 3);
+        const rr = ((ch.r * 2) / SHOCK_PX / S) * (1.9 - 0.75 * e);
+        ch.ring.scale.set(rr * S); ch.ring.alpha = 0.32 * Math.min(1, u * 3);
         const throb = 1 + 0.12 * Math.sin(ch.age * (0.03 + 0.05 * u));
         ch.glint.scale.set((0.25 + 0.45 * e) * throb * S); ch.glint.alpha = 0.3 + 0.6 * u;
         ch.star.scale.set((0.35 + 0.35 * e) * S); ch.star.rotation += dt * (0.004 + 0.01 * u); ch.star.alpha = 0.8 * u;
@@ -645,7 +649,7 @@ export class HeroPoisonScene {
       } else {
         ch.releasing += dt;
         const r = clamp01(ch.releasing / 200);
-        ch.ring.alpha = 0.75 * (1 - r);
+        ch.ring.alpha = 0.32 * (1 - r);
         ch.glint.scale.set((0.7 + 0.5 * r) * S); ch.glint.alpha = 0.9 * (1 - r);
         ch.star.alpha = 0.8 * (1 - r); ch.star.rotation += dt * 0.01;
         if (r >= 1) { for (const s of [ch.ring, ch.glint, ch.star]) this.give(s); this.charge = null; }
@@ -665,10 +669,10 @@ export class HeroPoisonScene {
       const cx = sw.x + this.fox, cy = sw.y + this.foy;
       const throb = 1 + (0.03 + 0.06 * u) * Math.sin(sw.age * (0.012 + 0.05 * u));
       const d = (sw.r * 2) / DISC_PX;
-      sw.aura.position.set(cx, cy); sw.aura.scale.set(d * (1 + 0.12 * e) * throb * pull); sw.aura.alpha = Math.min(0.85, this.look.tint * (0.4 + 1.3 * e)) * (1 - 0.4 * suckU);
-      sw.bloom.position.set(cx, cy); sw.bloom.scale.set((1.4 + 1.8 * e) * throb * pull * S); sw.bloom.alpha = (0.15 + 0.4 * e) * (1 - 0.5 * suckU);
+      sw.aura.position.set(cx, cy); sw.aura.scale.set(d * 0.9 * (1 + 0.08 * e) * throb * pull); sw.aura.alpha = Math.min(0.6, this.look.tint * (0.4 + 0.9 * e)) * (1 - 0.4 * suckU);
+      sw.bloom.position.set(cx, cy); sw.bloom.scale.set((1.1 + 0.9 * e) * throb * pull * S); sw.bloom.alpha = (0.08 + 0.2 * e) * (1 - 0.5 * suckU);
       const rim = ((sw.r * 2) / SHOCK_PX) * 1.2 * (1 + 0.05 * Math.sin(sw.age * (0.02 + 0.06 * u))) * pull;
-      sw.rim.position.set(cx, cy); sw.rim.scale.set(rim); sw.rim.alpha = (0.2 + 0.5 * e) * (1 - suckU);
+      sw.rim.position.set(cx, cy); sw.rim.scale.set(rim); sw.rim.alpha = (0.12 + 0.3 * e) * (0.75 + 0.25 * Math.sin(sw.age * (0.02 + 0.06 * u))) * (1 - suckU);
       // The core: nothing much through the swell; it becomes the tight bright point the poison is sucked into.
       sw.core.position.set(cx, cy);
       sw.core.scale.set((0.2 + 0.5 * e) * (1 - 0.55 * suckU) * S); sw.core.alpha = 0.2 + 0.4 * e + 0.4 * suckU;
@@ -814,7 +818,9 @@ export class HeroPoisonScene {
       while (d.wispAcc >= every) {
         d.wispAcc -= every;
         const bx = x - Math.cos(rot) * DART_W * k * 0.9, by = y - Math.sin(rot) * DART_W * k * 0.9;
-        this.fxs('haze', this.tex.puff, this.deep, bx, by, { dur: 360, from: 0.08, to: 0.22, a0: 0.28, mode: 'out', vy: -20 * S, drag: 0.4, spin: 0.002 });
+        // A wisp is drawn out along the flight (an ellipse on the heading), never a round dot.
+        const w = this.fxs('haze', this.tex.puff, this.sick, bx, by, { dur: 420, from: 0.12, to: 0.36, a0: 0.3, mode: 'out', sy: 0.5, vy: -26 * S, drag: 0.4 });
+        if (w) w.s.rotation = rot;
       }
     }
     d.lastX = x; d.lastY = y;
@@ -846,17 +852,20 @@ export class HeroPoisonScene {
     }
     const since = d.age - d.m.flightMs;
     const alpha = (flying ? 1 : 1 - clamp01(since / Math.max(1, L.trailMs))) * clamp01(d.age / 30);
-    this.writeStrip(d.shade, 2.6, 0.4 * alpha);
-    this.writeStrip(d.tglow, 1.9, 0.75 * alpha);
-    this.writeStrip(d.tcore, 0.45, 0.9 * alpha);
+    // Vapour, not a tracer: a wide soft shade and glow over the whole span, the bright core only just behind the tail.
+    this.writeStrip(d.shade, 2.6, 0.32 * alpha);
+    this.writeStrip(d.tglow, 1.4, 0.42 * alpha, 0.75);
+    this.writeStrip(d.tcore, 0.35, 0.6 * alpha, 0.3);
   }
 
-  private writeStrip(st: Strip | null, mult: number, alpha: number): void {
+  /** Write one strip over the centreline; `reach` (0..1] ends it that far down the trail (tapering to nothing). */
+  private writeStrip(st: Strip | null, mult: number, alpha: number, reach = 1): void {
     if (!st) return;
     const { px, py, nx, ny, hw } = this;
     const v = st.v;
     for (let j = 0; j < TRAIL_POINTS; j++) {
-      const h = hw[j]! * mult;
+      const f = j / (TRAIL_POINTS - 1);
+      const h = hw[j]! * mult * (reach >= 1 ? 1 : Math.max(0, 1 - f / reach));
       v[j * 4] = px[j]! + nx[j]! * h; v[j * 4 + 1] = py[j]! + ny[j]! * h;
       v[j * 4 + 2] = px[j]! - nx[j]! * h; v[j * 4 + 3] = py[j]! - ny[j]! * h;
     }

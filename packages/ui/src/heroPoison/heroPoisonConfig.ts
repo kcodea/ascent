@@ -167,19 +167,19 @@ export const HERO_POISON_DEFAULTS: HeroPoisonConfig = {
   absorbMs: 190,
   heroCoilPx: 9,
   heroFlickPx: 13,
-  dartLength: 84,
+  dartLength: 128,
   dartGlow: 0.6,
-  trailMs: 75,
-  trailWidth: 7,
+  trailMs: 60,
+  trailWidth: 10,
   wisps: 0.6,
   penetration: 0.16,
   quiver: 0.2,
   splashSize: 1,
   tickDrops: 8,
-  tintAlpha: 0.34,
-  stickHoldMs: 560,
+  tintAlpha: 0.24,
+  stickHoldMs: 440,
   seepMs: 320,
-  swellMs: 720,
+  swellMs: 640,
   suckMs: 200,
   burstSize: 1,
   cloudPuffs: 10,
@@ -500,7 +500,9 @@ export function poisonPlan(input: PoisonPlanInput, c: HeroPoisonConfig = cfg): P
     impactAt + 160,
     booms.length ? booms[booms.length - 1]! + 140 : 0,
     impactAt + c.zoomOutMs * 0.8,
-    implode ? impactAt + Math.min(900, c.hazeMs * 0.45) : dissolveAt + 240,
+    // The dissolve and the haze finish draining after the end (the scene keeps ticking until it is empty), so the fight
+    // never waits on a fading dart or a thinning cloud.
+    implode ? impactAt + Math.min(700, c.hazeMs * 0.4) : Math.max(seepAt + 160, dissolveAt),
   );
   const endAt = lastBeat + T.SettleMs;
 
@@ -593,36 +595,43 @@ export function sideNormal(a: Pt, b: Pt): Pt {
 const jitter = (i: number, salt: number): number => { const s = Math.sin((i + 1) * 12.9898 + salt * 78.233) * 43758.5453; return s - Math.floor(s) - 0.5; };
 
 /**
- * Where each dart buries itself in the struck portrait (offsets from its centre, in portrait radii). I-III: spread
- * ACROSS the face, perpendicular to the flight line, by the fan slot, a little off the line so a single dart never
- * hides the middle of the face. IV: round the face on a ring, so the implosion has somewhere to pull them in from.
+ * Where each dart buries itself in the struck portrait (offsets from its centre, in portrait radii). The big `-N` pops
+ * over the MIDDLE of the face, so the darts go in on the side of the face that looks back at the thrower (a pincushion
+ * facing where they came from): the needle is buried in the face and the body stands out past the rim, clear of the
+ * number. I-III fan across that side by the slot; IV rings the whole face, so the implosion has somewhere to pull them
+ * in from.
  */
-export function stickOffset(p: PoisonPlan, i: number, a: Pt, d: Pt): Pt {
+export function stickOffset(p: PoisonPlan, i: number, a: Pt, d: Pt, avoid: Pt | null = null): Pt {
   const n = p.darts.length;
+  let back = Math.atan2(a.y - d.y, a.x - d.x);
+  // Swing the arc off the big -N (it is pushed from the struck hero toward the middle of the screen and kept on
+  // screen, so for a hero in a corner it lands on the thrower's side): at least ~75 degrees from it.
+  if (avoid && !p.implode && Math.hypot(avoid.x - d.x, avoid.y - d.y) > 1) {
+    const av = Math.atan2(avoid.y - d.y, avoid.x - d.x);
+    let diff = Math.atan2(Math.sin(back - av), Math.cos(back - av));
+    const need = 1.3 + (n > 2 ? 0.45 : n === 2 ? 0.25 : 0);
+    if (Math.abs(diff) < need) { const sgn = diff === 0 ? 1 : Math.sign(diff); diff = sgn * need; back = av + diff; }
+  }
   if (p.implode) {
-    const inAng = Math.atan2(a.y - d.y, a.x - d.x);
-    const ang = inAng + Math.PI * 0.35 + (i / n) * Math.PI * 2 + jitter(i, 3) * 0.3;
-    const r = 0.42 + 0.12 * jitter(i, 4);
+    const ang = back + (i / n) * Math.PI * 2 + jitter(i, 3) * 0.3;
+    const r = 0.56 + 0.08 * jitter(i, 4);
     return { x: Math.cos(ang) * r, y: Math.sin(ang) * r };
   }
-  const nrm = sideNormal(a, d);
-  const dx = d.x - a.x, dy = d.y - a.y;
-  const L = Math.hypot(dx, dy) || 1;
-  const u = { x: dx / L, y: dy / L };
   const slot = p.darts[i]?.slot ?? 0;
   const maxSlot = Math.max(1, ...p.darts.map((x) => Math.abs(x.slot)));
-  const across = n === 1 ? 0.16 : (slot / maxSlot) * (n === 2 ? 0.34 : 0.5) + jitter(i, 1) * 0.08;
-  const along = (n === 1 ? -0.1 : -0.05) + jitter(i, 2) * 0.16;
-  // Always a touch up the screen (the -N pops over the portrait's lower half; the darts stay clear of it).
-  return { x: nrm.x * across + u.x * along, y: nrm.y * across + u.y * along - 0.12 };
+  const spread = n === 1 ? 0 : n === 2 ? 0.6 : 1.35;
+  const ang = back + (n === 1 ? 0.3 : (slot / maxSlot) * spread) + jitter(i, 1) * 0.12;
+  const r = 0.56 + 0.12 * jitter(i, 2);
+  return { x: Math.cos(ang) * r, y: Math.sin(ang) * r };
 }
 
 /**
  * Every dart's whole flight, from the plan and the two heroes. `aRadius` puts the release point on the thrower's rim
  * (toward the target); `radius` is the struck portrait's. The arc rises toward the top of the screen (never above
- * `ceilY`), so a dart always comes DOWN a little into the portrait. Pure, so a replay flies the same paths.
+ * `ceilY`), so a dart always comes DOWN a little into the portrait. `avoid` is where the big -N pops (the darts stick
+ * clear of it). Pure, so a replay flies the same paths.
  */
-export function dartMotions(p: PoisonPlan, a: Pt, d: Pt, radius: number, aRadius: number, c: HeroPoisonConfig = cfg, ceilY = Number.NEGATIVE_INFINITY): DartMotion[] {
+export function dartMotions(p: PoisonPlan, a: Pt, d: Pt, radius: number, aRadius: number, c: HeroPoisonConfig = cfg, ceilY = Number.NEGATIVE_INFINITY, avoid: Pt | null = null): DartMotion[] {
   if (p.reduced) return [];
   const dx = d.x - a.x, dy = d.y - a.y;
   const L = Math.hypot(dx, dy) || 1;
@@ -630,7 +639,7 @@ export function dartMotions(p: PoisonPlan, a: Pt, d: Pt, radius: number, aRadius
   const nrm = sideNormal(a, d);
   const dartLen = c.dartLength;
   return p.darts.map((dp, i) => {
-    const off = stickOffset(p, i, a, d);
+    const off = stickOffset(p, i, a, d, avoid);
     const aim = { x: d.x + off.x * radius, y: d.y + off.y * radius };
     // Released just off the thrower's rim, the hand a little to the side per slot (a fanned flick, not one point).
     const rel = { x: a.x + u.x * aRadius * 0.75 + nrm.x * dp.slot * aRadius * 0.12, y: a.y + u.y * aRadius * 0.75 + nrm.y * dp.slot * aRadius * 0.12 };
@@ -639,7 +648,7 @@ export function dartMotions(p: PoisonPlan, a: Pt, d: Pt, radius: number, aRadius
     const mid = { x: (rel.x + aim.x) / 2, y: (rel.y + aim.y) / 2 };
     const ctrl = { x: mid.x + nrm.x * dp.side * D, y: Math.max(ceilY, mid.y - dp.lift * D + nrm.y * dp.side * D) };
     // The heading it arrives at, plus a little per-dart wobble: darts stick at VARIED angles, never parallel.
-    const rot = Math.atan2(aim.y - ctrl.y, aim.x - ctrl.x) + jitter(i, 5) * 0.28;
+    const rot = Math.atan2(aim.y - ctrl.y, aim.x - ctrl.x) + jitter(i, 5) * (p.darts.length > 1 ? 0.5 : 0.28);
     const pen = c.penetration * dartLen * p.size * dp.size;
     const b = { x: aim.x + Math.cos(rot) * pen * 0.35, y: aim.y + Math.sin(rot) * pen * 0.35 };
     return { a: rel, c: ctrl, b, flightMs: dp.flightMs, rot, aim };

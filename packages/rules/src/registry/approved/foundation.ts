@@ -2977,4 +2977,51 @@ export const FOUNDATION_RULES: GameRule[] = [
     currentBehaviour: 'Conforms, built 2026-09-29.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/heroAttack/knockoutTier.test.ts'], lastVerifiedAt: '2026-09-29' },
   },
+  {
+    id: 'R-PROG-ATTACK-25',
+    title: 'A hero attack\x27s camera reaches its FX exactly ONCE: while the view zooms and shakes, the effects stay on the struck portrait',
+    statement:
+      'The hero attack camera (packages/ui/src/heroAttack/stageCamera.ts, shared by every style that draws Pixi FX) writes '
+      + 'one zoom + shake transform onto the camera element (`#stage` in a fight or a tuner demo, the sandbox box in the '
+      + 'Collection preview). It mirrors that transform onto the style\x27s Pixi root ONLY when the canvas the FX are drawn '
+      + 'on does not already ride the camera element. Since the scaled stage (#1762) the shared above-portrait canvas lives '
+      + 'inside `#stage`, and the preview\x27s canvas inside its box, so in every real context the FX are NOT mirrored: '
+      + 'before this, every style applied the camera twice (a zoom of z squared about the focus plus a doubled shake) and '
+      + 'its FX drifted off the struck portrait by up to about a portrait radius during the push-ins (measured in the real '
+      + 'game on every style, both directions, at 1920x1080 (most also at 1600x900 and 21:9), and in the preview). Decided once per attack '
+      + 'at the camera start (no per-frame layout read). The camera motion, the portrait motion, timings and layering are '
+      + 'unchanged; with no DOM camera (tests) the mirror is the only camera and still moves; reduced motion has no camera.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-29 (Banana Cannon review, splats during the zoom)', quote: 'looks like it is overshot due to the zoom' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-29 (double camera follow-up)', quote: 'make sure it doesnt break how our animations work' },
+      { kind: 'code', ref: 'packages/ui/src/heroAttack/stageCamera.ts (fxCanvasRidesCamera, heroFxCanvas, StageCamera.start / apply); every style runner passes heroFxCanvas(o)' },
+    ],
+    currentBehaviour: 'Conforms, fixed 2026-09-29.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/heroAttack/stageCamera.test.ts'], lastVerifiedAt: '2026-09-29' },
+  },
+  {
+    id: 'R-PROG-CRATE-04',
+    title: 'A guest cannot open crates: every Open shows a create-an-account gate; guests still earn and see their sealed crates',
+    statement:
+      'A guest (anonymous account) earns crates and sees them sealed in the Collection, but cannot open them. Every '
+      + 'player-facing crate open (the Collection crate bay\x27s Open and Open all, and the New rewards pop-up\x27s Open and '
+      + 'Open all) shows a small gate instead of the crate opener: "Create an account to open crates", with Create account '
+      + '(closes it and opens the account panel) and Not now; Esc or a click outside closes it. A guest\x27s Open wears a '
+      + 'small lock and the bay says "Create a free account to open them." Creating the account upgrades the guest in place, '
+      + 'so the crates carry over, and the moment the account stops being a guest the gate closes and Open works with no '
+      + 'reload. The gate warns that signing into an EXISTING account switches to it and leaves the guest\x27s crates behind, '
+      + 'and the account panel says the same at the moment that happens. With no account backend the gate says accounts '
+      + 'are unavailable instead of opening a panel that cannot work. Dev tuners and the crate FX preview (practice crates, '
+      + 'never the server) are not gated.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-29 (crate sign-in gate)', quote: 'ask players not signed in to sign in when they try to open a crate? we\x27d like players to create sign ins for account progression' },
+      { kind: 'code', ref: 'packages/ui/src/progression/CrateSignInGate.tsx; CollectionScreen.tsx begin() (the one crate-open path) + CrateBay guest hint; packages/ui/src/AccountPanel.tsx (existing-account warning); remoteBoards.ts signInWithEmail `existing`' },
+    ],
+    currentBehaviour: 'Conforms, built 2026-09-29 (the owner picked a hard gate over a soft nudge). Client-side gate: the server does not yet refuse an anonymous open.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/progression/CollectionScreen.test.tsx', 'packages/ui/src/progression/Crates.test.tsx', 'packages/ui/src/AccountPanel.test.tsx'], lastVerifiedAt: '2026-09-29' },
+  },
 ];

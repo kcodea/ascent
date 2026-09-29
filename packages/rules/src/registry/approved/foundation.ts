@@ -2304,6 +2304,7 @@ export const FOUNDATION_RULES: GameRule[] = [
     status: 'approved',
     evidence: [
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-28 (the sixth hero attack)', quote: 'branch off and make a poison dart animation. the final one should throw multiple poison darts that implode with poison' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-28 (Poison Darts review; the look is approved as shipped)', quote: 'the dart one is so good. great stuff.' },
       { kind: 'code', ref: 'packages/progression/src/cosmetics.ts (attack_poison); packages/ui/src/heroPoison/ (heroPoisonConfig poisonPlan / poisonCues / dartMotions / stickOffset / poisonCameraAt, heroPoison playHeroPoison, heroPoisonScene); playAcidSizzle / playToxicFizz in packages/ui/src/sfx.ts' },
     ],
     currentBehaviour: 'Conforms, built 2026-09-28. The item reaches the database on the next deploy of progression-inventory (the catalog sync); the equip SQL already accepts the hero_attack slot.',

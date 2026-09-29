@@ -61,6 +61,9 @@ export interface CombatQuestDelta {
   attackByTribe: Partial<Record<Tribe, number>>;
   summonCombatByTribe: Partial<Record<Tribe, number>>;
   slaughterByTribe: Partial<Record<Tribe, number>>;
+  /** Damage LANDED so far by the player's minions (raw, before Heavy Hand): the `dmg` events whose dealer is a player
+   *  body. Albus × Ancient of War prints its hero Pummel progress off it, live (R-REALTIME-01). */
+  friendlyDamage?: number;
 }
 import { sfx } from './sfx';
 import { ancientMeterOverride } from './ancients/ancientsConfig';

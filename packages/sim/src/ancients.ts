@@ -78,16 +78,31 @@
  *  · `riseTriggersAdjacentEcho`   COMBAT: `ancientRiseEcho`, an `onRise` listener (`triggerEcho`); SHOP: `fireOnRise`
  *                                 (`ancientOnShopRise`, the shop Echo ritual). (Bonds)
  *
+ *  ALBUS (Empowerment, `empowerment`; owner pairings 2026-09-28). Empowerment = "Choose a Shop minion. Discover a
+ *  minion from the tier above it for it to become." The pick REPLACES the Shop offer (`discoverIntoShopUid`), so
+ *  "a minion discovered by Empowerment" is that new Shop offer (or the hand card, when the offer was gone by the
+ *  time a queued pick resolved). `ancientOnEmpowerPick` is the one hook, called from `takeDiscoverPick`.
+ *  · `empowerEchoGainsRise`       the pick, when it has an Echo, gains Rise (on the offer: baked in when bought). (Death)
+ *  · `empowerFree`                the new Shop offer costs 0 Gold (`ShopCard.cost`, the set-price channel). (Fortune)
+ *  · `pummelGrantsCards`          COMBAT: `QuestCombatMods.ancientPummel`, a HERO-level Pummel read at the keyword's
+ *                                 own damage site (`noteDamageDealt`): every friendly landed hit, one lifetime tally
+ *                                 (`AncientsState.pummelDealt`), once per combat, paid to hand mid-fight. (War)
+ *  · `empowerCopyToHand`          the pick also sends a plain copy to hand; Empowerment costs 3 Gold (`power`). (Genesis)
+ *  · `sotDiscoverTierAbove`       Empowerment turns passive (`power`); `ancientStartOfTurn` queues a Discover of a
+ *                                 minion from the tier above your Shop tier, on its own Start of Turn beat. (Time)
+ *  · `playParityBuff`             SHOP: `playCard` (the one "played from hand" chokepoint): playing an odd-tier minion
+ *                                 gives your OTHER odd-tier minions +a/+h, even likewise. Combat has no play. (Bonds)
+ *
  * Serialisable plain data throughout, so saves / snapshots / replays can carry it cheaply later (not in the MVP).
  */
-import { makeRng, type EffectDef, type Keyword, type QuestCombatMods, type RiseTint } from '@game/core';
+import { makeRng, type CardDef, type EffectDef, type Keyword, type QuestCombatMods, type RiseTint } from '@game/core';
 import { CARD_INDEX } from '@game/content';
-import { mixSeed, type BoardCard, type RunState, type SotBeatFx } from './state';
-import { pushSotBeat } from './sotBeat';
+import { mixSeed, type BoardCard, type RunState, type ShopCard, type SotBeatFx } from './state';
+import { pushSotBeat, recordSotBeat } from './sotBeat';
 import type { HeroPower } from './heroes';
 import type { CombatResult } from '@game/core';
-import { addBuff, aegisGrantOf, captureBuffFx, destroyMinionInShop, fireShopEchoOf, grantMinionToHandOrBoard, instanceEffects, makeContext } from './recruit';
-import { INDY_GILD_RECHARGE_GOLD } from './config';
+import { addBuff, aegisGrantOf, captureBuffFx, destroyMinionInShop, fireShopEchoOf, grantMinionToHandOrBoard, instanceEffects, makeContext, queueDiscover } from './recruit';
+import { INDY_GILD_RECHARGE_GOLD, hasTier7Access } from './config';
 
 export type AncientId = 'death' | 'fortune' | 'war' | 'genesis' | 'time' | 'bonds';
 export const ANCIENT_IDS: readonly AncientId[] = ['death', 'fortune', 'war', 'genesis', 'time', 'bonds'];
@@ -172,7 +187,21 @@ export type AncientEffect =
   /** Start of Turn: your minions gain +a/+h for every friendly minion summoned in the last combat. */
   | { do: 'sotBuffPerCombatSummon'; attack: number; health: number }
   /** Whenever a friendly minion Rises (Shop AND combat), trigger the Echo of a minion next to it. */
-  | { do: 'riseTriggersAdjacentEcho' };
+  | { do: 'riseTriggersAdjacentEcho' }
+  // ── Albus (Empowerment) ──
+  /** A minion Empowerment discovers gains Rise when it has an Echo. */
+  | { do: 'empowerEchoGainsRise' }
+  /** A minion Empowerment discovers costs 0 Gold to buy. */
+  | { do: 'empowerFree' }
+  /** Hero-level Pummel (X): every friendly landed hit fills one tally; each multiple of `every` gets `count` × `cardId`
+   *  to hand, once per combat. */
+  | { do: 'pummelGrantsCards'; every: number; count: number; cardId: string }
+  /** Empowerment also sends a plain copy of the chosen minion to hand (the cost rides the pairing's `power`). */
+  | { do: 'empowerCopyToHand' }
+  /** Empowerment is passive; Start of Turn: Discover a minion from the tier above your Shop tier. */
+  | { do: 'sotDiscoverTierAbove' }
+  /** Playing an odd-tier minion from hand gives your other odd-tier minions +a/+h (even likewise). */
+  | { do: 'playParityBuff'; attack: number; health: number };
 
 export interface AncientPairing {
   /** The Ancient's text for this hero, as shown on the offer and the preview (the owner's words). */
@@ -183,7 +212,8 @@ export interface AncientPairing {
    *  Ward breaks still needed for Genesis' next copy; `{riseGold}` = Gold the Risen's last combat banked;
    *  `{summons}` / `{timeA}` / `{timeH}` = the Risen's summon count and the Start-of-Turn grant it pays: LIVE during a
    *  fight (the replay's running count, `{timeWhen}` = "This combat"), else the last combat's (`{timeWhen}` = "Last
-   *  combat"), R-ANCRISEN-07. */
+   *  combat"), R-ANCRISEN-07. Albus: `{timeTier}` = the tier Time's next Discover draws from; `{pummelNow}` /
+   *  `{pummelEvery}` = War's live Pummel progress (toward the next payout, the badge rule) and its X. */
   powerText: string;
   /** Changes to the hero power's own SHAPE while this pairing is live (Auctioneer: Time makes Pulse passive, Genesis
    *  makes it an untargeted 2 Gold Discover). Stamped on the run at the pick (`AncientsState.powerOverride`) and
@@ -368,6 +398,49 @@ export const ANCIENT_PAIRINGS: Record<string, Partial<Record<AncientId, AncientP
       effects: [{ do: 'riseTriggersAdjacentEcho' }],
     },
   },
+  // ALBUS (owner pairings 2026-09-28, quoted above each entry). Empowerment = "Choose a Shop minion. Discover a minion
+  // from the tier above it for it to become." (1 Gold, once per turn). The pick replaces the Shop offer.
+  albus: {
+    death: {
+      // "Echo minions discovered from Empowerment gain Rise."
+      offerText: 'Minions you **Discover** with Empowerment that have an **Echo** gain **Rise**.',
+      powerText: '{base} If it has an **Echo**, it gains **Rise**.',
+      effects: [{ do: 'empowerEchoGainsRise' }],
+    },
+    fortune: {
+      // "Minions discovered by Empowerment are free."
+      offerText: 'Minions you **Discover** with Empowerment are free.',
+      powerText: '{base} It costs **0 Gold**.',
+      effects: [{ do: 'empowerFree' }],
+    },
+    war: {
+      // "Pummel (80): Get 2 Strange Revisions. (Once per Combat)" A hero-level Pummel over your minions' damage.
+      offerText: '**Pummel (80):** get **2** Strange Revisions. Once per combat. Counts damage dealt by all your minions.',
+      powerText: '{base} **Pummel (80):** get **2** Strange Revisions. Once per combat. Counts damage dealt by all your minions (**{pummelNow}/{pummelEvery}**).',
+      effects: [{ do: 'pummelGrantsCards', every: 80, count: 2, cardId: 'strangerevision' }],
+    },
+    genesis: {
+      // "Empowerment costs 3g. You also get a copy of the chosen minion sent to your hand."
+      offerText: 'Empowerment costs **3 Gold**. You also get a copy of the minion you choose in your hand.',
+      powerText: '{base} You also get a copy of it in your hand.',
+      power: { cost: 3 },
+      effects: [{ do: 'empowerCopyToHand' }],
+    },
+    time: {
+      // "Empowerment becomes Start of Turn: Discover a minion from the tier above you."
+      offerText: 'Empowerment becomes passive. **Start of Turn:** **Discover** a minion from the tier above your Shop.',
+      powerText: '**Start of Turn:** **Discover** a minion from the tier above your Shop (**Tier {timeTier}**).',
+      power: { passive: true },
+      effects: [{ do: 'sotDiscoverTierAbove' }],
+    },
+    bonds: {
+      // "Playing odd tier units grants +3/+3 to friendly odd tier units. Playing even tier units grants +3/+3 to
+      // friendly even tier units." The played minion itself is not included (the "other" convention).
+      offerText: 'Playing an odd-tier minion gives your other odd-tier minions **+3/+3**. Playing an even-tier minion gives your other even-tier minions **+3/+3**.',
+      powerText: '{base} Playing an odd-tier minion gives your other odd-tier minions **+3/+3**. Playing an even-tier minion gives your other even-tier minions **+3/+3**.',
+      effects: [{ do: 'playParityBuff', attack: 3, health: 3 }],
+    },
+  },
 };
 
 export function ancientPairingFor(heroId: string, id: AncientId): AncientPairing | undefined {
@@ -435,6 +508,8 @@ export interface AncientsState {
   riseGold?: number;
   /** RISEN × TIME: friendly minions summoned in the last combat (paid at the next Start of Turn; printed live). */
   lastSummons?: number;
+  /** ALBUS × WAR: the hero-Pummel LIFETIME tally (friendly damage dealt), carried across combats like the keyword. */
+  pummelDealt?: number;
 }
 
 /** Turn Ancients on for a run (the Scene Builder's Set 3 flag). Pure: returns a new run. */
@@ -525,6 +600,9 @@ function effectOf<K extends AncientEffect['do']>(state: RunState, kind: K): Extr
 
 /** Live combat values the Ancient power text folds in (undefined outside a fight being replayed). */
 export interface AncientPowerLive {
+  /** ALBUS × WAR: friendly damage LANDED so far in the fight on screen (the replay's `dmg` events whose dealer is a
+   *  player body, Heavy Hand folded), added to the carried-in tally so the Pummel readout ticks with each hit. */
+  friendlyDamage?: number;
   /** Friendly minions summoned SO FAR in the fight on screen (the replay's step-tagged `summonCombat` tally, the same
    *  summon-entry chokepoint `ancientCountSummons` counts), so Time's printed count follows the replay beat. */
   combatSummons?: number;
@@ -548,7 +626,10 @@ export function ancientPowerText(state: RunState, base: string, combat: AncientP
   // friendly summons up to the beat on screen, so it ticks with each summon instead of jumping at resolution.
   const liveSummons = !!time && combat.combatSummons !== undefined;
   const summons = liveSummons ? combat.combatSummons! : a?.lastSummons ?? 0;
-  return text.replace('{base}', base).replace('{timeWhen}', liveSummons ? 'This combat' : 'Last combat').replace('{shoutGold}', String(shoutGold))
+  const pummel = effectOf(state, 'pummelGrantsCards');
+  const pummelNow = pummel ? ((a?.pummelDealt ?? 0) + (combat.friendlyDamage ?? 0)) % Math.max(1, pummel.every) : 0;
+  return text.replace('{base}', base).replace('{timeTier}', String(albusTimeTier(state)))
+    .replace('{pummelNow}', String(pummelNow)).replace('{pummelEvery}', String(pummel?.every ?? 0)).replace('{timeWhen}', liveSummons ? 'This combat' : 'Last combat').replace('{shoutGold}', String(shoutGold))
     .replace('{riseGold}', String(a?.riseGold ?? 0)).replace('{summons}', String(summons))
     .replace('{timeA}', String((time?.attack ?? 0) * summons)).replace('{timeH}', String((time?.health ?? 0) * summons)).replace('{aegis}', aegis).replace('{wardLeft}', String(wardLeft)).replace('{recharge}', String(INDY_GILD_RECHARGE_GOLD))
     .replace('{gilds}', String(gilds)).replace('{gildA}', String((per?.attack ?? 0) * gilds)).replace('{gildH}', String((per?.health ?? 0) * gilds));
@@ -636,6 +717,10 @@ export function ancientCombatMods(state: RunState): Partial<QuestCombatMods> {
   if (extra) out.ancientSummonExtra = extra.extra;
   if (effectOf(state, 'sotBuffPerCombatSummon')) out.ancientCountSummons = true;
   if (effectOf(state, 'riseTriggersAdjacentEcho')) out.ancientRiseEcho = { label: ANCIENTS.bonds.name };
+  const pummel = effectOf(state, 'pummelGrantsCards');
+  if (pummel) {
+    out.ancientPummel = { every: pummel.every, count: pummel.count, cardId: pummel.cardId, dealt: live(state)?.pummelDealt ?? 0, label: ANCIENTS.war.name };
+  }
   return out;
 }
 
@@ -743,6 +828,8 @@ export function ancientAfterCombat(state: RunState, result: CombatResult): void 
   }
   // RISEN × TIME: the count the next Start of Turn pays on.
   if (effectOf(state, 'sotBuffPerCombatSummon')) a.lastSummons = result.playerSummonsMade ?? 0;
+  // ALBUS × WAR: the lifetime Pummel tally the fight hands back (the payout already happened mid-fight).
+  if (effectOf(state, 'pummelGrantsCards') && result.playerAncientPummelDealt !== undefined) a.pummelDealt = result.playerAncientPummelDealt;
   if (!effectOf(state, 'wardBreaksGetCopy')) return;
   a.wardBreaks = (a.wardBreaks ?? 0) + breaks.length;
   if (result.playerWardWindow) a.wardWindow = [...result.playerWardWindow];
@@ -816,6 +903,7 @@ export function ancientRiseTint(state: RunState, card: BoardCard): RiseTint | un
 /** TIME: Start of Turn, every board minion gains +a/+h for each friendly minion summoned in the last combat,
  *  permanently (owner 2026-09-26: the previous combat only). */
 export function ancientStartOfTurn(state: RunState): void {
+  albusStartOfTurn(state);
   const a = live(state);
   const e = effectOf(state, 'sotBuffPerCombatSummon');
   const n = a?.lastSummons ?? 0;
@@ -853,4 +941,53 @@ export function ancientOnShopRise(state: RunState, risen: BoardCard): void {
     state.rngCursor = rng.state();
   }
   captureBuffFx(state, risen, 'minion', () => fireShopEchoOf(state, target));
+}
+
+// ── Albus (Empowerment) hooks ────────────────────────────────────────────────────────────────────────────────
+/** TIME: Empowerment is passive (its Start of Turn half is `albusStartOfTurn`). */
+export function ancientEmpowerPassive(state: RunState): boolean {
+  return !!effectOf(state, 'sotDiscoverTierAbove');
+}
+
+/** TIME: the tier the Start of Turn Discover draws from: one above your Shop tier, clamped at the ceiling the way
+ *  Empowerment itself clamps (Tier 6, or Tier 7 with access), so at the top it Discovers from your own top tier. */
+export function albusTimeTier(state: RunState): number {
+  return Math.min(state.tier + 1, hasTier7Access(state) ? 7 : 6);
+}
+
+/** TIME: Start of Turn, queue a Discover of a minion from the tier above your Shop tier, as its own beat (R-SOT-BEAT-01). */
+function albusStartOfTurn(state: RunState): void {
+  if (!live(state) || !effectOf(state, 'sotDiscoverTierAbove')) return;
+  const tier = albusTimeTier(state);
+  recordSotBeat(state, { kind: 'hero', id: state.heroId, label: ANCIENTS.time.name }, () => {
+    queueDiscover(state, { kind: 'minion', tier, exactTier: tier });
+  });
+}
+
+/**
+ * A minion Empowerment discovered has just arrived: `offer` is the Shop offer it became (the usual case), or `card`
+ * the hand card it became when the targeted offer was already gone. DEATH: it gains Rise when it has an Echo. FORTUNE:
+ * the offer costs 0 Gold. GENESIS: a plain copy of it goes to hand (hand first, the board when the hand is full).
+ */
+export function ancientOnEmpowerPick(state: RunState, def: CardDef, offer?: ShopCard, card?: BoardCard): void {
+  if (!live(state)) return;
+  if (effectOf(state, 'empowerEchoGainsRise') && def.effects.some((e) => e.on === 'onDeath')) {
+    if (offer && !def.keywords.includes('R') && !(offer.keywords ?? []).includes('R')) (offer.keywords ??= []).push('R');
+    if (card && !card.keywords.includes('R')) card.keywords.push('R');
+  }
+  if (offer && effectOf(state, 'empowerFree')) offer.cost = 0;
+  if (effectOf(state, 'empowerCopyToHand')) grantMinionToHandOrBoard(state, def, false);
+}
+
+/** BONDS, Shop: a minion was PLAYED from hand. Every OTHER board minion of the same tier parity (odd / even) gains
+ *  +a/+h, permanently, in real time. The played minion is not included. */
+export function ancientOnPlay(state: RunState, played: BoardCard): void {
+  const e = effectOf(state, 'playParityBuff');
+  if (!e) return;
+  const tier = CARD_INDEX[played.cardId]?.tier;
+  if (tier === undefined) return;
+  const parity = tier % 2;
+  const mates = state.board.filter((c) => c !== played && (CARD_INDEX[c.cardId]?.tier ?? -1) % 2 === parity);
+  if (mates.length === 0) return;
+  captureBuffFx(state, played, 'minion', () => { for (const c of mates) addBuff(c, ANCIENTS.bonds.name, e.attack, e.health); });
 }

@@ -153,7 +153,12 @@ export function StatusBar() {
   // step-tagged quest tally. Undefined outside a fight (and once it settles), so the text falls back to the banked
   // "Last combat" count the next Start of Turn pays.
   const combatSummons = useGame((s) => s.combatQuestDelta?.summonCombat);
-  const heroPowerLive = useMemo(() => ({ attacks: combatAttacks, summons: combatSummons }), [combatAttacks, combatSummons]);
+  // ALBUS × WAR, LIVE (R-REALTIME-01): friendly damage landed so far this fight, with Rune of the Heavy Hand's extra
+  // share per copy (the same multiplier the simulator applies to the Pummel tally). Undefined outside a fight.
+  const combatDamage = useGame((s) => s.combatQuestDelta?.friendlyDamage);
+  const heavyShare = run.questFlags?.runeHeavyHand ? Math.max(1, run.flagCopies?.runeHeavyHand ?? 1) : 0;
+  const friendlyDamage = combatDamage === undefined ? undefined : combatDamage * (1 + heavyShare);
+  const heroPowerLive = useMemo(() => ({ attacks: combatAttacks, summons: combatSummons, friendlyDamage }), [combatAttacks, combatSummons, friendlyDamage]);
   // While spectating a replay, the hero panel belongs to the RECORDED player, so show their name — not the
   // local account's. Falls back to your own name for normal play (replaySession is null outside playback).
   const playerName = useGame((s) => s.replaySession?.authorName ?? s.playerName);

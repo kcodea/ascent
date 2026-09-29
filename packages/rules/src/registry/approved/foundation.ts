@@ -2644,12 +2644,12 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'it, blood spraying along the blade\x27s direction, and the line OPENING into a gash (a dark wound with a bright red '
       + 'lip). It escalates on exactly the tiers every other hero attack uses (one shared tierOf, thresholds 6 / 12 / 20): '
       + 'I 1-5 one clean diagonal gash; II 6-11 a CROSS (X) of two gashes, the first a tick; III 12-19 a flurry of four fast '
-      + 'slashes and a three-claw RAKE (every wound bleeding, drips running down the portrait); IV 20+ (owner 2026-09-29: hilariously over the top) three claw rakes carve the face and the wounds THROB with a heartbeat while the striker winds a huge crescent; '
-      + 'then the screen-splitting MEGA-SLASH zips through the target EIGHT times (tunable) each on its OWN line (the striker\x27s side first, then square '
-      + 'across it for an X, then the diagonals between, all round the compass, alternating direction; no two zips share a line, so every one visibly crosses the ones before it), each with its seam, a spray and a fresh gash, the camera whipping along it, the cadence '
+      + 'slashes and a three-claw RAKE (every wound bleeding, drips running down the portrait); IV 20+ (owner 2026-09-29: hilariously over the top) three claw rakes (each also sweeping a wide line across the screen) carve the face and the wounds THROB with a heartbeat while the striker winds a huge crescent; '
+      + 'then the screen-splitting MEGA-SLASH zips through the target EIGHT times (tunable) each on its OWN line and each sweeping IN from the far side of the screen across the board, through the '
+      + 'target and out past it (a fan either side of the line to the middle of the screen, so every wide crescent crosses the screen from the very first zip), each with its seam, a spray, a fresh gash and blood flung across the whole screen along its line that PILES UP (more each zip) until after the explosion, the camera whipping along it, the cadence '
       + 'ACCELERATING into a blur; then a beat of held tension (never a freeze: the wounds pulse faster, blood is drawn in) and a huge BLOODY EXPLOSION '
-      + '(a white-red flash core, five shockwave rings, a huge stain, blood thrown high to rain across the board, spatter out toward the edges, dripping '
-      + 'stains, arterial spurts). The consequence (the damage, Armor, Resolve) lands '
+      + '(a white-red flash core, five shockwave rings, a huge stain, blood thrown high to rain across the board, big splats PAINTING the whole screen out to the UI edges with a '
+      + 'crimson vignette, dripping stains, arterial spurts; all of it fades out cleanly). The consequence (the damage, Armor, Resolve) lands '
       + 'exactly ONCE: on the last cut (every earlier cut is a tick with FX only) or, at IV, on the explosion (never on a rake, a heartbeat, a zip or the tension). Wounds, drips, stains and the tint '
       + 'ride the struck portrait\x27s knockback. No hit-stop or freeze anywhere (R-PROG-ATTACK-10). Presentation only; '
       + 'reduced motion is fades only; an unknown or retired id plays Classic.',
@@ -2658,6 +2658,7 @@ export const FOUNDATION_RULES: GameRule[] = [
     evidence: [
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-29 (more hero attacks)', quote: 'branch off and make some more attack types - we need a fire animation, a bleed/gash animation, some sort of an undead animation, a beast chomp rush animation, and i would love a king oona banana cannon animation. use the same 4 tier strategy we have been.' },
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-29 (Bleed review)', quote: 'make the bleed one extremely extremely over the top like hilariously over the top for the huge attack. like do 8 zips of the long attack animation and have a bloody explosion at the end' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-29 (Bleed review, blood)', quote: 'bleed\x27s first 2 slash throughs on the huge attack still dont have the line slashes. add way more blood splatters across the screen. it should be hilariously bloody by the end of the combo' },
       { kind: 'code', ref: 'packages/progression/src/cosmetics.ts (attack_bleed); packages/ui/src/heroBleed/ (heroBleedConfig bleedPlan / bleedCues / slashGeos / wavePos / megaGeo / zipGeos / bleedCameraAt / bleedCameraFocus, heroBleed playHeroBleed, heroBleedScene, heroBleedTextures)' },
     ],
     currentBehaviour: 'Conforms, built 2026-09-29. The item reaches the database on the next deploy of progression-inventory (the catalog sync); the equip SQL already accepts the hero_attack slot.',

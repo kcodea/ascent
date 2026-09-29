@@ -21,8 +21,8 @@
  *     top like hilariously over the top for the huge attack. like do 8 zips of the long attack animation and have a
  *     bloody explosion at the end"). Three claw rakes carve the face and the wounds THROB with a heartbeat while the
  *     striker winds a huge crescent. Then the screen-splitting MEGA-SLASH zips across EIGHT times (tunable), each one a
- *     full-screen sweep through the target on a NEW line (the striker's side first, then square across it for an X,
- *     then the diagonals between, all round the compass, alternating sweep direction), each with its seam, a spray and a fresh gash on the target, the camera
+ *     full-screen sweep on a NEW line that comes IN from the far side of the screen, crosses the board, bites through
+ *     the target and exits past it (a fan either side of the line to the middle of the screen), each with its seam, a spray and a fresh gash on the target, the camera
  *     whipping along it, the cadence ACCELERATING (the first readable, the last a frantic blur). Then a beat of held
  *     tension (never a freeze: the wounds pulse faster, blood is drawn in, the view creeps in) and an absurdly huge
  *     BLOODY EXPLOSION lands the blow: a white-red flash core, shockwave rings one after another, a huge blood nova,
@@ -726,46 +726,51 @@ export function slashGeos(p: BleedPlan, a: Pt, d: Pt, radius: number, aRadius: n
 export interface MegaGeo { from: Pt; to: Pt; angle: number; span: number }
 
 /**
- * How far the mega-slash turns off the attacker-to-target line (radians, clockwise on screen): a slash swung THROUGH
- * the target from the striker's side, not a bolt along the line between them.
+ * The zips' sweep directions, as turns off the INWARD axis (from the struck hero toward the middle of the screen),
+ * alternating either side of it so each is its own line (about seven degrees or more apart).
+ *
+ * Owner 2026-09-29, twice: "the first few hits of the bleed dont have the crossing lines", then "bleed is still
+ * missing some of its wide slashes at the beginning of the big combo". The real frames showed why: the struck hero sits
+ * in a CORNER of the screen, and the early zips' lines (a square turn off the first, then the diagonals) ran along the
+ * screen EDGE through that corner, so their wide crescent swept almost entirely off screen and never crossed the board.
+ * Now every zip sweeps IN from the far side of the screen, crosses the board, bites through the struck hero and exits
+ * past its corner: the whole first half of every sweep is on screen, from the very first zip.
  */
-export const MEGA_TILT = 0.26;
+export const ZIP_FAN: readonly number[] = [0.06, -0.4, 0.46, -0.14, 0.32, -0.54, 0.18, -0.27, 0.56, -0.02, 0.4];
+
+/** Tier IV's claw rakes also sweep a wide line across the screen (the build-up): their turns off the inward axis. */
+export const RAKE_FAN: readonly number[] = [0.3, -0.24, 0.12];
 
 /**
- * The mega-slash: a straight line through the struck hero, starting out by the STRIKER (it is their swing) and running
- * on past the target by the same length, so it crosses the target exactly half-way through its sweep (the impact).
- * `span` is the whole line. Pure.
+ * Tier IV's claw rakes, each as a WIDE line like a zip's (owner 2026-09-29: "bleed's first 2 slash throughs on the huge
+ * attack still dont have the line slashes"): through the struck hero, in from the screen side, crossing it exactly when
+ * the rake's crescent bites (half-way through a sweep twice its flight). Empty below IV. Pure.
  */
-export function megaGeo(a: Pt, d: Pt, span: number): MegaGeo {
-  const angle = Math.atan2(d.y - a.y, d.x - a.x) + MEGA_TILT;
-  const dir = { x: Math.cos(angle), y: Math.sin(angle) };
+export function rakeLines(p: BleedPlan, a: Pt, d: Pt, span: number, center: Pt = { x: (a.x + d.x) / 2, y: (a.y + d.y) / 2 }): MegaGeo[] {
+  if (!p.hemorrhage) return [];
   const s = Math.max(1, span);
-  return { from: { x: d.x - dir.x * s / 2, y: d.y - dir.y * s / 2 }, to: { x: d.x + dir.x * s / 2, y: d.y + dir.y * s / 2 }, angle, span: s };
+  const inward = Math.hypot(center.x - d.x, center.y - d.y) > 1 ? Math.atan2(center.y - d.y, center.x - d.x) : Math.atan2(a.y - d.y, a.x - d.x);
+  return p.slashes.map((_, i) => {
+    const angle = inward + Math.PI + RAKE_FAN[i % RAKE_FAN.length]!;
+    const dir = { x: Math.cos(angle), y: Math.sin(angle) };
+    return { from: { x: d.x - dir.x * s / 2, y: d.y - dir.y * s / 2 }, to: { x: d.x + dir.x * s / 2, y: d.y + dir.y * s / 2 }, angle, span: s };
+  });
 }
-
-/**
- * Zips 2..N, as turns off zip 1's line (radians; + PI flips the sweep so they alternate direction): first the
- * perpendicular (an X with zip 1), then the two diagonals between (another X), then the lines between those, so the
- * target is crossed from all round the compass. EVERY zip is its own LINE through the target (the orientations sit a
- * sixteenth of a turn or more apart), so each one visibly crosses the ones before it. Owner 2026-09-29: "the first few
- * hits of the bleed dont have the crossing lines": the first list swept the same line twice (right-left then
- * left-right, and each diagonal both ways), so the early zips drew over each other and read as missing.
- */
-export const ZIP_TURNS: readonly number[] = [
-  Math.PI / 2, Math.PI / 4 + Math.PI, -Math.PI / 4, (3 * Math.PI) / 8 + Math.PI, (-3 * Math.PI) / 8, Math.PI / 8 + Math.PI, -Math.PI / 8,
-  (5 * Math.PI) / 16 + Math.PI, (-5 * Math.PI) / 16, (3 * Math.PI) / 16 + Math.PI, (-3 * Math.PI) / 16,
-];
 
 /** A line's orientation (its direction folded into [0, PI)): two zips on the same line share it. */
 export const lineOrientation = (angle: number): number => { const o = angle % Math.PI; return o < 0 ? o + Math.PI : o; };
 
-/** Every zip's line through the struck hero, `span` px long, crossing it half-way. Zip 1 swings from the striker. Pure. */
-export function zipGeos(p: BleedPlan, a: Pt, d: Pt, span: number): MegaGeo[] {
+/**
+ * Every zip's line through the struck hero `d`, `span` px long, crossing it half-way through its sweep. Each STARTS on
+ * the screen side (toward `center`, the middle of the screen; the midpoint of the two heroes by default) and sweeps
+ * across the board into the struck hero and on out past it. Pure.
+ */
+export function zipGeos(p: BleedPlan, a: Pt, d: Pt, span: number, center: Pt = { x: (a.x + d.x) / 2, y: (a.y + d.y) / 2 }): MegaGeo[] {
   const s = Math.max(1, span);
-  const first = megaGeo(a, d, s);
+  const inward = Math.hypot(center.x - d.x, center.y - d.y) > 1 ? Math.atan2(center.y - d.y, center.x - d.x) : Math.atan2(a.y - d.y, a.x - d.x);
   return p.zips.map((_, i) => {
-    if (i === 0) return first;
-    const angle = first.angle + ZIP_TURNS[(i - 1) % ZIP_TURNS.length]!;
+    // The sweep heads OUT through the struck hero: opposite the inward axis, turned by the fan.
+    const angle = inward + Math.PI + ZIP_FAN[i % ZIP_FAN.length]!;
     const dir = { x: Math.cos(angle), y: Math.sin(angle) };
     return { from: { x: d.x - dir.x * s / 2, y: d.y - dir.y * s / 2 }, to: { x: d.x + dir.x * s / 2, y: d.y + dir.y * s / 2 }, angle, span: s };
   });

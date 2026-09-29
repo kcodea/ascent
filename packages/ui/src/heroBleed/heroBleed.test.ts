@@ -18,8 +18,8 @@ import { HERO_BLAST_DEFAULTS, blastPlan } from '../heroBlast/heroBlastConfig';
 import { HERO_POISON_DEFAULTS, poisonPlan } from '../heroPoison/heroPoisonConfig';
 import { DEV_HERO_ATTACK_CHOICES, HERO_ATTACK_STYLES, resolveHeroAttackStyle, styleOfCosmetic } from '../heroBlast/heroAttackStyle';
 import {
-  AVOID_SHIFT, BLEED_CAPS, HERO_BLEED_DEFAULTS, MEGA_TILT, ZIP_TURNS, lineOrientation, zipGeos, HERO_BLEED_RANGES, bleedCameraAt, bleedCameraFocus, bleedCues, bleedFlightMs, bleedPlan,
-  clampHeroBleedValue, heroBleedConfigJson, megaGeo, megaPos, sanitizeHeroBleedConfig, slashGeos, waveEase, wavePos,
+  AVOID_SHIFT, BLEED_CAPS, HERO_BLEED_DEFAULTS, RAKE_FAN, ZIP_FAN, lineOrientation, rakeLines, zipGeos, HERO_BLEED_RANGES, bleedCameraAt, bleedCameraFocus, bleedCues, bleedFlightMs, bleedPlan,
+  clampHeroBleedValue, heroBleedConfigJson, megaPos, sanitizeHeroBleedConfig, slashGeos, waveEase, wavePos,
   type HeroBleedConfig, type HeroBleedNumKey,
 } from './heroBleedConfig';
 import { HeroBleedScene, MAX_BLEED_SPRITES, type HeroBleedTextures } from './heroBleedScene';
@@ -40,6 +40,7 @@ const LOOK = {
   gravity: 1300, dripMs: 900, stainAlpha: 0.7, stainMs: 1300, spatter: 9, megaWidth: 22, megaSize: 2.4, novaSize: 1, explosionSize: 1.6,
 };
 const A = { x: 200, y: 850 }, D = { x: 1500, y: 180 };
+const AREA = { x: 0, y: 0, w: 1920, h: 1080 };
 const R = 80;
 const P1 = plan([2, 1], 3), P2 = plan([3, 3, 2], 8), P3 = plan([3, 3, 3, 3, 2], 14), P4 = plan([6, 6, 6, 6, 6, 5, 5], 40);
 const dist = (p: { x: number; y: number }, q: { x: number; y: number }): number => Math.hypot(p.x - q.x, p.y - q.y);
@@ -287,41 +288,49 @@ describe('the geometry', () => {
     expect(c!.c.y).toBeGreaterThanOrEqual(40);
   });
 
-  it('the mega-slash is one straight line through the target, swung from the striker\'s side, crossing the target exactly half-way', () => {
-    const span = dist(A, D) * 2.1;
-    const m = megaGeo(A, D, span);
-    expect(dist(megaPos(m, 0.5), D)).toBeLessThan(1e-6);
-    expect(dist(m.from, m.to)).toBeCloseTo(span, 6);
-    // it starts out by the striker (not off in some far corner) and is turned off the bolt line (a swing, not a beam)
-    expect(dist(m.from, A)).toBeLessThan(dist(A, D) * 0.6);
-    const heading = Math.atan2(D.y - A.y, D.x - A.x);
-    expect(m.angle - heading).toBeCloseTo(MEGA_TILT, 9);
-    const back = megaGeo(D, A, span);
-    expect(dist(megaPos(back, 0.5), A)).toBeLessThan(1e-6);
-    expect(dist(back.from, D)).toBeLessThan(dist(A, D) * 0.6);
-    expect(megaPos(m, Number.NaN)).toEqual(m.from);
-  });
-
-  it('the zips come from all round the compass, alternating sweep direction, each through the target half-way, EVERY one its own crossing line, mirrored for a foe', () => {
-    const span = dist(A, D) * 2.1;
-    const zs = zipGeos(P4, A, D, span);
-    expect(zs).toHaveLength(8);
-    expect(zs[0]).toEqual(megaGeo(A, D, span)); // the first swings from the striker
-    for (const z of zs) expect(dist(megaPos(z, 0.5), D)).toBeLessThan(1e-6);
-    zs.slice(1).forEach((z, i) => expect(z.angle - zs[0]!.angle).toBeCloseTo(ZIP_TURNS[i]!, 9));
-    expect(Math.abs(Math.cos(zs[1]!.angle - zs[0]!.angle))).toBeLessThan(1e-9); // the second crosses the first square: an X
-    expect(zs.some((z) => Math.cos(z.angle) < -0.5) && zs.some((z) => Math.cos(z.angle) > 0.5)).toBe(true); // both ways across
-    // Owner 2026-09-29 ("the first few hits of the bleed dont have the crossing lines"): no two zips on the same line, so
-    // every one, from the very first, draws a NEW line across the ones before it. Both directions.
-    for (const pair of [[A, D], [D, A]] as const) {
-      const orients = zipGeos(P4, pair[0], pair[1], span).map((z) => lineOrientation(z.angle));
+  it('EVERY zip sweeps IN from the far side of the screen, across the board, through the struck hero half-way, and out past its corner; each its own line; both ways (owner 2026-09-29: "missing some of its wide slashes at the beginning")', () => {
+    const MID = { x: 960, y: 540 };
+    const span = 3700;
+    for (const [a, d] of [[A, D], [D, A]] as const) {
+      const zs = zipGeos(P4, a, d, span, MID);
+      expect(zs).toHaveLength(8);
+      const inward = Math.atan2(MID.y - d.y, MID.x - d.x);
+      zs.forEach((z, i) => {
+        expect(dist(megaPos(z, 0.5), d), `zip ${i} crosses the target half-way`).toBeLessThan(1e-6);
+        // it STARTS on the screen side of the struck hero (toward the middle), so its first half crosses the board
+        const f = { x: z.from.x - d.x, y: z.from.y - d.y };
+        const cos = (f.x * Math.cos(inward) + f.y * Math.sin(inward)) / Math.hypot(f.x, f.y);
+        expect(cos, `zip ${i} starts on the screen side`).toBeGreaterThan(Math.cos(0.9));
+        // and a quarter of the way through its sweep its head is ON the 1920 x 1080 screen, crossing the board
+        const q = megaPos(z, 0.25);
+        expect(q.x >= 0 && q.x <= 1920 && q.y >= 0 && q.y <= 1080, `zip ${i} head on screen at a quarter`).toBe(true);
+        expect(z.angle).toBeCloseTo(inward + Math.PI + ZIP_FAN[i]!, 9);
+      });
+      // no two zips on the same line: each visibly crosses the ones before it
+      const orients = zs.map((z) => lineOrientation(z.angle));
       for (let i = 0; i < orients.length; i++) for (let j = i + 1; j < orients.length; j++) {
-        const d = Math.abs(orients[i]! - orients[j]!);
-        expect(Math.min(d, Math.PI - d), `zips ${i} and ${j}`).toBeGreaterThan(0.35);
+        const dd = Math.abs(orients[i]! - orients[j]!);
+        expect(Math.min(dd, Math.PI - dd), `zips ${i} and ${j}`).toBeGreaterThan(0.1);
       }
     }
-    const back = zipGeos(P4, D, A, span);
-    for (const z of back) expect(dist(megaPos(z, 0.5), A)).toBeLessThan(1e-6);
+    // a sandbox (no middle given) aims across toward the striker
+    const zs = zipGeos(P4, A, D, span);
+    expect(dist(megaPos(zs[0]!, 0.5), D)).toBeLessThan(1e-6);
+    expect(megaPos(zs[0]!, Number.NaN)).toEqual(zs[0]!.from);
+  });
+
+  it('Tier IV\'s claw rakes sweep WIDE lines too, in from the screen side, through the struck hero (owner 2026-09-29: "first 2 slash throughs on the huge attack still dont have the line slashes"); none below IV', () => {
+    const MID = { x: 960, y: 540 };
+    const ls = rakeLines(P4, A, D, 3700, MID);
+    expect(ls).toHaveLength(3);
+    const inward = Math.atan2(MID.y - D.y, MID.x - D.x);
+    ls.forEach((l, i) => {
+      expect(dist(megaPos(l, 0.5), D)).toBeLessThan(1e-6);
+      expect(l.angle).toBeCloseTo(inward + Math.PI + RAKE_FAN[i]!, 9);
+      const q = megaPos(l, 0.25);
+      expect(q.x >= 0 && q.x <= 1920 && q.y >= 0 && q.y <= 1080, `rake ${i} head on screen`).toBe(true);
+    });
+    expect(rakeLines(P3, A, D, 3700, MID)).toEqual([]);
   });
 
   it('the cuts sit off the big -N (shifted to the far side of the face from it)', () => {
@@ -436,7 +445,9 @@ describe('the runner (the shared clock)', () => {
     expect(h.plan.hemorrhage).toBe(true);
     expect(h.zips).toHaveLength(8);
     expect(h.mega).toEqual(h.zips[0]);
-    f.tick(h.plan.beats[0]! + 20, 4);
+    f.tick(h.plan.slashes[0]!.swingAt + 30, 4);
+    expect(h.scene!.liveZips).toBeGreaterThanOrEqual(1); // the first rake's wide line is already sweeping
+    f.tick(h.plan.beats[0]! + 20 - h.elapsed(), 4);
     expect(onImpact).not.toHaveBeenCalled();
     expect(h.scene!.liveWounds).toBe(9);
     f.tick(h.plan.windAt - h.elapsed() + 30, 4);
@@ -590,11 +601,12 @@ describe('the scene (headless Pixi)', () => {
       s.startMega(z, P4.zips[i]!.dur);
       for (let k = 0; k < 3; k++) { s.update(16); peak = Math.max(peak, s.liveSprites); }
       s.zipCut(z.angle, D.x, D.y, R, i);
+      s.screenBlood(z, i, 1500, AREA);
     });
     expect(s.liveWounds).toBe(9 + 8);
     s.tension(D.x, D.y, R, 460);
     for (let i = 0; i < 28; i++) { s.update(16); peak = Math.max(peak, s.liveSprites); }
-    s.explode(D.x, D.y, R, zs[7]!, { burst: 1.8, drops: 130, drips: 11, flashAlpha: 0.85 });
+    s.explode(D.x, D.y, R, zs[7]!, { burst: 1.8, drops: 150, drips: 11, flashAlpha: 0.85, area: AREA });
     s.spurt(D.x + 30, D.y, 1, 0); s.spurt(D.x - 30, D.y, 1.1, Math.PI); s.spurt(D.x, D.y + 30, 1.2, 1);
     for (let i = 0; i < 10; i++) { s.update(16); peak = Math.max(peak, s.liveSprites); }
     expect(peak).toBeLessThanOrEqual(MAX_BLEED_SPRITES);
@@ -630,6 +642,36 @@ describe('the scene (headless Pixi)', () => {
       expect(s.liveWounds, `zip ${i} gash`).toBe(wounds + 1);
     });
     expect(s.liveSprites).toBeLessThanOrEqual(MAX_BLEED_SPRITES);
+    s.destroy();
+  });
+
+  it('the zips PILE blood across the whole screen (more each zip), it stays through the combo, and the explosion paints the screen; all of it fades out cleanly (owner 2026-09-29: "hilariously bloody by the end of the combo")', () => {
+    const s = new HeroBleedScene(TEX, COLORS, LOOK, 1, 11);
+    const zs = zipGeos(P4, A, D, 3700, { x: 960, y: 540 });
+    const counts: number[] = [];
+    zs.forEach((z, i) => {
+      const before = s.liveSprites;
+      s.screenBlood(z, i, 1500, AREA);
+      counts.push(s.liveSprites - before);
+      s.update(40);
+    });
+    for (let i = 1; i < counts.length; i++) expect(counts[i]!, `zip ${i} flings more`).toBeGreaterThanOrEqual(counts[i - 1]! - 2);
+    expect(counts[7]!).toBeGreaterThan(counts[0]!);
+    // every splat lands on the screen
+    const stain = (s.root.children as Container[]).find((c) => c.label === 'bleed-stain')!;
+    for (const c of stain.children) if (c.visible && c.alpha > 0) { expect(c.x).toBeGreaterThanOrEqual(-1); expect(c.x).toBeLessThanOrEqual(1921); expect(c.y).toBeGreaterThanOrEqual(-1); expect(c.y).toBeLessThanOrEqual(1081); }
+    // it is still there 600 ms on (piling up through the combo)
+    for (let i = 0; i < 15; i++) s.update(40);
+    const piled = stain.children.filter((c) => c.visible && c.alpha > 0.5).length;
+    expect(piled).toBeGreaterThan(40);
+    s.explode(D.x, D.y, R, zs[7]!, { burst: 1.8, drops: 150, drips: 11, flashAlpha: 0.85, area: AREA });
+    for (let i = 0; i < 20; i++) s.update(40);
+    expect(stain.children.filter((c) => c.visible && c.alpha > 0.5).length).toBeGreaterThan(piled + 20); // the screen painted
+    expect(s.liveSprites).toBeLessThanOrEqual(MAX_BLEED_SPRITES);
+    let alive = true;
+    for (let i = 0; i < 400 && alive; i++) alive = s.update(40);
+    expect(alive).toBe(false); // fades out cleanly
+    expect(s.liveSprites).toBe(0);
     s.destroy();
   });
 

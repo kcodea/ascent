@@ -28,7 +28,7 @@ import type { HeroAttackHandle, HeroAttackOptions } from '../heroAttack/options'
 import { Sequence } from '../heroAttack/sequence';
 import { PortraitMover, StageCamera } from '../heroAttack/stageCamera';
 import {
-  bleedCameraAt, bleedCameraFocus, bleedCues, bleedPlan, getHeroBleedConfig, zipGeos,
+  bleedCameraAt, bleedCameraFocus, bleedCues, bleedPlan, getHeroBleedConfig, rakeLines, zipGeos,
   slashGeos, type BleedCue, type BleedPlan, type HeroBleedConfig, type MegaGeo, type SlashGeo,
 } from './heroBleedConfig';
 import { HeroBleedScene, type HeroBleedTextures } from './heroBleedScene';
@@ -84,9 +84,20 @@ export function playHeroBleed(o: HeroBleedOptions): HeroBleedHandle {
   // A crescent's flight never rises above the top of the screen (or the sandbox box).
   const geos = slashGeos(plan, o.attacker, o.defender, radius, aRadius, c, (local ? 8 : 36) * s, nums.pts.hit);
   const cutDirs: Pt[] = geos.map((g) => ({ x: Math.cos(g.angle), y: Math.sin(g.angle) }));
-  // The zips: each a line through the target, crossing it half-way. The first starts out by the striker; the rest come
-  // from every direction, long enough to split the whole screen (a sandbox box: a little past both heroes).
-  const zips = plan.hemorrhage ? zipGeos(plan, o.attacker, o.defender, local ? dist * 2.1 : Math.max(dist * 2.1, 2200 * s)) : [];
+  // The zips: each a line through the target, crossing it half-way. Each sweeps IN from the far side of the screen
+  // (toward its middle), across the board, through the target and out past it, so every wide crescent crosses the
+  // screen (a sandbox box: its own middle, a little past both heroes).
+  const vw = typeof window === 'undefined' ? 1920 : window.innerWidth;
+  const vh = typeof window === 'undefined' ? 1080 : window.innerHeight;
+  const middle = local ? { x: (o.attacker.x + o.defender.x) / 2, y: (o.attacker.y + o.defender.y) / 2 } : { x: vw / 2, y: vh / 2 };
+  const zipSpan = local ? dist * 2.1 : Math.max(dist * 2.1, Math.hypot(vw, vh) * 1.7);
+  const zips = plan.hemorrhage ? zipGeos(plan, o.attacker, o.defender, zipSpan, middle) : [];
+  // Tier IV's claw rakes sweep a wide line too (the build-up), timed to cross the target as each rake bites.
+  const rakes = rakeLines(plan, o.attacker, o.defender, zipSpan, middle);
+  // Where the blood may land: the screen (a sandbox box: round both heroes).
+  const area = local
+    ? { x: Math.min(o.attacker.x, o.defender.x) - dist * 0.25, y: Math.min(o.attacker.y, o.defender.y) - dist * 0.25, w: Math.abs(o.attacker.x - o.defender.x) + dist * 0.5, h: Math.abs(o.attacker.y - o.defender.y) + dist * 0.5 }
+    : { x: 0, y: 0, w: vw, h: vh };
   const zipDirs: Pt[] = zips.map((z) => ({ x: Math.cos(z.angle), y: Math.sin(z.angle) }));
   const mega = zips[0] ?? null;
   const toFoe = (() => { const L = dist || 1; return { x: (o.defender.x - o.attacker.x) / L, y: (o.defender.y - o.attacker.y) / L }; })();
@@ -142,6 +153,9 @@ export function playHeroBleed(o: HeroBleedOptions): HeroBleedHandle {
         cue(c.sfxSwingClip, c.sfxSwingGain * (lastOne ? 1 : 0.8), c.sfxSwingRate + 0.05 * q.i, { lenMs: c.sfxSwingLenMs, fadeMs: 120 });
         cue(c.sfxShingClip, c.sfxShingGain * (lastOne ? 1 : 0.75), c.sfxShingRate + 0.04 * q.i, { startMs: 440, lenMs: 180, fadeMs: 90 });
         if (g && scene) scene.swing(q.i, g, plan.slashes[q.i]!.lines > 1 ? 1.15 : 1, t - q.at);
+        // IV: each rake also sweeps its wide line across the screen, crossing the target as the rake bites.
+        const rl = rakes[q.i];
+        if (rl && scene) scene.startMega(rl, plan.slashes[q.i]!.flightMs * 2);
         break;
       }
       case 'hit': {
@@ -179,7 +193,11 @@ export function playHeroBleed(o: HeroBleedOptions): HeroBleedHandle {
         const z = zips[q.i];
         cue(c.sfxSliceClip, c.sfxSliceGain * 0.75, c.sfxSliceRate + 0.05 * q.i, { lenMs: 380, fadeMs: 140 });
         cue(c.sfxSplatClip, c.sfxSplatGain * 0.6, c.sfxSplatRate + 0.05 * q.i, { lenMs: 400, fadeMs: 160 });
-        if (z) scene?.zipCut(z.angle, o.defender.x, o.defender.y, radius, q.i);
+        if (z) {
+          scene?.zipCut(z.angle, o.defender.x, o.defender.y, radius, q.i);
+          // ...and flings blood across the whole screen along its line, which stays until after the explosion.
+          scene?.screenBlood(z, q.i, plan.impactAt - t + 1100, area);
+        }
         break;
       }
       case 'tension':
@@ -196,7 +214,7 @@ export function playHeroBleed(o: HeroBleedOptions): HeroBleedHandle {
           cue(c.sfxBigClip, c.sfxBigGain * 1.15, c.sfxBigRate - 0.05, { lenMs: 700, fadeMs: 250 });
           cue(c.sfxFleshClip, c.sfxFleshGain * 1.2, c.sfxFleshRate - 0.15, { lenMs: 400, fadeMs: 150 });
           cue(c.sfxSplatClip, c.sfxSplatGain, c.sfxSplatRate - 0.2, { lenMs: 800, fadeMs: 300 });
-          scene?.explode(o.defender.x, o.defender.y, radius, zips[zips.length - 1] ?? null, { burst: plan.burst, drops: plan.drops, drips: plan.drips, flashAlpha: c.flashAlpha, toward: Math.atan2(o.attacker.y - o.defender.y, o.attacker.x - o.defender.x) });
+          scene?.explode(o.defender.x, o.defender.y, radius, zips[zips.length - 1] ?? null, { burst: plan.burst, drops: plan.drops, drips: plan.drips, flashAlpha: c.flashAlpha, toward: Math.atan2(o.attacker.y - o.defender.y, o.attacker.x - o.defender.x), area });
         } else {
           // THE LAST CUT: the slice, the impact, the flesh, the splat (heavier per tier); a crack on III.
           const g = geos[n - 1];

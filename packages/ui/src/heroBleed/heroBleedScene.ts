@@ -88,8 +88,14 @@ export interface BleedLook {
   explosionSize: number;
 }
 
-/** Hard cap on sprites alive at once (the Tier IV explosion, with every zip's wound still open, peaks around 450). */
-export const MAX_BLEED_SPRITES = 1000;
+/**
+ * Hard cap on sprites alive at once. Tier IV paints the screen in blood (owner 2026-09-29: "it should be hilariously
+ * bloody by the end of the combo"): the piled-up spatter from eight zips, every wound, and the explosion peak around 400 live sprites (measured).
+ */
+export const MAX_BLEED_SPRITES = 1400;
+
+/** The area the blood may land on (overlay px): the screen, or a sandbox box. */
+export interface BleedArea { x: number; y: number; w: number; h: number }
 
 type LayerId = 'stain' | 'glow' | 'body' | 'core';
 const LAYERS: readonly [LayerId, 'normal' | 'add'][] = [['stain', 'normal'], ['glow', 'add'], ['body', 'normal'], ['core', 'add']];
@@ -161,7 +167,7 @@ interface Particle {
   align: boolean;
 }
 
-interface Drip { s: Sprite; x: number; y: number; len: number; w: number; age: number; dur: number; delay: number }
+interface Drip { s: Sprite; x: number; y: number; len: number; w: number; age: number; dur: number; delay: number; board?: boolean }
 
 interface Charge { ring: Sprite; glint: Sprite; blade: Sprite; x: number; y: number; hx: number; hy: number; r: number; age: number; dur: number; left: number; releasing: number; heading: number }
 
@@ -534,6 +540,86 @@ export class HeroBleedScene {
   }
 
   /**
+   * Tier IV: a zip FLINGS BLOOD ACROSS THE WHOLE SCREEN along its line: big splats landing along the on-screen half of it
+   * (more with every zip as they speed up) that STAY, piling up through the combo until after the explosion (`holdMs`),
+   * a few drips running down from them, and a spray of droplets flung back down the line.
+   */
+  screenBlood(m: MegaGeo, i: number, holdMs: number, area: BleedArea): void {
+    const c = this.colors;
+    const S = this.scale;
+    const dir = { x: Math.cos(m.angle), y: Math.sin(m.angle) };
+    const nrm = { x: -dir.y, y: dir.x };
+    const n = 7 + 2 * i;
+    // Hold ~55% of the life at full, so the pile stays solid until the explosion, then fades out cleanly.
+    const dur = Math.max(600, holdMs / 0.55);
+    // Only the ON-SCREEN stretch of the line (from the struck hero back to where it leaves the area) gets blood.
+    const inArea = (u: number): boolean => {
+      const x = m.from.x + (m.to.x - m.from.x) * u, y = m.from.y + (m.to.y - m.from.y) * u;
+      return x >= area.x && y >= area.y && x <= area.x + area.w && y <= area.y + area.h;
+    };
+    let uMin = 0.5;
+    while (uMin > 0.02 && inArea(uMin - 0.02)) uMin -= 0.02;
+    let landed = 0;
+    for (let k = 0; k < n * 4 && landed < n; k++) {
+      const u = uMin + this.rnd() * (0.48 - uMin);
+      const off = (this.rnd() - 0.5) * 260 * S;
+      const x = m.from.x + (m.to.x - m.from.x) * u + nrm.x * off;
+      const y = m.from.y + (m.to.y - m.from.y) * u + nrm.y * off;
+      if (x < area.x || y < area.y || x > area.x + area.w || y > area.y + area.h) continue;
+      landed++;
+      const big = 0.55 + this.rnd() * 0.75 + 0.03 * i;
+      const tex = landed % 3 === 0 ? this.tex.spray : landed % 2 ? this.tex.splat : this.tex.splat2;
+      const f = this.fxs('stain', tex, landed % 4 === 0 ? mixColor(c.blood, c.deep, 0.4) : c.blood, x, y, {
+        dur: dur * (0.9 + this.rnd() * 0.2), from: big * 0.55, to: big, a0: 0.88, mode: 'hold', delay: 20 + u * 90,
+      });
+      if (f) f.s.rotation = tex === this.tex.spray ? m.angle + Math.PI : this.rnd() * Math.PI * 2;
+      if (landed % 3 === 1) this.dripAt(x, y + 14 * S * big, (50 + this.rnd() * 90) * S, 120 + this.rnd() * 200);
+    }
+    // Droplets flung back down the line from the target, over the board.
+    const hx = (m.from.x + m.to.x) / 2, hy = (m.from.y + m.to.y) / 2;
+    this.droplets(hx, hy, 8 + 2 * i, 1500, { dir: m.angle + Math.PI, spread: 0.5, life: 900, size: 0.7, lift: 120 });
+  }
+
+  /** One drip on the board (it does not ride the portrait): blood running down from (x, y). */
+  private dripAt(x: number, y: number, len: number, delay: number): void {
+    const s = this.take('stain', this.tex.drip, mixColor(this.colors.blood, this.colors.deep, 0.2));
+    if (!s) return;
+    s.anchor.set(0.5, 0.04);
+    s.alpha = 0;
+    this.drips.push({ s, x, y, len, w: (1 + this.rnd() * 0.5) * this.scale, age: 0, dur: this.look.dripMs * (1.1 + this.rnd() * 0.5), delay, board: true });
+  }
+
+  /**
+   * The explosion PAINTS THE SCREEN: big splats flung over the whole board and out to the UI edges (the farther, the
+   * later), long spatter streaks, drips running down from the biggest, and a crimson vignette closing in round the edges.
+   * All of it holds a moment and fades out cleanly.
+   */
+  private paintScreen(x: number, y: number, area: BleedArea, size: number): void {
+    const c = this.colors;
+    const S = this.scale;
+    const n = Math.round(30 * size);
+    for (let k = 0; k < n; k++) {
+      // Spread over the whole area, weighted a little toward the edges.
+      const edge = this.rnd() < 0.45;
+      const px = edge ? (this.rnd() < 0.5 ? area.x + this.rnd() * area.w * 0.18 : area.x + area.w * (0.82 + this.rnd() * 0.18)) : area.x + this.rnd() * area.w;
+      const py = area.y + this.rnd() * area.h;
+      const far = Math.hypot(px - x, py - y);
+      const big = 0.7 + this.rnd() * 1.1;
+      const tex = k % 4 === 0 ? this.tex.spray : k % 2 ? this.tex.splat : this.tex.splat2;
+      const f = this.fxs('stain', tex, k % 3 === 0 ? mixColor(c.blood, c.deep, 0.45) : c.blood, px, py, {
+        dur: 2600 + this.rnd() * 900, from: big * 0.5, to: big, a0: 0.9, mode: 'hold', delay: 40 + far / (3.2 * S),
+      });
+      if (f) f.s.rotation = tex === this.tex.spray ? Math.atan2(py - y, px - x) : this.rnd() * Math.PI * 2;
+      if (k % 4 === 1) this.dripAt(px, py + 20 * S * big, (70 + this.rnd() * 140) * S, 200 + far / (3.2 * S));
+    }
+    // The crimson vignette: a thick ring that closes in to sit round the screen's edges.
+    const cx = area.x + area.w / 2, cy = area.y + area.h / 2;
+    const ringAt = Math.hypot(area.w, area.h) / 2 / (SHOCK_PX * 0.4) / S;
+    this.fxs('stain', this.tex.shock, mixColor(c.blood, c.deep, 0.55), cx, cy, { dur: 2400, from: ringAt * 1.6, to: ringAt * 1.05, a0: 0.55, mode: 'hold' });
+    this.fxs('glow', this.tex.shock, c.bright, cx, cy, { dur: 1400, from: ringAt * 1.5, to: ringAt * 1.1, a0: 0.25, mode: 'hold' });
+  }
+
+  /**
    * Tier IV: the held tension before the explosion (never a freeze). The wounds pulse faster and faster, blood is drawn
    * in to the heart of the face, a crimson core swells there and a ring tightens round it.
    */
@@ -579,7 +665,7 @@ export class HeroBleedScene {
    * alternating); a huge stain over the face; arterial streaks all round; blood thrown HIGH so it rains down over much
    * of the screen; spatter landing on the board out to the edges; and the stain drips.
    */
-  explode(x: number, y: number, radius: number, m: MegaGeo | null, o: { burst: number; drops: number; drips: number; flashAlpha: number; toward?: number }): void {
+  explode(x: number, y: number, radius: number, m: MegaGeo | null, o: { burst: number; drops: number; drips: number; flashAlpha: number; toward?: number; area?: BleedArea }): void {
     const tn = this.tensionS;
     if (tn) { this.give(tn.core); this.give(tn.ring); this.tensionS = null; }
     const c = this.colors;
@@ -634,6 +720,7 @@ export class HeroBleedScene {
       });
       if (f) f.s.rotation = sp ? a : this.rnd() * Math.PI * 2;
     }
+    if (o.area) this.paintScreen(x, y, o.area, E / 1.6);
     this.tintPulse(x, y, radius, 1.6, 900);
     // The stain drips, a lot.
     this.dripsFrom(x, y, radius, o.drips, 140, true);
@@ -733,7 +820,7 @@ export class HeroBleedScene {
       const u = clamp01(d.age / d.dur);
       // It wells, runs (fastest in the middle), slows at the end; the tail thins and it fades over the last quarter.
       const run = easeInOutSine(Math.min(1, u * 1.25));
-      d.s.position.set(d.x + this.fox, d.y + this.foy);
+      d.s.position.set(d.x + (d.board ? 0 : this.fox), d.y + (d.board ? 0 : this.foy));
       d.s.scale.set(d.w * (1 - 0.25 * u), (6 * S + d.len * run) / DRIP_H);
       d.s.alpha = Math.min(1, u * 8) * (u < 0.75 ? 1 : 1 - (u - 0.75) / 0.25);
       if (u >= 1) { this.give(d.s); this.drips.splice(i, 1); }

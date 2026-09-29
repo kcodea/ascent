@@ -1,0 +1,12 @@
+{
+  "number": 2,
+  "name": "Kobolds",
+  "opponentName": "The Kobold Warren",
+  "tribe": "kobold",
+  "status": "draft",
+  "runes": {},
+  "rounds": [
+    { "board": [] }, { "board": [] }, { "board": [] }, { "board": [] }, { "board": [] },
+    { "board": [] }, { "board": [] }, { "board": [] }, { "board": [] }, { "board": [] }
+  ]
+}

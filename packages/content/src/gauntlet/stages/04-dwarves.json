@@ -1,0 +1,12 @@
+{
+  "number": 4,
+  "name": "Dwarves",
+  "opponentName": "The Dwarven Hold",
+  "tribe": "dwarf",
+  "status": "draft",
+  "runes": {},
+  "rounds": [
+    { "board": [] }, { "board": [] }, { "board": [] }, { "board": [] }, { "board": [] },
+    { "board": [] }, { "board": [] }, { "board": [] }, { "board": [] }, { "board": [] }
+  ]
+}

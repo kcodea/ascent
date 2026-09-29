@@ -1,0 +1,12 @@
+{
+  "number": 3,
+  "name": "Dragons",
+  "opponentName": "The Dragon Roost",
+  "tribe": "dragon",
+  "status": "draft",
+  "runes": {},
+  "rounds": [
+    { "board": [] }, { "board": [] }, { "board": [] }, { "board": [] }, { "board": [] },
+    { "board": [] }, { "board": [] }, { "board": [] }, { "board": [] }, { "board": [] }
+  ]
+}

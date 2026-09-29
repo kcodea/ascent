@@ -6,6 +6,8 @@
  * the Career match card's expand / collapse, including an older match with no details.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { act } from 'react';
 import { cosmeticOf } from '@game/progression';
 import type { MatchDetails, MatchSeat } from '@game/sim';
@@ -131,6 +133,24 @@ describe('the scoreboard', () => {
     expect(ui.container.querySelectorAll('.mds-team .cv2-tile:not(.empty)')).toHaveLength(1);
     // no native tooltips anywhere
     expect(ui.container.querySelector('[title]')).toBeNull();
+  });
+
+  it('STEADY (owner report 2026-09-28, the jitter): board cards stay compact tiles whatever the card-text setting, the strip keeps one height, and the panel reserves its scrollbar gutter', () => {
+    useGame.setState({ compactCards: false }); // the full-text setting: its drawer hung below the tile and made the panel scroll
+    ui = mount(<MatchScoreboard details={LOSS} own />);
+    expect(ui.container.querySelectorAll('.mds-team .card').length).toBeGreaterThan(0);
+    expect(ui.container.querySelectorAll('.mds-team .card.showtext')).toHaveLength(0);
+    // Picking seats re-renders the board, never the rows' order or count (no re-sort, no loop).
+    const order = (): string[] => [...ui!.container.querySelectorAll('.mds-row')].map((r) => r.getAttribute('data-seat')!);
+    const first = order();
+    for (const id of first) click(ui.container.querySelector(`.mds-row[data-seat="${id}"]`));
+    expect(order()).toEqual(first);
+    useGame.setState({ compactCards: true });
+    const css = readFileSync(join(__dirname, 'matchDetails.css'), 'utf8');
+    expect(css).toMatch(/\.mdd-panel[^}]*scrollbar-gutter:\s*stable/);
+    expect(css).toMatch(/\.mdd-panel[^}]*overflow-anchor:\s*none/);
+    expect(css).toMatch(/\.mds-team \{[^}]*min-height:\s*192px/);
+    expect(css).toMatch(/body:has\(\.mdd-scrim\) \.cardref \{ z-index: 580; \}/);
   });
 
   it('an empty or missing board says so plainly', () => {

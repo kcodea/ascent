@@ -54,15 +54,22 @@
 .mds-board-hero { font-weight: 700; font-size: 15px; color: rgba(255, 255, 255, 0.6); }
 .mds-board-tier { flex: none; font-weight: 900; font-size: 13px; letter-spacing: 0.12em; text-transform: uppercase; color: #e8c877; padding: 3px 10px; border-radius: 999px; border: 1px solid rgba(196, 160, 92, 0.45); background: rgba(0, 0, 0, 0.3); }
 .mds-board-caption { font-family: var(--font-ui); font-weight: 700; font-size: 15px; color: rgba(232, 200, 119, 0.92); }
-/* The stored-board strip measures its tiles against this box (container units, see `.cv2-team`). */
-.mds-team { container-type: inline-size; min-width: 0; }
+/* The stored-board strip measures its tiles against this box (container units, see `.cv2-team`). The cards are pinned
+   compact (`StoredTeam compact`), so nothing hangs below a tile; the strip keeps one height for every seat (an empty
+   board and a full one are the same size, so picking a player never resizes the panel). */
+.mds-team { container-type: inline-size; min-width: 0; min-height: 192px; display: flex; flex-direction: column; justify-content: center; }
 .mds-empty { font-family: var(--font-ui); font-weight: 600; font-size: 15px; color: rgba(255, 255, 255, 0.55); padding: 26px 0 30px; }
 
 /* ── THE END SCREEN DIALOG ── */
 .mdd-scrim { position: fixed; inset: 0; z-index: 560; display: grid; place-items: center; background: rgba(4, 8, 16, 0.72); animation: fadein 0.16s ease; }
 .mdd-panel { width: min(1240px, calc(94 * var(--vw, 1vw))); max-height: calc(92 * var(--vh, 1vh)); overflow-y: auto; display: flex; flex-direction: column; gap: 14px; padding: 18px 22px 20px;
   color: #f4eee2; background: linear-gradient(180deg, rgba(13, 22, 40, 0.97), rgba(9, 15, 29, 0.98)); border: 2px solid rgba(196, 160, 92, 0.55); border-radius: 18px;
-  box-shadow: inset 0 0 0 1px rgba(196, 160, 92, 0.16), 0 24px 60px -18px rgba(0, 0, 0, 0.75); animation: mddin 0.18s ease-out; }
+  box-shadow: inset 0 0 0 1px rgba(196, 160, 92, 0.16), 0 24px 60px -18px rgba(0, 0, 0, 0.75); animation: mddin 0.18s ease-out;
+  /* STEADY (owner report 2026-09-28, "this screen is jittering all over the place"): the board's tiles are sized off
+     this panel's width, so a scrollbar that comes and goes changed the tiles, which changed the overflow, which
+     toggled the scrollbar again. The gutter is always reserved (the width never depends on the scrollbar), and
+     scroll anchoring is off (a height change never nudges the scroll position). */
+  scrollbar-gutter: stable; overflow-anchor: none; }
 /* A WIDE, SHORT layout viewport (a phone in landscape: the stage lays out ~2340 x 1080 and scales it down by ~0.36)
    has room to spare sideways, so the dialog grows into it and its text stays readable. `zoom` scales the panel's
    layout, not a transform, so the board strip's container units and the hover popups stay correct. Desktop
@@ -96,3 +103,7 @@
 .cv2-foot-actions { display: flex; align-items: center; gap: 10px; flex: none; }
 .cv2-lobby { padding-top: 14px; border-top: 1px solid rgba(196, 160, 92, 0.18); }
 .cv2-lobby-none { font-family: var(--font-ui); font-weight: 600; font-size: 15px; color: rgba(255, 255, 255, 0.55); padding: 6px 0 2px; }
+
+/* The Card's hover reveal (the full card, portalled at z 460) must float ABOVE this dialog (z 560), or hovering a
+   board card opened it hidden behind the scrim. */
+body:has(.mdd-scrim) .cardref { z-index: 580; }

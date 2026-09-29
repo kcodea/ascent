@@ -157,7 +157,7 @@ export function MatchScoreboard({ details, own }: { details: MatchDetails; own: 
           <div className="mds-board-caption">{boardCaption(selected, details)}</div>
           <div className="mds-team">
             {selected.board && selected.board.minions.length > 0
-              ? <StoredTeam minions={selected.board.minions} skins={selSkins} label={`${selected.name}'s board`} />
+              ? <StoredTeam minions={selected.board.minions} skins={selSkins} label={`${selected.name}'s board`} compact />
               : <div className="mds-empty">{selected.board ? 'This board was empty.' : 'No board was recorded for this player.'}</div>}
           </div>
         </section>

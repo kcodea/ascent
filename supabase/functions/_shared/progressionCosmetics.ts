@@ -156,6 +156,22 @@ export const COSMETICS: readonly CosmeticDef[] = Object.freeze([
   skin('skin_blackbelt_3', 'minion_skin', 'Grandmaster Brian', 'legendary', 'blackbelt', 'BlackBeltBrianSkinLegendary.png'),
   // Owner 2026-09-28: "put the bellringer voss skin in too". Epic per the owner's filename; the name is a placeholder.
   skin('skin_bellringer_1', 'minion_skin', 'Clocktower Voss', 'epic', 'n2_bellringer', 'BellringerVossSkinEpic.png'),
+  // Batch 2. Owner 2026-09-28: "i added some skins here: can you wire those up now?" (Skins/Minion Skins). Rarity per
+  // the owner's filenames; every name is a placeholder for the owner to rename (the ids stay). Drakko is the MINION
+  // (card id drummer), not the hero. The Steward of Spells master is named "SpellSteward".
+  skin('skin_blackbelt_4', 'minion_skin', 'Sketchbook Brian', 'common', 'blackbelt', 'BlackBeltBrianCommonSkin.png'),
+  skin('skin_drummer_1', 'minion_skin', 'Rock Star Drakko', 'rare', 'drummer', 'DrakkoSkinRare.png'),
+  skin('skin_drummer_2', 'minion_skin', 'Crowd Surf Drakko', 'epic', 'drummer', 'DrakkoSkinEpic.png'),
+  skin('skin_drummer_3', 'minion_skin', 'Cashier Drakko', 'epic', 'drummer', 'DrakkoSkinEpic2.png'),
+  skin('skin_jenkins_1', 'minion_skin', 'Joyride Jensen & Fi', 'rare', 'jenkins', 'JensenAndFiSkinRare.png'),
+  skin('skin_joker_1', 'minion_skin', 'Lounge Act Joker', 'rare', 'joker', 'MysteriousJokerSkinRare.png'),
+  skin('skin_nimbus_1', 'minion_skin', 'Storm Front Nimbus', 'rare', 'nimbus', 'NimbusSkinRare.png'),
+  skin('skin_paragon_1', 'minion_skin', 'Superfan Paragon', 'rare', 'n2_paragon', 'ParagonSkinRare.png'),
+  skin('skin_stewardofspells_1', 'minion_skin', 'Potion Stand Steward', 'epic', 'stewardofspells', 'SpellStewardSkinEpic.png'),
+  skin('skin_sylus_1', 'minion_skin', 'Slam Dunk Sylus', 'rare', 'sylus', 'SylusSkinRare.png'),
+  skin('skin_sylus_2', 'minion_skin', 'Tee Time Sylus', 'legendary', 'sylus', 'SylusSkinLegendary.png'),
+  skin('skin_venom_1', 'minion_skin', 'Candy Cane Venom', 'epic', 'venom', 'VenomSkinEpic.png'),
+  skin('skin_zyff_1', 'minion_skin', 'Double Agent Zyff', 'rare', 'zyff', 'ZyffSkinRare.png'),
   skin('skin_albus_1', 'hero_skin', 'Surf Day Albus', 'epic', 'albus', 'Albus1.png'),
   skin('skin_warden_1', 'hero_skin', 'Bath Day Warden', 'epic', 'warden', 'Warden1.png'),
   // HERO ATTACKS. Owner 2026-09-28: "the new blast attack is going to be a cosmetic unlock, not a new default". The

@@ -1940,7 +1940,7 @@ export const FOUNDATION_RULES: GameRule[] = [
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-28 (skins v1 brief)', quote: "let's use these 2 hero skins as our first 2 hero skin concepts" },
       { kind: 'code', ref: 'packages/ui/src/skins/skinArt.ts (heroPortrait / minionSkinMap / the Card context); packages/sim/src/snapshot.ts (scopeCosmetics); packages/sim/src/lobby/snapshotSeats.ts + runLobby.ts (seat cosmetics); packages/ui/src/store.ts (recordRunCosmetics)' },
     ],
-    currentBehaviour: 'Conforms, built 2026-09-28: Sheriff Brian, Glitch Brian and Grandmaster Brian (Black Belt Brian), Clocktower Voss (Bellringer Voss), Surf Day Albus, Bath Day Warden (placeholder names).',
+    currentBehaviour: 'Conforms, built 2026-09-28: Sheriff Brian, Glitch Brian, Grandmaster Brian and Sketchbook Brian (Black Belt Brian), Clocktower Voss (Bellringer Voss), the batch-2 minion skins (R-PROG-SKINS-07), Surf Day Albus, Bath Day Warden (placeholder names).',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/skins/skins.test.tsx', 'packages/ui/src/skins/lobbySkins.test.tsx', 'packages/sim/src/lobby/seatCosmetics.test.ts', 'packages/ui/src/Career.test.tsx'], lastVerifiedAt: '2026-09-28' },
   },
   {
@@ -2041,6 +2041,28 @@ export const FOUNDATION_RULES: GameRule[] = [
     ],
     currentBehaviour: 'Conforms, built 2026-09-28. Reaches the database on the next deploy of progression-inventory (the catalog sync, R-PROG-SKINS-05).',
     enforcement: { kind: 'scenario', refs: ['packages/progression/src/skins.test.ts', 'packages/progression/src/cosmetics.test.ts', 'packages/ui/src/skins/skins.test.tsx'], lastVerifiedAt: '2026-09-28' },
+  },
+  {
+    id: 'R-PROG-SKINS-07',
+    title: 'Skins batch 2: thirteen more minion skins join the crates, rarity from the owner filenames',
+    statement:
+      'Thirteen minion skins from C:/Game Assets/Ascent Art/Skins/Minion Skins are crate items, each targeting its card by '
+      + 'stable id and shipping its own art (packages/ui/src/art/skins/<id>.webp): skin_blackbelt_4 (Common, Black Belt '
+      + 'Brian), skin_drummer_1 (Rare), skin_drummer_2 and skin_drummer_3 (Epic) for the Drakko MINION (card id drummer, not '
+      + 'the hero), skin_jenkins_1 (Rare, Jensen & Fi), skin_joker_1 (Rare, Mysterious Joker), skin_nimbus_1 (Rare, Nimbus), '
+      + 'skin_paragon_1 (Rare, the Set 2 Paragon, not Deepdelve Paragon), skin_stewardofspells_1 (Epic, Steward of Spells; '
+      + 'master SpellStewardSkinEpic.png), skin_sylus_1 (Rare) and skin_sylus_2 (Legendary) for Sylus, skin_venom_1 (Epic, '
+      + 'Venom) and skin_zyff_1 (Rare, Zyff, the Betrayer). Names are placeholders for the owner to rename (ids stay). With '
+      + 'them in, the first-crate odds are Common 29.6%, Rare 50.7%, Epic 16.6%, Legendary 3.1%, and a non-title item 71.2% '
+      + '(total weight 19515).',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-28 (skins batch 2)', quote: 'i added some skins here: can you wire those up now?' },
+      { kind: 'code', ref: 'packages/progression/src/cosmetics.ts (COSMETICS, skins batch 2); packages/ui/src/art/skins/*.webp' },
+    ],
+    currentBehaviour: 'Conforms, built 2026-09-28. Reaches the database on the next deploy of progression-inventory (the catalog sync, R-PROG-SKINS-05).',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/skins/skins.test.tsx', 'packages/progression/src/skins.test.ts', 'packages/progression/src/cosmetics.test.ts', 'packages/ui/src/progression/CollectionSkins.test.tsx'], lastVerifiedAt: '2026-09-28' },
   },
   {
     id: 'R-PROG-COLLECTION-03',

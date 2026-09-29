@@ -67,6 +67,32 @@ describe('the catalog <-> the bundle', () => {
     expect(skinArtOf(c)).toBeTruthy();
     expect(minionSkinOf({ minionSkinByCardId: { n2_bellringer: 'skin_bellringer_1' } }, 'n2_bellringer')?.id).toBe('skin_bellringer_1');
   });
+  // Skins batch 2 (owner 2026-09-28: "i added some skins here: can you wire those up now?"). Each exists, targets its
+  // card (checked by name too, so a wrong id cannot hide), is attributed to the owner's master, and ships its art.
+  const BATCH2: [id: string, rarity: string, cardId: string, cardName: string, master: string][] = [
+    ['skin_blackbelt_4', 'common', 'blackbelt', 'Black Belt Brian', 'BlackBeltBrianCommonSkin.png'],
+    ['skin_drummer_1', 'rare', 'drummer', 'Drakko', 'DrakkoSkinRare.png'],
+    ['skin_drummer_2', 'epic', 'drummer', 'Drakko', 'DrakkoSkinEpic.png'],
+    ['skin_drummer_3', 'epic', 'drummer', 'Drakko', 'DrakkoSkinEpic2.png'],
+    ['skin_jenkins_1', 'rare', 'jenkins', 'Jensen & Fi', 'JensenAndFiSkinRare.png'],
+    ['skin_joker_1', 'rare', 'joker', 'Mysterious Joker', 'MysteriousJokerSkinRare.png'],
+    ['skin_nimbus_1', 'rare', 'nimbus', 'Nimbus', 'NimbusSkinRare.png'],
+    ['skin_paragon_1', 'rare', 'n2_paragon', 'Paragon', 'ParagonSkinRare.png'],
+    ['skin_stewardofspells_1', 'epic', 'stewardofspells', 'Steward of Spells', 'SpellStewardSkinEpic.png'],
+    ['skin_sylus_1', 'rare', 'sylus', 'Sylus', 'SylusSkinRare.png'],
+    ['skin_sylus_2', 'legendary', 'sylus', 'Sylus', 'SylusSkinLegendary.png'],
+    ['skin_venom_1', 'epic', 'venom', 'Venom', 'VenomSkinEpic.png'],
+    ['skin_zyff_1', 'rare', 'zyff', 'Zyff, the Betrayer', 'ZyffSkinRare.png'],
+  ];
+  it.each(BATCH2)('batch 2: %s (%s) exists, targets %s, and ships its art', (id, rarity, cardId, cardName, master) => {
+    const c = cosmeticOf(id)!;
+    expect(c).toBeTruthy();
+    expect([c.category, c.rarity, c.target, c.assets.master, c.active]).toEqual(['minion_skin', rarity, { type: 'card', id: cardId }, master, true]);
+    expect(CARD_INDEX[cardId]?.name).toBe(cardName);
+    expect(skinArtKeys()).toContain(id);
+    expect(skinArtOf(c)).toBeTruthy();
+    expect(minionSkinOf({ minionSkinByCardId: { [cardId]: id } }, cardId)?.id).toBe(id);
+  });
   it('every skin targets a REAL collectible card (never a token) or a REAL hero, by stable id', () => {
     for (const c of skins) {
       if (c.category === 'minion_skin') {

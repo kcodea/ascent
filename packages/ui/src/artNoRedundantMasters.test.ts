@@ -144,6 +144,8 @@ describe('no redundant PNG masters ship alongside their WebP builds', () => {
     // and Warden hero skins; owner-named, WebP only, the masters stay under `C:\Game Assets\Ascent Art\Skins\`).
     // → 1282: the Legendary Black Belt Brian and the Epic Bellringer Voss skins 2026-09-28 (+2:
     // `art/skins/skin_blackbelt_3.webp` and `skin_bellringer_1.webp`, both owner-named).
-    expect(total, `art files: ${total} — the WHOLE-ZIP count (~${total + 176}) is what itch caps at 1000`).toBeLessThan(1282);
+    // → 1295: skins batch 2 2026-09-28 (+13 in `art/skins/`: Weekend Brian, three Drakko, Jensen & Fi, Mysterious
+    // Joker, Nimbus, Paragon, Steward of Spells, two Sylus, Venom, Zyff; owner-named: "i added some skins here").
+    expect(total, `art files: ${total} — the WHOLE-ZIP count (~${total + 176}) is what itch caps at 1000`).toBeLessThan(1295);
   });
 });

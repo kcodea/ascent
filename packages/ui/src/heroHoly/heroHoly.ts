@@ -152,7 +152,7 @@ export function playHeroHoly(o: HeroHolyOptions): HeroHolyHandle {
       case 'drop': {
         const sm = plan.smites[q.i]!;
         cue(c.sfxDropClip, c.sfxDropGain * (q.i === plan.smites.length - 1 ? 1 : 0.75), c.sfxDropRate + 0.06 * q.i, { lenMs: 520, fadeMs: 200 });
-        scene?.dropPillar(d.x, d.y, radius, sm.hitAt - sm.dropAt, plan.pillarWidth, sm.size);
+        scene?.dropPillar(d.x, d.y, radius, sm.hitAt - sm.dropAt, plan.pillarWidth, sm.size, (local ? 6 : 24) * s);
         break;
       }
       case 'smite':

@@ -55,6 +55,17 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: 'A new Legendary hero attack, Consecration, can drop from crates.',
+        details: [
+          'Your damage builds up, then your hero calls down holy light in gold and white.',
+          'A golden sigil lands on the other hero and a pillar of light smites it. Bigger hits smite twice, then rain spears of light first.',
+          'On the biggest hits a huge holy sword drops from the sky, explodes into light, and sends a blast of cracked, holy ground racing at the other hero.',
+          'Equip it from the Attack Animations tab of the Collection. There is a preview button there too.',
+          'Hero attacks are looks only. The damage is exactly the same.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'A new Legendary hero attack, Enraged Strike, can drop from crates.',
         details: [
           'It is the Classic lunge, enraged. Your damage builds up, then your hero burns with rage, dashes in leaving afterimages, and tears into the other hero.',

@@ -385,10 +385,13 @@ export class HeroHolyScene {
     this.tw('hot', this.tex.glow, c.core, x, y, { delay: durMs * 0.85, dur: 140, from: (r * 1.2) / GLOW_PX / S, to: (r * 1.8) / GLOW_PX / S, a0: 0.35 });
   }
 
-  /** A pillar of light drops out of the sky onto (x, foot) over `dropMs`. */
-  dropPillar(x: number, foot: number, r: number, dropMs: number, width: number, size: number): void {
-    const top = foot - Math.max(1100 * this.scale, r * 12) * this.look.pillarHeight;
-    this.column('drop', x, top, foot, r * 1.05 * width * size, dropMs, 110, 320);
+  /**
+   * A pillar of light drops out of the sky onto (x, foot) over `dropMs`, from just above the top of the frame (`top`),
+   * so all of its drop is seen even onto a hero at the top edge.
+   */
+  dropPillar(x: number, foot: number, r: number, dropMs: number, width: number, size: number, top: number): void {
+    const from = Math.min(foot - r * 2.5, top - 30 * this.scale, foot - Math.max(1100 * this.scale, r * 12) * (this.look.pillarHeight - 1));
+    this.column('drop', x, from, foot, r * 1.05 * width * size, dropMs, 110, 320);
   }
 
   /** A smite that is not the last (a tick): line work over a small, quick flash. The sigil flares with it. */

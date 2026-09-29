@@ -205,8 +205,8 @@ export const HERO_HOLY_DEFAULTS: HeroHolyConfig = {
   pillarHeight: 1,
   raysSize: 1,
   spearSize: 1,
-  spearRing: 1.25,
-  spearSlant: 0.5,
+  spearRing: 1.75,
+  spearSlant: 1,
   seedGlow: 1,
   swordSize: 1.15,
   swordAlong: 0.5,
@@ -228,7 +228,7 @@ export const HERO_HOLY_DEFAULTS: HeroHolyConfig = {
   flamePillars: 9,
   flameHeight: 1,
   lingerMs: 720,
-  dissolveMs: 340,
+  dissolveMs: 220,
   flashAlpha: 0.9,
   knockPx: 16,
   squash: 0.09,
@@ -630,13 +630,16 @@ export function holyGeo(p: HolyPlan, a: Pt, d: Pt, radius: number, c: HeroHolyCo
   const spears: SpearPath[] = [];
   const n = p.spears.length;
   const inAng = Math.atan2(a.y - d.y, a.x - d.x);
+  // They land in a fan on the side of the target facing the striker (the middle of the screen: a hero in a corner still
+  // has every spear in view), the first in the middle of the fan, then alternating out either side of it.
+  const arc = Math.min(Math.PI * 1.2, 0.45 * Math.max(1, n - 1));
+  const step = n > 1 ? arc / (n - 1) : 0;
   for (let i = 0; i < n; i++) {
-    // Round the target, fanned out from the side facing the striker, alternating either side of it.
     const j = i === 0 ? 0 : Math.ceil(i / 2) * (i % 2 ? 1 : -1);
-    const ang = inAng + j * ((Math.PI * 2) / Math.max(n, 1)) * 0.95;
+    const ang = inAng + (j - (n % 2 === 0 ? 0.5 : 0)) * step;
     const rr = radius * c.spearRing * (0.92 + 0.12 * ((i * 5) % 3) / 2);
     const to = { x: d.x + Math.cos(ang) * rr, y: d.y + Math.sin(ang) * rr * 0.8 };
-    const L = 560 * unit;
+    const L = 420 * unit;
     const sl = c.spearSlant * (0.85 + 0.3 * ((i * 3) % 4) / 3);
     const v = { x: lean * sl, y: -1 };
     const vl = Math.hypot(v.x, v.y);
@@ -696,7 +699,7 @@ export function swordTipY(p: HolyPlan, g: HolyGeo, t: number): number {
     return g.swordFrom + (g.swordTip.y - g.swordFrom) * Math.pow(u, 2.2);
   }
   const since = t - p.slamAt;
-  const bite = g.swordLen * 0.035 * Math.exp(-since / 70) * Math.cos(since * 0.03);
+  const bite = g.swordLen * 0.035 * Math.exp(-since / 70) * Math.sin(since * 0.03);
   return g.swordTip.y + bite;
 }
 

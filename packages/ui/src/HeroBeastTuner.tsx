@@ -1,7 +1,6 @@
-import { useState } from 'react';
 import {
   BEAST_TIER_SUFFIXES, HERO_BEAST_DEFAULTS, HERO_BEAST_RANGES, TIERS, beastPlan, getHeroBeastConfig,
-  heroBeastConfigJson, heroBeastPreviewSpeed, resetHeroBeastConfig, setHeroBeastPreviewSpeed, setHeroBeastValue,
+  heroBeastConfigJson, resetHeroBeastConfig, setHeroBeastValue,
   type BeastTierSuffix, type HeroBeastConfig, type HeroBeastNumKey, type HeroBeastStrKey, type TierNum,
 } from './heroBeast/heroBeastConfig';
 import { clipNames } from './sfx';
@@ -9,7 +8,7 @@ import { DEV_HERO_ATTACK_CHOICES, DEV_HERO_ATTACK_LABELS, devHeroAttackChoice, s
 import { playHeroBeast, type HeroBeastHandle, type HeroBeastOptions } from './heroBeast/heroBeast';
 import { boardOfDamage, playAttackDemo, previewLeadIn, previewParts } from './heroAttack/attackDemo';
 import { TunerPanel } from './TunerPanel';
-import { TUNERS_RESET_EVENT, type TunerAction, type TunerControl, type TunerSpec, type TunerUnit } from './tunerSchema';
+import type { TunerAction, TunerControl, TunerSpec, TunerUnit } from './tunerSchema';
 
 /**
  * DEV tuner for the STAMPEDE, the beast chomp rush hero attack (owner ask 2026-09-29: "make some more attack types ...
@@ -19,8 +18,8 @@ import { TUNERS_RESET_EVENT, type TunerAction, type TunerControl, type TunerSpec
  * (Auto = what a player would see). Production plays the baked defaults.
  *
  * THE BUTTON ROW SITS AT THE TOP (owner ask 2026-09-29, for every hero attack tuner: remove the Speed and Reduced motion
- * buttons, and put the button row at the top): Copy JSON, Reset and the Play buttons render in the panel's top slot
- * (`readout`), so no shared panel code changes for this one tuner.
+ * buttons, and put the button row at the top): the shared `buttonsOnTop` (#1843) renders Copy JSON, Reset and the Play
+ * buttons under the header, like every other attack tuner.
  */
 type BeastTunerValues = HeroBeastConfig & { attackStyle: string };
 
@@ -188,16 +187,16 @@ export function demo(
   const cfg = getHeroBeastConfig();
   return playAttackDemo(side, (o) => playHeroBeast(o), {
     board: boardOfDamage(opts.damage ?? cfg.previewDamage, opts.parts ?? cfg.previewParts),
-    speed: heroBeastPreviewSpeed(), reduced: opts.reduced, frames: opts.frames, sound: opts.sound, safety: opts.safety,
+    speed: 1, reduced: opts.reduced, frames: opts.frames, sound: opts.sound, safety: opts.safety,
   }, () => { live = null; }).then((h) => { live = h; return h; });
 }
 
 // DEV: a console / capture-rig handle on the same player the buttons use.
 if (import.meta.env.DEV && typeof window !== 'undefined') {
-  (window as unknown as { __heroBeast?: unknown }).__heroBeast = { demo, previewParts, setSpeed: setHeroBeastPreviewSpeed };
+  (window as unknown as { __heroBeast?: unknown }).__heroBeast = { demo, previewParts };
 }
 
-/** The Play buttons (the top row, after Copy JSON and Reset). */
+/** The Play buttons (the top row, after the shared Copy JSON and Reset). */
 export const BEAST_TUNER_PLAYS: TunerAction[] = [
   { label: '▶ You rush', hint: 'Your hero looses the pack at the foe for the preview damage.', run: () => { void demo('player'); } },
   { label: '▶ Foe rushes', hint: 'The foe looses the pack at your hero for the preview damage.', run: () => { void demo('opp'); } },
@@ -210,30 +209,6 @@ export const BEAST_TUNER_PLAYS: TunerAction[] = [
   { label: '▶ Foe medium (12)', hint: 'The foe attacks your hero for 12.', run: () => { void demo('opp', { damage: 12, parts: 4 }); } },
   { label: '▶ Foe huge (40)', hint: 'The foe attacks your hero for 40.', run: () => { void demo('opp', { damage: 40, parts: 7 }); } },
 ];
-
-/** The top button row: Copy JSON, Reset (through the panel's own reset event, so the sliders redraw), then Play. */
-function BeastTunerButtons(): JSX.Element {
-  const [copied, setCopied] = useState(false);
-  const copy = (): void => {
-    void navigator.clipboard?.writeText(heroBeastConfigJson());
-    setCopied(true);
-    window.setTimeout(() => setCopied(false), 1400);
-  };
-  const reset = (): void => {
-    resetHeroBeastConfig();
-    setDevHeroAttackChoice('auto');
-    window.dispatchEvent(new Event(TUNERS_RESET_EVENT));
-  };
-  return (
-    <div className="lunge-btns">
-      <button className="sfxmix-copy" onClick={copy}>{copied ? 'Copied!' : 'Copy JSON'}</button>
-      <button className="sfxmix-copy" onClick={reset}>Reset</button>
-      {BEAST_TUNER_PLAYS.map((a) => (
-        <button className="sfxmix-copy" key={a.label} onClick={() => a.run(null)} aria-label={a.hint}>{a.label}</button>
-      ))}
-    </div>
-  );
-}
 
 export const SPEC: TunerSpec<BeastTunerValues> = {
   id: 'herobeast',                  // FROZEN: indexes this panel's dragged position in localStorage
@@ -251,8 +226,8 @@ export const SPEC: TunerSpec<BeastTunerValues> = {
   controls: buildControls(),
   copy: () => heroBeastConfigJson(),
   copyLabel: 'Copy JSON',
-  // The button row lives at the TOP (the panel's readout slot); no Play buttons at the bottom.
-  readout: () => <BeastTunerButtons />,
+  buttonsOnTop: true,
+  actions: BEAST_TUNER_PLAYS,
 };
 
 export function HeroBeastTuner(): JSX.Element {

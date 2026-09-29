@@ -25,6 +25,8 @@ import { playHeroEnraged } from '../heroEnraged/heroEnraged';
 import { playHeroPoison } from '../heroPoison/heroPoison';
 import { playHeroFrost } from '../heroFrost/heroFrost';
 import { playHeroHoly } from '../heroHoly/heroHoly';
+import { playHeroFire } from '../heroFire/heroFire';
+import { playHeroUndead } from '../heroUndead/heroUndead';
 import { playHeroBeast } from '../heroBeast/heroBeast';
 import { SPEC, boardOf } from '../DamageFormationTuner';
 import { Sequence } from './sequence';
@@ -66,7 +68,7 @@ describe('the tuner values', () => {
     for (const k of ['previewMinions', 'previewTierLo', 'previewTierHi', 'previewHeroTier', 'previewCap']) expect(json[k], k).toBeUndefined();
     expect(json.capMs).toBe(C.capMs);
     const labels = (SPEC.actions ?? []).map((a) => a.label);
-    for (const l of ['▶ You attack', '▶ Foe attacks', '▶ Other direction', '▶ 4 minions, capped', '▶ Reduced motion', 'Speed 1x', 'Speed 0.5x', 'Speed 0.25x']) expect(labels).toContain(l);
+    for (const l of ['▶ You attack', '▶ Foe attacks', '▶ Other direction', '▶ 4 minions, capped']) expect(labels).toContain(l);
   });
 
   it('the preview board spreads its tiers left to right, low to high', () => {
@@ -309,6 +311,8 @@ describe('the runners', () => {
       ['poison', (o) => playHeroPoison({ ...o, textures: null })],
       ['frost', (o) => playHeroFrost({ ...o, textures: TEX })],
       ['holy', (o) => playHeroHoly({ ...o, textures: TEX })],
+      ['fire', (o) => playHeroFire({ ...o, textures: TEX })],
+      ['undead', (o) => playHeroUndead({ ...o, textures: TEX })],
       ['beast', (o) => playHeroBeast({ ...o, textures: TEX })],
     ];
     const lead = leadInOf([4, 2, 3, 4], false, true);
@@ -455,6 +459,8 @@ describe('no attack ever pauses its clock (owner 2026-09-28: "remove the freezei
     ['poison', (o) => playHeroPoison({ ...o, textures: null })],
     ['frost', (o) => playHeroFrost({ ...o, textures: null })],
     ['holy', (o) => playHeroHoly({ ...o, textures: null })],
+    ['fire', (o) => playHeroFire({ ...o, textures: null })],
+    ['undead', (o) => playHeroUndead({ ...o, textures: null })],
     ['beast', (o) => playHeroBeast({ ...o, textures: null })],
   ];
 

@@ -1,6 +1,6 @@
 import {
-  HERO_HOLY_DEFAULTS, HERO_HOLY_RANGES, HERO_HOLY_SPEEDS, HOLY_TIER_SUFFIXES, TIERS, getHeroHolyConfig, heroHolyConfigJson,
-  heroHolyPreviewSpeed, holyPlan, resetHeroHolyConfig, setHeroHolyPreviewSpeed, setHeroHolyValue,
+  HERO_HOLY_DEFAULTS, HERO_HOLY_RANGES, HOLY_TIER_SUFFIXES, TIERS, getHeroHolyConfig, heroHolyConfigJson,
+  holyPlan, resetHeroHolyConfig, setHeroHolyValue,
   type HeroHolyConfig, type HeroHolyNumKey, type HeroHolyStrKey, type HolyTierSuffix, type TierNum,
 } from './heroHoly/heroHolyConfig';
 import { clipNames } from './sfx';
@@ -13,8 +13,8 @@ import type { TunerControl, TunerSpec, TunerUnit } from './tunerSchema';
 /**
  * DEV tuner for the HOLY hero attack, the Consecration cosmetic (owner ask 2026-09-28: "branch off and create a holy
  * weapon + consecration attack"). The Play buttons run the REAL runner between the two real hero portraits (works from
- * the shop), in either direction, at Small 3 / Tier II 8 / Medium 12 / Huge 40, with reduced motion, at 1x / 0.5x /
- * 0.25x. A preview never touches the run. The "Attack style" row is the same dev override as the other attack tuners'
+ * the shop), in either direction, at Small 3 / Tier II 8 / Medium 12 / Huge 40.
+ * A preview never touches the run. The "Attack style" row is the same dev override as the other attack tuners'
  * (Auto = what a player would see). Production plays the baked defaults.
  */
 type HolyTunerValues = HeroHolyConfig & { attackStyle: string };
@@ -208,13 +208,13 @@ export function demo(
   const cfg = getHeroHolyConfig();
   return playAttackDemo(side, (o) => playHeroHoly(o), {
     board: boardOfDamage(opts.damage ?? cfg.previewDamage, opts.parts ?? cfg.previewParts),
-    speed: heroHolyPreviewSpeed(), reduced: opts.reduced, frames: opts.frames, sound: opts.sound, safety: opts.safety,
+    speed: 1, reduced: opts.reduced, frames: opts.frames, sound: opts.sound, safety: opts.safety,
   }, () => { live = null; }).then((h) => { live = h; return h; });
 }
 
 // DEV: a console / capture-rig handle on the same player the buttons use.
 if (import.meta.env.DEV && typeof window !== 'undefined') {
-  (window as unknown as { __heroHoly?: unknown }).__heroHoly = { demo, previewParts, setSpeed: setHeroHolyPreviewSpeed };
+  (window as unknown as { __heroHoly?: unknown }).__heroHoly = { demo, previewParts };
 }
 
 export const SPEC: TunerSpec<HolyTunerValues> = {
@@ -224,7 +224,7 @@ export const SPEC: TunerSpec<HolyTunerValues> = {
     const c = getHeroHolyConfig();
     const p = holyPlan({ leadIn: previewLeadIn(c.previewDamage, c.previewParts), total: c.previewDamage, distance: 1600 }, c);
     const what = p.sword ? 'sword + consecration' : p.spears.length ? `${p.spears.length} spears + smite` : `${p.smites.length} smite${p.smites.length === 1 ? '' : 's'}`;
-    return `dev · ${heroHolyPreviewSpeed()}x · tier ${p.tier} · ${what} · impact ${Math.round(p.impactAt)} · end ${Math.round(p.endAt)} ms`;
+    return `dev · tier ${p.tier} · ${what} · impact ${Math.round(p.impactAt)} · end ${Math.round(p.endAt)} ms`;
   },
   read: () => ({ ...getHeroHolyConfig(), attackStyle: devHeroAttackChoice() }),
   write: (key, value) => setHeroHolyValue(key as keyof HeroHolyConfig, value),
@@ -234,6 +234,7 @@ export const SPEC: TunerSpec<HolyTunerValues> = {
   controls: buildControls(),
   copy: () => heroHolyConfigJson(),
   copyLabel: 'Copy JSON',
+  buttonsOnTop: true,
   actions: [
     { label: '▶ You smite', hint: 'Your hero smites the foe for the preview damage.', run: () => { void demo('player'); } },
     { label: '▶ Foe smites', hint: 'The foe smites your hero for the preview damage.', run: () => { void demo('opp'); } },
@@ -245,12 +246,6 @@ export const SPEC: TunerSpec<HolyTunerValues> = {
     { label: '▶ Foe tier II (8)', hint: 'The foe smites your hero for 8.', run: () => { void demo('opp', { damage: 8, parts: 3 }); } },
     { label: '▶ Foe medium (12)', hint: 'The foe smites your hero for 12.', run: () => { void demo('opp', { damage: 12, parts: 4 }); } },
     { label: '▶ Foe huge (40)', hint: 'The foe smites your hero for 40.', run: () => { void demo('opp', { damage: 40, parts: 7 }); } },
-    { label: '▶ Reduced motion', hint: 'What a player with reduced motion on sees: fades, no pillars, sword, shake or zoom.', run: () => { void demo('player', { reduced: true }); } },
-    ...HERO_HOLY_SPEEDS.map((s) => ({
-      label: `Speed ${s}x`,
-      hint: 'Slow motion for the next plays (the tuner only; never saved, never in production).',
-      run: () => { setHeroHolyPreviewSpeed(s); },
-    })),
   ],
 };
 

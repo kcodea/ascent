@@ -2129,8 +2129,8 @@ export const FOUNDATION_RULES: GameRule[] = [
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-28 (achievements batch 1 brief)', quote: 'we need set 2 achievements because that is the active set right now.' },
       { kind: 'code', ref: 'packages/progression/src/achievements.ts (ACHIEVEMENTS, rewards.titleId, hidden)' },
     ],
-    currentBehaviour: 'Conforms, built 2026-09-28 (off until the owner sets progression_config.achievements_epoch).',
-    enforcement: { kind: 'scenario', refs: ['packages/progression/src/achievements.test.ts'], lastVerifiedAt: '2026-09-28' },
+    currentBehaviour: 'Conforms, built 2026-09-28 (off until the owner sets progression_config.achievements_epoch). Extended 2026-09-29 by R-ACH-04: the hero Titled (new, 3 Ranked 1sts) and Mastery tiers now fill the title slot (281 achievements); every other achievement still pays XP only.',
+    enforcement: { kind: 'scenario', refs: ['packages/progression/src/achievements.test.ts'], lastVerifiedAt: '2026-09-29' },
   },
   {
     id: 'R-ACH-02',
@@ -2173,6 +2173,50 @@ export const FOUNDATION_RULES: GameRule[] = [
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/progression/AchievementsTab.test.tsx', 'packages/ui/src/progression/ProgressionPostgame.test.tsx', 'packages/ui/src/Career.test.tsx'], lastVerifiedAt: '2026-09-28' },
   },
   {
+    id: 'R-ACH-04',
+    title: 'Hero titles: 3 Ranked 1sts with a hero grant its title (the Titled tier); 10 grant its golden MASTER version, which upgrades the same title in place',
+    statement:
+      'Every playable hero has a title (Warden "Warded", Gambler "Gambling Addict", Albus "Albus Student", ...). A new hero '
+      + 'achievement tier, Titled (hero.<id>.titled, 150 XP), completes at 3 Ranked 1st-place finishes with that hero and '
+      + 'grants the title (title_hero_<id>, Epic, the normal title look). The existing Mastery tier (hero.<id>.mastery, 10 '
+      + 'Ranked 1sts, 250 XP) now grants the master version (title_hero_<id>_master): the SAME name, shown as a golden plate '
+      + 'with embroidered text. Victory (1 Ranked 1st, 100 XP) stays XP only. Practice never counts toward either (Ranked '
+      + 'only, like Victory). The grant happens inside settle_progression, in the same transaction as the completion: the '
+      + 'title is owned (player_cosmetics, keyed, never twice) and listed in the result\x27s unlockedTitles. The master '
+      + 'supersedes the base title: a worn base title is swapped for its master the moment it is earned, and the Collection '
+      + 'shows one entry per hero title (the master once owned, else the base). A new hero title is worn only when nothing '
+      + 'is worn. Hero titles are achievement rewards and never drop from a crate. Existing Mastery progress backfills the '
+      + 'Titled tier (a backfilled completion grants the title but pays no XP).',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-29 (hero titles)', quote: 'the hero\x27s title is granted at 3 wins with a hero, then the mastery of that title is after 10 wins with that hero' },
+      { kind: 'code', ref: 'packages/progression/src/achievements.ts (heroDefs, HERO_TITLE_WINS, HERO_MASTERY_WINS); packages/progression/src/cosmetics.ts (HERO_TITLE_NAMES, HERO_TITLE_COSMETICS, titleShelf, isMasterTitle); packages/progression/src/server.ts (settlementParity); supabase/migrations/2026-09-29-hero-titles.sql (settle_progression steps 7c + 9a, the backfill); packages/ui/src/progression/collectionModel.ts (albumOf)' },
+    ],
+    currentBehaviour: 'Conforms, built 2026-09-29. Live once the owner runs supabase/migrations/2026-09-29-hero-titles.sql and redeploys submit-progression and progression-inventory.',
+    enforcement: { kind: 'scenario', refs: ['packages/progression/src/heroTitles.db.test.ts', 'packages/progression/src/achievements.test.ts', 'packages/progression/src/cosmetics.test.ts', 'packages/progression/src/sqlParity.test.ts', 'packages/ui/src/progression/CollectionScreen.test.tsx'], lastVerifiedAt: '2026-09-29' },
+  },
+  {
+    id: 'R-PROG-TITLE-04',
+    title: 'A master hero title renders as a golden plate with embroidered text on every surface that shows a title, as static CSS',
+    statement:
+      'Wherever a title is shown (the Career name header, the Collection album tile, detail nameplate and preview, the New '
+      + 'rewards popup, the Achievements tab reward line, the Leaderboard, the Hall of Champions and Match details), a hero '
+      + 'title\x27s MASTER version (title_hero_<id>_master) is painted by TitleBadge as a bevelled metallic gold plate with a '
+      + 'dashed thread stitch inside its edge and the name embroidered in crimson satin stitch (thread strands clipped to '
+      + 'the letters over a raised, outlined underside). Its text content is exactly the title name (no native tooltip, no '
+      + 'own cursor), a custom title style never paints over it, and it is entirely static: no animation, transition or '
+      + 'will-change on any .tb-master rule. The base hero title keeps the normal rarity look.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-29 (hero titles)', quote: 'the master title should be a golden plate and embroidered text' },
+      { kind: 'code', ref: 'packages/ui/src/titles/TitleBadge.tsx; packages/ui/src/titles/titleStyle.ts (TitleLook.master); packages/ui/src/styles.css (.titlebadge.tb-master); packages/ui/src/Career.tsx; packages/ui/src/progression/CollectionScreen.tsx; packages/ui/src/progression/NewRewardsPopup.tsx; packages/ui/src/progression/AchievementsTab.tsx' },
+    ],
+    currentBehaviour: 'Conforms, built 2026-09-29.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/titles/titles.test.tsx', 'packages/ui/src/progression/CollectionScreen.test.tsx'], lastVerifiedAt: '2026-09-29' },
+  },
+  {
     id: 'R-PROG-ATTACK-01',
     title: 'Hero attacks are cosmetics: Classic is everyone\'s default, Blast ("Arcane Barrage", attack_blast, Legendary) drops from crates',
     statement:
@@ -2187,9 +2231,14 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'style blades: R-PROG-ATTACK-07), the fifth, attack_enraged ("Enraged Strike", Legendary, style enraged: '
       + 'R-PROG-ATTACK-11), the sixth, attack_poison ("Venom Volley", Legendary, style poison: R-PROG-ATTACK-12), the '
       + 'seventh, attack_frost ("Frost Nova", Legendary, style frost: R-PROG-ATTACK-13), and the eighth, attack_holy '
-      + '("Consecration", Legendary, style holy: R-PROG-ATTACK-14; the ninth, attack_beast, "Stampede", Legendary, style beast, '
-      + 'is R-PROG-ATTACK-15), re-pinned the first-crate odds to Common 45.5%, Rare '
-      + '30.2%, Epic 18.5%, Legendary 5.9%; a non-title item 33.5%; the eight attacks together 4.3%.',
+      + '("Consecration", Legendary, style holy: R-PROG-ATTACK-14), re-pinned the first-crate odds to Common 45.5%, Rare '
+      + '30.2%, Epic 18.5%, Legendary 5.9%; a non-title item 33.5%; the eight attacks together 4.3%. The ninth, attack_fire '
+      + '("Inferno", Legendary, style fire: R-PROG-ATTACK-15), joined under the fixed rarity odds (2026-09-29: a Legendary '
+      + 'is 5%, shared equally by its items), making Legendary twelve items at 0.417% each and the nine attacks together 3.75%. The tenth, attack_undead '
+      + '("Grave Call", Legendary, style undead: R-PROG-ATTACK-17), joined the same day under the same fixed odds, making '
+      + 'Legendary thirteen items at 0.385% each and the ten attacks together 3.85%. The eleventh, attack_beast '
+      + '("Stampede", Legendary, style beast: R-PROG-ATTACK-18), joined the same day under the same fixed odds, making '
+      + 'Legendary fourteen items at 0.357% each and the eleven attacks together 3.93%.',
     domain: 'foundation',
     status: 'approved',
     evidence: [
@@ -2226,18 +2275,24 @@ export const FOUNDATION_RULES: GameRule[] = [
       'Whatever style plays, the blow is the engine\'s (heroStrikeDamage: the capped enemyDamage on a win, playerLossDamage '
       + 'on a lobby loss). The shared damage formation (R-PROG-ATTACK-08) builds that value on screen from the engine\'s own numbers '
       + '(never a DOM sum), and Blast fires the consequence (the health drop, Armor first, via settleCombat) exactly once, on the frame the '
-      + 'lead bolt or beam lands; if frames stop, a safety timer still lands it. It escalates by damage tier (I 1-5, II 6-11, '
-      + 'III 12-19, IV 20+; IV fires a beam; the thresholds 6 / 12 / 20 are owner-approved) and under reduced motion it is fades only (no flight, bolts, shake or '
+      + 'lead bolt lands or, at IV, the supernova detonates; if frames stop, a safety timer still lands it. Blast escalates in FOUR '
+      + 'distinct steps on the shared damage tiers (thresholds 6 / 12 / 20, owner-approved), the way Arcana and Frost ladder '
+      + '(owner 2026-09-29): I 1-5 ONE bolt; II 6-11 a volley of TWO; III 12-19 a BARRAGE of five fanned bolts (the lead bolt '
+      + 'lands the blow, the rest pound in after it) with secondary explosions and embers; IV 20+ the colossal beam, which '
+      + 'lands as a tick (FX only), holds, then POURS into the struck hero (its tail races after its front) while the light '
+      + 'implodes onto it, and detonates in an arcane SUPERNOVA (rays, three shockwaves, a corona, secondary explosions): the '
+      + 'blow lands on the detonation, never on the beam landing. Under reduced motion it is fades only (no flight, bolts, shake or '
       + 'zoom). No hero attack ever freezes its clock (R-PROG-ATTACK-10). Leaving the fight mid-animation cancels it without landing, exactly as Classic\'s timers are cleared.',
     domain: 'foundation',
     status: 'approved',
     evidence: [
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-28 (Blast approval)', quote: 'those are good thresholds, this blast animation looks good! make it a legendary reward' },
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-28 (Blast hero attack)', quote: 'i want the numbers to all combine, and then the screen slightly shakes and zooms as he blasts pixi blasts from the hero to the opponent to deal the damage' },
-      { kind: 'code', ref: 'packages/ui/src/heroBlast/heroBlastConfig.ts (blastPlan, blastCounts, tierOf); packages/ui/src/heroBlast/heroBlast.ts (playHeroBlast); packages/ui/src/heroBlast/heroStrikeDamage.ts; packages/ui/src/Recruit.tsx' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-29 (Blast fourth tier)', quote: 'use the same 4 tier strategy we have been. add a tier to the blast attack so they all have 4' },
+      { kind: 'code', ref: 'packages/ui/src/heroBlast/heroBlastConfig.ts (blastPlan, blastCues, tierOf, TIER_DEFAULTS Bolts / Beam / Nova); packages/ui/src/heroBlast/heroBlast.ts (playHeroBlast, cameraAt); packages/ui/src/heroBlast/heroBlastScene.ts (the beam drain, collapse, nova); packages/ui/src/heroBlast/heroStrikeDamage.ts; packages/ui/src/Recruit.tsx' },
     ],
-    currentBehaviour: 'Conforms, built 2026-09-28.',
-    enforcement: { kind: 'scenario', refs: ['packages/ui/src/heroBlast/heroBlast.test.ts'], lastVerifiedAt: '2026-09-28' },
+    currentBehaviour: 'Conforms, built 2026-09-28; the four-step ladder (a barrage of five at III, the supernova at IV) 2026-09-29.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/heroBlast/heroBlast.test.ts'], lastVerifiedAt: '2026-09-29' },
   },
   {
     id: 'R-PROG-ATTACK-04',
@@ -2585,6 +2640,97 @@ export const FOUNDATION_RULES: GameRule[] = [
   },
   {
     id: 'R-PROG-ATTACK-15',
+    title: 'Inferno (attack_fire, Legendary) is a hero attack of LIVE PARTICLE FIRE: a fireball / two / a volley of five that sets the target ablaze / a meteor that detonates, on the SAME damage tiers; the blow lands ONCE; no freeze',
+    statement:
+      'attack_fire ("Inferno", a placeholder name for the owner to rename; Legendary, crate, account-wide, style fire) plays '
+      + 'a fire-mage attack in which EVERY flame is live particle fire (the shared PixiFire: hundreds of small soft additive '
+      + 'flame puffs and licking tongues that rise with buoyancy, sway on a curl field, flicker and cool over their life from '
+      + 'white-hot through yellow, orange and red to a dark ember, over a deep normal-blend body that keeps the colour on a '
+      + 'light board, leaving smoke and throwing embers), never a flame image. After the shared damage formation '
+      + '(R-PROG-ATTACK-08) fire catches round the striking hero\x27s upper rim and FIREBALLS ignite round the portrait (never '
+      + 'over the face, never above the frame), draw back and are hurled on slight arcs with comet tails of flame, smoke and '
+      + 'embers. It escalates on exactly the tiers every other hero attack uses (one shared tierOf, thresholds 6 / 12 / 20): '
+      + 'I 1-5 ONE fireball bursts on the struck hero; II 6-11 TWO, the struck rim briefly alight; III 12-19 a VOLLEY of five '
+      + 'bigger fireballs landing in rhythm, the struck hero CATCHING more with every tick, then the last one FLARES it up (a '
+      + 'gout of flame off the portrait) and leaves its upper rim ABLAZE, dying down to embers and smoke; IV 20+ three '
+      + 'fireballs (ticks), then the hero hurls a column of fire into the sky and the struck hero is MARKED for the build-up '
+      + '(the ground under it glowing hotter, heat rings closing in, flames licking up round it) while a METEOR streaks down '
+      + 'from above the frame on a low diagonal from the striker\x27s side and DETONATES, in layers: a white-hot flash core, '
+      + 'thin shockwaves, a FIRE NOVA racing outward, a dome of fire, a fireball ROLLING UP into a mushroom of smoke, BURNING '
+      + 'DEBRIS flung out on arcs trailing fire, a pillar of fire ENGULFING the struck hero that burns out to embers, and a '
+      + 'scorch. The consequence (the damage, Armor, Resolve) lands exactly ONCE: on the last fireball (every earlier fireball '
+      + 'is a tick with FX only) or, at IV, on the detonation. No hit-stop or freeze anywhere (R-PROG-ATTACK-10). Every anchor '
+      + 'is the round portrait art at rest (R-PROG-ATTACK-04). Presentation only; reduced motion is fades only; an unknown or '
+      + 'retired id plays Classic.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-29 (more attack types)', quote: 'we need a fire animation ... use the same 4 tier strategy we have been ... same with the new fire animation, it should look like live flame/fires pixi sprites etc' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-29 (Fire first review)', quote: 'fire one looks solid - can you make the 3rd fire tier a bit better and the meteor slightly slower build up and a cooler explosion' },
+      { kind: 'code', ref: 'packages/progression/src/cosmetics.ts (attack_fire); packages/ui/src/heroAttack/pixiFire.ts (PixiFire); packages/ui/src/heroFire/ (heroFireConfig firePlan / fireCues / fireballMotions / meteorMotion / fireCameraAt, heroFire playHeroFire, heroFireScene)' },
+    ],
+    currentBehaviour: 'Conforms, built 2026-09-29. The item reaches the database on the next deploy of progression-inventory (the catalog sync); the equip SQL already accepts the hero_attack slot.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/heroFire/heroFire.test.ts', 'packages/ui/src/heroAttack/pixiFire.test.ts', 'packages/progression/src/cosmetics.test.ts', 'packages/ui/src/progression/CollectionHeroAttack.test.tsx', 'packages/ui/src/heroAttack/damageFormation.test.ts'], lastVerifiedAt: '2026-09-29' },
+  },
+  {
+    id: 'R-PROG-ATTACK-16',
+    title: 'Hero attack FIRE is live particle fire, never a flame picture: Enraged Strike\'s rage aura, its towering rear and its crater burn in the shared PixiFire',
+    statement:
+      'Every flame a hero attack draws is the shared live particle fire (packages/ui/src/heroAttack/pixiFire.ts: pooled, '
+      + 'hard-capped, zero allocation per frame, seeded): soft additive flame puffs and licking tongues rising with buoyancy '
+      + 'and turbulence, flickering and cooling white-hot to red, a normal-blend body under them, smoke and embers. Enraged '
+      + 'Strike (R-PROG-ATTACK-11) no longer draws its aura as swaying strip-mesh flame tongues: its crown of fire burns off '
+      + 'the upper rim as particles (turning to the TRAILING rim and streaming back on a dash, so it never burns across the '
+      + 'face, and leaving a trail of fire behind the moving hero), its Tier IV rear-back sends a column of fire roaring up, '
+      + 'and its haymaker crater bursts into flame and keeps burning for a beat. Its timing, tiers, strikes, claws, sparks, '
+      + 'rings and sound are unchanged.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-29 (more attack types)', quote: 'fix the fire in enrage with pixi style fire so it looks less like a flame image and more liike actual fire' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-29 (Enraged fire review)', quote: 'enraged looks way better' },
+      { kind: 'code', ref: 'packages/ui/src/heroAttack/pixiFire.ts; packages/ui/src/heroEnraged/heroEnragedScene.ts (the aura emitter, rear, crater)' },
+    ],
+    currentBehaviour: 'Conforms, built 2026-09-29.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/heroAttack/pixiFire.test.ts', 'packages/ui/src/heroEnraged/heroEnraged.test.ts'], lastVerifiedAt: '2026-09-29' },
+  },
+  {
+    id: 'R-PROG-ATTACK-17',
+    title: 'Grave Call (attack_undead, Legendary) is a FLAT undead hero attack: one shrieking skull / two skulls / grave hands and a wisp swarm then a skull / a grave rift and a giant skull maw that chomps, on the SAME damage tiers; the blow lands ONCE; no freeze',
+    statement:
+      'attack_undead ("Grave Call", a placeholder name for the owner to rename; Legendary, crate, account-wide, style undead) '
+      + 'plays a necromantic attack in sickly spectral green and teal over a deep purple-black, with bone white, drawn FLAT '
+      + '(every circle, hole, rift and crack is a top-down shape; no sprite is skewed or tilted). After the shared damage '
+      + 'formation (R-PROG-ATTACK-08) the striking hero RAISES the dead (a necrotic grave circle turns under it, grave smoke '
+      + 'circles its rim, ghost wisps spiral in) and the circle flares. It escalates on exactly the tiers every other hero '
+      + 'attack uses (one shared tierOf, thresholds 6 / 12 / 20): I 1-5 a spectral SKULL pops out of the hero on the side '
+      + 'facing the target and SHRIEKS (its jaw drops, shriek rings), flies at the target on a slight arc trailing '
+      + 'afterimages and shedding wisps, jaw wide, and BITES as it lands (the jaw snaps shut), bursting into ghost wisps, '
+      + 'bone shards and a spectral echo of itself; II 6-11 TWO skulls on opposite arcs, the first a tick; III 12-19 a grave '
+      + 'circle opens under the struck hero, four skeletal HANDS claw up out of the board round it and DRAG at it (the '
+      + 'portrait sinks and trembles), a SWARM of eight ghost wisps streams from the hero and strikes it in rhythm, then one '
+      + 'big skull finishes it and the hands shatter into bone; IV 20+ a GRAVE RIFT tears open across the board between the '
+      + 'heroes (a jagged void lit green, cracks racing off it), a giant spectral SKULL MAW rises out of it and its eyes '
+      + 'ignite, it SHRIEKS (the jaw drops wide, shriek rings, the view trembles, the struck hero shudders), LUNGES across the '
+      + 'board trailing afterimages and CHOMPS shut on the struck hero, then a wave of necrotic MIST washes out and the rift '
+      + 'closes. The maw is always whole on screen: its chomp slides toward the middle of the screen (still over the struck '
+      + 'hero) far enough that the maw and the camera punch fit, and a view too short makes it smaller, never cropped. The '
+      + 'consequence (the damage, Armor, Resolve) lands exactly ONCE: on the last skull\x27s bite (every earlier skull, every '
+      + 'grip and every wisp is a tick with FX and sound only) or, at IV, on the chomp (never on the rift, the rise, the '
+      + 'shriek or the lunge). No hit-stop or freeze anywhere (R-PROG-ATTACK-10). Every anchor is the round portrait art at '
+      + 'rest (R-PROG-ATTACK-04). Sound reuses existing clips only. Presentation only; reduced motion is fades only; an '
+      + 'unknown or retired id plays Classic.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-29 (five more hero attacks)', quote: 'branch off and make some more attack types - we need a fire animation, a bleed/gash animation, some sort of an undead animation, a beast chomp rush animation, and i would love a king oona banana cannon animation. use the same 4 tier strategy we have been.' },
+      { kind: 'code', ref: 'packages/progression/src/cosmetics.ts (attack_undead); packages/ui/src/heroUndead/ (heroUndeadConfig undeadPlan / undeadCues / undeadGeo / undeadCameraAt, heroUndead playHeroUndead, heroUndeadScene, heroUndeadTextures)' },
+    ],
+    currentBehaviour: 'Conforms, built 2026-09-29. The item reaches the database on the next deploy of progression-inventory (the catalog sync); the equip SQL already accepts the hero_attack slot. The id is 17 because 15 and 16 are left for the fire and bleed attacks built alongside it.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/heroUndead/heroUndead.test.ts', 'packages/progression/src/cosmetics.test.ts', 'packages/ui/src/progression/CollectionHeroAttack.test.tsx', 'packages/ui/src/heroAttack/damageFormation.test.ts'], lastVerifiedAt: '2026-09-29' },
+  },
+  {
+    id: 'R-PROG-ATTACK-18',
     title: 'The Stampede (attack_beast, Legendary) is a beast chomp rush: spirit wolves leap and front jaws SNAP SHUT on the target (one / a staggered pair / a pack of five with dust / six and a colossus that slams and roars), on the SAME damage tiers; the blow lands ONCE; no freeze',
     statement:
       'attack_beast ("Stampede", a placeholder name for the owner to rename; Legendary, crate, account-wide, style beast) '
@@ -2664,5 +2810,28 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'On Death voicelines never played. The `deathFx` channel now scans every moment\x27s death events and plays '
       + 'the dying card\x27s binding on that unit (binding gain respected).',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/choreo/score.test.ts'], lastVerifiedAt: '2026-09-29' },
+  },
+  // ── A knockout always plays the hero attack's Huge version (owner ask 2026-09-29) ─────────────────────
+  {
+    id: 'R-PROG-ATTACK-20',
+    title: 'A hero attack that knocks the struck player out always plays its Tier IV ("Huge") version, in every style',
+    statement:
+      'When the end-of-combat hero attack ELIMINATES the struck player (their Resolve + Armor going in is at or under '
+      + 'the blow the engine decided, so the settle takes them to 0), the attack plays Tier IV whatever the damage number: '
+      + 'every style (Classic, Blast, Quake, Arcana, Phantom Blades, Enraged Strike, Venom Volley, Frost Nova, Consecration, '
+      + 'and any style added later) and the damage formation it opens with. Both directions: your blow that knocks the foe '
+      + 'seat out, and the foe\x27s blow that knocks you out. A ghost (already out, never charged) is never knocked out, '
+      + 'and invulnerable Practice never knocks you out. Presentation only: the number shown and the consequence are '
+      + 'unchanged. The tier rule lives in one place (attackTier in packages/ui/src/heroAttack/tiers.ts) and the '
+      + 'knockout is read off the state the engine settles from (heroStrikeKnockout), so a replay plays what the live '
+      + 'fight did.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-29 (knockout plays huge)', quote: 'add logic so that if a player knocks someone out, it always plays the "huge" animation.' },
+      { kind: 'code', ref: 'packages/ui/src/heroAttack/tiers.ts (attackTier, KNOCKOUT_TIER); packages/ui/src/heroBlast/heroStrikeDamage.ts (heroStrikeKnockout); packages/ui/src/heroAttack/options.ts (knockout); every style config plan (attackTier); packages/ui/src/Recruit.tsx (the post-combat sequence passes knockout)' },
+    ],
+    currentBehaviour: 'Conforms, built 2026-09-29.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/heroAttack/knockoutTier.test.ts'], lastVerifiedAt: '2026-09-29' },
   },
 ];

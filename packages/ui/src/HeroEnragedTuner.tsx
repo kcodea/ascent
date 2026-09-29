@@ -1,6 +1,6 @@
 import {
-  ENRAGED_TIER_SUFFIXES, HERO_ENRAGED_DEFAULTS, HERO_ENRAGED_RANGES, HERO_ENRAGED_SPEEDS, TIERS, enragedPlan, getHeroEnragedConfig,
-  heroEnragedConfigJson, heroEnragedPreviewSpeed, resetHeroEnragedConfig, setHeroEnragedPreviewSpeed, setHeroEnragedValue,
+  ENRAGED_TIER_SUFFIXES, HERO_ENRAGED_DEFAULTS, HERO_ENRAGED_RANGES, TIERS, enragedPlan, getHeroEnragedConfig,
+  heroEnragedConfigJson, resetHeroEnragedConfig, setHeroEnragedValue,
   type EnragedTierSuffix, type HeroEnragedConfig, type HeroEnragedNumKey, type HeroEnragedStrKey, type TierNum,
 } from './heroEnraged/heroEnragedConfig';
 import { clipNames } from './sfx';
@@ -13,7 +13,7 @@ import type { TunerControl, TunerSpec, TunerUnit } from './tunerSchema';
 /**
  * DEV tuner for the ENRAGED STRIKE hero attack (owner ask 2026-09-28: "a legendary version of this strike ... just
  * amplified or enraged"). The Play buttons run the REAL runner between the two real hero portraits (works from the shop),
- * in either direction, at Small 3 / Tier II 8 / Medium 12 / Huge 40, with reduced motion, at 1x / 0.5x / 0.25x. A preview
+ * in either direction, at Small 3 / Tier II 8 / Medium 12 / Huge 40. A preview
  * never touches the run. The "Attack style" row is the same dev override as the other attack tuners'. Production plays
  * the baked defaults.
  */
@@ -54,8 +54,8 @@ const SPECS: Record<GlobalNumKey, Spec> = {
   crescentSize: ['Crescent', '×', 'Tier IV: the giant flaming crescent cleaved across the struck hero (0 = none).', 'Haymaker (Tier IV)'],
   shockSize: ['Rage shockwave', '×', 'Tier IV: the screen-filling shockwave of the knockout.', 'Haymaker (Tier IV)'],
   auraSize: ['Aura glow', '×', 'The hot glow round the hero.', 'Aura'],
-  flames: ['Flames', undefined, 'Flame tongues round the portrait rim.', 'Aura'],
-  flameLength: ['Flame length', '×', 'How far the flames lick off the rim.', 'Aura'],
+  flames: ['Flames', undefined, 'How much live fire burns round the portrait rim (particles, not a flame picture; 0 = none).', 'Aura'],
+  flameLength: ['Flame length', '×', 'How high the fire rises off the rim before it burns out.', 'Aura'],
   motes: ['Motes', undefined, 'Hot streaks pulled into the hero through the windup.', 'Aura'],
   ghosts: ['Afterimages', undefined, 'Ghost copies of the portrait left behind the dash (0 = none).', 'Afterimages and wake'],
   ghostSpacing: ['Ghost spacing', '×', 'Distance between afterimages, in portrait radii (they are stamped along the dash, evenly).', 'Afterimages and wake'],
@@ -213,13 +213,13 @@ export function demo(
   const cfg = getHeroEnragedConfig();
   return playAttackDemo(side, (o) => playHeroEnraged(o), {
     board: boardOfDamage(opts.damage ?? cfg.previewDamage, opts.parts ?? cfg.previewParts),
-    speed: heroEnragedPreviewSpeed(), reduced: opts.reduced, frames: opts.frames, sound: opts.sound, safety: opts.safety,
+    speed: 1, reduced: opts.reduced, frames: opts.frames, sound: opts.sound, safety: opts.safety,
   }, () => { live = null; }).then((h) => { live = h; return h; });
 }
 
 // DEV: a console / capture-rig handle on the same player the buttons use.
 if (import.meta.env.DEV && typeof window !== 'undefined') {
-  (window as unknown as { __heroEnraged?: unknown }).__heroEnraged = { demo, previewParts, setSpeed: setHeroEnragedPreviewSpeed };
+  (window as unknown as { __heroEnraged?: unknown }).__heroEnraged = { demo, previewParts };
 }
 
 export const SPEC: TunerSpec<EnragedTunerValues> = {
@@ -229,7 +229,7 @@ export const SPEC: TunerSpec<EnragedTunerValues> = {
     const c = getHeroEnragedConfig();
     const p = enragedPlan({ leadIn: previewLeadIn(c.previewDamage, c.previewParts), total: c.previewDamage }, c);
     const what = p.haymaker ? `${p.strikes.length - 1} slams + haymaker` : `${p.strikes.length} strike${p.strikes.length === 1 ? '' : 's'}`;
-    return `dev · ${heroEnragedPreviewSpeed()}x · tier ${p.tier} · ${what} · windup ${Math.round(p.windupAt)} · impact ${Math.round(p.impactAt)} · end ${Math.round(p.endAt)} ms`;
+    return `dev · tier ${p.tier} · ${what} · windup ${Math.round(p.windupAt)} · impact ${Math.round(p.impactAt)} · end ${Math.round(p.endAt)} ms`;
   },
   read: () => ({ ...getHeroEnragedConfig(), attackStyle: devHeroAttackChoice() }),
   write: (key, value) => setHeroEnragedValue(key as keyof HeroEnragedConfig, value),
@@ -239,6 +239,7 @@ export const SPEC: TunerSpec<EnragedTunerValues> = {
   controls: buildControls(),
   copy: () => heroEnragedConfigJson(),
   copyLabel: 'Copy JSON',
+  buttonsOnTop: true,
   actions: [
     { label: '▶ You strike', hint: 'Your hero strikes the foe for the preview damage.', run: () => { void demo('player'); } },
     { label: '▶ Foe strikes', hint: 'The foe strikes your hero for the preview damage.', run: () => { void demo('opp'); } },
@@ -250,12 +251,6 @@ export const SPEC: TunerSpec<EnragedTunerValues> = {
     { label: '▶ Foe tier II (8)', hint: 'The foe strikes your hero for 8.', run: () => { void demo('opp', { damage: 8, parts: 3 }); } },
     { label: '▶ Foe medium (12)', hint: 'The foe strikes your hero for 12.', run: () => { void demo('opp', { damage: 12, parts: 4 }); } },
     { label: '▶ Foe huge (40)', hint: 'The foe strikes your hero for 40.', run: () => { void demo('opp', { damage: 40, parts: 7 }); } },
-    { label: '▶ Reduced motion', hint: 'What a player with reduced motion on sees: fades, no lunge, aura, shake, zoom or hit-stop.', run: () => { void demo('player', { reduced: true }); } },
-    ...HERO_ENRAGED_SPEEDS.map((s) => ({
-      label: `Speed ${s}x`,
-      hint: 'Slow motion for the next plays (the tuner only; never saved, never in production).',
-      run: () => { setHeroEnragedPreviewSpeed(s); },
-    })),
   ],
 };
 

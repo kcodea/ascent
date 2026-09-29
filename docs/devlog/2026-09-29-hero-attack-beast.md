@@ -1,4 +1,4 @@
-# 2026-09-29: the Stampede, the ninth hero attack (beast chomp rush, Legendary)
+# 2026-09-29: the Stampede, the eleventh hero attack (beast chomp rush, Legendary)
 
 Owner ask (2026-09-29): "branch off and make some more attack types - we need a fire animation, a bleed/gash animation,
 some sort of an undead animation, a beast chomp rush animation, and i would love a king oona banana cannon animation.
@@ -50,9 +50,10 @@ accepts the `hero_attack` slot, so there is **no SQL** and no new migration.
   colossus per tier; beast size, glow, mane, embers and jaw open; the chomp (snap lead, size, clamp hold, bite marks,
   tint, dust); the colossus (rise, slam, size, roar delay, hold, rings, size); camera, colours, and a clip / gain /
   pitch per sound cue. **Per the owner's ask for every hero attack tuner, it has no Speed or Reduced motion buttons and
-  its button row (Copy JSON, Reset, the Play buttons at 3 / 8 / 12 / 40 both ways) sits at the TOP** (the panel's
-  `readout` slot, so no shared panel code changed). The shared panel still draws its own Copy JSON / Reset at the
-  bottom; when the shared "row at the top" change lands for every tuner, this tuner can drop its own row.
+  its button row (Copy JSON, Reset, the Play buttons at 3 / 8 / 12 / 40 both ways) sits at the TOP** through the
+  shared `TunerSpec.buttonsOnTop` from #1843 (the branch's own row in the `readout` slot, which duplicated Copy JSON and
+  Reset, was dropped on merge). On merging #1849 the Stampede also picks its tier with the shared `attackTier`, so a
+  knockout always plays Tier IV (the colossus).
 
 ## Timeline (ms from the growl, 1600 px apart; the formation's lead-in comes first)
 
@@ -65,8 +66,8 @@ accepts the `hero_attack` slot, so there is **no SQL** and no new migration.
 
 ## Crate odds (first crate)
 
-The rarity odds are fixed (50 / 30 / 15 / 5). The Stampede makes Legendary 12 items, so each Legendary is now 0.42%
-(5 / 12, was 0.45%). The other rarities are unchanged.
+The rarity odds are fixed (50 / 30 / 15 / 5). Inferno and Grave Call landed first the same day, so the Stampede makes
+Legendary 14 items: each Legendary is now 0.357% (5 / 14). The other rarities are unchanged.
 
 ## Perf
 
@@ -115,6 +116,6 @@ A real wolf snarl, a jaw-snap and a big beast roar would beat these stand-ins.
 
 - The name ("Stampede") is a placeholder; the id `attack_beast` stays.
 - Deploy `progression-inventory` to put the item in the database (no SQL).
-- The oracle rule is **R-PROG-ATTACK-15**. The other new attacks were built in parallel and may have claimed the same
-  number; whichever merges second renumbers.
+- The oracle rule is **R-PROG-ATTACK-18**. It was built as 15, but Inferno (#1844) landed first with 15 and 16 and Grave
+  Call (#1841) with 17, so it was renumbered on merge (20 is the knockout rule, #1849).
 - Sounds: the clips above are stand-ins.

@@ -33,7 +33,7 @@
  */
 import { clamp, hexToNum, type Pt } from '../heroAttack/easing';
 import {
-  HERO_ATTACK_TIER_THRESHOLDS, TIERS, reducedAttackTimeline, tierOf, type TierNum,
+  HERO_ATTACK_TIER_THRESHOLDS, TIERS, reducedAttackTimeline, attackTier, type AttackTierContext, type TierNum,
 } from '../heroAttack/tiers';
 
 export { TIERS, hexToNum, type TierNum };
@@ -398,7 +398,7 @@ export interface BeastPlanItem {
   size: number;
 }
 
-export interface BeastPlanInput {
+export interface BeastPlanInput extends AttackTierContext {
   /** When the style's own attack starts: the end of the shared damage formation (`formationPlan().endAt`). */
   leadIn?: number;
   /** THE blow, as the engine decided it. */
@@ -449,7 +449,7 @@ export interface BeastPlan {
 /** The whole Stampede, in base ms (divide by the playback speed for real time). Pure and deterministic. */
 export function beastPlan(input: BeastPlanInput, c: HeroBeastConfig = cfg): BeastPlan {
   const total = Math.max(0, Math.round(input.total));
-  const tier = tierOf(total, c);
+  const tier = attackTier(total, input, c); // a knockout always plays Tier IV (heroAttack/tiers.ts)
   const T = beastTierDials(tier, c);
   const k = (tier - 1) / 3;
 

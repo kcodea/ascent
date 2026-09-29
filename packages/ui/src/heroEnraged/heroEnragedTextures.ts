@@ -10,6 +10,7 @@
 import { CanvasSource, Texture } from 'pixi.js';
 import { heroArcanaTextures } from '../heroArcana/heroArcanaTextures';
 import { seededRng } from '../heroAttack/easing';
+import { pixiFireTextures } from '../heroAttack/pixiFire';
 import type { HeroEnragedTextures } from './heroEnragedScene';
 
 function canvas(w: number, h: number): { c: HTMLCanvasElement; g: CanvasRenderingContext2D } | null {
@@ -188,7 +189,8 @@ export function heroEnragedTextures(): HeroEnragedTextures | null {
   const smoke = paintSmoke(96), rock = paintRock(40);
   const scorch = paintScorch(192), cracks = paintCracks(256), disc = paintDisc(128), rim = paintRim(256), halo = paintHalo(128), rimCracks = paintRimCracks(256);
   if (!base || !smoke || !rock || !scorch || !cracks || !disc || !rim || !halo || !rimCracks) return null;
-  cached = { ...base, smoke: tex(smoke), rock: tex(rock), scorch: tex(scorch), cracks: tex(cracks), disc: tex(disc), rim: tex(rim), halo: tex(halo), rimCracks: tex(rimCracks) };
+  // The rage aura, the haymaker's rear and its crater burn in live particle fire (owner 2026-09-29), from the shared set.
+  cached = { ...base, smoke: tex(smoke), rock: tex(rock), scorch: tex(scorch), cracks: tex(cracks), disc: tex(disc), rim: tex(rim), halo: tex(halo), rimCracks: tex(rimCracks), fire: pixiFireTextures() };
   return cached;
 }
 

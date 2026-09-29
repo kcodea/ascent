@@ -63,7 +63,7 @@ export function playHeroBeast(o: HeroBeastOptions): HeroBeastHandle {
   const dist = Math.hypot(o.defender.x - o.attacker.x, o.defender.y - o.attacker.y);
   // THE DAMAGE FORMATION plays first (shared by every style); this style's own attack starts where it ends.
   const { fcfg, fplan } = planFormation(o.formation, o.formationCfg, reduced);
-  const plan = beastPlan({ total: o.total, distance: dist, reduced, leadIn: fplan.endAt }, c);
+  const plan = beastPlan({ total: o.total, knockout: o.knockout, distance: dist, reduced, leadIn: fplan.endAt }, c);
   const cues = withFormation(fplan, beastCues(plan));
   const s = o.pixiScale ?? (typeof window === 'undefined' ? 1 : stageScale());
   const doc = typeof document !== 'undefined' ? document : null;

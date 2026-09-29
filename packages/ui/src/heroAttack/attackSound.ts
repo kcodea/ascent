@@ -38,6 +38,9 @@ export class AttackVoices {
    * the window, a delayed start when shorter.
    */
   riser(clip: string, gain: number, rate: number, windowMs: number): void {
+    // Silent voices never touch the audio engine (a lookup here would start loading the clip, and on a page with no
+    // audio context yet, create one mid-attack).
+    if (!this.enabled) return;
     const buf = (() => { try { return getFxClipBuffer(clip); } catch { return null; } })();
     const r = rate > 0 ? rate : 1;
     if (!buf) { this.cue(clip, gain, r); return; }

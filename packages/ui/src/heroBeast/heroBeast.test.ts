@@ -104,12 +104,13 @@ describe('the tuner values', () => {
     const style = SPEC.controls.find((c) => c.key === 'attackStyle');
     expect(style?.options).toContain('beast');
     expect(DEV_HERO_ATTACK_CHOICES).toContain('beast');
-    // Owner 2026-09-29: no Speed or Reduced motion buttons, and the button row at the TOP (the readout slot).
+    // Owner 2026-09-29: no Speed or Reduced motion buttons, and the button row at the TOP (the shared buttonsOnTop, #1843).
     const labels = BEAST_TUNER_PLAYS.map((a) => a.label);
     for (const l of ['▶ Small (3)', '▶ Tier II (8)', '▶ Medium (12)', '▶ Huge (40)', '▶ Foe small (3)', '▶ Foe huge (40)']) expect(labels).toContain(l);
     for (const l of ['▶ Reduced motion', 'Speed 1x', 'Speed 0.5x', 'Speed 0.25x']) expect(labels).not.toContain(l);
-    expect(SPEC.actions ?? []).toEqual([]);
-    expect(typeof SPEC.readout).toBe('function');
+    expect(SPEC.actions).toBe(BEAST_TUNER_PLAYS);
+    expect(SPEC.buttonsOnTop).toBe(true);
+    expect(SPEC.readout).toBeUndefined();
   });
 });
 
@@ -589,7 +590,7 @@ describe('the scene (headless Pixi)', () => {
 describe('the cosmetic', () => {
   it('Stampede (attack_beast) is a Legendary crate hero attack that plays the Beast; the dev override can force it; the other styles unchanged; unknown ids play Classic', () => {
     expect(COSMETIC_INDEX.attack_beast).toMatchObject({ category: 'hero_attack', rarity: 'legendary', name: 'Stampede', assets: { style: 'beast' }, active: true });
-    expect(HERO_ATTACK_STYLES).toEqual(['classic', 'blast', 'quake', 'arcana', 'blades', 'enraged', 'poison', 'frost', 'holy', 'beast']); // the Stampede joined 2026-09-29
+    expect(HERO_ATTACK_STYLES).toEqual(['classic', 'blast', 'quake', 'arcana', 'blades', 'enraged', 'poison', 'frost', 'holy', 'fire', 'undead', 'beast']); // the Stampede joined 2026-09-29
     expect(styleOfCosmetic('attack_beast')).toBe('beast');
     for (const [id, st] of [['attack_blast', 'blast'], ['attack_poison', 'poison'], ['attack_frost', 'frost'], ['attack_holy', 'holy']] as const) {
       expect(styleOfCosmetic(id)).toBe(st);

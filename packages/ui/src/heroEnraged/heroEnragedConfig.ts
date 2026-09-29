@@ -39,7 +39,7 @@ import type { SwingTimes } from '../heroAttack/classicConfig';
 import type { ClassicSwing } from '../heroAttack/heroClassic';
 import { clamp, clamp01, easeInOutSine, easeOutCubic, spring, type Pt } from '../heroAttack/easing';
 import {
-  HERO_ATTACK_TIER_THRESHOLDS, TIERS, reducedAttackTimeline, tierOf, type TierNum,
+  HERO_ATTACK_TIER_THRESHOLDS, TIERS, reducedAttackTimeline, type TierNum, attackTier, type AttackTierContext,
 } from '../heroAttack/tiers';
 
 export { TIERS, type TierNum };
@@ -485,7 +485,7 @@ export interface EnragedStrike {
   coilAt: number;
 }
 
-export interface EnragedPlanInput {
+export interface EnragedPlanInput extends AttackTierContext {
   /** When the style's own attack starts: the end of the shared damage formation (`formationPlan().endAt`). */
   leadIn?: number;
   /** THE blow, as the engine decided it. */
@@ -545,7 +545,7 @@ export interface EnragedPlan {
 /** The whole Enraged Strike, in base ms (divide by the playback speed for real time). Pure and deterministic. */
 export function enragedPlan(input: EnragedPlanInput, c: HeroEnragedConfig = cfg): EnragedPlan {
   const total = Math.max(0, Math.round(input.total));
-  const tier = tierOf(total, c);
+  const tier = attackTier(total, input, c); // a knockout always plays Tier IV (heroAttack/tiers.ts)
   const T = enragedTierDials(tier, c);
   const k = (tier - 1) / 3;
 

@@ -1,4 +1,4 @@
-import { lossDamageCap, playerLossDamage, type RunState } from '@game/sim';
+import { lossDamageCap, playerLossDamage, playerOpponent, type RunState } from '@game/sim';
 
 /**
  * THE BLOW the winning hero lands after a fight, exactly as the engine decided it (moved out of `Recruit.tsx` so
@@ -49,4 +49,32 @@ export function heroStrikeNumbers(run: Pick<RunState, 'lobby' | 'mode' | 'lastCo
     total,
     cap: cut ? stampedCap : null,
   };
+}
+
+/**
+ * DOES THIS BLOW KNOCK THE STRUCK PLAYER OUT? (owner ask 2026-09-29: "if a player knocks someone out, it always plays
+ * the huge animation"). Read at the start of the post-combat sequence, BEFORE the settle, off the state the engine
+ * settles from, with the engine's own charge rules: the blow (`heroStrikeDamage`) through Armor, then Resolve, and a
+ * seat whose Resolve + Armor reaches 0 is out (`hitSeat` + `knockOutIfDead` in `@game/sim`'s run lobby). Nothing is
+ * decided here that the settle does not decide the same way:
+ *  - YOUR LOSS: your pools going in are the run's (`settleCombat` re-seeds seat 0 from them before charging it).
+ *    Invulnerable Practice (any health but `normal`) never knocks you out: the settle restores the seat.
+ *  - YOUR WIN: the paired foe seat's pools. A GHOST (a bye, or a stand-in for a seat with no board) is already out and
+ *    is never charged, so it is never a knockout; outside a lobby there is no seat to knock out.
+ * Presentation only: it picks which version of the attack plays (`attackTier` in `../heroAttack/tiers.ts`).
+ */
+export function heroStrikeKnockout(
+  run: Pick<RunState, 'lobby' | 'mode' | 'lastCombat' | 'wave' | 'resolve' | 'armor' | 'practiceConfig'>,
+  won: boolean,
+): boolean {
+  const dmg = heroStrikeDamage(run, won);
+  if (!(dmg > 0)) return false;
+  if (!won) {
+    if (run.mode === 'practice' && run.practiceConfig?.health !== 'normal') return false;
+    return Math.max(0, run.resolve) + Math.max(0, run.armor) <= dmg;
+  }
+  if (!run.lobby) return false;
+  const foe = playerOpponent(run.lobby);
+  if (!foe || foe.ghost || !foe.seat.alive) return false;
+  return Math.max(0, foe.seat.resolve) + Math.max(0, foe.seat.armor) <= dmg;
 }

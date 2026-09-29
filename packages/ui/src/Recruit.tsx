@@ -87,7 +87,7 @@ import { playHeroHoly } from './heroHoly/heroHoly';
 import { heroHolyPreviewSpeed } from './heroHoly/heroHolyConfig';
 import { resolveHeroAttackStyle } from './heroBlast/heroAttackStyle';
 import { attackerCosmeticOf } from './heroBlast/attackerCosmetic';
-import { heroStrikeDamage, heroStrikeNumbers } from './heroBlast/heroStrikeDamage';
+import { heroStrikeDamage, heroStrikeKnockout, heroStrikeNumbers } from './heroBlast/heroStrikeDamage';
 import { tierBadgeAnchor } from './heroAttack/badgeAnchors';
 import type { FormationData } from './heroAttack/damageFormation';
 import { formationPreviewSpeed } from './heroAttack/formationConfig';
@@ -2867,6 +2867,10 @@ export function Recruit() {
     // settle uses: COMBAT DAMAGE ONLY, owner ruling 2026-08-04); on a win it is what the foe takes, the sim's mirror
     // of the same formula capped the same way. One definition (`heroStrikeDamage`) so the numbers can't drift.
     const strikeDmg = heroStrikeDamage(run0, won);
+    // A KNOCKOUT always plays the attack's Tier IV ("Huge") version, whatever the number (owner ask 2026-09-29), in
+    // both directions: your blow that eliminates the foe, and the foe's blow that eliminates you. Read now, before the
+    // settle, off the pools the engine settles from; every style applies it through `attackTier` (heroAttack/tiers.ts).
+    const knockout = heroStrikeKnockout(run0, won);
 
     // THE DAMAGE FORMATION (owner ask 2026-09-28), shared by Classic and every cosmetic attack: each surviving
     // minion's tier badge pulses left to right as its number pops up; they flow up and merge into one minion number;
@@ -2939,6 +2943,7 @@ export function Recruit() {
       blastRef.current = runner.play({
         formation,
         total: strikeDmg,
+        knockout,
         side,
         attacker: aPt,
         defender: dPt,
@@ -2964,7 +2969,7 @@ export function Recruit() {
     const zClass = playerWon ? 'duel-attacker-player' : 'duel-attacker-opp';
     document.body.classList.add(zClass);
     blastRef.current = playHeroClassic({
-      formation, total: strikeDmg, side, attacker: aPt, defender: dPt, defenderRadius: geo?.radius, attackerRadius: geo?.attackerRadius,
+      formation, total: strikeDmg, knockout, side, attacker: aPt, defender: dPt, defenderRadius: geo?.radius, attackerRadius: geo?.attackerRadius,
       attackerEl: geo?.attackerEl ?? null, defenderEl: geo?.defenderEl ?? null,
       speed: pace,
       onImpact: () => {

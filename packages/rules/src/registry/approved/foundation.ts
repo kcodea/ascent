@@ -2632,4 +2632,27 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'the dying card\x27s binding on that unit (binding gain respected).',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/choreo/score.test.ts'], lastVerifiedAt: '2026-09-29' },
   },
+  // ── A knockout always plays the hero attack's Huge version (owner ask 2026-09-29) ─────────────────────
+  {
+    id: 'R-PROG-ATTACK-20',
+    title: 'A hero attack that knocks the struck player out always plays its Tier IV ("Huge") version, in every style',
+    statement:
+      'When the end-of-combat hero attack ELIMINATES the struck player (their Resolve + Armor going in is at or under '
+      + 'the blow the engine decided, so the settle takes them to 0), the attack plays Tier IV whatever the damage number: '
+      + 'every style (Classic, Blast, Quake, Arcana, Phantom Blades, Enraged Strike, Venom Volley, Frost Nova, Consecration, '
+      + 'and any style added later) and the damage formation it opens with. Both directions: your blow that knocks the foe '
+      + 'seat out, and the foe\x27s blow that knocks you out. A ghost (already out, never charged) is never knocked out, '
+      + 'and invulnerable Practice never knocks you out. Presentation only: the number shown and the consequence are '
+      + 'unchanged. The tier rule lives in one place (attackTier in packages/ui/src/heroAttack/tiers.ts) and the '
+      + 'knockout is read off the state the engine settles from (heroStrikeKnockout), so a replay plays what the live '
+      + 'fight did.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-29 (knockout plays huge)', quote: 'add logic so that if a player knocks someone out, it always plays the "huge" animation.' },
+      { kind: 'code', ref: 'packages/ui/src/heroAttack/tiers.ts (attackTier, KNOCKOUT_TIER); packages/ui/src/heroBlast/heroStrikeDamage.ts (heroStrikeKnockout); packages/ui/src/heroAttack/options.ts (knockout); every style config plan (attackTier); packages/ui/src/Recruit.tsx (the post-combat sequence passes knockout)' },
+    ],
+    currentBehaviour: 'Conforms, built 2026-09-29.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/heroAttack/knockoutTier.test.ts'], lastVerifiedAt: '2026-09-29' },
+  },
 ];

@@ -113,7 +113,7 @@ export function playHeroBlast(o: HeroBlastOptions): HeroBlastHandle {
   const dir = { x: (o.defender.x - o.attacker.x) / (dist || 1), y: (o.defender.y - o.attacker.y) / (dist || 1) };
   // THE DAMAGE FORMATION plays first (shared by every style); the Blast's charge starts where it ends.
   const { fcfg, fplan } = planFormation(o.formation, o.formationCfg, reduced);
-  const plan = blastPlan({ total: o.total, distance: dist, reduced, leadIn: fplan.endAt }, c);
+  const plan = blastPlan({ total: o.total, knockout: o.knockout, distance: dist, reduced, leadIn: fplan.endAt }, c);
   const cues = withFormation(fplan, blastCues(plan));
   const s = o.pixiScale ?? (typeof window === 'undefined' ? 1 : stageScale());
   const doc = typeof document !== 'undefined' ? document : null;

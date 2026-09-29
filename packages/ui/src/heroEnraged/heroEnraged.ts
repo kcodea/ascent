@@ -94,7 +94,7 @@ export function playHeroEnraged(o: HeroEnragedOptions): HeroEnragedHandle {
   const dRect = local ? { width: radius * 2, height: radius * 2, inv: 1 } : rectOf(o.defenderEl, radius);
   const swing = classicSwing(o.attacker, o.defender, aRect, dRect, aRect.inv);
   const { fcfg, fplan } = planFormation(o.formation, o.formationCfg, reduced);
-  const plan = enragedPlan({ total: o.total, reduced, leadIn: fplan.endAt, swing: swing.times, tempo: getClassicConfig().tempo }, c);
+  const plan = enragedPlan({ total: o.total, knockout: o.knockout, reduced, leadIn: fplan.endAt, swing: swing.times, tempo: getClassicConfig().tempo }, c);
   const cues = withFormation(fplan, enragedCues(plan));
   // The coil and the Tier IV rise never take the hero off the screen (or out of the sandbox box).
   const vw = local ? (o.host?.clientWidth || 400) : (typeof window !== 'undefined' ? window.innerWidth : 1920);

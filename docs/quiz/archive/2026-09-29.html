@@ -1,0 +1,566 @@
+<title>Ascent Quiz #48</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #f6f4ef;
+    --panel: #ffffff;
+    --panel-raised: #fbfaf7;
+    --ink: #1c2026;
+    --muted: #6b7078;
+    --faint: #9aa0a8;
+    --border: #e3e0d8;
+    --accent: #2f6f5e;
+    --accent-ink: #ffffff;
+    --accent-soft: #e4efe9;
+    --wrong: #b1462e;
+    --wrong-soft: #f6e6e0;
+    --correct: #2f6f5e;
+    --correct-soft: #e4efe9;
+    --shadow: 0 1px 2px rgba(28,32,38,0.04), 0 8px 24px rgba(28,32,38,0.06);
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #14171c;
+      --panel: #1a1e25;
+      --panel-raised: #1f242c;
+      --ink: #e9e7e1;
+      --muted: #9aa1ac;
+      --faint: #6d7480;
+      --border: #2b3038;
+      --accent: #7fd6b8;
+      --accent-ink: #0f1512;
+      --accent-soft: #1e2c28;
+      --wrong: #ff9270;
+      --wrong-soft: #2e2019;
+      --correct: #7fd6b8;
+      --correct-soft: #1e2c28;
+      --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 8px 24px rgba(0,0,0,0.35);
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #14171c;
+    --panel: #1a1e25;
+    --panel-raised: #1f242c;
+    --ink: #e9e7e1;
+    --muted: #9aa1ac;
+    --faint: #6d7480;
+    --border: #2b3038;
+    --accent: #7fd6b8;
+    --accent-ink: #0f1512;
+    --accent-soft: #1e2c28;
+    --wrong: #ff9270;
+    --wrong-soft: #2e2019;
+    --correct: #7fd6b8;
+    --correct-soft: #1e2c28;
+    --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 8px 24px rgba(0,0,0,0.35);
+    color-scheme: dark;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: 'IBM Plex Sans', system-ui, sans-serif;
+    padding-inline: 16px;
+    padding-block: 28px;
+    display: flex;
+    justify-content: center;
+  }
+  .wrap { width: 100%; max-width: 620px; }
+
+  .masthead {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 18px;
+    flex-wrap: wrap;
+  }
+  .masthead h1 {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 1.05rem;
+    font-weight: 600;
+    margin: 0;
+    letter-spacing: -0.01em;
+  }
+  .masthead h1 .dim { color: var(--muted); font-weight: 500; }
+  .masthead .tag {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.72rem;
+    color: var(--muted);
+    background: var(--panel-raised);
+    border: 1px solid var(--border);
+    padding: 3px 8px;
+    border-radius: 999px;
+  }
+
+  .console {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    box-shadow: var(--shadow);
+    overflow: hidden;
+  }
+  .titlebar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border);
+    background: var(--panel-raised);
+  }
+  .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--border); }
+  .dot:nth-child(1) { background: #e0625a; }
+  .dot:nth-child(2) { background: #e0b25a; }
+  .dot:nth-child(3) { background: #5ea87f; }
+  .titlebar .path {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.74rem;
+    color: var(--muted);
+    margin-left: 6px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .progressbar {
+    height: 4px;
+    background: var(--border);
+    position: relative;
+  }
+  .progressbar > i {
+    display: block;
+    height: 100%;
+    width: 0%;
+    background: var(--accent);
+    transition: width 0.35s ease;
+  }
+
+  .body-pad { padding: 22px 22px 24px; }
+
+  .qmeta {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.75rem;
+    color: var(--muted);
+    margin-bottom: 10px;
+  }
+  .qmeta .score { color: var(--ink); font-weight: 500; }
+
+  .question {
+    font-size: 1.14rem;
+    line-height: 1.5;
+    font-weight: 500;
+    margin: 0 0 18px;
+    text-wrap: balance;
+  }
+
+  .choices { display: flex; flex-direction: column; gap: 9px; }
+  .choice {
+    display: flex;
+    align-items: flex-start;
+    gap: 11px;
+    width: 100%;
+    text-align: left;
+    background: var(--panel-raised);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 11px 13px;
+    font-family: 'IBM Plex Sans', system-ui, sans-serif;
+    font-size: 0.94rem;
+    line-height: 1.45;
+    color: var(--ink);
+    cursor: url('data:image/svg+xml;utf8,') , pointer;
+    transition: border-color 0.15s ease, background 0.15s ease, transform 0.1s ease;
+  }
+  .choice:hover:not(:disabled) { border-color: var(--accent); }
+  .choice:active:not(:disabled) { transform: scale(0.997); }
+  .choice:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .choice .letter {
+    font-family: 'IBM Plex Mono', monospace;
+    font-weight: 600;
+    font-size: 0.82rem;
+    color: var(--muted);
+    border: 1px solid var(--border);
+    background: var(--panel);
+    width: 22px;
+    height: 22px;
+    min-width: 22px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-top: 1px;
+  }
+  .choice.correct { background: var(--correct-soft); border-color: var(--correct); }
+  .choice.correct .letter { background: var(--correct); border-color: var(--correct); color: var(--accent-ink); }
+  .choice.wrong { background: var(--wrong-soft); border-color: var(--wrong); }
+  .choice.wrong .letter { background: var(--wrong); border-color: var(--wrong); color: #fff; }
+  .choice:disabled { cursor: default; }
+  .choice:disabled:not(.correct):not(.wrong) { opacity: 0.55; }
+
+  .explain {
+    margin-top: 16px;
+    padding: 14px 15px;
+    background: var(--accent-soft);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    font-size: 0.9rem;
+    line-height: 1.55;
+    color: var(--ink);
+    display: none;
+  }
+  .explain.show { display: block; animation: fade-in 0.25s ease; }
+  .explain .verdict {
+    font-family: 'IBM Plex Mono', monospace;
+    font-weight: 600;
+    font-size: 0.78rem;
+    letter-spacing: 0.02em;
+    display: block;
+    margin-bottom: 6px;
+  }
+  .explain.correct-tone .verdict { color: var(--correct); }
+  .explain.wrong-tone .verdict { color: var(--wrong); }
+  .explain code {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.86em;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 1px 5px;
+  }
+
+  @keyframes fade-in { from { opacity: 0; transform: translateY(-3px); } to { opacity: 1; transform: translateY(0); } }
+
+  .footer-row {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 18px;
+  }
+  .next-btn {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.86rem;
+    font-weight: 600;
+    background: var(--accent);
+    color: var(--accent-ink);
+    border: none;
+    border-radius: 8px;
+    padding: 10px 18px;
+    cursor: url('data:image/svg+xml;utf8,'), pointer;
+    display: none;
+    align-items: center;
+    gap: 6px;
+  }
+  .next-btn.show { display: inline-flex; }
+  .next-btn:hover { filter: brightness(1.06); }
+  .next-btn:active { transform: scale(0.98); }
+
+  .final { text-align: center; padding: 10px 4px 6px; }
+  .final .tally {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 2.6rem;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    margin: 6px 0 4px;
+  }
+  .final .tally .of { color: var(--muted); font-weight: 500; font-size: 1.6rem; }
+  .final .headline { font-size: 1.05rem; font-weight: 600; margin: 0 0 6px; }
+  .final .sub { color: var(--muted); font-size: 0.92rem; line-height: 1.55; max-width: 40ch; margin: 0 auto 20px; }
+  .final .recap {
+    text-align: left;
+    border-top: 1px solid var(--border);
+    padding-top: 16px;
+    margin-top: 6px;
+    display: flex;
+    flex-direction: column;
+    gap: 9px;
+  }
+  .recap-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 0.86rem;
+  }
+  .recap-row .badge {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.68rem;
+    font-weight: 700;
+    width: 20px;
+    height: 20px;
+    min-width: 20px;
+    border-radius: 5px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .recap-row .badge.ok { background: var(--correct-soft); color: var(--correct); }
+  .recap-row .badge.no { background: var(--wrong-soft); color: var(--wrong); }
+  .recap-row .topic { color: var(--muted); font-family: 'IBM Plex Mono', monospace; font-size: 0.78rem; }
+
+  .reply-note {
+    margin-top: 18px;
+    padding: 13px 14px;
+    background: var(--panel-raised);
+    border: 1px dashed var(--border);
+    border-radius: 10px;
+    font-size: 0.83rem;
+    color: var(--muted);
+    line-height: 1.5;
+  }
+
+  .hint {
+    text-align: center;
+    font-size: 0.76rem;
+    color: var(--faint);
+    margin-top: 14px;
+    font-family: 'IBM Plex Mono', monospace;
+  }
+</style>
+
+<div class="wrap">
+  <div class="masthead">
+    <h1>Ascent Quiz <span class="dim">#48</span></h1>
+    <span class="tag">Sep 29, 2026 · architecture</span>
+  </div>
+
+  <div class="console">
+    <div class="titlebar">
+      <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+      <span class="path" id="titlePath">docs/quiz/archive/2026-09-29.html</span>
+    </div>
+    <div class="progressbar"><i id="progressFill"></i></div>
+    <div class="body-pad" id="quizRoot"></div>
+  </div>
+
+  <p class="hint">10 questions · one at a time · no build step, just click</p>
+</div>
+
+<script>
+(function () {
+  var QUESTIONS = [
+    {
+      topicId: "what-is-a-function",
+      question: "packages/sim/src/alignment.ts defines <code>alignmentAt(count, index)</code>, whose doc comment calls it \"Pure arithmetic — no board needed.\" It takes two numbers and returns one of three labels, with no lookup into any board object anywhere in its body. What does that tell you about it as a function?",
+      choices: [
+        "It's a function whose result depends ONLY on its two inputs (<code>count</code>, <code>index</code>) — call it with the same two numbers any number of times, anywhere, and it always returns the same answer, because nothing outside those inputs is ever consulted.",
+        "It's a function that reads outside state (like the live board) each time it's called, so its result can change between calls even with the same inputs.",
+        "It's not really a function, since it doesn't perform any I/O like logging or a network call.",
+        "It's a type definition, since it returns a value of type <code>Alignment</code>."
+      ],
+      answer: 0,
+      explanation: "\"No board needed\" is the tell: everything the function needs to compute its answer already arrived as <code>count</code> and <code>index</code> — it never reaches into a board array or any other state to figure out the rest. That's the essential shape of a function: input(s) in, output computed from just those inputs, out. (B) describes something reading external state, which is the opposite of what this comment says; (C) confuses \"function\" with \"does I/O\" — most functions in this codebase, this one included, don't touch the network or a log at all; (D) is wrong, a type (e.g. <code>type Alignment = 'dawn' | 'dusk' | 'eclipse'</code>) only describes a shape and never runs any computation the way this does.",
+    },
+    {
+      topicId: "deterministic-sim",
+      question: "packages/sim/src/opponents.ts has an unusually honest comment about its own limits: the served-opponent pool is \"static FOR A SESSION\" — filled once at startup and never mutated mid-run, so \"every replay/odds-sim within the session is byte-identical.\" But it adds: \"ACROSS sessions the fetched remote boards can differ,\" so replaying an OLD run from its (seed, actions) might serve different opponents than were actually fought. Why doesn't that second fact break the \"deterministic sim\" promise?",
+      choices: [
+        "It does break the promise — this is an outright bug the team hasn't fixed yet.",
+        "Because determinism only ever means \"the same code produces a UI,\" not \"the same output\" — visuals are allowed to vary freely.",
+        "Because \"deterministic\" means same inputs → same outputs, and the LIVE-FETCHED opponent pool is itself one of those inputs; if that pool differs between sessions (new boards became available on the server), that's a genuinely different input, so a different result is expected — not a violation. The fix, if exact cross-session replay is ever needed, is to freeze the served opponent INTO the run record, not to change how the RNG works.",
+        "It can't be true — this file always pulls opponents from a hardcoded, committed list, never a live fetch."
+      ],
+      answer: 2,
+      explanation: "Determinism is a promise about the RELATIONSHIP between inputs and outputs, not a promise that nothing outside the RNG can ever change — and the live Supabase-fetched board pool genuinely is one of those inputs, sitting outside the seeded RNG entirely. The comment scopes its claim precisely: within one session it's airtight (byte-identical), but a fetch that legitimately returns different data across sessions is a different input, so a different result is correct, expected behavior. (A) misreads a documented scope limitation as a bug; (B) misdefines determinism outright; (D) is false — the file explicitly discusses the live Supabase fetch as one of the pool's three sources.",
+    },
+    {
+      topicId: "seeded-rng",
+      question: "rng.ts's <code>next()</code> starts with <code>a |= 0; a = (a + 0x6d2b79f5) | 0;</code> and keeps using <code>| 0</code> / <code>&gt;&gt;&gt; 0</code> throughout. JavaScript numbers are all 64-bit floats — there's no real 32-bit integer type in the language. What is <code>| 0</code> actually doing here, and why does the seeded RNG need it?",
+      choices: [
+        "It's a typo that happens to still run without throwing an error.",
+        "<code>| 0</code> is a bitwise OR with zero, which — as a real side effect of how bitwise operators work in JS — forces the value to be coerced into a 32-bit integer, discarding any fractional part or overflow beyond that range. mulberry32's whole algorithm is defined in terms of 32-bit integer math with wraparound, so re-truncating <code>a</code> after every step is what makes <code>next()</code> reproduce mulberry32's actual, well-tested sequence instead of silently drifting through JS's normal floating-point behavior.",
+        "It divides the number by zero, which is how the RNG resets its internal state between forks.",
+        "It's purely a micro-optimization for speed, with no effect on the numbers <code>next()</code> actually produces."
+      ],
+      answer: 1,
+      explanation: "JS's bitwise operators (<code>|</code>, <code>&gt;&gt;&gt;</code>, etc.) always coerce both operands to 32-bit integers before operating — that's specified language behavior, not a typo. mulberry32 is defined as 32-bit integer arithmetic that's meant to wrap around at that boundary, so forcing <code>a</code> back into 32-bit range after each step is exactly what keeps the algorithm's output matching its real, proven design instead of quietly drifting through 64-bit float precision. (C) misreads the operator — <code>|</code> is bitwise OR, not division; (D) understates it: dropping the truncation would change the actual sequence of numbers produced, not just how fast they're produced.",
+    },
+    {
+      topicId: "sim-ui-decoupling",
+      question: "packages/core/src/presentation/policies.ts — inside <code>@game/core</code>, not <code>@game/ui</code> — is a 654-entry registry classifying every card effect with things like <code>{ policy: 'ownBeat', family: 'shout' }</code>. A CI test (<code>presentationPolicies.test.ts</code>) fails the build if a new effect ships with no entry here. Why would presentation-classification data live in the ENGINE package, rather than in the UI package that actually draws the animations?",
+      choices: [
+        "It's a mistake — this file should be moved into <code>packages/ui</code>, but nobody has gotten around to it yet.",
+        "Core needs this registry to decide whether an effect is allowed to happen in combat at all.",
+        "<code>packages/ui</code> isn't allowed to contain data files — only React components.",
+        "The classification (own beat vs. grouped, which \"family\" it belongs to) is a fact ABOUT the effect itself — true no matter which renderer eventually reads it — so keeping it engine-side, with a CI tripwire that catches any new effect nobody classified, means the data can never silently drift out of sync with the real, live list of effects. The UI still owns HOW to actually draw a beat; core just declares WHAT KIND of moment it is."
+      ],
+      answer: 3,
+      explanation: "This is the sim/UI split from a slightly different angle: even something that sounds like a presentation concern — \"should this play as its own beat?\" — is really a fact about the EFFECT, and <code>packages/core</code> already has the full, authoritative list of effects without needing <code>ui</code> to exist at all. Putting the classification there, guarded by a CI test that fails on any unclassified effect, means the registry can't quietly go stale the way a hand-maintained UI-side list eventually would. (A) misreads deliberate architecture as an oversight; (B) is wrong — this registry is about HOW to show something, not whether it happens (that's still <code>simulate()</code>'s job); (C) is an invented rule with no basis in the codebase.",
+    },
+    {
+      topicId: "monorepo-packages",
+      question: "packages/core/package.json has no <code>\"dependencies\"</code> key at all — not even an empty one. Every other package (<code>content</code>, <code>sim</code>, <code>ui</code>, <code>tools</code>) lists <code>\"@game/core\": \"*\"</code> in theirs. What does that tell you about <code>core</code>'s place in the monorepo's dependency graph?",
+      choices: [
+        "<code>core</code> is the foundation: nothing inside it needs anything else in the monorepo to run — it's pure engine (RNG, types, <code>simulate()</code>) with no knowledge of cards, run state, or React. Every other package builds ON TOP of <code>core</code>, never the reverse, which is exactly why <code>core</code> is safe to import from anywhere without dragging in the rest of the app.",
+        "It's a bug — <code>core</code> should depend on <code>content</code> for its card types, and someone forgot to add it.",
+        "It means <code>core</code> is currently broken and can't be built on its own.",
+        "It means <code>core</code> is the newest package in the repo and its dependencies just haven't been wired up yet."
+      ],
+      answer: 0,
+      explanation: "A package.json's <code>dependencies</code> lists what that package needs to run — <code>core</code> having none of its own <code>@game/*</code> entries means it sits at the base of the graph: <code>content</code> depends on <code>core</code> (for shared types like <code>CardDef</code>), <code>sim</code> depends on both, and <code>ui</code>/<code>tools</code> depend on everything. That strictly one-directional shape (core → nothing) is what lets <code>core</code> stay a pure, dependency-free engine any of the others can safely build on. (B) invents a dependency that would actually run backwards — <code>content</code> needs <code>core</code>'s types, never the other way; (C)/(D) misread an intentional, stable architecture as breakage.",
+    },
+    {
+      topicId: "pure-functions",
+      question: "packages/sim/src/config.ts has <code>hasTier7Access(state)</code>, whose entire body is: <code>return maxTierFor(state.rift) >= 7 || state.tier7Access === true;</code> — it calls <code>maxTierFor</code>, another function in the same file, to help compute its own answer. Given <code>maxTierFor</code> is itself pure (same rift in → same tier ceiling out, no side effects), what can you say about <code>hasTier7Access</code>?",
+      choices: [
+        "Calling one function from inside another automatically makes the outer one impure, since it now depends on outside code.",
+        "It can't be evaluated ahead of time, and must only ever run live, inside combat.",
+        "A function built entirely out of reading its own inputs (<code>state.rift</code>, <code>state.tier7Access</code>) and calling other pure functions on those same inputs is itself pure — nothing here reaches outside <code>state</code>, calls <code>Math.random</code>, or performs I/O, so <code>hasTier7Access</code> inherits <code>maxTierFor</code>'s purity rather than losing it.",
+        "It's only pure the FIRST time it's called; later calls read back a cached result instead of recomputing."
+      ],
+      answer: 2,
+      explanation: "Purity is contagious in the good direction — a function built entirely from its own parameters plus calls to other pure functions on those same parameters stays pure, because there's still nothing anywhere in the chain that could make its result vary for a given input. (A) has the causality backwards: calling another function doesn't automatically taint purity — what WOULD taint it is that other function doing something impure (RNG, I/O, mutation), and <code>maxTierFor</code> doesn't. (B)/(D) describe behaviors this function simply doesn't have; there's no caching or timing dependency anywhere in its body.",
+    },
+    {
+      topicId: "data-vs-code",
+      question: "Here's a real, complete card entry from packages/content/src/cards/set2/dragons.ts: <code>{ id: 'd2_embermouth', name: 'Embermouth Whelp', tribe: 'dragon', tier: 1, attack: 2, health: 2, keywords: [], effects: [{ on: 'battlecryTriggered', do: 'onBattlecryBuffSelf', params: { attack: 1, health: 1 } }], text: '...' }</code>. There's no class, no method, no <code>function</code> keyword anywhere in it. What kind of code is this?",
+      choices: [
+        "It's a class definition, just written in a shorthand syntax that hides the <code>class</code> keyword.",
+        "It's a type declaration describing the shape all cards must have.",
+        "It's dead code that hasn't been wired up to anything yet.",
+        "It's an object LITERAL — a plain value made of key/value pairs — sitting inside an array of other card objects. It describes a card entirely through data (numbers, strings, and a reference to an already-existing effect id), with no custom logic written for this specific card at all."
+      ],
+      answer: 3,
+      explanation: "This is CLAUDE.md's \"cards are data, never bespoke classes\" rule in its most literal form: the whole entry is just an object literal — no logic runs when this file loads, it just states facts (name, stats) and points at an existing, reusable effect (<code>onBattlecryBuffSelf</code>) by id. Adding a new card whose ability already has a matching factory is exactly this: copy an entry, edit the data, zero new code. (A) is wrong — there's no <code>class</code> anywhere, shorthand or otherwise, this is genuinely just a value; (B) confuses this specific card with the <code>CardDef</code> TYPE that describes the general shape every card must match (that lives in <code>schema.ts</code>/<code>types.ts</code>); (C) is wrong, it's a live, exported entry in <code>SET2_DRAGONS</code>.",
+    },
+    {
+      topicId: "event-log-replay",
+      question: "The <code>death</code> CombatEvent in types.ts is: <code>{ type: 'death'; target: string; side: Side; rise?: true }</code>, with a comment explaining <code>rise</code> marks a death that's shown on screen but should NOT be counted as a kill (the minion is about to return). Why does the EVENT itself need to carry that <code>rise</code> flag, instead of the UI just recomputing \"was this a real kill?\" when it replays the log?",
+      choices: [
+        "It doesn't really matter either way — <code>rise</code> is unused leftover data nobody reads.",
+        "The whole point of the event log is that the UI never recomputes gameplay outcomes — it only animates what already happened. If \"was this a real kill\" required re-deriving game logic during replay, the UI would be computing an outcome, which is exactly what CLAUDE.md's rule says it must never do. Stamping <code>rise</code> directly onto the event lets the replayer just read a flag instead of re-deriving anything.",
+        "<code>rise</code> is required by TypeScript for the object to type-check, but carries no real meaning.",
+        "It's there purely for debugging, and no real gameplay code ever reads it."
+      ],
+      answer: 1,
+      explanation: "\"The UI animates the event log on its own clock; it never computes outcomes\" is the load-bearing rule here. Whether a death should count as a kill (for something like a kill-counter) is genuine game logic — so instead of the UI re-deriving it from scratch during replay (duplicating logic that already lives in the simulator, and risking the two definitions drifting apart), <code>simulate()</code> decides it once and stamps the answer directly onto the event as <code>rise</code>. That keeps the replayer \"dumb\" on purpose: read fields, decide nothing. (A)/(D) undersell a real, meaningfully-read field; (C) misreads optional fields — TypeScript doesn't require <code>rise</code> to be present (note the <code>rise?:</code>), it's meaningful specifically when it IS there.",
+    },
+    {
+      topicId: "eslint-rules",
+      question: "eslint.config.mjs's top-level <code>ignores</code> list includes <code>'.claude/**'</code>, with a comment explaining it's \"per-machine agent tooling: locally-installed plugins/skills and worktrees, all gitignored. CI never sees it, so linting it only produces errors in OUR shells that no PR can fix.\" Why would linting a gitignored, per-machine folder be actively harmful, rather than just pointless busywork?",
+      choices: [
+        "Because a folder that's gitignored and different on every machine can never be fixed by a commit — a PR literally cannot change files nobody commits there — so lint errors from it would sit there forever, drowning out real findings the PR CAN actually fix, and would make <code>npm run lint</code> fail locally even on a perfectly clean, mergeable change.",
+        "It isn't actually harmful, just slow — the comment is overly dramatic about it.",
+        "Because <code>.claude/**</code> contains secrets that ESLint's output would leak.",
+        "Because ESLint physically cannot skip a folder unless it's also listed in <code>.gitignore</code>."
+      ],
+      answer: 0,
+      explanation: "This is a subtle but important reason for an <code>ignores</code> entry: it's not just \"we don't care about this code,\" it's \"no commit could ever satisfy a finding here,\" which makes it categorically different from an ordinary lint error. Left unignored, a dev with some local plugin installed would see <code>npm run lint</code> fail on a totally clean, correct PR — for a reason completely unrelated to their change and unfixable by it. (B) misreads a real, load-bearing reason as hyperbole; (C) invents an unrelated concern; (D) is false — <code>ignores</code> (ESLint's own mechanism) and <code>.gitignore</code> are two separate systems that don't depend on each other.",
+    },
+    {
+      topicId: "performance-memo",
+      question: "docs/performance.md tells the story of a 160ms combat freeze: an FX shader called <code>shader.destroy(true)</code> in its cleanup — which looked like responsible memory hygiene — but that call evicted the shader's compiled GL program from Pixi's shared <code>programCache</code>. The doc's rule: \"Never pass <code>true</code> to <code>Shader.destroy()</code> for an FX shader... Freeing it is not tidiness — it discards the most expensive artifact the effect owns.\" What's the general lesson here, beyond this one shader bug?",
+      choices: [
+        "Shaders should never be destroyed under any circumstances, for any reason, ever.",
+        "<code>destroy()</code> calls are always a safe default, and this specific bug was just a rare fluke.",
+        "Cleanup code that LOOKS careful and responsible can be the actual source of a performance bug — if a resource is really a SHARED, expensive-to-rebuild cache entry (not a one-off object owned by just this one call site), \"freeing\" it for tidiness just forces the NEXT user to pay the full rebuild cost again. The real fix is knowing which resources are meant to be pooled and reused for the program's whole lifetime, versus which are genuinely safe to tear down per-use.",
+        "This only matters for WebGL/shader code specifically, with no equivalent lesson for ordinary JavaScript."
+      ],
+      answer: 2,
+      explanation: "The trap here is that <code>shader.destroy(true)</code> reads as the responsible thing to do — free what you allocated — but the shader's compiled GL program wasn't this call's alone to free: it lived in a shared, module-global cache meant to be reused for the entire life of the page. Evicting it meant the very next fire had to pay a full GLSL recompile (~68ms) instead of reusing the cached program — a shape that shows up anywhere a resource is actually a shared cache rather than a private allocation. (A) overcorrects — the actual fix wasn't \"never destroy,\" it was \"don't destroy the shared program, DO reset the per-fire state\" (see the doc's pooling rules right after); (D) is wrong, \"know what you're actually freeing\" applies well beyond WebGL.",
+    }
+  ];
+
+  var current = 0;
+  var score = 0;
+  var answered = new Array(QUESTIONS.length).fill(null); // stores chosen index or null
+
+  var root = document.getElementById('quizRoot');
+  var fill = document.getElementById('progressFill');
+
+  function letter(i) { return String.fromCharCode(65 + i); }
+
+  function render() {
+    if (current >= QUESTIONS.length) { renderFinal(); return; }
+    var q = QUESTIONS[current];
+    fill.style.width = (current / QUESTIONS.length * 100) + '%';
+
+    var html = '';
+    html += '<div class="qmeta"><span>Question ' + (current + 1) + ' / ' + QUESTIONS.length + '</span><span class="score">Score: ' + score + '</span></div>';
+    html += '<p class="question">' + q.question + '</p>';
+    html += '<div class="choices" id="choicesRow">';
+    for (var i = 0; i < q.choices.length; i++) {
+      html += '<button class="choice" data-i="' + i + '"><span class="letter">' + letter(i) + '</span><span>' + q.choices[i] + '</span></button>';
+    }
+    html += '</div>';
+    html += '<div class="explain" id="explainBox"></div>';
+    html += '<div class="footer-row"><button class="next-btn" id="nextBtn">' + (current === QUESTIONS.length - 1 ? 'See results →' : 'Next question →') + '</button></div>';
+    root.innerHTML = html;
+
+    var prior = answered[current];
+    if (prior !== null) {
+      lockChoices(prior, false);
+    } else {
+      var buttons = root.querySelectorAll('.choice');
+      for (var j = 0; j < buttons.length; j++) {
+        buttons[j].addEventListener('click', function () {
+          var idx = parseInt(this.getAttribute('data-i'), 10);
+          selectAnswer(idx);
+        });
+      }
+    }
+  }
+
+  function selectAnswer(idx) {
+    var q = QUESTIONS[current];
+    if (answered[current] !== null) return;
+    answered[current] = idx;
+    if (idx === q.answer) score++;
+    lockChoices(idx, true);
+  }
+
+  function lockChoices(chosenIdx, animate) {
+    var q = QUESTIONS[current];
+    var buttons = root.querySelectorAll('.choice');
+    for (var i = 0; i < buttons.length; i++) {
+      buttons[i].disabled = true;
+      if (i === q.answer) buttons[i].classList.add('correct');
+      else if (i === chosenIdx) buttons[i].classList.add('wrong');
+    }
+    var box = document.getElementById('explainBox');
+    var wasRight = chosenIdx === q.answer;
+    box.className = 'explain show ' + (wasRight ? 'correct-tone' : 'wrong-tone');
+    box.innerHTML = '<span class="verdict">' + (wasRight ? '✓ correct' : '✗ not quite — ' + letter(q.answer) + ' was it') + '</span>' + q.explanation;
+    document.getElementById('nextBtn').classList.add('show');
+    document.getElementById('nextBtn').addEventListener('click', goNext);
+    var meta = root.querySelector('.qmeta .score');
+    if (meta) meta.textContent = 'Score: ' + score;
+  }
+
+  function goNext() {
+    current++;
+    render();
+  }
+
+  function renderFinal() {
+    fill.style.width = '100%';
+    var pct = Math.round(score / QUESTIONS.length * 100);
+    var headline, sub;
+    if (pct === 100) { headline = "Clean sweep."; sub = "Every question landed — the architecture is sticking. Tomorrow ramps a notch."; }
+    else if (pct >= 80) { headline = "Strong run."; sub = "That's a solid grip on how these pieces fit together. A couple more days like this and difficulty starts climbing."; }
+    else if (pct >= 50) { headline = "Real progress."; sub = "More than half stuck — the misses are exactly what tomorrow's quiz will circle back to."; }
+    else { headline = "That's the hard part done."; sub = "First exposure to new ideas is always the roughest pass. Reply with which ones tripped you up and they'll get re-taught from a fresh angle."; }
+
+    var html = '<div class="final">';
+    html += '<div class="tally">' + score + '<span class="of"> / ' + QUESTIONS.length + '</span></div>';
+    html += '<p class="headline">' + headline + '</p>';
+    html += '<p class="sub">' + sub + '</p>';
+    html += '<div class="recap">';
+    for (var i = 0; i < QUESTIONS.length; i++) {
+      var ok = answered[i] === QUESTIONS[i].answer;
+      html += '<div class="recap-row"><span class="badge ' + (ok ? 'ok' : 'no') + '">' + (ok ? '✓' : '✗') + '</span><span class="topic">' + QUESTIONS[i].topicId + '</span></div>';
+    }
+    html += '</div>';
+    html += '<div class="reply-note">Reply in chat with your score (e.g. “' + score + '/10, missed the reducer one”) so tomorrow’s quiz adapts — topics you missed get re-taught, topics you’ve got down move on.</div>';
+    html += '</div>';
+    root.innerHTML = html;
+  }
+
+  render();
+})();
+</script>

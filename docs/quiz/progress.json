@@ -5,48 +5,48 @@
   "focus": "ARCHITECTURE ONLY — how the game is coded/structured. NEVER ask game-rules questions (see daily-prompt.md).",
   "difficulty": 1,
   "difficultyScale": "1 = gentlest (what is a function, what is a package). 5 = deep (trace an event through the architecture). Ramp only per the rules in daily-prompt.md.",
-  "totalQuizzes": 47,
+  "totalQuizzes": 48,
   "recentScores": [],
   "topics": {
     "what-is-a-function": {
-      "asked": 23,
-      "lastAsked": "2026-09-27"
+      "asked": 24,
+      "lastAsked": "2026-09-29"
     },
     "deterministic-sim": {
-      "asked": 23,
-      "lastAsked": "2026-09-27"
+      "asked": 24,
+      "lastAsked": "2026-09-29"
     },
     "seeded-rng": {
-      "asked": 23,
-      "lastAsked": "2026-09-27"
+      "asked": 24,
+      "lastAsked": "2026-09-29"
     },
     "sim-ui-decoupling": {
-      "asked": 23,
-      "lastAsked": "2026-09-27"
+      "asked": 24,
+      "lastAsked": "2026-09-29"
     },
     "monorepo-packages": {
-      "asked": 23,
-      "lastAsked": "2026-09-27"
+      "asked": 24,
+      "lastAsked": "2026-09-29"
     },
     "pure-functions": {
-      "asked": 23,
-      "lastAsked": "2026-09-27"
+      "asked": 24,
+      "lastAsked": "2026-09-29"
     },
     "data-vs-code": {
-      "asked": 23,
-      "lastAsked": "2026-09-27"
+      "asked": 24,
+      "lastAsked": "2026-09-29"
     },
     "event-log-replay": {
-      "asked": 23,
-      "lastAsked": "2026-09-27"
+      "asked": 24,
+      "lastAsked": "2026-09-29"
     },
     "eslint-rules": {
-      "asked": 22,
-      "lastAsked": "2026-09-27"
+      "asked": 23,
+      "lastAsked": "2026-09-29"
     },
     "performance-memo": {
-      "asked": 22,
-      "lastAsked": "2026-09-27"
+      "asked": 23,
+      "lastAsked": "2026-09-29"
     },
     "reducer-run-state": {
       "asked": 23,
@@ -1091,6 +1091,25 @@
       ],
       "scored": null,
       "note": "Still no score ever reported by Mike (46 quizzes in), so mastery/difficulty stayed at 1/untouched. Picked this topic group (lastAsked 2026-09-26) over the other group (lastAsked 2026-09-27) to keep the spaced two-group rotation going. Read live source for all ten topics rather than reusing prior angles: reducer.ts as a plain (state, action) -> newState function (reducer-run-state); store.ts's Zustand `create(...)` as UI-only state separate from RunState (zustand-store); events.ts's `CombatBus.on/emit` as local synchronous pub-sub (event-bus); sets.ts's run-pinned pool read via `poolOf(state)` (cards-in-sets); CLAUDE.md's public-entrypoints-only rule illustrated via core's `index.ts` barrel (package-boundaries); schema.ts's `EffectFactoryIdSchema` whitelist as reusable data-referenced effects instead of bespoke classes (effects-as-subscriptions); CLAUDE.md's recruit-bake vs combat-time split (effect-timing-pipeline); vitest.config.ts + the determinism-test concept of same-seed-same-output (testing-vitest); the `CombatEvent` union in types.ts as a beginner explanation of TS union types (types-basics); and reducer.ts's own comment on deliberately NOT cloning `lastCombat` (a finished, read-only result) while deep-cloning everything else, as a performance-vs-immutability lesson (immutability). Verified all ten facts by reading the live source directly (packages/sim/src/reducer.ts, packages/sim/src/state.ts, packages/ui/src/store.ts, packages/core/src/events.ts, packages/content/src/sets.ts, packages/core/src/index.ts, packages/content/src/schema.ts, packages/core/src/types.ts, vitest.config.ts). Published as an interactive Artifact and archived to docs/quiz/archive/2026-09-28.html."
+    },
+    {
+      "date": "2026-09-29",
+      "quizNumber": 48,
+      "difficulty": 1,
+      "topics": [
+        "what-is-a-function",
+        "deterministic-sim",
+        "seeded-rng",
+        "sim-ui-decoupling",
+        "monorepo-packages",
+        "pure-functions",
+        "data-vs-code",
+        "event-log-replay",
+        "eslint-rules",
+        "performance-memo"
+      ],
+      "scored": null,
+      "note": "Still no score ever reported by Mike (48 quizzes in), so mastery/difficulty stayed at 1/untouched. Picked this topic group (lastAsked 2026-09-27) over the other group (lastAsked 2026-09-28) to keep the spaced two-group rotation going. Read the three most recent archives on this exact topic set (2026-09-23, 2026-09-25, 2026-09-27) to see which angles were already used, then read live source myself for ten fresh, unused facts: `alignmentAt(count, index)` in sim/src/alignment.ts, whose doc comment calls it \"Pure arithmetic — no board needed\" (what-is-a-function); opponents.ts's own honest \"determinism scope\" comment — byte-identical WITHIN a session, but the live Supabase-fetched pool can legitimately differ ACROSS sessions, which is a different input, not a broken promise (deterministic-sim); rng.ts's `|0`/`>>>0` coercions forcing mulberry32's math to stay in real 32-bit-integer range despite JS having no native int type (seeded-rng); core/src/presentation/policies.ts's 654-entry effect-classification registry living in `core` (not `ui`), with `presentationPolicies.test.ts` as a CI tripwire against an unclassified effect (sim-ui-decoupling); packages/core/package.json having NO `dependencies` key at all — the base of the monorepo's dependency graph, contrasted with content/sim/ui/tools all depending on `@game/core` (monorepo-packages); `hasTier7Access` in sim/src/config.ts being built entirely from calling the already-pure `maxTierFor` on its own inputs, illustrating that purity composes (pure-functions); a real card entry (`d2_embermouth`) from content/src/cards/set2/dragons.ts as a plain object literal with zero custom code (data-vs-code); the `death` CombatEvent's `rise?: true` field in types.ts, stamped by the simulator so the replayer never has to re-derive \"was this a real kill\" itself (event-log-replay); eslint.config.mjs's `.claude/**` ignore entry and its reasoning — a gitignored, per-machine folder that no PR could ever fix, so leaving it linted would fail clean PRs for unrelated reasons (eslint-rules); and docs/performance.md's shader.destroy(true) story — a 160ms GLSL recompile freeze caused by \"responsible\" cleanup evicting a SHARED program cache, with the doc's own rule quoted directly (performance-memo). Verified all ten facts by reading the live source directly (packages/sim/src/alignment.ts, packages/sim/src/opponents.ts, packages/core/src/rng.ts, packages/core/src/presentation/policies.ts, packages/core/package.json + packages/content/package.json + packages/sim/package.json + packages/ui/package.json + packages/tools/package.json, packages/sim/src/config.ts, packages/content/src/cards/set2/dragons.ts, packages/core/src/types.ts, eslint.config.mjs, docs/performance.md). Answer letters: A,C,B,D,A,C,D,B,A,C (3xA, 2xB, 3xC, 2xD, no consecutive repeats). Verified the embedded QUESTIONS array parses as valid JS (10 questions, 4 choices each, in-range unique answer, all 10 topicIds present and unique, no duplicates) via a node script before publishing. Published as an interactive Artifact and archived to docs/quiz/archive/2026-09-29.html."
     }
   ],
   "notes": "2026-08-15: refocused to ARCHITECTURE ONLY per Mike — removed game-rules topics (shop-vs-combat, auto-battler-loop) and expanded the code-architecture curriculum. Do not quiz on game rules; see the hard constraint in daily-prompt.md."

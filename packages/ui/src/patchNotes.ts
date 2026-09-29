@@ -60,7 +60,7 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
-        text: 'Unit voices and creature sounds when you play a unit or it dies are now half as loud.',
+        text: 'Unit voices and creature sounds when you play a unit or it dies are now much quieter.',
       },
       {
         category: 'Systems',

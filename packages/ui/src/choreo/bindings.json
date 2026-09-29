@@ -107,11 +107,11 @@
       },
       "minionPlayed": {
         "def": "sfx-vo-b2-echohorn",
-        "gain": 0.5
+        "gain": 0.3
       },
       "death": {
         "def": "sfx-vo-b2-echohorn-death",
-        "gain": 0.5
+        "gain": 0.3
       }
     },
     "b2_florida": {
@@ -121,7 +121,7 @@
       },
       "death": {
         "def": "sfx-vo-b2-florida-death",
-        "gain": 0.5
+        "gain": 0.3
       }
     },
     "b2_oona": {
@@ -131,11 +131,11 @@
       },
       "minionPlayed": {
         "def": "sfx-vo-b2-oona",
-        "gain": 0.5
+        "gain": 0.3
       },
       "death": {
         "def": "sfx-vo-b2-oona-death",
-        "gain": 0.5
+        "gain": 0.3
       }
     },
     "bloodbinder": {
@@ -150,11 +150,11 @@
       },
       "minionPlayed": {
         "def": "sfx-vo-d2-broodfire",
-        "gain": 0.5
+        "gain": 0.3
       },
       "death": {
         "def": "sfx-vo-d2-broodfire-death",
-        "gain": 0.5
+        "gain": 0.3
       }
     },
     "d2_embermouth": {
@@ -167,11 +167,11 @@
       },
       "minionPlayed": {
         "def": "sfx-vo-d2-embermouth",
-        "gain": 0.5
+        "gain": 0.3
       },
       "death": {
         "def": "sfx-vo-d2-embermouth-death",
-        "gain": 0.5
+        "gain": 0.3
       }
     },
     "dm_butcher": {
@@ -186,11 +186,11 @@
       },
       "minionPlayed": {
         "def": "sfx-vo-dm-butcher",
-        "gain": 0.5
+        "gain": 0.3
       },
       "death": {
         "def": "sfx-vo-dm-butcher-death",
-        "gain": 0.5
+        "gain": 0.3
       }
     },
     "dm_felspikes": {
@@ -201,11 +201,11 @@
       },
       "minionPlayed": {
         "def": "sfx-vo-dm-felspikes",
-        "gain": 0.5
+        "gain": 0.3
       },
       "death": {
         "def": "sfx-vo-dm-felspikes-death",
-        "gain": 0.5
+        "gain": 0.3
       }
     },
     "dm_jumbo": {
@@ -214,11 +214,11 @@
       },
       "minionPlayed": {
         "def": "sfx-vo-dm-jumbo",
-        "gain": 0.5
+        "gain": 0.3
       },
       "death": {
         "def": "sfx-vo-dm-jumbo-death",
-        "gain": 0.5
+        "gain": 0.3
       }
     },
     "dm_tormentor": {
@@ -230,11 +230,11 @@
       },
       "minionPlayed": {
         "def": "sfx-vo-dm-tormentor",
-        "gain": 0.5
+        "gain": 0.3
       },
       "death": {
         "def": "sfx-vo-dm-tormentor-death",
-        "gain": 0.5
+        "gain": 0.3
       }
     },
     "dw_pimm": {
@@ -244,7 +244,7 @@
       },
       "death": {
         "def": "sfx-vo-dw-pimm-death",
-        "gain": 0.5
+        "gain": 0.3
       }
     },
     "greatpot": {
@@ -269,11 +269,11 @@
       },
       "minionPlayed": {
         "def": "sfx-vo-karwind",
-        "gain": 0.5
+        "gain": 0.3
       },
       "death": {
         "def": "sfx-vo-karwind-death",
-        "gain": 0.5
+        "gain": 0.3
       }
     },
     "manasaber": {
@@ -282,7 +282,7 @@
       },
       "death": {
         "def": "sfx-vo-manasaber-death",
-        "gain": 0.5
+        "gain": 0.3
       }
     },
     "n2_paragon": {
@@ -292,11 +292,11 @@
       },
       "minionPlayed": {
         "def": "sfx-vo-n2-paragon",
-        "gain": 0.5
+        "gain": 0.3
       },
       "death": {
         "def": "sfx-vo-n2-paragon-death",
-        "gain": 0.5
+        "gain": 0.3
       }
     },
     "n2_standardbearer": {
@@ -306,11 +306,11 @@
       },
       "minionPlayed": {
         "def": "sfx-vo-n2-standardbearer",
-        "gain": 0.5
+        "gain": 0.3
       },
       "death": {
         "def": "sfx-vo-n2-standardbearer-death",
-        "gain": 0.5
+        "gain": 0.3
       }
     },
     "sp_dragonflame": {
@@ -367,1517 +367,1517 @@
     "dw_orin": {
       "minionPlayed": {
         "def": "sfx-vo-dw-orin",
-        "gain": 0.5
+        "gain": 0.3
       },
       "death": {
         "def": "sfx-vo-dw-orin-death",
-        "gain": 0.5
+        "gain": 0.3
       }
     },
     "dw_ironlung": {
       "minionPlayed": {
         "def": "sfx-vo-dw-ironlung",
-        "gain": 0.5
+        "gain": 0.3
       },
       "death": {
         "def": "sfx-vo-dw-ironlung-death",
-        "gain": 0.5
+        "gain": 0.3
       }
     },
     "dw_brunni": {
       "minionPlayed": {
         "def": "sfx-vo-dw-brunni",
-        "gain": 0.5
+        "gain": 0.3
       },
       "death": {
         "def": "sfx-vo-dw-brunni-death",
-        "gain": 0.5
+        "gain": 0.3
       }
     },
     "dw_edward": {
       "minionPlayed": {
         "def": "sfx-vo-dw-edward",
-        "gain": 0.5
+        "gain": 0.3
       },
       "death": {
         "def": "sfx-vo-dw-edward-death",
-        "gain": 0.5
+        "gain": 0.3
       }
     },
     "dw_coinfire": {
       "minionPlayed": {
         "def": "sfx-vo-dw-coinfire",
-        "gain": 0.5
+        "gain": 0.3
       },
       "death": {
         "def": "sfx-vo-dw-coinfire-death",
-        "gain": 0.5
+        "gain": 0.3
       }
     },
     "dw_billings": {
       "minionPlayed": {
         "def": "sfx-vo-dw-billings",
-        "gain": 0.5
+        "gain": 0.3
       },
       "death": {
         "def": "sfx-vo-dw-billings-death",
-        "gain": 0.5
+        "gain": 0.3
       }
     },
     "dw_runemaster": {
       "minionPlayed": {
         "def": "sfx-vo-dw-runemaster",
-        "gain": 0.5
+        "gain": 0.3
       },
       "death": {
         "def": "sfx-vo-dw-runemaster-death",
-        "gain": 0.5
+        "gain": 0.3
       }
     },
     "dw_brakka": {
       "minionPlayed": {
         "def": "sfx-vo-dw-brakka",
-        "gain": 0.5
+        "gain": 0.3
       },
       "death": {
         "def": "sfx-vo-dw-brakka-death",
-        "gain": 0.5
+        "gain": 0.3
       }
     },
     "dw_chickenbrawl": {
       "minionPlayed": {
         "def": "sfx-vo-dw-chickenbrawl",
-        "gain": 0.5
+        "gain": 0.3
       },
       "death": {
         "def": "sfx-vo-dw-chickenbrawl-death",
-        "gain": 0.5
+        "gain": 0.3
       }
     },
     "dw_dorrin": {
       "minionPlayed": {
         "def": "sfx-vo-dw-dorrin",
-        "gain": 0.5
+        "gain": 0.3
       },
       "death": {
         "def": "sfx-vo-dw-dorrin-death",
-        "gain": 0.5
+        "gain": 0.3
       }
     },
     "dw_kegheart": {
       "minionPlayed": {
         "def": "sfx-vo-dw-kegheart",
-        "gain": 0.5
+        "gain": 0.3
       },
       "death": {
         "def": "sfx-vo-dw-kegheart-death",
-        "gain": 0.5
+        "gain": 0.3
       }
     },
     "dw_bladethrower": {
       "minionPlayed": {
         "def": "sfx-vo-dw-bladethrower",
-        "gain": 0.5
+        "gain": 0.3
       },
       "death": {
         "def": "sfx-vo-dw-bladethrower-death",
-        "gain": 0.5
+        "gain": 0.3
       }
     },
     "dw_brewer": {
       "minionPlayed": {
         "def": "sfx-vo-dw-brewer",
-        "gain": 0.5
+        "gain": 0.3
       },
       "death": {
         "def": "sfx-vo-dw-brewer-death",
-        "gain": 0.5
+        "gain": 0.3
       }
     },
     "dw_brill": {
       "minionPlayed": {
         "def": "sfx-vo-dw-brill",
-        "gain": 0.5
+        "gain": 0.3
       },
       "death": {
         "def": "sfx-vo-dw-brill-death",
-        "gain": 0.5
+        "gain": 0.3
       }
     },
     "dw_brisbane": {
       "minionPlayed": {
         "def": "sfx-vo-dw-brisbane",
-        "gain": 0.5
+        "gain": 0.3
       },
       "death": {
         "def": "sfx-vo-dw-brisbane-death",
-        "gain": 0.5
+        "gain": 0.3
       }
     },
     "dw_chef": {
       "minionPlayed": {
         "def": "sfx-vo-dw-chef",
-        "gain": 0.5
+        "gain": 0.3
       },
       "death": {
         "def": "sfx-vo-dw-chef-death",
-        "gain": 0.5
+        "gain": 0.3
       }
     },
     "dw_foreman": {
       "minionPlayed": {
         "def": "sfx-vo-dw-foreman",
-        "gain": 0.5
+        "gain": 0.3
       },
       "death": {
         "def": "sfx-vo-dw-foreman-death",
-        "gain": 0.5
+        "gain": 0.3
       }
     },
     "dw_sharpshooter": {
       "minionPlayed": {
         "def": "sfx-vo-dw-sharpshooter",
-        "gain": 0.5
+        "gain": 0.3
       },
       "death": {
         "def": "sfx-vo-dw-sharpshooter-death",
-        "gain": 0.5
+        "gain": 0.3
       }
     },
     "dw_thane": {
       "minionPlayed": {
         "def": "sfx-vo-dw-thane",
-        "gain": 0.5
+        "gain": 0.3
       },
       "death": {
         "def": "sfx-vo-dw-thane-death",
-        "gain": 0.5
+        "gain": 0.3
       }
     },
     "dw_wardkeeper": {
       "minionPlayed": {
         "def": "sfx-vo-dw-wardkeeper",
-        "gain": 0.5
+        "gain": 0.3
       },
       "death": {
         "def": "sfx-vo-dw-wardkeeper-death",
-        "gain": 0.5
+        "gain": 0.3
       }
     },
     "n2_muster": {
       "minionPlayed": {
         "def": "sfx-vo-n2-muster",
-        "gain": 0.5
+        "gain": 0.3
       },
       "death": {
         "def": "sfx-vo-n2-muster-death",
-        "gain": 0.5
+        "gain": 0.3
       }
     },
     "dw_anvilshade": {
       "minionPlayed": {
         "def": "sfx-vo-dw-anvilshade",
-        "gain": 0.5
+        "gain": 0.3
       },
       "death": {
         "def": "sfx-vo-dw-anvilshade-death",
-        "gain": 0.5
+        "gain": 0.3
       }
     },
     "dw_arnold": {
       "minionPlayed": {
         "def": "sfx-vo-dw-arnold",
-        "gain": 0.5
+        "gain": 0.3
       },
       "death": {
         "def": "sfx-vo-dw-arnold-death",
-        "gain": 0.5
+        "gain": 0.3
       }
     },
     "dw_baal": {
       "minionPlayed": {
         "def": "sfx-vo-dw-baal",
-        "gain": 0.5
+        "gain": 0.3
       },
       "death": {
         "def": "sfx-vo-dw-baal-death",
-        "gain": 0.5
+        "gain": 0.3
       }
     },
     "dw_bucky": {
       "minionPlayed": {
         "def": "sfx-vo-dw-bucky",
-        "gain": 0.5
+        "gain": 0.3
       },
       "death": {
         "def": "sfx-vo-dw-bucky-death",
-        "gain": 0.5
+        "gain": 0.3
       }
     },
     "dw_gangplank": {
       "minionPlayed": {
         "def": "sfx-vo-dw-gangplank",
-        "gain": 0.5
+        "gain": 0.3
       },
       "death": {
         "def": "sfx-vo-dw-gangplank-death",
-        "gain": 0.5
+        "gain": 0.3
       }
     },
     "dw_mountainbond": {
       "minionPlayed": {
         "def": "sfx-vo-dw-mountainbond",
-        "gain": 0.5
+        "gain": 0.3
       },
       "death": {
         "def": "sfx-vo-dw-mountainbond-death",
-        "gain": 0.5
+        "gain": 0.3
       }
     },
     "dw_soldier": {
       "minionPlayed": {
         "def": "sfx-vo-dw-soldier",
-        "gain": 0.5
+        "gain": 0.3
       }
     },
     "dw_tapkeeper": {
       "minionPlayed": {
         "def": "sfx-vo-dw-tapkeeper",
-        "gain": 0.5
+        "gain": 0.3
       },
       "death": {
         "def": "sfx-vo-dw-tapkeeper-death",
-        "gain": 0.5
+        "gain": 0.3
       }
     },
     "k_chipwick": {
       "minionPlayed": {
         "def": "sfx-vo-k-chipwick",
-        "gain": 0.5
+        "gain": 0.3
       },
       "death": {
         "def": "sfx-vo-k-chipwick-death",
-        "gain": 0.5
+        "gain": 0.3
       }
     },
     "k_beggy": {
       "minionPlayed": {
         "def": "sfx-vo-k-beggy",
-        "gain": 0.5
+        "gain": 0.3
       },
       "death": {
         "def": "sfx-vo-k-beggy-death",
-        "gain": 0.5
+        "gain": 0.3
       }
     },
     "k_deepvein": {
       "minionPlayed": {
         "def": "sfx-vo-k-deepvein",
-        "gain": 0.5
+        "gain": 0.3
       },
       "death": {
         "def": "sfx-vo-k-deepvein-death",
-        "gain": 0.5
+        "gain": 0.3
       }
     },
     "k_geode": {
       "minionPlayed": {
         "def": "sfx-vo-k-geode",
-        "gain": 0.5
+        "gain": 0.3
       },
       "death": {
         "def": "sfx-vo-k-geode-death",
-        "gain": 0.5
+        "gain": 0.3
       }
     },
     "k_tunnelcharger": {
       "minionPlayed": {
         "def": "sfx-vo-k-tunnelcharger",
-        "gain": 0.5
+        "gain": 0.3
       },
       "death": {
         "def": "sfx-vo-k-tunnelcharger-death",
-        "gain": 0.5
+        "gain": 0.3
       }
     },
     "k_faultline": {
       "minionPlayed": {
         "def": "sfx-vo-k-faultline",
-        "gain": 0.5
+        "gain": 0.3
       },
       "death": {
         "def": "sfx-vo-k-faultline-death",
-        "gain": 0.5
+        "gain": 0.3
       }
     },
     "k_gemheart": {
       "minionPlayed": {
         "def": "sfx-vo-k-gemheart",
-        "gain": 0.5
+        "gain": 0.3
       },
       "death": {
         "def": "sfx-vo-k-gemheart-death",
-        "gain": 0.5
+        "gain": 0.3
       }
     },
     "k_stormchaser": {
       "minionPlayed": {
         "def": "sfx-vo-k-stormchaser",
-        "gain": 0.5
+        "gain": 0.3
       },
       "death": {
         "def": "sfx-vo-k-stormchaser-death",
-        "gain": 0.5
+        "gain": 0.3
       }
     },
     "k_blazer": {
       "minionPlayed": {
         "def": "sfx-vo-k-blazer",
-        "gain": 0.5
+        "gain": 0.3
       },
       "death": {
         "def": "sfx-vo-k-blazer-death",
-        "gain": 0.5
+        "gain": 0.3
       }
     },
     "k_gemline": {
       "minionPlayed": {
         "def": "sfx-vo-k-gemline",
-        "gain": 0.5
+        "gain": 0.3
       },
       "death": {
         "def": "sfx-vo-k-gemline-death",
-        "gain": 0.5
+        "gain": 0.3
       }
     },
     "k_veinbreaker": {
       "minionPlayed": {
         "def": "sfx-vo-k-veinbreaker",
-        "gain": 0.5
+        "gain": 0.3
       },
       "death": {
         "def": "sfx-vo-k-veinbreaker-death",
-        "gain": 0.5
+        "gain": 0.3
       }
     },
     "k_frenzied": {
       "minionPlayed": {
         "def": "sfx-vo-k-frenzied",
-        "gain": 0.5
+        "gain": 0.3
       },
       "death": {
         "def": "sfx-vo-k-frenzied-death",
-        "gain": 0.5
+        "gain": 0.3
       }
     },
     "k_kobe": {
       "minionPlayed": {
         "def": "sfx-vo-k-kobe",
-        "gain": 0.5
+        "gain": 0.3
       },
       "death": {
         "def": "sfx-vo-k-kobe-death",
-        "gain": 0.5
+        "gain": 0.3
       }
     },
     "k_gemsage": {
       "minionPlayed": {
         "def": "sfx-vo-k-gemsage",
-        "gain": 0.5
+        "gain": 0.3
       },
       "death": {
         "def": "sfx-vo-k-gemsage-death",
-        "gain": 0.5
+        "gain": 0.3
       }
     },
     "k_crownvein": {
       "minionPlayed": {
         "def": "sfx-vo-k-crownvein",
-        "gain": 0.5
+        "gain": 0.3
       },
       "death": {
         "def": "sfx-vo-k-crownvein-death",
-        "gain": 0.5
+        "gain": 0.3
       }
     },
     "k_portsmith": {
       "minionPlayed": {
         "def": "sfx-vo-k-portsmith",
-        "gain": 0.5
+        "gain": 0.3
       },
       "death": {
         "def": "sfx-vo-k-portsmith-death",
-        "gain": 0.5
+        "gain": 0.3
       }
     },
     "k_boulderdash": {
       "minionPlayed": {
         "def": "sfx-vo-k-boulderdash",
-        "gain": 0.5
+        "gain": 0.3
       },
       "death": {
         "def": "sfx-vo-k-boulderdash-death",
-        "gain": 0.5
+        "gain": 0.3
       }
     },
     "k_gemstorm": {
       "minionPlayed": {
         "def": "sfx-vo-k-gemstorm",
-        "gain": 0.5
+        "gain": 0.3
       },
       "death": {
         "def": "sfx-vo-k-gemstorm-death",
-        "gain": 0.5
+        "gain": 0.3
       }
     },
     "k_deepdelve": {
       "minionPlayed": {
         "def": "sfx-vo-k-deepdelve",
-        "gain": 0.5
+        "gain": 0.3
       },
       "death": {
         "def": "sfx-vo-k-deepdelve-death",
-        "gain": 0.5
+        "gain": 0.3
       }
     },
     "k_mineralmaster": {
       "minionPlayed": {
         "def": "sfx-vo-k-mineralmaster",
-        "gain": 0.5
+        "gain": 0.3
       },
       "death": {
         "def": "sfx-vo-k-mineralmaster-death",
-        "gain": 0.5
+        "gain": 0.3
       }
     },
     "k_alchemist": {
       "minionPlayed": {
         "def": "sfx-vo-k-alchemist",
-        "gain": 0.5
+        "gain": 0.3
       },
       "death": {
         "def": "sfx-vo-k-alchemist-death",
-        "gain": 0.5
+        "gain": 0.3
       }
     },
     "n2_wanderer": {
       "minionPlayed": {
         "def": "sfx-vo-n2-wanderer",
-        "gain": 0.5
+        "gain": 0.3
       },
       "death": {
         "def": "sfx-vo-n2-wanderer-death",
-        "gain": 0.5
+        "gain": 0.3
       }
     },
     "lazarus": {
       "minionPlayed": {
         "def": "sfx-vo-lazarus",
-        "gain": 0.5
+        "gain": 0.3
       },
       "death": {
         "def": "sfx-vo-lazarus-death",
-        "gain": 0.5
+        "gain": 0.3
       }
     },
     "impoverseer": {
       "minionPlayed": {
         "def": "sfx-vo-impoverseer",
-        "gain": 0.5
+        "gain": 0.3
       },
       "death": {
         "def": "sfx-vo-impoverseer-death",
-        "gain": 0.5
+        "gain": 0.3
       }
     },
     "dm_agent": {
       "minionPlayed": {
         "def": "sfx-vo-dm-agent",
-        "gain": 0.5
+        "gain": 0.3
       },
       "death": {
         "def": "sfx-vo-dm-agent-death",
-        "gain": 0.5
+        "gain": 0.3
       }
     },
     "dm_curator": {
       "minionPlayed": {
         "def": "sfx-vo-dm-curator",
-        "gain": 0.5
+        "gain": 0.3
       },
       "death": {
         "def": "sfx-vo-dm-curator-death",
-        "gain": 0.5
+        "gain": 0.3
       }
     },
     "dm_glutton": {
       "minionPlayed": {
         "def": "sfx-vo-dm-glutton",
-        "gain": 0.5
+        "gain": 0.3
       },
       "death": {
         "def": "sfx-vo-dm-glutton-death",
-        "gain": 0.5
+        "gain": 0.3
       }
     },
     "dm_gourmand": {
       "minionPlayed": {
         "def": "sfx-vo-dm-gourmand",
-        "gain": 0.5
+        "gain": 0.3
       },
       "death": {
         "def": "sfx-vo-dm-gourmand-death",
-        "gain": 0.5
+        "gain": 0.3
       }
     },
     "dm_velvet": {
       "minionPlayed": {
         "def": "sfx-vo-dm-velvet",
-        "gain": 0.5
+        "gain": 0.3
       },
       "death": {
         "def": "sfx-vo-dm-velvet-death",
-        "gain": 0.5
+        "gain": 0.3
       }
     },
     "dm_shepherd": {
       "minionPlayed": {
         "def": "sfx-vo-dm-shepherd",
-        "gain": 0.5
+        "gain": 0.3
       },
       "death": {
         "def": "sfx-vo-dm-shepherd-death",
-        "gain": 0.5
+        "gain": 0.3
       }
     },
     "dm_maw": {
       "minionPlayed": {
         "def": "sfx-vo-dm-maw",
-        "gain": 0.5
+        "gain": 0.3
       },
       "death": {
         "def": "sfx-vo-dm-maw-death",
-        "gain": 0.5
+        "gain": 0.3
       }
     },
     "dm_malphas": {
       "minionPlayed": {
         "def": "sfx-vo-dm-malphas",
-        "gain": 0.5
+        "gain": 0.3
       },
       "death": {
         "def": "sfx-vo-dm-malphas-death",
-        "gain": 0.5
+        "gain": 0.3
       }
     },
     "dm_hank": {
       "minionPlayed": {
         "def": "sfx-vo-dm-hank",
-        "gain": 0.5
+        "gain": 0.3
       },
       "death": {
         "def": "sfx-vo-dm-hank-death",
-        "gain": 0.5
+        "gain": 0.3
       }
     },
     "dm_grobbus": {
       "minionPlayed": {
         "def": "sfx-vo-dm-grobbus",
-        "gain": 0.5
+        "gain": 0.3
       },
       "death": {
         "def": "sfx-vo-dm-grobbus-death",
-        "gain": 0.5
+        "gain": 0.3
       }
     },
     "dm_todd": {
       "minionPlayed": {
         "def": "sfx-vo-dm-todd",
-        "gain": 0.5
+        "gain": 0.3
       },
       "death": {
         "def": "sfx-vo-dm-todd-death",
-        "gain": 0.5
+        "gain": 0.3
       }
     },
     "dm_knocked": {
       "minionPlayed": {
         "def": "sfx-vo-dm-knocked",
-        "gain": 0.5
+        "gain": 0.3
       },
       "death": {
         "def": "sfx-vo-dm-knocked-death",
-        "gain": 0.5
+        "gain": 0.3
       }
     },
     "dm_grevlin": {
       "minionPlayed": {
         "def": "sfx-vo-dm-grevlin",
-        "gain": 0.5
+        "gain": 0.3
       },
       "death": {
         "def": "sfx-vo-dm-grevlin-death",
-        "gain": 0.5
+        "gain": 0.3
       }
     },
     "dm_chosenfiend": {
       "minionPlayed": {
         "def": "sfx-vo-dm-chosenfiend",
-        "gain": 0.5
+        "gain": 0.3
       },
       "death": {
         "def": "sfx-vo-dm-chosenfiend-death",
-        "gain": 0.5
+        "gain": 0.3
       }
     },
     "d2_skald": {
       "minionPlayed": {
         "def": "sfx-vo-d2-skald",
-        "gain": 0.5
+        "gain": 0.3
       },
       "death": {
         "def": "sfx-vo-d2-skald-death",
-        "gain": 0.5
+        "gain": 0.3
       }
     },
     "d2_blazingkeeper": {
       "minionPlayed": {
         "def": "sfx-vo-d2-blazingkeeper",
-        "gain": 0.5
+        "gain": 0.3
       },
       "death": {
         "def": "sfx-vo-d2-blazingkeeper-death",
-        "gain": 0.5
+        "gain": 0.3
       }
     },
     "d2_orivax": {
       "minionPlayed": {
         "def": "sfx-vo-d2-orivax",
-        "gain": 0.5
+        "gain": 0.3
       },
       "death": {
         "def": "sfx-vo-d2-orivax-death",
-        "gain": 0.5
+        "gain": 0.3
       }
     },
     "d2_felconjurer": {
       "minionPlayed": {
         "def": "sfx-vo-d2-felconjurer",
-        "gain": 0.5
+        "gain": 0.3
       },
       "death": {
         "def": "sfx-vo-d2-felconjurer-death",
-        "gain": 0.5
+        "gain": 0.3
       }
     },
     "kennel": {
       "minionPlayed": {
         "def": "sfx-vo-kennel",
-        "gain": 0.5
+        "gain": 0.3
       },
       "death": {
         "def": "sfx-vo-kennel-death",
-        "gain": 0.5
+        "gain": 0.3
       }
     },
     "buddy": {
       "minionPlayed": {
         "def": "sfx-vo-buddy",
-        "gain": 0.5
+        "gain": 0.3
       },
       "death": {
         "def": "sfx-vo-buddy-death",
-        "gain": 0.5
+        "gain": 0.3
       }
     },
     "drummer": {
       "minionPlayed": {
         "def": "sfx-vo-drummer",
-        "gain": 0.5
+        "gain": 0.3
       },
       "death": {
         "def": "sfx-vo-drummer-death",
-        "gain": 0.5
+        "gain": 0.3
       }
     },
     "sylus": {
       "minionPlayed": {
         "def": "sfx-vo-sylus",
-        "gain": 0.5
+        "gain": 0.3
       },
       "death": {
         "def": "sfx-vo-sylus-death",
-        "gain": 0.5
+        "gain": 0.3
       }
     },
     "chronos": {
       "minionPlayed": {
         "def": "sfx-vo-chronos",
-        "gain": 0.5
+        "gain": 0.3
       },
       "death": {
         "def": "sfx-vo-chronos-death",
-        "gain": 0.5
+        "gain": 0.3
       }
     },
     "yazzus": {
       "minionPlayed": {
         "def": "sfx-vo-yazzus",
-        "gain": 0.5
+        "gain": 0.3
       },
       "death": {
         "def": "sfx-vo-yazzus-death",
-        "gain": 0.5
+        "gain": 0.3
       }
     },
     "joker": {
       "minionPlayed": {
         "def": "sfx-vo-joker",
-        "gain": 0.5
+        "gain": 0.3
       },
       "death": {
         "def": "sfx-vo-joker-death",
-        "gain": 0.5
+        "gain": 0.3
       }
     },
     "tauntbreaker": {
       "minionPlayed": {
         "def": "sfx-vo-tauntbreaker",
-        "gain": 0.5
+        "gain": 0.3
       },
       "death": {
         "def": "sfx-vo-tauntbreaker-death",
-        "gain": 0.5
+        "gain": 0.3
       }
     },
     "blackbelt": {
       "minionPlayed": {
         "def": "sfx-vo-blackbelt",
-        "gain": 0.5
+        "gain": 0.3
       },
       "death": {
         "def": "sfx-vo-blackbelt-death",
-        "gain": 0.5
+        "gain": 0.3
       }
     },
     "jenkins": {
       "minionPlayed": {
         "def": "sfx-vo-jenkins",
-        "gain": 0.5
+        "gain": 0.3
       },
       "death": {
         "def": "sfx-vo-jenkins-death",
-        "gain": 0.5
+        "gain": 0.3
       }
     },
     "stewardofspells": {
       "minionPlayed": {
         "def": "sfx-vo-stewardofspells",
-        "gain": 0.5
+        "gain": 0.3
       },
       "death": {
         "def": "sfx-vo-stewardofspells-death",
-        "gain": 0.5
+        "gain": 0.3
       }
     },
     "arenaheckler": {
       "minionPlayed": {
         "def": "sfx-vo-arenaheckler",
-        "gain": 0.5
+        "gain": 0.3
       },
       "death": {
         "def": "sfx-vo-arenaheckler-death",
-        "gain": 0.5
+        "gain": 0.3
       }
     },
     "ropewrangler": {
       "minionPlayed": {
         "def": "sfx-vo-ropewrangler",
-        "gain": 0.5
+        "gain": 0.3
       },
       "death": {
         "def": "sfx-vo-ropewrangler-death",
-        "gain": 0.5
+        "gain": 0.3
       }
     },
     "nimbus": {
       "minionPlayed": {
         "def": "sfx-vo-nimbus",
-        "gain": 0.5
+        "gain": 0.3
       },
       "death": {
         "def": "sfx-vo-nimbus-death",
-        "gain": 0.5
+        "gain": 0.3
       }
     },
     "wayfinder": {
       "minionPlayed": {
         "def": "sfx-vo-wayfinder",
-        "gain": 0.5
+        "gain": 0.3
       },
       "death": {
         "def": "sfx-vo-wayfinder-death",
-        "gain": 0.5
+        "gain": 0.3
       }
     },
     "salvatore": {
       "minionPlayed": {
         "def": "sfx-vo-salvatore",
-        "gain": 0.5
+        "gain": 0.3
       },
       "death": {
         "def": "sfx-vo-salvatore-death",
-        "gain": 0.5
+        "gain": 0.3
       }
     },
     "uron": {
       "minionPlayed": {
         "def": "sfx-vo-uron",
-        "gain": 0.5
+        "gain": 0.3
       },
       "death": {
         "def": "sfx-vo-uron-death",
-        "gain": 0.5
+        "gain": 0.3
       }
     },
     "zyff": {
       "minionPlayed": {
         "def": "sfx-vo-zyff",
-        "gain": 0.5
+        "gain": 0.3
       },
       "death": {
         "def": "sfx-vo-zyff-death",
-        "gain": 0.5
+        "gain": 0.3
       }
     },
     "n2_spellsword": {
       "minionPlayed": {
         "def": "sfx-vo-n2-spellsword",
-        "gain": 0.5
+        "gain": 0.3
       },
       "death": {
         "def": "sfx-vo-n2-spellsword-death",
-        "gain": 0.5
+        "gain": 0.3
       }
     },
     "n2_bellringer": {
       "minionPlayed": {
         "def": "sfx-vo-n2-bellringer",
-        "gain": 0.5
+        "gain": 0.3
       },
       "death": {
         "def": "sfx-vo-n2-bellringer-death",
-        "gain": 0.5
+        "gain": 0.3
       }
     },
     "n2_conductor": {
       "minionPlayed": {
         "def": "sfx-vo-n2-conductor",
-        "gain": 0.5
+        "gain": 0.3
       },
       "death": {
         "def": "sfx-vo-n2-conductor-death",
-        "gain": 0.5
+        "gain": 0.3
       }
     },
     "n2_lastlight": {
       "minionPlayed": {
         "def": "sfx-vo-n2-lastlight",
-        "gain": 0.5
+        "gain": 0.3
       },
       "death": {
         "def": "sfx-vo-n2-lastlight-death",
-        "gain": 0.5
+        "gain": 0.3
       }
     },
     "k_pouchpincher": {
       "minionPlayed": {
         "def": "sfx-vo-k-pouchpincher",
-        "gain": 0.5
+        "gain": 0.3
       },
       "death": {
         "def": "sfx-vo-k-pouchpincher-death",
-        "gain": 0.5
+        "gain": 0.3
       }
     },
     "n2_fatecarver": {
       "minionPlayed": {
         "def": "sfx-vo-n2-fatecarver",
-        "gain": 0.5
+        "gain": 0.3
       },
       "death": {
         "def": "sfx-vo-n2-fatecarver-death",
-        "gain": 0.5
+        "gain": 0.3
       }
     },
     "n2_deepchef": {
       "minionPlayed": {
         "def": "sfx-vo-n2-deepchef",
-        "gain": 0.5
+        "gain": 0.3
       },
       "death": {
         "def": "sfx-vo-n2-deepchef-death",
-        "gain": 0.5
+        "gain": 0.3
       }
     },
     "n2_salesman": {
       "minionPlayed": {
         "def": "sfx-vo-n2-salesman",
-        "gain": 0.5
+        "gain": 0.3
       },
       "death": {
         "def": "sfx-vo-n2-salesman-death",
-        "gain": 0.5
+        "gain": 0.3
       }
     },
     "n2_ninefold": {
       "minionPlayed": {
         "def": "sfx-vo-n2-ninefold",
-        "gain": 0.5
+        "gain": 0.3
       },
       "death": {
         "def": "sfx-vo-n2-ninefold-death",
-        "gain": 0.5
+        "gain": 0.3
       }
     },
     "k_kobabyboldies": {
       "minionPlayed": {
         "def": "sfx-vo-k-kobabyboldies",
-        "gain": 0.5
+        "gain": 0.3
       },
       "death": {
         "def": "sfx-vo-k-kobabyboldies-death",
-        "gain": 0.5
+        "gain": 0.3
       }
     },
     "k_gemgorge": {
       "minionPlayed": {
         "def": "sfx-vo-k-gemgorge",
-        "gain": 0.5
+        "gain": 0.3
       },
       "death": {
         "def": "sfx-vo-k-gemgorge-death",
-        "gain": 0.5
+        "gain": 0.3
       }
     },
     "n2_clockwork": {
       "minionPlayed": {
         "def": "sfx-vo-n2-clockwork",
-        "gain": 0.5
+        "gain": 0.3
       },
       "death": {
         "def": "sfx-vo-n2-clockwork-death",
-        "gain": 0.5
+        "gain": 0.3
       }
     },
     "dm_hungerling": {
       "minionPlayed": {
         "def": "sfx-vo-dm-hungerling",
-        "gain": 0.5
+        "gain": 0.3
       },
       "death": {
         "def": "sfx-vo-dm-hungerling-death",
-        "gain": 0.5
+        "gain": 0.3
       }
     },
     "dm_leech": {
       "minionPlayed": {
         "def": "sfx-vo-dm-leech",
-        "gain": 0.5
+        "gain": 0.3
       },
       "death": {
         "def": "sfx-vo-dm-leech-death",
-        "gain": 0.5
+        "gain": 0.3
       }
     },
     "dm_nightmarket": {
       "minionPlayed": {
         "def": "sfx-vo-dm-nightmarket",
-        "gain": 0.5
+        "gain": 0.3
       },
       "death": {
         "def": "sfx-vo-dm-nightmarket-death",
-        "gain": 0.5
+        "gain": 0.3
       }
     },
     "dm_behemoth": {
       "minionPlayed": {
         "def": "sfx-vo-dm-behemoth",
-        "gain": 0.5
+        "gain": 0.3
       },
       "death": {
         "def": "sfx-vo-dm-behemoth-death",
-        "gain": 0.5
+        "gain": 0.3
       }
     },
     "d2_spellkeeper": {
       "minionPlayed": {
         "def": "sfx-vo-d2-spellkeeper",
-        "gain": 0.5
+        "gain": 0.3
       },
       "death": {
         "def": "sfx-vo-d2-spellkeeper-death",
-        "gain": 0.5
+        "gain": 0.3
       }
     },
     "d2_chorus": {
       "minionPlayed": {
         "def": "sfx-vo-d2-chorus",
-        "gain": 0.5
+        "gain": 0.3
       },
       "death": {
         "def": "sfx-vo-d2-chorus-death",
-        "gain": 0.5
+        "gain": 0.3
       }
     },
     "d2_grimoire": {
       "minionPlayed": {
         "def": "sfx-vo-d2-grimoire",
-        "gain": 0.5
+        "gain": 0.3
       },
       "death": {
         "def": "sfx-vo-d2-grimoire-death",
-        "gain": 0.5
+        "gain": 0.3
       }
     },
     "d2_scalefeather": {
       "minionPlayed": {
         "def": "sfx-vo-d2-scalefeather",
-        "gain": 0.5
+        "gain": 0.3
       },
       "death": {
         "def": "sfx-vo-d2-scalefeather-death",
-        "gain": 0.5
+        "gain": 0.3
       }
     },
     "d2_voicekeeper": {
       "minionPlayed": {
         "def": "sfx-vo-d2-voicekeeper",
-        "gain": 0.5
+        "gain": 0.3
       },
       "death": {
         "def": "sfx-vo-d2-voicekeeper-death",
-        "gain": 0.5
+        "gain": 0.3
       }
     },
     "d2_chronicler": {
       "minionPlayed": {
         "def": "sfx-vo-d2-chronicler",
-        "gain": 0.5
+        "gain": 0.3
       },
       "death": {
         "def": "sfx-vo-d2-chronicler-death",
-        "gain": 0.5
+        "gain": 0.3
       }
     },
     "d2_mirrorwing": {
       "minionPlayed": {
         "def": "sfx-vo-d2-mirrorwing",
-        "gain": 0.5
+        "gain": 0.3
       },
       "death": {
         "def": "sfx-vo-d2-mirrorwing-death",
-        "gain": 0.5
+        "gain": 0.3
       }
     },
     "d2_scalechanter": {
       "minionPlayed": {
         "def": "sfx-vo-d2-scalechanter",
-        "gain": 0.5
+        "gain": 0.3
       },
       "death": {
         "def": "sfx-vo-d2-scalechanter-death",
-        "gain": 0.5
+        "gain": 0.3
       }
     },
     "d2_recaller": {
       "minionPlayed": {
         "def": "sfx-vo-d2-recaller",
-        "gain": 0.5
+        "gain": 0.3
       },
       "death": {
         "def": "sfx-vo-d2-recaller-death",
-        "gain": 0.5
+        "gain": 0.3
       }
     },
     "d2_herzog": {
       "minionPlayed": {
         "def": "sfx-vo-d2-herzog",
-        "gain": 0.5
+        "gain": 0.3
       },
       "death": {
         "def": "sfx-vo-d2-herzog-death",
-        "gain": 0.5
+        "gain": 0.3
       }
     },
     "d2_transcendence": {
       "minionPlayed": {
         "def": "sfx-vo-d2-transcendence",
-        "gain": 0.5
+        "gain": 0.3
       },
       "death": {
         "def": "sfx-vo-d2-transcendence-death",
-        "gain": 0.5
+        "gain": 0.3
       }
     },
     "d2_cinderchef": {
       "minionPlayed": {
         "def": "sfx-vo-d2-cinderchef",
-        "gain": 0.5
+        "gain": 0.3
       },
       "death": {
         "def": "sfx-vo-d2-cinderchef-death",
-        "gain": 0.5
+        "gain": 0.3
       }
     },
     "d2_roarcollector": {
       "minionPlayed": {
         "def": "sfx-vo-d2-roarcollector",
-        "gain": 0.5
+        "gain": 0.3
       },
       "death": {
         "def": "sfx-vo-d2-roarcollector-death",
-        "gain": 0.5
+        "gain": 0.3
       }
     },
     "d2_flamebeat": {
       "minionPlayed": {
         "def": "sfx-vo-d2-flamebeat",
-        "gain": 0.5
+        "gain": 0.3
       },
       "death": {
         "def": "sfx-vo-d2-flamebeat-death",
-        "gain": 0.5
+        "gain": 0.3
       }
     },
     "d2_riverdrake": {
       "minionPlayed": {
         "def": "sfx-vo-d2-riverdrake",
-        "gain": 0.5
+        "gain": 0.3
       },
       "death": {
         "def": "sfx-vo-d2-riverdrake-death",
-        "gain": 0.5
+        "gain": 0.3
       }
     },
     "d2_warflame": {
       "minionPlayed": {
         "def": "sfx-vo-d2-warflame",
-        "gain": 0.5
+        "gain": 0.3
       },
       "death": {
         "def": "sfx-vo-d2-warflame-death",
-        "gain": 0.5
+        "gain": 0.3
       }
     },
     "d2_flutterdrake": {
       "minionPlayed": {
         "def": "sfx-vo-d2-flutterdrake",
-        "gain": 0.5
+        "gain": 0.3
       },
       "death": {
         "def": "sfx-vo-d2-flutterdrake-death",
-        "gain": 0.5
+        "gain": 0.3
       }
     },
     "d2_ascendant": {
       "minionPlayed": {
         "def": "sfx-vo-d2-ascendant",
-        "gain": 0.5
+        "gain": 0.3
       },
       "death": {
         "def": "sfx-vo-d2-ascendant-death",
-        "gain": 0.5
+        "gain": 0.3
       }
     },
     "d2_humphry": {
       "minionPlayed": {
         "def": "sfx-vo-d2-humphry",
-        "gain": 0.5
+        "gain": 0.3
       },
       "death": {
         "def": "sfx-vo-d2-humphry-death",
-        "gain": 0.5
+        "gain": 0.3
       }
     },
     "grim": {
       "minionPlayed": {
         "def": "sfx-vo-grim",
-        "gain": 0.5
+        "gain": 0.3
       },
       "death": {
         "def": "sfx-vo-grim-death",
-        "gain": 0.5
+        "gain": 0.3
       }
     },
     "seaurchin": {
       "minionPlayed": {
         "def": "sfx-vo-seaurchin",
-        "gain": 0.5
+        "gain": 0.3
       },
       "death": {
         "def": "sfx-vo-seaurchin-death",
-        "gain": 0.5
+        "gain": 0.3
       }
     },
     "beetle": {
       "minionPlayed": {
         "def": "sfx-vo-beetle",
-        "gain": 0.5
+        "gain": 0.3
       },
       "death": {
         "def": "sfx-vo-beetle-death",
-        "gain": 0.5
+        "gain": 0.3
       }
     },
     "b2_elderhorn": {
       "minionPlayed": {
         "def": "sfx-vo-b2-elderhorn",
-        "gain": 0.5
+        "gain": 0.3
       },
       "death": {
         "def": "sfx-vo-b2-elderhorn-death",
-        "gain": 0.5
+        "gain": 0.3
       }
     },
     "b2_sunmane": {
       "minionPlayed": {
         "def": "sfx-vo-b2-sunmane",
-        "gain": 0.5
+        "gain": 0.3
       },
       "death": {
         "def": "sfx-vo-b2-sunmane-death",
-        "gain": 0.5
+        "gain": 0.3
       }
     },
     "b2_trex": {
       "minionPlayed": {
         "def": "sfx-vo-b2-trex",
-        "gain": 0.5
+        "gain": 0.3
       },
       "death": {
         "def": "sfx-vo-b2-trex-death",
-        "gain": 0.5
+        "gain": 0.3
       }
     },
     "b2_mammoth": {
       "minionPlayed": {
         "def": "sfx-vo-b2-mammoth",
-        "gain": 0.5
+        "gain": 0.3
       },
       "death": {
         "def": "sfx-vo-b2-mammoth-death",
-        "gain": 0.5
+        "gain": 0.3
       }
     },
     "b2_solaris": {
       "minionPlayed": {
         "def": "sfx-vo-b2-solaris",
-        "gain": 0.5
+        "gain": 0.3
       },
       "death": {
         "def": "sfx-vo-b2-solaris-death",
-        "gain": 0.5
+        "gain": 0.3
       }
     },
     "b2_quil": {
       "minionPlayed": {
         "def": "sfx-vo-b2-quil",
-        "gain": 0.5
+        "gain": 0.3
       },
       "death": {
         "def": "sfx-vo-b2-quil-death",
-        "gain": 0.5
+        "gain": 0.3
       }
     },
     "b2_dawnclaw": {
       "minionPlayed": {
         "def": "sfx-vo-b2-dawnclaw",
-        "gain": 0.5
+        "gain": 0.3
       },
       "death": {
         "def": "sfx-vo-b2-dawnclaw-death",
-        "gain": 0.5
+        "gain": 0.3
       }
     },
     "b2_packstrider": {
       "minionPlayed": {
         "def": "sfx-vo-b2-packstrider",
-        "gain": 0.5
+        "gain": 0.3
       },
       "death": {
         "def": "sfx-vo-b2-packstrider-death",
-        "gain": 0.5
+        "gain": 0.3
       }
     },
     "b2_bullseye": {
       "minionPlayed": {
         "def": "sfx-vo-b2-bullseye",
-        "gain": 0.5
+        "gain": 0.3
       },
       "death": {
         "def": "sfx-vo-b2-bullseye-death",
-        "gain": 0.5
+        "gain": 0.3
       }
     },
     "b2_beardsley": {
       "minionPlayed": {
         "def": "sfx-vo-b2-beardsley",
-        "gain": 0.5
+        "gain": 0.3
       },
       "death": {
         "def": "sfx-vo-b2-beardsley-death",
-        "gain": 0.5
+        "gain": 0.3
       }
     },
     "b2_wolvie": {
       "minionPlayed": {
         "def": "sfx-vo-b2-wolvie",
-        "gain": 0.5
+        "gain": 0.3
       },
       "death": {
         "def": "sfx-vo-b2-wolvie-death",
-        "gain": 0.5
+        "gain": 0.3
       }
     },
     "b2_armadiyo": {
       "minionPlayed": {
         "def": "sfx-vo-b2-armadiyo",
-        "gain": 0.5
+        "gain": 0.3
       },
       "death": {
         "def": "sfx-vo-b2-armadiyo-death",
-        "gain": 0.5
+        "gain": 0.3
       }
     },
     "b2_voidmother": {
       "minionPlayed": {
         "def": "sfx-vo-b2-voidmother",
-        "gain": 0.5
+        "gain": 0.3
       },
       "death": {
         "def": "sfx-vo-b2-voidmother-death",
-        "gain": 0.5
+        "gain": 0.3
       }
     },
     "b2_hawkus": {
       "minionPlayed": {
         "def": "sfx-vo-b2-hawkus",
-        "gain": 0.5
+        "gain": 0.3
       },
       "death": {
         "def": "sfx-vo-b2-hawkus-death",
-        "gain": 0.5
+        "gain": 0.3
       }
     },
     "b2_spots": {
       "minionPlayed": {
         "def": "sfx-vo-b2-spots",
-        "gain": 0.5
+        "gain": 0.3
       },
       "death": {
         "def": "sfx-vo-b2-spots-death",
-        "gain": 0.5
+        "gain": 0.3
       }
     },
     "b2_stonehorn": {
       "minionPlayed": {
         "def": "sfx-vo-b2-stonehorn",
-        "gain": 0.5
+        "gain": 0.3
       },
       "death": {
         "def": "sfx-vo-b2-stonehorn-death",
-        "gain": 0.5
+        "gain": 0.3
       }
     },
     "b2_raven": {
       "minionPlayed": {
         "def": "sfx-vo-b2-raven",
-        "gain": 0.5
+        "gain": 0.3
       },
       "death": {
         "def": "sfx-vo-b2-raven-death",
-        "gain": 0.5
+        "gain": 0.3
       }
     },
     "b2_tort": {
       "minionPlayed": {
         "def": "sfx-vo-b2-tort",
-        "gain": 0.5
+        "gain": 0.3
       },
       "death": {
         "def": "sfx-vo-b2-tort-death",
-        "gain": 0.5
+        "gain": 0.3
       }
     },
     "b2_beev": {
       "minionPlayed": {
         "def": "sfx-vo-b2-beev",
-        "gain": 0.5
+        "gain": 0.3
       },
       "death": {
         "def": "sfx-vo-b2-beev-death",
-        "gain": 0.5
+        "gain": 0.3
       }
     },
     "n2_muckslinger": {
       "minionPlayed": {
         "def": "sfx-vo-n2-muckslinger",
-        "gain": 0.5
+        "gain": 0.3
       },
       "death": {
         "def": "sfx-vo-n2-muckslinger-death",
-        "gain": 0.5
+        "gain": 0.3
       }
     },
     "dw_exgalloper": {
       "minionPlayed": {
         "def": "sfx-vo-dw-exgalloper",
-        "gain": 0.5
+        "gain": 0.3
       },
       "death": {
         "def": "sfx-vo-dw-exgalloper-death",
-        "gain": 0.5
+        "gain": 0.3
       }
     },
     "venom": {
       "minionPlayed": {
         "def": "sfx-vo-venom",
-        "gain": 0.5
+        "gain": 0.3
       },
       "death": {
         "def": "sfx-vo-venom-death",
-        "gain": 0.5
+        "gain": 0.3
       }
     },
     "n2_echomimic": {
       "minionPlayed": {
         "def": "sfx-vo-n2-echomimic",
-        "gain": 0.5
+        "gain": 0.3
       },
       "death": {
         "def": "sfx-vo-n2-echomimic-death",
-        "gain": 0.5
+        "gain": 0.3
       }
     },
     "n2_abomination": {
       "minionPlayed": {
         "def": "sfx-vo-n2-abomination",
-        "gain": 0.5
+        "gain": 0.3
       },
       "death": {
         "def": "sfx-vo-n2-abomination-death",
-        "gain": 0.5
+        "gain": 0.3
       }
     },
     "n2_reflector": {
       "minionPlayed": {
         "def": "sfx-vo-n2-reflector",
-        "gain": 0.5
+        "gain": 0.3
       },
       "death": {
         "def": "sfx-vo-n2-reflector-death",
-        "gain": 0.5
+        "gain": 0.3
       }
     }
   }

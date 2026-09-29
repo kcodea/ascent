@@ -27,8 +27,8 @@ export const CARD_DEST = 'card';
 export const FX_AUDIO_DIR = 'packages/ui/src/audio/fx';
 export const FX_DEFS_DIR = 'packages/ui/src/fx/defs';
 export const BINDINGS_PATH = 'packages/ui/src/choreo/bindings.json';
-/** A card clip's binding volume (the By-card view's 0-100 box / 100). Owner 2026-09-29: card voicelines at 50%. */
-export const CARD_CLIP_GAIN = 0.5;
+/** A card clip's binding volume (the By-card view's 0-100 box / 100). Owner 2026-09-29: card voicelines at 30%. */
+export const CARD_CLIP_GAIN = 0.3;
 const CARD_CLIP_ID = /^([a-z0-9]+(?:_[a-z0-9]+)*)(\.death)?$/;
 
 /** A clip id is its final file name (no extension): kebab-case announcer ids, or card ids like `dw_orin.death`. */

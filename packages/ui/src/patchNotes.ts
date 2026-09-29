@@ -69,6 +69,15 @@ export const PATCH_NOTES: PatchNote[] = [
       },
       {
         category: 'Systems',
+        text: 'Crate openings look cleaner.',
+        details: [
+          'A skin you open now shows its art right beside the reward banner.',
+          'The reward name is crisp solid white.',
+          'The chest stops shaking shortly after it bursts, instead of trembling through the reveal.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'A new Legendary hero attack, Hemorrhage, can drop from crates.',
         details: [
           'Your damage builds up, then your hero draws a blade and swings crimson crescents at the other hero.',

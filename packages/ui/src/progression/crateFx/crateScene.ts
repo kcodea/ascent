@@ -364,6 +364,8 @@ export class CrateScene {
   get crateSize(): number { return this.size; }
   get currentPhase(): ScenePhase { return this.phase; }
   get cameraZoom(): number { return this.zoom; }
+  /** The camera shake's current amplitude in px (the burst hit plus the charge's ground shake). */
+  get cameraShake(): number { return this.camShake + this.camShakeHold; }
   /** The chest in use ('art' = the owner's two layers, 'painted' = the fallback). */
   get chestKind(): 'art' | 'painted' { return this.tex.chest.kind; }
   /** The lid's state, for tests: where it is against its rest, its spin, whether it has come off. */
@@ -645,7 +647,7 @@ export class CrateScene {
   hasWork(): boolean {
     if (this.destroyed) return false;
     return this.particles.length > 0 || this.rings.length > 0 || this.flashes.length > 0 || this.lidFlying
-      || this.camShake > 0.05 || Math.abs(this.zoom - this.zoomTarget) > 0.0005 || Math.abs(this.zoomVel) > 0.001
+      || this.camShake > 0.05 || this.camShakeHold > 0.05 || Math.abs(this.zoom - this.zoomTarget) > 0.0005 || Math.abs(this.zoomVel) > 0.001
       || this.white.alpha > 0.01 || this.burstRays.alpha > 0.01 || this.bodyFlash.alpha > 0.01 || this.secondBurstIn >= 0
       || Math.abs(this.lidLift) > 0.1 || Math.abs(this.lidLiftV) > 1
       || (this.phase !== 'idle' && this.phase !== 'settled');
@@ -834,6 +836,12 @@ export class CrateScene {
     this.zoom += this.zoomVel * (real / 1000);
     this.camShake *= Math.exp(-real / 130);
     if (this.camShake < 0.05) this.camShake = 0;
+    // The charge's ground shake dies with the charge: once the chest bursts it fades out fast, so the chest comes to
+    // rest shortly after the hit instead of trembling through the reveal (owner 2026-09-29).
+    if (this.phase !== 'charge') {
+      this.camShakeHold *= Math.exp(-real / 80);
+      if (this.camShakeHold < 0.05) this.camShakeHold = 0;
+    }
     this.applyCamera(this.age);
 
     this.stepParticles(dt, sec);

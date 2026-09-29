@@ -264,6 +264,11 @@ export const COSMETICS: readonly CosmeticDef[] = Object.freeze([
   // fires a flat consecrated blast at the target. The name is the builder's placeholder for the owner to rename (the id
   // stays). Legendary like the other seven.
   heroAttack('attack_holy', 'Consecration', 'legendary', 'holy'),
+  // Owner 2026-09-29: "branch off and make some more attack types - we need ... a bleed/gash animation ... use the same 4
+  // tier strategy we have been". Crimson crescents fly in and cut gashes that open and bleed: I one diagonal gash, II a
+  // cross, III a flurry ending in a claw rake, IV three rakes, a heartbeat, a mega-slash that splits the screen and a
+  // blood nova. The name is the builder's placeholder for the owner to rename (the id stays). Legendary like the others.
+  heroAttack('attack_bleed', 'Hemorrhage', 'legendary', 'bleed'),
   // HERO TITLES (owner 2026-09-29), 33 heroes x (title + golden master). Achievement rewards, never in a crate.
   ...HERO_TITLE_COSMETICS,
 ]);

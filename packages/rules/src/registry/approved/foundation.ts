@@ -2633,6 +2633,36 @@ export const FOUNDATION_RULES: GameRule[] = [
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/heroHoly/heroHoly.test.ts', 'packages/progression/src/cosmetics.test.ts', 'packages/ui/src/progression/CollectionHeroAttack.test.tsx', 'packages/ui/src/heroAttack/damageFormation.test.ts'], lastVerifiedAt: '2026-09-29' },
   },
   {
+    id: 'R-PROG-ATTACK-15',
+    title: 'Hemorrhage (attack_bleed, Legendary) is a FLAT slashing hero attack: one gash / a cross / a flurry ending in a claw rake / three rakes, a heartbeat, a screen-splitting mega-slash and a blood nova, on the SAME damage tiers; the blow lands ONCE; no freeze',
+    statement:
+      'attack_bleed ("Hemorrhage", a placeholder name for the owner to rename; Legendary, crate, account-wide, style bleed) '
+      + 'plays a stylised crimson slashing attack, drawn flat (no faux-3D). After the shared damage formation '
+      + '(R-PROG-ATTACK-08) the striking hero draws back and turns (a blade raised: a crimson glint and a thin crescent at '
+      + 'its striking edge). Each slash is a swing at its rim that looses a flying crimson CRESCENT; as it reaches the '
+      + 'struck portrait it turns to the cut\x27s angle and runs straight through the face, a white-hot seam drawing behind '
+      + 'it, blood spraying along the blade\x27s direction, and the line OPENING into a gash (a dark wound with a bright red '
+      + 'lip). It escalates on exactly the tiers every other hero attack uses (one shared tierOf, thresholds 6 / 12 / 20): '
+      + 'I 1-5 one clean diagonal gash; II 6-11 a CROSS (X) of two gashes, the first a tick; III 12-19 a flurry of four fast '
+      + 'slashes and a three-claw RAKE (every wound bleeding, drips running down the portrait); IV 20+ three claw rakes carve '
+      + 'the face, the wounds THROB with a heartbeat while the striker winds a huge crescent, then a MEGA-SLASH sweeps the '
+      + 'whole screen through the target (a seam with a dark split beside it) and, as it crosses the target, the wounds rip '
+      + 'open and the target erupts in a BLOOD NOVA (a crimson shockwave, blood thrown out in falling arcs, spatter landing '
+      + 'round the portrait, a stain that drips, two arterial spurts). The consequence (the damage, Armor, Resolve) lands '
+      + 'exactly ONCE: on the last cut (every earlier cut is a tick with FX only) or, at IV, on the nova, exactly half-way '
+      + 'through the mega-slash\x27s sweep (never on a rake, a heartbeat or the wind-up). Wounds, drips, stains and the tint '
+      + 'ride the struck portrait\x27s knockback. No hit-stop or freeze anywhere (R-PROG-ATTACK-10). Presentation only; '
+      + 'reduced motion is fades only; an unknown or retired id plays Classic.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-29 (more hero attacks)', quote: 'branch off and make some more attack types - we need a fire animation, a bleed/gash animation, some sort of an undead animation, a beast chomp rush animation, and i would love a king oona banana cannon animation. use the same 4 tier strategy we have been.' },
+      { kind: 'code', ref: 'packages/progression/src/cosmetics.ts (attack_bleed); packages/ui/src/heroBleed/ (heroBleedConfig bleedPlan / bleedCues / slashGeos / wavePos / megaGeo / bleedCameraAt / bleedCameraFocus, heroBleed playHeroBleed, heroBleedScene, heroBleedTextures)' },
+    ],
+    currentBehaviour: 'Conforms, built 2026-09-29. The item reaches the database on the next deploy of progression-inventory (the catalog sync); the equip SQL already accepts the hero_attack slot.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/heroBleed/heroBleed.test.ts', 'packages/progression/src/cosmetics.test.ts', 'packages/ui/src/progression/CollectionHeroAttack.test.tsx', 'packages/ui/src/heroAttack/damageFormation.test.ts'], lastVerifiedAt: '2026-09-29' },
+  },
+  {
     id: 'R-PRESENT-24',
     title: 'Your portrait frame ring paints OVER your hero power (and its cost coin), yet the power stays fully pressable under it',
     statement:

@@ -138,11 +138,12 @@ describe('the roll', () => {
   // Pinned 2026-09-29 (fixed odds 50/30/15/5, equal chance within a rarity: roll version 3). Earlier the same day the
   // split inside a rarity was by category weight (roll version 2: Common minion skin 16.667 / title 4.762, Legendary
   // attack 0.375 / minion skin 0.875 / title 0.25). The catalog then: Common 8 items, Rare 13, Epic 10, Legendary 11.
+  // Legendary became 12 when Hemorrhage (attack_bleed) joined (2026-09-29): each Legendary 0.455 -> 0.417.
   // Adding an item only re-splits its OWN rarity's share; the four rarity numbers never move.
   it('the per-item chances of a first crate (2026-09-29 catalog): each item = its rarity\'s odds / that rarity\'s item count', () => {
     const all = eligibleCrateCosmetics([]);
     const count = (r: string): number => all.filter((c) => c.rarity === r).length;
-    expect(COSMETIC_RARITIES.map(count)).toEqual([8, 13, 10, 11]);
+    expect(COSMETIC_RARITIES.map(count)).toEqual([8, 13, 10, 12]);
     const ch = crateChances(all);
     const pct = (id: string): number => Math.round(100000 * ch.get(id)!) / 1000;
     expect(pct('skin_blackbelt_4')).toBe(6.25);       // Common: 50 / 8
@@ -152,11 +153,12 @@ describe('the roll', () => {
     expect(pct('skin_bellringer_1')).toBe(1.5);       // Epic: 15 / 10
     expect(pct('skin_albus_1')).toBe(1.5);
     expect(pct('title_kingbreaker')).toBe(1.5);
-    expect(pct('skin_blackbelt_3')).toBe(0.455);      // Legendary: 5 / 11
-    expect(pct('attack_arcana')).toBe(0.455);
-    expect(pct('title_the_unbroken')).toBe(0.455);
+    expect(pct('skin_blackbelt_3')).toBe(0.417);      // Legendary: 5 / 12
+    expect(pct('attack_arcana')).toBe(0.417);
+    expect(pct('attack_bleed')).toBe(0.417);
+    expect(pct('title_the_unbroken')).toBe(0.417);
     const cat = (k: string): number => Math.round(1000 * all.filter((c) => c.category === k).reduce((a, c) => a + ch.get(c.id)!, 0)) / 10;
-    expect([cat('title'), cat('minion_skin'), cat('hero_skin'), cat('hero_attack')]).toEqual([58.7, 34.6, 3, 3.6]);
+    expect([cat('title'), cat('minion_skin'), cat('hero_skin'), cat('hero_attack')]).toEqual([58.7, 34.5, 3, 3.8]); // with Hemorrhage (2026-09-29); was 58.7 / 34.6 / 3 / 3.6
     expect([...ch.values()].reduce((a, b) => a + b, 0)).toBeCloseTo(1, 12);
   });
 

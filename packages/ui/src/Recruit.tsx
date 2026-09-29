@@ -85,6 +85,8 @@ import { playHeroFrost } from './heroFrost/heroFrost';
 import { heroFrostPreviewSpeed } from './heroFrost/heroFrostConfig';
 import { playHeroHoly } from './heroHoly/heroHoly';
 import { heroHolyPreviewSpeed } from './heroHoly/heroHolyConfig';
+import { playHeroBleed } from './heroBleed/heroBleed';
+import { heroBleedPreviewSpeed } from './heroBleed/heroBleedConfig';
 import { resolveHeroAttackStyle } from './heroBlast/heroAttackStyle';
 import { attackerCosmeticOf } from './heroBlast/attackerCosmetic';
 import { heroStrikeDamage, heroStrikeKnockout, heroStrikeNumbers } from './heroBlast/heroStrikeDamage';
@@ -2914,11 +2916,14 @@ export function Recruit() {
     // flicked in that stick and splash venom, and the top tier implodes them into a toxic burst; Frost: icicles
     // crystallise and fire, and the top tier rolls a frost nova across the screen that encases and shatters; Consecration:
     // a pillar of light smites, and the top tier drops a holy sword that explodes into light and fires a flat consecrated
-    // blast at the target). Same blow, same consequence, only drawn differently; the style is the ATTACKER's (their
+    // blast at the target; Hemorrhage: crimson crescents cut gashes that bleed, and the top tier throbs, splits the screen
+    // with a mega-slash and erupts in a blood nova). Same blow, same consequence, only drawn differently; the style is the ATTACKER's (their
     // equipped cosmetic, or the dev override). Every runner takes the same options (`heroAttack/options.ts`).
     const attackStyle = resolveHeroAttackStyle({ attacker: side, attackerCosmeticId: attackerCosmeticOf(run0, side, useGame.getState().showOpponentSkins) });
-    if (attackStyle === 'blast' || attackStyle === 'quake' || attackStyle === 'arcana' || attackStyle === 'blades' || attackStyle === 'enraged' || attackStyle === 'poison' || attackStyle === 'frost' || attackStyle === 'holy') {
-      const runner = attackStyle === 'holy'
+    if (attackStyle === 'blast' || attackStyle === 'quake' || attackStyle === 'arcana' || attackStyle === 'blades' || attackStyle === 'enraged' || attackStyle === 'poison' || attackStyle === 'frost' || attackStyle === 'holy' || attackStyle === 'bleed') {
+      const runner = attackStyle === 'bleed'
+        ? { play: playHeroBleed, preview: heroBleedPreviewSpeed() }
+        : attackStyle === 'holy'
         ? { play: playHeroHoly, preview: heroHolyPreviewSpeed() }
         : attackStyle === 'frost'
         ? { play: playHeroFrost, preview: heroFrostPreviewSpeed() }

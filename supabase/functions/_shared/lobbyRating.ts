@@ -208,3 +208,14 @@ export function sameRankOutcome(a: RankOutcome, b: RankOutcome): boolean {
     && a.promotionUnlocked === b.promotionUnlocked && a.promoted === b.promoted
     && a.wasDemotionGame === b.wasDemotionGame && a.demotionUnlocked === b.demotionUnlocked && a.demoted === b.demoted;
 }
+
+/**
+ * OFFLINE = UNRATED (owner 2026-09-28: "offline = unrated"). A lobby whose opponent seats are ALL generated
+ * (fight-ledger keys `bot:<kind>:<hero>`) moves no rank. `submit-rating` answers such a request with no
+ * settlement. No keys at all (a request queued before 2026-09-22) is unknown, and settles as before. Client
+ * copy: `allFightKeysGenerated` in `packages/sim/src/lobby/fightLedger.ts`.
+ */
+export const isGeneratedSeatKey = (key: string): boolean => key.startsWith('bot:');
+export function allSeatsGenerated(keys: readonly string[] | null | undefined): boolean {
+  return !!keys && keys.length > 0 && keys.every(isGeneratedSeatKey);
+}

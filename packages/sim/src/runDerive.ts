@@ -3,6 +3,7 @@ import { createRun, isPlayerAction, runRecord, type Action, type BoardCard, type
 import { reduce, upgradeCostOf } from './reducer';
 import type { Replay } from './snapshot';
 import type { TelemetrySource } from './runTelemetry';
+import type { LobbyPoolTelemetry } from './lobby/runLobby';
 import { setIdOf } from './cardPool';
 import { comebackAfterLosses, PROGRESSION_FACTS_VERSION, type ProgressionMode, type ProgressionRunFactsV2 } from '@game/progression';
 import { emptyAchTally, finalAchMetrics, observeAchAction, observeAchCombat, type AchTally } from './achievementMetrics';
@@ -177,6 +178,9 @@ export interface DerivedRun {
   boards: BoardSnapshotLite[];
   /** Player decisions taken, for APM/engagement context. */
   playerActions: number;
+  /** Opponent pool + seat mix at lobby creation (fix 2026-09-28) — see `RunTelemetry.lobbyPool`. Stamped by
+   *  the UI at upload; absent on earlier payloads and on non-lobby runs. */
+  lobbyPool?: LobbyPoolTelemetry;
 }
 
 // ── Derivation ─────────────────────────────────────────────────────────────────────────────────────────────

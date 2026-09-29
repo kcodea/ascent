@@ -61,7 +61,9 @@ function lastCombat(): CombatResult {
 /** A lobby at its last combat: only s0 and s1 stand, s1 at 1 Resolve, so this win finishes it in 1st. */
 function finishing(seed: number, mode: 'lobby' | 'practice', over: Partial<RunState> = {}): RunState {
   const base = createLobbyRun(seed, 'brackus', {}, mode, mode === 'practice' ? { ...DEFAULT_PRACTICE_CONFIG, health: 'normal' } : undefined);
-  const lobby = { ...base.lobby!, seats: base.lobby!.seats.map((s) => ({ ...s })) };
+  // A RATED table: one recorded player run seated (an all-generated lobby is unrated, owner 2026-09-28). With no
+  // pool in the test the seat's driver falls back to a hybrid, exactly as a restored seat without its run does.
+  const lobby = { ...base.lobby!, unrated: undefined, seats: base.lobby!.seats.map((s) => (s.id === 's2' ? { ...s, kind: 'snapshot' as const, runKey: 'Rival|drakko|99' } : { ...s })) };
   for (const s of lobby.seats) if (s.id !== 's0' && s.id !== 's1') { s.alive = false; s.placement = 3; }
   const s1 = lobby.seats.find((s) => s.id === 's1')!;
   s1.resolve = 1; s1.armor = 0;

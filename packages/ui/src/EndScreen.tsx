@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useState } from 'react';
 import { CARD_INDEX } from '@game/content';
 import type { BoardMinion } from '@game/core';
-import { buildTags, CONFIG, getHero, isCalibrationRound, isPlayerAction, lineResult, metLine, replayRun, runMvp, runRecord, TAG_INFO, topMechanic, type LineStatus, playerLobbySeat, type RunState } from '@game/sim';
+import { buildTags, CONFIG, getHero, isCalibrationRound, isPlayerAction, lineResult, metLine, replayRun, runMvp, runRecord, TAG_INFO, topMechanic, type LineStatus, playerLobbySeat, lobbyIsUnrated, type RunState } from '@game/sim';
 import { Card, type CardView } from './Card';
 import { liveBoardView } from './instView';
 import { heroPortrait, useRunSkins } from './skins/skins';
@@ -10,7 +10,7 @@ import { useGame } from './store';
 import { sfx } from './sfx';
 import { startReplay } from './replay/replayPlayer';
 import { RankScreen } from './rank/RankScreen';
-import { useRankSource } from './rank/rankSource';
+import { unratedReasonOf, useRankSource } from './rank/rankSource';
 import { ProgressionPostgame } from './progression/ProgressionPostgame';
 import { MatchDetailsDialog } from './matchDetails/MatchScoreboard';
 
@@ -86,8 +86,11 @@ function LobbyEndScreen({ lobby, run, onPlayAgain }: {
       </div>
     </>
   );
-  if (run.mode === 'practice' || rankSource) {
-    const practice = run.mode === 'practice';
+  // OFFLINE = UNRATED (owner 2026-09-28): a ranked lobby with no recorded player run at the table ranks nothing,
+  // and says why, the way Practice does.
+  const noOpponents = run.mode === 'lobby' && lobbyIsUnrated(lobby);
+  if (run.mode === 'practice' || noOpponents || rankSource) {
+    const practice = run.mode === 'practice' || noOpponents;
     return (
       <div className={`heroselect endscreen lobbyend rankend${won ? ' won' : ''}`}>
         <div className="hsbox endbox">
@@ -98,7 +101,7 @@ function LobbyEndScreen({ lobby, run, onPlayAgain }: {
             result={practice ? null : rankSource!.result}
             current={practice ? null : rankSource!.current}
             error={practice ? undefined : rankSource!.error}
-            unratedReason={practice ? 'Practice' : undefined}
+            unratedReason={unratedReasonOf(run.mode, noOpponents)}
             runId={rankSource?.runId ?? rankSource?.result?.runId ?? String(run.seed)}
             onContinue={onPlayAgain}
             onRetry={practice ? undefined : rankSource!.retry}

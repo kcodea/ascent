@@ -220,3 +220,21 @@
   from { opacity: 0; transform: translateY(10px); }
   to { opacity: 1; transform: translateY(0); }
 }
+
+/* LOBBY POOL WAIT (fix 2026-09-28): "Finding opponents..." over the launch curtain. Above the curtain
+   (z 480); static styling, one-shot opacity fade-in only. Buttons keep the global gauntlet cursor. */
+.pool-wait {
+  position: fixed; inset: 0; z-index: 481;
+  display: flex; align-items: center; justify-content: center; padding: 16px;
+}
+.pool-wait-card {
+  max-width: calc(520 * var(--u, 1px)); width: 100%;
+  padding: calc(24 * var(--u, 1px)) calc(28 * var(--u, 1px)); border-radius: calc(16 * var(--u, 1px));
+  background: var(--card); border: 2px solid var(--line); box-shadow: 0 6px 0 var(--shadow);
+  color: var(--ink); text-align: center;
+  font-family: var(--font-ui);
+}
+.pool-wait-delay { opacity: 0; animation: hscFadeIn 220ms ease 350ms forwards; }
+.pool-wait-title { font-family: var(--font-title); font-weight: 900; font-size: calc(26 * var(--u, 1px)); letter-spacing: 0.03em; }
+.pool-wait-body { margin-top: calc(8 * var(--u, 1px)); font-size: calc(15 * var(--u, 1px)); color: var(--ink2); line-height: 1.4; }
+.pool-wait-actions { margin-top: calc(18 * var(--u, 1px)); display: flex; gap: calc(10 * var(--u, 1px)); justify-content: center; flex-wrap: wrap; }

@@ -60,6 +60,15 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: 'Every Dwarf now has a voice: 19 more speak, grunt or roar when played, and cry out when they die.',
+        details: [
+          'New talkers: Blade Thrower, Doubletap Brewer, Dwarf King Brill, High King Mykel, Chef Gary Toast, Kringle, Dwarven Sharpshooter, Lieutenant Thane, Wardkeeper and Muster General.',
+          'New grunts and growls: Anvilshade Smith, Arnold, Baal, Bucky, Gangplank, Mountainbond, Tapkeeper and Charging Soldier.',
+          'Paymaster Pimm keeps his coin sound when played and gains a death cry.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'Crates now have fixed odds: Common 50%, Rare 30%, Epic 15%, Legendary 5%.',
         details: [
           'A crate first rolls its rarity at these odds, then gives you an item of that rarity you do not own yet.',

@@ -1,5 +1,5 @@
 import type { Tribe } from '@game/core';
-import { parseLobbyStrength, type BoardSnapshot, type LobbyStrength, type ReplayV2 } from '@game/sim';
+import { parseLobbyStrength, parseMatchDetails, type BoardSnapshot, type LobbyStrength, type MatchDetails, type ReplayV2 } from '@game/sim';
 
 /**
  * CAREER PAGE DATA (owner rebuild 2026-09-19) — the pure half of the Career page: the run row model the page
@@ -66,6 +66,9 @@ export interface CareerRun {
   /** The LOBBY STRENGTH the run was played at (owner 2026-09-22): `entry.lobbyStrength`, stamped at run end
    *  (or back-filled by `settle_rank`). Null on rows without a stamp — the row then prints nothing for it. */
   lobbyStrength: LobbyStrength | null;
+  /** MATCH DETAILS (2026-09-28): the lobby at the moment this run ended (`entry.match`), only on detailed rows.
+   *  Null on light rows and on every run recorded before it existed ("Details weren't recorded for this match"). */
+  match?: MatchDetails | null;
 }
 
 /** The subset of a `run_history` row the page reads — either the full `entry` (detailed) or the JSON-path
@@ -154,6 +157,7 @@ export function careerRunOf(row: RunHistoryRowLike): CareerRun {
     replayRowId: null,
     durationMs: null,
     lobbyStrength: parseLobbyStrength(e.lobbyStrength) ?? parseLobbyStrength(row.lobby_strength),
+    match: parseMatchDetails(e.match),
   };
 }
 

@@ -15,6 +15,7 @@ import {
 } from './collectionModel';
 import { skinArtOf } from '../skins/skinArt';
 import { HeroAttackPreview } from '../heroBlast/HeroAttackPreview';
+import { NewRewardsPopup } from './NewRewardsPopup';
 import './collection.css';
 
 /**
@@ -88,6 +89,7 @@ export function CollectionPage({ reducedMotion }: { reducedMotion?: boolean }): 
     [crateList],
   );
 
+  const sealedIds = useMemo(() => (crateList ? new Set(sealed.map((c) => c.crateId)) : null), [crateList, sealed]);
   const everything = useMemo(() => collectibleItems(), [catalogEpoch]);
   const total = useMemo(() => countOf(everything, owned), [everything, owned]);
   const album = useMemo(() => albumOf(category), [category, catalogEpoch]);
@@ -280,6 +282,8 @@ export function CollectionPage({ reducedMotion }: { reducedMotion?: boolean }): 
         </aside>
       </div>
 
+      {/* NEW REWARDS (owner 2026-09-28): what the last games awarded, summarised once, then marked seen. */}
+      <NewRewardsPopup sealedIds={sealedIds} onOpenCrates={(all) => begin(all)} />
       {theatre && (
         <CrateOpener
           queue={theatre.queue}

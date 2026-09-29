@@ -12274,6 +12274,31 @@ body:has(.heroselect.rankend) .pixifx-above { z-index: 470; }
 .r-epic { --rc: #c98bff; --rc-a: rgba(201, 139, 255, 0.55); }
 .r-legendary { --rc: #ffbe5c; --rc-a: rgba(255, 190, 92, 0.6); }
 
+/* ── TITLE BADGE (owner ask 2026-09-28: titles "as a way of showing off their flair") ───────────────────────────
+   One badge for every surface (`titles/TitleBadge.tsx`): rarity-coloured small caps on a dark pill, sized in EM
+   so the host's font sets its scale (`--tb-fs` overrides). Legendary gets a STATIC glow (no loop). A custom
+   hero-mastery style paints its gradient into the text (`.tb-grad`, `--tb-grad`); `.tb-shimmer` adds a light
+   sweep that animates TRANSFORM only (compositor-only) and is off under reduced motion. No cursor rule (the
+   global gauntlet paints it) and no pointer events (a badge never steals a row's hover). */
+.titlebadge { position: relative; display: inline-flex; align-items: center; max-width: 100%; min-width: 0; overflow: hidden;
+  font-family: var(--font-ui); font-weight: 900; font-size: var(--tb-fs, 0.7em); line-height: 1.15; letter-spacing: 0.12em;
+  text-transform: uppercase; white-space: nowrap; color: var(--rc, #cfd8e3); pointer-events: none;
+  padding: 0.18em 0.75em; border-radius: 999px; background: rgba(10, 8, 6, 0.8);
+  border: 1px solid color-mix(in srgb, var(--rc, #cfd8e3) 65%, transparent); }
+.titlebadge.tb-md { --tb-fs: 0.52em; padding: 0.25em 0.9em; letter-spacing: 0.18em; }
+.titlebadge .tb-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.titlebadge.r-legendary { border-color: var(--rc); box-shadow: 0 0 0.7em -0.1em var(--rc-a); text-shadow: 0 0 0.6em var(--rc-a); }
+.titlebadge.r-epic { box-shadow: 0 0 0.5em -0.2em var(--rc-a); }
+.titlebadge.tb-grad .tb-text { background: var(--tb-grad); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.titlebadge.tb-shimmer::after { content: ''; position: absolute; inset: 0; pointer-events: none;
+  background: linear-gradient(100deg, transparent 30%, rgba(255, 255, 255, 0.45) 50%, transparent 70%);
+  transform: translateX(-120%); animation: tbshimmer 3.2s ease-in-out infinite; will-change: transform; }
+@keyframes tbshimmer { 0%, 55% { transform: translateX(-120%); } 100% { transform: translateX(120%); } }
+@media (prefers-reduced-motion: reduce) { .titlebadge.tb-shimmer::after { animation: none; opacity: 0; } }
+/* The Leaderboard and the Hall rows. */
+.titlebadge.lb-handle-title { --tb-fs: 12px; flex: 0 1 auto; }
+.titlebadge.lb-row-title { --tb-fs: 11px; margin-top: 3px; }
+
 .crate { display: flex; flex-direction: column; align-items: center; gap: 8px; width: 100%; font-family: var(--font-ui); }
 .crate-stage { position: relative; width: 100%; height: 150px; display: grid; place-items: center; }
 .crate-box { position: relative; width: 104px; height: 86px; animation: crate-float 2.6s ease-in-out infinite; will-change: transform; }

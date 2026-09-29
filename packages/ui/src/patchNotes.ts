@@ -59,6 +59,10 @@ export const PATCH_NOTES: PatchNote[] = [
     date: '2026-09-29',
     changes: [
       {
+        category: 'Balance',
+        text: "Mimic can no longer pick Kindness's hero power. It only works every 4th turn, so it was almost always a wasted pick.",
+      },
+      {
         category: 'Systems',
         text: 'Units now make a quiet death sound when they die in combat. Before, most of them were silent.',
       },

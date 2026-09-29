@@ -248,7 +248,7 @@ const CARD_BINDINGS: Record<string, Record<string, { def: string; fanOut?: strin
   sp_dragonflame: { spellCast: { def: 'dragonflame', fanOut: 'buffedOn', sfx: 'dragonflame' }, buffWave: { def: 'dragonflame', fanOut: 'buffedOn' } },
   dm_felspikes: { damage: { def: 'fel-spike', fanOut: 'struck', launchOnDeath: true } },
   dm_tormentor: { shout: { def: 'shop-buff-shout' }, scNarrate: { def: 'shop-buff-shout' } },
-  dw_pimm: { shout: { def: 'coin-shout', sfx: 'maxGold' } },
+  dw_pimm: { shout: { def: 'coin-shout', sfx: 'maxGold' }, death: { def: 'sfx-vo-dw-pimm-death' } }, // On Play is the coin Shout, so no line (owner 2026-09-27)
   // Golden Ale — the proof-of-path binding for the shop spell-cast site (Task 2): a placeholder def so the
   // release-point emission + generic-spark suppression can be verified end-to-end before an authored def exists.
   wo_attack: { spellCast: { def: 'bloody-ale', fanOut: 'buffed' } },
@@ -269,6 +269,25 @@ const CARD_BINDINGS: Record<string, Record<string, { def: string; fanOut?: strin
   dw_chickenbrawl: { minionPlayed: { def: 'sfx-vo-dw-chickenbrawl' }, death: { def: 'sfx-vo-dw-chickenbrawl-death' } },
   dw_dorrin: { minionPlayed: { def: 'sfx-vo-dw-dorrin' }, death: { def: 'sfx-vo-dw-dorrin-death' } },
   dw_kegheart: { minionPlayed: { def: 'sfx-vo-dw-kegheart' }, death: { def: 'sfx-vo-dw-kegheart-death' } },
+  // Dwarf voices batch 2 (owner 2026-09-29): the rest of the live-set Dwarves.
+  dw_anvilshade: { minionPlayed: { def: 'sfx-vo-dw-anvilshade' }, death: { def: 'sfx-vo-dw-anvilshade-death' } },
+  dw_arnold: { minionPlayed: { def: 'sfx-vo-dw-arnold' }, death: { def: 'sfx-vo-dw-arnold-death' } },
+  dw_baal: { minionPlayed: { def: 'sfx-vo-dw-baal' }, death: { def: 'sfx-vo-dw-baal-death' } },
+  dw_bladethrower: { minionPlayed: { def: 'sfx-vo-dw-bladethrower' }, death: { def: 'sfx-vo-dw-bladethrower-death' } },
+  dw_brewer: { minionPlayed: { def: 'sfx-vo-dw-brewer' }, death: { def: 'sfx-vo-dw-brewer-death' } },
+  dw_brill: { minionPlayed: { def: 'sfx-vo-dw-brill' }, death: { def: 'sfx-vo-dw-brill-death' } },
+  dw_brisbane: { minionPlayed: { def: 'sfx-vo-dw-brisbane' }, death: { def: 'sfx-vo-dw-brisbane-death' } },
+  dw_bucky: { minionPlayed: { def: 'sfx-vo-dw-bucky' }, death: { def: 'sfx-vo-dw-bucky-death' } },
+  dw_chef: { minionPlayed: { def: 'sfx-vo-dw-chef' }, death: { def: 'sfx-vo-dw-chef-death' } },
+  dw_foreman: { minionPlayed: { def: 'sfx-vo-dw-foreman' }, death: { def: 'sfx-vo-dw-foreman-death' } },
+  dw_gangplank: { minionPlayed: { def: 'sfx-vo-dw-gangplank' }, death: { def: 'sfx-vo-dw-gangplank-death' } },
+  dw_mountainbond: { minionPlayed: { def: 'sfx-vo-dw-mountainbond' }, death: { def: 'sfx-vo-dw-mountainbond-death' } },
+  dw_sharpshooter: { minionPlayed: { def: 'sfx-vo-dw-sharpshooter' }, death: { def: 'sfx-vo-dw-sharpshooter-death' } },
+  dw_tapkeeper: { minionPlayed: { def: 'sfx-vo-dw-tapkeeper' }, death: { def: 'sfx-vo-dw-tapkeeper-death' } },
+  dw_thane: { minionPlayed: { def: 'sfx-vo-dw-thane' }, death: { def: 'sfx-vo-dw-thane-death' } },
+  dw_wardkeeper: { minionPlayed: { def: 'sfx-vo-dw-wardkeeper' }, death: { def: 'sfx-vo-dw-wardkeeper-death' } },
+  n2_muster: { minionPlayed: { def: 'sfx-vo-n2-muster' }, death: { def: 'sfx-vo-n2-muster-death' } },
+  dw_soldier: { minionPlayed: { def: 'sfx-vo-dw-soldier' } }, // a token summoned often: no death clip (owner)
 };
 
 /** Bindings that FAN OUT rather than playing once at the moment's own pair. `attackExchange` is in here for a

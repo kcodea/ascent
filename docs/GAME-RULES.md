@@ -303,13 +303,13 @@ progression **epoch**; nothing finished before the epoch counts (no backfill).
   landing once on the last; IV four icicles, then a frost nova rolls across the screen from the attacker to the target,
   encases the struck hero in ice and shatters it, the blow landing on the shatter). The ice holds still; the clock never
   stops. **Consecration** is the eighth, `attack_holy` ("Consecration", a placeholder name; Legendary, from crates;
-  R-PROG-ATTACK-14): a gold and white holy attack. After the same damage formation the hero invokes (a halo, a sunburst, a
-  beam of light rising off it), then: I a golden rune sigil flashes onto the struck hero and a pillar of light drops onto
-  it; II a double smite; III a rain of six light spears plants glowing seeds round the struck hero, then the pillar drops
-  and the seeds erupt with it (the blow landing once, on the last smite); IV a huge holy sword drops fast from above the
-  screen into the middle of the board, slams in and explodes into light, the consecrated wake builds for a beat, then a
-  flat consecrated blast skims along the ground to the struck hero, tearing radiant cracks, and holy flames erupt under
-  it (the blow landing on the eruption). All eight anchor on the round portrait art at rest
+  R-PROG-ATTACK-14): a gold and white holy attack, drawn flat (no perspective rings or tilted ground). After the same
+  damage formation the hero invokes (a halo ring, a sunburst, a beam of light rising off it), then: I a golden rune sigil
+  flashes onto the struck hero and a pillar of light drops onto it; II a double smite; III a rain of six light spears
+  plants glowing seeds round the struck hero, then the pillar drops and the seeds erupt with it (the blow landing once,
+  on the last smite); IV six holy swords fly in one after another from different directions, faster and faster, and
+  plant round the centre of the board, the centre implodes, and a flat consecrated blast races across the board to the
+  struck hero, tearing radiant cracks, and holy flames erupt round it (the blow landing on the eruption). All eight anchor on the round portrait art at rest
   (R-PROG-ATTACK-04). Equipped
   account-wide in the Collection's Attack Animations tab ("Use Classic" takes it off). The STRIKER's attack plays:
   yours when you win, the opponent's (from their recorded snapshot) when they win. Recorded per run like skins;

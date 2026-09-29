@@ -1308,3 +1308,68 @@ describe('startOfCombatFx / avengeFx channels', () => {
     expect(mockPlayDef.mock.calls.filter(([id]) => id === 'avenge-fx')).toHaveLength(0);
   });
 });
+
+/**
+ * R-FX-DEATH-01: a card's "On Death" binding plays for THE CARD THAT DIED, wherever its death lands (owner
+ * 2026-09-29: "im not hearing any on death sounds"). A death is a RESULT_TYPE: it rides a `damage` moment or an
+ * attack's exchange far more often than a `death` moment of its own, and the `fxDef` row resolved a death
+ * moment's card from its SOURCE (the killer), so the dying card's binding almost never played.
+ */
+describe('deathFx channel: On Death plays for the dying card', () => {
+  beforeEach(() => {
+    mockPlayDef.mockReset(); mockPlayDef.mockImplementation(() => () => {});
+    mockCanPlayDefs.mockReset(); mockCanPlayDefs.mockImplementation(() => true);
+    mockAnchors.mockReset(); mockAnchors.mockImplementation(() => ({ target: { x: 5, y: 7 } }));
+    resetScore(); resetBindings();
+  });
+  afterEach(() => { resetScore(); resetBindings(); });
+
+  const kill = (killer: string, victim: string): CombatEvent[] => [
+    { type: 'dmg', source: killer, target: victim, amount: 5, remainingHp: 0 } as CombatEvent,
+    { type: 'death', target: victim, side: 'enemy' } as CombatEvent,
+  ];
+  const cards = (m: Record<string, string>): Map<string, string> => new Map(Object.entries(m));
+
+  it('is on every kind a death can land in, the attack exchange included', () => {
+    for (const kind of ['damage', 'death', 'riseDeath', 'buffWave', 'summon', 'attackExchange'] as const) {
+      expect(SCORE_DEFAULTS[kind].some((c) => c.ch === 'deathFx'), kind).toBe(true);
+    }
+  });
+
+  it("a death inside a damage moment plays the DYING card's sound on that unit, never the killer's", () => {
+    setBinding('dw_orin', 'death', { def: 'sfx-vo-dw-orin-death', gain: 0.3 });
+    setBinding('dw_brakka', 'death', { def: 'sfx-vo-dw-brakka-death', gain: 0.3 });
+    const events = kill('killer', 'victim');
+    runMomentCues(moment('damage', events), { ...baseCtx(events), cardIds: cards({ killer: 'dw_brakka', victim: 'dw_orin' }) });
+    const ids = mockPlayDef.mock.calls.map(([id]) => id);
+    expect(ids).toContain('sfx-vo-dw-orin-death');
+    expect(ids).not.toContain('sfx-vo-dw-brakka-death');
+    const call = mockPlayDef.mock.calls.find(([id]) => id === 'sfx-vo-dw-orin-death')!;
+    expect(call[2]).toMatchObject({ uids: { source: 'victim', target: 'victim' }, gain: 0.3 });
+  });
+
+  it('a death absorbed into an attack exchange still plays, once per dying unit', () => {
+    setBinding('dw_orin', 'death', { def: 'sfx-vo-dw-orin-death' });
+    const events: CombatEvent[] = [
+      { type: 'attack', attacker: 'a', defender: 'v1', swing: 1 } as CombatEvent,
+      ...kill('a', 'v1'), ...kill('a', 'v2'),
+    ];
+    runMomentCues(moment('attackExchange', events), { ...baseCtx(events), cardIds: cards({ a: 'x', v1: 'dw_orin', v2: 'dw_orin' }) });
+    expect(mockPlayDef.mock.calls.filter(([id]) => id === 'sfx-vo-dw-orin-death')).toHaveLength(2);
+  });
+
+  it('a lone death moment plays the dying card once (the fxDef row no longer answers for death kinds)', () => {
+    setBinding('dw_orin', 'death', { def: 'sfx-vo-dw-orin-death' });
+    const events = [{ type: 'death', target: 'victim', side: 'player' } as CombatEvent];
+    runMomentCues(moment('death', events), { ...baseCtx(events), cardIds: cards({ victim: 'dw_orin' }) });
+    expect(mockPlayDef.mock.calls.filter(([id]) => id === 'sfx-vo-dw-orin-death')).toHaveLength(1);
+  });
+
+  it('no-ops when canPlayDefs() is false', () => {
+    mockCanPlayDefs.mockReturnValue(false);
+    setBinding('dw_orin', 'death', { def: 'sfx-vo-dw-orin-death' });
+    const events = kill('k', 'victim');
+    runMomentCues(moment('damage', events), { ...baseCtx(events), cardIds: cards({ victim: 'dw_orin' }) });
+    expect(mockPlayDef).not.toHaveBeenCalled();
+  });
+});

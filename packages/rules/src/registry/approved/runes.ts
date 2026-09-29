@@ -1848,4 +1848,23 @@ export const RUNES_RULES: GameRule[] = [
       lastVerifiedAt: '2026-09-27',
     },
   },
+  {
+    id: 'R-RUNE-34',
+    title: 'The player cannot skip the Runeforge',
+    statement:
+      'Once a Runeforge opens, the player must buy a rune before the turn goes on. There is no skip or leave '
+      + 'control for the player (the free once-per-game Re-roll is still allowed). The engine\'s skip action exists '
+      + 'only for bots, fixtures and replays.',
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Rules-wiki review, 2026-09-29 (asked whether the forge should have a Skip button)', quote: 'no skipping allowed now' },
+      { kind: 'code', ref: 'packages/ui (no dispatch of skipRuneforge); packages/sim/src/reducer.ts skipRuneforge kept for bots/pilots' },
+    ],
+    currentBehaviour:
+      'Conforms: no UI control dispatches skipRuneforge. The forge opens on turn 6 (8 Gold) and turn 9 (10 Gold) and '
+      + 'runes cost 3 to 6, so a player is not expected to be priced out; an effect that drains Gold before the '
+      + 'forge could still leave a player unable to buy, which is not separately guarded.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/runeforgeNoSkip.test.ts'], lastVerifiedAt: '2026-09-29' },
+  },
 ];

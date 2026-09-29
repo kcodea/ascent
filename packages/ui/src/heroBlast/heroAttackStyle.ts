@@ -37,7 +37,11 @@
  *    weapon + consecration attack"): a golden sigil and a pillar of light smite the target; II smites twice, III rains
  *    light spears that plant consecration seeds, and IV brings a huge holy sword down into the middle of the board and a
  *    consecration races from it to erupt under the target (`../heroHoly/`).
- *  - `bleed` is the ninth (`attack_bleed`, "Hemorrhage" until the owner renames it; owner ask 2026-09-29: "a bleed/gash
+ *  - `fire` is the ninth (`attack_fire`, "Inferno" until the owner renames it; owner ask 2026-09-29: "we need a fire
+ *    animation ... it should look like live flame/fires pixi sprites"): fireballs of live particle fire ignite round the
+ *    hero and are hurled (I one, II two, III a volley of five that sets the struck hero ablaze), and IV calls down a
+ *    meteor that detonates into a fire nova and engulfs the target, burning out to embers and smoke (`../heroFire/`).
+ *  - `bleed` is the tenth (`attack_bleed`, "Hemorrhage" until the owner renames it; owner ask 2026-09-29: "a bleed/gash
  *    animation ... use the same 4 tier strategy"): crimson crescents fly in and cut gashes that open and bleed (I one
  *    diagonal, II a cross, III a flurry ending in a claw rake); IV throbs with a heartbeat, splits the screen with a
  *    mega-slash and erupts in a blood nova (`../heroBleed/`).
@@ -54,7 +58,7 @@
  */
 import { heroAttackOf } from '@game/progression';
 
-export const HERO_ATTACK_STYLES = ['classic', 'blast', 'quake', 'arcana', 'blades', 'enraged', 'poison', 'frost', 'holy', 'bleed'] as const;
+export const HERO_ATTACK_STYLES = ['classic', 'blast', 'quake', 'arcana', 'blades', 'enraged', 'poison', 'frost', 'holy', 'fire', 'bleed'] as const;
 export type HeroAttackStyle = (typeof HERO_ATTACK_STYLES)[number];
 
 /** What a player without an equipped hero attack sees (owner 2026-09-28: Blast is a cosmetic, not a new default). */
@@ -71,13 +75,13 @@ export function styleOfCosmetic(id: string | null | undefined): HeroAttackStyle 
 }
 
 /** The dev override: `auto` = what a player would see; the others force one style for BOTH sides. */
-export const DEV_HERO_ATTACK_CHOICES = ['auto', 'classic', 'blast', 'quake', 'arcana', 'blades', 'enraged', 'poison', 'frost', 'holy', 'bleed'] as const;
+export const DEV_HERO_ATTACK_CHOICES = ['auto', 'classic', 'blast', 'quake', 'arcana', 'blades', 'enraged', 'poison', 'frost', 'holy', 'fire', 'bleed'] as const;
 export type DevHeroAttackChoice = (typeof DEV_HERO_ATTACK_CHOICES)[number];
 
 /** The dev "Attack style" row's labels, shared by every hero attack tuner. */
 export const DEV_HERO_ATTACK_LABELS: Record<DevHeroAttackChoice, string> = {
   auto: 'Auto (equipped cosmetic)', classic: 'Classic (lunge)', blast: 'Blast', quake: 'Quake', arcana: 'Arcana', blades: 'Phantom Blades', enraged: 'Enraged Strike',
-  poison: 'Venom Volley (poison darts)', frost: 'Frost Nova', holy: 'Consecration', bleed: 'Hemorrhage (bleed)',
+  poison: 'Venom Volley (poison darts)', frost: 'Frost Nova', holy: 'Consecration', fire: 'Inferno', bleed: 'Hemorrhage (bleed)',
 };
 
 const KEY = 'ascent.heroattackstyle';

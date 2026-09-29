@@ -156,7 +156,7 @@ contract, the IV beats in order (eight zips, all ticks, then the tension, then t
 avoidance, the mega-slash line, the zips from every direction, the camera, the runner both ways at every tier, knockback riding, slow motion, replay,
 finish / cancel, safety timer, the headless scene's caps and drain, the cosmetic). The shared formation and no-freeze
 tests, the style-list pins, the Collection counts and the crate per-item odds all gained Bleed. Oracle
-R-PROG-ATTACK-15.
+R-PROG-ATTACK-18 (Inferno took 15 and 16 on main; renumbered when this merged main).
 
 ## Open for the owner
 

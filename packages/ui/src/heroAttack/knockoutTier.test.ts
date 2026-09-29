@@ -21,6 +21,7 @@ import { playHeroEnraged } from '../heroEnraged/heroEnraged';
 import { playHeroPoison } from '../heroPoison/heroPoison';
 import { playHeroFrost } from '../heroFrost/heroFrost';
 import { playHeroHoly } from '../heroHoly/heroHoly';
+import { playHeroFire } from '../heroFire/heroFire';
 import { playHeroBleed } from '../heroBleed/heroBleed';
 import { heroStrikeDamage, heroStrikeKnockout } from '../heroBlast/heroStrikeDamage';
 
@@ -63,6 +64,7 @@ describe('every style plays its Tier IV on a knockout blow of 3, and Tier I on a
     ['poison', (o) => playHeroPoison({ ...o, textures: null })],
     ['frost', (o) => playHeroFrost({ ...o, textures: null })],
     ['holy', (o) => playHeroHoly({ ...o, textures: null })],
+    ['fire', (o) => playHeroFire({ ...o, textures: null })],
     ['bleed', (o) => playHeroBleed({ ...o, textures: null })],
   ];
 

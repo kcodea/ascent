@@ -5,6 +5,7 @@ import { sfx } from './sfx';
 import { MenuSidebar, SidebarHost } from './MenuSidebar';
 import { useGame, displayHandle } from './store';
 import { fetchTopPlayers, fetchLatestReplayForUser, remoteEnabled, type PlayerRow } from './remoteBoards';
+import { TitleBadge } from './titles/TitleBadge';
 import { startReplay } from './replay/replayPlayer';
 import { LbHeroFrame, LbMedallion } from './LadderBits';
 import { RankBar } from './rank/RankBar';
@@ -49,6 +50,7 @@ export function Rankings() {
   const show = useGame((s) => s.showRankings);
   const close = useGame((s) => s.closeRankings);
   const myId = useGame((s) => s.account.userId);
+  const showOppCosmetics = useGame((s) => s.showOpponentSkins); // other players' titles ride the same switch
   const openCareer = useGame((s) => s.openCareer);
   const [rows, setRows] = useState<PlayerRow[] | null>(null);
   const [watching, setWatching] = useState<string | null>(null); // userId whose replay is loading
@@ -149,7 +151,7 @@ export function Rankings() {
                   <span className="lb-c-player">
                     <LbHeroFrame heroId={r.favoriteHero} />
                     <span className="lb-who">
-                      <span className="lb-handle">{handle}{mine && <span className="lb-you">you</span>}</span>
+                      <span className="lb-handle">{handle}{mine && <span className="lb-you">you</span>}<TitleBadge id={mine || showOppCosmetics ? r.equippedTitleId : null} className="lb-handle-title" /></span>
                       <span className="lb-herosub">{hero ? hero.name : 'No favorite hero yet'}</span>
                     </span>
                   </span>

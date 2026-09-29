@@ -81,7 +81,7 @@ import { beginCourseFresh } from './tutorial/tutorialProfile';
 import { buildRunHistoryEntry, careerStats, clearRunHistory, type RunHistoryEntry } from './runHistory';
 import { clearProfile, loadProfile, saveProfile } from './profileStore';
 import { enqueuePendingRank, flushPendingRanks, installRankRetryTriggers, rankRequestFor, type PendingRank } from './rank/rankSubmission';
-import { TUTORIAL_COURSE_ID, practiceRunId, snapshotForRun, tutorialRunId } from '@game/progression';
+import { TUTORIAL_COURSE_ID, practiceRunId, snapshotForRun, tutorialRunId, withEquippedTitle } from '@game/progression';
 import { beginRunProgression, expectRunProgression, flushProgression, installProgression, markRunProgressionUnavailable, mirrorFor, probeProgression, useProgression } from './progression/progressionStore';
 import type { RankSubmissionState, RankSubmitOutcome } from './rank/types';
 import { turnClock } from './turnClock';
@@ -907,8 +907,10 @@ export function loadShowOpponentSkins(): boolean {
  * in for the run: equipping mid-run changes the NEXT run.
  */
 function recordRunCosmetics(run: RunState): RunState {
-  const loadout = mirrorFor(currentProgressionUserId(), useProgression.getState().mirror)?.loadout;
-  const cosmetics = snapshotForRun(loadout);
+  const mirror = mirrorFor(currentProgressionUserId(), useProgression.getState().mirror);
+  // TITLES (owner ask 2026-09-28): the equipped title rides the same snapshot, so opponents see the title worn
+  // in THIS run. It lives on the profile, not the loadout rows, so it is folded in here.
+  const cosmetics = snapshotForRun(withEquippedTitle(mirror?.loadout, mirror?.equippedTitleId));
   if (cosmetics) run.cosmetics = cosmetics;
   return run;
 }

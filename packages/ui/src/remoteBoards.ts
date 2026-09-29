@@ -1036,6 +1036,9 @@ export interface PlayerRow {
   /** MEDAL RANK (2026-09-20): the row's ladder state, when the table carries the rank columns. Absent on a
    *  pre-migration backend — render the scalar then. */
   rank?: RankedProfile;
+  /** The player's CURRENTLY equipped title (`profiles.equipped_title_id`, owner ask 2026-09-28). Absent when none
+   *  or on a backend without the progression columns. The badge validates it against the catalog. */
+  equippedTitleId?: string;
 }
 
 /**
@@ -1248,15 +1251,19 @@ export async function fetchTopPlayers(limit = 10): Promise<PlayerRow[]> {
     // promoted player must rank above the one still waiting at the gate); games-played breaks the rest.
     // A pre-migration table has no rank columns → that query errors → fall back to the legacy ordering.
     const timeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), FETCH_TIMEOUT_MS));
-    const ranked = await Promise.race([
+    // TITLES (owner ask 2026-09-28): the equipped title rides the SAME row read (one column, no extra query). A
+    // backend without the progression column errors on it, and the select without it runs instead.
+    const rankedSelect = (extra: string) => Promise.race([
       Promise.resolve(
-        c.from('profiles').select(`user_id, author, discriminator, games_played, favorite_hero, ${RANK_COLUMNS}`)
+        c.from('profiles').select(`user_id, author, discriminator, games_played, favorite_hero, ${RANK_COLUMNS}${extra}`)
           .gt('games_played', 0)
           .order('rank_division', { ascending: false }).order('rank_points', { ascending: false })
           .order('games_played', { ascending: false }).limit(limit),
       ),
       timeout,
     ]);
+    const titled = await rankedSelect(', equipped_title_id');
+    const ranked = titled && !titled.error && titled.data ? titled : await rankedSelect('');
     const result = ranked && !ranked.error && ranked.data
       ? ranked
       : await Promise.race([
@@ -1273,6 +1280,7 @@ export async function fetchTopPlayers(limit = 10): Promise<PlayerRow[]> {
         userId: r.user_id, author: r.author, discriminator: r.discriminator ?? undefined, rating: r.rating,
         gamesPlayed: r.games_played, favoriteHero: r.favorite_hero ?? undefined,
         ...(typeof r.rank_revision === 'number' ? { rank: rankedProfileOfRow(r) } : {}),
+        ...(typeof r.equipped_title_id === 'string' && r.equipped_title_id ? { equippedTitleId: r.equipped_title_id } : {}),
       }));
   } catch {
     return [];

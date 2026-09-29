@@ -1060,12 +1060,13 @@ export interface RunState {
    *  card when it's bought, and re-applied on Reborn (Reborn resets to base stats). Separate from
    *  `undeadAttackBonus` (Lantern of Souls) which applies in combat only. */
   undeadBuyAtk: number;
-  /** Run-wide Beast attack bonus (Squirl Scout): your Beasts get this much Attack everywhere — baked into a
-   *  Beast when it's created, and re-applied on Reborn/summon (from-base combat bodies). Beast sibling of
-   *  `undeadBuyAtk`. */
+  /** LEGACY run-wide Beast Attack channel (the retired "Beast Aura"): baked into a Beast when it's created, and
+   *  re-applied on Reborn/summon (from-base combat bodies). NOTHING FEEDS IT since 2026-09-28 — Beast buffs are
+   *  combat-only (owner ruling, R-AURA-03). Still READ so a pre-change in-flight run or recorded snapshot keeps
+   *  the value it banked; a new run stays at 0. */
   beastBuyAtk: number;
-  /** Run-wide Beast HEALTH aura (Pack Mentality quest): your Beasts get this much Health everywhere — the
-   *  Health sibling of `beastBuyAtk`, baked in on creation + re-applied on Reborn/summon. Absent-safe (0). */
+  /** LEGACY Health sibling of `beastBuyAtk` (pre-2026-09-28 Pack Mentality). Nothing feeds it any more
+   *  (R-AURA-03); still read for older runs. Absent-safe (0). */
   beastBuyHp: number;
   /** Squirl Scout's run-wide grant size: each Squirl Scout played raises it +3 (×2 golden). Its Battlecry
    *  gives a random friendly minion +this/+this once per Beast you own. Absent-safe (0). */
@@ -1597,9 +1598,10 @@ export interface RunState {
   /** Card ids to conjure to hand at the END OF EACH TURN for the rest of the run (Feed the Alpha's recurring
    *  reward — one Feed the Alpha spell per turn). Multiple quests append; absent = none. */
   questRecurringGrants?: string[];
-  /** Growing tribe auras from quests (Pack Mentality): +stepAttack/+stepHealth to the tribe's aura each time
-   *  `per` of `event` accrues over the run. `progress` carries the leftover between steps. Absent = none. */
-  questScalingAuras?: { tribe: Tribe; per: number; event: QuestObjectiveEvent; stepAttack: number; stepHealth: number; progress: number }[];
+  /** Growing tribe grants from quests (Pack Mentality): +stepAttack/+stepHealth each time `per` of `event`
+   *  accrues over the run. `progress` carries the leftover between steps. For Pack Mentality the grant is a
+   *  combat-only Start of Combat buff whose level is `attack`/`health` (R-AURA-03). Absent = none. */
+  questScalingAuras?: { tribe: Tribe; per: number; event: QuestObjectiveEvent; stepAttack: number; stepHealth: number; progress: number; /** Pack Mentality's current combat-only LEVEL (R-AURA-03); absent on a pre-2026-09-28 run, whose level was baked into `beastBuyAtk`. */ attack?: number; health?: number }[];
   /** Den Marker (quest): a run-wide Den-Mother aura — every Beast you play/summon gains +attack/+health, and that
    *  magnitude climbs +step/+step every `per` Beasts (`count` carries progress toward the next step). Absent = none. */
   denMarker?: { attack: number; health: number; step: number; per: number; count: number };

@@ -409,6 +409,12 @@ function combatArena(ctx: CombatContext, self: Minion): EffectArena {
     impAura: () => ctx.impAura(self.side),
     deathrattleTally: () => ctx.deathrattleTally(self.side),
     addTribeAura: (tribe, a, h) => ctx.addTribeAura(self.side, tribe as Tribe | 'any', a, h, self.uid),
+    // R-AURA-03 (owner 2026-09-28): aura FIRST (so the wash reads before the ticks, as the legacy bodies ordered
+    // it), then plain combat buffs — no carry-back channel, so only an Engraved recipient keeps them.
+    buffAllOfTribe: (targets, auraTribes, a, h) => {
+      for (const t of auraTribes) ctx.addTribeAura(self.side, t as Tribe | 'any', a, h, self.uid);
+      for (const t of targets) ctx.buff(t as Minion, a, h, self.uid);
+    },
     tribesOf: (t) => {
       const m = t as Minion;
       return [m.tribe, m.tribe2].filter((x): x is Tribe => !!x && x !== 'neutral');

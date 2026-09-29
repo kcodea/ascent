@@ -47,8 +47,6 @@ export const COMBAT_MOMENT_EVENTS = [
  *  that fired — the sim tags every event an effect emits with its card id (`simulate.ts` effectCtx). */
 export const COMBAT_SPECIAL_EVENTS = ['grimPayout', 'hanGover', 'kurseGolem', 'wolvieRise'] as const satisfies readonly AnnouncerEvent[];
 export const COMBAT_SPECIAL_CARDS = { grim: 'grim', hanGover: 'dw3_hangover', kurse: 'k3_kurse', wolvie: 'b2_wolvie' } as const;
-/** GrimPayout: Grim's Echo pays out with at least this many Echoes counted. */
-export const GRIM_PAYOUT_ECHOES = 6;
 export type CombatMoment = (typeof COMBAT_MOMENT_EVENTS)[number] | (typeof COMBAT_SPECIAL_EVENTS)[number];
 
 /** A unit's stats at some point of the replay (the live frame's shape, narrowed). */
@@ -118,12 +116,6 @@ const stepKey = (e: CombatEvent, i: number): string => (e.step !== undefined ? `
  * Fold `events[scan.cursor, to)` into `scan` and return the moments those events complete, in the order they
  * complete. Each moment is returned at most once per scan (per fight).
  */
-/** Grim's per-Echo Attack step, read off the card so a balance pass never desyncs it (3 today). */
-function grimStep(): number {
-  const eff = CARD_INDEX[COMBAT_SPECIAL_CARDS.grim]?.effects?.find((x) => x.do === 'deathrattleBuffTribeByTally');
-  const a = (eff?.params as { attack?: unknown } | undefined)?.attack;
-  return typeof a === 'number' ? a : 0;
-}
 const C = COMBAT_SPECIAL_CARDS;
 
 export function scanCombat(scan: CombatScan, events: readonly CombatEvent[], to: number, frameAt?: FrameAt): CombatMoment[] {
@@ -146,11 +138,10 @@ export function scanCombat(scan: CombatScan, events: readonly CombatEvent[], to:
     // THE FIGHT SPECIALS (the player's own cards; `srcCard` = the card whose effect emitted the event).
     const src = e.srcCard;
     if (src === C.grim && (e.type === 'buff' || e.type === 'tribeAura') && e.key?.endsWith(':onDeath')) {
-      // Grim's Echo: +attack x (Echoes counted), doubled when gilded; its source body tells side and gild.
-      const body = e.type === 'buff' ? e.source : undefined;
-      const per = grimStep() * (body && scan.golden.has(body) ? 2 : 1);
-      const mineSide = e.type === 'buff' ? mine(body) : e.side === 'player';
-      if (mineSide && per > 0 && (e.attack ?? 0) / per >= GRIM_PAYOUT_ECHOES) hit('grimPayout');
+      // Grim's Echo pays out (a flat "+8/+8 this combat" since 2026-09-28, R-AURA-03 — the old 6+-Echo tally
+      // threshold went with the tally). Its source body tells the side.
+      const mineSide = e.type === 'buff' ? mine(e.source) : e.side === 'player';
+      if (mineSide && ((e.attack ?? 0) > 0 || (e.health ?? 0) > 0)) hit('grimPayout');
     }
     if (src === C.hanGover && e.type === 'pummelTrigger' && e.side === 'player') hit('hanGover');
     if (src === C.kurse && e.type === 'summon' && e.side === 'player') hit('kurseGolem');

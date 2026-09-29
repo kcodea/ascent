@@ -3069,16 +3069,16 @@ export const EPIC_RUNES: RuneDef[] = [
     sets: ['set2'],
   },
   {
-    // Owner add 2026-08-12; rework 2026-09-23: a friendly Beast dying grows your BEAST AURA (the run-wide
-    // `beastBuyAtk` / `beastBuyHp` channel The Old Hunt pumps) by +N/+N — permanent, carried back at settle —
-    // and every 2 friendly deaths Avenge(2) raises N permanently (`RunState.beastialSwarmLevel`, N starts 2).
-    // Read + carried back in `simulate`; the living Beasts gain it on the spot, later summons inherit it.
+    // Owner add 2026-08-12; rework 2026-09-23; R-AURA-03 2026-09-28: a friendly Beast dying gives all your Beasts
+    // +N/+N — in combat for the fight (living Beasts + later summons, nothing carried back; `simulate`), in the Shop
+    // a permanent warband buff (`fireOnFriendDeath`). Every 2 friendly COMBAT deaths Avenge(2) raises N permanently
+    // (`RunState.beastialSwarmLevel`, N starts 2).
     id: 'rune_beastial_swarm',
     tribes: ['beast'], // TRIBE GATE (2026-09-10): the text names beasts on the board
     name: 'Rune of Beastial Swarm',
     cost: 5,
     epic: true,
-    text: 'Give your **Beast Aura +2/+2** when a friendly **Beast** dies. **Avenge (2):** improve this.',
+    text: 'When a friendly **Beast** dies, give all your Beasts **+2/+2**. **Avenge (2):** Improve this.',
     reward: { kind: 'combatFlag', flag: 'runeBeastialSwarm' },
     sets: ['set2'],
   },

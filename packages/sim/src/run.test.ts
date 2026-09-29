@@ -481,7 +481,7 @@ describe('run loop (@game/sim)', () => {
     expect(s.board.find((c) => c.uid === 'u')?.keywords).toContain('R'); // the highest-Attack friendly Undead got Rise
   });
 
-  it('Graverobber on Grim fires its Deathrattle out of combat (Grim buffs your Beasts +3/+2 per Echo)', () => {
+  it('Graverobber on Grim fires its Deathrattle out of combat (Grim gives all your Beasts +8/+8, permanently in the Shop)', () => {
     let s: RunState = {
       ...createRun(1),
       board: [
@@ -493,13 +493,14 @@ describe('run loop (@game/sim)', () => {
     s = reduce(s, { type: 'play', uid: 'g' });
     s = reduce(reduce(s, { type: 'battlecryTarget', targetUid: 'grim' }), { type: 'resolveShopDeath' });
     expect(s.board.find((c) => c.uid === 'grim')).toBeUndefined(); // destroyed
-    // Grim's Echo (2026-09-24): +3/+2 per Echo this game, its own included → the first Echo pays +3/+2.
-    expect(s.board.find((c) => c.uid === 'b')!.attack).toBe(1 + 3);
-    expect(s.board.find((c) => c.uid === 'b')!.health).toBe(1 + 2);
+    // Grim's Echo (2026-09-28, R-AURA-03): "Give all your Beasts +8/+8" — a Shop Echo buffs the warband permanently.
+    expect(s.deathrattlesTriggered).toBe(1);
+    expect(s.board.find((c) => c.uid === 'b')!.attack).toBe(1 + 8);
+    expect(s.board.find((c) => c.uid === 'b')!.health).toBe(1 + 8);
   });
 
   it('Sylus the Reaper doubles a Graverobber-fired Deathrattle in the shop', () => {
-    // Grim's Echo fires once + once per Sylus; each fire reads the tally at death (1 Echo) → +3/+2 twice.
+    // Grim's Echo fires once + once per Sylus — both fires are real Echoes (the tally sees 2), each a +8/+8 Shop buff.
     let s: RunState = {
       ...createRun(1),
       board: [
@@ -511,7 +512,8 @@ describe('run loop (@game/sim)', () => {
     };
     s = reduce(s, { type: 'play', uid: 'g' });
     s = reduce(reduce(s, { type: 'battlecryTarget', targetUid: 'grim' }), { type: 'resolveShopDeath' });
-    expect(s.board.find((c) => c.uid === 'b')!.attack).toBe(1 + 6); // +3/+2 fired twice (once + one Sylus)
+    expect(s.deathrattlesTriggered).toBe(2); // fired twice (once + one Sylus)
+    expect(s.board.find((c) => c.uid === 'b')!.attack).toBe(1 + 16); // +8/+8 twice
   });
 
   it("Graverobber's out-of-combat Echo counts toward a deathrattle (Echo) quest", () => {
@@ -5846,11 +5848,13 @@ describe('Beast quests (combat objectives + rewards)', () => {
     expect(s.questFlags?.echoingCoop).toBe(true);
   });
 
-  it('The Old Hunt carry-back grows the Beast aura + buffs current Beasts', () => {
+  it('a Beast gain on the combat result never becomes run-wide Beast stats (combat-only, R-AURA-03)', () => {
+    // The Old Hunt / Beastial Swarm no longer carry anything back; the channel only grows an armed Pack
+    // Mentality's LEVEL. With no Pack Mentality armed, a stray gain changes nothing.
     const beast: BoardCard = { uid: 'b', cardId: 'alley', tribe: 'beast', attack: 2, health: 2, keywords: [], golden: false };
     const s = settle('q_capstone_neutral', { playerBeastBuyAtkGain: 21 }, { board: [beast] });
-    expect(s.beastBuyAtk).toBe(21); // pumped even though the (neutral) active quest is unrelated
-    expect(s.board[0]!.attack).toBe(23);
+    expect(s.beastBuyAtk ?? 0).toBe(0);
+    expect(s.board[0]!.attack).toBe(2);
   });
 
   it('Feed the Alpha (recurringGrant) conjures its spell to hand every turn', () => {

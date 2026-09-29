@@ -9,7 +9,7 @@ import { applyEndOfTurn, fireRecruitDeathrattlesForTest, fireShopRally, fireSumm
  *
  *   EXECUTE — "Execute is what we renamed Venom. it's the same mechanic as that but reworded." The keyword is `V`;
  *   Venom carries it; Raven and Tort grant it.
- *   GRIM — "+3/+2 for every Echo triggered this game", its own Echo counted (owner ruling).
+ *   GRIM — superseded 2026-09-28 (flat "+8/+8 this combat"; pinned in beastCombatOnly0928.test.ts).
  */
 
 const bc = (uid: string, cardId: string, over: Partial<BoardCard> = {}): BoardCard => {
@@ -39,38 +39,8 @@ describe('Execute is the Venom mechanic (owner 2026-09-24)', () => {
   });
 });
 
-// ── 1. Grim ───────────────────────────────────────────────────────────────────────────────────────────────
-describe('Grim: +3/+2 per Echo triggered this game, its own included', () => {
-  it('is Tier 5, 7/1, and reads the per-game tally', () => {
-    const g = CARD_INDEX['grim']!;
-    expect([g.tier, g.attack, g.health]).toEqual([5, 7, 1]);
-    expect(g.effects[0]).toMatchObject({ on: 'onDeath', do: 'deathrattleBuffTribeByTally', params: { tribe: 'beast', attack: 3, health: 2 } });
-    expect(set2Pool.has('grim')).toBe(true);
-  });
-
-  it('COMBAT: the run-wide tally carries across fights, plus this fight\'s Echoes, plus Grim itself', () => {
-    // 4 Echoes banked from earlier fights; T-Rex dies first this fight (1 more); then Grim (its own) → N = 6.
-    const r = fight([bm('b2_trex', 1, 1), bm('grim', 1, 1), bm('alley', 1, 900)], [{ cardId: 'sandbag', attack: 1, health: 900 }], 3, 4);
-    const ally = uidOf(r, 'alley');
-    const grim = uidOf(r, 'grim');
-    const fromGrim = buffs(r).filter((b) => b.target === ally && b.source === grim);
-    expect(fromGrim.map((b) => [b.attack, b.health])).toEqual([[18, 12]]);
-  });
-
-  it('SHOP: an out-of-combat Echo reads the same tally and counts itself (Graverobber-class proc)', () => {
-    const s = shop([bc('g', 'grim'), bc('t', 'b2_trex')], { deathrattlesTriggered: 2 });
-    fireRecruitDeathrattlesForTest(s, on(s, 'g'));
-    expect(s.deathrattlesTriggered).toBe(3);
-    expect(on(s, 't').attack - CARD_INDEX['b2_trex']!.attack, '3 Echoes x +3').toBe(9);
-    expect(on(s, 't').health - CARD_INDEX['b2_trex']!.health, '3 Echoes x +2').toBe(6);
-  });
-
-  it('GILDED doubles the rate', () => {
-    const s = shop([bc('g', 'grim', { golden: true }), bc('t', 'b2_trex')], { deathrattlesTriggered: 0 });
-    fireRecruitDeathrattlesForTest(s, on(s, 'g'));
-    expect([on(s, 't').attack - CARD_INDEX['b2_trex']!.attack, on(s, 't').health - CARD_INDEX['b2_trex']!.health]).toEqual([6, 4]);
-  });
-});
+// ── 1. Grim — SUPERSEDED 2026-09-28: the per-game Echo tally is gone; Grim is "Echo: Give all Beasts +8/+8 this
+//    combat." (R-AURA-03). Its pins live in beastCombatOnly0928.test.ts.
 
 // ── 2. Wolvie (shop half; the combat half lives in beastBatchAug12.test.ts) ───────────────────────────────
 describe('Wolvie: "Taunt. Echo: Give a Beast +2/+4 and Rise." (SHOP)', () => {

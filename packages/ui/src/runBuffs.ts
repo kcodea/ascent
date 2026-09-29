@@ -208,8 +208,10 @@ export function gatherRunBuffs(run: RunState, combat?: CombatBuffDelta | null): 
   const magA = (run.magneticBuyAtk ?? 0) + (combat?.auras.attachment?.attack ?? 0), magH = (run.magneticBuyHp ?? 0) + (combat?.auras.attachment?.health ?? 0);
   if (magA > 0 || magH > 0) rows.push({ key: 'magnetic', label: 'Attachment Aura', value: `+${magA}/+${magH}` });
 
-  // Run-wide BEAST creation aura (The Old Hunt / beast-buy sources) — same omission.
-  const bstA = (run.beastBuyAtk ?? 0) + (combat?.auras.beast?.attack ?? 0), bstH = (run.beastBuyHp ?? 0) + (combat?.auras.beast?.health ?? 0);
+  // LEGACY run-wide Beast channel: nothing feeds it since 2026-09-28 — Beast buffs are combat-only, never a
+  // standing Aura (owner ruling, R-AURA-03) — so this row only ever shows on a run that banked it before then.
+  // No combat fold: the sim no longer tags any combat Beast grant as a run-wide Aura row.
+  const bstA = run.beastBuyAtk ?? 0, bstH = run.beastBuyHp ?? 0;
   if (bstA > 0 || bstH > 0) rows.push({ key: 'beast', label: 'Beast Aura', value: `+${bstA}/+${bstH}` });
 
   // Permanent tavern buy bonus (Staff of Guel / Demonic Anomaly) — every minion you buy enters at +atk/+hp.

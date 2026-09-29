@@ -571,39 +571,6 @@ export const TRIGGERS_RULES: GameRule[] = [
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/rubyTypes.test.ts'], lastVerifiedAt: '2026-09-24' },
   },
   {
-    id: 'R-ECHOTALLY-01',
-    title: 'Grim counts every Echo triggered this GAME, its own included, in the Shop and in combat',
-    statement:
-      'Grim ("Echo: give your Beast Aura +3/+2 for every Echo triggered this game") pays N x (+3/+2), gilded N x (+6/+4), '
-      + 'where N is the run-wide Echo tally: every Echo triggered this game, in the Shop, at End of Turn and in every '
-      + 'combat so far (each extra trigger from Sylus, Zyff, Elderhorn and the like counts), PLUS this fight\'s Echoes '
-      + 'so far. The tally is bumped before an Echo fires, so Grim\'s own Echo is in its N; an extra re-fire of the '
-      + 'same death reads the tally at death. The printed text is the LIVE TOTAL in place (owner ruling 2026-09-25, '
-      + 'replacing the 2026-09-24 static-text exception): every live surface reads "Echo: Give your Beast Aura +X/+Y. Improves by +3/+2 for every Echo triggered this game." '
-      + 'with +X/+Y = (Echoes so far + 1 for its own) x (+3/+2), gilded x2, from the same tally the payout reads; in '
-      + 'combat it ticks as this fight\'s Echoes replay. An ENEMY Grim prints its frozen snapshot tally (no self bump), '
-      + 'matching what it pays. The printed card text (Compendium, Doc Bot) is the same sentence at its base value, +3/+2 (0 Echoes so far, its own counted).',
-    domain: 'triggers',
-    status: 'approved',
-    evidence: [
-      { kind: 'owner-handoff', ref: 'Owner Beast/Dragon batch 2026-09-24', quote: 'Grim: "Echo: Give your Beast aura +3/+2 for every Echo triggered this game." Grim\'s own Echo counts, so it gives N x (+3/+2), where N includes itself.' },
-      { kind: 'owner-handoff', ref: 'Owner correction 2026-09-24 (Grim text)', quote: 'grim text doesnt need flavor. just Echo: Give your Beast Aura +3/+2 for every Echo triggered this game.' },
-      { kind: 'owner-handoff', ref: 'Owner ask 2026-09-25 (Grim live text; replaces the static-text exception)', quote: 'fix grim so that it updates in real time with the current value of the echo. Format picked: the TOTAL IN PLACE, "Echo: Give your Beast Aura +X/+Y." (4 Echoes so far reads +15/+10).' },
-      { kind: 'owner-handoff', ref: 'Owner correction on PR #1717, 2026-09-25 (Grim wording)', quote: 'grim text is bad - should say "Echo: Give your Beast Aura +X/+Y. Improves by +3/+2 for every Echo triggered this game."' },
-      { kind: 'code', ref: 'packages/core/src/effects/arena.ts deathrattleBuffTribeByTally; packages/core/src/combat/simulate.ts deathrattleTally + bumpDeathrattles; packages/sim/src/recruit.ts deathrattlesTriggered (bumped before the shop fire); packages/ui/src/cardText.ts echoTallyText (liveCardText + Unit.tsx, which folds combatQuestDelta.deathrattle in combat)' },
-    ],
-    cardText: '**Echo:** Give your **Beast Aura** **+3/+2**. Improves by **+3/+2** for every **Echo** triggered this game.',
-    contentIds: ['grim'],
-    currentBehaviour:
-      'Conforms (built with the rework, 2026-09-24; live total in place 2026-09-25). Reuses the existing run tally `deathrattlesTriggered` (carried back '
-      + 'from combat as `playerDeathrattles`). Known asymmetry kept: an ENEMY Grim reads its snapshot\'s frozen tally.',
-    enforcement: {
-      kind: 'scenario',
-      refs: ['packages/sim/src/beastDragonBatch0924.test.ts', 'packages/core/src/combat/simulate.test.ts', 'packages/ui/src/cardText.test.ts', 'packages/ui/src/grimLiveText.test.ts'],
-      lastVerifiedAt: '2026-09-25',
-    },
-  },
-  {
     id: 'R-MINIONCAST-01',
     title: 'A spell a minion casts in the Shop or at End of Turn is a full cast: every rune, watcher and tally hears it',
     statement:

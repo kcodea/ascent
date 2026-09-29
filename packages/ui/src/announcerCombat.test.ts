@@ -5,7 +5,7 @@
 import { describe, expect, it } from 'vitest';
 import { CARD_INDEX } from '@game/content';
 import type { CombatEvent, Keyword, MinionSnapshot } from '@game/core';
-import { COMBAT_MOMENT_THRESHOLDS as T, COMBAT_SPECIAL_CARDS as SC, GRIM_PAYOUT_ECHOES, finalMoments, newCombatScan, scanCombat, type FrameAt } from './announcerCombat';
+import { COMBAT_MOMENT_THRESHOLDS as T, COMBAT_SPECIAL_CARDS as SC, finalMoments, newCombatScan, scanCombat, type FrameAt } from './announcerCombat';
 
 const snap = (uid: string, keywords: Keyword[] = [], cardId = 'x', attack = 2, health = 2): MinionSnapshot =>
   ({ uid, cardId, name: uid, tribe: 'neutral', attack, health, keywords }) as MinionSnapshot;
@@ -115,22 +115,19 @@ describe('the in-fight moments', () => {
 describe('the fight specials (owner 2026-09-25): keyed on the card whose effect fired', () => {
   const b = () => board([snap('p1'), snap('grim1', [], SC.grim)], [snap('e1')]);
   const grimBuff = (attack: number, source = 'grim1'): CombatEvent =>
-    ({ type: 'buff', target: 'p1', attack, health: 1, source, key: 'factory:deathrattleBuffTribeByTally:onDeath', srcCard: SC.grim });
+    ({ type: 'buff', target: 'p1', attack, health: 1, source, key: 'factory:deathrattleBuffTribe:onDeath', srcCard: SC.grim });
   it('the cards exist under the ids the specials key on', () => {
     expect(CARD_INDEX[SC.grim]?.name).toBe('Grim');
     expect(CARD_INDEX[SC.hanGover]?.name).toBe('Han Gover');
     expect(CARD_INDEX[SC.kurse]?.name).toBe('Kurse');
     expect(CARD_INDEX[SC.wolvie]?.name).toBe('Wolvie');
   });
-  it('GrimPayout when the Grim Echo pays out with 6+ Echoes counted (a gilded Grim doubles its step)', () => {
-    const step = 3; // Grim's printed +3 Attack per Echo
-    expect(all(b(), [grimBuff(step * GRIM_PAYOUT_ECHOES)])).toEqual(['grimPayout']);
-    expect(all(b(), [grimBuff(step * (GRIM_PAYOUT_ECHOES - 1))])).toEqual([]);
+  it("GrimPayout whenever the player's Grim Echo pays out (flat +8/+8 this combat since 2026-09-28)", () => {
+    expect(all(b(), [grimBuff(8)])).toEqual(['grimPayout']);
     const gilded = board([snap('p1'), { ...snap('grim1', [], SC.grim), golden: true } as MinionSnapshot], [snap('e1')]);
-    expect(all(gilded, [grimBuff(2 * step * (GRIM_PAYOUT_ECHOES - 1))])).toEqual([]);
-    expect(all(gilded, [grimBuff(2 * step * GRIM_PAYOUT_ECHOES)])).toEqual(['grimPayout']);
+    expect(all(gilded, [grimBuff(16)])).toEqual(['grimPayout']);
     const theirs = board([snap('p1')], [snap('e1'), snap('grim1', [], SC.grim)]);
-    expect(all(theirs, [grimBuff(step * 10)])).toEqual([]);
+    expect(all(theirs, [grimBuff(8)])).toEqual([]);
   });
   it('HanGover on a player Han Gover Pummel payout (the generic Pummel also counts it)', () => {
     const e: CombatEvent = { type: 'pummelTrigger', source: 'p1', side: 'player', marker: 'm', srcCard: SC.hanGover };

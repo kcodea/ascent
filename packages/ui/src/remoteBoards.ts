@@ -14,11 +14,13 @@
  * seeds should still pin to the committed pool only (see docs/board-pool.md).
  */
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
-import type { SetId } from '@game/content';
+import { activeSet, type SetId } from '@game/content';
 import type { FightRow, LobbyStrength, MatchDetails, StrengthInput } from '@game/sim';
 import { CONFIG, RANK_SEASON, initialRankedProfile, lobbyStrengthOf, excludeOwnFights, parseLobbyStrength, parseMatchDetails, parseRankResult, parseRankedProfile, registerBoardRecords, registerOpponents, type BoardSnapshot, type DerivedRun, type PlayerKeyBasis, type RankedProfile, type ReplayV2, type RunTelemetry, type RunTelemetryRow, type TelemetrySource, isRankPosition, type RankPosition } from '@game/sim';
 import { currentIdentity, currentUserId, setIdentity, type AuthProvider, type Identity } from './identity';
 import type { RankSubmitOutcome, RankSubmitRequest } from './rank/types';
+import { createPoolLoader, STARTUP_LOAD, type PoolLoader } from './opponentPool/poolLoader';
+import { idbPoolCache } from './opponentPool/poolCache';
 import { careerRunOf, joinTelemetry, type CareerRun, type RunHistoryRowLike, type TelemetryProbeRow } from './careerData';
 import { hallHistoryKeyOf, ownGameRecordsOf, type HallLedgerFight, type HallOwnRecord } from './leaderboardData';
 
@@ -302,41 +304,54 @@ export async function uploadBoards(boards: BoardSnapshot[], opts?: { unrated?: b
   }
 }
 
+// ── The shared opponent pool (fix 2026-09-28) ─────────────────────────────────────────────────────────────
+// One capped, NEWEST-first pull PER WAVE (not a single global `order(wave).limit(2000)`): the global pull
+// filled the cap from wave 1 upward, so mid/high waves were truncated out once the table grew (owner report
+// 2026-07-17). What changed on 2026-09-28: each wave now has its OWN timeout and retry and registers the moment
+// it lands (it used to be one 4 s race over all 17, so one slow wave discarded the whole pool and a rated lobby
+// sat seven generated seats), a last-good copy is cached in IndexedDB, missing waves retry in the background
+// and when the browser comes back online, and the lobby launch waits for it (`opponentPool/poolGate.ts`).
+let poolLoaderSingleton: PoolLoader | null = null;
+
+/** The session's pool loader, or null when no backend is configured (offline builds, tests). */
+export function opponentPoolLoader(patchPrefix = `${typeof __APP_VERSION__ === 'string' ? __APP_VERSION__ : ''}+`): PoolLoader | null {
+  if (poolLoaderSingleton) return poolLoaderSingleton;
+  const c = client();
+  if (!c) return null;
+  const loader = createPoolLoader({
+    waves: CONFIG.courseRounds,
+    patchPrefix,
+    async fetchWave(wave, signal) {
+      let q = c.from(TABLE).select('snapshot').eq('wave', wave);
+      if (patchPrefix) q = q.like('patch', `${patchPrefix}%`);
+      const res = await q.order('created_at', { ascending: false }).limit(POOL_PER_WAVE_LIMIT).abortSignal(signal);
+      if (res.error) throw new Error(res.error.message);
+      return ((res.data ?? []) as { snapshot: BoardSnapshot }[]).map((r) => r.snapshot);
+    },
+    register: registerOpponents,
+    cache: idbPoolCache(),
+    setId: () => activeSet().id,
+    now: () => Date.now(),
+    sleep: (ms) => new Promise((r) => setTimeout(r, ms)),
+    schedule: (fn, ms) => { const t = setTimeout(fn, ms); return () => clearTimeout(t); },
+  });
+  if (typeof window !== 'undefined') window.addEventListener('online', () => loader.onOnline());
+  poolLoaderSingleton = loader;
+  return loader;
+}
+
 /**
- * Fetch the shared pool for the current patch and register it into the static opponent pool. Best-effort +
- * time-boxed; returns how many boards were registered (0 on any failure / no backend). Call ONCE at startup,
- * before any run faces combat. `patchPrefix` matches by build VERSION (e.g. `"0.1.0+"`) so per-commit SHA
- * churn doesn't hide your own boards — boards are keyed `version+sha`, served by `version+%`.
+ * Fetch the shared pool for the current patch and register it into the static opponent pool. Best-effort;
+ * resolves to how many boards arrived (0 with no backend). `patchPrefix` matches by build VERSION (e.g.
+ * `"0.1.0+"`) so per-commit SHA churn doesn't hide your own boards. The first call is the startup load; later
+ * calls (the between-runs refresh) re-pull every wave, and registration dedupes.
  */
 export async function fetchAndRegisterPool(patchPrefix?: string): Promise<number> {
-  const c = client();
-  if (!c) return 0;
-  try {
-    // One capped, NEWEST-first pull PER WAVE (17 parallel queries), not a single global
-    // `order(wave).limit(2000)`. The global pull filled the cap from wave 1 upward — and dead runs
-    // over-contribute low waves — so once the table outgrew the cap, mid/high waves were truncated out of the
-    // pool entirely. A starved wave then collapses matchmaking onto the one nearby board and repeats it
-    // ("same snapshot twice in a row" at round ~9 — owner report 2026-07-17). Per-wave pulls guarantee
-    // coverage across the whole course no matter how large the table grows.
-    const queries = Array.from({ length: CONFIG.courseRounds }, (_, i) => {
-      let q = c.from(TABLE).select('snapshot').eq('wave', i + 1);
-      if (patchPrefix) q = q.like('patch', `${patchPrefix}%`);
-      return Promise.resolve(q.order('created_at', { ascending: false }).limit(POOL_PER_WAVE_LIMIT));
-    });
-    const timeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), FETCH_TIMEOUT_MS));
-    const settled = await Promise.race([Promise.allSettled(queries), timeout]);
-    if (!settled) return 0; // timed out — boot without a remote pool (committed/local boards still serve)
-    const rows = settled.flatMap((r) =>
-      r.status === 'fulfilled' && !r.value.error && r.value.data ? (r.value.data as { snapshot: BoardSnapshot }[]) : []);
-    const snaps = rows
-      .map((r) => r.snapshot)
-      .filter((s): s is BoardSnapshot => !!s && Array.isArray(s.minions) && s.minions.length > 0)
-      .map((s) => ({ ...s, remote: true as const })); // mark as live-shared-pool so pickOpponent prefers them
-    registerOpponents(snaps);
-    return snaps.length;
-  } catch {
-    return 0;
-  }
+  const loader = opponentPoolLoader(patchPrefix);
+  if (!loader) return 0;
+  const refresh = loader.state().status !== 'idle';
+  const s = await loader.load(refresh ? { ...STARTUP_LOAD, refresh: true } : STARTUP_LOAD);
+  return s.boards;
 }
 
 // ── Runs / leaderboard (victories) ─────────────────────────────────────────────────────────────

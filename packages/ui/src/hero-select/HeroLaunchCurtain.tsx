@@ -3,6 +3,9 @@ import { useGame } from '../store';
 import { ceremonyTiming } from './heroCeremonyTiming';
 import { registerLaunchController, type HeroLaunchRequest } from './heroLaunchController';
 import { goodLuckIntro, shouldPlayGoodLuckIntro } from '../goodLuck/goodLuckIntroStore';
+import { lobbyPoolGate } from '../opponentPool/lobbyPoolGate';
+import { poolNeededFor } from '../opponentPool/poolGate';
+import { PoolWaitPanel } from '../opponentPool/PoolWaitPanel';
 
 /**
  * HERO SELECT CEREMONY — the launch curtain (hero-select-ceremony-blueprint.md §7).
@@ -67,6 +70,23 @@ export function HeroLaunchCurtain() {
       const el = elRef.current;
       await fade(el, 0, 1, t.launchCoverMs);
       if (dead) return;
+      // OPPONENT POOL GATE (fix 2026-09-28): a lobby that seats recorded player runs waits here, under full
+      // cover, until the opponent pool has loaded. Instant when it already has (the usual case: it loads at
+      // startup). Otherwise the panel shows "Finding opponents...", and an unreachable pool becomes an explicit
+      // Retry / Play anyway / Back to menu choice instead of a silent all-bot table.
+      const pre = useGame.getState();
+      if (poolNeededFor(pre.pendingMode, pre.practiceDraft)) {
+        const outcome = await lobbyPoolGate.run();
+        if (dead) return;
+        if (outcome === 'cancel') {
+          useGame.getState().openTitle();
+          await twoFrames();
+          if (dead) return;
+          await fade(el, 1, 0, t.launchRevealMs);
+          if (!dead) finish();
+          return;
+        }
+      }
       // Fully covered: NOW build the run. This is the synchronous heavy step (createRun/createLobbyRun +
       // warmLobbyDrivers + writeSave) and it also unmounts HeroSelect behind us.
       try {
@@ -88,18 +108,21 @@ export function HeroLaunchCurtain() {
       if (dead) return;
       finish();
     })();
-    return () => { dead = true; };
+    return () => { dead = true; lobbyPoolGate.cancel(); };
   }, [req]);
 
   if (!req) return null;
   // The accent feeds the center glow via a CSS var; the glow itself is a static radial-gradient whose
   // opacity rides the div's fade — no paint-property animation (repo perf contract).
   return (
-    <div
-      ref={elRef}
-      className="hsc-curtain"
-      style={{ '--hsc-accent': req.accent } as CSSProperties}
-      aria-hidden="true"
-    />
+    <>
+      <div
+        ref={elRef}
+        className="hsc-curtain"
+        style={{ '--hsc-accent': req.accent } as CSSProperties}
+        aria-hidden="true"
+      />
+      <PoolWaitPanel gate={lobbyPoolGate} />
+    </>
   );
 }

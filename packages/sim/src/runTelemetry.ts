@@ -15,6 +15,7 @@ import { createRun, type RunState, type Action } from './state';
 import { HEROES } from './heroes';
 import { reduce } from './reducer';
 import type { Replay } from './snapshot';
+import type { LobbyPoolTelemetry } from './lobby/runLobby';
 
 /**
  * What PRODUCED a telemetry row (2026-09-22). `ladder` is a real, rated lobby run — the only thing the run-end
@@ -82,6 +83,11 @@ export interface RunTelemetry {
    *  at). Absent on every row written before this patch, so placement views are FORWARD-ONLY: they must
    *  filter to rows that carry it rather than treating a missing value as any particular finish. */
   placement?: number;
+  /** The opponent pool + seat mix at lobby creation (fix 2026-09-28): pool size and recorded / hybrid / bot
+   *  seat counts, with `allGenerated` flagging a table that seated no real player run. Stamped by the UI at
+   *  upload from `lobbyPoolTelemetryOf(run.lobby)`; rides inside the `derived` jsonb (no SQL). Absent on
+   *  earlier rows. */
+  lobbyPool?: LobbyPoolTelemetry;
 }
 
 /**

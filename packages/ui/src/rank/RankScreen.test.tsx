@@ -11,6 +11,7 @@ import { act } from 'react';
 import { mount, type Mounted } from '../renderedText.mount';
 import { RANK_FIXTURES, fixtureById, type RankFixture } from './fixtures';
 import { RankScreen } from './RankScreen';
+import { unratedReasonOf } from './rankSource';
 import { deltaText, outcomeText, pointsText, rankLabel } from './rankFormat';
 import { markRankPresented, resetRankPresented, wasRankPresented } from './presented';
 
@@ -97,6 +98,14 @@ describe('every fixture state renders its labels, and Continue is always there',
     expect(text('.rankend-status')).toBe('Unrated · Practice');
     expect(ui!.container.querySelector('.rankbar')).toBeNull();
     expect(ui!.container.querySelector('.rankend-delta')).toBeNull();
+  });
+
+  it('an all-bot ranked lobby reads Unrated · No opponents reached (owner 2026-09-28: "offline = unrated")', () => {
+    render(fixtureById('unrated')!, { unratedReason: unratedReasonOf('lobby', true) });
+    expect(text('.rankend-status')).toBe('Unrated · No opponents reached');
+    expect(ui!.container.querySelector('.rankbar')).toBeNull();
+    expect(unratedReasonOf('practice', false)).toBe('Practice');
+    expect(unratedReasonOf('lobby', false)).toBeUndefined();
   });
 
   it('the live region carries one final announcement', () => {

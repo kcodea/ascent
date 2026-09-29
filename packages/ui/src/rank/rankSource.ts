@@ -32,6 +32,7 @@ export function rankErrorText(code: string | null | undefined, submission: RankS
     unsupported_season: 'This run belongs to a season the server no longer ranks.',
     bad_input: 'The server rejected this result as invalid.',
     server_predates_medals: 'The server does not know medal ranks yet. This run cannot be ranked.',
+    unrated_all_generated: 'No other players were at this table, so it is unrated.',
   };
   const text = KNOWN[code] ?? `Rank update failed (${code}).`;
   return submission === 'rejected' ? `This result could not be ranked. ${text}` : text;
@@ -109,4 +110,12 @@ export function useRankSource(): RankSource | null {
     error: rankErrorText(picked.errorCode, submission),
     retry: typeof picked.retry === 'function' ? picked.retry : undefined,
   };
+}
+
+/** Why the end screen says "Unrated" (shown as "Unrated · <reason>"). Practice is always unrated; a ranked lobby
+ *  whose opponents were all generated is unrated too (owner 2026-09-28: "offline = unrated"). */
+export function unratedReasonOf(mode: string | undefined, noOpponents: boolean): string | undefined {
+  if (mode === 'practice') return 'Practice';
+  if (noOpponents) return 'No opponents reached';
+  return undefined;
 }

@@ -59,6 +59,16 @@ export const PATCH_NOTES: PatchNote[] = [
     date: '2026-09-29',
     changes: [
       {
+        category: 'Balance',
+        text: 'Quitting a rated game now counts as finishing in the lowest place still open, and your Rating changes to match.',
+        details: [
+          'With nobody out yet, quitting counts as 8th. With one player out, it counts as 7th.',
+          'Quitting means clearing your saved game, or starting a new game over it.',
+          'Save & Quit is not quitting. Continue picks the game back up and it counts when it really ends.',
+          'Practice and the tutorial are not affected.',
+        ],
+      },
+      {
         category: 'Systems',
         text: 'Unit voices and creature sounds when you play a unit or it dies are now half as loud.',
       },

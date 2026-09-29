@@ -2610,4 +2610,37 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'diamond still hits the button, a press on the ring-covered edge arms the power, and the hover tooltip opens.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/portraitFrame/portraitFrameZOrder.test.ts'], lastVerifiedAt: '2026-09-29' },
   },
+  {
+    id: 'R-RANK-05',
+    title: 'Ranked: quitting an unfinished rated game settles it as a finish in the lowest place still open, with the normal Rating change for that place',
+    statement:
+      'A RATED game (Play mode, a lobby with at least one recorded player at the table) that the player abandons before '
+      + 'it ends settles exactly as if they had finished in the lowest placement still available at that moment: the '
+      + 'number of seats still alive. Nobody out yet is 8th; one seat already out is 7th; and so on. The normal placement '
+      + 'award for that place applies unchanged, with every gate that already exists for it (a demotion game, a '
+      + 'promotion game, the top-4 strength bonus, the all-generated refusal). ABANDONING means giving up the one saved '
+      + 'game: discarding it from the title, or starting any new game (Play, Practice, the tutorial) that replaces it. '
+      + 'Save & Quit is NOT quitting: the game stays live, Continue resumes it, and it settles once at its real end. '
+      + 'Practice, the tutorial, the Scene Builder and an unrated all-generated lobby abandon for free. A game already '
+      + 'over (the player out, or the lobby finished) has settled through its normal end and is never settled again.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-29 (quitting a rated game)', quote: 'yes, quitting an official game should lose you MMR relative to the lowest available place when you quit. for example. if one player was already out, then quitting would place you in 7th place. losing you MMR' },
+      { kind: 'code', ref: 'packages/sim/src/lobby/runLobby.ts abandonPlacementOf; packages/ui/src/rank/ratedRun.ts rankedAbandonOf / abandonWarningOf; packages/ui/src/store.ts settleAbandonedRun (clearRun, pickHero, newRun, startTutorial); settles through the existing rank queue + supabase/functions/submit-rating (unchanged, it already accepts any placement 1-8)' },
+    ],
+    currentBehaviour:
+      'Conforms as of 2026-09-29 (feat/quit-costs-rating). Until then an abandoned rated game never settled and cost '
+      + 'nothing. The quit placement is computed on the client from the saved lobby and submitted like any finish, so '
+      + 'the server settles it with the same rules; the server has no separate quit record and cannot force a settle '
+      + 'for a save that is never discarded (the save lives on the device). A save the game itself drops because the '
+      + 'build no longer has one of its cards is not a player quit and does not settle. The Clear and Play '
+      + 'tips on the title name the placement a rated save would count as. No career row, fight-ledger rows or XP are written for a '
+      + 'quit: only the Rating moves.',
+    example:
+      'Silver II 50, quit on round 3 with all eight alive: an 8th, -40, to 10. The same with one seat out: a 7th, -28, '
+      + 'to 22. At Silver II 0 in a demotion game, quitting with nobody out demotes. Save & Quit on round 6, Continue, '
+      + 'win the lobby: one settlement, a 1st.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/lobby/abandonPlacement.test.ts', 'packages/ui/src/rank/quitCostsRating.test.ts'], lastVerifiedAt: '2026-09-29' },
+  },
 ];

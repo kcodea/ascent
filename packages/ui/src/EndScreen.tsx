@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { CARD_INDEX } from '@game/content';
 import type { BoardMinion } from '@game/core';
 import { buildTags, CONFIG, getHero, isCalibrationRound, isPlayerAction, lineResult, metLine, replayRun, runMvp, runRecord, TAG_INFO, topMechanic, type LineStatus, playerLobbySeat, type RunState } from '@game/sim';
@@ -7,10 +7,12 @@ import { liveBoardView } from './instView';
 import { heroPortrait, useRunSkins } from './skins/skins';
 import { Icon } from './Icon';
 import { useGame } from './store';
+import { sfx } from './sfx';
 import { startReplay } from './replay/replayPlayer';
 import { RankScreen } from './rank/RankScreen';
 import { useRankSource } from './rank/rankSource';
 import { ProgressionPostgame } from './progression/ProgressionPostgame';
+import { MatchDetailsDialog } from './matchDetails/MatchScoreboard';
 
 /** A live `CardView` for a final-warband minion — shared with the final-board capture (see `liveBoardView`),
  *  so scaling cards show their *accumulated* magnitude at run's end, not the printed base. */
@@ -67,6 +69,13 @@ function LobbyEndScreen({ lobby, run, onPlayAgain }: {
   // legacy rating block below still renders. Practice is always unrated, whatever the slice says. The rank
   // screen shows NO warband and no Rewatch (owner 2026-09-20) — Rewatch stays reachable from Recent Games.
   const rankSource = useRankSource();
+  // MATCH DETAILS (owner ask 2026-09-28): the table at the moment this run ended, recorded by the run-end block a
+  // tick after the phase flips (so the button pops in once it lands). Keyed by seed: never another run's record.
+  const match = useGame((s) => (s.lastMatch && s.lastMatch.seed === run.seed ? s.lastMatch.details : null));
+  const [showMatch, setShowMatch] = useState(false);
+  const closeMatch = useCallback(() => setShowMatch(false), []);
+  const openMatch = useCallback(() => { sfx.tick(); setShowMatch(true); }, []);
+  const matchDialog = showMatch && match ? <MatchDetailsDialog details={match} onClose={closeMatch} /> : null;
   const warband = (
     <>
       <div className="endboardlabel">Final warband</div>
@@ -98,8 +107,10 @@ function LobbyEndScreen({ lobby, run, onPlayAgain }: {
             extra={(settled) => (
               <ProgressionPostgame localKey={String(run.seed)} active={settled && (practice || rankSource!.submission !== 'pending')} />
             )}
+            onMatchDetails={match ? openMatch : undefined}
           />
         </div>
+        {matchDialog}
       </div>
     );
   }
@@ -123,7 +134,13 @@ function LobbyEndScreen({ lobby, run, onPlayAgain }: {
         {canRewatch && (
           <button className="endplay pressable ghost" onClick={() => startReplay(lastReplay!)}>Rewatch</button>
         )}
+        {match && (
+          <button type="button" className="rankend-details pressable" onClick={openMatch}>
+            <Icon name="board" />Match details
+          </button>
+        )}
       </div>
+      {matchDialog}
     </div>
   );
 }

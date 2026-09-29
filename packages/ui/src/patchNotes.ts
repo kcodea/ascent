@@ -55,6 +55,29 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: 'After a game, Match details shows every player in your lobby and their board. You can see it again from your match history.',
+        details: [
+          'Press Match details on the end screen, after your placement shows. It works in Ranked and Practice.',
+          'Players are listed in placement order. Players still in when you went out are listed first, with their health.',
+          'Pick a player to see their board from the moment your game ended. Players who went out before you show the board they went out with.',
+          'The player who knocked you out is marked.',
+          'In your Career, press Lobby on a match to open the same list. Matches from before this update have no details.',
+          'Other players only wear their skins if Show opponent skins is on.',
+          "Under each board you can see that player's runes.",
+          'A small gold crown marks a player whose run is on the Hall of Champions right now.',
+        ],
+      },
+      {
+        category: 'Systems',
+        text: 'The end screen is shorter. New achievements, titles and crates now wait for you in the Collection.',
+        details: [
+          'After a game you see your placement, the XP you earned and your level bar.',
+          'The next time you open the Collection, a New rewards window shows everything new. Open your crates right there.',
+          'While rewards are waiting, the Collection button has an orange NEW tag.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'Fixed: some lobby opponents had no board and could be credited with knockouts they did not make.',
         details: [
           'Opponents playing Mimic now bring a real warband every round.',

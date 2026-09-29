@@ -1,0 +1,247 @@
+import { memo, useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
+import { createPortal } from 'react-dom';
+import { getHero, type MatchDetails, type MatchSeat } from '@game/sim';
+import { cosmeticOf, titleName, type RunCosmeticSnapshot } from '@game/progression';
+import { Icon } from '../Icon';
+import { StoredTeam } from '../StoredTeam';
+import { RuneEmblem } from '../RuneEmblem';
+import { RUNE_INDEX } from '@game/content';
+import { heroPortrait, internSnapshot, opponentSkins, useSkinEpoch } from '../skins/skins';
+import { useGame } from '../store';
+import { sfx } from '../sfx';
+import { stageHost } from '../stage';
+import { useHallKeys } from './hallKeys';
+import { boardCaption, defaultSeatId, placeLabel, statusText, summaryText } from './matchDetailsText';
+import './matchDetails.css';
+
+/**
+ * MATCH DETAILS SCOREBOARD (owner ask 2026-09-28): every seat of a finished lobby in placement order, and the board
+ * the selected seat had at the moment YOUR game ended. ONE component, used in two places: the end screen's
+ * "Match details" dialog and the Career match card's inline expand.
+ *
+ * A pure renderer over a recorded `MatchDetails` (see `buildMatchDetails`): it never computes an outcome, never
+ * touches a driver, and never re-simulates. Rows are memoised with stable props, and only ONE board (7 cards) is
+ * mounted at a time.
+ *
+ * SKINS: `own` = the record belongs to the viewer (the end screen, your own Career). Your own seat then wears your
+ * recorded skins as-is; every other seat goes through "Show opponent skins". On someone else's Career every seat
+ * is an opponent, their own included.
+ */
+
+function seatSkins(seat: MatchSeat, own: boolean, showOpponents: boolean): RunCosmeticSnapshot | null {
+  return internSnapshot(own && seat.self ? seat.cosmetics ?? null : opponentSkins(showOpponents, seat.cosmetics));
+}
+
+/** The hero portrait in the game's gold ring (the Career's `.cv2-heroframe` markup, row-sized). */
+function SeatPortrait({ heroId, skins }: { heroId: string; skins: RunCosmeticSnapshot | null }) {
+  const art = heroPortrait(heroId, skins);
+  return (
+    <div className="cv2-heroframe mds-portrait">
+      <div className="hero">
+        <div className="f">
+          {art ? <img decoding="sync" className="heroimg" src={art} alt="" draggable={false} /> : <Icon name="anvil" />}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+interface SeatRowProps {
+  seat: MatchSeat;
+  place: string;
+  status: string;
+  selected: boolean;
+  killer: boolean;
+  /** This seat's run is currently on the Hall of Champions. */
+  hall: boolean;
+  skins: RunCosmeticSnapshot | null;
+  onSelect: (id: string) => void;
+  onKey: (e: KeyboardEvent<HTMLButtonElement>, id: string) => void;
+}
+
+/** One seat. Memoised: its props are primitives plus the seat (a stable reference into the recorded details). */
+const SeatRow = memo(function SeatRow({ seat, place, status, selected, killer, hall, skins, onSelect, onKey }: SeatRowProps) {
+  const heroName = seat.heroId ? getHero(seat.heroId).name : '';
+  const title = seat.titleId ? titleName(seat.titleId) : null;
+  const rarity = seat.titleId ? cosmeticOf(seat.titleId)?.rarity ?? null : null;
+  const standing = seat.eliminatedRound === undefined && !(seat.self && status.startsWith('Out'));
+  const winner = status === 'Winner';
+  const label = `${place ? `${place}. ` : ''}${seat.name}${seat.self ? ' (you)' : ''}, ${heroName}. ${status}.${killer ? ' Knocked you out.' : ''}${hall ? ' On the Hall of Champions.' : ''}`;
+  return (
+    <button
+      type="button"
+      className={`mds-row${selected ? ' on' : ''}${seat.self ? ' self' : ''}${standing ? '' : ' out'}${winner ? ' winner' : ''}`}
+      aria-pressed={selected}
+      aria-label={label}
+      data-seat={seat.id}
+      onClick={() => onSelect(seat.id)}
+      onKeyDown={(e) => onKey(e, seat.id)}
+    >
+      <span className={`mds-place${place.startsWith('Top') ? ' top' : ''}`}>{place}</span>
+      <SeatPortrait heroId={seat.heroId} skins={skins} />
+      <span className="mds-who">
+        <span className="mds-name">
+          <span className="mds-name-text">{seat.name}</span>
+          {hall && <HallCrown />}
+          {seat.self && <span className="mds-tag you">You</span>}
+          {seat.bot && !seat.self && <span className="mds-tag bot">Bot</span>}
+        </span>
+        {title
+          ? <span className={`mds-title${rarity ? ` r-${rarity}` : ''}`}>{title}</span>
+          : <span className="mds-hero">{heroName}</span>}
+        <span className={`mds-status${winner ? ' winner' : standing ? ' in' : ' out'}`}>
+          {winner && <Icon name="crown" />}{status}
+          {killer && <span className="mds-killer"><Icon name="sword" />Knocked you out</span>}
+        </span>
+      </span>
+      {standing && (seat.health > 0 || seat.armor > 0) && (
+        <span className="mds-hp" aria-hidden="true">
+          <span className="mds-hp-v"><Icon name="heart" />{seat.health}</span>
+          {seat.armor > 0 && <span className="mds-hp-v armor"><Icon name="shield" />{seat.armor}</span>}
+        </span>
+      )}
+    </button>
+  );
+});
+
+/** The selected seat's rune choices at that moment (owner 2026-09-28: "runes are added to the view so you can see
+ *  their rune choices"), in the Career banner's emblem + name style (hover = the rune's text). Unknown ids (a rune
+ *  this build does not ship) are skipped; none (or an older record) reads "No runes". */
+function SeatRunes({ runes }: { runes: readonly string[] | undefined }) {
+  const known = (runes ?? []).filter((id) => RUNE_INDEX[id]);
+  return (
+    <div className="mds-runes">
+      <span className="cv2-row-label">Runes</span>
+      {known.length > 0
+        ? <div className="cv2-runes" aria-label="Runes this player owned">{known.map((id, i) => <RuneEmblem runeId={id} key={`${id}#${i}`} />)}</div>
+        : <span className="mds-norunes">No runes</span>}
+    </div>
+  );
+}
+
+/** The small gold crown for a run currently on the Hall of Champions (the game's `.gtip` hover bubble, never a
+ *  native tooltip). */
+function HallCrown() {
+  return (
+    <span className="mds-hall gtip" role="img" aria-label="On the Hall of Champions" data-tip="On the Hall of Champions">
+      <Icon name="crown" />
+    </span>
+  );
+}
+
+/** The scoreboard itself: rows + the selected seat's board. `own` decides the skin rule (see above). */
+export function MatchScoreboard({ details, own }: { details: MatchDetails; own: boolean }) {
+  useSkinEpoch();
+  const showOpponents = useGame((s) => s.showOpponentSkins);
+  const [selectedId, setSelected] = useState(() => defaultSeatId(details));
+  const listRef = useRef<HTMLDivElement>(null);
+  const seats = details.seats;
+  const selected = seats.find((s) => s.id === selectedId) ?? seats[0];
+  // Per-seat derived strings + skins, once per record (never per render of a row).
+  const rows = useMemo(() => seats.map((seat) => ({
+    seat, place: placeLabel(seat, details), status: statusText(seat, details), skins: seatSkins(seat, own, showOpponents),
+  })), [seats, details, own, showOpponents]);
+
+  // The Hall crown: one cached read per panel open (never per render), asked only when a seat is a real run.
+  const wantsHall = useMemo(() => seats.some((s) => !!s.runKey), [seats]);
+  const hallKeys = useHallKeys(wantsHall);
+  const onSelect = useCallback((id: string) => {
+    setSelected((cur) => { if (cur !== id) sfx.tick(); return id; });
+  }, []);
+  // Up / Down walk the table (and move focus with the selection), Home / End jump.
+  const onKey = useCallback((e: KeyboardEvent<HTMLButtonElement>, id: string) => {
+    const i = seats.findIndex((s) => s.id === id);
+    let j = -1;
+    if (e.key === 'ArrowDown' || e.key === 'ArrowRight') j = Math.min(seats.length - 1, i + 1);
+    else if (e.key === 'ArrowUp' || e.key === 'ArrowLeft') j = Math.max(0, i - 1);
+    else if (e.key === 'Home') j = 0;
+    else if (e.key === 'End') j = seats.length - 1;
+    if (j < 0 || j === i) return;
+    e.preventDefault();
+    const next = seats[j]!.id;
+    onSelect(next);
+    listRef.current?.querySelector<HTMLButtonElement>(`[data-seat="${next}"]`)?.focus();
+  }, [seats, onSelect]);
+
+  const selSkins = selected ? rows.find((r) => r.seat === selected)?.skins ?? null : null;
+  const heroName = selected?.heroId ? getHero(selected.heroId).name : '';
+  return (
+    <div className="mds">
+      <div className="mds-list" ref={listRef} role="group" aria-label="Players in this lobby">
+        {rows.map((r) => (
+          <SeatRow
+            key={r.seat.id}
+            seat={r.seat}
+            place={r.place}
+            status={r.status}
+            selected={r.seat === selected}
+            killer={r.seat.id === details.knockedOutBy}
+            hall={!!r.seat.runKey && hallKeys.has(r.seat.runKey)}
+            skins={r.skins}
+            onSelect={onSelect}
+            onKey={onKey}
+          />
+        ))}
+      </div>
+      {selected && (
+        <section className="mds-board" aria-live="polite" aria-label={`${selected.name}'s board`}>
+          <header className="mds-board-head">
+            <span className="mds-board-name">
+              {selected.self ? 'Your board' : selected.name}<span className="mds-board-hero">{heroName}</span>
+              {!!selected.runKey && hallKeys.has(selected.runKey) && <HallCrown />}
+            </span>
+            {selected.board && <span className="mds-board-tier">Tier {selected.board.tier}</span>}
+          </header>
+          <div className="mds-board-caption">{boardCaption(selected, details)}</div>
+          <div className="mds-team">
+            {selected.board && selected.board.minions.length > 0
+              ? <StoredTeam minions={selected.board.minions} skins={selSkins} label={`${selected.name}'s board`} compact />
+              : <div className="mds-empty">{selected.board ? 'This board was empty.' : 'No board was recorded for this player.'}</div>}
+          </div>
+          <SeatRunes runes={selected.board?.runes} />
+        </section>
+      )}
+    </div>
+  );
+}
+
+/**
+ * The END SCREEN dialog: the scoreboard in the house gold/navy panel, portalled into the stage (so it scales with
+ * the game). Esc or the close button closes it; focus moves into it on open and back to the opener on close.
+ */
+export function MatchDetailsDialog({ details, onClose }: { details: MatchDetails; onClose: () => void }) {
+  const closeRef = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    const opener = document.activeElement as HTMLElement | null;
+    closeRef.current?.focus();
+    const onKeyDown = (e: globalThis.KeyboardEvent): void => {
+      if (e.key !== 'Escape') return;
+      e.preventDefault();
+      e.stopPropagation();
+      onClose();
+    };
+    // Capture phase: the end screen's own Esc handling must not also fire.
+    window.addEventListener('keydown', onKeyDown, true);
+    return () => {
+      window.removeEventListener('keydown', onKeyDown, true);
+      opener?.focus?.();
+    };
+  }, [onClose]);
+  return createPortal(
+    <div className="mdd-scrim" onPointerDown={() => { sfx.tick(); onClose(); }}>
+      <div className="mdd-panel" role="dialog" aria-modal="true" aria-labelledby="mdd-title" onPointerDown={(e) => e.stopPropagation()}>
+        <header className="mdd-head">
+          <span className="mdd-titles">
+            <span className="mdd-title" id="mdd-title"><Icon name="board" />Match details</span>
+            <span className="mdd-sub">{summaryText(details)} Pick a player to see their board.</span>
+          </span>
+          <button ref={closeRef} type="button" className="mdd-close pressable" aria-label="Close match details" onClick={() => { sfx.tick(); onClose(); }}>
+            <span aria-hidden="true">✕</span>
+          </button>
+        </header>
+        <MatchScoreboard details={details} own />
+      </div>
+    </div>,
+    stageHost(),
+  );
+}

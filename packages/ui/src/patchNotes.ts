@@ -81,6 +81,30 @@ export const PATCH_NOTES: PatchNote[] = [
       },
       {
         category: 'Systems',
+        text: 'Four new Rare hero attacks can drop from crates: Pocket Change, Come Back Around, Bubble Trouble and Shadow Step.',
+        details: [
+          'Rare attacks are short and playful, with a small version and a big version. Big hits and knockouts play the big one.',
+          'Pocket Change: your hero flicks a spinning gold coin that pings off the other hero. The big version ricochets it and bursts into a shower of coins.',
+          'Come Back Around: a wooden boomerang whirls out, thwacks the other hero and curves back to be caught. The big version throws two that cross in the air.',
+          'Bubble Trouble: a shimmering bubble drifts over, swallows the other hero\'s face and pops. The big version blows a stream of little bubbles first, then one huge bubble that pops with a splash.',
+          'Shadow Step: your hero vanishes in smoke, appears behind the other hero and strikes. The big version lunges, then strikes from the side, then from behind.',
+          'Equip them from the Attack Animations tab of the Collection. Each has a preview button there.',
+          'Hero attacks are looks only. The damage is exactly the same.',
+        ],
+      },
+      {
+        category: 'Systems',
+        text: 'A new Legendary hero attack, Hemorrhage, can drop from crates.',
+        details: [
+          'Your damage builds up, then your hero draws a blade and swings crimson crescents at the other hero.',
+          'Each one cuts across the face and leaves a gash that bleeds. Bigger hits cut a cross, then a flurry that ends in a claw rake.',
+          'On the biggest hits it goes completely over the top: the wounds throb like a heartbeat, then a huge slash zips across the whole screen eight times, faster and faster, flinging blood that piles up all over the board, a beat of held breath, and the other hero bursts in an enormous bloody explosion that paints the whole screen red.',
+          'Equip it from the Attack Animations tab of the Collection. There is a preview button there too.',
+          'Hero attacks are looks only. The damage is exactly the same.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: "A new Legendary hero attack, Oona's Banana Cannon, can drop from crates.",
         details: [
           "Your damage builds up, then your hero flings King Oona's painted bananas, spinning, at the other hero.",
@@ -286,17 +310,6 @@ export const PATCH_NOTES: PatchNote[] = [
           'Guests still earn crates. They wait sealed in the Collection until you make an account.',
           'Making an account keeps everything you earned as a guest. You only need an email.',
           'Signing into an account you already have switches to it. Crates earned as a guest stay on the guest.',
-        ],
-      },
-      {
-        category: 'Systems',
-        text: 'A new Legendary hero attack, Hemorrhage, can drop from crates.',
-        details: [
-          'Your damage builds up, then your hero draws a blade and swings crimson crescents at the other hero.',
-          'Each one cuts across the face and leaves a gash that bleeds. Bigger hits cut a cross, then a flurry that ends in a claw rake.',
-          'On the biggest hits it goes completely over the top: the wounds throb like a heartbeat, then a huge slash zips across the whole screen eight times, faster and faster, flinging blood that piles up all over the board, a beat of held breath, and the other hero bursts in an enormous bloody explosion that paints the whole screen red.',
-          'Equip it from the Attack Animations tab of the Collection. There is a preview button there too.',
-          'Hero attacks are looks only. The damage is exactly the same.',
         ],
       },
     ],

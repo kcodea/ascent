@@ -32,6 +32,10 @@ import { playHeroBanana } from '../heroBanana/heroBanana';
 import { playHeroBleed } from '../heroBleed/heroBleed';
 import { playHeroCards } from '../heroCards/heroCards';
 import { playHeroStorm } from '../heroStorm/heroStorm';
+import { playHeroCoin } from '../heroCoin/heroCoin';
+import { playHeroBoomerang } from '../heroBoomerang/heroBoomerang';
+import { playHeroBubble } from '../heroBubble/heroBubble';
+import { playHeroBackstab } from '../heroBackstab/heroBackstab';
 
 afterEach(() => { document.body.innerHTML = ''; });
 
@@ -138,7 +142,12 @@ const STYLES: [string, Runner][] = [
   ['frost', playHeroFrost as Runner], ['holy', playHeroHoly as Runner], ['fire', playHeroFire as Runner],
   ['undead', playHeroUndead as Runner], ['beast', playHeroBeast as Runner], ['banana', playHeroBanana as Runner],
   ['bleed', playHeroBleed as Runner], ['cards', playHeroCards as Runner], ['storm', playHeroStorm as Runner],
+  ['coin', playHeroCoin as Runner], ['boomerang', playHeroBoomerang as Runner],
+  ['bubble', playHeroBubble as Runner], ['backstab', playHeroBackstab as Runner],
 ];
+
+/** Styles whose camera only PUNCHES (a brief small zoom on each hit, no push-in): Backstab. */
+const PUNCH_ONLY = new Set(['backstab']);
 
 /** Parse the camera's `translate(ax, ay) scale(z)` (the frame the DOM shows); null at rest. */
 function domCam(el: HTMLElement): { ax: number; ay: number; z: number } | null {
@@ -180,7 +189,7 @@ describe('every style: the FX get the camera ONCE (the impact point stays on the
             r.tick(16);
             const cam = domCam(r.camera);
             const scene = r.root.children[0];
-            if (!cam || cam.z < 1.02 || !scene) continue;
+            if (!cam || cam.z < (PUNCH_ONLY.has(style) ? 1.002 : 1.02) || !scene) continue;
             zoomed++;
             // Where the FX draw the impact point: through the Pixi root, then (canvas inside) through the DOM camera.
             const g = scene.toGlobal(r.d);
@@ -189,7 +198,7 @@ describe('every style: the FX get the camera ONCE (the impact point stays on the
             const portrait = { x: cam.ax + cam.z * r.d.x, y: cam.ay + cam.z * r.d.y };
             worst = Math.max(worst, Math.hypot(fx.x - portrait.x, fx.y - portrait.y));
           }
-          expect(zoomed, `${style} ${side}: the camera pushed in`).toBeGreaterThan(10);
+          expect(zoomed, `${style} ${side}: the camera pushed in`).toBeGreaterThan(PUNCH_ONLY.has(style) ? 2 : 10);
           // Within 0.2 portrait radius (the DOM transform is written to 2 decimals, so it is ~0 in practice).
           expect(worst, `${style} ${side} (${inside ? 'inside' : 'outside'})`).toBeLessThan(0.2 * 120);
           r.tick(4000);

@@ -32,6 +32,10 @@ import { playHeroBanana } from '../heroBanana/heroBanana';
 import { playHeroBleed } from '../heroBleed/heroBleed';
 import { playHeroCards } from '../heroCards/heroCards';
 import { playHeroStorm } from '../heroStorm/heroStorm';
+import { playHeroCoin } from '../heroCoin/heroCoin';
+import { playHeroBoomerang } from '../heroBoomerang/heroBoomerang';
+import { playHeroBubble } from '../heroBubble/heroBubble';
+import { playHeroBackstab } from '../heroBackstab/heroBackstab';
 import { SPEC, boardOf } from '../DamageFormationTuner';
 import { Sequence } from './sequence';
 import type { HeroAttackHandle, HeroAttackOptions } from './options';
@@ -322,6 +326,10 @@ describe('the runners', () => {
       ['bleed', (o) => playHeroBleed({ ...o, textures: TEX })],
       ['cards', (o) => playHeroCards({ ...o, textures: null })],
       ['storm', (o) => playHeroStorm({ ...o, textures: null })],
+      ['coin', (o) => playHeroCoin({ ...o, textures: TEX })],
+      ['boomerang', (o) => playHeroBoomerang({ ...o, textures: TEX })],
+      ['bubble', (o) => playHeroBubble({ ...o, textures: TEX })],
+      ['backstab', (o) => playHeroBackstab({ ...o, textures: TEX })],
     ];
     const lead = leadInOf([4, 2, 3, 4], false, true);
     for (const [name, play] of styles) {
@@ -474,6 +482,10 @@ describe('no attack ever pauses its clock (owner 2026-09-28: "remove the freezei
     ['bleed', (o) => playHeroBleed({ ...o, textures: null })],
     ['cards', (o) => playHeroCards({ ...o, textures: null })],
     ['storm', (o) => playHeroStorm({ ...o, textures: null })],
+    ['coin', (o) => playHeroCoin({ ...o, textures: null })],
+    ['boomerang', (o) => playHeroBoomerang({ ...o, textures: null })],
+    ['bubble', (o) => playHeroBubble({ ...o, textures: null })],
+    ['backstab', (o) => playHeroBackstab({ ...o, textures: null })],
   ];
 
   it('every style (and the formation inside it, through the capped slash) advances the clock by exactly the time played, every frame', () => {

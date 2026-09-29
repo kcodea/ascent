@@ -68,6 +68,24 @@
  *    arcs from the hero with a zap; a forked bolt strikes twice and leaves the portrait jittering with static; and a
  *    small storm cloud gathers over the target and drops a thick lightning strike (`../heroStorm/`).
  *
+ * THE RARES (owner ask 2026-09-29: "build 5 animations that range from rare -> epic ... rare and epics should only have
+ * 2 or 3 tiers to them and generally be less exciting, but still extremely clean and fun"). A Rare has TWO visual tiers:
+ * the shared I-II play Small, III-IV play Big (so a knockout, which forces IV, plays Big). Each maps that inside its own
+ * config. Names are the builder's placeholders for the owner to rename (the ids stay):
+ *  - `coin` (`attack_coin`, "Pocket Change"): a gleaming gold coin flicked spinning (a flat turn plus an edge-on flip)
+ *    pings off the target with a bright ding; Big ricochets it off the face twice more and it bursts into a small shower
+ *    of coins (`../heroCoin/`).
+ *  - `boomerang` (`attack_boomerang`, "Come Back Around"): a carved wooden boomerang whirls out on a curve, thwacks the
+ *    target and curves back to the hero, who catches it; Big throws two on crossing paths, a double thwack, both caught
+ *    (`../heroBoomerang/`).
+ *  - `bubble` (`attack_bubble`, "Bubble Trouble"): an iridescent soap bubble wobbles out, drifts to the target, engulfs
+ *    its face and POPS into droplets and tiny bubbles; Big blows a stream of little ones first, then one big bubble that
+ *    swells round the portrait and pops with a splash ring (`../heroBubble/`).
+ *  - `backstab` (`attack_backstab`, "Shadow Step"; owner ask 2026-09-29: "portrait fades and attacks from behind the
+ *    target back towards the player portrait and settles"): the striking PORTRAIT fades into smoke, steps out behind the
+ *    target and stabs back toward home, then smokes back and settles; Big lunges first, vanishes, strikes from the side,
+ *    vanishes again and strikes from behind (`../heroBackstab/`).
+ *
  * The style is the ATTACKER's: the equipped item recorded in the striking player's cosmetic snapshot (yours when you
  * win; the foe's seat snapshot when they win, and only while "Show opponent cosmetics" is on). The catalog item names
  * its animation in `assets.style`; an unknown, retired or unrecognised item plays Classic.
@@ -80,7 +98,7 @@
  */
 import { heroAttackOf } from '@game/progression';
 
-export const HERO_ATTACK_STYLES = ['classic', 'blast', 'quake', 'arcana', 'blades', 'enraged', 'poison', 'frost', 'holy', 'fire', 'undead', 'beast', 'banana', 'bleed', 'cards', 'storm'] as const;
+export const HERO_ATTACK_STYLES = ['classic', 'blast', 'quake', 'arcana', 'blades', 'enraged', 'poison', 'frost', 'holy', 'fire', 'undead', 'beast', 'banana', 'bleed', 'cards', 'storm', 'coin', 'boomerang', 'bubble', 'backstab'] as const;
 export type HeroAttackStyle = (typeof HERO_ATTACK_STYLES)[number];
 
 /** What a player without an equipped hero attack sees (owner 2026-09-28: Blast is a cosmetic, not a new default). */
@@ -97,7 +115,7 @@ export function styleOfCosmetic(id: string | null | undefined): HeroAttackStyle 
 }
 
 /** The dev override: `auto` = what a player would see; the others force one style for BOTH sides. */
-export const DEV_HERO_ATTACK_CHOICES = ['auto', 'classic', 'blast', 'quake', 'arcana', 'blades', 'enraged', 'poison', 'frost', 'holy', 'fire', 'undead', 'beast', 'banana', 'bleed', 'cards', 'storm'] as const;
+export const DEV_HERO_ATTACK_CHOICES = ['auto', 'classic', 'blast', 'quake', 'arcana', 'blades', 'enraged', 'poison', 'frost', 'holy', 'fire', 'undead', 'beast', 'banana', 'bleed', 'cards', 'storm', 'coin', 'boomerang', 'bubble', 'backstab'] as const;
 export type DevHeroAttackChoice = (typeof DEV_HERO_ATTACK_CHOICES)[number];
 
 /** The dev "Attack style" row's labels, shared by every hero attack tuner. */
@@ -105,6 +123,8 @@ export const DEV_HERO_ATTACK_LABELS: Record<DevHeroAttackChoice, string> = {
   auto: 'Auto (equipped cosmetic)', classic: 'Classic (lunge)', blast: 'Blast', quake: 'Quake', arcana: 'Arcana', blades: 'Phantom Blades', enraged: 'Enraged Strike',
   poison: 'Venom Volley (poison darts)', frost: 'Frost Nova', holy: 'Consecration', fire: 'Inferno', undead: 'Grave Call', beast: 'Stampede (beast chomp rush)', banana: 'Banana Cannon', bleed: 'Hemorrhage (bleed)',
   cards: 'Card Shark (Epic)', storm: 'Storm Call (Epic)',
+  coin: 'Pocket Change (coin, Rare)', boomerang: 'Come Back Around (boomerang, Rare)', bubble: 'Bubble Trouble (bubble, Rare)',
+  backstab: 'Shadow Step (backstab, Rare)',
 };
 
 const KEY = 'ascent.heroattackstyle';

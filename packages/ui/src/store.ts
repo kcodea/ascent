@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { loadFpsCap, saveFpsCap } from './fpsCap';
-import { CARD_INDEX, activeSet, type SetId } from '@game/content';
-import { type CombatOdds, HEROES, playableHeroes, practiceHeroChoiceIds, runTribesForSeed, OPPONENT_POOL, OPPONENT_POOL_DATA, registerOpponents, createRun, deserialize, initialProfile, resolveServerRank, adoptServerRank, legacyRatingChangeOf, type RankResult, type RankedProfile, isPlayerAction, missingCardIds, nextOpponent, parseQaScenario, reconstructRunTelemetry, recordTelemetryAction, emptyTelemetryLog, withLiveTelemetry, telemetrySourceOf, setIdOf, type TelemetryLog, beginDerive, observeAction, finishDerive, progressionFactsOf, type DeriveState, reduce, reduceWithPresentation, serialize, snapshotBoard, type Action, type BoardSnapshot, type PlayerProfile, type RatingChange, type Replay, type RunMode, type RunState, combatFrameOf, deltaShopFrameOf, shopFrameOf, runRecord, type DragPath, type ReplayFrame, type ReplayV2, type ShopView, appendInspectEvent, type InspectEvent, type InspectSnapshot, createLobbyRun, enableAncients, createTutorialRun, type TutorialCourse, type PracticeConfig, type BotLevel, DEFAULT_PRACTICE_CONFIG, normalizeBotDifficulty, normalizePracticeTribes, practiceRunTribes, warmLobbySeat, prepareActionWithPresentation, type PreparedPresentationAction, fightRowsOf, opponentFightKeys, type LobbyStrength, type FightRow, buildMatchDetails, type MatchDetails, lobbyPoolTelemetryOf, lobbyIsUnrated } from '@game/sim';
+import { CARD_INDEX, activeSet, gauntletStage, type SetId } from '@game/content';
+import { type CombatOdds, HEROES, playableHeroes, practiceHeroChoiceIds, runTribesForSeed, OPPONENT_POOL, OPPONENT_POOL_DATA, registerOpponents, createRun, deserialize, initialProfile, resolveServerRank, adoptServerRank, legacyRatingChangeOf, type RankResult, type RankedProfile, isPlayerAction, missingCardIds, nextOpponent, parseQaScenario, reconstructRunTelemetry, recordTelemetryAction, emptyTelemetryLog, withLiveTelemetry, telemetrySourceOf, setIdOf, type TelemetryLog, beginDerive, observeAction, finishDerive, progressionFactsOf, type DeriveState, reduce, reduceWithPresentation, serialize, snapshotBoard, type Action, type BoardSnapshot, type PlayerProfile, type RatingChange, type Replay, type RunMode, type RunState, combatFrameOf, deltaShopFrameOf, shopFrameOf, runRecord, type DragPath, type ReplayFrame, type ReplayV2, type ShopView, appendInspectEvent, type InspectEvent, type InspectSnapshot, createLobbyRun, enableAncients, createTutorialRun, type TutorialCourse, type PracticeConfig, type BotLevel, DEFAULT_PRACTICE_CONFIG, normalizeBotDifficulty, normalizePracticeTribes, practiceRunTribes, warmLobbySeat, prepareActionWithPresentation, type PreparedPresentationAction, fightRowsOf, opponentFightKeys, type LobbyStrength, type FightRow, buildMatchDetails, type MatchDetails, lobbyPoolTelemetryOf, lobbyIsUnrated, createGauntletRun, gauntletOutcome } from '@game/sim';
 import type { PresentationBatch } from '@game/core';
 import { combatTimelineFrom } from './choreographer/combatTimeline';
 import type { RuneLockInCard } from './RuneLockIn';
@@ -73,6 +73,7 @@ import { resetMilestoneLatches } from './fx/milestoneBadgeFx';
 import { clearAllHandBuffs } from './handBuffFx';
 import { liveBoardView } from './instView';
 import { saveCapturedBoards, saveRunBoards } from './boardLibrary';
+import { isStagePlayable, recordClear } from './gauntlet/gauntletProgress';
 import { type AnnouncedSlice, type AnnouncerEvent, announcedFor, emptyAnnounced, withAnnounced } from './announcerSlice';
 import { perfMonitor } from './perfMonitor';
 import { fetchRankedProfile, remoteEnabled, fetchAndRegisterBoardRecords, fetchAndRegisterPool, opponentPoolLoader, recordFightResult, recordLobbyFights, fetchLobbyStrength, refreshOpponentPoolAndRecords, supabaseAuthProvider, uploadBoards, uploadPlayerProfile, uploadRunHistory, uploadRunTelemetry, uploadVictory, uploadPracticeGame, fetchRunHistory, claimHandle, flushUploadQueue } from './remoteBoards';
@@ -459,6 +460,9 @@ interface GameStore {
    *  seed so a stale record never shows on another run's end screen. The same object is saved into the run's
    *  record (`run_history.entry.match` / `practice_games.replay.match`) for the Career's match history. */
   lastMatch: { seed: number; details: MatchDetails } | null;
+  /** GAUNTLET: the verdict of the last finished Gauntlet run, set once at its run end for the end screen (`round` =
+   *  the round the player fell on, or the last round on a clear). Null outside that; every new run resets it. */
+  gauntletResult: { stage: number; outcome: 'cleared' | 'defeated'; round: number; firstClear: boolean } | null;
   /** Bumped by every replay SEEK. `Game.tsx` folds it into Recruit's mount key, so a seek REMOUNTS the recruit
    *  tree — every FX hook's `useRef(seq)` re-inits to the target frame's counters and a jump across 30 frames
    *  can't fire 30 stale sequence-diff effects. Ordinary frame-to-frame stepping keeps its FX (a feature:
@@ -611,6 +615,8 @@ interface GameStore {
   pendingMode: RunMode;
   /** The seed the CURRENT hero offer was rolled against (tribe gate); consumed by `pickHero`, cleared on run creation. */
   pendingSeed?: number;
+  /** The Gauntlet stage the open hero picker will start (set by `startGauntlet`, consumed by `pickHero`). */
+  pendingGauntletStage?: number;
   /** Title → Ascent: open the 3-hero picker for a scored run. */
   startAscent: () => void;
   /** Title → Practice: open an ALL-hero picker for a practice run (Ascent's full course, unlimited health). */
@@ -618,6 +624,9 @@ interface GameStore {
   /** Start a RIFT run — the same climb, with the active rift's rules. */
   startRift: () => void;
   startLobby: () => void;
+  /** Title → Gauntlet stage `stage`: open an ALL-hero picker for it. A no-op unless the stage is playable here
+   *  (`isStagePlayable` — a draft only in a DEV build). */
+  startGauntlet: (stage: number) => void;
   /** Title → Learn: launch the scripted tutorial course (Learn Ascent). Bypasses the hero picker entirely
    *  (the course forces its own hero, Aster) and builds an authored `tutorial`-mode lobby run directly, exactly
    *  like the Scene Builder skips the picker. The coaching layer keys off `run.mode === 'tutorial'`. */
@@ -1369,7 +1378,7 @@ function commitResolvedAction(
     // `!next.sandbox`: a Scene Builder run must never upload — historically implied by the rig always
     // creating mode 'practice', but a LOADED bug scenario (PR 4) keeps its original mode (a lobby bug must
     // reproduce under lobby mechanics), so the mode gate alone no longer covers the sandbox.
-    if (action.type === 'faceOmen' && next !== s.run && next.lastCombat && next.mode !== 'practice' && !next.sandbox) {
+    if (action.type === 'faceOmen' && next !== s.run && next.lastCombat && next.mode !== 'practice' && next.mode !== 'gauntlet' && !next.sandbox) {
       const served = nextOpponent(s.run);
       if (served?.id) {
         const result = next.lastCombat.result;
@@ -1463,6 +1472,7 @@ function commitResolvedAction(
       s.run.phase !== 'victory' &&
       next.mode !== 'practice' &&
       next.mode !== 'tutorial' && // the TUTORIAL never rates, uploads, or records a career run (it carries a lobby, so it must be excluded here or its placement would move MMR)
+      next.mode !== 'gauntlet' && // …nor does a GAUNTLET stage (a lobby too): its only run-end write is the local clear below
       // A SANDBOX run never captures boards, rates, or uploads telemetry/history — the mode gates above used
       // to imply this (the rig only ever created 'practice' runs), but a loaded bug scenario (PR 4) keeps its
       // original mode, so a replayed lobby/ascent incident would otherwise upload on finish.
@@ -1769,6 +1779,19 @@ function commitResolvedAction(
       });
       setTimeout(() => { beginRunProgression(String(next.seed), facts); }, 0); // deferred like every run-end write
     }
+    // GAUNTLET (spec §1): a finished stage never rates or uploads (the ladder block above excludes it). Its one write
+    // is the device-local clear; the verdict goes to the end screen through `gauntletResult`. Never a sandbox.
+    let gauntletResult: GameStore['gauntletResult'] | undefined;
+    if (next.phase === 'gameover' && s.run.phase !== 'gameover' && next.mode === 'gauntlet' && !next.sandbox && next.gauntletStage != null) {
+      const outcome = gauntletOutcome(next);
+      if (outcome) {
+        const stage = next.gauntletStage;
+        const firstClear = outcome === 'cleared' ? recordClear(stage).firstClear : false;
+        const me = next.lobby?.seats[0];
+        const round = me?.eliminatedRound ?? Math.max(1, (next.lobby?.round ?? 2) - 1);
+        gauntletResult = { stage, outcome, round, firstClear };
+      }
+    }
     const changed = next !== s.run;
     const replayActions = changed ? [...s.replayActions, action] : s.replayActions;
     const finished = next.phase === 'gameover' || next.phase === 'victory';
@@ -1820,6 +1843,7 @@ function commitResolvedAction(
       // here rather than unconditionally so a dispatch that happens to land mid-replay can't strand the
       // flag off and re-open the "leaving a replay advances the wave" hole.
       sandboxReplay: next.phase !== s.run.phase ? false : s.sandboxReplay,
+      ...(gauntletResult ? { gauntletResult } : {}),
     };
 }
 
@@ -2017,6 +2041,7 @@ export const useGame = create<GameStore>((rawSet, get) => {
   replayDragGhost: null,
   lastReplay: null,
   lastMatch: null,
+  gauntletResult: null,
   replaySeekEpoch: 0,
   latestBatch: null,
   beatRevision: 0,
@@ -2188,6 +2213,12 @@ export const useGame = create<GameStore>((rawSet, get) => {
   },
   startHeroSelect: () => set(() => { const seed = randomSeed(); return { pendingSeed: seed, heroChoices: rollHeroChoices(tribesForSeed(seed)) }; }),
   pickHero: (heroId) => {
+    // GAUNTLET: a stage that is gone by the time a hero is picked starts nothing — back to the title.
+    const pre = get();
+    if (pre.pendingMode === 'gauntlet' && !gauntletStage(pre.pendingGauntletStage ?? -1)) {
+      set({ heroChoices: null, pendingSeed: undefined, pendingGauntletStage: undefined, showTitle: true, titleView: 'menu' });
+      return;
+    }
     dropBoardFx(); // outside the updater: `set`'s callback is a pure state derivation, not a place for effects
     // QUITTING COSTS RATING (R-RANK-05): the new run REPLACES the one saved save slot, so an unfinished
     // RATED save it overwrites is abandoned and settles at the lowest open place. Outside the updater (a queue write).
@@ -2200,7 +2231,9 @@ export const useGame = create<GameStore>((rawSet, get) => {
       const seed = s.pendingSeed ?? randomSeed();
       // Practice is a lobby too (2026-07-31): same seats + recorded opponents, its own rules on top. It
       // reads the shared board pool but never writes (every upload path is gated on mode !== 'practice').
-      const run = s.pendingMode === 'lobby' || s.pendingMode === 'practice'
+      const stage = s.pendingMode === 'gauntlet' ? gauntletStage(s.pendingGauntletStage ?? -1) : undefined;
+      const run = stage ? createGauntletRun(seed, heroId, stage)
+        : s.pendingMode === 'lobby' || s.pendingMode === 'practice'
         // Practice carries the setup options chosen on the Practice screen (bots vs recorded opponents, health,
         // tribe surge); a plain lobby uses none.
         ? createLobbyRun(seed, heroId, {}, s.pendingMode, s.pendingMode === 'practice' ? s.practiceDraft : undefined)
@@ -2214,7 +2247,7 @@ export const useGame = create<GameStore>((rawSet, get) => {
       // Get the opponent seats built while the player reads their opening shop, not while they wait for it.
       if (run.lobby) warmLobbyDrivers(run);
       writeSave(run, []); // the new run is now the resumable save
-      return { run, savedRun: run, lastRunBoards: 0, presentationTx: null, heroArmed: false, endTurnAnimating: false, sellTick: 0, inspect: null, heroChoices: null, pendingSeed: undefined, lastHeroOffer: s.heroChoices ?? [heroId], showTitle: false, avatarPickerOpen: false, replayActions: [], capturedBoards: [], replayFrames: beginReplayCapture(run), replayPartial: false, ...freshObservers(run), ...RANK_SLICE_RESET };
+      return { run, savedRun: run, lastRunBoards: 0, presentationTx: null, heroArmed: false, endTurnAnimating: false, sellTick: 0, inspect: null, heroChoices: null, pendingSeed: undefined, pendingGauntletStage: undefined, lastHeroOffer: s.heroChoices ?? [heroId], showTitle: false, avatarPickerOpen: false, replayActions: [], capturedBoards: [], replayFrames: beginReplayCapture(run), replayPartial: false, ...freshObservers(run), ...RANK_SLICE_RESET };
     });
   },
   newRun: (seed, heroId) => {
@@ -2251,6 +2284,12 @@ export const useGame = create<GameStore>((rawSet, get) => {
   // roster (owner 2026-07-29). A lobby is a real run you can lose, so the pick should be a decision made under
   // the same constraint as Ascent's; Practice's all-heroes list is a sandbox affordance and reads as one.
   startLobby: () => set(() => { const seed = randomSeed(); return { showTitle: false, pendingMode: 'lobby', pendingSeed: seed, heroChoices: rollHeroChoices(tribesForSeed(seed)), avatarPickerOpen: false }; }),
+  // GAUNTLET: any hero (spec §1), so the picker gets Practice's full-roster list, not the 3-hero roll.
+  startGauntlet: (stage) => {
+    if (!isStagePlayable(stage, import.meta.env.DEV)) return;
+    const seed = randomSeed();
+    set({ showTitle: false, pendingMode: 'gauntlet', pendingGauntletStage: stage, pendingSeed: seed, heroChoices: practiceHeroChoiceIds('all', tribesForSeed(seed)), avatarPickerOpen: false });
+  },
   startTutorial: (course) => {
     dropBoardFx();
     // A brand-new tutorial run starts fresh at wave 1, so the coaching cursor must start at step 0 too — clear
@@ -2629,8 +2668,9 @@ export function syncProfileFromServer(_name: string): void {
 /** MEDAL RANK — the slice a NEW run starts with. A run that begins (ranked, practice, tutorial, sandbox)
  *  clears the previous run's result so the post-game screen can never show a stale `rankResult` against the
  *  wrong run; a still-pending settlement of the PREVIOUS run keeps flushing through the queue regardless and
- *  its profile is still adopted (`applyRankOutcome` only skips the slice for a non-current run). */
-const RANK_SLICE_RESET = { rankResult: null, rankSubmission: 'unrated' as const, rankSubmissionError: null, rankRunId: null };
+ *  its profile is still adopted (`applyRankOutcome` only skips the slice for a non-current run). The Gauntlet's
+ *  `gauntletResult` rides here for the same reason: it is the last run's verdict and must never outlive it. */
+const RANK_SLICE_RESET = { rankResult: null, rankSubmission: 'unrated' as const, rankSubmissionError: null, rankRunId: null, gauntletResult: null };
 
 /** THE OBSERVERS a NEW run starts with: the flat telemetry log and the live balance derivation, both primed
  *  against THIS run's opening state. Every door a run starts through (the hero picker, `newRun`, a tutorial,

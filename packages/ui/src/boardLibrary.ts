@@ -77,6 +77,8 @@ export function saveRunBoards(replay: Replay, author?: string, cosmetics?: RunSt
     // never played. Refusing it is deliberate: attaching them costs ~20 s, and the caller already has the real
     // boards. Silently capturing the wrong ones is the failure this guard exists to make impossible.
     if (replay.mode === 'lobby') return [];
+    // A GAUNTLET run never feeds the pool (and is a lobby too, so it could not be replayed faithfully anyway).
+    if (replay.mode === 'gauntlet') return [];
     const { final, snapshots } = replayRun(replay);
     // ONLY persist a run that actually FINISHED — won (victory) or lost (gameover). The caller already gates
     // on the gameover/victory transition; this guard makes it impossible for an in-progress / abandoned run

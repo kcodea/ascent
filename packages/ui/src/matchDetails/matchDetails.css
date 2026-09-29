@@ -1,0 +1,119 @@
+/* MATCH DETAILS (owner ask 2026-09-28): the lobby scoreboard. One component (MatchScoreboard.tsx) in two places:
+   the end screen's dialog (.mdd-*) and the Career match card's inline expand (.cv2-lobby*). House style: the
+   Career's gold/navy panels. Nothing here loops; the only motion is one-shot (the dialog's entrance, the chevron's
+   turn, a row's border/background on hover). The gauntlet cursor comes from the global button rule, so no rule
+   here sets `cursor`. Sizes are layout px: the stage scales the whole page on a small window or a phone. */
+
+.mds { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+
+/* Eight seats, placement order running DOWN the first column then the second (1-4 | 5-8). */
+.mds-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: repeat(4, auto); grid-auto-flow: column; gap: 8px 14px; }
+
+.mds-row { display: grid; grid-template-columns: 58px auto minmax(0, 1fr) auto; align-items: center; column-gap: 12px; min-width: 0; padding: 7px 14px 7px 10px; text-align: left;
+  font-family: var(--font-ui); color: #f4eee2; background: rgba(0, 0, 0, 0.3); border: 1.5px solid rgba(196, 160, 92, 0.22); border-radius: 12px;
+  transition: border-color 0.12s, background-color 0.12s; }
+.mds-row:hover { border-color: rgba(196, 160, 92, 0.6); background: rgba(196, 160, 92, 0.08); }
+.mds-row:focus-visible { outline: 2px solid #f0d089; outline-offset: 2px; }
+.mds-row.on { border-color: #e8c877; background: linear-gradient(90deg, rgba(232, 200, 119, 0.2), rgba(232, 200, 119, 0.06)); box-shadow: inset 0 0 0 1px rgba(232, 200, 119, 0.35); }
+.mds-row.self { border-left: 5px solid #7fb8f0; padding-left: 6px; }
+.mds-row.self.on { border-left-color: #a9d3ff; }
+.mds-row.out .mds-portrait { opacity: 0.55; }
+
+.mds-place { font-weight: 900; font-size: 22px; line-height: 1; color: #e8c877; text-align: center; font-variant-numeric: tabular-nums; }
+.mds-place.top { font-size: 15px; letter-spacing: 0.02em; color: rgba(232, 200, 119, 0.8); }
+.mds-row.winner .mds-place { color: #ffd66b; }
+
+.mds-portrait { --ring: 60px; }
+
+.mds-who { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.mds-name { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.mds-name-text { font-weight: 900; font-size: 18px; line-height: 1.15; color: #fff; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+/* The Hall of Champions crown beside a name (owner ask 2026-09-28). Static: no animation, no paint loop. */
+.mds-hall { flex: none; display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; color: #ffd66b; background: radial-gradient(circle at 50% 40%, rgba(255, 214, 107, 0.28), rgba(0, 0, 0, 0.25)); border: 1px solid rgba(255, 214, 107, 0.6); }
+.mds-hall svg { width: 14px; height: 14px; }
+.mds-board-name .mds-hall { align-self: center; }
+.mds-tag { flex: none; font-weight: 900; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; padding: 2px 7px 1px; border-radius: 999px; }
+.mds-tag.you { color: #0f1a2c; background: #9ccaf5; }
+.mds-tag.bot { color: #a8d8ef; border: 1px solid rgba(168, 216, 239, 0.5); }
+.mds-title { font-weight: 900; font-size: 13px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--rc, #ffe08a); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mds-hero { font-weight: 700; font-size: 14px; color: rgba(255, 255, 255, 0.62); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mds-status { display: inline-flex; align-items: center; flex-wrap: wrap; gap: 4px 8px; font-weight: 800; font-size: 13px; letter-spacing: 0.06em; text-transform: uppercase; line-height: 1.2; }
+.mds-status svg { width: 15px; height: 15px; flex: none; }
+.mds-status.in { color: #7fe0a8; }
+.mds-status.out { color: rgba(255, 255, 255, 0.52); }
+.mds-status.winner { color: #ffd66b; }
+.mds-killer { display: inline-flex; align-items: center; gap: 4px; padding: 1px 7px 1px 5px; border-radius: 999px; color: #ffb0b0; background: rgba(217, 102, 106, 0.18); border: 1px solid rgba(217, 102, 106, 0.5); letter-spacing: 0.04em; }
+.mds-killer svg { width: 13px; height: 13px; }
+
+.mds-hp { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; font-weight: 900; font-size: 16px; font-variant-numeric: tabular-nums; color: #fff; }
+.mds-hp-v { display: inline-flex; align-items: center; gap: 4px; }
+.mds-hp-v svg { width: 15px; height: 15px; color: #ff7a7a; }
+.mds-hp-v.armor { font-size: 14px; color: rgba(255, 255, 255, 0.78); }
+.mds-hp-v.armor svg { color: #a8c4dc; }
+
+/* The selected seat's board: a recessed well under the table. */
+.mds-board { display: flex; flex-direction: column; gap: 4px; min-width: 0; padding: 12px 18px 6px; border-radius: 14px; background: rgba(0, 0, 0, 0.26); border: 1px solid rgba(196, 160, 92, 0.24); }
+.mds-board-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; font-family: var(--font-ui); }
+.mds-board-name { display: inline-flex; align-items: baseline; gap: 10px; min-width: 0; font-weight: 900; font-size: 20px; color: #fff; white-space: nowrap; }
+.mds-board-hero { font-weight: 700; font-size: 15px; color: rgba(255, 255, 255, 0.6); }
+.mds-board-tier { flex: none; font-weight: 900; font-size: 13px; letter-spacing: 0.12em; text-transform: uppercase; color: #e8c877; padding: 3px 10px; border-radius: 999px; border: 1px solid rgba(196, 160, 92, 0.45); background: rgba(0, 0, 0, 0.3); }
+.mds-board-caption { font-family: var(--font-ui); font-weight: 700; font-size: 15px; color: rgba(232, 200, 119, 0.92); }
+/* The stored-board strip measures its tiles against this box (container units, see `.cv2-team`). The cards are pinned
+   compact (`StoredTeam compact`), so nothing hangs below a tile; the strip keeps one height for every seat (an empty
+   board and a full one are the same size, so picking a player never resizes the panel). */
+.mds-team { container-type: inline-size; min-width: 0; min-height: 192px; display: flex; flex-direction: column; justify-content: center; }
+/* The selected seat's runes, under its board (the Career banner's emblem + name pills). One line tall whatever the
+   seat owns, so switching players never changes the panel height. */
+.mds-runes { display: flex; align-items: center; gap: 14px; min-height: 58px; padding: 6px 0 8px; border-top: 1px solid rgba(196, 160, 92, 0.16); overflow: hidden; }
+.mds-runes .cv2-runes { flex-wrap: nowrap; overflow: hidden; }
+.mds-norunes { font-family: var(--font-ui); font-weight: 600; font-size: 15px; color: rgba(255, 255, 255, 0.5); }
+.mds-empty { font-family: var(--font-ui); font-weight: 600; font-size: 15px; color: rgba(255, 255, 255, 0.55); padding: 26px 0 30px; }
+
+/* ── THE END SCREEN DIALOG ── */
+.mdd-scrim { position: fixed; inset: 0; z-index: 560; display: grid; place-items: center; background: rgba(4, 8, 16, 0.72); animation: fadein 0.16s ease; }
+.mdd-panel { width: min(1240px, calc(94 * var(--vw, 1vw))); max-height: calc(92 * var(--vh, 1vh)); overflow-y: auto; display: flex; flex-direction: column; gap: 14px; padding: 18px 22px 20px;
+  color: #f4eee2; background: linear-gradient(180deg, rgba(13, 22, 40, 0.97), rgba(9, 15, 29, 0.98)); border: 2px solid rgba(196, 160, 92, 0.55); border-radius: 18px;
+  box-shadow: inset 0 0 0 1px rgba(196, 160, 92, 0.16), 0 24px 60px -18px rgba(0, 0, 0, 0.75); animation: mddin 0.18s ease-out;
+  /* STEADY (owner report 2026-09-28, "this screen is jittering all over the place"): the board's tiles are sized off
+     this panel's width, so a scrollbar that comes and goes changed the tiles, which changed the overflow, which
+     toggled the scrollbar again. The gutter is always reserved (the width never depends on the scrollbar), and
+     scroll anchoring is off (a height change never nudges the scroll position). */
+  scrollbar-gutter: stable; overflow-anchor: none; }
+/* A WIDE, SHORT layout viewport (a phone in landscape: the stage lays out ~2340 x 1080 and scales it down by ~0.36)
+   has room to spare sideways, so the dialog grows into it (1.15x, sized so the whole panel still fits) and its text stays readable. `zoom` scales the panel's
+   layout, not a transform, so the board strip's container units and the hover popups stay correct. Desktop
+   (1920 x 1080 and up to 2200 wide) never matches. */
+:root[data-lv~="w2200"]:not([data-lv~="h1200"]) .mdd-panel { zoom: 1.15; width: min(1240px, calc(70 * var(--vw, 1vw))); max-height: calc(88 * var(--vh, 1vh) / 1.15); }
+@keyframes mddin { from { opacity: 0; transform: translateY(10px) scale(0.985); } to { opacity: 1; transform: none; } }
+.mdd-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+.mdd-titles { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.mdd-title { display: inline-flex; align-items: center; gap: 10px; font-family: var(--font-ui); font-weight: 900; font-size: 24px; letter-spacing: 0.14em; text-transform: uppercase; color: #e8c877; }
+.mdd-title svg { width: 24px; height: 24px; }
+.mdd-sub { font-family: var(--font-ui); font-weight: 600; font-size: 16px; color: rgba(255, 255, 255, 0.72); }
+.mdd-close { flex: none; width: 42px; height: 42px; display: grid; place-items: center; font-size: 18px; font-weight: 900; color: #e8c877; background: rgba(0, 0, 0, 0.3); border: 1.5px solid rgba(196, 160, 92, 0.5); border-radius: 50%; transition: border-color 0.12s, color 0.12s; }
+.mdd-close:hover { color: #fff3cf; border-color: #e8c877; }
+.mdd-close:focus-visible { outline: 2px solid #f0d089; outline-offset: 2px; }
+
+/* The end screen's opener: a quiet secondary button under Continue. */
+.rankend-details { display: inline-flex; align-items: center; gap: 9px; font-family: var(--font-ui); font-weight: 900; font-size: 17px; letter-spacing: 0.12em; text-transform: uppercase;
+  color: #f0d089; background: rgba(6, 11, 22, 0.55); border: 2px solid rgba(232, 200, 119, 0.6); border-radius: 999px; padding: 9px 22px; transition: border-color 0.12s, color 0.12s, background-color 0.12s; }
+.rankend-details:hover { color: #fff3cf; border-color: #f0d089; background: rgba(196, 160, 92, 0.16); }
+.rankend-details:focus-visible { outline: 2px solid #f0d089; outline-offset: 3px; }
+.rankend-details svg { width: 20px; height: 20px; }
+
+/* ── THE CAREER MATCH CARD'S EXPAND ── */
+.cv2-lobbybtn { display: inline-flex; align-items: center; gap: 8px; font-family: var(--font-ui); font-weight: 900; font-size: 14px; letter-spacing: 0.08em; text-transform: uppercase;
+  color: #e8c877; background: rgba(0, 0, 0, 0.3); border: 1.5px solid rgba(196, 160, 92, 0.55); padding: 10px 16px; border-radius: 10px; white-space: nowrap; transition: border-color 0.12s, color 0.12s, background-color 0.12s; }
+.cv2-lobbybtn:hover { color: #fff3cf; border-color: #e8c877; background: rgba(196, 160, 92, 0.12); }
+.cv2-lobbybtn:focus-visible { outline: 2px solid #f0d089; outline-offset: 2px; }
+.cv2-lobbybtn svg { width: 18px; height: 18px; transition: transform 0.18s ease; }
+.cv2-lobbybtn[aria-expanded="true"] { color: #1a1206; background: linear-gradient(180deg, #f0d089, #c99d4e); border-color: #8a6428; }
+.cv2-lobbybtn[aria-expanded="true"] svg { transform: rotate(180deg); }
+.cv2-foot-actions { display: flex; align-items: center; gap: 10px; flex: none; }
+.cv2-lobby { padding-top: 14px; border-top: 1px solid rgba(196, 160, 92, 0.18); }
+.cv2-lobby-none { font-family: var(--font-ui); font-weight: 600; font-size: 15px; color: rgba(255, 255, 255, 0.55); padding: 6px 0 2px; }
+
+/* The Card's hover reveal (the full card, portalled at z 460) must float ABOVE this dialog (z 560), or hovering a
+   board card opened it hidden behind the scrim. */
+body:has(.mdd-scrim) .cardref { z-index: 580; }
+body:has(.mdd-scrim) .cv2-rune-tip { z-index: 580; }

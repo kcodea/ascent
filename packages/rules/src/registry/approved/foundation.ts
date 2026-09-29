@@ -483,6 +483,41 @@ export const FOUNDATION_RULES: GameRule[] = [
     },
   },
   {
+    id: 'R-LOBBY-05',
+    title: 'Every generated seat fields a board, and the player\'s fight is credited to the board they actually fought',
+    statement:
+      'A generated (hybrid) lobby seat is seated only when the RECORDING it will play fields at least one board: '
+      + 'seat selection checks the recording (a one-board prefix of `autoplayRun`), not only the live bot, because '
+      + '`prepare` is recording-only. `autoplayRun` answers every blocking modal a hero can raise, including the '
+      + 'hero-power Discover (`powerOffer`: Mimic every turn, Void on turn 4, Power Shifter), so every hero records '
+      + 'a real run. If the player\'s paired seat still has no board (an older save, a restored lobby), the player '
+      + 'faces the most recently fallen seat\'s ghost instead, as on a bye; the boardless pairing is a sit-out for '
+      + 'both (the seat is neither charged nor credited), and the player\'s fight is logged against the ghost '
+      + '(`bye: s0`, `standInFor: <paired seat>`), so the encounter log, "who knocked you out" and the fight ledger '
+      + 'name the board the player fought. Before anyone has fallen there is no ghost, and the round is a sit-out '
+      + 'for the player too.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      {
+        kind: 'owner-chat',
+        ref: 'Claude Code session, 2026-09-28 (Mimic hybrid lobby seats field no board)',
+        quote: 'the Mimic seat had no board at the player\'s end round. In one game the lobby recorded that seat as the one who knocked the player out',
+      },
+      { kind: 'code', ref: 'packages/sim/src/snapshot.ts autoplayRun (powerOffer branch, maxBoards); packages/sim/src/lobby/seats.ts hybridSeat.canFieldBoard + recordingFieldsBoard; packages/sim/src/lobby/runLobby.ts playerOpponent + settleRunLobbyRound (boardless player foe)' },
+    ],
+    currentBehaviour:
+      'Conforms as of 2026-09-28. Before the fix `autoplayRun` had no `powerOffer` branch, so a Mimic recording '
+      + 'bailed on turn 1 with zero boards; the live-bot probe seated it anyway, and when the player was paired '
+      + 'with it the reducer served an ordinary pool board while the settle charged and credited the empty seat. '
+      + 'Seen in 2 of 6 Practice (players) games. Every hero now records at least 5 waves.',
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/sim/src/lobby/seatRecordings.test.ts', 'packages/sim/src/lobby/seatProbeEmptyRecording.test.ts'],
+      lastVerifiedAt: '2026-09-28',
+    },
+  },
+  {
     id: 'R-HALL-02',
     title: 'Hall of Champions: the own-game line counts the same fights as the record line',
     statement:
@@ -1675,7 +1710,7 @@ export const FOUNDATION_RULES: GameRule[] = [
     statement:
       'The Level 2 reward is the title "Alpha Tester" (a level milestone, never in a crate), granted to EVERY account that reaches Account Level 2 '
       + '(level-based, so an existing account that reaches Level 2 gets it too) and equipped automatically when no title is '
-      + 'equipped. The post-game XP panel reveals it; the Career shows the level, the XP bar and the equipped title publicly. '
+      + 'equipped. The Collection\x27s New rewards pop-up announces it (moved off the post-game panel 2026-09-28, R-PROG-NEWREWARDS-01); the Career shows the level, the XP bar and the equipped title publicly. '
       + 'Anonymous (guest) players earn XP from their first game, because a guest session is a real account id that the email '
       + 'upgrade keeps. When a guest reaches Level 2 the post-game panel shows a gentle "Save your progress" prompt (never a '
       + 'gate) that opens the account panel, and the Career shows a small reminder. With no session at all, a game earns no XP.',
@@ -1688,6 +1723,29 @@ export const FOUNDATION_RULES: GameRule[] = [
     ],
     currentBehaviour: 'Conforms, built 2026-09-27. Where titles show (review surfaces only, never in game) is R-PROG-TITLE-02.',
     enforcement: { kind: 'scenario', refs: ['packages/progression/src/sqlParity.test.ts', 'packages/progression/src/rules.test.ts', 'packages/ui/src/progression/ProgressionPostgame.test.tsx', 'packages/ui/src/Career.test.tsx'], lastVerifiedAt: '2026-09-27' },
+  },
+  {
+    id: 'R-PROG-NEWREWARDS-01',
+    title: 'The end screen stays short; achievements, titles and crates wait in a one-time New rewards pop-up in the Collection',
+    statement:
+      'After a game the end screen shows the placement, the XP gained, the level bar and the level-up moment, and, when the game '
+      + 'earned anything new, one line saying new rewards are waiting in the Collection. The achievements, first-time titles and '
+      + 'crates a settlement awarded are queued for that account (they survive a reload) and shown once, as a New rewards pop-up the '
+      + 'next time the Collection opens: achievements with their XP and a link to see them all in the Career, titles, and crates '
+      + 'with Open and Open all through the Collection\x27s own crate opener. Closing it in any way marks them seen, and a reward '
+      + 'is never shown twice. While rewards wait, every Collection entry point wears an orange NEW pill.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Match details review, 2026-09-28', quote: 'can you have the unlocks, achievements, and crates be a pop up when the player gets back to the collection?' },
+      { kind: 'owner-chat', ref: 'Match details review, 2026-09-28', quote: 'just highlight the collection\x27s text in orange or have a "new" pill or something on it so players go there?' },
+      { kind: 'code', ref: 'packages/ui/src/progression/newRewards.ts (queue, localStorage per account, the never-twice set); packages/ui/src/progression/NewRewardsPopup.tsx; progressionStore.ts applyProgressionOutcome; ProgressionPostgame.tsx; Title.tsx, MenuSidebar.tsx, AccountLevel.tsx (the NEW pill)' },
+    ],
+    currentBehaviour:
+      'Conforms as of 2026-09-28. The queue is local (localStorage, per account id), filled when a settlement answer is '
+      + 'confirmed, so rewards earned on another device show there, not here. A queued crate already opened elsewhere drops out of '
+      + 'the pop-up; a pop-up left with nothing never opens. The guest save prompt stays on the end screen.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/progression/newRewards.test.tsx', 'packages/ui/src/progression/Crates.test.tsx', 'packages/ui/src/progression/ProgressionPostgame.test.tsx'], lastVerifiedAt: '2026-09-28' },
   },
   {
     id: 'R-PROG-CRATE-01',
@@ -2035,9 +2093,10 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'and the attack in a skin slot). The owner approved the animation and made it a Legendary reward. The second hero '
       + 'attack, attack_quake ("Tectonic Slam", Legendary, style quake: R-PROG-ATTACK-05), the third, attack_arcana '
       + '("Arcana", Legendary, style arcana: R-PROG-ATTACK-06), the fourth, attack_blades ("Phantom Blades", Legendary, '
-      + 'style blades: R-PROG-ATTACK-07), and the fifth, attack_enraged ("Enraged Strike", Legendary, style enraged: '
-      + 'R-PROG-ATTACK-11), re-pinned the first-crate odds to Common 46.3%, Rare 30.6%, Epic 18.8%, Legendary 4.3%; a '
-      + 'non-title item 32.5%; the five attacks together 2.7%.',
+      + 'style blades: R-PROG-ATTACK-07), the fifth, attack_enraged ("Enraged Strike", Legendary, style enraged: '
+      + 'R-PROG-ATTACK-11), and the sixth, attack_poison ("Venom Volley", Legendary, style poison: R-PROG-ATTACK-12), '
+      + 're-pinned the first-crate odds to Common 46.0%, Rare 30.5%, Epic 18.6%, Legendary 4.8%; a non-title item 32.8%; '
+      + 'the six attacks together 3.2%.',
     domain: 'foundation',
     status: 'approved',
     evidence: [
@@ -2303,5 +2362,34 @@ export const FOUNDATION_RULES: GameRule[] = [
     ],
     currentBehaviour: 'Conforms, built 2026-09-28. Match details rows (PR #1806) are wired as a follow-up once that panel lands.',
     enforcement: { kind: 'scenario', refs: ['packages/progression/src/titles.test.ts', 'packages/sim/src/lobby/seatCosmetics.test.ts', 'packages/ui/src/titles/titles.test.tsx'], lastVerifiedAt: '2026-09-28' },
+  },
+  {
+    id: 'R-PROG-ATTACK-12',
+    title: 'Poison Darts (attack_poison, "Venom Volley", Legendary) is the sixth hero attack: one dart / two / a fan of five / six that stick, swell, IMPLODE and burst in a toxic cloud, on the SAME damage tiers; the blow lands ONCE; no freeze',
+    statement:
+      'attack_poison ("Venom Volley", a placeholder name for the owner to rename; Legendary, crate, account-wide, style '
+      + 'poison): after the shared damage formation (R-PROG-ATTACK-08) the striking hero leans back while venom gathers at '
+      + 'the throwing hand, then flicks small poison darts (a dark needle, a venom vial, fletching, a glowing green tip) on a '
+      + 'slight arc with a thin toxic vapour trail. Each dart THUNKS into the struck portrait and sticks at its own angle, '
+      + 'quivering, on the side of the face clear of the big -N, with a venom splat, green droplets, a tiny toxic puff and a '
+      + 'sickly green tint pulse over the portrait (an opacity overlay, never an animated filter); stuck darts ride the '
+      + 'knockback. It escalates on exactly the tiers every other hero attack uses (one shared tierOf, thresholds 6 / 12 / '
+      + '20): I 1-5 ONE dart; II 6-11 TWO in quick succession; III 12-19 a FAN of five thunking in in rhythm; IV 20+ six '
+      + 'darts stick round the face (every one a tick), then they GLOW and PULSE while the venom SWELLS, everything is '
+      + 'SUCKED inward into one tight point (a dark ring contracting), and a violent TOXIC BURST lands the blow (a '
+      + 'green-black shockwave, bubbling toxic cloud puffs, acid droplets arcing out with gravity, a lingering haze). The '
+      + 'consequence (the damage, Armor, Resolve) lands exactly ONCE: on the LAST dart (every earlier dart is a tick with FX '
+      + 'and sound only; at I-III the poison then seeps and the darts dissolve, looks only) or, at IV, on the burst. No '
+      + 'hit-stop or freeze anywhere (R-PROG-ATTACK-10). Presentation only; reduced motion is fades only; an unknown or '
+      + 'retired id plays Classic.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-28 (the sixth hero attack)', quote: 'branch off and make a poison dart animation. the final one should throw multiple poison darts that implode with poison' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-28 (Poison Darts review; the look is approved as shipped)', quote: 'the dart one is so good. great stuff.' },
+      { kind: 'code', ref: 'packages/progression/src/cosmetics.ts (attack_poison); packages/ui/src/heroPoison/ (heroPoisonConfig poisonPlan / poisonCues / dartMotions / stickOffset / poisonCameraAt, heroPoison playHeroPoison, heroPoisonScene); playAcidSizzle / playToxicFizz in packages/ui/src/sfx.ts' },
+    ],
+    currentBehaviour: 'Conforms, built 2026-09-28. The item reaches the database on the next deploy of progression-inventory (the catalog sync); the equip SQL already accepts the hero_attack slot.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/heroPoison/heroPoison.test.ts', 'packages/progression/src/cosmetics.test.ts', 'packages/ui/src/progression/CollectionHeroAttack.test.tsx', 'packages/ui/src/heroAttack/damageFormation.test.ts'], lastVerifiedAt: '2026-09-28' },
   },
 ];

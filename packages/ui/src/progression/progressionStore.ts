@@ -25,6 +25,7 @@
  * client still honours a retire it has already seen.
  */
 import { create } from 'zustand';
+import { queueNewRewards } from './newRewards';
 import {
   setServerCatalogState, titleName, type ServerCatalogState, type EquipSlot, type CrateRow, type OpenCrateResult, type ProgressionMode, type ProgressionProfile, type ProgressionResult, type ProgressionRunFacts,
 } from '@game/progression';
@@ -139,6 +140,10 @@ export function adoptProgressionProfile(userId: string, profile: ProgressionProf
 /** One queue answer lands: adopt the profile, and update the end screen when it is the run it shows. */
 export function applyProgressionOutcome(item: Pick<PendingProgression, 'userId' | 'runId' | 'mode'>, outcome: ProgressionSubmitOutcome): void {
   if (outcome.status === 'confirmed') adoptProgressionProfile(item.userId, outcome.profile);
+  // NEW REWARDS (owner 2026-09-28): the achievements, titles and crates this settlement awarded wait for the player in
+  // the Collection (a pop-up there + a NEW pill on every Collection entry point) instead of crowding the end screen.
+  // Idempotent per reward id, so a duplicate or replayed answer never queues twice.
+  if (outcome.status === 'confirmed') queueNewRewards(item.userId, outcome.result);
   // New crates: re-read the list so the Collection and the post-game Open button see them.
   if (outcome.status === 'confirmed' && outcome.result.cratesAwarded > 0 && !outcome.deduped) void refreshCrates();
   const cur = useProgression.getState().current;

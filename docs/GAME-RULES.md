@@ -72,6 +72,32 @@ Source: `packages/sim/src/lobby/lobby.ts` (`DEFAULT_LOBBY_RULES`, damage applica
 
 ---
 
+## Match details — the lobby when your game ended (owner ask 2026-09-28, R-MATCH-01)
+
+- After a lobby game (Ranked or Practice; never the tutorial or a sandbox), the end screen offers **Match details**
+  once the placement has shown: all eight seats with hero, name, placement, the round each went out (or Winner,
+  or **Still in**) and health. It opens on the seat that knocked you out, else the best other seat.
+- **The moment is YOUR end**: your knockout round, or the final round when you won (or when Practice's curtain
+  fell). A seat still standing then shows the board it fielded that round; a seat that went out earlier shows the
+  board it went out with (the same board the lobby raises as its ghost). Seats still standing when you went out
+  have no placement yet: they read **Top N** (N = your placement minus one) and are ordered by health. The lobby
+  is not played on for this.
+- The boards are **recorded, never recomputed**: built once at run end from the lobby's own
+  `prepare(round) ?? finalBoard()` call, before the fight ledger's play-out, then stored. Skins render only
+  through the opponent toggle (your own seat wears your recorded skins).
+- The selected seat's **runes** at that moment (owned rune ids off its board snapshot) show under its board, and a
+  seat whose run is currently on the **Hall of Champions** wears a gold crown (one cached read of the Hall's own
+  query per panel open; offline = no crown). Board cards are always the compact tile here (the hover reveal shows
+  the full card) and the panel reserves its scrollbar gutter, so it never shifts.
+- The record is saved with the match (`run_history.entry.match` for Ranked, `practice_games.replay.match` for
+  Practice; both existing JSON columns) so the Career's match history shows it again under each match's **Lobby**
+  button. Older matches say the details were not recorded.
+
+Source: `packages/sim/src/lobby/matchDetails.ts`, `packages/ui/src/store.ts` (`matchDetailsOf`),
+`packages/ui/src/matchDetails/`.
+
+---
+
 ## Ranked ladder — medals and divisions (season 3, owner rules 2026-09-20 and 2026-09-21)
 
 The visible ladder is a **medal + division**, not a number. Only a finished **rated lobby** (the `Play`
@@ -169,14 +195,21 @@ progression **epoch**; nothing finished before the epoch counts (no backfill).
 - **Curve.** 250 XP per level from Level 1 to 11, 400 per level to Level 26, 500 per level after, uncapped.
   Lifetime XP is stored; the level is derived from it (versioned), so one game can cross several levels.
 - **Level title.** The title **Alpha Tester**, unlocked by **every** account at Level 2 (a level milestone, never
-  in a crate) and equipped when no title is equipped. Shown in the post-game XP panel (reveal) and on the Career
-  (public).
+  in a crate) and equipped when no title is equipped. Shown in the Collection's New rewards pop-up and on the
+  Career (public).
 - **Level crates (2026-09-28).** **Every level grants one sealed crate**; an account's first settled game
   (enrollment) also grants the Level 1 **Welcome Crate**. So an account at Level L has earned L crates. Earn only:
   no keys, currency, purchases or rerolls. Accounts enrolled before crates shipped received their Welcome Crate
   plus one crate per level already reached (a one-time backfill).
-- **Opening.** Optional and never forced (Continue is always available): right after the game ("Crate earned",
-  Open) or later from the **Collection** (its own screen since 2026-09-28: the title's Collection plaque, the menu
+- **New rewards wait in the Collection (owner 2026-09-28, R-PROG-NEWREWARDS-01).** The end screen shows only the
+  placement, the XP gained, the level bar and the level-up moment, plus one line when anything new was earned. The
+  achievements, first-time titles and crates a game awarded are queued per account (localStorage, survives a reload,
+  never shown twice) and shown ONCE as a **New rewards** pop-up the next time the Collection opens (achievements with
+  their XP and a "See all in Career" link, titles, crates with Open / Open all); any way out of it marks them seen.
+  While rewards wait, every Collection entry point (the title plaque, the side menu, the Career's Account Level card)
+  wears an orange **NEW** pill.
+- **Opening.** Optional and never forced (Continue is always available): from the New rewards pop-up or any time
+  from the **Collection** (its own screen since 2026-09-28: the title's Collection plaque, the menu
   sidebar, or the Account Level card on your Career; Open one crate, or Open all). The reward is chosen **when the crate is opened**, on the
   server, from the items the player does not own yet: each remaining item weighs rarity x category (rarity
   Common 55, Rare 30, Epic 12, Legendary 3), normalized over what remains, never a rarity rolled first. **Never a
@@ -194,9 +227,9 @@ progression **epoch**; nothing finished before the epoch counts (no backfill).
   R-PROG-SKINS-05), so a new or retired cosmetic is a code change plus one deploy, never SQL. Shaped
   for every cosmetic category (announcer, hero skin, minion skin, title, hero attack, board, music). Switched on:
   **titles** (15 crate titles: 7 Common, 5 Rare, 2 Epic, 1 Legendary) and, since the skins shipped the same day,
-  **hero skins** and **minion skins** (all from crates) and **hero attacks** (Arcane Barrage, Tectonic Slam, Arcana, Phantom Blades, then Enraged Strike). The other
+  **hero skins** and **minion skins** (all from crates) and **hero attacks** (Arcane Barrage, Tectonic Slam, Arcana, Phantom Blades, Enraged Strike, then Venom Volley). The other
   categories are feature-flagged off until their art exists. Crate odds are rarity weight x category weight over what
-  remains: a fresh account's first crate is about 32% a skin or hero attack (the five Legendary attacks together about 2.7%).
+  remains: a fresh account's first crate is about 33% a skin or hero attack (the six Legendary attacks together about 3.2%).
 - **Skins (2026-09-28; oracle R-PROG-SKINS-01, R-PROG-SKINS-04).** A hero skin replaces one hero's portrait; a
   minion skin replaces one card's art, by stable id. Equipped per target from the Collection's Heroes / Minions
   tabs through the server (`equip_cosmetic`: owned, made for that hero or card, live); **"Use default art"** is
@@ -222,7 +255,7 @@ progression **epoch**; nothing finished before the epoch counts (no backfill).
   run loop's `damageCap` stamp); an older result shows what it knows (no breakdown: just the blow; no cap stamp: no cap
   beat). No hero attack ever freezes (R-PROG-ATTACK-10): no hit-stop on any impact, the slam or the cap slash; weight comes
   from the flash, squash and knockback, shake, particles and sound. Tuned in the dev hub's Damage Formation tuner; production plays the baked defaults.
-- **Hero attacks (2026-09-28; oracle R-PROG-ATTACK-01..11).** How your hero lands the post-combat blow. **Classic**
+- **Hero attacks (2026-09-28; oracle R-PROG-ATTACK-01..12).** How your hero lands the post-combat blow. **Classic**
   (the lunge) is everyone's default; **Blast** is the first cosmetic, `attack_blast` ("Arcane Barrage", Legendary,
   from crates; animation and tier thresholds owner-approved): after the damage formation, the hero charges, the view pushes in, and bolts (a single
   beam on the biggest hits) carry the blow, escalating by damage tier (I 1-5, II 6-11, III 12-19, IV 20+). **Quake** is the
@@ -242,7 +275,12 @@ progression **epoch**; nothing finished before the epoch counts (no backfill).
   R-PROG-ATTACK-11): Classic's own swing, enraged. After the same damage formation the hero coils deeper while a rage aura
   burns round the portrait, dashes in leaving afterimages, and hits with a white flash, rings and claw rips (I one hit; II a
   double strike; III a flurry of three with a finisher, the blow landing once on the last; IV the hero rises, hangs and slams
-  down like a meteor, leaving a crater, the blow landing on the meteor). All five anchor on the round portrait art at rest
+  down like a meteor, leaving a crater, the blow landing on the meteor). **Poison Darts** is the sixth, `attack_poison`
+  ("Venom Volley", a placeholder name; Legendary, from crates; R-PROG-ATTACK-12): after the same damage formation the hero
+  flicks small poison darts that thunk into the struck hero and stick at varied angles, with venom splashes and a sickly
+  green tint (I one dart; II two in quick succession; III a fan of five, the blow landing once on the last; IV six darts
+  stick round the face, glow and swell, are sucked into one point and burst in a toxic cloud, the blow landing on the
+  burst). All six anchor on the round portrait art at rest
   (R-PROG-ATTACK-04). Equipped
   account-wide in the Collection's Attack Animations tab ("Use Classic" takes it off). The STRIKER's attack plays:
   yours when you win, the opponent's (from their recorded snapshot) when they win. Recorded per run like skins;
@@ -910,6 +948,12 @@ holds the bye and fights a **ghost**: the most recently eliminated seat's board 
 takes nothing. **A ghost is never a rematch** (owner 2026-09-19, the Hearthstone rule): the bye holder never faces
 the ghost of the seat it fought last round or the seat it eliminated — the next most recent ghost stands in, and
 when the only ghost on offer would be a rematch, the bye goes to another eligible seat.
+
+**A paired seat with no board** (R-LOBBY-05, 2026-09-28). Seat selection only seats a generated seat whose
+recording fields a board, so this should not happen; if it does (an older save), the pairing is a sit-out for
+both seats, like any boardless pairing. The player then fights the most recent ghost instead, logged as a ghost
+fight (`bye: s0`, `standInFor` = the paired seat) so the log and "who knocked you out" name the board fought.
+Before anyone has fallen there is no ghost and the round is a sit-out for the player too.
 
 The pool-based `pickOpponent` path below still exists and still serves the **non-lobby** modes and tooling. It
 is NOT what a lobby run faces, which is why injecting served boards into a lobby replay changes nothing:

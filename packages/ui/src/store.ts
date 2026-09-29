@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { loadFpsCap, saveFpsCap } from './fpsCap';
 import { CARD_INDEX, activeSet, type SetId } from '@game/content';
-import { type CombatOdds, HEROES, playableHeroes, practiceHeroChoiceIds, runTribesForSeed, OPPONENT_POOL, OPPONENT_POOL_DATA, registerOpponents, createRun, deserialize, initialProfile, resolveServerRank, adoptServerRank, legacyRatingChangeOf, rankedRunIdOf, type RankResult, type RankedProfile, isPlayerAction, missingCardIds, nextOpponent, parseQaScenario, reconstructRunTelemetry, recordTelemetryAction, emptyTelemetryLog, withLiveTelemetry, telemetrySourceOf, setIdOf, type TelemetryLog, beginDerive, observeAction, finishDerive, progressionFactsOf, type DeriveState, reduce, reduceWithPresentation, serialize, snapshotBoard, type Action, type BoardSnapshot, type PlayerProfile, type RatingChange, type Replay, type RunMode, type RunState, combatFrameOf, deltaShopFrameOf, shopFrameOf, runRecord, type DragPath, type ReplayFrame, type ReplayV2, type ShopView, appendInspectEvent, type InspectEvent, type InspectSnapshot, createLobbyRun, enableAncients, createTutorialRun, type TutorialCourse, type PracticeConfig, type BotLevel, DEFAULT_PRACTICE_CONFIG, normalizeBotDifficulty, normalizePracticeTribes, practiceRunTribes, warmLobbySeat, prepareActionWithPresentation, type PreparedPresentationAction, fightRowsOf, opponentFightKeys, type LobbyStrength, type FightRow } from '@game/sim';
+import { type CombatOdds, HEROES, playableHeroes, practiceHeroChoiceIds, runTribesForSeed, OPPONENT_POOL, OPPONENT_POOL_DATA, registerOpponents, createRun, deserialize, initialProfile, resolveServerRank, adoptServerRank, legacyRatingChangeOf, rankedRunIdOf, type RankResult, type RankedProfile, isPlayerAction, missingCardIds, nextOpponent, parseQaScenario, reconstructRunTelemetry, recordTelemetryAction, emptyTelemetryLog, withLiveTelemetry, telemetrySourceOf, setIdOf, type TelemetryLog, beginDerive, observeAction, finishDerive, progressionFactsOf, type DeriveState, reduce, reduceWithPresentation, serialize, snapshotBoard, type Action, type BoardSnapshot, type PlayerProfile, type RatingChange, type Replay, type RunMode, type RunState, combatFrameOf, deltaShopFrameOf, shopFrameOf, runRecord, type DragPath, type ReplayFrame, type ReplayV2, type ShopView, appendInspectEvent, type InspectEvent, type InspectSnapshot, createLobbyRun, enableAncients, createTutorialRun, type TutorialCourse, type PracticeConfig, type BotLevel, DEFAULT_PRACTICE_CONFIG, normalizeBotDifficulty, normalizePracticeTribes, practiceRunTribes, warmLobbySeat, prepareActionWithPresentation, type PreparedPresentationAction, fightRowsOf, opponentFightKeys, type LobbyStrength, type FightRow, buildMatchDetails, type MatchDetails } from '@game/sim';
 import type { PresentationBatch } from '@game/core';
 import { combatTimelineFrom } from './choreographer/combatTimeline';
 import type { RuneLockInCard } from './RuneLockIn';
@@ -450,6 +450,11 @@ interface GameStore {
   replayDragGhost: (DragPath & { key: number; view?: CardView }) | null;
   /** The last FINISHED run's v2 state replay, stashed at run end so "Rewatch last game" has something to play. */
   lastReplay: ReplayV2 | null;
+  /** MATCH DETAILS (owner ask 2026-09-28): the whole table at the moment the last finished lobby run ended, recorded
+   *  once at run end (`buildMatchDetails`) and read by the end screen's "Match details" button. Keyed by the run
+   *  seed so a stale record never shows on another run's end screen. The same object is saved into the run's
+   *  record (`run_history.entry.match` / `practice_games.replay.match`) for the Career's match history. */
+  lastMatch: { seed: number; details: MatchDetails } | null;
   /** Bumped by every replay SEEK. `Game.tsx` folds it into Recruit's mount key, so a seek REMOUNTS the recruit
    *  tree — every FX hook's `useRef(seq)` re-inits to the target frame's counters and a jump across 30 frames
    *  can't fire 30 stale sequence-diff effects. Ordinary frame-to-frame stepping keeps its FX (a feature:
@@ -1286,6 +1291,25 @@ function endStateBoard(run: RunState): BoardSnapshot | null {
   return snap;
 }
 
+/**
+ * MATCH DETAILS for a finished lobby run (owner ask 2026-09-28): every seat, its placement or that it was still
+ * standing, and the board it had at the moment this run ended. Called ONCE, inside the deferred run-end blocks
+ * (never on the click that ended the run): recorded seats are cheap lookups, but a driver the session has not
+ * built yet costs a rebuild. Best-effort: a failure costs the Match details button, never the end screen.
+ */
+function matchDetailsOf(run: RunState, author: string, finalBoard: BoardSnapshot | null, placement: number | null, selfRunKey?: string): MatchDetails | null {
+  if (!run.lobby || placement === null || placement <= 0) return null;
+  try {
+    const titleId = mirrorFor(currentProgressionUserId(), useProgression.getState().mirror)?.equippedTitleId ?? null;
+    return buildMatchDetails(run.lobby, {
+      name: author, placement, selfBoard: finalBoard, selfCosmetics: finalBoard?.cosmetics ?? run.cosmetics ?? null, titleId, selfRunKey,
+    });
+  } catch (e) {
+    if (import.meta.env.DEV) console.warn('[run-end] match details could not be assembled', e);
+    return null;
+  }
+}
+
 
 /** Zustand's setter, narrowed — the helper below needs it only for deferred (post-run) writes. */
 type StoreSet = (partial: Partial<GameStore> | ((st: GameStore) => Partial<GameStore>)) => void;
@@ -1512,6 +1536,12 @@ function commitResolvedAction(
           ? lobbySeat?.placement ?? next.lobby.seats.filter((seat) => seat.alive).length + 1
           : null;
         const lobbyWon = lobbyPlacement === 1;
+        // MATCH DETAILS (owner ask 2026-09-28): recorded BEFORE the fight ledger's play-out below, so every board is
+        // the one the table fielded up to this player's end, and saved into the career entry (`entry.match`).
+        // The own key is the fight ledger's reporter key (`author|heroId|seed`), so a run that later reaches the Hall
+        // of Champions wears the crown in its own Match details too.
+        const match = next.mode === 'lobby' ? matchDetailsOf(next, author, finalBoard, lobbyPlacement, `${author}|${next.heroId}|${next.seed}`) : null;
+        set({ lastMatch: match ? { seed: next.seed, details: match } : null });
         // THE FIGHT LEDGER + LOBBY STRENGTH (owner 2026-09-22). Every fight this table resolved — the ones this
         // player witnessed plus, when they fell early, the rounds a deterministic play-out resolves on a CLONE
         // (never the reducer's lobby, never `run.lobby`: see `playOutRunLobby`) — goes up as ONE batched upsert,
@@ -1552,7 +1582,7 @@ function commitResolvedAction(
         // rides along (the same value the run's pool key and fight-ledger key carry) so the Hall can join a
         // run's own career row by its full run key, never by seed + hero alone.
         const entry = buildRunHistoryEntry(next, { date, at: nowIso, boardsContributed: fresh.length, board: finalBoard, apt, cardsPlayed });
-        void uploadRunHistory({ ...entry, author, placement: lobbyPlacement ?? undefined, mode: next.mode, patch: `${__APP_VERSION__}+${__BUILD_SHA__}` })
+        void uploadRunHistory({ ...entry, ...(match ? { match } : {}), author, placement: lobbyPlacement ?? undefined, mode: next.mode, patch: `${__APP_VERSION__}+${__BUILD_SHA__}` })
           .then(() => fetchRunHistory<RunHistoryEntry>())
           .then((remote) => {
             // A FAILED read returns null, and we skip the profile write entirely rather than upserting
@@ -1690,8 +1720,12 @@ function commitResolvedAction(
           const row = practiceGameOf(next, { author, patch, finalBoard, frames });
           // The recorded outcome is the placement the practice end screen showed (the row's own placement).
           const v2 = assembleReplayV2(next, { author, partial, frames, inspectTrail, cursorTrail, placement: row.placement ?? 0, finalBoard });
+          // MATCH DETAILS (owner ask 2026-09-28): the table at this game's end, for the end screen now and the
+          // Practice tab later. It rides inside the row's `replay` jsonb (`replay.match`), so no new column.
+          const match = matchDetailsOf(next, author, finalBoard, row.placement);
+          set({ lastMatch: match ? { seed: next.seed, details: match } : null });
           const facts = progressionFactsOf(deriveState, next, { runId: '', mode: 'practice', patch });
-          void uploadPracticeGame({ ...row, replay: { seed: next.seed, heroId: next.heroId, mode: next.mode, actions, v2 } })
+          void uploadPracticeGame({ ...row, replay: { seed: next.seed, heroId: next.heroId, mode: next.mode, actions, v2, ...(match ? { match } : {}) } })
             .then((id) => {
               if (typeof id !== 'number') markRunProgressionUnavailable(localKey);
               else beginRunProgression(localKey, { ...facts, runId: practiceRunId(id) }, id);
@@ -1959,6 +1993,7 @@ export const useGame = create<GameStore>((rawSet, get) => {
   replaySession: null,
   replayDragGhost: null,
   lastReplay: null,
+  lastMatch: null,
   replaySeekEpoch: 0,
   latestBatch: null,
   beatRevision: 0,

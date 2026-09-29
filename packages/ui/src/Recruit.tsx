@@ -78,6 +78,8 @@ import { playHeroBlades } from './heroBlades/heroBlades';
 import { heroBladesPreviewSpeed } from './heroBlades/heroBladesConfig';
 import { playHeroEnraged } from './heroEnraged/heroEnraged';
 import { heroEnragedPreviewSpeed } from './heroEnraged/heroEnragedConfig';
+import { playHeroPoison } from './heroPoison/heroPoison';
+import { heroPoisonPreviewSpeed } from './heroPoison/heroPoisonConfig';
 import { resolveHeroAttackStyle } from './heroBlast/heroAttackStyle';
 import { attackerCosmeticOf } from './heroBlast/attackerCosmetic';
 import { heroStrikeDamage, heroStrikeNumbers } from './heroBlast/heroStrikeDamage';
@@ -161,6 +163,7 @@ import { recordCursorSample, useGame } from './store';
 import { gateBlocks as tutorialGateBlocks, notifyGateNudge as notifyTutorialGateNudge } from './tutorial/gateBus';
 import { Unit } from './Unit';
 import { computeFrame, useCombatReplay } from './useCombatReplay';
+import { endCombatReady } from './endCombatGate';
 import { turnClock, turnClockMayTick, turnClockReset, useTurnSeconds, useTurnTimeUp } from './turnClock';
 import { useGoodLuckIntroActive } from './goodLuck/goodLuckIntroStore';
 import { visibleHandPreviews } from './handPreview';
@@ -2896,12 +2899,15 @@ export function Recruit() {
     // hero charges and bolts fly; Quake: the hero slams the ground and a quake erupts under the target; Arcana: magic
     // ribbons are lobbed, and the top tier swirls them into a vortex that explodes; Phantom Blades: swords are summoned,
     // aimed and loosed in straight thrusts that stick and shatter, and the top tier brings down a greatsword; Enraged Strike:
-    // Classic's own lunge, enraged, with a double strike, a flurry of three and a Tier IV meteor slam). Same blow,
+    // Classic's own lunge, enraged, with a double strike, a flurry of three and a Tier IV meteor slam; Poison Darts: darts
+    // flicked in that stick and splash venom, and the top tier implodes them into a toxic burst). Same blow,
     // same consequence, only drawn differently; the style is the ATTACKER's (their equipped cosmetic, or the dev
     // override). Every runner takes the same options (`heroAttack/options.ts`).
     const attackStyle = resolveHeroAttackStyle({ attacker: side, attackerCosmeticId: attackerCosmeticOf(run0, side, useGame.getState().showOpponentSkins) });
-    if (attackStyle === 'blast' || attackStyle === 'quake' || attackStyle === 'arcana' || attackStyle === 'blades' || attackStyle === 'enraged') {
-      const runner = attackStyle === 'enraged'
+    if (attackStyle === 'blast' || attackStyle === 'quake' || attackStyle === 'arcana' || attackStyle === 'blades' || attackStyle === 'enraged' || attackStyle === 'poison') {
+      const runner = attackStyle === 'poison'
+        ? { play: playHeroPoison, preview: heroPoisonPreviewSpeed() }
+        : attackStyle === 'enraged'
         ? { play: playHeroEnraged, preview: heroEnragedPreviewSpeed() }
         : attackStyle === 'blades'
         ? { play: playHeroBlades, preview: heroBladesPreviewSpeed() }
@@ -7252,7 +7258,7 @@ export function Recruit() {
 
       <ShopControls
         fighting={fighting} inCombat={inCombat} mode={run.mode} sandbox={!!run.sandbox}
-        replayDone={replay.done} replayResult={replay.result} sandboxReplay={sandboxReplay} lossPhase={lossPhase}
+        replayDone={replay.done} replayResult={replay.result} sandboxReplay={sandboxReplay} lossPhase={lossPhase} combatSettled={run.combatSettled}
         eotAnimating={eotAnimating} hasQuestOffer={!!run.questOffer} hasPowerOffer={!!run.powerOffer} hasRuneforgeOffer={!!run.runeforgeOffer}
         roundSettled={roundSettled} timeUp={timeUp} combatBgShown={combatBgShown} frozen={!!run.frozen} embers={run.embers}
         refreshCost={nextRefreshCostOf(run)} freeRolls={run.freeRolls} tier={run.tier} maxTier={maxTierFor(run.rift)} upgradeCost={upgradeCostOf(run)}
@@ -7584,13 +7590,13 @@ export function Recruit() {
  *  between the HUD and the drag zones. Memoized on primitives + stable handlers (perf 2026-09-16: a drag
  *  tick or an overlay toggle no longer reconciles seven buttons and the timer for nothing). */
 const ShopControls = memo(function ShopControls({
-  fighting, inCombat, mode, sandbox, replayDone, replayResult, sandboxReplay, lossPhase, eotAnimating,
+  fighting, inCombat, mode, sandbox, replayDone, replayResult, sandboxReplay, lossPhase, combatSettled, eotAnimating,
   hasQuestOffer, hasPowerOffer, hasRuneforgeOffer, roundSettled, timeUp, combatBgShown, frozen, embers,
   refreshCost, freeRolls, tier, maxTier, upgradeCost, nextTurnGold, afterNextGold, wave, rift, combatRoundNo,
   onSummary, onEndTurn, onEndCombat, onFreeze, onRefresh, onUpgrade, onSkip,
 }: {
   fighting: boolean; inCombat: boolean; mode: RunState['mode']; sandbox: boolean; replayDone: boolean;
-  replayResult: 'win' | 'lose' | 'draw' | null; sandboxReplay: boolean; lossPhase: null | 'tally' | 'blast' | 'done';
+  replayResult: 'win' | 'lose' | 'draw' | null; sandboxReplay: boolean; lossPhase: null | 'tally' | 'blast' | 'done'; combatSettled: boolean;
   eotAnimating: boolean; hasQuestOffer: boolean; hasPowerOffer: boolean; hasRuneforgeOffer: boolean;
   roundSettled: boolean; timeUp: boolean; combatBgShown: boolean; frozen: boolean; embers: number;
   refreshCost: number; freeRolls: RunState['freeRolls']; tier: number; maxTier: number; upgradeCost: number;
@@ -7598,6 +7604,7 @@ const ShopControls = memo(function ShopControls({
   onSummary: () => void; onEndTurn: () => void; onEndCombat: () => void; onFreeze: () => void;
   onRefresh: () => void; onUpgrade: () => void; onSkip: () => void;
 }) {
+  const combatGateOpen = endCombatReady({ replayDone, replayResult, sandboxReplay, strikePhase: lossPhase, combatSettled });
   return (
     <>
       {!fighting ? (
@@ -7663,13 +7670,15 @@ const ShopControls = memo(function ShopControls({
           In a sandbox REPLAY that sequence never runs at all — it early-returns on `run.combatSettled`,
           which is `true` throughout a replay by design — so `lossPhase` stays null forever and the gate
           below would leave no enabled way out of the phase (Skip unmounts once the replay is done).
-          Nothing is being waited on, so nothing is held. */}
+          Nothing is being waited on, so nothing is held. The same holds for a loss that was ALREADY SETTLED
+          when the screen mounted (a finished fight reopened by Continue after a reload, bug 2026-09-28): the
+          sequence early-returns on `combatSettled` there too. The rule lives in `endCombatReady`. */}
       <EndTurnButton
         onEndTurn={onEndTurn}
         onEndCombat={onEndCombat}
-        combatReady={inCombat && replayDone && (sandboxReplay || replayResult !== 'lose' || lossPhase === 'done')}
+        combatReady={inCombat && combatGateOpen}
         disabled={inCombat
-          ? !(replayDone && (sandboxReplay || replayResult !== 'lose' || lossPhase === 'done'))
+          ? !combatGateOpen
           : eotAnimating || hasQuestOffer || hasPowerOffer || hasRuneforgeOffer || !roundSettled}
         pressed={inCombat || eotAnimating}
         urgent={timeUp && !inCombat}

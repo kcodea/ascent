@@ -181,6 +181,11 @@ export const COSMETICS: readonly CosmeticDef[] = Object.freeze([
   // dash with afterimages, white-hot impacts with claw rips; II a double strike, III a flurry of three, IV a meteor slam.
   // The name is the builder's placeholder for the owner to rename (the id stays). Legendary like the other four.
   heroAttack('attack_enraged', 'Enraged Strike', 'legendary', 'enraged'),
+  // Owner 2026-09-28: "branch off and make a poison dart animation. the final one should throw multiple poison darts
+  // that implode with poison". Small, sleek poison darts flicked on a slight arc that thunk in and stick with venom
+  // splashes; II two, III a fan of five, IV six that swell, implode into a point and burst in a toxic cloud. The name is
+  // the builder's placeholder for the owner to rename (the id stays). Legendary like the other five.
+  heroAttack('attack_poison', 'Venom Volley', 'legendary', 'poison'),
 ]);
 
 export const COSMETIC_INDEX: Readonly<Record<string, CosmeticDef>> = Object.freeze(

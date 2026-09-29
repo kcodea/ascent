@@ -2,7 +2,7 @@
 /**
  * LEVEL CRATES, THE CRATE THEATRE AND THE COLLECTION SCREEN (2026-09-28), rendered under jsdom with the network
  * seam mocked and the Pixi layer swapped for a recorder (jsdom has no WebGL):
- *  - the post-game "Crate earned" row and its OPTIONAL Open button, several crates, pool_exhausted, a failure;
+ *  - crates off the end screen (2026-09-28): the New rewards pop-up in the Collection, Open / Open all, never twice;
  *  - the theatre's flow states: sealed (idle) -> anticipation (in flight, holds, "Still opening") -> charge -> burst
  *    -> reveal -> settled; a failure winding down to Try again; a skip mid-sequence and a skip BEFORE the answer;
  *    reduced motion; StrictMode; the Pixi controller destroyed on unmount;
@@ -33,7 +33,9 @@ vi.mock('./progressionRemote', async (orig) => ({
 
 import { ProgressionPostgame } from './ProgressionPostgame';
 import { CrateOpener } from './CrateOpener';
-import { resetProgressionForTests, useProgression } from './progressionStore';
+import { applyProgressionOutcome, resetProgressionForTests, useProgression } from './progressionStore';
+import { CollectionPage } from './CollectionScreen';
+import { resetNewRewardsForTests, useNewRewards } from './newRewards';
 import { setCrateFxFactoryForTests } from './crateFx/crateFxPixi';
 import { CRATE_FX_DEFAULTS, presetFor } from './crateFx/crateFxConfig';
 import { useGame } from '../store';
@@ -54,6 +56,7 @@ let ui: Mounted | null = null;
 afterEach(() => { ui?.unmount(); ui = null; vi.useRealTimers(); setCrateFxFactoryForTests(null); });
 beforeEach(() => {
   resetProgressionForTests();
+  resetNewRewardsForTests();
   openCrateRemote.mockReset();
   equipTitleRemote.mockReset();
   fxCalls = [];
@@ -88,101 +91,56 @@ const phase = (): string => ($('.crth')?.className.match(/ph-(\w+)/)?.[1]) ?? 'n
 const advance = (ms: number): void => { act(() => { vi.advanceTimersByTime(ms); }); };
 const noDashes = (): void => { expect(document.body.textContent).not.toMatch(/[—–]/); expect(document.querySelector('[title]')).toBeNull(); };
 
-describe('the post-game crate', () => {
-  it('a level-up shows "Crate earned" with an optional Open button; nothing is opened until it is pressed', () => {
+describe('crates moved off the end screen (owner 2026-09-28: "can you have the unlocks, achievements, and crates be a pop up when the player gets back to the collection?")', () => {
+  const sealedRow = (crateId: string, earnedLevel = 2) => ({ crateId, earnedLevel, state: 'sealed' as const, rewardId: null, earnedAt: 't0', openedAt: null });
+  /** A settlement lands (the real seam), then the player opens the Collection. */
+  function landAndOpen(r: ProgressionResult, sealed: string[]): void {
+    setup(r);
+    applyProgressionOutcome({ userId: 'u-1', runId: 'run-1', mode: 'ranked' }, { status: 'confirmed', result: r, profile: profile(), deduped: false } as never);
+    useProgression.setState({ crateList: sealed.map((id, i) => sealedRow(id, i + 2)) });
+    ui = mount(<CollectionPage reducedMotion />);
+  }
+
+  it('the end screen shows no crate row and no Open button, only the one line pointing to the Collection', () => {
     setup(result());
     ui = mount(<ProgressionPostgame localKey="42" active reducedMotion />);
-    expect(text('.acctxp-crates-head')).toBe('Crate earned');
-    expect(text('.acctxp-crates-sub')).toBe('Open now, or later from your Collection.');
-    expect(button('Open')).toBeTruthy();
+    expect($('.acctxp-crates')).toBeNull();
+    expect(button('Open')).toBeUndefined();
+    expect(text('.acctxp-waiting span:last-child')).toBe('New rewards are waiting in your Collection.');
     expect(openCrateRemote).not.toHaveBeenCalled();
-    expect($('.crth')).toBeNull();
     noDashes();
   });
 
-  it('Open plays the theatre: the reward chosen by the server (name, rarity), the returned profile adopted; Done closes it', async () => {
-    setup(result());
+  it('the Collection opens with the New rewards pop-up; Open plays the theatre on that crate; the pop-up never comes back', async () => {
     openCrateRemote.mockResolvedValue({ status: 'ok', value: opened('c-2', 'title_stormcaller'), profile: profile({ titles: ['alpha_tester', 'title_stormcaller'], revision: 10 }) });
-    ui = mount(<ProgressionPostgame localKey="42" active reducedMotion />);
-    act(() => button('Open')!.click());
+    landAndOpen(result(), ['c-2']);
+    expect(text('.nrw-title')).toBe('New rewards');
+    expect(text('.nrw-crates .nrw-kicker')).toBe('Crate earned');
+    expect(text('.nrw-crates .nrw-note')).toBe('Level 2 Crate');
+    act(() => document.querySelector<HTMLButtonElement>('.nrw-crates .crate-btn')!.click());
     await settle();
+    expect($('.nrw-panel')).toBeNull();
     expect(openCrateRemote).toHaveBeenCalledWith('c-2');
-    expect(text('.crate-reward-kind')).toBe('New title');
     expect(text('.crate-reward-name')).toBe('Stormcaller');
-    expect(text('.crate-reward-rarity')).toBe('Rare');
-    expect($('.crate-reward')!.className).toContain('r-rare');
-    expect(useProgression.getState().mirror!.titles).toEqual(['alpha_tester', 'title_stormcaller']);
-    expect(useProgression.getState().crateList!.map((c) => [c.crateId, c.state])).toEqual([['c-2', 'opened']]);
-    expect(button('Open next')).toBeUndefined();
-    act(() => button('Done')!.click());
-    expect($('.crth')).toBeNull();
-    expect($('.acctxp-crates')).toBeNull(); // nothing left sealed from this game
+    expect(useNewRewards.getState().unseen.crates).toEqual([]); // seen
+    ui!.unmount();
+    ui = mount(<CollectionPage reducedMotion />);
+    expect($('.nrw-panel')).toBeNull();
   });
 
-  it('several crates: "2 crates earned", then "Open next" after the first reveal', async () => {
-    setup(result({ before: { lifetimeXp: 0, level: 1 }, after: { lifetimeXp: 250, level: 2 }, cratesAwarded: 2, crateIds: ['c-1', 'c-2'], mode: 'tutorial', runId: 'learn-ascent:v1' }));
-    useProgression.setState({ current: { ...useProgression.getState().current!, mode: 'tutorial', runId: 'learn-ascent:v1' } });
-    openCrateRemote.mockResolvedValueOnce({ status: 'ok', value: opened('c-1', 'title_wanderer', 1, 1), profile: profile() });
-    openCrateRemote.mockResolvedValueOnce({ status: 'ok', value: opened('c-2', 'title_the_unbroken', 2, 0), profile: profile() });
-    ui = mount(<ProgressionPostgame localKey="42" active reducedMotion />);
-    expect(text('.acctxp-crates-head')).toBe('2 crates earned');
-    act(() => button('Open')!.click());
+  it('several crates: "2 crates earned" with Open all', () => {
+    landAndOpen(result({ cratesAwarded: 2, crateIds: ['c-1', 'c-2'], after: { lifetimeXp: 600, level: 3 } }), ['c-1', 'c-2']);
+    expect(text('.nrw-crates .nrw-kicker')).toBe('2 crates earned');
+    expect([...document.querySelectorAll('.nrw-crates button')].map((b) => b.textContent)).toEqual(['Open', 'Open all (2)']);
+  });
+
+  it('a crate already opened elsewhere drops out of the pop-up (and a pop-up left with nothing never shows)', async () => {
+    landAndOpen(result(), []);
     await settle();
-    expect(openCrateRemote).toHaveBeenLastCalledWith('c-1');
-    expect(text('.crate-name')).toBe('Welcome Crate');
-    expect(text('.crate-reward-name')).toBe('Wanderer');
-    act(() => button('Open next')!.click());
-    await settle();
-    expect(openCrateRemote).toHaveBeenLastCalledWith('c-2');
-    expect(text('.crate-name')).toBe('Level 2 Crate');
-    expect(text('.crate-reward-name')).toBe('The Unbroken');
-    expect(text('.crate-reward-rarity')).toBe('Legendary');
-    expect(button('Open next')).toBeUndefined();
+    expect($('.nrw-panel')).toBeNull();
   });
 
-  it('pool exhausted: said plainly, the crate stays sealed, no reward shown', async () => {
-    setup(result());
-    openCrateRemote.mockResolvedValue({ status: 'ok', profile: profile(), value: { status: 'pool_exhausted', rewardId: null, sealedRemaining: 1, crate: { crateId: 'c-2', earnedLevel: 2, state: 'sealed', rewardId: null, earnedAt: 't0', openedAt: null } } });
-    ui = mount(<ProgressionPostgame localKey="42" active reducedMotion />);
-    act(() => button('Open')!.click());
-    await settle();
-    expect(text('.crate-note')).toBe('You own every reward for now. This crate stays sealed until new rewards arrive.');
-    expect($('.crate-reward')).toBeNull();
-    expect(useProgression.getState().crateList!.map((c) => c.state)).toEqual(['sealed']);
-  });
-
-  it('a failed open says so and offers Try again', async () => {
-    setup(result());
-    openCrateRemote.mockResolvedValueOnce({ status: 'error', reason: 'timeout' });
-    openCrateRemote.mockResolvedValueOnce({ status: 'ok', value: opened('c-2', 'title_ironbeard'), profile: profile() });
-    ui = mount(<ProgressionPostgame localKey="42" active reducedMotion />);
-    act(() => button('Open')!.click());
-    await settle();
-    expect(text('.crate-note')).toBe('Could not open the crate. Try again.');
-    act(() => button('Try again')!.click());
-    await settle();
-    expect(text('.crate-reward-name')).toBe('Ironbeard');
-  });
-
-  it('hidden while the crates switch is off, and when the game created no crate', () => {
-    setup(result(), 'off');
-    ui = mount(<ProgressionPostgame localKey="42" active reducedMotion />);
-    expect($('.acctxp-crates')).toBeNull();
-    expect($('.acctxp')).not.toBeNull(); // the XP panel itself still shows
-    ui.unmount();
-    setup(result({ cratesAwarded: 0, crateIds: [], after: { lifetimeXp: 325, level: 1 } }));
-    ui = mount(<ProgressionPostgame localKey="42" active reducedMotion />);
-    expect($('.acctxp-crates')).toBeNull();
-  });
-
-  it('a crate already opened elsewhere is not offered again', () => {
-    setup(result());
-    useProgression.setState({ crateList: [{ crateId: 'c-2', earnedLevel: 2, state: 'opened', rewardId: 'title_wanderer', earnedAt: null, openedAt: null }] });
-    ui = mount(<ProgressionPostgame localKey="42" active reducedMotion />);
-    expect($('.acctxp-crates')).toBeNull();
-  });
-
-  it('a guest who earns a crate gets the same save prompt', () => {
+  it('a guest who earns a crate still gets the save prompt on the end screen', () => {
     useGame.setState({ account: { userId: 'u-1', email: null, anonymous: true, discriminator: null } });
     setup(result({ before: { lifetimeXp: 300, level: 2 }, after: { lifetimeXp: 510, level: 3 }, crateIds: ['c-3'] }));
     ui = mount(<ProgressionPostgame localKey="42" active reducedMotion />);

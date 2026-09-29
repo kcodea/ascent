@@ -15,8 +15,8 @@
  */
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import type { SetId } from '@game/content';
-import type { FightRow, LobbyStrength, StrengthInput } from '@game/sim';
-import { CONFIG, RANK_SEASON, initialRankedProfile, lobbyStrengthOf, excludeOwnFights, parseLobbyStrength, parseRankResult, parseRankedProfile, registerBoardRecords, registerOpponents, type BoardSnapshot, type DerivedRun, type PlayerKeyBasis, type RankedProfile, type ReplayV2, type RunTelemetry, type RunTelemetryRow, type TelemetrySource, isRankPosition, type RankPosition } from '@game/sim';
+import type { FightRow, LobbyStrength, MatchDetails, StrengthInput } from '@game/sim';
+import { CONFIG, RANK_SEASON, initialRankedProfile, lobbyStrengthOf, excludeOwnFights, parseLobbyStrength, parseMatchDetails, parseRankResult, parseRankedProfile, registerBoardRecords, registerOpponents, type BoardSnapshot, type DerivedRun, type PlayerKeyBasis, type RankedProfile, type ReplayV2, type RunTelemetry, type RunTelemetryRow, type TelemetrySource, isRankPosition, type RankPosition } from '@game/sim';
 import { currentIdentity, currentUserId, setIdentity, type AuthProvider, type Identity } from './identity';
 import type { RankSubmitOutcome, RankSubmitRequest } from './rank/types';
 import { careerRunOf, joinTelemetry, type CareerRun, type RunHistoryRowLike, type TelemetryProbeRow } from './careerData';
@@ -1324,6 +1324,8 @@ export interface PracticeReplayPayload {
   mode?: string;
   actions: readonly unknown[];
   v2: ReplayV2;
+  /** MATCH DETAILS (2026-09-28): the table at this game's end (`buildMatchDetails`). Optional: older rows lack it. */
+  match?: MatchDetails;
 }
 
 /** PostgREST / Postgres errors that mean "the `replay` column is not there yet" (the owner has not run the
@@ -1380,12 +1382,14 @@ export async function uploadPracticeGame(g: PracticeGameUpload): Promise<number 
 /** A Practice-tab row: the Recent Games banner's row plus the practice options it ran under. */
 export interface PracticeGameRow extends RecentGameRow {
   practice: PracticeGameConfig | null;
+  /** MATCH DETAILS (2026-09-28), read off `replay->match`. Null on older rows and without the `replay` column. */
+  match?: MatchDetails | null;
 }
 
 const PRACTICE_BASE = 'id, user_id, author, hero_id, wins, placement, created_at, picked_runes, final_board, record, wave, duration_ms, config';
 /** The practice list selects, richest first: with the light replay probe (`replay->v2->version`, never the
  *  payload), then without it for a backend that has not run the 2026-09-27 `replay` migration. */
-const PRACTICE_SELECTS: readonly string[] = [`${PRACTICE_BASE}, replay_v2_version:replay->v2->version`, PRACTICE_BASE];
+const PRACTICE_SELECTS: readonly string[] = [`${PRACTICE_BASE}, replay_v2_version:replay->v2->version, match:replay->match`, PRACTICE_BASE];
 
 /** Run one practice list query down the select ladder: a query ERROR (the `replay` column missing) tries the
  *  plainer select; a timeout or a clean answer ends the walk. Null on timeout. */
@@ -1416,6 +1420,8 @@ export function asPracticeGameRow(r: Record<string, unknown>): PracticeGameRow {
     practice: cfg && (cfg.opponents === 'players' || cfg.opponents === 'bots')
       ? { opponents: cfg.opponents, botDifficulty: numOf(cfg.botDifficulty) ?? 0, health: cfg.health === 'normal' ? 'normal' : 'unlimited' }
       : null,
+    // MATCH DETAILS (2026-09-28): the small `replay->match` projection (never the replay itself). Absent = older row.
+    match: parseMatchDetails(r.match),
   };
 }
 

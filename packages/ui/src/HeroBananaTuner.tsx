@@ -1,6 +1,6 @@
 import {
   BANANA_TIER_SUFFIXES, HERO_BANANA_DEFAULTS, HERO_BANANA_RANGES, TIERS, bananaPlan, getHeroBananaConfig,
-  heroBananaConfigJson, heroBananaPreviewSpeed, resetHeroBananaConfig, setHeroBananaPreviewSpeed, setHeroBananaValue,
+  heroBananaConfigJson, resetHeroBananaConfig, setHeroBananaValue,
   type BananaTierSuffix, type HeroBananaConfig, type HeroBananaNumKey, type HeroBananaStrKey, type TierNum,
 } from './heroBanana/heroBananaConfig';
 import { clipNames } from './sfx';
@@ -192,13 +192,13 @@ export function demo(
   const cfg = getHeroBananaConfig();
   return playAttackDemo(side, (o) => playHeroBanana(o), {
     board: boardOfDamage(opts.damage ?? cfg.previewDamage, opts.parts ?? cfg.previewParts),
-    speed: heroBananaPreviewSpeed(), reduced: opts.reduced, frames: opts.frames, sound: opts.sound, safety: opts.safety,
+    speed: 1, reduced: opts.reduced, frames: opts.frames, sound: opts.sound, safety: opts.safety,
   }, () => { live = null; }).then((h) => { live = h; return h; });
 }
 
 // DEV: a console / capture-rig handle on the same player the buttons use.
 if (import.meta.env.DEV && typeof window !== 'undefined') {
-  (window as unknown as { __heroBanana?: unknown }).__heroBanana = { demo, previewParts, setSpeed: setHeroBananaPreviewSpeed };
+  (window as unknown as { __heroBanana?: unknown }).__heroBanana = { demo, previewParts };
 }
 
 export const SPEC: TunerSpec<BananaTunerValues> = {
@@ -231,7 +231,7 @@ export const SPEC: TunerSpec<BananaTunerValues> = {
     { label: '▶ Foe huge (40)', hint: 'The foe fires at your hero for 40.', run: () => { void demo('opp', { damage: 40, parts: 7 }); } },
   ],
   // Owner 2026-09-29: the Copy / Reset / Play row goes at the TOP of every attack tuner; no Speed or Reduced motion rows.
-  buttonsTop: true,
+  buttonsOnTop: true,
 };
 
 export function HeroBananaTuner(): JSX.Element {

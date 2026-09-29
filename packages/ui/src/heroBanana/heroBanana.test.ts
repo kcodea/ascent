@@ -135,7 +135,7 @@ describe('the tuner values', () => {
     expect(json.t4Giant).toBe(1);
     expect(SPEC.controls.find((c) => c.key === 'attackStyle')?.options).toContain('banana');
     expect(DEV_HERO_ATTACK_CHOICES).toContain('banana');
-    expect(SPEC.buttonsTop).toBe(true);
+    expect(SPEC.buttonsOnTop).toBe(true);
     const labels = SPEC.actions?.map((a) => a.label) ?? [];
     for (const l of ['▶ Small (3)', '▶ Tier II (8)', '▶ Medium (12)', '▶ Huge (40)', '▶ Foe small (3)', '▶ Foe huge (40)']) expect(labels).toContain(l);
     for (const l of labels) expect(l).not.toMatch(/speed|reduced/i);
@@ -855,7 +855,7 @@ describe('the scene (headless Pixi)', () => {
 describe('the cosmetic', () => {
   it("Oona's Banana Cannon (attack_banana) is a Legendary crate hero attack that plays the banana style; the dev override can force it; unknown ids play Classic", () => {
     expect(COSMETIC_INDEX.attack_banana).toMatchObject({ category: 'hero_attack', rarity: 'legendary', name: "Oona's Banana Cannon", assets: { style: 'banana' }, active: true });
-    expect(HERO_ATTACK_STYLES).toEqual(['classic', 'blast', 'quake', 'arcana', 'blades', 'enraged', 'poison', 'frost', 'holy', 'banana']);
+    expect(HERO_ATTACK_STYLES).toEqual(['classic', 'blast', 'quake', 'arcana', 'blades', 'enraged', 'poison', 'frost', 'holy', 'fire', 'undead', 'beast', 'banana']);
     expect(styleOfCosmetic('attack_banana')).toBe('banana');
     for (const [id, st] of [['attack_blast', 'blast'], ['attack_quake', 'quake'], ['attack_poison', 'poison'], ['attack_holy', 'holy']] as const) {
       expect(styleOfCosmetic(id)).toBe(st);

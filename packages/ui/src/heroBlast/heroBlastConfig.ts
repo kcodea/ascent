@@ -13,8 +13,10 @@
  *  2. CHARGE [anticipation]. The total dives into the attacking hero, who swells while light gathers under a riser;
  *     the view pushes in on the hero; on the big tiers the rest of the screen dims around the two heroes.
  *  3. FIRE. The hero recoils; a muzzle flash; THICK bolts (white-hot core, side-coloured glow, a tapering comet tail)
- *     accelerate into the target. The top tier fires ONE colossal beam instead.
- *  4. IMPACT [directional shake: Vlambeer, Hearthstone Strikes]. The flash starts at its brightest (no hit-stop: the owner
+ *     accelerate into the target: one, a volley of two, a barrage of five. The top tier fires ONE colossal beam
+ *     instead, which lands (a tick), holds, then DRAINS into the struck hero: the light implodes into it and
+ *     detonates in an arcane SUPERNOVA (rays, a triple shockwave, a screen-wide ring). Owner 2026-09-29.
+ *  4. IMPACT [directional shake: Vlambeer, Hearthstone Strikes] (at IV, the supernova). The flash starts at its brightest (no hit-stop: the owner
  *     ruled it out 2026-09-28, "it looks like lag"),
  *     the portrait squashes and is knocked back, the camera punches in on the target and shakes ALONG the line of fire,
  *     chunky sparks fall. THIS is the beat the consequence lands on (the damage number, Armor, Resolve). The big tiers
@@ -23,8 +25,8 @@
  * DAMAGE TIERS (Hearthstone's Strikes step up with the blow; our thresholds follow the engine's per-round loss caps of
  * 5 / 10 / 15 / 20): I 1-5, II 6-11, III 12-19, IV 20+. APPROVED by the owner 2026-09-28 ("those are good thresholds,
  * this blast animation looks good! make it a legendary reward"): 6 / 12 / 20 are the shipped defaults. Every tier escalates the numbers' flight, the slam, the charge,
- * the volley, the camera, the impact and the audio. Small hits stay brisk (~1.8 s); the top tier earns a
- * ~3.5 s show. Reduced motion: no flight, bolts, shake or zoom; the numbers and the total fade.
+ * the volley, the camera, the impact and the audio. Small hits stay brisk (~1.2 s after the formation); the top tier
+ * earns a ~2.9 s show (the beam and the supernova). Reduced motion: no flight, bolts, shake or zoom; numbers fade.
  *
  * Tuner convention (the crate's): localStorage in DEV only, values clamped on write and on load; production always
  * plays DEFAULTS. The preview speed is how you are LOOKING and is never saved.
@@ -32,7 +34,7 @@
 
 import { hexToNum } from '../heroAttack/easing';
 import {
-  HERO_ATTACK_TIER_THRESHOLDS, TIERS, reducedAttackTimeline, tierOf as sharedTierOf, type TierNum,
+  HERO_ATTACK_TIER_THRESHOLDS, TIERS, reducedAttackTimeline, tierOf as sharedTierOf, type TierNum, attackTier, type AttackTierContext,
 } from '../heroAttack/tiers';
 
 export { TIERS, hexToNum, type TierNum };
@@ -40,7 +42,7 @@ export { TIERS, hexToNum, type TierNum };
 /** The per-tier dials. A config key is `t1..t4` + one of these. */
 export const TIER_SUFFIXES = [
   'ChargeMs', 'Motes', 'Bolts', 'BoltSize', 'Shake', 'Zoom', 'Punch',
-  'Sparks', 'SettleMs', 'Dim', 'Booms', 'Beam',
+  'Sparks', 'SettleMs', 'Dim', 'Booms', 'Beam', 'Nova',
 ] as const;
 export type TierSuffix = (typeof TIER_SUFFIXES)[number];
 type TierKey = `t${TierNum}${TierSuffix}`;
@@ -58,6 +60,11 @@ interface GlobalConfig {
   trailLength: number;
   recoilPx: number;
   beamHoldMs: number;
+  // Supernova (a tier with Nova on: the beam drains into the target, which implodes, then detonates)
+  collapseMs: number;
+  collapseMotes: number;
+  novaSize: number;
+  novaRays: number;
   // Impact
   flashSize: number;
   flashAlpha: number;
@@ -79,6 +86,8 @@ interface GlobalConfig {
   sfxThumpClip: string; sfxThumpGain: number; sfxThumpRate: number;
   sfxBigClip: string; sfxBigGain: number; sfxBigRate: number;
   sfxBoomClip: string; sfxBoomGain: number; sfxBoomRate: number;
+  sfxCollapseClip: string; sfxCollapseGain: number; sfxCollapseRate: number;
+  sfxNovaClip: string; sfxNovaGain: number; sfxNovaRate: number;
   sfxImpactLenMs: number;
   sfxBoomLenMs: number;
   sfxTailMix: number;
@@ -92,18 +101,24 @@ export type HeroBlastConfig = GlobalConfig & Record<TierKey, number>;
 export const HERO_BLAST_COLOR_KEYS = ['colorCore', 'colorPlayer', 'colorFoe'] as const;
 export const HERO_BLAST_CLIP_KEYS = [
   'sfxChargeClip', 'sfxFireClip', 'sfxBeamClip', 'sfxImpactClip', 'sfxThumpClip', 'sfxBigClip', 'sfxBoomClip',
+  'sfxCollapseClip', 'sfxNovaClip',
 ] as const;
 type ColorKey = (typeof HERO_BLAST_COLOR_KEYS)[number];
 type ClipKey = (typeof HERO_BLAST_CLIP_KEYS)[number];
 export type HeroBlastStrKey = ColorKey | ClipKey;
 export type HeroBlastNumKey = Exclude<keyof HeroBlastConfig, HeroBlastStrKey>;
 
-/** Tier I .. IV per suffix: the escalation ladder. */
+/**
+ * Tier I .. IV per suffix: the escalation ladder. FOUR distinct steps (owner 2026-09-29, "use the same 4 tier strategy
+ * we have been. add a tier to the blast attack so they all have 4"), the way Arcana and Frost ladder:
+ * I one bolt; II a two-bolt volley; III a BARRAGE of five fanned bolts; IV the colossal beam, which drains into the
+ * struck hero, implodes and detonates in an arcane SUPERNOVA (the blow lands on the detonation).
+ */
 const TIER_DEFAULTS: Record<TierSuffix, [number, number, number, number]> = {
   ChargeMs: [300, 400, 560, 820],
   Motes: [12, 18, 28, 44],
-  Bolts: [1, 2, 3, 1],
-  BoltSize: [1, 1.2, 1.4, 2.2],
+  Bolts: [1, 2, 5, 1],
+  BoltSize: [1, 1.2, 1.3, 2.2],
   Shake: [5, 8, 12, 18],
   Zoom: [0.02, 0.03, 0.045, 0.065],
   Punch: [0.02, 0.028, 0.038, 0.055],
@@ -112,6 +127,7 @@ const TIER_DEFAULTS: Record<TierSuffix, [number, number, number, number]> = {
   Dim: [0, 0.18, 0.34, 0.5],
   Booms: [0, 0, 2, 4],
   Beam: [0, 0, 0, 1],
+  Nova: [0, 0, 0, 1],
 };
 
 export const TIER_RANGES: Record<TierSuffix, [number, number, number]> = {
@@ -127,6 +143,7 @@ export const TIER_RANGES: Record<TierSuffix, [number, number, number]> = {
   Dim: [0, 0.8, 0.01],
   Booms: [0, 6, 1],
   Beam: [0, 1, 1],
+  Nova: [0, 1, 1],
 };
 
 const tierDefaults = Object.fromEntries(TIERS.flatMap((t) => TIER_SUFFIXES.map((s) => [`t${t}${s}`, TIER_DEFAULTS[s][t - 1]]))) as Record<TierKey, number>;
@@ -142,6 +159,10 @@ export const HERO_BLAST_DEFAULTS: HeroBlastConfig = {
   trailLength: 1,
   recoilPx: 18,
   beamHoldMs: 230,
+  collapseMs: 340,
+  collapseMotes: 30,
+  novaSize: 1,
+  novaRays: 12,
   flashSize: 1,
   flashAlpha: 1,
   knockPx: 22,
@@ -159,6 +180,8 @@ export const HERO_BLAST_DEFAULTS: HeroBlastConfig = {
   sfxThumpClip: 'smack2', sfxThumpGain: 0.5, sfxThumpRate: 0.82,
   sfxBigClip: 'crit', sfxBigGain: 0.45, sfxBigRate: 0.9,
   sfxBoomClip: 'fx/triple-impact', sfxBoomGain: 0.35, sfxBoomRate: 1.1,
+  sfxCollapseClip: 'runeselectimplosion', sfxCollapseGain: 0.7, sfxCollapseRate: 1,
+  sfxNovaClip: 'turnexplosion', sfxNovaGain: 0.6, sfxNovaRate: 1.12,
   sfxImpactLenMs: 1300,
   sfxBoomLenMs: 700,
   sfxTailMix: 0.12,
@@ -178,6 +201,10 @@ const GLOBAL_RANGES: Record<Exclude<keyof GlobalConfig, HeroBlastStrKey>, [numbe
   trailLength: [0, 2.5, 0.05],
   recoilPx: [0, 60, 1],
   beamHoldMs: [0, 800, 10],
+  collapseMs: [120, 900, 10],
+  collapseMotes: [0, 60, 1],
+  novaSize: [0.3, 2.5, 0.05],
+  novaRays: [0, 20, 1],
   flashSize: [0.2, 3, 0.05],
   flashAlpha: [0, 1, 0.01],
   knockPx: [0, 60, 1],
@@ -192,6 +219,8 @@ const GLOBAL_RANGES: Record<Exclude<keyof GlobalConfig, HeroBlastStrKey>, [numbe
   sfxThumpGain: [0, 2, 0.05], sfxThumpRate: [0.5, 2, 0.01],
   sfxBigGain: [0, 2, 0.05], sfxBigRate: [0.5, 2, 0.01],
   sfxBoomGain: [0, 2, 0.05], sfxBoomRate: [0.5, 2, 0.01],
+  sfxCollapseGain: [0, 2, 0.05], sfxCollapseRate: [0.5, 2, 0.01],
+  sfxNovaGain: [0, 2, 0.05], sfxNovaRate: [0.5, 2, 0.01],
   sfxImpactLenMs: [150, 3500, 10],
   sfxBoomLenMs: [100, 3000, 10],
   sfxTailMix: [0, 0.6, 0.01],
@@ -207,7 +236,7 @@ export const HERO_BLAST_RANGES: Record<HeroBlastNumKey, [number, number, number]
 };
 
 /** The hard ceilings a plan can never exceed, whatever the sliders say (so a 40 stays clean, not cluttered). */
-export const BLAST_CAPS = { bolts: 6, shakePx: 40, zoom: 0.14, sparks: 70, booms: 6 } as const;
+export const BLAST_CAPS = { bolts: 6, shakePx: 40, zoom: 0.14, sparks: 70, booms: 6, novaRays: 20 } as const;
 
 const HEX = /^#[0-9a-f]{6}$/i;
 const isColorKey = (k: string): k is ColorKey => (HERO_BLAST_COLOR_KEYS as readonly string[]).includes(k);
@@ -291,7 +320,7 @@ export function tierDials(tier: TierNum, c: HeroBlastConfig = cfg): Record<TierS
   return Object.fromEntries(TIER_SUFFIXES.map((s) => [s, c[`t${tier}${s}`]])) as Record<TierSuffix, number>;
 }
 
-export interface BlastPlanInput {
+export interface BlastPlanInput extends AttackTierContext {
   /** When the style's own attack starts: the end of the shared damage formation (`formationPlan().endAt`). */
   leadIn?: number;
   /** THE blow, as the engine decided it. */
@@ -324,8 +353,19 @@ export interface BlastPlan {
   motes: number;
   /** The top tier fires one colossal beam (the lead "bolt" is the beam's front). */
   beam: boolean;
+  /**
+   * The top tier's finale: the beam lands (`beamHitAt`, a tick with FX only), holds, then DRAINS into the struck hero
+   * from `collapseAt` (the implosion), which detonates in a supernova on `impactAt`.
+   */
+  nova: boolean;
   bolts: BlastBolt[];
-  /** THE consequence beat: the lead bolt (or the beam's front) lands. */
+  /** The lead bolt (or the beam's front) reaches the target. Equals `impactAt` unless the tier has a nova. */
+  beamHitAt: number;
+  /** Nova only: the beam starts draining into the target and it implodes (else = impactAt). */
+  collapseAt: number;
+  /** Nova rays (0 without a nova). */
+  novaRays: number;
+  /** THE consequence beat: the lead bolt (or the beam's front) lands, or at a nova tier, the supernova detonates. */
   impactAt: number;
   /** Secondary explosions around the target, sequence ms. */
   booms: number[];
@@ -351,7 +391,7 @@ export function boltTravelMs(distance: number, pxPerSec: number): number {
 /** The whole Blast, in base ms (divide by the playback speed for real time). Pure and deterministic. */
 export function blastPlan(input: BlastPlanInput, c: HeroBlastConfig = cfg): BlastPlan {
   const total = Math.max(0, Math.round(input.total));
-  const tier = tierOf(total, c);
+  const tier = attackTier(total, input, c); // a knockout always plays Tier IV (heroAttack/tiers.ts)
   const T = tierDials(tier, c);
   const k = (tier - 1) / 3;
 
@@ -361,7 +401,8 @@ export function blastPlan(input: BlastPlanInput, c: HeroBlastConfig = cfg): Blas
     const { impactAt } = r;
     return {
       reduced: true, tier, k, total,
-      chargeAt: impactAt, absorbEnd: impactAt, fireAt: impactAt, motes: 0, beam: false, bolts: [], impactAt,
+      chargeAt: impactAt, absorbEnd: impactAt, fireAt: impactAt, motes: 0, beam: false, nova: false, bolts: [],
+      beamHitAt: impactAt, collapseAt: impactAt, novaRays: 0, impactAt,
       booms: [], endAt: r.endAt, shakePx: 0, zoom: 0, punch: 0, sparks: 0, flashScale: 0, dim: 0,
     };
   }
@@ -382,15 +423,23 @@ export function blastPlan(input: BlastPlanInput, c: HeroBlastConfig = cfg): Blas
     const side = i === 0 ? 0 : (i % 2 === 1 ? 1 : -1) * (1 + Math.floor((i - 1) / 2) * 0.6);
     bolts.push({ fireAt: at, travelMs: tr, arriveAt: at + tr, size: T.BoltSize * (i === 0 ? 1 : 0.72), curve: c.boltCurve * side });
   }
-  const impactAt = bolts[0]!.arriveAt;
+  const beamHitAt = bolts[0]!.arriveAt;
+  // The supernova needs the beam: a nova on a bolt tier is ignored (the tuner can switch either independently).
+  const nova = beam && T.Nova >= 1;
+  const collapseAt = nova ? beamHitAt + c.beamHoldMs : beamHitAt;
+  const impactAt = nova ? collapseAt + c.collapseMs : beamHitAt;
   const lastHit = Math.max(...bolts.map((b) => b.arriveAt));
   const nBooms = clamp(Math.round(T.Booms), 0, BLAST_CAPS.booms);
   const booms = Array.from({ length: nBooms }, (_, i) => impactAt + 120 + i * 95);
-  const lastBeat = Math.max(lastHit + 160, impactAt + (beam ? c.beamHoldMs : 0), booms.length ? booms[booms.length - 1]! + 120 : 0, impactAt + c.zoomOutMs * 0.8);
+  const lastBeat = Math.max(
+    lastHit + 160, impactAt + (beam && !nova ? c.beamHoldMs : 0), booms.length ? booms[booms.length - 1]! + 120 : 0,
+    impactAt + c.zoomOutMs * (nova ? 1.2 : 0.8),
+  );
   const endAt = lastBeat + T.SettleMs;
 
   return {
-    reduced: false, tier, k, total, chargeAt, absorbEnd, fireAt, motes: Math.round(T.Motes), beam, bolts, impactAt,
+    reduced: false, tier, k, total, chargeAt, absorbEnd, fireAt, motes: Math.round(T.Motes), beam, nova, bolts,
+    beamHitAt, collapseAt, novaRays: nova ? Math.round(clamp(c.novaRays, 0, BLAST_CAPS.novaRays)) : 0, impactAt,
     booms,
     endAt,
     shakePx: clamp(T.Shake, 0, BLAST_CAPS.shakePx),
@@ -402,7 +451,7 @@ export function blastPlan(input: BlastPlanInput, c: HeroBlastConfig = cfg): Blas
   };
 }
 
-export type BlastCueKind = 'charge' | 'fire' | 'impact' | 'hit' | 'boom' | 'end';
+export type BlastCueKind = 'charge' | 'fire' | 'beamhit' | 'collapse' | 'impact' | 'hit' | 'boom' | 'end';
 export interface BlastCue { at: number; kind: BlastCueKind; i: number }
 
 /** Every beat the runner fires, in time order (ties keep this declaration order, so impact precedes end). */
@@ -410,11 +459,15 @@ export function blastCues(p: BlastPlan): BlastCue[] {
   const out: BlastCue[] = [];
   if (!p.reduced) out.push({ at: p.chargeAt, kind: 'charge', i: 0 });
   p.bolts.forEach((b, i) => out.push({ at: b.fireAt, kind: 'fire', i }));
+  if (p.nova) {
+    out.push({ at: p.beamHitAt, kind: 'beamhit', i: 0 });
+    out.push({ at: p.collapseAt, kind: 'collapse', i: 0 });
+  }
   out.push({ at: p.impactAt, kind: 'impact', i: 0 });
   p.bolts.forEach((b, i) => { if (i > 0) out.push({ at: b.arriveAt, kind: 'hit', i }); });
   p.booms.forEach((at, i) => out.push({ at, kind: 'boom', i }));
   out.push({ at: p.endAt, kind: 'end', i: 0 });
-  const order: Record<BlastCueKind, number> = { charge: 4, fire: 5, impact: 6, hit: 7, boom: 8, end: 9 };
+  const order: Record<BlastCueKind, number> = { charge: 4, fire: 5, beamhit: 6, collapse: 7, impact: 8, hit: 9, boom: 10, end: 11 };
   return out.map((c, idx) => ({ c, idx })).sort((a, b) => a.c.at - b.c.at || order[a.c.kind] - order[b.c.kind] || a.idx - b.idx).map((x) => x.c);
 }
 

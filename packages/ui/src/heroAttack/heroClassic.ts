@@ -28,7 +28,7 @@ import { withFormation, type FormationCue } from './formationConfig';
 import type { HeroAttackHandle, HeroAttackOptions } from './options';
 import { Sequence } from './sequence';
 import { PortraitMover, StageCamera } from './stageCamera';
-import { tierOf } from './tiers';
+import { attackTier } from './tiers';
 
 export interface HeroClassicOptions extends HeroAttackOptions {
   cfg?: ClassicConfig;
@@ -126,7 +126,7 @@ export function playHeroClassic(o: HeroClassicOptions): HeroClassicHandle {
   const swing = classicSwing(o.attacker, o.defender, aRect, dRect, aRect.inv);
 
   const { fcfg, fplan } = planFormation(o.formation, o.formationCfg, reduced);
-  const plan = classicPlan({ leadIn: fplan.endAt, tier: tierOf(o.total), swing: swing.times, intensity: o.intensity, reduced }, c);
+  const plan = classicPlan({ leadIn: fplan.endAt, tier: attackTier(o.total, o), swing: swing.times, intensity: o.intensity, reduced }, c);
   const cues = withFormation(fplan, classicCues(plan));
   const doc = typeof document !== 'undefined' ? document : null;
   const host = o.host !== undefined ? o.host : (doc ? doc.body : null);

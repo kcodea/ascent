@@ -139,6 +139,39 @@ const heroAttack = (id: string, name: string, rarity: CosmeticRarity, style: str
   ({ id, category: 'hero_attack', name, rarity, acquisition: { type: 'crate' }, assets: { style }, active: true });
 
 /**
+ * HERO TITLES (owner 2026-09-29: "the hero's title is granted at 3 wins with a hero, then the mastery of that title is
+ * after 10 wins with that hero. the master title should be a golden plate and embroidered text"). Two items per
+ * playable hero, both ACHIEVEMENT-sourced (never in a crate):
+ *   `title_hero_<id>`         the hero's title, from `hero.<id>.titled` (3 Ranked 1sts). Epic; the normal title look.
+ *   `title_hero_<id>_master`  the SAME name as a golden plate with embroidered text, from `hero.<id>.mastery` (10).
+ * The master UPGRADES the title in place: it supersedes the base one everywhere a player picks or sees their titles
+ * (`titleShelf`), the settlement swaps a worn base title for its master the moment it is earned, and every renderer
+ * paints a master title as the plate (`isMasterTitle`).
+ *
+ * Names follow the owner's pattern (Warden "Warded", Gambler "Gambling Addict", Albus "Albus Student"); the rest come
+ * from the 2026-09-28 achievements design pass. One per playable hero, in `ACHIEVEMENT_HEROES` order (achievements.ts;
+ * cosmetics.test.ts fails CI when they drift). This file stays the dependency-free leaf, so the list lives here.
+ */
+export const HERO_TITLE_NAMES: ReadonlyArray<readonly [heroId: string, title: string]> = Object.freeze([
+  ['warden', 'Warded'], ['indy', 'Masterworker'], ['myra', 'Going Once'], ['soren', 'Reclaimed'], ['nadja', 'Wishing Well'],
+  ['cassen', 'On Commission'], ['drakko', 'Drum Major'], ['robin', 'Merry Outlaw'], ['darah', 'Switcheroo'], ['risen', 'Risen Again'],
+  ['gildmaster', 'Gildwright'], ['discodan', 'Groovy'], ['brackus', 'Summit Seeker'], ['baggerben', 'All In'], ['hermithank', 'Penny Pincher'],
+  ['repete', 'Deja Vu'], ['gorr', 'Four Peater'], ['kindness', 'Kind Soul'], ['merrin', 'Pocket Mage'], ['gambler', 'Gambling Addict'],
+  ['xerox', 'Paper Jam'], ['frank', 'Bargain Hunter'], ['quillen', 'Archivist'], ['hunch', 'Bookworm'], ['emeraldwarden', 'Vanguard'],
+  ['albus', 'Albus Student'], ['flash', 'Speedrunner'], ['midas', 'Midas Touched'], ['juggler', 'Juggling Act'], ['bram', 'Compound Interest'],
+  ['cia', 'High Roller'], ['keshi', 'Crownbearer'], ['mimic', 'Not a Mimic'],
+] as const);
+
+/** The catalog id of a hero's title, and of its master (golden plate) version. Permanent. */
+export const heroTitleId = (heroId: string): string => `title_hero_${heroId}`;
+export const heroMasterTitleId = (heroId: string): string => `title_hero_${heroId}_master`;
+
+export const HERO_TITLE_COSMETICS: readonly CosmeticDef[] = Object.freeze(HERO_TITLE_NAMES.flatMap(([heroId, name]): CosmeticDef[] => [
+  { id: heroTitleId(heroId), category: 'title', name, rarity: 'epic', acquisition: { type: 'achievement', id: `hero.${heroId}.titled` }, assets: {}, active: true },
+  { id: heroMasterTitleId(heroId), category: 'title', name, rarity: 'legendary', acquisition: { type: 'achievement', id: `hero.${heroId}.mastery` }, assets: {}, active: true },
+]));
+
+/**
  * THE LAUNCH CATALOG. Owner 2026-09-27: "let's just do 15 titles to start." 7 Common, 5 Rare, 2 Epic,
  * 1 Legendary. Names are placeholders for the owner to rename (ids stay).
  */
@@ -231,12 +264,31 @@ export const COSMETICS: readonly CosmeticDef[] = Object.freeze([
   // fires a flat consecrated blast at the target. The name is the builder's placeholder for the owner to rename (the id
   // stays). Legendary like the other seven.
   heroAttack('attack_holy', 'Consecration', 'legendary', 'holy'),
+  // Owner 2026-09-29: "make some more attack types - we need a fire animation ... it should look like live flame/fires
+  // pixi sprites". Fireballs of live particle fire are hurled (I one, II two, III a volley of five that sets the target
+  // ablaze); IV calls down a meteor that detonates into a fire nova and engulfs the target. The name is the builder's
+  // placeholder for the owner to rename (the id stays). Legendary like the other eight.
+  heroAttack('attack_fire', 'Inferno', 'legendary', 'fire'),
+  // Owner 2026-09-29: "branch off and make some more attack types - we need a fire animation, a bleed/gash animation,
+  // some sort of an undead animation, ...". The undead one (the design left to the builder): a spectral skull shrieks
+  // out of the hero and bites the target; II two skulls, III skeletal hands claw up and drag at the target while a wisp
+  // swarm strikes and a skull finishes it, IV a grave rift tears open and a giant skull maw rises, shrieks, lunges and
+  // chomps, then necrotic mist washes out. The name is the builder's placeholder for the owner to rename (the id stays).
+  // Legendary like the other eight.
+  heroAttack('attack_undead', 'Grave Call', 'legendary', 'undead'),
+  // Owner 2026-09-29: "make some more attack types ... a beast chomp rush animation ... use the same 4 tier strategy we
+  // have been". Spirit beasts leap from the hero and front jaws chomp shut on the target: I one wolf, II a staggered
+  // pair, III a pack of five kicking up dust, IV a colossal beast whose jaws slam over the whole portrait, then it roars.
+  // The name is the builder's placeholder for the owner to rename (the id stays). Legendary like the other eight.
+  heroAttack('attack_beast', 'Stampede', 'legendary', 'beast'),
   // Owner 2026-09-29: "make some more attack types ... i would love a king oona banana cannon animation. use the same 4
   // tier strategy we have been." King Oona's gold-trimmed jungle cannon pops in by the hero and lobs bananas that splat
   // into the target (I one, II a double shot, III a rapid barrage); IV fires a giant golden banana that arcs out of the
   // top of the screen and slams down into a banana-bunch shower and a golden shockwave. The name is the builder's
   // placeholder for the owner to rename (the id stays). Legendary like the other eight.
   heroAttack('attack_banana', "Oona's Banana Cannon", 'legendary', 'banana'),
+  // HERO TITLES (owner 2026-09-29), 33 heroes x (title + golden master). Achievement rewards, never in a crate.
+  ...HERO_TITLE_COSMETICS,
 ]);
 
 export const COSMETIC_INDEX: Readonly<Record<string, CosmeticDef>> = Object.freeze(
@@ -244,6 +296,29 @@ export const COSMETIC_INDEX: Readonly<Record<string, CosmeticDef>> = Object.free
 );
 
 export const cosmeticOf = (id: string | null | undefined): CosmeticDef | null => (id && COSMETIC_INDEX[id] ? COSMETIC_INDEX[id]! : null);
+
+/** A hero title's hero and tier, keyed by title id (both tiers). */
+export interface HeroTitleInfo { heroId: string; master: boolean; baseId: string; masterId: string }
+export const HERO_TITLE_INFO: Readonly<Record<string, HeroTitleInfo>> = Object.freeze(Object.fromEntries(HERO_TITLE_NAMES.flatMap(([heroId]) => {
+  const info = { heroId, baseId: heroTitleId(heroId), masterId: heroMasterTitleId(heroId) };
+  return [[info.baseId, { ...info, master: false }], [info.masterId, { ...info, master: true }]] as const;
+})));
+export const heroTitleInfo = (id: string | null | undefined): HeroTitleInfo | null => (id ? HERO_TITLE_INFO[id] ?? null : null);
+/** A MASTER hero title (10 Ranked 1sts): every renderer paints it as the golden embroidered plate. */
+export const isMasterTitle = (id: string | null | undefined): boolean => heroTitleInfo(id)?.master === true;
+
+/**
+ * THE MASTER SUPERSEDES THE BASE ("upgraded in place"): the title ids a player's lists show, given what they own.
+ * A base hero title is left out once its master is owned; an UNOWNED master is left out (its base stands for both
+ * tiers until then). Everything else passes through. `catalogIds` = the candidates (the album, owned or not).
+ */
+export function titleShelf(catalogIds: readonly string[], owned: ReadonlySet<string>): string[] {
+  return catalogIds.filter((id) => {
+    const h = heroTitleInfo(id);
+    if (!h) return true;
+    return h.master ? owned.has(id) : !owned.has(h.masterId);
+  });
+}
 
 /** The level a level-milestone item is granted at, else null. */
 export const milestoneLevelOf = (c: CosmeticDef): number | null => (c.acquisition.type === 'level_milestone' ? c.acquisition.level : null);

@@ -26,6 +26,28 @@ export function tierOf(total: number, c: TierThresholds = HERO_ATTACK_TIER_THRES
 }
 
 /**
+ * What a blow's tier depends on besides its damage (every style's plan input carries these).
+ *
+ * `knockout`: the blow ELIMINATES the struck player (their Resolve + Armor, going in, is at or under the blow the
+ * engine decided; see `heroStrikeKnockout` in `../heroBlast/heroStrikeDamage.ts`). Owner ask 2026-09-29: "if a
+ * player knocks someone out, it always plays the huge animation".
+ */
+export interface AttackTierContext { knockout?: boolean }
+
+/** A knockout always plays Tier IV ("Huge"), whatever the number. */
+export const KNOCKOUT_TIER: TierNum = 4;
+
+/**
+ * THE TIER EVERY HERO ATTACK PLAYS (every style and the damage formation read their tier here, so a new style gets
+ * the knockout rule by calling this instead of `tierOf`). Presentation only: the damage shown and the consequence
+ * are unchanged; only which version of the attack plays.
+ */
+export function attackTier(total: number, ctx: AttackTierContext | undefined, c: TierThresholds = HERO_ATTACK_TIER_THRESHOLDS): TierNum {
+  if (ctx?.knockout) return KNOCKOUT_TIER;
+  return tierOf(total, c);
+}
+
+/**
  * Reduced motion: the shared damage formation has faded through its stages by `leadIn`; the blow lands there and the
  * total fades out. No motion at all.
  */

@@ -2,8 +2,9 @@ import { describe, expect, it } from 'vitest';
 import {
   ALPHA_TESTER_TITLE_ID, COSMETICS, COSMETIC_CATEGORIES, COSMETIC_CATEGORY_DEFS, COSMETIC_RARITIES, CRATE_RARITY_ODDS, crateChances, crateName, crateOddsLine,
   crateRarityFallback, eligibleCrateCosmetics, parseCrate, parseOpenCrateResult, pickCrateReward,
-  rollCrateRarity, type CosmeticDef,
+  rollCrateRarity, type CosmeticDef, HERO_TITLE_COSMETICS, HERO_TITLE_NAMES, heroMasterTitleId, heroTitleId, heroTitleInfo, isMasterTitle, titleShelf,
 } from './cosmetics';
+import { ACHIEVEMENT_HEROES, ACHIEVEMENT_INDEX } from './achievements';
 import { cratesEarnedThrough, cratesForSettlement, titleName, titlesForLevel } from './rules';
 
 /**
@@ -24,7 +25,11 @@ describe('the launch catalog', () => {
     const byRarity = (r: string): number => crateTitles.filter((c) => c.rarity === r).length;
     expect([byRarity('common'), byRarity('rare'), byRarity('epic'), byRarity('legendary')]).toEqual([7, 5, 2, 1]);
     expect(new Set(COSMETICS.map((c) => c.id)).size).toBe(COSMETICS.length);
-    expect(new Set(COSMETICS.map((c) => c.name)).size).toBe(COSMETICS.length);
+    // Names are unique, except that a hero title's golden MASTER version shares its base title's name (owner
+    // 2026-09-29: the mastery upgrades the same title in place).
+    const distinct = COSMETICS.filter((c) => !isMasterTitle(c.id));
+    expect(new Set(distinct.map((c) => c.name)).size).toBe(distinct.length);
+    for (const c of COSMETICS.filter((x) => isMasterTitle(x.id))) expect(c.name).toBe(COSMETICS.find((b) => b.id === heroTitleInfo(c.id)!.baseId)!.name);
     for (const c of COSMETICS) expect(c.id, c.id).toMatch(/^[a-z][a-z0-9_]*$/);
   });
 
@@ -132,13 +137,14 @@ describe('the roll', () => {
 
   // Pinned 2026-09-29 (fixed odds 50/30/15/5, equal chance within a rarity: roll version 3). Earlier the same day the
   // split inside a rarity was by category weight (roll version 2: Common minion skin 16.667 / title 4.762, Legendary
-  // attack 0.375 / minion skin 0.875 / title 0.25). The catalog then: Common 8 items, Rare 13, Epic 10, Legendary 11; the
-  // ninth hero attack, Oona's Banana Cannon (2026-09-29), made Legendary 12 (each Legendary 5 / 12 = 0.417%).
-  // Adding an item only re-splits its OWN rarity's share; the four rarity numbers never move.
+  // attack 0.375 / minion skin 0.875 / title 0.25). The catalog then: Common 8 items, Rare 13, Epic 10, Legendary 11.
+  // Adding an item only re-splits its OWN rarity's share; the four rarity numbers never move. Re-pinned the same day when
+  // the ninth to twelfth hero attacks, Inferno (attack_fire), Grave Call (attack_undead), the Stampede (attack_beast) and
+  // Oona's Banana Cannon (attack_banana), all Legendary, joined: Legendary 11 -> 15 items (each 5 / 15).
   it('the per-item chances of a first crate (2026-09-29 catalog): each item = its rarity\'s odds / that rarity\'s item count', () => {
     const all = eligibleCrateCosmetics([]);
     const count = (r: string): number => all.filter((c) => c.rarity === r).length;
-    expect(COSMETIC_RARITIES.map(count)).toEqual([8, 13, 10, 12]);
+    expect(COSMETIC_RARITIES.map(count)).toEqual([8, 13, 10, 15]); // 2026-09-29: Inferno, Grave Call, the Stampede and Oona's Banana Cannon made Legendary 15
     const ch = crateChances(all);
     const pct = (id: string): number => Math.round(100000 * ch.get(id)!) / 1000;
     expect(pct('skin_blackbelt_4')).toBe(6.25);       // Common: 50 / 8
@@ -148,12 +154,15 @@ describe('the roll', () => {
     expect(pct('skin_bellringer_1')).toBe(1.5);       // Epic: 15 / 10
     expect(pct('skin_albus_1')).toBe(1.5);
     expect(pct('title_kingbreaker')).toBe(1.5);
-    expect(pct('skin_blackbelt_3')).toBe(0.417);      // Legendary: 5 / 12
-    expect(pct('attack_arcana')).toBe(0.417);
-    expect(pct('attack_banana')).toBe(0.417);
-    expect(pct('title_the_unbroken')).toBe(0.417);
+    expect(pct('skin_blackbelt_3')).toBe(0.333);      // Legendary: 5 / 15
+    expect(pct('attack_arcana')).toBe(0.333);
+    expect(pct('attack_fire')).toBe(0.333);
+    expect(pct('attack_undead')).toBe(0.333);
+    expect(pct('attack_beast')).toBe(0.333);
+    expect(pct('attack_banana')).toBe(0.333);
+    expect(pct('title_the_unbroken')).toBe(0.333);
     const cat = (k: string): number => Math.round(1000 * all.filter((c) => c.category === k).reduce((a, c) => a + ch.get(c.id)!, 0)) / 10;
-    expect([cat('title'), cat('minion_skin'), cat('hero_skin'), cat('hero_attack')]).toEqual([58.7, 34.5, 3, 3.8]);
+    expect([cat('title'), cat('minion_skin'), cat('hero_skin'), cat('hero_attack')]).toEqual([58.6, 34.4, 3, 4]); // twelve attacks x 5 / 15 since Inferno + Grave Call + the Stampede + the Banana Cannon (2026-09-29)
     expect([...ch.values()].reduce((a, b) => a + b, 0)).toBeCloseTo(1, 12);
   });
 
@@ -233,5 +242,40 @@ describe('parsing the server shapes', () => {
     expect(parseOpenCrateResult({ status: 'pool_exhausted', crate: { ...crate, state: 'sealed', rewardId: null }, rewardId: null, sealedRemaining: 1 }))
       .toMatchObject({ status: 'pool_exhausted', rewardId: null });
     expect(parseOpenCrateResult({ status: 'weird', crate, rewardId: 'x', sealedRemaining: 0 })).toBeNull();
+  });
+});
+
+describe(`hero titles (owner 2026-09-29: "the hero's title is granted at 3 wins with a hero, then the mastery of that title is after 10 wins")`, () => {
+  it('two achievement-sourced titles per playable hero: the title (Epic) and its golden master (Legendary), same name', () => {
+    expect(HERO_TITLE_COSMETICS).toHaveLength(ACHIEVEMENT_HEROES.length * 2);
+    // one title per playable hero, in the same order (the hero list lives in achievements.ts)
+    expect(HERO_TITLE_NAMES.map(([id]) => id)).toEqual(ACHIEVEMENT_HEROES.map((h) => h.id));
+    for (const { id } of ACHIEVEMENT_HEROES) {
+      const h = { id, title: HERO_TITLE_NAMES.find(([x]) => x === id)![1] };
+      const base = COSMETICS.find((c) => c.id === heroTitleId(h.id))!;
+      const master = COSMETICS.find((c) => c.id === heroMasterTitleId(h.id))!;
+      expect(base).toMatchObject({ category: 'title', name: h.title, rarity: 'epic', acquisition: { type: 'achievement', id: `hero.${h.id}.titled` }, active: true });
+      expect(master).toMatchObject({ category: 'title', name: h.title, rarity: 'legendary', acquisition: { type: 'achievement', id: `hero.${h.id}.mastery` }, active: true });
+      expect(ACHIEVEMENT_INDEX[`hero.${h.id}.titled`]!.target).toBe(3);
+      expect(ACHIEVEMENT_INDEX[`hero.${h.id}.mastery`]!.target).toBe(10);
+      expect([isMasterTitle(base.id), isMasterTitle(master.id)]).toEqual([false, true]);
+      expect(heroTitleInfo(master.id)).toEqual({ heroId: h.id, master: true, baseId: base.id, masterId: master.id });
+    }
+    // the owner's own examples
+    expect(['warden', 'gambler', 'albus'].map((id) => COSMETICS.find((c) => c.id === heroTitleId(id))!.name)).toEqual(['Warded', 'Gambling Addict', 'Albus Student']);
+    expect(isMasterTitle('title_the_unbroken')).toBe(false);
+    expect(isMasterTitle(null)).toBe(false);
+  });
+
+  it('never in the crate pool', () => {
+    const pool = eligibleCrateCosmetics([]).map((c) => c.id);
+    for (const c of HERO_TITLE_COSMETICS) expect(pool).not.toContain(c.id);
+  });
+
+  it('the master supersedes the base (upgraded in place); an unowned master stays out of the lists', () => {
+    const ids = ['title_wanderer', heroTitleId('warden'), heroMasterTitleId('warden'), heroTitleId('indy'), heroMasterTitleId('indy')];
+    expect(titleShelf(ids, new Set())).toEqual(['title_wanderer', heroTitleId('warden'), heroTitleId('indy')]);
+    expect(titleShelf(ids, new Set([heroTitleId('warden')]))).toEqual(['title_wanderer', heroTitleId('warden'), heroTitleId('indy')]);
+    expect(titleShelf(ids, new Set([heroTitleId('warden'), heroMasterTitleId('warden')]))).toEqual(['title_wanderer', heroMasterTitleId('warden'), heroTitleId('indy')]);
   });
 });

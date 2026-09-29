@@ -30,7 +30,7 @@
  */
 import { clamp, easeInOutSine, hexToNum, type Pt } from '../heroAttack/easing';
 import {
-  HERO_ATTACK_TIER_THRESHOLDS, TIERS, reducedAttackTimeline, tierOf, type TierNum,
+  HERO_ATTACK_TIER_THRESHOLDS, TIERS, reducedAttackTimeline, type TierNum, attackTier, type AttackTierContext,
 } from '../heroAttack/tiers';
 
 export { TIERS, hexToNum, type TierNum };
@@ -383,7 +383,7 @@ export interface ArcanaRibbonPlan {
   size: number;
 }
 
-export interface ArcanaPlanInput {
+export interface ArcanaPlanInput extends AttackTierContext {
   /** When the style's own attack starts: the end of the shared damage formation (`formationPlan().endAt`). */
   leadIn?: number;
   /** THE blow, as the engine decided it. */
@@ -430,7 +430,7 @@ export interface ArcanaPlan {
 /** The whole Arcana, in base ms (divide by the playback speed for real time). Pure and deterministic. */
 export function arcanaPlan(input: ArcanaPlanInput, c: HeroArcanaConfig = cfg): ArcanaPlan {
   const total = Math.max(0, Math.round(input.total));
-  const tier = tierOf(total, c);
+  const tier = attackTier(total, input, c); // a knockout always plays Tier IV (heroAttack/tiers.ts)
   const T = arcanaTierDials(tier, c);
   const k = (tier - 1) / 3;
 

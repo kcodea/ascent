@@ -1,6 +1,6 @@
 import {
-  HERO_QUAKE_DEFAULTS, HERO_QUAKE_RANGES, HERO_QUAKE_SPEEDS, QUAKE_TIER_SUFFIXES, TIERS, getHeroQuakeConfig, heroQuakeConfigJson,
-  heroQuakePreviewSpeed, quakePlan, resetHeroQuakeConfig, setHeroQuakePreviewSpeed, setHeroQuakeValue,
+  HERO_QUAKE_DEFAULTS, HERO_QUAKE_RANGES, QUAKE_TIER_SUFFIXES, TIERS, getHeroQuakeConfig, heroQuakeConfigJson,
+  quakePlan, resetHeroQuakeConfig, setHeroQuakeValue,
   type HeroQuakeConfig, type HeroQuakeNumKey, type HeroQuakeStrKey, type QuakeTierSuffix, type TierNum,
 } from './heroQuake/heroQuakeConfig';
 import { clipNames } from './sfx';
@@ -13,7 +13,7 @@ import type { TunerControl, TunerSpec, TunerUnit } from './tunerSchema';
 /**
  * DEV tuner for the QUAKE hero attack (owner ask 2026-09-28: "make a new attack animation called quake"). The Play
  * buttons run the REAL runner between the two real hero portraits (works from the shop), in either direction, at
- * Small 3 / Medium 12 / Huge 40, with reduced motion, at 1x / 0.5x / 0.25x. A preview never touches the run. The
+ * Small 3 / Medium 12 / Huge 40. A preview never touches the run. The
  * "Attack style" row is the same dev override as the Blast tuner's (Auto = what a player would see). Production
  * plays the baked defaults.
  */
@@ -184,13 +184,13 @@ export function demo(
   const cfg = getHeroQuakeConfig();
   return playAttackDemo(side, (o) => playHeroQuake(o), {
     board: boardOfDamage(opts.damage ?? cfg.previewDamage, opts.parts ?? cfg.previewParts),
-    speed: heroQuakePreviewSpeed(), reduced: opts.reduced, frames: opts.frames, sound: opts.sound, safety: opts.safety,
+    speed: 1, reduced: opts.reduced, frames: opts.frames, sound: opts.sound, safety: opts.safety,
   }, () => { live = null; }).then((h) => { live = h; return h; });
 }
 
 // DEV: a console / capture-rig handle on the same player the buttons use.
 if (import.meta.env.DEV && typeof window !== 'undefined') {
-  (window as unknown as { __heroQuake?: unknown }).__heroQuake = { demo, previewParts, setSpeed: setHeroQuakePreviewSpeed };
+  (window as unknown as { __heroQuake?: unknown }).__heroQuake = { demo, previewParts };
 }
 
 export const SPEC: TunerSpec<QuakeTunerValues> = {
@@ -199,7 +199,7 @@ export const SPEC: TunerSpec<QuakeTunerValues> = {
   note: () => {
     const c = getHeroQuakeConfig();
     const p = quakePlan({ leadIn: previewLeadIn(c.previewDamage, c.previewParts), total: c.previewDamage, distance: 1600 }, c);
-    return `dev · ${heroQuakePreviewSpeed()}x · tier ${p.tier} · slam ${Math.round(p.slamAt)} · impact ${Math.round(p.impactAt)} · end ${Math.round(p.endAt)} ms`;
+    return `dev · tier ${p.tier} · slam ${Math.round(p.slamAt)} · impact ${Math.round(p.impactAt)} · end ${Math.round(p.endAt)} ms`;
   },
   read: () => ({ ...getHeroQuakeConfig(), attackStyle: devHeroAttackChoice() }),
   write: (key, value) => setHeroQuakeValue(key as keyof HeroQuakeConfig, value),
@@ -209,6 +209,7 @@ export const SPEC: TunerSpec<QuakeTunerValues> = {
   controls: buildControls(),
   copy: () => heroQuakeConfigJson(),
   copyLabel: 'Copy JSON',
+  buttonsOnTop: true,
   actions: [
     { label: '▶ You quake', hint: 'Your hero quakes the foe for the preview damage.', run: () => { void demo('player'); } },
     { label: '▶ Foe quakes', hint: 'The foe quakes your hero for the preview damage.', run: () => { void demo('opp'); } },
@@ -219,12 +220,6 @@ export const SPEC: TunerSpec<QuakeTunerValues> = {
     { label: '▶ Foe small (3)', hint: 'The foe quakes your hero for 3.', run: () => { void demo('opp', { damage: 3, parts: 2 }); } },
     { label: '▶ Foe medium (12)', hint: 'The foe quakes your hero for 12.', run: () => { void demo('opp', { damage: 12, parts: 4 }); } },
     { label: '▶ Foe huge (40)', hint: 'The foe quakes your hero for 40.', run: () => { void demo('opp', { damage: 40, parts: 7 }); } },
-    { label: '▶ Reduced motion', hint: 'What a player with reduced motion on sees: fades, no cracks, shake or zoom.', run: () => { void demo('player', { reduced: true }); } },
-    ...HERO_QUAKE_SPEEDS.map((s) => ({
-      label: `Speed ${s}x`,
-      hint: 'Slow motion for the next plays (the tuner only; never saved, never in production).',
-      run: () => { setHeroQuakePreviewSpeed(s); },
-    })),
   ],
 };
 

@@ -1,6 +1,6 @@
 import {
-  BLADES_TIER_SUFFIXES, HERO_BLADES_DEFAULTS, HERO_BLADES_RANGES, HERO_BLADES_SPEEDS, TIERS, bladesPlan, getHeroBladesConfig,
-  heroBladesConfigJson, heroBladesPreviewSpeed, resetHeroBladesConfig, setHeroBladesPreviewSpeed, setHeroBladesValue,
+  BLADES_TIER_SUFFIXES, HERO_BLADES_DEFAULTS, HERO_BLADES_RANGES, TIERS, bladesPlan, getHeroBladesConfig,
+  heroBladesConfigJson, resetHeroBladesConfig, setHeroBladesValue,
   type BladesTierSuffix, type HeroBladesConfig, type HeroBladesNumKey, type HeroBladesStrKey, type TierNum,
 } from './heroBlades/heroBladesConfig';
 import { clipNames } from './sfx';
@@ -13,7 +13,7 @@ import type { TunerControl, TunerSpec, TunerUnit } from './tunerSchema';
 /**
  * DEV tuner for the PHANTOM BLADES hero attack (owner ask 2026-09-28: "make a new style animation and surprise me with
  * it"). The Play buttons run the REAL runner between the two real hero portraits (works from the shop), in either
- * direction, at Small 3 / Tier II 8 / Medium 12 / Huge 40, with reduced motion, at 1x / 0.5x / 0.25x. A preview never
+ * direction, at Small 3 / Tier II 8 / Medium 12 / Huge 40. A preview never
  * touches the run. The "Attack style" row is the same dev override as the other attack tuners' (Auto = what a player
  * would see). Production plays the baked defaults.
  */
@@ -196,13 +196,13 @@ export function demo(
   const cfg = getHeroBladesConfig();
   return playAttackDemo(side, (o) => playHeroBlades(o), {
     board: boardOfDamage(opts.damage ?? cfg.previewDamage, opts.parts ?? cfg.previewParts),
-    speed: heroBladesPreviewSpeed(), reduced: opts.reduced, frames: opts.frames, sound: opts.sound, safety: opts.safety,
+    speed: 1, reduced: opts.reduced, frames: opts.frames, sound: opts.sound, safety: opts.safety,
   }, () => { live = null; }).then((h) => { live = h; return h; });
 }
 
 // DEV: a console / capture-rig handle on the same player the buttons use.
 if (import.meta.env.DEV && typeof window !== 'undefined') {
-  (window as unknown as { __heroBlades?: unknown }).__heroBlades = { demo, previewParts, setSpeed: setHeroBladesPreviewSpeed };
+  (window as unknown as { __heroBlades?: unknown }).__heroBlades = { demo, previewParts };
 }
 
 export const SPEC: TunerSpec<BladesTunerValues> = {
@@ -211,7 +211,7 @@ export const SPEC: TunerSpec<BladesTunerValues> = {
   note: () => {
     const c = getHeroBladesConfig();
     const p = bladesPlan({ leadIn: previewLeadIn(c.previewDamage, c.previewParts), total: c.previewDamage, distance: 1600 }, c);
-    return `dev · ${heroBladesPreviewSpeed()}x · tier ${p.tier} · ${p.blades.length} blade${p.blades.length === 1 ? '' : 's'}${p.great ? ' + greatsword' : ''} · loose ${Math.round(p.fireAt)} · impact ${Math.round(p.impactAt)} · end ${Math.round(p.endAt)} ms`;
+    return `dev · tier ${p.tier} · ${p.blades.length} blade${p.blades.length === 1 ? '' : 's'}${p.great ? ' + greatsword' : ''} · loose ${Math.round(p.fireAt)} · impact ${Math.round(p.impactAt)} · end ${Math.round(p.endAt)} ms`;
   },
   read: () => ({ ...getHeroBladesConfig(), attackStyle: devHeroAttackChoice() }),
   write: (key, value) => setHeroBladesValue(key as keyof HeroBladesConfig, value),
@@ -221,6 +221,7 @@ export const SPEC: TunerSpec<BladesTunerValues> = {
   controls: buildControls(),
   copy: () => heroBladesConfigJson(),
   copyLabel: 'Copy JSON',
+  buttonsOnTop: true,
   actions: [
     { label: '▶ You strike', hint: 'Your hero looses the Blades at the foe for the preview damage.', run: () => { void demo('player'); } },
     { label: '▶ Foe strikes', hint: 'The foe looses the Blades at your hero for the preview damage.', run: () => { void demo('opp'); } },
@@ -232,12 +233,6 @@ export const SPEC: TunerSpec<BladesTunerValues> = {
     { label: '▶ Foe tier II (8)', hint: 'The foe strikes your hero for 8.', run: () => { void demo('opp', { damage: 8, parts: 3 }); } },
     { label: '▶ Foe medium (12)', hint: 'The foe strikes your hero for 12.', run: () => { void demo('opp', { damage: 12, parts: 4 }); } },
     { label: '▶ Foe huge (40)', hint: 'The foe strikes your hero for 40.', run: () => { void demo('opp', { damage: 40, parts: 7 }); } },
-    { label: '▶ Reduced motion', hint: 'What a player with reduced motion on sees: fades, no blades, shake or zoom.', run: () => { void demo('player', { reduced: true }); } },
-    ...HERO_BLADES_SPEEDS.map((s) => ({
-      label: `Speed ${s}x`,
-      hint: 'Slow motion for the next plays (the tuner only; never saved, never in production).',
-      run: () => { setHeroBladesPreviewSpeed(s); },
-    })),
   ],
 };
 

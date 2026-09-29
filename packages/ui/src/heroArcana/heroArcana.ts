@@ -62,7 +62,7 @@ export function playHeroArcana(o: HeroArcanaOptions): HeroArcanaHandle {
   const dist = Math.hypot(o.defender.x - o.attacker.x, o.defender.y - o.attacker.y);
   // THE DAMAGE FORMATION plays first (shared by every style); this style's own attack starts where it ends.
   const { fcfg, fplan } = planFormation(o.formation, o.formationCfg, reduced);
-  const plan = arcanaPlan({ total: o.total, distance: dist, reduced, leadIn: fplan.endAt }, c);
+  const plan = arcanaPlan({ total: o.total, knockout: o.knockout, distance: dist, reduced, leadIn: fplan.endAt }, c);
   const cues = withFormation(fplan, arcanaCues(plan));
   const s = o.pixiScale ?? (typeof window === 'undefined' ? 1 : stageScale());
   const doc = typeof document !== 'undefined' ? document : null;

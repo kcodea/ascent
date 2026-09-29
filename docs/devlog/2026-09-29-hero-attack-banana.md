@@ -1,4 +1,4 @@
-# 2026-09-29: Oona's Banana Cannon, the ninth hero attack (attack_banana, Legendary)
+# 2026-09-29: Oona's Banana Cannon, the twelfth hero attack (attack_banana, Legendary)
 
 Owner ask 2026-09-29: "branch off and make some more attack types - we need a fire animation, a bleed/gash animation,
 some sort of an undead animation, a beast chomp rush animation, and i would love a king oona banana cannon animation.
@@ -74,10 +74,12 @@ The damage lands once: on the last banana (I-III) or on slam 6 (IV). No hit-stop
   during the formation.
 - **Tuner:** new dials for spin, the six slams (count, spacing, reel-back, finisher wind-up and push-in, fly home), how
   far it sinks, the late juice burst (start slam, amount) and juice drips (amount, linger). The Copy / Reset / Play row is at the
-  TOP (a `buttonsTop` option on `TunerSpec`, owner ask for all attack tuners), and the Speed and Reduced motion rows
-  are gone.
-- Oracle R-PROG-ATTACK-15 (rewritten, quotes all three reviews), GAME-RULES, patch note. Crate odds: Legendary has 12
-  items, 0.42% each.
+  TOP (the shared `TunerSpec.buttonsOnTop` from #1843; the branch's own `buttonsTop` copy was dropped on merge), and the
+  Speed and Reduced motion rows are gone. On merging #1849 it picks its tier with the shared `attackTier`, so a knockout
+  always plays Tier IV (the jam).
+- Oracle R-PROG-ATTACK-19 (built as 15; renumbered on merge because Inferno took 15/16, Grave Call 17, the Stampede 18
+  and the knockout rule 20), GAME-RULES, patch note. Crate odds: it landed after Inferno, Grave Call and the Stampede, so
+  Legendary has 15 items, 0.333% each.
 
 ## Three bugs found in the last review (each has a regression test)
 

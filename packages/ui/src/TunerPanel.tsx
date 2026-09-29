@@ -177,10 +177,10 @@ export function TunerPanel<C extends object>({ spec }: { spec: TunerSpec<C> }): 
   // an authoring slip rather than an intent.
   useEffect(() => { assertGroupRuns(spec.id, spec.controls); }, [spec.id, spec.controls]);
 
-  // The Copy / Reset / action row: at the foot by default, or right under the header for a panel that asks
-  // (`buttonsTop`, the hero attack tuners: owner 2026-09-29, the Play buttons are what you reach for first).
+  // Copy, Reset and the panel's own actions. At the foot by default; a panel that is PLAYED more than dialled (the
+  // hero attack tuners) sets `buttonsOnTop` so its Play row sits under the header, not below every control.
   const buttons = (
-    <div className={`lunge-btns${spec.buttonsTop ? ' tuner-btns-top' : ''}`}>
+    <div className={`lunge-btns${spec.buttonsOnTop ? ' tuner-btns-top' : ''}`}>
       <button className="sfxmix-copy" onClick={copy}>{copied ? 'Copied!' : (spec.copyLabel ?? 'Copy values')}</button>
       <button className="sfxmix-copy" onClick={resetAll}>Reset</button>
       {spec.actions?.map((a) => (
@@ -199,7 +199,8 @@ export function TunerPanel<C extends object>({ spec }: { spec: TunerSpec<C> }): 
         {spec.note && <span>{typeof spec.note === 'function' ? spec.note() : spec.note}</span>}
       </div>
 
-      {spec.buttonsTop && buttons}
+      {spec.buttonsOnTop && buttons}
+
       {/* A measuring panel's readout goes first: what actually happened outranks what you might change. */}
       {spec.readout?.()}
 
@@ -490,7 +491,7 @@ export function TunerPanel<C extends object>({ spec }: { spec: TunerSpec<C> }): 
         <div className="tuner-nohit">Nothing matches “{find}”.</div>
       )}
 
-      {!spec.buttonsTop && buttons}
+      {!spec.buttonsOnTop && buttons}
     </div>
   );
 }

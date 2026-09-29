@@ -105,7 +105,7 @@ describe('the tuner values', () => {
     expect(style?.options).toContain('poison');
     expect(DEV_HERO_ATTACK_CHOICES).toContain('poison');
     const labels = SPEC.actions?.map((a) => a.label) ?? [];
-    for (const l of ['▶ Small (3)', '▶ Tier II (8)', '▶ Medium (12)', '▶ Huge (40)', '▶ Foe small (3)', '▶ Foe huge (40)', '▶ Reduced motion', 'Speed 1x', 'Speed 0.5x', 'Speed 0.25x']) {
+    for (const l of ['▶ Small (3)', '▶ Tier II (8)', '▶ Medium (12)', '▶ Huge (40)', '▶ Foe small (3)', '▶ Foe huge (40)']) {
       expect(labels).toContain(l);
     }
   });
@@ -542,7 +542,7 @@ describe('the scene (headless Pixi)', () => {
 describe('the cosmetic', () => {
   it('Venom Volley (attack_poison) is a Legendary crate hero attack that plays Poison; the dev override can force it; the other styles unchanged; unknown ids play Classic', () => {
     expect(COSMETIC_INDEX.attack_poison).toMatchObject({ category: 'hero_attack', rarity: 'legendary', name: 'Venom Volley', assets: { style: 'poison' }, active: true });
-    expect(HERO_ATTACK_STYLES).toEqual(['classic', 'blast', 'quake', 'arcana', 'blades', 'enraged', 'poison', 'frost', 'holy', 'banana']); // Frost, then Consecration (holy), joined 2026-09-28; Oona's Banana Cannon (banana) joined 2026-09-29
+    expect(HERO_ATTACK_STYLES).toEqual(['classic', 'blast', 'quake', 'arcana', 'blades', 'enraged', 'poison', 'frost', 'holy', 'fire', 'undead', 'beast', 'banana']); // Frost, then Consecration (holy), joined 2026-09-28 (Inferno, fire, 2026-09-29); Grave Call (undead) 2026-09-29; Stampede (beast) joined 2026-09-29; Banana Cannon (banana) joined 2026-09-29
     expect(styleOfCosmetic('attack_poison')).toBe('poison');
     for (const [id, st] of [['attack_blast', 'blast'], ['attack_quake', 'quake'], ['attack_arcana', 'arcana'], ['attack_blades', 'blades'], ['attack_enraged', 'enraged']] as const) {
       expect(styleOfCosmetic(id)).toBe(st);

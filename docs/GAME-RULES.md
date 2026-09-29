@@ -245,10 +245,10 @@ progression **epoch**; nothing finished before the epoch counts (no backfill).
   R-PROG-SKINS-05), so a new or retired cosmetic is a code change plus one deploy, never SQL. Shaped
   for every cosmetic category (announcer, hero skin, minion skin, title, hero attack, board, music). Switched on:
   **titles** (15 crate titles: 7 Common, 5 Rare, 2 Epic, 1 Legendary) and, since the skins shipped the same day,
-  **hero skins** and **minion skins** (all from crates) and **hero attacks** (Arcane Barrage, Tectonic Slam, Arcana, Phantom Blades, Enraged Strike, Venom Volley, Frost Nova, Consecration, then Oona's Banana Cannon). The other
+  **hero skins** and **minion skins** (all from crates) and **hero attacks** (Arcane Barrage, Tectonic Slam, Arcana, Phantom Blades, Enraged Strike, Venom Volley, Frost Nova, Consecration, then Inferno, Grave Call, the Stampede and Oona's Banana Cannon). The other
   categories are feature-flagged off until their art exists. Crate odds are the fixed rarity odds above, then an equal
   share inside the rarity: on the 2026-09-29 catalog each Common is 6.25% (50 / 8), each Rare 2.31% (30 / 13), each Epic
-  1.5% (15 / 10) and each Legendary 0.42% (5 / 12, since Oona's Banana Cannon joined). A fresh account's first crate is about 41% a skin or hero attack.
+  1.5% (15 / 10) and each Legendary 0.33% (5 / 15, since Inferno, Grave Call, the Stampede and Oona's Banana Cannon joined). A fresh account's first crate is about 41% a skin or hero attack.
 - **Skins (2026-09-28; oracle R-PROG-SKINS-01, R-PROG-SKINS-04).** A hero skin replaces one hero's portrait; a
   minion skin replaces one card's art, by stable id. Equipped per target from the Collection's Heroes / Minions
   tabs through the server (`equip_cosmetic`: owned, made for that hero or card, live); **"Use default art"** is
@@ -274,7 +274,7 @@ progression **epoch**; nothing finished before the epoch counts (no backfill).
   run loop's `damageCap` stamp); an older result shows what it knows (no breakdown: just the blow; no cap stamp: no cap
   beat). No hero attack ever freezes (R-PROG-ATTACK-10): no hit-stop on any impact, the slam or the cap slash; weight comes
   from the flash, squash and knockback, shake, particles and sound. Tuned in the dev hub's Damage Formation tuner; production plays the baked defaults.
-- **Hero attacks (2026-09-28; oracle R-PROG-ATTACK-01..14).** How your hero lands the post-combat blow. **Classic**
+- **Hero attacks (2026-09-28; oracle R-PROG-ATTACK-01..19).** How your hero lands the post-combat blow. **Classic**
   (the lunge) is everyone's default; **Blast** is the first cosmetic, `attack_blast` ("Arcane Barrage", Legendary,
   from crates; animation and tier thresholds owner-approved): after the damage formation, the hero charges, the view pushes in, and bolts (a single
   beam on the biggest hits) carry the blow, escalating by damage tier (I 1-5, II 6-11, III 12-19, IV 20+). **Quake** is the
@@ -292,7 +292,7 @@ progression **epoch**; nothing finished before the epoch counts (no backfill).
   and impales the target, the blow landing on the greatsword); every stuck blade then shatters (looks only).
   **Enraged Strike** is the fifth, `attack_enraged` ("Enraged Strike", a placeholder name; Legendary, from crates;
   R-PROG-ATTACK-11): Classic's own swing, enraged. After the same damage formation the hero coils deeper while a rage aura
-  burns round the portrait and bursts in a roar, dashes in leaving afterimages and a scorch, and stops at the struck hero's
+  burns round the portrait (live particle fire since 2026-09-29, R-PROG-ATTACK-16) and bursts in a roar, dashes in leaving afterimages and a scorch, and stops at the struck hero's
   rim so every hit reads on contact: a white flash, rings, claw rips and glowing rim cracks. Every hit is a full cycle: a hard
   recoil off the foe, a coil, a dash back in and its own impact, each harder than the last (I one hit; II a double; III a
   combo of three with a finisher, the blow landing once on the finisher; IV a rampage of five slams that speed up, then the
@@ -314,16 +314,42 @@ progression **epoch**; nothing finished before the epoch counts (no backfill).
   plants glowing seeds round the struck hero, then the pillar drops and the seeds erupt with it (the blow landing once,
   on the last smite); IV six holy swords fly in one after another from different directions, faster and faster, and
   plant round the centre of the board, the centre implodes, and a flat consecrated blast races across the board to the
-  struck hero, tearing radiant cracks, and holy flames erupt round it (the blow landing on the eruption). **Banana
-  Cannon** is the ninth, `attack_banana` ("Oona's Banana Cannon", a placeholder name; Legendary, from crates;
-  R-PROG-ATTACK-15), built on King Oona's own card FX: her painted banana (spinning with backspin) is every projectile
+  struck hero, tearing radiant cracks, and holy flames erupt round it (the blow landing on the eruption). **Inferno** is the
+  ninth, `attack_fire` ("Inferno", a placeholder name; Legendary, from crates; R-PROG-ATTACK-15): every flame in it is live
+  particle fire (hundreds of small flame puffs and licking tongues that rise, sway and cool from white-hot to red, with
+  smoke and embers), never a flame picture. After the same damage formation fire catches round the hero's rim and
+  fireballs ignite round the portrait and are hurled with comet tails of flame: I one; II two (the struck hero's rim
+  briefly alight); III a volley of five bigger fireballs, the struck hero catching more with every hit, then flaring up
+  and burning (the blow landing once, on the last); IV three fireballs, then the hero hurls a column of fire into the sky,
+  the struck hero is marked (the ground under it heating, heat rings closing in, flames licking up round it) and a meteor
+  streaks down onto it and detonates: a white-hot flash, shockwaves, a fire nova racing outward, a fireball rolling up into
+  a mushroom of smoke, burning debris flung out on arcs, a pillar of fire engulfing the struck hero and a scorch (the blow
+  landing on the detonation). **Grave Call** is
+  the tenth, `attack_undead` ("Grave Call", a placeholder name; Legendary, from crates; R-PROG-ATTACK-17): a flat undead
+  attack in spectral green and teal over purple-black. After the same damage formation a grave circle turns under the
+  hero and ghost wisps spiral in, then: I a spectral skull pops out of the hero, shrieks, flies at the struck hero
+  trailing afterimages and bites it, bursting into wisps and bone; II two skulls; III skeletal hands claw up round the
+  struck hero and drag it down while a swarm of eight ghost wisps strikes it, then a big skull finishes it (the blow
+  landing once, on that bite); IV a grave rift tears open between the heroes, a giant skull maw rises out of it,
+  shrieks, lunges and chomps the struck hero (the blow landing on the chomp), and a wave of necrotic mist washes out.
+  The maw always stays whole on screen. **The
+  Stampede** is the eleventh, `attack_beast` ("Stampede", a placeholder name; Legendary, from crates; R-PROG-ATTACK-18): a
+  beast chomp rush in feral green and amber. After the same damage formation the hero crouches and growls, then spirit
+  wolves (heads of feral energy with streaming manes and gleaming fangs) leap from it at the struck hero, and as each
+  lands a pair of spectral jaws SNAPS SHUT over the portrait, leaving bite marks: I one wolf; II two, staggered; III a
+  pack of five streaming across and kicking up dust (every chomp before the last a tick, the blow landing once on the
+  last); IV six chomps round the face, then a colossal beast's jaws rise far above and below the struck hero, creep in and
+  SLAM shut over the whole portrait (the blow landing on the slam), and the beast roars (shockwave rings and speed lines,
+  FX only). **Banana
+  Cannon** is the twelfth, `attack_banana` ("Oona's Banana Cannon", a placeholder name; Legendary, from crates;
+  R-PROG-ATTACK-19), built on King Oona's own card FX: her painted banana (spinning with backspin) is every projectile
   and her painted juice splat every impact, with her juice particles and clips. After the same damage formation a golden
   flourish opens on the hero and it flings bananas on high lobbed arcs: I one; II a double; III a barrage of eight (the
   blow landing once, on the last); IV four warm-ups, then a giant golden banana arcs high, hangs (a crown glint, a flat
   golden target ring), and lands stuck in the struck hero's rim; the striking portrait dashes over and slams it in six
   times, reeling far back between slams, driving it deeper each time (only its end sticks out by the last), a crater and
   cracks spreading, extra bursts of banana juice splats from the fourth slam on (no blood); the sixth slam bursts it into a massive splat and a banana shower, and no dark crater ring is left behind (the
-  blow landing there). While it slams, the striking portrait is drawn on top of the banana. All nine
+  blow landing there). While it slams, the striking portrait is drawn on top of the banana. All twelve
   anchor on the round portrait art at rest
   (R-PROG-ATTACK-04). Equipped
   account-wide in the Collection's Attack Animations tab ("Use Classic" takes it off). The STRIKER's attack plays:
@@ -378,6 +404,14 @@ progression **epoch**; nothing finished before the epoch counts (no backfill).
   "Hidden" tile exist; none ship), prestige (replay-verified) feats and the 3 Career showcase slots come later. The
   Career's **Achievements** tab (after Practice) shows every achievement with its reward, completions publicly with
   their date, and progress bars on your own page only. Oracle R-ACH-01..03.
+- **Hero titles (2026-09-29, R-ACH-04, R-PROG-TITLE-04).** Every playable hero has a title (Warden "Warded", Gambler
+  "Gambling Addict", Albus "Albus Student", ...; the list is `HERO_TITLE_NAMES` in `packages/progression/src/cosmetics.ts`).
+  The Heroes category gains a fifth tier, **Titled** (3 Ranked 1sts with the hero, 150 XP), which grants the title;
+  **Mastery** (10 Ranked 1sts, 250 XP) now grants its **master** version: the same name as a **golden plate with
+  embroidered text**. Victory (1 Ranked 1st) stays XP only; Practice never counts. The master upgrades the title in
+  place: it replaces a worn base title the moment it is earned, and the Collection shows one entry per hero title (the
+  master once owned). Hero titles are achievement rewards, granted inside `settle_progression` with the completion,
+  and never drop from a crate. The Heroes category is now 165 achievements; the registry 281 and 35,775 XP.
 - **Guests.** An anonymous session is a real account id and the email upgrade keeps it, so guests earn XP from
   their first game. Reaching Level 2 as a guest shows a gentle "Save your progress" prompt (never a gate). With
   no session at all, a game earns nothing.

@@ -76,7 +76,7 @@ export function playHeroBanana(o: HeroBananaOptions): HeroBananaHandle {
   if (!reduced && o.textures === undefined) preloadBananaSheets();
   // THE DAMAGE FORMATION plays first (shared by every style); this style's own attack starts where it ends.
   const { fcfg, fplan } = planFormation(o.formation, o.formationCfg, reduced);
-  const plan = bananaPlan({ total: o.total, distance: dist, reduced, leadIn: fplan.endAt }, c);
+  const plan = bananaPlan({ total: o.total, knockout: o.knockout, distance: dist, reduced, leadIn: fplan.endAt }, c);
   const cues = withFormation(fplan, bananaCues(plan));
   const s = o.pixiScale ?? (typeof window === 'undefined' ? 1 : stageScale());
   const doc = typeof document !== 'undefined' ? document : null;

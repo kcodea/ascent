@@ -104,18 +104,33 @@
     "b2_echohorn": {
       "rally": {
         "def": "echohorn-target-sparkle"
+      },
+      "minionPlayed": {
+        "def": "sfx-vo-b2-echohorn"
+      },
+      "death": {
+        "def": "sfx-vo-b2-echohorn-death"
       }
     },
     "b2_florida": {
       "minionPlayed": {
         "def": "sfx-dragon-growl-2",
         "gain": 0.5
+      },
+      "death": {
+        "def": "sfx-vo-b2-florida-death"
       }
     },
     "b2_oona": {
       "buffWave": {
         "def": "oona-banana",
         "fanOut": "buffed"
+      },
+      "minionPlayed": {
+        "def": "sfx-vo-b2-oona"
+      },
+      "death": {
+        "def": "sfx-vo-b2-oona-death"
       }
     },
     "bloodbinder": {
@@ -127,6 +142,12 @@
     "d2_broodfire": {
       "minionBuffed": {
         "def": "broodfire-buff"
+      },
+      "minionPlayed": {
+        "def": "sfx-vo-d2-broodfire"
+      },
+      "death": {
+        "def": "sfx-vo-d2-broodfire-death"
       }
     },
     "d2_embermouth": {
@@ -136,6 +157,12 @@
       },
       "minionSelfBuffed": {
         "def": "embermouth"
+      },
+      "minionPlayed": {
+        "def": "sfx-vo-d2-embermouth"
+      },
+      "death": {
+        "def": "sfx-vo-d2-embermouth-death"
       }
     },
     "dm_butcher": {
@@ -147,6 +174,12 @@
       },
       "shout": {
         "def": "shop-buff-shout"
+      },
+      "minionPlayed": {
+        "def": "sfx-vo-dm-butcher"
+      },
+      "death": {
+        "def": "sfx-vo-dm-butcher-death"
       }
     },
     "dm_felspikes": {
@@ -154,11 +187,23 @@
         "def": "fel-spike",
         "fanOut": "struck",
         "launchOnDeath": true
+      },
+      "minionPlayed": {
+        "def": "sfx-vo-dm-felspikes"
+      },
+      "death": {
+        "def": "sfx-vo-dm-felspikes-death"
       }
     },
     "dm_jumbo": {
       "shopBuffAll": {
         "def": "shop-buff-shout"
+      },
+      "minionPlayed": {
+        "def": "sfx-vo-dm-jumbo"
+      },
+      "death": {
+        "def": "sfx-vo-dm-jumbo-death"
       }
     },
     "dm_tormentor": {
@@ -167,6 +212,12 @@
       },
       "shout": {
         "def": "shop-buff-shout"
+      },
+      "minionPlayed": {
+        "def": "sfx-vo-dm-tormentor"
+      },
+      "death": {
+        "def": "sfx-vo-dm-tormentor-death"
       }
     },
     "dw_pimm": {
@@ -197,23 +248,44 @@
       "minionBuffed": {
         "def": "flame-ring",
         "critDef": "flame-ring-crit"
+      },
+      "minionPlayed": {
+        "def": "sfx-vo-karwind"
+      },
+      "death": {
+        "def": "sfx-vo-karwind-death"
       }
     },
     "manasaber": {
       "minionPlayed": {
         "def": "sfx-voidpanther"
+      },
+      "death": {
+        "def": "sfx-vo-manasaber-death"
       }
     },
     "n2_paragon": {
       "buffWave": {
         "def": "lightning-bolt-blue",
         "fanOut": "buffed"
+      },
+      "minionPlayed": {
+        "def": "sfx-vo-n2-paragon"
+      },
+      "death": {
+        "def": "sfx-vo-n2-paragon-death"
       }
     },
     "n2_standardbearer": {
       "buffWave": {
         "def": "heavy-beam",
         "fanOut": "buffed"
+      },
+      "minionPlayed": {
+        "def": "sfx-vo-n2-standardbearer"
+      },
+      "death": {
+        "def": "sfx-vo-n2-standardbearer-death"
       }
     },
     "sp_dragonflame": {
@@ -494,6 +566,990 @@
       },
       "death": {
         "def": "sfx-vo-dw-tapkeeper-death"
+      }
+    },
+    "k_chipwick": {
+      "minionPlayed": {
+        "def": "sfx-vo-k-chipwick"
+      },
+      "death": {
+        "def": "sfx-vo-k-chipwick-death"
+      }
+    },
+    "k_beggy": {
+      "minionPlayed": {
+        "def": "sfx-vo-k-beggy"
+      },
+      "death": {
+        "def": "sfx-vo-k-beggy-death"
+      }
+    },
+    "k_deepvein": {
+      "minionPlayed": {
+        "def": "sfx-vo-k-deepvein"
+      },
+      "death": {
+        "def": "sfx-vo-k-deepvein-death"
+      }
+    },
+    "k_geode": {
+      "minionPlayed": {
+        "def": "sfx-vo-k-geode"
+      },
+      "death": {
+        "def": "sfx-vo-k-geode-death"
+      }
+    },
+    "k_tunnelcharger": {
+      "minionPlayed": {
+        "def": "sfx-vo-k-tunnelcharger"
+      },
+      "death": {
+        "def": "sfx-vo-k-tunnelcharger-death"
+      }
+    },
+    "k_faultline": {
+      "minionPlayed": {
+        "def": "sfx-vo-k-faultline"
+      },
+      "death": {
+        "def": "sfx-vo-k-faultline-death"
+      }
+    },
+    "k_gemheart": {
+      "minionPlayed": {
+        "def": "sfx-vo-k-gemheart"
+      },
+      "death": {
+        "def": "sfx-vo-k-gemheart-death"
+      }
+    },
+    "k_stormchaser": {
+      "minionPlayed": {
+        "def": "sfx-vo-k-stormchaser"
+      },
+      "death": {
+        "def": "sfx-vo-k-stormchaser-death"
+      }
+    },
+    "k_blazer": {
+      "minionPlayed": {
+        "def": "sfx-vo-k-blazer"
+      },
+      "death": {
+        "def": "sfx-vo-k-blazer-death"
+      }
+    },
+    "k_gemline": {
+      "minionPlayed": {
+        "def": "sfx-vo-k-gemline"
+      },
+      "death": {
+        "def": "sfx-vo-k-gemline-death"
+      }
+    },
+    "k_veinbreaker": {
+      "minionPlayed": {
+        "def": "sfx-vo-k-veinbreaker"
+      },
+      "death": {
+        "def": "sfx-vo-k-veinbreaker-death"
+      }
+    },
+    "k_frenzied": {
+      "minionPlayed": {
+        "def": "sfx-vo-k-frenzied"
+      },
+      "death": {
+        "def": "sfx-vo-k-frenzied-death"
+      }
+    },
+    "k_kobe": {
+      "minionPlayed": {
+        "def": "sfx-vo-k-kobe"
+      },
+      "death": {
+        "def": "sfx-vo-k-kobe-death"
+      }
+    },
+    "k_gemsage": {
+      "minionPlayed": {
+        "def": "sfx-vo-k-gemsage"
+      },
+      "death": {
+        "def": "sfx-vo-k-gemsage-death"
+      }
+    },
+    "k_crownvein": {
+      "minionPlayed": {
+        "def": "sfx-vo-k-crownvein"
+      },
+      "death": {
+        "def": "sfx-vo-k-crownvein-death"
+      }
+    },
+    "k_portsmith": {
+      "minionPlayed": {
+        "def": "sfx-vo-k-portsmith"
+      },
+      "death": {
+        "def": "sfx-vo-k-portsmith-death"
+      }
+    },
+    "k_boulderdash": {
+      "minionPlayed": {
+        "def": "sfx-vo-k-boulderdash"
+      },
+      "death": {
+        "def": "sfx-vo-k-boulderdash-death"
+      }
+    },
+    "k_gemstorm": {
+      "minionPlayed": {
+        "def": "sfx-vo-k-gemstorm"
+      },
+      "death": {
+        "def": "sfx-vo-k-gemstorm-death"
+      }
+    },
+    "k_deepdelve": {
+      "minionPlayed": {
+        "def": "sfx-vo-k-deepdelve"
+      },
+      "death": {
+        "def": "sfx-vo-k-deepdelve-death"
+      }
+    },
+    "k_mineralmaster": {
+      "minionPlayed": {
+        "def": "sfx-vo-k-mineralmaster"
+      },
+      "death": {
+        "def": "sfx-vo-k-mineralmaster-death"
+      }
+    },
+    "k_alchemist": {
+      "minionPlayed": {
+        "def": "sfx-vo-k-alchemist"
+      },
+      "death": {
+        "def": "sfx-vo-k-alchemist-death"
+      }
+    },
+    "n2_wanderer": {
+      "minionPlayed": {
+        "def": "sfx-vo-n2-wanderer"
+      },
+      "death": {
+        "def": "sfx-vo-n2-wanderer-death"
+      }
+    },
+    "lazarus": {
+      "minionPlayed": {
+        "def": "sfx-vo-lazarus"
+      },
+      "death": {
+        "def": "sfx-vo-lazarus-death"
+      }
+    },
+    "impoverseer": {
+      "minionPlayed": {
+        "def": "sfx-vo-impoverseer"
+      },
+      "death": {
+        "def": "sfx-vo-impoverseer-death"
+      }
+    },
+    "dm_agent": {
+      "minionPlayed": {
+        "def": "sfx-vo-dm-agent"
+      },
+      "death": {
+        "def": "sfx-vo-dm-agent-death"
+      }
+    },
+    "dm_curator": {
+      "minionPlayed": {
+        "def": "sfx-vo-dm-curator"
+      },
+      "death": {
+        "def": "sfx-vo-dm-curator-death"
+      }
+    },
+    "dm_glutton": {
+      "minionPlayed": {
+        "def": "sfx-vo-dm-glutton"
+      },
+      "death": {
+        "def": "sfx-vo-dm-glutton-death"
+      }
+    },
+    "dm_gourmand": {
+      "minionPlayed": {
+        "def": "sfx-vo-dm-gourmand"
+      },
+      "death": {
+        "def": "sfx-vo-dm-gourmand-death"
+      }
+    },
+    "dm_velvet": {
+      "minionPlayed": {
+        "def": "sfx-vo-dm-velvet"
+      },
+      "death": {
+        "def": "sfx-vo-dm-velvet-death"
+      }
+    },
+    "dm_shepherd": {
+      "minionPlayed": {
+        "def": "sfx-vo-dm-shepherd"
+      },
+      "death": {
+        "def": "sfx-vo-dm-shepherd-death"
+      }
+    },
+    "dm_maw": {
+      "minionPlayed": {
+        "def": "sfx-vo-dm-maw"
+      },
+      "death": {
+        "def": "sfx-vo-dm-maw-death"
+      }
+    },
+    "dm_malphas": {
+      "minionPlayed": {
+        "def": "sfx-vo-dm-malphas"
+      },
+      "death": {
+        "def": "sfx-vo-dm-malphas-death"
+      }
+    },
+    "dm_hank": {
+      "minionPlayed": {
+        "def": "sfx-vo-dm-hank"
+      },
+      "death": {
+        "def": "sfx-vo-dm-hank-death"
+      }
+    },
+    "dm_grobbus": {
+      "minionPlayed": {
+        "def": "sfx-vo-dm-grobbus"
+      },
+      "death": {
+        "def": "sfx-vo-dm-grobbus-death"
+      }
+    },
+    "dm_todd": {
+      "minionPlayed": {
+        "def": "sfx-vo-dm-todd"
+      },
+      "death": {
+        "def": "sfx-vo-dm-todd-death"
+      }
+    },
+    "dm_knocked": {
+      "minionPlayed": {
+        "def": "sfx-vo-dm-knocked"
+      },
+      "death": {
+        "def": "sfx-vo-dm-knocked-death"
+      }
+    },
+    "dm_grevlin": {
+      "minionPlayed": {
+        "def": "sfx-vo-dm-grevlin"
+      },
+      "death": {
+        "def": "sfx-vo-dm-grevlin-death"
+      }
+    },
+    "dm_chosenfiend": {
+      "minionPlayed": {
+        "def": "sfx-vo-dm-chosenfiend"
+      },
+      "death": {
+        "def": "sfx-vo-dm-chosenfiend-death"
+      }
+    },
+    "d2_skald": {
+      "minionPlayed": {
+        "def": "sfx-vo-d2-skald"
+      },
+      "death": {
+        "def": "sfx-vo-d2-skald-death"
+      }
+    },
+    "d2_blazingkeeper": {
+      "minionPlayed": {
+        "def": "sfx-vo-d2-blazingkeeper"
+      },
+      "death": {
+        "def": "sfx-vo-d2-blazingkeeper-death"
+      }
+    },
+    "d2_orivax": {
+      "minionPlayed": {
+        "def": "sfx-vo-d2-orivax"
+      },
+      "death": {
+        "def": "sfx-vo-d2-orivax-death"
+      }
+    },
+    "d2_felconjurer": {
+      "minionPlayed": {
+        "def": "sfx-vo-d2-felconjurer"
+      },
+      "death": {
+        "def": "sfx-vo-d2-felconjurer-death"
+      }
+    },
+    "kennel": {
+      "minionPlayed": {
+        "def": "sfx-vo-kennel"
+      },
+      "death": {
+        "def": "sfx-vo-kennel-death"
+      }
+    },
+    "buddy": {
+      "minionPlayed": {
+        "def": "sfx-vo-buddy"
+      },
+      "death": {
+        "def": "sfx-vo-buddy-death"
+      }
+    },
+    "drummer": {
+      "minionPlayed": {
+        "def": "sfx-vo-drummer"
+      },
+      "death": {
+        "def": "sfx-vo-drummer-death"
+      }
+    },
+    "sylus": {
+      "minionPlayed": {
+        "def": "sfx-vo-sylus"
+      },
+      "death": {
+        "def": "sfx-vo-sylus-death"
+      }
+    },
+    "chronos": {
+      "minionPlayed": {
+        "def": "sfx-vo-chronos"
+      },
+      "death": {
+        "def": "sfx-vo-chronos-death"
+      }
+    },
+    "yazzus": {
+      "minionPlayed": {
+        "def": "sfx-vo-yazzus"
+      },
+      "death": {
+        "def": "sfx-vo-yazzus-death"
+      }
+    },
+    "joker": {
+      "minionPlayed": {
+        "def": "sfx-vo-joker"
+      },
+      "death": {
+        "def": "sfx-vo-joker-death"
+      }
+    },
+    "tauntbreaker": {
+      "minionPlayed": {
+        "def": "sfx-vo-tauntbreaker"
+      },
+      "death": {
+        "def": "sfx-vo-tauntbreaker-death"
+      }
+    },
+    "blackbelt": {
+      "minionPlayed": {
+        "def": "sfx-vo-blackbelt"
+      },
+      "death": {
+        "def": "sfx-vo-blackbelt-death"
+      }
+    },
+    "jenkins": {
+      "minionPlayed": {
+        "def": "sfx-vo-jenkins"
+      },
+      "death": {
+        "def": "sfx-vo-jenkins-death"
+      }
+    },
+    "stewardofspells": {
+      "minionPlayed": {
+        "def": "sfx-vo-stewardofspells"
+      },
+      "death": {
+        "def": "sfx-vo-stewardofspells-death"
+      }
+    },
+    "arenaheckler": {
+      "minionPlayed": {
+        "def": "sfx-vo-arenaheckler"
+      },
+      "death": {
+        "def": "sfx-vo-arenaheckler-death"
+      }
+    },
+    "ropewrangler": {
+      "minionPlayed": {
+        "def": "sfx-vo-ropewrangler"
+      },
+      "death": {
+        "def": "sfx-vo-ropewrangler-death"
+      }
+    },
+    "nimbus": {
+      "minionPlayed": {
+        "def": "sfx-vo-nimbus"
+      },
+      "death": {
+        "def": "sfx-vo-nimbus-death"
+      }
+    },
+    "wayfinder": {
+      "minionPlayed": {
+        "def": "sfx-vo-wayfinder"
+      },
+      "death": {
+        "def": "sfx-vo-wayfinder-death"
+      }
+    },
+    "salvatore": {
+      "minionPlayed": {
+        "def": "sfx-vo-salvatore"
+      },
+      "death": {
+        "def": "sfx-vo-salvatore-death"
+      }
+    },
+    "uron": {
+      "minionPlayed": {
+        "def": "sfx-vo-uron"
+      },
+      "death": {
+        "def": "sfx-vo-uron-death"
+      }
+    },
+    "zyff": {
+      "minionPlayed": {
+        "def": "sfx-vo-zyff"
+      },
+      "death": {
+        "def": "sfx-vo-zyff-death"
+      }
+    },
+    "n2_spellsword": {
+      "minionPlayed": {
+        "def": "sfx-vo-n2-spellsword"
+      },
+      "death": {
+        "def": "sfx-vo-n2-spellsword-death"
+      }
+    },
+    "n2_bellringer": {
+      "minionPlayed": {
+        "def": "sfx-vo-n2-bellringer"
+      },
+      "death": {
+        "def": "sfx-vo-n2-bellringer-death"
+      }
+    },
+    "n2_conductor": {
+      "minionPlayed": {
+        "def": "sfx-vo-n2-conductor"
+      },
+      "death": {
+        "def": "sfx-vo-n2-conductor-death"
+      }
+    },
+    "n2_lastlight": {
+      "minionPlayed": {
+        "def": "sfx-vo-n2-lastlight"
+      },
+      "death": {
+        "def": "sfx-vo-n2-lastlight-death"
+      }
+    },
+    "k_pouchpincher": {
+      "minionPlayed": {
+        "def": "sfx-vo-k-pouchpincher"
+      },
+      "death": {
+        "def": "sfx-vo-k-pouchpincher-death"
+      }
+    },
+    "n2_fatecarver": {
+      "minionPlayed": {
+        "def": "sfx-vo-n2-fatecarver"
+      },
+      "death": {
+        "def": "sfx-vo-n2-fatecarver-death"
+      }
+    },
+    "n2_deepchef": {
+      "minionPlayed": {
+        "def": "sfx-vo-n2-deepchef"
+      },
+      "death": {
+        "def": "sfx-vo-n2-deepchef-death"
+      }
+    },
+    "n2_salesman": {
+      "minionPlayed": {
+        "def": "sfx-vo-n2-salesman"
+      },
+      "death": {
+        "def": "sfx-vo-n2-salesman-death"
+      }
+    },
+    "n2_ninefold": {
+      "minionPlayed": {
+        "def": "sfx-vo-n2-ninefold"
+      },
+      "death": {
+        "def": "sfx-vo-n2-ninefold-death"
+      }
+    },
+    "k_kobabyboldies": {
+      "minionPlayed": {
+        "def": "sfx-vo-k-kobabyboldies"
+      },
+      "death": {
+        "def": "sfx-vo-k-kobabyboldies-death"
+      }
+    },
+    "k_gemgorge": {
+      "minionPlayed": {
+        "def": "sfx-vo-k-gemgorge"
+      },
+      "death": {
+        "def": "sfx-vo-k-gemgorge-death"
+      }
+    },
+    "n2_clockwork": {
+      "minionPlayed": {
+        "def": "sfx-vo-n2-clockwork"
+      },
+      "death": {
+        "def": "sfx-vo-n2-clockwork-death"
+      }
+    },
+    "dm_hungerling": {
+      "minionPlayed": {
+        "def": "sfx-vo-dm-hungerling"
+      },
+      "death": {
+        "def": "sfx-vo-dm-hungerling-death"
+      }
+    },
+    "dm_leech": {
+      "minionPlayed": {
+        "def": "sfx-vo-dm-leech"
+      },
+      "death": {
+        "def": "sfx-vo-dm-leech-death"
+      }
+    },
+    "dm_nightmarket": {
+      "minionPlayed": {
+        "def": "sfx-vo-dm-nightmarket"
+      },
+      "death": {
+        "def": "sfx-vo-dm-nightmarket-death"
+      }
+    },
+    "dm_behemoth": {
+      "minionPlayed": {
+        "def": "sfx-vo-dm-behemoth"
+      },
+      "death": {
+        "def": "sfx-vo-dm-behemoth-death"
+      }
+    },
+    "d2_spellkeeper": {
+      "minionPlayed": {
+        "def": "sfx-vo-d2-spellkeeper"
+      },
+      "death": {
+        "def": "sfx-vo-d2-spellkeeper-death"
+      }
+    },
+    "d2_chorus": {
+      "minionPlayed": {
+        "def": "sfx-vo-d2-chorus"
+      },
+      "death": {
+        "def": "sfx-vo-d2-chorus-death"
+      }
+    },
+    "d2_grimoire": {
+      "minionPlayed": {
+        "def": "sfx-vo-d2-grimoire"
+      },
+      "death": {
+        "def": "sfx-vo-d2-grimoire-death"
+      }
+    },
+    "d2_scalefeather": {
+      "minionPlayed": {
+        "def": "sfx-vo-d2-scalefeather"
+      },
+      "death": {
+        "def": "sfx-vo-d2-scalefeather-death"
+      }
+    },
+    "d2_voicekeeper": {
+      "minionPlayed": {
+        "def": "sfx-vo-d2-voicekeeper"
+      },
+      "death": {
+        "def": "sfx-vo-d2-voicekeeper-death"
+      }
+    },
+    "d2_chronicler": {
+      "minionPlayed": {
+        "def": "sfx-vo-d2-chronicler"
+      },
+      "death": {
+        "def": "sfx-vo-d2-chronicler-death"
+      }
+    },
+    "d2_mirrorwing": {
+      "minionPlayed": {
+        "def": "sfx-vo-d2-mirrorwing"
+      },
+      "death": {
+        "def": "sfx-vo-d2-mirrorwing-death"
+      }
+    },
+    "d2_scalechanter": {
+      "minionPlayed": {
+        "def": "sfx-vo-d2-scalechanter"
+      },
+      "death": {
+        "def": "sfx-vo-d2-scalechanter-death"
+      }
+    },
+    "d2_recaller": {
+      "minionPlayed": {
+        "def": "sfx-vo-d2-recaller"
+      },
+      "death": {
+        "def": "sfx-vo-d2-recaller-death"
+      }
+    },
+    "d2_herzog": {
+      "minionPlayed": {
+        "def": "sfx-vo-d2-herzog"
+      },
+      "death": {
+        "def": "sfx-vo-d2-herzog-death"
+      }
+    },
+    "d2_transcendence": {
+      "minionPlayed": {
+        "def": "sfx-vo-d2-transcendence"
+      },
+      "death": {
+        "def": "sfx-vo-d2-transcendence-death"
+      }
+    },
+    "d2_cinderchef": {
+      "minionPlayed": {
+        "def": "sfx-vo-d2-cinderchef"
+      },
+      "death": {
+        "def": "sfx-vo-d2-cinderchef-death"
+      }
+    },
+    "d2_roarcollector": {
+      "minionPlayed": {
+        "def": "sfx-vo-d2-roarcollector"
+      },
+      "death": {
+        "def": "sfx-vo-d2-roarcollector-death"
+      }
+    },
+    "d2_flamebeat": {
+      "minionPlayed": {
+        "def": "sfx-vo-d2-flamebeat"
+      },
+      "death": {
+        "def": "sfx-vo-d2-flamebeat-death"
+      }
+    },
+    "d2_riverdrake": {
+      "minionPlayed": {
+        "def": "sfx-vo-d2-riverdrake"
+      },
+      "death": {
+        "def": "sfx-vo-d2-riverdrake-death"
+      }
+    },
+    "d2_warflame": {
+      "minionPlayed": {
+        "def": "sfx-vo-d2-warflame"
+      },
+      "death": {
+        "def": "sfx-vo-d2-warflame-death"
+      }
+    },
+    "d2_flutterdrake": {
+      "minionPlayed": {
+        "def": "sfx-vo-d2-flutterdrake"
+      },
+      "death": {
+        "def": "sfx-vo-d2-flutterdrake-death"
+      }
+    },
+    "d2_ascendant": {
+      "minionPlayed": {
+        "def": "sfx-vo-d2-ascendant"
+      },
+      "death": {
+        "def": "sfx-vo-d2-ascendant-death"
+      }
+    },
+    "d2_humphry": {
+      "minionPlayed": {
+        "def": "sfx-vo-d2-humphry"
+      },
+      "death": {
+        "def": "sfx-vo-d2-humphry-death"
+      }
+    },
+    "grim": {
+      "minionPlayed": {
+        "def": "sfx-vo-grim"
+      },
+      "death": {
+        "def": "sfx-vo-grim-death"
+      }
+    },
+    "seaurchin": {
+      "minionPlayed": {
+        "def": "sfx-vo-seaurchin"
+      },
+      "death": {
+        "def": "sfx-vo-seaurchin-death"
+      }
+    },
+    "beetle": {
+      "minionPlayed": {
+        "def": "sfx-vo-beetle"
+      },
+      "death": {
+        "def": "sfx-vo-beetle-death"
+      }
+    },
+    "b2_elderhorn": {
+      "minionPlayed": {
+        "def": "sfx-vo-b2-elderhorn"
+      },
+      "death": {
+        "def": "sfx-vo-b2-elderhorn-death"
+      }
+    },
+    "b2_sunmane": {
+      "minionPlayed": {
+        "def": "sfx-vo-b2-sunmane"
+      },
+      "death": {
+        "def": "sfx-vo-b2-sunmane-death"
+      }
+    },
+    "b2_trex": {
+      "minionPlayed": {
+        "def": "sfx-vo-b2-trex"
+      },
+      "death": {
+        "def": "sfx-vo-b2-trex-death"
+      }
+    },
+    "b2_mammoth": {
+      "minionPlayed": {
+        "def": "sfx-vo-b2-mammoth"
+      },
+      "death": {
+        "def": "sfx-vo-b2-mammoth-death"
+      }
+    },
+    "b2_solaris": {
+      "minionPlayed": {
+        "def": "sfx-vo-b2-solaris"
+      },
+      "death": {
+        "def": "sfx-vo-b2-solaris-death"
+      }
+    },
+    "b2_quil": {
+      "minionPlayed": {
+        "def": "sfx-vo-b2-quil"
+      },
+      "death": {
+        "def": "sfx-vo-b2-quil-death"
+      }
+    },
+    "b2_dawnclaw": {
+      "minionPlayed": {
+        "def": "sfx-vo-b2-dawnclaw"
+      },
+      "death": {
+        "def": "sfx-vo-b2-dawnclaw-death"
+      }
+    },
+    "b2_packstrider": {
+      "minionPlayed": {
+        "def": "sfx-vo-b2-packstrider"
+      },
+      "death": {
+        "def": "sfx-vo-b2-packstrider-death"
+      }
+    },
+    "b2_bullseye": {
+      "minionPlayed": {
+        "def": "sfx-vo-b2-bullseye"
+      },
+      "death": {
+        "def": "sfx-vo-b2-bullseye-death"
+      }
+    },
+    "b2_beardsley": {
+      "minionPlayed": {
+        "def": "sfx-vo-b2-beardsley"
+      },
+      "death": {
+        "def": "sfx-vo-b2-beardsley-death"
+      }
+    },
+    "b2_wolvie": {
+      "minionPlayed": {
+        "def": "sfx-vo-b2-wolvie"
+      },
+      "death": {
+        "def": "sfx-vo-b2-wolvie-death"
+      }
+    },
+    "b2_armadiyo": {
+      "minionPlayed": {
+        "def": "sfx-vo-b2-armadiyo"
+      },
+      "death": {
+        "def": "sfx-vo-b2-armadiyo-death"
+      }
+    },
+    "b2_voidmother": {
+      "minionPlayed": {
+        "def": "sfx-vo-b2-voidmother"
+      },
+      "death": {
+        "def": "sfx-vo-b2-voidmother-death"
+      }
+    },
+    "b2_hawkus": {
+      "minionPlayed": {
+        "def": "sfx-vo-b2-hawkus"
+      },
+      "death": {
+        "def": "sfx-vo-b2-hawkus-death"
+      }
+    },
+    "b2_spots": {
+      "minionPlayed": {
+        "def": "sfx-vo-b2-spots"
+      },
+      "death": {
+        "def": "sfx-vo-b2-spots-death"
+      }
+    },
+    "b2_stonehorn": {
+      "minionPlayed": {
+        "def": "sfx-vo-b2-stonehorn"
+      },
+      "death": {
+        "def": "sfx-vo-b2-stonehorn-death"
+      }
+    },
+    "b2_raven": {
+      "minionPlayed": {
+        "def": "sfx-vo-b2-raven"
+      },
+      "death": {
+        "def": "sfx-vo-b2-raven-death"
+      }
+    },
+    "b2_tort": {
+      "minionPlayed": {
+        "def": "sfx-vo-b2-tort"
+      },
+      "death": {
+        "def": "sfx-vo-b2-tort-death"
+      }
+    },
+    "b2_beev": {
+      "minionPlayed": {
+        "def": "sfx-vo-b2-beev"
+      },
+      "death": {
+        "def": "sfx-vo-b2-beev-death"
+      }
+    },
+    "n2_muckslinger": {
+      "minionPlayed": {
+        "def": "sfx-vo-n2-muckslinger"
+      },
+      "death": {
+        "def": "sfx-vo-n2-muckslinger-death"
+      }
+    },
+    "dw_exgalloper": {
+      "minionPlayed": {
+        "def": "sfx-vo-dw-exgalloper"
+      },
+      "death": {
+        "def": "sfx-vo-dw-exgalloper-death"
+      }
+    },
+    "venom": {
+      "minionPlayed": {
+        "def": "sfx-vo-venom"
+      },
+      "death": {
+        "def": "sfx-vo-venom-death"
+      }
+    },
+    "n2_echomimic": {
+      "minionPlayed": {
+        "def": "sfx-vo-n2-echomimic"
+      },
+      "death": {
+        "def": "sfx-vo-n2-echomimic-death"
+      }
+    },
+    "n2_abomination": {
+      "minionPlayed": {
+        "def": "sfx-vo-n2-abomination"
+      },
+      "death": {
+        "def": "sfx-vo-n2-abomination-death"
+      }
+    },
+    "n2_reflector": {
+      "minionPlayed": {
+        "def": "sfx-vo-n2-reflector"
+      },
+      "death": {
+        "def": "sfx-vo-n2-reflector-death"
       }
     }
   }

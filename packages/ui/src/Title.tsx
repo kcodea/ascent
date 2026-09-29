@@ -54,6 +54,7 @@ export function Title({ onSettings }: { onSettings: () => void }) {
   const startTutorial = useGame((s) => s.startTutorial);
   const startRift = useGame((s) => s.startRift);
   const startSceneBuilder = useGame((s) => s.startSceneBuilder);
+  const startStageBuilder = useGame((s) => s.startStageBuilder);
   // SOCIAL → the player's own Career page through `openCareer()` — the plain open, NOT the sidebar's `goTo`:
   // `goTo` stamps `navHopAt`, which makes the destination mount wearing `.hop` (page fade off, sidebar cut in
   // hard) — right for a sidebar hop, wrong for a title open, which should fade in whole like Play → modes
@@ -253,6 +254,13 @@ export function Title({ onSettings }: { onSettings: () => void }) {
             <button className="menubtn" onClick={() => { sfx.pulse(); startSceneBuilder(); }} data-tip="A dev sandbox. A lobby game against bots where you cannot be eliminated, with any board, any enemy, god or normal rules.">
               <span className="mbicon"><Icon name="anvil" /></span>
               <span className="mblabel">Scene Builder</span>
+            </button>
+          )}
+          {/* DEV-ONLY: the Stage Builder authors the Gauntlet's stage boards on top of the Scene Builder sandbox. */}
+          {import.meta.env.DEV && (
+            <button className="menubtn" onClick={() => { sfx.pulse(); void startStageBuilder(); }} data-tip="A dev tool. Author the Gauntlet's stage boards round by round, and test each round against your own board.">
+              <span className="mbicon"><Icon name="sword" /></span>
+              <span className="mblabel">Stage Builder</span>
             </button>
           )}
           <button className="menubtn" onClick={onSettings}>

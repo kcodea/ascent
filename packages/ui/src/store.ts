@@ -628,6 +628,10 @@ interface GameStore {
    *  so the hero's createRun setup runs and the lobby is rebuilt). The player's seat is invulnerable whatever
    *  `sbRules` says; the rules only decide the clock and the Gold. */
   startSceneBuilder: (heroId?: string, setId?: SetId, botLevel?: BotLevel) => void;
+  /** DEV: the Stage Builder — the Scene Builder sandbox with a Gauntlet stage open and its selected round pinned as
+   *  the next foe. The builder's state lives in its own store (`stageBuilder/stageBuilderStore.ts`), loaded lazily
+   *  so the player bundle never carries it. Resolves once the stage is loaded and pinned. */
+  startStageBuilder: (stage?: number) => Promise<void>;
   /** SANDBOX ONLY (dev). `god` = infinite time + Gold (the rig's classic feel); `normal` = the real shop
    *  clock and the real per-turn Gold, with every authoring tool still live. Persisted, so the rig reopens the
    *  way you left it. Read by Recruit (the clock) and the Scene Builder panel (the Gold refill). */
@@ -2299,6 +2303,11 @@ export const useGame = create<GameStore>((rawSet, get) => {
       if (level !== s.sbBotLevel) try { localStorage.setItem(SB_BOT_KEY, String(level)); } catch { /* ignore */ }
       return { run, sbBotLevel: level, savedRun: null, lastRunBoards: 0, presentationTx: null, heroArmed: false, endTurnAnimating: false, sellTick: 0, inspect: null, heroChoices: null, showTitle: false, avatarPickerOpen: false, replayActions: [], capturedBoards: [], replayFrames: beginReplayCapture(run), replayPartial: false, ...RANK_SLICE_RESET, sandboxReplay: false };
     });
+  },
+  startStageBuilder: async (stage) => {
+    get().startSceneBuilder();
+    const { useStageBuilder } = await import('./stageBuilder/stageBuilderStore');
+    await useStageBuilder.getState().openBuilder(stage ?? 1);
   },
   sbRules: loadSbRules(),
   setSbRules: (rules) => set((s) => {

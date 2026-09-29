@@ -74,10 +74,6 @@ export const PATCH_NOTES: PatchNote[] = [
       },
       {
         category: 'Systems',
-        text: 'Units now make a quiet death sound when they die in combat. Before, most of them were silent.',
-      },
-      {
-        category: 'Systems',
         text: 'Hero titles. Finish 1st in 3 Ranked games with a hero to earn its title. Reach 10 and it becomes a golden plate with embroidered text.',
         details: [
           'Every hero has its own title, like Warded for Warden, Gambling Addict for Gambler and Albus Student for Albus.',

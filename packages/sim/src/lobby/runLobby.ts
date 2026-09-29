@@ -469,8 +469,21 @@ export function playerOpponent(lobby: RunLobby): { seat: LobbySeatState; board: 
     return g ? { seat: g.seat, board: g.board, ghost: true } : null;
   }
   const foe = pair[0].id === 's0' ? pair[1] : pair[0];
-  const board = driverFor(foe, lobby.setId)?.prepare(lobby.round) ?? driverFor(foe, lobby.setId)?.finalBoard?.() ?? null;
-  return board ? { seat: foe, board } : null;
+  const board = seatBoardThisRound(lobby, foe);
+  if (board) return { seat: foe, board };
+  // THE PAIRED FOE FIELDS NOTHING (bug 2026-09-28: a Mimic seat whose recording was empty). Returning null here
+  // used to send the reducer to an ordinary pool board while `settleRunLobbyRound` still charged and credited
+  // the paired seat, so the log could name a seat "who knocked you out" that never fought you. The player now
+  // faces the most recently fallen seat's ghost instead, exactly as on a bye, and the settle records THAT
+  // fight. Before anyone has fallen there is no ghost: null, and the round is a sit-out for both seats.
+  const g = ghostFor(lobby, 's0');
+  return g ? { seat: g.seat, board: g.board, ghost: true } : null;
+}
+
+/** The board a seat brings this round: its board for the round, else the last one it has. */
+function seatBoardThisRound(lobby: RunLobby, seat: LobbySeatState): PreparedBoard | null {
+  const d = driverFor(seat, lobby.setId);
+  return d?.prepare(lobby.round) ?? d?.finalBoard?.() ?? null;
 }
 
 /** Apply damage through Armor then Resolve. Exported as `hitSeat` so the balance bot's self-play lobby charges
@@ -601,6 +614,27 @@ export function settleRunLobbyRound(lobby: RunLobby, playerResult: CombatResult)
     let outcome: CombatOutcome;
     let dmgToA: number;
     let dmgToB: number;
+
+    if (playerSide && !seatBoardThisRound(lobby, a.id === 's0' ? b : a)) {
+      // The player's paired foe fielded NO board, so the player did not fight it (`playerOpponent` served a
+      // ghost stand-in, or nothing before the first knockout). The pairing is a sit-out for both, exactly like
+      // a boardless seat-vs-seat pair: the foe is neither charged nor credited. When a ghost stood in, the
+      // player's real fight is recorded against THAT seat, the same row as a bye's ghost fight, so the log,
+      // the knockout attribution and the fight ledger all name the board the player actually faced.
+      lobby.encounters.push({ round: lobby.round, a: a.id, b: b.id, outcome: 'draw', damageToA: 0, damageToB: 0, fought: false });
+      const me = playerSide;
+      const ghost = ghostFor(lobby, 's0');
+      if (ghost) {
+        const dmg = Math.min(cap, playerResult.playerDamage);
+        hitSeat(me, dmg);
+        knockOutIfDead(me, lobby.round, eliminated);
+        lobby.encounters.push({
+          round: lobby.round, a: me.id, b: ghost.seat.id, outcome: playerResult.result,
+          damageToA: dmg, damageToB: 0, bye: me.id, fought: true, standInFor: (a.id === 's0' ? b : a).id,
+        });
+      }
+      continue;
+    }
 
     if (playerSide) {
       // The player's own fight — already resolved. `playerResult` is from the PLAYER's perspective.

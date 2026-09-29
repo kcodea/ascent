@@ -1058,6 +1058,11 @@ export function Recruit() {
   // resumed run does NOT change wave/turnSeconds, so without this the reset never fires and the turn is stuck at
   // 0 (owner Save & Quit bug 2026-08-24). Only the true title screen sets this — opening the Book mid-run doesn't.
   const showTitle = useGame((s) => s.showTitle);
+  // The Esc / Settings menu holds the SHOP CLOCK only (owner 2026-09-29, R-TIMER-ESC-01: "yes, lets have it pause
+  // the shop timer for now"). Deliberately NOT folded into `overlayOpen`: that one also pauses the combat replay and
+  // blanks the Choose-Both markers, which the ruling does not ask for. It feeds the countdown gate and the charge
+  // glyph's `paused` (so the glyph doesn't keep charging while the clock is held), nothing else.
+  const settingsOpen = useGame((s) => s.settingsOpen);
   // Fortify can target a tavern offer too; Gild / Encore act only on your warband.
   // The ARMED slot's wielded power (Mimic's disguise / Void's pair — `activePowers`), not the native hero's:
   // the aim-target rules below must describe the power that will actually fire.
@@ -4565,6 +4570,7 @@ export function Recruit() {
       // wait for the Start of Turn beats: the Shop is playable while they play (owner 2026-09-27: "maybe just start
       // the clock as normal though since you can play right away"; R-SOT-TIMER-01).
       transitionPlaying: wipe !== 'idle',
+      settingsOpen,
     })) return;
     let id = 0;
     const tick = (): void => {
@@ -4584,7 +4590,7 @@ export function Recruit() {
     };
     id = window.setTimeout(tick, tickMs());
     return () => window.clearTimeout(id);
-  }, [run.phase, run.discover, run.questOffer, run.powerOffer, run.runeforgeOffer, run.pendingTarget, run.chooseOne, run.ancients?.offer, heroSelecting, overlayOpen, introPlaying, run.wave, replaySpeed, wipe, sotPlaying]);
+  }, [run.phase, run.discover, run.questOffer, run.powerOffer, run.runeforgeOffer, run.pendingTarget, run.chooseOne, run.ancients?.offer, heroSelecting, overlayOpen, settingsOpen, introPlaying, run.wave, replaySpeed, wipe, sotPlaying]);
 
   // Detect a self-buff (a minion's own stats jump in the recruit phase) and fire its self-buff cue. The
   // readout itself is the badge's own job now — see the cut below.
@@ -7308,7 +7314,7 @@ export function Recruit() {
       <ChargeGlyph
         inCombat={inCombat}
         window={Math.min(CHARGE_SECONDS, turnSeconds)}
-        paused={!!(run.discover || run.questOffer || run.powerOffer || run.runeforgeOffer || run.pendingTarget || run.chooseOne || run.scoutedNextOpponent?.length || heroSelecting || overlayOpen)}
+        paused={!!(run.discover || run.questOffer || run.powerOffer || run.runeforgeOffer || run.pendingTarget || run.chooseOne || run.scoutedNextOpponent?.length || heroSelecting || overlayOpen || settingsOpen)}
         covered={!!(heroSelecting || overlayOpen)}
       />
       {/* UNDER-CARD FX canvas — the host for `slot: 'under'` effect defs. Position in this child list is

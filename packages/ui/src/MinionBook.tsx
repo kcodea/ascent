@@ -17,6 +17,8 @@ import { mechMedallionSrc } from './mechMedallion';
 import { GLOSSARY_SECTIONS, KEYWORD_GLOSSARY, type KeywordDef } from './keywordGlossary';
 import { detectCardKeywords } from './detectCardKeywords';
 import { useGame } from './store';
+import { CompendiumRules } from './CompendiumRules';
+import rulesQuestionArt from './rules-question.png';
 
 /** Evolution units — non-buyable tokens a minion ascends/transforms into (Spirit Pup → Spirit Worgen,
  *  Tara → Taragosa). Detected from the SOURCE cards actually in the given set's pool (ascend targets +
@@ -302,6 +304,8 @@ export function MinionBook() {
   });
   useEffect(() => { try { localStorage.setItem('ascent.bookzoom', String(zoom)); } catch { /* ignore */ } }, [zoom]);
   const [glossary, setGlossary] = useState(false); // swap the gallery for the keyword codex
+  const [rules, setRules] = useState(() => useGame.getState().bookOpensTo === 'rules'); // swap the gallery for the Rules wiki (searchable Q&A); exclusive with glossary
+  const codex = glossary || rules; // a text panel is up: the card-gallery controls (search, Gilded, zoom) step aside
   const [kw, setKw] = useState<{ term: string; icon: string; mechId?: string; match: (c: CardDef) => boolean } | null>(null); // active keyword filter (from the glossary)
   // RUNES TAB tribe filter (owner ask 2026-09-18): the tier row's chart space shows one button per tribe; a rune
   // is "related" to a tribe when its `tribes` gate names it (the gate exists exactly where the text names a
@@ -527,7 +531,9 @@ export function MinionBook() {
         <div className="book-head">
           <div className="book-title"><Icon name="house" /> Compendium</div>
           <div className="book-sub">
-            {glossary
+            {rules
+              ? 'Rules & how-to. Search any question.'
+              : glossary
               ? 'Keywords & abilities. Click one to see its minions.'
               : query
                 ? `${(cats.has('quests') ? questsToShow.length : cats.has('runes') ? runesToShow.length : cats.has('heroes') ? heroesToShow.length : filtered.length)} result${
@@ -545,7 +551,7 @@ export function MinionBook() {
                       .join(' & ') || 'minions'
                   } ${!browsingRun || cats.has('runeRewards') || cats.has('gifts') ? 'in the game' : 'findable this run'}`}
           </div>
-          {!glossary && (
+          {!codex && (
             <input
               className="book-search"
               type="search"
@@ -556,14 +562,22 @@ export function MinionBook() {
             />
           )}
           <button
+            className={`book-gloss book-rules${rules ? ' on' : ''}`}
+            onClick={() => { setRules((r) => !r); setGlossary(false); }}
+            aria-pressed={rules}
+            aria-description="Rules. Search how anything in the game works."
+          >
+            <img className="book-rules-ico" decoding="sync" src={rulesQuestionArt} alt="" draggable={false} /> Rules
+          </button>
+          <button
             className={`book-gloss${glossary ? ' on' : ''}`}
-            onClick={() => setGlossary((g) => !g)}
+            onClick={() => { setGlossary((g) => !g); setRules(false); }}
             aria-pressed={glossary}
             aria-description="Glossary. Every keyword and trigger, defined."
           >
             <Icon name="sc" /> Glossary
           </button>
-          {!glossary && (
+          {!codex && (
             <button
               className={`book-gilded${gilded ? ' on' : ''}`}
               onClick={() => setGilded((g) => !g)}
@@ -573,7 +587,7 @@ export function MinionBook() {
               <Icon name="crown" /> Gilded
             </button>
           )}
-          {!glossary && (
+          {!codex && (
             <div className="book-zoom" role="group" aria-label="Card size">
               <button
                 className="book-zoom-btn pressable"
@@ -593,7 +607,9 @@ export function MinionBook() {
           <button className="book-close pressable" onClick={closeBook} aria-label="Close (Tab / Esc)">✕</button>
         </div>
 
-        {glossary ? (
+        {rules ? (
+          <CompendiumRules />
+        ) : glossary ? (
           /* The glossary panel — replaces the tier bar + gallery with the keyword codex. */
           <div className="book-gloss-body">
             {GLOSSARY.map((group) => (

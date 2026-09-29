@@ -91,5 +91,7 @@ Stampede and the Banana Cannon merged). By category: titles 58.1%, minion skins 
 
 - Rename "Card Shark" / "Storm Call" if you like (the ids stay). They reach the database on the next deploy of
   `progression-inventory` (the catalog sync). No SQL.
-- Oracle R-PROG-ATTACK-21 (Card Shark) and -22 (Storm Call) (17-19 went to Grave Call, the Stampede and the Banana
-  Cannon); renumber on merge if a Rare took them first.
+- Oracle R-PROG-ATTACK-26 (Card Shark) and -27 (Storm Call): picked clear of 17-19 (Undead, Beast, Banana), 21 (Bleed,
+  #1847), 25 (the double-camera fix, #1851) and 22-24 (left for the Rares). Renumber on merge if taken.
+- When #1851 lands, the runners can use its shared `heroFxCanvas` / `StageCamera` fix instead of `cameraMirror.ts` (same
+  behaviour; both keep the camera applied once).

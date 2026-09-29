@@ -2883,7 +2883,7 @@ export const FOUNDATION_RULES: GameRule[] = [
   },
   // ── The first EPIC hero attacks: Card Shark and Storm Call (owner ask 2026-09-29) ─────────────────────────
   {
-    id: 'R-PROG-ATTACK-21',
+    id: 'R-PROG-ATTACK-26',
     title: 'Card Shark (attack_cards, EPIC) deals playing cards in THREE looks: one Ace / three Aces / a royal flush that turns gold and bursts into confetti; the blow lands ONCE',
     statement:
       'attack_cards ("Card Shark", a placeholder name for the owner to rename; EPIC, crate, account-wide, style cards) is an '
@@ -2911,11 +2911,11 @@ export const FOUNDATION_RULES: GameRule[] = [
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/heroCards/heroCards.test.ts', 'packages/ui/src/heroAttack/knockoutTier.test.ts', 'packages/progression/src/cosmetics.test.ts', 'packages/ui/src/progression/CollectionHeroAttack.test.tsx', 'packages/ui/src/heroAttack/damageFormation.test.ts'], lastVerifiedAt: '2026-09-29' },
   },
   {
-    id: 'R-PROG-ATTACK-22',
+    id: 'R-PROG-ATTACK-27',
     title: 'Storm Call (attack_storm, EPIC) strikes with live lightning in THREE looks: a crackling arc / a forked double strike with static / a storm cloud\x27s thick strike; the blow lands ONCE',
     statement:
       'attack_storm ("Storm Call", a placeholder name for the owner to rename; EPIC, crate, account-wide, style storm) is an '
-      + 'Epic hero attack in THREE visual tiers, mapped from the shared tier exactly as Card Shark (R-PROG-ATTACK-21): I small, '
+      + 'Epic hero attack in THREE visual tiers, mapped from the shared tier exactly as Card Shark (R-PROG-ATTACK-26): I small, '
       + 'II and III medium, IV (and every knockout) big. Every bolt is procedural: a jagged line whose shape is REDRAWN every '
       + 'few frames from a seeded generator (a live crackle; a replay crackles the same), ends pinned, in electric blue and '
       + 'white with violet. After the shared damage formation static crackles round the hero, then: SMALL, a bolt\x27s leader '
@@ -2926,7 +2926,7 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'the top edge and still drops onto the face, never a sideways beam), rumbles and lights up from inside twice, then '
       + 'drops one THICK strike: a flash across the screen, a ring of sparks, a shock ring and static crawling over the '
       + 'portrait while the cloud breaks up (the blow lands on the strike). The consequence lands exactly ONCE. No hit-stop '
-      + '(R-PROG-ATTACK-10). The camera is applied ONCE (as R-PROG-ATTACK-21). Presentation only; reduced motion is fades '
+      + '(R-PROG-ATTACK-10). The camera is applied ONCE (as R-PROG-ATTACK-26). Presentation only; reduced motion is fades '
       + 'only; an unknown or retired id plays Classic.',
     domain: 'foundation',
     status: 'approved',

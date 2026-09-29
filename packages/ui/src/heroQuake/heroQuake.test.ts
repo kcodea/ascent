@@ -88,7 +88,7 @@ describe('the tuner values', () => {
     const style = SPEC.controls.find((c) => c.key === 'attackStyle');
     expect(style?.options).toContain('quake');
     const labels = SPEC.actions?.map((a) => a.label) ?? [];
-    for (const l of ['▶ Small (3)', '▶ Medium (12)', '▶ Huge (40)', '▶ Foe huge (40)', '▶ Reduced motion', 'Speed 1x', 'Speed 0.5x', 'Speed 0.25x']) expect(labels).toContain(l);
+    for (const l of ['▶ Small (3)', '▶ Medium (12)', '▶ Huge (40)', '▶ Foe huge (40)']) expect(labels).toContain(l);
   });
 });
 

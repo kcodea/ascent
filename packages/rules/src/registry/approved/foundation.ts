@@ -2616,4 +2616,26 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'diamond still hits the button, a press on the ring-covered edge arms the power, and the hover tooltip opens.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/portraitFrame/portraitFrameZOrder.test.ts'], lastVerifiedAt: '2026-09-29' },
   },
+  // ── A card's On Death sound plays for the card that died (owner report 2026-09-29) ─────────────────────
+  {
+    id: 'R-FX-DEATH-01',
+    title: "A card's On Death effect plays when THAT card dies, wherever its death lands",
+    statement:
+      'Whatever a card has in its On Death slot (FX workbench, By card) plays every time a unit of that card '
+      + 'dies in combat, on the dying unit, whether it dies from an attack, a spell, an Echo or anything else. '
+      + 'It never plays the attacker\x27s or any other card\x27s On Death effect in its place.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-29 (unit voices)', quote: 'im not hearing any on death sounds' },
+      { kind: 'fix-pr', ref: 'fix/on-death-sounds: packages/ui/src/choreo/score.ts (new deathFx channel; the fxDef row stands down for death kinds)' },
+    ],
+    currentBehaviour:
+      'Conforms as of 2026-09-29. Before, the only path was the fxDef row on a `death`-kind moment, which named '
+      + 'the moment\x27s card from its SOURCE (the killer, or nothing for a lone death), and most deaths land inside '
+      + 'a `damage` moment or an attack exchange where that row never asked for `death` at all: so 300+ bound '
+      + 'On Death voicelines never played. The `deathFx` channel now scans every moment\x27s death events and plays '
+      + 'the dying card\x27s binding on that unit (binding gain respected).',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/choreo/score.test.ts'], lastVerifiedAt: '2026-09-29' },
+  },
 ];

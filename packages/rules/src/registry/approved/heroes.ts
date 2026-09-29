@@ -352,4 +352,88 @@ export const HEROES_RULES: GameRule[] = [
     currentBehaviour: 'Conforms, FIXED 2026-09-26: the sparkle showed through the Ancient awakening backdrop.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/enchantedUnderOverlays.test.ts'], lastVerifiedAt: '2026-09-26' },
   },
+  {
+    id: 'R-ANCALBUS-01',
+    title: 'Albus × Ancient of Death: Echo minions discovered by Empowerment gain Rise',
+    statement:
+      'With the Ancient of Death, the minion an Empowerment Discover produces gains Rise when it has an Echo. The pick replaces the Shop offer, so the Rise rides the offer and is baked in when it is bought; when the targeted offer was already gone and the pick went to hand, the hand card gains it. A pick without an Echo, and every other Discover, gains nothing.',
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-28 (Albus Ancients)', quote: 'Death: Echo minions discovered from Empowerment gain Rise.' },
+      { kind: 'code', ref: 'packages/sim/src/ancients.ts empowerEchoGainsRise / ancientOnEmpowerPick; packages/sim/src/reducer.ts takeDiscoverPick' },
+    ],
+    currentBehaviour: 'Conforms (built 2026-09-28). Dev-only (Scene Builder, Set 3, the Ancients flag).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsAlbus.test.ts'], lastVerifiedAt: '2026-09-28' },
+  },
+  {
+    id: 'R-ANCALBUS-02',
+    title: 'Albus × Ancient of Fortune: minions discovered by Empowerment are free',
+    statement:
+      'With the Ancient of Fortune, the Shop offer an Empowerment Discover produces costs 0 Gold to buy (its set price, ShopCard.cost). Empowerment itself still costs its 1 Gold.',
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-28 (Albus Ancients)', quote: 'Fortunte: Minions discovered by Empowerment are free.' },
+      { kind: 'code', ref: 'packages/sim/src/ancients.ts empowerFree / ancientOnEmpowerPick' },
+    ],
+    currentBehaviour: 'Conforms (built 2026-09-28). Dev-only (Scene Builder, Set 3, the Ancients flag).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsAlbus.test.ts'], lastVerifiedAt: '2026-09-28' },
+  },
+  {
+    id: 'R-ANCALBUS-03',
+    title: 'Albus × Ancient of War: a hero-level Pummel (80) over all your minions pays 2 Strange Revisions, once per combat, mid-fight',
+    statement:
+      "With the Ancient of War, every hit a friendly minion lands in combat (the same hits the Pummel keyword counts: not a popped Ward, not Immune, not 0) adds to ONE hero-level tally, with Rune of the Heavy Hand's extra share. The tally follows the Pummel keyword: it is lifetime (carried across combats), and the hit that crosses a multiple of 80 gets 2 Strange Revisions to hand right then, mid-fight (a live toHand), at most once per combat; crossings past that are spent. The power text prints the live progress toward the next 80 and ticks with each hit during a fight (R-REALTIME-01).",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-28 (Albus Ancients)', quote: 'War: Pummel (80): Get 2 Strange Revisions. (Once per Combat)' },
+      { kind: 'code', ref: 'packages/sim/src/ancients.ts pummelGrantsCards; packages/core/src/combat/simulate.ts noteAncientPummel (ancientPummel); packages/ui/src/useCombatReplay.ts questDelta.friendlyDamage; packages/ui/src/StatusBar.tsx' },
+    ],
+    currentBehaviour: 'Conforms (built 2026-09-28). Dev-only (Scene Builder, Set 3, the Ancients flag).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsAlbus.test.ts'], lastVerifiedAt: '2026-09-28' },
+  },
+  {
+    id: 'R-ANCALBUS-04',
+    title: 'Albus × Ancient of Genesis: Empowerment costs 3 Gold and also sends a copy of the chosen minion to hand',
+    statement:
+      'With the Ancient of Genesis, Empowerment costs 3 Gold. After the pick replaces the Shop offer, a plain copy of the chosen minion goes to your hand (the board when the hand is full), so you have the offer to buy plus the copy.',
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-28 (Albus Ancients)', quote: 'Genesis: Empowerment costs 3g. You also get a copy of the chosen minion sent to your hand.' },
+      { kind: 'code', ref: 'packages/sim/src/ancients.ts empowerCopyToHand + power override (cost 3)' },
+    ],
+    currentBehaviour: 'Conforms (built 2026-09-28). Dev-only (Scene Builder, Set 3, the Ancients flag).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsAlbus.test.ts'], lastVerifiedAt: '2026-09-28' },
+  },
+  {
+    id: 'R-ANCALBUS-05',
+    title: 'Albus × Ancient of Time: Empowerment becomes passive; Start of Turn Discovers a minion from the tier above your Shop tier',
+    statement:
+      'With the Ancient of Time, Empowerment is passive (never activatable). Every Start of Turn opens a Discover of a minion from exactly one tier above your Shop tier, as its own Start of Turn beat (R-SOT-BEAT-01). At the top the tier is clamped the way Empowerment clamps: at Tier 6 it Discovers Tier 6 minions, or Tier 7 with Tier 7 access. The power text prints the live tier.',
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-28 (Albus Ancients)', quote: 'Time: Empowerment becomes Start of Turn: Discover a minion from the tier above you.' },
+      { kind: 'code', ref: 'packages/sim/src/ancients.ts sotDiscoverTierAbove / albusStartOfTurn / albusTimeTier + power override (passive)' },
+    ],
+    currentBehaviour: 'Conforms (built 2026-09-28). Dev-only (Scene Builder, Set 3, the Ancients flag).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsAlbus.test.ts'], lastVerifiedAt: '2026-09-28' },
+  },
+  {
+    id: 'R-ANCALBUS-06',
+    title: 'Albus × Ancient of Bonds: playing an odd (even) tier minion gives your other odd (even) tier minions +3/+3',
+    statement:
+      'With the Ancient of Bonds, playing a minion from hand whose tier is odd gives every OTHER friendly board minion of an odd tier +3/+3, permanently, right then; an even-tier play does the same for even tiers. The played minion itself is not included. Combat has no play from hand (a hand summon is a summon, not a play), so this is Shop-phase only.',
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-28 (Albus Ancients)', quote: 'Bonds: Playing odd tier units grants +3/+3 to friendly odd tier units. Playing even tier units grants +3/+3 to friendly even tier units.' },
+      { kind: 'code', ref: 'packages/sim/src/ancients.ts playParityBuff / ancientOnPlay; packages/sim/src/recruit.ts playCard' },
+    ],
+    currentBehaviour: 'Conforms (built 2026-09-28). Dev-only (Scene Builder, Set 3, the Ancients flag).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsAlbus.test.ts'], lastVerifiedAt: '2026-09-28' },
+  },
 ];

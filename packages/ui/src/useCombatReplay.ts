@@ -3290,7 +3290,20 @@ export function useCombatReplay(
       attackByTribe: {} as Partial<Record<Tribe, number>>,
       summonCombatByTribe: {} as Partial<Record<Tribe, number>>,
       slaughterByTribe: {} as Partial<Record<Tribe, number>>,
+      friendlyDamage: 0,
     };
+    // Friendly damage landed so far (Albus × War's hero Pummel readout): a `dmg` whose dealer is a player body. The
+    // player's bodies are the starting board plus every player-side summon replayed so far.
+    if (combat && processedEnd > 0) {
+      const mine = new Set(combat.initial.player.map((m) => m.uid));
+      const n = Math.min(processedEnd, events.length);
+      for (let i = 0; i < n; i++) {
+        const e = events[i];
+        if (!e) continue;
+        if (e.type === 'summon') { if (e.side === 'player') mine.add(e.minion.uid); }
+        else if (e.type === 'dmg' && e.source && e.amount > 0 && mine.has(e.source)) d.friendlyDamage += e.amount;
+      }
+    }
     const qe = combat?.playerQuestEvents;
     if (!qe || processedEnd <= 0) return d;
     const curStep = events[processedEnd - 1]?.step ?? Infinity;

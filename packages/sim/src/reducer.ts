@@ -1,5 +1,5 @@
 import { type PresentationCollector, type ConsequenceDraft, type CombatEvent, beatIdentity, inRunTribes, socTwilightExtraFires, COMBATATIVE_RUBIES_ATTACKS, BODY_COUNTING_DEATHS, ALE_IDS, combatSide, makeCollector, makeRng, simulate, type BoardMinion, type CardDef, type CombatConfig, type CombatResult, type CombatSideState, type Keyword, type PendingCombatQuest, type PresentationBatch, type QuestCombatMods, type QuestDef, type QuestObjective, type QuestObjectiveEvent, type Tribe, TRIBES } from '@game/core';
-import { ancientCombatMods, ancientAfterPowerGild, ancientOfferOpen, ancientPowerTargetsGilded, ancientReplacesPowerGild, ancientsCombatTick, ancientsRefreshTick, ancientsSetMeter, pickAncient, ancientPulseExtraThenDestroy, ancientPulseDiscovers, ancientPulsePassive, ancientAfterPulse, ancientAegisDestroys, ancientAegisRecipient, ancientAegisDestroyAndGive, ancientAegisResilient, ancientAfterCombat, ancientBondsReact, ancientStartOfTurn } from './ancients';
+import { ancientCombatMods, ancientAfterPowerGild, ancientOfferOpen, ancientPowerTargetsGilded, ancientReplacesPowerGild, ancientsCombatTick, ancientsRefreshTick, ancientsSetMeter, pickAncient, ancientPulseExtraThenDestroy, ancientPulseDiscovers, ancientPulsePassive, ancientAfterPulse, ancientAegisDestroys, ancientAegisRecipient, ancientAegisDestroyAndGive, ancientAegisResilient, ancientAfterCombat, ancientBondsReact, ancientStartOfTurn, ancientEmpowerPassive, ancientOnEmpowerPick } from './ancients';
 import { runSpells } from './spellPool';
 import { currentCollector, withActiveCollector } from './activeCollector';
 import { surfaceKeyForRune, surfaceKeyForQuest, CARD_INDEX, EPIC_RUNES, GIFT_IDS, QUEST_INDEX, RUNE_INDEX, RUNES, runeSynergies, type SynergyTag } from '@game/content';
@@ -553,6 +553,8 @@ function takeDiscoverPick(s: RunState, index: number): boolean {
       returnToPool(s, s.shop[idx]!.cardId); // the displaced offer goes back, exactly like a reroll
       takeFromPool(s, def.id);
       s.shop[idx] = { uid: `s${s.uidSeq++}`, cardId: def.id, contraband: true }; // flagged so the UI flashes it
+      // ANCIENTS × Albus (a no-op unless the run has them): Death's Rise, Fortune's 0 Gold, Genesis' copy to hand.
+      ancientOnEmpowerPick(s, def, s.shop[idx]);
       return true;
     }
     // The offer is gone (bought or rerolled behind a queued Discover) — fall through and grant to hand rather
@@ -565,6 +567,8 @@ function takeDiscoverPick(s: RunState, index: number): boolean {
     mintRubies(s, 1, def.id);
     return true;
   }
+  // An Empowerment pick whose offer was gone (the fall-through above) still counts as an Empowerment Discover.
+  const empowered = !!s.discoverIntoShopUid;
   const dcb = cardBuff(s, def.id); // a discovered Fodder carries Ritualist's run buff
   // The hand is a hard 10-card cap: a Discover into a full hand adds nothing (the pick is forfeit rather
   // than over-capping). Only claim a pool copy when the card is actually taken.
@@ -596,6 +600,7 @@ function takeDiscoverPick(s: RunState, index: number): boolean {
     if (s.discoverExtraCasts) taken.extraCasts = (taken.extraCasts ?? 0) + s.discoverExtraCasts;
     s.hand.push(taken);
     takeFromPool(s, def.id); // a discovered copy leaves the shared pool (so selling it returns)
+    if (empowered) ancientOnEmpowerPick(s, def, undefined, taken);
   }
   // RUNE OF EMPTY HANDS (Set 3 batch 2): the pick's CARD joins the run's free-Equipment list — its Equipment costs
   // 0 for the run, sold and re-bought included (owner note 2026-09-16: by card). Consumed by this pick, taken or
@@ -3388,6 +3393,8 @@ function reduceCore(state: RunState, action: Action): RunState {
         // Albus: a SHOP minion becomes a Discover from the tier above it. The tier step follows the standard
         // ceiling (`hasTier7Access`), so on a Tier-6 offer it re-rolls within Tier 6 unless Tier 7 is open —
         // the same clamp Pete's Contrabanana uses. Targeted at a Shop offer only (not a board minion).
+        // ANCIENT OF TIME × Albus: Empowerment is passive (its Start of Turn Discover) — never activatable.
+        if (ancientEmpowerPassive(s)) return state;
         const shopIdx = s.shop.findIndex((o) => o.uid === action.uid);
         if (shopIdx < 0) return state;
         const def = CARD_INDEX[s.shop[shopIdx]!.cardId];

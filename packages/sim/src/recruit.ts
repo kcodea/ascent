@@ -1,5 +1,5 @@
 import { soulFurnaceHealth, ALE_IDS, RUBY_TYPE_IDS, SPECIAL_RUBY_IDS, TRIBES, inRunTribes, alignAllows, makeRng, SILENT_ONPLAY, isShopPoolSpell, shopSpellGrowth, COMBAT_REPLAYABLE_BATTLECRIES, NO_COPY_SPELL_IDS, extraTriggerFires, foldEchoExtraFires, socTwilightExtraFires, BODY_COUNTING_DEATHS, ARENA_EFFECTS, beatIdentity, type EffectArena, type PresentationCollector, type PresentationPhase, type PresentationPolicy, type Rng, type CardDef, type EffectDef, type Keyword, type TriggerFamily, type TriggerSourceRef, type Tribe } from '@game/core';
-import { ancientOnSale, ancientOnShopDeath, ancientOnShopShout, ancientOnShopRise, ancientPowerText, ancientEotWardBuff, ancientRunEotWardBuff, ancientBondsReact, ANCIENTS } from './ancients';
+import { ancientOnSale, ancientOnShopDeath, ancientOnShopShout, ancientOnShopRise, ancientPowerText, ancientEotWardBuff, ancientRunEotWardBuff, ancientBondsReact, ancientOnPlay, ANCIENTS } from './ancients';
 import { runSpells } from './spellPool';
 import { REVELER_IDS, RUNE_INDEX, CARD_INDEX, EQUIPMENT_INDEX, STAR_DESTROYER, equipmentOf, recurringEotOwner, type EquipmentDefinition } from '@game/content';
 import { equipIsNews, equipmentParams as equipmentParamsFor, grantEquipment as grantEquipmentToPlayer, armCalibration, unusedEquipmentCount } from './equipment';
@@ -1054,13 +1054,16 @@ export interface HeroPowerLive {
   /** Friendly minions summoned SO FAR in the fight being replayed (`combatQuestDelta.summonCombat`); undefined
    *  outside a fight. Lord of the Risen × Ancient of Time prints it live (R-ANCRISEN-07). */
   summons?: number;
+  /** Friendly damage LANDED so far in the fight being replayed (Heavy Hand folded); undefined outside a fight.
+   *  Albus × Ancient of War prints its hero Pummel progress live. */
+  friendlyDamage?: number;
 }
 
 export function heroPowerText(state: RunState, which = 0, live: HeroPowerLive = {}): string {
   const base = baseHeroPowerText(state, which, live);
   // ANCIENTS (owner ruling 2026-09-25): an awakened Ancient's pairing prints the COMBINED power on the main slot.
   // `ancientPowerText` is undefined unless the run has Ancients on and a written pairing is picked.
-  return (which === 0 ? ancientPowerText(state, base, { combatSummons: live.summons }) : undefined) ?? base;
+  return (which === 0 ? ancientPowerText(state, base, { combatSummons: live.summons, friendlyDamage: live.friendlyDamage }) : undefined) ?? base;
 }
 
 function baseHeroPowerText(state: RunState, which: number, live: HeroPowerLive): string {
@@ -15004,6 +15007,7 @@ export function playCard(state: RunState, played: BoardCard): void {
   fire(ctx, 'onSummon', { minion: played });
   fireDemonPlayRunes(state, played); // Rune of the Chipper Sticker / Refreshments: "whenever you play a Demon"
   fireOnTribePlayed(state, played); // set 3 Spirits: "whenever you play a Spirit" — board + hand watchers, never the card itself
+  ancientOnPlay(state, played); // ANCIENT OF BONDS × Albus: the other same-parity-tier minions gain (a no-op unless picked)
   // CELESTIAL ORBIT: the card just played FROM HAND wakes its immediate neighbours' Orbit effects (owner
   // ruling 2026-08-03 — from hand only, so a summoned token or a reorder that slides someone next to you
   // does NOT trigger it). Each orbiting watcher reads its OWN alignment, so the same card pays differently

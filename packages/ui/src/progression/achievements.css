@@ -94,3 +94,7 @@
 /* One-shot entrance, staggered by the inline delay (the panel's own acctxp-in keyframes: transform + opacity). */
 .acctxp.animated .acctxp-ach-row, .acctxp.animated .acctxp-ach-more { animation: acctxp-in 0.3s ease-out both; }
 @media (prefers-reduced-motion: reduce) { .acctxp-ach-row, .acctxp-ach-more { animation: none !important; } }
+/* The one line that replaced the post-game achievement / title / crate rows (owner 2026-09-28): new rewards wait in
+   the Collection. Static. */
+.acctxp-waiting { display: flex; align-items: center; justify-content: center; gap: 10px; padding: 10px 12px 2px; margin-top: 4px; border-top: 1px solid rgba(196, 160, 92, 0.18); font-family: var(--font-ui); font-weight: 800; font-size: 15px; color: #ffb45a; }
+.acctxp-waiting .newpill { margin-left: 0; }

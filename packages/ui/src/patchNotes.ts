@@ -63,6 +63,17 @@ export const PATCH_NOTES: PatchNote[] = [
           'The player who knocked you out is marked.',
           'In your Career, press Lobby on a match to open the same list. Matches from before this update have no details.',
           'Other players only wear their skins if Show opponent skins is on.',
+          "Under each board you can see that player's runes.",
+          'A small gold crown marks a player whose run is on the Hall of Champions right now.',
+        ],
+      },
+      {
+        category: 'Systems',
+        text: 'The end screen is shorter. New achievements, titles and crates now wait for you in the Collection.',
+        details: [
+          'After a game you see your placement, the XP you earned and your level bar.',
+          'The next time you open the Collection, a New rewards window shows everything new. Open your crates right there.',
+          'While rewards are waiting, the Collection button has an orange NEW tag.',
         ],
       },
       {

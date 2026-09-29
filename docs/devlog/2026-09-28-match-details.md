@@ -63,3 +63,36 @@ opponent-skins toggle, dialog Esc, Career expand/collapse, old-record fallback, 
 `packages/ui/src/matchDetails/runEndMatch.test.ts` (the real store's run end writes `entry.match` and
 `replay.match`). Live: real Practice games (players and bots, to losses and a win) on a blanked backend, screenshots
 at 1920x1080, 1366x768 and 844x390.
+
+## Owner review round 1 (2026-09-28)
+
+Owner, on 5173: "this screen is jittering all over the place"; "the match details looks solid once the jittering is
+fixed and runes are added to the view so you can see their rune choices"; "the end game screen here is full of
+stuff. can you have the unlocks, achievements, and crates be a pop up when the player gets back to the collection?
+and just highlight the collection's text in orange or have a "new" pill or something on it so players go there?";
+then "can we also add a little crown emblem on the match details screen if any of these boards is currently a hall
+of champions board?".
+
+- **Jitter, root cause.** It did not reproduce with compact cards, which are the default. It reproduced with the
+  card-text setting on (full cards): each board card's text drawer hung below its fixed-height tile. That unreserved
+  overflow gave the scrolling dialog a scrollbar, and the tiles are sized off the panel width (container units), so
+  the scrollbar shrank the tiles, which changed the overflow, which toggled the scrollbar. Scroll anchoring also
+  nudged the scroll position whenever the height moved (the panel was seen scrolling 0 to 53 px on its own). Fixed by
+  pinning stored-board cards compact in the scoreboard (new `Card` prop `forceCompact`; the hover reveal still
+  shows the full card and now floats above the dialog, where before it opened hidden behind the scrim), reserving
+  the panel's scrollbar gutter, turning scroll anchoring off, fixing the board strip's height, and memoising
+  `StoredTeam`'s card views. Verified: panel size and scroll position identical across every seat, in both card
+  modes, at 1920x1080 and in the Browser pane; regression test in `matchDetails.test.tsx`.
+- **Runes.** `MatchBoard.runes` = the seat's owned rune ids at that moment (off `BoardSnapshot.runes`, capped at 12),
+  shown under the board as the Career banner's emblem + name pills (`RuneEmblem.tsx`, extracted from Career).
+- **Hall crown.** `MatchSeat.runKey` (snapshot seats; your own ranked seat = the ledger reporter key). `hallKeys.ts`
+  reads `fetchHallRecords(HALL_ROWS, HALL_MIN_FIGHTS)` (the Hall screen's own query) once per panel open, caches a
+  non-empty answer for the session, never blocks the panel; offline or failed = no crown.
+- **End screen declutter.** `ProgressionPostgame` keeps the XP headline, breakdown, bar and level-up, plus one line
+  "New rewards are waiting in your Collection." Achievements, titles and crates are queued per account in
+  localStorage (`progression/newRewards.ts`, filled in `applyProgressionOutcome`, never twice) and shown once as the
+  Collection's **New rewards** pop-up (`NewRewardsPopup.tsx`; Open / Open all use the Collection's crate theatre;
+  "See all in Career" opens the Achievements tab). The title plaque, the side menu and the Career's Account Level card
+  wear an orange NEW pill while anything waits. The guest save prompt stays on the end screen.
+- **Found in passing:** Mimic-hero hybrid seats have an empty recording and never field a board (the panel says
+  "No board was recorded for this player"); spun off as its own task.

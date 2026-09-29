@@ -405,12 +405,16 @@ export const PERSISTENCE_RULES: GameRule[] = [
       + 'lobby actually fielded, recorded once when your game ends and never recomputed, and they wear their '
       + 'the skins of their owners only through the Show opponent skins setting. The same record is saved with the match, '
       + 'so the match history in the Career can show it again; an older match without it says the details were not '
-      + 'recorded.',
+      + 'recorded. Under the selected board the panel shows that seat\x27s rune choices at that moment, and a seat whose run is '
+      + 'currently on the Hall of Champions wears a small gold crown. The panel holds still: its size never depends on a '
+      + 'scrollbar or on which seat is selected.',
     domain: 'persistence',
     status: 'approved',
     evidence: [
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-28 (the Match details feature request)', quote: 'at the end game screen add a "match details" button to see the players in the lobby and the ability to click and see what their boards were when you died or won' },
       { kind: 'owner-handoff', ref: 'Player request on Discord, relayed by the owner 2026-09-28', quote: 'i placed 6th but wanted to see what everyone else looked like at the time of my loss' },
+      { kind: 'owner-chat', ref: 'Match details review on 5173, 2026-09-28', quote: 'the match details looks solid once the jittering is fixed and runes are added to the view so you can see their rune choices' },
+      { kind: 'owner-chat', ref: 'Match details review, 2026-09-28', quote: 'can we also add a little crown emblem on the match details screen if any of these boards is currently a hall of champions board?' },
       { kind: 'code', ref: 'packages/sim/src/lobby/matchDetails.ts (buildMatchDetails, parseMatchDetails); packages/ui/src/store.ts matchDetailsOf (run_history.entry.match, practice_games.replay.match); packages/ui/src/matchDetails/MatchScoreboard.tsx; packages/ui/src/Career.tsx (LobbyToggle, LobbyPanel)' },
     ],
     currentBehaviour:
@@ -421,7 +425,10 @@ export const PERSISTENCE_RULES: GameRule[] = [
       + 'run_history entry and the replay payload of the practice row, so no migration. Seats still standing when you '
       + 'went out have no placement yet and read as Top N / Still in; the lobby is not played out for them. '
       + 'Generated seats carry their handle and are not tagged; the Practice bot table is tagged Bot. Titles are '
-      + 'only known for your own seat.',
+      + 'only known for your own seat. JITTER (fixed 2026-09-28): with full-text cards the board cards hung out of their tiles, '
+      + 'the panel scrolled, and since the tiles are sized off the panel width the scrollbar fed back into the overflow; board '
+      + 'cards are now pinned compact, the gutter is reserved, scroll anchoring is off and the strip has one height. The crown '
+      + 'reads the Hall screen\x27s own query once per panel open (cached for the session once it answers).',
     example:
       'You are knocked out 6th in round 11 by Rook. Match details list the five players still in (by health, '
       + 'Rook marked as the one who knocked you out), then you, then the seats that went out before you. It opens '

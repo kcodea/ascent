@@ -80,10 +80,10 @@
      scroll anchoring is off (a height change never nudges the scroll position). */
   scrollbar-gutter: stable; overflow-anchor: none; }
 /* A WIDE, SHORT layout viewport (a phone in landscape: the stage lays out ~2340 x 1080 and scales it down by ~0.36)
-   has room to spare sideways, so the dialog grows into it and its text stays readable. `zoom` scales the panel's
+   has room to spare sideways, so the dialog grows into it (1.15x, sized so the whole panel still fits) and its text stays readable. `zoom` scales the panel's
    layout, not a transform, so the board strip's container units and the hover popups stay correct. Desktop
    (1920 x 1080 and up to 2200 wide) never matches. */
-:root[data-lv~="w2200"]:not([data-lv~="h1200"]) .mdd-panel { zoom: 1.3; width: min(1240px, calc(70 * var(--vw, 1vw))); max-height: calc(70 * var(--vh, 1vh)); }
+:root[data-lv~="w2200"]:not([data-lv~="h1200"]) .mdd-panel { zoom: 1.15; width: min(1240px, calc(70 * var(--vw, 1vw))); max-height: calc(88 * var(--vh, 1vh) / 1.15); }
 @keyframes mddin { from { opacity: 0; transform: translateY(10px) scale(0.985); } to { opacity: 1; transform: none; } }
 .mdd-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
 .mdd-titles { display: flex; flex-direction: column; gap: 4px; min-width: 0; }

@@ -1675,7 +1675,7 @@ export const FOUNDATION_RULES: GameRule[] = [
     statement:
       'The Level 2 reward is the title "Alpha Tester" (a level milestone, never in a crate), granted to EVERY account that reaches Account Level 2 '
       + '(level-based, so an existing account that reaches Level 2 gets it too) and equipped automatically when no title is '
-      + 'equipped. The post-game XP panel reveals it; the Career shows the level, the XP bar and the equipped title publicly. '
+      + 'equipped. The Collection\x27s New rewards pop-up announces it (moved off the post-game panel 2026-09-28, R-PROG-NEWREWARDS-01); the Career shows the level, the XP bar and the equipped title publicly. '
       + 'Anonymous (guest) players earn XP from their first game, because a guest session is a real account id that the email '
       + 'upgrade keeps. When a guest reaches Level 2 the post-game panel shows a gentle "Save your progress" prompt (never a '
       + 'gate) that opens the account panel, and the Career shows a small reminder. With no session at all, a game earns no XP.',
@@ -1686,8 +1686,31 @@ export const FOUNDATION_RULES: GameRule[] = [
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-27 (account progression MVP brief)', quote: 'Anonymous players: they ACCUMULATE XP from their first game' },
       { kind: 'code', ref: 'settle_progression c_alpha_title / c_alpha_level in supabase/migrations/2026-09-27-account-progression.sql; packages/progression/src/rules.ts TITLES; packages/ui/src/progression/ProgressionPostgame.tsx; packages/ui/src/progression/AccountLevel.tsx' },
     ],
-    currentBehaviour: 'Conforms, built 2026-09-27. Lobby name plates do not show titles yet (Career only).',
+    currentBehaviour: 'Conforms, built 2026-09-27. Lobby name plates do not show titles yet (Career only). Since 2026-09-28 the reveal is in the Collection pop-up, not the post-game panel.',
     enforcement: { kind: 'scenario', refs: ['packages/progression/src/sqlParity.test.ts', 'packages/progression/src/rules.test.ts', 'packages/ui/src/progression/ProgressionPostgame.test.tsx', 'packages/ui/src/Career.test.tsx'], lastVerifiedAt: '2026-09-27' },
+  },
+  {
+    id: 'R-PROG-NEWREWARDS-01',
+    title: 'The end screen stays short; achievements, titles and crates wait in a one-time New rewards pop-up in the Collection',
+    statement:
+      'After a game the end screen shows the placement, the XP gained, the level bar and the level-up moment, and, when the game '
+      + 'earned anything new, one line saying new rewards are waiting in the Collection. The achievements, first-time titles and '
+      + 'crates a settlement awarded are queued for that account (they survive a reload) and shown once, as a New rewards pop-up the '
+      + 'next time the Collection opens: achievements with their XP and a link to see them all in the Career, titles, and crates '
+      + 'with Open and Open all through the Collection\x27s own crate opener. Closing it in any way marks them seen, and a reward '
+      + 'is never shown twice. While rewards wait, every Collection entry point wears an orange NEW pill.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Match details review, 2026-09-28', quote: 'can you have the unlocks, achievements, and crates be a pop up when the player gets back to the collection?' },
+      { kind: 'owner-chat', ref: 'Match details review, 2026-09-28', quote: 'just highlight the collection\x27s text in orange or have a "new" pill or something on it so players go there?' },
+      { kind: 'code', ref: 'packages/ui/src/progression/newRewards.ts (queue, localStorage per account, the never-twice set); packages/ui/src/progression/NewRewardsPopup.tsx; progressionStore.ts applyProgressionOutcome; ProgressionPostgame.tsx; Title.tsx, MenuSidebar.tsx, AccountLevel.tsx (the NEW pill)' },
+    ],
+    currentBehaviour:
+      'Conforms as of 2026-09-28. The queue is local (localStorage, per account id), filled when a settlement answer is '
+      + 'confirmed, so rewards earned on another device show there, not here. A queued crate already opened elsewhere drops out of '
+      + 'the pop-up; a pop-up left with nothing never opens. The guest save prompt stays on the end screen.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/progression/newRewards.test.tsx', 'packages/ui/src/progression/Crates.test.tsx', 'packages/ui/src/progression/ProgressionPostgame.test.tsx'], lastVerifiedAt: '2026-09-28' },
   },
   {
     id: 'R-PROG-CRATE-01',

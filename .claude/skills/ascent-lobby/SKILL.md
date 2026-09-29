@@ -90,7 +90,8 @@ Spec: `docs/replay-v2-handoff.md`.
   seat's board through the lobby's own `prepare(round) ?? finalBoard()` ONCE at run end (store `matchDetailsOf`, in
   the deferred run-end blocks, before the fight ledger's play-out) and it is stored in `run_history.entry.match` /
   `practice_games.replay.match`. Readers go through `parseMatchDetails` (null for old records) and never touch a
-  driver. A change to how a seat fields its board must keep that call the one the settle uses.
+  driver. It also carries each board's owned runes and each real run's ledger key (the Hall of Champions crown).
+  A change to how a seat fields its board must keep that call the one the settle uses.
 
 Changes must consider saved lobbies, replays, telemetry, Career/Recent Games, the End Screen, tutorial
 authored seats, bot ladders, and remote snapshot availability.

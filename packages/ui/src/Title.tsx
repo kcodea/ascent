@@ -17,6 +17,7 @@ import { getCourseProgress, skipCourse } from './tutorial/tutorialProfile';
 import { RankCrest } from './rank/RankBar';
 import { useCurrentRank } from './rank/rankSource';
 import { rankLabel } from './rank/rankFormat';
+import { NewPill, useHasNewRewards } from './progression/NewRewardsPopup';
 
 /**
  * The title screen — the game's front door, shown at boot and after a run ends. Styled after the
@@ -60,6 +61,7 @@ export function Title({ onSettings }: { onSettings: () => void }) {
   // COLLECTION (owner ask 2026-09-28: "make the collection screen separate"): its own plaque, with the sealed-crate
   // count. Shown once crates are live (always in DEV, so the screen and its tuner are reachable before the SQL).
   const openCollection = useGame((s) => s.openCollection);
+  const newRewards = useHasNewRewards();
   const collectionOn = useProgression(cratesVisible) || import.meta.env.DEV;
   const sealedCrates = useProgression((s) => (s.crateList ?? []).filter((c) => c.state === 'sealed').length);
   const openBalance = useGame((s) => s.openBalance);
@@ -229,9 +231,10 @@ export function Title({ onSettings }: { onSettings: () => void }) {
             <span className="mblabel">Social</span>
           </button>
           {collectionOn && (
-            <button className="menubtn" onClick={() => { sfx.pulse(); openCollection(); }} data-tip="Open your crates and wear your titles">
+            <button className={`menubtn${newRewards ? ' hasnew' : ''}`} onClick={() => { sfx.pulse(); openCollection(); }} data-tip={newRewards ? 'New rewards are waiting in your Collection' : 'Open your crates and wear your titles'}>
               <span className="mbicon"><IconChest /></span>
               <span className="mblabel">Collection</span>
+              {newRewards && <NewPill />}
               {sealedCrates > 0 && <span className="mbnote" aria-label={`${sealedCrates} sealed ${sealedCrates === 1 ? 'crate' : 'crates'}`}>{sealedCrates} sealed</span>}
             </button>
           )}

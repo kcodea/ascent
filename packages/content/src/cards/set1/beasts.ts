@@ -48,13 +48,13 @@ export const BEASTS: CardDef[] = [
       { on: 'startOfCombat', do: 'scBeastAura', params: { tribe: 'beast', attack: 1, health: 0, stepAttack: 1, stepHealth: 0 } },
       { on: 'avenge', do: 'avengeImproveSummon', params: { count: 4 } }, // owner 2026-08-12: Avenge 3 → 4
     ],
-    // Start of Combat: give all your Beasts +N Attack (owner rulings 2026-09-28, R-AURA-03 — no run-wide Beast Aura):
+    // Start of Combat: give all Friendly and summoned Beasts +N Attack (owner rulings 2026-09-28, R-AURA-03 — no run-wide Beast Aura):
     // in combat the living Beasts now + any Beast summoned later that fight, nothing carried back (Engrave
     // excepted); an End-of-Turn replay (Combat Prowess) buffs the warband Beasts permanently, like any Shop buff. N = 1 + its Avenge-grown summonBonus, which IS permanent per instance
     // (the established "Improve this" convention: it rides summonBonus and carries across combats). Attack only:
     // `stepHealth: 0`. The live value surfaces via cardText's summonBuffText helper on every surface.
-    text: '**Start of Combat:** Give all your Beasts **+1 Attack**. **Avenge (4):** Improve this.',
-    goldenText: '**Start of Combat:** Give all your Beasts **+2 Attack**. **Avenge (4):** Improve this (twice as much).',
+    text: '**Start of Combat:** Give all Friendly and summoned Beasts **+1 Attack**. **Avenge (4):** Improve this.',
+    goldenText: '**Start of Combat:** Give all Friendly and summoned Beasts **+2 Attack**. **Avenge (4):** Improve this (twice as much).',
   },
   {
     id: 'gnash',
@@ -100,7 +100,7 @@ export const BEASTS: CardDef[] = [
     keywords: ['RL'],
     token: true,
     effects: [{ on: 'onAttack', do: 'rallyTribeAuraGrowing', params: { tribe: 'beast', attack: 5, health: 5, step: 5 } }],
-    text: '**Rally:** Give all your Beasts **+5/+5**. Improve this by **+5/+5** whenever Trophy Stalker attacks.',
+    text: '**Rally:** Give all Friendly and summoned Beasts **+5/+5**. Improve this by **+5/+5** whenever Trophy Stalker attacks.',
   },
   {
     // A glass-cannon finisher: a 7/1 that pays off when it dies. OWNER RULINGS 2026-09-28 (R-AURA-03): "Echo: Give
@@ -116,8 +116,8 @@ export const BEASTS: CardDef[] = [
     health: 1,
     keywords: [],
     effects: [{ on: 'onDeath', do: 'deathrattleBuffTribe', params: { tribe: 'beast', attack: 8, health: 8 } }],
-    text: '**Echo:** Give all your Beasts **+8/+8**.',
-    goldenText: '**Echo:** Give all your Beasts **+16/+16**.',
+    text: '**Echo:** Give all Friendly and summoned Beasts **+8/+8**.',
+    goldenText: '**Echo:** Give all Friendly and summoned Beasts **+16/+16**.',
   },
   {
     id: 'shaper',

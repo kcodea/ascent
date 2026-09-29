@@ -1313,10 +1313,11 @@ already multiplied only from hand (Rune of Resonance, Prismcaster); that is unch
 Lantern of Souls raises the **Undead Aura** for the rest of the run whether it is cast in the shop or in
 combat (a Rally, an Avenge, an Echo). Combat casts carry the gain back at settle. There is no combat-only Aura.
 
-### There is no Beast Aura: "Give all your Beasts" works in both phases (owner rules 2026-09-28, R-AURA-03)
+### There is no Beast Aura: "Give all Friendly and summoned Beasts" works in both phases (owner rules 2026-09-28, R-AURA-03)
 
 Beasts do **not** work like the Undead Aura; there is no hidden run-wide Beast channel. Every Beast grant reads
-*"Give all your Beasts +X/+Y"* and uses the normal "your Beasts" meaning, in both phases:
+*"Give all Friendly and summoned Beasts +X/+Y"* (wording 2026-09-29; it was "Give all your Beasts") and uses the
+normal "your Beasts" meaning, in both phases:
 
 - **In the Shop / at End of Turn**, every Beast in your **warband** (the board; not your hand, the same as every
   other Shop "your Beasts" grant) gains it **permanently**, like any Shop buff. A Grim destroyed or triggered in the
@@ -1326,9 +1327,9 @@ Beasts do **not** work like the Undead Aura; there is no hidden run-wide Beast c
 
 The cards:
 
-- **Kennelmaster**: *Start of Combat: Give all your Beasts +1 Attack. Avenge (4): Improve this.* The improvement is
+- **Kennelmaster**: *Start of Combat: Give all Friendly and summoned Beasts +1 Attack. Avenge (4): Improve this.* The improvement is
   permanent on that Kennelmaster (its `summonBonus`). One earned mid-fight is used from its **next** Start of Combat.
-- **Grim**: *Echo: Give all your Beasts +8/+8.* (gilded +16/+16). The 2026-09-24 per-game Echo tally is gone.
+- **Grim**: *Echo: Give all Friendly and summoned Beasts +8/+8.* (gilded +16/+16). The 2026-09-24 per-game Echo tally is gone.
 - **Armadiyo**, **Trophy Stalker**, **Rune of Beastial Swarm** (a Shop Beast death also pays it; its Avenge level
   persists), **Pack Mentality** (a Start of Combat grant whose level improves and persists) and **The Old Hunt**
   follow the same pattern.

@@ -30,7 +30,7 @@ const TRIBE_NOUN =
 
 /** Printed modifiers (all optional, any order, space-joined). */
 const MOD =
-  'random|other|different|friendly or [Ss]hop|friendly|enemy\'s(?! (?:Health|Attack|stats))|enemy|target|adjacent|next|first|last|left-most and right-most|right-most and left-most|left and right-most'
+  'random|other|different|friendly and summoned|friendly or [Ss]hop|friendly|enemy\'s(?! (?:Health|Attack|stats))|enemy|target|adjacent|next|first|last|left-most and right-most|right-most and left-most|left and right-most'
   + '|left-most|right-most|leftmost|rightmost|weakest|strongest|middle|entire|non-Gilded|Ruby-buffed|Shop-buffed'
   + '|highest-Health|highest-Attack|highest-Tier|lowest-Attack|Gilded|Golden|permanent|stat-granting|surviving|summoned'
   + '|plain|exact|extra|remembered|Shop|shop|Tier \\d+(?: or (?:lower|below))?|end';

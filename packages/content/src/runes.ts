@@ -3078,7 +3078,7 @@ export const EPIC_RUNES: RuneDef[] = [
     name: 'Rune of Beastial Swarm',
     cost: 5,
     epic: true,
-    text: 'When a friendly **Beast** dies, give all your Beasts **+2/+2**. **Avenge (2):** Improve this.',
+    text: 'When a friendly **Beast** dies, give all Friendly and summoned Beasts **+2/+2**. **Avenge (2):** Improve this.',
     reward: { kind: 'combatFlag', flag: 'runeBeastialSwarm' },
     sets: ['set2'],
   },

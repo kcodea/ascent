@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { lossDamageCap, roundLossCap } from '../reducer';
-import { omenBoardMinions, authoredTierFor } from './tutorialSeats';
+import { lossDamageCap, roundLossCap, runeCombatModsFor } from '../reducer';
+import { omenBoardMinions, authoredTierFor, authoredSeat } from './tutorialSeats';
 import { settleRunLobbyRound, type RunLobby } from './runLobby';
-import { CARD_INDEX } from '@game/content';
+import { CARD_INDEX, RUNE_INDEX, RUNES } from '@game/content';
 import type { CombatResult } from '@game/core';
 
 describe('roundLossCap', () => {
@@ -63,5 +63,40 @@ describe('invulnerable seats', () => {
     const out = settleRunLobbyRound(lobby, playerWon);
     expect(out.seats[1]).toMatchObject({ resolve: 1, alive: true });
     expect(out.encounters.at(-1)).toMatchObject({ damageToB: 0 });
+  });
+});
+
+describe('opponent runes', () => {
+  it('runeCombatModsFor turns a combat rune into its combat modifier', () => {
+    expect(RUNE_INDEX['rune_adventuring']?.reward).toMatchObject({ kind: 'rallyRepeat', scope: 'always' });
+    expect(runeCombatModsFor(['rune_adventuring']).rallyExtraAlways).toBe(1);
+    expect(runeCombatModsFor([]).rallyExtraAlways).toBeUndefined();
+  });
+
+  it('runeCombatModsFor never throws on any rune, even duplicated (the scratch run has no board or shop turn)', () => {
+    for (const r of RUNES) expect(() => runeCombatModsFor([r.id, r.id]), r.id).not.toThrow();
+  });
+
+  it('an authored seat fields its runes from their round on, stacking', () => {
+    const seat = {
+      id: 's1', label: 'Foe', heroId: 'aster', kind: 'authored' as const, seed: 2, resolve: 30, armor: 0, alive: true,
+      authoredBoards: Array.from({ length: 10 }, () => [{ attack: 1, health: 1 }]),
+      authoredRunes: [{ fromRound: 6, runeId: 'rune_adventuring' }, { fromRound: 9, runeId: 'rune_adventuring' }],
+    };
+    const d = authoredSeat(seat);
+    expect(d.prepare(5)?.snapshot).toBeUndefined();
+    expect(d.prepare(6)?.snapshot?.runes).toEqual(['rune_adventuring']);
+    expect(d.prepare(6)?.snapshot?.questMods?.rallyExtraAlways).toBe(1);
+    expect(d.prepare(9)?.snapshot?.runes).toEqual(['rune_adventuring', 'rune_adventuring']);
+    expect(d.prepare(9)?.snapshot?.questMods?.rallyExtraAlways).toBe(2);
+  });
+
+  it('a rune-less authored seat prepares exactly the board it always did (no snapshot key)', () => {
+    const seat = {
+      id: 's1', label: 'Foe', heroId: 'aster', kind: 'authored' as const, seed: 2, resolve: 30, armor: 0, alive: true,
+      authoredBoards: [[{ attack: 2, health: 3 }]],
+    };
+    expect(authoredSeat(seat).prepare(1)).toEqual({ minions: omenBoardMinions([{ attack: 2, health: 3 }]), tier: 1 });
+    expect('snapshot' in authoredSeat(seat).prepare(1)!).toBe(false);
   });
 });

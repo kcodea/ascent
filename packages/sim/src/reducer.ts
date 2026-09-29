@@ -12,7 +12,7 @@ import type { LobbyRules } from './lobby/types';
 import { accumulateContribution, tallyCombat } from './contribution';
 import { rollShop, topUpTavern, returnToPool, takeFromPool, rollCiaEnchants, tierSlots } from './shop';
 import { generateQuestOffer, questOfferPlan } from './quests';
-import { activePowers, getHero, gildCopiesNeeded, hasPower, powerDiscoverPool } from './heroes';
+import { DEFAULT_HERO_ID, activePowers, getHero, gildCopiesNeeded, hasPower, powerDiscoverPool } from './heroes';
 import { buildEnemyBoard, selectThreat } from './threats';
 import { pickOpponent, opponentBoard, oppKey } from './opponents';
 import type { BoardSnapshot } from './snapshot';
@@ -23,7 +23,7 @@ import {
   selectEquipment, selectedEquipment, amplifyAllHeld, amplifyUnactivated, consumeAmplified,
 } from './equipment';
 import { applyChooseOnePlayed, spendChooseBothCharge, noteSpellCast, applyCastEffects, makeContext, discoverSpecFor, heroPowerCostOf, commissionOffer, COMMISSION_DELAY, aegisGrantOf, allInPayoutOf, threeDistinctTypes, exhibitionGrantOf, stampSableBond, stampSharedSpoils, heroOfferPrice, addBuff, addOfferBuff, applyBattlecryTarget, applyCardsBought, applyCardsPlayed, applyChooseOne, applyChooseOneTarget, chooseBothActive, chooseOneNeedsChoice, applyEndOfTurn, applyStartOfTurn, applyOnBuy, applyGoldSpent, advanceRuneThresholds, applySecondLife, effectiveTargetTribe, dominantBoardTribe, uncontrolledTribes, gainGold, applyRunShopBuff, applyShoutsForEndlessVerse, applyShoutsForShopBuff, auraFxTargets, boardManaBonus, buffImpsRunWide, buffUndeadAttackEverywhere, buffCardTypeRunWide, buffFodderRunWide, cardBuff, captureBuffFx, conjuredStats, castSpell, castSpellOnOffer, conjureToHand, consumeTavernFodder, fireGravetwinEchoes, fireOnGainAttack, fireOnRubyCast, fireOnRubyPlayed, applyRubyRiderAction, mintRandomRubies, recordRubyRiderFx, fireOnMinionSold, fireOnSell, fireOnGainCard, fireSummonBuffs, fireDemonPlayRunes, foldOfferBuffs, creditShopBuffSource, gildMinion, grantMinionToHandOrBoard, grantTopTypeMinion, hasBattlecry, isTribe, mintRubies, modalOpen, openDiscover, playCard, queueDiscover, replayBattlecry, replayEconomyBattlecry, replayEndOfTurn, restoreHeldOffer, replayRecurringEndOfTurn, withEotDiscoverGrantBeat, sellValueOf, sellValueWithBonus, rubyCastCount, giftCastCount, rubyStatBonus, yazzusExtraCasts, consumeGrimoireCharge, countRubyAsShopSpell, fireSpellCastWatchersForRuby, spellAttackBonus, spellCasts, spellCostReduction, spellHealthBonus, stampImproveReps, swapWithTavern, applySpellBought, applyShopRefreshed, taughtAimSpell, triggerBorrowedEcho, landBorrowed, settlePendingDeath, stampEquipFx, equipmentFxMark, buffedFxTargets, fireEquipmentTriggers, fireEquipmentActivated, buyHealthAura, undeadBuyBonus, weldMagnetic, defIsTribe, handCardLocked, fireStatGainReactors, fireEquipmentFree, applyRuneGrafts, noteSpellForCountRunes, settleMinionSale, distillationEdges, fireRunicHoard, applyLorekeeping, runeExtraCasts, castWithRuneRepeats, withCastActor, withHandCast, fireSoldChoice, noteGilded, destroyMinionInShop } from './recruit';
-import { handCap, recordBounceFx, mixSeed, reservedHandSlots, TAG, henchmanOffer, type Action, type DeferredFight, type PreparedCombatSide, type ActiveQuest, type AuraFxTribe, type BoardCard, type CardBuff, type ShopCard, type CiaSuit, type Commission, type CommissionKind, type RunState, type RubyLandedFx, type SotBeatSource, gateUses, procRune, procRuneId, runeBuffMagnitude, PACKCRAFT_STEP, REINVESTMENT_PER_SUMMON, SLAYING_KILLS, EQUIPMENT_FX_ANCHOR } from './state';
+import { createRun, handCap, recordBounceFx, mixSeed, reservedHandSlots, TAG, henchmanOffer, type Action, type DeferredFight, type PreparedCombatSide, type ActiveQuest, type AuraFxTribe, type BoardCard, type CardBuff, type ShopCard, type CiaSuit, type Commission, type CommissionKind, type RunState, type RubyLandedFx, type SotBeatSource, gateUses, procRune, procRuneId, runeBuffMagnitude, PACKCRAFT_STEP, REINVESTMENT_PER_SUMMON, SLAYING_KILLS, EQUIPMENT_FX_ANCHOR } from './state';
 import { alignmentsOf } from './alignment';
 import { pushSotBeat, recordSotBeat } from './sotBeat';
 import { RUNE_DUP_SWEETENER, RUNE_DUP_UNIQUE, forgeFilteredDuplicate, runeStacksOf } from './runeDup';
@@ -7749,6 +7749,29 @@ export function questCombatMods(s: RunState): QuestCombatMods {
       return { attack: held.attack, health: held.health, copies: runeStacksOf(s, 'rune_held_strength') };
     })(),
   };
+}
+
+/**
+ * The combat modifiers a set of runes gives a side that owns them — for an AUTHORED opponent (Gauntlet), which has
+ * no run of its own. Applies each rune's reward to a scratch run through the same `applyQuestReward` the Runeforge
+ * uses (with the Runeforge's duplicate rules: a unique or sweetener-only duplicate adds nothing), then reads
+ * `questCombatMods`, so an opponent's rune behaves in combat exactly like a player's. A rune whose reward only acts
+ * in the shop (Gold, refreshes, Discovers, End of Turn) leaves no combat modifier: an authored opponent has no
+ * recruit phase, so such a rune does nothing for it. Pure and deterministic (fixed scratch seed).
+ */
+export function runeCombatModsFor(runeIds: readonly string[]): QuestCombatMods {
+  // TODO(Task 5): 'gauntlet' once it is a RunMode — the mode only labels this throwaway run.
+  const s = createRun(1, DEFAULT_HERO_ID, 'practice');
+  for (const id of runeIds) {
+    const rune = RUNE_INDEX[id];
+    if (!rune) continue;
+    const isDuplicate = (s.ownedRunes ?? []).includes(rune.id);
+    if (!(isDuplicate && (RUNE_DUP_UNIQUE.has(rune.id) || RUNE_DUP_SWEETENER.has(rune.id)))) {
+      applyQuestReward(s, { id: rune.id, name: rune.name, reward: rune.reward } as unknown as QuestDef, true, 'rune');
+    }
+    (s.ownedRunes ??= []).push(rune.id);
+  }
+  return questCombatMods(s);
 }
 
 /**

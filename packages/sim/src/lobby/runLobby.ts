@@ -49,6 +49,8 @@ export interface LobbySeatState {
   /** Authored seats only (Gauntlet): the opponent's tavern tier for each round (index = round − 1). Wins over
    *  `authoredTierRamp` for every round it covers. */
   authoredTiers?: number[];
+  /** Authored seats only (Gauntlet): the opponent's runes, each active from `fromRound` on (they stack). */
+  authoredRunes?: { fromRound: number; runeId: string }[];
   /** Gauntlet's opponent: the settle never charges this seat, so it can never be eliminated (the player's goal
    *  is to SURVIVE, not to knock it out). Its hits are still recorded as 0 dealt to it. */
   invulnerable?: true;

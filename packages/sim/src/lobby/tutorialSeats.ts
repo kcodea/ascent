@@ -16,6 +16,8 @@ import type { BoardMinion, Keyword, Tribe } from '@game/core';
 import { CARD_INDEX } from '@game/content';
 import { createRun, type RunState } from '../state';
 import { rollShop } from '../shop';
+import { runeCombatModsFor } from '../reducer';
+import type { BoardSnapshot } from '../snapshot';
 import type { LobbyRules, PreparedBoard, SeatDriver } from './types';
 import { DEFAULT_LOBBY_RULES } from './lobby';
 import type { LobbySeatState, RunLobby } from './runLobby';
@@ -78,6 +80,22 @@ export function authoredTierFor(
 
 export function authoredSeat(seat: LobbySeatState): SeatDriver {
   const boards = seat.authoredBoards ?? [];
+  const modsCache = new Map<string, BoardSnapshot['questMods']>();
+  /** The rune snapshot for a round, or undefined when no rune is active yet — so a rune-less authored seat (the
+   *  tutorial, practice bots) prepares exactly the board it always did. The reducer's lobby path builds the enemy
+   *  side from `PreparedBoard.snapshot`, and `sideFromSnapshot` threads `questMods` into combat, so the runes act
+   *  in the fight with no combat change. `threat` is a required placeholder (an authored seat has no threat). */
+  const runeSnapshot = (round: number, minions: BoardMinion[], tier: number): BoardSnapshot | undefined => {
+    const runes = (seat.authoredRunes ?? []).filter((r) => r.fromRound <= round).map((r) => r.runeId);
+    if (runes.length === 0) return undefined;
+    const key = runes.join('|');
+    if (!modsCache.has(key)) modsCache.set(key, runeCombatModsFor(runes));
+    return {
+      v: 1, wave: round, heroId: seat.heroId, resolve: seat.resolve, armor: seat.armor, tier, triples: 0,
+      tribes: [], threat: 'venom', power: minions.reduce((n, m) => n + m.attack + m.health, 0), minions, seed: seat.seed,
+      questMods: modsCache.get(key), runes,
+    };
+  };
   const boardFor = (round: number): PreparedBoard | null => {
     // Rounds are 1-based; clamp past the last authored board to the final one (the course's exhaustion tail),
     // so a lobby that runs a round longer than authored still fields a real board rather than a bye.
@@ -87,7 +105,10 @@ export function authoredSeat(seat: LobbySeatState): SeatDriver {
     // seat pinned at tier 1 deals a trickle no matter how big its bodies are. `authoredTierRamp` lets a seat
     // climb like a real board would (practice bots — owner ask 2026-08-25: games lasted far too long); absent, it
     // stays tier 1 so the TUTORIAL's gentle pacing is unchanged.
-    return { minions: omenBoardMinions(boards[idx]!), tier: authoredTierFor(seat, idx + 1) };
+    const minions = omenBoardMinions(boards[idx]!);
+    const tier = authoredTierFor(seat, idx + 1);
+    const snapshot = runeSnapshot(round, minions, tier);
+    return { minions, tier, ...(snapshot ? { snapshot } : {}) };
   };
   return {
     kind: 'recorded',

@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { getHero, type MatchDetails, type MatchSeat } from '@game/sim';
 import type { RunCosmeticSnapshot } from '@game/progression';
 import { Icon } from '../Icon';
+import { PortraitFrame, pfClass, usePortraitFrame } from '../portraitFrame/PortraitFrame';
 import { StoredTeam } from '../StoredTeam';
 import { RuneEmblem } from '../RuneEmblem';
 import { RUNE_INDEX } from '@game/content';
@@ -50,14 +51,17 @@ export function seatTitle(seat: MatchSeat, own: boolean, showOpponents: boolean)
 }
 
 /** The hero portrait in the game's gold ring (the Career's `.cv2-heroframe` markup, row-sized). */
-function SeatPortrait({ heroId, skins }: { heroId: string; skins: RunCosmeticSnapshot | null }) {
+function SeatPortrait({ heroId, skins, self }: { heroId: string; skins: RunCosmeticSnapshot | null; self: boolean }) {
   const art = heroPortrait(heroId, skins);
+  // The portrait-frames tuner's ring: your seat wears yours, the other seven the opponents'.
+  const frame = usePortraitFrame(self ? 'self' : 'opp');
   return (
-    <div className="cv2-heroframe mds-portrait">
+    <div className={`cv2-heroframe mds-portrait${pfClass(frame)}`} style={frame?.hostStyle}>
       <div className="hero">
         <div className="f">
           {art ? <img decoding="sync" className="heroimg" src={art} alt="" draggable={false} /> : <Icon name="anvil" />}
         </div>
+        <PortraitFrame frame={frame} />
       </div>
     </div>
   );
@@ -95,7 +99,7 @@ const SeatRow = memo(function SeatRow({ seat, place, status, selected, killer, h
       onKeyDown={(e) => onKey(e, seat.id)}
     >
       <span className={`mds-place${place.startsWith('Top') ? ' top' : ''}`}>{place}</span>
-      <SeatPortrait heroId={seat.heroId} skins={skins} />
+      <SeatPortrait heroId={seat.heroId} skins={skins} self={!!seat.self} />
       <span className="mds-who">
         <span className="mds-name">
           <span className="mds-name-text">{seat.name}</span>

@@ -12,6 +12,8 @@ import { ceremonyAdvanceSchedule, ceremonyTiming } from './heroCeremonyTiming';
 import { requestLaunch } from './heroLaunchController';
 import { getHeroCeremonyConfig } from './heroCeremonyTunerConfig';
 import ringArt from './heroportrait.png';
+import { usePortraitFrame } from '../portraitFrame/PortraitFrame';
+import { ringRelativeToDefault } from '../portraitFrame/portraitFrameConfig';
 import { createHeroCeremonyFx, type HeroCeremonyFxController } from './HeroCeremonyPixi';
 import { rectToStage, stageViewport } from '../stage';
 import './heroCeremony.css';
@@ -94,6 +96,8 @@ export function HeroSelectCeremony({ state, dispatch, cardEls }: Props) {
   const hero = getHero(heroId);
   const loadout = useLiveLoadout();
   const art = heroPortrait(heroId, loadout);
+  // The portrait-frames tuner's ring swaps the heroportrait ring the champion snaps into (null = today's ring).
+  const frame = usePortraitFrame('self');
   const tip = heroTip(heroId);
   const pi = phaseIndex(state.phase);
   const crossed = (p: HeroCeremonyPhase): boolean => pi >= phaseIndex(p);
@@ -423,6 +427,11 @@ export function HeroSelectCeremony({ state, dispatch, cardEls }: Props) {
         const ringSize = fx.ringSize * k;
         const cx = portrait.bounds.left + portrait.bounds.width / 2 + fx.ringX * k;
         const cy = portrait.bounds.top + portrait.bounds.height / 2 + fx.ringY * k;
+        // A tuner frame is seated relative to the default ring's hole, so the clip circle below still fits it.
+        const alt = frame ? ringRelativeToDefault(frame) : null;
+        const ringDraw = alt ? ringSize * alt.size : ringSize;
+        const ringCx = alt ? cx + alt.dx * ringSize : cx;
+        const ringCy = alt ? cy + alt.dy * ringSize : cy;
         const RING_INSET = 10 * k;
         // The circle is the SMALLER of "just inside the ring" and the artwork's own inscribed circle. Found
         // live on the owner's tuned look (704px ring around ~400px art): a ring-derived radius larger than
@@ -452,10 +461,10 @@ export function HeroSelectCeremony({ state, dispatch, cardEls }: Props) {
               <>
                 <img decoding="sync"
                   className="hsc-ring"
-                  src={ringArt}
+                  src={alt ? alt.src : ringArt}
                   alt=""
                   draggable={false}
-                  style={{ left: cx - ringSize / 2, top: cy - ringSize / 2, width: ringSize, height: ringSize }}
+                  style={{ left: ringCx - ringDraw / 2, top: ringCy - ringDraw / 2, width: ringDraw, height: ringDraw }}
                   aria-hidden="true"
                 />
                 {/* The FLASH itself: one-shot, mounts with the ring and burns out via CSS animation. */}

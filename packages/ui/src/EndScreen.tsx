@@ -5,6 +5,7 @@ import { buildTags, CONFIG, getHero, isCalibrationRound, isPlayerAction, lineRes
 import { Card, type CardView } from './Card';
 import { liveBoardView } from './instView';
 import { heroPortrait, useRunSkins } from './skins/skins';
+import { PortraitFrame, pfClass, usePortraitFrame } from './portraitFrame/PortraitFrame';
 import { Icon } from './Icon';
 import { useGame } from './store';
 import { sfx } from './sfx';
@@ -174,6 +175,8 @@ function TutorialGraduationScreen({ run, onDone }: { run: RunState; onDone: () =
 export function EndScreen({ won }: { won: boolean }) {
   const run = useGame((s) => s.run);
   const runSkins = useRunSkins();
+  // The portrait-frames tuner's ring (null = today's CSS border). Before the early returns below.
+  const frame = usePortraitFrame('self');
   const openTitle = useGame((s) => s.openTitle);
   const actions = useGame((s) => s.replayActions);
   // A lobby result is a placement, not a graded climb — its own screen, before any of the scored-run
@@ -237,12 +240,13 @@ export function EndScreen({ won }: { won: boolean }) {
     <div className={`heroselect endscreen${wonPar ? ' won' : ''}`}>
       <div className="hsbox endbox">
         <div className="endhero">
-          <div className="endhero-portrait">
+          <div className={`endhero-portrait${pfClass(frame)}`} style={frame?.hostStyle}>
             {heroPortrait(hero.id, runSkins) ? (
               <img decoding="sync" className="endhero-img" src={heroPortrait(hero.id, runSkins)} alt={hero.name} draggable={false} />
             ) : (
               <Icon name="anvil" />
             )}
+            <PortraitFrame frame={frame} />
           </div>
           <div className="endhero-name">{hero.name}</div>
         </div>

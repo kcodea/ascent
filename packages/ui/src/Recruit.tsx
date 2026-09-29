@@ -45,6 +45,7 @@ import { UnitEditor } from './UnitEditor';
 import { Card, mdBold, type CardView } from './Card';
 import { heroPowerArt, equipmentBranchArtFor } from './art';
 import { MinionSkins, heroPortrait, opponentSkins, seatCosmetics, useCombatFoeSkins, useOpponentSkins } from './skins/skins';
+import { PortraitFrame, usePortraitFrame } from './portraitFrame/PortraitFrame';
 import { beginDragTrace, cancelDragTrace, endDragTrace, sampleDragTrace } from './replay/dragTrace';
 import { SYM_KINDS } from './choreo/channels/float';
 import { stabilizeViewMap, stabilizeRefMap, stabilizeView } from './cardViewEqual';
@@ -1987,6 +1988,8 @@ export function Recruit() {
   // duration instead of one frame.
   // SKINS: "Show opponent skins" (the NOW FACING portrait honours it; your own portrait never does).
   const showOppSkins = useGame((s) => s.showOpponentSkins);
+  // The portrait-frames tuner's opponent ring for the NOW FACING face (null = today's gold CSS border).
+  const foeFrame = usePortraitFrame('opp');
   const [wipe, setWipe] = useState<WipeState>(() => (run.phase === 'combat' ? 'combat' : 'idle'));
   // Every duration, the easing, the shape and the edge come from the Screen wipe tuner (screenWipeConfig.ts;
   // production plays its baked defaults). Read per render: the machine only moves between wipes, so a slider
@@ -7220,7 +7223,14 @@ export function Recruit() {
           return (
             <div className="wipevs">
               <div className="wipevs-label">Now Facing</div>
-              <img decoding="sync" className="wipevs-face" src={heroPortrait(foe.seat.heroId, opponentSkins(showOppSkins, seatCosmetics(foe.seat, foe.board)))} alt="" draggable={false} />
+              {(() => {
+                const face = <img decoding="sync" className="wipevs-face" src={heroPortrait(foe.seat.heroId, opponentSkins(showOppSkins, seatCosmetics(foe.seat, foe.board)))} alt="" draggable={false} />;
+                // With a tuner frame on, the face sits in a disc-sized host that carries the ring; without one
+                // the markup is exactly what it always was.
+                return foeFrame ? (
+                  <span className="wipevs-facewrap pf-on" style={foeFrame.hostStyle}>{face}<PortraitFrame frame={foeFrame} /></span>
+                ) : face;
+              })()}
               <div className="wipevs-name">{foe.seat.label}</div>
             </div>
           );

@@ -6,6 +6,8 @@ import { Card, mdBold } from './Card';
 import { storedCardView } from './storedBoardView';
 import { heroArt, runeArt } from './art';
 import { Icon } from './Icon';
+import { PortraitFrame, pfClass, usePortraitFrame } from './portraitFrame/PortraitFrame';
+import type { PortraitSide } from './portraitFrame/portraitFrameConfig';
 import { medalOf } from './leaderboardData';
 
 /**
@@ -21,16 +23,19 @@ import { medalOf } from './leaderboardData';
  *  `size` picks the diameter: `row` (default) for a table/banner row, `big` for a page hero. (Never a bare
  *  `row` class — that is the board row's class and its layout rules would apply.) On the BANNER rows (the
  *  Hall + Recent Games, inside `.lb-row-hero`) CSS alone re-seats this same markup in the game's gold
- *  portrait-ring PNG (owner 2026-09-21, the `.portring` recipe) — no wrapper, no extra class. */
-export function LbHeroFrame({ heroId, size = 'row' }: { heroId: string | null | undefined; size?: 'row' | 'big' }) {
+ *  portrait-ring PNG (owner 2026-09-21, the `.portring` recipe) — no wrapper, no extra class.
+ *  `side` picks the portrait-frames tuner ring: `self` for your own row, `opp` (default) for everyone else. */
+export function LbHeroFrame({ heroId, size = 'row', side = 'opp' }: { heroId: string | null | undefined; size?: 'row' | 'big'; side?: PortraitSide }) {
   const art = heroId ? heroArt(heroId) : undefined;
   const name = heroId ? getHero(heroId).name : '';
+  const frame = usePortraitFrame(side);
   return (
-    <div className={`lb-heroframe${size === 'big' ? ' big' : ''}`}>
+    <div className={`lb-heroframe${size === 'big' ? ' big' : ''}${pfClass(frame)}`} style={frame?.hostStyle}>
       <div className="hero">
         <div className="f">
           {art ? <img decoding="sync" className="heroimg" src={art} alt={name} draggable={false} /> : <Icon name="anvil" />}
         </div>
+        <PortraitFrame frame={frame} />
       </div>
     </div>
   );

@@ -7,6 +7,7 @@ import { applyTitleVars } from './titleConfig';
 import { applyTitleVeilVars } from './titleVeilConfig';
 import { applyTitleAccountVars } from './titleAccountConfig';
 import { Icon } from './Icon';
+import { PortraitFrame, pfClass, usePortraitFrame } from './portraitFrame/PortraitFrame';
 import { sfx } from './sfx';
 import { useGame, tempHandle } from './store';
 import { MenuSidebar, SidebarHost } from './MenuSidebar';
@@ -70,6 +71,8 @@ export function Title({ onSettings }: { onSettings: () => void }) {
   const playerName = useGame((s) => s.playerName);
   const setPlayerName = useGame((s) => s.setPlayerName);
   const playerAvatar = useGame((s) => s.playerAvatar);
+  // The portrait-frames tuner's ring for your own avatar corner (null = today's copper ring).
+  const avatarFrame = usePortraitFrame('self');
   const openAvatarPicker = useGame((s) => s.openAvatarPicker);
   const account = useGame((s) => s.account);
   const savedRun = useGame((s) => s.savedRun);
@@ -145,13 +148,14 @@ export function Title({ onSettings }: { onSettings: () => void }) {
           data-tip="Change your avatar"
           aria-label="Change your avatar"
         >
-          <div className="portring">
+          <div className={`portring${pfClass(avatarFrame)}`} style={avatarFrame?.hostStyle}>
             <div className="hero">
               <div className="f">
                 {avatarSrc(playerAvatar)
                   ? <img decoding="sync" className="heroimg" src={avatarSrc(playerAvatar)} alt="" draggable={false} />
                   : <span className="titleportrait-ph">{(effectiveName.trim()[0] ?? '').toUpperCase() || '☺'}</span>}
               </div>
+              <PortraitFrame frame={avatarFrame} />
             </div>
           </div>
         </button>

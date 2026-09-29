@@ -5,6 +5,7 @@ import { playerOpponent, getHero } from '@game/sim';
 import { RUNE_INDEX } from '@game/content';
 import { runeArt, heroPowerArt } from './art';
 import { heroPortrait, opponentSkins, seatCosmetics } from './skins/skins';
+import { PortraitFrame, pfClass, usePortraitFrame } from './portraitFrame/PortraitFrame';
 import { mdBold } from './Card';
 import { Icon } from './Icon';
 import { BuffsFrame } from './BuffsFrame';
@@ -57,6 +58,8 @@ export const CombatOpponent = memo(function CombatOpponent(): JSX.Element | null
   // snapshots yield none, and with no rows there is no arrow, no hover prompt, and the click is a no-op —
   // exactly the player portrait's gating. Fresh state per mount, so a new fight always opens closed.
   const [buffsOpen, setBuffsOpen] = useState(false);
+  // The portrait-frames tuner's opponent ring (null = today's gold CSS border). Read before the early return.
+  const frame = usePortraitFrame('opp');
 
   const shown = inCombat || preview ? live : cached.current;
   if (phase === 'hidden' || !shown?.seat) return null;
@@ -99,7 +102,8 @@ export const CombatOpponent = memo(function CombatOpponent(): JSX.Element | null
         <div className="combatopp-name">{seat.label}</div>
         <div className="combatopp-body">
           <div
-            className={`combatopp-portrait${hasBuffs ? ' hasbuffs' : ''}${buffsOpen ? ' buffsopen' : ''}`}
+            className={`combatopp-portrait${hasBuffs ? ' hasbuffs' : ''}${buffsOpen ? ' buffsopen' : ''}${pfClass(frame)}`}
+            style={frame?.hostStyle}
             onClick={() => { if (hasBuffs) setBuffsOpen((o) => !o); }}
             role={hasBuffs ? 'button' : undefined}
           >
@@ -110,6 +114,7 @@ export const CombatOpponent = memo(function CombatOpponent(): JSX.Element | null
                 Click hero portrait to open / close the Buffs Panel
               </span>
             )}
+            <PortraitFrame frame={frame} />
           </div>
         </div>
         <div className="combatopp-hp">

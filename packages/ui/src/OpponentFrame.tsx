@@ -3,6 +3,7 @@ import { getHero, nextOpponent, dominantTribe, THREATS } from '@game/sim';
 import { QUEST_INDEX, RUNE_INDEX } from '@game/content';
 import { questArt, runeArt } from './art';
 import { heroPortrait, opponentSkins } from './skins/skins';
+import { PortraitFrame, pfClass, usePortraitFrame } from './portraitFrame/PortraitFrame';
 import { Icon } from './Icon';
 import { mdBold } from './Card';
 import { questRewardText } from './questText';
@@ -29,6 +30,8 @@ const tribeLabel = (tribe: string, count: number): string =>
 export function OpponentFrame() {
   const run = useGame((s) => s.run);
   const showOppSkins = useGame((s) => s.showOpponentSkins);
+  // The portrait-frames tuner's opponent ring (null = today's rounded-square border). Before the early return.
+  const frame = usePortraitFrame('opp');
   if (run.phase !== 'recruit' && run.phase !== 'combat') return null;
   const snap = nextOpponent(run);
 
@@ -65,8 +68,9 @@ export function OpponentFrame() {
       <div className="opp-plate">
         {/* Author name — a pill centered over the top edge (symmetric, deliberate). */}
         <span className="opp-name">{name}</span>
-        <div className="opp-pic">
+        <div className={`opp-pic${pfClass(frame)}`} style={frame?.hostStyle}>
           {art ? <img decoding="sync" src={art} alt={hero.name} draggable={false} /> : <Icon name="anvil" />}
+          <PortraitFrame frame={frame} />
         </div>
         <div className="opp-info">
           <div className="opp-hero">{hero.name}</div>

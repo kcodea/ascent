@@ -117,12 +117,12 @@ describe('cardText helpers', () => {
   });
 
 
-  // Grim is a per-game Echo tally card (owner batch 2026-09-24) and prints its LIVE TOTAL in place (owner ruling
-  // 2026-09-25, replacing the static-text exception). Full text == payout coverage: grimLiveText.test.ts.
-  it('Grim prints its live Echo total on every surface (owner ruling 2026-09-25)', () => {
+  // Grim is a FLAT "+8/+8" since 2026-09-28 (R-AURA-03) — no live-varying magnitude, so every surface prints the
+  // card text as-is, whatever the Echo tally.
+  it('Grim prints its flat grant on every surface (owner ruling 2026-09-28)', () => {
     const bag = { tier: 6, golden: false, spellBonus: 0, spellBonusH: 0, frontToBackBonus: 0, spellsThisTurn: 0, spellsCast: 0, deathrattlesTriggered: 9, undeadBuyAtk: 0, soulsmanGold: 0 };
-    expect(liveCardText('grim', bag as never).text).toBe('**Echo:** Give your **Beast Aura** **{{+30/+20}}**. Improves by **+3/+2** for every **Echo** triggered this game.');
-    expect(liveCardText('grim', { ...bag, golden: true } as never).goldenText).toBe('**Echo:** Give your **Beast Aura** **{{+60/+40}}**. Improves by **+6/+4** for every **Echo** triggered this game.');
+    expect(liveCardText('grim', bag as never).text).toBe('**Echo:** Give all your Beasts **+8/+8**.');
+    expect(liveCardText('grim', { ...bag, golden: true } as never).goldenText).toBe('**Echo:** Give all your Beasts **+16/+16**.');
   });
 
   it('run-wide metric helpers surface live values (Soulsman gold, Eternal Knight tally)', () => {
@@ -269,16 +269,18 @@ describe('cardText helpers', () => {
     expect(summonBuffText('trophystalker', 5, true)).toContain('{{+20/+20}}'); // (5 + 5) × 2 golden
   });
 
-  it('the Aura rebrand kept both injection sites live (owner ruling 2026-08-28)', () => {
-    // The rewrite swapped the "wherever they are" tail for the Aura noun, leaving the bold "**+N Attack**" /
-    // "**+N/+N**" tokens the helpers regex into. Assert the injected text keeps BOTH halves — the live number
-    // AND the Aura target — so a future re-word that drops the token can't silently strand the printed value.
-    for (const s of [summonBuffText('kennel', 2)!, summonBuffText('kennel', 2, true)!]) {
-      expect(s).toContain('**Beast Aura**');
-      expect(s).not.toMatch(/wherever they are|everywhere/);
+  it('the Beast rewrite kept both injection sites live (owner rulings 2026-09-28, R-AURA-03)', () => {
+    // Kennelmaster / Trophy Stalker dropped the "Beast Aura" noun for "all your Beasts", leaving the
+    // bold "**+N Attack**" / "**+N/+N**" tokens the helpers regex into. Assert the injected text keeps the live
+    // number AND the new wording, so a future re-word that drops the token can't silently strand the value.
+    expect(summonBuffText('kennel', 2)).toBe('**Start of Combat:** Give all your Beasts {{+3 Attack}}. **Avenge (4):** Improve this.');
+    expect(summonBuffText('kennel', 2, true)).toBe('**Start of Combat:** Give all your Beasts {{+6 Attack}}. **Avenge (4):** Improve this (twice as much).');
+    expect(summonBuffText('trophystalker', 5)).toBe('**Rally:** Give all your Beasts {{+10/+10}}. Improve this by **+5/+5** whenever Trophy Stalker attacks.');
+    for (const s of [summonBuffText('kennel', 2)!, summonBuffText('trophystalker', 5)!]) {
+      expect(s).not.toMatch(/Beast Aura|this combat|wherever they are|everywhere/);
     }
-    expect(summonBuffText('trophystalker', 5)).toContain('**Beast Aura**');
   });
+
 });
 
 describe('live values on climbing / per-turn cards (owner ask 2026-07-29)', () => {

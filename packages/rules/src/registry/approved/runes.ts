@@ -317,25 +317,27 @@ export const RUNES_RULES: GameRule[] = [
       + 'level is written back to the run (`packcraftLevel`) so the next fight\'s first summon starts from it, and the '
       + 'rune badge prints the current grant. Rune of Reinvestment pulses on every friendly summon and pays the Shop '
       + '+3/+4 per summon (× copies held) ONCE at settle, on the permanent run-wide Shop channel. Rune of Beastial '
-      + 'Swarm grows the BEAST AURA (the run-wide `beastBuyAtk` / `beastBuyHp` channel) by the current per-death amount '
-      + 'on every friendly Beast death: living Beasts gain it on the spot, later Beast summons inherit it, and the '
-      + 'player\'s gain carries back at settle; Avenge (2) still raises the per-death amount permanently. The enemy '
-      + 'side runs its own copy off its snapshot and only accumulates.',
+      + 'Swarm (R-AURA-03, 2026-09-28): on every friendly Beast death it gives all your Beasts the current per-death '
+      + 'amount. In combat the living Beasts gain it on the spot, later Beast summons that fight inherit it, and NOTHING '
+      + 'carries back; a Shop Beast death buffs the warband Beasts permanently. Avenge (2) (combat deaths) still raises '
+      + 'the per-death amount permanently. The enemy side runs its own copy '
+      + 'off its snapshot and only accumulates.',
     domain: 'runes',
     status: 'approved',
     evidence: [
       { kind: 'owner-chat', ref: 'Balance batch 9/23, tranche 5 (rune reworks B), owner list 2026-09-23', quote: 'Packcraft → "When you summon a minion in combat, give it +2/+1 and improve this permanently." Reinvestment → "When you summon a minion in combat, buff minions in the shop +3/+4 permanently." Bestial Swarm → "Give your Beast Aura +2/+2 when a friendly Beast dies. Avenge (2): improve this."' },
-      { kind: 'code', ref: 'packages/core/src/combat/simulate.ts summonMinion (Packcraft level + Reinvestment pulse), the Beastial Swarm death block, carryBacksFor (packcraftLevel / beastBuyAtkGain); packages/sim/src/reducer.ts settle (packcraftLevel, grantTribeAura) + questCombatMods (packcraftLevel, runeReinvestment); packages/sim/src/state.ts PACKCRAFT_STEP / REINVESTMENT_PER_SUMMON; packages/ui/src/runeTally.ts' },
+      { kind: 'owner-chat', ref: 'Owner ask 2026-09-28 (supersedes the Beastial Swarm carry-back; see R-AURA-03)', quote: 'pack mentality - aka beastial swarm buff: this is a combat buff only, not a permanent buff to beast aura everywhere.' },
+      { kind: 'code', ref: 'packages/core/src/combat/simulate.ts summonMinion (Packcraft level + Reinvestment pulse), the Beastial Swarm death block (combat-only), carryBacksFor (packcraftLevel / beastialSwarmLevel); packages/sim/src/reducer.ts settle (packcraftLevel, grantTribeAura) + questCombatMods (packcraftLevel, runeReinvestment); packages/sim/src/state.ts PACKCRAFT_STEP / REINVESTMENT_PER_SUMMON; packages/ui/src/runeTally.ts' },
     ],
     contentIds: ['rune_packcraft', 'rune_reinvestment', 'rune_beastial_swarm'],
     currentBehaviour:
-      'Conforms as of 2026-09-23. Until then Packcraft was a flat +6/+6 on every combat summon, Reinvestment paid '
-      + '+1/+1 per summon with one badge pulse at settle, and Beastial Swarm buffed the living Beasts for the fight '
-      + 'only (nothing carried back but the Avenge level).',
+      'Conforms as of 2026-09-28. Until 2026-09-23 Packcraft was a flat +6/+6 on every combat summon and Reinvestment paid '
+      + '+1/+1 per summon with one badge pulse at settle. Beastial Swarm carried its gain back into a run-wide Beast Aura '
+      + 'from 2026-09-23 to 2026-09-28, when the owner retired the Beast Aura (R-AURA-03).',
     enforcement: {
       kind: 'scenario',
-      refs: ['packages/sim/src/runeReworksB0923.test.ts', 'packages/sim/src/runeBatch8.test.ts', 'packages/sim/src/beastBatchAug12.test.ts', 'packages/ui/src/tallyCoverage.test.ts'],
-      lastVerifiedAt: '2026-09-23',
+      refs: ['packages/sim/src/runeReworksB0923.test.ts', 'packages/sim/src/runeBatch8.test.ts', 'packages/sim/src/beastBatchAug12.test.ts', 'packages/ui/src/tallyCoverage.test.ts', 'packages/sim/src/beastCombatOnly0928.test.ts'],
+      lastVerifiedAt: '2026-09-28',
     },
   },
   {

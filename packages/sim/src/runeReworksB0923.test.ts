@@ -273,28 +273,28 @@ describe('Rune of Lassoing — get a Rope Wrangler; when Lasso is cast, your min
 });
 
 // ── Rune of Beastial Swarm — the Beast AURA grows per Beast death ───────────────────────────────────────
-describe('Rune of Beastial Swarm — a friendly Beast death grows your Beast Aura +N/+N; Avenge (2) improves N (owner rework 2026-09-23)', () => {
+describe('Rune of Beastial Swarm — a friendly Beast death gives all your Beasts +N/+N (in combat: for the fight); Avenge (2) improves N (R-AURA-03)', () => {
   const beasts = [bm('alley', 'x', 0, 1), bm('alley', 'y', 0, 1), bm('pack', 'S', 0, 9999999)];
   const swarm = (level?: number) => sim(beasts, [{ cardId: 'sandbag', attack: 60, health: 40000 }], { runeBeastialSwarm: true, beastialSwarmLevel: level }, 3);
 
-  it('two Beast deaths at level 2 pump the aura carry-back by +4/+4 and raise the level to 4', () => {
+  it('two Beast deaths at level 2 buff the living Beasts +4/+4 in the fight, carry NO stats back, and raise the level to 4', () => {
     const r = swarm(2);
-    expect(r.playerBeastBuyAtkGain, 'the permanent Beast Attack aura gain').toBe(4);
-    expect(r.playerBeastBuyHpGain, 'and its Health half').toBe(4);
+    expect(r.playerBeastBuyAtkGain, 'no run-wide Beast Attack carry-back').toBeUndefined();
+    expect(r.playerBeastBuyHpGain, 'no Health carry-back').toBeUndefined();
     expect(r.playerBeastialSwarmLevel, 'Avenge (2) improved the per-death amount').toBe(4);
     const survivor = r.initial.player.find((m) => m.cardId === 'pack')!.uid;
     const live = r.events.filter((e) => e.type === 'buff' && e.target === survivor && (e as { source?: string }).source === 'Rune of Beastial Swarm');
     expect(live.reduce((n, e) => n + (e as { attack: number }).attack, 0), 'the living Beast gained it on the spot').toBe(4);
   });
 
-  it('settle folds the gain into the run\'s Beast Aura and every run-board Beast', () => {
+  it('settle keeps ONLY the improved level: no run-wide Beast stats, the run-board Beast is untouched', () => {
     const s = withRune('rune_beastial_swarm', { board: [bc('p', 'pack', 3, 2)], setId: 'set2' });
     const before = { a: s.beastBuyAtk ?? 0, h: s.beastBuyHp ?? 0 };
     const settled = reduce({ ...s, phase: 'combat', lastCombat: swarm(2) } as RunState, { type: 'settleCombat' }) as RunState;
-    expect((settled.beastBuyAtk ?? 0) - before.a).toBe(4);
-    expect((settled.beastBuyHp ?? 0) - before.h).toBe(4);
-    expect([settled.board[0]!.attack, settled.board[0]!.health], 'the run-board Beast carries the grown aura').toEqual([3 + 4, 2 + 4]);
-    expect(settled.beastialSwarmLevel).toBe(4);
+    expect((settled.beastBuyAtk ?? 0) - before.a).toBe(0);
+    expect((settled.beastBuyHp ?? 0) - before.h).toBe(0);
+    expect([settled.board[0]!.attack, settled.board[0]!.health], 'the fight buff wore off').toEqual([3, 2]);
+    expect(settled.beastialSwarmLevel, 'the Improve persists').toBe(4);
   });
 
   it('a non-Beast death grows nothing', () => {
@@ -316,7 +316,7 @@ describe('the 19 reworked texts read as the owner wrote them', () => {
     rune_hatchery: 'Minions summoned in **combat** have **+5/+5** and **Taunt**.',
     rune_muckbroker: 'Get a **Muckslinger**. Repeat every **2 turns**.',
     rune_unbroken_vein: 'Get a **Veinbreaker**. Repeat at **Start of Turn**. They grant **both** effects.',
-    rune_beastial_swarm: 'Give your **Beast Aura +2/+2** when a friendly **Beast** dies. **Avenge (2):** improve this.',
+    rune_beastial_swarm: 'When a friendly **Beast** dies, give all your Beasts **+2/+2**. **Avenge (2):** Improve this.', // owner 2026-09-28 (R-AURA-03)
     rune_copies: '**Start of Turn:** get a copy of a random minion on your board.',
     rune_finality: 'When your **last minion dies**, summon **3 Imps** with **Ward**.',
     rune_living_treasure: 'Your **Gemheart Golems** gain **Rebirth**.',

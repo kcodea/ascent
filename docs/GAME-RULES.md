@@ -273,9 +273,12 @@ progression **epoch**; nothing finished before the epoch counts (no backfill).
   and impales the target, the blow landing on the greatsword); every stuck blade then shatters (looks only).
   **Enraged Strike** is the fifth, `attack_enraged` ("Enraged Strike", a placeholder name; Legendary, from crates;
   R-PROG-ATTACK-11): Classic's own swing, enraged. After the same damage formation the hero coils deeper while a rage aura
-  burns round the portrait, dashes in leaving afterimages, and hits with a white flash, rings and claw rips (I one hit; II a
-  double strike; III a flurry of three with a finisher, the blow landing once on the last; IV the hero rises, hangs and slams
-  down like a meteor, leaving a crater, the blow landing on the meteor). **Poison Darts** is the sixth, `attack_poison`
+  burns round the portrait and bursts in a roar, dashes in leaving afterimages and a scorch, and stops at the struck hero's
+  rim so every hit reads on contact: a white flash, rings, claw rips and glowing rim cracks. Every hit is a full cycle: a hard
+  recoil off the foe, a coil, a dash back in and its own impact, each harder than the last (I one hit; II a double; III a
+  combo of three with a finisher, the blow landing once on the finisher; IV a rampage of five slams that speed up, then the
+  hero rears way back and brings an overhead haymaker down on the foe with a flaming crescent, a rage shockwave, molten
+  cracks and an ember storm, the blow landing on the haymaker). **Poison Darts** is the sixth, `attack_poison`
   ("Venom Volley", a placeholder name; Legendary, from crates; R-PROG-ATTACK-12): after the same damage formation the hero
   flicks small poison darts that thunk into the struck hero and stick at varied angles, with venom splashes and a sickly
   green tint (I one dart; II two in quick succession; III a fan of five, the blow landing once on the last; IV six darts
@@ -1291,13 +1294,36 @@ already multiplied only from hand (Rune of Resonance, Prismcaster); that is unch
 Lantern of Souls raises the **Undead Aura** for the rest of the run whether it is cast in the shop or in
 combat (a Rally, an Avenge, an Echo). Combat casts carry the gain back at settle. There is no combat-only Aura.
 
+### There is no Beast Aura: "Give all your Beasts" works in both phases (owner rules 2026-09-28, R-AURA-03)
+
+Beasts do **not** work like the Undead Aura; there is no hidden run-wide Beast channel. Every Beast grant reads
+*"Give all your Beasts +X/+Y"* and uses the normal "your Beasts" meaning, in both phases:
+
+- **In the Shop / at End of Turn**, every Beast in your **warband** (the board; not your hand, the same as every
+  other Shop "your Beasts" grant) gains it **permanently**, like any Shop buff. A Grim destroyed or triggered in the
+  Shop buffs the warband.
+- **In combat**, every friendly Beast in the fight gains it, including Beasts summoned later that fight, and it does
+  **not** carry back after the fight, unless a mechanic keeps combat stats (an **Engraved** Beast keeps it).
+
+The cards:
+
+- **Kennelmaster**: *Start of Combat: Give all your Beasts +1 Attack. Avenge (4): Improve this.* The improvement is
+  permanent on that Kennelmaster (its `summonBonus`). One earned mid-fight is used from its **next** Start of Combat.
+- **Grim**: *Echo: Give all your Beasts +8/+8.* (gilded +16/+16). The 2026-09-24 per-game Echo tally is gone.
+- **Armadiyo**, **Trophy Stalker**, **Rune of Beastial Swarm** (a Shop Beast death also pays it; its Avenge level
+  persists), **Pack Mentality** (a Start of Combat grant whose level improves and persists) and **The Old Hunt**
+  follow the same pattern.
+
+The old run-wide Beast channel (`beastBuyAtk` / `beastBuyHp`) is no longer fed. It is still read, so an older
+in-flight run or recorded snapshot keeps what it banked.
+
 ---
 
 ### Aura — the run-wide scope noun (owner ruling 2026-08-28)
 
 A grant that reaches a whole tribe/class **wherever its members sit** — the board, your hand, the Shop, and
-copies you acquire later — prints as an **Aura**: *"give your **Beast Aura** +2/+4"*, *"improve your **Imp
-Aura** by +2/+2"*. The shape is `your <Tribe-singular> Aura`.
+copies you acquire later — prints as an **Aura**: *"give your **Undead Aura** +5 Attack"*, *"improve your **Imp
+Aura** by +2/+2"*. The shape is `your <Tribe-singular> Aura`. (Beasts have no Aura since 2026-09-28: see R-AURA-03 above.)
 
 This replaced the older scope tails **"wherever they are"** and **"everywhere"**, which no longer appear in
 any printed text. It is a **vocabulary change only** — an Aura grant is the same run-wide grant it always

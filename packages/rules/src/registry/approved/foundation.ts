@@ -2312,29 +2312,41 @@ export const FOUNDATION_RULES: GameRule[] = [
   },
   {
     id: 'R-PROG-ATTACK-11',
-    title: 'Enraged Strike (attack_enraged, Legendary) is the fifth hero attack: CLASSIC\'s own lunge, enraged; one hit / a double / a flurry of three / a meteor slam on the SAME damage tiers; the blow lands ONCE; no freeze',
+    title: 'Enraged Strike (attack_enraged, Legendary) is the fifth hero attack: CLASSIC\'s own lunge, enraged; one hit / a double / a combo of three / a rampage and an overhead haymaker on the SAME damage tiers; every hit a full cycle that reads on contact; the blow lands ONCE; no freeze',
     statement:
       'attack_enraged ("Enraged Strike", a placeholder name for the owner to rename; Legendary, crate, account-wide, style '
       + 'enraged) plays Classic\x27s swing enraged: after the shared damage formation (R-PROG-ATTACK-08) the striking hero '
-      + 'plays the SAME swing Classic does (R-PROG-ATTACK-09: its coil direction, its corner-first contact point, its '
-      + 'distance-scaled strike and ease, its rebound and elastic settle, at its tempo), amplified: a deeper coil and a bigger '
+      + 'plays the SAME swing Classic does (R-PROG-ATTACK-09: its coil direction, its distance-scaled strike and ease, its '
+      + 'rebound and elastic settle, at its tempo), amplified: a deeper coil and a bigger '
       + 'swell while a rage aura burns round the portrait (flame tongues licking off the rim, a hot rim and a halo, charge '
-      + 'rings closing in, hot motes pulled in, a rising growl), a dash that leaves crisp afterimages of the portrait and a '
-      + 'rage streak, and on contact a white flash, a shockwave ring and a second ring, claw rips torn across the struck '
-      + 'portrait, chunky sparks and embers, a squash on the striker, a hard knockback and squash on the struck hero and a '
-      + 'controlled camera punch and shake. It escalates on exactly the tiers every other hero attack uses (one shared '
-      + 'tierOf, thresholds 6 / 12 / 20): I 1-5 ONE enraged hit; II 6-11 a DOUBLE strike; III 12-19 a FLURRY of three, the '
-      + 'last a finisher after a deeper wind; IV 20+ the hero RISES up the screen and swells, hangs, and SLAMS down on the '
-      + 'struck hero like a meteor (a short screen flash, a scorched crater with glowing fissures, rock debris, an ember '
-      + 'fountain, aftershocks). The consequence (the damage, Armor, Resolve) lands exactly ONCE: on the LAST strike (every '
-      + 'earlier strike is a tick with FX only) or, at IV, on the meteor. No hit-stop or freeze anywhere (R-PROG-ATTACK-10). '
-      + 'The coil and the rise are shortened, never bent, so a portrait in a corner stays on screen. Presentation only; '
+      + 'rings closing in, hot motes pulled in, a rising growl) that peaks in a RAGE BURST just before the drive (the portrait '
+      + 'flares, heat-shimmer rings tear off the rim, a roar), a dash that leaves crisp afterimages of the portrait, a rage '
+      + 'streak and a scorch skid on the ground. THE HIT READS ON CONTACT (polish 2026-09-28): unlike Classic, the striker '
+      + 'stops with its rim at the struck portrait\x27s rim (never over its face) and stays planted a beat, so on the contact '
+      + 'frame the struck face shows a white flash, crisp shockwave rims, bold red claw rips with white-hot cores (raked on '
+      + 'the side away from the big -N), glowing rage cracks on its rim, its knockback and squash, and sparks that bounce '
+      + 'back toward the middle of the screen (a hero in a corner keeps its spray in view). EVERY HIT IS A FULL CYCLE '
+      + '(polish 2026-09-28): after each hit the striker RECOILS hard off the foe (stretched), COILS (squashed, trembling, '
+      + 'a ring tightening onto it), flies back in with its own streak, afterimages and scorch, and lands its own impact '
+      + '(a flash, a rip, rim cracks, a spark burst, the foe knocked back, a camera punch), each hit harder than the last. '
+      + 'It escalates on exactly the tiers every other hero attack uses (one shared tierOf, thresholds 6 / 12 / 20): I 1-5 '
+      + 'ONE enraged hit; II 6-11 a DOUBLE; III 12-19 a COMBO of three, the last a finisher after a deeper wind; IV 20+ a '
+      + 'RAMPAGE of five slams that come faster and faster, then the HAYMAKER: the striker rears way back and up over the '
+      + 'board at the peak of its rage (the flames tower, the biggest roar, a dark ring of pressure closing in) and brings '
+      + 'an overhead blow DOWN on an arc onto the struck hero: a giant flaming crescent, a screen-filling rage shockwave, '
+      + 'molten cracks round the struck portrait, rubble, an ember storm and the strongest camera punch (the old meteor is '
+      + 'gone). The consequence (the damage, Armor, Resolve) lands exactly ONCE: on the LAST strike (every '
+      + 'earlier strike is a tick with FX only) or, at IV, on the haymaker. No hit-stop or freeze anywhere (R-PROG-ATTACK-10). '
+      + 'The coil, the rear-back and the haymaker arc are kept inside the screen, so a portrait in a corner stays in view. Presentation only; '
       + 'reduced motion is fades only; an unknown or retired id plays Classic.',
     domain: 'foundation',
     status: 'approved',
     evidence: [
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-28 (the fifth hero attack)', quote: 'branch off and make one more animation, which is just a legendary version of this strike. it should be a 10x more exciting and oomphier more impactful and pixi animation dense attack animation, but basically a legendary version of this attack, just amplified or enraged.' },
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-28 (Enraged first review)', quote: 'enraged needs way more polish. it\x27s a 4/10. pleaes take a huge pass at improving it and cleaning it up' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-28 (Enraged polish pass)', quote: 'the enrage animations kinda meh, can you polish it up' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-28 (Enraged combo + haymaker)', quote: 'the multi attack ones need to feel more impactful when they reel back, let them fly back in and impact each time. the final hit\x27s entire animation stinks, please fully redo the huge animation for enrage' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-28 (Enraged polish review)', quote: 'enrage is much better.' },
       { kind: 'code', ref: 'packages/progression/src/cosmetics.ts (attack_enraged); packages/ui/src/heroEnraged/ (heroEnragedConfig enragedPlan / enragedCues / enragedGeo / enragedPose / enragedCameraAt, heroEnraged playHeroEnraged, heroEnragedScene); classicSwing in packages/ui/src/heroAttack/heroClassic.ts' },
     ],
     currentBehaviour: 'Conforms, built 2026-09-28. The item reaches the database on the next deploy of progression-inventory (the catalog sync); the equip SQL already accepts the hero_attack slot.',

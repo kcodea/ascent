@@ -102,7 +102,7 @@ export function summonEscalatingText(cardId: string, golden: boolean, summonBonu
 export function summonBuffText(cardId: string, summonBonus: number, golden = false): string | null {
   if (summonBonus <= 0) return null; // baseline: fall back to printed text (golden's `doubleNums` handles it)
   const def = CARD_INDEX[cardId];
-  // `buffOnSummon` (legacy summon-buff) or Kennelmaster's `scBeastAura` (Start-of-Combat Beast aura) or Trophy
+  // `buffOnSummon` (legacy summon-buff) or Kennelmaster's `scBeastAura` (Start of Combat: all Beasts +N this combat) or Trophy
   // Stalker's `rallyTribeAuraGrowing`. All grant `(base + summonBonus) × golden`, so the same live magnitude
   // injects into the printed "+N/+N". Golden must be folded in here: the injected value is wrapped in `{{…}}`,
   // which the Card EXCLUDES from its generic golden `doubleNums` pass — so an un-doubled inject under-showed a
@@ -1051,15 +1051,11 @@ export function cardTypeTallyText(cardId: string, enchant: { attack: number; hea
 }
 
 /**
- * Grim ("Echo: give your Beast Aura +3/+2 for every Echo triggered this game") prints its TOTAL in place — owner
- * ruling 2026-09-25, replacing the 2026-09-24 static-text exception: "fix grim so that it updates in real time
- * with the current value of the echo." Owner wording (2026-09-25 correction): "Echo: Give your Beast Aura
- * {{+X/+Y}}. Improves by +3/+2 for every Echo triggered this game." (the rate stays static, gilded +6/+4) where
- * X/Y = N x (+3/+2) (gilded x2) and N is the SAME number `deathrattleBuffTribeByTally` will read when this Echo
- * fires: the run-wide Echo tally so far (+ this fight's Echoes in combat) plus ONE for Grim's own Echo, since
- * the tally is bumped before an Echo fires. `includeSelf = false` is the enemy side's frozen snapshot tally,
- * which the simulator never bumps mid-fight (the known asymmetry in R-ECHOTALLY-01), so there N = the tally.
- * Always returns a line for a tally card (the total is the text), null for every other card.
+ * LEGACY live text for a `deathrattleBuffTribeByTally` card: prints (Echoes so far + 1 for its own) x the per-Echo
+ * rate in place. Grim used it from 2026-09-24 to 2026-09-28; since the owner's 2026-09-28 ruling (R-AURA-03) Grim is a
+ * flat "Echo: Give all Beasts +8/+8 this combat" and no live card carries the tally effect, so this returns null for
+ * every card today. Kept (with its Unit.tsx / instView wiring) so a re-introduced tally card prints live at once.
+ * `includeSelf = false` is an enemy snapshot's frozen tally. Always returns a line for a tally card, else null.
  */
 export function echoTallyText(cardId: string, echoesSoFar: number, golden = false, includeSelf = true): string | null {
   const def = CARD_INDEX[cardId];

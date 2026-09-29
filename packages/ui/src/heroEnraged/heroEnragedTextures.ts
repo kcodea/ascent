@@ -144,6 +144,41 @@ function paintHalo(D: number): HTMLCanvasElement | null {
   return k.c;
 }
 
+/**
+ * RIM CRACKS: short jagged fissures radiating off a ring at 0.62 of the half-width (the struck portrait's rim), each
+ * thick where it leaves the rim and forking once. They hug the frame (never lightning across the board, never over the
+ * face).
+ */
+function paintRimCracks(D: number): HTMLCanvasElement | null {
+  const k = canvas(D, D); if (!k) return null;
+  const g = k.g;
+  const c = D / 2;
+  const r0 = c * 0.62;
+  const rnd = seededRng(2718);
+  g.strokeStyle = '#fff'; g.lineCap = 'round'; g.lineJoin = 'round';
+  g.shadowColor = '#fff'; g.shadowBlur = D * 0.012;
+  const n = 16;
+  for (let i = 0; i < n; i++) {
+    let a = (i / n) * Math.PI * 2 + (rnd() - 0.5) * 0.25;
+    let x = c + Math.cos(a) * r0, y = c + Math.sin(a) * r0;
+    const len = c * (0.1 + rnd() * 0.16);
+    const steps = 3;
+    for (let s = 0; s < steps; s++) {
+      a += (rnd() - 0.5) * 0.9;
+      const nx = x + Math.cos(a) * (len / steps), ny = y + Math.sin(a) * (len / steps);
+      g.lineWidth = D * 0.016 * (1 - s / steps) + 1;
+      g.beginPath(); g.moveTo(x, y); g.lineTo(nx, ny); g.stroke();
+      if (s === 1 && rnd() < 0.6) {
+        const fa = a + (rnd() < 0.5 ? 0.8 : -0.8);
+        g.lineWidth = D * 0.006 + 1;
+        g.beginPath(); g.moveTo(nx, ny); g.lineTo(nx + Math.cos(fa) * len * 0.35, ny + Math.sin(fa) * len * 0.35); g.stroke();
+      }
+      x = nx; y = ny;
+    }
+  }
+  return k.c;
+}
+
 let cached: HeroEnragedTextures | null = null;
 
 /** The session's textures, painted on first use. Null when no 2D canvas is available (the style then skips Pixi). */
@@ -151,9 +186,9 @@ export function heroEnragedTextures(): HeroEnragedTextures | null {
   if (cached) return cached;
   const base = heroArcanaTextures();
   const smoke = paintSmoke(96), rock = paintRock(40);
-  const scorch = paintScorch(192), cracks = paintCracks(256), disc = paintDisc(128), rim = paintRim(256), halo = paintHalo(128);
-  if (!base || !smoke || !rock || !scorch || !cracks || !disc || !rim || !halo) return null;
-  cached = { ...base, smoke: tex(smoke), rock: tex(rock), scorch: tex(scorch), cracks: tex(cracks), disc: tex(disc), rim: tex(rim), halo: tex(halo) };
+  const scorch = paintScorch(192), cracks = paintCracks(256), disc = paintDisc(128), rim = paintRim(256), halo = paintHalo(128), rimCracks = paintRimCracks(256);
+  if (!base || !smoke || !rock || !scorch || !cracks || !disc || !rim || !halo || !rimCracks) return null;
+  cached = { ...base, smoke: tex(smoke), rock: tex(rock), scorch: tex(scorch), cracks: tex(cracks), disc: tex(disc), rim: tex(rim), halo: tex(halo), rimCracks: tex(rimCracks) };
   return cached;
 }
 

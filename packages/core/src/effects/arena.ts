@@ -127,6 +127,12 @@ export interface EffectArena {
   /** Register a rest-of-combat tribe aura (friends of `tribe` summoned LATER also gain it). A shop no-op:
    *  there is no rest-of-combat in a shop, and the legacy shop half never registered one. */
   addTribeAura(tribe: string, attack: number, health: number): void;
+  /** "Give all your <tribe> +A/+H" (owner rulings 2026-09-28, R-AURA-03). ONE rule, both phases, and NO run-wide
+   *  aura. COMBAT: buff `targets` (the body's own membership pass) for the fight AND register a rest-of-combat aura
+   *  per `auraTribes`, so later arrivals that fight inherit it; plain combat buffs, so nothing carries back unless
+   *  the recipient keeps its combat stats (Engrave). SHOP / End of Turn: a normal permanent Shop buff on each
+   *  target (the warband board, the `friends()` convention every "your Beasts" Shop grant uses); no aura. */
+  buffAllOfTribe(targets: ArenaBody[], auraTribes: string[], attack: number, health: number): void;
   /** Permanently buff a CARD TYPE run-wide (every copy: board, hand, future). Each adapter runs its whole
    *  legacy ritual — combat: the carry-back channel PLUS live-buffing copies on the board this fight; shop:
    *  `buffCardTypeRunWide` (which already covers board + hand itself — the body must NOT re-loop). */
@@ -545,28 +551,24 @@ export const ARENA_EFFECTS = {
     for (const f of arena.friends()) arena.buff(f, a, h);
   },
 
-  /** Grim — Echo: give your `tribe` Aura +A/+H for every Echo triggered this game (golden doubles). The rate is
-   *  `attack`/`health` (or the legacy symmetric `per`); the tally is the run-wide `deathrattlesTriggered` (plus
-   *  this fight's Echoes in combat), bumped BEFORE the rattle fires, so Grim's own Echo counts (owner ruling
-   *  2026-09-24). Buffs the living tribe INCLUDING a still-living self (a proc'd Echo, the `deathrattleBuffTribe`
-   *  membership rule) and registers a rest-of-combat aura (a shop no-op by design). */
+  /** LEGACY (Grim 2026-09-24 → 2026-09-28): give all your `tribe` +A/+H for every Echo triggered this
+   *  game (golden doubles). The rate is `attack`/`health` (or the legacy symmetric `per`); the tally is the
+   *  run-wide `deathrattlesTriggered` (plus this fight's Echoes in combat). No live card uses it any more. */
   deathrattleBuffTribeByTally(arena: EffectArena, params: Record<string, unknown>): void {
+    // RETIRED from live content 2026-09-28 (Grim is now a flat `deathrattleBuffTribe` +8/+8); kept so a recorded
+    // game referencing the id still resolves. Routes through `buffAllOfTribe` like every Beast grant (R-AURA-03).
     const tribe = typeof params.tribe === 'string' && params.tribe ? params.tribe : 'any';
     const per = typeof params.per === 'number' ? params.per : 1;
     const n = arena.deathrattleTally() * (arena.self.golden ? 2 : 1);
     const a = n * (typeof params.attack === 'number' ? params.attack : per);
     const h = n * (typeof params.health === 'number' ? params.health : per);
     if (a <= 0 && h <= 0) return;
-    arena.addTribeAura(tribe, a, h);
-    for (const f of arena.friends()) {
-      if (tribe === 'any' || arena.isTribe(f, tribe)) arena.buff(f, a, h);
-    }
+    arena.buffAllOfTribe(arena.friends().filter((f) => tribe === 'any' || arena.isTribe(f, tribe)), [tribe], a, h);
   },
 
-  /** Grim / Mushy — Echo: buff all living friends of `tribe` (+atk/+hp, golden doubles) and register a
-   *  rest-of-combat aura at that magnitude ("wherever they are" — bodies summoned later inherit it; the shop
-   *  adapter's `addTribeAura` is a documented no-op, since every shop gain is already permanent and the shop
-   *  summons nothing later). `tribes` (plural) buffs SEVERAL tribes in one pass — Mushy's "Beasts & Dragons" —
+  /** Grim / Armadiyo — Echo: "Give all your <tribe> +A/+H" (golden doubles), via `buffAllOfTribe` (R-AURA-03): in
+   *  combat every living friend of `tribe` plus later arrivals that fight, no carry-back except through Engrave;
+   *  in the Shop a permanent buff on the warband's `tribe` members. `tribes` (plural) buffs SEVERAL tribes in one pass — Mushy's "Beasts & Dragons" —
    *  as one aura per tribe, with each dual-type body buffed ONCE.
    *
    *  MEMBERSHIP is `friends()`, which INCLUDES a still-living self: a Grim whose Echo is proc'd WITHOUT dying
@@ -584,20 +586,17 @@ export const ARENA_EFFECTS = {
     if (many) {
       const hit = new Set<ArenaBody>();
       for (const t of many) {
-        arena.addTribeAura(t, a, h);
         for (const f of arena.friends()) {
           if (arena.isTribe(f, t) && !hit.has(f)) hit.add(f);
         }
       }
-      for (const f of hit) arena.buff(f, a, h);
+      arena.buffAllOfTribe([...hit], many, a, h);
       return;
     }
     const tribe = str(params.tribe) || 'any';
-    arena.addTribeAura(tribe, a, h);
-    for (const f of arena.friends()) {
-      if (tribe === 'any' || arena.isTribe(f, tribe)) arena.buff(f, a, h);
-    }
+    arena.buffAllOfTribe(arena.friends().filter((f) => tribe === 'any' || arena.isTribe(f, tribe)), [tribe], a, h);
   },
+
 
   /** Echo: permanently buff every copy of a card type, run-wide (golden doubles). `cardId` defaults to
    *  the dying minion's own type. */
@@ -1457,9 +1456,8 @@ export const ARENA_EFFECTS = {
     arena.replayShout(arena.self);
   },
 
-  /** Trophy Stalker — Rally: grant your `tribe` +N/+N, where N GROWS by `step` each rally. The accrual rides
-   *  `summonBonus` (per-instance, carried back), so the printed live text climbs. The rest-of-combat aura for
-   *  later arrivals is a combat-only concept — `addTribeAura` is a shop no-op and the board loop covers it. */
+  /** Trophy Stalker — Rally: give all your `tribe` +N/+N (`buffAllOfTribe`, R-AURA-03), where N GROWS by `step`
+   *  each rally. The accrual rides `summonBonus` (per-instance, carried back), so the printed live text climbs. */
   rallyTribeAuraGrowing(arena: EffectArena, params: Record<string, unknown>): void {
     const tribe = str(params.tribe) || 'beast';
     const g = gold(arena);
@@ -1467,8 +1465,7 @@ export const ARENA_EFFECTS = {
     const a = (num(params.attack, 3) + bonus) * g;
     const h = (num(params.health, 3) + bonus) * g;
     if (a > 0 || h > 0) {
-      arena.addTribeAura(tribe, a, h);
-      for (const m of arena.friends()) if (tribe === 'any' || arena.isTribe(m, tribe)) arena.buff(m, a, h);
+      arena.buffAllOfTribe(arena.friends().filter((m) => tribe === 'any' || arena.isTribe(m, tribe)), [tribe], a, h);
     }
     const inc = num(params.step, 1) * arena.improveReps(); // Rune of Mastery: the Improve applies twice
     arena.self.summonBonus = bonus + inc;
@@ -2174,8 +2171,8 @@ export const ARENA_EFFECTS = {
     }
   },
 
-  /** Kennelmaster / Thunderous Sovereign — buff your `tribe` now AND register the rest-of-combat aura for
-   *  later arrivals (a shop no-op by design — there is no rest-of-combat in a shop). The Avenge accrual
+  /** Kennelmaster / Thunderous Sovereign — "Give all your <tribe> +N": `buffAllOfTribe` (R-AURA-03) — in combat the
+   *  living `tribe` now plus later arrivals that fight; at an End-of-Turn replay a permanent Shop buff. The Avenge accrual
    *  (`summonBonus`) applies per stat via `stepAttack`/`stepHealth`; golden doubles the whole grant. */
   scBeastAura(arena: EffectArena, params: Record<string, unknown>): void {
     const tribe = str(params.tribe) || 'beast';
@@ -2185,10 +2182,7 @@ export const ARENA_EFFECTS = {
     const h = (num(params.health, 1) + bonus * num(params.stepHealth, 1)) * g;
     if (a <= 0 && h <= 0) return;
     arena.narrate(str(params.text) || `${arena.nameOf(arena.self)} rallies the pack`);
-    arena.addTribeAura(tribe, a, h);
-    for (const m of arena.friends()) {
-      if (tribe === 'any' || arena.isTribe(m, tribe)) arena.buff(m, a, h);
-    }
+    arena.buffAllOfTribe(arena.friends().filter((m) => tribe === 'any' || arena.isTribe(m, tribe)), [tribe], a, h);
   },
 
   /** Spots — trigger your `count` LEFT-MOST other friendly Echoes (they stay alive). Routed through the

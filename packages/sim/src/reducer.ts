@@ -5095,12 +5095,15 @@ function settleCombat(s: RunState, result: CombatResult): void {
       grantTopTypeMinion(s);
     }
   }
-  // The Old Hunt: the Beast Attack aura pumped this combat is permanent — fold it into the run + apply to
-  // current run-board/hand Beasts (so they keep the gain without re-buying).
-  // The Old Hunt (Attack) + Pack Mentality (Attack + Health) both grow the run-wide Beast aura live in combat;
-  // fold their carried-back gain into `beastBuyAtk`/`beastBuyHp` + every current run-board Beast.
+  // Pack Mentality's "Improve this" (owner ruling 2026-09-28, R-AURA-03): the LEVEL it grew this combat carries
+  // back onto the quest — never onto the Beasts themselves (Beast buffs are combat-only; The Old Hunt and Beastial
+  // Swarm no longer carry anything back at all).
   if (result.playerBeastBuyAtkGain || result.playerBeastBuyHpGain) {
-    grantTribeAura(s, 'beast', result.playerBeastBuyAtkGain ?? 0, result.playerBeastBuyHpGain ?? 0, result.playerBeastBuyHpGain ? 'Pack Mentality' : 'The Old Hunt');
+    const pack = packMentalityOf(s);
+    if (pack) {
+      pack.attack = (pack.attack ?? 0) + (result.playerBeastBuyAtkGain ?? 0);
+      pack.health = (pack.health ?? 0) + (result.playerBeastBuyHpGain ?? 0);
+    }
   }
   // Pack Mentality: grow any scaling tribe auras by this combat's tally of their trigger event.
   growScalingAuras(s, result);
@@ -6463,7 +6466,14 @@ function applyQuestRewardInner(s: RunState, def: QuestDef, allowRepeat: boolean)
       grantTribeAura(s, r.tribe, r.attack, r.health, `Quest: ${def.name}`);
       break;
     case 'scalingTribeAura':
-      // Pack Mentality: apply the base aura now, then register it to GROW as its trigger event accrues.
+      if (r.event === 'summonCombat' && TRIBE_BEAST_REWARD.has(r.tribe)) {
+        // Pack Mentality (owner ruling 2026-09-28, R-AURA-03): Beast buffs are COMBAT-ONLY. Nothing is granted to
+        // the board, hand or Shop now; the quest banks its LEVEL (`attack`/`health`), which `simulate` gives all
+        // Beasts at Start of Combat for that fight only, and which grows by the step every `per` combat summons.
+        (s.questScalingAuras ??= []).push({ tribe: r.tribe, per: r.per, event: r.event, stepAttack: r.stepAttack, stepHealth: r.stepHealth, progress: 0, attack: r.attack, health: r.health });
+        break;
+      }
+      // Any other tribe: apply the base aura now, then register it to GROW as its trigger event accrues.
       grantTribeAura(s, r.tribe, r.attack, r.health, `Quest: ${def.name}`);
       (s.questScalingAuras ??= []).push({ tribe: r.tribe, per: r.per, event: r.event, stepAttack: r.stepAttack, stepHealth: r.stepHealth, progress: 0 });
       break;
@@ -7332,6 +7342,9 @@ function applyQuestRewardInner(s: RunState, def: QuestDef, allowRepeat: boolean)
  *  Beast ships a quest aura today (its `beastBuyAtk`/`beastBuyHp` channel); other tribes still get the immediate
  *  board/hand buff and wire their own buy-channel when they get auras. Shared by tribeAura / scalingTribeAura /
  *  The Old Hunt / Pack Mentality growth. */
+/** Reward tribes whose "aura" is a COMBAT-ONLY grant (R-AURA-03) — quest data, not a body tribe check. */
+const TRIBE_BEAST_REWARD: ReadonlySet<Tribe> = new Set<Tribe>(['beast']);
+
 function grantTribeAura(s: RunState, tribe: Tribe, attack: number, health: number, label: string): void {
   if (tribe === 'beast') {
     s.beastBuyAtk = (s.beastBuyAtk ?? 0) + attack;
@@ -7387,8 +7400,8 @@ function advanceCombatQuests(s: RunState, result: CombatResult): void {
  *  aura up once per `per` accrued (leftover carries in `progress`). */
 function growScalingAuras(s: RunState, result: CombatResult): void {
   for (const sa of s.questScalingAuras ?? []) {
-    // A Beast + summon-in-combat aura (Pack Mentality) grows LIVE during the fight — its magnitude is already
-    // folded in via `playerBeastBuy*Gain` above, so here we only sync the leftover progress the engine reported
+    // A Beast + summon-in-combat aura (Pack Mentality) grows LIVE during the fight — its level is already folded
+    // in via `playerBeastBuy*Gain` above, so here we only sync the leftover progress the engine reported
     // (re-growing from the tally would double-count).
     if (sa.tribe === 'beast' && sa.event === 'summonCombat') {
       if (result.playerBeastScaleProgress !== undefined) sa.progress = result.playerBeastScaleProgress;
@@ -7452,6 +7465,12 @@ export function buildPendingCombatQuests(s: RunState): PendingCombatQuest[] {
 
 /** Build the run-wide combat modifiers (`QuestCombatMods`) threaded into `simulate()`: the Beast Health aura
  *  plus any armed quest combat flags. */
+/** Pack Mentality's registered scaling entry (the Beast + summon-in-combat one), if armed. A quest-DATA match, not
+ *  a body tribe check. Since 2026-09-28 (R-AURA-03) it carries the combat-only level (`attack`/`health`). */
+function packMentalityOf(s: RunState): NonNullable<RunState['questScalingAuras']>[number] | undefined {
+  return (s.questScalingAuras ?? []).find((a) => a.tribe === 'beast' && a.event === 'summonCombat');
+}
+
 /** The `shout` threshold meters a fight can carry and pay (see `QuestCombatMods.shoutMeters`). */
 function shoutMetersFor(s: RunState): QuestCombatMods['shoutMeters'] {
   const out: NonNullable<QuestCombatMods['shoutMeters']> = [];
@@ -7467,10 +7486,10 @@ export function questCombatMods(s: RunState): QuestCombatMods {
   const f = s.questFlags;
   // Pack Mentality's LIVE growth config, if a Beast + summon-in-combat scaling aura is armed — the combat engine
   // grows the aura per `per` Beasts summoned and carries the gain back (so settle skips re-growing it, below).
-  const beastScale = (s.questScalingAuras ?? []).find((a) => a.tribe === 'beast' && a.event === 'summonCombat');
+  const beastScale = packMentalityOf(s);
   return {
     beastAuraHp: s.beastBuyHp || undefined,
-    beastSummonScale: beastScale ? { per: beastScale.per, stepAttack: beastScale.stepAttack, stepHealth: beastScale.stepHealth, progress: beastScale.progress } : undefined,
+    beastSummonScale: beastScale ? { per: beastScale.per, stepAttack: beastScale.stepAttack, stepHealth: beastScale.stepHealth, progress: beastScale.progress, ...(beastScale.attack !== undefined ? { attack: beastScale.attack, health: beastScale.health ?? 0 } : {}) } : undefined,
     flagCopies: s.flagCopies, // Duplication: how many copies of each flag — dispatchers fire that many times
     // Balance 9/23: the "when you trigger N Shouts" rune meters ride into the fight with their shop ticks (the
     // Chorus / Hoardcalling). Only meters whose payout a fight can deliver (a hand grant) are threaded; a

@@ -5,23 +5,30 @@
  * be a 10x more exciting and oomphier more impactful and pixi animation dense attack animation, but basically a legendary
  * version of this attack, just amplified or enraged." ("this strike" = Classic, the hero portrait's own lunge.)
  *
- * So the SILHOUETTE is Classic's (the portrait winds up by pulling back along the line and swelling, then drives into
- * the foe corner-first, clacks, and springs home) and every beat is amplified. THE BEATS (base ms before the speed):
- *  1. THE DAMAGE FORMATION (shared by every style, `../heroAttack/damageFormation.ts`). Its end is this style's start.
- *  2. WINDUP. The total dives into the hero; the portrait pulls back and swells while a burning rage aura (flame tongues
- *     licking off the rim, a hot rim glow) ignites round it, ground dust is sucked in, a charge tone rises and the
- *     portrait trembles harder and harder.
- *  3. LUNGE. A brutal dash (it hangs, then blurs: a cubic-in drive) leaving a thick wake of rage, afterimages of the
- *     portrait fading behind it, and speed lines.
- *  4. STRIKE. White-hot flash, a hit-stop, a shockwave ring and a second ring, claw rips torn across the foe portrait,
- *     chunky sparks and embers with gravity, a camera punch and a directional shake, the foe knocked back and squashed.
- *     II strikes twice (a quick pull back and a second drive); III is a flurry of three, the last a bigger finisher.
- *     IV: the hero RISES (lifted toward the top of the screen and swelling toward the camera: a fireball of rage),
- *     hangs, and SLAMS down on the foe like a meteor: a screen-filling flash, a scorched crater with glowing cracks,
- *     rock debris and an ember explosion. Every strike before the last is a TICK (FX and sound only).
- *  5. RECOVER. The hero springs home trailing embers and steam; the foe smoulders.
+ * Polish passes, owner 2026-09-28: "the enrage animations kinda meh, can you polish it up"; then "the multi attack ones
+ * need to feel more impactful when they reel back, let them fly back in and impact each time. the final hit's entire
+ * animation stinks, please fully redo the huge animation for enrage"; then "enrage is much better."
  *
- * THE CONSEQUENCE (the damage, Armor, Resolve) lands exactly ONCE, on the LAST strike (IV: the meteor). The big `-N`
+ * So the SILHOUETTE is Classic's (the portrait winds up by pulling back along the line and swelling, then drives at the
+ * foe, clacks, and springs home) and every beat is amplified. THE BEATS (base ms before the speed):
+ *  1. THE DAMAGE FORMATION (shared by every style, `../heroAttack/damageFormation.ts`). Its end is this style's start.
+ *  2. WINDUP. The total dives into the hero; the portrait pulls back and swells while a rage aura (a crown of fire off
+ *     the upper rim, a hot rim, a halo) ignites round it, hot streaks are pulled in, a growl rises and the portrait
+ *     trembles harder and harder, peaking in the RAGE BURST (a flare, heat rings tearing off the rim, a roar).
+ *  3. LUNGE. Classic's strike (it hangs, then blurs) leaving crisp afterimages, a slim rage streak, a scorch skid and
+ *     speed lines. It STOPS AT THE STRUCK PORTRAIT'S RIM (never over its face), so every hit reads on contact.
+ *  4. STRIKE. A white flash, a crisp shock rim, claw rips raked across the foe, glowing cracks on its rim, sparks that
+ *     bounce back into view, a camera punch, the foe knocked back and squashed, the striker squashed against it.
+ *  5. THE COMBO (II, III, IV). Every hit is a FULL CYCLE: a hard RECOIL off the foe (stretched), a COIL (squashed,
+ *     trembling), a drive back in with its own streak and afterimages, and its own impact, each harder than the last.
+ *     II is a double; III a combo of three, the last a finisher after a deeper wind; IV a RAMPAGE of five slams that
+ *     come faster and faster, then the HAYMAKER: the hero REARS BACK way up over the board at the peak of its rage (the
+ *     flames tower, the biggest roar, a dark ring of pressure closing in) and brings an overhead blow DOWN on an arc
+ *     onto the foe: a giant flaming crescent, a screen-filling rage shockwave, molten cracks round the foe, rubble and
+ *     an ember storm, the strongest camera punch. Every strike before the last is a TICK (FX and sound only).
+ *  6. RECOVER. The hero springs home trailing embers and wisps; the foe smoulders.
+ *
+ * THE CONSEQUENCE (the damage, Armor, Resolve) lands exactly ONCE, on the LAST strike (IV: the haymaker). The big `-N`
  * lands there too. TIERS are the shared, owner-approved thresholds (I 1-5, II 6-11, III 12-19, IV 20+).
  *
  * Tuner convention (the others'): localStorage in DEV only, values clamped on write and on load; production always plays
@@ -39,7 +46,7 @@ export { TIERS, type TierNum };
 
 /** The per-tier dials. A config key is `t1..t4` + one of these. */
 export const ENRAGED_TIER_SUFFIXES = [
-  'WindupX', 'Strikes', 'DriveX', 'GapMs', 'FinisherMs', 'Meteor',
+  'WindupX', 'Strikes', 'DriveX', 'GapMs', 'Accel', 'FinisherMs', 'Haymaker',
   'Shake', 'Zoom', 'Punch', 'Aura', 'Sparks', 'Embers', 'Slashes', 'Burst', 'SettleMs', 'Dim',
 ] as const;
 export type EnragedTierSuffix = (typeof ENRAGED_TIER_SUFFIXES)[number];
@@ -56,15 +63,24 @@ interface GlobalConfig {
   tiltBoost: number;
   tremblePx: number;
   // Lunge and strike
+  contactStop: number;
   contactSwell: number;
   heroSquash: number;
+  recoilShare: number;
+  coilSquash: number;
+  haymakerCoilMs: number;
+  haymakerIn: number;
+  haymakerLift: number;
+  haymakerSwell: number;
+  haymakerDriveX: number;
+  crescentSize: number;
+  shockSize: number;
   reboundDepth: number;
   holdMs: number;
   recoverX: number;
-  // Meteor (Tier IV)
-  riseLift: number;
-  riseSwell: number;
-  apexHoldMs: number;
+  // The rage burst and Tier IV's haymaker
+  burstMs: number;
+  burstSize: number;
   craterSize: number;
   debris: number;
   // Aura
@@ -89,6 +105,11 @@ interface GlobalConfig {
   emberLife: number;
   flashAlpha: number;
   smoulderMs: number;
+  sparkInward: number;
+  rimCracks: number;
+  scorch: number;
+  scorchMs: number;
+  emberStorm: number;
   // Camera and portraits
   knockPx: number;
   squash: number;
@@ -115,8 +136,8 @@ interface GlobalConfig {
   sfxPunchClip: string; sfxPunchGain: number; sfxPunchRate: number;
   sfxThumpClip: string; sfxThumpGain: number; sfxThumpRate: number;
   sfxBigClip: string; sfxBigGain: number; sfxBigRate: number;
-  sfxMeteorClip: string; sfxMeteorGain: number; sfxMeteorRate: number;
-  sfxDebrisClip: string; sfxDebrisGain: number; sfxDebrisRate: number;
+  sfxHaymakerClip: string; sfxHaymakerGain: number; sfxHaymakerRate: number;
+  sfxRubbleClip: string; sfxRubbleGain: number; sfxRubbleRate: number;
   sfxToneGain: number; sfxToneLowHz: number; sfxToneHighHz: number;
   sfxCrackleGain: number;
   sfxRumbleGain: number;
@@ -132,7 +153,7 @@ export type HeroEnragedConfig = GlobalConfig & Record<TierKey, number>;
 export const HERO_ENRAGED_COLOR_KEYS = ['colorCore', 'colorHot', 'colorPlayer', 'colorFoe', 'colorShade', 'colorSmoke'] as const;
 export const HERO_ENRAGED_CLIP_KEYS = [
   'sfxRoarClip', 'sfxWindupClip', 'sfxChargeClip', 'sfxWhooshClip', 'sfxTickClip', 'sfxSlashClip', 'sfxImpactClip',
-  'sfxPunchClip', 'sfxThumpClip', 'sfxBigClip', 'sfxMeteorClip', 'sfxDebrisClip',
+  'sfxPunchClip', 'sfxThumpClip', 'sfxBigClip', 'sfxHaymakerClip', 'sfxRubbleClip',
 ] as const;
 type ColorKey = (typeof HERO_ENRAGED_COLOR_KEYS)[number];
 type ClipKey = (typeof HERO_ENRAGED_CLIP_KEYS)[number];
@@ -141,31 +162,33 @@ export type HeroEnragedNumKey = Exclude<keyof HeroEnragedConfig, HeroEnragedStrK
 
 /** Tier I .. IV per suffix: the escalation ladder. */
 const TIER_DEFAULTS: Record<EnragedTierSuffix, [number, number, number, number]> = {
-  WindupX: [1.25, 1.25, 1.3, 2.4],
-  Strikes: [1, 2, 3, 1],
-  DriveX: [1, 0.95, 0.9, 1.35],
-  GapMs: [0, 170, 140, 0],
-  FinisherMs: [0, 0, 170, 0],
-  Meteor: [0, 0, 0, 1],
-  Shake: [9, 11, 14, 24],
-  Zoom: [0.03, 0.035, 0.045, 0.07],
-  Punch: [0.03, 0.04, 0.05, 0.08],
+  WindupX: [1.25, 1.25, 1.3, 1.15],
+  Strikes: [1, 2, 3, 6],
+  DriveX: [1, 0.95, 0.9, 0.85],
+  GapMs: [0, 250, 230, 175],
+  Accel: [1, 1, 0.85, 0.8],
+  FinisherMs: [0, 0, 110, 0],
+  Haymaker: [0, 0, 0, 1],
+  Shake: [9, 11, 14, 28],
+  Zoom: [0.03, 0.035, 0.045, 0.08],
+  Punch: [0.03, 0.04, 0.05, 0.1],
   Aura: [0.85, 1, 1.15, 1.5],
-  Sparks: [18, 22, 30, 46],
-  Embers: [10, 12, 18, 40],
-  Slashes: [1, 1, 2, 2],
+  Sparks: [20, 24, 32, 50],
+  Embers: [12, 14, 20, 44],
+  Slashes: [1, 1, 2, 1],
   Burst: [1, 1.1, 1.25, 1.75],
-  SettleMs: [240, 260, 300, 380],
+  SettleMs: [240, 260, 300, 200],
   Dim: [0.12, 0.2, 0.3, 0.5],
 };
 
 export const ENRAGED_TIER_RANGES: Record<EnragedTierSuffix, [number, number, number]> = {
   WindupX: [0.3, 4, 0.05],
-  Strikes: [1, 5, 1],
+  Strikes: [1, 8, 1],
   DriveX: [0.3, 4, 0.05],
   GapMs: [0, 600, 5],
+  Accel: [0.4, 1.2, 0.01],
   FinisherMs: [0, 600, 5],
-  Meteor: [0, 1, 1],
+  Haymaker: [0, 1, 1],
   Shake: [0, 40, 0.5],
   Zoom: [0, 0.14, 0.002],
   Punch: [0, 0.14, 0.002],
@@ -192,18 +215,35 @@ export const HERO_ENRAGED_DEFAULTS: HeroEnragedConfig = {
   windupSwell: 0.08,
   tiltBoost: 1.3,
   tremblePx: 3.2,
+  // THE READABLE HIT (owner 2026-09-28: "the enrage animations kinda meh, can you polish it up"): Enraged stops with its
+  // leading rim at the struck portrait's rim instead of Classic's corner-over-the-face contact, so the rips, the
+  // cracks and the foe's knockback show ON the contact frame. Classic keeps its own contact.
+  contactStop: 0.72,
   contactSwell: 0.1,
-  heroSquash: 0.16,
-  reboundDepth: 0.55,
-  holdMs: 80,
+  heroSquash: 0.18,
+  // THE COMBO (owner 2026-09-28: "let them fly back in and impact each time"): after each hit, the first `recoilShare` of
+  // the gap is a hard recoil off the foe (stretched); the rest is the coil (a squash, a tremble), then the next drive.
+  recoilShare: 0.5,
+  coilSquash: 0.12,
+  // THE HAYMAKER (Tier IV's knockout, owner 2026-09-28: "fully redo the huge animation"): the hero rears way back and UP
+  // over the board, swollen with rage, then brings an overhead blow DOWN on an arc onto the foe.
+  haymakerCoilMs: 540,
+  haymakerIn: 0.12,
+  haymakerLift: 0.3,
+  haymakerSwell: 0.6,
+  haymakerDriveX: 1.1,
+  crescentSize: 1,
+  shockSize: 1,
+  reboundDepth: 1,
+  // The striker stays planted in the foe this long after the last hit (recoiling a little off it) so the hit reads.
+  holdMs: 210,
   recoverX: 0.75,
-  riseLift: 0.3,
-  riseSwell: 0.55,
-  apexHoldMs: 120,
+  burstMs: 190,
+  burstSize: 1,
   craterSize: 1,
   debris: 12,
   auraSize: 1,
-  flames: 12,
+  flames: 10,
   flameLength: 1,
   motes: 14,
   ghosts: 3,
@@ -221,12 +261,17 @@ export const HERO_ENRAGED_DEFAULTS: HeroEnragedConfig = {
   emberLife: 1,
   flashAlpha: 0.95,
   smoulderMs: 1200,
+  sparkInward: 0.65,
+  rimCracks: 1,
+  scorch: 1,
+  scorchMs: 1000,
+  emberStorm: 46,
   knockPx: 30,
   squash: 0.14,
   shakeMs: 380,
   zoomOutMs: 420,
-  shakeCap: 30,
-  zoomCap: 0.1,
+  shakeCap: 32,
+  zoomCap: 0.12,
   reducedFadeMs: 260,
   colorCore: '#ffffff',
   colorHot: '#ffd36b',
@@ -234,18 +279,18 @@ export const HERO_ENRAGED_DEFAULTS: HeroEnragedConfig = {
   colorFoe: '#ff1f35',
   colorShade: '#6e0f00',
   colorSmoke: '#2b1b16',
-  sfxRoarClip: 'fx/dragon-growl-2', sfxRoarGain: 0.3, sfxRoarRate: 1.2,
+  sfxRoarClip: 'fx/dragon-growl', sfxRoarGain: 0.5, sfxRoarRate: 1.08,
   sfxWindupClip: 'windup', sfxWindupGain: 0.8, sfxWindupRate: 0.92,
   sfxChargeClip: 'fx/oona-powerup', sfxChargeGain: 0.4, sfxChargeRate: 0.9,
   sfxWhooshClip: 'fx/stereogenicstudio-swish-swoosh-woosh-sfx-27-357164-3', sfxWhooshGain: 0.6, sfxWhooshRate: 1.1,
   sfxTickClip: 'smack3', sfxTickGain: 0.75, sfxTickRate: 1.05,
   sfxSlashClip: 'cleave2', sfxSlashGain: 0.45, sfxSlashRate: 1.1,
   sfxImpactClip: 'titanhammer', sfxImpactGain: 0.7, sfxImpactRate: 1.12,
-  sfxPunchClip: 'smack2', sfxPunchGain: 0.7, sfxPunchRate: 0.95,
+  sfxPunchClip: 'smack2', sfxPunchGain: 0.85, sfxPunchRate: 0.95,
   sfxThumpClip: 'fx/heavy-rock-impact', sfxThumpGain: 0.45, sfxThumpRate: 1.15,
   sfxBigClip: 'crit', sfxBigGain: 0.45, sfxBigRate: 1.05,
-  sfxMeteorClip: 'fx/universfield-ground-impact-352053', sfxMeteorGain: 0.6, sfxMeteorRate: 1.12,
-  sfxDebrisClip: 'fx/triple-impact', sfxDebrisGain: 0.3, sfxDebrisRate: 1.25,
+  sfxHaymakerClip: 'fx/universfield-ground-impact-352053', sfxHaymakerGain: 0.6, sfxHaymakerRate: 1.12,
+  sfxRubbleClip: 'fx/triple-impact', sfxRubbleGain: 0.3, sfxRubbleRate: 1.25,
   sfxToneGain: 0.3, sfxToneLowHz: 70, sfxToneHighHz: 220,
   sfxCrackleGain: 0.35,
   sfxRumbleGain: 0.35,
@@ -265,14 +310,23 @@ const GLOBAL_RANGES: Record<Exclude<keyof GlobalConfig, HeroEnragedStrKey>, [num
   windupSwell: [0, 0.8, 0.01],
   tiltBoost: [0, 3, 0.05],
   tremblePx: [0, 12, 0.1],
+  contactStop: [-1, 1.5, 0.01],
   contactSwell: [0, 0.5, 0.01],
+  recoilShare: [0.1, 0.9, 0.01],
+  coilSquash: [0, 0.4, 0.01],
+  haymakerCoilMs: [150, 1500, 10],
+  haymakerIn: [-0.3, 0.6, 0.01],
+  haymakerLift: [0, 0.6, 0.01],
+  haymakerSwell: [0, 1.2, 0.01],
+  haymakerDriveX: [0.3, 3, 0.05],
+  crescentSize: [0, 3, 0.05],
+  shockSize: [0, 3, 0.05],
   heroSquash: [0, 0.4, 0.01],
   reboundDepth: [0, 1.5, 0.01],
   holdMs: [0, 400, 5],
   recoverX: [0.2, 3, 0.05],
-  riseLift: [0, 0.8, 0.01],
-  riseSwell: [0, 1.2, 0.01],
-  apexHoldMs: [0, 600, 5],
+  burstMs: [0, 500, 5],
+  burstSize: [0, 3, 0.05],
   craterSize: [0, 3, 0.05],
   debris: [0, 40, 1],
   auraSize: [0.3, 3, 0.05],
@@ -294,6 +348,11 @@ const GLOBAL_RANGES: Record<Exclude<keyof GlobalConfig, HeroEnragedStrKey>, [num
   emberLife: [0.2, 3, 0.05],
   flashAlpha: [0, 1, 0.01],
   smoulderMs: [0, 3000, 10],
+  sparkInward: [0, 1, 0.01],
+  rimCracks: [0, 3, 0.05],
+  scorch: [0, 3, 0.05],
+  scorchMs: [100, 3000, 10],
+  emberStorm: [0, 120, 1],
   knockPx: [0, 80, 1],
   squash: [0, 0.4, 0.01],
   shakeMs: [0, 1500, 10],
@@ -311,8 +370,8 @@ const GLOBAL_RANGES: Record<Exclude<keyof GlobalConfig, HeroEnragedStrKey>, [num
   sfxPunchGain: [0, 2, 0.05], sfxPunchRate: [0.5, 2, 0.01],
   sfxThumpGain: [0, 2, 0.05], sfxThumpRate: [0.5, 2, 0.01],
   sfxBigGain: [0, 2, 0.05], sfxBigRate: [0.5, 2, 0.01],
-  sfxMeteorGain: [0, 2, 0.05], sfxMeteorRate: [0.5, 2, 0.01],
-  sfxDebrisGain: [0, 2, 0.05], sfxDebrisRate: [0.5, 2, 0.01],
+  sfxHaymakerGain: [0, 2, 0.05], sfxHaymakerRate: [0.5, 2, 0.01],
+  sfxRubbleGain: [0, 2, 0.05], sfxRubbleRate: [0.5, 2, 0.01],
   sfxToneGain: [0, 2, 0.05], sfxToneLowHz: [30, 400, 1], sfxToneHighHz: [60, 1200, 5],
   sfxCrackleGain: [0, 2, 0.05],
   sfxRumbleGain: [0, 2, 0.05],
@@ -330,7 +389,7 @@ export const HERO_ENRAGED_RANGES: Record<HeroEnragedNumKey, [number, number, num
 };
 
 /** The hard ceilings a plan can never exceed, whatever the sliders say (so a 40 stays readable, not nauseating). */
-export const ENRAGED_CAPS = { strikes: 5, sparks: 120, embers: 120, slashes: 3, shakePx: 40, zoom: 0.14 } as const;
+export const ENRAGED_CAPS = { strikes: 8, sparks: 120, embers: 120, slashes: 3, shakePx: 40, zoom: 0.14 } as const;
 
 const HEX = /^#[0-9a-f]{6}$/i;
 const isColorKey = (k: string): k is ColorKey => (HERO_ENRAGED_COLOR_KEYS as readonly string[]).includes(k);
@@ -363,7 +422,7 @@ export function sanitizeHeroEnragedConfig(saved: unknown): HeroEnragedConfig {
   return out;
 }
 
-const KEY = 'ascent.heroenraged.v3';
+const KEY = 'ascent.heroenraged.v5';
 
 let cfg: HeroEnragedConfig = (() => {
   if (!import.meta.env.DEV || typeof localStorage === 'undefined') return { ...HERO_ENRAGED_DEFAULTS };
@@ -416,10 +475,14 @@ export interface EnragedStrike {
   contactAt: number;
   /** The last strike: the consequence lands here. */
   final: boolean;
-  /** The Tier IV meteor slam (it drives from the apex, not from a pull back). */
-  meteor: boolean;
-  /** How deep the pull back BEFORE this drive goes, as a multiple of the windup depth (the windup is 1). */
+  /** Tier IV's knockout: the overhead HAYMAKER (it comes down on an arc from a huge rear-back). */
+  haymaker: boolean;
+  /** How deep the coil BEFORE this drive goes, as a multiple of the windup depth (the windup is 1). */
   pull: number;
+  /** 0..1 up the combo: how hard this hit lands (every hit escalates; the last is the biggest). */
+  power: number;
+  /** Before this drive: the recoil off the last contact ends and the coil (anticipation) begins. Else = driveAt. */
+  coilAt: number;
 }
 
 export interface EnragedPlanInput {
@@ -448,12 +511,13 @@ export interface EnragedPlan {
   absorbEnd: number;
   /** The hero starts pulling back (and the aura ignites). */
   windupAt: number;
-  /** Tier IV: the hero starts rising from here (the last pull back becomes a rise). Else = the first drive. */
-  riseAt: number;
-  /** Tier IV: the hero hangs at the top of the rise from here until the slam. Else = the first drive. */
-  apexAt: number;
+  /** THE RAGE BURST: the portrait flares and a roar tears out, just before the first drive. */
+  burstAt: number;
   strikes: EnragedStrike[];
-  meteor: boolean;
+  /** Tier IV: the combo ends in the overhead haymaker. */
+  haymaker: boolean;
+  /** Tier IV: the hero REARS BACK for the haymaker (the build: the roar, the flare, the dim). Else = the impact. */
+  rearAt: number;
   /** Contacts BEFORE the impact (sequence ms): the ticks. */
   ticks: number[];
   /** THE consequence beat: the last strike's contact. */
@@ -464,7 +528,7 @@ export interface EnragedPlan {
   reboundEnd: number;
   /** The hero is home. */
   homeAt: number;
-  /** Tier IV: debris landing round the crater (sequence ms). */
+  /** Tier IV: rubble landing round the cracked ground (sequence ms). */
   booms: number[];
   endAt: number;
   shakePx: number;
@@ -489,8 +553,8 @@ export function enragedPlan(input: EnragedPlanInput, c: HeroEnragedConfig = cfg)
     const r = reducedAttackTimeline(input.leadIn ?? 0, c.reducedFadeMs);
     const { impactAt } = r;
     return {
-      reduced: true, tier, k, total, chargeAt: impactAt, absorbEnd: impactAt, windupAt: impactAt, riseAt: impactAt, apexAt: impactAt,
-      strikes: [], meteor: false, ticks: [], impactAt, recoverAt: impactAt, reboundEnd: impactAt, homeAt: impactAt, booms: [], endAt: r.endAt,
+      reduced: true, tier, k, total, chargeAt: impactAt, absorbEnd: impactAt, windupAt: impactAt, burstAt: impactAt, rearAt: impactAt,
+      strikes: [], haymaker: false, ticks: [], impactAt, recoverAt: impactAt, reboundEnd: impactAt, homeAt: impactAt, booms: [], endAt: r.endAt,
       shakePx: 0, zoom: 0, punch: 0, aura: 0, sparks: 0, embers: 0, slashes: 0, burst: 0, dim: 0,
     };
   }
@@ -502,40 +566,46 @@ export function enragedPlan(input: EnragedPlanInput, c: HeroEnragedConfig = cfg)
   const chargeAt = Math.max(0, input.leadIn ?? 0);
   const absorbEnd = chargeAt + c.absorbMs;
   const windupAt = chargeAt + Math.min(c.windupLeadMs, c.absorbMs);
-  const meteor = T.Meteor >= 1;
+  const haymaker = T.Haymaker >= 1;
   const n = clamp(Math.round(T.Strikes), 1, ENRAGED_CAPS.strikes);
   const strikes: EnragedStrike[] = [];
   let at = windupAt + windupMs;
-  let riseAt = at, apexAt = at;
+  let rearAt = at;
   for (let i = 0; i < n; i++) {
     const last = i === n - 1;
-    const isMeteor = last && meteor;
+    const isHay = last && haymaker;
+    let coilAt = at;
     if (i > 0) {
-      // A pull back between hits: a quick one, a deeper one before a finisher, the rise before the meteor.
-      if (isMeteor) { riseAt = at; at += windupMs; apexAt = at; at += c.apexHoldMs; } else at += T.GapMs + (last && n > 2 ? T.FinisherMs : 0);
-    } else if (isMeteor) {
-      // A lone meteor: the windup IS the rise.
-      riseAt = windupAt; apexAt = at; at += c.apexHoldMs;
+      // A FULL CYCLE between hits (owner 2026-09-28: "let them fly back in and impact each time"): a hard RECOIL off the
+      // foe, then a COIL (anticipation), then the next drive. A combo ACCELERATES (each gap shorter by `Accel`); the
+      // finisher winds up harder; the haymaker rears way back.
+      const gap = isHay ? c.haymakerCoilMs : last && n > 2 ? T.GapMs + T.FinisherMs : T.GapMs * Math.pow(T.Accel, i - 1);
+      if (isHay) rearAt = at;
+      coilAt = at + gap * (isHay ? 0.3 : c.recoilShare);
+      at += gap;
     }
-    const drive = isMeteor ? driveMs : driveMs * (i === 0 || last ? 1 : 0.85);
-    const pull = i === 0 ? 1 : last && n > 2 ? c.reboundDepth * 1.7 : c.reboundDepth;
-    strikes.push({ driveAt: at, contactAt: at + drive, final: last, meteor: isMeteor, pull });
+    const drive = isHay ? driveMs * c.haymakerDriveX : driveMs * (i === 0 || last ? 1 : Math.max(0.55, Math.pow(T.Accel, i - 1)));
+    const pull = i === 0 ? 1 : isHay ? 1 : last && n > 2 ? c.reboundDepth * 1.35 : c.reboundDepth;
+    const power = n === 1 ? 1 : (i + 1) / n;
+    strikes.push({ driveAt: at, contactAt: at + drive, final: last, haymaker: isHay, pull, power, coilAt });
     at += drive;
   }
-  if (!meteor) { riseAt = strikes[0]!.driveAt; apexAt = riseAt; }
+  if (!haymaker) rearAt = strikes[n - 1]!.contactAt;
+  const firstDrive = strikes[0]!;
+  const burstAt = Math.max(windupAt, firstDrive.driveAt - c.burstMs);
   const impactAt = strikes[n - 1]!.contactAt;
   const ticks = strikes.filter((s) => !s.final).map((s) => s.contactAt);
-  // The meteor sits in its crater a beat longer before it springs home.
-  const recoverAt = impactAt + c.holdMs + (meteor ? 320 : 0);
+  // The haymaker stays planted a beat longer before it springs home.
+  const recoverAt = impactAt + c.holdMs + (haymaker ? 220 : 0);
   const reboundEnd = recoverAt + ms(sw.reboundS);
   const homeAt = reboundEnd + ms(sw.settleS) * c.recoverX;
-  const booms = meteor ? [impactAt + 170, impactAt + 330, impactAt + 520] : [];
+  const booms = haymaker ? [impactAt + 190, impactAt + 380] : [];
   // The elastic settle is a long lazy tail: the sequence ends once it has visibly come to rest (Classic's rule).
   const lastBeat = Math.max(reboundEnd + (homeAt - reboundEnd) * 0.6, impactAt + c.zoomOutMs * 0.9, booms.length ? booms[booms.length - 1]! + 150 : 0, impactAt + c.smoulderMs * 0.55);
   const endAt = lastBeat + T.SettleMs;
 
   return {
-    reduced: false, tier, k, total, chargeAt, absorbEnd, windupAt, riseAt, apexAt, strikes, meteor, ticks, impactAt,
+    reduced: false, tier, k, total, chargeAt, absorbEnd, windupAt, burstAt, strikes, haymaker, rearAt, ticks, impactAt,
     recoverAt, reboundEnd, homeAt, booms, endAt,
     shakePx: clamp(T.Shake, 0, Math.min(c.shakeCap, ENRAGED_CAPS.shakePx)),
     zoom: clamp(T.Zoom, 0, Math.min(c.zoomCap, ENRAGED_CAPS.zoom)),
@@ -549,7 +619,7 @@ export function enragedPlan(input: EnragedPlanInput, c: HeroEnragedConfig = cfg)
   };
 }
 
-export type EnragedCueKind = 'charge' | 'windup' | 'rise' | 'apex' | 'drive' | 'tick' | 'impact' | 'boom' | 'recover' | 'end';
+export type EnragedCueKind = 'charge' | 'windup' | 'burst' | 'coil' | 'rear' | 'drive' | 'tick' | 'impact' | 'boom' | 'recover' | 'end';
 export interface EnragedCue { at: number; kind: EnragedCueKind; i: number }
 
 /** Every beat the runner fires, in time order (ties keep this declaration order, so a tick precedes the next drive). */
@@ -558,8 +628,10 @@ export function enragedCues(p: EnragedPlan): EnragedCue[] {
   if (!p.reduced) {
     out.push({ at: p.chargeAt, kind: 'charge', i: 0 });
     out.push({ at: p.windupAt, kind: 'windup', i: 0 });
-    if (p.meteor) { out.push({ at: p.riseAt, kind: 'rise', i: 0 }); out.push({ at: p.apexAt, kind: 'apex', i: 0 }); }
+    out.push({ at: p.burstAt, kind: 'burst', i: 0 });
+    if (p.haymaker) out.push({ at: p.rearAt, kind: 'rear', i: 0 });
     p.strikes.forEach((s, i) => {
+      if (i > 0 && !s.haymaker) out.push({ at: s.coilAt, kind: 'coil', i });
       out.push({ at: s.driveAt, kind: 'drive', i });
       if (!s.final) out.push({ at: s.contactAt, kind: 'tick', i });
     });
@@ -568,7 +640,7 @@ export function enragedCues(p: EnragedPlan): EnragedCue[] {
   out.push({ at: p.impactAt, kind: 'impact', i: 0 });
   p.booms.forEach((at, i) => out.push({ at, kind: 'boom', i }));
   out.push({ at: p.endAt, kind: 'end', i: 0 });
-  const order: Record<EnragedCueKind, number> = { charge: 0, windup: 1, rise: 2, apex: 3, tick: 4, drive: 5, impact: 6, boom: 7, recover: 8, end: 9 };
+  const order: Record<EnragedCueKind, number> = { charge: 0, windup: 1, burst: 2, tick: 3, rear: 4, coil: 5, drive: 6, impact: 7, boom: 8, recover: 9, end: 10 };
   return out.map((q, idx) => ({ q, idx })).sort((a, b) => a.q.at - b.q.at || order[a.q.kind] - order[b.q.kind] || a.idx - b.idx).map((x) => x.q);
 }
 
@@ -581,10 +653,12 @@ export interface EnragedGeo {
   dist: number;
   /** The windup's pull back (an offset from the hero's rest): Classic's, deeper. */
   back: Pt;
-  /** Where the hero's centre lands on contact (an offset from rest): Classic's corner-first contact. */
+  /** Where the hero's centre lands on contact (an offset from rest): on the struck portrait's rim, so the hit reads. */
   contact: Pt;
-  /** Tier IV: the top of the rise (an offset from rest), kept on screen. */
-  apex: Pt;
+  /** Tier IV: the top of the haymaker's rear-back (an offset from rest): back along the line and UP, kept on screen. */
+  rear: Pt;
+  /** Tier IV: the haymaker's arc control point (an offset from rest): high over the line, so it comes DOWN on the foe. */
+  arc: Pt;
   /** The lean that leads with a corner (degrees, signed): Classic's, harder. */
   tilt: number;
   /** Classic's own swell at the top of the windup (1.32 by default), before the enraged extra. */
@@ -620,8 +694,8 @@ export function fitInFrame(a: Pt, off: Pt, frame: Frame | null, margin: number):
 /**
  * The geometry, from the two centres and radii, on CLASSIC's swing (`classicSwing`, solved in the attacker's own px;
  * `inv` = its own px per screen px, as `classicSwing` took it). Without a swing (a pure test) it uses the Lunge
- * tuner's defaults. `frame` is the screen (or the sandbox box): the coil and the Tier IV rise are shortened, never
- * bent, so the hero's centre stays well inside it (a portrait parked in a corner cannot be pulled off the screen).
+ * tuner's defaults. `frame` is the screen (or the sandbox box): the coil and the rear-back are shortened, never bent, so
+ * the hero stays well inside it.
  */
 export function enragedGeo(
   a: Pt, d: Pt, aR: number, dR: number, c: HeroEnragedConfig = cfg, frame: Frame | null = null,
@@ -631,20 +705,23 @@ export function enragedGeo(
   const dist = Math.hypot(dx, dy) || 1;
   const u = { x: dx / dist, y: dy / dist };
   const k = inv > 0 ? 1 / inv : 1;
-  // Classic's pull back and contact, back in screen px; the enraged coil goes deeper.
   const back0 = swing ? { x: swing.back.x * k, y: swing.back.y * k } : { x: -dx * 0.13, y: -dy * 0.13 };
   const margin = aR * 1.05;
   const back = fitInFrame(a, { x: back0.x * c.windupDepth, y: back0.y * c.windupDepth }, frame, margin);
-  const gap = (aR + dR) * 0.35;
-  const contact = swing ? { x: swing.strike.x * k, y: swing.strike.y * k } : { x: dx - u.x * gap, y: dy - u.y * gap };
-  // The rise goes UP the screen (whichever way the foe lies) and a little back; near the top edge it lifts less and
-  // swells toward the camera instead, so it never leaves the frame.
-  const room = frame ? Math.max(0, a.y - frame.y0 - aR * (1 + c.riseSwell)) : Number.POSITIVE_INFINITY;
-  const lift = Math.min(c.riseLift * dist, room);
-  const apex = fitInFrame(a, { x: back0.x * 0.6, y: back0.y * 0.6 - lift }, frame, margin);
+  // THE READABLE HIT: the striker stops with its centre `contactStop` of its own radii outside the struck portrait's rim
+  // (0 = its centre on the rim; negative drives further in, toward Classic's corner-over-the-face contact).
+  const gap = dR + aR * c.contactStop;
+  const contact = { x: dx - u.x * gap, y: dy - u.y * gap };
+  // THE HAYMAKER'S REAR-BACK: a third of the way in toward the foe and UP, swollen toward the camera (kept whole on
+  // screen), so the whole rear reads over the board; then it comes DOWN in an overhead arc onto the foe's rim.
+  const rear = fitInFrame(a, { x: dx * c.haymakerIn, y: dy * c.haymakerIn - c.haymakerLift * dist }, frame, aR * (1 + c.haymakerSwell) * 1.05);
+  // The arc's control point stays low enough that the swoop never leaves the top of the screen (a quadratic's peak sits
+  // halfway to its control point, so the control may reach one radius above the frame's top margin).
+  const arcTop = frame ? frame.y0 + aR * 0.4 - a.y : Number.NEGATIVE_INFINITY;
+  const arc = { x: (rear.x + contact.x) / 2 - u.y * 0.1 * dist, y: Math.max(arcTop, Math.min(rear.y, contact.y) - c.haymakerLift * dist * 0.35) };
   const tilt0 = swing ? swing.leadTilt : 8 * (dx >= 0 ? 1 : -1);
   return {
-    u, dist, back, contact, apex, tilt: tilt0 * c.tiltBoost,
+    u, dist, back, contact, rear, arc, tilt: tilt0 * c.tiltBoost,
     classicSwell: swing ? swing.windupScale : 1.32,
     rebound: swing ? swing.rebound : 2.5,
     ease: swing ? swing.strikeEase : EXPO_IN,
@@ -659,27 +736,27 @@ export interface HeroPose {
   rot: number;
   /** 0..1: how hard the rage burns (drives the aura). */
   heat: number;
-  /** The contact squash (0 = none): compressed along the blow, bulging across it, springing out. */
+  /** Squash along the blow (> 0 compressed on a contact or a coil, < 0 stretched on a recoil), springing out. */
   squash: number;
 }
 
 const lerp = (a: number, b: number, t: number): number => a + (b - a) * t;
 
 /**
- * The striking hero's pose at sequence time `t`: CLASSIC's swing (`strikePose`: a power1.out coil back along the line
- * with the swell and the lean, the distance-scaled strike on Classic's ease into the corner-first contact, a power2.out
- * rebound off the clack, the elastic.out settle home), amplified: a deeper coil and a bigger swell with a growing
- * tremble, extra strikes with a quick pull back between them, the Tier IV rise and meteor slam, a hold in the foe, a
- * snappier settle. Pure and deterministic (the tremble is sines): a replay moves identically, and the scene draws the
- * afterimages and the wake by sampling this back in time.
+ * The striking hero's pose at sequence time `t`: CLASSIC's swing (a power1.out coil back along the line with the swell
+ * and the lean, the distance-scaled strike on Classic's ease, a power2.out rebound off the clack, the elastic.out settle
+ * home), amplified into a brawler's combo: every hit is a full cycle (a hard RECOIL off the foe, stretched; a COIL with a
+ * squash and a tremble; a DRIVE back in), and Tier IV rears way back and UP and brings an overhead HAYMAKER down on an
+ * arc. Pure and deterministic (the tremble is sines): a replay moves identically, and the scene draws the afterimages
+ * and the streak by sampling this back in time.
  */
 export function enragedPose(p: EnragedPlan, g: EnragedGeo, c: HeroEnragedConfig, t: number): HeroPose {
   const pose = basePose(p, g, c, t);
   if (p.reduced) return pose;
   // THE CONTACT SQUASH: every contact compresses the hero along the blow (it hits something solid), springing out.
-  let sq = 0;
-  for (const s of p.strikes) if (t >= s.contactAt) sq += Math.max(0, spring(t - s.contactAt, 4.5, 70)) * (s.final ? 1 : 0.6);
-  pose.squash = Math.min(1, sq) * c.heroSquash * (p.meteor ? 1.4 : 1);
+  let sq = pose.squash;
+  for (const s of p.strikes) if (t >= s.contactAt) sq += Math.max(0, spring(t - s.contactAt, 4.5, 70)) * c.heroSquash * (0.5 + 0.5 * s.power) * (s.haymaker ? 1.4 : 1);
+  pose.squash = clamp(sq, -0.3, 0.4);
   // The rage SPENDS itself on the last blow: the aura drops away on contact (so the impact reads), then cools.
   if (t >= p.impactAt) pose.heat = Math.min(pose.heat, 0.45 * Math.exp(-(t - p.impactAt) / 260));
   return pose;
@@ -693,9 +770,8 @@ function basePose(p: EnragedPlan, g: EnragedGeo, c: HeroEnragedConfig, t: number
   const first = p.strikes[0]!;
   const tremble = (amp: number): Pt => ({ x: amp * Math.sin(t * 0.37 + 0.4), y: amp * Math.sin(t * 0.51 + 1.7) });
 
-  // WINDUP (or, for a lone meteor, the RISE): Classic's coil (power1.out), deeper, with the rage trembling harder.
+  // WINDUP: Classic's coil (power1.out), deeper, with the rage trembling harder.
   if (t < first.driveAt) {
-    if (first.meteor) return risePose(p, g, c, t, (t - p.windupAt) / Math.max(1, p.apexAt - p.windupAt));
     const u = clamp01((t - p.windupAt) / Math.max(1, first.driveAt - p.windupAt));
     const e = POWER1_OUT(u);
     const tr = tremble(c.tremblePx * u * u * (0.8 + 0.4 * p.k));
@@ -705,28 +781,58 @@ function basePose(p: EnragedPlan, g: EnragedGeo, c: HeroEnragedConfig, t: number
   for (let i = 0; i < p.strikes.length; i++) {
     const s = p.strikes[i]!;
     const next = p.strikes[i + 1];
-    // THE DRIVE: Classic's strike (its ease: it hangs, then blurs) from the pull back (or the apex) into contact.
+    // THE DRIVE: back into the foe. A combo hit uses Classic's ease (it hangs, then blurs); the haymaker comes DOWN on an
+    // overhead arc, accelerating all the way.
     if (t < s.contactAt) {
       const from = drivePose(p, g, c, i);
       const u = clamp01((t - s.driveAt) / Math.max(1, s.contactAt - s.driveAt));
-      const e = s.meteor ? Math.pow(u, 2.2) : g.ease(u);
-      return { x: lerp(from.x, g.contact.x, e), y: lerp(from.y, g.contact.y, e), scale: lerp(from.scale, hit * (s.meteor ? 1.15 : 1), e), rot: lerp(from.rot, g.tilt, e), heat: 1, squash: 0 };
+      const hitScale = hit * (s.haymaker ? 1.12 : 1);
+      if (s.haymaker) {
+        const e = Math.pow(u, 2.1);
+        const m = 1 - e;
+        return {
+          x: m * m * from.x + 2 * m * e * g.arc.x + e * e * g.contact.x,
+          y: m * m * from.y + 2 * m * e * g.arc.y + e * e * g.contact.y,
+          scale: lerp(from.scale, hitScale, e), rot: lerp(from.rot, g.tilt * 1.6, e), heat: 1, squash: -0.12 * Math.sin(Math.PI * u),
+        };
+      }
+      const e = g.ease(u);
+      return { x: lerp(from.x, g.contact.x, e), y: lerp(from.y, g.contact.y, e), scale: lerp(from.scale, hitScale, e), rot: lerp(from.rot, g.tilt, e), heat: 1, squash: -0.1 * Math.sin(Math.PI * u) * u };
     }
-    // A PULL BACK before the next strike (not after the last): out of the foe, back along the line, swelling again.
+    // THE CYCLE BETWEEN HITS: a hard RECOIL off the foe (stretched, fast, ease-out), then the COIL (anticipation: it
+    // settles a little further back, squashes and trembles), then the next drive.
     if (next && t < next.driveAt) {
-      if (next.meteor) return risePose(p, g, c, t, (t - s.contactAt) / Math.max(1, p.apexAt - s.contactAt), g.contact);
-      const u = clamp01((t - s.contactAt) / Math.max(1, next.driveAt - s.contactAt));
       const to = drivePose(p, g, c, i + 1);
-      const e = easeOutCubic(u);
-      const tr = tremble(c.tremblePx * 0.5 * u);
-      return { x: lerp(g.contact.x, to.x, e) + tr.x, y: lerp(g.contact.y, to.y, e) + tr.y, scale: lerp(hit, to.scale, e), rot: lerp(g.tilt, to.rot, e), heat: 1, squash: 0 };
+      const tr = tremble(c.tremblePx * (next.haymaker ? 1.6 : 0.7));
+      if (t < next.coilAt) {
+        const v = clamp01((t - s.contactAt) / Math.max(1, next.coilAt - s.contactAt));
+        const e = easeOutCubic(v) * 0.86;
+        return {
+          x: lerp(g.contact.x, to.x, e), y: lerp(g.contact.y, to.y, e), scale: lerp(hit, to.scale, e),
+          rot: lerp(g.tilt, next.haymaker ? to.rot : -g.tilt * 0.4, e), heat: 1,
+          // The stretch comes AFTER the contact squash has read (the hit first, then it flies back off the foe).
+          squash: -0.14 * Math.sin(Math.PI * clamp01((v - 0.25) / 0.75)),
+        };
+      }
+      const v = clamp01((t - next.coilAt) / Math.max(1, next.driveAt - next.coilAt));
+      const e = 0.86 + 0.14 * easeInOutSine(v);
+      const from86 = { x: lerp(g.contact.x, to.x, 0.86), y: lerp(g.contact.y, to.y, 0.86) };
+      return {
+        x: lerp(from86.x, to.x, (e - 0.86) / 0.14) + tr.x * v, y: lerp(from86.y, to.y, (e - 0.86) / 0.14) + tr.y * v,
+        scale: lerp(lerp(hit, to.scale, 0.86), to.scale, (e - 0.86) / 0.14),
+        rot: lerp(next.haymaker ? to.rot : -g.tilt * 0.4, to.rot, easeInOutSine(v)), heat: 1,
+        squash: c.coilSquash * Math.sin(Math.PI * v) * (next.haymaker ? 1.5 : 1),
+      };
     }
   }
 
-  // AFTER THE IMPACT: held in the foe a breath, Classic's rebound off the clack, then Classic's elastic settle home
-  // (quicker), the rage cooling.
-  const land = hit * (p.meteor ? 1.15 : 1);
-  if (t < p.recoverAt) return { x: g.contact.x, y: g.contact.y, scale: land, rot: g.tilt, heat: 1, squash: 0 };
+  // AFTER THE IMPACT: planted in the foe a beat (a small recoil off it), Classic's rebound off the clack, then Classic's
+  // elastic settle home (quicker), the rage cooling.
+  const land = hit * (p.haymaker ? 1.12 : 1);
+  if (t < p.recoverAt) {
+    const rk = Math.sin(clamp01((t - p.impactAt) / Math.max(1, p.recoverAt - p.impactAt)) * Math.PI) * 0.1;
+    return { x: g.contact.x - (g.contact.x - g.back.x * 0.2) * rk * 0.35, y: g.contact.y - (g.contact.y - g.back.y * 0.2) * rk * 0.35, scale: land, rot: g.tilt, heat: 1, squash: 0 };
+  }
   const reb = -Math.sign(g.tilt || 1) * g.rebound * c.tiltBoost;
   if (t < p.reboundEnd) {
     const e = POWER2_OUT(clamp01((t - p.recoverAt) / Math.max(1, p.reboundEnd - p.recoverAt)));
@@ -741,28 +847,16 @@ function basePose(p: EnragedPlan, g: EnragedGeo, c: HeroEnragedConfig, t: number
   };
 }
 
-/** Where a drive starts: the end of its pull back (the windup for the first; the apex for a meteor). */
+/** Where a drive starts: the end of its coil (the windup for the first; the rear-back for the haymaker). */
 function drivePose(p: EnragedPlan, g: EnragedGeo, c: HeroEnragedConfig, i: number): HeroPose {
   const s = p.strikes[i]!;
   const swell = g.classicSwell + c.windupSwell;
-  if (s.meteor) return { x: g.apex.x, y: g.apex.y, scale: 1 + c.riseSwell, rot: -g.tilt * 0.6, heat: 1, squash: 0 };
+  if (s.haymaker) return { x: g.rear.x, y: g.rear.y, scale: 1 + c.haymakerSwell, rot: -g.tilt * 1.4, heat: 1, squash: 0 };
   if (i === 0) return { x: g.back.x, y: g.back.y, scale: swell, rot: g.tilt, heat: 1, squash: 0 };
   // Between hits: pulled back out of the foe by `pull` x the windup depth, measured from the contact point.
   return {
     x: g.contact.x + g.back.x * s.pull, y: g.contact.y + g.back.y * s.pull,
-    scale: 1 + (swell - 1) * Math.min(1, 0.45 + 0.35 * s.pull), rot: g.tilt, heat: 1, squash: 0,
-  };
-}
-
-/** The Tier IV rise: up to the apex, swelling toward the camera, trembling, then a hovering bob until the slam. */
-function risePose(p: EnragedPlan, g: EnragedGeo, c: HeroEnragedConfig, t: number, u: number, from: Pt = { x: 0, y: 0 }): HeroPose {
-  const e = easeInOutSine(Math.min(1, Math.max(0, u)));
-  const amp = c.tremblePx * (0.6 + 1.2 * e * e);
-  const bob = t >= p.apexAt ? Math.sin((t - p.apexAt) * 0.02) * 3 : 0;
-  return {
-    x: lerp(from.x, g.apex.x, e) + amp * Math.sin(t * 0.37 + 0.4),
-    y: lerp(from.y, g.apex.y, e) + amp * Math.sin(t * 0.51 + 1.7) - bob,
-    scale: lerp(1, 1 + c.riseSwell, e), rot: -g.tilt * 0.6 * e, heat: Math.min(1, 0.3 + e), squash: 0,
+    scale: 1 + (swell - 1) * Math.min(1, 0.55 + 0.35 * s.pull), rot: g.tilt, heat: 1, squash: 0,
   };
 }
 
@@ -770,9 +864,9 @@ function risePose(p: EnragedPlan, g: EnragedGeo, c: HeroEnragedConfig, t: number
 
 /**
  * The camera at sequence time `t` (px in the points' space). A push in on the hero through the windup with a growing
- * tremor; a kick back as each drive leaves; on each tick a punch in and a sharp kick ALONG the blow; on THE impact the
- * biggest punch and a shake along the blow with a little across (the frame the hit-stop holds is already displaced).
- * Tier IV builds a rumbling tremor through the rise and hangs still at the apex, then the meteor rings both ways.
+ * tremor; a kick back as each drive leaves; on EVERY hit a punch in and a sharp kick ALONG the blow, escalating up the
+ * combo; on THE impact the biggest punch and a shake along the blow. Tier IV eases the push off as the hero rears back
+ * (so the whole rear-back is framed) under a growing tremor, then the haymaker punches hardest and rings both ways.
  * Deterministic (sines and springs). Pure.
  */
 export function enragedCameraAt(p: EnragedPlan, c: HeroEnragedConfig, t: number, u: Pt): { zoom: number; x: number; y: number } {
@@ -781,10 +875,10 @@ export function enragedCameraAt(p: EnragedPlan, c: HeroEnragedConfig, t: number,
   const first = p.strikes[0]!;
   if (t >= p.windupAt && t < p.impactAt) {
     z += p.zoom * easeInOutSine((t - p.windupAt) / Math.max(1, first.driveAt - p.windupAt));
-    if (p.meteor && t >= p.riseAt) z += p.zoom * 0.5 * easeInOutSine((t - p.riseAt) / Math.max(1, p.apexAt - p.riseAt));
+    if (p.haymaker && t >= p.rearAt) z -= p.zoom * easeInOutSine((t - p.rearAt) / Math.max(1, (p.strikes[p.strikes.length - 1]!.driveAt - p.rearAt) * 0.6));
   }
-  for (const at of p.ticks) if (t >= at && t < p.impactAt) z += p.punch * 0.5 * Math.exp(-(t - at) / 90);
-  if (t >= p.impactAt) z += (p.zoom * (p.meteor ? 1.5 : 1) + p.punch) * Math.exp(-(t - p.impactAt) / Math.max(1, c.zoomOutMs / 4));
+  p.strikes.forEach((s) => { if (!s.final && t >= s.contactAt && t < p.impactAt) z += p.punch * (0.35 + 0.55 * s.power) * Math.exp(-(t - s.contactAt) / 90); });
+  if (t >= p.impactAt) z += (p.zoom * (p.haymaker ? 1.4 : 1) + p.punch) * Math.exp(-(t - p.impactAt) / Math.max(1, c.zoomOutMs / 4));
   let x = 0, y = 0;
   const kick = (at: number, amp: number, tau: number, hz: number): void => {
     const age = t - at;
@@ -794,23 +888,25 @@ export function enragedCameraAt(p: EnragedPlan, c: HeroEnragedConfig, t: number,
     x += u.x * amp * s - u.y * across;
     y += u.y * amp * s + u.x * across;
   };
-  // Each drive leaves with a small kick back (the push-off), each tick lands with a sharp one along the blow.
+  // Each drive leaves with a small kick back (the push-off); each hit lands with a sharp kick, bigger up the combo.
   p.strikes.forEach((s) => kick(s.driveAt, -p.shakePx * 0.12, 40, 12));
-  p.ticks.forEach((at, i) => kick(at, p.shakePx * (0.45 + 0.08 * i), 50, 16));
-  // The windup (and the rise) tremble, growing into the drive.
-  const buildTo = p.meteor ? p.apexAt : first.driveAt;
-  if (t >= p.windupAt && t < buildTo) {
-    const v = (t - p.windupAt) / Math.max(1, buildTo - p.windupAt);
-    const a = p.shakePx * (p.meteor ? 0.2 : 0.1) * v * v;
+  p.strikes.forEach((s) => { if (!s.final) kick(s.contactAt, p.shakePx * (0.3 + 0.45 * s.power), 55, 16); });
+  // The windup (and the haymaker's rear-back) tremble, growing into the drive.
+  const tremble = (from: number, to: number, amp: number): void => {
+    if (t < from || t >= to) return;
+    const v = (t - from) / Math.max(1, to - from);
+    const a = p.shakePx * amp * v * v;
     x += a * Math.sin(t * 0.13); y += a * Math.sin(t * 0.17 + 1.3);
-  }
+  };
+  tremble(p.windupAt, first.driveAt, 0.1);
+  if (p.haymaker) tremble(p.rearAt, p.strikes[p.strikes.length - 1]!.driveAt, 0.22);
   const age = t - p.impactAt;
   if (age >= 0) {
-    if (p.meteor) {
+    if (p.haymaker) {
       const env = Math.exp(-age / Math.max(1, c.shakeMs / 3.2));
       x += p.shakePx * 0.8 * env * Math.sin(age * 0.105 + 0.5);
       y += p.shakePx * env * Math.cos(age * 0.093);
-      p.booms.forEach((at, i) => kick(at, p.shakePx * 0.22, 45, 18 - i));
+      p.booms.forEach((at, i) => kick(at, p.shakePx * 0.2, 45, 18 - i));
     } else kick(p.impactAt, p.shakePx, Math.max(1, c.shakeMs / 4), 15);
   }
   const cap = Math.min(c.shakeCap, ENRAGED_CAPS.shakePx);
@@ -819,11 +915,26 @@ export function enragedCameraAt(p: EnragedPlan, c: HeroEnragedConfig, t: number,
   return { zoom: 1 + clamp(z, 0, Math.min(c.zoomCap, ENRAGED_CAPS.zoom) * 1.6), x, y };
 }
 
-/** Where the camera anchors: the hero through the windup, sliding to the foe over the first drive, the foe after. */
-export function enragedCameraFocus(p: EnragedPlan, t: number, a: Pt, d: Pt): Pt {
-  const s = p.strikes[0];
-  if (!s || t <= s.driveAt) return a;
-  if (t >= s.contactAt) return d;
-  const e = easeInOutSine((t - s.driveAt) / Math.max(1, s.contactAt - s.driveAt));
+/**
+ * Where the camera anchors: the hero through the windup, sliding to the foe over the first drive, the foe after. Tier IV
+ * slides to the middle of the rear-back and the foe while the hero rears up, so the whole haymaker is framed.
+ */
+export function enragedCameraFocus(p: EnragedPlan, t: number, a: Pt, d: Pt, rear: Pt | null = null): Pt {
+  const first = p.strikes[0];
+  const last = p.strikes[p.strikes.length - 1];
+  if (!first || !last) return a;
+  if (p.haymaker && rear && t >= p.rearAt) {
+    const top = { x: (a.x + rear.x + d.x) / 2, y: (a.y + rear.y + d.y) / 2 };
+    if (t < last.driveAt) {
+      const e = easeInOutSine((t - p.rearAt) / Math.max(1, last.driveAt - p.rearAt));
+      return { x: d.x + (top.x - d.x) * e, y: d.y + (top.y - d.y) * e };
+    }
+    if (t >= last.contactAt) return d;
+    const e = easeInOutSine((t - last.driveAt) / Math.max(1, last.contactAt - last.driveAt));
+    return { x: top.x + (d.x - top.x) * e, y: top.y + (d.y - top.y) * e };
+  }
+  if (t <= first.driveAt) return a;
+  if (t >= first.contactAt) return d;
+  const e = easeInOutSine((t - first.driveAt) / Math.max(1, first.contactAt - first.driveAt));
   return { x: a.x + (d.x - a.x) * e, y: a.y + (d.y - a.y) * e };
 }

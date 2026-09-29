@@ -344,6 +344,15 @@ const CHECKERS: { [K in Leaf['kind']]?: Checker<K> } = {
   scalingTribeAura: (c, r) => {
     const reg = c.after.questScalingAuras?.find((a) => a.tribe === r.tribe && a.per === r.per);
     if (!reg || reg.stepAttack !== r.stepAttack || reg.stepHealth !== r.stepHealth) return `questScalingAuras entry missing or wrong step (${JSON.stringify(reg)})`;
+    // Pack Mentality (Beast, owner ruling 2026-09-28, R-AURA-03): the grant is COMBAT-ONLY — the level is banked on
+    // the entry and NOTHING lands on the board/hand now. The magnitude check is the banked level + an untouched body.
+    if (r.tribe === 'beast') {
+      const probe = c.after.board.find((x) => x.uid === 'auraprobe');
+      const was = c.before.board.find((x) => x.uid === 'auraprobe');
+      if (!probe || !was) return 'aura probe body missing';
+      return eq('banked combat-only level', { a: reg.attack, h: reg.health }, { a: r.attack, h: r.health })
+        ?? eq('no out-of-combat grant', { a: probe.attack - was.attack, h: probe.health - was.health }, { a: 0, h: 0 });
+    }
     // The base grant lands NOW on the pre-placed tribe body — the magnitude check.
     const probe = c.after.board.find((x) => x.uid === 'auraprobe');
     const was = c.before.board.find((x) => x.uid === 'auraprobe');

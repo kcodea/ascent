@@ -2,11 +2,11 @@
 /**
  * THE ENRAGED STRIKE HERO ATTACK (owner 2026-09-28: "a legendary version of this strike ... just amplified or enraged";
  * then "enraged needs way more polish", and "remove the freezeing frame from all of the animations"): the tier mapping
- * SHARED with every style; the tier -> strikes ladder (one / a double / a flurry of three / the meteor); the tuner
+ * SHARED with every style; the tier -> strikes ladder (one / a double / a combo of three / a rampage and the haymaker); the tuner
  * defaults + clamping (and no hit-stop dial); the pure plan (Classic's swing times, the tick rhythm, the finisher wind,
- * the meteor rise, reduced motion, determinism); the pure pose (Classic's coil and contact, deeper; the squash; the rage
+ * the full cycle between hits, the haymaker's rear-back, reduced motion, determinism); the pure pose (Classic's coil and contact, deeper; the squash; the rage
  * spent on the last blow; home at the end; kept on screen); the camera; the runner on the shared clock (the consequence
- * lands exactly ONCE, on the last strike or the meteor, never on a tick; both directions; slow motion; replay; finish /
+ * lands exactly ONCE, on the last strike or the haymaker, never on a tick; both directions; slow motion; replay; finish /
  * cancel; cleanup); the headless scene (pooled, bounded, evenly stamped afterimages, drains, destroy leaves nothing);
  * the cosmetic resolution; and every other style unchanged.
  */
@@ -32,7 +32,7 @@ import { formationOf, leadInOf } from '../heroAttack/formationFixtures';
 const W = Texture.WHITE;
 const TEX: HeroEnragedTextures = {
   glow: W, spark: W, streak: W, ring: W, beam: W, ribbonSoft: W, ribbonBody: W, sigil: W, star: W,
-  smoke: W, rock: W, scorch: W, cracks: W, disc: W, rim: W, halo: W,
+  smoke: W, rock: W, scorch: W, cracks: W, disc: W, rim: W, halo: W, rimCracks: W,
 };
 const C = HERO_ENRAGED_DEFAULTS;
 const plan = (values: number[], total: number, reduced = false) => enragedPlan({ total, reduced, leadIn: leadInOf(values, reduced), swing: TYPICAL_SWING, tempo: CLASSIC_DEFAULTS.tempo }, C);
@@ -40,6 +40,7 @@ const COLORS = { core: 0xffffff, hot: 0xffd36b, side: 0xff5a14, shade: 0x6e0f00,
 const LOOK = {
   auraSize: 1, flames: 12, flameLength: 1, ghosts: 3, ghostSpacing: 1.35, ghostAlpha: 0.65, ghostFadeMs: 220, wakeWidth: 1, wakeMs: 90,
   ringSize: 1, ring2Size: 1, slashLength: 1, slashWidth: 1, sparkSpeed: 1, emberLife: 1, craterSize: 1, debris: 12,
+  crescentSize: 1, shockSize: 1, burstSize: 1, sparkInward: 0.65, rimCracks: 1, scorch: 1, scorchMs: 1000, emberStorm: 46,
 };
 const A = { x: 300, y: 800 }, D = { x: 1500, y: 200 };
 const FRAME = { x0: 0, y0: 0, x1: 1920, y1: 1080 };
@@ -57,11 +58,11 @@ describe('the damage tiers (shared with every style)', () => {
     }
   });
 
-  it('the ladder: I ONE enraged hit, II a DOUBLE strike, III a FLURRY of three, IV the METEOR', () => {
-    expect([P1, P2, P3, P4].map((p) => p.strikes.length)).toEqual([1, 2, 3, 1]);
-    expect([P1, P2, P3, P4].map((p) => p.meteor)).toEqual([false, false, false, true]);
-    expect([1, 5, 6, 11, 12, 19, 20, 60].map((d) => { const p = plan([d], d); return p.meteor ? 'meteor' : p.strikes.length; }))
-      .toEqual([1, 1, 2, 2, 3, 3, 'meteor', 'meteor']);
+  it('the ladder: I ONE enraged hit, II a DOUBLE strike, III a COMBO of three, IV a RAMPAGE of five slams and the overhead HAYMAKER', () => {
+    expect([P1, P2, P3, P4].map((p) => p.strikes.length)).toEqual([1, 2, 3, 6]);
+    expect([P1, P2, P3, P4].map((p) => p.haymaker)).toEqual([false, false, false, true]);
+    expect([1, 5, 6, 11, 12, 19, 20, 60].map((d) => { const p = plan([d], d); return p.haymaker ? 'haymaker' : p.strikes.length; }))
+      .toEqual([1, 1, 2, 2, 3, 3, 'haymaker', 'haymaker']);
   });
 });
 
@@ -83,7 +84,7 @@ describe('the tuner values', () => {
   });
 
   it('clamps numbers into range; junk falls back to the default; colours must be #rrggbb; unknown keys drop', () => {
-    expect(clampHeroEnragedValue('t3Strikes', 99)).toBe(5);
+    expect(clampHeroEnragedValue('t3Strikes', 99)).toBe(8);
     expect(clampHeroEnragedValue('t1Strikes', 0)).toBe(1);
     expect(clampHeroEnragedValue('ghosts', 99)).toBe(6);
     expect(clampHeroEnragedValue('shakeCap', -3)).toBe(0);
@@ -91,8 +92,8 @@ describe('the tuner values', () => {
     expect(clampHeroEnragedValue('colorPlayer', 'red')).toBe(C.colorPlayer);
     expect(clampHeroEnragedValue('colorPlayer', '#AABBCC')).toBe('#aabbcc');
     expect(clampHeroEnragedValue('nope' as never, 1)).toBeUndefined();
-    const s = sanitizeHeroEnragedConfig({ t4Meteor: 0, flames: 'x', junk: 3, t2Strikes: 3.4 });
-    expect(s.t4Meteor).toBe(0);
+    const s = sanitizeHeroEnragedConfig({ t4Haymaker: 0, flames: 'x', junk: 3, t2Strikes: 3.4 });
+    expect(s.t4Haymaker).toBe(0);
     expect(s.flames).toBe(C.flames);
     expect((s as unknown as Record<string, unknown>).junk).toBeUndefined();
     expect(s.t2Strikes).toBe(3.4);
@@ -105,7 +106,7 @@ describe('the tuner values', () => {
     const json = JSON.parse(heroEnragedConfigJson(C)) as Record<string, unknown>;
     expect(json.previewDamage).toBeUndefined();
     expect(json.previewParts).toBeUndefined();
-    expect(json.t4Meteor).toBe(1);
+    expect(json.t4Haymaker).toBe(1);
     expect(json.t3Strikes).toBe(3);
     const style = SPEC.controls.find((c) => c.key === 'attackStyle');
     expect(style?.options).toContain('enraged');
@@ -130,18 +131,37 @@ describe('the plan', () => {
     expect(long.strikes[0]!.contactAt - long.strikes[0]!.driveAt).toBeGreaterThan(s0.contactAt - s0.driveAt);
   });
 
-  it('THE FLURRY: three strikes; the first two are ticks, the LAST is the impact (one consequence beat); a deeper wind before the finisher', () => {
-    expect(P3.ticks).toEqual([P3.strikes[0]!.contactAt, P3.strikes[1]!.contactAt]);
-    expect(P3.impactAt).toBe(P3.strikes[2]!.contactAt);
-    const cues = enragedCues(P3);
-    expect(cues.filter((q) => q.kind === 'impact')).toHaveLength(1);
-    expect(cues.filter((q) => q.kind === 'tick')).toHaveLength(2);
-    expect(cues.filter((q) => q.kind === 'drive')).toHaveLength(3);
-    const gap1 = P3.strikes[1]!.driveAt - P3.strikes[0]!.contactAt;
-    const gap2 = P3.strikes[2]!.driveAt - P3.strikes[1]!.contactAt;
-    expect(gap2).toBeGreaterThan(gap1); // the finisher winds up harder
-    expect(P3.strikes[2]!.pull).toBeGreaterThan(P3.strikes[1]!.pull);
-    for (let i = 1; i < cues.length; i++) expect(cues[i]!.at).toBeGreaterThanOrEqual(cues[i - 1]!.at);
+  it('EVERY HIT IS A FULL CYCLE (owner 2026-09-28: "let them fly back in and impact each time"): recoil, coil, drive, impact; ONE consequence; each hit harder', () => {
+    for (const p of [P2, P3, P4]) {
+      const n = p.strikes.length;
+      expect(p.ticks).toEqual(p.strikes.slice(0, -1).map((s0) => s0.contactAt));
+      expect(p.impactAt).toBe(p.strikes[n - 1]!.contactAt);
+      const cues = enragedCues(p);
+      expect(cues.filter((q) => q.kind === 'impact')).toHaveLength(1);
+      expect(cues.filter((q) => q.kind === 'tick')).toHaveLength(n - 1);
+      expect(cues.filter((q) => q.kind === 'drive')).toHaveLength(n);
+      for (let i = 1; i < n; i++) {
+        const s0 = p.strikes[i]!;
+        expect(s0.coilAt).toBeGreaterThan(p.strikes[i - 1]!.contactAt); // the recoil comes first
+        expect(s0.coilAt).toBeLessThan(s0.driveAt); // then the coil, then the drive
+        expect(s0.power).toBeGreaterThan(p.strikes[i - 1]!.power); // every hit lands harder than the last
+      }
+      expect(p.strikes[n - 1]!.power).toBe(1);
+      for (let i = 1; i < cues.length; i++) expect(cues[i]!.at).toBeGreaterThanOrEqual(cues[i - 1]!.at);
+    }
+    // The recoil is a REAL pull back, not a nudge: mid-cycle the hero is at least half a windup depth off the contact.
+    const g = geo();
+    const s1 = P2.strikes[1]!;
+    const mid = enragedPose(P2, g, C, s1.coilAt);
+    expect(Math.hypot(mid.x - g.contact.x, mid.y - g.contact.y)).toBeGreaterThan(0.5 * Math.hypot(g.back.x, g.back.y));
+    expect(enragedPose(P2, g, C, (P2.strikes[0]!.contactAt + s1.coilAt) / 2).squash).toBeLessThan(0); // stretched off the foe
+    expect(enragedPose(P2, g, C, (s1.coilAt + s1.driveAt) / 2).squash).toBeGreaterThan(0); // squashed in the coil
+  });
+
+  it('the RAMPAGE (Tier IV) accelerates: each slam comes faster than the one before, then the haymaker', () => {
+    const gap = (i: number): number => P4.strikes[i]!.driveAt - P4.strikes[i - 1]!.contactAt;
+    for (let i = 2; i < P4.strikes.length - 1; i++) expect(gap(i)).toBeLessThan(gap(i - 1));
+    expect(gap(P4.strikes.length - 1)).toBeGreaterThan(gap(P4.strikes.length - 2)); // the rear-back is the long breath
   });
 
   it('Tier II is a double strike; Tier I one hit straight to the impact', () => {
@@ -151,16 +171,33 @@ describe('the plan', () => {
     expect(P1.impactAt).toBe(P1.strikes[0]!.contactAt);
   });
 
-  it('Tier IV: the hero RISES (the windup), hangs at the apex, then SLAMS; the meteor is the impact; debris lands after', () => {
-    expect(P4.meteor).toBe(true);
-    expect(P4.riseAt).toBe(P4.windupAt);
-    expect(P4.apexAt).toBeGreaterThan(P4.riseAt);
-    expect(P4.strikes[0]!.driveAt).toBe(P4.apexAt + C.apexHoldMs);
-    expect(P4.impactAt).toBe(P4.strikes[0]!.contactAt);
+  it('Tier IV: five slams (ticks), then the hero REARS BACK and the overhead HAYMAKER is the impact; rubble lands after', () => {
+    expect(P4.haymaker).toBe(true);
+    const last = P4.strikes[P4.strikes.length - 1]!;
+    expect(last.haymaker).toBe(true);
+    expect(P4.strikes.filter((s0) => s0.haymaker)).toHaveLength(1);
+    expect(P4.rearAt).toBe(P4.strikes[P4.strikes.length - 2]!.contactAt);
+    expect(last.driveAt - P4.rearAt).toBeCloseTo(C.haymakerCoilMs, 6);
+    expect(P4.impactAt).toBe(last.contactAt);
+    expect(P4.ticks).toHaveLength(5);
     expect(P4.booms.length).toBeGreaterThan(0);
-    for (const b of P4.booms) expect(b).toBeGreaterThan(P4.impactAt);
-    const cues = enragedCues(P4);
-    expect(cues.map((q) => q.kind).filter((k) => k !== 'boom')).toEqual(['charge', 'windup', 'rise', 'apex', 'drive', 'impact', 'recover', 'end']);
+    for (const b0 of P4.booms) expect(b0).toBeGreaterThan(P4.impactAt);
+    const kinds = enragedCues(P4).map((q) => q.kind);
+    expect(kinds.filter((k) => k === 'rear')).toHaveLength(1);
+    expect(kinds.indexOf('rear')).toBeLessThan(kinds.lastIndexOf('drive'));
+    expect(kinds.indexOf('impact')).toBeGreaterThan(kinds.lastIndexOf('tick'));
+    // the owner's brief: 2.5 to 3.5 s for the whole style's own attack (the windup to the end), the knockout late in it
+    expect(P4.endAt - P4.windupAt).toBeGreaterThanOrEqual(2500);
+    expect(P4.endAt - P4.windupAt).toBeLessThanOrEqual(3600);
+    expect(P4.impactAt - P4.windupAt).toBeGreaterThan(0.6 * (P4.endAt - P4.windupAt));
+  });
+
+  it('THE RAGE BURST fires once, at the top of the windup, just before the first drive', () => {
+    for (const p of [P1, P2, P3, P4]) {
+      expect(enragedCues(p).filter((q) => q.kind === 'burst')).toHaveLength(1);
+      expect(p.burstAt).toBeGreaterThan(p.windupAt);
+      expect(p.strikes[0]!.driveAt - p.burstAt).toBeCloseTo(C.burstMs, 6);
+    }
   });
 
   it('every tier escalates: more shake, zoom, sparks and burst; II+ dims; all within the caps', () => {
@@ -207,10 +244,10 @@ describe('the plan', () => {
 
 /** The shipped timeline, pinned (update ON PURPOSE when the defaults move). */
 const TIMELINE = [
-  [2210, 2988, 3888],
-  [2376, 3496, 4416],
-  [2708, 4259, 5219],
-  [2800, 4305, 5572],
+  [2210, 2988, 3925],
+  [2376, 3576, 4533],
+  [2708, 4405, 5401],
+  [2800, 5224, 6341],
 ];
 
 describe('the hero pose (Classic\'s swing, enraged)', () => {
@@ -226,8 +263,18 @@ describe('the hero pose (Classic\'s swing, enraged)', () => {
     const sw = classicSwing(A, D, { width: 160, height: 160 }, { width: 160, height: 160 }, 1);
     const g2 = enragedGeo(A, D, 80, 80, C, null, sw, 1);
     expect(g2.back.x).toBeCloseTo(sw.back.x * C.windupDepth, 6); // Classic's coil x the enraged depth
-    expect(g2.contact).toEqual(sw.strike); // Classic's corner-first contact, exactly
     expect(g2.tilt).toBeCloseTo(sw.leadTilt * C.tiltBoost, 6);
+  });
+
+  it('THE READABLE HIT (owner 2026-09-28 polish): the striker stops at the struck portrait\'s rim, never over its face (Classic keeps its own contact)', () => {
+    const sw = classicSwing(A, D, { width: 160, height: 160 }, { width: 160, height: 160 }, 1);
+    const g = enragedGeo(A, D, 80, 80, C, null, sw, 1);
+    const at = { x: A.x + g.contact.x, y: A.y + g.contact.y };
+    const fromFoe = Math.hypot(at.x - D.x, at.y - D.y);
+    expect(fromFoe).toBeCloseTo(80 + 80 * C.contactStop, 6); // its centre sits outside the struck rim
+    expect(fromFoe).toBeGreaterThan(80); // the struck face stays clear on the contact frame
+    const classicAt = { x: A.x + sw.strike.x, y: A.y + sw.strike.y };
+    expect(Math.hypot(classicAt.x - D.x, classicAt.y - D.y)).toBeLessThan(fromFoe); // Classic drives in further, unchanged
   });
 
   it('drives INTO the foe on every strike, squashes on contact, and pulls back between strikes', () => {
@@ -251,11 +298,16 @@ describe('the hero pose (Classic\'s swing, enraged)', () => {
     expect(end.scale).toBeCloseTo(1, 3);
   });
 
-  it('Tier IV rises UP the screen and swells toward the camera, then slams into the foe', () => {
+  it('the HAYMAKER rears UP the screen and swells toward the camera, then comes DOWN on an overhead arc onto the foe', () => {
     const g = geo();
-    const apex = enragedPose(P4, g, C, P4.apexAt);
-    expect(apex.y).toBeLessThan(-100);
-    expect(apex.scale).toBeGreaterThan(1.4);
+    const last = P4.strikes[P4.strikes.length - 1]!;
+    const top = enragedPose(P4, g, C, last.driveAt);
+    expect(top.y).toBeLessThan(-100);
+    expect(top.scale).toBeGreaterThan(1.4);
+    // mid-swoop it is ABOVE the straight line from the rear-back to the contact (an overhead blow, not a straight lunge)
+    const mid = enragedPose(P4, g, C, (last.driveAt + last.contactAt) / 2);
+    const lineY = top.y + (g.contact.y - top.y) * ((mid.x - top.x) / ((g.contact.x - top.x) || 1));
+    expect(mid.y).toBeLessThan(lineY);
     const hit = enragedPose(P4, g, C, P4.impactAt);
     expect(Math.hypot(hit.x - g.contact.x, hit.y - g.contact.y)).toBeLessThan(1);
   });
@@ -263,7 +315,7 @@ describe('the hero pose (Classic\'s swing, enraged)', () => {
   it('never pulls a hero in a corner off the screen, in either direction (the coil and the rise are shortened, never bent)', () => {
     for (const [a, d] of [[{ x: 90, y: 1000 }, D], [{ x: 1830, y: 60 }, { x: 300, y: 900 }]] as const) {
       const g = enragedGeo(a, d, 80, 80, C, FRAME);
-      for (const off of [g.back, g.apex]) {
+      for (const off of [g.back, g.rear]) {
         const x = a.x + off.x, y = a.y + off.y;
         expect(x).toBeGreaterThanOrEqual(Math.min(a.x, FRAME.x0 + 80 * 1.05) - 1e-6);
         expect(x).toBeLessThanOrEqual(Math.max(a.x, FRAME.x1 - 80 * 1.05) + 1e-6);
@@ -323,7 +375,7 @@ function run(over: Partial<HeroEnragedOptions> = {}) {
 describe('the runner (the shared clock)', () => {
   afterEach(() => { document.body.innerHTML = ''; document.body.className = ''; });
 
-  it('THE FLURRY lands the blow EXACTLY ONCE, on the LAST strike: never on a tick; the clock never stops; ends clean', () => {
+  it('THE COMBO lands the blow EXACTLY ONCE, on the LAST strike: never on a tick; the clock never stops; ends clean', () => {
     const { h, f, root, onImpact, onDone, host, camera, attackerEl, defenderEl } = run({ total: 14, formation: formationOf([14], 14) });
     expect(h.plan.strikes).toHaveLength(3);
     expect(host.querySelector('.hblast.henraged')).not.toBeNull();
@@ -355,11 +407,12 @@ describe('the runner (the shared clock)', () => {
     expect(root.children).toHaveLength(0);
   });
 
-  it('Tier IV: the blow lands ONCE, on the meteor; the crater, debris and aftershocks follow; all within the caps', () => {
+  it('Tier IV: five slams, the rear-back, then the blow lands ONCE, on the haymaker; the shockwave, cracks and rubble follow; all within the caps', () => {
     const { h, f, onImpact } = run({ total: 40, formation: formationOf([40], 40) });
-    expect(h.plan.meteor).toBe(true);
-    f.tick(h.plan.apexAt, 8);
+    expect(h.plan.haymaker).toBe(true);
+    f.tick(h.plan.rearAt + 100, 8);
     expect(onImpact).not.toHaveBeenCalled();
+    expect(h.scene!.burning).toBe(true);
     f.tick(h.plan.impactAt - h.elapsed() + 8, 8);
     expect(onImpact).toHaveBeenCalledTimes(1);
     let peakS = 0, peakM = 0;
@@ -417,7 +470,7 @@ describe('the runner (the shared clock)', () => {
     expect(a.f.hooked()).toBe(0);
     expect(a.root.children).toHaveLength(0);
     const b = run({ total: 40 });
-    b.f.tick(b.h.plan.apexAt + 50);
+    b.f.tick(b.h.plan.rearAt + 50);
     b.h.cancel();
     b.f.tick(5000);
     expect(b.onImpact).not.toHaveBeenCalled();
@@ -473,14 +526,14 @@ describe('the scene (headless Pixi)', () => {
     let peak = 0, peakM = 0;
     let t = P4.windupAt;
     s.follow(t);
-    s.startWindup(P4.aura, 20, P4.apexAt - P4.windupAt);
-    s.rise();
+    s.startWindup(P4.aura, 20, P4.strikes[0]!.driveAt - P4.windupAt);
+    s.rear();
     const s0 = P4.strikes[0]!;
     for (; t < s0.driveAt; t += 16) { s.follow(t); s.update(16); peak = Math.max(peak, s.liveSprites); peakM = Math.max(peakM, s.liveMeshes); }
     expect(s.burning).toBe(true);
     s.drive({ x: A.x, y: A.y }, geo().u, 1000, 10, true);
     for (; t < s0.contactAt; t += 8) { s.follow(t); s.update(8); peak = Math.max(peak, s.liveSprites); peakM = Math.max(peakM, s.liveMeshes); }
-    s.impact(D.x, D.y, geo().u, 80, { k: 1, burst: 1.75, sparks: 46, embers: 40, slashes: 2, flashAlpha: 0.95, meteor: true, smoulderMs: 1200, screen: 2200 });
+    s.impact(D.x, D.y, geo().u, 80, { k: 1, burst: 1.75, sparks: 46, embers: 40, slashes: 2, flashAlpha: 0.95, haymaker: true, smoulderMs: 1200, screen: 2200 });
     for (const [i, at] of P4.booms.entries()) { void at; s.boom(D.x + 40 * i, D.y, 1 + 0.1 * i); }
     s.recover();
     for (; t < P4.endAt + 3000; t += 16) { s.follow(t); peak = Math.max(peak, s.liveSprites); peakM = Math.max(peakM, s.liveMeshes); if (!s.update(16) && t > P4.endAt) break; }
@@ -492,6 +545,27 @@ describe('the scene (headless Pixi)', () => {
     expect(s.liveMeshes).toBe(0);
     s.destroy();
     expect(s.root.destroyed).toBe(true);
+  });
+
+  it('the new beats (burst, ground scorch, rim cracks, ember storm) stay in the caps and drain to nothing', () => {
+    const s = new HeroEnragedScene(TEX, COLORS, LOOK, 1, 11);
+    s.setHero(path(P4), 80, null);
+    s.follow(P4.windupAt);
+    s.startWindup(1, 10, 600);
+    s.rear();
+    s.coil(A.x, A.y, 80, 0.6);
+    s.burst(A.x, A.y, 80, 1.35);
+    s.drive(A, geo().u, 1000, 8, true);
+    let t = P4.strikes[0]!.driveAt;
+    for (; t < P4.impactAt; t += 16) { s.follow(t); s.update(16); }
+    s.impact(D.x, D.y, geo().u, 80, { k: 1, burst: 1.75, sparks: 50, embers: 44, slashes: 2, flashAlpha: 0.95, haymaker: true, smoulderMs: 1200, screen: 2200, into: { x: -0.7, y: 0.7 } });
+    let peak = 0, peakM = 0;
+    for (; t < P4.endAt + 4000; t += 16) { s.follow(t); peak = Math.max(peak, s.liveSprites); peakM = Math.max(peakM, s.liveMeshes); if (!s.update(16) && t > P4.endAt) break; }
+    expect(peak).toBeLessThanOrEqual(MAX_ENRAGED_SPRITES);
+    expect(peakM).toBeLessThanOrEqual(MAX_ENRAGED_MESHES);
+    expect(s.liveSprites).toBe(0);
+    expect(s.liveMeshes).toBe(0);
+    s.destroy();
   });
 
   it('AFTERIMAGES: only a dash stamps them, never the coil; at most the tuned few; evenly spaced along the dash, newest strongest', () => {
@@ -517,7 +591,7 @@ describe('the scene (headless Pixi)', () => {
     for (let t = P3.windupAt; t < P3.endAt; t += 16) {
       if (P3.strikes.some((q) => Math.abs(q.driveAt - t) < 8)) s.drive(A, geo().u, 1000, 6, false);
       if (P3.ticks.some((q) => Math.abs(q - t) < 8)) s.tick(D.x, D.y, geo().u, 80, 0, 0.66);
-      if (Math.abs(P3.impactAt - t) < 8) s.impact(D.x, D.y, geo().u, 80, { k: 0.66, burst: 1.25, sparks: 30, embers: 18, slashes: 2, flashAlpha: 0.95, meteor: false, smoulderMs: 1200, screen: 2200 });
+      if (Math.abs(P3.impactAt - t) < 8) s.impact(D.x, D.y, geo().u, 80, { k: 0.66, burst: 1.25, sparks: 30, embers: 18, slashes: 2, flashAlpha: 0.95, haymaker: false, smoulderMs: 1200, screen: 2200 });
       s.follow(t);
       s.update(16);
       for (const layer of s.root.children) for (const ch of (layer as Container).children) {
@@ -532,14 +606,14 @@ describe('the scene (headless Pixi)', () => {
     s.setHero(path(P3), 80, null);
     s.follow(P3.windupAt);
     s.startWindup(1, 10, 600);
-    s.impact(D.x, D.y, geo().u, 80, { k: 0.66, burst: 1.25, sparks: 30, embers: 18, slashes: 2, flashAlpha: 0.95, meteor: false, smoulderMs: 0, screen: 2200 });
+    s.impact(D.x, D.y, geo().u, 80, { k: 0.66, burst: 1.25, sparks: 30, embers: 18, slashes: 2, flashAlpha: 0.95, haymaker: false, smoulderMs: 0, screen: 2200 });
     s.update(16);
     const pooled = s.pooledSprites;
     s.clear();
     expect(s.liveSprites).toBe(0);
     expect(s.liveMeshes).toBe(0);
     expect(s.update(16)).toBe(false);
-    s.impact(D.x, D.y, geo().u, 80, { k: 0.66, burst: 1.25, sparks: 30, embers: 18, slashes: 2, flashAlpha: 0.95, meteor: false, smoulderMs: 0, screen: 2200 });
+    s.impact(D.x, D.y, geo().u, 80, { k: 0.66, burst: 1.25, sparks: 30, embers: 18, slashes: 2, flashAlpha: 0.95, haymaker: false, smoulderMs: 0, screen: 2200 });
     s.update(16);
     expect(s.pooledSprites).toBeLessThanOrEqual(pooled + 10);
     s.destroy();

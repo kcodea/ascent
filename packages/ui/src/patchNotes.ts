@@ -60,6 +60,18 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: 'A new Legendary hero attack, Stampede, can drop from crates.',
+        details: [
+          'Your damage builds up, then your hero looses spirit wolves of green and amber energy at the other hero.',
+          'Each wolf leaps in and a pair of ghostly jaws snaps shut on the other hero, leaving bite marks.',
+          'Bigger hits send two wolves, then a whole pack that kicks up dust as it runs.',
+          'On the biggest hits a giant beast rises, slams its jaws shut over the other hero, then roars.',
+          'Equip it from the Attack Animations tab of the Collection. There is a preview button there too.',
+          'Hero attacks are looks only. The damage is exactly the same.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'A new Legendary hero attack, Grave Call, can drop from crates.',
         details: [
           'Your damage builds up, then your hero raises the dead in ghostly green.',

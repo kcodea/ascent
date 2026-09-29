@@ -23,6 +23,7 @@ import { playHeroFrost } from '../heroFrost/heroFrost';
 import { playHeroHoly } from '../heroHoly/heroHoly';
 import { playHeroFire } from '../heroFire/heroFire';
 import { playHeroUndead } from '../heroUndead/heroUndead';
+import { playHeroBeast } from '../heroBeast/heroBeast';
 import { heroStrikeDamage, heroStrikeKnockout } from '../heroBlast/heroStrikeDamage';
 
 describe('attackTier: the one shared tier rule', () => {
@@ -66,6 +67,7 @@ describe('every style plays its Tier IV on a knockout blow of 3, and Tier I on a
     ['holy', (o) => playHeroHoly({ ...o, textures: null })],
     ['fire', (o) => playHeroFire({ ...o, textures: null })],
     ['undead', (o) => playHeroUndead({ ...o, textures: null })],
+    ['beast', (o) => playHeroBeast({ ...o, textures: null })],
   ];
 
   it('the cosmetic styles', () => {

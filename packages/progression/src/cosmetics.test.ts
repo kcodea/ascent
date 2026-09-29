@@ -139,12 +139,12 @@ describe('the roll', () => {
   // split inside a rarity was by category weight (roll version 2: Common minion skin 16.667 / title 4.762, Legendary
   // attack 0.375 / minion skin 0.875 / title 0.25). The catalog then: Common 8 items, Rare 13, Epic 10, Legendary 11.
   // Adding an item only re-splits its OWN rarity's share; the four rarity numbers never move. Re-pinned the same day when
-  // the ninth and tenth hero attacks, Inferno (attack_fire) and Grave Call (attack_undead), both Legendary, joined:
-  // Legendary 11 -> 13 items (each 5 / 13).
+  // the ninth, tenth and eleventh hero attacks, Inferno (attack_fire), Grave Call (attack_undead) and the Stampede
+  // (attack_beast), all Legendary, joined: Legendary 11 -> 14 items (each 5 / 14).
   it('the per-item chances of a first crate (2026-09-29 catalog): each item = its rarity\'s odds / that rarity\'s item count', () => {
     const all = eligibleCrateCosmetics([]);
     const count = (r: string): number => all.filter((c) => c.rarity === r).length;
-    expect(COSMETIC_RARITIES.map(count)).toEqual([8, 13, 10, 13]); // 2026-09-29: the ninth and tenth hero attacks, Inferno (attack_fire) and Grave Call (attack_undead), made Legendary 13
+    expect(COSMETIC_RARITIES.map(count)).toEqual([8, 13, 10, 14]); // 2026-09-29: Inferno (attack_fire), Grave Call (attack_undead) and the Stampede (attack_beast) made Legendary 14
     const ch = crateChances(all);
     const pct = (id: string): number => Math.round(100000 * ch.get(id)!) / 1000;
     expect(pct('skin_blackbelt_4')).toBe(6.25);       // Common: 50 / 8
@@ -154,13 +154,14 @@ describe('the roll', () => {
     expect(pct('skin_bellringer_1')).toBe(1.5);       // Epic: 15 / 10
     expect(pct('skin_albus_1')).toBe(1.5);
     expect(pct('title_kingbreaker')).toBe(1.5);
-    expect(pct('skin_blackbelt_3')).toBe(0.385);      // Legendary: 5 / 13
-    expect(pct('attack_arcana')).toBe(0.385);
-    expect(pct('attack_fire')).toBe(0.385);
-    expect(pct('attack_undead')).toBe(0.385);
-    expect(pct('title_the_unbroken')).toBe(0.385);
+    expect(pct('skin_blackbelt_3')).toBe(0.357);      // Legendary: 5 / 14
+    expect(pct('attack_arcana')).toBe(0.357);
+    expect(pct('attack_fire')).toBe(0.357);
+    expect(pct('attack_undead')).toBe(0.357);
+    expect(pct('attack_beast')).toBe(0.357);
+    expect(pct('title_the_unbroken')).toBe(0.357);
     const cat = (k: string): number => Math.round(1000 * all.filter((c) => c.category === k).reduce((a, c) => a + ch.get(c.id)!, 0)) / 10;
-    expect([cat('title'), cat('minion_skin'), cat('hero_skin'), cat('hero_attack')]).toEqual([58.7, 34.5, 3, 3.8]); // ten attacks x 5 / 13 since Inferno + Grave Call (2026-09-29)
+    expect([cat('title'), cat('minion_skin'), cat('hero_skin'), cat('hero_attack')]).toEqual([58.6, 34.4, 3, 3.9]); // eleven attacks x 5 / 14 since Inferno + Grave Call + the Stampede (2026-09-29)
     expect([...ch.values()].reduce((a, b) => a + b, 0)).toBeCloseTo(1, 12);
   });
 

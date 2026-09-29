@@ -273,6 +273,11 @@ export const COSMETICS: readonly CosmeticDef[] = Object.freeze([
   // chomps, then necrotic mist washes out. The name is the builder's placeholder for the owner to rename (the id stays).
   // Legendary like the other eight.
   heroAttack('attack_undead', 'Grave Call', 'legendary', 'undead'),
+  // Owner 2026-09-29: "make some more attack types ... a beast chomp rush animation ... use the same 4 tier strategy we
+  // have been". Spirit beasts leap from the hero and front jaws chomp shut on the target: I one wolf, II a staggered
+  // pair, III a pack of five kicking up dust, IV a colossal beast whose jaws slam over the whole portrait, then it roars.
+  // The name is the builder's placeholder for the owner to rename (the id stays). Legendary like the other eight.
+  heroAttack('attack_beast', 'Stampede', 'legendary', 'beast'),
   // HERO TITLES (owner 2026-09-29), 33 heroes x (title + golden master). Achievement rewards, never in a crate.
   ...HERO_TITLE_COSMETICS,
 ]);

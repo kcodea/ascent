@@ -89,6 +89,8 @@ import { playHeroFire } from './heroFire/heroFire';
 import { heroFirePreviewSpeed } from './heroFire/heroFireConfig';
 import { playHeroUndead } from './heroUndead/heroUndead';
 import { heroUndeadPreviewSpeed } from './heroUndead/heroUndeadConfig';
+import { playHeroBeast } from './heroBeast/heroBeast';
+import { heroBeastPreviewSpeed } from './heroBeast/heroBeastConfig';
 import { resolveHeroAttackStyle } from './heroBlast/heroAttackStyle';
 import { attackerCosmeticOf } from './heroBlast/attackerCosmetic';
 import { heroStrikeDamage, heroStrikeKnockout, heroStrikeNumbers } from './heroBlast/heroStrikeDamage';
@@ -2920,11 +2922,15 @@ export function Recruit() {
     // a pillar of light smites, and the top tier drops a holy sword that explodes into light and fires a flat consecrated
     // blast at the target; Inferno: fireballs of live fire are hurled, and the top tier calls down a meteor that detonates
     // and engulfs the target; Grave Call: shrieking skulls bite, and the top tier tears a grave rift that a giant skull maw
-    // rises out of to chomp the target). Same blow, same consequence, only drawn differently; the style is the ATTACKER's (their
-    // equipped cosmetic, or the dev override). Every runner takes the same options (`heroAttack/options.ts`).
+    // rises out of to chomp the target; Stampede: spirit beasts leap in and front jaws chomp shut on the target, and
+    // the top tier raises a colossal beast whose jaws slam over the portrait before it roars). Same blow, same consequence,
+    // only drawn differently; the style is the ATTACKER's (their equipped cosmetic, or the dev override). Every runner
+    // takes the same options (`heroAttack/options.ts`).
     const attackStyle = resolveHeroAttackStyle({ attacker: side, attackerCosmeticId: attackerCosmeticOf(run0, side, useGame.getState().showOpponentSkins) });
-    if (attackStyle === 'blast' || attackStyle === 'quake' || attackStyle === 'arcana' || attackStyle === 'blades' || attackStyle === 'enraged' || attackStyle === 'poison' || attackStyle === 'frost' || attackStyle === 'holy' || attackStyle === 'fire' || attackStyle === 'undead') {
-      const runner = attackStyle === 'undead'
+    if (attackStyle === 'blast' || attackStyle === 'quake' || attackStyle === 'arcana' || attackStyle === 'blades' || attackStyle === 'enraged' || attackStyle === 'poison' || attackStyle === 'frost' || attackStyle === 'holy' || attackStyle === 'fire' || attackStyle === 'undead' || attackStyle === 'beast') {
+      const runner = attackStyle === 'beast'
+        ? { play: playHeroBeast, preview: heroBeastPreviewSpeed() }
+        : attackStyle === 'undead'
         ? { play: playHeroUndead, preview: heroUndeadPreviewSpeed() }
         : attackStyle === 'fire'
         ? { play: playHeroFire, preview: heroFirePreviewSpeed() }

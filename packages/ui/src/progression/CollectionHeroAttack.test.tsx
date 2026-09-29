@@ -60,7 +60,7 @@ describe('the Attack Animations tab', () => {
   it('Arcana (owner 2026-09-28: "one more attack animation ... a magic one called arcana") has its own tile and plays its own preview; Equip sends attack_arcana', async () => {
     open({ cosmetics: ['alpha_tester', 'attack_blast', 'attack_quake', 'attack_arcana'] });
     act(() => tab('Attack Animations').click());
-    expect(tab('Attack Animations').querySelector('.colls-tab-count')?.textContent).toBe('3/5'); // 2026-09-28: Phantom Blades then Enraged Strike joined, so three of five
+    expect(tab('Attack Animations').querySelector('.colls-tab-count')?.textContent).toBe('3/6'); // 2026-09-28: Phantom Blades, Enraged Strike then Frost Nova joined, so three of six
     act(() => tile('Arcana').click());
     expect(tile('Arcana').getAttribute('aria-label')).toBe('Arcana, Legendary, owned');
     expect(text('.colls-detail .colls-kicker')).toBe('Hero attack');
@@ -80,8 +80,8 @@ describe('the Attack Animations tab', () => {
   it('Tectonic Slam (Quake, owner 2026-09-28) has its own tile and plays its own preview; Equip sends attack_quake', async () => {
     open({ cosmetics: ['alpha_tester', 'attack_blast', 'attack_quake'] });
     act(() => tab('Attack Animations').click());
-    // 2026-09-28: Arcana, Phantom Blades then Enraged Strike joined, so two of five are owned here.
-    expect(tab('Attack Animations').querySelector('.colls-tab-count')?.textContent).toBe('2/5');
+    // 2026-09-28: Arcana, Phantom Blades, Enraged Strike then Frost Nova joined, so two of six are owned here.
+    expect(tab('Attack Animations').querySelector('.colls-tab-count')?.textContent).toBe('2/6');
     act(() => tile('Tectonic Slam').click());
     expect(tile('Tectonic Slam').getAttribute('aria-label')).toBe('Tectonic Slam, Legendary, owned');
     expect(text('.colls-detail .colls-kicker')).toBe('Hero attack');
@@ -101,7 +101,7 @@ describe('the Attack Animations tab', () => {
   it('Phantom Blades (owner 2026-09-28: "surprise me") has its own tile and plays its own preview; Equip sends attack_blades', async () => {
     open({ cosmetics: ['alpha_tester', 'attack_blast', 'attack_blades'] });
     act(() => tab('Attack Animations').click());
-    expect(tab('Attack Animations').querySelector('.colls-tab-count')?.textContent).toBe('2/5');
+    expect(tab('Attack Animations').querySelector('.colls-tab-count')?.textContent).toBe('2/6');
     act(() => tile('Phantom Blades').click());
     expect(tile('Phantom Blades').getAttribute('aria-label')).toBe('Phantom Blades, Legendary, owned');
     expect(text('.colls-detail .colls-kicker')).toBe('Hero attack');
@@ -121,7 +121,7 @@ describe('the Attack Animations tab', () => {
   it('Enraged Strike (owner 2026-09-28: "a legendary version of this strike") has its own tile and plays its own preview; Equip sends attack_enraged', async () => {
     open({ cosmetics: ['alpha_tester', 'attack_blast', 'attack_enraged'] });
     act(() => tab('Attack Animations').click());
-    expect(tab('Attack Animations').querySelector('.colls-tab-count')?.textContent).toBe('2/5');
+    expect(tab('Attack Animations').querySelector('.colls-tab-count')?.textContent).toBe('2/6');
     act(() => tile('Enraged Strike').click());
     expect(tile('Enraged Strike').getAttribute('aria-label')).toBe('Enraged Strike, Legendary, owned');
     expect(text('.colls-detail .colls-kicker')).toBe('Hero attack');
@@ -138,12 +138,32 @@ describe('the Attack Animations tab', () => {
     clean();
   });
 
+  it('Frost Nova (owner 2026-09-28: "an ice/freeze blast one. icicles and then a frost nova") has its own tile and plays its own preview; Equip sends attack_frost', async () => {
+    open({ cosmetics: ['alpha_tester', 'attack_blast', 'attack_frost'] });
+    act(() => tab('Attack Animations').click());
+    expect(tab('Attack Animations').querySelector('.colls-tab-count')?.textContent).toBe('2/6');
+    act(() => tile('Frost Nova').click());
+    expect(tile('Frost Nova').getAttribute('aria-label')).toBe('Frost Nova, Legendary, owned');
+    expect(text('.colls-detail .colls-kicker')).toBe('Hero attack');
+    expect($('.colls-detail .hapv-box')).not.toBeNull();
+    const preview = button('▶ Preview');
+    expect(preview).toBeTruthy();
+    expect(preview!.disabled).toBe(false);
+    equipCosmeticRemote.mockResolvedValue({ status: 'ok', value: null, profile: { ...base, cosmetics: [...base.cosmetics!, 'attack_frost'], revision: 11, loadout: { heroAttack: 'attack_frost' } } });
+    await act(async () => { button('Equip')!.click(); });
+    await settle();
+    expect(equipCosmeticRemote).toHaveBeenCalledWith('hero_attack', '', 'attack_frost');
+    expect(tile('Frost Nova').className).toMatch(/\bworn\b/);
+    expect(tile('Arcane Barrage').className).not.toMatch(/\bworn\b/);
+    clean();
+  });
+
   it('is live with its count; Arcane Barrage has a tile and a detail panel with an in-place preview', () => {
     open();
     const t = tab('Attack Animations');
     expect(t.className).not.toMatch(/\blocked\b/);
-    // 2026-09-28: Quake ("Tectonic Slam"), Arcana, Phantom Blades and Enraged Strike joined Blast, so one of five is owned.
-    expect(t.querySelector('.colls-tab-count')?.textContent).toBe('1/5');
+    // 2026-09-28: Quake ("Tectonic Slam"), Arcana, Phantom Blades, Enraged Strike and Frost Nova joined Blast, so one of six is owned.
+    expect(t.querySelector('.colls-tab-count')?.textContent).toBe('1/6');
     act(() => t.click());
     expect(tile('Arcane Barrage').getAttribute('aria-label')).toBe('Arcane Barrage, Legendary, owned');
     expect(text('.colls-detail .colls-kicker')).toBe('Hero attack');

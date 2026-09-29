@@ -758,9 +758,12 @@ export function frostCameraAt(p: FrostPlan, c: HeroFrostConfig, t: number, dir: 
   const sine = (u: number): number => easeInOutSine(u);
   if (t >= p.chargeAt && t < p.impactAt) {
     z += p.zoom * sine((t - p.chargeAt) / Math.max(1, p.fireAt - p.chargeAt));
-    if (p.nova && t >= p.novaChargeAt) {
-      z += p.zoom * 0.5 * sine((t - p.novaChargeAt) / Math.max(1, p.novaAt - p.novaChargeAt));
-      if (t >= p.contactAt) z += p.zoom * 0.6 * sine((t - p.contactAt) / Math.max(1, p.impactAt - p.contactAt));
+    if (p.nova) {
+      // The push eases most of the way back while the camera pans home for the gather (so neither hero leaves the
+      // frame over the long run across the board), then builds again on the encased hero up to the shatter.
+      const lastIn = p.hits.length ? p.hits[p.hits.length - 1]! : p.fireAt;
+      if (t >= lastIn) z -= p.zoom * 0.65 * sine((t - lastIn) / Math.max(1, p.novaAt - lastIn));
+      if (t >= p.contactAt) z += p.zoom * 1.1 * sine((t - p.contactAt) / Math.max(1, p.impactAt - p.contactAt));
     }
   } else if (t >= p.impactAt) {
     const since = t - p.impactAt;
@@ -820,8 +823,10 @@ export function frostCameraFocus(p: FrostPlan, t: number, a: Pt, d: Pt): Pt {
     return lerp(flightEase((t - p.fireAt) / Math.max(1, p.impactAt - p.fireAt)));
   }
   if (t >= p.contactAt) return d;
-  const mid = 0.3;
-  if (t < p.novaChargeAt) return lerp(mid * easeInOutSine((t - p.fireAt) / Math.max(1, p.novaChargeAt - p.fireAt)));
-  if (t < p.novaAt) return lerp(mid * (1 - 0.5 * easeInOutSine((t - p.novaChargeAt) / Math.max(1, p.novaAt - p.novaChargeAt))));
-  return lerp(mid * 0.5 + (1 - mid * 0.5) * novaEase((t - p.novaAt) / Math.max(1, p.contactAt - p.novaAt)));
+  // Follow the volley in to the target (the ticks land with the struck hero still), pan home to the caster for the
+  // gather, then ride the nova's front back across to the target.
+  const lastIn = p.hits.length ? p.hits[p.hits.length - 1]! : p.fireAt;
+  if (t < lastIn) return lerp(flightEase((t - p.fireAt) / Math.max(1, lastIn - p.fireAt)));
+  if (t < p.novaAt) return lerp(1 - easeInOutSine((t - lastIn) / Math.max(1, p.novaAt - lastIn)));
+  return lerp(novaEase((t - p.novaAt) / Math.max(1, p.contactAt - p.novaAt)));
 }

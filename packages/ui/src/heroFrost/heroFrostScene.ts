@@ -946,7 +946,7 @@ export class HeroFrostScene {
         const x = m.a.x + dir.x * along + perp.x * w * side, y = m.a.y + dir.y * along + perp.y * w * side;
         const rot = Math.atan2(perp.y * side, perp.x * side) + (this.rnd() - 0.5) * 0.9 + (this.rnd() < 0.5 ? 0.4 : -0.4) * side;
         const hold = Math.max(200, m.contactAt - this.clock) + 700;
-        this.fern(x, y, rot, m.ground * (0.45 + this.rnd() * 0.45), { grow: 380, delay: 0, hold, fade: L.groundFadeMs * 0.8, alpha: 0.85, tint: whiten(this.colors.ice, 0.5), layer: 'ground' });
+        this.fern(x, y, rot, m.ground * (0.3 + this.rnd() * 0.4), { grow: 380, delay: 0, hold, fade: L.groundFadeMs * 0.8, alpha: 0.6 + this.rnd() * 0.2, tint: whiten(this.colors.ice, 0.5), layer: 'ground' });
         // A glint where the frost bites.
         this.fxs('hot', this.tex.star, this.colors.core, x, y, { dur: 300, from: 0.2, to: 0.5, a0: 0.9, mode: 'punch', peakAt: 0.25 }, this.rnd());
       }

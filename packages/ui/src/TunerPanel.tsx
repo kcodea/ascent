@@ -177,6 +177,18 @@ export function TunerPanel<C extends object>({ spec }: { spec: TunerSpec<C> }): 
   // an authoring slip rather than an intent.
   useEffect(() => { assertGroupRuns(spec.id, spec.controls); }, [spec.id, spec.controls]);
 
+  // The Copy / Reset / action row: at the foot by default, or right under the header for a panel that asks
+  // (`buttonsTop`, the hero attack tuners: owner 2026-09-29, the Play buttons are what you reach for first).
+  const buttons = (
+    <div className={`lunge-btns${spec.buttonsTop ? ' tuner-btns-top' : ''}`}>
+      <button className="sfxmix-copy" onClick={copy}>{copied ? 'Copied!' : (spec.copyLabel ?? 'Copy values')}</button>
+      <button className="sfxmix-copy" onClick={resetAll}>Reset</button>
+      {spec.actions?.map((a) => (
+        <button className="sfxmix-copy" key={a.label} onClick={() => a.run(panelElRef.current)} aria-label={a.hint}>{a.label}</button>
+      ))}
+    </div>
+  );
+
   return (
     <div className="sfxmix tunerpanel" ref={panelRef} style={panelStyle}>
       <div className="sfxmix-h drag" onPointerDown={headerPointerDown}>
@@ -187,6 +199,7 @@ export function TunerPanel<C extends object>({ spec }: { spec: TunerSpec<C> }): 
         {spec.note && <span>{typeof spec.note === 'function' ? spec.note() : spec.note}</span>}
       </div>
 
+      {spec.buttonsTop && buttons}
       {/* A measuring panel's readout goes first: what actually happened outranks what you might change. */}
       {spec.readout?.()}
 
@@ -477,13 +490,7 @@ export function TunerPanel<C extends object>({ spec }: { spec: TunerSpec<C> }): 
         <div className="tuner-nohit">Nothing matches “{find}”.</div>
       )}
 
-      <div className="lunge-btns">
-        <button className="sfxmix-copy" onClick={copy}>{copied ? 'Copied!' : (spec.copyLabel ?? 'Copy values')}</button>
-        <button className="sfxmix-copy" onClick={resetAll}>Reset</button>
-        {spec.actions?.map((a) => (
-          <button className="sfxmix-copy" key={a.label} onClick={() => a.run(panelElRef.current)} aria-label={a.hint}>{a.label}</button>
-        ))}
-      </div>
+      {!spec.buttonsTop && buttons}
     </div>
   );
 }

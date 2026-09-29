@@ -2912,10 +2912,10 @@ export function Recruit() {
     // flicked in that stick and splash venom, and the top tier implodes them into a toxic burst; Frost: icicles
     // crystallise and fire, and the top tier rolls a frost nova across the screen that encases and shatters; Consecration:
     // a pillar of light smites, and the top tier drops a holy sword that explodes into light and fires a flat consecrated
-    // blast at the target; Banana Cannon: King Oona's cannon lobs bananas that splat, and the top tier launches a giant
-    // golden banana that slams down into a banana shower). Same blow, same consequence, only drawn differently; the
-    // style is the ATTACKER's (their equipped cosmetic, or the dev override). Every runner takes the same options
-    // (`heroAttack/options.ts`).
+    // blast at the target; Banana Cannon: King Oona's painted bananas spin in and splat, and the top tier lands a giant
+    // golden banana in the target that the hero slams in six times until it bursts). Same blow, same consequence, only
+    // drawn differently; the style is the ATTACKER's (their equipped cosmetic, or the dev override). Every runner takes
+    // the same options (`heroAttack/options.ts`).
     const attackStyle = resolveHeroAttackStyle({ attacker: side, attackerCosmeticId: attackerCosmeticOf(run0, side, useGame.getState().showOpponentSkins) });
     if (attackStyle === 'blast' || attackStyle === 'quake' || attackStyle === 'arcana' || attackStyle === 'blades' || attackStyle === 'enraged' || attackStyle === 'poison' || attackStyle === 'frost' || attackStyle === 'holy' || attackStyle === 'banana') {
       const runner = attackStyle === 'banana'

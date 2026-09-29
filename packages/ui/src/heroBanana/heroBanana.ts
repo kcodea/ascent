@@ -1,21 +1,22 @@
 /**
- * THE BANANA CANNON RUNNER: plays one Banana Cannon hero attack (the beats are in `heroBananaConfig.ts`) and lands the
- * consequence on its impact beat (the last banana splatting, or Tier IV's giant golden banana slamming down).
- * Presentation only: the total it shows and the blow it lands are handed in, already decided by the engine; this file
- * only decides WHEN on screen they happen.
+ * THE BANANA BARRAGE RUNNER (Oona's Banana Cannon): plays one Banana Barrage hero attack (the beats are in
+ * `heroBananaConfig.ts`) and lands the consequence on its impact beat (the last banana splatting, or at Tier IV the
+ * finisher: the fourth slam jamming the giant golden banana into the struck hero). Presentation only: the total it
+ * shows and the blow it lands are handed in, already decided by the engine; this file only decides WHEN on screen they
+ * happen.
  *
  * It runs on the SHARED hero-attack core (`../heroAttack/`), exactly as the other styles do: one clock (it never
  * pauses), the damage formation, the `#stage` camera mirrored onto the Pixi root, the portraits (transform only,
- * restored after), the voices, the dim, reduced motion, finish / cancel and the safety timer. What is the cannon's own:
- * the cannon, the lobbed bananas, the pump-and-fire rhythm, the splats, the Tier IV royal shot, its camera and sound.
+ * restored after), the voices, the dim, reduced motion, finish / cancel and the safety timer. What is the barrage's own:
+ * King Oona's painted bananas and splats (her card FX's art and clips), the fling rhythm, the Tier IV jam (the STRIKING
+ * PORTRAIT dashes across and pounds the stuck giant, Mortal Kombat style), its camera and its sound.
  *
- * THE BARRAGE CONTRACT: every banana that splats in before the last is a tick (FX and sound only; at Tier IV every
- * regular banana is). The consequence (`onImpact`: the damage, Armor, Resolve) lands exactly ONCE, on the last banana
- * (Tier IV: on the giant's slam).
+ * THE BARRAGE CONTRACT: every splat before the last is a tick (FX and sound only; at Tier IV the warm-ups, the landing
+ * and every slam before the finisher are). The consequence (`onImpact`: the damage, Armor, Resolve) lands exactly ONCE.
  *
  * Perf (docs/performance.md): DOM moves are `transform` / `opacity` written from the clock; nothing reads layout after
- * the opening measure; Pixi sprites are pooled per layer, textures painted once per session and pre-warmed during the
- * formation, and the updater unhooks the moment the scene drains.
+ * the opening measure; Pixi sprites are pooled per layer, the painted sheets decoded during the formation and uploaded by
+ * warm sprites, and the updater unhooks the moment the scene drains.
  */
 import type { Container } from 'pixi.js';
 import { pixiFx } from '../pixiFx';
@@ -23,16 +24,16 @@ import { stageScale } from '../stage';
 import { AttackVoices } from '../heroAttack/attackSound';
 import { DamageFormation, planFormation } from '../heroAttack/damageFormation';
 import { withFormation, type FormationCue } from '../heroAttack/formationConfig';
-import { clamp01, easeInOutSine, hexToNum, prefersReducedMotion, spring } from '../heroAttack/easing';
+import { clamp01, easeInOutSine, hexToNum, prefersReducedMotion, spring, type Pt } from '../heroAttack/easing';
 import type { HeroAttackHandle, HeroAttackOptions } from '../heroAttack/options';
 import { Sequence } from '../heroAttack/sequence';
 import { PortraitMover, StageCamera } from '../heroAttack/stageCamera';
 import {
-  arrivalDir, bananaCameraAt, bananaCameraFocus, bananaCues, bananaPlan, cannonRig, getHeroBananaConfig,
-  type BananaCue, type BananaPlan, type CannonRig, type HeroBananaConfig,
+  arrivalDir, bananaCameraAt, bananaCameraFocus, bananaCues, bananaPlan, bananaRig, getHeroBananaConfig, jamGeo, jamPose,
+  type BananaCue, type BananaPlan, type BananaRig, type HeroBananaConfig,
 } from './heroBananaConfig';
 import { HeroBananaScene, type HeroBananaTextures } from './heroBananaScene';
-import { heroBananaTextures } from './heroBananaTextures';
+import { heroBananaTextures, preloadBananaSheets, refreshBananaSheets } from './heroBananaTextures';
 
 export interface HeroBananaOptions extends HeroAttackOptions {
   cfg?: HeroBananaConfig;
@@ -41,18 +42,27 @@ export interface HeroBananaOptions extends HeroAttackOptions {
 
 export interface HeroBananaHandle extends HeroAttackHandle {
   readonly plan: BananaPlan;
-  /** The cannon and every banana's flight (no shots under reduced motion). Exposed for tests and the capture rig. */
-  readonly rig: CannonRig;
+  /** Every banana's flight (none under reduced motion). Exposed for tests and the capture rig. */
+  readonly rig: BananaRig;
   /** The Pixi scene (null under reduced motion or with no 2D canvas). Exposed for tests and the capture rig. */
   readonly scene: HeroBananaScene | null;
 }
 
-/** The seed a fight's chunks are scattered from: the same fight (same blow, same geometry) splats the same way. */
+/** The seed a fight's juice is scattered from: the same fight (same blow, same geometry) splats the same way. */
 export function bananaSeed(total: number, distance: number, side: 'player' | 'opp' | undefined): number {
   return (Math.round(total) * 6151 + Math.round(distance) * 37 + (side === 'opp' ? 211 : 5)) >>> 0;
 }
 
-/** Play the Banana Cannon. Returns a handle; the blow lands via `onImpact` on the impact beat. */
+/** One measure of a portrait: its screen size, and `inv` = its own transform px per screen px (as Classic takes it). */
+function rectOf(el: HTMLElement | null | undefined, r: number): { width: number; height: number; inv: number } {
+  try {
+    const b = el?.getBoundingClientRect();
+    if (!el || !b || !(b.width > 0)) return { width: r * 2, height: r * 2, inv: 1 };
+    return { width: b.width, height: b.height, inv: el.offsetWidth > 0 ? el.offsetWidth / b.width : 1 };
+  } catch { return { width: r * 2, height: r * 2, inv: 1 }; }
+}
+
+/** Play the Banana Barrage. Returns a handle; the blow lands via `onImpact` on the impact beat. */
 export function playHeroBanana(o: HeroBananaOptions): HeroBananaHandle {
   const c = o.cfg ?? getHeroBananaConfig();
   const reduced = o.reduced ?? prefersReducedMotion();
@@ -61,6 +71,7 @@ export function playHeroBanana(o: HeroBananaOptions): HeroBananaHandle {
   const local = o.space === 'local';
   const sideHex = o.side === 'opp' ? c.colorFoe : c.colorPlayer;
   const dist = Math.hypot(o.defender.x - o.attacker.x, o.defender.y - o.attacker.y);
+  if (!reduced && o.textures === undefined) preloadBananaSheets();
   // THE DAMAGE FORMATION plays first (shared by every style); this style's own attack starts where it ends.
   const { fcfg, fplan } = planFormation(o.formation, o.formationCfg, reduced);
   const plan = bananaPlan({ total: o.total, distance: dist, reduced, leadIn: fplan.endAt }, c);
@@ -77,26 +88,34 @@ export function playHeroBanana(o: HeroBananaOptions): HeroBananaHandle {
     defender: o.defender, defenderRadius: o.defenderRadius, side: o.side, sideHex, local, host, scale: s, voices, className: 'hbanana',
   });
 
-  // A banana's arc never rises above the top of the screen (the giant may leave it and come back); the bananas splat
-  // clear of the big -N.
-  const rig = cannonRig(plan, o.attacker, o.defender, radius, aRadius, c, c.cannonLength * s, (local ? 8 : 36) * s, nums.pts.hit, c.giantOvershoot * s);
+  // A banana's arc never rises above the top of the screen (the giant hangs in view); bananas splat clear of the big -N.
+  const ceil = (local ? 8 : 36) * s;
+  // The giant's length on screen (the scene draws it at bananaPx x giantSize x the stage scale).
+  const giantLen = c.bananaPx * c.giantSize * s;
+  const rig = bananaRig(plan, o.attacker, o.defender, radius, aRadius, c, ceil, nums.pts.hit, c.giantHangY * s, giantLen);
   const last = rig.shots[rig.shots.length - 1];
-  // The direction the blow ARRIVES from (the last banana's heading): the shake and the knockback follow it.
-  const dir = arrivalDir(last, o.attacker, o.defender);
-  const toFoe = (() => { const L = dist || 1; return { x: (o.defender.x - o.attacker.x) / L, y: (o.defender.y - o.attacker.y) / L }; })();
+  const giantIdx = plan.giant ? plan.shots.length - 1 : -1;
+  const jg = jamGeo(o.attacker, o.defender, aRadius, radius, giantLen, plan.slams.length, c);
+  /** Blood from the `bloodStart`-th slam on: 1 on it, 2 on the next, and so on (owner: "increasing amounts"). */
+  const bloodOf = (k: number): number => Math.max(0, k + 1 - Math.round(c.bloodStart) + 1);
+  // The direction the blow ARRIVES from: the last banana's heading, or (Tier IV) the jam's line.
+  const dir = plan.giant ? jg.u : arrivalDir(last, o.attacker, o.defender);
+  const toFoe = jg.u;
 
-  // ── Pixi (the above-portrait slot, warmed now so it is up well before the cannon) ──
+  // ── Pixi (the above-portrait slot, warmed now so it is up well before the first banana) ──
   const textures = o.textures !== undefined ? o.textures : heroBananaTextures();
   const scene = textures && !reduced
     ? new HeroBananaScene(textures, {
-      banana: hexToNum(c.colorBanana), gold: hexToNum(c.colorGold), barrel: hexToNum(c.colorBarrel), dark: hexToNum(c.colorDark),
-      cream: hexToNum(c.colorCream), smoke: hexToNum(c.colorSmoke), leaf: hexToNum(c.colorLeaf), side: hexToNum(sideHex),
+      juice: hexToNum(c.colorJuice), amber: hexToNum(c.colorAmber), cream: hexToNum(c.colorCream), gold: hexToNum(c.colorGold),
+      spark: hexToNum(c.colorSpark), side: hexToNum(sideHex),
     }, {
-      cannonLength: c.cannonLength, popMs: c.cannonPopMs, recoil: c.recoilPx, puffs: c.muzzlePuffs, leaves: c.leaves, bananaLength: c.bananaLength,
-      trailAlpha: c.trailAlpha, tickChunks: c.tickChunks, starSize: c.starSize, peelHoldMs: c.peelHoldMs, gravity: c.gravity,
-      showerBananas: c.showerBananas, shockSize: c.shockSize, goldRays: c.goldRays,
+      bananaPx: c.bananaPx, bloodAmount: c.bloodAmount, juiceDrips: c.juiceDrips, dripMs: c.dripMs, trailSparks: c.trailSparks, splatPx: c.splatPx, splatMs: c.splatMs, tickJuice: c.tickJuice,
+      juiceSpeed: c.juiceSpeed, juiceLifeMs: c.juiceLifeMs, juicePx: c.juicePx, launchSparks: c.launchSparks, giantSplat: c.giantSplat,
+      ringSplats: c.ringSplats, showerBananas: c.showerBananas, shockSize: c.shockSize, goldRays: c.goldRays,
     }, s, bananaSeed(o.total, dist, o.side))
     : null;
+  if (scene) scene.setView(local ? (o.host?.clientWidth || 400) : (typeof window !== 'undefined' ? window.innerWidth : 1920),
+    local ? (o.host?.clientHeight || 300) : (typeof window !== 'undefined' ? window.innerHeight : 1080));
   if (scene && !o.mount) void pixiFx.ensureAboveSlot();
   const unmount = scene ? (o.mount ?? ((ct: Container) => pixiFx.mountLayer(ct, 'above')))(scene.root) : null;
 
@@ -105,95 +124,106 @@ export function playHeroBanana(o: HeroBananaOptions): HeroBananaHandle {
   const cam = new StageCamera(cameraEl, scene);
   const hero = new PortraitMover(reduced ? null : (o.attackerEl ?? null));
   const foe = new PortraitMover(reduced ? null : (o.defenderEl ?? null));
+  // The jam moves the striking portrait a long way: measured once (its own transform px per screen px), as Enraged does.
+  const aRect = local ? { inv: 1 } : rectOf(o.attackerEl, aRadius);
+  const dRect = local ? { inv: 1 } : rectOf(o.defenderEl, radius);
+  const heroUnit = 1 / (aRect.inv || 1);
+  const foeUnit = 1 / (dRect.inv || 1);
+  const heroInCam = !!(cameraEl && hero.el && cameraEl.contains(hero.el));
+  const foeInCam = !!(cameraEl && foe.el && cameraEl.contains(foe.el));
 
   const cue = voices.cue.bind(voices);
-  voices.warm([
-    c.sfxSummonClip, c.sfxSparkleClip, c.sfxPumpClip, c.sfxFireClip, c.sfxBoomClip, c.sfxWhooshClip, c.sfxSplatClip,
-    c.sfxSmackClip, c.sfxImpactClip, c.sfxPowerClip, c.sfxMarkClip, c.sfxSlamClip, c.sfxPopClip, c.sfxStowClip,
-  ]);
-  const n = plan.shots.length;
+  voices.warm([c.sfxLaunchClip, c.sfxWhooshClip, c.sfxSplatClip, c.sfxPowerClip, c.sfxImpactClip, c.sfxChargeClip, c.sfxGlintClip, c.sfxDropClip, c.sfxSlamClip, c.sfxBoomClip]);
   let hitStep = 0;
+  const splatSound = (gain: number, rate: number): void => {
+    cue(c.sfxSplatClip, c.sfxSplatGain * gain, c.sfxSplatRate * rate, { lenMs: 600, fadeMs: 200 });
+  };
 
   const fire = (q: BananaCue | FormationCue): void => {
     if (q.kind === 'form') { nums.fire(fplan.beats[q.i]!); return; }
     const t = seq.t;
     switch (q.kind) {
       case 'charge':
-        // The royal banana cannon pops in on the hero's rim with a clunk and a sparkle, and swings round to aim.
-        cue(c.sfxSummonClip, c.sfxSummonGain, c.sfxSummonRate, { lenMs: 600, fadeMs: 200 });
-        cue(c.sfxSparkleClip, c.sfxSparkleGain, c.sfxSparkleRate, { lenMs: 900, fadeMs: 300 });
+        // The golden jungle flourish on the hero: a warm rising power-up (Oona's), the bloom opening.
+        refreshBananaSheets();
+        cue(c.sfxChargeClip, c.sfxChargeGain * 0.6, c.sfxChargeRate * 1.2, { lenMs: 700, fadeMs: 250 });
         if (c.sfxDuck < 1) voices.duck(c.sfxDuck);
-        scene?.summon(rig.pivot, rig.rest, rig.shots[0]?.dir ?? rig.rest, c.cannonPopMs);
+        scene?.flourish(o.attacker.x, o.attacker.y, aRadius, plan.fireAt - plan.chargeAt);
         cam.start();
         break;
-      case 'pump': {
-        // CHK: the cannon bulges (each pump a touch higher; the giant's a heavy one).
-        const giant = plan.shots[q.i]?.giant ?? false;
-        cue(c.sfxPumpClip, c.sfxPumpGain * (giant ? 1.3 : 1), c.sfxPumpRate + (giant ? -0.25 : 0.04 * q.i), { lenMs: 260, fadeMs: 90 });
-        scene?.aim(rig.shots[q.i]?.dir ?? rig.rest);
-        scene?.pump(giant ? 1.6 : 1);
-        break;
-      }
       case 'fire': {
-        // FOOMP: the launch, a muzzle boom and a whoosh (the giant: lower, heavier, louder).
+        // Oona's launch (the giant: lower, heavier, with a whoosh).
+        refreshBananaSheets();
         const m = rig.shots[q.i];
-        const giant = m?.giant ?? false;
-        const lastOne = q.i === n - 1;
-        cue(c.sfxFireClip, c.sfxFireGain * (giant ? 1.25 : lastOne ? 1 : 0.85), c.sfxFireRate * (giant ? 0.75 : 1) + (giant ? 0 : 0.04 * q.i), { lenMs: c.sfxFireLenMs, fadeMs: 200 });
-        cue(c.sfxBoomClip, c.sfxBoomGain * (giant ? 2 : 1), c.sfxBoomRate * (giant ? 0.62 : 1), { lenMs: giant ? 900 : 380, fadeMs: giant ? 300 : 140 });
-        cue(c.sfxWhooshClip, c.sfxWhooshGain, c.sfxWhooshRate * (giant ? 0.7 : 1) + (giant ? 0 : 0.03 * q.i), { lenMs: 420, fadeMs: 160, delayMs: 60 / speed });
-        if (m && scene) scene.fire(m, giant ? plan.shots[q.i]!.size : plan.size * (plan.shots[q.i]?.size ?? 1), t - q.at, q.i);
-        // After the shot the cannon swings to the next one's heading.
-        const next = rig.shots[q.i + 1];
-        if (next) scene?.aim(next.dir);
+        const sp = plan.shots[q.i];
+        const giant = sp?.giant ?? false;
+        cue(c.sfxLaunchClip, c.sfxLaunchGain * (giant ? 1.4 : 1), c.sfxLaunchRate * (giant ? 0.72 : 1 + 0.04 * (q.i % 6)), { lenMs: giant ? 1200 : 700, fadeMs: 250 });
+        if (giant) cue(c.sfxWhooshClip, c.sfxWhooshGain * 1.6, c.sfxWhooshRate * 0.7, { lenMs: 600, fadeMs: 200 });
+        if (m && scene) scene.fling(m, giant ? sp!.size : plan.size * (sp?.size ?? 1), t - q.at, q.i);
+        if (!giant && q.i === plan.shots.filter((x) => !x.giant).length - 1 && !plan.giant) scene?.release();
+        if (!giant && plan.giant && q.i === plan.shots.length - 2) scene?.release();
         break;
       }
       case 'hit': {
-        // A banana SPLATS in before the last: a wet splat and a smack, pitched up each tick. FX only.
-        cue(c.sfxSplatClip, c.sfxSplatGain * 0.8, c.sfxSplatRate + 0.06 * hitStep, { lenMs: 500, fadeMs: 180 });
-        cue(c.sfxSmackClip, c.sfxSmackGain * 0.75, c.sfxSmackRate + 0.05 * hitStep, { lenMs: 320, fadeMs: 120 });
+        // A banana SPLATS before the last: Oona's splat, pitched up each tick. FX only.
+        splatSound(0.8, 1 + 0.05 * hitStep);
         scene?.hit(q.i, o.defender.x, o.defender.y, radius, hitStep);
         hitStep++;
         break;
       }
       case 'glint':
-        // THE ROYAL SHOT charges: a rising power-up, a sparkle, the crown glints.
-        cue(c.sfxPowerClip, c.sfxPowerGain, c.sfxPowerRate, { lenMs: Math.max(300, (plan.shots[n - 1]!.fireAt - plan.glintAt) / speed + 200), fadeMs: 200 });
-        cue(c.sfxSparkleClip, c.sfxSparkleGain * 1.2, c.sfxSparkleRate * 1.15, { lenMs: 900, fadeMs: 300, delayMs: 140 / speed });
-        scene?.glint(plan.shots[n - 1]!.fireAt - plan.glintAt);
+        // THE ROYAL BANANA: the hero blazes gold (Oona's power-up, low and long; a sparkle).
+        cue(c.sfxChargeClip, c.sfxChargeGain, c.sfxChargeRate, { lenMs: Math.max(300, (plan.shots[giantIdx]!.fireAt - plan.glintAt) / speed + 250), fadeMs: 200 });
+        cue(c.sfxGlintClip, c.sfxGlintGain, c.sfxGlintRate, { lenMs: 900, fadeMs: 300, delayMs: 120 / speed });
+        scene?.flourish(o.attacker.x, o.attacker.y, aRadius, plan.shots[giantIdx]!.fireAt - plan.glintAt, true);
         break;
-      case 'mark':
-        // The giant is up out of frame: a descending whoosh while the golden target ring locks on.
-        cue(c.sfxMarkClip, c.sfxMarkGain, c.sfxMarkRate, { lenMs: Math.max(250, (plan.impactAt - plan.markAt) / speed + 150), fadeMs: 150 });
-        scene?.startMark(o.defender.x, o.defender.y, radius, plan.impactAt - plan.markAt);
+      case 'hang':
+        // It hangs at the top: the crown glint rings, then the descending whoosh as the target ring locks on.
+        cue(c.sfxGlintClip, c.sfxGlintGain * 1.2, c.sfxGlintRate * 1.3, { lenMs: 700, fadeMs: 250 });
+        cue(c.sfxDropClip, c.sfxDropGain, c.sfxDropRate, { lenMs: Math.max(250, (plan.landAt - plan.hangAt) / speed + 150), fadeMs: 150, delayMs: 120 / speed });
+        if (last) scene?.hang(q.i, last.b, radius, plan.landAt - plan.hangAt);
+        break;
+      case 'land':
+        // THWUMP: it lands in the struck hero's rim and sticks there, a stake.
+        splatSound(1.2, 0.7);
+        cue(c.sfxImpactClip, c.sfxImpactGain * 1.2, c.sfxImpactRate * 0.8, { lenMs: 500, fadeMs: 180 });
+        scene?.land(q.i, { entry: jg.entry, u: jg.u, len: giantLen, depth: jg.depths[0]!, face: { x: o.defender.x, y: o.defender.y, r: radius } });
+        break;
+      case 'dash':
+        cue(c.sfxWhooshClip, c.sfxWhooshGain * 1.5, c.sfxWhooshRate, { lenMs: 400, fadeMs: 150 });
+        break;
+      case 'slam':
+        // A SLAM driving the stake in: a meaty smack and a squelch, heavier and lower each time. FX only.
+        cue(c.sfxImpactClip, c.sfxImpactGain * (1.1 + 0.2 * q.i), c.sfxImpactRate * (1 - 0.05 * q.i), { lenMs: 450, fadeMs: 160 });
+        splatSound(1 + 0.15 * q.i, 0.92 - 0.05 * q.i);
+        cue(c.sfxSlamClip, c.sfxSlamGain * (0.35 + 0.12 * q.i), c.sfxSlamRate * (1.25 - 0.06 * q.i), { lenMs: 500, fadeMs: 180 });
+        if (bloodOf(q.i) > 0) cue(c.sfxBoomClip, c.sfxBoomGain * (0.8 + 0.3 * bloodOf(q.i)), 0.8, { lenMs: 400, fadeMs: 150 });
+        scene?.slam(q.i, jg.depths[q.i + 1]!, bloodOf(q.i), plan.slams.length);
         break;
       case 'impact':
         if (plan.giant) {
-          // THE SLAM: a heavy rock impact, a big low boom, a squelch, a crit crack on top.
+          // THE FINISHER: the slam, a heavy crunch, Oona's splat low and her power-up on top.
           cue(c.sfxSlamClip, c.sfxSlamGain, c.sfxSlamRate, { tail: c.sfxTailMix, lenMs: c.sfxImpactLenMs, fadeMs: 400 });
-          cue(c.sfxBoomClip, c.sfxBoomGain * 2.2, c.sfxBoomRate * 0.55, { lenMs: 1000, fadeMs: 350 });
-          cue(c.sfxSplatClip, c.sfxSplatGain * 1.2, c.sfxSplatRate * 0.7, { lenMs: 700, fadeMs: 250 });
-          cue(c.sfxImpactClip, c.sfxImpactGain * 1.1, c.sfxImpactRate - 0.05, { lenMs: 700, fadeMs: 250 });
-          scene?.slam(q.i, o.defender.x, o.defender.y, radius, { burst: plan.burst, chunks: plan.chunks, peels: plan.peels, flashAlpha: c.flashAlpha });
+          cue(c.sfxImpactClip, c.sfxImpactGain * 2, c.sfxImpactRate * 0.75, { lenMs: 600, fadeMs: 200 });
+          splatSound(1.6, 0.6);
+          cue(c.sfxPowerClip, c.sfxPowerGain * 1.2, c.sfxPowerRate * 0.9, { lenMs: 900, fadeMs: 300 });
+          const lastK = Math.max(0, plan.slams.length - 1);
+          scene?.slam(lastK, jg.depths[lastK + 1]!, bloodOf(lastK), plan.slams.length);
+          scene?.finale(q.i, o.defender.x, o.defender.y, radius, { burst: plan.burst, juice: plan.juice, flashAlpha: c.flashAlpha });
         } else {
-          // THE LAST BANANA: the splat, the smack, a crit crack (bigger per tier), a boom on III.
-          cue(c.sfxSplatClip, c.sfxSplatGain, c.sfxSplatRate - 0.04 * (plan.tier - 1), { tail: c.sfxTailMix, lenMs: 700, fadeMs: 250 });
-          cue(c.sfxSmackClip, c.sfxSmackGain, c.sfxSmackRate, { lenMs: 400, fadeMs: 150 });
-          cue(c.sfxImpactClip, c.sfxImpactGain * (0.85 + 0.05 * plan.tier), c.sfxImpactRate, { lenMs: c.sfxImpactLenMs, fadeMs: 300 });
-          if (plan.tier >= 3) cue(c.sfxBoomClip, c.sfxBoomGain * 1.4, c.sfxBoomRate * 0.8, { lenMs: 600, fadeMs: 250 });
-          scene?.impact(q.i, o.defender.x, o.defender.y, radius, { tier: plan.tier, k: plan.k, burst: plan.burst, chunks: plan.chunks, peels: plan.peels, flashAlpha: c.flashAlpha });
+          // THE LAST BANANA: Oona's splat and her power-up (as her card plays them), a smack under it, bigger per tier.
+          splatSound(1.1 + 0.1 * plan.tier, 1 - 0.05 * (plan.tier - 1));
+          cue(c.sfxPowerClip, c.sfxPowerGain, c.sfxPowerRate, { tail: c.sfxTailMix, lenMs: 900, fadeMs: 300 });
+          cue(c.sfxImpactClip, c.sfxImpactGain * (0.8 + 0.1 * plan.tier), c.sfxImpactRate, { lenMs: 500, fadeMs: 200 });
+          scene?.impact(q.i, o.defender.x, o.defender.y, radius, { k: plan.k, burst: plan.burst, juice: plan.juice, splats: plan.splats, flashAlpha: c.flashAlpha });
         }
         seq.land();
         break;
-      case 'stow':
-        cue(c.sfxStowClip, c.sfxStowGain, c.sfxStowRate, { lenMs: 300, fadeMs: 120 });
-        scene?.stow();
-        break;
       case 'boom': {
         const a = q.i * 2.1 + 0.7;
-        const rr = radius * (0.85 + 0.15 * (q.i % 2));
-        cue(c.sfxPopClip, c.sfxPopGain, c.sfxPopRate + q.i * 0.1, { lenMs: 420, fadeMs: 160 });
-        scene?.boom(o.defender.x + Math.cos(a) * rr, o.defender.y + Math.sin(a) * rr * 0.9, (radius / 80) * (0.9 + 0.12 * q.i));
+        const rr = radius * (1.25 + 0.2 * (q.i % 2));
+        cue(c.sfxBoomClip, c.sfxBoomGain, c.sfxBoomRate + q.i * 0.1, { lenMs: 420, fadeMs: 160 });
+        scene?.boom(o.defender.x + Math.cos(a) * rr, o.defender.y + Math.sin(a) * rr * 0.9, 0.9 + 0.12 * q.i);
         break;
       }
       default:
@@ -201,56 +231,88 @@ export function playHeroBanana(o: HeroBananaOptions): HeroBananaHandle {
     }
   };
 
+  const blowDeg = (Math.atan2(dir.y, dir.x) * 180) / Math.PI;
   const paintStage = (t: number): void => {
     if (plan.reduced) return;
-    nums.paintDim(t, plan.chargeAt, plan.fireAt, plan.impactAt + (plan.giant ? 420 : 200));
+    // The dim frames the two heroes at rest; the jam moves the striker across the board, so at Tier IV the dim lifts as
+    // the dash starts and both heroes stay bright through every slam (owner 2026-09-29: "make the hero less dimmed").
+    nums.paintDim(t, plan.chargeAt, plan.fireAt, plan.giant ? plan.dashAt - 260 : plan.impactAt + 200);
     const cm = bananaCameraAt(plan, c, t, dir);
     const unit = local ? 1 : s;
-    cam.apply(bananaCameraFocus(plan, t, o.attacker, o.defender), cm.zoom, cm.x, cm.y, unit);
+    const focus = bananaCameraFocus(plan, t, o.attacker, o.defender);
+    cam.apply(focus, cm.zoom, cm.x, cm.y, unit);
+    // The camera's screen offset: a portrait OUTSIDE the camera element folds it in by hand (as Enraged does).
+    const ax = focus.x * (1 - cm.zoom) + cm.x * unit, ay = focus.y * (1 - cm.zoom) + cm.y * unit;
+    const place = (at: Pt, off: Pt, inCam: boolean): Pt => (inCam || !cam.active
+      ? off
+      : { x: off.x * cm.zoom + at.x * (cm.zoom - 1) + ax, y: off.y * cm.zoom + at.y * (cm.zoom - 1) + ay });
     const px = local ? 0.45 : 1;
-    if (hero.el && t >= plan.chargeAt) {
-      // The hero braces as the cannon appears (a lean back, a small swell); each shot's recoil shoves it back.
-      let sc = 1, bx = 0, by = 0;
+    let strikerAt: { x: number; y: number; r: number } | null = null;
+    if (t >= plan.chargeAt) {
+      // The hero coils back through the flourish and FLINGS toward the target on each banana; at Tier IV it then dashes
+      // across and pounds the stuck giant (the jam), then flies home.
       const u = easeInOutSine((t - plan.chargeAt) / Math.max(1, plan.fireAt - plan.chargeAt));
-      const settle = t > plan.stowAt ? 1 - clamp01((t - plan.stowAt) / 240) : 1;
-      sc = 1 + 0.035 * u * settle;
-      bx = -toFoe.x * c.heroCoilPx * px * u * settle; by = -toFoe.y * c.heroCoilPx * px * u * settle;
+      const settle = plan.giant ? 1 - clamp01((t - plan.dashAt) / 120) : 1 - clamp01((t - plan.impactAt) / 260);
+      let bx = -toFoe.x * c.heroCoilPx * px * u * settle, by = -toFoe.y * c.heroCoilPx * px * u * settle;
+      let sc = 1 + 0.035 * u * settle;
+      if (plan.giant && t >= plan.glintAt && t < plan.dashAt) {
+        const g = clamp01((t - plan.glintAt) / Math.max(1, plan.shots[giantIdx]!.fireAt - plan.glintAt));
+        sc += 0.05 * g * (t < plan.shots[giantIdx]!.fireAt ? 1 : 0);
+      }
       for (const sp of plan.shots) {
         if (sp.fireAt > t) continue;
-        const f = c.heroRecoilPx * px * (sp.giant ? 2 : 1) * Math.max(0, spring(t - sp.fireAt, 4, 90));
-        bx -= toFoe.x * f; by -= toFoe.y * f;
+        const f = c.heroFlingPx * px * (sp.giant ? 2 : 1) * Math.max(0, spring(t - sp.fireAt, 4, 80));
+        bx += toFoe.x * f; by += toFoe.y * f;
       }
-      hero.set(Math.abs(sc - 1) < 1e-4 && Math.abs(bx) + Math.abs(by) < 0.05 ? null : `translate(${bx.toFixed(2)}px, ${by.toFixed(2)}px) scale(${sc.toFixed(4)})`);
+      const jp = jamPose(plan, jg, c, t);
+      bx += jp.x; by += jp.y; sc *= jp.scale;
+      const off = place(o.attacker, { x: bx, y: by }, heroInCam);
+      const z = heroInCam || !cam.active ? 1 : cm.zoom;
+      const sq = Math.abs(jp.squash) > 0.002 ? ` rotate(${blowDeg.toFixed(2)}deg) scale(${(1 - jp.squash).toFixed(4)}, ${(1 + jp.squash * 0.6).toFixed(4)}) rotate(${(-blowDeg).toFixed(2)}deg)` : '';
+      const still = Math.abs(sc - 1) < 1e-4 && Math.abs(off.x) + Math.abs(off.y) < 0.05 && !sq && Math.abs(jp.rot) < 0.01 && !cam.active;
+      hero.set(still ? null
+        : `translate(${(off.x / heroUnit).toFixed(2)}px, ${(off.y / heroUnit).toFixed(2)}px)${sq} rotate(${jp.rot.toFixed(2)}deg) scale(${(sc * z).toFixed(4)})`);
+      strikerAt = { x: o.attacker.x + bx, y: o.attacker.y + by, r: aRadius * sc * 1.03 };
     }
     let fx = 0, fy = 0;
     if (foe.el || scene) {
-      let css: string | null = null;
-      if (plan.giant && t >= plan.markAt && t < plan.impactAt) {
-        // The golden ring locks on: the target cowers (a small tremble and a squeeze, growing as the giant falls).
-        const u = clamp01((t - plan.markAt) / Math.max(1, plan.impactAt - plan.markAt));
-        const a = (0.3 + 1.6 * u * u) * px;
-        fx = a * Math.sin(t * 0.23); fy = a * Math.sin(t * 0.31);
-        css = `translate(${fx.toFixed(2)}px, ${fy.toFixed(2)}px) scale(${(1 - 0.03 * u).toFixed(4)})`;
-      } else if (t >= plan.impactAt) {
-        // Knocked back along the blow (the slam: straight down, harder) and squashed, springing home.
-        const k = spring(t - plan.impactAt, 4.5, 90);
-        const knock = c.knockPx * (0.7 + 0.4 * plan.k) * k * px;
-        const sq = c.squash * (0.8 + 0.4 * plan.k) * k;
-        const kd = plan.giant ? { x: 0, y: 1 } : dir;
-        fx = kd.x * knock; fy = kd.y * knock;
-        css = Math.abs(k) < 0.004 ? null
-          : `translate(${fx.toFixed(2)}px, ${fy.toFixed(2)}px) scale(${(1 - sq * (plan.giant ? 0.4 : 1)).toFixed(4)}, ${(1 + sq * (plan.giant ? -0.9 : 0.6)).toFixed(4)})`;
-      } else if (plan.hits.length && t >= plan.hits[0]!) {
-        // Each tick nudges the target along the banana that hit it.
-        let k = 0;
-        for (const at of plan.hits) k += Math.max(0, spring(t - at, 6, 45)) * (at <= t ? 1 : 0);
-        fx = dir.x * k * 6 * px; fy = dir.y * k * 6 * px;
-        css = k < 0.004 ? null : `translate(${fx.toFixed(2)}px, ${fy.toFixed(2)}px)`;
+      let kx = 0, ky = 0, sqz = 0, tremble = 0;
+      if (plan.giant && t >= plan.hangAt && t < plan.landAt) {
+        // The golden ring locks on: the target cowers (a tremble growing as the giant falls).
+        const u = clamp01((t - plan.hangAt) / Math.max(1, plan.landAt - plan.hangAt));
+        tremble = (0.3 + 1.6 * u * u) * px;
+        kx += tremble * Math.sin(t * 0.23); ky += tremble * Math.sin(t * 0.31);
       }
-      foe.set(css);
+      // Every tick nudges the target along the blow; the landing thumps it down; each slam jolts it back, harder.
+      for (const at of plan.hits) {
+        if (t < at) continue;
+        const slamI = plan.slams.indexOf(at);
+        const k = Math.max(0, spring(t - at, slamI >= 0 ? 5 : 6, slamI >= 0 ? 80 : 45));
+        // Every slam knocks and dents the target harder than the last.
+        const knock = (slamI >= 0 ? c.knockPx * (0.55 + 0.3 * slamI) : at === plan.landAt && plan.giant ? 10 : 6) * k * px;
+        const kd = at === plan.landAt && plan.giant ? { x: 0, y: 1 } : dir;
+        kx += kd.x * knock; ky += kd.y * knock;
+        if (slamI >= 0) sqz += k * c.squash * (0.5 + 0.25 * slamI);
+      }
+      if (t >= plan.impactAt) {
+        const k = spring(t - plan.impactAt, 4.5, 90);
+        const knock = c.knockPx * (0.7 + 0.4 * plan.k) * (plan.giant ? 1.3 : 1) * k * px;
+        kx += dir.x * knock; ky += dir.y * knock;
+        sqz += c.squash * (0.8 + 0.4 * plan.k) * (plan.giant ? 1.4 : 1) * k;
+      }
+      fx = kx; fy = ky;
+      const off = place(o.defender, { x: kx, y: ky }, foeInCam);
+      const z = foeInCam || !cam.active ? 1 : cm.zoom;
+      const still = Math.abs(kx) < 0.05 && Math.abs(ky) < 0.05 && Math.abs(sqz) < 0.002;
+      // The DENT: compressed ALONG the blow (a rotate-scale-rotate sandwich), bulging across it, springing back.
+      foe.set(still && !cam.active ? null
+        : `translate(${(off.x / foeUnit).toFixed(2)}px, ${(off.y / foeUnit).toFixed(2)}px) rotate(${blowDeg.toFixed(2)}deg) scale(${((1 - sqz) * z).toFixed(4)}, ${((1 + sqz * 0.55) * z).toFixed(4)}) rotate(${(-blowDeg).toFixed(2)}deg)`);
     }
-    // The stuck peels, the star and the target ring ride the portrait (the offset in the overlay's px).
+    // The stuck giant, the splats and the target ring ride the portrait (the offset in the overlay's px).
     scene?.setFoeOffset(fx * unit, fy * unit);
+    // THE CUT: the striking portrait on top of the banana (and every banana effect) while it is in the jam.
+    const jamming = plan.giant && t >= plan.dashAt && t < plan.homeAt;
+    scene?.setCuts(jamming ? strikerAt : null);
   };
 
   const seq: Sequence<BananaCue | FormationCue> = new Sequence<BananaCue | FormationCue>({

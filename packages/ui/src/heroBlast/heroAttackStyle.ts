@@ -38,10 +38,10 @@
  *    light spears that plant consecration seeds, and IV brings a huge holy sword down into the middle of the board and a
  *    consecration races from it to erupt under the target (`../heroHoly/`).
  *  - `banana` is the ninth (`attack_banana`, "Oona's Banana Cannon" until the owner renames it; owner ask
- *    2026-09-29: "i would love a king oona banana cannon animation"): King Oona's gold-trimmed jungle cannon pops in by
- *    the hero, pumps and fires bananas on a high arc that splat into the target (I one, II a double shot, III a rapid
- *    barrage), and IV launches a giant golden banana out of the top of the screen that slams down into a banana-bunch
- *    shower and a golden shockwave (`../heroBanana/`).
+ *    2026-09-29: "i would love a king oona banana cannon animation", rebuilt the same day on King Oona's own painted card
+ *    FX): her painted bananas spin out of the hero on high arcs and burst into her painted juice splats (I one, II a
+ *    double, III a barrage of eight), and IV lands a giant golden banana stuck in the target that the striking hero
+ *    slams in six times, blood and juice flying, until it bursts (`../heroBanana/`).
  *
  * The style is the ATTACKER's: the equipped item recorded in the striking player's cosmetic snapshot (yours when you
  * win; the foe's seat snapshot when they win, and only while "Show opponent cosmetics" is on). The catalog item names

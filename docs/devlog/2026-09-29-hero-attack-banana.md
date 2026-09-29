@@ -2,76 +2,86 @@
 
 Owner ask 2026-09-29: "branch off and make some more attack types - we need a fire animation, a bleed/gash animation,
 some sort of an undead animation, a beast chomp rush animation, and i would love a king oona banana cannon animation.
-use the same 4 tier strategy we have been." This entry is the banana cannon slice (the others shipped on their own
-branches).
+use the same 4 tier strategy we have been." This entry is the banana slice (the others shipped on their own branches).
 
-## What it is
+## Three owner reviews, the same day
 
-`attack_banana`, placeholder name **"Oona's Banana Cannon"** (Legendary, crate, account-wide, style `banana`). The
-catalog caps names at 20 characters, so "King Oona's Banana Cannon" (25) did not fit; the owner can rename it (the id
-stays). The cannon is King Oona's own (the `b2_oona` art): a jungle-green barrel, gold bands, a flared brass bell muzzle,
-a spiral emblem, wooden grips and a little gold crown on top. Everything is canvas-painted once per session, flat 2D.
+1. **First cut: 3/10.** A canvas-drawn cannon, peels, chunks and a comic POW star. Owner: "the banana cannon attack is a
+   3/10. use oona's animation as a guideline. improve this dramatically." So the attack was rebuilt on King Oona's OWN
+   card FX (`packages/ui/src/fx/defs/oona-banana.json`): her PAINTED banana sheet (`defs/images/banana.png`), her
+   PAINTED juice splat sheet (`defs/images/chatgpt-image-sep-25-2026-09-40-24-am.png`), her gold / amber juice palette,
+   her orange launch sparks and her clips (`fx/oona-launch`, `fx/oona-splat`, `fx/oona-powerup`). The drawn cannon is
+   gone: the hero flings the bananas out of a golden flourish. Tier IV became the jam, on the owner's follow-up: "is it
+   possible to have the banana almost like look it lands on the hero and then we slam our fist into it 4 times "jamming
+   it into them" kinda? almost like a mortal combat style attack".
+2. **Second review**: "the bananas should spin, not flip ... make sure the attacker hero is on top of it ... slow the
+   hits and reel back further between hits, have it hit 6 times, and show blood splatting on hits 4,5,6 with increasing
+   amounts, then the final banana splat. is there any way to make it look like the banana is being jammed into them a
+   bit more?"
+3. **Third review**: "the little bananas in huge get sent too far and explode past the hero though, can you dial that
+   in? add more blood in the 5th and 6th hit and have a bunch of banana juice drip down".
 
-After the shared damage formation:
+## What plays now (after the shared damage formation)
 
 | tier | what plays |
 | --- | --- |
-| I (1-5) | The cannon pops in on the hero's rim (leaves, gold sparkle) and aims. It pumps ("chk"), fires with a big recoil and muzzle puff, and one spinning banana lobs on a high arc and splats: a peel bursts open and sticks, chunks fly, a yellow comic POW star. |
-| II (6-11) | A double shot (one high and wide, one flatter). The first splat is a tick. |
-| III (12-19) | A rapid barrage of six, the cannon pumping in rhythm; peels pile up on the face; the last is the impact. |
-| IV (20+) | Three quick warm-up bananas (ticks). Then the cannon glows gold, swells and trembles, a golden halo builds and its crown glints twice. It fires a GIANT GOLDEN BANANA that climbs out of the top of the screen while a flat golden target ring locks on to the struck hero, which cowers. The giant slams dead centre: a white-gold flash, a golden shockwave, gold rays, the biggest comic star, a shower of whole bananas tumbling out, peels scattered round the face, then three banana pops. |
+| I (1-5) | A golden flourish opens on the hero; one painted banana SPINS out (backspin) on a high lobbed arc shedding gold juice sparkles, and bursts on the face into Oona's painted splat and her juice burst. |
+| II (6-11) | A double (one high and wide, one flatter); the first is a tick. |
+| III (12-19) | A barrage of EIGHT on varied arcs; the last lands layered splats (one big, two round it) and the biggest juice burst. |
+| IV (20+) | Four warm-ups (ticks, tight on the face). The hero blazes gold; a GIANT golden banana (the same painting, gilded, with a sheen) arcs high and HANGS in view (a crown glint, a flat gold target ring), then lands STUCK in the struck hero's rim like a stake. The striking PORTRAIT dashes across and SLAMS it in SIX times, reeling far back between slams (further each time; the finisher twice as far, the view pushing in over its wind-up). Each slam drives the stake deeper (the part driven in disappears into the face; by the finisher only its end sticks out), squashes it flatter, dents the struck portrait along the blow, grows a crater ring and cracks, and squeezes thick juice out that RUNS down the face, over the rim and drips off below it. From slam 4, blood sprays off the target (slam 5 far more, slam 6 a big wide spray, with spatter that stays on the face). Slam 6 bursts it: a massive painted splat, a ring of splats, a golden shockwave, gold rays, a gush of juice drips and a shower of spinning painted bananas. |
 
-The blow lands exactly once: on the last banana (I-III) or on the slam (IV). No hit-stop; the clock never pauses.
-Reduced motion: fades only.
+The damage lands once: on the last banana (I-III) or on slam 6 (IV). No hit-stop; the clock never pauses. Flat 2D.
 
-## How
+## How (the non-obvious bits)
 
-- `packages/ui/src/heroBanana/`: `heroBananaConfig.ts` (per-tier dials t1..t4, the pure plan and cues, the pure cannon
-  rig and ballistic banana paths, the pure camera), `heroBananaScene.ts` (Pixi, pooled, cap 600 sprites),
-  `heroBananaTextures.ts`, `heroBanana.ts` (the runner on the shared clock), `heroBanana.test.ts` (35 tests).
-- A banana is a quadratic run at a LINEAR parameter, which is a true parabola (even sideways speed, falling faster), so
-  the lob reads as a cannon shot. The giant's apex (not its control point) is capped at `giantOvershoot` above the frame.
-- The cannon flips its Y scale when it fires leftward, so the foe's cannon is never drawn upside down.
-- Draw order: sprites are pooled per layer, so a reused sprite can land anywhere in its layer's order. Every multi-part
-  object puts each part on its OWN layer (haze | glow | body | trim | ink | core): the trim always over the barrel, the
-  banana's brown ends over its body, the star's yellow fill over its dark outline. (Caught in review: with one shared
-  body layer the star rendered as a brown blob once its sprites were reused.)
-- DEV tuner "Hero Attack: Banana Cannon" (DevMenu, tunerAll): every dial, colours, a clip / gain / pitch row per sound
-  cue, Play both ways at 3 / 8 / 12 / 40, reduced motion, 1x / 0.5x / 0.25x, Attack style row.
-- Wired into `Recruit.tsx`, the Collection preview (`HeroAttackPreview.tsx`), `heroAttackStyle.ts`, the cosmetic in
-  `packages/progression/src/cosmetics.ts` and its Edge Function mirror. No SQL: the catalog syncs on the next
-  `progression-inventory` deploy.
-- Crate odds: Legendary now has 12 items, so each Legendary is 5 / 12 = 0.42%; the hero attacks together 3.8%.
-- Oracle: R-PROG-ATTACK-15 (quotes the owner); R-PROG-ATTACK-01 lists the ninth attack. GAME-RULES and a patch note.
+- **Spin, not flip.** The painted sheet is a 3D tumble, which read as a left/right flip. Every projectile (and the
+  shower) is now ONE side-on cell (`SIDE_FRAME` 3) rotated in the plane. Backspin: flying right it turns
+  counter-clockwise. The spin is laid along the curve parameter, so the giant's spin slows as it hangs.
+- **The hang.** `bananaEase` bends time round the arc's true apex (`apexOf`), slow there and fast at both ends, with
+  the speed continuous across the apex. The giant's control point is solved so its apex sits exactly `giantHangY` below
+  the top of the screen.
+- **The striker on top.** The overlay canvas (z200) is above every portrait, so while the striker is in the jam the
+  whole scene is cut by an INVERSE stencil mask of its circle. The striker reads on top of the banana and every banana
+  effect, and the banana still covers the struck side's hero power. **Gotcha:** Pixi 8's `setMask({ mask: null })`
+  does NOT remove a mask. It only merges options, and the leftover mask then acts as a NORMAL mask, which hid
+  everything outside the striker's circle once the hero flew home. It is cleared by `world.mask = null` (regression
+  test: `masked` is false after the jam).
+- **The stake sinks without a stencil.** A second (nested) inverse mask for the struck face did not cut in Pixi 8.19.
+  Instead, the stake's texture frame is cropped each frame to the part still outside the face. It uses the upright
+  cell (`STAKE_FRAME` 11), cropped to its measured opaque box, anchored at the cut edge on the entry point.
+- **Landing ON the face.** Splat offsets are tight to the centre (0.26 R, 0.16 R for Tier IV's warm-ups), and a tick's
+  splat is capped to the face size. A test sweeps every tier, both directions, 1920x1080 and 1600x900 layouts: every
+  small banana lands within 0.4 R and never flies past the target.
+- **Painted sheets:** decoded through the FX image library (shared, never destroyed here), sliced once, swapped into the
+  frame lists in place when they land (a scene already running picks them up), and uploaded to the GPU by a warm sprite
+  during the formation.
+- **Tuner:** new dials for spin, the six slams (count, spacing, reel-back, finisher wind-up and push-in, fly home), how
+  far it sinks, blood (start slam, amount) and juice drips (amount, linger). The Copy / Reset / Play row is at the
+  TOP (a `buttonsTop` option on `TunerSpec`, owner ask for all attack tuners), and the Speed and Reduced motion rows
+  are gone.
+- Oracle R-PROG-ATTACK-15 (rewritten, quotes all three reviews), GAME-RULES, patch note. Crate odds: Legendary has 12
+  items, 0.42% each.
 
-## Sounds (existing clips only)
+## Perf (PROD build, `vite build` + `vite preview`, private headless Chrome over CDP, 1600 x 900, RTX 4080 D3D11, vsync and frame cap OFF: raw frame cost)
 
-summon `equipclang`, sparkle `fx/djartmusic-christmas-sparkle-whoosh-1-275404`, pump `blastpump`, fire `fx/oona-launch`,
-muzzle boom `turnexplosion` (pitched up; low for the giant), whoosh `fx/stereogenicstudio-swish-swoosh-woosh-sfx-27-357164-3`,
-splat `fx/oona-splat`, smack `smack2`, impact `crit`, royal charge `fx/oona-powerup`, descent `fx/metal-woosh` (low),
-slam `fx/heavy-rock-impact`, pops `fx/oona-splat` (high), stow `equipclang` (high). Clips that would help: a cartoon
-cannon "foomp", a descending whistle for the giant, a comedic boing/splat.
-
-## Perf (PROD build, `vite build` + `vite preview`, private headless Chrome over CDP, 1600 x 900, RTX 4080 D3D11, vsync and frame cap OFF, so the numbers are raw frame cost)
-
-Real rAF playback, sound off, temporary uncommitted hook to reach the runner.
+Real rAF playback, sound off, a temporary uncommitted hook to reach the runner, and the painted sheets decoded.
 
 | run | frames | p50 | p95 | p99 | worst | > 16.7 ms | long tasks | peak sprites |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| IV you (40, first play, cold page) | 17044 | 0.3 | 0.5 | 0.7 | 430.2 | 9 | 6 | 175 |
-| IV you (40, again) | 12264 | 0.5 | 0.7 | 0.9 | 8.8 | 0 | 0 | 174 |
-| IV foe (40) | 13046 | 0.5 | 0.7 | 0.8 | 6.4 | 0 | 0 | 187 |
-| III (14) | 10623 | 0.5 | 0.7 | 0.9 | 6.9 | 0 | 0 | 145 |
-| II (8) | 9963 | 0.4 | 0.7 | 1.1 | 6.4 | 0 | 0 | 65 |
-| I (3) | 8434 | 0.5 | 0.9 | 1.4 | 7.2 | 0 | 0 | 43 |
+| IV you (40, first play, cold page) | 26841 | 0.4 | 0.7 | 1.1 | 266.7 | 9 | 4 | 807 |
+| IV you (40, again) | 18586 | 0.6 | 1.0 | 1.3 | 8.1 | 0 | 0 | 805 |
+| IV foe (40) | 21904 | 0.5 | 0.8 | 1.0 | 7.9 | 0 | 0 | 798 |
+| III (14) | 9763 | 0.5 | 0.7 | 0.9 | 7.1 | 0 | 0 | 440 |
+| II (8) | 8390 | 0.5 | 0.7 | 1.0 | 17.8 | 1 | 0 | 188 |
+| I (3) | 8726 | 0.5 | 0.7 | 0.9 | 6.5 | 0 | 0 | 111 |
 
-The first-play spike is the harness's cold start, not the cannon: painting all the banana textures takes 3.4 ms, and
-Venom Volley (poison) played first on the same cold page spikes the same way (worst 491 ms, 6 long tasks). It is the
-first Pixi overlay render / first formation on a fresh title screen; in a real fight the overlay is already warm. Worth
-a follow-up on the shared warm-up if the owner ever sees a first-attack hitch.
+The cold-page first play spikes, and Venom Volley (poison) spikes the same way on the same cold page (worst 491 ms).
+It is the page's first Pixi overlay render and formation, not this attack; in a real fight the overlay is already warm.
+The sprite cap is 1100 (Tier IV peaks at ~810).
 
 ## Open for the owner
 
-- The name (placeholder "Oona's Banana Cannon") and whether the cannon should be bigger or the giant slower.
-- Sound: the clips above are stand-ins from the existing library.
+- The name (placeholder "Oona's Banana Cannon"; the catalog caps names at 20 characters).
+- Tier IV runs about 6.2 s from the flourish (six slow slams was the ask). `slamGapMs`, `finisherWindMs` and
+  `slamCount` are the dials if it should be tighter.
 - Deploy `progression-inventory` so `attack_banana` reaches the catalog. No SQL.

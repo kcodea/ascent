@@ -316,12 +316,14 @@ progression **epoch**; nothing finished before the epoch counts (no backfill).
   plant round the centre of the board, the centre implodes, and a flat consecrated blast races across the board to the
   struck hero, tearing radiant cracks, and holy flames erupt round it (the blow landing on the eruption). **Banana
   Cannon** is the ninth, `attack_banana` ("Oona's Banana Cannon", a placeholder name; Legendary, from crates;
-  R-PROG-ATTACK-15): King Oona's gold-trimmed jungle cannon, drawn flat. After the same damage formation the cannon pops
-  in on the hero's rim and aims; each shot it pumps, recoils with a big muzzle puff and lobs a spinning banana on a high
-  arc that splats on the struck hero (a peel sticks, chunks fly, a comic star pops): I one banana; II a double shot; III
-  a rapid barrage of six (the blow landing once, on the last); IV three quick bananas, then the cannon glows gold and its
-  crown glints, and it fires a giant golden banana up out of the top of the screen while a flat golden ring locks on to
-  the struck hero; it slams down into a golden shockwave and a shower of bananas (the blow landing on the slam). All nine
+  R-PROG-ATTACK-15), built on King Oona's own card FX: her painted banana (spinning with backspin) is every projectile
+  and her painted juice splat every impact, with her juice particles and clips. After the same damage formation a golden
+  flourish opens on the hero and it flings bananas on high lobbed arcs: I one; II a double; III a barrage of eight (the
+  blow landing once, on the last); IV four warm-ups, then a giant golden banana arcs high, hangs (a crown glint, a flat
+  golden target ring), and lands stuck in the struck hero's rim; the striking portrait dashes over and slams it in six
+  times, reeling far back between slams, driving it deeper each time (only its end sticks out by the last), a crater and
+  cracks spreading, blood from the fourth slam on; the sixth slam bursts it into a massive splat and a banana shower (the
+  blow landing there). While it slams, the striking portrait is drawn on top of the banana. All nine
   anchor on the round portrait art at rest
   (R-PROG-ATTACK-04). Equipped
   account-wide in the Collection's Attack Animations tab ("Use Classic" takes it off). The STRIKER's attack plays:

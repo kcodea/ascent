@@ -1,14 +1,14 @@
 // @vitest-environment jsdom
 /**
- * THE BANANA CANNON HERO ATTACK (owner 2026-09-29: "i would love a king oona banana cannon animation. use the same 4
- * tier strategy we have been."): the tier mapping SHARED with every style; the tier -> shots ladder (1 / 2 / a barrage
- * of 6 / three warm-ups and the GIANT golden banana); the tuner defaults + clamping; the pure plan (the total is the
- * engine's number, the pump-and-fire rhythm, the impact beat, the royal shot at IV, reduced motion, determinism); the
- * pure cannon + banana paths (a high ballistic lob from the cannon's muzzle that comes down onto the struck portrait; the
- * giant leaves the frame and comes back); the camera; the runner on the shared clock (the consequence lands exactly
- * ONCE, on the last banana or the slam, never on a tick; both directions; slow motion; replay; finish / cancel; cleanup;
- * stuck peels ride the knockback); the headless scene (pooled, bounded, drains, destroy leaves nothing); and the
- * cosmetic resolution (the other styles unchanged).
+ * THE BANANA BARRAGE HERO ATTACK (Oona's Banana Cannon; owner 2026-09-29: "i would love a king oona banana cannon
+ * animation", then "use oona's animation as a guideline. improve this dramatically", then for Tier IV "it lands on the
+ * hero and then we slam our fist into it 4 times"): the tier mapping SHARED with every style; the ladder (1 / 2 / a
+ * barrage of 8 / four warm-ups, the giant lands, four slams); Oona's painted art and clips; the tuner (defaults,
+ * clamping, the jam's dials, the button row on top, no Speed / Reduced rows); the pure plan (the impact beat, the jam,
+ * reduced motion, determinism); the pure paths (lobbed arcs, the giant hangs in view and lands on the face); the jam
+ * pose; the camera; the runner on the shared clock (the consequence lands exactly ONCE, never on a tick; both
+ * directions; slow motion; replay; finish / cancel; cleanup; the striking portrait pounds the target); the headless
+ * scene (pooled, bounded, drains, destroy leaves nothing); and the cosmetic resolution.
  */
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { Container, Texture } from 'pixi.js';
@@ -17,35 +17,38 @@ import { HERO_ATTACK_TIER_THRESHOLDS, tierOf as sharedTierOf } from '../heroAtta
 import { HERO_BLAST_DEFAULTS, blastPlan } from '../heroBlast/heroBlastConfig';
 import { DEV_HERO_ATTACK_CHOICES, HERO_ATTACK_STYLES, resolveHeroAttackStyle, styleOfCosmetic } from '../heroBlast/heroAttackStyle';
 import {
-  BANANA_CAPS, HERO_BANANA_DEFAULTS, HERO_BANANA_RANGES, bananaCameraAt, bananaCameraFocus, bananaCues, bananaFlightMs, bananaPlan,
-  bananaPos, cannonRig, clampHeroBananaValue, heroBananaConfigJson, sanitizeHeroBananaConfig, shotSlots,
+  BANANA_CAPS, HERO_BANANA_DEFAULTS, HERO_BANANA_RANGES, bananaCameraAt, bananaCameraFocus, bananaCues, bananaEase, bananaFlightMs,
+  bananaPlan, bananaPos, bananaRig, clampHeroBananaValue, heroBananaConfigJson, jamGeo, jamPose, sanitizeHeroBananaConfig, shotSlots,
   type HeroBananaConfig, type HeroBananaNumKey,
 } from './heroBananaConfig';
-import { HeroBananaScene, MAX_BANANA_SPRITES, type HeroBananaTextures } from './heroBananaScene';
+import { HeroBananaScene, MAX_BANANA_SPRITES, SIDE_FRAME, type HeroBananaTextures } from './heroBananaScene';
+import { BANANA_SHEET_ID, SPLAT_SHEET_ID, sliceSheet } from './heroBananaTextures';
 import { bananaSeed, playHeroBanana, type HeroBananaOptions } from './heroBanana';
 import { SPEC } from '../HeroBananaTuner';
 import { formationOf, leadInOf } from '../heroAttack/formationFixtures';
+import type { Pt } from '../heroAttack/easing';
+import oonaDef from '../fx/defs/oona-banana.json';
 
 const W = Texture.WHITE;
 const TEX: HeroBananaTextures = {
   glow: W, spark: W, streak: W, ring: W, beam: W, ribbonSoft: W, ribbonBody: W, sigil: W, star: W,
-  cannonBarrel: W, cannonTrim: W, cannonDark: W, cannonGlow: W, bananaBody: W, bananaEnds: W, bananaShine: W, bananaGlow: W,
-  peel: W, chunk: W, impactStar: W, mush: W, leaf: W, puff: W, disc: W, shock: W,
+  banana: Array.from({ length: 16 }, () => W), splat: Array.from({ length: 14 }, () => W), disc: W, shock: W,
 };
 const C = HERO_BANANA_DEFAULTS;
 const plan = (values: number[], total: number, distance = 1600, reduced = false) => bananaPlan({ total, distance, reduced, leadIn: leadInOf(values, reduced) }, C);
-const COLORS = { banana: 0xffd83d, gold: 0xf0b429, barrel: 0x3f7d2a, dark: 0x4a2a12, cream: 0xfff2c2, smoke: 0xefe6cf, leaf: 0x4fae3a, side: 0xffd83d };
+const COLORS = { juice: 0xfce400, amber: 0xebb912, cream: 0xffffe0, gold: 0xffc714, spark: 0xff6d2c, side: 0xffd83d };
 const LOOK = {
-  cannonLength: 170, popMs: 240, recoil: 26, puffs: 6, leaves: 5, bananaLength: 74, trailAlpha: 0.45, tickChunks: 8, starSize: 1,
-  peelHoldMs: 620, gravity: 1400, showerBananas: 12, shockSize: 1, goldRays: 10,
+  bananaPx: 108, bloodAmount: 1, juiceDrips: 1, dripMs: 2600, trailSparks: 1, splatPx: 150, splatMs: 480, tickJuice: 40, juiceSpeed: 435, juiceLifeMs: 450, juicePx: 35,
+  launchSparks: 11, giantSplat: 3.4, ringSplats: 7, showerBananas: 14, shockSize: 1, goldRays: 10,
 };
-const A = { x: 200, y: 850 }, D = { x: 1500, y: 180 };
+const A = { x: 200, y: 850 }, D = { x: 1500, y: 250 };
 const R = 80;
+const TIMELINE_IV = [420, 5974, 6924];
 const P1 = plan([2, 1], 3), P2 = plan([3, 3, 2], 8), P3 = plan([3, 3, 3, 3, 2], 14), P4 = plan([6, 6, 6, 6, 6, 5, 5], 40);
 const regular = (p: ReturnType<typeof plan>) => p.shots.filter((s) => !s.giant);
 
 describe('the damage tiers (shared with every style)', () => {
-  it('the cannon steps up on exactly the blows Blast does: I 1-5, II 6-11, III 12-19, IV 20+', () => {
+  it('the bananas step up on exactly the blows Blast does: I 1-5, II 6-11, III 12-19, IV 20+', () => {
     expect({ tier2At: C.tier2At, tier3At: C.tier3At, tier4At: C.tier4At }).toEqual(HERO_ATTACK_TIER_THRESHOLDS);
     for (let d = 0; d <= 60; d++) {
       const t = plan([d], d).tier;
@@ -54,13 +57,34 @@ describe('the damage tiers (shared with every style)', () => {
     }
   });
 
-  it('the ladder: I ONE banana, II a DOUBLE shot, III a rapid BARRAGE of six, IV three warm-ups then the GIANT golden banana', () => {
-    expect([P1, P2, P3, P4].map((p) => regular(p).length)).toEqual([1, 2, 6, 3]);
+  it('the ladder: I ONE banana, II a DOUBLE, III a BARRAGE of eight, IV four warm-ups, then the GIANT lands and is jammed in SIX times', () => {
+    expect([P1, P2, P3, P4].map((p) => regular(p).length)).toEqual([1, 2, 8, 4]);
     expect([P1, P2, P3, P4].map((p) => p.giant)).toEqual([false, false, false, true]);
     expect(P4.shots[P4.shots.length - 1]!.giant).toBe(true);
-    expect(P4.shots.filter((s) => s.giant)).toHaveLength(1);
+    expect(P4.slams).toHaveLength(6); // owner 2026-09-29: "have it hit 6 times"
+    expect([P1, P2, P3].map((p) => p.slams.length)).toEqual([0, 0, 0]);
     expect([1, 5, 6, 11, 12, 19, 20, 60].map((d) => { const p = plan([d], d); return p.giant ? 'giant' : p.shots.length; }))
-      .toEqual([1, 1, 2, 2, 6, 6, 'giant', 'giant']);
+      .toEqual([1, 1, 2, 2, 8, 8, 'giant', 'giant']);
+  });
+});
+
+describe("King Oona's art and sound (owner 2026-09-29: use oona's animation as a guideline)", () => {
+  it("plays Oona's own painted sheets (the ids her card FX uses) and her own clips", () => {
+    const def = oonaDef as unknown as { layers: { primitive: string; params: Record<string, unknown> }[] };
+    const images = def.layers.filter((l) => l.primitive === 'custom').map((l) => l.params.image);
+    expect(images).toEqual([BANANA_SHEET_ID, SPLAT_SHEET_ID]);
+    const clips = def.layers.filter((l) => l.primitive === 'sound').map((l) => l.params.clip);
+    for (const clip of clips) expect([C.sfxLaunchClip, C.sfxSplatClip, C.sfxPowerClip]).toContain(clip);
+    // Her juice burst is the default this attack starts from.
+    const target = def.layers.find((l) => l.primitive === 'burst' && (l as unknown as { anchor: string }).anchor === 'target')!.params;
+    expect([C.juiceSpeed, C.juiceLifeMs, C.juicePx]).toEqual([target.speed, target.life, target.size]);
+  });
+
+  it('slices a 4 x 4 sheet into its 16 cells, row by row', () => {
+    const fake = { width: 1024, height: 1024, source: W.source } as unknown as Texture;
+    const cells = sliceSheet(fake);
+    expect(cells).toHaveLength(16);
+    expect(cells.map((c) => [c.frame.x, c.frame.y])).toEqual(Array.from({ length: 16 }, (_, i) => [(i % 4) * 256, Math.floor(i / 4) * 256]));
   });
 });
 
@@ -72,72 +96,64 @@ describe('the tuner values', () => {
       expect(v, k).toBeLessThanOrEqual(max);
       expect(step, k).toBeGreaterThan(0);
     }
-    for (const k of ['colorBanana', 'colorGold', 'colorBarrel', 'colorDark', 'colorCream', 'colorSmoke', 'colorLeaf', 'colorPlayer', 'colorFoe'] as const) {
-      expect(C[k]).toMatch(/^#[0-9a-f]{6}$/);
-    }
+    for (const k of ['colorJuice', 'colorAmber', 'colorCream', 'colorGold', 'colorSpark', 'colorPlayer', 'colorFoe'] as const) expect(C[k]).toMatch(/^#[0-9a-f]{6}$/);
   });
 
   it('clamps numbers into range; junk falls back to the default; colours must be #rrggbb; unknown keys drop', () => {
-    expect(clampHeroBananaValue('t3Shots', 99)).toBe(8);
+    expect(clampHeroBananaValue('t3Shots', 99)).toBe(12);
     expect(clampHeroBananaValue('t1Shots', 0)).toBe(1);
-    expect(clampHeroBananaValue('bananaLength', -3)).toBe(30);
-    expect(clampHeroBananaValue('giantFlightMs', 99999)).toBe(2000);
-    expect(clampHeroBananaValue('trailAlpha', 5)).toBe(1);
+    expect(clampHeroBananaValue('slamCount', 20)).toBe(8);
+    expect(clampHeroBananaValue('bananaPx', -3)).toBe(30);
+    expect(clampHeroBananaValue('giantFlightMs', 99999)).toBe(2500);
     expect(clampHeroBananaValue('spinTurns', Number.NaN)).toBe(C.spinTurns);
     expect(clampHeroBananaValue('spinTurns', 'abc')).toBe(C.spinTurns);
-    expect(clampHeroBananaValue('spinTurns', '2')).toBe(2);
-    expect(clampHeroBananaValue('colorBanana', '#ABCDEF')).toBe('#abcdef');
+    expect(clampHeroBananaValue('spinTurns', '3')).toBe(3);
+    expect(clampHeroBananaValue('colorJuice', '#ABCDEF')).toBe('#abcdef');
     expect(clampHeroBananaValue('colorPlayer', 'yellow')).toBe(C.colorPlayer);
-    expect(clampHeroBananaValue('sfxFireClip', '  fx/x  ')).toBe('fx/x');
+    expect(clampHeroBananaValue('sfxLaunchClip', '  fx/x  ')).toBe('fx/x');
     expect(clampHeroBananaValue('nope' as keyof HeroBananaConfig, 1)).toBeUndefined();
     expect(clampHeroBananaValue('toString' as keyof HeroBananaConfig, 1)).toBeUndefined();
-    const s = sanitizeHeroBananaConfig({ t4Chunks: 400, colorGold: 'x', bogus: 3 });
-    expect(s.t4Chunks).toBe(80);
+    const s = sanitizeHeroBananaConfig({ t4Juice: 900, colorGold: 'x', bogus: 3 });
+    expect(s.t4Juice).toBe(300);
     expect(s.colorGold).toBe(C.colorGold);
     expect('bogus' in s).toBe(false);
     expect(sanitizeHeroBananaConfig('junk')).toEqual(C);
   });
 
-  it('every config key has a tuner control; Copy JSON leaves the preview-only keys out; the style row offers the Banana Cannon', () => {
+  it('every config key has a tuner control; the jam has its dials; the button row sits on TOP with no Speed or Reduced motion rows', () => {
     const keys = new Set(SPEC.controls.map((c) => c.key));
     for (const k of Object.keys(C)) expect(keys.has(k as never), k).toBe(true);
+    for (const k of ['slamCount', 'slamGapMs', 'slamPullPx', 'finisherWindMs', 'finisherZoom', 'bloodStart', 'bloodAmount', 'jamDepthEnd']) expect(keys.has(k as never), k).toBe(true);
+    expect([C.slamCount, C.bloodStart]).toEqual([6, 4]);
     const json = JSON.parse(heroBananaConfigJson(C)) as Record<string, unknown>;
     expect(json.previewDamage).toBeUndefined();
     expect(json.previewParts).toBeUndefined();
     expect(json.t4Giant).toBe(1);
-    expect(json.t3Shots).toBe(6);
-    const style = SPEC.controls.find((c) => c.key === 'attackStyle');
-    expect(style?.options).toContain('banana');
+    expect(SPEC.controls.find((c) => c.key === 'attackStyle')?.options).toContain('banana');
     expect(DEV_HERO_ATTACK_CHOICES).toContain('banana');
+    expect(SPEC.buttonsTop).toBe(true);
     const labels = SPEC.actions?.map((a) => a.label) ?? [];
-    for (const l of ['▶ Small (3)', '▶ Tier II (8)', '▶ Medium (12)', '▶ Huge (40)', '▶ Foe small (3)', '▶ Foe huge (40)', '▶ Reduced motion', 'Speed 1x', 'Speed 0.5x', 'Speed 0.25x']) {
-      expect(labels).toContain(l);
-    }
-    // No hit-stop / freeze control anywhere (owner 2026-09-28).
+    for (const l of ['▶ Small (3)', '▶ Tier II (8)', '▶ Medium (12)', '▶ Huge (40)', '▶ Foe small (3)', '▶ Foe huge (40)']) expect(labels).toContain(l);
+    for (const l of labels) expect(l).not.toMatch(/speed|reduced/i);
     expect(SPEC.controls.map((c) => `${c.key} ${c.label}`).join(' ')).not.toMatch(/hit-?stop|freeze/i);
   });
 });
 
 describe('the plan', () => {
-  it('THE BARRAGE: six bananas splat in in rhythm, the first five are ticks, the LAST is the impact (only one impact beat)', () => {
+  it('THE BARRAGE: eight bananas splat in rhythm, the first seven are ticks, the LAST is the impact (only one impact beat)', () => {
     const arr = P3.shots.map((d) => d.arriveAt);
     for (let i = 1; i < arr.length; i++) expect(arr[i]!, `arrival ${i}`).toBeGreaterThan(arr[i - 1]!);
-    const gaps = arr.slice(1).map((a, i) => a - arr[i]!);
-    expect(Math.max(...gaps) - Math.min(...gaps)).toBeLessThanOrEqual(40); // an even rhythm
     expect(P3.impactAt).toBe(arr[arr.length - 1]);
     expect(P3.hits).toEqual(arr.slice(0, -1));
     const kinds = bananaCues(P3).map((q) => q.kind);
-    expect(kinds.filter((k) => k === 'fire')).toHaveLength(6);
-    expect(kinds.filter((k) => k === 'pump')).toHaveLength(6);
-    expect(kinds.filter((k) => k === 'hit')).toHaveLength(5);
+    expect(kinds.filter((k) => k === 'fire')).toHaveLength(8);
+    expect(kinds.filter((k) => k === 'hit')).toHaveLength(7);
     expect(kinds.filter((k) => k === 'impact')).toHaveLength(1);
     expect(kinds.lastIndexOf('hit')).toBeLessThan(kinds.indexOf('impact'));
-    expect(kinds).not.toContain('glint');
-    // the cannon PUMPS before every shot (the "chk"), and every pump comes after the cannon appeared
-    for (const s of P3.shots) { expect(s.pumpAt).toBeLessThan(s.fireAt); expect(s.pumpAt).toBeGreaterThan(P3.chargeAt); }
+    for (const k of ['glint', 'hang', 'land', 'dash', 'slam']) expect(kinds).not.toContain(k);
   });
 
-  it('Tier II is a double shot (one tick, then the impact); Tier I one banana, straight to the impact', () => {
+  it('Tier II is a double (one tick, then the impact); Tier I one banana, straight to the impact', () => {
     expect(P2.shots[1]!.fireAt - P2.shots[0]!.fireAt).toBeLessThanOrEqual(300);
     expect(P2.hits).toHaveLength(1);
     expect(P2.impactAt).toBe(P2.shots[1]!.arriveAt);
@@ -146,143 +162,260 @@ describe('the plan', () => {
     expect(P1.impactAt).toBe(P1.shots[0]!.arriveAt);
   });
 
-  it('Tier IV: every warm-up banana is a tick; then the glint, the giant fires, the mark, and the SLAM is the impact', () => {
+  it('Tier IV (the jam): warm-ups, the blaze, the giant flies, hangs, LANDS, the hero dashes, slams 1-5 are ticks and slam 6 IS the impact', () => {
     const kinds = bananaCues(P4).map((q) => q.kind);
-    expect(kinds.filter((k) => k === 'hit')).toHaveLength(3);
-    expect(kinds.filter((k) => k === 'impact')).toHaveLength(1);
     const g = P4.shots[P4.shots.length - 1]!;
-    const firesBefore = P4.shots.filter((s) => !s.giant).map((s) => s.fireAt);
-    expect(Math.max(...firesBefore)).toBeLessThan(P4.glintAt);
-    expect(P4.glintAt).toBeLessThan(g.pumpAt);
-    expect(g.pumpAt).toBeLessThan(g.fireAt);
-    expect(g.fireAt).toBe(P4.glintAt + C.giantChargeMs);
-    expect(P4.markAt).toBeGreaterThan(g.fireAt);
-    expect(P4.markAt).toBeLessThan(P4.impactAt);
-    expect(P4.impactAt).toBe(g.arriveAt);
-    for (const h of P4.hits) expect(h).toBeLessThan(P4.impactAt);
+    expect(kinds.filter((k) => k === 'impact')).toHaveLength(1);
+    expect(kinds.filter((k) => k === 'slam')).toHaveLength(5);
     const at = (k: string): number => kinds.indexOf(k as never);
-    expect(at('glint')).toBeLessThan(at('mark'));
-    expect(at('mark')).toBeLessThan(at('impact'));
-    expect(at('impact')).toBeLessThan(at('boom'));
-    expect(P4.booms).toHaveLength(3);
+    for (const [a, b] of [['glint', 'hang'], ['hang', 'land'], ['land', 'dash'], ['dash', 'slam'], ['slam', 'impact'], ['impact', 'boom']]) {
+      expect(at(a!), `${a} before ${b}`).toBeLessThan(at(b!));
+    }
+    expect(Math.max(...regular(P4).map((s) => s.fireAt))).toBeLessThan(P4.glintAt);
+    expect(g.fireAt).toBe(P4.glintAt + C.giantChargeMs);
+    expect(P4.landAt).toBe(g.arriveAt);
+    expect(P4.impactAt).toBe(P4.slams[5]);
+    // the hits: the warm-ups, the landing and the first five slams; never the finisher
+    expect(P4.hits).toEqual([...regular(P4).map((s) => s.arriveAt), P4.landAt, ...P4.slams.slice(0, 5)].sort((a, b) => a - b));
+    for (const h of P4.hits) expect(h).toBeLessThan(P4.impactAt);
+    // slow slams with the anticipation BUILDING (owner: "increasingly larger time between slams"): every gap longer than
+    // the last, the finisher's wind-up the longest
+    const gaps = P4.slams.slice(1).map((s, i) => s - P4.slams[i]!);
+    expect(gaps[0]).toBe(C.slamGapMs);
+    expect(C.slamGapMs).toBeGreaterThanOrEqual(400);
+    for (let i = 1; i < gaps.length; i++) expect(gaps[i]!, `gap ${i}`).toBeGreaterThan(gaps[i - 1]!);
+    expect(gaps[4]).toBe(C.finisherWindMs);
+    expect(P4.homeAt).toBeGreaterThan(P4.impactAt);
+    expect(P4.endAt).toBeGreaterThanOrEqual(P4.homeAt);
   });
 
-  it('every tier escalates: more shake, zoom, chunks, splat, peels and dim', () => {
+  it('the slam count is a dial: 1 slam = the finisher alone; 6 slams = five ticks and the finisher', () => {
+    const one = bananaPlan({ total: 40, distance: 1600 }, { ...C, slamCount: 1 });
+    expect(one.slams).toHaveLength(1);
+    expect(bananaCues(one).filter((q) => q.kind === 'slam')).toHaveLength(0);
+    const six = bananaPlan({ total: 40, distance: 1600 }, { ...C, slamCount: 6 });
+    expect(bananaCues(six).filter((q) => q.kind === 'slam')).toHaveLength(5);
+    expect(six.impactAt).toBe(six.slams[5]);
+  });
+
+  it('every tier escalates: more shake, zoom and juice, and dim', () => {
     const ps = [P1, P2, P3, P4];
-    for (let i = 1; i < 4; i++) {
-      for (const k of ['shakePx', 'zoom', 'chunks', 'burst', 'peels', 'dim'] as const) expect(ps[i]![k], `${k} ${i}`).toBeGreaterThan(ps[i - 1]![k]);
-    }
+    for (let i = 1; i < 4; i++) for (const k of ['shakePx', 'zoom', 'juice', 'dim'] as const) expect(ps[i]![k], `${k} ${i}`).toBeGreaterThan(ps[i - 1]![k]);
+    expect([P1, P2, P3].map((p) => p.splats)).toEqual([1, 2, 3]);
     expect(P1.dim).toBe(0);
   });
 
-  it('the shipped per-tier timeline (1600 px apart): first shot, impact and end, ms from the summon', () => {
+  it('the shipped per-tier timeline (1600 px apart): first fling, impact and end, ms from the flourish', () => {
     const t = (p: ReturnType<typeof plan>): number[] => [Math.round(p.fireAt - p.chargeAt), Math.round(p.impactAt - p.chargeAt), Math.round(p.endAt - p.chargeAt)];
     expect([t(P1), t(P2), t(P3), t(P4)]).toEqual([
-      [380, 920, 1484], [400, 1181, 1765], [440, 1545, 2169], [460, 2260, 3160],
+      [340, 1000, 1596], [360, 1222, 1838], [400, 1687, 2343], TIMELINE_IV,
     ]);
-    // Chunky, not rushed, never dragging: Tier I about 1.5 s, Tier IV about 3 s.
+    // Chunky, not rushed: Tier I about 1.5 s; the Tier IV showpiece (six slams) under 7 s.
     expect(t(P1)[2]).toBeLessThanOrEqual(2000);
-    expect(t(P4)[2]).toBeLessThanOrEqual(3300);
+    expect(t(P4)[2]).toBeLessThanOrEqual(7000);
   });
 
-  it('the barrage fires outer shots first and the centre last', () => {
+  it('the barrage flings outer shots first and the centre last', () => {
     expect(shotSlots(1)).toEqual([0]);
     expect(shotSlots(2)).toEqual([-1, 1]);
     expect(shotSlots(3)).toEqual([-1, 1, 0]);
-    expect(shotSlots(6)[5]).toBe(0);
+    expect(shotSlots(8)[7]).toBe(0);
   });
 
   it('the caps always hold, whatever the sliders say; flight scales gently with distance', () => {
-    const wild: HeroBananaConfig = { ...C, t3Shots: 8, t4Chunks: 80, t4Shake: 40, t4Zoom: 0.14, t4Peels: 12 };
+    const wild: HeroBananaConfig = { ...C, t3Shots: 12, t4Juice: 300, t4Shake: 40, t4Zoom: 0.14, t3Splats: 8 };
     expect(bananaPlan({ total: 15, distance: 800 }, wild).shots.length).toBeLessThanOrEqual(BANANA_CAPS.shots);
-    expect(bananaPlan({ total: 99, distance: 800 }, wild).chunks).toBeLessThanOrEqual(BANANA_CAPS.chunks);
-    expect(bananaPlan({ total: 99, distance: 800 }, wild).peels).toBeLessThanOrEqual(BANANA_CAPS.peels);
+    expect(bananaPlan({ total: 99, distance: 800 }, wild).juice).toBeLessThanOrEqual(BANANA_CAPS.juice);
+    expect(bananaPlan({ total: 15, distance: 800 }, wild).splats).toBeLessThanOrEqual(BANANA_CAPS.splats);
     expect(bananaFlightMs(1600, 500)).toBe(500);
     expect(bananaFlightMs(100, 500)).toBe(310);
     expect(bananaFlightMs(99999, 500)).toBe(575);
   });
 
-  it('reduced motion: no cannon, bananas, shake, zoom or dim; the blow still lands once', () => {
+  it('reduced motion: no bananas, shake, zoom or dim; the blow still lands once', () => {
     const p = plan([3, 4], 25, 800, true);
-    expect([p.shakePx, p.zoom, p.dim, p.shots.length]).toEqual([0, 0, 0, 0]);
+    expect([p.shakePx, p.zoom, p.dim, p.shots.length, p.slams.length]).toEqual([0, 0, 0, 0, 0]);
     const kinds = bananaCues(p).map((q) => q.kind);
-    for (const k of ['charge', 'pump', 'fire', 'hit', 'glint', 'mark', 'stow']) expect(kinds).not.toContain(k);
+    for (const k of ['charge', 'fire', 'hit', 'glint', 'hang', 'land', 'dash', 'slam']) expect(kinds).not.toContain(k);
     expect(kinds.filter((k) => k === 'impact')).toHaveLength(1);
     expect(bananaCameraAt(p, C, p.impactAt + 10)).toEqual({ zoom: 1, x: 0, y: 0 });
-    expect(cannonRig(p, A, D, R, R, C).shots).toEqual([]);
+    expect(bananaRig(p, A, D, R, R, C).shots).toEqual([]);
   });
 
   it('is deterministic: the same fight plans the same beats and the same paths (a replay plays what the live fight did)', () => {
     expect(plan([4, 2, 3, 5, 6], 20, 720)).toEqual(plan([4, 2, 3, 5, 6], 20, 720));
     expect(bananaCues(plan([4, 2, 3], 9, 720))).toEqual(bananaCues(plan([4, 2, 3], 9, 720)));
-    expect(cannonRig(P4, A, D, R, R, C)).toEqual(cannonRig(P4, A, D, R, R, C));
+    expect(bananaRig(P4, A, D, R, R, C)).toEqual(bananaRig(P4, A, D, R, R, C));
     expect(bananaSeed(14, 1500.2, 'player')).toBe(bananaSeed(14, 1500.4, 'player'));
     expect(bananaSeed(14, 1500, 'player')).not.toBe(bananaSeed(14, 1500, 'opp'));
   });
 });
 
-describe('the cannon and the banana paths', () => {
-  it('the cannon sits on the striking hero\'s rim toward the target, tipped up; the banana leaves its MUZZLE on the cannon\'s heading', () => {
-    const rig = cannonRig(P1, A, D, R, R, C);
-    expect(Math.hypot(rig.pivot.x - A.x, rig.pivot.y - A.y)).toBeCloseTo(R * 0.8, 5);
-    expect(Math.sin(rig.rest)).toBeLessThan(Math.sin(Math.atan2(D.y - A.y, D.x - A.x))); // tipped up toward the top
+describe('the banana paths', () => {
+  it('a banana bursts out of the striking hero and is LOBBED on a high arc that comes down onto the struck portrait', () => {
+    const rig = bananaRig(P1, A, D, R, R, C);
     const m = rig.shots[0]!;
-    expect(Math.hypot(m.a.x - rig.pivot.x, m.a.y - rig.pivot.y)).toBeCloseTo(rig.muzzle, 0);
-    const lead = bananaPos(m, 1);
-    expect(Math.abs(Math.atan2(Math.sin(lead.heading - m.dir), Math.cos(lead.heading - m.dir)))).toBeLessThan(0.05);
+    expect(Math.hypot(m.a.x - A.x, m.a.y - A.y)).toBeLessThanOrEqual(R);
+    const end = bananaPos(m, m.flightMs);
+    expect(Math.hypot(end.x - D.x, end.y - D.y)).toBeLessThanOrEqual(R * 0.6);
+    expect(bananaPos(m, m.flightMs + 500)).toMatchObject({ x: end.x, y: end.y });
+    const mid = bananaPos(m, m.flightMs / 2);
+    expect((m.a.y + m.b.y) / 2 - mid.y).toBeGreaterThan(0.08 * Math.hypot(D.x - A.x, D.y - A.y));
+    expect(Math.sin(end.heading)).toBeGreaterThan(0); // it comes DOWN into the face
   });
 
-  it('a banana is LOBBED: a high ballistic arc (even sideways speed, falling faster) that comes down onto the struck portrait', () => {
-    const [m] = cannonRig(P1, A, D, R, R, C).shots;
-    const end = bananaPos(m!, m!.flightMs);
-    expect(Math.hypot(end.x - D.x, end.y - D.y)).toBeLessThanOrEqual(R * 0.6); // on the face
-    expect(bananaPos(m!, m!.flightMs + 500)).toMatchObject({ x: end.x, y: end.y });
-    // a real lob: the midpoint rises well above the straight line
-    const mid = bananaPos(m!, m!.flightMs / 2);
-    const lineY = (m!.a.y + m!.b.y) / 2;
-    expect(lineY - mid.y).toBeGreaterThan(0.08 * Math.hypot(D.x - A.x, D.y - A.y));
-    // even sideways speed (a quadratic at a linear parameter is a true parabola)
-    const x1 = bananaPos(m!, m!.flightMs * 0.25).x - bananaPos(m!, 0).x;
-    const x2 = bananaPos(m!, m!.flightMs).x - bananaPos(m!, m!.flightMs * 0.75).x;
-    expect(Math.abs(x1 - x2)).toBeLessThan(Math.abs(x1) * 0.25 + 1);
-    // and it comes DOWN into the face (heading below the horizontal, toward the bottom of the screen)
-    expect(Math.sin(end.heading)).toBeGreaterThan(0);
-    // it tumbles
-    expect(Math.abs(end.rot - bananaPos(m!, 0).rot)).toBeGreaterThan(Math.PI);
-  });
-
-  it('a barrage splats at spread positions across the face (never one stack), clear of the middle', () => {
-    const shots = cannonRig(P3, A, D, R, R, C).shots;
-    for (let i = 0; i < shots.length; i++) for (let j = i + 1; j < shots.length; j++) {
-      expect(Math.hypot(shots[i]!.b.x - shots[j]!.b.x, shots[i]!.b.y - shots[j]!.b.y), `${i}-${j}`).toBeGreaterThan(R * 0.08);
+  it('SPINS with BACKSPIN (owner: "the bananas should spin, not flip"): flying right it turns counter-clockwise, flying left clockwise, several turns', () => {
+    const right = bananaRig(P3, A, D, R, R, C).shots;
+    for (const m of right) {
+      expect(m.spin).toBeLessThan(0);
+      expect(Math.abs(bananaPos(m, m.flightMs).rot - bananaPos(m, 0).rot)).toBeGreaterThan(Math.PI * 2 * 1.5);
     }
-    for (const m of shots) expect(Math.hypot(m.b.x - D.x, m.b.y - D.y)).toBeLessThanOrEqual(R * 0.6);
+    const left = bananaRig(P3, D, A, R, R, C).shots;
+    for (const m of left) expect(m.spin).toBeGreaterThan(0);
+    // the giant spins too, slowing with the flight at the apex
+    const g = bananaRig(P4, A, D, R, R, C).shots.at(-1)!;
+    const at = (u: number): number => bananaPos(g, u * g.flightMs).rot;
+    const apexT = g.apex; // the slow part is round the apex
+    expect(Math.abs(at(apexT + 0.02) - at(apexT - 0.02))).toBeLessThan(Math.abs(at(0.04) - at(0)));
   });
 
-  it('Tier IV: the GIANT is lobbed far higher than the warm-ups, may leave the top of the frame, and slams DEAD CENTRE', () => {
-    const rig = cannonRig(P4, A, D, R, R, C, C.cannonLength, 36);
+  it('the hang ease: monotonic, ends pinned, slow at the apex and fast at both ends (0 = a plain ballistic arc)', () => {
+    expect(bananaEase(0, 0.7)).toBe(0);
+    expect(bananaEase(1, 0.7)).toBeCloseTo(1, 9);
+    expect(bananaEase(0.37, 0)).toBeCloseTo(0.37, 9);
+    let prev = -1;
+    for (let u = 0; u <= 1.0001; u += 0.01) { const e = bananaEase(u, 0.7); expect(e).toBeGreaterThanOrEqual(prev); prev = e; }
+    const rate = (u: number): number => (bananaEase(u + 0.005, 0.7) - bananaEase(u - 0.005, 0.7)) / 0.01;
+    expect(rate(0.5)).toBeLessThan(0.5);
+    expect(rate(0.05)).toBeGreaterThan(1.4);
+  });
+
+  it('a barrage splats at spread positions across the face (never one stack)', () => {
+    const shots = bananaRig(P3, A, D, R, R, C).shots;
+    for (let i = 0; i < shots.length; i++) for (let j = i + 1; j < shots.length; j++) {
+      expect(Math.hypot(shots[i]!.b.x - shots[j]!.b.x, shots[i]!.b.y - shots[j]!.b.y), `${i}-${j}`).toBeGreaterThan(R * 0.05);
+    }
+    for (const m of shots) expect(Math.hypot(m.b.x - D.x, m.b.y - D.y)).toBeLessThanOrEqual(R * 0.4);
+  });
+
+  it('Tier IV: the giant HANGS in view (its apex held below the top of the screen), then LANDS as a stake on the rim toward the thrower', () => {
+    const rig = bananaRig(P4, A, D, R, R, C, 36, null, C.giantHangY, 300);
     const g = rig.shots[rig.shots.length - 1]!;
     expect(g.giant).toBe(true);
-    expect(g.b).toEqual(D);
-    const apex = (m: typeof g): number => { let y = Infinity; for (let t = 0; t <= m.flightMs; t += 8) y = Math.min(y, bananaPos(m, t).y); return y; };
-    expect(apex(g)).toBeLessThan(apex(rig.shots[0]!) - 100);
-    expect(apex(g)).toBeLessThan(36); // out of the top of the frame
-    expect(apex(g)).toBeGreaterThanOrEqual(36 - C.giantOvershoot - 1); // but never past the overshoot
-    for (const m of rig.shots.slice(0, -1)) expect(m.c.y).toBeGreaterThanOrEqual(36); // the warm-ups stay in frame
+    let apex = Infinity;
+    for (let t = 0; t <= g.flightMs; t += 4) apex = Math.min(apex, bananaPos(g, t).y);
+    expect(apex).toBeGreaterThanOrEqual(36 + C.giantHangY - 30);
+    expect(apex).toBeLessThan(Math.min(A.y, D.y));
+    // its centre sits out from the rim by its unsunk half (a stake), on the line toward the thrower
+    expect(Math.hypot(g.b.x - D.x, g.b.y - D.y)).toBeCloseTo(R + 300 * (0.5 - C.jamDepthStart), 5);
+    expect((g.b.x - D.x) * (A.x - D.x) + (g.b.y - D.y) * (A.y - D.y)).toBeGreaterThan(0);
+    // it lingers near the top: a third of its flight is spent in the top tenth of its rise
+    const rise = Math.min(g.a.y, g.b.y) - apex;
+    let near = 0;
+    for (let t = 0; t <= g.flightMs; t += 4) if (bananaPos(g, t).y < apex + rise * 0.1) near += 4;
+    expect(near / g.flightMs).toBeGreaterThan(0.25);
   });
 
-  it('works both ways: a foe cannon fires from the top down onto you', () => {
-    const rig = cannonRig(P2, D, A, R, R, C);
-    expect(Math.hypot(rig.pivot.x - D.x, rig.pivot.y - D.y)).toBeCloseTo(R * 0.8, 5);
+  it('every small banana lands ON the struck portrait, never past it (owner 2026-09-29: "the little bananas in huge get sent too far"): every tier, both directions, 1920x1080 and 1600x900', () => {
+    // The real layouts: your portrait low in the status bar, the foe's high in the combat header (screen px).
+    const layouts: [string, Pt, Pt, number, number][] = [
+      ['1920x1080', { x: 960, y: 985 }, { x: 960, y: 150 }, 62, 70],
+      ['1600x900', { x: 800, y: 821 }, { x: 800, y: 125 }, 52, 58],
+      ['1600x900 offset', { x: 520, y: 820 }, { x: 1180, y: 130 }, 52, 58],
+    ];
+    for (const [name, you, them, ry, rt] of layouts) {
+      for (const [a, d, ra, rd, who] of [[you, them, ry, rt, 'you hit'], [them, you, rt, ry, 'foe hits']] as const) {
+        for (const total of [3, 8, 14, 40]) {
+          const p = bananaPlan({ total, distance: Math.hypot(d.x - a.x, d.y - a.y) }, C);
+          const rig = bananaRig(p, a, d, rd, ra, C, 36, { x: d.x, y: d.y - rd * 0.2 });
+          const L = Math.hypot(d.x - a.x, d.y - a.y);
+          const u = { x: (d.x - a.x) / L, y: (d.y - a.y) / L };
+          for (const m of rig.shots) {
+            if (m.giant) continue;
+            const tag = `${name} ${who} ${total}`;
+            const end = bananaPos(m, m.flightMs);
+            expect(Math.hypot(end.x - d.x, end.y - d.y), `${tag}: lands on the face`).toBeLessThanOrEqual(rd * 0.4);
+            // and never flies past the target along the line of the throw
+            for (let t = 0; t <= m.flightMs; t += 8) {
+              const q = bananaPos(m, t);
+              expect((q.x - a.x) * u.x + (q.y - a.y) * u.y, `${tag}: never past it`).toBeLessThanOrEqual(L + rd * 0.4);
+            }
+          }
+        }
+      }
+    }
+  });
+
+  it('works both ways: a foe flings from the top down onto you', () => {
+    const rig = bananaRig(P2, D, A, R, R, C);
     for (const m of rig.shots) {
+      expect(Math.hypot(m.a.x - D.x, m.a.y - D.y)).toBeLessThanOrEqual(R);
       const end = bananaPos(m, m.flightMs);
       expect(Math.hypot(end.x - A.x, end.y - A.y)).toBeLessThanOrEqual(R * 0.6);
     }
   });
 });
 
+describe('the jam (the striking portrait drives the stake in)', () => {
+  const LEN = 330;
+  const g = jamGeo(A, D, R, R, LEN, 6, C);
+  it('the stake enters the struck rim toward the thrower and sinks a step per slam, from jamDepthStart to jamDepthEnd', () => {
+    expect(Math.hypot(g.entry.x - D.x, g.entry.y - D.y)).toBeCloseTo(R, 6);
+    expect(g.depths).toHaveLength(7);
+    expect(g.depths[0]).toBeCloseTo(C.jamDepthStart, 6);
+    expect(g.depths[6]).toBeCloseTo(C.jamDepthEnd, 6);
+    for (let k = 1; k < g.depths.length; k++) expect(g.depths[k]!).toBeGreaterThan(g.depths[k - 1]!);
+  });
+
+  it('on each slam the striking portrait is ON the stake\'s outer end (its rim at the end, deeper every slam); rests before and after', () => {
+    expect(jamPose(P4, g, C, P4.dashAt - 1)).toMatchObject({ x: 0, y: 0, scale: 1 });
+    expect(jamPose(P4, g, C, P4.homeAt + 1)).toMatchObject({ x: 0, y: 0, scale: 1 });
+    let prev = -Infinity;
+    P4.slams.forEach((s, k) => {
+      const p = jamPose(P4, g, C, s);
+      const cx = A.x + p.x, cy = A.y + p.y;
+      const end = { x: g.entry.x - g.u.x * LEN * (1 - g.depths[k + 1]!), y: g.entry.y - g.u.y * LEN * (1 - g.depths[k + 1]!) };
+      expect(Math.hypot(cx - end.x, cy - end.y), `slam ${k + 1}`).toBeCloseTo(R * 0.72, 0);
+      const reach = p.x * g.u.x + p.y * g.u.y;
+      expect(reach).toBeGreaterThan(prev);
+      prev = reach;
+      expect(p.squash).toBeGreaterThan(0);
+    });
+    expect(jamPose(P1, g, C, P1.impactAt)).toMatchObject({ x: 0, y: 0 });
+  });
+
+  it('between slams it REELS BACK far (owner: "reel back further between hits"), further each time, the finisher furthest, swelling into it', () => {
+    const back = (i: number): number => {
+      let most = 0;
+      const anchor = g.contacts[i]!;
+      for (let t = P4.slams[i]!; t < P4.slams[i + 1]!; t += 4) {
+        const p = jamPose(P4, g, C, t);
+        most = Math.max(most, -((p.x - anchor.x) * g.u.x + (p.y - anchor.y) * g.u.y));
+      }
+      return most;
+    };
+    expect(back(0)).toBeGreaterThan(C.slamPullPx * 0.9);
+    for (let i = 1; i < 4; i++) expect(back(i)).toBeGreaterThan(back(i - 1));
+    expect(back(4)).toBeGreaterThan(back(3) * 1.3);
+    expect(back(3)).toBeGreaterThan(back(0) * 1.6); // much bigger reel-backs as it builds
+    const wind = jamPose(P4, g, C, P4.slams[4]! + (P4.slams[5]! - P4.slams[4]!) * 0.7);
+    expect(wind.scale).toBeGreaterThan(1.12);
+  });
+
+  it('never pauses: the pose keeps moving every frame through the jam (no freeze)', () => {
+    let still = 0;
+    let prev = jamPose(P4, g, C, P4.dashAt);
+    for (let t = P4.dashAt + 8; t < P4.impactAt; t += 8) {
+      const p = jamPose(P4, g, C, t);
+      if (Math.abs(p.x - prev.x) + Math.abs(p.y - prev.y) + Math.abs(p.scale - prev.scale) + Math.abs(p.squash - prev.squash) < 1e-6) still++;
+      prev = p;
+    }
+    expect(still).toBe(0);
+  });
+});
+
 describe('the camera', () => {
-  it('pushes in through the summon, punches in on the impact and shakes ALONG the banana; rests by the end', () => {
+  it('pushes in through the flourish, punches in on the impact and shakes ALONG the banana; rests by the end', () => {
     const dir = { x: 0.6, y: 0.8 };
     const hit = bananaCameraAt(P3, C, P3.impactAt, dir);
     expect(hit.zoom).toBeGreaterThan(1 + P3.zoom);
@@ -292,20 +425,23 @@ describe('the camera', () => {
     expect(Math.abs(rest.x) + Math.abs(rest.y)).toBeLessThan(0.8);
   });
 
-  it('Tier IV pushes in on the glint, EASES OUT as the giant climbs, and the slam punches hardest; focus follows the giant down', () => {
+  it('Tier IV eases OUT as the giant climbs, PUSHES IN over the finisher wind-up, and the finisher punches hardest', () => {
     const g = P4.shots[P4.shots.length - 1]!;
-    const glint = bananaCameraAt(P4, C, g.fireAt - 5);
-    const climb = bananaCameraAt(P4, C, g.fireAt + g.flightMs * 0.45);
-    expect(climb.zoom).toBeLessThan(glint.zoom);
-    const slam = bananaCameraAt(P4, C, P4.impactAt + 1);
-    expect(slam.zoom).toBeGreaterThan(bananaCameraAt(P3, C, P3.impactAt + 1).zoom);
-    expect(bananaCameraFocus(P4, P4.fireAt, A, D)).toEqual(A);
+    expect(bananaCameraAt(P4, C, P4.hangAt).zoom).toBeLessThan(bananaCameraAt(P4, C, g.fireAt - 5).zoom);
+    const s4 = P4.slams[4]!;
+    const wind0 = bananaCameraAt(P4, C, s4 + (P4.impactAt - s4) * 0.35).zoom;
+    const wind1 = bananaCameraAt(P4, C, P4.impactAt - 5).zoom;
+    expect(wind1 - wind0).toBeGreaterThan(C.finisherZoom * 0.5);
+    // every slam punches the view in harder than the last
+    const punch = P4.slams.slice(0, 5).map((at) => bananaCameraAt(P4, C, at + 12).zoom - bananaCameraAt(P4, C, at - 4).zoom);
+    for (let i = 1; i < punch.length; i++) expect(punch[i]!, `slam ${i + 1}`).toBeGreaterThan(punch[i - 1]!);
+    expect(bananaCameraAt(P4, C, P4.impactAt + 1).zoom).toBeGreaterThan(bananaCameraAt(P3, C, P3.impactAt + 1).zoom);
     expect(bananaCameraFocus(P4, g.fireAt, A, D)).toEqual(A);
     expect(bananaCameraFocus(P4, P4.impactAt, A, D)).toEqual(D);
-    expect(bananaCameraAt(P4, C, P4.endAt).zoom).toBeCloseTo(1, 2);
+    expect(bananaCameraAt(P4, C, P4.endAt + 400).zoom).toBeCloseTo(1, 2);
     let peak = 1;
     for (let t = P4.chargeAt; t < P4.endAt; t += 8) peak = Math.max(peak, bananaCameraAt(P4, C, t).zoom);
-    expect(peak).toBeLessThan(1.3);
+    expect(peak).toBeLessThan(1.35);
   });
 });
 
@@ -331,7 +467,7 @@ function run(over: Partial<HeroBananaOptions> = {}) {
   document.body.append(host, camera);
   const h = playHeroBanana({
     formation: formationOf([3, 2, 4], 9),
-    total: 9, side: 'player', attacker: { x: 100, y: 800 }, defender: { x: 1400, y: 150 }, defenderRadius: R,
+    total: 9, side: 'player', attacker: { x: 100, y: 800 }, defender: { x: 1400, y: 250 }, defenderRadius: R,
     reduced: false, cfg: C, onImpact, onDone, frames: f.frames, textures: TEX, sound: false, safety: false,
     mount: (c) => { root.addChild(c); return () => root.removeChild(c); }, host, camera, attackerEl, defenderEl,
     ...over,
@@ -339,103 +475,113 @@ function run(over: Partial<HeroBananaOptions> = {}) {
   return { h, f, root, onImpact, onDone, host, camera, attackerEl, defenderEl };
 }
 
+const translateOf = (el: HTMLElement): { x: number; y: number } => {
+  const m = /translate\(([-\d.]+)px, ([-\d.]+)px\)/.exec(el.style.transform);
+  return { x: m ? Number(m[1]) : 0, y: m ? Number(m[2]) : 0 };
+};
+
 describe('the runner (the shared clock)', () => {
   afterEach(() => { document.body.innerHTML = ''; });
 
-  it('THE BARRAGE lands the blow EXACTLY ONCE, on the LAST banana: never on a tick; peels stick; the cannon pops away; ends clean', () => {
+  it('THE BARRAGE lands the blow EXACTLY ONCE, on the LAST banana: never on a tick; painted splats play; ends clean', () => {
     const { h, f, root, onImpact, onDone, host, camera, attackerEl, defenderEl } = run({ total: 14, formation: formationOf([14], 14) });
-    expect(h.plan.shots).toHaveLength(6);
+    expect(h.plan.shots).toHaveLength(8);
     expect(host.querySelector('.hblast.hbanana')).not.toBeNull();
-    f.tick(h.plan.chargeAt + 40, 4);
-    expect(h.scene!.cannonUp).toBe(true);
-    f.tick(h.plan.hits[h.plan.hits.length - 1]! - h.elapsed() + 8, 4);
+    f.tick(h.plan.hits[h.plan.hits.length - 1]! + 8, 4);
     expect(onImpact).not.toHaveBeenCalled();
-    expect(h.scene!.stuckPeels).toBeGreaterThanOrEqual(3);
+    expect(h.scene!.liveSplats).toBeGreaterThan(0);
     f.tick(h.plan.impactAt - h.elapsed() - 12, 4);
     expect(onImpact).not.toHaveBeenCalled();
     f.tick(24, 4);
     expect(onImpact).toHaveBeenCalledTimes(1);
-    expect(h.elapsed()).toBeGreaterThanOrEqual(h.plan.impactAt); // the clock never pauses on it
+    expect(h.elapsed()).toBeGreaterThanOrEqual(h.plan.impactAt);
     expect(camera.style.transform).toContain('scale(');
     expect(defenderEl.style.transform).toContain('translate(');
-    expect(host.querySelector<HTMLElement>('.hblast-hit')!.style.opacity).toBe('1');
     expect(host.querySelector('.hblast-hit')!.textContent).toBe('-14');
     f.tick(h.plan.endAt - h.plan.impactAt + 32, 8);
     expect(onDone).toHaveBeenCalledTimes(1);
     expect(onImpact).toHaveBeenCalledTimes(1);
-    expect(h.scene!.cannonUp).toBe(false); // stowed
     expect(h.scene!.liveBananas).toBe(0);
     expect(host.querySelector('.hblast')).toBeNull();
     expect(camera.style.transform).toBe('');
     expect(attackerEl.style.transform).toBe('');
     expect(defenderEl.style.transform).toBe('');
-    f.tick(4000, 16); // the peels and chunks drain, then the updater unhooks and the layer unmounts
+    f.tick(4000, 16);
     expect(f.hooked()).toBe(0);
     expect(root.children).toHaveLength(0);
   });
 
-  it('Tier IV: the warm-ups splat (ticks), the crown glints, the giant flies, the ring locks on, and the blow lands ONCE on the SLAM', () => {
-    const { h, f, onImpact } = run({ total: 40, formation: formationOf([40], 40) });
-    expect(h.plan.giant).toBe(true);
-    f.tick(h.plan.glintAt + 40, 4);
-    expect(h.scene!.glinting).toBe(true);
-    expect(onImpact).not.toHaveBeenCalled();
-    f.tick(h.plan.markAt - h.elapsed() + 20, 4);
-    expect(h.scene!.glinting).toBe(false); // released by the giant's shot
+  it('Tier IV THE JAM: the giant lands as a stake, the striking PORTRAIT dashes over and drives it in SIX times (on top of it, deeper and flatter each slam, blood from slam 4), and the blow lands ONCE on the FINISHER', () => {
+    const { h, f, onImpact, attackerEl } = run({ total: 40, formation: formationOf([40], 40) });
+    const p = h.plan;
+    expect(p.giant).toBe(true);
+    expect(p.slams).toHaveLength(6);
+    f.tick(p.glintAt + 40, 4);
+    expect(h.scene!.blazing).toBe(true);
+    f.tick(p.hangAt - h.elapsed() + 20, 4);
+    expect(h.scene!.blazing).toBe(false);
     expect(h.scene!.marking).toBe(true);
-    expect(h.scene!.liveBananas).toBe(1); // the giant, in flight
-    f.tick(h.plan.impactAt - h.elapsed() - 12, 4);
+    expect(h.scene!.glinting).toBe(true);
+    f.tick(p.landAt - h.elapsed() + 20, 4);
+    expect(h.scene!.stuckBanana).toBe(true);
+    expect(h.scene!.marking).toBe(false);
+    expect(h.scene!.strikerOnTop).toBe(false);
+    expect(onImpact).not.toHaveBeenCalled();
+    const home = translateOf(attackerEl);
+    expect(Math.hypot(home.x, home.y)).toBeLessThan(120); // not dashed yet (only the fling's recoil)
+    let sunk = h.scene!.sunk;
+    const bloodLayer = h.scene!.layer('splat');
+    for (let i = 0; i < 5; i++) {
+      const before = bloodLayer.children.filter((c) => c.visible && [0xb3121e, 0x8a0c14, 0xd4202a, 0x6e0a10].includes((c as unknown as { tint: number }).tint)).length;
+      f.tick(p.slams[i]! - h.elapsed() + 8, 4);
+      expect(h.scene!.crush, `slam ${i + 1}`).toBe(i + 1);
+      expect(h.scene!.sunk, `slam ${i + 1} drives it deeper`).toBeGreaterThan(sunk);
+      sunk = h.scene!.sunk;
+      expect(h.scene!.strikerOnTop, `slam ${i + 1}: the striker is on top`).toBe(true);
+      const at = translateOf(attackerEl);
+      expect(Math.hypot(at.x, at.y), `slam ${i + 1} reaches`).toBeGreaterThan(900); // the portrait itself is across the board
+      const after = bloodLayer.children.filter((c) => c.visible && [0xb3121e, 0x8a0c14, 0xd4202a, 0x6e0a10].includes((c as unknown as { tint: number }).tint)).length;
+      if (i + 1 >= C.bloodStart) expect(after, `slam ${i + 1} bleeds`).toBeGreaterThan(before);
+      else expect(after, `slam ${i + 1} does not bleed`).toBe(before);
+      expect(onImpact, `slam ${i + 1} is a tick`).not.toHaveBeenCalled();
+    }
+    f.tick(p.impactAt - h.elapsed() - 12, 4);
     expect(onImpact).not.toHaveBeenCalled();
     f.tick(24, 4);
     expect(onImpact).toHaveBeenCalledTimes(1);
-    expect(h.scene!.marking).toBe(false);
-    expect(h.scene!.liveBananas).toBe(0);
-    expect(h.scene!.stuckPeels).toBeGreaterThanOrEqual(h.plan.peels);
+    expect(h.scene!.stuckBanana).toBe(false); // burst into the finale
     expect(h.scene!.liveSprites).toBeLessThanOrEqual(MAX_BANANA_SPRITES);
-    f.tick(h.plan.endAt + 3000, 8);
+    f.tick(p.homeAt - h.elapsed() + 20, 4);
+    expect(h.scene!.masked, 'home again: the cut is lifted').toBe(false);
+    f.tick(p.endAt + 3000, 8);
     expect(onImpact).toHaveBeenCalledTimes(1);
+    expect(attackerEl.style.transform).toBe('');
     expect(f.hooked()).toBe(0);
+  });
+
+  it('the struck portrait DENTS along the blow on each slam (compressed toward the push, bulging across it)', () => {
+    const { h, f, defenderEl } = run({ total: 40, formation: formationOf([40], 40) });
+    f.tick(h.plan.slams[2]! + 30, 4);
+    expect(defenderEl.style.transform).toMatch(/rotate\(.*scale\(.*rotate\(/);
+    const sc = /scale\(([\d.]+), ([\d.]+)\)/.exec(defenderEl.style.transform)!;
+    expect(Number(sc[1])).toBeLessThan(Number(sc[2]));
+    h.cancel();
   });
 
   it('works in both directions at every tier (the blow lands on whichever hero is struck), inside the sprite cap', () => {
     for (const side of ['player', 'opp'] as const) {
       for (const total of [3, 8, 12, 40]) {
-        const a = side === 'player' ? { x: 100, y: 800 } : { x: 1400, y: 150 };
-        const d = side === 'player' ? { x: 1400, y: 150 } : { x: 100, y: 800 };
+        const a = side === 'player' ? { x: 100, y: 800 } : { x: 1400, y: 250 };
+        const d = side === 'player' ? { x: 1400, y: 250 } : { x: 100, y: 800 };
         const { h, f, onImpact } = run({ side, attacker: a, defender: d, total, formation: formationOf([total], total) });
         let peak = 0;
-        for (let t = 0; t < h.plan.impactAt + 400; t += 16) { f.tick(16, 16); peak = Math.max(peak, h.scene!.liveSprites); }
+        for (let t = 0; t < h.plan.impactAt + 500; t += 16) { f.tick(16, 16); peak = Math.max(peak, h.scene!.liveSprites); }
         expect(onImpact, `${side} ${total}`).toHaveBeenCalledTimes(1);
         expect(peak).toBeLessThanOrEqual(MAX_BANANA_SPRITES);
-        for (const m of h.rig.shots) expect(Math.hypot(m.b.x - d.x, m.b.y - d.y)).toBeLessThanOrEqual(R * 0.6); // into the struck hero
-        expect(Math.hypot(h.rig.pivot.x - a.x, h.rig.pivot.y - a.y)).toBeLessThanOrEqual(R); // fired from the attacker
+        for (const m of h.rig.shots) if (!m.giant) expect(Math.hypot(m.b.x - d.x, m.b.y - d.y)).toBeLessThanOrEqual(R * 0.6);
         h.cancel();
       }
     }
-  });
-
-  it('the cannon FLIPS to stay upright when it fires to the left (it is never drawn upside down)', () => {
-    const { h, f, root } = run({ side: 'opp', attacker: { x: 1400, y: 150 }, defender: { x: 100, y: 800 }, total: 3, formation: formationOf([3], 3) });
-    f.tick(h.plan.fireAt + 20, 4);
-    expect(Math.cos(h.scene!.cannonRot!)).toBeLessThan(0);
-    const layer = root.children[0] as Container;
-    const parts = ['banana-body', 'banana-trim', 'banana-ink'].map((l) => layer.children.find((c) => c.label === l) as Container);
-    // the barrel, the trim and the dark details each sit on their own layer (a fixed draw order), all flipped
-    for (const l of parts) expect(l.children.some((c) => c.visible && c.scale.y < 0), l.label).toBe(true);
-    h.cancel();
-  });
-
-  it('stuck peels RIDE the struck portrait\'s knockback (they never float off it)', () => {
-    const { h, f, root } = run({ total: 3, formation: formationOf([3], 3) });
-    f.tick(h.plan.impactAt + 40, 4);
-    expect(h.scene!.stuckPeels).toBeGreaterThan(0);
-    const layer = root.children[0] as Container;
-    const bodies = (layer.children.find((c) => c.label === 'banana-body') as Container).children.filter((c) => c.visible);
-    const m = h.rig.shots[0]!;
-    // the peel at the impact point has moved with the knockback, not pinned to the resting spot
-    const moved = bodies.some((b) => { const off = Math.hypot(b.x - m.b.x, b.y - m.b.y); return off > 1 && off < 40; });
-    expect(moved).toBe(true);
-    h.cancel();
   });
 
   it('slow motion stretches real time but the impact is still the same sequence beat', () => {
@@ -457,7 +603,7 @@ describe('the runner (the shared clock)', () => {
     a.h.cancel(); b.h.cancel();
   });
 
-  it('finish() before impact still lands the blow once and ends; cancel() never lands it', () => {
+  it('finish() before impact still lands the blow once and ends; cancel() mid-jam never lands it and puts the portraits back', () => {
     const a = run();
     a.f.tick(600);
     a.h.finish();
@@ -465,8 +611,9 @@ describe('the runner (the shared clock)', () => {
     expect(a.onDone).toHaveBeenCalledTimes(1);
     expect(a.f.hooked()).toBe(0);
     expect(a.root.children).toHaveLength(0);
-    const b = run({ total: 40 });
-    b.f.tick(b.h.plan.glintAt + 100);
+    const b = run({ total: 40, formation: formationOf([40], 40) });
+    b.f.tick(b.h.plan.slams[1]! + 40);
+    expect(b.attackerEl.style.transform).not.toBe('');
     b.h.cancel();
     b.f.tick(5000);
     expect(b.onImpact).not.toHaveBeenCalled();
@@ -510,72 +657,119 @@ describe('the runner (the shared clock)', () => {
 });
 
 describe('the scene (headless Pixi)', () => {
-  it('a whole Tier IV stays in the cap and drains; destroy leaves nothing', () => {
+  it('a whole Tier IV (warm-ups, blaze, giant, land, four slams, finale) stays in the cap and drains; destroy leaves nothing', () => {
     const s = new HeroBananaScene(TEX, COLORS, LOOK, 1, 42);
-    const rig = cannonRig(P4, A, D, R, R, C);
-    s.summon(rig.pivot, rig.rest, rig.shots[0]!.dir, 240);
+    const rig = bananaRig(P4, A, D, R, R, C);
+    const jg = jamGeo(A, D, R, R, 330, 6, C);
+    const u = jg.u;
+    s.flourish(A.x, A.y, R, 400);
     for (let i = 0; i < 25; i++) s.update(16);
     let peak = 0;
-    rig.shots.slice(0, -1).forEach((m, i) => { s.pump(); s.fire(m, 0.9, 0, i); });
+    rig.shots.slice(0, -1).forEach((m, i) => s.fling(m, 1, 0, i));
     for (let i = 0; i < 40; i++) { s.update(16); peak = Math.max(peak, s.liveSprites); }
     rig.shots.slice(0, -1).forEach((_, i) => s.hit(i, D.x, D.y, R, i));
-    s.glint(520);
-    for (let i = 0; i < 32; i++) { s.update(16); peak = Math.max(peak, s.liveSprites); }
-    expect(s.glinting).toBe(true);
-    const g = rig.shots[rig.shots.length - 1]!;
-    s.pump(1.6); s.fire(g, 2.6, 0, rig.shots.length - 1);
-    expect(s.glinting).toBe(false);
-    s.startMark(D.x, D.y, R, 500);
-    s.stow();
-    for (let i = 0; i < 40; i++) { s.update(16); peak = Math.max(peak, s.liveSprites); }
-    s.slam(rig.shots.length - 1, D.x, D.y, R, { burst: 1.9, chunks: 44, peels: 8, flashAlpha: 0.85 });
+    s.flourish(A.x, A.y, R, 540, true);
+    for (let i = 0; i < 30; i++) { s.update(16); peak = Math.max(peak, s.liveSprites); }
+    expect(s.blazing).toBe(true);
+    const gi = rig.shots.length - 1;
+    s.fling(rig.shots[gi]!, 3.2, 0, gi);
+    s.hang(gi, rig.shots[gi]!.b, R, 500);
+    for (let i = 0; i < 70; i++) { s.update(16); peak = Math.max(peak, s.liveSprites); }
+    s.land(gi, { entry: jg.entry, u, len: 330, depth: jg.depths[0]! });
+    expect(s.stuckBanana).toBe(true);
+    s.setCuts({ x: A.x, y: A.y, r: R });
+    expect(s.strikerOnTop).toBe(true);
+    for (let k = 0; k < 5; k++) { s.slam(k, jg.depths[k + 1]!, Math.max(0, k - 2)); for (let i = 0; i < 15; i++) { s.update(16); peak = Math.max(peak, s.liveSprites); } }
+    expect(s.crush).toBe(5);
+    s.slam(5, jg.depths[6]!, 3);
+    s.finale(gi, D.x, D.y, R, { burst: 1, juice: 200, flashAlpha: 0.85 });
     s.boom(D.x + 40, D.y, 1); s.boom(D.x - 40, D.y, 1.1); s.boom(D.x, D.y + 40, 1.2);
-    peak = Math.max(peak, s.liveSprites);
+    for (let i = 0; i < 20; i++) { s.update(16); peak = Math.max(peak, s.liveSprites); }
     expect(peak).toBeLessThanOrEqual(MAX_BANANA_SPRITES);
     expect(s.liveBananas).toBe(0);
-    expect(s.marking).toBe(false);
+    s.setCuts(null);
+    expect(s.strikerOnTop).toBe(false);
+    expect(s.masked).toBe(false); // really lifted (a leftover mask would hide everything outside the striker's circle)
     let alive = true;
-    for (let i = 0; i < 600 && alive; i++) alive = s.update(16);
+    for (let i = 0; i < 800 && alive; i++) alive = s.update(16);
     expect(alive).toBe(false);
     expect(s.liveSprites).toBe(0);
-    expect(s.cannonUp).toBe(false);
     s.destroy();
     expect(s.root.destroyed).toBe(true);
   });
 
-  it('draws finite geometry every frame (no NaN at the pop, the shot, in flight, the recoil or the splat)', () => {
-    const s = new HeroBananaScene(TEX, COLORS, LOOK, 1, 3);
-    const rig = cannonRig(P1, A, D, R, R, C);
-    s.summon(rig.pivot, rig.rest, rig.shots[0]!.dir, 240);
-    s.update(16);
-    s.fire(rig.shots[0]!, 1.1, 0, 0);
-    for (let t = 0; t < rig.shots[0]!.flightMs + 400; t += 16) {
-      s.update(16);
-      for (const l of s.root.children as Container[]) {
-        for (const ch of l.children) {
-          if (!ch.visible) continue;
-          expect(Number.isFinite(ch.x) && Number.isFinite(ch.y) && Number.isFinite(ch.rotation) && Number.isFinite(ch.scale.x) && Number.isFinite(ch.scale.y)).toBe(true);
-        }
-      }
+  it('blood grows sharply with the slam (hits 5 and 6 far more), and juice DRIPS run down the face, over the rim, and linger through the finale', () => {
+    const s = new HeroBananaScene(TEX, COLORS, LOOK, 1, 5);
+    const rig = bananaRig(P4, A, D, R, R, C);
+    const jg = jamGeo(A, D, R, R, 330, 6, C);
+    const gi = rig.shots.length - 1;
+    s.fling(rig.shots[gi]!, 3.2, 0, gi);
+    s.land(gi, { entry: jg.entry, u: jg.u, len: 330, depth: jg.depths[0]!, face: { x: D.x, y: D.y, r: R } });
+    const red = (): number => s.layer('splat').children.filter((c) => c.visible && [0xb3121e, 0x8a0c14, 0xd4202a, 0x6e0a10].includes((c as unknown as { tint: number }).tint)).length;
+    const shed: number[] = [];
+    for (let k = 0; k < 3; k++) {
+      const before = red();
+      s.slam(3 + k, jg.depths[4 + k]!, k + 1);
+      shed.push(red() - before);
+      for (let i = 0; i < 6; i++) s.update(16);
     }
-    s.impact(0, D.x, D.y, R, { tier: 1, k: 0, burst: 1, chunks: 10, peels: 1, flashAlpha: 0.85 });
-    s.update(16);
-    expect(s.liveBananas).toBe(0);
+    expect(shed[1]!).toBeGreaterThan(shed[0]! * 2.5);
+    expect(shed[2]!).toBeGreaterThan(shed[1]! * 1.8);
+    // the drips: yellow streams whose heads have run DOWN (below where they started), some past the portrait's bottom
+    const juice = [0xfce400, 0xebb912];
+    const streams = (): { y: number; h: number }[] => s.layer('splat').children
+      .filter((c) => c.visible && juice.includes((c as unknown as { tint: number }).tint))
+      .map((c) => ({ y: c.y, h: c.height }));
+    expect(streams().length).toBeGreaterThan(8);
+    for (let i = 0; i < 90; i++) s.update(16);
+    expect(Math.max(...streams().map((q) => q.y + q.h))).toBeGreaterThan(D.y + R);
+    s.finale(gi, D.x, D.y, R, { burst: 1, juice: 200, flashAlpha: 0.85 });
+    for (let i = 0; i < 60; i++) s.update(16);
+    expect(streams().length).toBeGreaterThan(8); // still running after the burst
+    let alive = true;
+    for (let i = 0; i < 800 && alive; i++) alive = s.update(16);
+    expect(alive).toBe(false);
+    expect(s.liveSprites).toBe(0);
     s.destroy();
   });
 
-  it('clear() drops everything in flight at once; the pool is reused, not regrown', () => {
+  it('every banana is ONE painted side-on cell, SPINNING (never flipping through frames); a splat plays its sheet through once', () => {
+    const frames = Array.from({ length: 16 }, () => new Texture({ source: W.source }));
+    const splat = Array.from({ length: 14 }, () => new Texture({ source: W.source }));
+    const s = new HeroBananaScene({ ...TEX, banana: frames, splat }, COLORS, LOOK, 1, 3);
+    const m = bananaRig(P1, A, D, R, R, C).shots[0]!;
+    s.fling(m, 1, 0, 0);
+    const body = s.layer('body').children.find((c) => c.visible) as unknown as { texture: Texture; rotation: number };
+    const seen = new Set<Texture>();
+    const rots: number[] = [];
+    for (let t = 0; t < 400; t += 16) { s.update(16); seen.add(body.texture); rots.push(body.rotation); }
+    expect([...seen]).toEqual([frames[SIDE_FRAME]]);
+    for (let i = 1; i < rots.length; i++) expect(rots[i]!).toBeLessThan(rots[i - 1]!); // turning steadily (backspin, flying right)
+    s.hit(0, D.x, D.y, R, 0);
+    const sp = s.layer('splat').children.find((c) => c.visible) as unknown as { texture: Texture };
+    const order: number[] = [];
+    for (let t = 0; t < LOOK.splatMs; t += 16) { s.update(16); order.push(splat.indexOf(sp.texture)); }
+    for (let i = 1; i < order.length; i++) expect(order[i]!).toBeGreaterThanOrEqual(order[i - 1]!);
+    expect(order[order.length - 1]).toBeGreaterThan(10);
+    s.destroy();
+  });
+
+  it('draws finite geometry every frame; clear() drops everything and the pool is reused, not regrown', () => {
     const s = new HeroBananaScene(TEX, COLORS, LOOK, 1, 9);
-    const rig = cannonRig(P3, A, D, R, R, C);
-    s.summon(rig.pivot, rig.rest, rig.shots[0]!.dir);
-    rig.shots.forEach((m, i) => s.fire(m, 1, 0, i));
-    s.update(16);
+    const rig = bananaRig(P3, A, D, R, R, C);
+    rig.shots.forEach((m, i) => s.fling(m, 1, 0, i));
+    for (let t = 0; t < 300; t += 16) {
+      s.update(16);
+      for (const l of ['glow', 'body', 'core', 'splat', 'haze'] as const) for (const ch of s.layer(l).children) {
+        if (!ch.visible) continue;
+        expect(Number.isFinite(ch.x) && Number.isFinite(ch.y) && Number.isFinite(ch.rotation) && Number.isFinite(ch.scale.x) && Number.isFinite(ch.scale.y)).toBe(true);
+      }
+    }
     const pooled = s.pooledSprites;
     s.clear();
     expect(s.liveSprites).toBe(0);
     expect(s.update(16)).toBe(false);
-    s.summon(rig.pivot, rig.rest, rig.shots[0]!.dir);
-    rig.shots.forEach((m, i) => s.fire(m, 1, 0, i));
+    rig.shots.forEach((m, i) => s.fling(m, 1, 0, i));
     s.update(16);
     expect(s.pooledSprites).toBeLessThanOrEqual(pooled + 10);
     s.destroy();
@@ -583,7 +777,7 @@ describe('the scene (headless Pixi)', () => {
 });
 
 describe('the cosmetic', () => {
-  it('King Oona\'s Banana Cannon (attack_banana) is a Legendary crate hero attack that plays the Banana Cannon; the dev override can force it; the other styles unchanged; unknown ids play Classic', () => {
+  it("Oona's Banana Cannon (attack_banana) is a Legendary crate hero attack that plays the banana style; the dev override can force it; unknown ids play Classic", () => {
     expect(COSMETIC_INDEX.attack_banana).toMatchObject({ category: 'hero_attack', rarity: 'legendary', name: "Oona's Banana Cannon", assets: { style: 'banana' }, active: true });
     expect(HERO_ATTACK_STYLES).toEqual(['classic', 'blast', 'quake', 'arcana', 'blades', 'enraged', 'poison', 'frost', 'holy', 'banana']);
     expect(styleOfCosmetic('attack_banana')).toBe('banana');

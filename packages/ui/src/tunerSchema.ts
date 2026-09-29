@@ -275,6 +275,9 @@ export interface TunerSpec<C extends object> {
    */
   copy?: () => string;
   copyLabel?: string;
+  /** Put the Copy / Reset / action button row at the TOP of the panel instead of the foot (the hero attack
+   *  tuners, owner 2026-09-29). */
+  buttonsTop?: boolean;
 }
 
 /**

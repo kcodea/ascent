@@ -6523,6 +6523,10 @@ svg { width: 18px; height: 18px; }
   transition: filter 0.14s ease, border-color 0.14s ease;
 }
 .tunerpanel .lunge-btns { padding: 12px 12px 0; gap: 8px; }
+/* The row at the TOP (`buttonsOnTop`): pad under it and rule it off from the controls it now sits above. */
+.tunerpanel .lunge-btns.tuner-btns-top { flex-wrap: wrap; padding: 10px 12px; border-bottom: 1px solid var(--line); }
+/* A dozen Play buttons squeezed onto one line wrapped every label letter by letter: let them flow onto rows. */
+.tunerpanel .lunge-btns.tuner-btns-top .sfxmix-copy { width: auto; flex: 1 0 auto; padding: 6px 9px; }
 .tunerpanel .sfxmix-copy { margin-top: 0; font-size: 12.5px; }
 .tunerpanel .sfxmix-copy:hover, .tunerpanel .tuner-cmp:hover:not(:disabled) {
   filter: brightness(1.12); border-color: #7a6236; }

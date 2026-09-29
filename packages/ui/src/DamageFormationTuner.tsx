@@ -1,6 +1,6 @@
 import {
-  FORMATION_CLIP_KEYS, FORMATION_DEFAULTS, FORMATION_RANGES, FORMATION_SPEEDS, formationConfigJson, formationPlan, formationPreviewSpeed,
-  getFormationConfig, resetFormationConfig, setFormationPreviewSpeed, setFormationValue,
+  FORMATION_CLIP_KEYS, FORMATION_DEFAULTS, FORMATION_RANGES, formationConfigJson, formationPlan, 
+  getFormationConfig, resetFormationConfig, setFormationValue,
   type FormationConfig, type FormationNumKey,
 } from './heroAttack/formationConfig';
 import { playAttackDemo, previewFormation, previewTiers, type PreviewBoard } from './heroAttack/attackDemo';
@@ -26,7 +26,7 @@ import type { TunerControl, TunerSpec, TunerUnit } from './tunerSchema';
  * The Play buttons run the real formation, then the chosen attack, between the two real hero portraits (works from
  * the shop; the numbers rise off your real cards' tier badges when you have cards up), on a chosen board: how many
  * minions, their tiers (spread low to high across the row), the hero's tier and a round cap (0 = uncapped). A preview
- * never touches the run. Speeds are 1x / 0.5x / 0.25x. localStorage in DEV only; production plays the baked defaults.
+ * never touches the run. Always 1x, full motion. localStorage in DEV only; production plays the baked defaults.
  */
 const STYLES = ['classic', 'blast', 'quake', 'arcana', 'blades'] as const;
 type PreviewStyle = (typeof STYLES)[number];
@@ -171,14 +171,14 @@ export function demo(
   const c = getFormationConfig();
   const formationCfg = opts.flip ? { ...c, joinDir: c.joinDir === 1 ? 0 : 1 } : c;
   return playAttackDemo(side, RUNNERS[opts.style ?? previewStyle], {
-    board: opts.board ?? boardOf(), speed: formationPreviewSpeed(), reduced: opts.reduced, formationCfg,
+    board: opts.board ?? boardOf(), speed: 1, reduced: opts.reduced, formationCfg,
     frames: opts.frames, sound: opts.sound, safety: opts.safety,
   }, () => { live = null; }).then((h) => { live = h; return h; });
 }
 
 // DEV: a console / capture-rig handle on the same player the buttons use.
 if (import.meta.env.DEV && typeof window !== 'undefined') {
-  (window as unknown as { __dmgFormation?: unknown }).__dmgFormation = { demo, boardOf, setSpeed: setFormationPreviewSpeed };
+  (window as unknown as { __dmgFormation?: unknown }).__dmgFormation = { demo, boardOf };
 }
 
 export const SPEC: TunerSpec<FormationTunerValues> = {
@@ -189,7 +189,7 @@ export const SPEC: TunerSpec<FormationTunerValues> = {
     const b = boardOf();
     const { data } = previewFormation(b);
     const p = formationPlan({ minions: b.minionTiers.length, hero: true, capped: formationCapped(data) }, c);
-    return `dev · ${formationPreviewSpeed()}x · ${b.minionTiers.length} minion${b.minionTiers.length === 1 ? '' : 's'} · ${data.full}${p.capped ? ` capped to ${data.total}` : ''} · join ${Math.round(p.joinAt)} · attack at ${Math.round(p.endAt)} ms`;
+    return `dev · ${b.minionTiers.length} minion${b.minionTiers.length === 1 ? '' : 's'} · ${data.full}${p.capped ? ` capped to ${data.total}` : ''} · join ${Math.round(p.joinAt)} · attack at ${Math.round(p.endAt)} ms`;
   },
   read: () => ({ ...getFormationConfig(), ...getClassicConfig(), previewStyle }),
   write: (key, value) => { if (isClassicKey(key)) setClassicValue(key, value); else setFormationValue(key as keyof FormationConfig, value); },
@@ -204,6 +204,7 @@ export const SPEC: TunerSpec<FormationTunerValues> = {
   copy: () => `{"formation": ${formationConfigJson()},
 "classic": ${JSON.stringify(getClassicConfig(), null, 2)}}`,
   copyLabel: 'Copy JSON',
+  buttonsOnTop: true,
   actions: [
     { label: '▶ You attack', hint: 'Your hero builds the preview board\'s damage, then attacks the foe.', run: () => { void demo('player'); } },
     { label: '▶ Foe attacks', hint: 'The foe builds the preview board\'s damage, then attacks your hero.', run: () => { void demo('opp'); } },
@@ -213,12 +214,6 @@ export const SPEC: TunerSpec<FormationTunerValues> = {
     { label: '▶ Full board, capped', hint: 'Seven survivors, tiers 3 to 6, hero tier 6, capped to 20.', run: () => { void demo('player', { board: boardOf({ minions: 7, lo: 3, hi: 6, hero: 6, cap: 20 }) }); } },
     { label: '▶ Full board, uncapped', hint: 'Seven survivors, tiers 1 to 6, hero tier 5, no cap (round 16 on).', run: () => { void demo('player', { board: boardOf({ minions: 7, lo: 1, hi: 6, hero: 5, cap: 0 }) }); } },
     { label: '▶ No minions', hint: 'Only the hero\'s tier (an older result with no breakdown plays like this too).', run: () => { void demo('player', { board: boardOf({ minions: 0, hero: 4, cap: 0 }) }); } },
-    { label: '▶ Reduced motion', hint: 'What a player with reduced motion on sees: the same stages as quick fades.', run: () => { void demo('player', { reduced: true }); } },
-    ...FORMATION_SPEEDS.map((s) => ({
-      label: `Speed ${s}x`,
-      hint: 'Slow motion for the next plays (the tuner only; never saved, never in production).',
-      run: () => { setFormationPreviewSpeed(s); },
-    })),
   ],
 };
 

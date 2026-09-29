@@ -138,6 +138,16 @@ export const PATCH_NOTES: PatchNote[] = [
         text: "Mimic can no longer pick Kindness's hero power. It only works every 4th turn, so it was almost always a wasted pick.",
       },
       {
+        category: 'Balance',
+        text: 'Quitting a rated game now counts as finishing in the lowest place still open, and your Rating changes to match.',
+        details: [
+          'With nobody out yet, quitting counts as 8th. With one player out, it counts as 7th.',
+          'Quitting means clearing your saved game, or starting a new game over it.',
+          'Save & Quit is not quitting. Continue picks the game back up and it counts when it really ends.',
+          'Practice and the tutorial are not affected.',
+        ],
+      },
+      {
         category: 'Systems',
         text: 'Hero titles. Finish 1st in 3 Ranked games with a hero to earn its title. Reach 10 and it becomes a golden plate with embroidered text.',
         details: [
@@ -150,6 +160,27 @@ export const PATCH_NOTES: PatchNote[] = [
       {
         category: 'Systems',
         text: 'Unit voices and creature sounds when you play a unit or it dies are now half as loud.',
+      },
+      {
+        category: 'Systems',
+        text: 'Gold you pay to use Equipment now counts as Gold spent.',
+        details: [
+          'It counts toward Gold spent this turn and toward every card, rune and quest that tracks Gold spent.',
+        ],
+      },
+      {
+        category: 'Systems',
+        text: 'New Rules page. Click the golden question mark in the bottom right (or open the Compendium and click Rules) and search any question about how the game works.',
+        details: [
+          'The golden book next to it opens the Compendium, no Tab key needed. Both buttons are on the home screen too.',
+          'Covers the basics, the shop, combat, keywords, the lobby and Rating, and the controls.',
+          'Search in your own words, like "sell", "who attacks first" or "Ward", or narrow it down with the topic buttons.',
+          'Open a question to read the answer. "See also" links jump to related questions.',
+        ],
+      },
+      {
+        category: 'Systems',
+        text: 'Opening the menu (Esc) now pauses your shop timer.',
       },
       {
         category: 'Systems',
@@ -218,11 +249,34 @@ export const PATCH_NOTES: PatchNote[] = [
       },
       {
         category: 'Systems',
-        text: 'Units now make a quiet death sound when they die in combat. Before, most of them were silent.',
+        text: 'Units now make a death sound when they die in combat. Before, most of them were silent.',
       },
       {
         category: 'Systems',
         text: 'Unit voices and creature sounds when you play a unit or it dies are now much quieter.',
+      },
+      {
+        category: 'Systems',
+        text: 'A new Legendary hero attack, Hemorrhage, can drop from crates.',
+        details: [
+          'Your damage builds up, then your hero draws a blade and swings crimson crescents at the other hero.',
+          'Each one cuts across the face and leaves a gash that bleeds. Bigger hits cut a cross, then a flurry that ends in a claw rake.',
+          'On the biggest hits it goes completely over the top: the wounds throb like a heartbeat, then a huge slash zips across the whole screen eight times, faster and faster, flinging blood that piles up all over the board, a beat of held breath, and the other hero bursts in an enormous bloody explosion that paints the whole screen red.',
+          'Equip it from the Attack Animations tab of the Collection. There is a preview button there too.',
+          'Hero attacks are looks only. The damage is exactly the same.',
+        ],
+      },
+      {
+        category: 'Systems',
+        text: "A new Legendary hero attack, Oona's Banana Cannon, can drop from crates.",
+        details: [
+          "Your damage builds up, then your hero flings King Oona's painted bananas, spinning, at the other hero.",
+          'They burst into juicy splats. Bigger hits fling two, then a whole barrage.',
+          'On the biggest hits a giant golden banana arcs high, hangs, and lands stuck in the other hero.',
+          'Then your hero rushes in and slams it in six times, driving it deeper each time. It ends in a huge splat and a shower of bananas.',
+          'Equip it from the Attack Animations tab of the Collection. There is a preview button there too.',
+          'Hero attacks are looks only. The damage is exactly the same.',
+        ],
       },
     ],
   },

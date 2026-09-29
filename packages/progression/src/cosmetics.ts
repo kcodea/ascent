@@ -278,6 +278,17 @@ export const COSMETICS: readonly CosmeticDef[] = Object.freeze([
   // pair, III a pack of five kicking up dust, IV a colossal beast whose jaws slam over the whole portrait, then it roars.
   // The name is the builder's placeholder for the owner to rename (the id stays). Legendary like the other eight.
   heroAttack('attack_beast', 'Stampede', 'legendary', 'beast'),
+  // Owner 2026-09-29: "make some more attack types ... i would love a king oona banana cannon animation. use the same 4
+  // tier strategy we have been." King Oona's gold-trimmed jungle cannon pops in by the hero and lobs bananas that splat
+  // into the target (I one, II a double shot, III a rapid barrage); IV fires a giant golden banana that arcs out of the
+  // top of the screen and slams down into a banana-bunch shower and a golden shockwave. The name is the builder's
+  // placeholder for the owner to rename (the id stays). Legendary like the other eight.
+  heroAttack('attack_banana', "Oona's Banana Cannon", 'legendary', 'banana'),
+  // Owner 2026-09-29: "branch off and make some more attack types - we need ... a bleed/gash animation ... use the same 4
+  // tier strategy we have been". Crimson crescents fly in and cut gashes that open and bleed: I one diagonal gash, II a
+  // cross, III a flurry ending in a claw rake, IV three rakes, a heartbeat, a mega-slash that splits the screen and a
+  // blood nova. The name is the builder's placeholder for the owner to rename (the id stays). Legendary like the others.
+  heroAttack('attack_bleed', 'Hemorrhage', 'legendary', 'bleed'),
   // HERO TITLES (owner 2026-09-29), 33 heroes x (title + golden master). Achievement rewards, never in a crate.
   ...HERO_TITLE_COSMETICS,
 ]);

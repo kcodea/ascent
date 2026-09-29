@@ -91,6 +91,10 @@ import { playHeroUndead } from './heroUndead/heroUndead';
 import { heroUndeadPreviewSpeed } from './heroUndead/heroUndeadConfig';
 import { playHeroBeast } from './heroBeast/heroBeast';
 import { heroBeastPreviewSpeed } from './heroBeast/heroBeastConfig';
+import { playHeroBanana } from './heroBanana/heroBanana';
+import { heroBananaPreviewSpeed } from './heroBanana/heroBananaConfig';
+import { playHeroBleed } from './heroBleed/heroBleed';
+import { heroBleedPreviewSpeed } from './heroBleed/heroBleedConfig';
 import { resolveHeroAttackStyle } from './heroBlast/heroAttackStyle';
 import { attackerCosmeticOf } from './heroBlast/attackerCosmetic';
 import { heroStrikeDamage, heroStrikeKnockout, heroStrikeNumbers } from './heroBlast/heroStrikeDamage';
@@ -1046,6 +1050,11 @@ export function Recruit() {
   // resumed run does NOT change wave/turnSeconds, so without this the reset never fires and the turn is stuck at
   // 0 (owner Save & Quit bug 2026-08-24). Only the true title screen sets this — opening the Book mid-run doesn't.
   const showTitle = useGame((s) => s.showTitle);
+  // The Esc / Settings menu holds the SHOP CLOCK only (owner 2026-09-29, R-TIMER-ESC-01: "yes, lets have it pause
+  // the shop timer for now"). Deliberately NOT folded into `overlayOpen`: that one also pauses the combat replay and
+  // blanks the Choose-Both markers, which the ruling does not ask for. It feeds the countdown gate and the charge
+  // glyph's `paused` (so the glyph doesn't keep charging while the clock is held), nothing else.
+  const settingsOpen = useGame((s) => s.settingsOpen);
   // Fortify can target a tavern offer too; Gild / Encore act only on your warband.
   // The ARMED slot's wielded power (Mimic's disguise / Void's pair — `activePowers`), not the native hero's:
   // the aim-target rules below must describe the power that will actually fire.
@@ -2923,12 +2932,19 @@ export function Recruit() {
     // blast at the target; Inferno: fireballs of live fire are hurled, and the top tier calls down a meteor that detonates
     // and engulfs the target; Grave Call: shrieking skulls bite, and the top tier tears a grave rift that a giant skull maw
     // rises out of to chomp the target; Stampede: spirit beasts leap in and front jaws chomp shut on the target, and
-    // the top tier raises a colossal beast whose jaws slam over the portrait before it roars). Same blow, same consequence,
-    // only drawn differently; the style is the ATTACKER's (their equipped cosmetic, or the dev override). Every runner
-    // takes the same options (`heroAttack/options.ts`).
+    // the top tier raises a colossal beast whose jaws slam over the portrait before it roars; Banana Cannon: King Oona's
+    // painted bananas spin in and splat, and the top tier lands a giant golden banana in the target that the hero slams in
+    // six times until it bursts; Hemorrhage: crimson crescents cut gashes that bleed, and the top tier zips a mega-slash
+    // across the screen eight times and ends in a bloody explosion). Same blow, same consequence, only drawn differently;
+    // the style is the ATTACKER's (their equipped cosmetic, or the dev override). Every runner takes the same options
+    // (`heroAttack/options.ts`).
     const attackStyle = resolveHeroAttackStyle({ attacker: side, attackerCosmeticId: attackerCosmeticOf(run0, side, useGame.getState().showOpponentSkins) });
-    if (attackStyle === 'blast' || attackStyle === 'quake' || attackStyle === 'arcana' || attackStyle === 'blades' || attackStyle === 'enraged' || attackStyle === 'poison' || attackStyle === 'frost' || attackStyle === 'holy' || attackStyle === 'fire' || attackStyle === 'undead' || attackStyle === 'beast') {
-      const runner = attackStyle === 'beast'
+    if (attackStyle === 'blast' || attackStyle === 'quake' || attackStyle === 'arcana' || attackStyle === 'blades' || attackStyle === 'enraged' || attackStyle === 'poison' || attackStyle === 'frost' || attackStyle === 'holy' || attackStyle === 'fire' || attackStyle === 'undead' || attackStyle === 'beast' || attackStyle === 'banana' || attackStyle === 'bleed') {
+      const runner = attackStyle === 'bleed'
+        ? { play: playHeroBleed, preview: heroBleedPreviewSpeed() }
+        : attackStyle === 'banana'
+        ? { play: playHeroBanana, preview: heroBananaPreviewSpeed() }
+        : attackStyle === 'beast'
         ? { play: playHeroBeast, preview: heroBeastPreviewSpeed() }
         : attackStyle === 'undead'
         ? { play: playHeroUndead, preview: heroUndeadPreviewSpeed() }
@@ -4536,6 +4552,7 @@ export function Recruit() {
       // wait for the Start of Turn beats: the Shop is playable while they play (owner 2026-09-27: "maybe just start
       // the clock as normal though since you can play right away"; R-SOT-TIMER-01).
       transitionPlaying: wipe !== 'idle',
+      settingsOpen,
     })) return;
     let id = 0;
     const tick = (): void => {
@@ -4555,7 +4572,7 @@ export function Recruit() {
     };
     id = window.setTimeout(tick, tickMs());
     return () => window.clearTimeout(id);
-  }, [run.phase, run.discover, run.questOffer, run.powerOffer, run.runeforgeOffer, run.pendingTarget, run.chooseOne, run.ancients?.offer, heroSelecting, overlayOpen, introPlaying, run.wave, replaySpeed, wipe, sotPlaying]);
+  }, [run.phase, run.discover, run.questOffer, run.powerOffer, run.runeforgeOffer, run.pendingTarget, run.chooseOne, run.ancients?.offer, heroSelecting, overlayOpen, settingsOpen, introPlaying, run.wave, replaySpeed, wipe, sotPlaying]);
 
   // Detect a self-buff (a minion's own stats jump in the recruit phase) and fire its self-buff cue. The
   // readout itself is the badge's own job now — see the cut below.
@@ -7279,7 +7296,7 @@ export function Recruit() {
       <ChargeGlyph
         inCombat={inCombat}
         window={Math.min(CHARGE_SECONDS, turnSeconds)}
-        paused={!!(run.discover || run.questOffer || run.powerOffer || run.runeforgeOffer || run.pendingTarget || run.chooseOne || run.scoutedNextOpponent?.length || heroSelecting || overlayOpen)}
+        paused={!!(run.discover || run.questOffer || run.powerOffer || run.runeforgeOffer || run.pendingTarget || run.chooseOne || run.scoutedNextOpponent?.length || heroSelecting || overlayOpen || settingsOpen)}
         covered={!!(heroSelecting || overlayOpen)}
       />
       {/* UNDER-CARD FX canvas — the host for `slot: 'under'` effect defs. Position in this child list is

@@ -17,9 +17,11 @@ import { SPEC as HOLY } from '../HeroHolyTuner';
 import { SPEC as FIRE } from '../HeroFireTuner';
 import { SPEC as UNDEAD } from '../HeroUndeadTuner';
 import { SPEC as BEAST } from '../HeroBeastTuner';
+import { SPEC as BANANA } from '../HeroBananaTuner';
+import { SPEC as BLEED } from '../HeroBleedTuner';
 import { SPEC as FORMATION } from '../DamageFormationTuner';
 
-const SPECS = { BLAST, QUAKE, ARCANA, BLADES, ENRAGED, POISON, FROST, HOLY, FIRE, UNDEAD, BEAST, FORMATION };
+const SPECS = { BLAST, QUAKE, ARCANA, BLADES, ENRAGED, POISON, FROST, HOLY, FIRE, UNDEAD, BEAST, BANANA, BLEED, FORMATION };
 
 describe('the attack tuners', () => {
   for (const [name, spec] of Object.entries(SPECS)) {

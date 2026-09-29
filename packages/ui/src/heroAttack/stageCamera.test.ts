@@ -28,6 +28,8 @@ import { playHeroHoly } from '../heroHoly/heroHoly';
 import { playHeroFire } from '../heroFire/heroFire';
 import { playHeroUndead } from '../heroUndead/heroUndead';
 import { playHeroBeast } from '../heroBeast/heroBeast';
+import { playHeroBanana } from '../heroBanana/heroBanana';
+import { playHeroBleed } from '../heroBleed/heroBleed';
 
 afterEach(() => { document.body.innerHTML = ''; });
 
@@ -118,7 +120,7 @@ describe('StageCamera', () => {
 // ── every style on the shared camera: the impact point lands on the struck portrait under a zoomed camera ──
 
 const W = Texture.WHITE;
-const ARRAYS = new Set(['rocks', 'shards', 'glyphs']);
+const ARRAYS = new Set(['rocks', 'shards', 'glyphs', 'banana', 'splat']);
 const FIRE = fireTexturesFrom(W, W, W);
 /** Any style's texture set: every key a white texture (the list-valued keys a short list, the shared fire its own set). */
 const TEX = new Proxy({} as Record<string, unknown>, {
@@ -130,7 +132,8 @@ const STYLES: [string, Runner][] = [
   ['blast', playHeroBlast as Runner], ['quake', playHeroQuake as Runner], ['arcana', playHeroArcana as Runner],
   ['blades', playHeroBlades as Runner], ['enraged', playHeroEnraged as Runner], ['poison', playHeroPoison as Runner],
   ['frost', playHeroFrost as Runner], ['holy', playHeroHoly as Runner], ['fire', playHeroFire as Runner],
-  ['undead', playHeroUndead as Runner], ['beast', playHeroBeast as Runner],
+  ['undead', playHeroUndead as Runner], ['beast', playHeroBeast as Runner], ['banana', playHeroBanana as Runner],
+  ['bleed', playHeroBleed as Runner],
 ];
 
 /** Parse the camera's `translate(ax, ay) scale(z)` (the frame the DOM shows); null at rest. */

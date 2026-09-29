@@ -116,6 +116,18 @@ route) moves it; Practice, the tutorial and sandbox runs never do.
   from the seat kinds (`lobbyIsUnrated`), the end screen reads **"Unrated · No opponents reached"**, and the
   client submits no rank request. The server enforces it too: `submit-rating` refuses to settle a request whose
   seat keys are all generated (`bot:…`, `allSeatsGenerated`). A lobby with at least one real run is rated as usual.
+- **Quitting a rated game costs Rating** (owner 2026-09-29, verbatim: *"quitting an official game should lose you
+  MMR relative to the lowest available place when you quit. for example. if one player was already out, then
+  quitting would place you in 7th place"*; R-RANK-05). Abandoning an unfinished rated game settles it as a finish
+  in the **lowest place still open**: the number of seats still alive (8th with nobody out, 7th with one out, and
+  so on), with that place's normal award and every gate that applies to it (demotion and promotion games, the
+  top-4 strength bonus). **Abandoning** = giving up the one saved game: **Clear** on the title, or starting any new
+  game (Play, Practice, the tutorial) over it. **Save & Quit is not quitting**: Continue resumes the game and it
+  settles once, at its real end. Practice, the tutorial, the Scene Builder and unrated lobbies abandon for free. The
+  title's Clear and Play tips name the place a rated save would count as. The client computes the placement from
+  the saved lobby and submits it through the normal rank queue (`settleAbandonedRun` → `submit-rating`); a quit
+  writes no career row, fight-ledger rows or XP. A save the game drops itself (a card this build no longer has)
+  is not a quit and does not settle.
 
 - **Six medals — Bronze, Silver, Gold, Platinum, Diamond, Ascendant — three divisions each**, ordered
   **I → II → III** and then the next medal's I (18 divisions, `Bronze I` lowest, `Ascendant III` highest).
@@ -245,10 +257,10 @@ progression **epoch**; nothing finished before the epoch counts (no backfill).
   R-PROG-SKINS-05), so a new or retired cosmetic is a code change plus one deploy, never SQL. Shaped
   for every cosmetic category (announcer, hero skin, minion skin, title, hero attack, board, music). Switched on:
   **titles** (15 crate titles: 7 Common, 5 Rare, 2 Epic, 1 Legendary) and, since the skins shipped the same day,
-  **hero skins** and **minion skins** (all from crates) and **hero attacks** (Arcane Barrage, Tectonic Slam, Arcana, Phantom Blades, Enraged Strike, Venom Volley, Frost Nova, Consecration, then Inferno, Grave Call and the Stampede). The other
+  **hero skins** and **minion skins** (all from crates) and **hero attacks** (Arcane Barrage, Tectonic Slam, Arcana, Phantom Blades, Enraged Strike, Venom Volley, Frost Nova, Consecration, then Inferno, Grave Call, the Stampede, Oona's Banana Cannon and Hemorrhage). The other
   categories are feature-flagged off until their art exists. Crate odds are the fixed rarity odds above, then an equal
   share inside the rarity: on the 2026-09-29 catalog each Common is 6.25% (50 / 8), each Rare 2.31% (30 / 13), each Epic
-  1.5% (15 / 10) and each Legendary 0.36% (5 / 14, since Inferno, Grave Call and the Stampede joined). A fresh account's first crate is about 41% a skin or hero attack.
+  1.5% (15 / 10) and each Legendary 0.31% (5 / 16, since Inferno, Grave Call, the Stampede, Oona's Banana Cannon and Hemorrhage joined). A fresh account's first crate is about 41% a skin or hero attack.
 - **Skins (2026-09-28; oracle R-PROG-SKINS-01, R-PROG-SKINS-04).** A hero skin replaces one hero's portrait; a
   minion skin replaces one card's art, by stable id. Equipped per target from the Collection's Heroes / Minions
   tabs through the server (`equip_cosmetic`: owned, made for that hero or card, live); **"Use default art"** is
@@ -274,7 +286,7 @@ progression **epoch**; nothing finished before the epoch counts (no backfill).
   run loop's `damageCap` stamp); an older result shows what it knows (no breakdown: just the blow; no cap stamp: no cap
   beat). No hero attack ever freezes (R-PROG-ATTACK-10): no hit-stop on any impact, the slam or the cap slash; weight comes
   from the flash, squash and knockback, shake, particles and sound. Tuned in the dev hub's Damage Formation tuner; production plays the baked defaults.
-- **Hero attacks (2026-09-28; oracle R-PROG-ATTACK-01..18).** How your hero lands the post-combat blow. **Classic**
+- **Hero attacks (2026-09-28; oracle R-PROG-ATTACK-01..21).** How your hero lands the post-combat blow. **Classic**
   (the lunge) is everyone's default; **Blast** is the first cosmetic, `attack_blast` ("Arcane Barrage", Legendary,
   from crates; animation and tier thresholds owner-approved): after the damage formation, the hero charges, the view pushes in, and bolts (a single
   beam on the biggest hits) carry the blow, escalating by damage tier (I 1-5, II 6-11, III 12-19, IV 20+). **Quake** is the
@@ -340,7 +352,26 @@ progression **epoch**; nothing finished before the epoch counts (no backfill).
   pack of five streaming across and kicking up dust (every chomp before the last a tick, the blow landing once on the
   last); IV six chomps round the face, then a colossal beast's jaws rise far above and below the struck hero, creep in and
   SLAM shut over the whole portrait (the blow landing on the slam), and the beast roars (shockwave rings and speed lines,
-  FX only). All eleven anchor on the round portrait art at rest
+  FX only). **Banana
+  Cannon** is the twelfth, `attack_banana` ("Oona's Banana Cannon", a placeholder name; Legendary, from crates;
+  R-PROG-ATTACK-19), built on King Oona's own card FX: her painted banana (spinning with backspin) is every projectile
+  and her painted juice splat every impact, with her juice particles and clips. After the same damage formation a golden
+  flourish opens on the hero and it flings bananas on high lobbed arcs: I one; II a double; III a barrage of eight (the
+  blow landing once, on the last); IV four warm-ups, then a giant golden banana arcs high, hangs (a crown glint, a flat
+  golden target ring), and lands stuck in the struck hero's rim; the striking portrait dashes over and slams it in six
+  times, reeling far back between slams, driving it deeper each time (only its end sticks out by the last), a crater and
+  cracks spreading, extra bursts of banana juice splats from the fourth slam on (no blood); the sixth slam bursts it into a massive splat and a banana shower, and no dark crater ring is left behind (the
+  blow landing there). While it slams, the striking portrait is drawn on top of the banana. **Hemorrhage** is
+  the thirteenth, `attack_bleed` ("Hemorrhage", a placeholder name; Legendary, from crates; R-PROG-ATTACK-21): a stylised
+  crimson slashing attack, drawn flat. After the same damage formation the hero draws back and swings: each slash
+  looses a crimson crescent that turns to its cut and runs through the struck hero's face, a white seam drawing behind it,
+  blood spraying along the blade, and the line opening into a gash (I one diagonal gash; II a cross of two; III four
+  fast slashes and a three-claw rake, the wounds bleeding and dripping, the blow landing once on the last cut; IV three
+  claw rakes, the wounds throb with a heartbeat while the striker winds a huge crescent, then the screen-splitting
+  mega-slash zips through the target EIGHT times, each in from the far side of the screen on its own line,
+  accelerating into a blur (each zip a tick) and flinging blood that piles up across the whole screen, a beat of held
+  tension, and a huge bloody explosion that paints the screen in blood and fades out, the blow landing on the
+  explosion; the claw rakes before it sweep wide lines too). All thirteen anchor on the round portrait art at rest
   (R-PROG-ATTACK-04). Equipped
   account-wide in the Collection's Attack Animations tab ("Use Classic" takes it off). The STRIKER's attack plays:
   yours when you win, the opponent's (from their recorded snapshot) when they win. Recorded per run like skins;
@@ -738,7 +769,8 @@ code — `advanceCombat`, `openNextStartOfTurnModal`, `runeforgePool`, `drawRune
 **A visit.** The forge opens at the START of a turn, behind any quest offer and hero-power pick and ahead of
 any queued Discover (`openNextStartOfTurnModal`: power pick → Epic forge(s) → Basic forge → Discovers). It
 offers **4 runes** (`RUNEFORGE_OFFER`; the tutorial's scripted forges offer 3), you buy **ONE** for its Gold
-cost or leave, and the forge closes. There are two forges with two pools: the **Basic forge** stocks `RUNES`,
+cost, and the forge closes. The player cannot skip or leave it (R-RUNE-34, owner 2026-09-29); the engine's
+`skipRuneforge` action exists only for bots, fixtures and replays. There are two forges with two pools: the **Basic forge** stocks `RUNES`,
 the **Epic forge** stocks `EPIC_RUNES` — pool membership is array membership, `epic: true` is only the
 card's kicker.
 

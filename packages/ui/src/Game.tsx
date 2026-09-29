@@ -26,6 +26,7 @@ import { StatusBar } from './StatusBar';
 import { Inspect } from './Inspect';
 import { MinionBook } from './MinionBook';
 import compendiumBookArt from './compendium-book.png';
+import rulesQuestionArt from './rules-question.png';
 import { EscMenu } from './EscMenu';
 import { DevMenu } from './DevMenu';
 import { EditorOverlay } from './uiEditor/EditorOverlay';
@@ -98,6 +99,7 @@ export function Game() {
   const bugScenarioLoaded = useGame((s) => s.bugScenario !== null);
   const showBook = useGame((s) => s.showBook);
   const toggleBook = useGame((s) => s.toggleBook);
+  const openRules = useGame((s) => s.openRules);
   // Recruit stays mounted across phases (combat plays out in place), so its closures/refs live for the whole
   // run. Starting a NEW run (pickHero / newRun → a fresh seed+hero) must give it a clean slate — otherwise a
   // callback captured under the previous run lingers (e.g. Disco Dan's locked-hand check false-locking a
@@ -452,8 +454,14 @@ export function Game() {
       {showBook && <MinionBook />}
       <Inspect />
       </OwnSkins>
-      {/* THE COMPENDIUM BUTTON (owner ask 2026-09-28): the golden book beside the gear, the mouse twin of the Tab key
-          (same `toggleBook`, same hero-select exclusion). Hover names it with the game's own bubble. */}
+      {/* THE CORNER BUTTONS (owner asks 2026-09-28/29), right to left beside the gear: the golden book (Compendium, the
+          mouse twin of the Tab key) and the golden question mark (the Compendium opened straight onto its Rules page).
+          Hidden during hero select, like Tab; shown on the home screen too (styles.css). Hover names each one. */}
+      {!heroPicking && (
+        <button className="rulesbtn gtip" data-tip="Rules" onClick={openRules} aria-label="Rules">
+          <img decoding="sync" src={rulesQuestionArt} alt="" draggable={false} />
+        </button>
+      )}
       {!heroPicking && (
         <button className="bookbtn gtip" data-tip="Compendium" onClick={toggleBook} aria-label="Compendium">
           <img decoding="sync" src={compendiumBookArt} alt="" draggable={false} />

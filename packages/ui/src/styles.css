@@ -6143,9 +6143,14 @@ svg { width: 18px; height: 18px; }
 .gearbtn svg { width: calc(21 * var(--u)); height: calc(21 * var(--u)); }
 /* The Compendium book, one gear-width + a 10px gap left of the gear (Game.tsx). Same plate as the gear so the
    pair reads as one cluster; the gold art sits inside. `.gtip` (the global hover bubble) names it. */
-.bookbtn { position: fixed; bottom: calc(var(--bar-y) + 16px + env(safe-area-inset-bottom)); right: calc(var(--bar-x) + 16px + 40 * var(--u) + 10px + env(safe-area-inset-right)); width: calc(40 * var(--u)); height: calc(40 * var(--u)); padding: 0; border-radius: calc(12 * var(--u)); border: 2px solid var(--line); background: color-mix(in srgb, var(--card) 88%, transparent); display: grid; place-items: center; z-index: 85; box-shadow: 0 6px 18px -8px rgba(0, 0, 0, 0.5); transition: transform 0.15s ease, border-color 0.15s ease; }
-.bookbtn:hover { border-color: var(--acc); transform: translateY(-2px); }
-.bookbtn img { width: calc(30 * var(--u)); height: calc(30 * var(--u)); pointer-events: none; }
+.bookbtn, .rulesbtn { position: fixed; bottom: calc(var(--bar-y) + 16px + env(safe-area-inset-bottom)); right: calc(var(--bar-x) + 16px + 40 * var(--u) + 10px + env(safe-area-inset-right)); width: calc(40 * var(--u)); height: calc(40 * var(--u)); padding: 0; border-radius: calc(12 * var(--u)); border: 2px solid var(--line); background: color-mix(in srgb, var(--card) 88%, transparent); display: grid; place-items: center; z-index: 85; box-shadow: 0 6px 18px -8px rgba(0, 0, 0, 0.5); transition: transform 0.15s ease, border-color 0.15s ease; }
+.bookbtn:hover, .rulesbtn:hover { border-color: var(--acc); transform: translateY(-2px); }
+.bookbtn img, .rulesbtn img { width: calc(30 * var(--u)); height: calc(30 * var(--u)); pointer-events: none; }
+/* Rules (the golden question mark) sits one more slot left of the book: gear · book · rules, right to left. */
+.rulesbtn { right: calc(var(--bar-x) + 16px + 2 * (40 * var(--u) + 10px) + env(safe-area-inset-right)); }
+/* On the HOME SCREEN (owner 2026-09-29) the book and Rules sit above the title layer (z 450) so they show and
+   take clicks there too; everywhere else they keep the gear's z 85. */
+body:has(.titlescreen) .bookbtn, body:has(.titlescreen) .rulesbtn { z-index: 451; }
 /* Build badge — sits just above the gear (scales with --u so it clears the gear at any resolution box). */
 .version { position: fixed; right: calc(var(--bar-x) + 16px + env(safe-area-inset-right)); bottom: calc(var(--bar-y) + 16px + 40 * var(--u) + 7px + env(safe-area-inset-bottom)); z-index: 84; pointer-events: none; user-select: none; text-align: right; font-family: var(--font-ui); font-weight: 800; font-size: calc(11 * var(--u)); letter-spacing: 0.03em; color: var(--ink3); opacity: 0.72; }
 .version span { font-weight: 600; opacity: 0.7; }
@@ -6172,7 +6177,7 @@ svg { width: 18px; height: 18px; }
    Dressed in the shipped vocabulary (vellum face, gold rim, ink text, warm shadows) so dev chrome reads as
    part of the same object family as the game rather than a bolted-on tool.
    ========================================================================================================== */
-.devmenu-btn { position: fixed; right: calc(var(--bar-x) + 64px); bottom: calc(var(--bar-y) + 16px); z-index: 9990; width: 40px; height: 40px; border-radius: 50%; border: 2px solid var(--line); background: var(--card); font-size: 18px; cursor: pointer; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3); transition: transform 0.12s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.12s ease; }
+.devmenu-btn { position: fixed; right: calc(var(--bar-x) + 16px + 3 * (40 * var(--u) + 10px)); bottom: calc(var(--bar-y) + 16px); z-index: 9990; width: 40px; height: 40px; border-radius: 50%; border: 2px solid var(--line); background: var(--card); font-size: 18px; cursor: pointer; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3); transition: transform 0.12s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.12s ease; }
 .devmenu-btn:hover { transform: translateY(-1px); border-color: var(--acc); }
 .devmenu-btn:active { transform: translateY(1px); }
 /* The button carries a badge when panels are open, so you can tell at a glance that the board is wearing dev

@@ -266,6 +266,7 @@ function shopArena(state: RunState, self: BoardCard): EffectArena {
     impAura: () => state.impBuff ?? { attack: 0, health: 0 },
     deathrattleTally: () => state.deathrattlesTriggered ?? 0,
     addTribeAura: () => {}, // no rest-of-combat in a shop; the legacy shop half never registered one
+    buffThisCombat: () => {}, // "this combat" has no meaning in a shop: a Shop Echo / EoT replay gives nothing (R-AURA-03)
     grantCardTypeBuff: (cardId, a, h) => buffCardTypeRunWide(state, cardId, a, h, CARD_INDEX[cardId]?.name ?? cardId),
     grantUndeadAttackAura: (a) => buffUndeadAttackEverywhere(state, a, nameOf(self)),
     grantMagneticAura: (a, h) => {

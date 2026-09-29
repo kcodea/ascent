@@ -1284,13 +1284,33 @@ already multiplied only from hand (Rune of Resonance, Prismcaster); that is unch
 Lantern of Souls raises the **Undead Aura** for the rest of the run whether it is cast in the shop or in
 combat (a Rally, an Avenge, an Echo). Combat casts carry the gain back at settle. There is no combat-only Aura.
 
+### Beast buffs are combat-only; there is no Beast Aura (owner rule 2026-09-28, R-AURA-03)
+
+Beasts do **not** work like the Undead Aura. Every Beast grant is a **combat buff**, printed as *"Give all Beasts
++X/+Y this combat"*: it reaches every friendly Beast in the fight, including Beasts summoned later that fight, and
+it ends with the fight. **Nothing carries back** to the run board, hand or Shop, unless a mechanic keeps combat
+stats (an **Engraved** Beast keeps it, as it keeps every combat gain).
+
+- **Kennelmaster**: *Start of Combat: Give all Beasts +1 Attack this combat. Avenge (4): Improve this.* The
+  improvement is permanent on that Kennelmaster (its `summonBonus`) and is used from its next Start of Combat.
+- **Grim**: *Echo: Give all Beasts +8/+8 this combat.* (gilded +16/+16). The 2026-09-24 per-game Echo tally is gone.
+- **Armadiyo**, **Trophy Stalker**, **Rune of Beastial Swarm** (its Avenge level persists, the stats do not),
+  **Pack Mentality** (a Start of Combat grant whose level improves and persists) and **The Old Hunt** follow suit.
+- **In the Shop / at End of Turn** "this combat" has no meaning, so a Shop-fired Echo, a Shop Rally or an End-of-Turn
+  Start of Combat replay (Rune of Combat Prowess) of these grants **gives nothing**. The Echo or Rally still fires
+  and still counts for every tally.
+
+The old run-wide Beast channel (`beastBuyAtk` / `beastBuyHp`) is no longer fed. It is still read, so an older
+in-flight run or recorded snapshot keeps what it banked.
+
 ---
 
 ### Aura — the run-wide scope noun (owner ruling 2026-08-28)
 
 A grant that reaches a whole tribe/class **wherever its members sit** — the board, your hand, the Shop, and
-copies you acquire later — prints as an **Aura**: *"give your **Beast Aura** +2/+4"*, *"improve your **Imp
-Aura** by +2/+2"*. The shape is `your <Tribe-singular> Aura`.
+copies you acquire later — prints as an **Aura**: *"give your **Undead Aura** +5 Attack"*, *"improve your **Imp
+Aura** by +2/+2"*. The shape is `your <Tribe-singular> Aura`. (Beasts have no Aura since 2026-09-28: their buffs are
+combat-only, see R-AURA-03 above.)
 
 This replaced the older scope tails **"wherever they are"** and **"everywhere"**, which no longer appear in
 any printed text. It is a **vocabulary change only** — an Aura grant is the same run-wide grant it always

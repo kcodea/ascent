@@ -254,9 +254,11 @@ describe('shop-phase permanence — the run board keeps what the replay granted'
   it('Pack-Leader-class accruals advance exactly once per fire (kennel’s summonBonus is a run channel)', () => {
     const s = run([bc('k', 'kennel'), bc('z', 'stray')], { runeCombatProwess: true });
     applyEndOfTurn(s);
-    // scBeastAura does not tick summonBonus (that is Avenge's job) — but the buff it granted stays.
+    // scBeastAura does not tick summonBonus (that is Avenge's job). Since 2026-09-28 (R-AURA-03) its grant is
+    // "this combat" — an End-of-Turn replay has no combat, so it banks NOTHING on the run board.
     const k = s.board.find((c) => c.uid === 'k')!;
-    expect(k.buffs?.some((b) => b.source === CARD_INDEX['kennel']!.name), 'the aura grant is a permanent shop buff').toBe(true);
+    expect(k.buffs?.some((b) => b.source === CARD_INDEX['kennel']!.name) ?? false, 'no permanent shop buff').toBe(false);
+    expect(k.summonBonus ?? 0, 'no accrual either').toBe(0);
   });
 
   it('the reducer path commits the gains — they survive the action boundary', () => {

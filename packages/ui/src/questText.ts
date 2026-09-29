@@ -205,6 +205,8 @@ export function questRewardText(r: QuestReward, live?: { completed?: boolean; sh
     case 'scalingTribeAura': {
       const step = r.stepHealth > 0 ? `+${r.stepAttack}/+${r.stepHealth}` : `+${r.stepAttack}`;
       const per = r.event === 'summonCombat' ? `${TRIBE_PLURAL[r.tribe]} summoned in combat` : `${TRIBE_PLURAL[r.tribe]}`;
+      // Pack Mentality (owner ruling 2026-09-28, R-AURA-03): Beast buffs are combat-only, never a Beast Aura.
+      if (r.tribe === 'beast') return `Start of Combat: give all Beasts ${statPhrase(r.attack, r.health)} this combat. Improve this by ${step} every ${r.per} ${per}`;
       return `Your ${TRIBE_SINGULAR[r.tribe]} Aura has ${statPhrase(r.attack, r.health)}. Improve by ${step} every ${r.per} ${per}`;
     }
     case 'recurringGrant': {
@@ -271,8 +273,8 @@ export function questRewardText(r: QuestReward, live?: { completed?: boolean; sh
           return 'Start of Combat: trigger your Echoes';
         case 'lawOfTeeth':
           return 'Beast Slaughters and Rallies trigger an extra time';
-        case 'oldHunt':
-          return `Whenever a Beast attacks, improve your Beast Attack aura by +${r.amount ?? 0}`;
+        case 'oldHunt': // combat-only since 2026-09-28 (R-AURA-03); the grant is +N/+N (symmetric since 2026-07-21)
+          return `Whenever a Beast attacks, give all Beasts +${r.amount ?? 0}/+${r.amount ?? 0} this combat`;
         case 'sharedCircuit':
           return `Start of Combat: give ${r.amount ?? 0} friendly Mechs Ward. When a Mech loses its Ward, pass it to another (up to ${r.amount ?? 0}× per combat)`;
         case 'deepHunger':
@@ -460,14 +462,14 @@ export function questProgressText(progress: number, o: QuestObjective, completed
 /** Live run-state a scaling/stat reward folds into its tooltip (the current magnitude, not the authored one).
  *  Computed by `QuestBadges` from the RunState; all optional so callers pass only what they have. */
 export interface QuestRewardLive {
-  /** The Beast run aura's current total (`beastBuyAtk`/`beastBuyHp`) — folds tribeAura + scalingTribeAura +
-   *  The Old Hunt + Pack Mentality growth. */
+  /** The LEGACY run-wide Beast channel (`beastBuyAtk`/`beastBuyHp`) — only the unused `tribeAura` Beast reward
+   *  reads it; Beast buffs are combat-only since 2026-09-28 (R-AURA-03). */
   beastAura?: { attack: number; health: number };
   /** Lifetime spells cast this run (Umbral Energy = +2/+2 per). */
   spellsCast?: number;
   /** For a scalingTribeAura: how far into the current step (progress) and the step size (per) — drives the
    *  "+X/+Y in N more" countdown. */
-  scaling?: { progress: number; per: number };
+  scaling?: { progress: number; per: number; attack?: number; health?: number };
   /** Den Marker (`beastPlayBuff`): Beasts played/summoned so far (`run.denMarker.count`) — drives the current
    *  per-play grant (base + step × steps done) and the countdown to the next improve. */
   denMarkerCount?: number;
@@ -493,7 +495,7 @@ export interface QuestRewardLive {
  */
 export function questRewardLiveOf(run: {
   beastBuyAtk?: number; beastBuyHp?: number; spellsCast?: number;
-  questScalingAuras?: { tribe: Tribe; event: QuestObjectiveEvent; progress: number; per: number }[];
+  questScalingAuras?: { tribe: Tribe; event: QuestObjectiveEvent; progress: number; per: number; attack?: number; health?: number }[];
   denMarker?: { count: number };
   shopBuffOnRefresh?: { grown: number; tick: number };
   shopAuraGrow?: { grown: number; tick: number };
@@ -505,7 +507,7 @@ export function questRewardLiveOf(run: {
   return {
     beastAura: { attack: run.beastBuyAtk ?? 0, health: run.beastBuyHp ?? 0 },
     spellsCast: run.spellsCast ?? 0,
-    scaling: scaling ? { progress: scaling.progress, per: scaling.per } : undefined,
+    scaling: scaling ? { progress: scaling.progress, per: scaling.per, ...(scaling.attack !== undefined ? { attack: scaling.attack, health: scaling.health ?? 0 } : {}) } : undefined,
     denMarkerCount: run.denMarker?.count ?? 0,
     shopRefresh: run.shopBuffOnRefresh
       ? { grown: run.shopBuffOnRefresh.grown, tick: run.shopBuffOnRefresh.tick }
@@ -551,7 +553,10 @@ export function questRewardLiveText(r: QuestReward, live: QuestRewardLive): stri
       return r.tribe === 'beast' ? beast() : null;
     case 'scalingTribeAura': {
       if (r.tribe !== 'beast') return null;
-      const base = beast();
+      // Pack Mentality: the CURRENT combat-only level it will give at the next Start of Combat (R-AURA-03), plus
+      // the countdown to its next improve. A pre-2026-09-28 run (no level) falls back to its legacy baked channel.
+      const lvl = live.scaling?.attack !== undefined ? { attack: live.scaling.attack, health: live.scaling.health ?? 0 } : undefined;
+      const base = lvl ? `Now: Beasts ${statPhrase(lvl.attack, lvl.health)} this combat` : beast();
       if (!base) return null;
       if (!live.scaling || live.scaling.per <= 0) return base;
       const toNext = live.scaling.per - (live.scaling.progress % live.scaling.per);
@@ -568,7 +573,8 @@ export function questRewardLiveText(r: QuestReward, live: QuestRewardLive): stri
       return `Now: Beasts ${statPhrase(a, h)} when played${next}`;
     }
     case 'combatFlag':
-      if (r.flag === 'oldHunt') return beast();
+      // The Old Hunt is combat-only since 2026-09-28 (R-AURA-03): a flat +N/+N per attack, so its printed text is
+      // already the current value — no run-wide total to show.
       if (r.flag === 'umbralEnergy') {
         const n = 2 * (live.spellsCast ?? 0);
         return `Now: Dragons +${n}/+${n} at Start of Combat (${live.spellsCast ?? 0} Shop spells cast)`;

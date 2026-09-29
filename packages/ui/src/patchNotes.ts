@@ -54,6 +54,22 @@ export const PATCH_NOTES: PatchNote[] = [
     date: '2026-09-28',
     changes: [
       {
+        category: 'Balance',
+        text: 'Beast buffs are now combat-only. They boost all your Beasts during the fight and wear off after. There is no Beast Aura any more.',
+        details: [
+          'Beast buffs reach every Beast you have in the fight, including Beasts summoned later that fight.',
+          'They do not stay on your Beasts after the fight. An Engraved Beast still keeps them, like any combat gain.',
+          'In the Shop there is no combat, so these buffs give nothing there. The Echo or Rally still counts.',
+          'Kennelmaster: "Start of Combat: Give all Beasts +1 Attack this combat. Avenge (4): Improve this." The improvement still lasts.',
+          'Grim: "Echo: Give all Beasts +8/+8 this combat." It no longer counts your Echoes.',
+          'Armadiyo: "Taunt. Echo: Give all Beasts +2/+4 this combat."',
+          'Trophy Stalker: "Rally: Give all Beasts +5/+5 this combat." It still improves each time it attacks.',
+          'Rune of Beastial Swarm: "When a friendly Beast dies, give all Beasts +2/+2 this combat. Avenge (2): Improve this." The improvement still lasts.',
+          'Pack Mentality: gives all Beasts its bonus at Start of Combat, for that fight. It still improves as you summon Beasts in combat.',
+          'The Old Hunt: whenever a Beast attacks, give all Beasts +3/+3 this combat.',
+        ],
+      },
+      {
         category: 'Systems',
         text: 'Titles now show on the Leaderboard and the Hall of Champions, in their rarity colours.',
         details: [

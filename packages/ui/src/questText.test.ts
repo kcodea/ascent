@@ -59,15 +59,15 @@ describe('questText — rewards', () => {
     [{ kind: 'recurringGrant', cards: ['feedalpha'] }, 'End of Turn: get Feed the Alpha'],
     [{ kind: 'combatFlag', flag: 'lawOfTeeth' }, 'Beast Slaughters and Rallies trigger an extra time'],
     [{ kind: 'combatFlag', flag: 'echoingCoop' }, 'Start of Combat: trigger your Echoes'],
-    [{ kind: 'combatFlag', flag: 'oldHunt', amount: 7 }, 'Whenever a Beast attacks, improve your Beast Attack aura by +7'],
+    [{ kind: 'combatFlag', flag: 'oldHunt', amount: 7 }, 'Whenever a Beast attacks, give all Beasts +7/+7 this combat'], // combat-only 2026-09-28 (R-AURA-03)
   ];
   for (const [r, text] of cases) {
     it(`${r.kind}/${'flag' in r ? r.flag : ''} → "${text}"`, () => expect(questRewardText(r)).toBe(text));
   }
 
-  it('scalingTribeAura states the base grant, step, and cadence', () => {
+  it('scalingTribeAura (Beast, Pack Mentality) states the combat-only grant, step, and cadence (R-AURA-03)', () => {
     const r: QuestReward = { kind: 'scalingTribeAura', tribe: 'beast', attack: 3, health: 1, per: 5, event: 'summonCombat', stepAttack: 3, stepHealth: 1 };
-    expect(questRewardText(r)).toBe('Your Beast Aura has +3/+1. Improve by +3/+1 every 5 Beasts summoned in combat');
+    expect(questRewardText(r)).toBe('Start of Combat: give all Beasts +3/+1 this combat. Improve this by +3/+1 every 5 Beasts summoned in combat');
   });
 
   it('impAura reads the current improvement magnitude', () => {
@@ -96,10 +96,16 @@ describe('questText — rewards', () => {
 });
 
 describe('questText — live reward magnitude (badge tooltip)', () => {
-  it('scalingTribeAura folds the current Beast aura + the countdown to the next step', () => {
+  it('scalingTribeAura (Pack Mentality) folds its CURRENT combat-only level + the countdown to the next step', () => {
     const r: QuestReward = { kind: 'scalingTribeAura', tribe: 'beast', attack: 4, health: 4, per: 5, event: 'summonCombat', stepAttack: 4, stepHealth: 4 };
+    expect(questRewardLiveText(r, { scaling: { progress: 7, per: 5, attack: 12, health: 12 } }))
+      .toBe('Now: Beasts +12/+12 this combat · +4/+4 in 3 more');
+    // A pre-2026-09-28 run (no level banked) falls back to its legacy baked channel.
     expect(questRewardLiveText(r, { beastAura: { attack: 12, health: 12 }, scaling: { progress: 7, per: 5 } }))
       .toBe('Now: Beasts +12/+12 · +4/+4 in 3 more');
+  });
+  it('The Old Hunt prints no run-wide total any more (its text is already the current value)', () => {
+    expect(questRewardLiveText({ kind: 'combatFlag', flag: 'oldHunt', amount: 3 }, { beastAura: { attack: 9, health: 9 } })).toBeNull();
   });
   it('tribeAura shows the current Beast aura total', () => {
     expect(questRewardLiveText({ kind: 'tribeAura', tribe: 'beast', attack: 2, health: 2 }, { beastAura: { attack: 6, health: 6 } }))

@@ -1901,14 +1901,16 @@ export interface QuestCombatMods {
   /** ANCIENT OF BONDS × Lord of the Risen: whenever a friendly minion Rises, trigger the Echo of a living minion next
    *  to it (random between two, nothing with none), through the shared Echo path. Player-only; never snapshotted. */
   ancientRiseEcho?: { label: string };
-  /** Pack Mentality's Health half of the Beast aura — the `beastBuyHp` sibling of `beastBuyAtk`, re-added to
-   *  from-base Beast bodies (summons / Reborn) so "+/+H wherever they are" catches combat summons. */
+  /** LEGACY (pre-2026-09-28 runs): the run-wide Beast Health channel `beastBuyHp`, re-added to from-base Beast
+   *  bodies (summons / Reborn). Nothing feeds it any more — Beast buffs are combat-only (R-AURA-03). */
   beastAuraHp?: number;
-  /** Pack Mentality's LIVE growth: every `per` Beasts summoned in combat, the run-wide Beast aura grows by
-   *  `stepAttack`/`stepHealth` — applied immediately to every living Beast this fight and carried back via
-   *  `playerBeastBuyAtkGain` / `playerBeastBuyHpGain` (+ leftover `progress` via `playerBeastScaleProgress`).
-   *  Player-side only (a served enemy has no run to grow); absent when no such quest is armed. */
-  beastSummonScale?: { per: number; stepAttack: number; stepHealth: number; progress: number };
+  /** Pack Mentality (owner ruling 2026-09-28, R-AURA-03 — combat-only): "Start of Combat: give all Beasts +A/+H
+   *  this combat. Improve this by +step every `per` Beasts summoned in combat." `attack`/`health` = the current
+   *  level (absent on a pre-2026-09-28 run, whose level was baked into `beastBuyAtk`); applied at Start of Combat
+   *  on both sides. The LIVE growth (every `per` Beasts summoned, the level and this fight's buff rise by
+   *  `stepAttack`/`stepHealth`) is player-side only and carries back ONLY the level, via `playerBeastBuyAtkGain` /
+   *  `playerBeastBuyHpGain` (+ leftover `progress` via `playerBeastScaleProgress`). */
+  beastSummonScale?: { per: number; stepAttack: number; stepHealth: number; progress: number; attack?: number; health?: number };
   /** Balance 9/23 (owner: "make sure this and all trackers like this work in combat too and carries count
    *  through both"): the side's "when you trigger N Shouts" rune meters, carried INTO the fight with their shop
    *  ticks. Every combat Shout fire (`battlecryTriggered`) advances them; a trip pays through `handGrants`
@@ -1948,8 +1950,8 @@ export interface QuestCombatMods {
    * tribe gets this for free as data.
    */
   tribeRallySlaughterExtra?: Tribe;
-  /** The Old Hunt: >0 arms it — every Beast attack pumps your run-wide Beast Attack aura by this much
-   *  (live this fight + carried back via `playerBeastBuyAtkGain`). */
+  /** The Old Hunt: >0 arms it — every Beast attack gives all your Beasts +N/+N THIS COMBAT (living Beasts + later
+   *  Beast summons). Combat-only since 2026-09-28 (R-AURA-03): nothing carries back. */
   oldHuntStep?: number;
   /** Funeral Engine: every one of your Echoes (Deathrattles) triggers this many extra times (stacks with
    *  Sylus + The Bone Throne's leftmost trigger — all additive). */
@@ -3228,12 +3230,12 @@ export interface CombatResult {
      *  ("Give Dragons N total stats": Skybound Pact / Taragosa's Inheritance) counts combat buffs, not just recruit. */
     statGainByTribe: Partial<Record<Tribe, number>>;
   };
-  /** The Old Hunt + Pack Mentality: run-wide Beast Attack aura gained this combat (Old Hunt step × Beast
-   *  attacks + Pack Mentality stepAttack × improves). Stacks into `beastBuyAtk` + applied to existing run-board
-   *  Beasts in settleCombat. Absent if 0. */
+  /** Pack Mentality: its Attack LEVEL grown this combat (stepAttack × improves). Since 2026-09-28 (R-AURA-03)
+   *  settle folds it into the quest's level only — never into run-wide Beast stats. Absent if 0. (The name is
+   *  legacy: it once fed the retired run-wide `beastBuyAtk` channel.) */
   playerBeastBuyAtkGain?: number;
-  /** Pack Mentality: run-wide Beast HEALTH aura gained this combat (stepHealth × improves). Stacks into
-   *  `beastBuyHp` + applied to existing run-board Beasts in settleCombat. Absent if 0. */
+  /** Pack Mentality: its Health LEVEL grown this combat (stepHealth × improves) — folded into the quest's level
+   *  at settle (R-AURA-03). Absent if 0. */
   playerBeastBuyHpGain?: number;
   /** Pack Mentality: the leftover Beast-summon progress after this combat's live growth — written back onto the
    *  scaling aura so the countdown continues next fight (the magnitude grew live, so settle skips re-growing it). */

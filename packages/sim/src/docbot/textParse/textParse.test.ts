@@ -512,7 +512,7 @@ describe('the Aura vocabulary — LG-SCOPE-01', () => {
   it('the rewritten cards kept their exact magnitudes (wording only — zero mechanical change)', () => {
     // The 2026-08-28 rebrand carriers, with the numbers they printed before it.
     const magnitudes: Record<string, number[]> = {
-      kennel: [1, 4], grim: [3, 2, 3, 2] /* owner batch 2026-09-24: per-Echo tally rework; 2026-09-25 owner wording: base total + 'Improves by +3/+2' rate */, trophystalker: [5, 5, 5, 5],
+      kennel: [1, 4], grim: [8, 8] /* owner ruling 2026-09-28 (R-AURA-03): flat "+8/+8 this combat", replacing the 2026-09-24 per-Echo tally */, trophystalker: [5, 5, 5, 5],
       deathswarmer: [1], forsakenweaver: [4], lanternofsouls: [5], // Lantern +3 → +5 on 2026-09-14 (owner buff, not the rebrand)
       scrapherald: [2, 2], chorusengine: [4, 4, 2], b2_armadiyo: [2, 4],
       rune_summoning: [2, 2], rune_cinder_ledger: [3, 6, 6],

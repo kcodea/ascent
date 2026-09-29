@@ -192,7 +192,7 @@ _shared/lobbyRating.ts`, `supabase/migrations/2026-09-20-medal-rank.sql` (`settl
 
 ---
 
-## Account Level — permanent XP (owner decisions 2026-09-27; R-PROG-XP-01, R-PROG-CURVE-01, R-PROG-TITLE-01, R-PROG-CRATE-01, R-PROG-CRATE-02, R-PROG-CATALOG-01)
+## Account Level — permanent XP (owner decisions 2026-09-27; R-PROG-XP-01, R-PROG-CURVE-01, R-PROG-TITLE-01, R-PROG-CRATE-01, R-PROG-CRATE-02, R-PROG-CRATE-03, R-PROG-CATALOG-01)
 
 Account Level is a **permanent, earn-only** number that grows with every completed game. It never resets and
 never touches the ranked ladder (Ranked answers "how am I doing right now"; Account Level answers "how much have
@@ -225,8 +225,11 @@ progression **epoch**; nothing finished before the epoch counts (no backfill).
 - **Opening.** Optional and never forced (Continue is always available): from the New rewards pop-up or any time
   from the **Collection** (its own screen since 2026-09-28: the title's Collection plaque, the menu
   sidebar, or the Account Level card on your Career; Open one crate, or Open all). The reward is chosen **when the crate is opened**, on the
-  server, from the items the player does not own yet: each remaining item weighs rarity x category (rarity
-  Common 55, Rare 30, Epic 12, Legendary 3), normalized over what remains, never a rarity rolled first. **Never a
+  server, from the items the player does not own yet. **Fixed rarity odds (2026-09-29, R-PROG-CRATE-03):** one
+  server draw first rolls a rarity at **Common 50% / Rare 30% / Epic 15% / Legendary 5%**, then picks an unowned item
+  of that rarity weighted by its category weight. The odds never move as items are added, and the Collection's crate
+  bay prints them. A rolled rarity with nothing left falls to the **nearest** rarity that has something, ties toward
+  the more common one (Epic empty goes to Rare before Legendary). Opened crates record roll version 2. **Never a
   duplicate.** With nothing left to give, the crate stays **sealed** (`pool_exhausted`) until new items arrive;
   it is never converted into anything. A new title is worn at once only when none is worn.
 - **The opening (presentation, 2026-09-28).** A full-screen opening that starts on the click while the server
@@ -242,8 +245,9 @@ progression **epoch**; nothing finished before the epoch counts (no backfill).
   for every cosmetic category (announcer, hero skin, minion skin, title, hero attack, board, music). Switched on:
   **titles** (15 crate titles: 7 Common, 5 Rare, 2 Epic, 1 Legendary) and, since the skins shipped the same day,
   **hero skins** and **minion skins** (all from crates) and **hero attacks** (Arcane Barrage, Tectonic Slam, Arcana, Phantom Blades, Enraged Strike, Venom Volley, Frost Nova, then Consecration). The other
-  categories are feature-flagged off until their art exists. Crate odds are rarity weight x category weight over what
-  remains: a fresh account's first crate is about 33% a skin or hero attack (the eight Legendary attacks together about 4.3%).
+  categories are feature-flagged off until their art exists. Crate odds are the fixed rarity odds above, then category
+  weight inside the rarity: a fresh account's first crate (2026-09-29 catalog) is about 61% a skin or hero attack, and
+  the eight Legendary hero attacks together are 3%.
 - **Skins (2026-09-28; oracle R-PROG-SKINS-01, R-PROG-SKINS-04).** A hero skin replaces one hero's portrait; a
   minion skin replaces one card's art, by stable id. Equipped per target from the Collection's Heroes / Minions
   tabs through the server (`equip_cosmetic`: owned, made for that hero or card, live); **"Use default art"** is

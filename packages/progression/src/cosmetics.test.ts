@@ -1,15 +1,17 @@
 import { describe, expect, it } from 'vitest';
 import {
-  ALPHA_TESTER_TITLE_ID, COSMETICS, COSMETIC_CATEGORIES, COSMETIC_CATEGORY_DEFS, RARITY_WEIGHTS, crateName, crateTotalWeight, crateWeightOf,
-  eligibleCrateCosmetics, parseCrate, parseOpenCrateResult, pickCrateReward, type CosmeticDef,
+  ALPHA_TESTER_TITLE_ID, COSMETICS, COSMETIC_CATEGORIES, COSMETIC_CATEGORY_DEFS, COSMETIC_RARITIES, CRATE_RARITY_ODDS, crateChances, crateName, crateOddsLine,
+  crateRarityFallback, crateTotalWeight, crateWeightOf, eligibleCrateCosmetics, parseCrate, parseOpenCrateResult, pickCrateReward,
+  rollCrateRarity, type CosmeticDef,
 } from './cosmetics';
 import { cratesEarnedThrough, cratesForSettlement, titleName, titlesForLevel } from './rules';
 
 /**
  * THE COSMETIC CATALOG + THE CRATE ROLL (2026-09-28). The catalog's shape (15 crate titles, every handoff
  * category present and only titles switched on, Alpha Tester a level milestone outside the crate pool, player
- * text rules), and the roll: weighted over what actually REMAINS (no rarity rolled first), exact to the weights,
- * never an owned item, null only when nothing is left.
+ * text rules), and the roll (FIXED rarity odds since 2026-09-29, owner: "go to C", then "make it 50/30/15/5
+ * though"): a rarity at the published odds, then an unowned item of it by category weight, the nearest rarity with
+ * something left when the rolled one is empty, never an owned item, null only when nothing is left.
  */
 
 const crateTitles = COSMETICS.filter((c) => c.category === 'title' && c.acquisition.type === 'crate');
@@ -52,7 +54,7 @@ describe('the launch catalog', () => {
     ]);
     // Owner 2026-09-28: "the new blast attack is going to be a cosmetic unlock, not a new default" (hero_attack on).
     expect(COSMETIC_CATEGORIES.filter((c) => COSMETIC_CATEGORY_DEFS[c].enabled)).toEqual(['hero_skin', 'minion_skin', 'title', 'hero_attack']);
-    expect(RARITY_WEIGHTS).toEqual({ common: 55, rare: 30, epic: 12, legendary: 3 });
+    expect(CRATE_RARITY_ODDS).toEqual({ common: 50, rare: 30, epic: 15, legendary: 5 });
   });
 });
 
@@ -69,85 +71,126 @@ describe('the roll', () => {
     expect(ids).toEqual([...ids].sort());
   });
 
-  it('every roll in [0, total) lands on an item, and each item wins EXACTLY its weight share (normalized over what remains)', () => {
-    for (const owned of [[], crateTitles.filter((c) => c.rarity === 'common').map((c) => c.id), crateTitles.slice(0, 14).map((c) => c.id)]) {
-      const eligible = eligibleCrateCosmetics(owned);
-      const total = crateTotalWeight(eligible);
-      const wins: Record<string, number> = {};
-      for (let r = 0; r < total; r++) {
-        const pick = pickCrateReward(eligible, r);
-        expect(pick).not.toBeNull();
-        expect(owned).not.toContain(pick!.id);
-        wins[pick!.id] = (wins[pick!.id] ?? 0) + 1;
-      }
-      for (const c of eligible) expect(wins[c.id], c.id).toBe(crateWeightOf(c));
+  /** Every draw k/N for k in [0, N): an even sweep of [0, 1), how the tests measure exact shares. */
+  const sweep = (eligible: readonly CosmeticDef[], n = 20000): Record<string, number> => {
+    const wins: Record<string, number> = {};
+    for (let k = 0; k < n; k++) {
+      const pick = pickCrateReward(eligible, k / n);
+      expect(pick).not.toBeNull();
+      wins[pick!.id] = (wins[pick!.id] ?? 0) + 1;
     }
+    return wins;
+  };
+  const rarityShares = (eligible: readonly CosmeticDef[]): number[] => {
+    const ch = crateChances(eligible);
+    return COSMETIC_RARITIES.map((r) => Math.round(1000 * eligible.filter((c) => c.rarity === r).reduce((a, c) => a + ch.get(c.id)!, 0)) / 10);
+  };
+
+  it('the rarity is rolled FIRST at the fixed odds: Common [0, .5), Rare [.5, .8), Epic [.8, .95), Legendary [.95, 1)', () => {
+    expect(rollCrateRarity(0)).toEqual({ rarity: 'common', frac: 0 });
+    expect(rollCrateRarity(0.4999).rarity).toBe('common');
+    expect(rollCrateRarity(0.5)).toEqual({ rarity: 'rare', frac: 0 });
+    expect(rollCrateRarity(0.7999).rarity).toBe('rare');
+    expect(rollCrateRarity(0.8).rarity).toBe('epic');
+    expect(rollCrateRarity(0.9499).rarity).toBe('epic');
+    expect(rollCrateRarity(0.95).rarity).toBe('legendary');
+    expect(rollCrateRarity(0.975).frac).toBeCloseTo(0.5, 9);
+    // out-of-range draws clamp
+    expect(rollCrateRarity(-5).rarity).toBe('common');
+    expect(rollCrateRarity(1e9)).toEqual({ rarity: 'legendary', frac: 1 });
+    expect(crateOddsLine()).toBe('Common 50%, Rare 30%, Epic 15%, Legendary 5%');
   });
 
-  it('never rolls a rarity first: with every Common owned, a crate still always gives an item', () => {
-    const noCommons = eligibleCrateCosmetics(crateItems.filter((c) => c.rarity !== 'legendary').map((c) => c.id));
-    // 2026-09-28: the Legendary Black Belt Brian skin joined the one Legendary title, then the Legendary Blast hero
-    // attack (owner: "make it a legendary reward"), then (2026-09-28) the Legendary Quake, Arcana, Phantom Blades,
-    // Enraged Strike, Poison Darts ("Venom Volley"), Frost ("Frost Nova") and Consecration (attack_holy) hero attacks, then (2026-09-28, skins batch 2) the Legendary Sylus skin, so eleven remain.
-    expect(noCommons.map((c) => c.id)).toEqual(['attack_arcana', 'attack_blades', 'attack_blast', 'attack_enraged', 'attack_frost', 'attack_holy', 'attack_poison', 'attack_quake', 'skin_blackbelt_3', 'skin_sylus_2', 'title_the_unbroken']);
-    expect(pickCrateReward(noCommons, 0)!.id).toBe('attack_arcana');
-    expect(pickCrateReward(noCommons, crateTotalWeight(noCommons) - 1)!.id).toBe('title_the_unbroken');
+  it('a first crate (everything eligible) lands EXACTLY 50 / 30 / 15 / 5 at the rarity level, whatever the catalog holds', () => {
+    const all = eligibleCrateCosmetics([]);
+    for (const r of COSMETIC_RARITIES) expect(all.some((c) => c.rarity === r), r).toBe(true);
+    const n = 20000;
+    const wins = sweep(all, n);
+    const rarity = Object.fromEntries(all.map((c) => [c.id, c.rarity]));
+    const byRarity: Record<string, number> = {};
+    for (const [id, w] of Object.entries(wins)) byRarity[rarity[id]!] = (byRarity[rarity[id]!] ?? 0) + w;
+    expect(COSMETIC_RARITIES.map((r) => byRarity[r])).toEqual([0.5 * n, 0.3 * n, 0.15 * n, 0.05 * n]);
+    // and crateChances (the exact analytic split) agrees
+    expect(rarityShares(all)).toEqual([50, 30, 15, 5]);
   });
 
-  it('an exhausted pool gives nothing (the crate stays sealed); out-of-range rolls clamp', () => {
+  it('within a rarity, items split by CATEGORY weight (every item wins its weight share of its band)', () => {
+    const all = eligibleCrateCosmetics([]);
+    const n = 50000;
+    const wins = sweep(all, n);
+    const ch = crateChances(all);
+    for (const c of all) expect(Math.abs(wins[c.id]! / n - ch.get(c.id)!), c.id).toBeLessThan(0.001);
+    // e.g. inside Epic a minion skin (35) is 3.5x a title (10)
+    expect(ch.get('skin_bellringer_1')! / ch.get('title_kingbreaker')!).toBeCloseTo(3.5, 9);
+  });
+
+  // Pinned 2026-09-29 (fixed odds 50/30/15/5; was ONE weighted draw over everything: Common 29.6 / Rare 50.7 / Epic
+  // 16.6 / Legendary 3.1). The catalog then: Common 7 titles + 1 minion skin (weight 105); Rare 5 titles + 8 minion
+  // skins (330); Epic 2 titles + 6 minion skins + 2 hero skins (270); Legendary 1 title + 2 minion skins + 8 hero
+  // attacks (200). Adding an item only re-splits its OWN rarity's share; the four rarity numbers never move.
+  it('the per-item chances of a first crate (2026-09-29 catalog)', () => {
+    const all = eligibleCrateCosmetics([]);
+    const ch = crateChances(all);
+    const pct = (id: string): number => Math.round(100000 * ch.get(id)!) / 1000;
+    expect(pct('skin_blackbelt_4')).toBe(16.667);     // Common minion skin: 50 x 35/105
+    expect(pct('title_board_builder')).toBe(4.762);   // Common title: 50 x 10/105
+    expect(pct('skin_blackbelt_1')).toBe(3.182);      // Rare minion skin: 30 x 35/330
+    expect(pct('title_grave_whisperer')).toBe(0.909); // Rare title: 30 x 10/330
+    expect(pct('skin_bellringer_1')).toBe(1.944);     // Epic minion skin: 15 x 35/270
+    expect(pct('skin_albus_1')).toBe(1.111);          // Epic hero skin: 15 x 20/270
+    expect(pct('title_kingbreaker')).toBe(0.556);     // Epic title: 15 x 10/270
+    expect(pct('skin_blackbelt_3')).toBe(0.875);      // Legendary minion skin: 5 x 35/200
+    expect(pct('attack_arcana')).toBe(0.375);         // Legendary hero attack: 5 x 15/200
+    expect(pct('title_the_unbroken')).toBe(0.25);     // Legendary title: 5 x 10/200
+    const cat = (k: string): number => Math.round(1000 * all.filter((c) => c.category === k).reduce((a, c) => a + ch.get(c.id)!, 0)) / 10;
+    expect([cat('title'), cat('minion_skin'), cat('hero_skin'), cat('hero_attack')]).toEqual([39.2, 55.5, 2.2, 3]);
+    expect([...ch.values()].reduce((a, b) => a + b, 0)).toBeCloseTo(1, 12);
+  });
+
+  it('an EMPTY rarity falls to the NEAREST one with something left, ties toward the MORE COMMON one', () => {
+    expect(crateRarityFallback('common')).toEqual(['common', 'rare', 'epic', 'legendary']);
+    expect(crateRarityFallback('rare')).toEqual(['rare', 'common', 'epic', 'legendary']);
+    expect(crateRarityFallback('epic')).toEqual(['epic', 'rare', 'legendary', 'common']);
+    expect(crateRarityFallback('legendary')).toEqual(['legendary', 'epic', 'rare', 'common']);
+    const all = eligibleCrateCosmetics([]);
+    const without = (...rs: string[]): CosmeticDef[] => all.filter((c) => !rs.includes(c.rarity));
+    // Epic empty: its 15 goes to Rare (not Legendary)
+    expect(rarityShares(without('epic'))).toEqual([50, 45, 0, 5]);
+    // Common empty: its 50 goes to Rare
+    expect(rarityShares(without('common'))).toEqual([0, 80, 15, 5]);
+    // Legendary empty: its 5 goes to Epic
+    expect(rarityShares(without('legendary'))).toEqual([50, 30, 20, 0]);
+    // Rare AND Epic empty: Rare's 30 goes to Common (nearest), Epic's 15 to Legendary (nearest with something left)
+    expect(rarityShares(without('rare', 'epic'))).toEqual([80, 0, 0, 20]);
+    // only Legendary left: every draw gives a Legendary
+    expect(rarityShares(without('common', 'rare', 'epic'))).toEqual([0, 0, 0, 100]);
+    // the pick itself follows the same fallback
+    expect(pickCrateReward(without('common'), 0)!.rarity).toBe('rare');
+    expect(pickCrateReward(without('epic'), 0.85)!.rarity).toBe('rare');
+  });
+
+  it('never an owned item, and a crate always gives something while anything remains', () => {
+    for (const owned of [[], crateTitles.filter((c) => c.rarity === 'common').map((c) => c.id), crateItems.slice(0, 30).map((c) => c.id)]) {
+      const wins = sweep(eligibleCrateCosmetics(owned), 2000);
+      for (const id of Object.keys(wins)) expect(owned).not.toContain(id);
+    }
+    const one = eligibleCrateCosmetics(crateItems.map((c) => c.id).filter((id) => id !== 'title_kingbreaker'));
+    expect(one.map((c) => c.id)).toEqual(['title_kingbreaker']);
+    for (const u of [0, 0.3, 0.6, 0.9, 0.99]) expect(pickCrateReward(one, u)!.id).toBe('title_kingbreaker');
+  });
+
+  it('an exhausted pool gives nothing (the crate stays sealed); out-of-range draws clamp', () => {
     const none = eligibleCrateCosmetics(crateItems.map((c) => c.id));
     expect(none).toEqual([]);
     expect(pickCrateReward(none, 0)).toBeNull();
+    expect(crateChances(none).size).toBe(0);
     const all = eligibleCrateCosmetics([]);
-    expect(pickCrateReward(all, -5)!.id).toBe(all[0]!.id);
-    expect(pickCrateReward(all, 1e9)!.id).toBe(all[all.length - 1]!.id);
-  });
-
-  // Re-pinned 2026-09-28 when the Legendary Black Belt Brian and the Epic Bellringer Voss skins joined (was Common
-  // 50.9 / Rare 33.7 / Epic 15.1 / Legendary 0.4 / skin 25.8), and AGAIN on 2026-09-28 when the first hero attack
-  // (Arcane Barrage, `attack_blast`) joined: was Common 47.6 / Rare 31.5 / Epic 19.3 / Legendary 1.7 / non-title 30.6
-  // of 8095. It first landed as Epic (weight 12 x 15 = 180); re-pinned the same day when the owner made it LEGENDARY
-  // ("make it a legendary reward"): weight 3 x 15 = 45. Weights of the full pool now: Common 3850, Rare 2550, Epic
-  // 1560, Legendary 180 (the Unbroken 30 + Grandmaster Brian 105 + the attack 45) of 8140; non-title 2520; the attack 0.6%.
-  // Re-pinned AGAIN 2026-09-28 when the second hero attack, Quake (`attack_quake`, "Tectonic Slam", Legendary, weight
-  // 3 x 15 = 45) joined: was Common 47.3 / Rare 31.3 / Epic 19.2 / Legendary 2.2 / non-title 31.0 of 8140. Now
-  // Legendary 225 of 8185; non-title 2565; the two attacks together 1.1% (each 0.55%).
-  // Re-pinned AGAIN 2026-09-28 when the third hero attack, Arcana (`attack_arcana`, Legendary, weight 3 x 15 = 45)
-  // joined: was Common 47.0 / Rare 31.2 / Epic 19.1 / Legendary 2.7 / non-title 31.3 / attacks 1.1 of 8185. Now
-  // Legendary 270 of 8230; non-title 2610; the three attacks together 1.6% (each about 0.55%).
-  // Re-pinned AGAIN 2026-09-28 when the fourth hero attack, Phantom Blades (`attack_blades`, Legendary, weight 3 x 15 =
-  // 45) joined: was Common 46.8 / Rare 31.0 / Epic 19.0 / Legendary 3.3 / non-title 31.7 / attacks 1.6 of 8230. Now
-  // Legendary 315 of 8275; non-title 2655; the four attacks together 2.2% (each 0.54%).
-  // Re-pinned AGAIN 2026-09-28 when the fifth hero attack, Enraged Strike (`attack_enraged`, Legendary, weight 3 x 15 =
-  // 45) joined: was Common 46.5 / Rare 30.8 / Epic 18.9 / Legendary 3.8 / non-title 32.1 / attacks 2.2 of 8275. Now
-  // Legendary 360 of 8320; non-title 2700; the five attacks together 2.7% (each 0.54%).
-  // Re-pinned AGAIN 2026-09-28 when the sixth hero attack, Poison Darts (`attack_poison`, "Venom Volley", Legendary, weight
-  // 3 x 15 = 45) joined: was Common 46.3 / Rare 30.6 / Epic 18.8 / Legendary 4.3 / non-title 32.5 / attacks 2.7 of 8320.
-  // Now Legendary 405 of 8365; non-title 2745; the six attacks together 3.2% (each 0.54%).
-  // Re-pinned AGAIN 2026-09-28 when the seventh hero attack, Frost (`attack_frost`, "Frost Nova", Legendary, weight 3 x 15
-  // = 45) joined after Poison: was Common 46.0 / Rare 30.5 / Epic 18.6 / Legendary 4.8 / non-title 32.8 / attacks 3.2 of
-  // 8365. Now Legendary 450 of 8410; non-title 2790; the seven attacks together 3.7% (each 0.54%).
-  // Re-pinned AGAIN 2026-09-28 when the eighth hero attack, Consecration (`attack_holy`, Legendary, weight 3 x 15 = 45)
-  // joined after Frost: was Common 45.8 / Rare 30.3 / Epic 18.5 / Legendary 5.4 / non-title 33.2 / attacks 3.7 of 8410.
-  // Now Legendary 495 of 8455; non-title 2835; the eight attacks together 4.3% (each 0.53%).
-  // Re-pinned AGAIN 2026-09-28 for skins batch 2 (owner: "i added some skins here: can you wire those up now?"): 13
-  // minion skins (x35): 1 Common (1925), 7 Rare (7 x 1050 = 7350), 4 Epic (4 x 420 = 1680), 1 Legendary (105), +11060.
-  // Was Common 45.5 / Rare 30.2 / Epic 18.5 / Legendary 5.9 / non-title 33.5 / attacks 4.3 of 8455. Now Common 5775,
-  // Rare 9900, Epic 3240, Legendary 600 of 19515; non-title 13895; the eight attacks together 1.8%.
-  it('the odds of a first crate with skins batch 2 and all eight Legendary hero attacks in (2026-09-28): Common 29.6%, Rare 50.7%, Epic 16.6%, Legendary 3.1%; a non-title 71.2%', () => {
-    const all = eligibleCrateCosmetics([]);
-    const total = crateTotalWeight(all);
-    const pct = (xs: typeof all): number => Math.round((1000 * xs.reduce((s, c) => s + crateWeightOf(c), 0)) / total) / 10;
-    const share = (r: string): number => pct(all.filter((c) => c.rarity === r));
-    expect([share('common'), share('rare'), share('epic'), share('legendary')]).toEqual([29.6, 50.7, 16.6, 3.1]);
-    expect(pct(all.filter((c) => c.category !== 'title'))).toBe(71.2);
-    expect(pct(all.filter((c) => c.category === 'hero_attack'))).toBe(1.8);
-    expect(total).toBe(19515);
-    // the titles-only launch odds are unchanged when the skins are switched off (the kill switch path)
-    const titlesOnly = all.filter((c) => c.category === 'title');
-    const t = crateTotalWeight(titlesOnly);
-    const tShare = (r: string): number => Math.round((1000 * titlesOnly.filter((c) => c.rarity === r).reduce((s, c) => s + crateWeightOf(c), 0)) / t) / 10;
-    expect([tShare('common'), tShare('rare'), tShare('epic'), tShare('legendary')]).toEqual([68.5, 26.7, 4.3, 0.5]);
+    const commons = all.filter((c) => c.rarity === 'common');
+    const legendaries = all.filter((c) => c.rarity === 'legendary');
+    expect(pickCrateReward(all, -5)!.id).toBe(commons[0]!.id);
+    expect(pickCrateReward(all, 1e9)!.id).toBe(legendaries[legendaries.length - 1]!.id);
+    expect(crateWeightOf({ category: 'minion_skin' })).toBe(35);
+    expect(crateTotalWeight(legendaries)).toBe(200);
   });
 });
 

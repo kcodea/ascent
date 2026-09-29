@@ -60,6 +60,16 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: 'Crates now have fixed odds: Common 50%, Rare 30%, Epic 15%, Legendary 5%.',
+        details: [
+          'A crate first rolls its rarity at these odds, then gives you an item of that rarity you do not own yet.',
+          'The odds never change as new items are added. You can see them in the Collection, under your sealed crates.',
+          'If you already own everything of the rolled rarity, you get an item from the nearest rarity that still has one.',
+          'Crates still never give a duplicate.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: "Match details now shows other players' titles.",
         details: [
           'Each player in the list shows the title they wore in that game, in its rarity colour, next to their hero.',

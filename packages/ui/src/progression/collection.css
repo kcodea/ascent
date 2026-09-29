@@ -152,6 +152,7 @@
 .colls-bay-sub { font-weight: 700; font-size: 15px; line-height: 1.35; color: var(--colls-dim); }
 .colls-bay-sub b { font-weight: 900; color: #ffe08a; }
 .colls-bay-actions { display: flex; flex-wrap: wrap; gap: 10px; }
+.colls-bay-odds { font-weight: 700; font-size: 12px; letter-spacing: 0.02em; color: var(--colls-dim); opacity: 0.85; }
 .colls-hero-glow { position: absolute; inset: -6px; border-radius: 50%; pointer-events: none;
   background: radial-gradient(closest-side, rgba(255, 214, 120, 0.42), rgba(255, 214, 120, 0) 72%); animation: colls-breathe 2.8s ease-in-out infinite; will-change: opacity; }
 .colls-crate { position: relative; display: block; width: 122px; height: 100px; border-radius: 12px; border: 3px solid #21110a;

@@ -6,8 +6,8 @@ import {
   TUTORIAL_COURSE_VERSION, XP_RULES, levelOfXp, xpForSettlement,
 } from './rules';
 import {
-  ALPHA_TESTER_TITLE_ID, COSMETICS, COSMETIC_CATEGORIES, COSMETIC_CATEGORY_DEFS, COSMETIC_RARITIES, CRATE_ROLL_VERSION, RARITY_WEIGHTS,
-  EQUIP_SLOTS, catalogSyncPayload, crateWeightOf, eligibleCrateCosmetics, pickCrateReward,
+  ALPHA_TESTER_TITLE_ID, COSMETICS, COSMETIC_CATEGORIES, COSMETIC_CATEGORY_DEFS, COSMETIC_RARITIES, CRATE_RARITY_ODDS, CRATE_ROLL_VERSION,
+  EQUIP_SLOTS, catalogSyncPayload, crateRarityFallback, crateWeightOf, eligibleCrateCosmetics, pickCrateReward,
 } from './cosmetics';
 import { SQL_ERROR_STATUS } from './server';
 import {
@@ -32,12 +32,14 @@ const skins = readFileSync(join(root, 'supabase/migrations/2026-09-28-progressio
 const ach = readFileSync(join(root, 'supabase/migrations/2026-09-28-achievements.sql'), 'utf8');
 /** The hero attack migration (2026-09-28) REPLACES `equip_cosmetic` to accept the account-wide `hero_attack` slot. */
 const heroAttack = readFileSync(join(root, 'supabase/migrations/2026-09-28-progression-hero-attack.sql'), 'utf8');
+/** The fixed-odds migration (2026-09-29) REPLACES `progression_crate_pool` + `open_crate` and adds `progression_crate_pick`. */
+const odds = readFileSync(join(root, 'supabase/migrations/2026-09-29-crate-fixed-rarity-odds.sql'), 'utf8');
 const schema = readFileSync(join(root, 'schema.sql'), 'utf8');
 
-/** The body of a function's LATEST definition (hero attack, else achievements, else skins, else crates, else the MVP's). */
+/** The body of a function's LATEST definition (fixed odds, else hero attack, else achievements, else skins, else crates, else the MVP's). */
 function fnBody(name: string, from?: string): string {
   const defines = (t: string): boolean => t.includes(`create or replace function public.${name}(`);
-  const text = from ?? (defines(heroAttack) ? heroAttack : defines(ach) ? ach : defines(skins) ? skins : defines(crates) ? crates : sql);
+  const text = from ?? (defines(odds) ? odds : defines(heroAttack) ? heroAttack : defines(ach) ? ach : defines(skins) ? skins : defines(crates) ? crates : sql);
   const start = text.indexOf(`create or replace function public.${name}(`);
   if (start < 0) throw new Error(`no function ${name} in the migration`);
   const open = text.indexOf('$$', start);
@@ -167,7 +169,7 @@ describe('the migration shape', () => {
 
   it('schema.sql (the cumulative paste file) carries every progression migration verbatim, in order', () => {
     const flat = schema.replace(/\r\n/g, '\n');
-    const at = [sql, crates, skins, ach, heroAttack].map((t) => flat.indexOf(t.replace(/\r\n/g, '\n').trim()));
+    const at = [sql, crates, skins, ach, heroAttack, odds].map((t) => flat.indexOf(t.replace(/\r\n/g, '\n').trim()));
     expect(at.every((i) => i >= 0)).toBe(true);
     expect([...at].sort((a, b) => a - b)).toEqual(at);
   });
@@ -204,11 +206,21 @@ describe('the crates migration (2026-09-28)', () => {
     for (const k of ['crateId', 'earnedLevel', 'state', 'rewardId', 'earnedAt', 'openedAt']) expect(crateJson, k).toContain(`'${k}'`);
   });
 
-  it('the rarity weights and roll version equal the TS rules', () => {
-    const pool = fnBody('progression_crate_pool');
-    expect(COSMETIC_RARITIES.map((r) => n(pool, `c_w_${r}`))).toEqual(COSMETIC_RARITIES.map((r) => RARITY_WEIGHTS[r]));
-    expect(RARITY_WEIGHTS).toEqual({ common: 55, rare: 30, epic: 12, legendary: 3 });
+  it('the published rarity odds and the roll version equal the TS rules (owner 2026-09-29: "make it 50/30/15/5 though")', () => {
+    const pick = fnBody('progression_crate_pick');
+    expect(COSMETIC_RARITIES.map((r) => n(pick, `c_odds_${r}`))).toEqual(COSMETIC_RARITIES.map((r) => CRATE_RARITY_ODDS[r]));
+    expect(CRATE_RARITY_ODDS).toEqual({ common: 50, rare: 30, epic: 15, legendary: 5 });
+    expect(Object.values(CRATE_RARITY_ODDS).reduce((a, b) => a + b, 0)).toBe(100);
+    // the SQL walks the rarities in the TS order
+    expect(/v_rarities text\[\] := array\[([^\]]*)\]/.exec(pick)![1]!.split(',').map((x) => x.trim().replace(/^'(.*)'$/, '$1'))).toEqual([...COSMETIC_RARITIES]);
     expect(n(fnBody('open_crate'), 'c_roll_version')).toBe(CRATE_ROLL_VERSION);
+    expect(CRATE_ROLL_VERSION).toBe(2);
+    // the pool carries the category weight only; the odds are no longer in it
+    expect(fnBody('progression_crate_pool')).not.toMatch(/c_w_|c_odds_/);
+    expect(fnBody('progression_crate_pool')).toMatch(/select c\.cosmetic_id, k\.weight/);
+    // one draw per opening, through the pick
+    expect(fnBody('open_crate')).toContain('public.progression_crate_pick(p_user, random())');
+    expect(fnBody('open_crate').match(/random\(\)/g)).toHaveLength(1);
   });
 
   /** The rows of one `insert into public.<table> (...) values (...), ... on conflict` seed in the CRATES file (the
@@ -247,21 +259,41 @@ describe('the crates migration (2026-09-28)', () => {
     expect(n(settle, 'c_alpha_level')).toBe(TITLES[ALPHA_TESTER_TITLE_ID]!.unlockLevel);
   });
 
-  it('the SQL walk (cumulative weight in id order, first bucket above the roll) picks exactly what pickCrateReward picks, for every roll', () => {
-    const pool = fnBody('progression_crate_pool');
-    const w = (r: string): number => n(pool, `c_w_${r}`);
-    // the category weights the database holds after a sync
+  it('the SQL pick (rarity band, nearest-rarity fallback, category-weight walk in id order) picks exactly what pickCrateReward picks', () => {
+    const pick = fnBody('progression_crate_pick');
+    const oddsOf = COSMETIC_RARITIES.map((r) => n(pick, `c_odds_${r}`));
+    // the database's category weights after a sync
     const catWeight = Object.fromEntries(catalogSyncPayload().categories.map((c) => [c.category, c.weight]));
-    for (const owned of [[], ['title_wanderer', 'title_the_unbroken'], eligibleCrateCosmetics([]).slice(1).map((c) => c.id)]) {
-      const eligible = eligibleCrateCosmetics(owned);
-      // SQL: order by id collate "C" (byte order), weight = rarity x category
-      const sqlPool = [...eligible].sort((a, b) => (Buffer.from(a.id) < Buffer.from(b.id) ? -1 : 1)).map((c) => ({ id: c.id, weight: w(c.rarity) * catWeight[c.category]! }));
-      expect(sqlPool.map((p) => p.weight)).toEqual(eligible.map(crateWeightOf));
-      const total = sqlPool.reduce((s, p) => s + p.weight, 0);
-      for (let roll = 0; roll < total; roll++) {
+    // the SQL fallback: order by abs(g - rolled), g
+    expect(pick).toMatch(/order by abs\(g - v_rolled\), g/);
+    const sqlOrder = (rolled: number): number[] => [0, 1, 2, 3].sort((a, b) => Math.abs(a - rolled) - Math.abs(b - rolled) || a - b);
+    for (let i = 0; i < 4; i++) expect(sqlOrder(i).map((j) => COSMETIC_RARITIES[j])).toEqual(crateRarityFallback(COSMETIC_RARITIES[i]!));
+    const sqlPick = (eligible: ReturnType<typeof eligibleCrateCosmetics>, draw: number): string | null => {
+      const x = Math.min(Math.max(draw, 0), 1) * 100;
+      let lo = 0; let rolled = 3; let frac = 1;
+      for (let i = 0; i < 4; i++) {
+        if (x < lo + oddsOf[i]!) { rolled = i; frac = (x - lo) / oddsOf[i]!; break; }
+        lo += oddsOf[i]!;
+      }
+      for (const j of sqlOrder(rolled)) {
+        const pool = eligible.filter((c) => c.rarity === COSMETIC_RARITIES[j]).sort((a, b) => (Buffer.from(a.id) < Buffer.from(b.id) ? -1 : 1));
+        const total = pool.reduce((s2, c) => s2 + catWeight[c.category]!, 0);
+        if (total <= 0) continue;
+        const roll = Math.min(total - 1, Math.max(0, Math.floor(frac * total)));
         let acc = 0;
-        const sqlPick = sqlPool.find((p) => (acc += p.weight) > roll)!.id;
-        expect(sqlPick, `roll ${roll}`).toBe(pickCrateReward(eligible, roll)!.id);
+        return pool.find((c) => (acc += catWeight[c.category]!) > roll)!.id;
+      }
+      return null;
+    };
+    const all = eligibleCrateCosmetics([]);
+    for (const c of all) expect(catWeight[c.category], c.id).toBe(crateWeightOf(c));
+    const noCommon = all.filter((c) => c.rarity === 'common').map((c) => c.id);
+    const onlyEpicLeft = all.filter((c) => c.rarity !== 'epic').map((c) => c.id);
+    for (const owned of [[], ['title_wanderer', 'title_the_unbroken'], noCommon, onlyEpicLeft, all.slice(1).map((c) => c.id), all.map((c) => c.id)]) {
+      const eligible = eligibleCrateCosmetics(owned);
+      for (let k = 0; k <= 4000; k++) {
+        const draw = k / 4000;
+        expect(sqlPick(eligible, draw), `draw ${draw}`).toBe(pickCrateReward(eligible, draw)?.id ?? null);
       }
     }
   });

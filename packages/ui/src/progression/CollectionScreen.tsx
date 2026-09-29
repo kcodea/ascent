@@ -1,6 +1,6 @@
 import { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  COSMETIC_CATEGORY_DEFS, COSMETIC_RARITIES, RARITY_LABELS, crateName, levelProgress,
+  COSMETIC_CATEGORY_DEFS, COSMETIC_RARITIES, RARITY_LABELS, crateName, crateOddsLine, levelProgress,
   type CosmeticCategory, type CosmeticDef, type CosmeticRarity,
 } from '@game/progression';
 import { tempHandle, useGame } from '../store';
@@ -418,6 +418,8 @@ function CrateBay({ cratesOn, loading, sealed, nextLevel, onOpen, onOpenAll }: {
             </div>
           </>
         )}
+        {/* The published odds (owner 2026-09-29: fixed rarity odds, safe to show players). */}
+        {cratesOn && <div className="colls-bay-odds">Crate odds: {crateOddsLine()}</div>}
       </div>
     </section>
   );

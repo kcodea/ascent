@@ -28,7 +28,7 @@ import type { HeroAttackHandle, HeroAttackOptions } from '../heroAttack/options'
 import { Sequence } from '../heroAttack/sequence';
 import { PortraitMover, StageCamera } from '../heroAttack/stageCamera';
 import {
-  getHeroHolyConfig, holyCameraAt, holyCameraFocus, holyCues, holyGeo, holyPlan, swordTipY,
+  getHeroHolyConfig, holyCameraAt, holyCameraFocus, holyCues, holyGeo, holyPlan,
   type HeroHolyConfig, type HolyCue, type HolyGeo, type HolyPlan,
 } from './heroHolyConfig';
 import { HeroHolyScene, type HeroHolyTextures } from './heroHolyScene';
@@ -70,7 +70,7 @@ export function playHeroHoly(o: HeroHolyOptions): HeroHolyHandle {
   const radius = o.defenderRadius ?? 120 * s;
   const aRadius = o.attackerRadius ?? radius;
   // The sword always fits under the top of the screen (or the sandbox box).
-  const geo = holyGeo(plan, o.attacker, o.defender, radius, c, s, (local ? 6 : 24) * s);
+  const geo = holyGeo(plan, o.attacker, o.defender, radius, c, s);
   const d = o.defender;
 
   // ── DOM: the numbers (shared) ──
@@ -90,7 +90,7 @@ export function playHeroHoly(o: HeroHolyOptions): HeroHolyHandle {
     }, {
       haloSize: c.haloSize, sunburst: c.sunburst, prayBeam: c.prayBeam, sigilSize: c.sigilSize, sigilSpin: c.sigilSpin,
       pillarGlow: c.pillarGlow, pillarHeight: c.pillarHeight, raysSize: c.raysSize, spearSize: c.spearSize, seedGlow: c.seedGlow,
-      swordGlow: c.swordGlow, tilt: c.groundTilt, pathWidth: c.pathWidth, flameHeight: c.flameHeight,
+      swordGlow: c.swordGlow, pathWidth: c.pathWidth, flameHeight: c.flameHeight,
     }, s, holySeed(o.total, dist, o.side))
     : null;
   if (scene && !o.mount) void pixiFx.ensureAboveSlot();
@@ -105,7 +105,7 @@ export function playHeroHoly(o: HeroHolyOptions): HeroHolyHandle {
   const cue = voices.cue.bind(voices);
   voices.warm([
     c.sfxInvokeClip, c.sfxSigilClip, c.sfxDropClip, c.sfxHitClip, c.sfxImpactClip, c.sfxThumpClip, c.sfxSpearClip,
-    c.sfxDescendClip, c.sfxSlamClip, c.sfxClangClip, c.sfxEruptClip, c.sfxBigClip,
+    c.sfxDescendClip, c.sfxSlamClip, c.sfxClangClip, c.sfxEruptClip, c.sfxImplodeClip, c.sfxBigClip,
   ]);
   const real = (ms: number): number => ms / speed;
   const bell = (hz: number, gain: number, decayMs: number, delayMs = 0): void => {
@@ -163,37 +163,45 @@ export function playHeroHoly(o: HeroHolyOptions): HeroHolyHandle {
         tick++;
         break;
       case 'sword': {
-        // THE JUDGEMENT: the sword drops in from above the screen; the descending whoosh is placed so its hit lands on
-        // the slam.
-        voices.riser(c.sfxDescendClip, c.sfxDescendGain, c.sfxDescendRate, real(plan.slamAt - plan.swordAt));
-        const at0 = plan.swordAt;
-        scene?.summonSword(geo.swordTip.x, geo.swordLen, (age) => swordTipY(plan, geo, at0 + age), plan.fallAt - at0, plan.slamAt - at0);
+        // THE BARRAGE (owner 2026-09-29): a sword flies in from off screen along its own heading. Its whoosh climbs with
+        // the ramp; the first carries the descending swoosh, placed so its hit lands on the bite.
+        const w = geo.swords[q.i], pw = plan.swords[q.i]!;
+        const n = plan.swords.length, k = n > 1 ? q.i / (n - 1) : 1;
+        if (q.i === 0) voices.riser(c.sfxDescendClip, c.sfxDescendGain, c.sfxDescendRate, real(pw.arriveAt - pw.launchAt));
+        cue(c.sfxSpearClip, c.sfxSpearGain * (1.2 + 0.6 * k), c.sfxSpearRate * (0.75 + 0.35 * k), { lenMs: 450, fadeMs: 160 });
+        if (q.i === 1 && sound) {
+          // The choir swells from the second sword to the implosion (the barrage charging the centre).
+          voices.keep(playHolyChoir('attack', { gain: c.sfxChoirGain, hz: c.sfxChoirHz, buildMs: real(plan.implodeAt - pw.launchAt), holdMs: real(60), tailMs: real(300), rise: 1.3 }));
+        }
+        if (w) scene?.launchSword(w.from, w.tip, geo.centre, w.len, pw.arriveAt - pw.launchAt);
         break;
       }
-      case 'fall':
-        cue(c.sfxSpearClip, c.sfxSpearGain * 1.6, c.sfxSpearRate * 0.7, { lenMs: 500, fadeMs: 160 });
+      case 'swordHit': {
+        // A sword BITES: punchy, not boomy, climbing in pitch and weight through the ramp (a hammer, a metal clang, a bell).
+        const w = geo.swords[q.i];
+        const n = plan.swords.length, k = n > 1 ? q.i / (n - 1) : 1;
+        cue(c.sfxSlamClip, c.sfxSlamGain * (0.6 + 0.5 * k), c.sfxSlamRate * (1 + 0.18 * k), { lenMs: 600, fadeMs: 250 });
+        cue(c.sfxClangClip, c.sfxClangGain * (0.6 + 0.5 * k), c.sfxClangRate * (1 + 0.3 * k), { lenMs: 700, fadeMs: 300 });
+        if (q.i === 0) cue(c.sfxThumpClip, c.sfxThumpGain * 1.2, c.sfxThumpRate - 0.1, { lenMs: 500, fadeMs: 180 });
+        bell(c.sfxBellHz * (0.5 + 0.12 * q.i), c.sfxBellGain * (0.5 + 0.4 * k), 900);
+        if (w) scene?.swordHit(w.tip, geo.centre, radius, q.i, n, { dust: c.slamDust, debris: c.slamDebris, shock: c.shockwave, flashAlpha: c.flashAlpha });
         break;
-      case 'slam':
-        // THE SLAM: punchy, not boomy (the rock impact pitched up, the hammer, a metal clang, a low bell).
-        cue(c.sfxSlamClip, c.sfxSlamGain, c.sfxSlamRate, { tail: c.sfxTailMix, lenMs: 900, fadeMs: 350 });
-        cue(c.sfxClangClip, c.sfxClangGain, c.sfxClangRate, { lenMs: 900, fadeMs: 400 });
-        cue(c.sfxThumpClip, c.sfxThumpGain * 1.2, c.sfxThumpRate - 0.1, { lenMs: 500, fadeMs: 180 });
-        bell(c.sfxBellHz * 0.5, c.sfxBellGain * 0.8, 1600);
-        // ... and it EXPLODES INTO LIGHT (owner 2026-09-28): the sword dissolves in the blast.
-        cue(c.sfxEruptClip, c.sfxEruptGain * 0.7, c.sfxEruptRate * 1.12, { lenMs: 700, fadeMs: 300 });
-        scene?.slam(geo.swordTip.x, geo.swordTip.y, radius, { dust: c.slamDust, debris: c.slamDebris, shock: c.shockwave, cracks: c.cracks, flashAlpha: c.flashAlpha });
-        scene?.explodeSword(geo.swordTip.x, geo.swordTip.y, geo.swordLen, radius, { size: c.explodeSize, shards: c.shards, dissolveMs: c.dissolveMs, flashAlpha: c.flashAlpha });
-        // THE WAKE BUILDS: a short charge (the choir climbing fast to the moment it is fired).
-        if (sound) voices.keep(playHolyChoir('attack', { gain: c.sfxChoirGain, hz: c.sfxChoirHz, buildMs: real(plan.spreadAt - plan.slamAt), holdMs: real(30), tailMs: real(500), rise: 1.25 }));
-        scene?.wake(geo.swordTip.x, geo.swordTip.y, radius, plan.spreadAt - plan.slamAt, geo.foot, c.waveSize);
+      }
+      case 'implode':
+        // THE IMPLOSION: a sharp inward suck (the collapse clip, reversed in feel by its pitch) under the peaking choir.
+        cue(c.sfxImplodeClip, c.sfxImplodeGain, c.sfxImplodeRate, { lenMs: 600, fadeMs: 200 });
+        scene?.implode(geo.centre, radius, plan.spreadAt - plan.implodeAt);
         break;
       case 'spread':
-        // IT FLIES: the flat consecrated blast is fired along the ground; a rising radiant swell (the choir) peaks on the
-        // strike, and a whoosh carries the shot.
+        // THE RELEASE: a punchy holy burst out of the centre (pitched up, a crack not a boom), then the flat consecrated
+        // blast is fired along the board; a rising radiant swell peaks on the strike, and a whoosh carries the shot.
+        cue(c.sfxEruptClip, c.sfxEruptGain * 0.8, c.sfxEruptRate * 1.12, { lenMs: 700, fadeMs: 300 });
+        bell(c.sfxBellHz, c.sfxBellGain * 0.8, 1400);
+        scene?.release(geo.centre, radius, geo.foot, { size: c.explodeSize, shards: c.shards, cracks: c.cracks, flashAlpha: c.flashAlpha });
         if (sound) voices.keep(playHolyChoir('attack', { gain: c.sfxSwellGain, hz: c.sfxChoirHz, buildMs: real(plan.impactAt - plan.spreadAt), holdMs: real(40), tailMs: real(1200), rise: 1.5 }));
         cue(c.sfxDropClip, c.sfxDropGain, c.sfxDropRate * 1.15, { lenMs: 600, fadeMs: 220 });
         cue(c.sfxHitClip, c.sfxHitGain * 0.7, c.sfxHitRate * 0.85, { lenMs: 500, fadeMs: 220 });
-        scene?.spread(geo.path.a, geo.path.b, geo.cracks, geo.runes, plan.arriveAt - plan.spreadAt, radius * 0.62 * c.pathWidth);
+        scene?.spread(geo.path.a, geo.path.b, geo.cracks, geo.runes, plan.arriveAt - plan.spreadAt, radius * 0.62 * c.pathWidth * c.waveSize);
         break;
       case 'arrive':
         cue(c.sfxSigilClip, c.sfxSigilGain, c.sfxSigilRate * 0.9, { lenMs: 700, fadeMs: 260 });
@@ -234,7 +242,7 @@ export function playHeroHoly(o: HeroHolyOptions): HeroHolyHandle {
     if (plan.reduced) return;
     nums.paintDim(t, plan.chargeAt, plan.prayAt, plan.impactAt + (plan.sword ? 420 : 200));
     const cm = holyCameraAt(plan, c, t);
-    cam.apply(holyCameraFocus(plan, t, o.attacker, o.defender, plan.sword ? geo.swordTip : null), cm.zoom, cm.x, cm.y, local ? 1 : s);
+    cam.apply(holyCameraFocus(plan, t, o.attacker, o.defender, plan.sword ? geo.centre : null), cm.zoom, cm.x, cm.y, local ? 1 : s);
     if (hero.el && t >= plan.chargeAt) {
       // Swell and rise a little through the invoke (lifted in prayer); a small dip as the prayer goes up; settle.
       let sc = 1, lift = 0;

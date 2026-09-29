@@ -1,16 +1,15 @@
 // @vitest-environment jsdom
 /**
- * THE HOLY HERO ATTACK, Consecration (owner 2026-09-28: "branch off and create a holy weapon + consecration attack. first
- * tier is a holy aoe blast on the opponent, final blast a large holy sword slams into the middle of the board and a
- * consecration erupts from it damaging the opponent. fill in the middle tiers"; Tier IV revised the same day: "make the
- * sword come down fast from above the screen and create an impact when it hits, then send the flat consecrated blast at
- * the opponent. the sword should slam down and explode fast, then the wake builds and rapidly flies at the opponent and
- * strikes them"): the tier mapping SHARED with every attack; the ladder (one smite / a double smite / a spear rain then
- * the smite / the sword and the flat blast); the tuner defaults + clamping; the pure plan (the tick contract, the IV
- * beats in order, reduced motion, determinism); the pure geometry (the spears, the sword that drops from above the screen
- * and fits under it, the path, the runes, the cracks); the camera; the runner on the shared clock (the consequence lands
- * exactly ONCE; both directions; slow motion; replay; finish / cancel; cleanup; the safety timer); the headless scene
- * (pooled, bounded, drains, destroy leaves nothing; the ground transform); and the cosmetic resolution.
+ * THE HOLY HERO ATTACK, Consecration (owner 2026-09-28: "branch off and create a holy weapon + consecration attack";
+ * reworked 2026-09-29: "i want this to be flat and not faux-3d. also, let's take this animation to the extreme - have 6
+ * swords fly in from different directions starting with 1, then they ramp up in speed and the center implodes into that
+ * blest towards the enemy"): the tier mapping SHARED with every attack; the ladder (one smite / a double smite / a spear
+ * rain then the smite / the six-sword barrage and the blast); the tuner defaults + clamping; the pure plan (the tick
+ * contract, the barrage RAMP, the IV beats in order, reduced motion, determinism); the pure geometry (the spears, the
+ * swords from round the compass converging on the centre, the path, the runes, the cracks); the camera; the runner on
+ * the shared clock (the consequence lands exactly ONCE; both directions; slow motion; replay; finish / cancel; cleanup;
+ * the safety timer); the headless scene (pooled, bounded, drains, destroy leaves nothing; FLAT: no skew, no squash);
+ * and the cosmetic resolution.
  */
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { Container, Sprite, Texture } from 'pixi.js';
@@ -20,9 +19,9 @@ import { HERO_ARCANA_DEFAULTS, arcanaPlan } from '../heroArcana/heroArcanaConfig
 import { DEV_HERO_ATTACK_CHOICES, HERO_ATTACK_STYLES, resolveHeroAttackStyle, styleOfCosmetic } from '../heroBlast/heroAttackStyle';
 import {
   HERO_HOLY_DEFAULTS, HERO_HOLY_RANGES, HOLY_CAPS, clampHeroHolyValue, footOf, heroHolyConfigJson, holyCameraAt, holyCameraFocus, holyCues,
-  holyGeo, holyPlan, holySpreadMs, sanitizeHeroHolyConfig, swordTipY, type HeroHolyConfig, type HeroHolyNumKey,
+  holyGeo, holyPlan, holySpreadMs, sanitizeHeroHolyConfig, swordHeadings, type HeroHolyConfig, type HeroHolyNumKey,
 } from './heroHolyConfig';
-import { HeroHolyScene, MAX_HOLY_SPRITES, groundTransform, type HeroHolyTextures } from './heroHolyScene';
+import { HeroHolyScene, MAX_HOLY_SPRITES, flatTransform, type HeroHolyTextures } from './heroHolyScene';
 import { holySeed, playHeroHoly, type HeroHolyOptions } from './heroHoly';
 import { SPEC } from '../HeroHolyTuner';
 import { formationOf, leadInOf } from '../heroAttack/formationFixtures';
@@ -38,7 +37,7 @@ const plan = (values: number[], total: number, distance = 1600, reduced = false)
 const COLORS = { core: 0xfffaf0, gold: 0xf0c55a, deep: 0xd4a53a, sky: 0xe4efff, side: 0xf0c55a, dust: 0xece2cc };
 const LOOK = {
   haloSize: 1, sunburst: 1, prayBeam: 1, sigilSize: 1, sigilSpin: 1, pillarGlow: 1, pillarHeight: 1, raysSize: 1, spearSize: 1,
-  seedGlow: 1, swordGlow: 1, tilt: 0.42, pathWidth: 1, flameHeight: 1,
+  seedGlow: 1, swordGlow: 1, pathWidth: 1, flameHeight: 1,
 };
 const A = { x: 200, y: 850 }, D = { x: 1500, y: 180 };
 const P1 = plan([2, 1], 3), P2 = plan([3, 3, 2], 8), P3 = plan([3, 3, 3, 3, 2], 14), P4 = plan([6, 6, 6, 6, 6, 5, 5], 40);
@@ -53,10 +52,11 @@ describe('the damage tiers (shared with every attack)', () => {
     }
   });
 
-  it('the ladder: I ONE smite, II a DOUBLE smite, III a RAIN of six spears then the smite, IV the SWORD and the flat blast', () => {
+  it('the ladder: I ONE smite, II a DOUBLE smite, III a RAIN of six spears then the smite, IV SIX SWORDS and the flat blast', () => {
     expect([P1, P2, P3, P4].map((p) => p.smites.length)).toEqual([1, 2, 1, 0]);
     expect([P1, P2, P3, P4].map((p) => p.spears.length)).toEqual([0, 0, 6, 0]);
     expect([P1, P2, P3, P4].map((p) => p.sword)).toEqual([false, false, false, true]);
+    expect([P1, P2, P3, P4].map((p) => p.swords.length)).toEqual([0, 0, 0, 6]);
     expect([1, 5, 6, 11, 12, 19, 20, 60].map((d) => { const p = plan([d], d); return p.sword ? 'sword' : `${p.smites.length}/${p.spears.length}`; }))
       .toEqual(['1/0', '1/0', '2/0', '2/0', '1/6', '1/6', 'sword', 'sword']);
   });
@@ -77,7 +77,8 @@ describe('the tuner values', () => {
   it('clamps numbers into range; junk falls back to the default; colours must be #rrggbb; unknown keys drop', () => {
     expect(clampHeroHolyValue('t3Spears', 99)).toBe(10);
     expect(clampHeroHolyValue('t1Smites', -2)).toBe(0);
-    expect(clampHeroHolyValue('swordFallMs', 99999)).toBe(800);
+    expect(clampHeroHolyValue('swordFlightMs', 99999)).toBe(1200);
+    expect(clampHeroHolyValue('swordCount', 99)).toBe(8);
     expect(clampHeroHolyValue('swordSize', Number.NaN)).toBe(C.swordSize);
     expect(clampHeroHolyValue('spreadMs', 'abc')).toBe(C.spreadMs);
     expect(clampHeroHolyValue('spreadMs', '400')).toBe(400);
@@ -133,26 +134,37 @@ describe('the plan', () => {
     expect(P1.hits).toEqual([]);
   });
 
-  it('Tier IV (owner: "come down fast ... explode fast, then the wake builds and rapidly flies at the opponent and strikes them"): drop, slam, wake, flight, strike, in that order; the blow lands on the strike', () => {
+  it('Tier IV (owner 2026-09-29: "have 6 swords fly in ... starting with 1, then they ramp up in speed and the center implodes into that blest towards the enemy"): six swords, each FASTER and SOONER than the last; then implode, release, strike', () => {
     const kinds = holyCues(P4).map((q) => q.kind);
     for (const k of ['smite', 'spearHit', 'sigil', 'drop']) expect(kinds).not.toContain(k);
+    expect(kinds.filter((k) => k === 'sword')).toHaveLength(6);
+    expect(kinds.filter((k) => k === 'swordHit')).toHaveLength(6);
     const at = (k: string): number => kinds.indexOf(k as never);
     expect(at('pray')).toBeLessThan(at('sword'));
-    expect(at('sword')).toBeLessThan(at('slam'));
-    expect(at('slam')).toBeLessThan(at('spread'));
+    expect(kinds.lastIndexOf('swordHit')).toBeLessThan(at('implode'));
+    expect(at('implode')).toBeLessThan(at('spread'));
     expect(at('spread')).toBeLessThan(at('arrive'));
     expect(at('arrive')).toBeLessThan(at('impact'));
     expect(at('impact')).toBeLessThan(at('fade'));
     expect(kinds.filter((k) => k === 'impact')).toHaveLength(1);
-    // No hang: it starts falling the moment it appears; the fall, the wake and the flight are all short.
-    expect(P4.fallAt).toBe(P4.swordAt);
-    expect(P4.slamAt - P4.fallAt).toBe(C.swordFallMs);
-    expect(P4.spreadAt - P4.slamAt).toBe(C.wakeMs);
+    // THE RAMP: every flight is shorter than the one before, and every gap between bites shorter than the one before.
+    const w = P4.swords;
+    for (let i = 1; i < w.length; i++) {
+      expect(w[i]!.arriveAt - w[i]!.launchAt, `flight ${i}`).toBeLessThan(w[i - 1]!.arriveAt - w[i - 1]!.launchAt);
+      expect(w[i]!.arriveAt, `order ${i}`).toBeGreaterThan(w[i - 1]!.arriveAt);
+      if (i > 1) expect(w[i]!.arriveAt - w[i - 1]!.arriveAt, `gap ${i}`).toBeLessThan(w[i - 1]!.arriveAt - w[i - 2]!.arriveAt);
+    }
+    // the last is the biggest; they grow through the barrage
+    for (let i = 1; i < w.length; i++) expect(w[i]!.size).toBeGreaterThanOrEqual(w[i - 1]!.size);
+    expect(w[w.length - 1]!.size).toBe(C.swordLastSize);
+    // every bite is a tick; the blow lands only on the strike
+    expect(P4.hits).toEqual(w.map((x) => x.arriveAt));
+    expect(P4.implodeAt).toBe(w[w.length - 1]!.arriveAt + C.swordHoldMs);
+    expect(P4.spreadAt).toBe(P4.implodeAt + C.implodeMs);
     expect(P4.impactAt - P4.arriveAt).toBe(C.gatherMs);
-    expect(C.swordFallMs).toBeLessThanOrEqual(300);
-    expect(C.wakeMs).toBeLessThanOrEqual(300);
-    expect(P4.arriveAt - P4.spreadAt).toBeLessThanOrEqual(320);
-    expect(P4.hits).toEqual([]);
+    // the count is tunable (and capped)
+    expect(holyPlan({ total: 40, distance: 1600 }, { ...C, swordCount: 3 }).swords).toHaveLength(3);
+    expect(holyPlan({ total: 40, distance: 1600 }, { ...C, swordCount: 99 as never }).swords.length).toBeLessThanOrEqual(HOLY_CAPS.swords);
   });
 
   it('every tier escalates: more shake, zoom, motes, burst and dim', () => {
@@ -163,15 +175,14 @@ describe('the plan', () => {
     expect(P1.dim).toBe(0);
   });
 
-  it('the shipped per-tier timeline (1600 px apart), ms from the invoke: the prayer, the impact and the end', () => {
+  it('the shipped per-tier timeline (1600 px apart), ms from the invoke: the prayer, the impact and the end; IV about 3-4 s with the formation', () => {
     const t = (p: ReturnType<typeof plan>): number[] => [Math.round(p.prayAt - p.chargeAt), Math.round(p.impactAt - p.chargeAt), Math.round(p.endAt - p.chargeAt)];
     expect([t(P1), t(P2), t(P3), t(P4)]).toEqual([
-      [300, 750, 1390], [340, 1110, 1810], [380, 1517, 2257], [380, 1200, 2220],
+      [300, 750, 1390], [340, 1110, 1810], [380, 1517, 2257], [380, 2778, 3798],
     ]);
-    expect(Math.round(P4.slamAt - P4.chargeAt)).toBe(670);
-    expect(Math.round(P4.spreadAt - P4.chargeAt)).toBe(910);
-    // Chunky, not rushed; never slow (about 2.3 s at most after the formation).
-    for (const p of [P1, P2, P3, P4]) expect(t(p)[2]).toBeLessThanOrEqual(2400);
+    expect(P4.swords.map((w) => Math.round(w.arriveAt - P4.chargeAt))).toEqual([880, 1340, 1653, 1866, 2010, 2108]);
+    for (const p of [P1, P2, P3]) expect(t(p)[2]).toBeLessThanOrEqual(2400);
+    expect(t(P4)[2]).toBeLessThanOrEqual(4000);
   });
 
   it('the caps always hold, whatever the sliders say; the blast\'s flight scales gently with distance', () => {
@@ -196,8 +207,8 @@ describe('the plan', () => {
   it('is deterministic: the same fight plans the same beats and places the same spears, sword, runes and cracks', () => {
     expect(plan([4, 2, 3, 5, 6], 20, 720)).toEqual(plan([4, 2, 3, 5, 6], 20, 720));
     expect(holyCues(plan([4, 2, 3], 9, 720))).toEqual(holyCues(plan([4, 2, 3], 9, 720)));
-    expect(holyGeo(P4, A, D, 80, C, 1, 20)).toEqual(holyGeo(P4, A, D, 80, C, 1, 20));
-    expect(holyGeo(P3, A, D, 80, C, 1, 20)).toEqual(holyGeo(P3, A, D, 80, C, 1, 20));
+    expect(holyGeo(P4, A, D, 80, C, 1)).toEqual(holyGeo(P4, A, D, 80, C, 1));
+    expect(holyGeo(P3, A, D, 80, C, 1)).toEqual(holyGeo(P3, A, D, 80, C, 1));
     expect(holySeed(14, 1500.2, 'player')).toBe(holySeed(14, 1500.4, 'player'));
     expect(holySeed(14, 1500, 'player')).not.toBe(holySeed(14, 1500, 'opp'));
   });
@@ -205,7 +216,7 @@ describe('the plan', () => {
 
 describe('the geometry', () => {
   it('the spears fall from high above, slanted in from the striker\'s side, and land round the target on the side facing the striker', () => {
-    const g = holyGeo(P3, A, D, 80, C, 1, 20);
+    const g = holyGeo(P3, A, D, 80, C, 1);
     expect(g.spears).toHaveLength(6);
     for (const sp of g.spears) {
       expect(sp.from.y).toBeLessThan(sp.to.y - 200);
@@ -217,41 +228,43 @@ describe('the geometry', () => {
     }
   });
 
-  it('IV: the sword drops from ABOVE the top of the screen, accelerating, onto the middle of the board, and fits under the top edge when it bites', () => {
-    const ceil = 20;
-    const g = holyGeo(P4, A, D, 80, C, 1, ceil);
-    expect(g.swordTip).toEqual({ x: (A.x + D.x) / 2, y: (A.y + D.y) / 2 });
-    expect(g.swordTip.y - g.swordLen).toBeGreaterThanOrEqual(ceil - 1e-6); // the pommel is in frame once it bites
-    expect(swordTipY(P4, g, P4.swordAt)).toBeLessThan(ceil); // it starts off screen
-    expect(swordTipY(P4, g, P4.slamAt)).toBeCloseTo(g.swordTip.y, 0);
-    // accelerating: the second half of the drop covers more ground than the first
-    const mid = (P4.fallAt + P4.slamAt) / 2;
-    const first = swordTipY(P4, g, mid) - swordTipY(P4, g, P4.fallAt);
-    const second = swordTipY(P4, g, P4.slamAt - 1) - swordTipY(P4, g, mid);
-    expect(second).toBeGreaterThan(first * 2);
-    // a low ceiling shortens the sword; it is never cropped
-    const tight = holyGeo(P4, A, { x: 1500, y: -300 }, 80, C, 1, ceil);
-    expect(tight.swordTip.y - tight.swordLen).toBeGreaterThanOrEqual(ceil - 1e-6 - 0.6 * 440 * C.swordSize);
+  it('IV: the swords come from DIFFERENT directions round the compass (each from roughly opposite the last), from off screen, and plant their points round the centre', () => {
+    const g = holyGeo(P4, A, D, 80, C, 1);
+    expect(g.centre).toEqual({ x: (A.x + D.x) / 2, y: (A.y + D.y) / 2 });
+    expect(g.swords).toHaveLength(6);
+    const heads = g.swords.map((w) => Math.atan2(w.from.y - g.centre.y, w.from.x - g.centre.x));
+    // six distinct headings, spread round the whole compass (no two within 40 degrees)
+    for (let i = 0; i < heads.length; i++) for (let j = i + 1; j < heads.length; j++) {
+      let d = Math.abs(heads[i]! - heads[j]!); if (d > Math.PI) d = 2 * Math.PI - d;
+      expect(d, `${i} vs ${j}`).toBeGreaterThan((40 * Math.PI) / 180);
+    }
+    // each comes from roughly OPPOSITE the one before
+    for (let i = 1; i < heads.length; i += 2) {
+      let d = Math.abs(heads[i]! - heads[i - 1]!); if (d > Math.PI) d = 2 * Math.PI - d;
+      expect(d).toBeGreaterThan((150 * Math.PI) / 180);
+    }
+    for (const w of g.swords) {
+      expect(Math.hypot(w.from.x - g.centre.x, w.from.y - g.centre.y)).toBeGreaterThan(1200); // off screen
+      expect(Math.hypot(w.tip.x - g.centre.x, w.tip.y - g.centre.y)).toBeCloseTo(80 * C.swordPlant, 6); // planted round it
+    }
+    expect(g.swords[5]!.len).toBeGreaterThan(g.swords[0]!.len); // the last is the biggest
+    expect(swordHeadings(6, 0, 0).map((a) => Math.round((a * 180) / Math.PI))).toEqual([0, 180, 60, 240, 120, 300]);
   });
 
-  it('IV: the path runs from the sword to the struck hero\'s foot; runes lie along it; the main crack starts at the sword and ends under the target', () => {
-    const g = holyGeo(P4, A, D, 80, C, 1, 20);
-    expect(g.foot).toEqual(footOf(D, 80));
-    expect(g.path.a).toEqual(g.swordTip);
+  it('IV: the blast runs from the centre to the struck portrait (flat: its centre); runes lie along it; the main crack starts at the centre and ends at the target', () => {
+    const g = holyGeo(P4, A, D, 80, C, 1);
+    expect(g.foot).toEqual(D);
+    expect(footOf(D, 80)).toEqual(D);
+    expect(g.path.a).toEqual(g.centre);
     expect(g.path.b).toEqual(g.foot);
     expect(g.runes.length).toBeGreaterThan(3);
     expect(g.runes.length).toBeLessThanOrEqual(HOLY_CAPS.runes);
     for (let i = 1; i < g.runes.length; i++) expect(g.runes[i]!.u).toBeGreaterThan(g.runes[i - 1]!.u);
     expect(g.cracks).toHaveLength(3);
     const main = g.cracks[0]!;
-    expect(main[0]).toEqual(g.swordTip);
+    expect(main[0]).toEqual(g.centre);
     expect(main[main.length - 1]!.x).toBeCloseTo(g.foot.x, 6);
     expect(main[main.length - 1]!.y).toBeCloseTo(g.foot.y, 6);
-    // the side cracks peter out before the end
-    for (const side of g.cracks.slice(1)) {
-      const end = side[side.length - 1]!;
-      expect(Math.hypot(end.x - g.foot.x, end.y - g.foot.y)).toBeGreaterThan(g.path.len * 0.1);
-    }
   });
 });
 
@@ -267,17 +280,17 @@ describe('the camera', () => {
     expect(holyCameraFocus(P3, P3.impactAt, A, D)).toEqual(D);
   });
 
-  it('IV: the slam punches in and kicks down; the focus rides from the sword to the target with the blast; the strike punches hardest; it rests by the end', () => {
-    const sword = { x: 850, y: 515 };
-    const slam = holyCameraAt(P4, C, P4.slamAt + 1);
-    expect(slam.zoom).toBeGreaterThan(1 + P4.punch);
-    expect(slam.y).toBeGreaterThan(P4.shakePx * 0.5);
-    expect(holyCameraFocus(P4, P4.slamAt, A, D, sword)).toEqual(sword);
-    expect(holyCameraFocus(P4, P4.arriveAt, A, D, sword)).toEqual(D);
+  it('IV: every bite punches in, harder as they ramp; the implosion sucks the view in; the focus rides from the centre to the target with the blast; the strike punches hardest; it rests by the end', () => {
+    const centre = { x: 850, y: 515 };
+    const z = (i: number): number => holyCameraAt(P4, C, P4.swords[i]!.arriveAt + 1).zoom;
+    expect(z(5)).toBeGreaterThan(z(0));
+    expect(holyCameraAt(P4, C, P4.spreadAt - 5).zoom).toBeGreaterThan(holyCameraAt(P4, C, P4.implodeAt + 5).zoom);
+    expect(holyCameraFocus(P4, P4.swords[0]!.arriveAt, A, D, centre)).toEqual(centre);
+    expect(holyCameraFocus(P4, P4.implodeAt, A, D, centre)).toEqual(centre);
+    expect(holyCameraFocus(P4, P4.arriveAt, A, D, centre)).toEqual(D);
     const strike = holyCameraAt(P4, C, P4.impactAt + 1);
     expect(strike.zoom).toBeGreaterThan(holyCameraAt(P3, C, P3.impactAt + 1).zoom);
-    const rest = holyCameraAt(P4, C, P4.endAt);
-    expect(rest.zoom).toBeCloseTo(1, 2);
+    expect(holyCameraAt(P4, C, P4.endAt).zoom).toBeCloseTo(1, 2);
   });
 });
 
@@ -343,20 +356,21 @@ describe('the runner (the shared clock)', () => {
     expect(root.children).toHaveLength(0);
   });
 
-  it('IV: the sword drops in and slams, explodes, the wake builds, the flat blast flies; the blow lands ONCE, on the strike (not the slam, not the flight)', () => {
+  it('IV: the swords fly in one by one and stay planted, the centre implodes (they are sucked in), the flat blast flies; the blow lands ONCE, on the strike (never on a sword, the implosion or the flight)', () => {
     const { h, f, onImpact } = run({ total: 40, formation: formationOf([40], 40) });
     expect(h.plan.sword).toBe(true);
-    f.tick(h.plan.swordAt + 40, 4);
-    expect(h.scene!.hasSword).toBe(true);
-    f.tick(h.plan.slamAt - h.elapsed() + 20, 4);
+    f.tick(h.plan.swords[0]!.launchAt + 40, 4);
+    expect(h.scene!.liveSwords).toBe(1);
+    f.tick(h.plan.swords[2]!.arriveAt - h.elapsed() + 8, 4);
+    expect(h.scene!.plantedSwords).toBe(3);
+    f.tick(h.plan.implodeAt - h.elapsed() - 8, 4);
+    expect(h.scene!.plantedSwords).toBe(6); // a star of blades round the centre
     expect(onImpact).not.toHaveBeenCalled();
-    expect(h.scene!.blast).not.toBeNull(); // the wake is building
-    expect(h.scene!.blast!.flying).toBe(false);
-    f.tick(h.plan.spreadAt - h.elapsed() + 30, 4);
+    f.tick(h.plan.spreadAt - h.elapsed() + 20, 4);
+    expect(h.scene!.liveSwords).toBe(0); // all sucked into the centre
     expect(h.scene!.blast!.flying).toBe(true);
     expect(h.scene!.spreading).toBe(true);
     expect(onImpact).not.toHaveBeenCalled();
-    expect(h.scene!.hasSword).toBe(false); // it exploded into light
     f.tick(h.plan.impactAt - h.elapsed() - 8, 4);
     expect(onImpact).not.toHaveBeenCalled();
     f.tick(16, 4);
@@ -412,7 +426,7 @@ describe('the runner (the shared clock)', () => {
     expect(a.f.hooked()).toBe(0);
     expect(a.root.children).toHaveLength(0);
     const b = run({ total: 40, formation: formationOf([40], 40) });
-    b.f.tick(b.h.plan.spreadAt + 60);
+    b.f.tick(b.h.plan.swords[3]!.arriveAt + 20);
     b.h.cancel();
     b.f.tick(5000);
     expect(b.onImpact).not.toHaveBeenCalled();
@@ -455,20 +469,24 @@ describe('the runner (the shared clock)', () => {
 });
 
 describe('the scene (headless Pixi)', () => {
-  it('a whole Tier IV (invoke, drop, slam, explosion, wake, flight, eruption) stays in the cap, drains, and destroy leaves nothing', () => {
+  it('a whole Tier IV (invoke, six swords, the implosion, the release, the flight, the eruption) stays in the cap, drains, and destroy leaves nothing', () => {
     const s = new HeroHolyScene(TEX, COLORS, LOOK, 1, 42);
-    const g = holyGeo(P4, A, D, 80, C, 1, 20);
+    const g = holyGeo(P4, A, D, 80, C, 1);
     let peak = 0;
     const step = (n: number): void => { for (let i = 0; i < n; i++) { s.update(16); peak = Math.max(peak, s.liveSprites); } };
     s.startInvoke(A.x, A.y, 70, 380, 1);
     step(24);
     s.pray(A.x, A.y, 70, 1);
-    s.summonSword(g.swordTip.x, g.swordLen, (age) => swordTipY(P4, g, P4.swordAt + age), 0, C.swordFallMs);
-    step(15);
-    s.slam(g.swordTip.x, g.swordTip.y, 80, { dust: C.slamDust, debris: C.slamDebris, shock: 1, cracks: C.cracks, flashAlpha: 1 });
-    s.explodeSword(g.swordTip.x, g.swordTip.y, g.swordLen, 80, { size: 1, shards: C.shards, dissolveMs: C.dissolveMs, flashAlpha: 1 });
-    s.wake(g.swordTip.x, g.swordTip.y, 80, C.wakeMs, g.foot, 1);
-    step(15);
+    g.swords.forEach((w, i) => {
+      s.launchSword(w.from, w.tip, g.centre, w.len, 200);
+      step(13);
+      s.swordHit(w.tip, g.centre, 80, i, 6, { dust: C.slamDust, debris: C.slamDebris, shock: 1, flashAlpha: 1 });
+    });
+    expect(s.plantedSwords).toBe(6);
+    s.implode(g.centre, 80, 200);
+    step(14);
+    expect(s.liveSwords).toBe(0);
+    s.release(g.centre, 80, g.foot, { size: 1, shards: C.shards, cracks: C.cracks, flashAlpha: 1 });
     s.spread(g.path.a, g.path.b, g.cracks, g.runes, 250, 50);
     step(16);
     s.gather(g.foot, 80, 40);
@@ -489,7 +507,7 @@ describe('the scene (headless Pixi)', () => {
 
   it('I-III: sigils, pillars, spears and seeds all drain; clear() drops everything at once and the pool is reused, not regrown', () => {
     const s = new HeroHolyScene(TEX, COLORS, LOOK, 1, 9);
-    const g = holyGeo(P3, A, D, 80, C, 1, 20);
+    const g = holyGeo(P3, A, D, 80, C, 1);
     s.startSigil(D.x, D.y, 80, 320, 3);
     g.spears.forEach((sp, i) => s.spear(sp.from, sp.to, 190, P3.spears[i]!.size));
     for (let i = 0; i < 14; i++) s.update(16);
@@ -511,20 +529,27 @@ describe('the scene (headless Pixi)', () => {
     s.destroy();
   });
 
-  it('the ground transform lays a sprite flat on the ground: it turns ON the ground (a circle stays an ellipse of the same tilt at every turn)', () => {
+  it('FLAT (owner 2026-09-29: "flat and not faux-3d"): the transform only turns and scales, never skews or squashes; no sprite of a whole Tier IV is ever skewed', () => {
     const sp = new Sprite(Texture.WHITE);
     for (const th of [0, 0.4, 1.2, 2.5]) {
-      groundTransform(sp, th, 2, 2, 0.5);
-      sp.updateLocalTransform();
-      const m = sp.localTransform;
-      // a unit vector at angle phi in the sprite frame, mapped: x' = 2cos(th+phi), y' = 0.5 * 2 sin(th+phi)
-      for (const phi of [0, 1, 2]) {
-        const x = m.a * Math.cos(phi) + m.c * Math.sin(phi), y = m.b * Math.cos(phi) + m.d * Math.sin(phi);
-        expect(x).toBeCloseTo(2 * Math.cos(th + phi), 5);
-        expect(y).toBeCloseTo(0.5 * 2 * Math.sin(th + phi), 5);
-      }
+      flatTransform(sp, th, 2, 2);
+      expect(sp.skew.x).toBe(0);
+      expect(sp.skew.y).toBe(0);
+      expect(sp.scale.x).toBe(sp.scale.y);
+      expect(sp.rotation).toBe(th);
     }
     sp.destroy();
+    const s = new HeroHolyScene(TEX, COLORS, LOOK, 1, 7);
+    const g = holyGeo(P4, A, D, 80, C, 1);
+    const skewed = (): number => s.root.children.flatMap((l) => (l as Container).children).filter((ch) => ch.visible && (Math.abs(ch.skew.x) > 1e-9 || Math.abs(ch.skew.y) > 1e-9)).length;
+    g.swords.forEach((w, i) => { s.launchSword(w.from, w.tip, g.centre, w.len, 100); for (let k = 0; k < 8; k++) s.update(16); s.swordHit(w.tip, g.centre, 80, i, 6, { dust: 8, debris: 12, shock: 1, flashAlpha: 1 }); });
+    s.release(g.centre, 80, g.foot, { size: 1, shards: 20, cracks: 8, flashAlpha: 1 });
+    s.spread(g.path.a, g.path.b, g.cracks, g.runes, 250, 50);
+    for (let k = 0; k < 10; k++) { s.update(16); expect(skewed()).toBe(0); }
+    s.eruptFoe(g.foot, D, 80, { flames: 9, flameHeight: 1, burst: 1.8, motes: 40, flashAlpha: 1 });
+    s.update(16);
+    expect(skewed()).toBe(0);
+    s.destroy();
   });
 });
 

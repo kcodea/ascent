@@ -52,7 +52,7 @@ const SPECS: Record<GlobalNumKey, Spec> = {
   dashMs: ['Dash', 'ms', 'Tier IV: the hero dashing across to the stuck banana.', 'The jam (Tier IV)'],
   slamGapMs: ['Slam spacing', 'ms', 'Tier IV: the time from the first slam to the second (the reel-back and the drive).', 'The jam (Tier IV)'],
   slamGapGrow: ['Spacing grows', '×', 'Tier IV: how much longer each next gap is (the anticipation building; 0 = even).', 'The jam (Tier IV)'],
-  slamPullPx: ['Pull back', 'px', 'Tier IV: how far the hero reels back between slams (much further each time; the finisher 2.6x).', 'The jam (Tier IV)'],
+  slamPullPx: ['Pull back', 'px', 'Tier IV: how far the hero reels back between slams (much further each time; the finisher 3.1x).', 'The jam (Tier IV)'],
   finisherWindMs: ['Finisher wind-up', 'ms', 'Tier IV: the big wind-up before the finisher.', 'The jam (Tier IV)'],
   finisherZoom: ['Finisher push-in', '×', 'Tier IV: how far the view pushes in over the finisher wind-up.', 'The jam (Tier IV)'],
   homeMs: ['Fly home', 'ms', 'Tier IV: the hero flying home after the finisher.', 'The jam (Tier IV)'],

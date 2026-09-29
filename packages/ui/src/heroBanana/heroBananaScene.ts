@@ -83,7 +83,7 @@ export interface BananaLook {
   goldRays: number;
 }
 
-/** Hard cap on sprites alive at once (a Tier IV jam and finale peaks around 810 in the prod capture; headroom above). */
+/** Hard cap on sprites alive at once (a Tier IV jam and finale peaks around 890 in the prod capture; headroom above). */
 export const MAX_BANANA_SPRITES = 1100;
 
 type LayerId = 'haze' | 'splat' | 'glow' | 'body' | 'core';
@@ -218,10 +218,11 @@ export class HeroBananaScene {
     this.stakeSheen = new Sprite(tex.banana[0]!); this.stakeSheen.anchor.set(0.5); this.stakeSheen.blendMode = 'add'; this.stakeSheen.visible = false;
     this.stakeLayer.addChild(this.stakeBody, this.stakeSheen);
     this.stakeBody.anchor.set(0.5, 1); this.stakeSheen.anchor.set(0.5, 1);
-    // The striker's cut circle (a unit circle, placed and scaled per frame). A sibling of `world`, never drawn.
+    // The striker's cut circle (a unit circle, placed and scaled per frame). It is in the tree ONLY while it is the
+    // mask: Pixi builds an unmasked Graphics back into the render, and a leftover white circle over the striker's
+    // portrait is exactly the owner's "the hero gets messed up at the end" (2026-09-29: a blank grey disc).
     this.cutA = new Graphics().circle(0, 0, 1).fill(0xffffff);
     this.cutA.label = 'banana-cut-striker';
-    this.root.addChild(this.cutA);
     this.rnd = seededRng(seed);
     // Oona's own palettes: the juice (her target burst) and the launch sparks (her source burst).
     this.palette = [colors.juice, colors.amber, colors.gold, colors.cream];
@@ -253,6 +254,11 @@ export class HeroBananaScene {
   get strikerOnTop(): boolean { return this.cutting && this.world.mask != null; }
   /** Whether ANY mask is on the scene (none outside the jam; a leftover one would hide everything outside the circle). */
   get masked(): boolean { return this.world.mask != null; }
+  /** Whether a Graphics that is NOT a mask sits in the tree (it would render: a white disc over a portrait). */
+  get strayGraphics(): boolean {
+    const walk = (c: Container): boolean => c.children.some((k) => (k instanceof Graphics && k.visible && k !== this.world.mask) || (k instanceof Container && walk(k)));
+    return walk(this.root);
+  }
 
   /** Mirror the DOM camera: zoom `z` about the origin with offset `(ax, ay)` already folded in. */
   setCamera(ax: number, ay: number, z: number): void {
@@ -276,7 +282,7 @@ export class HeroBananaScene {
     if (this.destroyed) return;
     if (striker && Number.isFinite(striker.x) && Number.isFinite(striker.y) && striker.r > 0) {
       this.cutA.position.set(striker.x, striker.y); this.cutA.scale.set(striker.r);
-      if (!this.cutting) { this.world.setMask({ mask: this.cutA, inverse: true }); this.cutting = true; }
+      if (!this.cutting) { this.root.addChild(this.cutA); this.world.setMask({ mask: this.cutA, inverse: true }); this.cutting = true; }
     } else if (this.cutting) { this.uncut(); }
   }
 
@@ -288,6 +294,7 @@ export class HeroBananaScene {
   private uncut(): void {
     this.world.mask = null;
     this.world.setMask({ inverse: false } as unknown as Parameters<Container['setMask']>[0]);
+    if (this.cutA.parent) this.cutA.parent.removeChild(this.cutA);
     this.cutting = false;
   }
 
@@ -562,7 +569,10 @@ export class HeroBananaScene {
     this.stakeCell = painted
       ? new Rectangle(cell.frame.x + STAKE_BOX.x * k0, cell.frame.y + STAKE_BOX.y * k0, STAKE_BOX.w * k0, STAKE_BOX.h * k0)
       : cell.frame.clone();
-    this.stakeTex = new Texture({ source: cell.source, frame: cell.frame.clone() });
+    // DYNAMIC, and refreshed with `update()` every frame: a Sprite only re-measures its quad when a dynamic texture
+    // emits 'update'; with `updateUvs()` alone the crop squeezed into a fixed quad and the stake STRETCHED as it sank
+    // (owner 2026-09-29: "the banana also lengthens as it goes on").
+    this.stakeTex = new Texture({ source: cell.source, frame: cell.frame.clone(), dynamic: true });
     this.stakeBody.texture = this.stakeTex; this.stakeBody.tint = this.gild; this.stakeBody.visible = true;
     this.stakeSheen.texture = this.stakeTex; this.stakeSheen.tint = this.colors.gold; this.stakeSheen.visible = true;
     this.drawStake(0);
@@ -1068,7 +1078,8 @@ export class HeroBananaScene {
     // The painted banana spans ~the whole cell height; the cut sits `depth` of the way up from its tip.
     const visible = Math.max(0.06, Math.min(1, 1 - st.depth));
     tx.frame.x = cell.x; tx.frame.y = cell.y; tx.frame.width = cell.width; tx.frame.height = Math.max(2, Math.round(cell.height * visible));
-    tx.updateUvs();
+    tx.orig.width = tx.frame.width; tx.orig.height = tx.frame.height;
+    tx.update();
     this.stakeBody.texture = tx; this.stakeSheen.texture = tx;
     const k = st.len / Math.max(1, cell.height);
     const kick = st.kick >= 0 ? Math.exp(-st.kick / 70) : 0;

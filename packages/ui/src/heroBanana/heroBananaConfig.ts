@@ -211,7 +211,7 @@ export const HERO_BANANA_DEFAULTS: HeroBananaConfig = {
   slamGapMs: 420,
   slamGapGrow: 0.2,
   slamPullPx: 150,
-  finisherWindMs: 860,
+  finisherWindMs: 1000,
   finisherZoom: 0.08,
   homeMs: 480,
   jamDepthStart: 0.3,
@@ -923,9 +923,10 @@ export function jamPose(p: BananaPlan, g: JamGeo, c: HeroBananaConfig, t: number
     const s0 = p.slams[j]!, s1 = p.slams[j + 1]!;
     const finisher = j + 1 === p.slams.length - 1;
     // A BIG reel-back, much bigger each slam (the force builds), the finisher's biggest of all.
-    const pull = c.slamPullPx * (finisher ? 2.6 : 1 + 0.3 * j);
+    const pull = c.slamPullPx * (finisher ? 3.1 : 1 + 0.3 * j);
     const u = (t - s0) / Math.max(1, s1 - s0);
-    const split = finisher ? 0.72 : 0.62;
+    // The finisher spends longer winding up and strikes FASTER (a shorter, harder drive).
+    const split = finisher ? 0.82 : 0.62;
     const from = hit(j), to = hit(j + 1);
     const back = u < split ? easeOut3(u / split) : 1 - easeIn3((u - split) / (1 - split));
     // The anchor slides from this slam's contact to the next (the stake has sunk; the next blow lands deeper).
@@ -933,7 +934,7 @@ export function jamPose(p: BananaPlan, g: JamGeo, c: HeroBananaConfig, t: number
     const bx = from.x + (to.x - from.x) * m, by = from.y + (to.y - from.y) * m;
     pose = {
       x: bx - g.u.x * pull * back, y: by - g.u.y * pull * back,
-      scale: 1 + (finisher ? 0.16 : 0.06 + 0.012 * j) * back, rot: tilt * (1 - 0.7 * back), squash: 0,
+      scale: 1 + (finisher ? 0.2 : 0.06 + 0.012 * j) * back, rot: tilt * (1 - 0.7 * back), squash: 0,
     };
   } else {
     // Hold on the finisher a beat, then home.
@@ -947,7 +948,7 @@ export function jamPose(p: BananaPlan, g: JamGeo, c: HeroBananaConfig, t: number
     const age = t - p.slams[i]!;
     if (age < 0 || age > 400) continue;
     const k = Math.exp(-age / 70) * Math.cos(age * 0.045);
-    pose.squash += k * (i === p.slams.length - 1 ? 0.24 : 0.08 + 0.02 * i);
+    pose.squash += k * (i === p.slams.length - 1 ? 0.3 : 0.08 + 0.02 * i);
   }
   return pose;
 }

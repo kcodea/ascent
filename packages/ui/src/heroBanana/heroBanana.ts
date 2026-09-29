@@ -46,6 +46,8 @@ export interface HeroBananaHandle extends HeroAttackHandle {
   readonly rig: BananaRig;
   /** The Pixi scene (null under reduced motion or with no 2D canvas). Exposed for tests and the capture rig. */
   readonly scene: HeroBananaScene | null;
+  /** Whether the camera is mirrored onto the Pixi root (false when the canvas sits inside the camera element). */
+  readonly mirrorsCamera: boolean;
 }
 
 /** The seed a fight's juice is scattered from: the same fight (same blow, same geometry) splats the same way. */
@@ -121,7 +123,21 @@ export function playHeroBanana(o: HeroBananaOptions): HeroBananaHandle {
 
   // ── camera + the portraits ──
   const cameraEl = reduced ? null : (o.camera !== undefined ? o.camera : (doc?.getElementById('stage') ?? null));
-  const cam = new StageCamera(cameraEl, scene);
+  // THE MIRROR, only when the canvas is NOT inside the camera element. Since the scaled stage (#1762) the shared
+  // overlay canvas lives INSIDE #stage, so the DOM camera already zooms and shakes it; mirroring the camera onto the
+  // Pixi root as well applied it TWICE, and every splat drifted away from the focus by the zoom (owner 2026-09-29: the
+  // first volley "looks like it is overshot due to the zoom"). Decided once, when the camera starts (the slot is up).
+  let mirrorOn = true;
+  const mirror = scene ? { setCamera: (ax: number, ay: number, z: number): void => { if (mirrorOn) scene.setCamera(ax, ay, z); else scene.setCamera(0, 0, 1); } } : null;
+  const canvasInCamera = (): boolean => {
+    if (!cameraEl) return false;
+    try {
+      if (o.mount) return cameraEl.querySelector('canvas') !== null;
+      const c = doc?.querySelector('canvas.pixifx-above');
+      return !!c && cameraEl.contains(c);
+    } catch { return false; }
+  };
+  const cam = new StageCamera(cameraEl, mirror);
   const hero = new PortraitMover(reduced ? null : (o.attackerEl ?? null));
   const foe = new PortraitMover(reduced ? null : (o.defenderEl ?? null));
   // The jam moves the striking portrait a long way: measured once (its own transform px per screen px), as Enraged does.
@@ -149,6 +165,7 @@ export function playHeroBanana(o: HeroBananaOptions): HeroBananaHandle {
         cue(c.sfxChargeClip, c.sfxChargeGain * 0.6, c.sfxChargeRate * 1.2, { lenMs: 700, fadeMs: 250 });
         if (c.sfxDuck < 1) voices.duck(c.sfxDuck);
         scene?.flourish(o.attacker.x, o.attacker.y, aRadius, plan.fireAt - plan.chargeAt);
+        mirrorOn = !canvasInCamera();
         cam.start();
         break;
       case 'fire': {
@@ -296,9 +313,9 @@ export function playHeroBanana(o: HeroBananaOptions): HeroBananaHandle {
       }
       if (t >= plan.impactAt) {
         const k = spring(t - plan.impactAt, 4.5, 90);
-        const knock = c.knockPx * (0.7 + 0.4 * plan.k) * (plan.giant ? 1.3 : 1) * k * px;
+        const knock = c.knockPx * (0.7 + 0.4 * plan.k) * (plan.giant ? 1.8 : 1) * k * px;
         kx += dir.x * knock; ky += dir.y * knock;
-        sqz += c.squash * (0.8 + 0.4 * plan.k) * (plan.giant ? 1.4 : 1) * k;
+        sqz += c.squash * (0.8 + 0.4 * plan.k) * (plan.giant ? 1.8 : 1) * k;
       }
       fx = kx; fy = ky;
       const off = place(o.defender, { x: kx, y: ky }, foeInCam);
@@ -330,6 +347,7 @@ export function playHeroBanana(o: HeroBananaOptions): HeroBananaHandle {
     plan,
     rig,
     scene,
+    get mirrorsCamera() { return mirrorOn; },
     elapsed: () => seq.t,
     get impacted() { return seq.impacted; },
     get done() { return seq.done; },

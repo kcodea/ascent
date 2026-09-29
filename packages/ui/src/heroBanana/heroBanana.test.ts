@@ -11,7 +11,7 @@
  * scene (pooled, bounded, drains, destroy leaves nothing); and the cosmetic resolution.
  */
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { Container, Texture } from 'pixi.js';
+import { Container, Texture, TextureSource } from 'pixi.js';
 import { COSMETIC_INDEX } from '@game/progression';
 import { HERO_ATTACK_TIER_THRESHOLDS, tierOf as sharedTierOf } from '../heroAttack/tiers';
 import { HERO_BLAST_DEFAULTS, blastPlan } from '../heroBlast/heroBlastConfig';
@@ -43,7 +43,7 @@ const LOOK = {
 };
 const A = { x: 200, y: 850 }, D = { x: 1500, y: 250 };
 const R = 80;
-const TIMELINE_IV = [420, 5974, 6924];
+const TIMELINE_IV = [420, 6114, 7064];
 const P1 = plan([2, 1], 3), P2 = plan([3, 3, 2], 8), P3 = plan([3, 3, 3, 3, 2], 14), P4 = plan([6, 6, 6, 6, 6, 5, 5], 40);
 const regular = (p: ReturnType<typeof plan>) => p.shots.filter((s) => !s.giant);
 
@@ -210,9 +210,9 @@ describe('the plan', () => {
     expect([t(P1), t(P2), t(P3), t(P4)]).toEqual([
       [340, 1000, 1596], [360, 1222, 1838], [400, 1687, 2343], TIMELINE_IV,
     ]);
-    // Chunky, not rushed: Tier I about 1.5 s; the Tier IV showpiece (six slams) under 7 s.
+    // Chunky, not rushed: Tier I about 1.5 s; the Tier IV showpiece (six slow, building slams) under 7.5 s.
     expect(t(P1)[2]).toBeLessThanOrEqual(2000);
-    expect(t(P4)[2]).toBeLessThanOrEqual(7000);
+    expect(t(P4)[2]).toBeLessThanOrEqual(7500);
   });
 
   it('the barrage flings outer shots first and the centre last', () => {
@@ -512,7 +512,12 @@ describe('the runner (the shared clock)', () => {
   });
 
   it('Tier IV THE JAM: the giant lands as a stake, the striking PORTRAIT dashes over and drives it in SIX times (on top of it, deeper and flatter each slam, blood from slam 4), and the blow lands ONCE on the FINISHER', () => {
-    const { h, f, onImpact, attackerEl } = run({ total: 40, formation: formationOf([40], 40) });
+    // A painted-size sheet (1024 px, 4 x 4), so the stake's crop is the real one.
+    const sheet = sliceSheet(new Texture({ source: new TextureSource({ width: 1024, height: 1024 }) }));
+    const { h, f, onImpact, attackerEl, defenderEl } = run({ total: 40, formation: formationOf([40], 40), textures: { ...TEX, banana: sheet } });
+    attackerEl.style.cssText = 'opacity: 0.99; left: 3px';
+    defenderEl.style.cssText = 'opacity: 0.98; top: 4px';
+    const restA = attackerEl.style.cssText, restD = defenderEl.style.cssText;
     const p = h.plan;
     expect(p.giant).toBe(true);
     expect(p.slams).toHaveLength(6);
@@ -531,6 +536,8 @@ describe('the runner (the shared clock)', () => {
     expect(Math.hypot(home.x, home.y)).toBeLessThan(120); // not dashed yet (only the fling's recoil)
     let sunk = h.scene!.sunk;
     const bloodLayer = h.scene!.layer('splat');
+    const stake = h.scene!.layer('stake').children[0]!;
+    let long = Infinity;
     for (let i = 0; i < 5; i++) {
       const before = bloodLayer.children.filter((c) => c.visible && [0xb3121e, 0x8a0c14, 0xd4202a, 0x6e0a10].includes((c as unknown as { tint: number }).tint)).length;
       f.tick(p.slams[i]! - h.elapsed() + 8, 4);
@@ -538,6 +545,13 @@ describe('the runner (the shared clock)', () => {
       expect(h.scene!.sunk, `slam ${i + 1} drives it deeper`).toBeGreaterThan(sunk);
       sunk = h.scene!.sunk;
       expect(h.scene!.strikerOnTop, `slam ${i + 1}: the striker is on top`).toBe(true);
+      expect(h.scene!.strayGraphics, `slam ${i + 1}: nothing drawn but the scene`).toBe(false);
+      // owner 2026-09-29: "the banana also lengthens as it goes on": it must get SHORTER (more buried) every slam
+      f.tick(90, 4);
+      // the DRAWN quad (its bounds), not just the texture's numbers: a stale quad is what stretched
+      const drawn = stake.getLocalBounds().height; // the quad in texture px (its own scale left out: the squash is separate)
+      expect(drawn, `slam ${i + 1}: shorter`).toBeLessThan(long);
+      long = drawn;
       const at = translateOf(attackerEl);
       expect(Math.hypot(at.x, at.y), `slam ${i + 1} reaches`).toBeGreaterThan(900); // the portrait itself is across the board
       const after = bloodLayer.children.filter((c) => c.visible && [0xb3121e, 0x8a0c14, 0xd4202a, 0x6e0a10].includes((c as unknown as { tint: number }).tint)).length;
@@ -553,10 +567,35 @@ describe('the runner (the shared clock)', () => {
     expect(h.scene!.liveSprites).toBeLessThanOrEqual(MAX_BANANA_SPRITES);
     f.tick(p.homeAt - h.elapsed() + 20, 4);
     expect(h.scene!.masked, 'home again: the cut is lifted').toBe(false);
+    // owner 2026-09-29: "the hero gets messed up at the end": nothing may be left drawn over the striker's portrait
+    expect(h.scene!.strayGraphics, 'no leftover disc').toBe(false);
     f.tick(p.endAt + 3000, 8);
     expect(onImpact).toHaveBeenCalledTimes(1);
-    expect(attackerEl.style.transform).toBe('');
+    // both portraits exactly as they were (every inline style, not just the transform)
+    expect(attackerEl.style.cssText).toBe(restA);
+    expect(defenderEl.style.cssText).toBe(restD);
     expect(f.hooked()).toBe(0);
+  });
+
+  it('the camera is applied ONCE: mirrored onto the Pixi root only when the canvas is outside the camera element (owner 2026-09-29: splats "overshot due to the zoom")', () => {
+    // Canvas outside the camera: the root mirrors the zoom.
+    const out = run({ total: 14, formation: formationOf([14], 14) });
+    out.f.tick(out.h.plan.impactAt + 8, 4);
+    expect(out.camera.style.transform).toContain('scale(');
+    expect(out.h.mirrorsCamera).toBe(true);
+    expect(out.h.scene!.root.scale.x).toBeGreaterThan(1.001);
+    out.h.cancel();
+    // Canvas INSIDE the camera (the shared overlay since the scaled stage): the DOM camera already moves it.
+    const camera = document.createElement('div');
+    camera.appendChild(document.createElement('canvas'));
+    document.body.append(camera);
+    const inside = run({ total: 14, formation: formationOf([14], 14), camera });
+    inside.f.tick(inside.h.plan.impactAt + 8, 4);
+    expect(camera.style.transform).toContain('scale(');
+    expect(inside.h.mirrorsCamera).toBe(false);
+    expect(inside.h.scene!.root.scale.x).toBe(1);
+    expect([inside.h.scene!.root.x, inside.h.scene!.root.y]).toEqual([0, 0]);
+    inside.h.cancel();
   });
 
   it('the struck portrait DENTS along the blow on each slam (compressed toward the push, bulging across it)', () => {
@@ -687,8 +726,10 @@ describe('the scene (headless Pixi)', () => {
     for (let i = 0; i < 20; i++) { s.update(16); peak = Math.max(peak, s.liveSprites); }
     expect(peak).toBeLessThanOrEqual(MAX_BANANA_SPRITES);
     expect(s.liveBananas).toBe(0);
+    expect(s.strayGraphics).toBe(false); // the cut circle is the mask, never drawn
     s.setCuts(null);
     expect(s.strikerOnTop).toBe(false);
+    expect(s.strayGraphics).toBe(false); // and gone from the tree once lifted (it would render as a white disc)
     expect(s.masked).toBe(false); // really lifted (a leftover mask would hide everything outside the striker's circle)
     let alive = true;
     for (let i = 0; i < 800 && alive; i++) alive = s.update(16);

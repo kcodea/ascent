@@ -89,8 +89,8 @@ interface GlobalConfig {
   homeMs: number;
   jamDepthStart: number;
   jamDepthEnd: number;
-  bloodStart: number;
-  bloodAmount: number;
+  burstStart: number;
+  burstAmount: number;
   juiceDrips: number;
   dripMs: number;
   ringSplats: number;
@@ -216,8 +216,8 @@ export const HERO_BANANA_DEFAULTS: HeroBananaConfig = {
   homeMs: 480,
   jamDepthStart: 0.3,
   jamDepthEnd: 0.86,
-  bloodStart: 4,
-  bloodAmount: 1,
+  burstStart: 4,
+  burstAmount: 1,
   juiceDrips: 1,
   dripMs: 2600,
   ringSplats: 7,
@@ -289,8 +289,8 @@ const GLOBAL_RANGES: Record<Exclude<keyof GlobalConfig, HeroBananaStrKey>, [numb
   homeMs: [150, 1500, 10],
   jamDepthStart: [0, 0.8, 0.01],
   jamDepthEnd: [0.2, 0.97, 0.01],
-  bloodStart: [1, 9, 1],
-  bloodAmount: [0, 3, 0.05],
+  burstStart: [1, 9, 1],
+  burstAmount: [0, 3, 0.05],
   juiceDrips: [0, 3, 0.05],
   dripMs: [600, 6000, 50],
   ringSplats: [0, 12, 1],
@@ -361,7 +361,7 @@ export function sanitizeHeroBananaConfig(saved: unknown): HeroBananaConfig {
 }
 
 // v2: the rebuild on Oona's painted art (2026-09-29) renamed most keys; a v1 save is simply ignored.
-const KEY = 'ascent.herobanana.v3';
+const KEY = 'ascent.herobanana.v4';
 
 let cfg: HeroBananaConfig = (() => {
   if (!import.meta.env.DEV || typeof localStorage === 'undefined') return { ...HERO_BANANA_DEFAULTS };

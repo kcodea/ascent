@@ -98,8 +98,8 @@ export function playHeroBanana(o: HeroBananaOptions): HeroBananaHandle {
   const last = rig.shots[rig.shots.length - 1];
   const giantIdx = plan.giant ? plan.shots.length - 1 : -1;
   const jg = jamGeo(o.attacker, o.defender, aRadius, radius, giantLen, plan.slams.length, c);
-  /** Blood from the `bloodStart`-th slam on: 1 on it, 2 on the next, and so on (owner: "increasing amounts"). */
-  const bloodOf = (k: number): number => Math.max(0, k + 1 - Math.round(c.bloodStart) + 1);
+  /** The extra juice burst from the `burstStart`-th slam on: 1 on it, 2 on the next, and so on (escalating). */
+  const burstOf = (k: number): number => Math.max(0, k + 1 - Math.round(c.burstStart) + 1);
   // The direction the blow ARRIVES from: the last banana's heading, or (Tier IV) the jam's line.
   const dir = plan.giant ? jg.u : arrivalDir(last, o.attacker, o.defender);
   const toFoe = jg.u;
@@ -111,7 +111,7 @@ export function playHeroBanana(o: HeroBananaOptions): HeroBananaHandle {
       juice: hexToNum(c.colorJuice), amber: hexToNum(c.colorAmber), cream: hexToNum(c.colorCream), gold: hexToNum(c.colorGold),
       spark: hexToNum(c.colorSpark), side: hexToNum(sideHex),
     }, {
-      bananaPx: c.bananaPx, bloodAmount: c.bloodAmount, juiceDrips: c.juiceDrips, dripMs: c.dripMs, trailSparks: c.trailSparks, splatPx: c.splatPx, splatMs: c.splatMs, tickJuice: c.tickJuice,
+      bananaPx: c.bananaPx, burstAmount: c.burstAmount, juiceDrips: c.juiceDrips, dripMs: c.dripMs, trailSparks: c.trailSparks, splatPx: c.splatPx, splatMs: c.splatMs, tickJuice: c.tickJuice,
       juiceSpeed: c.juiceSpeed, juiceLifeMs: c.juiceLifeMs, juicePx: c.juicePx, launchSparks: c.launchSparks, giantSplat: c.giantSplat,
       ringSplats: c.ringSplats, showerBananas: c.showerBananas, shockSize: c.shockSize, goldRays: c.goldRays,
     }, s, bananaSeed(o.total, dist, o.side))
@@ -214,8 +214,8 @@ export function playHeroBanana(o: HeroBananaOptions): HeroBananaHandle {
         cue(c.sfxImpactClip, c.sfxImpactGain * (1.1 + 0.2 * q.i), c.sfxImpactRate * (1 - 0.05 * q.i), { lenMs: 450, fadeMs: 160 });
         splatSound(1 + 0.15 * q.i, 0.92 - 0.05 * q.i);
         cue(c.sfxSlamClip, c.sfxSlamGain * (0.35 + 0.12 * q.i), c.sfxSlamRate * (1.25 - 0.06 * q.i), { lenMs: 500, fadeMs: 180 });
-        if (bloodOf(q.i) > 0) cue(c.sfxBoomClip, c.sfxBoomGain * (0.8 + 0.3 * bloodOf(q.i)), 0.8, { lenMs: 400, fadeMs: 150 });
-        scene?.slam(q.i, jg.depths[q.i + 1]!, bloodOf(q.i), plan.slams.length);
+        if (burstOf(q.i) > 0) cue(c.sfxBoomClip, c.sfxBoomGain * (0.8 + 0.3 * burstOf(q.i)), 0.8, { lenMs: 400, fadeMs: 150 });
+        scene?.slam(q.i, jg.depths[q.i + 1]!, burstOf(q.i), plan.slams.length);
         break;
       case 'impact':
         if (plan.giant) {
@@ -225,7 +225,7 @@ export function playHeroBanana(o: HeroBananaOptions): HeroBananaHandle {
           splatSound(1.6, 0.6);
           cue(c.sfxPowerClip, c.sfxPowerGain * 1.2, c.sfxPowerRate * 0.9, { lenMs: 900, fadeMs: 300 });
           const lastK = Math.max(0, plan.slams.length - 1);
-          scene?.slam(lastK, jg.depths[lastK + 1]!, bloodOf(lastK), plan.slams.length);
+          scene?.slam(lastK, jg.depths[lastK + 1]!, burstOf(lastK), plan.slams.length);
           scene?.finale(q.i, o.defender.x, o.defender.y, radius, { burst: plan.burst, juice: plan.juice, flashAlpha: c.flashAlpha });
         } else {
           // THE LAST BANANA: Oona's splat and her power-up (as her card plays them), a smack under it, bigger per tier.

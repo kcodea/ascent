@@ -2604,11 +2604,12 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'rings, sparks, debris; screen-edge impact lines on the late slams): each slam drives the stake deeper (the part '
       + 'driven in disappears into the face, so by the finisher only its end sticks out), squashes it flatter, dents the '
       + 'struck portrait along the blow, grows a crater ring and cracks at the entry and squirts juice out sideways; from '
-      + 'the fourth slam blood sprays off the target, more each slam. While it slams, the striking portrait reads ON TOP of '
+      + 'the fourth slam extra painted juice splats burst off the target, more each slam (no blood: the owner removed it). While it slams, the striking portrait reads ON TOP of '
       + 'the banana and every banana effect (the overlay is cut by its circle), and the banana covers the struck side\x27s '
       + 'hero power; the dim lifts as the striker dashes, so both heroes stay bright through the jam; the camera is applied '
       + 'to the FX exactly once (never mirrored onto a canvas that already rides the camera). The sixth slam bursts it: a massive painted splat, a ring of splats, a golden shockwave, gold rays and '
-      + 'a shower of spinning painted bananas. The consequence (the damage, Armor, Resolve) lands exactly ONCE: on the last '
+      + 'a shower of spinning painted bananas; the crater ring and cracks fade out with the burst (no dark circle is left '
+      + 'after the attack), the splat and the juice fade as designed, and every sprite is released once they have. The consequence (the damage, Armor, Resolve) lands exactly ONCE: on the last '
       + 'banana (every earlier banana is a tick) or, at IV, on the sixth slam (never on a warm-up, the landing or an earlier '
       + 'slam). No hit-stop or freeze anywhere (R-PROG-ATTACK-10). Flat 2D. Presentation only; reduced motion is fades only; '
       + 'an unknown or retired id plays Classic.',
@@ -2619,6 +2620,9 @@ export const FOUNDATION_RULES: GameRule[] = [
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-29 (Banana first review)', quote: 'the banana cannon attack is a 3/10. use oona\x27s animation as a guideline. improve this dramatically.' },
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-29 (Banana Tier IV)', quote: 'is it possible to have the banana almost like look it lands on the hero and then we slam our fist into it 4 times "jamming it into them" kinda? almost like a mortal combat style attack' },
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-29 (Banana second review)', quote: 'the bananas should spin, not flip. ... make sure the attacker hero is on top of it ... slow the hits and reel back further between hits, have it hit 6 times, and show blood splatting on hits 4,5,6 with increasing amounts, then the final banana splat.' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-29 (Banana, no blood)', quote: 'can you remove the blood from the banana attack and just keep the banana splats instead' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-29 (Banana, clean end)', quote: 'what\x27s the leftover circle here from the banana final slam? can you remove that?' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-29 (Banana, keep the splat)', quote: 'nvm keep the banana splat on the target still' },
       { kind: 'code', ref: 'packages/progression/src/cosmetics.ts (attack_banana); packages/ui/src/heroBanana/ (heroBananaConfig bananaPlan / bananaCues / bananaRig / bananaPos / jamGeo / jamPose / bananaCameraAt, heroBanana playHeroBanana, heroBananaScene, heroBananaTextures); fx/defs/oona-banana.json (the art and clips)' },
     ],
     currentBehaviour: 'Conforms, built 2026-09-29. The item reaches the database on the next deploy of progression-inventory (the catalog sync); the equip SQL already accepts the hero_attack slot.',

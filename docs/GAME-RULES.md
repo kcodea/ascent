@@ -322,7 +322,7 @@ progression **epoch**; nothing finished before the epoch counts (no backfill).
   blow landing once, on the last); IV four warm-ups, then a giant golden banana arcs high, hangs (a crown glint, a flat
   golden target ring), and lands stuck in the struck hero's rim; the striking portrait dashes over and slams it in six
   times, reeling far back between slams, driving it deeper each time (only its end sticks out by the last), a crater and
-  cracks spreading, blood from the fourth slam on; the sixth slam bursts it into a massive splat and a banana shower (the
+  cracks spreading, extra bursts of banana juice splats from the fourth slam on (no blood); the sixth slam bursts it into a massive splat and a banana shower, and no dark crater ring is left behind (the
   blow landing there). While it slams, the striking portrait is drawn on top of the banana. All nine
   anchor on the round portrait art at rest
   (R-PROG-ATTACK-04). Equipped

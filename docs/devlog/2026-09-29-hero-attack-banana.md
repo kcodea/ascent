@@ -27,6 +27,17 @@ use the same 4 tier strategy we have been." This entry is the banana slice (the 
    with a slightly larger windup and more aggressive final hit? the banana also lengthens as it goes on ... the first
    banana volley looks like it is overshot due to the zoom".
 
+5. **Sixth review**: "can you remove the blood from the banana attack and just keep the banana splats instead". All
+   blood is gone. Slams 4, 5 and 6 now fire an extra burst of Oona's painted juice splats, juice spray and juice
+   spatter (plus more drips), escalating exactly as the blood did. The dials are `burstStart` / `burstAmount` (the
+   saved tuner key moved to v4), and a test asserts nothing red is ever drawn.
+
+6. **Seventh review**: "what's the leftover circle here from the banana final slam? can you remove that?" The dark
+   circle was the crater ring (with the cracks), held 2.6 s and so still drawn after the attack ended. The finale now
+   fades the ring and the cracks out over ~180 ms. The owner then asked to keep the final splat ("nvm keep the banana
+   splat on the target still"), so the splat and the juice play out their designed fade unchanged. A test asserts no
+   ring or crack is drawn at the end and that every sprite is released and the scene unmounts once the juice is done.
+
 ## What plays now (after the shared damage formation)
 
 | tier | what plays |
@@ -34,7 +45,7 @@ use the same 4 tier strategy we have been." This entry is the banana slice (the 
 | I (1-5) | A golden flourish opens on the hero; one painted banana SPINS out (backspin) on a high lobbed arc shedding gold juice sparkles, and bursts on the face into Oona's painted splat and her juice burst. |
 | II (6-11) | A double (one high and wide, one flatter); the first is a tick. |
 | III (12-19) | A barrage of EIGHT on varied arcs; the last lands layered splats (one big, two round it) and the biggest juice burst. |
-| IV (20+) | Four warm-ups (ticks, tight on the face). The hero blazes gold; a GIANT golden banana (the same painting, gilded, with a sheen) arcs high and HANGS in view (a crown glint, a flat gold target ring), then lands STUCK in the struck hero's rim like a stake. The striking PORTRAIT dashes across and SLAMS it in SIX times, reeling far back between slams (further each time; the finisher twice as far, the view pushing in over its wind-up). Each slam drives the stake deeper (the part driven in disappears into the face; by the finisher only its end sticks out), squashes it flatter, dents the struck portrait along the blow, grows a crater ring and cracks, and squeezes thick juice out that RUNS down the face, over the rim and drips off below it. From slam 4, blood sprays off the target (slam 5 far more, slam 6 a big wide spray, with spatter that stays on the face). Slam 6 bursts it: a massive painted splat, a ring of splats, a golden shockwave, gold rays, a gush of juice drips and a shower of spinning painted bananas. |
+| IV (20+) | Four warm-ups (ticks, tight on the face). The hero blazes gold; a GIANT golden banana (the same painting, gilded, with a sheen) arcs high and HANGS in view (a crown glint, a flat gold target ring), then lands STUCK in the struck hero's rim like a stake. The striking PORTRAIT dashes across and SLAMS it in SIX times, reeling far back between slams (further each time; the finisher twice as far, the view pushing in over its wind-up). Each slam drives the stake deeper (the part driven in disappears into the face; by the finisher only its end sticks out), squashes it flatter, dents the struck portrait along the blow, grows a crater ring and cracks, and squeezes thick juice out that RUNS down the face, over the rim and drips off below it. From slam 4, extra bursts of painted juice splats spray off the target (slam 5 far more, slam 6 the most, with juice spatter that stays on the face). Slam 6 bursts it: a massive painted splat, a ring of splats, a golden shockwave, gold rays, a gush of juice drips and a shower of spinning painted bananas; the crater ring and cracks fade out with the burst. |
 
 The damage lands once: on the last banana (I-III) or on slam 6 (IV). No hit-stop; the clock never pauses. Flat 2D.
 
@@ -62,7 +73,7 @@ The damage lands once: on the last banana (I-III) or on slam 6 (IV). No hit-stop
   frame lists in place when they land (a scene already running picks them up), and uploaded to the GPU by a warm sprite
   during the formation.
 - **Tuner:** new dials for spin, the six slams (count, spacing, reel-back, finisher wind-up and push-in, fly home), how
-  far it sinks, blood (start slam, amount) and juice drips (amount, linger). The Copy / Reset / Play row is at the
+  far it sinks, the late juice burst (start slam, amount) and juice drips (amount, linger). The Copy / Reset / Play row is at the
   TOP (a `buttonsTop` option on `TunerSpec`, owner ask for all attack tuners), and the Speed and Reduced motion rows
   are gone.
 - Oracle R-PROG-ATTACK-15 (rewritten, quotes all three reviews), GAME-RULES, patch note. Crate odds: Legendary has 12
@@ -107,7 +118,7 @@ Real rAF playback, sound off, a temporary uncommitted hook to reach the runner, 
 
 The cold-page first play spikes, and Venom Volley (poison) spikes the same way on the same cold page (worst 491 ms).
 It is the page's first Pixi overlay render and formation, not this attack; in a real fight the overlay is already warm.
-The sprite cap is 1100 (Tier IV, with the impact bursts, blood and drips, peaks at ~890).
+The sprite cap is 1100 (Tier IV, with the impact bursts, juice bursts and drips, peaks at ~890).
 
 ## Open for the owner
 

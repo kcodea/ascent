@@ -15,7 +15,8 @@
  * the struck portrait's rim; each slam of the striking hero drives it deeper and squashes it flatter. The part driven IN
  * disappears into the face (the stake's texture frame is cropped at the entry point, so only the part still outside is
  * drawn: no stencil, so it never nests with the striker's cut), a crater ring and cracks spread from the entry point,
- * juice squirts out sideways, and from the fourth slam blood sprays off the target, more each time. By the finisher only
+ * juice squirts out sideways, and from the fourth slam an extra burst of painted juice splats sprays off the target,
+ * more each time. By the finisher only
  * its end sticks out; then it bursts into the finale.
  *
  * Z-ORDER (owner: "make sure the attacker hero is on top of it"): the overlay canvas sits above every portrait, so while
@@ -56,8 +57,8 @@ export interface BananaColors { juice: number; amber: number; cream: number; gol
 export interface BananaLook {
   /** A banana's size, px at stage scale 1 (the tier size multiplies it). */
   bananaPx: number;
-  /** Blood on the late slams (0 = none; 1 = the shipped amount). */
-  bloodAmount: number;
+  /** The extra juice burst on the late slams (0 = none; 1 = the shipped amount). */
+  burstAmount: number;
   /** Juice running down the struck face during the jam (0 = none; 1 = the shipped amount). */
   juiceDrips: number;
   /** How long a drip runs and lingers before it fades. */
@@ -99,8 +100,6 @@ export const SIDE_FRAME = 3;
 export const STAKE_FRAME = 11;
 /** Where the painted banana actually sits inside that 256 px cell (its opaque box, measured off the sheet). */
 const STAKE_BOX = { x: 96, y: 42, w: 82, h: 188 };
-/** Stylised blood: crimson and a darker clot. */
-const BLOOD = [0xb3121e, 0x8a0c14, 0xd4202a, 0x6e0a10];
 
 interface Banana {
   idx: number;
@@ -129,6 +128,8 @@ interface Stake {
 
 type AlphaMode = 'out' | 'punch' | 'hold';
 interface Fx {
+  /** Jam residue (the crater ring and the cracks): cleared by the finale, never left behind. */
+  residue?: boolean;
   s: Sprite; age: number; dur: number; from: number; to: number; a0: number; mode: AlphaMode; peakAt: number;
   sy: number; spin: number; delay: number;
   vx: number; vy: number; drag: number;
@@ -240,6 +241,8 @@ export class HeroBananaScene {
   get liveBananas(): number { return this.bananas.length; }
   get stuckBanana(): boolean { return this.stake !== null; }
   get liveSplats(): number { return this.splats.length; }
+  /** The jam's dark residue still drawn (the crater ring and the cracks): 0 once the finale has cleared it. */
+  get residue(): number { let n = 0; for (const q of this.fx) if (q.residue) n++; return n; }
   get blazing(): boolean { return this.aura?.big === true && this.aura.release < 0; }
   get marking(): boolean { return this.mark !== null; }
   get glinting(): boolean { return this.glintFx !== null; }
@@ -587,9 +590,9 @@ export class HeroBananaScene {
   /**
    * A SLAM into the stake (`k` = 0 for the first): it is driven to `depth` (the part going in vanishes into the face)
    * and squashed a step flatter; a crater ring and cracks spread from the entry, a painted splat and juice SQUIRT out
-   * sideways from the pressure, a flash. `blood` (0 = none) sprays crimson off the target, more each time.
+   * sideways from the pressure, a flash. `burst` (0 = none) adds an extra juice burst of painted splats, more each time.
    */
-  slam(k: number, depth: number, blood = 0, of = 6): void {
+  slam(k: number, depth: number, burst = 0, of = 6): void {
     const st = this.stake;
     if (st) { st.target = Math.max(st.target, depth); st.crush = k + 1; st.kick = 0; }
     const u = st ? st.u : { x: 1, y: 0 };
@@ -604,16 +607,16 @@ export class HeroBananaScene {
     const ring = this.fxs('glow', this.tex.ring, whiten(this.colors.gold, 0.3), at.x, at.y, { dur: 240, from: 0.2, to: 1.1 * g, a0: 0.8, sy: 0.6, follow: true });
     if (ring) ring.s.rotation = across;
     // THE CRATER: a dark ring round the entry, wider each slam, and cracks running into the face.
-    this.fxs('haze', this.tex.ring, 0x2a1406, at.x, at.y, { dur: 2600, from: 0.35 + 0.1 * k, to: 0.5 + 0.14 * k, a0: 0.55, mode: 'hold', follow: true });
+    this.fxs('haze', this.tex.ring, 0x2a1406, at.x, at.y, { dur: 2600, from: 0.35 + 0.1 * k, to: 0.5 + 0.14 * k, a0: 0.55, mode: 'hold', follow: true, residue: true });
     const cracks = 2 + k;
     for (let c = 0; c < cracks; c++) {
       const a = Math.atan2(u.y, u.x) + (c / Math.max(1, cracks - 1) - 0.5) * 2.4 + (this.rnd() - 0.5) * 0.3;
       const len = (0.9 + 0.25 * k) * (0.7 + this.rnd() * 0.5);
       const f = this.fxs('haze', this.tex.streak, 0x1e0c04, at.x + Math.cos(a) * 16 * len * S, at.y + Math.sin(a) * 16 * len * S,
-        { dur: 2600, from: 0.6 * len, to: 1.1 * len, a0: 0.8, sy: 0.16, mode: 'hold', follow: true });
+        { dur: 2600, from: 0.6 * len, to: 1.1 * len, a0: 0.8, sy: 0.16, mode: 'hold', follow: true, residue: true });
       if (f) f.s.rotation = a;
     }
-    if (blood > 0) this.blood(at, u, blood);
+    if (burst > 0) this.juiceBurst(at, u, burst);
     this.impactBurst(at, u, k, of);
     // The pressure squeezes juice out: runs down the face, more each slam.
     this.dripsFrom(at, 3 + 2 * k);
@@ -753,23 +756,24 @@ export class HeroBananaScene {
   }
 
   /**
-   * BLOOD off the target (the late slams; owner: "show blood splatting on hits 4,5,6 with increasing amounts"): Oona's
-   * splat painting tinted crimson (stylised, the same painted family as the juice) and crimson droplets thrown back and
-   * out, falling. `level` 1 a little, 2 more, 3 a big spray.
+   * A JUICE BURST off the target on the late slams (owner 2026-09-29: "remove the blood from the banana attack and just
+   * keep the banana splats instead"): extra painted splats of Oona's juice, juice thrown back and out and falling, and
+   * juice spatter that stays on the face. `level` 1 a little, 2 far more, 3 the most (the escalation the owner asked for
+   * on hits 4, 5 and 6). Only the painted juice and its own yellows: nothing red.
    */
-  private blood(at: Pt, u: Pt, level: number): void {
+  private juiceBurst(at: Pt, u: Pt, level: number): void {
     const S = this.scale;
     const L = this.look;
-    const amt = Math.max(0, L.bloodAmount);
+    const amt = Math.max(0, L.burstAmount);
     if (amt <= 0) return;
-    // Owner 2026-09-29: "add more blood in the 5th and 6th hit": each level sprays far more than the last (1: a
-    // little; 2: a lot; 3: a big, wide spray), and the spatter LINGERS on the face.
+    const c = this.colors;
+    const yellows = [c.juice, c.amber, c.gold, c.cream];
     const splats = Math.max(1, Math.round((level * 2 - 1) * amt));
     for (let i = 0; i < splats; i++) {
       const a = Math.atan2(-u.y, -u.x) + (this.rnd() - 0.5) * (1.8 + 0.8 * level);
       const r = (i === 0 ? 0 : 16 + this.rnd() * (22 + 18 * level)) * S;
-      this.splatAt(at.x + Math.cos(a) * r, at.y + Math.sin(a) * r, L.splatPx * (0.45 + 0.28 * level) * (i === 0 ? 1 : 0.65),
-        { dur: L.splatMs * (1.2 + 0.5 * level), delay: i * 25, tint: BLOOD[i % 2]! });
+      this.splatAt(at.x + Math.cos(a) * r, at.y + Math.sin(a) * r, L.splatPx * (0.5 + 0.3 * level) * (i === 0 ? 1 : 0.65),
+        { dur: L.splatMs * (1.2 + 0.4 * level), delay: i * 25 });
     }
     const drops = Math.round(14 * level * level * amt);
     const spread = 2 + 0.7 * level;
@@ -777,21 +781,23 @@ export class HeroBananaScene {
       const a = Math.atan2(-u.y, -u.x) + (this.rnd() - 0.5) * spread;
       const sp = (260 + this.rnd() * 560) * (0.8 + 0.25 * level) * S;
       const sz = (6 + this.rnd() * 11) * (0.85 + 0.2 * level) / DISC_PX * 2;
-      this.particle('splat', this.tex.disc, BLOOD[i % 4]!, {
+      this.particle('splat', this.tex.disc, yellows[i % 4]!, {
         x: at.x + this.fox, y: at.y + this.foy, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 160 * S, drag: 0.4, grav: 1300 * S,
         life: 560 + this.rnd() * 420, from: sz * S, to: sz * 0.6 * S, alpha: 1, align: false, tumble: 0, spin: 0,
       });
     }
-    // Spatter that STAYS on the face (rides it), more each level, fading late.
+    // Juice spatter that STAYS on the face (rides it), more each level, fading late.
     const f = this.face;
     const stay = Math.round(4 * level * level * amt);
     for (let i = 0; i < stay; i++) {
       const a = this.rnd() * Math.PI * 2, rr = Math.sqrt(this.rnd()) * (f ? f.r * 0.9 : 60 * S);
       const cx = f ? f.x : at.x, cy = f ? f.y : at.y;
       const sz = (5 + this.rnd() * 9) * (0.9 + 0.2 * level) / DISC_PX * 2;
-      this.fxs('splat', this.tex.disc, BLOOD[(i + 1) % 4]!, cx + Math.cos(a) * rr, cy + Math.sin(a) * rr,
+      this.fxs('splat', this.tex.disc, yellows[(i + 1) % 4]!, cx + Math.cos(a) * rr, cy + Math.sin(a) * rr,
         { dur: 1800 + 400 * level, from: sz * 0.6, to: sz, a0: 0.95, mode: 'hold', follow: true, sy: 0.8 + this.rnd() * 0.4 });
     }
+    // and more juice running down the face
+    this.dripsFrom(at, 2 * level);
   }
 
   /**
@@ -815,6 +821,10 @@ export class HeroBananaScene {
     this.fxs('core', this.tex.glow, 0xffffff, at.x, at.y, { dur: 140, from: 1.1, to: 3.4, a0: o.flashAlpha });
     this.fxs('glow', this.tex.glow, c.gold, at.x, at.y, { dur: 260, from: 1.4, to: 3.4, a0: 0.3 * o.flashAlpha });
     this.splatAt(at.x, at.y, L.splatPx * L.giantSplat * o.burst, { dur: L.splatMs * 1.6 });
+    // Owner 2026-09-29: "what's the leftover circle here from the banana final slam? can you remove that?": the crater
+    // ring and the cracks fade out with the burst (the splat on the target stays and fades as designed: "keep the
+    // banana splat on the target still").
+    this.clearResidue();
     const n = Math.max(0, Math.round(L.ringSplats));
     for (let s = 0; s < n; s++) {
       const a = (s / Math.max(1, n)) * Math.PI * 2 + this.rnd() * 0.4;
@@ -849,6 +859,21 @@ export class HeroBananaScene {
       if (p) p.s.rotation = this.rnd() * Math.PI * 2;
     }
     this.sparkles(at.x, at.y, 18, 560, { life: 700, size: 0.5 });
+  }
+
+  /**
+   * Clear the jam's dark residue (owner 2026-09-29: "what's the leftover circle here from the banana final slam? can you
+   * remove that?": the crater ring was holding for 2.6 s, past the end of the attack): the crater ring and the cracks
+   * fade out over ~180 ms. The juice (the splat, spatter and drips) plays out its own designed fade.
+   */
+  private clearResidue(): void {
+    for (const q of this.fx) {
+      if (!q.residue) continue;
+      // Continue from the current opacity to nothing over ~180 ms.
+      const now = q.s.alpha;
+      const sc = q.s.scale.x / this.scale;
+      q.mode = 'out'; q.a0 = now; q.age = 0; q.dur = 180; q.from = sc; q.to = sc; q.delay = 0;
+    }
   }
 
   /** A splat pop round the target after the finale (IV): a painted splat and a juice puff. */

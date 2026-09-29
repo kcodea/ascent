@@ -38,7 +38,7 @@ const C = HERO_BANANA_DEFAULTS;
 const plan = (values: number[], total: number, distance = 1600, reduced = false) => bananaPlan({ total, distance, reduced, leadIn: leadInOf(values, reduced) }, C);
 const COLORS = { juice: 0xfce400, amber: 0xebb912, cream: 0xffffe0, gold: 0xffc714, spark: 0xff6d2c, side: 0xffd83d };
 const LOOK = {
-  bananaPx: 108, bloodAmount: 1, juiceDrips: 1, dripMs: 2600, trailSparks: 1, splatPx: 150, splatMs: 480, tickJuice: 40, juiceSpeed: 435, juiceLifeMs: 450, juicePx: 35,
+  bananaPx: 108, burstAmount: 1, juiceDrips: 1, dripMs: 2600, trailSparks: 1, splatPx: 150, splatMs: 480, tickJuice: 40, juiceSpeed: 435, juiceLifeMs: 450, juicePx: 35,
   launchSparks: 11, giantSplat: 3.4, ringSplats: 7, showerBananas: 14, shockSize: 1, goldRays: 10,
 };
 const A = { x: 200, y: 850 }, D = { x: 1500, y: 250 };
@@ -46,6 +46,8 @@ const R = 80;
 const TIMELINE_IV = [420, 6114, 7064];
 const P1 = plan([2, 1], 3), P2 = plan([3, 3, 2], 8), P3 = plan([3, 3, 3, 3, 2], 14), P4 = plan([6, 6, 6, 6, 6, 5, 5], 40);
 const regular = (p: ReturnType<typeof plan>) => p.shots.filter((s) => !s.giant);
+/** A blood-like tint: red far above green and blue (the juice yellows, golds and the orange launch sparks all carry plenty of green). */
+const isRed = (t: number): boolean => { const r = (t >> 16) & 0xff, g = (t >> 8) & 0xff, b = t & 0xff; return r > 120 && g < r * 0.3 && b < r * 0.3; };
 
 describe('the damage tiers (shared with every style)', () => {
   it('the bananas step up on exactly the blows Blast does: I 1-5, II 6-11, III 12-19, IV 20+', () => {
@@ -123,8 +125,10 @@ describe('the tuner values', () => {
   it('every config key has a tuner control; the jam has its dials; the button row sits on TOP with no Speed or Reduced motion rows', () => {
     const keys = new Set(SPEC.controls.map((c) => c.key));
     for (const k of Object.keys(C)) expect(keys.has(k as never), k).toBe(true);
-    for (const k of ['slamCount', 'slamGapMs', 'slamPullPx', 'finisherWindMs', 'finisherZoom', 'bloodStart', 'bloodAmount', 'jamDepthEnd']) expect(keys.has(k as never), k).toBe(true);
-    expect([C.slamCount, C.bloodStart]).toEqual([6, 4]);
+    for (const k of ['slamCount', 'slamGapMs', 'slamPullPx', 'finisherWindMs', 'finisherZoom', 'burstStart', 'burstAmount', 'jamDepthEnd']) expect(keys.has(k as never), k).toBe(true);
+    expect([C.slamCount, C.burstStart]).toEqual([6, 4]);
+    // owner 2026-09-29: no blood; banana splats instead
+    expect(Object.keys(C).join(' ')).not.toMatch(/blood/i);
     const json = JSON.parse(heroBananaConfigJson(C)) as Record<string, unknown>;
     expect(json.previewDamage).toBeUndefined();
     expect(json.previewParts).toBeUndefined();
@@ -511,7 +515,7 @@ describe('the runner (the shared clock)', () => {
     expect(root.children).toHaveLength(0);
   });
 
-  it('Tier IV THE JAM: the giant lands as a stake, the striking PORTRAIT dashes over and drives it in SIX times (on top of it, deeper and flatter each slam, blood from slam 4), and the blow lands ONCE on the FINISHER', () => {
+  it('Tier IV THE JAM: the giant lands as a stake, the striking PORTRAIT dashes over and drives it in SIX times (on top of it, deeper and flatter each slam, extra juice bursts from slam 4, no blood), and the blow lands ONCE on the FINISHER', () => {
     // A painted-size sheet (1024 px, 4 x 4), so the stake's crop is the real one.
     const sheet = sliceSheet(new Texture({ source: new TextureSource({ width: 1024, height: 1024 }) }));
     const { h, f, onImpact, attackerEl, defenderEl } = run({ total: 40, formation: formationOf([40], 40), textures: { ...TEX, banana: sheet } });
@@ -535,11 +539,13 @@ describe('the runner (the shared clock)', () => {
     const home = translateOf(attackerEl);
     expect(Math.hypot(home.x, home.y)).toBeLessThan(120); // not dashed yet (only the fling's recoil)
     let sunk = h.scene!.sunk;
-    const bloodLayer = h.scene!.layer('splat');
+    const splatLayer = h.scene!.layer('splat');
+    const reds = (): number => (['haze', 'splat', 'glow', 'body', 'core'] as const).reduce((n, l) => n + h.scene!.layer(l).children.filter((c) => c.visible && isRed((c as unknown as { tint: number }).tint)).length, 0);
+    const extra: number[] = [];
     const stake = h.scene!.layer('stake').children[0]!;
     let long = Infinity;
     for (let i = 0; i < 5; i++) {
-      const before = bloodLayer.children.filter((c) => c.visible && [0xb3121e, 0x8a0c14, 0xd4202a, 0x6e0a10].includes((c as unknown as { tint: number }).tint)).length;
+      const before = splatLayer.children.filter((c) => c.visible).length;
       f.tick(p.slams[i]! - h.elapsed() + 8, 4);
       expect(h.scene!.crush, `slam ${i + 1}`).toBe(i + 1);
       expect(h.scene!.sunk, `slam ${i + 1} drives it deeper`).toBeGreaterThan(sunk);
@@ -554,22 +560,39 @@ describe('the runner (the shared clock)', () => {
       long = drawn;
       const at = translateOf(attackerEl);
       expect(Math.hypot(at.x, at.y), `slam ${i + 1} reaches`).toBeGreaterThan(900); // the portrait itself is across the board
-      const after = bloodLayer.children.filter((c) => c.visible && [0xb3121e, 0x8a0c14, 0xd4202a, 0x6e0a10].includes((c as unknown as { tint: number }).tint)).length;
-      if (i + 1 >= C.bloodStart) expect(after, `slam ${i + 1} bleeds`).toBeGreaterThan(before);
-      else expect(after, `slam ${i + 1} does not bleed`).toBe(before);
+      extra.push(splatLayer.children.filter((c) => c.visible).length - before);
+      // owner 2026-09-29: "remove the blood from the banana attack": nothing red, ever
+      expect(reds(), `slam ${i + 1}: no blood`).toBe(0);
       expect(onImpact, `slam ${i + 1} is a tick`).not.toHaveBeenCalled();
     }
+    // slams 4 and 5 add far more juice than slams 1 to 3 (the juice burst from slam 4 on)
+    expect(extra[3]!).toBeGreaterThan(Math.max(extra[0]!, extra[1]!, extra[2]!));
+    expect(extra[4]!).toBeGreaterThan(extra[3]!);
     f.tick(p.impactAt - h.elapsed() - 12, 4);
     expect(onImpact).not.toHaveBeenCalled();
     f.tick(24, 4);
     expect(onImpact).toHaveBeenCalledTimes(1);
+    expect(reds(), 'the finale: no blood').toBe(0);
     expect(h.scene!.stuckBanana).toBe(false); // burst into the finale
     expect(h.scene!.liveSprites).toBeLessThanOrEqual(MAX_BANANA_SPRITES);
     f.tick(p.homeAt - h.elapsed() + 20, 4);
     expect(h.scene!.masked, 'home again: the cut is lifted').toBe(false);
     // owner 2026-09-29: "the hero gets messed up at the end": nothing may be left drawn over the striker's portrait
     expect(h.scene!.strayGraphics, 'no leftover disc').toBe(false);
-    f.tick(p.endAt + 3000, 8);
+    // owner 2026-09-29: "what's the leftover circle here from the banana final slam? can you remove that?": by the END
+    // no crater ring or cracks are drawn (the splat on the target stays and fades as designed: owner "keep the banana
+    // splat on the target still")
+    f.tick(p.endAt - h.elapsed(), 8);
+    expect(h.scene!.residue, 'the jam residue is cleared by the end').toBe(0);
+    const darkRing = (['haze', 'splat', 'glow', 'body', 'core'] as const).some((l) => h.scene!.layer(l).children.some((c) =>
+      c.visible && c.alpha > 0.01 && [0x2a1406, 0x1e0c04].includes((c as unknown as { tint: number }).tint)));
+    expect(darkRing, 'no crater ring or cracks at the end').toBe(false);
+    // and once the juice has played out its designed fade EVERY sprite and graphic is released: the scene drains, unhooks
+    // and unmounts (nothing is held on screen)
+    f.tick(3000, 8);
+    expect(h.scene!.liveSprites, 'nothing survives the end').toBe(0);
+    expect(f.hooked(), 'nothing survives the end').toBe(0);
+    expect(h.scene!.strayGraphics).toBe(false);
     expect(onImpact).toHaveBeenCalledTimes(1);
     // both portraits exactly as they were (every inline style, not just the transform)
     expect(attackerEl.style.cssText).toBe(restA);
@@ -739,23 +762,34 @@ describe('the scene (headless Pixi)', () => {
     expect(s.root.destroyed).toBe(true);
   });
 
-  it('blood grows sharply with the slam (hits 5 and 6 far more), and juice DRIPS run down the face, over the rim, and linger through the finale', () => {
+  it('NO blood (owner 2026-09-29: "just keep the banana splats instead"): the late slams burst extra painted juice, growing sharply (hits 5 and 6 far more), and juice DRIPS run down the face, over the rim, and linger through the finale', () => {
     const s = new HeroBananaScene(TEX, COLORS, LOOK, 1, 5);
     const rig = bananaRig(P4, A, D, R, R, C);
     const jg = jamGeo(A, D, R, R, 330, 6, C);
     const gi = rig.shots.length - 1;
     s.fling(rig.shots[gi]!, 3.2, 0, gi);
     s.land(gi, { entry: jg.entry, u: jg.u, len: 330, depth: jg.depths[0]!, face: { x: D.x, y: D.y, r: R } });
-    const red = (): number => s.layer('splat').children.filter((c) => c.visible && [0xb3121e, 0x8a0c14, 0xd4202a, 0x6e0a10].includes((c as unknown as { tint: number }).tint)).length;
-    const shed: number[] = [];
-    for (let k = 0; k < 3; k++) {
-      const before = red();
-      s.slam(3 + k, jg.depths[4 + k]!, k + 1);
-      shed.push(red() - before);
-      for (let i = 0; i < 6; i++) s.update(16);
-    }
+    // The burst's own share at each level: the same slam on the same seed, with and without it.
+    const burstShare = (level: number): number => {
+      const count = (lvl: number): number => {
+        const t = new HeroBananaScene(TEX, COLORS, LOOK, 1, 77);
+        t.fling(rig.shots[gi]!, 3.2, 0, gi);
+        t.land(gi, { entry: jg.entry, u: jg.u, len: 330, depth: jg.depths[0]!, face: { x: D.x, y: D.y, r: R } });
+        const before = t.layer('splat').children.filter((c) => c.visible).length;
+        t.slam(5, jg.depths[6]!, lvl);
+        const n = t.layer('splat').children.filter((c) => c.visible).length - before;
+        t.destroy();
+        return n;
+      };
+      return count(level) - count(0);
+    };
+    const shed = [1, 2, 3].map(burstShare);
+    expect(shed[0]!).toBeGreaterThan(0);
     expect(shed[1]!).toBeGreaterThan(shed[0]! * 2.5);
     expect(shed[2]!).toBeGreaterThan(shed[1]! * 1.8);
+    for (let k = 0; k < 3; k++) { s.slam(3 + k, jg.depths[4 + k]!, k + 1); for (let i = 0; i < 6; i++) s.update(16); }
+    const anyRed = (['haze', 'splat', 'glow', 'body', 'core'] as const).some((l) => s.layer(l).children.some((c) => c.visible && isRed((c as unknown as { tint: number }).tint)));
+    expect(anyRed).toBe(false);
     // the drips: yellow streams whose heads have run DOWN (below where they started), some past the portrait's bottom
     const juice = [0xfce400, 0xebb912];
     const streams = (): { y: number; h: number }[] => s.layer('splat').children
@@ -767,6 +801,7 @@ describe('the scene (headless Pixi)', () => {
     s.finale(gi, D.x, D.y, R, { burst: 1, juice: 200, flashAlpha: 0.85 });
     for (let i = 0; i < 60; i++) s.update(16);
     expect(streams().length).toBeGreaterThan(8); // still running after the burst
+    expect(s.residue).toBe(0); // but the crater ring and the cracks are cleared by it
     let alive = true;
     for (let i = 0; i < 800 && alive; i++) alive = s.update(16);
     expect(alive).toBe(false);

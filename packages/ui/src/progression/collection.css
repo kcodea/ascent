@@ -284,3 +284,11 @@
 .menubtn .newpill { position: relative; z-index: 1; }
 /* The side-menu plaque is narrow (and clips its sheen): the pill sits in its top-right corner instead of after the label. */
 .sbbtn .newpill { position: absolute; z-index: 1; top: 5px; right: 6px; margin: 0; font-size: 9px; padding: 1px 5px 0; }
+
+/* THE PORTRAIT SIGN-IN GATE (owner 2026-09-29): a guest's portrait click lands here. The New rewards shell, narrower. */
+.pfgate-panel { width: 480px; }
+.pfgate-panel .nrw-title { font-size: 18px; letter-spacing: 0.1em; line-height: 1.25; }
+.pfgate-body { display: flex; flex-direction: column; gap: 8px; }
+.pfgate-body p { margin: 0; }
+.pfgate-lead { font-family: var(--font-ui); font-weight: 800; font-size: 16px; line-height: 1.4; color: #fff; }
+.pfgate-foot { gap: 10px; align-items: center; }

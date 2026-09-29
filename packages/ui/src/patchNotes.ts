@@ -60,6 +60,15 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: 'Playing as a guest? A glowing Sign in! button now sits next to your portrait on the main menu.',
+        details: [
+          'It opens the account screen. Make a free account with just your email and your progress is saved to it.',
+          'Changing your portrait now needs an account. As a guest, clicking your portrait asks you to sign in first.',
+          'Once you are signed in the button goes away and your portrait works as before.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'A new Legendary hero attack, Hemorrhage, can drop from crates.',
         details: [
           'Your damage builds up, then your hero draws a blade and swings crimson crescents at the other hero.',

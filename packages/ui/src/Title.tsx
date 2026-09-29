@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { AscentLogo } from './AscentLogo';
 import { activeRift, LEARN_ASCENT } from '@game/sim';
 import { avatarSrc, modeArt } from './art';
@@ -20,6 +20,7 @@ import { RankCrest } from './rank/RankBar';
 import { useCurrentRank } from './rank/rankSource';
 import { rankLabel } from './rank/rankFormat';
 import { NewPill, useHasNewRewards } from './progression/NewRewardsPopup';
+import { GuestSignInButton, PortraitSignInGate } from './GuestSignIn';
 
 /**
  * The title screen — the game's front door, shown at boot and after a run ends. Styled after the
@@ -99,6 +100,10 @@ export function Title({ onSettings }: { onSettings: () => void }) {
   // retire it. (The mode picker / Learn hub views are `titleView` in the store — returning to the title lands
   // on the MAIN menu because `openTitle` / `cancelPracticeSetup` reset it; owner ask 2026-08-24.)
   const [tutorialPrompt, setTutorialPrompt] = useState(false);
+  // A GUEST's portrait click opens the portrait sign-in gate, not the avatar picker (owner 2026-09-29: "don't let
+  // non-signed in players change the portrait either, they need to sign in for that"). Read fresh per click.
+  const [portraitGate, setPortraitGate] = useState(false);
+  const closePortraitGate = useCallback(() => setPortraitGate(false), []);
 
   if (!showTitle) return null;
 
@@ -143,11 +148,13 @@ export function Title({ onSettings }: { onSettings: () => void }) {
           👤 Title Account dev tuner's `--ta-*` vars (see titleAccountConfig.ts). No `data-tip` on `.portring`
           itself — its ::after IS the ring; the tip rides the wrapping button. */}
       <div className="titleaccount">
+        {/* GUEST SIGN-IN (owner 2026-09-29): a slow-blinking "Sign in!" left of the portrait, guests only. */}
+        <GuestSignInButton />
         <button
           className={`titleportrait${avatarSrc(playerAvatar) ? '' : ' noart'}`}
-          onClick={openAvatarPicker}
-          data-tip="Change your avatar"
-          aria-label="Change your avatar"
+          onClick={() => { if (account.anonymous) { sfx.pulse(); setPortraitGate(true); } else openAvatarPicker(); }}
+          data-tip={account.anonymous ? 'Sign in to change your portrait' : 'Change your avatar'}
+          aria-label={account.anonymous ? 'Sign in to change your portrait' : 'Change your avatar'}
         >
           <div className={`portring${pfClass(avatarFrame)}`} style={avatarFrame?.hostStyle}>
             <div className="hero">
@@ -193,6 +200,8 @@ export function Title({ onSettings }: { onSettings: () => void }) {
           </div>
         )}
       </div>
+
+      <PortraitSignInGate open={portraitGate} onClose={closePortraitGate} />
 
       <div className="titlemenu">
         {/* The lockup is shared with hero select — see `AscentLogo`. `.titlelogo` keeps ALL of this screen's

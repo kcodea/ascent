@@ -227,9 +227,10 @@ progression **epoch**; nothing finished before the epoch counts (no backfill).
   sidebar, or the Account Level card on your Career; Open one crate, or Open all). The reward is chosen **when the crate is opened**, on the
   server, from the items the player does not own yet. **Fixed rarity odds (2026-09-29, R-PROG-CRATE-03):** one
   server draw first rolls a rarity at **Common 50% / Rare 30% / Epic 15% / Legendary 5%**, then picks an unowned item
-  of that rarity weighted by its category weight. The odds never move as items are added, and the Collection's crate
+  of that rarity, **every item of the rarity equally likely** (owner 2026-09-29: "yeah equal chance"; category weights
+  stay in the catalog but the roll no longer reads them). The odds never move as items are added, and the Collection's crate
   bay prints them. A rolled rarity with nothing left falls to the **nearest** rarity that has something, ties toward
-  the more common one (Epic empty goes to Rare before Legendary). Opened crates record roll version 2. **Never a
+  the more common one (Epic empty goes to Rare before Legendary). Opened crates record roll version 3. **Never a
   duplicate.** With nothing left to give, the crate stays **sealed** (`pool_exhausted`) until new items arrive;
   it is never converted into anything. A new title is worn at once only when none is worn.
 - **The opening (presentation, 2026-09-28).** A full-screen opening that starts on the click while the server
@@ -245,9 +246,9 @@ progression **epoch**; nothing finished before the epoch counts (no backfill).
   for every cosmetic category (announcer, hero skin, minion skin, title, hero attack, board, music). Switched on:
   **titles** (15 crate titles: 7 Common, 5 Rare, 2 Epic, 1 Legendary) and, since the skins shipped the same day,
   **hero skins** and **minion skins** (all from crates) and **hero attacks** (Arcane Barrage, Tectonic Slam, Arcana, Phantom Blades, Enraged Strike, Venom Volley, Frost Nova, then Consecration). The other
-  categories are feature-flagged off until their art exists. Crate odds are the fixed rarity odds above, then category
-  weight inside the rarity: a fresh account's first crate (2026-09-29 catalog) is about 61% a skin or hero attack, and
-  the eight Legendary hero attacks together are 3%.
+  categories are feature-flagged off until their art exists. Crate odds are the fixed rarity odds above, then an equal
+  share inside the rarity: on the 2026-09-29 catalog each Common is 6.25% (50 / 8), each Rare 2.31% (30 / 13), each Epic
+  1.5% (15 / 10) and each Legendary 0.45% (5 / 11). A fresh account's first crate is about 41% a skin or hero attack.
 - **Skins (2026-09-28; oracle R-PROG-SKINS-01, R-PROG-SKINS-04).** A hero skin replaces one hero's portrait; a
   minion skin replaces one card's art, by stable id. Equipped per target from the Collection's Heroes / Minions
   tabs through the server (`equip_cosmetic`: owned, made for that hero or card, live); **"Use default art"** is

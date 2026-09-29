@@ -60,6 +60,15 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: "Knocking a player out now always plays your hero attack's biggest version.",
+        details: [
+          'Works for every hero attack style, whatever the damage number.',
+          'It works both ways: when an opponent knocks you out, their attack plays its biggest version too.',
+          'The damage shown and dealt is unchanged.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'Unit voices and creature sounds are evened out, so no unit is much louder or quieter than the rest.',
       },
       {

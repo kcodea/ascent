@@ -114,7 +114,9 @@ describe('vo card clips bind to the By-card view', () => {
     const taken = bindCardSlot({ cards: { dw_orin: { minionPlayed: { def: 'sfx-hand-picked' } } } }, slot);
     expect(taken).toMatchObject({ status: 'taken', existing: 'sfx-hand-picked' });
     // The death slot is independent of On Play.
-    expect(bindCardSlot(taken.bindings, cardSlot('dw_orin.death')).status).toBe('added');
+    const death = bindCardSlot(taken.bindings, cardSlot('dw_orin.death'));
+    expect(death.status).toBe('added');
+    expect(death.bindings.cards.dw_orin!.death).toEqual({ def: 'sfx-vo-dw-orin-death', gain: 0.1 }); // death sounds at 10%
   });
 
   it('a card clip id must name a slot', () => {

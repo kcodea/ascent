@@ -60,6 +60,10 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: 'Unit voices and creature sounds when you play a unit or it dies are now half as loud.',
+      },
+      {
+        category: 'Systems',
         text: 'Bob Blart has his own voice: a big, hungry ogre. He also says his own line when he meets Chronos on your board, instead of the announcer.',
       },
       {

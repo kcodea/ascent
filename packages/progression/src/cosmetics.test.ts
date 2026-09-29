@@ -142,22 +142,24 @@ describe('the roll', () => {
   it('the per-item chances of a first crate (2026-09-29 catalog): each item = its rarity\'s odds / that rarity\'s item count', () => {
     const all = eligibleCrateCosmetics([]);
     const count = (r: string): number => all.filter((c) => c.rarity === r).length;
-    expect(COSMETIC_RARITIES.map(count)).toEqual([8, 13, 10, 12]); // 2026-09-29: the ninth hero attack, Inferno (attack_fire), made Legendary 12
+    expect(COSMETIC_RARITIES.map(count)).toEqual([8, 13, 12, 12]); // 2026-09-29: the ninth hero attack, Inferno (attack_fire), made Legendary 12; the first Epic attacks, Card Shark and Storm Call, made Epic 12
     const ch = crateChances(all);
     const pct = (id: string): number => Math.round(100000 * ch.get(id)!) / 1000;
     expect(pct('skin_blackbelt_4')).toBe(6.25);       // Common: 50 / 8
     expect(pct('title_board_builder')).toBe(6.25);
     expect(pct('skin_blackbelt_1')).toBe(2.308);      // Rare: 30 / 13
     expect(pct('title_grave_whisperer')).toBe(2.308);
-    expect(pct('skin_bellringer_1')).toBe(1.5);       // Epic: 15 / 10
-    expect(pct('skin_albus_1')).toBe(1.5);
-    expect(pct('title_kingbreaker')).toBe(1.5);
+    expect(pct('skin_bellringer_1')).toBe(1.25);      // Epic: 15 / 12
+    expect(pct('skin_albus_1')).toBe(1.25);
+    expect(pct('title_kingbreaker')).toBe(1.25);
+    expect(pct('attack_cards')).toBe(1.25);
+    expect(pct('attack_storm')).toBe(1.25);
     expect(pct('skin_blackbelt_3')).toBe(0.417);      // Legendary: 5 / 12
     expect(pct('attack_arcana')).toBe(0.417);
     expect(pct('attack_fire')).toBe(0.417);
     expect(pct('title_the_unbroken')).toBe(0.417);
     const cat = (k: string): number => Math.round(1000 * all.filter((c) => c.category === k).reduce((a, c) => a + ch.get(c.id)!, 0)) / 10;
-    expect([cat('title'), cat('minion_skin'), cat('hero_skin'), cat('hero_attack')]).toEqual([58.7, 34.5, 3, 3.8]); // nine attacks x 5 / 12 since Inferno (2026-09-29)
+    expect([cat('title'), cat('minion_skin'), cat('hero_skin'), cat('hero_attack')]).toEqual([58.2, 33, 2.5, 6.2]); // nine Legendary attacks x 5 / 12 (Inferno, 2026-09-29) + the two Epic attacks x 15 / 12 (Card Shark, Storm Call)
     expect([...ch.values()].reduce((a, b) => a + b, 0)).toBeCloseTo(1, 12);
   });
 

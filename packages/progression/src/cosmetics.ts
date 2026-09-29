@@ -266,6 +266,13 @@ export const COSMETICS: readonly CosmeticDef[] = Object.freeze([
   // ablaze); IV calls down a meteor that detonates into a fire nova and engulfs the target. The name is the builder's
   // placeholder for the owner to rename (the id stays). Legendary like the other eight.
   heroAttack('attack_fire', 'Inferno', 'legendary', 'fire'),
+  // Owner 2026-09-29: "build 5 animations that range from rare -> epic. all of the animations we have done so far are
+  // legendary. rare and epics should only have 2 or 3 tiers to them and generally be less exciting, but still extremely
+  // clean and fun". The first EPIC attacks, three looks each. Card Shark: the hero deals playing cards (one Ace, three
+  // Aces, a royal flush that turns gold and bursts into confetti). Storm Call: a crackling bolt, a forked double strike,
+  // a storm cloud that drops a thick lightning strike. The names are the builder's placeholders (the ids stay).
+  heroAttack('attack_cards', 'Card Shark', 'epic', 'cards'),
+  heroAttack('attack_storm', 'Storm Call', 'epic', 'storm'),
   // HERO TITLES (owner 2026-09-29), 33 heroes x (title + golden master). Achievement rewards, never in a crate.
   ...HERO_TITLE_COSMETICS,
 ]);

@@ -87,6 +87,10 @@ import { playHeroHoly } from './heroHoly/heroHoly';
 import { heroHolyPreviewSpeed } from './heroHoly/heroHolyConfig';
 import { playHeroFire } from './heroFire/heroFire';
 import { heroFirePreviewSpeed } from './heroFire/heroFireConfig';
+import { playHeroCards } from './heroCards/heroCards';
+import { heroCardsPreviewSpeed } from './heroCards/heroCardsConfig';
+import { playHeroStorm } from './heroStorm/heroStorm';
+import { heroStormPreviewSpeed } from './heroStorm/heroStormConfig';
 import { resolveHeroAttackStyle } from './heroBlast/heroAttackStyle';
 import { attackerCosmeticOf } from './heroBlast/attackerCosmetic';
 import { heroStrikeDamage, heroStrikeKnockout, heroStrikeNumbers } from './heroBlast/heroStrikeDamage';
@@ -2917,11 +2921,16 @@ export function Recruit() {
     // crystallise and fire, and the top tier rolls a frost nova across the screen that encases and shatters; Consecration:
     // a pillar of light smites, and the top tier drops a holy sword that explodes into light and fires a flat consecrated
     // blast at the target; Inferno: fireballs of live fire are hurled, and the top tier calls down a meteor that detonates
-    // and engulfs the target). Same blow, same consequence, only drawn differently; the style is the ATTACKER's (their
+    // and engulfs the target; the Epics, in three looks: Card Shark deals playing cards, up to a royal flush that bursts
+    // into confetti; Storm Call strikes with lightning, up to a storm cloud's thick strike). Same blow, same consequence, only drawn differently; the style is the ATTACKER's (their
     // equipped cosmetic, or the dev override). Every runner takes the same options (`heroAttack/options.ts`).
     const attackStyle = resolveHeroAttackStyle({ attacker: side, attackerCosmeticId: attackerCosmeticOf(run0, side, useGame.getState().showOpponentSkins) });
-    if (attackStyle === 'blast' || attackStyle === 'quake' || attackStyle === 'arcana' || attackStyle === 'blades' || attackStyle === 'enraged' || attackStyle === 'poison' || attackStyle === 'frost' || attackStyle === 'holy' || attackStyle === 'fire') {
-      const runner = attackStyle === 'fire'
+    if (attackStyle === 'blast' || attackStyle === 'quake' || attackStyle === 'arcana' || attackStyle === 'blades' || attackStyle === 'enraged' || attackStyle === 'poison' || attackStyle === 'frost' || attackStyle === 'holy' || attackStyle === 'fire' || attackStyle === 'cards' || attackStyle === 'storm') {
+      const runner = attackStyle === 'storm'
+        ? { play: playHeroStorm, preview: heroStormPreviewSpeed() }
+        : attackStyle === 'cards'
+        ? { play: playHeroCards, preview: heroCardsPreviewSpeed() }
+        : attackStyle === 'fire'
         ? { play: playHeroFire, preview: heroFirePreviewSpeed() }
         : attackStyle === 'holy'
         ? { play: playHeroHoly, preview: heroHolyPreviewSpeed() }

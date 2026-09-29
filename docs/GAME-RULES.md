@@ -245,10 +245,10 @@ progression **epoch**; nothing finished before the epoch counts (no backfill).
   R-PROG-SKINS-05), so a new or retired cosmetic is a code change plus one deploy, never SQL. Shaped
   for every cosmetic category (announcer, hero skin, minion skin, title, hero attack, board, music). Switched on:
   **titles** (15 crate titles: 7 Common, 5 Rare, 2 Epic, 1 Legendary) and, since the skins shipped the same day,
-  **hero skins** and **minion skins** (all from crates) and **hero attacks** (Arcane Barrage, Tectonic Slam, Arcana, Phantom Blades, Enraged Strike, Venom Volley, Frost Nova, Consecration, then Inferno). The other
+  **hero skins** and **minion skins** (all from crates) and **hero attacks** (Arcane Barrage, Tectonic Slam, Arcana, Phantom Blades, Enraged Strike, Venom Volley, Frost Nova, Consecration, then Inferno, all Legendary; then the first Epics, Card Shark and Storm Call). The other
   categories are feature-flagged off until their art exists. Crate odds are the fixed rarity odds above, then an equal
   share inside the rarity: on the 2026-09-29 catalog each Common is 6.25% (50 / 8), each Rare 2.31% (30 / 13), each Epic
-  1.5% (15 / 10) and each Legendary 0.45% (5 / 11). A fresh account's first crate is about 41% a skin or hero attack.
+  1.25% (15 / 12) and each Legendary 0.42% (5 / 12). A fresh account's first crate is about 42% a skin or hero attack.
 - **Skins (2026-09-28; oracle R-PROG-SKINS-01, R-PROG-SKINS-04).** A hero skin replaces one hero's portrait; a
   minion skin replaces one card's art, by stable id. Equipped per target from the Collection's Heroes / Minions
   tabs through the server (`equip_cosmetic`: owned, made for that hero or card, live); **"Use default art"** is
@@ -324,7 +324,18 @@ progression **epoch**; nothing finished before the epoch counts (no backfill).
   the struck hero is marked (the ground under it heating, heat rings closing in, flames licking up round it) and a meteor
   streaks down onto it and detonates: a white-hot flash, shockwaves, a fire nova racing outward, a fireball rolling up into
   a mushroom of smoke, burning debris flung out on arcs, a pillar of fire engulfing the struck hero and a scorch (the blow
-  landing on the detonation). All nine anchor on the round portrait art at rest
+  landing on the detonation). **Card Shark** and **Storm Call** (2026-09-29; R-PROG-ATTACK-21, R-PROG-ATTACK-22) are the
+  first EPIC hero attacks: one idea each, shorter than the Legendaries, and THREE looks instead of four (they read the
+  same shared tier and map it: I small, II and III medium, IV big; a knockout plays big). `attack_cards` ("Card Shark",
+  a placeholder name; Epic, from crates): the hero deals playing cards with a snap. Small, one Ace of spades flicked
+  spinning into the struck hero, sticking edge first with a flash; medium, three Aces thrown thunk thunk thunk (the blow on
+  the third); big, a royal flush dealt face down into a hand fanned out in front of the hero, flipped one by one (10, J,
+  Q, K, A), turned gold, then all five fired together to burst into card confetti on the struck hero (the blow on the
+  burst). `attack_storm` ("Storm Call", a placeholder name; Epic, from crates): lightning whose jagged shape is redrawn
+  every few frames. Small, a crackling bolt arcs from the hero into the struck hero with a zap; medium, a forked bolt
+  whose two branches strike one after the other (the blow on the second) and leave the portrait jittering with static;
+  big, the hero calls a storm cloud over the struck hero that rumbles and drops one thick strike (a flash across the
+  screen, a ring of sparks, static crawling over the portrait). All eleven anchor on the round portrait art at rest
   (R-PROG-ATTACK-04). Equipped
   account-wide in the Collection's Attack Animations tab ("Use Classic" takes it off). The STRIKER's attack plays:
   yours when you win, the opponent's (from their recorded snapshot) when they win. Recorded per run like skins;

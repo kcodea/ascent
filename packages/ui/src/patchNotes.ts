@@ -60,6 +60,18 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: 'Two new Epic hero attacks, Card Shark and Storm Call, can drop from crates.',
+        details: [
+          'Epic attacks are shorter than the Legendary ones and have three sizes instead of four.',
+          'Card Shark: your hero flicks a spinning Ace into the other hero. Bigger hits throw three Aces. The biggest deal a royal flush that turns gold, then all five cards fly in and burst into confetti.',
+          'Storm Call: a crackling bolt of lightning hits the other hero. Bigger hits fork into two strikes and leave the other hero buzzing with static. The biggest call down a storm cloud that drops one huge lightning strike.',
+          'A knockout always plays the biggest version.',
+          'Equip them from the Attack Animations tab of the Collection. There is a preview button there too.',
+          'Hero attacks are looks only. The damage is exactly the same.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'A new Legendary hero attack, Inferno, can drop from crates.',
         details: [
           'Your damage builds up, then fire catches round your hero and fireballs of real, living flame are hurled at the other hero.',

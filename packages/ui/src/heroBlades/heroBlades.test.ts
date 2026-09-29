@@ -555,7 +555,7 @@ describe('the scene (headless Pixi)', () => {
 describe('the cosmetic', () => {
   it('Phantom Blades (attack_blades) is a Legendary crate hero attack that plays the Blades; the dev override can force it; Blast, Quake and Arcana unchanged', () => {
     expect(COSMETIC_INDEX.attack_blades).toMatchObject({ category: 'hero_attack', rarity: 'legendary', name: 'Phantom Blades', assets: { style: 'blades' }, active: true });
-    expect(HERO_ATTACK_STYLES).toEqual(['classic', 'blast', 'quake', 'arcana', 'blades', 'enraged', 'poison', 'frost', 'holy', 'fire']); // Enraged Strike, Poison Darts, Frost, then Consecration (holy) joined 2026-09-28 (Inferno, fire, 2026-09-29)
+    expect(HERO_ATTACK_STYLES).toEqual(['classic', 'blast', 'quake', 'arcana', 'blades', 'enraged', 'poison', 'frost', 'holy', 'fire', 'cards', 'storm']); // the Epics Card Shark (cards) and Storm Call (storm) joined 2026-09-29; // Enraged Strike, Poison Darts, Frost, then Consecration (holy) joined 2026-09-28 (Inferno, fire, 2026-09-29)
     expect(styleOfCosmetic('attack_blades')).toBe('blades');
     expect(styleOfCosmetic('attack_blast')).toBe('blast');
     expect(styleOfCosmetic('attack_quake')).toBe('quake');

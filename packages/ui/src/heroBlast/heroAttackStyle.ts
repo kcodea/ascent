@@ -41,6 +41,14 @@
  *    animation ... it should look like live flame/fires pixi sprites"): fireballs of live particle fire ignite round the
  *    hero and are hurled (I one, II two, III a volley of five that sets the struck hero ablaze), and IV calls down a
  *    meteor that detonates into a fire nova and engulfs the target, burning out to embers and smoke (`../heroFire/`).
+ *  - `cards` is the first EPIC (`attack_cards`, "Card Shark" until the owner renames it; owner ask 2026-09-29: "build 5
+ *    animations that range from rare -> epic ... rare and epics should only have 2 or 3 tiers"): the hero deals playing
+ *    cards with a snap. Three looks, not four: one Ace flicked spinning into the target; three Aces thrown thunk thunk
+ *    thunk; and a royal flush dealt into a fanned hand, flipped, turned gold and fired together into a burst of card
+ *    confetti (`../heroCards/`).
+ *  - `storm` is the second EPIC (`attack_storm`, "Storm Call" until the owner renames it; same ask): a crackling bolt
+ *    arcs from the hero with a zap; a forked bolt strikes twice and leaves the portrait jittering with static; and a
+ *    small storm cloud gathers over the target and drops a thick lightning strike (`../heroStorm/`).
  *
  * The style is the ATTACKER's: the equipped item recorded in the striking player's cosmetic snapshot (yours when you
  * win; the foe's seat snapshot when they win, and only while "Show opponent cosmetics" is on). The catalog item names
@@ -54,7 +62,7 @@
  */
 import { heroAttackOf } from '@game/progression';
 
-export const HERO_ATTACK_STYLES = ['classic', 'blast', 'quake', 'arcana', 'blades', 'enraged', 'poison', 'frost', 'holy', 'fire'] as const;
+export const HERO_ATTACK_STYLES = ['classic', 'blast', 'quake', 'arcana', 'blades', 'enraged', 'poison', 'frost', 'holy', 'fire', 'cards', 'storm'] as const;
 export type HeroAttackStyle = (typeof HERO_ATTACK_STYLES)[number];
 
 /** What a player without an equipped hero attack sees (owner 2026-09-28: Blast is a cosmetic, not a new default). */
@@ -71,13 +79,14 @@ export function styleOfCosmetic(id: string | null | undefined): HeroAttackStyle 
 }
 
 /** The dev override: `auto` = what a player would see; the others force one style for BOTH sides. */
-export const DEV_HERO_ATTACK_CHOICES = ['auto', 'classic', 'blast', 'quake', 'arcana', 'blades', 'enraged', 'poison', 'frost', 'holy', 'fire'] as const;
+export const DEV_HERO_ATTACK_CHOICES = ['auto', 'classic', 'blast', 'quake', 'arcana', 'blades', 'enraged', 'poison', 'frost', 'holy', 'fire', 'cards', 'storm'] as const;
 export type DevHeroAttackChoice = (typeof DEV_HERO_ATTACK_CHOICES)[number];
 
 /** The dev "Attack style" row's labels, shared by every hero attack tuner. */
 export const DEV_HERO_ATTACK_LABELS: Record<DevHeroAttackChoice, string> = {
   auto: 'Auto (equipped cosmetic)', classic: 'Classic (lunge)', blast: 'Blast', quake: 'Quake', arcana: 'Arcana', blades: 'Phantom Blades', enraged: 'Enraged Strike',
   poison: 'Venom Volley (poison darts)', frost: 'Frost Nova', holy: 'Consecration', fire: 'Inferno',
+  cards: 'Card Shark (Epic)', storm: 'Storm Call (Epic)',
 };
 
 const KEY = 'ascent.heroattackstyle';

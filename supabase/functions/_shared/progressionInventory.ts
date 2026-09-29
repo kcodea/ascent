@@ -8,8 +8,9 @@
  *
  * Three actions, all for the authenticated caller only, each a single SQL transaction under the same per-user lock
  * the settlement takes:
- *   { action: 'open_crate', crateId }     → `open_crate`: pick one unowned, eligible item AT OPEN TIME, weighted
- *                                           over what actually remains, insert ownership, mark the crate opened.
+ *   { action: 'open_crate', crateId }     → `open_crate`: pick one unowned, eligible item AT OPEN TIME (a rarity
+ *                                           at the fixed odds, then an item of it; 2026-09-29), insert ownership,
+ *                                           mark the crate opened.
  *   { action: 'equip_title', titleId }    → `equip_title`: equip a title the caller OWNS (null takes it off).
  *   { action: 'equip_cosmetic', slot, targetId, cosmeticId }
  *                                         → `equip_cosmetic` (2026-09-28, skins): wear a hero or minion skin the

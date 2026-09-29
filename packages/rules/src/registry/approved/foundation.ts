@@ -1809,13 +1809,14 @@ export const FOUNDATION_RULES: GameRule[] = [
   },
   {
     id: 'R-PROG-CRATE-02',
-    title: 'A crate picks its reward when OPENED, weighted over what remains, never a duplicate; an exhausted pool keeps it sealed; opening is never forced',
+    title: 'A crate picks its reward when OPENED, from what remains, never a duplicate; an exhausted pool keeps it sealed; opening is never forced',
     statement:
       'Opening a crate is optional (right after the game or later from the Collection; Continue is always available) and '
       + 'happens on the server in one transaction under the per-user progression lock. The reward is chosen at OPEN time from '
-      + 'the active, crate-sourced items in an enabled category that the player does not own: each weighs rarity x category '
-      + '(rarity Common 55, Rare 30, Epic 12, Legendary 3), normalized across what actually remains, never a rarity rolled '
-      + 'first. The player never receives an item they already own (unique ownership is the final guard), and a second open of '
+      + 'the active, crate-sourced items in a live category that the player does not own, by the fixed-odds roll of '
+      + 'R-PROG-CRATE-03 (since 2026-09-29; before that, one draw weighted rarity x category over what remained). A rolled '
+      + 'rarity with nothing left never fails the open: it falls to the nearest rarity with something left. '
+      + 'The player never receives an item they already own (unique ownership is the final guard), and a second open of '
       + 'the same crate returns the committed reward. When nothing eligible remains the crate stays sealed and the answer is '
       + '"pool_exhausted"; it is never converted into currency or anything else. Earn only: no keys, purchases or rerolls.',
     domain: 'foundation',
@@ -1824,10 +1825,35 @@ export const FOUNDATION_RULES: GameRule[] = [
       { kind: 'owner-handoff', ref: 'C:/Users/kevin/.codex/visualizations/2026/09/10/01a08bcd-7027-7c60-a951-4c941ed57d4a/ascent-account-progression-achievements-claude-handoff.md §5.1', quote: 'Choose the reward when the crate is opened, not when earned.' },
       { kind: 'owner-handoff', ref: 'C:/Users/kevin/.codex/visualizations/2026/09/10/01a08bcd-7027-7c60-a951-4c941ed57d4a/ascent-account-progression-achievements-claude-handoff.md §2', quote: 'A player can never receive a cosmetic they already own.' },
       { kind: 'owner-handoff', ref: 'C:/Users/kevin/.codex/visualizations/2026/09/10/01a08bcd-7027-7c60-a951-4c941ed57d4a/ascent-account-progression-achievements-claude-handoff.md §5.4', quote: 'Do not roll a rarity first and fail when that rarity is exhausted.' },
-      { kind: 'code', ref: 'open_crate + progression_crate_pool in supabase/migrations/2026-09-28-progression-crates.sql; pickCrateReward / eligibleCrateCosmetics in packages/progression/src/cosmetics.ts; packages/ui/src/progression/CrateOpener.tsx' },
+      { kind: 'code', ref: 'open_crate + progression_crate_pool in supabase/migrations/2026-09-28-progression-crates.sql, replaced by supabase/migrations/2026-09-29-crate-fixed-rarity-odds.sql; pickCrateReward / eligibleCrateCosmetics in packages/progression/src/cosmetics.ts; packages/ui/src/progression/CrateOpener.tsx' },
     ],
-    currentBehaviour: 'Conforms, built 2026-09-28.',
+    currentBehaviour: 'Conforms, built 2026-09-28; the roll itself changed 2026-09-29 (R-PROG-CRATE-03).',
     enforcement: { kind: 'scenario', refs: ['packages/progression/src/crates.db.test.ts', 'packages/progression/src/cosmetics.test.ts', 'packages/progression/src/sqlParity.test.ts', 'packages/progression/src/inventory.test.ts', 'packages/ui/src/progression/Crates.test.tsx'], lastVerifiedAt: '2026-09-28' },
+  },
+  {
+    id: 'R-PROG-CRATE-03',
+    title: 'Crates roll a rarity FIRST at fixed, published odds (Common 50 / Rare 30 / Epic 15 / Legendary 5), then an unowned item of it; an empty rarity falls to the nearest one with something left',
+    statement:
+      'Opening a crate makes ONE server-side draw. It first rolls a rarity at fixed odds: Common 50%, Rare 30%, Epic 15%, '
+      + 'Legendary 5%. The odds never change as items are added, and they are shown to players (the Collection crate bay '
+      + 'prints them). It then picks an item of that rarity from the eligible ones (active, not admin_off, category enabled '
+      + 'and not admin_off, crate-sourced, not owned), weighted by the item\x27s CATEGORY weight, so the category balance '
+      + '(for example skins vs titles) still holds inside a rarity. If the rolled rarity has nothing eligible, the crate '
+      + 'falls to the NEAREST rarity with something left, ties toward the MORE COMMON one (Epic empty goes to Rare before '
+      + 'Legendary). If nothing is eligible anywhere the answer is pool_exhausted and the crate stays sealed. Everything '
+      + 'else is unchanged: no duplicates, the per-user lock, already_opened, the admin_off kill switch. Opened crates '
+      + 'record roll_version 2. The odds live once in TS (CRATE_RARITY_ODDS) and once in SQL (progression_crate_pick), '
+      + 'and a parity test fails on any drift. Within-rarity category weighting and the lower-rarity tie-break are the '
+      + 'builder\x27s calls (the owner did not specify them), flagged for review.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-29 (crate odds, option C chosen)', quote: 'go to C' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-29 (crate odds, the numbers)', quote: 'make it 50/30/15/5 though' },
+      { kind: 'code', ref: 'packages/progression/src/cosmetics.ts (CRATE_RARITY_ODDS, CRATE_ROLL_VERSION, rollCrateRarity, crateRarityFallback, pickCrateReward, crateChances, crateOddsLine); supabase/migrations/2026-09-29-crate-fixed-rarity-odds.sql (progression_crate_pool, progression_crate_pick, open_crate); packages/ui/src/progression/CollectionScreen.tsx (CrateBay odds line)' },
+    ],
+    currentBehaviour: 'Conforms, built 2026-09-29. Live once the owner runs the 2026-09-29 migration and deploys progression-inventory.',
+    enforcement: { kind: 'scenario', refs: ['packages/progression/src/cosmetics.test.ts', 'packages/progression/src/sqlParity.test.ts', 'packages/progression/src/crateOdds.db.test.ts', 'packages/ui/src/progression/CollectionScreen.test.tsx'], lastVerifiedAt: '2026-09-29' },
   },
   {
     id: 'R-PROG-CATALOG-01',

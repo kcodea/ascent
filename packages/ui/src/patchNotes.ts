@@ -60,12 +60,12 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
-        text: 'Consecration got flatter, cleaner art and a new six-sword finale.',
+        text: 'Crates now have fixed odds: Common 50%, Rare 30%, Epic 15%, Legendary 5%.',
         details: [
-          'Every ring, sigil and crack now lies flat on the board.',
-          'On the biggest hits, six holy swords fly in from all sides, faster and faster, and plant round the middle of the board.',
-          'Then the middle collapses and a blast of holy light races across the board at the other hero.',
-          'Hero attacks are looks only. The damage is exactly the same.',
+          'A crate first rolls its rarity at these odds, then gives you an item of that rarity you do not own yet.',
+          'The odds never change as new items are added. You can see them in the Collection, under your sealed crates.',
+          'If you already own everything of the rolled rarity, you get an item from the nearest rarity that still has one.',
+          'Crates still never give a duplicate.',
         ],
       },
       {
@@ -75,6 +75,16 @@ export const PATCH_NOTES: PatchNote[] = [
           'Each player in the list shows the title they wore in that game, in its rarity colour, next to their hero.',
           "Turning off Show opponent cosmetics hides other players' titles. Your own always shows.",
           'Bots and games from before titles were recorded show no title.',
+        ],
+      },
+      {
+        category: 'Systems',
+        text: 'Consecration got flatter, cleaner art and a new six-sword finale.',
+        details: [
+          'Every ring, sigil and crack now lies flat on the board.',
+          'On the biggest hits, six holy swords fly in from all sides, faster and faster, and plant round the middle of the board.',
+          'Then the middle collapses and a blast of holy light races across the board at the other hero.',
+          'Hero attacks are looks only. The damage is exactly the same.',
         ],
       },
     ],

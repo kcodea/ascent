@@ -243,10 +243,13 @@ describe('the Collection screen: the crate bay', () => {
   it('no sealed crates names the next level; crates off and loading say so', () => {
     open({ accountXp: 0 }, { crates: [crateList[0]!] });
     expect(text('.colls-bay-sub')).toBe('None right now. Your next crate comes at Level 2.');
+    // the published fixed odds (owner 2026-09-29: "make it 50/30/15/5 though") show whenever crates are on
+    expect(text('.colls-bay-odds')).toBe('Crate odds: Common 50%, Rare 30%, Epic 15%, Legendary 5%');
     expect(button('Open')).toBeUndefined();
     ui!.unmount();
     open({}, { cratesOn: 'off' });
     expect(text('.colls-bay-sub')).toBe('Crates are coming soon.');
+    expect($('.colls-bay-odds')).toBeNull(); // no odds while crates are off
     expect(tileNames()).toHaveLength(16); // the album still shows
     ui!.unmount();
     open({}, { crates: null });

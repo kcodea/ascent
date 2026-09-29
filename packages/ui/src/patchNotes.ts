@@ -60,6 +60,10 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: 'Opening the menu (Esc) now pauses your shop timer.',
+      },
+      {
+        category: 'Systems',
         text: 'A golden book button next to the Settings gear opens the Compendium, no Tab key needed.',
       },
       {

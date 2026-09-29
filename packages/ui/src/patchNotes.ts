@@ -103,6 +103,15 @@ export const PATCH_NOTES: PatchNote[] = [
       },
       {
         category: 'Systems',
+        text: 'Crate openings look cleaner.',
+        details: [
+          'A skin you open now shows its art right beside the reward banner.',
+          'The reward name is crisp solid white.',
+          'The chest stops shaking shortly after it bursts, instead of trembling through the reveal.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: "A new Legendary hero attack, Oona's Banana Cannon, can drop from crates.",
         details: [
           "Your damage builds up, then your hero flings King Oona's painted bananas, spinning, at the other hero.",

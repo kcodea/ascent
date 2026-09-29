@@ -3189,4 +3189,20 @@ export const FOUNDATION_RULES: GameRule[] = [
     currentBehaviour: 'Conforms, built 2026-09-29 (the owner picked a hard gate over a soft nudge). Client-side gate: the server does not yet refuse an anonymous open.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/progression/CollectionScreen.test.tsx', 'packages/ui/src/progression/Crates.test.tsx', 'packages/ui/src/AccountPanel.test.tsx'], lastVerifiedAt: '2026-09-29' },
   },
+  {
+    id: 'R-PROG-CRATE-05',
+    title: 'The crate opening\x27s shake stops shortly after the burst; it never trembles through the reveal',
+    statement:
+      'In the crate theatre every shake (the chest\x27s own shake, the charge\x27s rumble through the view, the burst hit) belongs to '
+      + 'the build-up and the hit. Once the chest bursts, the view settles to rest within about half a second, well before the '
+      + 'reward plate lands, and stays still through the reveal and the settled screen. Every rarity, every crate.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-29 (rewards screen)', quote: 'the chest shakes for two long after the reward is revealed. have it come to a stop shortly after it bursts' },
+      { kind: 'code', ref: 'packages/ui/src/progression/crateFx/crateScene.ts (update: camShakeHold decays outside the charge; cameraShake getter)' },
+    ],
+    currentBehaviour: 'Conforms since 2026-09-29. Before, the charge\x27s sustained ground shake (camShakeHold) was only cleared on a wind-down or a reset, so it kept shaking the view through the reveal until the scene settled.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/progression/crateFx/crateFx.test.ts'], lastVerifiedAt: '2026-09-29' },
+  },
 ];

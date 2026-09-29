@@ -1832,27 +1832,30 @@ export const FOUNDATION_RULES: GameRule[] = [
   },
   {
     id: 'R-PROG-CRATE-03',
-    title: 'Crates roll a rarity FIRST at fixed, published odds (Common 50 / Rare 30 / Epic 15 / Legendary 5), then an unowned item of it; an empty rarity falls to the nearest one with something left',
+    title: 'Crates roll a rarity FIRST at fixed, published odds (Common 50 / Rare 30 / Epic 15 / Legendary 5), then an unowned item of it, each equally likely; an empty rarity falls to the nearest one with something left',
     statement:
       'Opening a crate makes ONE server-side draw. It first rolls a rarity at fixed odds: Common 50%, Rare 30%, Epic 15%, '
       + 'Legendary 5%. The odds never change as items are added, and they are shown to players (the Collection crate bay '
       + 'prints them). It then picks an item of that rarity from the eligible ones (active, not admin_off, category enabled '
-      + 'and not admin_off, crate-sourced, not owned), weighted by the item\x27s CATEGORY weight, so the category balance '
-      + '(for example skins vs titles) still holds inside a rarity. If the rolled rarity has nothing eligible, the crate '
+      + 'and not admin_off, crate-sourced, not owned), EVERY item of the rarity EQUALLY likely (owner: "yeah equal '
+      + 'chance"), so each Legendary is 5% divided by the number of eligible Legendaries, whatever its category. The '
+      + 'category weights stay in the catalog, kept for later, but the roll does not read them (roll_version 2, earlier '
+      + 'the same day, split a rarity by category weight). If the rolled rarity has nothing eligible, the crate '
       + 'falls to the NEAREST rarity with something left, ties toward the MORE COMMON one (Epic empty goes to Rare before '
       + 'Legendary). If nothing is eligible anywhere the answer is pool_exhausted and the crate stays sealed. Everything '
       + 'else is unchanged: no duplicates, the per-user lock, already_opened, the admin_off kill switch. Opened crates '
-      + 'record roll_version 2. The odds live once in TS (CRATE_RARITY_ODDS) and once in SQL (progression_crate_pick), '
-      + 'and a parity test fails on any drift. Within-rarity category weighting and the lower-rarity tie-break are the '
-      + 'builder\x27s calls (the owner did not specify them), flagged for review.',
+      + 'record roll_version 3. The odds live once in TS (CRATE_RARITY_ODDS) and once in SQL (progression_crate_pick), '
+      + 'and a parity test fails on any drift. The lower-rarity tie-break is the builder\x27s call (the owner did not '
+      + 'specify it), flagged for review.',
     domain: 'foundation',
     status: 'approved',
     evidence: [
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-29 (crate odds, option C chosen)', quote: 'go to C' },
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-29 (crate odds, the numbers)', quote: 'make it 50/30/15/5 though' },
-      { kind: 'code', ref: 'packages/progression/src/cosmetics.ts (CRATE_RARITY_ODDS, CRATE_ROLL_VERSION, rollCrateRarity, crateRarityFallback, pickCrateReward, crateChances, crateOddsLine); supabase/migrations/2026-09-29-crate-fixed-rarity-odds.sql (progression_crate_pool, progression_crate_pick, open_crate); packages/ui/src/progression/CollectionScreen.tsx (CrateBay odds line)' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-29 (crate odds, each item within a rarity equally likely?)', quote: 'yeah equal chance' },
+      { kind: 'code', ref: 'packages/progression/src/cosmetics.ts (CRATE_RARITY_ODDS, CRATE_ROLL_VERSION, rollCrateRarity, crateRarityFallback, pickCrateReward, crateChances, crateOddsLine); supabase/migrations/2026-09-29-crate-fixed-rarity-odds.sql (progression_crate_pool) and 2026-09-29-crate-uniform-within-rarity.sql (progression_crate_pick, open_crate); packages/ui/src/progression/CollectionScreen.tsx (CrateBay odds line)' },
     ],
-    currentBehaviour: 'Conforms, built 2026-09-29. Live once the owner runs the 2026-09-29 migration and deploys progression-inventory.',
+    currentBehaviour: 'Conforms, built 2026-09-29. Live once the owner runs both 2026-09-29 migrations (fixed odds, then equal chance) and deploys progression-inventory.',
     enforcement: { kind: 'scenario', refs: ['packages/progression/src/cosmetics.test.ts', 'packages/progression/src/sqlParity.test.ts', 'packages/progression/src/crateOdds.db.test.ts', 'packages/ui/src/progression/CollectionScreen.test.tsx'], lastVerifiedAt: '2026-09-29' },
   },
   {

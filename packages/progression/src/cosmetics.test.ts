@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   ALPHA_TESTER_TITLE_ID, COSMETICS, COSMETIC_CATEGORIES, COSMETIC_CATEGORY_DEFS, COSMETIC_RARITIES, CRATE_RARITY_ODDS, crateChances, crateName, crateOddsLine,
-  crateRarityFallback, crateTotalWeight, crateWeightOf, eligibleCrateCosmetics, parseCrate, parseOpenCrateResult, pickCrateReward,
+  crateRarityFallback, eligibleCrateCosmetics, parseCrate, parseOpenCrateResult, pickCrateReward,
   rollCrateRarity, type CosmeticDef,
 } from './cosmetics';
 import { cratesEarnedThrough, cratesForSettlement, titleName, titlesForLevel } from './rules';
@@ -10,7 +10,7 @@ import { cratesEarnedThrough, cratesForSettlement, titleName, titlesForLevel } f
  * THE COSMETIC CATALOG + THE CRATE ROLL (2026-09-28). The catalog's shape (15 crate titles, every handoff
  * category present and only titles switched on, Alpha Tester a level milestone outside the crate pool, player
  * text rules), and the roll (FIXED rarity odds since 2026-09-29, owner: "go to C", then "make it 50/30/15/5
- * though"): a rarity at the published odds, then an unowned item of it by category weight, the nearest rarity with
+ * though"): a rarity at the published odds, then an unowned item of it, each equally likely ("yeah equal chance"), the nearest rarity with
  * something left when the rolled one is empty, never an owned item, null only when nothing is left.
  */
 
@@ -114,36 +114,44 @@ describe('the roll', () => {
     expect(rarityShares(all)).toEqual([50, 30, 15, 5]);
   });
 
-  it('within a rarity, items split by CATEGORY weight (every item wins its weight share of its band)', () => {
+  it('within a rarity, EVERY item is equally likely (owner 2026-09-29: "yeah equal chance"); category weight plays no part', () => {
     const all = eligibleCrateCosmetics([]);
     const n = 50000;
     const wins = sweep(all, n);
     const ch = crateChances(all);
     for (const c of all) expect(Math.abs(wins[c.id]! / n - ch.get(c.id)!), c.id).toBeLessThan(0.001);
-    // e.g. inside Epic a minion skin (35) is 3.5x a title (10)
-    expect(ch.get('skin_bellringer_1')! / ch.get('title_kingbreaker')!).toBeCloseTo(3.5, 9);
+    for (const r of COSMETIC_RARITIES) {
+      const items = all.filter((c) => c.rarity === r);
+      for (const c of items) expect(ch.get(c.id), c.id).toBeCloseTo(CRATE_RARITY_ODDS[r] / 100 / items.length, 12);
+    }
+    // inside Legendary a hero attack (category weight 15) and a minion skin (35) are equally likely
+    expect(ch.get('attack_arcana')).toBeCloseTo(ch.get('skin_blackbelt_3')!, 12);
+    // the category weights are still in the catalog, kept for later (unused by the roll)
+    expect(COSMETIC_CATEGORY_DEFS.minion_skin.weight).toBe(35);
   });
 
-  // Pinned 2026-09-29 (fixed odds 50/30/15/5; was ONE weighted draw over everything: Common 29.6 / Rare 50.7 / Epic
-  // 16.6 / Legendary 3.1). The catalog then: Common 7 titles + 1 minion skin (weight 105); Rare 5 titles + 8 minion
-  // skins (330); Epic 2 titles + 6 minion skins + 2 hero skins (270); Legendary 1 title + 2 minion skins + 8 hero
-  // attacks (200). Adding an item only re-splits its OWN rarity's share; the four rarity numbers never move.
-  it('the per-item chances of a first crate (2026-09-29 catalog)', () => {
+  // Pinned 2026-09-29 (fixed odds 50/30/15/5, equal chance within a rarity: roll version 3). Earlier the same day the
+  // split inside a rarity was by category weight (roll version 2: Common minion skin 16.667 / title 4.762, Legendary
+  // attack 0.375 / minion skin 0.875 / title 0.25). The catalog then: Common 8 items, Rare 13, Epic 10, Legendary 11.
+  // Adding an item only re-splits its OWN rarity's share; the four rarity numbers never move.
+  it('the per-item chances of a first crate (2026-09-29 catalog): each item = its rarity\'s odds / that rarity\'s item count', () => {
     const all = eligibleCrateCosmetics([]);
+    const count = (r: string): number => all.filter((c) => c.rarity === r).length;
+    expect(COSMETIC_RARITIES.map(count)).toEqual([8, 13, 10, 11]);
     const ch = crateChances(all);
     const pct = (id: string): number => Math.round(100000 * ch.get(id)!) / 1000;
-    expect(pct('skin_blackbelt_4')).toBe(16.667);     // Common minion skin: 50 x 35/105
-    expect(pct('title_board_builder')).toBe(4.762);   // Common title: 50 x 10/105
-    expect(pct('skin_blackbelt_1')).toBe(3.182);      // Rare minion skin: 30 x 35/330
-    expect(pct('title_grave_whisperer')).toBe(0.909); // Rare title: 30 x 10/330
-    expect(pct('skin_bellringer_1')).toBe(1.944);     // Epic minion skin: 15 x 35/270
-    expect(pct('skin_albus_1')).toBe(1.111);          // Epic hero skin: 15 x 20/270
-    expect(pct('title_kingbreaker')).toBe(0.556);     // Epic title: 15 x 10/270
-    expect(pct('skin_blackbelt_3')).toBe(0.875);      // Legendary minion skin: 5 x 35/200
-    expect(pct('attack_arcana')).toBe(0.375);         // Legendary hero attack: 5 x 15/200
-    expect(pct('title_the_unbroken')).toBe(0.25);     // Legendary title: 5 x 10/200
+    expect(pct('skin_blackbelt_4')).toBe(6.25);       // Common: 50 / 8
+    expect(pct('title_board_builder')).toBe(6.25);
+    expect(pct('skin_blackbelt_1')).toBe(2.308);      // Rare: 30 / 13
+    expect(pct('title_grave_whisperer')).toBe(2.308);
+    expect(pct('skin_bellringer_1')).toBe(1.5);       // Epic: 15 / 10
+    expect(pct('skin_albus_1')).toBe(1.5);
+    expect(pct('title_kingbreaker')).toBe(1.5);
+    expect(pct('skin_blackbelt_3')).toBe(0.455);      // Legendary: 5 / 11
+    expect(pct('attack_arcana')).toBe(0.455);
+    expect(pct('title_the_unbroken')).toBe(0.455);
     const cat = (k: string): number => Math.round(1000 * all.filter((c) => c.category === k).reduce((a, c) => a + ch.get(c.id)!, 0)) / 10;
-    expect([cat('title'), cat('minion_skin'), cat('hero_skin'), cat('hero_attack')]).toEqual([39.2, 55.5, 2.2, 3]);
+    expect([cat('title'), cat('minion_skin'), cat('hero_skin'), cat('hero_attack')]).toEqual([58.7, 34.6, 3, 3.6]);
     expect([...ch.values()].reduce((a, b) => a + b, 0)).toBeCloseTo(1, 12);
   });
 
@@ -189,8 +197,6 @@ describe('the roll', () => {
     const legendaries = all.filter((c) => c.rarity === 'legendary');
     expect(pickCrateReward(all, -5)!.id).toBe(commons[0]!.id);
     expect(pickCrateReward(all, 1e9)!.id).toBe(legendaries[legendaries.length - 1]!.id);
-    expect(crateWeightOf({ category: 'minion_skin' })).toBe(35);
-    expect(crateTotalWeight(legendaries)).toBe(200);
   });
 });
 

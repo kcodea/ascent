@@ -50,7 +50,7 @@ export type CosmeticRarity = typeof COSMETIC_RARITIES[number];
  * THE PUBLISHED CRATE ODDS, in percent (sum 100). A crate first rolls a rarity at these fixed odds, then picks an
  * unowned item of that rarity (owner 2026-09-29: "go to C", then "make it 50/30/15/5 though"). They never move as
  * items are added, so they are safe to show players. The ONE copy in TS; `progression_crate_pick` in
- * supabase/migrations/2026-09-29-crate-fixed-rarity-odds.sql carries them as constants, and sqlParity.test.ts
+ * supabase/migrations/2026-09-29-crate-uniform-within-rarity.sql carries them as constants, and sqlParity.test.ts
  * fails CI on any drift. Rarity is presentation and pacing, never power.
  */
 export const CRATE_RARITY_ODDS: Readonly<Record<CosmeticRarity, number>> = Object.freeze({ common: 50, rare: 30, epic: 15, legendary: 5 });
@@ -62,7 +62,8 @@ export interface CosmeticCategoryDef {
   id: CosmeticCategory;
   /** Player-facing section name (Collection). */
   label: string;
-  /** Handoff §5.4 category weight: shares out a rolled rarity among its eligible items (never moves the rarity odds). */
+  /** Handoff §5.4 category weight. KEPT FOR LATER, UNUSED BY THE ROLL since 2026-09-29 (owner: "yeah equal chance": every
+   *  item inside a rolled rarity is equally likely). Still synced to the database with the catalog. */
   weight: number;
   /** The feature flag: a disabled category never drops from a crate and is hidden in the Collection. */
   enabled: boolean;
@@ -85,8 +86,9 @@ export const COSMETIC_CATEGORY_DEFS: Readonly<Record<CosmeticCategory, CosmeticC
  * Bump when the roll changes (odds, weights, fallback). Stored on every opened crate.
  * 1 = one weighted draw over every eligible item (rarity weight x category weight), 2026-09-28.
  * 2 = FIXED rarity odds first, then an item within that rarity (category weights), 2026-09-29.
+ * 3 = FIXED rarity odds first, then an EQUAL chance for every eligible item of that rarity, 2026-09-29.
  */
-export const CRATE_ROLL_VERSION = 2;
+export const CRATE_ROLL_VERSION = 3;
 
 // ── The catalog ───────────────────────────────────────────────────────────────────────────────────────────
 
@@ -240,10 +242,7 @@ export const cosmeticOf = (id: string | null | undefined): CosmeticDef | null =>
 /** The level a level-milestone item is granted at, else null. */
 export const milestoneLevelOf = (c: CosmeticDef): number | null => (c.acquisition.type === 'level_milestone' ? c.acquisition.level : null);
 
-// ── The roll (handoff §5.4; fixed rarity odds since 2026-09-29) ───────────────────────────────────────────
-
-/** An item's weight WITHIN its rarity: its category weight (so skins vs titles still balance inside a rarity). */
-export const crateWeightOf = (c: Pick<CosmeticDef, 'category'>): number => COSMETIC_CATEGORY_DEFS[c.category].weight;
+// ── The roll (fixed rarity odds, then an equal chance within the rarity; 2026-09-29) ─────────────────────
 
 /**
  * The items a crate can still give this player: active, crate-sourced, in an ENABLED category, not owned.
@@ -255,8 +254,6 @@ export function eligibleCrateCosmetics(owned: Iterable<string>, catalog: readonl
     .filter((c) => c.active && c.acquisition.type === 'crate' && COSMETIC_CATEGORY_DEFS[c.category].enabled && !have.has(c.id))
     .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
 }
-
-export const crateTotalWeight = (eligible: readonly CosmeticDef[]): number => eligible.reduce((s, c) => s + crateWeightOf(c), 0);
 
 /**
  * Where a rolled rarity with nothing left falls: the NEAREST rarity with something eligible, ties toward the MORE
@@ -271,7 +268,7 @@ export function crateRarityFallback(rolled: CosmeticRarity): CosmeticRarity[] {
 
 /** Which rarity a draw `u` in [0, 1) rolls, and where inside that rarity's odds band it landed (`frac`, [0, 1)). */
 export function rollCrateRarity(u: number): { rarity: CosmeticRarity; frac: number } {
-  const x = Math.min(Math.max(Number.isFinite(u) ? u : 0, 0), 1) * 100;
+  const x = Math.min(Math.max(u, 0), 1) * 100;
   let lo = 0;
   for (const r of COSMETIC_RARITIES) {
     const hi = lo + CRATE_RARITY_ODDS[r];
@@ -284,31 +281,24 @@ export function rollCrateRarity(u: number): { rarity: CosmeticRarity; frac: numb
 
 /**
  * Open a crate: ONE server draw `u` in [0, 1) (the SQL's `random()`) rolls a rarity at the fixed CRATE_RARITY_ODDS;
- * where `u` landed inside that rarity's band then picks an item of it, weighted by category weight, walked in id
- * order. A rarity with nothing left falls to the nearest one that has something (`crateRarityFallback`), so a
- * crate always produces an item while any item remains. Null only when nothing is eligible anywhere
- * (`pool_exhausted`). Mirror of `progression_crate_pick` in the 2026-09-29 migration.
+ * where `u` landed inside that rarity's band then picks an item of it, EVERY item of the rarity equally likely
+ * (owner 2026-09-29: "yeah equal chance"), indexed in id order. A rarity with nothing left falls to the nearest one
+ * that has something (`crateRarityFallback`), so a crate always produces an item while any item remains. Null only when nothing is eligible anywhere
+ * (`pool_exhausted`). Mirror of `progression_crate_pick` in 2026-09-29-crate-uniform-within-rarity.sql.
  */
 export function pickCrateReward(eligible: readonly CosmeticDef[], u: number): CosmeticDef | null {
   const { rarity, frac } = rollCrateRarity(u);
   for (const r of crateRarityFallback(rarity)) {
     const bucket = eligible.filter((c) => c.rarity === r);
-    const total = crateTotalWeight(bucket);
-    if (total <= 0) continue;
-    const roll = Math.min(total - 1, Math.max(0, Math.floor(frac * total)));
-    let acc = 0;
-    for (const c of bucket) {
-      acc += crateWeightOf(c);
-      if (roll < acc) return c;
-    }
-    return bucket[bucket.length - 1]!;
+    if (bucket.length === 0) continue;
+    return bucket[Math.min(bucket.length - 1, Math.max(0, Math.floor(frac * bucket.length)))]!;
   }
   return null;
 }
 
 /**
  * The exact chance of each eligible item from ONE crate (for tests, reports and any odds display): each rarity's
- * published odds go to it, or to its fallback when it is empty, then split by category weight. Sums to 1 while
+ * published odds go to it, or to its fallback when it is empty, then split EQUALLY among its eligible items. Sums to 1 while
  * anything is eligible.
  */
 export function crateChances(eligible: readonly CosmeticDef[]): Map<string, number> {
@@ -316,9 +306,8 @@ export function crateChances(eligible: readonly CosmeticDef[]): Map<string, numb
   for (const rolled of COSMETIC_RARITIES) {
     for (const r of crateRarityFallback(rolled)) {
       const bucket = eligible.filter((c) => c.rarity === r);
-      const total = crateTotalWeight(bucket);
-      if (total <= 0) continue;
-      for (const c of bucket) out.set(c.id, (out.get(c.id) ?? 0) + (CRATE_RARITY_ODDS[rolled] / 100) * (crateWeightOf(c) / total));
+      if (bucket.length === 0) continue;
+      for (const c of bucket) out.set(c.id, (out.get(c.id) ?? 0) + CRATE_RARITY_ODDS[rolled] / 100 / bucket.length);
       break;
     }
   }

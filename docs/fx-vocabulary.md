@@ -95,9 +95,10 @@ A land is not just "the effect plays". It is the instant **everything about that
 
 | | |
 |---|---|
-| the visual | fires |
+| the **particle** layers | fire |
+| the **react** layers | fire |
 | the sound | fires |
-| the **stat numbers** | change |
+| the **stat badge** | changes value, and flashes (`statflash`) |
 | the float (`+2/+2`) | pops |
 
 Stated as a rule because the failure is easy and invisible: *if any of those four is not part of the land, it
@@ -107,6 +108,41 @@ the answer and then watches the explanation.
 
 A traversal is therefore a schedule of lands, and `gap` / `beat` are the spacing between them. Everything the
 UI does for a recipient hangs off its land rather than off the action that caused it.
+
+---
+
+## Layer kinds — `particle` and `react`
+
+Owner-approved 2026-08-02. Two kinds of layer, named for **what the player sees** rather than what draws
+them, so the words survive a change of technology.
+
+| kind | what it is | examples | renders with |
+|---|---|---|---|
+| **particle** | matter that did not exist, drawn over or under the board | gem shards, shockwave rings, dust, tendrils | Pixi |
+| **react** | the CARD itself responding — it was already there, and now it moves | wiggle, jolt, scale-pop, tilt, fade | CSS / WAAPI |
+
+Reads naturally in a request: *"bigger particle, snappier react"*; *"the gem needs a react — the card should
+flinch"*; *"particle only, no react — it shouldn't disturb the board."*
+
+Both kinds live in ONE def on ONE timeline, which is what stops them drifting apart:
+
+```
+ruby-gem-apply
+  particle  burst      gemshards
+  particle  shockwave  ring
+  react     card       jolt + scale-pop
+```
+
+**A react layer is transform and opacity only** — `translateX/Y`, `rotate`, `scale`, `opacity`. Not a rule to
+memorise: it is what a react *is*. It also means the tool cannot author the looping-paint defect CLAUDE.md
+warns about, rather than a reviewer having to catch it.
+
+**`slot` (over / under the card) is a PARTICLE-only property.** A react has no such choice — the card is where
+the card is.
+
+*Known imprecision, accepted:* `particle` also covers `shockwave`, `ribbon` and `smoke`, which are not
+literally particles. Read it as "the particle side" vs "the card side". If it ever grates, this is the term
+to revisit — `react` is the one doing the real work.
 
 ---
 

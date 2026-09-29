@@ -263,7 +263,7 @@ export const PATCH_NOTES: PatchNote[] = [
       },
       {
         category: 'Systems',
-        text: 'Units now make a quiet death sound when they die in combat. Before, most of them were silent.',
+        text: 'Units now make a death sound when they die in combat. Before, most of them were silent.',
       },
       {
         category: 'Systems',

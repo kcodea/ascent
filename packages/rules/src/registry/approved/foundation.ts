@@ -2497,36 +2497,40 @@ export const FOUNDATION_RULES: GameRule[] = [
   },
   {
     id: 'R-PROG-ATTACK-14',
-    title: 'Consecration (attack_holy, Legendary) is a hero attack: a holy smite / a double smite / a spear rain and smite / a holy sword that drops, explodes into light and fires a flat consecrated blast, on the SAME damage tiers; the blow lands ONCE; no freeze',
+    title: 'Consecration (attack_holy, Legendary) is a FLAT hero attack: a holy smite / a double smite / a spear rain and smite / SIX swords that ramp in, implode and fire a flat consecrated blast, on the SAME damage tiers; the blow lands ONCE; no freeze',
     statement:
       'attack_holy ("Consecration", a placeholder name for the owner to rename; Legendary, crate, account-wide, style holy) '
-      + 'plays a radiant gold-and-white holy attack. After the shared damage formation (R-PROG-ATTACK-08) the striking hero '
-      + 'invokes (a golden halo over its head, a slow sunburst behind the portrait, light drawn in, a choir swell) and a beam '
-      + 'of light rises off it. It escalates on exactly the tiers every other hero attack uses (one shared tierOf, thresholds '
-      + '6 / 12 / 20): I 1-5 a golden rune SIGIL flashes onto the struck portrait and a PILLAR of light drops onto it (god '
-      + 'rays, a cross gleam, rings, rising motes); II 6-11 a DOUBLE smite, the first a tick, the second bigger, the sigil '
-      + 'gaining a counter-turning outer ring; III 12-19 a RAIN of six light spears thunks in round the struck hero on the '
-      + 'side facing the striker, each planting a glowing consecration seed that cracks the ground, then the pillar drops and '
-      + 'every seed erupts with it; IV 20+ (the owner\x27s finale as revised the same day) a huge ornate holy SWORD drops FAST '
-      + 'from above the top of the screen into the middle of the board (the whole sword in view once it bites; a shorter '
-      + 'sword on a board with less room, never a cropped one), slams in (a shockwave, a flash, dust, light debris, cracks, '
-      + 'a camera punch) and EXPLODES INTO LIGHT at once (the blade dissolving, golden shards and rays), the consecrated '
-      + 'wake BUILDS for a short beat, then a FLAT consecrated blast skims along the ground at the struck hero (a low '
-      + 'crescent sheet of light, never a column) tearing radiant cracks and lighting runes behind it, and holy flames and '
-      + 'a pillar of light ERUPT under the struck portrait. The consequence (the damage, Armor, Resolve) lands exactly '
-      + 'ONCE: on the last smite (every earlier smite and every spear is a tick with FX only) or, at IV, on the eruption '
-      + '(never on the slam or the flight). No hit-stop or freeze anywhere (R-PROG-ATTACK-10). Every anchor is the round '
-      + 'portrait art at rest (R-PROG-ATTACK-04). The palette is gold and white (the owner: "less yellow and more gold + '
-      + 'white"). Presentation only; reduced motion is fades only; an unknown or retired id plays Classic.',
+      + 'plays a radiant gold-and-white holy attack, drawn FLAT (owner 2026-09-29: no faux-3D): every sigil, rune circle, '
+      + 'shockwave ring, consecration ring and crack is a full, top-down shape on the flat board, never a perspective '
+      + 'ellipse or a tilted ground plane, and the transform never skews or squashes a sprite. After the shared damage '
+      + 'formation (R-PROG-ATTACK-08) the striking hero invokes (a flat golden halo ring round the portrait, a slow '
+      + 'sunburst, light drawn in, a choir swell) and a beam of light rises off it. It escalates on exactly the tiers every '
+      + 'other hero attack uses (one shared tierOf, thresholds 6 / 12 / 20): I 1-5 a golden rune SIGIL flashes onto the '
+      + 'struck portrait and a PILLAR of light drops onto it; II 6-11 a DOUBLE smite, the first a tick; III 12-19 a RAIN of '
+      + 'six light spears plants glowing, cracking seeds round the struck hero, then the pillar drops and the seeds erupt '
+      + 'with it; IV 20+ (the owner\x27s finale as reworked 2026-09-29) ONE holy sword flies in from off screen along its '
+      + 'own heading and strikes the CENTRE of the board, then five more (six by default, tunable) fly in one after another '
+      + 'from DIFFERENT directions round the compass, each from roughly opposite the last, every one converging on the '
+      + 'centre with its own impact; they RAMP UP (each flight shorter and each gap between bites shorter than the last, the '
+      + 'last sword the biggest) and stay PLANTED round the centre, points inward, round a holy ring; then the centre '
+      + 'IMPLODES (every sword and all the light sucked into the middle, a sharp inward collapse) and releases the FLAT '
+      + 'consecrated blast, which skims the board to the struck hero tearing radiant cracks and lighting runes, and holy '
+      + 'flames (a flat corona round the rim) and light erupt round the struck portrait. The consequence (the damage, Armor, '
+      + 'Resolve) lands exactly ONCE: on the last smite (every earlier smite, spear and sword is a tick with FX only) or, at '
+      + 'IV, on the eruption (never on a sword, the implosion or the flight). No hit-stop or freeze anywhere '
+      + '(R-PROG-ATTACK-10). Every anchor is the round portrait art at rest (R-PROG-ATTACK-04). The palette is gold and white '
+      + '(the owner: "less yellow and more gold + white"). Presentation only; reduced motion is fades only; an unknown or '
+      + 'retired id plays Classic.',
     domain: 'foundation',
     status: 'approved',
     evidence: [
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-28 (the holy hero attack)', quote: 'branch off and create a holy weapon + consecration attack. first tier is a holy aoe blast on the opponent, final blast a large holy sword slams into the middle of the board and a consecration erupts from it damaging the opponent. fill in the middle tiers' },
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-28 (Holy review, first)', quote: 'for holy -> i want the sword come down and explode into light which then shoots the consecrated cracked ground at the opponent. also make they holy color less yellow and more gold + white' },
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-28 (Holy review, second)', quote: 'make the sword come down fast from above the screen and create an impact when it hits, then send the flat consecrated blast at the opponent. the sword should slam down and explode fast, then the wake builds and rapidly flies at the opponent and strikes them.' },
-      { kind: 'code', ref: 'packages/progression/src/cosmetics.ts (attack_holy); packages/ui/src/heroHoly/ (heroHolyConfig holyPlan / holyCues / holyGeo / swordTipY / holyCameraAt, heroHoly playHeroHoly, heroHolyScene)' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-29 (Holy flat + six swords)', quote: 'branch off and modify the holy attack sequence - i want this to be flat and not faux-3d. also, let\x27s take this animation to the extreme - have 6 swords fly in from different directions starting with 1, then they ramp up in speed and the center implodes into that blest towards the enemy.' },
+      { kind: 'code', ref: 'packages/progression/src/cosmetics.ts (attack_holy); packages/ui/src/heroHoly/ (heroHolyConfig holyPlan / holyCues / holyGeo / swordHeadings / holyCameraAt, heroHoly playHeroHoly, heroHolyScene)' },
     ],
-    currentBehaviour: 'Conforms, built 2026-09-28. The item reaches the database on the next deploy of progression-inventory (the catalog sync); the equip SQL already accepts the hero_attack slot.',
-    enforcement: { kind: 'scenario', refs: ['packages/ui/src/heroHoly/heroHoly.test.ts', 'packages/progression/src/cosmetics.test.ts', 'packages/ui/src/progression/CollectionHeroAttack.test.tsx', 'packages/ui/src/heroAttack/damageFormation.test.ts'], lastVerifiedAt: '2026-09-28' },
+    currentBehaviour: 'Conforms, built 2026-09-28; flattened and the six-sword finale 2026-09-29. The item reaches the database on the next deploy of progression-inventory (the catalog sync); the equip SQL already accepts the hero_attack slot.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/heroHoly/heroHoly.test.ts', 'packages/progression/src/cosmetics.test.ts', 'packages/ui/src/progression/CollectionHeroAttack.test.tsx', 'packages/ui/src/heroAttack/damageFormation.test.ts'], lastVerifiedAt: '2026-09-29' },
   },
 ];

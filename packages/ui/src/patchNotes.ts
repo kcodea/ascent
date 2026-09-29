@@ -51,6 +51,21 @@ export interface PatchNote {
 /** Newest first. PREPEND new entries. */
 export const PATCH_NOTES: PatchNote[] = [
   {
+    date: '2026-09-29',
+    changes: [
+      {
+        category: 'Systems',
+        text: 'Consecration got flatter, cleaner art and a new six-sword finale.',
+        details: [
+          'Every ring, sigil and crack now lies flat on the board.',
+          'On the biggest hits, six holy swords fly in from all sides, faster and faster, and plant round the middle of the board.',
+          'Then the middle collapses and a blast of holy light races across the board at the other hero.',
+          'Hero attacks are looks only. The damage is exactly the same.',
+        ],
+      },
+    ],
+  },
+  {
     date: '2026-09-28',
     changes: [
       {

@@ -101,6 +101,12 @@ export function playHeroEnraged(o: HeroEnragedOptions): HeroEnragedHandle {
   const vh = local ? (o.host?.clientHeight || 300) : (typeof window !== 'undefined' ? window.innerHeight : 1080);
   const geo = enragedGeo(o.attacker, o.defender, aRadius, radius, c, { x0: 0, y0: 0, x1: vw, y1: vh }, swing, aRect.inv);
   const pose = (t: number): HeroPose => enragedPose(plan, geo, c, t);
+  // Toward the middle of the screen from the struck hero (sparks bounce back that way, so a corner hero keeps its spray).
+  const inward = ((): Pt => {
+    const x = vw / 2 - o.defender.x, y = vh / 2 - o.defender.y;
+    const l = Math.hypot(x, y);
+    return l > 1 ? { x: x / l, y: y / l } : { x: -geo.u.x, y: -geo.u.y };
+  })();
   const first = plan.strikes[0];
 
   // ── DOM: the numbers (shared) ──
@@ -120,12 +126,20 @@ export function playHeroEnraged(o: HeroEnragedOptions): HeroEnragedHandle {
       auraSize: c.auraSize, flames: c.flames, flameLength: c.flameLength, ghosts: c.ghosts, ghostSpacing: c.ghostSpacing, ghostAlpha: c.ghostAlpha, ghostFadeMs: c.ghostFadeMs,
       wakeWidth: c.wakeWidth, wakeMs: c.wakeMs, ringSize: c.ringSize, ring2Size: c.ring2Size, slashLength: c.slashLength, slashWidth: c.slashWidth,
       sparkSpeed: c.sparkSpeed, emberLife: c.emberLife, craterSize: c.craterSize, debris: c.debris,
+      burstSize: c.burstSize, sparkInward: c.sparkInward, rimCracks: c.rimCracks, scorch: c.scorch, scorchMs: c.scorchMs, emberStorm: c.emberStorm,
     }, s, enragedSeed(o.total, dist, o.side))
     : null;
   if (scene) {
     const heroAt = (t: number): HeroAt => { const p = pose(t); return { x: o.attacker.x + p.x, y: o.attacker.y + p.y, s: p.scale, heat: p.heat }; };
     const img = o.attackerEl?.querySelector?.('img') ?? null;
     scene.setHero(heroAt, aRadius, portraitGhostTexture(img as HTMLImageElement | null));
+  }
+  if (scene) {
+    // The claws rake the side of the struck portrait AWAY from the big `-N` (which sits toward the middle of the screen).
+    const hp = nums.pts.hit;
+    const ax = o.defender.x - hp.x, ay = o.defender.y - hp.y;
+    const al = Math.hypot(ax, ay);
+    scene.setClawOffset(al > 1 ? { x: (ax / al) * radius * 0.3, y: (ay / al) * radius * 0.3 } : { x: 0, y: 0 });
   }
   if (scene && !o.mount) void pixiFx.ensureAboveSlot();
   const unmount = scene ? (o.mount ?? ((ct: Container) => pixiFx.mountLayer(ct, 'above')))(scene.root) : null;
@@ -166,11 +180,18 @@ export function playHeroEnraged(o: HeroEnragedOptions): HeroEnragedHandle {
         // Classic's windup clip, a roar, and the growl rising to the drive (IV: to the top of the rise).
         const buildTo = plan.meteor ? plan.apexAt : (first?.driveAt ?? plan.impactAt);
         cue(c.sfxWindupClip, c.sfxWindupGain, c.sfxWindupRate);
-        cue(c.sfxRoarClip, c.sfxRoarGain * (0.85 + 0.15 * plan.tier / 2), c.sfxRoarRate - 0.08 * plan.k, { lenMs: 1400, fadeMs: 400, delayMs: real(60) });
         voices.keep(playRageTone('attack', { gain: c.sfxToneGain * (0.8 + 0.3 * plan.k), buildMs: real(buildTo - plan.windupAt), lowHz: c.sfxToneLowHz, highHz: c.sfxToneHighHz * (1 + 0.25 * plan.k) }));
         voices.keep(playEmberCrackle('attack', { gain: c.sfxCrackleGain * 0.6, durMs: real(buildTo - plan.windupAt + 400) }));
         scene?.startWindup(plan.aura, c.motes * (plan.meteor ? 1.6 : 1), buildTo - plan.windupAt);
         if (lift && !lifted) { doc!.body.classList.add(zClass); lifted = true; }
+        break;
+      }
+      case 'burst': {
+        // THE RAGE BURST: the roar tears out as the portrait flares and heat rings rip off the rim, right before the drive.
+        cue(c.sfxRoarClip, c.sfxRoarGain * (0.85 + 0.25 * plan.k), c.sfxRoarRate - 0.08 * plan.k, { lenMs: 1300, fadeMs: 380 });
+        const at = heroScreen(t);
+        const p0 = pose(t);
+        scene?.burst(at.x, at.y, aRadius * p0.scale, c.burstSize * (1 + 0.35 * plan.k));
         break;
       }
       case 'rise':
@@ -196,7 +217,7 @@ export function playHeroEnraged(o: HeroEnragedOptions): HeroEnragedHandle {
         cue(c.sfxTickClip, c.sfxTickGain, c.sfxTickRate + 0.05 * q.i);
         cue(c.sfxSlashClip, c.sfxSlashGain * 0.8, c.sfxSlashRate + 0.08 * q.i, { lenMs: 500, fadeMs: 180 });
         cue(c.sfxPunchClip, c.sfxPunchGain * 0.6, c.sfxPunchRate + 0.05 * q.i);
-        scene?.tick(o.defender.x, o.defender.y, geo.u, radius, q.i, plan.k);
+        scene?.tick(o.defender.x, o.defender.y, geo.u, radius, q.i, plan.k, inward);
         break;
       case 'impact': {
         // THE BLOW: a heavy hammer, a punch, a low (tight, never boomy) thump, a rip; a crack on the big tiers; the meteor
@@ -219,7 +240,7 @@ export function playHeroEnraged(o: HeroEnragedOptions): HeroEnragedHandle {
         }
         scene?.impact(o.defender.x, o.defender.y, u, radius, {
           k, burst: plan.burst, sparks: plan.sparks, embers: plan.embers, slashes: plan.slashes, flashAlpha: c.flashAlpha,
-          meteor: plan.meteor, smoulderMs: c.smoulderMs, screen: Math.hypot(vw, vh),
+          meteor: plan.meteor, smoulderMs: c.smoulderMs, screen: Math.hypot(vw, vh), into: inward,
         });
         seq.land();
         break;
@@ -252,7 +273,7 @@ export function playHeroEnraged(o: HeroEnragedOptions): HeroEnragedHandle {
     if (plan.reduced) return;
     nums.paintDim(t, plan.windupAt, first ? first.driveAt : plan.impactAt, plan.impactAt + 300);
     const cm = enragedCameraAt(plan, c, t, shakeDir);
-    const focus = enragedCameraFocus(plan, t, o.attacker, o.defender);
+    const focus = enragedCameraFocus(plan, t, o.attacker, o.defender, geo.apex);
     const unitS = local ? 1 : s;
     cam.apply(focus, cm.zoom, cm.x, cm.y, unitS);
     // The camera's screen offset (what `#stage` is translated by): a portrait OUTSIDE it folds it in by hand.

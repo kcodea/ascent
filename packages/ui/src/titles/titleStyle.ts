@@ -10,7 +10,7 @@
  *
  * Pure (no store, no React), so the resolver is cheap to test and to call from any render.
  */
-import { titleOf, type CosmeticRarity, type RunCosmeticSnapshot } from '@game/progression';
+import { isMasterTitle, titleOf, type CosmeticRarity, type RunCosmeticSnapshot } from '@game/progression';
 
 /** A title's custom look. `gradient` is any CSS gradient, painted into the text. `effect: 'shimmer'` adds a light
  *  sweep that animates TRANSFORM only (compositor-only, docs/performance.md), and stops under reduced motion. */
@@ -28,6 +28,9 @@ export interface TitleLook {
   name: string;
   rarity: CosmeticRarity;
   custom: TitleCustomStyle | null;
+  /** A hero title's MASTER version (10 Ranked 1sts with the hero, owner 2026-09-29): painted as the golden plate with
+   *  embroidered text, whatever `custom` says. */
+  master: boolean;
 }
 
 /**
@@ -37,7 +40,7 @@ export interface TitleLook {
 export function titleLookOf(snapshot: RunCosmeticSnapshot | null | undefined, styles: Readonly<Record<string, TitleCustomStyle>> = TITLE_STYLES): TitleLook | null {
   const def = titleOf(snapshot);
   if (!def) return null;
-  return { id: def.id, name: def.name, rarity: def.rarity, custom: styles[def.id] ?? null };
+  return { id: def.id, name: def.name, rarity: def.rarity, custom: styles[def.id] ?? null, master: isMasterTitle(def.id) };
 }
 
 /** The same, from a bare title id (a profile row, a leaderboard row). */

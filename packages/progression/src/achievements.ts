@@ -34,6 +34,7 @@
  * supabase/functions/_shared/progressionAchievements.ts by `npm run progression:shared`.
  */
 import type { ProgressionMode } from './rules';
+import { heroMasterTitleId, heroTitleId } from './cosmetics';
 
 // ── Metrics ──────────────────────────────────────────────────────────────────────────────────────────────────
 
@@ -233,17 +234,17 @@ export interface AchievementDef {
 
 type DefInput = Omit<AchievementDef, 'version' | 'group' | 'family' | 'setId' | 'heroId' | 'placementMax' | 'agg' | 'rewards' | 'hidden' | 'trust' | 'batch' | 'showProgress'>
   & Partial<Pick<AchievementDef, 'group' | 'family' | 'setId' | 'heroId' | 'placementMax' | 'agg' | 'hidden' | 'trust' | 'showProgress'>>
-  & { xp: number };
+  & { xp: number; titleId?: string | null };
 
 function def(d: DefInput): AchievementDef {
-  const { xp, ...rest } = d;
+  const { xp, titleId, ...rest } = d;
   const agg = d.agg ?? 'max';
   return {
     version: 1, group: null, family: null, setId: null, heroId: null, placementMax: null, hidden: false, trust: 'O', batch: 1,
     showProgress: d.showProgress ?? (d.target > 1 && (agg === 'sum' || d.metric === 'heroesPlayed' || d.metric === 'heroesWon' || d.metric === 'achievementsCompleted' || d.metric === 'firstStreak' || d.metric === 'topFourStreak')),
     ...rest,
     agg,
-    rewards: { xp, titleId: null },
+    rewards: { xp, titleId: titleId ?? null },
   };
 }
 
@@ -314,6 +315,7 @@ const RANKED: AchievementDef[] = [
 /**
  * The 33 playable heroes (not archived), id and display name. The progression package stays dependency-free, so
  * the list lives here; packages/sim/src/achievementHeroes.test.ts fails CI when it drifts from `playableHeroes()`.
+ * Each hero's TITLE name lives with the catalog (`HERO_TITLE_NAMES` in cosmetics.ts, owner 2026-09-29).
  */
 export const ACHIEVEMENT_HEROES: ReadonlyArray<{ id: string; name: string }> = Object.freeze([
   { id: 'warden', name: 'Warden' }, { id: 'indy', name: 'Indy' }, { id: 'myra', name: 'Auctioneer' }, { id: 'soren', name: 'Soren' },
@@ -327,15 +329,21 @@ export const ACHIEVEMENT_HEROES: ReadonlyArray<{ id: string; name: string }> = O
   { id: 'cia', name: 'Ayse' }, { id: 'keshi', name: 'Keshi the Protector' }, { id: 'mimic', name: 'Mimic' },
 ]);
 
-/** The four hero templates (handoff §12.4; owner defaults 2026-09-28: Debut and Top 4 count Practice, Victory and
- *  Mastery are Ranked only). XP only for now: the victory / mastery titles come later. */
+/** Ranked 1sts with a hero that earn its title, and its golden MASTER version (owner 2026-09-29). */
+export const HERO_TITLE_WINS = 3;
+export const HERO_MASTERY_WINS = 10;
+
+/** The five hero templates (handoff §12.4; owner defaults 2026-09-28: Debut and Top 4 count Practice, the win tiers
+ *  are Ranked only). Owner 2026-09-29: 3 Ranked 1sts grant the hero's title (`titled`, new), 10 upgrade it to the
+ *  golden master version (`mastery`). Victory (1 Ranked 1st) stays an XP-only tier. */
 function heroDefs(h: { id: string; name: string }): AchievementDef[] {
   const base = { category: 'heroes' as const, group: h.id, heroId: h.id, metric: 'game' as const, agg: 'sum' as const, trust: 'O' as const };
   return [
     def({ ...base, id: `hero.${h.id}.debut`, family: 'hero.debut', name: `${h.name}: Debut`, requirement: `Complete 3 games as ${h.name}.`, mode: 'any', target: 3, xp: 25 }),
     def({ ...base, id: `hero.${h.id}.top_four`, family: 'hero.top_four', name: `${h.name}: Contender`, requirement: `Finish Top 4 in 5 games as ${h.name}.`, mode: 'any', placementMax: 4, target: 5, xp: 75 }),
     def({ ...base, id: `hero.${h.id}.victory`, family: 'hero.victory', name: `${h.name}: Victory`, requirement: `Finish 1st in a Ranked game as ${h.name}.`, mode: 'ranked', placementMax: 1, target: 1, xp: 100 }),
-    def({ ...base, id: `hero.${h.id}.mastery`, family: 'hero.mastery', name: `${h.name}: Mastery`, requirement: `Finish 1st in 10 Ranked games as ${h.name}.`, mode: 'ranked', placementMax: 1, target: 10, xp: 250 }),
+    def({ ...base, id: `hero.${h.id}.titled`, family: 'hero.titled', name: `${h.name}: Titled`, requirement: `Finish 1st in ${HERO_TITLE_WINS} Ranked games as ${h.name}.`, mode: 'ranked', placementMax: 1, target: HERO_TITLE_WINS, xp: 150, titleId: heroTitleId(h.id) }),
+    def({ ...base, id: `hero.${h.id}.mastery`, family: 'hero.mastery', name: `${h.name}: Mastery`, requirement: `Finish 1st in ${HERO_MASTERY_WINS} Ranked games as ${h.name}.`, mode: 'ranked', placementMax: 1, target: HERO_MASTERY_WINS, xp: 250, titleId: heroMasterTitleId(h.id) }),
   ];
 }
 const HERO_ACHIEVEMENTS: AchievementDef[] = ACHIEVEMENT_HEROES.flatMap(heroDefs);

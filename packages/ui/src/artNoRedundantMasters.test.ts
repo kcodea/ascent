@@ -146,6 +146,8 @@ describe('no redundant PNG masters ship alongside their WebP builds', () => {
     // `art/skins/skin_blackbelt_3.webp` and `skin_bellringer_1.webp`, both owner-named).
     // → 1295: skins batch 2 2026-09-28 (+13 in `art/skins/`: Weekend Brian, three Drakko, Jensen & Fi, Mysterious
     // Joker, Nimbus, Paragon, Steward of Spells, two Sylus, Venom, Zyff; owner-named: "i added some skins here").
-    expect(total, `art files: ${total} — the WHOLE-ZIP count (~${total + 176}) is what itch caps at 1000`).toBeLessThan(1295);
+    // → 1303: hero portrait FRAMES 2026-09-29 (+8 in a new `art/frames/`: default, bronze, silver, gold, platinum,
+    // diamond, ascendant, rank1; the owner named the folder: "i added frames here").
+    expect(total, `art files: ${total} — the WHOLE-ZIP count (~${total + 176}) is what itch caps at 1000`).toBeLessThan(1303);
   });
 });

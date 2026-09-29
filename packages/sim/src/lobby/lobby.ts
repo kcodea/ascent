@@ -1,6 +1,6 @@
 import { combatSide, makeRng, simulate, type Rng } from '@game/core';
 import { CARD_INDEX } from '@game/content';
-import { lossDamageCap } from '../reducer';
+import { roundLossCap } from '../reducer';
 import type { LobbyRules, LobbySeat, LobbyState, SeatDriver } from './types';
 
 export const DEFAULT_LOBBY_RULES: LobbyRules = {
@@ -133,7 +133,7 @@ export function resolveRound(state: LobbyState): LobbyState {
       boardA.minions, boardB.minions, rng, CARD_INDEX,
       combatSide({ tier: boardA.tier }), combatSide({ tier: boardB.tier }),
     );
-    const cap = lossDamageCap(state.round);
+    const cap = roundLossCap(state.rules, state.round);
     // COMBAT DAMAGE ONLY (owner ruling 2026-08-04). Stall pressure — an extra per-round hit on losers and on
     // both sides of a draw — used to be added here; `maxRounds` is now the only stalemate backstop, which does
     // mean a table of mirrored boards can run to that hard stop with everyone still alive.

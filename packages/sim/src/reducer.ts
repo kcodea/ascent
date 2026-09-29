@@ -8,6 +8,7 @@ import { poolOf, setIdOf } from './cardPool';
 import { ACE_DISCOUNT_MAX_TIER, ACE_TIER_DISCOUNT, CONFIG, INDY_GILD_RECHARGE_GOLD, KESHI_CROWN_THRESHOLD, maxTierFor, hasTier7Access } from './config';
 import { lobbyOpponentBoard, settleRunLobbyRound, playerEliminated, practicePlayerPlacement, playerLossDamage } from './lobby/runLobby';
 import { botDamageMultFor } from './lobby/practiceBots';
+import type { LobbyRules } from './lobby/types';
 import { accumulateContribution, tallyCombat } from './contribution';
 import { rollShop, topUpTavern, returnToPool, takeFromPool, rollCiaEnchants, tierSlots } from './shop';
 import { generateQuestOffer, questOfferPlan } from './quests';
@@ -480,6 +481,19 @@ export function nextOpponent(s: RunState): BoardSnapshot | null {
 export function lossDamageCap(wave: number): number {
   return wave <= 3 ? 5 : wave <= 7 ? 10 : wave <= 11 ? 15 : wave <= 15 ? 20 : Infinity;
 }
+
+/** The loss cap for `round` under a lobby's rules: its own `lossCaps` table when it has one (Gauntlet), else the
+ *  normal game's `lossDamageCap`. The ONE cap every reader asks — the reducer's fight, the lobby settle, the
+ *  odds probe and the HUD — so a mode with its own caps can't have two of them disagree. */
+export function roundLossCap(rules: Pick<LobbyRules, 'lossCaps'> | undefined, round: number): number {
+  const caps = rules?.lossCaps;
+  if (!caps) return lossDamageCap(round);
+  const cap = caps[round - 1];
+  return cap === null || cap === undefined ? Infinity : cap;
+}
+
+/** `roundLossCap` for a run's current round. */
+export const runLossCap = (run: Pick<RunState, 'lobby' | 'wave'>): number => roundLossCap(run.lobby?.rules, run.wave);
 
 /** Practice-BOT damage multiplier by difficulty (1 = every other mode, untouched). The stock face-damage formula
  *  tops out around 13 even against a tier-6 full board, which made bot games drag (owner ask 2026-08-25); this
@@ -3628,7 +3642,7 @@ function reduceCore(state: RunState, action: Action): RunState {
         combat.playerDamage = Math.round(combat.playerDamage * practiceBotDamageMult(s));
         // The presentation's hero damage formation (owner ask 2026-09-28) shows the blow before and after the cap:
         // stamp both here, where the cap is applied, so the screen never recomputes either.
-        const roundCap = lossDamageCap(s.wave);
+        const roundCap = runLossCap(s);
         if (combat.result === 'lose') combat.playerDamageUncapped = combat.playerDamage;
         if (Number.isFinite(roundCap)) combat.damageCap = roundCap;
         combat.playerDamage = Math.min(combat.playerDamage, roundCap); // round cap

@@ -44,10 +44,9 @@ export interface OddsProbe {
   result(): CombatOdds;
 }
 
-export function createOddsProbe(input: CombatOddsInput, seed: number, wave: number, sims = COMBAT_ODDS_SIMS): OddsProbe {
+export function createOddsProbe(input: CombatOddsInput, seed: number, wave: number, sims = COMBAT_ODDS_SIMS, cap = lossDamageCap(wave)): OddsProbe {
   let win = 0, draw = 0, lose = 0, lossDamageTotal = 0, winDamageTotal = 0, i = 0;
   const lossDamages: number[] = []; // per-sim, for the recap's typical-loss RANGE (display only)
-  const cap = lossDamageCap(wave);
   const step = (n: number): boolean => {
     const end = Math.min(sims, i + Math.max(0, n));
     for (; i < end; i++) {
@@ -83,8 +82,8 @@ export function lossDamageRangeOf(samples: readonly number[]): [number, number] 
 /** Re-run the stashed matchup `COMBAT_ODDS_SIMS` times in one go. Pure + deterministic: same run seed and wave
  *  produce the identical numbers the old inline probe did (same `TAG.ODDS` stream, same round cap). The
  *  one-shot wrapper over `createOddsProbe` — tests and headless tools use this; the UI slices the probe. */
-export function computeCombatOdds(input: CombatOddsInput, seed: number, wave: number): CombatOdds {
-  const probe = createOddsProbe(input, seed, wave);
+export function computeCombatOdds(input: CombatOddsInput, seed: number, wave: number, cap?: number): CombatOdds {
+  const probe = createOddsProbe(input, seed, wave, COMBAT_ODDS_SIMS, cap ?? lossDamageCap(wave));
   probe.step(COMBAT_ODDS_SIMS);
   return probe.result();
 }

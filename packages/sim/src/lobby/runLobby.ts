@@ -5,7 +5,7 @@ import type { RunCosmeticSnapshot } from '@game/progression';
 import { combatSide, makeRng, simulate } from '@game/core';
 import { CARD_INDEX } from '@game/content';
 import { HEROES, playableHeroes } from '../heroes';
-import { lossDamageCap } from '../reducer';
+import { roundLossCap } from '../reducer';
 import { createRun, type RunState, type PracticeConfig } from '../state';
 import { normalizePracticeTribes } from '../practiceTribes';
 import { createPracticeBotLobby } from './practiceBots';
@@ -696,7 +696,7 @@ export function seatResults(lobby: RunLobby, seatId: string, n = 3): SeatResult[
  */
 export function playerLossDamage(lobby: Pick<RunLobby, 'rules' | 'round'>, result: CombatResult): number {
   if (result.result === 'win') return 0;
-  return Math.min(lossDamageCap(lobby.round), result.playerDamage);
+  return Math.min(roundLossCap(lobby.rules, lobby.round), result.playerDamage);
 }
 
 export function settleRunLobbyRound(lobby: RunLobby, playerResult: CombatResult): RunLobby {
@@ -705,7 +705,7 @@ export function settleRunLobbyRound(lobby: RunLobby, playerResult: CombatResult)
   const rng = makeRng(lobby.seed ^ (lobby.round * 0x51ed270b));
   const eliminated: LobbySeatState[] = [];
   const hpBefore = new Map(lobby.seats.map((s) => [s.id, s.armor + s.resolve]));
-  const cap = lossDamageCap(lobby.round);
+  const cap = roundLossCap(lobby.rules, lobby.round);
   // PRACTICE-BOT tables hit harder seat-to-seat (owner ask 2026-08-25). Read off the seats themselves - stamped
   // by `createPracticeBotLobby` - so the signature stays put and every other lobby (rated, practice-vs-players,
   // tutorial) keeps a multiplier of exactly 1.

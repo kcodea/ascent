@@ -108,6 +108,10 @@ export interface LobbyRules {
    *  future rule can pin a smaller mix. It degrades on its own: with an empty pool no snapshot seats exist and
    *  every seat is generated, exactly as before. */
   snapshotSeats?: number;
+  /** Per-round loss-damage caps for THIS lobby (index = round − 1; `null` = uncapped; a round past the end is
+   *  uncapped). Absent = the normal game's `lossDamageCap` table. Plain data so the lobby stays serializable.
+   *  Read ONLY through `roundLossCap`. Gauntlet sets it (see `GAUNTLET_LOSS_CAPS`). */
+  lossCaps?: (number | null)[];
 }
 
 export interface LobbyEncounter {

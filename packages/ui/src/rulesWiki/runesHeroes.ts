@@ -247,7 +247,7 @@ export const ENTRIES: readonly WikiEntry[] = [
     a: "No. A Gift isn't a Shop spell, so anything that says **Shop spell** ignores it. Only spells from the shop's own spell list count as Shop spells.",
     aliases: ['shop spell', 'gift trigger', 'gift counts', 'spell trigger'],
     seeAlso: ['gift'],
-    covers: [{ keyword: 'gift', fp: '08b705ba' }, { rule: 'R-SHOPSPELL-01', fp: 'fcac2a2e' }],
+    covers: [{ keyword: 'gift', fp: '7eb2076b' }, { rule: 'R-SHOPSPELL-01', fp: 'fcac2a2e' }],
   },
   {
     id: 'are-there-quests',

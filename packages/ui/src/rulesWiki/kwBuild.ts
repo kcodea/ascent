@@ -384,10 +384,10 @@ export const ENTRIES: readonly WikiEntry[] = [
     id: 'gift',
     topic: 'keywords',
     q: 'What is a Gift?',
-    a: "A **free spell** that a rune, hero or card puts in your hand. You cast it like any other spell (it counts for anything that says \"a spell\"), but it's **never a Shop spell**: it never shows up in the Shop and never counts for \"Shop spell\" effects.",
+    a: "A **free spell** that a rune, hero or card puts in your hand. You cast it like any other spell (it counts for anything that says \"a spell\"), but it's **never a Shop spell**: it never shows up in the Shop and never counts for \"Shop spell\" effects. Normal Discovers never offer one either; only a rune that specifically says so can Discover a Gift.",
     aliases: ['gifts', 'free spell', 'present', 'gift counts as spell', 'birthday', 'bonus spell'],
     seeAlso: ['gift-sell', 'gift-copy'],
-    covers: [{ keyword: 'gift', fp: '08b705ba' }, { rule: 'R-SHOPSPELL-01', fp: 'fcac2a2e' }],
+    covers: [{ keyword: 'gift', fp: '7eb2076b' }, { rule: 'R-SHOPSPELL-01', fp: 'fcac2a2e' }],
   },
   {
     id: 'gift-sell',

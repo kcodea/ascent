@@ -566,7 +566,7 @@ export const ENTRIES: readonly WikiEntry[] = [
     a: "The minion keeps a meter of the **Gold you spend while it's on your board**. Every time the meter fills to X, it goes off. Leftover Gold **carries over**, even into later turns, and the card shows how close it is.",
     aliases: ['spend', 'spend gold', 'gold spent', 'when you spend'],
     seeAlso: ['spend-what-counts', 'what-things-cost'],
-    covers: [{ keyword: 'spend', fp: '2d734cfb' }],
+    covers: [{ keyword: 'spend', fp: '750b1bee' }],
   },
   {
     id: 'spend-what-counts',
@@ -575,7 +575,7 @@ export const ENTRIES: readonly WikiEntry[] = [
     a: "Pretty much anything that costs Gold: **buying, refreshing, leveling up your tavern, hero powers**, and so on. Free refreshes don't count, since no Gold actually gets spent.",
     aliases: ['spend refresh', 'spend tier up', 'spend hero power', 'free refresh', 'gold spent', 'spend', 'spending', 'gold spent this turn', 'spent gold'],
     seeAlso: ['spend', 'refresh-and-freeze-buttons', 'tavern-up-button'],
-    covers: [{ keyword: 'spend', fp: '2d734cfb' }],
+    covers: [{ keyword: 'spend', fp: '750b1bee' }],
   },
   {
     id: 'spend-big',
@@ -584,6 +584,6 @@ export const ENTRIES: readonly WikiEntry[] = [
     a: "Yep. If one purchase fills the meter twice, it **fires twice**. A Gilded one fires just as often, but each payout is doubled.",
     aliases: ['spend twice', 'gilded spend', 'golden spend'],
     seeAlso: ['spend'],
-    covers: [{ keyword: 'spend', fp: '2d734cfb' }],
+    covers: [{ keyword: 'spend', fp: '750b1bee' }],
   },
 ];

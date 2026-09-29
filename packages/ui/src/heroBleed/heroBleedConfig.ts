@@ -37,7 +37,7 @@
  */
 import { clamp, hexToNum, type Pt } from '../heroAttack/easing';
 import {
-  HERO_ATTACK_TIER_THRESHOLDS, TIERS, reducedAttackTimeline, tierOf, type TierNum,
+  HERO_ATTACK_TIER_THRESHOLDS, TIERS, reducedAttackTimeline, type TierNum, attackTier, type AttackTierContext,
 } from '../heroAttack/tiers';
 
 export { TIERS, hexToNum, type TierNum };
@@ -447,7 +447,7 @@ export interface BleedSlashPlan {
 /** One zip of Tier IV's mega-slash: its sweep starts `at`, lasts `dur`, and crosses the target at `hitAt` (a tick). */
 export interface BleedZipPlan { at: number; dur: number; hitAt: number }
 
-export interface BleedPlanInput {
+export interface BleedPlanInput extends AttackTierContext {
   /** When the style's own attack starts: the end of the shared damage formation (`formationPlan().endAt`). */
   leadIn?: number;
   /** THE blow, as the engine decided it. */
@@ -504,7 +504,7 @@ export interface BleedPlan {
 /** The whole Bleed attack, in base ms (divide by the playback speed for real time). Pure and deterministic. */
 export function bleedPlan(input: BleedPlanInput, c: HeroBleedConfig = cfg): BleedPlan {
   const total = Math.max(0, Math.round(input.total));
-  const tier = tierOf(total, c);
+  const tier = attackTier(total, input, c); // a knockout always plays Tier IV (heroAttack/tiers.ts)
   const T = bleedTierDials(tier, c);
   const k = (tier - 1) / 3;
 

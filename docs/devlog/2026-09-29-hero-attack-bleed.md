@@ -78,6 +78,8 @@ formation runs first. Then:
        the screen's edges, all held a moment and fading out cleanly; the stain drips (11 drips); three arterial spurts
        after. The camera punches harder
        than anywhere else in the roster, with a shake that rings both ways.
+- **Knockouts** play Tier IV whatever the number (the shared `attackTier` rule, R-PROG-ATTACK-20, #1849): the plan
+  input carries `knockout` like every other style's, and the knockout test covers Bleed.
 - **The consequence** (damage, Armor, Resolve) lands exactly **once**: on the last cut (I to III) or on the nova (IV).
   Every earlier cut is a tick with FX only. No hit-stop or freeze anywhere; the clock never stops.
 - **Wounds ride the portrait.** Wounds, drips, stains and the tint follow the struck portrait's knockback.

@@ -2650,7 +2650,7 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'ACCELERATING into a blur; then a beat of held tension (never a freeze: the wounds pulse faster, blood is drawn in) and a huge BLOODY EXPLOSION '
       + '(a white-red flash core, five shockwave rings, a huge stain, blood thrown high to rain across the board, big splats PAINTING the whole screen out to the UI edges with a '
       + 'crimson vignette, dripping stains, arterial spurts; all of it fades out cleanly). The consequence (the damage, Armor, Resolve) lands '
-      + 'exactly ONCE: on the last cut (every earlier cut is a tick with FX only) or, at IV, on the explosion (never on a rake, a heartbeat, a zip or the tension). Wounds, drips, stains and the tint '
+      + 'exactly ONCE: on the last cut (every earlier cut is a tick with FX only) or, at IV, on the explosion (never on a rake, a heartbeat, a zip or the tension). A knockout plays Tier IV whatever the number (R-PROG-ATTACK-20). Wounds, drips, stains and the tint '
       + 'ride the struck portrait\x27s knockback. No hit-stop or freeze anywhere (R-PROG-ATTACK-10). Presentation only; '
       + 'reduced motion is fades only; an unknown or retired id plays Classic.',
     domain: 'foundation',

@@ -129,6 +129,22 @@ describe('the Stage Builder panel', () => {
     click(q('.stb-confirm button.stb-close-yes'));
     expect(useStageBuilder.getState().open).toBe(false);
   });
+
+  it('the header ✕ shows the confirm even with Actions folded, outside every section', () => {
+    click(roundBtn(3));
+    type(q<HTMLInputElement>('.stb-minion .badge.hp input'), '7');
+    // Fold Actions: its Close button (and anything inside it) is no longer rendered.
+    const actionsFold = qa<HTMLButtonElement>('.sb-sec .sb-fold').find((b) => /Actions/.test(b.textContent ?? ''));
+    click(actionsFold);
+    expect(q('button.stb-close')).toBeNull();
+    click(q('.devpanel-close'));
+    expect(useStageBuilder.getState().open).toBe(true);
+    const confirm = q('.stb-confirm');
+    expect(confirm?.textContent).toMatch(/Unsaved edits — Close anyway\?/);
+    expect(confirm!.closest('.sb-sec')).toBeNull();
+    click(q('.stb-confirm button.stb-close-yes'));
+    expect(useStageBuilder.getState().open).toBe(false);
+  });
 });
 
 describe('runeActsForOpponent', () => {

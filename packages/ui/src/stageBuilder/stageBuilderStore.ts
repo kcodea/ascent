@@ -104,7 +104,10 @@ export const useStageBuilder = create<StageBuilderState>()((set, get) => {
   const onGame = (): void => {
     if (!get().open || !get().draft) return;
     const run = useGame.getState().run;
-    if (!run?.sandbox) return;
+    // The game left the sandbox: the run this draft was pinned into is gone, so close (forced — there is nothing
+    // left to confirm against) and unsubscribe. Staying open would pin a stage round into the NEXT plain Scene
+    // Builder launch.
+    if (!run?.sandbox) return get().close(true);
     if (run.wave !== lastWave) return pinRound(); // a fight resolved: pin the selected round at the new wave
     const pin = authoredPin(run);
     if (pin && pin !== lastPinned) return get().syncFromPin(); // edited on the tavern row

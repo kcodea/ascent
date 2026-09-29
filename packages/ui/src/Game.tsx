@@ -33,11 +33,6 @@ import { EditorOverlay } from './uiEditor/EditorOverlay';
 import { setFxScene } from './fx/fxBudget';
 import { ensureDefsReady } from './fx/playDef';
 import { SceneBuilder } from './SceneBuilder';
-/** The Stage Builder panel (DEV): loaded on demand so it and its store never reach the player chunk — in a production
- *  build `import.meta.env.DEV` is false, the ternary folds to `null` and the dynamic import is dropped. */
-const StageBuilderMount = import.meta.env.DEV
-  ? lazy(() => import('./stageBuilder/StageBuilder').then((m) => ({ default: m.StageBuilderMount })))
-  : null;
 import { BugScenarioPanel } from './bug-report/BugScenarioPanel';
 import { BalancePanel } from './BalancePanel';
 import { PatchNotes } from './PatchNotesOverlay';
@@ -49,6 +44,12 @@ import { phaseStartBetween } from './perfWarmup';
 import { uploadRun } from './perfCloud';
 import { toRun } from './perfStore';
 import { isRealPlayRun } from './perfCaptureScope';
+
+/** The Stage Builder panel (DEV): loaded on demand so it and its store never reach the player chunk — in a production
+ *  build `import.meta.env.DEV` is false, the ternary folds to `null` and the dynamic import is dropped. */
+const StageBuilderMount = import.meta.env.DEV
+  ? lazy(() => import('./stageBuilder/StageBuilder').then((m) => ({ default: m.StageBuilderMount })))
+  : null;
 
 /** Seconds of live recording an auto-share needs before it is worth a row. A reload is not a session. */
 const MIN_AUTO_SHARE_SECONDS = 45;

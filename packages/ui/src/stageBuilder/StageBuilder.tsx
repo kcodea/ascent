@@ -171,6 +171,16 @@ function StageBuilderInner({ confirming, setConfirming, requestClose }: {
         <button className="sb-collapse" onPointerDown={(e) => e.stopPropagation()} onClick={() => setCollapsed((c) => !c)} aria-label={collapsed ? 'Expand' : 'Collapse'}>{collapsed ? '▸' : '▾'}</button>
       </div>
 
+      {/* Right under the header, outside every Sec and the collapse: the header ✕ arms this too, so it must show
+          even with Actions folded or the whole panel collapsed. */}
+      {confirming && anyDirty && (
+        <div className="sb-row stb-confirm" role="alert">
+          <span className="sb-mini sb-warn">Unsaved edits — Close anyway?</span>
+          <button type="button" className="sb-btn stb-close-yes" onClick={() => { setConfirming(false); close(true); }}>Close anyway</button>
+          <button type="button" className="sb-btn" onClick={() => setConfirming(false)}>Keep editing</button>
+        </div>
+      )}
+
       {!collapsed && (
         <div className="sb-body">
           {/* STAGE — the ten slots (only stages with a file are editable; adding one is a JSON + an import). */}
@@ -326,13 +336,6 @@ function StageBuilderInner({ confirming, setConfirming, requestClose }: {
                   <button type="button" className="sb-btn stb-close" onClick={requestClose} aria-description="Close the Stage Builder">Close</button>
                 </div>
                 {testHint && <div className="sb-mini sb-note">End Turn to fight it</div>}
-                {confirming && anyDirty && (
-                  <div className="sb-row stb-confirm" role="alert">
-                    <span className="sb-mini sb-warn">Unsaved edits — Close anyway?</span>
-                    <button type="button" className="sb-btn stb-close-yes" onClick={() => { setConfirming(false); close(true); }}>Close anyway</button>
-                    <button type="button" className="sb-btn" onClick={() => setConfirming(false)}>Keep editing</button>
-                  </div>
-                )}
               </Sec>
             </>
           )}

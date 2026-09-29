@@ -136,6 +136,19 @@ describe('Stage Builder store', () => {
     expect(sb().draft).toBeNull();
   });
 
+  it('the game leaving the sandbox closes the builder, so a later plain Scene Builder launch pins nothing', () => {
+    // Dirty on purpose: the sandbox run it edited is gone, so the close is forced (nothing left to confirm against).
+    sb().editDraft((s) => ({ ...s, opponentName: 'Renamed' }));
+    const live = run();
+    useGame.setState({ run: { ...live, sandbox: undefined } });
+    expect(sb().open).toBe(false);
+    expect(sb().draft).toBeNull();
+    useGame.getState().startSceneBuilder('warden');
+    expect(run().sandbox).toBe(true);
+    expect(run().sandboxFoeWave).toBeUndefined();
+    expect(pin()).toBeUndefined();
+  });
+
   it('discard restores the saved copy and re-pins it', () => {
     sb().editDraft((s) => ({ ...s, rounds: s.rounds.map((r, i) => (i === 0 ? { ...r, board: [{ ...r.board[0]!, attack: 9 }] } : r)) }));
     sb().discard();

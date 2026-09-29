@@ -9073,7 +9073,7 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 .stagebuilder .stb-add { padding: calc(2 * var(--u)) calc(7 * var(--u)); font-size: calc(10 * var(--u)); }
 .stagebuilder .stb-noeffect { color: var(--sb-ink3); }
 .stagebuilder option.stb-noeffect { color: #7d7262; }
-.stagebuilder .stb-confirm { flex-wrap: wrap; }
+.stagebuilder .stb-confirm { flex-wrap: wrap; padding: calc(6 * var(--u)) calc(12 * var(--u)); }
 .stagebuilder .stb-confirm .sb-warn { display: inline; margin: 0; }
 .bsc-id { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .bsc-banner { background: #3a2413; border: 1px solid #a0632a; border-radius: calc(6 * var(--u)); color: #f0b978; font-size: calc(12 * var(--u)); line-height: 1.4; padding: calc(6 * var(--u)) calc(8 * var(--u)); }

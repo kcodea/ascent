@@ -2305,6 +2305,8 @@ export const useGame = create<GameStore>((rawSet, get) => {
     });
   },
   startStageBuilder: async (stage) => {
+    // DEV only: in a production build this folds to an early return, so the dynamic import (and its chunk) is dropped.
+    if (!import.meta.env.DEV) return;
     get().startSceneBuilder();
     const { useStageBuilder } = await import('./stageBuilder/stageBuilderStore');
     await useStageBuilder.getState().openBuilder(stage ?? 1);

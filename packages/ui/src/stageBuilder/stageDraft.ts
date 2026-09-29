@@ -76,7 +76,7 @@ export function snapshotToRound(snap: BoardSnapshot, prev: GauntletRound): Gaunt
   return { ...(prev.tier !== undefined ? { tier: prev.tier } : {}), board };
 }
 
-/** Deep-copy round-1's board (and tier) into `round`. Round 1 (or out of range) is a no-op. */
+/** Deep-copy the previous round's board (and tier) into `round`. Round 1 (or out of range) is a no-op. */
 export function copyPreviousRound(stage: GauntletStage, round: number): GauntletStage {
   if (round <= 1 || round > stage.rounds.length) return stage;
   const prev = stage.rounds[round - 2];

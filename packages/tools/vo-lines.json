@@ -135,6 +135,28 @@
       "id": "TxWZERZ5Hc6h9dGxVmXa",
       "model": "eleven_multilingual_v2",
       "dest": "card"
+    },
+    "bob-blart": {
+      "id": "QzD8JR9v8A4kqCDL8XD4",
+      "model": "eleven_multilingual_v2",
+      "dest": "card",
+      "settings": {
+        "speed": 1.15,
+        "stability": 0.3,
+        "similarity_boost": 0.75,
+        "style": 0.65
+      }
+    },
+    "kobold-hoarder-fast": {
+      "id": "Z7RrOqZFTyLpIlzCgfsp",
+      "model": "eleven_multilingual_v2",
+      "dest": "card",
+      "settings": {
+        "speed": 1.2,
+        "stability": 0.35,
+        "similarity_boost": 0.75,
+        "style": 0.5
+      }
     }
   },
   "lines": [],

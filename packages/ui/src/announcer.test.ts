@@ -1814,7 +1814,7 @@ describe('the owner own moment (2026-09-25): Bob Blart and Chronos', () => {
   it('BlartChronos the first time both sit on the board; never with only one; once per game', async () => {
     expect(CARD_INDEX.dm_gourmand?.name).toBe('Bob Blart');
     expect(CARD_INDEX.chronos?.name).toBe('Chronos');
-    expect(ANNOUNCER_LINES.blartChronos).toEqual(['blart-chronos-1', 'blart-chronos-2']);
+    expect(ANNOUNCER_LINES.blartChronos).toEqual(['blart-chronos-3', 'blart-chronos-4']); // Bob Blart's own voice (2026-09-29)
     let r = openShop({ board: [m('dm_gourmand')] });
     r = go({ ...r, board: [m('dm_gourmand'), m(BEAST.id)] });
     await tick(20);

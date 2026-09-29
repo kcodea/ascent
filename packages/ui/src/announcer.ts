@@ -373,8 +373,9 @@ export const ANNOUNCER_LINES: Record<AnnouncerEvent, readonly string[]> = {
   sameCardDuel: ['same-card-duel-1'],
   clutchWin: ['clutch-win-1'],
   narrowLoss: ['narrow-loss-1'],
-  // The owner's own moment (2026-09-25): written in the tracker, two ElevenLabs takes of the owner's line.
-  blartChronos: ['blart-chronos-1', 'blart-chronos-2'],
+  // The owner's own moment (2026-09-25): written in the tracker. Spoken by BOB BLART himself (owner 2026-09-29: the
+  // Gorex voice, faster and more excited), not the announcer: two takes of the owner's line.
+  blartChronos: ['blart-chronos-3', 'blart-chronos-4'],
   // ── The moment catalog's third batch (owner 2026-09-25, group C): one approved ElevenLabs take each ──
   goldRush: ['gold-rush-1'],
   refreshStreak: ['refresh-streak-1'],

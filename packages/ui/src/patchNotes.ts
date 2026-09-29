@@ -59,6 +59,15 @@ export const PATCH_NOTES: PatchNote[] = [
     date: '2026-09-29',
     changes: [
       {
+        category: 'Systems',
+        text: 'The Arcane Barrage hero attack now has four clear steps, like the other hero attacks, with a new finale for the biggest hits.',
+        details: [
+          'Small hits fire one bolt. Medium hits fire two.',
+          'Big hits fire a barrage of five bolts.',
+          'The biggest hits fire the huge beam. It pours into the enemy hero, collapses and detonates in a supernova.',
+        ],
+      },
+      {
         category: 'Balance',
         text: "Mimic can no longer pick Kindness's hero power. It only works every 4th turn, so it was almost always a wasted pick.",
       },

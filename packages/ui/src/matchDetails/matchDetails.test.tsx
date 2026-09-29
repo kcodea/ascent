@@ -37,7 +37,7 @@ import { Career } from '../Career';
 import { useGame } from '../store';
 import { heroArt } from '../art';
 import { skinArtOf } from '../skins/skins';
-import { MatchDetailsDialog, MatchScoreboard } from './MatchScoreboard';
+import { MatchDetailsDialog, MatchScoreboard, seatTitle } from './MatchScoreboard';
 import { resetHallKeysForTests } from './hallKeys';
 import { NO_DETAILS_TEXT, boardCaption, defaultSeatId, placeLabel, statusText, summaryText, youWon } from './matchDetailsText';
 
@@ -128,7 +128,7 @@ describe('the scoreboard', () => {
     // your row: your title, the You tag, no health (you are out)
     const me = ui.container.querySelector('.mds-row[data-seat="s0"]')!;
     expect(me.querySelector('.mds-tag.you')).not.toBeNull();
-    expect(me.querySelector('.mds-title')?.textContent).toBe('Alpha Tester');
+    expect(me.querySelector('.titlebadge')?.textContent).toBe('Alpha Tester');
     expect(me.querySelector('.mds-hp')).toBeNull();
     // a click swaps the board and its caption
     click(ui.container.querySelector('.mds-row[data-seat="s1"]'));
@@ -189,6 +189,56 @@ describe('the scoreboard', () => {
     // Someone else's record (their Career): their own seat is an opponent to you too.
     ui.render(<MatchScoreboard details={own} own={false} />);
     expect(portrait('s0')).toBe(heroArt('albus'));
+  });
+
+  describe('TITLES (owner 2026-09-28: "i think it should show in like leaderboard/match details views"; R-PROG-TITLE-03)', () => {
+    /** Skye and Rook wore titles; Pim is a bot whose record somehow carries one; Juno is an older record (none). */
+    const TITLED: MatchDetails = {
+      ...LOSS,
+      seats: LOSS.seats.map((s) => {
+        if (s.id === 's3') return { ...s, cosmetics: { ...s.cosmetics, title: 'title_wanderer' } };
+        if (s.id === 's4') return { ...s, cosmetics: { title: 'title_rune_reader' } };
+        if (s.id === 's5') return { ...s, bot: true as const, cosmetics: { title: 'title_hearthkeeper' } };
+        if (s.id === 's0') return { ...s, titleId: undefined, cosmetics: { title: 'alpha_tester' } };
+        return s;
+      }),
+    };
+    const badge = (id: string): string | null => ui!.container.querySelector(`.mds-row[data-seat="${id}"] .titlebadge`)?.textContent ?? null;
+
+    it('every other player shows the title they wore, in its rarity colour, next to their hero', () => {
+      ui = mount(<MatchScoreboard details={TITLED} own />);
+      expect(badge('s3')).toBe('Wanderer');
+      expect(badge('s4')).toBe('Rune Reader');
+      expect(badge('s0')).toBe('Alpha Tester');
+      expect(ui.container.querySelector('.mds-row[data-seat="s3"] .titlebadge')?.classList.contains('r-common')).toBe(true);
+      expect(ui.container.querySelector('.mds-row[data-seat="s3"] .mds-hero')?.textContent).toBe('Albus'); // the hero stays
+      expect(ui.container.querySelector('[title]')).toBeNull();
+    });
+
+    it('Show opponent cosmetics off hides other players titles; your own always shows', () => {
+      useGame.setState({ showOpponentSkins: false });
+      ui = mount(<MatchScoreboard details={TITLED} own />);
+      expect(badge('s3')).toBeNull();
+      expect(badge('s4')).toBeNull();
+      expect(badge('s0')).toBe('Alpha Tester');
+      act(() => { useGame.setState({ showOpponentSkins: true }); });
+      expect(badge('s3')).toBe('Wanderer');
+      // Someone else's record: their own seat is an opponent to you, so the switch gates it too.
+      act(() => { useGame.setState({ showOpponentSkins: false }); });
+      ui.render(<MatchScoreboard details={TITLED} own={false} />);
+      expect(badge('s0')).toBeNull();
+    });
+
+    it('none for bots, older records, or an unknown title', () => {
+      ui = mount(<MatchScoreboard details={TITLED} own />);
+      expect(badge('s5')).toBeNull(); // a bot
+      expect(badge('s6')).toBeNull(); // an older record: no cosmetics at all
+      expect(seatTitle(seat({ id: 's9', cosmetics: { title: 'title_not_in_this_build' } }), true, true)).not.toBeNull();
+      ui.render(<MatchScoreboard details={{ ...LOSS, seats: [seat({ id: 's9', cosmetics: { title: 'title_not_in_this_build' } })] }} own />);
+      expect(badge('s9')).toBeNull(); // TitleBadge shows nothing for an unknown id
+      // An older record of your own that only carried `titleId` still shows it.
+      expect(seatTitle(byId(LOSS, 's0'), true, false)).toEqual({ title: 'alpha_tester' });
+    });
   });
 
   it('the end screen dialog closes on Esc and on its close button', () => {

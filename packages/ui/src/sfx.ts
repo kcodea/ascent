@@ -918,6 +918,121 @@ export function playToxicFizz(category: string, o: { gain: number; buildMs: numb
   };
 }
 
+/** Two seconds of white noise per AudioContext, built once (the frost wind loops it). */
+let whiteNoiseBuf: { ctx: AudioContext; buf: AudioBuffer } | null = null;
+function whiteNoise(a: AudioContext): AudioBuffer {
+  if (whiteNoiseBuf?.ctx === a) return whiteNoiseBuf.buf;
+  const len = Math.floor(a.sampleRate * 2);
+  const buf = a.createBuffer(1, len, a.sampleRate);
+  const d = buf.getChannelData(0);
+  // Presentation noise, not gameplay: the Math.random ban covers core/content/sim only.
+  for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
+  const x = Math.floor(a.sampleRate * 0.05);
+  for (let i = 0; i < x; i++) { const k = i / x; d[len - x + i] = d[len - x + i]! * (1 - k) + d[i]! * k; }
+  whiteNoiseBuf = { ctx: a, buf };
+  return buf;
+}
+
+/**
+ * A SYNTH FROST WIND (the Frost hero attack's nova, 2026-09-28): looped white noise through two RESONANT band-passes a
+ * fifth apart whose centres glide from `lowHz` to `highHz` over `buildMs` with a slow wobble (a freezing howl, not a
+ * hiss), high-passed at 180 Hz (never boomy), on `category`'s fader. It swells to its peak exactly at `buildMs` (the
+ * release), then trails off over `tailMs` as the wave rolls away. Returns a handle whose `stop()` fades it in
+ * `SKIP_FADE_S`; null when nothing was queued (muted, hidden, suspended, no Web Audio).
+ */
+export function playFrostWind(category: string, o: { gain: number; buildMs: number; tailMs: number; lowHz: number; highHz: number; delayMs?: number }): SfxHandle | null {
+  if (isHidden() || audioSuspended || !(o.gain > 0)) return null;
+  const a = audio();
+  if (!a || muted) return null;
+  const t0 = a.currentTime + Math.max(0, o.delayMs ?? 0) / 1000;
+  const b = Math.max(0.05, o.buildMs / 1000), tl = Math.max(0.05, o.tailMs / 1000);
+  const lo = Math.max(60, o.lowHz), hi = Math.max(lo + 20, o.highHz);
+  const src = a.createBufferSource(); src.buffer = whiteNoise(a); src.loop = true;
+  const hp = a.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 180; hp.Q.value = 0.7;
+  const bp1 = a.createBiquadFilter(); bp1.type = 'bandpass'; bp1.Q.value = 9;
+  const bp2 = a.createBiquadFilter(); bp2.type = 'bandpass'; bp2.Q.value = 12;
+  const mix2 = a.createGain(); mix2.gain.value = 0.55;
+  const lfo = a.createOscillator(); lfo.type = 'sine'; lfo.frequency.value = 3.2;
+  const lfoAmt = a.createGain(); lfoAmt.gain.value = 40;
+  const env = a.createGain();
+  const out = a.createGain();
+  out.gain.value = effectiveGain(cfg, category, 'frostwind') * o.gain * 2.2;
+  src.connect(hp);
+  hp.connect(bp1).connect(env);
+  hp.connect(bp2).connect(mix2).connect(env);
+  env.connect(out).connect(busInput(a, category));
+  lfo.connect(lfoAmt); lfoAmt.connect(bp1.detune); lfoAmt.connect(bp2.detune);
+  bp1.frequency.setValueAtTime(lo, t0); bp1.frequency.exponentialRampToValueAtTime(hi, t0 + b);
+  bp1.frequency.exponentialRampToValueAtTime(Math.max(lo, hi * 0.6), t0 + b + tl);
+  bp2.frequency.setValueAtTime(lo * 1.5, t0); bp2.frequency.exponentialRampToValueAtTime(hi * 1.5, t0 + b);
+  bp2.frequency.exponentialRampToValueAtTime(Math.max(lo, hi * 0.9), t0 + b + tl);
+  env.gain.setValueAtTime(0.0001, t0);
+  env.gain.exponentialRampToValueAtTime(0.25, t0 + Math.min(0.15, b * 0.3));
+  env.gain.exponentialRampToValueAtTime(1, t0 + b);
+  env.gain.exponentialRampToValueAtTime(0.0001, t0 + b + tl);
+  const end = t0 + b + tl + 0.05;
+  src.start(t0); lfo.start(t0);
+  src.stop(end); lfo.stop(end);
+  let done = false;
+  const release = (): void => { if (done) return; done = true; for (const n of [src, hp, bp1, bp2, mix2, lfo, lfoAmt, env, out]) { try { n.disconnect(); } catch { /* already */ } } };
+  src.onended = release;
+  return {
+    stop: () => {
+      if (done) return;
+      try {
+        const landAt = scheduleSkipFade(out.gain, a.currentTime);
+        src.onended = null;
+        src.stop(landAt + 0.01); lfo.stop(landAt + 0.01);
+        setTimeout(release, SKIP_FADE_S * 1000 + 60);
+      } catch { release(); }
+    },
+  };
+}
+
+/**
+ * A SYNTH ICE CRACKLE (the Frost hero attack's freezing ground and encasement, 2026-09-28): the sparse crackle played
+ * FAST (tighter, glassier clicks) through a high-pass at 2.6 kHz and a bright peak at 5 kHz, its rate climbing from 1.3x
+ * to 2.2x while it swells over `durMs` (ice creeping and straining), cut in 40 ms at the end so the shatter lands on
+ * silence, on `category`'s fader. Returns a handle whose `stop()` fades it in `SKIP_FADE_S`; null when nothing was queued.
+ */
+export function playIceCrackle(category: string, o: { gain: number; durMs: number; delayMs?: number }): SfxHandle | null {
+  if (isHidden() || audioSuspended || !(o.gain > 0)) return null;
+  const a = audio();
+  if (!a || muted) return null;
+  const src = a.createBufferSource();
+  src.buffer = crackleBuffer(a);
+  src.loop = true;
+  const hp = a.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 2600; hp.Q.value = 0.7;
+  const pk = a.createBiquadFilter(); pk.type = 'peaking'; pk.frequency.value = 5000; pk.Q.value = 1.2; pk.gain.value = 8;
+  const env = a.createGain();
+  const out = a.createGain();
+  out.gain.value = effectiveGain(cfg, category, 'icecrackle') * o.gain * 1.6;
+  src.connect(hp).connect(pk).connect(env).connect(out).connect(busInput(a, category));
+  const t0 = a.currentTime + Math.max(0, o.delayMs ?? 0) / 1000;
+  const dur = Math.max(0.1, o.durMs / 1000);
+  src.playbackRate.setValueAtTime(1.3, t0); src.playbackRate.linearRampToValueAtTime(2.2, t0 + dur);
+  env.gain.setValueAtTime(0.0001, t0);
+  env.gain.exponentialRampToValueAtTime(0.35, t0 + Math.min(0.1, dur * 0.2));
+  env.gain.exponentialRampToValueAtTime(1, t0 + dur);
+  env.gain.exponentialRampToValueAtTime(0.0001, t0 + dur + 0.04);
+  src.start(t0, Math.random() * 1.5);
+  src.stop(t0 + dur + 0.08);
+  let done = false;
+  const release = (): void => { if (done) return; done = true; for (const n of [src, hp, pk, env, out]) { try { n.disconnect(); } catch { /* already */ } } };
+  src.onended = release;
+  return {
+    stop: () => {
+      if (done) return;
+      try {
+        const landAt = scheduleSkipFade(out.gain, a.currentTime);
+        src.onended = null;
+        src.stop(landAt + 0.01);
+        setTimeout(release, SKIP_FADE_S * 1000 + 60);
+      } catch { release(); }
+    },
+  };
+}
+
 // The end-of-turn CHARGE build (`turncharge`) is a long (~25–40s) clip. Web Audio sources are fire-and-forget, so
 // we keep a handle to the live nodes and ramp them down when the turn ends early (End Turn pressed / a new charge
 // starts) — otherwise the build keeps playing under combat. See `stopTurnCharge` + `sfx.turnCharge`.

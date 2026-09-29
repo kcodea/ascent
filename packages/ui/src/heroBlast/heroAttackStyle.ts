@@ -29,6 +29,10 @@
  *    poison dart animation. the final one should throw multiple poison darts that implode with poison"): small, sleek
  *    poison darts flicked on a slight arc, thunking in and sticking at varied angles with venom splashes; II two, III a
  *    fan of five, and IV sticks six that swell, implode into one point and burst in a toxic cloud (`../heroPoison/`).
+ *  - `frost` is the seventh (`attack_frost`, "Frost Nova" until the owner renames it; owner ask 2026-09-28: "icicles
+ *    and then a frost nova blast that blasts across the screen from the attacker to the target"): icicles crystallise
+ *    round the hero and fire (I one, II two, III a volley of five), shattering and leaving frost creeping over the
+ *    portrait; IV adds a frost nova that rolls across the screen, encases the target in ice and shatters (`../heroFrost/`).
  *
  * The style is the ATTACKER's: the equipped item recorded in the striking player's cosmetic snapshot (yours when you
  * win; the foe's seat snapshot when they win, and only while "Show opponent cosmetics" is on). The catalog item names
@@ -42,7 +46,7 @@
  */
 import { heroAttackOf } from '@game/progression';
 
-export const HERO_ATTACK_STYLES = ['classic', 'blast', 'quake', 'arcana', 'blades', 'enraged', 'poison'] as const;
+export const HERO_ATTACK_STYLES = ['classic', 'blast', 'quake', 'arcana', 'blades', 'enraged', 'poison', 'frost'] as const;
 export type HeroAttackStyle = (typeof HERO_ATTACK_STYLES)[number];
 
 /** What a player without an equipped hero attack sees (owner 2026-09-28: Blast is a cosmetic, not a new default). */
@@ -59,13 +63,13 @@ export function styleOfCosmetic(id: string | null | undefined): HeroAttackStyle 
 }
 
 /** The dev override: `auto` = what a player would see; the others force one style for BOTH sides. */
-export const DEV_HERO_ATTACK_CHOICES = ['auto', 'classic', 'blast', 'quake', 'arcana', 'blades', 'enraged', 'poison'] as const;
+export const DEV_HERO_ATTACK_CHOICES = ['auto', 'classic', 'blast', 'quake', 'arcana', 'blades', 'enraged', 'poison', 'frost'] as const;
 export type DevHeroAttackChoice = (typeof DEV_HERO_ATTACK_CHOICES)[number];
 
 /** The dev "Attack style" row's labels, shared by every hero attack tuner. */
 export const DEV_HERO_ATTACK_LABELS: Record<DevHeroAttackChoice, string> = {
   auto: 'Auto (equipped cosmetic)', classic: 'Classic (lunge)', blast: 'Blast', quake: 'Quake', arcana: 'Arcana', blades: 'Phantom Blades', enraged: 'Enraged Strike',
-  poison: 'Venom Volley (poison darts)',
+  poison: 'Venom Volley (poison darts)', frost: 'Frost Nova',
 };
 
 const KEY = 'ascent.heroattackstyle';

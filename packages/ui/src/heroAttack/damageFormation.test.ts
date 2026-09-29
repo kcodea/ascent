@@ -23,6 +23,7 @@ import { playHeroArcana } from '../heroArcana/heroArcana';
 import { playHeroBlades } from '../heroBlades/heroBlades';
 import { playHeroEnraged } from '../heroEnraged/heroEnraged';
 import { playHeroPoison } from '../heroPoison/heroPoison';
+import { playHeroFrost } from '../heroFrost/heroFrost';
 import { SPEC, boardOf } from '../DamageFormationTuner';
 import { Sequence } from './sequence';
 import type { HeroAttackHandle, HeroAttackOptions } from './options';
@@ -304,6 +305,7 @@ describe('the runners', () => {
       ['blades', (o) => playHeroBlades({ ...o, textures: TEX })],
       ['enraged', (o) => playHeroEnraged({ ...o, textures: TEX, impactFx: false })],
       ['poison', (o) => playHeroPoison({ ...o, textures: null })],
+      ['frost', (o) => playHeroFrost({ ...o, textures: TEX })],
     ];
     const lead = leadInOf([4, 2, 3, 4], false, true);
     for (const [name, play] of styles) {
@@ -447,6 +449,7 @@ describe('no attack ever pauses its clock (owner 2026-09-28: "remove the freezei
     ['blades', (o) => playHeroBlades({ ...o, textures: null })],
     ['enraged', (o) => playHeroEnraged({ ...o, textures: null, impactFx: false })],
     ['poison', (o) => playHeroPoison({ ...o, textures: null })],
+    ['frost', (o) => playHeroFrost({ ...o, textures: null })],
   ];
 
   it('every style (and the formation inside it, through the capped slash) advances the clock by exactly the time played, every frame', () => {

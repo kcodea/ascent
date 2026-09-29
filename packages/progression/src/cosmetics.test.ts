@@ -88,8 +88,8 @@ describe('the roll', () => {
     const noCommons = eligibleCrateCosmetics(crateItems.filter((c) => c.rarity !== 'legendary').map((c) => c.id));
     // 2026-09-28: the Legendary Black Belt Brian skin joined the one Legendary title, then the Legendary Blast hero
     // attack (owner: "make it a legendary reward"), then (2026-09-28) the Legendary Quake, Arcana, Phantom Blades,
-    // Enraged Strike and Poison Darts ("Venom Volley") hero attacks, so eight remain.
-    expect(noCommons.map((c) => c.id)).toEqual(['attack_arcana', 'attack_blades', 'attack_blast', 'attack_enraged', 'attack_poison', 'attack_quake', 'skin_blackbelt_3', 'title_the_unbroken']);
+    // Enraged Strike, Poison Darts ("Venom Volley") and Frost ("Frost Nova") hero attacks, so nine remain.
+    expect(noCommons.map((c) => c.id)).toEqual(['attack_arcana', 'attack_blades', 'attack_blast', 'attack_enraged', 'attack_frost', 'attack_poison', 'attack_quake', 'skin_blackbelt_3', 'title_the_unbroken']);
     expect(pickCrateReward(noCommons, 0)!.id).toBe('attack_arcana');
     expect(pickCrateReward(noCommons, crateTotalWeight(noCommons) - 1)!.id).toBe('title_the_unbroken');
   });
@@ -124,15 +124,18 @@ describe('the roll', () => {
   // Re-pinned AGAIN 2026-09-28 when the sixth hero attack, Poison Darts (`attack_poison`, "Venom Volley", Legendary, weight
   // 3 x 15 = 45) joined: was Common 46.3 / Rare 30.6 / Epic 18.8 / Legendary 4.3 / non-title 32.5 / attacks 2.7 of 8320.
   // Now Legendary 405 of 8365; non-title 2745; the six attacks together 3.2% (each 0.54%).
-  it('the odds of a first crate with the skins and all six Legendary hero attacks in (2026-09-28): Common 46.0%, Rare 30.5%, Epic 18.6%, Legendary 4.8%; a non-title 32.8%', () => {
+  // Re-pinned AGAIN 2026-09-28 when the seventh hero attack, Frost (`attack_frost`, "Frost Nova", Legendary, weight 3 x 15
+  // = 45) joined after Poison: was Common 46.0 / Rare 30.5 / Epic 18.6 / Legendary 4.8 / non-title 32.8 / attacks 3.2 of
+  // 8365. Now Legendary 450 of 8410; non-title 2790; the seven attacks together 3.7% (each 0.54%).
+  it('the odds of a first crate with the skins and all seven Legendary hero attacks in (2026-09-28): Common 45.8%, Rare 30.3%, Epic 18.5%, Legendary 5.4%; a non-title 33.2%', () => {
     const all = eligibleCrateCosmetics([]);
     const total = crateTotalWeight(all);
     const pct = (xs: typeof all): number => Math.round((1000 * xs.reduce((s, c) => s + crateWeightOf(c), 0)) / total) / 10;
     const share = (r: string): number => pct(all.filter((c) => c.rarity === r));
-    expect([share('common'), share('rare'), share('epic'), share('legendary')]).toEqual([46, 30.5, 18.6, 4.8]);
-    expect(pct(all.filter((c) => c.category !== 'title'))).toBe(32.8);
-    expect(pct(all.filter((c) => c.category === 'hero_attack'))).toBe(3.2);
-    expect(total).toBe(8365);
+    expect([share('common'), share('rare'), share('epic'), share('legendary')]).toEqual([45.8, 30.3, 18.5, 5.4]);
+    expect(pct(all.filter((c) => c.category !== 'title'))).toBe(33.2);
+    expect(pct(all.filter((c) => c.category === 'hero_attack'))).toBe(3.7);
+    expect(total).toBe(8410);
     // the titles-only launch odds are unchanged when the skins are switched off (the kill switch path)
     const titlesOnly = all.filter((c) => c.category === 'title');
     const t = crateTotalWeight(titlesOnly);

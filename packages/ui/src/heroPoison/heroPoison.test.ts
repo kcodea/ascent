@@ -542,7 +542,7 @@ describe('the scene (headless Pixi)', () => {
 describe('the cosmetic', () => {
   it('Venom Volley (attack_poison) is a Legendary crate hero attack that plays Poison; the dev override can force it; the other styles unchanged; unknown ids play Classic', () => {
     expect(COSMETIC_INDEX.attack_poison).toMatchObject({ category: 'hero_attack', rarity: 'legendary', name: 'Venom Volley', assets: { style: 'poison' }, active: true });
-    expect(HERO_ATTACK_STYLES).toEqual(['classic', 'blast', 'quake', 'arcana', 'blades', 'enraged', 'poison']);
+    expect(HERO_ATTACK_STYLES).toEqual(['classic', 'blast', 'quake', 'arcana', 'blades', 'enraged', 'poison', 'frost']); // Frost joined 2026-09-28
     expect(styleOfCosmetic('attack_poison')).toBe('poison');
     for (const [id, st] of [['attack_blast', 'blast'], ['attack_quake', 'quake'], ['attack_arcana', 'arcana'], ['attack_blades', 'blades'], ['attack_enraged', 'enraged']] as const) {
       expect(styleOfCosmetic(id)).toBe(st);

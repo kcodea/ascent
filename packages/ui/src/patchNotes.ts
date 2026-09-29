@@ -259,6 +259,17 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: 'A new Legendary hero attack, Frost Nova, can drop from crates.',
+        details: [
+          'Icicles form around your hero and fire at the other hero. They shatter into shards and frost creeps over the portrait.',
+          'The bigger the hit, the more icicles: one, then two, then a volley of five.',
+          'On the biggest hits a frost nova blasts across the screen, freezes the other hero in ice, and shatters it.',
+          'Equip it from the Attack Animations tab of the Collection. There is a preview button there too.',
+          'Hero attacks are looks only. The damage is exactly the same.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'A new Legendary hero attack, Venom Volley, can drop from crates.',
         details: [
           'Your hero throws poison darts. They thunk into the other hero and stick, splashing venom.',

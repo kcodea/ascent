@@ -86,12 +86,10 @@ export function playHeroBeast(o: HeroBeastOptions): HeroBeastHandle {
   // side with little room comes in from just off that edge instead of far outside it, so a hero in a corner is still
   // framed by fangs.
   const room = (() => {
-    const w = local ? (host?.clientWidth || 300) : (typeof window !== 'undefined' ? window.innerWidth : 1920);
     const h = local ? (host?.clientHeight || 180) : (typeof window !== 'undefined' ? window.innerHeight : 1080);
-    // The colossal mouth also slides toward the middle of the screen (the target stays inside it), so a hero in a corner
-    // has the maw opening over the board rather than off the edge.
-    const shift = Math.max(-1.7 * radius, Math.min(1.7 * radius, w / 2 - o.defender.x));
-    return { up: o.defender.y, down: h - o.defender.y, shift };
+    // The maw always closes CENTRED on the struck portrait (owner 2026-09-29: "the final beast chomp isnt centered on
+    // the hero correctly"); only how far out each jaw WAITS adapts to the room on its side.
+    return { up: o.defender.y, down: h - o.defender.y };
   })();
   const toFoe = (() => { const L = dist || 1; return { x: (o.defender.x - o.attacker.x) / L, y: (o.defender.y - o.attacker.y) / L }; })();
 

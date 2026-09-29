@@ -2598,8 +2598,8 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'one wolf and one chomp; II 6-11 two, staggered (the first a tick); III 12-19 a pack of five streaming across in '
       + 'lanes and kicking up dust (four ticks, then the last, dead-centre chomp); IV 20+ six chomps round the face (all '
       + 'ticks), then a COLOSSAL beast rises behind the target: its jaws fade in far above and below it (a jaw on a side '
-      + 'with little room waits just inside that screen edge, and the maw slides toward the middle of the screen so a '
-      + 'corner hero is still framed by fangs), its eyes ignite and a mane of light flares, the jaws creep in, then SLAM '
+      + 'with little room waits just inside that screen edge; the maw is ALWAYS centred on the struck portrait and its '
+      + 'bite lands exactly on the portrait centre, never slid toward the middle of the screen), its eyes ignite and a mane of light flares, the jaws creep in, then SLAM '
       + 'shut over the whole portrait; a beat later it ROARS (the jaws spring open, shockwave rings and speed lines, the view '
       + 'rattles) and dissolves. The consequence (the damage, Armor, Resolve) lands exactly ONCE: on the last chomp (every '
       + 'earlier chomp is a tick with FX and sound only) or, at IV, on the slam (never on a chomp, the rise or the roar). No '
@@ -2609,6 +2609,7 @@ export const FOUNDATION_RULES: GameRule[] = [
     status: 'approved',
     evidence: [
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-29 (more hero attacks)', quote: 'branch off and make some more attack types - we need a fire animation, a bleed/gash animation, some sort of an undead animation, a beast chomp rush animation, and i would love a king oona banana cannon animation. use the same 4 tier strategy we have been.' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-29 (Stampede review)', quote: 'the final beast chomp isnt centered on the hero correctly, can you fix that?' },
       { kind: 'code', ref: 'packages/progression/src/cosmetics.ts (attack_beast); packages/ui/src/heroBeast/ (heroBeastConfig beastPlan / beastCues / beastMotions / biteOffset / clampGap / colossalGap / beastCameraAt, heroBeast playHeroBeast, heroBeastScene, heroBeastTextures)' },
     ],
     currentBehaviour: 'Conforms, built 2026-09-29. The item reaches the database on the next deploy of progression-inventory (the catalog sync); the equip SQL already accepts the hero_attack slot.',

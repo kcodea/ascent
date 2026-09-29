@@ -405,6 +405,30 @@ describe('the runner (the shared clock)', () => {
     expect(f.hooked()).toBe(0);
   });
 
+  it('THE FINAL CHOMP IS CENTRED on the struck portrait (owner 2026-09-29: "the final beast chomp isnt centered on the hero correctly"): both ways, corner heroes, 1920x1080 and 1600x900 layouts, every tier', () => {
+    const layouts = [
+      { you: { x: 180, y: 900 }, foe: { x: 1740, y: 140 }, r: 118 }, // 1920 x 1080: corner portraits
+      { you: { x: 150, y: 750 }, foe: { x: 1460, y: 120 }, r: 98 }, // 1600 x 900
+    ];
+    for (const L of layouts) {
+      for (const side of ['player', 'opp'] as const) {
+        const a = side === 'player' ? L.you : L.foe;
+        const d = side === 'player' ? L.foe : L.you;
+        for (const total of [3, 8, 14, 40]) {
+          const { h, f } = run({ side, attacker: a, defender: d, defenderRadius: L.r, total, formation: formationOf([total], total) });
+          f.tick(h.plan.impactAt - 2, 2);
+          f.tick(4, 2);
+          const at = h.plan.colossal ? h.scene!.colossusCentre! : h.scene!.clampCentreOf(h.plan.beasts.length - 1)!;
+          // The portrait is squashed / knocked on the impact and the jaws ride it: compare against where it is drawn.
+          const moved = (h.scene as unknown as { fox: number; foy: number });
+          expect(Math.abs(at.x - (d.x + moved.fox)), `${side} ${total} x`).toBeLessThan(0.5);
+          expect(Math.abs(at.y - (d.y + moved.foy)), `${side} ${total} y`).toBeLessThan(0.5);
+          h.cancel();
+        }
+      }
+    }
+  });
+
   it('works in both directions at every tier (the blow lands on whichever hero is struck)', () => {
     for (const side of ['player', 'opp'] as const) {
       for (const total of [3, 8, 12, 40]) {

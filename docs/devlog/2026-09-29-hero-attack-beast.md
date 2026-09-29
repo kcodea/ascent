@@ -34,9 +34,10 @@ accepts the `hero_attack` slot, so there is **no SQL** and no new migration.
     jaws let go after half the hold, so each chomp reads on its own.
   - IV (20+): six chomps ring the face (all ticks). Then **the colossus**:
     1. **Rise.** Colossal jaws (a near-black maw, burning amber rim, huge gleaming fangs) fade in far above and below
-       the target over a darkening backdrop, a mane of light flaring round them and the eyes igniting above. A jaw on a
-       side with little room waits just inside that screen edge, and the maw slides toward the middle of the screen, so
-       a hero in a corner is still framed by fangs. The jaws creep in, breathing, while a deep growl and the rumble build
+       the target over a darkening backdrop, a mane of light flaring round them and the eyes igniting above. The maw is
+       always centred on the struck portrait (owner review: "the final beast chomp isnt centered on the hero
+       correctly"; the first push slid it toward the middle of the screen, now removed). A jaw on a side with little
+       room simply waits closer, just inside that screen edge. The jaws creep in, breathing, while a deep growl and the rumble build
        and the struck hero trembles harder.
     2. **Slam** (the impact). The jaws slam shut over the whole portrait: a white flash, a shockwave, a thick amber ring,
        a flash along the bite line, a storm of sparks, huge bite marks, dust thrown out all round.

@@ -154,7 +154,7 @@ interface Colossus {
   eyes: Sprite[]; mane: Sprite[];
   roared: boolean;
   /** Px of room above / below the target: an open jaw on a cramped side waits just off that edge. */
-  room: { up: number; down: number; shift: number };
+  room: { up: number; down: number };
 }
 
 export class HeroBeastScene {
@@ -249,6 +249,14 @@ export class HeroBeastScene {
     const ms = b.age - b.m.flightMs;
     return { gap: clampGap(ms, this.look.clampLead, b.hold), alpha: clampAlpha(ms, this.look.clampLead, b.hold) };
   }
+  /** Where a pair of jaws bites right now: the midpoint of its two fang rows (tests + capture). */
+  private static biteCentre(j: { ue: Sprite; le: Sprite } | null): { x: number; y: number } | null {
+    return j ? { x: (j.ue.x + j.le.x) / 2, y: (j.ue.y + j.le.y) / 2 } : null;
+  }
+  /** A beast's chomp centre right now (overlay px), or null. */
+  clampCentreOf(i: number): { x: number; y: number } | null { return HeroBeastScene.biteCentre(this.beasts.find((x) => x.idx === i)?.jaws ?? null); }
+  /** The colossal maw's bite centre right now (overlay px), or null. */
+  get colossusCentre(): { x: number; y: number } | null { return HeroBeastScene.biteCentre(this.colossus?.jaws ?? null); }
   /** The colossal jaws' gap right now (portrait radii), or null. */
   get colossusGap(): number | null {
     const c = this.colossus;
@@ -522,7 +530,7 @@ export class HeroBeastScene {
    * over a darkening backdrop; its eyes ignite; a mane of light flares round it. The jaws creep in (`riseMs`), SLAM
    * (`slamMs`), spring open on the roar (`roarAfter` ms after the rise starts) and dissolve (`releaseAfter`).
    */
-  startRise(x: number, y: number, radius: number, riseMs: number, slamMs: number, roarAfter: number, releaseAfter: number, room: { up: number; down: number; shift?: number } = { up: Infinity, down: Infinity }): void {
+  startRise(x: number, y: number, radius: number, riseMs: number, slamMs: number, roarAfter: number, releaseAfter: number, room: { up: number; down: number } = { up: Infinity, down: Infinity }): void {
     if (this.colossus) return;
     const c = this.colors;
     const jaws = this.jaws();
@@ -549,7 +557,7 @@ export class HeroBeastScene {
     this.colossus = {
       x, y, r: radius, age: 0, riseMs: Math.max(1, riseMs), slamMs: Math.max(1, slamMs), roarAt: Math.max(riseMs + slamMs, roarAfter),
       releaseAt: Math.max(roarAfter, releaseAfter), jaws, back, bloom, eyes, mane, roared: false,
-      room: { up: room.up, down: room.down, shift: Number.isFinite(room.shift) ? room.shift! : 0 },
+      room: { up: room.up, down: room.down },
     };
     this.dust(x, y + radius * 1.2, 1.4, { vy: -20, a0: 0.3, dur: 900 });
   }
@@ -825,8 +833,10 @@ export class HeroBeastScene {
     const cr = Math.cos(tilt), sr = Math.sin(tilt);
     const worry = since > 0 ? Math.sin(since * 0.09) * Math.exp(-since / 220) * 2.2 * this.scale * grind : 0;
     const d = gap * rc, dl = gapLow * rc;
-    const ux = x + (worry) * cr - (-d) * sr, uy = y + (worry) * sr + (-d) * cr;
-    const lx = x + (INTERLOCK_PX * k - worry) * cr - dl * sr, ly = y + (INTERLOCK_PX * k - worry) * sr + dl * cr;
+    // The two rows sit half the interlock either side of the centre, so the bite is centred exactly on (x, y).
+    const half = INTERLOCK_PX * k * 0.5;
+    const ux = x + (worry - half) * cr - (-d) * sr, uy = y + (worry - half) * sr + (-d) * cr;
+    const lx = x + (half - worry) * cr - dl * sr, ly = y + (half - worry) * sr + dl * cr;
     for (const s of [j.ug, j.ub, j.ue]) { s.position.set(ux, uy); s.rotation = tilt; s.scale.set(k, k); }
     for (const s of [j.lg, j.lb, j.le]) { s.position.set(lx, ly); s.rotation = tilt; s.scale.set(k, -k); }
     const glow = alpha * 0.3 * this.look.glow;
@@ -846,9 +856,9 @@ export class HeroBeastScene {
     const alpha = fadeIn * (1 - gone);
     const R = cz.r;
     const size = this.look.colossalSize;
-    // The maw is centred a little toward the middle of the screen (the target stays inside it); the jaws still close on
-    // the target's line.
-    const x = cz.x + cz.room.shift + this.fox, y = cz.y + this.foy;
+    // The maw closes CENTRED on the struck portrait, always (owner 2026-09-29); a cramped side only changes how far out
+    // that jaw waits (`fit` below), never where the bite lands.
+    const x = cz.x + this.fox, y = cz.y + this.foy;
     const rcz = (COLOSSAL_SPAN / CLAMP_SPAN) * R * size;
     const gap = colossalGap(t, cz.riseMs, cz.slamMs, cz.roarAt, cz.releaseAt);
     // Breathing: a slow swell while it looms; grown a touch as it dissolves.

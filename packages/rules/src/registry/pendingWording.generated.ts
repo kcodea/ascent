@@ -11,17 +11,17 @@ import type { GameRule } from '../schema';
 export const WORDING_PENDING: GameRule[] = [
   {
     "id": "q-word-lg-duration-01",
-    "title": "Wording: run vs game · 8 vs 17",
+    "title": "Wording: run vs game · 8 vs 15",
     "statement": "Run-long effects say \"this run\" / \"for the rest of the run\" — never \"game\". — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "text",
     "status": "needs-ruling",
-    "currentBehaviour": "Both spellings are live: \"this run\" in 8 printed texts, \"this game\" in 17. Approving picks \"this run\"; the LG-DURATION-01 guide predicate then watches new text.",
+    "currentBehaviour": "Both spellings are live: \"this run\" in 8 printed texts, \"this game\" in 15. Approving picks \"this run\"; the LG-DURATION-01 guide predicate then watches new text.",
     "cardText": "\"this run\" — Bane: \"After you trigger a Shout, give your Imps +3/+3 this run.\" · \"this game\" — Vaultkeeper: \"Gain +2/+2 whenever you play a Dragon. Improves +2/+2 for every 4 spells cast this game.\"",
     "example": "Vaultkeeper would be re-worded to the \"this run\" form; mechanics untouched.",
     "evidence": [
       {
         "kind": "docbot-scan",
-        "ref": "textParse.wording · LG-DURATION-01 (corpus survey: 8 vs 17)"
+        "ref": "textParse.wording · LG-DURATION-01 (corpus survey: 8 vs 15)"
       }
     ],
     "sourceQueue": "textParse.wording",
@@ -36,7 +36,6 @@ export const WORDING_PENDING: GameRule[] = [
       "dm_shepherd",
       "dm_todd",
       "gift_premium_stock",
-      "grim",
       "impoverseer",
       "knit",
       "rune_first_light",

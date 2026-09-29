@@ -157,7 +157,6 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'factory:deathrattleBuffImps:onDeath': { policy: 'ownBeat', family: 'echo' },
   'factory:deathrattleBuffRightmostSlot:onDeath': { policy: 'ownBeat', family: 'echo' },
   'factory:deathrattleBuffTribe:onDeath': { policy: 'ownBeat', family: 'echo' },
-  'factory:deathrattleBuffTribeByTally:onDeath': { policy: 'ownBeat', family: 'echo' }, // Grim, per-game Echo tally (2026-09-24)
   'factory:deathrattleCastLastSpell:onDeath': { policy: 'ownBeat', family: 'echo' },
   'factory:deathrattleCastTribeAttack:onDeath': { policy: 'ownBeat', family: 'echo' },
   'factory:deathrattleDamageAll:onDeath': { policy: 'ownBeat', family: 'echo' },

@@ -51,6 +51,16 @@ const PARKED_PIN: RuleEnforcement = {
 
 export const RETIRED_RULES: RetiredRule[] = [
   {
+    id: 'R-ECHOTALLY-01',
+    why:
+      'Superseded by the owner rulings of 2026-09-28 (R-AURA-03): Grim is now a flat "Echo: Give all your Beasts +8/+8." '
+      + '(gilded +16/+16), so it no longer counts the per-game Echo tally and prints no tally total. The legacy '
+      + '`deathrattleBuffTribeByTally` factory stays registered so a recorded game that references it still resolves. '
+      + 'Owner: "let\'s just make the effect say: "Echo: Give all your Beasts +8/+8.""',
+    retiredAt: '2026-09-28',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/beastCombatOnly0928.test.ts'], lastVerifiedAt: '2026-09-28' },
+  },
+  {
     id: 'q-combatinert-b2_echohorn',
     why:
       "Resolved in the owner's favor by the 2026-08-26 instrument audit: the 'Echohorn combat-inert' finding was a Doc Bot blind spot (the scan's echo fixture was dead before Rally), not a card bug. Echohorn triggers the left-most Echo on attack, exactly as printed. The owner's revise note on this id predates the audit and stands as confirmation.",

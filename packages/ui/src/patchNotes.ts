@@ -54,6 +54,21 @@ export const PATCH_NOTES: PatchNote[] = [
     date: '2026-09-28',
     changes: [
       {
+        category: 'Balance',
+        text: 'There is no Beast Aura any more. Beast cards now simply give all your Beasts stats, in the Shop and in combat.',
+        details: [
+          'In the Shop, every Beast on your board gets the stats and keeps them.',
+          'In combat, every Beast in the fight gets them, including Beasts summoned later that fight. They wear off after the fight. An Engraved Beast still keeps them.',
+          'Kennelmaster: "Start of Combat: Give all your Beasts +1 Attack. Avenge (4): Improve this." The improvement still lasts.',
+          'Grim: "Echo: Give all your Beasts +8/+8." It no longer counts your Echoes. A Grim destroyed or triggered in the Shop buffs your board.',
+          'Armadiyo: "Taunt. Echo: Give all your Beasts +2/+4."',
+          'Trophy Stalker: "Rally: Give all your Beasts +5/+5." It still improves each time it attacks.',
+          'Rune of Beastial Swarm: "When a friendly Beast dies, give all your Beasts +2/+2. Avenge (2): Improve this." It works in the Shop too.',
+          'Pack Mentality: at Start of Combat, give all your Beasts its bonus. It still improves as you summon Beasts in combat.',
+          'The Old Hunt: whenever a Beast attacks, give all your Beasts +3/+3.',
+        ],
+      },
+      {
         category: 'Systems',
         text: 'Titles now show on the Leaderboard and the Hall of Champions, in their rarity colours.',
         details: [

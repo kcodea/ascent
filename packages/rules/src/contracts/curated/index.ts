@@ -166,7 +166,7 @@ export const CURATED_CONTRACTS: readonly ContentContract[] = [
     triggers: [{ event: 'avenge', phase: 'combat', phaseBasis: 'authored', threshold: 4 }, { event: 'startOfCombat', phase: 'combat', phaseBasis: 'authored' }],
     effects: [
       { kind: 'improve-own-aura', note: 'permanent per-instance accrual (summonBonus channel)' },
-      { kind: 'stat-buff', note: 'Start of Combat: +1 Attack (gilded +2) to the Beast Aura (scBeastAura)' },
+      { kind: 'stat-buff', note: 'Start of Combat: all Beasts +1 Attack (gilded +2) THIS COMBAT, later summons included, no carry-back (scBeastAura, R-AURA-03)' },
     ],
     persistence: ['permanent'],
     copySubject: {

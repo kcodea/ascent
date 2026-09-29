@@ -11859,7 +11859,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       "extractor": "contracts-extract@1",
       "confidence": "medium",
       "unparsed": [
-        "deathrattleBuffTribeByTally.tribe"
+        "deathrattleBuffTribe.tribe"
       ]
     },
     "setIds": [
@@ -11882,12 +11882,12 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "effects": [
       {
-        "kind": "deathrattleBuffTribeByTally",
+        "kind": "deathrattleBuffTribe",
         "amount": {
           "kind": "const",
           "plain": {
-            "attack": 3,
-            "health": 2
+            "attack": 8,
+            "health": 8
           }
         }
       }

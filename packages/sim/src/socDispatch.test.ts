@@ -254,9 +254,11 @@ describe('shop-phase permanence — the run board keeps what the replay granted'
   it('Pack-Leader-class accruals advance exactly once per fire (kennel’s summonBonus is a run channel)', () => {
     const s = run([bc('k', 'kennel'), bc('z', 'stray')], { runeCombatProwess: true });
     applyEndOfTurn(s);
-    // scBeastAura does not tick summonBonus (that is Avenge's job) — but the buff it granted stays.
+    // scBeastAura does not tick summonBonus (that is Avenge's job) — but the buff it granted stays (R-AURA-03: an
+    // End-of-Turn replay is a normal permanent Shop buff on the warband Beasts).
     const k = s.board.find((c) => c.uid === 'k')!;
-    expect(k.buffs?.some((b) => b.source === CARD_INDEX['kennel']!.name), 'the aura grant is a permanent shop buff').toBe(true);
+    expect(k.buffs?.some((b) => b.source === CARD_INDEX['kennel']!.name), 'the grant is a permanent shop buff').toBe(true);
+    expect(k.summonBonus ?? 0, 'no accrual').toBe(0);
   });
 
   it('the reducer path commits the gains — they survive the action boundary', () => {

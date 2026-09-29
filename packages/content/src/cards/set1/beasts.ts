@@ -48,14 +48,13 @@ export const BEASTS: CardDef[] = [
       { on: 'startOfCombat', do: 'scBeastAura', params: { tribe: 'beast', attack: 1, health: 0, stepAttack: 1, stepHealth: 0 } },
       { on: 'avenge', do: 'avengeImproveSummon', params: { count: 4 } }, // owner 2026-08-12: Avenge 3 → 4
     ],
-    // Start of Combat: a board-wide (`tribe: 'any'`) Attack aura that lasts the fight — current minions + any
-    // summoned later inherit it (the "wherever they are" aura). N = 2 + its Avenge-grown summonBonus (carried
-    // across combats), Attack only: `stepHealth: 0` keeps the accrual off Health. The live value + Avenge
-    // countdown surface via cardText's summonBuffText helper on every surface.
-    // Printed base follows the params (owner report 2026-07-31: it GAVE +2 but SAID +1 — the 2026-07-25
-    // rebalance moved the params and left the text behind).
-    text: '**Start of Combat:** give your **Beast Aura** **+1 Attack**. **Avenge (4):** Improve this.',
-    goldenText: '**Start of Combat:** give your **Beast Aura** **+2 Attack**. **Avenge (4):** Improve this (twice as much).',
+    // Start of Combat: give all your Beasts +N Attack (owner rulings 2026-09-28, R-AURA-03 — no run-wide Beast Aura):
+    // in combat the living Beasts now + any Beast summoned later that fight, nothing carried back (Engrave
+    // excepted); an End-of-Turn replay (Combat Prowess) buffs the warband Beasts permanently, like any Shop buff. N = 1 + its Avenge-grown summonBonus, which IS permanent per instance
+    // (the established "Improve this" convention: it rides summonBonus and carries across combats). Attack only:
+    // `stepHealth: 0`. The live value surfaces via cardText's summonBuffText helper on every surface.
+    text: '**Start of Combat:** Give all your Beasts **+1 Attack**. **Avenge (4):** Improve this.',
+    goldenText: '**Start of Combat:** Give all your Beasts **+2 Attack**. **Avenge (4):** Improve this (twice as much).',
   },
   {
     id: 'gnash',
@@ -89,8 +88,8 @@ export const BEASTS: CardDef[] = [
     goldenText: 'Sells for **6g**, plus **2g** for every Beast you play.',
   },
   {
-    // Quest reward (Trophy Den): a Rally snowball — each of its attacks gives your Beasts a GROWING +N/+N aura
-    // (wherever they are), improving +1/+1 every time it attacks (the grown value rides in summonBonus, so it
+    // Quest reward (Trophy Den): a Rally snowball — each of its attacks gives all your Beasts a GROWING +N/+N
+    // (R-AURA-03: combat-only in a fight, a permanent Shop buff from a Shop Rally), improving +5/+5 every time it attacks (the grown value rides in summonBonus, so it
     // keeps climbing across combats). `token: true` = reward-exclusive. Live grant via cardText's summonBuffText.
     id: 'trophystalker',
     name: 'Trophy Stalker',
@@ -101,17 +100,14 @@ export const BEASTS: CardDef[] = [
     keywords: ['RL'],
     token: true,
     effects: [{ on: 'onAttack', do: 'rallyTribeAuraGrowing', params: { tribe: 'beast', attack: 5, health: 5, step: 5 } }],
-    text: '**Rally:** give your **Beast Aura** **+5/+5**. Improve this by **+5/+5** whenever Trophy Stalker attacks.',
+    text: '**Rally:** Give all your Beasts **+5/+5**. Improve this by **+5/+5** whenever Trophy Stalker attacks.',
   },
   {
-    // A glass-cannon finisher: a 7/1 that pays off enormously when it dies. Owner rework 2026-08-12: from the
-    // per-Deathrattle tally to a flat +8/+8 Beast buff (gild +16/+16), and pulled into the Set-2 pool too
-    // (see SET1_BEASTS_IN_SET2). `deathrattleBuffTribe` buffs the living Beasts and registers a rest-of-combat
-    // aura, so bodies summoned later this fight inherit it — "wherever they are".
-    // Owner batch 2026-09-24: back to a PER-GAME Echo tally, T6 -> T5, stats kept. "+3/+2 for every Echo
-    // triggered this game", and Grim's OWN Echo counts (owner ruling): the run-wide `deathrattlesTriggered`
-    // tally is bumped BEFORE the rattle fires in both phases, so the N it reads already includes itself.
-    // Combat adds this fight's Echoes on top (`deathrattleTally`), so it grows across fights and mid-fight.
+    // A glass-cannon finisher: a 7/1 that pays off when it dies. OWNER RULINGS 2026-09-28 (R-AURA-03): "Echo: Give
+    // all your Beasts +8/+8." — a flat grant (golden +16/+16), replacing the 2026-09-24 per-game Echo tally and
+    // superseding PR #1809's flat "Beast Aura" version. `deathrattleBuffTribe` → `buffAllOfTribe`: in combat it buffs
+    // the living Beasts and registers a rest-of-combat aura (later summons that fight inherit it), nothing carried
+    // back (Engrave excepted); a Shop-fired Echo buffs every warband Beast permanently. Also in the Set-2 pool (SET1_BEASTS_IN_SET2).
     id: 'grim',
     name: 'Grim',
     tribe: 'beast',
@@ -119,15 +115,9 @@ export const BEASTS: CardDef[] = [
     attack: 7,
     health: 1,
     keywords: [],
-    effects: [{ on: 'onDeath', do: 'deathrattleBuffTribeByTally', params: { tribe: 'beast', attack: 3, health: 2 } }],
-    // LIVE TOTAL IN PLACE (owner ruling 2026-09-25, replacing the 2026-09-24 static-text exception): "fix grim so
-    // that it updates in real time with the current value of the echo." Wording (owner correction, same day): "Echo:
-    // Give your Beast Aura +X/+Y. Improves by +3/+2 for every Echo triggered this game." Every live surface (shop,
-    // board, hand, Discover, end screen, combat) prints +X/+Y = (Echoes so far + 1 for its own) x (+3/+2) via
-    // `echoTallyText` in packages/ui/src/cardText.ts (see R-ECHOTALLY-01). The printed text below carries the BASE
-    // value (0 Echoes so far, its own counted): what a context-free surface (the Compendium, Doc Bot) reads.
-    text: '**Echo:** Give your **Beast Aura** **+3/+2**. Improves by **+3/+2** for every **Echo** triggered this game.',
-    goldenText: '**Echo:** Give your **Beast Aura** **+6/+4**. Improves by **+6/+4** for every **Echo** triggered this game.',
+    effects: [{ on: 'onDeath', do: 'deathrattleBuffTribe', params: { tribe: 'beast', attack: 8, health: 8 } }],
+    text: '**Echo:** Give all your Beasts **+8/+8**.',
+    goldenText: '**Echo:** Give all your Beasts **+16/+16**.',
   },
   {
     id: 'shaper',

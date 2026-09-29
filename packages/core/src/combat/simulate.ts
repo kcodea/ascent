@@ -160,7 +160,7 @@ export function simulate(
   // stream is untouched and the pick is still a pure function of the seed.
   const zero = (): { attack: number; health: number } => ({ attack: 0, health: 0 });
   const perSide = <T,>(mk: () => T): Record<Side, T> => ({ player: mk(), enemy: mk() });
-  const beastBuyAtkGain: Record<Side, number> = { player: 0, enemy: 0 }; // The Old Hunt: run-wide Beast Attack aura gained this combat → carried back
+  const beastBuyAtkGain: Record<Side, number> = { player: 0, enemy: 0 }; // Pack Mentality: its LEVEL grown this combat → carried back (R-AURA-03)
   // GORUN (Blade Mastery): attacks made THIS fight, per side. The run-lifetime total rides in on
   // `mods.bladeMastery.attacks`; adding this to it is what lets the grant step up mid-combat as the running
   // total crosses each multiple of 8. Its own counter rather than `questTally.attack`, which is player-only —
@@ -176,9 +176,11 @@ export function simulate(
     player: { attack: hoardLevel.player.attack, health: hoardLevel.player.health },
     enemy: { attack: hoardLevel.enemy.attack, health: hoardLevel.enemy.health },
   };
-  // Pack Mentality: player-side LIVE growth of the Beast aura (every `per` Beasts summoned this fight grow it by
-  // step, applied at once to living Beasts). `beastScaleProgress` counts toward the next step; the Health gain is
-  // its own carry-back (The Old Hunt is Attack-only, so `beastBuyHpGain` is new).
+  // Pack Mentality: player-side LIVE growth of its combat Beast buff (every `per` Beasts summoned this fight grow
+  // it by step, applied at once to living Beasts and to later Beast summons). `beastScaleProgress` counts toward
+  // the next step. Since 2026-09-28 (R-AURA-03) the buff itself is combat-only: `beastBuyAtkGain`/`beastBuyHpGain`
+  // now carry back ONLY the grown LEVEL (the "Improve this"), which the reducer folds into the quest's level —
+  // never into run-wide Beast stats. The Old Hunt and Beastial Swarm no longer feed them.
   // KNOWN ASYMMETRY (kept): the live growth is player-only — an enemy Pack Mentality neither grows nor ticks,
   // so its carry-back is absent rather than estimated.
   const beastScale = playerState.questMods.beastSummonScale;
@@ -1176,7 +1178,8 @@ export function simulate(
       // real gain is worth a wave; a 0/0 aura (shouldn't happen) draws nothing.
       // Carry the amounts + the Buffs-panel row this feeds ('undead' Lantern, 'beast' Old Hunt, 'attachment'
       // Scrap Herald) so the UI both washes the board AND ticks that row live. `neutral`/`any` still washes.
-      const auraKey = tribe === 'undead' ? 'undead' : tribe === 'beast' ? 'beast' : tribe === 'mech' ? 'attachment' : undefined;
+      // No 'beast' row: Beast buffs are combat-only (R-AURA-03), never a run-wide Aura — the wash still blooms.
+      const auraKey = tribe === 'undead' ? 'undead' : tribe === 'mech' ? 'attachment' : undefined;
       if (attack !== 0 || health !== 0) emit({ type: 'tribeAura', side, tribe, attack, health, aura: auraKey });
     },
     damage: (target, amount, poison = false, bypassShield = false, source) =>
@@ -3114,14 +3117,12 @@ export function simulate(
       deadBeasts[minion.side].push({ uid: minion.uid, cardId: minion.cardId, golden: minion.golden, attack: minion.attack, maxHealth: minion.maxHealth ?? minion.health });
     }
     const dyingIsBeast = minion.tribe === 'beast' || minion.tribe2 === 'beast' || (!!minion.universalTribe || !!cards[minion.cardId]?.universalTribe);
-    // RUNE OF BEASTIAL SWARM: a friendly Beast dying pumps your living Beasts by the current per-death amount
-    // (starts 2, raised by the Avenge(2) improvement below). A combat stat-gain; only the LEVEL persists.
-    //
-    // OWNER REWORK 2026-09-23: the death grows the side's BEAST AURA by +N/+N — the run-wide `beastBuyAtk` /
-    // `beastBuyHp` channel The Old Hunt pumps — permanently: both aura halves rise for the rest of the fight
-    // (later Beast summons inherit the grown value) and the player's gain carries back at settle through the
-    // same `beastBuyAtkGain` / `beastBuyHpGain` channel. Living Beasts gain it on the spot, exactly as the Old
-    // Hunt does on an attack. Once per copy held (boolean-flag family, owner 2026-08-27).
+    // RUNE OF BEASTIAL SWARM: "When a friendly Beast dies, give all your Beasts +N/+N. Avenge (2): Improve this."
+    // (owner rulings 2026-09-28, R-AURA-03 — in combat a Beast grant lasts the fight; the Shop half lives in
+    // recruit.ts `fireOnFriendDeath`). Living Beasts gain it on the spot
+    // and later Beast summons this fight inherit it (the side's combat Beast pool, `beastAtkAuraFor`), but NOTHING
+    // carries back — the 2026-09-23 run-wide Beast Aura carry is gone. Only the per-death LEVEL persists (Avenge
+    // improvement, `beastialSwarmLevel`). Once per copy held (boolean-flag family, owner 2026-08-27).
     if (dyingIsBeast && modsFor(minion.side).runeBeastialSwarm) {
       const n = beastialLevel[minion.side];
       if (n > 0) {
@@ -3130,7 +3131,6 @@ export function simulate(
         const bs = n * flagCopiesOf(side, 'runeBeastialSwarm');
         beastAtkAuraFor[side] += bs;
         beastHpAuraFor[side] += bs;
-        beastBuyAtkGain[side] += bs; beastBuyHpGain[side] += bs;
         for (const m of living(side)) if (m.tribe === 'beast' || m.tribe2 === 'beast' || (!!m.universalTribe || !!cards[m.cardId]?.universalTribe)) ctx.buff(m, bs, bs, 'Rune of Beastial Swarm');
       }
     }
@@ -3754,11 +3754,10 @@ export function simulate(
       }
       const oldHuntStep = modsFor(attacker.side).oldHuntStep ?? 0;
       if (oldHuntStep > 0 && isBeast(attacker)) {
-        // Reworked 2026-07-21: the grant is now SYMMETRIC (+N/+N, was Attack-only), so it pumps both aura
-        // channels and carries both halves back for the player.
+        // "Whenever a Beast attacks, give all your Beasts +N/+N" (owner rulings 2026-09-28, R-AURA-03), in combat:
+        // the living Beasts gain it and later Beast summons this fight inherit it — nothing carries back.
         beastAtkAuraFor[attacker.side] += oldHuntStep;
         beastHpAuraFor[attacker.side] += oldHuntStep;
-        beastBuyAtkGain[attacker.side] += oldHuntStep; beastBuyHpGain[attacker.side] += oldHuntStep;
         for (const m of boards[attacker.side]) if (!m.dead && m.health > 0 && isBeast(m)) ctx.buff(m, oldHuntStep, oldHuntStep, 'The Old Hunt');
       }
       // Empty Graves: the Start-of-Combat-marked body triggers your LEFT-MOST living Echo each time it attacks.
@@ -4272,6 +4271,23 @@ export function simulate(
         if (m.tribe !== 'dragon' && m.tribe2 !== 'dragon' && !m.universalTribe) continue;
         if (!stepped) { nextStep(); stepped = true; fireTrigger('umbralEnergy', scSide); } // its own beat + badge pulse
         ctx.buff(m, amt, amt, m.uid);
+      }
+    }
+    // PACK MENTALITY (owner rulings 2026-09-28, R-AURA-03): "Start of Combat: give all your Beasts +A/+H."
+    // The quest's current level rides in on `beastSummonScale.attack/health`; it buffs the living Beasts now and
+    // joins the side's combat Beast pool so later Beast summons this fight inherit it. Combat-only — no carry-back.
+    // (A pre-2026-09-28 run baked its level into `beastBuyAtk` instead and carries no level here, so it never
+    // double-dips.) Per side: a served snapshot applies its own frozen level.
+    const pack = smods.beastSummonScale;
+    if (pack && ((pack.attack ?? 0) > 0 || (pack.health ?? 0) > 0)) {
+      const pa = pack.attack ?? 0, ph = pack.health ?? 0;
+      beastAtkAuraFor[scSide] += pa;
+      beastHpAuraFor[scSide] += ph;
+      let stepped = false;
+      for (const m of boards[scSide]) {
+        if (m.dead || m.health <= 0 || !isBeast(m)) continue;
+        if (!stepped) { nextStep(); stepped = true; }
+        ctx.buff(m, pa, ph, 'Pack Mentality');
       }
     }
     // Contract Rewrite: the rightmost living Demon gains a Deathrattle — summon 2 Imps with Ward. Gets its own

@@ -50,8 +50,13 @@ describe('Mimic — Mimicry', () => {
     expect(powerDiscoverPool('void'), 'the owner only asked to remove it from Mimic + Shifter').toContain('brackus');
   });
 
+  it('Kindness is out of the Mimic + Power Shifter pool but still reachable by Void (owner 2026-09-29)', () => {
+    expect(powerDiscoverPool('mimic')).not.toContain('kindness');
+    expect(powerDiscoverPool('void'), 'the owner only asked to remove it from Mimic').toContain('kindness');
+  });
+
   it("never offers the owner's excluded heroes, itself, Void, or a retired power", () => {
-    const banned = new Set(['rohan', 'drakko', 'discodan', 'cassen', 'fi', 'runesmith', 'runeguard', 'coran', 'repete', 'vale', 'quillen', 'bram', 'keshi', 'brackus', 'mimic', 'voidhero', 'aster']);
+    const banned = new Set(['rohan', 'drakko', 'discodan', 'cassen', 'fi', 'runesmith', 'runeguard', 'coran', 'repete', 'vale', 'quillen', 'bram', 'keshi', 'brackus', 'kindness', 'mimic', 'voidhero', 'aster']);
     for (const id of powerDiscoverPool('mimic')) expect(banned.has(id), `${id} must not be offerable`).toBe(false);
     for (let seed = 1; seed <= 60; seed++) {
       for (const id of createRun(seed, 'mimic').powerOffer?.heroIds ?? []) {

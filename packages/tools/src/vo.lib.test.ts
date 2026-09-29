@@ -108,13 +108,15 @@ describe('vo card clips bind to the By-card view', () => {
     const empty = { version: 1, kinds: {}, cards: { manasaber: { minionPlayed: { def: 'sfx-voidpanther' } } } };
     const added = bindCardSlot(empty, slot);
     expect(added.status).toBe('added');
-    expect(added.bindings.cards.dw_orin).toEqual({ minionPlayed: { def: 'sfx-vo-dw-orin', gain: 0.5 } }); // card voicelines at 50%
+    expect(added.bindings.cards.dw_orin).toEqual({ minionPlayed: { def: 'sfx-vo-dw-orin', gain: 0.3 } }); // card voicelines at 30%
     expect(added.bindings.cards.manasaber).toEqual(empty.cards.manasaber);
     expect(bindCardSlot(added.bindings, slot).status).toBe('same');
     const taken = bindCardSlot({ cards: { dw_orin: { minionPlayed: { def: 'sfx-hand-picked' } } } }, slot);
     expect(taken).toMatchObject({ status: 'taken', existing: 'sfx-hand-picked' });
     // The death slot is independent of On Play.
-    expect(bindCardSlot(taken.bindings, cardSlot('dw_orin.death')).status).toBe('added');
+    const death = bindCardSlot(taken.bindings, cardSlot('dw_orin.death'));
+    expect(death.status).toBe('added');
+    expect(death.bindings.cards.dw_orin!.death).toEqual({ def: 'sfx-vo-dw-orin-death', gain: 0.1 }); // death sounds at 10%
   });
 
   it('a card clip id must name a slot', () => {

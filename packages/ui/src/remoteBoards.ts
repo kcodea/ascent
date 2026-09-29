@@ -151,12 +151,13 @@ export const supabaseAuthProvider: AuthProvider = {
         if (!upd.error) return { ok: true };
         // ONLY when the email already belongs to another account do we switch tactics: this is a RETURNING
         // player on a fresh device, so sign into that existing account. The throwaway anonymous user on this
-        // device is abandoned; its local-only data was never uploaded, so nothing the player expects is lost.
+        // device is abandoned. Since account progression (2026-09-27) a guest can hold SERVER data too (XP, crates),
+        // which stays on the guest, so `existing` tells the account panel to say so before the code is entered.
         // Any OTHER updateUser error (config, network, invalid email) is surfaced as-is — falling through
         // blindly used to mislabel a "signups disabled" config as an OTP problem.
         if (!emailAlreadyRegistered(upd.error.message)) return { ok: false, error: friendlyAuthError(upd.error.message) };
         const otp = await c.auth.signInWithOtp({ email: trimmed, options: { shouldCreateUser: false, emailRedirectTo } });
-        return otp.error ? { ok: false, error: friendlyAuthError(otp.error.message) } : { ok: true };
+        return otp.error ? { ok: false, error: friendlyAuthError(otp.error.message) } : { ok: true, existing: true };
       }
       // Already a real account (re-auth, or switching accounts on this device).
       const otp = await c.auth.signInWithOtp({ email: trimmed, options: { emailRedirectTo } });

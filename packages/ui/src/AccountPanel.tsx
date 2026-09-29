@@ -33,6 +33,9 @@ export function AccountPanel() {
   // the identity onChange subscription, so this component just re-renders into the signed-in branch.
   const [status, setStatus] = useState<'idle' | 'sending' | 'sent' | 'verifying'>('idle');
   const [error, setError] = useState<string | null>(null);
+  // The email already belonged to ANOTHER account: the code signs into that one, and this guest's progress (XP,
+  // crates, collection) stays behind on the guest. Said plainly before the code is typed (owner-flagged 2026-09-29).
+  const [existing, setExisting] = useState(false);
 
   if (!open || (!onTitle && !runEnded)) return null;
 
@@ -43,7 +46,7 @@ export function AccountPanel() {
     setError(null);
     setStatus('sending');
     const res = await sendMagicLink(email);
-    if (res.ok) { setStatus('sent'); setCode(''); }
+    if (res.ok) { setStatus('sent'); setCode(''); setExisting(!!res.existing && account.anonymous); }
     else { setStatus('idle'); setError(res.error ?? 'Something went wrong. Try again.'); }
   };
 
@@ -79,10 +82,23 @@ export function AccountPanel() {
         ) : status === 'sent' || status === 'verifying' ? (
           <div className="acctpanel-body">
             <p className="acctpanel-lead">Enter your code.</p>
-            <p className="acctpanel-note">
-              We emailed a code to <b>{email}</b>. Type it below to finish. Your current progress upgrades to
-              that account, and nothing is lost. On the web you can click the link in the email instead.
-            </p>
+            {existing ? (
+              <>
+                <p className="acctpanel-note">
+                  We emailed a code to <b>{email}</b>. Type it below to finish. On the web you can click the link in
+                  the email instead.
+                </p>
+                <p className="acctpanel-warn" role="note">
+                  This email already has an account. Signing in switches to it. Crates and progress earned as a guest
+                  stay on this guest.
+                </p>
+              </>
+            ) : (
+              <p className="acctpanel-note">
+                We emailed a code to <b>{email}</b>. Type it below to finish. Your current progress upgrades to
+                that account, and nothing is lost. On the web you can click the link in the email instead.
+              </p>
+            )}
             <input
               className="acctinput acctpanel-input acctpanel-code"
               type="text"
@@ -105,7 +121,7 @@ export function AccountPanel() {
             >
               {status === 'verifying' ? 'Verifying…' : 'Verify & sign in'}
             </button>
-            <button className="acctpanel-btn ghost pressable" onClick={() => { setStatus('idle'); setError(null); setCode(''); }}>
+            <button className="acctpanel-btn ghost pressable" onClick={() => { setStatus('idle'); setError(null); setCode(''); setExisting(false); }}>
               Use a different email
             </button>
           </div>

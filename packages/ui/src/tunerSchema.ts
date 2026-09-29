@@ -251,6 +251,8 @@ export interface TunerSpec<C extends object> {
   defaults?: C;
   /** Panel-specific buttons — "Test", "Fire", "Demo". */
   actions?: TunerAction[];
+  /** Put the button row (Copy, Reset and `actions`) at the TOP of the panel instead of the bottom (the hero attack tuners, owner 2026-09-29). */
+  buttonsOnTop?: boolean;
   /** Preview switches that pin an otherwise-transient state so it can be tuned. See `TunerToggle`. */
   toggles?: TunerToggle[];
   /**

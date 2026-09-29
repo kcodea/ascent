@@ -60,6 +60,18 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: 'A new Legendary hero attack, Grave Call, can drop from crates.',
+        details: [
+          'Your damage builds up, then your hero raises the dead in ghostly green.',
+          'A shrieking skull flies out of your hero and bites the other hero. Bigger hits send two.',
+          'Bigger still, skeletal hands claw up and drag the other hero down while a swarm of ghosts strikes it.',
+          'On the biggest hits a grave rift tears open, a giant skull rises out of it, screams, and chomps the other hero.',
+          'Equip it from the Attack Animations tab of the Collection. There is a preview button there too.',
+          'Hero attacks are looks only. The damage is exactly the same.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'Unit voices and creature sounds when you play a unit or it dies are now half as loud.',
       },
       {

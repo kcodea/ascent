@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "id": "sfx-vo-dm-curator-death",
+  "duration": 1000,
+  "layers": [
+    {
+      "primitive": "sound",
+      "anchor": "travel",
+      "at": 0,
+      "params": {
+        "clip": "fx/vo-dm-curator-death"
+      }
+    }
+  ]
+}

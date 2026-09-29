@@ -35,6 +35,106 @@
       "id": "o6aDCCdugIEPO7gUGjpb",
       "model": "eleven_multilingual_v2",
       "dest": "card"
+    },
+    "kobold-hoarder": {
+      "id": "Z7RrOqZFTyLpIlzCgfsp",
+      "model": "eleven_multilingual_v2",
+      "dest": "card"
+    },
+    "kobold-forewoman": {
+      "id": "YHcCpa6SBWnKDaCPZJQR",
+      "model": "eleven_multilingual_v2",
+      "dest": "card"
+    },
+    "kobold-sage": {
+      "id": "LvmvHEBEmMJBJw9UuhwO",
+      "model": "eleven_multilingual_v2",
+      "dest": "card"
+    },
+    "kobold-brute": {
+      "id": "3VkFsBHdRPqWKsitgYhJ",
+      "model": "eleven_multilingual_v2",
+      "dest": "card"
+    },
+    "kobold-firebrand": {
+      "id": "WtA85syCrJwasGeHGH2p",
+      "model": "eleven_multilingual_v2",
+      "dest": "card"
+    },
+    "mech-ancient": {
+      "id": "bAq8AI9QURijOtmeFFqT",
+      "model": "eleven_multilingual_v2",
+      "dest": "card"
+    },
+    "undead-lazarus": {
+      "id": "chQx45TGebwefgePtdqT",
+      "model": "eleven_multilingual_v2",
+      "dest": "card"
+    },
+    "demon-dealer": {
+      "id": "eWmswbut7I70CIuRsFwP",
+      "model": "eleven_multilingual_v2",
+      "dest": "card"
+    },
+    "demon-glutton": {
+      "id": "wXvR48IpOq9HACltTmt7",
+      "model": "eleven_multilingual_v2",
+      "dest": "card"
+    },
+    "demon-impboss": {
+      "id": "loY1uopAz31XyhAEhNSa",
+      "model": "eleven_multilingual_v2",
+      "dest": "card"
+    },
+    "demon-temptress": {
+      "id": "bv62BmVlrpG0pQegOpuN",
+      "model": "eleven_multilingual_v2",
+      "dest": "card"
+    },
+    "demon-lord": {
+      "id": "mMdTuD2nnFiCH88UdXSb",
+      "model": "eleven_multilingual_v2",
+      "dest": "card"
+    },
+    "dragon-sage": {
+      "id": "cPoqAvGWCPfCfyPMwe4z",
+      "model": "eleven_multilingual_v2",
+      "dest": "card"
+    },
+    "dragon-warcaller": {
+      "id": "W3C2vBPukr5b5jvoXhPK",
+      "model": "eleven_multilingual_v2",
+      "dest": "card"
+    },
+    "beast-handler": {
+      "id": "FNhoq0qHG3T8YOWzBtd6",
+      "model": "eleven_multilingual_v2",
+      "dest": "card"
+    },
+    "neutral-hustler": {
+      "id": "AFkIMdmeB0MMrr1tgGds",
+      "model": "eleven_multilingual_v2",
+      "dest": "card"
+    },
+    "neutral-brawler": {
+      "id": "2vubyVoGjNJ5HPga4SkV",
+      "model": "eleven_multilingual_v2",
+      "dest": "card"
+    },
+    "neutral-mystic": {
+      "id": "sssn4wp3AspuK2kvy3Ym",
+      "model": "eleven_multilingual_v2",
+      "dest": "card"
+    },
+    "neutral-schemer": {
+      "id": "fs2OqxduwXgp9foh2xjK",
+      "model": "eleven_multilingual_v2",
+      "dest": "card"
+    },
+    "neutral-herald": {
+      "id": "TxWZERZ5Hc6h9dGxVmXa",
+      "model": "eleven_multilingual_v2",
+      "dest": "card"
     }
   },
   "lines": [],

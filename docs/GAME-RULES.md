@@ -227,9 +227,9 @@ progression **epoch**; nothing finished before the epoch counts (no backfill).
   R-PROG-SKINS-05), so a new or retired cosmetic is a code change plus one deploy, never SQL. Shaped
   for every cosmetic category (announcer, hero skin, minion skin, title, hero attack, board, music). Switched on:
   **titles** (15 crate titles: 7 Common, 5 Rare, 2 Epic, 1 Legendary) and, since the skins shipped the same day,
-  **hero skins** and **minion skins** (all from crates) and **hero attacks** (Arcane Barrage, Tectonic Slam, Arcana, Phantom Blades, Enraged Strike, Venom Volley, then Frost Nova). The other
+  **hero skins** and **minion skins** (all from crates) and **hero attacks** (Arcane Barrage, Tectonic Slam, Arcana, Phantom Blades, Enraged Strike, Venom Volley, Frost Nova, then Consecration). The other
   categories are feature-flagged off until their art exists. Crate odds are rarity weight x category weight over what
-  remains: a fresh account's first crate is about 33% a skin or hero attack (the seven Legendary attacks together about 3.7%).
+  remains: a fresh account's first crate is about 33% a skin or hero attack (the eight Legendary attacks together about 4.3%).
 - **Skins (2026-09-28; oracle R-PROG-SKINS-01, R-PROG-SKINS-04).** A hero skin replaces one hero's portrait; a
   minion skin replaces one card's art, by stable id. Equipped per target from the Collection's Heroes / Minions
   tabs through the server (`equip_cosmetic`: owned, made for that hero or card, live); **"Use default art"** is
@@ -255,7 +255,7 @@ progression **epoch**; nothing finished before the epoch counts (no backfill).
   run loop's `damageCap` stamp); an older result shows what it knows (no breakdown: just the blow; no cap stamp: no cap
   beat). No hero attack ever freezes (R-PROG-ATTACK-10): no hit-stop on any impact, the slam or the cap slash; weight comes
   from the flash, squash and knockback, shake, particles and sound. Tuned in the dev hub's Damage Formation tuner; production plays the baked defaults.
-- **Hero attacks (2026-09-28; oracle R-PROG-ATTACK-01..13).** How your hero lands the post-combat blow. **Classic**
+- **Hero attacks (2026-09-28; oracle R-PROG-ATTACK-01..14).** How your hero lands the post-combat blow. **Classic**
   (the lunge) is everyone's default; **Blast** is the first cosmetic, `attack_blast` ("Arcane Barrage", Legendary,
   from crates; animation and tier thresholds owner-approved): after the damage formation, the hero charges, the view pushes in, and bolts (a single
   beam on the biggest hits) carry the blow, escalating by damage tier (I 1-5, II 6-11, III 12-19, IV 20+). **Quake** is the
@@ -288,7 +288,14 @@ progression **epoch**; nothing finished before the epoch counts (no backfill).
   struck hero, shattering into shards while frost creeps over its edge (I one; II two; III a volley of five, the blow
   landing once on the last; IV four icicles, then a frost nova rolls across the screen from the attacker to the target,
   encases the struck hero in ice and shatters it, the blow landing on the shatter). The ice holds still; the clock never
-  stops. All seven anchor on the round portrait art at rest
+  stops. **Consecration** is the eighth, `attack_holy` ("Consecration", a placeholder name; Legendary, from crates;
+  R-PROG-ATTACK-14): a gold and white holy attack. After the same damage formation the hero invokes (a halo, a sunburst, a
+  beam of light rising off it), then: I a golden rune sigil flashes onto the struck hero and a pillar of light drops onto
+  it; II a double smite; III a rain of six light spears plants glowing seeds round the struck hero, then the pillar drops
+  and the seeds erupt with it (the blow landing once, on the last smite); IV a huge holy sword drops fast from above the
+  screen into the middle of the board, slams in and explodes into light, the consecrated wake builds for a beat, then a
+  flat consecrated blast skims along the ground to the struck hero, tearing radiant cracks, and holy flames erupt under
+  it (the blow landing on the eruption). All eight anchor on the round portrait art at rest
   (R-PROG-ATTACK-04). Equipped
   account-wide in the Collection's Attack Animations tab ("Use Classic" takes it off). The STRIKER's attack plays:
   yours when you win, the opponent's (from their recorded snapshot) when they win. Recorded per run like skins;

@@ -82,6 +82,8 @@ import { playHeroPoison } from './heroPoison/heroPoison';
 import { heroPoisonPreviewSpeed } from './heroPoison/heroPoisonConfig';
 import { playHeroFrost } from './heroFrost/heroFrost';
 import { heroFrostPreviewSpeed } from './heroFrost/heroFrostConfig';
+import { playHeroHoly } from './heroHoly/heroHoly';
+import { heroHolyPreviewSpeed } from './heroHoly/heroHolyConfig';
 import { resolveHeroAttackStyle } from './heroBlast/heroAttackStyle';
 import { attackerCosmeticOf } from './heroBlast/attackerCosmetic';
 import { heroStrikeDamage, heroStrikeNumbers } from './heroBlast/heroStrikeDamage';
@@ -2903,12 +2905,15 @@ export function Recruit() {
     // aimed and loosed in straight thrusts that stick and shatter, and the top tier brings down a greatsword; Enraged Strike:
     // Classic's own lunge, enraged, with a double strike, a flurry of three and a Tier IV meteor slam; Poison Darts: darts
     // flicked in that stick and splash venom, and the top tier implodes them into a toxic burst; Frost: icicles
-    // crystallise and fire, and the top tier rolls a frost nova across the screen that encases and shatters). Same blow,
-    // same consequence, only drawn differently; the style is the ATTACKER's (their equipped cosmetic, or the dev
-    // override). Every runner takes the same options (`heroAttack/options.ts`).
+    // crystallise and fire, and the top tier rolls a frost nova across the screen that encases and shatters; Consecration:
+    // a pillar of light smites, and the top tier drops a holy sword that explodes into light and fires a flat consecrated
+    // blast at the target). Same blow, same consequence, only drawn differently; the style is the ATTACKER's (their
+    // equipped cosmetic, or the dev override). Every runner takes the same options (`heroAttack/options.ts`).
     const attackStyle = resolveHeroAttackStyle({ attacker: side, attackerCosmeticId: attackerCosmeticOf(run0, side, useGame.getState().showOpponentSkins) });
-    if (attackStyle === 'blast' || attackStyle === 'quake' || attackStyle === 'arcana' || attackStyle === 'blades' || attackStyle === 'enraged' || attackStyle === 'poison' || attackStyle === 'frost') {
-      const runner = attackStyle === 'frost'
+    if (attackStyle === 'blast' || attackStyle === 'quake' || attackStyle === 'arcana' || attackStyle === 'blades' || attackStyle === 'enraged' || attackStyle === 'poison' || attackStyle === 'frost' || attackStyle === 'holy') {
+      const runner = attackStyle === 'holy'
+        ? { play: playHeroHoly, preview: heroHolyPreviewSpeed() }
+        : attackStyle === 'frost'
         ? { play: playHeroFrost, preview: heroFrostPreviewSpeed() }
         : attackStyle === 'poison'
         ? { play: playHeroPoison, preview: heroPoisonPreviewSpeed() }

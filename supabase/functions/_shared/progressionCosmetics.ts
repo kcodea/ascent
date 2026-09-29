@@ -195,6 +195,13 @@ export const COSMETICS: readonly CosmeticDef[] = Object.freeze([
   // the screen, encases the target in ice and shatters it. The name is the builder's placeholder for the owner to
   // rename (the id stays). Legendary like the other six.
   heroAttack('attack_frost', 'Frost Nova', 'legendary', 'frost'),
+  // Owner 2026-09-28: "branch off and create a holy weapon + consecration attack. first tier is a holy aoe blast on the
+  // opponent, final blast a large holy sword slams into the middle of the board and a consecration erupts from it
+  // damaging the opponent. fill in the middle tiers". A golden sigil and a pillar of light smite the target; II a double
+  // smite, III a rain of light spears planting consecration seeds, IV a holy sword that drops, explodes into light and
+  // fires a flat consecrated blast at the target. The name is the builder's placeholder for the owner to rename (the id
+  // stays). Legendary like the other seven.
+  heroAttack('attack_holy', 'Consecration', 'legendary', 'holy'),
 ]);
 
 export const COSMETIC_INDEX: Readonly<Record<string, CosmeticDef>> = Object.freeze(

@@ -15,6 +15,8 @@ import { playHeroPoison } from '../heroPoison/heroPoison';
 import { heroPoisonPreviewSpeed } from '../heroPoison/heroPoisonConfig';
 import { playHeroFrost } from '../heroFrost/heroFrost';
 import { heroFrostPreviewSpeed } from '../heroFrost/heroFrostConfig';
+import { playHeroHoly } from '../heroHoly/heroHoly';
+import { heroHolyPreviewSpeed } from '../heroHoly/heroHolyConfig';
 import { playHeroBlast } from './heroBlast';
 import { heroBlastPreviewSpeed } from './heroBlastConfig';
 import './heroAttackPreview.css';
@@ -28,6 +30,7 @@ const RUNNERS: Record<string, { play: (o: HeroAttackOptions & { textures?: null 
   enraged: { play: (o) => playHeroEnraged(o), speed: heroEnragedPreviewSpeed },
   poison: { play: (o) => playHeroPoison(o), speed: heroPoisonPreviewSpeed },
   frost: { play: (o) => playHeroFrost(o), speed: heroFrostPreviewSpeed },
+  holy: { play: (o) => playHeroHoly(o), speed: heroHolyPreviewSpeed },
 };
 
 /**

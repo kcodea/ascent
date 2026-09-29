@@ -175,6 +175,17 @@ describe('gauntlet verdict', () => {
     expect(run.lobby!.seats[1]!.alive).toBe(true);
   });
 
+  it('a stage of huge bodies every round DEFEATS the player: knocked out before round 10 ends, the foe untouched', () => {
+    const s = stageOf(999, 999);
+    s.rounds = s.rounds.map((r) => ({ ...r, tier: 6, board: Array.from({ length: 7 }, () => ({ cardId: body.id, attack: 999, health: 999, cardVersion: cardRevision(body) })) }));
+    const run = playOut(createGauntletRun(3, 'aster', s));
+    expect(run.phase).toBe('gameover');
+    expect(gauntletOutcome(run)).toBe('defeated');
+    expect(run.lobby!.seats[0]!.alive).toBe(false);
+    expect(run.lobby!.seats[1]!.alive).toBe(true);
+    expect(run.lobby!.round).toBeLessThanOrEqual(10);
+  });
+
   it('a stage the player always beats is cleared after exactly 10 rounds, not earlier', () => {
     const run = playOut(createGauntletRun(3, 'aster', stageOf(1, 1)));
     expect(run.lobby!.round).toBe(11);

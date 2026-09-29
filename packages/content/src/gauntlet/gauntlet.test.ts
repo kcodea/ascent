@@ -56,4 +56,13 @@ describe('Gauntlet stage data', () => {
     const s = stage({ rounds: Array.from({ length: 10 }, (_, i) => ({ board: [minion(i === 4 ? { cardVersion: 'stale' } : {})] })) });
     expect(stageDrift(s)).toEqual([{ round: 5, index: 0, cardId: someCard.id }]);
   });
+
+  it('rejects an unknown keyword, an unknown tribe and a stray rune slot; accepts golden + a real keyword', () => {
+    const withMinion = (m: object, over: Partial<GauntletStage> = {}) =>
+      stage({ ...over, rounds: Array.from({ length: 10 }, () => ({ board: [minion(m)] })) });
+    expect(validateStage(withMinion({ addedKeywords: ['NOPE'] })).length).toBeGreaterThan(0);
+    expect(validateStage(stage({ tribe: 'gnome' } as unknown as Partial<GauntletStage>)).length).toBeGreaterThan(0);
+    expect(validateStage(stage({ runes: { round3: 'rune_adventuring' } } as unknown as Partial<GauntletStage>)).length).toBeGreaterThan(0);
+    expect(validateStage(withMinion({ golden: true, addedKeywords: ['T'] }, { tribe: 'demon' }))).toEqual([]);
+  });
 });

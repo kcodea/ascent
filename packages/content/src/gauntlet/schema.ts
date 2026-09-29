@@ -1,23 +1,33 @@
 import { z } from 'zod';
+import { TRIBES, type Keyword } from '@game/core';
 import { CARD_INDEX } from '../index';
 import { RUNE_INDEX } from '../runes';
 import { GAUNTLET_BOARD_MAX, GAUNTLET_ROUNDS, type GauntletStage } from './types';
+
+/** Every keyword code — complete BY CONSTRUCTION: the `Record<Keyword, true>` fails to compile if the union gains a
+ *  member this list lacks (core exports no runtime keyword list). */
+const KEYWORD_SET: Record<Keyword, true> = {
+  T: true, DS: true, V: true, W: true, R: true, C: true, M: true, SC: true, CN: true, FD: true,
+  IMM: true, ST: true, RL: true, SL: true, CR: true, EG: true, RB: true, RW: true,
+};
+const KEYWORDS = Object.keys(KEYWORD_SET) as [Keyword, ...Keyword[]];
+const STAGE_TRIBES = TRIBES.filter((t) => t !== 'neutral') as [string, ...string[]];
 
 const minionSchema = z.object({
   cardId: z.string().min(1),
   attack: z.number().int().min(0),
   health: z.number().int().min(1),
   golden: z.boolean().optional(),
-  addedKeywords: z.array(z.string()).optional(),
+  addedKeywords: z.array(z.enum(KEYWORDS)).optional(),
   cardVersion: z.string(),
 });
 const stageSchema = z.object({
   number: z.number().int().min(1).max(10),
   name: z.string().min(1),
   opponentName: z.string().min(1),
-  tribe: z.string().optional(),
+  tribe: z.enum(STAGE_TRIBES).optional(),
   status: z.enum(['draft', 'ready']),
-  runes: z.object({ round6: z.string().optional(), round9: z.string().optional() }),
+  runes: z.object({ round6: z.string().optional(), round9: z.string().optional() }).strict(),
   rounds: z.array(z.object({ tier: z.number().optional(), board: z.array(minionSchema) })),
 });
 

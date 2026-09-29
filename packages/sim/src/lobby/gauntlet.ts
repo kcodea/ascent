@@ -16,15 +16,15 @@ import type { LobbyRules } from './types';
 import { resetLobbyDrivers, type LobbySeatState, type RunLobby } from './runLobby';
 
 /** Loss caps by round (owner 2026-09-29): 1–3 → 5, 4–6 → 10, 7–8 → 15, 9–10 → uncapped. */
-export const GAUNTLET_LOSS_CAPS: (number | null)[] = [5, 5, 5, 10, 10, 10, 15, 15, null, null];
+export const GAUNTLET_LOSS_CAPS: readonly (number | null)[] = [5, 5, 5, 10, 10, 10, 15, 15, null, null];
 
 /** The opponent's tavern tier on a round the stage leaves blank — a steady tier-up pace (spec §2: "absent =
  *  normal tier-up pace"). Only a DEFAULT: the Stage Builder shows it, and any round can override it. */
-export const GAUNTLET_DEFAULT_TIERS: number[] = [1, 2, 2, 3, 3, 4, 4, 5, 5, 6];
+export const GAUNTLET_DEFAULT_TIERS: readonly number[] = [1, 2, 2, 3, 3, 4, 4, 5, 5, 6];
 
 export function createGauntletRun(seed: number, heroId: string, stage: GauntletStage, setId?: SetId): RunState {
   const run = createRun(seed, heroId, 'gauntlet', undefined, setId);
-  const rules: LobbyRules = { ...DEFAULT_LOBBY_RULES, seatCount: 2, maxRounds: stage.rounds.length, lossCaps: GAUNTLET_LOSS_CAPS };
+  const rules: LobbyRules = { ...DEFAULT_LOBBY_RULES, seatCount: 2, maxRounds: stage.rounds.length, lossCaps: [...GAUNTLET_LOSS_CAPS] };
   const player: LobbySeatState = {
     id: 's0', label: 'You', heroId, kind: 'player', seed, resolve: run.resolve, armor: run.armor, alive: true,
   };

@@ -90,7 +90,7 @@ describe('the portrait lock: guests sign in to change their portrait (owner 2026
     expect(useGame.getState().avatarPickerOpen).toBe(false);
     expect($('.avatarpick')).toBeNull();
     expect($('#pfgate-title')!.textContent).toBe('Sign in to change your portrait');
-    expect($('.pfgate-lead')!.textContent).toBe('Your portrait is saved with your account.');
+    expect($('.pfgate-lead')!.textContent).toBe('Picking a portrait is part of your free account.');
     act(() => button('Not now')!.click());
     expect($('.pfgate-panel')).toBeNull();
     expect(useGame.getState().accountPanelOpen).toBe(false);

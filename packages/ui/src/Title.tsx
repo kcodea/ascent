@@ -153,7 +153,9 @@ export function Title({ onSettings }: { onSettings: () => void }) {
         <button
           className={`titleportrait${avatarSrc(playerAvatar) ? '' : ' noart'}`}
           onClick={() => { if (account.anonymous) { sfx.pulse(); setPortraitGate(true); } else openAvatarPicker(); }}
-          data-tip={account.anonymous ? 'Sign in to change your portrait' : 'Change your avatar'}
+          // No hover tip for a guest: it pops out LEFT, right over the Sign in! button beside it; the button and the
+          // click prompt already say it.
+          data-tip={account.anonymous ? undefined : 'Change your avatar'}
           aria-label={account.anonymous ? 'Sign in to change your portrait' : 'Change your avatar'}
         >
           <div className={`portring${pfClass(avatarFrame)}`} style={avatarFrame?.hostStyle}>

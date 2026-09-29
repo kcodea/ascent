@@ -55,6 +55,14 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: 'Fixed: after reloading during a finished fight, End Combat now works.',
+        details: [
+          'If you lost a fight, reloaded the game on the combat screen and pressed Continue, the End Combat button stayed off and you were stuck.',
+          'Now the fight plays back and End Combat turns on. The damage you already took is not taken again.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'A new Legendary hero attack, Enraged Strike, can drop from crates.',
         details: [
           'It is the Classic lunge, enraged. Your damage builds up, then your hero burns with rage, dashes in leaving afterimages, and tears into the other hero.',

@@ -8,6 +8,7 @@ import { QUEST_INDEX, RUNE_INDEX } from '@game/content';
 import { floatLobbyDamageOnSeat, whenCurtainDown } from './lobbyDamageFx';
 import { questArt, runeArt } from './art';
 import { heroPortrait, opponentSkins, useRunSkins } from './skins/skins';
+import { PortraitFrame, usePortraitFrame } from './portraitFrame/PortraitFrame';
 import { mdBold } from './Card';
 import { Icon } from './Icon';
 import { useGame } from './store';
@@ -34,6 +35,9 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
   // opponent skins" is off).
   const runSkins = useRunSkins();
   const showOppSkins = useGame((st) => st.showOpponentSkins);
+  // The portrait-frames tuner's rings for the seat faces (null = today's plain round face).
+  const selfFrame = usePortraitFrame('self');
+  const oppFrame = usePortraitFrame('opp');
   const firedRound = useRef(0);
   const pendingFloatRef = useRef<(() => void) | null>(null);
   // The hovered seat AND where it sits on screen. The anchor is measured because the card is `position: fixed`
@@ -156,7 +160,18 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
               onClick={isYou ? undefined : (e) => pinScout(e, seat.id)}
               onContextMenu={isYou ? undefined : (e) => pinScout(e, seat.id)}
             >
-              <img decoding="sync" className="lobbyface" src={heroPortrait(seat.heroId, isYou ? runSkins : opponentSkins(showOppSkins, seat.cosmetics))} alt="" />
+              {(() => {
+                const src = heroPortrait(seat.heroId, isYou ? runSkins : opponentSkins(showOppSkins, seat.cosmetics));
+                const frame = isYou ? selfFrame : oppFrame;
+                // With a tuner frame on, the face moves into a `.lobbyface` host (it keeps the grid seat + size)
+                // that carries the ring; without one the markup is exactly what it always was.
+                return frame ? (
+                  <span className="lobbyface lobbyface-host pf-on" style={frame.hostStyle}>
+                    <img decoding="sync" className="lobbyface-img" src={src} alt="" />
+                    <PortraitFrame frame={frame} />
+                  </span>
+                ) : <img decoding="sync" className="lobbyface" src={src} alt="" />;
+              })()}
               {/* The opponent name owns its own full-width row (styles.css `.lobbynameline`). The next foe is
                   marked by the seat's own bright pulsing glow (the `foe` class → `.lobbyseat.foe`), not a pill. */}
               <span className="lobbynameline">

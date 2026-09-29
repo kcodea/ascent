@@ -34,6 +34,7 @@ import { pixiFx } from './pixiFx';
 import { getAimFxConfig } from './aimFxConfig'; // also reflects the --hpb-* vars at load (side-effect)
 import './heroPanelConfig'; // side-effect: reflects the --hpn-* hero-panel transform vars at load
 import { rectToStage, stageHost, stageViewport } from './stage';
+import { PortraitFrame, pfClass, usePortraitFrame } from './portraitFrame/PortraitFrame';
 
 
 /** Shrink a pill's TEXT to fit its box (owner note 2026-07-16: no ellipsis — "Lord of the Risen" should
@@ -175,6 +176,8 @@ export function StatusBar() {
   // SKINS: your portrait (the combat hero too: it is the lunge target) wears the skin recorded on this run.
   const runSkins = useRunSkins();
   const heroImg = heroPortrait(hero.id, runSkins);
+  // The portrait-frames tuner's ring (null = today's look). The disc host is `.herolunge`, so the ring lunges too.
+  const frame = usePortraitFrame('self');
   const powers = activePowers(run);
   const power = powers[0]!;
   const secondPower = powers[1];
@@ -717,7 +720,7 @@ export function StatusBar() {
                 This wrapper has NO base transform, so the lunge is clean; the 1.2 lives on `.f` as its ancestor
                 (heroStrike divides by the measured scale, so the geometry is unaffected). Everything visual —
                 the art, name and attack pill — rides it together. */}
-            <div className="herolunge">
+            <div className={`herolunge${pfClass(frame)}`} style={frame?.hostStyle}>
             {/* Buff flash — remounts on `buffFlash` so the one-shot shard+ripple replays each time a run buff
                 grows. `aria-hidden`, pointer-events none; sits over the art, under the name pill. */}
             {buffFlash > 0 && <span key={buffFlash} className="herobuff-blast" aria-hidden="true" />}
@@ -737,6 +740,7 @@ export function StatusBar() {
                 Click hero portrait to open / close the Buffs Panel
               </span>
             )}
+            <PortraitFrame frame={frame} />
             </div>
             {/* The player NAME sits OUTSIDE `.herolunge`, so it stays put while the portrait lunges — matching
                 the anchored health and the foe's anchored name (owner ask 2026-08-25). */}

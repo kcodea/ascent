@@ -12381,3 +12381,43 @@ body:has(.heroselect.rankend) .pixifx-above { z-index: 470; }
 .coll-equip.worn { color: #ffe08a; background: rgba(0, 0, 0, 0.35); border-color: rgba(232, 200, 119, 0.6); }
 .coll-equip:disabled { opacity: 0.6; }
 .coll-save { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; font-weight: 600; font-size: 13px; line-height: 1.35; color: rgba(238, 244, 251, 0.82); }
+
+/* ============================================================================================================
+   HERO PORTRAIT FRAMES (dev tuner 2026-09-29, `portraitFrame/`). One ring image per portrait, chosen by the
+   Portrait frames tuner and painted by `<PortraitFrame>`. The baked default is "current", which renders none of
+   this: every rule below only applies once a surface's disc host carries `.pf-on`.
+   The ring is ONE static <img> sized and placed by inline % of the disc box (computed once per tuner change);
+   nothing here animates, so it costs a single composited image per portrait.
+   ============================================================================================================ */
+.pframe-box { position: absolute; inset: 0; z-index: 2; pointer-events: none; }
+.pframe { position: absolute; display: block; max-width: none; height: auto; transform: translate(-50%, -50%);
+  pointer-events: none; -webkit-user-drag: none; user-select: none; }
+/* The portrait inside the ring: round, scaled by the tuner's Portrait scale. */
+.pf-on img:not(.pframe) { border-radius: 50%; transform: scale(var(--pf-art, 1)); }
+
+/* Surfaces whose ring used to be a CSS border: keep the border's width (no reflow), drop its paint, un-clip the
+   disc so the ring can overhang it. */
+.combatopp-portrait.pf-on, .endhero-portrait.pf-on, .fr-foe-pic.pf-on, .oppframe .opp-pic.pf-on {
+  position: relative; overflow: visible; border-color: transparent; box-shadow: none; background: none; border-radius: 50%; }
+.herocard.big .hcframe.pf-on { border-color: transparent; background: none; box-shadow: none; border-radius: 50%; }
+.herocard.big .hcframe.pf-on img:not(.pframe) { border-radius: 50%; }
+/* Now Facing + the lobby rail: the bare <img> moves into a disc-sized host only while a frame is on. */
+.wipevs-facewrap { position: relative; display: block; width: calc(290 * var(--u, 1px)); height: calc(290 * var(--u, 1px)); }
+.wipevs-facewrap > .wipevs-face { display: block; width: 100%; height: 100%; border: none; box-shadow: none; }
+.lobbyface-host { position: relative; display: block; overflow: visible; }
+.lobbyface-host > .lobbyface-img { display: block; width: 100%; height: 100%; object-fit: cover; }
+/* The `.portring` group (Career, ladder banners, match details, the title corner): the copper ring is the
+   container's ::after, and the disc is the `.hero` inside it. The tuner ring replaces the ::after and rides the
+   disc instead. */
+.portring.pf-on::after, .cv2-heroframe.cv2-heroframe.pf-on::after, .lb-heroframe.lb-heroframe.pf-on::after { content: none; }
+.portring.pf-on > .hero, .cv2-heroframe.cv2-heroframe.pf-on .hero, .lb-heroframe.lb-heroframe.pf-on .hero {
+  overflow: visible; border-color: transparent; background: transparent; box-shadow: none; padding: 0; }
+
+/* The tuner's live preview: the same component at three sizes. */
+.pfprev { display: flex; align-items: flex-end; justify-content: space-around; gap: 14px; padding: 18px 8px 10px; }
+.pfprev-cell { display: flex; flex-direction: column; align-items: center; gap: 12px; }
+.pfprev-disc { position: relative; border-radius: 50%; background: #0b0f18; }
+.pfprev-disc > .pfprev-clip { position: absolute; inset: 0; border-radius: 50%; overflow: hidden; }
+.pfprev-disc .pfprev-art { width: 100%; height: 100%; object-fit: cover; display: block; }
+.pfprev-cap { font-size: 11px; opacity: 0.7; }
+.pfprev-row { display: flex; justify-content: center; gap: 10px; font-size: 11px; opacity: 0.8; padding-bottom: 6px; }

@@ -3,6 +3,7 @@ import type { CombatResult } from '@game/core';
 import { getHero, lossDamageCap, playerLossDamage, playerOpponent, type CombatOdds, type RunState } from '@game/sim';
 import { artFor } from './art';
 import { heroPortrait, opponentSkins, seatCosmetics, useMinionSkinMap } from './skins/skins';
+import { PortraitFrame, pfClass, usePortraitFrame } from './portraitFrame/PortraitFrame';
 import { useGame } from './store';
 import { Icon } from './Icon';
 import { combatGainItems, oddsRecap, type GainItem } from './fightRecapData';
@@ -83,6 +84,8 @@ export const FightRecap = memo(function FightRecap({ result, combatOdds, lastCom
   const [details, setDetails] = useState(false);
   const [detailTab, setDetailTab] = useState<'procs' | 'log'>('procs');
   const showOppSkins = useGame((s) => s.showOpponentSkins);
+  // The portrait-frames tuner's opponent ring for the foe face (null = today's CSS border).
+  const foeFrame = usePortraitFrame('opp');
   const ownSkinArt = useMinionSkinMap();
 
   // The foe + the damage both ways. The summary only exists during the combat phase, BEFORE the lobby round
@@ -117,10 +120,11 @@ export const FightRecap = memo(function FightRecap({ result, combatOdds, lastCom
             {odds?.tag && <span className={`fr-tag ${odds.tag}`}>{odds.tag === 'upset' ? 'Upset!' : 'Heartbreaker'}</span>}
           </div>
           <div className="fr-foe">
-            <div className="fr-foe-pic">
+            <div className={`fr-foe-pic${pfClass(foeFrame)}`} style={foeFrame?.hostStyle}>
               {head.foe && heroPortrait(head.foe.heroId, opponentSkins(showOppSkins, head.foe.cosmetics))
                 ? <img decoding="sync" src={heroPortrait(head.foe.heroId, opponentSkins(showOppSkins, head.foe.cosmetics))} alt="" draggable={false} />
                 : <Icon name="sword" />}
+              <PortraitFrame frame={foeFrame} />
             </div>
             <div className="fr-foe-name">{head.foe ? head.foe.label : 'Your opponent'}</div>
             {head.foe && (head.foe.heroName || head.foe.ghost) && (

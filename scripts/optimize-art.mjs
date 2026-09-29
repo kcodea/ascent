@@ -6,12 +6,15 @@
 // Idempotent — only .png files are processed, so a re-run on an all-WebP dir is a no-op.
 import sharp from 'sharp';
 import { existsSync, readdirSync, statSync, unlinkSync } from 'node:fs';
-import { join, dirname } from 'node:path';
+import { basename, join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
-const DIRS = ['minions', 'heroes', 'effects', 'equipment', 'powers', 'quests', 'runes', 'spells', 'modes', 'ranks', 'skins'].map((s) => join(ROOT, 'packages/ui/src/art', s));
+const DIRS = ['minions', 'heroes', 'effects', 'equipment', 'powers', 'quests', 'runes', 'spells', 'modes', 'ranks', 'skins', 'frames'].map((s) => join(ROOT, 'packages/ui/src/art', s));
 const MAX = 512;
+// Hero portrait FRAMES (ring overlays) paint LARGER than a card portrait: the in-game portrait and the Now Facing
+// splash draw the ring at ~350 design px, so they keep 768px to stay crisp on a 1440p/4K stage.
+const MAX_BY_DIR = { frames: 768 };
 const QUALITY = 85;
 
 let before = 0;
@@ -25,7 +28,7 @@ for (const dir of DIRS) {
     const webp = src.replace(/\.(png|jpe?g)$/i, '.webp');
     const b0 = statSync(src).size;
     await sharp(src)
-      .resize(MAX, MAX, { fit: 'inside', withoutEnlargement: true })
+      .resize(MAX_BY_DIR[basename(dir)] ?? MAX, MAX_BY_DIR[basename(dir)] ?? MAX, { fit: 'inside', withoutEnlargement: true })
       .webp({ quality: QUALITY, effort: 6 })
       .toFile(webp);
     const b1 = statSync(webp).size;

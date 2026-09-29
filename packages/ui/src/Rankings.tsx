@@ -149,7 +149,7 @@ export function Rankings() {
                 >
                   <span className="lb-c-rank"><LbMedallion rank={i + 1} /></span>
                   <span className="lb-c-player">
-                    <LbHeroFrame heroId={r.favoriteHero} />
+                    <LbHeroFrame heroId={r.favoriteHero} side={mine ? 'self' : 'opp'} />
                     <span className="lb-who">
                       <span className="lb-handle">{handle}{mine && <span className="lb-you">you</span>}<TitleBadge id={mine || showOppCosmetics ? r.equippedTitleId : null} className="lb-handle-title" /></span>
                       <span className="lb-herosub">{hero ? hero.name : 'No favorite hero yet'}</span>

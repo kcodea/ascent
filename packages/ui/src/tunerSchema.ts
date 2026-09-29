@@ -50,6 +50,7 @@ export const PANEL_EMBLEMS: Record<string, string> = {
   scoutcard: '🔎',
   opponentsbackplate: '🖼️',
   titleaccount: '👤',
+  portraitframes: '⭕',
   loadscreen: '⏳',
   heroduel: '⚔️',
   heroblast: '💥',

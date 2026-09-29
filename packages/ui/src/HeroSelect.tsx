@@ -5,6 +5,7 @@ import { getHero, activeRift, heroTip, SHOW_HERO_TIPS } from '@game/sim';
 import { RiftPill } from './RiftPill';
 import { heroPowerArt } from './art';
 import { heroPortrait, useLiveLoadout } from './skins/skins';
+import { PortraitFrame, pfClass, usePortraitFrame } from './portraitFrame/PortraitFrame';
 import { Icon } from './Icon';
 import { sfx } from './sfx';
 import { useGame } from './store';
@@ -31,6 +32,8 @@ export function HeroSelect() {
   const choices = useGame((s) => s.heroChoices);
   // SKINS: the heroes you can pick wear the skins you have equipped for them.
   const loadout = useLiveLoadout();
+  // The portrait-frames tuner's ring (null = today's rounded gold card frame). With one on, the card goes round.
+  const frame = usePortraitFrame('self');
   const openTitle = useGame((s) => s.openTitle);
   const mode = useGame((s) => s.pendingMode);
   const profile = useGame((s) => s.profile);
@@ -179,7 +182,7 @@ export function HeroSelect() {
                   disabled={active}
                   onClick={onPick(id, i)}
                 >
-                  <div className="hcframe">
+                  <div className={`hcframe${pfClass(frame)}`} style={frame?.hostStyle}>
                     <div className="hcname">{hero.name}</div>
                     {art ? <img decoding="sync" className="hcframe-art" src={art} alt={hero.name} draggable={false} /> : <Icon name="anvil" />}
                     {powArt && <img decoding="sync" className="hcframe-pow" src={powArt} alt="" draggable={false} aria-hidden="true" />}
@@ -188,6 +191,7 @@ export function HeroSelect() {
                         It rides the PORTRAIT rather than the text block below it — `.hcbelow` reserves a fixed
                         height, so an extra line there spills over the card in the next row (measured). */}
                     {hero.practiceOnly && <span className="hcpractice">Not currently enabled in Play</span>}
+                    <PortraitFrame frame={frame} />
                     <div className="hchp">
                       <Icon name="heart" />
                       {hero.resolve}

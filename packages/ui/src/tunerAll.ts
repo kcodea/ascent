@@ -92,6 +92,7 @@ import { SPEC as TitleVeilSpec } from './titleVeilConfig';
 import { SPEC as TrailSpec } from './TrailTuner';
 import { SPEC as WardSpec } from './WardTuner';
 import { SPEC as WeldFxSpec } from './WeldFxTuner';
+import { SPEC as PortraitFramesSpec } from './portraitFrame/portraitFrameConfig';
 
 import { TUNERS_RESET_EVENT, type TunerSpec } from './tunerSchema';
 
@@ -173,7 +174,8 @@ export const ALL_TUNER_SPECS: TunerSpec<never>[] = [
   TrailSpec,
   WardSpec,
   WeldFxSpec,
-  ScreenWipeSpec,] as unknown as TunerSpec<never>[];
+  ScreenWipeSpec,
+  PortraitFramesSpec,] as unknown as TunerSpec<never>[];
 
 /**
  * Put every tuner back to its shipped values. Returns the number of panels reset, so the caller can say what it

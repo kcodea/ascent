@@ -65,6 +65,7 @@ import { SPEC as HeroQuakeSpec } from './HeroQuakeTuner';
 import { SPEC as HeroArcanaSpec } from './HeroArcanaTuner';
 import { SPEC as HeroBladesSpec } from './HeroBladesTuner';
 import { SPEC as HeroEnragedSpec } from './HeroEnragedTuner';
+import { SPEC as HeroFrostSpec } from './HeroFrostTuner';
 import { SPEC as LoadScreenSpec } from './LoadScreenTuner';
 import { SPEC as LungeSpec } from './LungeTuner';
 import { SPEC as PlateCoalesceSpec } from './PlateCoalesceTuner';
@@ -143,6 +144,7 @@ export const ALL_TUNER_SPECS: TunerSpec<never>[] = [
   HeroArcanaSpec,
   HeroBladesSpec,
   HeroEnragedSpec,
+  HeroFrostSpec,
   LoadScreenSpec,
   LungeSpec,
   PlateCoalesceSpec,

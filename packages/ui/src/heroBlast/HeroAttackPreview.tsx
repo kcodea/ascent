@@ -11,6 +11,8 @@ import { playHeroBlades } from '../heroBlades/heroBlades';
 import { heroBladesPreviewSpeed } from '../heroBlades/heroBladesConfig';
 import { playHeroEnraged } from '../heroEnraged/heroEnraged';
 import { heroEnragedPreviewSpeed } from '../heroEnraged/heroEnragedConfig';
+import { playHeroFrost } from '../heroFrost/heroFrost';
+import { heroFrostPreviewSpeed } from '../heroFrost/heroFrostConfig';
 import { playHeroBlast } from './heroBlast';
 import { heroBlastPreviewSpeed } from './heroBlastConfig';
 import './heroAttackPreview.css';
@@ -22,6 +24,7 @@ const RUNNERS: Record<string, { play: (o: HeroAttackOptions & { textures?: null 
   arcana: { play: (o) => playHeroArcana(o), speed: heroArcanaPreviewSpeed },
   blades: { play: (o) => playHeroBlades(o), speed: heroBladesPreviewSpeed },
   enraged: { play: (o) => playHeroEnraged(o), speed: heroEnragedPreviewSpeed },
+  frost: { play: (o) => playHeroFrost(o), speed: heroFrostPreviewSpeed },
 };
 
 /**

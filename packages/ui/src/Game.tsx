@@ -25,6 +25,7 @@ import { AccountPanel } from './AccountPanel';
 import { StatusBar } from './StatusBar';
 import { Inspect } from './Inspect';
 import { MinionBook } from './MinionBook';
+import compendiumBookArt from './compendium-book.png';
 import { EscMenu } from './EscMenu';
 import { DevMenu } from './DevMenu';
 import { EditorOverlay } from './uiEditor/EditorOverlay';
@@ -96,6 +97,7 @@ export function Game() {
   const sandbox = useGame((s) => s.run.sandbox);
   const bugScenarioLoaded = useGame((s) => s.bugScenario !== null);
   const showBook = useGame((s) => s.showBook);
+  const toggleBook = useGame((s) => s.toggleBook);
   // Recruit stays mounted across phases (combat plays out in place), so its closures/refs live for the whole
   // run. Starting a NEW run (pickHero / newRun → a fresh seed+hero) must give it a clean slate — otherwise a
   // callback captured under the previous run lingers (e.g. Disco Dan's locked-hand check false-locking a
@@ -450,6 +452,13 @@ export function Game() {
       {showBook && <MinionBook />}
       <Inspect />
       </OwnSkins>
+      {/* THE COMPENDIUM BUTTON (owner ask 2026-09-28): the golden book beside the gear, the mouse twin of the Tab key
+          (same `toggleBook`, same hero-select exclusion). Hover names it with the game's own bubble. */}
+      {!heroPicking && (
+        <button className="bookbtn gtip" data-tip="Compendium" onClick={toggleBook} aria-label="Compendium">
+          <img decoding="sync" src={compendiumBookArt} alt="" draggable={false} />
+        </button>
+      )}
       <button className="gearbtn" onPointerDown={openSettings} aria-label="Settings">
         <Icon name="gear" />
       </button>

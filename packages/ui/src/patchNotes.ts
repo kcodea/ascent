@@ -60,12 +60,34 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: 'Gold you pay to use Equipment now counts as Gold spent.',
+        details: [
+          'It counts toward Gold spent this turn and toward every card, rune and quest that tracks Gold spent.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'New Rules page in the Compendium. Open the Compendium (Tab), click Rules, and search any question about how the game works.',
         details: [
           'Covers the basics, the shop, combat, keywords, the lobby and Rating, and the controls.',
           'Search in your own words, like "sell", "who attacks first" or "Ward", or narrow it down with the topic buttons.',
           'Open a question to read the answer. "See also" links jump to related questions.',
         ],
+      },
+      {
+        category: 'Systems',
+        text: 'Opening the menu (Esc) now pauses your shop timer.',
+      },
+      {
+        category: 'Systems',
+        text: 'A golden book button next to the Settings gear opens the Compendium, no Tab key needed.',
+      },
+      {
+        category: 'Systems',
+        text: 'Bob Blart has his own voice: a big, hungry ogre. He also says his own line when he meets Chronos on your board, instead of the announcer.',
+      },
+      {
+        category: 'Systems',
       },
       {
         category: 'Systems',

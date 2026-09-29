@@ -910,6 +910,12 @@ takes nothing. **A ghost is never a rematch** (owner 2026-09-19, the Hearthstone
 the ghost of the seat it fought last round or the seat it eliminated — the next most recent ghost stands in, and
 when the only ghost on offer would be a rematch, the bye goes to another eligible seat.
 
+**A paired seat with no board** (R-LOBBY-05, 2026-09-28). Seat selection only seats a generated seat whose
+recording fields a board, so this should not happen; if it does (an older save), the pairing is a sit-out for
+both seats, like any boardless pairing. The player then fights the most recent ghost instead, logged as a ghost
+fight (`bye: s0`, `standInFor` = the paired seat) so the log and "who knocked you out" name the board fought.
+Before anyone has fallen there is no ghost and the round is a sit-out for the player too.
+
 The pool-based `pickOpponent` path below still exists and still serves the **non-lobby** modes and tooling. It
 is NOT what a lobby run faces, which is why injecting served boards into a lobby replay changes nothing:
 

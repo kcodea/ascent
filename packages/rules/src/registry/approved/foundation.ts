@@ -483,6 +483,41 @@ export const FOUNDATION_RULES: GameRule[] = [
     },
   },
   {
+    id: 'R-LOBBY-05',
+    title: 'Every generated seat fields a board, and the player\'s fight is credited to the board they actually fought',
+    statement:
+      'A generated (hybrid) lobby seat is seated only when the RECORDING it will play fields at least one board: '
+      + 'seat selection checks the recording (a one-board prefix of `autoplayRun`), not only the live bot, because '
+      + '`prepare` is recording-only. `autoplayRun` answers every blocking modal a hero can raise, including the '
+      + 'hero-power Discover (`powerOffer`: Mimic every turn, Void on turn 4, Power Shifter), so every hero records '
+      + 'a real run. If the player\'s paired seat still has no board (an older save, a restored lobby), the player '
+      + 'faces the most recently fallen seat\'s ghost instead, as on a bye; the boardless pairing is a sit-out for '
+      + 'both (the seat is neither charged nor credited), and the player\'s fight is logged against the ghost '
+      + '(`bye: s0`, `standInFor: <paired seat>`), so the encounter log, "who knocked you out" and the fight ledger '
+      + 'name the board the player fought. Before anyone has fallen there is no ghost, and the round is a sit-out '
+      + 'for the player too.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      {
+        kind: 'owner-chat',
+        ref: 'Claude Code session, 2026-09-28 (Mimic hybrid lobby seats field no board)',
+        quote: 'the Mimic seat had no board at the player\'s end round. In one game the lobby recorded that seat as the one who knocked the player out',
+      },
+      { kind: 'code', ref: 'packages/sim/src/snapshot.ts autoplayRun (powerOffer branch, maxBoards); packages/sim/src/lobby/seats.ts hybridSeat.canFieldBoard + recordingFieldsBoard; packages/sim/src/lobby/runLobby.ts playerOpponent + settleRunLobbyRound (boardless player foe)' },
+    ],
+    currentBehaviour:
+      'Conforms as of 2026-09-28. Before the fix `autoplayRun` had no `powerOffer` branch, so a Mimic recording '
+      + 'bailed on turn 1 with zero boards; the live-bot probe seated it anyway, and when the player was paired '
+      + 'with it the reducer served an ordinary pool board while the settle charged and credited the empty seat. '
+      + 'Seen in 2 of 6 Practice (players) games. Every hero now records at least 5 waves.',
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/sim/src/lobby/seatRecordings.test.ts', 'packages/sim/src/lobby/seatProbeEmptyRecording.test.ts'],
+      lastVerifiedAt: '2026-09-28',
+    },
+  },
+  {
     id: 'R-HALL-02',
     title: 'Hall of Champions: the own-game line counts the same fights as the record line',
     statement:

@@ -4,7 +4,7 @@
  * blow it lands are handed in, already decided by the engine; this file only decides WHEN on screen they happen.
  *
  * It runs on the SHARED hero-attack core (`../heroAttack/`), exactly as the other styles do: one clock (never paused),
- * the damage formation, the `#stage` camera mirrored onto the Pixi root, the portraits (transform only, restored after),
+ * the damage formation, the `#stage` camera (on the FX once: stageCamera.ts), the portraits (transform only, restored after),
  * the voices, the dim, reduced motion, finish / cancel and the safety timer. What is its own: the lunge itself (Classic's
  * silhouette, the hero PORTRAIT drives at the foe), the aura, the afterimages, the combo and the haymaker.
  *
@@ -33,7 +33,7 @@ import { withFormation, type FormationCue } from '../heroAttack/formationConfig'
 import { hexToNum, prefersReducedMotion, spring, type Pt } from '../heroAttack/easing';
 import type { HeroAttackHandle, HeroAttackOptions } from '../heroAttack/options';
 import { Sequence } from '../heroAttack/sequence';
-import { PortraitMover, StageCamera } from '../heroAttack/stageCamera';
+import { heroFxCanvas, PortraitMover, StageCamera } from '../heroAttack/stageCamera';
 import {
   enragedCameraAt, enragedCameraFocus, enragedCues, enragedGeo, enragedPlan, enragedPose, getHeroEnragedConfig,
   type EnragedCue, type EnragedGeo, type EnragedPlan, type HeroEnragedConfig, type HeroPose,
@@ -146,7 +146,7 @@ export function playHeroEnraged(o: HeroEnragedOptions): HeroEnragedHandle {
 
   // ── camera + the portraits (their ancestors' scale and whether the camera carries them, measured once) ──
   const cameraEl = reduced ? null : (o.camera !== undefined ? o.camera : (doc?.getElementById('stage') ?? null));
-  const cam = new StageCamera(cameraEl, scene);
+  const cam = new StageCamera(cameraEl, scene, heroFxCanvas(o)); // the FX get the camera ONCE (stageCamera.ts)
   const hero = new PortraitMover(reduced ? null : (o.attackerEl ?? null));
   const foe = new PortraitMover(reduced ? null : (o.defenderEl ?? null));
   const heroUnit = 1 / (aRect.inv || 1);

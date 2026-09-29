@@ -11,7 +11,8 @@
  * LAYERS (why here). The foe's portrait lives in a `#stage` portal that paints above everything inside `#root`, so FX
  * drawn on the in-root overlay land UNDER it. The Blast therefore draws its Pixi on the above-portrait slot, puts
  * its numbers in `#stage` (above the portraits), and moves the CAMERA on `#stage` itself (composed with the stage's
- * own scale), mirroring the same transform onto the Pixi root so the FX and the portraits zoom and shake as one.
+ * own scale); the FX canvas rides that transform, so the FX and the portraits zoom and shake as one (the camera
+ * reaches the FX exactly ONCE: see stageCamera.ts).
  *
  * Perf (docs/performance.md): DOM moves are `transform` / `opacity` written from the clock (plus the counter's
  * text when it changes); nothing reads layout after the opening measure (the caller passes points and radii); the
@@ -30,7 +31,7 @@ import { withFormation, type FormationCue } from '../heroAttack/formationConfig'
 import { easeInOutSine, hexToNum, prefersReducedMotion, spring, type Pt } from '../heroAttack/easing';
 import type { HeroAttackHandle, HeroAttackOptions } from '../heroAttack/options';
 import { Sequence } from '../heroAttack/sequence';
-import { PortraitMover, StageCamera } from '../heroAttack/stageCamera';
+import { heroFxCanvas, PortraitMover, StageCamera } from '../heroAttack/stageCamera';
 import {
   blastCues, blastPlan, getHeroBlastConfig, type BlastCue, type BlastPlan, type HeroBlastConfig,
 } from './heroBlastConfig';
@@ -148,7 +149,7 @@ export function playHeroBlast(o: HeroBlastOptions): HeroBlastHandle {
 
   // ── camera + the portraits ──
   const cameraEl = reduced ? null : (o.camera !== undefined ? o.camera : (doc?.getElementById('stage') ?? null));
-  const cam = new StageCamera(cameraEl, scene);
+  const cam = new StageCamera(cameraEl, scene, heroFxCanvas(o)); // the FX get the camera ONCE (stageCamera.ts)
   const hero = new PortraitMover(reduced ? null : (o.attackerEl ?? null));
   const foe = new PortraitMover(reduced ? null : (o.defenderEl ?? null));
   const radius = o.defenderRadius ?? 120 * s;

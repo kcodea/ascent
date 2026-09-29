@@ -757,7 +757,8 @@ code — `advanceCombat`, `openNextStartOfTurnModal`, `runeforgePool`, `drawRune
 **A visit.** The forge opens at the START of a turn, behind any quest offer and hero-power pick and ahead of
 any queued Discover (`openNextStartOfTurnModal`: power pick → Epic forge(s) → Basic forge → Discovers). It
 offers **4 runes** (`RUNEFORGE_OFFER`; the tutorial's scripted forges offer 3), you buy **ONE** for its Gold
-cost or leave, and the forge closes. There are two forges with two pools: the **Basic forge** stocks `RUNES`,
+cost, and the forge closes. The player cannot skip or leave it (R-RUNE-34, owner 2026-09-29); the engine's
+`skipRuneforge` action exists only for bots, fixtures and replays. There are two forges with two pools: the **Basic forge** stocks `RUNES`,
 the **Epic forge** stocks `EPIC_RUNES` — pool membership is array membership, `epic: true` is only the
 card's kicker.
 

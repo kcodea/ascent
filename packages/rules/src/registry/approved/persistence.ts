@@ -470,4 +470,20 @@ export const PERSISTENCE_RULES: GameRule[] = [
       lastVerifiedAt: '2026-09-28',
     },
   },
+  {
+    id: 'R-ENGRAVE-02',
+    title: 'An Engraved minion keeps its combat gains even if it died in that fight',
+    statement:
+      'An Engraved minion keeps every stat it gained during a fight, win or lose, even when it died in that fight. '
+      + 'Dying does not undo Engrave: the gains carry back to the run board exactly as they would for a survivor. '
+      + 'A minion that is not Engraved keeps none of its combat gains, alive or dead.',
+    domain: 'persistence',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Rules-wiki review, 2026-09-29 (asked whether a dead Engraved minion should keep its gains)', quote: 'yes this is intended. that is the entire point of the engraved mechanic' },
+      { kind: 'code', ref: 'packages/sim/src/reducer.ts playerPermaBuffs carry-back (reads every minion on the fight board, the fallen included)' },
+    ],
+    currentBehaviour: 'Conforms: the carry-back reads every fight-board minion, dead ones included, and a Rise does not clear the gains.',
+    enforcement: { kind: 'scenario', refs: ['packages/core/src/combat/engravedKeepsGainsWhenDead.test.ts'], lastVerifiedAt: '2026-09-29' },
+  },
 ];

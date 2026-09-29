@@ -86,6 +86,11 @@ export function turnClockReset(
  * still playing the turn's Start of Turn beats (`startOfTurnPlaying`, `sotBeats.ts`). A turn with no Start of Turn
  * effect has nothing to play, so its clock starts the moment the wipe comes to rest, with no added delay. Both are
  * optional so a caller that predates them (a test, a tool) keeps its old answer.
+ *
+ * THE ESC / SETTINGS MENU HOLDS IT TOO (owner 2026-09-29, R-TIMER-ESC-01: "yes, lets have it pause the shop timer
+ * for now"): `settingsOpen` is its own input rather than part of `overlayOpen`, because `overlayOpen` also pauses
+ * the combat replay and gates other board work, and the ruling covers only the Shop clock. Closing the menu
+ * resumes from the displayed second (a held clock is never reset).
  */
 export function turnClockMayTick(g: {
   recruitPhase: boolean;
@@ -95,7 +100,8 @@ export function turnClockMayTick(g: {
   introPlaying: boolean;
   transitionPlaying?: boolean;
   startOfTurnPlaying?: boolean;
+  settingsOpen?: boolean;
 }): boolean {
   return g.recruitPhase && !g.decisionOpen && !g.heroSelecting && !g.overlayOpen && !g.introPlaying
-    && !g.transitionPlaying && !g.startOfTurnPlaying;
+    && !g.transitionPlaying && !g.startOfTurnPlaying && !g.settingsOpen;
 }

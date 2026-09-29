@@ -63,6 +63,7 @@ export const PATCH_NOTES: PatchNote[] = [
         text: 'Gold you pay to use Equipment now counts as Gold spent.',
         details: [
           'It counts toward Gold spent this turn and toward every card, rune and quest that tracks Gold spent.',
+        ],
       },
       {
         category: 'Systems',

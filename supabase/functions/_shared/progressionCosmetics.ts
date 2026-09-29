@@ -363,6 +363,11 @@ export interface RunCosmeticSnapshot {
   minionSkinByCardId?: Readonly<Record<string, string>>;
   /** The equipped `hero_attack` item (account-wide). Absent = Classic. */
   heroAttack?: string;
+  /** The equipped TITLE (account-wide, owner ask 2026-09-28: "show them where possible ... as a way of showing off
+   *  their flair"). Recorded at run start from `profiles.equipped_title_id`, so opponents, replays and history
+   *  show the title worn in THAT run. Absent = no title shown. The live loadout never carries it (the profile
+   *  holds it); `withEquippedTitle` folds it in before `snapshotForRun`. */
+  title?: string;
 }
 
 /** Hard caps on what a snapshot may carry, so a hostile or corrupt payload stays tiny. */
@@ -393,10 +398,11 @@ export function parseCosmeticSnapshot(v: unknown): RunCosmeticSnapshot | null {
   const heroSkinByHeroId = parseSkinMap(o.heroSkinByHeroId);
   const minionSkinByCardId = parseSkinMap(o.minionSkinByCardId);
   const heroAttack = typeof o.heroAttack === 'string' && ID_RE.test(o.heroAttack) ? o.heroAttack : undefined;
-  if (!heroSkinByHeroId && !minionSkinByCardId && !heroAttack) return null;
+  const title = typeof o.title === 'string' && ID_RE.test(o.title) ? o.title : undefined;
+  if (!heroSkinByHeroId && !minionSkinByCardId && !heroAttack && !title) return null;
   return {
     ...(heroSkinByHeroId ? { heroSkinByHeroId } : {}), ...(minionSkinByCardId ? { minionSkinByCardId } : {}),
-    ...(heroAttack ? { heroAttack } : {}),
+    ...(heroAttack ? { heroAttack } : {}), ...(title ? { title } : {}),
   };
 }
 
@@ -456,6 +462,22 @@ export function heroAttackOf(snapshot: RunCosmeticSnapshot | null | undefined): 
   return c && c.category === 'hero_attack' && isCosmeticLive(c.id) ? c : null;
 }
 
+/**
+ * The TITLE this snapshot shows, or null for none. Null whenever the id is unknown (a newer server's title, garbage
+ * from an old replay), retired (item or category, TS or server) or not a title, so a stale or forged id never puts
+ * a name on screen.
+ */
+export function titleOf(snapshot: RunCosmeticSnapshot | null | undefined): CosmeticDef | null {
+  const c = cosmeticOf(snapshot?.title);
+  return c && c.category === 'title' && isCosmeticLive(c.id) ? c : null;
+}
+
+/** A loadout with the profile's equipped title folded in (the loadout rows never carry it; the profile does). */
+export function withEquippedTitle(loadout: RunCosmeticSnapshot | null | undefined, titleId: string | null | undefined): RunCosmeticSnapshot | null {
+  if (!titleId) return loadout ?? null;
+  return { ...(loadout ?? {}), title: titleId };
+}
+
 /** The skins that target one hero or card (the Collection's per-target list). */
 export const skinsForTarget = (slot: SkinSlot, targetId: string, catalog: readonly CosmeticDef[] = COSMETICS): CosmeticDef[] =>
   catalog.filter((c) => c.category === slot && c.target?.id === targetId);
@@ -479,11 +501,14 @@ export function snapshotForRun(
   for (const [k, id] of Object.entries(loadout.minionSkinByCardId ?? {})) if ((!cards || cards.has(k)) && minionSkinOf(loadout, k)) minion[k] = id;
   // The hero attack is account-wide, so every run records it (the hero it strikes with is always in the run).
   const attack = heroAttackOf(loadout)?.id;
-  if (!Object.keys(hero).length && !Object.keys(minion).length && !attack) return null;
+  // The title is account-wide too, and only a LIVE one is recorded (a retired title is never written down).
+  const title = titleOf(loadout)?.id;
+  if (!Object.keys(hero).length && !Object.keys(minion).length && !attack && !title) return null;
   return {
     ...(Object.keys(hero).length ? { heroSkinByHeroId: hero } : {}),
     ...(Object.keys(minion).length ? { minionSkinByCardId: minion } : {}),
     ...(attack ? { heroAttack: attack } : {}),
+    ...(title ? { title } : {}),
   };
 }
 

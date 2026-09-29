@@ -305,7 +305,7 @@ export function socBoard(result: CombatResult): BoardMinion[] {
 
 /**
  * The run's recorded skins narrowed to one board: its hero's skin and the skins of cards actually on it, plus the
- * account-wide hero attack. Pure
+ * account-wide hero attack and title. Pure
  * key scoping (no catalog lookup, so capture stays deterministic and a retired item is still RECORDED: the
  * renderer decides whether it shows, and a restore brings it back on old boards too). Undefined when nothing
  * applies, so a skinless board serializes exactly as before.
@@ -322,8 +322,13 @@ export function scopeCosmetics(c: RunCosmeticSnapshot | undefined, heroIds: read
   const minion = pick(c.minionSkinByCardId, cardIds);
   // The hero attack is account-wide (2026-09-28): every board keeps it, so the player it strikes sees it.
   const attack = typeof c.heroAttack === 'string' ? c.heroAttack : undefined;
-  if (!hero && !minion && !attack) return undefined;
-  return { ...(hero ? { heroSkinByHeroId: hero } : {}), ...(minion ? { minionSkinByCardId: minion } : {}), ...(attack ? { heroAttack: attack } : {}) };
+  // So is the equipped title (2026-09-28): every board keeps it, so the players it meets see it.
+  const title = typeof c.title === 'string' ? c.title : undefined;
+  if (!hero && !minion && !attack && !title) return undefined;
+  return {
+    ...(hero ? { heroSkinByHeroId: hero } : {}), ...(minion ? { minionSkinByCardId: minion } : {}),
+    ...(attack ? { heroAttack: attack } : {}), ...(title ? { title } : {}),
+  };
 }
 
 export function snapshotBoard(s: RunState): BoardSnapshot {

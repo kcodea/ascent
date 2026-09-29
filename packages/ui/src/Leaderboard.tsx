@@ -6,6 +6,8 @@ import { MenuSidebar, SidebarHost } from './MenuSidebar';
 import { useGame } from './store';
 import { HALL_MIN_FIGHTS, HALL_ROWS, fetchHallHistory, fetchHallOwnGames, fetchHallRecords, fetchRunFinalBoards, remoteEnabled, type HallHistoryFacts, type RunFightRecord } from './remoteBoards';
 import { LbHeroFrame, LbLabel, LbMedallion, LbRunes, LbTeam } from './LadderBits';
+import { TitleBadge } from './titles/TitleBadge';
+import { opponentSkins } from './skins/skins';
 import { hallHistoryFor, hallRowsOf, parseRunKey, playedOnText, recordText, winRateText, type HallOwnRecord, type HallSort } from './leaderboardData';
 
 /**
@@ -33,6 +35,7 @@ import { hallHistoryFor, hallRowsOf, parseRunKey, playedOnText, recordText, winR
 export function Leaderboard() {
   const show = useGame((s) => s.showLeaderboard);
   const close = useGame((s) => s.closeLeaderboard);
+  const showOppCosmetics = useGame((s) => s.showOpponentSkins); // recorded titles ride the opponent cosmetics switch
   const [records, setRecords] = useState<RunFightRecord[] | null>(null);
   const [history, setHistory] = useState<Map<string, HallHistoryFacts>>(new Map());
   const [boards, setBoards] = useState<Map<string, BoardSnapshot>>(new Map());
@@ -109,6 +112,9 @@ export function Leaderboard() {
                   <div className="lb-row-hero">
                     <LbHeroFrame heroId={r.heroId} />
                     <div className="lb-row-name">{r.author && r.author !== 'anon' ? r.author : hero.name}</div>
+                    {/* The title RECORDED with this run (owner ask 2026-09-28), off the board the row already has, through
+                        the opponent cosmetics switch (a Hall row carries no account id, so it cannot exempt your own). */}
+                    <TitleBadge snapshot={opponentSkins(showOppCosmetics, (r.board as BoardSnapshot | null)?.cosmetics)} className="lb-row-title" />
                     <div className="lb-row-herosub">{hero.name}</div>
                   </div>
                   {/* The middle reads exactly like a Recent Games row (owner 2026-09-22): the team and the runes. */}

@@ -64,6 +64,10 @@ export const PATCH_NOTES: PatchNote[] = [
       },
       {
         category: 'Systems',
+        text: 'Units now make a quiet death sound when they die in combat. Before, most of them were silent.',
+      },
+      {
+        category: 'Systems',
         text: 'Unit voices and creature sounds when you play a unit or it dies are now much quieter.',
       },
       {

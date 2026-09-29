@@ -6143,8 +6143,14 @@ svg { width: 18px; height: 18px; }
 .gearbtn svg { width: calc(21 * var(--u)); height: calc(21 * var(--u)); }
 /* The Compendium book, one gear-width + a 10px gap left of the gear (Game.tsx). Same plate as the gear so the
    pair reads as one cluster; the gold art sits inside. `.gtip` (the global hover bubble) names it. */
-.bookbtn, .rulesbtn { position: fixed; bottom: calc(var(--bar-y) + 16px + env(safe-area-inset-bottom)); right: calc(var(--bar-x) + 16px + 40 * var(--u) + 10px + env(safe-area-inset-right)); width: calc(40 * var(--u)); height: calc(40 * var(--u)); padding: 0; border-radius: calc(12 * var(--u)); border: 2px solid var(--line); background: color-mix(in srgb, var(--card) 88%, transparent); display: grid; place-items: center; z-index: 85; box-shadow: 0 6px 18px -8px rgba(0, 0, 0, 0.5); transition: transform 0.15s ease, border-color 0.15s ease; }
-.bookbtn:hover, .rulesbtn:hover { border-color: var(--acc); transform: translateY(-2px); }
+.bookbtn, .rulesbtn { position: fixed; bottom: calc(var(--bar-y) + 16px + env(safe-area-inset-bottom)); right: calc(var(--bar-x) + 16px + 40 * var(--u) + 10px + env(safe-area-inset-right)); width: calc(40 * var(--u)); height: calc(40 * var(--u)); padding: 0; border-radius: calc(9 * var(--u)); display: grid; place-items: center; z-index: 85;
+  /* The main-menu plaque look (owner 2026-09-29, matches .menubtn): navy fill, gold rim, inner bevel, a hard bottom edge. */
+  border: 1.5px solid rgba(196, 160, 92, 0.6); background: linear-gradient(180deg, rgba(24, 36, 58, 0.92), rgba(13, 22, 39, 0.94));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), inset 0 0 0 1px rgba(0, 0, 0, 0.35), 0 4px 0 #0a1526, 0 9px 18px -9px rgba(0, 0, 0, 0.7);
+  transition: transform 0.18s cubic-bezier(0.16, 1, 0.3, 1), filter 0.14s ease, border-color 0.14s ease; }
+.bookbtn:hover, .rulesbtn:hover { border-color: rgba(230, 200, 130, 0.95); filter: brightness(1.08); transform: translateY(-2px); }
+.bookbtn:active, .bookbtn:hover:active, .rulesbtn:active, .rulesbtn:hover:active { transform: translateY(3px) scale(0.97); filter: brightness(0.9); transition-duration: 0.06s;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), inset 0 0 0 1px rgba(0, 0, 0, 0.35), 0 1px 0 #0a1526, 0 4px 10px -6px rgba(0, 0, 0, 0.7); }
 .bookbtn img, .rulesbtn img { width: calc(30 * var(--u)); height: calc(30 * var(--u)); pointer-events: none; }
 /* Rules (the golden question mark) sits one more slot left of the book: gear · book · rules, right to left. */
 .rulesbtn { right: calc(var(--bar-x) + 16px + 2 * (40 * var(--u) + 10px) + env(safe-area-inset-right)); }

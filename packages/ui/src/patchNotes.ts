@@ -60,6 +60,14 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: 'New Rules page. Click Rules on the main menu (or press Tab in a game, then Rules) and search any question about how the game works.',
+        details: [
+          'Covers the basics, the shop, combat, keywords, the lobby and Rating, and the controls.',
+          'Search in your own words, like "sell", "who attacks first" or "Ward", or narrow it down with the topic buttons.',
+          'Open a question to read the answer. "See also" links jump to related questions.',
+      },
+      {
+        category: 'Systems',
         text: 'The Collection no longer shows the Boards and Music tabs. They come back when they are ready.',
       },
       {
@@ -124,14 +132,6 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-09-28',
     changes: [
-      {
-        category: 'Systems',
-        text: 'New Rules page. Click Rules on the main menu (or press Tab in a game, then Rules) and search any question about how the game works.',
-        details: [
-          'Covers the basics, the shop, combat, keywords, the lobby and Rating, and the controls.',
-          'Search in your own words, like "sell", "who attacks first" or "Ward", or narrow it down with the topic buttons.',
-          'Open a question to read the answer. "See also" links jump to related questions.',
-      },
       {
         category: 'Systems',
         text: 'New skins in crates: 13 more minion looks.',

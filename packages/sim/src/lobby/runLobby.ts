@@ -15,7 +15,7 @@ import { OPPONENT_POOL } from '../opponents';
 import { handleKeyOf, uniqueHandleFor, adjectiveHandle } from './handles';
 import type { LobbyEncounter, LobbyRules, PreparedBoard, SeatDriver } from './types';
 import { DEFAULT_LOBBY_RULES } from './lobby';
-import { authoredSeat } from './tutorialSeats';
+import { authoredSeat, type AuthoredOmen } from './tutorialSeats';
 
 /**
  * THE PLAYER'S LOBBY — the serializable half.
@@ -39,13 +39,19 @@ export interface LobbySeatState {
   /** `authored` seats only (the tutorial): the course's per-round omen board table (index = round − 1). Plain
    *  data so the seat stays serializable; `driverFor` builds an `authoredSeat` driver from it. Every authored
    *  seat in a tutorial lobby carries the SAME table, so the player faces the round's board whatever the pairing. */
-  authoredBoards?: { attack: number; health: number; cardId?: string }[][];
+  authoredBoards?: AuthoredOmen[][];
   /** Authored seats only — climb one tavern tier every N rounds (capped at 6), which is what makes losing to
    *  this seat actually cost Resolve (face damage = opponent tier + surviving minions). Absent = pinned tier 1,
    *  which is what the tutorial wants. See `authoredTierFor`. */
   authoredTierRamp?: number;
   /** Authored seats only — the tier the climb starts from (default 1). The top practice-bot levels open higher. */
   authoredTierStart?: number;
+  /** Authored seats only (Gauntlet): the opponent's tavern tier for each round (index = round − 1). Wins over
+   *  `authoredTierRamp` for every round it covers. */
+  authoredTiers?: number[];
+  /** Gauntlet's opponent: the settle never charges this seat, so it can never be eliminated (the player's goal
+   *  is to SURVIVE, not to knock it out). Its hits are still recorded as 0 dealt to it. */
+  invulnerable?: true;
   /** Practice-bot seats only — the difficulty damage multiplier applied to this table's seat-vs-seat fights
    *  (and mirrored on the player's fight by `practiceBotDamageMult`). Absent everywhere else = 1. */
   botDamageMult?: number;
@@ -774,6 +780,8 @@ export function settleRunLobbyRound(lobby: RunLobby, playerResult: CombatResult)
       dmgToB = Math.min(seatCap, Math.round((r.enemyDamage ?? 0) * seatDamageMult));
     }
 
+    if (a.invulnerable) dmgToA = 0;
+    if (b.invulnerable) dmgToB = 0;
     hitSeat(a, dmgToA);
     hitSeat(b, dmgToB);
     for (const [seat, taken, dealt] of [[a, dmgToA, dmgToB], [b, dmgToB, dmgToA]] as const) {

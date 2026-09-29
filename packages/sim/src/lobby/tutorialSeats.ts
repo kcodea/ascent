@@ -12,7 +12,8 @@
  * Nothing here fakes an outcome: combat still runs in `simulate`, damage still flows through the lobby. The
  * course only supplies the INPUT board, exactly like a recorded seat supplies its input board.
  */
-import type { BoardMinion, Tribe } from '@game/core';
+import type { BoardMinion, Keyword, Tribe } from '@game/core';
+import { CARD_INDEX } from '@game/content';
 import { createRun, type RunState } from '../state';
 import { rollShop } from '../shop';
 import type { LobbyRules, PreparedBoard, SeatDriver } from './types';
@@ -26,20 +27,30 @@ export interface AuthoredOmen {
   attack: number;
   health: number;
   cardId?: string;
+  /** Gauntlet: a golden (tripled) copy. */
+  golden?: boolean;
+  /** Gauntlet: keywords granted ON TOP of the card's printed keywords. */
+  addedKeywords?: Keyword[];
 }
 
 /** Materialize a round's authored omen stat-line into real `omen` `BoardMinion`s (textless, keywordless —
  *  matching how `threats.ts` builds omen bodies). No snapshot is needed: an effectless board wants exactly the
  *  base neutral side, which the reducer supplies when `PreparedBoard.snapshot` is omitted. */
 export function omenBoardMinions(board: readonly AuthoredOmen[]): BoardMinion[] {
-  return board.map((m) => ({
-    cardId: m.cardId ?? 'omen',
-    attack: Math.max(1, Math.round(m.attack)),
-    health: Math.max(1, Math.round(m.health)),
-    // A real card keeps its printed keywords (`instantiate` falls back to the CardDef when this is absent);
-    // an omen is explicitly keywordless.
-    ...(m.cardId ? {} : { keywords: [] }),
-  }));
+  return board.map((m) => {
+    const base: BoardMinion = {
+      cardId: m.cardId ?? 'omen',
+      attack: Math.max(1, Math.round(m.attack)),
+      health: Math.max(1, Math.round(m.health)),
+    };
+    if (!m.cardId) return { ...base, keywords: [] }; // an omen is explicitly keywordless
+    // A real card keeps its printed keywords (`instantiate` falls back to the CardDef when `keywords` is absent), but
+    // a set `keywords` OVERRIDES them — so added keywords must carry the printed ones with them. With nothing
+    // added, leave it unset so the card keeps its printed keywords exactly.
+    const added = m.addedKeywords ?? [];
+    const keywords = added.length ? [...new Set([...(CARD_INDEX[m.cardId]?.keywords ?? []), ...added])] : undefined;
+    return { ...base, ...(m.golden ? { golden: true } : {}), ...(keywords ? { keywords } : {}) };
+  });
 }
 
 /**
@@ -54,7 +65,11 @@ export function omenBoardMinions(board: readonly AuthoredOmen[]): BoardMinion[] 
  * the real 6-tier ceiling), mirroring how a live board tiers up; without the field it stays on its start tier.
  * `authoredTierStart` (default 1) is where the climb begins — the top practice-bot levels open above tier 1.
  */
-export function authoredTierFor(seat: Pick<LobbySeatState, 'authoredTierRamp' | 'authoredTierStart'>, round: number): number {
+export function authoredTierFor(
+  seat: Pick<LobbySeatState, 'authoredTierRamp' | 'authoredTierStart' | 'authoredTiers'>, round: number,
+): number {
+  const explicit = seat.authoredTiers?.[Math.max(1, round) - 1];
+  if (explicit !== undefined) return Math.min(6, Math.max(1, explicit));
   const start = Math.min(6, Math.max(1, seat.authoredTierStart ?? 1));
   const ramp = seat.authoredTierRamp;
   if (!ramp || ramp <= 0) return start;

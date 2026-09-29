@@ -572,7 +572,7 @@ export const TRIGGERS_RULES: GameRule[] = [
   },
   {
     id: 'R-ECHOTALLY-01',
-    title: 'Grim counts every Echo triggered this GAME, its own included, in the Shop and in combat',
+    title: 'SUPERSEDED 2026-09-28 (R-GRIMFLAT-01): Grim counted every Echo triggered this GAME, its own included',
     statement:
       'Grim ("Echo: give your Beast Aura +3/+2 for every Echo triggered this game") pays N x (+3/+2), gilded N x (+6/+4), '
       + 'where N is the run-wide Echo tally: every Echo triggered this game, in the Shop, at End of Turn and in every '
@@ -595,12 +595,45 @@ export const TRIGGERS_RULES: GameRule[] = [
     cardText: '**Echo:** Give your **Beast Aura** **+3/+2**. Improves by **+3/+2** for every **Echo** triggered this game.',
     contentIds: ['grim'],
     currentBehaviour:
-      'Conforms (built with the rework, 2026-09-24; live total in place 2026-09-25). Reuses the existing run tally `deathrattlesTriggered` (carried back '
-      + 'from combat as `playerDeathrattles`). Known asymmetry kept: an ENEMY Grim reads its snapshot\'s frozen tally.',
+      'Superseded — 2026-09-28 by R-GRIMFLAT-01. The owner asked for Grim back on a flat "+8/+8" Beast Aura, so Grim no '
+      + 'longer reads the Echo tally and prints no live total; its live-text wiring (echoTallyText in cardText.ts, the '
+      + 'Unit.tsx combat fold, grimLiveText.test.ts) is removed. The `deathrattleBuffTribeByTally` primitive stays in the '
+      + 'engine unused, so a pinned replay of a 2026-09-24..28 Grim still resolves. The pins below now prove the flat payout.',
     enforcement: {
       kind: 'scenario',
-      refs: ['packages/sim/src/beastDragonBatch0924.test.ts', 'packages/core/src/combat/simulate.test.ts', 'packages/ui/src/cardText.test.ts', 'packages/ui/src/grimLiveText.test.ts'],
-      lastVerifiedAt: '2026-09-25',
+      refs: ['packages/sim/src/beastDragonBatch0924.test.ts', 'packages/core/src/combat/simulate.test.ts', 'packages/ui/src/cardText.test.ts'],
+      lastVerifiedAt: '2026-09-28',
+    },
+  },
+  {
+    id: 'R-GRIMFLAT-01',
+    title: 'Grim: "Echo: Give your Beast Aura +8/+8", flat, in the Shop and in combat (supersedes R-ECHOTALLY-01)',
+    statement:
+      'Grim\'s Echo gives your Beast Aura a flat +8/+8 (gilded +16/+16), whatever the run\'s Echo tally. It buffs every '
+      + 'living friendly Beast when it fires, a still-living Grim included when the Echo is proc\'d without a death, and '
+      + 'in combat it also registers a rest-of-combat Beast Aura, so Beasts summoned later that fight gain it too '
+      + '("wherever they are"). The same body resolves a Shop, End of Turn and combat Echo. Every extra trigger '
+      + '(Sylus, Zyff) is another flat +8/+8. Grim stays Tier 5 and 7/1: the owner changed only the effect. The number '
+      + 'is flat, so the printed text is always its current value on every surface.',
+    domain: 'triggers',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-28 (Grim revert)', quote: 'branch off and change grim back to Echo give your beast aura +8/+8.' },
+      { kind: 'code', ref: 'packages/content/src/cards/set1/beasts.ts grim (deathrattleBuffTribe, beast, 8/8); packages/core/src/effects/arena.ts deathrattleBuffTribe' },
+    ],
+    cardText: '**Echo:** Give your **Beast Aura** **+8/+8**.',
+    contentIds: ['grim'],
+    currentBehaviour: 'Conforms as of 2026-09-28 (the flat effect Grim carried from 2026-08-12 to 2026-09-24, text now "Give").',
+    enforcement: {
+      kind: 'scenario',
+      refs: [
+        'packages/sim/src/beastDragonBatch0924.test.ts',
+        'packages/core/src/combat/simulate.test.ts',
+        'packages/sim/src/prowessCadenceFixes20260820.test.ts',
+        'packages/sim/src/beastBatchAug12.test.ts',
+        'packages/ui/src/cardText.test.ts',
+      ],
+      lastVerifiedAt: '2026-09-28',
     },
   },
   {

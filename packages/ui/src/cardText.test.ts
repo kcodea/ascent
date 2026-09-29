@@ -117,12 +117,12 @@ describe('cardText helpers', () => {
   });
 
 
-  // Grim is a per-game Echo tally card (owner batch 2026-09-24) and prints its LIVE TOTAL in place (owner ruling
-  // 2026-09-25, replacing the static-text exception). Full text == payout coverage: grimLiveText.test.ts.
-  it('Grim prints its live Echo total on every surface (owner ruling 2026-09-25)', () => {
+  // Grim is a flat +8/+8 Beast Aura again (owner 2026-09-28): the printed number is always current, whatever the
+  // run's Echo tally, so every surface prints the plain card text.
+  it('Grim prints its flat +8/+8 on every surface, whatever the Echo tally (owner 2026-09-28)', () => {
     const bag = { tier: 6, golden: false, spellBonus: 0, spellBonusH: 0, frontToBackBonus: 0, spellsThisTurn: 0, spellsCast: 0, deathrattlesTriggered: 9, undeadBuyAtk: 0, soulsmanGold: 0 };
-    expect(liveCardText('grim', bag as never).text).toBe('**Echo:** Give your **Beast Aura** **{{+30/+20}}**. Improves by **+3/+2** for every **Echo** triggered this game.');
-    expect(liveCardText('grim', { ...bag, golden: true } as never).goldenText).toBe('**Echo:** Give your **Beast Aura** **{{+60/+40}}**. Improves by **+6/+4** for every **Echo** triggered this game.');
+    expect(liveCardText('grim', bag as never).text).toBe('**Echo:** Give your **Beast Aura** **+8/+8**.');
+    expect(liveCardText('grim', { ...bag, golden: true } as never).goldenText).toBe('**Echo:** Give your **Beast Aura** **+16/+16**.');
   });
 
   it('run-wide metric helpers surface live values (Soulsman gold, Eternal Knight tally)', () => {

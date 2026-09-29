@@ -54,6 +54,14 @@ export const PATCH_NOTES: PatchNote[] = [
     date: '2026-09-28',
     changes: [
       {
+        category: 'Balance',
+        text: "Grim's Echo is back to giving your Beast Aura +8/+8.",
+        details: [
+          'Echo: Give your Beast Aura +8/+8 (Golden: +16/+16). It no longer counts your Echoes.',
+          'Grim stays a Tier 5 7/1.',
+        ],
+      },
+      {
         category: 'Systems',
         text: 'A new Legendary hero attack, Enraged Strike, can drop from crates.',
         details: [

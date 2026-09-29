@@ -233,10 +233,9 @@ describe('summon-entry order — auras land before the augmenting triggers', () 
     const cubBuffs = buffsOn(r, cub!.minion.uid);
     const grimUid = uidOf(r, 'grim');
     const oonaUid = uidOf(r, 'b2_oona');
-    // Grim reworked 2026-09-24: +3/+2 per Echo this game, its own included — Grim is the first Echo, so +3/+2.
-    // Cub 0/2 → aura 3/4 → Oona doubles the POST-aura body: +3/+4.
-    expect(cubBuffs.some((b) => b.source === grimUid && b.attack === 3 && b.health === 2), 'Grim aura +3/+2 (1 Echo)').toBe(true);
-    expect(cubBuffs.some((b) => b.source === oonaUid && b.attack === 3 && b.health === 4), 'Oona doubled the POST-aura 3/4').toBe(true);
+    // Grim is a flat +8/+8 Beast Aura again (owner 2026-09-28). Cub 0/2 → aura 8/10 → Oona doubles it: +8/+10.
+    expect(cubBuffs.some((b) => b.source === grimUid && b.attack === 8 && b.health === 8), 'Grim aura +8/+8').toBe(true);
+    expect(cubBuffs.some((b) => b.source === oonaUid && b.attack === 8 && b.health === 10), 'Oona doubled the POST-aura 8/10').toBe(true);
   });
 
   it('Rune of the Jungle doubles the POST-aura Health too', () => {
@@ -244,8 +243,8 @@ describe('summon-entry order — auras land before the augmenting triggers', () 
     const cub = (r.events.filter((e) => e.type === 'summon') as { minion: { uid: string; cardId: string } }[])
       .find((e) => e.minion.cardId === 'sabercub');
     expect(cub).toBeDefined();
-    // Cub 0/2 + Grim aura 3/2 (one Echo, Grim's own) → 3/4 → the Jungle doubles the post-aura 4 Health, not the 2.
-    expect(buffsOn(r, cub!.minion.uid, 'Rune of the Jungle').some((b) => b.health === 4), 'doubled 4, not 2').toBe(true);
+    // Cub 0/2 + Grim aura 8/8 → 8/10 → the Jungle doubles the post-aura 10 Health, not the printed 2.
+    expect(buffsOn(r, cub!.minion.uid, 'Rune of the Jungle').some((b) => b.health === 10), 'doubled 10, not 2').toBe(true);
   });
 
   it('onSummon watchers fire in CURRENT board order, left→right (Beardsley vs Oona)', () => {

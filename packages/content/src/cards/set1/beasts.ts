@@ -108,10 +108,9 @@ export const BEASTS: CardDef[] = [
     // per-Deathrattle tally to a flat +8/+8 Beast buff (gild +16/+16), and pulled into the Set-2 pool too
     // (see SET1_BEASTS_IN_SET2). `deathrattleBuffTribe` buffs the living Beasts and registers a rest-of-combat
     // aura, so bodies summoned later this fight inherit it — "wherever they are".
-    // Owner batch 2026-09-24: back to a PER-GAME Echo tally, T6 -> T5, stats kept. "+3/+2 for every Echo
-    // triggered this game", and Grim's OWN Echo counts (owner ruling): the run-wide `deathrattlesTriggered`
-    // tally is bumped BEFORE the rattle fires in both phases, so the N it reads already includes itself.
-    // Combat adds this fight's Echoes on top (`deathrattleTally`), so it grows across fights and mid-fight.
+    // Owner batch 2026-09-24 moved it to a per-game Echo tally at T5 (R-ECHOTALLY-01, now superseded).
+    // Owner ask 2026-09-28: "change grim back to Echo give your beast aura +8/+8." Flat again (R-GRIMFLAT-01);
+    // tier 5 and 7/1 kept (the owner changed only the effect). Flat, so the printed text is always current.
     id: 'grim',
     name: 'Grim',
     tribe: 'beast',
@@ -119,15 +118,9 @@ export const BEASTS: CardDef[] = [
     attack: 7,
     health: 1,
     keywords: [],
-    effects: [{ on: 'onDeath', do: 'deathrattleBuffTribeByTally', params: { tribe: 'beast', attack: 3, health: 2 } }],
-    // LIVE TOTAL IN PLACE (owner ruling 2026-09-25, replacing the 2026-09-24 static-text exception): "fix grim so
-    // that it updates in real time with the current value of the echo." Wording (owner correction, same day): "Echo:
-    // Give your Beast Aura +X/+Y. Improves by +3/+2 for every Echo triggered this game." Every live surface (shop,
-    // board, hand, Discover, end screen, combat) prints +X/+Y = (Echoes so far + 1 for its own) x (+3/+2) via
-    // `echoTallyText` in packages/ui/src/cardText.ts (see R-ECHOTALLY-01). The printed text below carries the BASE
-    // value (0 Echoes so far, its own counted): what a context-free surface (the Compendium, Doc Bot) reads.
-    text: '**Echo:** Give your **Beast Aura** **+3/+2**. Improves by **+3/+2** for every **Echo** triggered this game.',
-    goldenText: '**Echo:** Give your **Beast Aura** **+6/+4**. Improves by **+6/+4** for every **Echo** triggered this game.',
+    effects: [{ on: 'onDeath', do: 'deathrattleBuffTribe', params: { tribe: 'beast', attack: 8, health: 8 } }],
+    text: '**Echo:** Give your **Beast Aura** **+8/+8**.',
+    goldenText: '**Echo:** Give your **Beast Aura** **+16/+16**.',
   },
   {
     id: 'shaper',

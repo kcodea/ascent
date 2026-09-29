@@ -189,7 +189,7 @@ const EVENT_LABEL: Record<AnnouncerEvent, string> = {
   opponentHero: 'Facing a hero, per hero (1600 ms)',
   tribeSurge: 'Practice picked tribes, per tribe (1000 ms after the round-2 return)',
   rankUp: 'Rank up on the rank screen (after the end line)',
-  grimPayout: 'Grim pays out with 6+ Echoes counted (as shown, 3 s in)',
+  grimPayout: 'Your own Grim Echo pays out (as shown, 3 s in)',
   hanGover: 'Han Gover Pummel pays out (as shown, 3 s in)',
   kurseGolem: 'Kurse summons a Golem (as shown, 3 s in)',
   wolvieRise: 'A Beast Wolvie gave Rise Rises (as shown, 3 s in)',

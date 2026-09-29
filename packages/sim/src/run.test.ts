@@ -481,7 +481,7 @@ describe('run loop (@game/sim)', () => {
     expect(s.board.find((c) => c.uid === 'u')?.keywords).toContain('R'); // the highest-Attack friendly Undead got Rise
   });
 
-  it('Graverobber on Grim fires its Deathrattle out of combat (Grim buffs your Beasts +3/+2 per Echo)', () => {
+  it('Graverobber on Grim fires its Deathrattle out of combat (Grim buffs your Beasts +8/+8)', () => {
     let s: RunState = {
       ...createRun(1),
       board: [
@@ -493,13 +493,13 @@ describe('run loop (@game/sim)', () => {
     s = reduce(s, { type: 'play', uid: 'g' });
     s = reduce(reduce(s, { type: 'battlecryTarget', targetUid: 'grim' }), { type: 'resolveShopDeath' });
     expect(s.board.find((c) => c.uid === 'grim')).toBeUndefined(); // destroyed
-    // Grim's Echo (2026-09-24): +3/+2 per Echo this game, its own included → the first Echo pays +3/+2.
-    expect(s.board.find((c) => c.uid === 'b')!.attack).toBe(1 + 3);
-    expect(s.board.find((c) => c.uid === 'b')!.health).toBe(1 + 2);
+    // Grim's Echo: a flat +8/+8 Beast Aura (owner 2026-09-28).
+    expect(s.board.find((c) => c.uid === 'b')!.attack).toBe(1 + 8);
+    expect(s.board.find((c) => c.uid === 'b')!.health).toBe(1 + 8);
   });
 
   it('Sylus the Reaper doubles a Graverobber-fired Deathrattle in the shop', () => {
-    // Grim's Echo fires once + once per Sylus; each fire reads the tally at death (1 Echo) → +3/+2 twice.
+    // Grim's Echo fires once + once per Sylus → +8/+8 twice.
     let s: RunState = {
       ...createRun(1),
       board: [
@@ -511,7 +511,7 @@ describe('run loop (@game/sim)', () => {
     };
     s = reduce(s, { type: 'play', uid: 'g' });
     s = reduce(reduce(s, { type: 'battlecryTarget', targetUid: 'grim' }), { type: 'resolveShopDeath' });
-    expect(s.board.find((c) => c.uid === 'b')!.attack).toBe(1 + 6); // +3/+2 fired twice (once + one Sylus)
+    expect(s.board.find((c) => c.uid === 'b')!.attack).toBe(1 + 16); // +8/+8 fired twice (once + one Sylus)
   });
 
   it("Graverobber's out-of-combat Echo counts toward a deathrattle (Echo) quest", () => {

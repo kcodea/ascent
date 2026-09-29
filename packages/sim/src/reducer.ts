@@ -33,7 +33,7 @@ import { fireOnBuyWatchers, tribesPlayedThisTurn, fireHandCardEcho, syncSoulFurn
 import { MATCHMAKING } from './matchmaking';
 
 /** Spend `amount` Gold and fire any `goldSpent` payoffs (Acid, Banksly) — the single Gold-spend chokepoint
- *  for buys, rerolls, tier-ups and hero powers. */
+ *  for buys, rerolls, tier-ups, hero powers, runes and Equipment activations. */
 function spendGold(s: RunState, amount: number): void {
   s.embers -= amount;
   s.goldSpent = (s.goldSpent ?? 0) + amount; // career/post-run stat
@@ -2699,7 +2699,10 @@ function reduceCore(state: RunState, action: Action): RunState {
       // owner 2026-09-18). The aim UI + bot view mirror this.
       if (target && !def.mayTargetSelf && granted.sourceUids.includes(target.uid)) return state;
 
-      s.embers -= cost;
+      // R-EQUIP-02 (owner 2026-09-29): Gold paid to use an Equipment IS Gold spent, so it goes through the one
+      // Gold-spend chokepoint like a buy / roll / tier-up: the run + per-turn tallies, every `goldSpent` meter
+      // (Coinfire, Acid, Banksly, …), Gold runes and "Spend N Gold" quests all see it. A free (0) use spends nothing.
+      if (cost > 0) spendGold(s, cost);
       const eq = s.equipment!;
       if (!overcharged) spendEquipmentCharge(s, def.id); // the pool first, then this Equipment's own charge — checked above
       eq.lastUsedEquipmentId = def.id; // "last used" means last successfully ACTIVATED, not last viewed

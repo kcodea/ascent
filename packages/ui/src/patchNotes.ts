@@ -60,6 +60,13 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: 'Gold you pay to use Equipment now counts as Gold spent.',
+        details: [
+          'It counts toward Gold spent this turn and toward every card, rune and quest that tracks Gold spent.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'Opening the menu (Esc) now pauses your shop timer.',
       },
       {

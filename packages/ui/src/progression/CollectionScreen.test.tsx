@@ -118,8 +118,8 @@ describe('the Collection screen: the album', () => {
     expect(missing.querySelector('.colls-tile-lock')).not.toBeNull();
     expect(missing.getAttribute('aria-label')).toBe('Kingbreaker, Epic, not owned');
     // "N / M collected" counts every live item: 16 titles + the 6 skins + 8 hero attacks (2026-09-28: Quake made it 24,
-    // Arcana and Phantom Blades 26, Enraged Strike 27, Venom Volley 28, Frost Nova 29, Consecration 30; skins batch 2 +13 minion skins, 43)
-    expect(text('.colls-meter-num')).toBe('2 / 43');
+    // Arcana and Phantom Blades 26, Enraged Strike 27, Venom Volley 28, Frost Nova 29, Consecration 30; skins batch 2 +13 minion skins, 43; Inferno 2026-09-29, 44)
+    expect(text('.colls-meter-num')).toBe('2 / 44');
     expect(text('.colls-tab.on .colls-tab-count')).toBe('2/16');
     clean();
   });

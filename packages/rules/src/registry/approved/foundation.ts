@@ -2188,7 +2188,9 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'R-PROG-ATTACK-11), the sixth, attack_poison ("Venom Volley", Legendary, style poison: R-PROG-ATTACK-12), the '
       + 'seventh, attack_frost ("Frost Nova", Legendary, style frost: R-PROG-ATTACK-13), and the eighth, attack_holy '
       + '("Consecration", Legendary, style holy: R-PROG-ATTACK-14), re-pinned the first-crate odds to Common 45.5%, Rare '
-      + '30.2%, Epic 18.5%, Legendary 5.9%; a non-title item 33.5%; the eight attacks together 4.3%.',
+      + '30.2%, Epic 18.5%, Legendary 5.9%; a non-title item 33.5%; the eight attacks together 4.3%. The ninth, attack_fire '
+      + '("Inferno", Legendary, style fire: R-PROG-ATTACK-15), joined under the fixed rarity odds (2026-09-29: a Legendary '
+      + 'is 5%, shared equally by its items), making Legendary twelve items at 0.417% each and the nine attacks together 3.75%.',
     domain: 'foundation',
     status: 'approved',
     evidence: [
@@ -2581,6 +2583,62 @@ export const FOUNDATION_RULES: GameRule[] = [
     ],
     currentBehaviour: 'Conforms, built 2026-09-28; flattened and the six-sword finale 2026-09-29. The item reaches the database on the next deploy of progression-inventory (the catalog sync); the equip SQL already accepts the hero_attack slot.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/heroHoly/heroHoly.test.ts', 'packages/progression/src/cosmetics.test.ts', 'packages/ui/src/progression/CollectionHeroAttack.test.tsx', 'packages/ui/src/heroAttack/damageFormation.test.ts'], lastVerifiedAt: '2026-09-29' },
+  },
+  {
+    id: 'R-PROG-ATTACK-15',
+    title: 'Inferno (attack_fire, Legendary) is a hero attack of LIVE PARTICLE FIRE: a fireball / two / a volley of five that sets the target ablaze / a meteor that detonates, on the SAME damage tiers; the blow lands ONCE; no freeze',
+    statement:
+      'attack_fire ("Inferno", a placeholder name for the owner to rename; Legendary, crate, account-wide, style fire) plays '
+      + 'a fire-mage attack in which EVERY flame is live particle fire (the shared PixiFire: hundreds of small soft additive '
+      + 'flame puffs and licking tongues that rise with buoyancy, sway on a curl field, flicker and cool over their life from '
+      + 'white-hot through yellow, orange and red to a dark ember, over a deep normal-blend body that keeps the colour on a '
+      + 'light board, leaving smoke and throwing embers), never a flame image. After the shared damage formation '
+      + '(R-PROG-ATTACK-08) fire catches round the striking hero\x27s upper rim and FIREBALLS ignite round the portrait (never '
+      + 'over the face, never above the frame), draw back and are hurled on slight arcs with comet tails of flame, smoke and '
+      + 'embers. It escalates on exactly the tiers every other hero attack uses (one shared tierOf, thresholds 6 / 12 / 20): '
+      + 'I 1-5 ONE fireball bursts on the struck hero; II 6-11 TWO, the struck rim briefly alight; III 12-19 a VOLLEY of five '
+      + 'bigger fireballs landing in rhythm, the struck hero CATCHING more with every tick, then the last one FLARES it up (a '
+      + 'gout of flame off the portrait) and leaves its upper rim ABLAZE, dying down to embers and smoke; IV 20+ three '
+      + 'fireballs (ticks), then the hero hurls a column of fire into the sky and the struck hero is MARKED for the build-up '
+      + '(the ground under it glowing hotter, heat rings closing in, flames licking up round it) while a METEOR streaks down '
+      + 'from above the frame on a low diagonal from the striker\x27s side and DETONATES, in layers: a white-hot flash core, '
+      + 'thin shockwaves, a FIRE NOVA racing outward, a dome of fire, a fireball ROLLING UP into a mushroom of smoke, BURNING '
+      + 'DEBRIS flung out on arcs trailing fire, a pillar of fire ENGULFING the struck hero that burns out to embers, and a '
+      + 'scorch. The consequence (the damage, Armor, Resolve) lands exactly ONCE: on the last fireball (every earlier fireball '
+      + 'is a tick with FX only) or, at IV, on the detonation. No hit-stop or freeze anywhere (R-PROG-ATTACK-10). Every anchor '
+      + 'is the round portrait art at rest (R-PROG-ATTACK-04). Presentation only; reduced motion is fades only; an unknown or '
+      + 'retired id plays Classic.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-29 (more attack types)', quote: 'we need a fire animation ... use the same 4 tier strategy we have been ... same with the new fire animation, it should look like live flame/fires pixi sprites etc' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-29 (Fire first review)', quote: 'fire one looks solid - can you make the 3rd fire tier a bit better and the meteor slightly slower build up and a cooler explosion' },
+      { kind: 'code', ref: 'packages/progression/src/cosmetics.ts (attack_fire); packages/ui/src/heroAttack/pixiFire.ts (PixiFire); packages/ui/src/heroFire/ (heroFireConfig firePlan / fireCues / fireballMotions / meteorMotion / fireCameraAt, heroFire playHeroFire, heroFireScene)' },
+    ],
+    currentBehaviour: 'Conforms, built 2026-09-29. The item reaches the database on the next deploy of progression-inventory (the catalog sync); the equip SQL already accepts the hero_attack slot.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/heroFire/heroFire.test.ts', 'packages/ui/src/heroAttack/pixiFire.test.ts', 'packages/progression/src/cosmetics.test.ts', 'packages/ui/src/progression/CollectionHeroAttack.test.tsx', 'packages/ui/src/heroAttack/damageFormation.test.ts'], lastVerifiedAt: '2026-09-29' },
+  },
+  {
+    id: 'R-PROG-ATTACK-16',
+    title: 'Hero attack FIRE is live particle fire, never a flame picture: Enraged Strike\'s rage aura, its towering rear and its crater burn in the shared PixiFire',
+    statement:
+      'Every flame a hero attack draws is the shared live particle fire (packages/ui/src/heroAttack/pixiFire.ts: pooled, '
+      + 'hard-capped, zero allocation per frame, seeded): soft additive flame puffs and licking tongues rising with buoyancy '
+      + 'and turbulence, flickering and cooling white-hot to red, a normal-blend body under them, smoke and embers. Enraged '
+      + 'Strike (R-PROG-ATTACK-11) no longer draws its aura as swaying strip-mesh flame tongues: its crown of fire burns off '
+      + 'the upper rim as particles (turning to the TRAILING rim and streaming back on a dash, so it never burns across the '
+      + 'face, and leaving a trail of fire behind the moving hero), its Tier IV rear-back sends a column of fire roaring up, '
+      + 'and its haymaker crater bursts into flame and keeps burning for a beat. Its timing, tiers, strikes, claws, sparks, '
+      + 'rings and sound are unchanged.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-29 (more attack types)', quote: 'fix the fire in enrage with pixi style fire so it looks less like a flame image and more liike actual fire' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-29 (Enraged fire review)', quote: 'enraged looks way better' },
+      { kind: 'code', ref: 'packages/ui/src/heroAttack/pixiFire.ts; packages/ui/src/heroEnraged/heroEnragedScene.ts (the aura emitter, rear, crater)' },
+    ],
+    currentBehaviour: 'Conforms, built 2026-09-29.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/heroAttack/pixiFire.test.ts', 'packages/ui/src/heroEnraged/heroEnraged.test.ts'], lastVerifiedAt: '2026-09-29' },
   },
   {
     id: 'R-PRESENT-24',

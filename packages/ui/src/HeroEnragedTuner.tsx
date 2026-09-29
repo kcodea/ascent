@@ -1,5 +1,5 @@
 import {
-  ENRAGED_TIER_SUFFIXES, HERO_ENRAGED_DEFAULTS, HERO_ENRAGED_RANGES, HERO_ENRAGED_SPEEDS, TIERS, enragedPlan, getHeroEnragedConfig,
+  ENRAGED_TIER_SUFFIXES, HERO_ENRAGED_DEFAULTS, HERO_ENRAGED_RANGES, TIERS, enragedPlan, getHeroEnragedConfig,
   heroEnragedConfigJson, heroEnragedPreviewSpeed, resetHeroEnragedConfig, setHeroEnragedPreviewSpeed, setHeroEnragedValue,
   type EnragedTierSuffix, type HeroEnragedConfig, type HeroEnragedNumKey, type HeroEnragedStrKey, type TierNum,
 } from './heroEnraged/heroEnragedConfig';
@@ -54,8 +54,8 @@ const SPECS: Record<GlobalNumKey, Spec> = {
   crescentSize: ['Crescent', '×', 'Tier IV: the giant flaming crescent cleaved across the struck hero (0 = none).', 'Haymaker (Tier IV)'],
   shockSize: ['Rage shockwave', '×', 'Tier IV: the screen-filling shockwave of the knockout.', 'Haymaker (Tier IV)'],
   auraSize: ['Aura glow', '×', 'The hot glow round the hero.', 'Aura'],
-  flames: ['Flames', undefined, 'Flame tongues round the portrait rim.', 'Aura'],
-  flameLength: ['Flame length', '×', 'How far the flames lick off the rim.', 'Aura'],
+  flames: ['Flames', undefined, 'How much live fire burns round the portrait rim (particles, not a flame picture; 0 = none).', 'Aura'],
+  flameLength: ['Flame length', '×', 'How high the fire rises off the rim before it burns out.', 'Aura'],
   motes: ['Motes', undefined, 'Hot streaks pulled into the hero through the windup.', 'Aura'],
   ghosts: ['Afterimages', undefined, 'Ghost copies of the portrait left behind the dash (0 = none).', 'Afterimages and wake'],
   ghostSpacing: ['Ghost spacing', '×', 'Distance between afterimages, in portrait radii (they are stamped along the dash, evenly).', 'Afterimages and wake'],
@@ -239,6 +239,8 @@ export const SPEC: TunerSpec<EnragedTunerValues> = {
   controls: buildControls(),
   copy: () => heroEnragedConfigJson(),
   copyLabel: 'Copy JSON',
+  // Owner 2026-09-29 (every attack tuner): the Play row on TOP; no speed or reduced-motion buttons.
+  buttonsTop: true,
   actions: [
     { label: '▶ You strike', hint: 'Your hero strikes the foe for the preview damage.', run: () => { void demo('player'); } },
     { label: '▶ Foe strikes', hint: 'The foe strikes your hero for the preview damage.', run: () => { void demo('opp'); } },
@@ -250,12 +252,6 @@ export const SPEC: TunerSpec<EnragedTunerValues> = {
     { label: '▶ Foe tier II (8)', hint: 'The foe strikes your hero for 8.', run: () => { void demo('opp', { damage: 8, parts: 3 }); } },
     { label: '▶ Foe medium (12)', hint: 'The foe strikes your hero for 12.', run: () => { void demo('opp', { damage: 12, parts: 4 }); } },
     { label: '▶ Foe huge (40)', hint: 'The foe strikes your hero for 40.', run: () => { void demo('opp', { damage: 40, parts: 7 }); } },
-    { label: '▶ Reduced motion', hint: 'What a player with reduced motion on sees: fades, no lunge, aura, shake, zoom or hit-stop.', run: () => { void demo('player', { reduced: true }); } },
-    ...HERO_ENRAGED_SPEEDS.map((s) => ({
-      label: `Speed ${s}x`,
-      hint: 'Slow motion for the next plays (the tuner only; never saved, never in production).',
-      run: () => { setHeroEnragedPreviewSpeed(s); },
-    })),
   ],
 };
 

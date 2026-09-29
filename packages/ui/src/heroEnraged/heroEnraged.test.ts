@@ -113,9 +113,12 @@ describe('the tuner values', () => {
     expect(DEV_HERO_ATTACK_CHOICES).toContain('enraged');
     expect(DEV_HERO_ATTACK_LABELS.enraged).toBe('Enraged Strike');
     const labels = SPEC.actions?.map((a) => a.label) ?? [];
-    for (const l of ['▶ You strike', '▶ Foe strikes', '▶ Small (3)', '▶ Tier II (8)', '▶ Medium (12)', '▶ Huge (40)', '▶ Foe small (3)', '▶ Foe tier II (8)', '▶ Foe medium (12)', '▶ Foe huge (40)', '▶ Reduced motion', 'Speed 1x', 'Speed 0.5x', 'Speed 0.25x']) {
+    for (const l of ['▶ You strike', '▶ Foe strikes', '▶ Small (3)', '▶ Tier II (8)', '▶ Medium (12)', '▶ Huge (40)', '▶ Foe small (3)', '▶ Foe tier II (8)', '▶ Foe medium (12)', '▶ Foe huge (40)']) {
       expect(labels).toContain(l);
     }
+    // Owner 2026-09-29 (every attack tuner): the Play row on TOP, and no speed or reduced-motion buttons.
+    expect(SPEC.buttonsTop).toBe(true);
+    expect(labels.some((l) => /Speed|Reduced/.test(l))).toBe(false);
     for (const c of SPEC.controls) expect(`${c.label} ${c.hint ?? ''}`, c.key).not.toMatch(/[—–]/);
   });
 });
@@ -623,7 +626,7 @@ describe('the scene (headless Pixi)', () => {
 describe('the cosmetic', () => {
   it('Enraged Strike (attack_enraged) is a Legendary crate hero attack that plays Enraged; the dev override can force it; the others unchanged', () => {
     expect(COSMETIC_INDEX.attack_enraged).toMatchObject({ category: 'hero_attack', rarity: 'legendary', name: 'Enraged Strike', assets: { style: 'enraged' }, active: true, acquisition: { type: 'crate' } });
-    expect(HERO_ATTACK_STYLES).toEqual(['classic', 'blast', 'quake', 'arcana', 'blades', 'enraged', 'poison', 'frost', 'holy']); // Enraged Strike, Poison Darts, Frost, then Consecration (holy) joined 2026-09-28
+    expect(HERO_ATTACK_STYLES).toEqual(['classic', 'blast', 'quake', 'arcana', 'blades', 'enraged', 'poison', 'frost', 'holy', 'fire']); // Enraged Strike, Poison Darts, Frost, then Consecration (holy) joined 2026-09-28 (Inferno, fire, 2026-09-29)
     expect(styleOfCosmetic('attack_enraged')).toBe('enraged');
     for (const [id, style] of [['attack_blast', 'blast'], ['attack_quake', 'quake'], ['attack_arcana', 'arcana'], ['attack_blades', 'blades']] as const) expect(styleOfCosmetic(id)).toBe(style);
     expect(resolveHeroAttackStyle({ attacker: 'opp', devChoice: 'auto', attackerCosmeticId: 'attack_enraged' })).toBe('enraged');

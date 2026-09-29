@@ -29,6 +29,7 @@ import { playHeroFire } from '../heroFire/heroFire';
 import { playHeroUndead } from '../heroUndead/heroUndead';
 import { playHeroBeast } from '../heroBeast/heroBeast';
 import { playHeroBanana } from '../heroBanana/heroBanana';
+import { playHeroBleed } from '../heroBleed/heroBleed';
 import { playHeroCoin } from '../heroCoin/heroCoin';
 import { playHeroBoomerang } from '../heroBoomerang/heroBoomerang';
 import { playHeroBubble } from '../heroBubble/heroBubble';
@@ -320,6 +321,7 @@ describe('the runners', () => {
       ['undead', (o) => playHeroUndead({ ...o, textures: TEX })],
       ['beast', (o) => playHeroBeast({ ...o, textures: TEX })],
       ['banana', (o) => playHeroBanana({ ...o, textures: TEX })],
+      ['bleed', (o) => playHeroBleed({ ...o, textures: TEX })],
       ['coin', (o) => playHeroCoin({ ...o, textures: TEX })],
       ['boomerang', (o) => playHeroBoomerang({ ...o, textures: TEX })],
       ['bubble', (o) => playHeroBubble({ ...o, textures: TEX })],
@@ -473,6 +475,7 @@ describe('no attack ever pauses its clock (owner 2026-09-28: "remove the freezei
     ['undead', (o) => playHeroUndead({ ...o, textures: null })],
     ['beast', (o) => playHeroBeast({ ...o, textures: null })],
     ['banana', (o) => playHeroBanana({ ...o, textures: null })],
+    ['bleed', (o) => playHeroBleed({ ...o, textures: null })],
     ['coin', (o) => playHeroCoin({ ...o, textures: null })],
     ['boomerang', (o) => playHeroBoomerang({ ...o, textures: null })],
     ['bubble', (o) => playHeroBubble({ ...o, textures: null })],

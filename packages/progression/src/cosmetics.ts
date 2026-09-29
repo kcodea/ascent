@@ -284,6 +284,11 @@ export const COSMETICS: readonly CosmeticDef[] = Object.freeze([
   // top of the screen and slams down into a banana-bunch shower and a golden shockwave. The name is the builder's
   // placeholder for the owner to rename (the id stays). Legendary like the other eight.
   heroAttack('attack_banana', "Oona's Banana Cannon", 'legendary', 'banana'),
+  // Owner 2026-09-29: "branch off and make some more attack types - we need ... a bleed/gash animation ... use the same 4
+  // tier strategy we have been". Crimson crescents fly in and cut gashes that open and bleed: I one diagonal gash, II a
+  // cross, III a flurry ending in a claw rake, IV three rakes, a heartbeat, a mega-slash that splits the screen and a
+  // blood nova. The name is the builder's placeholder for the owner to rename (the id stays). Legendary like the others.
+  heroAttack('attack_bleed', 'Hemorrhage', 'legendary', 'bleed'),
   // THE RARES (owner 2026-09-29: "build 5 animations that range from rare -> epic ... rare and epics should only have 2
   // or 3 tiers to them and generally be less exciting, but still extremely clean and fun"). Two visual tiers each
   // (shared I-II Small, III-IV Big). Names are the builder's placeholders for the owner to rename (the ids stay).

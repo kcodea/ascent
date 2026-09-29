@@ -542,7 +542,7 @@ describe('the scene (headless Pixi)', () => {
 describe('the cosmetic', () => {
   it('Venom Volley (attack_poison) is a Legendary crate hero attack that plays Poison; the dev override can force it; the other styles unchanged; unknown ids play Classic', () => {
     expect(COSMETIC_INDEX.attack_poison).toMatchObject({ category: 'hero_attack', rarity: 'legendary', name: 'Venom Volley', assets: { style: 'poison' }, active: true });
-    expect(HERO_ATTACK_STYLES).toEqual(['classic', 'blast', 'quake', 'arcana', 'blades', 'enraged', 'poison', 'frost', 'holy', 'fire', 'undead', 'beast', 'banana', 'coin', 'boomerang', 'bubble', 'backstab']); // Frost, then Consecration (holy), joined 2026-09-28 (Inferno, fire, 2026-09-29); Grave Call (undead) 2026-09-29; Stampede (beast) joined 2026-09-29; Banana Cannon (banana) joined 2026-09-29
+    expect(HERO_ATTACK_STYLES).toEqual(['classic', 'blast', 'quake', 'arcana', 'blades', 'enraged', 'poison', 'frost', 'holy', 'fire', 'undead', 'beast', 'banana', 'bleed', 'coin', 'boomerang', 'bubble', 'backstab']); // Frost, then Consecration (holy), joined 2026-09-28 (Inferno, fire, 2026-09-29); Grave Call (undead) 2026-09-29; Stampede (beast) joined 2026-09-29; Banana Cannon (banana) joined 2026-09-29; Hemorrhage (bleed) joined 2026-09-29
     expect(styleOfCosmetic('attack_poison')).toBe('poison');
     for (const [id, st] of [['attack_blast', 'blast'], ['attack_quake', 'quake'], ['attack_arcana', 'arcana'], ['attack_blades', 'blades'], ['attack_enraged', 'enraged']] as const) {
       expect(styleOfCosmetic(id)).toBe(st);

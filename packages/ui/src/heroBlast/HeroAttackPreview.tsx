@@ -25,6 +25,8 @@ import { playHeroBeast } from '../heroBeast/heroBeast';
 import { heroBeastPreviewSpeed } from '../heroBeast/heroBeastConfig';
 import { playHeroBanana } from '../heroBanana/heroBanana';
 import { heroBananaPreviewSpeed } from '../heroBanana/heroBananaConfig';
+import { playHeroBleed } from '../heroBleed/heroBleed';
+import { heroBleedPreviewSpeed } from '../heroBleed/heroBleedConfig';
 import { playHeroCoin } from '../heroCoin/heroCoin';
 import { heroCoinPreviewSpeed } from '../heroCoin/heroCoinConfig';
 import { playHeroBoomerang } from '../heroBoomerang/heroBoomerang';
@@ -51,6 +53,7 @@ const RUNNERS: Record<string, { play: (o: HeroAttackOptions & { textures?: null 
   undead: { play: (o) => playHeroUndead(o), speed: heroUndeadPreviewSpeed },
   beast: { play: (o) => playHeroBeast(o), speed: heroBeastPreviewSpeed },
   banana: { play: (o) => playHeroBanana(o), speed: heroBananaPreviewSpeed },
+  bleed: { play: (o) => playHeroBleed(o), speed: heroBleedPreviewSpeed },
   coin: { play: (o) => playHeroCoin(o), speed: heroCoinPreviewSpeed },
   boomerang: { play: (o) => playHeroBoomerang(o), speed: heroBoomerangPreviewSpeed },
   bubble: { play: (o) => playHeroBubble(o), speed: heroBubblePreviewSpeed },

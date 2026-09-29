@@ -166,7 +166,7 @@ describe('hero titles in the Collection (owner 2026-09-29: "the master title sho
     expect(warded.className).toMatch(/\bworn\b/);
     expect(tileNames()).toHaveLength(49); // the master took the title's slot
     expect(tileNames().slice(0, 2)).toEqual(['The Unbroken', 'Warded']); // the Legendaries lead the album
-    expect(text('.colls-meter-num')).toBe('2 / 76'); // Alpha Tester + Warded (the master stands for both tiers)
+    expect(text('.colls-meter-num')).toBe('2 / 77'); // Alpha Tester + Warded (the master stands for both tiers); 77 with Hemorrhage
     // the detail panel's nameplate and the preview under your name are the plate too
     expect($('.colls-plate-name .titlebadge.tb-master')?.textContent).toBe('Warded');
     expect($('.colls-preview-title .titlebadge.tb-master')?.textContent).toBe('Warded');

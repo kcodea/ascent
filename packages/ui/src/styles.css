@@ -12406,6 +12406,18 @@ body:has(.heroselect.rankend) .pixifx-above { z-index: 470; }
 .wipevs-facewrap > .wipevs-face { display: block; width: 100%; height: 100%; border: none; box-shadow: none; }
 .lobbyface-host { position: relative; display: block; overflow: visible; }
 .lobbyface-host > .lobbyface-img { display: block; width: 100%; height: 100%; object-fit: cover; }
+/* YOUR RING OVER YOUR HERO POWER (owner report 2026-09-29: "fix the Z axis of the hero power here so that the player
+   frame is on top of that"). The ring lives inside `.hero > .f > .herolunge`, and `.hero` / `.f` both carry a
+   transform, so the ring can never out-rank anything outside the hero block on its own: the block ranks as ONE unit
+   inside `.statusbar`'s stacking context. It sat at `auto` there while the power diamond (`.heropanel`, a fixed
+   sibling) sits at z41, so the ring's overhang painted UNDER the diamond and its cost coin. `pf-top` (set only while a
+   frame is on) lifts the block to 42: over the diamond (41), level with the Second Power / Equipment seats (42, later
+   in the tree so they still win a tie; neither sits near the portrait), and under the open Buffs panel lift (43,
+   higher specificity). The lunge moves `.herolunge` INSIDE this block, so the order holds mid-strike too, and
+   `body.duel-attacker-*` only re-ranks the whole bar. Clicks: the ring layer is pointer-events none (`.pframe-box`),
+   the block's own box is a transparent rounded square that meets the diamond only at a corner outside its radius,
+   so every press on the diamond still lands on `.heropowerbtn`. */
+.statusbar .hero.pf-top { z-index: 42; }
 /* The `.portring` group (Career, ladder banners, match details, the title corner): the copper ring is the
    container's ::after, and the disc is the `.hero` inside it. The tuner ring replaces the ::after and rides the
    disc instead. */

@@ -11,6 +11,7 @@ import { normalizePracticeTribes } from '../practiceTribes';
 import { createPracticeBotLobby } from './practiceBots';
 import { botSeat, hybridSeat, type SeatPolicy } from './seats';
 import { playerRunByKey, playerRunsFrom, snapshotSeat } from './snapshotSeats';
+import { OPPONENT_POOL } from '../opponents';
 import { handleKeyOf, uniqueHandleFor, adjectiveHandle } from './handles';
 import type { LobbyEncounter, LobbyRules, PreparedBoard, SeatDriver } from './types';
 import { DEFAULT_LOBBY_RULES } from './lobby';
@@ -116,6 +117,71 @@ export interface RunLobby {
    *  elimination treatment), so the arc reads as a table thinning out into a final duel. The player's seat is
    *  never touched by it, and their own combat is still simulated for real (owner ask 2026-08-21). */
   tutorialSeatsRemaining?: number[];
+  /** What the shared opponent pool held for this lobby's set AT CREATION (fix 2026-09-28). Read-only
+   *  bookkeeping for telemetry — it never feeds seat selection, pairing or any RNG, so it cannot move a
+   *  replay. Absent on lobbies built before the field existed and on authored / bot-only lobbies. */
+  poolAtStart?: LobbyPoolStats;
+}
+
+/** Player-run boards available to a lobby when it was built (non-synthetic, this set only). */
+export interface LobbyPoolStats {
+  /** Total servable player boards for the set. */
+  boards: number;
+  /** Distinct recorded runs long enough to hold a seat (what `playerRunsFrom` returns). */
+  runs: number;
+  /** `boardsByWave[w - 1]` = boards recorded at wave `w`. */
+  boardsByWave: number[];
+  /** Where the client's live pool came from when the lobby was built (`network`, `cache`, `mixed`, `none`).
+   *  Stamped by the UI after creation; the sim never reads it. Absent headless. */
+  source?: string;
+}
+
+/** Count the player boards a lobby on `setId` could draw from. Pure over the pool; no RNG. */
+export function lobbyPoolStatsOf(pool: readonly BoardSnapshot[] = OPPONENT_POOL, setId?: SetId, knownRuns?: number): LobbyPoolStats {
+  const boardsByWave: number[] = [];
+  let boards = 0;
+  for (const s of pool) {
+    if ((s.origin ?? 'house') === 'synthetic' || !s.minions?.length) continue;
+    if (setId && (s.setId ?? 'set1') !== setId) continue;
+    boards++;
+    const w = Math.max(1, Math.floor(s.wave));
+    while (boardsByWave.length < w) boardsByWave.push(0);
+    boardsByWave[w - 1]!++;
+  }
+  return { boards, runs: knownRuns ?? playerRunsFrom(pool, undefined, setId).length, boardsByWave };
+}
+
+/**
+ * LOBBY POOL TELEMETRY (fix 2026-09-28). A rated lobby once sat seven generated seats because the opponent
+ * pool had not loaded; this row makes that visible in `run_telemetry`. `allGenerated` is the alarm: every
+ * opponent seat was a hybrid or bot, none a recorded player run.
+ */
+export interface LobbyPoolTelemetry {
+  poolBoards: number | null;
+  poolRuns: number | null;
+  poolBoardsByWave: number[] | null;
+  poolSource: string | null;
+  seats: { recorded: number; hybrid: number; bot: number; authored: number };
+  allGenerated: boolean;
+}
+
+export function lobbyPoolTelemetryOf(lobby: RunLobby): LobbyPoolTelemetry {
+  const seats = { recorded: 0, hybrid: 0, bot: 0, authored: 0 };
+  for (const s of lobby.seats) {
+    if (s.kind === 'snapshot') seats.recorded++;
+    else if (s.kind === 'hybrid') seats.hybrid++;
+    else if (s.kind === 'bot') seats.bot++;
+    else if (s.kind === 'authored') seats.authored++;
+  }
+  const generated = seats.hybrid + seats.bot;
+  return {
+    poolBoards: lobby.poolAtStart?.boards ?? null,
+    poolRuns: lobby.poolAtStart?.runs ?? null,
+    poolBoardsByWave: lobby.poolAtStart?.boardsByWave ?? null,
+    poolSource: lobby.poolAtStart?.source ?? null,
+    seats,
+    allGenerated: generated > 0 && seats.recorded === 0 && seats.authored === 0,
+  };
 }
 
 /**
@@ -298,7 +364,7 @@ export function createRunLobby(seed: number, playerHeroId: string, rules: Partia
   // The probe above advanced live drivers to round 1; drop them so the lobby starts every seat clean. Every
   // PROBED seat, not just the seated ones — a rejected candidate's driver is cached too.
   resetLobbyDrivers(probed);
-  return { version: 1, seed, setId, round: 1, seats, encounters: [], finished: false, rules: r };
+  return { version: 1, seed, setId, round: 1, seats, encounters: [], finished: false, rules: r, poolAtStart: lobbyPoolStatsOf(OPPONENT_POOL, setId, available.length) };
 }
 
 /** Deterministic pairing over the living seats. Mirrors `pairSeats` but on the serializable shape. */

@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { loadFpsCap, saveFpsCap } from './fpsCap';
 import { CARD_INDEX, activeSet, type SetId } from '@game/content';
-import { type CombatOdds, HEROES, playableHeroes, practiceHeroChoiceIds, runTribesForSeed, OPPONENT_POOL, OPPONENT_POOL_DATA, registerOpponents, createRun, deserialize, initialProfile, resolveServerRank, adoptServerRank, legacyRatingChangeOf, rankedRunIdOf, type RankResult, type RankedProfile, isPlayerAction, missingCardIds, nextOpponent, parseQaScenario, reconstructRunTelemetry, recordTelemetryAction, emptyTelemetryLog, withLiveTelemetry, telemetrySourceOf, setIdOf, type TelemetryLog, beginDerive, observeAction, finishDerive, progressionFactsOf, type DeriveState, reduce, reduceWithPresentation, serialize, snapshotBoard, type Action, type BoardSnapshot, type PlayerProfile, type RatingChange, type Replay, type RunMode, type RunState, combatFrameOf, deltaShopFrameOf, shopFrameOf, runRecord, type DragPath, type ReplayFrame, type ReplayV2, type ShopView, appendInspectEvent, type InspectEvent, type InspectSnapshot, createLobbyRun, enableAncients, createTutorialRun, type TutorialCourse, type PracticeConfig, type BotLevel, DEFAULT_PRACTICE_CONFIG, normalizeBotDifficulty, normalizePracticeTribes, practiceRunTribes, warmLobbySeat, prepareActionWithPresentation, type PreparedPresentationAction, fightRowsOf, opponentFightKeys, type LobbyStrength, type FightRow, buildMatchDetails, type MatchDetails } from '@game/sim';
+import { type CombatOdds, HEROES, playableHeroes, practiceHeroChoiceIds, runTribesForSeed, OPPONENT_POOL, OPPONENT_POOL_DATA, registerOpponents, createRun, deserialize, initialProfile, resolveServerRank, adoptServerRank, legacyRatingChangeOf, rankedRunIdOf, type RankResult, type RankedProfile, isPlayerAction, missingCardIds, nextOpponent, parseQaScenario, reconstructRunTelemetry, recordTelemetryAction, emptyTelemetryLog, withLiveTelemetry, telemetrySourceOf, setIdOf, type TelemetryLog, beginDerive, observeAction, finishDerive, progressionFactsOf, type DeriveState, reduce, reduceWithPresentation, serialize, snapshotBoard, type Action, type BoardSnapshot, type PlayerProfile, type RatingChange, type Replay, type RunMode, type RunState, combatFrameOf, deltaShopFrameOf, shopFrameOf, runRecord, type DragPath, type ReplayFrame, type ReplayV2, type ShopView, appendInspectEvent, type InspectEvent, type InspectSnapshot, createLobbyRun, enableAncients, createTutorialRun, type TutorialCourse, type PracticeConfig, type BotLevel, DEFAULT_PRACTICE_CONFIG, normalizeBotDifficulty, normalizePracticeTribes, practiceRunTribes, warmLobbySeat, prepareActionWithPresentation, type PreparedPresentationAction, fightRowsOf, opponentFightKeys, type LobbyStrength, type FightRow, buildMatchDetails, type MatchDetails, lobbyPoolTelemetryOf } from '@game/sim';
 import type { PresentationBatch } from '@game/core';
 import { combatTimelineFrom } from './choreographer/combatTimeline';
 import type { RuneLockInCard } from './RuneLockIn';
@@ -72,7 +72,7 @@ import { liveBoardView } from './instView';
 import { saveCapturedBoards, saveRunBoards } from './boardLibrary';
 import { type AnnouncedSlice, type AnnouncerEvent, announcedFor, emptyAnnounced, withAnnounced } from './announcerSlice';
 import { perfMonitor } from './perfMonitor';
-import { fetchRankedProfile, remoteEnabled, fetchAndRegisterBoardRecords, fetchAndRegisterPool, recordFightResult, recordLobbyFights, fetchLobbyStrength, refreshOpponentPoolAndRecords, supabaseAuthProvider, uploadBoards, uploadPlayerProfile, uploadRunHistory, uploadRunTelemetry, uploadVictory, uploadPracticeGame, fetchRunHistory, claimHandle, flushUploadQueue } from './remoteBoards';
+import { fetchRankedProfile, remoteEnabled, fetchAndRegisterBoardRecords, fetchAndRegisterPool, opponentPoolLoader, recordFightResult, recordLobbyFights, fetchLobbyStrength, refreshOpponentPoolAndRecords, supabaseAuthProvider, uploadBoards, uploadPlayerProfile, uploadRunHistory, uploadRunTelemetry, uploadVictory, uploadPracticeGame, fetchRunHistory, claimHandle, flushUploadQueue } from './remoteBoards';
 import { practiceGameOf } from './practiceGames';
 import { initIdentity, currentIdentity, currentUserId as currentProgressionUserId } from './identity';
 import { notifyTutorialActions } from './tutorial/actionBus';
@@ -1654,14 +1654,18 @@ function commitResolvedAction(
               const stampSet = setIdOf(next);
               const stampSource = telemetrySourceOf(next);
               const base = withLiveTelemetry(reconstructRunTelemetry(replay, heroOffer), telemetryLog);
-              const telemetry = { ...base, mode: 'lobby', won: lobbyWon, placement: lobbyPlacement ?? undefined, setId: stampSet, source: stampSource };
+              // POOL + SEAT MIX (fix 2026-09-28): pool size and recorded / hybrid / bot seats at lobby creation,
+              // with `allGenerated` flagging a table that seated no real run. Rides in `derived` (jsonb, no SQL).
+              const lobbyPool = next.lobby ? lobbyPoolTelemetryOf(next.lobby) : undefined;
+              const telemetry = { ...base, mode: 'lobby', won: lobbyWon, placement: lobbyPlacement ?? undefined, setId: stampSet, source: stampSource, lobbyPool };
               // The BALANCE DERIVATION rides alongside the legacy summary: `derived` is the observed-live
               // streams (offers / acquisitions-by-source / Gold ledger / upgrades / combats / Avenge details),
               // and `replay` is the raw material to RE-derive them later — a metric we haven't thought of yet
               // is then a new function over runs already banked, not a migration plus a fresh data window.
-              const derived = finishDerive(deriveState, next, {
+              const derivedBase = finishDerive(deriveState, next, {
                 heroId: next.heroId, mode: 'lobby', seed: next.seed, won: lobbyWon, setId: stampSet, source: stampSource,
               });
+              const derived = lobbyPool ? { ...derivedBase, lobbyPool } : derivedBase;
               // REPLAY V2 rides INSIDE the same `replay` jsonb as the v1 action log (which balance
               // re-derivation still reads — both stay). Viewers gate on `replay.v2?.version === 2`.
               // `v2` itself is assembled above (it also feeds "Rewatch last game" for non-lobby runs).
@@ -2182,6 +2186,8 @@ export const useGame = create<GameStore>((rawSet, get) => {
       // MEDAL RANK: a RATED lobby is minted its stable ranked identity HERE, once, and it travels with the save
       // — a retried settlement always names the same run. Practice (and every other mode) gets none.
       if (s.pendingMode === 'lobby') run.runId = mintRunId();
+      // POOL TELEMETRY (fix 2026-09-28): note where the live pool came from when this table was seated.
+      if (run.lobby?.poolAtStart) run.lobby.poolAtStart.source = opponentPoolLoader()?.state().source ?? 'none';
       recordRunCosmetics(run);
       // Get the opponent seats built while the player reads their opening shop, not while they wait for it.
       if (run.lobby) warmLobbyDrivers(run);

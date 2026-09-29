@@ -92,6 +92,16 @@ export const PATCH_NOTES: PatchNote[] = [
       },
       {
         category: 'Systems',
+        text: "Fixed: a rare case where a ranked lobby could be filled with bots because opponent boards hadn't loaded.",
+        details: [
+          "A ranked game now waits for other players' boards before it starts. You will see 'Finding opponents' if they are still loading.",
+          "If the boards can't be reached, you can retry, play anyway against bots, or go back to the menu.",
+          'Boards now load in smaller pieces and retry on their own, so one slow piece no longer loses the rest.',
+          'The last boards you loaded are kept, so a bad connection still finds real opponents.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'Titles now show on the Leaderboard and the Hall of Champions, in their rarity colours.',
         details: [
           'The Leaderboard shows the title each player has equipped.',

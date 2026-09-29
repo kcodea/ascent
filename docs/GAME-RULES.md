@@ -38,6 +38,12 @@ medal + division — see *Ranked ladder* below).
   **All eight heroes are unique per lobby, the player's included** (owner 2026-09-13): a run on a hero already
   seated — or on the player's hero — is passed over for the next run in the shuffle, and generated seats never
   repeat a hero either.
+- **A lobby that seats player runs waits for the opponent pool** (owner 2026-09-28, R-LOBBY-06). A rated lobby
+  or Practice against players is not built until the shared pool has loaded: instantly when it already has,
+  otherwise behind a cancellable "Finding opponents..." wait while it retries. Only a genuine failure (offline)
+  falls back, and never silently: the player chooses Retry, Play anyway (generated seats, still rated; whether
+  such a lobby should be unrated is an open owner decision) or Back to menu. The last good pool for the live set
+  is cached locally and fills any wave the network cannot supply.
 - The lobby is **asynchronous**: opponents are recordings and generated runs, never live opponents. It never
   requires two players online at once.
 - Each round, surviving seats are **paired**. **One authoritative `simulate()` resolves each encounter and

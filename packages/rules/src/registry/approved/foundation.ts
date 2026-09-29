@@ -518,6 +518,39 @@ export const FOUNDATION_RULES: GameRule[] = [
     },
   },
   {
+    id: 'R-LOBBY-06',
+    title: 'A lobby that seats player runs waits for the opponent pool, and never falls back to bots silently',
+    statement:
+      'Before a rated lobby (or Practice against players) is built, the launch waits for the shared opponent pool. '
+      + 'When it has already loaded (the usual case) there is no wait. While it is still loading, or its last load '
+      + 'failed, the player sees "Finding opponents..." with Cancel, and the pool is retried on a longer budget. '
+      + 'Only when that retry genuinely fails does the lobby offer Retry, Play anyway or Back to menu; it never '
+      + 'fills the table with generated seats without saying so. The pool loads one wave per request, each with '
+      + 'its own timeout and retry, and registers every wave that arrives; missing waves retry in the background '
+      + 'and when the browser comes back online. The last good pool for the live set is cached (IndexedDB, one '
+      + 'bounded record per set, same build version, at most a week old) and fills any wave the network cannot. '
+      + 'Every ranked telemetry row records the pool size and the recorded / hybrid / bot seat counts at lobby '
+      + 'creation, with a flag when every seat was generated. "Play anyway" keeps the lobby rated, as before.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-28 (all-bot rated lobby, seed 309102059)', quote: 'build the fix so this does not re-occur.' },
+      { kind: 'fix-pr', ref: 'fix/opponent-pool-loading' },
+      { kind: 'code', ref: 'packages/ui/src/opponentPool/poolLoader.ts createPoolLoader; packages/ui/src/opponentPool/poolGate.ts createPoolGate; packages/ui/src/hero-select/HeroLaunchCurtain.tsx; packages/sim/src/lobby/runLobby.ts lobbyPoolTelemetryOf' },
+    ],
+    currentBehaviour:
+      'Conforms as of 2026-09-28. Before, the startup pull raced all 17 per-wave requests against one 4 s timer, '
+      + 'so a single slow wave discarded the whole pool; nothing retried until a run ended, and nothing waited '
+      + 'before the lobby was built, so an empty pool silently seated seven hybrids (1 of 24 rated lobbies since '
+      + '2026-09-23). Whether an all-generated lobby should be unrated is an open owner decision; no rating rule '
+      + 'changed.',
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/ui/src/opponentPool/poolLoader.test.ts', 'packages/ui/src/opponentPool/PoolWaitPanel.test.tsx', 'packages/sim/src/lobby/poolLoadRepro.test.ts'],
+      lastVerifiedAt: '2026-09-28',
+    },
+  },
+  {
     id: 'R-HALL-02',
     title: 'Hall of Champions: the own-game line counts the same fights as the record line',
     statement:

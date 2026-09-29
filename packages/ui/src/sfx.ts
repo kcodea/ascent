@@ -779,6 +779,145 @@ export function playEmberCrackle(category: string, o: { gain: number; durMs: num
   };
 }
 
+/**
+ * The Poison Darts' synth buffers, one set per AudioContext, built once: a second of HISS (white noise, for the acid
+ * sizzle) and two seconds of BUBBLING (short sine "bloops" that glide upward and pop, scattered at random, for the
+ * toxic fizz). Presentation noise, not gameplay: the Math.random ban covers core/content/sim only. `warmPoisonSynths`
+ * builds them ahead of time (the runner calls it while the damage formation plays), so no cue pays for the build.
+ */
+let poisonNoise: { ctx: AudioContext; hiss: AudioBuffer; bubbles: AudioBuffer } | null = null;
+function poisonBuffers(a: AudioContext): { hiss: AudioBuffer; bubbles: AudioBuffer } {
+  if (poisonNoise?.ctx === a) return poisonNoise;
+  const sr = a.sampleRate;
+  const hiss = a.createBuffer(1, Math.floor(sr), sr);
+  const h = hiss.getChannelData(0);
+  for (let i = 0; i < h.length; i++) h[i] = Math.random() * 2 - 1;
+  const bubbles = a.createBuffer(1, Math.floor(sr * 2), sr);
+  const b = bubbles.getChannelData(0);
+  const n = 70;
+  for (let k = 0; k < n; k++) {
+    const start = Math.floor(Math.random() * (b.length - sr * 0.08));
+    const len = Math.floor(sr * (0.018 + Math.random() * 0.04));
+    const f0 = 260 + Math.random() * 520, f1 = f0 * (1.6 + Math.random() * 0.9);
+    const amp = 0.3 + Math.random() * 0.6;
+    let ph = 0;
+    for (let j = 0; j < len && start + j < b.length; j++) {
+      const u = j / len;
+      ph += (2 * Math.PI * (f0 + (f1 - f0) * u * u)) / sr;
+      // A bloop: a quick swell and a decay (a bubble rising and popping).
+      const env = Math.sin(Math.PI * Math.min(1, u * 1.3)) * Math.exp(-u * 2.2);
+      b[start + j]! += amp * env * Math.sin(ph);
+    }
+  }
+  poisonNoise = { ctx: a, hiss, bubbles };
+  return poisonNoise;
+}
+
+/** Build the Poison Darts' synth buffers now (idempotent), so the first sizzle or fizz never pays for them. */
+export function warmPoisonSynths(): void {
+  try { const a = audio(); if (a) poisonBuffers(a); } catch { /* no audio here */ }
+}
+
+/**
+ * A SYNTH ACID SIZZLE (the Poison Darts hero attack, 2026-09-28): a burst of hiss through a high band-pass, roughened by
+ * a fast flutter (it spits, never a steady whoosh), fading over `durMs`, on `category`'s fader. A wet splash's tail.
+ * Returns a handle whose `stop()` fades it in `SKIP_FADE_S`; null when nothing was queued (muted, hidden, suspended, no
+ * Web Audio).
+ */
+export function playAcidSizzle(category: string, o: { gain: number; durMs: number; delayMs?: number }): SfxHandle | null {
+  if (isHidden() || audioSuspended || !(o.gain > 0)) return null;
+  const a = audio();
+  if (!a || muted) return null;
+  const src = a.createBufferSource();
+  src.buffer = poisonBuffers(a).hiss;
+  src.loop = true;
+  const bp = a.createBiquadFilter(); bp.type = 'bandpass'; bp.Q.value = 0.9;
+  const hp = a.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 2200; hp.Q.value = 0.5;
+  const flutter = a.createGain(); flutter.gain.value = 0.55;
+  const lfo = a.createOscillator(); lfo.type = 'square'; lfo.frequency.value = 38;
+  const lfoAmt = a.createGain(); lfoAmt.gain.value = 0.45;
+  const env = a.createGain();
+  const out = a.createGain();
+  out.gain.value = effectiveGain(cfg, category, 'sizzle') * o.gain * 0.6;
+  src.connect(bp).connect(hp).connect(flutter).connect(env).connect(out).connect(busInput(a, category));
+  lfo.connect(lfoAmt).connect(flutter.gain);
+  const t0 = a.currentTime + Math.max(0, o.delayMs ?? 0) / 1000;
+  const dur = Math.max(0.06, o.durMs / 1000);
+  bp.frequency.setValueAtTime(5200, t0); bp.frequency.exponentialRampToValueAtTime(3000, t0 + dur);
+  env.gain.setValueAtTime(0.0001, t0);
+  env.gain.exponentialRampToValueAtTime(1, t0 + 0.012);
+  env.gain.exponentialRampToValueAtTime(0.35, t0 + dur * 0.35);
+  env.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+  src.start(t0, Math.random() * 0.8);
+  lfo.start(t0);
+  src.stop(t0 + dur + 0.05); lfo.stop(t0 + dur + 0.05);
+  let done = false;
+  const release = (): void => { if (done) return; done = true; for (const n of [src, bp, hp, flutter, lfo, lfoAmt, env, out]) { try { n.disconnect(); } catch { /* already */ } } };
+  src.onended = release;
+  return {
+    stop: () => {
+      if (done) return;
+      try {
+        const landAt = scheduleSkipFade(out.gain, a.currentTime);
+        src.onended = null;
+        src.stop(landAt + 0.01); lfo.stop(landAt + 0.01);
+        setTimeout(release, SKIP_FADE_S * 1000 + 60);
+      } catch { release(); }
+    },
+  };
+}
+
+/**
+ * A SYNTH TOXIC FIZZ (the Poison Darts' Tier IV swell, 2026-09-28): the bubbling buffer played faster and faster (more
+ * bubbles, higher) through a band-pass gliding from `lowHz` to `highHz`, under a rising hiss, swelling to its peak
+ * exactly at `buildMs` (the implosion's suck) and cut in 50 ms there, so the suck and the burst land on silence. On
+ * `category`'s fader. Returns a handle whose `stop()` fades it in `SKIP_FADE_S`; null when nothing was queued.
+ */
+export function playToxicFizz(category: string, o: { gain: number; buildMs: number; lowHz: number; highHz: number; delayMs?: number }): SfxHandle | null {
+  if (isHidden() || audioSuspended || !(o.gain > 0)) return null;
+  const a = audio();
+  if (!a || muted) return null;
+  const bufs = poisonBuffers(a);
+  const t0 = a.currentTime + Math.max(0, o.delayMs ?? 0) / 1000;
+  const b = Math.max(0.05, o.buildMs / 1000);
+  const lo = Math.max(60, o.lowHz), hi = Math.max(lo + 20, o.highHz);
+  const bub = a.createBufferSource(); bub.buffer = bufs.bubbles; bub.loop = true;
+  const hiss = a.createBufferSource(); hiss.buffer = bufs.hiss; hiss.loop = true;
+  const bp = a.createBiquadFilter(); bp.type = 'bandpass'; bp.Q.value = 1.1;
+  const hhp = a.createBiquadFilter(); hhp.type = 'highpass'; hhp.frequency.value = 3000;
+  const hissAmt = a.createGain();
+  const env = a.createGain();
+  const out = a.createGain();
+  out.gain.value = effectiveGain(cfg, category, 'fizz') * o.gain;
+  bub.connect(bp).connect(env);
+  hiss.connect(hhp).connect(hissAmt).connect(env);
+  env.connect(out).connect(busInput(a, category));
+  bub.playbackRate.setValueAtTime(0.8, t0); bub.playbackRate.exponentialRampToValueAtTime(2.6, t0 + b);
+  bp.frequency.setValueAtTime(lo * 1.6, t0); bp.frequency.exponentialRampToValueAtTime(hi * 2, t0 + b);
+  hissAmt.gain.setValueAtTime(0.02, t0); hissAmt.gain.exponentialRampToValueAtTime(0.18, t0 + b);
+  env.gain.setValueAtTime(0.0001, t0);
+  env.gain.exponentialRampToValueAtTime(0.3, t0 + Math.min(0.12, b * 0.3));
+  env.gain.exponentialRampToValueAtTime(1, t0 + b);
+  env.gain.exponentialRampToValueAtTime(0.0001, t0 + b + 0.05);
+  const end = t0 + b + 0.09;
+  bub.start(t0, Math.random() * 1.5); hiss.start(t0, Math.random() * 0.8);
+  bub.stop(end); hiss.stop(end);
+  let done = false;
+  const release = (): void => { if (done) return; done = true; for (const n of [bub, hiss, bp, hhp, hissAmt, env, out]) { try { n.disconnect(); } catch { /* already */ } } };
+  bub.onended = release;
+  return {
+    stop: () => {
+      if (done) return;
+      try {
+        const landAt = scheduleSkipFade(out.gain, a.currentTime);
+        bub.onended = null;
+        bub.stop(landAt + 0.01); hiss.stop(landAt + 0.01);
+        setTimeout(release, SKIP_FADE_S * 1000 + 60);
+      } catch { release(); }
+    },
+  };
+}
+
 /** Two seconds of white noise per AudioContext, built once (the frost wind loops it). */
 let whiteNoiseBuf: { ctx: AudioContext; buf: AudioBuffer } | null = null;
 function whiteNoise(a: AudioContext): AudioBuffer {

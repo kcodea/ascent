@@ -6,9 +6,8 @@ across the screen from the attacker to the target".
 First review (the owner, seeing the WIP on 5173): "frost already looks incredibly good." So the direction stayed. The
 later passes only fixed the camera and softened the ground ferns.
 
-Branched off `main` after Enraged Strike (#1804). Poison Darts (`feat/hero-attack-poison`) is still unmerged, so this
-branch pins five attacks plus Frost. Its crate odds, Collection counts and style list will conflict with Poison's; that
-is expected. The oracle rule is **R-PROG-ATTACK-13**, which leaves -12 for Poison. Nothing changes for players until the
+Branched off `main` after Enraged Strike (#1804). Poison Darts (#1805) merged first, so `main` was merged into this
+branch and both are kept everywhere; Frost is the seventh attack. The oracle rule is **R-PROG-ATTACK-13** (-12 is Poison). Nothing changes for players until the
 owner deploys `progression-inventory` (the catalog sync adds `attack_frost`). There is no new migration.
 
 ## What shipped
@@ -106,8 +105,9 @@ portraits' distance.
 
 ## Crate odds (first crate)
 
-Common 46.0%, Rare 30.5%, Epic 18.6%, Legendary 4.8%. A non-title item is 32.8%. The six hero attacks together are 3.2%
-(each 0.54%). Before Frost: 46.3 / 30.6 / 18.8 / 4.3 / 32.5 / 2.7. (Poison, when it lands, adds one more.)
+With all seven hero attacks in (Frost merged after Poison Darts): Common 45.8%, Rare 30.3%, Epic 18.5%, Legendary 5.4%. A
+non-title item is 33.2%. The seven hero attacks together are 3.7% (each 0.54%, weight 45 of 8410). Before Frost (the six
+with Poison): 46.0 / 30.5 / 18.6 / 4.8 / 32.8 / 3.2.
 
 ## Perf
 
@@ -165,4 +165,3 @@ Clips worth supplying:
 - The name "Frost Nova" is a placeholder.
 - Legendary rarity matches the other five.
 - No nova at Tier III (kept as the Tier IV moment). The per-tier Nova toggle is there to try one at III.
-- The oracle id is -13, leaving -12 for Poison Darts.

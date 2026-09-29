@@ -67,9 +67,9 @@ describe('the Heroes and Minions tabs', () => {
     open();
     expect(tab('Heroes').className).not.toMatch(/\blocked\b/);
     expect(tab('Heroes').querySelector('.colls-tab-count')?.textContent).toBe('1/2');
-    // 2026-09-28: three Black Belt Brian skins and one Bellringer Voss skin, so Minions is 1/4 and the album 22 items (28 with the six hero attacks, 2026-09-28)
+    // 2026-09-28: three Black Belt Brian skins and one Bellringer Voss skin, so Minions is 1/4 and the album 22 items (29 with the seven hero attacks, 2026-09-28)
     expect(tab('Minions').querySelector('.colls-tab-count')?.textContent).toBe('1/4');
-    expect(text('.colls-meter-num')).toBe('3 / 28');
+    expect(text('.colls-meter-num')).toBe('3 / 29');
   });
 
   it('tiles show the art and the target; unowned are dimmed + blurred (missing) with a lock', () => {
@@ -145,10 +145,10 @@ describe('the kill switch in the Collection (retired = hidden, owned or not; res
     act(() => applyServerCatalogState({ retiredIds: ['skin_blackbelt_1'], disabledCategories: [] }));
     expect(tileNames()).toEqual(['Grandmaster Brian', 'Glitch Brian', 'Clocktower Voss']); // rarest first, then catalog order
     expect(tab('Minions').querySelector('.colls-tab-count')?.textContent).toBe('0/3');
-    expect(text('.colls-meter-num')).toBe('2 / 27');
+    expect(text('.colls-meter-num')).toBe('2 / 28');
     act(() => applyServerCatalogState({ retiredIds: [], disabledCategories: [] }));
     expect(tile('Sheriff Brian').className).toMatch(/\bowned\b/);
-    expect(text('.colls-meter-num')).toBe('3 / 28');
+    expect(text('.colls-meter-num')).toBe('3 / 29');
   });
 
   it('a disabled CATEGORY becomes a locked Soon tab', () => {
@@ -156,6 +156,6 @@ describe('the kill switch in the Collection (retired = hidden, owned or not; res
     act(() => applyServerCatalogState({ retiredIds: [], disabledCategories: ['hero_skin'] }));
     expect(tab('Heroes').className).toMatch(/\blocked\b/);
     expect(tab('Heroes').textContent).toContain('Soon');
-    expect(text('.colls-meter-num')).toBe('2 / 26');
+    expect(text('.colls-meter-num')).toBe('2 / 27');
   });
 });

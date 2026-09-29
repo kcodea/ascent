@@ -181,11 +181,16 @@ export const COSMETICS: readonly CosmeticDef[] = Object.freeze([
   // dash with afterimages, white-hot impacts with claw rips; II a double strike, III a flurry of three, IV a meteor slam.
   // The name is the builder's placeholder for the owner to rename (the id stays). Legendary like the other four.
   heroAttack('attack_enraged', 'Enraged Strike', 'legendary', 'enraged'),
+  // Owner 2026-09-28: "branch off and make a poison dart animation. the final one should throw multiple poison darts
+  // that implode with poison". Small, sleek poison darts flicked on a slight arc that thunk in and stick with venom
+  // splashes; II two, III a fan of five, IV six that swell, implode into a point and burst in a toxic cloud. The name is
+  // the builder's placeholder for the owner to rename (the id stays). Legendary like the other five.
+  heroAttack('attack_poison', 'Venom Volley', 'legendary', 'poison'),
   // Owner 2026-09-28: "branch off and create an ice/freeze blast one. icicles and then a frost nova blast that blasts
   // across the screen from the attacker to the target". Icicles crystallise round the hero and fire (I one, II two, III
   // a volley of five), shattering and leaving frost creeping over the portrait; IV adds a frost nova that rolls across
   // the screen, encases the target in ice and shatters it. The name is the builder's placeholder for the owner to
-  // rename (the id stays). Legendary like the other five.
+  // rename (the id stays). Legendary like the other six.
   heroAttack('attack_frost', 'Frost Nova', 'legendary', 'frost'),
 ]);
 

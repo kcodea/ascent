@@ -22,6 +22,7 @@ import { playHeroQuake } from '../heroQuake/heroQuake';
 import { playHeroArcana } from '../heroArcana/heroArcana';
 import { playHeroBlades } from '../heroBlades/heroBlades';
 import { playHeroEnraged } from '../heroEnraged/heroEnraged';
+import { playHeroPoison } from '../heroPoison/heroPoison';
 import { playHeroFrost } from '../heroFrost/heroFrost';
 import { SPEC, boardOf } from '../DamageFormationTuner';
 import { Sequence } from './sequence';
@@ -303,6 +304,7 @@ describe('the runners', () => {
       ['arcana', (o) => playHeroArcana({ ...o, textures: TEX })],
       ['blades', (o) => playHeroBlades({ ...o, textures: TEX })],
       ['enraged', (o) => playHeroEnraged({ ...o, textures: TEX, impactFx: false })],
+      ['poison', (o) => playHeroPoison({ ...o, textures: null })],
       ['frost', (o) => playHeroFrost({ ...o, textures: TEX })],
     ];
     const lead = leadInOf([4, 2, 3, 4], false, true);
@@ -446,6 +448,7 @@ describe('no attack ever pauses its clock (owner 2026-09-28: "remove the freezei
     ['arcana', (o) => playHeroArcana({ ...o, textures: null })],
     ['blades', (o) => playHeroBlades({ ...o, textures: null })],
     ['enraged', (o) => playHeroEnraged({ ...o, textures: null, impactFx: false })],
+    ['poison', (o) => playHeroPoison({ ...o, textures: null })],
     ['frost', (o) => playHeroFrost({ ...o, textures: null })],
   ];
 

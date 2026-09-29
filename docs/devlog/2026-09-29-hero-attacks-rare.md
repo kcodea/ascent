@@ -30,10 +30,11 @@ Timings after the damage formation: Small about 1.3 to 1.8 s, Big about 1.8 to 2
     fire-and-forget `Fx` with scale tween, alpha envelope, drift, drag, gravity, spin, an edge-on FLIP (scale.x = |cos|,
     shading toward an edge tint: the coins) and velocity-aligned stretch (droplets).
   - `heroAttack/ribbonTrail.ts`: one MeshSimple strip sampled back in time along any motion (the boomerang's trail).
-  - `heroAttack/overlayCamera.ts`: **the camera applied once.** Since #1762 the FX overlay canvas lives inside `#stage`,
-    so mirroring the camera onto the Pixi root double-applies it (the Banana PR #1839 found this). The mirror now moves
-    the root only when the canvas is not inside the camera element. Verified in the real game: `mirrorsCamera` false,
-    the root stays at (0, 0, 1) while `#stage` zooms. The Legendary styles still mirror (worth the follow-up #1839 flagged).
+  - **The camera applied once** (#1851's `heroAttack/stageCamera.ts`). Since #1762 the FX overlay canvas lives inside
+    `#stage`, so mirroring the camera onto the Pixi root double-applies it (the Banana PR #1839 found this). The branch
+    first carried its own `heroAttack/overlayCamera.ts`; on merge (after #1851 landed) all four Rares switched to the
+    shared `new StageCamera(cameraEl, scene, heroFxCanvas(o))` and `overlayCamera.ts` was deleted (one approach only).
+    All four are in the all-styles camera test (`heroAttack/stageCamera.test.ts`).
   - `heroAttack/rareTuner.ts`: one builder for the four DEV tuners (Copy / Reset / Play on top, no Speed / Reduced
     motion, Small and Big dial groups). The demo accepts `frames` / `safety`, so a capture rig can step it by hand.
 - **Backstab moves the portrait.** Screen-px pose written in the portrait's own units (ancestor scale measured once),

@@ -60,6 +60,15 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: 'Hero attack effects now stay on the hero they hit while the view zooms in.',
+        details: [
+          'During the push-in, the effects of every hero attack could drift off the struck hero, by up to about a portrait width.',
+          'They now land right on the portrait, in fights and in the Collection preview.',
+          'The zoom, the shake, the timing and how the portraits move are exactly the same.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'Four new Rare hero attacks can drop from crates: Pocket Change, Come Back Around, Bubble Trouble and Shadow Step.',
         details: [
           'Rare attacks are short and playful, with a small version and a big version. Big hits and knockouts play the big one.',

@@ -4,7 +4,7 @@
  * decides WHEN on screen they happen.
  *
  * It runs on the SHARED hero-attack core (`../heroAttack/`): one clock (it never pauses), the damage formation, the
- * `#stage` camera (applied ONCE: `overlayCamera`), the portraits (transform only, restored after), the voices, the dim,
+ * `#stage` camera (applied ONCE: `stageCamera.ts`), the portraits (transform only, restored after), the voices, the dim,
  * reduced motion, finish / cancel and the safety timer.
  *
  * THE STREAM CONTRACT: each little bubble that blips on the face before the big one is a tick (FX and sound only). The
@@ -22,9 +22,8 @@ import { DamageFormation, planFormation } from '../heroAttack/damageFormation';
 import { withFormation, type FormationCue } from '../heroAttack/formationConfig';
 import { clamp01, easeInOutSine, hexToNum, prefersReducedMotion, spring } from '../heroAttack/easing';
 import type { HeroAttackHandle, HeroAttackOptions } from '../heroAttack/options';
-import { overlayCamera } from '../heroAttack/overlayCamera';
 import { Sequence } from '../heroAttack/sequence';
-import { PortraitMover, StageCamera } from '../heroAttack/stageCamera';
+import { heroFxCanvas, PortraitMover, StageCamera } from '../heroAttack/stageCamera';
 import {
   bubbleCameraAt, bubbleCameraFocus, bubbleCues, bubbleDrifts, bubbleHand, bubblePlan, getHeroBubbleConfig,
   type BubbleCue, type BubbleDrift, type BubblePlan, type HeroBubbleConfig,
@@ -84,8 +83,7 @@ export function playHeroBubble(o: HeroBubbleOptions): HeroBubbleHandle {
   const unmount = scene ? (o.mount ?? ((ct: Container) => pixiFx.mountLayer(ct, 'above')))(scene.root) : null;
 
   const cameraEl = reduced ? null : (o.camera !== undefined ? o.camera : (doc?.getElementById('stage') ?? null));
-  const ocam = overlayCamera(scene, cameraEl, !!o.mount);
-  const cam = new StageCamera(cameraEl, ocam.mirror);
+  const cam = new StageCamera(cameraEl, scene, heroFxCanvas(o)); // the FX get the camera ONCE (stageCamera.ts)
   const hero = new PortraitMover(reduced ? null : (o.attackerEl ?? null));
   const foe = new PortraitMover(reduced ? null : (o.defenderEl ?? null));
 
@@ -98,7 +96,6 @@ export function playHeroBubble(o: HeroBubbleOptions): HeroBubbleHandle {
     switch (q.kind) {
       case 'charge':
         if (c.sfxDuck < 1) voices.duck(c.sfxDuck);
-        ocam.decide();
         cam.start();
         break;
       case 'blow':
@@ -194,7 +191,7 @@ export function playHeroBubble(o: HeroBubbleOptions): HeroBubbleHandle {
     plan,
     drifts,
     scene,
-    get mirrorsCamera() { return ocam.on; },
+    get mirrorsCamera() { return cam.mirrorsCamera; },
     elapsed: () => seq.t,
     get impacted() { return seq.impacted; },
     get done() { return seq.done; },

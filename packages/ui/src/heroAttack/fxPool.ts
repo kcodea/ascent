@@ -14,7 +14,7 @@
  * objects in `tick()` and reports whether they still draw.
  *
  * Contract: positions are the overlay's px; `setCamera` is the camera mirror (only used when the canvas is NOT already
- * inside the camera element; see `overlayCamera`); `update` returns whether anything still draws; `destroy()` leaves
+ * inside the camera element; see `stageCamera.ts`); `update` returns whether anything still draws; `destroy()` leaves
  * nothing behind. Scatter is seeded (a replay throws the same sparks).
  */
 import { Container, Sprite, type Texture } from 'pixi.js';

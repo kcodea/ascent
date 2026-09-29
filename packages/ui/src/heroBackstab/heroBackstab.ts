@@ -4,7 +4,7 @@
  * this file only decides WHEN on screen they happen.
  *
  * It runs on the SHARED hero-attack core (`../heroAttack/`): one clock (it never pauses), the damage formation, the
- * `#stage` camera (applied ONCE: `overlayCamera`), the voices, the dim, reduced motion, finish / cancel and the safety
+ * `#stage` camera (applied ONCE: `stageCamera.ts`), the voices, the dim, reduced motion, finish / cancel and the safety
  * timer. Big opens with CLASSIC'S OWN LUNGE (`classicSwing`: the same coil, contact geometry and strike ease).
  *
  * THE PORTRAIT MOVES (as Classic and Enraged do): its pose is solved in screen px and written as a transform in the
@@ -30,9 +30,8 @@ import { DamageFormation, planFormation } from '../heroAttack/damageFormation';
 import { withFormation, type FormationCue } from '../heroAttack/formationConfig';
 import { hexToNum, prefersReducedMotion, spring, type Pt } from '../heroAttack/easing';
 import type { HeroAttackHandle, HeroAttackOptions } from '../heroAttack/options';
-import { overlayCamera } from '../heroAttack/overlayCamera';
 import { Sequence } from '../heroAttack/sequence';
-import { PortraitMover, StageCamera } from '../heroAttack/stageCamera';
+import { heroFxCanvas, PortraitMover, StageCamera } from '../heroAttack/stageCamera';
 import {
   backstabCameraAt, backstabCues, backstabGeo, backstabPlan, backstabPose, getHeroBackstabConfig, hitDirs,
   type BackstabCue, type BackstabGeo, type BackstabPlan, type BackstabPose, type HeroBackstabConfig, type LungeGeo, type Spot,
@@ -117,8 +116,7 @@ export function playHeroBackstab(o: HeroBackstabOptions): HeroBackstabHandle {
   const unmount = scene ? (o.mount ?? ((ct: Container) => pixiFx.mountLayer(ct, 'above')))(scene.root) : null;
 
   const cameraEl = reduced ? null : (o.camera !== undefined ? o.camera : (doc?.getElementById('stage') ?? null));
-  const ocam = overlayCamera(scene, cameraEl, !!o.mount);
-  const cam = new StageCamera(cameraEl, ocam.mirror);
+  const cam = new StageCamera(cameraEl, scene, heroFxCanvas(o)); // the FX get the camera ONCE (stageCamera.ts)
   const hero = new PortraitMover(reduced ? null : (o.attackerEl ?? null));
   const foe = new PortraitMover(reduced ? null : (o.defenderEl ?? null));
   // The striker's OPACITY (the vanishes), saved at the start and restored exactly on every exit.
@@ -149,7 +147,6 @@ export function playHeroBackstab(o: HeroBackstabOptions): HeroBackstabHandle {
     switch (q.kind) {
       case 'charge':
         if (c.sfxDuck < 1) voices.duck(c.sfxDuck);
-        ocam.decide();
         cam.start();
         if (lift && !lifted) { doc!.body.classList.add(zClass); lifted = true; }
         break;
@@ -262,7 +259,7 @@ export function playHeroBackstab(o: HeroBackstabOptions): HeroBackstabHandle {
     geo,
     scene,
     pose,
-    get mirrorsCamera() { return ocam.on; },
+    get mirrorsCamera() { return cam.mirrorsCamera; },
     elapsed: () => seq.t,
     get impacted() { return seq.impacted; },
     get done() { return seq.done; },

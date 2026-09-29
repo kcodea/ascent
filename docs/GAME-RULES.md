@@ -245,10 +245,10 @@ progression **epoch**; nothing finished before the epoch counts (no backfill).
   R-PROG-SKINS-05), so a new or retired cosmetic is a code change plus one deploy, never SQL. Shaped
   for every cosmetic category (announcer, hero skin, minion skin, title, hero attack, board, music). Switched on:
   **titles** (15 crate titles: 7 Common, 5 Rare, 2 Epic, 1 Legendary) and, since the skins shipped the same day,
-  **hero skins** and **minion skins** (all from crates) and **hero attacks** (Arcane Barrage, Tectonic Slam, Arcana, Phantom Blades, Enraged Strike, Venom Volley, Frost Nova, then Consecration). The other
+  **hero skins** and **minion skins** (all from crates) and **hero attacks** (Arcane Barrage, Tectonic Slam, Arcana, Phantom Blades, Enraged Strike, Venom Volley, Frost Nova, Consecration, then Oona's Banana Cannon). The other
   categories are feature-flagged off until their art exists. Crate odds are the fixed rarity odds above, then an equal
   share inside the rarity: on the 2026-09-29 catalog each Common is 6.25% (50 / 8), each Rare 2.31% (30 / 13), each Epic
-  1.5% (15 / 10) and each Legendary 0.45% (5 / 11). A fresh account's first crate is about 41% a skin or hero attack.
+  1.5% (15 / 10) and each Legendary 0.42% (5 / 12, since Oona's Banana Cannon joined). A fresh account's first crate is about 41% a skin or hero attack.
 - **Skins (2026-09-28; oracle R-PROG-SKINS-01, R-PROG-SKINS-04).** A hero skin replaces one hero's portrait; a
   minion skin replaces one card's art, by stable id. Equipped per target from the Collection's Heroes / Minions
   tabs through the server (`equip_cosmetic`: owned, made for that hero or card, live); **"Use default art"** is
@@ -314,7 +314,15 @@ progression **epoch**; nothing finished before the epoch counts (no backfill).
   plants glowing seeds round the struck hero, then the pillar drops and the seeds erupt with it (the blow landing once,
   on the last smite); IV six holy swords fly in one after another from different directions, faster and faster, and
   plant round the centre of the board, the centre implodes, and a flat consecrated blast races across the board to the
-  struck hero, tearing radiant cracks, and holy flames erupt round it (the blow landing on the eruption). All eight anchor on the round portrait art at rest
+  struck hero, tearing radiant cracks, and holy flames erupt round it (the blow landing on the eruption). **Banana
+  Cannon** is the ninth, `attack_banana` ("Oona's Banana Cannon", a placeholder name; Legendary, from crates;
+  R-PROG-ATTACK-15): King Oona's gold-trimmed jungle cannon, drawn flat. After the same damage formation the cannon pops
+  in on the hero's rim and aims; each shot it pumps, recoils with a big muzzle puff and lobs a spinning banana on a high
+  arc that splats on the struck hero (a peel sticks, chunks fly, a comic star pops): I one banana; II a double shot; III
+  a rapid barrage of six (the blow landing once, on the last); IV three quick bananas, then the cannon glows gold and its
+  crown glints, and it fires a giant golden banana up out of the top of the screen while a flat golden ring locks on to
+  the struck hero; it slams down into a golden shockwave and a shower of bananas (the blow landing on the slam). All nine
+  anchor on the round portrait art at rest
   (R-PROG-ATTACK-04). Equipped
   account-wide in the Collection's Attack Animations tab ("Use Classic" takes it off). The STRIKER's attack plays:
   yours when you win, the opponent's (from their recorded snapshot) when they win. Recorded per run like skins;

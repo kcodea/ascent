@@ -228,6 +228,12 @@ export const COSMETICS: readonly CosmeticDef[] = Object.freeze([
   // fires a flat consecrated blast at the target. The name is the builder's placeholder for the owner to rename (the id
   // stays). Legendary like the other seven.
   heroAttack('attack_holy', 'Consecration', 'legendary', 'holy'),
+  // Owner 2026-09-29: "make some more attack types ... i would love a king oona banana cannon animation. use the same 4
+  // tier strategy we have been." King Oona's gold-trimmed jungle cannon pops in by the hero and lobs bananas that splat
+  // into the target (I one, II a double shot, III a rapid barrage); IV fires a giant golden banana that arcs out of the
+  // top of the screen and slams down into a banana-bunch shower and a golden shockwave. The name is the builder's
+  // placeholder for the owner to rename (the id stays). Legendary like the other eight.
+  heroAttack('attack_banana', "Oona's Banana Cannon", 'legendary', 'banana'),
 ]);
 
 export const COSMETIC_INDEX: Readonly<Record<string, CosmeticDef>> = Object.freeze(

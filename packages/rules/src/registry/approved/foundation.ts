@@ -2187,7 +2187,8 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'style blades: R-PROG-ATTACK-07), the fifth, attack_enraged ("Enraged Strike", Legendary, style enraged: '
       + 'R-PROG-ATTACK-11), the sixth, attack_poison ("Venom Volley", Legendary, style poison: R-PROG-ATTACK-12), the '
       + 'seventh, attack_frost ("Frost Nova", Legendary, style frost: R-PROG-ATTACK-13), and the eighth, attack_holy '
-      + '("Consecration", Legendary, style holy: R-PROG-ATTACK-14), re-pinned the first-crate odds to Common 45.5%, Rare '
+      + '("Consecration", Legendary, style holy: R-PROG-ATTACK-14), then the ninth, attack_banana ("Oona\x27s Banana Cannon", '
+      + 'Legendary, style banana: R-PROG-ATTACK-15), re-pinned the first-crate odds to Common 45.5%, Rare '
       + '30.2%, Epic 18.5%, Legendary 5.9%; a non-title item 33.5%; the eight attacks together 4.3%.',
     domain: 'foundation',
     status: 'approved',
@@ -2581,6 +2582,37 @@ export const FOUNDATION_RULES: GameRule[] = [
     ],
     currentBehaviour: 'Conforms, built 2026-09-28; flattened and the six-sword finale 2026-09-29. The item reaches the database on the next deploy of progression-inventory (the catalog sync); the equip SQL already accepts the hero_attack slot.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/heroHoly/heroHoly.test.ts', 'packages/progression/src/cosmetics.test.ts', 'packages/ui/src/progression/CollectionHeroAttack.test.tsx', 'packages/ui/src/heroAttack/damageFormation.test.ts'], lastVerifiedAt: '2026-09-29' },
+  },
+  {
+    id: 'R-PROG-ATTACK-15',
+    title: 'Oona\x27s Banana Cannon (attack_banana, Legendary) is a FLAT hero attack: one banana / a double shot / a barrage of six / three warm-ups and a GIANT golden banana that slams down, on the SAME damage tiers; the blow lands ONCE; no freeze',
+    statement:
+      'attack_banana ("Oona\x27s Banana Cannon", a placeholder name for the owner to rename; Legendary, crate, account-wide, '
+      + 'style banana) plays King Oona\x27s cannon (the b2_oona art: a jungle-green barrel, gold bands, a brass bell muzzle and '
+      + 'a gold crown), drawn FLAT: a side-on cannon that turns but never tilts into depth, and every ring and marker a full '
+      + 'circle, never a perspective ellipse. After the shared damage formation (R-PROG-ATTACK-08) the cannon pops in on '
+      + 'the striking hero\x27s rim and aims at the struck hero (flipped so it is never drawn upside down). Every shot it '
+      + 'PUMPS, then FIRES: it recoils, a muzzle puff of smoke, leaves and sparks, and a banana tumbles out on a high '
+      + 'ballistic arc that never rises above the top of the screen and splats on the struck portrait: a peel bursts open '
+      + 'and sticks (riding the portrait\x27s knockback, then sliding off), chunks fly and a comic impact star pops. It '
+      + 'escalates on exactly the tiers every other hero attack uses (one shared tierOf, thresholds 6 / 12 / 20): I 1-5 one '
+      + 'banana; II 6-11 a double shot, the first a tick; III 12-19 a rapid barrage of six in rhythm; IV 20+ three quick '
+      + 'bananas (ticks), then the cannon glows gold, swells and trembles while its CROWN GLINTS, and it fires a GIANT '
+      + 'GOLDEN BANANA that climbs out of the top of the frame (by at most the tuned overshoot) while a flat golden target '
+      + 'ring locks on to the struck hero; it comes back down and SLAMS dead centre: a golden flash, a golden shockwave, gold '
+      + 'rays, the biggest comic star, a shower of whole bananas and peels all over the face, then three banana pops. The '
+      + 'consequence (the damage, Armor, Resolve) lands exactly ONCE: on the last banana (every earlier banana is a tick with '
+      + 'FX only) or, at IV, on the slam (never on a warm-up banana, the glint or the flight). No hit-stop or freeze anywhere '
+      + '(R-PROG-ATTACK-10). Every anchor is the round portrait art at rest (R-PROG-ATTACK-04). Presentation only; reduced '
+      + 'motion is fades only; an unknown or retired id plays Classic.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-29 (more hero attacks)', quote: 'branch off and make some more attack types - we need a fire animation, a bleed/gash animation, some sort of an undead animation, a beast chomp rush animation, and i would love a king oona banana cannon animation. use the same 4 tier strategy we have been.' },
+      { kind: 'code', ref: 'packages/progression/src/cosmetics.ts (attack_banana); packages/ui/src/heroBanana/ (heroBananaConfig bananaPlan / bananaCues / cannonRig / bananaPos / bananaCameraAt / bananaCameraFocus, heroBanana playHeroBanana, heroBananaScene, heroBananaTextures)' },
+    ],
+    currentBehaviour: 'Conforms, built 2026-09-29. The item reaches the database on the next deploy of progression-inventory (the catalog sync); the equip SQL already accepts the hero_attack slot.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/heroBanana/heroBanana.test.ts', 'packages/progression/src/cosmetics.test.ts', 'packages/ui/src/progression/CollectionHeroAttack.test.tsx', 'packages/ui/src/heroAttack/damageFormation.test.ts'], lastVerifiedAt: '2026-09-29' },
   },
   {
     id: 'R-PRESENT-24',

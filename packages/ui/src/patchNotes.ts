@@ -60,6 +60,17 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: "A new Legendary hero attack, Oona's Banana Cannon, can drop from crates.",
+        details: [
+          "Your damage builds up, then King Oona's golden jungle cannon pops up next to your hero.",
+          'It pumps and fires spinning bananas that splat on the other hero. Bigger hits fire a double shot, then a rapid barrage.',
+          'On the biggest hits the cannon glows gold and fires a giant golden banana into the sky. It slams down in a shower of bananas.',
+          'Equip it from the Attack Animations tab of the Collection. There is a preview button there too.',
+          'Hero attacks are looks only. The damage is exactly the same.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'The Collection no longer shows the Boards and Music tabs. They come back when they are ready.',
       },
       {

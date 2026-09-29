@@ -37,6 +37,11 @@
  *    weapon + consecration attack"): a golden sigil and a pillar of light smite the target; II smites twice, III rains
  *    light spears that plant consecration seeds, and IV brings a huge holy sword down into the middle of the board and a
  *    consecration races from it to erupt under the target (`../heroHoly/`).
+ *  - `banana` is the ninth (`attack_banana`, "Oona's Banana Cannon" until the owner renames it; owner ask
+ *    2026-09-29: "i would love a king oona banana cannon animation"): King Oona's gold-trimmed jungle cannon pops in by
+ *    the hero, pumps and fires bananas on a high arc that splat into the target (I one, II a double shot, III a rapid
+ *    barrage), and IV launches a giant golden banana out of the top of the screen that slams down into a banana-bunch
+ *    shower and a golden shockwave (`../heroBanana/`).
  *
  * The style is the ATTACKER's: the equipped item recorded in the striking player's cosmetic snapshot (yours when you
  * win; the foe's seat snapshot when they win, and only while "Show opponent cosmetics" is on). The catalog item names
@@ -50,7 +55,7 @@
  */
 import { heroAttackOf } from '@game/progression';
 
-export const HERO_ATTACK_STYLES = ['classic', 'blast', 'quake', 'arcana', 'blades', 'enraged', 'poison', 'frost', 'holy'] as const;
+export const HERO_ATTACK_STYLES = ['classic', 'blast', 'quake', 'arcana', 'blades', 'enraged', 'poison', 'frost', 'holy', 'banana'] as const;
 export type HeroAttackStyle = (typeof HERO_ATTACK_STYLES)[number];
 
 /** What a player without an equipped hero attack sees (owner 2026-09-28: Blast is a cosmetic, not a new default). */
@@ -67,13 +72,13 @@ export function styleOfCosmetic(id: string | null | undefined): HeroAttackStyle 
 }
 
 /** The dev override: `auto` = what a player would see; the others force one style for BOTH sides. */
-export const DEV_HERO_ATTACK_CHOICES = ['auto', 'classic', 'blast', 'quake', 'arcana', 'blades', 'enraged', 'poison', 'frost', 'holy'] as const;
+export const DEV_HERO_ATTACK_CHOICES = ['auto', 'classic', 'blast', 'quake', 'arcana', 'blades', 'enraged', 'poison', 'frost', 'holy', 'banana'] as const;
 export type DevHeroAttackChoice = (typeof DEV_HERO_ATTACK_CHOICES)[number];
 
 /** The dev "Attack style" row's labels, shared by every hero attack tuner. */
 export const DEV_HERO_ATTACK_LABELS: Record<DevHeroAttackChoice, string> = {
   auto: 'Auto (equipped cosmetic)', classic: 'Classic (lunge)', blast: 'Blast', quake: 'Quake', arcana: 'Arcana', blades: 'Phantom Blades', enraged: 'Enraged Strike',
-  poison: 'Venom Volley (poison darts)', frost: 'Frost Nova', holy: 'Consecration',
+  poison: 'Venom Volley (poison darts)', frost: 'Frost Nova', holy: 'Consecration', banana: 'Banana Cannon',
 };
 
 const KEY = 'ascent.heroattackstyle';

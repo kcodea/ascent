@@ -60,6 +60,10 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: 'A golden book button next to the Settings gear opens the Compendium, no Tab key needed.',
+      },
+      {
+        category: 'Systems',
         text: 'Bob Blart has his own voice: a big, hungry ogre. He also says his own line when he meets Chronos on your board, instead of the announcer.',
       },
       {
@@ -128,10 +132,6 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-09-28',
     changes: [
-      {
-        category: 'Systems',
-        text: 'A golden book button next to the Settings gear opens the Compendium, no Tab key needed.',
-      },
       {
         category: 'Systems',
         text: 'New skins in crates: 13 more minion looks.',

@@ -2035,9 +2035,10 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'and the attack in a skin slot). The owner approved the animation and made it a Legendary reward. The second hero '
       + 'attack, attack_quake ("Tectonic Slam", Legendary, style quake: R-PROG-ATTACK-05), the third, attack_arcana '
       + '("Arcana", Legendary, style arcana: R-PROG-ATTACK-06), the fourth, attack_blades ("Phantom Blades", Legendary, '
-      + 'style blades: R-PROG-ATTACK-07), and the fifth, attack_enraged ("Enraged Strike", Legendary, style enraged: '
-      + 'R-PROG-ATTACK-11), re-pinned the first-crate odds to Common 46.3%, Rare 30.6%, Epic 18.8%, Legendary 4.3%; a '
-      + 'non-title item 32.5%; the five attacks together 2.7%.',
+      + 'style blades: R-PROG-ATTACK-07), the fifth, attack_enraged ("Enraged Strike", Legendary, style enraged: '
+      + 'R-PROG-ATTACK-11), and attack_frost ("Frost Nova", Legendary, style frost: R-PROG-ATTACK-13) re-pinned the '
+      + 'first-crate odds to Common 46.0%, Rare 30.5%, Epic 18.6%, Legendary 4.8%; a non-title item 32.8%; the six attacks '
+      + 'together 3.2%.',
     domain: 'foundation',
     status: 'approved',
     evidence: [
@@ -2279,5 +2280,33 @@ export const FOUNDATION_RULES: GameRule[] = [
     ],
     currentBehaviour: 'Conforms, built 2026-09-28. The item reaches the database on the next deploy of progression-inventory (the catalog sync); the equip SQL already accepts the hero_attack slot.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/heroEnraged/heroEnraged.test.ts', 'packages/progression/src/cosmetics.test.ts', 'packages/ui/src/progression/CollectionHeroAttack.test.tsx'], lastVerifiedAt: '2026-09-28' },
+  },
+  {
+    id: 'R-PROG-ATTACK-13',
+    title: 'Frost ("Frost Nova", attack_frost, Legendary) is a hero attack: icicles crystallise and fire (one / two / a volley of five), and Tier IV adds a frost nova across the screen that encases and shatters; the blow lands ONCE; the ice freezes, the clock never does',
+    statement:
+      'attack_frost ("Frost Nova", a placeholder name for the owner to rename; Legendary, crate, account-wide, style frost) '
+      + 'plays after the shared damage formation (R-PROG-ATTACK-08): a frost rune opens under the striking hero, a cold mist '
+      + 'gathers and faceted ICICLES crystallise one by one round the portrait rim (clear of the face), each aimed at the '
+      + 'struck hero; each draws back a hair and fires fast with an ice-dust trail, and shatters on the struck hero into '
+      + 'faceted shards and snow while frost creeps over the portrait edge. It escalates on exactly the tiers every other '
+      + 'hero attack uses (one shared tierOf, thresholds 6 / 12 / 20): I 1-5 ONE icicle; II 6-11 TWO (from either side); '
+      + 'III 12-19 a VOLLEY of five landing in rhythm, the centre one last and biggest; IV 20+ four icicles, then the hero '
+      + 'gathers the cold and releases a FROST NOVA, a wide rolling wave front that blasts across the screen from the '
+      + 'attacker to the target, freezing an ice sheet with frost ferns behind it; it ENCASES the struck hero in ice, and '
+      + 'the ice SHATTERS outward. The consequence (the damage, Armor, Resolve) lands exactly ONCE: on the LAST icicle '
+      + '(every earlier icicle is a tick with FX only) or, at IV, on the encasement shattering (every icicle a tick). No '
+      + 'hit-stop or freeze anywhere (R-PROG-ATTACK-10): the ice holds still while the shared clock runs on. The camera '
+      + 'follows the volley in, pans home for the gather and rides the nova, so neither hero leaves the frame. Presentation '
+      + 'only; reduced motion is fades only; an unknown or retired id plays Classic.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-28 (the Frost hero attack)', quote: 'branch off and create an ice/freeze blast one. icicles and then a frost nova blast that blasts across the screen from the attacker to the target' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-28 (Frost first review)', quote: 'frost already looks incredibly good.' },
+      { kind: 'code', ref: 'packages/progression/src/cosmetics.ts (attack_frost); packages/ui/src/heroFrost/ (heroFrostConfig frostPlan / frostCues / icicleMotions / novaMotion / frostCameraAt / frostCameraFocus, heroFrost playHeroFrost, heroFrostScene, heroFrostTextures)' },
+    ],
+    currentBehaviour: 'Conforms, built 2026-09-28. The item reaches the database on the next deploy of progression-inventory (the catalog sync); the equip SQL already accepts the hero_attack slot.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/heroFrost/heroFrost.test.ts', 'packages/progression/src/cosmetics.test.ts', 'packages/ui/src/progression/CollectionHeroAttack.test.tsx', 'packages/ui/src/heroAttack/damageFormation.test.ts'], lastVerifiedAt: '2026-09-28' },
   },
 ];

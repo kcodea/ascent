@@ -19,7 +19,7 @@
  *     I one clean diagonal gash; II a cross (X) of two; III a flurry of four fast slashes and a three-claw rake.
  *  IV. HEMORRHAGE. Three claw rakes carve the face (all ticks). The wounds THROB with a heartbeat (two beats: they flare,
  *     a crimson pulse, a ring pulled in, the view breathes in), while the striking hero winds a huge crescent. Then a
- *     MEGA-SLASH splits the screen: one crescent sweeps corner to corner through the target, leaving a white seam with
+ *     MEGA-SLASH splits the screen: one crescent sweeps from the striker's side through the target and on, leaving a white seam with
  *     a dark split beside it. As it crosses the target the wounds RIP open and the target erupts in a BLOOD NOVA: a
  *     crimson shockwave, blood thrown out in arcs that fall, spatter landing round the portrait, a stain that drips,
  *     and two arterial spurts after.
@@ -177,20 +177,20 @@ export const HERO_BLEED_DEFAULTS: HeroBleedConfig = {
   heroCoilPx: 10,
   heroSwingPx: 16,
   heroSwingDeg: 5,
-  waveSize: 1,
+  waveSize: 1.5,
   waveGlow: 0.75,
   afterimages: 3,
   afterMs: 22,
   waveLift: 0.05,
   drawMs: 80,
   seamWidth: 9,
-  gashWidth: 15,
+  gashWidth: 24,
   clawGap: 0.2,
   spray: 10,
   tickDrops: 8,
-  tintAlpha: 0.3,
+  tintAlpha: 0.14,
   bleedMs: 220,
-  holdMs: 560,
+  holdMs: 700,
   dripMs: 900,
   beats: 2,
   beatMs: 300,
@@ -622,17 +622,28 @@ export function wavePos(g: SlashGeo, t: number): { x: number; y: number; rot: nu
   return { x: g.start.x + (g.end.x - g.start.x) * u, y: g.start.y + (g.end.y - g.start.y) * u, rot: g.angle };
 }
 
+/** How far the cuts shift off the big -N (portrait radii). */
+export const AVOID_SHIFT = 0.22;
+
 /** Mirror a canonical (attacker-on-the-left) angle for an attacker on the right. */
 const mirrorAngle = (angle: number, flip: boolean): number => (flip ? Math.PI - angle : angle);
 
 /**
  * Every slash's path, from the plan and the two heroes. `aRadius` puts the release point on the attacker's rim
  * (toward the target); `radius` is the struck portrait's. The flight rises a little toward the top of the screen (never
- * above `ceilY`). Cut lines never leave the portrait by more than a little. Pure, so a replay cuts the same way.
+ * above `ceilY`). `avoid` is where the big -N pops (the cuts shift off it). Pure, so a replay cuts the same way.
  */
-export function slashGeos(p: BleedPlan, a: Pt, d: Pt, radius: number, aRadius: number, c: HeroBleedConfig = cfg, ceilY = Number.NEGATIVE_INFINITY): SlashGeo[] {
+export function slashGeos(p: BleedPlan, a: Pt, d: Pt, radius: number, aRadius: number, c: HeroBleedConfig = cfg, ceilY = Number.NEGATIVE_INFINITY, avoid: Pt | null = null): SlashGeo[] {
   if (p.reduced) return [];
   const flip = a.x > d.x;
+  // The big -N pops over the struck face (pushed from it toward the middle of the screen): the cuts sit a little to
+  // the far side of it, so the wounds read beside the number instead of under it.
+  const away = (() => {
+    if (!avoid) return { x: 0, y: 0 };
+    const ax = d.x - avoid.x, ay = d.y - avoid.y;
+    const L = Math.hypot(ax, ay);
+    return L > 1 ? { x: (ax / L) * AVOID_SHIFT * radius, y: (ay / L) * AVOID_SHIFT * radius } : { x: 0, y: 0 };
+  })();
   const dx = d.x - a.x, dy = d.y - a.y;
   const L = Math.hypot(dx, dy) || 1;
   const u = { x: dx / L, y: dy / L };
@@ -640,7 +651,7 @@ export function slashGeos(p: BleedPlan, a: Pt, d: Pt, radius: number, aRadius: n
     const angle = mirrorAngle(sp.angle, flip);
     const dir = { x: Math.cos(angle), y: Math.sin(angle) };
     const nrm = { x: -dir.y, y: dir.x };
-    const aim = { x: d.x + (flip ? -sp.off.x : sp.off.x) * radius, y: d.y + sp.off.y * radius };
+    const aim = { x: d.x + (flip ? -sp.off.x : sp.off.x) * radius + away.x, y: d.y + sp.off.y * radius + away.y };
     const len = sp.len * radius;
     const lines: CutLine[] = [];
     for (let j = 0; j < sp.lines; j++) {
@@ -664,15 +675,19 @@ export function slashGeos(p: BleedPlan, a: Pt, d: Pt, radius: number, aRadius: n
 /** Tier IV's mega-slash: one line through the target, `span` px long, swept from `from` to `to`. */
 export interface MegaGeo { from: Pt; to: Pt; angle: number; span: number }
 
-/** The mega-slash's canonical angle (attacker on the left): a steep diagonal, top left to bottom right. */
-export const MEGA_ANGLE = 0.52;
+/**
+ * How far the mega-slash turns off the attacker-to-target line (radians, clockwise on screen): a slash swung THROUGH
+ * the target from the striker's side, not a bolt along the line between them.
+ */
+export const MEGA_TILT = 0.26;
 
 /**
- * The mega-slash: a straight line through the struck hero, from the attacker's side of the screen to the far side, so
- * it crosses the target exactly half-way through its sweep (the impact). Pure.
+ * The mega-slash: a straight line through the struck hero, starting out by the STRIKER (it is their swing) and running
+ * on past the target by the same length, so it crosses the target exactly half-way through its sweep (the impact).
+ * `span` is the whole line. Pure.
  */
 export function megaGeo(a: Pt, d: Pt, span: number): MegaGeo {
-  const angle = mirrorAngle(MEGA_ANGLE, a.x > d.x);
+  const angle = Math.atan2(d.y - a.y, d.x - a.x) + MEGA_TILT;
   const dir = { x: Math.cos(angle), y: Math.sin(angle) };
   const s = Math.max(1, span);
   return { from: { x: d.x - dir.x * s / 2, y: d.y - dir.y * s / 2 }, to: { x: d.x + dir.x * s / 2, y: d.y + dir.y * s / 2 }, angle, span: s };

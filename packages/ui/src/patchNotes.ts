@@ -60,6 +60,17 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: 'A new Legendary hero attack, Hemorrhage, can drop from crates.',
+        details: [
+          'Your damage builds up, then your hero draws a blade and swings crimson crescents at the other hero.',
+          'Each one cuts across the face and leaves a gash that bleeds. Bigger hits cut a cross, then a flurry that ends in a claw rake.',
+          'On the biggest hits the wounds throb like a heartbeat, one huge slash splits the screen, and the other hero bursts in a spray of blood.',
+          'Equip it from the Attack Animations tab of the Collection. There is a preview button there too.',
+          'Hero attacks are looks only. The damage is exactly the same.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: "Knocking a player out now always plays your hero attack's biggest version.",
         details: [
           'Works for every hero attack style, whatever the damage number.',

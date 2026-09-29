@@ -245,7 +245,7 @@ progression **epoch**; nothing finished before the epoch counts (no backfill).
   R-PROG-SKINS-05), so a new or retired cosmetic is a code change plus one deploy, never SQL. Shaped
   for every cosmetic category (announcer, hero skin, minion skin, title, hero attack, board, music). Switched on:
   **titles** (15 crate titles: 7 Common, 5 Rare, 2 Epic, 1 Legendary) and, since the skins shipped the same day,
-  **hero skins** and **minion skins** (all from crates) and **hero attacks** (Arcane Barrage, Tectonic Slam, Arcana, Phantom Blades, Enraged Strike, Venom Volley, Frost Nova, then Consecration). The other
+  **hero skins** and **minion skins** (all from crates) and **hero attacks** (Arcane Barrage, Tectonic Slam, Arcana, Phantom Blades, Enraged Strike, Venom Volley, Frost Nova, Consecration, then Hemorrhage). The other
   categories are feature-flagged off until their art exists. Crate odds are the fixed rarity odds above, then an equal
   share inside the rarity: on the 2026-09-29 catalog each Common is 6.25% (50 / 8), each Rare 2.31% (30 / 13), each Epic
   1.5% (15 / 10) and each Legendary 0.45% (5 / 11). A fresh account's first crate is about 41% a skin or hero attack.
@@ -314,7 +314,15 @@ progression **epoch**; nothing finished before the epoch counts (no backfill).
   plants glowing seeds round the struck hero, then the pillar drops and the seeds erupt with it (the blow landing once,
   on the last smite); IV six holy swords fly in one after another from different directions, faster and faster, and
   plant round the centre of the board, the centre implodes, and a flat consecrated blast races across the board to the
-  struck hero, tearing radiant cracks, and holy flames erupt round it (the blow landing on the eruption). All eight anchor on the round portrait art at rest
+  struck hero, tearing radiant cracks, and holy flames erupt round it (the blow landing on the eruption). **Hemorrhage** is
+  the ninth, `attack_bleed` ("Hemorrhage", a placeholder name; Legendary, from crates; R-PROG-ATTACK-15): a stylised
+  crimson slashing attack, drawn flat. After the same damage formation the hero draws back and swings: each slash
+  looses a crimson crescent that turns to its cut and runs through the struck hero's face, a white seam drawing behind it,
+  blood spraying along the blade, and the line opening into a gash (I one diagonal gash; II a cross of two; III four
+  fast slashes and a three-claw rake, the wounds bleeding and dripping, the blow landing once on the last cut; IV three
+  claw rakes, the wounds throb with a heartbeat while the striker winds a huge crescent, then a mega-slash sweeps the
+  screen through the target and it erupts in a blood nova, the blow landing as the slash crosses it). All nine anchor on
+  the round portrait art at rest
   (R-PROG-ATTACK-04). Equipped
   account-wide in the Collection's Attack Animations tab ("Use Classic" takes it off). The STRIKER's attack plays:
   yours when you win, the opponent's (from their recorded snapshot) when they win. Recorded per run like skins;

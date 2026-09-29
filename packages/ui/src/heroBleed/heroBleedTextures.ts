@@ -39,9 +39,13 @@ export const DRIP_H = 96;
 function crescentPath(g: CanvasRenderingContext2D, grow = 0): void {
   const c = CRESCENT_PX / 2;
   g.beginPath(); g.arc(c - 16, c, 86 + grow, 0, Math.PI * 2); g.fill();
+  // The cut must be OPAQUE (destination-out removes by the fill's alpha), whatever the shading fill was.
+  const fill = g.fillStyle;
   g.globalCompositeOperation = 'destination-out';
-  g.beginPath(); g.arc(c - 44 - grow * 0.5, c, 84, 0, Math.PI * 2); g.fill();
+  g.fillStyle = '#000';
+  g.beginPath(); g.arc(c - 52 - grow * 0.5, c, 84, 0, Math.PI * 2); g.fill();
   g.globalCompositeOperation = 'source-over';
+  g.fillStyle = fill;
 }
 
 function paintCrescent(): HTMLCanvasElement | null {

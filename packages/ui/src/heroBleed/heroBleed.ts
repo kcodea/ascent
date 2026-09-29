@@ -79,10 +79,10 @@ export function playHeroBleed(o: HeroBleedOptions): HeroBleedHandle {
   });
 
   // A crescent's flight never rises above the top of the screen (or the sandbox box).
-  const geos = slashGeos(plan, o.attacker, o.defender, radius, aRadius, c, (local ? 8 : 36) * s);
+  const geos = slashGeos(plan, o.attacker, o.defender, radius, aRadius, c, (local ? 8 : 36) * s, nums.pts.hit);
   const cutDirs: Pt[] = geos.map((g) => ({ x: Math.cos(g.angle), y: Math.sin(g.angle) }));
-  // The mega-slash spans the whole screen (a sandbox box: a little past both heroes).
-  const mega = plan.hemorrhage ? megaGeo(o.attacker, o.defender, local ? dist * 2.4 : Math.max(dist * 2.2, 2400 * s)) : null;
+  // The mega-slash starts out by the striker and runs on past the target by as much (the target is half-way).
+  const mega = plan.hemorrhage ? megaGeo(o.attacker, o.defender, dist * 2.1) : null;
   const toFoe = (() => { const L = dist || 1; return { x: (o.defender.x - o.attacker.x) / L, y: (o.defender.y - o.attacker.y) / L }; })();
   // The direction the blow ARRIVES from: the last cut (I-III), the mega-slash (IV). The shake and the knockback follow it.
   const dir: Pt = mega ? { x: Math.cos(mega.angle), y: Math.sin(mega.angle) } : (cutDirs[cutDirs.length - 1] ?? toFoe);

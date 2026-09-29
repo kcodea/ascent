@@ -18,7 +18,7 @@ import { HERO_BLAST_DEFAULTS, blastPlan } from '../heroBlast/heroBlastConfig';
 import { HERO_POISON_DEFAULTS, poisonPlan } from '../heroPoison/heroPoisonConfig';
 import { DEV_HERO_ATTACK_CHOICES, HERO_ATTACK_STYLES, resolveHeroAttackStyle, styleOfCosmetic } from '../heroBlast/heroAttackStyle';
 import {
-  BLEED_CAPS, HERO_BLEED_DEFAULTS, HERO_BLEED_RANGES, bleedCameraAt, bleedCameraFocus, bleedCues, bleedFlightMs, bleedPlan,
+  AVOID_SHIFT, BLEED_CAPS, HERO_BLEED_DEFAULTS, MEGA_TILT, HERO_BLEED_RANGES, bleedCameraAt, bleedCameraFocus, bleedCues, bleedFlightMs, bleedPlan,
   clampHeroBleedValue, heroBleedConfigJson, megaGeo, megaPos, sanitizeHeroBleedConfig, slashGeos, waveEase, wavePos,
   type HeroBleedConfig, type HeroBleedNumKey,
 } from './heroBleedConfig';
@@ -112,9 +112,12 @@ describe('the tuner values', () => {
     expect(style?.options).toContain('bleed');
     expect(DEV_HERO_ATTACK_CHOICES).toContain('bleed');
     const labels = SPEC.actions?.map((a) => a.label) ?? [];
-    for (const l of ['▶ Small (3)', '▶ Tier II (8)', '▶ Medium (12)', '▶ Huge (40)', '▶ Foe small (3)', '▶ Foe huge (40)', '▶ Reduced motion', 'Speed 1x', 'Speed 0.5x', 'Speed 0.25x']) {
+    for (const l of ['▶ Small (3)', '▶ Tier II (8)', '▶ Medium (12)', '▶ Huge (40)', '▶ Foe small (3)', '▶ Foe huge (40)']) {
       expect(labels).toContain(l);
     }
+    // Owner 2026-09-29 (every hero attack tuner): no speed or reduced-motion buttons, and the button row on TOP.
+    for (const l of labels) expect(l).not.toMatch(/Speed|Reduced/);
+    expect(SPEC.buttonsOnTop).toBe(true);
   });
 });
 
@@ -178,7 +181,7 @@ describe('the plan', () => {
   it('the shipped per-tier timeline (1600 px apart): first swing, impact and end, ms from the ready', () => {
     const t = (p: ReturnType<typeof plan>): number[] => [Math.round(p.swingAt - p.chargeAt), Math.round(p.impactAt - p.chargeAt), Math.round(p.endAt - p.chargeAt)];
     expect([t(P1), t(P2), t(P3), t(P4)]).toEqual([
-      [300, 530, 1330], [340, 760, 1600], [380, 970, 1850], [420, 1660, 2630],
+      [300, 530, 1470], [340, 760, 1740], [380, 970, 1990], [420, 1660, 2630],
     ]);
     // Chunky, not rushed, never dragging: Tier I about 1.3 s, Tier IV under 3 s.
     expect(t(P1)[2]).toBeLessThanOrEqual(2000);
@@ -261,15 +264,27 @@ describe('the geometry', () => {
     expect(c!.c.y).toBeGreaterThanOrEqual(40);
   });
 
-  it('the mega-slash is one straight line through the target, which it crosses exactly half-way', () => {
-    const m = megaGeo(A, D, 2400);
+  it('the mega-slash is one straight line through the target, swung from the striker\'s side, crossing the target exactly half-way', () => {
+    const span = dist(A, D) * 2.1;
+    const m = megaGeo(A, D, span);
     expect(dist(megaPos(m, 0.5), D)).toBeLessThan(1e-6);
-    expect(dist(m.from, m.to)).toBeCloseTo(2400, 6);
-    expect(Math.abs(Math.sin(m.angle))).toBeGreaterThan(0.3); // a diagonal, not a flat line
-    const back = megaGeo(D, A, 2400);
-    expect(back.angle).toBeCloseTo(Math.PI - m.angle, 9); // mirrored for a foe
+    expect(dist(m.from, m.to)).toBeCloseTo(span, 6);
+    // it starts out by the striker (not off in some far corner) and is turned off the bolt line (a swing, not a beam)
+    expect(dist(m.from, A)).toBeLessThan(dist(A, D) * 0.6);
+    const heading = Math.atan2(D.y - A.y, D.x - A.x);
+    expect(m.angle - heading).toBeCloseTo(MEGA_TILT, 9);
+    const back = megaGeo(D, A, span);
     expect(dist(megaPos(back, 0.5), A)).toBeLessThan(1e-6);
+    expect(dist(back.from, D)).toBeLessThan(dist(A, D) * 0.6);
     expect(megaPos(m, Number.NaN)).toEqual(m.from);
+  });
+
+  it('the cuts sit off the big -N (shifted to the far side of the face from it)', () => {
+    const hitAt = { x: D.x - 150, y: D.y + 60 };
+    const [plain] = slashGeos(P1, A, D, R, R, C);
+    const [shifted] = slashGeos(P1, A, D, R, R, C, Number.NEGATIVE_INFINITY, hitAt);
+    expect(dist(shifted!.aim, hitAt)).toBeGreaterThan(dist(plain!.aim, hitAt));
+    expect(dist(shifted!.aim, D)).toBeCloseTo(AVOID_SHIFT * R, 6);
   });
 });
 
@@ -402,7 +417,7 @@ describe('the runner (the shared clock)', () => {
         expect(peak).toBeLessThanOrEqual(MAX_BLEED_SPRITES);
         for (const g of h.geos) {
           expect(dist(g.a, a)).toBeLessThanOrEqual(R); // loosed from the attacker
-          expect(dist(g.aim, d)).toBeLessThanOrEqual(R * 0.4); // cut across the struck hero
+          expect(dist(g.aim, d)).toBeLessThanOrEqual(R * 0.5); // cut across the struck hero
         }
         if (h.mega) expect(dist(megaPos(h.mega, 0.5), d)).toBeLessThan(1e-6);
         h.cancel();
@@ -511,7 +526,7 @@ describe('the scene (headless Pixi)', () => {
     for (let b = 0; b < 2; b++) { s.beat(D.x, D.y, R, b); for (let i = 0; i < 18; i++) { s.update(16); peak = Math.max(peak, s.liveSprites); } }
     s.windup(gs[0]!.a, 0, 380);
     for (let i = 0; i < 24; i++) { s.update(16); peak = Math.max(peak, s.liveSprites); }
-    const m = megaGeo(A, D, 2400);
+    const m = megaGeo(A, D, dist(A, D) * 2.1);
     s.startMega(m, 260);
     for (let i = 0; i < 8; i++) { s.update(16); peak = Math.max(peak, s.liveSprites); }
     s.nova(D.x, D.y, R, m, { burst: 1.8, drops: 48, drips: 7, flashAlpha: 0.85 });

@@ -1,5 +1,5 @@
 import {
-  BLEED_TIER_SUFFIXES, HERO_BLEED_DEFAULTS, HERO_BLEED_RANGES, HERO_BLEED_SPEEDS, TIERS, bleedPlan, getHeroBleedConfig,
+  BLEED_TIER_SUFFIXES, HERO_BLEED_DEFAULTS, HERO_BLEED_RANGES, TIERS, bleedPlan, getHeroBleedConfig,
   heroBleedConfigJson, heroBleedPreviewSpeed, resetHeroBleedConfig, setHeroBleedPreviewSpeed, setHeroBleedValue,
   type BleedTierSuffix, type HeroBleedConfig, type HeroBleedNumKey, type HeroBleedStrKey, type TierNum,
 } from './heroBleed/heroBleedConfig';
@@ -13,8 +13,8 @@ import type { TunerControl, TunerSpec, TunerUnit } from './tunerSchema';
 /**
  * DEV tuner for the BLEED hero attack (the Hemorrhage cosmetic; owner ask 2026-09-29: "make some more attack types ...
  * a bleed/gash animation ... use the same 4 tier strategy"). The Play buttons run the REAL runner between the two real
- * hero portraits (works from the shop), in either direction, at Small 3 / Tier II 8 / Medium 12 / Huge 40, with
- * reduced motion, at 1x / 0.5x / 0.25x. A preview never touches the run. The "Attack style" row is the same dev
+ * hero portraits (works from the shop), in either direction, at Small 3 / Tier II 8 / Medium 12 / Huge 40 (the button
+ * row sits at the TOP of the panel; owner 2026-09-29). A preview never touches the run. The "Attack style" row is the same dev
  * override as the other attack tuners' (Auto = what a player would see). Production plays the baked defaults.
  */
 type BleedTunerValues = HeroBleedConfig & { attackStyle: string };
@@ -215,6 +215,8 @@ export const SPEC: TunerSpec<BleedTunerValues> = {
   controls: buildControls(),
   copy: () => heroBleedConfigJson(),
   copyLabel: 'Copy JSON',
+  // Owner 2026-09-29 (every hero attack tuner): the buttons at the top; no speed or reduced-motion buttons.
+  buttonsOnTop: true,
   actions: [
     { label: '▶ You strike', hint: 'Your hero cuts the foe for the preview damage.', run: () => { void demo('player'); } },
     { label: '▶ Foe strikes', hint: 'The foe cuts your hero for the preview damage.', run: () => { void demo('opp'); } },
@@ -226,12 +228,6 @@ export const SPEC: TunerSpec<BleedTunerValues> = {
     { label: '▶ Foe tier II (8)', hint: 'The foe strikes your hero for 8.', run: () => { void demo('opp', { damage: 8, parts: 3 }); } },
     { label: '▶ Foe medium (12)', hint: 'The foe strikes your hero for 12.', run: () => { void demo('opp', { damage: 12, parts: 4 }); } },
     { label: '▶ Foe huge (40)', hint: 'The foe strikes your hero for 40.', run: () => { void demo('opp', { damage: 40, parts: 7 }); } },
-    { label: '▶ Reduced motion', hint: 'What a player with reduced motion on sees: fades, no cuts, shake or zoom.', run: () => { void demo('player', { reduced: true }); } },
-    ...HERO_BLEED_SPEEDS.map((s) => ({
-      label: `Speed ${s}x`,
-      hint: 'Slow motion for the next plays (the tuner only; never saved, never in production).',
-      run: () => { setHeroBleedPreviewSpeed(s); },
-    })),
   ],
 };
 

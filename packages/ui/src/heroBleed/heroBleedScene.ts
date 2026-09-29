@@ -193,6 +193,8 @@ export class HeroBleedScene {
   private readonly rnd: () => number;
   /** The tint over a face: blood pushed toward the deep. */
   private readonly sick: number;
+  /** A wound's lip: blood lifted toward the bright crimson, so the open flesh reads against the dark edge. */
+  private readonly lip: number;
 
   constructor(private readonly tex: HeroBleedTextures, private readonly colors: BleedColors, private readonly look: BleedLook, private readonly scale = 1, seed = 1) {
     this.root.eventMode = 'none';
@@ -208,6 +210,7 @@ export class HeroBleedScene {
     }
     this.rnd = seededRng(seed);
     this.sick = mixColor(colors.blood, colors.deep, 0.35);
+    this.lip = mixColor(colors.blood, colors.bright, 0.45);
     // PRE-WARM: one near-invisible sprite per texture for the first few hundred ms (the damage formation is still
     // playing), so every texture is on the GPU long before the first cut or the nova needs it (no first-play spike).
     const t = tex;
@@ -303,7 +306,7 @@ export class HeroBleedScene {
     const d = (radius * 1.8) / DISC_PX / this.scale;
     this.fxs('stain', this.tex.disc, this.sick, x, y, { dur, from: d * 0.97, to: d, a0: this.look.tint * strength, mode: 'punch', peakAt: 0.16, follow: true });
     const sh = (radius * 2.1) / SHOCK_PX / this.scale;
-    this.fxs('glow', this.tex.shock, this.colors.bright, x, y, { dur: dur * 0.9, from: sh * 0.96, to: sh * 1.04, a0: 0.28 * strength, mode: 'punch', peakAt: 0.14, follow: true });
+    this.fxs('glow', this.tex.shock, this.colors.bright, x, y, { dur: dur * 0.9, from: sh * 0.96, to: sh * 1.04, a0: 0.16 * strength, mode: 'punch', peakAt: 0.14, follow: true });
   }
 
   /** A directional spatter decal off a cut's end, flung along the blade (rides the portrait, holds, fades). */
@@ -373,7 +376,7 @@ export class HeroBleedScene {
       const lag = g.lines.length > 1 ? Math.abs(j - (g.lines.length - 1) / 2) * 18 : 0;
       const parts = this.takeAll([
         ['core', this.tex.seam, whiten(this.colors.core, 1)], ['glow', this.tex.seamSoft, this.colors.bright], ['core', this.tex.glow, this.colors.core],
-        ['stain', this.tex.gash, this.colors.deep], ['body', this.tex.gashLip, this.colors.blood],
+        ['stain', this.tex.gash, this.colors.deep], ['body', this.tex.gashLip, this.lip],
       ]);
       if (!parts) return;
       const [seam, bloom, tip, gash, lip] = parts as [Sprite, Sprite, Sprite, Sprite, Sprite];
@@ -397,7 +400,7 @@ export class HeroBleedScene {
     const f = this.fxs('stain', step % 2 ? this.tex.splat2 : this.tex.splat, mixColor(c.blood, c.deep, 0.3), g.aim.x, g.aim.y, { dur: 520, from: 0.1 * g1, to: 0.3 * g1, a0: 0.85, mode: 'hold', follow: true });
     if (f) f.s.rotation = this.rnd() * Math.PI * 2;
     this.sprayDecal(g.end.x, g.end.y, g.angle, 0.9 * g1, 620);
-    this.fxs('glow', this.tex.glow, c.bright, g.aim.x, g.aim.y, { dur: 220, from: 0.5, to: 1.3 * g1, a0: 0.55, mode: 'punch', peakAt: 0.15, follow: true });
+    this.fxs('glow', this.tex.glow, c.bright, g.aim.x, g.aim.y, { dur: 200, from: 0.45, to: 1.1 * g1, a0: 0.38, mode: 'punch', peakAt: 0.15, follow: true });
     this.droplets(g.end.x, g.end.y, this.look.tickDrops, 480, { dir: g.angle, spread: 1.1, life: 460, size: 0.42, lift: 90 });
     this.tintPulse(x, y, radius, 0.5, 300);
   }
@@ -414,7 +417,7 @@ export class HeroBleedScene {
     this.cutLines(g, 1.35, this.look.spray * 1.6);
     this.fxs('core', this.tex.glow, c.core, x, y, { dur: 110, from: portrait, to: portrait * 1.2, a0: 0.45 * o.flashAlpha, follow: true });
     this.fxs('core', this.tex.glow, c.core, g.aim.x, g.aim.y, { dur: 140, from: 0.6 * fs, to: 1.7 * fs, a0: o.flashAlpha, follow: true });
-    this.fxs('glow', this.tex.glow, c.bright, g.aim.x, g.aim.y, { dur: 380, from: 1.2 * fs, to: 3 * fs, a0: 0.5 * o.flashAlpha, follow: true });
+    this.fxs('glow', this.tex.glow, c.bright, g.aim.x, g.aim.y, { dur: 340, from: 1 * fs, to: 2.4 * fs, a0: 0.32 * o.flashAlpha, follow: true });
     if (o.cross) {
       const st = this.fxs('core', this.tex.star, c.core, g.aim.x, g.aim.y, { dur: 300, from: 0.5, to: 1.6 * fs, a0: 1, follow: true, spin: 0.004 });
       if (st) st.s.rotation = Math.PI / 4;
@@ -424,8 +427,7 @@ export class HeroBleedScene {
       if (f) f.s.rotation = this.rnd() * Math.PI * 2 + rr;
     }
     this.sprayDecal(g.end.x, g.end.y, g.angle, 1.3 * fs, 800);
-    this.fxs('glow', this.tex.ring, c.core, g.aim.x, g.aim.y, { dur: 260, from: 0.2, to: 1.4 * (0.9 + 0.3 * o.k), a0: 1, follow: true });
-    this.fxs('glow', this.tex.ring, c.bright, g.aim.x, g.aim.y, { dur: 480, from: 0.3, to: 2.4 * (0.85 + 0.4 * o.k), a0: 0.7 });
+    this.fxs('glow', this.tex.ring, c.bright, g.aim.x, g.aim.y, { dur: 300, from: 0.3, to: 1.6 * (0.85 + 0.4 * o.k), a0: 0.45, follow: true });
     // Arterial STREAKS: short bright spurts off the blade's line, fanned forward.
     const spurts = 7;
     for (let s = 0; s < spurts; s++) {
@@ -517,10 +519,10 @@ export class HeroBleedScene {
     for (const w of this.wounds) w.rip = 0;
     this.fxs('core', this.tex.glow, c.core, x, y, { dur: 120, from: portrait * 1.1, to: portrait * 1.4, a0: 0.7 * o.flashAlpha, follow: true });
     this.fxs('core', this.tex.glow, c.core, x, y, { dur: 160, from: 1.1 * fs, to: Math.min(4.5, 2.4 * fs), a0: o.flashAlpha });
-    this.fxs('glow', this.tex.glow, c.bright, x, y, { dur: 260, from: 1.5 * fs, to: Math.min(5, 3.1 * fs), a0: 0.42 * o.flashAlpha });
+    this.fxs('glow', this.tex.glow, c.bright, x, y, { dur: 240, from: 1.3 * fs, to: Math.min(4.2, 2.6 * fs), a0: 0.3 * o.flashAlpha });
     this.fxs('stain', this.tex.shock, c.deep, x, y, { dur: 620, from: shock * 0.6, to: shock * 3.8 * L.novaSize, a0: 0.8 });
-    this.fxs('glow', this.tex.shock, c.bright, x, y, { dur: 460, from: shock * 0.45, to: shock * 2.9 * L.novaSize, a0: 0.8 });
-    this.fxs('glow', this.tex.ring, c.core, x, y, { dur: 300, from: 0.3, to: 2.2 * L.novaSize, a0: 0.9 });
+    this.fxs('glow', this.tex.shock, c.bright, x, y, { dur: 460, from: shock * 0.45, to: shock * 2.9 * L.novaSize, a0: 0.6 });
+    this.fxs('glow', this.tex.ring, c.core, x, y, { dur: 280, from: 0.3, to: 2.2 * L.novaSize, a0: 0.55 });
     // The STAIN: a big splat over the face that holds, then fades.
     const st = this.fxs('stain', this.tex.splat, mixColor(c.blood, c.deep, 0.45), x, y, {
       dur: L.stainMs, from: (radius * 1.2) / 128 / S, to: (radius * 1.7) / 128 / S, a0: L.stainAlpha, mode: 'hold', follow: true,
@@ -597,7 +599,7 @@ export class HeroBleedScene {
     if (!s) return;
     s.anchor.set(0.5, 0.04);
     s.alpha = 0;
-    this.drips.push({ s, x, y, len, w: (0.55 + this.rnd() * 0.4) * S, age: 0, dur: this.look.dripMs * (0.8 + this.rnd() * 0.4), delay });
+    this.drips.push({ s, x, y, len, w: (0.8 + this.rnd() * 0.4) * S, age: 0, dur: this.look.dripMs * (0.8 + this.rnd() * 0.4), delay });
   }
 
   /** I-III: the wounds close (they narrow and fade). */
@@ -730,7 +732,7 @@ export class HeroBleedScene {
     wd.age += dt;
     const u = clamp01(wd.age / wd.dur);
     const e = easeOutCubic(u);
-    const size = (0.4 + 0.75 * e) * S * L.waveSize * (84 / CRESCENT_PX) * 2.2;
+    const size = (0.4 + 0.75 * e) * S * L.waveSize * (84 / CRESCENT_PX) * 1.5;
     const throb = 1 + 0.06 * Math.sin(wd.age * (0.02 + 0.06 * u));
     // Raised and turned back, trembling a little as the power builds.
     const rot = wd.heading - 0.3 - 1.2 * e + 0.03 * u * Math.sin(wd.age * 0.09);
@@ -857,7 +859,7 @@ export class HeroBleedScene {
     for (const s of [w.gash, w.lip]) { s.position.set(x, y); s.scale.set(lx, h / GASH_H); }
     w.gash.alpha = 0.95 * (1 - gone);
     w.lip.alpha = (1 - gone) * Math.min(1, w.age / 60);
-    w.lip.tint = pulse > 0.02 || rip > 0 ? whiten(this.colors.blood, Math.min(0.55, 0.45 * pulse + 0.25 * rip * (1 - ripFade))) : this.colors.blood;
+    w.lip.tint = pulse > 0.02 || rip > 0 ? whiten(this.lip, Math.min(0.55, 0.45 * pulse + 0.25 * rip * (1 - ripFade))) : this.lip;
     return true;
   }
 

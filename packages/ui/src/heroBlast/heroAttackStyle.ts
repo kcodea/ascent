@@ -25,6 +25,10 @@
  *    legendary version of this strike ... just amplified or enraged"): Classic's own lunge, enraged. The hero burns with
  *    a rage aura, dashes in leaving afterimages and strikes with white-hot impacts and claw rips; II strikes twice, III a
  *    flurry of three, and IV rises and slams down like a meteor (`../heroEnraged/`).
+ *  - `holy` (`attack_holy`, "Consecration" until the owner renames it; owner ask 2026-09-28: "a holy
+ *    weapon + consecration attack"): a golden sigil and a pillar of light smite the target; II smites twice, III rains
+ *    light spears that plant consecration seeds, and IV brings a huge holy sword down into the middle of the board and a
+ *    consecration races from it to erupt under the target (`../heroHoly/`).
  *
  * The style is the ATTACKER's: the equipped item recorded in the striking player's cosmetic snapshot (yours when you
  * win; the foe's seat snapshot when they win, and only while "Show opponent cosmetics" is on). The catalog item names
@@ -38,7 +42,7 @@
  */
 import { heroAttackOf } from '@game/progression';
 
-export const HERO_ATTACK_STYLES = ['classic', 'blast', 'quake', 'arcana', 'blades', 'enraged'] as const;
+export const HERO_ATTACK_STYLES = ['classic', 'blast', 'quake', 'arcana', 'blades', 'enraged', 'holy'] as const;
 export type HeroAttackStyle = (typeof HERO_ATTACK_STYLES)[number];
 
 /** What a player without an equipped hero attack sees (owner 2026-09-28: Blast is a cosmetic, not a new default). */
@@ -55,12 +59,12 @@ export function styleOfCosmetic(id: string | null | undefined): HeroAttackStyle 
 }
 
 /** The dev override: `auto` = what a player would see; the others force one style for BOTH sides. */
-export const DEV_HERO_ATTACK_CHOICES = ['auto', 'classic', 'blast', 'quake', 'arcana', 'blades', 'enraged'] as const;
+export const DEV_HERO_ATTACK_CHOICES = ['auto', 'classic', 'blast', 'quake', 'arcana', 'blades', 'enraged', 'holy'] as const;
 export type DevHeroAttackChoice = (typeof DEV_HERO_ATTACK_CHOICES)[number];
 
 /** The dev "Attack style" row's labels, shared by every hero attack tuner. */
 export const DEV_HERO_ATTACK_LABELS: Record<DevHeroAttackChoice, string> = {
-  auto: 'Auto (equipped cosmetic)', classic: 'Classic (lunge)', blast: 'Blast', quake: 'Quake', arcana: 'Arcana', blades: 'Phantom Blades', enraged: 'Enraged Strike',
+  auto: 'Auto (equipped cosmetic)', classic: 'Classic (lunge)', blast: 'Blast', quake: 'Quake', arcana: 'Arcana', blades: 'Phantom Blades', enraged: 'Enraged Strike', holy: 'Consecration',
 };
 
 const KEY = 'ascent.heroattackstyle';

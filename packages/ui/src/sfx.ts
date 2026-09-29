@@ -779,6 +779,138 @@ export function playEmberCrackle(category: string, o: { gain: number; durMs: num
   };
 }
 
+/**
+ * A SYNTH CHOIR "AHH" (the Holy hero attack, 2026-09-28): a major chord (root, fifth, octave, tenth), each note two
+ * sawtooths detuned a few cents apart with a slow shared vibrato, shaped through a parallel bank of "ah" formant
+ * band-passes (730 / 1090 / 2440 Hz) and a low-pass that OPENS as it swells, high-passed at 120 Hz (no mud), on
+ * `category`'s fader. It swells to its peak at `buildMs`, gliding up by `rise` (x the pitch; 1 = steady), holds
+ * `holdMs`, then dies over `tailMs`. Stands in for a real choir swell until the owner supplies one. Returns a handle whose
+ * `stop()` fades it in `SKIP_FADE_S`; null when nothing was queued (muted, hidden, suspended, no Web Audio).
+ */
+export function playHolyChoir(category: string, o: { gain: number; hz: number; buildMs: number; holdMs: number; tailMs: number; rise: number; delayMs?: number }): SfxHandle | null {
+  if (isHidden() || audioSuspended || !(o.gain > 0)) return null;
+  const a = audio();
+  if (!a || muted) return null;
+  const t0 = a.currentTime + Math.max(0, o.delayMs ?? 0) / 1000;
+  const b = Math.max(0.05, o.buildMs / 1000), h = Math.max(0, o.holdMs / 1000), tl = Math.max(0.08, o.tailMs / 1000);
+  const f0 = Math.max(60, o.hz), f1 = f0 * Math.max(0.5, o.rise);
+  const hp = a.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 120; hp.Q.value = 0.7;
+  const lp = a.createBiquadFilter(); lp.type = 'lowpass'; lp.Q.value = 0.6;
+  const formants: [number, number, number][] = [[730, 7, 1], [1090, 8, 0.55], [2440, 9, 0.28]];
+  const fnodes: AudioNode[] = [];
+  const fsum = a.createGain(); fsum.gain.value = 1;
+  const pre = a.createGain(); pre.gain.value = 1;
+  for (const [fq, q, g] of formants) {
+    const bp = a.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = fq; bp.Q.value = q;
+    const bg = a.createGain(); bg.gain.value = g * 2.2;
+    pre.connect(bp).connect(bg).connect(fsum);
+    fnodes.push(bp, bg);
+  }
+  // a little of the dry voice, so it is not all vowel
+  const dry = a.createGain(); dry.gain.value = 0.12; pre.connect(dry).connect(fsum);
+  const vib = a.createOscillator(); vib.type = 'sine'; vib.frequency.value = 5.2;
+  const vibAmt = a.createGain(); vibAmt.gain.value = 7;
+  vib.connect(vibAmt);
+  const env = a.createGain();
+  const out = a.createGain();
+  out.gain.value = effectiveGain(cfg, category, 'choir') * o.gain * 0.35;
+  fsum.connect(hp).connect(lp).connect(env).connect(out).connect(busInput(a, category));
+  const oscs: OscillatorNode[] = [];
+  const mixes: GainNode[] = [];
+  for (const [ratio, g] of [[1, 1], [1.5, 0.7], [2, 0.55], [2.5, 0.35]] as const) {
+    for (const cents of [-8, 8]) {
+      const osc = a.createOscillator(); osc.type = 'sawtooth'; osc.detune.value = cents;
+      vibAmt.connect(osc.detune);
+      const mix = a.createGain(); mix.gain.value = g * 0.18;
+      osc.frequency.setValueAtTime(f0 * ratio, t0);
+      osc.frequency.exponentialRampToValueAtTime(f1 * ratio, t0 + b);
+      osc.connect(mix).connect(pre);
+      oscs.push(osc); mixes.push(mix);
+    }
+  }
+  lp.frequency.setValueAtTime(1300, t0); lp.frequency.exponentialRampToValueAtTime(5200, t0 + b);
+  env.gain.setValueAtTime(0.0001, t0);
+  env.gain.exponentialRampToValueAtTime(0.25, t0 + Math.min(0.2, b * 0.35));
+  env.gain.exponentialRampToValueAtTime(1, t0 + b);
+  env.gain.setValueAtTime(1, t0 + b + h);
+  env.gain.exponentialRampToValueAtTime(0.0001, t0 + b + h + tl);
+  const end = t0 + b + h + tl + 0.05;
+  for (const n of [...oscs, vib]) { n.start(t0); n.stop(end); }
+  let done = false;
+  const release = (): void => { if (done) return; done = true; for (const n of [...oscs, ...mixes, ...fnodes, pre, dry, fsum, vib, vibAmt, hp, lp, env, out]) { try { n.disconnect(); } catch { /* already */ } } };
+  oscs[0]!.onended = release;
+  return {
+    stop: () => {
+      if (done) return;
+      try {
+        const landAt = scheduleSkipFade(out.gain, a.currentTime);
+        oscs[0]!.onended = null;
+        for (const n of [...oscs, vib]) n.stop(landAt + 0.01);
+        setTimeout(release, SKIP_FADE_S * 1000 + 60);
+      } catch { release(); }
+    },
+  };
+}
+
+/**
+ * A SYNTH BELL STRIKE (the Holy hero attack's smites and slam, 2026-09-28): a struck bell from sine partials at a
+ * church bell's ratios (the hum an octave down, the prime, the minor third, the fifth, the nominal and the bright upper
+ * partials), each with its own decay (the high ones die first, so it rings down into its hum), plus a short bright
+ * strike transient, on `category`'s fader. `decayMs` is the prime's ring. Stands in for a real bell / crystalline strike
+ * until the owner supplies one. Returns a handle whose `stop()` fades it in `SKIP_FADE_S`; null when nothing was queued.
+ */
+export function playBellStrike(category: string, o: { gain: number; hz: number; decayMs: number; delayMs?: number }): SfxHandle | null {
+  if (isHidden() || audioSuspended || !(o.gain > 0)) return null;
+  const a = audio();
+  if (!a || muted) return null;
+  const t0 = a.currentTime + Math.max(0, o.delayMs ?? 0) / 1000;
+  const f = Math.max(80, o.hz);
+  const dec = Math.max(0.1, o.decayMs / 1000);
+  const out = a.createGain();
+  out.gain.value = effectiveGain(cfg, category, 'bell') * o.gain * 0.3;
+  out.connect(busInput(a, category));
+  const partials: [number, number, number][] = [
+    [0.5, 0.4, 1.5], [1, 1, 1], [1.19, 0.4, 0.8], [1.5, 0.45, 0.7], [2, 0.5, 0.6], [2.74, 0.28, 0.42], [3.01, 0.22, 0.36], [4.1, 0.14, 0.26], [5.43, 0.09, 0.2],
+  ];
+  const oscs: OscillatorNode[] = [];
+  const gains: GainNode[] = [];
+  let end = t0;
+  for (const [ratio, amp, dk] of partials) {
+    const osc = a.createOscillator(); osc.type = 'sine'; osc.frequency.value = f * ratio;
+    const g = a.createGain();
+    const d = dec * dk;
+    g.gain.setValueAtTime(0.0001, t0);
+    g.gain.exponentialRampToValueAtTime(amp, t0 + 0.004);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + d);
+    osc.connect(g).connect(out);
+    osc.start(t0); osc.stop(t0 + d + 0.02);
+    end = Math.max(end, t0 + d + 0.02);
+    oscs.push(osc); gains.push(g);
+  }
+  // The strike: a bright, very short transient on top.
+  const st = a.createOscillator(); st.type = 'triangle'; st.frequency.value = f * 6.8;
+  const sg = a.createGain();
+  sg.gain.setValueAtTime(0.0001, t0); sg.gain.exponentialRampToValueAtTime(0.35, t0 + 0.002); sg.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.04);
+  st.connect(sg).connect(out);
+  st.start(t0); st.stop(t0 + 0.05);
+  let done = false;
+  const release = (): void => { if (done) return; done = true; for (const n of [...oscs, ...gains, st, sg, out]) { try { n.disconnect(); } catch { /* already */ } } };
+  const longest = oscs[0]!;
+  longest.onended = release;
+  void end;
+  return {
+    stop: () => {
+      if (done) return;
+      try {
+        const landAt = scheduleSkipFade(out.gain, a.currentTime);
+        longest.onended = null;
+        for (const n of [...oscs, st]) { try { n.stop(landAt + 0.01); } catch { /* already */ } }
+        setTimeout(release, SKIP_FADE_S * 1000 + 60);
+      } catch { release(); }
+    },
+  };
+}
+
 // The end-of-turn CHARGE build (`turncharge`) is a long (~25–40s) clip. Web Audio sources are fire-and-forget, so
 // we keep a handle to the live nodes and ramp them down when the turn ends early (End Turn pressed / a new charge
 // starts) — otherwise the build keeps playing under combat. See `stopTurnCharge` + `sfx.turnCharge`.

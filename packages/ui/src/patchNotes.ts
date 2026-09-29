@@ -60,6 +60,26 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: 'A new Legendary hero attack, Inferno, can drop from crates.',
+        details: [
+          'Your damage builds up, then fire catches round your hero and fireballs of real, living flame are hurled at the other hero.',
+          'Bigger hits throw two, then a volley of five that sets the other hero on fire.',
+          'On the biggest hits your hero calls down a meteor. It crashes onto the other hero and explodes in a storm of fire, smoke and burning debris.',
+          'Equip it from the Attack Animations tab of the Collection. There is a preview button there too.',
+          'Hero attacks are looks only. The damage is exactly the same.',
+        ],
+      },
+      {
+        category: 'Systems',
+        text: 'The Enraged Strike hero attack now burns with real, living fire instead of painted flames.',
+        details: [
+          'The rage aura is a crown of flickering fire that streams behind your hero as it charges.',
+          'The biggest hit sends a column of fire up as your hero rears back, and the ground bursts into flame on impact.',
+          'Only the look changed. The timing and the damage are exactly the same.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: "Knocking a player out now always plays your hero attack's biggest version.",
         details: [
           'Works for every hero attack style, whatever the damage number.',

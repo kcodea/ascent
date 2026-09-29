@@ -245,7 +245,7 @@ progression **epoch**; nothing finished before the epoch counts (no backfill).
   R-PROG-SKINS-05), so a new or retired cosmetic is a code change plus one deploy, never SQL. Shaped
   for every cosmetic category (announcer, hero skin, minion skin, title, hero attack, board, music). Switched on:
   **titles** (15 crate titles: 7 Common, 5 Rare, 2 Epic, 1 Legendary) and, since the skins shipped the same day,
-  **hero skins** and **minion skins** (all from crates) and **hero attacks** (Arcane Barrage, Tectonic Slam, Arcana, Phantom Blades, Enraged Strike, Venom Volley, Frost Nova, then Consecration). The other
+  **hero skins** and **minion skins** (all from crates) and **hero attacks** (Arcane Barrage, Tectonic Slam, Arcana, Phantom Blades, Enraged Strike, Venom Volley, Frost Nova, Consecration, then Inferno). The other
   categories are feature-flagged off until their art exists. Crate odds are the fixed rarity odds above, then an equal
   share inside the rarity: on the 2026-09-29 catalog each Common is 6.25% (50 / 8), each Rare 2.31% (30 / 13), each Epic
   1.5% (15 / 10) and each Legendary 0.45% (5 / 11). A fresh account's first crate is about 41% a skin or hero attack.
@@ -274,7 +274,7 @@ progression **epoch**; nothing finished before the epoch counts (no backfill).
   run loop's `damageCap` stamp); an older result shows what it knows (no breakdown: just the blow; no cap stamp: no cap
   beat). No hero attack ever freezes (R-PROG-ATTACK-10): no hit-stop on any impact, the slam or the cap slash; weight comes
   from the flash, squash and knockback, shake, particles and sound. Tuned in the dev hub's Damage Formation tuner; production plays the baked defaults.
-- **Hero attacks (2026-09-28; oracle R-PROG-ATTACK-01..14).** How your hero lands the post-combat blow. **Classic**
+- **Hero attacks (2026-09-28; oracle R-PROG-ATTACK-01..16).** How your hero lands the post-combat blow. **Classic**
   (the lunge) is everyone's default; **Blast** is the first cosmetic, `attack_blast` ("Arcane Barrage", Legendary,
   from crates; animation and tier thresholds owner-approved): after the damage formation, the hero charges, the view pushes in, and bolts (a single
   beam on the biggest hits) carry the blow, escalating by damage tier (I 1-5, II 6-11, III 12-19, IV 20+). **Quake** is the
@@ -292,7 +292,7 @@ progression **epoch**; nothing finished before the epoch counts (no backfill).
   and impales the target, the blow landing on the greatsword); every stuck blade then shatters (looks only).
   **Enraged Strike** is the fifth, `attack_enraged` ("Enraged Strike", a placeholder name; Legendary, from crates;
   R-PROG-ATTACK-11): Classic's own swing, enraged. After the same damage formation the hero coils deeper while a rage aura
-  burns round the portrait and bursts in a roar, dashes in leaving afterimages and a scorch, and stops at the struck hero's
+  burns round the portrait (live particle fire since 2026-09-29, R-PROG-ATTACK-16) and bursts in a roar, dashes in leaving afterimages and a scorch, and stops at the struck hero's
   rim so every hit reads on contact: a white flash, rings, claw rips and glowing rim cracks. Every hit is a full cycle: a hard
   recoil off the foe, a coil, a dash back in and its own impact, each harder than the last (I one hit; II a double; III a
   combo of three with a finisher, the blow landing once on the finisher; IV a rampage of five slams that speed up, then the
@@ -314,7 +314,17 @@ progression **epoch**; nothing finished before the epoch counts (no backfill).
   plants glowing seeds round the struck hero, then the pillar drops and the seeds erupt with it (the blow landing once,
   on the last smite); IV six holy swords fly in one after another from different directions, faster and faster, and
   plant round the centre of the board, the centre implodes, and a flat consecrated blast races across the board to the
-  struck hero, tearing radiant cracks, and holy flames erupt round it (the blow landing on the eruption). All eight anchor on the round portrait art at rest
+  struck hero, tearing radiant cracks, and holy flames erupt round it (the blow landing on the eruption). **Inferno** is the
+  ninth, `attack_fire` ("Inferno", a placeholder name; Legendary, from crates; R-PROG-ATTACK-15): every flame in it is live
+  particle fire (hundreds of small flame puffs and licking tongues that rise, sway and cool from white-hot to red, with
+  smoke and embers), never a flame picture. After the same damage formation fire catches round the hero's rim and
+  fireballs ignite round the portrait and are hurled with comet tails of flame: I one; II two (the struck hero's rim
+  briefly alight); III a volley of five bigger fireballs, the struck hero catching more with every hit, then flaring up
+  and burning (the blow landing once, on the last); IV three fireballs, then the hero hurls a column of fire into the sky,
+  the struck hero is marked (the ground under it heating, heat rings closing in, flames licking up round it) and a meteor
+  streaks down onto it and detonates: a white-hot flash, shockwaves, a fire nova racing outward, a fireball rolling up into
+  a mushroom of smoke, burning debris flung out on arcs, a pillar of fire engulfing the struck hero and a scorch (the blow
+  landing on the detonation). All nine anchor on the round portrait art at rest
   (R-PROG-ATTACK-04). Equipped
   account-wide in the Collection's Attack Animations tab ("Use Classic" takes it off). The STRIKER's attack plays:
   yours when you win, the opponent's (from their recorded snapshot) when they win. Recorded per run like skins;

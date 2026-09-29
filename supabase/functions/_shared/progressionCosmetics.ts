@@ -264,6 +264,11 @@ export const COSMETICS: readonly CosmeticDef[] = Object.freeze([
   // fires a flat consecrated blast at the target. The name is the builder's placeholder for the owner to rename (the id
   // stays). Legendary like the other seven.
   heroAttack('attack_holy', 'Consecration', 'legendary', 'holy'),
+  // Owner 2026-09-29: "make some more attack types - we need a fire animation ... it should look like live flame/fires
+  // pixi sprites". Fireballs of live particle fire are hurled (I one, II two, III a volley of five that sets the target
+  // ablaze); IV calls down a meteor that detonates into a fire nova and engulfs the target. The name is the builder's
+  // placeholder for the owner to rename (the id stays). Legendary like the other eight.
+  heroAttack('attack_fire', 'Inferno', 'legendary', 'fire'),
   // HERO TITLES (owner 2026-09-29), 33 heroes x (title + golden master). Achievement rewards, never in a crate.
   ...HERO_TITLE_COSMETICS,
 ]);

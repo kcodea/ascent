@@ -60,6 +60,10 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: 'Opening the menu (Esc) now pauses your shop timer.',
+      },
+      {
+        category: 'Systems',
         text: 'The Collection no longer shows the Boards and Music tabs. They come back when they are ready.',
       },
       {

@@ -273,9 +273,12 @@ progression **epoch**; nothing finished before the epoch counts (no backfill).
   and impales the target, the blow landing on the greatsword); every stuck blade then shatters (looks only).
   **Enraged Strike** is the fifth, `attack_enraged` ("Enraged Strike", a placeholder name; Legendary, from crates;
   R-PROG-ATTACK-11): Classic's own swing, enraged. After the same damage formation the hero coils deeper while a rage aura
-  burns round the portrait, dashes in leaving afterimages, and hits with a white flash, rings and claw rips (I one hit; II a
-  double strike; III a flurry of three with a finisher, the blow landing once on the last; IV the hero rises, hangs and slams
-  down like a meteor, leaving a crater, the blow landing on the meteor). **Poison Darts** is the sixth, `attack_poison`
+  burns round the portrait and bursts in a roar, dashes in leaving afterimages and a scorch, and stops at the struck hero's
+  rim so every hit reads on contact: a white flash, rings, claw rips and glowing rim cracks. Every hit is a full cycle: a hard
+  recoil off the foe, a coil, a dash back in and its own impact, each harder than the last (I one hit; II a double; III a
+  combo of three with a finisher, the blow landing once on the finisher; IV a rampage of five slams that speed up, then the
+  hero rears way back and brings an overhead haymaker down on the foe with a flaming crescent, a rage shockwave, molten
+  cracks and an ember storm, the blow landing on the haymaker). **Poison Darts** is the sixth, `attack_poison`
   ("Venom Volley", a placeholder name; Legendary, from crates; R-PROG-ATTACK-12): after the same damage formation the hero
   flicks small poison darts that thunk into the struck hero and stick at varied angles, with venom splashes and a sickly
   green tint (I one dart; II two in quick succession; III a fan of five, the blow landing once on the last; IV six darts

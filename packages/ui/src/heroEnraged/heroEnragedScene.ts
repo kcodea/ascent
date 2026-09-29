@@ -6,17 +6,20 @@
  * Design rule (owner review 2026-09-28: "enraged needs way more polish ... cleaning it up"; the bar is Arcana): the HERO
  * PORTRAIT's own lunge is the star (it is DOM, Classic's swing, amplified). Every beat here has ONE lead element and a
  * few quiet supports, all line work and tapered strokes with white-hot cores, never particle soup:
- *  - WINDUP: the RAGE AURA. A crisp hot ring hugging the rim and a handful of tall, curved flame tongues licking UP off
- *    the top of the portrait (three layers each: a deep NORMAL-blend body that keeps its colour on a light board, an
- *    additive glow, a white-hot core), charge rings closing in, a few streak motes pulled inward, rising embers.
+ *  - WINDUP: the RAGE AURA. A crisp hot ring hugging the rim and a crown of swaying flame tongues licking UP off the
+ *    upper rim (strips: a deep NORMAL-blend body that keeps its colour on a light board, an additive glow, a white-hot
+ *    core), charge rings closing in, streak motes pulled inward, rising embers; it peaks in the RAGE BURST.
  *  - LUNGE: CRISP AFTERIMAGES. Copies of the portrait are STAMPED at even spacing along the dash (not sampled by time,
  *    so an ease that hangs then blurs still leaves 2 to 4 evenly spaced ghosts, never a smear) and fade fast; a slim
  *    tapered rage streak (Arcana's three-strip ribbon on the motion sampled back in time); a few speed lines.
  *  - STRIKE: the IMPACT. A short white flash (fills are short), a crisp hot ring and a slower red one (line work
  *    lingers), CLAW RIPS drawn as clean curved tapered strokes with white cores (drawn on in 70 ms, then fading),
  *    chunky sparks thrown along the blow with gravity. The aura drops away on the last contact so the impact reads.
- *  - METEOR (IV): the aura swells into a comet, the slam leaves a wide streak, and the impact adds a short screen flash,
- *    a scorched crater ring round the struck portrait with glowing cracks, a few rock chunks and an ember fountain.
+ *  - COMBO: every hit before the last is its own full impact (`tick`), scaled by its power up the combo; a `coil` ring
+ *    tightens before each drive back in; each dash leaves a scorch skid.
+ *  - HAYMAKER (IV): the `rear` maxes the rage (towering flames, a flare, a dark pressure ring), and the knockout adds a
+ *    giant flaming crescent, a screen-filling rage shockwave, molten cracks round the struck portrait, rubble and an
+ *    ember storm.
  * No hit-stop anywhere (owner 2026-09-28: "remove the freezeing frame from all of the animations. it looks like lag").
  *
  * LAYERS, bottom to top: shade (normal: scorch, smoke, rock) | ghost (normal: the afterimage portraits) | glow (add) |
@@ -44,6 +47,8 @@ export interface HeroEnragedTextures extends HeroArcanaTextures {
   rim: Texture;
   /** A soft annulus: clear in the middle, glowing just outside the rim (the aura's halo, never over the face). */
   halo: Texture;
+  /** Short fissures radiating off a ring at 0.62 of the half-width (the struck portrait's rim). */
+  rimCracks: Texture;
 }
 
 export interface EnragedColors { core: number; hot: number; side: number; shade: number; smoke: number }
@@ -65,16 +70,29 @@ export interface EnragedLook {
   sparkSpeed: number;
   emberLife: number;
   craterSize: number;
+  crescentSize: number;
+  shockSize: number;
   debris: number;
+  /** The rage burst's size (the flare, the heat rings). */
+  burstSize: number;
+  /** How much of each impact's spark spray bounces back toward the middle of the screen (0..1). */
+  sparkInward: number;
+  /** The glowing rage cracks left on the struck portrait's rim. */
+  rimCracks: number;
+  /** The ground scorch a dash leaves, and how long it lasts. */
+  scorch: number;
+  scorchMs: number;
+  /** Tier IV: embers the haymaker's cracked ground throws up over the next second. */
+  emberStorm: number;
 }
 
 /** The hero at a moment (screen px): centre, scale and rage. */
 export interface HeroAt { x: number; y: number; s: number; heat: number }
 
-/** Hard cap on sprites alive at once (a Tier IV meteor peaks around 350). */
+/** Hard cap on sprites alive at once (a Tier IV haymaker peaks around 400). */
 export const MAX_ENRAGED_SPRITES = 900;
 /** Hard cap on strip meshes alive at once (the flames: three each; the streak: three; an X of claws: eighteen). */
-export const MAX_ENRAGED_MESHES = 96;
+export const MAX_ENRAGED_MESHES = 128;
 /** Points along every strip: 28 vertices, so every strip still batches. */
 export const STRIP_POINTS = 14;
 /** Afterimages alive at once, at most. */
@@ -86,7 +104,7 @@ const LAYERS: readonly [LayerId, 'normal' | 'add'][] = [
 ];
 const BLEND: Record<LayerId, 'normal' | 'add'> = Object.fromEntries(LAYERS) as Record<LayerId, 'normal' | 'add'>;
 /** Texture sizes (px) the sprite scales divide by. */
-const GLOW_PX = 128, RING_R = 64, RIM_R = 118, GHOST_PX = 128, SCORCH_PX = 192, CRACK_PX = 256, SMOKE_PX = 96;
+const GLOW_PX = 128, RING_R = 64, RIM_R = 118, GHOST_PX = 128, SCORCH_PX = 192, SMOKE_PX = 96;
 
 type AlphaMode = 'out' | 'punch' | 'hold';
 interface Fx { s: Sprite; age: number; dur: number; from: number; to: number; a0: number; mode: AlphaMode; peakAt: number; sy: number; delay: number }
@@ -114,7 +132,9 @@ interface Flame { glow: Strip | null; body: Strip | null; core: Strip | null; an
 interface Aura { flames: Flame[]; ring: Sprite; halo: Sprite; shade: Sprite; heat: number; age: number; emberAcc: number; moteLeft: number; moteAcc: number; moteRate: number; comet: number }
 interface Ghost { art: Sprite; rim: Sprite; age: number; fade: number; a0: number }
 interface Wake { glow: Strip; body: Strip; core: Strip }
-interface Smoulder { x: number; y: number; r: number; left: number; acc: number; smokeAcc: number }
+interface Smoulder { x: number; y: number; r: number; left: number; acc: number; smokeAcc: number; storm: number; stormAcc: number }
+/** A dash's ground scorch: a dark burn along the dash with a hot core that cools, growing with the hero until it lands. */
+interface Scorch { burn: Strip | null; heat: Strip | null; ax: number; ay: number; bx: number; by: number; w: number; age: number; life: number; open: boolean }
 
 export class HeroEnragedScene {
   readonly root = new Container();
@@ -130,7 +150,11 @@ export class HeroEnragedScene {
   private aura: Aura | null = null;
   private wake: Wake | null = null;
   private smoulders: Smoulder[] = [];
+  private scorches: Scorch[] = [];
+  /** The rage burst's flame surge (1 at the burst, decaying): the flames roar out. */
+  private surge = 0;
   private warm: Sprite[] = [];
+  private warmStrips: Strip[] = [];
   private warmLeft = 0;
   private destroyed = false;
   private readonly rnd: () => number;
@@ -184,8 +208,13 @@ export class HeroEnragedScene {
     for (let j = 0; j < n - 1; j++) { const a = j * 2; this.idx.set([a, a + 1, a + 2, a + 1, a + 3, a + 2], j * 6); }
     // PRE-WARM: one near-invisible sprite per texture for the first few hundred ms (the damage formation is still
     // playing), so every texture is on the GPU long before the aura or the first claw needs it (no first-play spike).
-    const warmTex = [tex.glow, tex.spark, tex.streak, tex.ring, tex.smoke, tex.rock, tex.scorch, tex.cracks, tex.disc, tex.rim, tex.halo, tex.ribbonSoft, tex.ribbonBody];
+    const warmTex = [tex.glow, tex.spark, tex.streak, tex.ring, tex.smoke, tex.rock, tex.scorch, tex.cracks, tex.disc, tex.rim, tex.halo, tex.rimCracks, tex.ribbonSoft, tex.ribbonBody];
     for (const t of warmTex) { const s = this.take('air', t, 0xffffff); if (s) { s.alpha = 0.004; s.position.set(-40, -40); s.scale.set(0.05); this.warm.push(s); } }
+    // ...and one strip per strip layer, so the mesh pipeline is built then too, not on the first flame or claw.
+    for (const [layer, t] of [['glow', tex.ribbonSoft], ['glow', tex.ribbonBody], ['body', tex.ribbonBody], ['core', tex.ribbonBody], ['shade', tex.ribbonBody]] as const) {
+      const st = this.strip(layer, t, 0xffffff);
+      if (st) { st.v.fill(-40); st.mesh.alpha = 0.004; this.warmStrips.push(st); }
+    }
     this.warmLeft = 400;
   }
 
@@ -333,8 +362,9 @@ export class HeroEnragedScene {
     const n = Math.max(0, Math.min(16, Math.round(L.flames)));
     const flames: Flame[] = [];
     for (let i = 0; i < n; i++) {
-      // All round the rim, offset so none sits dead at the bottom; the tallest licks rise off the top (fire rises).
-      const ang = -Math.PI / 2 + ((i + 0.5) / n - 0.5) * Math.PI * 2 + (this.rnd() - 0.5) * (Math.PI / n);
+      // A CROWN of fire: rooted round the UPPER rim (from about 8 o'clock over the top to 4 o'clock), overlapping, the
+      // tallest licks rising off the top (fire rises). Never a sunburst of spikes round the whole face.
+      const ang = -Math.PI / 2 + ((i + 0.5) / n - 0.5) * Math.PI * 1.35 + (this.rnd() - 0.5) * (Math.PI / n) * 0.6;
       const up = 0.5 - 0.5 * Math.sin(ang); // 1 at the top of the rim, 0 at the bottom
       flames.push({
         glow: this.strip('glow', this.tex.ribbonSoft, this.glowC),
@@ -380,7 +410,7 @@ export class HeroEnragedScene {
     const t = age * 0.012 * f.speed;
     for (let j = 0; j < N; j++) {
       const u = j / (N - 1); // 0 = the root (the texture's bright end), 1 = the tip
-      const sway = len * 0.16 * Math.pow(u, 1.5) * Math.sin(f.phase + t - u * 3.2);
+      const sway = len * 0.22 * Math.pow(u, 1.4) * Math.sin(f.phase + t - u * 3.2);
       px[j] = bx + dx * len * u + nx0 * sway;
       py[j] = by + dy * len * u + ny0 * sway;
       hw[j] = wid * 0.5 * (u < 0.12 ? 0.75 + 0.25 * (u / 0.12) : Math.pow(1 - (u - 0.12) / 0.88, 0.9));
@@ -394,20 +424,48 @@ export class HeroEnragedScene {
   /** The charge rings follow the hero (they close in on it wherever the coil takes it). */
   private chargeRings: Fx[] = [];
 
-  /** The meteor's rise: the aura swells into a comet (flames all the way round, longer, a hotter halo). */
-  rise(): void { if (this.aura) this.aura.comet = 1; }
+  /**
+   * A combo hit's COIL (the anticipation before it flies back in): the flames surge a little, a heat ring tightens onto
+   * the rim, a few hot streaks are pulled in. Line work only.
+   */
+  coil(x: number, y: number, R: number, power: number): void {
+    if (this.destroyed) return;
+    this.surge = Math.max(this.surge, 0.45 + 0.35 * power);
+    this.fxs('glow', this.tex.rim, this.colors.hot, x, y, { dur: 200, from: (R * 1.9) / RIM_R, to: (R * 1.05) / RIM_R, a0: 0.5 + 0.3 * power, mode: 'punch', peakAt: 0.6 });
+  }
+
+  /**
+   * THE HAYMAKER'S REAR-BACK (Tier IV's build): the rage goes to its maximum. The flames tower and stream, the halo blazes,
+   * a big flare and three heat rings tear off the rim, and a dark ring of pressure closes in on the hero.
+   */
+  rear(): void {
+    if (this.destroyed) return;
+    if (this.aura) this.aura.comet = 1;
+    const h = this.lastHero;
+    const R = this.radius * h.s;
+    this.burst(h.x, h.y, R, 1.5);
+    this.fxs('shade', this.tex.rim, mixColor(this.colors.shade, 0x000000, 0.3), h.x, h.y, { dur: 520, from: (R * 3.6) / RIM_R, to: (R * 1.1) / RIM_R, a0: 0.7, mode: 'punch', peakAt: 0.5 });
+  }
 
   /** A dash leaves: afterimages start stamping; a few speed lines rush past along its line. */
-  drive(from: Pt, u: Pt, dist: number, lines: number, meteor: boolean): void {
+  drive(from: Pt, u: Pt, dist: number, lines: number, big: boolean): void {
     if (this.destroyed) return;
     this.dashing = true;
     this.ghostAcc = 0;
     const S = this.scale;
     const R = this.radius;
+    // THE GROUND SCORCH: a burn that follows the hero along the dash (it grows in `follow`), then cools and fades.
+    if (this.look.scorch > 0) {
+      const burn = this.strip('shade', this.tex.ribbonBody, mixColor(this.colors.smoke, 0x000000, 0.35));
+      const heat = this.strip('glow', this.tex.ribbonSoft, this.colors.hot);
+      if (burn || heat) {
+        this.scorches.push({ burn, heat, ax: from.x, ay: from.y, bx: from.x, by: from.y, w: R * 1.1 * this.look.scorch * (big ? 1.4 : 1), age: 0, life: this.look.scorchMs * (big ? 1.4 : 1), open: true });
+      }
+    }
     for (let i = 0; i < lines; i++) {
       // Near the back half of the dash and close to its line, so they read as the hero's speed, not rain.
       const along = (0.35 + this.rnd() * 0.6) * dist;
-      const off = (this.rnd() - 0.5) * R * (meteor ? 2.6 : 1.8);
+      const off = (this.rnd() - 0.5) * R * (big ? 2.6 : 1.8);
       const x = from.x + u.x * along - u.y * off, y = from.y + u.y * along + u.x * off;
       const sp = (1500 + this.rnd() * 900) * S;
       this.particle('air', this.tex.streak, this.rnd() < 0.6 ? this.colors.core : this.colors.hot, {
@@ -418,26 +476,98 @@ export class HeroEnragedScene {
   }
 
   /** The dash has landed: stamp its last stretch into the foe, then stop (the stamped ones fade on their own). */
-  land(): void { if (this.dashing) this.lastStretch = true; this.dashing = false; }
+  land(): void {
+    if (this.dashing) this.lastStretch = true;
+    this.dashing = false;
+    for (const sc of this.scorches) {
+      if (!sc.open) continue;
+      sc.open = false;
+      // Embers kicked up along the burn as the dash lands.
+      const n = 6;
+      for (let i = 0; i < n; i++) {
+        const f = this.rnd();
+        this.embers(sc.ax + (sc.bx - sc.ax) * f, sc.ay + (sc.by - sc.ay) * f, 1, sc.w * 0.4, { speed: 120, lift: 160, life: 700 });
+      }
+    }
+  }
+
+  /**
+   * THE RAGE BURST (the windup's peak, just before the drive): the portrait flares white-hot, the flames roar out, three
+   * heat-shimmer rings tear off the rim and a ring of sparks bursts outward. Line work and a 140 ms flare: no blob.
+   */
+  burst(x: number, y: number, R: number, size: number): void {
+    if (this.destroyed || !(size > 0)) return;
+    const S = this.scale;
+    const g = (r: number): number => (r / GLOW_PX) * 2;
+    this.surge = 1;
+    this.fxs('core', this.tex.glow, whiten(this.colors.hot, 0.4), x, y, { dur: 140, from: g(R * 1.2 * size), to: g(R * 1.7 * size), a0: 0.7 });
+    this.fxs('glow', this.tex.halo, this.glowC, x, y, { dur: 320, from: g(R * 1.5), to: g(R * 2.4 * size), a0: 0.9 });
+    for (let i = 0; i < 3; i++) {
+      this.fxs('glow', this.tex.rim, i === 0 ? this.colors.core : this.colors.hot, x, y, {
+        dur: 380 + 60 * i, delay: 55 * i, from: (R * 1.02) / RIM_R, to: (R * (2.1 + 0.55 * i) * size) / RIM_R, a0: 0.85 - 0.18 * i,
+      });
+    }
+    const n = Math.round(18 * size);
+    for (let i = 0; i < n; i++) {
+      const a = (i / n) * Math.PI * 2 + this.rnd() * 0.3;
+      const sp = (520 + this.rnd() * 380) * S;
+      this.particle('air', this.tex.spark, i % 3 ? this.colors.hot : this.colors.core, {
+        x: x + Math.cos(a) * R, y: y + Math.sin(a) * R, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, drag: 0.02, grav: 300 * S,
+        life: 300 + this.rnd() * 160, from: 0.6 * S, to: 0.25 * S, alpha: 1, streak: 1.8,
+      });
+    }
+  }
   private lastStretch = false;
+  private cometAcc = 0;
 
   /** A strike before the last lands (FX only): a small flash, one crisp ring, one claw set, a spray of sparks. */
-  tick(x: number, y: number, u: Pt, R: number, i: number, k: number): void {
+  /** Where the claws rake: the struck portrait's centre shifted away from the big `-N` (set by the runner). */
+  private clawOff: Pt = { x: 0, y: 0 };
+  setClawOffset(off: Pt): void { this.clawOff = off; }
+
+  /**
+   * A combo hit before the last (FX only): its OWN full impact, scaled by `power` (0..1 up the combo, so every hit lands
+   * harder than the one before): a short flash, a crisp shock rim, a claw set, rim cracks and a spark burst.
+   */
+  tick(x: number, y: number, u: Pt, R: number, i: number, power: number, into: Pt = u): void {
     if (this.destroyed) return;
     this.land();
+    const pw = 0.55 + 0.45 * power;
+    this.rimFlare(x, y, R, 0.45 + 0.35 * power, 520);
     const g = (r: number): number => (r / GLOW_PX) * 2;
-    this.fxs('core', this.tex.glow, this.colors.core, x, y, { dur: 80, from: g(R * 1.1), to: g(R * 1.5), a0: 0.7 });
-    this.fxs('glow', this.tex.ring, this.colors.hot, x, y, { dur: 300, from: (R * 0.6) / RING_R, to: (R * (1.9 + 0.2 * k) * this.look.ringSize) / RING_R, a0: 0.9 });
-    // One claw set raked across the blow, leaning the other way each strike.
-    this.claws(x, y, u, R * 2.1, i % 2 ? -1 : 1, 0.85, 0);
-    this.sparks(x, y, 12 + 3 * i, u, { speed: 850, size: 0.65, spread: 2, back: 0.45 });
+    this.fxs('core', this.tex.glow, this.colors.core, x, y, { dur: 90, from: g(R * 1.1 * pw), to: g(R * 1.6 * pw), a0: 0.75 });
+    this.fxs('glow', this.tex.rim, whiten(this.colors.hot, 0.3), x, y, { dur: 320, from: (R * 0.8) / RIM_R, to: (R * (1.7 + 0.7 * power) * this.look.ringSize) / RIM_R, a0: 0.95 });
+    // One claw set raked across the blow, leaning the other way each strike. Short-lived (the next strike is ~0.4 s
+    // away), so a combo never stacks into a hatch.
+    this.claws(x + this.clawOff.x, y + this.clawOff.y, u, R * (1.8 + 0.5 * power), i % 2 ? -1 : 1, 0.8 + 0.3 * power, 0, 0.55);
+    const n = Math.round(10 + 16 * power);
+    const inN = Math.round(n * this.look.sparkInward);
+    this.sparks(x, y, inN, into, { speed: 800, size: 0.65, spread: 1.6, back: 0 });
+    this.sparks(x, y, n - inN, u, { speed: 850, size: 0.65, spread: 1.8, back: 0.2 });
+  }
+
+  /**
+   * GLOWING RAGE CRACKS on the struck portrait's RIM (never over the face): jagged glowing fissures radiating off the rim
+   * and a hot ring hugging it, cooling over `ms`.
+   */
+  private rimFlare(x: number, y: number, R: number, amt: number, ms: number): void {
+    const L = this.look;
+    if (!(L.rimCracks > 0)) return;
+    // The rim-crack ring sits at 0.62 of the texture's half-width: sized so it lands on the portrait's rim.
+    const cs = (R * 0.98) / 0.62 / 128;
+    const rot = this.rnd() * Math.PI * 2;
+    const dark = this.fxs('shade', this.tex.rimCracks, mixColor(this.colors.shade, 0x000000, 0.4), x, y, { dur: ms * 1.3, from: cs, to: cs * 1.02, a0: Math.min(1, 0.7 * amt * L.rimCracks), mode: 'hold' });
+    const hot = this.fxs('glow', this.tex.rimCracks, this.glowC, x, y, { dur: ms, from: cs, to: cs * 1.02, a0: Math.min(1, amt * L.rimCracks), mode: 'hold' });
+    const core = this.fxs('core', this.tex.rimCracks, whiten(this.colors.hot, 0.35), x, y, { dur: ms * 0.5, from: cs, to: cs * 1.02, a0: Math.min(1, amt * L.rimCracks), mode: 'hold' });
+    for (const s of [dark, hot, core]) if (s) s.rotation = rot;
+    this.fxs('glow', this.tex.rim, this.colors.hot, x, y, { dur: ms * 0.8, from: (R * 1.0) / RIM_R, to: (R * 1.06) / RIM_R, a0: Math.min(1, amt * 1.4), mode: 'hold' });
   }
 
   /**
    * A claw set: three parallel curved strokes raked across (x, y), angled off the blow by `lean` (+1 / -1). Each is drawn
    * on from one end in 70 ms (staggered), held, then faded.
    */
-  private claws(x: number, y: number, u: Pt, len: number, lean: number, width: number, delay: number): void {
+  private claws(x: number, y: number, u: Pt, len: number, lean: number, width: number, delay: number, life = 1): void {
     const L = this.look;
     const ang = Math.atan2(u.y, u.x) + Math.PI / 2 + lean * 0.62;
     const ca = Math.cos(ang), sa = Math.sin(ang);
@@ -447,27 +577,47 @@ export class HeroEnragedScene {
       const off = (j - 1) * gap;
       const cx = x - sa * off + u.x * off * 0.25, cy = y + ca * off + u.y * off * 0.25;
       const lj = l * (j === 1 ? 1 : 0.84);
-      this.stroke(cx - ca * lj / 2, cy - sa * lj / 2, cx + ca * lj / 2, cy + sa * lj / 2, lj * 0.1 * lean, lj * 0.07 * width * L.slashWidth * (j === 1 ? 1 : 0.85), delay + j * 22);
+      this.stroke(cx - ca * lj / 2, cy - sa * lj / 2, cx + ca * lj / 2, cy + sa * lj / 2, lj * 0.12 * lean, lj * 0.1 * width * L.slashWidth * (j === 1 ? 1 : 0.8), delay + j * 26, life);
     }
   }
 
-  private stroke(ax: number, ay: number, bx: number, by: number, bend: number, width: number, delay: number): void {
+  /**
+   * THE HAYMAKER'S CRESCENT: one GIANT flaming crescent cleaved down across the struck portrait along the blow (a deep
+   * body, a blazing glow, a white-hot core), with a thinner echo either side. Bold line work, drawn on in 60 ms.
+   */
+  private crescent(x: number, y: number, u: Pt, R: number): void {
+    const L = this.look;
+    const len = R * 4.4 * L.crescentSize;
+    const nx = -u.y, ny = u.x;
+    const cx = x + this.clawOff.x * 0.5, cy = y + this.clawOff.y * 0.5;
+    const main = (off: number, lenK: number, w: number, delay: number, bendK: number): void => {
+      const ox = nx * off, oy = ny * off;
+      const l = len * lenK;
+      this.stroke(cx + ox - u.x * l / 2, cy + oy - u.y * l / 2, cx + ox + u.x * l / 2, cy + oy + u.y * l / 2, l * bendK, w, delay, 1.5);
+    };
+    main(0, 1, R * 0.62 * L.crescentSize, 0, 0.22);
+    main(R * 0.55, 0.78, R * 0.26 * L.crescentSize, 40, 0.2);
+    main(-R * 0.55, 0.78, R * 0.26 * L.crescentSize, 70, 0.2);
+  }
+
+  private stroke(ax: number, ay: number, bx: number, by: number, bend: number, width: number, delay: number, life = 1): void {
     const glow = this.strip('glow', this.tex.ribbonSoft, this.glowC);
     const body = this.strip('body', this.tex.ribbonBody, this.deep);
     const core = this.strip('core', this.tex.ribbonBody, this.colors.core);
     if (!glow && !body && !core) return;
-    this.strokes.push({ glow, body, core, ax, ay, bx, by, bend, width, age: 0, delay, draw: 70, hold: 170, fade: 280 });
+    this.strokes.push({ glow, body, core, ax, ay, bx, by, bend, width, age: 0, delay, draw: 60, hold: 220 * life, fade: 300 * life });
   }
 
   /**
    * THE IMPACT (the consequence frame, no freeze): a short white flash and a hot core that are gone within ~200 ms (fills
    * are short), a crisp hot ring and a slower red one, the claw rips (a big set; III and IV cross a second set over it),
-   * chunky sparks thrown along the blow, a few embers and two dark puffs; the foe smoulders after. The meteor adds a
-   * short screen flash, a scorched crater ring with glowing cracks, a third wide ring, rock chunks and an ember fountain.
+   * chunky sparks thrown along the blow, a few embers and two dark puffs; the foe smoulders after. The haymaker adds a
+   * short screen flash, a giant flaming crescent, a screen-filling rage shockwave, molten cracks, rubble and an ember storm.
    */
-  impact(x: number, y: number, u: Pt, R: number, o: { k: number; burst: number; sparks: number; embers: number; slashes: number; flashAlpha: number; meteor: boolean; smoulderMs: number; screen: number }): void {
+  impact(x: number, y: number, u: Pt, R: number, o: { k: number; burst: number; sparks: number; embers: number; slashes: number; flashAlpha: number; haymaker: boolean; smoulderMs: number; screen: number; into?: Pt }): void {
     if (this.destroyed) return;
     this.land();
+    this.rimFlare(x, y, R, 0.85 + 0.15 * o.k, 900 + 500 * o.k);
     const L = this.look;
     const b = o.burst;
     const g = (r: number): number => (r / GLOW_PX) * 2;
@@ -475,31 +625,49 @@ export class HeroEnragedScene {
     this.fxs('core', this.tex.glow, this.colors.core, x, y, { dur: 110, from: g(R * 1.3 * b), to: g(R * 2 * b), a0: o.flashAlpha });
     this.fxs('core', this.tex.glow, this.colors.hot, x, y, { dur: 190, from: g(R * 0.9 * b), to: g(R * 1.4 * b), a0: 0.85 });
     this.fxs('glow', this.tex.glow, this.glowC, x, y, { dur: 260, from: g(R * 1.8 * b), to: g(R * 2.8 * b), a0: 0.6 });
-    if (o.meteor) this.fxs('core', this.tex.glow, whiten(this.colors.hot, 0.6), x, y, { dur: 150, from: g(o.screen * 0.8), to: g(o.screen), a0: 0.5 * o.flashAlpha });
+    if (o.haymaker) this.fxs('core', this.tex.glow, whiten(this.colors.hot, 0.6), x, y, { dur: 120, from: g(o.screen * 0.8), to: g(o.screen), a0: 0.4 * o.flashAlpha });
     // Line work: lingers.
-    this.fxs('glow', this.tex.ring, this.colors.hot, x, y, { dur: 380, from: (R * 0.6) / RING_R, to: (R * (2.4 + 0.4 * o.k) * L.ringSize * b) / RING_R, a0: 0.85 });
+    // The shockwave: a crisp thin hot rim (never a thick band that washes the frame), a small thick ring for the punch.
+    this.fxs('glow', this.tex.rim, whiten(this.colors.hot, 0.3), x, y, { dur: 380, from: (R * 0.8) / RIM_R, to: (R * (2.4 + 0.4 * o.k) * L.ringSize * Math.min(1.3, b)) / RIM_R, a0: 1 });
+    this.fxs('glow', this.tex.ring, this.colors.hot, x, y, { dur: 220, from: (R * 0.6) / RING_R, to: (R * 1.5) / RING_R, a0: 0.7 });
     this.fxs('glow', this.tex.rim, this.glowC, x, y, { dur: 560, delay: 60, from: (R * 0.5) / RIM_R, to: (R * (3.2 + 0.6 * o.k) * L.ring2Size * b) / RIM_R, a0: 0.8 });
-    if (o.meteor) this.fxs('glow', this.tex.rim, this.colors.hot, x, y, { dur: 820, delay: 130, from: (R * 0.8) / RIM_R, to: (R * 5.2 * L.ring2Size) / RIM_R, a0: 0.7 });
+    if (o.haymaker) {
+      // THE KNOCKOUT (Tier IV): a SCREEN-FILLING RAGE SHOCKWAVE (a thin white-hot rim racing out, a dark pressure ring
+      // behind it for contrast, a late second rim) and a GIANT FLAMING CRESCENT slashed down across the foe along the blow.
+      const shock = (R * 7.5 * L.shockSize) / RIM_R;
+      this.fxs('glow', this.tex.rim, whiten(this.colors.hot, 0.5), x, y, { dur: 620, from: (R * 1) / RIM_R, to: shock, a0: 1 });
+      this.fxs('shade', this.tex.rim, mixColor(this.colors.shade, 0x000000, 0.2), x, y, { dur: 700, delay: 40, from: (R * 1) / RIM_R, to: shock * 0.92, a0: 0.55 });
+      this.fxs('glow', this.tex.rim, this.colors.hot, x, y, { dur: 820, delay: 150, from: (R * 0.8) / RIM_R, to: (R * 5.2 * L.ring2Size) / RIM_R, a0: 0.7 });
+      this.crescent(x, y, u, R);
+    }
     // The claws: one big set; a second set crossing it (an X) from Tier III; the slashes dial adds more crossing sets.
     const sets = Math.max(0, Math.min(3, Math.round(o.slashes)));
-    for (let i = 0; i < sets; i++) this.claws(x, y, u, R * (2.5 + 0.35 * o.k), i % 2 ? -1 : 1, 1.1 + 0.25 * o.k, i * 90);
+    for (let i = 0; i < sets; i++) this.claws(x + this.clawOff.x, y + this.clawOff.y, u, R * (2.6 + 0.35 * o.k), i % 2 ? -1 : 1, 1.15 + 0.25 * o.k, i * 90);
     // Sparks and embers along the blow; a couple of dark puffs for contrast.
     // A wide fan (and a good share sprayed back toward the striker), so they read even when the foe sits at an edge.
-    this.sparks(x, y, Math.round(o.sparks * b), u, { speed: 1050 + 250 * o.k, size: 0.85 + 0.25 * o.k, life: 650, spread: 2.2, back: 0.45 });
+    // Sparks bounce back off the struck hero toward the middle of the screen (a hero in a corner keeps its spray in view),
+    // and the rest carry on through along the blow.
+    const nS = Math.round(o.sparks * b);
+    const inS = Math.round(nS * this.look.sparkInward);
+    this.sparks(x, y, inS, o.into ?? u, { speed: 1050 + 250 * o.k, size: 0.9 + 0.25 * o.k, life: 650, spread: 1.7, back: 0 });
+    this.sparks(x, y, nS - inS, u, { speed: 1050 + 250 * o.k, size: 0.85 + 0.25 * o.k, life: 600, spread: 1.9, back: 0.2 });
     this.embers(x, y, o.embers, R * 0.6, { speed: 320 + 120 * o.k, lift: 220, life: 1100 });
-    this.smoke(x, y, o.meteor ? 5 : 2, R * (o.meteor ? 1.2 : 0.8), { rise: 55, size: o.meteor ? 1.3 : 0.9, life: o.meteor ? 1400 : 900, alpha: 0.38 });
-    if (o.meteor) {
+    this.smoke(x, y, o.haymaker ? 5 : 2, R * (o.haymaker ? 1.2 : 0.8), { rise: 55, size: o.haymaker ? 1.3 : 0.9, life: o.haymaker ? 1400 : 900, alpha: 0.38 });
+    if (o.haymaker) {
       const S = this.scale;
       // The crater round the struck portrait (clear in the middle: the portrait sits IN it) and its glowing cracks.
       const dark = mixColor(this.colors.smoke, 0x000000, 0.45);
       this.fxs('shade', this.tex.scorch, dark, x, y, { dur: 2000, from: ((R * 3.3 * L.craterSize) / SCORCH_PX) * 2 * 0.85, to: ((R * 3.3 * L.craterSize) / SCORCH_PX) * 2, a0: 0.85, mode: 'hold' });
       // The cracks: dark fissures in the ground, with molten light in them that cools first.
-      const rot = this.rnd() * Math.PI * 2;
-      const cs = ((R * 3.1 * L.craterSize) / CRACK_PX) * 2;
-      const crD = this.fxs('shade', this.tex.cracks, dark, x, y, { dur: 2000, from: cs * 0.88, to: cs, a0: 0.9, mode: 'hold' });
-      const crH = this.fxs('glow', this.tex.cracks, this.colors.hot, x, y, { dur: 650, from: cs * 0.88, to: cs, a0: 0.55, mode: 'hold' });
-      for (const cr of [crD, crH]) if (cr) cr.rotation = rot;
-      if (crD) crD.scale.set(cs * 0.88 * 1.02);
+      // MOLTEN CRACKS round the crater's rim: dark fissures with molten light in them that cools first (two rings of the
+      // short rim cracks, so it reads as broken ground, never as lightning).
+      for (const [rr, rot] of [[1.35, this.rnd() * 6.3], [1.75, this.rnd() * 6.3]] as const) {
+        const cs = (R * rr * L.craterSize) / 0.62 / 128;
+        const crD = this.fxs('shade', this.tex.rimCracks, dark, x, y, { dur: 2000, from: cs * 0.92, to: cs, a0: 0.85, mode: 'hold' });
+        const crH = this.fxs('glow', this.tex.rimCracks, this.glowC, x, y, { dur: 1100, from: cs * 0.92, to: cs, a0: 0.75, mode: 'hold' });
+        const crC = this.fxs('core', this.tex.rimCracks, this.colors.hot, x, y, { dur: 300, from: cs * 0.92, to: cs, a0: 0.55, mode: 'hold' });
+        for (const cr of [crD, crH, crC]) if (cr) cr.rotation = rot;
+      }
       // Rock chunks (solid: normal blend), flung up and out, falling with spin.
       const nd = Math.max(0, Math.round(L.debris));
       for (let i = 0; i < nd; i++) {
@@ -515,10 +683,13 @@ export class HeroEnragedScene {
       this.sparks(x, y, Math.round(o.sparks * 0.5), { x: 0, y: -1 }, { speed: 1250, spread: 2.2, size: 0.95, life: 760, back: 0 });
       this.embers(x, y, Math.round(o.embers * 0.7), R * 1.1, { speed: 560, lift: 420, life: 1500 });
     }
-    if (o.smoulderMs > 0) this.smoulders.push({ x, y, r: R, left: o.smoulderMs, acc: 0, smokeAcc: 0 });
+    if (o.smoulderMs > 0 || o.haymaker) {
+      // IV: the crater throws up an EMBER STORM over its first second, on top of the smoulder.
+      this.smoulders.push({ x, y, r: R, left: Math.max(o.smoulderMs, o.haymaker ? 1100 : 0), acc: 0, smokeAcc: 0, storm: o.haymaker ? this.look.emberStorm : 0, stormAcc: 0 });
+    }
   }
 
-  /** A meteor aftershock: debris landing round the crater (a small ring, a puff, a few sparks). */
+  /** A haymaker aftershock: rubble landing round the cracked ground (a small ring, a puff, a few sparks). */
   boom(x: number, y: number, size: number): void {
     if (this.destroyed) return;
     const R = this.radius;
@@ -547,6 +718,20 @@ export class HeroEnragedScene {
     const moved = dt > 0 ? Math.hypot(vx, vy) : 0;
     const L = this.look;
     if ((this.dashing || this.lastStretch) && moved > 0) this.stampGhosts(prev, h, moved);
+    for (const sc of this.scorches) if (sc.open) { sc.bx = h.x; sc.by = h.y; }
+    // THE COMET (IV): the slam sheds fire along its path.
+    if (this.dashing && (this.aura?.comet ?? 0) > 0 && moved > 0) {
+      this.cometAcc += moved;
+      while (this.cometAcc > 12 * S) {
+        this.cometAcc -= 12 * S;
+        const a = Math.atan2(-vy, -vx) + (this.rnd() - 0.5) * 1.2;
+        const sp = (200 + this.rnd() * 300) * S;
+        this.particle('air', this.tex.spark, this.rnd() < 0.5 ? this.colors.hot : this.glowC, {
+          x: h.x + (this.rnd() - 0.5) * R * 0.8, y: h.y + (this.rnd() - 0.5) * R * 0.8, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, drag: 0.1, grav: 240 * S,
+          life: 380 + this.rnd() * 300, from: (0.35 + this.rnd() * 0.3) * S, to: 0.08 * S, alpha: 1, streak: 1.2,
+        });
+      }
+    }
     this.lastStretch = false;
     for (const q of this.chargeRings) q.s.position.set(h.x, h.y);
     // How fast it is going over the streak's span (0 = still, 1 = a full dash): the streak follows it.
@@ -576,13 +761,13 @@ export class HeroEnragedScene {
         const rx = Math.cos(f.ang), ry = Math.sin(f.ang);
         // Streaming back when fast: the flames on the leading side of the rim shrink (they would cross the face).
         const facing = fast > 0.05 ? clamp01(0.45 + 0.9 * (rx * lx + ry * ly)) : 1;
-        // Outward and up (fire rises), or streaming back when fast.
-        let dx = rx + (fast > 0.05 ? lx * (0.8 + 1.6 * fast) : 0);
-        let dy = ry + (fast > 0.05 ? ly * (0.8 + 1.6 * fast) : -0.75);
+        // Mostly UP (fire rises) with a little outward lean, or streaming back when fast.
+        let dx = rx * 0.4 + (fast > 0.05 ? lx * (0.8 + 1.6 * fast) : 0);
+        let dy = ry * 0.4 + (fast > 0.05 ? ly * (0.8 + 1.6 * fast) : -1.1);
         const dl = Math.hypot(dx, dy) || 1; dx /= dl; dy /= dl;
         const wob = 0.8 + 0.14 * Math.sin(f.phase + a.age * 0.017 * f.speed) + 0.1 * Math.sin(f.phase * 2.7 + a.age * 0.041);
-        const len = R * 0.95 * L.flameLength * f.len * wob * heat * (1 + 0.55 * comet + 0.7 * fast) * (0.2 + 0.8 * facing);
-        const wid = R * 0.42 * (0.7 + 0.3 * heat) * (0.75 + 0.35 * f.len) * (1 + 0.15 * comet);
+        const len = R * 0.95 * L.flameLength * f.len * wob * heat * (1 + 0.3 * comet + 0.7 * fast + 0.6 * this.surge) * (0.2 + 0.8 * facing);
+        const wid = R * 0.6 * (0.7 + 0.3 * heat) * (0.75 + 0.35 * f.len) * (1 + 0.15 * comet);
         this.drawFlame(f, h.x + rx * R * 0.9, h.y + ry * R * 0.9, dx, dy, Math.max(1, len), wid, a.age, heat, flick);
       }
       // Embers off the flame tips, rising.
@@ -760,9 +945,10 @@ export class HeroEnragedScene {
     }
     this.normals();
     const a = 1 - fadeU;
-    this.writeStrip(k.glow, 3.2, 0.5 * a, 0);
-    this.writeStrip(k.body, 1.6, 0.95 * a, 0);
-    this.writeStrip(k.core, 0.8, a, 0);
+    // A deep red rip with a thin white-hot core down its middle (the body carries the colour; the core is a hairline).
+    this.writeStrip(k.glow, 3, 0.45 * a, 0);
+    this.writeStrip(k.body, 1.5, 0.95 * a, 0);
+    this.writeStrip(k.core, 0.42, a, 0);
   }
 
   /** Advance everything by `dt` ms. Returns whether anything still draws. */
@@ -773,7 +959,7 @@ export class HeroEnragedScene {
 
     if (this.warm.length) {
       this.warmLeft -= Math.max(dt, 16);
-      if (this.warmLeft <= 0) { for (const s of this.warm) this.give(s); this.warm = []; }
+      if (this.warmLeft <= 0) { for (const s of this.warm) this.give(s); this.warm = []; for (const st of this.warmStrips) this.giveStrip(st); this.warmStrips = []; }
     }
 
     // The aura goes once the rage has cooled (the hero is home, or the clock stopped following it).
@@ -800,6 +986,15 @@ export class HeroEnragedScene {
       this.drawStroke(k);
     }
 
+    this.surge = Math.max(0, this.surge - dt / 320);
+
+    for (let i = this.scorches.length - 1; i >= 0; i--) {
+      const sc = this.scorches[i]!;
+      if (!sc.open) sc.age += dt;
+      if (sc.age >= sc.life) { this.giveStrip(sc.burn); this.giveStrip(sc.heat); this.scorches.splice(i, 1); continue; }
+      this.drawScorch(sc);
+    }
+
     for (let i = this.smoulders.length - 1; i >= 0; i--) {
       const m = this.smoulders[i]!;
       m.left -= dt;
@@ -807,6 +1002,14 @@ export class HeroEnragedScene {
       m.acc += dt; m.smokeAcc += dt;
       while (m.acc > 90) { m.acc -= 90; this.embers(m.x, m.y + m.r * 0.3, 1, m.r * 0.75, { speed: 50, lift: 120, grav: -40, life: 900 }); }
       while (m.smokeAcc > 320) { m.smokeAcc -= 320; this.smoke(m.x + (this.rnd() - 0.5) * m.r, m.y, 1, m.r * 0.45, { rise: 70, size: 0.65, life: 1000, alpha: 0.22 }); }
+      if (m.storm > 0) {
+        m.stormAcc += dt;
+        const every = 1000 / Math.max(1, m.storm);
+        while (m.stormAcc > every && m.storm > 0) {
+          m.stormAcc -= every; m.storm--;
+          this.embers(m.x, m.y, 1, m.r * 1.3, { speed: 380, lift: 420, grav: 160, life: 1300 });
+        }
+      }
     }
 
     for (let i = this.fx.length - 1; i >= 0; i--) {
@@ -858,7 +1061,7 @@ export class HeroEnragedScene {
       p.s.alpha = p.alpha * (1 - t * t) * tw * fade;
     }
 
-    return this.used > this.warm.length || this.meshes > 0 || this.aura !== null || this.smoulders.length > 0;
+    return this.used > this.warm.length || this.meshes > this.warmStrips.length || this.aura !== null || this.smoulders.length > 0 || this.scorches.length > 0;
   }
 
   private dropWake(): void {
@@ -868,6 +1071,30 @@ export class HeroEnragedScene {
   }
 
   /** Drop every in-flight effect at once (a cancel). The pools are kept for reuse. */
+  /** A scorch: the burn tapers in at its start and out at the hero, the hot core cools fast, the burn slowly. */
+  private drawScorch(sc: Scorch): void {
+    const N = STRIP_POINTS;
+    const { px, py, hw } = this;
+    const dx = sc.bx - sc.ax, dy = sc.by - sc.ay;
+    const len = Math.hypot(dx, dy);
+    if (len < 2) { for (const st of [sc.burn, sc.heat]) if (st) st.mesh.alpha = 0; return; }
+    // Only the last stretch behind the hero (a skid of scorched ground, never a line across the board), stopping short of
+    // the hero so the burn is BEHIND it, never under its face.
+    const end = Math.max(0, len - this.radius * 0.8) / len;
+    const start = Math.max(0, end - (this.radius * 3.2) / len);
+    for (let j = 0; j < N; j++) {
+      const f = end - (end - start) * (j / (N - 1)); // head (texture's full end) nearest the hero
+      px[j] = sc.ax + dx * f; py[j] = sc.ay + dy * f;
+      const e = j / (N - 1);
+      hw[j] = sc.w * 0.5 * Math.min(1, e / 0.2) * Math.min(1, (1 - e) / 0.25 + 0.3);
+    }
+    this.normals();
+    const u = clamp01(sc.age / sc.life);
+    this.writeStrip(sc.burn, 1, 0.5 * (1 - u * u), 0);
+    const hotA = clamp01(1 - sc.age / Math.max(1, sc.life * 0.35));
+    this.writeStrip(sc.heat, 0.8, 0.55 * hotA, 0.4);
+  }
+
   clear(): void {
     for (const q of this.fx) this.give(q.s);
     for (const p of this.particles) this.give(p.s);
@@ -875,8 +1102,11 @@ export class HeroEnragedScene {
     for (const k of this.strokes) { this.giveStrip(k.glow); this.giveStrip(k.body); this.giveStrip(k.core); }
     if (this.aura) { for (const f of this.aura.flames) this.dropFlame(f); this.give(this.aura.ring); this.give(this.aura.halo); this.give(this.aura.shade); }
     for (const s of this.warm) this.give(s);
+    for (const st of this.warmStrips) this.giveStrip(st);
+    this.warmStrips = [];
     this.dropWake();
-    this.fx = []; this.particles = []; this.ghosts = []; this.strokes = []; this.aura = null; this.smoulders = []; this.warm = []; this.chargeRings = [];
+    for (const sc of this.scorches) { this.giveStrip(sc.burn); this.giveStrip(sc.heat); }
+    this.fx = []; this.particles = []; this.ghosts = []; this.strokes = []; this.aura = null; this.smoulders = []; this.warm = []; this.chargeRings = []; this.scorches = [];
   }
 
   /** Tear down: every sprite and mesh destroyed, the root emptied and destroyed. Textures are the caller's. */

@@ -70,6 +70,17 @@ export const PATCH_NOTES: PatchNote[] = [
       },
       {
         category: 'Systems',
+        text: 'Enraged Strike got a big polish pass.',
+        details: [
+          'Your hero now stops right at the other hero, so you see every hit land: the claw marks, the cracks and the knockback.',
+          'A roaring burst of rage before the charge, and a scorched trail behind every dash.',
+          'Double and combo hits now reel back hard and fly back in, and every hit lands with its own impact.',
+          'The biggest hits are all new: a rampage of fast slams, then your hero rears back and brings down a huge overhead haymaker with a flaming crescent and a shockwave.',
+          'Hero attacks are looks only. The damage is exactly the same.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'Titles now show on the Leaderboard and the Hall of Champions, in their rarity colours.',
         details: [
           'The Leaderboard shows the title each player has equipped.',

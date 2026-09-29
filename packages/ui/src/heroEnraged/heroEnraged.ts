@@ -1,15 +1,15 @@
 /**
  * THE ENRAGED STRIKE RUNNER: plays one Enraged Strike (the beats are in `heroEnragedConfig.ts`) and lands the
- * consequence on its impact beat (the last strike, or Tier IV's meteor). Presentation only: the total it shows and the
+ * consequence on its impact beat (the last strike, or Tier IV's haymaker). Presentation only: the total it shows and the
  * blow it lands are handed in, already decided by the engine; this file only decides WHEN on screen they happen.
  *
- * It runs on the SHARED hero-attack core (`../heroAttack/`), exactly as the other styles do: one clock with a hit-stop,
+ * It runs on the SHARED hero-attack core (`../heroAttack/`), exactly as the other styles do: one clock (never paused),
  * the damage formation, the `#stage` camera mirrored onto the Pixi root, the portraits (transform only, restored after),
  * the voices, the dim, reduced motion, finish / cancel and the safety timer. What is its own: the lunge itself (Classic's
- * silhouette, the hero PORTRAIT drives into the foe), the aura, the afterimages, the strikes and the meteor.
+ * silhouette, the hero PORTRAIT drives at the foe), the aura, the afterimages, the combo and the haymaker.
  *
- * THE STRIKE CONTRACT: every strike before the last is a tick (FX, a short hit-stop and a sound). The consequence
- * (`onImpact`: the damage, Armor, Resolve) lands exactly ONCE, on the last strike (Tier IV: on the meteor).
+ * THE STRIKE CONTRACT: every strike before the last is a tick (its own full impact: FX and a sound). The consequence
+ * (`onImpact`: the damage, Armor, Resolve) lands exactly ONCE, on the last strike (Tier IV: on the haymaker).
  *
  * THE PORTRAIT MOVES IN SCREEN SPACE. The pose is solved in screen px (the same space as the Pixi overlay), then written
  * as a transform in the portrait's own units: the scale of its ancestors is measured ONCE at the start (a scaled stage,
@@ -101,6 +101,12 @@ export function playHeroEnraged(o: HeroEnragedOptions): HeroEnragedHandle {
   const vh = local ? (o.host?.clientHeight || 300) : (typeof window !== 'undefined' ? window.innerHeight : 1080);
   const geo = enragedGeo(o.attacker, o.defender, aRadius, radius, c, { x0: 0, y0: 0, x1: vw, y1: vh }, swing, aRect.inv);
   const pose = (t: number): HeroPose => enragedPose(plan, geo, c, t);
+  // Toward the middle of the screen from the struck hero (sparks bounce back that way, so a corner hero keeps its spray).
+  const inward = ((): Pt => {
+    const x = vw / 2 - o.defender.x, y = vh / 2 - o.defender.y;
+    const l = Math.hypot(x, y);
+    return l > 1 ? { x: x / l, y: y / l } : { x: -geo.u.x, y: -geo.u.y };
+  })();
   const first = plan.strikes[0];
 
   // ── DOM: the numbers (shared) ──
@@ -120,12 +126,20 @@ export function playHeroEnraged(o: HeroEnragedOptions): HeroEnragedHandle {
       auraSize: c.auraSize, flames: c.flames, flameLength: c.flameLength, ghosts: c.ghosts, ghostSpacing: c.ghostSpacing, ghostAlpha: c.ghostAlpha, ghostFadeMs: c.ghostFadeMs,
       wakeWidth: c.wakeWidth, wakeMs: c.wakeMs, ringSize: c.ringSize, ring2Size: c.ring2Size, slashLength: c.slashLength, slashWidth: c.slashWidth,
       sparkSpeed: c.sparkSpeed, emberLife: c.emberLife, craterSize: c.craterSize, debris: c.debris,
+      crescentSize: c.crescentSize, shockSize: c.shockSize, burstSize: c.burstSize, sparkInward: c.sparkInward, rimCracks: c.rimCracks, scorch: c.scorch, scorchMs: c.scorchMs, emberStorm: c.emberStorm,
     }, s, enragedSeed(o.total, dist, o.side))
     : null;
   if (scene) {
     const heroAt = (t: number): HeroAt => { const p = pose(t); return { x: o.attacker.x + p.x, y: o.attacker.y + p.y, s: p.scale, heat: p.heat }; };
     const img = o.attackerEl?.querySelector?.('img') ?? null;
     scene.setHero(heroAt, aRadius, portraitGhostTexture(img as HTMLImageElement | null));
+  }
+  if (scene) {
+    // The claws rake the side of the struck portrait AWAY from the big `-N` (which sits toward the middle of the screen).
+    const hp = nums.pts.hit;
+    const ax = o.defender.x - hp.x, ay = o.defender.y - hp.y;
+    const al = Math.hypot(ax, ay);
+    scene.setClawOffset(al > 1 ? { x: (ax / al) * radius * 0.3, y: (ay / al) * radius * 0.3 } : { x: 0, y: 0 });
   }
   if (scene && !o.mount) void pixiFx.ensureAboveSlot();
   const unmount = scene ? (o.mount ?? ((ct: Container) => pixiFx.mountLayer(ct, 'above')))(scene.root) : null;
@@ -147,7 +161,7 @@ export function playHeroEnraged(o: HeroEnragedOptions): HeroEnragedHandle {
   const cue = voices.cue.bind(voices);
   voices.warm([
     c.sfxRoarClip, c.sfxWindupClip, c.sfxChargeClip, c.sfxWhooshClip, c.sfxTickClip, c.sfxSlashClip, c.sfxImpactClip,
-    c.sfxPunchClip, c.sfxThumpClip, c.sfxBigClip, c.sfxMeteorClip, c.sfxDebrisClip,
+    c.sfxPunchClip, c.sfxThumpClip, c.sfxBigClip, c.sfxHaymakerClip, c.sfxRubbleClip,
   ]);
   const real = (ms: number): number => ms / speed;
   const heroScreen = (t: number): Pt => { const p = pose(t); return { x: o.attacker.x + p.x, y: o.attacker.y + p.y }; };
@@ -158,58 +172,78 @@ export function playHeroEnraged(o: HeroEnragedOptions): HeroEnragedHandle {
     switch (q.kind) {
       case 'charge':
         // The rage builds: a riser whose climax lands on the first drive; the other buses dip.
-        if (first) voices.riser(c.sfxChargeClip, c.sfxChargeGain, c.sfxChargeRate, real((plan.meteor ? plan.apexAt : first.driveAt) - plan.chargeAt));
+        if (first) voices.riser(c.sfxChargeClip, c.sfxChargeGain, c.sfxChargeRate, real(first.driveAt - plan.chargeAt));
         if (c.sfxDuck < 1) voices.duck(c.sfxDuck);
         cam.start();
         break;
       case 'windup': {
-        // Classic's windup clip, a roar, and the growl rising to the drive (IV: to the top of the rise).
-        const buildTo = plan.meteor ? plan.apexAt : (first?.driveAt ?? plan.impactAt);
+        // Classic's windup clip and the growl rising to the drive; embers crackle.
+        const buildTo = first?.driveAt ?? plan.impactAt;
         cue(c.sfxWindupClip, c.sfxWindupGain, c.sfxWindupRate);
-        cue(c.sfxRoarClip, c.sfxRoarGain * (0.85 + 0.15 * plan.tier / 2), c.sfxRoarRate - 0.08 * plan.k, { lenMs: 1400, fadeMs: 400, delayMs: real(60) });
         voices.keep(playRageTone('attack', { gain: c.sfxToneGain * (0.8 + 0.3 * plan.k), buildMs: real(buildTo - plan.windupAt), lowHz: c.sfxToneLowHz, highHz: c.sfxToneHighHz * (1 + 0.25 * plan.k) }));
         voices.keep(playEmberCrackle('attack', { gain: c.sfxCrackleGain * 0.6, durMs: real(buildTo - plan.windupAt + 400) }));
-        scene?.startWindup(plan.aura, c.motes * (plan.meteor ? 1.6 : 1), buildTo - plan.windupAt);
+        scene?.startWindup(plan.aura, c.motes, buildTo - plan.windupAt);
         if (lift && !lifted) { doc!.body.classList.add(zClass); lifted = true; }
         break;
       }
-      case 'rise':
-        // The meteor gathers: a rumble building to the apex, the aura becomes a fireball.
-        voices.keep(playRumble('attack', { gain: c.sfxRumbleGain, buildMs: real(plan.apexAt - plan.riseAt), holdMs: real(Math.max(0, plan.impactAt - plan.apexAt)), tailMs: 250, lowHz: 55, highHz: 420 }));
-        scene?.rise();
+      case 'burst': {
+        // THE RAGE BURST: the roar tears out as the portrait flares and heat rings rip off the rim, right before the drive.
+        cue(c.sfxRoarClip, c.sfxRoarGain * (0.85 + 0.25 * plan.k), c.sfxRoarRate - 0.08 * plan.k, { lenMs: 1300, fadeMs: 380 });
+        const at = heroScreen(t);
+        scene?.burst(at.x, at.y, aRadius * pose(t).scale, c.burstSize * (1 + 0.35 * plan.k));
         break;
+      }
+      case 'coil': {
+        // A combo hit's anticipation: a short grunt of the growl, the flames surge (FX only).
+        const at = heroScreen(t);
+        scene?.coil(at.x, at.y, aRadius * pose(t).scale, plan.strikes[q.i]!.power);
+        break;
+      }
+      case 'rear': {
+        // THE HAYMAKER'S BUILD: the hero rears way back and UP; the biggest roar, a rumble and the growl build to the blow;
+        // the rage goes to its maximum (the flames tower, the halo blazes, heat rings tear off).
+        const last = plan.strikes[plan.strikes.length - 1]!;
+        cue(c.sfxRoarClip, c.sfxRoarGain * 1.25, c.sfxRoarRate - 0.12, { lenMs: 1600, fadeMs: 450, delayMs: real(60) });
+        voices.keep(playRageTone('attack', { gain: c.sfxToneGain * 1.2, buildMs: real(last.contactAt - plan.rearAt), lowHz: c.sfxToneLowHz * 1.1, highHz: c.sfxToneHighHz * 1.5 }));
+        voices.keep(playRumble('attack', { gain: c.sfxRumbleGain, buildMs: real(last.contactAt - plan.rearAt), holdMs: 0, tailMs: 180, lowHz: 60, highHz: 480 }));
+        scene?.rear();
+        break;
+      }
       case 'drive': {
         const st = plan.strikes[q.i]!;
-        // The dash: a whoosh, each a little higher (the meteor lower and heavier); speed lines along the line of it.
-        // Classic's strike hangs, then blurs: the whoosh enters as it blurs, so it rushes INTO the hit instead of ahead of it.
-        cue(c.sfxWhooshClip, c.sfxWhooshGain * (st.final ? 1 : 0.8), st.meteor ? c.sfxWhooshRate * 0.8 : c.sfxWhooshRate + 0.06 * q.i, {
-          lenMs: 700, fadeMs: 250, delayMs: real((st.contactAt - st.driveAt) * (st.meteor ? 0.2 : 0.45)),
+        // The dash: a whoosh entering as the strike blurs (so it rushes INTO the hit), pitched up the combo, the haymaker
+        // lower and heavier; speed lines along its line; a fresh streak, afterimages and scorch each time.
+        cue(c.sfxWhooshClip, c.sfxWhooshGain * (0.75 + 0.35 * st.power), st.haymaker ? c.sfxWhooshRate * 0.8 : c.sfxWhooshRate + 0.05 * q.i, {
+          lenMs: 700, fadeMs: 250, delayMs: real((st.contactAt - st.driveAt) * (st.haymaker ? 0.3 : 0.45)),
         });
         const from = heroScreen(t);
         const to = { x: o.attacker.x + geo.contact.x, y: o.attacker.y + geo.contact.y };
         const len = Math.hypot(to.x - from.x, to.y - from.y) || 1;
-        scene?.drive(from, { x: (to.x - from.x) / len, y: (to.y - from.y) / len }, len, Math.round(c.speedLines * (st.final ? 1 : 0.6) * (st.meteor ? 1.5 : 1)), st.meteor);
+        scene?.drive(from, { x: (to.x - from.x) / len, y: (to.y - from.y) / len }, len, Math.round(c.speedLines * (0.5 + 0.5 * st.power) * (st.haymaker ? 1.6 : 1)), st.haymaker);
         break;
       }
-      case 'tick':
-        // A strike before the last: a hard smack and a rip (pitched up each time), a short freeze. FX only.
-        cue(c.sfxTickClip, c.sfxTickGain, c.sfxTickRate + 0.05 * q.i);
-        cue(c.sfxSlashClip, c.sfxSlashGain * 0.8, c.sfxSlashRate + 0.08 * q.i, { lenMs: 500, fadeMs: 180 });
-        cue(c.sfxPunchClip, c.sfxPunchGain * 0.6, c.sfxPunchRate + 0.05 * q.i);
-        scene?.tick(o.defender.x, o.defender.y, geo.u, radius, q.i, plan.k);
+      case 'tick': {
+        // A combo hit before the last: its own full impact (a flash, a rip, sparks, cracks on the rim, the foe knocked
+        // back, a camera punch), bigger up the combo, with a hard smack pitched up each time. FX only: the blow waits.
+        const pw = plan.strikes[q.i]!.power;
+        cue(c.sfxTickClip, c.sfxTickGain * (0.8 + 0.4 * pw), c.sfxTickRate + 0.05 * q.i);
+        cue(c.sfxSlashClip, c.sfxSlashGain * (0.6 + 0.4 * pw), c.sfxSlashRate + 0.07 * q.i, { lenMs: 500, fadeMs: 180 });
+        cue(c.sfxPunchClip, c.sfxPunchGain * (0.55 + 0.35 * pw), c.sfxPunchRate + 0.04 * q.i);
+        scene?.tick(o.defender.x, o.defender.y, geo.u, radius, q.i, pw, inward);
         break;
+      }
       case 'impact': {
-        // THE BLOW: a heavy hammer, a punch, a low (tight, never boomy) thump, a rip; a crack on the big tiers; the meteor
-        // adds a ground impact. Embers crackle on while the foe smoulders.
+        // THE BLOW: a heavy hammer, a punch, a tight low thump, a rip; a crack on the big tiers; the haymaker adds its own
+        // knockout clip. Embers crackle on while the foe smoulders.
         const k = plan.k;
         cue(c.sfxImpactClip, c.sfxImpactGain * (0.85 + 0.15 * k), c.sfxImpactRate - 0.04 * k, { tail: c.sfxTailMix, lenMs: c.sfxImpactLenMs, fadeMs: 400 });
         cue(c.sfxPunchClip, c.sfxPunchGain, c.sfxPunchRate - 0.03 * k);
         cue(c.sfxThumpClip, c.sfxThumpGain * (0.8 + 0.3 * k), c.sfxThumpRate, { lenMs: 700, fadeMs: 250 });
         if (plan.slashes > 0) cue(c.sfxSlashClip, c.sfxSlashGain, c.sfxSlashRate - 0.05 * k, { lenMs: 600, fadeMs: 200 });
         if (plan.tier >= 3) cue(c.sfxBigClip, c.sfxBigGain, c.sfxBigRate, { lenMs: 700, fadeMs: 250 });
-        if (plan.meteor) cue(c.sfxMeteorClip, c.sfxMeteorGain, c.sfxMeteorRate, { tail: c.sfxTailMix, lenMs: c.sfxImpactLenMs * 1.3, fadeMs: 500 });
+        if (plan.haymaker) cue(c.sfxHaymakerClip, c.sfxHaymakerGain, c.sfxHaymakerRate, { tail: c.sfxTailMix, lenMs: c.sfxImpactLenMs * 1.2, fadeMs: 450 });
         voices.keep(playEmberCrackle('attack', { gain: c.sfxCrackleGain, durMs: real(c.smoulderMs + 300) }));
-        const u = plan.meteor ? meteorDir() : geo.u;
+        const u = plan.haymaker ? hayDir : geo.u;
         if (o.impactFx !== false && !local && o.defenderEl) {
           // Classic's own strike burst and smack underneath (the struck portrait's recoil is ours): the enraged blow is
           // unmistakably the same blow, amplified.
@@ -219,15 +253,15 @@ export function playHeroEnraged(o: HeroEnragedOptions): HeroEnragedHandle {
         }
         scene?.impact(o.defender.x, o.defender.y, u, radius, {
           k, burst: plan.burst, sparks: plan.sparks, embers: plan.embers, slashes: plan.slashes, flashAlpha: c.flashAlpha,
-          meteor: plan.meteor, smoulderMs: c.smoulderMs, screen: Math.hypot(vw, vh),
+          haymaker: plan.haymaker, smoulderMs: c.smoulderMs, screen: Math.hypot(vw, vh), into: inward,
         });
         seq.land();
         break;
       }
       case 'boom': {
         const a = q.i * 2.1 + 0.9;
-        const rr = radius * (1.3 + 0.35 * (q.i % 2));
-        cue(c.sfxDebrisClip, c.sfxDebrisGain, c.sfxDebrisRate + q.i * 0.07, { lenMs: 500, fadeMs: 200 });
+        const rr = radius * (1.4 + 0.35 * (q.i % 2));
+        cue(c.sfxRubbleClip, c.sfxRubbleGain, c.sfxRubbleRate + q.i * 0.07, { lenMs: 500, fadeMs: 200 });
         scene?.boom(o.defender.x + Math.cos(a) * rr, o.defender.y + Math.sin(a) * rr * 0.6, 0.9 + 0.12 * q.i);
         break;
       }
@@ -239,20 +273,21 @@ export function playHeroEnraged(o: HeroEnragedOptions): HeroEnragedHandle {
     }
   };
 
-  /** The meteor's slam direction (the apex to the contact): the shake, the sparks and the bow ring follow it. */
-  function meteorDir(): Pt {
-    const dx = geo.contact.x - geo.apex.x, dy = geo.contact.y - geo.apex.y;
+  /** The haymaker's direction as it lands (down its arc into the foe): the shake, the sparks and the crescent follow it. */
+  const hayDir = ((): Pt => {
+    const dx = geo.contact.x - geo.arc.x, dy = geo.contact.y - geo.arc.y;
     const l = Math.hypot(dx, dy) || 1;
     return { x: dx / l, y: dy / l };
-  }
-  const shakeDir = plan.meteor ? meteorDir() : geo.u;
-  const blowDeg = (Math.atan2(shakeDir.y, shakeDir.x) * 180) / Math.PI;
+  })();
+  const shakeDir = plan.haymaker ? hayDir : geo.u;
+  const blowDeg = (Math.atan2(geo.u.y, geo.u.x) * 180) / Math.PI;
 
   const paintStage = (t: number): void => {
     if (plan.reduced) return;
+    // The dim comes in with the windup and deepens as the haymaker rears back.
     nums.paintDim(t, plan.windupAt, first ? first.driveAt : plan.impactAt, plan.impactAt + 300);
     const cm = enragedCameraAt(plan, c, t, shakeDir);
-    const focus = enragedCameraFocus(plan, t, o.attacker, o.defender);
+    const focus = enragedCameraFocus(plan, t, o.attacker, o.defender, { x: o.attacker.x + geo.rear.x, y: o.attacker.y + geo.rear.y });
     const unitS = local ? 1 : s;
     cam.apply(focus, cm.zoom, cm.x, cm.y, unitS);
     // The camera's screen offset (what `#stage` is translated by): a portrait OUTSIDE it folds it in by hand.
@@ -265,22 +300,28 @@ export function playHeroEnraged(o: HeroEnragedOptions): HeroEnragedHandle {
       const moved = Math.abs(p.x) > 0.05 || Math.abs(p.y) > 0.05 || Math.abs(p.scale - 1) > 1e-4 || Math.abs(p.rot) > 0.01;
       const off = place(o.attacker, p, heroInCam);
       const sc = p.scale * (heroInCam || !cam.active ? 1 : cm.zoom);
-      // The contact squash: compressed along the blow, bulging across it (a rotate-scale-rotate sandwich).
-      const sq = p.squash > 0.002 ? ` rotate(${blowDeg.toFixed(2)}deg) scale(${(1 - p.squash).toFixed(4)}, ${(1 + p.squash * 0.6).toFixed(4)}) rotate(${(-blowDeg).toFixed(2)}deg)` : '';
+      // The squash / stretch along the blow (a rotate-scale-rotate sandwich): compressed on a hit or a coil, stretched on
+      // a recoil and a dash.
+      const sq = Math.abs(p.squash) > 0.002 ? ` rotate(${blowDeg.toFixed(2)}deg) scale(${(1 - p.squash).toFixed(4)}, ${(1 + p.squash * 0.6).toFixed(4)}) rotate(${(-blowDeg).toFixed(2)}deg)` : '';
       hero.set(!moved && !cam.active && !sq ? null
         : `translate(${(off.x / heroUnit).toFixed(2)}px, ${(off.y / heroUnit).toFixed(2)}px)${sq} rotate(${p.rot.toFixed(2)}deg) scale(${sc.toFixed(4)})`);
     }
     scene?.follow(t);
     if (foe.el) {
-      // Each tick nudges the foe along the blow; THE impact knocks it back hard and squashes it (the meteor: down).
+      // EVERY hit knocks the foe back along the blow and squashes it, harder up the combo; THE impact hardest.
       let kx = 0, ky = 0, sq = 0;
       const px = local ? 0.45 : 1;
-      for (const at of plan.ticks) if (t >= at) { const k = Math.max(0, spring(t - at, 6, 50)); kx += geo.u.x * k * 12 * px; ky += geo.u.y * k * 12 * px; sq += k * c.squash * 0.35; }
+      for (const s0 of plan.strikes) {
+        if (s0.final || t < s0.contactAt) continue;
+        const k = spring(t - s0.contactAt, 5, 70);
+        const knock = c.knockPx * (0.35 + 0.45 * s0.power) * k * px;
+        kx += geo.u.x * knock; ky += geo.u.y * knock; sq += k * c.squash * (0.4 + 0.5 * s0.power);
+      }
       if (t >= plan.impactAt) {
         const k = spring(t - plan.impactAt, 4, 95);
-        const knock = c.knockPx * (0.8 + 0.5 * plan.k) * (plan.meteor ? 0.7 : 1) * k * px;
+        const knock = c.knockPx * (0.8 + 0.5 * plan.k) * (plan.haymaker ? 1.2 : 1) * k * px;
         kx += shakeDir.x * knock; ky += shakeDir.y * knock;
-        sq += c.squash * (0.8 + 0.5 * plan.k) * (plan.meteor ? 1.4 : 1) * k;
+        sq += c.squash * (0.8 + 0.5 * plan.k) * (plan.haymaker ? 1.4 : 1) * k;
       }
       const off = place(o.defender, { x: kx, y: ky }, foeInCam);
       const z = foeInCam || !cam.active ? 1 : cm.zoom;

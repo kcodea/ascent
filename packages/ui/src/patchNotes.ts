@@ -55,6 +55,14 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: 'Fixed: some lobby opponents had no board and could be credited with knockouts they did not make.',
+        details: [
+          'Opponents playing Mimic now bring a real warband every round.',
+          'If your paired opponent ever has no board, you fight the most recently knocked out player instead, the same as a bye. The fight is credited to that board.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'A new Legendary hero attack, Enraged Strike, can drop from crates.',
         details: [
           'It is the Classic lunge, enraged. Your damage builds up, then your hero burns with rage, dashes in leaving afterimages, and tears into the other hero.',

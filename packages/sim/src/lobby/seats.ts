@@ -117,6 +117,16 @@ function recordingFor(seed: number, heroId?: string): BoardSnapshot[] {
 }
 
 /**
+ * Does this seat's recording field at least one board? Answered from the memoized full recording when it already
+ * exists, else from a one-board prefix autoplay (the prefix is identical to the full recording's first board).
+ */
+export function recordingFieldsBoard(seed: number, heroId?: string): boolean {
+  const hit = RECORDINGS.get(`${seed}|${heroId ?? ''}`);
+  if (hit) return hit.length > 0;
+  return autoplayRun(seed, heroId, undefined, 1).length > 0;
+}
+
+/**
  * Record a run headlessly so it can hold a seat. Uses the existing autoplay + per-wave snapshot machinery, so a
  * generated seat and a real player's uploaded run are the same data shape — the prototype can prove the whole
  * loop today, and swapping in genuine uploaded runs later changes nothing but the source.
@@ -244,7 +254,13 @@ export function hybridSeat(seed: number, heroId?: string, label?: string, policy
     get lastRecordedWave(): number { return recorded.lastWave; },
     prepare: (round) => recorded.prepare(round),
     finalBoard: () => recorded.finalBoard?.() ?? null,
-    canFieldBoard: () => !!(live().prepare(1) ?? live().finalBoard?.()),
+    // TWO checks, both required. The RECORDING is what this seat actually fields (`prepare` is recording-only),
+    // so a seat whose recording is empty must be rejected even when the live bot can play the hero — the Mimic
+    // bug (2026-09-28): `autoplayRun` could not answer Mimic's turn-1 hero-power Discover, recorded nothing, and
+    // the live probe seated it anyway, so the seat fielded no board all game. The probe replays only up to the
+    // first board (an exact prefix of the real recording) so it stays cheap. The live-bot check is kept so seat
+    // selection doesn't change for heroes it already rejects (Disco Dan).
+    canFieldBoard: () => !!(live().prepare(1) ?? live().finalBoard?.()) && recordingFieldsBoard(seed, heroId),
     settle: (o) => recorded.settle(o),
   };
 }

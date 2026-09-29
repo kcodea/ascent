@@ -42,6 +42,10 @@ behaviour from a legacy symbol.**
   `gameover`, so a lobby win is placement 1, not a victory phase.
 - Lobby state is serializable; runtime seat drivers are reconstructed from serializable metadata.
 - Missing snapshot data degrades deterministically — fill the seat, never shrink the table.
+- A generated (hybrid) seat is seated only if its RECORDING fields a board (`hybridSeat.canFieldBoard` checks a
+  one-board `autoplayRun` prefix, not just the live bot). `autoplayRun` must answer every blocking modal a hero
+  can raise (quest, Runeforge, `powerOffer`, Discover, chooseOne, target) or that hero records nothing — the
+  Mimic bug (R-LOBBY-05). A player paired with a boardless seat fights the latest ghost, logged as a ghost fight.
 - Do not synchronously rebuild seven runs inside a render or click handler. Warm expensive seats off the
   interaction path.
 - Scouting reveals only recorded/intended information, never hidden future decisions.

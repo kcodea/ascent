@@ -111,7 +111,7 @@
       },
       "death": {
         "def": "sfx-vo-b2-echohorn-death",
-        "gain": 0.1
+        "gain": 0.3
       }
     },
     "b2_florida": {
@@ -121,7 +121,7 @@
       },
       "death": {
         "def": "sfx-vo-b2-florida-death",
-        "gain": 0.1
+        "gain": 0.3
       }
     },
     "b2_oona": {
@@ -135,7 +135,7 @@
       },
       "death": {
         "def": "sfx-vo-b2-oona-death",
-        "gain": 0.1
+        "gain": 0.3
       }
     },
     "bloodbinder": {
@@ -154,7 +154,7 @@
       },
       "death": {
         "def": "sfx-vo-d2-broodfire-death",
-        "gain": 0.1
+        "gain": 0.3
       }
     },
     "d2_embermouth": {
@@ -171,7 +171,7 @@
       },
       "death": {
         "def": "sfx-vo-d2-embermouth-death",
-        "gain": 0.1
+        "gain": 0.3
       }
     },
     "dm_butcher": {
@@ -190,7 +190,7 @@
       },
       "death": {
         "def": "sfx-vo-dm-butcher-death",
-        "gain": 0.1
+        "gain": 0.3
       }
     },
     "dm_felspikes": {
@@ -205,7 +205,7 @@
       },
       "death": {
         "def": "sfx-vo-dm-felspikes-death",
-        "gain": 0.1
+        "gain": 0.3
       }
     },
     "dm_jumbo": {
@@ -218,7 +218,7 @@
       },
       "death": {
         "def": "sfx-vo-dm-jumbo-death",
-        "gain": 0.1
+        "gain": 0.3
       }
     },
     "dm_tormentor": {
@@ -234,7 +234,7 @@
       },
       "death": {
         "def": "sfx-vo-dm-tormentor-death",
-        "gain": 0.1
+        "gain": 0.3
       }
     },
     "dw_pimm": {
@@ -244,7 +244,7 @@
       },
       "death": {
         "def": "sfx-vo-dw-pimm-death",
-        "gain": 0.1
+        "gain": 0.3
       }
     },
     "greatpot": {
@@ -273,7 +273,7 @@
       },
       "death": {
         "def": "sfx-vo-karwind-death",
-        "gain": 0.1
+        "gain": 0.3
       }
     },
     "manasaber": {
@@ -282,7 +282,7 @@
       },
       "death": {
         "def": "sfx-vo-manasaber-death",
-        "gain": 0.1
+        "gain": 0.3
       }
     },
     "n2_paragon": {
@@ -296,7 +296,7 @@
       },
       "death": {
         "def": "sfx-vo-n2-paragon-death",
-        "gain": 0.1
+        "gain": 0.3
       }
     },
     "n2_standardbearer": {
@@ -310,7 +310,7 @@
       },
       "death": {
         "def": "sfx-vo-n2-standardbearer-death",
-        "gain": 0.1
+        "gain": 0.3
       }
     },
     "sp_dragonflame": {
@@ -371,7 +371,7 @@
       },
       "death": {
         "def": "sfx-vo-dw-orin-death",
-        "gain": 0.1
+        "gain": 0.3
       }
     },
     "dw_ironlung": {
@@ -381,7 +381,7 @@
       },
       "death": {
         "def": "sfx-vo-dw-ironlung-death",
-        "gain": 0.1
+        "gain": 0.3
       }
     },
     "dw_brunni": {
@@ -391,7 +391,7 @@
       },
       "death": {
         "def": "sfx-vo-dw-brunni-death",
-        "gain": 0.1
+        "gain": 0.3
       }
     },
     "dw_edward": {
@@ -401,7 +401,7 @@
       },
       "death": {
         "def": "sfx-vo-dw-edward-death",
-        "gain": 0.1
+        "gain": 0.3
       }
     },
     "dw_coinfire": {
@@ -411,7 +411,7 @@
       },
       "death": {
         "def": "sfx-vo-dw-coinfire-death",
-        "gain": 0.1
+        "gain": 0.3
       }
     },
     "dw_billings": {
@@ -421,7 +421,7 @@
       },
       "death": {
         "def": "sfx-vo-dw-billings-death",
-        "gain": 0.1
+        "gain": 0.3
       }
     },
     "dw_runemaster": {
@@ -431,7 +431,7 @@
       },
       "death": {
         "def": "sfx-vo-dw-runemaster-death",
-        "gain": 0.1
+        "gain": 0.3
       }
     },
     "dw_brakka": {
@@ -441,7 +441,7 @@
       },
       "death": {
         "def": "sfx-vo-dw-brakka-death",
-        "gain": 0.1
+        "gain": 0.3
       }
     },
     "dw_chickenbrawl": {
@@ -451,7 +451,7 @@
       },
       "death": {
         "def": "sfx-vo-dw-chickenbrawl-death",
-        "gain": 0.1
+        "gain": 0.3
       }
     },
     "dw_dorrin": {
@@ -461,7 +461,7 @@
       },
       "death": {
         "def": "sfx-vo-dw-dorrin-death",
-        "gain": 0.1
+        "gain": 0.3
       }
     },
     "dw_kegheart": {
@@ -471,7 +471,7 @@
       },
       "death": {
         "def": "sfx-vo-dw-kegheart-death",
-        "gain": 0.1
+        "gain": 0.3
       }
     },
     "dw_bladethrower": {
@@ -481,7 +481,7 @@
       },
       "death": {
         "def": "sfx-vo-dw-bladethrower-death",
-        "gain": 0.1
+        "gain": 0.3
       }
     },
     "dw_brewer": {
@@ -491,7 +491,7 @@
       },
       "death": {
         "def": "sfx-vo-dw-brewer-death",
-        "gain": 0.1
+        "gain": 0.3
       }
     },
     "dw_brill": {
@@ -501,7 +501,7 @@
       },
       "death": {
         "def": "sfx-vo-dw-brill-death",
-        "gain": 0.1
+        "gain": 0.3
       }
     },
     "dw_brisbane": {
@@ -511,7 +511,7 @@
       },
       "death": {
         "def": "sfx-vo-dw-brisbane-death",
-        "gain": 0.1
+        "gain": 0.3
       }
     },
     "dw_chef": {
@@ -521,7 +521,7 @@
       },
       "death": {
         "def": "sfx-vo-dw-chef-death",
-        "gain": 0.1
+        "gain": 0.3
       }
     },
     "dw_foreman": {
@@ -531,7 +531,7 @@
       },
       "death": {
         "def": "sfx-vo-dw-foreman-death",
-        "gain": 0.1
+        "gain": 0.3
       }
     },
     "dw_sharpshooter": {
@@ -541,7 +541,7 @@
       },
       "death": {
         "def": "sfx-vo-dw-sharpshooter-death",
-        "gain": 0.1
+        "gain": 0.3
       }
     },
     "dw_thane": {
@@ -551,7 +551,7 @@
       },
       "death": {
         "def": "sfx-vo-dw-thane-death",
-        "gain": 0.1
+        "gain": 0.3
       }
     },
     "dw_wardkeeper": {
@@ -561,7 +561,7 @@
       },
       "death": {
         "def": "sfx-vo-dw-wardkeeper-death",
-        "gain": 0.1
+        "gain": 0.3
       }
     },
     "n2_muster": {
@@ -571,7 +571,7 @@
       },
       "death": {
         "def": "sfx-vo-n2-muster-death",
-        "gain": 0.1
+        "gain": 0.3
       }
     },
     "dw_anvilshade": {
@@ -581,7 +581,7 @@
       },
       "death": {
         "def": "sfx-vo-dw-anvilshade-death",
-        "gain": 0.1
+        "gain": 0.3
       }
     },
     "dw_arnold": {
@@ -591,7 +591,7 @@
       },
       "death": {
         "def": "sfx-vo-dw-arnold-death",
-        "gain": 0.1
+        "gain": 0.3
       }
     },
     "dw_baal": {
@@ -601,7 +601,7 @@
       },
       "death": {
         "def": "sfx-vo-dw-baal-death",
-        "gain": 0.1
+        "gain": 0.3
       }
     },
     "dw_bucky": {
@@ -611,7 +611,7 @@
       },
       "death": {
         "def": "sfx-vo-dw-bucky-death",
-        "gain": 0.1
+        "gain": 0.3
       }
     },
     "dw_gangplank": {
@@ -621,7 +621,7 @@
       },
       "death": {
         "def": "sfx-vo-dw-gangplank-death",
-        "gain": 0.1
+        "gain": 0.3
       }
     },
     "dw_mountainbond": {
@@ -631,7 +631,7 @@
       },
       "death": {
         "def": "sfx-vo-dw-mountainbond-death",
-        "gain": 0.1
+        "gain": 0.3
       }
     },
     "dw_soldier": {
@@ -647,7 +647,7 @@
       },
       "death": {
         "def": "sfx-vo-dw-tapkeeper-death",
-        "gain": 0.1
+        "gain": 0.3
       }
     },
     "k_chipwick": {
@@ -657,7 +657,7 @@
       },
       "death": {
         "def": "sfx-vo-k-chipwick-death",
-        "gain": 0.1
+        "gain": 0.3
       }
     },
     "k_beggy": {
@@ -667,7 +667,7 @@
       },
       "death": {
         "def": "sfx-vo-k-beggy-death",
-        "gain": 0.1
+        "gain": 0.3
       }
     },
     "k_deepvein": {
@@ -677,7 +677,7 @@
       },
       "death": {
         "def": "sfx-vo-k-deepvein-death",
-        "gain": 0.1
+        "gain": 0.3
       }
     },
     "k_geode": {
@@ -687,7 +687,7 @@
       },
       "death": {
         "def": "sfx-vo-k-geode-death",
-        "gain": 0.1
+        "gain": 0.3
       }
     },
     "k_tunnelcharger": {
@@ -697,7 +697,7 @@
       },
       "death": {
         "def": "sfx-vo-k-tunnelcharger-death",
-        "gain": 0.1
+        "gain": 0.3
       }
     },
     "k_faultline": {
@@ -707,7 +707,7 @@
       },
       "death": {
         "def": "sfx-vo-k-faultline-death",
-        "gain": 0.1
+        "gain": 0.3
       }
     },
     "k_gemheart": {
@@ -717,7 +717,7 @@
       },
       "death": {
         "def": "sfx-vo-k-gemheart-death",
-        "gain": 0.1
+        "gain": 0.3
       }
     },
     "k_stormchaser": {
@@ -727,7 +727,7 @@
       },
       "death": {
         "def": "sfx-vo-k-stormchaser-death",
-        "gain": 0.1
+        "gain": 0.3
       }
     },
     "k_blazer": {
@@ -737,7 +737,7 @@
       },
       "death": {
         "def": "sfx-vo-k-blazer-death",
-        "gain": 0.1
+        "gain": 0.3
       }
     },
     "k_gemline": {
@@ -747,7 +747,7 @@
       },
       "death": {
         "def": "sfx-vo-k-gemline-death",
-        "gain": 0.1
+        "gain": 0.3
       }
     },
     "k_veinbreaker": {
@@ -757,7 +757,7 @@
       },
       "death": {
         "def": "sfx-vo-k-veinbreaker-death",
-        "gain": 0.1
+        "gain": 0.3
       }
     },
     "k_frenzied": {
@@ -767,7 +767,7 @@
       },
       "death": {
         "def": "sfx-vo-k-frenzied-death",
-        "gain": 0.1
+        "gain": 0.3
       }
     },
     "k_kobe": {
@@ -777,7 +777,7 @@
       },
       "death": {
         "def": "sfx-vo-k-kobe-death",
-        "gain": 0.1
+        "gain": 0.3
       }
     },
     "k_gemsage": {
@@ -787,7 +787,7 @@
       },
       "death": {
         "def": "sfx-vo-k-gemsage-death",
-        "gain": 0.1
+        "gain": 0.3
       }
     },
     "k_crownvein": {
@@ -797,7 +797,7 @@
       },
       "death": {
         "def": "sfx-vo-k-crownvein-death",
-        "gain": 0.1
+        "gain": 0.3
       }
     },
     "k_portsmith": {
@@ -807,7 +807,7 @@
       },
       "death": {
         "def": "sfx-vo-k-portsmith-death",
-        "gain": 0.1
+        "gain": 0.3
       }
     },
     "k_boulderdash": {
@@ -817,7 +817,7 @@
       },
       "death": {
         "def": "sfx-vo-k-boulderdash-death",
-        "gain": 0.1
+        "gain": 0.3
       }
     },
     "k_gemstorm": {
@@ -827,7 +827,7 @@
       },
       "death": {
         "def": "sfx-vo-k-gemstorm-death",
-        "gain": 0.1
+        "gain": 0.3
       }
     },
     "k_deepdelve": {
@@ -837,7 +837,7 @@
       },
       "death": {
         "def": "sfx-vo-k-deepdelve-death",
-        "gain": 0.1
+        "gain": 0.3
       }
     },
     "k_mineralmaster": {
@@ -847,7 +847,7 @@
       },
       "death": {
         "def": "sfx-vo-k-mineralmaster-death",
-        "gain": 0.1
+        "gain": 0.3
       }
     },
     "k_alchemist": {
@@ -857,7 +857,7 @@
       },
       "death": {
         "def": "sfx-vo-k-alchemist-death",
-        "gain": 0.1
+        "gain": 0.3
       }
     },
     "n2_wanderer": {
@@ -867,7 +867,7 @@
       },
       "death": {
         "def": "sfx-vo-n2-wanderer-death",
-        "gain": 0.1
+        "gain": 0.3
       }
     },
     "lazarus": {
@@ -877,7 +877,7 @@
       },
       "death": {
         "def": "sfx-vo-lazarus-death",
-        "gain": 0.1
+        "gain": 0.3
       }
     },
     "impoverseer": {
@@ -887,7 +887,7 @@
       },
       "death": {
         "def": "sfx-vo-impoverseer-death",
-        "gain": 0.1
+        "gain": 0.3
       }
     },
     "dm_agent": {
@@ -897,7 +897,7 @@
       },
       "death": {
         "def": "sfx-vo-dm-agent-death",
-        "gain": 0.1
+        "gain": 0.3
       }
     },
     "dm_curator": {
@@ -907,7 +907,7 @@
       },
       "death": {
         "def": "sfx-vo-dm-curator-death",
-        "gain": 0.1
+        "gain": 0.3
       }
     },
     "dm_glutton": {
@@ -917,7 +917,7 @@
       },
       "death": {
         "def": "sfx-vo-dm-glutton-death",
-        "gain": 0.1
+        "gain": 0.3
       }
     },
     "dm_gourmand": {
@@ -927,7 +927,7 @@
       },
       "death": {
         "def": "sfx-vo-dm-gourmand-death",
-        "gain": 0.1
+        "gain": 0.3
       }
     },
     "dm_velvet": {
@@ -937,7 +937,7 @@
       },
       "death": {
         "def": "sfx-vo-dm-velvet-death",
-        "gain": 0.1
+        "gain": 0.3
       }
     },
     "dm_shepherd": {
@@ -947,7 +947,7 @@
       },
       "death": {
         "def": "sfx-vo-dm-shepherd-death",
-        "gain": 0.1
+        "gain": 0.3
       }
     },
     "dm_maw": {
@@ -957,7 +957,7 @@
       },
       "death": {
         "def": "sfx-vo-dm-maw-death",
-        "gain": 0.1
+        "gain": 0.3
       }
     },
     "dm_malphas": {
@@ -967,7 +967,7 @@
       },
       "death": {
         "def": "sfx-vo-dm-malphas-death",
-        "gain": 0.1
+        "gain": 0.3
       }
     },
     "dm_hank": {
@@ -977,7 +977,7 @@
       },
       "death": {
         "def": "sfx-vo-dm-hank-death",
-        "gain": 0.1
+        "gain": 0.3
       }
     },
     "dm_grobbus": {
@@ -987,7 +987,7 @@
       },
       "death": {
         "def": "sfx-vo-dm-grobbus-death",
-        "gain": 0.1
+        "gain": 0.3
       }
     },
     "dm_todd": {
@@ -997,7 +997,7 @@
       },
       "death": {
         "def": "sfx-vo-dm-todd-death",
-        "gain": 0.1
+        "gain": 0.3
       }
     },
     "dm_knocked": {
@@ -1007,7 +1007,7 @@
       },
       "death": {
         "def": "sfx-vo-dm-knocked-death",
-        "gain": 0.1
+        "gain": 0.3
       }
     },
     "dm_grevlin": {
@@ -1017,7 +1017,7 @@
       },
       "death": {
         "def": "sfx-vo-dm-grevlin-death",
-        "gain": 0.1
+        "gain": 0.3
       }
     },
     "dm_chosenfiend": {
@@ -1027,7 +1027,7 @@
       },
       "death": {
         "def": "sfx-vo-dm-chosenfiend-death",
-        "gain": 0.1
+        "gain": 0.3
       }
     },
     "d2_skald": {
@@ -1037,7 +1037,7 @@
       },
       "death": {
         "def": "sfx-vo-d2-skald-death",
-        "gain": 0.1
+        "gain": 0.3
       }
     },
     "d2_blazingkeeper": {
@@ -1047,7 +1047,7 @@
       },
       "death": {
         "def": "sfx-vo-d2-blazingkeeper-death",
-        "gain": 0.1
+        "gain": 0.3
       }
     },
     "d2_orivax": {
@@ -1057,7 +1057,7 @@
       },
       "death": {
         "def": "sfx-vo-d2-orivax-death",
-        "gain": 0.1
+        "gain": 0.3
       }
     },
     "d2_felconjurer": {
@@ -1067,7 +1067,7 @@
       },
       "death": {
         "def": "sfx-vo-d2-felconjurer-death",
-        "gain": 0.1
+        "gain": 0.3
       }
     },
     "kennel": {
@@ -1077,7 +1077,7 @@
       },
       "death": {
         "def": "sfx-vo-kennel-death",
-        "gain": 0.1
+        "gain": 0.3
       }
     },
     "buddy": {
@@ -1087,7 +1087,7 @@
       },
       "death": {
         "def": "sfx-vo-buddy-death",
-        "gain": 0.1
+        "gain": 0.3
       }
     },
     "drummer": {
@@ -1097,7 +1097,7 @@
       },
       "death": {
         "def": "sfx-vo-drummer-death",
-        "gain": 0.1
+        "gain": 0.3
       }
     },
     "sylus": {
@@ -1107,7 +1107,7 @@
       },
       "death": {
         "def": "sfx-vo-sylus-death",
-        "gain": 0.1
+        "gain": 0.3
       }
     },
     "chronos": {
@@ -1117,7 +1117,7 @@
       },
       "death": {
         "def": "sfx-vo-chronos-death",
-        "gain": 0.1
+        "gain": 0.3
       }
     },
     "yazzus": {
@@ -1127,7 +1127,7 @@
       },
       "death": {
         "def": "sfx-vo-yazzus-death",
-        "gain": 0.1
+        "gain": 0.3
       }
     },
     "joker": {
@@ -1137,7 +1137,7 @@
       },
       "death": {
         "def": "sfx-vo-joker-death",
-        "gain": 0.1
+        "gain": 0.3
       }
     },
     "tauntbreaker": {
@@ -1147,7 +1147,7 @@
       },
       "death": {
         "def": "sfx-vo-tauntbreaker-death",
-        "gain": 0.1
+        "gain": 0.3
       }
     },
     "blackbelt": {
@@ -1157,7 +1157,7 @@
       },
       "death": {
         "def": "sfx-vo-blackbelt-death",
-        "gain": 0.1
+        "gain": 0.3
       }
     },
     "jenkins": {
@@ -1167,7 +1167,7 @@
       },
       "death": {
         "def": "sfx-vo-jenkins-death",
-        "gain": 0.1
+        "gain": 0.3
       }
     },
     "stewardofspells": {
@@ -1177,7 +1177,7 @@
       },
       "death": {
         "def": "sfx-vo-stewardofspells-death",
-        "gain": 0.1
+        "gain": 0.3
       }
     },
     "arenaheckler": {
@@ -1187,7 +1187,7 @@
       },
       "death": {
         "def": "sfx-vo-arenaheckler-death",
-        "gain": 0.1
+        "gain": 0.3
       }
     },
     "ropewrangler": {
@@ -1197,7 +1197,7 @@
       },
       "death": {
         "def": "sfx-vo-ropewrangler-death",
-        "gain": 0.1
+        "gain": 0.3
       }
     },
     "nimbus": {
@@ -1207,7 +1207,7 @@
       },
       "death": {
         "def": "sfx-vo-nimbus-death",
-        "gain": 0.1
+        "gain": 0.3
       }
     },
     "wayfinder": {
@@ -1217,7 +1217,7 @@
       },
       "death": {
         "def": "sfx-vo-wayfinder-death",
-        "gain": 0.1
+        "gain": 0.3
       }
     },
     "salvatore": {
@@ -1227,7 +1227,7 @@
       },
       "death": {
         "def": "sfx-vo-salvatore-death",
-        "gain": 0.1
+        "gain": 0.3
       }
     },
     "uron": {
@@ -1237,7 +1237,7 @@
       },
       "death": {
         "def": "sfx-vo-uron-death",
-        "gain": 0.1
+        "gain": 0.3
       }
     },
     "zyff": {
@@ -1247,7 +1247,7 @@
       },
       "death": {
         "def": "sfx-vo-zyff-death",
-        "gain": 0.1
+        "gain": 0.3
       }
     },
     "n2_spellsword": {
@@ -1257,7 +1257,7 @@
       },
       "death": {
         "def": "sfx-vo-n2-spellsword-death",
-        "gain": 0.1
+        "gain": 0.3
       }
     },
     "n2_bellringer": {
@@ -1267,7 +1267,7 @@
       },
       "death": {
         "def": "sfx-vo-n2-bellringer-death",
-        "gain": 0.1
+        "gain": 0.3
       }
     },
     "n2_conductor": {
@@ -1277,7 +1277,7 @@
       },
       "death": {
         "def": "sfx-vo-n2-conductor-death",
-        "gain": 0.1
+        "gain": 0.3
       }
     },
     "n2_lastlight": {
@@ -1287,7 +1287,7 @@
       },
       "death": {
         "def": "sfx-vo-n2-lastlight-death",
-        "gain": 0.1
+        "gain": 0.3
       }
     },
     "k_pouchpincher": {
@@ -1297,7 +1297,7 @@
       },
       "death": {
         "def": "sfx-vo-k-pouchpincher-death",
-        "gain": 0.1
+        "gain": 0.3
       }
     },
     "n2_fatecarver": {
@@ -1307,7 +1307,7 @@
       },
       "death": {
         "def": "sfx-vo-n2-fatecarver-death",
-        "gain": 0.1
+        "gain": 0.3
       }
     },
     "n2_deepchef": {
@@ -1317,7 +1317,7 @@
       },
       "death": {
         "def": "sfx-vo-n2-deepchef-death",
-        "gain": 0.1
+        "gain": 0.3
       }
     },
     "n2_salesman": {
@@ -1327,7 +1327,7 @@
       },
       "death": {
         "def": "sfx-vo-n2-salesman-death",
-        "gain": 0.1
+        "gain": 0.3
       }
     },
     "n2_ninefold": {
@@ -1337,7 +1337,7 @@
       },
       "death": {
         "def": "sfx-vo-n2-ninefold-death",
-        "gain": 0.1
+        "gain": 0.3
       }
     },
     "k_kobabyboldies": {
@@ -1347,7 +1347,7 @@
       },
       "death": {
         "def": "sfx-vo-k-kobabyboldies-death",
-        "gain": 0.1
+        "gain": 0.3
       }
     },
     "k_gemgorge": {
@@ -1357,7 +1357,7 @@
       },
       "death": {
         "def": "sfx-vo-k-gemgorge-death",
-        "gain": 0.1
+        "gain": 0.3
       }
     },
     "n2_clockwork": {
@@ -1367,7 +1367,7 @@
       },
       "death": {
         "def": "sfx-vo-n2-clockwork-death",
-        "gain": 0.1
+        "gain": 0.3
       }
     },
     "dm_hungerling": {
@@ -1377,7 +1377,7 @@
       },
       "death": {
         "def": "sfx-vo-dm-hungerling-death",
-        "gain": 0.1
+        "gain": 0.3
       }
     },
     "dm_leech": {
@@ -1387,7 +1387,7 @@
       },
       "death": {
         "def": "sfx-vo-dm-leech-death",
-        "gain": 0.1
+        "gain": 0.3
       }
     },
     "dm_nightmarket": {
@@ -1397,7 +1397,7 @@
       },
       "death": {
         "def": "sfx-vo-dm-nightmarket-death",
-        "gain": 0.1
+        "gain": 0.3
       }
     },
     "dm_behemoth": {
@@ -1407,7 +1407,7 @@
       },
       "death": {
         "def": "sfx-vo-dm-behemoth-death",
-        "gain": 0.1
+        "gain": 0.3
       }
     },
     "d2_spellkeeper": {
@@ -1417,7 +1417,7 @@
       },
       "death": {
         "def": "sfx-vo-d2-spellkeeper-death",
-        "gain": 0.1
+        "gain": 0.3
       }
     },
     "d2_chorus": {
@@ -1427,7 +1427,7 @@
       },
       "death": {
         "def": "sfx-vo-d2-chorus-death",
-        "gain": 0.1
+        "gain": 0.3
       }
     },
     "d2_grimoire": {
@@ -1437,7 +1437,7 @@
       },
       "death": {
         "def": "sfx-vo-d2-grimoire-death",
-        "gain": 0.1
+        "gain": 0.3
       }
     },
     "d2_scalefeather": {
@@ -1447,7 +1447,7 @@
       },
       "death": {
         "def": "sfx-vo-d2-scalefeather-death",
-        "gain": 0.1
+        "gain": 0.3
       }
     },
     "d2_voicekeeper": {
@@ -1457,7 +1457,7 @@
       },
       "death": {
         "def": "sfx-vo-d2-voicekeeper-death",
-        "gain": 0.1
+        "gain": 0.3
       }
     },
     "d2_chronicler": {
@@ -1467,7 +1467,7 @@
       },
       "death": {
         "def": "sfx-vo-d2-chronicler-death",
-        "gain": 0.1
+        "gain": 0.3
       }
     },
     "d2_mirrorwing": {
@@ -1477,7 +1477,7 @@
       },
       "death": {
         "def": "sfx-vo-d2-mirrorwing-death",
-        "gain": 0.1
+        "gain": 0.3
       }
     },
     "d2_scalechanter": {
@@ -1487,7 +1487,7 @@
       },
       "death": {
         "def": "sfx-vo-d2-scalechanter-death",
-        "gain": 0.1
+        "gain": 0.3
       }
     },
     "d2_recaller": {
@@ -1497,7 +1497,7 @@
       },
       "death": {
         "def": "sfx-vo-d2-recaller-death",
-        "gain": 0.1
+        "gain": 0.3
       }
     },
     "d2_herzog": {
@@ -1507,7 +1507,7 @@
       },
       "death": {
         "def": "sfx-vo-d2-herzog-death",
-        "gain": 0.1
+        "gain": 0.3
       }
     },
     "d2_transcendence": {
@@ -1517,7 +1517,7 @@
       },
       "death": {
         "def": "sfx-vo-d2-transcendence-death",
-        "gain": 0.1
+        "gain": 0.3
       }
     },
     "d2_cinderchef": {
@@ -1527,7 +1527,7 @@
       },
       "death": {
         "def": "sfx-vo-d2-cinderchef-death",
-        "gain": 0.1
+        "gain": 0.3
       }
     },
     "d2_roarcollector": {
@@ -1537,7 +1537,7 @@
       },
       "death": {
         "def": "sfx-vo-d2-roarcollector-death",
-        "gain": 0.1
+        "gain": 0.3
       }
     },
     "d2_flamebeat": {
@@ -1547,7 +1547,7 @@
       },
       "death": {
         "def": "sfx-vo-d2-flamebeat-death",
-        "gain": 0.1
+        "gain": 0.3
       }
     },
     "d2_riverdrake": {
@@ -1557,7 +1557,7 @@
       },
       "death": {
         "def": "sfx-vo-d2-riverdrake-death",
-        "gain": 0.1
+        "gain": 0.3
       }
     },
     "d2_warflame": {
@@ -1567,7 +1567,7 @@
       },
       "death": {
         "def": "sfx-vo-d2-warflame-death",
-        "gain": 0.1
+        "gain": 0.3
       }
     },
     "d2_flutterdrake": {
@@ -1577,7 +1577,7 @@
       },
       "death": {
         "def": "sfx-vo-d2-flutterdrake-death",
-        "gain": 0.1
+        "gain": 0.3
       }
     },
     "d2_ascendant": {
@@ -1587,7 +1587,7 @@
       },
       "death": {
         "def": "sfx-vo-d2-ascendant-death",
-        "gain": 0.1
+        "gain": 0.3
       }
     },
     "d2_humphry": {
@@ -1597,7 +1597,7 @@
       },
       "death": {
         "def": "sfx-vo-d2-humphry-death",
-        "gain": 0.1
+        "gain": 0.3
       }
     },
     "grim": {
@@ -1607,7 +1607,7 @@
       },
       "death": {
         "def": "sfx-vo-grim-death",
-        "gain": 0.1
+        "gain": 0.3
       }
     },
     "seaurchin": {
@@ -1617,7 +1617,7 @@
       },
       "death": {
         "def": "sfx-vo-seaurchin-death",
-        "gain": 0.1
+        "gain": 0.3
       }
     },
     "beetle": {
@@ -1627,7 +1627,7 @@
       },
       "death": {
         "def": "sfx-vo-beetle-death",
-        "gain": 0.1
+        "gain": 0.3
       }
     },
     "b2_elderhorn": {
@@ -1637,7 +1637,7 @@
       },
       "death": {
         "def": "sfx-vo-b2-elderhorn-death",
-        "gain": 0.1
+        "gain": 0.3
       }
     },
     "b2_sunmane": {
@@ -1647,7 +1647,7 @@
       },
       "death": {
         "def": "sfx-vo-b2-sunmane-death",
-        "gain": 0.1
+        "gain": 0.3
       }
     },
     "b2_trex": {
@@ -1657,7 +1657,7 @@
       },
       "death": {
         "def": "sfx-vo-b2-trex-death",
-        "gain": 0.1
+        "gain": 0.3
       }
     },
     "b2_mammoth": {
@@ -1667,7 +1667,7 @@
       },
       "death": {
         "def": "sfx-vo-b2-mammoth-death",
-        "gain": 0.1
+        "gain": 0.3
       }
     },
     "b2_solaris": {
@@ -1677,7 +1677,7 @@
       },
       "death": {
         "def": "sfx-vo-b2-solaris-death",
-        "gain": 0.1
+        "gain": 0.3
       }
     },
     "b2_quil": {
@@ -1687,7 +1687,7 @@
       },
       "death": {
         "def": "sfx-vo-b2-quil-death",
-        "gain": 0.1
+        "gain": 0.3
       }
     },
     "b2_dawnclaw": {
@@ -1697,7 +1697,7 @@
       },
       "death": {
         "def": "sfx-vo-b2-dawnclaw-death",
-        "gain": 0.1
+        "gain": 0.3
       }
     },
     "b2_packstrider": {
@@ -1707,7 +1707,7 @@
       },
       "death": {
         "def": "sfx-vo-b2-packstrider-death",
-        "gain": 0.1
+        "gain": 0.3
       }
     },
     "b2_bullseye": {
@@ -1717,7 +1717,7 @@
       },
       "death": {
         "def": "sfx-vo-b2-bullseye-death",
-        "gain": 0.1
+        "gain": 0.3
       }
     },
     "b2_beardsley": {
@@ -1727,7 +1727,7 @@
       },
       "death": {
         "def": "sfx-vo-b2-beardsley-death",
-        "gain": 0.1
+        "gain": 0.3
       }
     },
     "b2_wolvie": {
@@ -1737,7 +1737,7 @@
       },
       "death": {
         "def": "sfx-vo-b2-wolvie-death",
-        "gain": 0.1
+        "gain": 0.3
       }
     },
     "b2_armadiyo": {
@@ -1747,7 +1747,7 @@
       },
       "death": {
         "def": "sfx-vo-b2-armadiyo-death",
-        "gain": 0.1
+        "gain": 0.3
       }
     },
     "b2_voidmother": {
@@ -1757,7 +1757,7 @@
       },
       "death": {
         "def": "sfx-vo-b2-voidmother-death",
-        "gain": 0.1
+        "gain": 0.3
       }
     },
     "b2_hawkus": {
@@ -1767,7 +1767,7 @@
       },
       "death": {
         "def": "sfx-vo-b2-hawkus-death",
-        "gain": 0.1
+        "gain": 0.3
       }
     },
     "b2_spots": {
@@ -1777,7 +1777,7 @@
       },
       "death": {
         "def": "sfx-vo-b2-spots-death",
-        "gain": 0.1
+        "gain": 0.3
       }
     },
     "b2_stonehorn": {
@@ -1787,7 +1787,7 @@
       },
       "death": {
         "def": "sfx-vo-b2-stonehorn-death",
-        "gain": 0.1
+        "gain": 0.3
       }
     },
     "b2_raven": {
@@ -1797,7 +1797,7 @@
       },
       "death": {
         "def": "sfx-vo-b2-raven-death",
-        "gain": 0.1
+        "gain": 0.3
       }
     },
     "b2_tort": {
@@ -1807,7 +1807,7 @@
       },
       "death": {
         "def": "sfx-vo-b2-tort-death",
-        "gain": 0.1
+        "gain": 0.3
       }
     },
     "b2_beev": {
@@ -1817,7 +1817,7 @@
       },
       "death": {
         "def": "sfx-vo-b2-beev-death",
-        "gain": 0.1
+        "gain": 0.3
       }
     },
     "n2_muckslinger": {
@@ -1827,7 +1827,7 @@
       },
       "death": {
         "def": "sfx-vo-n2-muckslinger-death",
-        "gain": 0.1
+        "gain": 0.3
       }
     },
     "dw_exgalloper": {
@@ -1837,7 +1837,7 @@
       },
       "death": {
         "def": "sfx-vo-dw-exgalloper-death",
-        "gain": 0.1
+        "gain": 0.3
       }
     },
     "venom": {
@@ -1847,7 +1847,7 @@
       },
       "death": {
         "def": "sfx-vo-venom-death",
-        "gain": 0.1
+        "gain": 0.3
       }
     },
     "n2_echomimic": {
@@ -1857,7 +1857,7 @@
       },
       "death": {
         "def": "sfx-vo-n2-echomimic-death",
-        "gain": 0.1
+        "gain": 0.3
       }
     },
     "n2_abomination": {
@@ -1867,7 +1867,7 @@
       },
       "death": {
         "def": "sfx-vo-n2-abomination-death",
-        "gain": 0.1
+        "gain": 0.3
       }
     },
     "n2_reflector": {
@@ -1877,7 +1877,7 @@
       },
       "death": {
         "def": "sfx-vo-n2-reflector-death",
-        "gain": 0.1
+        "gain": 0.3
       }
     }
   }

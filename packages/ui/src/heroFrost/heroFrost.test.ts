@@ -548,7 +548,7 @@ describe('the scene (headless Pixi)', () => {
 describe('the cosmetic', () => {
   it('Frost Nova (attack_frost) is a Legendary crate hero attack that plays Frost; the dev override can force it; the other attacks unchanged', () => {
     expect(COSMETIC_INDEX.attack_frost).toMatchObject({ category: 'hero_attack', rarity: 'legendary', name: 'Frost Nova', assets: { style: 'frost' }, active: true });
-    expect(HERO_ATTACK_STYLES).toEqual(['classic', 'blast', 'quake', 'arcana', 'blades', 'enraged', 'poison', 'frost', 'holy', 'fire', 'cards', 'storm']); // the Epics Card Shark (cards) and Storm Call (storm) joined 2026-09-29; // Consecration (holy) joined 2026-09-28 (Inferno, fire, 2026-09-29)
+    expect(HERO_ATTACK_STYLES).toEqual(['classic', 'blast', 'quake', 'arcana', 'blades', 'enraged', 'poison', 'frost', 'holy', 'fire', 'undead', 'beast', 'banana', 'cards', 'storm']); // + the Epics Card Shark and Storm Call (2026-09-29) // Consecration (holy) joined 2026-09-28 (Inferno, fire, 2026-09-29); Grave Call (undead) 2026-09-29; Stampede (beast) joined 2026-09-29; Banana Cannon (banana) joined 2026-09-29
     expect(styleOfCosmetic('attack_frost')).toBe('frost');
     for (const [id, style] of [['attack_blast', 'blast'], ['attack_quake', 'quake'], ['attack_arcana', 'arcana'], ['attack_blades', 'blades'], ['attack_enraged', 'enraged']] as const) {
       expect(styleOfCosmetic(id)).toBe(style);

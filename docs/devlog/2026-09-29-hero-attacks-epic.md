@@ -84,11 +84,12 @@ down (the rumble), `turnexplosion` pitched down (thunder).
 
 ## Crate odds (first crate)
 
-Epic now holds 12 items (was 10): each Epic 1.25% (15 / 12), each Legendary 0.42% (5 / 12). By category: titles 58.2%,
-minion skins 33.0%, hero skins 2.5%, hero attacks 6.2%.
+Epic now holds 12 items (was 10): each Epic 1.25% (15 / 12); each Legendary stays 0.33% (5 / 15, after Grave Call, the
+Stampede and the Banana Cannon merged). By category: titles 58.1%, minion skins 32.9%, hero skins 2.5%, hero attacks 6.5%.
 
 ## Owner to-do
 
 - Rename "Card Shark" / "Storm Call" if you like (the ids stay). They reach the database on the next deploy of
   `progression-inventory` (the catalog sync). No SQL.
-- Oracle R-PROG-ATTACK-21 (Card Shark) and -22 (Storm Call); renumber on merge if a Rare or another attack took them.
+- Oracle R-PROG-ATTACK-21 (Card Shark) and -22 (Storm Call) (17-19 went to Grave Call, the Stampede and the Banana
+  Cannon); renumber on merge if a Rare took them first.

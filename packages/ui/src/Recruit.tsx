@@ -87,6 +87,12 @@ import { playHeroHoly } from './heroHoly/heroHoly';
 import { heroHolyPreviewSpeed } from './heroHoly/heroHolyConfig';
 import { playHeroFire } from './heroFire/heroFire';
 import { heroFirePreviewSpeed } from './heroFire/heroFireConfig';
+import { playHeroUndead } from './heroUndead/heroUndead';
+import { heroUndeadPreviewSpeed } from './heroUndead/heroUndeadConfig';
+import { playHeroBeast } from './heroBeast/heroBeast';
+import { heroBeastPreviewSpeed } from './heroBeast/heroBeastConfig';
+import { playHeroBanana } from './heroBanana/heroBanana';
+import { heroBananaPreviewSpeed } from './heroBanana/heroBananaConfig';
 import { playHeroCards } from './heroCards/heroCards';
 import { heroCardsPreviewSpeed } from './heroCards/heroCardsConfig';
 import { playHeroStorm } from './heroStorm/heroStorm';
@@ -2921,15 +2927,24 @@ export function Recruit() {
     // crystallise and fire, and the top tier rolls a frost nova across the screen that encases and shatters; Consecration:
     // a pillar of light smites, and the top tier drops a holy sword that explodes into light and fires a flat consecrated
     // blast at the target; Inferno: fireballs of live fire are hurled, and the top tier calls down a meteor that detonates
-    // and engulfs the target; the Epics, in three looks: Card Shark deals playing cards, up to a royal flush that bursts
-    // into confetti; Storm Call strikes with lightning, up to a storm cloud's thick strike). Same blow, same consequence, only drawn differently; the style is the ATTACKER's (their
+    // and engulfs the target; Grave Call: shrieking skulls bite, and the top tier tears a grave rift that a giant skull maw
+    // rises out of to chomp the target; Stampede: spirit beasts leap in and front jaws chomp shut on the target, and
+    // the top tier raises a colossal beast whose jaws slam over the portrait before it roars; Banana Cannon: King Oona's
+    // painted bananas spin in and splat, and the top tier lands a giant golden banana in the target that the hero slams in
+    // six times until it bursts). Same blow, same consequence, only drawn differently; the style is the ATTACKER's (their
     // equipped cosmetic, or the dev override). Every runner takes the same options (`heroAttack/options.ts`).
     const attackStyle = resolveHeroAttackStyle({ attacker: side, attackerCosmeticId: attackerCosmeticOf(run0, side, useGame.getState().showOpponentSkins) });
-    if (attackStyle === 'blast' || attackStyle === 'quake' || attackStyle === 'arcana' || attackStyle === 'blades' || attackStyle === 'enraged' || attackStyle === 'poison' || attackStyle === 'frost' || attackStyle === 'holy' || attackStyle === 'fire' || attackStyle === 'cards' || attackStyle === 'storm') {
+    if (attackStyle === 'blast' || attackStyle === 'quake' || attackStyle === 'arcana' || attackStyle === 'blades' || attackStyle === 'enraged' || attackStyle === 'poison' || attackStyle === 'frost' || attackStyle === 'holy' || attackStyle === 'fire' || attackStyle === 'undead' || attackStyle === 'beast' || attackStyle === 'banana' || attackStyle === 'cards' || attackStyle === 'storm') {
       const runner = attackStyle === 'storm'
         ? { play: playHeroStorm, preview: heroStormPreviewSpeed() }
         : attackStyle === 'cards'
         ? { play: playHeroCards, preview: heroCardsPreviewSpeed() }
+        : attackStyle === 'banana'
+        ? { play: playHeroBanana, preview: heroBananaPreviewSpeed() }
+        : attackStyle === 'beast'
+        ? { play: playHeroBeast, preview: heroBeastPreviewSpeed() }
+        : attackStyle === 'undead'
+        ? { play: playHeroUndead, preview: heroUndeadPreviewSpeed() }
         : attackStyle === 'fire'
         ? { play: playHeroFire, preview: heroFirePreviewSpeed() }
         : attackStyle === 'holy'

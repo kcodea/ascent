@@ -72,6 +72,42 @@ export const PATCH_NOTES: PatchNote[] = [
       },
       {
         category: 'Systems',
+        text: "A new Legendary hero attack, Oona's Banana Cannon, can drop from crates.",
+        details: [
+          "Your damage builds up, then your hero flings King Oona's painted bananas, spinning, at the other hero.",
+          'They burst into juicy splats. Bigger hits fling two, then a whole barrage.',
+          'On the biggest hits a giant golden banana arcs high, hangs, and lands stuck in the other hero.',
+          'Then your hero rushes in and slams it in six times, driving it deeper each time. It ends in a huge splat and a shower of bananas.',
+          'Equip it from the Attack Animations tab of the Collection. There is a preview button there too.',
+          'Hero attacks are looks only. The damage is exactly the same.',
+        ],
+      },
+      {
+        category: 'Systems',
+        text: 'A new Legendary hero attack, Stampede, can drop from crates.',
+        details: [
+          'Your damage builds up, then your hero looses spirit wolves of green and amber energy at the other hero.',
+          'Each wolf leaps in and a pair of ghostly jaws snaps shut on the other hero, leaving bite marks.',
+          'Bigger hits send two wolves, then a whole pack that kicks up dust as it runs.',
+          'On the biggest hits a giant beast rises, slams its jaws shut over the other hero, then roars.',
+          'Equip it from the Attack Animations tab of the Collection. There is a preview button there too.',
+          'Hero attacks are looks only. The damage is exactly the same.',
+        ],
+      },
+      {
+        category: 'Systems',
+        text: 'A new Legendary hero attack, Grave Call, can drop from crates.',
+        details: [
+          'Your damage builds up, then your hero raises the dead in ghostly green.',
+          'A shrieking skull flies out of your hero and bites the other hero. Bigger hits send two.',
+          'Bigger still, skeletal hands claw up and drag the other hero down while a swarm of ghosts strikes it.',
+          'On the biggest hits a grave rift tears open, a giant skull rises out of it, screams, and chomps the other hero.',
+          'Equip it from the Attack Animations tab of the Collection. There is a preview button there too.',
+          'Hero attacks are looks only. The damage is exactly the same.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'A new Legendary hero attack, Inferno, can drop from crates.',
         details: [
           'Your damage builds up, then fire catches round your hero and fireballs of real, living flame are hurled at the other hero.',

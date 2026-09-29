@@ -1,16 +1,17 @@
 /**
  * THE BLEED RUNNER: plays one Bleed ("Hemorrhage") hero attack (the beats are in `heroBleedConfig.ts`) and lands the
- * consequence on its impact beat (the last cut, or Tier IV's mega-slash crossing the target). Presentation only: the
+ * consequence on its impact beat (the last cut, or Tier IV's bloody explosion). Presentation only: the
  * total it shows and the blow it lands are handed in, already decided by the engine; this file only decides WHEN on
  * screen they happen.
  *
  * It runs on the SHARED hero-attack core (`../heroAttack/`), exactly as the other styles do: one clock (it never
  * pauses), the damage formation, the `#stage` camera mirrored onto the Pixi root, the portraits (transform only,
  * restored after), the voices, the dim, reduced motion, finish / cancel and the safety timer. What is Bleed's own: the
- * crescent paths, the cut rhythm, the wounds, the heartbeat, the mega-slash, the nova, its camera and its sound.
+ * crescent paths, the cut rhythm, the wounds, the heartbeat, the eight zips, the explosion, its camera and its sound.
  *
  * THE CUT CONTRACT: every cut that lands before the last is a tick (FX and sound only; at Tier IV every cut is). The
- * consequence (`onImpact`: the damage, Armor, Resolve) lands exactly ONCE, on the last cut (Tier IV: on the nova).
+ * consequence (`onImpact`: the damage, Armor, Resolve) lands exactly ONCE, on the last cut (Tier IV: on the explosion;
+ * every zip before it is a tick).
  *
  * Perf (docs/performance.md): DOM moves are `transform` / `opacity` written from the clock; nothing reads layout after
  * the opening measure; Pixi sprites are pooled per layer with a hard cap, textures painted once per session and
@@ -27,7 +28,7 @@ import type { HeroAttackHandle, HeroAttackOptions } from '../heroAttack/options'
 import { Sequence } from '../heroAttack/sequence';
 import { PortraitMover, StageCamera } from '../heroAttack/stageCamera';
 import {
-  bleedCameraAt, bleedCameraFocus, bleedCues, bleedPlan, getHeroBleedConfig, megaGeo,
+  bleedCameraAt, bleedCameraFocus, bleedCues, bleedPlan, getHeroBleedConfig, zipGeos,
   slashGeos, type BleedCue, type BleedPlan, type HeroBleedConfig, type MegaGeo, type SlashGeo,
 } from './heroBleedConfig';
 import { HeroBleedScene, type HeroBleedTextures } from './heroBleedScene';
@@ -42,8 +43,10 @@ export interface HeroBleedHandle extends HeroAttackHandle {
   readonly plan: BleedPlan;
   /** Every slash's path (empty under reduced motion). Exposed for tests and the capture rig. */
   readonly geos: readonly SlashGeo[];
-  /** Tier IV's mega-slash line (null below IV or under reduced motion). */
+  /** Tier IV's first zip line (null below IV or under reduced motion). */
   readonly mega: MegaGeo | null;
+  /** Every Tier IV zip's line, in order (empty below IV or under reduced motion). */
+  readonly zips: readonly MegaGeo[];
   /** The Pixi scene (null under reduced motion or with no 2D canvas). Exposed for tests and the capture rig. */
   readonly scene: HeroBleedScene | null;
 }
@@ -81,11 +84,14 @@ export function playHeroBleed(o: HeroBleedOptions): HeroBleedHandle {
   // A crescent's flight never rises above the top of the screen (or the sandbox box).
   const geos = slashGeos(plan, o.attacker, o.defender, radius, aRadius, c, (local ? 8 : 36) * s, nums.pts.hit);
   const cutDirs: Pt[] = geos.map((g) => ({ x: Math.cos(g.angle), y: Math.sin(g.angle) }));
-  // The mega-slash starts out by the striker and runs on past the target by as much (the target is half-way).
-  const mega = plan.hemorrhage ? megaGeo(o.attacker, o.defender, dist * 2.1) : null;
+  // The zips: each a line through the target, crossing it half-way. The first starts out by the striker; the rest come
+  // from every direction, long enough to split the whole screen (a sandbox box: a little past both heroes).
+  const zips = plan.hemorrhage ? zipGeos(plan, o.attacker, o.defender, local ? dist * 2.1 : Math.max(dist * 2.1, 2200 * s)) : [];
+  const zipDirs: Pt[] = zips.map((z) => ({ x: Math.cos(z.angle), y: Math.sin(z.angle) }));
+  const mega = zips[0] ?? null;
   const toFoe = (() => { const L = dist || 1; return { x: (o.defender.x - o.attacker.x) / L, y: (o.defender.y - o.attacker.y) / L }; })();
-  // The direction the blow ARRIVES from: the last cut (I-III), the mega-slash (IV). The shake and the knockback follow it.
-  const dir: Pt = mega ? { x: Math.cos(mega.angle), y: Math.sin(mega.angle) } : (cutDirs[cutDirs.length - 1] ?? toFoe);
+  // The direction the blow ARRIVES from: the last cut (I-III), the last zip (IV). The shake and the knockback follow it.
+  const dir: Pt = zipDirs[zipDirs.length - 1] ?? cutDirs[cutDirs.length - 1] ?? toFoe;
   const flip = o.attacker.x > o.defender.x ? -1 : 1;
 
   // ── Pixi (the above-portrait slot, warmed now so it is up well before the first cut) ──
@@ -96,7 +102,7 @@ export function playHeroBleed(o: HeroBleedOptions): HeroBleedHandle {
     }, {
       waveSize: c.waveSize, waveGlow: c.waveGlow, afterimages: c.afterimages, afterMs: c.afterMs, seamWidth: c.seamWidth, gashWidth: c.gashWidth,
       spray: c.spray, tickDrops: c.tickDrops, tint: c.tintAlpha, gravity: c.dropGravity, dripMs: c.dripMs, stainAlpha: c.stainAlpha,
-      stainMs: c.stainMs, spatter: c.spatter, megaWidth: c.megaWidth, megaSize: c.megaSize, novaSize: c.novaSize,
+      stainMs: c.stainMs, spatter: c.spatter, megaWidth: c.megaWidth, megaSize: c.megaSize, novaSize: c.novaSize, explosionSize: c.explosionSize,
     }, s, bleedSeed(o.total, dist, o.side))
     : null;
   if (scene && !o.mount) void pixiFx.ensureAboveSlot();
@@ -111,7 +117,7 @@ export function playHeroBleed(o: HeroBleedOptions): HeroBleedHandle {
   const cue = voices.cue.bind(voices);
   voices.warm([
     c.sfxReadyClip, c.sfxSwingClip, c.sfxShingClip, c.sfxSliceClip, c.sfxFleshClip, c.sfxSplatClip, c.sfxImpactClip,
-    c.sfxBigClip, c.sfxBeatClip, c.sfxWindClip, c.sfxMegaClip, c.sfxGushClip, c.sfxSpurtClip,
+    c.sfxBigClip, c.sfxBeatClip, c.sfxWindClip, c.sfxMegaClip, c.sfxGushClip, c.sfxSpurtClip, c.sfxBlastClip,
   ]);
   const real = (ms: number): number => ms / speed;
   const n = plan.slashes.length;
@@ -158,20 +164,39 @@ export function playHeroBleed(o: HeroBleedOptions): HeroBleedHandle {
         cue(c.sfxWindClip, c.sfxWindGain, c.sfxWindRate, { lenMs: Math.max(300, real(plan.megaAt - plan.windAt) + 200), fadeMs: 200 });
         scene?.windup(hand, Math.atan2(o.defender.y - o.attacker.y, o.defender.x - o.attacker.x), plan.megaAt - plan.windAt);
         break;
-      case 'mega':
-        cue(c.sfxMegaClip, c.sfxMegaGain, c.sfxMegaRate, { tail: c.sfxTailMix, lenMs: 1400, fadeMs: 400 });
-        cue(c.sfxShingClip, c.sfxShingGain * 1.2, c.sfxShingRate - 0.2, { startMs: 440, lenMs: 220, fadeMs: 100 });
-        if (mega) scene?.startMega(mega, c.megaMs);
+      case 'zip': {
+        // ZIP: the big sweep (the first one heaviest), and the snap of the blade, climbing as they speed up.
+        const z = zips[q.i];
+        const first = q.i === 0;
+        if (first) cue(c.sfxMegaClip, c.sfxMegaGain, c.sfxMegaRate, { tail: c.sfxTailMix, lenMs: 1400, fadeMs: 400 });
+        else cue(c.sfxSwingClip, c.sfxSwingGain * 0.9, c.sfxSwingRate + 0.07 * q.i, { lenMs: c.sfxSwingLenMs, fadeMs: 100 });
+        cue(c.sfxShingClip, c.sfxShingGain * (first ? 1.2 : 0.9), c.sfxShingRate - 0.2 + 0.06 * q.i, { startMs: 440, lenMs: 200, fadeMs: 90 });
+        if (z) scene?.startMega(z, plan.zips[q.i]!.dur);
+        break;
+      }
+      case 'zhit': {
+        // It crosses the target: a slice and a splat (a tick, FX only), pitched up each zip.
+        const z = zips[q.i];
+        cue(c.sfxSliceClip, c.sfxSliceGain * 0.75, c.sfxSliceRate + 0.05 * q.i, { lenMs: 380, fadeMs: 140 });
+        cue(c.sfxSplatClip, c.sfxSplatGain * 0.6, c.sfxSplatRate + 0.05 * q.i, { lenMs: 400, fadeMs: 160 });
+        if (z) scene?.zipCut(z.angle, o.defender.x, o.defender.y, radius, q.i);
+        break;
+      }
+      case 'tension':
+        // The held breath before the burst: the wind-up clip, low, swelling into the explosion.
+        cue(c.sfxWindClip, c.sfxWindGain * 0.8, c.sfxWindRate * 0.85, { lenMs: Math.max(200, real(plan.impactAt - plan.tensionAt) + 150), fadeMs: 150 });
+        scene?.tension(o.defender.x, o.defender.y, radius, plan.impactAt - plan.tensionAt);
         break;
       case 'impact':
         if (plan.hemorrhage) {
-          // THE BLOOD NOVA: a heavy wet gush, the impact, the crack layered on, the flesh low.
+          // THE BLOODY EXPLOSION: the blast, a heavy wet gush, the impact, the crack layered on, the flesh low.
+          cue(c.sfxBlastClip, c.sfxBlastGain, c.sfxBlastRate, { tail: c.sfxTailMix, lenMs: c.sfxImpactLenMs + 400, fadeMs: 500 });
           cue(c.sfxGushClip, c.sfxGushGain, c.sfxGushRate, { tail: c.sfxTailMix, lenMs: c.sfxImpactLenMs, fadeMs: 400 });
           cue(c.sfxImpactClip, c.sfxImpactGain, c.sfxImpactRate - 0.05, { lenMs: 600, fadeMs: 220 });
           cue(c.sfxBigClip, c.sfxBigGain * 1.15, c.sfxBigRate - 0.05, { lenMs: 700, fadeMs: 250 });
           cue(c.sfxFleshClip, c.sfxFleshGain * 1.2, c.sfxFleshRate - 0.15, { lenMs: 400, fadeMs: 150 });
           cue(c.sfxSplatClip, c.sfxSplatGain, c.sfxSplatRate - 0.2, { lenMs: 800, fadeMs: 300 });
-          scene?.nova(o.defender.x, o.defender.y, radius, mega, { burst: plan.burst, drops: plan.drops, drips: plan.drips, flashAlpha: c.flashAlpha });
+          scene?.explode(o.defender.x, o.defender.y, radius, zips[zips.length - 1] ?? null, { burst: plan.burst, drops: plan.drops, drips: plan.drips, flashAlpha: c.flashAlpha, toward: Math.atan2(o.attacker.y - o.defender.y, o.attacker.x - o.defender.x) });
         } else {
           // THE LAST CUT: the slice, the impact, the flesh, the splat (heavier per tier); a crack on III.
           const g = geos[n - 1];
@@ -193,7 +218,7 @@ export function playHeroBleed(o: HeroBleedOptions): HeroBleedHandle {
         scene?.close();
         break;
       case 'boom': {
-        const a = (mega ? mega.angle : 0) + (q.i % 2 ? Math.PI : 0) - Math.PI / 2 * 0.6;
+        const a = (mega ? mega.angle : 0) + q.i * 2.1 - Math.PI / 2 * 0.6;
         const rr = radius * (0.35 + 0.15 * q.i);
         cue(c.sfxSpurtClip, c.sfxSpurtGain, c.sfxSpurtRate + q.i * 0.1, { lenMs: 450, fadeMs: 180 });
         scene?.spurt(o.defender.x + Math.cos(a) * rr, o.defender.y + Math.sin(a) * rr * 0.8, 0.9 + 0.15 * q.i, a);
@@ -207,13 +232,13 @@ export function playHeroBleed(o: HeroBleedOptions): HeroBleedHandle {
   const paintStage = (t: number): void => {
     if (plan.reduced) return;
     nums.paintDim(t, plan.chargeAt, plan.swingAt, plan.impactAt + (plan.hemorrhage ? 420 : 200));
-    const cm = bleedCameraAt(plan, c, t, dir, cutDirs);
+    const cm = bleedCameraAt(plan, c, t, dir, cutDirs, zipDirs);
     const unit = local ? 1 : s;
     cam.apply(bleedCameraFocus(plan, t, o.attacker, o.defender), cm.zoom, cm.x, cm.y, unit);
     const px = local ? 0.45 : 1;
     if (hero.el && t >= plan.chargeAt) {
       // The draw: the hero draws BACK from the target and turns (the blade raised); each swing SNAPS it forward and
-      // round. IV: a deeper draw through the wind-up, then the biggest lunge on the mega-slash.
+      // round. IV: a deeper draw through the wind-up, then a lunge and a whip round on EVERY zip, alternating.
       let bx = 0, by = 0, rot = 0, sc = 1;
       const coil = (u: number, k: number): void => {
         bx -= toFoe.x * c.heroCoilPx * px * u * k; by -= toFoe.y * c.heroCoilPx * px * u * k;
@@ -235,11 +260,14 @@ export function playHeroBleed(o: HeroBleedOptions): HeroBleedHandle {
             coil(u, 1.8);
             sc += 0.05 * u;
           } else {
-            const f = spring(t - plan.megaAt, 3.5, 110);
             coil(Math.max(0, spring(t - plan.megaAt, 8, 30)), 1.8);
-            bx += toFoe.x * c.heroSwingPx * 1.8 * px * f; by += toFoe.y * c.heroSwingPx * 1.8 * px * f;
-            rot += c.heroSwingDeg * flip * 2.2 * f;
-            sc += 0.05 * Math.max(0, f);
+            plan.zips.forEach((z, i) => {
+              if (z.at > t) return;
+              const f = spring(t - z.at, 5, 70);
+              bx += toFoe.x * c.heroSwingPx * 1.4 * px * f; by += toFoe.y * c.heroSwingPx * 1.4 * px * f;
+              rot += c.heroSwingDeg * flip * 2 * f * (i % 2 ? -1 : 1);
+              sc += 0.03 * Math.max(0, f);
+            });
           }
         }
       }
@@ -266,8 +294,21 @@ export function playHeroBleed(o: HeroBleedOptions): HeroBleedHandle {
           const d = cutDirs[i] ?? dir;
           kx += d.x * f; ky += d.y * f;
         });
+        // The zips jolt it down each line; the held tension trembles and swells it.
+        plan.zips.forEach((z, i) => {
+          if (z.hitAt > t) return;
+          const f = Math.max(0, spring(t - z.hitAt, 6, 40)) * 9 * px;
+          const d = zipDirs[i] ?? dir;
+          kx += d.x * f; ky += d.y * f;
+        });
         let sc = 1;
         for (const b of plan.beats) if (t >= b) sc += 0.04 * Math.max(0, spring(t - b, 4, 70));
+        if (plan.hemorrhage && t >= plan.tensionAt) {
+          const u = (t - plan.tensionAt) / Math.max(1, plan.impactAt - plan.tensionAt);
+          const a = (0.5 + 2.5 * u * u) * px;
+          kx += a * Math.sin(t * 0.23); ky += a * Math.sin(t * 0.31);
+          sc += 0.05 * u * u;
+        }
         fx = kx; fy = ky;
         css = Math.abs(kx) + Math.abs(ky) < 0.05 && sc - 1 < 1e-4 ? null : `translate(${kx.toFixed(2)}px, ${ky.toFixed(2)}px) scale(${sc.toFixed(4)})`;
       }
@@ -292,6 +333,7 @@ export function playHeroBleed(o: HeroBleedOptions): HeroBleedHandle {
     plan,
     geos,
     mega,
+    zips,
     scene,
     elapsed: () => seq.t,
     get impacted() { return seq.impacted; },

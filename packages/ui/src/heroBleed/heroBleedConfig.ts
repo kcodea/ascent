@@ -17,12 +17,16 @@
  *     biggest spray, the flash, the knockback. The consequence (the damage, Armor, Resolve) lands ONCE, there. A beat
  *     later the wounds BLEED (drips run down the portrait, a crimson pulse over the face) and then they close.
  *     I one clean diagonal gash; II a cross (X) of two; III a flurry of four fast slashes and a three-claw rake.
- *  IV. HEMORRHAGE. Three claw rakes carve the face (all ticks). The wounds THROB with a heartbeat (two beats: they flare,
- *     a crimson pulse, a ring pulled in, the view breathes in), while the striking hero winds a huge crescent. Then a
- *     MEGA-SLASH splits the screen: one crescent sweeps from the striker's side through the target and on, leaving a white seam with
- *     a dark split beside it. As it crosses the target the wounds RIP open and the target erupts in a BLOOD NOVA: a
- *     crimson shockwave, blood thrown out in arcs that fall, spatter landing round the portrait, a stain that drips,
- *     and two arterial spurts after.
+ *  IV. HEMORRHAGE, played hilariously over the top (owner 2026-09-29: "make the bleed one extremely extremely over the
+ *     top like hilariously over the top for the huge attack. like do 8 zips of the long attack animation and have a
+ *     bloody explosion at the end"). Three claw rakes carve the face and the wounds THROB with a heartbeat while the
+ *     striker winds a huge crescent. Then the screen-splitting MEGA-SLASH zips across EIGHT times (tunable), each one a
+ *     full-screen sweep through the target on a NEW line (the striker's side first, then square across it for an X,
+ *     then the diagonals between, all round the compass, alternating sweep direction), each with its seam, a spray and a fresh gash on the target, the camera
+ *     whipping along it, the cadence ACCELERATING (the first readable, the last a frantic blur). Then a beat of held
+ *     tension (never a freeze: the wounds pulse faster, blood is drawn in, the view creeps in) and an absurdly huge
+ *     BLOODY EXPLOSION lands the blow: a white-red flash core, shockwave rings one after another, a huge blood nova,
+ *     blood thrown high to rain down over much of the screen, spatter on the board, dripping stains, arterial spurts.
  *
  * TIERS are the shared, owner-approved thresholds (I 1-5, II 6-11, III 12-19, IV 20+). No hit-stop anywhere (owner
  * 2026-09-28: "it looks like lag"). Flat 2D throughout. Reduced motion: no flight, cuts, shake or zoom; the numbers
@@ -78,6 +82,12 @@ interface GlobalConfig {
   megaMs: number;
   megaWidth: number;
   megaSize: number;
+  zips: number;
+  zipGapMs: number;
+  zipAccel: number;
+  zipMinMs: number;
+  tensionMs: number;
+  explosionSize: number;
   novaSize: number;
   stainAlpha: number;
   stainMs: number;
@@ -111,6 +121,7 @@ interface GlobalConfig {
   sfxMegaClip: string; sfxMegaGain: number; sfxMegaRate: number;
   sfxGushClip: string; sfxGushGain: number; sfxGushRate: number;
   sfxSpurtClip: string; sfxSpurtGain: number; sfxSpurtRate: number;
+  sfxBlastClip: string; sfxBlastGain: number; sfxBlastRate: number;
   sfxSwingLenMs: number;
   sfxImpactLenMs: number;
   sfxTailMix: number;
@@ -124,7 +135,7 @@ export type HeroBleedConfig = GlobalConfig & Record<TierKey, number>;
 export const HERO_BLEED_COLOR_KEYS = ['colorCore', 'colorBright', 'colorBlood', 'colorDeep', 'colorPlayer', 'colorFoe'] as const;
 export const HERO_BLEED_CLIP_KEYS = [
   'sfxReadyClip', 'sfxSwingClip', 'sfxShingClip', 'sfxSliceClip', 'sfxFleshClip', 'sfxSplatClip', 'sfxImpactClip',
-  'sfxBigClip', 'sfxBeatClip', 'sfxWindClip', 'sfxMegaClip', 'sfxGushClip', 'sfxSpurtClip',
+  'sfxBigClip', 'sfxBeatClip', 'sfxWindClip', 'sfxMegaClip', 'sfxGushClip', 'sfxSpurtClip', 'sfxBlastClip',
 ] as const;
 type ColorKey = (typeof HERO_BLEED_COLOR_KEYS)[number];
 type ClipKey = (typeof HERO_BLEED_CLIP_KEYS)[number];
@@ -143,9 +154,9 @@ const TIER_DEFAULTS: Record<BleedTierSuffix, [number, number, number, number]> =
   Shake: [4, 6, 9, 16],
   Zoom: [0.02, 0.03, 0.04, 0.065],
   Punch: [0.015, 0.022, 0.03, 0.05],
-  Drops: [14, 18, 26, 48],
+  Drops: [14, 18, 26, 150],
   Burst: [1, 1.1, 1.3, 1.8],
-  Drips: [2, 3, 5, 7],
+  Drips: [2, 3, 5, 11],
   SettleMs: [240, 280, 320, 320],
   Dim: [0, 0.16, 0.28, 0.45],
 };
@@ -161,7 +172,7 @@ export const BLEED_TIER_RANGES: Record<BleedTierSuffix, [number, number, number]
   Shake: [0, 40, 0.5],
   Zoom: [0, 0.14, 0.002],
   Punch: [0, 0.1, 0.001],
-  Drops: [0, 80, 1],
+  Drops: [0, 160, 1],
   Burst: [0.3, 3, 0.05],
   Drips: [0, 12, 1],
   SettleMs: [0, 1600, 10],
@@ -195,7 +206,13 @@ export const HERO_BLEED_DEFAULTS: HeroBleedConfig = {
   beats: 2,
   beatMs: 300,
   windupMs: 380,
-  megaMs: 260,
+  megaMs: 240,
+  zips: 8,
+  zipGapMs: 300,
+  zipAccel: 0.74,
+  zipMinMs: 55,
+  tensionMs: 460,
+  explosionSize: 1.6,
   megaWidth: 22,
   megaSize: 2.4,
   novaSize: 1,
@@ -228,6 +245,7 @@ export const HERO_BLEED_DEFAULTS: HeroBleedConfig = {
   sfxMegaClip: 'fx/universfield-cinematic-swoosh-impact-454392', sfxMegaGain: 0.6, sfxMegaRate: 1.05,
   sfxGushClip: 'bloodpot', sfxGushGain: 0.7, sfxGushRate: 0.85,
   sfxSpurtClip: 'fx/oona-splat', sfxSpurtGain: 0.3, sfxSpurtRate: 1.35,
+  sfxBlastClip: 'turnexplosion', sfxBlastGain: 0.8, sfxBlastRate: 0.85,
   sfxSwingLenMs: 300,
   sfxImpactLenMs: 900,
   sfxTailMix: 0.12,
@@ -264,6 +282,12 @@ const GLOBAL_RANGES: Record<Exclude<keyof GlobalConfig, HeroBleedStrKey>, [numbe
   megaMs: [80, 900, 10],
   megaWidth: [4, 60, 1],
   megaSize: [0.5, 5, 0.05],
+  zips: [1, 12, 1],
+  zipGapMs: [40, 800, 5],
+  zipAccel: [0.4, 1, 0.01],
+  zipMinMs: [30, 300, 5],
+  tensionMs: [0, 1500, 10],
+  explosionSize: [0.5, 3, 0.05],
   novaSize: [0.3, 3, 0.05],
   stainAlpha: [0, 1, 0.01],
   stainMs: [200, 4000, 20],
@@ -288,6 +312,7 @@ const GLOBAL_RANGES: Record<Exclude<keyof GlobalConfig, HeroBleedStrKey>, [numbe
   sfxMegaGain: [0, 2, 0.05], sfxMegaRate: [0.5, 2, 0.01],
   sfxGushGain: [0, 2, 0.05], sfxGushRate: [0.5, 2, 0.01],
   sfxSpurtGain: [0, 2, 0.05], sfxSpurtRate: [0.5, 2, 0.01],
+  sfxBlastGain: [0, 2, 0.05], sfxBlastRate: [0.5, 2, 0.01],
   sfxSwingLenMs: [80, 1500, 10],
   sfxImpactLenMs: [150, 3500, 10],
   sfxTailMix: [0, 0.6, 0.01],
@@ -303,7 +328,7 @@ export const HERO_BLEED_RANGES: Record<HeroBleedNumKey, [number, number, number]
 };
 
 /** The hard ceilings a plan can never exceed, whatever the sliders say (so a 40 stays clean, not cluttered). */
-export const BLEED_CAPS = { slashes: 8, claws: 4, drops: 80, drips: 12, shakePx: 40, zoom: 0.14 } as const;
+export const BLEED_CAPS = { slashes: 8, claws: 4, zips: 12, drops: 160, drips: 12, shakePx: 40, zoom: 0.14 } as const;
 
 const HEX = /^#[0-9a-f]{6}$/i;
 const isColorKey = (k: string): k is ColorKey => (HERO_BLEED_COLOR_KEYS as readonly string[]).includes(k);
@@ -419,6 +444,9 @@ export interface BleedSlashPlan {
   off: Pt;
 }
 
+/** One zip of Tier IV's mega-slash: its sweep starts `at`, lasts `dur`, and crosses the target at `hitAt` (a tick). */
+export interface BleedZipPlan { at: number; dur: number; hitAt: number }
+
 export interface BleedPlanInput {
   /** When the style's own attack starts: the end of the shared damage formation (`formationPlan().endAt`). */
   leadIn?: number;
@@ -447,17 +475,21 @@ export interface BleedPlan {
   beats: number[];
   /** Tier IV: the striking hero winds the huge crescent (else the impact). */
   windAt: number;
-  /** Tier IV: the mega-slash starts its sweep (else the impact). It crosses the target half-way, on the impact. */
+  /** Tier IV: the first zip of the mega-slash starts (else the impact). */
   megaAt: number;
-  /** Cuts that land BEFORE the impact, sequence ms: the rhythm ticks (Tier IV: every slash). */
+  /** Tier IV: the mega-slash's zips, accelerating (empty below IV). */
+  zips: BleedZipPlan[];
+  /** Tier IV: the last zip is done and the held tension starts (else the impact). */
+  tensionAt: number;
+  /** Cuts that land BEFORE the impact, sequence ms: the rhythm ticks (Tier IV: every slash and every zip). */
   hits: number[];
-  /** THE consequence beat: the last cut (I-III) or the mega-slash crossing the target (IV). */
+  /** THE consequence beat: the last cut (I-III) or the bloody explosion (IV). */
   impactAt: number;
   /** The wounds bleed: drips run down the portrait (FX only). */
   bleedAt: number;
   /** I-III: the wounds close. */
   closeAt: number;
-  /** Tier IV: arterial spurts after the nova. */
+  /** Tier IV: arterial spurts after the explosion. */
   booms: number[];
   endAt: number;
   shakePx: number;
@@ -481,7 +513,7 @@ export function bleedPlan(input: BleedPlanInput, c: HeroBleedConfig = cfg): Blee
     const { impactAt } = r;
     return {
       reduced: true, tier, k, total,
-      chargeAt: impactAt, absorbEnd: impactAt, swingAt: impactAt, slashes: [], hemorrhage: false, beats: [], windAt: impactAt, megaAt: impactAt,
+      chargeAt: impactAt, absorbEnd: impactAt, swingAt: impactAt, slashes: [], hemorrhage: false, beats: [], windAt: impactAt, megaAt: impactAt, zips: [], tensionAt: impactAt,
       hits: [], impactAt, bleedAt: impactAt, closeAt: impactAt, booms: [], endAt: r.endAt,
       shakePx: 0, zoom: 0, punch: 0, drops: 0, burst: 0, drips: 0, dim: 0,
     };
@@ -513,24 +545,41 @@ export function bleedPlan(input: BleedPlanInput, c: HeroBleedConfig = cfg): Blee
   const beats = Array.from({ length: beatCount }, (_, i) => lastIn + 150 + i * c.beatMs);
   const megaAt = hemorrhage ? Math.max(beats[beats.length - 1]! + c.beatMs * 0.6, lastIn + c.windupMs) : lastIn;
   const windAt = hemorrhage ? megaAt - c.windupMs : lastIn;
-  const impactAt = hemorrhage ? megaAt + c.megaMs / 2 : lastIn;
-  const hits = (hemorrhage ? slashes : slashes.slice(0, -1)).map((s) => s.arriveAt).sort((a, b) => a - b);
+  // THE ZIPS: each sweep and each gap shrinks by `zipAccel` (floored at `zipMinMs`), so the first reads and the last
+  // few are a blur. Each crosses the target half-way through its sweep (a tick).
+  const zips: BleedZipPlan[] = [];
+  if (hemorrhage) {
+    const n = clamp(Math.round(c.zips), 1, BLEED_CAPS.zips);
+    let at = megaAt;
+    for (let i = 0; i < n; i++) {
+      const f = Math.pow(c.zipAccel, i);
+      const dur = Math.max(c.zipMinMs, c.megaMs * f);
+      zips.push({ at, dur, hitAt: at + dur / 2 });
+      at += Math.max(c.zipMinMs * 0.8, c.zipGapMs * f);
+    }
+  }
+  const tensionAt = hemorrhage ? Math.max(...zips.map((z) => z.at + z.dur)) : lastIn;
+  const impactAt = hemorrhage ? tensionAt + c.tensionMs : lastIn;
+  const hits = [
+    ...(hemorrhage ? slashes : slashes.slice(0, -1)).map((s) => s.arriveAt),
+    ...zips.map((z) => z.hitAt),
+  ].sort((a, b) => a - b);
   const bleedAt = impactAt + (hemorrhage ? 240 : c.bleedMs);
   const closeAt = hemorrhage ? impactAt : impactAt + c.holdMs;
-  const booms = hemorrhage ? [impactAt + 170, impactAt + 330] : [];
+  const booms = hemorrhage ? [impactAt + 200, impactAt + 380, impactAt + 560] : [];
   const lastBeat = Math.max(
     impactAt + 160,
     booms.length ? booms[booms.length - 1]! + 140 : 0,
     impactAt + c.zoomOutMs * 0.8,
     // The drips, the stain and the closing wounds finish draining after the end (the scene keeps ticking until it is
     // empty), so the fight never waits on a fading wound.
-    hemorrhage ? impactAt + Math.min(700, c.stainMs * 0.5) : Math.max(bleedAt + 200, closeAt),
+    hemorrhage ? impactAt + Math.min(900, c.stainMs * 0.6) : Math.max(bleedAt + 200, closeAt),
   );
   const endAt = lastBeat + T.SettleMs;
 
   return {
     reduced: false, tier, k, total, chargeAt, absorbEnd, swingAt,
-    slashes, hemorrhage, beats, windAt, megaAt, hits, impactAt, bleedAt, closeAt, booms, endAt,
+    slashes, hemorrhage, beats, windAt, megaAt, zips, tensionAt, hits, impactAt, bleedAt, closeAt, booms, endAt,
     shakePx: clamp(T.Shake, 0, BLEED_CAPS.shakePx),
     zoom: clamp(T.Zoom, 0, BLEED_CAPS.zoom),
     punch: T.Punch,
@@ -541,7 +590,7 @@ export function bleedPlan(input: BleedPlanInput, c: HeroBleedConfig = cfg): Blee
   };
 }
 
-export type BleedCueKind = 'charge' | 'swing' | 'hit' | 'beat' | 'wind' | 'mega' | 'impact' | 'bleed' | 'close' | 'boom' | 'end';
+export type BleedCueKind = 'charge' | 'swing' | 'hit' | 'beat' | 'wind' | 'zip' | 'zhit' | 'tension' | 'impact' | 'bleed' | 'close' | 'boom' | 'end';
 export interface BleedCue { at: number; kind: BleedCueKind; i: number }
 
 /** Every beat the runner fires, in time order (ties keep this declaration order, so a hit precedes the impact). */
@@ -555,7 +604,8 @@ export function bleedCues(p: BleedPlan): BleedCue[] {
     p.beats.forEach((at, i) => out.push({ at, kind: 'beat', i }));
     if (p.hemorrhage) {
       out.push({ at: p.windAt, kind: 'wind', i: 0 });
-      out.push({ at: p.megaAt, kind: 'mega', i: 0 });
+      p.zips.forEach((z, i) => { out.push({ at: z.at, kind: 'zip', i }); out.push({ at: z.hitAt, kind: 'zhit', i }); });
+      out.push({ at: p.tensionAt, kind: 'tension', i: 0 });
     } else {
       out.push({ at: p.closeAt, kind: 'close', i: 0 });
     }
@@ -565,7 +615,7 @@ export function bleedCues(p: BleedPlan): BleedCue[] {
   p.booms.forEach((at, i) => out.push({ at, kind: 'boom', i }));
   out.push({ at: p.endAt, kind: 'end', i: 0 });
   const order: Record<BleedCueKind, number> = {
-    charge: 0, swing: 1, hit: 2, beat: 3, wind: 4, mega: 5, impact: 6, bleed: 7, close: 8, boom: 9, end: 10,
+    charge: 0, swing: 1, hit: 2, beat: 3, wind: 4, zip: 5, zhit: 6, tension: 7, impact: 8, bleed: 9, close: 10, boom: 11, end: 12,
   };
   return out.map((q, idx) => ({ q, idx })).sort((a, b) => a.q.at - b.q.at || order[a.q.kind] - order[b.q.kind] || a.idx - b.idx).map((x) => x.q);
 }
@@ -693,6 +743,34 @@ export function megaGeo(a: Pt, d: Pt, span: number): MegaGeo {
   return { from: { x: d.x - dir.x * s / 2, y: d.y - dir.y * s / 2 }, to: { x: d.x + dir.x * s / 2, y: d.y + dir.y * s / 2 }, angle, span: s };
 }
 
+/**
+ * Zips 2..N, as turns off zip 1's line (radians; + PI flips the sweep so they alternate direction): first the
+ * perpendicular (an X with zip 1), then the two diagonals between (another X), then the lines between those, so the
+ * target is crossed from all round the compass. EVERY zip is its own LINE through the target (the orientations sit a
+ * sixteenth of a turn or more apart), so each one visibly crosses the ones before it. Owner 2026-09-29: "the first few
+ * hits of the bleed dont have the crossing lines": the first list swept the same line twice (right-left then
+ * left-right, and each diagonal both ways), so the early zips drew over each other and read as missing.
+ */
+export const ZIP_TURNS: readonly number[] = [
+  Math.PI / 2, Math.PI / 4 + Math.PI, -Math.PI / 4, (3 * Math.PI) / 8 + Math.PI, (-3 * Math.PI) / 8, Math.PI / 8 + Math.PI, -Math.PI / 8,
+  (5 * Math.PI) / 16 + Math.PI, (-5 * Math.PI) / 16, (3 * Math.PI) / 16 + Math.PI, (-3 * Math.PI) / 16,
+];
+
+/** A line's orientation (its direction folded into [0, PI)): two zips on the same line share it. */
+export const lineOrientation = (angle: number): number => { const o = angle % Math.PI; return o < 0 ? o + Math.PI : o; };
+
+/** Every zip's line through the struck hero, `span` px long, crossing it half-way. Zip 1 swings from the striker. Pure. */
+export function zipGeos(p: BleedPlan, a: Pt, d: Pt, span: number): MegaGeo[] {
+  const s = Math.max(1, span);
+  const first = megaGeo(a, d, s);
+  return p.zips.map((_, i) => {
+    if (i === 0) return first;
+    const angle = first.angle + ZIP_TURNS[(i - 1) % ZIP_TURNS.length]!;
+    const dir = { x: Math.cos(angle), y: Math.sin(angle) };
+    return { from: { x: d.x - dir.x * s / 2, y: d.y - dir.y * s / 2 }, to: { x: d.x + dir.x * s / 2, y: d.y + dir.y * s / 2 }, angle, span: s };
+  });
+}
+
 /** Where the mega-slash's head is at `u` (0..1 of its sweep). Linear: a slash keeps its speed through the target. */
 export function megaPos(m: MegaGeo, u: number): Pt {
   const k = clamp(Number.isFinite(u) ? u : 0, 0, 1);
@@ -707,11 +785,12 @@ const sine = (u: number): number => 0.5 - 0.5 * Math.cos(Math.PI * Math.min(1, M
 /**
  * The camera at sequence time `t` (px in the space the points are in). A small push in on the hero through the ready;
  * a tiny recoil on each swing; a kick ALONG each cut as it lands; on THE impact a punch in and a shake along the last
- * cut. Tier IV instead breathes in with each heartbeat, eases back a little through the wind-up (room for the swing),
- * and the nova punches hardest with a shake that rings both ways. `cuts` are each slash's cut direction (unit), in
- * plan order. Deterministic (sines and springs): a replay moves identically. Pure.
+ * cut. Tier IV instead breathes in with each heartbeat, eases back through the wind-up, WHIPS along every zip (a kick
+ * down its line and a small zoom pulse), creeps in with a growing tremor through the held tension, and the explosion
+ * punches hardest of anything, with a shake that rings both ways. `cuts` are each slash's cut direction and `zipDirs`
+ * each zip's (unit), in plan order. Deterministic (sines and springs): a replay moves identically. Pure.
  */
-export function bleedCameraAt(p: BleedPlan, c: HeroBleedConfig, t: number, dir: Pt = { x: 1, y: 0 }, cuts: readonly Pt[] = []): { zoom: number; x: number; y: number } {
+export function bleedCameraAt(p: BleedPlan, c: HeroBleedConfig, t: number, dir: Pt = { x: 1, y: 0 }, cuts: readonly Pt[] = [], zipDirs: readonly Pt[] = []): { zoom: number; x: number; y: number } {
   if (p.reduced) return { zoom: 1, x: 0, y: 0 };
   let z = 0;
   if (t >= p.chargeAt && t < p.impactAt) {
@@ -719,10 +798,12 @@ export function bleedCameraAt(p: BleedPlan, c: HeroBleedConfig, t: number, dir: 
     if (p.hemorrhage) {
       for (const b of p.beats) if (t >= b) z += p.zoom * 0.7 * Math.max(0, springAt(t - b, 3, 120));
       if (t >= p.windAt) z -= p.zoom * 0.45 * sine((t - p.windAt) / Math.max(1, p.megaAt - p.windAt));
+      for (const zp of p.zips) if (t >= zp.hitAt) z += p.zoom * 0.35 * Math.max(0, springAt(t - zp.hitAt, 4, 70));
+      if (t >= p.tensionAt) z += p.zoom * 1.1 * sine((t - p.tensionAt) / Math.max(1, p.impactAt - p.tensionAt));
     }
   } else if (t >= p.impactAt) {
     const since = t - p.impactAt;
-    z += (p.zoom * (p.hemorrhage ? 2.3 : 1) + p.punch) * Math.exp(-since / Math.max(1, c.zoomOutMs / 4));
+    z += (p.zoom * (p.hemorrhage ? 3.2 : 1) + p.punch) * Math.exp(-since / Math.max(1, c.zoomOutMs / (p.hemorrhage ? 3 : 4)));
   }
   const perp = { x: -dir.y, y: dir.x };
   let x = 0, y = 0;
@@ -735,17 +816,27 @@ export function bleedCameraAt(p: BleedPlan, c: HeroBleedConfig, t: number, dir: 
     y += v.y * amp * s + v.x * across;
   };
   p.slashes.forEach((s) => kick(s.swingAt, -p.shakePx * 0.1, 40, 14, dir));
-  p.hits.forEach((at, i) => {
+  let n = 0;
+  for (const at of p.hits) {
     const idx = p.slashes.findIndex((s) => s.arriveAt === at);
-    kick(at, p.shakePx * (0.3 + 0.04 * i), 40, 18, cuts[idx] ?? dir);
-  });
+    if (idx < 0) continue;
+    kick(at, p.shakePx * (0.3 + 0.04 * n++), 40, 18, cuts[idx] ?? dir);
+  }
   if (p.hemorrhage) {
     p.beats.forEach((b, i) => kick(b, p.shakePx * 0.16, 50, 12, i % 2 ? perp : dir));
+    // The whip: every zip snaps the view down its own line (harder as they speed up).
+    p.zips.forEach((zp, i) => kick(zp.hitAt, p.shakePx * (0.4 + 0.03 * i), 45, 14, zipDirs[i] ?? dir));
+    if (t >= p.tensionAt && t < p.impactAt) {
+      const u = (t - p.tensionAt) / Math.max(1, p.impactAt - p.tensionAt);
+      const a = p.shakePx * 0.14 * u * u;
+      x += a * Math.sin(t * 0.13);
+      y += a * Math.sin(t * 0.17 + 1.3);
+    }
     const age = t - p.impactAt;
     if (age >= 0) {
-      const env = Math.exp(-age / Math.max(1, c.shakeMs / 4));
-      x += p.shakePx * 0.8 * env * Math.sin(age * 0.105 + 0.5);
-      y += p.shakePx * env * Math.cos(age * 0.093);
+      const env = Math.exp(-age / Math.max(1, c.shakeMs / 3));
+      x += p.shakePx * 1.1 * env * Math.sin(age * 0.105 + 0.5);
+      y += p.shakePx * 1.3 * env * Math.cos(age * 0.093);
     }
     p.booms.forEach((at, i) => kick(at, p.shakePx * 0.22, 45, 18, i % 2 ? perp : dir));
   } else {

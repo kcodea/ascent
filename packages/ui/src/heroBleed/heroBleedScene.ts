@@ -79,15 +79,17 @@ export interface BleedLook {
   dripMs: number;
   stainAlpha: number;
   stainMs: number;
-  /** Spatter landing round the portrait after the nova. */
+  /** Spatter landing round the portrait after the explosion. */
   spatter: number;
   megaWidth: number;
   megaSize: number;
   novaSize: number;
+  /** Tier IV: the bloody explosion's scale (on top of the nova size). */
+  explosionSize: number;
 }
 
-/** Hard cap on sprites alive at once (a Tier IV nova peaks around 260). */
-export const MAX_BLEED_SPRITES = 700;
+/** Hard cap on sprites alive at once (the Tier IV explosion, with every zip's wound still open, peaks around 450). */
+export const MAX_BLEED_SPRITES = 1000;
 
 type LayerId = 'stain' | 'glow' | 'body' | 'core';
 const LAYERS: readonly [LayerId, 'normal' | 'add'][] = [['stain', 'normal'], ['glow', 'add'], ['body', 'normal'], ['core', 'add']];
@@ -123,7 +125,7 @@ interface Wound {
   age: number; drawMs: number;
   /** Ms since the heartbeat flared it (-1 = never). */
   pulse: number;
-  /** Ms since the nova ripped it open (-1 = not yet). */
+  /** Ms since the explosion ripped it open (-1 = not yet). */
   rip: number;
   /** Ms into the close (-1 = open). */
   fade: number;
@@ -165,6 +167,8 @@ interface Charge { ring: Sprite; glint: Sprite; blade: Sprite; x: number; y: num
 
 interface Wind { glow: Sprite; body: Sprite; core: Sprite; bloom: Sprite; hx: number; hy: number; heading: number; age: number; dur: number; releasing: number }
 
+interface Tension { core: Sprite; ring: Sprite; x: number; y: number; r: number; age: number; dur: number; pulseAcc: number }
+
 interface Mega {
   m: MegaGeo; age: number; dur: number;
   glow: Sprite; body: Sprite; core: Sprite; ghosts: Sprite[];
@@ -184,7 +188,8 @@ export class HeroBleedScene {
   private particles: Particle[] = [];
   private charge: Charge | null = null;
   private wind: Wind | null = null;
-  private mega: Mega | null = null;
+  private megas: Mega[] = [];
+  private tensionS: Tension | null = null;
   private warm: Sprite[] = [];
   private warmLeft = 0;
   private destroyed = false;
@@ -212,7 +217,7 @@ export class HeroBleedScene {
     this.sick = mixColor(colors.blood, colors.deep, 0.35);
     this.lip = mixColor(colors.blood, colors.bright, 0.45);
     // PRE-WARM: one near-invisible sprite per texture for the first few hundred ms (the damage formation is still
-    // playing), so every texture is on the GPU long before the first cut or the nova needs it (no first-play spike).
+    // playing), so every texture is on the GPU long before the first cut or the explosion needs it (no first-play spike).
     const t = tex;
     for (const w of [t.glow, t.ring, t.streak, t.star, t.crescent, t.crescentGlow, t.seam, t.seamSoft, t.gash, t.gashLip, t.drip, t.drop, t.splat, t.splat2, t.spray, t.disc, t.shock]) {
       const s = this.take('core', w, 0xffffff);
@@ -227,7 +232,9 @@ export class HeroBleedScene {
   get liveDrips(): number { return this.drips.length; }
   get charging(): boolean { return this.charge !== null; }
   get winding(): boolean { return this.wind !== null; }
-  get sweeping(): boolean { return this.mega !== null; }
+  get sweeping(): boolean { return this.megas.length > 0; }
+  get liveZips(): number { return this.megas.length; }
+  get tense(): boolean { return this.tensionS !== null; }
   get pooledSprites(): number { let n = 0; for (const [id] of LAYERS) n += this.layers[id].children.length; return n; }
 
   /** Mirror the DOM camera: zoom `z` about the origin with offset `(ax, ay)` already folded in. */
@@ -368,25 +375,28 @@ export class HeroBleedScene {
    * and a wound opens where it has passed. `bold` > 1 for the impact.
    */
   private cutLines(g: SlashGeo, bold: number, spray: number): void {
-    const S = this.scale;
     g.lines.forEach((ln, j) => {
       const len = Math.hypot(ln.to.x - ln.from.x, ln.to.y - ln.from.y) || 1;
-      const angle = Math.atan2(ln.to.y - ln.from.y, ln.to.x - ln.from.x);
       // A claw rake's lines draw a hair apart (a rake, not one stamp).
       const lag = g.lines.length > 1 ? Math.abs(j - (g.lines.length - 1) / 2) * 18 : 0;
-      const parts = this.takeAll([
-        ['core', this.tex.seam, whiten(this.colors.core, 1)], ['glow', this.tex.seamSoft, this.colors.bright], ['core', this.tex.glow, this.colors.core],
-        ['stain', this.tex.gash, this.colors.deep], ['body', this.tex.gashLip, this.lip],
-      ]);
-      if (!parts) return;
-      const [seam, bloom, tip, gash, lip] = parts as [Sprite, Sprite, Sprite, Sprite, Sprite];
-      for (const s of [seam, bloom, gash, lip]) { s.anchor.set(0, 0.5); s.rotation = angle; s.alpha = 0; }
-      tip.alpha = 0;
-      const drawMs = g.drawMs * (0.85 + 0.15 * len / Math.max(1, g.len));
-      const n = spray / g.lines.length;
-      this.cuts.push({ from: ln.from, to: ln.to, angle, len, age: -lag, drawMs, seam, bloom, tip, bold, sprayLeft: n, sprayAcc: 0, sprayRate: n / Math.max(1, drawMs) });
-      this.wounds.push({ x: ln.from.x, y: ln.from.y, angle, len, w: this.look.gashWidth * S * (0.85 + 0.25 * bold) * (g.lines.length > 1 ? 0.8 : 1), gash, lip, age: -lag, drawMs, pulse: -1, rip: -1, fade: -1 });
+      this.addCut(ln.from, ln.to, g.drawMs * (0.85 + 0.15 * len / Math.max(1, g.len)), bold, spray / g.lines.length, lag, g.lines.length > 1 ? 0.8 : 1);
     });
+  }
+
+  /** One cut line: the seam that draws from `from` to `to` over `drawMs` (after `lag`), and the wound it opens. */
+  private addCut(from: Pt, to: Pt, drawMs: number, bold: number, spray: number, lag: number, widthMul: number): void {
+    const len = Math.hypot(to.x - from.x, to.y - from.y) || 1;
+    const angle = Math.atan2(to.y - from.y, to.x - from.x);
+    const parts = this.takeAll([
+      ['core', this.tex.seam, whiten(this.colors.core, 1)], ['glow', this.tex.seamSoft, this.colors.bright], ['core', this.tex.glow, this.colors.core],
+      ['stain', this.tex.gash, this.colors.deep], ['body', this.tex.gashLip, this.lip],
+    ]);
+    if (!parts) return;
+    const [seam, bloom, tip, gash, lip] = parts as [Sprite, Sprite, Sprite, Sprite, Sprite];
+    for (const sp of [seam, bloom, gash, lip]) { sp.anchor.set(0, 0.5); sp.rotation = angle; sp.alpha = 0; }
+    tip.alpha = 0;
+    this.cuts.push({ from, to, angle, len, age: -lag, drawMs, seam, bloom, tip, bold, sprayLeft: spray, sprayAcc: 0, sprayRate: spray / Math.max(1, drawMs) });
+    this.wounds.push({ x: from.x, y: from.y, angle, len, w: this.look.gashWidth * this.scale * (0.85 + 0.25 * bold) * widthMul, gash, lip, age: -lag, drawMs, pulse: -1, rip: -1, fade: -1 });
   }
 
   /**
@@ -482,11 +492,11 @@ export class HeroBleedScene {
   }
 
   /**
-   * Tier IV's MEGA-SLASH: one huge crescent sweeps the whole line `m` (it crosses the target half-way), a white seam
-   * drawn behind it with a crimson bloom and a dark split beside it, lingering a moment after.
+   * Tier IV's MEGA-SLASH, one ZIP of it: a huge crescent sweeps the whole line `m` (it crosses the target half-way), a
+   * white seam drawn behind it with a crimson bloom and a dark split beside it, lingering a moment after. Zips overlap
+   * freely once they speed up.
    */
   startMega(m: MegaGeo, durMs: number): void {
-    if (this.mega) return;
     const wd = this.wind;
     if (wd && wd.releasing < 0) wd.releasing = 0;
     const c = this.colors;
@@ -501,64 +511,135 @@ export class HeroBleedScene {
     for (const s of [glow, body, core, ...ghosts]) s.anchor.set(LEAD, 0.5);
     for (const s of [seam, bloom, split]) { s.anchor.set(0, 0.5); s.rotation = m.angle; }
     for (const s of parts) s.alpha = 0;
-    this.mega = { m, age: 0, dur: Math.max(1, durMs), glow, body, core, ghosts, seam, bloom, split };
+    this.megas.push({ m, age: 0, dur: Math.max(1, durMs), glow, body, core, ghosts, seam, bloom, split });
   }
 
   /**
-   * TIER IV's BLOOD NOVA, as the mega-slash crosses the target: every wound RIPS open, a flash, a crimson shockwave (a
-   * dark band leading, crimson light inside it), big splats, arterial streaks all round, blood thrown out in arcs that
-   * fall, spatter landing round the portrait, and a STAIN over the face that holds and drips.
+   * A zip crosses the target (a tick): a fresh gash straight across the face along the zip's line (offset a little
+   * each time, so the face fills with them), blood flung down the line both ways, a spatter fan, a flash and a pulse.
    */
-  nova(x: number, y: number, radius: number, m: MegaGeo | null, o: { burst: number; drops: number; drips: number; flashAlpha: number }): void {
+  zipCut(angle: number, x: number, y: number, radius: number, i: number): void {
+    const c = this.colors;
+    const dir = { x: Math.cos(angle), y: Math.sin(angle) };
+    const off = (((i * 0.618) % 1) - 0.5) * 0.7 * radius;
+    const cx = x - dir.y * off, cy = y + dir.x * off;
+    const half = radius * 0.78;
+    this.addCut({ x: cx - dir.x * half, y: cy - dir.y * half }, { x: cx + dir.x * half, y: cy + dir.y * half }, 45, 1.15, this.look.spray * 0.8, 0, 0.85);
+    this.sprayDecal(cx + dir.x * half, cy + dir.y * half, angle, 1 + 0.05 * i, 700);
+    this.fxs('core', this.tex.glow, c.core, cx, cy, { dur: 110, from: 0.4, to: 1.1, a0: 0.7, follow: true });
+    this.fxs('glow', this.tex.glow, c.bright, cx, cy, { dur: 180, from: 0.6, to: 1.5, a0: 0.3, follow: true });
+    this.droplets(cx + dir.x * half * 0.5, cy + dir.y * half * 0.5, this.look.tickDrops, 700, { dir: angle, spread: 0.7, life: 520, size: 0.45, lift: 80 });
+    this.droplets(cx - dir.x * half * 0.3, cy - dir.y * half * 0.3, Math.round(this.look.tickDrops * 0.5), 420, { dir: angle + Math.PI, spread: 0.9, life: 420, size: 0.38, lift: 60 });
+    this.tintPulse(x, y, radius, 0.45, 220);
+  }
+
+  /**
+   * Tier IV: the held tension before the explosion (never a freeze). The wounds pulse faster and faster, blood is drawn
+   * in to the heart of the face, a crimson core swells there and a ring tightens round it.
+   */
+  tension(x: number, y: number, radius: number, durMs: number): void {
+    if (this.tensionS) return;
+    const parts = this.takeAll([['glow', this.tex.glow, this.colors.bright], ['glow', this.tex.shock, this.colors.bright]]);
+    if (!parts) return;
+    const [core, ring] = parts as [Sprite, Sprite];
+    for (const sp of parts) { sp.position.set(x + this.fox, y + this.foy); sp.alpha = 0; }
+    this.tensionS = { core, ring, x, y, r: radius, age: 0, dur: Math.max(1, durMs), pulseAcc: 0 };
+  }
+
+  private updateTension(dt: number): void {
+    const tn = this.tensionS;
+    if (!tn) return;
+    const S = this.scale;
+    tn.age += dt;
+    const u = clamp01(tn.age / tn.dur);
+    const cx = tn.x + this.fox, cy = tn.y + this.foy;
+    const throb = 1 + 0.08 * Math.sin(tn.age * (0.02 + 0.06 * u));
+    tn.core.position.set(cx, cy); tn.core.scale.set((0.4 + 1.8 * u * u) * throb * S); tn.core.alpha = 0.15 + 0.55 * u;
+    tn.ring.position.set(cx, cy); tn.ring.scale.set(((tn.r * 2) / SHOCK_PX) * (2.4 - 1.3 * easeOutCubic(u))); tn.ring.alpha = 0.5 * Math.min(1, u * 3);
+    // The wounds throb, faster and faster; blood is drawn in to the middle on every throb.
+    tn.pulseAcc += dt;
+    const every = 170 * (1 - 0.6 * u);
+    if (tn.pulseAcc >= every) {
+      tn.pulseAcc = 0;
+      for (const w of this.wounds) w.pulse = 0;
+      for (let j = 0; j < 5; j++) {
+        const a = this.rnd() * Math.PI * 2, r = tn.r * (1.1 + this.rnd() * 0.7);
+        const life = 160 + this.rnd() * 80, sp = r / (life / 1000);
+        this.particle('body', this.tex.drop, j % 2 ? this.colors.bright : this.colors.blood, {
+          x: cx + Math.cos(a) * r, y: cy + Math.sin(a) * r, vx: -Math.cos(a) * sp, vy: -Math.sin(a) * sp, drag: 1, grav: 0,
+          life, from: 0.4 * S, to: 0.15 * S, alpha: 1, align: true,
+        });
+      }
+    }
+  }
+
+  /**
+   * TIER IV's BLOODY EXPLOSION, the biggest thing in the attack roster: every wound RIPS open; a white-red flash core
+   * and a crimson wash over the screen; FIVE shockwave rings one after another (dark bands and crimson light
+   * alternating); a huge stain over the face; arterial streaks all round; blood thrown HIGH so it rains down over much
+   * of the screen; spatter landing on the board out to the edges; and the stain drips.
+   */
+  explode(x: number, y: number, radius: number, m: MegaGeo | null, o: { burst: number; drops: number; drips: number; flashAlpha: number; toward?: number }): void {
+    const tn = this.tensionS;
+    if (tn) { this.give(tn.core); this.give(tn.ring); this.tensionS = null; }
     const c = this.colors;
     const S = this.scale;
     const L = this.look;
-    const fs = o.burst * L.novaSize;
+    const E = L.explosionSize * L.novaSize;
+    const fs = o.burst * E;
     const portrait = (radius * 2) / GLOW_PX / S;
     const shock = (radius * 2) / SHOCK_PX / S;
     for (const w of this.wounds) w.rip = 0;
-    this.fxs('core', this.tex.glow, c.core, x, y, { dur: 120, from: portrait * 1.1, to: portrait * 1.4, a0: 0.7 * o.flashAlpha, follow: true });
-    this.fxs('core', this.tex.glow, c.core, x, y, { dur: 160, from: 1.1 * fs, to: Math.min(4.5, 2.4 * fs), a0: o.flashAlpha });
-    this.fxs('glow', this.tex.glow, c.bright, x, y, { dur: 240, from: 1.3 * fs, to: Math.min(4.2, 2.6 * fs), a0: 0.3 * o.flashAlpha });
-    this.fxs('stain', this.tex.shock, c.deep, x, y, { dur: 620, from: shock * 0.6, to: shock * 3.8 * L.novaSize, a0: 0.8 });
-    this.fxs('glow', this.tex.shock, c.bright, x, y, { dur: 460, from: shock * 0.45, to: shock * 2.9 * L.novaSize, a0: 0.6 });
-    this.fxs('glow', this.tex.ring, c.core, x, y, { dur: 280, from: 0.3, to: 2.2 * L.novaSize, a0: 0.55 });
-    // The STAIN: a big splat over the face that holds, then fades.
+    // The flash core and the crimson wash.
+    this.fxs('core', this.tex.glow, c.core, x, y, { dur: 170, from: portrait * 1.2, to: portrait * 2.2, a0: 0.95 * o.flashAlpha, follow: true });
+    this.fxs('core', this.tex.glow, c.core, x, y, { dur: 220, from: 1.4 * fs, to: Math.min(7, 3.2 * fs), a0: o.flashAlpha });
+    this.fxs('glow', this.tex.glow, c.bright, x, y, { dur: 420, from: 3 * fs, to: Math.min(16, 7 * fs), a0: 0.32 * o.flashAlpha });
+    // FIVE shockwaves, one after another.
+    for (let j = 0; j < 5; j++) {
+      const dark = j % 2 === 0;
+      this.fxs(dark ? 'stain' : 'glow', this.tex.shock, dark ? c.deep : c.bright, x, y, {
+        dur: 560 + 110 * j, from: shock * 0.5, to: shock * (3.2 + 1.7 * j) * E, a0: dark ? 0.75 : 0.65, delay: j * 75,
+      });
+    }
+    this.fxs('glow', this.tex.ring, c.core, x, y, { dur: 300, from: 0.3, to: 3 * E, a0: 0.7 });
+    // The STAIN: huge, over the face, held, then fading.
     const st = this.fxs('stain', this.tex.splat, mixColor(c.blood, c.deep, 0.45), x, y, {
-      dur: L.stainMs, from: (radius * 1.2) / 128 / S, to: (radius * 1.7) / 128 / S, a0: L.stainAlpha, mode: 'hold', follow: true,
+      dur: L.stainMs, from: (radius * 1.4) / 128 / S, to: (radius * 2.3) / 128 / S, a0: L.stainAlpha, mode: 'hold', follow: true,
     });
     if (st) st.s.rotation = this.rnd() * Math.PI * 2;
-    const st2 = this.fxs('stain', this.tex.splat2, c.blood, x, y, { dur: L.stainMs * 0.8, from: (radius * 0.8) / 128 / S, to: (radius * 1.2) / 128 / S, a0: L.stainAlpha * 0.8, mode: 'hold', follow: true });
+    const st2 = this.fxs('stain', this.tex.splat2, c.blood, x, y, { dur: L.stainMs * 0.85, from: (radius * 0.9) / 128 / S, to: (radius * 1.6) / 128 / S, a0: L.stainAlpha * 0.85, mode: 'hold', follow: true });
     if (st2) st2.s.rotation = this.rnd() * Math.PI * 2;
-    // Arterial streaks all round, weighted along the mega-slash.
+    // Arterial streaks all round.
     const along = m ? m.angle : 0;
-    for (let s = 0; s < 11; s++) {
-      const a = (s / 11) * Math.PI * 2 + (this.rnd() - 0.5) * 0.4;
-      const w = m ? 0.75 + 0.5 * Math.abs(Math.cos(a - along)) : 1;
-      const len = (0.7 + this.rnd() * 0.6) * fs * 0.6 * w;
-      const f = this.fxs('core', this.tex.streak, s % 2 ? c.bright : c.core, x + Math.cos(a) * 60 * S * len, y + Math.sin(a) * 60 * S * len, { dur: 260, from: 2.2 * len, to: 3.8 * len, a0: 0.85, sy: 0.24 });
+    for (let k = 0; k < 18; k++) {
+      const a = (k / 18) * Math.PI * 2 + (this.rnd() - 0.5) * 0.3;
+      const len = (0.8 + this.rnd() * 0.7) * fs * 0.55;
+      const f = this.fxs('core', this.tex.streak, k % 2 ? c.bright : c.core, x + Math.cos(a) * 70 * S * len, y + Math.sin(a) * 70 * S * len, { dur: 300, from: 2.4 * len, to: 4.4 * len, a0: 0.9, sy: 0.24 });
       if (f) f.s.rotation = a;
     }
-    // BLOOD thrown out in arcs that fall: most along the slash (both ways), the rest all round.
-    this.droplets(x, y, Math.round(o.drops * 0.3), 950, { dir: along, spread: 0.9, life: 900, size: 0.62, lift: 380 });
-    this.droplets(x, y, Math.round(o.drops * 0.3), 950, { dir: along + Math.PI, spread: 0.9, life: 900, size: 0.62, lift: 380 });
-    this.droplets(x, y, Math.round(o.drops * 0.4), 560, { life: 800, size: 0.46, lift: 260 });
-    // SPATTER landing round the portrait (flung: the farther, the later), held a moment on the board.
-    const n = Math.max(0, Math.round(L.spatter));
+    // BLOOD: thrown HIGH and out over the board (toward the middle of the screen) so it rains down across it, a burst
+    // all round, and a heavy spray along the last zip.
+    const toward = o.toward ?? Math.PI;
+    this.droplets(x, y, Math.round(o.drops * 0.4), 1500 * E, { dir: toward, spread: 1.9, life: 1800, size: 1.05, lift: 1000 * E });
+    this.droplets(x, y, Math.round(o.drops * 0.35), 900 * E, { life: 1100, size: 0.8, lift: 380 });
+    this.droplets(x, y, Math.round(o.drops * 0.25), 1100 * E, { dir: along, spread: 1.2, life: 1000, size: 0.6, lift: 300 });
+    // SPATTER on the board, out toward the edges (the farther, the later).
+    const n = Math.max(0, Math.round(L.spatter * 2.2));
     for (let i = 0; i < n; i++) {
-      const a = (i % 2 ? along : along + Math.PI) + (this.rnd() - 0.5) * 1.6;
-      const r = radius * (1.25 + this.rnd() * 1.1);
-      const f = this.fxs('stain', i % 3 ? this.tex.splat2 : this.tex.spray, mixColor(c.blood, c.deep, 0.25), x + Math.cos(a) * r, y + Math.sin(a) * r, {
-        dur: 900 + this.rnd() * 500, from: 0.1, to: 0.22 + this.rnd() * 0.12, a0: 0.85, mode: 'hold', delay: 60 + (r / radius) * 70,
+      const a = i % 3 === 2 ? this.rnd() * Math.PI * 2 : toward + (this.rnd() - 0.5) * 1.8;
+      const r = radius * (1.3 + Math.pow(this.rnd(), 0.8) * 6 * E);
+      const sp = i % 3 === 0;
+      const f = this.fxs('stain', sp ? this.tex.spray : i % 2 ? this.tex.splat2 : this.tex.splat, mixColor(c.blood, c.deep, 0.25), x + Math.cos(a) * r, y + Math.sin(a) * r, {
+        dur: 1400 + this.rnd() * 800, from: 0.16, to: 0.32 + this.rnd() * 0.3, a0: 0.88, mode: 'hold', delay: 60 + (r / radius) * 55,
       });
-      if (f) f.s.rotation = f.s.texture === this.tex.spray ? a : this.rnd() * Math.PI * 2;
+      if (f) f.s.rotation = sp ? a : this.rnd() * Math.PI * 2;
     }
-    this.tintPulse(x, y, radius, 1.25, 700);
-    // The stain drips.
-    this.dripsFrom(x, y, radius, o.drips, 160, true);
+    this.tintPulse(x, y, radius, 1.6, 900);
+    // The stain drips, a lot.
+    this.dripsFrom(x, y, radius, o.drips, 140, true);
   }
 
-  /** An arterial spurt after the nova (IV): a small splat, a streak, a ring and a flick of droplets upward. */
+  /** An arterial spurt after the explosion (IV): a small splat, a streak, a ring and a flick of droplets upward. */
   spurt(x: number, y: number, size: number, angle: number): void {
     const f = this.fxs('stain', this.tex.splat2, this.colors.blood, x, y, { dur: 420, from: 0.1 * size, to: 0.32 * size, a0: 0.9, mode: 'hold', follow: true });
     if (f) f.s.rotation = this.rnd() * Math.PI * 2;
@@ -582,7 +663,7 @@ export class HeroBleedScene {
     }
   }
 
-  /** Drips from across the upper face (the nova's stain, or a bleed with no wounds left). */
+  /** Drips from across the upper face (the explosion's stain, or a bleed with no wounds left). */
   private dripsFrom(x: number, y: number, radius: number, n: number, delay0: number, wide: boolean): void {
     for (let i = 0; i < n; i++) {
       const sx = x + (this.rnd() - 0.5) * radius * (wide ? 1.3 : 0.9);
@@ -621,7 +702,8 @@ export class HeroBleedScene {
 
     this.updateCharge(dt);
     this.updateWind(dt);
-    this.updateMega(dt);
+    for (let i = this.megas.length - 1; i >= 0; i--) if (!this.updateMega(this.megas[i]!, dt)) this.megas.splice(i, 1);
+    this.updateTension(dt);
 
     for (let i = this.waves.length - 1; i >= 0; i--) {
       const w = this.waves[i]!;
@@ -746,9 +828,8 @@ export class HeroBleedScene {
     if (wd.releasing >= 150) { for (const s of [wd.glow, wd.body, wd.core, wd.bloom]) this.give(s); this.wind = null; }
   }
 
-  private updateMega(dt: number): void {
-    const mg = this.mega;
-    if (!mg) return;
+  /** Pose one zip. False once it has lingered out (its sprites given back). */
+  private updateMega(mg: Mega, dt: number): boolean {
     const S = this.scale;
     const L = this.look;
     mg.age += dt;
@@ -777,8 +858,9 @@ export class HeroBleedScene {
     mg.split.scale.set(drawn / SEAM_W, (L.megaWidth * S * 1.4 * thin) / SEAM_H); mg.split.alpha = 0.55 * (1 - linger);
     if (linger >= 1) {
       for (const s of [mg.glow, mg.body, mg.core, mg.seam, mg.bloom, mg.split, ...mg.ghosts]) this.give(s);
-      this.mega = null;
+      return false;
     }
+    return true;
   }
 
   /** Pose one crescent: in flight (turning to the cut), running through the face, then fading. False when gone. */
@@ -879,9 +961,10 @@ export class HeroBleedScene {
     for (const s of this.warm) this.give(s);
     if (this.charge) for (const s of [this.charge.ring, this.charge.glint, this.charge.blade]) this.give(s);
     if (this.wind) for (const s of [this.wind.glow, this.wind.body, this.wind.core, this.wind.bloom]) this.give(s);
-    if (this.mega) { const m = this.mega; for (const s of [m.glow, m.body, m.core, m.seam, m.bloom, m.split, ...m.ghosts]) this.give(s); }
+    for (const m of this.megas) for (const s of [m.glow, m.body, m.core, m.seam, m.bloom, m.split, ...m.ghosts]) this.give(s);
+    if (this.tensionS) { this.give(this.tensionS.core); this.give(this.tensionS.ring); }
     this.waves = []; this.cuts = []; this.wounds = []; this.drips = []; this.fx = []; this.particles = []; this.warm = [];
-    this.charge = null; this.wind = null; this.mega = null;
+    this.charge = null; this.wind = null; this.megas = []; this.tensionS = null;
   }
 
   /** Tear down: every sprite destroyed, the root emptied and destroyed. Textures are the caller's. */

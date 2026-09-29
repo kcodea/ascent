@@ -6,7 +6,7 @@
  * pure plan (the total is the engine's number, the cut rhythm, the impact beat, the heartbeat and the mega-slash at IV,
  * reduced motion, determinism); the pure geometry (crescents from the attacker's rim, cuts across the struck face, the
  * cross, the rake, mirrored for a foe, the mega-slash through the target); the camera; the runner on the shared clock
- * (the consequence lands exactly ONCE, on the last cut or the nova, never on a tick; both directions; slow motion;
+ * (the consequence lands exactly ONCE, on the last cut or the explosion, never on a tick or a zip; both directions; slow motion;
  * replay; finish / cancel; cleanup; wounds ride the knockback); the headless scene (pooled, bounded, drains, destroy
  * leaves nothing); and the cosmetic resolution (the other styles unchanged).
  */
@@ -18,7 +18,7 @@ import { HERO_BLAST_DEFAULTS, blastPlan } from '../heroBlast/heroBlastConfig';
 import { HERO_POISON_DEFAULTS, poisonPlan } from '../heroPoison/heroPoisonConfig';
 import { DEV_HERO_ATTACK_CHOICES, HERO_ATTACK_STYLES, resolveHeroAttackStyle, styleOfCosmetic } from '../heroBlast/heroAttackStyle';
 import {
-  AVOID_SHIFT, BLEED_CAPS, HERO_BLEED_DEFAULTS, MEGA_TILT, HERO_BLEED_RANGES, bleedCameraAt, bleedCameraFocus, bleedCues, bleedFlightMs, bleedPlan,
+  AVOID_SHIFT, BLEED_CAPS, HERO_BLEED_DEFAULTS, MEGA_TILT, ZIP_TURNS, lineOrientation, zipGeos, HERO_BLEED_RANGES, bleedCameraAt, bleedCameraFocus, bleedCues, bleedFlightMs, bleedPlan,
   clampHeroBleedValue, heroBleedConfigJson, megaGeo, megaPos, sanitizeHeroBleedConfig, slashGeos, waveEase, wavePos,
   type HeroBleedConfig, type HeroBleedNumKey,
 } from './heroBleedConfig';
@@ -37,7 +37,7 @@ const plan = (values: number[], total: number, distance = 1600, reduced = false)
 const COLORS = { core: 0xfff1ec, bright: 0xff2d3c, blood: 0xb3001b, deep: 0x3d0009, side: 0xff4757 };
 const LOOK = {
   waveSize: 1, waveGlow: 0.75, afterimages: 3, afterMs: 22, seamWidth: 9, gashWidth: 15, spray: 10, tickDrops: 8, tint: 0.3,
-  gravity: 1300, dripMs: 900, stainAlpha: 0.7, stainMs: 1300, spatter: 9, megaWidth: 22, megaSize: 2.4, novaSize: 1,
+  gravity: 1300, dripMs: 900, stainAlpha: 0.7, stainMs: 1300, spatter: 9, megaWidth: 22, megaSize: 2.4, novaSize: 1, explosionSize: 1.6,
 };
 const A = { x: 200, y: 850 }, D = { x: 1500, y: 180 };
 const R = 80;
@@ -90,8 +90,8 @@ describe('the tuner values', () => {
     expect(clampHeroBleedValue('sfxSwingClip', '  fx/x  ')).toBe('fx/x');
     expect(clampHeroBleedValue('nope' as keyof HeroBleedConfig, 1)).toBeUndefined();
     expect(clampHeroBleedValue('toString' as keyof HeroBleedConfig, 1)).toBeUndefined();
-    const s = sanitizeHeroBleedConfig({ t4Drops: 400, colorCore: 'x', bogus: 3 });
-    expect(s.t4Drops).toBe(80);
+    const s = sanitizeHeroBleedConfig({ t4Drops: 999, colorCore: 'x', bogus: 3 });
+    expect(s.t4Drops).toBe(160);
     expect(s.colorCore).toBe(C.colorCore);
     expect('bogus' in s).toBe(false);
     expect(sanitizeHeroBleedConfig('junk')).toEqual(C);
@@ -152,22 +152,45 @@ describe('the plan', () => {
     expect(P1.slashes[0]!.angle).toBeLessThan(1.2);
   });
 
-  it('Tier IV: EVERY rake is a tick; then the heartbeats, the wind-up, the mega-slash, and the NOVA is the impact (the one consequence)', () => {
+  it('Tier IV: EVERY rake and EVERY zip is a tick; heartbeats, the wind-up, EIGHT zips, the held tension, and the EXPLOSION is the impact (the one consequence)', () => {
     const kinds = bleedCues(P4).map((q) => q.kind);
     expect(kinds.filter((k) => k === 'hit')).toHaveLength(3);
     expect(kinds.filter((k) => k === 'beat')).toHaveLength(C.beats);
+    expect(C.zips).toBe(8); // the owner's "do 8 zips of the long attack animation"
+    expect(kinds.filter((k) => k === 'zip')).toHaveLength(8);
+    expect(kinds.filter((k) => k === 'zhit')).toHaveLength(8);
     expect(kinds.filter((k) => k === 'impact')).toHaveLength(1);
     expect(kinds).not.toContain('close');
     const at = (k: string): number => kinds.indexOf(k as never);
     expect(kinds.lastIndexOf('hit')).toBeLessThan(at('beat'));
-    expect(at('wind')).toBeLessThan(at('mega'));
-    expect(kinds.lastIndexOf('beat')).toBeLessThan(at('mega'));
-    expect(at('mega')).toBeLessThan(at('impact'));
+    expect(at('wind')).toBeLessThan(at('zip'));
+    expect(kinds.lastIndexOf('beat')).toBeLessThan(at('zip'));
+    expect(kinds.lastIndexOf('zhit')).toBeLessThan(at('tension'));
+    expect(at('tension')).toBeLessThan(at('impact'));
     expect(at('impact')).toBeLessThan(at('boom'));
+    expect(P4.hits).toHaveLength(3 + 8);
+    expect(Math.max(...P4.hits)).toBeLessThan(P4.impactAt);
     expect(P4.beats[0]!).toBeGreaterThan(Math.max(...P4.slashes.map((s) => s.arriveAt)));
     expect(P4.megaAt - P4.windAt).toBe(C.windupMs);
-    // the mega-slash crosses the target exactly half-way through its sweep
-    expect(P4.impactAt).toBe(P4.megaAt + C.megaMs / 2);
+    expect(P4.zips[0]!.at).toBe(P4.megaAt);
+    // every zip crosses the target half-way through its sweep
+    for (const z of P4.zips) expect(z.hitAt).toBeCloseTo(z.at + z.dur / 2, 9);
+    // the held tension, then the explosion
+    expect(P4.impactAt - P4.tensionAt).toBe(C.tensionMs);
+    expect(P4.tensionAt).toBeCloseTo(Math.max(...P4.zips.map((z) => z.at + z.dur)), 9);
+  });
+
+  it('the zips ACCELERATE: every gap and sweep shorter than (or equal to, at the floor) the one before; the first readable, the last a blur', () => {
+    const gaps = P4.zips.slice(1).map((z, i) => z.at - P4.zips[i]!.at);
+    for (let i = 1; i < gaps.length; i++) expect(gaps[i]!).toBeLessThanOrEqual(gaps[i - 1]!);
+    for (let i = 1; i < P4.zips.length; i++) expect(P4.zips[i]!.dur).toBeLessThanOrEqual(P4.zips[i - 1]!.dur);
+    expect(gaps[0]!).toBeGreaterThanOrEqual(250);
+    expect(gaps[gaps.length - 1]!).toBeLessThanOrEqual(80);
+    expect(P4.zips[0]!.dur).toBeGreaterThan(P4.zips[7]!.dur * 3);
+    for (const z of P4.zips) expect(z.dur).toBeGreaterThanOrEqual(C.zipMinMs);
+    // the count is tunable and capped
+    expect(bleedPlan({ total: 40, distance: 1600 }, { ...C, zips: 3 }).zips).toHaveLength(3);
+    expect(bleedPlan({ total: 40, distance: 1600 }, { ...C, zips: 99 }).zips.length).toBeLessThanOrEqual(BLEED_CAPS.zips);
   });
 
   it('every tier escalates: more shake, zoom, droplets, splash, drips and dim', () => {
@@ -181,11 +204,11 @@ describe('the plan', () => {
   it('the shipped per-tier timeline (1600 px apart): first swing, impact and end, ms from the ready', () => {
     const t = (p: ReturnType<typeof plan>): number[] => [Math.round(p.swingAt - p.chargeAt), Math.round(p.impactAt - p.chargeAt), Math.round(p.endAt - p.chargeAt)];
     expect([t(P1), t(P2), t(P3), t(P4)]).toEqual([
-      [300, 530, 1470], [340, 760, 1740], [380, 970, 1990], [420, 1660, 2630],
+      [300, 530, 1470], [340, 760, 1740], [380, 970, 1990], [420, 3059, 4159],
     ]);
-    // Chunky, not rushed, never dragging: Tier I about 1.3 s, Tier IV under 3 s.
+    // Chunky, not rushed, never dragging: Tier I about 1.5 s; Tier IV, the over-the-top one, still under 4.5 s.
     expect(t(P1)[2]).toBeLessThanOrEqual(2000);
-    expect(t(P4)[2]).toBeLessThanOrEqual(3200);
+    expect(t(P4)[2]).toBeLessThanOrEqual(4500);
   });
 
   it('the caps always hold, whatever the sliders say; flight scales gently with distance', () => {
@@ -279,6 +302,28 @@ describe('the geometry', () => {
     expect(megaPos(m, Number.NaN)).toEqual(m.from);
   });
 
+  it('the zips come from all round the compass, alternating sweep direction, each through the target half-way, EVERY one its own crossing line, mirrored for a foe', () => {
+    const span = dist(A, D) * 2.1;
+    const zs = zipGeos(P4, A, D, span);
+    expect(zs).toHaveLength(8);
+    expect(zs[0]).toEqual(megaGeo(A, D, span)); // the first swings from the striker
+    for (const z of zs) expect(dist(megaPos(z, 0.5), D)).toBeLessThan(1e-6);
+    zs.slice(1).forEach((z, i) => expect(z.angle - zs[0]!.angle).toBeCloseTo(ZIP_TURNS[i]!, 9));
+    expect(Math.abs(Math.cos(zs[1]!.angle - zs[0]!.angle))).toBeLessThan(1e-9); // the second crosses the first square: an X
+    expect(zs.some((z) => Math.cos(z.angle) < -0.5) && zs.some((z) => Math.cos(z.angle) > 0.5)).toBe(true); // both ways across
+    // Owner 2026-09-29 ("the first few hits of the bleed dont have the crossing lines"): no two zips on the same line, so
+    // every one, from the very first, draws a NEW line across the ones before it. Both directions.
+    for (const pair of [[A, D], [D, A]] as const) {
+      const orients = zipGeos(P4, pair[0], pair[1], span).map((z) => lineOrientation(z.angle));
+      for (let i = 0; i < orients.length; i++) for (let j = i + 1; j < orients.length; j++) {
+        const d = Math.abs(orients[i]! - orients[j]!);
+        expect(Math.min(d, Math.PI - d), `zips ${i} and ${j}`).toBeGreaterThan(0.35);
+      }
+    }
+    const back = zipGeos(P4, D, A, span);
+    for (const z of back) expect(dist(megaPos(z, 0.5), A)).toBeLessThan(1e-6);
+  });
+
   it('the cuts sit off the big -N (shifted to the far side of the face from it)', () => {
     const hitAt = { x: D.x - 150, y: D.y + 60 };
     const [plain] = slashGeos(P1, A, D, R, R, C);
@@ -300,18 +345,23 @@ describe('the camera', () => {
     expect(Math.abs(rest.x) + Math.abs(rest.y)).toBeLessThan(0.8);
   });
 
-  it('Tier IV breathes in on each heartbeat, eases back through the wind-up, then the nova punches hardest; focus moves from striker to target', () => {
+  it('Tier IV breathes in on each heartbeat, eases back through the wind-up, whips along every zip, creeps in through the tension, then the explosion punches hardest; focus moves from striker to target', () => {
     const b = P4.beats[0]!;
     expect(bleedCameraAt(P4, C, b + 5).zoom).toBeGreaterThan(bleedCameraAt(P4, C, b - 5).zoom);
     expect(bleedCameraAt(P4, C, P4.megaAt - 5).zoom).toBeLessThan(bleedCameraAt(P4, C, P4.windAt).zoom + 1e-9);
-    const nova = bleedCameraAt(P4, C, P4.impactAt + 1);
-    expect(nova.zoom).toBeGreaterThan(bleedCameraAt(P3, C, P3.impactAt + 1).zoom);
+    // it whips along each zip, and creeps in through the held tension
+    const zd = { x: 0, y: 1 };
+    const whip = bleedCameraAt(P4, C, P4.zips[4]!.hitAt + 3, { x: 1, y: 0 }, [], [zd, zd, zd, zd, zd, zd, zd, zd]);
+    expect(whip.y).toBeGreaterThan(P4.shakePx * 0.3);
+    expect(bleedCameraAt(P4, C, P4.impactAt - 5).zoom).toBeGreaterThan(bleedCameraAt(P4, C, P4.tensionAt + 5).zoom);
+    const blast = bleedCameraAt(P4, C, P4.impactAt + 1);
+    expect(blast.zoom).toBeGreaterThan(bleedCameraAt(P3, C, P3.impactAt + 1).zoom);
     expect(bleedCameraFocus(P4, P4.swingAt, A, D)).toEqual(A);
     expect(bleedCameraFocus(P4, P4.beats[0]!, A, D)).toEqual(D);
     expect(bleedCameraAt(P4, C, P4.endAt).zoom).toBeCloseTo(1, 2);
     let peak = 1;
     for (let t = P4.chargeAt; t < P4.endAt; t += 8) peak = Math.max(peak, bleedCameraAt(P4, C, t).zoom);
-    expect(peak).toBeLessThan(1.25); // controlled: never past a gentle push
+    expect(peak).toBeLessThan(1.3); // big, but never past a firm push
   });
 });
 
@@ -381,26 +431,35 @@ describe('the runner (the shared clock)', () => {
     expect(root.children).toHaveLength(0);
   });
 
-  it('Tier IV: three rakes (ticks), the heartbeats, the wind-up, the mega-slash, and the blow lands ONCE on the NOVA', () => {
+  it('Tier IV: three rakes, the heartbeats, EIGHT zips (all ticks), the held tension, and the blow lands ONCE on the EXPLOSION', () => {
     const { h, f, onImpact } = run({ total: 40, formation: formationOf([40], 40) });
     expect(h.plan.hemorrhage).toBe(true);
-    expect(h.mega).not.toBeNull();
+    expect(h.zips).toHaveLength(8);
+    expect(h.mega).toEqual(h.zips[0]);
     f.tick(h.plan.beats[0]! + 20, 4);
     expect(onImpact).not.toHaveBeenCalled();
     expect(h.scene!.liveWounds).toBe(9);
     f.tick(h.plan.windAt - h.elapsed() + 30, 4);
     expect(h.scene!.winding).toBe(true);
-    f.tick(h.plan.megaAt - h.elapsed() + 20, 4);
+    f.tick(h.plan.zips[0]!.hitAt - h.elapsed() + 30, 4);
     expect(h.scene!.sweeping).toBe(true);
+    expect(h.scene!.liveWounds).toBe(10); // a fresh gash from the first zip
+    let peakZips = 0;
+    while (h.elapsed() < h.plan.tensionAt + 20) { f.tick(4, 4); peakZips = Math.max(peakZips, h.scene!.liveZips); }
+    expect(peakZips).toBeGreaterThan(1); // the late zips overlap: a frenzy
+    expect(h.scene!.liveWounds).toBe(9 + 8);
+    expect(h.scene!.tense).toBe(true);
     expect(onImpact).not.toHaveBeenCalled();
     f.tick(h.plan.impactAt - h.elapsed() - 12, 4);
     expect(onImpact).not.toHaveBeenCalled();
     f.tick(24, 4);
     expect(onImpact).toHaveBeenCalledTimes(1);
-    expect(h.scene!.liveSprites).toBeLessThanOrEqual(MAX_BLEED_SPRITES);
-    f.tick(400, 8);
+    expect(h.scene!.tense).toBe(false);
+    let peak = 0;
+    for (let i = 0; i < 60; i++) { f.tick(16, 16); peak = Math.max(peak, h.scene!.liveSprites); }
+    expect(peak).toBeLessThanOrEqual(MAX_BLEED_SPRITES);
     expect(h.scene!.liveDrips).toBeGreaterThan(0); // the stain drips
-    f.tick(h.plan.endAt + 4000, 8);
+    f.tick(h.plan.endAt + 5000, 8);
     expect(onImpact).toHaveBeenCalledTimes(1);
     expect(f.hooked()).toBe(0);
   });
@@ -419,7 +478,7 @@ describe('the runner (the shared clock)', () => {
           expect(dist(g.a, a)).toBeLessThanOrEqual(R); // loosed from the attacker
           expect(dist(g.aim, d)).toBeLessThanOrEqual(R * 0.5); // cut across the struck hero
         }
-        if (h.mega) expect(dist(megaPos(h.mega, 0.5), d)).toBeLessThan(1e-6);
+        for (const z of h.zips) expect(dist(megaPos(z, 0.5), d)).toBeLessThan(1e-6);
         h.cancel();
       }
     }
@@ -454,7 +513,7 @@ describe('the runner (the shared clock)', () => {
     const b = run({ total: 40, formation: formationOf([40], 40) });
     expect(a.h.plan).toEqual(b.h.plan);
     expect(a.h.geos).toEqual(b.h.geos);
-    expect(a.h.mega).toEqual(b.h.mega);
+    expect(a.h.zips).toEqual(b.h.zips);
     a.f.tick(a.h.plan.impactAt + 60, 8); b.f.tick(b.h.plan.impactAt + 60, 8);
     expect(a.h.scene!.liveSprites).toBe(b.h.scene!.liveSprites);
     a.h.cancel(); b.h.cancel();
@@ -513,7 +572,7 @@ describe('the runner (the shared clock)', () => {
 });
 
 describe('the scene (headless Pixi)', () => {
-  it('a whole Tier IV stays in the cap and drains; destroy leaves nothing', () => {
+  it('a whole Tier IV (eight zips and the explosion) stays in the cap and drains; destroy leaves nothing', () => {
     const s = new HeroBleedScene(TEX, COLORS, LOOK, 1, 42);
     const gs = slashGeos(P4, A, D, R, R, C);
     s.startCharge(A.x, A.y, gs[0]!.a, 70, 400, gs.length);
@@ -526,21 +585,52 @@ describe('the scene (headless Pixi)', () => {
     for (let b = 0; b < 2; b++) { s.beat(D.x, D.y, R, b); for (let i = 0; i < 18; i++) { s.update(16); peak = Math.max(peak, s.liveSprites); } }
     s.windup(gs[0]!.a, 0, 380);
     for (let i = 0; i < 24; i++) { s.update(16); peak = Math.max(peak, s.liveSprites); }
-    const m = megaGeo(A, D, dist(A, D) * 2.1);
-    s.startMega(m, 260);
-    for (let i = 0; i < 8; i++) { s.update(16); peak = Math.max(peak, s.liveSprites); }
-    s.nova(D.x, D.y, R, m, { burst: 1.8, drops: 48, drips: 7, flashAlpha: 0.85 });
-    s.spurt(D.x + 30, D.y, 1, 0); s.spurt(D.x - 30, D.y, 1.1, Math.PI);
+    const zs = zipGeos(P4, A, D, dist(A, D) * 2.1);
+    zs.forEach((z, i) => {
+      s.startMega(z, P4.zips[i]!.dur);
+      for (let k = 0; k < 3; k++) { s.update(16); peak = Math.max(peak, s.liveSprites); }
+      s.zipCut(z.angle, D.x, D.y, R, i);
+    });
+    expect(s.liveWounds).toBe(9 + 8);
+    s.tension(D.x, D.y, R, 460);
+    for (let i = 0; i < 28; i++) { s.update(16); peak = Math.max(peak, s.liveSprites); }
+    s.explode(D.x, D.y, R, zs[7]!, { burst: 1.8, drops: 130, drips: 11, flashAlpha: 0.85 });
+    s.spurt(D.x + 30, D.y, 1, 0); s.spurt(D.x - 30, D.y, 1.1, Math.PI); s.spurt(D.x, D.y + 30, 1.2, 1);
     for (let i = 0; i < 10; i++) { s.update(16); peak = Math.max(peak, s.liveSprites); }
     expect(peak).toBeLessThanOrEqual(MAX_BLEED_SPRITES);
     let alive = true;
-    for (let i = 0; i < 800 && alive; i++) alive = s.update(16);
+    for (let i = 0; i < 1200 && alive; i++) alive = s.update(16);
     expect(alive).toBe(false);
     expect(s.liveSprites).toBe(0);
     expect(s.liveWounds).toBe(0);
     expect(s.sweeping).toBe(false);
     s.destroy();
     expect(s.root.destroyed).toBe(true);
+  });
+
+  it('EVERY zip, from the very first on a fresh scene, allocates its crescent and its seam and draws a visible crossing line, and cuts its own gash (owner 2026-09-29)', () => {
+    const s = new HeroBleedScene(TEX, COLORS, LOOK, 1, 5);
+    // the build-up first, as in a real fight (so the early zips compete with the rakes' sprites)
+    const gs = slashGeos(P4, A, D, R, R, C);
+    gs.forEach((g, i) => s.swing(i, g, 1.15, 0));
+    for (let i = 0; i < 20; i++) s.update(16);
+    gs.forEach((g, i) => s.hit(g, D.x, D.y, R, i));
+    const zs = zipGeos(P4, A, D, dist(A, D) * 2.1);
+    const layer = (id: string): Container => (s.root.children as Container[]).find((c) => c.label === id)!;
+    zs.forEach((z, i) => {
+      const before = s.liveSprites;
+      const wounds = s.liveWounds;
+      s.startMega(z, P4.zips[i]!.dur);
+      expect(s.liveSprites - before, `zip ${i} sprites`).toBe(10); // head (3) + ghosts (4) + seam, bloom, split
+      s.update(Math.min(16, P4.zips[i]!.dur / 2));
+      // the seam: a visible core sprite on the zip's line, stretched out from its start
+      const seam = layer('bleed-core').children.find((c) => c.visible && Math.abs(c.rotation - z.angle) < 1e-9 && c.scale.x > 0.05 && c.alpha > 0.5);
+      expect(seam, `zip ${i} seam`).toBeDefined();
+      s.zipCut(z.angle, D.x, D.y, R, i);
+      expect(s.liveWounds, `zip ${i} gash`).toBe(wounds + 1);
+    });
+    expect(s.liveSprites).toBeLessThanOrEqual(MAX_BLEED_SPRITES);
+    s.destroy();
   });
 
   it('draws finite geometry every frame (no NaN at the swing, in flight, cutting, bleeding or closing)', () => {

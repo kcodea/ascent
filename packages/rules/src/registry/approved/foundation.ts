@@ -2634,7 +2634,7 @@ export const FOUNDATION_RULES: GameRule[] = [
   },
   {
     id: 'R-PROG-ATTACK-15',
-    title: 'Hemorrhage (attack_bleed, Legendary) is a FLAT slashing hero attack: one gash / a cross / a flurry ending in a claw rake / three rakes, a heartbeat, a screen-splitting mega-slash and a blood nova, on the SAME damage tiers; the blow lands ONCE; no freeze',
+    title: 'Hemorrhage (attack_bleed, Legendary) is a FLAT slashing hero attack: one gash / a cross / a flurry ending in a claw rake / three rakes, a heartbeat, EIGHT accelerating screen-splitting zips and a bloody explosion, on the SAME damage tiers; the blow lands ONCE; no freeze',
     statement:
       'attack_bleed ("Hemorrhage", a placeholder name for the owner to rename; Legendary, crate, account-wide, style bleed) '
       + 'plays a stylised crimson slashing attack, drawn flat (no faux-3D). After the shared damage formation '
@@ -2644,20 +2644,21 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'it, blood spraying along the blade\x27s direction, and the line OPENING into a gash (a dark wound with a bright red '
       + 'lip). It escalates on exactly the tiers every other hero attack uses (one shared tierOf, thresholds 6 / 12 / 20): '
       + 'I 1-5 one clean diagonal gash; II 6-11 a CROSS (X) of two gashes, the first a tick; III 12-19 a flurry of four fast '
-      + 'slashes and a three-claw RAKE (every wound bleeding, drips running down the portrait); IV 20+ three claw rakes carve '
-      + 'the face, the wounds THROB with a heartbeat while the striker winds a huge crescent, then a MEGA-SLASH sweeps the '
-      + 'whole screen through the target (a seam with a dark split beside it) and, as it crosses the target, the wounds rip '
-      + 'open and the target erupts in a BLOOD NOVA (a crimson shockwave, blood thrown out in falling arcs, spatter landing '
-      + 'round the portrait, a stain that drips, two arterial spurts). The consequence (the damage, Armor, Resolve) lands '
-      + 'exactly ONCE: on the last cut (every earlier cut is a tick with FX only) or, at IV, on the nova, exactly half-way '
-      + 'through the mega-slash\x27s sweep (never on a rake, a heartbeat or the wind-up). Wounds, drips, stains and the tint '
+      + 'slashes and a three-claw RAKE (every wound bleeding, drips running down the portrait); IV 20+ (owner 2026-09-29: hilariously over the top) three claw rakes carve the face and the wounds THROB with a heartbeat while the striker winds a huge crescent; '
+      + 'then the screen-splitting MEGA-SLASH zips through the target EIGHT times (tunable) each on its OWN line (the striker\x27s side first, then square '
+      + 'across it for an X, then the diagonals between, all round the compass, alternating direction; no two zips share a line, so every one visibly crosses the ones before it), each with its seam, a spray and a fresh gash, the camera whipping along it, the cadence '
+      + 'ACCELERATING into a blur; then a beat of held tension (never a freeze: the wounds pulse faster, blood is drawn in) and a huge BLOODY EXPLOSION '
+      + '(a white-red flash core, five shockwave rings, a huge stain, blood thrown high to rain across the board, spatter out toward the edges, dripping '
+      + 'stains, arterial spurts). The consequence (the damage, Armor, Resolve) lands '
+      + 'exactly ONCE: on the last cut (every earlier cut is a tick with FX only) or, at IV, on the explosion (never on a rake, a heartbeat, a zip or the tension). Wounds, drips, stains and the tint '
       + 'ride the struck portrait\x27s knockback. No hit-stop or freeze anywhere (R-PROG-ATTACK-10). Presentation only; '
       + 'reduced motion is fades only; an unknown or retired id plays Classic.',
     domain: 'foundation',
     status: 'approved',
     evidence: [
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-29 (more hero attacks)', quote: 'branch off and make some more attack types - we need a fire animation, a bleed/gash animation, some sort of an undead animation, a beast chomp rush animation, and i would love a king oona banana cannon animation. use the same 4 tier strategy we have been.' },
-      { kind: 'code', ref: 'packages/progression/src/cosmetics.ts (attack_bleed); packages/ui/src/heroBleed/ (heroBleedConfig bleedPlan / bleedCues / slashGeos / wavePos / megaGeo / bleedCameraAt / bleedCameraFocus, heroBleed playHeroBleed, heroBleedScene, heroBleedTextures)' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-29 (Bleed review)', quote: 'make the bleed one extremely extremely over the top like hilariously over the top for the huge attack. like do 8 zips of the long attack animation and have a bloody explosion at the end' },
+      { kind: 'code', ref: 'packages/progression/src/cosmetics.ts (attack_bleed); packages/ui/src/heroBleed/ (heroBleedConfig bleedPlan / bleedCues / slashGeos / wavePos / megaGeo / zipGeos / bleedCameraAt / bleedCameraFocus, heroBleed playHeroBleed, heroBleedScene, heroBleedTextures)' },
     ],
     currentBehaviour: 'Conforms, built 2026-09-29. The item reaches the database on the next deploy of progression-inventory (the catalog sync); the equip SQL already accepts the hero_attack slot.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/heroBleed/heroBleed.test.ts', 'packages/progression/src/cosmetics.test.ts', 'packages/ui/src/progression/CollectionHeroAttack.test.tsx', 'packages/ui/src/heroAttack/damageFormation.test.ts'], lastVerifiedAt: '2026-09-29' },

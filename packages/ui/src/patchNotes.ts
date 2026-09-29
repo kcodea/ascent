@@ -64,7 +64,7 @@ export const PATCH_NOTES: PatchNote[] = [
         details: [
           'Your damage builds up, then your hero draws a blade and swings crimson crescents at the other hero.',
           'Each one cuts across the face and leaves a gash that bleeds. Bigger hits cut a cross, then a flurry that ends in a claw rake.',
-          'On the biggest hits the wounds throb like a heartbeat, one huge slash splits the screen, and the other hero bursts in a spray of blood.',
+          'On the biggest hits it goes completely over the top: the wounds throb like a heartbeat, then a huge slash zips across the whole screen eight times from every direction, faster and faster, a beat of held breath, and the other hero bursts in an enormous bloody explosion that rains blood across the board.',
           'Equip it from the Attack Animations tab of the Collection. There is a preview button there too.',
           'Hero attacks are looks only. The damage is exactly the same.',
         ],

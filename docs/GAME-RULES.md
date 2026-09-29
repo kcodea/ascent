@@ -320,8 +320,10 @@ progression **epoch**; nothing finished before the epoch counts (no backfill).
   looses a crimson crescent that turns to its cut and runs through the struck hero's face, a white seam drawing behind it,
   blood spraying along the blade, and the line opening into a gash (I one diagonal gash; II a cross of two; III four
   fast slashes and a three-claw rake, the wounds bleeding and dripping, the blow landing once on the last cut; IV three
-  claw rakes, the wounds throb with a heartbeat while the striker winds a huge crescent, then a mega-slash sweeps the
-  screen through the target and it erupts in a blood nova, the blow landing as the slash crosses it). All nine anchor on
+  claw rakes, the wounds throb with a heartbeat while the striker winds a huge crescent, then the screen-splitting
+  mega-slash zips through the target EIGHT times from every direction, accelerating into a blur (each zip a tick),
+  a beat of held tension, and a huge bloody explosion that rains blood across the board, the blow landing on the
+  explosion). All nine anchor on
   the round portrait art at rest
   (R-PROG-ATTACK-04). Equipped
   account-wide in the Collection's Attack Animations tab ("Use Classic" takes it off). The STRIKER's attack plays:

@@ -269,6 +269,24 @@ export const COSMETICS: readonly CosmeticDef[] = Object.freeze([
   // ablaze); IV calls down a meteor that detonates into a fire nova and engulfs the target. The name is the builder's
   // placeholder for the owner to rename (the id stays). Legendary like the other eight.
   heroAttack('attack_fire', 'Inferno', 'legendary', 'fire'),
+  // Owner 2026-09-29: "branch off and make some more attack types - we need a fire animation, a bleed/gash animation,
+  // some sort of an undead animation, ...". The undead one (the design left to the builder): a spectral skull shrieks
+  // out of the hero and bites the target; II two skulls, III skeletal hands claw up and drag at the target while a wisp
+  // swarm strikes and a skull finishes it, IV a grave rift tears open and a giant skull maw rises, shrieks, lunges and
+  // chomps, then necrotic mist washes out. The name is the builder's placeholder for the owner to rename (the id stays).
+  // Legendary like the other eight.
+  heroAttack('attack_undead', 'Grave Call', 'legendary', 'undead'),
+  // Owner 2026-09-29: "make some more attack types ... a beast chomp rush animation ... use the same 4 tier strategy we
+  // have been". Spirit beasts leap from the hero and front jaws chomp shut on the target: I one wolf, II a staggered
+  // pair, III a pack of five kicking up dust, IV a colossal beast whose jaws slam over the whole portrait, then it roars.
+  // The name is the builder's placeholder for the owner to rename (the id stays). Legendary like the other eight.
+  heroAttack('attack_beast', 'Stampede', 'legendary', 'beast'),
+  // Owner 2026-09-29: "make some more attack types ... i would love a king oona banana cannon animation. use the same 4
+  // tier strategy we have been." King Oona's gold-trimmed jungle cannon pops in by the hero and lobs bananas that splat
+  // into the target (I one, II a double shot, III a rapid barrage); IV fires a giant golden banana that arcs out of the
+  // top of the screen and slams down into a banana-bunch shower and a golden shockwave. The name is the builder's
+  // placeholder for the owner to rename (the id stays). Legendary like the other eight.
+  heroAttack('attack_banana', "Oona's Banana Cannon", 'legendary', 'banana'),
   // Owner 2026-09-29: "branch off and make some more attack types - we need ... a bleed/gash animation ... use the same 4
   // tier strategy we have been". Crimson crescents fly in and cut gashes that open and bleed: I one diagonal gash, II a
   // cross, III a flurry ending in a claw rake, IV three rakes, a heartbeat, a mega-slash that splits the screen and a

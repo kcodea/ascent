@@ -26,6 +26,9 @@ import { playHeroPoison } from '../heroPoison/heroPoison';
 import { playHeroFrost } from '../heroFrost/heroFrost';
 import { playHeroHoly } from '../heroHoly/heroHoly';
 import { playHeroFire } from '../heroFire/heroFire';
+import { playHeroUndead } from '../heroUndead/heroUndead';
+import { playHeroBeast } from '../heroBeast/heroBeast';
+import { playHeroBanana } from '../heroBanana/heroBanana';
 import { playHeroBleed } from '../heroBleed/heroBleed';
 import { SPEC, boardOf } from '../DamageFormationTuner';
 import { Sequence } from './sequence';
@@ -311,6 +314,9 @@ describe('the runners', () => {
       ['frost', (o) => playHeroFrost({ ...o, textures: TEX })],
       ['holy', (o) => playHeroHoly({ ...o, textures: TEX })],
       ['fire', (o) => playHeroFire({ ...o, textures: TEX })],
+      ['undead', (o) => playHeroUndead({ ...o, textures: TEX })],
+      ['beast', (o) => playHeroBeast({ ...o, textures: TEX })],
+      ['banana', (o) => playHeroBanana({ ...o, textures: TEX })],
       ['bleed', (o) => playHeroBleed({ ...o, textures: TEX })],
     ];
     const lead = leadInOf([4, 2, 3, 4], false, true);
@@ -458,6 +464,9 @@ describe('no attack ever pauses its clock (owner 2026-09-28: "remove the freezei
     ['frost', (o) => playHeroFrost({ ...o, textures: null })],
     ['holy', (o) => playHeroHoly({ ...o, textures: null })],
     ['fire', (o) => playHeroFire({ ...o, textures: null })],
+    ['undead', (o) => playHeroUndead({ ...o, textures: null })],
+    ['beast', (o) => playHeroBeast({ ...o, textures: null })],
+    ['banana', (o) => playHeroBanana({ ...o, textures: null })],
     ['bleed', (o) => playHeroBleed({ ...o, textures: null })],
   ];
 

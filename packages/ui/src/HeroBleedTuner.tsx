@@ -1,6 +1,6 @@
 import {
   BLEED_TIER_SUFFIXES, HERO_BLEED_DEFAULTS, HERO_BLEED_RANGES, TIERS, bleedPlan, getHeroBleedConfig,
-  heroBleedConfigJson, heroBleedPreviewSpeed, resetHeroBleedConfig, setHeroBleedPreviewSpeed, setHeroBleedValue,
+  heroBleedConfigJson, resetHeroBleedConfig, setHeroBleedValue,
   type BleedTierSuffix, type HeroBleedConfig, type HeroBleedNumKey, type HeroBleedStrKey, type TierNum,
 } from './heroBleed/heroBleedConfig';
 import { clipNames } from './sfx';
@@ -198,13 +198,13 @@ export function demo(
   const cfg = getHeroBleedConfig();
   return playAttackDemo(side, (o) => playHeroBleed(o), {
     board: boardOfDamage(opts.damage ?? cfg.previewDamage, opts.parts ?? cfg.previewParts),
-    speed: heroBleedPreviewSpeed(), reduced: opts.reduced, frames: opts.frames, sound: opts.sound, safety: opts.safety,
+    speed: 1, reduced: opts.reduced, frames: opts.frames, sound: opts.sound, safety: opts.safety,
   }, () => { live = null; }).then((h) => { live = h; return h; });
 }
 
 // DEV: a console / capture-rig handle on the same player the buttons use.
 if (import.meta.env.DEV && typeof window !== 'undefined') {
-  (window as unknown as { __heroBleed?: unknown }).__heroBleed = { demo, previewParts, setSpeed: setHeroBleedPreviewSpeed };
+  (window as unknown as { __heroBleed?: unknown }).__heroBleed = { demo, previewParts };
 }
 
 export const SPEC: TunerSpec<BleedTunerValues> = {
@@ -213,7 +213,7 @@ export const SPEC: TunerSpec<BleedTunerValues> = {
   note: () => {
     const c = getHeroBleedConfig();
     const p = bleedPlan({ leadIn: previewLeadIn(c.previewDamage, c.previewParts), total: c.previewDamage, distance: 1600 }, c);
-    return `dev · ${heroBleedPreviewSpeed()}x · tier ${p.tier} · ${p.hemorrhage ? `${p.slashes.length} rakes, hemorrhage` : `${p.slashes.length} cut${p.slashes.length === 1 ? '' : 's'}`} · swing ${Math.round(p.swingAt)} · impact ${Math.round(p.impactAt)} · end ${Math.round(p.endAt)} ms`;
+    return `dev · tier ${p.tier} · ${p.hemorrhage ? `${p.slashes.length} rakes, hemorrhage` : `${p.slashes.length} cut${p.slashes.length === 1 ? '' : 's'}`} · swing ${Math.round(p.swingAt)} · impact ${Math.round(p.impactAt)} · end ${Math.round(p.endAt)} ms`;
   },
   read: () => ({ ...getHeroBleedConfig(), attackStyle: devHeroAttackChoice() }),
   write: (key, value) => setHeroBleedValue(key as keyof HeroBleedConfig, value),

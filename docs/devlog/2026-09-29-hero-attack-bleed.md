@@ -98,8 +98,9 @@ formation runs first. Then:
 
 `attack_bleed`, "Hemorrhage" (placeholder name for the owner to rename; the id stays), Legendary, crate-sourced,
 account-wide, `assets.style: 'bleed'`, in both `packages/progression/src/cosmetics.ts` and its Edge mirror. Crates are
-fixed-odds with equal chance inside a rarity, so it only re-splits Legendary: 12 Legendaries, each 0.417% of a first
-crate (was 0.455 with 11); the category shares become title 58.7 / minion skin 34.5 / hero skin 3 / hero attack 3.8.
+fixed-odds with equal chance inside a rarity, so it only re-splits Legendary. It landed last of the five new attacks, so Legendary is 16 items, each 0.3125% of a
+first crate (0.455% with 11 before the batch); the category shares become title 58.6 / minion skin 34.3 / hero skin 3 /
+hero attack 4.1.
 The Collection's Attack Animations tab shows it with a preview.
 
 ## Tuner
@@ -156,7 +157,8 @@ contract, the IV beats in order (eight zips, all ticks, then the tension, then t
 avoidance, the mega-slash line, the zips from every direction, the camera, the runner both ways at every tier, knockback riding, slow motion, replay,
 finish / cancel, safety timer, the headless scene's caps and drain, the cosmetic). The shared formation and no-freeze
 tests, the style-list pins, the Collection counts and the crate per-item odds all gained Bleed. Oracle
-R-PROG-ATTACK-18 (Inferno took 15 and 16 on main; renumbered when this merged main).
+R-PROG-ATTACK-21 (built as 15, then 18; renumbered on merge because Inferno took 15/16, Grave Call 17, the Stampede 18,
+the Banana Cannon 19 and the knockout rule 20). It is the thirteenth hero attack.
 
 ## Open for the owner
 

@@ -1,6 +1,6 @@
 import {
   FIRE_TIER_SUFFIXES, HERO_FIRE_DEFAULTS, HERO_FIRE_RANGES, TIERS, firePlan, getHeroFireConfig,
-  heroFireConfigJson, heroFirePreviewSpeed, resetHeroFireConfig, setHeroFirePreviewSpeed, setHeroFireValue,
+  heroFireConfigJson, resetHeroFireConfig, setHeroFireValue,
   type FireTierSuffix, type HeroFireConfig, type HeroFireNumKey, type HeroFireStrKey, type TierNum,
 } from './heroFire/heroFireConfig';
 import { clipNames } from './sfx';
@@ -195,13 +195,13 @@ export function demo(
   const cfg = getHeroFireConfig();
   return playAttackDemo(side, (o) => playHeroFire(o), {
     board: boardOfDamage(opts.damage ?? cfg.previewDamage, opts.parts ?? cfg.previewParts),
-    speed: heroFirePreviewSpeed(), reduced: opts.reduced, frames: opts.frames, sound: opts.sound, safety: opts.safety,
+    speed: 1, reduced: opts.reduced, frames: opts.frames, sound: opts.sound, safety: opts.safety,
   }, () => { live = null; }).then((h) => { live = h; return h; });
 }
 
 // DEV: a console / capture-rig handle on the same player the buttons use.
 if (import.meta.env.DEV && typeof window !== 'undefined') {
-  (window as unknown as { __heroFire?: unknown }).__heroFire = { demo, previewParts, setSpeed: setHeroFirePreviewSpeed };
+  (window as unknown as { __heroFire?: unknown }).__heroFire = { demo, previewParts };
 }
 
 export const SPEC: TunerSpec<FireTunerValues> = {
@@ -211,7 +211,7 @@ export const SPEC: TunerSpec<FireTunerValues> = {
     const c = getHeroFireConfig();
     const p = firePlan({ leadIn: previewLeadIn(c.previewDamage, c.previewParts), total: c.previewDamage, distance: 1600 }, c);
     const what = `${p.balls.length} fireball${p.balls.length === 1 ? '' : 's'}${p.meteor ? ' + meteor' : ''}`;
-    return `dev · ${heroFirePreviewSpeed()}x · tier ${p.tier} · ${what} · fire ${Math.round(p.fireAt)} · impact ${Math.round(p.impactAt)} · end ${Math.round(p.endAt)} ms`;
+    return `dev · tier ${p.tier} · ${what} · fire ${Math.round(p.fireAt)} · impact ${Math.round(p.impactAt)} · end ${Math.round(p.endAt)} ms`;
   },
   read: () => ({ ...getHeroFireConfig(), attackStyle: devHeroAttackChoice() }),
   write: (key, value) => setHeroFireValue(key as keyof HeroFireConfig, value),
@@ -222,7 +222,7 @@ export const SPEC: TunerSpec<FireTunerValues> = {
   copy: () => heroFireConfigJson(),
   copyLabel: 'Copy JSON',
   // Owner 2026-09-29 (every attack tuner): the Play row on TOP; no speed or reduced-motion buttons.
-  buttonsTop: true,
+  buttonsOnTop: true,
   actions: [
     { label: '▶ You cast', hint: 'Your hero casts Fire at the foe for the preview damage.', run: () => { void demo('player'); } },
     { label: '▶ Foe casts', hint: 'The foe casts Fire at your hero for the preview damage.', run: () => { void demo('opp'); } },

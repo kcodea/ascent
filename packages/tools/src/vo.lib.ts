@@ -27,6 +27,10 @@ export const CARD_DEST = 'card';
 export const FX_AUDIO_DIR = 'packages/ui/src/audio/fx';
 export const FX_DEFS_DIR = 'packages/ui/src/fx/defs';
 export const BINDINGS_PATH = 'packages/ui/src/choreo/bindings.json';
+/** A card clip's binding volume (the By-card view's 0-100 box / 100). Owner 2026-09-29: card voicelines at 30%. */
+export const CARD_CLIP_GAIN = 0.3;
+/** An On Death clip's binding volume. Owner 2026-09-29: death sounds at 10%. */
+export const CARD_DEATH_GAIN = 0.1;
 const CARD_CLIP_ID = /^([a-z0-9]+(?:_[a-z0-9]+)*)(\.death)?$/;
 
 /** A clip id is its final file name (no extension): kebab-case announcer ids, or card ids like `dw_orin.death`. */
@@ -185,7 +189,7 @@ export function bindCardSlot(b: Bindings, slot: CardSlot): { bindings: Bindings;
   const existing = b.cards[slot.cardId]?.[slot.kind]?.def;
   if (existing === slot.defId) return { bindings: b, status: 'same' };
   if (existing) return { bindings: b, status: 'taken', existing };
-  const card = { ...(b.cards[slot.cardId] ?? {}), [slot.kind]: { def: slot.defId } };
+  const card = { ...(b.cards[slot.cardId] ?? {}), [slot.kind]: { def: slot.defId, gain: slot.kind === 'death' ? CARD_DEATH_GAIN : CARD_CLIP_GAIN } };
   return { bindings: { ...b, cards: { ...b.cards, [slot.cardId]: card } }, status: 'added' };
 }
 

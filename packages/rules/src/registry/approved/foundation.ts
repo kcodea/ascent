@@ -2129,8 +2129,8 @@ export const FOUNDATION_RULES: GameRule[] = [
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-28 (achievements batch 1 brief)', quote: 'we need set 2 achievements because that is the active set right now.' },
       { kind: 'code', ref: 'packages/progression/src/achievements.ts (ACHIEVEMENTS, rewards.titleId, hidden)' },
     ],
-    currentBehaviour: 'Conforms, built 2026-09-28 (off until the owner sets progression_config.achievements_epoch).',
-    enforcement: { kind: 'scenario', refs: ['packages/progression/src/achievements.test.ts'], lastVerifiedAt: '2026-09-28' },
+    currentBehaviour: 'Conforms, built 2026-09-28 (off until the owner sets progression_config.achievements_epoch). Extended 2026-09-29 by R-ACH-04: the hero Titled (new, 3 Ranked 1sts) and Mastery tiers now fill the title slot (281 achievements); every other achievement still pays XP only.',
+    enforcement: { kind: 'scenario', refs: ['packages/progression/src/achievements.test.ts'], lastVerifiedAt: '2026-09-29' },
   },
   {
     id: 'R-ACH-02',
@@ -2171,6 +2171,50 @@ export const FOUNDATION_RULES: GameRule[] = [
     ],
     currentBehaviour: 'Conforms, built 2026-09-28. The 3 Career showcase slots are a follow-up.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/progression/AchievementsTab.test.tsx', 'packages/ui/src/progression/ProgressionPostgame.test.tsx', 'packages/ui/src/Career.test.tsx'], lastVerifiedAt: '2026-09-28' },
+  },
+  {
+    id: 'R-ACH-04',
+    title: 'Hero titles: 3 Ranked 1sts with a hero grant its title (the Titled tier); 10 grant its golden MASTER version, which upgrades the same title in place',
+    statement:
+      'Every playable hero has a title (Warden "Warded", Gambler "Gambling Addict", Albus "Albus Student", ...). A new hero '
+      + 'achievement tier, Titled (hero.<id>.titled, 150 XP), completes at 3 Ranked 1st-place finishes with that hero and '
+      + 'grants the title (title_hero_<id>, Epic, the normal title look). The existing Mastery tier (hero.<id>.mastery, 10 '
+      + 'Ranked 1sts, 250 XP) now grants the master version (title_hero_<id>_master): the SAME name, shown as a golden plate '
+      + 'with embroidered text. Victory (1 Ranked 1st, 100 XP) stays XP only. Practice never counts toward either (Ranked '
+      + 'only, like Victory). The grant happens inside settle_progression, in the same transaction as the completion: the '
+      + 'title is owned (player_cosmetics, keyed, never twice) and listed in the result\x27s unlockedTitles. The master '
+      + 'supersedes the base title: a worn base title is swapped for its master the moment it is earned, and the Collection '
+      + 'shows one entry per hero title (the master once owned, else the base). A new hero title is worn only when nothing '
+      + 'is worn. Hero titles are achievement rewards and never drop from a crate. Existing Mastery progress backfills the '
+      + 'Titled tier (a backfilled completion grants the title but pays no XP).',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-29 (hero titles)', quote: 'the hero\x27s title is granted at 3 wins with a hero, then the mastery of that title is after 10 wins with that hero' },
+      { kind: 'code', ref: 'packages/progression/src/achievements.ts (heroDefs, HERO_TITLE_WINS, HERO_MASTERY_WINS); packages/progression/src/cosmetics.ts (HERO_TITLE_NAMES, HERO_TITLE_COSMETICS, titleShelf, isMasterTitle); packages/progression/src/server.ts (settlementParity); supabase/migrations/2026-09-29-hero-titles.sql (settle_progression steps 7c + 9a, the backfill); packages/ui/src/progression/collectionModel.ts (albumOf)' },
+    ],
+    currentBehaviour: 'Conforms, built 2026-09-29. Live once the owner runs supabase/migrations/2026-09-29-hero-titles.sql and redeploys submit-progression and progression-inventory.',
+    enforcement: { kind: 'scenario', refs: ['packages/progression/src/heroTitles.db.test.ts', 'packages/progression/src/achievements.test.ts', 'packages/progression/src/cosmetics.test.ts', 'packages/progression/src/sqlParity.test.ts', 'packages/ui/src/progression/CollectionScreen.test.tsx'], lastVerifiedAt: '2026-09-29' },
+  },
+  {
+    id: 'R-PROG-TITLE-04',
+    title: 'A master hero title renders as a golden plate with embroidered text on every surface that shows a title, as static CSS',
+    statement:
+      'Wherever a title is shown (the Career name header, the Collection album tile, detail nameplate and preview, the New '
+      + 'rewards popup, the Achievements tab reward line, the Leaderboard, the Hall of Champions and Match details), a hero '
+      + 'title\x27s MASTER version (title_hero_<id>_master) is painted by TitleBadge as a bevelled metallic gold plate with a '
+      + 'dashed thread stitch inside its edge and the name embroidered in crimson satin stitch (thread strands clipped to '
+      + 'the letters over a raised, outlined underside). Its text content is exactly the title name (no native tooltip, no '
+      + 'own cursor), a custom title style never paints over it, and it is entirely static: no animation, transition or '
+      + 'will-change on any .tb-master rule. The base hero title keeps the normal rarity look.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-29 (hero titles)', quote: 'the master title should be a golden plate and embroidered text' },
+      { kind: 'code', ref: 'packages/ui/src/titles/TitleBadge.tsx; packages/ui/src/titles/titleStyle.ts (TitleLook.master); packages/ui/src/styles.css (.titlebadge.tb-master); packages/ui/src/Career.tsx; packages/ui/src/progression/CollectionScreen.tsx; packages/ui/src/progression/NewRewardsPopup.tsx; packages/ui/src/progression/AchievementsTab.tsx' },
+    ],
+    currentBehaviour: 'Conforms, built 2026-09-29.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/titles/titles.test.tsx', 'packages/ui/src/progression/CollectionScreen.test.tsx'], lastVerifiedAt: '2026-09-29' },
   },
   {
     id: 'R-PROG-ATTACK-01',
@@ -2227,18 +2271,24 @@ export const FOUNDATION_RULES: GameRule[] = [
       'Whatever style plays, the blow is the engine\'s (heroStrikeDamage: the capped enemyDamage on a win, playerLossDamage '
       + 'on a lobby loss). The shared damage formation (R-PROG-ATTACK-08) builds that value on screen from the engine\'s own numbers '
       + '(never a DOM sum), and Blast fires the consequence (the health drop, Armor first, via settleCombat) exactly once, on the frame the '
-      + 'lead bolt or beam lands; if frames stop, a safety timer still lands it. It escalates by damage tier (I 1-5, II 6-11, '
-      + 'III 12-19, IV 20+; IV fires a beam; the thresholds 6 / 12 / 20 are owner-approved) and under reduced motion it is fades only (no flight, bolts, shake or '
+      + 'lead bolt lands or, at IV, the supernova detonates; if frames stop, a safety timer still lands it. Blast escalates in FOUR '
+      + 'distinct steps on the shared damage tiers (thresholds 6 / 12 / 20, owner-approved), the way Arcana and Frost ladder '
+      + '(owner 2026-09-29): I 1-5 ONE bolt; II 6-11 a volley of TWO; III 12-19 a BARRAGE of five fanned bolts (the lead bolt '
+      + 'lands the blow, the rest pound in after it) with secondary explosions and embers; IV 20+ the colossal beam, which '
+      + 'lands as a tick (FX only), holds, then POURS into the struck hero (its tail races after its front) while the light '
+      + 'implodes onto it, and detonates in an arcane SUPERNOVA (rays, three shockwaves, a corona, secondary explosions): the '
+      + 'blow lands on the detonation, never on the beam landing. Under reduced motion it is fades only (no flight, bolts, shake or '
       + 'zoom). No hero attack ever freezes its clock (R-PROG-ATTACK-10). Leaving the fight mid-animation cancels it without landing, exactly as Classic\'s timers are cleared.',
     domain: 'foundation',
     status: 'approved',
     evidence: [
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-28 (Blast approval)', quote: 'those are good thresholds, this blast animation looks good! make it a legendary reward' },
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-28 (Blast hero attack)', quote: 'i want the numbers to all combine, and then the screen slightly shakes and zooms as he blasts pixi blasts from the hero to the opponent to deal the damage' },
-      { kind: 'code', ref: 'packages/ui/src/heroBlast/heroBlastConfig.ts (blastPlan, blastCounts, tierOf); packages/ui/src/heroBlast/heroBlast.ts (playHeroBlast); packages/ui/src/heroBlast/heroStrikeDamage.ts; packages/ui/src/Recruit.tsx' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-29 (Blast fourth tier)', quote: 'use the same 4 tier strategy we have been. add a tier to the blast attack so they all have 4' },
+      { kind: 'code', ref: 'packages/ui/src/heroBlast/heroBlastConfig.ts (blastPlan, blastCues, tierOf, TIER_DEFAULTS Bolts / Beam / Nova); packages/ui/src/heroBlast/heroBlast.ts (playHeroBlast, cameraAt); packages/ui/src/heroBlast/heroBlastScene.ts (the beam drain, collapse, nova); packages/ui/src/heroBlast/heroStrikeDamage.ts; packages/ui/src/Recruit.tsx' },
     ],
-    currentBehaviour: 'Conforms, built 2026-09-28.',
-    enforcement: { kind: 'scenario', refs: ['packages/ui/src/heroBlast/heroBlast.test.ts'], lastVerifiedAt: '2026-09-28' },
+    currentBehaviour: 'Conforms, built 2026-09-28; the four-step ladder (a barrage of five at III, the supernova at IV) 2026-09-29.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/heroBlast/heroBlast.test.ts'], lastVerifiedAt: '2026-09-29' },
   },
   {
     id: 'R-PROG-ATTACK-04',
@@ -2667,5 +2717,50 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'port 5223 (Rank #1 ring, frame scale 1.3): the ring now paints over the diamond, every sampled point inside the '
       + 'diamond still hits the button, a press on the ring-covered edge arms the power, and the hover tooltip opens.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/portraitFrame/portraitFrameZOrder.test.ts'], lastVerifiedAt: '2026-09-29' },
+  },
+  // ── A card's On Death sound plays for the card that died (owner report 2026-09-29) ─────────────────────
+  {
+    id: 'R-FX-DEATH-01',
+    title: "A card's On Death effect plays when THAT card dies, wherever its death lands",
+    statement:
+      'Whatever a card has in its On Death slot (FX workbench, By card) plays every time a unit of that card '
+      + 'dies in combat, on the dying unit, whether it dies from an attack, a spell, an Echo or anything else. '
+      + 'It never plays the attacker\x27s or any other card\x27s On Death effect in its place.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-29 (unit voices)', quote: 'im not hearing any on death sounds' },
+      { kind: 'fix-pr', ref: 'fix/on-death-sounds: packages/ui/src/choreo/score.ts (new deathFx channel; the fxDef row stands down for death kinds)' },
+    ],
+    currentBehaviour:
+      'Conforms as of 2026-09-29. Before, the only path was the fxDef row on a `death`-kind moment, which named '
+      + 'the moment\x27s card from its SOURCE (the killer, or nothing for a lone death), and most deaths land inside '
+      + 'a `damage` moment or an attack exchange where that row never asked for `death` at all: so 300+ bound '
+      + 'On Death voicelines never played. The `deathFx` channel now scans every moment\x27s death events and plays '
+      + 'the dying card\x27s binding on that unit (binding gain respected).',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/choreo/score.test.ts'], lastVerifiedAt: '2026-09-29' },
+  },
+  // ── A knockout always plays the hero attack's Huge version (owner ask 2026-09-29) ─────────────────────
+  {
+    id: 'R-PROG-ATTACK-20',
+    title: 'A hero attack that knocks the struck player out always plays its Tier IV ("Huge") version, in every style',
+    statement:
+      'When the end-of-combat hero attack ELIMINATES the struck player (their Resolve + Armor going in is at or under '
+      + 'the blow the engine decided, so the settle takes them to 0), the attack plays Tier IV whatever the damage number: '
+      + 'every style (Classic, Blast, Quake, Arcana, Phantom Blades, Enraged Strike, Venom Volley, Frost Nova, Consecration, '
+      + 'and any style added later) and the damage formation it opens with. Both directions: your blow that knocks the foe '
+      + 'seat out, and the foe\x27s blow that knocks you out. A ghost (already out, never charged) is never knocked out, '
+      + 'and invulnerable Practice never knocks you out. Presentation only: the number shown and the consequence are '
+      + 'unchanged. The tier rule lives in one place (attackTier in packages/ui/src/heroAttack/tiers.ts) and the '
+      + 'knockout is read off the state the engine settles from (heroStrikeKnockout), so a replay plays what the live '
+      + 'fight did.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-29 (knockout plays huge)', quote: 'add logic so that if a player knocks someone out, it always plays the "huge" animation.' },
+      { kind: 'code', ref: 'packages/ui/src/heroAttack/tiers.ts (attackTier, KNOCKOUT_TIER); packages/ui/src/heroBlast/heroStrikeDamage.ts (heroStrikeKnockout); packages/ui/src/heroAttack/options.ts (knockout); every style config plan (attackTier); packages/ui/src/Recruit.tsx (the post-combat sequence passes knockout)' },
+    ],
+    currentBehaviour: 'Conforms, built 2026-09-29.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/heroAttack/knockoutTier.test.ts'], lastVerifiedAt: '2026-09-29' },
   },
 ];

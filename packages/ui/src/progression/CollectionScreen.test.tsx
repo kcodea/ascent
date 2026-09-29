@@ -104,7 +104,7 @@ describe('the Collection screen: routing', () => {
 describe('the Collection screen: the album', () => {
   it('shows every title, owned or not, rarest first; owned bright, missing dimmed with a lock, the equipped one ribboned', () => {
     open();
-    expect(tileNames()).toHaveLength(16);
+    expect(tileNames()).toHaveLength(49);
     expect(tileNames()[0]).toBe('The Unbroken'); // Legendary leads the album
     expect(tile('Alpha Tester').className).toMatch(/\bowned\b/);
     expect(tile('Alpha Tester').className).toMatch(/\bworn\b/);
@@ -118,9 +118,10 @@ describe('the Collection screen: the album', () => {
     expect(missing.querySelector('.colls-tile-lock')).not.toBeNull();
     expect(missing.getAttribute('aria-label')).toBe('Kingbreaker, Epic, not owned');
     // "N / M collected" counts every live item: 16 titles + the 6 skins + 8 hero attacks (2026-09-28: Quake made it 24,
-    // Arcana and Phantom Blades 26, Enraged Strike 27, Venom Volley 28, Frost Nova 29, Consecration 30; skins batch 2 +13 minion skins, 43; Inferno 2026-09-29, 44)
-    expect(text('.colls-meter-num')).toBe('2 / 44');
-    expect(text('.colls-tab.on .colls-tab-count')).toBe('2/16');
+    // Arcana and Phantom Blades 26, Enraged Strike 27, Venom Volley 28, Frost Nova 29, Consecration 30; skins batch 2 +13 minion skins, 43)
+    // + 33 hero titles (2026-09-29; each hero's golden master replaces its title once owned, so it never adds a slot), 76; Inferno (2026-09-29), 77
+    expect(text('.colls-meter-num')).toBe('2 / 77');
+    expect(text('.colls-tab.on .colls-tab-count')).toBe('2/49');
     clean();
   });
 
@@ -132,11 +133,11 @@ describe('the Collection screen: the album', () => {
 
   it('filters: Owned, Missing and a rarity, with counts; no match offers Show all', () => {
     open();
-    expect(text('.colls-seg .colls-chip.on')).toBe('All16');
+    expect(text('.colls-seg .colls-chip.on')).toBe('All49');
     act(() => chip('Owned').click());
     expect(tileNames()).toEqual(['Alpha Tester', 'Star Chaser']);
     act(() => chip('Missing').click());
-    expect(tileNames()).toHaveLength(14);
+    expect(tileNames()).toHaveLength(47);
     expect(tileNames()).not.toContain('Alpha Tester');
     act(() => chip('All').click());
     act(() => chip('Legendary').click());
@@ -146,7 +147,31 @@ describe('the Collection screen: the album', () => {
     expect($('.colls-nomatch')).not.toBeNull();
     expect(text('.colls-nomatch div')).toBe('Nothing matches these filters.');
     act(() => button('Show all')!.click());
-    expect(tileNames()).toHaveLength(16);
+    expect(tileNames()).toHaveLength(49);
+  });
+});
+
+describe('hero titles in the Collection (owner 2026-09-29: "the master title should be a golden plate and embroidered text")', () => {
+  it('a missing hero title says how to earn it; the master replaces it in place once owned, as the golden plate', () => {
+    open();
+    act(() => tile('Warded').click());
+    expect(text('.colls-hint')).toBe('Finish 1st in 3 Ranked games as Warden.');
+    expect(text('.colls-facts')).toContain('Finish 1st in 10 Ranked games as Warden to make it a golden plate.');
+    expect($('.colls-tile .tb-master')).toBeNull(); // no master shows until one is owned
+    ui?.unmount();
+    open({ titles: ['alpha_tester', 'title_hero_warden', 'title_hero_warden_master'], equippedTitleId: 'title_hero_warden_master' }, { seen: ['alpha_tester', 'title_hero_warden', 'title_hero_warden_master'] });
+    expect(tileNames().filter((n) => n === 'Warded')).toHaveLength(1); // one Warded, not two
+    const warded = tile('Warded');
+    expect(warded.querySelector('.titlebadge.tb-master')).not.toBeNull();
+    expect(warded.className).toMatch(/\bworn\b/);
+    expect(tileNames()).toHaveLength(49); // the master took the title's slot
+    expect(tileNames().slice(0, 2)).toEqual(['The Unbroken', 'Warded']); // the Legendaries lead the album
+    expect(text('.colls-meter-num')).toBe('2 / 77'); // Alpha Tester + Warded (the master stands for both tiers)
+    // the detail panel's nameplate and the preview under your name are the plate too
+    expect($('.colls-plate-name .titlebadge.tb-master')?.textContent).toBe('Warded');
+    expect($('.colls-preview-title .titlebadge.tb-master')?.textContent).toBe('Warded');
+    expect(text('.colls-facts')).toContain('Mastered.');
+    clean();
   });
 });
 
@@ -166,7 +191,7 @@ describe('the Collection screen: categories', () => {
     expect($('.colls-bay')).not.toBeNull();
     expect(button('Open')).toBeTruthy();
     act(() => tab('Titles').click());
-    expect(tileNames()).toHaveLength(16);
+    expect(tileNames()).toHaveLength(49);
     clean();
   });
 });
@@ -250,7 +275,7 @@ describe('the Collection screen: the crate bay', () => {
     open({}, { cratesOn: 'off' });
     expect(text('.colls-bay-sub')).toBe('Crates are coming soon.');
     expect($('.colls-bay-odds')).toBeNull(); // no odds while crates are off
-    expect(tileNames()).toHaveLength(16); // the album still shows
+    expect(tileNames()).toHaveLength(49); // the album still shows
     ui!.unmount();
     open({}, { crates: null });
     expect(text('.colls-bay-sub')).toBe('Loading');

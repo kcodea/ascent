@@ -119,7 +119,7 @@ describe('the tuner values', () => {
       expect(labels).toContain(l);
     }
     // Owner 2026-09-29 (every attack tuner): the Play row on TOP, and no speed or reduced-motion buttons.
-    expect(SPEC.buttonsTop).toBe(true);
+    expect(SPEC.buttonsOnTop).toBe(true);
     expect(labels.some((l) => /Speed|Reduced/.test(l))).toBe(false);
     // every sound cue has a clip picker
     const clipRows = SPEC.controls.filter((c) => String(c.key).startsWith('sfx') && String(c.key).endsWith('Clip'));

@@ -36,7 +36,7 @@
  */
 import { clamp, hexToNum } from '../heroAttack/easing';
 import {
-  HERO_ATTACK_TIER_THRESHOLDS, TIERS, reducedAttackTimeline, tierOf, type TierNum,
+  HERO_ATTACK_TIER_THRESHOLDS, TIERS, reducedAttackTimeline, type TierNum, attackTier, type AttackTierContext,
 } from '../heroAttack/tiers';
 
 export { TIERS, hexToNum, type TierNum };
@@ -382,7 +382,7 @@ export function quakeTravelMs(distance: number, tierMs: number): number {
   return Math.round(tierMs * clamp(Math.sqrt(d / QUAKE_REF_DISTANCE), 0.6, 1.2));
 }
 
-export interface QuakePlanInput {
+export interface QuakePlanInput extends AttackTierContext {
   /** When the style's own attack starts: the end of the shared damage formation (`formationPlan().endAt`). */
   leadIn?: number;
   /** THE blow, as the engine decided it. */
@@ -452,7 +452,7 @@ export interface QuakePlan {
 /** The whole Quake, in base ms (divide by the playback speed for real time). Pure and deterministic. */
 export function quakePlan(input: QuakePlanInput, c: HeroQuakeConfig = cfg): QuakePlan {
   const total = Math.max(0, Math.round(input.total));
-  const tier = tierOf(total, c);
+  const tier = attackTier(total, input, c); // a knockout always plays Tier IV (heroAttack/tiers.ts)
   const T = quakeTierDials(tier, c);
   const k = (tier - 1) / 3;
   const zeroes = {

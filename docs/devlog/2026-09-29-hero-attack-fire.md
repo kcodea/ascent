@@ -68,8 +68,8 @@ sound are unchanged. The `flames` and `flameLength` dials now drive the fire's d
 
 ## Tuners
 
-`TunerSpec.buttonsTop` puts the button row under the header; the Fire and Enraged tuners use it and drop the Speed and
-Reduced motion buttons (owner ask for every attack tuner; the other tuners are being done separately).
+`TunerSpec.buttonsOnTop` (from #1843) puts the button row under the header; the Fire and Enraged tuners use it and drop the Speed and
+Reduced motion buttons (owner ask for every attack tuner; #1843 did the other eight). On merging #1849, Inferno picks its tier with the shared `attackTier`, so a knockout always plays Tier IV (the meteor).
 
 ## Perf (dev server, headless Chrome, ANGLE D3D11, 1600 x 900, 240 Hz, the real runner and scene in a bare page)
 

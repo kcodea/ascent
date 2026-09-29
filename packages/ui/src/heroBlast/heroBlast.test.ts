@@ -77,7 +77,7 @@ describe('the plan', () => {
     expect([1, 5, 6, 11, 12, 19, 20, 60].map((d) => tierOf(d, C))).toEqual([1, 1, 2, 2, 3, 3, 4, 4]);
   });
 
-  it('every tier escalates: longer charge, stronger hit-stop, harder shake and push, more sparks; IV is the beam', () => {
+  it('every tier escalates: longer charge, harder shake and push, more sparks; FOUR distinct steps (1 / 2 / 5 bolts / the beam and supernova)', () => {
     const ps = [plan([3], 3), plan([3, 5], 8), plan([4, 4, 3, 3], 14), plan([6, 6, 6, 6, 6, 5, 5], 40)];
     expect(ps.map((p) => p.tier)).toEqual([1, 2, 3, 4]);
     for (let i = 1; i < 4; i++) {
@@ -87,8 +87,10 @@ describe('the plan', () => {
       expect(b.zoom, `zoom ${i}`).toBeGreaterThan(a.zoom);
       expect(b.sparks, `sparks ${i}`).toBeGreaterThan(a.sparks);
     }
-    expect(ps.map((p) => p.bolts.length)).toEqual([1, 2, 3, 1]);
+    expect(ps.map((p) => p.bolts.length)).toEqual([1, 2, 5, 1]);
     expect(ps.map((p) => p.beam)).toEqual([false, false, false, true]);
+    expect(ps.map((p) => p.nova)).toEqual([false, false, false, true]);
+    expect(ps.map((p) => p.novaRays > 0)).toEqual([false, false, false, true]);
     expect(ps.map((p) => p.booms.length)).toEqual([0, 0, 2, 4]);
     expect(ps[0]!.dim).toBe(0);
     expect(ps[3]!.dim).toBeGreaterThan(ps[1]!.dim);
@@ -98,8 +100,36 @@ describe('the plan', () => {
     // Timed from the charge: the style's own attack, after the shared damage formation (pinned in formation.test.ts).
     const t = (p: ReturnType<typeof plan>): number[] => [Math.round(p.impactAt - p.chargeAt), Math.round(p.endAt - p.chargeAt)];
     expect([t(plan([2, 1], 3)), t(plan([3, 3, 2], 8)), t(plan([3, 3, 3, 3, 2], 14)), t(plan([6, 6, 6, 6, 6, 5, 5], 40))]).toEqual([
-      [586, 1230], [686, 1430], [846, 1741], [1049, 2314],
+      [586, 1230], [686, 1430], [846, 1849], [1619, 2884],
     ]);
+  });
+
+  it('Tier IV: the beam lands (a tick), holds, pours in and implodes, and the blow lands on the SUPERNOVA', () => {
+    const p = plan([6, 6, 6, 6, 6, 5, 5], 40);
+    expect(p.beamHitAt).toBe(p.bolts[0]!.arriveAt);
+    expect(p.collapseAt).toBe(p.beamHitAt + C.beamHoldMs);
+    expect(p.impactAt).toBe(p.collapseAt + C.collapseMs);
+    const kinds = blastCues(p).map((c) => c.kind);
+    expect(kinds.filter((k) => k === 'impact')).toHaveLength(1);
+    expect(kinds.indexOf('fire')).toBeLessThan(kinds.indexOf('beamhit'));
+    expect(kinds.indexOf('beamhit')).toBeLessThan(kinds.indexOf('collapse'));
+    expect(kinds.indexOf('collapse')).toBeLessThan(kinds.indexOf('impact'));
+    expect(kinds.indexOf('impact')).toBeLessThan(kinds.indexOf('boom'));
+    // the lower tiers have no finale beats: the blow lands on the lead bolt, as before
+    for (const q of [plan([3], 3), plan([3, 5], 8), plan([4, 4, 3, 3], 14)]) {
+      expect(q.impactAt).toBe(q.bolts[0]!.arriveAt);
+      expect(q.beamHitAt).toBe(q.impactAt);
+      expect(blastCues(q).some((c) => c.kind === 'beamhit' || c.kind === 'collapse')).toBe(false);
+    }
+    // a nova needs the beam: switched on for a bolt tier, it is ignored
+    const odd = blastPlan({ total: 14, distance: 1600 }, { ...C, t3Nova: 1 });
+    expect(odd.nova).toBe(false);
+    // the camera inhales through the implosion and hits hardest on the detonation
+    const dir = { x: 1, y: 0 };
+    expect(cameraAt(p, C, p.impactAt - 1, dir).zoom).toBeGreaterThan(cameraAt(p, C, p.collapseAt, dir).zoom);
+    expect(cameraAt(p, C, p.impactAt, dir).zoom).toBeCloseTo(1 + p.zoom + p.punch, 5);
+    const a = { x: 100, y: 900 }, d = { x: 1700, y: 150 };
+    expect(cameraFocus(p, p.beamHitAt, a, d)).toEqual(d);
   });
 
   it('beats run in order: the charge starts where the damage formation ends, fire, IMPACT, hits and booms, end', () => {
@@ -229,7 +259,10 @@ describe('the runner', () => {
       const d = side === 'player' ? { x: 1400, y: 150 } : { x: 100, y: 800 };
       const { h, f, onImpact } = run({ side, attacker: a, defender: d, total: 40 });
       expect(h.plan.beam).toBe(true);
-      f.tick(h.plan.impactAt + 16, 4);
+      expect(h.plan.nova).toBe(true);
+      f.tick(h.plan.beamHitAt + 40, 4);
+      expect(onImpact, `${side}: the beam landing is only a tick`).not.toHaveBeenCalled();
+      f.tick(h.plan.impactAt - h.plan.beamHitAt - 24, 4);
       expect(onImpact, side).toHaveBeenCalledTimes(1);
       h.cancel();
     }
@@ -310,7 +343,7 @@ describe('the scene (headless Pixi)', () => {
     expect(whiten(0xff0000, 0)).toBe(0xff0000);
   });
 
-  it('a whole top-tier blast (charge, beam, impact, booms) drains to idle inside the pool cap; destroy leaves nothing', () => {
+  it('a whole top-tier blast (charge, beam, impact, supernova, booms) drains to idle inside the pool cap; destroy leaves nothing', () => {
     const s = new HeroBlastScene(TEX, { core: 0xffffff, side: 0xffaa00 });
     s.startCharge(100, 800, 260, 1.4, 44);
     for (let i = 0; i < 16; i++) s.update(16);
@@ -321,6 +354,8 @@ describe('the scene (headless Pixi)', () => {
     s.impact(1400, 150, { x: 1, y: -0.5 }, 1, 1.6, 1, 60, 130, 4);
     for (let i = 0; i < 4; i++) s.boom(1400 + i * 20, 150, 1.4);
     s.hit(1400, 150, { x: 1, y: -0.5 }, 1);
+    s.nova(1400, 150, { x: 1, y: -0.5 }, 2.5, 20);
+    expect(s.liveSprites).toBeLessThanOrEqual(MAX_SPRITES);
     expect(s.liveSprites).toBeLessThanOrEqual(MAX_SPRITES);
     expect(s.pooledSprites).toBeLessThanOrEqual(MAX_SPRITES);
     let alive = true;
@@ -333,13 +368,37 @@ describe('the scene (headless Pixi)', () => {
     expect(s.root.destroyed).toBe(true);
   });
 
+  it('the supernova: the beam pours into the target (its tail chases its front), the implosion gathers, the nova releases it', () => {
+    const s = new HeroBlastScene(TEX, { core: 0xffffff, side: 0xffaa00 });
+    s.beam({ x: 0, y: 0 }, { x: 1000, y: 0 }, 200, 200, 2, 0, 300);
+    for (let i = 0; i < 26; i++) s.update(16); // past travel + hold: the pour has begun
+    expect(s.liveBolts).toBe(1);
+    const tail = s.root.children.filter((c) => c.visible && c.scale.x > 1 && c.position.x > 1);
+    expect(tail.length).toBeGreaterThan(0); // the beam's body now starts part-way along, not at the hero
+    s.beamHit(1000, 0, { x: 1, y: 0 }, 1.3);
+    s.collapse(1000, 0, 300, 1.4, 30);
+    expect(s.charging).toBe(true);
+    for (let i = 0; i < 20; i++) s.update(16);
+    expect(s.liveBolts).toBe(0); // fully poured in
+    s.impact(1000, 0, { x: 1, y: 0 }, 1, 1.6, 1, 36, 120, 4);
+    s.nova(1000, 0, { x: 1, y: 0 }, 1, 12);
+    expect(s.liveSprites).toBeLessThanOrEqual(MAX_SPRITES);
+    let alive = true;
+    for (let i = 0; i < 400 && alive; i++) alive = s.update(16);
+    expect(alive).toBe(false);
+    expect(s.charging).toBe(false);
+    s.destroy();
+  });
+
   it('clear() drops everything in flight at once', () => {
     const s = new HeroBlastScene(TEX, { core: 1, side: 2 });
     s.startCharge(0, 0, 200, 1, 20);
     s.fire({ x: 0, y: 0 }, { x: 500, y: 0 }, 200, 1, 0);
     s.beam({ x: 0, y: 0 }, { x: 500, y: 0 }, 200, 200, 2);
+    s.collapse(500, 0, 300, 1, 20);
     s.impact(500, 0, { x: 1, y: 0 }, 0.5, 1, 1, 30);
     s.clear();
+    expect(s.charging).toBe(false);
     expect(s.liveSprites).toBe(0);
     expect(s.update(16)).toBe(false);
     s.destroy();

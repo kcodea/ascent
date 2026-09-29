@@ -1,6 +1,6 @@
 import {
-  ARCANA_TIER_SUFFIXES, HERO_ARCANA_DEFAULTS, HERO_ARCANA_RANGES, HERO_ARCANA_SPEEDS, TIERS, arcanaPlan, getHeroArcanaConfig,
-  heroArcanaConfigJson, heroArcanaPreviewSpeed, resetHeroArcanaConfig, setHeroArcanaPreviewSpeed, setHeroArcanaValue,
+  ARCANA_TIER_SUFFIXES, HERO_ARCANA_DEFAULTS, HERO_ARCANA_RANGES, TIERS, arcanaPlan, getHeroArcanaConfig,
+  heroArcanaConfigJson, resetHeroArcanaConfig, setHeroArcanaValue,
   type ArcanaTierSuffix, type HeroArcanaConfig, type HeroArcanaNumKey, type HeroArcanaStrKey, type TierNum,
 } from './heroArcana/heroArcanaConfig';
 import { clipNames } from './sfx';
@@ -13,8 +13,8 @@ import type { TunerControl, TunerSpec, TunerUnit } from './tunerSchema';
 /**
  * DEV tuner for the ARCANA hero attack (owner ask 2026-09-28: "one more attack animation, same setup as the last 2, but
  * let's make like a magic one called arcana"). The Play buttons run the REAL runner between the two real hero portraits
- * (works from the shop), in either direction, at Small 3 / Tier II 8 / Medium 12 / Huge 40, with reduced motion, at
- * 1x / 0.5x / 0.25x. A preview never touches the run. The "Attack style" row is the same dev override as the other
+ * (works from the shop), in either direction, at Small 3 / Tier II 8 / Medium 12 / Huge 40.
+ * A preview never touches the run. The "Attack style" row is the same dev override as the other
  * attack tuners' (Auto = what a player would see). Production plays the baked defaults.
  */
 type ArcanaTunerValues = HeroArcanaConfig & { attackStyle: string };
@@ -180,13 +180,13 @@ export function demo(
   const cfg = getHeroArcanaConfig();
   return playAttackDemo(side, (o) => playHeroArcana(o), {
     board: boardOfDamage(opts.damage ?? cfg.previewDamage, opts.parts ?? cfg.previewParts),
-    speed: heroArcanaPreviewSpeed(), reduced: opts.reduced, frames: opts.frames, sound: opts.sound, safety: opts.safety,
+    speed: 1, reduced: opts.reduced, frames: opts.frames, sound: opts.sound, safety: opts.safety,
   }, () => { live = null; }).then((h) => { live = h; return h; });
 }
 
 // DEV: a console / capture-rig handle on the same player the buttons use.
 if (import.meta.env.DEV && typeof window !== 'undefined') {
-  (window as unknown as { __heroArcana?: unknown }).__heroArcana = { demo, previewParts, setSpeed: setHeroArcanaPreviewSpeed };
+  (window as unknown as { __heroArcana?: unknown }).__heroArcana = { demo, previewParts };
 }
 
 export const SPEC: TunerSpec<ArcanaTunerValues> = {
@@ -195,7 +195,7 @@ export const SPEC: TunerSpec<ArcanaTunerValues> = {
   note: () => {
     const c = getHeroArcanaConfig();
     const p = arcanaPlan({ leadIn: previewLeadIn(c.previewDamage, c.previewParts), total: c.previewDamage, distance: 1600 }, c);
-    return `dev · ${heroArcanaPreviewSpeed()}x · tier ${p.tier} · ${p.swirl ? 'vortex' : `${p.ribbons.length} ribbon${p.ribbons.length === 1 ? '' : 's'}`} · fire ${Math.round(p.fireAt)} · impact ${Math.round(p.impactAt)} · end ${Math.round(p.endAt)} ms`;
+    return `dev · tier ${p.tier} · ${p.swirl ? 'vortex' : `${p.ribbons.length} ribbon${p.ribbons.length === 1 ? '' : 's'}`} · fire ${Math.round(p.fireAt)} · impact ${Math.round(p.impactAt)} · end ${Math.round(p.endAt)} ms`;
   },
   read: () => ({ ...getHeroArcanaConfig(), attackStyle: devHeroAttackChoice() }),
   write: (key, value) => setHeroArcanaValue(key as keyof HeroArcanaConfig, value),
@@ -205,6 +205,7 @@ export const SPEC: TunerSpec<ArcanaTunerValues> = {
   controls: buildControls(),
   copy: () => heroArcanaConfigJson(),
   copyLabel: 'Copy JSON',
+  buttonsOnTop: true,
   actions: [
     { label: '▶ You cast', hint: 'Your hero casts Arcana at the foe for the preview damage.', run: () => { void demo('player'); } },
     { label: '▶ Foe casts', hint: 'The foe casts Arcana at your hero for the preview damage.', run: () => { void demo('opp'); } },
@@ -216,12 +217,6 @@ export const SPEC: TunerSpec<ArcanaTunerValues> = {
     { label: '▶ Foe tier II (8)', hint: 'The foe casts at your hero for 8.', run: () => { void demo('opp', { damage: 8, parts: 3 }); } },
     { label: '▶ Foe medium (12)', hint: 'The foe casts at your hero for 12.', run: () => { void demo('opp', { damage: 12, parts: 4 }); } },
     { label: '▶ Foe huge (40)', hint: 'The foe casts at your hero for 40.', run: () => { void demo('opp', { damage: 40, parts: 7 }); } },
-    { label: '▶ Reduced motion', hint: 'What a player with reduced motion on sees: fades, no ribbons, shake or zoom.', run: () => { void demo('player', { reduced: true }); } },
-    ...HERO_ARCANA_SPEEDS.map((s) => ({
-      label: `Speed ${s}x`,
-      hint: 'Slow motion for the next plays (the tuner only; never saved, never in production).',
-      run: () => { setHeroArcanaPreviewSpeed(s); },
-    })),
   ],
 };
 

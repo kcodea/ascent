@@ -104,7 +104,7 @@ describe('the tuner values', () => {
     expect(DEV_HERO_ATTACK_CHOICES).toContain('frost');
     const labels = SPEC.actions?.map((a) => a.label) ?? [];
     for (const l of ['▶ You cast', '▶ Foe casts', '▶ Small (3)', '▶ Tier II (8)', '▶ Medium (12)', '▶ Huge (40)', '▶ Foe small (3)', '▶ Foe tier II (8)',
-      '▶ Foe medium (12)', '▶ Foe huge (40)', '▶ Reduced motion', 'Speed 1x', 'Speed 0.5x', 'Speed 0.25x']) {
+      '▶ Foe medium (12)', '▶ Foe huge (40)']) {
       expect(labels).toContain(l);
     }
   });

@@ -113,7 +113,7 @@ describe('the tuner values', () => {
     expect(DEV_HERO_ATTACK_CHOICES).toContain('enraged');
     expect(DEV_HERO_ATTACK_LABELS.enraged).toBe('Enraged Strike');
     const labels = SPEC.actions?.map((a) => a.label) ?? [];
-    for (const l of ['▶ You strike', '▶ Foe strikes', '▶ Small (3)', '▶ Tier II (8)', '▶ Medium (12)', '▶ Huge (40)', '▶ Foe small (3)', '▶ Foe tier II (8)', '▶ Foe medium (12)', '▶ Foe huge (40)', '▶ Reduced motion', 'Speed 1x', 'Speed 0.5x', 'Speed 0.25x']) {
+    for (const l of ['▶ You strike', '▶ Foe strikes', '▶ Small (3)', '▶ Tier II (8)', '▶ Medium (12)', '▶ Huge (40)', '▶ Foe small (3)', '▶ Foe tier II (8)', '▶ Foe medium (12)', '▶ Foe huge (40)']) {
       expect(labels).toContain(l);
     }
     for (const c of SPEC.controls) expect(`${c.label} ${c.hint ?? ''}`, c.key).not.toMatch(/[—–]/);

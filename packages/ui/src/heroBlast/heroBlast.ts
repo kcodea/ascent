@@ -58,8 +58,12 @@ export interface HeroBlastHandle extends HeroAttackHandle {
 export function cameraAt(p: BlastPlan, c: HeroBlastConfig, t: number, dir: Pt = { x: 1, y: 0 }): { zoom: number; x: number; y: number } {
   if (p.reduced) return { zoom: 1, x: 0, y: 0 };
   let z = 0;
-  if (t >= p.chargeAt && t < p.impactAt) z += p.zoom * easeInOutSine((t - p.chargeAt) / Math.max(1, p.fireAt - p.chargeAt));
-  else if (t >= p.impactAt) {
+  if (t >= p.chargeAt && t < p.impactAt) {
+    z += p.zoom * easeInOutSine((t - p.chargeAt) / Math.max(1, p.fireAt - p.chargeAt));
+    // A nova: the beam's landing punches in a little, then the view INHALES toward the struck hero with the implosion.
+    if (p.nova && t >= p.beamHitAt) z += p.punch * 0.5 * Math.exp(-(t - p.beamHitAt) / 90);
+    if (p.nova && t >= p.collapseAt) z += p.punch * 0.6 * easeInOutSine((t - p.collapseAt) / Math.max(1, p.impactAt - p.collapseAt));
+  } else if (t >= p.impactAt) {
     const since = t - p.impactAt;
     z += (p.zoom + p.punch) * Math.exp(-since / Math.max(1, c.zoomOutMs / 4));
   }
@@ -74,13 +78,19 @@ export function cameraAt(p: BlastPlan, c: HeroBlastConfig, t: number, dir: Pt = 
     y += dir.y * amp * s + perp.y * across;
   };
   p.bolts.forEach((b) => kick(b.fireAt, -p.shakePx * 0.18, 45, 14));
-  kick(p.impactAt, p.shakePx, Math.max(1, c.shakeMs / 4), 16);
+  // The supernova (Tier IV) detonates harder than any bolt; the beam landing before it is a lighter opening kick.
+  kick(p.impactAt, p.shakePx * (p.nova ? 1.25 : 1), Math.max(1, c.shakeMs / 4) * (p.nova ? 1.3 : 1), 16);
+  if (p.nova) kick(p.beamHitAt, p.shakePx * 0.55, 60, 16);
   p.bolts.slice(1).forEach((b) => kick(b.arriveAt, p.shakePx * 0.35, 40, 18));
   p.booms.forEach((at) => kick(at, p.shakePx * 0.3, 45, 18));
-  // The beam holds with a low rumble (across and along), fading as it thins out.
-  if (p.beam && t > p.impactAt && t < p.impactAt + c.beamHoldMs + 200) {
-    const age = t - p.impactAt;
-    const r = p.shakePx * 0.22 * (age < c.beamHoldMs ? 1 : 1 - (age - c.beamHoldMs) / 200);
+  // The beam holds with a low rumble (across and along), fading as it thins out, or (a nova) building through the
+  // implosion into the detonation.
+  const rumbleEnd = p.nova ? p.impactAt : p.beamHitAt + c.beamHoldMs + 200;
+  if (p.beam && t > p.beamHitAt && t < rumbleEnd) {
+    const age = t - p.beamHitAt;
+    const r = p.nova
+      ? p.shakePx * (0.22 + 0.2 * Math.max(0, (t - p.collapseAt) / Math.max(1, p.impactAt - p.collapseAt)))
+      : p.shakePx * 0.22 * (age < c.beamHoldMs ? 1 : 1 - (age - c.beamHoldMs) / 200);
     x += perp.x * r * Math.sin(age * 0.21) + dir.x * r * 0.5 * Math.sin(age * 0.33);
     y += perp.y * r * Math.sin(age * 0.21) + dir.y * r * 0.5 * Math.sin(age * 0.33);
   }
@@ -89,14 +99,14 @@ export function cameraAt(p: BlastPlan, c: HeroBlastConfig, t: number, dir: Pt = 
 
 /**
  * Where the camera pushes in: anchored on the ATTACKER through the charge (the world gathers around the hero), panning
- * with the bolt in flight, and anchored on the DEFENDER from the impact on. A zoom anchored on a point keeps that point
- * still, so the struck hero never gets pushed off the edge of the screen by the punch-in (the midpoint did that: both
+ * with the bolt in flight, and anchored on the DEFENDER from the moment the lead bolt (or the beam) lands. A zoom
+ * anchored on a point keeps that point still, so the struck hero never gets pushed off the edge of the screen by the punch-in (the midpoint did that: both
  * portraits sit near corners). Pure.
  */
 export function cameraFocus(p: BlastPlan, t: number, a: Pt, d: Pt): Pt {
   if (t <= p.fireAt) return a;
-  if (t >= p.impactAt) return d;
-  const u = (t - p.fireAt) / Math.max(1, p.impactAt - p.fireAt);
+  if (t >= p.beamHitAt) return d;
+  const u = (t - p.fireAt) / Math.max(1, p.beamHitAt - p.fireAt);
   const e = 0.3 * u + 0.7 * u * u; // follows the lead bolt (the scene's boltEase)
   return { x: a.x + (d.x - a.x) * e, y: a.y + (d.y - a.y) * e };
 }
@@ -145,7 +155,10 @@ export function playHeroBlast(o: HeroBlastOptions): HeroBlastHandle {
 
   const cue = voices.cue.bind(voices);
   // Warm every clip now, so the first cue of a session is not the one that has to wait for its decode.
-  voices.warm([c.sfxChargeClip, c.sfxFireClip, c.sfxBeamClip, c.sfxImpactClip, c.sfxThumpClip, c.sfxBigClip, c.sfxBoomClip]);
+  voices.warm([
+    c.sfxChargeClip, c.sfxFireClip, c.sfxBeamClip, c.sfxImpactClip, c.sfxThumpClip, c.sfxBigClip, c.sfxBoomClip,
+    ...(plan.nova ? [c.sfxCollapseClip, c.sfxNovaClip] : []),
+  ]);
 
   const fire = (q: BlastCue | FormationCue): void => {
     if (q.kind === 'form') { nums.fire(fplan.beats[q.i]!); return; }
@@ -163,14 +176,28 @@ export function playHeroBlast(o: HeroBlastOptions): HeroBlastHandle {
         if (plan.beam) {
           cue(c.sfxFireClip, c.sfxFireGain, c.sfxFireRate * 0.9);
           cue(c.sfxBeamClip, c.sfxBeamGain, c.sfxBeamRate);
-          scene?.beam(o.attacker, o.defender, b.travelMs, c.beamHoldMs, b.size, t - q.at);
+          scene?.beam(o.attacker, o.defender, b.travelMs, c.beamHoldMs, b.size, t - q.at, plan.nova ? c.collapseMs : 0);
         } else {
           if (q.i === 0) cue(c.sfxFireClip, c.sfxFireGain, c.sfxFireRate);
           scene?.fire(o.attacker, o.defender, b.travelMs, b.size, b.curve, t - q.at);
         }
         break;
       }
+      case 'beamhit':
+        // Tier IV: the beam lands. Heavy, but only the opening: the blow waits for the supernova.
+        cue(c.sfxImpactClip, c.sfxImpactGain * 0.7, c.sfxImpactRate * 1.08, { lenMs: 500, fadeMs: 200 });
+        cue(c.sfxThumpClip, c.sfxThumpGain * 0.8, c.sfxThumpRate, { lenMs: 400, fadeMs: 150 });
+        scene?.beamHit(o.defender.x, o.defender.y, dir, 1.3 * c.novaSize);
+        break;
+      case 'collapse':
+        cue(c.sfxCollapseClip, c.sfxCollapseGain, c.sfxCollapseRate);
+        scene?.collapse(o.defender.x, o.defender.y, plan.impactAt - plan.collapseAt, 1.4 * c.novaSize, c.collapseMotes);
+        break;
       case 'impact':
+        if (plan.nova) {
+          cue(c.sfxNovaClip, c.sfxNovaGain, c.sfxNovaRate, { tail: c.sfxTailMix, lenMs: 1600, fadeMs: 500 });
+          scene?.nova(o.defender.x, o.defender.y, dir, c.novaSize, plan.novaRays);
+        }
         cue(c.sfxImpactClip, c.sfxImpactGain * (0.85 + 0.05 * plan.tier), c.sfxImpactRate, { tail: c.sfxTailMix, lenMs: c.sfxImpactLenMs, fadeMs: 450 });
         cue(c.sfxThumpClip, c.sfxThumpGain, c.sfxThumpRate - 0.03 * (plan.tier - 1), { lenMs: 600, fadeMs: 200 });
         if (plan.tier >= 3) cue(c.sfxBigClip, c.sfxBigGain, c.sfxBigRate, { lenMs: 700, fadeMs: 250 });
@@ -198,7 +225,7 @@ export function playHeroBlast(o: HeroBlastOptions): HeroBlastHandle {
 
   const paintCamera = (t: number): void => {
     if (plan.reduced) return;
-    nums.paintDim(t, plan.chargeAt, plan.fireAt, plan.impactAt + (plan.beam ? c.beamHoldMs : 200));
+    nums.paintDim(t, plan.chargeAt, plan.fireAt, plan.impactAt + (plan.nova ? 320 : plan.beam ? c.beamHoldMs : 200));
     const cm = cameraAt(plan, c, t, dir);
     const f = cameraFocus(plan, t, o.attacker, o.defender);
     // One transform for the DOM (outermost, in screen px, over the stage's own scale) and the same for Pixi.
@@ -215,14 +242,23 @@ export function playHeroBlast(o: HeroBlastOptions): HeroBlastHandle {
       hero.set(Math.abs(sc - 1) < 1e-4 && Math.abs(back) < 0.05 ? null
         : `translate(${(-dir.x * back).toFixed(2)}px, ${(-dir.y * back).toFixed(2)}px) scale(${sc.toFixed(4)})`);
     }
-    if (foe.el && t >= plan.impactAt) {
-      // Knocked back along the bolt and squashed, springing home.
-      const since = t - plan.impactAt;
-      const k = spring(since, 4.5, 90);
-      const knock = c.knockPx * (0.7 + 0.3 * plan.k) * k;
+    if (foe.el && t >= plan.beamHitAt) {
+      // Knocked back along the bolt and squashed, springing home. A nova: a lighter knock when the beam lands, the
+      // portrait COMPRESSED and trembling through the implosion, then the full knock on the detonation.
+      let k = 0, pinch = 0, jitter = 0;
+      if (t >= plan.impactAt) k += spring(t - plan.impactAt, 4.5, 90) * (plan.nova ? 1.2 : 1);
+      if (plan.nova && t < plan.impactAt + 60) {
+        k += 0.45 * spring(t - plan.beamHitAt, 4.5, 90);
+        if (t >= plan.collapseAt && t < plan.impactAt) {
+          const u = (t - plan.collapseAt) / Math.max(1, plan.impactAt - plan.collapseAt);
+          pinch = 0.07 * u * u;
+          jitter = 3 * u * Math.sin(t * 0.9);
+        }
+      }
+      const knock = c.knockPx * (0.7 + 0.3 * plan.k) * k + jitter;
       const sq = c.squash * k;
-      foe.set(Math.abs(k) < 0.004 ? null
-        : `translate(${(dir.x * knock).toFixed(2)}px, ${(dir.y * knock).toFixed(2)}px) scale(${(1 - sq).toFixed(4)}, ${(1 + sq * 0.6).toFixed(4)})`);
+      foe.set(Math.abs(k) < 0.004 && pinch === 0 && jitter === 0 ? null
+        : `translate(${(dir.x * knock).toFixed(2)}px, ${(dir.y * knock).toFixed(2)}px) scale(${(1 - sq - pinch).toFixed(4)}, ${(1 + sq * 0.6 - pinch).toFixed(4)})`);
     }
   };
 

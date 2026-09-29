@@ -436,4 +436,18 @@ export const HEROES_RULES: GameRule[] = [
     currentBehaviour: 'Conforms (built 2026-09-28). Dev-only (Scene Builder, Set 3, the Ancients flag).',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsAlbus.test.ts'], lastVerifiedAt: '2026-09-28' },
   },
+  {
+    id: 'R-MIMIC-01',
+    title: "Kindness is not in Mimic's hero power pool",
+    statement:
+      "Mimic's per-turn power Discover never offers Kindness (Great Presence). Power Shifter draws from the same pool, so it never offers Kindness either. Void still can.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-29', quote: "mimic can get kindness hero power which is bad. kindness should not be in mimic's pool" },
+      { kind: 'code', ref: 'packages/sim/src/heroes.ts MIMIC_EXCLUDED / powerDiscoverPool' },
+    ],
+    currentBehaviour: 'Conforms (fixed 2026-09-29).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/heroBatchAug22.test.ts'], lastVerifiedAt: '2026-09-29' },
+  },
 ];

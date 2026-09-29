@@ -1,6 +1,6 @@
 import { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  COSMETIC_CATEGORY_DEFS, COSMETIC_RARITIES, RARITY_LABELS, crateName, crateOddsLine, levelProgress,
+  COSMETIC_CATEGORY_DEFS, COSMETIC_RARITIES, RARITY_LABELS, crateName, crateOddsLine, isMasterTitle, levelProgress,
   type CosmeticCategory, type CosmeticDef, type CosmeticRarity,
 } from '@game/progression';
 import { tempHandle, useGame } from '../store';
@@ -11,11 +11,12 @@ import { CrateOpener, type CrateQueueItem } from './CrateOpener';
 import { cratesVisible, equipCosmetic, equipTitle, mirrorFor, refreshCrates, useProgression } from './progressionStore';
 import {
   COMING_BLURB, acquisitionText, albumOf, categoryLive, collectibleItems, collectionCategories, countOf, filterAlbum, isEquipped, isNew,
-  loadSeen, missingHint, ownedIds, rarityCounts, saveSeen, skinTargetName, type RarityFilter, type ShowFilter,
+  loadSeen, masteryText, missingHint, ownedIds, rarityCounts, saveSeen, skinTargetName, type RarityFilter, type ShowFilter,
 } from './collectionModel';
 import { skinArtOf } from '../skins/skinArt';
 import { HeroAttackPreview } from '../heroBlast/HeroAttackPreview';
 import { NewRewardsPopup } from './NewRewardsPopup';
+import { TitleBadge } from '../titles/TitleBadge';
 import './collection.css';
 
 /**
@@ -90,9 +91,10 @@ export function CollectionPage({ reducedMotion }: { reducedMotion?: boolean }): 
   );
 
   const sealedIds = useMemo(() => (crateList ? new Set(sealed.map((c) => c.crateId)) : null), [crateList, sealed]);
-  const everything = useMemo(() => collectibleItems(), [catalogEpoch]);
+  // The Titles album shows each hero title once (its golden master once owned), so both lists read ownership.
+  const everything = useMemo(() => collectibleItems(undefined, owned), [catalogEpoch, owned]);
   const total = useMemo(() => countOf(everything, owned), [everything, owned]);
-  const album = useMemo(() => albumOf(category), [category, catalogEpoch]);
+  const album = useMemo(() => albumOf(category, undefined, owned), [category, catalogEpoch, owned]);
   const wornId = album.find((c) => isEquipped(c, me))?.id ?? null;
   const shown = useMemo(() => filterAlbum(album, owned, show, rarity), [album, owned, show, rarity]);
   const byRarity = useMemo(() => rarityCounts(album, owned), [album, owned]);
@@ -152,7 +154,7 @@ export function CollectionPage({ reducedMotion }: { reducedMotion?: boolean }): 
   const lp = levelProgress(me?.accountXp ?? 0);
   const name = playerName || tempHandle(userId);
   const live = categoryLive(category);
-  const newIn = (c: CosmeticCategory): number => albumOf(c).filter((i) => isNew(i.id, owned, seen)).length;
+  const newIn = (c: CosmeticCategory): number => albumOf(c, undefined, owned).filter((i) => isNew(i.id, owned, seen)).length;
 
   return (
     <SidebarHost className={`lbpage colls-page${reducedMotion ? ' colls-still' : ''}`}>
@@ -189,7 +191,7 @@ export function CollectionPage({ reducedMotion }: { reducedMotion?: boolean }): 
           <div className="colls-tabs" role="tablist" aria-label="Categories">
             {categories.map((c) => {
               const on = categoryLive(c);
-              const cnt = on ? countOf(albumOf(c), owned) : null;
+              const cnt = on ? countOf(albumOf(c, undefined, owned), owned) : null;
               const fresh = on ? newIn(c) : 0;
               return (
                 <button
@@ -241,7 +243,7 @@ export function CollectionPage({ reducedMotion }: { reducedMotion?: boolean }): 
                       <li key={c.id}>
                         <ItemTile
                           id={c.id} name={c.name} rarity={c.rarity} art={skinArtOf(c)} target={skinTargetName(c) ?? undefined}
-                          owned={owned.has(c.id)} equipped={isEquipped(c, me)} fresh={isNew(c.id, owned, seen)} selected={selectedId === c.id}
+                          owned={owned.has(c.id)} equipped={isEquipped(c, me)} fresh={isNew(c.id, owned, seen)} selected={selectedId === c.id} master={isMasterTitle(c.id)}
                           onPick={onPick}
                         />
                       </li>
@@ -301,13 +303,15 @@ export function CollectionPage({ reducedMotion }: { reducedMotion?: boolean }): 
 
 interface TileProps {
   id: string; name: string; rarity: CosmeticRarity; owned: boolean; equipped: boolean; fresh: boolean; selected: boolean; onPick: (id: string) => void;
+  /** A hero title's golden master version: its name is the embroidered plate (owner 2026-09-29). */
+  master?: boolean;
   /** A skin's art (its tile shows it, dimmed and blurred until owned). Undefined for a title, or a missing file. */
   art?: string;
   /** A skin's hero / minion, by name. */
   target?: string;
 }
 
-const ItemTile = memo(function ItemTile({ id, name, rarity, owned, equipped, fresh, selected, onPick, art, target }: TileProps): JSX.Element {
+const ItemTile = memo(function ItemTile({ id, name, rarity, owned, equipped, fresh, selected, onPick, art, target, master }: TileProps): JSX.Element {
   const state = equipped ? 'equipped' : owned ? 'owned' : 'not owned';
   return (
     <button
@@ -323,7 +327,7 @@ const ItemTile = memo(function ItemTile({ id, name, rarity, owned, equipped, fre
         <span className="colls-gem" aria-hidden />
         <span className="colls-tile-rar">{RARITY_LABELS[rarity]}</span>
       </span>
-      <span className="colls-tile-name">{name}</span>
+      <span className="colls-tile-name">{master ? <TitleBadge id={id} className="colls-titleplate" /> : name}</span>
       {!owned && <span className="colls-tile-lock" aria-hidden><LockGlyph /></span>}
       {fresh && <span className="colls-new" aria-hidden>New</span>}
       {equipped && <span className="colls-tile-ribbon" aria-hidden>Equipped</span>}
@@ -354,7 +358,7 @@ function DetailPanel({ item, owned, equipped, busy, error, playerName, reducedMo
       )}
       <div className="colls-plate">
         <span className="colls-gem colls-gem-lg" aria-hidden />
-        <div className="colls-plate-name">{item.name}</div>
+        <div className="colls-plate-name">{isMasterTitle(item.id) ? <TitleBadge id={item.id} className="colls-titleplate colls-titleplate-lg" /> : item.name}</div>
         <div className="colls-plate-rar">{RARITY_LABELS[item.rarity]}</div>
       </div>
       <div className="colls-facts">
@@ -362,12 +366,13 @@ function DetailPanel({ item, owned, equipped, busy, error, playerName, reducedMo
         {target && <div className="colls-fact"><span>For</span><b>{target}</b></div>}
         {attack && <div className="colls-fact"><span>For</span><b>Your hero, seen by the players you hit</b></div>}
         <div className="colls-fact"><span>How to get</span><b>{acquisitionText(item)}</b></div>
+        {masteryText(item) && <div className="colls-fact"><span>Mastery</span><b>{masteryText(item)}</b></div>}
       </div>
       {item.category === 'title' && (
         <div className="colls-preview" aria-label="Preview">
           <div className="colls-preview-lbl">Preview</div>
           <div className="colls-preview-name">{playerName}</div>
-          <div className="colls-preview-title">{item.name}</div>
+          <div className="colls-preview-title">{isMasterTitle(item.id) ? <TitleBadge id={item.id} className="colls-titleplate" /> : item.name}</div>
         </div>
       )}
       <div className="colls-detail-actions">

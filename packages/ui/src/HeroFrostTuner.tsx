@@ -1,6 +1,6 @@
 import {
-  FROST_TIER_SUFFIXES, HERO_FROST_DEFAULTS, HERO_FROST_RANGES, HERO_FROST_SPEEDS, TIERS, frostPlan, getHeroFrostConfig,
-  heroFrostConfigJson, heroFrostPreviewSpeed, resetHeroFrostConfig, setHeroFrostPreviewSpeed, setHeroFrostValue,
+  FROST_TIER_SUFFIXES, HERO_FROST_DEFAULTS, HERO_FROST_RANGES, TIERS, frostPlan, getHeroFrostConfig,
+  heroFrostConfigJson, resetHeroFrostConfig, setHeroFrostValue,
   type FrostTierSuffix, type HeroFrostConfig, type HeroFrostNumKey, type HeroFrostStrKey, type TierNum,
 } from './heroFrost/heroFrostConfig';
 import { clipNames } from './sfx';
@@ -14,7 +14,7 @@ import type { TunerControl, TunerSpec, TunerUnit } from './tunerSchema';
  * DEV tuner for the FROST hero attack (owner ask 2026-09-28: "branch off and create an ice/freeze blast one. icicles and
  * then a frost nova blast that blasts across the screen from the attacker to the target"). The Play buttons run the
  * REAL runner between the two real hero portraits (works from the shop), in either direction, at Small 3 / Tier II 8 /
- * Medium 12 / Huge 40, with reduced motion, at 1x / 0.5x / 0.25x. A preview never touches the run. The "Attack style"
+ * Medium 12 / Huge 40. A preview never touches the run. The "Attack style"
  * row is the same dev override as the other attack tuners' (Auto = what a player would see). Production plays the
  * baked defaults.
  */
@@ -199,13 +199,13 @@ export function demo(
   const cfg = getHeroFrostConfig();
   return playAttackDemo(side, (o) => playHeroFrost(o), {
     board: boardOfDamage(opts.damage ?? cfg.previewDamage, opts.parts ?? cfg.previewParts),
-    speed: heroFrostPreviewSpeed(), reduced: opts.reduced, frames: opts.frames, sound: opts.sound, safety: opts.safety,
+    speed: 1, reduced: opts.reduced, frames: opts.frames, sound: opts.sound, safety: opts.safety,
   }, () => { live = null; }).then((h) => { live = h; return h; });
 }
 
 // DEV: a console / capture-rig handle on the same player the buttons use.
 if (import.meta.env.DEV && typeof window !== 'undefined') {
-  (window as unknown as { __heroFrost?: unknown }).__heroFrost = { demo, previewParts, setSpeed: setHeroFrostPreviewSpeed };
+  (window as unknown as { __heroFrost?: unknown }).__heroFrost = { demo, previewParts };
 }
 
 export const SPEC: TunerSpec<FrostTunerValues> = {
@@ -215,7 +215,7 @@ export const SPEC: TunerSpec<FrostTunerValues> = {
     const c = getHeroFrostConfig();
     const p = frostPlan({ leadIn: previewLeadIn(c.previewDamage, c.previewParts), total: c.previewDamage, distance: 1600 }, c);
     const what = `${p.icicles.length} icicle${p.icicles.length === 1 ? '' : 's'}${p.nova ? ' + nova' : ''}`;
-    return `dev · ${heroFrostPreviewSpeed()}x · tier ${p.tier} · ${what} · fire ${Math.round(p.fireAt)} · impact ${Math.round(p.impactAt)} · end ${Math.round(p.endAt)} ms`;
+    return `dev · tier ${p.tier} · ${what} · fire ${Math.round(p.fireAt)} · impact ${Math.round(p.impactAt)} · end ${Math.round(p.endAt)} ms`;
   },
   read: () => ({ ...getHeroFrostConfig(), attackStyle: devHeroAttackChoice() }),
   write: (key, value) => setHeroFrostValue(key as keyof HeroFrostConfig, value),
@@ -225,6 +225,7 @@ export const SPEC: TunerSpec<FrostTunerValues> = {
   controls: buildControls(),
   copy: () => heroFrostConfigJson(),
   copyLabel: 'Copy JSON',
+  buttonsOnTop: true,
   actions: [
     { label: '▶ You cast', hint: 'Your hero casts Frost at the foe for the preview damage.', run: () => { void demo('player'); } },
     { label: '▶ Foe casts', hint: 'The foe casts Frost at your hero for the preview damage.', run: () => { void demo('opp'); } },
@@ -236,12 +237,6 @@ export const SPEC: TunerSpec<FrostTunerValues> = {
     { label: '▶ Foe tier II (8)', hint: 'The foe casts at your hero for 8.', run: () => { void demo('opp', { damage: 8, parts: 3 }); } },
     { label: '▶ Foe medium (12)', hint: 'The foe casts at your hero for 12.', run: () => { void demo('opp', { damage: 12, parts: 4 }); } },
     { label: '▶ Foe huge (40)', hint: 'The foe casts at your hero for 40.', run: () => { void demo('opp', { damage: 40, parts: 7 }); } },
-    { label: '▶ Reduced motion', hint: 'What a player with reduced motion on sees: fades, no icicles, nova, shake or zoom.', run: () => { void demo('player', { reduced: true }); } },
-    ...HERO_FROST_SPEEDS.map((s) => ({
-      label: `Speed ${s}x`,
-      hint: 'Slow motion for the next plays (the tuner only; never saved, never in production).',
-      run: () => { setHeroFrostPreviewSpeed(s); },
-    })),
   ],
 };
 

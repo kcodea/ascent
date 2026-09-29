@@ -228,6 +228,11 @@ export const COSMETICS: readonly CosmeticDef[] = Object.freeze([
   // fires a flat consecrated blast at the target. The name is the builder's placeholder for the owner to rename (the id
   // stays). Legendary like the other seven.
   heroAttack('attack_holy', 'Consecration', 'legendary', 'holy'),
+  // Owner 2026-09-29: "make some more attack types ... a beast chomp rush animation ... use the same 4 tier strategy we
+  // have been". Spirit beasts leap from the hero and front jaws chomp shut on the target: I one wolf, II a staggered
+  // pair, III a pack of five kicking up dust, IV a colossal beast whose jaws slam over the whole portrait, then it roars.
+  // The name is the builder's placeholder for the owner to rename (the id stays). Legendary like the other eight.
+  heroAttack('attack_beast', 'Stampede', 'legendary', 'beast'),
 ]);
 
 export const COSMETIC_INDEX: Readonly<Record<string, CosmeticDef>> = Object.freeze(

@@ -60,7 +60,7 @@ describe('the Attack Animations tab', () => {
   it('Arcana (owner 2026-09-28: "one more attack animation ... a magic one called arcana") has its own tile and plays its own preview; Equip sends attack_arcana', async () => {
     open({ cosmetics: ['alpha_tester', 'attack_blast', 'attack_quake', 'attack_arcana'] });
     act(() => tab('Attack Animations').click());
-    expect(tab('Attack Animations').querySelector('.colls-tab-count')?.textContent).toBe('3/8'); // 2026-09-28: Phantom Blades, Enraged Strike, Venom Volley then Frost Nova then Consecration joined, so three of eight
+    expect(tab('Attack Animations').querySelector('.colls-tab-count')?.textContent).toBe('3/9'); // 2026-09-28: Phantom Blades, Enraged Strike, Venom Volley then Frost Nova then Consecration joined, then the Stampede (2026-09-29), so three of nine
     act(() => tile('Arcana').click());
     expect(tile('Arcana').getAttribute('aria-label')).toBe('Arcana, Legendary, owned');
     expect(text('.colls-detail .colls-kicker')).toBe('Hero attack');
@@ -80,8 +80,8 @@ describe('the Attack Animations tab', () => {
   it('Tectonic Slam (Quake, owner 2026-09-28) has its own tile and plays its own preview; Equip sends attack_quake', async () => {
     open({ cosmetics: ['alpha_tester', 'attack_blast', 'attack_quake'] });
     act(() => tab('Attack Animations').click());
-    // 2026-09-28: Arcana, Phantom Blades, Enraged Strike, Venom Volley then Frost Nova joined, so two of seven are owned here.
-    expect(tab('Attack Animations').querySelector('.colls-tab-count')?.textContent).toBe('2/8');
+    // 2026-09-28: Arcana, Phantom Blades, Enraged Strike, Venom Volley, Frost Nova, Consecration then (2026-09-29) the Stampede joined, so two of nine are owned here.
+    expect(tab('Attack Animations').querySelector('.colls-tab-count')?.textContent).toBe('2/9');
     act(() => tile('Tectonic Slam').click());
     expect(tile('Tectonic Slam').getAttribute('aria-label')).toBe('Tectonic Slam, Legendary, owned');
     expect(text('.colls-detail .colls-kicker')).toBe('Hero attack');
@@ -101,7 +101,7 @@ describe('the Attack Animations tab', () => {
   it('Phantom Blades (owner 2026-09-28: "surprise me") has its own tile and plays its own preview; Equip sends attack_blades', async () => {
     open({ cosmetics: ['alpha_tester', 'attack_blast', 'attack_blades'] });
     act(() => tab('Attack Animations').click());
-    expect(tab('Attack Animations').querySelector('.colls-tab-count')?.textContent).toBe('2/8');
+    expect(tab('Attack Animations').querySelector('.colls-tab-count')?.textContent).toBe('2/9');
     act(() => tile('Phantom Blades').click());
     expect(tile('Phantom Blades').getAttribute('aria-label')).toBe('Phantom Blades, Legendary, owned');
     expect(text('.colls-detail .colls-kicker')).toBe('Hero attack');
@@ -121,7 +121,7 @@ describe('the Attack Animations tab', () => {
   it('Enraged Strike (owner 2026-09-28: "a legendary version of this strike") has its own tile and plays its own preview; Equip sends attack_enraged', async () => {
     open({ cosmetics: ['alpha_tester', 'attack_blast', 'attack_enraged'] });
     act(() => tab('Attack Animations').click());
-    expect(tab('Attack Animations').querySelector('.colls-tab-count')?.textContent).toBe('2/8');
+    expect(tab('Attack Animations').querySelector('.colls-tab-count')?.textContent).toBe('2/9');
     act(() => tile('Enraged Strike').click());
     expect(tile('Enraged Strike').getAttribute('aria-label')).toBe('Enraged Strike, Legendary, owned');
     expect(text('.colls-detail .colls-kicker')).toBe('Hero attack');
@@ -141,7 +141,7 @@ describe('the Attack Animations tab', () => {
   it('Venom Volley (Poison Darts, owner 2026-09-28: "make a poison dart animation") has its own tile and plays its own preview; Equip sends attack_poison', async () => {
     open({ cosmetics: ['alpha_tester', 'attack_blast', 'attack_poison'] });
     act(() => tab('Attack Animations').click());
-    expect(tab('Attack Animations').querySelector('.colls-tab-count')?.textContent).toBe('2/8');
+    expect(tab('Attack Animations').querySelector('.colls-tab-count')?.textContent).toBe('2/9');
     act(() => tile('Venom Volley').click());
     expect(tile('Venom Volley').getAttribute('aria-label')).toBe('Venom Volley, Legendary, owned');
     expect(text('.colls-detail .colls-kicker')).toBe('Hero attack');
@@ -161,7 +161,7 @@ describe('the Attack Animations tab', () => {
   it('Frost Nova (owner 2026-09-28: "an ice/freeze blast one. icicles and then a frost nova") has its own tile and plays its own preview; Equip sends attack_frost', async () => {
     open({ cosmetics: ['alpha_tester', 'attack_blast', 'attack_frost'] });
     act(() => tab('Attack Animations').click());
-    expect(tab('Attack Animations').querySelector('.colls-tab-count')?.textContent).toBe('2/8');
+    expect(tab('Attack Animations').querySelector('.colls-tab-count')?.textContent).toBe('2/9');
     act(() => tile('Frost Nova').click());
     expect(tile('Frost Nova').getAttribute('aria-label')).toBe('Frost Nova, Legendary, owned');
     expect(text('.colls-detail .colls-kicker')).toBe('Hero attack');
@@ -181,7 +181,7 @@ describe('the Attack Animations tab', () => {
   it('Consecration (owner 2026-09-28: "a holy weapon + consecration attack") has its own tile and plays its own preview; Equip sends attack_holy', async () => {
     open({ cosmetics: ['alpha_tester', 'attack_blast', 'attack_holy'] });
     act(() => tab('Attack Animations').click());
-    expect(tab('Attack Animations').querySelector('.colls-tab-count')?.textContent).toBe('2/8');
+    expect(tab('Attack Animations').querySelector('.colls-tab-count')?.textContent).toBe('2/9');
     act(() => tile('Consecration').click());
     expect(tile('Consecration').getAttribute('aria-label')).toBe('Consecration, Legendary, owned');
     expect(text('.colls-detail .colls-kicker')).toBe('Hero attack');
@@ -198,12 +198,32 @@ describe('the Attack Animations tab', () => {
     clean();
   });
 
+  it('Stampede (owner 2026-09-29: "a beast chomp rush animation") has its own tile and plays its own preview; Equip sends attack_beast', async () => {
+    open({ cosmetics: ['alpha_tester', 'attack_blast', 'attack_beast'] });
+    act(() => tab('Attack Animations').click());
+    expect(tab('Attack Animations').querySelector('.colls-tab-count')?.textContent).toBe('2/9');
+    act(() => tile('Stampede').click());
+    expect(tile('Stampede').getAttribute('aria-label')).toBe('Stampede, Legendary, owned');
+    expect(text('.colls-detail .colls-kicker')).toBe('Hero attack');
+    expect($('.colls-detail .hapv-box')).not.toBeNull();
+    const preview = button('▶ Preview');
+    expect(preview).toBeTruthy();
+    expect(preview!.disabled).toBe(false);
+    equipCosmeticRemote.mockResolvedValue({ status: 'ok', value: null, profile: { ...base, cosmetics: [...base.cosmetics!, 'attack_beast'], revision: 11, loadout: { heroAttack: 'attack_beast' } } });
+    await act(async () => { button('Equip')!.click(); });
+    await settle();
+    expect(equipCosmeticRemote).toHaveBeenCalledWith('hero_attack', '', 'attack_beast');
+    expect(tile('Stampede').className).toMatch(/\bworn\b/);
+    expect(tile('Arcane Barrage').className).not.toMatch(/\bworn\b/);
+    clean();
+  });
+
   it('is live with its count; Arcane Barrage has a tile and a detail panel with an in-place preview', () => {
     open();
     const t = tab('Attack Animations');
     expect(t.className).not.toMatch(/\blocked\b/);
-    // 2026-09-28: Quake ("Tectonic Slam"), Arcana, Phantom Blades, Enraged Strike, Venom Volley and Frost Nova joined Blast, so one of seven is owned.
-    expect(t.querySelector('.colls-tab-count')?.textContent).toBe('1/8');
+    // 2026-09-28: Quake ("Tectonic Slam"), Arcana, Phantom Blades, Enraged Strike, Venom Volley, Frost Nova, Consecration and (2026-09-29) the Stampede joined Blast, so one of nine is owned.
+    expect(t.querySelector('.colls-tab-count')?.textContent).toBe('1/9');
     act(() => t.click());
     expect(tile('Arcane Barrage').getAttribute('aria-label')).toBe('Arcane Barrage, Legendary, owned');
     expect(text('.colls-detail .colls-kicker')).toBe('Hero attack');

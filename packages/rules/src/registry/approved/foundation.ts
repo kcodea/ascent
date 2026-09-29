@@ -2187,7 +2187,8 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'style blades: R-PROG-ATTACK-07), the fifth, attack_enraged ("Enraged Strike", Legendary, style enraged: '
       + 'R-PROG-ATTACK-11), the sixth, attack_poison ("Venom Volley", Legendary, style poison: R-PROG-ATTACK-12), the '
       + 'seventh, attack_frost ("Frost Nova", Legendary, style frost: R-PROG-ATTACK-13), and the eighth, attack_holy '
-      + '("Consecration", Legendary, style holy: R-PROG-ATTACK-14), re-pinned the first-crate odds to Common 45.5%, Rare '
+      + '("Consecration", Legendary, style holy: R-PROG-ATTACK-14; the ninth, attack_beast, "Stampede", Legendary, style beast, '
+      + 'is R-PROG-ATTACK-15), re-pinned the first-crate odds to Common 45.5%, Rare '
       + '30.2%, Epic 18.5%, Legendary 5.9%; a non-title item 33.5%; the eight attacks together 4.3%.',
     domain: 'foundation',
     status: 'approved',
@@ -2581,6 +2582,37 @@ export const FOUNDATION_RULES: GameRule[] = [
     ],
     currentBehaviour: 'Conforms, built 2026-09-28; flattened and the six-sword finale 2026-09-29. The item reaches the database on the next deploy of progression-inventory (the catalog sync); the equip SQL already accepts the hero_attack slot.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/heroHoly/heroHoly.test.ts', 'packages/progression/src/cosmetics.test.ts', 'packages/ui/src/progression/CollectionHeroAttack.test.tsx', 'packages/ui/src/heroAttack/damageFormation.test.ts'], lastVerifiedAt: '2026-09-29' },
+  },
+  {
+    id: 'R-PROG-ATTACK-15',
+    title: 'The Stampede (attack_beast, Legendary) is a beast chomp rush: spirit wolves leap and front jaws SNAP SHUT on the target (one / a staggered pair / a pack of five with dust / six and a colossus that slams and roars), on the SAME damage tiers; the blow lands ONCE; no freeze',
+    statement:
+      'attack_beast ("Stampede", a placeholder name for the owner to rename; Legendary, crate, account-wide, style beast) '
+      + 'plays a primal beast chomp rush in feral green and amber, drawn flat. After the shared damage formation '
+      + '(R-PROG-ATTACK-08) the striking hero crouches back and growls while feral energy gathers round it; then spirit '
+      + 'wolves (heads of feral energy with streaming manes, burning eyes and gleaming fangs) burst off it and LEAP at the '
+      + 'struck hero, their jaws opening as they close in. As each lands, a pair of spectral jaws (a front view: an upper '
+      + 'and a lower fang row) fades in wide and SNAPS SHUT over the struck portrait exactly on that beat, the fangs '
+      + 'interlocking, leaving bite marks that ride the portrait, the portrait squeezed flat between them and shaken. It '
+      + 'escalates on exactly the tiers every other hero attack uses (one shared tierOf, thresholds 6 / 12 / 20): I 1-5 '
+      + 'one wolf and one chomp; II 6-11 two, staggered (the first a tick); III 12-19 a pack of five streaming across in '
+      + 'lanes and kicking up dust (four ticks, then the last, dead-centre chomp); IV 20+ six chomps round the face (all '
+      + 'ticks), then a COLOSSAL beast rises behind the target: its jaws fade in far above and below it (a jaw on a side '
+      + 'with little room waits just inside that screen edge, and the maw slides toward the middle of the screen so a '
+      + 'corner hero is still framed by fangs), its eyes ignite and a mane of light flares, the jaws creep in, then SLAM '
+      + 'shut over the whole portrait; a beat later it ROARS (the jaws spring open, shockwave rings and speed lines, the view '
+      + 'rattles) and dissolves. The consequence (the damage, Armor, Resolve) lands exactly ONCE: on the last chomp (every '
+      + 'earlier chomp is a tick with FX and sound only) or, at IV, on the slam (never on a chomp, the rise or the roar). No '
+      + 'hit-stop or freeze anywhere (R-PROG-ATTACK-10). Every anchor is the round portrait art at rest (R-PROG-ATTACK-04). '
+      + 'Presentation only; reduced motion is fades only; an unknown or retired id plays Classic.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-29 (more hero attacks)', quote: 'branch off and make some more attack types - we need a fire animation, a bleed/gash animation, some sort of an undead animation, a beast chomp rush animation, and i would love a king oona banana cannon animation. use the same 4 tier strategy we have been.' },
+      { kind: 'code', ref: 'packages/progression/src/cosmetics.ts (attack_beast); packages/ui/src/heroBeast/ (heroBeastConfig beastPlan / beastCues / beastMotions / biteOffset / clampGap / colossalGap / beastCameraAt, heroBeast playHeroBeast, heroBeastScene, heroBeastTextures)' },
+    ],
+    currentBehaviour: 'Conforms, built 2026-09-29. The item reaches the database on the next deploy of progression-inventory (the catalog sync); the equip SQL already accepts the hero_attack slot.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/heroBeast/heroBeast.test.ts', 'packages/progression/src/cosmetics.test.ts', 'packages/ui/src/progression/CollectionHeroAttack.test.tsx', 'packages/ui/src/heroAttack/damageFormation.test.ts'], lastVerifiedAt: '2026-09-29' },
   },
   {
     id: 'R-PRESENT-24',

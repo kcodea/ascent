@@ -16,6 +16,7 @@ import {
 import { skinArtOf } from '../skins/skinArt';
 import { HeroAttackPreview } from '../heroBlast/HeroAttackPreview';
 import { NewRewardsPopup } from './NewRewardsPopup';
+import { CrateSignInGate } from './CrateSignInGate';
 import { TitleBadge } from '../titles/TitleBadge';
 import './collection.css';
 
@@ -44,8 +45,9 @@ import './collection.css';
  *               large, and Equip / "Use default art" wear it on that one target (Default is always selectable).
  *               A RETIRED item (the kill switch) is not in the album at all; see collectionModel.ts.
  *
- * A guest sees a slim save-progress row. Sizes are layout px (the stage scales the page on a small screen); no
- * native tooltips; buttons take the global gauntlet cursor. Tiles are memoized with primitive props; the only
+ * A guest sees a slim save-progress row, and (owner 2026-09-29, a HARD gate) cannot open a crate: every Open goes
+ * through `begin`, which shows the sign-in gate (`CrateSignInGate.tsx`) instead. Sealed crates stay in view.
+ * Sizes are layout px (the stage scales the page on a small screen); no native tooltips; buttons take the global gauntlet cursor. Tiles are memoized with primitive props; the only
  * loops are the crate's float (transform) and two glows that breathe by OPACITY over a static paint.
  */
 
@@ -81,6 +83,8 @@ export function CollectionPage({ reducedMotion }: { reducedMotion?: boolean }): 
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [theatre, setTheatre] = useState<{ queue: CrateQueueItem[]; openAll: boolean } | null>(null);
+  const [gate, setGate] = useState(false);
+  const closeGate = useCallback(() => setGate(false), []);
 
   useEffect(() => { void refreshCrates(); }, []);
   useEffect(() => { setSeen(loadSeen(userId)); }, [userId]);
@@ -143,9 +147,13 @@ export function CollectionPage({ reducedMotion }: { reducedMotion?: boolean }): 
     if (!ok) setError(attack ? 'Could not change your hero attack. Try again.' : skin ? 'Could not change your skin. Try again.' : 'Could not change your title. Try again.');
   };
 
+  /** EVERY player-facing crate open comes through here (the bay's Open / Open all, the New rewards pop-up). A guest
+   *  gets the sign-in gate instead (owner 2026-09-29); `anonymous` is read fresh each render, so the first Open
+   *  after the account is created goes straight through. */
   const begin = (openAll: boolean): void => {
     if (!sealed.length) return;
     sfx.pulse();
+    if (anonymous) { setGate(true); return; }
     setTheatre({ queue: [...sealed], openAll });
   };
 
@@ -259,7 +267,7 @@ export function CollectionPage({ reducedMotion }: { reducedMotion?: boolean }): 
 
         <aside className="colls-side">
           <CrateBay
-            cratesOn={cratesOn} loading={crateList === null} sealed={sealed} nextLevel={lp.level + 1}
+            cratesOn={cratesOn} loading={crateList === null} sealed={sealed} nextLevel={lp.level + 1} guest={anonymous}
             onOpen={() => begin(false)} onOpenAll={() => begin(true)}
           />
           {live && selected && (
@@ -286,6 +294,7 @@ export function CollectionPage({ reducedMotion }: { reducedMotion?: boolean }): 
 
       {/* NEW REWARDS (owner 2026-09-28): what the last games awarded, summarised once, then marked seen. */}
       <NewRewardsPopup sealedIds={sealedIds} onOpenCrates={(all) => begin(all)} />
+      <CrateSignInGate open={gate} onClose={closeGate} />
       {theatre && (
         <CrateOpener
           queue={theatre.queue}
@@ -394,8 +403,8 @@ function DetailPanel({ item, owned, equipped, busy, error, playerName, reducedMo
 
 // ── The crate bay (always in view) ─────────────────────────────────────────────────────────────────────────
 
-function CrateBay({ cratesOn, loading, sealed, nextLevel, onOpen, onOpenAll }: {
-  cratesOn: boolean; loading: boolean; sealed: CrateQueueItem[]; nextLevel: number; onOpen: () => void; onOpenAll: () => void;
+function CrateBay({ cratesOn, loading, sealed, nextLevel, guest, onOpen, onOpenAll }: {
+  cratesOn: boolean; loading: boolean; sealed: CrateQueueItem[]; nextLevel: number; guest: boolean; onOpen: () => void; onOpenAll: () => void;
 }): JSX.Element {
   const n = sealed.length;
   const ready = cratesOn && !loading && n > 0;
@@ -417,8 +426,9 @@ function CrateBay({ cratesOn, loading, sealed, nextLevel, onOpen, onOpenAll }: {
         ) : (
           <>
             <div className="colls-bay-sub"><b>{n}</b> ready. Next: {crateName(sealed[0]!.earnedLevel)}</div>
+            {guest && <div className="colls-bay-guest">Create a free account to open them.</div>}
             <div className="colls-bay-actions">
-              <button type="button" className="cv2-btn pressable colls-open" onClick={onOpen}>Open</button>
+              <button type="button" className="cv2-btn pressable colls-open" onClick={onOpen} aria-label={guest ? 'Open (needs an account)' : undefined}>{guest && <LockGlyph />}Open</button>
               {n > 1 && <button type="button" className="colls-quiet pressable quiet" onClick={onOpenAll}>Open all ({n})</button>}
             </div>
           </>

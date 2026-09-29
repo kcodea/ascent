@@ -60,6 +60,15 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: 'Guests now create a free account to open crates. Your crates, level and collection stay with it.',
+        details: [
+          'Guests still earn crates. They wait sealed in the Collection until you make an account.',
+          'Making an account keeps everything you earned as a guest. You only need an email.',
+          'Signing into an account you already have switches to it. Crates earned as a guest stay on the guest.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'A new Legendary hero attack, Hemorrhage, can drop from crates.',
         details: [
           'Your damage builds up, then your hero draws a blade and swings crimson crescents at the other hero.',

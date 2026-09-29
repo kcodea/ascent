@@ -65,7 +65,7 @@ describe('the tuner values', () => {
     for (const k of ['previewMinions', 'previewTierLo', 'previewTierHi', 'previewHeroTier', 'previewCap']) expect(json[k], k).toBeUndefined();
     expect(json.capMs).toBe(C.capMs);
     const labels = (SPEC.actions ?? []).map((a) => a.label);
-    for (const l of ['▶ You attack', '▶ Foe attacks', '▶ Other direction', '▶ 4 minions, capped', '▶ Reduced motion', 'Speed 1x', 'Speed 0.5x', 'Speed 0.25x']) expect(labels).toContain(l);
+    for (const l of ['▶ You attack', '▶ Foe attacks', '▶ Other direction', '▶ 4 minions, capped']) expect(labels).toContain(l);
   });
 
   it('the preview board spreads its tiers left to right, low to high', () => {

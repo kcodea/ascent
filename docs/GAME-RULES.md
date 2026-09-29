@@ -227,9 +227,10 @@ progression **epoch**; nothing finished before the epoch counts (no backfill).
   sidebar, or the Account Level card on your Career; Open one crate, or Open all). The reward is chosen **when the crate is opened**, on the
   server, from the items the player does not own yet. **Fixed rarity odds (2026-09-29, R-PROG-CRATE-03):** one
   server draw first rolls a rarity at **Common 50% / Rare 30% / Epic 15% / Legendary 5%**, then picks an unowned item
-  of that rarity weighted by its category weight. The odds never move as items are added, and the Collection's crate
+  of that rarity, **every item of the rarity equally likely** (owner 2026-09-29: "yeah equal chance"; category weights
+  stay in the catalog but the roll no longer reads them). The odds never move as items are added, and the Collection's crate
   bay prints them. A rolled rarity with nothing left falls to the **nearest** rarity that has something, ties toward
-  the more common one (Epic empty goes to Rare before Legendary). Opened crates record roll version 2. **Never a
+  the more common one (Epic empty goes to Rare before Legendary). Opened crates record roll version 3. **Never a
   duplicate.** With nothing left to give, the crate stays **sealed** (`pool_exhausted`) until new items arrive;
   it is never converted into anything. A new title is worn at once only when none is worn.
 - **The opening (presentation, 2026-09-28).** A full-screen opening that starts on the click while the server
@@ -245,9 +246,9 @@ progression **epoch**; nothing finished before the epoch counts (no backfill).
   for every cosmetic category (announcer, hero skin, minion skin, title, hero attack, board, music). Switched on:
   **titles** (15 crate titles: 7 Common, 5 Rare, 2 Epic, 1 Legendary) and, since the skins shipped the same day,
   **hero skins** and **minion skins** (all from crates) and **hero attacks** (Arcane Barrage, Tectonic Slam, Arcana, Phantom Blades, Enraged Strike, Venom Volley, Frost Nova, then Consecration). The other
-  categories are feature-flagged off until their art exists. Crate odds are the fixed rarity odds above, then category
-  weight inside the rarity: a fresh account's first crate (2026-09-29 catalog) is about 61% a skin or hero attack, and
-  the eight Legendary hero attacks together are 3%.
+  categories are feature-flagged off until their art exists. Crate odds are the fixed rarity odds above, then an equal
+  share inside the rarity: on the 2026-09-29 catalog each Common is 6.25% (50 / 8), each Rare 2.31% (30 / 13), each Epic
+  1.5% (15 / 10) and each Legendary 0.45% (5 / 11). A fresh account's first crate is about 41% a skin or hero attack.
 - **Skins (2026-09-28; oracle R-PROG-SKINS-01, R-PROG-SKINS-04).** A hero skin replaces one hero's portrait; a
   minion skin replaces one card's art, by stable id. Equipped per target from the Collection's Heroes / Minions
   tabs through the server (`equip_cosmetic`: owned, made for that hero or card, live); **"Use default art"** is
@@ -1312,10 +1313,11 @@ already multiplied only from hand (Rune of Resonance, Prismcaster); that is unch
 Lantern of Souls raises the **Undead Aura** for the rest of the run whether it is cast in the shop or in
 combat (a Rally, an Avenge, an Echo). Combat casts carry the gain back at settle. There is no combat-only Aura.
 
-### There is no Beast Aura: "Give all your Beasts" works in both phases (owner rules 2026-09-28, R-AURA-03)
+### There is no Beast Aura: "Give all Friendly and summoned Beasts" works in both phases (owner rules 2026-09-28, R-AURA-03)
 
 Beasts do **not** work like the Undead Aura; there is no hidden run-wide Beast channel. Every Beast grant reads
-*"Give all your Beasts +X/+Y"* and uses the normal "your Beasts" meaning, in both phases:
+*"Give all Friendly and summoned Beasts +X/+Y"* (wording 2026-09-29; it was "Give all your Beasts") and uses the
+normal "your Beasts" meaning, in both phases:
 
 - **In the Shop / at End of Turn**, every Beast in your **warband** (the board; not your hand, the same as every
   other Shop "your Beasts" grant) gains it **permanently**, like any Shop buff. A Grim destroyed or triggered in the
@@ -1325,9 +1327,9 @@ Beasts do **not** work like the Undead Aura; there is no hidden run-wide Beast c
 
 The cards:
 
-- **Kennelmaster**: *Start of Combat: Give all your Beasts +1 Attack. Avenge (4): Improve this.* The improvement is
+- **Kennelmaster**: *Start of Combat: Give all Friendly and summoned Beasts +1 Attack. Avenge (4): Improve this.* The improvement is
   permanent on that Kennelmaster (its `summonBonus`). One earned mid-fight is used from its **next** Start of Combat.
-- **Grim**: *Echo: Give all your Beasts +8/+8.* (gilded +16/+16). The 2026-09-24 per-game Echo tally is gone.
+- **Grim**: *Echo: Give all Friendly and summoned Beasts +8/+8.* (gilded +16/+16). The 2026-09-24 per-game Echo tally is gone.
 - **Armadiyo**, **Trophy Stalker**, **Rune of Beastial Swarm** (a Shop Beast death also pays it; its Avenge level
   persists), **Pack Mentality** (a Start of Combat grant whose level improves and persists) and **The Old Hunt**
   follow the same pattern.

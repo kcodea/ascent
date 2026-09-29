@@ -59,10 +59,29 @@ export const PATCH_NOTES: PatchNote[] = [
     date: '2026-09-29',
     changes: [
       {
+        category: 'Balance',
+        text: 'Beast buffs now read "Give all Friendly and summoned Beasts" to make clear they reach Beasts summoned later too.',
+        details: [
+          'Only the wording changed. The cards work exactly as before.',
+          'Kennelmaster, Grim, Armadiyo, Trophy Stalker, Rune of Beastial Swarm, Pack Mentality and The Old Hunt.',
+          'Grim: "Echo: Give all Friendly and summoned Beasts +8/+8."',
+        ],
+      },
+      {
+        category: 'Systems',
+        text: 'Every Dwarf now has a voice: 19 more speak, grunt or roar when played, and cry out when they die.',
+        details: [
+          'New talkers: Blade Thrower, Doubletap Brewer, Dwarf King Brill, High King Mykel, Chef Gary Toast, Kringle, Dwarven Sharpshooter, Lieutenant Thane, Wardkeeper and Muster General.',
+          'New grunts and growls: Anvilshade Smith, Arnold, Baal, Bucky, Gangplank, Mountainbond, Tapkeeper and Charging Soldier.',
+          'Paymaster Pimm keeps his coin sound when played and gains a death cry.',
+        ],
+      },
+      {
         category: 'Systems',
         text: 'Crates now have fixed odds: Common 50%, Rare 30%, Epic 15%, Legendary 5%.',
         details: [
           'A crate first rolls its rarity at these odds, then gives you an item of that rarity you do not own yet.',
+          'Every item of the rolled rarity is equally likely.',
           'The odds never change as new items are added. You can see them in the Collection, under your sealed crates.',
           'If you already own everything of the rolled rarity, you get an item from the nearest rarity that still has one.',
           'Crates still never give a duplicate.',

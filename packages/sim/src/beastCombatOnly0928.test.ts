@@ -12,8 +12,8 @@ import { applyEndOfTurn, fireOnFriendDeath, fireRecruitDeathrattlesForTest } fro
  * +8/+8." … this SHOULD work in recruit and combat phase. in a recruit scenario, any beast in the warband would get
  * the stats from a destroyed or triggered grim."
  *
- *   Kennelmaster  — "Start of Combat: Give all your Beasts +1 Attack. Avenge (4): Improve this."
- *   Grim          — "Echo: Give all your Beasts +8/+8."  (golden +16/+16)
+ *   Kennelmaster  — "Start of Combat: Give all Friendly and summoned Beasts +1 Attack. Avenge (4): Improve this."
+ *   Grim          — "Echo: Give all Friendly and summoned Beasts +8/+8."  (golden +16/+16)
  *   Armadiyo, Trophy Stalker, Rune of Beastial Swarm, Pack Mentality, The Old Hunt — the same pattern.
  *
  * ONE rule, both phases, no run-wide Beast Aura: in the SHOP every warband Beast gains it permanently (a normal Shop
@@ -42,13 +42,13 @@ const settleOnto = (board: BoardCard[], r: CombatResult, over: Partial<RunState>
   reduce({ ...createRun(1), phase: 'combat', board, lastCombat: r, ...over } as RunState, { type: 'resolveCombat' }) as RunState;
 
 // ── the new texts ────────────────────────────────────────────────────────────────────────────────────────
-describe('R-AURA-03 texts: "Give all your Beasts +X/+Y" replaces the Beast Aura', () => {
+describe('R-AURA-03 texts: "Give all Friendly and summoned Beasts +X/+Y" replaces the Beast Aura', () => {
   const TEXT: Record<string, [string, string | undefined]> = {
-    kennel: ['**Start of Combat:** Give all your Beasts **+1 Attack**. **Avenge (4):** Improve this.',
-      '**Start of Combat:** Give all your Beasts **+2 Attack**. **Avenge (4):** Improve this (twice as much).'],
-    grim: ['**Echo:** Give all your Beasts **+8/+8**.', '**Echo:** Give all your Beasts **+16/+16**.'],
-    b2_armadiyo: ['**Taunt. Echo:** Give all your Beasts **+2/+4**.', '**Taunt. Echo:** Give all your Beasts **+4/+8**.'],
-    trophystalker: ['**Rally:** Give all your Beasts **+5/+5**. Improve this by **+5/+5** whenever Trophy Stalker attacks.', undefined],
+    kennel: ['**Start of Combat:** Give all Friendly and summoned Beasts **+1 Attack**. **Avenge (4):** Improve this.',
+      '**Start of Combat:** Give all Friendly and summoned Beasts **+2 Attack**. **Avenge (4):** Improve this (twice as much).'],
+    grim: ['**Echo:** Give all Friendly and summoned Beasts **+8/+8**.', '**Echo:** Give all Friendly and summoned Beasts **+16/+16**.'],
+    b2_armadiyo: ['**Taunt. Echo:** Give all Friendly and summoned Beasts **+2/+4**.', '**Taunt. Echo:** Give all Friendly and summoned Beasts **+4/+8**.'],
+    trophystalker: ['**Rally:** Give all Friendly and summoned Beasts **+5/+5**. Improve this by **+5/+5** whenever Trophy Stalker attacks.', undefined],
   };
   it.each(Object.entries(TEXT))('%s prints the owner template', (id, [text, golden]) => {
     expect(CARD_INDEX[id]!.text).toBe(text);
@@ -56,7 +56,7 @@ describe('R-AURA-03 texts: "Give all your Beasts +X/+Y" replaces the Beast Aura'
   });
 
   it('the rune reads the same way', () => {
-    expect(RUNE_INDEX['rune_beastial_swarm']!.text).toBe('When a friendly **Beast** dies, give all your Beasts **+2/+2**. **Avenge (2):** Improve this.');
+    expect(RUNE_INDEX['rune_beastial_swarm']!.text).toBe('When a friendly **Beast** dies, give all Friendly and summoned Beasts **+2/+2**. **Avenge (2):** Improve this.');
   });
 
   it('no live card, rune or golden text says "Beast Aura" any more', () => {

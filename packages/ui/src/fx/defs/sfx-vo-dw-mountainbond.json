@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "id": "sfx-vo-dw-mountainbond",
+  "duration": 1000,
+  "layers": [
+    {
+      "primitive": "sound",
+      "anchor": "travel",
+      "at": 0,
+      "params": {
+        "clip": "fx/vo-dw-mountainbond"
+      }
+    }
+  ]
+}

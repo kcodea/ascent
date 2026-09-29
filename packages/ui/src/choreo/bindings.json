@@ -173,6 +173,9 @@
       "shout": {
         "def": "coin-shout",
         "sfx": "maxGold"
+      },
+      "death": {
+        "def": "sfx-vo-dw-pimm-death"
       }
     },
     "greatpot": {
@@ -350,6 +353,147 @@
       },
       "death": {
         "def": "sfx-vo-dw-kegheart-death"
+      }
+    },
+    "dw_bladethrower": {
+      "minionPlayed": {
+        "def": "sfx-vo-dw-bladethrower"
+      },
+      "death": {
+        "def": "sfx-vo-dw-bladethrower-death"
+      }
+    },
+    "dw_brewer": {
+      "minionPlayed": {
+        "def": "sfx-vo-dw-brewer"
+      },
+      "death": {
+        "def": "sfx-vo-dw-brewer-death"
+      }
+    },
+    "dw_brill": {
+      "minionPlayed": {
+        "def": "sfx-vo-dw-brill"
+      },
+      "death": {
+        "def": "sfx-vo-dw-brill-death"
+      }
+    },
+    "dw_brisbane": {
+      "minionPlayed": {
+        "def": "sfx-vo-dw-brisbane"
+      },
+      "death": {
+        "def": "sfx-vo-dw-brisbane-death"
+      }
+    },
+    "dw_chef": {
+      "minionPlayed": {
+        "def": "sfx-vo-dw-chef"
+      },
+      "death": {
+        "def": "sfx-vo-dw-chef-death"
+      }
+    },
+    "dw_foreman": {
+      "minionPlayed": {
+        "def": "sfx-vo-dw-foreman"
+      },
+      "death": {
+        "def": "sfx-vo-dw-foreman-death"
+      }
+    },
+    "dw_sharpshooter": {
+      "minionPlayed": {
+        "def": "sfx-vo-dw-sharpshooter"
+      },
+      "death": {
+        "def": "sfx-vo-dw-sharpshooter-death"
+      }
+    },
+    "dw_thane": {
+      "minionPlayed": {
+        "def": "sfx-vo-dw-thane"
+      },
+      "death": {
+        "def": "sfx-vo-dw-thane-death"
+      }
+    },
+    "dw_wardkeeper": {
+      "minionPlayed": {
+        "def": "sfx-vo-dw-wardkeeper"
+      },
+      "death": {
+        "def": "sfx-vo-dw-wardkeeper-death"
+      }
+    },
+    "n2_muster": {
+      "minionPlayed": {
+        "def": "sfx-vo-n2-muster"
+      },
+      "death": {
+        "def": "sfx-vo-n2-muster-death"
+      }
+    },
+    "dw_anvilshade": {
+      "minionPlayed": {
+        "def": "sfx-vo-dw-anvilshade"
+      },
+      "death": {
+        "def": "sfx-vo-dw-anvilshade-death"
+      }
+    },
+    "dw_arnold": {
+      "minionPlayed": {
+        "def": "sfx-vo-dw-arnold"
+      },
+      "death": {
+        "def": "sfx-vo-dw-arnold-death"
+      }
+    },
+    "dw_baal": {
+      "minionPlayed": {
+        "def": "sfx-vo-dw-baal"
+      },
+      "death": {
+        "def": "sfx-vo-dw-baal-death"
+      }
+    },
+    "dw_bucky": {
+      "minionPlayed": {
+        "def": "sfx-vo-dw-bucky"
+      },
+      "death": {
+        "def": "sfx-vo-dw-bucky-death"
+      }
+    },
+    "dw_gangplank": {
+      "minionPlayed": {
+        "def": "sfx-vo-dw-gangplank"
+      },
+      "death": {
+        "def": "sfx-vo-dw-gangplank-death"
+      }
+    },
+    "dw_mountainbond": {
+      "minionPlayed": {
+        "def": "sfx-vo-dw-mountainbond"
+      },
+      "death": {
+        "def": "sfx-vo-dw-mountainbond-death"
+      }
+    },
+    "dw_soldier": {
+      "minionPlayed": {
+        "def": "sfx-vo-dw-soldier"
+      }
+    },
+    "dw_tapkeeper": {
+      "minionPlayed": {
+        "def": "sfx-vo-dw-tapkeeper"
+      },
+      "death": {
+        "def": "sfx-vo-dw-tapkeeper-death"
       }
     }
   }

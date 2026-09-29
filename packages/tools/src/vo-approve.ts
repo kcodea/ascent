@@ -20,6 +20,8 @@ import {
   BINDINGS_PATH, CARD_DEST, DRAFTS_DIR, FX_DEFS_DIR, MANIFEST_PATH, ManifestSchema, bindCardSlot, cardSlot, clipDest,
   clipFile, clipsOf, draftName, soundDef, type Bindings,
 } from './vo.lib';
+import { NORMALIZED_MANIFEST } from './sfx-normalize.lib';
+import { normalizeFile } from './sfx-normalize.run';
 
 const [id, takeArg] = process.argv.slice(2).filter((a) => !a.startsWith('--'));
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../../..');
@@ -65,6 +67,12 @@ if (bound.status === 'taken') {
 
 mkdirSync(dirname(dest), { recursive: true });
 copyFileSync(src, dest);
+// Every card clip sits at one loudness (sfx-normalize.lib.ts): normalize it now and record it as done.
+const norm = normalizeFile(dest);
+const manifestFile = resolve(ROOT, NORMALIZED_MANIFEST);
+const normalized = existsSync(manifestFile) ? JSON.parse(readFileSync(manifestFile, 'utf8')) as Record<string, string> : {};
+normalized[slot.slug] = norm.hash;
+writeFileSync(manifestFile, JSON.stringify(Object.fromEntries(Object.entries(normalized).sort()), null, 2) + '\n');
 writeFileSync(resolve(ROOT, defRel), JSON.stringify(soundDef(slot), null, 2) + '\n');
 if (bound.status === 'added') writeFileSync(bindingsFile, JSON.stringify(bound.bindings, null, 2) + '\n');
 console.log(`Approved: ${DRAFTS_DIR}/${draftName(id!, take)}  →  ${destRel}`);

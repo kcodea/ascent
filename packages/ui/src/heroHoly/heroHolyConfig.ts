@@ -42,7 +42,7 @@
  */
 import { clamp, easeInOutSine, seededRng, type Pt } from '../heroAttack/easing';
 import {
-  HERO_ATTACK_TIER_THRESHOLDS, TIERS, reducedAttackTimeline, tierOf, type TierNum,
+  HERO_ATTACK_TIER_THRESHOLDS, TIERS, reducedAttackTimeline, type TierNum, attackTier, type AttackTierContext,
 } from '../heroAttack/tiers';
 
 export { TIERS, type TierNum };
@@ -455,7 +455,7 @@ export interface HolySpearPlan { launchAt: number; hitAt: number; size: number }
 /** One sword of the Tier IV barrage: when it leaves, when it bites, its size (the last is the biggest). */
 export interface HolySwordPlan { launchAt: number; arriveAt: number; size: number }
 
-export interface HolyPlanInput {
+export interface HolyPlanInput extends AttackTierContext {
   /** When the style's own attack starts: the end of the shared damage formation (`formationPlan().endAt`). */
   leadIn?: number;
   /** THE blow, as the engine decided it. */
@@ -509,7 +509,7 @@ export interface HolyPlan {
 /** The whole Holy attack, in base ms (divide by the playback speed for real time). Pure and deterministic. */
 export function holyPlan(input: HolyPlanInput, c: HeroHolyConfig = cfg): HolyPlan {
   const total = Math.max(0, Math.round(input.total));
-  const tier = tierOf(total, c);
+  const tier = attackTier(total, input, c); // a knockout always plays Tier IV (heroAttack/tiers.ts)
   const T = holyTierDials(tier, c);
   const k = (tier - 1) / 3;
   const empty = { smites: [] as HolySmitePlan[], spears: [] as HolySpearPlan[], hits: [] as number[] };

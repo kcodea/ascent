@@ -59,6 +59,72 @@ export const PATCH_NOTES: PatchNote[] = [
     date: '2026-09-29',
     changes: [
       {
+        category: 'Systems',
+        text: 'A new Legendary hero attack, Stampede, can drop from crates.',
+        details: [
+          'Your damage builds up, then your hero looses spirit wolves of green and amber energy at the other hero.',
+          'Each wolf leaps in and a pair of ghostly jaws snaps shut on the other hero, leaving bite marks.',
+          'Bigger hits send two wolves, then a whole pack that kicks up dust as it runs.',
+          'On the biggest hits a giant beast rises, slams its jaws shut over the other hero, then roars.',
+          'Equip it from the Attack Animations tab of the Collection. There is a preview button there too.',
+          'Hero attacks are looks only. The damage is exactly the same.',
+        ],
+      },
+      {
+        category: 'Systems',
+        text: 'A new Legendary hero attack, Grave Call, can drop from crates.',
+        details: [
+          'Your damage builds up, then your hero raises the dead in ghostly green.',
+          'A shrieking skull flies out of your hero and bites the other hero. Bigger hits send two.',
+          'Bigger still, skeletal hands claw up and drag the other hero down while a swarm of ghosts strikes it.',
+          'On the biggest hits a grave rift tears open, a giant skull rises out of it, screams, and chomps the other hero.',
+          'Equip it from the Attack Animations tab of the Collection. There is a preview button there too.',
+          'Hero attacks are looks only. The damage is exactly the same.',
+        ],
+      },
+      {
+        category: 'Systems',
+        text: 'A new Legendary hero attack, Inferno, can drop from crates.',
+        details: [
+          'Your damage builds up, then fire catches round your hero and fireballs of real, living flame are hurled at the other hero.',
+          'Bigger hits throw two, then a volley of five that sets the other hero on fire.',
+          'On the biggest hits your hero calls down a meteor. It crashes onto the other hero and explodes in a storm of fire, smoke and burning debris.',
+          'Equip it from the Attack Animations tab of the Collection. There is a preview button there too.',
+          'Hero attacks are looks only. The damage is exactly the same.',
+        ],
+      },
+      {
+        category: 'Systems',
+        text: 'The Enraged Strike hero attack now burns with real, living fire instead of painted flames.',
+        details: [
+          'The rage aura is a crown of flickering fire that streams behind your hero as it charges.',
+          'The biggest hit sends a column of fire up as your hero rears back, and the ground bursts into flame on impact.',
+          'Only the look changed. The timing and the damage are exactly the same.',
+        ],
+      },
+      {
+        category: 'Systems',
+        text: "Knocking a player out now always plays your hero attack's biggest version.",
+        details: [
+          'Works for every hero attack style, whatever the damage number.',
+          'It works both ways: when an opponent knocks you out, their attack plays its biggest version too.',
+          'The damage shown and dealt is unchanged.',
+        ],
+      },
+      {
+        category: 'Systems',
+        text: 'Unit voices and creature sounds are evened out, so no unit is much louder or quieter than the rest.',
+      },
+      {
+        category: 'Systems',
+        text: 'The Arcane Barrage hero attack now has four clear steps, like the other hero attacks, with a new finale for the biggest hits.',
+        details: [
+          'Small hits fire one bolt. Medium hits fire two.',
+          'Big hits fire a barrage of five bolts.',
+          'The biggest hits fire the huge beam. It pours into the enemy hero, collapses and detonates in a supernova.',
+        ],
+      },
+      {
         category: 'Balance',
         text: "Mimic can no longer pick Kindness's hero power. It only works every 4th turn, so it was almost always a wasted pick.",
       },

@@ -149,7 +149,8 @@ export function settlementParity(result: NonNullable<ReturnType<typeof parseProg
   // Every title the SQL reports as newly unlocked must be one the rules grant at the level reached, and every
   // title the rules say this settlement CROSSED must be reported (an account that already held it, say from the
   // migration's backfill, legitimately reports nothing new).
-  const owned = new Set(titlesForLevel(result.after.level));
+  // Hero titles (2026-09-29) are achievement rewards: a title an achievement completed by THIS settlement grants.
+  const owned = new Set([...titlesForLevel(result.after.level), ...result.achievements.map((id) => achievementOf(id)?.rewards.titleId ?? null).filter((t): t is string => !!t)]);
   if (!result.unlockedTitles.every((t) => owned.has(t))) return false;
   // Crates: one per level gained, plus the Welcome Crate when this settlement enrolled the account.
   const gained = result.after.level - result.before.level;

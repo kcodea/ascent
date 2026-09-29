@@ -1,6 +1,6 @@
 import {
-  HERO_BLAST_DEFAULTS, HERO_BLAST_RANGES, HERO_BLAST_SPEEDS, blastPlan, getHeroBlastConfig, heroBlastConfigJson,
-  heroBlastPreviewSpeed, resetHeroBlastConfig, setHeroBlastPreviewSpeed, setHeroBlastValue,
+  HERO_BLAST_DEFAULTS, HERO_BLAST_RANGES, blastPlan, getHeroBlastConfig, heroBlastConfigJson,
+  resetHeroBlastConfig, setHeroBlastValue,
   TIERS, TIER_SUFFIXES, type HeroBlastConfig, type HeroBlastNumKey, type HeroBlastStrKey, type TierNum, type TierSuffix,
 } from './heroBlast/heroBlastConfig';
 import { clipNames } from './sfx';
@@ -13,7 +13,7 @@ import type { TunerControl, TunerSpec, TunerUnit } from './tunerSchema';
 /**
  * DEV tuner for the BLAST hero attack (owner ask 2026-09-28). The Play buttons run the REAL runner between the two
  * real hero portraits (the foe's is mounted via `duelPreview`, so it works from the shop), with the damage and the
- * number of parts chosen below, in either direction, at 1x / 0.5x / 0.25x. A preview never touches the run: the
+ * number of parts chosen below, in either direction. A preview never touches the run: the
  * impact only pops the red damage number. The "Attack style" row is the dev override for real fights (Auto = what
  * a player would see: their equipped cosmetic, else Classic). Production plays the baked defaults.
  */
@@ -152,7 +152,7 @@ export function demo(
   const cfg = getHeroBlastConfig();
   return playAttackDemo(side, (o) => playHeroBlast(o), {
     board: boardOfDamage(opts.damage ?? cfg.previewDamage, opts.parts ?? cfg.previewParts),
-    speed: heroBlastPreviewSpeed(), reduced: opts.reduced, frames: opts.frames, sound: opts.sound, safety: opts.safety,
+    speed: 1, reduced: opts.reduced, frames: opts.frames, sound: opts.sound, safety: opts.safety,
   }, () => { live = null; }).then((h) => { live = h; return h; });
 }
 
@@ -167,7 +167,7 @@ export const SPEC: TunerSpec<BlastTunerValues> = {
   note: () => {
     const c = getHeroBlastConfig();
     const p = blastPlan({ leadIn: previewLeadIn(c.previewDamage, c.previewParts), total: c.previewDamage, distance: 1000 }, c);
-    return `dev · ${heroBlastPreviewSpeed()}x · impact ${Math.round(p.impactAt)} · end ${Math.round(p.endAt)} ms`;
+    return `dev · impact ${Math.round(p.impactAt)} · end ${Math.round(p.endAt)} ms`;
   },
   read: () => ({ ...getHeroBlastConfig(), attackStyle: devHeroAttackChoice() }),
   write: (key, value) => setHeroBlastValue(key as keyof HeroBlastConfig, value),
@@ -177,6 +177,7 @@ export const SPEC: TunerSpec<BlastTunerValues> = {
   controls: buildControls(),
   copy: () => heroBlastConfigJson(),
   copyLabel: 'Copy JSON',
+  buttonsOnTop: true,
   actions: [
     { label: '▶ You blast', hint: 'Your hero blasts the foe for the preview damage.', run: () => { void demo('player'); } },
     { label: '▶ Foe blasts', hint: 'The foe blasts your hero for the preview damage.', run: () => { void demo('opp'); } },
@@ -184,12 +185,6 @@ export const SPEC: TunerSpec<BlastTunerValues> = {
     { label: '▶ Medium (12)', hint: 'Your hero blasts for 12 from four numbers.', run: () => { void demo('player', { damage: 12, parts: 4 }); } },
     { label: '▶ Huge (40)', hint: 'Your hero blasts for 40 from seven numbers: the full volley, shake and push.', run: () => { void demo('player', { damage: 40, parts: 7 }); } },
     { label: '▶ Foe huge (40)', hint: 'The foe blasts your hero for 40.', run: () => { void demo('opp', { damage: 40, parts: 7 }); } },
-    { label: '▶ Reduced motion', hint: 'What a player with reduced motion on sees: fades, no flight, bolts, shake or zoom.', run: () => { void demo('player', { reduced: true }); } },
-    ...HERO_BLAST_SPEEDS.map((s) => ({
-      label: `Speed ${s}x`,
-      hint: 'Slow motion for the next plays (the tuner only; never saved, never in production).',
-      run: () => { setHeroBlastPreviewSpeed(s); },
-    })),
   ],
 };
 

@@ -7,11 +7,11 @@ import {
 } from './rules';
 import {
   ALPHA_TESTER_TITLE_ID, COSMETICS, COSMETIC_CATEGORIES, COSMETIC_CATEGORY_DEFS, COSMETIC_RARITIES, CRATE_RARITY_ODDS, CRATE_ROLL_VERSION,
-  EQUIP_SLOTS, catalogSyncPayload, crateRarityFallback, eligibleCrateCosmetics, pickCrateReward,
+  EQUIP_SLOTS, HERO_TITLE_COSMETICS, catalogSyncPayload, crateRarityFallback, eligibleCrateCosmetics, heroMasterTitleId, heroTitleId, pickCrateReward,
 } from './cosmetics';
 import { SQL_ERROR_STATUS } from './server';
 import {
-  ACHIEVEMENT_AGGS, ACHIEVEMENT_MODES, ACHIEVEMENT_TRUSTS, ASCENDANT_DIVISION, BRUTAL_LOBBY_STRENGTH, META_METRIC, SERVER_METRICS, achievementCatalogPayload,
+  ACHIEVEMENTS, ACHIEVEMENT_AGGS, ACHIEVEMENT_MODES, ACHIEVEMENT_TRUSTS, ASCENDANT_DIVISION, BRUTAL_LOBBY_STRENGTH, META_METRIC, SERVER_METRICS, achievementCatalogPayload,
 } from './achievements';
 import { INVENTORY_ERROR_STATUS } from './inventory';
 
@@ -36,12 +36,14 @@ const heroAttack = readFileSync(join(root, 'supabase/migrations/2026-09-28-progr
 const odds = readFileSync(join(root, 'supabase/migrations/2026-09-29-crate-fixed-rarity-odds.sql'), 'utf8');
 /** The equal-chance migration (2026-09-29, "yeah equal chance") REPLACES `progression_crate_pick` + `open_crate`. */
 const uniform = readFileSync(join(root, 'supabase/migrations/2026-09-29-crate-uniform-within-rarity.sql'), 'utf8');
+/** The hero titles migration (2026-09-29) REPLACES `settle_progression` (it grants achievement titles) and seeds the 66 hero titles. */
+const heroTitles = readFileSync(join(root, 'supabase/migrations/2026-09-29-hero-titles.sql'), 'utf8');
 const schema = readFileSync(join(root, 'schema.sql'), 'utf8');
 
-/** The body of a function's LATEST definition (equal chance, else fixed odds, else hero attack, else achievements, else skins, else crates, else the MVP's). */
+/** The body of a function's LATEST definition (hero titles, else equal chance, else fixed odds, else hero attack, else achievements, else skins, else crates, else the MVP's). */
 function fnBody(name: string, from?: string): string {
   const defines = (t: string): boolean => t.includes(`create or replace function public.${name}(`);
-  const text = from ?? (defines(uniform) ? uniform : defines(odds) ? odds : defines(heroAttack) ? heroAttack : defines(ach) ? ach : defines(skins) ? skins : defines(crates) ? crates : sql);
+  const text = from ?? (defines(heroTitles) ? heroTitles : defines(uniform) ? uniform : defines(odds) ? odds : defines(heroAttack) ? heroAttack : defines(ach) ? ach : defines(skins) ? skins : defines(crates) ? crates : sql);
   const start = text.indexOf(`create or replace function public.${name}(`);
   if (start < 0) throw new Error(`no function ${name} in the migration`);
   const open = text.indexOf('$$', start);
@@ -150,6 +152,7 @@ describe('the migration shape', () => {
       [skins, 'sync_cosmetic_catalog', 'jsonb, text'],
       [ach, 'settle_progression', 'uuid, text, text, bigint, boolean, int, jsonb'],
       [ach, 'sync_achievement_catalog', 'jsonb, text'],
+      [heroTitles, 'settle_progression', 'uuid, text, text, bigint, boolean, int, jsonb'],
     ] as const) {
       const at = text.indexOf(`create or replace function public.${fn}(`);
       const head = text.slice(at, text.indexOf('as $$', at));
@@ -171,7 +174,7 @@ describe('the migration shape', () => {
 
   it('schema.sql (the cumulative paste file) carries every progression migration verbatim, in order', () => {
     const flat = schema.replace(/\r\n/g, '\n');
-    const at = [sql, crates, skins, ach, heroAttack, odds, uniform].map((t) => flat.indexOf(t.replace(/\r\n/g, '\n').trim()));
+    const at = [sql, crates, skins, ach, heroAttack, odds, uniform, heroTitles].map((t) => flat.indexOf(t.replace(/\r\n/g, '\n').trim()));
     expect(at.every((i) => i >= 0)).toBe(true);
     expect([...at].sort((a, b) => a - b)).toEqual(at);
   });
@@ -257,7 +260,8 @@ describe('the crates migration (2026-09-28)', () => {
       cosmeticId: id!, category: category!, rarity: rarity!, acquisitionSource: source!, milestoneLevel: nul(level) === null ? null : Number(level),
       targetType: nul(targetType), targetId: nul(targetId), achievementId: nul(achievementId), active: active === 'true',
     }));
-    const titles = catalogSyncPayload().items.filter((i) => i.category === 'title');
+    // the hero titles (2026-09-29) came later, in their own file's seed (below)
+    const titles = catalogSyncPayload().items.filter((i) => i.category === 'title' && i.acquisitionSource !== 'achievement');
     expect([...sqlRows].sort((a, b) => (a.cosmeticId < b.cosmeticId ? -1 : 1))).toEqual(titles);
     // the settlement's Alpha Tester constants agree with the catalog's level milestone
     expect(constOf(settle, 'c_alpha_title')).toBe(ALPHA_TESTER_TITLE_ID);
@@ -296,6 +300,56 @@ describe('the crates migration (2026-09-28)', () => {
         expect(sqlPick(eligible, draw), `draw ${draw}`).toBe(pickCrateReward(eligible, draw)?.id ?? null);
       }
     }
+  });
+});
+
+/** The rows of one `insert into public.<table> (...) values (...), ... on conflict` seed. */
+function seedRowsOf(table: string, from: string): string[][] {
+  const at = from.indexOf(`insert into public.${table} (`);
+  const block = from.slice(from.indexOf('values', at) + 6, from.indexOf('on conflict', at));
+  return [...block.matchAll(/\(([^()]*)\)/g)].map((m) => m[1]!.split(',').map((x) => x.trim().replace(/^'(.*)'$/, '$1')));
+}
+
+describe('the hero titles migration (2026-09-29): a title at 3 Ranked 1sts with a hero, its golden master at 10', () => {
+  const body = fnBody('settle_progression');
+  it('the seed equals the code catalog\'s hero titles row for row, achievement-sourced, and never overwrites a synced row', () => {
+    const nul = (v: string | undefined): string | null => (v === undefined || v === 'null' ? null : v);
+    const sqlRows = seedRowsOf('cosmetic_catalog', heroTitles).map(([id, category, rarity, source, level, targetType, targetId, achievementId, active]) => ({
+      cosmeticId: id!, category: category!, rarity: rarity!, acquisitionSource: source!, milestoneLevel: nul(level) === null ? null : Number(level),
+      targetType: nul(targetType), targetId: nul(targetId), achievementId: nul(achievementId), active: active === 'true',
+    }));
+    const hero = new Set(HERO_TITLE_COSMETICS.map((c) => c.id));
+    expect([...sqlRows].sort((a, b) => (a.cosmeticId < b.cosmeticId ? -1 : 1))).toEqual(catalogSyncPayload().items.filter((i) => hero.has(i.cosmeticId)));
+    expect(sqlRows).toHaveLength(66);
+    expect(sqlRows.every((r) => r.acquisitionSource === 'achievement')).toBe(true);
+    const at = heroTitles.indexOf('insert into public.cosmetic_catalog (');
+    expect(heroTitles.slice(heroTitles.indexOf('on conflict', at), heroTitles.indexOf(';', heroTitles.indexOf('on conflict', at)))).toMatch(/do nothing$/);
+    // every achievement that names a title names one of these rows
+    for (const a of ACHIEVEMENTS.filter((x) => x.rewards.titleId)) expect(hero.has(a.rewards.titleId!), a.id).toBe(true);
+  });
+
+  it('the id convention constants equal heroTitleId / heroMasterTitleId', () => {
+    const prefix = constOf(body, 'c_hero_title_prefix');
+    const suffix = constOf(body, 'c_master_suffix');
+    expect(heroTitleId('warden')).toBe(`${prefix}warden`);
+    expect(heroMasterTitleId('warden')).toBe(`${prefix}warden${suffix}`);
+  });
+
+  it('a completion grants its catalog title in the same transaction, keyed; the master upgrades a worn base title', () => {
+    expect(body).toMatch(/if d\.title_id is not null and exists \(select 1 from public\.cosmetic_catalog c where c\.cosmetic_id = d\.title_id and c\.category = 'title'\) then/);
+    expect(body).toMatch(/values \(p_user, d\.title_id, 'achievement', d\.achievement_id\)\s+on conflict \(user_id, cosmetic_id\) do nothing;/);
+    expect(body).toContain('v_unlocked := array_append(v_unlocked, d.title_id);');
+    expect(body).toContain('(v_equipped || c_master_suffix) = any(v_unlocked)');
+    // the achievements writer's evaluation is otherwise untouched
+    const ach8 = fnBody('settle_progression', ach);
+    const strip = (t: string): string => t.replace(/\s+/g, ' ');
+    for (const line of ['continue when v_new = v_old and v_new < d.target;', "where c.active and not c.admin_off and c.trust <> 'P'"]) {
+      expect(strip(ach8)).toContain(line);
+      expect(strip(body)).toContain(line);
+    }
+    // the backfill never pays XP and never deletes
+    expect(heroTitles).toMatch(/select ap\.user_id, ap\.achievement_id, 'backfill', 'ranked', 0,/);
+    expect(heroTitles).not.toMatch(/\bdelete from\b/);
   });
 });
 

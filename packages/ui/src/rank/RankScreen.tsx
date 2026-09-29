@@ -1,5 +1,6 @@
 import { createRef, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { sfx } from '../sfx';
+import { Icon } from '../Icon';
 import { RankBar, type RankBarAnimRefs } from './RankBar';
 import { announcement, deltaText, ordinal, outcomeText, placementText } from './rankFormat';
 import { markRankPresented, wasRankPresented } from './presented';
@@ -47,6 +48,9 @@ export interface RankScreenProps {
   /** ACCOUNT PROGRESSION (2026-09-27): content shown under the rank result, above Continue (the Account XP
    *  panel). Handed whether the rank sequence has settled, so it can wait its turn. */
   extra?: (rankSettled: boolean) => ReactNode;
+  /** MATCH DETAILS (owner ask 2026-09-28): opens the lobby scoreboard. Offered once the placement has been shown
+   *  (the rank sequence settled), in the secondary row where "Skip animation" sat. Absent = no button. */
+  onMatchDetails?: () => void;
 }
 
 function prefersReducedMotion(): boolean {
@@ -64,7 +68,7 @@ const cues = {
 };
 
 export function RankScreen(props: RankScreenProps): JSX.Element {
-  const { placement, seatCount, submission, result, current, error, unratedReason, runId, onContinue, onRetry, preview = false, extra } = props;
+  const { placement, seatCount, submission, result, current, error, unratedReason, runId, onContinue, onRetry, preview = false, extra, onMatchDetails } = props;
   const reduced = props.reducedMotion ?? prefersReducedMotion();
   const confirmed = submission === 'confirmed' && !!result;
   // The celebration plays only for a freshly confirmed result that has not been presented before.
@@ -239,6 +243,11 @@ export function RankScreen(props: RankScreenProps): JSX.Element {
           Recent Games). The row keeps its height while settled so the layout never jumps. */}
       <div className="rankend-secondary">
         {!settled && <button type="button" className="rankend-link" onClick={skip}>Skip animation</button>}
+        {settled && onMatchDetails && (
+          <button type="button" className="rankend-details pressable" onClick={onMatchDetails} disabled={leaving}>
+            <Icon name="board" />Match details
+          </button>
+        )}
       </div>
       <div className="rankend-live" aria-live="polite">{announce}</div>
     </div>

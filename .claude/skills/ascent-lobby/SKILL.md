@@ -86,6 +86,12 @@ Spec: `docs/replay-v2-handoff.md`.
   `packages/ui/src/skins/` (it applies liveness, the target check and the opponent toggle); never read them in
   combat or matchmaking.
 
+- **Match details (2026-09-28)** are a RECORD, not a derivation: `buildMatchDetails` (lobby/matchDetails.ts) reads each
+  seat's board through the lobby's own `prepare(round) ?? finalBoard()` ONCE at run end (store `matchDetailsOf`, in
+  the deferred run-end blocks, before the fight ledger's play-out) and it is stored in `run_history.entry.match` /
+  `practice_games.replay.match`. Readers go through `parseMatchDetails` (null for old records) and never touch a
+  driver. A change to how a seat fields its board must keep that call the one the settle uses.
+
 Changes must consider saved lobbies, replays, telemetry, Career/Recent Games, the End Screen, tutorial
 authored seats, bot ladders, and remote snapshot availability.
 

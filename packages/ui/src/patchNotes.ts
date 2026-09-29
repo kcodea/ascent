@@ -55,6 +55,18 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: 'After a game, Match details shows every player in your lobby and their board. You can see it again from your match history.',
+        details: [
+          'Press Match details on the end screen, after your placement shows. It works in Ranked and Practice.',
+          'Players are listed in placement order. Players still in when you went out are listed first, with their health.',
+          'Pick a player to see their board from the moment your game ended. Players who went out before you show the board they went out with.',
+          'The player who knocked you out is marked.',
+          'In your Career, press Lobby on a match to open the same list. Matches from before this update have no details.',
+          'Other players only wear their skins if Show opponent skins is on.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'A new Legendary hero attack, Enraged Strike, can drop from crates.',
         details: [
           'It is the Classic lunge, enraged. Your damage builds up, then your hero burns with rage, dashes in leaving afterimages, and tears into the other hero.',

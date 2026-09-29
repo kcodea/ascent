@@ -2,11 +2,13 @@ import { createContext, useContext, useEffect, useMemo, useRef, useState } from 
 import { createPortal } from 'react-dom';
 import { RUNE_INDEX } from '@game/content';
 import { getHero, strengthText } from '@game/sim';
-import type { BoardSnapshot } from '@game/sim';
-import { Card, mdBold } from './Card';
-import { storedCardView } from './storedBoardView';
+import type { BoardSnapshot, MatchDetails } from '@game/sim';
+import { mdBold } from './Card';
+import { StoredTeam } from './StoredTeam';
+import { MatchScoreboard } from './matchDetails/MatchScoreboard';
+import { NO_DETAILS_TEXT } from './matchDetails/matchDetailsText';
 import { runeArt } from './art';
-import { MinionSkins, heroPortrait, opponentSkins } from './skins/skins';
+import { heroPortrait, opponentSkins } from './skins/skins';
 import type { RunCosmeticSnapshot } from '@game/progression';
 import { Icon } from './Icon';
 import { recordText } from './leaderboardData';
@@ -96,7 +98,6 @@ function saveTab(t: CenterTab): void {
 }
 /** Banners in Match History — the newest 25 server runs (owner 2026-09-20; was 10). Matches `CAREER_DETAIL_ROWS`. */
 const MATCH_ROWS = 25;
-const BOARD_SLOTS = 7;
 
 /**
  * SKINS on a Career page (2026-09-28). Whose page it is decides the toggle: YOUR page shows your skins as recorded
@@ -128,23 +129,11 @@ function HeroFrame({ heroId, small, skins }: { heroId: string; small?: boolean; 
   );
 }
 
-/** The final team — exactly 7 slots, the real `Card` at the leaderboard's tile size, empty slots blank. */
+/** The final team: the shared stored-board renderer, wearing the skins RECORDED on this board (an old board has
+ *  none: default art), through the page's own/opponent rule. */
 function FinalTeam({ board }: { board: BoardSnapshot }) {
-  const minions = board.minions.slice(0, BOARD_SLOTS);
-  // SKINS: the board wears the skins RECORDED on it (an old board has none: default art).
   const skins = useCareerSkins(board.cosmetics);
-  return (
-    <MinionSkins snapshot={skins}>
-    <div className="cv2-team" aria-label="Final team">
-      {Array.from({ length: BOARD_SLOTS }, (_, i) => {
-        const m = minions[i];
-        return m
-          ? <div className="cv2-tile" key={i}><Card card={storedCardView(m)} suppressPop /></div>
-          : <div className="cv2-tile empty" key={i} aria-hidden="true" />;
-      })}
-    </div>
-    </MinionSkins>
-  );
+  return <StoredTeam minions={board.minions} skins={skins} />;
 }
 
 /** One rune the run picked: its emblem (the real rune art) + name; hovering floats the rune's text in a
@@ -272,6 +261,34 @@ function PageState({ icon, title, body, action, busy, className }: {
   );
 }
 
+/** MATCH DETAILS on a match card (owner ask 2026-09-28: "add a down arrow/expand button to make a match larger and
+ *  be able to see the players in the lobby"): the chevron button that grows the card. */
+function LobbyToggle({ open, onToggle, id }: { open: boolean; onToggle: () => void; id: string }) {
+  return (
+    <button
+      type="button"
+      className="cv2-lobbybtn pressable"
+      aria-expanded={open}
+      aria-controls={id}
+      aria-label={open ? 'Hide the players in this lobby' : 'Show the players in this lobby'}
+      onClick={() => { sfx.tick(); onToggle(); }}
+    >
+      Lobby<Icon name="chevron" />
+    </button>
+  );
+}
+
+/** The expanded half of a match card: the SAME scoreboard the end screen's Match details dialog shows, mounted only
+ *  while open. An older match (no recorded details) says so plainly. */
+function LobbyPanel({ match, id }: { match: MatchDetails | null | undefined; id: string }) {
+  const { own } = useContext(CareerSkinContext);
+  return (
+    <section className="cv2-lobby" id={id} aria-label="Players in this lobby">
+      {match ? <MatchScoreboard details={match} own={own} /> : <div className="cv2-lobby-none">{NO_DETAILS_TEXT}</div>}
+    </section>
+  );
+}
+
 /** One match banner. */
 function MatchRow({ run, focus, busy, unplayable, onWatch }: {
   run: CareerRun; focus: boolean; busy: boolean; unplayable: boolean; onWatch: () => void;
@@ -284,6 +301,8 @@ function MatchRow({ run, focus, busy, unplayable, onWatch }: {
   const hasBoard = !!run.board && run.board.minions.length > 0;
   const runes = run.runes.filter((id) => RUNE_INDEX[id]);
   const fights = run.wins + run.losses + run.draws;
+  const [lobbyOpen, setLobbyOpen] = useState(false);
+  const lobbyId = `cv2-lobby-r${run.id ?? run.seed ?? 'x'}`;
   return (
     <article className={`cv2-row ${o.cls}${focus ? ' focus' : ''}`} aria-label={`${run.heroId ? getHero(run.heroId).name : 'Run'}: ${o.label}`}>
       <header className="cv2-row-head">
@@ -333,16 +352,20 @@ function MatchRow({ run, focus, busy, unplayable, onWatch }: {
             ? <div className="cv2-runes" aria-label="Runes picked this run">{runes.map((id, i) => <RuneEmblem runeId={id} key={`${id}#${i}`} />)}</div>
             : <div className="cv2-row-none cv2-norunes">No runes recorded</div>}
         </div>
-        <button
-          type="button"
-          className="cv2-btn cv2-watch pressable"
-          disabled={!watchable || busy || unplayable}
-          onClick={onWatch}
-          aria-label={watchable ? 'Watch this run’s replay' : 'No replay stored for this run'}
-        >
-          <Icon name="eye" />{busy ? 'Loading…' : unplayable ? 'No replay' : 'Watch Replay'}
-        </button>
+        <div className="cv2-foot-actions">
+          <LobbyToggle open={lobbyOpen} onToggle={() => setLobbyOpen((o) => !o)} id={lobbyId} />
+          <button
+            type="button"
+            className="cv2-btn cv2-watch pressable"
+            disabled={!watchable || busy || unplayable}
+            onClick={onWatch}
+            aria-label={watchable ? 'Watch this run’s replay' : 'No replay stored for this run'}
+          >
+            <Icon name="eye" />{busy ? 'Loading…' : unplayable ? 'No replay' : 'Watch Replay'}
+          </button>
+        </div>
       </footer>
+      {lobbyOpen && <LobbyPanel match={run.match} id={lobbyId} />}
     </article>
   );
 }
@@ -370,6 +393,8 @@ function PracticeRow({ game, busy, unplayable, onWatch }: { game: PracticeGameRo
   const fights = rec ? rec.wins + rec.losses + rec.draws : 0;
   const heroName = game.heroId ? getHero(game.heroId).name : '—';
   const cfg = game.practice;
+  const [lobbyOpen, setLobbyOpen] = useState(false);
+  const lobbyId = `cv2-lobby-p${game.rowId ?? game.createdAt ?? 'x'}`;
   return (
     <article className={`cv2-row cv2-prow ${o.cls}`} aria-label={`Practice, ${heroName}: ${o.label}`}>
       <header className="cv2-row-head">
@@ -416,19 +441,23 @@ function PracticeRow({ game, busy, unplayable, onWatch }: { game: PracticeGameRo
               <span className="cv2-ppill"><Icon name="heart" />{practiceHealthPill(cfg)}</span>
             </div>
           )}
-          {game.hasReplay && (
-            <button
-              type="button"
-              className="cv2-btn cv2-watch pressable"
-              disabled={busy || unplayable}
-              onClick={onWatch}
-              aria-label="Watch this practice game’s replay"
-            >
-              <Icon name="eye" />{busy ? 'Loading…' : unplayable ? 'No replay' : 'Watch Replay'}
-            </button>
-          )}
+          <div className="cv2-foot-actions">
+            <LobbyToggle open={lobbyOpen} onToggle={() => setLobbyOpen((o) => !o)} id={lobbyId} />
+            {game.hasReplay && (
+              <button
+                type="button"
+                className="cv2-btn cv2-watch pressable"
+                disabled={busy || unplayable}
+                onClick={onWatch}
+                aria-label="Watch this practice game’s replay"
+              >
+                <Icon name="eye" />{busy ? 'Loading…' : unplayable ? 'No replay' : 'Watch Replay'}
+              </button>
+            )}
+          </div>
         </div>
       </footer>
+      {lobbyOpen && <LobbyPanel match={game.match} id={lobbyId} />}
     </article>
   );
 }

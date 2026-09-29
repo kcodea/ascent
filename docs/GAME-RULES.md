@@ -72,6 +72,28 @@ Source: `packages/sim/src/lobby/lobby.ts` (`DEFAULT_LOBBY_RULES`, damage applica
 
 ---
 
+## Match details — the lobby when your game ended (owner ask 2026-09-28, R-MATCH-01)
+
+- After a lobby game (Ranked or Practice; never the tutorial or a sandbox), the end screen offers **Match details**
+  once the placement has shown: all eight seats with hero, name, placement, the round each went out (or Winner,
+  or **Still in**) and health. It opens on the seat that knocked you out, else the best other seat.
+- **The moment is YOUR end**: your knockout round, or the final round when you won (or when Practice's curtain
+  fell). A seat still standing then shows the board it fielded that round; a seat that went out earlier shows the
+  board it went out with (the same board the lobby raises as its ghost). Seats still standing when you went out
+  have no placement yet: they read **Top N** (N = your placement minus one) and are ordered by health. The lobby
+  is not played on for this.
+- The boards are **recorded, never recomputed**: built once at run end from the lobby's own
+  `prepare(round) ?? finalBoard()` call, before the fight ledger's play-out, then stored. Skins render only
+  through the opponent toggle (your own seat wears your recorded skins).
+- The record is saved with the match (`run_history.entry.match` for Ranked, `practice_games.replay.match` for
+  Practice; both existing JSON columns) so the Career's match history shows it again under each match's **Lobby**
+  button. Older matches say the details were not recorded.
+
+Source: `packages/sim/src/lobby/matchDetails.ts`, `packages/ui/src/store.ts` (`matchDetailsOf`),
+`packages/ui/src/matchDetails/`.
+
+---
+
 ## Ranked ladder — medals and divisions (season 3, owner rules 2026-09-20 and 2026-09-21)
 
 The visible ladder is a **medal + division**, not a number. Only a finished **rated lobby** (the `Play`

@@ -40,7 +40,7 @@ import { chooseBothText } from './cardText';
 import { relatedCardIds, relatedPickOneIds } from './cardRefs';
 import { type Action, grimToastFold, unityAuraFold, EQUIPMENT_FX_ANCHOR, ancientRiseTint, spiritsPlayedThisTurn, anySpellsCastThisTurn, unusedEquipmentCount, playerOpponent, alignmentsOf, boardHasCelestial, chooseBothActive, chooseBothStateOf, type ChooseBothState, chooseOneNeedsChoice, computeCombatOdds, type CombatOdds, rubyCastCount, giftCastCount, rubyStatBonus, CONFIG, RIFTS, hasTier7Access, maxTierFor, conjuredStats, cardBuff, getHero, isTribe, defIsTribe, magnetizesTo, magnetizeTargets, endOfTurnRepeats, endOfTurnTicksOf, projectEndOfTurnSteps, questEndOfTurnBeats, sellValueWithBonus, spellDisplayText, chooseOneBranchText, spellAttackBonus, spellHealthBonus, spellAttackBonusLive, spellHealthBonusLive, spellEscalationLive, squirlScoutBuffLive, spellCasts, runeExtraCasts, spellCostReduction, implosionCasts, dragonflameCasts, minionCostOf, heroOfferPrice, offerBuyPrice, dominantBoardTribe, effectiveTargetTribe, boardManaBonus, upgradeCostOf, nextRefreshCostOf, poolOf, type RunState, type ShopCard, type CardBuff, type BoardCard, type BoardSnapshot, gildCopiesNeeded, activePowers, gateUses, runeStacksOf, starformSpellAimsToken, createOddsProbe, selectedEquipment, selectedEquipmentDef } from '@game/sim';
 import { createPortal } from 'react-dom';
-import { setCardId, setCardStats, toggleCardKeyword, setEnemyStats, setEnemyCardId, toggleEnemyKeyword, removeEnemy, foeSnapshotOf } from './sandboxEdit';
+import { setCardId, setCardStats, toggleCardKeyword, setEnemyStats, setEnemyCardId, toggleEnemyKeyword, toggleEnemyGolden, removeEnemy, foeSnapshotOf } from './sandboxEdit';
 import { UnitEditor } from './UnitEditor';
 import { Card, mdBold, type CardView } from './Card';
 import { heroPowerArt, equipmentBranchArtFor } from './art';
@@ -7643,6 +7643,11 @@ export function Recruit() {
             onToggleKeyword={(kw) => {
               const liveSnap = useGame.getState().run.servedBoards?.[useGame.getState().run.wave] ?? sbEnemySnap;
               applyFoe(toggleEnemyKeyword(liveSnap, i, kw));
+            }}
+            golden={m.golden === true}
+            onToggleGolden={() => {
+              const liveSnap = useGame.getState().run.servedBoards?.[useGame.getState().run.wave] ?? sbEnemySnap;
+              applyFoe(toggleEnemyGolden(liveSnap, i));
             }}
             onRemove={() => {
               const liveSnap = useGame.getState().run.servedBoards?.[useGame.getState().run.wave] ?? sbEnemySnap;

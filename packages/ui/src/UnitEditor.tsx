@@ -38,7 +38,7 @@ export const KEYWORD_LABEL: Record<string, string> = {
 };
 
 export function UnitEditor({
-  value, anchor, onChange, onToggleKeyword, onRemove, onClose, cards: cardsProp,
+  value, anchor, onChange, onToggleKeyword, onRemove, onClose, cards: cardsProp, golden, onToggleGolden,
 }: {
   value: UnitEditorValue;
   /** The edited card's rect, in viewport coordinates — the popover seats itself under it. */
@@ -54,6 +54,9 @@ export function UnitEditor({
    * the wrong cards. Callers that know the run's own pool (e.g. via `poolOf(run)`) should pass it.
    */
   cards?: { id: string; name: string }[];
+  /** Golden state + toggle, offered only when a handler is given (the sandbox enemy editor / Stage Builder). */
+  golden?: boolean;
+  onToggleGolden?: () => void;
 }) {
   const ref = useRef<HTMLDivElement | null>(null);
   const fallbackCards = useMemo(
@@ -117,6 +120,15 @@ export function UnitEditor({
           </button>
         ))}
       </div>
+      {onToggleGolden !== undefined && (
+        <button
+          className={`uned-kwbtn uned-golden${golden === true ? ' on' : ''}`}
+          onClick={onToggleGolden}
+          aria-pressed={golden === true}
+        >
+          Golden
+        </button>
+      )}
       {onRemove !== undefined && (
         <button className="uned-remove" onClick={onRemove} aria-description="Remove this unit from the opponent board">
           remove

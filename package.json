@@ -105,6 +105,7 @@
     "package:desktop": "npm run build:web && node scripts/package-desktop.mjs",
     "package:itch:win": "npm run package:desktop && node scripts/package-itch-desktop.mjs",
     "release:desktop": "node scripts/release-desktop.mjs",
+    "release:web": "node scripts/release-web.mjs",
     "package:itch": "npm run build:web && powershell -NoProfile -ExecutionPolicy Bypass -File scripts/package-itch.ps1",
     "typecheck:web": "tsc -p apps/web/tsconfig.json --noEmit",
     "lint": "eslint .",

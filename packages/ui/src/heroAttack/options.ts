@@ -15,6 +15,12 @@ export interface HeroAttackOptions {
   formationCfg?: FormationConfig;
   /** THE blow, as the engine decided it. */
   total: number;
+  /**
+   * The blow KNOCKS THE STRUCK PLAYER OUT (owner ask 2026-09-29): the attack always plays its Tier IV ("Huge")
+   * version, whatever `total` is. Read off the engine's state by `heroStrikeKnockout`; every style's plan takes its
+   * tier from `attackTier` (`tiers.ts`), which applies it. The number shown and the consequence are unchanged.
+   */
+  knockout?: boolean;
   /** Whose blow: sets the colour language (yours gold, theirs red). */
   side?: 'player' | 'opp';
   /** Centres of the striking and the struck hero (screen px, or host px in `local` space). */

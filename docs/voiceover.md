@@ -116,3 +116,25 @@ dry run prints both costs: characters for lines, and seconds for sound effects. 
 puts a take in the game. For a card clip that means the file, the def and the By-card binding (above): restart
 `npm run dev` (the audio folder is read once at startup), then commit all three.
 
+## Loudness: every card clip at one level
+
+ElevenLabs output varies a lot in level: the first 328 card clips spanned about 37 dB, from −42 to −6 LUFS, so a
+roar and a whisper were 35× apart and no single volume setting could make them sit together. Every card clip is
+therefore normalized:
+
+1. a gentle compressor (3:1 above −24 dB, fast attack) tames the spikes;
+2. a two-pass `loudnorm` (ITU BS.1770 loudness, the broadcast standard) measures the clip and applies ONE fixed
+   gain to **−20 LUFS**, with a **−1 dBTP** true-peak ceiling.
+
+The volume boxes in the FX workbench's By-card view (the binding `gain`: On Play 0.3, On Death 0.1) then sit on top
+as the mix. `vo:approve` normalizes every card clip it approves. For the backlog, or after changing the target:
+
+```
+npm run sfx:normalize -- --dry   # how many clips would change
+npm run sfx:normalize            # normalize them in place
+```
+
+It is idempotent: `packages/ui/src/audio/fx/normalized.json` records each clip's normalized content, so only new or
+replaced clips are touched. The target and compressor live in `packages/tools/src/sfx-normalize.lib.ts`. ffmpeg comes
+from the `ffmpeg-static` dev dependency (installed by `npm install`, never shipped to players).
+

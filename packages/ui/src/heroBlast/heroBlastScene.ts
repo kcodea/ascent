@@ -12,6 +12,9 @@
  *  - IMPACT: starts AT its brightest (the first frame is the peak): a white core burst, a white flash
  *    over the whole portrait, a coloured bloom, a crisp ring and a slower wide one, 8 long spikes, chunky sparks with
  *    gravity carried through the target, and an afterglow that lingers. Trailing bolts land smaller hits.
+ *  - SUPERNOVA (Tier IV, owner 2026-09-29 "add a tier to the blast attack so they all have 4"): the colossal beam lands
+ *    (a tick), holds, then POURS into the struck hero (its tail races after its front) while a wide ring and motes
+ *    implode onto it; then it detonates: rays, three shockwaves (the last sweeps most of the screen), a corona.
  *
  * Contract: sprites POOLED (hidden and reused), every list bounded by `MAX_SPRITES`; textures are the caller's; the
  * positions are the overlay's px; `setCamera` mirrors the DOM camera so FX and portraits zoom together; `update`
@@ -43,9 +46,14 @@ interface Bolt {
 }
 
 /** The top tier's colossal beam: its front races to the target, it holds thick and alive, then thins out. */
-interface Beam { outer: Sprite; core: Sprite; head: Sprite; from: Pt; len: number; ang: number; age: number; travel: number; hold: number; width: number; streamAcc: number }
+/**
+ * The top tier's colossal beam: its front races to the target, it holds thick and alive, then thins out, or (the
+ * supernova, `drain > 0`) its TAIL races after the front, so the whole beam pours into the target over `drain` ms.
+ */
+interface Beam { outer: Sprite; core: Sprite; head: Sprite; from: Pt; len: number; ang: number; age: number; travel: number; hold: number; width: number; streamAcc: number; drain: number }
 
-interface Charge { core: Sprite; bloom: Sprite; ring: Sprite; x: number; y: number; age: number; dur: number; size: number; releasing: number; moteAcc: number; motes: number }
+/** Light gathering on a point: the hero's charge, or (`reach` > 1, wider) the struck hero imploding before a supernova. */
+interface Charge { core: Sprite; bloom: Sprite; ring: Sprite; x: number; y: number; age: number; dur: number; size: number; releasing: number; moteAcc: number; motes: number; reach: number }
 
 export interface BlastColors { core: number; side: number }
 
@@ -73,6 +81,8 @@ export class HeroBlastScene {
   private pulses: Pulse[] = [];
   private bolts: Bolt[] = [];
   private charge: Charge | null = null;
+  /** The supernova's implosion on the struck hero (a second charge slot, released by `nova`). */
+  private implode: Charge | null = null;
   private beams: Beam[] = [];
   private destroyed = false;
   private readonly hot: number;
@@ -86,7 +96,7 @@ export class HeroBlastScene {
   get liveSprites(): number { return this.used; }
   get pooledSprites(): number { return this.root.children.length; }
   get liveBolts(): number { return this.bolts.length + this.beams.length; }
-  get charging(): boolean { return this.charge !== null; }
+  get charging(): boolean { return this.charge !== null || this.implode !== null; }
 
   /** Mirror the DOM camera: zoom `z` about the origin with offset `(ax, ay)` already folded in (see heroBlast.ts). */
   setCamera(ax: number, ay: number, z: number): void {
@@ -125,12 +135,69 @@ export class HeroBlastScene {
   /** The hero gathers: a ring closing in, a core swelling, motes spiralling in. Released by `fire`. */
   startCharge(x: number, y: number, durMs: number, size: number, motes: number): void {
     if (this.charge) return;
+    this.charge = this.gather(x, y, durMs, size, motes, 1);
+  }
+
+  private gather(x: number, y: number, durMs: number, size: number, motes: number, reach: number): Charge | null {
     const bloom = this.take(this.tex.glow, this.colors.side);
     const core = this.take(this.tex.glow, this.colors.core);
     const ring = this.take(this.tex.ring, this.colors.side);
-    if (!core || !ring || !bloom) { for (const s of [core, ring, bloom]) if (s) this.give(s); return; }
+    if (!core || !ring || !bloom) { for (const s of [core, ring, bloom]) if (s) this.give(s); return null; }
     for (const s of [core, ring, bloom]) { s.position.set(x, y); s.alpha = 0; }
-    this.charge = { core, bloom, ring, x, y, age: 0, dur: Math.max(1, durMs), size, releasing: -1, moteAcc: 0, motes };
+    return { core, bloom, ring, x, y, age: 0, dur: Math.max(1, durMs), size, releasing: -1, moteAcc: 0, motes, reach };
+  }
+
+  /**
+   * THE SUPERNOVA'S INHALE (Tier IV): the beam pours into the struck hero while a wide ring closes in on it, light is
+   * sucked in from all round and a core swells and throbs faster. Released (and replaced) by `nova`.
+   */
+  collapse(x: number, y: number, durMs: number, size: number, motes: number): void {
+    if (this.implode) return;
+    this.implode = this.gather(x, y, durMs, size, motes, 1.9);
+    // A dark-bright pinch: a crisp ring snapping in from wide, so the inhale reads at a glance.
+    this.pulse(this.tex.ring, this.colors.core, x, y, Math.max(1, durMs), 7 * size, 0.6 * size, 0.7, 'punch', 0.35);
+  }
+
+  /** The beam lands at a nova tier: a heavy hit that is only the opening (a tick; the blow waits for the supernova). */
+  beamHit(x: number, y: number, dir: Pt, size: number): void {
+    this.pulse(this.tex.glow, this.colors.core, x, y, 200, 1.4 * size, 2.6 * size, 0.95, 'out');
+    this.pulse(this.tex.glow, this.colors.side, x, y, 380, 1.8 * size, 3.4 * size, 0.55, 'out');
+    this.pulse(this.tex.ring, this.colors.core, x, y, 300, 0.5, 2.6 * size, 0.9);
+    this.hit(x, y, dir, size);
+  }
+
+  /**
+   * THE SUPERNOVA (Tier IV, on the consequence beat, layered over `impact`): the imploded light detonates. A white
+   * core flash, a huge side bloom, long RAYS bursting out all round, three shockwaves (crisp, wide, and one that
+   * sweeps most of the screen), a ring of fast streaks and a lingering corona. Few, bold elements; all pooled.
+   */
+  nova(x: number, y: number, dir: Pt, size: number, rays: number): void {
+    const im = this.implode;
+    if (im && im.releasing < 0) im.releasing = 0;
+    const c = this.colors;
+    const z = size;
+    this.pulse(this.tex.glow, c.core, x, y, 260, 2 * z, 4.2 * z, 1, 'out');
+    this.pulse(this.tex.glow, c.side, x, y, 820, 3 * z, 7.5 * z, 0.75, 'punch', 0.08);
+    this.pulse(this.tex.ring, c.core, x, y, 380, 0.6, 5.5 * z, 1);
+    this.pulse(this.tex.ring, this.hot, x, y, 640, 0.6, 9 * z, 0.85);
+    this.pulse(this.tex.ring, c.side, x, y, 980, 1, 16 * z, 0.55);
+    const head = Math.atan2(dir.y, dir.x);
+    for (let i = 0; i < rays; i++) {
+      const a = head + (i / Math.max(1, rays)) * Math.PI * 2 + (Math.random() - 0.5) * 0.18;
+      const len = (i % 2 ? 0.75 : 1.15) * z;
+      const r = 150 * this.scale * len;
+      this.pulse(this.tex.streak, i % 3 === 0 ? c.core : this.hot, x + Math.cos(a) * r, y + Math.sin(a) * r,
+        420 + (i % 3) * 60, 4 * len, 10 * len, 0.95, 'punch', 0.12, a);
+    }
+    for (let i = 0; i < 18; i++) {
+      const a = (i / 18) * Math.PI * 2 + Math.random() * 0.3, sp = (1300 + Math.random() * 900) * this.scale;
+      this.particle(this.tex.streak, i % 2 ? c.core : this.hot, {
+        x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, drag: 0.02, grav: 0,
+        life: 260 + Math.random() * 160, from: 1.4 * this.scale, to: 0.4 * this.scale, alpha: 1, streak: true,
+      });
+    }
+    // The corona: a slow side-coloured glow that lingers after the blast, so the finale breathes out, not cuts off.
+    this.pulse(this.tex.glow, c.side, x, y, 2000, 3.4 * z, 4.4 * z, 0.5, 'out');
   }
 
   /** One shot leaves the hero: muzzle flash + bloom + snap ring + forward sparks, and the bolt. `age0` = ms elapsed. */
@@ -168,7 +235,7 @@ export class HeroBlastScene {
   }
 
   /** THE TOP TIER: one colossal beam from the hero to the target (front travels in `travelMs`, holds, thins out). */
-  beam(from: Pt, to: Pt, travelMs: number, holdMs: number, width: number, age0 = 0): void {
+  beam(from: Pt, to: Pt, travelMs: number, holdMs: number, width: number, age0 = 0, drainMs = 0): void {
     const ch = this.charge;
     if (ch && ch.releasing < 0) ch.releasing = 0;
     const len = Math.hypot(to.x - from.x, to.y - from.y) || 1;
@@ -182,7 +249,7 @@ export class HeroBlastScene {
     if (!outer || !core || !head) { for (const s of [outer, core, head]) if (s) this.give(s); return; }
     for (const s of [outer, core]) { s.anchor.set(0, 0.5); s.position.set(from.x, from.y); s.rotation = ang; s.scale.set(0, 0); }
     head.position.set(from.x, from.y);
-    this.beams.push({ outer, core, head, from, len, ang, age: Math.max(0, age0), travel: Math.max(1, travelMs), hold: holdMs, width, streamAcc: 0 });
+    this.beams.push({ outer, core, head, from, len, ang, age: Math.max(0, age0), travel: Math.max(1, travelMs), hold: holdMs, width, streamAcc: 0, drain: Math.max(0, drainMs) });
   }
 
   /** A secondary explosion around the target (the big tiers): a flash, a ring, a burst of sparks. */
@@ -266,44 +333,59 @@ export class HeroBlastScene {
     if (this.destroyed) return false;
     const dt = Math.max(0, Math.min(100, dtMs));
     const sec = dt / 1000;
-    const S = this.scale;
 
-    const ch = this.charge;
-    if (ch) {
-      ch.age += dt;
-      const u = clamp01(ch.age / ch.dur);
-      if (ch.releasing < 0) {
-        const throb = 1 + 0.1 * Math.sin(ch.age * (0.03 + 0.05 * u));
-        ch.core.scale.set((0.3 + 0.9 * easeOutCubic(u)) * ch.size * throb * S);
-        ch.core.alpha = 0.4 + 0.6 * u;
-        ch.bloom.scale.set((1 + 1.4 * u) * ch.size * S);
-        ch.bloom.alpha = 0.55 * u;
-        ch.ring.scale.set((2.8 - 2.1 * easeOutCubic(u)) * ch.size * S);
-        ch.ring.alpha = Math.min(1, u * 3);
-        ch.moteAcc += (ch.motes / ch.dur) * dt;
-        while (ch.moteAcc >= 1) {
-          ch.moteAcc -= 1;
-          const a = Math.random() * Math.PI * 2;
-          const r = (110 + Math.random() * 60) * ch.size * S;
-          const life = 170 + Math.random() * 60;
-          const sp = r / (life / 1000);
-          // Inward with a tangential twist: the motes spiral in rather than falling straight.
-          this.particle(this.tex.streak, Math.random() < 0.5 ? this.colors.core : this.hot, {
-            x: ch.x + Math.cos(a) * r, y: ch.y + Math.sin(a) * r,
-            vx: -Math.cos(a) * sp - Math.sin(a) * sp * 0.35, vy: -Math.sin(a) * sp + Math.cos(a) * sp * 0.35,
-            drag: 1, grav: 0, life, from: 0.9 * S, to: 0.25 * S, alpha: 1, streak: true,
-          });
-        }
-      } else {
-        ch.releasing += dt;
-        const r = clamp01(ch.releasing / 160);
-        ch.core.scale.set((1.3 + 0.8 * r) * ch.size * S);
-        ch.core.alpha = 1 - r;
-        ch.bloom.alpha = 0.55 * (1 - r);
-        ch.ring.alpha = 1 - r;
-        if (r >= 1) { this.give(ch.core); this.give(ch.ring); this.give(ch.bloom); this.charge = null; }
+    if (this.charge && this.stepGather(this.charge, dt)) this.charge = null;
+    if (this.implode && this.stepGather(this.implode, dt)) this.implode = null;
+
+    this.stepBolts(dt);
+    this.stepBeams(dt);
+    this.stepPulses(dt);
+    this.stepParticles(dt, sec);
+
+    return this.used > 0;
+  }
+
+  /** One gathering (the hero's charge or the implosion) for `dt`; true once it has released and given its sprites back. */
+  private stepGather(ch: Charge, dt: number): boolean {
+    const S = this.scale;
+    ch.age += dt;
+    const u = clamp01(ch.age / ch.dur);
+    if (ch.releasing < 0) {
+      const throb = 1 + 0.1 * Math.sin(ch.age * (0.03 + 0.05 * u));
+      ch.core.scale.set((0.3 + 0.9 * easeOutCubic(u)) * ch.size * throb * S);
+      ch.core.alpha = 0.4 + 0.6 * u;
+      ch.bloom.scale.set((1 + 1.4 * u) * ch.size * S);
+      ch.bloom.alpha = 0.55 * u;
+      ch.ring.scale.set((2.8 - 2.1 * easeOutCubic(u)) * ch.size * ch.reach * S);
+      ch.ring.alpha = Math.min(1, u * 3);
+      ch.moteAcc += (ch.motes / ch.dur) * dt;
+      while (ch.moteAcc >= 1) {
+        ch.moteAcc -= 1;
+        const a = Math.random() * Math.PI * 2;
+        const r = (110 + Math.random() * 60) * ch.size * ch.reach * S;
+        const life = 170 + Math.random() * 60;
+        const sp = r / (life / 1000);
+        // Inward with a tangential twist: the motes spiral in rather than falling straight.
+        this.particle(this.tex.streak, Math.random() < 0.5 ? this.colors.core : this.hot, {
+          x: ch.x + Math.cos(a) * r, y: ch.y + Math.sin(a) * r,
+          vx: -Math.cos(a) * sp - Math.sin(a) * sp * 0.35, vy: -Math.sin(a) * sp + Math.cos(a) * sp * 0.35,
+          drag: 1, grav: 0, life, from: 0.9 * S, to: 0.25 * S, alpha: 1, streak: true,
+        });
       }
+    } else {
+      ch.releasing += dt;
+      const r = clamp01(ch.releasing / 160);
+      ch.core.scale.set((1.3 + 0.8 * r) * ch.size * S);
+      ch.core.alpha = 1 - r;
+      ch.bloom.alpha = 0.55 * (1 - r);
+      ch.ring.alpha = 1 - r;
+      if (r >= 1) { this.give(ch.core); this.give(ch.ring); this.give(ch.bloom); return true; }
     }
+    return false;
+  }
+
+  private stepBolts(dt: number): void {
+    const S = this.scale;
 
     for (let i = this.bolts.length - 1; i >= 0; i--) {
       const b = this.bolts[i]!;
@@ -342,40 +424,54 @@ export class HeroBlastScene {
       b.lastX = p.x; b.lastY = p.y;
       if (u >= 1) { for (const s of [b.head, b.spear, b.halo, ...b.trail]) this.give(s); this.bolts.splice(i, 1); }
     }
+  }
 
+  private stepBeams(dt: number): void {
+    const S = this.scale;
     for (let i = this.beams.length - 1; i >= 0; i--) {
       const bm = this.beams[i]!;
       bm.age += dt;
       const front = clamp01(bm.age / bm.travel);
       const f = 0.25 * front + 0.75 * front * front;
       const after = bm.age - bm.travel;
-      const fade = after <= bm.hold ? 1 : 1 - clamp01((after - bm.hold) / 200);
+      // The supernova's pour: after the hold the TAIL chases the front into the target (accelerating), instead of a fade.
+      const g = bm.drain > 0 && after > bm.hold ? clamp01((after - bm.hold) / bm.drain) : 0;
+      const tail = g * g;
+      const fade = bm.drain > 0 ? (g >= 1 ? 0 : 1) : after <= bm.hold ? 1 : 1 - clamp01((after - bm.hold) / 200);
       const flick = 1 + 0.08 * Math.sin(bm.age * 0.12) + 0.05 * Math.sin(bm.age * 0.31);
-      const w = bm.width * S * (front < 1 ? 0.7 + 0.3 * front : flick) * (0.25 + 0.75 * fade);
+      const w = bm.width * S * (front < 1 ? 0.7 + 0.3 * front : flick) * (0.25 + 0.75 * fade) * (1 + 0.35 * g);
       const texW = this.tex.beam.width || 64, texH = this.tex.beam.height || 64;
-      bm.outer.scale.set((bm.len * f) / texW, (150 * w) / texH); bm.outer.alpha = 0.85 * fade;
-      bm.core.scale.set((bm.len * f) / texW, (46 * w) / texH); bm.core.alpha = fade;
-      const hx = bm.from.x + Math.cos(bm.ang) * bm.len * f, hy = bm.from.y + Math.sin(bm.ang) * bm.len * f;
-      bm.head.position.set(hx, hy); bm.head.scale.set(1.5 * bm.width * S * (front < 1 ? 1 : 0.8 * flick)); bm.head.alpha = fade;
+      const cos = Math.cos(bm.ang), sin = Math.sin(bm.ang);
+      const tx = bm.from.x + cos * bm.len * tail, ty = bm.from.y + sin * bm.len * tail;
+      const span = Math.max(0, f - tail);
+      bm.outer.position.set(tx, ty); bm.core.position.set(tx, ty);
+      // The wide glow thins as the beam pours in, so the moving tail never shows a hard cut across it.
+      bm.outer.scale.set((bm.len * span) / texW, (150 * w * (1 - 0.35 * g)) / texH); bm.outer.alpha = 0.85 * fade * (1 - 0.55 * g);
+      bm.core.scale.set((bm.len * span) / texW, (46 * w) / texH); bm.core.alpha = fade;
+      const hx = bm.from.x + cos * bm.len * f, hy = bm.from.y + sin * bm.len * f;
+      bm.head.position.set(hx, hy); bm.head.scale.set(1.5 * bm.width * S * (front < 1 ? 1 : 0.8 * flick) * (1 + 0.8 * g)); bm.head.alpha = fade;
       // Energy streaming down the beam while it holds (a few streaks a frame, bounded by the pool).
       if (front >= 1 && fade > 0.5) {
         bm.streamAcc += dt;
         while (bm.streamAcc > 22) {
           bm.streamAcc -= 22;
-          const at = Math.random() * 0.9;
+          const at = tail + Math.random() * (1 - tail) * 0.9;
           const off = (Math.random() - 0.5) * 40 * bm.width * S;
-          const px = bm.from.x + Math.cos(bm.ang) * bm.len * at - Math.sin(bm.ang) * off;
-          const py = bm.from.y + Math.sin(bm.ang) * bm.len * at + Math.cos(bm.ang) * off;
+          const px = bm.from.x + cos * bm.len * at - sin * off;
+          const py = bm.from.y + sin * bm.len * at + cos * off;
           const sp = 1600 * S;
           this.particle(this.tex.streak, Math.random() < 0.5 ? this.colors.core : this.hot, {
-            x: px, y: py, vx: Math.cos(bm.ang) * sp, vy: Math.sin(bm.ang) * sp, drag: 1, grav: 0,
+            x: px, y: py, vx: cos * sp, vy: sin * sp, drag: 1, grav: 0,
             life: 120 + Math.random() * 80, from: 1.1 * S, to: 0.4 * S, alpha: 0.9, streak: true,
           });
         }
       }
       if (fade <= 0) { this.give(bm.outer); this.give(bm.core); this.give(bm.head); this.beams.splice(i, 1); }
     }
+  }
 
+  private stepPulses(dt: number): void {
+    const S = this.scale;
     for (let i = this.pulses.length - 1; i >= 0; i--) {
       const q = this.pulses[i]!;
       q.age += dt;
@@ -388,7 +484,10 @@ export class HeroBlastScene {
         : q.a0 * (1 - u) * (1 - u * 0.3);
       if (u >= 1) { this.give(q.s); this.pulses.splice(i, 1); }
     }
+  }
 
+  private stepParticles(dt: number, sec: number): void {
+    const S = this.scale;
     for (let i = this.particles.length - 1; i >= 0; i--) {
       const p = this.particles[i]!;
       p.life -= dt;
@@ -407,7 +506,6 @@ export class HeroBlastScene {
       p.s.alpha = p.alpha * (1 - t * t);
     }
 
-    return this.used > 0;
   }
 
   /** Drop every in-flight effect at once (a cancel). The pool is kept for reuse. */
@@ -417,8 +515,8 @@ export class HeroBlastScene {
     for (const b of this.bolts) for (const s of [b.head, b.spear, b.halo, ...b.trail]) this.give(s);
     for (const bm of this.beams) { this.give(bm.outer); this.give(bm.core); this.give(bm.head); }
     this.beams = [];
-    if (this.charge) { this.give(this.charge.core); this.give(this.charge.ring); this.give(this.charge.bloom); }
-    this.particles = []; this.pulses = []; this.bolts = []; this.charge = null;
+    for (const ch of [this.charge, this.implode]) if (ch) { this.give(ch.core); this.give(ch.ring); this.give(ch.bloom); }
+    this.particles = []; this.pulses = []; this.bolts = []; this.charge = null; this.implode = null;
   }
 
   /** Tear down: every sprite destroyed, the root emptied and destroyed. Textures are the caller's. */

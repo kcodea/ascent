@@ -556,7 +556,7 @@ describe('the scene (headless Pixi)', () => {
 describe('the cosmetic', () => {
   it('Consecration (attack_holy) is a Legendary crate hero attack that plays Holy; the dev override can force it; the others are unchanged; unknown ids play Classic', () => {
     expect(COSMETIC_INDEX.attack_holy).toMatchObject({ category: 'hero_attack', rarity: 'legendary', name: 'Consecration', assets: { style: 'holy' }, active: true });
-    expect(HERO_ATTACK_STYLES).toEqual(['classic', 'blast', 'quake', 'arcana', 'blades', 'enraged', 'poison', 'frost', 'holy']);
+    expect(HERO_ATTACK_STYLES).toEqual(['classic', 'blast', 'quake', 'arcana', 'blades', 'enraged', 'poison', 'frost', 'holy', 'fire', 'undead', 'beast']); // Inferno (fire) then Grave Call (undead) joined 2026-09-29; Stampede (beast) joined 2026-09-29
     expect(styleOfCosmetic('attack_holy')).toBe('holy');
     for (const [id, style] of [['attack_blast', 'blast'], ['attack_quake', 'quake'], ['attack_arcana', 'arcana'], ['attack_blades', 'blades'], ['attack_enraged', 'enraged']] as const) {
       expect(styleOfCosmetic(id)).toBe(style);

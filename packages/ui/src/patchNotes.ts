@@ -69,6 +69,30 @@ export const PATCH_NOTES: PatchNote[] = [
       },
       {
         category: 'Systems',
+        text: 'Two new Epic hero attacks, Card Shark and Storm Call, can drop from crates.',
+        details: [
+          'Epic attacks are shorter than the Legendary ones and have three sizes instead of four.',
+          'Card Shark: your hero flicks a spinning Ace into the other hero. Bigger hits throw three Aces. The biggest deal a royal flush that turns gold, then all five cards fly in and burst into confetti.',
+          'Storm Call: a crackling bolt of lightning hits the other hero. Bigger hits fork into two strikes and leave the other hero buzzing with static. The biggest call down a storm cloud that drops one huge lightning strike.',
+          'A knockout always plays the biggest version.',
+          'Equip them from the Attack Animations tab of the Collection. There is a preview button there too.',
+          'Hero attacks are looks only. The damage is exactly the same.',
+        ],
+      },
+      {
+        category: 'Systems',
+        text: "A new Legendary hero attack, Oona's Banana Cannon, can drop from crates.",
+        details: [
+          "Your damage builds up, then your hero flings King Oona's painted bananas, spinning, at the other hero.",
+          'They burst into juicy splats. Bigger hits fling two, then a whole barrage.',
+          'On the biggest hits a giant golden banana arcs high, hangs, and lands stuck in the other hero.',
+          'Then your hero rushes in and slams it in six times, driving it deeper each time. It ends in a huge splat and a shower of bananas.',
+          'Equip it from the Attack Animations tab of the Collection. There is a preview button there too.',
+          'Hero attacks are looks only. The damage is exactly the same.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'A new Legendary hero attack, Stampede, can drop from crates.',
         details: [
           'Your damage builds up, then your hero looses spirit wolves of green and amber energy at the other hero.',
@@ -257,6 +281,15 @@ export const PATCH_NOTES: PatchNote[] = [
       },
       {
         category: 'Systems',
+        text: 'Guests now create a free account to open crates. Your crates, level and collection stay with it.',
+        details: [
+          'Guests still earn crates. They wait sealed in the Collection until you make an account.',
+          'Making an account keeps everything you earned as a guest. You only need an email.',
+          'Signing into an account you already have switches to it. Crates earned as a guest stay on the guest.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'A new Legendary hero attack, Hemorrhage, can drop from crates.',
         details: [
           'Your damage builds up, then your hero draws a blade and swings crimson crescents at the other hero.',
@@ -264,27 +297,6 @@ export const PATCH_NOTES: PatchNote[] = [
           'On the biggest hits it goes completely over the top: the wounds throb like a heartbeat, then a huge slash zips across the whole screen eight times, faster and faster, flinging blood that piles up all over the board, a beat of held breath, and the other hero bursts in an enormous bloody explosion that paints the whole screen red.',
           'Equip it from the Attack Animations tab of the Collection. There is a preview button there too.',
           'Hero attacks are looks only. The damage is exactly the same.',
-        ],
-      },
-      {
-        category: 'Systems',
-        text: "A new Legendary hero attack, Oona's Banana Cannon, can drop from crates.",
-        details: [
-          "Your damage builds up, then your hero flings King Oona's painted bananas, spinning, at the other hero.",
-          'They burst into juicy splats. Bigger hits fling two, then a whole barrage.',
-          'On the biggest hits a giant golden banana arcs high, hangs, and lands stuck in the other hero.',
-          'Then your hero rushes in and slams it in six times, driving it deeper each time. It ends in a huge splat and a shower of bananas.',
-          'Equip it from the Attack Animations tab of the Collection. There is a preview button there too.',
-          'Hero attacks are looks only. The damage is exactly the same.',
-        ],
-      },
-      {
-        category: 'Systems',
-        text: 'Guests now create a free account to open crates. Your crates, level and collection stay with it.',
-        details: [
-          'Guests still earn crates. They wait sealed in the Collection until you make an account.',
-          'Making an account keeps everything you earned as a guest. You only need an email.',
-          'Signing into an account you already have switches to it. Crates earned as a guest stay on the guest.',
         ],
       },
     ],

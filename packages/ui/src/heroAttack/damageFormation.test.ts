@@ -30,6 +30,8 @@ import { playHeroUndead } from '../heroUndead/heroUndead';
 import { playHeroBeast } from '../heroBeast/heroBeast';
 import { playHeroBanana } from '../heroBanana/heroBanana';
 import { playHeroBleed } from '../heroBleed/heroBleed';
+import { playHeroCards } from '../heroCards/heroCards';
+import { playHeroStorm } from '../heroStorm/heroStorm';
 import { SPEC, boardOf } from '../DamageFormationTuner';
 import { Sequence } from './sequence';
 import type { HeroAttackHandle, HeroAttackOptions } from './options';
@@ -318,6 +320,8 @@ describe('the runners', () => {
       ['beast', (o) => playHeroBeast({ ...o, textures: TEX })],
       ['banana', (o) => playHeroBanana({ ...o, textures: TEX })],
       ['bleed', (o) => playHeroBleed({ ...o, textures: TEX })],
+      ['cards', (o) => playHeroCards({ ...o, textures: null })],
+      ['storm', (o) => playHeroStorm({ ...o, textures: null })],
     ];
     const lead = leadInOf([4, 2, 3, 4], false, true);
     for (const [name, play] of styles) {
@@ -468,6 +472,8 @@ describe('no attack ever pauses its clock (owner 2026-09-28: "remove the freezei
     ['beast', (o) => playHeroBeast({ ...o, textures: null })],
     ['banana', (o) => playHeroBanana({ ...o, textures: null })],
     ['bleed', (o) => playHeroBleed({ ...o, textures: null })],
+    ['cards', (o) => playHeroCards({ ...o, textures: null })],
+    ['storm', (o) => playHeroStorm({ ...o, textures: null })],
   ];
 
   it('every style (and the formation inside it, through the capped slash) advances the clock by exactly the time played, every frame', () => {

@@ -2955,6 +2955,62 @@ export const FOUNDATION_RULES: GameRule[] = [
     currentBehaviour: 'Conforms, built 2026-09-29.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/heroAttack/knockoutTier.test.ts'], lastVerifiedAt: '2026-09-29' },
   },
+  // ── The first EPIC hero attacks: Card Shark and Storm Call (owner ask 2026-09-29) ─────────────────────────
+  {
+    id: 'R-PROG-ATTACK-26',
+    title: 'Card Shark (attack_cards, EPIC) deals playing cards in THREE looks: one Ace / three Aces / a royal flush that turns gold and bursts into confetti; the blow lands ONCE',
+    statement:
+      'attack_cards ("Card Shark", a placeholder name for the owner to rename; EPIC, crate, account-wide, style cards) is an '
+      + 'Epic hero attack: one idea, shorter than the Legendaries, and THREE visual tiers instead of four. It reads the SAME '
+      + 'shared tier every style reads (attackTier: thresholds 6 / 12 / 20, a knockout is Tier IV) and maps it locally: I -> '
+      + 'small, II and III -> medium, IV -> big, so a knockout always plays big. After the shared damage formation '
+      + '(R-PROG-ATTACK-08) the hero deals playing cards (painted ivory faces with plain suit pips and letters, no copied card '
+      + 'art): SMALL, one Ace of spades drawn and flicked spinning into the struck hero, where it sticks EDGE FIRST with a flash '
+      + '(the blow); MEDIUM, three Aces thrown in quick sequence, thunk thunk thunk, each sticking at its own angle round the '
+      + 'face (the first two are ticks, FX only; the blow lands on the third); BIG, a royal flush of spades dealt face down '
+      + 'into a hand fanned out UPRIGHT in front of the hero (kept on screen), flipped face up one by one (10, J, Q, K, A), the '
+      + 'faces turned GOLD with a flash and a glint sweeping each card, held a beat, then all five fired together to land '
+      + 'together and burst into card confetti (chips and suit pips fluttering down) on the struck hero (the blow lands on the '
+      + 'burst). Stuck cards ride the struck portrait\x27s knockback and fall away after. The consequence lands exactly ONCE. '
+      + 'No hit-stop (R-PROG-ATTACK-10). The camera is applied ONCE: the Pixi root mirrors the DOM camera only when its '
+      + 'canvas is not already inside the camera element. Presentation only; reduced motion is fades only; an unknown or '
+      + 'retired id plays Classic.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-29 (rare and epic attacks)', quote: 'branch off and build 5 animations that range from rare -> epic. all of the animations we have done so far are legendary. rare and epics should only have 2 or 3 tiers to them and generally be less exciting, but still extremely clean and fun. get creative' },
+      { kind: 'code', ref: 'packages/progression/src/cosmetics.ts (attack_cards); packages/ui/src/heroCards/ (heroCardsConfig cardsLevel / cardsPlan / cardsCues / fanPoses / heldPoses / cardMotions / cardsCameraAt, heroCards playHeroCards, heroCardsScene, heroCardsTextures); packages/ui/src/heroAttack/stageCamera.ts (heroFxCanvas: the camera applied once, R-PROG-ATTACK-25)' },
+    ],
+    currentBehaviour: 'Conforms, built 2026-09-29. The item reaches the database on the next deploy of progression-inventory (the catalog sync); the equip SQL already accepts the hero_attack slot.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/heroCards/heroCards.test.ts', 'packages/ui/src/heroAttack/knockoutTier.test.ts', 'packages/progression/src/cosmetics.test.ts', 'packages/ui/src/progression/CollectionHeroAttack.test.tsx', 'packages/ui/src/heroAttack/damageFormation.test.ts'], lastVerifiedAt: '2026-09-29' },
+  },
+  {
+    id: 'R-PROG-ATTACK-27',
+    title: 'Storm Call (attack_storm, EPIC) strikes with live lightning in THREE looks: a crackling arc / a forked double strike with static / a storm cloud\x27s thick strike; the blow lands ONCE',
+    statement:
+      'attack_storm ("Storm Call", a placeholder name for the owner to rename; EPIC, crate, account-wide, style storm) is an '
+      + 'Epic hero attack in THREE visual tiers, mapped from the shared tier exactly as Card Shark (R-PROG-ATTACK-26): I small, '
+      + 'II and III medium, IV (and every knockout) big. Every bolt is procedural: a jagged line whose shape is REDRAWN every '
+      + 'few frames from a seeded generator (a live crackle; a replay crackles the same), ends pinned, in electric blue and '
+      + 'white with violet. After the shared damage formation static crackles round the hero, then: SMALL, a bolt\x27s leader '
+      + 'races from the hero into the struck hero and it flickers; the zap and a small spark burst land the blow; MEDIUM, a '
+      + 'trunk leaves the hero and FORKS into two branches that strike one after the other (the first a tick, FX only; the '
+      + 'blow on the second), and static crawls over the struck portrait while it JITTERS; BIG, the hero calls a thin bolt up, '
+      + 'a small STORM CLOUD gathers over the struck hero (with no room above a hero at the top of the screen it rolls in over '
+      + 'the top edge and still drops onto the face, never a sideways beam), rumbles and lights up from inside twice, then '
+      + 'drops one THICK strike: a flash across the screen, a ring of sparks, a shock ring and static crawling over the '
+      + 'portrait while the cloud breaks up (the blow lands on the strike). The consequence lands exactly ONCE. No hit-stop '
+      + '(R-PROG-ATTACK-10). The camera is applied ONCE (as R-PROG-ATTACK-26). Presentation only; reduced motion is fades '
+      + 'only; an unknown or retired id plays Classic.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-29 (rare and epic attacks)', quote: 'rare and epics should only have 2 or 3 tiers to them and generally be less exciting, but still extremely clean and fun. get creative' },
+      { kind: 'code', ref: 'packages/progression/src/cosmetics.ts (attack_storm); packages/ui/src/heroStorm/ (heroStormConfig stormLevel / stormPlan / stormCues / stormGeometry / stormCameraAt, heroStorm playHeroStorm, heroStormScene, heroStormTextures)' },
+    ],
+    currentBehaviour: 'Conforms, built 2026-09-29. The item reaches the database on the next deploy of progression-inventory (the catalog sync); the equip SQL already accepts the hero_attack slot.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/heroStorm/heroStorm.test.ts', 'packages/ui/src/heroAttack/knockoutTier.test.ts', 'packages/progression/src/cosmetics.test.ts', 'packages/ui/src/progression/CollectionHeroAttack.test.tsx', 'packages/ui/src/heroAttack/damageFormation.test.ts'], lastVerifiedAt: '2026-09-29' },
+  },
   {
     id: 'R-PROG-ATTACK-25',
     title: 'A hero attack\x27s camera reaches its FX exactly ONCE: while the view zooms and shakes, the effects stay on the struck portrait',

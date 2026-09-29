@@ -590,7 +590,7 @@ describe('the scene (headless Pixi)', () => {
 describe('the cosmetic', () => {
   it('Stampede (attack_beast) is a Legendary crate hero attack that plays the Beast; the dev override can force it; the other styles unchanged; unknown ids play Classic', () => {
     expect(COSMETIC_INDEX.attack_beast).toMatchObject({ category: 'hero_attack', rarity: 'legendary', name: 'Stampede', assets: { style: 'beast' }, active: true });
-    expect(HERO_ATTACK_STYLES).toEqual(['classic', 'blast', 'quake', 'arcana', 'blades', 'enraged', 'poison', 'frost', 'holy', 'fire', 'undead', 'beast', 'banana', 'bleed']); // the Stampede joined 2026-09-29
+    expect(HERO_ATTACK_STYLES).toEqual(['classic', 'blast', 'quake', 'arcana', 'blades', 'enraged', 'poison', 'frost', 'holy', 'fire', 'undead', 'beast', 'banana', 'bleed', 'cards', 'storm']); // the Stampede joined 2026-09-29
     expect(styleOfCosmetic('attack_beast')).toBe('beast');
     for (const [id, st] of [['attack_blast', 'blast'], ['attack_poison', 'poison'], ['attack_frost', 'frost'], ['attack_holy', 'holy']] as const) {
       expect(styleOfCosmetic(id)).toBe(st);

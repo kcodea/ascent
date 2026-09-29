@@ -73,6 +73,8 @@ import { SPEC as HeroUndeadSpec } from './HeroUndeadTuner';
 import { SPEC as HeroBeastSpec } from './HeroBeastTuner';
 import { SPEC as HeroBananaSpec } from './HeroBananaTuner';
 import { SPEC as HeroBleedSpec } from './HeroBleedTuner';
+import { SPEC as HeroCardsSpec } from './HeroCardsTuner';
+import { SPEC as HeroStormSpec } from './HeroStormTuner';
 import { SPEC as LoadScreenSpec } from './LoadScreenTuner';
 import { SPEC as LungeSpec } from './LungeTuner';
 import { SPEC as PlateCoalesceSpec } from './PlateCoalesceTuner';
@@ -160,6 +162,8 @@ export const ALL_TUNER_SPECS: TunerSpec<never>[] = [
   HeroBeastSpec,
   HeroBananaSpec,
   HeroBleedSpec,
+  HeroCardsSpec,
+  HeroStormSpec,
   LoadScreenSpec,
   LungeSpec,
   PlateCoalesceSpec,

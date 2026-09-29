@@ -95,6 +95,10 @@ import { playHeroBanana } from './heroBanana/heroBanana';
 import { heroBananaPreviewSpeed } from './heroBanana/heroBananaConfig';
 import { playHeroBleed } from './heroBleed/heroBleed';
 import { heroBleedPreviewSpeed } from './heroBleed/heroBleedConfig';
+import { playHeroCards } from './heroCards/heroCards';
+import { heroCardsPreviewSpeed } from './heroCards/heroCardsConfig';
+import { playHeroStorm } from './heroStorm/heroStorm';
+import { heroStormPreviewSpeed } from './heroStorm/heroStormConfig';
 import { resolveHeroAttackStyle } from './heroBlast/heroAttackStyle';
 import { attackerCosmeticOf } from './heroBlast/attackerCosmetic';
 import { heroStrikeDamage, heroStrikeKnockout, heroStrikeNumbers } from './heroBlast/heroStrikeDamage';
@@ -2939,9 +2943,13 @@ export function Recruit() {
     // the style is the ATTACKER's (their equipped cosmetic, or the dev override). Every runner takes the same options
     // (`heroAttack/options.ts`).
     const attackStyle = resolveHeroAttackStyle({ attacker: side, attackerCosmeticId: attackerCosmeticOf(run0, side, useGame.getState().showOpponentSkins) });
-    if (attackStyle === 'blast' || attackStyle === 'quake' || attackStyle === 'arcana' || attackStyle === 'blades' || attackStyle === 'enraged' || attackStyle === 'poison' || attackStyle === 'frost' || attackStyle === 'holy' || attackStyle === 'fire' || attackStyle === 'undead' || attackStyle === 'beast' || attackStyle === 'banana' || attackStyle === 'bleed') {
+    if (attackStyle === 'blast' || attackStyle === 'quake' || attackStyle === 'arcana' || attackStyle === 'blades' || attackStyle === 'enraged' || attackStyle === 'poison' || attackStyle === 'frost' || attackStyle === 'holy' || attackStyle === 'fire' || attackStyle === 'undead' || attackStyle === 'beast' || attackStyle === 'banana' || attackStyle === 'bleed' || attackStyle === 'cards' || attackStyle === 'storm') {
       const runner = attackStyle === 'bleed'
         ? { play: playHeroBleed, preview: heroBleedPreviewSpeed() }
+        : attackStyle === 'storm'
+        ? { play: playHeroStorm, preview: heroStormPreviewSpeed() }
+        : attackStyle === 'cards'
+        ? { play: playHeroCards, preview: heroCardsPreviewSpeed() }
         : attackStyle === 'banana'
         ? { play: playHeroBanana, preview: heroBananaPreviewSpeed() }
         : attackStyle === 'beast'

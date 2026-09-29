@@ -69,7 +69,7 @@ describe('the Heroes and Minions tabs', () => {
     expect(tab('Heroes').querySelector('.colls-tab-count')?.textContent).toBe('1/2');
     // 2026-09-28: three Black Belt Brian skins and one Bellringer Voss skin, so Minions is 1/4 and the album 22 items (30 with the eight hero attacks, 2026-09-28); skins batch 2 (2026-09-28) adds 13 minion skins: Minions 1/17, the album 43; the 33 hero titles (2026-09-29) make it 76; the ninth hero attack, Inferno (2026-09-29), 77; Grave Call (2026-09-29), 78; the Stampede (2026-09-29), 79; Oona's Banana Cannon (2026-09-29), 80; Hemorrhage (2026-09-29), 81
     expect(tab('Minions').querySelector('.colls-tab-count')?.textContent).toBe('1/17');
-    expect(text('.colls-meter-num')).toBe('3 / 81');
+    expect(text('.colls-meter-num')).toBe('3 / 83');
   });
 
   it('tiles show the art and the target; unowned are dimmed + blurred (missing) with a lock', () => {
@@ -155,10 +155,10 @@ describe('the kill switch in the Collection (retired = hidden, owned or not; res
       'Sketchbook Brian',
     ]);
     expect(tab('Minions').querySelector('.colls-tab-count')?.textContent).toBe('0/16');
-    expect(text('.colls-meter-num')).toBe('2 / 80');
+    expect(text('.colls-meter-num')).toBe('2 / 82');
     act(() => applyServerCatalogState({ retiredIds: [], disabledCategories: [] }));
     expect(tile('Sheriff Brian').className).toMatch(/\bowned\b/);
-    expect(text('.colls-meter-num')).toBe('3 / 81');
+    expect(text('.colls-meter-num')).toBe('3 / 83');
   });
 
   it('a disabled CATEGORY becomes a locked Soon tab', () => {
@@ -166,6 +166,6 @@ describe('the kill switch in the Collection (retired = hidden, owned or not; res
     act(() => applyServerCatalogState({ retiredIds: [], disabledCategories: ['hero_skin'] }));
     expect(tab('Heroes').className).toMatch(/\blocked\b/);
     expect(tab('Heroes').textContent).toContain('Soon');
-    expect(text('.colls-meter-num')).toBe('2 / 79');
+    expect(text('.colls-meter-num')).toBe('2 / 81');
   });
 });

@@ -2225,18 +2225,24 @@ export const FOUNDATION_RULES: GameRule[] = [
       'Whatever style plays, the blow is the engine\'s (heroStrikeDamage: the capped enemyDamage on a win, playerLossDamage '
       + 'on a lobby loss). The shared damage formation (R-PROG-ATTACK-08) builds that value on screen from the engine\'s own numbers '
       + '(never a DOM sum), and Blast fires the consequence (the health drop, Armor first, via settleCombat) exactly once, on the frame the '
-      + 'lead bolt or beam lands; if frames stop, a safety timer still lands it. It escalates by damage tier (I 1-5, II 6-11, '
-      + 'III 12-19, IV 20+; IV fires a beam; the thresholds 6 / 12 / 20 are owner-approved) and under reduced motion it is fades only (no flight, bolts, shake or '
+      + 'lead bolt lands or, at IV, the supernova detonates; if frames stop, a safety timer still lands it. Blast escalates in FOUR '
+      + 'distinct steps on the shared damage tiers (thresholds 6 / 12 / 20, owner-approved), the way Arcana and Frost ladder '
+      + '(owner 2026-09-29): I 1-5 ONE bolt; II 6-11 a volley of TWO; III 12-19 a BARRAGE of five fanned bolts (the lead bolt '
+      + 'lands the blow, the rest pound in after it) with secondary explosions and embers; IV 20+ the colossal beam, which '
+      + 'lands as a tick (FX only), holds, then POURS into the struck hero (its tail races after its front) while the light '
+      + 'implodes onto it, and detonates in an arcane SUPERNOVA (rays, three shockwaves, a corona, secondary explosions): the '
+      + 'blow lands on the detonation, never on the beam landing. Under reduced motion it is fades only (no flight, bolts, shake or '
       + 'zoom). No hero attack ever freezes its clock (R-PROG-ATTACK-10). Leaving the fight mid-animation cancels it without landing, exactly as Classic\'s timers are cleared.',
     domain: 'foundation',
     status: 'approved',
     evidence: [
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-28 (Blast approval)', quote: 'those are good thresholds, this blast animation looks good! make it a legendary reward' },
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-28 (Blast hero attack)', quote: 'i want the numbers to all combine, and then the screen slightly shakes and zooms as he blasts pixi blasts from the hero to the opponent to deal the damage' },
-      { kind: 'code', ref: 'packages/ui/src/heroBlast/heroBlastConfig.ts (blastPlan, blastCounts, tierOf); packages/ui/src/heroBlast/heroBlast.ts (playHeroBlast); packages/ui/src/heroBlast/heroStrikeDamage.ts; packages/ui/src/Recruit.tsx' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-29 (Blast fourth tier)', quote: 'use the same 4 tier strategy we have been. add a tier to the blast attack so they all have 4' },
+      { kind: 'code', ref: 'packages/ui/src/heroBlast/heroBlastConfig.ts (blastPlan, blastCues, tierOf, TIER_DEFAULTS Bolts / Beam / Nova); packages/ui/src/heroBlast/heroBlast.ts (playHeroBlast, cameraAt); packages/ui/src/heroBlast/heroBlastScene.ts (the beam drain, collapse, nova); packages/ui/src/heroBlast/heroStrikeDamage.ts; packages/ui/src/Recruit.tsx' },
     ],
-    currentBehaviour: 'Conforms, built 2026-09-28.',
-    enforcement: { kind: 'scenario', refs: ['packages/ui/src/heroBlast/heroBlast.test.ts'], lastVerifiedAt: '2026-09-28' },
+    currentBehaviour: 'Conforms, built 2026-09-28; the four-step ladder (a barrage of five at III, the supernova at IV) 2026-09-29.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/heroBlast/heroBlast.test.ts'], lastVerifiedAt: '2026-09-29' },
   },
   {
     id: 'R-PROG-ATTACK-04',

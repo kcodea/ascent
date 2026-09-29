@@ -60,6 +60,15 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: 'The Arcane Barrage hero attack now has four clear steps, like the other hero attacks, with a new finale for the biggest hits.',
+        details: [
+          'Small hits fire one bolt. Medium hits fire two.',
+          'Big hits fire a barrage of five bolts.',
+          'The biggest hits fire the huge beam. It pours into the enemy hero, collapses and detonates in a supernova.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'The Collection no longer shows the Boards and Music tabs. They come back when they are ready.',
       },
       {

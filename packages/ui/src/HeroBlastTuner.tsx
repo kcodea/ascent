@@ -26,8 +26,8 @@ const SPECS: Record<GlobalNumKey, Spec> = {
   previewDamage: ['Preview damage', undefined, 'The blow the Play buttons use (preview only, never shipped).', 'Preview'],
   previewParts: ['Preview numbers', undefined, 'How many numbers combine in the preview (the tier plus survivors).', 'Preview'],
   tier2At: ['Tier II from', undefined, 'Damage at which the blast steps up to Tier II.', 'Damage tiers'],
-  tier3At: ['Tier III from', undefined, 'Damage at which the blast steps up to Tier III (secondary explosions, embers).', 'Damage tiers'],
-  tier4At: ['Tier IV from', undefined, 'Damage at which the blast becomes the colossal beam.', 'Damage tiers'],
+  tier3At: ['Tier III from', undefined, 'Damage at which the blast steps up to Tier III (a barrage of five, explosions, embers).', 'Damage tiers'],
+  tier4At: ['Tier IV from', undefined, 'Damage at which the blast becomes the colossal beam and the supernova.', 'Damage tiers'],
   absorbMs: ['Absorb', 'ms', 'The total diving into the hero.', 'Charge and fire'],
   heroSwell: ['Hero swell', '×', 'How much the hero swells while charging.', 'Charge and fire'],
   boltSpeed: ['Bolt speed', 'px/s', 'How fast the bolts fly (the flight stays between 180 and 420 ms).', 'Charge and fire'],
@@ -35,7 +35,11 @@ const SPECS: Record<GlobalNumKey, Spec> = {
   boltCurve: ['Bolt fan', '×', 'How far the trailing bolts arc to the sides (the lead bolt flies straight).', 'Charge and fire'],
   trailLength: ['Trail', '×', 'Length of the comet tail (0 = none).', 'Charge and fire'],
   recoilPx: ['Hero recoil', 'px', 'How far the hero kicks back when it fires.', 'Charge and fire'],
-  beamHoldMs: ['Beam hold', 'ms', 'Tier IV: how long the beam holds on the target before it thins out.', 'Charge and fire'],
+  beamHoldMs: ['Beam hold', 'ms', 'Tier IV: how long the beam holds on the target before it thins out (or pours in, with a nova).', 'Charge and fire'],
+  collapseMs: ['Implosion', 'ms', 'Nova: the beam pouring into the struck hero, which implodes, before the supernova.', 'Supernova'],
+  collapseMotes: ['Implosion motes', undefined, 'Nova: light sucked into the struck hero during the implosion.', 'Supernova'],
+  novaSize: ['Nova size', '×', 'Nova: the size of the detonation (bloom, shockwaves, rays).', 'Supernova'],
+  novaRays: ['Nova rays', undefined, 'Nova: long rays bursting out of the detonation.', 'Supernova'],
   flashSize: ['Hit flash size', '×', 'The white-hot burst on the struck hero.', 'Impact and camera'],
   flashAlpha: ['Hit flash', 'opacity', 'How bright the hit flash is.', 'Impact and camera'],
   knockPx: ['Knockback', 'px', 'How far the struck portrait is knocked along the bolt.', 'Impact and camera'],
@@ -57,6 +61,10 @@ const SPECS: Record<GlobalNumKey, Spec> = {
   sfxBigRate: ['big hit: pitch', '×', 'Pitch of the big-hit layer.', 'Sound: big hit'],
   sfxBoomGain: ['booms: gain', undefined, 'Tiers III and IV: each secondary explosion (pitch climbs per boom).', 'Sound: booms'],
   sfxBoomRate: ['booms: pitch', '×', 'Pitch of the first secondary explosion.', 'Sound: booms'],
+  sfxCollapseGain: ['implosion: gain', undefined, 'Nova: the implosion as the beam pours into the struck hero.', 'Sound: implosion'],
+  sfxCollapseRate: ['implosion: pitch', '×', 'Pitch of the implosion.', 'Sound: implosion'],
+  sfxNovaGain: ['supernova: gain', undefined, 'Nova: the detonation, layered over the impact.', 'Sound: supernova'],
+  sfxNovaRate: ['supernova: pitch', '×', 'Pitch of the detonation.', 'Sound: supernova'],
   sfxImpactLenMs: ['impact length', 'ms', 'The impact clip is cut to this long (with a fade).', 'Sound: mix'],
   sfxBoomLenMs: ['boom length', 'ms', 'Each secondary explosion is cut to this long (with a fade).', 'Sound: mix'],
   sfxTailMix: ['impact tail', undefined, 'A short reverb tail on the hit. 0 = dry.', 'Sound: mix'],
@@ -76,6 +84,7 @@ const TIER_SPECS: Record<TierSuffix, [string, TunerUnit | undefined, string]> = 
   Dim: ['Dim', 'opacity', 'How far everything but the two heroes dims through the charge and the hit.'],
   Booms: ['Secondary booms', undefined, 'Explosions ringing the struck hero after the hit.'],
   Beam: ['Beam', undefined, 'Fire one colossal beam instead of bolts.'],
+  Nova: ['Supernova', undefined, 'With Beam on: the beam pours into the target, which implodes and detonates (the blow lands on the detonation).'],
 };
 
 const TIER_NAMES: Record<TierNum, string> = { 1: 'Tier I', 2: 'Tier II', 3: 'Tier III', 4: 'Tier IV' };
@@ -84,6 +93,7 @@ const CLIP_OF: Partial<Record<string, HeroBlastStrKey>> = {
   'Sound: charge': 'sfxChargeClip',
   'Sound: fire': 'sfxFireClip', 'Sound: beam': 'sfxBeamClip', 'Sound: impact': 'sfxImpactClip', 'Sound: thump': 'sfxThumpClip',
   'Sound: big hit': 'sfxBigClip', 'Sound: booms': 'sfxBoomClip',
+  'Sound: implosion': 'sfxCollapseClip', 'Sound: supernova': 'sfxNovaClip',
 };
 
 const COLORS: [HeroBlastStrKey, string, string][] = [
@@ -119,7 +129,7 @@ function buildControls(): Ctl[] {
       const key = `t${t}${s}` as HeroBlastNumKey;
       const [min, max, step] = HERO_BLAST_RANGES[key];
       const group = TIER_NAMES[t];
-      out.push(s === 'Beam'
+      out.push(s === 'Beam' || s === 'Nova'
         ? { key, label, hint, group, min, max, step, kind: 'toggle', onValue: 1, offValue: 0 }
         : { key, label, unit, hint, group, min, max, step });
     }
@@ -181,8 +191,9 @@ export const SPEC: TunerSpec<BlastTunerValues> = {
     { label: '▶ You blast', hint: 'Your hero blasts the foe for the preview damage.', run: () => { void demo('player'); } },
     { label: '▶ Foe blasts', hint: 'The foe blasts your hero for the preview damage.', run: () => { void demo('opp'); } },
     { label: '▶ Small (3)', hint: 'Your hero blasts for 3: the smallest volley.', run: () => { void demo('player', { damage: 3, parts: 2 }); } },
-    { label: '▶ Medium (12)', hint: 'Your hero blasts for 12 from four numbers.', run: () => { void demo('player', { damage: 12, parts: 4 }); } },
-    { label: '▶ Huge (40)', hint: 'Your hero blasts for 40 from seven numbers: the full volley, shake and push.', run: () => { void demo('player', { damage: 40, parts: 7 }); } },
+    { label: '▶ Tier II (8)', hint: 'Your hero blasts for 8: the two-bolt volley.', run: () => { void demo('player', { damage: 8, parts: 3 }); } },
+    { label: '▶ Medium (12)', hint: 'Your hero blasts for 12 from four numbers: the barrage of five.', run: () => { void demo('player', { damage: 12, parts: 4 }); } },
+    { label: '▶ Huge (40)', hint: 'Your hero blasts for 40 from seven numbers: the beam and the supernova.', run: () => { void demo('player', { damage: 40, parts: 7 }); } },
     { label: '▶ Foe huge (40)', hint: 'The foe blasts your hero for 40.', run: () => { void demo('opp', { damage: 40, parts: 7 }); } },
     { label: '▶ Reduced motion', hint: 'What a player with reduced motion on sees: fades, no flight, bolts, shake or zoom.', run: () => { void demo('player', { reduced: true }); } },
     ...HERO_BLAST_SPEEDS.map((s) => ({

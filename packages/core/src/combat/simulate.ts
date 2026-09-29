@@ -3117,8 +3117,9 @@ export function simulate(
       deadBeasts[minion.side].push({ uid: minion.uid, cardId: minion.cardId, golden: minion.golden, attack: minion.attack, maxHealth: minion.maxHealth ?? minion.health });
     }
     const dyingIsBeast = minion.tribe === 'beast' || minion.tribe2 === 'beast' || (!!minion.universalTribe || !!cards[minion.cardId]?.universalTribe);
-    // RUNE OF BEASTIAL SWARM: "When a friendly Beast dies, give all Beasts +N/+N this combat. Avenge (2): Improve
-    // this." (owner ruling 2026-09-28, R-AURA-03 — Beast buffs are COMBAT-ONLY). Living Beasts gain it on the spot
+    // RUNE OF BEASTIAL SWARM: "When a friendly Beast dies, give all your Beasts +N/+N. Avenge (2): Improve this."
+    // (owner rulings 2026-09-28, R-AURA-03 — in combat a Beast grant lasts the fight; the Shop half lives in
+    // recruit.ts `fireOnFriendDeath`). Living Beasts gain it on the spot
     // and later Beast summons this fight inherit it (the side's combat Beast pool, `beastAtkAuraFor`), but NOTHING
     // carries back — the 2026-09-23 run-wide Beast Aura carry is gone. Only the per-death LEVEL persists (Avenge
     // improvement, `beastialSwarmLevel`). Once per copy held (boolean-flag family, owner 2026-08-27).
@@ -3753,7 +3754,7 @@ export function simulate(
       }
       const oldHuntStep = modsFor(attacker.side).oldHuntStep ?? 0;
       if (oldHuntStep > 0 && isBeast(attacker)) {
-        // "Whenever a Beast attacks, give all Beasts +N/+N this combat" (owner ruling 2026-09-28, R-AURA-03):
+        // "Whenever a Beast attacks, give all your Beasts +N/+N" (owner rulings 2026-09-28, R-AURA-03), in combat:
         // the living Beasts gain it and later Beast summons this fight inherit it — nothing carries back.
         beastAtkAuraFor[attacker.side] += oldHuntStep;
         beastHpAuraFor[attacker.side] += oldHuntStep;
@@ -4272,7 +4273,7 @@ export function simulate(
         ctx.buff(m, amt, amt, m.uid);
       }
     }
-    // PACK MENTALITY (owner ruling 2026-09-28, R-AURA-03): "Start of Combat: give all Beasts +A/+H this combat."
+    // PACK MENTALITY (owner rulings 2026-09-28, R-AURA-03): "Start of Combat: give all your Beasts +A/+H."
     // The quest's current level rides in on `beastSummonScale.attack/health`; it buffs the living Beasts now and
     // joins the side's combat Beast pool so later Beast summons this fight inherit it. Combat-only — no carry-back.
     // (A pre-2026-09-28 run baked its level into `beastBuyAtk` instead and carries no level here, so it never

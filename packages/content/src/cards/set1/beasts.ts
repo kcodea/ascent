@@ -48,13 +48,13 @@ export const BEASTS: CardDef[] = [
       { on: 'startOfCombat', do: 'scBeastAura', params: { tribe: 'beast', attack: 1, health: 0, stepAttack: 1, stepHealth: 0 } },
       { on: 'avenge', do: 'avengeImproveSummon', params: { count: 4 } }, // owner 2026-08-12: Avenge 3 → 4
     ],
-    // Start of Combat: all Beasts +N Attack THIS COMBAT (owner ruling 2026-09-28, R-AURA-03 — Beast buffs are
-    // combat-only, not a run-wide Aura): the living Beasts now + any Beast summoned later this fight, nothing
-    // carried back (Engrave excepted). N = 1 + its Avenge-grown summonBonus, which IS permanent per instance
+    // Start of Combat: give all your Beasts +N Attack (owner rulings 2026-09-28, R-AURA-03 — no run-wide Beast Aura):
+    // in combat the living Beasts now + any Beast summoned later that fight, nothing carried back (Engrave
+    // excepted); an End-of-Turn replay (Combat Prowess) buffs the warband Beasts permanently, like any Shop buff. N = 1 + its Avenge-grown summonBonus, which IS permanent per instance
     // (the established "Improve this" convention: it rides summonBonus and carries across combats). Attack only:
     // `stepHealth: 0`. The live value surfaces via cardText's summonBuffText helper on every surface.
-    text: '**Start of Combat:** Give all **Beasts** **+1 Attack** this combat. **Avenge (4):** Improve this.',
-    goldenText: '**Start of Combat:** Give all **Beasts** **+2 Attack** this combat. **Avenge (4):** Improve this (twice as much).',
+    text: '**Start of Combat:** Give all your Beasts **+1 Attack**. **Avenge (4):** Improve this.',
+    goldenText: '**Start of Combat:** Give all your Beasts **+2 Attack**. **Avenge (4):** Improve this (twice as much).',
   },
   {
     id: 'gnash',
@@ -89,7 +89,7 @@ export const BEASTS: CardDef[] = [
   },
   {
     // Quest reward (Trophy Den): a Rally snowball — each of its attacks gives all your Beasts a GROWING +N/+N
-    // THIS COMBAT (R-AURA-03), improving +5/+5 every time it attacks (the grown value rides in summonBonus, so it
+    // (R-AURA-03: combat-only in a fight, a permanent Shop buff from a Shop Rally), improving +5/+5 every time it attacks (the grown value rides in summonBonus, so it
     // keeps climbing across combats). `token: true` = reward-exclusive. Live grant via cardText's summonBuffText.
     id: 'trophystalker',
     name: 'Trophy Stalker',
@@ -100,14 +100,14 @@ export const BEASTS: CardDef[] = [
     keywords: ['RL'],
     token: true,
     effects: [{ on: 'onAttack', do: 'rallyTribeAuraGrowing', params: { tribe: 'beast', attack: 5, health: 5, step: 5 } }],
-    text: '**Rally:** Give all **Beasts** **+5/+5** this combat. Improve this by **+5/+5** whenever Trophy Stalker attacks.',
+    text: '**Rally:** Give all your Beasts **+5/+5**. Improve this by **+5/+5** whenever Trophy Stalker attacks.',
   },
   {
-    // A glass-cannon finisher: a 7/1 that pays off when it dies. OWNER RULING 2026-09-28 (R-AURA-03): "Echo: Give
-    // all Beasts +8/+8 this combat." — a flat combat-only grant (golden +16/+16), replacing the 2026-09-24 per-game
-    // Echo tally and superseding PR #1809's flat "Beast Aura" version. `deathrattleBuffTribe` buffs the living
-    // Beasts and registers a rest-of-combat aura, so Beasts summoned later this fight inherit it; nothing carries
-    // back (Engrave excepted), and a Shop-fired Echo gives nothing. Also in the Set-2 pool (SET1_BEASTS_IN_SET2).
+    // A glass-cannon finisher: a 7/1 that pays off when it dies. OWNER RULINGS 2026-09-28 (R-AURA-03): "Echo: Give
+    // all your Beasts +8/+8." — a flat grant (golden +16/+16), replacing the 2026-09-24 per-game Echo tally and
+    // superseding PR #1809's flat "Beast Aura" version. `deathrattleBuffTribe` → `buffAllOfTribe`: in combat it buffs
+    // the living Beasts and registers a rest-of-combat aura (later summons that fight inherit it), nothing carried
+    // back (Engrave excepted); a Shop-fired Echo buffs every warband Beast permanently. Also in the Set-2 pool (SET1_BEASTS_IN_SET2).
     id: 'grim',
     name: 'Grim',
     tribe: 'beast',
@@ -116,8 +116,8 @@ export const BEASTS: CardDef[] = [
     health: 1,
     keywords: [],
     effects: [{ on: 'onDeath', do: 'deathrattleBuffTribe', params: { tribe: 'beast', attack: 8, health: 8 } }],
-    text: '**Echo:** Give all **Beasts** **+8/+8** this combat.',
-    goldenText: '**Echo:** Give all **Beasts** **+16/+16** this combat.',
+    text: '**Echo:** Give all your Beasts **+8/+8**.',
+    goldenText: '**Echo:** Give all your Beasts **+16/+16**.',
   },
   {
     id: 'shaper',

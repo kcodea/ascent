@@ -266,7 +266,8 @@ function shopArena(state: RunState, self: BoardCard): EffectArena {
     impAura: () => state.impBuff ?? { attack: 0, health: 0 },
     deathrattleTally: () => state.deathrattlesTriggered ?? 0,
     addTribeAura: () => {}, // no rest-of-combat in a shop; the legacy shop half never registered one
-    buffThisCombat: () => {}, // "this combat" has no meaning in a shop: a Shop Echo / EoT replay gives nothing (R-AURA-03)
+    // R-AURA-03 (owner 2026-09-28): in the Shop "give all your Beasts" is a normal permanent buff on the warband.
+    buffAllOfTribe: (targets, _auraTribes, a, h) => { for (const t of targets) addBuff(t as BoardCard, nameOf(self), a, h); },
     grantCardTypeBuff: (cardId, a, h) => buffCardTypeRunWide(state, cardId, a, h, CARD_INDEX[cardId]?.name ?? cardId),
     grantUndeadAttackAura: (a) => buffUndeadAttackEverywhere(state, a, nameOf(self)),
     grantMagneticAura: (a, h) => {
@@ -10569,6 +10570,17 @@ export function fireOnFriendDeath(state: RunState, dead: BoardCard): void {
   const ctx = makeContext(state);
   // RUNE OF THE PALLBEARER (Set 3 design pass): a friendly Undead died → the left-most minion in hand +2/+2 per copy.
   if (state.questFlags?.runePallbearer && isTribe(dead, 'undead')) runePallbearerShop(state);
+  // RUNE OF BEASTIAL SWARM, the SHOP half (owner ruling 2026-09-28, R-AURA-03 — "this SHOULD work in recruit and
+  // combat phase"): a friendly Beast dying in the Shop gives all your Beasts (the warband) the current per-death
+  // amount, permanently, like any Shop buff — once per copy held. Its Avenge (2) improvement stays a combat count.
+  if (state.questFlags?.runeBeastialSwarm && isTribe(dead, 'beast')) {
+    const n = (state.beastialSwarmLevel ?? 2) * runeStacksOf(state, 'rune_beastial_swarm');
+    const beasts = state.board.filter((c) => c.uid !== dead.uid && isTribe(c, 'beast'));
+    if (n > 0 && beasts.length > 0) {
+      procRuneId(state, 'rune_beastial_swarm');
+      for (const c of beasts) addBuff(c, 'Rune of Beastial Swarm', n, n);
+    }
+  }
   // RUNE OF BODY COUNTING (owner 2026-09-25), the SHOP half of its running death meter: every Shop death path (a
   // destroy, a pending destroy, Fel Spikes, a devour) notifies here exactly once; a SALE never does. Every 8th death
   // (the same `runeBodyCountTick` combat continues) gets a random Undead at or below your tier, per copy held.

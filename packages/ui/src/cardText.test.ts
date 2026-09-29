@@ -117,12 +117,12 @@ describe('cardText helpers', () => {
   });
 
 
-  // Grim is a FLAT "+8/+8 this combat" since 2026-09-28 (R-AURA-03) — no live-varying magnitude, so every
-  // surface prints the card text as-is, whatever the Echo tally.
-  it('Grim prints its flat combat-only grant on every surface (owner ruling 2026-09-28)', () => {
+  // Grim is a FLAT "+8/+8" since 2026-09-28 (R-AURA-03) — no live-varying magnitude, so every surface prints the
+  // card text as-is, whatever the Echo tally.
+  it('Grim prints its flat grant on every surface (owner ruling 2026-09-28)', () => {
     const bag = { tier: 6, golden: false, spellBonus: 0, spellBonusH: 0, frontToBackBonus: 0, spellsThisTurn: 0, spellsCast: 0, deathrattlesTriggered: 9, undeadBuyAtk: 0, soulsmanGold: 0 };
-    expect(liveCardText('grim', bag as never).text).toBe('**Echo:** Give all **Beasts** **+8/+8** this combat.');
-    expect(liveCardText('grim', { ...bag, golden: true } as never).goldenText).toBe('**Echo:** Give all **Beasts** **+16/+16** this combat.');
+    expect(liveCardText('grim', bag as never).text).toBe('**Echo:** Give all your Beasts **+8/+8**.');
+    expect(liveCardText('grim', { ...bag, golden: true } as never).goldenText).toBe('**Echo:** Give all your Beasts **+16/+16**.');
   });
 
   it('run-wide metric helpers surface live values (Soulsman gold, Eternal Knight tally)', () => {
@@ -269,15 +269,15 @@ describe('cardText helpers', () => {
     expect(summonBuffText('trophystalker', 5, true)).toContain('{{+20/+20}}'); // (5 + 5) × 2 golden
   });
 
-  it('the combat-only Beast rewrite kept both injection sites live (owner ruling 2026-09-28, R-AURA-03)', () => {
-    // Kennelmaster / Trophy Stalker dropped the "Beast Aura" noun for "all Beasts ... this combat", leaving the
+  it('the Beast rewrite kept both injection sites live (owner rulings 2026-09-28, R-AURA-03)', () => {
+    // Kennelmaster / Trophy Stalker dropped the "Beast Aura" noun for "all your Beasts", leaving the
     // bold "**+N Attack**" / "**+N/+N**" tokens the helpers regex into. Assert the injected text keeps the live
     // number AND the new wording, so a future re-word that drops the token can't silently strand the value.
-    expect(summonBuffText('kennel', 2)).toBe('**Start of Combat:** Give all **Beasts** {{+3 Attack}} this combat. **Avenge (4):** Improve this.');
-    expect(summonBuffText('kennel', 2, true)).toBe('**Start of Combat:** Give all **Beasts** {{+6 Attack}} this combat. **Avenge (4):** Improve this (twice as much).');
-    expect(summonBuffText('trophystalker', 5)).toBe('**Rally:** Give all **Beasts** {{+10/+10}} this combat. Improve this by **+5/+5** whenever Trophy Stalker attacks.');
+    expect(summonBuffText('kennel', 2)).toBe('**Start of Combat:** Give all your Beasts {{+3 Attack}}. **Avenge (4):** Improve this.');
+    expect(summonBuffText('kennel', 2, true)).toBe('**Start of Combat:** Give all your Beasts {{+6 Attack}}. **Avenge (4):** Improve this (twice as much).');
+    expect(summonBuffText('trophystalker', 5)).toBe('**Rally:** Give all your Beasts {{+10/+10}}. Improve this by **+5/+5** whenever Trophy Stalker attacks.');
     for (const s of [summonBuffText('kennel', 2)!, summonBuffText('trophystalker', 5)!]) {
-      expect(s).not.toMatch(/Beast Aura|wherever they are|everywhere/);
+      expect(s).not.toMatch(/Beast Aura|this combat|wherever they are|everywhere/);
     }
   });
 

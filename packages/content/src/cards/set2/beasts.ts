@@ -232,9 +232,8 @@ export const SET2_BEASTS: CardDef[] = [
     goldenText: '**Taunt. Echo:** give a **Beast** **+4/+8** and **Rise**.',
   },
   {
-    // Owner add 2026-08-12. Echo: all Beasts +2/+4 THIS COMBAT (owner ruling 2026-09-28, R-AURA-03) —
-    // `deathrattleBuffTribe` buffs the living Beasts and registers a rest-of-combat aura so bodies summoned later
-    // this fight inherit it; nothing carries back. Golden +4/+8.
+    // Owner add 2026-08-12. Echo: give all your Beasts +2/+4 (R-AURA-03, same rule as Grim): combat-only in a fight
+    // (later summons inherit it, nothing carried back), a permanent warband buff from a Shop Echo. Golden +4/+8.
     id: 'b2_armadiyo',
     name: 'Armadiyo',
     tribe: 'beast',
@@ -243,8 +242,8 @@ export const SET2_BEASTS: CardDef[] = [
     health: 3,
     keywords: ['T'],
     effects: [{ on: 'onDeath', do: 'deathrattleBuffTribe', params: { tribe: 'beast', attack: 2, health: 4 } }],
-    text: '**Taunt. Echo:** Give all **Beasts** **+2/+4** this combat.',
-    goldenText: '**Taunt. Echo:** Give all **Beasts** **+4/+8** this combat.',
+    text: '**Taunt. Echo:** Give all your Beasts **+2/+4**.',
+    goldenText: '**Taunt. Echo:** Give all your Beasts **+4/+8**.',
   },
   {
     // Owner add 2026-08-12. Rune-only (Rune of the Voidmother grants it) — `token: true` keeps it out of the

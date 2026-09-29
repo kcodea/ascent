@@ -5,7 +5,7 @@ import { questRewardLiveOf, questRewardLiveText, questRewardText } from './quest
 import { runeTally } from './runeTally';
 
 /**
- * R-AURA-03 (owner 2026-09-28) — the LIVE TEXT half: Beast buffs are "Give all Beasts +X/+Y this combat" and every
+ * R-AURA-03 (owner 2026-09-28) — the LIVE TEXT half: Beast grants read "Give all your Beasts +X/+Y" and every
  * surface prints the CURRENT value. `liveCardText` is the one chain the shop, board, hand, Discover, end screen
  * AND the combat `Unit` read (Unit.tsx calls it with the combat body's own `summonBonus`), so pinning it here pins
  * both phases.
@@ -23,23 +23,22 @@ describe('Kennelmaster prints its CURRENT grant (base + Avenge improvements), pl
     const t = liveCardText('kennel', { ...bag, golden, summonBonus } as never);
     const shown = golden ? t.goldenText! : t.text;
     expect(shown).toContain(want);
-    expect(shown).toContain('Give all **Beasts**');
-    expect(shown).toContain('this combat');
-    expect(shown).not.toMatch(/Beast Aura/);
+    expect(shown).toContain('Give all your Beasts');
+    expect(shown).not.toMatch(/Beast Aura|this combat/);
   });
 });
 
 describe('Trophy Stalker prints its grown grant', () => {
-  it('summonBonus 10 → +15/+15 this combat (gilded +30/+30)', () => {
-    expect(liveCardText('trophystalker', { ...bag, summonBonus: 10 } as never).text).toContain('{{+15/+15}} this combat');
+  it('summonBonus 10 → +15/+15 (gilded +30/+30)', () => {
+    expect(liveCardText('trophystalker', { ...bag, summonBonus: 10 } as never).text).toContain('Give all your Beasts {{+15/+15}}.');
     expect(liveCardText('trophystalker', { ...bag, golden: true, summonBonus: 10 } as never).goldenText).toContain('{{+30/+30}}');
   });
 });
 
 describe('Grim is flat: the Echo tally no longer changes its text', () => {
   it.each([0, 4, 20])('%i Echoes so far → still +8/+8 (gilded +16/+16)', (n) => {
-    expect(liveCardText('grim', { ...bag, deathrattlesTriggered: n } as never).text).toBe('**Echo:** Give all **Beasts** **+8/+8** this combat.');
-    expect(liveCardText('grim', { ...bag, golden: true, deathrattlesTriggered: n } as never).goldenText).toBe('**Echo:** Give all **Beasts** **+16/+16** this combat.');
+    expect(liveCardText('grim', { ...bag, deathrattlesTriggered: n } as never).text).toBe('**Echo:** Give all your Beasts **+8/+8**.');
+    expect(liveCardText('grim', { ...bag, golden: true, deathrattlesTriggered: n } as never).goldenText).toBe('**Echo:** Give all your Beasts **+16/+16**.');
   });
 });
 
@@ -47,14 +46,14 @@ describe('Pack Mentality + The Old Hunt quest text (badge + hero-power tooltip)'
   const pack = QUEST_DEFS.find((q) => q.id === 'q_pack_mentality')!;
   const hunt = QUEST_DEFS.find((q) => q.id === 'q_the_old_hunt')!;
 
-  it('the printed rewards drop the Beast Aura for the combat-only template', () => {
-    expect(questRewardText(pack.reward)).toBe('Start of Combat: give all Beasts +4/+4 this combat. Improve this by +4/+4 every 5 Beasts summoned in combat');
-    expect(questRewardText(hunt.reward)).toBe('Whenever a Beast attacks, give all Beasts +3/+3 this combat');
+  it('the printed rewards drop the Beast Aura for the "give all your Beasts" template', () => {
+    expect(questRewardText(pack.reward)).toBe('Start of Combat: give all your Beasts +4/+4. Improve this by +4/+4 every 5 Beasts summoned in combat');
+    expect(questRewardText(hunt.reward)).toBe('Whenever a Beast attacks, give all your Beasts +3/+3');
   });
 
   it('Pack Mentality shows its CURRENT level and the countdown, read off the run', () => {
     const run = { questScalingAuras: [{ tribe: 'beast' as const, event: 'summonCombat' as const, per: 5, progress: 3, attack: 12, health: 12 }] };
-    expect(questRewardLiveText(pack.reward, questRewardLiveOf(run, pack.reward))).toBe('Now: Beasts +12/+12 this combat · +4/+4 in 2 more');
+    expect(questRewardLiveText(pack.reward, questRewardLiveOf(run, pack.reward))).toBe('Now: Beasts +12/+12 at Start of Combat · +4/+4 in 2 more');
   });
 });
 

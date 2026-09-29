@@ -53,10 +53,10 @@ export const RETIRED_RULES: RetiredRule[] = [
   {
     id: 'R-ECHOTALLY-01',
     why:
-      'Superseded by the owner ruling of 2026-09-28 (R-AURA-03): Grim is now a flat "Echo: Give all Beasts +8/+8 this '
-      + 'combat." (gilded +16/+16), so it no longer counts the per-game Echo tally and prints no tally total. The legacy '
-      + '`deathrattleBuffTribeByTally` factory stays registered (combat-only) so a recorded game that references it '
-      + 'still resolves. Owner: "grim should be: Echo: Give all Beasts +8/+8 this combat."',
+      'Superseded by the owner rulings of 2026-09-28 (R-AURA-03): Grim is now a flat "Echo: Give all your Beasts +8/+8." '
+      + '(gilded +16/+16), so it no longer counts the per-game Echo tally and prints no tally total. The legacy '
+      + '`deathrattleBuffTribeByTally` factory stays registered so a recorded game that references it still resolves. '
+      + 'Owner: "let\'s just make the effect say: "Echo: Give all your Beasts +8/+8.""',
     retiredAt: '2026-09-28',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/beastCombatOnly0928.test.ts'], lastVerifiedAt: '2026-09-28' },
   },

@@ -206,7 +206,7 @@ export function questRewardText(r: QuestReward, live?: { completed?: boolean; sh
       const step = r.stepHealth > 0 ? `+${r.stepAttack}/+${r.stepHealth}` : `+${r.stepAttack}`;
       const per = r.event === 'summonCombat' ? `${TRIBE_PLURAL[r.tribe]} summoned in combat` : `${TRIBE_PLURAL[r.tribe]}`;
       // Pack Mentality (owner ruling 2026-09-28, R-AURA-03): Beast buffs are combat-only, never a Beast Aura.
-      if (r.tribe === 'beast') return `Start of Combat: give all Beasts ${statPhrase(r.attack, r.health)} this combat. Improve this by ${step} every ${r.per} ${per}`;
+      if (r.tribe === 'beast') return `Start of Combat: give all your Beasts ${statPhrase(r.attack, r.health)}. Improve this by ${step} every ${r.per} ${per}`;
       return `Your ${TRIBE_SINGULAR[r.tribe]} Aura has ${statPhrase(r.attack, r.health)}. Improve by ${step} every ${r.per} ${per}`;
     }
     case 'recurringGrant': {
@@ -274,7 +274,7 @@ export function questRewardText(r: QuestReward, live?: { completed?: boolean; sh
         case 'lawOfTeeth':
           return 'Beast Slaughters and Rallies trigger an extra time';
         case 'oldHunt': // combat-only since 2026-09-28 (R-AURA-03); the grant is +N/+N (symmetric since 2026-07-21)
-          return `Whenever a Beast attacks, give all Beasts +${r.amount ?? 0}/+${r.amount ?? 0} this combat`;
+          return `Whenever a Beast attacks, give all your Beasts +${r.amount ?? 0}/+${r.amount ?? 0}`;
         case 'sharedCircuit':
           return `Start of Combat: give ${r.amount ?? 0} friendly Mechs Ward. When a Mech loses its Ward, pass it to another (up to ${r.amount ?? 0}× per combat)`;
         case 'deepHunger':
@@ -556,7 +556,7 @@ export function questRewardLiveText(r: QuestReward, live: QuestRewardLive): stri
       // Pack Mentality: the CURRENT combat-only level it will give at the next Start of Combat (R-AURA-03), plus
       // the countdown to its next improve. A pre-2026-09-28 run (no level) falls back to its legacy baked channel.
       const lvl = live.scaling?.attack !== undefined ? { attack: live.scaling.attack, health: live.scaling.health ?? 0 } : undefined;
-      const base = lvl ? `Now: Beasts ${statPhrase(lvl.attack, lvl.health)} this combat` : beast();
+      const base = lvl ? `Now: Beasts ${statPhrase(lvl.attack, lvl.health)} at Start of Combat` : beast();
       if (!base) return null;
       if (!live.scaling || live.scaling.per <= 0) return base;
       const toNext = live.scaling.per - (live.scaling.progress % live.scaling.per);

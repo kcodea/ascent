@@ -3069,16 +3069,16 @@ export const EPIC_RUNES: RuneDef[] = [
     sets: ['set2'],
   },
   {
-    // Owner add 2026-08-12; rework 2026-09-23; COMBAT-ONLY 2026-09-28 (R-AURA-03): a friendly Beast dying gives
-    // all Beasts +N/+N THIS COMBAT (the living Beasts on the spot, later Beast summons this fight inherit it) —
-    // nothing carries back. Every 2 friendly deaths Avenge(2) raises N permanently (`RunState.beastialSwarmLevel`,
-    // N starts 2): the "Improve this" persists, the stats do not. Resolved in `simulate`.
+    // Owner add 2026-08-12; rework 2026-09-23; R-AURA-03 2026-09-28: a friendly Beast dying gives all your Beasts
+    // +N/+N — in combat for the fight (living Beasts + later summons, nothing carried back; `simulate`), in the Shop
+    // a permanent warband buff (`fireOnFriendDeath`). Every 2 friendly COMBAT deaths Avenge(2) raises N permanently
+    // (`RunState.beastialSwarmLevel`, N starts 2).
     id: 'rune_beastial_swarm',
     tribes: ['beast'], // TRIBE GATE (2026-09-10): the text names beasts on the board
     name: 'Rune of Beastial Swarm',
     cost: 5,
     epic: true,
-    text: 'When a friendly **Beast** dies, give all **Beasts** **+2/+2** this combat. **Avenge (2):** Improve this.',
+    text: 'When a friendly **Beast** dies, give all your Beasts **+2/+2**. **Avenge (2):** Improve this.',
     reward: { kind: 'combatFlag', flag: 'runeBeastialSwarm' },
     sets: ['set2'],
   },

@@ -37,24 +37,23 @@ const csim = (player: BoardMinion[], mods: QuestCombatMods = {}, seed = 3) =>
   simulate(player, [wall], makeRng(seed), CARD_INDEX, combatSide({ tier: 6, tribes: ['beast'], questMods: mods }), combatSide({ tier: 1 }));
 
 // ── 1. Grim: a proc'd-not-dead Grim is a living Beast and buffs ITSELF — in BOTH phases ──────────────────
-describe('Grim buffs itself when its Echo fires without dying (owner report 2026-08-20; combat-only since 2026-09-28)', () => {
-  // R-AURA-03 (owner 2026-09-28): Grim is "Echo: Give all Beasts +8/+8 this combat." A SHOP-fired Echo has no
-  // combat to buff, so it grants nothing — but it is still a real Echo (the tallies hear it).
-  it('SHOP: a shop-fired Echo trigger is still an Echo, but grants nothing (no "this combat" in a shop)', () => {
+describe('Grim buffs itself when its Echo fires without dying (owner report 2026-08-20; R-AURA-03 2026-09-28)', () => {
+  // R-AURA-03 (owner 2026-09-28): Grim is "Echo: Give all your Beasts +8/+8." It works in BOTH phases: in the Shop every
+  // warband Beast gains it permanently (a normal Shop buff), in combat every Beast in the fight gains it for the fight.
+  it('SHOP: a shop-fired Echo trigger buffs Grim too, not just the other Beasts (+8/+8, permanent)', () => {
     const s = run([bc('g', 'grim'), bc('t', 'b2_trex')]);
     fireRecruitDeathrattlesForTest(s, on(s, 'g')); // an Ossuary-class proc: the body stays alive
-    expect(s.deathrattlesTriggered, 'the Echo still counts').toBe(1);
-    expect(on(s, 'g').attack, 'Grim unbuffed').toBe(CARD_INDEX['grim']!.attack);
-    expect(on(s, 't').attack, 'the other Beast unbuffed').toBe(CARD_INDEX['b2_trex']!.attack);
-    expect(on(s, 't').health).toBe(CARD_INDEX['b2_trex']!.health);
+    expect(on(s, 'g').attack, 'Grim gained its own +8').toBe(CARD_INDEX['grim']!.attack + 8);
+    expect(on(s, 'g').health, 'Grim gained its own +8').toBe(CARD_INDEX['grim']!.health + 8);
+    expect(on(s, 't').attack, 'the other Beast still gains').toBe(CARD_INDEX['b2_trex']!.attack + 8);
   });
 
-  it("SHOP end-to-end (the owner's scenario): Spots under Combat Prowess procs Grim at End of Turn — no permanent buff", () => {
+  it("SHOP end-to-end (the owner's scenario): Spots under Combat Prowess procs Grim at End of Turn", () => {
     const s = run([bc('g', 'grim'), bc('sp', 'b2_spots')], { runeCombatProwess: true } as Partial<RunState>);
     const out = reduce(s, { type: 'faceOmen' }) as RunState;
     const grim = out.board.find((c) => c.uid === 'g')!;
-    expect(grim.buffs?.some((b) => b.source === 'Grim') ?? false, 'no Grim buff banked on the run board').toBe(false);
-    expect(grim.attack).toBe(CARD_INDEX['grim']!.attack);
+    expect(grim.buffs?.some((b) => b.source === 'Grim' && b.attack >= 8), 'Grim carries its OWN buff').toBe(true);
+    expect(grim.attack).toBeGreaterThanOrEqual(CARD_INDEX['grim']!.attack + 8);
   });
 
   it('COMBAT (parity pin): Echoing Coop procs Grim without a death — Grim gains its own +8/+8', () => {
@@ -63,6 +62,15 @@ describe('Grim buffs itself when its Echo fires without dying (owner report 2026
     const own = (r.events.filter((e) => e.type === 'buff') as { target: string; source: string; attack: number; health: number }[])
       .filter((b) => b.target === grimUid && b.source === grimUid);
     expect(own.some((b) => b.attack === 8 && b.health === 8), 'the living Grim buffed itself').toBe(true);
+  });
+
+  it('a genuinely DYING shop Grim still never buffs a corpse (it leaves the board before the rattle)', () => {
+    const s = run([bc('g', 'grim'), bc('t', 'b2_trex')]);
+    const grim = on(s, 'g');
+    s.board = s.board.filter((c) => c.uid !== 'g'); // every shop death path splices first (Graverobber, damageAll)
+    fireRecruitDeathrattlesForTest(s, grim);
+    expect(grim.buffs ?? [], 'no posthumous self-buff').toHaveLength(0);
+    expect(on(s, 't').attack).toBe(CARD_INDEX['b2_trex']!.attack + 8);
   });
 });
 
@@ -230,7 +238,7 @@ describe('Sunmane Herald: combatOnly scopes it out of the shop (owner ruling 202
 // ── the end-to-end sweeps: both runes through the REAL faceOmen reduce ───────────────────────────────────
 describe('end-to-end: Rune of Combat Prowess wiring holds together', () => {
   it('a representative board + Twilight + rune SoC replays: counts, tallies and beats agree', () => {
-    // Speed Demon (SoC buffer), Spots (SoC Echo-proc-er) reaching Grim (a combat-only payoff), under Twilight.
+    // Speed Demon (SoC buffer), Spots (SoC Echo-proc-er) reaching Grim (its Echo payoff), under Twilight.
     const s = run([bc('g', 'grim'), bc('sd', 'runmaw'), bc('sp', 'b2_spots')], {
       runeCombatProwess: true,
       questFlags: { runeTwilight: true, runeVanguard: true },
@@ -243,10 +251,9 @@ describe('end-to-end: Rune of Combat Prowess wiring holds together', () => {
     expect(beats.filter((b) => b.effect === 'runeCombatProwess'), 'card beats + rune replays, one list').toHaveLength(5);
     const out = reduce(s, { type: 'faceOmen' }) as RunState;
     const grim = out.board.find((c) => c.uid === 'g')!;
-    // Spots fires twice (Twilight); each proc fires Grim's Echo (tallied) — but "this combat" has no meaning at
-    // End of Turn, so nothing is banked on the run board (R-AURA-03, owner 2026-09-28).
-    expect(out.deathrattlesTriggered ?? 0).toBeGreaterThanOrEqual(2);
-    expect((grim.buffs ?? []).filter((b) => b.source === 'Grim')).toHaveLength(0);
+    // Spots fires twice (Twilight); each proc pays Grim's Echo once → Grim self-buffed at least twice.
+    const own = (grim.buffs ?? []).filter((b) => b.source === 'Grim');
+    expect(own.reduce((n, b) => n + b.count, 0)).toBeGreaterThanOrEqual(2);
     // Vanguard's replay: the 3 leftmost carry Crit + Ward permanently.
     for (const uid of ['g', 'sd', 'sp']) {
       expect(out.board.find((c) => c.uid === uid)!.keywords).toContain('CR');

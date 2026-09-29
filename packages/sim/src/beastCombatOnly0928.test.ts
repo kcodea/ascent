@@ -3,20 +3,23 @@ import { combatSide, makeRng, simulate, type BoardMinion, type CardDef, type Com
 import { CARD_INDEX, EffectFactoryIdSchema, QUEST_DEFS, RUNE_INDEX, poolFor } from '@game/content';
 import { createRun, type BoardCard, type RunState } from './state';
 import { questCombatMods, reduce } from './reducer';
-import { applyEndOfTurn, fireRecruitDeathrattlesForTest } from './recruit';
+import { applyEndOfTurn, fireOnFriendDeath, fireRecruitDeathrattlesForTest } from './recruit';
 
 /**
- * OWNER RULING 2026-09-28 (R-AURA-03): "pack mentality - aka beastial swarm buff: this is a combat buff only, not a
- * permanent buff to beast aura everywhere … these affect beasts everywhere in combat, but there is no carryback
- * (unless somethings engraved, etc)".
+ * OWNER RULINGS 2026-09-28 (R-AURA-03). First: "pack mentality - aka beastial swarm buff: this is a combat buff only,
+ * not a permanent buff to beast aura everywhere … these affect beasts everywhere in combat, but there is no carryback
+ * (unless somethings engraved, etc)". Then, on PR #1813: "let's just make the effect say: "Echo: Give all your Beasts
+ * +8/+8." … this SHOULD work in recruit and combat phase. in a recruit scenario, any beast in the warband would get
+ * the stats from a destroyed or triggered grim."
  *
- *   Kennelmaster  — "Start of Combat: Give all Beasts +1 Attack this combat. Avenge (4): Improve this."
- *   Grim          — "Echo: Give all Beasts +8/+8 this combat."  (golden +16/+16)
- *   Armadiyo, Trophy Stalker, Rune of Beastial Swarm, Pack Mentality, The Old Hunt — the same treatment.
+ *   Kennelmaster  — "Start of Combat: Give all your Beasts +1 Attack. Avenge (4): Improve this."
+ *   Grim          — "Echo: Give all your Beasts +8/+8."  (golden +16/+16)
+ *   Armadiyo, Trophy Stalker, Rune of Beastial Swarm, Pack Mentality, The Old Hunt — the same pattern.
  *
- * Pinned on the real simulate / reducer paths: combat-only application, Beasts summoned later that fight, no
- * carry-back, the Engrave exception, Kennelmaster's Avenge improvement, Grim in combat AND in the Shop, golden
- * values, and old-replay compatibility (the retired effect ids still resolve).
+ * ONE rule, both phases, no run-wide Beast Aura: in the SHOP every warband Beast gains it permanently (a normal Shop
+ * buff); in COMBAT every Beast in the fight gains it, later summons included, and nothing carries back (Engrave
+ * excepted). Pinned on the real simulate / reducer paths, with golden values, Sylus doubling in both phases,
+ * Kennelmaster's Avenge improvement and old-replay compatibility (the retired effect ids still resolve).
  */
 
 const ALL_TRIBES = ['beast', 'dragon', 'undead', 'mech', 'demon', 'kobold', 'dwarf'];
@@ -39,13 +42,13 @@ const settleOnto = (board: BoardCard[], r: CombatResult, over: Partial<RunState>
   reduce({ ...createRun(1), phase: 'combat', board, lastCombat: r, ...over } as RunState, { type: 'resolveCombat' }) as RunState;
 
 // ── the new texts ────────────────────────────────────────────────────────────────────────────────────────
-describe('R-AURA-03 texts: "Give all Beasts +X/+Y this combat" replaces the Beast Aura', () => {
+describe('R-AURA-03 texts: "Give all your Beasts +X/+Y" replaces the Beast Aura', () => {
   const TEXT: Record<string, [string, string | undefined]> = {
-    kennel: ['**Start of Combat:** Give all **Beasts** **+1 Attack** this combat. **Avenge (4):** Improve this.',
-      '**Start of Combat:** Give all **Beasts** **+2 Attack** this combat. **Avenge (4):** Improve this (twice as much).'],
-    grim: ['**Echo:** Give all **Beasts** **+8/+8** this combat.', '**Echo:** Give all **Beasts** **+16/+16** this combat.'],
-    b2_armadiyo: ['**Taunt. Echo:** Give all **Beasts** **+2/+4** this combat.', '**Taunt. Echo:** Give all **Beasts** **+4/+8** this combat.'],
-    trophystalker: ['**Rally:** Give all **Beasts** **+5/+5** this combat. Improve this by **+5/+5** whenever Trophy Stalker attacks.', undefined],
+    kennel: ['**Start of Combat:** Give all your Beasts **+1 Attack**. **Avenge (4):** Improve this.',
+      '**Start of Combat:** Give all your Beasts **+2 Attack**. **Avenge (4):** Improve this (twice as much).'],
+    grim: ['**Echo:** Give all your Beasts **+8/+8**.', '**Echo:** Give all your Beasts **+16/+16**.'],
+    b2_armadiyo: ['**Taunt. Echo:** Give all your Beasts **+2/+4**.', '**Taunt. Echo:** Give all your Beasts **+4/+8**.'],
+    trophystalker: ['**Rally:** Give all your Beasts **+5/+5**. Improve this by **+5/+5** whenever Trophy Stalker attacks.', undefined],
   };
   it.each(Object.entries(TEXT))('%s prints the owner template', (id, [text, golden]) => {
     expect(CARD_INDEX[id]!.text).toBe(text);
@@ -53,7 +56,7 @@ describe('R-AURA-03 texts: "Give all Beasts +X/+Y this combat" replaces the Beas
   });
 
   it('the rune reads the same way', () => {
-    expect(RUNE_INDEX['rune_beastial_swarm']!.text).toBe('When a friendly **Beast** dies, give all **Beasts** **+2/+2** this combat. **Avenge (2):** Improve this.');
+    expect(RUNE_INDEX['rune_beastial_swarm']!.text).toBe('When a friendly **Beast** dies, give all your Beasts **+2/+2**. **Avenge (2):** Improve this.');
   });
 
   it('no live card, rune or golden text says "Beast Aura" any more', () => {
@@ -61,6 +64,13 @@ describe('R-AURA-03 texts: "Give all Beasts +X/+Y this combat" replaces the Beas
       expect(`${c.text} ${c.goldenText ?? ''}`, c.id).not.toMatch(/Beast Aura/i);
     }
     for (const r of Object.values(RUNE_INDEX)) expect(r.text, r.id).not.toMatch(/Beast Aura/i);
+  });
+
+  it('none of the reworked Beast grants says "this combat" (owner: drop it everywhere)', () => {
+    for (const id of ['kennel', 'grim', 'b2_armadiyo', 'trophystalker']) {
+      expect(`${CARD_INDEX[id]!.text} ${CARD_INDEX[id]!.goldenText ?? ''}`, id).not.toMatch(/this combat/);
+    }
+    expect(RUNE_INDEX['rune_beastial_swarm']!.text).not.toMatch(/this combat/);
   });
 
   it('Grim keeps its tier and stats, is a flat +8/+8 Echo, and is still in both pools', () => {
@@ -73,7 +83,7 @@ describe('R-AURA-03 texts: "Give all Beasts +X/+Y this combat" replaces the Beas
 });
 
 // ── combat-only application ──────────────────────────────────────────────────────────────────────────────
-describe('Grim in COMBAT: all Beasts +8/+8 for the fight, later summons included', () => {
+describe('Grim in COMBAT: all your Beasts +8/+8 for the fight, later summons included', () => {
   it('buffs every living Beast (not the non-Beasts), gilded +16/+16', () => {
     for (const golden of [false, true]) {
       const r = sim([bm('grim', 'G', 1, 1, { golden }), bm('alley', 'A', 1, 900), bm('sandbag', 'N', 0, 900)], wall);
@@ -119,21 +129,45 @@ describe('Grim in COMBAT: all Beasts +8/+8 for the fight, later summons included
 });
 
 // ── Grim in the SHOP ─────────────────────────────────────────────────────────────────────────────────────
-describe('Grim in the SHOP: "this combat" has no meaning there — the Echo fires, the grant does not', () => {
-  it('a Shop-fired Echo (Ossuary-class proc) counts as an Echo but buffs nobody', () => {
+describe('Grim in the SHOP: every warband Beast gains it permanently (owner: "any beast in the warband would get the stats")', () => {
+  it('a Shop-fired Echo (Ossuary-class proc) buffs every warband Beast, Grim included, +8/+8 (gilded +16/+16), and no non-Beast', () => {
     for (const golden of [false, true]) {
-      const s = shopRun([bc('g', 'grim', { golden }), bc('t', 'b2_trex')]);
+      const s = shopRun([bc('g', 'grim', { golden }), bc('t', 'b2_trex'), bc('n', 'sandbag')], { hand: [bc('h', 'alley')] });
       fireRecruitDeathrattlesForTest(s, s.board.find((c) => c.uid === 'g')!);
+      const want = golden ? 16 : 8;
       expect(s.deathrattlesTriggered, 'tallied').toBe(1);
       const t = s.board.find((c) => c.uid === 't')!;
-      expect([t.attack, t.health]).toEqual([CARD_INDEX['b2_trex']!.attack, CARD_INDEX['b2_trex']!.health]);
-      expect(s.beastBuyAtk ?? 0).toBe(0);
+      expect([t.attack, t.health]).toEqual([CARD_INDEX['b2_trex']!.attack + want, CARD_INDEX['b2_trex']!.health + want]);
+      expect(s.board.find((c) => c.uid === 'g')!.attack, 'the living Grim too').toBe(CARD_INDEX['grim']!.attack + want);
+      expect(s.board.find((c) => c.uid === 'n')!.attack, 'non-Beast untouched').toBe(CARD_INDEX['sandbag']!.attack);
+      // "your Beasts" in the Shop means the warband (the board) — the convention every Shop tribe grant uses.
+      expect(s.hand.find((c) => c.uid === 'h')!.attack, 'a Beast in hand is not in the warband').toBe(CARD_INDEX['alley']!.attack);
+      expect(s.beastBuyAtk ?? 0, 'still no run-wide Beast Aura').toBe(0);
     }
+  });
+
+  it('the Shop buff is permanent: it survives the next fight and settle', () => {
+    const s = shopRun([bc('g', 'grim'), bc('t', 'b2_trex')]);
+    fireRecruitDeathrattlesForTest(s, s.board.find((c) => c.uid === 'g')!);
+    const r = sim([bm('b2_trex', 't', CARD_INDEX['b2_trex']!.attack + 8, CARD_INDEX['b2_trex']!.health + 8)], wall);
+    const settled = settleOnto(s.board, r);
+    expect(settled.board.find((c) => c.uid === 't')!.attack).toBe(CARD_INDEX['b2_trex']!.attack + 8);
+  });
+
+  it('SYLUS doubles it in BOTH phases', () => {
+    // Shop: Sylus re-fires the Echo → +8/+8 twice on the warband Beast.
+    const s = shopRun([bc('sy', 'sylus'), bc('g', 'grim'), bc('t', 'b2_trex')]);
+    fireRecruitDeathrattlesForTest(s, s.board.find((c) => c.uid === 'g')!);
+    expect(s.board.find((c) => c.uid === 't')!.attack).toBe(CARD_INDEX['b2_trex']!.attack + 16);
+    // Combat: two +8/+8 buff events from Grim on the surviving Beast.
+    const r = sim([bm('grim', 'G', 1, 1), bm('alley', 'A', 1, 900), bm('sylus', 'S', 1, 900)], wall);
+    const fromGrim = buffs(r).filter((b) => b.target === uidAt(r, 1) && b.source === uidAt(r, 0) && b.attack === 8 && b.health === 8);
+    expect(fromGrim).toHaveLength(2);
   });
 });
 
 // ── Kennelmaster ─────────────────────────────────────────────────────────────────────────────────────────
-describe('Kennelmaster: Start of Combat all Beasts +N Attack this combat; Avenge (4) improves N permanently', () => {
+describe('Kennelmaster: Start of Combat all your Beasts +N Attack; Avenge (4) improves N permanently', () => {
   it('buffs the living Beasts at Start of Combat and a Beast summoned later that fight', () => {
     const r = sim([bm('kennel', 'K', 0, 900), bm('pack', 'P', 1, 1), bm('sandbag', 'N', 0, 900)], [{ cardId: 'sandbag', attack: 5, health: 90000 }]);
     const k = uidAt(r, 0);
@@ -164,16 +198,16 @@ describe('Kennelmaster: Start of Combat all Beasts +N Attack this combat; Avenge
     expect([k.attack, k.health], 'its own stats are untouched').toEqual([CARD_INDEX['kennel']!.attack, CARD_INDEX['kennel']!.health]);
   });
 
-  it('an End-of-Turn replay (Rune of Combat Prowess) grants nothing — no "this combat" in a shop', () => {
-    const s = shopRun([bc('k', 'kennel'), bc('a', 'alley')], { runeCombatProwess: true } as Partial<RunState>);
+  it('an End-of-Turn replay (Rune of Combat Prowess) is a permanent Shop buff on the warband Beasts', () => {
+    const s = shopRun([bc('k', 'kennel'), bc('a', 'alley'), bc('n', 'sandbag')], { runeCombatProwess: true } as Partial<RunState>);
     applyEndOfTurn(s);
-    const a = s.board.find((c) => c.uid === 'a')!;
-    expect(a.attack).toBe(CARD_INDEX['alley']!.attack);
+    expect(s.board.find((c) => c.uid === 'a')!.attack).toBe(CARD_INDEX['alley']!.attack + 1);
+    expect(s.board.find((c) => c.uid === 'n')!.attack, 'non-Beast untouched').toBe(CARD_INDEX['sandbag']!.attack);
   });
 });
 
 // ── Pack Mentality (quest) ───────────────────────────────────────────────────────────────────────────────
-describe('Pack Mentality: a combat-only Start of Combat grant whose LEVEL improves', () => {
+describe('Pack Mentality: a Start of Combat grant (for the fight) whose LEVEL improves', () => {
   const pack = QUEST_DEFS.find((q) => q.id === 'q_pack_mentality')!;
 
   it('completing it banks the level and grants NOTHING to the board / hand / Shop', () => {
@@ -206,8 +240,8 @@ describe('Pack Mentality: a combat-only Start of Combat grant whose LEVEL improv
 });
 
 // ── The Old Hunt + Beastial Swarm ────────────────────────────────────────────────────────────────────────
-describe('The Old Hunt and Rune of Beastial Swarm are combat-only too', () => {
-  it('The Old Hunt: each Beast attack gives all Beasts +N/+N this combat; nothing carries back', () => {
+describe('The Old Hunt and Rune of Beastial Swarm: the same rule', () => {
+  it('The Old Hunt: each Beast attack gives all your Beasts +N/+N for the fight; nothing carries back', () => {
     const r = sim([bm('alley', 'A', 3, 900), bm('alley', 'B', 3, 900)], [{ cardId: 'sandbag', attack: 1, health: 90000 }], { oldHuntStep: 3 });
     expect(buffs(r).some((b) => b.source === 'The Old Hunt' && b.attack === 3 && b.health === 3)).toBe(true);
     expect(r.playerBeastBuyAtkGain).toBeUndefined();
@@ -215,12 +249,33 @@ describe('The Old Hunt and Rune of Beastial Swarm are combat-only too', () => {
     expect(s.board.map((c) => c.attack)).toEqual([CARD_INDEX['alley']!.attack, CARD_INDEX['alley']!.attack]);
   });
 
-  it('Beastial Swarm: buffs in the fight, keeps only the Avenge level', () => {
+  it('Beastial Swarm IN COMBAT: buffs for the fight, keeps only the Avenge level', () => {
     const r = sim([bm('alley', 'x', 0, 1), bm('alley', 'y', 0, 1), bm('pack', 'S', 0, 9999999)],
       [{ cardId: 'sandbag', attack: 60, health: 40000 }], { runeBeastialSwarm: true, beastialSwarmLevel: 2 });
     expect(buffs(r).some((b) => b.target === uidAt(r, 2) && b.source === 'Rune of Beastial Swarm')).toBe(true);
     expect(r.playerBeastBuyAtkGain).toBeUndefined();
     expect(r.playerBeastialSwarmLevel).toBe(4);
+  });
+});
+
+describe('Rune of Beastial Swarm IN THE SHOP (owner: "this SHOULD work in recruit and combat phase")', () => {
+  it('a friendly Beast destroyed in the Shop gives every other warband Beast the current level, permanently, per copy', () => {
+    const s = shopRun([bc('x', 'alley'), bc('a', 'alley'), bc('n', 'sandbag')], {
+      questFlags: { runeBeastialSwarm: true }, beastialSwarmLevel: 4,
+    } as Partial<RunState>);
+    const dead = s.board.find((c) => c.uid === 'x')!;
+    s.board = s.board.filter((c) => c.uid !== 'x'); // every Shop death path splices first
+    fireOnFriendDeath(s, dead);
+    expect(s.board.find((c) => c.uid === 'a')!.attack).toBe(CARD_INDEX['alley']!.attack + 4);
+    expect(s.board.find((c) => c.uid === 'n')!.attack, 'non-Beast untouched').toBe(CARD_INDEX['sandbag']!.attack);
+  });
+
+  it('a non-Beast Shop death does nothing', () => {
+    const s = shopRun([bc('x', 'sandbag'), bc('a', 'alley')], { questFlags: { runeBeastialSwarm: true } } as Partial<RunState>);
+    const dead = s.board.find((c) => c.uid === 'x')!;
+    s.board = s.board.filter((c) => c.uid !== 'x');
+    fireOnFriendDeath(s, dead);
+    expect(s.board.find((c) => c.uid === 'a')!.attack).toBe(CARD_INDEX['alley']!.attack);
   });
 });
 

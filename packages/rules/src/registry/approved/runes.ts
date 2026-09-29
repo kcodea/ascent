@@ -317,9 +317,10 @@ export const RUNES_RULES: GameRule[] = [
       + 'level is written back to the run (`packcraftLevel`) so the next fight\'s first summon starts from it, and the '
       + 'rune badge prints the current grant. Rune of Reinvestment pulses on every friendly summon and pays the Shop '
       + '+3/+4 per summon (× copies held) ONCE at settle, on the permanent run-wide Shop channel. Rune of Beastial '
-      + 'Swarm (combat-only since 2026-09-28, R-AURA-03): on every friendly Beast death it gives all Beasts the current '
-      + 'per-death amount THIS COMBAT: living Beasts gain it on the spot, later Beast summons this fight inherit it, and '
-      + 'NOTHING carries back; Avenge (2) still raises the per-death amount permanently. The enemy side runs its own copy '
+      + 'Swarm (R-AURA-03, 2026-09-28): on every friendly Beast death it gives all your Beasts the current per-death '
+      + 'amount. In combat the living Beasts gain it on the spot, later Beast summons that fight inherit it, and NOTHING '
+      + 'carries back; a Shop Beast death buffs the warband Beasts permanently. Avenge (2) (combat deaths) still raises '
+      + 'the per-death amount permanently. The enemy side runs its own copy '
       + 'off its snapshot and only accumulates.',
     domain: 'runes',
     status: 'approved',
@@ -332,7 +333,7 @@ export const RUNES_RULES: GameRule[] = [
     currentBehaviour:
       'Conforms as of 2026-09-28. Until 2026-09-23 Packcraft was a flat +6/+6 on every combat summon and Reinvestment paid '
       + '+1/+1 per summon with one badge pulse at settle. Beastial Swarm carried its gain back into a run-wide Beast Aura '
-      + 'from 2026-09-23 to 2026-09-28, when the owner made every Beast buff combat-only again (R-AURA-03).',
+      + 'from 2026-09-23 to 2026-09-28, when the owner retired the Beast Aura (R-AURA-03).',
     enforcement: {
       kind: 'scenario',
       refs: ['packages/sim/src/runeReworksB0923.test.ts', 'packages/sim/src/runeBatch8.test.ts', 'packages/sim/src/beastBatchAug12.test.ts', 'packages/ui/src/tallyCoverage.test.ts', 'packages/sim/src/beastCombatOnly0928.test.ts'],

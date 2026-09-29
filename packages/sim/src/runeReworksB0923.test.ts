@@ -273,7 +273,7 @@ describe('Rune of Lassoing — get a Rope Wrangler; when Lasso is cast, your min
 });
 
 // ── Rune of Beastial Swarm — the Beast AURA grows per Beast death ───────────────────────────────────────
-describe('Rune of Beastial Swarm — a friendly Beast death gives all Beasts +N/+N THIS COMBAT; Avenge (2) improves N (combat-only 2026-09-28, R-AURA-03)', () => {
+describe('Rune of Beastial Swarm — a friendly Beast death gives all your Beasts +N/+N (in combat: for the fight); Avenge (2) improves N (R-AURA-03)', () => {
   const beasts = [bm('alley', 'x', 0, 1), bm('alley', 'y', 0, 1), bm('pack', 'S', 0, 9999999)];
   const swarm = (level?: number) => sim(beasts, [{ cardId: 'sandbag', attack: 60, health: 40000 }], { runeBeastialSwarm: true, beastialSwarmLevel: level }, 3);
 
@@ -316,7 +316,7 @@ describe('the 19 reworked texts read as the owner wrote them', () => {
     rune_hatchery: 'Minions summoned in **combat** have **+5/+5** and **Taunt**.',
     rune_muckbroker: 'Get a **Muckslinger**. Repeat every **2 turns**.',
     rune_unbroken_vein: 'Get a **Veinbreaker**. Repeat at **Start of Turn**. They grant **both** effects.',
-    rune_beastial_swarm: 'When a friendly **Beast** dies, give all **Beasts** **+2/+2** this combat. **Avenge (2):** Improve this.', // owner 2026-09-28 (R-AURA-03)
+    rune_beastial_swarm: 'When a friendly **Beast** dies, give all your Beasts **+2/+2**. **Avenge (2):** Improve this.', // owner 2026-09-28 (R-AURA-03)
     rune_copies: '**Start of Turn:** get a copy of a random minion on your board.',
     rune_finality: 'When your **last minion dies**, summon **3 Imps** with **Ward**.',
     rune_living_treasure: 'Your **Gemheart Golems** gain **Rebirth**.',

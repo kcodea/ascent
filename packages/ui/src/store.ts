@@ -83,7 +83,7 @@ import { gateBlocks, notifyGateNudge } from './tutorial/gateBus';
 import { beginCourseFresh } from './tutorial/tutorialProfile';
 import { buildRunHistoryEntry, careerStats, clearRunHistory, type RunHistoryEntry } from './runHistory';
 import { clearProfile, loadProfile, saveProfile } from './profileStore';
-import { rankedRunIdForFinish } from './rank/ratedRun';
+import { rankedAbandonOf, rankedRunIdForFinish } from './rank/ratedRun';
 import { enqueuePendingRank, flushPendingRanks, installRankRetryTriggers, rankRequestFor, type PendingRank } from './rank/rankSubmission';
 import { TUTORIAL_COURSE_ID, practiceRunId, snapshotForRun, tutorialRunId, withEquippedTitle } from '@game/progression';
 import { beginRunProgression, expectRunProgression, flushProgression, installProgression, markRunProgressionUnavailable, mirrorFor, probeProgression, useProgression } from './progression/progressionStore';
@@ -381,7 +381,7 @@ interface GameStore {
   closeAccountPanel: () => void;
   /** Send a sign-in email (a 6-digit code + a link). Resolves whether it WAS SENT. The player then either
    *  types the code (`verifyEmailCode`, works in the exe) or clicks the link on web (lands via `onChange`). */
-  sendMagicLink: (email: string) => Promise<{ ok: boolean; error?: string }>;
+  sendMagicLink: (email: string) => Promise<{ ok: boolean; error?: string; existing?: boolean }>;
   /** Finish sign-in by entering the emailed 6-digit code — the desktop path (no web origin needed). On success
    *  the account state updates through the identity `onChange` subscription. */
   verifyEmailCode: (email: string, code: string) => Promise<{ ok: boolean; error?: string }>;
@@ -1876,6 +1876,8 @@ export const useGame = create<GameStore>((rawSet, get) => {
   // Discard the saved run: wipe the autosave + `savedRun`, and reset the dormant `run` to a fresh throwaway so
   // state mirrors a boot with no save (Play/Practice will replace it). Stays on the title. Irreversible.
   clearRun: () => {
+    // QUITTING COSTS RATING (R-RANK-05): discarding an unfinished RATED save settles it at the lowest open place.
+    settleAbandonedRun(get().savedRun);
     clearSave();
     discardReplayDraft(); // the in-progress recording goes with the run it was recording
     dropBoardFx();
@@ -2183,6 +2185,9 @@ export const useGame = create<GameStore>((rawSet, get) => {
   startHeroSelect: () => set(() => { const seed = randomSeed(); return { pendingSeed: seed, heroChoices: rollHeroChoices(tribesForSeed(seed)) }; }),
   pickHero: (heroId) => {
     dropBoardFx(); // outside the updater: `set`'s callback is a pure state derivation, not a place for effects
+    // QUITTING COSTS RATING (R-RANK-05): the new run REPLACES the one saved save slot, so an unfinished
+    // RATED save it overwrites is abandoned and settles at the lowest open place. Outside the updater (a queue write).
+    settleAbandonedRun(get().savedRun);
     set((s) => {
       // The run's par comes from the player's rating-derived Line (career skill pressure).
       // A lobby run needs its 8 seats built alongside it, so it goes through its own constructor.
@@ -2210,6 +2215,7 @@ export const useGame = create<GameStore>((rawSet, get) => {
   },
   newRun: (seed, heroId) => {
     dropBoardFx();
+    settleAbandonedRun(get().savedRun); // R-RANK-05: replacing an unfinished rated save abandons it
     set((s) => {
       const run = recordRunCosmetics(createRun(seed ?? randomSeed(), heroId, s.pendingMode, s.profile.currentLine));
       writeSave(run, []);
@@ -2246,6 +2252,7 @@ export const useGame = create<GameStore>((rawSet, get) => {
     // A brand-new tutorial run starts fresh at wave 1, so the coaching cursor must start at step 0 too — clear
     // any saved step from a prior play (Continue resumes the SAME run and does NOT come through here).
     beginCourseFresh(course.id, course.version);
+    settleAbandonedRun(get().savedRun); // R-RANK-05: the tutorial run replaces the save slot too
     set(() => {
       // Build the authored `tutorial` run directly — the course forces its own hero (Aster), so there is no
       // picker to route through (mirrors startSceneBuilder). The omen board table and the scripted shop are
@@ -2648,6 +2655,31 @@ function beginRankSubmission(runId: string, placement: number, seed: number, sea
   }
   useGame.setState({ rankRunId: runId, rankResult: null, rankSubmission: 'pending', rankSubmissionError: null, lastRating: null });
   void flushPendingRanks(applyRankOutcome);
+}
+
+/**
+ * QUITTING COSTS RATING (owner 2026-09-29, R-RANK-05): "quitting an official game should lose you MMR
+ * relative to the lowest available place when you quit". Called by the doors that THROW AWAY the one saved run
+ * (Clear on the title, and every door that starts a new run over it: `pickHero`, `newRun`, `startTutorial`).
+ * An unfinished RATED lobby (see `rankedAbandonOf`) is settled as a finish in the lowest placement still open,
+ * through the same durable queue + `submit-rating` path as a normal finish, so every rank rule (awards, gates,
+ * demotion games, the server's all-generated refusal) applies unchanged. It is not the current run's result:
+ * `applyRankOutcome` adopts the settled profile and leaves the post-game slice alone. Save & Quit and Continue
+ * never come through here, so a resumed game settles normally at its real end. Nothing else is uploaded (no
+ * career row, no fight ledger, no XP): only the Rating moves.
+ */
+function settleAbandonedRun(abandoned: RunState | null | undefined): void {
+  const quit = rankedAbandonOf(abandoned);
+  if (!quit || !abandoned?.lobby) return;
+  const st = useGame.getState();
+  const author = st.playerName || tempHandle(st.account.userId);
+  let seatKeys: string[] = [];
+  try {
+    seatKeys = opponentFightKeys(abandoned.lobby, { reporterKey: `${author}|${abandoned.heroId}|${abandoned.seed}`, patch: `${__APP_VERSION__}+${__BUILD_SHA__}` });
+  } catch (e) {
+    if (import.meta.env.DEV) console.warn('[abandon] the seat keys could not be assembled', e);
+  }
+  if (enqueuePendingRank(rankRequestFor(quit.runId, quit.placement, abandoned.seed, seatKeys))) void flushPendingRanks(applyRankOutcome);
 }
 
 /**

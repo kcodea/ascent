@@ -2840,6 +2840,46 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'diamond still hits the button, a press on the ring-covered edge arms the power, and the hover tooltip opens.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/portraitFrame/portraitFrameZOrder.test.ts'], lastVerifiedAt: '2026-09-29' },
   },
+  {
+    id: 'R-RANK-05',
+    title: 'Ranked: quitting an unfinished rated game settles it as a finish in the lowest place still open, with the normal Rating change for that place',
+    statement:
+      'A RATED game (Play mode, a lobby with at least one recorded player at the table) that the player abandons before '
+      + 'it ends settles exactly as if they had finished in the lowest placement still available at that moment: the '
+      + 'number of seats still alive. Nobody out yet is 8th; one seat already out is 7th; and so on. The normal placement '
+      + 'award for that place applies unchanged, with every gate that already exists for it (a demotion game, a '
+      + 'promotion game, the top-4 strength bonus, the all-generated refusal). ABANDONING means giving up the one saved '
+      + 'game: discarding it from the title, or starting any new game (Play, Practice, the tutorial) that replaces it. '
+      + 'Save & Quit is NOT quitting: the game stays live, Continue resumes it, and it settles once at its real end. '
+      + 'Practice, the tutorial, the Scene Builder and an unrated all-generated lobby abandon for free. A game already '
+      + 'over (the player out, or the lobby finished) has settled through its normal end and is never settled again. '
+      + 'The literal rule stands at the top too: with 4 or fewer seats alive the lowest open place is 4th or better, so '
+      + 'a quit there GAINS Rating and can win a promotion game. A quit moves Rating ONLY: it earns no Account XP and '
+      + 'writes nothing to Career or Recent Games.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-29 (quitting a rated game)', quote: 'yes, quitting an official game should lose you MMR relative to the lowest available place when you quit. for example. if one player was already out, then quitting would place you in 7th place. losing you MMR' },
+      { kind: 'owner-chat', ref: 'Same session, 2026-09-29 — asked whether a quit with 4 or fewer alive may gain Rating / promote', quote: 'YES' },
+      { kind: 'owner-chat', ref: 'Same session, 2026-09-29 — asked whether a quit should earn Account XP for its placement', quote: 'NO' },
+      { kind: 'owner-chat', ref: 'Same session, 2026-09-29 — asked whether quits should show in Career and Recent Games', quote: 'NO' },
+      { kind: 'owner-chat', ref: 'Same session, 2026-09-29 — asked about closing the wipe-the-save gap server-side', quote: 'Eventually - we will want to write saved and quit games to supabase as well.' },
+      { kind: 'code', ref: 'packages/sim/src/lobby/runLobby.ts abandonPlacementOf; packages/ui/src/rank/ratedRun.ts rankedAbandonOf / abandonWarningOf; packages/ui/src/store.ts settleAbandonedRun (clearRun, pickHero, newRun, startTutorial); settles through the existing rank queue + supabase/functions/submit-rating (unchanged, it already accepts any placement 1-8)' },
+    ],
+    currentBehaviour:
+      'Conforms as of 2026-09-29 (feat/quit-costs-rating). Until then an abandoned rated game never settled and cost '
+      + 'nothing. The quit placement is computed on the client from the saved lobby and submitted like any finish, so '
+      + 'the server settles it with the same rules; the server has no separate quit record and cannot force a settle '
+      + 'for a save that is never discarded (the save lives on the device). A save the game itself drops because the '
+      + 'build no longer has one of its cards is not a player quit and does not settle. The Clear and Play '
+      + 'tips on the title name the placement a rated save would count as. No career row, fight-ledger rows or XP are written for a '
+      + 'quit: only the Rating moves.',
+    example:
+      'Silver II 50, quit on round 3 with all eight alive: an 8th, -40, to 10. The same with one seat out: a 7th, -28, '
+      + 'to 22. At Silver II 0 in a demotion game, quitting with nobody out demotes. Save & Quit on round 6, Continue, '
+      + 'win the lobby: one settlement, a 1st.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/lobby/abandonPlacement.test.ts', 'packages/ui/src/rank/quitCostsRating.test.ts'], lastVerifiedAt: '2026-09-29' },
+  },
   // ── A card's On Death sound plays for the card that died (owner report 2026-09-29) ─────────────────────
   {
     id: 'R-FX-DEATH-01',
@@ -3023,5 +3063,28 @@ export const FOUNDATION_RULES: GameRule[] = [
     ],
     currentBehaviour: 'Conforms, built 2026-09-29.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/heroBackstab/heroBackstab.test.ts', 'packages/progression/src/cosmetics.test.ts', 'packages/ui/src/heroAttack/damageFormation.test.ts'], lastVerifiedAt: '2026-09-29' },
+  },
+  {
+    id: 'R-PROG-CRATE-04',
+    title: 'A guest cannot open crates: every Open shows a create-an-account gate; guests still earn and see their sealed crates',
+    statement:
+      'A guest (anonymous account) earns crates and sees them sealed in the Collection, but cannot open them. Every '
+      + 'player-facing crate open (the Collection crate bay\x27s Open and Open all, and the New rewards pop-up\x27s Open and '
+      + 'Open all) shows a small gate instead of the crate opener: "Create an account to open crates", with Create account '
+      + '(closes it and opens the account panel) and Not now; Esc or a click outside closes it. A guest\x27s Open wears a '
+      + 'small lock and the bay says "Create a free account to open them." Creating the account upgrades the guest in place, '
+      + 'so the crates carry over, and the moment the account stops being a guest the gate closes and Open works with no '
+      + 'reload. The gate warns that signing into an EXISTING account switches to it and leaves the guest\x27s crates behind, '
+      + 'and the account panel says the same at the moment that happens. With no account backend the gate says accounts '
+      + 'are unavailable instead of opening a panel that cannot work. Dev tuners and the crate FX preview (practice crates, '
+      + 'never the server) are not gated.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-29 (crate sign-in gate)', quote: 'ask players not signed in to sign in when they try to open a crate? we\x27d like players to create sign ins for account progression' },
+      { kind: 'code', ref: 'packages/ui/src/progression/CrateSignInGate.tsx; CollectionScreen.tsx begin() (the one crate-open path) + CrateBay guest hint; packages/ui/src/AccountPanel.tsx (existing-account warning); remoteBoards.ts signInWithEmail `existing`' },
+    ],
+    currentBehaviour: 'Conforms, built 2026-09-29 (the owner picked a hard gate over a soft nudge). Client-side gate: the server does not yet refuse an anonymous open.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/progression/CollectionScreen.test.tsx', 'packages/ui/src/progression/Crates.test.tsx', 'packages/ui/src/AccountPanel.test.tsx'], lastVerifiedAt: '2026-09-29' },
   },
 ];

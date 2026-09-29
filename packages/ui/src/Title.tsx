@@ -10,6 +10,7 @@ import { Icon } from './Icon';
 import { PortraitFrame, pfClass, usePortraitFrame } from './portraitFrame/PortraitFrame';
 import { sfx } from './sfx';
 import { useGame, tempHandle } from './store';
+import { withAbandonWarning } from './rank/ratedRun';
 import { MenuSidebar, SidebarHost } from './MenuSidebar';
 import { Crest, IconChest, IconHelm } from './menuIcons';
 import { cratesVisible, useProgression } from './progression/progressionStore';
@@ -216,14 +217,14 @@ export function Title({ onSettings }: { onSettings: () => void }) {
                   if (confirmClear) { clearRun(); setConfirmClear(false); } else setConfirmClear(true);
                 }}
                 onBlur={() => setConfirmClear(false)}
-                data-tip={confirmClear ? 'Click again to discard your saved run.' : 'Discard your saved run.'}
+                data-tip={withAbandonWarning(confirmClear ? 'Click again to discard your saved run.' : 'Discard your saved run.', savedRun)}
                 aria-label="Discard your saved run"
               >
                 {confirmClear ? 'Clear?' : <IconTrash />}
               </button>
             </div>
           )}
-          {savedRun ? <div className="tn-item" data-tip="New run. Replaces your saved run.">{playPlaque}</div> : playPlaque}
+          {savedRun ? <div className="tn-item" data-tip={withAbandonWarning('New run. Replaces your saved run.', savedRun)}>{playPlaque}</div> : playPlaque}
           {/* Learn moved OFF the main menu (owner 2026-08-17): it now lives in the mode picker as its own card,
               opening a learning hub (Tutorial + future advanced lessons). A new player is also offered the
               tutorial the first time they hit Play. */}

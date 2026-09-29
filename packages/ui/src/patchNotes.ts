@@ -165,6 +165,16 @@ export const PATCH_NOTES: PatchNote[] = [
         text: "Mimic can no longer pick Kindness's hero power. It only works every 4th turn, so it was almost always a wasted pick.",
       },
       {
+        category: 'Balance',
+        text: 'Quitting a rated game now counts as finishing in the lowest place still open, and your Rating changes to match.',
+        details: [
+          'With nobody out yet, quitting counts as 8th. With one player out, it counts as 7th.',
+          'Quitting means clearing your saved game, or starting a new game over it.',
+          'Save & Quit is not quitting. Continue picks the game back up and it counts when it really ends.',
+          'Practice and the tutorial are not affected.',
+        ],
+      },
+      {
         category: 'Systems',
         text: 'Hero titles. Finish 1st in 3 Ranked games with a hero to earn its title. Reach 10 and it becomes a golden plate with embroidered text.',
         details: [
@@ -266,11 +276,20 @@ export const PATCH_NOTES: PatchNote[] = [
       },
       {
         category: 'Systems',
-        text: 'Units now make a quiet death sound when they die in combat. Before, most of them were silent.',
+        text: 'Units now make a death sound when they die in combat. Before, most of them were silent.',
       },
       {
         category: 'Systems',
         text: 'Unit voices and creature sounds when you play a unit or it dies are now much quieter.',
+      },
+      {
+        category: 'Systems',
+        text: 'Guests now create a free account to open crates. Your crates, level and collection stay with it.',
+        details: [
+          'Guests still earn crates. They wait sealed in the Collection until you make an account.',
+          'Making an account keeps everything you earned as a guest. You only need an email.',
+          'Signing into an account you already have switches to it. Crates earned as a guest stay on the guest.',
+        ],
       },
     ],
   },

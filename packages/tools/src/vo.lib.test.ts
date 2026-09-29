@@ -116,7 +116,7 @@ describe('vo card clips bind to the By-card view', () => {
     // The death slot is independent of On Play.
     const death = bindCardSlot(taken.bindings, cardSlot('dw_orin.death'));
     expect(death.status).toBe('added');
-    expect(death.bindings.cards.dw_orin!.death).toEqual({ def: 'sfx-vo-dw-orin-death', gain: 0.1 }); // death sounds at 10%
+    expect(death.bindings.cards.dw_orin!.death).toEqual({ def: 'sfx-vo-dw-orin-death', gain: 0.3 }); // death sounds at 30%
   });
 
   it('a card clip id must name a slot', () => {

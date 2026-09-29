@@ -21,6 +21,11 @@
  * an identity key: nothing joins on it and nothing trusts it.
  */
 
+/** The answer to `signInWithEmail`. `existing` is true when the email already belonged to ANOTHER account, so the
+ *  code signs into THAT account instead of upgrading this one: whatever this guest earned stays on the guest
+ *  (owner-flagged 2026-09-29 with the crate sign-in gate; the account panel warns the player). */
+export interface SignInResult { ok: boolean; error?: string; existing?: boolean }
+
 /** Who the player is, as far as the rest of the app is concerned. */
 export interface Identity {
   /** The real identity — `auth.users.id`. Never shown to the player. */
@@ -59,7 +64,7 @@ export interface AuthProvider {
    * "sign into the existing account this email already owns" (a returning player on a fresh device); the
    * caller does not, and never sees a password.
    */
-  signInWithEmail(email: string): Promise<{ ok: boolean; error?: string }>;
+  signInWithEmail(email: string): Promise<SignInResult>;
   /**
    * Complete an email sign-in by CODE — the 6-digit token from the same email. This is the DESKTOP-friendly
    * path: it needs no redirect and no web origin, so it works inside the packaged exe (where a magic *link*

@@ -2937,8 +2937,9 @@ export function Recruit() {
     // painted bananas spin in and splat, and the top tier lands a giant golden banana in the target that the hero slams in
     // six times until it bursts; the Rares, two tiers each: Pocket Change flicks a coin that pings and ricochets, Come
     // Back Around throws a boomerang that thwacks and is caught, Bubble Trouble pops a bubble round the face, and Shadow
-    // Step fades the striker into smoke and stabs from behind). Same blow, same consequence, only drawn differently; the style is the ATTACKER's (their
-    // equipped cosmetic, or the dev override). Every runner takes the same options (`heroAttack/options.ts`).
+    // Step fades the striker into smoke and stabs from behind). Same blow, same consequence, only drawn differently; the
+    // style is the ATTACKER's (their equipped cosmetic, or the dev override). Every runner takes the same options
+    // (`heroAttack/options.ts`).
     const attackStyle = resolveHeroAttackStyle({ attacker: side, attackerCosmeticId: attackerCosmeticOf(run0, side, useGame.getState().showOpponentSkins) });
     if (attackStyle !== 'classic') {
       const runner = attackStyle === 'backstab'

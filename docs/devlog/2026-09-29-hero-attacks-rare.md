@@ -50,7 +50,8 @@ Timings after the damage formation: Small about 1.3 to 1.8 s, Big about 1.8 to 2
 
 - Targeted tests: the four new suites (55 tests) plus damageFormation / knockoutTier / attackTunerButtons (every style
   opens with the formation, lands once, never pauses, knockout plays Big), progression cosmetics (crate odds re-pinned:
-  Rare 17 items at 1.765% each; hero attacks together 10.8% of a first crate), Collection counts (13 attacks, 81 items).
+  Rare 17 items at 1.765% each; after merging Grave Call, the Stampede and the Banana Cannon, hero attacks together are 11.1% of a
+  first crate), Collection counts (16 attacks, 84 items).
 - Real game (dev server, the tuner demos on a manual clock, stills extracted from the overlay renderer): coin flight,
   pings and shower; boomerang pair crossing and the thwack; bubble stream, engulf and pop; backstab lunge, smoke and
   slash, and the portrait restored with the body class cleared.

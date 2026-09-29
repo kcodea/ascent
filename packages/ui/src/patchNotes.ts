@@ -60,6 +60,10 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: 'Bob Blart has his own voice: a big, hungry ogre. He also says his own line when he meets Chronos on your board, instead of the announcer.',
+      },
+      {
+        category: 'Systems',
         text: 'The Collection no longer shows the Boards and Music tabs. They come back when they are ready.',
       },
       {

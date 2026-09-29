@@ -1901,6 +1901,13 @@ export interface QuestCombatMods {
   /** ANCIENT OF BONDS × Lord of the Risen: whenever a friendly minion Rises, trigger the Echo of a living minion next
    *  to it (random between two, nothing with none), through the shared Echo path. Player-only; never snapshotted. */
   ancientRiseEcho?: { label: string };
+  /** ANCIENT OF WAR × Albus (owner 2026-09-28): "Pummel (80): Get 2 Strange Revisions. (Once per Combat)". A HERO-level
+   *  Pummel: every hit a friendly minion LANDS adds to one side-wide tally (the same `noteDamageDealt` site and the
+   *  same Heavy Hand share as the minion keyword). `dealt` is the LIFETIME tally carried in from the run (the keyword's
+   *  carry-over rule); each crossing of a multiple of `every` pays `count` × `cardId` to hand through `grantToHand`
+   *  (a live `toHand`), at most once per combat. The tally after the fight comes home as
+   *  `CombatCarryBacks.ancientPummelDealt`. Player-only; never snapshotted. */
+  ancientPummel?: { every: number; count: number; cardId: string; dealt: number; label: string };
   /** LEGACY (pre-2026-09-28 runs): the run-wide Beast Health channel `beastBuyHp`, re-added to from-base Beast
    *  bodies (summons / Reborn). Nothing feeds it any more — Beast buffs are combat-only (R-AURA-03). */
   beastAuraHp?: number;
@@ -3132,6 +3139,8 @@ export interface CombatCarryBacks {
   rises?: number;
   /** ANCIENTS (Risen's Time): friendly minions summoned this fight (only when `ancientCountSummons`). */
   summonsMade?: number;
+  /** ANCIENTS (Albus's War): the side's lifetime hero-Pummel tally after this fight (only when `ancientPummel`). */
+  ancientPummelDealt?: number;
 }
 
 /** One side's hero damage, itemized (`CombatResult.damageBreakdown` / `enemyDamageBreakdown`). */
@@ -3415,6 +3424,8 @@ export interface CombatResult {
   playerRises?: number;
   /** ANCIENTS (Risen's Time): the player's `CombatCarryBacks.summonsMade`. */
   playerSummonsMade?: number;
+  /** ANCIENTS (Albus's War): the player's `CombatCarryBacks.ancientPummelDealt`. */
+  playerAncientPummelDealt?: number;
   /** Outcome odds (fractions summing to 1) — estimated by the run loop re-simulating these boards
    *  on many independent seeds. Not produced by `simulate` itself (a single fight); the run loop fills it.
    *  `avgLossDamage` is the mean Resolve lost across the losing sims (round-capped), i.e. how much damage

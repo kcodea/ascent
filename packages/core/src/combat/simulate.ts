@@ -458,6 +458,13 @@ export function simulate(
    *  a side whose mods ask (`ancientCountRises` / `ancientCountSummons`), so every other result is byte-identical. */
   const riseLog: Record<Side, number> = { player: 0, enemy: 0 };
   const summonLog: Record<Side, number> = { player: 0, enemy: 0 };
+  /** ANCIENT OF WAR × Albus: the side-wide hero-Pummel tally (seeded LIFETIME, like the keyword) and its
+   *  once-per-combat latch. Only read for a side whose mods carry `ancientPummel`. */
+  const ancientPummelDealt: Record<Side, number> = {
+    player: modsFor('player').ancientPummel?.dealt ?? 0,
+    enemy: modsFor('enemy').ancientPummel?.dealt ?? 0,
+  };
+  const ancientPummelPaid: Record<Side, boolean> = { player: false, enemy: false };
   /** Wolvie (Echo): one-shot buffs queued for the next tribe minion each side summons (FIFO). */
   const nextSummonBuffs: Record<Side, { tribe: Tribe; attack: number; health: number; sourceUid?: string }[]> = { player: [], enemy: [] };
   /** Wolvie's Echoes STACK onto the NEXT matching summon (owner 2026-08-12): four queued Echoes all land on the
@@ -2660,6 +2667,7 @@ export function simulate(
    * badge keeps printing `total mod X` toward the multiple that pays next combat.
    */
   function noteDamageDealt(dealer: Minion, amount: number): void {
+    noteAncientPummel(dealer, amount);
     // ONE meter, several bodies (`DAMAGE_METER_DOS`): the tally advances the same way for every marker; the
     // marker's `do` decides the payout. Han Gover grants `count` random Dwarven Ales (×2 gilded) through
     // `grantToHand` — the standard combat→hand channel, so the card flies to hand in the replay and settles into
@@ -2749,6 +2757,29 @@ export function simulate(
       fired();
       for (let i = 0; i < count; i++) ctx.grantToHand(draw.pick(ales).id, dealer.side, dealer.uid);
     }
+  }
+
+  /**
+   * ANCIENT OF WAR × Albus (owner 2026-09-28): "Pummel (80): Get 2 Strange Revisions. (Once per Combat)". The hero's
+   * Pummel reads the SAME landed hits the minion keyword does (this is called from `noteDamageDealt`, so a popped
+   * Ward, Immune or a 0 hit never counts), from ANY friendly minion, into one side-wide tally. It follows the keyword's
+   * rules exactly: a LIFETIME tally carried across combats, Rune of the Heavy Hand's extra share, a payout per multiple
+   * of X crossed, at most one per combat, and crossings past the cap are spent. The payout is real time: the cards
+   * fly to hand on the hit that crossed (`grantToHand`, a live `toHand`), mid-fight.
+   */
+  function noteAncientPummel(dealer: Minion, amount: number): void {
+    const ap = modsFor(dealer.side).ancientPummel;
+    if (!ap || amount <= 0) return;
+    const side = dealer.side;
+    const heavy = modsFor(side).runeHeavyHand ? flagCopiesOf(side, 'runeHeavyHand') : 0;
+    const before = ancientPummelDealt[side];
+    const after = before + amount * (1 + heavy);
+    ancientPummelDealt[side] = after;
+    if (ancientPummelPaid[side]) return;
+    const every = Math.max(1, ap.every);
+    if (Math.floor(after / every) - Math.floor(before / every) <= 0) return;
+    ancientPummelPaid[side] = true;
+    for (let i = 0; i < ap.count; i++) ctx.grantToHand(ap.cardId, side, dealer.uid);
   }
 
   function killOrReborn(minion: Minion, killer?: Minion): void {
@@ -5607,6 +5638,7 @@ export function simulate(
       wardWindow: modsFor(side).ancientWardCopy ? [...wardWindow[side]] : undefined,
       rises: modsFor(side).ancientCountRises ? riseLog[side] : undefined,
       summonsMade: modsFor(side).ancientCountSummons ? summonLog[side] : undefined,
+      ancientPummelDealt: modsFor(side).ancientPummel ? ancientPummelDealt[side] : undefined,
     };
   };
   const pc = carryBacksFor('player');
@@ -5682,6 +5714,7 @@ export function simulate(
     ...(pc.wardWindow ? { playerWardWindow: pc.wardWindow } : {}),
     ...(pc.rises !== undefined ? { playerRises: pc.rises } : {}),
     ...(pc.summonsMade !== undefined ? { playerSummonsMade: pc.summonsMade } : {}),
+    ...(pc.ancientPummelDealt !== undefined ? { playerAncientPummelDealt: pc.ancientPummelDealt } : {}),
     // Enemy run-level scalers so the UI can render an enemy Grim/Taragosa/Pack Leader/Runescale at the
     // OPPONENT's value. Present only when the enemy actually had a nonzero scaler (else the card's base text
     // is already accurate → the UI's player-side fallback is fine).

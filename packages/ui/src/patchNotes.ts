@@ -65,6 +65,7 @@ export const PATCH_NOTES: PatchNote[] = [
           'Covers the basics, the shop, combat, keywords, the lobby and Rating, and the controls.',
           'Search in your own words, like "sell", "who attacks first" or "Ward", or narrow it down with the topic buttons.',
           'Open a question to read the answer. "See also" links jump to related questions.',
+        ],
       },
       {
         category: 'Systems',

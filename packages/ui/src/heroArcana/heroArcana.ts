@@ -4,7 +4,7 @@
  * blow it lands are handed in, already decided by the engine; this file only decides WHEN on screen they happen.
  *
  * It runs on the SHARED hero-attack core (`../heroAttack/`), exactly as Blast and Quake do: one clock (it never pauses),
- * the damage formation, the `#stage` camera mirrored onto the Pixi root, the portraits (transform only, restored
+ * the damage formation, the `#stage` camera (on the FX once: stageCamera.ts), the portraits (transform only, restored
  * after), the voices, the dim, reduced motion, finish / cancel and the safety timer. What is Arcana's own: the ribbon
  * paths, the barrage rhythm, the Tier IV vortex, its camera and its sound.
  *
@@ -25,7 +25,7 @@ import { withFormation, type FormationCue } from '../heroAttack/formationConfig'
 import { clamp01, easeInOutSine, hexToNum, prefersReducedMotion, spring } from '../heroAttack/easing';
 import type { HeroAttackHandle, HeroAttackOptions } from '../heroAttack/options';
 import { Sequence } from '../heroAttack/sequence';
-import { PortraitMover, StageCamera } from '../heroAttack/stageCamera';
+import { heroFxCanvas, PortraitMover, StageCamera } from '../heroAttack/stageCamera';
 import {
   arcanaCameraAt, arcanaCameraFocus, arcanaCues, arcanaPlan, arrivalDir, getHeroArcanaConfig, ribbonMotions,
   type ArcanaCue, type ArcanaPlan, type HeroArcanaConfig, type RibbonMotion,
@@ -98,7 +98,7 @@ export function playHeroArcana(o: HeroArcanaOptions): HeroArcanaHandle {
 
   // ── camera + the portraits ──
   const cameraEl = reduced ? null : (o.camera !== undefined ? o.camera : (doc?.getElementById('stage') ?? null));
-  const cam = new StageCamera(cameraEl, scene);
+  const cam = new StageCamera(cameraEl, scene, heroFxCanvas(o)); // the FX get the camera ONCE (stageCamera.ts)
   const hero = new PortraitMover(reduced ? null : (o.attackerEl ?? null));
   const foe = new PortraitMover(reduced ? null : (o.defenderEl ?? null));
 

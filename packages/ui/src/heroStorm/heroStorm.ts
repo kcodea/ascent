@@ -23,9 +23,8 @@ import { DamageFormation, planFormation } from '../heroAttack/damageFormation';
 import { withFormation, type FormationCue } from '../heroAttack/formationConfig';
 import { clamp01, easeInOutSine, hexToNum, prefersReducedMotion, spring } from '../heroAttack/easing';
 import type { HeroAttackHandle, HeroAttackOptions } from '../heroAttack/options';
-import { canvasInCamera } from '../heroAttack/cameraMirror';
 import { Sequence } from '../heroAttack/sequence';
-import { PortraitMover, StageCamera } from '../heroAttack/stageCamera';
+import { heroFxCanvas, PortraitMover, StageCamera } from '../heroAttack/stageCamera';
 import {
   getHeroStormConfig, stormArrivalDir, stormCameraAt, stormCameraFocus, stormCues, stormGeometry, stormPlan,
   type HeroStormConfig, type StormCue, type StormGeo, type StormPlan,
@@ -99,9 +98,7 @@ export function playHeroStorm(o: HeroStormOptions): HeroStormHandle {
 
   // ── camera + the portraits ──
   const cameraEl = reduced ? null : (o.camera !== undefined ? o.camera : (doc?.getElementById('stage') ?? null));
-  let mirrorOn = true;
-  const mirror = scene ? { setCamera: (ax: number, ay: number, z: number): void => { if (mirrorOn) scene.setCamera(ax, ay, z); else scene.setCamera(0, 0, 1); } } : null;
-  const cam = new StageCamera(cameraEl, mirror);
+  const cam = new StageCamera(cameraEl, scene, heroFxCanvas(o)); // the FX get the camera ONCE (stageCamera.ts)
   const hero = new PortraitMover(reduced ? null : (o.attackerEl ?? null));
   const foe = new PortraitMover(reduced ? null : (o.defenderEl ?? null));
 
@@ -119,7 +116,6 @@ export function playHeroStorm(o: HeroStormOptions): HeroStormHandle {
         cue(c.sfxChargeClip, c.sfxChargeGain, c.sfxChargeRate, { lenMs: 700, fadeMs: 250 });
         if (c.sfxDuck < 1) voices.duck(c.sfxDuck);
         scene?.startCharge(o.attacker.x, o.attacker.y, aRadius, plan.boltAt - plan.chargeAt, c.chargeArcs);
-        mirrorOn = !canvasInCamera(cameraEl, !!o.mount);
         cam.start();
         break;
       case 'bolt': {

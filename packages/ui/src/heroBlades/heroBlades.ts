@@ -5,7 +5,7 @@
  * they happen.
  *
  * It runs on the SHARED hero-attack core (`../heroAttack/`), exactly as Blast, Quake and Arcana do: one clock
- * (it never pauses), the damage formation, the `#stage` camera mirrored onto the Pixi root, the portraits (transform only,
+ * (it never pauses), the damage formation, the `#stage` camera (on the FX once: stageCamera.ts), the portraits (transform only,
  * restored after), the voices, the dim, reduced motion, finish / cancel and the safety timer. What is the Blades' own:
  * the formation, the aim and the lock, the straight thrusts, the stuck blades and the shatter, the Tier IV greatsword
  * and its judgement, its camera and its sound.
@@ -28,7 +28,7 @@ import { withFormation, type FormationCue } from '../heroAttack/formationConfig'
 import { clamp01, easeInOutSine, hexToNum, prefersReducedMotion, spring } from '../heroAttack/easing';
 import type { HeroAttackHandle, HeroAttackOptions } from '../heroAttack/options';
 import { Sequence } from '../heroAttack/sequence';
-import { PortraitMover, StageCamera } from '../heroAttack/stageCamera';
+import { heroFxCanvas, PortraitMover, StageCamera } from '../heroAttack/stageCamera';
 import {
   bladeMotions, bladesCameraAt, bladesCameraFocus, bladesCues, bladesPlan, blowDir, getHeroBladesConfig,
   type BladeMotion, type BladesCue, type BladesPlan, type Bounds, type HeroBladesConfig,
@@ -109,7 +109,7 @@ export function playHeroBlades(o: HeroBladesOptions): HeroBladesHandle {
 
   // ── camera + the portraits ──
   const cameraEl = reduced ? null : (o.camera !== undefined ? o.camera : (doc?.getElementById('stage') ?? null));
-  const cam = new StageCamera(cameraEl, scene);
+  const cam = new StageCamera(cameraEl, scene, heroFxCanvas(o)); // the FX get the camera ONCE (stageCamera.ts)
   const hero = new PortraitMover(reduced ? null : (o.attackerEl ?? null));
   const foe = new PortraitMover(reduced ? null : (o.defenderEl ?? null));
 

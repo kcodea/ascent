@@ -2979,7 +2979,7 @@ export const FOUNDATION_RULES: GameRule[] = [
     status: 'approved',
     evidence: [
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-29 (rare and epic attacks)', quote: 'branch off and build 5 animations that range from rare -> epic. all of the animations we have done so far are legendary. rare and epics should only have 2 or 3 tiers to them and generally be less exciting, but still extremely clean and fun. get creative' },
-      { kind: 'code', ref: 'packages/progression/src/cosmetics.ts (attack_cards); packages/ui/src/heroCards/ (heroCardsConfig cardsLevel / cardsPlan / cardsCues / fanPoses / heldPoses / cardMotions / cardsCameraAt, heroCards playHeroCards, heroCardsScene, heroCardsTextures); packages/ui/src/heroAttack/cameraMirror.ts' },
+      { kind: 'code', ref: 'packages/progression/src/cosmetics.ts (attack_cards); packages/ui/src/heroCards/ (heroCardsConfig cardsLevel / cardsPlan / cardsCues / fanPoses / heldPoses / cardMotions / cardsCameraAt, heroCards playHeroCards, heroCardsScene, heroCardsTextures); packages/ui/src/heroAttack/stageCamera.ts (heroFxCanvas: the camera applied once, R-PROG-ATTACK-25)' },
     ],
     currentBehaviour: 'Conforms, built 2026-09-29. The item reaches the database on the next deploy of progression-inventory (the catalog sync); the equip SQL already accepts the hero_attack slot.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/heroCards/heroCards.test.ts', 'packages/ui/src/heroAttack/knockoutTier.test.ts', 'packages/progression/src/cosmetics.test.ts', 'packages/ui/src/progression/CollectionHeroAttack.test.tsx', 'packages/ui/src/heroAttack/damageFormation.test.ts'], lastVerifiedAt: '2026-09-29' },
@@ -3010,6 +3010,30 @@ export const FOUNDATION_RULES: GameRule[] = [
     ],
     currentBehaviour: 'Conforms, built 2026-09-29. The item reaches the database on the next deploy of progression-inventory (the catalog sync); the equip SQL already accepts the hero_attack slot.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/heroStorm/heroStorm.test.ts', 'packages/ui/src/heroAttack/knockoutTier.test.ts', 'packages/progression/src/cosmetics.test.ts', 'packages/ui/src/progression/CollectionHeroAttack.test.tsx', 'packages/ui/src/heroAttack/damageFormation.test.ts'], lastVerifiedAt: '2026-09-29' },
+  },
+  {
+    id: 'R-PROG-ATTACK-25',
+    title: 'A hero attack\x27s camera reaches its FX exactly ONCE: while the view zooms and shakes, the effects stay on the struck portrait',
+    statement:
+      'The hero attack camera (packages/ui/src/heroAttack/stageCamera.ts, shared by every style that draws Pixi FX) writes '
+      + 'one zoom + shake transform onto the camera element (`#stage` in a fight or a tuner demo, the sandbox box in the '
+      + 'Collection preview). It mirrors that transform onto the style\x27s Pixi root ONLY when the canvas the FX are drawn '
+      + 'on does not already ride the camera element. Since the scaled stage (#1762) the shared above-portrait canvas lives '
+      + 'inside `#stage`, and the preview\x27s canvas inside its box, so in every real context the FX are NOT mirrored: '
+      + 'before this, every style applied the camera twice (a zoom of z squared about the focus plus a doubled shake) and '
+      + 'its FX drifted off the struck portrait by up to about a portrait radius during the push-ins (measured in the real '
+      + 'game on every style, both directions, at 1920x1080 (most also at 1600x900 and 21:9), and in the preview). Decided once per attack '
+      + 'at the camera start (no per-frame layout read). The camera motion, the portrait motion, timings and layering are '
+      + 'unchanged; with no DOM camera (tests) the mirror is the only camera and still moves; reduced motion has no camera.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-29 (Banana Cannon review, splats during the zoom)', quote: 'looks like it is overshot due to the zoom' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-29 (double camera follow-up)', quote: 'make sure it doesnt break how our animations work' },
+      { kind: 'code', ref: 'packages/ui/src/heroAttack/stageCamera.ts (fxCanvasRidesCamera, heroFxCanvas, StageCamera.start / apply); every style runner passes heroFxCanvas(o)' },
+    ],
+    currentBehaviour: 'Conforms, fixed 2026-09-29.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/heroAttack/stageCamera.test.ts'], lastVerifiedAt: '2026-09-29' },
   },
   {
     id: 'R-PROG-CRATE-04',

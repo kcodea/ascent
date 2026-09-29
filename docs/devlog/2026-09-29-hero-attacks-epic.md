@@ -43,13 +43,13 @@ black), so the gilding needs no second set of faces. The back is painted in its 
 - A hero at the top of the screen has no room above it: the cloud rolls in over the top edge and hangs just over the
   portrait, so the strike still DROPS onto the face (a first cut slid the cloud sideways and the strike read as a beam).
 
-## The camera is applied once (`heroAttack/cameraMirror.ts`)
+## The camera is applied once (`heroAttack/stageCamera.ts`, #1851)
 
 Since #1762 the FX canvas lives inside `#stage`, so the DOM camera already moves it; the Banana PR (#1839) found styles
-mirroring the camera onto their Pixi root as well (applied twice, FX overshoot at peak zoom). Both Epics mirror only when
-the canvas is NOT inside the camera element (`canvasInCamera`, checked when the camera starts; the Collection sandbox
-canvas sits inside its box, the game's overlay inside `#stage`, so in practice the mirror stays off). Tested both ways.
-The other styles still mirror; that follow-up is Banana's.
+mirroring the camera onto their Pixi root as well (applied twice, FX overshoot at peak zoom). The branch first carried
+its own `heroAttack/cameraMirror.ts`; on merge (after #1851 landed) both Epics switched to #1851's shared mechanism,
+`new StageCamera(cameraEl, scene, heroFxCanvas(o))`, and `cameraMirror.ts` was deleted (one approach only). Both are in
+the all-styles camera test (`heroAttack/stageCamera.test.ts`), canvas inside and outside the camera.
 
 ## Perf
 
@@ -93,5 +93,4 @@ Stampede and the Banana Cannon merged). By category: titles 58.1%, minion skins 
   `progression-inventory` (the catalog sync). No SQL.
 - Oracle R-PROG-ATTACK-26 (Card Shark) and -27 (Storm Call): picked clear of 17-19 (Undead, Beast, Banana), 21 (Bleed,
   #1847), 25 (the double-camera fix, #1851) and 22-24 (left for the Rares). Renumber on merge if taken.
-- When #1851 lands, the runners can use its shared `heroFxCanvas` / `StageCamera` fix instead of `cameraMirror.ts` (same
-  behaviour; both keep the camera applied once).
+- Done on merge: the runners use #1851's shared `heroFxCanvas` / `StageCamera` fix; `cameraMirror.ts` is gone.

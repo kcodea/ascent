@@ -20,7 +20,7 @@ import {
 } from './heroCardsConfig';
 import { HeroCardsScene, MAX_CARDS_SPRITES, type HeroCardsTextures } from './heroCardsScene';
 import { cardsSeed, playHeroCards, type HeroCardsOptions } from './heroCards';
-import { canvasInCamera } from '../heroAttack/cameraMirror';
+import { fxCanvasRidesCamera } from '../heroAttack/stageCamera';
 import { SPEC } from '../HeroCardsTuner';
 import { formationOf, leadInOf } from '../heroAttack/formationFixtures';
 
@@ -383,7 +383,7 @@ describe('the runner (the shared clock)', () => {
     // Inside: a sandbox whose canvas lives in the camera element (as the game's overlay lives in #stage).
     const inCam = document.createElement('div');
     inCam.appendChild(document.createElement('canvas'));
-    expect(canvasInCamera(inCam, true)).toBe(true);
+    expect(fxCanvasRidesCamera(inCam, inCam.querySelector('canvas'))).toBe(true);
     const a = run({ total: 8, formation: formationOf([8], 8), camera: inCam });
     a.f.tick(a.h.plan.impactAt + 20, 4);
     expect(inCam.style.transform).toContain('scale(');
@@ -392,11 +392,11 @@ describe('the runner (the shared clock)', () => {
     a.h.cancel();
     // Outside: the canvas is elsewhere, so the root mirrors the zoom.
     const b = run({ total: 8, formation: formationOf([8], 8) });
-    expect(canvasInCamera(b.camera, true)).toBe(false);
+    expect(fxCanvasRidesCamera(b.camera, b.camera.querySelector('canvas'))).toBe(false);
     b.f.tick(b.h.plan.impactAt + 20, 4);
     expect(b.h.scene!.root.scale.x).toBeGreaterThan(1);
     b.h.cancel();
-    expect(canvasInCamera(null, false)).toBe(false);
+    expect(fxCanvasRidesCamera(null, null)).toBe(false);
   });
 
   it('stuck cards RIDE the struck portrait\'s knockback', () => {

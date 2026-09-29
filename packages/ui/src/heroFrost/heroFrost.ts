@@ -5,9 +5,9 @@
  * happen.
  *
  * It runs on the SHARED hero-attack core (`../heroAttack/`), exactly as the other styles do: one clock (it never
- * pauses: the ICE holds still, the clock does not), the damage formation, the `#stage` camera mirrored onto the Pixi
- * root, the portraits (transform only, restored after), the voices, the dim, reduced motion, finish / cancel and the
- * safety timer. What is Frost's own: the icicles, the frost creep, the Tier IV nova and encasement, its camera and its
+ * pauses: the ICE holds still, the clock does not), the damage formation, the `#stage` camera (on the FX once:
+ * stageCamera.ts), the portraits (transform only, restored after), the voices, the dim, reduced motion, finish / cancel
+ * and the safety timer. What is Frost's own: the icicles, the frost creep, the Tier IV nova and encasement, its camera and its
  * sound.
  *
  * THE VOLLEY CONTRACT: every icicle that lands before the last is a tick (FX and a glassy crack only). The consequence
@@ -27,7 +27,7 @@ import { withFormation, type FormationCue } from '../heroAttack/formationConfig'
 import { clamp01, easeInOutSine, hexToNum, prefersReducedMotion, spring } from '../heroAttack/easing';
 import type { HeroAttackHandle, HeroAttackOptions } from '../heroAttack/options';
 import { Sequence } from '../heroAttack/sequence';
-import { PortraitMover, StageCamera } from '../heroAttack/stageCamera';
+import { heroFxCanvas, PortraitMover, StageCamera } from '../heroAttack/stageCamera';
 import {
   frostArrivalDir, frostCameraAt, frostCameraFocus, frostCues, frostPlan, getHeroFrostConfig, icicleMotions, novaMotion,
   type FrostCue, type FrostPlan, type HeroFrostConfig, type IcicleMotion, type NovaMotion,
@@ -107,7 +107,7 @@ export function playHeroFrost(o: HeroFrostOptions): HeroFrostHandle {
 
   // ── camera + the portraits ──
   const cameraEl = reduced ? null : (o.camera !== undefined ? o.camera : (doc?.getElementById('stage') ?? null));
-  const cam = new StageCamera(cameraEl, scene);
+  const cam = new StageCamera(cameraEl, scene, heroFxCanvas(o)); // the FX get the camera ONCE (stageCamera.ts)
   const hero = new PortraitMover(reduced ? null : (o.attackerEl ?? null));
   const foe = new PortraitMover(reduced ? null : (o.defenderEl ?? null));
 

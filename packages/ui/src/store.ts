@@ -730,8 +730,12 @@ interface GameStore {
   /** The Minion Book codex overlay (Tab) is open — a filterable reference of every minion + spell
    *  findable this run. UI-only; reads the run's pool + active tribes. */
   showBook: boolean;
+  /** Which panel the Compendium opens on: the card gallery (Tab) or the Rules wiki (the title's Rules button). */
+  bookOpensTo: 'cards' | 'rules';
   toggleBook: () => void;
   closeBook: () => void;
+  /** Open the Compendium straight onto its Rules page (the title menu's Rules plaque). */
+  openRules: () => void;
   /** DEV-only balance-report panel (runs greedy-bot games in-browser + shows offer/pick/win tables). */
   showBalance: boolean;
   openBalance: () => void;
@@ -2407,8 +2411,10 @@ export const useGame = create<GameStore>((rawSet, get) => {
   careerCache: null,
   setCareerCache: (key, runs) => set({ careerCache: { key, runs } }),
   showBook: false,
-  toggleBook: () => set((s) => ({ showBook: !s.showBook })),
-  closeBook: () => set({ showBook: false }),
+  bookOpensTo: 'cards',
+  toggleBook: () => set((s) => ({ showBook: !s.showBook, bookOpensTo: 'cards' })),
+  closeBook: () => set({ showBook: false, bookOpensTo: 'cards' }),
+  openRules: () => set({ showBook: true, bookOpensTo: 'rules' }),
   showBalance: false,
   openBalance: () => set({ showBalance: true }),
   closeBalance: () => set({ showBalance: false }),

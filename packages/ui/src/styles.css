@@ -5806,6 +5806,26 @@ body:has(.titlescreen) .version { visibility: hidden; }
   display: flex; align-items: center; gap: 8px; padding: 4px 16px 4px 5px; border-radius: 999px; white-space: nowrap;
   background: rgba(6, 9, 16, 0.74); border: 1px solid rgba(196, 160, 92, 0.5); box-shadow: 0 4px 14px -6px rgba(0, 0, 0, 0.8); pointer-events: none; }
 .titlerank-label { font-family: var(--font-ui); font-weight: 900; font-size: 15px; letter-spacing: 0.08em; text-transform: uppercase; color: #fff6e4; text-shadow: 0 2px 8px rgba(0, 0, 0, 0.8); }
+/* GUEST SIGN-IN (owner 2026-09-29): a guest's slow-blinking "Sign in!" seated left of the portrait ring, vertically
+   centred on it. The seat owns the position so the button's own transform stays free for hover/press. The BLINK is a
+   real `.guestsignin-glow` element with a STATIC amber ring + halo whose OPACITY breathes on a 2.4 s cycle
+   (compositor-only, the kwglow recipe): no looping box-shadow / filter / background (docs/performance.md). Reduced
+   motion: no blink, the glow simply sits half on. No cursor here: the global button rule paints the gauntlet. */
+.guestsignin-seat { position: absolute; right: calc(100% + 22px); top: 50%; transform: translateY(-50%); z-index: 3; }
+.guestsignin { position: relative; display: block; padding: 10px 26px; border: 2px solid #8a6428; border-radius: 999px;
+  background: linear-gradient(180deg, #ffe39a, #e9a23f); color: #1a1206; white-space: nowrap;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.55), 0 4px 0 #8a6428, 0 10px 24px -10px rgba(0, 0, 0, 0.8);
+  font-family: var(--font-ui); font-weight: 900; font-size: 24px; letter-spacing: 0.06em; line-height: 1.1; text-transform: uppercase;
+  transition: transform 0.14s ease, border-color 0.12s ease; }
+.guestsignin:hover { transform: translateY(-1px) scale(1.04); border-color: #ffe08a; }
+.guestsignin:active { transform: translateY(2px); }
+.guestsignin:focus-visible { outline: 2px solid var(--acc); outline-offset: 4px; }
+.guestsignin-txt { position: relative; z-index: 1; }
+.guestsignin-glow { position: absolute; inset: -6px; border-radius: 999px; pointer-events: none;
+  box-shadow: 0 0 0 3px rgba(255, 216, 120, 0.95), 0 0 26px 8px rgba(255, 176, 64, 0.75);
+  opacity: 0; animation: guestsigninblink 2.4s ease-in-out infinite; }
+@keyframes guestsigninblink { 0%, 100% { opacity: 0.1; } 50% { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .guestsignin-glow { animation: none; opacity: 0.6; } }
 
 /* Font Lab (dev) — bottom-right of the title; a small toggle that opens the per-role font pickers. */
 .fontlab { position: fixed; right: 18px; bottom: 18px; z-index: 460; display: flex; flex-direction: column; align-items: flex-end; gap: 10px; }

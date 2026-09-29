@@ -87,6 +87,14 @@ import { playHeroHoly } from './heroHoly/heroHoly';
 import { heroHolyPreviewSpeed } from './heroHoly/heroHolyConfig';
 import { playHeroFire } from './heroFire/heroFire';
 import { heroFirePreviewSpeed } from './heroFire/heroFireConfig';
+import { playHeroCoin } from './heroCoin/heroCoin';
+import { heroCoinPreviewSpeed } from './heroCoin/heroCoinConfig';
+import { playHeroBoomerang } from './heroBoomerang/heroBoomerang';
+import { heroBoomerangPreviewSpeed } from './heroBoomerang/heroBoomerangConfig';
+import { playHeroBubble } from './heroBubble/heroBubble';
+import { heroBubblePreviewSpeed } from './heroBubble/heroBubbleConfig';
+import { playHeroBackstab } from './heroBackstab/heroBackstab';
+import { heroBackstabPreviewSpeed } from './heroBackstab/heroBackstabConfig';
 import { resolveHeroAttackStyle } from './heroBlast/heroAttackStyle';
 import { attackerCosmeticOf } from './heroBlast/attackerCosmetic';
 import { heroStrikeDamage, heroStrikeKnockout, heroStrikeNumbers } from './heroBlast/heroStrikeDamage';
@@ -2917,11 +2925,22 @@ export function Recruit() {
     // crystallise and fire, and the top tier rolls a frost nova across the screen that encases and shatters; Consecration:
     // a pillar of light smites, and the top tier drops a holy sword that explodes into light and fires a flat consecrated
     // blast at the target; Inferno: fireballs of live fire are hurled, and the top tier calls down a meteor that detonates
-    // and engulfs the target). Same blow, same consequence, only drawn differently; the style is the ATTACKER's (their
-    // equipped cosmetic, or the dev override). Every runner takes the same options (`heroAttack/options.ts`).
+    // and engulfs the target; the Rares, two tiers each: Pocket Change flicks a coin that pings and ricochets, Come Back
+    // Around throws a boomerang that thwacks and is caught, Bubble Trouble pops a bubble round the face, and Shadow Step
+    // fades the striker into smoke and stabs from behind). Same blow, same consequence, only drawn differently; the style
+    // is the ATTACKER's (their equipped cosmetic, or the dev override). Every runner takes the same options
+    // (`heroAttack/options.ts`).
     const attackStyle = resolveHeroAttackStyle({ attacker: side, attackerCosmeticId: attackerCosmeticOf(run0, side, useGame.getState().showOpponentSkins) });
-    if (attackStyle === 'blast' || attackStyle === 'quake' || attackStyle === 'arcana' || attackStyle === 'blades' || attackStyle === 'enraged' || attackStyle === 'poison' || attackStyle === 'frost' || attackStyle === 'holy' || attackStyle === 'fire') {
-      const runner = attackStyle === 'fire'
+    if (attackStyle !== 'classic') {
+      const runner = attackStyle === 'backstab'
+        ? { play: playHeroBackstab, preview: heroBackstabPreviewSpeed() }
+        : attackStyle === 'bubble'
+        ? { play: playHeroBubble, preview: heroBubblePreviewSpeed() }
+        : attackStyle === 'boomerang'
+        ? { play: playHeroBoomerang, preview: heroBoomerangPreviewSpeed() }
+        : attackStyle === 'coin'
+        ? { play: playHeroCoin, preview: heroCoinPreviewSpeed() }
+        : attackStyle === 'fire'
         ? { play: playHeroFire, preview: heroFirePreviewSpeed() }
         : attackStyle === 'holy'
         ? { play: playHeroHoly, preview: heroHolyPreviewSpeed() }

@@ -19,6 +19,14 @@ import { playHeroHoly } from '../heroHoly/heroHoly';
 import { heroHolyPreviewSpeed } from '../heroHoly/heroHolyConfig';
 import { playHeroFire } from '../heroFire/heroFire';
 import { heroFirePreviewSpeed } from '../heroFire/heroFireConfig';
+import { playHeroCoin } from '../heroCoin/heroCoin';
+import { heroCoinPreviewSpeed } from '../heroCoin/heroCoinConfig';
+import { playHeroBoomerang } from '../heroBoomerang/heroBoomerang';
+import { heroBoomerangPreviewSpeed } from '../heroBoomerang/heroBoomerangConfig';
+import { playHeroBubble } from '../heroBubble/heroBubble';
+import { heroBubblePreviewSpeed } from '../heroBubble/heroBubbleConfig';
+import { playHeroBackstab } from '../heroBackstab/heroBackstab';
+import { heroBackstabPreviewSpeed } from '../heroBackstab/heroBackstabConfig';
 import { playHeroBlast } from './heroBlast';
 import { heroBlastPreviewSpeed } from './heroBlastConfig';
 import './heroAttackPreview.css';
@@ -34,6 +42,10 @@ const RUNNERS: Record<string, { play: (o: HeroAttackOptions & { textures?: null 
   frost: { play: (o) => playHeroFrost(o), speed: heroFrostPreviewSpeed },
   holy: { play: (o) => playHeroHoly(o), speed: heroHolyPreviewSpeed },
   fire: { play: (o) => playHeroFire(o), speed: heroFirePreviewSpeed },
+  coin: { play: (o) => playHeroCoin(o), speed: heroCoinPreviewSpeed },
+  boomerang: { play: (o) => playHeroBoomerang(o), speed: heroBoomerangPreviewSpeed },
+  bubble: { play: (o) => playHeroBubble(o), speed: heroBubblePreviewSpeed },
+  backstab: { play: (o) => playHeroBackstab(o), speed: heroBackstabPreviewSpeed },
 };
 
 /**

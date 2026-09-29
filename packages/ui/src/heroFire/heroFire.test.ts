@@ -502,7 +502,7 @@ describe('the scene (headless Pixi)', () => {
 describe('the cosmetic', () => {
   it('Inferno (attack_fire) is a Legendary crate hero attack that plays Fire; the dev override can force it; the other attacks unchanged', () => {
     expect(COSMETIC_INDEX.attack_fire).toMatchObject({ category: 'hero_attack', rarity: 'legendary', name: 'Inferno', assets: { style: 'fire' }, active: true });
-    expect(HERO_ATTACK_STYLES).toEqual(['classic', 'blast', 'quake', 'arcana', 'blades', 'enraged', 'poison', 'frost', 'holy', 'fire']);
+    expect(HERO_ATTACK_STYLES).toEqual(['classic', 'blast', 'quake', 'arcana', 'blades', 'enraged', 'poison', 'frost', 'holy', 'fire', 'coin', 'boomerang', 'bubble', 'backstab']);
     expect(styleOfCosmetic('attack_fire')).toBe('fire');
     for (const [id, style] of [['attack_blast', 'blast'], ['attack_frost', 'frost'], ['attack_holy', 'holy'], ['attack_enraged', 'enraged']] as const) {
       expect(styleOfCosmetic(id)).toBe(style);

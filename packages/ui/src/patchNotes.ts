@@ -60,6 +60,19 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: 'Four new Rare hero attacks can drop from crates: Pocket Change, Come Back Around, Bubble Trouble and Shadow Step.',
+        details: [
+          'Rare attacks are short and playful, with a small version and a big version. Big hits and knockouts play the big one.',
+          'Pocket Change: your hero flicks a spinning gold coin that pings off the other hero. The big version ricochets it and bursts into a shower of coins.',
+          'Come Back Around: a wooden boomerang whirls out, thwacks the other hero and curves back to be caught. The big version throws two that cross in the air.',
+          'Bubble Trouble: a shimmering bubble drifts over, swallows the other hero\'s face and pops. The big version blows a stream of little bubbles first, then one huge bubble that pops with a splash.',
+          'Shadow Step: your hero vanishes in smoke, appears behind the other hero and strikes. The big version lunges, then strikes from the side, then from behind.',
+          'Equip them from the Attack Animations tab of the Collection. Each has a preview button there.',
+          'Hero attacks are looks only. The damage is exactly the same.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'A new Legendary hero attack, Inferno, can drop from crates.',
         details: [
           'Your damage builds up, then fire catches round your hero and fireballs of real, living flame are hurled at the other hero.',

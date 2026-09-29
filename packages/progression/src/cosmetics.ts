@@ -266,6 +266,15 @@ export const COSMETICS: readonly CosmeticDef[] = Object.freeze([
   // ablaze); IV calls down a meteor that detonates into a fire nova and engulfs the target. The name is the builder's
   // placeholder for the owner to rename (the id stays). Legendary like the other eight.
   heroAttack('attack_fire', 'Inferno', 'legendary', 'fire'),
+  // THE RARES (owner 2026-09-29: "build 5 animations that range from rare -> epic ... rare and epics should only have 2
+  // or 3 tiers to them and generally be less exciting, but still extremely clean and fun"). Two visual tiers each
+  // (shared I-II Small, III-IV Big). Names are the builder's placeholders for the owner to rename (the ids stay).
+  heroAttack('attack_coin', 'Pocket Change', 'rare', 'coin'),
+  heroAttack('attack_boomerang', 'Come Back Around', 'rare', 'boomerang'),
+  heroAttack('attack_bubble', 'Bubble Trouble', 'rare', 'bubble'),
+  // Owner 2026-09-29: "add a stealth backstab attack to the rare branch. portrait fades and attacks from behind the
+  // target back towards the player portrait and settles".
+  heroAttack('attack_backstab', 'Shadow Step', 'rare', 'backstab'),
   // HERO TITLES (owner 2026-09-29), 33 heroes x (title + golden master). Achievement rewards, never in a crate.
   ...HERO_TITLE_COSMETICS,
 ]);

@@ -22,6 +22,10 @@ import { playHeroPoison } from '../heroPoison/heroPoison';
 import { playHeroFrost } from '../heroFrost/heroFrost';
 import { playHeroHoly } from '../heroHoly/heroHoly';
 import { playHeroFire } from '../heroFire/heroFire';
+import { playHeroCoin } from '../heroCoin/heroCoin';
+import { playHeroBoomerang } from '../heroBoomerang/heroBoomerang';
+import { playHeroBubble } from '../heroBubble/heroBubble';
+import { playHeroBackstab } from '../heroBackstab/heroBackstab';
 import { heroStrikeDamage, heroStrikeKnockout } from '../heroBlast/heroStrikeDamage';
 
 describe('attackTier: the one shared tier rule', () => {
@@ -64,6 +68,10 @@ describe('every style plays its Tier IV on a knockout blow of 3, and Tier I on a
     ['frost', (o) => playHeroFrost({ ...o, textures: null })],
     ['holy', (o) => playHeroHoly({ ...o, textures: null })],
     ['fire', (o) => playHeroFire({ ...o, textures: null })],
+    ['coin', (o) => playHeroCoin({ ...o, textures: null })],
+    ['boomerang', (o) => playHeroBoomerang({ ...o, textures: null })],
+    ['bubble', (o) => playHeroBubble({ ...o, textures: null })],
+    ['backstab', (o) => playHeroBackstab({ ...o, textures: null })],
   ];
 
   it('the cosmetic styles', () => {

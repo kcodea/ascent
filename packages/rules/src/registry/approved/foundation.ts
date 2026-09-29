@@ -2582,4 +2582,32 @@ export const FOUNDATION_RULES: GameRule[] = [
     currentBehaviour: 'Conforms, built 2026-09-28; flattened and the six-sword finale 2026-09-29. The item reaches the database on the next deploy of progression-inventory (the catalog sync); the equip SQL already accepts the hero_attack slot.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/heroHoly/heroHoly.test.ts', 'packages/progression/src/cosmetics.test.ts', 'packages/ui/src/progression/CollectionHeroAttack.test.tsx', 'packages/ui/src/heroAttack/damageFormation.test.ts'], lastVerifiedAt: '2026-09-29' },
   },
+  {
+    id: 'R-PRESENT-24',
+    title: 'Your portrait frame ring paints OVER your hero power (and its cost coin), yet the power stays fully pressable under it',
+    statement:
+      'When a portrait-frame ring is on your hero portrait, the ring (and the portrait block that carries it) paints above '
+      + 'the hero-power diamond and its cost coin wherever they overlap: in the shop, in combat, and while the portrait '
+      + 'lunges in a hero strike. The ring never takes a click: every press, hover and tooltip on the power lands on the '
+      + 'power even where the ring covers it. With no frame on, the layering is unchanged. The foe side already conforms: '
+      + 'the foe\x27s power icon sits under the foe portrait and its ring. Mechanism: the ring lives inside `.statusbar '
+      + '.hero`, a transformed (self-contained) block that sat at z auto inside the bar while `.statusbar .heropanel` sits '
+      + 'at z41; with a frame on, StatusBar adds `pf-top` and `.statusbar .hero.pf-top` ranks the block at z42 (under the '
+      + 'open Buffs panel lift, z43). The ring layer (`.pframe-box`, `.pframe`) is pointer-events none.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      {
+        kind: 'owner-chat',
+        ref: 'Claude Code session, 2026-09-29 (portrait frame over the hero power, with a screenshot)',
+        quote: 'fix the Z axis of the hero power here so that the player frame is on top of that',
+      },
+      { kind: 'code', ref: 'packages/ui/src/StatusBar.tsx (the `pf-top` class on `.hero`); packages/ui/src/styles.css (`.statusbar .hero.pf-top`, `.pframe-box`, `.pframe`)' },
+    ],
+    currentBehaviour:
+      'Conforms as of 2026-09-29. Before the fix the Aegis diamond drew over the Rank #1 ring\x27s edge. Verified live on '
+      + 'port 5223 (Rank #1 ring, frame scale 1.3): the ring now paints over the diamond, every sampled point inside the '
+      + 'diamond still hits the button, a press on the ring-covered edge arms the power, and the hover tooltip opens.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/portraitFrame/portraitFrameZOrder.test.ts'], lastVerifiedAt: '2026-09-29' },
+  },
 ];

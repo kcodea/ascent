@@ -698,8 +698,11 @@ export function StatusBar() {
       {/* Completed-quest trophies — a horizontal row of art circles sitting directly above the hero panel. */}
       <QuestBadges />
       <div className="statusrow">
+        {/* `pf-top` (owner report 2026-09-29): with a portrait-frame ring on, the whole hero block ranks ABOVE
+            the hero-power diamond (a z41 sibling inside the bar's stacking context), so the ring's overhang
+            paints over the button instead of under it. See `.statusbar .hero.pf-top` in styles.css. */}
         <div
-          className={`hero${isPassive ? ' passive' : canHero ? '' : ' spent'}${heroArmed ? ' armed' : ''}${canHero && !heroArmed ? ' ready' : ''}`}
+          className={`hero${isPassive ? ' passive' : canHero ? '' : ' spent'}${heroArmed ? ' armed' : ''}${canHero && !heroArmed ? ' ready' : ''}${frame ? ' pf-top' : ''}`}
         >
           {/* Run buffs pop-out — expands UPWARD out of the portrait's top edge into the empty top-left board
               space when the portrait is clicked, anchored at the bottom so it grows up (owner rework 2026-08-14;

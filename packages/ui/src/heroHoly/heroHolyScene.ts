@@ -528,8 +528,8 @@ export class HeroHolyScene {
     const sw = o.shock;
     if (sw > 0) {
       this.tw('hot', this.tex.ring, c.core, x, y, { dur: 360, from: 0.4, to: 4.2 * sw, a0: 1, ry: L.tilt, ease: easeOutCubic });
-      this.tw('under', this.tex.ring, c.gold, x, y, { dur: 620, from: 0.6, to: 6.4 * sw, a0: 0.8, ry: L.tilt, ease: easeOutCubic });
-      this.tw('ground', this.tex.ring, c.deep, x, y, { dur: 560, from: 0.5, to: 5.4 * sw, a0: 0.5, ry: L.tilt, ease: easeOutCubic });
+      this.tw('under', this.tex.ring, c.gold, x, y, { dur: 560, from: 0.6, to: 6.4 * sw, a0: 0.5, ry: L.tilt, ease: easeOutCubic });
+      this.tw('ground', this.tex.ring, c.deep, x, y, { dur: 520, from: 0.5, to: 5.4 * sw, a0: 0.35, ry: L.tilt, ease: easeOutCubic });
       this.tw('under', this.tex.ring, c.sky, x, y - r * 0.2, { dur: 420, from: 0.4, to: 3.2 * sw, a0: 0.45 });
     }
     // Dust rolling out along the ground (normal blend, warm: it reads on the light board).
@@ -608,13 +608,13 @@ export class HeroHolyScene {
         life: 480 + this.rnd() * 360, from: (0.9 + this.rnd() * 0.8) * S, to: 0.4 * S, alpha: 1, twinkle: 0, spin: 0, align: true,
       });
     }
-    this.tw('glow', this.tex.ring, c.gold, x, cy, { dur: 300, from: 0.4, to: (len * 1.2 * z) / RING_PX / S, a0: 0.75, ease: easeOutCubic, outFrom: 0.1 });
-    this.tw('under', this.tex.ring, c.sky, x, cy, { dur: 460, from: 0.5, to: (len * 1.7 * z) / RING_PX / S, a0: 0.3, ease: easeOutCubic });
+    this.tw('glow', this.tex.ring, c.gold, x, cy, { dur: 260, from: 0.4, to: (len * 1.2 * z) / RING_PX / S, a0: 0.55, ease: easeOutCubic, outFrom: 0.1 });
+    this.tw('under', this.tex.ring, c.sky, x, cy, { dur: 400, from: 0.5, to: (len * 1.7 * z) / RING_PX / S, a0: 0.18, ease: easeOutCubic });
     // Burnt into the board where it bit: a compact rune circle (the surge's origin), lingering with the path.
     const sz = (r * 2.4 * z) / SIGIL_PX / S;
     this.hold('ground', this.tex.hsigil, c.deep, x, tipY, 'ground', { a: 0.75, g0: sz * 1.6, g1: sz, gMs: 200, tilt: L.tilt, spin: 0.0008, inMs: 40 });
     this.hold('under', this.tex.hsigil, c.gold, x, tipY, 'ground', { a: 1, g0: sz * 1.6, g1: sz, gMs: 200, tilt: L.tilt, spin: 0.0008, inMs: 40, pulse: 0.12 });
-    this.hold('under', this.tex.glow, c.gold, x, tipY, 'ground', { a: 0.5, g1: (r * 3 * z) / GLOW_PX / S, tilt: L.tilt, inMs: 80, pulse: 0.15 });
+    this.hold('under', this.tex.glow, c.gold, x, tipY, 'ground', { a: 0.28, g1: (r * 3 * z) / GLOW_PX / S, tilt: L.tilt, inMs: 80, pulse: 0.15 });
     this.motes(x, cy, 18, { lift: 160, speed: 260, life: 1000, ring: len * 0.2, grav: -30 });
   }
 
@@ -677,7 +677,7 @@ export class HeroHolyScene {
     const b = Math.max(1, buildMs);
     this.tw('under', this.tex.ring, c.gold, x, y, { dur: b, from: (r * 5) / RING_PX / S, to: (r * 1.1) / RING_PX / S, a0: 0.7, ry: L.tilt, ease: (u) => u * u, inMs: 60 });
     this.tw('glow', this.tex.ring, c.core, x, y, { dur: b * 0.9, delay: b * 0.1, from: (r * 4) / RING_PX / S, to: (r * 0.8) / RING_PX / S, a0: 0.55, ry: L.tilt, ease: (u) => u * u, inMs: 60 });
-    this.hold('under', this.tex.glow, c.gold, x, y, 'ground', { a: 0.75, g0: (r * 1) / GLOW_PX / S, g1: (r * 3.4) / GLOW_PX / S, gMs: b, tilt: L.tilt, inMs: b * 0.5, pulse: 0.3 });
+    this.hold('under', this.tex.glow, c.gold, x, y, 'ground', { a: 0.4, g0: (r * 1) / GLOW_PX / S, g1: (r * 2.6) / GLOW_PX / S, gMs: b, tilt: L.tilt, inMs: b * 0.5, pulse: 0.3 });
     this.kickTag('ground', 0.5);
     this.gatherAcc = { x, y, r: r * 1.3, left: b, acc: 0 };
     // THE BLAST forms: a crescent sheet on the ground at the near edge of the circle, facing the target.
@@ -724,7 +724,7 @@ export class HeroHolyScene {
     const fs = o.burst;
     const portrait = (r * 2) / GLOW_PX / S;
     // The big column: it shoots up out of the ground past the portrait.
-    this.column('rise', foot.x, foot.y - r * 5.5 * L.pillarHeight, foot.y, r * 1.5, 90, 140, 420, { glow: 1.1 });
+    this.column('rise', foot.x, foot.y - r * 5.5 * L.pillarHeight, foot.y, r * 1.1, 80, 60, 280, { glow: 1 });
     this.tw('hot', this.tex.glow, c.core, d.x, d.y, { dur: 110, from: portrait * 1.05, to: portrait * 1.3, a0: 0.6 * o.flashAlpha });
     this.tw('hot', this.tex.glow, c.core, foot.x, foot.y, { dur: 140, from: 1.2 * fs, to: Math.min(3.6, 2.2 * fs), a0: o.flashAlpha, ry: L.tilt * 1.4 });
     this.tw('under', this.tex.glow, c.gold, d.x, d.y, { dur: 420, from: 1.6 * fs, to: Math.min(6, 3.4 * fs), a0: 0.35 * o.flashAlpha });
@@ -1017,8 +1017,8 @@ export class HeroHolyScene {
     if (wv) {
       wv.age += dt;
       const bu = clamp01(wv.age / wv.build);
-      let grow = wv.flying ? 1 : 0.35 + 0.65 * easeOutCubic(bu);
-      let a = wv.flying ? 1 : bu * bu;
+      let grow = wv.flying ? 1 : 0.5 + 0.5 * easeOutCubic(bu);
+      let a = wv.flying ? 1 : 0.35 + 0.65 * bu;
       if (wv.spent >= 0) {
         wv.spent += dt;
         const f = clamp01(wv.spent / 160);

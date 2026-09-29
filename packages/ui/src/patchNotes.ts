@@ -59,6 +59,15 @@ export const PATCH_NOTES: PatchNote[] = [
     date: '2026-09-29',
     changes: [
       {
+        category: 'Balance',
+        text: 'Beast buffs now read "Give all Friendly and summoned Beasts" to make clear they reach Beasts summoned later too.',
+        details: [
+          'Only the wording changed. The cards work exactly as before.',
+          'Kennelmaster, Grim, Armadiyo, Trophy Stalker, Rune of Beastial Swarm, Pack Mentality and The Old Hunt.',
+          'Grim: "Echo: Give all Friendly and summoned Beasts +8/+8."',
+        ],
+      },
+      {
         category: 'Systems',
         text: 'Every Dwarf now has a voice: 19 more speak, grunt or roar when played, and cry out when they die.',
         details: [

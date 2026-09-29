@@ -59,7 +59,7 @@ describe('questText — rewards', () => {
     [{ kind: 'recurringGrant', cards: ['feedalpha'] }, 'End of Turn: get Feed the Alpha'],
     [{ kind: 'combatFlag', flag: 'lawOfTeeth' }, 'Beast Slaughters and Rallies trigger an extra time'],
     [{ kind: 'combatFlag', flag: 'echoingCoop' }, 'Start of Combat: trigger your Echoes'],
-    [{ kind: 'combatFlag', flag: 'oldHunt', amount: 7 }, 'Whenever a Beast attacks, give all your Beasts +7/+7'], // R-AURA-03 (2026-09-28)
+    [{ kind: 'combatFlag', flag: 'oldHunt', amount: 7 }, 'Whenever a Beast attacks, give all Friendly and summoned Beasts +7/+7'], // R-AURA-03 (2026-09-28)
   ];
   for (const [r, text] of cases) {
     it(`${r.kind}/${'flag' in r ? r.flag : ''} → "${text}"`, () => expect(questRewardText(r)).toBe(text));
@@ -67,7 +67,7 @@ describe('questText — rewards', () => {
 
   it('scalingTribeAura (Beast, Pack Mentality) states the Start of Combat grant, step, and cadence (R-AURA-03)', () => {
     const r: QuestReward = { kind: 'scalingTribeAura', tribe: 'beast', attack: 3, health: 1, per: 5, event: 'summonCombat', stepAttack: 3, stepHealth: 1 };
-    expect(questRewardText(r)).toBe('Start of Combat: give all your Beasts +3/+1. Improve this by +3/+1 every 5 Beasts summoned in combat');
+    expect(questRewardText(r)).toBe('Start of Combat: give all Friendly and summoned Beasts +3/+1. Improve this by +3/+1 every 5 Beasts summoned in combat');
   });
 
   it('impAura reads the current improvement magnitude', () => {

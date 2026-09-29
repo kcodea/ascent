@@ -316,7 +316,7 @@ describe('the 19 reworked texts read as the owner wrote them', () => {
     rune_hatchery: 'Minions summoned in **combat** have **+5/+5** and **Taunt**.',
     rune_muckbroker: 'Get a **Muckslinger**. Repeat every **2 turns**.',
     rune_unbroken_vein: 'Get a **Veinbreaker**. Repeat at **Start of Turn**. They grant **both** effects.',
-    rune_beastial_swarm: 'When a friendly **Beast** dies, give all your Beasts **+2/+2**. **Avenge (2):** Improve this.', // owner 2026-09-28 (R-AURA-03)
+    rune_beastial_swarm: 'When a friendly **Beast** dies, give all Friendly and summoned Beasts **+2/+2**. **Avenge (2):** Improve this.', // owner 2026-09-28 (R-AURA-03)
     rune_copies: '**Start of Turn:** get a copy of a random minion on your board.',
     rune_finality: 'When your **last minion dies**, summon **3 Imps** with **Ward**.',
     rune_living_treasure: 'Your **Gemheart Golems** gain **Rebirth**.',

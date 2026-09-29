@@ -121,6 +121,10 @@ export interface RunLobby {
    *  bookkeeping for telemetry — it never feeds seat selection, pairing or any RNG, so it cannot move a
    *  replay. Absent on lobbies built before the field existed and on authored / bot-only lobbies. */
   poolAtStart?: LobbyPoolStats;
+  /** OFFLINE = UNRATED (owner 2026-09-28: "offline = unrated"). Stamped at creation when no opponent seat is a
+   *  recorded player run (every seat generated). Such a lobby moves no rank, division, promotion or demotion.
+   *  Read through `lobbyIsUnrated`, which also derives it from the seats for a lobby saved before the stamp. */
+  unrated?: 'all-generated';
 }
 
 /** Player-run boards available to a lobby when it was built (non-synthetic, this set only). */
@@ -161,8 +165,28 @@ export interface LobbyPoolTelemetry {
   poolRuns: number | null;
   poolBoardsByWave: number[] | null;
   poolSource: string | null;
+  /** The lobby was unrated because every opponent seat was generated (see `lobbyIsUnrated`). */
+  unrated: boolean;
   seats: { recorded: number; hybrid: number; bot: number; authored: number };
   allGenerated: boolean;
+}
+
+/** Every opponent seat is generated (hybrid / bot), none a recorded player run. Authored (tutorial) tables
+ *  are not "generated" in this sense; they are never rated anyway. */
+export function lobbyAllGenerated(lobby: Pick<RunLobby, 'seats'>): boolean {
+  let generated = 0;
+  for (const s of lobby.seats) {
+    if (s.kind === 'snapshot' || s.kind === 'authored') return false;
+    if (s.kind === 'hybrid' || s.kind === 'bot') generated++;
+  }
+  return generated > 0;
+}
+
+/** OFFLINE = UNRATED (owner 2026-09-28). True for a lobby stamped unrated at creation, and for any lobby whose
+ *  seats are all generated (covers saves from before the stamp and any other path to an all-bot table). The
+ *  server applies the same rule to the seat keys it is sent (`submit-rating`). */
+export function lobbyIsUnrated(lobby: Pick<RunLobby, 'seats' | 'unrated'>): boolean {
+  return lobby.unrated === 'all-generated' || lobbyAllGenerated(lobby);
 }
 
 export function lobbyPoolTelemetryOf(lobby: RunLobby): LobbyPoolTelemetry {
@@ -173,14 +197,14 @@ export function lobbyPoolTelemetryOf(lobby: RunLobby): LobbyPoolTelemetry {
     else if (s.kind === 'bot') seats.bot++;
     else if (s.kind === 'authored') seats.authored++;
   }
-  const generated = seats.hybrid + seats.bot;
   return {
+    unrated: lobbyIsUnrated(lobby),
     poolBoards: lobby.poolAtStart?.boards ?? null,
     poolRuns: lobby.poolAtStart?.runs ?? null,
     poolBoardsByWave: lobby.poolAtStart?.boardsByWave ?? null,
     poolSource: lobby.poolAtStart?.source ?? null,
     seats,
-    allGenerated: generated > 0 && seats.recorded === 0 && seats.authored === 0,
+    allGenerated: lobbyAllGenerated(lobby),
   };
 }
 
@@ -364,7 +388,9 @@ export function createRunLobby(seed: number, playerHeroId: string, rules: Partia
   // The probe above advanced live drivers to round 1; drop them so the lobby starts every seat clean. Every
   // PROBED seat, not just the seated ones — a rejected candidate's driver is cached too.
   resetLobbyDrivers(probed);
-  return { version: 1, seed, setId, round: 1, seats, encounters: [], finished: false, rules: r, poolAtStart: lobbyPoolStatsOf(OPPONENT_POOL, setId, available.length) };
+  const lobby: RunLobby = { version: 1, seed, setId, round: 1, seats, encounters: [], finished: false, rules: r, poolAtStart: lobbyPoolStatsOf(OPPONENT_POOL, setId, available.length) };
+  if (lobbyAllGenerated(lobby)) lobby.unrated = 'all-generated';
+  return lobby;
 }
 
 /** Deterministic pairing over the living seats. Mirrors `pairSeats` but on the serializable shape. */

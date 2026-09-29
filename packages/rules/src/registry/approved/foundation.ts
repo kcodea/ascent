@@ -519,7 +519,7 @@ export const FOUNDATION_RULES: GameRule[] = [
   },
   {
     id: 'R-LOBBY-06',
-    title: 'A lobby that seats player runs waits for the opponent pool, and never falls back to bots silently',
+    title: 'A lobby that seats player runs waits for the opponent pool, never falls back to bots silently, and an all-bot lobby is unrated',
     statement:
       'Before a rated lobby (or Practice against players) is built, the launch waits for the shared opponent pool. '
       + 'When it has already loaded (the usual case) there is no wait. While it is still loading, or its last load '
@@ -530,23 +530,30 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'and when the browser comes back online. The last good pool for the live set is cached (IndexedDB, one '
       + 'bounded record per set, same build version, at most a week old) and fills any wave the network cannot. '
       + 'Every ranked telemetry row records the pool size and the recorded / hybrid / bot seat counts at lobby '
-      + 'creation, with a flag when every seat was generated. "Play anyway" keeps the lobby rated, as before.',
+      + 'creation, with a flag when every seat was generated. OFFLINE = UNRATED: a lobby whose opponent seats are '
+      + 'all generated (Play anyway, or any other path to an all-bot table) is marked unrated at creation from its '
+      + 'seat kinds. It moves no rank, division, promotion or demotion and earns no Ranked XP or Ranked '
+      + 'achievements; the end screen reads "Unrated · No opponents reached", the Play anyway text says the game '
+      + 'will not be rated, and the history, boards and telemetry rows carry the unrated tag. The server refuses '
+      + 'to settle a rank request whose seat keys are all generated, so an old or tampered client cannot rate one.',
     domain: 'foundation',
     status: 'approved',
     evidence: [
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-28 (all-bot rated lobby, seed 309102059)', quote: 'build the fix so this does not re-occur.' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-28 (the unrated question)', quote: 'offline = unrated' },
       { kind: 'fix-pr', ref: 'fix/opponent-pool-loading' },
-      { kind: 'code', ref: 'packages/ui/src/opponentPool/poolLoader.ts createPoolLoader; packages/ui/src/opponentPool/poolGate.ts createPoolGate; packages/ui/src/hero-select/HeroLaunchCurtain.tsx; packages/sim/src/lobby/runLobby.ts lobbyPoolTelemetryOf' },
+      { kind: 'code', ref: 'packages/ui/src/opponentPool/poolLoader.ts createPoolLoader; packages/ui/src/opponentPool/poolGate.ts createPoolGate; packages/ui/src/hero-select/HeroLaunchCurtain.tsx; packages/sim/src/lobby/runLobby.ts lobbyPoolTelemetryOf + lobbyIsUnrated; packages/ui/src/rank/ratedRun.ts; supabase/functions/submit-rating/index.ts allSeatsGenerated' },
     ],
     currentBehaviour:
       'Conforms as of 2026-09-28. Before, the startup pull raced all 17 per-wave requests against one 4 s timer, '
       + 'so a single slow wave discarded the whole pool; nothing retried until a run ended, and nothing waited '
       + 'before the lobby was built, so an empty pool silently seated seven hybrids (1 of 24 rated lobbies since '
-      + '2026-09-23). Whether an all-generated lobby should be unrated is an open owner decision; no rating rule '
-      + 'changed.',
+      + '2026-09-23), and it was rated. The server check needs the submit-rating Edge Function redeployed (no SQL). '
+      + 'Known limit: a request with NO seat keys (queued before 2026-09-22) still settles, and the server cannot '
+      + 'verify that the keys a client sends are the ones it faced.',
     enforcement: {
       kind: 'scenario',
-      refs: ['packages/ui/src/opponentPool/poolLoader.test.ts', 'packages/ui/src/opponentPool/PoolWaitPanel.test.tsx', 'packages/sim/src/lobby/poolLoadRepro.test.ts'],
+      refs: ['packages/ui/src/opponentPool/poolLoader.test.ts', 'packages/ui/src/opponentPool/PoolWaitPanel.test.tsx', 'packages/sim/src/lobby/poolLoadRepro.test.ts', 'packages/ui/src/rank/unratedLobby.test.ts', 'packages/ui/src/rank/RankScreen.test.tsx'],
       lastVerifiedAt: '2026-09-28',
     },
   },

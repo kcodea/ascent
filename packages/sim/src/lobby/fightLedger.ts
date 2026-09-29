@@ -58,6 +58,10 @@ export interface FightLedgerOptions {
 export const botFightKey = (kind: string, heroId: string): string => `bot:${kind}:${heroId}`;
 /** True for a generated seat's key — never a Hall candidate, read as a fixed 25 by the lobby strength. */
 export const isBotFightKey = (key: string): boolean => key.startsWith('bot:');
+/** OFFLINE = UNRATED (owner 2026-09-28): every opponent key is generated. The server's copy is
+ *  `allSeatsGenerated` in `supabase/functions/_shared/lobbyRating.ts` (parity-tested). No keys = unknown. */
+export const allFightKeysGenerated = (keys: readonly string[] | null | undefined): boolean =>
+  !!keys && keys.length > 0 && keys.every(isBotFightKey);
 
 /** The fight-ledger key of one seat (see the module note). */
 export function seatFightKey(seat: LobbySeatState, lobby: Pick<RunLobby, 'setId'>, opts: FightLedgerOptions): string {

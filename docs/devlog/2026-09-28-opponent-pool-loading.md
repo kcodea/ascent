@@ -37,10 +37,34 @@ Root cause, in the client's startup pull (`fetchAndRegisterPool`):
   ranked upload stamps it as `lobbyPool` on the telemetry and inside the `derived` jsonb of `run_telemetry`
   (no SQL). Query: `derived->'lobbyPool'->>'allGenerated' = 'true'`.
 
-## Open owner decision
+## Offline = unrated (owner decision, same day)
 
-Whether an all-generated lobby should be unrated. Unchanged: "Play anyway" (only offered after the retries
-fail) builds the lobby with generated seats and it stays rated, exactly as before.
+Owner, verbatim: "offline = unrated". A lobby with no recorded player run at the table is unrated.
+
+- **Sim**: `createRunLobby` stamps `RunLobby.unrated = 'all-generated'` when every opponent seat is hybrid or
+  bot. `lobbyIsUnrated(lobby)` reads the stamp OR derives it from the seats, so a save from before the stamp and
+  any other route to an all-bot table are covered. `allFightKeysGenerated(keys)` is the client copy of the
+  server rule.
+- **Client**: `rankedRunIdForFinish` (`rank/ratedRun.ts`) returns null for such a run, so no rank request is
+  queued and no Ranked progression is begun. The end screen shows "Unrated · No opponents reached"
+  (`unratedReasonOf`); the failure panel says "your opponents will be bots and the game won't be rated". The
+  history row carries `entry.unrated = 'all-generated'`, boards upload with `unrated: true`, a Hall row carries
+  `unrated: true`, and telemetry's `lobbyPool.unrated` is true. If the server answers `unrated_all_generated`
+  (an item queued before this build), the store shows Unrated, not a failure.
+- **Server**: `submit-rating` checks `allSeatsGenerated(seatKeys)` (in `_shared/lobbyRating.ts`) BEFORE
+  `settle_rank` and answers `200 { status: 'unrated', error: 'unrated_all_generated' }`, writing nothing. Every
+  client maps a 200 with an `error` string to `rejected`, which leaves the durable rank queue, so an old client
+  gets no rating change and no retry loop. No SQL change. Needs the Edge Function redeployed.
+- **XP / achievements**: none for an unrated lobby. The spec's default was "counts like Practice", but Practice
+  XP is server-verified against a `practice_games` row and Ranked XP against an accepted rank result; an unrated
+  lobby has neither, so paying it would need a new trusted source. Flagged for the owner.
+- **Known limits**: a request with NO seat keys (only items queued before 2026-09-22) still settles; the
+  server cannot verify that the keys sent are the seats the client really faced.
+
+### Owner steps
+
+1. `npx supabase functions deploy submit-rating --project-ref zcwhbejpqcdcfdpfxeza`
+2. No SQL.
 
 ## Notes
 

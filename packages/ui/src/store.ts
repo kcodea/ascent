@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { loadFpsCap, saveFpsCap } from './fpsCap';
 import { CARD_INDEX, activeSet, type SetId } from '@game/content';
-import { type CombatOdds, HEROES, playableHeroes, practiceHeroChoiceIds, runTribesForSeed, OPPONENT_POOL, OPPONENT_POOL_DATA, registerOpponents, createRun, deserialize, initialProfile, resolveServerRank, adoptServerRank, legacyRatingChangeOf, rankedRunIdOf, type RankResult, type RankedProfile, isPlayerAction, missingCardIds, nextOpponent, parseQaScenario, reconstructRunTelemetry, recordTelemetryAction, emptyTelemetryLog, withLiveTelemetry, telemetrySourceOf, setIdOf, type TelemetryLog, beginDerive, observeAction, finishDerive, progressionFactsOf, type DeriveState, reduce, reduceWithPresentation, serialize, snapshotBoard, type Action, type BoardSnapshot, type PlayerProfile, type RatingChange, type Replay, type RunMode, type RunState, combatFrameOf, deltaShopFrameOf, shopFrameOf, runRecord, type DragPath, type ReplayFrame, type ReplayV2, type ShopView, appendInspectEvent, type InspectEvent, type InspectSnapshot, createLobbyRun, enableAncients, createTutorialRun, type TutorialCourse, type PracticeConfig, type BotLevel, DEFAULT_PRACTICE_CONFIG, normalizeBotDifficulty, normalizePracticeTribes, practiceRunTribes, warmLobbySeat, prepareActionWithPresentation, type PreparedPresentationAction, fightRowsOf, opponentFightKeys, type LobbyStrength, type FightRow, buildMatchDetails, type MatchDetails, lobbyPoolTelemetryOf } from '@game/sim';
+import { type CombatOdds, HEROES, playableHeroes, practiceHeroChoiceIds, runTribesForSeed, OPPONENT_POOL, OPPONENT_POOL_DATA, registerOpponents, createRun, deserialize, initialProfile, resolveServerRank, adoptServerRank, legacyRatingChangeOf, type RankResult, type RankedProfile, isPlayerAction, missingCardIds, nextOpponent, parseQaScenario, reconstructRunTelemetry, recordTelemetryAction, emptyTelemetryLog, withLiveTelemetry, telemetrySourceOf, setIdOf, type TelemetryLog, beginDerive, observeAction, finishDerive, progressionFactsOf, type DeriveState, reduce, reduceWithPresentation, serialize, snapshotBoard, type Action, type BoardSnapshot, type PlayerProfile, type RatingChange, type Replay, type RunMode, type RunState, combatFrameOf, deltaShopFrameOf, shopFrameOf, runRecord, type DragPath, type ReplayFrame, type ReplayV2, type ShopView, appendInspectEvent, type InspectEvent, type InspectSnapshot, createLobbyRun, enableAncients, createTutorialRun, type TutorialCourse, type PracticeConfig, type BotLevel, DEFAULT_PRACTICE_CONFIG, normalizeBotDifficulty, normalizePracticeTribes, practiceRunTribes, warmLobbySeat, prepareActionWithPresentation, type PreparedPresentationAction, fightRowsOf, opponentFightKeys, type LobbyStrength, type FightRow, buildMatchDetails, type MatchDetails, lobbyPoolTelemetryOf, lobbyIsUnrated } from '@game/sim';
 import type { PresentationBatch } from '@game/core';
 import { combatTimelineFrom } from './choreographer/combatTimeline';
 import type { RuneLockInCard } from './RuneLockIn';
@@ -80,6 +80,7 @@ import { gateBlocks, notifyGateNudge } from './tutorial/gateBus';
 import { beginCourseFresh } from './tutorial/tutorialProfile';
 import { buildRunHistoryEntry, careerStats, clearRunHistory, type RunHistoryEntry } from './runHistory';
 import { clearProfile, loadProfile, saveProfile } from './profileStore';
+import { rankedRunIdForFinish } from './rank/ratedRun';
 import { enqueuePendingRank, flushPendingRanks, installRankRetryTriggers, rankRequestFor, type PendingRank } from './rank/rankSubmission';
 import { TUTORIAL_COURSE_ID, practiceRunId, snapshotForRun, tutorialRunId, withEquippedTitle } from '@game/progression';
 import { beginRunProgression, expectRunProgression, flushProgression, installProgression, markRunProgressionUnavailable, mirrorFor, probeProgression, useProgression } from './progression/progressionStore';
@@ -1479,10 +1480,12 @@ function commitResolvedAction(
       // Capture locally (→ this browser's pool next launch) AND push to the shared backend (→ everyone's pool).
       // A victory also logs a leaderboard run (its final warband for the hover). Deferred so it never hitches
       // the end screen; all best-effort and never throw.
+      // OFFLINE = UNRATED (owner 2026-09-28): a lobby with no recorded player run at the table ranks nothing.
+      const unratedLobby = next.mode === 'lobby' && !!next.lobby && lobbyIsUnrated(next.lobby);
       setTimeout(() => {
         const fresh = lobbyBoards ? saveCapturedBoards(lobbyBoards, setId, author) : saveRunBoards(replay, author, next.cosmetics);
         set({ lastRunBoards: fresh.length }); // A6: surface "you contributed N boards" on the end screen
-        void uploadBoards(fresh);
+        void uploadBoards(fresh, unratedLobby ? { unrated: true } : undefined);
         // Between-runs pool + win-rate refresh (owner ask 2026-07-18): the NEXT run in this session sees
         // fresh remote boards (registerOpponents dedupes) + fresh ledger weights. Delayed a beat so this
         // run's own uploads above land first and can flow back in. Never mid-run — the run just ended.
@@ -1582,7 +1585,7 @@ function commitResolvedAction(
         // rides along (the same value the run's pool key and fight-ledger key carry) so the Hall can join a
         // run's own career row by its full run key, never by seed + hero alone.
         const entry = buildRunHistoryEntry(next, { date, at: nowIso, boardsContributed: fresh.length, board: finalBoard, apt, cardsPlayed });
-        void uploadRunHistory({ ...entry, ...(match ? { match } : {}), author, placement: lobbyPlacement ?? undefined, mode: next.mode, patch: `${__APP_VERSION__}+${__BUILD_SHA__}` })
+        void uploadRunHistory({ ...entry, ...(match ? { match } : {}), ...(unratedLobby ? { unrated: 'all-generated' } : {}), author, placement: lobbyPlacement ?? undefined, mode: next.mode, patch: `${__APP_VERSION__}+${__BUILD_SHA__}` })
           .then(() => fetchRunHistory<RunHistoryEntry>())
           .then((remote) => {
             // A FAILED read returns null, and we skip the profile write entirely rather than upserting
@@ -1602,9 +1605,11 @@ function commitResolvedAction(
         // tells the post-game screen where it stands and the confirmed answer is adopted into `profile`.
         // Independent of everything else here (history upload, Career fetch, telemetry, replay encoding): none
         // of those can delay or block awarding points. Practice / tutorial / sandbox never reach this block.
-        const rankedRunId = next.mode === 'lobby' && lobbyPlacement != null ? rankedRunIdOf(next) : null;
+        // An all-generated lobby is UNRATED (owner 2026-09-28): no rank request at all, and no ranked XP below
+        // (the server's ranked XP keys off an accepted rank result, which this game never has).
+        const rankedRunId = rankedRunIdForFinish(next, lobbyPlacement);
         if (rankedRunId && lobbyPlacement != null) beginRankSubmission(rankedRunId, lobbyPlacement, next.seed, seatKeys);
-        else set({ lastRating: null, rankResult: null, rankSubmission: 'unrated', rankSubmissionError: null, rankRunId: null });
+        else set({ lastRating: null, rankResult: null, rankSubmission: 'unrated', rankSubmissionError: unratedLobby ? 'all_generated' : null, rankRunId: null });
         // ACCOUNT PROGRESSION (2026-09-27): queued AFTER the rank request (the server reads the ranked placement
         // from the ACCEPTED rank result, so the progression queue holds this item until that settles). The facts
         // come off the run observer; the XP is the server's to compute.
@@ -1683,6 +1688,7 @@ function commitResolvedAction(
             mode: 'lobby',
             heroId: next.heroId, author, wave: next.wave,
             wins: next.history.filter((r) => r === 'win').length, seed: next.seed,
+            ...(unratedLobby ? { unrated: true } : {}),
             board: finalBoard, patch: `${__APP_VERSION__}+${__BUILD_SHA__}`,
             capturedAt: date,
             // Per-round W/L spread for the Hall of Champions — one char per round (W/L/D), calibration included.
@@ -2664,6 +2670,11 @@ function applyRankOutcome(item: Pick<PendingRank, 'runId'>, outcome: RankSubmitO
           }
         : {}),
     }));
+    return;
+  }
+  // OFFLINE = UNRATED: the server refused to settle an all-generated lobby. That is not a failure to show.
+  if (outcome.status === 'rejected' && outcome.reason === 'unrated_all_generated') {
+    if (isCurrent) useGame.setState({ rankSubmission: 'unrated', rankSubmissionError: 'all_generated' });
     return;
   }
   if (isCurrent) useGame.setState({ rankSubmission: outcome.status, rankSubmissionError: outcome.reason });

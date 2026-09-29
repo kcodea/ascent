@@ -41,8 +41,8 @@ medal + division — see *Ranked ladder* below).
 - **A lobby that seats player runs waits for the opponent pool** (owner 2026-09-28, R-LOBBY-06). A rated lobby
   or Practice against players is not built until the shared pool has loaded: instantly when it already has,
   otherwise behind a cancellable "Finding opponents..." wait while it retries. Only a genuine failure (offline)
-  falls back, and never silently: the player chooses Retry, Play anyway (generated seats, still rated; whether
-  such a lobby should be unrated is an open owner decision) or Back to menu. The last good pool for the live set
+  falls back, and never silently: the player chooses Retry, Play anyway (generated seats, **unrated**, see
+  below) or Back to menu. The last good pool for the live set
   is cached locally and fills any wave the network cannot supply.
 - The lobby is **asynchronous**: opponents are recordings and generated runs, never live opponents. It never
   requires two players online at once.
@@ -108,6 +108,14 @@ Source: `packages/sim/src/lobby/matchDetails.ts`, `packages/ui/src/store.ts` (`m
 
 The visible ladder is a **medal + division**, not a number. Only a finished **rated lobby** (the `Play`
 route) moves it; Practice, the tutorial and sandbox runs never do.
+
+- **Offline = unrated** (owner 2026-09-28, verbatim: *"offline = unrated"*; R-LOBBY-06). A lobby whose seven
+  opponent seats are ALL generated (no recorded player run at the table: "Play anyway" after the opponent pool
+  could not be reached, or any other path to an all-bot table) is **unrated**: no points, no division change, no
+  promotion or demotion, and no Ranked XP or Ranked achievements (streaks included). It is marked at creation
+  from the seat kinds (`lobbyIsUnrated`), the end screen reads **"Unrated · No opponents reached"**, and the
+  client submits no rank request. The server enforces it too: `submit-rating` refuses to settle a request whose
+  seat keys are all generated (`bot:…`, `allSeatsGenerated`). A lobby with at least one real run is rated as usual.
 
 - **Six medals — Bronze, Silver, Gold, Platinum, Diamond, Ascendant — three divisions each**, ordered
   **I → II → III** and then the next medal's I (18 divisions, `Bronze I` lowest, `Ascendant III` highest).

@@ -21,13 +21,16 @@
  * does NOT overrule the committed SQL result (the ledger is what was written) — it flags `parity: false` and
  * logs, so a rules edit that missed one copy surfaces on the first real settlement.
  *
+ * UNRATED (2026-09-28): all seven seat keys generated (`bot:`) → `{ status: 'unrated', error: 'unrated_all_generated' }`,
+ * no settlement. See `allSeatsGenerated`.
+ *
  * Deploy: `supabase functions deploy submit-rating` (see docs/rank-season-runbook.md for the full order).
  *
  * Deno runtime — NOT part of the Node monorepo build (the repo's tsc/eslint don't compile this directory).
  */
 // @ts-nocheck — Deno globals + remote imports aren't visible to the repo's Node TypeScript config.
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import { RANK_RULES_VERSION, RANK_SEASON, isValidPlacement, resolveRankOutcome, sameRankOutcome, strengthBonusOf } from '../_shared/lobbyRating.ts';
+import { RANK_RULES_VERSION, RANK_SEASON, allSeatsGenerated, isValidPlacement, resolveRankOutcome, sameRankOutcome, strengthBonusOf } from '../_shared/lobbyRating.ts';
 
 /** At most seven opponent keys, each a bounded string (an `author|hero|seed` or a `bot:kind:hero`). */
 const MAX_SEAT_KEYS = 7;
@@ -82,6 +85,13 @@ Deno.serve(async (req: Request): Promise<Response> => {
   const seatKeys: string[] | null = Array.isArray(body.seatKeys)
     ? body.seatKeys.filter((k: unknown): k is string => typeof k === 'string' && k.length > 0 && k.length <= MAX_SEAT_KEY_LENGTH).slice(0, MAX_SEAT_KEYS)
     : null;
+
+  // OFFLINE = UNRATED (owner 2026-09-28): a lobby with no recorded player run at the table (every opponent key
+  // generated) is not settled at all: no points, no division, no promotion or demotion, nothing written. Checked
+  // on the server so an old or tampered client cannot rate an all-bot lobby. Answered 200 with an `error`
+  // string: an older client reads that as a permanent refusal and drops the item from its rank queue (no retry
+  // loop); a current client never submits such a lobby in the first place.
+  if (allSeatsGenerated(seatKeys)) return json(200, { status: 'unrated', error: 'unrated_all_generated' });
 
   // THE SETTLEMENT — one atomic database call as the service role (RLS forbids every client rank write; the
   // function itself is executable by the service role only).

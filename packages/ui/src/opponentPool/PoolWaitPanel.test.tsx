@@ -52,6 +52,8 @@ describe('the Finding opponents panel', () => {
     act(() => { outcome = gate.run(); });
     await act(async () => { loader.resolve(state('failed')); await Promise.resolve(); });
     expect(m.container.textContent).toContain("Couldn't reach other players' boards.");
+    // OFFLINE = UNRATED (owner 2026-09-28): the choice says so before the player makes it.
+    expect(m.container.textContent).toContain("If you play anyway, your opponents will be bots and the game won't be rated.");
     const labels = Array.from(m.container.querySelectorAll('button')).map((b) => b.textContent);
     expect(labels).toEqual(['Retry', 'Play anyway', 'Back to menu']);
     // No em dash in player text, and no native tooltip.

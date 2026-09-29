@@ -9,9 +9,9 @@
  *  - that retry genuinely fails (offline)                                -> phase 'failed', with Retry,
  *    Play anyway and Back to menu. Nothing falls back silently.
  *
- * "Play anyway" keeps today's behaviour (the lobby is built with generated seats and stays rated). Whether an
- * all-generated lobby should be unrated is an OPEN OWNER DECISION; this gate deliberately changes no rating
- * rule.
+ * "Play anyway" builds the lobby with generated seats, and such a lobby is UNRATED (owner 2026-09-28:
+ * "offline = unrated"): `lobbyIsUnrated` marks it at creation from the seat kinds, the client submits no rank,
+ * and `submit-rating` refuses an all-generated set of seat keys.
  */
 import type { PracticeConfig, RunMode } from '@game/sim';
 import type { PoolLoader } from './poolLoader';

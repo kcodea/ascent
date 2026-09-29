@@ -27,7 +27,7 @@ export function PoolWaitPanel({ gate }: { gate: PoolGate }) {
     <div className="pool-wait" role="alertdialog" aria-labelledby="pool-wait-fail-title">
       <div className="pool-wait-card">
         <div className="pool-wait-title" id="pool-wait-fail-title">Couldn't reach other players' boards.</div>
-        <div className="pool-wait-body">Check your connection and retry. If you play anyway, your opponents will be bots.</div>
+        <div className="pool-wait-body">Check your connection and retry. If you play anyway, your opponents will be bots and the game won't be rated.</div>
         <div className="pool-wait-actions">
           <button type="button" className="btn go" onClick={() => gate.retry()}>Retry</button>
           <button type="button" className="btn" onClick={() => gate.playAnyway()}>Play anyway</button>

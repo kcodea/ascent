@@ -77,11 +77,6 @@ export const PATCH_NOTES: PatchNote[] = [
           'Bots and games from before titles were recorded show no title.',
         ],
       },
-    ],
-  },
-  {
-    date: '2026-09-29',
-    changes: [
       {
         category: 'Systems',
         text: 'Consecration got flatter, cleaner art and a new six-sword finale.',
@@ -90,15 +85,6 @@ export const PATCH_NOTES: PatchNote[] = [
           'On the biggest hits, six holy swords fly in from all sides, faster and faster, and plant round the middle of the board.',
           'Then the middle collapses and a blast of holy light races across the board at the other hero.',
           'Hero attacks are looks only. The damage is exactly the same.',
-        ],
-      },
-      {
-        category: 'Systems',
-        text: "Match details now shows other players' titles.",
-        details: [
-          'Each player in the list shows the title they wore in that game, in its rarity colour, next to their hero.',
-          "Turning off Show opponent cosmetics hides other players' titles. Your own always shows.",
-          'Bots and games from before titles were recorded show no title.',
         ],
       },
     ],

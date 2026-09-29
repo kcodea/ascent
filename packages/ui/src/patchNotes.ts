@@ -54,6 +54,16 @@ export const PATCH_NOTES: PatchNote[] = [
     date: '2026-09-28',
     changes: [
       {
+        category: 'Systems',
+        text: 'New skins in crates: 13 more minion looks.',
+        details: [
+          'Drakko: Rock Star Drakko, Crowd Surf Drakko and Cashier Drakko.',
+          'Sylus: Slam Dunk Sylus and the Legendary Tee Time Sylus.',
+          'Black Belt Brian: Sketchbook Brian, a Common.',
+          'One each: Joyride Jensen & Fi, Lounge Act Joker, Storm Front Nimbus, Superfan Paragon, Potion Stand Steward, Candy Cane Venom and Double Agent Zyff.',
+        ],
+      },
+      {
         category: 'Balance',
         text: 'There is no Beast Aura any more. Beast cards now simply give all your Beasts stats, in the Shop and in combat.',
         details: [

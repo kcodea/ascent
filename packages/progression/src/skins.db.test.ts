@@ -246,7 +246,7 @@ describe('the kill switch (owner 2026-09-28: "remove any rewards from the game")
     expect((await profile(holder)).cosmetics!.sort()).toEqual(['skin_albus_1', 'skin_blackbelt_1']);
 
     await db.exec(RESTORE_CATEGORY);
-    expect((await poolIds(fresh)).filter((id) => id.startsWith('skin_blackbelt')).sort()).toEqual(['skin_blackbelt_1', 'skin_blackbelt_2', 'skin_blackbelt_3']);
+    expect((await poolIds(fresh)).filter((id) => id.startsWith('skin_blackbelt')).sort()).toEqual(['skin_blackbelt_1', 'skin_blackbelt_2', 'skin_blackbelt_3', 'skin_blackbelt_4']);
     await equip(holder, 'minion_skin', 'blackbelt', 'skin_blackbelt_1');
     expect((await profile(holder)).loadout).toEqual({ heroSkinByHeroId: { albus: 'skin_albus_1' }, minionSkinByCardId: { blackbelt: 'skin_blackbelt_1' } });
   });

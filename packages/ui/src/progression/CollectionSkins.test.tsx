@@ -67,15 +67,20 @@ describe('the Heroes and Minions tabs', () => {
     open();
     expect(tab('Heroes').className).not.toMatch(/\blocked\b/);
     expect(tab('Heroes').querySelector('.colls-tab-count')?.textContent).toBe('1/2');
-    // 2026-09-28: three Black Belt Brian skins and one Bellringer Voss skin, so Minions is 1/4 and the album 22 items (30 with the eight hero attacks, 2026-09-28)
-    expect(tab('Minions').querySelector('.colls-tab-count')?.textContent).toBe('1/4');
-    expect(text('.colls-meter-num')).toBe('3 / 30');
+    // 2026-09-28: three Black Belt Brian skins and one Bellringer Voss skin, so Minions is 1/4 and the album 22 items (30 with the eight hero attacks, 2026-09-28); skins batch 2 (2026-09-28) adds 13 minion skins: Minions 1/17, the album 43
+    expect(tab('Minions').querySelector('.colls-tab-count')?.textContent).toBe('1/17');
+    expect(text('.colls-meter-num')).toBe('3 / 43');
   });
 
   it('tiles show the art and the target; unowned are dimmed + blurred (missing) with a lock', () => {
     open();
     act(() => tab('Minions').click());
-    expect(tileNames().sort()).toEqual(['Clocktower Voss', 'Glitch Brian', 'Grandmaster Brian', 'Sheriff Brian']);
+    expect(tileNames().sort()).toEqual([
+      'Candy Cane Venom', 'Cashier Drakko', 'Clocktower Voss', 'Crowd Surf Drakko', 'Double Agent Zyff',
+      'Glitch Brian', 'Grandmaster Brian', 'Joyride Jensen & Fi', 'Lounge Act Joker', 'Potion Stand Steward',
+      'Rock Star Drakko', 'Sheriff Brian', 'Sketchbook Brian', 'Slam Dunk Sylus', 'Storm Front Nimbus',
+      'Superfan Paragon', 'Tee Time Sylus',
+    ]);
     const owned = tile('Sheriff Brian');
     expect(owned.className).toMatch(/\bskin\b/);
     expect(owned.className).toMatch(/\bowned\b/);
@@ -143,12 +148,17 @@ describe('the kill switch in the Collection (retired = hidden, owned or not; res
     act(() => tab('Minions').click());
     expect(tileNames()).toContain('Sheriff Brian');
     act(() => applyServerCatalogState({ retiredIds: ['skin_blackbelt_1'], disabledCategories: [] }));
-    expect(tileNames()).toEqual(['Grandmaster Brian', 'Glitch Brian', 'Clocktower Voss']); // rarest first, then catalog order
-    expect(tab('Minions').querySelector('.colls-tab-count')?.textContent).toBe('0/3');
-    expect(text('.colls-meter-num')).toBe('2 / 29');
+    expect(tileNames()).toEqual([ // rarest first, then catalog order
+      'Grandmaster Brian', 'Tee Time Sylus',
+      'Glitch Brian', 'Clocktower Voss', 'Crowd Surf Drakko', 'Cashier Drakko', 'Potion Stand Steward', 'Candy Cane Venom',
+      'Rock Star Drakko', 'Joyride Jensen & Fi', 'Lounge Act Joker', 'Storm Front Nimbus', 'Superfan Paragon', 'Slam Dunk Sylus', 'Double Agent Zyff',
+      'Sketchbook Brian',
+    ]);
+    expect(tab('Minions').querySelector('.colls-tab-count')?.textContent).toBe('0/16');
+    expect(text('.colls-meter-num')).toBe('2 / 42');
     act(() => applyServerCatalogState({ retiredIds: [], disabledCategories: [] }));
     expect(tile('Sheriff Brian').className).toMatch(/\bowned\b/);
-    expect(text('.colls-meter-num')).toBe('3 / 30');
+    expect(text('.colls-meter-num')).toBe('3 / 43');
   });
 
   it('a disabled CATEGORY becomes a locked Soon tab', () => {
@@ -156,6 +166,6 @@ describe('the kill switch in the Collection (retired = hidden, owned or not; res
     act(() => applyServerCatalogState({ retiredIds: [], disabledCategories: ['hero_skin'] }));
     expect(tab('Heroes').className).toMatch(/\blocked\b/);
     expect(tab('Heroes').textContent).toContain('Soon');
-    expect(text('.colls-meter-num')).toBe('2 / 28');
+    expect(text('.colls-meter-num')).toBe('2 / 41');
   });
 });

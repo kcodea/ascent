@@ -37,7 +37,7 @@ import { playCombatSpellCastFx } from '../fx/spellCastFx';
  * instead by `engine.ts`'s `runAttackExchangeCues` from a `useLayoutEffect` — this file still owns the score
  * DATA for both.
  */
-export type Channel = 'sfx' | 'float' | 'lunge' | 'impact' | 'auraBurst' | 'auraBreak' | 'auraReform' | 'buffCast' | 'buffSelf' | 'improveSelf' | 'coins' | 'damageFx' | 'summonFx' | 'ascendFx' | 'executeFx' | 'fxDef' | 'rubyFx' | 'rallyFx' | 'shoutFx' | 'bounceFx' | 'pummelFx' | 'startOfCombatFx' | 'avengeFx' | 'castPreviewFx' | 'spellCastFx' | 'rebirthFx';
+export type Channel = 'sfx' | 'float' | 'lunge' | 'impact' | 'auraBurst' | 'auraBreak' | 'auraReform' | 'buffCast' | 'buffSelf' | 'improveSelf' | 'coins' | 'damageFx' | 'summonFx' | 'ascendFx' | 'executeFx' | 'fxDef' | 'rubyFx' | 'rallyFx' | 'shoutFx' | 'bounceFx' | 'pummelFx' | 'startOfCombatFx' | 'avengeFx' | 'deathFx' | 'castPreviewFx' | 'spellCastFx' | 'rebirthFx';
 /** When a cue fires within its moment. `start`/`contact` are used today; `landed`/`end` are reserved for
  *  phase 3c (aura bursts) and phase 4 (authoring). */
 export type Anchor = 'start' | 'contact' | 'landed' | 'end';
@@ -102,6 +102,11 @@ const BASE: Cue[] = [
   // wherever defs can't play (the runner checks `canPlayDefs()` before it allocates).
   { ch: 'startOfCombatFx', at: 'start', offset: 0 },
   { ch: 'avengeFx', at: 'start', offset: 0 },
+  // `deathFx` — the By-card "On Death" cue (R-FX-DEATH-01): one play per `death` event, for THE CARD THAT DIED,
+  // on that unit. On every kind because a death is a RESULT_TYPE: it rides a `damage` moment or an attack's
+  // exchange far more often than a `death` moment of its own, and the `fxDef` row resolves a moment's card from
+  // its SOURCE (the killer), so it could never name the dying card. That row now stands down for death kinds.
+  { ch: 'deathFx', at: 'start', offset: 0 },
   // `castPreviewFx` — a minion CAST A SPELL in this moment (an `sc` event stamped with `spellId`): float the
   // spell's card preview above the caster (owner ask 2026-09-23), once per (caster, spell) per fight. On every
   // kind for the same reason `rallyFx` is: an on-attack cast is absorbed into the caster's wind-up, so the scan
@@ -165,6 +170,8 @@ export const SCORE_DEFAULTS: Record<MomentKind, Cue[]> = {
     // exchange that caused the death, so `avengeFx` rides the exchange too (its scan no-ops when nothing in the
     // moment carries the `avenge` stamp). Start-of-Combat never lands in an attack, so `startOfCombatFx` is not
     // added here.
+    // A unit killed IN this clash dies inside the exchange, so its On Death cue rides it too (R-FX-DEATH-01).
+    { ch: 'deathFx', at: 'start', offset: 0 },
     { ch: 'avengeFx', at: 'start', offset: 0 },
   ],
   // `damageFx` = a NON-melee hit burst (damageBurst + impact ring) at each dmg target. On `damage` (SC nukes,
@@ -483,7 +490,7 @@ function firstBodyOfCard(cardId: string, ctx: Pick<CueContext, 'cardIds'>): stri
 function playCardMechanic(
   cardId: string,
   srcUid: string | null,
-  kind: 'startOfCombat' | 'avenge',
+  kind: 'startOfCombat' | 'avenge' | 'death',
   ctx: Pick<CueContext, 'cardIds'>,
 ): void {
   const binding = bindingFor(cardId, kind);
@@ -844,6 +851,21 @@ export function runMomentCues(moment: Moment, ctx: CueContext): () => void {
     // event an Avenge handler emits, and the factories self-gate on the count, so these exist ONLY when the
     // Avenge completed (Avenge 3 fires on the third friendly death). One fire per avenging card, on that card.
     // Same known limit as SoC: an Avenge that does two different things spans two moments and cues twice.
+    // A unit DIED in this moment (the By-card "On Death" cue, R-FX-DEATH-01): play the DYING card's binding on
+    // the dying unit, once per death event. Keyed on the death's own `target`, never the moment's source (that is
+    // the killer). Guarded before `at()` like the other scans: no defs ready, no allocation.
+    else if (cue.ch === 'deathFx') {
+      if (!canPlayDefs()) continue;
+      const dying: Array<[string, string]> = [];
+      for (let i = moment.start; i < moment.end; i++) {
+        const e = ctx.events[i];
+        if (e?.type !== 'death') continue;
+        const cardId = ctx.cardIds?.get(e.target);
+        if (cardId && bindingFor(cardId, 'death')) dying.push([cardId, e.target]);
+      }
+      if (!dying.length) continue;
+      at(cue, () => { for (const [cardId, uid] of dying) playCardMechanic(cardId, uid, 'death', ctx); });
+    }
     else if (cue.ch === 'avengeFx') {
       if (!canPlayDefs()) continue;
       const actors = cardMechanicActors(moment, ctx.events, (e) => e.avenge === true);
@@ -876,6 +898,9 @@ export function runMomentCues(moment: Moment, ctx: CueContext): () => void {
       // binding a second time at the primary's (source, null) pair: the owner's burst, shockwave and
       // `triggerpulse` clip twice for one fire (review finding 2026-09-21).
       if (moment.kind === 'rally' || moment.kind === 'pummelTrigger') continue;
+      // …and for a DEATH: `deathFx` plays the dying card's On Death binding per death event. This row would resolve
+      // the card from the moment's SOURCE (the killer) and play the wrong card's sound, or none (R-FX-DEATH-01).
+      if (moment.kind === 'death' || moment.kind === 'riseDeath') continue;
       // The card comes from `ctx.cardIds` — the replay's own uid→card map, already threaded in for the sfx
       // channel's death voicelines. It replaces a DOM lookup (`[data-card]`), which was the most suspect link
       // in this chain: it depended on the unit being rendered, findable by selector, and carrying an attribute

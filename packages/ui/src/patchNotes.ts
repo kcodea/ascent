@@ -78,6 +78,357 @@ export const PATCH_NOTES: PatchNote[] = [
       },
       {
         category: 'Systems',
+        text: 'Fixed: some lobby opponents had no board and could be credited with knockouts they did not make.',
+        details: [
+          'Opponents playing Mimic now bring a real warband every round.',
+          'If your paired opponent ever has no board, you fight the most recently knocked out player instead, the same as a bye. The fight is credited to that board.',
+        ],
+      },
+      {
+        category: 'Systems',
+        text: 'A new Legendary hero attack, Enraged Strike, can drop from crates.',
+        details: [
+          'It is the Classic lunge, enraged. Your damage builds up, then your hero burns with rage, dashes in leaving afterimages, and tears into the other hero.',
+          'The bigger the hit, the more it hits: one strike, then a double, then a flurry of three with a big finisher.',
+          'On the biggest hits your hero rises up and slams down like a meteor, leaving a crater.',
+          'Equip it from the Attack Animations tab of the Collection. There is a preview button there too.',
+          'Hero attacks are looks only. The damage is exactly the same.',
+        ],
+      },
+      {
+        category: 'Systems',
+        text: "Hero damage now builds up on screen before every hero attack: your minions' tiers, then your hero's, then the cap.",
+        details: [
+          "Each surviving minion's tier badge pulses from left to right, and its number pops up above it.",
+          'The numbers flow together into one minion number.',
+          "Your hero's tier number appears at your hero, and the minion number joins it.",
+          `The full damage shows. If this round's damage cap cuts it, it gets slashed down to the cap and stamped "Damage capped".`,
+          'Then the attack happens. This plays for Classic and every hero attack from the Collection.',
+          'Classic, the free attack, is cleaned up: the green and red number pills are gone, and your hero lunges and hits with the same big damage number the other attacks show.',
+          'The numbers are the real ones from the fight. Nothing about the damage itself changed.',
+          'No hero attack freezes on the hit any more, so none of them stutters like lag.',
+        ],
+      },
+      {
+        category: 'Systems',
+        text: 'A new Legendary hero attack, Phantom Blades, can drop from crates.',
+        details: [
+          'Your damage builds up, then glowing swords appear around your hero, turn to aim, and fly straight at the other hero.',
+          'The bigger the hit, the more blades: one, then a crossed pair, then a fan of five that sticks in and shatters.',
+          'On the biggest hits a giant greatsword forms, locks on, and impales the other hero.',
+          'Equip it from the Attack Animations tab of the Collection. There is a preview button there too.',
+          'Hero attacks are looks only. The damage is exactly the same.',
+        ],
+      },
+      {
+        category: 'Systems',
+        text: 'Dwarves have voices. Eleven Dwarves now speak or grunt when you play them and cry out when they die.',
+        details: [
+          'Talkers: Oathshield Orin, Warhorn Captain, Brunni, Edward Keg-hands, Coinfire Forewoman, Billings and Auric Runemaster.',
+          'Grunts and growls: Broad-Axe Brakka, Chicken Brawl, Baby Gastrid and Kegheart Dwarf.',
+          'The rest of the Dwarves, and the other tribes, follow.',
+        ],
+      },
+      {
+        category: 'Systems',
+        text: 'The announcer no longer says "Tier four" on every Tavern upgrade. It has a new line that fits any tier.',
+      },
+      {
+        category: 'Systems',
+        text: 'Achievements are here. Complete them for Account XP and track them on the new Achievements tab in your Career.',
+        details: [
+          'Over 240 achievements across Career, Ranked, Heroes, Economy and Build, Mechanics, Runes and Set 2.',
+          'Set 2 has feats for each tribe: Kobolds, Dwarves, Dragons, Beasts and Demons, plus cross-tribe and rune feats.',
+          'Every hero has four: Debut, Contender, Victory and Mastery.',
+          'Each one shows what it asks and its XP reward. Your own page shows your progress; other players see what you completed.',
+          'Ranked and standard Practice games count. Practice needs Normal Health and a turn timer. Some feats are Ranked only.',
+          'Rank achievements count your best rank so far, so your first game pays for every rank you already reached.',
+          'After a game, the Account XP panel lists every achievement you unlocked.',
+        ],
+      },
+      {
+        category: 'Systems',
+        text: 'The crate is now a real treasure chest.',
+        details: [
+          'The lid rattles as it builds up, and light leaks from the seam and the keyhole in the rarity colour.',
+          'Then the lid blasts off and light pours out of the open chest as your reward rises above it.',
+        ],
+      },
+      {
+        category: 'Systems',
+        text: 'A new Legendary hero attack, Arcana, can drop from crates.',
+        details: [
+          'Your damage builds up, then your hero lobs ribbons of arcane light at the other hero.',
+          'The bigger the hit, the bigger the spell: one ribbon, then two, then a barrage of five.',
+          'On the biggest hits the ribbons swirl into a vortex over the other hero, then explode outward.',
+          'Equip it from the Attack Animations tab of the Collection. There is a preview button there too.',
+          'Hero attacks are looks only. The damage is exactly the same.',
+        ],
+      },
+      {
+        category: 'Systems',
+        text: 'A new Legendary hero attack, Tectonic Slam, can drop from crates.',
+        details: [
+          'Your damage builds up, then your hero hurls boulders at the other hero, and stone spikes burst out of the ground around them.',
+          'Bigger hits throw more boulders, and they start to glow with magma.',
+          'The biggest hits are a true earthquake: the ground cracks open to the other hero and erupts under them.',
+          'Equip it from the Attack Animations tab of the Collection. There is a preview button there too.',
+          'Hero attacks now land centred on the hero portrait every time.',
+          'Hero attacks are looks only. The damage is exactly the same.',
+        ],
+      },
+      {
+        category: 'Systems',
+        text: 'A new Legendary hero attack, Arcane Barrage, can drop from crates.',
+        details: [
+          'Your damage builds up, your hero charges up, and a volley of bolts hits the other hero. The biggest hits fire one huge beam.',
+          'The bigger the hit, the bigger the show.',
+          'Equip it from the Attack Animations tab of the Collection. "Use Classic" puts the original attack back. There is a preview button there too.',
+          'The player you hit sees your hero attack, and you see theirs.',
+          'The setting Show opponent skins is now Show opponent cosmetics. Turn it off to see other players with the default look and the Classic attack.',
+          'Hero attacks are looks only. The damage is exactly the same.',
+        ],
+      },
+      {
+        category: 'Systems',
+        text: 'A Legendary Black Belt Brian skin and an Epic Bellringer Voss skin join the crates.',
+      },
+      {
+        category: 'Systems',
+        text: 'Skins are here. Crates can now give hero and minion skins, and you can equip them in the Collection.',
+        details: [
+          'The first skins: three looks for Black Belt Brian, one for Bellringer Voss, one for Albus and one for Warden.',
+          'Equip a skin from the Heroes or Minions tab of the Collection. "Use default art" puts the original back.',
+          'Your skin shows everywhere that hero or minion appears: the shop, your hand and board, combat, Discover, the end screen, your Career and the Minion Book.',
+          'Gilded copies keep their gold frame on top of the skin.',
+          'Opponents see the skins you wore in that game, and you see theirs.',
+          'The skins you wear are locked in when a game starts. Changes apply to your next game.',
+          'Skins are looks only. Nothing about how a card plays changes.',
+        ],
+      },
+      {
+        category: 'Systems',
+        text: 'New setting: Show opponent skins. Turn it off to see other players in their default art. Your own skins always show.',
+      },
+      {
+        category: 'Systems',
+        text: 'Collection now has its own screen, and opening a crate got a big new animation.',
+        details: [
+          'Find the Collection on the main menu, in the side menu, or on your Career.',
+          'Open your crates one at a time, or Open all to go through every one.',
+          'The crate builds up while it opens, then bursts. The rarer the reward, the bigger the show.',
+          'Click or press a key to skip straight to your reward.',
+          'Reduced motion on? The reward simply fades in.',
+        ],
+      },
+      {
+        category: 'Systems',
+        text: 'Career: your name and title now sit big at the top of the page.',
+        details: [
+          'Your Account Level moved under your favorite hero, so Seasonal Ranked leads the right side.',
+          'The hero portrait is now labelled Favorite hero.',
+        ],
+      },
+      {
+        category: 'Systems',
+        text: 'The Collection has a new layout. See every title, even the ones you have not found yet.',
+        details: [
+          'Every title shows, found or not. Missing ones are dimmed, so you can see what is left to find.',
+          'Filter by Owned, Missing or rarity. Counts show how many you have.',
+          'Pick a title to see it large, how to get it, and how it looks under your name.',
+          'Your sealed crates stay in view on the side, ready to open.',
+          'New titles wear a NEW badge until you look at them.',
+          'Heroes, Minions, Boards and more have their own tabs, marked as coming soon.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-09-28',
+    changes: [
+      {
+        category: 'Systems',
+        text: 'A new Legendary hero attack, Venom Volley, can drop from crates.',
+        details: [
+          'Your hero throws poison darts. They thunk into the other hero and stick, splashing venom.',
+          'The bigger the hit, the more darts fly: one, then two, then a fan of five.',
+          'On the biggest hits the darts glow and swell, get sucked into one point, and burst in a toxic cloud.',
+          'Equip it from the Attack Animations tab of the Collection. There is a preview button there too.',
+          'Hero attacks are looks only. The damage is exactly the same.',
+        ],
+      },
+      {
+        category: 'Systems',
+        text: 'A new Legendary hero attack, Enraged Strike, can drop from crates.',
+        details: [
+          'It is the Classic lunge, enraged. Your damage builds up, then your hero burns with rage, dashes in leaving afterimages, and tears into the other hero.',
+          'The bigger the hit, the more it hits: one strike, then a double, then a flurry of three with a big finisher.',
+          'On the biggest hits your hero rises up and slams down like a meteor, leaving a crater.',
+          'Equip it from the Attack Animations tab of the Collection. There is a preview button there too.',
+          'Hero attacks are looks only. The damage is exactly the same.',
+        ],
+      },
+      {
+        category: 'Systems',
+        text: "Hero damage now builds up on screen before every hero attack: your minions' tiers, then your hero's, then the cap.",
+        details: [
+          "Each surviving minion's tier badge pulses from left to right, and its number pops up above it.",
+          'The numbers flow together into one minion number.',
+          "Your hero's tier number appears at your hero, and the minion number joins it.",
+          `The full damage shows. If this round's damage cap cuts it, it gets slashed down to the cap and stamped "Damage capped".`,
+          'Then the attack happens. This plays for Classic and every hero attack from the Collection.',
+          'Classic, the free attack, is cleaned up: the green and red number pills are gone, and your hero lunges and hits with the same big damage number the other attacks show.',
+          'The numbers are the real ones from the fight. Nothing about the damage itself changed.',
+          'No hero attack freezes on the hit any more, so none of them stutters like lag.',
+        ],
+      },
+      {
+        category: 'Systems',
+        text: 'A new Legendary hero attack, Phantom Blades, can drop from crates.',
+        details: [
+          'Your damage builds up, then glowing swords appear around your hero, turn to aim, and fly straight at the other hero.',
+          'The bigger the hit, the more blades: one, then a crossed pair, then a fan of five that sticks in and shatters.',
+          'On the biggest hits a giant greatsword forms, locks on, and impales the other hero.',
+          'Equip it from the Attack Animations tab of the Collection. There is a preview button there too.',
+          'Hero attacks are looks only. The damage is exactly the same.',
+        ],
+      },
+      {
+        category: 'Systems',
+        text: 'Dwarves have voices. Eleven Dwarves now speak or grunt when you play them and cry out when they die.',
+        details: [
+          'Talkers: Oathshield Orin, Warhorn Captain, Brunni, Edward Keg-hands, Coinfire Forewoman, Billings and Auric Runemaster.',
+          'Grunts and growls: Broad-Axe Brakka, Chicken Brawl, Baby Gastrid and Kegheart Dwarf.',
+          'The rest of the Dwarves, and the other tribes, follow.',
+        ],
+      },
+      {
+        category: 'Systems',
+        text: 'The announcer no longer says "Tier four" on every Tavern upgrade. It has a new line that fits any tier.',
+      },
+      {
+        category: 'Systems',
+        text: 'Achievements are here. Complete them for Account XP and track them on the new Achievements tab in your Career.',
+        details: [
+          'Over 240 achievements across Career, Ranked, Heroes, Economy and Build, Mechanics, Runes and Set 2.',
+          'Set 2 has feats for each tribe: Kobolds, Dwarves, Dragons, Beasts and Demons, plus cross-tribe and rune feats.',
+          'Every hero has four: Debut, Contender, Victory and Mastery.',
+          'Each one shows what it asks and its XP reward. Your own page shows your progress; other players see what you completed.',
+          'Ranked and standard Practice games count. Practice needs Normal Health and a turn timer. Some feats are Ranked only.',
+          'Rank achievements count your best rank so far, so your first game pays for every rank you already reached.',
+          'After a game, the Account XP panel lists every achievement you unlocked.',
+        ],
+      },
+      {
+        category: 'Systems',
+        text: 'The crate is now a real treasure chest.',
+        details: [
+          'The lid rattles as it builds up, and light leaks from the seam and the keyhole in the rarity colour.',
+          'Then the lid blasts off and light pours out of the open chest as your reward rises above it.',
+        ],
+      },
+      {
+        category: 'Systems',
+        text: 'A new Legendary hero attack, Arcana, can drop from crates.',
+        details: [
+          'Your damage builds up, then your hero lobs ribbons of arcane light at the other hero.',
+          'The bigger the hit, the bigger the spell: one ribbon, then two, then a barrage of five.',
+          'On the biggest hits the ribbons swirl into a vortex over the other hero, then explode outward.',
+          'Equip it from the Attack Animations tab of the Collection. There is a preview button there too.',
+          'Hero attacks are looks only. The damage is exactly the same.',
+        ],
+      },
+      {
+        category: 'Systems',
+        text: 'A new Legendary hero attack, Tectonic Slam, can drop from crates.',
+        details: [
+          'Your damage builds up, then your hero hurls boulders at the other hero, and stone spikes burst out of the ground around them.',
+          'Bigger hits throw more boulders, and they start to glow with magma.',
+          'The biggest hits are a true earthquake: the ground cracks open to the other hero and erupts under them.',
+          'Equip it from the Attack Animations tab of the Collection. There is a preview button there too.',
+          'Hero attacks now land centred on the hero portrait every time.',
+          'Hero attacks are looks only. The damage is exactly the same.',
+        ],
+      },
+      {
+        category: 'Systems',
+        text: 'A new Legendary hero attack, Arcane Barrage, can drop from crates.',
+        details: [
+          'Your damage builds up, your hero charges up, and a volley of bolts hits the other hero. The biggest hits fire one huge beam.',
+          'The bigger the hit, the bigger the show.',
+          'Equip it from the Attack Animations tab of the Collection. "Use Classic" puts the original attack back. There is a preview button there too.',
+          'The player you hit sees your hero attack, and you see theirs.',
+          'The setting Show opponent skins is now Show opponent cosmetics. Turn it off to see other players with the default look and the Classic attack.',
+          'Hero attacks are looks only. The damage is exactly the same.',
+        ],
+      },
+      {
+        category: 'Systems',
+        text: 'A Legendary Black Belt Brian skin and an Epic Bellringer Voss skin join the crates.',
+      },
+      {
+        category: 'Systems',
+        text: 'Skins are here. Crates can now give hero and minion skins, and you can equip them in the Collection.',
+        details: [
+          'The first skins: three looks for Black Belt Brian, one for Bellringer Voss, one for Albus and one for Warden.',
+          'Equip a skin from the Heroes or Minions tab of the Collection. "Use default art" puts the original back.',
+          'Your skin shows everywhere that hero or minion appears: the shop, your hand and board, combat, Discover, the end screen, your Career and the Minion Book.',
+          'Gilded copies keep their gold frame on top of the skin.',
+          'Opponents see the skins you wore in that game, and you see theirs.',
+          'The skins you wear are locked in when a game starts. Changes apply to your next game.',
+          'Skins are looks only. Nothing about how a card plays changes.',
+        ],
+      },
+      {
+        category: 'Systems',
+        text: 'New setting: Show opponent skins. Turn it off to see other players in their default art. Your own skins always show.',
+      },
+      {
+        category: 'Systems',
+        text: 'Collection now has its own screen, and opening a crate got a big new animation.',
+        details: [
+          'Find the Collection on the main menu, in the side menu, or on your Career.',
+          'Open your crates one at a time, or Open all to go through every one.',
+          'The crate builds up while it opens, then bursts. The rarer the reward, the bigger the show.',
+          'Click or press a key to skip straight to your reward.',
+          'Reduced motion on? The reward simply fades in.',
+        ],
+      },
+      {
+        category: 'Systems',
+        text: 'Career: your name and title now sit big at the top of the page.',
+        details: [
+          'Your Account Level moved under your favorite hero, so Seasonal Ranked leads the right side.',
+          'The hero portrait is now labelled Favorite hero.',
+        ],
+      },
+      {
+        category: 'Systems',
+        text: 'The Collection has a new layout. See every title, even the ones you have not found yet.',
+        details: [
+          'Every title shows, found or not. Missing ones are dimmed, so you can see what is left to find.',
+          'Filter by Owned, Missing or rarity. Counts show how many you have.',
+          'Pick a title to see it large, how to get it, and how it looks under your name.',
+          'Your sealed crates stay in view on the side, ready to open.',
+          'New titles wear a NEW badge until you look at them.',
+          'Heroes, Minions, Boards and more have their own tabs, marked as coming soon.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-09-28',
+    changes: [
+      {
+        category: 'Systems',
+        text: 'Fixed: after reloading during a finished fight, End Combat now works.',
+        details: [
+          'If you lost a fight, reloaded the game on the combat screen and pressed Continue, the End Combat button stayed off and you were stuck.',
+          'Now the fight plays back and End Combat turns on. The damage you already took is not taken again.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'A new Legendary hero attack, Enraged Strike, can drop from crates.',
         details: [
           'It is the Classic lunge, enraged. Your damage builds up, then your hero burns with rage, dashes in leaving afterimages, and tears into the other hero.',

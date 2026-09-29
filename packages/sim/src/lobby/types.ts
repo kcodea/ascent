@@ -122,6 +122,9 @@ export interface LobbyEncounter {
   /** Whether a real combat was resolved. A 0-damage DRAW and a couldn't-field-a-board round otherwise look
    *  identical in the log, which made a broken exhaustion policy read as a legitimate stalemate. */
   fought: boolean;
+  /** Set on a PLAYER ghost fight that stood in for a paired seat with no board: that seat's id. The row's `b`
+   *  is the ghost the player actually fought; the paired seat has its own unfought row for the round. */
+  standInFor?: string;
 }
 
 export interface LobbyState {

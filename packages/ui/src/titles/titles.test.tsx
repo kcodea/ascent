@@ -13,6 +13,8 @@
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act } from 'react';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { COSMETICS } from '@game/progression';
 import { createLobbyRun, type RunLobby } from '@game/sim';
 
@@ -80,6 +82,33 @@ describe('TitleBadge', () => {
     expect(b.style.getPropertyValue('--tb-grad')).toContain('linear-gradient');
     m.render(<TitleBadge id="title_wanderer" styles={styles} />);
     expect(badge()!.classList.contains('tb-grad')).toBe(false);
+  });
+});
+
+describe('the master hero title (owner 2026-09-29: "the master title should be a golden plate and embroidered text")', () => {
+  it('a master title is the golden plate everywhere TitleBadge renders it; the base title keeps the normal look', () => {
+    m.render(<TitleBadge id="title_hero_warden_master" />);
+    const plate = badge()!;
+    expect(plate.classList.contains('tb-master')).toBe(true);
+    expect(plate.textContent).toBe('Warded'); // the stitch layer is empty; the emboss comes from data-text
+    expect(plate.querySelector('.tb-stitch')).not.toBeNull();
+    expect(plate.querySelector<HTMLElement>('.tb-text')!.dataset.text).toBe('Warded');
+    expect(plate.hasAttribute('title')).toBe(false);
+    // a custom gradient never paints over the plate
+    m.render(<TitleBadge id="title_hero_warden_master" styles={{ title_hero_warden_master: { gradient: 'linear-gradient(#f00, #00f)', effect: 'shimmer' } }} />);
+    expect(badge()!.classList.contains('tb-grad')).toBe(false);
+    expect(badge()!.classList.contains('tb-shimmer')).toBe(false);
+    m.render(<TitleBadge id="title_hero_warden" />);
+    expect(badge()!.classList.contains('tb-master')).toBe(false);
+    expect(badge()!.classList.contains('r-epic')).toBe(true);
+    expect(badge()!.textContent).toBe('Warded');
+  });
+
+  it('the plate is static CSS: no animation, no transition on it (docs/performance.md)', () => {
+    const css = readFileSync(join(__dirname, '../styles.css'), 'utf8');
+    const rules = [...css.matchAll(/([^{}]*\.tb-master[^{}]*)\{([^}]*)\}/g)];
+    expect(rules.length).toBeGreaterThan(3);
+    for (const [, sel, body] of rules) expect(body, sel).not.toMatch(/animation|transition|will-change/);
   });
 });
 

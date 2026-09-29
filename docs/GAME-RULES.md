@@ -380,6 +380,14 @@ progression **epoch**; nothing finished before the epoch counts (no backfill).
   "Hidden" tile exist; none ship), prestige (replay-verified) feats and the 3 Career showcase slots come later. The
   Career's **Achievements** tab (after Practice) shows every achievement with its reward, completions publicly with
   their date, and progress bars on your own page only. Oracle R-ACH-01..03.
+- **Hero titles (2026-09-29, R-ACH-04, R-PROG-TITLE-04).** Every playable hero has a title (Warden "Warded", Gambler
+  "Gambling Addict", Albus "Albus Student", ...; the list is `HERO_TITLE_NAMES` in `packages/progression/src/cosmetics.ts`).
+  The Heroes category gains a fifth tier, **Titled** (3 Ranked 1sts with the hero, 150 XP), which grants the title;
+  **Mastery** (10 Ranked 1sts, 250 XP) now grants its **master** version: the same name as a **golden plate with
+  embroidered text**. Victory (1 Ranked 1st) stays XP only; Practice never counts. The master upgrades the title in
+  place: it replaces a worn base title the moment it is earned, and the Collection shows one entry per hero title (the
+  master once owned). Hero titles are achievement rewards, granted inside `settle_progression` with the completion,
+  and never drop from a crate. The Heroes category is now 165 achievements; the registry 281 and 35,775 XP.
 - **Guests.** An anonymous session is a real account id and the email upgrade keeps it, so guests earn XP from
   their first game. Reaching Level 2 as a guest shows a gentle "Save your progress" prompt (never a gate). With
   no session at all, a game earns nothing.

@@ -27,7 +27,7 @@
 import { create } from 'zustand';
 import { queueNewRewards } from './newRewards';
 import {
-  setServerCatalogState, titleName, type ServerCatalogState, type EquipSlot, type CrateRow, type OpenCrateResult, type ProgressionMode, type ProgressionProfile, type ProgressionResult, type ProgressionRunFacts,
+  HERO_TITLE_COSMETICS, heroMasterTitleId, heroTitleId, isMasterTitle, setServerCatalogState, titleName, type ServerCatalogState, type EquipSlot, type CrateRow, type OpenCrateResult, type ProgressionMode, type ProgressionProfile, type ProgressionResult, type ProgressionRunFacts,
 } from '@game/progression';
 import { currentUserId } from '../identity';
 import { remoteEnabled } from '../remoteBoards';
@@ -299,6 +299,26 @@ export async function equipCosmetic(slot: EquipSlot, targetId: string, cosmeticI
   if (!out || out.status !== 'ok') return false;
   adoptProgressionProfile(userId, out.profile);
   return true;
+}
+
+/**
+ * DEV ONLY (the Crate opening tuner's Preview buttons): show hero titles on THIS client as if owned, so the Career
+ * header, the Collection and the Achievements tab can be checked without winning 10 Ranked games. In memory only:
+ * nothing is saved and nothing is sent (the next server read replaces it; `clear` restores the saved mirror).
+ * `titles` owns every base hero title and wears Warden's; `masters` owns every title AND master and wears Warden's
+ * golden master.
+ */
+export function devPreviewHeroTitles(tier: 'titles' | 'masters' | 'clear', userId: string | null = currentUserId() ?? 'dev-preview'): void {
+  if (tier === 'clear') { useProgression.setState({ mirror: loadMirror() }); return; }
+  const base = mirrorFor(userId, useProgression.getState().mirror) ?? { userId: userId!, accountXp: 0, accountLevel: 1, revision: 0, equippedTitleId: null, titles: [] };
+  const ids = HERO_TITLE_COSMETICS.filter((c) => tier === 'masters' || !isMasterTitle(c.id)).map((c) => c.id);
+  const union = (xs: readonly string[] | undefined): string[] => [...new Set([...(xs ?? []), ...ids])];
+  useProgression.setState({
+    mirror: {
+      ...base, userId: userId!, titles: union(base.titles), cosmetics: union(base.cosmetics ?? base.titles),
+      equippedTitleId: tier === 'masters' ? heroMasterTitleId('warden') : heroTitleId('warden'),
+    },
+  });
 }
 
 /** The equipped title's display name for a mirror/profile, or null. */

@@ -251,6 +251,12 @@ export interface TunerSpec<C extends object> {
   defaults?: C;
   /** Panel-specific buttons — "Test", "Fire", "Demo". */
   actions?: TunerAction[];
+  /**
+   * Put the button row (Copy, Reset and the actions) at the TOP of the panel, above the controls, instead of at the
+   * foot. For panels whose buttons are the point: the hero attack tuners are played far more than they are dialled,
+   * and a Play row under 100+ controls meant scrolling for every replay (owner ask 2026-09-29).
+   */
+  buttonsOnTop?: boolean;
   /** Preview switches that pin an otherwise-transient state so it can be tuned. See `TunerToggle`. */
   toggles?: TunerToggle[];
   /**

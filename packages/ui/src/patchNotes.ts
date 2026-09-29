@@ -6,6 +6,11 @@
  * the text here IS what the player reads — keep it plain-English and spoiler-light (say "reworked", not the
  * internal id).
  *
+ * ⚠ NO DUPLICATES (2026-09-29, after merge resolutions left three copies of 2026-09-28): at most ONE block per
+ * date + label (so one unlabeled block per date: add to it, never open a second), and every change `text` appears
+ * exactly once in the whole list. When a merge conflicts here, keep ONE copy of each change. `patchNotes.test.ts`
+ * fails on a repeat.
+ *
  * ⚠ MAINTENANCE CONTRACT (owner 2026-08-24): whenever a GAMEPLAY change ships — a new/changed hero, card or
  * rune, or an in-game UI/information change — ADD IT HERE in the same PR, at the top, tagged `Balance` or
  * `Systems` (see `PatchCategory` below). Non-gameplay work (build, tests, docs, refactors, dev tools) does NOT
@@ -50,6 +55,20 @@ export interface PatchNote {
 
 /** Newest first. PREPEND new entries. */
 export const PATCH_NOTES: PatchNote[] = [
+  {
+    date: '2026-09-29',
+    changes: [
+      {
+        category: 'Systems',
+        text: "Match details now shows other players' titles.",
+        details: [
+          'Each player in the list shows the title they wore in that game, in its rarity colour, next to their hero.',
+          "Turning off Show opponent cosmetics hides other players' titles. Your own always shows.",
+          'Bots and games from before titles were recorded show no title.',
+        ],
+      },
+    ],
+  },
   {
     date: '2026-09-28',
     changes: [
@@ -131,7 +150,7 @@ export const PATCH_NOTES: PatchNote[] = [
           'Pick a player to see their board from the moment your game ended. Players who went out before you show the board they went out with.',
           'The player who knocked you out is marked.',
           'In your Career, press Lobby on a match to open the same list. Matches from before this update have no details.',
-          'Other players only wear their skins if Show opponent skins is on.',
+          'Other players only wear their skins if Show opponent cosmetics is on.',
           "Under each board you can see that player's runes.",
           'A small gold crown marks a player whose run is on the Hall of Champions right now.',
         ],
@@ -277,7 +296,7 @@ export const PATCH_NOTES: PatchNote[] = [
       },
       {
         category: 'Systems',
-        text: 'New setting: Show opponent skins. Turn it off to see other players in their default art. Your own skins always show.',
+        text: 'New setting: Show opponent cosmetics. Turn it off to see other players with the default look. Your own cosmetics always show.',
       },
       {
         category: 'Systems',
@@ -310,11 +329,6 @@ export const PATCH_NOTES: PatchNote[] = [
           'Heroes, Minions, Boards and more have their own tabs, marked as coming soon.',
         ],
       },
-    ],
-  },
-  {
-    date: '2026-09-28',
-    changes: [
       {
         category: 'Systems',
         text: 'A new Legendary hero attack, Frost Nova, can drop from crates.',
@@ -339,336 +353,12 @@ export const PATCH_NOTES: PatchNote[] = [
       },
       {
         category: 'Systems',
-        text: 'A new Legendary hero attack, Enraged Strike, can drop from crates.',
-        details: [
-          'It is the Classic lunge, enraged. Your damage builds up, then your hero burns with rage, dashes in leaving afterimages, and tears into the other hero.',
-          'The bigger the hit, the more it hits: one strike, then a double, then a flurry of three with a big finisher.',
-          'On the biggest hits your hero rises up and slams down like a meteor, leaving a crater.',
-          'Equip it from the Attack Animations tab of the Collection. There is a preview button there too.',
-          'Hero attacks are looks only. The damage is exactly the same.',
-        ],
-      },
-      {
-        category: 'Systems',
-        text: "Hero damage now builds up on screen before every hero attack: your minions' tiers, then your hero's, then the cap.",
-        details: [
-          "Each surviving minion's tier badge pulses from left to right, and its number pops up above it.",
-          'The numbers flow together into one minion number.',
-          "Your hero's tier number appears at your hero, and the minion number joins it.",
-          `The full damage shows. If this round's damage cap cuts it, it gets slashed down to the cap and stamped "Damage capped".`,
-          'Then the attack happens. This plays for Classic and every hero attack from the Collection.',
-          'Classic, the free attack, is cleaned up: the green and red number pills are gone, and your hero lunges and hits with the same big damage number the other attacks show.',
-          'The numbers are the real ones from the fight. Nothing about the damage itself changed.',
-          'No hero attack freezes on the hit any more, so none of them stutters like lag.',
-        ],
-      },
-      {
-        category: 'Systems',
-        text: 'A new Legendary hero attack, Phantom Blades, can drop from crates.',
-        details: [
-          'Your damage builds up, then glowing swords appear around your hero, turn to aim, and fly straight at the other hero.',
-          'The bigger the hit, the more blades: one, then a crossed pair, then a fan of five that sticks in and shatters.',
-          'On the biggest hits a giant greatsword forms, locks on, and impales the other hero.',
-          'Equip it from the Attack Animations tab of the Collection. There is a preview button there too.',
-          'Hero attacks are looks only. The damage is exactly the same.',
-        ],
-      },
-      {
-        category: 'Systems',
-        text: 'Dwarves have voices. Eleven Dwarves now speak or grunt when you play them and cry out when they die.',
-        details: [
-          'Talkers: Oathshield Orin, Warhorn Captain, Brunni, Edward Keg-hands, Coinfire Forewoman, Billings and Auric Runemaster.',
-          'Grunts and growls: Broad-Axe Brakka, Chicken Brawl, Baby Gastrid and Kegheart Dwarf.',
-          'The rest of the Dwarves, and the other tribes, follow.',
-        ],
-      },
-      {
-        category: 'Systems',
-        text: 'The announcer no longer says "Tier four" on every Tavern upgrade. It has a new line that fits any tier.',
-      },
-      {
-        category: 'Systems',
-        text: 'Achievements are here. Complete them for Account XP and track them on the new Achievements tab in your Career.',
-        details: [
-          'Over 240 achievements across Career, Ranked, Heroes, Economy and Build, Mechanics, Runes and Set 2.',
-          'Set 2 has feats for each tribe: Kobolds, Dwarves, Dragons, Beasts and Demons, plus cross-tribe and rune feats.',
-          'Every hero has four: Debut, Contender, Victory and Mastery.',
-          'Each one shows what it asks and its XP reward. Your own page shows your progress; other players see what you completed.',
-          'Ranked and standard Practice games count. Practice needs Normal Health and a turn timer. Some feats are Ranked only.',
-          'Rank achievements count your best rank so far, so your first game pays for every rank you already reached.',
-          'After a game, the Account XP panel lists every achievement you unlocked.',
-        ],
-      },
-      {
-        category: 'Systems',
-        text: 'The crate is now a real treasure chest.',
-        details: [
-          'The lid rattles as it builds up, and light leaks from the seam and the keyhole in the rarity colour.',
-          'Then the lid blasts off and light pours out of the open chest as your reward rises above it.',
-        ],
-      },
-      {
-        category: 'Systems',
-        text: 'A new Legendary hero attack, Arcana, can drop from crates.',
-        details: [
-          'Your damage builds up, then your hero lobs ribbons of arcane light at the other hero.',
-          'The bigger the hit, the bigger the spell: one ribbon, then two, then a barrage of five.',
-          'On the biggest hits the ribbons swirl into a vortex over the other hero, then explode outward.',
-          'Equip it from the Attack Animations tab of the Collection. There is a preview button there too.',
-          'Hero attacks are looks only. The damage is exactly the same.',
-        ],
-      },
-      {
-        category: 'Systems',
-        text: 'A new Legendary hero attack, Tectonic Slam, can drop from crates.',
-        details: [
-          'Your damage builds up, then your hero hurls boulders at the other hero, and stone spikes burst out of the ground around them.',
-          'Bigger hits throw more boulders, and they start to glow with magma.',
-          'The biggest hits are a true earthquake: the ground cracks open to the other hero and erupts under them.',
-          'Equip it from the Attack Animations tab of the Collection. There is a preview button there too.',
-          'Hero attacks now land centred on the hero portrait every time.',
-          'Hero attacks are looks only. The damage is exactly the same.',
-        ],
-      },
-      {
-        category: 'Systems',
-        text: 'A new Legendary hero attack, Arcane Barrage, can drop from crates.',
-        details: [
-          'Your damage builds up, your hero charges up, and a volley of bolts hits the other hero. The biggest hits fire one huge beam.',
-          'The bigger the hit, the bigger the show.',
-          'Equip it from the Attack Animations tab of the Collection. "Use Classic" puts the original attack back. There is a preview button there too.',
-          'The player you hit sees your hero attack, and you see theirs.',
-          'The setting Show opponent skins is now Show opponent cosmetics. Turn it off to see other players with the default look and the Classic attack.',
-          'Hero attacks are looks only. The damage is exactly the same.',
-        ],
-      },
-      {
-        category: 'Systems',
-        text: 'A Legendary Black Belt Brian skin and an Epic Bellringer Voss skin join the crates.',
-      },
-      {
-        category: 'Systems',
-        text: 'Skins are here. Crates can now give hero and minion skins, and you can equip them in the Collection.',
-        details: [
-          'The first skins: three looks for Black Belt Brian, one for Bellringer Voss, one for Albus and one for Warden.',
-          'Equip a skin from the Heroes or Minions tab of the Collection. "Use default art" puts the original back.',
-          'Your skin shows everywhere that hero or minion appears: the shop, your hand and board, combat, Discover, the end screen, your Career and the Minion Book.',
-          'Gilded copies keep their gold frame on top of the skin.',
-          'Opponents see the skins you wore in that game, and you see theirs.',
-          'The skins you wear are locked in when a game starts. Changes apply to your next game.',
-          'Skins are looks only. Nothing about how a card plays changes.',
-        ],
-      },
-      {
-        category: 'Systems',
-        text: 'New setting: Show opponent skins. Turn it off to see other players in their default art. Your own skins always show.',
-      },
-      {
-        category: 'Systems',
-        text: 'Collection now has its own screen, and opening a crate got a big new animation.',
-        details: [
-          'Find the Collection on the main menu, in the side menu, or on your Career.',
-          'Open your crates one at a time, or Open all to go through every one.',
-          'The crate builds up while it opens, then bursts. The rarer the reward, the bigger the show.',
-          'Click or press a key to skip straight to your reward.',
-          'Reduced motion on? The reward simply fades in.',
-        ],
-      },
-      {
-        category: 'Systems',
-        text: 'Career: your name and title now sit big at the top of the page.',
-        details: [
-          'Your Account Level moved under your favorite hero, so Seasonal Ranked leads the right side.',
-          'The hero portrait is now labelled Favorite hero.',
-        ],
-      },
-      {
-        category: 'Systems',
-        text: 'The Collection has a new layout. See every title, even the ones you have not found yet.',
-        details: [
-          'Every title shows, found or not. Missing ones are dimmed, so you can see what is left to find.',
-          'Filter by Owned, Missing or rarity. Counts show how many you have.',
-          'Pick a title to see it large, how to get it, and how it looks under your name.',
-          'Your sealed crates stay in view on the side, ready to open.',
-          'New titles wear a NEW badge until you look at them.',
-          'Heroes, Minions, Boards and more have their own tabs, marked as coming soon.',
-        ],
-      },
-    ],
-  },
-  {
-    date: '2026-09-28',
-    changes: [
-      {
-        category: 'Systems',
         text: 'Fixed: after reloading during a finished fight, End Combat now works.',
         details: [
           'If you lost a fight, reloaded the game on the combat screen and pressed Continue, the End Combat button stayed off and you were stuck.',
           'Now the fight plays back and End Combat turns on. The damage you already took is not taken again.',
         ],
       },
-      {
-        category: 'Systems',
-        text: 'A new Legendary hero attack, Enraged Strike, can drop from crates.',
-        details: [
-          'It is the Classic lunge, enraged. Your damage builds up, then your hero burns with rage, dashes in leaving afterimages, and tears into the other hero.',
-          'The bigger the hit, the more it hits: one strike, then a double, then a flurry of three with a big finisher.',
-          'On the biggest hits your hero rises up and slams down like a meteor, leaving a crater.',
-          'Equip it from the Attack Animations tab of the Collection. There is a preview button there too.',
-          'Hero attacks are looks only. The damage is exactly the same.',
-        ],
-      },
-      {
-        category: 'Systems',
-        text: "Hero damage now builds up on screen before every hero attack: your minions' tiers, then your hero's, then the cap.",
-        details: [
-          "Each surviving minion's tier badge pulses from left to right, and its number pops up above it.",
-          'The numbers flow together into one minion number.',
-          "Your hero's tier number appears at your hero, and the minion number joins it.",
-          `The full damage shows. If this round's damage cap cuts it, it gets slashed down to the cap and stamped "Damage capped".`,
-          'Then the attack happens. This plays for Classic and every hero attack from the Collection.',
-          'Classic, the free attack, is cleaned up: the green and red number pills are gone, and your hero lunges and hits with the same big damage number the other attacks show.',
-          'The numbers are the real ones from the fight. Nothing about the damage itself changed.',
-          'No hero attack freezes on the hit any more, so none of them stutters like lag.',
-        ],
-      },
-      {
-        category: 'Systems',
-        text: 'A new Legendary hero attack, Phantom Blades, can drop from crates.',
-        details: [
-          'Your damage builds up, then glowing swords appear around your hero, turn to aim, and fly straight at the other hero.',
-          'The bigger the hit, the more blades: one, then a crossed pair, then a fan of five that sticks in and shatters.',
-          'On the biggest hits a giant greatsword forms, locks on, and impales the other hero.',
-          'Equip it from the Attack Animations tab of the Collection. There is a preview button there too.',
-          'Hero attacks are looks only. The damage is exactly the same.',
-        ],
-      },
-      {
-        category: 'Systems',
-        text: 'Dwarves have voices. Eleven Dwarves now speak or grunt when you play them and cry out when they die.',
-        details: [
-          'Talkers: Oathshield Orin, Warhorn Captain, Brunni, Edward Keg-hands, Coinfire Forewoman, Billings and Auric Runemaster.',
-          'Grunts and growls: Broad-Axe Brakka, Chicken Brawl, Baby Gastrid and Kegheart Dwarf.',
-          'The rest of the Dwarves, and the other tribes, follow.',
-        ],
-      },
-      {
-        category: 'Systems',
-        text: 'The announcer no longer says "Tier four" on every Tavern upgrade. It has a new line that fits any tier.',
-      },
-      {
-        category: 'Systems',
-        text: 'Achievements are here. Complete them for Account XP and track them on the new Achievements tab in your Career.',
-        details: [
-          'Over 240 achievements across Career, Ranked, Heroes, Economy and Build, Mechanics, Runes and Set 2.',
-          'Set 2 has feats for each tribe: Kobolds, Dwarves, Dragons, Beasts and Demons, plus cross-tribe and rune feats.',
-          'Every hero has four: Debut, Contender, Victory and Mastery.',
-          'Each one shows what it asks and its XP reward. Your own page shows your progress; other players see what you completed.',
-          'Ranked and standard Practice games count. Practice needs Normal Health and a turn timer. Some feats are Ranked only.',
-          'Rank achievements count your best rank so far, so your first game pays for every rank you already reached.',
-          'After a game, the Account XP panel lists every achievement you unlocked.',
-        ],
-      },
-      {
-        category: 'Systems',
-        text: 'The crate is now a real treasure chest.',
-        details: [
-          'The lid rattles as it builds up, and light leaks from the seam and the keyhole in the rarity colour.',
-          'Then the lid blasts off and light pours out of the open chest as your reward rises above it.',
-        ],
-      },
-      {
-        category: 'Systems',
-        text: 'A new Legendary hero attack, Arcana, can drop from crates.',
-        details: [
-          'Your damage builds up, then your hero lobs ribbons of arcane light at the other hero.',
-          'The bigger the hit, the bigger the spell: one ribbon, then two, then a barrage of five.',
-          'On the biggest hits the ribbons swirl into a vortex over the other hero, then explode outward.',
-          'Equip it from the Attack Animations tab of the Collection. There is a preview button there too.',
-          'Hero attacks are looks only. The damage is exactly the same.',
-        ],
-      },
-      {
-        category: 'Systems',
-        text: 'A new Legendary hero attack, Tectonic Slam, can drop from crates.',
-        details: [
-          'Your damage builds up, then your hero hurls boulders at the other hero, and stone spikes burst out of the ground around them.',
-          'Bigger hits throw more boulders, and they start to glow with magma.',
-          'The biggest hits are a true earthquake: the ground cracks open to the other hero and erupts under them.',
-          'Equip it from the Attack Animations tab of the Collection. There is a preview button there too.',
-          'Hero attacks now land centred on the hero portrait every time.',
-          'Hero attacks are looks only. The damage is exactly the same.',
-        ],
-      },
-      {
-        category: 'Systems',
-        text: 'A new Legendary hero attack, Arcane Barrage, can drop from crates.',
-        details: [
-          'Your damage builds up, your hero charges up, and a volley of bolts hits the other hero. The biggest hits fire one huge beam.',
-          'The bigger the hit, the bigger the show.',
-          'Equip it from the Attack Animations tab of the Collection. "Use Classic" puts the original attack back. There is a preview button there too.',
-          'The player you hit sees your hero attack, and you see theirs.',
-          'The setting Show opponent skins is now Show opponent cosmetics. Turn it off to see other players with the default look and the Classic attack.',
-          'Hero attacks are looks only. The damage is exactly the same.',
-        ],
-      },
-      {
-        category: 'Systems',
-        text: 'A Legendary Black Belt Brian skin and an Epic Bellringer Voss skin join the crates.',
-      },
-      {
-        category: 'Systems',
-        text: 'Skins are here. Crates can now give hero and minion skins, and you can equip them in the Collection.',
-        details: [
-          'The first skins: three looks for Black Belt Brian, one for Bellringer Voss, one for Albus and one for Warden.',
-          'Equip a skin from the Heroes or Minions tab of the Collection. "Use default art" puts the original back.',
-          'Your skin shows everywhere that hero or minion appears: the shop, your hand and board, combat, Discover, the end screen, your Career and the Minion Book.',
-          'Gilded copies keep their gold frame on top of the skin.',
-          'Opponents see the skins you wore in that game, and you see theirs.',
-          'The skins you wear are locked in when a game starts. Changes apply to your next game.',
-          'Skins are looks only. Nothing about how a card plays changes.',
-        ],
-      },
-      {
-        category: 'Systems',
-        text: 'New setting: Show opponent skins. Turn it off to see other players in their default art. Your own skins always show.',
-      },
-      {
-        category: 'Systems',
-        text: 'Collection now has its own screen, and opening a crate got a big new animation.',
-        details: [
-          'Find the Collection on the main menu, in the side menu, or on your Career.',
-          'Open your crates one at a time, or Open all to go through every one.',
-          'The crate builds up while it opens, then bursts. The rarer the reward, the bigger the show.',
-          'Click or press a key to skip straight to your reward.',
-          'Reduced motion on? The reward simply fades in.',
-        ],
-      },
-      {
-        category: 'Systems',
-        text: 'Career: your name and title now sit big at the top of the page.',
-        details: [
-          'Your Account Level moved under your favorite hero, so Seasonal Ranked leads the right side.',
-          'The hero portrait is now labelled Favorite hero.',
-        ],
-      },
-      {
-        category: 'Systems',
-        text: 'The Collection has a new layout. See every title, even the ones you have not found yet.',
-        details: [
-          'Every title shows, found or not. Missing ones are dimmed, so you can see what is left to find.',
-          'Filter by Owned, Missing or rarity. Counts show how many you have.',
-          'Pick a title to see it large, how to get it, and how it looks under your name.',
-          'Your sealed crates stay in view on the side, ready to open.',
-          'New titles wear a NEW badge until you look at them.',
-          'Heroes, Minions, Boards and more have their own tabs, marked as coming soon.',
-        ],
-      },
-    ],
-  },
-  {
-    date: '2026-09-28',
-    changes: [
       {
         category: 'Systems',
         text: 'Level crates: every Account Level now gives you a crate, and your first game gives you a Welcome Crate.',
@@ -686,34 +376,7 @@ export const PATCH_NOTES: PatchNote[] = [
     date: '2026-09-27',
     changes: [
       { category: 'Systems', text: 'Fix: when an opponent casts Growth in combat (like their Fatecarver), the effect now plays on their board, not yours.' },
-    ],
-  },
-  {
-    date: '2026-09-27',
-    label: 'Rune tuning',
-    changes: [
-      {
-        category: 'Balance',
-        text: 'Three runes have new prices, the War Drum rune explains itself better, and two Undead runes now need Undead in the game.',
-        details: [
-          'Rune of Bartering costs 4 Gold (was 6).',
-          'Rune of the First Round costs 5 Gold (was 4).',
-          'Rune of the Long Shift costs 3 Gold (was 2).',
-          'Rune of the War Drum now reads: the first Shout you trigger each turn triggers 2 more times. It works as before.',
-          'Rune of Overflow and Rune of Rising Echoes are Undead runes now. They only appear in games with Undead.',
-        ],
-      },
-    ],
-  },
-  {
-    date: '2026-09-27',
-    changes: [
       { category: 'Systems', text: 'Rune of Basic Dwarves now reads "Get a Dwarf", and the Runeforge now counts it as a fit for a Dwarf board.' },
-    ],
-  },
-  {
-    date: '2026-09-27',
-    changes: [
       {
         category: 'Systems',
         text: 'Account Levels: earn XP from every game. Reach Level 2 to unlock the Alpha Tester title.',
@@ -748,23 +411,8 @@ export const PATCH_NOTES: PatchNote[] = [
       },
       { category: 'Systems', text: 'Practice has a new Unlimited time option: no shop timer at all.' },
       { category: 'Systems', text: 'Practice has a new Heroes option. Beginner offers three starter heroes (Indy, Warden and Keshi); All offers every hero.' },
-    ],
-  },
-  {
-    date: '2026-09-27',
-    changes: [
       { category: 'Systems', text: "Practice's Tribes option now explains itself: pick as many tribes as you like, and Neutrals are always included." },
-    ],
-  },
-  {
-    date: '2026-09-27',
-    changes: [
       { category: 'Systems', text: 'Finished Practice games now show up in Recent Games. Before, they were never saved.' },
-    ],
-  },
-  {
-    date: '2026-09-27',
-    changes: [
       {
         category: 'Systems',
         text: 'Start of Turn effects now each play their own moment after the screen returns from combat.',
@@ -781,6 +429,23 @@ export const PATCH_NOTES: PatchNote[] = [
     ],
   },
   {
+    date: '2026-09-27',
+    label: 'Rune tuning',
+    changes: [
+      {
+        category: 'Balance',
+        text: 'Three runes have new prices, the War Drum rune explains itself better, and two Undead runes now need Undead in the game.',
+        details: [
+          'Rune of Bartering costs 4 Gold (was 6).',
+          'Rune of the First Round costs 5 Gold (was 4).',
+          'Rune of the Long Shift costs 3 Gold (was 2).',
+          'Rune of the War Drum now reads: the first Shout you trigger each turn triggers 2 more times. It works as before.',
+          'Rune of Overflow and Rune of Rising Echoes are Undead runes now. They only appear in games with Undead.',
+        ],
+      },
+    ],
+  },
+  {
     date: '2026-09-26',
     changes: [
       {
@@ -793,11 +458,6 @@ export const PATCH_NOTES: PatchNote[] = [
           'Hold your phone sideways to play.',
         ],
       },
-    ],
-  },
-  {
-    date: '2026-09-26',
-    changes: [
       {
         category: 'Balance',
         text: 'Gravetwin, Auric Runemaster and Graverobber now pick a random target when their Shout is triggered again.',
@@ -814,11 +474,6 @@ export const PATCH_NOTES: PatchNote[] = [
         category: 'Systems',
         text: 'Squirl Scout now shows its current bonus during combat, updating as it grows.',
       },
-    ],
-  },
-  {
-    date: '2026-09-26',
-    changes: [
       {
         category: 'Systems',
         text: 'Shouts triggered during combat now take effect right away. Cards they give you arrive during the fight, and can trigger other effects.',
@@ -839,11 +494,6 @@ export const PATCH_NOTES: PatchNote[] = [
           'Cards that already print Rise are unchanged.',
         ],
       },
-    ],
-  },
-  {
-    date: '2026-09-26',
-    changes: [
       {
         category: 'Systems',
         text: 'Effects that trigger when a minion Rises now also trigger when it Rises in the Shop.',
@@ -852,25 +502,6 @@ export const PATCH_NOTES: PatchNote[] = [
           'Every Shop Rise now counts once, whatever destroyed the minion.',
         ],
       },
-    ],
-  },
-  {
-    date: '2026-09-26',
-    changes: [
-      {
-        category: 'Systems',
-        text: 'A minion given Rise now says Rise in its text.',
-        details: [
-          'The text starts with Rise on every card view, in the shop, your hand, your board and in combat.',
-          'Once the minion Rises, the text drops it. If it gets Rise again, it comes back.',
-          'Cards that already print Rise are unchanged.',
-        ],
-      },
-    ],
-  },
-  {
-    date: '2026-09-26',
-    changes: [
       {
         category: 'Systems',
         text: 'A minion summoned to attack immediately now attacks right after it lands, before the next minion in line.',
@@ -1248,16 +879,6 @@ export const PATCH_NOTES: PatchNote[] = [
   },
   {
     date: '2026-09-25',
-    label: 'New Game Start Lines',
-    changes: [
-      {
-        category: 'Systems',
-        text: 'The announcer has 23 new lines for the start of a game, 25 in all.',
-      },
-    ],
-  },
-  {
-    date: '2026-09-25',
     label: 'Effects Fix',
     changes: [
       {
@@ -1603,31 +1224,6 @@ export const PATCH_NOTES: PatchNote[] = [
   },
   {
     date: '2026-09-24',
-    label: 'Ruby Types',
-    changes: [
-      {
-        category: 'Balance',
-        text: 'Four new kinds of Ruby join the Warding Ruby. Each does something extra when it lands on a Kobold. Several Kobold cards and runes now hand out random Rubies.',
-        details: [
-          'New Rubies: Golden Ruby (gain 2 Gold), Splintered Ruby (bounces once), Ripple Ruby (casts again) and Dark Ruby (eats the highest Health minion in the Shop as Rubies). Each gives +1/+1 and grows with your Ruby upgrades.',
-          'A random Ruby can be any of the six kinds, all equally likely.',
-          'Warding Ruby now gives +1/+2.',
-          'Ruby Shipment costs 2 and gets 2 random Rubies.',
-          'Kobe keeps Taunt. New ability: Pummel (15): get a random Ruby, twice per combat.',
-          'Shardluck is now Tier 6, 8/5: play 3 Rubies on your Kobolds, or cast Veinstorm 3 times.',
-          'Gemheart Carver summons 2 Golems. Geode Guardian summons 1 Golem with Taunt. Each Golem carries the Rubies.',
-          'Blast Pump casts a Ruby on all of your minions.',
-          'Prismatic Pick can now Discover a special Ruby.',
-          'New Kobolds: Gemheart Legionnaire (gets 5 Rubies whenever you summon a Gemheart Golem) and Dealski (gets 2 Rubies whenever you play a Choose One card).',
-          'Gem Sage: when you get a Ruby, also get a random Ruby.',
-          'Rune of Resonance: your Rubies always cast twice from hand, and you get a random Ruby at the start of each turn.',
-          'Rune of Investment is now an Epic rune and pays random Rubies.',
-        ],
-      },
-    ],
-  },
-  {
-    date: '2026-09-24',
     label: 'Kobolds and Dwarves',
     changes: [
       {
@@ -1658,11 +1254,6 @@ export const PATCH_NOTES: PatchNote[] = [
           'It could happen after the game window changed size. Your minions now stay put when you cast.',
         ],
       },
-    ],
-  },
-  {
-    date: '2026-09-24',
-    changes: [
       {
         category: 'Systems',
         text: 'The Compendium can now show any card set. Pick one from the new Set menu at the right of the tier bar.',
@@ -1677,11 +1268,6 @@ export const PATCH_NOTES: PatchNote[] = [
         text: 'The Runes tab of the Compendium has a new Neutral filter next to the tribe filters.',
         details: ['Neutral shows the runes that do not need any tribe. It combines with the tribe filters.'],
       },
-    ],
-  },
-  {
-    date: '2026-09-24',
-    changes: [
       {
         category: 'Systems',
         text: 'The Announcer has lots of new lines for big moments in your game.',
@@ -1695,11 +1281,6 @@ export const PATCH_NOTES: PatchNote[] = [
           'Most lines still play once per game at most, with a pause between lines. Up to 15 lines per game, plus the final result.',
         ],
       },
-    ],
-  },
-  {
-    date: '2026-09-24',
-    changes: [
       {
         category: 'Systems',
         text: 'New default audio mix. Game sounds, Music and Announcer all start at 50, and 50 is now a balanced mix.',
@@ -1709,11 +1290,6 @@ export const PATCH_NOTES: PatchNote[] = [
           'Your volume sliders reset to 50 once with this update. Your mute choices are kept.',
         ],
       },
-    ],
-  },
-  {
-    date: '2026-09-24',
-    changes: [
       {
         category: 'Balance',
         text: 'Set 3 has a leaner Runeforge. 54 runes no longer appear there. The other sets keep them.',
@@ -1727,11 +1303,6 @@ export const PATCH_NOTES: PatchNote[] = [
           'Set 3 now forges 120 Basic runes and 107 Epic runes.',
         ],
       },
-    ],
-  },
-  {
-    date: '2026-09-24',
-    changes: [
       {
         category: 'Systems',
         text: 'Tripling a minion has a new effect. Each copy bursts into golden sparks and sends a golden trail to your new golden minion.',
@@ -1751,11 +1322,6 @@ export const PATCH_NOTES: PatchNote[] = [
         text: 'Picking a card from a Discover, a Choose One or the Runeforge has a new sound, and it plays the moment you press the card.',
         details: ['It replaces the usual click, so you hear one sound, not two.'],
       },
-    ],
-  },
-  {
-    date: '2026-09-24',
-    changes: [
       {
         category: 'Systems',
         text: 'Effects are no longer cut off by a hard edge. They now play over their full area.',
@@ -1765,11 +1331,6 @@ export const PATCH_NOTES: PatchNote[] = [
           'Effects now reach the edge of your screen in the shop, at End of Turn and in combat.',
         ],
       },
-    ],
-  },
-  {
-    date: '2026-09-24',
-    changes: [
       {
         category: 'Systems',
         text: 'Spell effects and sounds now play however the spell is cast, including from runes.',
@@ -1785,57 +1346,7 @@ export const PATCH_NOTES: PatchNote[] = [
           'Dragonflame no longer plays twice on the same minion in some combats.',
         ],
       },
-    ],
-  },
-  {
-    date: '2026-09-24',
-    changes: [
       { category: 'Balance', text: 'Rune of Hoardcalling only appears in runs with Dragons again.' },
-    ],
-  },
-  {
-    date: '2026-09-24',
-    label: 'Kobolds, Celestials and Dwarves',
-    changes: [
-      {
-        category: 'Balance',
-        text: 'Pickles, Jewel, Delver, Kurse, Maestro Lux and Han Gover changed, and Facetwright\'s Choice is now just Facetwright.',
-        details: [
-          'Facetwright\'s Choice is renamed Facetwright. It works the same.',
-          'Pickles now reads "Choose One: Get 3 Rubies or a Facetwright." (Gilded: 6 Rubies or 2 Facetwrights). The random Shop spell option is gone.',
-          'Jewel now reads "Choose One: Get a random Kobold or increase your max Gold by 1." (Gilded: 2 Kobolds or +2 max Gold). It no longer Discovers.',
-          'Delver is now Tier 2 and a 4/3 (was Tier 3, 5/3).',
-          'Kurse now reads "Avenge (3): Summon a Gemheart Golem with this minion\'s Rubies. It attacks immediately." The Golem now attacks the moment it lands. That part is new.',
-          'Gemheart Carver and Porkbelly now say "Summon a Gemheart Golem with this minion\'s Rubies". Same effect, clearer words.',
-          'Maestro Lux now reads "Pummel (12): Get a random Celestial. (Once per combat.)" It no longer has a Shout.',
-          'Han Gover can now trigger up to 5 times per combat (was once). Every 40 damage it deals gets a Dwarven Ale, up to 5 each fight.',
-        ],
-      },
-    ],
-  },
-  {
-    date: '2026-09-24',
-    label: 'Kobolds, Celestials and Dwarves',
-    changes: [
-      {
-        category: 'Balance',
-        text: 'Pickles, Jewel, Delver, Kurse, Maestro Lux and Han Gover changed, and Facetwright\'s Choice is now just Facetwright.',
-        details: [
-          'Facetwright\'s Choice is renamed Facetwright. It works the same.',
-          'Pickles now reads "Choose One: Get 3 Rubies or a Facetwright." (Gilded: 6 Rubies or 2 Facetwrights). The random Shop spell option is gone.',
-          'Jewel now reads "Choose One: Get a random Kobold or increase your max Gold by 1." (Gilded: 2 Kobolds or +2 max Gold). It no longer Discovers.',
-          'Delver is now Tier 2 and a 4/3 (was Tier 3, 5/3).',
-          'Kurse now reads "Avenge (3): Summon a Gemheart Golem with this minion\'s Rubies. It attacks immediately." The Golem now attacks the moment it lands. That part is new.',
-          'Gemheart Carver and Porkbelly now say "Summon a Gemheart Golem with this minion\'s Rubies". Same effect, clearer words.',
-          'Maestro Lux now reads "Pummel (12): Get a random Celestial. (Once per combat.)" It no longer has a Shout.',
-          'Han Gover can now trigger up to 5 times per combat (was once). Every 40 damage it deals gets a Dwarven Ale, up to 5 each fight.',
-        ],
-      },
-    ],
-  },
-  {
-    date: '2026-09-24',
-    changes: [
       {
         category: 'Systems',
         text: 'Runes that cast spells now flash as they cast, and the spell travels out from the rune.',
@@ -1859,17 +1370,7 @@ export const PATCH_NOTES: PatchNote[] = [
         category: 'Systems',
         text: 'Discover now shows your real board behind the choices, and the plain browser tooltips are gone.',
       },
-    ],
-  },
-  {
-    date: '2026-09-24',
-    changes: [
       { category: 'Balance', text: 'Rune of Spellhide now recasts its spell at Start of Combat as printed.' },
-    ],
-  },
-  {
-    date: '2026-09-24',
-    changes: [
       {
         category: 'Systems',
         text: 'Growth and Waking Rift have their own effects now, wherever they are cast from.',
@@ -1879,17 +1380,32 @@ export const PATCH_NOTES: PatchNote[] = [
           'When a minion casts one of these spells, its own effect replaces the usual buff trail from that minion.',
         ],
       },
-    ],
-  },
-  {
-    date: '2026-09-24',
-    changes: [
       {
         category: 'Systems',
         text: 'Spell previews are smaller and only appear for spells cast by your runes for now.',
         details: [
           'The spell card that pops up when a rune casts a spell is smaller and quicker, sitting just above the rune.',
           'Spells cast by minions, in the shop or in combat, no longer show a preview for now.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-09-24',
+    label: 'Kobolds, Celestials and Dwarves',
+    changes: [
+      {
+        category: 'Balance',
+        text: 'Pickles, Jewel, Delver, Kurse, Maestro Lux and Han Gover changed, and Facetwright\'s Choice is now just Facetwright.',
+        details: [
+          'Facetwright\'s Choice is renamed Facetwright. It works the same.',
+          'Pickles now reads "Choose One: Get 3 Rubies or a Facetwright." (Gilded: 6 Rubies or 2 Facetwrights). The random Shop spell option is gone.',
+          'Jewel now reads "Choose One: Get a random Kobold or increase your max Gold by 1." (Gilded: 2 Kobolds or +2 max Gold). It no longer Discovers.',
+          'Delver is now Tier 2 and a 4/3 (was Tier 3, 5/3).',
+          'Kurse now reads "Avenge (3): Summon a Gemheart Golem with this minion\'s Rubies. It attacks immediately." The Golem now attacks the moment it lands. That part is new.',
+          'Gemheart Carver and Porkbelly now say "Summon a Gemheart Golem with this minion\'s Rubies". Same effect, clearer words.',
+          'Maestro Lux now reads "Pummel (12): Get a random Celestial. (Once per combat.)" It no longer has a Shout.',
+          'Han Gover can now trigger up to 5 times per combat (was once). Every 40 damage it deals gets a Dwarven Ale, up to 5 each fight.',
         ],
       },
     ],
@@ -2161,13 +1677,6 @@ export const PATCH_NOTES: PatchNote[] = [
   },
   {
     date: '2026-09-23',
-    label: 'Milestone glow fix',
-    changes: [
-      { category: 'Systems', text: 'Fixed the blue top-tier milestone glow lingering on units that had not reached the top stat tier, including opponent minions carrying it over between fights.' },
-    ],
-  },
-  {
-    date: '2026-09-23',
     label: 'More mechanic medallions',
     changes: [
       { category: 'Systems', text: 'New medallions: an Epic badge on units that multiply how often something happens (Drakko, Sylus, Chronos, Yazzus and other trigger multipliers), a Sell badge on "when you sell this" units, and an Equip badge on Equipment minions. Overflow now shows the Watcher eye.' },
@@ -2419,32 +1928,6 @@ export const PATCH_NOTES: PatchNote[] = [
   },
   {
     date: '2026-09-22',
-    label: 'Hall of Champions + lobby strength',
-    changes: [
-      {
-        category: 'Balance',
-        text: 'A top 4 finish in a hard lobby now pays a bonus of up to 15 rating on top of the usual award.',
-        details: [
-          'Every lobby now has a strength score from 0 to 100: the average win rate of the seven runs you were seated with, from their record across every game they have played. An unknown run counts as 50. A bot counts as 25.',
-          'The bonus scales with your placement and with the lobby strength. A 1st place earns the full scale, a 2nd earns 80 percent of it, a 3rd 62 percent and a 4th 47 percent. The strength part is 0 at 30 or below and full at 100.',
-          'Some examples at the time: a 1st at strength 100 earns 15, a 1st at 75 earns 10, a 4th at 100 earns 7, a 1st at 50 earns 4 and a 4th at 50 earns 2 (the floor moved to 50 later the same day, see above). Finishing 5th to 8th never scales, and a loss never gets bigger.',
-          'The bonus follows the normal promotion rules. A 1st at 90 of 100 still stops at 100. A top 4 at a division gate still promotes to 10 of 100.',
-          'The rank screen printed the two parts apart at first, for example +40 RP +12 lobby (now one number, see above).',
-        ],
-      },
-      {
-        category: 'Systems',
-        text: 'The Hall of Champions now ranks warbands by their record against everyone, not by lobby wins.',
-        details: [
-          'Every fight at your table is recorded, including the rounds played out after you are knocked out. A warband enters the Hall after 10 fights.',
-          'The top 10 are ordered by win rate with a confidence adjustment, so a 30 and 2 warband ranks above a 3 and 0 one. Each row shows its full record, its win rate, how many lobbies it fought in, its own game, its last fight and the rank its player held.',
-          "Your Career match results and the Recent Games rows now show each lobby's strength as a percentage, such as 47%. Higher means your seven opponents have won more of their recorded fights. It never shows before or during a game.",
-        ],
-      },
-    ],
-  },
-  {
-    date: '2026-09-22',
     label: 'Card readability & gilded polish',
     changes: [
       { category: 'Systems', text: 'The keyword panel beside a card now leads with the keyword shown on the card’s medallion and marks that entry with the medallion icon, so the gem and its definition line up.' },
@@ -2535,17 +2018,6 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       { category: 'Systems', text: 'An Amplified Equipment now glows on its slot while it has a charge to spend. The glow stops when you use it or switch to an Equipment that is not Amplified.' },
       { category: 'Systems', text: 'Comet plays its own effect when you use it.' },
-    ],
-  },
-  {
-    date: '2026-09-22',
-    label: 'Balance Report',
-    changes: [
-      { category: 'Systems', text: 'The Balance Report now reads only the active set and never a Scene Builder run. Export all downloads the whole dataset as one file.', details: [
-        'The header names the set it is reading and how many runs it found.',
-        "Minions and Spells show each card's buyers, buy rate, average place, top 4 rate and a placement delta against the field, with a hot and cold colour and a chart view.",
-        'Tier and tribe chips above the table summarise each group and filter the table when clicked.',
-      ] },
     ],
   },
   {
@@ -2883,20 +2355,6 @@ export const PATCH_NOTES: PatchNote[] = [
           "Each row's hero portrait now sits in the same gold portrait ring the Career page and hero select use, about a third larger than before.",
           'The rune pills on Recent Games grew, with a bigger emblem and larger name text. They still wrap when a run took many runes.',
           'The seven warband cards moved down so their frames no longer run into the FINAL TEAM / WINNING WARBAND caption, on every screen size.',
-        ],
-      },
-    ],
-  },
-  {
-    date: '2026-09-21',
-    label: 'Title screen: your portrait, name and rank',
-    changes: [
-      {
-        category: 'Systems',
-        text: "The title screen shows your portrait large in the top-right with your name and rank; Sign in / Sign out moved into Settings.",
-        details: [
-          "Your avatar now sits in the game's gold portrait ring, top-right of the main menu. Click it to change your avatar, or click your name on the ring's edge to rename yourself. Your current rank (say Bronze III) shows in a badge under your name once you have one.",
-          "The old \"Sign in\" / \"Account\" button in that corner is gone. Sign in (and Sign out, once you're signed in) now live at the bottom of Settings; signing in still only takes an email and a one-time code.",
         ],
       },
     ],
@@ -3530,20 +2988,6 @@ export const PATCH_NOTES: PatchNote[] = [
           `Keyword pills: "Equip" (Can be triggered once per turn, per equipment, for a cost.), "Starform" (occupies a Shop slot until purchased or destroyed; buying it grants its stats to your left-most Celestial) and "Collapse" (grant 50% of your Starform's stats to 3 Celestials and destroy it).`,
           "Vaultkeeper: its \"+N/+N\" and \"spells to next step\" now count spells cast DURING the fight (yours and, for an opponent's Vaultkeeper, theirs), instead of only updating after combat.",
         ],
-      },
-    ],
-  },
-  {
-    date: '2026-09-17',
-    label: 'Gamble joins Set 3',
-    changes: [
-      {
-        category: 'Balance',
-        text: 'The Gamble spell is now in the Set 3 pool as well: roll a die and get a random minion or spell of that Tier.',
-      },
-      {
-        category: 'Balance',
-        text: 'Rune of Gambling, a new Basic rune in every set: get a Gamble, repeat every turn, and your Gambles grant BOTH a minion and a spell of the rolled Tier.',
       },
     ],
   },
@@ -5711,19 +5155,7 @@ export const PATCH_NOTES: PatchNote[] = [
         'Warm Embers’ banked double-charges work the same way: charges you didn’t spend in the shop double the next Shouts triggered in combat.',
         'Both still work exactly as before when you spend them in the shop. This only rescues charges that would have evaporated.',
       ] },
-    ],
-  },
-  {
-    date: '2026-08-26',
-    label: 'Fixes',
-    changes: [
       { category: 'Balance', text: 'Pack Leader now counts the same Beasts for everyone. When your board is served as an opponent, its Pack Leader fights at full strength. An all-types minion you played was being missed.' },
-    ],
-  },
-  {
-    date: '2026-08-26',
-    label: 'Fixes',
-    changes: [
       { category: 'Balance', text: 'A minion that counts as ALL types now genuinely triggers every type’s interactions.', details: [
         'Selling an all-types minion now triggers Voicekeeper (and the rest of the sell-a-type family).',
         'Effects that pick "a friendly minion of a type" can now pick an all-types minion.',
@@ -5740,6 +5172,11 @@ export const PATCH_NOTES: PatchNote[] = [
       { category: 'Balance', text: 'Gangplank now triggers for every card that reaches your hand: bought Shop spells, minted Rubies, Discover picks, a full Buyout, and more. It was only counting a few of them.' },
       { category: 'Balance', text: 'Funeral on Loan: a borrowed Echo minion that summons now fits its summon into the slot the borrowed body leaves behind, instead of doing nothing on a full-looking board.' },
       { category: 'Balance', text: 'Rune of the Ornate Clock now MOVES your Epic Runeforge to next turn instead of also giving you the turn-9 one.' },
+      { category: 'Balance', text: 'Kringle again shows its full grant. Its text was dropping the Health half the moment you played a card.' },
+      { category: 'Balance', text: 'A shop buffed “for this turn” now sticks to the minion you buy.', details: [
+        'Rune of the Merchant’s Chorus and Night Market Horror buff minions in the shop for the turn. Buying one used to pay only part of what the shop showed.',
+        'The bought minion now arrives with the advertised stats and keeps them on the board.',
+      ] },
     ],
   },
   {
@@ -5758,17 +5195,6 @@ export const PATCH_NOTES: PatchNote[] = [
       { category: 'Balance', text: 'Happy Birthday (Basic) gives a random Gift right away, then another every 2 turns.' },
       { category: 'Balance', text: 'Merry Christmas (Epic) lets you Discover a Gift immediately, then again every Start of Turn.' },
       { category: 'Balance', text: 'Great Pot is a Tier 4 spell that gives a minion of each type +4/+4.' },
-    ],
-  },
-  {
-    date: '2026-08-26',
-    label: 'Fixes',
-    changes: [
-      { category: 'Balance', text: 'Kringle again shows its full grant. Its text was dropping the Health half the moment you played a card.' },
-      { category: 'Balance', text: 'A shop buffed “for this turn” now sticks to the minion you buy.', details: [
-        'Rune of the Merchant’s Chorus and Night Market Horror buff minions in the shop for the turn. Buying one used to pay only part of what the shop showed.',
-        'The bought minion now arrives with the advertised stats and keeps them on the board.',
-      ] },
     ],
   },
   {
@@ -5811,6 +5237,9 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       { category: 'Systems', text: 'Hero select now leads with the ASCENT logo at the top of the screen and a “Select Your Hero” prompt above the heroes.' },
       { category: 'Systems', text: 'Tidied the main-menu logo’s size and placement.' },
+      { category: 'Systems', text: 'Added this Patch Notes screen: gameplay changes by date, opened from the title.' },
+      { category: 'Systems', text: 'Title-screen button tooltips now use the game’s own styling instead of the plain browser tooltip.' },
+      { category: 'Systems', text: 'Hero power and rune hover tooltips are 30% larger and easier to read.' },
     ],
   },
   {
@@ -5847,15 +5276,6 @@ export const PATCH_NOTES: PatchNote[] = [
         'Detailed view reveals the exact numbers and sub-parts beneath each one.',
       ] },
       { category: 'Systems', text: 'Save & Quit now brings you back with the exact time left on your turn, instead of resuming at 0 with the board locked.' },
-    ],
-  },
-  {
-    date: '2026-08-24',
-    label: 'Menu Polish',
-    changes: [
-      { category: 'Systems', text: 'Added this Patch Notes screen: gameplay changes by date, opened from the title.' },
-      { category: 'Systems', text: 'Title-screen button tooltips now use the game’s own styling instead of the plain browser tooltip.' },
-      { category: 'Systems', text: 'Hero power and rune hover tooltips are 30% larger and easier to read.' },
     ],
   },
   {

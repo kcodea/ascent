@@ -2435,8 +2435,28 @@ export const FOUNDATION_RULES: GameRule[] = [
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-28 (titles review on 5174)', quote: 'i think it should show in like leaderboard/match details views, but it looks bad in game' },
       { kind: 'code', ref: 'packages/progression/src/cosmetics.ts (RunCosmeticSnapshot.title, titleOf, withEquippedTitle, snapshotForRun); packages/sim/src/snapshot.ts (scopeCosmetics); packages/sim/src/lobby/snapshotSeats.ts; packages/ui/src/store.ts (recordRunCosmetics); packages/ui/src/titles/ (TitleBadge, titleStyle); packages/ui/src/Rankings.tsx; packages/ui/src/Leaderboard.tsx' },
     ],
-    currentBehaviour: 'Conforms, built 2026-09-28. Match details rows (PR #1806) are wired as a follow-up once that panel lands.',
+    currentBehaviour: 'Conforms, built 2026-09-28. Match details rows (PR #1806) were wired on 2026-09-29: see R-PROG-TITLE-03.',
     enforcement: { kind: 'scenario', refs: ['packages/progression/src/titles.test.ts', 'packages/sim/src/lobby/seatCosmetics.test.ts', 'packages/ui/src/titles/titles.test.tsx'], lastVerifiedAt: '2026-09-28' },
+  },
+  {
+    id: 'R-PROG-TITLE-03',
+    title: 'Match details shows every player\x27s title from that run (end screen and Career), your own as recorded, others through "Show opponent cosmetics"; none for bots or older records',
+    statement:
+      'Each row of Match details (the end screen dialog and the Career match card\x27s inline expand, one component) '
+      + 'renders TitleBadge beside the hero name with the title that player wore in that run. The title is read from the '
+      + 'seat\x27s recorded cosmetic snapshot, which the stored match record already carries per seat (cosmetics.title, '
+      + 'within the record\x27s size cap), so no extra query runs. Your own seat on your own record shows yours as recorded '
+      + '(an older record that only kept your titleId still shows it); every other seat, and every seat of someone '
+      + 'else\x27s record, goes through "Show opponent cosmetics" (off hides it). A bot seat never shows one; a record '
+      + 'from before titles were recorded has none; an unknown or retired title shows nothing.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-28 (titles in game, then the review on 5174)', quote: 'it\x27d be cool to show them where possible … i think it should show in like leaderboard/match details views' },
+      { kind: 'code', ref: 'packages/ui/src/matchDetails/MatchScoreboard.tsx (seatTitle, SeatRow); packages/sim/src/lobby/matchDetails.ts (MatchSeat.cosmetics, buildMatchDetails, parseSeat)' },
+    ],
+    currentBehaviour: 'Conforms, built 2026-09-29.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/matchDetails/matchDetails.test.tsx', 'packages/sim/src/lobby/matchDetails.test.ts'], lastVerifiedAt: '2026-09-29' },
   },
   {
     id: 'R-PROG-ATTACK-12',

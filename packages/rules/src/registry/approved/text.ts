@@ -373,4 +373,21 @@ export const TEXT_RULES: GameRule[] = [
     example: 'Upgrading to tier 3 plays "Ooh, another tier unlocked. Better units ahead!", never "Tier four".',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/announcer.test.ts'], lastVerifiedAt: '2026-09-28' },
   },
+  {
+    id: 'R-TEXT-PATCHNOTES-01',
+    title: 'The player-facing patch notes list each change exactly once: one block per date + label, newest first',
+    statement:
+      'PATCH_NOTES (the title screen Patch Notes) has at most one block per date and label, so at most one unlabeled '
+      + 'block per date (a new change joins it, never a second block), and every change text appears once in the whole '
+      + 'list. Blocks run newest first. A labeled block is its own patch headline and may share a date with others.',
+    domain: 'text',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-29 (patch notes dedupe)', quote: 'Collapse it into ONE block per date, with each change appearing exactly once.' },
+      { kind: 'fix-pr', ref: 'chore/patch-notes-dedupe-and-md-titles: packages/ui/src/patchNotes.ts (merge-conflict resolutions on 2026-09-28 left three 2026-09-28 blocks and 43 repeated changes)' },
+    ],
+    currentBehaviour: 'Conforms, FIXED 2026-09-29: 317 blocks with 623 changes (580 distinct) became 281 blocks with 581 changes, each once (the one new change is the Match details titles note).',
+    example: 'Two branches both prepend a 2026-09-28 block and the merge keeps both: patchNotes.test.ts fails until they are one.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/patchNotes.test.ts'], lastVerifiedAt: '2026-09-29' },
+  },
 ];

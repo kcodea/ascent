@@ -35,7 +35,10 @@
 .mds-tag { flex: none; font-weight: 900; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; padding: 2px 7px 1px; border-radius: 999px; }
 .mds-tag.you { color: #0f1a2c; background: #9ccaf5; }
 .mds-tag.bot { color: #a8d8ef; border: 1px solid rgba(168, 216, 239, 0.5); }
-.mds-title { font-weight: 900; font-size: 13px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--rc, #ffe08a); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* The hero name, then the player's title badge (owner 2026-09-28). The badge shrinks first; static, no paint loop. */
+.mds-heroline { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.mds-heroline .mds-hero { flex: 0 1 auto; }
+.titlebadge.mds-row-title { --tb-fs: 11px; flex: 0 1 auto; }
 .mds-hero { font-weight: 700; font-size: 14px; color: rgba(255, 255, 255, 0.62); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .mds-status { display: inline-flex; align-items: center; flex-wrap: wrap; gap: 4px 8px; font-weight: 800; font-size: 13px; letter-spacing: 0.06em; text-transform: uppercase; line-height: 1.2; }
 .mds-status svg { width: 15px; height: 15px; flex: none; }

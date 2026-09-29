@@ -14,7 +14,7 @@ import {
  *      surface's old CSS border / ring, un-clips the disc so the ring can overhang it, and rounds the art), and
  *   2. renders `<PortraitFrame frame={…} />` as a child of that disc host.
  *
- * Performance: the frame is ONE static `<img>` with a precomputed inline box; nothing animates, nothing measures,
+ * Performance: the frame is ONE static image element with a precomputed inline box; nothing animates, nothing measures,
  * the resolved object is cached per (tuner version, frame id) so memoised parents see a stable reference, and in
  * production the tuner never changes, so the store never notifies.
  *

@@ -18,7 +18,8 @@ import { useGame, syncProfileFromServer, tempHandle, type CareerFocus } from './
 import { fetchMyPracticeGames, fetchMyRuns, fetchPracticeReplay, fetchPlayerById, fetchReplayPayload, remoteEnabled, type PracticeGameConfig, type PracticeGameRow } from './remoteBoards';
 import { startReplay } from './replay/replayPlayer';
 import { RankBar } from './rank/RankBar';
-import { cosmeticOf, titleName } from '@game/progression';
+import { cosmeticOf, isMasterTitle, titleName } from '@game/progression';
+import { TitleBadge } from './titles/TitleBadge';
 import { AccountLevelCard, useCareerProgression } from './progression/AccountLevel';
 import { AchievementsTab } from './progression/AchievementsTab';
 import { achievementsVisible, useProgression } from './progression/progressionStore';
@@ -600,6 +601,8 @@ export function Career() {
   // The equipped title for the name header, with its rarity for the colour.
   const headerTitle = titleName(accountProgression?.equippedTitleId ?? null);
   const headerTitleRarity = cosmeticOf(accountProgression?.equippedTitleId ?? null)?.rarity ?? null;
+  // A hero title's master version is the golden embroidered plate (owner 2026-09-29).
+  const headerTitleMaster = isMasterTitle(accountProgression?.equippedTitleId ?? null);
 
   if (!show) return null;
 
@@ -868,7 +871,9 @@ export function Career() {
             <div className="cv2-kicker">{viewing ? 'Career' : 'Your Career'}</div>
             <div className="cv2-nameline">
               <span className="esch disp cv2-name">{shownName}</span>
-              {headerTitle && <span className={`cv2-titlechip${headerTitleRarity ? ` r-${headerTitleRarity}` : ''}`}>{headerTitle}</span>}
+              {headerTitle && (headerTitleMaster
+                ? <TitleBadge id={accountProgression?.equippedTitleId ?? null} className="cv2-titleplate" />
+                : <span className={`cv2-titlechip${headerTitleRarity ? ` r-${headerTitleRarity}` : ''}`}>{headerTitle}</span>)}
             </div>
           </div>
         </div>

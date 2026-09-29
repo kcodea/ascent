@@ -30,6 +30,8 @@ import { playHeroUndead } from '../heroUndead/heroUndead';
 import { playHeroBeast } from '../heroBeast/heroBeast';
 import { playHeroBanana } from '../heroBanana/heroBanana';
 import { playHeroBleed } from '../heroBleed/heroBleed';
+import { playHeroCards } from '../heroCards/heroCards';
+import { playHeroStorm } from '../heroStorm/heroStorm';
 import { playHeroCoin } from '../heroCoin/heroCoin';
 import { playHeroBoomerang } from '../heroBoomerang/heroBoomerang';
 import { playHeroBubble } from '../heroBubble/heroBubble';
@@ -124,11 +126,13 @@ describe('StageCamera', () => {
 // ── every style on the shared camera: the impact point lands on the struck portrait under a zoomed camera ──
 
 const W = Texture.WHITE;
-const ARRAYS = new Set(['rocks', 'shards', 'glyphs', 'banana', 'splat']);
+const ARRAYS = new Set(['rocks', 'shards', 'glyphs', 'banana', 'splat', 'pips']);
 const FIRE = fireTexturesFrom(W, W, W);
 /** Any style's texture set: every key a white texture (the list-valued keys a short list, the shared fire its own set). */
+/** A keyed texture set (Card Shark's faces): every key a white texture. */
+const ANY_W = new Proxy({} as Record<string, unknown>, { get: (_t, k) => (k === 'then' ? undefined : W) });
 const TEX = new Proxy({} as Record<string, unknown>, {
-  get: (_t, k) => (k === 'then' ? undefined : k === 'fire' ? FIRE : ARRAYS.has(String(k)) ? [W, W, W] : W),
+  get: (_t, k) => (k === 'then' ? undefined : k === 'fire' ? FIRE : k === 'cardFaces' ? ANY_W : ARRAYS.has(String(k)) ? [W, W, W, W] : W),
 });
 
 type Runner = (o: HeroAttackOptions & { textures?: unknown }) => HeroAttackHandle;
@@ -137,7 +141,8 @@ const STYLES: [string, Runner][] = [
   ['blades', playHeroBlades as Runner], ['enraged', playHeroEnraged as Runner], ['poison', playHeroPoison as Runner],
   ['frost', playHeroFrost as Runner], ['holy', playHeroHoly as Runner], ['fire', playHeroFire as Runner],
   ['undead', playHeroUndead as Runner], ['beast', playHeroBeast as Runner], ['banana', playHeroBanana as Runner],
-  ['bleed', playHeroBleed as Runner], ['coin', playHeroCoin as Runner], ['boomerang', playHeroBoomerang as Runner],
+  ['bleed', playHeroBleed as Runner], ['cards', playHeroCards as Runner], ['storm', playHeroStorm as Runner],
+  ['coin', playHeroCoin as Runner], ['boomerang', playHeroBoomerang as Runner],
   ['bubble', playHeroBubble as Runner], ['backstab', playHeroBackstab as Runner],
 ];
 

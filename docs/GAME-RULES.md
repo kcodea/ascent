@@ -257,10 +257,10 @@ progression **epoch**; nothing finished before the epoch counts (no backfill).
   R-PROG-SKINS-05), so a new or retired cosmetic is a code change plus one deploy, never SQL. Shaped
   for every cosmetic category (announcer, hero skin, minion skin, title, hero attack, board, music). Switched on:
   **titles** (15 crate titles: 7 Common, 5 Rare, 2 Epic, 1 Legendary) and, since the skins shipped the same day,
-  **hero skins** and **minion skins** (all from crates) and **hero attacks** (Arcane Barrage, Tectonic Slam, Arcana, Phantom Blades, Enraged Strike, Venom Volley, Frost Nova, Consecration, then Inferno, Grave Call, the Stampede, Oona's Banana Cannon and Hemorrhage, all Legendary; then the Rares Pocket Change, Come Back Around, Bubble Trouble and Shadow Step). The other
+  **hero skins** and **minion skins** (all from crates) and **hero attacks** (Arcane Barrage, Tectonic Slam, Arcana, Phantom Blades, Enraged Strike, Venom Volley, Frost Nova, Consecration, then Inferno, Grave Call, the Stampede, Oona's Banana Cannon and Hemorrhage, all Legendary; then the first Epics, Card Shark and Storm Call; then the Rares Pocket Change, Come Back Around, Bubble Trouble and Shadow Step). The other
   categories are feature-flagged off until their art exists. Crate odds are the fixed rarity odds above, then an equal
   share inside the rarity: on the 2026-09-29 catalog each Common is 6.25% (50 / 8), each Rare 1.76% (30 / 17, since the four Rare hero attacks joined), each Epic
-  1.5% (15 / 10) and each Legendary 0.31% (5 / 16, since Inferno, Grave Call, the Stampede, Oona's Banana Cannon and Hemorrhage joined). A fresh account's first crate is about 41% a skin or hero attack.
+  1.25% (15 / 12, since Card Shark and Storm Call joined) and each Legendary 0.31% (5 / 16, since Inferno, Grave Call, the Stampede, Oona's Banana Cannon and Hemorrhage joined). A fresh account's first crate is about 45% a skin or hero attack.
 - **Skins (2026-09-28; oracle R-PROG-SKINS-01, R-PROG-SKINS-04).** A hero skin replaces one hero's portrait; a
   minion skin replaces one card's art, by stable id. Equipped per target from the Collection's Heroes / Minions
   tabs through the server (`equip_cosmetic`: owned, made for that hero or card, live); **"Use default art"** is
@@ -371,7 +371,19 @@ progression **epoch**; nothing finished before the epoch counts (no backfill).
   mega-slash zips through the target EIGHT times, each in from the far side of the screen on its own line,
   accelerating into a blur (each zip a tick) and flinging blood that piles up across the whole screen, a beat of held
   tension, and a huge bloody explosion that paints the screen in blood and fades out, the blow landing on the
-  explosion; the claw rakes before it sweep wide lines too).
+  explosion; the claw rakes before it sweep wide lines too). **Card Shark** and
+  **Storm Call** (2026-09-29; R-PROG-ATTACK-26, R-PROG-ATTACK-27) are the first EPIC hero attacks: one idea each, shorter
+  than the Legendaries, and THREE looks instead of four (they read the same shared tier and map it: I small, II and III
+  medium, IV big; a knockout plays big). `attack_cards` ("Card Shark", a placeholder name; Epic, from crates): the hero
+  deals playing cards with a snap. Small, one Ace of spades flicked spinning into the struck hero, sticking edge first
+  with a flash; medium, three Aces thrown thunk thunk thunk (the blow on the third); big, a royal flush dealt face down
+  into a hand fanned out in front of the hero, flipped one by one (10, J, Q, K, A), turned gold, then all five fired
+  together to burst into card confetti on the struck hero (the blow on the burst). `attack_storm` ("Storm Call", a
+  placeholder name; Epic, from crates): lightning whose jagged shape is redrawn every few frames. Small, a crackling bolt
+  arcs from the hero into the struck hero with a zap; medium, a forked bolt whose two branches strike one after the other
+  (the blow on the second) and leave the portrait jittering with static; big, the hero calls a storm cloud over the
+  struck hero that rumbles and drops one thick strike (a flash across the screen, a ring of sparks, static crawling over
+  the portrait).
   **The Rares** (2026-09-29; R-PROG-ATTACK-28 to 32) are shorter and calmer, with only TWO
   visual tiers: the shared I-II play Small and III-IV play Big (so a knockout plays Big). `attack_coin` ("Pocket Change"):
   a gleaming gold coin flicked spinning pings the struck hero with a bright sparkle and caroms off; Big ricochets it off
@@ -382,7 +394,7 @@ progression **epoch**; nothing finished before the epoch counts (no backfill).
   a big one with a splash ring. `attack_backstab` ("Shadow Step"): the striking PORTRAIT fades into smoke, steps out
   behind the struck hero and stabs back toward its own side, then smokes home and settles; Big lunges first, then stabs
   from the side, then from behind (kept on screen, always striking the target; its portrait restored exactly after).
-  Each lands the blow once, on its last hit. All seventeen anchor on the round portrait art at rest
+  Each lands the blow once, on its last hit. All nineteen anchor on the round portrait art at rest
   (R-PROG-ATTACK-04). Equipped
   account-wide in the Collection's Attack Animations tab ("Use Classic" takes it off). The STRIKER's attack plays:
   yours when you win, the opponent's (from their recorded snapshot) when they win. Recorded per run like skins;

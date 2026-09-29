@@ -27,6 +27,10 @@ import { playHeroBanana } from '../heroBanana/heroBanana';
 import { heroBananaPreviewSpeed } from '../heroBanana/heroBananaConfig';
 import { playHeroBleed } from '../heroBleed/heroBleed';
 import { heroBleedPreviewSpeed } from '../heroBleed/heroBleedConfig';
+import { playHeroCards } from '../heroCards/heroCards';
+import { heroCardsPreviewSpeed } from '../heroCards/heroCardsConfig';
+import { playHeroStorm } from '../heroStorm/heroStorm';
+import { heroStormPreviewSpeed } from '../heroStorm/heroStormConfig';
 import { playHeroCoin } from '../heroCoin/heroCoin';
 import { heroCoinPreviewSpeed } from '../heroCoin/heroCoinConfig';
 import { playHeroBoomerang } from '../heroBoomerang/heroBoomerang';
@@ -54,6 +58,8 @@ const RUNNERS: Record<string, { play: (o: HeroAttackOptions & { textures?: null 
   beast: { play: (o) => playHeroBeast(o), speed: heroBeastPreviewSpeed },
   banana: { play: (o) => playHeroBanana(o), speed: heroBananaPreviewSpeed },
   bleed: { play: (o) => playHeroBleed(o), speed: heroBleedPreviewSpeed },
+  cards: { play: (o) => playHeroCards(o), speed: heroCardsPreviewSpeed },
+  storm: { play: (o) => playHeroStorm(o), speed: heroStormPreviewSpeed },
   coin: { play: (o) => playHeroCoin(o), speed: heroCoinPreviewSpeed },
   boomerang: { play: (o) => playHeroBoomerang(o), speed: heroBoomerangPreviewSpeed },
   bubble: { play: (o) => playHeroBubble(o), speed: heroBubblePreviewSpeed },

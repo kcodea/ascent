@@ -146,7 +146,7 @@ describe('the roll', () => {
   it('the per-item chances of a first crate (2026-09-29 catalog): each item = its rarity\'s odds / that rarity\'s item count', () => {
     const all = eligibleCrateCosmetics([]);
     const count = (r: string): number => all.filter((c) => c.rarity === r).length;
-    expect(COSMETIC_RARITIES.map(count)).toEqual([8, 17, 10, 16]); // 2026-09-29: Inferno, Grave Call, the Stampede, Oona's Banana Cannon and Hemorrhage made Legendary 16; the four Rare hero attacks (coin, boomerang, bubble, backstab) made Rare 17
+    expect(COSMETIC_RARITIES.map(count)).toEqual([8, 17, 12, 16]); // 2026-09-29: Inferno, Grave Call, the Stampede, Oona's Banana Cannon and Hemorrhage made Legendary 16; the first Epic attacks, Card Shark and Storm Call, made Epic 12; the four Rare hero attacks (coin, boomerang, bubble, backstab) made Rare 17
     const ch = crateChances(all);
     const pct = (id: string): number => Math.round(100000 * ch.get(id)!) / 1000;
     expect(pct('skin_blackbelt_4')).toBe(6.25);       // Common: 50 / 8
@@ -155,9 +155,11 @@ describe('the roll', () => {
     expect(pct('title_grave_whisperer')).toBe(1.765);
     expect(pct('attack_coin')).toBe(1.765);
     expect(pct('attack_backstab')).toBe(1.765);
-    expect(pct('skin_bellringer_1')).toBe(1.5);       // Epic: 15 / 10
-    expect(pct('skin_albus_1')).toBe(1.5);
-    expect(pct('title_kingbreaker')).toBe(1.5);
+    expect(pct('skin_bellringer_1')).toBe(1.25);      // Epic: 15 / 12
+    expect(pct('skin_albus_1')).toBe(1.25);
+    expect(pct('title_kingbreaker')).toBe(1.25);
+    expect(pct('attack_cards')).toBe(1.25);
+    expect(pct('attack_storm')).toBe(1.25);
     expect(pct('skin_blackbelt_3')).toBe(0.313);      // Legendary: 5 / 16
     expect(pct('attack_arcana')).toBe(0.313);
     expect(pct('attack_fire')).toBe(0.313);
@@ -167,7 +169,7 @@ describe('the roll', () => {
     expect(pct('attack_bleed')).toBe(0.313);
     expect(pct('title_the_unbroken')).toBe(0.313);
     const cat = (k: string): number => Math.round(1000 * all.filter((c) => c.category === k).reduce((a, c) => a + ch.get(c.id)!, 0)) / 10;
-    expect([cat('title'), cat('minion_skin'), cat('hero_skin'), cat('hero_attack')]).toEqual([55.9, 30, 3, 11.1]); // the Legendary attacks x 5 / (Legendary count) + four Rare attacks x 30 / 17 (2026-09-29)
+    expect([cat('title'), cat('minion_skin'), cat('hero_skin'), cat('hero_attack')]).toEqual([55.4, 28.5, 2.5, 13.6]); // thirteen Legendary attacks x 5 / 16 + the two Epic attacks x 15 / 12 (Card Shark, Storm Call) + the four Rare attacks x 30 / 17 (2026-09-29)
     expect([...ch.values()].reduce((a, b) => a + b, 0)).toBeCloseTo(1, 12);
   });
 

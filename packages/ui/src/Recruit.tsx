@@ -95,6 +95,10 @@ import { playHeroBanana } from './heroBanana/heroBanana';
 import { heroBananaPreviewSpeed } from './heroBanana/heroBananaConfig';
 import { playHeroBleed } from './heroBleed/heroBleed';
 import { heroBleedPreviewSpeed } from './heroBleed/heroBleedConfig';
+import { playHeroCards } from './heroCards/heroCards';
+import { heroCardsPreviewSpeed } from './heroCards/heroCardsConfig';
+import { playHeroStorm } from './heroStorm/heroStorm';
+import { heroStormPreviewSpeed } from './heroStorm/heroStormConfig';
 import { playHeroCoin } from './heroCoin/heroCoin';
 import { heroCoinPreviewSpeed } from './heroCoin/heroCoinConfig';
 import { playHeroBoomerang } from './heroBoomerang/heroBoomerang';
@@ -2960,6 +2964,10 @@ export function Recruit() {
         ? { play: playHeroCoin, preview: heroCoinPreviewSpeed() }
         : attackStyle === 'bleed'
         ? { play: playHeroBleed, preview: heroBleedPreviewSpeed() }
+        : attackStyle === 'storm'
+        ? { play: playHeroStorm, preview: heroStormPreviewSpeed() }
+        : attackStyle === 'cards'
+        ? { play: playHeroCards, preview: heroCardsPreviewSpeed() }
         : attackStyle === 'banana'
         ? { play: playHeroBanana, preview: heroBananaPreviewSpeed() }
         : attackStyle === 'beast'

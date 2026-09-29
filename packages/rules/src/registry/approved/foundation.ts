@@ -3167,4 +3167,58 @@ export const FOUNDATION_RULES: GameRule[] = [
     currentBehaviour: 'Conforms, built 2026-09-29 (the owner picked a hard gate over a soft nudge). Client-side gate: the server does not yet refuse an anonymous open.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/progression/CollectionScreen.test.tsx', 'packages/ui/src/progression/Crates.test.tsx', 'packages/ui/src/AccountPanel.test.tsx'], lastVerifiedAt: '2026-09-29' },
   },
+  // ── Gauntlet (single-player stages, owner design 2026-09-29) ─────────────────────────────────────────
+  {
+    id: 'R-GAUNTLET-01',
+    title: 'Gauntlet: the most a lost round can cost is 5 on rounds 1–3, 10 on 4–6, 15 on 7–8, and uncapped on 9–10',
+    statement:
+      'In a Gauntlet stage, a lost round costs the normal loss damage (the opponent\x27s tier plus the tier of each of its '
+      + 'surviving minions), capped by round: at most 5 on rounds 1–3, 10 on rounds 4–6, 15 on rounds 7–8, and no cap on '
+      + 'rounds 9 and 10. A tie costs nothing. Every other mode keeps its own caps.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-29 (Gauntlet design)', quote: 'on rounds 9 and 10, the damage cap is removed. on rounds 1-3, the damage cap is 5, on rounds 4-6, the damage cap is 10' },
+      { kind: 'owner-chat', ref: 'Same session — asked whether "6–8 = 15" meant 7–8', quote: 'yes' },
+      { kind: 'code', ref: 'packages/sim/src/lobby/gauntlet.ts GAUNTLET_LOSS_CAPS; packages/sim/src/reducer.ts roundLossCap' },
+    ],
+    example: 'Losing round 2 to a huge board costs you 5 Resolve at most; losing round 9 to the same board costs its full damage.',
+    currentBehaviour: 'Conforms as of the Gauntlet engine PR (2026-09-29). Pinned by the roundLossCap table test (5,5,5,10,10,10,15,15,uncapped,uncapped; the normal-game fallback when a lobby sets no caps) and the round-1 test (a loss costs at most 5, damageCap 5). Ties costing nothing is the engine\x27s general tie rule and is not separately asserted in the Gauntlet tests.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/lobby/gauntlet.test.ts'], lastVerifiedAt: '2026-09-29' },
+  },
+  {
+    id: 'R-GAUNTLET-02',
+    title: 'Gauntlet: a stage is cleared by still standing after round 10 — even if round 10 was lost or tied — and the opponent can never be knocked out',
+    statement:
+      'A Gauntlet stage lasts 10 rounds against one opponent. The player loses the stage the moment their Resolve (after '
+      + 'Armor) reaches 0 on any round. If they are still standing when round 10\x27s combat is over, they clear the stage, '
+      + 'whatever the result of that last round. The opponent takes no damage and is never eliminated, so beating it '
+      + 'never ends a stage early.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-29 (Gauntlet design)', quote: 'even if the player ties or loses on round 10, but their health is not fully depleted, they still win' },
+      { kind: 'code', ref: 'packages/sim/src/lobby/gauntlet.ts createGauntletRun (invulnerable seat, maxRounds 10) + gauntletOutcome; runLobby.ts settleRunLobbyRound' },
+    ],
+    example: 'You lose round 10 but finish with 4 Resolve left: the stage is cleared. You beat the opponent on round 3: the stage carries on to round 10.',
+    currentBehaviour: 'Conforms as of the Gauntlet engine PR (2026-09-29). Pinned by the verdict tests (an always-beaten stage runs exactly 10 rounds then clears; an unbeatable board still ends as cleared/defeated by whether the player survived, with the foe alive; a round-10 loss with Resolve left is cleared; the verdict is null in progress and for non-gauntlet runs) and the invulnerable-seat settle test (a won round deals the opponent 0 and it stays alive). A tied round 10 is not separately asserted.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/lobby/gauntlet.test.ts'], lastVerifiedAt: '2026-09-29' },
+  },
+  {
+    id: 'R-GAUNTLET-03',
+    title: 'Gauntlet: an opponent\x27s runes are active from round 6 and round 9 and stack; only their combat effects can act',
+    statement:
+      'A Gauntlet opponent may have one rune that is active from round 6 onward and one that is active from round 9 '
+      + 'onward; from round 9 both are active. They act in combat exactly as the same rune would for a player. A rune that '
+      + 'only works during a Shop turn does nothing for an opponent, which never has one.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-29 (Gauntlet design)', quote: 'i should be able to specify what runes are active on turns 6 and 9 for each opponent' },
+      { kind: 'code', ref: 'packages/sim/src/reducer.ts runeCombatModsFor; packages/sim/src/lobby/tutorialSeats.ts authoredSeat (rune snapshot)' },
+    ],
+    example: 'An opponent with a Rally-repeat rune from round 6 and the same rune again from round 9 rallies once extra on rounds 6–8 and twice extra from round 9.',
+    currentBehaviour: 'Conforms as of the Gauntlet engine PR (2026-09-29). Only rune effects that surface as combat modifiers act for an opponent; shop-only runes do nothing. Pinned by the opponent-runes tests (a combat rune maps to its modifier; runeCombatModsFor never throws on any rune; an authored seat fields no runes on round 5, one on 6 and two on 9 with the modifier stacking; a rune-less seat is unchanged; the stage definition becomes authoredRunes at rounds 6 and 9). The stacking assertion uses two copies of one rune.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/lobby/gauntlet.test.ts'], lastVerifiedAt: '2026-09-29' },
+  },
 ];

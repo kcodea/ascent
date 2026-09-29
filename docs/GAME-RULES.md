@@ -78,6 +78,24 @@ Source: `packages/sim/src/lobby/lobby.ts` (`DEFAULT_LOBBY_RULES`, damage applica
 
 ---
 
+## Gauntlet
+
+Single-player stages, each a 10-round duel against one hand-built opponent whose board grows every round
+(R-GAUNTLET-01, R-GAUNTLET-02, R-GAUNTLET-03).
+
+- **Win a stage** by still standing after round 10's combat, even if you lose or tie that round.
+- **Lose** the moment your Resolve (after Armor) hits 0. The opponent never takes damage and can't be knocked out.
+- **Loss cap:** at most 5 per lost round on rounds 1–3, 10 on 4–6, 15 on 7–8, no cap on 9–10. Ties cost nothing.
+- **The shop is the normal game's** (economy, tiers, tribes, a random shop every attempt), with any hero at their
+  normal Resolve and Armor. You can't see the opponent's next board before combat.
+- **Opponent runes:** one from round 6, a second from round 9 (both active from then on). Only their combat effects act.
+- **Stages:** 1 Demons · 2 Kobolds · 3 Dragons · 4 Dwarves · 5 Beasts; 6–10 are unique stages still to come.
+  Clearing a stage unlocks the next; the first clear of each grants a crate.
+
+Source: `packages/sim/src/lobby/gauntlet.ts`, `packages/sim/src/lobby/gauntlet.test.ts`.
+
+---
+
 ## Match details — the lobby when your game ended (owner ask 2026-09-28, R-MATCH-01)
 
 - After a lobby game (Ranked or Practice; never the tutorial or a sandbox), the end screen offers **Match details**

@@ -9,6 +9,7 @@ import {
   type AchievementFilter, type AchievementTile, type AchievementView,
 } from './achievementsModel';
 import { fetchAchievementCompletions, fetchOwnAchievementProgress, fetchRetiredAchievementIds, type AchievementCompletionRow } from './progressionRemote';
+import { TitleBadge } from '../titles/TitleBadge';
 import './achievements.css';
 
 /**
@@ -174,6 +175,8 @@ const AchTile = memo(function AchTile({ tile }: { tile: AchievementTile }): JSX.
         <span className="ach-tile-xp">{rewardText(def)}</span>
       </div>
       <div className="ach-tile-req">{def.requirement}</div>
+      {/* A title reward (the hero Titled and Mastery tiers, owner 2026-09-29), shown as it will be worn. */}
+      {def.rewards.titleId && <div className="ach-tile-title"><span>Title</span><TitleBadge id={def.rewards.titleId} className="ach-titlebadge" /></div>}
       {pct !== null && (
         <div className="ach-prog" aria-label={`${progress} of ${def.target}`}>
           <div className="ach-prog-track"><div className="ach-prog-fill" style={{ transform: `scaleX(${pct})` }} /></div>

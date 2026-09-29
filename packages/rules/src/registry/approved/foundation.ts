@@ -2129,8 +2129,8 @@ export const FOUNDATION_RULES: GameRule[] = [
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-28 (achievements batch 1 brief)', quote: 'we need set 2 achievements because that is the active set right now.' },
       { kind: 'code', ref: 'packages/progression/src/achievements.ts (ACHIEVEMENTS, rewards.titleId, hidden)' },
     ],
-    currentBehaviour: 'Conforms, built 2026-09-28 (off until the owner sets progression_config.achievements_epoch).',
-    enforcement: { kind: 'scenario', refs: ['packages/progression/src/achievements.test.ts'], lastVerifiedAt: '2026-09-28' },
+    currentBehaviour: 'Conforms, built 2026-09-28 (off until the owner sets progression_config.achievements_epoch). Extended 2026-09-29 by R-ACH-04: the hero Titled (new, 3 Ranked 1sts) and Mastery tiers now fill the title slot (281 achievements); every other achievement still pays XP only.',
+    enforcement: { kind: 'scenario', refs: ['packages/progression/src/achievements.test.ts'], lastVerifiedAt: '2026-09-29' },
   },
   {
     id: 'R-ACH-02',
@@ -2171,6 +2171,50 @@ export const FOUNDATION_RULES: GameRule[] = [
     ],
     currentBehaviour: 'Conforms, built 2026-09-28. The 3 Career showcase slots are a follow-up.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/progression/AchievementsTab.test.tsx', 'packages/ui/src/progression/ProgressionPostgame.test.tsx', 'packages/ui/src/Career.test.tsx'], lastVerifiedAt: '2026-09-28' },
+  },
+  {
+    id: 'R-ACH-04',
+    title: 'Hero titles: 3 Ranked 1sts with a hero grant its title (the Titled tier); 10 grant its golden MASTER version, which upgrades the same title in place',
+    statement:
+      'Every playable hero has a title (Warden "Warded", Gambler "Gambling Addict", Albus "Albus Student", ...). A new hero '
+      + 'achievement tier, Titled (hero.<id>.titled, 150 XP), completes at 3 Ranked 1st-place finishes with that hero and '
+      + 'grants the title (title_hero_<id>, Epic, the normal title look). The existing Mastery tier (hero.<id>.mastery, 10 '
+      + 'Ranked 1sts, 250 XP) now grants the master version (title_hero_<id>_master): the SAME name, shown as a golden plate '
+      + 'with embroidered text. Victory (1 Ranked 1st, 100 XP) stays XP only. Practice never counts toward either (Ranked '
+      + 'only, like Victory). The grant happens inside settle_progression, in the same transaction as the completion: the '
+      + 'title is owned (player_cosmetics, keyed, never twice) and listed in the result\x27s unlockedTitles. The master '
+      + 'supersedes the base title: a worn base title is swapped for its master the moment it is earned, and the Collection '
+      + 'shows one entry per hero title (the master once owned, else the base). A new hero title is worn only when nothing '
+      + 'is worn. Hero titles are achievement rewards and never drop from a crate. Existing Mastery progress backfills the '
+      + 'Titled tier (a backfilled completion grants the title but pays no XP).',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-29 (hero titles)', quote: 'the hero\x27s title is granted at 3 wins with a hero, then the mastery of that title is after 10 wins with that hero' },
+      { kind: 'code', ref: 'packages/progression/src/achievements.ts (heroDefs, HERO_TITLE_WINS, HERO_MASTERY_WINS); packages/progression/src/cosmetics.ts (HERO_TITLE_NAMES, HERO_TITLE_COSMETICS, titleShelf, isMasterTitle); packages/progression/src/server.ts (settlementParity); supabase/migrations/2026-09-29-hero-titles.sql (settle_progression steps 7c + 9a, the backfill); packages/ui/src/progression/collectionModel.ts (albumOf)' },
+    ],
+    currentBehaviour: 'Conforms, built 2026-09-29. Live once the owner runs supabase/migrations/2026-09-29-hero-titles.sql and redeploys submit-progression and progression-inventory.',
+    enforcement: { kind: 'scenario', refs: ['packages/progression/src/heroTitles.db.test.ts', 'packages/progression/src/achievements.test.ts', 'packages/progression/src/cosmetics.test.ts', 'packages/progression/src/sqlParity.test.ts', 'packages/ui/src/progression/CollectionScreen.test.tsx'], lastVerifiedAt: '2026-09-29' },
+  },
+  {
+    id: 'R-PROG-TITLE-04',
+    title: 'A master hero title renders as a golden plate with embroidered text on every surface that shows a title, as static CSS',
+    statement:
+      'Wherever a title is shown (the Career name header, the Collection album tile, detail nameplate and preview, the New '
+      + 'rewards popup, the Achievements tab reward line, the Leaderboard, the Hall of Champions and Match details), a hero '
+      + 'title\x27s MASTER version (title_hero_<id>_master) is painted by TitleBadge as a bevelled metallic gold plate with a '
+      + 'dashed thread stitch inside its edge and the name embroidered in crimson satin stitch (thread strands clipped to '
+      + 'the letters over a raised, outlined underside). Its text content is exactly the title name (no native tooltip, no '
+      + 'own cursor), a custom title style never paints over it, and it is entirely static: no animation, transition or '
+      + 'will-change on any .tb-master rule. The base hero title keeps the normal rarity look.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-29 (hero titles)', quote: 'the master title should be a golden plate and embroidered text' },
+      { kind: 'code', ref: 'packages/ui/src/titles/TitleBadge.tsx; packages/ui/src/titles/titleStyle.ts (TitleLook.master); packages/ui/src/styles.css (.titlebadge.tb-master); packages/ui/src/Career.tsx; packages/ui/src/progression/CollectionScreen.tsx; packages/ui/src/progression/NewRewardsPopup.tsx; packages/ui/src/progression/AchievementsTab.tsx' },
+    ],
+    currentBehaviour: 'Conforms, built 2026-09-29.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/titles/titles.test.tsx', 'packages/ui/src/progression/CollectionScreen.test.tsx'], lastVerifiedAt: '2026-09-29' },
   },
   {
     id: 'R-PROG-ATTACK-01',

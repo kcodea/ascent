@@ -2238,7 +2238,9 @@ export const FOUNDATION_RULES: GameRule[] = [
       + '("Grave Call", Legendary, style undead: R-PROG-ATTACK-17), joined the same day under the same fixed odds, making '
       + 'Legendary thirteen items at 0.385% each and the ten attacks together 3.85%. The eleventh, attack_beast '
       + '("Stampede", Legendary, style beast: R-PROG-ATTACK-18), joined the same day under the same fixed odds, making '
-      + 'Legendary fourteen items at 0.357% each and the eleven attacks together 3.93%.',
+      + 'Legendary fourteen items at 0.357% each and the eleven attacks together 3.93%. The twelfth, attack_banana '
+      + '("Oona\x27s Banana Cannon", Legendary, style banana: R-PROG-ATTACK-19), joined the same day under the same fixed '
+      + 'odds, making Legendary fifteen items at 0.333% each and the twelve attacks together 4%.',
     domain: 'foundation',
     status: 'approved',
     evidence: [
@@ -2760,6 +2762,51 @@ export const FOUNDATION_RULES: GameRule[] = [
     ],
     currentBehaviour: 'Conforms, built 2026-09-29. The item reaches the database on the next deploy of progression-inventory (the catalog sync); the equip SQL already accepts the hero_attack slot.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/heroBeast/heroBeast.test.ts', 'packages/progression/src/cosmetics.test.ts', 'packages/ui/src/progression/CollectionHeroAttack.test.tsx', 'packages/ui/src/heroAttack/damageFormation.test.ts'], lastVerifiedAt: '2026-09-29' },
+  },
+  {
+    id: 'R-PROG-ATTACK-19',
+    title: 'Oona\x27s Banana Cannon (attack_banana, Legendary) flings King Oona\x27s PAINTED bananas (spinning, backspin) that burst into her painted splats: one / a double / a barrage of eight / a giant golden banana that lands stuck in the target and is slammed in SIX times, on the SAME tiers; the blow lands ONCE; no freeze',
+    statement:
+      'attack_banana ("Oona\x27s Banana Cannon", a placeholder name for the owner to rename; Legendary, crate, account-wide, '
+      + 'style banana) is built on King Oona\x27s OWN card FX (fx/defs/oona-banana.json): her PAINTED banana (one side-on cell '
+      + 'of her sheet) is every projectile and her PAINTED juice splat sheet is every impact, with her juice palette, her '
+      + 'launch sparks and her clips (fx/oona-launch, fx/oona-splat, fx/oona-powerup). There is no drawn cannon. After the '
+      + 'shared damage formation (R-PROG-ATTACK-08) a golden flourish opens on the striking hero and it flings bananas that '
+      + 'SPIN in the plane with BACKSPIN (never flip through the sheet\x27s frames) along high lobbed arcs, shedding juice '
+      + 'sparkles, and burst on the struck portrait into the painted splat and a juice burst. It escalates on exactly the '
+      + 'tiers every other hero attack uses (one shared tierOf, thresholds 6 / 12 / 20): I 1-5 one banana; II 6-11 a double, '
+      + 'the first a tick; III 12-19 a barrage of eight on varied arcs with layered splats; IV 20+ four warm-up bananas '
+      + '(ticks), the hero blazes gold, then a GIANT GOLDEN BANANA arcs high and HANGS in view (a crown glint flashes on it, '
+      + 'a flat golden target ring locks on) and LANDS stuck in the struck hero\x27s rim as a stake. The striking PORTRAIT '
+      + 'itself dashes across and SLAMS it in SIX times (a tunable count), reeling far back between slams (further each '
+      + 'time, each gap longer than the last, the finisher furthest and wound up longest, the view pushing in over its '
+      + 'wind-up), every slam a harder punch with an escalating impact burst (flash, spike-star impact frame, speed lines, '
+      + 'rings, sparks, debris; screen-edge impact lines on the late slams): each slam drives the stake deeper (the part '
+      + 'driven in disappears into the face, so by the finisher only its end sticks out), squashes it flatter, dents the '
+      + 'struck portrait along the blow, grows a crater ring and cracks at the entry and squirts juice out sideways; from '
+      + 'the fourth slam extra painted juice splats burst off the target, more each slam (no blood: the owner removed it). While it slams, the striking portrait reads ON TOP of '
+      + 'the banana and every banana effect (the overlay is cut by its circle), and the banana covers the struck side\x27s '
+      + 'hero power; the dim lifts as the striker dashes, so both heroes stay bright through the jam; the camera is applied '
+      + 'to the FX exactly once (never mirrored onto a canvas that already rides the camera). The sixth slam bursts it: a massive painted splat, a ring of splats, a golden shockwave, gold rays and '
+      + 'a shower of spinning painted bananas; the crater ring and cracks fade out with the burst (no dark circle is left '
+      + 'after the attack), the splat and the juice fade as designed, and every sprite is released once they have. The consequence (the damage, Armor, Resolve) lands exactly ONCE: on the last '
+      + 'banana (every earlier banana is a tick) or, at IV, on the sixth slam (never on a warm-up, the landing or an earlier '
+      + 'slam). No hit-stop or freeze anywhere (R-PROG-ATTACK-10). Flat 2D. Presentation only; reduced motion is fades only; '
+      + 'an unknown or retired id plays Classic.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-29 (more hero attacks)', quote: 'branch off and make some more attack types - we need a fire animation, a bleed/gash animation, some sort of an undead animation, a beast chomp rush animation, and i would love a king oona banana cannon animation. use the same 4 tier strategy we have been.' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-29 (Banana first review)', quote: 'the banana cannon attack is a 3/10. use oona\x27s animation as a guideline. improve this dramatically.' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-29 (Banana Tier IV)', quote: 'is it possible to have the banana almost like look it lands on the hero and then we slam our fist into it 4 times "jamming it into them" kinda? almost like a mortal combat style attack' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-29 (Banana second review)', quote: 'the bananas should spin, not flip. ... make sure the attacker hero is on top of it ... slow the hits and reel back further between hits, have it hit 6 times, and show blood splatting on hits 4,5,6 with increasing amounts, then the final banana splat.' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-29 (Banana, no blood)', quote: 'can you remove the blood from the banana attack and just keep the banana splats instead' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-29 (Banana, clean end)', quote: 'what\x27s the leftover circle here from the banana final slam? can you remove that?' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-29 (Banana, keep the splat)', quote: 'nvm keep the banana splat on the target still' },
+      { kind: 'code', ref: 'packages/progression/src/cosmetics.ts (attack_banana); packages/ui/src/heroBanana/ (heroBananaConfig bananaPlan / bananaCues / bananaRig / bananaPos / jamGeo / jamPose / bananaCameraAt, heroBanana playHeroBanana, heroBananaScene, heroBananaTextures); fx/defs/oona-banana.json (the art and clips)' },
+    ],
+    currentBehaviour: 'Conforms, built 2026-09-29. The item reaches the database on the next deploy of progression-inventory (the catalog sync); the equip SQL already accepts the hero_attack slot.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/heroBanana/heroBanana.test.ts', 'packages/progression/src/cosmetics.test.ts', 'packages/ui/src/progression/CollectionHeroAttack.test.tsx', 'packages/ui/src/heroAttack/damageFormation.test.ts'], lastVerifiedAt: '2026-09-29' },
   },
   {
     id: 'R-PRESENT-24',

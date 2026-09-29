@@ -2622,11 +2622,18 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'game: discarding it from the title, or starting any new game (Play, Practice, the tutorial) that replaces it. '
       + 'Save & Quit is NOT quitting: the game stays live, Continue resumes it, and it settles once at its real end. '
       + 'Practice, the tutorial, the Scene Builder and an unrated all-generated lobby abandon for free. A game already '
-      + 'over (the player out, or the lobby finished) has settled through its normal end and is never settled again.',
+      + 'over (the player out, or the lobby finished) has settled through its normal end and is never settled again. '
+      + 'The literal rule stands at the top too: with 4 or fewer seats alive the lowest open place is 4th or better, so '
+      + 'a quit there GAINS Rating and can win a promotion game. A quit moves Rating ONLY: it earns no Account XP and '
+      + 'writes nothing to Career or Recent Games.',
     domain: 'foundation',
     status: 'approved',
     evidence: [
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-29 (quitting a rated game)', quote: 'yes, quitting an official game should lose you MMR relative to the lowest available place when you quit. for example. if one player was already out, then quitting would place you in 7th place. losing you MMR' },
+      { kind: 'owner-chat', ref: 'Same session, 2026-09-29 — asked whether a quit with 4 or fewer alive may gain Rating / promote', quote: 'YES' },
+      { kind: 'owner-chat', ref: 'Same session, 2026-09-29 — asked whether a quit should earn Account XP for its placement', quote: 'NO' },
+      { kind: 'owner-chat', ref: 'Same session, 2026-09-29 — asked whether quits should show in Career and Recent Games', quote: 'NO' },
+      { kind: 'owner-chat', ref: 'Same session, 2026-09-29 — asked about closing the wipe-the-save gap server-side', quote: 'Eventually - we will want to write saved and quit games to supabase as well.' },
       { kind: 'code', ref: 'packages/sim/src/lobby/runLobby.ts abandonPlacementOf; packages/ui/src/rank/ratedRun.ts rankedAbandonOf / abandonWarningOf; packages/ui/src/store.ts settleAbandonedRun (clearRun, pickHero, newRun, startTutorial); settles through the existing rank queue + supabase/functions/submit-rating (unchanged, it already accepts any placement 1-8)' },
     ],
     currentBehaviour:

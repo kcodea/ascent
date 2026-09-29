@@ -59,6 +59,10 @@ export const PATCH_NOTES: PatchNote[] = [
     date: '2026-09-29',
     changes: [
       {
+        category: 'Systems',
+        text: 'The Collection no longer shows the Boards and Music tabs. They come back when they are ready.',
+      },
+      {
         category: 'Balance',
         text: 'Beast buffs now read "Give all Friendly and summoned Beasts" to make clear they reach Beasts summoned later too.',
         details: [

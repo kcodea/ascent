@@ -2234,7 +2234,9 @@ export const FOUNDATION_RULES: GameRule[] = [
       + '("Consecration", Legendary, style holy: R-PROG-ATTACK-14), re-pinned the first-crate odds to Common 45.5%, Rare '
       + '30.2%, Epic 18.5%, Legendary 5.9%; a non-title item 33.5%; the eight attacks together 4.3%. The ninth, attack_fire '
       + '("Inferno", Legendary, style fire: R-PROG-ATTACK-15), joined under the fixed rarity odds (2026-09-29: a Legendary '
-      + 'is 5%, shared equally by its items), making Legendary twelve items at 0.417% each and the nine attacks together 3.75%.',
+      + 'is 5%, shared equally by its items), making Legendary twelve items at 0.417% each and the nine attacks together 3.75%. The tenth, attack_undead '
+      + '("Grave Call", Legendary, style undead: R-PROG-ATTACK-17), joined the same day under the same fixed odds, making '
+      + 'Legendary thirteen items at 0.385% each and the ten attacks together 3.85%.',
     domain: 'foundation',
     status: 'approved',
     evidence: [
@@ -2689,6 +2691,41 @@ export const FOUNDATION_RULES: GameRule[] = [
     ],
     currentBehaviour: 'Conforms, built 2026-09-29.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/heroAttack/pixiFire.test.ts', 'packages/ui/src/heroEnraged/heroEnraged.test.ts'], lastVerifiedAt: '2026-09-29' },
+  },
+  {
+    id: 'R-PROG-ATTACK-17',
+    title: 'Grave Call (attack_undead, Legendary) is a FLAT undead hero attack: one shrieking skull / two skulls / grave hands and a wisp swarm then a skull / a grave rift and a giant skull maw that chomps, on the SAME damage tiers; the blow lands ONCE; no freeze',
+    statement:
+      'attack_undead ("Grave Call", a placeholder name for the owner to rename; Legendary, crate, account-wide, style undead) '
+      + 'plays a necromantic attack in sickly spectral green and teal over a deep purple-black, with bone white, drawn FLAT '
+      + '(every circle, hole, rift and crack is a top-down shape; no sprite is skewed or tilted). After the shared damage '
+      + 'formation (R-PROG-ATTACK-08) the striking hero RAISES the dead (a necrotic grave circle turns under it, grave smoke '
+      + 'circles its rim, ghost wisps spiral in) and the circle flares. It escalates on exactly the tiers every other hero '
+      + 'attack uses (one shared tierOf, thresholds 6 / 12 / 20): I 1-5 a spectral SKULL pops out of the hero on the side '
+      + 'facing the target and SHRIEKS (its jaw drops, shriek rings), flies at the target on a slight arc trailing '
+      + 'afterimages and shedding wisps, jaw wide, and BITES as it lands (the jaw snaps shut), bursting into ghost wisps, '
+      + 'bone shards and a spectral echo of itself; II 6-11 TWO skulls on opposite arcs, the first a tick; III 12-19 a grave '
+      + 'circle opens under the struck hero, four skeletal HANDS claw up out of the board round it and DRAG at it (the '
+      + 'portrait sinks and trembles), a SWARM of eight ghost wisps streams from the hero and strikes it in rhythm, then one '
+      + 'big skull finishes it and the hands shatter into bone; IV 20+ a GRAVE RIFT tears open across the board between the '
+      + 'heroes (a jagged void lit green, cracks racing off it), a giant spectral SKULL MAW rises out of it and its eyes '
+      + 'ignite, it SHRIEKS (the jaw drops wide, shriek rings, the view trembles, the struck hero shudders), LUNGES across the '
+      + 'board trailing afterimages and CHOMPS shut on the struck hero, then a wave of necrotic MIST washes out and the rift '
+      + 'closes. The maw is always whole on screen: its chomp slides toward the middle of the screen (still over the struck '
+      + 'hero) far enough that the maw and the camera punch fit, and a view too short makes it smaller, never cropped. The '
+      + 'consequence (the damage, Armor, Resolve) lands exactly ONCE: on the last skull\x27s bite (every earlier skull, every '
+      + 'grip and every wisp is a tick with FX and sound only) or, at IV, on the chomp (never on the rift, the rise, the '
+      + 'shriek or the lunge). No hit-stop or freeze anywhere (R-PROG-ATTACK-10). Every anchor is the round portrait art at '
+      + 'rest (R-PROG-ATTACK-04). Sound reuses existing clips only. Presentation only; reduced motion is fades only; an '
+      + 'unknown or retired id plays Classic.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-29 (five more hero attacks)', quote: 'branch off and make some more attack types - we need a fire animation, a bleed/gash animation, some sort of an undead animation, a beast chomp rush animation, and i would love a king oona banana cannon animation. use the same 4 tier strategy we have been.' },
+      { kind: 'code', ref: 'packages/progression/src/cosmetics.ts (attack_undead); packages/ui/src/heroUndead/ (heroUndeadConfig undeadPlan / undeadCues / undeadGeo / undeadCameraAt, heroUndead playHeroUndead, heroUndeadScene, heroUndeadTextures)' },
+    ],
+    currentBehaviour: 'Conforms, built 2026-09-29. The item reaches the database on the next deploy of progression-inventory (the catalog sync); the equip SQL already accepts the hero_attack slot. The id is 17 because 15 and 16 are left for the fire and bleed attacks built alongside it.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/heroUndead/heroUndead.test.ts', 'packages/progression/src/cosmetics.test.ts', 'packages/ui/src/progression/CollectionHeroAttack.test.tsx', 'packages/ui/src/heroAttack/damageFormation.test.ts'], lastVerifiedAt: '2026-09-29' },
   },
   {
     id: 'R-PRESENT-24',

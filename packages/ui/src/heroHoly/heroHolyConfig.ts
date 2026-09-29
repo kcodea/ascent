@@ -17,13 +17,19 @@
  *     counter-turning outer ring). III: a RAIN OF LIGHT SPEARS thunks in round the target in rhythm, each one planting a
  *     consecration SEED on the ground (the ground begins to glow), then the pillar comes down in the middle and every
  *     seed erupts with it.
- *  IV. THE JUDGEMENT (the owner's finale). A heaven opens over the MIDDLE of the board and a huge ornate HOLY SWORD
- *     (a gold hilt, a blade of white-gold light) descends point first, hangs, then SLAMS into the board: a shockwave, dust
- *     and light debris, cracks, a camera punch. A CONSECRATION erupts from the sword (a runic circle on the ground,
- *     light pillars round its rim) and RACES across the board to the struck hero (runes stamped on the ground, radiant
- *     cracks, rising motes, small pillars popping as the front passes). It gathers under the struck hero, then HOLY
- *     FLAMES and a pillar of light ERUPT under the portrait: THE blow. The ground lingers and fades; the sword dissolves
- *     into light.
+ *  IV. THE JUDGEMENT (the owner's finale, as revised by the owner 2026-09-28: "make the sword come down fast from above
+ *     the screen and create an impact when it hits, then send the flat consecrated blast at the opponent. the sword
+ *     should slam down and explode fast, then the wake builds and rapidly flies at the opponent and strikes them"):
+ *      1. A huge ornate HOLY SWORD (a gold hilt, a blade of white-gold light) drops FAST from above the top of the
+ *         screen, accelerating, a streak of light behind it, into the MIDDLE of the board.
+ *      2. THE IMPACT: a shockwave, a white-gold flash, dust and light debris, a camera punch.
+ *      3. It EXPLODES INTO LIGHT at once: a quick radiant burst, golden shards, the blade dissolving.
+ *      4. THE WAKE BUILDS: a short charge at the impact point, the cracked holy ground glowing brighter, light drawn in,
+ *         a crescent of consecrated light forming on the side facing the target.
+ *      5. IT FLIES: a FLAT consecrated blast skims along the ground at the struck hero, a low sheet of runic light (a
+ *         ground-level shockwave, never a column), tearing radiant cracks and lighting runes behind it.
+ *      6. THE STRIKE: holy flames and light erupt under the struck portrait: THE blow. The cracked path lingers and
+ *         fades.
  *
  * THE CONSEQUENCE lands ONCE: on the last smite (I-III) or on the eruption under the struck hero (IV). Every earlier
  * smite and spear is a tick (FX and sound only). No hit-stop or freeze anywhere (owner 2026-09-28).
@@ -34,7 +40,7 @@
  * Tuner convention (the Blast's): localStorage in DEV only, values clamped on write and on load; production always
  * plays DEFAULTS. The preview speed is how you are LOOKING and is never saved.
  */
-import { clamp, easeInOutSine, type Pt } from '../heroAttack/easing';
+import { clamp, easeInOutSine, seededRng, type Pt } from '../heroAttack/easing';
 import {
   HERO_ATTACK_TIER_THRESHOLDS, TIERS, reducedAttackTimeline, tierOf, type TierNum,
 } from '../heroAttack/tiers';
@@ -72,18 +78,18 @@ interface GlobalConfig {
   // The sword (Tier IV)
   swordSize: number;
   swordAlong: number;
-  swordHangMs: number;
   swordFallMs: number;
-  swordDrift: number;
   swordGlow: number;
   slamDust: number;
   slamDebris: number;
   shockwave: number;
-  // The consecration (Tier IV)
-  consecrateRadius: number;
+  // The explosion and the consecrated surge (Tier IV)
+  explodeSize: number;
+  shards: number;
   groundTilt: number;
-  spreadDelayMs: number;
+  wakeMs: number;
   spreadMs: number;
+  waveSize: number;
   pathWidth: number;
   runeDensity: number;
   cracks: number;
@@ -144,7 +150,7 @@ export type HeroHolyNumKey = Exclude<keyof HeroHolyConfig, HeroHolyStrKey>;
 
 /** Tier I .. IV per suffix: the escalation ladder. */
 const TIER_DEFAULTS: Record<HolyTierSuffix, [number, number, number, number]> = {
-  ChargeMs: [300, 340, 380, 420],
+  ChargeMs: [300, 340, 380, 380],
   SigilMs: [300, 300, 320, 300],
   Smites: [1, 2, 1, 0],
   SmiteGapMs: [0, 170, 0, 0],
@@ -202,40 +208,41 @@ export const HERO_HOLY_DEFAULTS: HeroHolyConfig = {
   spearRing: 1.25,
   spearSlant: 0.5,
   seedGlow: 1,
-  swordSize: 1,
+  swordSize: 1.15,
   swordAlong: 0.5,
-  swordHangMs: 520,
-  swordFallMs: 170,
-  swordDrift: 0.22,
+  swordFallMs: 230,
   swordGlow: 1,
-  slamDust: 14,
-  slamDebris: 26,
+  slamDust: 8,
+  slamDebris: 22,
   shockwave: 1,
-  consecrateRadius: 2.1,
+  explodeSize: 1,
+  shards: 22,
   groundTilt: 0.42,
-  spreadDelayMs: 170,
-  spreadMs: 460,
+  wakeMs: 240,
+  spreadMs: 250,
+  waveSize: 1,
   pathWidth: 1,
   runeDensity: 1,
   cracks: 8,
-  gatherMs: 150,
+  gatherMs: 40,
   flamePillars: 9,
   flameHeight: 1,
-  lingerMs: 760,
-  dissolveMs: 620,
+  lingerMs: 720,
+  dissolveMs: 340,
   flashAlpha: 0.9,
   knockPx: 16,
   squash: 0.09,
   shakeMs: 340,
   zoomOutMs: 380,
   reducedFadeMs: 260,
-  colorCore: '#fffbea',
-  colorGold: '#ffd35c',
-  colorDeep: '#c98a14',
-  colorSky: '#9fd8ff',
-  colorPlayer: '#ffc93c',
-  colorFoe: '#ffb45a',
-  colorDust: '#e6d2a2',
+  // Gold and white, not yellow (owner 2026-09-28: "make they holy color less yellow and more gold + white").
+  colorCore: '#fffaf0',
+  colorGold: '#f0c55a',
+  colorDeep: '#d4a53a',
+  colorSky: '#e4efff',
+  colorPlayer: '#f0c55a',
+  colorFoe: '#e9b85a',
+  colorDust: '#ece2cc',
   sfxInvokeClip: 'shieldgain', sfxInvokeGain: 0.5, sfxInvokeRate: 1.15,
   sfxSigilClip: 'prismaticpick', sfxSigilGain: 0.5, sfxSigilRate: 1.3,
   sfxDropClip: 'fx/djartmusic-christmas-sparkle-whoosh-1-275404', sfxDropGain: 0.5, sfxDropRate: 0.9,
@@ -277,17 +284,17 @@ const GLOBAL_RANGES: Record<Exclude<keyof GlobalConfig, HeroHolyStrKey>, [number
   seedGlow: [0, 3, 0.05],
   swordSize: [0.4, 2, 0.05],
   swordAlong: [0.2, 0.8, 0.01],
-  swordHangMs: [100, 2000, 10],
   swordFallMs: [60, 800, 5],
-  swordDrift: [0, 1, 0.01],
   swordGlow: [0, 3, 0.05],
   slamDust: [0, 40, 1],
   slamDebris: [0, 80, 1],
   shockwave: [0, 3, 0.05],
-  consecrateRadius: [0.5, 5, 0.05],
+  explodeSize: [0.3, 3, 0.05],
+  shards: [0, 40, 1],
   groundTilt: [0.2, 1, 0.01],
-  spreadDelayMs: [0, 800, 10],
-  spreadMs: [120, 2000, 10],
+  wakeMs: [0, 1000, 10],
+  spreadMs: [80, 1500, 10],
+  waveSize: [0.3, 3, 0.05],
   pathWidth: [0.2, 3, 0.05],
   runeDensity: [0, 3, 0.05],
   cracks: [0, 16, 1],
@@ -331,7 +338,7 @@ export const HERO_HOLY_RANGES: Record<HeroHolyNumKey, [number, number, number]> 
 };
 
 /** The hard ceilings a plan can never exceed, whatever the sliders say (so a 40 stays clean, not cluttered). */
-export const HOLY_CAPS = { smites: 4, spears: 10, motes: 90, shakePx: 40, zoom: 0.14, runes: 18, flames: 16 } as const;
+export const HOLY_CAPS = { smites: 4, spears: 10, motes: 90, shakePx: 40, zoom: 0.14, runes: 18, flames: 16, crackPts: 40, shards: 40 } as const;
 
 const HEX = /^#[0-9a-f]{6}$/i;
 const isColorKey = (k: string): k is ColorKey => (HERO_HOLY_COLOR_KEYS as readonly string[]).includes(k);
@@ -450,14 +457,14 @@ export interface HolyPlan {
   spears: HolySpearPlan[];
   /** Tier IV: the sword and the consecration. */
   sword: boolean;
-  /** Tier IV: the sword appears (the heaven opens), starts falling, slams in. */
+  /** Tier IV: the sword drops in from above the screen (`fallAt` = `swordAt`: it never hangs), slams in and explodes. */
   swordAt: number;
   fallAt: number;
   slamAt: number;
-  /** Tier IV: the consecration starts racing to the struck hero, arrives under it. */
+  /** Tier IV: the wake has built and the flat blast is fired at the struck hero; it arrives under it. */
   spreadAt: number;
   arriveAt: number;
-  /** Tier IV: the consecrated ground starts fading; the sword starts dissolving. */
+  /** Tier IV: the consecrated, cracked path starts fading. */
   fadeAt: number;
   /** Beats that land BEFORE the impact (earlier smites, spears): the ticks. Sequence ms. */
   hits: number[];
@@ -503,11 +510,12 @@ export function holyPlan(input: HolyPlanInput, c: HeroHolyConfig = cfg): HolyPla
   let swordAt = prayAt, fallAt = prayAt, slamAt = prayAt, spreadAt = prayAt, arriveAt = prayAt, fadeAt = prayAt;
 
   if (sword) {
-    // THE JUDGEMENT: the heaven opens as the prayer goes up; the sword hangs, falls, slams; the consecration races out.
-    swordAt = prayAt + 80;
-    fallAt = swordAt + c.swordHangMs;
+    // THE JUDGEMENT: snappy and violent up front (the drop, the impact, the explosion), a short charge (the wake), then
+    // a fast strike: the flat blast skims to the target and erupts under it.
+    swordAt = prayAt + 60;
+    fallAt = swordAt;
     slamAt = fallAt + c.swordFallMs;
-    spreadAt = slamAt + c.spreadDelayMs;
+    spreadAt = slamAt + c.wakeMs;
     arriveAt = spreadAt + holySpreadMs(input.distance * 0.5, c.spreadMs);
     impactAt = arriveAt + c.gatherMs;
     fadeAt = impactAt + 180;
@@ -530,7 +538,7 @@ export function holyPlan(input: HolyPlanInput, c: HeroHolyConfig = cfg): HolyPla
   }
 
   const hits = [...spears.map((s) => s.hitAt), ...smites.slice(0, -1).map((s) => s.hitAt)].filter((at) => at < impactAt).sort((a, b) => a - b);
-  const tail = sword ? Math.max(c.lingerMs, c.dissolveMs + 260) : Math.max(420, c.zoomOutMs * 0.9);
+  const tail = sword ? Math.max(c.lingerMs, c.zoomOutMs * 0.9) : Math.max(420, c.zoomOutMs * 0.9);
   const endAt = impactAt + tail + T.SettleMs;
 
   return {
@@ -599,11 +607,13 @@ export interface HolyGeo {
   /** IV: where the sword's tip goes into the board, and its length (px; fits the screen). */
   swordTip: Pt;
   swordLen: number;
-  /** IV: the tip's height at the start of the hang (above the slam point by the drift). */
+  /** IV: the tip's height as it starts to drop (above the top of the screen). */
   swordFrom: number;
   /** IV: the consecration's path, the sword to the struck hero's foot, with the runes along it. */
   path: { a: Pt; b: Pt; len: number; ang: number };
   runes: HolyRune[];
+  /** IV: the radiant cracks the surge tears along the path: the main one (first) end to end, two thinner ones beside it. */
+  cracks: Pt[][];
 }
 
 /** The ground point under a portrait: where holy fire rises from (the bottom of the round art). */
@@ -634,11 +644,14 @@ export function holyGeo(p: HolyPlan, a: Pt, d: Pt, radius: number, c: HeroHolyCo
   }
   // THE SWORD: over the middle of the board (along the line between the heroes), tip down; it always fits the frame.
   const mid = { x: a.x + (d.x - a.x) * c.swordAlong, y: a.y + (d.y - a.y) * c.swordAlong };
+  // It drops in from ABOVE the screen (its tip starts over the top edge) and, once it bites, the whole sword is in view:
+  // a board with less room gets a shorter sword, never a cropped one.
   const want = 440 * unit * c.swordSize;
   const room = Number.isFinite(ceilY) ? mid.y - ceilY : want;
-  const swordLen = Math.max(want * 0.45, Math.min(want, room));
+  const swordLen = Math.max(want * 0.4, Math.min(want, room));
   const swordTip = { x: mid.x, y: mid.y };
-  const swordFrom = swordTip.y - swordLen * c.swordDrift - 40 * unit;
+  const top = Number.isFinite(ceilY) ? ceilY : mid.y - swordLen * 1.2;
+  const swordFrom = Math.min(top - 40 * unit, swordTip.y - swordLen * 1.2);
   // THE PATH: from the sword's foot to the struck hero's, runes spaced along it (denser for a longer path).
   const dx = foot.x - swordTip.x, dy = foot.y - swordTip.y;
   const len = Math.hypot(dx, dy);
@@ -654,24 +667,33 @@ export function holyGeo(p: HolyPlan, a: Pt, d: Pt, radius: number, c: HeroHolyCo
       u, kind: i % 3, rot: ((i * 37) % 360) * (Math.PI / 180), pillar: i % 3 === 1,
     });
   }
-  return { foot, spears, swordTip, swordLen, swordFrom, path: { a: { ...swordTip }, b: foot, len, ang }, runes };
+  // THE CRACKS: a jagged main crack from the blast to the target (a zigzag across the line, seeded by the geometry so a
+  // replay tears the same one), and two thinner cracks wandering beside it that peter out before the end.
+  const rnd = seededRng(((Math.round(len) * 131) ^ (Math.round(swordTip.x) * 7) ^ Math.round(foot.y)) >>> 0);
+  const crack = (off: number, until: number, jag: number): Pt[] => {
+    const nPts = clamp(Math.round((len * until) / (32 * unit)), 3, HOLY_CAPS.crackPts);
+    const pts: Pt[] = [];
+    for (let i = 0; i <= nPts; i++) {
+      const u = (i / nPts) * until;
+      const ends = i === 0 || (until >= 1 && i === nPts);
+      const side = ends ? 0 : off * Math.sin(Math.PI * u) + (rnd() - 0.5) * 2 * jag * unit * (i % 2 ? 1 : -0.7);
+      pts.push({ x: swordTip.x + dx * u + nx * side, y: swordTip.y + dy * u + ny * side });
+    }
+    return pts;
+  };
+  const cracks = len > 1 ? [crack(0, 1, 11), crack(-26 * unit * c.pathWidth, 0.82, 7), crack(22 * unit * c.pathWidth, 0.7, 7)] : [];
+  return { foot, spears, swordTip, swordLen, swordFrom, path: { a: { ...swordTip }, b: foot, len, ang }, runes, cracks };
 }
 
 /**
- * The sword's tip height at sequence time `t` (Tier IV). It appears high, DRIFTS down slowly through the hang (an ease
- * out: it arrives, then holds, gathering), then FALLS (an ease in: it commits) onto the slam point, sinking a hair past
- * it and springing back as it bites. Pure.
+ * The sword's tip height at sequence time `t` (Tier IV). It starts above the screen and DROPS, accelerating all the way
+ * (an ease in: no float, no hang), onto the slam point, sinking a hair past it and springing back as it bites. Pure.
  */
 export function swordTipY(p: HolyPlan, g: HolyGeo, t: number): number {
-  const hi = g.swordFrom - g.swordLen * 0.9; // where it first shows: most of it still above
-  if (t <= p.swordAt) return hi;
-  if (t < p.fallAt) {
-    const u = (t - p.swordAt) / Math.max(1, p.fallAt - p.swordAt);
-    return hi + (g.swordFrom - hi) * (1 - Math.pow(1 - clamp(u, 0, 1), 3));
-  }
+  if (t <= p.fallAt) return g.swordFrom;
   if (t < p.slamAt) {
     const u = (t - p.fallAt) / Math.max(1, p.slamAt - p.fallAt);
-    return g.swordFrom + (g.swordTip.y - g.swordFrom) * u * u * u;
+    return g.swordFrom + (g.swordTip.y - g.swordFrom) * Math.pow(u, 2.2);
   }
   const since = t - p.slamAt;
   const bite = g.swordLen * 0.035 * Math.exp(-since / 70) * Math.cos(since * 0.03);
@@ -694,10 +716,11 @@ export function holyCameraAt(p: HolyPlan, c: HeroHolyConfig, t: number): { zoom:
   const down = { x: 0, y: 1 };
   if (t >= p.chargeAt && t < p.impactAt) {
     z += p.zoom * easeInOutSine((t - p.chargeAt) / Math.max(1, p.prayAt - p.chargeAt));
-    if (p.sword && t >= p.swordAt && t < p.slamAt) z += p.zoom * 0.5 * easeInOutSine((t - p.swordAt) / Math.max(1, p.slamAt - p.swordAt));
     if (p.sword && t >= p.slamAt) {
+      // The slam punches in; the wake's build pushes in a touch more; the flight releases it toward the target.
       z += (p.zoom * 0.5 + p.punch) * Math.exp(-(t - p.slamAt) / Math.max(1, c.zoomOutMs / 3));
-      if (t >= p.arriveAt) z += p.zoom * 0.6 * easeInOutSine((t - p.arriveAt) / Math.max(1, p.impactAt - p.arriveAt));
+      if (t < p.spreadAt) z += p.zoom * 0.5 * easeInOutSine((t - p.slamAt) / Math.max(1, p.spreadAt - p.slamAt));
+      else z += p.zoom * 0.5 * (1 - easeInOutSine((t - p.spreadAt) / Math.max(1, p.impactAt - p.spreadAt)));
     }
   } else if (t >= p.impactAt) {
     z += (p.zoom * (p.sword ? 1.6 : 1) + p.punch) * Math.exp(-(t - p.impactAt) / Math.max(1, c.zoomOutMs / 4));
@@ -713,16 +736,11 @@ export function holyCameraAt(p: HolyPlan, c: HeroHolyConfig, t: number): { zoom:
   };
   p.hits.forEach((at, i) => kick(at, p.shakePx * (0.25 + 0.04 * i), 45, 17, down));
   if (p.sword) {
-    // The hang builds a faint tremor; the slam rings hard; the gathering under the target trembles; the eruption rings.
-    if (t >= p.swordAt && t < p.slamAt) {
-      const u = (t - p.swordAt) / Math.max(1, p.slamAt - p.swordAt);
-      const a = p.shakePx * 0.1 * u * u;
-      x += a * Math.sin(t * 0.13); y += a * Math.sin(t * 0.17 + 1.3);
-    }
-    kick(p.slamAt, p.shakePx * 0.85, Math.max(1, c.shakeMs / 4), 15, down);
-    if (t >= p.arriveAt && t < p.impactAt) {
-      const u = (t - p.arriveAt) / Math.max(1, p.impactAt - p.arriveAt);
-      const a = p.shakePx * 0.14 * u;
+    // The slam rings hard; the wake's build trembles, growing; the flight is clean; the strike rings.
+    kick(p.slamAt, p.shakePx * 0.9, Math.max(1, c.shakeMs / 4), 15, down);
+    if (t >= p.slamAt + 60 && t < p.spreadAt) {
+      const u = (t - p.slamAt - 60) / Math.max(1, p.spreadAt - p.slamAt - 60);
+      const a = p.shakePx * 0.14 * u * u;
       x += a * Math.sin(t * 0.21); y += a * Math.sin(t * 0.19 + 0.7);
     }
     const age = t - p.impactAt;

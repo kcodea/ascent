@@ -109,27 +109,37 @@ function gem(g: CanvasRenderingContext2D, x: number, y: number, r: number, p: Sw
   g.strokeStyle = p.deep; g.lineWidth = 1.6; g.stroke();
 }
 
-function paintSwordBody(p: SwordPalette): HTMLCanvasElement | null {
+/** '#rrggbb' scaled toward black by `k` (0 = unchanged), as a css colour. */
+function shade(hex: string, k: number): string {
+  const v = Number.parseInt(hex.replace('#', ''), 16);
+  const n = Number.isFinite(v) ? v : 0xd4a53a;
+  const ch = (sh: number): number => Math.round(((n >> sh) & 0xff) * (1 - k));
+  return `rgb(${ch(16)},${ch(8)},${ch(0)})`;
+}
+
+function paintSwordBody(pal: SwordPalette): HTMLCanvasElement | null {
   const k = canvas(SWORD_W, SWORD_H); if (!k) return null;
   const g = k.g;
+  // The outline and shadows: the deep gold taken darker, so the silhouette holds on the light board.
+  const p: SwordPalette = { ...pal, deep: shade(pal.deep, 0.5) };
   g.lineJoin = 'round'; g.lineCap = 'round';
   const goldV = (y0: number, y1: number): CanvasGradient => {
     const gr = g.createLinearGradient(0, y0, 0, y1);
-    gr.addColorStop(0, '#fff0b8'); gr.addColorStop(0.35, p.gold); gr.addColorStop(1, p.deep);
+    gr.addColorStop(0, '#fff7e4'); gr.addColorStop(0.35, pal.gold); gr.addColorStop(0.75, pal.deep); gr.addColorStop(1, shade(pal.deep, 0.3));
     return gr;
   };
   // THE BLADE: a bevelled white-gold blade (a bright left facet, a white ridge, a warm right facet), a fuller down its
   // middle, a dark-gold edge line.
   const bl = g.createLinearGradient(CX - 30, 0, CX + 30, 0);
-  bl.addColorStop(0, '#fff3cf'); bl.addColorStop(0.4, '#fffdf5'); bl.addColorStop(0.5, '#ffffff');
-  bl.addColorStop(0.53, '#f8e6ae'); bl.addColorStop(1, '#ecc867');
+  bl.addColorStop(0, '#fbf1dc'); bl.addColorStop(0.4, '#fffdf8'); bl.addColorStop(0.5, '#ffffff');
+  bl.addColorStop(0.53, '#f3e6c8'); bl.addColorStop(1, '#e2c68a');
   g.fillStyle = bl; bladePath(g); g.fill();
   // warm toward the tip: the light pools at the point
   const tipWarm = g.createLinearGradient(0, 420, 0, SWORD_TIP_Y);
-  tipWarm.addColorStop(0, 'rgba(255,220,120,0)'); tipWarm.addColorStop(1, 'rgba(255,214,110,0.35)');
+  tipWarm.addColorStop(0, 'rgba(255,236,190,0)'); tipWarm.addColorStop(1, 'rgba(255,240,210,0.4)');
   g.fillStyle = tipWarm; bladePath(g); g.fill();
   // the fuller: a narrow channel down the middle, shaded, with a lit lip
-  g.fillStyle = 'rgba(214,162,52,0.55)';
+  g.fillStyle = 'rgba(200,158,70,0.5)';
   g.beginPath(); g.moveTo(CX - 5, 250); g.lineTo(CX - 4, 560); g.lineTo(CX, 590); g.lineTo(CX + 4, 560); g.lineTo(CX + 5, 250); g.closePath(); g.fill();
   g.strokeStyle = 'rgba(255,255,255,0.9)'; g.lineWidth = 1.2;
   g.beginPath(); g.moveTo(CX - 5, 252); g.lineTo(CX - 4, 560); g.stroke();
@@ -262,21 +272,29 @@ function paintRays(D: number): HTMLCanvasElement | null {
   const g = k.g;
   const c = D / 2;
   g.fillStyle = '#fff';
-  const n = 20;
+  // Feathered shafts of light, three lengths and widths in an uneven rhythm (never a flat pinwheel).
+  const rnd = seededRng(909);
+  g.filter = `blur(${Math.max(1, D * 0.008)}px)`;
+  const n = 28;
   for (let i = 0; i < n; i++) {
-    const a = (i / n) * Math.PI * 2;
-    const long = i % 2 === 0;
-    const r1 = D * (long ? 0.5 : 0.34);
-    const w = long ? 0.07 : 0.05;
+    const a = (i / n) * Math.PI * 2 + (rnd() - 0.5) * 0.08;
+    const kind = i % 4 === 0 ? 0 : i % 2 === 0 ? 1 : 2;
+    const r1 = D * [0.5, 0.4, 0.31][kind]! * (0.92 + rnd() * 0.08);
+    const w = [0.045, 0.03, 0.022][kind]!;
+    g.globalAlpha = [1, 0.8, 0.6][kind]!;
     g.beginPath(); g.moveTo(c, c);
     g.lineTo(c + Math.cos(a - w) * r1, c + Math.sin(a - w) * r1);
+    g.lineTo(c + Math.cos(a) * r1 * 1.03, c + Math.sin(a) * r1 * 1.03);
     g.lineTo(c + Math.cos(a + w) * r1, c + Math.sin(a + w) * r1);
     g.closePath(); g.fill();
   }
+  g.filter = 'none';
+  g.globalAlpha = 1;
   g.globalCompositeOperation = 'destination-in';
   const fade = g.createRadialGradient(c, c, 0, c, c, c);
-  fade.addColorStop(0, 'rgba(255,255,255,0)'); fade.addColorStop(0.2, 'rgba(255,255,255,0.15)');
-  fade.addColorStop(0.34, 'rgba(255,255,255,1)'); fade.addColorStop(0.7, 'rgba(255,255,255,0.45)'); fade.addColorStop(1, 'rgba(255,255,255,0)');
+  // A wide clear middle: the rays start past a portrait's rim, so the face under them stays clean.
+  fade.addColorStop(0, 'rgba(255,255,255,0)'); fade.addColorStop(0.3, 'rgba(255,255,255,0)');
+  fade.addColorStop(0.44, 'rgba(255,255,255,1)'); fade.addColorStop(0.72, 'rgba(255,255,255,0.4)'); fade.addColorStop(1, 'rgba(255,255,255,0)');
   g.fillStyle = fade; g.fillRect(0, 0, D, D);
   return k.c;
 }
@@ -400,6 +418,37 @@ function paintPuff(D: number): HTMLCanvasElement | null {
   return k.c;
 }
 
+/**
+ * THE FLAT BLAST: a crescent sheet of light pointing +X (its leading edge a curve bowed forward), seen from above, so
+ * a ground transform lays it flat on the board. `edge` paints only the leading edge line; otherwise the sheet, bright at
+ * its front and fading back, soft toward its two tips. The anchor is its leading edge (x = 0.86).
+ */
+export const WAVE_EDGE_X = 0.86;
+function paintWave(W: number, H: number, edge: boolean): HTMLCanvasElement | null {
+  const k = canvas(W, H); if (!k) return null;
+  const g = k.g;
+  const R = H * 0.9;
+  const cx = W * WAVE_EDGE_X - R, cy = H / 2;
+  if (edge) {
+    g.strokeStyle = '#fff'; g.lineCap = 'round';
+    g.shadowColor = '#fff'; g.shadowBlur = H * 0.03;
+    g.lineWidth = H * 0.03;
+    const a = Math.asin(Math.min(1, (H * 0.48) / R));
+    g.beginPath(); g.arc(cx, cy, R - H * 0.02, -a, a); g.stroke();
+  } else {
+    const gr = g.createLinearGradient(0, 0, W, 0);
+    gr.addColorStop(0, 'rgba(255,255,255,0)'); gr.addColorStop(0.35, 'rgba(255,255,255,0.12)');
+    gr.addColorStop(0.72, 'rgba(255,255,255,0.7)'); gr.addColorStop(WAVE_EDGE_X, 'rgba(255,255,255,1)'); gr.addColorStop(1, 'rgba(255,255,255,0)');
+    g.fillStyle = gr;
+    g.beginPath(); g.arc(cx, cy, R, 0, Math.PI * 2); g.arc(cx - W * 0.55, cy, R, 0, Math.PI * 2, true); g.fill('evenodd');
+  }
+  g.globalCompositeOperation = 'destination-in';
+  const v = g.createLinearGradient(0, 0, 0, H);
+  v.addColorStop(0, 'rgba(255,255,255,0)'); v.addColorStop(0.22, 'rgba(255,255,255,1)'); v.addColorStop(0.78, 'rgba(255,255,255,1)'); v.addColorStop(1, 'rgba(255,255,255,0)');
+  g.fillStyle = v; g.fillRect(0, 0, W, H);
+  return k.c;
+}
+
 /** A light chip (debris): a thin lit diamond. */
 function paintChip(W: number, H: number): HTMLCanvasElement | null {
   const k = canvas(W, H); if (!k) return null;
@@ -428,12 +477,13 @@ export function heroHolyTextures(p: SwordPalette): HeroHolyTextures | null {
   const sigil = paintSigil(256), rays = paintRays(256), pillar = paintPillar(64, 256), flame = paintFlame(64, 128);
   const spear = paintSpear(192, 40), crack = paintCrack(128, 24), puff = paintPuff(64), chip = paintChip(16, 8);
   const g0 = paintGlyph(48, 0), g1 = paintGlyph(48, 1), g2 = paintGlyph(48, 2);
-  if (!base || !sGlow || !sBody || !sHot || !sigil || !rays || !pillar || !flame || !spear || !crack || !puff || !chip || !g0 || !g1 || !g2) return null;
+  const waveBody = paintWave(128, 256, false), waveEdge = paintWave(128, 256, true);
+  if (!base || !sGlow || !sBody || !sHot || !sigil || !rays || !pillar || !flame || !spear || !crack || !puff || !chip || !g0 || !g1 || !g2 || !waveBody || !waveEdge) return null;
   cached = {
     ...base,
     swordGlow: tex(sGlow), swordBody: tex(sBody), swordHot: tex(sHot),
     hsigil: tex(sigil), rays: tex(rays), pillar: tex(pillar), flame: tex(flame), spear: tex(spear), crack: tex(crack),
-    puff: tex(puff), chip: tex(chip), glyphs: [tex(g0), tex(g1), tex(g2)],
+    puff: tex(puff), chip: tex(chip), glyphs: [tex(g0), tex(g1), tex(g2)], waveBody: tex(waveBody), waveEdge: tex(waveEdge),
   };
   swordKey = key;
   return cached;

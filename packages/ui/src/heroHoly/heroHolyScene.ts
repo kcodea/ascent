@@ -32,13 +32,15 @@
  */
 import { Container, Sprite, type Texture } from 'pixi.js';
 import type { HeroArcanaTextures } from '../heroArcana/heroArcanaScene';
-import { clamp01, easeInOutSine, easeOutBack, easeOutCubic, easeOutQuint, seededRng, whiten, type Pt } from '../heroAttack/easing';
+import { clamp01, easeInOutSine, easeOutBack, easeOutCubic, easeOutQuint, mixColor, seededRng, whiten, type Pt } from '../heroAttack/easing';
 import type { HolyRune } from './heroHolyConfig';
-import { SWORD_GUARD_FROM_TIP, SWORD_H, SWORD_LEN_PX, SWORD_TIP_Y } from './heroHolyTextures';
+import { SWORD_H, SWORD_LEN_PX, SWORD_TIP_Y, WAVE_EDGE_X } from './heroHolyTextures';
 
 export interface HeroHolyTextures extends HeroArcanaTextures {
   swordGlow: Texture; swordBody: Texture; swordHot: Texture;
   hsigil: Texture; rays: Texture; pillar: Texture; flame: Texture; spear: Texture; crack: Texture; puff: Texture; chip: Texture;
+  /** The flat blast: a crescent sheet of light and its leading edge (pointing +X; anchor at WAVE_EDGE_X). */
+  waveBody: Texture; waveEdge: Texture;
   glyphs: Texture[];
 }
 
@@ -118,14 +120,26 @@ interface Pillar {
 interface Spear { body: Sprite; glow: Sprite; trail: Sprite; from: Pt; to: Pt; age: number; dur: number; size: number }
 
 interface Sword {
-  glow: Sprite; body: Sprite; hot: Sprite; beam: Sprite; trail: Sprite; glint: Sprite;
+  glow: Sprite; body: Sprite; hot: Sprite; trail: Sprite; trailCore: Sprite;
   x: number; len: number; tip: (ageMs: number) => number; age: number; fallAge: number; slamAge: number;
   dissolveT: number; dissolveMs: number; moteAcc: number;
 }
 
+/** One segment of a radiant crack: a deep-gold line, a gold light over it and a white-hot core, drawn out as the surge passes. */
+interface CrackSeg { a: Pt; len: number; u0: number; u1: number; w: number; parts: { s: Sprite; w: number; a: number }[] }
+
+/** THE FLAT BLAST: a crescent sheet of light lying on the ground (four layers), built at the impact, then flown. */
+interface Wave {
+  parts: { s: Sprite; a: number; depth: number; width: number }[];
+  x: number; y: number; th: number; age: number; build: number; flying: boolean; spent: number; size: number;
+}
+
 interface Spread {
   a: Pt; ang: number; len: number; dur: number; age: number; width: number; runes: HolyRune[]; stamped: number;
-  bandBody: Sprite; bandLight: Sprite; head: Sprite; headStar: Sprite; crackAcc: number; lastD: number; moteAcc: number; fadeT: number; fadeMs: number;
+  bandBody: Sprite; bandLight: Sprite; head: Sprite;
+  segs: CrackSeg[]; forkAcc: number; lastD: number; moteAcc: number; dustAcc: number; fadeT: number; fadeMs: number;
+  /** How far along the path the blast already sat when it was fired (it waits there until the front reaches it). */
+  waveD0: number;
 }
 
 export class HeroHolyScene {
@@ -140,6 +154,7 @@ export class HeroHolyScene {
   private spears: Spear[] = [];
   private sword: Sword | null = null;
   private spreadFx: Spread | null = null;
+  private wave: Wave | null = null;
   private gatherAcc: { x: number; y: number; r: number; left: number; acc: number } | null = null;
   private invokeAcc: { x: number; y: number; r: number; left: number; acc: number } | null = null;
   private warm: Sprite[] = [];
@@ -147,7 +162,12 @@ export class HeroHolyScene {
   private destroyed = false;
   private readonly rnd: () => number;
 
-  constructor(private readonly tex: HeroHolyTextures, private readonly colors: HolyColors, private readonly look: HolyLook, private readonly scale = 1, seed = 1) {
+  private readonly colors: HolyColors;
+
+  constructor(private readonly tex: HeroHolyTextures, colors: HolyColors, private readonly look: HolyLook, private readonly scale = 1, seed = 1) {
+    // Gold AND white, never lemon (owner 2026-09-28: "less yellow and more gold + white"): the additive light is the
+    // gold drawn a third of the way to the warm white, so it blooms pale gold; the normal-blend bodies keep the deep gold.
+    this.colors = { ...colors, gold: mixColor(colors.gold, colors.core, 0.3) };
     this.root.eventMode = 'none';
     this.root.label = 'heroHoly';
     this.layers = {} as Record<LayerId, Container>;
@@ -164,7 +184,7 @@ export class HeroHolyScene {
     // playing), so every texture is on the GPU long before the first beat needs it (no first-play spike).
     const t = tex;
     for (const w of [t.glow, t.spark, t.streak, t.ring, t.beam, t.star, t.swordGlow, t.swordBody, t.swordHot, t.hsigil, t.rays, t.pillar,
-      t.flame, t.spear, t.crack, t.puff, t.chip, ...t.glyphs]) {
+      t.flame, t.spear, t.crack, t.puff, t.chip, t.waveBody, t.waveEdge, ...t.glyphs]) {
       const s = this.take('hot', w, 0xffffff);
       if (s) { s.alpha = 0.004; s.position.set(-40, -40); s.scale.set(0.05); this.warm.push(s); }
     }
@@ -177,6 +197,8 @@ export class HeroHolyScene {
   /** The sword's tip y (null when there is no sword). Exposed for tests and the capture rig. */
   get swordTip(): number | null { return this.sword ? this.sword.body.position.y : null; }
   get spreading(): boolean { return this.spreadFx !== null && this.spreadFx.age < this.spreadFx.dur; }
+  /** The flat blast (null = none): where it is and whether it has been fired. Exposed for tests and the capture rig. */
+  get blast(): { x: number; y: number; flying: boolean } | null { return this.wave ? { x: this.wave.x, y: this.wave.y, flying: this.wave.flying } : null; }
   get groundHeld(): number { return this.held.filter((h) => h.tag === 'ground' || h.tag === 'foe').length; }
   get seeds(): number { return this.held.filter((h) => h.tag === 'seed').length; }
   get liveSpears(): number { return this.spears.length; }
@@ -323,8 +345,8 @@ export class HeroHolyScene {
       this.hold('under', this.tex.glow, c.gold, x, hy, 'invoke', { a: 0.55, g0: hs * 0.6, g1: hs * 1.25, gMs: durMs, ry: 0.4, inMs: durMs * 0.5 });
     }
     if (L.sunburst > 0) {
-      const rs = ((r * 3.1) / 256 / S) * L.sunburst * (1 + 0.15 * k);
-      this.hold('ground', this.tex.rays, c.deep, x, y, 'invoke', { a: 0.34, g0: rs * 0.55, g1: rs, gMs: durMs, spin: 0.00045, inMs: durMs * 0.6 });
+      const rs = ((r * 3.6) / 256 / S) * L.sunburst * (1 + 0.15 * k);
+      this.hold('ground', this.tex.rays, c.deep, x, y, 'invoke', { a: 0.2, g0: rs * 0.55, g1: rs, gMs: durMs, spin: 0.00045, inMs: durMs * 0.6 });
       this.hold('under', this.tex.rays, c.gold, x, y, 'invoke', { a: 0.75, g0: rs * 0.55, g1: rs, gMs: durMs, spin: 0.00045, inMs: durMs * 0.6, pulse: 0.1 });
     }
     this.hold('under', this.tex.glow, c.gold, x, y, 'invoke', { a: 0.4, g0: ((r * 1.6) / GLOW_PX / S), g1: ((r * 2.6) / GLOW_PX / S), gMs: durMs, inMs: durMs * 0.8 });
@@ -409,7 +431,7 @@ export class HeroHolyScene {
     this.motes(x, y, Math.round(o.motes * 0.4), { lift: 60, speed: 320, life: 700, grav: 260, size: 0.36 });
     // The seeds erupt with it (III): each a small pillar and a flare, then they fade.
     for (const h of this.held) {
-      if (h.tag !== 'seed' || h.fadeT >= 0 || h.s.texture === this.tex.glow) continue;
+      if (h.tag !== 'seed' || h.fadeT >= 0 || h.s.blendMode !== 'add' || !this.tex.glyphs.includes(h.s.texture)) continue;
       const sx = h.s.position.x, sy = h.s.position.y;
       this.column('rise', sx, sy - r * 2.2, sy, r * 0.42, 90, 60, 360, { glow: 0.9 });
       this.tw('hot', this.tex.glow, c.core, sx, sy, { dur: 150, from: 0.4, to: 1.1, a0: 0.7 });
@@ -458,34 +480,37 @@ export class HeroHolyScene {
       this.hold('under', g, c.gold, to.x, to.y, 'seed', { a: 0.95 * Math.min(1, L.seedGlow), g0: gs * 1.8, g1: gs, gMs: 220, back: true, tilt: L.tilt, rot: step * 0.9, inMs: 60, pulse: 0.2 });
       this.hold('under', this.tex.glow, c.gold, to.x, to.y, 'seed', { a: 0.45 * L.seedGlow, g1: ((r * 0.9) / GLOW_PX / S), ry: L.tilt, inMs: 160, pulse: 0.25 });
     }
+    // Small radiant cracks round the seed: the ground starting to break with holy light (the language of Tier IV).
+    for (let i = 0; i < 3; i++) {
+      const th = step * 1.3 + (i / 3) * Math.PI * 2 + (this.rnd() - 0.5) * 0.6;
+      const len = (r * (0.35 + this.rnd() * 0.25)) / 128 / S;
+      for (const [layer, tint, a] of [['ground', c.deep, 0.7], ['under', c.gold, 0.8]] as [LayerId, number, number][]) {
+        const h = this.hold(layer, this.tex.crack, tint, to.x, to.y, 'seed', { a, g0: 0, g1: 1, gMs: 160, inMs: 20, tilt: L.tilt, rot: th, ax: 0, ay: 0.5 });
+        if (h) { h.ry = 0.55; h.len = len; }
+      }
+    }
     this.kickTag('sigil', 0.3);
   }
 
   /**
-   * TIER IV: the heaven opens over the middle of the board and THE SWORD appears, point down. `tip(age)` is the tip's
-   * height `age` ms after this call (pure: `swordTipY`); `fallAge` / `slamAge` are when it starts falling and bites.
+   * TIER IV: THE SWORD drops in from above the screen, point down, accelerating, a streak of light behind it. `tip(age)`
+   * is the tip's height `age` ms after this call (pure: `swordTipY`); `fallAge` / `slamAge` are when it starts dropping
+   * and bites.
    */
-  summonSword(x: number, len: number, tip: (ageMs: number) => number, fallAge: number, slamAge: number, top: number): void {
+  summonSword(x: number, len: number, tip: (ageMs: number) => number, fallAge: number, slamAge: number): void {
     if (this.sword) return;
-    const c = this.colors, L = this.look, S = this.scale;
+    const c = this.colors;
     const glow = this.take('under', this.tex.swordGlow, c.gold);
-    const beam = this.take('under', this.tex.pillar, c.gold);
     const trail = this.take('glow', this.tex.pillar, c.gold);
+    const trailCore = this.take('hot', this.tex.pillar, c.core);
     const body = this.take('body', this.tex.swordBody, 0xffffff);
     const hot = this.take('hot', this.tex.swordHot, c.core);
-    const glint = this.take('hot', this.tex.star, c.core);
-    if (!glow || !beam || !trail || !body || !hot || !glint) { for (const s of [glow, beam, trail, body, hot, glint]) if (s) this.give(s); return; }
+    if (!glow || !trail || !trailCore || !body || !hot) { for (const s of [glow, trail, trailCore, body, hot]) if (s) this.give(s); return; }
     const ay = SWORD_TIP_Y / SWORD_H;
     const k = len / SWORD_LEN_PX;
     for (const s of [glow, body, hot]) { s.anchor.set(0.5, ay); s.scale.set(k); s.alpha = 0; }
-    beam.anchor.set(0.5, 1); beam.alpha = 0; trail.anchor.set(0.5, 1); trail.alpha = 0; glint.alpha = 0;
-    this.sword = { glow, body, hot, beam, trail, glint, x, len, tip, age: 0, fallAge, slamAge, dissolveT: -1, dissolveMs: 1, moteAcc: 0 };
-    // The heaven opening above it: god rays and a soft light high over the sword, held until the slam.
-    const hy = Math.max(top, tip(0) - len * 1.05);
-    const rs = (len * 1.2) / 256 / S;
-    this.hold('under', this.tex.rays, c.gold, x, hy, 'heaven', { a: 0.7 * L.swordGlow, g0: rs * 0.4, g1: rs, gMs: fallAge, inMs: 260, spin: 0.0004, ry: 0.55 });
-    this.hold('under', this.tex.glow, c.core, x, hy, 'heaven', { a: 0.6, g0: rs * 0.8, g1: rs * 2.2, gMs: fallAge, inMs: 260, ry: 0.5 });
-    this.hold('ground', this.tex.rays, c.deep, x, hy, 'heaven', { a: 0.22, g0: rs * 0.4, g1: rs, gMs: fallAge, inMs: 260, spin: 0.0004, ry: 0.55 });
+    for (const s of [trail, trailCore]) { s.anchor.set(0.5, 1); s.alpha = 0; }
+    this.sword = { glow, body, hot, trail, trailCore, x, len, tip, age: 0, fallAge, slamAge, dissolveT: -1, dissolveMs: 1, moteAcc: 0 };
   }
 
   /**
@@ -494,10 +519,9 @@ export class HeroHolyScene {
    */
   slam(x: number, y: number, r: number, o: { dust: number; debris: number; shock: number; cracks: number; flashAlpha: number }): void {
     const c = this.colors, L = this.look, S = this.scale;
-    this.fadeTag('heaven', 260, 0.2);
-    this.tw('hot', this.tex.glow, c.core, x, y, { dur: 130, from: 1.2, to: 2.6, a0: o.flashAlpha });
-    this.tw('under', this.tex.glow, c.gold, x, y, { dur: 460, from: 2, to: 4.4, a0: 0.55, ry: 0.6 });
-    this.tw('hot', this.tex.star, c.core, x, y, { dur: 260, from: 3, to: 5.2, a0: 0.9 });
+    this.tw('hot', this.tex.glow, c.core, x, y, { dur: 110, from: 1, to: 2, a0: o.flashAlpha, ry: 0.7 });
+    this.tw('under', this.tex.glow, c.gold, x, y, { dur: 380, from: 1.6, to: 3.4, a0: 0.3, ry: 0.55 });
+    this.tw('hot', this.tex.star, c.core, x, y, { dur: 220, from: 2.2, to: 3.8, a0: 0.9 });
     const sw = o.shock;
     if (sw > 0) {
       this.tw('hot', this.tex.ring, c.core, x, y, { dur: 360, from: 0.4, to: 4.2 * sw, a0: 1, ry: L.tilt, ease: easeOutCubic });
@@ -540,50 +564,139 @@ export class HeroHolyScene {
     }
   }
 
-  /** THE CONSECRATION erupts round the sword: a runic circle on the ground, a gold stain, pillars round its rim. */
-  erupt(x: number, y: number, R: number): void {
+  /**
+   * THE SWORD EXPLODES INTO LIGHT on landing (owner 2026-09-28: "the sword come down and explode into light"): the blade
+   * turns white-hot and dissolves in a few hundred ms while a white column flashes along it, golden light SHARDS and god
+   * rays burst outward, rings roll out, and a compact rune circle is burnt into the board where it bit (the origin of
+   * the surge). The fills are short; the shards, rays and rings carry it.
+   */
+  explodeSword(x: number, tipY: number, len: number, r: number, o: { size: number; shards: number; dissolveMs: number; flashAlpha: number }): void {
     const c = this.colors, L = this.look, S = this.scale;
-    const sz = (R * 2) / SIGIL_PX / S;
-    this.hold('ground', this.tex.glow, c.deep, x, y, 'ground', { a: 0.3, g0: ((R * 0.6) / GLOW_PX / S), g1: ((R * 2.6) / GLOW_PX / S), gMs: 380, tilt: L.tilt, inMs: 120 });
-    this.hold('ground', this.tex.hsigil, c.deep, x, y, 'ground', { a: 0.7, g0: sz * 0.25, g1: sz, gMs: 380, back: true, tilt: L.tilt, spin: 0.0005, inMs: 80 });
-    this.hold('under', this.tex.hsigil, c.gold, x, y, 'ground', { a: 0.95, g0: sz * 0.25, g1: sz, gMs: 380, back: true, tilt: L.tilt, spin: 0.0005, inMs: 80, pulse: 0.1 });
-    this.hold('under', this.tex.glow, c.gold, x, y, 'ground', { a: 0.5, g0: ((R * 0.6) / GLOW_PX / S), g1: ((R * 2.2) / GLOW_PX / S), gMs: 380, tilt: L.tilt, inMs: 120, pulse: 0.15 });
-    // Glyphs round the rim, stamped in a ripple, and pillars rising off it.
-    const n = 8;
-    for (let i = 0; i < n; i++) {
-      const th = (i / n) * Math.PI * 2;
-      const gx = x + Math.cos(th) * R * 0.82, gy = y + Math.sin(th) * R * 0.82 * L.tilt;
-      const g = this.tex.glyphs[i % this.tex.glyphs.length]!;
-      const gs = (R * 0.2) / 48 / S;
-      const hh = this.hold('under', g, c.gold, gx, gy, 'ground', { a: 0.95, g0: gs * 2, g1: gs, gMs: 240, back: true, tilt: L.tilt, rot: th + Math.PI / 2, inMs: 60, pulse: 0.2 });
-      if (hh) hh.age = -60 - i * 30;
-      if (i % 2 === 0) {
-        const delay = 80 + i * 30;
-        this.tw('glow', this.tex.pillar, c.gold, gx, gy, { delay, dur: 520, from: 0, to: 0, sy0: 0.1, sy1: (R * 0.9) / PILLAR_H / S, sx0: (R * 0.3) / PILLAR_W / S, sx1: (R * 0.12) / PILLAR_W / S, a0: 0.85, ay: 1, ease: easeOutCubic, outFrom: 0.3 });
-        this.tw('hot', this.tex.pillar, c.core, gx, gy, { delay, dur: 420, from: 0, to: 0, sy0: 0.1, sy1: (R * 0.75) / PILLAR_H / S, sx0: (R * 0.12) / PILLAR_W / S, sx1: (R * 0.05) / PILLAR_W / S, a0: 0.9, ay: 1, ease: easeOutCubic, outFrom: 0.3 });
-      }
+    const cy = tipY - len * 0.42; // the heart of the blast: the middle of the blade
+    const z = o.size;
+    this.dissolveSword(o.dissolveMs);
+    // The blade becomes light: a white column the length of the sword, and a core flash at its heart.
+    this.tw('hot', this.tex.pillar, c.core, x, tipY, { dur: 170, from: 0, to: 0, sx0: (len * 0.14) / PILLAR_W / S, sx1: (len * 0.22) / PILLAR_W / S, sy0: (len * 1.05) / PILLAR_H / S, sy1: (len * 1.12) / PILLAR_H / S, a0: 0.85, ay: 1, ease: easeOutCubic });
+    this.tw('hot', this.tex.glow, c.core, x, cy, { dur: 110, from: (len * 0.35) / GLOW_PX / S, to: (len * 0.6 * z) / GLOW_PX / S, a0: o.flashAlpha, ry: 1.4 });
+    this.tw('under', this.tex.glow, c.gold, x, cy, { dur: 380, from: (len * 0.5) / GLOW_PX / S, to: (len * 1.2 * z) / GLOW_PX / S, a0: 0.28, ry: 1.1 });
+    this.tw('hot', this.tex.star, c.core, x, cy, { dur: 260, from: (len * 0.7) / 48 / S, to: (len * 1.2 * z) / 48 / S, a0: 0.95, ease: easeOutCubic });
+    const rs = (len * 1.5 * z * L.raysSize) / 256 / S;
+    if (rs > 0) {
+      this.tw('glow', this.tex.rays, c.gold, x, cy, { dur: 620, from: rs * 0.5, to: rs * 1.15, a0: 0.95, spin: 0.0009, ease: easeOutCubic, outFrom: 0.2 });
+      this.tw('ground', this.tex.rays, c.deep, x, cy, { dur: 560, from: rs * 0.5, to: rs * 1.1, a0: 0.3, spin: 0.0009, ease: easeOutCubic, outFrom: 0.2 });
     }
+    // Golden light SHARDS flung out of the blade in every direction (long, fast, thinning as they go).
+    const n = Math.max(0, Math.round(o.shards));
+    for (let i = 0; i < n; i++) {
+      const a = (i / Math.max(1, n)) * Math.PI * 2 + (this.rnd() - 0.5) * 0.3;
+      const along = (this.rnd() - 0.3) * len * 0.8;
+      const sx = x + Math.cos(a) * 10 * S, sy = cy + along * 0.4 + Math.sin(a) * 10 * S;
+      const sp = (700 + this.rnd() * 700) * S * z;
+      const q = this.tw(i % 3 === 0 ? 'hot' : 'glow', this.tex.streak, i % 3 === 0 ? c.core : c.gold, sx, sy, {
+        dur: 300 + this.rnd() * 160, from: 0, to: 0, sx0: 1.6 + this.rnd() * 1.4, sx1: 0.8, sy0: 0.22, sy1: 0.1, a0: 1, ease: easeOutCubic,
+        rot: a, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, outFrom: 0.3, ax: 1, ay: 0.5,
+      });
+      void q;
+    }
+    for (let i = 0; i < Math.round(n * 0.8); i++) {
+      const a = this.rnd() * Math.PI * 2, sp = (260 + this.rnd() * 520) * S * z;
+      this.particle(i % 3 === 0 ? 'body' : 'hot', this.tex.chip, i % 3 === 0 ? c.deep : i % 2 ? c.gold : c.core, {
+        x, y: cy + (this.rnd() - 0.5) * len * 0.6, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 120 * S, drag: 0.25, grav: 700 * S,
+        life: 480 + this.rnd() * 360, from: (0.9 + this.rnd() * 0.8) * S, to: 0.4 * S, alpha: 1, twinkle: 0, spin: 0, align: true,
+      });
+    }
+    this.tw('glow', this.tex.ring, c.gold, x, cy, { dur: 300, from: 0.4, to: (len * 1.2 * z) / RING_PX / S, a0: 0.75, ease: easeOutCubic, outFrom: 0.1 });
+    this.tw('under', this.tex.ring, c.sky, x, cy, { dur: 460, from: 0.5, to: (len * 1.7 * z) / RING_PX / S, a0: 0.3, ease: easeOutCubic });
+    // Burnt into the board where it bit: a compact rune circle (the surge's origin), lingering with the path.
+    const sz = (r * 2.4 * z) / SIGIL_PX / S;
+    this.hold('ground', this.tex.hsigil, c.deep, x, tipY, 'ground', { a: 0.75, g0: sz * 1.6, g1: sz, gMs: 200, tilt: L.tilt, spin: 0.0008, inMs: 40 });
+    this.hold('under', this.tex.hsigil, c.gold, x, tipY, 'ground', { a: 1, g0: sz * 1.6, g1: sz, gMs: 200, tilt: L.tilt, spin: 0.0008, inMs: 40, pulse: 0.12 });
+    this.hold('under', this.tex.glow, c.gold, x, tipY, 'ground', { a: 0.5, g1: (r * 3 * z) / GLOW_PX / S, tilt: L.tilt, inMs: 80, pulse: 0.15 });
+    this.motes(x, cy, 18, { lift: 160, speed: 260, life: 1000, ring: len * 0.2, grav: -30 });
+  }
+
+  /** One crack of the surge, cut into segments along its points (each knows where along the path it starts and ends). */
+  private crackSegs(pts: readonly Pt[], a: Pt, ang: number, len: number, w: number): CrackSeg[] {
+    const c = this.colors;
+    const ux = Math.cos(ang), uy = Math.sin(ang);
+    const out: CrackSeg[] = [];
+    for (let i = 0; i + 1 < pts.length; i++) {
+      const p = pts[i]!, q = pts[i + 1]!;
+      const u0 = ((p.x - a.x) * ux + (p.y - a.y) * uy) / Math.max(1, len);
+      const u1 = ((q.x - a.x) * ux + (q.y - a.y) * uy) / Math.max(1, len);
+      const parts: CrackSeg['parts'] = [];
+      for (const [layer, tint, wm, al] of [['ground', c.deep, 1, 0.9], ['under', c.gold, 3.2, 0.7], ['hot', c.core, 0.42, 1]] as [LayerId, number, number, number][]) {
+        const sp = this.take(layer, this.tex.beam, tint);
+        if (!sp) continue;
+        sp.anchor.set(0, 0.5); sp.position.set(p.x, p.y); sp.rotation = Math.atan2(q.y - p.y, q.x - p.x); sp.alpha = 0; sp.scale.set(0, 0);
+        parts.push({ s: sp, w: wm, a: al });
+      }
+      out.push({ a: { ...p }, len: Math.hypot(q.x - p.x, q.y - p.y), u0, u1, w, parts });
+    }
+    return out;
   }
 
   /**
-   * The consecration RACES to the struck hero: a band of holy ground grows along the path (a gold body under a light),
-   * its front a bright head; runes are stamped as it passes (some with a small pillar), cracks branch off it, motes rise.
+   * THE SURGE: the explosion's light FIRED at the struck hero as consecrated, cracked ground (owner 2026-09-28: "which
+   * then shoots the consecrated cracked ground at the opponent"). A bolt of light races down the path trailing a streak;
+   * behind it radiant cracks TEAR open (a jagged main crack and two thinner ones beside it, each a deep-gold line under a
+   * gold light with a white-hot core), a faint band of holy ground glows between them, runes light up as it passes, small
+   * forks split off, motes rise. Fast and purposeful; it lingers after the eruption, then fades.
    */
-  spread(a: Pt, b: Pt, runes: readonly HolyRune[], durMs: number, width: number): void {
+  spread(a: Pt, b: Pt, cracks: readonly (readonly Pt[])[], runes: readonly HolyRune[], durMs: number, width: number): void {
     const c = this.colors, S = this.scale;
     const bandBody = this.take('ground', this.tex.beam, c.deep);
     const bandLight = this.take('under', this.tex.beam, c.gold);
-    const head = this.take('glow', this.tex.glow, c.gold);
-    const headStar = this.take('hot', this.tex.star, c.core);
-    if (!bandBody || !bandLight || !head || !headStar) { for (const s of [bandBody, bandLight, head, headStar]) if (s) this.give(s); return; }
+    const head = this.take('under', this.tex.glow, c.gold);
+    if (!bandBody || !bandLight || !head) { for (const sp of [bandBody, bandLight, head]) if (sp) this.give(sp); return; }
     const ang = Math.atan2(b.y - a.y, b.x - a.x);
-    for (const s of [bandBody, bandLight]) { s.anchor.set(0, 0.5); s.rotation = ang; s.position.set(a.x, a.y); s.alpha = 0; s.scale.set(0, (width / 64)); }
-    head.alpha = 0; headStar.alpha = 0;
-    void S;
+    const len = Math.hypot(b.x - a.x, b.y - a.y);
+    for (const sp of [bandBody, bandLight]) { sp.anchor.set(0, 0.5); sp.rotation = ang; sp.position.set(a.x, a.y); sp.alpha = 0; sp.scale.set(0, width / 64); }
+    head.alpha = 0;
+    const segs: CrackSeg[] = [];
+    cracks.forEach((pts, i) => segs.push(...this.crackSegs(pts, a, ang, len, (i === 0 ? 7 : 4) * S)));
+    let waveD0 = 0;
+    if (this.wave) { this.wave.flying = true; waveD0 = Math.max(0, (this.wave.x - a.x) * Math.cos(ang) + (this.wave.y - a.y) * Math.sin(ang)); }
+    this.gatherAcc = null;
     this.spreadFx = {
-      a: { ...a }, ang, len: Math.hypot(b.x - a.x, b.y - a.y), dur: Math.max(1, durMs), age: 0, width, runes: [...runes], stamped: 0,
-      bandBody, bandLight, head, headStar, crackAcc: 0, lastD: 0, moteAcc: 0, fadeT: -1, fadeMs: 1,
+      a: { ...a }, ang, len, dur: Math.max(1, durMs), age: 0, width, runes: [...runes], stamped: 0,
+      bandBody, bandLight, head, segs, forkAcc: 0, lastD: 0, moteAcc: 0, dustAcc: 0, fadeT: -1, fadeMs: 1, waveD0,
     };
+  }
+
+  /**
+   * THE WAKE BUILDS (a short charge at the impact point): the burnt rune circle brightens and throbs faster, a ring of
+   * light closes in along the ground, light is drawn in low over the board, and the flat blast FORMS on the side facing
+   * the target, swelling and flickering until it is fired (`spread`). `toward` is the target's ground point.
+   */
+  wake(x: number, y: number, r: number, buildMs: number, toward: Pt, size: number): void {
+    const c = this.colors, L = this.look, S = this.scale;
+    const b = Math.max(1, buildMs);
+    this.tw('under', this.tex.ring, c.gold, x, y, { dur: b, from: (r * 5) / RING_PX / S, to: (r * 1.1) / RING_PX / S, a0: 0.7, ry: L.tilt, ease: (u) => u * u, inMs: 60 });
+    this.tw('glow', this.tex.ring, c.core, x, y, { dur: b * 0.9, delay: b * 0.1, from: (r * 4) / RING_PX / S, to: (r * 0.8) / RING_PX / S, a0: 0.55, ry: L.tilt, ease: (u) => u * u, inMs: 60 });
+    this.hold('under', this.tex.glow, c.gold, x, y, 'ground', { a: 0.75, g0: (r * 1) / GLOW_PX / S, g1: (r * 3.4) / GLOW_PX / S, gMs: b, tilt: L.tilt, inMs: b * 0.5, pulse: 0.3 });
+    this.kickTag('ground', 0.5);
+    this.gatherAcc = { x, y, r: r * 1.3, left: b, acc: 0 };
+    // THE BLAST forms: a crescent sheet on the ground at the near edge of the circle, facing the target.
+    const dx = toward.x - x, dy = (toward.y - y) / Math.max(0.05, L.tilt);
+    const th = Math.atan2(dy, dx);
+    const w = r * 3.2 * size, dp = r * 1.5 * size;
+    const parts: Wave['parts'] = [];
+    for (const [layer, tex, tint, a, dm, wm] of [
+      ['ground', this.tex.waveBody, c.deep, 0.55, 1, 1],
+      ['under', this.tex.waveBody, c.gold, 0.8, 1.25, 1.2],
+      ['glow', this.tex.waveBody, c.gold, 0.9, 1, 1],
+      ['hot', this.tex.waveEdge, c.core, 1, 1, 1],
+    ] as [LayerId, Texture, number, number, number, number][]) {
+      const s = this.take(layer, tex, tint);
+      if (!s) continue;
+      s.anchor.set(WAVE_EDGE_X, 0.5); s.alpha = 0;
+      parts.push({ s, a, depth: (dp * dm) / 128, width: (w * wm) / 256 });
+    }
+    const off = r * 0.9;
+    const gx = Math.cos(th), gy = Math.sin(th);
+    if (this.wave) for (const p of this.wave.parts) this.give(p.s);
+    this.wave = { parts, x: x + gx * off, y: y + gy * off * L.tilt, th, age: 0, build: b, flying: false, spent: -1, size };
   }
 
   /** The consecration gathers under the struck hero: its circle snaps in and brightens, light is drawn in. */
@@ -604,13 +717,14 @@ export class HeroHolyScene {
   eruptFoe(foot: Pt, d: Pt, r: number, o: { flames: number; flameHeight: number; burst: number; motes: number; flashAlpha: number }): void {
     const c = this.colors, L = this.look, S = this.scale;
     this.gatherAcc = null;
+    if (this.wave && this.wave.spent < 0) { this.wave.spent = 0; this.wave.x = foot.x; this.wave.y = foot.y; }
     const fs = o.burst;
     const portrait = (r * 2) / GLOW_PX / S;
     // The big column: it shoots up out of the ground past the portrait.
     this.column('rise', foot.x, foot.y - r * 5.5 * L.pillarHeight, foot.y, r * 1.5, 90, 140, 420, { glow: 1.1 });
-    this.tw('hot', this.tex.glow, c.core, d.x, d.y, { dur: 130, from: portrait * 1.1, to: portrait * 1.45, a0: 0.7 * o.flashAlpha });
-    this.tw('hot', this.tex.glow, c.core, foot.x, foot.y, { dur: 170, from: 1.4 * fs, to: Math.min(5, 3 * fs), a0: o.flashAlpha });
-    this.tw('under', this.tex.glow, c.gold, d.x, d.y, { dur: 520, from: 2 * fs, to: Math.min(8, 4.6 * fs), a0: 0.45 * o.flashAlpha });
+    this.tw('hot', this.tex.glow, c.core, d.x, d.y, { dur: 110, from: portrait * 1.05, to: portrait * 1.3, a0: 0.6 * o.flashAlpha });
+    this.tw('hot', this.tex.glow, c.core, foot.x, foot.y, { dur: 140, from: 1.2 * fs, to: Math.min(3.6, 2.2 * fs), a0: o.flashAlpha, ry: L.tilt * 1.4 });
+    this.tw('under', this.tex.glow, c.gold, d.x, d.y, { dur: 420, from: 1.6 * fs, to: Math.min(6, 3.4 * fs), a0: 0.35 * o.flashAlpha });
     this.tw('hot', this.tex.star, c.core, d.x, d.y, { dur: 340, from: ((r * 3.6) / 48 / S), to: ((r * 5.4) / 48 / S), a0: 1, ease: easeOutCubic });
     this.tw('hot', this.tex.star, c.sky, d.x, d.y, { dur: 300, from: ((r * 2.4) / 48 / S), to: ((r * 3.4) / 48 / S), a0: 0.55, rot: Math.PI / 4 });
     const rs = ((r * 4.4) / 256 / S) * L.raysSize;
@@ -618,8 +732,8 @@ export class HeroHolyScene {
       this.tw('glow', this.tex.rays, c.gold, d.x, d.y, { dur: 900, from: rs * 0.7, to: rs * 1.35, a0: 0.95, spin: 0.0006, ease: easeOutCubic, outFrom: 0.3 });
       this.tw('ground', this.tex.rays, c.deep, d.x, d.y, { dur: 800, from: rs * 0.7, to: rs * 1.3, a0: 0.28, spin: 0.0006, ease: easeOutCubic, outFrom: 0.25 });
     }
-    this.tw('hot', this.tex.ring, c.core, foot.x, foot.y, { dur: 380, from: 0.5, to: (r * 5) / RING_PX / S, a0: 1, ry: L.tilt, ease: easeOutCubic });
-    this.tw('under', this.tex.ring, c.gold, foot.x, foot.y, { dur: 700, from: 0.6, to: (r * 7.5) / RING_PX / S, a0: 0.8, ry: L.tilt, ease: easeOutCubic });
+    this.tw('glow', this.tex.ring, c.gold, foot.x, foot.y, { dur: 380, from: 0.5, to: (r * 4.2) / RING_PX / S, a0: 0.85, ry: L.tilt, ease: easeOutCubic });
+    this.tw('under', this.tex.ring, c.gold, foot.x, foot.y, { dur: 640, from: 0.6, to: (r * 6.5) / RING_PX / S, a0: 0.55, ry: L.tilt, ease: easeOutCubic });
     this.tw('under', this.tex.ring, c.sky, d.x, d.y, { dur: 560, from: (r * 1.2) / RING_PX / S, to: (r * 5) / RING_PX / S, a0: 0.5 });
     // THE HOLY FLAMES: tongues licking up round the ground ellipse, tallest at the sides (the face stays clear), swaying.
     const n = Math.max(0, Math.round(o.flames));
@@ -775,7 +889,7 @@ export class HeroHolyScene {
       sw.age += dt;
       const y = sw.tip(sw.age);
       const k = sw.len / SWORD_LEN_PX;
-      const inA = clamp01(sw.age / 220);
+      const inA = clamp01(sw.age / 50);
       let bodyA = inA, hotA = 0.55 * inA, glowA = 0.85 * inA * this.look.swordGlow, sx = k, sy = k;
       const slammed = sw.age >= sw.slamAge;
       if (slammed) {
@@ -801,78 +915,119 @@ export class HeroHolyScene {
             life: 600 + this.rnd() * 400, from: (0.35 + this.rnd() * 0.2) * S, to: 0.08 * S, alpha: 1, twinkle: 0.02, spin: 0.004,
           });
         }
-        if (f >= 1) { for (const s of [sw.glow, sw.body, sw.hot, sw.beam, sw.trail, sw.glint]) this.give(s); this.sword = null; }
+        if (f >= 1) { for (const s of [sw.glow, sw.body, sw.hot, sw.trail, sw.trailCore]) this.give(s); this.sword = null; }
       }
       if (this.sword) {
         for (const s of [sw.glow, sw.body, sw.hot]) { s.position.set(sw.x, y); s.scale.set(sx, sy); }
         sw.glow.scale.set(sx * 1.02, sy * 1.01);
         sw.body.alpha = bodyA; sw.hot.alpha = Math.max(0, Math.min(1, hotA)); sw.glow.alpha = Math.max(0, Math.min(1, glowA));
-        // The beam it descends in: a wide soft column from the sky onto it, until it bites.
-        const top = y - sw.len * 3;
-        sw.beam.position.set(sw.x, y - sw.len * 0.15);
-        sw.beam.scale.set((sw.len * 0.55) / PILLAR_W, Math.max(1, (y - sw.len * 0.15) - top) / PILLAR_H);
-        sw.beam.alpha = slammed ? Math.max(0, 0.45 * (1 - (sw.age - sw.slamAge) / 240)) : 0.45 * inA;
-        // The fall's streak: a column of light trailing up from the pommel, only while it plunges.
+        // The drop's streak: a column of light trailing up off the sword, growing with its speed, gone as it bites.
         const falling = sw.age >= sw.fallAge && !slammed;
         const fu = falling ? clamp01((sw.age - sw.fallAge) / Math.max(1, sw.slamAge - sw.fallAge)) : 0;
-        sw.trail.position.set(sw.x, y - sw.len * 0.7);
-        sw.trail.scale.set((sw.len * 0.14) / PILLAR_W, (sw.len * (0.4 + 1.2 * fu)) / PILLAR_H);
-        sw.trail.alpha = falling ? 0.75 * fu : Math.max(0, sw.trail.alpha - dt / 120);
-        // A glint runs down the blade through the hang (guard to point), then rides the tip as it falls.
-        const g0 = 140, g1 = Math.max(g0 + 1, sw.fallAge - 60);
-        if (sw.age >= g0 && sw.age < g1) {
-          const gu = (sw.age - g0) / (g1 - g0);
-          sw.glint.position.set(sw.x, y - sw.len * SWORD_GUARD_FROM_TIP * (1 - easeInOutSine(gu)));
-          const gs = (sw.len * 0.14) / 48;
-          sw.glint.scale.set(gs * (0.8 + 0.4 * Math.sin(gu * Math.PI)));
-          sw.glint.rotation = gu * 1.2;
-          sw.glint.alpha = Math.sin(gu * Math.PI);
-        } else sw.glint.alpha = 0;
+        const tl = sw.len * (0.5 + 2.2 * fu * fu);
+        const base = y - sw.len * 0.55;
+        sw.trail.position.set(sw.x, base); sw.trail.scale.set((sw.len * 0.3) / PILLAR_W, tl / PILLAR_H);
+        sw.trailCore.position.set(sw.x, base); sw.trailCore.scale.set((sw.len * 0.09) / PILLAR_W, (tl * 0.85) / PILLAR_H);
+        sw.trail.alpha = falling ? 0.8 * Math.min(1, fu * 3) : Math.max(0, sw.trail.alpha - dt / 90);
+        sw.trailCore.alpha = falling ? 0.9 * Math.min(1, fu * 3) : Math.max(0, sw.trailCore.alpha - dt / 70);
       }
     }
 
-    // The consecration's race.
+    // The surge: the bolt races down the path, the cracks tear open behind it.
     const sp = this.spreadFx;
     if (sp) {
       sp.age += dt;
       const x = clamp01(sp.age / sp.dur);
-      const u = 0.45 * x + 0.55 * (x * x * (3 - 2 * x));
+      // Fired: it leaves fast and barely slows (a shot, not a spreading pool).
+      const u = 1 - Math.pow(1 - x, 1.35);
       const dist = sp.len * u;
       const fade = sp.fadeT >= 0 ? clamp01((sp.fadeT += dt) / sp.fadeMs) : 0;
-      sp.bandBody.scale.set(dist / 64, (sp.width * 0.9) / 64); sp.bandBody.alpha = 0.5 * (1 - fade) * clamp01(sp.age / 60);
-      sp.bandLight.scale.set(dist / 64, (sp.width * 1.3) / 64); sp.bandLight.alpha = (0.85 + 0.1 * Math.sin(sp.age * 0.01)) * (1 - fade) * clamp01(sp.age / 60);
+      const live = (1 - fade) * clamp01(sp.age / 50);
+      sp.bandBody.scale.set(dist / 64, (sp.width * 0.8) / 64); sp.bandBody.alpha = 0.22 * live;
+      sp.bandLight.scale.set(dist / 64, (sp.width * 1.5) / 64); sp.bandLight.alpha = (0.5 + 0.08 * Math.sin(sp.age * 0.012)) * live;
       const hx = sp.a.x + Math.cos(sp.ang) * dist, hy = sp.a.y + Math.sin(sp.ang) * dist;
       const running = x < 1;
-      sp.head.position.set(hx, hy); sp.head.scale.set((sp.width * 3) / GLOW_PX, (sp.width * 1.8) / GLOW_PX);
-      sp.head.alpha = running ? 0.9 : Math.max(0, sp.head.alpha - dt / 120);
-      sp.headStar.position.set(hx, hy); sp.headStar.scale.set((sp.width * 1.6) / 48); sp.headStar.rotation += dt * 0.01;
-      sp.headStar.alpha = running ? 0.85 : Math.max(0, sp.headStar.alpha - dt / 120);
+      sp.head.position.set(hx, hy); sp.head.scale.set((sp.width * 5) / GLOW_PX, (sp.width * 5 * this.look.tilt) / GLOW_PX);
+      sp.head.alpha = running ? 0.6 : Math.max(0, sp.head.alpha - dt / 100);
+      // The blast rides the front, skimming the ground.
+      const wv = this.wave;
+      if (wv && wv.flying && wv.spent < 0) {
+        const wd = Math.min(sp.len, Math.max(dist, sp.waveD0));
+        wv.x = sp.a.x + Math.cos(sp.ang) * wd; wv.y = sp.a.y + Math.sin(sp.ang) * wd;
+      }
+      // Tear the cracks open behind the front: each segment draws out from its start as the front passes it.
+      for (const sg of sp.segs) {
+        const g = sg.u1 > sg.u0 ? clamp01((u - sg.u0) / Math.max(1e-4, sg.u1 - sg.u0)) : (u >= sg.u0 ? 1 : 0);
+        const hot = clamp01(1 - (u - sg.u1) * 3); // white-hot just behind the front, cooling to gold
+        for (const pt of sg.parts) {
+          pt.s.scale.set((sg.len * g) / 64, (sg.w * pt.w) / 64);
+          const flick = pt.w > 3 ? 0.85 + 0.15 * Math.sin(sp.age * 0.02 + sg.u0 * 20) : 1;
+          pt.s.alpha = g > 0 ? pt.a * live * flick * (pt.w < 1 ? 0.45 + 0.55 * hot : 1) : 0;
+        }
+      }
       // Stamp the runes the front has passed.
       while (sp.stamped < sp.runes.length && sp.runes[sp.stamped]!.u <= u + 1e-6) this.stampRune(sp.runes[sp.stamped++]!, sp.width);
-      // Cracks branching off the path every ~110 px, and motes rising at the front.
       if (running) {
-        sp.crackAcc += dist - sp.lastD;
-        while (sp.crackAcc > 110 * S) {
-          sp.crackAcc -= 110 * S;
+        // Small forks split off the main crack every ~90 px.
+        sp.forkAcc += dist - sp.lastD;
+        while (sp.forkAcc > 90 * S) {
+          sp.forkAcc -= 90 * S;
           const side = this.rnd() < 0.5 ? -1 : 1;
-          const th = sp.ang + side * (0.7 + this.rnd() * 0.5);
-          const len = (sp.width * (1.4 + this.rnd())) / 128 / S;
-          for (const [layer, tint, a] of [['ground', c.deep, 0.7], ['under', c.gold, 0.85]] as [LayerId, number, number][]) {
-            const h = this.hold(layer, this.tex.crack, tint, hx, hy, 'ground', { a, g0: 0, g1: 1, gMs: 160, inMs: 30, tilt: 1, rot: th, ax: 0, ay: 0.5 });
-            if (h) { h.ry = 0.8; h.len = len; }
+          const th = sp.ang + side * (0.6 + this.rnd() * 0.5);
+          const flen = (sp.width * (0.9 + this.rnd() * 0.8)) / 128 / S;
+          for (const [layer, tint, a] of [['ground', c.deep, 0.8], ['under', c.gold, 0.85]] as [LayerId, number, number][]) {
+            const h = this.hold(layer, this.tex.crack, tint, hx, hy, 'ground', { a, g0: 0, g1: 1, gMs: 140, inMs: 20, tilt: 1, rot: th, ax: 0, ay: 0.5 });
+            if (h) { h.ry = 0.7; h.len = flen; }
           }
         }
-        sp.moteAcc += dt * 0.12;
+        // Dust and light kicked up either side of the blast as it skims.
+        sp.dustAcc += dt * 0.05;
+        while (sp.dustAcc >= 1) {
+          sp.dustAcc -= 1;
+          const side = this.rnd() < 0.5 ? -1 : 1;
+          const nx = -Math.sin(sp.ang), ny = Math.cos(sp.ang);
+          const off = sp.width * (0.9 + this.rnd() * 0.8) * side;
+          this.tw('body', this.tex.puff, c.dust, hx + nx * off, hy + ny * off * 0.6, {
+            dur: 520 + this.rnd() * 200, from: 0.4, to: 1.1 + this.rnd() * 0.4, a0: 0.45, ease: easeOutCubic, inMs: 30,
+            vx: nx * side * 60 * S, vy: -40 * S,
+          });
+        }
+        sp.moteAcc += dt * 0.14;
         while (sp.moteAcc >= 1) {
           sp.moteAcc -= 1;
           this.particle('hot', this.tex.star, this.rnd() < 0.5 ? c.gold : c.core, {
-            x: hx + (this.rnd() - 0.5) * sp.width, y: hy + (this.rnd() - 0.5) * sp.width * 0.5, vx: (this.rnd() - 0.5) * 30 * S, vy: -(90 + this.rnd() * 110) * S,
+            x: hx + (this.rnd() - 0.5) * sp.width, y: hy + (this.rnd() - 0.5) * sp.width * 0.5, vx: (this.rnd() - 0.5) * 40 * S, vy: -(90 + this.rnd() * 130) * S,
             drag: 0.4, grav: -30 * S, life: 700 + this.rnd() * 400, from: (0.35 + this.rnd() * 0.25) * S, to: 0.08 * S, alpha: 1, twinkle: 0.02, spin: 0.004,
           });
         }
       }
       sp.lastD = dist;
-      if (fade >= 1) { for (const s of [sp.bandBody, sp.bandLight, sp.head, sp.headStar]) this.give(s); this.spreadFx = null; }
+      if (fade >= 1) {
+        for (const s2 of [sp.bandBody, sp.bandLight, sp.head]) this.give(s2);
+        for (const sg of sp.segs) for (const pt of sg.parts) this.give(pt.s);
+        this.spreadFx = null;
+      }
+    }
+
+    // The flat blast: it swells and flickers as the wake builds, skims while it flies, and is spent in the eruption.
+    const wv = this.wave;
+    if (wv) {
+      wv.age += dt;
+      const bu = clamp01(wv.age / wv.build);
+      let grow = wv.flying ? 1 : 0.35 + 0.65 * easeOutCubic(bu);
+      let a = wv.flying ? 1 : bu * bu;
+      if (wv.spent >= 0) {
+        wv.spent += dt;
+        const f = clamp01(wv.spent / 160);
+        grow = 1 + 0.4 * f; a = 1 - f;
+      }
+      const flick = 0.88 + 0.12 * Math.sin(wv.age * 0.05);
+      for (const p of wv.parts) {
+        p.s.position.set(wv.x, wv.y);
+        groundTransform(p.s, wv.th, p.depth * grow * (wv.flying ? 1.25 : 1), p.width * grow, this.look.tilt);
+        p.s.alpha = Math.max(0, p.a * a * flick);
+      }
+      if (wv.spent >= 160) { for (const p of wv.parts) this.give(p.s); this.wave = null; }
     }
 
     for (let i = this.fx.length - 1; i >= 0; i--) {
@@ -922,7 +1077,8 @@ export class HeroHolyScene {
     this.hold('ground', g, c.deep, rn.at.x, rn.at.y, 'ground', { a: 0.75, g0: gs * 2, g1: gs, gMs: 220, back: true, tilt: L.tilt, rot: rn.rot, inMs: 40 });
     this.hold('under', g, c.gold, rn.at.x, rn.at.y, 'ground', { a: 1, g0: gs * 2, g1: gs, gMs: 220, back: true, tilt: L.tilt, rot: rn.rot, inMs: 40, pulse: 0.2 });
     this.tw('hot', this.tex.glow, c.core, rn.at.x, rn.at.y, { dur: 160, from: (width * 0.4) / GLOW_PX / S, to: (width * 1.2) / GLOW_PX / S, a0: 0.6 });
-    if (rn.pillar) this.column('rise', rn.at.x, rn.at.y - width * 2.6, rn.at.y, width * 0.5, 110, 60, 320, { glow: 0.85 });
+    // Some runes flare with a LOW burst of light (a flat flash on the ground, never a column: the blast stays flat).
+    if (rn.pillar) this.tw('under', this.tex.glow, c.gold, rn.at.x, rn.at.y, { dur: 300, from: (width * 0.8) / GLOW_PX / S, to: (width * 2.2) / GLOW_PX / S, a0: 0.8, ry: L.tilt });
   }
 
   /** Drop every in-flight effect at once (a cancel). The pools are kept for reuse. */
@@ -932,10 +1088,14 @@ export class HeroHolyScene {
     for (const p of this.particles) this.give(p.s);
     for (const p of this.pillars) { for (const pt of p.parts) this.give(pt.s); if (p.head) this.give(p.head); }
     for (const sp of this.spears) for (const s of [sp.body, sp.glow, sp.trail]) this.give(s);
-    if (this.sword) for (const s of [this.sword.glow, this.sword.body, this.sword.hot, this.sword.beam, this.sword.trail, this.sword.glint]) this.give(s);
-    if (this.spreadFx) for (const s of [this.spreadFx.bandBody, this.spreadFx.bandLight, this.spreadFx.head, this.spreadFx.headStar]) this.give(s);
+    if (this.sword) for (const s of [this.sword.glow, this.sword.body, this.sword.hot, this.sword.trail, this.sword.trailCore]) this.give(s);
+    if (this.spreadFx) {
+      for (const s of [this.spreadFx.bandBody, this.spreadFx.bandLight, this.spreadFx.head]) this.give(s);
+      for (const sg of this.spreadFx.segs) for (const pt of sg.parts) this.give(pt.s);
+    }
     for (const s of this.warm) this.give(s);
-    this.fx = []; this.held = []; this.particles = []; this.pillars = []; this.spears = []; this.sword = null; this.spreadFx = null;
+    if (this.wave) for (const p of this.wave.parts) this.give(p.s);
+    this.fx = []; this.held = []; this.particles = []; this.pillars = []; this.spears = []; this.sword = null; this.spreadFx = null; this.wave = null;
     this.warm = []; this.invokeAcc = null; this.gatherAcc = null;
   }
 

@@ -163,11 +163,11 @@ export function playHeroHoly(o: HeroHolyOptions): HeroHolyHandle {
         tick++;
         break;
       case 'sword': {
-        // THE JUDGEMENT: the heaven opens; the descending whoosh is placed so its hit lands on the slam.
+        // THE JUDGEMENT: the sword drops in from above the screen; the descending whoosh is placed so its hit lands on
+        // the slam.
         voices.riser(c.sfxDescendClip, c.sfxDescendGain, c.sfxDescendRate, real(plan.slamAt - plan.swordAt));
-        if (sound) voices.keep(playHolyChoir('attack', { gain: c.sfxChoirGain * 0.8, hz: c.sfxChoirHz * 1.5, buildMs: real(plan.slamAt - plan.swordAt), holdMs: real(80), tailMs: real(600), rise: 1.06 }));
         const at0 = plan.swordAt;
-        scene?.summonSword(geo.swordTip.x, geo.swordLen, (age) => swordTipY(plan, geo, at0 + age), plan.fallAt - at0, plan.slamAt - at0, (local ? 6 : 24) * s);
+        scene?.summonSword(geo.swordTip.x, geo.swordLen, (age) => swordTipY(plan, geo, at0 + age), plan.fallAt - at0, plan.slamAt - at0);
         break;
       }
       case 'fall':
@@ -179,14 +179,21 @@ export function playHeroHoly(o: HeroHolyOptions): HeroHolyHandle {
         cue(c.sfxClangClip, c.sfxClangGain, c.sfxClangRate, { lenMs: 900, fadeMs: 400 });
         cue(c.sfxThumpClip, c.sfxThumpGain * 1.2, c.sfxThumpRate - 0.1, { lenMs: 500, fadeMs: 180 });
         bell(c.sfxBellHz * 0.5, c.sfxBellGain * 0.8, 1600);
+        // ... and it EXPLODES INTO LIGHT (owner 2026-09-28): the sword dissolves in the blast.
+        cue(c.sfxEruptClip, c.sfxEruptGain * 0.7, c.sfxEruptRate * 1.12, { lenMs: 700, fadeMs: 300 });
         scene?.slam(geo.swordTip.x, geo.swordTip.y, radius, { dust: c.slamDust, debris: c.slamDebris, shock: c.shockwave, cracks: c.cracks, flashAlpha: c.flashAlpha });
-        scene?.erupt(geo.swordTip.x, geo.swordTip.y, radius * c.consecrateRadius);
+        scene?.explodeSword(geo.swordTip.x, geo.swordTip.y, geo.swordLen, radius, { size: c.explodeSize, shards: c.shards, dissolveMs: c.dissolveMs, flashAlpha: c.flashAlpha });
+        // THE WAKE BUILDS: a short charge (the choir climbing fast to the moment it is fired).
+        if (sound) voices.keep(playHolyChoir('attack', { gain: c.sfxChoirGain, hz: c.sfxChoirHz, buildMs: real(plan.spreadAt - plan.slamAt), holdMs: real(30), tailMs: real(500), rise: 1.25 }));
+        scene?.wake(geo.swordTip.x, geo.swordTip.y, radius, plan.spreadAt - plan.slamAt, geo.foot, c.waveSize);
         break;
       case 'spread':
-        // THE CONSECRATION races out: a rising radiant swell (the choir, climbing) that peaks on the eruption.
+        // IT FLIES: the flat consecrated blast is fired along the ground; a rising radiant swell (the choir) peaks on the
+        // strike, and a whoosh carries the shot.
         if (sound) voices.keep(playHolyChoir('attack', { gain: c.sfxSwellGain, hz: c.sfxChoirHz, buildMs: real(plan.impactAt - plan.spreadAt), holdMs: real(40), tailMs: real(1200), rise: 1.5 }));
-        cue(c.sfxInvokeClip, c.sfxInvokeGain * 0.7, c.sfxInvokeRate * 1.1, { lenMs: 800, fadeMs: 300 });
-        scene?.spread(geo.path.a, geo.path.b, geo.runes, plan.arriveAt - plan.spreadAt, radius * 0.62 * c.pathWidth);
+        cue(c.sfxDropClip, c.sfxDropGain, c.sfxDropRate * 1.15, { lenMs: 600, fadeMs: 220 });
+        cue(c.sfxHitClip, c.sfxHitGain * 0.7, c.sfxHitRate * 0.85, { lenMs: 500, fadeMs: 220 });
+        scene?.spread(geo.path.a, geo.path.b, geo.cracks, geo.runes, plan.arriveAt - plan.spreadAt, radius * 0.62 * c.pathWidth);
         break;
       case 'arrive':
         cue(c.sfxSigilClip, c.sfxSigilGain, c.sfxSigilRate * 0.9, { lenMs: 700, fadeMs: 260 });
@@ -216,7 +223,6 @@ export function playHeroHoly(o: HeroHolyOptions): HeroHolyHandle {
         break;
       case 'fade':
         scene?.fadeGround(c.lingerMs);
-        scene?.dissolveSword(c.dissolveMs);
         break;
       default:
         break;

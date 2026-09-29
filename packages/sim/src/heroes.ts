@@ -540,7 +540,8 @@ export const HEROES: HeroDef[] = [
   {
     // KINDNESS (owner design 2026-08-26) — the Gift hero. Its power is a PASSIVE schedule, so there is no
     // button to arm: every 4th turn (4, 8, 12, …) it opens a Discover over the whole Gift class.
-    // Owner ruling 2026-08-26: fully discoverable — Mimic, Void and Power Shifter may all offer it.
+    // Owner ruling 2026-08-26: fully discoverable. Narrowed 2026-09-29: out of Mimic (and so Power Shifter),
+    // still offered by Void (see MIMIC_EXCLUDED).
     id: 'kindness',
     name: 'Kindness',
     blurb: 'The best presents are the ones nobody had to ask for.',
@@ -1120,8 +1121,9 @@ const UNDISCOVERABLE_KINDS = new Set<HeroPowerKind>([
  *  Power Shifter draws from THIS same list (see `powerDiscoverPool('mimic')` in reducer + recruit), so an id
  *  here is out of both. + Brackus (owner 2026-08-24): his Summit is a START-OF-GAME Tier-7 Discover, so
  *  adopting it mid-run does nothing but burn the pick. Still available to Void, which the owner did not ask
- *  to change. */
-const MIMIC_EXCLUDED = new Set(['rohan', 'drakko', 'discodan', 'cassen', 'fi', 'runesmith', 'runeguard', 'coran', 'repete', 'vale', 'quillen', 'bram', 'keshi', 'brackus']);
+ *  to change. + Kindness (owner 2026-09-29: "kindness should not be in mimic's pool"): Great Presence only fires
+ *  on every 4th turn, so a one-turn disguise almost always wields nothing. Still available to Void. */
+const MIMIC_EXCLUDED = new Set(['rohan', 'drakko', 'discodan', 'cassen', 'fi', 'runesmith', 'runeguard', 'coran', 'repete', 'vale', 'quillen', 'bram', 'keshi', 'brackus', 'kindness']);
 
 /** Owner's exclusion list for VOID (2026-08-22): Disco Dan, Runesmith, Coran, Fi, Emissary. */
 const VOID_EXCLUDED = new Set(['discodan', 'runesmith', 'coran', 'fi', 'vale']);

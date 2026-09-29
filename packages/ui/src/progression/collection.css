@@ -270,6 +270,11 @@
 .nrw-link { align-self: flex-start; font-family: var(--font-ui); font-weight: 800; font-size: 14px; letter-spacing: 0.08em; text-transform: uppercase; color: #f0d089; background: none; border: none; border-bottom: 2px solid rgba(240, 208, 137, 0.4); padding: 2px 0; }
 .nrw-link:hover, .nrw-link:focus-visible { color: #fff3cf; border-bottom-color: #f0d089; outline: none; }
 .nrw-titles { display: flex; flex-wrap: wrap; gap: 8px; }
+/* A hero title's golden MASTER plate (owner 2026-09-29) where the Collection shows a title name. */
+.colls-tile-name .titlebadge.colls-titleplate { --tb-fs: 15px; }
+.colls-plate-name .titlebadge.colls-titleplate-lg { --tb-fs: 22px; }
+.colls-preview-title .titlebadge.colls-titleplate { --tb-fs: 13px; }
+.nrw-titles .titlebadge.nrw-titleplate { --tb-fs: 15px; }
 .nrw-titlechip { padding: 4px 12px; border-radius: 999px; font-family: var(--font-ui); font-weight: 900; font-size: 15px; letter-spacing: 0.1em; text-transform: uppercase; color: #ffe08a; border: 1.5px solid #ffe08a; background: rgba(0, 0, 0, 0.35); }
 .nrw-note { font-family: var(--font-ui); font-weight: 600; font-size: 14px; color: rgba(255, 255, 255, 0.66); }
 .nrw-crates { flex-direction: row; align-items: center; gap: 14px; }

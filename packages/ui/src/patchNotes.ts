@@ -68,6 +68,28 @@ export const PATCH_NOTES: PatchNote[] = [
         ],
       },
       {
+        category: 'Balance',
+        text: "Mimic can no longer pick Kindness's hero power. It only works every 4th turn, so it was almost always a wasted pick.",
+      },
+      {
+        category: 'Systems',
+        text: 'Hero titles. Finish 1st in 3 Ranked games with a hero to earn its title. Reach 10 and it becomes a golden plate with embroidered text.',
+        details: [
+          'Every hero has its own title, like Warded for Warden, Gambling Addict for Gambler and Albus Student for Albus.',
+          'Only Ranked 1st place finishes count. The new "Titled" hero achievement pays 150 XP.',
+          'The golden version replaces the title in your Collection, and swaps in if you are wearing it.',
+          'Wear it from the Titles tab. It shows on your Career, the Leaderboard and Match details.',
+        ],
+      },
+      {
+        category: 'Systems',
+        text: 'Unit voices and creature sounds when you play a unit or it dies are now half as loud.',
+      },
+      {
+        category: 'Systems',
+        text: 'Bob Blart has his own voice: a big, hungry ogre. He also says his own line when he meets Chronos on your board, instead of the announcer.',
+      },
+      {
         category: 'Systems',
         text: 'The Collection no longer shows the Boards and Music tabs. They come back when they are ready.',
       },
@@ -127,14 +149,6 @@ export const PATCH_NOTES: PatchNote[] = [
           'Then the middle collapses and a blast of holy light races across the board at the other hero.',
           'Hero attacks are looks only. The damage is exactly the same.',
         ],
-      },
-      {
-        category: 'Systems',
-        text: 'Unit voices and creature sounds when you play a unit or it dies are now half as loud.',
-      },
-      {
-        category: 'Systems',
-        text: 'Bob Blart has his own voice: a big, hungry ogre. He also says his own line when he meets Chronos on your board, instead of the announcer.',
       },
       {
         category: 'Systems',

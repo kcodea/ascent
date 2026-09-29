@@ -2,8 +2,9 @@ import { describe, expect, it } from 'vitest';
 import {
   ALPHA_TESTER_TITLE_ID, COSMETICS, COSMETIC_CATEGORIES, COSMETIC_CATEGORY_DEFS, COSMETIC_RARITIES, CRATE_RARITY_ODDS, crateChances, crateName, crateOddsLine,
   crateRarityFallback, eligibleCrateCosmetics, parseCrate, parseOpenCrateResult, pickCrateReward,
-  rollCrateRarity, type CosmeticDef,
+  rollCrateRarity, type CosmeticDef, HERO_TITLE_COSMETICS, HERO_TITLE_NAMES, heroMasterTitleId, heroTitleId, heroTitleInfo, isMasterTitle, titleShelf,
 } from './cosmetics';
+import { ACHIEVEMENT_HEROES, ACHIEVEMENT_INDEX } from './achievements';
 import { cratesEarnedThrough, cratesForSettlement, titleName, titlesForLevel } from './rules';
 
 /**
@@ -24,7 +25,11 @@ describe('the launch catalog', () => {
     const byRarity = (r: string): number => crateTitles.filter((c) => c.rarity === r).length;
     expect([byRarity('common'), byRarity('rare'), byRarity('epic'), byRarity('legendary')]).toEqual([7, 5, 2, 1]);
     expect(new Set(COSMETICS.map((c) => c.id)).size).toBe(COSMETICS.length);
-    expect(new Set(COSMETICS.map((c) => c.name)).size).toBe(COSMETICS.length);
+    // Names are unique, except that a hero title's golden MASTER version shares its base title's name (owner
+    // 2026-09-29: the mastery upgrades the same title in place).
+    const distinct = COSMETICS.filter((c) => !isMasterTitle(c.id));
+    expect(new Set(distinct.map((c) => c.name)).size).toBe(distinct.length);
+    for (const c of COSMETICS.filter((x) => isMasterTitle(x.id))) expect(c.name).toBe(COSMETICS.find((b) => b.id === heroTitleInfo(c.id)!.baseId)!.name);
     for (const c of COSMETICS) expect(c.id, c.id).toMatch(/^[a-z][a-z0-9_]*$/);
   });
 
@@ -231,5 +236,40 @@ describe('parsing the server shapes', () => {
     expect(parseOpenCrateResult({ status: 'pool_exhausted', crate: { ...crate, state: 'sealed', rewardId: null }, rewardId: null, sealedRemaining: 1 }))
       .toMatchObject({ status: 'pool_exhausted', rewardId: null });
     expect(parseOpenCrateResult({ status: 'weird', crate, rewardId: 'x', sealedRemaining: 0 })).toBeNull();
+  });
+});
+
+describe(`hero titles (owner 2026-09-29: "the hero's title is granted at 3 wins with a hero, then the mastery of that title is after 10 wins")`, () => {
+  it('two achievement-sourced titles per playable hero: the title (Epic) and its golden master (Legendary), same name', () => {
+    expect(HERO_TITLE_COSMETICS).toHaveLength(ACHIEVEMENT_HEROES.length * 2);
+    // one title per playable hero, in the same order (the hero list lives in achievements.ts)
+    expect(HERO_TITLE_NAMES.map(([id]) => id)).toEqual(ACHIEVEMENT_HEROES.map((h) => h.id));
+    for (const { id } of ACHIEVEMENT_HEROES) {
+      const h = { id, title: HERO_TITLE_NAMES.find(([x]) => x === id)![1] };
+      const base = COSMETICS.find((c) => c.id === heroTitleId(h.id))!;
+      const master = COSMETICS.find((c) => c.id === heroMasterTitleId(h.id))!;
+      expect(base).toMatchObject({ category: 'title', name: h.title, rarity: 'epic', acquisition: { type: 'achievement', id: `hero.${h.id}.titled` }, active: true });
+      expect(master).toMatchObject({ category: 'title', name: h.title, rarity: 'legendary', acquisition: { type: 'achievement', id: `hero.${h.id}.mastery` }, active: true });
+      expect(ACHIEVEMENT_INDEX[`hero.${h.id}.titled`]!.target).toBe(3);
+      expect(ACHIEVEMENT_INDEX[`hero.${h.id}.mastery`]!.target).toBe(10);
+      expect([isMasterTitle(base.id), isMasterTitle(master.id)]).toEqual([false, true]);
+      expect(heroTitleInfo(master.id)).toEqual({ heroId: h.id, master: true, baseId: base.id, masterId: master.id });
+    }
+    // the owner's own examples
+    expect(['warden', 'gambler', 'albus'].map((id) => COSMETICS.find((c) => c.id === heroTitleId(id))!.name)).toEqual(['Warded', 'Gambling Addict', 'Albus Student']);
+    expect(isMasterTitle('title_the_unbroken')).toBe(false);
+    expect(isMasterTitle(null)).toBe(false);
+  });
+
+  it('never in the crate pool', () => {
+    const pool = eligibleCrateCosmetics([]).map((c) => c.id);
+    for (const c of HERO_TITLE_COSMETICS) expect(pool).not.toContain(c.id);
+  });
+
+  it('the master supersedes the base (upgraded in place); an unowned master stays out of the lists', () => {
+    const ids = ['title_wanderer', heroTitleId('warden'), heroMasterTitleId('warden'), heroTitleId('indy'), heroMasterTitleId('indy')];
+    expect(titleShelf(ids, new Set())).toEqual(['title_wanderer', heroTitleId('warden'), heroTitleId('indy')]);
+    expect(titleShelf(ids, new Set([heroTitleId('warden')]))).toEqual(['title_wanderer', heroTitleId('warden'), heroTitleId('indy')]);
+    expect(titleShelf(ids, new Set([heroTitleId('warden'), heroMasterTitleId('warden')]))).toEqual(['title_wanderer', heroMasterTitleId('warden'), heroTitleId('indy')]);
   });
 });

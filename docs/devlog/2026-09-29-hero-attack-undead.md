@@ -55,8 +55,9 @@ formation runs first. Then:
 - **Tuner:** "Hero Attack: Undead" in the hub (💀). It covers the raise, the skulls, the wisps, the Tier III hands and
   swarm, the Tier IV rift, maw and mist, the camera, the colours, and a clip / gain / pitch row per sound cue (17 cues).
   Per the owner's ask the same day for every hero attack tuner, it has no Speed or Reduced motion buttons, and its button
-  row (Copy JSON, Reset, the Play buttons) sits at the TOP. That needed a small opt-in `buttonsOnTop` flag on
-  `TunerSpec` (the default stays at the bottom for every other panel).
+  row (Copy JSON, Reset, the Play buttons) sits at the TOP, through the shared `TunerSpec.buttonsOnTop` from #1843 (the
+  branch's own copy of that flag was dropped on merge). On merging #1849 it also picks its tier with the shared
+  `attackTier`, so a knockout always plays Tier IV (the rift and the maw).
 
 ## Timeline (ms from the raise, 1300 px apart; the formation's lead-in comes first)
 
@@ -72,8 +73,9 @@ later.
 
 ## Crate odds
 
-Legendary goes from 11 items to 12, so each Legendary is now 0.42% (5 / 12). The rarity odds never move (50 / 30 / 15 /
-5). Hero attacks together are 3.8% of a first crate.
+Inferno (attack_fire, #1844) landed first the same day, so Grave Call takes Legendary from 12 items to 13: each Legendary
+is now 0.385% (5 / 13). The rarity odds never move (50 / 30 / 15 / 5). The ten hero attacks together are 3.85% of a first
+crate.
 
 ## Perf
 

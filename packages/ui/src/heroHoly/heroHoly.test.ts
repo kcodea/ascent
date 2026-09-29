@@ -106,7 +106,7 @@ describe('the tuner values', () => {
     expect(style?.options).toContain('holy');
     expect(DEV_HERO_ATTACK_CHOICES).toContain('holy');
     const labels = SPEC.actions?.map((a) => a.label) ?? [];
-    for (const l of ['▶ Small (3)', '▶ Tier II (8)', '▶ Medium (12)', '▶ Huge (40)', '▶ Foe huge (40)', '▶ Reduced motion', 'Speed 1x', 'Speed 0.5x', 'Speed 0.25x']) {
+    for (const l of ['▶ Small (3)', '▶ Tier II (8)', '▶ Medium (12)', '▶ Huge (40)', '▶ Foe huge (40)']) {
       expect(labels).toContain(l);
     }
   });
@@ -556,7 +556,7 @@ describe('the scene (headless Pixi)', () => {
 describe('the cosmetic', () => {
   it('Consecration (attack_holy) is a Legendary crate hero attack that plays Holy; the dev override can force it; the others are unchanged; unknown ids play Classic', () => {
     expect(COSMETIC_INDEX.attack_holy).toMatchObject({ category: 'hero_attack', rarity: 'legendary', name: 'Consecration', assets: { style: 'holy' }, active: true });
-    expect(HERO_ATTACK_STYLES).toEqual(['classic', 'blast', 'quake', 'arcana', 'blades', 'enraged', 'poison', 'frost', 'holy', 'undead']); // Grave Call (undead) joined 2026-09-29
+    expect(HERO_ATTACK_STYLES).toEqual(['classic', 'blast', 'quake', 'arcana', 'blades', 'enraged', 'poison', 'frost', 'holy', 'fire', 'undead']); // Inferno (fire) then Grave Call (undead) joined 2026-09-29
     expect(styleOfCosmetic('attack_holy')).toBe('holy');
     for (const [id, style] of [['attack_blast', 'blast'], ['attack_quake', 'quake'], ['attack_arcana', 'arcana'], ['attack_blades', 'blades'], ['attack_enraged', 'enraged']] as const) {
       expect(styleOfCosmetic(id)).toBe(style);

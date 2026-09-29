@@ -177,10 +177,10 @@ export function TunerPanel<C extends object>({ spec }: { spec: TunerSpec<C> }): 
   // an authoring slip rather than an intent.
   useEffect(() => { assertGroupRuns(spec.id, spec.controls); }, [spec.id, spec.controls]);
 
-  // Copy, Reset and the panel's own actions. At the bottom by default; a panel whose buttons are what you reach for
-  // first (the hero attack tuners' Play buttons, owner 2026-09-29) puts them at the top instead.
+  // Copy, Reset and the panel's own actions. At the foot by default; a panel that is PLAYED more than dialled (the
+  // hero attack tuners) sets `buttonsOnTop` so its Play row sits under the header, not below every control.
   const buttons = (
-    <div className="lunge-btns">
+    <div className={`lunge-btns${spec.buttonsOnTop ? ' tuner-btns-top' : ''}`}>
       <button className="sfxmix-copy" onClick={copy}>{copied ? 'Copied!' : (spec.copyLabel ?? 'Copy values')}</button>
       <button className="sfxmix-copy" onClick={resetAll}>Reset</button>
       {spec.actions?.map((a) => (

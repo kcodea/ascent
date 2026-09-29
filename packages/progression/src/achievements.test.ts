@@ -5,6 +5,7 @@ import {
   type AchievementDef, type AchievementSettlement,
 } from './achievements';
 import { factsAsV1, sanitizeProgressionFacts, type ProgressionRunFactsV2 } from './rules';
+import { cosmeticOf, heroMasterTitleId, heroTitleId } from './cosmetics';
 
 /**
  * ACHIEVEMENTS batch 1 (owner 2026-09-28: "let's just get the normal xp related achievements in for now though").
@@ -16,21 +17,28 @@ const count = (cat: string): number => ACHIEVEMENTS.filter((a) => a.category ===
 const xpOf = (cat: string): number => ACHIEVEMENTS.filter((a) => a.category === cat).reduce((s, a) => s + a.rewards.xp, 0);
 
 describe('the batch 1 registry', () => {
-  it('ships 248 XP-only achievements: counts and XP per category', () => {
-    expect(ACHIEVEMENTS).toHaveLength(248);
+  it('ships 281 achievements: counts and XP per category (hero titles 2026-09-29 added 33 Titled tiers, 4,950 XP)', () => {
+    expect(ACHIEVEMENTS).toHaveLength(281);
     expect(Object.fromEntries(ACHIEVEMENT_CATEGORIES.map((c) => [c, count(c)]))).toEqual({
-      career: 17, ranked: 28, heroes: 132, economy: 15, mechanics: 7, runes: 5, set2: 44,
+      career: 17, ranked: 28, heroes: 165, economy: 15, mechanics: 7, runes: 5, set2: 44,
     });
     expect(Object.fromEntries(ACHIEVEMENT_CATEGORIES.map((c) => [c, xpOf(c)]))).toEqual({
-      career: 1550, ranked: 4300, heroes: 14850, economy: 1925, mechanics: 1125, runes: 675, set2: 6400,
+      career: 1550, ranked: 4300, heroes: 19800, economy: 1925, mechanics: 1125, runes: 675, set2: 6400,
     });
   });
 
-  it('every reward is XP only: a title slot exists (null) so a title can be attached later without a migration', () => {
+  it('every reward pays XP; ONLY the hero Titled and Mastery tiers carry a title (owner 2026-09-29), each a real catalog title', () => {
     for (const a of ACHIEVEMENTS) {
       expect(a.rewards.xp, a.id).toBeGreaterThan(0);
-      expect(a.rewards.titleId, a.id).toBeNull();
       expect(Object.keys(a.rewards).sort()).toEqual(['titleId', 'xp']);
+      if (a.family === 'hero.titled') expect(a.rewards.titleId, a.id).toBe(heroTitleId(a.heroId!));
+      else if (a.family === 'hero.mastery') expect(a.rewards.titleId, a.id).toBe(heroMasterTitleId(a.heroId!));
+      else expect(a.rewards.titleId, a.id).toBeNull();
+      if (a.rewards.titleId) {
+        const t = cosmeticOf(a.rewards.titleId)!;
+        expect(t.category, a.id).toBe('title');
+        expect(t.acquisition, a.id).toEqual({ type: 'achievement', id: a.id });
+      }
     }
   });
 
@@ -73,14 +81,15 @@ describe('the batch 1 registry', () => {
     expect(ACHIEVEMENTS.filter((a) => a.category !== 'set2').every((a) => a.setId === null)).toBe(true);
   });
 
-  it('hero templates: 33 heroes x 4; Debut and Top 4 count any game, Victory and Mastery are Ranked only (owner default 5)', () => {
+  it('hero templates: 33 heroes x 5; Debut and Top 4 count any game, the win tiers are Ranked only (owner default 5)', () => {
     expect(ACHIEVEMENT_HEROES).toHaveLength(33);
     for (const h of ACHIEVEMENT_HEROES) {
-      const [debut, top, win, mastery] = ['debut', 'top_four', 'victory', 'mastery'].map((t) => ACHIEVEMENT_INDEX[`hero.${h.id}.${t}`]!);
-      expect([debut!.mode, top!.mode, win!.mode, mastery!.mode]).toEqual(['any', 'any', 'ranked', 'ranked']);
-      expect([debut!.target, top!.target, win!.target, mastery!.target]).toEqual([3, 5, 1, 10]);
-      expect([debut!.rewards.xp, top!.rewards.xp, win!.rewards.xp, mastery!.rewards.xp]).toEqual([25, 75, 100, 250]);
-      expect([top!.placementMax, win!.placementMax, mastery!.placementMax]).toEqual([4, 1, 1]);
+      const [debut, top, win, titled, mastery] = ['debut', 'top_four', 'victory', 'titled', 'mastery'].map((t) => ACHIEVEMENT_INDEX[`hero.${h.id}.${t}`]!);
+      expect([debut!.mode, top!.mode, win!.mode, titled!.mode, mastery!.mode]).toEqual(['any', 'any', 'ranked', 'ranked', 'ranked']);
+      // owner 2026-09-29: "the hero's title is granted at 3 wins with a hero, then the mastery of that title is after 10 wins"
+      expect([debut!.target, top!.target, win!.target, titled!.target, mastery!.target]).toEqual([3, 5, 1, 3, 10]);
+      expect([debut!.rewards.xp, top!.rewards.xp, win!.rewards.xp, titled!.rewards.xp, mastery!.rewards.xp]).toEqual([25, 75, 100, 150, 250]);
+      expect([top!.placementMax, win!.placementMax, titled!.placementMax, mastery!.placementMax]).toEqual([4, 1, 1, 1]);
       expect(debut!.heroId).toBe(h.id);
     }
   });

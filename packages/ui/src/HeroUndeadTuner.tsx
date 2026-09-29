@@ -1,6 +1,6 @@
 import {
   HERO_UNDEAD_DEFAULTS, HERO_UNDEAD_RANGES, UNDEAD_TIER_SUFFIXES, TIERS, getHeroUndeadConfig, heroUndeadConfigJson,
-  heroUndeadPreviewSpeed, resetHeroUndeadConfig, setHeroUndeadPreviewSpeed, setHeroUndeadValue, undeadPlan,
+  resetHeroUndeadConfig, setHeroUndeadValue, undeadPlan,
   type HeroUndeadConfig, type HeroUndeadNumKey, type HeroUndeadStrKey, type TierNum, type UndeadTierSuffix,
 } from './heroUndead/heroUndeadConfig';
 import { clipNames } from './sfx';
@@ -207,13 +207,13 @@ export function demo(
   const cfg = getHeroUndeadConfig();
   return playAttackDemo(side, (o) => playHeroUndead(o), {
     board: boardOfDamage(opts.damage ?? cfg.previewDamage, opts.parts ?? cfg.previewParts),
-    speed: heroUndeadPreviewSpeed(), reduced: opts.reduced, frames: opts.frames, sound: opts.sound, safety: opts.safety,
+    speed: 1, reduced: opts.reduced, frames: opts.frames, sound: opts.sound, safety: opts.safety,
   }, () => { live = null; }).then((h) => { live = h; return h; });
 }
 
 // DEV: a console / capture-rig handle on the same player the buttons use.
 if (import.meta.env.DEV && typeof window !== 'undefined') {
-  (window as unknown as { __heroUndead?: unknown }).__heroUndead = { demo, previewParts, setSpeed: setHeroUndeadPreviewSpeed };
+  (window as unknown as { __heroUndead?: unknown }).__heroUndead = { demo, previewParts };
 }
 
 export const SPEC: TunerSpec<UndeadTunerValues> = {
@@ -223,7 +223,7 @@ export const SPEC: TunerSpec<UndeadTunerValues> = {
     const c = getHeroUndeadConfig();
     const p = undeadPlan({ leadIn: previewLeadIn(c.previewDamage, c.previewParts), total: c.previewDamage, distance: 1100 }, c);
     const what = p.maw ? 'grave rift + maw' : p.hands.length || p.wisps.length ? `${p.hands.length} hands + ${p.wisps.length} wisps + skull` : `${p.skulls.length} skull${p.skulls.length === 1 ? '' : 's'}`;
-    return `dev · ${heroUndeadPreviewSpeed()}x · tier ${p.tier} · ${what} · impact ${Math.round(p.impactAt)} · end ${Math.round(p.endAt)} ms`;
+    return `dev · tier ${p.tier} · ${what} · impact ${Math.round(p.impactAt)} · end ${Math.round(p.endAt)} ms`;
   },
   read: () => ({ ...getHeroUndeadConfig(), attackStyle: devHeroAttackChoice() }),
   write: (key, value) => setHeroUndeadValue(key as keyof HeroUndeadConfig, value),

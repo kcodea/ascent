@@ -1,6 +1,6 @@
 import {
-  HERO_POISON_DEFAULTS, HERO_POISON_RANGES, HERO_POISON_SPEEDS, POISON_TIER_SUFFIXES, TIERS, getHeroPoisonConfig,
-  heroPoisonConfigJson, heroPoisonPreviewSpeed, poisonPlan, resetHeroPoisonConfig, setHeroPoisonPreviewSpeed, setHeroPoisonValue,
+  HERO_POISON_DEFAULTS, HERO_POISON_RANGES, POISON_TIER_SUFFIXES, TIERS, getHeroPoisonConfig,
+  heroPoisonConfigJson, poisonPlan, resetHeroPoisonConfig, setHeroPoisonValue,
   type HeroPoisonConfig, type HeroPoisonNumKey, type HeroPoisonStrKey, type PoisonTierSuffix, type TierNum,
 } from './heroPoison/heroPoisonConfig';
 import { clipNames } from './sfx';
@@ -13,8 +13,8 @@ import type { TunerControl, TunerSpec, TunerUnit } from './tunerSchema';
 /**
  * DEV tuner for the POISON DARTS hero attack (owner ask 2026-09-28: "branch off and make a poison dart animation. the
  * final one should throw multiple poison darts that implode with poison"). The Play buttons run the REAL runner between
- * the two real hero portraits (works from the shop), in either direction, at Small 3 / Tier II 8 / Medium 12 / Huge 40,
- * with reduced motion, at 1x / 0.5x / 0.25x. A preview never touches the run. The "Attack style" row is the same dev
+ * the two real hero portraits (works from the shop), in either direction, at Small 3 / Tier II 8 / Medium 12 / Huge 40.
+ * A preview never touches the run. The "Attack style" row is the same dev
  * override as the other attack tuners' (Auto = what a player would see). Production plays the baked defaults.
  */
 type PoisonTunerValues = HeroPoisonConfig & { attackStyle: string };
@@ -184,13 +184,13 @@ export function demo(
   const cfg = getHeroPoisonConfig();
   return playAttackDemo(side, (o) => playHeroPoison(o), {
     board: boardOfDamage(opts.damage ?? cfg.previewDamage, opts.parts ?? cfg.previewParts),
-    speed: heroPoisonPreviewSpeed(), reduced: opts.reduced, frames: opts.frames, sound: opts.sound, safety: opts.safety,
+    speed: 1, reduced: opts.reduced, frames: opts.frames, sound: opts.sound, safety: opts.safety,
   }, () => { live = null; }).then((h) => { live = h; return h; });
 }
 
 // DEV: a console / capture-rig handle on the same player the buttons use.
 if (import.meta.env.DEV && typeof window !== 'undefined') {
-  (window as unknown as { __heroPoison?: unknown }).__heroPoison = { demo, previewParts, setSpeed: setHeroPoisonPreviewSpeed };
+  (window as unknown as { __heroPoison?: unknown }).__heroPoison = { demo, previewParts };
 }
 
 export const SPEC: TunerSpec<PoisonTunerValues> = {
@@ -199,7 +199,7 @@ export const SPEC: TunerSpec<PoisonTunerValues> = {
   note: () => {
     const c = getHeroPoisonConfig();
     const p = poisonPlan({ leadIn: previewLeadIn(c.previewDamage, c.previewParts), total: c.previewDamage, distance: 1600 }, c);
-    return `dev · ${heroPoisonPreviewSpeed()}x · tier ${p.tier} · ${p.implode ? `${p.darts.length} darts, implode` : `${p.darts.length} dart${p.darts.length === 1 ? '' : 's'}`} · throw ${Math.round(p.throwAt)} · impact ${Math.round(p.impactAt)} · end ${Math.round(p.endAt)} ms`;
+    return `dev · tier ${p.tier} · ${p.implode ? `${p.darts.length} darts, implode` : `${p.darts.length} dart${p.darts.length === 1 ? '' : 's'}`} · throw ${Math.round(p.throwAt)} · impact ${Math.round(p.impactAt)} · end ${Math.round(p.endAt)} ms`;
   },
   read: () => ({ ...getHeroPoisonConfig(), attackStyle: devHeroAttackChoice() }),
   write: (key, value) => setHeroPoisonValue(key as keyof HeroPoisonConfig, value),
@@ -209,6 +209,7 @@ export const SPEC: TunerSpec<PoisonTunerValues> = {
   controls: buildControls(),
   copy: () => heroPoisonConfigJson(),
   copyLabel: 'Copy JSON',
+  buttonsOnTop: true,
   actions: [
     { label: '▶ You throw', hint: 'Your hero throws poison darts at the foe for the preview damage.', run: () => { void demo('player'); } },
     { label: '▶ Foe throws', hint: 'The foe throws poison darts at your hero for the preview damage.', run: () => { void demo('opp'); } },
@@ -220,12 +221,6 @@ export const SPEC: TunerSpec<PoisonTunerValues> = {
     { label: '▶ Foe tier II (8)', hint: 'The foe throws at your hero for 8.', run: () => { void demo('opp', { damage: 8, parts: 3 }); } },
     { label: '▶ Foe medium (12)', hint: 'The foe throws at your hero for 12.', run: () => { void demo('opp', { damage: 12, parts: 4 }); } },
     { label: '▶ Foe huge (40)', hint: 'The foe throws at your hero for 40.', run: () => { void demo('opp', { damage: 40, parts: 7 }); } },
-    { label: '▶ Reduced motion', hint: 'What a player with reduced motion on sees: fades, no darts, shake or zoom.', run: () => { void demo('player', { reduced: true }); } },
-    ...HERO_POISON_SPEEDS.map((s) => ({
-      label: `Speed ${s}x`,
-      hint: 'Slow motion for the next plays (the tuner only; never saved, never in production).',
-      run: () => { setHeroPoisonPreviewSpeed(s); },
-    })),
   ],
 };
 

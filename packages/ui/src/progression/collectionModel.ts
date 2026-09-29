@@ -1,5 +1,5 @@
 import {
-  COSMETICS, COSMETIC_CATEGORIES, COSMETIC_RARITIES, isCategoryLive, isCosmeticLive,
+  COSMETICS, COSMETIC_CATEGORIES, COSMETIC_RARITIES, achievementOf, heroTitleInfo, isCategoryLive, isCosmeticLive, titleShelf,
   type CosmeticCategory, type CosmeticDef, type CosmeticRarity, type ProgressionProfile,
 } from '@game/progression';
 import { CARD_INDEX } from '@game/content';
@@ -46,17 +46,24 @@ export const COLLECTION_CATEGORIES: readonly CosmeticCategory[] = collectionCate
 
 export const categoryLive = (c: CosmeticCategory): boolean => isCategoryLive(c);
 
-/** Every LIVE item of a live category, in album order. A switched-off category shows none; a retired item never. */
-export function albumOf(category: CosmeticCategory, catalog: readonly CosmeticDef[] = COSMETICS): CosmeticDef[] {
+/**
+ * Every LIVE item of a live category, in album order. A switched-off category shows none; a retired item never.
+ * With `owned`, the Titles album shows each hero title ONCE (owner 2026-09-29, the master upgrades the title in
+ * place): the golden master once you own it, else the base title (owned or not), never both.
+ */
+export function albumOf(category: CosmeticCategory, catalog: readonly CosmeticDef[] = COSMETICS, owned?: ReadonlySet<string>): CosmeticDef[] {
   if (!categoryLive(category)) return [];
-  return catalog
+  const items = catalog
     .filter((c) => c.category === category && c.active && isCosmeticLive(c.id))
     .sort((a, b) => RARITY_RANK[a.rarity] - RARITY_RANK[b.rarity] || (CATALOG_INDEX.get(a.id) ?? 0) - (CATALOG_INDEX.get(b.id) ?? 0));
+  if (category !== 'title') return items;
+  const keep = new Set(titleShelf(items.map((c) => c.id), owned ?? new Set()));
+  return items.filter((c) => keep.has(c.id));
 }
 
 /** Every item the collection can show today (all live categories): the header's "N / M collected". */
-export function collectibleItems(catalog: readonly CosmeticDef[] = COSMETICS): CosmeticDef[] {
-  return collectionCategories().flatMap((c) => albumOf(c, catalog));
+export function collectibleItems(catalog: readonly CosmeticDef[] = COSMETICS, owned?: ReadonlySet<string>): CosmeticDef[] {
+  return collectionCategories().flatMap((c) => albumOf(c, catalog, owned));
 }
 
 // ── Ownership + what is worn (titles AND skins) ───────────────────────────────────────────────────────────
@@ -109,14 +116,24 @@ export function acquisitionText(c: CosmeticDef): string {
   switch (c.acquisition.type) {
     case 'crate': return 'Found in crates.';
     case 'level_milestone': return `Reach Level ${c.acquisition.level}.`;
-    case 'achievement': return 'Earned from an achievement.';
+    case 'achievement': return achievementOf(c.acquisition.id)?.requirement ?? 'Earned from an achievement.';
     case 'event': return 'Earned in an event.';
   }
 }
 
 /** The short "how to get it" line on a missing item. */
 export function missingHint(c: CosmeticDef): string {
+  if (c.acquisition.type === 'achievement') return achievementOf(c.acquisition.id)?.requirement ?? 'Not found yet.';
   return c.acquisition.type === 'level_milestone' ? `Reach Level ${c.acquisition.level} to earn it.` : c.acquisition.type === 'crate' ? 'Open crates to find it.' : 'Not found yet.';
+}
+
+/** A hero title's mastery line for the detail panel (owner 2026-09-29), or null for any other item. */
+export function masteryText(c: CosmeticDef): string | null {
+  const h = heroTitleInfo(c.id);
+  if (!h) return null;
+  if (h.master) return 'Mastered. Shown as a golden plate.';
+  const req = achievementOf(`hero.${h.heroId}.mastery`)?.requirement;
+  return req ? `${req.replace(/\.$/, '')} to make it a golden plate.` : null;
 }
 
 /** What a switched-off category will hold, for its "coming soon" view. */

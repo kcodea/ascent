@@ -72,6 +72,62 @@ export const PATCH_NOTES: PatchNote[] = [
       },
       {
         category: 'Systems',
+        text: 'A new Legendary hero attack, Inferno, can drop from crates.',
+        details: [
+          'Your damage builds up, then fire catches round your hero and fireballs of real, living flame are hurled at the other hero.',
+          'Bigger hits throw two, then a volley of five that sets the other hero on fire.',
+          'On the biggest hits your hero calls down a meteor. It crashes onto the other hero and explodes in a storm of fire, smoke and burning debris.',
+          'Equip it from the Attack Animations tab of the Collection. There is a preview button there too.',
+          'Hero attacks are looks only. The damage is exactly the same.',
+        ],
+      },
+      {
+        category: 'Systems',
+        text: 'The Enraged Strike hero attack now burns with real, living fire instead of painted flames.',
+        details: [
+          'The rage aura is a crown of flickering fire that streams behind your hero as it charges.',
+          'The biggest hit sends a column of fire up as your hero rears back, and the ground bursts into flame on impact.',
+          'Only the look changed. The timing and the damage are exactly the same.',
+        ],
+      },
+      {
+        category: 'Systems',
+        text: "Knocking a player out now always plays your hero attack's biggest version.",
+        details: [
+          'Works for every hero attack style, whatever the damage number.',
+          'It works both ways: when an opponent knocks you out, their attack plays its biggest version too.',
+          'The damage shown and dealt is unchanged.',
+        ],
+      },
+      {
+        category: 'Systems',
+        text: 'Unit voices and creature sounds are evened out, so no unit is much louder or quieter than the rest.',
+      },
+      {
+        category: 'Systems',
+        text: 'The Arcane Barrage hero attack now has four clear steps, like the other hero attacks, with a new finale for the biggest hits.',
+        details: [
+          'Small hits fire one bolt. Medium hits fire two.',
+          'Big hits fire a barrage of five bolts.',
+          'The biggest hits fire the huge beam. It pours into the enemy hero, collapses and detonates in a supernova.',
+        ],
+      },
+      {
+        category: 'Balance',
+        text: "Mimic can no longer pick Kindness's hero power. It only works every 4th turn, so it was almost always a wasted pick.",
+      },
+      {
+        category: 'Systems',
+        text: 'Hero titles. Finish 1st in 3 Ranked games with a hero to earn its title. Reach 10 and it becomes a golden plate with embroidered text.',
+        details: [
+          'Every hero has its own title, like Warded for Warden, Gambling Addict for Gambler and Albus Student for Albus.',
+          'Only Ranked 1st place finishes count. The new "Titled" hero achievement pays 150 XP.',
+          'The golden version replaces the title in your Collection, and swaps in if you are wearing it.',
+          'Wear it from the Titles tab. It shows on your Career, the Leaderboard and Match details.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'Unit voices and creature sounds when you play a unit or it dies are now half as loud.',
       },
       {
@@ -138,6 +194,14 @@ export const PATCH_NOTES: PatchNote[] = [
           'Then the middle collapses and a blast of holy light races across the board at the other hero.',
           'Hero attacks are looks only. The damage is exactly the same.',
         ],
+      },
+      {
+        category: 'Systems',
+        text: 'Units now make a quiet death sound when they die in combat. Before, most of them were silent.',
+      },
+      {
+        category: 'Systems',
+        text: 'Unit voices and creature sounds when you play a unit or it dies are now much quieter.',
       },
     ],
   },

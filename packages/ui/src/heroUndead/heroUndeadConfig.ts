@@ -40,7 +40,7 @@
  */
 import { clamp, easeInOutSine, seededRng, type Pt } from '../heroAttack/easing';
 import {
-  HERO_ATTACK_TIER_THRESHOLDS, TIERS, reducedAttackTimeline, tierOf, type TierNum,
+  HERO_ATTACK_TIER_THRESHOLDS, TIERS, reducedAttackTimeline, attackTier, type AttackTierContext, type TierNum,
 } from '../heroAttack/tiers';
 
 export { TIERS, type TierNum };
@@ -442,7 +442,7 @@ export interface UndeadHandPlan { riseAt: number; gripAt: number }
 /** One ghost wisp of the Tier III swarm: loosed off the hero, strikes the target (a tick). */
 export interface UndeadWispPlan { launchAt: number; hitAt: number }
 
-export interface UndeadPlanInput {
+export interface UndeadPlanInput extends AttackTierContext {
   /** When the style's own attack starts: the end of the shared damage formation (`formationPlan().endAt`). */
   leadIn?: number;
   /** THE blow, as the engine decided it. */
@@ -498,7 +498,7 @@ export interface UndeadPlan {
 /** The whole Undead attack, in base ms (divide by the playback speed for real time). Pure and deterministic. */
 export function undeadPlan(input: UndeadPlanInput, c: HeroUndeadConfig = cfg): UndeadPlan {
   const total = Math.max(0, Math.round(input.total));
-  const tier = tierOf(total, c);
+  const tier = attackTier(total, input, c); // a knockout always plays Tier IV (heroAttack/tiers.ts)
   const T = undeadTierDials(tier, c);
   const k = (tier - 1) / 3;
   const empty = { skulls: [] as UndeadSkullPlan[], hands: [] as UndeadHandPlan[], wisps: [] as UndeadWispPlan[], hits: [] as number[] };

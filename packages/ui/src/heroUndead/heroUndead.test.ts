@@ -596,7 +596,7 @@ describe('the scene (headless Pixi)', () => {
 describe('the cosmetic', () => {
   it('Grave Call (attack_undead) is a Legendary crate hero attack that plays Undead; the dev override can force it; the others are unchanged; unknown ids play Classic', () => {
     expect(COSMETIC_INDEX.attack_undead).toMatchObject({ category: 'hero_attack', rarity: 'legendary', name: 'Grave Call', assets: { style: 'undead' }, active: true });
-    expect(HERO_ATTACK_STYLES).toEqual(['classic', 'blast', 'quake', 'arcana', 'blades', 'enraged', 'poison', 'frost', 'holy', 'undead']);
+    expect(HERO_ATTACK_STYLES).toEqual(['classic', 'blast', 'quake', 'arcana', 'blades', 'enraged', 'poison', 'frost', 'holy', 'fire', 'undead']); // Inferno (fire) landed first, 2026-09-29
     expect(styleOfCosmetic('attack_undead')).toBe('undead');
     for (const [id, style] of [['attack_blast', 'blast'], ['attack_quake', 'quake'], ['attack_arcana', 'arcana'], ['attack_blades', 'blades'], ['attack_enraged', 'enraged'], ['attack_holy', 'holy']] as const) {
       expect(styleOfCosmetic(id)).toBe(style);

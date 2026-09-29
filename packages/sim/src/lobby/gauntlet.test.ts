@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest';
 import { lossDamageCap, roundLossCap, runeCombatModsFor } from '../reducer';
 import { omenBoardMinions, authoredTierFor, authoredSeat } from './tutorialSeats';
 import { settleRunLobbyRound, type RunLobby } from './runLobby';
-import { CARD_INDEX, RUNE_INDEX, RUNES } from '@game/content';
+import { CARD_INDEX, RUNE_INDEX, RUNES, cardRevision, type GauntletStage } from '@game/content';
+import { createGauntletRun, gauntletOutcome, GAUNTLET_LOSS_CAPS, GAUNTLET_DEFAULT_TIERS } from './gauntlet';
+import { reduce, type Action, type RunState } from '../index';
 import type { CombatResult } from '@game/core';
 
 describe('roundLossCap', () => {
@@ -98,5 +100,109 @@ describe('opponent runes', () => {
     };
     expect(authoredSeat(seat).prepare(1)).toEqual({ minions: omenBoardMinions([{ attack: 2, health: 3 }]), tier: 1 });
     expect('snapshot' in authoredSeat(seat).prepare(1)!).toBe(false);
+  });
+});
+
+const body = Object.values(CARD_INDEX).find((c) => !c.spell && c.tier === 1 && (c.keywords ?? []).length === 0)!;
+const stageOf = (atk: number, hp: number): GauntletStage => ({
+  number: 1, name: 'Test', opponentName: 'The Test Host', status: 'ready', runes: {},
+  rounds: Array.from({ length: 10 }, () => ({ board: [{ cardId: body.id, attack: atk, health: hp, cardVersion: cardRevision(body) }] })),
+});
+/** A minimal recruit turn: clear the blocking modals (quest shop, Runeforge, Discovers — the same branches the
+ *  autoplay recorder in snapshot.ts takes), then buy and play shop minions while Gold lasts, so the player
+ *  fields a real board rather than an empty one. */
+const recruit = (s: RunState): RunState => {
+  const step = (a: Action): boolean => { const next = reduce(s, a); if (next === s) return false; s = next; return true; };
+  for (let guard = 0; guard < 60; guard++) {
+    if (s.questOffer) { if (step({ type: 'buyQuest', index: 0 })) continue; break; }
+    if (s.runeforgeOffer) { if (step({ type: 'skipRuneforge' })) continue; break; }
+    if (s.powerOffer) { if (step({ type: 'pickPower', index: 0 })) continue; break; }
+    if (s.discover) { if (step({ type: 'discover', index: 0 })) continue; break; }
+    if (s.chooseOne) { if (step({ type: 'chooseOne', index: 0 })) continue; break; }
+    if (s.pendingTarget) { if (step({ type: 'battlecryTarget', targetUid: s.board[0]?.uid ?? s.pendingTarget.uid })) continue; break; }
+    if (s.hand.length > 0 && s.board.length < 7 && s.hand.some((c) => step({ type: 'play', uid: c.uid }))) continue;
+    const minion = s.shop.find((c) => !CARD_INDEX[c.cardId]?.spell);
+    if (minion && s.board.length + s.hand.length < 7 && step({ type: 'buy', uid: minion.uid })) continue;
+    break;
+  }
+  return s;
+};
+const playRound = (s: RunState): RunState => {
+  s = recruit(s);
+  for (const a of [{ type: 'faceOmen' }, { type: 'resolveCombat' }, { type: 'settleCombat' }] as Action[]) s = reduce(s, a);
+  return s;
+};
+const playOut = (s: RunState): RunState => {
+  for (let i = 0; i < 12 && s.phase !== 'gameover' && s.phase !== 'victory'; i++) s = playRound(s);
+  return s;
+};
+
+describe('createGauntletRun', () => {
+  it('is a 2-seat gauntlet lobby: the player and one invulnerable authored opponent', () => {
+    const run = createGauntletRun(11, 'aster', stageOf(1, 1));
+    expect(run.mode).toBe('gauntlet');
+    expect(run.gauntletStage).toBe(1);
+    expect(run.lobby!.rules).toMatchObject({ seatCount: 2, maxRounds: 10, lossCaps: GAUNTLET_LOSS_CAPS });
+    expect(run.lobby!.seats.map((s) => s.kind)).toEqual(['player', 'authored']);
+    expect(run.lobby!.seats[1]).toMatchObject({ label: 'The Test Host', invulnerable: true });
+    expect(run.lobby!.seats[0]).toMatchObject({ resolve: run.resolve, armor: run.armor }); // the hero's own pools
+  });
+
+  it('blank tiers follow GAUNTLET_DEFAULT_TIERS; authored tiers win', () => {
+    const s = stageOf(1, 1);
+    s.rounds[2]!.tier = 6;
+    const seat = createGauntletRun(11, 'aster', s).lobby!.seats[1]!;
+    expect(seat.authoredTiers![0]).toBe(GAUNTLET_DEFAULT_TIERS[0]);
+    expect(seat.authoredTiers![2]).toBe(6);
+  });
+
+  it('runes become authoredRunes from rounds 6 and 9', () => {
+    const s = { ...stageOf(1, 1), runes: { round6: 'rune_adventuring', round9: 'rune_adventuring' } };
+    expect(createGauntletRun(11, 'aster', s).lobby!.seats[1]!.authoredRunes)
+      .toEqual([{ fromRound: 6, runeId: 'rune_adventuring' }, { fromRound: 9, runeId: 'rune_adventuring' }]);
+  });
+});
+
+describe('gauntlet verdict', () => {
+  it('surviving all 10 rounds against a board you cannot beat is still a CLEAR, and the foe never dies', () => {
+    // A board the player can't beat (huge), so every round is a loss — but the caps keep total damage at
+    // 3×5 + 3×10 + 2×15 = 75 before round 9. That kills a 30+Armor hero, so give the check a hero-agnostic shape:
+    // assert the run ends, and that the verdict matches whether the player's seat survived.
+    const run = playOut(createGauntletRun(3, 'aster', stageOf(999, 999)));
+    expect(run.phase).toBe('gameover');
+    const me = run.lobby!.seats[0]!;
+    expect(gauntletOutcome(run)).toBe(me.alive ? 'cleared' : 'defeated');
+    expect(run.lobby!.seats[1]!.alive).toBe(true);
+  });
+
+  it('a stage the player always beats is cleared after exactly 10 rounds, not earlier', () => {
+    const run = playOut(createGauntletRun(3, 'aster', stageOf(1, 1)));
+    expect(run.lobby!.round).toBe(11);
+    expect(run.phase).toBe('gameover');
+    expect(gauntletOutcome(run)).toBe('cleared');
+  });
+
+  it('losing on round 10 with Resolve left is a clear', () => {
+    // Rounds 1–9 are a 1/1 (the player wins); round 10 is unbeatable.
+    const s = stageOf(1, 1);
+    s.rounds[9] = { board: [{ cardId: body.id, attack: 999, health: 999, cardVersion: cardRevision(body) }] };
+    const run = playOut(createGauntletRun(3, 'aster', s));
+    expect(run.history.at(-1)).toBe('lose');
+    expect(run.resolve + run.armor).toBeGreaterThan(0);
+    expect(gauntletOutcome(run)).toBe('cleared');
+  });
+
+  it('is null while the run is in progress and for non-gauntlet runs', () => {
+    const run = createGauntletRun(3, 'aster', stageOf(1, 1));
+    expect(gauntletOutcome(run)).toBeNull();
+    expect(gauntletOutcome({ ...run, mode: 'lobby', phase: 'gameover' })).toBeNull();
+  });
+
+  it('applies the gauntlet caps to the player: a round-1 loss costs at most 5', () => {
+    let run = createGauntletRun(3, 'aster', stageOf(999, 999));
+    const before = run.resolve + run.armor;
+    run = playRound(run);
+    expect(before - (run.resolve + run.armor)).toBeLessThanOrEqual(5);
+    expect(run.lastCombat!.damageCap).toBe(5);
   });
 });

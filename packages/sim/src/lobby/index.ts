@@ -8,3 +8,4 @@ export * from './fightLedger';
 export * from './tutorialSeats';
 export * from './practiceBots';
 export * from './matchDetails';
+export * from './gauntlet';

@@ -5148,8 +5148,8 @@ function settleCombat(s: RunState, result: CombatResult): void {
   }
   // LOBBY / TUTORIAL: the seat already took this hit (with the lobby's own cap and stall pressure) and the run
   // was synced to it above, so applying it again here charges the player twice — visible as the HUD reading 2
-  // lower than the table for the same fight. A tutorial carries a lobby too, so it is excluded for the same reason.
-  if (result.result === 'lose' && s.mode !== 'practice' && s.mode !== 'lobby' && s.mode !== 'tutorial') {
+  // lower than the table for the same fight. A tutorial or Gauntlet carries a lobby too, so each is excluded for the same reason.
+  if (result.result === 'lose' && s.mode !== 'practice' && s.mode !== 'lobby' && s.mode !== 'tutorial' && s.mode !== 'gauntlet') {
     // Armor absorbs the hit first (extra effective HP), the overflow chips Resolve. Practice: unlimited health.
     const absorbed = Math.min(s.armor, result.playerDamage);
     s.armor -= absorbed;
@@ -5263,9 +5263,9 @@ function advanceCombat(s: RunState): void {
   // A LOBBY seat has no course clock: the lobby ends by elimination, with no fixed round count, so the seat
   // must keep shopping and scaling for as long as the lobby lasts. Without this a bot seat froze at wave 17
   // and every late round was fought with a stale board — the exact pacing failure the prototype measured.
-  // Tutorial is excluded alongside lobby/practice: it carries a lobby and ends by the lobby's round cap (above),
+  // Tutorial (and Gauntlet) are excluded alongside lobby/practice: each carries a lobby and ends by the lobby's round cap (above),
   // never by the 17-round course clock.
-  if (s.mode !== 'practice' && s.mode !== 'lobby' && s.mode !== 'tutorial' && s.wave >= CONFIG.courseRounds) {
+  if (s.mode !== 'practice' && s.mode !== 'lobby' && s.mode !== 'tutorial' && s.mode !== 'gauntlet' && s.wave >= CONFIG.courseRounds) {
     s.phase = 'victory';
     return;
   }
@@ -7760,8 +7760,7 @@ export function questCombatMods(s: RunState): QuestCombatMods {
  * recruit phase, so such a rune does nothing for it. Pure and deterministic (fixed scratch seed).
  */
 export function runeCombatModsFor(runeIds: readonly string[]): QuestCombatMods {
-  // TODO(Task 5): 'gauntlet' once it is a RunMode — the mode only labels this throwaway run.
-  const s = createRun(1, DEFAULT_HERO_ID, 'practice');
+  const s = createRun(1, DEFAULT_HERO_ID, 'gauntlet');
   for (const id of runeIds) {
     const rune = RUNE_INDEX[id];
     if (!rune) continue;

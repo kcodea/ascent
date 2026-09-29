@@ -380,8 +380,12 @@ export type Phase = 'recruit' | 'combat' | 'gameover' | 'victory';
  *  the opponents are authored effectless `omen` boards and the shop is scripted. It is DELIBERATELY a distinct
  *  mode, not `lobby` — the run-end flow rates and uploads only when `mode === 'lobby'`, so a tutorial must not
  *  wear that mode or it would move the player's ladder rating and upload telemetry/boards. Being its own mode,
- *  it is excluded from every one of those gates for free. */
-export type RunMode = 'ascent' | 'rift' | 'practice' | 'lobby' | 'tutorial';
+ *  it is excluded from every one of those gates for free.
+ *
+ *  `gauntlet` is a single-player STAGE: a 2-seat lobby against one authored, never-eliminated opponent for 10
+ *  rounds with its own loss caps (`GAUNTLET_LOSS_CAPS`). Its own mode for the same reason as `tutorial` — it must
+ *  never rate, upload boards or feed practice telemetry. Surviving round 10 clears the stage (`gauntletOutcome`). */
+export type RunMode = 'ascent' | 'rift' | 'practice' | 'lobby' | 'tutorial' | 'gauntlet';
 
 /** The `spellPowerFxUid` / `rubyPowerFxUid` value for a gain an EQUIPMENT use drove (Dual Rubetta's improving your
  *  Rubies): there is no card to play the flourish over, so the UI anchors it on the Equipment slot instead of
@@ -1188,6 +1192,8 @@ export interface RunState {
   /** Set on a tutorial run so a restored/resumed run knows which course it is (survives a reload); the UI
    *  coaching layer reads it to rehydrate the controller. Absent on every normal run. */
   tutorialCourseId?: string;
+  /** GAUNTLET only: the stage number this run is playing (1–10). */
+  gauntletStage?: number;
   /** Scripted shop for a tutorial run: authored offers per wave, per roll (index 0 = the turn-start roll, 1+ =
    *  successive refreshes). When present + `mode === 'tutorial'`, `rollShop` serves these instead of drawing
    *  from the pool — so the course's lessons always have the cards they need, and nothing touches the shared

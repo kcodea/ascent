@@ -60,6 +60,10 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: 'Unit voices and creature sounds are evened out, so no unit is much louder or quieter than the rest.',
+      },
+      {
+        category: 'Systems',
         text: 'The Arcane Barrage hero attack now has four clear steps, like the other hero attacks, with a new finale for the biggest hits.',
         details: [
           'Small hits fire one bolt. Medium hits fire two.',

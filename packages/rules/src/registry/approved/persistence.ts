@@ -392,4 +392,34 @@ export const PERSISTENCE_RULES: GameRule[] = [
       lastVerifiedAt: '2026-09-25',
     },
   },
+  // ── A finished fight reopened by Continue can always be left (owner ask 2026-09-28) ──────────────────────
+  {
+    id: 'R-RESUME-01',
+    title: 'A fight that was already settled and is reopened by Continue always offers End Combat, and applies nothing twice',
+    statement:
+      'When a run is reloaded on the combat screen after its fight has already been settled (the damage landed '
+      + 'before the reload), Continue plays the fight back and then enables End Combat, win or loss, so the run can '
+      + 'always leave the screen. Leaving applies no damage, Armor, Resolve, placement or rating a second time, and '
+      + 'the hero strike is not replayed for damage already taken. A reload during a fight that had NOT settled '
+      + 'yet still plays normally: the strike lands once and End Combat waits for it.',
+    domain: 'persistence',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'bug report relayed by the owner, 2026-09-28', quote: 'a lost fight that was already settled and is then reopened with Continue never enables the End Combat button, so the run can\x27t leave that screen' },
+      { kind: 'fix-pr', ref: 'fix/end-combat-after-continue' },
+      { kind: 'code', ref: 'packages/ui/src/endCombatGate.ts endCombatReady; packages/ui/src/Recruit.tsx ShopControls' },
+    ],
+    currentBehaviour:
+      'Conforms as of 2026-09-28. Before, a loss held End Combat until the hero-strike sequence reached its end, '
+      + 'but that sequence early-returns on `combatSettled` (correctly: the blow was already dealt), so on a '
+      + 'restored settled loss it never started and the gate never opened. Wins and draws were never held. Now a '
+      + 'loss that was settled before any strike began is ready once the replay ends. Pinned: the gate cases and a '
+      + 'save round trip that settles, reloads and resolves without a second charge, including the elimination '
+      + 'case (endCombatGate.test.ts). The reload itself was checked live on a Practice run, not by a test.',
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/ui/src/endCombatGate.test.ts'],
+      lastVerifiedAt: '2026-09-28',
+    },
+  },
 ];

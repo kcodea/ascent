@@ -385,6 +385,9 @@ Per-wave ratings are now trustworthy (synthetic all-wave pool); the run's par Li
   ledger is small; consider a back-to-back guard (never two 75%+ boards consecutively). The old
   rating-aware path (wave + rating band + record-similarity) remains the LATER evolution.
   Invariant kept: *any legal board may be served at combat time* (boss floor 0.09, no quarantine).
+- **Saved and quit games on the server** (owner 2026-09-29: "Eventually - we will want to write saved and quit
+  games to supabase as well."). R-RANK-05 settles a quit from the client save, so wiping local storage dodges it.
+  Record rated games server-side when they start (and their saves), and settle an abandoned one on a timeout.
 - **New-Line grace** — soften the first misses after a promotion (`lineGrace` field reserved).
 - **Seed veterans' rating from history** — optional backfill for players with pre-rating runs. (Surfacing the
   per-run Renown Δ on Career match cards shipped 2026-07-17 in the Standout Stats panel.)

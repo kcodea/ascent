@@ -116,6 +116,18 @@ route) moves it; Practice, the tutorial and sandbox runs never do.
   from the seat kinds (`lobbyIsUnrated`), the end screen reads **"Unrated · No opponents reached"**, and the
   client submits no rank request. The server enforces it too: `submit-rating` refuses to settle a request whose
   seat keys are all generated (`bot:…`, `allSeatsGenerated`). A lobby with at least one real run is rated as usual.
+- **Quitting a rated game costs Rating** (owner 2026-09-29, verbatim: *"quitting an official game should lose you
+  MMR relative to the lowest available place when you quit. for example. if one player was already out, then
+  quitting would place you in 7th place"*; R-RANK-05). Abandoning an unfinished rated game settles it as a finish
+  in the **lowest place still open**: the number of seats still alive (8th with nobody out, 7th with one out, and
+  so on), with that place's normal award and every gate that applies to it (demotion and promotion games, the
+  top-4 strength bonus). **Abandoning** = giving up the one saved game: **Clear** on the title, or starting any new
+  game (Play, Practice, the tutorial) over it. **Save & Quit is not quitting**: Continue resumes the game and it
+  settles once, at its real end. Practice, the tutorial, the Scene Builder and unrated lobbies abandon for free. The
+  title's Clear and Play tips name the place a rated save would count as. The client computes the placement from
+  the saved lobby and submits it through the normal rank queue (`settleAbandonedRun` → `submit-rating`); a quit
+  writes no career row, fight-ledger rows or XP. A save the game drops itself (a card this build no longer has)
+  is not a quit and does not settle.
 
 - **Six medals — Bronze, Silver, Gold, Platinum, Diamond, Ascendant — three divisions each**, ordered
   **I → II → III** and then the next medal's I (18 divisions, `Bronze I` lowest, `Ascendant III` highest).

@@ -40,6 +40,11 @@ behaviour from a legacy symbol.**
 - Armor absorbs before Resolve. A seat at zero total is eliminated and takes a placement.
 - Placement drives Rating. A lobby never reaches phase `victory` — `advanceCombat` ends every lobby at
   `gameover`, so a lobby win is placement 1, not a victory phase.
+- **Quitting a rated game settles it** (owner 2026-09-29, R-RANK-05): an unfinished rated lobby that is abandoned
+  (title Clear, or any new run started over the save: `pickHero` / `newRun` / `startTutorial`) settles at the
+  lowest open place, `abandonPlacementOf` = seats still alive, via `store.settleAbandonedRun` → the normal rank
+  queue. Save & Quit / Continue is NOT an abandon. A new door that overwrites or clears the save slot must call
+  `settleAbandonedRun(savedRun)` first.
 - Lobby state is serializable; runtime seat drivers are reconstructed from serializable metadata.
 - Missing snapshot data degrades deterministically — fill the seat, never shrink the table.
 - A generated (hybrid) seat is seated only if its RECORDING fields a board (`hybridSeat.canFieldBoard` checks a

@@ -152,6 +152,16 @@ export const PATCH_NOTES: PatchNote[] = [
         text: "Mimic can no longer pick Kindness's hero power. It only works every 4th turn, so it was almost always a wasted pick.",
       },
       {
+        category: 'Balance',
+        text: 'Quitting a rated game now counts as finishing in the lowest place still open, and your Rating changes to match.',
+        details: [
+          'With nobody out yet, quitting counts as 8th. With one player out, it counts as 7th.',
+          'Quitting means clearing your saved game, or starting a new game over it.',
+          'Save & Quit is not quitting. Continue picks the game back up and it counts when it really ends.',
+          'Practice and the tutorial are not affected.',
+        ],
+      },
+      {
         category: 'Systems',
         text: 'Hero titles. Finish 1st in 3 Ranked games with a hero to earn its title. Reach 10 and it becomes a golden plate with embroidered text.',
         details: [

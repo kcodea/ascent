@@ -63,6 +63,15 @@ export const PATCH_NOTES: PatchNote[] = [
         text: 'The Collection no longer shows the Boards and Music tabs. They come back when they are ready.',
       },
       {
+        category: 'Systems',
+        text: 'Every unit now has a voice. Kobolds, Demons, Dragons, Beasts and neutral minions speak, roar, growl or screech when played, and cry out when they die.',
+        details: [
+          'Talkers get their own character voices: greedy Kobold hoarders, slick Demon dealers, an ancient Dragon sage, a gravel-voiced herald and more.',
+          'Beasts and most Dragons make creature sounds instead of speaking.',
+          'Void Panther and Flo Rida keep the sounds they already had when played.',
+        ],
+      },
+      {
         category: 'Balance',
         text: 'Beast buffs now read "Give all Friendly and summoned Beasts" to make clear they reach Beasts summoned later too.',
         details: [

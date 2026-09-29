@@ -78,6 +78,43 @@ export const PATCH_NOTES: PatchNote[] = [
       },
       {
         category: 'Systems',
+        text: 'Two new Epic hero attacks, Card Shark and Storm Call, can drop from crates.',
+        details: [
+          'Epic attacks are shorter than the Legendary ones and have three sizes instead of four.',
+          'Card Shark: your hero flicks a spinning Ace into the other hero. Bigger hits throw three Aces. The biggest deal a royal flush that turns gold, then all five cards fly in and burst into confetti.',
+          'Storm Call: a crackling bolt of lightning hits the other hero. Bigger hits fork into two strikes and leave the other hero buzzing with static. The biggest call down a storm cloud that drops one huge lightning strike.',
+          'A knockout always plays the biggest version.',
+          'Equip them from the Attack Animations tab of the Collection. There is a preview button there too.',
+          'Hero attacks are looks only. The damage is exactly the same.',
+        ],
+      },
+      {
+        category: 'Systems',
+        text: 'Four new Rare hero attacks can drop from crates: Pocket Change, Come Back Around, Bubble Trouble and Shadow Step.',
+        details: [
+          'Rare attacks are short and playful, with a small version and a big version. Big hits and knockouts play the big one.',
+          'Pocket Change: your hero flicks a spinning gold coin that pings off the other hero. The big version ricochets it and bursts into a shower of coins.',
+          'Come Back Around: a wooden boomerang whirls out, thwacks the other hero and curves back to be caught. The big version throws two that cross in the air.',
+          'Bubble Trouble: a shimmering bubble drifts over, swallows the other hero\'s face and pops. The big version blows a stream of little bubbles first, then one huge bubble that pops with a splash.',
+          'Shadow Step: your hero vanishes in smoke, appears behind the other hero and strikes. The big version lunges, then strikes from the side, then from behind.',
+          'Equip them from the Attack Animations tab of the Collection. Each has a preview button there.',
+          'Hero attacks are looks only. The damage is exactly the same.',
+        ],
+      },
+      {
+        category: 'Systems',
+        text: "A new Legendary hero attack, Oona's Banana Cannon, can drop from crates.",
+        details: [
+          "Your damage builds up, then your hero flings King Oona's painted bananas, spinning, at the other hero.",
+          'They burst into juicy splats. Bigger hits fling two, then a whole barrage.',
+          'On the biggest hits a giant golden banana arcs high, hangs, and lands stuck in the other hero.',
+          'Then your hero rushes in and slams it in six times, driving it deeper each time. It ends in a huge splat and a shower of bananas.',
+          'Equip it from the Attack Animations tab of the Collection. There is a preview button there too.',
+          'Hero attacks are looks only. The damage is exactly the same.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'A new Legendary hero attack, Stampede, can drop from crates.',
         details: [
           'Your damage builds up, then your hero looses spirit wolves of green and amber energy at the other hero.',
@@ -263,18 +300,6 @@ export const PATCH_NOTES: PatchNote[] = [
       {
         category: 'Systems',
         text: 'Unit voices and creature sounds when you play a unit or it dies are now much quieter.',
-      },
-      {
-        category: 'Systems',
-        text: "A new Legendary hero attack, Oona's Banana Cannon, can drop from crates.",
-        details: [
-          "Your damage builds up, then your hero flings King Oona's painted bananas, spinning, at the other hero.",
-          'They burst into juicy splats. Bigger hits fling two, then a whole barrage.',
-          'On the biggest hits a giant golden banana arcs high, hangs, and lands stuck in the other hero.',
-          'Then your hero rushes in and slams it in six times, driving it deeper each time. It ends in a huge splat and a shower of bananas.',
-          'Equip it from the Attack Animations tab of the Collection. There is a preview button there too.',
-          'Hero attacks are looks only. The damage is exactly the same.',
-        ],
       },
       {
         category: 'Systems',

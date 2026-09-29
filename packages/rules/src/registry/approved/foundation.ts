@@ -2264,7 +2264,9 @@ export const FOUNDATION_RULES: GameRule[] = [
       + '("Oona\x27s Banana Cannon", Legendary, style banana: R-PROG-ATTACK-19), joined the same day under the same fixed '
       + 'odds, making Legendary fifteen items at 0.333% each and the twelve attacks together 4%. The thirteenth, '
       + 'attack_bleed ("Hemorrhage", Legendary, style bleed: R-PROG-ATTACK-21), joined the same day under the same fixed odds, '
-      + 'making Legendary sixteen items at 0.3125% each and the thirteen attacks together 4.06%.',
+      + 'making Legendary sixteen items at 0.3125% each and the thirteen attacks together 4.06%. The four Rare attacks '
+      + '(attack_coin, attack_boomerang, attack_bubble, attack_backstab: R-PROG-ATTACK-28 to 32) made Rare seventeen items '
+      + 'at 1.765% each; every hero attack together is now 11.1% of a first crate.',
     domain: 'foundation',
     status: 'approved',
     evidence: [
@@ -2976,6 +2978,169 @@ export const FOUNDATION_RULES: GameRule[] = [
     ],
     currentBehaviour: 'Conforms, built 2026-09-29.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/heroAttack/knockoutTier.test.ts'], lastVerifiedAt: '2026-09-29' },
+  },
+  // ── The first EPIC hero attacks: Card Shark and Storm Call (owner ask 2026-09-29) ─────────────────────────
+  {
+    id: 'R-PROG-ATTACK-26',
+    title: 'Card Shark (attack_cards, EPIC) deals playing cards in THREE looks: one Ace / three Aces / a royal flush that turns gold and bursts into confetti; the blow lands ONCE',
+    statement:
+      'attack_cards ("Card Shark", a placeholder name for the owner to rename; EPIC, crate, account-wide, style cards) is an '
+      + 'Epic hero attack: one idea, shorter than the Legendaries, and THREE visual tiers instead of four. It reads the SAME '
+      + 'shared tier every style reads (attackTier: thresholds 6 / 12 / 20, a knockout is Tier IV) and maps it locally: I -> '
+      + 'small, II and III -> medium, IV -> big, so a knockout always plays big. After the shared damage formation '
+      + '(R-PROG-ATTACK-08) the hero deals playing cards (painted ivory faces with plain suit pips and letters, no copied card '
+      + 'art): SMALL, one Ace of spades drawn and flicked spinning into the struck hero, where it sticks EDGE FIRST with a flash '
+      + '(the blow); MEDIUM, three Aces thrown in quick sequence, thunk thunk thunk, each sticking at its own angle round the '
+      + 'face (the first two are ticks, FX only; the blow lands on the third); BIG, a royal flush of spades dealt face down '
+      + 'into a hand fanned out UPRIGHT in front of the hero (kept on screen), flipped face up one by one (10, J, Q, K, A), the '
+      + 'faces turned GOLD with a flash and a glint sweeping each card, held a beat, then all five fired together to land '
+      + 'together and burst into card confetti (chips and suit pips fluttering down) on the struck hero (the blow lands on the '
+      + 'burst). Stuck cards ride the struck portrait\x27s knockback and fall away after. The consequence lands exactly ONCE. '
+      + 'No hit-stop (R-PROG-ATTACK-10). The camera is applied ONCE: the Pixi root mirrors the DOM camera only when its '
+      + 'canvas is not already inside the camera element. Presentation only; reduced motion is fades only; an unknown or '
+      + 'retired id plays Classic.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-29 (rare and epic attacks)', quote: 'branch off and build 5 animations that range from rare -> epic. all of the animations we have done so far are legendary. rare and epics should only have 2 or 3 tiers to them and generally be less exciting, but still extremely clean and fun. get creative' },
+      { kind: 'code', ref: 'packages/progression/src/cosmetics.ts (attack_cards); packages/ui/src/heroCards/ (heroCardsConfig cardsLevel / cardsPlan / cardsCues / fanPoses / heldPoses / cardMotions / cardsCameraAt, heroCards playHeroCards, heroCardsScene, heroCardsTextures); packages/ui/src/heroAttack/stageCamera.ts (heroFxCanvas: the camera applied once, R-PROG-ATTACK-25)' },
+    ],
+    currentBehaviour: 'Conforms, built 2026-09-29. The item reaches the database on the next deploy of progression-inventory (the catalog sync); the equip SQL already accepts the hero_attack slot.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/heroCards/heroCards.test.ts', 'packages/ui/src/heroAttack/knockoutTier.test.ts', 'packages/progression/src/cosmetics.test.ts', 'packages/ui/src/progression/CollectionHeroAttack.test.tsx', 'packages/ui/src/heroAttack/damageFormation.test.ts'], lastVerifiedAt: '2026-09-29' },
+  },
+  {
+    id: 'R-PROG-ATTACK-27',
+    title: 'Storm Call (attack_storm, EPIC) strikes with live lightning in THREE looks: a crackling arc / a forked double strike with static / a storm cloud\x27s thick strike; the blow lands ONCE',
+    statement:
+      'attack_storm ("Storm Call", a placeholder name for the owner to rename; EPIC, crate, account-wide, style storm) is an '
+      + 'Epic hero attack in THREE visual tiers, mapped from the shared tier exactly as Card Shark (R-PROG-ATTACK-26): I small, '
+      + 'II and III medium, IV (and every knockout) big. Every bolt is procedural: a jagged line whose shape is REDRAWN every '
+      + 'few frames from a seeded generator (a live crackle; a replay crackles the same), ends pinned, in electric blue and '
+      + 'white with violet. After the shared damage formation static crackles round the hero, then: SMALL, a bolt\x27s leader '
+      + 'races from the hero into the struck hero and it flickers; the zap and a small spark burst land the blow; MEDIUM, a '
+      + 'trunk leaves the hero and FORKS into two branches that strike one after the other (the first a tick, FX only; the '
+      + 'blow on the second), and static crawls over the struck portrait while it JITTERS; BIG, the hero calls a thin bolt up, '
+      + 'a small STORM CLOUD gathers over the struck hero (with no room above a hero at the top of the screen it rolls in over '
+      + 'the top edge and still drops onto the face, never a sideways beam), rumbles and lights up from inside twice, then '
+      + 'drops one THICK strike: a flash across the screen, a ring of sparks, a shock ring and static crawling over the '
+      + 'portrait while the cloud breaks up (the blow lands on the strike). The consequence lands exactly ONCE. No hit-stop '
+      + '(R-PROG-ATTACK-10). The camera is applied ONCE (as R-PROG-ATTACK-26). Presentation only; reduced motion is fades '
+      + 'only; an unknown or retired id plays Classic.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-29 (rare and epic attacks)', quote: 'rare and epics should only have 2 or 3 tiers to them and generally be less exciting, but still extremely clean and fun. get creative' },
+      { kind: 'code', ref: 'packages/progression/src/cosmetics.ts (attack_storm); packages/ui/src/heroStorm/ (heroStormConfig stormLevel / stormPlan / stormCues / stormGeometry / stormCameraAt, heroStorm playHeroStorm, heroStormScene, heroStormTextures)' },
+    ],
+    currentBehaviour: 'Conforms, built 2026-09-29. The item reaches the database on the next deploy of progression-inventory (the catalog sync); the equip SQL already accepts the hero_attack slot.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/heroStorm/heroStorm.test.ts', 'packages/ui/src/heroAttack/knockoutTier.test.ts', 'packages/progression/src/cosmetics.test.ts', 'packages/ui/src/progression/CollectionHeroAttack.test.tsx', 'packages/ui/src/heroAttack/damageFormation.test.ts'], lastVerifiedAt: '2026-09-29' },
+  },
+  // ── The Rare hero attacks (owner ask 2026-09-29): two visual tiers each ───────────────────────────────
+  {
+    id: 'R-PROG-ATTACK-28',
+    title: 'A RARE hero attack has exactly two visual tiers: the shared I-II play Small, III-IV play Big (so a knockout plays Big)',
+    statement:
+      'Every Rare hero attack (attack_coin, attack_boomerang, attack_bubble, attack_backstab, and any Rare added later) '
+      + 'reads its tier from the shared attackTier (packages/ui/src/heroAttack/tiers.ts: the owner-approved thresholds 6 / 12 / '
+      + '20 and the knockout rule, R-PROG-ATTACK-20) and maps the four shared tiers onto TWO visual tiers inside its own '
+      + 'config: I-II play Small, III-IV play Big. A knockout forces the shared Tier IV, so it always plays Big. Its tuner has '
+      + 'two groups of per-tier dials (Small, Big), the Copy / Reset / Play row on top and no Speed or Reduced motion button. '
+      + 'Like every style: the shared damage formation opens it, the consequence lands exactly once on its impact beat (every '
+      + 'hit before it is a tick, FX and sound only), the clock never pauses (no hit-stop), it is flat 2D, the camera is '
+      + 'applied once (never mirrored again onto an FX overlay that already rides the #stage camera), and reduced motion lands the blow '
+      + 'with no motion. Rares are shorter and calmer than the Legendaries (about 1.2 to 2.5 s after the formation).',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-29 (the Rare and Epic hero attacks)', quote: 'build 5 animations that range from rare -> epic. all of the animations we have done so far are legendary. rare and epics should only have 2 or 3 tiers to them and generally be less exciting, but still extremely clean and fun. get creative' },
+      { kind: 'code', ref: 'packages/ui/src/heroCoin/, heroBoomerang/, heroBubble/, heroBackstab/ (coinLevel / boomerangLevel / bubbleLevel / backstabLevel); packages/ui/src/heroAttack/rareTuner.ts; packages/ui/src/heroAttack/stageCamera.ts (heroFxCanvas: the camera applied once, R-PROG-ATTACK-25)' },
+    ],
+    currentBehaviour: 'Conforms, built 2026-09-29.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/heroCoin/heroCoin.test.ts', 'packages/ui/src/heroBoomerang/heroBoomerang.test.ts', 'packages/ui/src/heroBubble/heroBubble.test.ts', 'packages/ui/src/heroBackstab/heroBackstab.test.ts', 'packages/ui/src/heroAttack/knockoutTier.test.ts', 'packages/ui/src/heroAttack/attackTunerButtons.test.ts'], lastVerifiedAt: '2026-09-29' },
+  },
+  {
+    id: 'R-PROG-ATTACK-29',
+    title: 'Coin Flick (attack_coin, "Pocket Change", Rare): a spinning gold coin pings the target; Big ricochets it and bursts it into a shower of coins; the blow lands ONCE on the last ping',
+    statement:
+      'attack_coin ("Pocket Change", a placeholder name for the owner to rename; Rare, crate, account-wide, style coin): after '
+      + 'the shared damage formation the striking hero dips back while a glint gathers at its hand, then flicks a gleaming '
+      + 'gold coin on a slight arc, spinning (a flat in-plane turn plus an edge-on flip read as its width closing and '
+      + 'opening), trailing afterimages. SMALL (shared I-II): it PINGS the struck hero with a four-point sparkle, a gold ring '
+      + 'and glitter (THE impact) and caroms off, tumbling away. BIG (III-IV, knockouts): a ricochet volley, it pings the '
+      + 'face (a tick), hops off and back (a tick), and the last ping (THE impact) bursts it into a small shower of coins '
+      + 'that spill out and fall. The ding climbs a step per ping. The consequence lands exactly once, on the last ping.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-29 (the Rare and Epic hero attacks)', quote: 'build 5 animations that range from rare -> epic. all of the animations we have done so far are legendary. rare and epics should only have 2 or 3 tiers to them and generally be less exciting, but still extremely clean and fun. get creative' },
+      { kind: 'code', ref: 'packages/progression/src/cosmetics.ts (attack_coin); packages/ui/src/heroCoin/ (coinPlan / coinCues / coinPath / coinCameraAt, playHeroCoin, HeroCoinScene)' },
+    ],
+    currentBehaviour: 'Conforms, built 2026-09-29.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/heroCoin/heroCoin.test.ts', 'packages/progression/src/cosmetics.test.ts', 'packages/ui/src/heroAttack/damageFormation.test.ts'], lastVerifiedAt: '2026-09-29' },
+  },
+  {
+    id: 'R-PROG-ATTACK-30',
+    title: 'Boomerang (attack_boomerang, "Come Back Around", Rare): it whirls out, thwacks the target and curves home to be caught; Big throws two on crossing paths; the blow lands ONCE on the last thwack',
+    statement:
+      'attack_boomerang ("Come Back Around", a placeholder name; Rare, crate, account-wide, style boomerang): after the shared '
+      + 'damage formation the hero winds back and throws a carved wooden boomerang (teal inlay, a teal ribbon trail, a spin '
+      + 'blur) that whirls out on a curve, THWACKS the struck hero (an impact star, a teal ring, wood chips) and swings back '
+      + 'round the other side to the hero, who catches it with a small pop. SMALL (shared I-II): one boomerang; its thwack is '
+      + 'THE impact. BIG (III-IV, knockouts): two, thrown a beat apart from either side on paths that CROSS, a double thwack '
+      + '(the first a tick, the second THE impact) and both caught in turn. The return and the catch come after the blow '
+      + 'and are looks only. The consequence lands exactly once, on the last thwack.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-29 (the Rare and Epic hero attacks)', quote: 'build 5 animations that range from rare -> epic. all of the animations we have done so far are legendary. rare and epics should only have 2 or 3 tiers to them and generally be less exciting, but still extremely clean and fun. get creative' },
+      { kind: 'code', ref: 'packages/progression/src/cosmetics.ts (attack_boomerang); packages/ui/src/heroBoomerang/ (boomerangPlan / boomerangMotions / boomerangPos, playHeroBoomerang, HeroBoomerangScene); packages/ui/src/heroAttack/ribbonTrail.ts' },
+    ],
+    currentBehaviour: 'Conforms, built 2026-09-29.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/heroBoomerang/heroBoomerang.test.ts', 'packages/progression/src/cosmetics.test.ts', 'packages/ui/src/heroAttack/damageFormation.test.ts'], lastVerifiedAt: '2026-09-29' },
+  },
+  {
+    id: 'R-PROG-ATTACK-31',
+    title: 'Bubble Pop (attack_bubble, "Bubble Trouble", Rare): an iridescent bubble drifts over, engulfs the face and pops; Big streams little bubbles first and pops a big one with a splash ring; the blow lands ONCE on the pop',
+    statement:
+      'attack_bubble ("Bubble Trouble", a placeholder name; Rare, crate, account-wide, style bubble): after the shared damage '
+      + 'formation an iridescent soap bubble (a turning pastel film, upright reflections, a constant wobble) swells at the '
+      + 'hero\x27s rim while the hero puffs up, drifts over on a floaty weave, swells round the struck hero\x27s face, strains, '
+      + 'and POPS into droplets and a fizz of tiny bubbles. SMALL (shared I-II): one bubble; the pop is THE impact. BIG '
+      + '(III-IV, knockouts): a stream of little bubbles first (each blips on the face: a tick), then one BIG bubble that '
+      + 'swells round the whole portrait and pops with a splash ring (THE impact). Soft and playful: a pastel palette, a '
+      + 'gentle shake. The consequence lands exactly once, on the pop.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-29 (the Rare and Epic hero attacks)', quote: 'build 5 animations that range from rare -> epic. all of the animations we have done so far are legendary. rare and epics should only have 2 or 3 tiers to them and generally be less exciting, but still extremely clean and fun. get creative' },
+      { kind: 'code', ref: 'packages/progression/src/cosmetics.ts (attack_bubble); packages/ui/src/heroBubble/ (bubblePlan / bubbleDrifts / driftPos, playHeroBubble, HeroBubbleScene)' },
+    ],
+    currentBehaviour: 'Conforms, built 2026-09-29.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/heroBubble/heroBubble.test.ts', 'packages/progression/src/cosmetics.test.ts', 'packages/ui/src/heroAttack/damageFormation.test.ts'], lastVerifiedAt: '2026-09-29' },
+  },
+  {
+    id: 'R-PROG-ATTACK-32',
+    title: 'Backstab (attack_backstab, "Shadow Step", Rare): the striking PORTRAIT fades into smoke, steps out behind the target and stabs back toward home; Big lunges, then stabs from the side, then from behind; the blow lands ONCE on the stab from behind; the portrait is always restored',
+    statement:
+      'attack_backstab ("Shadow Step", a placeholder name; Rare, crate, account-wide, style backstab): after the shared damage '
+      + 'formation the striking hero\x27s own PORTRAIT moves (as Classic and Enraged do). SMALL (shared I-II): it fades into '
+      + 'dark smoke where it stands, steps out BEHIND the target (past it along the line from the striker), draws back and '
+      + 'stabs back TOWARD its own side (a dagger slash in violet and teal; the target jolts toward the striker): THE impact; '
+      + 'then it fades, reappears in its own slot and settles. BIG (III-IV, knockouts): Classic\x27s own lunge (a tick), it '
+      + 'vanishes into smoke on the face, steps out at the target\x27s SIDE and stabs across (a tick), vanishes again, steps '
+      + 'out BEHIND and stabs back toward home (THE impact), then smokes home and settles. A spot that would leave the '
+      + 'screen swings round the target until it fits, and every stab drives at the target\x27s centre, so the hit never '
+      + 'leaves the target. The striker is raised over the target (the .duel-attacker-* z-order) for the whole attack, and '
+      + 'its transform, opacity and z-order class are restored exactly on every exit (the end, finish, cancel, unmount). '
+      + 'The consequence lands exactly once, on the stab from behind.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-29 (the fourth Rare, relayed by the coordinator)', quote: 'add a stealth backstab attack to the rare branch. portrait fades and attacks from behind the target back towards the player portrait and settles. the larger version can do a "normal" lunge attack then vanish into smoke and hit from the side, then vanish and hit from behind again' },
+      { kind: 'code', ref: 'packages/progression/src/cosmetics.ts (attack_backstab); packages/ui/src/heroBackstab/ (backstabPlan / backstabGeo / fitSpot / backstabPose, playHeroBackstab, HeroBackstabScene); classicSwing in packages/ui/src/heroAttack/heroClassic.ts' },
+    ],
+    currentBehaviour: 'Conforms, built 2026-09-29.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/heroBackstab/heroBackstab.test.ts', 'packages/progression/src/cosmetics.test.ts', 'packages/ui/src/heroAttack/damageFormation.test.ts'], lastVerifiedAt: '2026-09-29' },
   },
   {
     id: 'R-PROG-ATTACK-25',

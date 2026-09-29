@@ -126,7 +126,7 @@ therefore normalized:
 2. a two-pass `loudnorm` (ITU BS.1770 loudness, the broadcast standard) measures the clip and applies ONE fixed
    gain to **−20 LUFS**, with a **−1 dBTP** true-peak ceiling.
 
-The volume boxes in the FX workbench's By-card view (the binding `gain`: On Play 0.3, On Death 0.1) then sit on top
+The volume boxes in the FX workbench's By-card view (the binding `gain`: On Play 0.3, On Death 0.3) then sit on top
 as the mix. `vo:approve` normalizes every card clip it approves. For the backlog, or after changing the target:
 
 ```

@@ -68,6 +68,7 @@ import { diffHandBuffs, fireHandBuff, fireHandBuffOnHandSpells, fireHandBuffOnHa
 import { HudBar } from './HudBar';
 import { LobbyPanel } from './LobbyPanel';
 import { GauntletPanel } from './gauntlet/GauntletPanel';
+import { GAUNTLET_CLOCK_WAITING, gauntletClockState, gauntletClockWaiting, gauntletTurnClock } from './gauntlet/gauntletClock';
 import { CombatOpponent } from './CombatOpponent';
 import { playHeroBlast } from './heroBlast/heroBlast';
 import type { HeroAttackHandle } from './heroAttack/options';
@@ -398,15 +399,17 @@ function dragTransform(persp: number, tx: number, ty: number, rotX: number, rotY
 
 /** Turn countdown (M:SS) as a shop-plaque widget (matches the Gold/Tavern buttons so it reads at a glance).
  *  Subscribes to the clock so ONLY this reads per-second; the plaque + digits turn red in the last 5s. */
-const ShopTimer = memo(function ShopTimer({ practice }: { practice?: boolean }) {
+const ShopTimer = memo(function ShopTimer({ practice, gauntlet }: { practice?: boolean; gauntlet?: boolean }) {
   const s = Math.max(0, useTurnSeconds());
   const practiceTimer = useGame((st) => st.practiceTimer);
   const setPracticeTimer = useGame((st) => st.setPracticeTimer);
+  // A Gauntlet round has no clock until 30 Gold is spent: the clock sits parked on its waiting value until then.
+  const gauntletWaiting = !!gauntlet && gauntletClockWaiting(s);
   return (
     <div className={`statcell time${s <= 5 ? ' low' : ''}`} aria-label="Time left this turn">
       <span className="sc-ic"><Icon name="clock" /></span>
       {/* Practice on Unlimited time: no countdown to read, so show the symbol, not an absurd 1666:39. */}
-      <span className="sc-v">{practice && practiceTimer === 0 ? '∞' : `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`}</span>
+      <span className="sc-v">{gauntletWaiting ? '∞' : practice && practiceTimer === 0 ? '∞' : `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`}</span>
       {/* PRACTICE only — practice is the unscored mode, so letting the player slow the clock costs nothing.
           Deliberately absent in scored runs: the turn timer is part of the challenge there. `stopPropagation`
           on the pointer keeps a click on the select from reaching the board's drag handler. */}
@@ -425,7 +428,9 @@ const ShopTimer = memo(function ShopTimer({ practice }: { practice?: boolean }) 
       <span className="sbtip">
         {practice
           ? 'Time left this turn. Practice only: pick 1–4× to lengthen the shop timer (1× matches a scored run), or ∞ for no timer.'
-          : 'Time left this turn. At 0 your actions lock, so hit End Turn first.'}
+          : gauntletWaiting
+            ? 'No clock yet. Once you spend 30 Gold this round, a 60-second timer starts.'
+            : 'Time left this turn. At 0 your actions lock, so hit End Turn first.'}
       </span>
     </div>
   );
@@ -1132,7 +1137,11 @@ export function Recruit() {
   // Practice's UNLIMITED time (owner 2026-09-27, `practiceTimer` 0) is the same effectively-infinite clock.
   const infiniteClock = (run.sandbox === true && sbRules === 'god') || run.mode === 'tutorial'
     || (run.mode === 'practice' && !run.sandbox && practiceTimer === 0);
-  const turnSeconds = infiniteClock ? 99999 : Math.max(CHARGE_SECONDS + 1, (Math.min(80, TURN_SECONDS + (run.wave - 1) * 4 + (run.wave >= 6 ? 6 : 0)) + (run.wave >= 12 ? 12 : 0)) * (run.mode === 'practice' && !run.sandbox ? practiceTimer : 1));
+  // THE GAUNTLET (spec §1): each round OPENS with no clock, parked on its waiting value; the countdown starts once
+  // 30 Gold is spent in the round (see gauntlet/gauntletClock.ts and the effect beside the clock reset below).
+  // `gauntletClockWaits` flips at most once per turn (goldSpentThisTurn only rises within a wave).
+  const gauntletClockWaits = run.mode === 'gauntlet' && gauntletClockState(run.goldSpentThisTurn ?? 0) === 'waiting';
+  const turnSeconds = run.mode === 'gauntlet' ? GAUNTLET_CLOCK_WAITING : infiniteClock ? 99999 : Math.max(CHARGE_SECONDS + 1, (Math.min(80, TURN_SECONDS + (run.wave - 1) * 4 + (run.wave >= 6 ? 6 : 0)) + (run.wave >= 12 ? 12 : 0)) * (run.mode === 'practice' && !run.sandbox ? practiceTimer : 1));
 
   // Projected STARTING Gold for the next two waves (the Gold-cell hover) — cap-aware, folding in board mana
   // income (Money Bot) and the one-turn Hoarder/Robin bank (into Wave+1 only, since it's consumed then).
@@ -4533,6 +4542,16 @@ export function Recruit() {
     }
   }, [run.wave, turnSeconds, heroSelecting, showTitle]);
 
+  // THE GAUNTLET CLOCK STARTS once 30 Gold is spent in the round: move the parked clock to 60. Declared AFTER the
+  // reset above so, on any commit where both run, it sees the value the reset (or a Continue's resume) left — a
+  // countdown already running, including seconds restored by Continue, is never restarted (`gauntletTurnClock`).
+  // Layout effect, like the reset, so the plaque never paints the parked value once the threshold is met.
+  useLayoutEffect(() => {
+    if (run.mode !== 'gauntlet' || showTitle) return;
+    const next = gauntletTurnClock({ goldSpent: run.goldSpentThisTurn ?? 0, current: turnClock.get() });
+    if (next != null) turnClock.set(next);
+  }, [run.mode, gauntletClockWaits, run.wave, heroSelecting, showTitle]);
+
   /**
    * REPLAY PACING for the shop clock (owner report 2026-08-30: *"speed doesnt change the time's speed"*).
    *
@@ -4582,6 +4601,7 @@ export function Recruit() {
       // the clock as normal though since you can play right away"; R-SOT-TIMER-01).
       transitionPlaying: wipe !== 'idle',
       settingsOpen,
+      clockWaiting: gauntletClockWaits, // a Gauntlet round before 30 Gold is spent: no clock yet
     })) return;
     let id = 0;
     const tick = (): void => {
@@ -4601,7 +4621,7 @@ export function Recruit() {
     };
     id = window.setTimeout(tick, tickMs());
     return () => window.clearTimeout(id);
-  }, [run.phase, run.discover, run.questOffer, run.powerOffer, run.runeforgeOffer, run.pendingTarget, run.chooseOne, run.ancients?.offer, heroSelecting, overlayOpen, settingsOpen, introPlaying, run.wave, replaySpeed, wipe, sotPlaying]);
+  }, [run.phase, run.discover, run.questOffer, run.powerOffer, run.runeforgeOffer, run.pendingTarget, run.chooseOne, run.ancients?.offer, heroSelecting, overlayOpen, settingsOpen, introPlaying, run.wave, replaySpeed, wipe, sotPlaying, gauntletClockWaits]);
 
   // Detect a self-buff (a minion's own stats jump in the recruit phase) and fire its self-buff cue. The
   // readout itself is the badge's own job now — see the cut below.
@@ -7718,7 +7738,7 @@ const ShopControls = memo(function ShopControls({
             (`turnSeconds` is already effectively infinite there; this just removes the misleading countdown). */}
         {mode !== 'tutorial' && (
           <div className="statstrip">
-            <ShopTimer practice={mode === 'practice' && !sandbox} />
+            <ShopTimer practice={mode === 'practice' && !sandbox} gauntlet={mode === 'gauntlet'} />
           </div>
         )}
         {/* Action tray — the turn's actions grouped into one control bar (Reroll · Freeze), framed by

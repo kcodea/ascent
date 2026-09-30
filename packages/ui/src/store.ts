@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { loadFpsCap, saveFpsCap } from './fpsCap';
 import { CARD_INDEX, activeSet, type SetId } from '@game/content';
-import { type CombatOdds, HEROES, playableHeroes, practiceHeroChoiceIds, runTribesForSeed, OPPONENT_POOL, OPPONENT_POOL_DATA, registerOpponents, createRun, deserialize, initialProfile, resolveServerRank, adoptServerRank, legacyRatingChangeOf, type RankResult, type RankedProfile, isPlayerAction, missingCardIds, nextOpponent, parseQaScenario, reconstructRunTelemetry, recordTelemetryAction, emptyTelemetryLog, withLiveTelemetry, telemetrySourceOf, setIdOf, type TelemetryLog, beginDerive, observeAction, finishDerive, progressionFactsOf, type DeriveState, reduce, reduceWithPresentation, serialize, snapshotBoard, type Action, type BoardSnapshot, type PlayerProfile, type RatingChange, type Replay, type RunMode, type RunState, combatFrameOf, deltaShopFrameOf, shopFrameOf, runRecord, type DragPath, type ReplayFrame, type ReplayV2, type ShopView, appendInspectEvent, type InspectEvent, type InspectSnapshot, createLobbyRun, enableAncients, createTutorialRun, type TutorialCourse, type PracticeConfig, type BotLevel, DEFAULT_PRACTICE_CONFIG, normalizeBotDifficulty, normalizePracticeTribes, practiceRunTribes, warmLobbySeat, prepareActionWithPresentation, type PreparedPresentationAction, fightRowsOf, opponentFightKeys, type LobbyStrength, type FightRow, buildMatchDetails, type MatchDetails, lobbyPoolTelemetryOf, lobbyIsUnrated } from '@game/sim';
+import { type CombatOdds, HEROES, playableHeroes, practiceHeroChoiceIds, runTribesForSeed, OPPONENT_POOL, OPPONENT_POOL_DATA, registerOpponents, createRun, deserialize, initialProfile, resolveServerRank, adoptServerRank, legacyRatingChangeOf, type RankResult, type RankedProfile, isPlayerAction, missingCardIds, nextOpponent, parseQaScenario, reconstructRunTelemetry, recordTelemetryAction, emptyTelemetryLog, withLiveTelemetry, telemetrySourceOf, setIdOf, type TelemetryLog, beginDerive, observeAction, finishDerive, progressionFactsOf, type DeriveState, reduce, reduceWithPresentation, serialize, snapshotBoard, type Action, type BoardSnapshot, type PlayerProfile, type RatingChange, type Replay, type RunMode, type RunState, combatFrameOf, deltaShopFrameOf, shopFrameOf, runRecord, type DragPath, type ReplayFrame, type ReplayV2, type ShopView, appendInspectEvent, type InspectEvent, type InspectSnapshot, createLobbyRun, DEFAULT_HERO_ID, enableAncients, createTutorialRun, type TutorialCourse, type PracticeConfig, type BotLevel, DEFAULT_PRACTICE_CONFIG, normalizeBotDifficulty, normalizePracticeTribes, practiceRunTribes, warmLobbySeat, prepareActionWithPresentation, type PreparedPresentationAction, fightRowsOf, opponentFightKeys, type LobbyStrength, type FightRow, buildMatchDetails, type MatchDetails, lobbyPoolTelemetryOf, lobbyIsUnrated } from '@game/sim';
 import type { PresentationBatch } from '@game/core';
 import { combatTimelineFrom } from './choreographer/combatTimeline';
 import type { RuneLockInCard } from './RuneLockIn';
@@ -613,16 +613,13 @@ interface GameStore {
   runeArrival: { runeId: string; occurrence: number; phase: 'pending' | 'arrived'; seq: number } | null;
   setRuneArrival: (a: { runeId: string; occurrence: number; phase: 'pending' | 'arrived' } | null) => void;
   showTitle: boolean;
-  /** The mode the next run will start in (set by startAscent/startPractice, read by pickHero). */
+  /** The mode the next run will start in (set by startLobby/confirmPracticeSetup, read by pickHero). Only
+   *  `lobby` or `practice` is ever set: pickHero builds a LOBBY run whatever this says (R-PERSIST-01). */
   pendingMode: RunMode;
   /** The seed the CURRENT hero offer was rolled against (tribe gate); consumed by `pickHero`, cleared on run creation. */
   pendingSeed?: number;
-  /** Title → Ascent: open the 3-hero picker for a scored run. */
-  startAscent: () => void;
   /** Title → Practice: open an ALL-hero picker for a practice run (Ascent's full course, unlimited health). */
   startPractice: () => void;
-  /** Start a RIFT run — the same climb, with the active rift's rules. */
-  startRift: () => void;
   startLobby: () => void;
   /** Title → Learn: launch the scripted tutorial course (Learn Ascent). Bypasses the hero picker entirely
    *  (the course forces its own hero, Aster) and builds an authored `tutorial`-mode lobby run directly, exactly
@@ -941,6 +938,14 @@ export function loadCombatRampUp(): boolean {
 // the save is cleared when the run ends. The run's action log rides along so board capture still works on a
 // resumed run's finish. All best-effort — localStorage may be unavailable; failures never break play.
 const SAVE_KEY = 'ascent.save';
+/**
+ * May this run occupy the save slot (and so be offered as Continue)? Only a STARTED, unfinished LOBBY run:
+ * Play, Practice and the tutorial all carry `run.lobby`. A run without one is the retired 17-round course
+ * (owner 2026-09-30: "remove the wave format option entirely"), and a Scene Builder run is disposable.
+ */
+export function isResumableRun(run: RunState): boolean {
+  return !!run.lobby && !run.sandbox && run.phase !== 'gameover' && run.phase !== 'victory';
+}
 interface SavedGame { run: RunState; actions: Action[]; boards: BoardSnapshot[]; telemetry?: TelemetryLog; derive?: DeriveState; turnRemaining?: number; announced?: AnnouncedSlice; }
 function loadSave(): SavedGame | null {
   try {
@@ -949,6 +954,14 @@ function loadSave(): SavedGame | null {
     const o = JSON.parse(raw) as { run: string; actions?: Action[]; boards?: BoardSnapshot[]; telemetry?: TelemetryLog; derive?: DeriveState; turnRemaining?: number; announced?: AnnouncedSlice };
     const run = deserialize(o.run, { turnRemaining: o.turnRemaining }); // heals older-schema saves (+ closes a Thymepiece window the saved clock is past)
     if (run.phase === 'gameover' || run.phase === 'victory') return null; // finished → not resumable
+    // THE RETIRED COURSE (owner 2026-09-30, R-PERSIST-01): a save with no lobby is the old 17-round wave format
+    // (a pre-fix phantom from quitting the hero picker, or a genuinely old run). Continue must never resume it,
+    // so it is discarded here and no Continue is offered. Replays never read this slot, so they are untouched.
+    if (!isResumableRun(run)) {
+      console.warn('[ascent] discarding a saved run in the retired course format (no lobby)');
+      clearSave();
+      return null;
+    }
     // A save can reference a card this build no longer has — a card deleted or renamed during content work, a
     // save carried between branches, or a patch that retired a card mid-run. `deserialize` deliberately doesn't
     // throw, so without this check the run loads and dies on the first `CARD_INDEX[id]` deref, deep in a render
@@ -970,6 +983,9 @@ function writeSave(run: RunState, actions: Action[], boards: BoardSnapshot[] = [
   // it reach the autosave overwrites the player's real in-progress run and offers the sandbox as "Continue"
   // (owner hit this on 2026-07-22 — a sandbox session clobbered a live save). The run is already flagged for us.
   if (run.sandbox) return;
+  // Only a started LOBBY run is ever the save (R-PERSIST-01): the dormant throwaway behind the title is a
+  // lobby-less `createRun`, and persisting it is exactly what offered a Continue into the old course format.
+  if (!isResumableRun(run)) return;
   // `boards` rides along for the same reason `actions` does: it's what board capture reads when the run ends.
   // A lobby run captures its boards live instead of replaying for them (see `capturedBoards`), so without this
   // a quit-and-resume would finish the run having lost every board played before the reload.
@@ -1821,7 +1837,7 @@ function commitResolvedAction(
       if (finished) { clearSave(); savedRun = null; }
       // `next.sandbox` — a Scene Builder run never reaches the autosave OR the Continue slot. Both are
       // guarded here rather than only inside `writeSave`, because `savedRun` is what the title offers.
-      else if (next.phase !== s.run.phase && !next.sandbox) {
+      else if (next.phase !== s.run.phase && isResumableRun(next)) {
         autosave.schedule([next, replayActions, capturedBoards, telemetryLog, deriveState, undefined, s.announced]); // idle time, not this frame
         savedRun = next;
       }
@@ -1927,8 +1943,13 @@ export const useGame = create<GameStore>((rawSet, get) => {
     // REPLAY VIEWER: while a replay runs, `s.run` is the SPECTATED run's synthetic render state — persisting
     // it (tab hide, quit-to-title) would overwrite the player's real in-progress save with someone else's game.
     if (s.replaying) return;
-    if (s.showTitle || s.run.phase === 'gameover' || s.run.phase === 'victory') return;
-    if (s.run.sandbox) return; // a Scene Builder run is disposable — it must never become the offered Continue
+    // PRE-RUN (owner 2026-09-30, R-PERSIST-01): at the title, the Practice setup screen or the HERO PICKER no
+    // game has started, and `s.run` is either the dormant throwaway or the previous save — neither is written.
+    // This was `s.showTitle` only, so "Main Menu" from the hero picker (showTitle false, heroChoices set)
+    // persisted the throwaway course run and the title then offered it as Continue.
+    if (isPreRun(s)) return;
+    // Finished, sandbox, or lobby-less (the retired course): never the offered Continue.
+    if (!isResumableRun(s.run)) return;
     // EVERY accumulator the turn-boundary autosave persists must be persisted here too. `writeSave` only
     // serializes what it is handed, so an omitted argument does not merely skip an update — it REWRITES the
     // save without that field, and the boot fallback then restarts the accumulator at the resumed wave.
@@ -1969,7 +1990,7 @@ export const useGame = create<GameStore>((rawSet, get) => {
     : { runeArrival: null })),
   showTitle: true,
   showLeaderboard: false,
-  pendingMode: 'ascent',
+  pendingMode: 'lobby',
   // Default to the compact, art-forward card (full rules text on hover). Flip in the Esc menu.
   compactCards: true,
   toggleCompact: () => set((s) => ({ compactCards: !s.compactCards })),
@@ -2232,18 +2253,19 @@ export const useGame = create<GameStore>((rawSet, get) => {
       const seed = s.pendingSeed ?? randomSeed();
       // Practice is a lobby too (2026-07-31): same seats + recorded opponents, its own rules on top. It
       // reads the shared board pool but never writes (every upload path is gated on mode !== 'practice').
-      const run = s.pendingMode === 'lobby' || s.pendingMode === 'practice'
-        // Practice carries the setup options chosen on the Practice screen (bots vs recorded opponents, health,
-        // tribe surge); a plain lobby uses none.
-        // Your OWN runs never sit at your table (R-LOBBY-08): the seat builder skips runs your account uploaded.
-        ? createLobbyRun(seed, heroId, {}, s.pendingMode, s.pendingMode === 'practice' ? s.practiceDraft : undefined, undefined,
-          // MATCHMAKING BAND (R-LOBBY-09): a RATED lobby draws its recorded seats from the band of the player's medal;
-          // Practice is never banded. Your own runs are seated like anyone else's (owner 2026-09-30).
-          s.pendingMode === 'lobby' ? { strengthBand: lobbyBandFor(s.profile) } : {})
-        : createRun(seed, heroId, s.pendingMode, s.profile.currentLine);
+      // THE LEGACY COURSE IS GONE FROM PLAY (owner 2026-09-30, R-PERSIST-01): every hero pick builds a LOBBY run.
+      // Anything but Practice is a plain lobby; the old 'ascent' / 'rift' course branch (`createRun` with a
+      // 17-round clock and a Line) is no longer reachable from any menu.
+      const mode: 'lobby' | 'practice' = s.pendingMode === 'practice' ? 'practice' : 'lobby';
+      // Practice carries the setup options chosen on the Practice screen (bots vs recorded opponents, health,
+      // tribe surge); a plain lobby uses none.
+      const run = createLobbyRun(seed, heroId, {}, mode, mode === 'practice' ? s.practiceDraft : undefined, undefined,
+        // MATCHMAKING BAND (R-LOBBY-09): a RATED lobby draws its recorded seats from the band of the player's medal;
+        // Practice is never banded. Your own runs are seated like anyone else's (owner 2026-09-30).
+        mode === 'lobby' ? { strengthBand: lobbyBandFor(s.profile) } : {});
       // MEDAL RANK: a RATED lobby is minted its stable ranked identity HERE, once, and it travels with the save
       // — a retried settlement always names the same run. Practice (and every other mode) gets none.
-      if (s.pendingMode === 'lobby') run.runId = mintRunId();
+      if (mode === 'lobby') run.runId = mintRunId();
       // POOL TELEMETRY (fix 2026-09-28): note where the live pool came from when this table was seated.
       if (run.lobby?.poolAtStart) {
         const poolState = opponentPoolLoader()?.state();
@@ -2261,12 +2283,14 @@ export const useGame = create<GameStore>((rawSet, get) => {
     dropBoardFx();
     settleAbandonedRun(get().savedRun); // R-RANK-05: replacing an unfinished rated save abandons it
     set((s) => {
-      const run = recordRunCosmetics(createRun(seed ?? randomSeed(), heroId, s.pendingMode, s.profile.currentLine));
+      // A lobby run, like pickHero's (R-PERSIST-01) — never the retired course.
+      const run = recordRunCosmetics(createLobbyRun(seed ?? randomSeed(), heroId ?? DEFAULT_HERO_ID, {}, 'lobby', undefined, undefined,
+        { strengthBand: lobbyBandFor(s.profile) })); // R-LOBBY-09 band; own runs seat like anyone's (owner 2026-09-30)
+      warmLobbyDrivers(run);
       writeSave(run, []);
       return { run, savedRun: run, lastRunBoards: 0, presentationTx: null, heroArmed: false, endTurnAnimating: false, sellTick: 0, inspect: null, heroChoices: null, showTitle: false, avatarPickerOpen: false, replayActions: [], capturedBoards: [], replayFrames: beginReplayCapture(run), replayPartial: false, ...freshObservers(run), ...RANK_SLICE_RESET };
     });
   },
-  startAscent: () => set(() => { const seed = randomSeed(); return { showTitle: false, pendingMode: 'ascent', pendingSeed: seed, heroChoices: rollHeroChoices(tribesForSeed(seed)), avatarPickerOpen: false }; }),
   // Practice shows EVERY hero — but "every" still means every PICKABLE one. It was reading the raw registry, so
   // a disabled hero stayed selectable here after being pulled from the Ascent picker (owner 2026-07-28).
   // Practice now opens a SETUP screen first (owner ask 2026-08-24): opponents / health / time / tribe surge.
@@ -2286,7 +2310,6 @@ export const useGame = create<GameStore>((rawSet, get) => {
     return { practiceSetupOpen: false, practiceTimer: s.practiceDraft.timeMult, pendingMode: 'practice', pendingSeed: seed, heroChoices: practiceHeroChoiceIds(s.practiceDraft.heroes, practiceRunTribes(seed, s.practiceDraft)) };
   }),
   cancelPracticeSetup: () => set({ practiceSetupOpen: false, showTitle: true, titleView: 'menu' }),
-  startRift: () => set(() => { const seed = randomSeed(); return { showTitle: false, pendingMode: 'rift', pendingSeed: seed, heroChoices: rollHeroChoices(tribesForSeed(seed)), avatarPickerOpen: false }; }),
   // LOBBY: eight seats, elimination, no fixed round count. Uses the ASCENT offer — three heroes, not the whole
   // roster (owner 2026-07-29). A lobby is a real run you can lose, so the pick should be a decision made under
   // the same constraint as Ascent's; Practice's all-heroes list is a sandbox affordance and reads as one.
@@ -2866,8 +2889,8 @@ if (import.meta.hot) {
  * ── Why this needs to be a predicate at all ───────────────────────────────────────────────────────────────
  *
  * `showTitle: false` was doing two jobs: "the title screen is closed" AND "a run is on screen". They are not
- * the same state, and every entry path proved it - `startAscent`, `startPractice`, `startRift` and
- * `startLobby` all drop `showTitle` merely to OPEN a picker. The board sat mounted behind the title the whole
+ * the same state, and every entry path proved it - `startPractice` and
+ * `startLobby` both drop `showTitle` merely to OPEN a picker. The board sat mounted behind the title the whole
  * time (a deliberate "dormant throwaway run"), so dropping the title uncovered it for however long the next
  * overlay took to paint. That is the flash the owner saw pressing Practice.
  *

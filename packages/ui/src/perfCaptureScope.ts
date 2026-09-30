@@ -11,7 +11,7 @@ import type { RunMode, RunState } from '@game/sim';
  * 2026-09-11; the Shared tab could only ever hold a legacy run).
  *
  * `'ascent'` stays eligible on purpose: it is still the `RunState.mode` default ("absent = 'ascent'", which is
- * what an older save resolves to on Continue), the store still carries `startAscent`, and it is a full scored
+ * what an older save resolves to on Continue), and it is a full scored
  * game — the same phase mix as a lobby seat, minus the seat. Nothing it can produce would mislead a comparison.
  *
  * Everything else records numbers that would mislead a comparison rather than inform it:

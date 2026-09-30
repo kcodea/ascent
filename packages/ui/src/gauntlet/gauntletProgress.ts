@@ -50,7 +50,22 @@ function readStages(key: string): number[] {
 }
 function writeStages(key: string, stages: readonly number[]): void {
   try { localStorage.setItem(key, JSON.stringify(stages)); } catch { /* blocked storage: the clear still counts this session */ }
+  bumpProgress();
 }
+
+/** A counter bumped on every progress write (a clear, an account refresh), so a mounted stage select re-reads. */
+let progressVersion = 0;
+const progressListeners = new Set<() => void>();
+function bumpProgress(): void {
+  progressVersion++;
+  for (const l of progressListeners) l();
+}
+/** `useSyncExternalStore` pair: subscribe to progress writes, and read the current version. */
+export function subscribeGauntletProgress(listener: () => void): () => void {
+  progressListeners.add(listener);
+  return () => { progressListeners.delete(listener); };
+}
+export const gauntletProgressVersion = (): number => progressVersion;
 const sortedUnion = (a: readonly number[], b: readonly number[]): number[] => [...new Set([...a, ...b])].sort((x, y) => x - y);
 
 /** Every stage the player has cleared: sorted, unique, positive integers. Signed in = the account's (mirror ∪ its

@@ -8380,6 +8380,12 @@ body:has(.book-ov) .cardref { z-index: 490; }
 .gslot[data-state='locked'] .gslot-tag, .gslot[data-state='soon'] .gslot-tag { background: linear-gradient(180deg, #e9e9ee, #d3d3db); }
 .gslot[data-state='cleared'] .gslot-tag { border-color: #7fd18b; }
 .gslot[data-state='draft'] .gslot-tag { border-style: dashed; }
+/* Signed out (a guest or no session): the banner above the slots. The Sign in button borrows `.crate-btn`. */
+.gstage-guest {
+  display: flex; align-items: center; justify-content: center; gap: 18px; margin: -6px auto 22px; padding: 10px 14px 10px 22px;
+  border-radius: 14px; border: 2px solid color-mix(in srgb, var(--gold) 60%, #000); background: rgba(20, 8, 8, 0.72);
+  color: #f6efe2; font-family: var(--font-ui); font-weight: 700; font-size: 16px; line-height: 1.35;
+}
 
 /* MODE title — scale + nudge from the tuner (fallbacks = shipped: no-op). */
 .mptitle { transform: translate(var(--mp-title-x, 0px), var(--mp-title-y, -30px)) scale(var(--mp-title-s, 1.23)); }
@@ -12643,6 +12649,13 @@ body:has(.heroselect.rankend) .pixifx-above { z-index: 470; }
 .gauntletend .hstitle { font-size: 104px; }
 .gauntletend-unlock { margin-top: 14px; font-family: var(--font-ui); font-weight: 800; font-size: 22px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--gold); }
 .gauntletend-reward { margin-top: 24px; }
+/* The clear's crate line (`GauntletClearReward`): the granted crate beside its Open in Collection button, or one
+   plain note (saving / sign-in). The crate art is the Collection bay's `.colls-crate`, static here. */
+.gauntletend-crate { display: flex; align-items: center; justify-content: center; gap: 22px; }
+.gauntletend-crate.earned .colls-crate { transform: scale(0.8); }
+.gauntletend-crate-body { display: flex; flex-direction: column; align-items: flex-start; gap: 10px; }
+.gauntletend-crate-head { font-family: var(--font-ui); font-weight: 900; font-size: 26px; letter-spacing: 0.06em; text-transform: uppercase; color: #ffe08a; }
+.gauntletend-crate-note { font-family: var(--font-ui); font-weight: 700; font-size: 18px; color: rgba(255, 246, 228, 0.86); }
 .gauntletend-actions { display: flex; align-items: center; justify-content: center; gap: 24px; }
 .gauntletend-home { background: rgba(255, 255, 255, 0.06); border-color: color-mix(in srgb, var(--gold) 55%, #000); box-shadow: 0 7px 0 color-mix(in srgb, var(--gold) 40%, #000), 0 14px 34px -8px rgba(0, 0, 0, 0.55); }
 .gauntletend-home:hover { background: rgba(255, 255, 255, 0.12); }

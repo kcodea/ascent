@@ -47,6 +47,7 @@ import { SOURCE_CASCADE_MS, sourceCascadeRanks, steppedRevealPlan, type RevealSt
 import { authoredBuffDefFor, bindingFor, heroPowerBuffLabelFor, labelBuffFxFor, sourceBuffDefFor, castFxReplacesTendril } from './choreo/bindings';
 import { isRuneBuffSource } from '@game/sim';
 import { anchorsForUnits } from './fx/combatAnchors';
+import { spellPowerNarrationAnchor } from './choreo/spellPowerAnchor';
 import { getDef } from './fx/fxDefs';
 import { WATCHER_PULSE_DEF_ID, watcherPixiReady } from './fx/watcherPulse';
 import { watcherPulseUids } from './choreo/channels/watcherPulse';
@@ -1141,6 +1142,14 @@ function scheduleEchoVolleys(defId: string, dyingUid: string, startIdx: number, 
   });
 }
 
+/** The player's hero-power button as a flourish anchor (one rect read per narration, never per frame). */
+function heroPowerAnchor(): { cx: number; cy: number; w: number; h: number } | null {
+  const el = document.querySelector<HTMLElement>('.statusbar .heropanel:not(.heropanel2):not(.equipslot) .heropowerbtn')
+    ?? document.querySelector<HTMLElement>('.statusbar .heropowerbtn');
+  const r = el?.getBoundingClientRect();
+  return r && (r.width > 0 || r.height > 0) ? { cx: r.left + r.width / 2, cy: r.top + r.height / 2, w: r.width, h: r.height } : null;
+}
+
 /**
  * The combat-replay engine, decoupled from layout. Folds `combat`'s event log into a
  * beat-by-beat animation: `active` gates whether the clock is ticking (so the caller
@@ -1275,13 +1284,11 @@ export function useCombatReplay(
     playerUids: ReadonlySet<string>,
     anchorOf: (uid: string) => { cx: number; cy: number; w: number; h: number } | null,
   ): void => {
-    if (!e || e.type !== 'sc' || !e.source || !e.text) return;
-    const m = /^\+(-?\d+)\/\+(-?\d+) Spell Power$/.exec(e.text);
-    if (!m) return;
-    const gA = Number(m[1]), gH = Number(m[2]);
-    if (gA <= 0 && gH <= 0) return;
-    if (!playerUids.has(e.source)) return;
-    const a = anchorOf(e.source);
+    const at = spellPowerNarrationAnchor(e, playerUids);
+    if (!at) return;
+    const gA = at.attack, gH = at.health;
+    // A HERO-POWER grant (Hunch × Ancient of Death) plays over the power button, never on the board (owner 2026-09-30).
+    const a = at.kind === 'heroPower' ? heroPowerAnchor() : anchorOf(at.uid);
     if (!a) return;
     const { cx, cy, h } = a; // SLOT — the source can be mid-lunge when its spell power rises
     pixiFx.spellPower(cx, cy, getSpellPowerFxConfig());
@@ -2169,6 +2176,7 @@ export function useCombatReplay(
       // lunge's wind-up pause instead (see the attack layout effect), so it reads at the swing, not beat-start.
       // A `shout` pulses through `onShoutProc` (the re-triggering unit + the Shout's owner), not the white trigger.
       if (e.type === 'shout') continue;
+      if (e.type === 'sc' && e.heroPower) continue; // a hero-power grant pulses no body (it plays at the power button)
       if ((e.type === 'sc' || e.type === 'buff' || e.type === 'keyword') && e.source) trig.add(e.source);
       else if ((e.type === 'summon' || e.type === 'toHand') && e.source) trig.add(e.source);
       else if (e.type === 'improve' || e.type === 'maxGold' || e.type === 'hpGrant' || e.type === 'reborn') trig.add(e.target);

@@ -1617,7 +1617,11 @@ export function simulate(
       if (edges) {
         const alive = living(side);
         const ends = alive.length <= 1 ? alive : [alive[0]!, alive[alive.length - 1]!];
-        for (const m of ends) ctx.buff(m, edges.attack, edges.health, edges.label);
+        // Not the cast's own buff: clear the cast-in-flight mark so the grant carries no `spellId` (a spell with its own
+        // cast effect, e.g. Growth, replaces every tendril its buffs carry; this one must keep the hero-power tendril).
+        const casting = ctx.castingSpellId;
+        ctx.castingSpellId = undefined;
+        try { for (const m of ends) ctx.buff(m, edges.attack, edges.health, edges.label); } finally { ctx.castingSpellId = casting; }
       }
       bus.emit('spellCast', { side, count: spellTotals[side] });
     },
@@ -5177,7 +5181,9 @@ export function simulate(
   // ANCIENT OF DEATH × Hunch (owner 2026-09-30): "Avenge (4) Improve your spells by +1/+1." The Rune of Appraisal
   // shape through the same Avenge bus: every `every`th friendly death this fight, Rune of Mastery's improve reps and
   // one extra fire per Rune of Fury copy. Sourced at the death that completed the count, so the replay's
-  // "+A/+H Spell Power" flourish (and every live spell number) ticks on that beat (R-REALTIME-01).
+  // "+A/+H Spell Power" narration (and every live spell number) ticks on that beat (R-REALTIME-01). Owner 2026-09-30:
+  // the flourish plays AT THE HERO POWER, not on the board, so the narration is stamped `heroPower` and the grant
+  // itself goes through silently (no body-anchored narration).
   bus.on('avenge', (payload) => {
     const { side, count, victim } = payload as { side: Side; count: number; victim?: Minion };
     const d = modsFor(side).ancientAvengeSpells;
@@ -5188,7 +5194,8 @@ export function simulate(
       const a = d.attack * r, h = d.health * r;
       ancientSpellImproved[side].attack += a;
       ancientSpellImproved[side].health += h;
-      ctx.grantSpellPower(a, h, side, victim?.uid);
+      ctx.grantSpellPower(a, h, side, undefined);
+      if (side === 'player') emit({ type: 'sc', source: victim?.uid ?? '', text: `+${a}/+${h} Spell Power`, side, heroPower: true });
     }
   });
   runeAvenge(3, 'runeAppraisal', (m) => !!m.runeAppraisal, (side) => { const r = ctx.improveRepsFor(side); ctx.grantSpellPower(r, r, side, undefined); }, true); // "improve your spells +1/+1" — ×2 under Rune of Mastery

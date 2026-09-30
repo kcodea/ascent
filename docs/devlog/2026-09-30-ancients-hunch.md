@@ -10,7 +10,7 @@ it. Hunch already had an awakening style (the Echo copy) and a gate palette, so 
 
 | Ancient | Owner's words | What it does |
 | --- | --- | --- |
-| Death | "Avenge (4) Improve your spells by +1/+1." | Every 4th friendly death in a fight improves your spells +1/+1 through `grantSpellPower`, the Rune of Appraisal shape (Rune of Mastery's improve reps, Rune of Fury's extra fire). Narrated as "+1/+1 Spell Power" on the death that completed the count, so every live spell number ticks there. |
+| Death | "Avenge (4) Improve your spells by +1/+1." | Every 4th friendly death in a fight improves your spells +1/+1 through `grantSpellPower`, the Rune of Appraisal shape (Rune of Mastery's improve reps, Rune of Fury's extra fire). Narrated as "+1/+1 Spell Power" at the hero power on the death that completed the count, so every live spell number ticks there. |
 | Fortune | "Rounded Spellbook also increases max gold by 1." | Each use that hands over its copy adds 1 to `maxGoldBonus` (the Gold Font channel: above the natural curve, no Gold this turn). |
 | War | "Shop Spells cast an additional time in combat" | Runebloom Matriarch's rule from the hero: `QuestCombatMods.ancientSpellCastExtra` seeds `spellCastExtra`, the `castInCombat` repetition channel, for the whole fight. |
 | Genesis | "Casting 5 spells resets rounded spellbook at 1g" | A running spell count since the pick (every phase). Every 5th recharges Rounded Spellbook (usable again if used this turn) and sets its price to 1 Gold, never raising a lower price; it keeps shrinking 1 per turn from there. |
@@ -48,8 +48,21 @@ Every visible consequence has its beat, on existing defs and channels (no new ar
   leaves the hero-power button for each end (`Recruit.tsx` `replayBuffFxEvents`). **Combat**: the grant is labelled
   `Rounded Spellbook` (`HUNCH_BONDS_COMBAT_LABEL`), a `HERO_POWER_BUFF_LABELS` key, so the replay plays the same
   tendril from the button (Emissary's United Front route), one per cast.
-- **Death**: the "+1/+1 Spell Power" narration at the death that completed the Avenge: the existing spell-power
-  flourish at that slot, the held spells' pop, and every printed spell number ticking on that beat.
+- **Bonds had no tendrils in the real game** (owner on 5173, the same day) while every sim test passed. Three causes, all
+  in the presentation layer:
+  - Shop: `coalesceBuffFxByTarget` keeps one record per target, so a stat spell's own record (Growth) swallowed the
+    Bonds record for the same minion. Hero-power records now keep their own key.
+  - Shop: the replay scheduled its lands by target uid, so two records on one target played the later one twice. It
+    now keys each land by its record.
+  - Combat: the Bonds buff was emitted inside the cast, so it inherited the cast's `spellId`, and Growth's cast effect
+    replaces every tendril its buffs carry. The buff is now emitted with the cast mark cleared.
+  `packages/ui/src/ancientsHunchFx.test.ts` drives these real presentation decisions from the sim's events and records.
+- **Death** (owner on 5173: "have the avenge tally in the center of the hero power in combat, and make the +1/+1 show
+  there as well, not in board"): the Avenge (4) countdown sits in the centre of the power on Frank × War's disc
+  (`.hpb-avenge`, the same rule as the Frank branch), live through the fight (`fxFriendlyDeathPreview`) and back to 4
+  after each trigger; it reads 4 in the Shop, since the count is per combat. The "+1/+1 Spell Power" narration is
+  stamped `heroPower`, so the flourish and the float play over the power button (`spellPowerNarrationAnchor`) and no
+  body pulses.
 - **Fortune**: the authored `coin` burst out of the Gold pill on each use (`bookGoldFxSeq`).
 - **Genesis**: the authored `hero-power-spark` plus the pulse cue on the button at each recharge (`rechargeFxSeq`),
   and the live countdown in the power text.

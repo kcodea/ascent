@@ -3961,6 +3961,24 @@ body.dragging .statusbar .heropanel { pointer-events: none; } /* let a corner-re
    Colour only (no per-frame paint). The owner's authored cue is a Pixi loop on the slot button, not CSS
    (`useAmplifiedSlotFx`, 2026-09-22); `[data-fx="equipment-amplified"]` on the tally stays as the tooling mark. */
 .hpwrap .hpb-tally.amplified { color: #7fc4ff; }
+/* ANCIENT AVENGE COUNTDOWN in the CENTRE of the power (owner 2026-09-30: Frank × War's Avenge (3), Hunch × Death's
+   Avenge (4)), on a small dark disc with a crimson rim so it reads over any art. Static paint; each change re-keys it
+   and plays the one-shot centred bump (transform only). Identical to the Frank branch's rule, so the two converge. */
+.hpwrap .hpb-center.hpb-avenge {
+  width: calc(40 * var(--u)); height: calc(40 * var(--u)); box-sizing: border-box;
+  display: grid; place-items: center; border-radius: 50%;
+  background: rgba(14, 12, 18, 0.78);
+  border: calc(3 * var(--u)) solid #c9363b;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.6);
+  font-size: calc(24 * var(--u)); font-weight: 900; color: #fff1d6;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.9);
+  animation: avengecenterbump 220ms ease-out;
+}
+@keyframes avengecenterbump {
+  0% { transform: translate(-50%, -50%) scale(1); }
+  45% { transform: translate(-50%, -50%) scale(1.22); }
+  100% { transform: translate(-50%, -50%) scale(1); }
+}
 .equipslot .hplabel {
   transform: translate(calc(var(--eqn-x, 0) * 1px), calc(var(--eqn-y, 0) * 1px)) scale(var(--eqn-scale, 1)); }
 /* THE CLOCK-WINDOW READOUT (Thymepiece, 2026-09-12): a pill — "−1 Gold · 6s" — in the same discount GREEN the

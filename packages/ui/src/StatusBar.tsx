@@ -7,7 +7,7 @@ import { renameTerms } from './terms';
 import { Card, mdBold } from './Card';
 import { instView } from './instView';
 import { ANCIENTS, dragonTamerCostOf, heroPowerCostOf, INDY_GILD_RECHARGE_GOLD, KESHI_CROWN_THRESHOLD, roundedSpellbookCostOf, allInPayoutOf, exhibitionGrantOf, tempestGrantOf, bladeMasteryGrantOf, hoardWhelpStatsOf, TEMPEST_KILLS_PER_STEP, BLADE_ATTACKS_PER_STEP, heroPowerText, commissionOffer, COMMISSION_NAME, COMMISSION_REWARD, COMMISSION_DELAY, getHero, spellAmplifyBonus, spellAttackBonusLive, spellHealthBonusLive, spellEscalationLive, rubyStatBonus, heroPowerLockTurns, activePowers, type RunState, type HeroPower } from '@game/sim';
-import { henchmanOffer } from '@game/sim';
+import { henchmanOffer, ancientSpellbookAvengeLeft } from '@game/sim';
 import { equipmentWillAmplify, equipmentCostOf, equipmentPool, equipmentState, equipmentText, equipmentUsesLeft, selectedEquipment, selectedEquipmentDef } from '@game/sim';
 import { CARD_INDEX, EQUIPMENT_INDEX } from '@game/content';
 import type { Keyword } from '@game/core';
@@ -575,7 +575,10 @@ export function StatusBar() {
   // A live MAGNITUDE printed on the power art itself (the pill above it carries progress). Odelle only, for
   // now — the slot exists because "how much is this giving me" and "how close is the next step" are two
   // different questions, and one pill cannot answer both (owner ask 2026-08-22).
-  const powerCenter = heroPowerCenterOf(power, run, combatEnemyDeaths);
+  // HUNCH × ANCIENT OF DEATH (owner 2026-09-30): the Avenge (4) countdown owns the centre readout, live through the fight
+  // on screen (the replay's friendly deaths), back to 4 after each trigger. The same disc as Frank × War's countdown.
+  const avengeLeft = power.kind === 'roundedSpellbook' && run.ancientsEnabled ? ancientSpellbookAvengeLeft(run) : null;
+  const powerCenter = avengeLeft != null ? String(avengeLeft) : heroPowerCenterOf(power, run, combatEnemyDeaths);
   // The big line under the hero name: what tapping the power does *right now*.
   const powerLine = isPassive
     ? power.kind === 'spellAmplify'
@@ -863,7 +866,7 @@ export function StatusBar() {
                 RIGHT NOW. Suppressed while the Gambler's die owns the centre, so two heroes can never both
                 claim the slot (only reachable at all through a Void holding both). */}
             {powerCenter && dieRoll == null && diceHeld == null && (
-              <span key={powerCenter} className="hpb-tally hpb-center">{powerCenter}</span>
+              <span key={powerCenter} className={`hpb-tally hpb-center${avengeLeft != null ? ' hpb-avenge' : ''}`} data-testid={avengeLeft != null ? 'spellbook-avenge' : undefined}>{powerCenter}</span>
             )}
             {/* CASSEN'S COMMISSION PICKER — reuses the Discover overlay's shell so it reads as the same kind of
           decision, but its options are plain text tiles rather than cards (a commission is not a card). Only

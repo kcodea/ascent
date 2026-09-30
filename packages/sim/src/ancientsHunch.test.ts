@@ -7,7 +7,7 @@ import { describe, expect, it } from 'vitest';
 import { CARD_INDEX } from '@game/content';
 import { combatSide, makeRng, simulate, type BoardMinion, type CombatEvent, type CombatResult, type QuestCombatMods } from '@game/core';
 import {
-  ANCIENT_IDS, HUNCH_BONDS_COMBAT_LABEL, ancientCombatMods, ancientOfferText, createRun, enableAncients, heroPowerText, reduce, roundedSpellbookCostOf, spellCasts,
+  ANCIENT_IDS, HUNCH_BONDS_COMBAT_LABEL, ancientCombatMods, ancientSpellbookAvengeLeft, ancientOfferText, createRun, enableAncients, heroPowerText, reduce, roundedSpellbookCostOf, spellCasts,
   type AncientId, type BoardCard, type BoardSnapshot, type RunState,
 } from './index';
 import { noteSpellForCountRunes } from './recruit';
@@ -79,10 +79,19 @@ describe('Hunch × DEATH — Avenge (4): improve your spells by +1/+1', () => {
     expect(deaths.length).toBe(4);
     const grant = ev.findIndex((e) => e.type === 'sc' && e.text === '+1/+1 Spell Power');
     expect(grant, 'the improvement is narrated live').toBeGreaterThan(deaths[3]!.i);
+    const sc = ev[grant] as Extract<CombatEvent, { type: 'sc' }>;
+    expect(sc.heroPower, 'owner 2026-09-30: it plays at the hero power, not on the board').toBe(true);
+    expect(ev.filter((e) => e.type === 'sc' && /Spell Power/.test(e.text)).length, 'no second, board-anchored narration').toBe(1);
     expect(s.lastCombat!.playerAncientSpellImproved).toEqual({ attack: 1, health: 1 });
     s = reduce(s, { type: 'resolveCombat' });
     expect(s.spellBonus).toEqual({ attack: before.attack + 1, health: before.health + 1 });
     expect(s.ancients!.spellImproved).toEqual({ attack: 1, health: 1 });
+  });
+  it('the centre tally counts down the deaths still needed, live, and resets after each trigger', () => {
+    const s = picked('death');
+    const left = (d: number | undefined): number | null => ancientSpellbookAvengeLeft({ ...s, fxFriendlyDeathPreview: d });
+    expect([left(undefined), left(1), left(2), left(3), left(4), left(5), left(8)]).toEqual([4, 3, 2, 1, 4, 3, 4]);
+    expect(ancientSpellbookAvengeLeft(picked('war')), 'only with Death').toBeNull();
   });
   it('three deaths are not enough', () => {
     const board = Array.from({ length: 3 }, (_, i) => card(`m${i}`, T1, { attack: 1, health: 1 }));

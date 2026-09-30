@@ -746,6 +746,18 @@ function hunchLive(state: RunState): { avengeNow: number; deathA: number; deathH
   return { avengeNow, deathA, deathH, genesisLeft };
 }
 
+/**
+ * HUNCH × DEATH: friendly deaths still needed for the next Avenge (4) in the fight on screen (the replay's
+ * `fxFriendlyDeathPreview`, live; the full 4 outside a fight, since the Avenge count is per combat). Null when Death is
+ * not the picked pairing. The hero power prints it in its centre (owner 2026-09-30).
+ */
+export function ancientSpellbookAvengeLeft(state: RunState): number | null {
+  const e = live(state) ? effectOf(state, 'avengeImproveSpells') : undefined;
+  if (!e) return null;
+  const every = Math.max(1, e.every);
+  return every - ((state.fxFriendlyDeathPreview ?? 0) % every);
+}
+
 // ── Hooks ────────────────────────────────────────────────────────────────────────────────────────────────────
 /**
  * The `gild` hero power resolving on `card`. Returns true when the Ancient REPLACED the gild (Genesis), so the

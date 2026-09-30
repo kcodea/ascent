@@ -4876,12 +4876,16 @@ export function Recruit() {
     // strobing. Events are indexed so a land can find the event it belongs to (a land carries a uid, and a
     // wave can hold several events for different targets).
     const ordered = [...waves.keys()].sort((a, b) => a - b).map((k) => waves.get(k)!);
-    const byUid = new Map(coalesced.map((ev) => [ev.targetUid, ev]));
+    // Each land carries its EVENT's index, not the target uid: two records on one target (a stat spell's descend and
+    // Hunch × Bonds' hero-power tendril, kept apart by `coalesceBuffFxByTarget`) must each play once, where a uid key
+    // played the later one twice and dropped the other.
+    const keyOf = new Map(coalesced.map((ev, i) => [ev, String(i)]));
+    const byKey = new Map(coalesced.map((ev, i) => [String(i), ev]));
     for (const land of scheduleLands(
-      asWaves(ordered.map((wave) => wave.map((ev) => ({ uid: ev.targetUid })))),
+      asWaves(ordered.map((wave) => wave.map((ev) => ({ uid: keyOf.get(ev)! })))),
       { gap: staggerMs, maxGroups: getBuffFxConfig().waveMaxCount },
     )) {
-      const ev = byUid.get(land.uid);
+      const ev = byKey.get(land.uid);
       if (!ev) continue;
       if (land.at <= 0) fireOne(ev);
       else window.setTimeout(() => fireOne(ev), land.at);
@@ -4906,7 +4910,8 @@ export function Recruit() {
     const owned = (rubyOwned.size > 0 || aleOwned.size > 0) ? new Set<string>([...rubyOwned, ...aleOwned]) : null;
     // An Ale's claim covers only the SPELL-kind entries on its targets: a reaction the Ale caused on the same
     // body (Kneel's self-buff) is a separate cue that still plays as itself.
-    const owned0 = owned ? run.recruitBuffFx.filter((e) => !(rubyOwned.has(e.targetUid) || (aleOwned.has(e.targetUid) && e.kind === 'spell' && !e.sourceRuneId && !e.castByUid))) : run.recruitBuffFx;
+    // A HERO POWER's grant (`fromHeroPower`, Hunch × Bonds) is never the Ruby's or the cast's: it keeps its own tendril.
+    const owned0 = owned ? run.recruitBuffFx.filter((e) => e.fromHeroPower || !(rubyOwned.has(e.targetUid) || (aleOwned.has(e.targetUid) && e.kind === 'spell' && !e.sourceRuneId && !e.castByUid))) : run.recruitBuffFx;
     // A record a START OF TURN beat captured is presented BY that beat, after the wipe (R-SOT-BEAT-01): the same
     // objects ride `sotBeatFx[i].buffFx`, so they are left out of this wave rather than played twice.
     const sotOwned = run.sotBeatFx?.length ? new Set(run.sotBeatFx.flatMap((b) => b.buffFx ?? [])) : null;
@@ -7005,7 +7010,8 @@ export function Recruit() {
     // A RUNE'S cast in the same action (Rune of Might answering this cast) is not this cast's: it plays from its
     // own rune node (`sourceRuneId`), so it neither joins this volley nor gets claimed out of the buff replay.
     // A MINION'S cast in the same action (`castByUid`: a Sporebat re-casting it) is the minion's, likewise.
-    const spellHits = st.recruitBuffFx.filter((e) => e.kind === 'spell' && !e.sourceRuneId && !e.castByUid);
+    // A HERO POWER's grant the cast set off (`fromHeroPower`, Hunch × Bonds) is not the cast's own: it plays its tendril.
+    const spellHits = st.recruitBuffFx.filter((e) => e.kind === 'spell' && !e.sourceRuneId && !e.castByUid && !e.fromHeroPower);
     const targets = Array.from(new Set(spellHits.map((e) => e.targetUid)));
     if (targets.length > 0) spellCastOwnedRef.current = { seq: st.recruitFxSeq, uids: new Set(targets) };
     // `count` is how many BUFFS landed on that body this action, not just that it was hit — a multicast spell

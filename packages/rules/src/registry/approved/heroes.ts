@@ -440,7 +440,7 @@ export const HEROES_RULES: GameRule[] = [
     id: 'R-ANCHUNCH-01',
     title: 'Hunch × Ancient of Death: Avenge (4), improve your spells by +1/+1',
     statement:
-      'With the Ancient of Death, every 4th friendly death in a combat improves your spells by +1/+1 (spell power, permanent), the moment the 4th death lands, through the same channel as Rune of Appraisal: Rune of Mastery multiplies the improvement and Rune of Fury fires it again. Avenge is a combat keyword, so this counts combat deaths only. The power text prints the Avenge progress and the total improvement so far, live during the fight.',
+      'With the Ancient of Death, every 4th friendly death in a combat improves your spells by +1/+1 (spell power, permanent), the moment the 4th death lands, through the same channel as Rune of Appraisal: Rune of Mastery multiplies the improvement and Rune of Fury fires it again. Avenge is a combat keyword, so this counts combat deaths only. The power text prints the Avenge progress and the total improvement so far, live during the fight. The hero power shows the deaths still needed in its centre, counting down live and back to 4 after each trigger, and the +1/+1 plays at the hero power, never on the board (owner 2026-09-30).',
     domain: 'heroes',
     status: 'approved',
     evidence: [

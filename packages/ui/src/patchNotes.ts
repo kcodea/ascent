@@ -59,6 +59,10 @@ export const PATCH_NOTES: PatchNote[] = [
     date: '2026-09-30',
     changes: [
       {
+        category: 'Systems',
+        text: '32 new skins in crates: 16 hero skins, including the first for Ayse, Braum, Darah, Emerald Warden, Hunch, Keshi, Soren, Brackus and Robin, and 16 minion skins.',
+      },
+      {
         category: 'Balance',
         text: 'Ranked opponents now match your medal. Board strength shows in your match history.',
         details: [

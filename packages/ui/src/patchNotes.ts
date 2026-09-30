@@ -75,6 +75,10 @@ export const PATCH_NOTES: PatchNote[] = [
       },
       {
         category: 'Systems',
+        text: 'You can now face your own past games in Ranked and Practice, up to 4 of the 7 seats, like any other player.',
+      },
+      {
+        category: 'Systems',
         text: 'The lobby strength number is hidden from match history for now while we improve it.',
       },
       {
@@ -83,6 +87,15 @@ export const PATCH_NOTES: PatchNote[] = [
         details: [
           'The bar shows real progress: every card, hero, rune and frame is ready before the menu opens.',
           'On a slow connection the first load takes longer. After that the game loads from your browser in a moment.',
+        ],
+      },
+      {
+        category: 'Systems',
+        text: 'Nothing But Net: the hoop is fixed and the Huge version is longer and bigger.',
+        details: [
+          'The hoop is one piece again, with the backboard behind the rim, and it always sits on the hero being hit.',
+          'Huge: your hero drills a three, moves up for a pass and drills another, then chest passes the ball off the backboard, leaps, catches the rebound at half court in slow motion and flies in for the slam.',
+          'The ball always gets there before your hero, and the slam is one smooth flight into the explosion.',
         ],
       },
     ],

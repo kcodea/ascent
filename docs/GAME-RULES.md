@@ -440,12 +440,16 @@ progression **epoch**; nothing finished before the epoch counts (no backfill).
   screen the spot faces and it catches it, pump fakes, dribbles back and pulls up for a long high three in a moment of
   slow motion that eases back as the ball flies, and it swishes (a bigger swish, rings, confetti and the crowd's "ooh"),
   then slides home. The roll comes from the run seed and the round, so a replay rolls the same. IV the self
-  alley-oop: from its slot it fires the ball fast and flat at the hoop over the struck hero, the ball clangs off the
-  backboard beside the portrait (never its face; the struck hero does not react until the slam) and bounces high, the striker takes a quick run-up and leaps, catches the ball at the top
-  in slow motion, and the clock eases back in, a touch faster than normal, for the slam down into an explosion: a fireball, shockwave rings, debris and sparks, the backboard's glass, the whole
-  board shaking, the crowd roaring (the blow lands on the slam). Sneaker squeaks on every push-off and stop, dribbles, the swish, the
-  rim and the slam are heard. Every point it visits stays on screen and every shot and slam lands on the struck hero's
-  centre; its portrait is restored exactly after (on the end, a skip or leaving the fight). The slow motion is a smooth
+  alley-oop: from its slot it drills a pull-up three (swish), rotates up court to the rolled spot, takes a pass and drills
+  another (swish; both are ticks, no damage, the crowd building), rotates back to its slot, then fires a hard chest pass
+  that bangs the backboard (the board wobbles; the struck hero does not react) and rebounds out to half court, where the
+  ball arrives first; the striker crouches deep, charging up, and LAUNCHES (a shock ring of dust, speed lines, a building
+  aura), catches the ball in the air at half court in deep slow motion, and flies in one fluid, accelerating slam through
+  the rim onto the struck hero: an explosion (a fireball, shockwave rings, debris and sparks, the backboard's glass, the
+  whole board shaking, the crowd roaring). The blow lands on the slam. Sneaker squeaks on every push-off and stop, dribbles, the swish, the
+  rim and the slam are heard. The hoop is ONE assembly (the backboard behind the rim, the rim on its lower centre, the
+  net hanging from it) and it always hangs on the struck hero's portrait, in both directions. Every point it visits
+  stays on screen and every shot and slam lands on the struck hero's centre; its portrait is restored exactly after (on the end, a skip or leaving the fight). The slow motion is a smooth
   ramp of the whole attack's clock, never a freeze. **Card Shark** and
   **Storm Call** (2026-09-29; R-PROG-ATTACK-26, R-PROG-ATTACK-27) are the first EPIC hero attacks: one idea each, shorter
   than the Legendaries, and THREE looks instead of four (they read the same shared tier and map it: I small, II and III

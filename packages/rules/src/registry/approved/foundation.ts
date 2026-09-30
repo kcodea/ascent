@@ -3391,6 +3391,7 @@ export const FOUNDATION_RULES: GameRule[] = [
     domain: 'foundation',
     status: 'approved',
     evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-30 (local dev server: every re-checked image replayed the fade)', quote: 'im getting a ton of that fading pop in on my local server, like a ton' },
       {
         kind: 'owner-chat',
         ref: 'Claude Code session, 2026-09-29 (friends playing the Netlify build)',

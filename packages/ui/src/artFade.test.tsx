@@ -56,7 +56,7 @@ describe('FadeImg / useArtFade', () => {
     expect(img().className).toBe('mcframe-art');
   });
 
-  it('a NEW element for an already-decoded URL that is not complete yet (a no-cache revalidation) is hidden until it loads', async () => {
+  it('a NEW element for an already-decoded URL that is not complete yet (a no-cache revalidation) is hidden until it loads, then appears with NO fade (owner 2026-09-30: "a ton of that fading pop in on my local server")', async () => {
     requestArt('/art/revalidating.webp', 'set');
     decodes.splice(0).forEach((d) => d());
     await flush();
@@ -67,7 +67,7 @@ describe('FadeImg / useArtFade', () => {
     act(() => { img().dispatchEvent(new Event('load')); });
     decodes.splice(0).forEach((d) => d());
     await flush();
-    expect(img().className).toBe('lobbyface art-fadein');
+    expect(img().className).toBe('lobbyface'); // already-decoded art never replays the fade
   });
 
   it('the on-screen <img> finishing first settles it (markArtReady), and a broken file never stays hidden', async () => {

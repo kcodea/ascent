@@ -38,7 +38,7 @@ if (import.meta.env.DEV) {
 }
 import { chooseBothText } from './cardText';
 import { relatedCardIds, relatedPickOneIds } from './cardRefs';
-import { type Action, grimToastFold, unityAuraFold, EQUIPMENT_FX_ANCHOR, ancientRiseTint, spiritsPlayedThisTurn, anySpellsCastThisTurn, unusedEquipmentCount, playerOpponent, alignmentsOf, boardHasCelestial, chooseBothActive, chooseBothStateOf, type ChooseBothState, chooseOneNeedsChoice, computeCombatOdds, type CombatOdds, rubyCastCount, giftCastCount, rubyStatBonus, CONFIG, RIFTS, hasTier7Access, maxTierFor, conjuredStats, cardBuff, getHero, isTribe, defIsTribe, magnetizesTo, magnetizeTargets, endOfTurnRepeats, endOfTurnTicksOf, projectEndOfTurnSteps, questEndOfTurnBeats, sellValueWithBonus, spellDisplayText, chooseOneBranchText, spellAttackBonus, spellHealthBonus, spellAttackBonusLive, spellHealthBonusLive, spellEscalationLive, squirlScoutBuffLive, spellCasts, runeExtraCasts, spellCostReduction, implosionCasts, dragonflameCasts, minionCostOf, heroOfferPrice, offerBuyPrice, dominantBoardTribe, effectiveTargetTribe, boardManaBonus, upgradeCostOf, nextRefreshCostOf, poolOf, type RunState, type ShopCard, type CardBuff, type BoardCard, type BoardSnapshot, gildCopiesNeeded, activePowers, gateUses, runeStacksOf, starformSpellAimsToken, createOddsProbe, selectedEquipment, selectedEquipmentDef } from '@game/sim';
+import { type Action, grimToastFold, unityAuraFold, EQUIPMENT_FX_ANCHOR, ancientRiseTint, spiritsPlayedThisTurn, anySpellsCastThisTurn, unusedEquipmentCount, playerOpponent, alignmentsOf, boardHasCelestial, chooseBothActive, chooseBothStateOf, type ChooseBothState, chooseOneNeedsChoice, computeCombatOdds, type CombatOdds, rubyCastCount, giftCastCount, rubyStatBonus, CONFIG, RIFTS, hasTier7Access, maxTierFor, conjuredStats, cardBuff, getHero, isTribe, defIsTribe, magnetizesTo, magnetizeTargets, endOfTurnRepeats, endOfTurnTicksOf, projectEndOfTurnSteps, questEndOfTurnBeats, sellValueWithBonus, spellDisplayText, chooseOneBranchText, spellAttackBonus, spellHealthBonus, spellAttackBonusLive, spellHealthBonusLive, spellEscalationLive, squirlScoutBuffLive, spellCasts, runeExtraCasts, spellCostReduction, implosionCasts, dragonflameCasts, minionCostOf, heroOfferPrice, offerBuyPrice, dominantBoardTribe, effectiveTargetTribe, boardManaBonus, upgradeCostOf, nextRefreshCostOf, poolOf, type RunState, type ShopCard, type CardBuff, type BoardCard, type BoardSnapshot, gildCopiesNeeded, activePowers, gateUses, runeStacksOf, starformSpellAimsToken, createOddsProbe, COMBAT_ODDS_SIMS, runLossCap, selectedEquipment, selectedEquipmentDef } from '@game/sim';
 import { createPortal } from 'react-dom';
 import { setCardId, setCardStats, toggleCardKeyword, setEnemyStats, setEnemyCardId, toggleEnemyKeyword, toggleEnemyGolden, removeEnemy, foeSnapshotOf } from './sandboxEdit';
 import { UnitEditor } from './UnitEditor';
@@ -67,6 +67,7 @@ import { instView, liveCardText, type LiveTextParams } from './instView';
 import { diffHandBuffs, fireHandBuff, fireHandBuffOnHandSpells, fireHandBuffOnHandRubies } from './handBuffFx';
 import { HudBar } from './HudBar';
 import { LobbyPanel } from './LobbyPanel';
+import { GauntletPanel } from './gauntlet/GauntletPanel';
 import { CombatOpponent } from './CombatOpponent';
 import { playHeroBlast } from './heroBlast/heroBlast';
 import type { HeroAttackHandle } from './heroAttack/options';
@@ -2187,6 +2188,8 @@ export function Recruit() {
   // combat is mounted. Keyed on the lastCombat OBJECT (a new fight is a new object), and it also covers a
   // resumed mid-combat run (oddsInput is serialized with the save). Legacy saves with baked odds short-cut.
   const [combatOdds, setCombatOdds] = useState<CombatOdds | null>(null);
+  // The run's own loss cap (the Gauntlet has its own table), so the odds cap each sim as the real fight would.
+  const oddsLossCap = runLossCap(run);
   useEffect(() => {
     const lc = run.lastCombat;
     setCombatOdds(lc?.odds ?? null); // legacy pre-deferral saves carry odds inline
@@ -2203,7 +2206,7 @@ export function Recruit() {
     const ODDS_YIELD_MS = 4;          // keep stepping only while the idle deadline has more than this left
     const ODDS_SLICE_TIMEOUT_MS = 200; // rIC timeout per callback — a saturated main thread still drains a step every 200 ms
     const ODDS_FALLBACK_MS = 32;      // no rIC: one step every couple of frames
-    const probe = createOddsProbe(input, run.seed, run.wave);
+    const probe = createOddsProbe(input, run.seed, run.wave, COMBAT_ODDS_SIMS, oddsLossCap);
     const hasRIC = typeof requestIdleCallback === 'function';
     let idleId = 0; let timerId = 0;
     const slice = (deadline?: IdleDeadline): void => {
@@ -2236,7 +2239,7 @@ export function Recruit() {
       if (idleId && typeof cancelIdleCallback === 'function') cancelIdleCallback(idleId);
       if (timerId) window.clearTimeout(timerId);
     };
-  }, [run.lastCombat, run.seed, run.wave]);
+  }, [run.lastCombat, run.seed, run.wave, oddsLossCap]);
   const [discoverMin, setDiscoverMin] = useState(false); // B2: the Discover overlay is minimized (inspect the board)
   const [questMin, setQuestMin] = useState(false); // the Quest overlay is minimized (inspect the shop rolled behind it)
   const [forgeMin, setForgeMin] = useState(false);
@@ -7335,7 +7338,11 @@ export function Recruit() {
       {/* LOBBY RAIL — the 8-seat table down the right edge of the stage. A direct child of `.app` (not the HUD
           bar) so it can be anchored to the STAGE height and run tall beside the board, instead of hanging off
           the top-right corner where it had to stay short and wide. */}
-      {run.lobby && <LobbyPanel lobby={run.lobby} />}
+      {/* A GAUNTLET run is a 2-seat table against one authored foe: it shows its own rail (opponent, round / 10,
+          the Gauntlet cap) and no seat list, so there is nothing to scout (GauntletPanel.tsx). */}
+      {run.lobby && (run.mode === 'gauntlet'
+        ? <GauntletPanel lobby={run.lobby} stage={run.gauntletStage} />
+        : <LobbyPanel lobby={run.lobby} />)}
       {/* The foe's face for the duel — drops onto the Refresh button's anchor while the rail slides away
           (owner ask 2026-08-25). Self-gates on lobby + combat. Also the lunge target for the hero strike. */}
       <CombatOpponent />

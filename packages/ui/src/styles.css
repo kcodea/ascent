@@ -10711,6 +10711,20 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 .lobbyarmor { display: inline-flex; align-items: center; gap: calc(1 * var(--lfont)); color: var(--lby-armor-col, #a3a3a3); font-weight: 800; }
 .lobbyarmor svg { width: calc(8 * var(--lfont) * var(--lby-hp-size, 1.45)); height: calc(8 * var(--lfont) * var(--lby-hp-size, 1.45)); }
 .lobbyplace { color: rgba(255, 255, 255, 0.62); font-weight: 700; }
+/* GAUNTLET RAIL (GauntletPanel.tsx) — the lobby rail's shell with no seat table: the stage's opponent (tribe
+   emblem + name) over your own health. Same units as the rail, so the 🪑 Lobby Rail dials scale it too. */
+.gauntletrail-foe { display: flex; align-items: center; gap: calc(6 * var(--lu)); min-width: 0; }
+.gauntletrail-emblem { flex: none; display: grid; place-items: center; width: calc(3.2 * var(--lrow)); height: calc(3.2 * var(--lrow)); }
+.gauntletrail-emblem svg { width: 100%; height: 100%; color: #f0c9b8; filter: drop-shadow(0 2px 5px rgba(0, 0, 0, 0.55)); }
+.gauntletrail-foetext { display: flex; flex-direction: column; min-width: 0; line-height: 1.15; }
+.gauntletrail-stage { font-size: calc(9 * var(--lfont)); font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: var(--lby-alive-col, #f4d58a); }
+.gauntletrail-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #fff;
+  font-size: calc(11 * var(--lfont) * var(--lby-name-size, 1.5)); font-weight: 800; }
+.gauntletrail-you { display: flex; align-items: center; justify-content: space-between; gap: calc(5 * var(--lu));
+  padding-top: calc(4 * var(--lu)); border-top: 1px solid rgba(255, 255, 255, 0.12); }
+.gauntletrail-youlabel { font-size: calc(9 * var(--lfont)); font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: rgba(255, 255, 255, 0.72); }
+/* The seat grid's column offset + reserve do not apply outside a seat row. */
+.gauntletrail .lobbyhp { transform: none; min-width: 0; }
 /* Health / placement sit on row 2 at the right, beside the round-damage number, now the name owns row 1. */
 .lobbyhp, .lobbyplace { grid-column: 3; grid-row: 2; justify-self: start; transform: translateX(calc(var(--lby-hp-x, 7) * var(--lrow))); }
 /* The health number LEFT-aligns at a fixed start toward the right (owner ask 2026-08-28): it reserves a width
@@ -11702,6 +11716,9 @@ body.duel-attacker-opp .combatopp-hp { opacity: 0; }
   background: radial-gradient(circle at 50% 30%, #2c211a, #0e0a07);
 }
 .combatopp-img { width: 100%; height: 100%; object-fit: cover; display: block; }
+/* GAUNTLET: the stage opponent has no hero — its tribe emblem fills the portrait disc instead. */
+.combatopp-emblem { display: grid; place-items: center; width: 100%; height: 100%; }
+.combatopp-emblem svg { width: 62%; height: 62%; color: #f0c9b8; filter: drop-shadow(0 calc(2 * var(--u)) calc(5 * var(--u)) rgba(0, 0, 0, 0.6)); }
 .combatopp-name {
   font-family: var(--font-ui); font-weight: 800; font-size: calc(15 * var(--u)); color: var(--ink);
   background: linear-gradient(180deg, #fff, #f3ead4); border: 2px solid var(--gold); border-radius: 999px;

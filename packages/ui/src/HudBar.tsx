@@ -1,5 +1,5 @@
 import { memo } from 'react';
-import { RIFTS, CONFIG, isCalibrationRound, lossDamageCap, runRecord } from '@game/sim';
+import { RIFTS, CONFIG, isCalibrationRound, runLossCap, runRecord } from '@game/sim';
 import { recordText } from './leaderboardData';
 import { RiftPill } from './RiftPill';
 import { Icon } from './Icon';
@@ -29,11 +29,11 @@ export const HudBar = memo(function HudBar() {
         <span className="wavecol">
           {/* Course/Ascent only (a lobby hides this whole plaque and uses the rail). */}
           <span className="w">ROUND {run.wave} / {CONFIG.courseRounds}</span>
-          {/* The most Health a loss this wave can cost — the round damage cap (see lossDamageCap). Hidden in
+          {/* The most Health a loss this wave can cost — the round damage cap (see runLossCap). Hidden in
               Practice, where Health is unlimited and losses deal no damage. */}
           {!practice && (
             <span className="maxdmg gtip" aria-label="Most Health you can lose if you lose this combat" data-tip="Most Health you can lose if you lose this combat">
-              <Icon name="heart" />{Number.isFinite(lossDamageCap(run.wave)) ? `Max −${lossDamageCap(run.wave)}` : 'No cap'}
+              <Icon name="heart" />{Number.isFinite(runLossCap(run)) ? `Max −${runLossCap(run)}` : 'No cap'}
             </span>
           )}
         </span>

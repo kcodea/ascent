@@ -1,4 +1,4 @@
-import { lossDamageCap, playerLossDamage, playerOpponent, type RunState } from '@game/sim';
+import { playerLossDamage, playerOpponent, runLossCap, type RunState } from '@game/sim';
 
 /**
  * THE BLOW the winning hero lands after a fight, exactly as the engine decided it (moved out of `Recruit.tsx` so
@@ -9,7 +9,7 @@ import { lossDamageCap, playerLossDamage, playerOpponent, type RunState } from '
  * mirror of the same formula (`enemyDamage`), capped the same way.
  */
 export function heroStrikeDamage(run: Pick<RunState, 'lobby' | 'mode' | 'lastCombat' | 'wave'>, won: boolean): number {
-  const cap = lossDamageCap(run.wave);
+  const cap = runLossCap(run); // the run's own cap table (the Gauntlet has its own)
   if (won) return Math.min(run.lastCombat?.enemyDamage ?? 0, cap);
   return run.lobby && run.mode !== 'practice' && run.lastCombat
     ? playerLossDamage(run.lobby, run.lastCombat)

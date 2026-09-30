@@ -1,7 +1,7 @@
 import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import {
-  boardIntel, getHero, lastPlayerEncounter, lastRoundDamage, lossDamageCap, playerOpponent, seatResults, snapshotBoard,
+  boardIntel, getHero, lastPlayerEncounter, lastRoundDamage, playerOpponent, roundLossCap, seatResults, snapshotBoard,
   type LobbySeatState, type RunLobby, type SeatIntel,
 } from '@game/sim';
 import { QUEST_INDEX, RUNE_INDEX } from '@game/content';
@@ -135,7 +135,7 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
         {/* Max loss — the most Health a loss this round can cost (moved here from the removed top-left plaque,
             owner ask 2026-08-11). */}
         <span className="lobbymax gtip gtip-down gtip-end" aria-label="Most Health you can lose if you lose this combat" data-tip="Most Health you can lose if you lose this combat">
-          <Icon name="heart" />{Number.isFinite(lossDamageCap(lobby.round)) ? `−${lossDamageCap(lobby.round)}` : 'No cap'}
+          <Icon name="heart" />{Number.isFinite(roundLossCap(lobby.rules, lobby.round)) ? `−${roundLossCap(lobby.rules, lobby.round)}` : 'No cap'}
         </span>
       </div>
 

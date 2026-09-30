@@ -2,7 +2,7 @@ import { memo, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useGame } from './store';
 import { playerOpponent, getHero } from '@game/sim';
-import { RUNE_INDEX } from '@game/content';
+import { RUNE_INDEX, gauntletStage } from '@game/content';
 import { runeArt, heroPowerArt } from './art';
 import { heroPortrait, opponentSkins, seatCosmetics } from './skins/skins';
 import { PortraitFrame, pfClass, usePortraitFrame } from './portraitFrame/PortraitFrame';
@@ -11,6 +11,7 @@ import { Icon } from './Icon';
 import { BuffsFrame } from './BuffsFrame';
 import { gatherSnapshotBuffs } from './runBuffs';
 import { stageHost } from './stage';
+import { TRIBE_ICON } from './gauntlet/StageSelect';
 
 /**
  * THE COMBAT OPPONENT — the foe's hero portrait, dropped in over the Refresh button for the fight (owner ask
@@ -37,6 +38,10 @@ export const CombatOpponent = memo(function CombatOpponent(): JSX.Element | null
   const preview = useGame((s) => s.duelPreview);
   const dmgDealt = useGame((s) => s.oppDmgDealt);
   const showOppSkins = useGame((s) => s.showOpponentSkins);
+  // GAUNTLET: the foe is an authored stage opponent with no hero (its seat's heroId is only a stand-in), so it wears
+  // its stage's TRIBE EMBLEM instead of a hero portrait and shows no hero power. A primitive (null outside the
+  // Gauntlet), so the selector never re-renders on an unrelated run change.
+  const gauntletNo = useGame((s) => (s.run.mode === 'gauntlet' ? (s.run.gauntletStage ?? 0) : null));
 
   // ENTRANCE + EXIT. The drop-in animation still plays (behind the curtain — invisible, but it keeps the dev
   // tuner's Test preview honest), while the old visible fade-and-fall exit is GONE: the curtain fully covers
@@ -67,7 +72,9 @@ export const CombatOpponent = memo(function CombatOpponent(): JSX.Element | null
   const seat = shown.seat;
   const leaving = phase === 'out';
   // SKINS: the foe's recorded hero skin, or default art when "Show opponent skins" is off.
-  const art = heroPortrait(seat.heroId, opponentSkins(showOppSkins, seatCosmetics(seat, next.board)));
+  const gauntlet = gauntletNo !== null;
+  const tribe = gauntlet ? gauntletStage(gauntletNo)?.tribe : undefined;
+  const art = gauntlet ? undefined : heroPortrait(seat.heroId, opponentSkins(showOppSkins, seatCosmetics(seat, next.board)));
   // The foe's health drops the moment the blow lands, not at resolve — mirroring the player's live drop. The
   // seat itself settles later (resolveCombat); `dmgDealt` carries the reduction until then. Armor absorbs first.
   const shownArmor = Math.max(0, seat.armor - dmgDealt);
@@ -107,7 +114,9 @@ export const CombatOpponent = memo(function CombatOpponent(): JSX.Element | null
             onClick={() => { if (hasBuffs) setBuffsOpen((o) => !o); }}
             role={hasBuffs ? 'button' : undefined}
           >
-            {art ? <img decoding="sync" className="combatopp-img" src={art} alt="" draggable={false} /> : <Icon name="anvil" />}
+            {gauntlet
+              ? <span className="combatopp-emblem"><Icon name={tribe ? TRIBE_ICON[tribe] : 'anvil'} /></span>
+              : art ? <img decoding="sync" className="combatopp-img" src={art} alt="" draggable={false} /> : <Icon name="anvil" />}
             {/* Hover affordance — the same darkened prompt the player's portrait wears (owner ask 2026-08-30). */}
             {hasBuffs && (
               <span className="herohover" aria-hidden="true">
@@ -167,7 +176,7 @@ export const CombatOpponent = memo(function CombatOpponent(): JSX.Element | null
         drift, but display-only: no cost coin, no name pill, no interactions (pointer-events: none in CSS —
         which also keeps the player-button hover glow rules from firing on it). A SIBLING of .combatopp, not
         a child: the wrapper's transform would hijack this element's fixed positioning. */}
-    {heroPowerArt(seat.heroId) && (
+    {!gauntlet && heroPowerArt(seat.heroId) && (
       <>
       <div className="heropowerbtn opp-power passive">
         <span className="hpb-artwrap" aria-hidden="true"><img decoding="sync" className="hpb-art" src={heroPowerArt(seat.heroId)} alt="" draggable={false} /></span>

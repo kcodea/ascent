@@ -49,7 +49,7 @@
 import { CARD_INDEX } from '@game/content';
 import { ALE_IDS, TRIBES, type Tribe } from '@game/core';
 import {
-  boardIntel, chooseBothActive, chooseBothStateOf, CONFIG, defIsTribe, lossDamageCap, offerBuyStats, pairRunLobby, playerOpponent, type PreparedBoard, type RunLobby,
+  boardIntel, chooseBothActive, chooseBothStateOf, CONFIG, defIsTribe, offerBuyStats, pairRunLobby, playerOpponent, roundLossCap, type PreparedBoard, type RunLobby,
   type RunState, type ShopCard,
 } from '@game/sim';
 import { runeTally } from './runeTally';
@@ -642,6 +642,8 @@ export interface AnnouncerRunLike {
   practiceConfig?: { tribes?: readonly string[] | undefined } | undefined;
   lobby?: {
     round?: number | undefined;
+    /** The table's rules: the loss-cap reads (BigHit, BlowoutLoss) take its own `lossCaps` when it has one. */
+    rules?: { lossCaps?: (number | null)[] } | undefined;
     seats: readonly {
       id?: string | undefined; alive: boolean; placement?: number | undefined; eliminatedRound?: number | undefined;
       /** LobbyLast / LeaderboardTop compare it across the standing seats. */
@@ -697,8 +699,10 @@ export interface AnnouncerStateLike extends MusicStateLike {
   rankResult?: { runId: string; promoted: boolean } | null | undefined;
 }
 
-/** The pure gate: the same as the music's (lobby / practice on screen, no sandbox, no replay, no title). */
-export const isAnnouncerWanted = (s: MusicStateLike): boolean => isMusicWanted(s);
+/** The pure gate: the music's (lobby / practice on screen, no sandbox, no replay, no title) MINUS the Gauntlet. The
+ *  Gauntlet has music but no announcer in v1 (owner ruling 2026-09-29): several lines key on seat counts and would
+ *  misfire on its 2-seat table. */
+export const isAnnouncerWanted = (s: MusicStateLike): boolean => s.run.mode !== 'gauntlet' && isMusicWanted(s);
 
 // ── Injected seams (the real browser APIs by default; tests replace them) ───────────────────────────────────
 export interface AnnouncerHandle {
@@ -1494,8 +1498,8 @@ export function syncAnnouncer(s: AnnouncerStateLike, prev: AnnouncerStateLike | 
         enqueue({ event: 'flawlessVictory', shelf: 'combat', notBefore: at, wave: run.wave });
       }
       // BigHit: the damage the opposing hero takes, round-capped exactly as the lobby charges it and the fight's
-      // damage readout shows it (`lossDamageCap`).
-      const dealt = Math.min(run.lastCombat?.enemyDamage ?? 0, lossDamageCap(run.wave));
+      // damage readout shows it (`roundLossCap`).
+      const dealt = Math.min(run.lastCombat?.enemyDamage ?? 0, roundLossCap(run.lobby?.rules, run.wave));
       if (dealt >= ANNOUNCER_BIG_HIT && !hasFired(slice, 'bigHit')) {
         enqueue({ event: 'bigHit', shelf: 'combat', notBefore: at, wave: run.wave });
       }
@@ -1596,7 +1600,7 @@ function detectVerdict(s: AnnouncedSlice, p: AnnouncerRunLike, run: AnnouncerRun
   // ArmorGone: Armor hits 0 for the first time.
   if ((p.armor ?? 0) > 0 && (run.armor ?? 0) === 0 && !hasFired(s, 'armorGone')) enqueue({ event: 'armorGone', shelf: 'combat', notBefore: at, wave: w });
   // BlowoutLoss: a loss that cost the round's full damage cap (Armor + Resolve taken; rounds past the cap never qualify).
-  const cap = lossDamageCap(w);
+  const cap = roundLossCap(run.lobby?.rules, w);
   const taken = (p.resolve + (p.armor ?? 0)) - (run.resolve + (run.armor ?? 0));
   if (result === 'lose' && Number.isFinite(cap) && taken >= cap && !hasFired(s, 'blowoutLoss')) {
     enqueue({ event: 'blowoutLoss', shelf: 'combat', notBefore: at, wave: w });

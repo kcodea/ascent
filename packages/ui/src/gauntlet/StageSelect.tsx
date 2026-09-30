@@ -18,7 +18,7 @@ import { clearedStages, stageSlotState, type StageSlotState } from './gauntletPr
 const SLOT_COUNT = 10;
 
 /** Each tribe's glyph — the same symbols the card footer and quest badges use (`Card.tsx` `TRIBE_ICON`). */
-const TRIBE_ICON: Record<Tribe, string> = {
+export const TRIBE_ICON: Record<Tribe, string> = {
   beast: 'paw', dragon: 'flame', mech: 'gear', undead: 'skull', demon: 'eye', neutral: 'star', kobold: 'crown', dwarf: 'anvil',
   celestial: 'clock', spirit: 'clock',
 };

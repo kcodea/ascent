@@ -1,6 +1,6 @@
 import { memo, useMemo, useState } from 'react';
 import type { CombatResult } from '@game/core';
-import { getHero, lossDamageCap, playerLossDamage, playerOpponent, type CombatOdds, type RunState } from '@game/sim';
+import { getHero, playerLossDamage, playerOpponent, roundLossCap, type CombatOdds, type RunState } from '@game/sim';
 import { artFor } from './art';
 import { heroPortrait, opponentSkins, seatCosmetics, useMinionSkinMap } from './skins/skins';
 import { PortraitFrame, pfClass, usePortraitFrame } from './portraitFrame/PortraitFrame';
@@ -93,7 +93,7 @@ export const FightRecap = memo(function FightRecap({ result, combatOdds, lastCom
   // Armor is still its going-in value: exactly what the split needs.
   const head = useMemo(() => {
     const foe = lobby ? playerOpponent(lobby) : null;
-    const cap = lossDamageCap(wave);
+    const cap = roundLossCap(lobby?.rules, wave); // the run's own cap table (the Gauntlet has its own)
     const taken = !lastCombat || lastCombat.result === 'win' ? 0
       : lobby && mode !== 'practice' ? playerLossDamage(lobby, lastCombat)
       : Math.min(lastCombat.playerDamage, cap);

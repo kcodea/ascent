@@ -429,7 +429,7 @@ const ShopTimer = memo(function ShopTimer({ practice, gauntlet }: { practice?: b
               </span>
             )}
           </span>
-          <span className="gclock-n">{goldSpent}/{GAUNTLET_CLOCK_GOLD}</span>
+          <span className="gclock-n"><span className="gclock-coin"><Icon name="mana" /></span>{goldSpent}/{GAUNTLET_CLOCK_GOLD}</span>
         </span>
       ) : (
         <span className="sc-v">{practice && practiceTimer === 0 ? '∞' : `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`}</span>

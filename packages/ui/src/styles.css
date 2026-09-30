@@ -808,7 +808,7 @@ body.wipe-up .lobbydmg-float { z-index: 240; }
 .statcell.time.gwait .sc-ic { order: 2; }
 .statcell.time.gwait .gclock { order: 1; }
 .statcell.time .gclock-n { order: -1; }
-.statcell.time .gclock-bar { position: relative; overflow: visible; width: calc(90 * var(--u)); height: calc(10 * var(--u));
+.statcell.time .gclock-bar { position: relative; overflow: visible; width: calc(112.5 * var(--u)); height: calc(10 * var(--u));
   border-radius: 999px; background: rgba(0, 0, 0, 0.45); box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.6); }
 .statcell.time .gclock-fill { position: absolute; inset: 0; border-radius: inherit; transform-origin: left center;
   background: linear-gradient(180deg, #ffe89a, #f0b534 55%, #d28f14); transition: transform 260ms ease-out; }
@@ -829,7 +829,11 @@ body.wipe-up .lobbydmg-float { z-index: 240; }
   0%   { opacity: 1; transform: rotate(var(--a)) translateX(0) scale(1.2); }
   100% { opacity: 0; transform: rotate(var(--a)) translateX(calc(22 * var(--u))) scale(0.3); }
 }
-.statcell.time .gclock-n { font-weight: 800; font-size: calc(17 * var(--u)); line-height: 1; color: #ffd66b; font-variant-numeric: tabular-nums; }
+.statcell.time .gclock-n { display: inline-flex; align-items: center; gap: calc(4 * var(--u));
+  font-weight: 800; font-size: calc(13 * var(--u)); line-height: 1; color: #ffd66b; font-variant-numeric: tabular-nums; }
+/* A little Gold coin before the count (owner ask 2026-09-30): the game's own Gold icon. */
+.statcell.time .gclock-coin { display: inline-flex; width: calc(13 * var(--u)); height: calc(13 * var(--u)); }
+.statcell.time .gclock-coin svg { width: 100%; height: 100%; }
 .statcell.time.low { background: color-mix(in srgb, var(--threat) 14%, var(--card)); }
 .statcell.time.low .sc-ic svg, .statcell.time.low .sc-v { color: var(--threat-dk); }
 /* Info-strip cells reuse the shop tip pill on hover. */

@@ -18,7 +18,8 @@ import { HERO_ATTACK_TIER_THRESHOLDS, tierOf } from '../heroAttack/tiers';
 import { DEV_HERO_ATTACK_CHOICES, HERO_ATTACK_STYLES, styleOfCosmetic } from '../heroBlast/heroAttackStyle';
 import {
   HERO_BASKETBALL_CLIP_KEYS, HERO_BASKETBALL_DEFAULTS, HERO_BASKETBALL_RANGES, arcHeight, basketballBall, basketballCameraAt, basketballCues,
-  basketballGeo, basketballKind, basketballPlan, basketballPose, clampHeroBasketballValue, heroBasketballConfigJson, hoopAt, poseSegs,
+  basketballGeo, basketballKind, basketballPlan, basketballPose, basketballTimeScale, clampHeroBasketballValue, heroBasketballConfigJson, hoopAt, poseSegs,
+  slowExtraMs, slowWindow, variantOf, type BasketballVariant,
   type HeroBasketballNumKey,
 } from './heroBasketballConfig';
 import { HeroBasketballScene, MAX_BASKETBALL_SPRITES, type HeroBasketballTextures } from './heroBasketballScene';
@@ -338,6 +339,11 @@ function manualFrames(): { frames: HeroBasketballOptions['frames']; tick: (ms: n
   };
 }
 
+/** Tick real frames until the attack's own clock reaches `t` (slow mo makes real time and attack time differ). */
+function tickTo(r: { h: { elapsed(): number; done: boolean }; f: { tick: (ms: number, step?: number) => void } }, t: number, step = 4): void {
+  for (let i = 0; i < 20000 && !r.h.done && r.h.elapsed() < t; i++) r.f.tick(step, step);
+}
+
 function run(over: Partial<HeroBasketballOptions> = {}) {
   const f = manualFrames();
   const root = new Container();
@@ -377,20 +383,20 @@ describe('the runner (the shared clock, the portrait restored on every exit)', (
     const r = run({ total: 40, formation: formationOf([40], 40) });
     const { h, f, onImpact, onDone } = r;
     expect(r.host.querySelector('.hblast.hbasketball')).not.toBeNull();
-    f.tick(h.plan.bounceAt! + 8, 4);
+    tickTo(r, h.plan.bounceAt! + 8);
     expect(onImpact).not.toHaveBeenCalled(); // the smack is a tick
-    f.tick(h.plan.catchAt! - h.elapsed() + 8, 4);
+    tickTo(r, h.plan.catchAt! + 8);
     expect(onImpact).not.toHaveBeenCalled();
     expect(document.body.classList.contains('duel-attacker-player')).toBe(true);
     expect(r.attackerEl.style.transform).toContain('translate(');
     expect(h.scene!.ownVisible).toBe(true); // the ball and the hoop are up
-    f.tick(h.plan.impactAt - h.elapsed() - 12, 4);
+    tickTo(r, h.plan.impactAt - 12);
     expect(onImpact).not.toHaveBeenCalled();
-    f.tick(24, 4);
+    tickTo(r, h.plan.impactAt + 12);
     expect(onImpact).toHaveBeenCalledTimes(1);
     expect(r.host.querySelector('.hblast-hit')!.textContent).toBe('-40');
     expect(r.defenderEl.style.transform).toContain('translate(');
-    f.tick(h.plan.endAt - h.elapsed() + 32, 8);
+    tickTo(r, h.plan.endAt + 32, 8);
     expect(onDone).toHaveBeenCalledTimes(1);
     expect(onImpact).toHaveBeenCalledTimes(1);
     expectRestored(r);
@@ -401,7 +407,7 @@ describe('the runner (the shared clock, the portrait restored on every exit)', (
 
   it('cancel() mid-leap, finish() mid-fade and the safety timer each put the portrait back exactly (cancel never lands)', () => {
     const a = run({ total: 14, formation: formationOf([14], 14) });
-    a.f.tick(a.h.plan.apexAt - 30, 4);
+    tickTo(a, a.h.plan.apexAt - 30);
     expect(a.attackerEl.style.transform).toContain('translate(');
     a.h.cancel();
     expect(a.onImpact).not.toHaveBeenCalled();
@@ -410,7 +416,7 @@ describe('the runner (the shared clock, the portrait restored on every exit)', (
     document.body.innerHTML = '';
 
     const b = run({ total: 8, formation: formationOf([8], 8), side: 'opp', attacker: { x: 960, y: 200 }, defender: { x: 960, y: 900 } });
-    b.f.tick(b.h.plan.takeoffAt + 60, 4);
+    tickTo(b, b.h.plan.takeoffAt + 60);
     expect(b.attackerEl.style.transform).toContain('translate(');
     b.h.finish();
     expect(b.onImpact).toHaveBeenCalledTimes(1);
@@ -420,7 +426,7 @@ describe('the runner (the shared clock, the portrait restored on every exit)', (
     vi.useFakeTimers();
     try {
       const c = run({ total: 40, formation: formationOf([40], 40), safety: true });
-      c.f.tick(c.h.plan.catchAt! + 20, 4);
+      tickTo(c, c.h.plan.catchAt! + 20);
       vi.advanceTimersByTime(c.h.plan.endAt + 3000);
       expect(c.onImpact).toHaveBeenCalledTimes(1);
       expect(c.h.done).toBe(true);
@@ -432,7 +438,7 @@ describe('the runner (the shared clock, the portrait restored on every exit)', (
     for (const total of [3, 8, 14, 40]) {
       const r = run({ total, formation: formationOf([total], total) });
       const mid = (r.h.plan.takeoffAt + r.h.plan.impactAt) / 2;
-      r.f.tick(mid, 4);
+      tickTo(r, mid);
       r.h.cancel();
       expectRestored(r);
       expect(r.f.hooked()).toBe(0);
@@ -448,7 +454,7 @@ describe('the runner (the shared clock, the portrait restored on every exit)', (
         const d = side === 'player' ? { x: 1830, y: 90 } : { x: 700, y: 900 };
         const r = run({ side, attacker: a, defender: d, total, formation: formationOf([total], total) });
         let peak = 0;
-        for (let t = 0; t < r.h.plan.endAt + 100; t += 16) { r.f.tick(16, 16); peak = Math.max(peak, r.h.scene!.liveSprites); }
+        for (let i = 0; i < 2000 && !r.h.done; i++) { r.f.tick(16, 16); peak = Math.max(peak, r.h.scene!.liveSprites); }
         expect(r.onImpact, `${side} ${total}`).toHaveBeenCalledTimes(1);
         expect(peak, `${side} ${total}`).toBeLessThanOrEqual(MAX_BASKETBALL_SPRITES);
         expectRestored(r, side === 'opp' ? 'duel-attacker-opp' : 'duel-attacker-player');
@@ -459,7 +465,7 @@ describe('the runner (the shared clock, the portrait restored on every exit)', (
     const camera = document.createElement('div');
     camera.appendChild(document.createElement('canvas'));
     const c = run({ camera, total: 40, formation: formationOf([40], 40) });
-    c.f.tick(c.h.plan.impactAt + 20, 4);
+    tickTo(c, c.h.plan.impactAt + 20);
     expect(c.h.mirrorsCamera).toBe(false);
     expect((c.root.children[0] as Container).scale.x).toBe(1);
     c.h.cancel();
@@ -473,6 +479,140 @@ describe('the runner (the shared clock, the portrait restored on every exit)', (
     r.f.tick(r.h.plan.endAt + 100, 16);
     expect(r.onImpact).toHaveBeenCalledTimes(1);
     expect(r.attackerEl.style.transform).toBe('translateX(3px)');
+  });
+});
+
+describe('variety (owner review of #1867: three dribble moves on II, three spots on III, rolled per blow)', () => {
+  const vctx = (total: number, v: BasketballVariant, a = A, d = D) => {
+    const p = basketballPlan({ total, leadIn: leadInOf([total]), variant: v }, C);
+    const g = basketballGeo(a, d, R, R, FRAME, C, v);
+    return { p, g, segs: poseSegs(p, g, C, a, R), c: C, a, aR: R, frame: FRAME };
+  };
+
+  it('the roll is stable per seed, covers all three, and the DEV override forces one', () => {
+    const seen = new Set<number>();
+    for (let s0 = 0; s0 < 60; s0++) { expect(variantOf(s0, C)).toBe(variantOf(s0, C)); seen.add(variantOf(s0, C)); }
+    expect([...seen].sort()).toEqual([1, 2, 3]);
+    for (const v of ['1', '2', '3']) expect(variantOf(12345, { ...C, variation: v })).toBe(Number(v));
+    expect(clampHeroBasketballValue('variation', '2')).toBe('2');
+  });
+
+  it('II: every dribble move keeps the fade and the shot; the wrap HIDES the ball behind the portrait; the spin turns it a full circle', () => {
+    for (const v of [1, 2, 3] as const) {
+      const x = vctx(8, v);
+      expect(x.p.flairAt!).toBeGreaterThan(x.p.startAt);
+      expect(x.p.flairEnd!).toBeLessThan(x.p.approachEnd);
+      expect(dist(basketballBall(x, x.p.impactAt), D), `v${v}`).toBeLessThan(1);
+      const m = basketballPose(x.p, x.segs, C, x.p.approachEnd);
+      expect(dist({ x: A.x + m.x, y: A.y + m.y }, x.g.mid), `v${v}`).toBeLessThan(1);
+    }
+    const wrap = vctx(8, 1);
+    // the wrap is slow enough to read (owner on 5173: "slow the around the back down so it's cleaner"): its own length,
+    // about twice the first build's (~230 ms), with the fade and the shot still following the slide
+    expect(wrap.p.flairEnd! - wrap.p.flairAt!).toBe(C.wrapMs);
+    expect(C.wrapMs).toBeGreaterThanOrEqual(1.5 * 230);
+    expect(wrap.p.flairEnd!).toBeLessThan(wrap.p.approachEnd);
+    expect(wrap.p.takeoffAt - wrap.p.approachEnd).toBe(C.gatherMs);
+    let hidden = 0, shown = 0;
+    for (let t = wrap.p.flairAt!; t < wrap.p.flairEnd!; t += 8) { const b = basketballBall(wrap, t); if (!b.visible) hidden++; else shown++; }
+    expect(hidden).toBeGreaterThan(0);
+    expect(shown).toBeGreaterThan(hidden);
+    const spin = vctx(8, 3);
+    const r0 = basketballPose(spin.p, spin.segs, C, spin.p.flairAt!).rot, r1 = basketballPose(spin.p, spin.segs, C, spin.p.flairEnd! - 0.01).rot;
+    expect(Math.abs(r1 - r0)).toBeGreaterThan(350);
+    const cross = vctx(8, 2);
+    expect(cross.p.dribbles.length).toBe(4);
+  });
+
+  it('III: three spots (straight up, the left wing, the right corner), the pass from the side the spot faces, on screen, the shot on target', () => {
+    const spots = [1, 2, 3].map((v) => vctx(14, v as BasketballVariant));
+    expect(spots[0]!.g.scoot.x).toBeCloseTo(A.x, 6);
+    expect(spots[1]!.g.scoot.x).toBeLessThan(A.x - R);
+    expect(spots[2]!.g.scoot.x).toBeGreaterThan(A.x + R);
+    expect(spots[1]!.g.passFrom.x).toBeLessThan(FRAME.x0);
+    expect(spots[0]!.g.passFrom.x).toBeGreaterThan(FRAME.x1);
+    expect(spots[2]!.g.passFrom.x).toBeGreaterThan(FRAME.x1);
+    for (const [a, d] of [[A, D], [{ x: 120, y: 980 }, { x: 1800, y: 100 }], [{ x: 1830, y: 90 }, { x: 700, y: 900 }]] as const) {
+      for (const v of [1, 2, 3] as const) {
+        const x = vctx(14, v, a, d);
+        for (const q of [x.g.scoot, x.g.back]) {
+          expect(q.x).toBeGreaterThanOrEqual(R - 1e-6); expect(q.x).toBeLessThanOrEqual(1920 - R + 1e-6);
+          expect(q.y).toBeGreaterThanOrEqual(R - 1e-6); expect(q.y).toBeLessThanOrEqual(1080 - R + 1e-6);
+        }
+        expect(dist(basketballBall(x, x.p.impactAt), d), `v${v}`).toBeLessThan(1);
+        const caught = basketballBall(x, x.p.catchAt!), held = basketballBall(x, x.p.catchAt! + 1);
+        expect(dist(caught, held), `v${v} catch`).toBeLessThan(3);
+      }
+    }
+  });
+});
+
+describe('slow mo (III on the release, IV on the catch; a smooth ramp, never a freeze)', () => {
+  it('III slows around the release and IV around the catch, then IV runs a touch fast through the slam; never 0; I and II never slow', () => {
+    const three = plan(14), oop = plan(40);
+    expect(basketballTimeScale(three, C, three.releaseAt)).toBeCloseTo(C.threeSlow, 6);
+    expect(basketballTimeScale(three, C, three.takeoffAt - 300)).toBe(1);
+    expect(basketballTimeScale(three, C, three.impactAt)).toBe(1);
+    expect(basketballTimeScale(oop, C, oop.catchAt!)).toBeCloseTo(C.alleySlow, 6);
+    expect(basketballTimeScale(oop, C, (oop.slamAt! + oop.impactAt) / 2)).toBeGreaterThan(1);
+    for (const p of [plan(3), plan(8)]) for (let t = 0; t < p.endAt; t += 5) expect(basketballTimeScale(p, C, t)).toBe(1);
+    for (const p of [three, oop]) {
+      let min = 1, prev = basketballTimeScale(p, C, 0);
+      for (let t = 0; t < p.endAt; t += 1) {
+        const k = basketballTimeScale(p, C, t);
+        min = Math.min(min, k);
+        expect(Math.abs(k - prev), `smooth @${t}`).toBeLessThan(0.08); // a ramp, never a hard stop
+        prev = k;
+      }
+      expect(min).toBeGreaterThan(0.2);
+      expect(slowWindow(p, C)).not.toBeNull();
+    }
+    // the extra real time is about the slow-mo length (minus the fast slam on IV)
+    expect(slowExtraMs(three, C)).toBeGreaterThan(C.threeSlowMs * (1 - C.threeSlow) * 0.6);
+    expect(slowExtraMs(three, C)).toBeLessThan(C.threeSlowMs * 1.2);
+    expect(slowExtraMs(plan(8), C)).toBe(0);
+  });
+
+  it('the runner: the clock really slows (real ms per attack ms), the blow still lands once, and it ends later by about the slow mo', () => {
+    for (const total of [14, 40]) {
+      const r = run({ total, formation: formationOf([total], total) });
+      tickTo(r, (total === 14 ? r.h.plan.releaseAt : r.h.plan.catchAt!) - 2, 2);
+      const before = r.h.elapsed();
+      r.f.tick(16, 16);
+      expect(r.h.elapsed() - before, `${total}`).toBeLessThan(16 * 0.6);
+      expect(r.h.elapsed() - before, `${total}`).toBeGreaterThan(0);
+      let real = 0;
+      while (!r.h.done && real < 20000) { r.f.tick(16, 16); real += 16; }
+      expect(r.onImpact).toHaveBeenCalledTimes(1);
+      expect(r.h.done).toBe(true);
+      expect(r.attackerEl.style.transform).toBe('translateX(3px)');
+      document.body.innerHTML = '';
+    }
+  });
+
+  it('every variation restores the portrait on every exit (end, finish, cancel)', () => {
+    for (const variation of ['1', '2', '3']) {
+      for (const total of [8, 14]) {
+        const cfg = { ...C, variation };
+        const e = run({ total, formation: formationOf([total], total), cfg });
+        expect(e.h.variant).toBe(Number(variation));
+        for (let i = 0; i < 2000 && !e.h.done; i++) e.f.tick(16, 16);
+        expectRestored(e);
+        document.body.innerHTML = '';
+        const f = run({ total, formation: formationOf([total], total), cfg });
+        tickTo(f, f.h.plan.flairAt ?? f.h.plan.catchAt!);
+        f.h.finish();
+        expect(f.onImpact).toHaveBeenCalledTimes(1);
+        expectRestored(f);
+        document.body.innerHTML = '';
+        const c = run({ total, formation: formationOf([total], total), cfg });
+        tickTo(c, (c.h.plan.flairAt ?? c.h.plan.releaseAt) + 30);
+        c.h.cancel();
+        expect(c.onImpact).not.toHaveBeenCalled();
+        expectRestored(c);
+        document.body.innerHTML = '';
+      }
+    }
   });
 });
 

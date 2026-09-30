@@ -32,7 +32,8 @@ import type { HeroAttackHandle, HeroAttackOptions } from '../heroAttack/options'
 import { Sequence } from '../heroAttack/sequence';
 import { heroFxCanvas, PortraitMover, StageCamera } from '../heroAttack/stageCamera';
 import {
-  basketballBall, basketballCameraAt, basketballCues, basketballGeo, basketballPlan, basketballPose, getHeroBasketballConfig, hoopAt, poseSegs,
+  basketballBall, basketballCameraAt, basketballCues, basketballGeo, basketballPlan, basketballPose, basketballTimeScale, getHeroBasketballConfig, hoopAt,
+  poseSegs, slowExtraMs, variantOf,
   type BallState, type BasketballCue, type BasketballGeo, type BasketballPlan, type BasketballPose, type HeroBasketballConfig,
 } from './heroBasketballConfig';
 import { HeroBasketballScene, type HeroBasketballTextures } from './heroBasketballScene';
@@ -48,6 +49,8 @@ export interface HeroBasketballHandle extends HeroAttackHandle {
   readonly geo: BasketballGeo;
   readonly scene: HeroBasketballScene | null;
   readonly mirrorsCamera: boolean;
+  /** The rolled variation (II's dribble move, III's spot). */
+  readonly variant: 1 | 2 | 3;
   /** The striking portrait's pose, and the ball, at a sequence time (pure). */
   pose(t: number): BasketballPose;
   ball(t: number): BallState;
@@ -82,13 +85,15 @@ export function playHeroBasketball(o: HeroBasketballOptions): HeroBasketballHand
   const aRect = local ? { inv: 1 } : rectOf(o.attackerEl, aRadius);
   const dRect = local ? { inv: 1 } : rectOf(o.defenderEl, radius);
   const { fcfg, fplan } = planFormation(o.formation, o.formationCfg, reduced);
-  const plan = basketballPlan({ total: o.total, knockout: o.knockout, reduced, leadIn: fplan.endAt }, c);
+  // THE VARIATION (II's dribble move, III's spot), rolled from the stable per-blow seed (or forced by the DEV tuner).
+  const variant = variantOf(o.rollSeed ?? basketballSeed(o.total, dist, o.side), c);
+  const plan = basketballPlan({ total: o.total, knockout: o.knockout, reduced, leadIn: fplan.endAt, variant }, c);
   const cues = withFormation(fplan, basketballCues(plan));
   // The frame the striker must stay inside (the screen, or the sandbox box).
   const vw = local ? (o.host?.clientWidth || 400) : (typeof window !== 'undefined' ? window.innerWidth : 1920);
   const vh = local ? (o.host?.clientHeight || 300) : (typeof window !== 'undefined' ? window.innerHeight : 1080);
   const frame = { x0: 0, y0: 0, x1: vw, y1: vh };
-  const geo = basketballGeo(o.attacker, o.defender, aRadius, radius, frame, c);
+  const geo = basketballGeo(o.attacker, o.defender, aRadius, radius, frame, c, plan.variant);
   const segs = poseSegs(plan, geo, c, o.attacker, aRadius);
   const pose = (t: number): BasketballPose => basketballPose(plan, segs, c, t);
   const ballCtx = { p: plan, g: geo, segs, c, a: o.attacker, aR: aRadius, frame };
@@ -128,7 +133,8 @@ export function playHeroBasketball(o: HeroBasketballOptions): HeroBasketballHand
   const lift = !reduced && !local && !!hero.el && !!doc;
   let lifted = false;
 
-  const cue = voices.cue.bind(voices);
+  // During a slow-mo beat a cue is pitched down a touch (subtle), with the clock.
+  const cue: AttackVoices['cue'] = (clip, gain, rate, opts) => voices.cue(clip, gain, rate * (0.88 + 0.12 * basketballTimeScale(plan, c, seq.t)), opts);
   voices.warm([
     c.sfxWhistleClip, c.sfxDribbleClip, c.sfxSqueakClip, c.sfxThrowClip, c.sfxSwishClip, c.sfxCatchClip, c.sfxRimClip, c.sfxSlamClip,
     c.sfxShatterClip, c.sfxOohClip, c.sfxCheerClip,
@@ -282,8 +288,10 @@ export function playHeroBasketball(o: HeroBasketballOptions): HeroBasketballHand
     cues, speed, fire,
     paint: (t) => { nums.paint(t); paintStage(t); },
     scene, unmount,
-    frames: o.frames ?? ((fn: (dt: number) => void) => pixiFx.addUpdater(fn)),
-    safetyMs: o.safety !== false ? plan.endAt / speed + 2500 : null,
+    // SLOW MO: the frame source hands the ONE clock a scaled step (a smooth ramp, never 0), so the portrait, the ball,
+    // the FX, the camera and the cue timing all slow and speed up together.
+    frames: (fn: (dt: number) => void) => (o.frames ?? ((f: (dt: number) => void) => pixiFx.addUpdater(f)))((dt) => fn(dt * (seq && !seq.done ? basketballTimeScale(plan, c, seq.t) : 1))),
+    safetyMs: o.safety !== false ? (plan.endAt + slowExtraMs(plan, c)) / speed + 2500 : null,
     onImpact: o.onImpact, onDone: o.onDone,
     teardownDom: () => {
       nums.remove(); cam.reset(); hero.reset(); foe.reset(); voices.unduck();
@@ -297,6 +305,7 @@ export function playHeroBasketball(o: HeroBasketballOptions): HeroBasketballHand
   return {
     plan,
     geo,
+    variant: plan.variant,
     scene,
     pose,
     ball,

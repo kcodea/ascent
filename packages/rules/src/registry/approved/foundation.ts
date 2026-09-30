@@ -3270,13 +3270,17 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'moves (as Classic, Enraged and Shadow Step do), with a hoop (backboard, rim, net) drawn on the struck hero, flat 2D. '
       + 'It escalates on the shared tiers (thresholds 6 / 12 / 20; a knockout plays IV, R-PROG-ATTACK-20): I the jumper (a '
       + 'dribble where it stands, a small jump, a high arcing shot with backspin that swishes); II the fadeaway (it dribbles '
-      + 'out to mid court, pushes off BACKWARDS and to the side with more room, releases at the top of the fade, swish, a '
-      + 'small crowd "ooh", slides home); III the pull-up three (it scoots STRAIGHT up court from its slot, down court for a '
-      + 'foe striking from the top; a PASS flies in from off the RIGHT edge of the screen and is caught; a PUMP FAKE; it '
-      + 'DRIBBLES BACK and pulls up for a long high three that swishes with rings, confetti and the crowd\x27s "ooh", then '
+      + 'out to mid court with one of three DRIBBLE MOVES rolled per blow (a behind-the-back wrap, the ball hidden while it '
+      + 'passes behind the portrait; a crossover; a spin move), pushes off BACKWARDS and to the side with more room, releases at the top of the fade, swish, a '
+      + 'small crowd "ooh", slides home); III the pull-up three (it scoots from its slot to one of three SPOTS rolled per '
+      + 'blow: straight up court, the left wing or the right corner, down court for a foe striking from the top; a PASS flies '
+      + 'in from off the edge of the screen the spot faces and is caught; a PUMP FAKE; it DRIBBLES BACK and pulls up, the '
+      + 'clock easing into SLOW MOTION around the release and back to normal as the ball flies, for a long high three that '
+      + 'swishes with rings, confetti and the crowd\x27s "ooh", then '
       + 'slides home); IV the self alley-oop (from its slot it FIRES the ball straight at the struck hero, fast, flat and '
       + 'spinning with a speed trail; it SMACKS the target, a pop and no damage, and BOUNCES HIGH straight up; a quick run-up, '
-      + 'a big LEAP timed to meet it, the CATCH at the top, and the SLAM down into an EXPLOSION: a white-hot core, a '
+      + 'a big LEAP timed to meet it, the CATCH at the top in SLOW MOTION, the clock easing back in (a touch faster than '
+      + 'normal through the slam), and the SLAM down into an EXPLOSION: a white-hot core, a '
       + 'fireball, shockwave rings, debris and sparks, the backboard\x27s glass, the whole board shaking, rim + slam + a '
       + 'loud crowd "ooh" and a cheer). Dribbles, sneaker squeaks on the push-offs, '
       + 'stops and take-offs, the swish, the rim and the slam are heard; every cue has its own clip / gain / pitch dial. '
@@ -3285,7 +3289,10 @@ export const FOUNDATION_RULES: GameRule[] = [
       + '(a catch above a target tucked in a corner swings round it toward the middle of the screen) and every shot and '
       + 'slam lands on the struck hero\x27s centre. The striker is raised over the target (the .duel-attacker-* z-order) '
       + 'for the whole attack, and its transform, opacity and z-order class are restored exactly, and the ball, shadows and '
-      + 'hoop hidden, on every exit (the end, finish, cancel, the safety timer, an unmount). No hit-stop or freeze '
+      + 'hoop hidden, on every exit (the end, finish, cancel, the safety timer, an unmount). The variation is rolled from a '
+      + 'stable per-blow seed (the run seed and the round), so a replay rolls the same. The slow motion is a smooth ramp of '
+      + 'the attack\x27s one clock that never reaches 0: everything slows together and the blow still lands once on its beat. '
+      + 'No hit-stop or freeze '
       + '(R-PROG-ATTACK-10); presentation only; reduced motion is fades only.',
     domain: 'foundation',
     status: 'approved',
@@ -3293,7 +3300,8 @@ export const FOUNDATION_RULES: GameRule[] = [
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-29 (the basketball attack, relayed by the coordinator)', quote: 'branch off and make a basketball attack animation. tier 1 = basketball shot from place / tier 2 = a fadeaway, the attacker hero slides to mid court, then slides to the left or right kind backwards and shoots a basketball at the target' },
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-29 (Basketball review, relayed by the coordinator)', quote: 'the fadeaway is the best, let\x27s make the tier 3 another like it - let\x27s have the attacker scoot straight upwards and get a pass thrown to him from off-screen from the right side and he pump fakes, dribbles back and then pulls up for a 3. for the huge self alley oop - have the attacker chuck the ball from its starting position, and then run up and leap from half court, catching the ball and massively slamming on the target.' },
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-30 (PR #1867 review, Tier IV, relayed by the coordinator)', quote: 'i want a direct throw from the beginning that\x27s fast and bounces high off the target and the attacker leaps into the air and slams it down into an explosion' },
-      { kind: 'code', ref: 'packages/progression/src/cosmetics.ts (attack_basketball); packages/ui/src/heroBasketball/ (basketballPlan / basketballCues / basketballGeo / fitDir / poseSegs / basketballPose / basketballBall / hoopAt / basketballCameraAt, playHeroBasketball, HeroBasketballScene, heroBasketballTextures); packages/ui/src/audio/fx/bball-*.mp3' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-30 (PR #1867 review, variety and slow mo, relayed by the coordinator)', quote: 'add variety to the fadeaway and the catch dribble shot. for the fadeaway, add some pizzaz to the dribble part where he like wraps the ball around his back and stuff. make like 3 variations that randomly roll each time. for the dribble 3, also add variations to where he runs to and receives the pass. have it go "slow mo" as he pulls up and releases the shot to add some excitement, but dont overdo it. add "slow mo" to the alley oop when he catches it and then ease it back in for an aggressive and satisfying slam' },
+      { kind: 'code', ref: 'packages/progression/src/cosmetics.ts (attack_basketball); packages/ui/src/heroBasketball/ (basketballPlan / basketballCues / basketballGeo / fitDir / poseSegs / basketballPose / basketballBall / hoopAt / basketballCameraAt, variantOf / basketballTimeScale / slowExtraMs, playHeroBasketball, HeroBasketballScene, heroBasketballTextures); packages/ui/src/audio/fx/bball-*.mp3' },
     ],
     currentBehaviour: 'Conforms, built 2026-09-29. The item reaches the database on the next deploy of progression-inventory (the catalog sync); the equip SQL already accepts the hero_attack slot.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/heroBasketball/heroBasketball.test.ts', 'packages/progression/src/cosmetics.test.ts', 'packages/ui/src/progression/CollectionHeroAttack.test.tsx', 'packages/ui/src/heroAttack/damageFormation.test.ts', 'packages/ui/src/heroAttack/stageCamera.test.ts', 'packages/ui/src/heroAttack/knockoutTier.test.ts'], lastVerifiedAt: '2026-09-29' },

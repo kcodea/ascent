@@ -393,17 +393,21 @@ progression **epoch**; nothing finished before the epoch counts (no backfill).
   `attack_basketball` ("Nothing But Net", a placeholder name; Legendary, from crates; R-PROG-ATTACK-33): the striking
   PORTRAIT plays basketball, drawn flat, with a hoop (backboard, rim, net) appearing on the struck hero. A referee's
   whistle opens every tier. I the jumper: a dribble where it stands, a small jump, a high arcing shot with backspin that
-  swishes through the net (the blow lands on the swish). II the fadeaway: it dribbles out to mid court, pushes off
+  swishes through the net (the blow lands on the swish). II the fadeaway: it dribbles out to mid court with one of three
+  dribble moves rolled per fight (a behind-the-back wrap, a crossover, a spin move), pushes off
   backwards and to the side with more room, releases at the top of the fade, swish (a small crowd "ooh"), and slides
-  home. III the pull-up three: it scoots straight up court from its slot (down court for a foe striking from the top), a
-  pass flies in from off the right edge of the screen and it catches it, pump fakes, dribbles back and pulls up for a
-  long high three that swishes (a bigger swish, rings, confetti and the crowd's "ooh"), then slides home. IV the self
+  home. III the pull-up three: it scoots from its slot to one of three spots rolled per fight (straight up court, the
+  left wing or the right corner; down court for a foe striking from the top), a pass flies in from off the edge of the
+  screen the spot faces and it catches it, pump fakes, dribbles back and pulls up for a long high three in a moment of
+  slow motion that eases back as the ball flies, and it swishes (a bigger swish, rings, confetti and the crowd's "ooh"),
+  then slides home. The roll comes from the run seed and the round, so a replay rolls the same. IV the self
   alley-oop: from its slot it fires the ball straight at the struck hero (fast, flat, spinning), the ball smacks it (a
   pop, no damage) and bounces high straight up, the striker takes a quick run-up and leaps, catches the ball at the top
-  and slams it down into an explosion: a fireball, shockwave rings, debris and sparks, the backboard's glass, the whole
+  in slow motion, and the clock eases back in, a touch faster than normal, for the slam down into an explosion: a fireball, shockwave rings, debris and sparks, the backboard's glass, the whole
   board shaking, the crowd roaring (the blow lands on the slam). Sneaker squeaks on every push-off and stop, dribbles, the swish, the
   rim and the slam are heard. Every point it visits stays on screen and every shot and slam lands on the struck hero's
-  centre; its portrait is restored exactly after (on the end, a skip or leaving the fight). **Card Shark** and
+  centre; its portrait is restored exactly after (on the end, a skip or leaving the fight). The slow motion is a smooth
+  ramp of the whole attack's clock, never a freeze. **Card Shark** and
   **Storm Call** (2026-09-29; R-PROG-ATTACK-26, R-PROG-ATTACK-27) are the first EPIC hero attacks: one idea each, shorter
   than the Legendaries, and THREE looks instead of four (they read the same shared tier and map it: I small, II and III
   medium, IV big; a knockout plays big). `attack_cards` ("Card Shark", a placeholder name; Epic, from crates): the hero

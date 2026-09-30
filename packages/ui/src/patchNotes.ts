@@ -63,9 +63,10 @@ export const PATCH_NOTES: PatchNote[] = [
         text: 'New Legendary hero attack: Nothing But Net. Your hero plays basketball on the loser.',
         details: [
           'Small: a jump shot from where your hero stands, swishing through a hoop on the target.',
-          'Tier II: a slide to mid court and a fadeaway jumper.',
-          'Tier III: your hero scoots up, catches a pass from off screen, pump fakes, steps back and drains a three.',
-          'Huge: your hero fires the ball off the target, it bounces high, your hero leaps, catches it and slams it down into an explosion.',
+          'Tier II: a slide to mid court with a dribble move (behind the back, a crossover or a spin), then a fadeaway jumper.',
+          'Tier III: your hero runs to a spot, catches a pass from off screen, pump fakes, steps back and drains a three in slow motion.',
+          'Huge: your hero fires the ball off the target, it bounces high, your hero leaps, catches it in slow motion and slams it down into an explosion.',
+          'The dribble move and the spot change from fight to fight.',
           'With a whistle, dribbles, squeaking sneakers, the swish, the rim and the crowd.',
           'Found in crates. Equip it in the Collection.',
         ],

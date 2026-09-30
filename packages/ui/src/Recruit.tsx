@@ -3007,6 +3007,8 @@ export function Recruit() {
         formation,
         total: strikeDmg,
         knockout,
+        // A stable per-blow seed for a style that rolls a variation (the run seed and the round): a replay rolls the same.
+        rollSeed: (run0.seed ^ Math.imul(run0.wave + 1, 0x9e3779b1)) >>> 0,
         side,
         attacker: aPt,
         defender: dPt,

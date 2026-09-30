@@ -15,6 +15,39 @@ Owner review of PR #1867 (Tier IV only): "i want a direct throw from the beginni
 the target and the attacker leaps into the air and slams it down into an explosion". Tier IV was rebuilt again (below);
 I-III are unchanged.
 
+Owner review of PR #1867 (variety and slow mo): "add variety to the fadeaway and the catch dribble shot. for the
+fadeaway, add some pizzaz to the dribble part where he like wraps the ball around his back and stuff. make like 3
+variations that randomly roll each time. for the dribble 3, also add variations to where he runs to and receives the
+pass. have it go "slow mo" as he pulls up and releases the shot to add some excitement, but dont overdo it. add "slow mo"
+to the alley oop when he catches it and then ease it back in for an aggressive and satisfying slam". Then, on 5173:
+"slow the around the back down so it's cleaner".
+
+## Variety and slow mo
+
+- **II rolls one of three dribble moves** on the slide to mid court:
+  1. A behind-the-back wrap. The ball circles the portrait and is hidden while it passes behind it. It has its own
+     length (`wrapMs`, 440 ms, about twice the first build's), and the slide stretches to fit it.
+  2. A crossover: four quick low bounces, switching sides.
+  3. A spin move: the portrait turns a full circle with the ball riding round with it.
+
+  The fade and the shot that follow are unchanged.
+- **III rolls one of three spots:** straight up court, the left wing, or the right corner. The pass comes from off the
+  edge the spot faces (the left edge for the wing). Every spot is clamped on screen and the shot still lands on the
+  target.
+- **The roll** is `variantOf(rollSeed)`. Recruit passes a stable per-blow seed (the run seed mixed with the round), a new
+  optional `rollSeed` on the shared `HeroAttackOptions`, so a replay rolls the same. The DEV tuner has a "Variation"
+  row (Random / 1 / 2 / 3), and its Play buttons roll a fresh seed each time.
+- **Slow mo** (`basketballTimeScale`): the runner hands the one sequence clock a scaled step, so the portrait, the
+  ball, the FX, the camera and the cue timing slow together. The damage still lands once, on its beat.
+  - III eases down to 0.45x around the release, for about 320 ms of real time, then back to 1x as the ball flies.
+  - IV eases down to 0.35x around the catch, for about 380 ms of real time, then back in and a touch fast (1.2x)
+    through the slam.
+  - It is a smooth ramp that never reaches 0 (tested: the minimum and the step-to-step change), with a subtle extra
+    push-in on the view. Cues fired during it are pitched down a hair.
+  - The safety timer allows for the extra real time.
+- **Tuner dials:** the slow mo's factor and length for III and IV, the slam speed-up, the ease, the push-in, and the
+  wrap's length.
+
 ## What it does
 
 The fourteenth Legendary hero attack, the style `basketball`, the cosmetic `attack_basketball` ("Nothing But Net", a

@@ -1,5 +1,5 @@
 import {
-  BASKETBALL_LEVELS, BASKETBALL_TIER_SUFFIXES, HERO_BASKETBALL_DEFAULTS, HERO_BASKETBALL_RANGES, basketballPlan, getHeroBasketballConfig,
+  BASKETBALL_LEVELS, BASKETBALL_TIER_SUFFIXES, FADEAWAY_MOVES, HERO_BASKETBALL_DEFAULTS, THREE_SPOTS, HERO_BASKETBALL_RANGES, basketballPlan, getHeroBasketballConfig,
   heroBasketballStore, type BasketballTierSuffix,
 } from './heroBasketball/heroBasketballConfig';
 import { playHeroBasketball } from './heroBasketball/heroBasketball';
@@ -31,6 +31,7 @@ const GLOBALS: Record<string, RareGlobalSpec> = {
   midCourt: ['Mid court', '×', 'II: how far toward the target the striker slides before the fade (0.45 = just short of halfway).', 'Moves: the fadeaway (II)'],
   fadeBack: ['Fade back', '×', 'II: how far it drifts BACK from mid court (striker radii).', 'Moves: the fadeaway (II)'],
   fadeSide: ['Fade side', '×', 'II: how far it drifts to the side (the side with more room).', 'Moves: the fadeaway (II)'],
+  wrapMs: ['Behind-the-back wrap', 'ms', 'II: how long the ball takes to circle round the back (the slide to mid court stretches to fit it).', 'Moves: the fadeaway (II)'],
   fadeLean: ['Fade lean', '°', 'II: how far it leans back into the fade (III leans back a little on the step back).', 'Moves: the fadeaway (II)'],
   scootUp: ['Scoot height', '×', 'III: how far the striker scoots straight up court from its slot (striker radii).', 'Moves: the three (III)'],
   passMs: ['Pass flight', 'ms', 'III: the pass flying in from off the right edge to the hands.', 'Moves: the three (III)'],
@@ -44,6 +45,13 @@ const GLOBALS: Record<string, RareGlobalSpec> = {
   alleyRise: ['Bounce height', '×', 'IV: how high the ball bounces off the target, where it is caught (struck radii).', 'Moves: the alley-oop (IV)'],
   riseMs: ['Bounce rise', 'ms', 'IV: the ball rising off the target to the top of its bounce (the leap is timed to meet it there).', 'Moves: the alley-oop (IV)'],
   blastSize: ['Explosion size', '×', 'IV: the explosion under the slam (fireball, shock ring, debris, sparks; 0 = none).', 'Moves: the alley-oop (IV)'],
+  threeSlow: ['III slow mo', '×', 'III: how slow the clock gets around the pull-up and release (1 = none). A smooth ramp, never a freeze.', 'Slow mo'],
+  threeSlowMs: ['III slow mo length', 'ms', 'III: roughly how long (real time) the slow mo lasts around the release.', 'Slow mo'],
+  alleySlow: ['IV slow mo', '×', 'IV: how slow the clock gets around the catch at the top of the leap (1 = none).', 'Slow mo'],
+  alleySlowMs: ['IV slow mo length', 'ms', 'IV: roughly how long (real time) the hang-time slow mo lasts.', 'Slow mo'],
+  slamBoost: ['IV slam speed', '×', 'IV: the clock runs this much FASTER through the slam, after the slow mo eases back in.', 'Slow mo'],
+  slowRampMs: ['Slow mo ease', 'ms', 'How long (attack time) the clock eases into and out of the slow mo.', 'Slow mo'],
+  slowZoom: ['Slow mo push', '×', 'A subtle extra push in on the view during the slow mo.', 'Slow mo'],
   hangMs: ['Hang time', 'ms', 'IV: the moment in the air after the catch before the slam.', 'Moves: the alley-oop (IV)'],
   slamContact: ['Slam depth', '×', 'IV: where the striker stops on the slam (0 = right over the target\'s centre).', 'Moves: the alley-oop (IV)'],
   hoopSize: ['Hoop size', '×', 'The hoop drawn on the target (rim, net, backboard).', 'Hoop and words'],
@@ -100,6 +108,8 @@ const LEVEL_SPECS: Record<BasketballTierSuffix, RareLevelSpec> = {
   Dim: ['Dim', 'opacity', 'How far everything but the two heroes dims.'],
 };
 
+let previewRoll = 0;
+
 const built = rareTunerSpec({
   id: 'herobasketball', // FROZEN: indexes this panel's dragged position in localStorage
   title: 'Hero Attack: Basketball',
@@ -133,16 +143,29 @@ const built = rareTunerSpec({
     const p = basketballPlan({ leadIn: previewLeadIn(c.previewDamage, c.previewParts), total: c.previewDamage }, c);
     return `dev · tier ${p.tier} · ${p.kind} · impact ${Math.round(p.impactAt - p.chargeAt)} · end ${Math.round(p.endAt - p.chargeAt)} ms after the formation`;
   },
-  play: (o) => playHeroBasketball(o),
+  // A fresh roll per preview (a real fight rolls from the run seed and the round, so a replay rolls the same).
+  play: (o) => playHeroBasketball({ ...o, rollSeed: o.rollSeed ?? (previewRoll = (previewRoll + 1) % 3000) }),
   verb: 'shoots at',
   smallHint: 'the jumper, a swish from where it stands.',
   bigHint: 'the pull-up three.',
   tierHints: [
     'the jumper, a dribble, a jump shot and a swish from where it stands.',
-    'the fadeaway, a slide to mid court, a fade back to the side and a swish.',
-    'the pull-up three, a scoot up court, a pass from the right, a pump fake, a dribble back and a three.',
-    'the self alley-oop, a fast throw off the target, a high bounce, the leap, the catch and a slam into an explosion.',
+    'the fadeaway, a dribble move (wrap, crossover or spin) on the slide to mid court, a fade back to the side and a swish.',
+    'the pull-up three, a scoot to a spot (up, the left wing or the right corner), a pass, a pump fake, a dribble back and a slow-mo three.',
+    'the self alley-oop, a fast throw off the target, a high bounce, the leap, a slow-mo catch and a fast slam into an explosion.',
   ],
+});
+
+// THE VARIATION override (DEV): Random (rolled per blow) or force one, placed right under the Attack style row.
+built.spec.controls.splice(1, 0, {
+  key: 'variation', label: 'Variation', kind: 'select', options: ['', '1', '2', '3'], group: 'Style', min: 0, max: 0, step: 0,
+  optionLabels: {
+    '': 'Random (rolled per fight)',
+    1: `1: ${FADEAWAY_MOVES[1]} (II), ${THREE_SPOTS[1]} (III)`,
+    2: `2: ${FADEAWAY_MOVES[2]} (II), ${THREE_SPOTS[2]} (III)`,
+    3: `3: ${FADEAWAY_MOVES[3]} (II), ${THREE_SPOTS[3]} (III)`,
+  },
+  hint: 'Tier II rolls a dribble move and Tier III a spot to catch the pass. Random = what real fights do (the same fight always rolls the same).',
 });
 
 export const SPEC = built.spec;

@@ -27,6 +27,21 @@
  *    squeak) and SLAMS it down into an EXPLOSION (THE impact): a flash core, a fireball, shockwave rings, debris and
  *    sparks, the backboard's glass, the whole board shaking, the crowd roaring.
  *
+ * VARIETY (owner review of #1867: "add variety to the fadeaway and the catch dribble shot ... make like 3 variations that
+ * randomly roll each time ... have it go "slow mo" as he pulls up and releases the shot ... add "slow mo" to the alley
+ * oop when he catches it and then ease it back in for an aggressive and satisfying slam"):
+ *  - II rolls one of three DRIBBLE MOVES on the way to mid court: a behind-the-back wrap (the ball circles round the
+ *    portrait and is hidden while it passes behind it), a crossover (quick low bounces side to side), a spin move (the
+ *    portrait spins a full turn with the ball orbiting it).
+ *  - III rolls one of three SPOTS: straight up court, up to the left wing (the pass from the left edge) or up to the right
+ *    corner (the pass from the right edge).
+ *  - The roll is `variantOf(rollSeed)`: a stable per-blow seed (the run seed and the round), so a replay rolls the same.
+ *    The DEV tuner's "Variation" row forces one.
+ *  - SLOW MO (`basketballTimeScale`): III eases the whole attack's clock down around the release and back up as the ball
+ *    flies; IV eases it down around the catch at the top of the leap and back in, a little FASTER than normal through the
+ *    slam. A smooth ramp that never reaches 0 (never a freeze); everything reads the one clock, so it all slows together,
+ *    and the blow still lands once, on its beat.
+ *
  * The PORTRAIT moves (as Classic, Enraged and Shadow Step do), so every exit path restores its transform, opacity and
  * z-order exactly (the runner owns that). Every point it visits is kept on screen; a point above the target that would
  * leave the frame swings round the target toward the middle of the screen, and the ball always lands on the target's
@@ -82,6 +97,16 @@ interface GlobalConfig {
   alleyRise: number;
   riseMs: number;
   blastSize: number;
+  wrapMs: number;
+  threeSlow: number;
+  threeSlowMs: number;
+  alleySlow: number;
+  alleySlowMs: number;
+  slamBoost: number;
+  slowRampMs: number;
+  slowZoom: number;
+  /** DEV: '' = rolled per blow, '1' / '2' / '3' force a variation (a string so the tuner shows it as a select). */
+  variation: string;
   slamContact: number;
   shadowDrop: number;
   hoopSize: number;
@@ -125,7 +150,7 @@ export const HERO_BASKETBALL_CLIP_KEYS = [
   'sfxWhistleClip', 'sfxDribbleClip', 'sfxSqueakClip', 'sfxThrowClip', 'sfxSwishClip', 'sfxCatchClip', 'sfxRimClip', 'sfxSlamClip',
   'sfxShatterClip', 'sfxOohClip', 'sfxCheerClip',
 ] as const;
-export type HeroBasketballStrKey = (typeof HERO_BASKETBALL_COLOR_KEYS)[number] | (typeof HERO_BASKETBALL_CLIP_KEYS)[number];
+export type HeroBasketballStrKey = (typeof HERO_BASKETBALL_COLOR_KEYS)[number] | (typeof HERO_BASKETBALL_CLIP_KEYS)[number] | 'variation';
 export type HeroBasketballNumKey = Exclude<keyof HeroBasketballConfig, HeroBasketballStrKey>;
 
 /** Per tier: [I, II, III, IV]. A dial a tier's move does not use is ignored there (the tuner says which). */
@@ -200,6 +225,15 @@ export const HERO_BASKETBALL_DEFAULTS: HeroBasketballConfig = {
   alleyRise: 2.6,
   riseMs: 520,
   blastSize: 1.4,
+  wrapMs: 440,
+  threeSlow: 0.45,
+  threeSlowMs: 320,
+  alleySlow: 0.35,
+  alleySlowMs: 380,
+  slamBoost: 1.2,
+  slowRampMs: 70,
+  slowZoom: 0.015,
+  variation: '',
   slamContact: 0.55,
   shadowDrop: 0.55,
   hoopSize: 1,
@@ -261,6 +295,14 @@ const GLOBAL_RANGES: Record<Exclude<keyof GlobalConfig, HeroBasketballStrKey>, [
   alleyRise: [0.5, 4, 0.05],
   riseMs: [120, 1500, 10],
   blastSize: [0, 3, 0.05],
+  wrapMs: [150, 1200, 10],
+  threeSlow: [0.2, 1, 0.01],
+  threeSlowMs: [0, 1200, 10],
+  alleySlow: [0.2, 1, 0.01],
+  alleySlowMs: [0, 1200, 10],
+  slamBoost: [1, 2, 0.01],
+  slowRampMs: [10, 300, 5],
+  slowZoom: [0, 0.08, 0.001],
   slamContact: [0, 1.5, 0.01],
   shadowDrop: [0, 1.5, 0.01],
   hoopSize: [0.3, 2.5, 0.05],
@@ -296,7 +338,7 @@ export const BASKETBALL_CAPS = { shakePx: 40, dribbles: 6 } as const;
 
 const store = configStore<HeroBasketballConfig>({
   key: 'ascent.herobasketball.v3', defaults: HERO_BASKETBALL_DEFAULTS, ranges: HERO_BASKETBALL_RANGES,
-  colorKeys: HERO_BASKETBALL_COLOR_KEYS, clipKeys: HERO_BASKETBALL_CLIP_KEYS, previewKeys: ['previewDamage', 'previewParts'],
+  colorKeys: HERO_BASKETBALL_COLOR_KEYS, clipKeys: [...HERO_BASKETBALL_CLIP_KEYS, 'variation'], previewKeys: ['previewDamage', 'previewParts', 'variation'],
 });
 export const heroBasketballStore = store;
 export const getHeroBasketballConfig = store.get;
@@ -310,18 +352,43 @@ export function basketballTierDials(tier: TierNum, c: HeroBasketballConfig = sto
   return Object.fromEntries(BASKETBALL_TIER_SUFFIXES.map((s) => [s, c[`t${tier}${s}`]])) as Record<BasketballTierSuffix, number>;
 }
 
+// ─── the variation roll (pure) ──────────────────────────────────────────────────────────────────────────────────────
+
+export type BasketballVariant = 1 | 2 | 3;
+export const BASKETBALL_VARIANTS: readonly BasketballVariant[] = [1, 2, 3];
+/** II's dribble moves and III's spots, by variant. */
+export const FADEAWAY_MOVES: Record<BasketballVariant, string> = { 1: 'behind-the-back wrap', 2: 'crossover', 3: 'spin move' };
+export const THREE_SPOTS: Record<BasketballVariant, string> = { 1: 'straight up court', 2: 'the left wing', 3: 'the right corner' };
+
+/** The variation a blow plays: the DEV override when set, else rolled from the stable per-blow seed. Pure. */
+export function variantOf(rollSeed: number, c: HeroBasketballConfig = store.get()): BasketballVariant {
+  const forced = Number(c.variation);
+  if (forced === 1 || forced === 2 || forced === 3) return forced;
+  let h = (Math.round(rollSeed) | 0) >>> 0;
+  h = Math.imul(h ^ (h >>> 16), 0x45d9f3b) >>> 0;
+  h = Math.imul(h ^ (h >>> 16), 0x45d9f3b) >>> 0;
+  h = (h ^ (h >>> 16)) >>> 0;
+  return ((h % 3) + 1) as BasketballVariant;
+}
+
 // ─── the pure plan ─────────────────────────────────────────────────────────────────────────────────────────────
 
 export interface BasketballPlanInput extends AttackTierContext {
   leadIn?: number;
   total: number;
   reduced?: boolean;
+  /** Which variation (II's dribble move, III's spot). Default 1. */
+  variant?: BasketballVariant;
 }
 
 export interface BasketballPlan {
   reduced: boolean;
   tier: TierNum;
   kind: BasketballKind;
+  variant: BasketballVariant;
+  /** II: the dribble move's window (the wrap, the crossover, the spin). */
+  flairAt: number | null;
+  flairEnd: number | null;
   k: number;
   total: number;
   chargeAt: number;
@@ -386,12 +453,13 @@ export function basketballPlan(input: BasketballPlanInput, c: HeroBasketballConf
   const kind = basketballKind(tier);
   const L = basketballTierDials(tier, c);
   const k = (tier - 1) / 3;
+  const variant: BasketballVariant = input.variant ?? 1;
   const looks = {
-    tier, kind, k, total, dribbleMs: L.DribbleMs, flightMs: L.FlightMs, arc: L.Arc, jumpScale: L.JumpScale, zoom: L.Zoom, punch: L.Punch,
+    tier, kind, variant, k, total, dribbleMs: L.DribbleMs, flightMs: L.FlightMs, arc: L.Arc, jumpScale: L.JumpScale, zoom: L.Zoom, punch: L.Punch,
     shakePx: clamp(L.Shake, 0, BASKETBALL_CAPS.shakePx), burst: L.Burst, rings: Math.round(L.Rings), shards: Math.round(L.Shards),
     confetti: Math.round(L.Confetti), dim: L.Dim,
   };
-  const none = { passAt: null, catchAt: null, pumpAt: null, pumpEnd: null, backAt: null, backEnd: null, slamAt: null, bounceAt: null };
+  const none = { passAt: null, catchAt: null, pumpAt: null, pumpEnd: null, backAt: null, backEnd: null, slamAt: null, bounceAt: null, flairAt: null, flairEnd: null };
   if (input.reduced) {
     const r = reducedAttackTimeline(input.leadIn ?? 0, c.reducedFadeMs);
     const at = r.impactAt;
@@ -421,7 +489,10 @@ export function basketballPlan(input: BasketballPlanInput, c: HeroBasketballConf
     };
   }
   if (kind === 'fadeaway') {
-    const approachEnd = startAt + L.ApproachMs;
+    // The wrap round the back gets its own (slower, readable) length; the slide to mid court stretches to fit it
+    // (owner on 5173: "slow the around the back down so it's cleaner").
+    const A = variant === 1 ? Math.max(L.ApproachMs, c.wrapMs / 0.62) : L.ApproachMs;
+    const approachEnd = startAt + A;
     const gatherAt = approachEnd;
     const takeoffAt = gatherAt + c.gatherMs;
     const apexAt = takeoffAt + L.LeapMs * 0.55;
@@ -430,8 +501,15 @@ export function basketballPlan(input: BasketballPlanInput, c: HeroBasketballConf
     const impactAt = releaseAt + flight;
     const homeAt = Math.max(landAt, impactAt) + 60;
     const homeEnd = homeAt + L.ReturnMs;
+    // THE DRIBBLE MOVE on the way out (one of three, rolled): its window, and the dribbles either side of it.
+    const flairAt = startAt + A * (variant === 2 ? 0.08 : variant === 1 ? 0.22 : 0.3);
+    const flairEnd = variant === 1 ? flairAt + c.wrapMs : startAt + A * (variant === 2 ? 0.92 : 0.74);
+    const dribbles = variant === 2
+      ? [0.15, 0.38, 0.62, 0.85].map((f) => startAt + A * f)
+      : variant === 1 ? [startAt + A * 0.1, flairEnd + (approachEnd - flairEnd) * 0.55] : [startAt + A * 0.14, startAt + A * 0.88];
     return {
-      ...looks, ...none, reduced: false, chargeAt, absorbEnd, startAt, approachAt: startAt, approachEnd, dribbles: spread(startAt, L.ApproachMs),
+      ...looks, ...none, reduced: false, chargeAt, absorbEnd, startAt, approachAt: startAt, approachEnd, dribbles, flairAt, flairEnd,
+      dribbleMs: variant === 2 ? Math.min(L.DribbleMs, (A * 0.23) / 0.9) : Math.min(L.DribbleMs, (A * (variant === 1 ? 0.18 : 0.26)) / 0.9),
       squeaks: [startAt, Math.max(startAt, approachEnd - 50), takeoffAt, homeAt], gatherAt, takeoffAt, releaseAt, apexAt, landAt, impactAt, homeAt, homeEnd,
       endAt: Math.max(homeEnd, impactAt + L.HoldMs),
     };
@@ -455,7 +533,7 @@ export function basketballPlan(input: BasketballPlanInput, c: HeroBasketballConf
     const homeEnd = homeAt + L.ReturnMs;
     return {
       ...looks, reduced: false, chargeAt, absorbEnd, startAt, approachAt: startAt, approachEnd, dribbles: spread(backAt, c.backMs),
-      squeaks: [startAt, approachEnd, backAt, takeoffAt, homeAt], passAt, catchAt, pumpAt, pumpEnd, backAt, backEnd, slamAt: null, bounceAt: null,
+      squeaks: [startAt, approachEnd, backAt, takeoffAt, homeAt], passAt, catchAt, pumpAt, pumpEnd, backAt, backEnd, slamAt: null, bounceAt: null, flairAt: null, flairEnd: null,
       gatherAt, takeoffAt, releaseAt, apexAt, landAt, impactAt, homeAt, homeEnd, endAt: Math.max(homeEnd, impactAt + L.HoldMs),
     };
   }
@@ -577,7 +655,7 @@ export function fitDir(d: Pt, pref: Pt, dist: number, frame: Frame | null, margi
 }
 
 /** Where every move goes, from the two heroes and the frame (screen px). Pure. */
-export function basketballGeo(a: Pt, d: Pt, aR: number, dR: number, frame: Frame | null, c: HeroBasketballConfig = store.get()): BasketballGeo {
+export function basketballGeo(a: Pt, d: Pt, aR: number, dR: number, frame: Frame | null, c: HeroBasketballConfig = store.get(), variant: BasketballVariant = 1): BasketballGeo {
   const dx = d.x - a.x, dy = d.y - a.y;
   const dist = Math.hypot(dx, dy) || 1;
   const u = { x: dx / dist, y: dy / dist };
@@ -595,8 +673,16 @@ export function basketballGeo(a: Pt, d: Pt, aR: number, dR: number, frame: Frame
   const fade = clampToFrame(fadeAt(side), frame, m);
   // III: STRAIGHT up court (screen up for you at the bottom; screen down for a foe striking from the top).
   const courtUp = dy <= 0 ? -1 : 1;
-  const scoot = clampToFrame({ x: a.x, y: a.y + courtUp * aR * c.scootUp }, frame, aR * 1.05);
-  const passFrom = { x: (frame ? frame.x1 : a.x + 1200) + aR * c.ballSize * 1.5, y: scoot.y + aR * c.passEntry };
+  // III's spot (rolled): straight up court, up to the left wing, or up to the right corner.
+  const sd = variant === 2 ? { x: -0.72, y: 0.7 } : variant === 3 ? { x: 0.8, y: 0.6 } : { x: 0, y: 1 };
+  const reachUp = aR * c.scootUp * (variant === 1 ? 1 : 1.15);
+  const scoot = clampToFrame({ x: a.x + sd.x * reachUp, y: a.y + courtUp * sd.y * reachUp }, frame, aR * 1.05);
+  // The pass comes from the side the spot faces: the left edge for the left wing, else the right edge.
+  const fromLeft = variant === 2;
+  const passFrom = {
+    x: fromLeft ? (frame ? frame.x0 : a.x - 1200) - aR * c.ballSize * 1.5 : (frame ? frame.x1 : a.x + 1200) + aR * c.ballSize * 1.5,
+    y: scoot.y + aR * c.passEntry,
+  };
   const back = clampToFrame({ x: scoot.x - u.x * aR * c.dribbleBack, y: scoot.y - u.y * aR * c.dribbleBack }, frame, aR * 1.05);
   // IV: the run-up spot, and the catch "above" the target (screen up, swung toward the middle when an edge is in the way).
   const half = clampToFrame(along(clamp(dist * c.halfCourt, 0, Math.max(0, dist - clear))), frame, m);
@@ -646,6 +732,21 @@ export function poseSegs(p: BasketballPlan, g: BasketballGeo, c: HeroBasketballC
   }
   if (p.kind === 'fadeaway') {
     const mid = rel(g.mid), fade = rel(g.fade);
+    if (p.variant === 3) {
+      // THE SPIN MOVE: a full turn in the middle of the run (it ends facing the same way).
+      const spinDir = g.side;
+      const at = (tt: number): Pt => { const u = (tt - p.startAt) / Math.max(1, p.approachEnd - p.startAt); return { x: mid.x * easeInOutSine(u), y: mid.y * easeInOutSine(u) }; };
+      const f0 = at(p.flairAt!), f1 = at(p.flairEnd!);
+      return [
+        seg(p.startAt, p.flairAt!, O, f0, { ease: (u) => u, rot1: drive }),
+        seg(p.flairAt!, p.flairEnd!, f0, f1, { ease: (u) => u, rot0: drive, rot1: drive + 360 * spinDir, sc1: 1.02 }),
+        seg(p.flairEnd!, p.approachEnd, f1, mid, { ease: (u) => u, rot0: drive, rot1: drive, sc0: 1.02 }),
+        seg(p.approachEnd, p.takeoffAt, mid, mid, { rot0: drive, sc1: 0.95 }),
+        seg(p.takeoffAt, p.landAt, mid, fade, { ease: easeOutCubic, hop: 1, rot1: lean, sc0: 0.95, sc1: 1 }),
+        seg(p.landAt, p.homeAt, fade, fade, { rot0: lean }),
+        seg(p.homeAt, p.homeEnd, fade, O),
+      ];
+    }
     return [
       seg(p.startAt, p.approachEnd, O, mid, { rot1: drive }),
       seg(p.approachEnd, p.takeoffAt, mid, mid, { rot0: drive, sc1: 0.95 }),
@@ -773,9 +874,35 @@ export function basketballBall(x: BallCtx, t: number): BallState {
     // III's pump fake lifts the ball straight up from the hands; every real shot or slam cocks it over the head.
     const pumping = p.kind === 'three' && tt < p.gatherAt;
     const ox = pumping ? fx : upd.x * aR * 0.8 * q.scale, oy = pumping ? fy - aR * c.pumpLift : upd.y * aR * 0.8 * q.scale;
-    const bx = px + lerp(fx, ox, ob);
+    let bx = px + lerp(fx, ox, ob);
     let by = py + lerp(fy, oy, ob);
     let squash = 0;
+    let alpha = 1;
+    let scaleK = 1;
+    // II's DRIBBLE MOVE (inside its window): the wrap, the crossover, or the spin.
+    if (p.kind === 'fadeaway' && p.flairAt !== null && tt > p.flairAt && tt < p.flairEnd!) {
+      const u = (tt - p.flairAt) / Math.max(1, p.flairEnd! - p.flairAt);
+      const a0 = Math.atan2(g.u.y, g.u.x);
+      if (p.variant === 1) {
+        // Round the BACK: a full circle from the front; while it is behind the portrait it is hidden (occluded).
+        const th = a0 + g.side * 2 * Math.PI * easeInOutSine(u);
+        const r = aR * 0.92 * q.scale;
+        bx = px + Math.cos(th) * r; by = py + Math.sin(th) * r * 0.75;
+        const behind = Math.cos(th - a0 - Math.PI); // 1 straight behind, -1 in front
+        alpha = clamp01(1 - (behind - 0.35) / 0.4);
+        scaleK = 1 - 0.14 * clamp01(behind);
+      } else if (p.variant === 3) {
+        // The spin: the ball rides round with the portrait (its hand turns with it).
+        const th = a0 + (q.rot * Math.PI) / 180;
+        const r = aR * 0.85 * q.scale;
+        bx = px + Math.cos(th) * r; by = py + Math.sin(th) * r;
+      } else {
+        // The crossover: low and quick, switching sides between the bounces.
+        const n = { x: -g.u.y, y: g.u.x };
+        const s0 = Math.cos(Math.PI * 4 * u); // four crossings through the window
+        bx = px + n.x * aR * 0.85 * s0 + g.u.x * aR * 0.35; by = py + n.y * aR * 0.85 * s0 + g.u.y * aR * 0.35 + aR * 0.25;
+      }
+    }
     // A dribble: down to the floor (screen down) at the bounce time, and back up to the hand.
     const half = p.dribbleMs * 0.45;
     for (const h of p.dribbles) {
@@ -785,7 +912,7 @@ export function basketballBall(x: BallCtx, t: number): BallState {
       by += aR * 0.6 * (1 - v * v);
       if (Math.abs(dt) < 40) squash = 0.18 * (1 - Math.abs(dt) / 40);
     }
-    return { visible: true, x: bx, y: by, rot: 0, scale: q.scale, alpha: 1, air: q.air * 0.8, squash, flying: false };
+    return { visible: alpha > 0.001, x: bx, y: by, rot: 0, scale: q.scale * scaleK, alpha, air: q.air * 0.8, squash, flying: false };
   };
   const flight = (from: Pt, to: Pt, t0: number, t1: number, arc: number, spinK = 1): BallState => {
     const u = clamp01((t - t0) / Math.max(1, t1 - t0));
@@ -839,6 +966,53 @@ export function basketballBall(x: BallCtx, t: number): BallState {
   return dropFrom(g.hit, p.impactAt, g.u.x >= 0 ? -1 : 1);
 }
 
+// ─── slow mo (pure) ─────────────────────────────────────────────────────────────────────────────────────────────────
+
+/** A smooth 0..1 window: rises over `ramp` before `a`, holds to `b`, falls over `ramp` after. */
+function windowAt(t: number, a: number, b: number, ramp: number): number {
+  if (t <= a - ramp || t >= b + ramp) return 0;
+  if (t < a) return easeInOutSine((t - (a - ramp)) / ramp);
+  if (t <= b) return 1;
+  return 1 - easeInOutSine((t - b) / ramp);
+}
+
+/** The slow-mo window in SEQUENCE ms (a real-time length at a factor is `real * factor` of sequence time). */
+export function slowWindow(p: BasketballPlan, c: HeroBasketballConfig): { a: number; b: number; factor: number } | null {
+  if (p.reduced) return null;
+  if (p.kind === 'three' && c.threeSlowMs > 0 && c.threeSlow < 1) {
+    const len = c.threeSlowMs * c.threeSlow;
+    return { a: p.releaseAt - len * 0.55, b: p.releaseAt + len * 0.45, factor: c.threeSlow };
+  }
+  if (p.kind === 'alleyoop' && c.alleySlowMs > 0 && c.alleySlow < 1 && p.catchAt !== null) {
+    const len = c.alleySlowMs * c.alleySlow;
+    return { a: p.catchAt - len * 0.4, b: p.catchAt + len * 0.6, factor: c.alleySlow };
+  }
+  return null;
+}
+
+/**
+ * THE ATTACK'S TIME SCALE at sequence time `t` (1 = normal). III slows around the release, IV around the catch and then
+ * runs a touch FAST through the slam. A smooth ramp, always > 0: never a freeze. Pure.
+ */
+export function basketballTimeScale(p: BasketballPlan, c: HeroBasketballConfig, t: number): number {
+  const w = slowWindow(p, c);
+  let k = 1;
+  if (w) k -= (1 - w.factor) * windowAt(t, w.a, w.b, Math.max(1, c.slowRampMs));
+  if (p.kind === 'alleyoop' && p.slamAt !== null && c.slamBoost > 1) {
+    k += (c.slamBoost - 1) * windowAt(t, p.slamAt + 20, p.impactAt - 10, 40);
+  }
+  return Math.max(0.05, k);
+}
+
+/** How much longer (real ms at speed 1) the slow mo makes the attack. Pure. */
+export function slowExtraMs(p: BasketballPlan, c: HeroBasketballConfig): number {
+  if (p.reduced) return 0;
+  let extra = 0;
+  const step = 4;
+  for (let t = 0; t < p.endAt; t += step) extra += step / basketballTimeScale(p, c, t) - step;
+  return Math.max(0, extra);
+}
+
 // ─── the hoop (pure) ───────────────────────────────────────────────────────────────────────────────────────────
 
 /** The hoop drawn on the target: its opacity and the rim's rattle (a tilt, radians). IV's backboard is gone at the slam. */
@@ -866,6 +1040,8 @@ export function basketballCameraAt(p: BasketballPlan, c: HeroBasketballConfig, t
   const inFrom = p.kind === 'alleyoop' ? p.takeoffAt : p.releaseAt - 120;
   const push = t < inFrom ? 0 : t < p.impactAt ? easeInOutSine((t - inFrom) / Math.max(1, p.impactAt - inFrom)) : 1 - easeInOutSine((t - p.impactAt) / Math.max(1, c.zoomOutMs));
   let z = p.zoom * clamp01(push);
+  const sw = slowWindow(p, c);
+  if (sw) z += c.slowZoom * windowAt(t, sw.a, sw.b, Math.max(1, c.slowRampMs) * 2);
   let x = 0, y = 0;
   const tau = Math.max(1, c.shakeMs / 4);
   if (t >= p.impactAt) {

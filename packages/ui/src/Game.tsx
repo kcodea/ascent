@@ -73,6 +73,7 @@ import { useGame, isPreRun } from './store';
 import { installStage, onStageChange, stageScale, stageViewport } from './stage';
 import { installTouchInput } from './touchInput';
 import { OwnSkins } from './skins/skins';
+import { CloudMovedModal } from './CloudMovedModal';
 
 /** Root of the playable game. `Recruit` owns the board and stays mounted across every
  *  phase — combat plays out *in place* (the shop closes, the enemies arrive, the
@@ -533,6 +534,8 @@ export function Game() {
       <PerfScreen />
       <AvatarPicker />
       <AccountPanel />
+      {/* CROSS-DEVICE SAVES: "your game moved to another device" — self-gates on `cloudMoved`, blocks the stale run. */}
+      <CloudMovedModal />
       {/* REPLAY VIEWER: the round rail (left) + the transport bar. Both self-gate on `replaySession`;
           the overlay mounts LAST so the transport controls float above everything (salvaged v1 order). */}
       {/* The drag ghost self-gates on `replayDragGhost` (only ever set mid-replay) and sits UNDER the

@@ -186,6 +186,18 @@ route) moves it; Practice, the tutorial and sandbox runs never do.
   started; backing out of the title, the Practice setup screen or the hero picker saves nothing. Only a lobby game
   (Play, Practice, the tutorial) is ever saved or resumed. A saved run in the retired 17-round course format is
   dropped at load (not a quit, no settlement) and no Continue is offered; no menu starts a course run any more.
+- **Continue on any device** (owner 2026-09-30, verbatim: *"if a player is playing on one device and they save/quit,
+  can we allow that to be picked up from another device they are signed in on?"*; R-PERSIST-CLOUD-01..03). A
+  signed-in (non-guest) player's saved game is also stored on their account (`saved_runs`, one per account): at the
+  start of each shop phase, on Save & Quit and on tab hide, always AFTER the local save (offline play is unchanged;
+  the upload retries). At the title a newer account copy becomes the Continue and resumes exactly that run, lobby,
+  pinned opponents and the recordings behind its real-player seats included (a mid-combat quit resumes like a local
+  one). **One device at a time**: Continue claims the game (a revision-checked write); a device still holding an
+  older copy has its next save refused and is stopped with "Your game moved" (load the newer copy, or Main menu).
+  A game that ends (or is Cleared) clears the account copy too, so Continue disappears everywhere and a stale local
+  copy of it elsewhere is dropped. Replacing a different saved game with the account's newer one settles the
+  replaced rated game like any abandonment (the rank server settles a run once). Guests stay local-only. Replay
+  frames stay on the device that recorded them, so a game moved between devices has a partial recording.
 
 - **Six medals — Bronze, Silver, Gold, Platinum, Diamond, Ascendant — three divisions each**, ordered
   **I → II → III** and then the next medal's I (18 divisions, `Bronze I` lowest, `Ascendant III` highest).

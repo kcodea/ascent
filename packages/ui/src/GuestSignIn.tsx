@@ -90,6 +90,7 @@ export function PortraitSignInGate({ open, onClose }: { open: boolean; onClose: 
           <div className="pfgate-body">
             <p className="pfgate-lead">Picking a portrait is part of your free account.</p>
             <p className="nrw-note">It is free and takes a minute. You only need an email.</p>
+            <p className="nrw-note">Signed in, your saved game follows you to any device.</p>
           </div>
         ) : (
           <div className="pfgate-body">

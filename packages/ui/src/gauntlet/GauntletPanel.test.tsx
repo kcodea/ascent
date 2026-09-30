@@ -4,9 +4,12 @@
  * opponent name + tribe emblem, "Round N / 10" (held at 10 once the final round is past), the Gauntlet's own loss
  * cap ("Max loss: 5" on round 3, "No cap" on round 9), your own Resolve, and NO seat list / scouting. Plus the
  * regression that the normal lobby rail still reads the normal cap table (round 8 → −15), and the combat opponent:
- * the stage's tribe emblem in place of the stand-in hero portrait, no hero power, name kept.
+ * the stage's tribe emblem in place of the stand-in hero portrait, no hero power, no health pill, name kept.
  */
 import { afterEach, describe, expect, it } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { act } from 'react';
 import { createGauntletRun, createLobbyRun, type RunState } from '@game/sim';
 import type { GauntletStage } from '@game/content';
@@ -67,7 +70,7 @@ describe('GauntletPanel', () => {
 });
 
 describe('CombatOpponent in a Gauntlet', () => {
-  it('wears the tribe emblem, keeps the name and shows no hero power', () => {
+  it('wears the tribe emblem, keeps the name and shows no hero power or health (it takes no damage, R-GAUNTLET-02)', () => {
     const run: RunState = { ...atRound(2), phase: 'combat' };
     act(() => { useGame.setState({ run, combatStaged: true }); });
     ui = mount(<CombatOpponent />);
@@ -77,8 +80,28 @@ describe('CombatOpponent in a Gauntlet', () => {
     expect(opp.querySelector('.combatopp-emblem')).not.toBeNull();
     expect(opp.querySelector('.combatopp-img')).toBeNull();
     expect(document.body.querySelector('.opp-power')).toBeNull();
+    expect(document.body.querySelector('.combatopp-hp')).toBeNull();
+    act(() => { useGame.setState({ combatStaged: false }); });
+  });
+
+  it('a lobby foe still shows its health pill (regression)', () => {
+    const run: RunState = { ...createLobbyRun(4242, 'warden'), phase: 'combat' };
+    act(() => { useGame.setState({ run, combatStaged: true }); });
+    ui = mount(<CombatOpponent />);
     expect(document.body.querySelector('.combatopp-hp')).not.toBeNull();
     act(() => { useGame.setState({ combatStaged: false }); });
+  });
+});
+
+describe('Now Facing in a Gauntlet (Recruit source pin — the wipe is too deep in Recruit to mount here)', () => {
+  const src = readFileSync(join(dirname(fileURLToPath(import.meta.url)), '..', 'Recruit.tsx'), 'utf8');
+  const at = src.indexOf('<div className="wipevs-label">Now Facing</div>');
+  const block = src.slice(at, src.indexOf('<div className="wipevs-name">', at));
+
+  it('wears the stage tribe emblem instead of the stand-in hero portrait; a lobby keeps the portrait', () => {
+    expect(at).toBeGreaterThan(-1);
+    expect(block).toMatch(/run\.mode === 'gauntlet'\s*\?\s*<span className="wipevs-face wipevs-emblem"><Icon name=\{tribe \? TRIBE_ICON\[tribe\]/);
+    expect(block).toMatch(/:\s*<img decoding="sync" className="wipevs-face" src=\{heroPortrait\(foe\.seat\.heroId/);
   });
 });
 

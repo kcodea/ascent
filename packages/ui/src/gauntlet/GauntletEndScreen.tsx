@@ -5,15 +5,15 @@
  *
  * The verdict comes from the store's `gauntletResult` (set on the run-end transition). That slice is not
  * persisted, so a reload onto a finished run re-derives it from the run itself: `gauntletOutcome`, the run's
- * stage, and the round the player's seat fell on (a clear always reads round 10).
+ * stage, and the round the player's seat fell on (a clear always reads the final round, `GAUNTLET_ROUNDS`).
  */
 import type { ReactNode } from 'react';
-import { gauntletStage } from '@game/content';
+import { GAUNTLET_ROUNDS, gauntletStage } from '@game/content';
 import { gauntletOutcome, type RunState } from '@game/sim';
 import { Card } from '../Card';
 import { liveBoardView } from '../instView';
 import { useGame } from '../store';
-import { isStagePlayable, isStageUnlocked } from './gauntletProgress';
+import { GAUNTLET_STAGE_COUNT, isStagePlayable, isStageUnlocked } from './gauntletProgress';
 
 type StoredResult = ReturnType<typeof useGame.getState>['gauntletResult'];
 type GauntletResult = NonNullable<StoredResult>;
@@ -24,7 +24,7 @@ export function resolveGauntletResult(run: RunState, stored: StoredResult): Gaun
   const outcome = gauntletOutcome(run);
   if (!outcome || run.gauntletStage == null) return null;
   const me = run.lobby?.seats[0];
-  const round = outcome === 'cleared' ? 10 : me?.eliminatedRound ?? Math.max(1, (run.lobby?.round ?? 2) - 1);
+  const round = outcome === 'cleared' ? GAUNTLET_ROUNDS : me?.eliminatedRound ?? Math.max(1, (run.lobby?.round ?? 2) - 1);
   // Unknown after a reload; the unlock line below keys on the next stage being open, not on this flag.
   return { stage: run.gauntletStage, outcome, round, firstClear: false };
 }
@@ -44,7 +44,7 @@ export function GauntletEndScreen({ run, reward }: {
   const next = stage + 1;
   // Next stage is offered only when it can actually start: it exists, is playable (a DEV draft counts, as on the
   // stage select) and is unlocked. The unlock line rides the same test so it never announces a "Coming soon" slot.
-  const showNext = cleared && next <= 10 && isStagePlayable(next, import.meta.env.DEV) && isStageUnlocked(next);
+  const showNext = cleared && next <= GAUNTLET_STAGE_COUNT && isStagePlayable(next, import.meta.env.DEV) && isStageUnlocked(next);
   const name = gauntletStage(stage)?.name;
 
   return (

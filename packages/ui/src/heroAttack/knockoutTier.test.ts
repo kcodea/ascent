@@ -131,6 +131,15 @@ describe('heroStrikeKnockout: read off the pools the engine settles from', () =>
     expect(heroStrikeKnockout({ ...run, armor: 2 }, false)).toBe(false);
   });
 
+  it('an INVULNERABLE foe seat (the Gauntlet opponent) is never knocked out, however big the blow (R-GAUNTLET-02)', () => {
+    const run = { ...lobbyRun(), lastCombat: fight({ result: 'win', enemyDamage: 3 }) };
+    const foe = playerOpponent(run.lobby!)!;
+    foe.seat.resolve = 1; foe.seat.armor = 0;
+    expect(heroStrikeKnockout(run, true)).toBe(true);
+    foe.seat.invulnerable = true;
+    expect(heroStrikeKnockout(run, true)).toBe(false);
+  });
+
   it('invulnerable Practice never knocks you out; a zero blow never knocks anyone out', () => {
     const base = lobbyRun();
     const run = { ...base, mode: 'practice' as const, resolve: 1, armor: 0, lastCombat: fight({ result: 'lose', playerDamage: 3 }) };

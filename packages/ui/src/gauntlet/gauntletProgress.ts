@@ -12,6 +12,9 @@ import { gauntletStage } from '@game/content';
 
 export const GAUNTLET_LOCAL_KEY = 'ascent.gauntlet.local';
 
+/** The Gauntlet is ten stages long, whether or not each has a file yet — the highest stage number there is. */
+export const GAUNTLET_STAGE_COUNT = 10;
+
 /** Every stage this device has cleared: sorted, unique, positive integers. [] when storage is empty or unreadable. */
 export function clearedStages(): number[] {
   let raw: string | null = null;

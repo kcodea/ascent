@@ -60,7 +60,8 @@ export function heroStrikeNumbers(run: Pick<RunState, 'lobby' | 'mode' | 'lastCo
  *  - YOUR LOSS: your pools going in are the run's (`settleCombat` re-seeds seat 0 from them before charging it).
  *    Invulnerable Practice (any health but `normal`) never knocks you out: the settle restores the seat.
  *  - YOUR WIN: the paired foe seat's pools. A GHOST (a bye, or a stand-in for a seat with no board) is already out and
- *    is never charged, so it is never a knockout; outside a lobby there is no seat to knock out.
+ *    is never charged, so it is never a knockout; outside a lobby there is no seat to knock out. An INVULNERABLE seat
+ *    (the Gauntlet opponent, R-GAUNTLET-02) takes no damage and is never eliminated, so it is never a knockout either.
  * Presentation only: it picks which version of the attack plays (`attackTier` in `../heroAttack/tiers.ts`).
  */
 export function heroStrikeKnockout(
@@ -75,6 +76,6 @@ export function heroStrikeKnockout(
   }
   if (!run.lobby) return false;
   const foe = playerOpponent(run.lobby);
-  if (!foe || foe.ghost || !foe.seat.alive) return false;
+  if (!foe || foe.ghost || !foe.seat.alive || foe.seat.invulnerable) return false;
   return Math.max(0, foe.seat.resolve) + Math.max(0, foe.seat.armor) <= dmg;
 }

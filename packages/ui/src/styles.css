@@ -5256,6 +5256,9 @@ body.aiming, body.aiming * { cursor: none !important; }
 .fr-foe-pic { width: calc(78 * var(--u)); height: calc(78 * var(--u)); border-radius: 50%; overflow: hidden; display: grid; place-items: center; background: #0f0a06; border: 3px solid color-mix(in srgb, var(--gold) 70%, #000); box-shadow: 0 calc(6 * var(--u)) calc(16 * var(--u)) -6px rgba(0, 0, 0, 0.7); }
 .fr-foe-pic img { width: 100%; height: 100%; object-fit: cover; -webkit-user-drag: none; }
 .fr-foe-pic svg { width: 44%; height: 44%; color: var(--gold); }
+/* GAUNTLET: the stage's tribe emblem fills the foe disc (no hero portrait); `contents` keeps the svg sized off the disc. */
+.fr-foe-emblem { display: contents; }
+.fr-foe-emblem svg { width: 56%; height: 56%; color: #f0c9b8; }
 .fr-foe-name { margin-top: calc(6 * var(--u)); font-family: var(--font-ui); font-weight: 900; font-size: calc(16 * var(--u)); color: #f4ecdb; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .fr-foe-hero { font-family: var(--font-ui); font-weight: 700; font-size: calc(12 * var(--u)); color: #e8c877; }
 /* The ONE damage readout (owner 2026-09-25): the label, then the number big on its own line, green dealt / red took. */
@@ -12601,6 +12604,10 @@ body:has(.heroselect.rankend) .pixifx-above { z-index: 470; }
 /* Now Facing + the lobby rail: the bare <img> moves into a disc-sized host only while a frame is on. */
 .wipevs-facewrap { position: relative; display: block; width: calc(290 * var(--u, 1px)); height: calc(290 * var(--u, 1px)); }
 .wipevs-facewrap > .wipevs-face { display: block; width: 100%; height: 100%; border: none; box-shadow: none; }
+/* GAUNTLET: the stage opponent's tribe emblem stands in for a hero portrait in the Now Facing disc. */
+.wipevs-emblem { display: grid; place-items: center; background: radial-gradient(circle at 50% 30%, #2c211a, #0e0a07); }
+.wipevs-facewrap > .wipevs-emblem { display: grid; }
+.wipevs-emblem svg { width: 62%; height: 62%; color: #f0c9b8; filter: drop-shadow(0 calc(4 * var(--u, 1px)) calc(10 * var(--u, 1px)) rgba(0, 0, 0, 0.6)); }
 .lobbyface-host { position: relative; display: block; overflow: visible; }
 .lobbyface-host > .lobbyface-img { display: block; width: 100%; height: 100%; object-fit: cover; }
 /* YOUR RING OVER YOUR HERO POWER (owner report 2026-09-29: "fix the Z axis of the hero power here so that the player

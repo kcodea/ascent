@@ -7,21 +7,15 @@
  * read once per mount — the screen is torn down whenever a run starts, so it can never show a stale clear.
  */
 import { useMemo } from 'react';
-import type { Tribe } from '@game/core';
 import { gauntletStage } from '@game/content';
 import { Icon } from '../Icon';
 import { sfx } from '../sfx';
 import { useGame } from '../store';
-import { clearedStages, stageSlotState, type StageSlotState } from './gauntletProgress';
+import { clearedStages, GAUNTLET_STAGE_COUNT, stageSlotState, type StageSlotState } from './gauntletProgress';
+import { TRIBE_ICON } from './tribeIcon';
 
-/** Stage slots on the screen: the Gauntlet is ten stages long, whether or not each has a file yet. */
-const SLOT_COUNT = 10;
-
-/** Each tribe's glyph — the same symbols the card footer and quest badges use (`Card.tsx` `TRIBE_ICON`). */
-export const TRIBE_ICON: Record<Tribe, string> = {
-  beast: 'paw', dragon: 'flame', mech: 'gear', undead: 'skull', demon: 'eye', neutral: 'star', kobold: 'crown', dwarf: 'anvil',
-  celestial: 'clock', spirit: 'clock',
-};
+/** Stage slots on the screen: one per Gauntlet stage, whether or not each has a file yet. */
+const SLOT_COUNT = GAUNTLET_STAGE_COUNT;
 
 const TAG: Record<StageSlotState, string> = {
   available: 'Play', cleared: '✓ Cleared', locked: 'Locked', soon: 'Coming soon', draft: 'Draft',

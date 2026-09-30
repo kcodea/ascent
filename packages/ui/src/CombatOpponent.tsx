@@ -11,7 +11,7 @@ import { Icon } from './Icon';
 import { BuffsFrame } from './BuffsFrame';
 import { gatherSnapshotBuffs } from './runBuffs';
 import { stageHost } from './stage';
-import { TRIBE_ICON } from './gauntlet/StageSelect';
+import { TRIBE_ICON } from './gauntlet/tribeIcon';
 
 /**
  * THE COMBAT OPPONENT — the foe's hero portrait, dropped in over the Refresh button for the fight (owner ask
@@ -126,13 +126,17 @@ export const CombatOpponent = memo(function CombatOpponent(): JSX.Element | null
             <PortraitFrame frame={frame} />
           </div>
         </div>
-        <div className="combatopp-hp">
-          <Icon name="heart" />{shownResolve}
-          {shownArmor > 0 && <span className="combatopp-armor">+{shownArmor}</span>}
-          {/* Buffs affordance — the little arrow riding BELOW the health pill (the player's rides the
-              portrait's top; the foe's panel drops the other way). */}
-          {hasBuffs && <span className="oppbuffs-arrow" aria-hidden="true">{buffsOpen ? '▴' : '▾'}</span>}
-        </div>
+        {/* GAUNTLET: the stage opponent takes no damage and is never eliminated (R-GAUNTLET-02), so it wears no
+            health pill — a number that could only ever "drop" and snap back would misreport the fight. */}
+        {!gauntlet && (
+          <div className="combatopp-hp">
+            <Icon name="heart" />{shownResolve}
+            {shownArmor > 0 && <span className="combatopp-armor">+{shownArmor}</span>}
+            {/* Buffs affordance — the little arrow riding BELOW the health pill (the player's rides the
+                portrait's top; the foe's panel drops the other way). */}
+            {hasBuffs && <span className="oppbuffs-arrow" aria-hidden="true">{buffsOpen ? '▴' : '▾'}</span>}
+          </div>
+        )}
         {/* The foe's run-buffs pop-out — expands DOWNWARD out of the group's bottom edge when the portrait
             is clicked (see `.combatopp-drop .herobuffs` in styles.css). */}
         <BuffsFrame open={buffsOpen} rows={buffRows} drop />

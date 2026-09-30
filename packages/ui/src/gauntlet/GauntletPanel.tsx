@@ -12,7 +12,7 @@ import { roundLossCap, type RunLobby } from '@game/sim';
 import { GAUNTLET_ROUNDS, gauntletStage } from '@game/content';
 import { Icon } from '../Icon';
 import { useGame } from '../store';
-import { TRIBE_ICON } from './StageSelect';
+import { TRIBE_ICON } from './tribeIcon';
 
 export const GauntletPanel = memo(function GauntletPanel({ lobby, stage }: { lobby: RunLobby; stage: number | undefined }): JSX.Element {
   // YOUR health reads the run, not the seat — the seat only re-syncs when the round settles (see LobbyPanel).

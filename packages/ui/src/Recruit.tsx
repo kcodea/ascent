@@ -1,5 +1,5 @@
 import { Fragment, memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent, type TransitionEvent as ReactTransitionEvent } from 'react';
-import { CARD_INDEX, EQUIPMENT_INDEX, QUEST_INDEX, RUNE_INDEX } from '@game/content';
+import { CARD_INDEX, EQUIPMENT_INDEX, QUEST_INDEX, RUNE_INDEX, gauntletStage } from '@game/content';
 import { compileTimeline } from './choreographer/compileTimeline';
 import { normalizePresentationBatch } from './choreographer/adapters/presentationBatchAdapter';
 import { createTimelinePlayer, runTimeline } from './choreographer/livePlayer';
@@ -68,6 +68,7 @@ import { diffHandBuffs, fireHandBuff, fireHandBuffOnHandSpells, fireHandBuffOnHa
 import { HudBar } from './HudBar';
 import { LobbyPanel } from './LobbyPanel';
 import { GauntletPanel } from './gauntlet/GauntletPanel';
+import { TRIBE_ICON } from './gauntlet/tribeIcon';
 import { GAUNTLET_CLOCK_WAITING, gauntletClockState, gauntletClockWaiting, gauntletTurnClock } from './gauntlet/gauntletClock';
 import { CombatOpponent } from './CombatOpponent';
 import { playHeroBlast } from './heroBlast/heroBlast';
@@ -7311,7 +7312,12 @@ export function Recruit() {
             <div className="wipevs">
               <div className="wipevs-label">Now Facing</div>
               {(() => {
-                const face = <img decoding="sync" className="wipevs-face" src={heroPortrait(foe.seat.heroId, opponentSkins(showOppSkins, seatCosmetics(foe.seat, foe.board)))} alt="" draggable={false} />;
+                // GAUNTLET: the stage opponent has no hero (its `heroId` is a stand-in), so the disc wears the
+                // stage's tribe emblem — the same face the combat portrait and the in-run panel show.
+                const tribe = run.mode === 'gauntlet' ? gauntletStage(run.gauntletStage ?? 0)?.tribe : undefined;
+                const face = run.mode === 'gauntlet'
+                  ? <span className="wipevs-face wipevs-emblem"><Icon name={tribe ? TRIBE_ICON[tribe] : 'anvil'} /></span>
+                  : <img decoding="sync" className="wipevs-face" src={heroPortrait(foe.seat.heroId, opponentSkins(showOppSkins, seatCosmetics(foe.seat, foe.board)))} alt="" draggable={false} />;
                 // With a tuner frame on, the face sits in a disc-sized host that carries the ring; without one
                 // the markup is exactly what it always was.
                 return foeFrame ? (
@@ -7594,7 +7600,8 @@ export function Recruit() {
       <PerfProfiler id="render:recruit:overlays">
       <CombatLogOverlay
         showLog={showLog} result={replay.result} combatOdds={combatOdds} lastCombat={run.lastCombat}
-        lobby={run.lobby} board={run.board} wave={run.wave} mode={run.mode} procs={replay.procs} fullLog={replay.fullLog}
+        lobby={run.lobby} board={run.board} wave={run.wave} mode={run.mode} gauntletStage={run.gauntletStage}
+        procs={replay.procs} fullLog={replay.fullLog}
         onWatchReplay={run.combatSettled ? watchReplay : undefined} onClose={closeLog}
       />
 
@@ -8785,9 +8792,9 @@ const DragOverlay = memo(function DragOverlay({ timeUp, heroArmed, equipArmed, h
 /** The post-combat FIGHT RECAP (owner redesign 2026-09-24; was the "Combat Summary"). Memoized so that, while it
  *  is closed (the whole shop phase), a Recruit render costs it a handful of prop compares and nothing else; the
  *  recap itself (FightRecap.tsx) only mounts while open. */
-const CombatLogOverlay = memo(function CombatLogOverlay({ showLog, result, combatOdds, lastCombat, lobby, board, wave, mode, procs, fullLog, onWatchReplay, onClose }: {
+const CombatLogOverlay = memo(function CombatLogOverlay({ showLog, result, combatOdds, lastCombat, lobby, board, wave, mode, gauntletStage, procs, fullLog, onWatchReplay, onClose }: {
   showLog: boolean; result: 'win' | 'lose' | 'draw' | null; combatOdds: CombatOdds | null; lastCombat: RunState['lastCombat'];
-  lobby: RunState['lobby']; board: RunState['board']; wave: number; mode: RunState['mode'];
+  lobby: RunState['lobby']; board: RunState['board']; wave: number; mode: RunState['mode']; gauntletStage?: number;
   procs: ReturnType<typeof useCombatReplay>['procs']; fullLog: ReturnType<typeof useCombatReplay>['fullLog'];
   onWatchReplay?: () => void; onClose: () => void;
 }) {
@@ -8795,7 +8802,7 @@ const CombatLogOverlay = memo(function CombatLogOverlay({ showLog, result, comba
   return (
     <FightRecap
       result={result} combatOdds={combatOdds} lastCombat={lastCombat} lobby={lobby} board={board} wave={wave} mode={mode}
-      procs={procs} fullLog={fullLog} onWatchReplay={onWatchReplay} onClose={onClose}
+      gauntletStage={gauntletStage} procs={procs} fullLog={fullLog} onWatchReplay={onWatchReplay} onClose={onClose}
     />
   );
 });

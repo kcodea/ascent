@@ -1499,6 +1499,17 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
 /* illustrated art (art/minions/<id>.png) fills the panel exactly (absolute so the grid can't
    size it to the square's width-driven height and overflow onto the text below) */
 .artimg { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center; filter: var(--ca-filter, none); display: block; -webkit-user-drag: none; user-select: none; -webkit-touch-callout: none; }
+/* NEVER SHOW UNDECODED ART (art pop-in fix 2026-09-29, `useArtFade` in artPreload.ts). While a card's art is still
+   being fetched/decoded the <img> is invisible and its window shows a dim portrait-shaped stand-in (static: no
+   looping paint), then the art fades in ONCE over 180 ms — opacity only, so it composites. Art that is already
+   decoded never gets either class and renders exactly as before. `!important` on the stand-in because the
+   window's background is set per frame type at up to four-class specificity (spell frames are transparent);
+   this transient state must win over all of them. */
+/* `.art-pending` / `.art-fadein` also ride the card FRAME and hand PLATE images (and FadeImg portraits); the
+   pending opacity is `!important` because some frame copies (the grounding shadow) carry their own opacity. */
+.art-pending { opacity: 0 !important; }
+.art-fadein { transition: opacity 180ms ease-out; }
+.art.art-wait { background: radial-gradient(ellipse 70% 55% at 50% 40%, rgba(255, 228, 178, 0.10), transparent 70%), linear-gradient(180deg, #2b2436, #17121d) !important; }
 /* Ward (Divine Shield) — the energy shell. The old INNER dome (a `.ward` stack inside `.art`, trimmed to the
    portrait window) was REMOVED 2026-07-21: with the frame-wide `.wardglass` shell below, the two stacked into
    a doubled honeycomb and two competing blues (owner). The card-level outer aura + breathing bloom stay (they

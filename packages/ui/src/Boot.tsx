@@ -1,15 +1,13 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import './styles.css'; // ensure the boot loading screen is styled even before <Game/> mounts
 import { createPortal } from 'react-dom';
-import { preloadAllArt, ART_COUNT } from './art';
+import { preloadBootArt } from './preloadPlan';
 
 /**
- * Boot gate: holds a loading screen up front while EVERY bundled art file is fetched + decoded, so the game
- * never renders a card before its illustration is ready — no pop-in (the owner would rather wait a beat at boot
- * than see art appear late in the shop). Children (the actual <Game/>) don't mount until art is ready, so no
- * card can render early. A hard cap resolves the gate anyway if preloading stalls (offline / a broken CDN), so
- * boot can never hang. The loader runs on EVERY load (no skip flag) — cheap when art is already HTTP-cached
- * (onload fires instantly), and it always re-verifies art is ready before a card can render.
+ * Boot gate: holds the splash for a fixed SPLASH_MS (see below) and starts the art pipe underneath it
+ * (`preloadBootArt`, preloadPlan.ts). The gate does NOT wait for art (owner ask 2026-08-25); what guarantees
+ * no pop-in is the pipe's ORDER (what is on screen is always fetched next) plus the card's placeholder: a card
+ * whose art is not decoded yet shows a styled stand-in and fades the art in, never a blank frame (2026-09-29).
  *
  * THE SPLASH ITSELF IS NOT RENDERED HERE (owner ask 2026-08-22: "an image that fades out after art is
  * loaded"). It lives in `apps/web/index.html` with inline CSS so it paints on the FIRST frame — a
@@ -37,8 +35,7 @@ function splashEl(): HTMLElement | null {
   return typeof document === 'undefined' ? null : document.getElementById('bootsplash');
 }
 export function Boot({ children }: { children: ReactNode }): React.ReactElement {
-  const [ready, setReady] = useState<boolean>(() => ART_COUNT === 0);
-  const [pct, setPct] = useState(0);
+  const [ready, setReady] = useState<boolean>(false);
 
   useEffect(() => {
     if (ready) return;
@@ -58,7 +55,8 @@ export function Boot({ children }: { children: ReactNode }): React.ReactElement 
     // The preload still RUNS — it is simply never awaited — so the fetch/decode work still warms the cache in
     // the background and most art is ready by the time anything renders. What it no longer does is HOLD the
     // gate, which means on a genuinely cold, slow connection a card can now reach the screen before its art has
-    // decoded (the pop-in the old gate existed to prevent). That is the deliberate trade this ask makes.
+    // decoded (the pop-in the old gate existed to prevent). That is the deliberate trade this ask makes; since
+    // 2026-09-29 such a card shows its placeholder and fades the art in (Card.tsx), never a blank-then-snap.
     // ANCHOR THE TIMER TO THE BAR, NOT TO REACT. The bar starts filling the instant the splash reveals (the
     // inline script in index.html adds `.is-in` and stamps `data-inAt`), but this effect only runs once the
     // ~3 MB bundle has parsed and mounted — measured ~900 ms later on a warm load. Timing SPLASH_MS from here
@@ -68,7 +66,9 @@ export function Boot({ children }: { children: ReactNode }): React.ReactElement 
     const inAt = Number(splashEl()?.dataset.inAt ?? NaN);
     const elapsed = Number.isFinite(inAt) ? performance.now() - inAt : 0;
     const hold = window.setTimeout(finish, Math.max(0, SPLASH_MS - elapsed));
-    void preloadAllArt((loaded, total) => { if (alive) setPct(total ? loaded / total : 1); });
+    // Start the art pipe NOW, under the splash: card chrome + mode tiles + heroes + the live set's early cards
+    // first, the rest behind (preloadPlan.ts). It only fills a queue; the fetch + decode run off the main thread.
+    preloadBootArt();
     return () => { alive = false; window.clearTimeout(hold); };
   }, [ready]);
 
@@ -113,8 +113,8 @@ export function Boot({ children }: { children: ReactNode }): React.ReactElement 
       {useFallback && (
         <div className="bootload" aria-live="polite" aria-busy="true">
           <div className="bootload-mark">ASCENT</div>
-          <div className="bootload-bar"><div className="bootload-fill" style={{ width: `${Math.round(pct * 100)}%` }} /></div>
-          <div className="bootload-sub">Loading art… {Math.round(pct * 100)}%</div>
+          <div className="bootload-bar"><div className="bootload-fill" style={{ width: '100%' }} /></div>
+          <div className="bootload-sub">Loading…</div>
         </div>
       )}
       {/* Landscape-only on phones: CSS shows this only on a touch device held in portrait (see `.rotate-prompt`).

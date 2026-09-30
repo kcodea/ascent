@@ -2391,7 +2391,7 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'attack_bleed ("Hemorrhage", Legendary, style bleed: R-PROG-ATTACK-21), joined the same day under the same fixed odds, '
       + 'making Legendary sixteen items at 0.3125% each and the thirteen attacks together 4.06%. The four Rare attacks '
       + '(attack_coin, attack_boomerang, attack_bubble, attack_backstab: R-PROG-ATTACK-28 to 32) made Rare seventeen items '
-      + 'at 1.765% each; every hero attack together is now 11.1% of a first crate.',
+      + 'at 1.765% each; every hero attack together is now 11.1% of a first crate. The fourteenth Legendary, attack_basketball ("Nothing But Net", style basketball: R-PROG-ATTACK-33), made Legendary seventeen items at 0.294% each (2026-09-29).',
     domain: 'foundation',
     status: 'approved',
     evidence: [
@@ -3268,6 +3268,53 @@ export const FOUNDATION_RULES: GameRule[] = [
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/heroBackstab/heroBackstab.test.ts', 'packages/progression/src/cosmetics.test.ts', 'packages/ui/src/heroAttack/damageFormation.test.ts'], lastVerifiedAt: '2026-09-29' },
   },
   {
+    id: 'R-PROG-ATTACK-33',
+    title: 'Nothing But Net (attack_basketball, Legendary): the striking PORTRAIT plays basketball: a jump shot / a fadeaway / a pull-up three off a pass / a self alley-oop off a high bounce into an explosion; the blow lands ONCE on the swish or the slam; the portrait is always restored',
+    statement:
+      'attack_basketball ("Nothing But Net", a placeholder name; Legendary, crate, account-wide, style basketball): after the '
+      + 'shared damage formation (R-PROG-ATTACK-08) a referee\x27s whistle sounds and the striking hero\x27s own PORTRAIT '
+      + 'moves (as Classic, Enraged and Shadow Step do), with a hoop (backboard, rim, net) drawn on the struck hero, flat 2D. '
+      + 'It escalates on the shared tiers (thresholds 6 / 12 / 20; a knockout plays IV, R-PROG-ATTACK-20): I the jumper (a '
+      + 'dribble where it stands, a small jump, a high arcing shot with backspin that swishes); II the fadeaway (it dribbles '
+      + 'out to mid court with one of three DRIBBLE MOVES rolled per blow (a behind-the-back wrap, the ball hidden while it '
+      + 'passes behind the portrait; a crossover; a spin move), pushes off BACKWARDS and to the side with more room, releases at the top of the fade, swish, a '
+      + 'small crowd "ooh", slides home); III the pull-up three (it scoots from its slot to one of three SPOTS rolled per '
+      + 'blow: straight up court, the left wing or the right corner, down court for a foe striking from the top; a PASS flies '
+      + 'in from off the edge of the screen the spot faces and is caught; a PUMP FAKE; it DRIBBLES BACK and pulls up, the '
+      + 'clock easing into SLOW MOTION around the release and back to normal as the ball flies, for a long high three that '
+      + 'swishes with rings, confetti and the crowd\x27s "ooh", then '
+      + 'slides home); IV the self alley-oop (from its slot it FIRES the ball at the hoop over the struck hero, fast, flat and '
+      + 'spinning with a speed trail; it CLANGS off the backboard beside the portrait, never its face (the struck hero does '
+      + 'not react at all until the slam), and BOUNCES HIGH; a quick run-up, '
+      + 'a big LEAP timed to meet it, the CATCH at the top in SLOW MOTION, the clock easing back in (a touch faster than '
+      + 'normal through the slam), and the SLAM down into an EXPLOSION: a white-hot core, a '
+      + 'fireball, shockwave rings, debris and sparks, the backboard\x27s glass, the whole board shaking, rim + slam + a '
+      + 'loud crowd "ooh" and a cheer). Dribbles, sneaker squeaks on the push-offs, '
+      + 'stops and take-offs, the swish, the rim and the slam are heard; every cue has its own clip / gain / pitch dial. '
+      + 'The consequence (the damage, Armor, Resolve) lands exactly ONCE: on the swish (I-III) or the slam (IV); the pass, '
+      + 'the pump fake, IV\x27s clang off the backboard, and the catch never land it or touch the target. Every point the portrait visits is kept on screen '
+      + '(a catch above a target tucked in a corner swings round it toward the middle of the screen) and every shot and '
+      + 'slam lands on the struck hero\x27s centre. The striker is raised over the target (the .duel-attacker-* z-order) '
+      + 'for the whole attack, and its transform, opacity and z-order class are restored exactly, and the ball, shadows and '
+      + 'hoop hidden, on every exit (the end, finish, cancel, the safety timer, an unmount). The variation is rolled from a '
+      + 'stable per-blow seed (the run seed and the round), so a replay rolls the same. The slow motion is a smooth ramp of '
+      + 'the attack\x27s one clock that never reaches 0: everything slows together and the blow still lands once on its beat. '
+      + 'No hit-stop or freeze '
+      + '(R-PROG-ATTACK-10); presentation only; reduced motion is fades only.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-29 (the basketball attack, relayed by the coordinator)', quote: 'branch off and make a basketball attack animation. tier 1 = basketball shot from place / tier 2 = a fadeaway, the attacker hero slides to mid court, then slides to the left or right kind backwards and shoots a basketball at the target' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-29 (Basketball review, relayed by the coordinator)', quote: 'the fadeaway is the best, let\x27s make the tier 3 another like it - let\x27s have the attacker scoot straight upwards and get a pass thrown to him from off-screen from the right side and he pump fakes, dribbles back and then pulls up for a 3. for the huge self alley oop - have the attacker chuck the ball from its starting position, and then run up and leap from half court, catching the ball and massively slamming on the target.' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-30 (PR #1867 review, Tier IV, relayed by the coordinator)', quote: 'i want a direct throw from the beginning that\x27s fast and bounces high off the target and the attacker leaps into the air and slams it down into an explosion' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-30 (PR #1867 review, variety and slow mo, relayed by the coordinator)', quote: 'add variety to the fadeaway and the catch dribble shot. for the fadeaway, add some pizzaz to the dribble part where he like wraps the ball around his back and stuff. make like 3 variations that randomly roll each time. for the dribble 3, also add variations to where he runs to and receives the pass. have it go "slow mo" as he pulls up and releases the shot to add some excitement, but dont overdo it. add "slow mo" to the alley oop when he catches it and then ease it back in for an aggressive and satisfying slam' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-30 (5173 review of Tier IV, relayed by the coordinator)', quote: 'the dunk has a weird moment before the dunk where he hits the player with the ball, remove that' },
+      { kind: 'code', ref: 'packages/progression/src/cosmetics.ts (attack_basketball); packages/ui/src/heroBasketball/ (basketballPlan / basketballCues / basketballGeo / fitDir / poseSegs / basketballPose / basketballBall / hoopAt / basketballCameraAt, variantOf / basketballTimeScale / slowExtraMs, playHeroBasketball, HeroBasketballScene, heroBasketballTextures); packages/ui/src/audio/fx/bball-*.mp3' },
+    ],
+    currentBehaviour: 'Conforms, built 2026-09-29. The item reaches the database on the next deploy of progression-inventory (the catalog sync); the equip SQL already accepts the hero_attack slot.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/heroBasketball/heroBasketball.test.ts', 'packages/progression/src/cosmetics.test.ts', 'packages/ui/src/progression/CollectionHeroAttack.test.tsx', 'packages/ui/src/heroAttack/damageFormation.test.ts', 'packages/ui/src/heroAttack/stageCamera.test.ts', 'packages/ui/src/heroAttack/knockoutTier.test.ts'], lastVerifiedAt: '2026-09-29' },
+  },
+  {
     id: 'R-PROG-ATTACK-25',
     title: 'A hero attack\x27s camera reaches its FX exactly ONCE: while the view zooms and shakes, the effects stay on the struck portrait',
     statement:
@@ -3329,5 +3376,46 @@ export const FOUNDATION_RULES: GameRule[] = [
     ],
     currentBehaviour: 'Conforms since 2026-09-29. Before, the charge\x27s sustained ground shake (camShakeHold) was only cleared on a wind-down or a reset, so it kept shaking the view through the reveal until the scene settled.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/progression/crateFx/crateFx.test.ts'], lastVerifiedAt: '2026-09-29' },
+  },
+  {
+    id: 'R-PRESENT-25',
+    title: 'Art is never shown undecoded, and the run\x27s set is preloaded in priority order',
+    statement:
+      'No card, portrait or tile ever paints a blank or half-loaded image: its art, frame, hand plate and chrome images '
+      + 'appear only once the image is decoded AND the element itself can paint it (`img.complete` at commit, before '
+      + 'paint); until then the image is invisible over a static dark placeholder and fades in once (180 ms, opacity '
+      + 'only). Art already decoded renders exactly as before, with no fade. Loading is ONE ordered pipe (6 in flight): '
+      + 'what is on screen first, then the title and shop chrome, then the live set\x27s tier 1-2 cards and the heroes, '
+      + 'then the rest of the run\x27s PINNED pool (`poolOf(run)`) tier-first, then sounds, then everything else '
+      + '(fetch-only). The web build ships Netlify `_headers` making hashed assets immutable and index.html no-cache.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      {
+        kind: 'owner-chat',
+        ref: 'Claude Code session, 2026-09-29 (friends playing the Netlify build)',
+        quote: 'seeing a lot of pop in when i watch my friends play when they roll into a fresh shop etc. how can we stop pop in entirely?',
+      },
+      {
+        kind: 'owner-chat',
+        ref: 'Claude Code session, 2026-09-29 (local builds too)',
+        quote: 'i dont think it\x27s just a netlify issue - mike\x27s has pop in sometimes too',
+      },
+      { kind: 'code', ref: 'packages/ui/src/assetQueue.ts; packages/ui/src/artPreload.ts (useArtFade); packages/ui/src/preloadPlan.ts; packages/ui/src/FadeImg.tsx; apps/web/public/_headers' },
+    ],
+    currentBehaviour:
+      'Conforms as of 2026-09-29 (PR #1866). Measured on the prod build: blank card frames went from 96% of the first '
+      + 'shop at 10 Mbps (art after 6.9 s), whole rolls, 41-80 per returning-visit shop and 9-11 per local session, to 0 '
+      + 'in every scenario. See docs/devlog/2026-09-29-art-pop-in.md.',
+    enforcement: {
+      kind: 'scenario',
+      refs: [
+        'packages/ui/src/assetQueue.test.ts',
+        'packages/ui/src/preloadPlan.test.ts',
+        'packages/ui/src/artFade.test.tsx',
+        'apps/web/publicArt.test.ts',
+      ],
+      lastVerifiedAt: '2026-09-29',
+    },
   },
 ];

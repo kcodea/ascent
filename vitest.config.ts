@@ -41,6 +41,7 @@ export default defineConfig(({ mode }) => ({
     __BUILD_SHA__: JSON.stringify('test'),
     __BUILD_DIRTY__: JSON.stringify(false),
     __BUILD_DATE__: JSON.stringify('1970-01-01T00:00:00.000Z'),
+    __PUBLIC_ART__: JSON.stringify([]),
   },
   // Use the automatic JSX runtime (matches `apps/web/tsconfig.json`'s `jsx: react-jsx`) so a test that
   // transitively imports a JSX-using UI module (e.g. the glossary drift test importing `MinionBook`, which

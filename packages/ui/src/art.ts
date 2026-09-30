@@ -208,99 +208,17 @@ const AVATAR_SRC = new Map(AVATAR_ART.map((a) => [a.id, a.src] as const));
 /** Resolve a stored avatar id (`kind:key`) to its art URL — undefined if unset or no longer bundled. */
 export const avatarSrc = (id?: string | null): string | undefined => (id ? AVATAR_SRC.get(id) : undefined);
 
-/** App-level public assets (served from `apps/web/public/` at the site root) that also pop in when loaded
- *  lazily: the board backdrops + title art (CSS `url()` / title <img>) and the custom drag cursors (a cursor
- *  swap flashes the default arrow until its SVG is fetched). They live outside the ui package's globs, so
- *  they're listed by URL — keep in sync with `styles.css` `url()` refs + `apps/web/public/`. */
-// BASE_URL-relative (not root-absolute): itch serves the game from a CDN sub-path, where '/x.webp' 404s and the
-// warm-up silently skipped these (BASE_URL is '/' in dev, './' in the build — resolved against index.html).
-const PUBLIC_ART_URLS: string[] = [
-  `${import.meta.env.BASE_URL}augustfullboard.webp`, // the board (all resolutions; see styles.css --board)
-  `${import.meta.env.BASE_URL}augustboardcombat.webp`, // the combat variant the wipe reveals — preloaded so the first wipe never uncovers a half-loaded image
-  `${import.meta.env.BASE_URL}homescreen.webp`,
-  `${import.meta.env.BASE_URL}runeforgebg2.webp`, // Runeforge overlay backdrop — preloaded so the forge doesn't open on an empty scrim
-
-  `${import.meta.env.BASE_URL}cursors/gauntlet_default.svg`,
-  `${import.meta.env.BASE_URL}cursors/gauntlet_open.svg`,
-  `${import.meta.env.BASE_URL}cursors/hand_closed.svg`,
-  // The end-of-turn charge glyph's SHAPE — used as a CSS mask on `.chargeglyph .masked` (and sampled by
-  // chargeMotes). Preloaded because an unfetched mask means the layers paint UNMASKED for the first frame:
-  // the fill's blue gradient flashed as a full RECTANGLE as the charge began (owner report). Cached at boot
-  // → the mask applies on the glyph's first paint.
-  `${import.meta.env.BASE_URL}fx/turn-glyph.svg`,
-];
-
-/** Every bundled art URL (minions + heroes + powers) + the public backdrops/cursors, deduped — the warm-up set. */
-const ALL_ART_URLS: string[] = [
-  ...new Set([...Object.values(MINION_ART), ...Object.values(HERO_ART), ...Object.values(POWER_ART), ...Object.values(RANK_ART), ...PUBLIC_ART_URLS]),
-];
-
-let warmed = false;
-/** The preloader's Image objects, held for the session — dropping them lets the browser GC the elements and,
- *  with them, more eagerly evict the decoded bitmaps, re-introducing mid-run decode flashes on weaker devices. */
-const KEEP_ALIVE: HTMLImageElement[] = [];
 /**
- * Preload (fetch + decode) every bundled art file so cards render with their art already cached — no
- * "pop-in" a beat after the card frame on a cold load (the itch CDN especially: each webp is a separate
- * round-trip the first time its card appears). Idempotent and non-blocking: it kicks off detached `Image`
- * loads on idle (the browser fetches + decodes off the render path), so it never competes with first paint.
- * Call once the title / hero-select screen is up. Platform-independent — fixes the web + itch-embed build,
- * not just a future local/desktop wrap (which only removes the network half).
+ * Every bundled art index by kind — the preload plan (`preloadPlan.ts`) orders these into lanes. Public-folder
+ * images (boards, frames, cursors, medallions) are NOT here: they are listed at build time as `__PUBLIC_ART__`
+ * (`apps/web/publicArt.ts`), because `import.meta.glob` cannot see `apps/web/public/`.
+ *
+ * The old `warmArt` / `preloadAllArt` pair lived here until 2026-09-29: it fired ~650 image requests at once in
+ * alphabetical order (plus the whole audio bank on the first click), so on a remote connection the card in the
+ * shop waited behind every other file for its bytes, and spells, runes, quests, card frames and mode tiles were
+ * never warmed at all. See `artPreload.ts` and docs/devlog/2026-09-29-art-pop-in.md.
  */
-export function warmArt(): void {
-  if (warmed || typeof Image === 'undefined') return;
-  warmed = true;
-  const run = (): void => {
-    for (const url of ALL_ART_URLS) {
-      const img = new Image();
-      KEEP_ALIVE.push(img); // same session-long hold as the blocking preloader
-      img.decoding = 'async';
-      img.src = url;
-      // decode() pre-decodes off the main thread where supported; best-effort (ignore failures / abort).
-      void img.decode?.().catch(() => {});
-    }
-  };
-  const ric = (window as unknown as { requestIdleCallback?: (cb: () => void) => void }).requestIdleCallback;
-  if (typeof ric === 'function') ric(run);
-  else setTimeout(run, 200);
-}
-
-/** Total number of bundled art files (minions + heroes + powers) — the denominator for a boot progress bar. */
-export const ART_COUNT = ALL_ART_URLS.length;
-
-/**
- * BLOCKING preload: fetch AND decode every bundled art file, resolving only once they're all cached (or have
- * individually failed / timed out). Unlike `warmArt` (fire-and-forget on idle), this is meant to gate a boot
- * loading screen so the game never renders a card before its art is decoded — no pop-in, guaranteed. Each image
- * has its own hard timeout so one stuck request can't hang the whole boot, and `onProgress(loaded, total)` fires
- * as each settles. Marks the warm-up done so a later `warmArt()` no-ops.
- */
-export function preloadAllArt(onProgress?: (loaded: number, total: number) => void): Promise<void> {
-  if (typeof Image === 'undefined') return Promise.resolve();
-  warmed = true;
-  const urls = ALL_ART_URLS;
-  const total = urls.length;
-  let loaded = 0;
-  const one = (url: string): Promise<void> =>
-    new Promise<void>((resolve) => {
-      let settled = false;
-      const done = (): void => {
-        if (settled) return;
-        settled = true;
-        loaded += 1;
-        onProgress?.(loaded, total);
-        resolve();
-      };
-      const img = new Image();
-      KEEP_ALIVE.push(img); // hold the element for the session so its decoded bitmap isn't eagerly evicted
-      img.decoding = 'async';
-      // Resolve as soon as the bytes are cached (`onload`) — the network round-trip is what causes the pop-in.
-      // Kick `decode()` in the background too (best-effort) so first paint is instant, but never GATE on it:
-      // `decode()` can stall in a backgrounded/throttled tab, and onload is the reliable signal.
-      img.onload = (): void => { void img.decode?.().catch(() => {}); done(); };
-      img.onerror = done; // a missing/broken file shouldn't block the boot
-      img.src = url;
-      window.setTimeout(done, 12000); // safety: never hang on a stuck fetch
-    });
-  return Promise.all(urls.map(one)).then(() => undefined);
-}
+export const ART_URL_GROUPS = {
+  minion: MINION_ART, spell: SPELL_ART, hero: HERO_ART, power: POWER_ART, skin: SKIN_ART, equipment: EQUIPMENT_ART,
+  ancient: ANCIENT_ART, quest: QUEST_ART, rune: RUNE_ART, mode: MODE_ART, rank: RANK_ART,
+} as const satisfies Record<string, Record<string, string>>;

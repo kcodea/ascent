@@ -28,6 +28,9 @@ export interface PlayerRun {
   ownerId?: string;
   /** Per-wave boards, ascending. */
   snaps: BoardSnapshot[];
+  /** The run's strength percentile (1-100) as the shared pool delivered it (`BoardSnapshot.runStrength`, stamped
+   *  by the client from `pool_runs.strength`). Absent = unscored, which is inside every matchmaking band. */
+  strength?: number;
   /** The skins the run's owner wore: the UNION of every board's scoped `cosmetics` (a card skinned on wave 9 is
    *  known to the seat from round 1). Absent for runs from before skins. */
   cosmetics?: RunCosmeticSnapshot;
@@ -188,9 +191,10 @@ export function playerRunsFrom(
     if (!runCoversItsRounds(ordered) || !runTiersPlausible(ordered)) continue;
     const cosmetics = runCosmetics(ordered);
     const ownerId = ordered.find((x) => x.ownerId)?.ownerId;
+    const strength = snaps.find((x) => typeof x.runStrength === 'number')?.runStrength;
     runs.push({
       key, author: ordered[0]!.author ?? 'anon', heroId: ordered[0]!.heroId, snaps: ordered,
-      ...(ownerId ? { ownerId } : {}), ...(cosmetics ? { cosmetics } : {}),
+      ...(ownerId ? { ownerId } : {}), ...(cosmetics ? { cosmetics } : {}), ...(typeof strength === 'number' ? { strength } : {}),
     });
   }
   // Deterministic order — the pool's iteration order is an accident of registration, and seat selection must

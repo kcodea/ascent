@@ -117,6 +117,43 @@ const flush = async (): Promise<void> => { await act(async () => { await Promise
 const click = (el: Element | null | undefined): void => { act(() => { (el as HTMLElement).click(); }); };
 afterEach(() => { ui?.unmount(); ui = null; useGame.setState({ showCareer: false, showOpponentSkins: true }); });
 
+describe('board strength in match details (R-LOBBY-09)', () => {
+  let ui: Mounted | null = null;
+  afterEach(() => { ui?.unmount(); ui = null; });
+  const STRONG: MatchDetails = {
+    v: 1, endRound: 6, placement: 3, eliminated: true, knockedOutBy: 's2',
+    seats: [
+      seat({ id: 's2', name: 'Orangez', strength: 81 }),
+      seat({ id: 's0', name: 'Kev', self: true, placement: 3, eliminatedRound: 6, strength: 58, roundStrength: [{ round: 1, value: 40 }, { round: 2, value: 76 }] }),
+      seat({ id: 's5', name: 'Gen', placement: 8, eliminatedRound: 2 }),
+    ],
+  };
+
+  it("prints each scored seat's strength and your rounds; an unscored seat shows nothing", () => {
+    ui = mount(<MatchScoreboard details={STRONG} own />);
+    const rows = [...ui.container.querySelectorAll('.mds-row')];
+    expect(rows.map((r) => r.querySelector('.mds-strength')?.textContent ?? null)).toEqual(['Board strength 81', 'Board strength 58', null]);
+    // Opens on who knocked you out: their strength under the board, no rounds (those are yours only).
+    expect(ui.container.querySelector('.mds-strength-panel')?.textContent).toBe('Board strength 81');
+    act(() => { (rows[1] as HTMLButtonElement).click(); });
+    expect([...ui.container.querySelectorAll('.mds-strength-round')].map((e) => e.textContent)).toEqual(['R140', 'R276']);
+    act(() => { (rows[2] as HTMLButtonElement).click(); });
+    expect(ui.container.querySelector('.mds-strength-panel')).toBeNull();
+    // No em dash anywhere in what it prints.
+    expect(ui.container.textContent).not.toMatch(/—/);
+  });
+
+  it('survives the stored round trip, and drops garbage', async () => {
+    const { parseMatchDetails } = await import('@game/sim');
+    const back = parseMatchDetails(JSON.parse(JSON.stringify(STRONG)))!;
+    expect(back.seats.map((s) => s.strength ?? null)).toEqual([81, 58, null]);
+    expect(back.seats[1]!.roundStrength).toEqual([{ round: 1, value: 40 }, { round: 2, value: 76 }]);
+    const bad = parseMatchDetails({ ...STRONG, seats: [{ ...STRONG.seats[0], strength: 400, roundStrength: [{ round: 'x', value: 5 }] }] })!;
+    expect(bad.seats[0]!.strength).toBeUndefined();
+    expect(bad.seats[0]!.roundStrength).toBeUndefined();
+  });
+});
+
 describe('the scoreboard', () => {
   it('lists every seat in the recorded order and shows the selected seat\'s board', () => {
     ui = mount(<MatchScoreboard details={LOSS} own />);

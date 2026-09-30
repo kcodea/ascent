@@ -80,6 +80,10 @@ export interface BoardSnapshot {
    *  lobby seat selection for the per-player seat cap and to keep your own runs out of your own lobby
    *  (R-LOBBY-08). Absent = unknown (committed pool, legacy caches): the display `author` stands in. */
   ownerId?: string;
+  /** The RUN's strength percentile (1-100, `pool_runs.strength`), stamped by the client when the board arrives from
+   *  the shared pool (board strength, R-LOBBY-09, 2026-09-30). Read by seat selection for the matchmaking band and by
+   *  Match details. Never part of an upload (a local capture has none); absent = unscored. */
+  runStrength?: number;
   /** The skins its owner wore (skins v1, 2026-09-28): the run's recorded `cosmetics`, SCOPED to this board's
    *  hero and cards (handoff §13: only what the payload can show). Display only, never read by combat or
    *  matchmaking. Absent on every board from before skins = default art. */

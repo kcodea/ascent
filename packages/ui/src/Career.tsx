@@ -296,6 +296,10 @@ function MatchRow({ run, focus, busy, unplayable, onWatch }: {
             {run.lobbyStrength && (
               <span className="cv2-meta"><span className="cv2-meta-l">Lobby</span><span className="cv2-meta-v cv2-row-lobby" aria-label={`Lobby strength ${run.lobbyStrength.value} percent`}>{strengthText(run.lobbyStrength)}</span></span>
             )}
+            {/* BOARD STRENGTH (R-LOBBY-09): the run's percentile, frozen when it ended; nothing when it was not scored. */}
+            {run.boardStrength != null && (
+              <span className="cv2-meta"><span className="cv2-meta-l">Board strength</span><span className="cv2-meta-v cv2-row-bstrength" aria-label={`Board strength ${run.boardStrength} out of 100`}>{run.boardStrength}</span></span>
+            )}
           </div>
         </div>
       </header>

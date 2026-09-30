@@ -89,7 +89,7 @@ const game = (over: Partial<RecentGameRow>): RecentGameRow => ({
   runes: ['rune_spellslinging', 'rune_happy_birthday'], wave: 15, lobbyStrength: null, ...over,
 });
 const GAMES: RecentGameRow[] = [
-  game({ lobbyStrength: { value: 74, tier: 'Brutal', inputs: [] } }),
+  game({ lobbyStrength: { value: 74, tier: 'Brutal', inputs: [] }, boardStrength: 72 }),
   // A PARTIAL recording (resumed from round 5), 5th place, one draw in the record.
   game({ userId: 'me-1', author: 'Kev', heroId: 'sable', rowId: 90, placement: 5, record: { wins: 4, losses: 5, draws: 1 }, partial: true, firstRecordedWave: 5, durationMs: 7 * 60_000 + 20_000, runes: [], wave: 11 }),
   // A pre-replay row: no board, no record, no length, no replay (Watch must be dead), no player id (not clickable).
@@ -175,6 +175,9 @@ describe('asRecentGameRow — the widened light-list mapper', () => {
     // The lobby-strength stamp (`replay->v2->result->lobbyStrength`, a JSON object): parsed when present, null otherwise.
     expect(asRecentGameRow({ ...base, lobby_strength: { value: 74, tier: 'Brutal', inputs: [] } }).lobbyStrength).toEqual({ value: 74, tier: 'Brutal', inputs: [] });
     expect(asRecentGameRow({ ...base, lobby_strength: null }).lobbyStrength).toBeNull();
+    // The board-strength stamp (`replay->v2->result->>boardStrength`, text): a number when present, else null.
+    expect(asRecentGameRow({ ...base, board_strength: '72' }).boardStrength).toBe(72);
+    expect(asRecentGameRow({ ...base }).boardStrength).toBeNull();
     expect(row.lobbyStrength).toBeNull();
     expect(RECENT_GAMES_SELECTS[0]).toContain('lobby_strength:replay->v2->result->lobbyStrength');
   });
@@ -399,8 +402,10 @@ describe('RecentGames — the recording banners', () => {
     expect(text('.lb-verdict')).toEqual(['VICTORY', '5TH', '2ND']);
     expect([...ui.container.querySelectorAll('.lb-verdict')].map((v) => v.className)).toEqual(['lb-verdict won', 'lb-verdict lost', 'lb-verdict top4']);
     // length · rounds · (lobby strength, only on a row that carries the stamp) per row; row 3 has no rounds
-    expect(text('.lb-fact-v')).toEqual(['18 min', '15', '74%', '7 min', '11', '—']);
+    expect(text('.lb-fact-v')).toEqual(['18 min', '15', '74%', '72', '7 min', '11', '—']);
     expect(text('.lb-fact-lobby')).toEqual(['74%']);
+    // BOARD STRENGTH (R-LOBBY-09): only the scored game shows it.
+    expect(text('.lb-fact-bstrength')).toEqual(['72']);
   });
 
   it('labels the partial recording, and the board-less row gets the empty plate', () => {

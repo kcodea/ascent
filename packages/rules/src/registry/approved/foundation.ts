@@ -657,6 +657,63 @@ export const FOUNDATION_RULES: GameRule[] = [
     },
   },
   {
+    id: 'R-LOBBY-09',
+    title: 'Board strength: a 1-100 percentile per board and per run, matchmaking bands by rank, and the frozen number in match history',
+    statement:
+      'Every board a rated lobby uploads is scored: its RAW strength is its win rate (win 1, draw 0.5) against a frozen, '
+      + 'versioned reference set of ~30 real boards of its wave (two seeded fights each, the board once on each side, '
+      + 'both sides fought through the recorded-seat combat side), stored permanently with the board. Its PERCENTILE '
+      + '(1-100) is its place among every scored board at the same reference wave (ties half; 72 = stronger than 72%), '
+      + 'derived, never stored; a run\'s strength is the average of its boards\' percentiles. A RATED lobby draws its '
+      + 'recorded seats uniformly at random from the runs inside the band of the player\'s medal (Bronze 0-30, Silver '
+      + '10-40, Gold 20-65, Platinum and above uncapped; every division of a medal shares it), still whole runs, at '
+      + 'most 4 seats per player, never the player\'s own runs. A run with no score yet is inside every band. When a '
+      + 'band cannot fill the table it widens by 10 on each capped side, step by step (each step logged), before '
+      + 'generated seats fill the rest. Practice and the tutorial have no band. The player\'s own game shows '
+      + '"Board strength N" in the Career and Recent Games rows and in Match details (with each round and each '
+      + 'opponent seat), frozen at the moment the game ended; a game that was not scored shows nothing.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      {
+        kind: 'owner-chat',
+        ref: 'Claude Code session, 2026-09-30 (board strength design)',
+        quote: "can we build an algorithm for board strength to get as good of an idea of how strong a snapshot's run is, and assign it a 1-100 value?",
+      },
+      {
+        kind: 'owner-chat',
+        ref: 'Claude Code session, 2026-09-30 (bands)',
+        quote: 'serve for example 0-30 for bronze, 10-40 in silver, 20-65 in gold, and then uncap plat?',
+      },
+      {
+        kind: 'owner-chat',
+        ref: 'Claude Code session, 2026-09-30 (percentile)',
+        quote: '72 would basically mean like... a 72/100 aka 72nd percentile',
+      },
+      {
+        kind: 'owner-chat',
+        ref: 'Claude Code session, 2026-09-30 (show it)',
+        quote: 'can we show that score to the player too maybe? like maybe that is shown in match history?',
+      },
+      { kind: 'code', ref: 'packages/sim/src/lobby/boardStrength.ts + strengthBands.ts + strengthReference.v1.json; packages/sim/src/lobby/runLobby.ts createRunLobby (strengthBand); packages/ui/src/boardStrength/ (background scorer); packages/ui/src/opponentPool/poolFetch.ts (band + widening); supabase/migrations/2026-09-30-board-strength.sql' },
+    ],
+    currentBehaviour:
+      'Built 2026-09-30. The bands switch on by themselves once the owner has run the SQL and the backfill: before, '
+      + 'the RPC takes no band (feature-detected, the band is dropped for the session) and every run is unscored, '
+      + 'so selection is exactly R-LOBBY-08\'s.',
+    enforcement: {
+      kind: 'scenario',
+      refs: [
+        'packages/sim/src/lobby/boardStrength.test.ts',
+        'packages/sim/src/lobby/boardStrength.db.test.ts',
+        'packages/sim/src/lobby/strengthBands.test.ts',
+        'packages/ui/src/boardStrength/boardStrength.test.ts',
+        'packages/ui/src/boardStrength/runEndStrength.test.ts',
+      ],
+      lastVerifiedAt: '2026-09-30',
+    },
+  },
+  {
     id: 'R-HALL-02',
     title: 'Hall of Champions: the own-game line counts the same fights as the record line',
     statement:

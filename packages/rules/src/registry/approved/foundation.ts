@@ -3569,4 +3569,43 @@ export const FOUNDATION_RULES: GameRule[] = [
       lastVerifiedAt: '2026-09-30',
     },
   },
+  // ── The drag's make-room slide on a scaled stage (owner report 2026-09-30) ────────────────────────────────────
+  {
+    id: 'R-PRESENT-27',
+    title: 'Dragging and reordering cards behaves exactly the same at every window size',
+    statement:
+      'Picking up, dragging, reordering and playing cards look and behave the same in a window of any size as they '
+      + 'do full screen. While a card is dragged over a row, the neighbours part to open the drop gap and stay '
+      + 'parted until the gap moves; each glides from where it was to its new spot and never springs back to its '
+      + 'old slot. The distances a player drags (how far to lift a card out before the row closes up, where the '
+      + 'drop slot opens) are the same share of a card at every size. Applies to the warband, the shop row and '
+      + 'the hand.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      {
+        kind: 'owner-chat',
+        ref: 'Owner report 2026-09-30 (warband drag below full screen)',
+        quote: 'im seeing issues with the warband units not reacting appropriately when dragging units onto the board and repositioning them',
+      },
+      {
+        kind: 'owner-chat',
+        ref: 'Owner report 2026-09-30 (same thread)',
+        quote: 'its perfect in full screen, when not in full screen its broken',
+      },
+      { kind: 'fix-pr', ref: 'fix/warband-drag-scaled-stage: packages/ui/src/stageFlip.ts (fromSimpleState ends each glide on the fresh-read transform); packages/ui/src/Recruit.tsx (collapseY -> toScreen)' },
+    ],
+    currentBehaviour:
+      'Conforms as of 2026-09-30. Since the scaled stage (#1762, 2026-09-27) the below-full-screen FLIP in '
+      + 'stageFlip.ts read x from the stale GSAP cache and tweened every card to x: 0, so the React slideDir transform of the drag '
+      + 'was wiped each time the gap moved: the neighbours twitched and fell back to their slots. It now '
+      + 're-reads the transform fresh (as GSAP Flip does at full screen) and ends the glide on it. The row-collapse '
+      + 'lift (owner-tuned layout px) is converted to screen px before meeting the screen-px pointer lift. Full '
+      + 'screen (s = 1) runs GSAP Flip unchanged.',
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/ui/src/stageFlip.test.ts'],
+      lastVerifiedAt: '2026-09-30',
+    },
+  },
 ];

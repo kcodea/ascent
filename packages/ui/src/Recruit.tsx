@@ -50,7 +50,7 @@ import { beginDragTrace, cancelDragTrace, endDragTrace, sampleDragTrace } from '
 import { SYM_KINDS } from './choreo/channels/float';
 import { stabilizeViewMap, stabilizeRefMap, stabilizeView } from './cardViewEqual';
 import { buildShopViews, type ShopViewCacheEntry } from './shopViewCache';
-import { deriveDragDecision, dragDecisionEqual, computeCastingSpell, NO_DRAG_DECISION, type DragGeo, type DragDecision } from './dragDecision';
+import { deriveDragDecision, dragDecisionEqual, computeCastingSpell, NO_DRAG_DECISION, INSERT_FRAC, indexFromSlots, reorderIndexFromSlots, type DragGeo, type DragDecision } from './dragDecision';
 import { dragStore, useDragSlice, type DragSnapshot, type DragState } from './dragStore';
 import { QuestCard } from './QuestCard';
 import { RuneforgeDialog } from './runeforgeEntrance/RuneforgeDialog';
@@ -351,9 +351,6 @@ type Zone = 'tavern' | 'warband' | 'hand';
  *  who genuinely wants to end instantly barely notices. */
 const END_TURN_LOCK_MS = 2000; // 5000 → 2000 (owner re-tune 2026-07-31: the long lock outstayed its welcome)
 // px the pointer must move before a click becomes a drag — live-tunable via the DEV Drag tuner (dragFeel.ts).
-// How far into a card the cursor must reach (fraction of width) before the insertion point
-// moves past it — below 0.5 so cards slide out of the way sooner / more sensitively.
-const INSERT_FRAC = 0.5; // insert after a card once the *dragged card's centre* passes its midpoint
 const TURN_SECONDS = 18; // base round timer; grows +4s/wave (+6s more from round 6 — owner 2026-07-16), capped at 80 — and floored at CHARGE_SECONDS+1, so wave 1 actually kicks off at 21s (see turnSeconds)
 const CHARGE_SECONDS = 20;
 const CHARGE_MAX_FEATHER = 24; // % — the reveal feather = this × (1−charge): soft incoming fronts, 0 at completion (no sigil dimming)
@@ -3385,40 +3382,9 @@ export function Recruit() {
     const uid = shopUidAt(x, y);
     return uid && run.shop.find((o) => o.uid === uid)?.starform ? uid : null;
   };
-  // Insertion index in the warband, from the pointer's x against the cards' centres.
-  // `excludeUid` drops the dragged card from the count when *reordering* a board minion
-  // (it's still in the DOM, so without this a rightward drag overshoots by one).
-  // Count how many cached slot-midpoints the pointer x has passed (the insertion index).
-  const indexFromSlots = (slots: { uid: string; left: number; width: number }[], x: number, excludeUid?: string): number => {
-    let i = 0;
-    for (const c of slots) {
-      if (c.uid === excludeUid) continue;
-      if (x > c.left + c.width * INSERT_FRAC) i++;
-    }
-    return i;
-  };
-  // Reorder insertion index that measures against each neighbour's CURRENT (shifted) position, not its resting
-  // slot. As you drag a card aside, its neighbour slides a whole slot to make room; the swap-back trigger must
-  // follow the neighbour's NEW spot — otherwise (measuring resting midpoints) you'd have to drag ~half a card
-  // OUT to open the gap but only a sliver BACK to close it (the reported asymmetry). With the gap currently at
-  // `prevGap`, the p-th non-dragged card sits in slot (p < prevGap ? p : p+1); count those whose centre is < x.
-  const reorderIndexFromSlots = (
-    slots: { uid: string; left: number; width: number }[],
-    x: number,
-    excludeUid: string,
-    prevGap: number,
-  ): number => {
-    const g = prevGap >= 0 ? prevGap : Math.max(0, slots.findIndex((s) => s.uid === excludeUid));
-    let p = 0;
-    let count = 0;
-    for (const c of slots) {
-      if (c.uid === excludeUid) continue;
-      const slot = slots[p < g ? p : p + 1] ?? c;
-      if (x > slot.left + slot.width * INSERT_FRAC) count++;
-      p++;
-    }
-    return count;
-  };
+  // Insertion index in the warband, from the pointer's x against the cards' centres: `indexFromSlots` /
+  // `reorderIndexFromSlots` (dragDecision.ts) count the cached slot midpoints. Both sides are SCREEN px (the
+  // cached rects and the pointer), so the count is the same at any stage scale.
   const warbandIndexAt = (x: number, excludeUid?: string): number => {
     const cached = insertRectsRef.current;
     if (cached)
@@ -4043,7 +4009,7 @@ export function Recruit() {
     const decOf = (d0: DragState | null, x: number, y: number, z: Zone | null, magSlide = dragStore.get().magSlide): DragDecision =>
       deriveDragDecision({
         drag: d0, x, y, overZone: z, magSlide, playFloor: playFloorRef.current, spellFloor: spellFloorRef.current,
-        collapseY: getDragFeel().collapseY, boardMax: CONFIG.boardMax, board: run.board, spellUid: run.spell?.uid, geo: gateGeo,
+        collapseY: toScreen(getDragFeel().collapseY) /* owner-tuned layout px vs a screen-px lift (stage.ts) */, boardMax: CONFIG.boardMax, board: run.board, spellUid: run.spell?.uid, geo: gateGeo,
         asksChoiceFirst: asksFirst, aimsStarform: !!d0 && aimsStarform,
       });
     /** Publish a decision point: the drag at (x, y), the zone, the decision and the cast state — one store write,

@@ -1,6 +1,11 @@
 import gsap from 'gsap';
 import { Flip } from 'gsap/Flip';
-import { stageScale, toScreen, toStage } from './stage';
+import { stageScale, toStage } from './stage';
+
+/** An element's current `x` / `y` translate in layout px, re-parsed from its computed transform (GSAP's
+ *  `getProperty` 4th argument, `uncache` — untyped in gsap's .d.ts). Flip reads its end state the same way. */
+const freshTranslate = (el: Element, prop: 'x' | 'y'): number =>
+  Number((gsap.getProperty as (t: Element, p: string, unit?: string, uncache?: boolean) => string | number)(el, prop, undefined, true)) || 0;
 
 /**
  * GSAP Flip's `simple: true` fast path on the SCALED STAGE (stage.ts).
@@ -13,8 +18,15 @@ import { stageScale, toScreen, toStage } from './stage';
  * is exactly the per-card forced layout the simple path was chosen to avoid.
  *
  * So below the design size this module does the same translate-only FLIP by hand, at the simple path's cost (one
- * rect per card at capture, one at play): capture each element's on-screen box, and on play start it at
- * `toStage(old − new)` and tween to 0. At `s === 1` both functions are exactly `Flip.getState` / `Flip.from`.
+ * rect per card at capture, one at play): capture each element's on-screen box, and on play start it
+ * `toStage(old − new)` away from its CURRENT transform and tween back to that transform. At `s === 1` both functions
+ * are exactly `Flip.getState` / `Flip.from`.
+ *
+ * The END of the glide is the element's current transform, read FRESH — never `x: 0`, never GSAP's cached value
+ * (owner report 2026-09-30, R-PRESENT-27). During a drag the row opens its gap with a React `slideDir` transform
+ * (Card.tsx) that GSAP never wrote, so its cache is stale; Flip re-reads it (`cache.uncache = 1`) and ends on it.
+ * Tweening to 0 instead wiped the make-room slide the instant it was applied — the warband twitched and fell back
+ * instead of parting, but only below full screen.
  */
 
 interface StageRecord { el: Element; left: number; top: number }
@@ -44,17 +56,16 @@ export function fromSimpleState(
     if (!el.isConnected) continue;
     const r = el.getBoundingClientRect();
     if (r.width === 0 && r.height === 0) continue;
-    // The element's natural (untranslated) box in screen px, then the old-minus-new offset in layout px.
-    const curX = Number(gsap.getProperty(el, 'x')) || 0;
-    const curY = Number(gsap.getProperty(el, 'y')) || 0;
-    const dx = toStage(rec.left - (r.left - toScreen(curX)));
-    const dy = toStage(rec.top - (r.top - toScreen(curY)));
-    if (Math.abs(dx) < 0.5 && Math.abs(dy) < 0.5) {
-      if (curX !== 0 || curY !== 0) tl.to(el, { x: 0, y: 0, duration: vars.duration, ease: vars.ease }, 0);
-      continue;
-    }
+    // Where the element's transform puts it NOW (layout px), read fresh like Flip does: the drag's make-room slide
+    // is a React transform GSAP's cache has never seen. That is the glide's END; its start is the old-minus-new
+    // on-screen offset (screen px -> layout px) away from it.
+    const curX = freshTranslate(el, 'x');
+    const curY = freshTranslate(el, 'y');
+    const dx = toStage(rec.left - r.left);
+    const dy = toStage(rec.top - r.top);
+    if (Math.abs(dx) < 0.5 && Math.abs(dy) < 0.5) continue; // already where the layout wants it
     gsap.killTweensOf(el, 'x,y');
-    tl.fromTo(el, { x: dx, y: dy }, { x: 0, y: 0, duration: vars.duration, ease: vars.ease, immediateRender: true }, 0);
+    tl.fromTo(el, { x: curX + dx, y: curY + dy }, { x: curX, y: curY, duration: vars.duration, ease: vars.ease, immediateRender: true }, 0);
   }
   return tl;
 }

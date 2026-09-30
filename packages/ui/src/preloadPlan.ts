@@ -1,23 +1,29 @@
 import type { CardDef } from '@game/core';
-import { poolFor, SETS, type SetId } from '@game/content';
+import { CARD_INDEX, poolFor, RUNE_INDEX, SETS, type SetId } from '@game/content';
 import { poolOf, type RunState } from '@game/sim';
 import { ART_URL_GROUPS, artFor } from './art';
+import { ART_ALIAS } from './artAlias';
 import { requestArtList } from './artPreload';
 import type { Lane } from './assetQueue';
 
 /**
- * THE PRELOAD PLAN — which art goes in which lane of the asset queue, and when (art pop-in fix, 2026-09-29).
+ * THE PRELOAD PLAN — which art goes in which lane of the asset queue, and when (art pop-in fix, 2026-09-29; the
+ * boot LOADING GATE, 2026-09-30).
  *
- *   boot  (`preloadBootArt`, from Boot): the card CHROME and the screen chrome a first shop shows (frames, plates,
- *         tier stars, shop buttons, board, cursors) and the title's mode tiles; then the enabled set's tier 1-2
- *         cards, the heroes + powers; then the rest of that set; then everything else, fetch-only.
+ *   boot  (`preloadBootArt`, from Boot): EVERYTHING a session on the live set can show, in lane order (the card and
+ *         screen chrome, the live set's tier 1-2 cards, heroes + powers, then the rest of the set, every token,
+ *         runes, quests, skins, equipment, Ancients, FX images). It RETURNS that list: Boot holds the splash
+ *         until every one of them is decoded (owner 2026-09-30: "i think id rather load everything. i dont want
+ *         blurry images, i wanna stop pop in."). Behind the gate, in `idle`: the cards and runes that belong
+ *         ONLY to sets nobody can play right now (the Collection's set picker can still show them).
  *   run   (`preloadRunArt`, from Game, whenever the run's set / tribes / tier change): the run's PINNED pool
  *         (`poolOf(run)` — never the live registry), cards up to one tier above the shop first.
- *   on screen: `useArtReady` raises anything rendered-but-not-ready to `now`.
+ *   on screen: `useArtReady` raises anything rendered-but-not-ready to `now` (a safety net; after the gate it
+ *         should never be needed).
  *
- * Boot has no run yet, so it warms the set(s) currently switched ON — a hint for the pipe, never run state:
- * a new run is created from exactly that set (`activeSet()` in `createRun`), and a resumed run on another set
- * is re-planned by `preloadRunArt` the moment it loads. Nothing here reads or writes the run.
+ * Boot has no run yet, so it gates on the set(s) switched ON plus the set of the saved run it will resume (the
+ * caller passes it): a hint for the pipe, never run state. A new run is created from exactly the enabled set
+ * (`activeSet()` in `createRun`). Nothing here reads or writes the run.
  */
 
 const BASE = import.meta.env.BASE_URL;
@@ -95,36 +101,95 @@ const UI_CHROME_ART: string[] = Object.values({
 
 const vals = (r: Record<string, string>): string[] => Object.values(r);
 
-let booted = false;
-/** Queue everything, once, in lane order. Cheap: it only fills the queue (~1,400 Map inserts). */
-export function preloadBootArt(): void {
-  if (booted) return;
-  booted = true;
+/**
+ * Split the bundled card art (minion + spell folders) into what a session on `gated` sets can show and what only
+ * the OTHER sets can. A file is keyed by card id, or `<id><N>` for a Choose One branch / variant (`shaper2`,
+ * `pup2`). It is "other only" when its card sits in some set's pool and in none of the gated ones. Everything else
+ * is gated: every token, Ruby, gift and generated card lives in NO pool (shared by all sets), so it is always in;
+ * an art key the plan cannot place is in too (never under-load). Art another card borrows through `ART_ALIAS`
+ * follows the borrower. Exported for its test.
+ */
+export function splitCardArt(gated: ReadonlySet<SetId>): { gated: string[]; other: string[] } {
+  const owners = new Map<string, SetId[]>();
+  for (const id of Object.keys(SETS) as SetId[]) {
+    for (const c of poolFor(id).all) {
+      const o = owners.get(c.id);
+      if (o) { if (!o.includes(id)) o.push(id); } else owners.set(c.id, [id]);
+    }
+  }
+  const inGate = (cardId: string): boolean => {
+    const o = owners.get(cardId);
+    return !o || o.some((id) => gated.has(id));
+  };
+  const baseOf = (key: string): string => {
+    if (CARD_INDEX[key]) return key;
+    const stripped = key.replace(/\d+$/, '');
+    return CARD_INDEX[stripped] ? stripped : key;
+  };
+  const borrowed = new Set<string>();
+  for (const [cardId, target] of Object.entries(ART_ALIAS)) if (inGate(cardId)) borrowed.add(target);
+  const g: string[] = [];
+  const other: string[] = [];
+  for (const group of [ART_URL_GROUPS.minion, ART_URL_GROUPS.spell]) {
+    for (const [key, url] of Object.entries(group)) (inGate(baseOf(key)) || borrowed.has(key) ? g : other).push(url);
+  }
+  return { gated: g, other };
+}
+
+/** Rune art: a rune whose `sets` names none of the gated sets can only show in the other sets. A file with no rune
+ *  of that id (an archived or renamed rune an old board may still carry) is gated. Exported for its test. */
+export function splitRuneArt(gated: ReadonlySet<SetId>): { gated: string[]; other: string[] } {
+  const g: string[] = [];
+  const other: string[] = [];
+  for (const [id, url] of Object.entries(ART_URL_GROUPS.rune)) {
+    const sets = RUNE_INDEX[id]?.sets;
+    (!sets || sets.some((s) => gated.has(s as SetId)) ? g : other).push(url);
+  }
+  return { gated: g, other };
+}
+
+let bootGate: string[] | null = null;
+/**
+ * Queue everything, once, in lane order, and return the GATE: every URL Boot must see decoded before the menu opens
+ * (deduped, in queue order). `extraSets` = the saved run's set when it is not the live one. Cheap: it only fills
+ * the queue (~1,400 Map inserts); a second call returns the same list.
+ */
+export function preloadBootArt(extraSets: readonly SetId[] = []): string[] {
+  if (bootGate) return bootGate;
   const live = (Object.keys(SETS) as SetId[]).filter((id) => SETS[id].enabled);
-  const tribes = new Set<string>(['neutral', ...live.flatMap((id) => SETS[id].tribes)]);
-  const pub = splitPublicArt(__PUBLIC_ART__, tribes);
-  plan('chrome', pub.title); // the title screen itself: board-less backdrop, logo, cursors
-  plan('chrome', UI_CHROME_ART);
-  plan('chrome', vals(ART_URL_GROUPS.rank)); // the title's rank crest
-  plan('chrome', vals(ART_URL_GROUPS.mode)); // the mode tiles: small, and the very next screen
-  plan('chrome', pub.play); // then the shop and a card in hand
-  // The live set's tier 1-2 cards BEFORE the heroes: the first shop needs them, while hero select only ever
-  // shows three or four heroes, and those are raised to `now` by the screen itself (FadeImg).
+  const gatedSets = new Set<SetId>([...live, ...extraSets.filter((id) => id in SETS)]);
+  const pub = splitPublicArt(__PUBLIC_ART__);
+  const gate: string[] = [];
+  const add = (lane: Lane, urls: readonly string[]): void => { plan(lane, urls); gate.push(...urls); };
+  add('chrome', pub.title); // the title screen itself: board-less backdrop, logo, cursors
+  add('chrome', UI_CHROME_ART);
+  add('chrome', vals(ART_URL_GROUPS.rank)); // the title's rank crest
+  add('chrome', vals(ART_URL_GROUPS.mode)); // the mode tiles
+  add('chrome', pub.play); // then the shop and a card in hand
   const setRest: string[] = [];
-  for (const id of live) {
+  for (const id of gatedSets) {
     const { early, rest } = poolArtOrder(poolFor(id).all, 2);
-    plan('early', early);
+    add('early', early);
     setRest.push(...rest);
   }
-  plan('early', vals(ART_URL_GROUPS.hero));
-  plan('early', vals(ART_URL_GROUPS.power));
-  plan('set', setRest);
-  plan('set', pub.rest);
-  plan('set', vals(ART_URL_GROUPS.skin));
-  plan('set', vals(ART_URL_GROUPS.equipment));
-  plan('set', EXTRA_ART);
-  // The long tail — other sets, runes, quests, Ancients: fetched (HTTP cache) but not decoded or held.
-  for (const g of ['minion', 'spell', 'rune', 'quest', 'ancient'] as const) plan('idle', vals(ART_URL_GROUPS[g]));
+  add('early', vals(ART_URL_GROUPS.hero));
+  add('early', vals(ART_URL_GROUPS.power));
+  add('set', setRest);
+  const cards = splitCardArt(gatedSets);
+  add('set', cards.gated); // tokens, Rubies, gifts, Choose One branches (the pool's own art is already queued)
+  add('set', pub.rest);
+  add('set', vals(ART_URL_GROUPS.skin));
+  add('set', vals(ART_URL_GROUPS.equipment));
+  add('set', EXTRA_ART);
+  add('set', vals(ART_URL_GROUPS.quest));
+  const runes = splitRuneArt(gatedSets);
+  add('set', runes.gated);
+  add('set', vals(ART_URL_GROUPS.ancient));
+  // Behind the gate: cards and runes only a set nobody can play right now can show (the Collection's set picker).
+  plan('idle', cards.other);
+  plan('idle', runes.other);
+  bootGate = [...new Set(gate)];
+  return bootGate;
 }
 
 let lastRunKey = '';
@@ -145,6 +210,6 @@ function plan(lane: Lane, urls: readonly string[]): void {
 
 /** Test hook: forget the once-only guards. */
 export function __resetPreloadPlan(): void {
-  booted = false;
+  bootGate = null;
   lastRunKey = '';
 }

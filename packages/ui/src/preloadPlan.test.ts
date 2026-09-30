@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { poolFor, SETS, type SetId } from '@game/content';
+import { CARD_INDEX, poolFor, RUNE_INDEX, SETS, type SetId } from '@game/content';
 import { createRun, poolOf } from '@game/sim';
 
 /**
@@ -14,8 +14,8 @@ vi.mock('./artPreload', () => ({
   },
 }));
 
-import { __resetPreloadPlan, poolArtOrder, preloadRunArt, splitPublicArt } from './preloadPlan';
-import { artFor } from './art';
+import { __resetPreloadPlan, poolArtOrder, preloadBootArt, preloadRunArt, splitCardArt, splitPublicArt, splitRuneArt } from './preloadPlan';
+import { ART_URL_GROUPS, artFor } from './art';
 
 beforeEach(() => { calls.length = 0; __resetPreloadPlan(); });
 
@@ -99,5 +99,81 @@ describe('preloadRunArt', () => {
     const early = new Set(calls[n]!.urls);
     const t4 = poolOf(run).all.find((c) => c.tier === 4 && artFor(c.id));
     expect(t4 && early.has(artFor(t4.id)!)).toBe(true);
+  });
+});
+
+describe('preloadBootArt: the loading gate (owner 2026-09-30: "i think id rather load everything")', () => {
+  const liveSets = (Object.keys(SETS) as SetId[]).filter((id) => SETS[id].enabled);
+  const offSets = (Object.keys(SETS) as SetId[]).filter((id) => !SETS[id].enabled);
+  const artsOf = (setId: SetId): string[] => poolFor(setId).all.map((c) => artFor(c.id)).filter((u): u is string => !!u);
+
+  it('gates on every image a live-set session can show, all in decoded lanes ahead of the audio bank', () => {
+    const gate = preloadBootArt();
+    const g = new Set(gate);
+    expect(gate.length).toBe(g.size); // deduped
+    for (const id of liveSets) for (const u of artsOf(id)) expect(g.has(u), `${id} card art ${u}`).toBe(true);
+    for (const group of ['hero', 'power', 'skin', 'equipment', 'quest', 'ancient', 'mode', 'rank'] as const) {
+      for (const u of Object.values(ART_URL_GROUPS[group])) expect(g.has(u), `${group} ${u}`).toBe(true);
+    }
+    for (const p of __PUBLIC_ART__) expect(g.has(`${import.meta.env.BASE_URL}${p}`), p).toBe(true);
+    // Every gated URL was queued in a lane the pipe drains BEFORE audio: the gate never waits behind the SFX bank.
+    const lanesOf = new Map<string, Set<string>>();
+    for (const c of calls) for (const u of c.urls) (lanesOf.get(u) ?? lanesOf.set(u, new Set()).get(u)!).add(c.lane);
+    for (const u of gate) expect([...lanesOf.get(u)!].some((l) => l === 'chrome' || l === 'early' || l === 'set'), u).toBe(true);
+  });
+
+  it('always gates tokens, Rubies and gifts (they live in no pool, every set can make them)', () => {
+    const g = new Set(preloadBootArt());
+    const inAnyPool = new Set((Object.keys(SETS) as SetId[]).flatMap((id) => poolFor(id).all.map((c) => c.id)));
+    let checked = 0;
+    for (const id of Object.keys(CARD_INDEX)) {
+      const u = artFor(id);
+      if (!u || inAnyPool.has(id)) continue;
+      expect(g.has(u), id).toBe(true);
+      checked++;
+    }
+    expect(checked).toBeGreaterThan(20);
+  });
+
+  it("leaves the cards only an unplayable set owns behind the gate, in `idle` (the Collection's set picker)", () => {
+    const g = new Set(preloadBootArt());
+    const idle = new Set(calls.filter((c) => c.lane === 'idle').flatMap((c) => c.urls));
+    const liveArt = new Set(liveSets.flatMap(artsOf));
+    let behind = 0;
+    for (const id of offSets) {
+      for (const u of artsOf(id)) {
+        if (liveArt.has(u)) continue; // carried over into a live set: gated
+        expect(g.has(u), u).toBe(false);
+        expect(idle.has(u), u).toBe(true);
+        behind++;
+      }
+    }
+    if (offSets.length) expect(behind).toBeGreaterThan(0);
+    for (const u of idle) expect(g.has(u), u).toBe(false);
+  });
+
+  it("covers the saved run's set too when it is not a live one", () => {
+    const off = offSets[0];
+    if (!off) return;
+    const g = new Set(preloadBootArt([off]));
+    for (const u of artsOf(off)) expect(g.has(u), u).toBe(true);
+  });
+
+  it('a rune offered only in unplayable sets waits behind the gate; every other rune file is gated', () => {
+    const gated = new Set<SetId>(liveSets);
+    const { gated: rg, other } = splitRuneArt(gated);
+    expect(rg.length + other.length).toBe(Object.keys(ART_URL_GROUPS.rune).length);
+    const url = (id: string): string => ART_URL_GROUPS.rune[id]!;
+    for (const [id, def] of Object.entries(RUNE_INDEX)) {
+      if (!ART_URL_GROUPS.rune[id]) continue;
+      const live = !def.sets || def.sets.some((s) => gated.has(s as SetId));
+      expect(live ? rg.includes(url(id)) : other.includes(url(id)), id).toBe(true);
+    }
+  });
+
+  it('splitCardArt places every bundled card image exactly once', () => {
+    const { gated, other } = splitCardArt(new Set<SetId>(liveSets));
+    const all = [...Object.values(ART_URL_GROUPS.minion), ...Object.values(ART_URL_GROUPS.spell)];
+    expect([...gated, ...other].sort()).toEqual([...all].sort());
   });
 });

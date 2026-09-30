@@ -9,7 +9,7 @@
  * (the backboard, the net and the rim; the rim is drawn over the ball so a shot goes THROUGH it, and it rattles).
  *
  * FIRE-AND-FORGET (pooled, under a hard cap): the ball's soft trail, the dribble's dust, the sneakers' skid marks, the
- * release glint, the SWISH (a net ring, sparkles, the word), IV's smack on the target, the catch flashes, and the SLAM
+ * release glint, the SWISH (a net ring, sparkles, the word), IV's clang off the backboard, the catch flashes, and the SLAM
  * (a flash, shockwave rings, sparks, dust, the word; IV adds an explosion: a fireball, debris,
  * the backboard's glass shards).
  */
@@ -124,7 +124,7 @@ export class HeroBasketballScene extends FxPool {
   }
 
   /** The hoop on the target (`at` = its centre): opacity, the rim's rattle (radians), whether the backboard stands. */
-  setHoop(at: Pt, alpha: number, rattle: number, board: boolean): void {
+  setHoop(at: Pt, alpha: number, rattle: number, board: boolean, boardAt: Pt | null = null): void {
     if (this.destroyed) return;
     const show = alpha > 0.004;
     const w = this.dR * 1.35 * this.look.hoopSize;
@@ -135,7 +135,9 @@ export class HeroBasketballScene extends FxPool {
       const nk = (w * 0.84) / NET_W;
       this.net.position.set(at.x, at.y + w * 0.06); this.net.scale.set(nk, nk * (1 + Math.abs(rattle) * 0.8)); this.net.rotation = rattle * 0.5; this.net.alpha = alpha * 0.78;
       const bk = (w * 1.45) / BOARD_W;
-      this.board.position.set(at.x, at.y - w * 0.08); this.board.scale.set(bk); this.board.rotation = rattle * 0.15; this.board.alpha = alpha * 0.55;
+      // IV stands its backboard where the throw clangs (beside the portrait, never over the face); I-III above the rim.
+      if (boardAt) { this.board.anchor.set(0.5, 0.5); this.board.position.set(boardAt.x, boardAt.y); } else { this.board.anchor.set(0.5, 1); this.board.position.set(at.x, at.y - w * 0.08); }
+      this.board.scale.set(bk); this.board.rotation = rattle * 0.15; this.board.alpha = alpha * 0.55;
     }
     this.refresh();
   }
@@ -260,15 +262,13 @@ export class HeroBasketballScene extends FxPool {
     }
   }
 
-  /** IV: the throw SMACKS the target (a tick, no damage): a pop, a ring, sparks, a jolt of dust. */
+  /** IV: the throw CLANGS off the backboard (`at` = the clang point, off the portrait): a small metal ring and sparks. */
   bounce(at: Pt): void {
     const S = this.scale;
     const r = this.aR * this.look.ballSize;
     const c = this.colors;
-    this.spawn('glow', this.tex.ring, c.flash, at.x, at.y, { dur: 280, from: (r * 0.8) / RING_PX / S, to: (r * 3.4) / RING_PX / S, a0: 0.7, ease: 'cubic' });
-    this.spawn('core', this.tex.star, c.flash, at.x, at.y, { dur: 220, from: 0.5, to: 1.4, a0: 1, mode: 'punch', peakAt: 0.2, rot: 0.2 });
-    this.spawn('glow', this.tex.glow, c.blast, at.x, at.y, { dur: 240, from: (r * 0.8) / GLOW_PX / S, to: (r * 2.4) / GLOW_PX / S, a0: 0.5, mode: 'punch', peakAt: 0.15 });
-    this.burst('core', this.tex.spark, [c.flash, c.ball], at.x, at.y, 8, { speed: 480, life: 280, size: 0.45, drag: 0.1, align: true });
+    this.spawn('glow', this.tex.ring, c.glass, at.x, at.y, { dur: 240, from: (r * 0.7) / RING_PX / S, to: (r * 2.2) / RING_PX / S, a0: 0.55, ease: 'cubic' });
+    this.burst('core', this.tex.spark, [c.flash, c.rim], at.x, at.y, 6, { speed: 420, life: 240, size: 0.4, drag: 0.1, align: true });
   }
 
   /** A catch (III: the pass; IV: at the top of the leap): a bright flash on the ball. `k` scales it. */
@@ -284,7 +284,7 @@ export class HeroBasketballScene extends FxPool {
    * THE SLAM on the target (`at` = its centre; `dir` = the way the slam drives). A flash, shockwave rings, sparks and
    * dust thrown out, the word; IV's backboard bursts into glass shards and confetti rains.
    */
-  slam(at: Pt, dir: Pt, o: { burst: number; rings: number; shards: number; confetti: number; blast?: number }): void {
+  slam(at: Pt, dir: Pt, o: { burst: number; rings: number; shards: number; confetti: number; blast?: number; boardAt?: Pt }): void {
     const S = this.scale;
     const c = this.colors;
     const R = this.dR;
@@ -309,7 +309,7 @@ export class HeroBasketballScene extends FxPool {
     if (o.shards > 0) {
       // The backboard bursts: glass slivers thrown up and out, spinning, falling.
       const w = this.dR * 1.35 * this.look.hoopSize;
-      const bx = at.x, by = at.y - w * 0.55;
+      const bx = o.boardAt ? o.boardAt.x : at.x, by = o.boardAt ? o.boardAt.y : at.y - w * 0.55;
       for (let i = 0; i < Math.min(40, o.shards); i++) {
         const a = -Math.PI / 2 + (this.rnd() - 0.5) * 3.4;
         const sp = 380 + this.rnd() * 520;

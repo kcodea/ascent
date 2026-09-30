@@ -64,9 +64,13 @@ rim and a white net) drawn on the struck hero. Flat 2D, no hit-stop, the blow la
   pass whips in from off the RIGHT edge of the screen and it catches it (a flash, a squeak); a pump fake (the ball
   snapped up and pulled back); it dribbles back, away from the target; then pulls up for a long, high three: a bigger
   swish with rings rippling out, confetti and the crowd's "ooh" (THE impact), then it slides home.
-- **IV, the self alley-oop:** straight from the start, it FIRES the ball from its slot directly at the target (fast,
-  flat, spinning, a speed trail); the ball SMACKS the target (a pop, a thud and a rim tick, a small knock; no damage) and
-  BOUNCES HIGH straight up (swung toward the middle of the screen when the target is tucked against the top edge); the
+- **IV, the self alley-oop:** straight from the start, it FIRES the ball from its slot at the hoop over the target
+  (fast, flat, spinning, a speed trail); the ball CLANGS off the backboard beside the portrait (a rim clang and a few
+  sparks; owner on 5173: "the dunk has a weird moment before the dunk where he hits the player with the ball, remove
+  that", so for IV the backboard stands beside the portrait where the throw clangs: up and toward the thrower, far
+  enough out that the whole ball clears the face, placed so the straight throw never crosses the portrait, and the rise
+  off it curves round the target; the target does not react at all until the slam) and BOUNCES HIGH (swung toward the middle of the screen when the target is tucked against the
+  top edge); the
   portrait takes a quick run-up, LEAPS to meet it, CATCHES it at the top (a flash, a squeak) and SLAMS it down into an
   EXPLOSION: a white-hot core, a fireball blooming and rolling up, shockwave rings, debris chunks and sparks, the
   backboard's glass shards, the whole board shaking, rim + slam + glass + a loud "ooh" + a cheer (THE impact). A

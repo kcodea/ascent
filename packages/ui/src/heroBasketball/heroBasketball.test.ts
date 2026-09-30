@@ -287,19 +287,29 @@ describe('the pose and the ball', () => {
     { const e = at(x.p.endAt - 1); expect(Math.hypot(e.x, e.y)).toBeLessThan(0.05); }
   });
 
-  it('IV: fired flat from the slot straight at the target, it bounces HIGH, the portrait leaps and meets it at the top, then slams', () => {
+  it('IV: fired flat from the slot at the BACKBOARD (never the portrait), it bounces HIGH, the portrait leaps and meets it at the top, then slams', () => {
     const x = ctx(40);
     const at = (t: number) => basketballPose(x.p, x.segs, C, t);
     // the throw leaves from the slot (the portrait has not left it)
     const r = at(x.p.releaseAt);
     expect(Math.hypot(r.x, r.y)).toBeLessThan(R * 0.2);
-    // flat and direct: mid-flight it is within a few px of the straight line to the target
+    // flat and direct: mid-flight it is within a few px of the straight line to the backboard's clang point
     const from = basketballBall(x, x.p.releaseAt);
     const mid = basketballBall(x, (x.p.releaseAt + x.p.bounceAt!) / 2);
+    const B = x.g.board;
     expect(mid.flying).toBe(true);
-    expect(dist(mid, { x: (from.x + D.x) / 2, y: (from.y + D.y) / 2 })).toBeLessThan(0.05 * dist(from, D) + 1);
-    // it smacks the target, then rises HIGH (well above it) to where it is caught
-    expect(dist(basketballBall(x, x.p.bounceAt!), D)).toBeLessThan(1);
+    expect(dist(mid, { x: (from.x + B.x) / 2, y: (from.y + B.y) / 2 })).toBeLessThan(0.05 * dist(from, B) + 1);
+    // it clangs off the backboard, NOT the portrait (owner: "he hits the player with the ball, remove that"): the ball,
+    // edge included, never overlaps the struck portrait from the throw until the catch, at any layout
+    expect(dist(basketballBall(x, x.p.bounceAt!), B)).toBeLessThan(1);
+    const ballR = R * C.ballSize;
+    for (const [a, d] of [[A, D], [{ x: 700, y: 900 }, { x: 1830, y: 90 }], [{ x: 1830, y: 90 }, { x: 700, y: 900 }], [{ x: 120, y: 980 }, { x: 1800, y: 100 }], [A, { x: 960, y: 520 }]] as const) {
+      const y = ctx(40, a, d);
+      for (let t = y.p.releaseAt; t < y.p.catchAt!; t += 4) {
+        const b = basketballBall(y, t);
+        expect(dist(b, d) - ballR * b.scale, `clear of the face ${JSON.stringify([a, d, y.g.board])} @${Math.round(t - y.p.releaseAt)}`).toBeGreaterThan(R * 0.98);
+      }
+    }
     expect(basketballBall(x, x.p.bounceAt! + 1).visible).toBe(true);
     // (with room above the target it goes the full bounce height, straight up)
     const room = ctx(40, A, { x: 960, y: 520 });
@@ -384,7 +394,12 @@ describe('the runner (the shared clock, the portrait restored on every exit)', (
     const { h, f, onImpact, onDone } = r;
     expect(r.host.querySelector('.hblast.hbasketball')).not.toBeNull();
     tickTo(r, h.plan.bounceAt! + 8);
-    expect(onImpact).not.toHaveBeenCalled(); // the smack is a tick
+    expect(onImpact).not.toHaveBeenCalled(); // the clang off the backboard is not the blow
+    // the struck portrait does not react at all until the slam (no knock, no squash)
+    for (let i = 0; i < 400 && h.elapsed() < h.plan.impactAt - 8; i++) {
+      f.tick(4, 4);
+      if (h.elapsed() < h.plan.impactAt) expect(r.defenderEl.style.transform, `before the slam @${Math.round(h.elapsed())}`).toBe('');
+    }
     tickTo(r, h.plan.catchAt! + 8);
     expect(onImpact).not.toHaveBeenCalled();
     expect(document.body.classList.contains('duel-attacker-player')).toBe(true);

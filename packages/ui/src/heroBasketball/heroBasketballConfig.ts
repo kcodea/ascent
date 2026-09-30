@@ -22,8 +22,9 @@
  *    (THE impact, a bigger swish and the crowd's "ooh"), then it slides home.
  *  - IV THE SELF ALLEY-OOP (owner review of #1867: "i want a direct throw from the beginning that's fast and bounces
  *    high off the target and the attacker leaps into the air and slams it down into an explosion"): from its slot it
- *    FIRES the ball straight at the target (fast, flat, spinning, a speed trail); it SMACKS the target (a pop, no
- *    damage) and BOUNCES HIGH straight up; the portrait takes a quick run-up, LEAPS, CATCHES it at the top (a flash, a
+ *    FIRES the ball fast and flat at the hoop over the target (spinning, a speed trail); it CLANGS off the backboard
+ *    beside the portrait (never the face: the target does not react until the slam) and BOUNCES HIGH; the portrait
+ *    takes a quick run-up, LEAPS, CATCHES it at the top (a flash, a
  *    squeak) and SLAMS it down into an EXPLOSION (THE impact): a flash core, a fireball, shockwave rings, debris and
  *    sparks, the backboard's glass, the whole board shaking, the crowd roaring.
  *
@@ -422,7 +423,7 @@ export interface BasketballPlan {
   apexAt: number;
   /** I-III: back on the floor. IV: the slam. */
   landAt: number;
-  /** IV: the throw smacks the target and bounces high (a tick: FX and sound, no damage). */
+  /** IV: the throw clangs off the backboard (never the portrait) and bounces high (FX and sound only, no damage). */
   bounceAt: number | null;
   /** IV: the slam starts down. */
   slamAt: number | null;
@@ -617,6 +618,11 @@ export interface BasketballGeo {
   /** IV: the portrait on the slam (overlapping the target; the BALL hits the target's centre), and the rebound. */
   contact: Pt;
   rebound: Pt;
+  /**
+   * IV: where the fast throw CLANGS off the backboard and rim: off the struck portrait (never on its face), up the board
+   * and toward the thrower's side, so the throw never crosses the portrait before it gets there.
+   */
+  board: Pt;
   /** The target's centre: where every shot and slam lands. */
   hit: Pt;
 }
@@ -692,7 +698,35 @@ export function basketballGeo(a: Pt, d: Pt, aR: number, dR: number, frame: Frame
   const catchPt = clampToFrame({ x: ballApex.x - up.x * aR * 0.75, y: ballApex.y - up.y * aR * 0.75 }, frame, m * 0.85);
   const contact = { x: d.x + up.x * aR * c.slamContact, y: d.y + up.y * aR * c.slamContact };
   const rebound = clampToFrame({ x: contact.x + up.x * aR * 0.35, y: contact.y + up.y * aR * 0.35 }, frame, m * 0.85);
-  return { u, dist, mid, fade, side, scoot, passFrom, back, half, up, ballApex, catchAt: catchPt, contact, rebound, hit: { ...d } };
+  // IV's clang point: up the board and back toward the thrower, clear of the portrait (owner on 5173: "the dunk has a weird
+  // moment before the dunk where he hits the player with the ball, remove that").
+  // Far enough out that the whole ball (at its largest) stays clear of the face, and placed so the straight throw from
+  // the thrower never crosses the portrait: from "up" the board, swung toward the thrower's side until the whole
+  // flight line stays clear (and the point is on screen).
+  const ballR = aR * c.ballSize * 1.15;
+  const clearR = dR * 1.3 + ballR;
+  const segDist = (p0: Pt, p1: Pt, q: Pt): number => {
+    const vx = p1.x - p0.x, vy = p1.y - p0.y;
+    const L2 = vx * vx + vy * vy || 1;
+    const k = clamp01(((q.x - p0.x) * vx + (q.y - p0.y) * vy) / L2);
+    return Math.hypot(p0.x + vx * k - q.x, p0.y + vy * k - q.y);
+  };
+  const a0 = Math.atan2(up.y, up.x);
+  // Which way round from "up" heads toward the thrower (so the board point ends on the near side first).
+  const towardThrower = Math.cos(a0 + 0.3) * -u.x + Math.sin(a0 + 0.3) * -u.y >= Math.cos(a0 - 0.3) * -u.x + Math.sin(a0 - 0.3) * -u.y ? 1 : -1;
+  let board = { x: d.x + up.x * clearR, y: d.y + up.y * clearR };
+  let best = -Infinity;
+  search: for (const off of [0, 0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2, 2.4, 2.8]) {
+    for (const sg of off === 0 ? [1] : [towardThrower, -towardThrower]) {
+      const an = a0 + sg * off;
+      const q = { x: d.x + Math.cos(an) * clearR, y: d.y + Math.sin(an) * clearR };
+      if (!inFrame(q, frame, ballR * 0.6)) continue;
+      const clear = segDist(a, q, d);
+      if (clear >= clearR * 0.97) { board = q; break search; }
+      if (clear > best) { best = clear; board = q; }
+    }
+  }
+  return { u, dist, mid, fade, side, scoot, passFrom, back, half, up, ballApex, catchAt: catchPt, contact, rebound, board, hit: { ...d } };
 }
 
 // ─── the pose (pure) ───────────────────────────────────────────────────────────────────────────────────────────
@@ -948,12 +982,23 @@ export function basketballBall(x: BallCtx, t: number): BallState {
   // leap, held over the head, slammed.
   const rel = p.releaseAt, bounce = p.bounceAt!, caught = p.catchAt!;
   if (t < rel) return popped(held(t));
-  if (t < bounce) return flight(held(rel), g.hit, rel, bounce, p.arc, 1.8);
+  if (t < bounce) return flight(held(rel), g.board, rel, bounce, p.arc, 1.8);
   if (t < caught) {
     const u = easeOutQuad((t - bounce) / Math.max(1, caught - bounce));
     const sq = t - bounce < 60 ? 0.3 * (1 - (t - bounce) / 60) : 0;
     return {
-      visible: true, x: lerp(g.hit.x, g.ballApex.x, u), y: lerp(g.hit.y, g.ballApex.y, u), rot: -c.spin * 2 * Math.PI * ((t - bounce) / 1000),
+      // Round the target, not across it: angle and distance from the target's centre are eased separately, so the rise
+      // off the backboard never passes over the face.
+      ...(() => {
+        const b0 = { x: g.board.x - g.hit.x, y: g.board.y - g.hit.y }, b1 = { x: g.ballApex.x - g.hit.x, y: g.ballApex.y - g.hit.y };
+        const th0 = Math.atan2(b0.y, b0.x);
+        let dth = Math.atan2(b1.y, b1.x) - th0;
+        while (dth > Math.PI) dth -= 2 * Math.PI;
+        while (dth < -Math.PI) dth += 2 * Math.PI;
+        const th = th0 + dth * u, rr = lerp(Math.hypot(b0.x, b0.y), Math.hypot(b1.x, b1.y), u);
+        return { x: g.hit.x + Math.cos(th) * rr, y: g.hit.y + Math.sin(th) * rr };
+      })(),
+      visible: true, rot: -c.spin * 2 * Math.PI * ((t - bounce) / 1000),
       scale: 1 + 0.12 * u, alpha: 1, air: u, squash: sq, flying: true,
     };
   }
@@ -1054,10 +1099,6 @@ export function basketballCameraAt(p: BasketballPlan, c: HeroBasketballConfig, t
       const r = p.shakePx * 0.45 * Math.exp(-age / (tau * 2.2));
       x += Math.sin(age * 0.137) * r; y += Math.cos(age * 0.101) * r;
     }
-  }
-  if (p.bounceAt !== null && t >= p.bounceAt && t < p.impactAt) {
-    const s = spring(t - p.bounceAt, 16, tau * 0.6) * p.shakePx * 0.2;
-    x += dir.x * s; y += dir.y * s;
   }
   return { zoom: 1 + z, x, y };
 }

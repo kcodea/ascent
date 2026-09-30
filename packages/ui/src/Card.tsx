@@ -87,6 +87,8 @@ function useBadgePop(value: number): RefObject<HTMLSpanElement> {
 // without this, any non-identity default baked into that file would silently never apply to players.
 import './cardPillsConfig';
 import { artFor, artVariantKey } from './art';
+import { useArtFade } from './artPreload';
+import { FadeImg } from './FadeImg';
 import { useMinionSkinMap } from './skins/skinArt';
 import { renameTerms } from './terms';
 import { getRebirthConfig } from './rebirthConfig';
@@ -784,6 +786,10 @@ export const Card = memo(function Card({
   // the frame, never the illustration. A token has its own card id, so it never matches a parent's skin.
   const skinArtUrl = useMinionSkinMap().get(card.cardId);
   const artUrl = card.artUrl ?? skinArtUrl ?? artFor(card.cardId, uid, card.chosenOption);
+  // NEVER SHOW UNDECODED ART (art pop-in fix 2026-09-29): until the illustration is fetched AND decoded the image
+  // stays invisible over the `.art-wait` placeholder and fades in once ready; art already decoded (the preload's
+  // normal case) renders exactly as before, with no fade. See artPreload.ts.
+  const artFade = useArtFade(artUrl);
   // TAUNT frame: render the raster shield if the asset loads; on 404 fall back to the SVG placeholder.
   const [frameOk, setFrameOk] = useState(tauntFrameAvailable);
   const [starsOk, setStarsOk] = useState(tierStarsAvailable);
@@ -820,6 +826,14 @@ export const Card = memo(function Card({
   const tribePlated = usePlate && isTribePlated(card.tribe) && !spellLike;
   const useSpellFrame = spellLike && pframeOk;
   const useStdFrame = !spellLike && !isTaunt && sframeOk;
+  // The FRAME and the hand PLATE obey the same rule as the art (art pop-in fix 2026-09-29): until decoded they are
+  // invisible (the dark art-window stand-in shows) and fade in once, instead of the card flashing a bare white
+  // window. Already-decoded frames — every one after the first seconds of a session — render exactly as before.
+  const frameSrc = card.keywords.includes('T')
+    ? (frameOk ? tauntFrameSrcFor(card.tribe, !!card.golden) : undefined)
+    : useStdFrame ? stdFrameSrcFor(card.tribe, !!card.golden) : useSpellFrame ? SPELL_FRAME_SRC : undefined;
+  const frameFade = useArtFade(frameSrc);
+  const plateFade = useArtFade(usePlate ? plateSrcFor(card.tribe) : undefined);
   return (
     <div
       className={`card compact${showText ? ' showtext' : ''}${popin ? ' popin' : ''}${popDelay ? ' popdelay' : ''}${highlight ? ' armed' : ''}${targeted ? ' targeted' : ''}${card.golden ? ' golden' : ''}${dimmed ? ' dragsrc' : ''}${spent ? ' spent' : ''}${battlecry ? ' bcasting' : ''}${card.keywords.includes('T') ? ' taunt' : ''}${card.keywords.includes('ST') ? ' stealth' : ''}${card.keywords.includes('DS') ? ' dscard' : ''}${card.keywords.includes('R') ? ` reborncard${card.riseTint ? ` risetint-${card.riseTint}` : ''}` : ''}${card.keywords.includes('RB') ? ' rebirthcard' : ''}${card.keywords.includes('V') ? ' venomcard' : ''}${card.keywords.includes('W') ? ' flurrycard' : ''}${spellLike ? ' spellcard' : ''}${card.ruby ? ' rubycard' : ''}${useStdFrame ? ' stdframe' : ''}${(useStdFrame && hasTribeOval(card.tribe)) || (isTaunt && frameOk && hasTribeTaunt(card.tribe)) ? ' tribeframe' : ''}${useSpellFrame ? ' spellframe' : ''}${electrify ? ' electrify' : ''}${tripleReady ? ' tripready' : ''}${contraband ? ' contraband' : ''}${enchanted ? ' enchanted' : ''}${card.starform ? ' starform' : ''}${card.tribe2 ? ' dual' : ''}${locked ? ' locked' : ''}${usePlate ? ` plated plate-txt-${txtBucket}` : ''}`}
@@ -891,14 +905,16 @@ export const Card = memo(function Card({
               static drop-shadow halo. Only its OPACITY animates (compositor-only), exactly how `.cglow`
               handles the frame; the real plate is opaque, so only the outward halo is ever visible. Same
               src, so the browser serves it from cache — no second decode. */}
-          <img decoding="sync" className="plateglow" src={plateSrcFor(card.tribe)} alt="" aria-hidden="true" draggable={false} />
+          <img decoding="sync" className={`plateglow${plateFade.cls}`} src={plateSrcFor(card.tribe)} alt="" aria-hidden="true" draggable={false} />
           <img decoding="sync"
-            className="cardplate"
+            className={`cardplate${plateFade.cls}`}
             src={plateSrcFor(card.tribe)}
             alt=""
             aria-hidden="true"
             draggable={false}
-            onError={() => { cardPlateAvailable = false; setPlateOk(false); }}
+            ref={plateFade.ref}
+            onLoad={plateFade.onLoad}
+            onError={() => { plateFade.onError(); cardPlateAvailable = false; setPlateOk(false); }}
           />
           {/* Tribe NAME on the plate's bottom gem — the tribe-plated card's tribe label lives here (no icon)
               instead of in the drawer (owner 2026-07-25). Positioned over the plate's bottom diamond. */}
@@ -943,14 +959,14 @@ export const Card = memo(function Card({
             lowest, so it sits BEHIND the plaque (owner 2026-07-26) and reads as light radiating out from
             behind it rather than washing over its face. Opacity is the only animated property (`.tierglow`). */}
         {card.tier === 7 && <span className="tierbadge tierglow" aria-hidden="true" />}
-        <img decoding="sync"
+        <FadeImg
           className="tierbadge tierplate"
           src={tierPlateSrc(!!card.golden)}
           alt=""
           aria-hidden="true"
           draggable={false}
         />
-        <img decoding="sync"
+        <FadeImg
           className="tierbadge tierstars"
           data-tier={card.tier}
           src={tierStarsSrc(card.tier)}
@@ -996,12 +1012,12 @@ export const Card = memo(function Card({
       {/* The arched frame: the art, the corner attack/health badges, and the mechanic medallion. Fixed
           square so the badges/medallion always ride the arch even when the text drawer drops below. */}
       <div className="archbox">
-        <div className="art">
+        <div className={artFade.waiting ? 'art art-wait' : 'art'}>
           {artUrl ? (
             /* decoding="sync": paint the art WITH the frame in the same frame. `async` let the browser
                commit the card before the (already-preloaded, cached) image finished decoding — the residual
                per-mount pop-in the boot preloader couldn't fix. Decode cost is small (≤512px webp). */
-            <img className="artimg" src={artUrl} alt="" draggable={false} decoding="sync" />
+            <img ref={artFade.ref} className={`artimg${artFade.cls}`} src={artUrl} alt="" draggable={false} decoding="sync" onLoad={artFade.onLoad} onError={artFade.onError} />
           ) : (
             <Sprite name={spriteForTribe(card.tribe)} scale={5} />
           )}
@@ -1070,17 +1086,20 @@ export const Card = memo(function Card({
           <>
             {/* grounding shadow (see styles.css "GROUNDING SHADOW"): a black, blurred copy of the frame seated
                 behind the art, so the shield reads as sitting on the board rather than floating. */}
-            <img decoding="sync" className="tframe tframe-img cshadow" src={tauntFrameSrcFor(card.tribe, !!card.golden)} alt="" aria-hidden="true" />
+            <img decoding="sync" className={`tframe tframe-img cshadow${frameFade.cls}`} src={tauntFrameSrcFor(card.tribe, !!card.golden)} alt="" aria-hidden="true" />
             {/* hover glow (see styles.css ".cglow"): a pure-teal SILHOUETTE of the frame seated behind the art
                 (z0) — a masked child (the bright rim) inside a parent that casts the soft bloom. Not a frame-PNG
                 copy, so it's always teal and W/H-scalable with no gold/silver frame ever showing. */}
             <div className="cglow" aria-hidden="true"><span className="cglow-rim" /></div>
             <img decoding="sync"
-              className="tframe tframe-img"
+              className={`tframe tframe-img${frameFade.cls}`}
               src={tauntFrameSrcFor(card.tribe, !!card.golden)}
               alt=""
               aria-hidden="true"
+              ref={frameFade.ref}
+              onLoad={frameFade.onLoad}
               onError={() => {
+                frameFade.onError();
                 tauntFrameAvailable = false;
                 setFrameOk(false);
               }}
@@ -1117,17 +1136,20 @@ export const Card = memo(function Card({
           <>
             {/* grounding shadow (see styles.css "GROUNDING SHADOW") — a black, blurred copy of the oval seated
                 behind the art so the card sits on the board. */}
-            <img decoding="sync" className="cframe cframe-img cshadow" src={stdFrameSrcFor(card.tribe, !!card.golden)} alt="" aria-hidden="true" />
+            <img decoding="sync" className={`cframe cframe-img cshadow${frameFade.cls}`} src={stdFrameSrcFor(card.tribe, !!card.golden)} alt="" aria-hidden="true" />
             {/* hover glow (see styles.css ".cglow"): a pure-teal SILHOUETTE of the frame seated behind the art
                 (z0) — a masked child (the bright rim) inside a parent that casts the soft bloom. Not a frame-PNG
                 copy, so it's always teal and W/H-scalable with no gold/silver frame ever showing. */}
             <div className="cglow" aria-hidden="true"><span className="cglow-rim" /></div>
             <img decoding="sync"
-              className="cframe cframe-img"
+              className={`cframe cframe-img${frameFade.cls}`}
               src={stdFrameSrcFor(card.tribe, !!card.golden)}
               alt=""
               aria-hidden="true"
+              ref={frameFade.ref}
+              onLoad={frameFade.onLoad}
               onError={() => {
+                frameFade.onError();
                 stdFrameAvailable = false;
                 setSframeOk(false);
               }}
@@ -1143,17 +1165,20 @@ export const Card = memo(function Card({
           <>
             {/* grounding shadow (see styles.css "GROUNDING SHADOW") — a black, blurred copy of the square seated
                 behind the art so the spell sits on the board. */}
-            <img decoding="sync" className="cframe cframe-img cshadow" src={SPELL_FRAME_SRC} alt="" aria-hidden="true" />
+            <img decoding="sync" className={`cframe cframe-img cshadow${frameFade.cls}`} src={SPELL_FRAME_SRC} alt="" aria-hidden="true" />
             {/* hover glow (see styles.css ".cglow"): a pure-teal SILHOUETTE of the frame seated behind the art
                 (z0) — a masked child (the bright rim) inside a parent that casts the soft bloom. Not a frame-PNG
                 copy, so it's always teal and W/H-scalable with no gold/silver frame ever showing. */}
             <div className="cglow" aria-hidden="true"><span className="cglow-rim" /></div>
             <img decoding="sync"
-              className="cframe cframe-img"
+              className={`cframe cframe-img${frameFade.cls}`}
               src={SPELL_FRAME_SRC}
               alt=""
               aria-hidden="true"
+              ref={frameFade.ref}
+              onLoad={frameFade.onLoad}
               onError={() => {
+                frameFade.onError();
                 spellFrameAvailable = false;
                 setPframeOk(false);
               }}
@@ -1169,7 +1194,7 @@ export const Card = memo(function Card({
         {card.keywords.includes('RB') && <RebirthCrown shield={card.keywords.includes('T')} />}
         {/* Golden (tripled) marker — authored gilded badge PNG (was a CSS gold-circle + crown glyph); pairs with
             the gold arch frame so a tripled minion is instantly findable in a row. */}
-        {card.golden && <span className="goldcrown" aria-hidden="true"><img decoding="sync" className="goldcrown-img" src={GILDED_BADGE_SRC} alt="" aria-hidden="true" /></span>}
+        {card.golden && <span className="goldcrown" aria-hidden="true"><FadeImg className="goldcrown-img" src={GILDED_BADGE_SRC} alt="" aria-hidden="true" /></span>}
         {spellLike ? (
           <span className="ctype spell">{card.ruby ? '◆ Ruby' : '✦ Spell'}</span>
         ) : (
@@ -1180,14 +1205,14 @@ export const Card = memo(function Card({
             <span ref={atkPopRef} data-milestone={atkMs} className={`badge atk${statCls(shownAttack, card.baseAttack, card.floorAttack)}`}>
               {atkMs >= 1 && <span className="msglow" aria-hidden="true" />}
               {atkMs >= 1 && <span className="mstint" aria-hidden="true" />}
-              {atkMs >= 1 && <img decoding="sync" className="msframe" src={msFrameSrc('atk', atkMs)} alt="" aria-hidden="true" />}
+              {atkMs >= 1 && <FadeImg className="msframe" src={msFrameSrc('atk', atkMs)} alt="" aria-hidden="true" />}
               <span className="plate" aria-hidden="true" />
               <span className="value">{formatStat(shownAttack)}</span>
             </span>
             <span ref={hpPopRef} data-milestone={hpMs} className={`badge hp${statCls(shownHealth, card.baseHealth, card.floorHealth)}`}>
               {hpMs >= 1 && <span className="msglow" aria-hidden="true" />}
               {hpMs >= 1 && <span className="mstint" aria-hidden="true" />}
-              {hpMs >= 1 && <img decoding="sync" className="msframe" src={msFrameSrc('hp', hpMs)} alt="" aria-hidden="true" />}
+              {hpMs >= 1 && <FadeImg className="msframe" src={msFrameSrc('hp', hpMs)} alt="" aria-hidden="true" />}
               <span className="plate" aria-hidden="true" />
               <span className="value">{formatStat(shownHealth)}</span>
             </span>
@@ -1202,13 +1227,13 @@ export const Card = memo(function Card({
               const medTint = mechMedallionArtTint(mech.id); // per-mechanic colour sheen (Execute → red multiply)
               return (
                 <span key={`cgem-${pulseCrit ?? 0}-${pulseRally ?? 0}-${pulseWatcher ?? 0}`} className={`cgem${pulseCrit ? ' pulsing crit' : pulseRally ? ' pulsing rally' : pulseWatcher ? ' pulsing watcher' : pulse ? ' pulsing' : glow ? ' glowing' : ''}`} aria-hidden="true">{medSrc
-                  ? <><img decoding="sync" className="cgem-img" src={medSrc} alt="" aria-hidden="true" style={{ '--cgem-art-mech': mechMedallionArtScale(mech.id), '--cgem-art-rot': `${mechMedallionArtRotate(mech.id)}deg` } as CSSProperties} /><span className="cgem-tint" style={{ '--cgem-artsrc': `url("${medSrc}")`, '--cgem-art-mech': mechMedallionArtScale(mech.id), '--cgem-art-rot': `${mechMedallionArtRotate(mech.id)}deg`, ...(medTint ? { '--cgem-tint': medTint.color, '--cgem-tint-amt': medTint.amt, '--cgem-tint-blend': medTint.blend } : {}) } as CSSProperties} aria-hidden="true" /></>
+                  ? <><FadeImg className="cgem-img" src={medSrc} alt="" aria-hidden="true" style={{ '--cgem-art-mech': mechMedallionArtScale(mech.id), '--cgem-art-rot': `${mechMedallionArtRotate(mech.id)}deg` } as CSSProperties} /><span className="cgem-tint" style={{ '--cgem-artsrc': `url("${medSrc}")`, '--cgem-art-mech': mechMedallionArtScale(mech.id), '--cgem-art-rot': `${mechMedallionArtRotate(mech.id)}deg`, ...(medTint ? { '--cgem-tint': medTint.color, '--cgem-tint-amt': medTint.amt, '--cgem-tint-blend': medTint.blend } : {}) } as CSSProperties} aria-hidden="true" /></>
                   : <Icon name={mech.glyph} />}</span>
               );
             })()}
             {/* EPIC medallion — a SEPARATE badge on "epic" units (trigger/cast multipliers: Drakko, Sylus, …).
                 Own tuner (size/placement, --epic-*), always the same icon (no gild/silver), medallion drop shadow. */}
-            {isEpicUnit(card.cardId) && <img decoding="sync" className="epic-medallion" src={epicMedallionSrc(card.cardId)} alt="" aria-hidden="true" />}
+            {isEpicUnit(card.cardId) && <FadeImg className="epic-medallion" src={epicMedallionSrc(card.cardId)} alt="" aria-hidden="true" />}
           </>
         )}
         {/* WATCHER frame bloom — a one-shot light-blue ring on the whole card frame (CSS fallback for the
@@ -1227,7 +1252,7 @@ export const Card = memo(function Card({
             text reads cleanly. FIRST child so tree order paints it behind every text sibling; `.drawer` keeps
             NO z-index (load-bearing — see styles.css) so this needs none either. Dialed in the 🔤 Card Text
             tuner (backbox · size/x/y/opacity/blend). */}
-        <img decoding="sync" className="descbox" src={DESC_BOX_SRC} alt="" aria-hidden="true" draggable={false} />
+        <FadeImg className="descbox" src={DESC_BOX_SRC} alt="" aria-hidden="true" draggable={false} />
         <div className="cn">{card.name}</div>
         {card.text && (
           <div className="desc">

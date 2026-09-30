@@ -163,6 +163,74 @@ describe('the Stage Board canvas', () => {
     expect((q<HTMLSelectElement>('.uned select'))!.value).toBe(OTHER.id);
   });
 
+  describe('drag to reorder', () => {
+    // jsdom has no layout: give each unit a resting box (100 px apart, 90 wide — midpoints 45 / 145).
+    let restore: (() => void) | null = null;
+    beforeEach(() => {
+      const orig = Element.prototype.getBoundingClientRect;
+      Element.prototype.getBoundingClientRect = function (this: Element): DOMRect {
+        const i = this.getAttribute('data-stbc-slot');
+        return i === null ? orig.call(this) : new DOMRect(Number(i) * 100, 200, 90, 120);
+      };
+      restore = () => { Element.prototype.getBoundingClientRect = orig; };
+    });
+    afterEach(() => { restore?.(); restore = null; });
+
+    const slot = (i: number): HTMLElement => q(`.stbc-slot[data-stbc-slot="${i}"]`)!;
+    const press = (i: number, x: number): void => fire(slot(i), new MouseEvent('pointerdown', { bubbles: true, button: 0, clientX: x, clientY: 260 }));
+    const moveTo = (x: number): void => { act(() => { window.dispatchEvent(new MouseEvent('pointermove', { clientX: x, clientY: 262 })); }); };
+    const release = (type = 'pointerup'): void => { act(() => { window.dispatchEvent(new MouseEvent(type, {})); }); };
+
+    it('dragging a unit past its neighbour slides the neighbour over, and the drop commits the move', () => {
+      press(0, 45);
+      moveTo(160);
+      expect(q('.stbc-row')!.className).toMatch(/reordering/);
+      expect(slot(0).className).toMatch(/dragged/);
+      expect(slot(0).style.transform).toBe('translateX(115px)'); // follows the pointer
+      expect(slot(1).style.transform).toBe('translateX(-100px)'); // one slot left to make room
+      expect(board().map((m) => m.cardId)).toEqual([PLAIN.id, TAUNTED.id]); // nothing commits mid-drag
+      release();
+      expect(board().map((m) => m.cardId)).toEqual([TAUNTED.id, PLAIN.id]);
+      expect(dirty3()).toBe(true);
+      expect(q('.stbc-row')!.className).not.toMatch(/reordering/);
+      expect(qa<HTMLElement>('.stbc-slot').every((s) => s.style.transform === '')).toBe(true);
+    });
+
+    it('dragging back to where it started (or cancelling) changes nothing', () => {
+      press(1, 145);
+      moveTo(20);
+      expect(slot(0).style.transform).toBe('translateX(100px)');
+      moveTo(150);
+      expect(slot(0).style.transform).toBe('');
+      release();
+      expect(board().map((m) => m.cardId)).toEqual([PLAIN.id, TAUNTED.id]);
+      press(1, 145);
+      moveTo(20);
+      release('pointercancel');
+      expect(board().map((m) => m.cardId)).toEqual([PLAIN.id, TAUNTED.id]);
+      expect(dirty3()).toBe(false);
+    });
+
+    it('a press that barely moves stays a click: no drag, and double-click still opens the editor', () => {
+      press(0, 45);
+      moveTo(48);
+      expect(q('.stbc-row')!.className).not.toMatch(/reordering/);
+      release();
+      expect(board().map((m) => m.cardId)).toEqual([PLAIN.id, TAUNTED.id]);
+      openEditor(0);
+      expect(q('.uned')).not.toBeNull();
+    });
+
+    it('the empty + slots are not draggable', () => {
+      const add = q('.stbc .stbc-add')!;
+      fire(add, new MouseEvent('pointerdown', { bubbles: true, button: 0, clientX: 250, clientY: 260 }));
+      moveTo(0);
+      expect(q('.stbc-row')!.className).not.toMatch(/reordering/);
+      release();
+      expect(board().map((m) => m.cardId)).toEqual([PLAIN.id, TAUNTED.id]);
+    });
+  });
+
   it('the panel no longer offers "Test this round"', () => {
     const labels = qa<HTMLButtonElement>('.stagebuilder button').map((b) => b.textContent ?? '');
     expect(labels.some((t) => /Test this round/.test(t))).toBe(false);

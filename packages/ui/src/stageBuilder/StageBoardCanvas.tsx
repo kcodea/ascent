@@ -1,16 +1,17 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
 import { createPortal } from 'react-dom';
 import { CARD_INDEX, GAUNTLET_BOARD_MAX } from '@game/content';
 import { Card, type CardView } from '../Card';
 import { MinionSkins } from '../skins/skins';
 import { UnitEditor } from '../UnitEditor';
-import { rectToStage, stageHost, stageViewport } from '../stage';
+import { rectToStage, stageHost, stageViewport, toStage } from '../stage';
 import { useStageBuilder } from './stageBuilderStore';
 import {
-  addMinion, removeMinion, roundTier, roundToSnapshot, setMinionStats, swapMinionCard, toggleAddedKeyword,
+  addMinion, moveMinion, removeMinion, roundTier, roundToSnapshot, setMinionStats, swapMinionCard, toggleAddedKeyword,
   toggleMinionGolden,
 } from './stageDraft';
 import { allMinions, searchMinions } from './minionSearch';
+import { DRAG_THRESHOLD, reorderIndexAt, slideSlots, slotPitch, type SlotRect } from './canvasReorder';
 
 /**
  * DEV-only STAGE BOARD CANVAS — the visual half of the Stage Builder (owner ask 2026-09-29: "i only need to edit
@@ -21,6 +22,11 @@ import { allMinions, searchMinions } from './minionSearch';
  *  - Double-click a unit → the shared `UnitEditor`, anchored to it, editing the DRAFT (stats, ADDED keywords —
  *    the card's printed ones show locked on — Golden, card swap with search, remove).
  *  - Click a "+" slot → a card search; picking appends that minion at its printed stats and opens the editor on it.
+ *  - Press-and-drag a unit sideways → the others slide a slot to make room (transform-only, like the warband's
+ *    "make room" slide); dropping commits `moveMinion` (owner ask 2026-09-29). A press only becomes a drag past
+ *    `DRAG_THRESHOLD`, so clicks and double-clicks still work. Slot rects are read ONCE when the drag starts; the
+ *    dragged card follows the pointer via a transform written straight to its element (no React render per move),
+ *    and React re-renders only when the insertion gap changes.
  *
  * Every edit goes through `editDraft` + the pure `stageDraft.ts` helpers, so the panel's minion list (which reads
  * the same draft) stays in sync, and the round is marked dirty the same way. Mounted from `SandboxDevPanels` in
@@ -34,6 +40,8 @@ const allSwapCards = (): { id: string; name: string; hay: string }[] =>
   (swapCards ??= allMinions().map((c) => ({ id: c.id, name: c.name, hay: c.hay })));
 
 type Editing = { index: number; rect: DOMRect | null };
+/** A live reorder: the dragged unit's resting index, the current insertion index, and the slide step (stage px). */
+type Dragging = { from: number; gap: number; pitch: number };
 type Picking = { rect: DOMRect };
 
 const toDomRect = (el: Element): DOMRect => {
@@ -48,9 +56,13 @@ export function StageBoardCanvas() {
   const [editing, setEditing] = useState<Editing | null>(null);
   const [picking, setPicking] = useState<Picking | null>(null);
   const rowRef = useRef<HTMLDivElement | null>(null);
+  const [dragging, setDragging] = useState<Dragging | null>(null);
+  /** Detaches the in-flight press's window listeners (a press that unmounts / changes round mid-drag). */
+  const endPressRef = useRef<(() => void) | null>(null);
+  useEffect(() => () => endPressRef.current?.(), []);
 
   // A different round (or stage) is a different board: close whatever was open on the old one.
-  useEffect(() => { setEditing(null); setPicking(null); }, [round, stageNumber]);
+  useEffect(() => { endPressRef.current?.(); setEditing(null); setPicking(null); setDragging(null); }, [round, stageNumber]);
 
   const board = draft?.rounds[round - 1]?.board ?? [];
   // The authored minions as the fight will see them (printed + added keywords merged, golden flag).
@@ -84,6 +96,56 @@ export function StageBoardCanvas() {
   const closePicker = useCallback((): void => setPicking(null), []);
   const edit = useStageBuilder.getState().editDraft;
 
+  /** Press on a unit: arm a drag that starts only once the pointer travels past the threshold. */
+  const onSlotPointerDown = (e: ReactPointerEvent<HTMLDivElement>, from: number): void => {
+    if (e.button !== 0 || !rowRef.current) return;
+    endPressRef.current?.();
+    const row = rowRef.current;
+    const startX = e.clientX;
+    const startY = e.clientY;
+    const r = round;
+    let el: HTMLElement | null = null;
+    let slots: SlotRect[] = [];
+    let gap = -1;
+    const move = (ev: PointerEvent): void => {
+      const dx = ev.clientX - startX;
+      if (gap < 0) {
+        if (Math.hypot(dx, ev.clientY - startY) < DRAG_THRESHOLD) return;
+        // DRAG START — the one layout read of the whole drag: every slot's resting box, in screen space.
+        const els = [...row.querySelectorAll<HTMLElement>('[data-stbc-slot]')];
+        slots = els.map((s) => { const b = s.getBoundingClientRect(); return { left: b.left, width: b.width }; });
+        el = els[from] ?? null;
+        gap = from;
+        setEditing(null);
+        setPicking(null);
+        setDragging({ from, gap, pitch: toStage(slotPitch(slots)) });
+      }
+      if (el) el.style.transform = `translateX(${toStage(dx)}px)`;
+      const next = reorderIndexAt(slots, ev.clientX, from, gap);
+      if (next !== gap) { gap = next; setDragging((d) => (d ? { ...d, gap: next } : d)); }
+    };
+    const detach = (): void => {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+      window.removeEventListener('pointercancel', cancel);
+      endPressRef.current = null;
+    };
+    const finish = (commit: boolean): void => {
+      detach();
+      if (gap < 0) return; // never became a drag: a plain click
+      if (el) el.style.transform = '';
+      setDragging(null);
+      const to = gap;
+      if (commit && to !== from) edit((st) => moveMinion(st, r, from, to));
+    };
+    const up = (): void => finish(true);
+    const cancel = (): void => finish(false);
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
+    window.addEventListener('pointercancel', cancel);
+    endPressRef.current = () => finish(false);
+  };
+
   const pickCard = (cardId: string): void => {
     const index = board.length;
     if (index >= GAUNTLET_BOARD_MAX) return;
@@ -107,14 +169,19 @@ export function StageBoardCanvas() {
         <span className="stbc-opp">{draft.opponentName}</span>
         <span className="stbc-tier">Tier {tier}</span>
       </div>
-      <div className="stbc-hint">Double-click a unit to edit it · + adds one</div>
-      <div className="row stbc-row" ref={rowRef}>
+      <div className="stbc-hint">Double-click a unit to edit it · drag to reorder · + adds one</div>
+      <div className={`row stbc-row${dragging ? ' reordering' : ''}`} ref={rowRef}>
         <MinionSkins snapshot={null}>
           {views.map((v, i) => (
             <div
               key={`${i}-${v.cardId}`}
-              className={`stbc-slot${editing?.index === i ? ' editing' : ''}`}
+              className={`stbc-slot${editing?.index === i ? ' editing' : ''}${dragging?.from === i ? ' dragged' : ''}`}
               data-stbc-slot={i}
+              style={dragging && slideSlots(i, dragging.from, dragging.gap) !== 0
+                ? { transform: `translateX(${slideSlots(i, dragging.from, dragging.gap) * dragging.pitch}px)` }
+                : undefined}
+              onPointerDown={(e) => onSlotPointerDown(e, i)}
+              onDragStart={(e) => e.preventDefault()}
               onDoubleClick={(e) => { setPicking(null); setEditing({ index: i, rect: toDomRect(e.currentTarget) }); }}
             >
               <Card card={v} forceCompact own={false} />

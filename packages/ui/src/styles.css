@@ -9157,6 +9157,12 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 .stbc-row { position: relative; z-index: 1; margin-top: calc(150 * var(--u)); }
 .stbc-slot { position: relative; display: flex; border-radius: 16px; }
 .stbc-slot.editing { outline: 2px solid #c8a45c; outline-offset: 6px; }
+/* DRAG TO REORDER — while a unit is dragged the others glide a slot to make room (transform only; the transition
+   is on only during a reorder, so the drop snaps into the new order). The dragged unit follows the pointer with no
+   transition, lifted above its neighbours. */
+.stbc-slot { user-select: none; touch-action: none; }
+.stbc-row.reordering .stbc-slot:not(.dragged) { transition: transform 150ms cubic-bezier(0.2, 0, 0, 1); }
+.stbc-slot.dragged { z-index: 2; opacity: 0.92; }
 .stbc-add { flex: 0 0 var(--ccw); width: var(--ccw); height: var(--ccw); border-radius: var(--arch-radius);
   border: 2px dashed rgb(232 216 176 / 0.45); background: rgb(16 13 8 / 0.35); color: rgb(246 227 180 / 0.8);
   font-family: var(--font-ui); font-size: calc(40 * var(--u)); font-weight: 300; transition: background 0.12s, border-color 0.12s; }
@@ -9173,6 +9179,7 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 /* The game cursor, doubled like `.uned.uned` below it in intent. */
 .stbc.stbc, .stbc.stbc * { cursor: url('/cursors/gauntlet_default.svg') 6 2, default; }
 .stbc.stbc .stbc-add, .stbc.stbc .stbc-slot, .stbc.stbc .stbc-slot * { cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; }
+.stbc.stbc .stbc-row.reordering, .stbc.stbc .stbc-row.reordering * { cursor: url('/cursors/hand_closed.svg') 13 12, grabbing; }
 .bsc-id { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .bsc-banner { background: #3a2413; border: 1px solid #a0632a; border-radius: calc(6 * var(--u)); color: #f0b978; font-size: calc(12 * var(--u)); line-height: 1.4; padding: calc(6 * var(--u)) calc(8 * var(--u)); }
 .bsc-badges { gap: calc(4 * var(--u)); }

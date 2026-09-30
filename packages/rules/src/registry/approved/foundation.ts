@@ -3324,4 +3324,45 @@ export const FOUNDATION_RULES: GameRule[] = [
     currentBehaviour: 'Conforms since 2026-09-29. Before, the charge\x27s sustained ground shake (camShakeHold) was only cleared on a wind-down or a reset, so it kept shaking the view through the reveal until the scene settled.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/progression/crateFx/crateFx.test.ts'], lastVerifiedAt: '2026-09-29' },
   },
+  {
+    id: 'R-PRESENT-25',
+    title: 'Art is never shown undecoded, and the run\x27s set is preloaded in priority order',
+    statement:
+      'No card, portrait or tile ever paints a blank or half-loaded image: its art, frame, hand plate and chrome images '
+      + 'appear only once the image is decoded AND the element itself can paint it (`img.complete` at commit, before '
+      + 'paint); until then the image is invisible over a static dark placeholder and fades in once (180 ms, opacity '
+      + 'only). Art already decoded renders exactly as before, with no fade. Loading is ONE ordered pipe (6 in flight): '
+      + 'what is on screen first, then the title and shop chrome, then the live set\x27s tier 1-2 cards and the heroes, '
+      + 'then the rest of the run\x27s PINNED pool (`poolOf(run)`) tier-first, then sounds, then everything else '
+      + '(fetch-only). The web build ships Netlify `_headers` making hashed assets immutable and index.html no-cache.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      {
+        kind: 'owner-chat',
+        ref: 'Claude Code session, 2026-09-29 (friends playing the Netlify build)',
+        quote: 'seeing a lot of pop in when i watch my friends play when they roll into a fresh shop etc. how can we stop pop in entirely?',
+      },
+      {
+        kind: 'owner-chat',
+        ref: 'Claude Code session, 2026-09-29 (local builds too)',
+        quote: 'i dont think it\x27s just a netlify issue - mike\x27s has pop in sometimes too',
+      },
+      { kind: 'code', ref: 'packages/ui/src/assetQueue.ts; packages/ui/src/artPreload.ts (useArtFade); packages/ui/src/preloadPlan.ts; packages/ui/src/FadeImg.tsx; apps/web/public/_headers' },
+    ],
+    currentBehaviour:
+      'Conforms as of 2026-09-29 (PR #1866). Measured on the prod build: blank card frames went from 96% of the first '
+      + 'shop at 10 Mbps (art after 6.9 s), whole rolls, 41-80 per returning-visit shop and 9-11 per local session, to 0 '
+      + 'in every scenario. See docs/devlog/2026-09-29-art-pop-in.md.',
+    enforcement: {
+      kind: 'scenario',
+      refs: [
+        'packages/ui/src/assetQueue.test.ts',
+        'packages/ui/src/preloadPlan.test.ts',
+        'packages/ui/src/artFade.test.tsx',
+        'apps/web/publicArt.test.ts',
+      ],
+      lastVerifiedAt: '2026-09-29',
+    },
+  },
 ];

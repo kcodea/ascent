@@ -60,6 +60,15 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: 'Card art no longer pops in. Cards, frames and heroes now load in the order you will see them.',
+        details: [
+          'The game fetches what is on screen first, then your shop cards, then the rest of the set in the background.',
+          'If a picture is still loading, the card shows a dark portrait and the art fades in. No more blank or white frames.',
+          'Coming back to the game loads the art straight from your browser, so it is ready at once.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'Opponents are now picked at random from every whole game in the pool.',
         details: [
           'Each opponent plays the game they really played, round by round, from their first round to their last.',

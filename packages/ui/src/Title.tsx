@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { AscentLogo } from './AscentLogo';
 import { activeRift, LEARN_ASCENT } from '@game/sim';
 import { avatarSrc, modeArt } from './art';
+import { FadeImg } from './FadeImg';
 import { getTitleText, subscribeTitleText, titleContinueNote } from './titleTextConfig';
 import { applyTitleVars } from './titleConfig';
 import { applyTitleVeilVars } from './titleVeilConfig';
@@ -327,7 +328,7 @@ export function Title({ onSettings }: { onSettings: () => void }) {
                 <div className="mcframe" data-mode="lobby" data-mp="play">
                   <div className="mcname">Play</div>
                   {modeArt('lobby')
-                    ? <div className="mcart-clip"><img decoding="sync" className="mcframe-art" src={modeArt('lobby')} alt="" draggable={false} /></div>
+                    ? <div className="mcart-clip"><FadeImg className="mcframe-art" src={modeArt('lobby')} alt="" draggable={false} /></div>
                     : <span className="mcemblem"><IconHelm /></span>}
                   {/* No rank on the Play card (owner 2026-09-21): the crest + bar live on the Career page and the
                       Leaderboard; the card is just the door to the ranked lobby. */}
@@ -343,7 +344,7 @@ export function Title({ onSettings }: { onSettings: () => void }) {
                 <div className="mcframe" data-mode="learn" data-mp="learn">
                   <div className="mcname">Learn</div>
                   {modeArt('learn')
-                    ? <div className="mcart-clip"><img decoding="sync" className="mcframe-art" src={modeArt('learn')} alt="" draggable={false} /></div>
+                    ? <div className="mcart-clip"><FadeImg className="mcframe-art" src={modeArt('learn')} alt="" draggable={false} /></div>
                     : <span className="mcemblem"><IconHelm /></span>}
                   <div className="mcdesc">Tutorial + techniques.</div>
                 </div>
@@ -353,7 +354,7 @@ export function Title({ onSettings }: { onSettings: () => void }) {
                 <div className="mcframe" data-mode="practice" data-mp="practice">
                   <div className="mcname">Practice</div>
                   {modeArt('practice')
-                    ? <div className="mcart-clip"><img decoding="sync" className="mcframe-art" src={modeArt('practice')} alt="" draggable={false} /></div>
+                    ? <div className="mcart-clip"><FadeImg className="mcframe-art" src={modeArt('practice')} alt="" draggable={false} /></div>
                     : <span className="mcemblem"><IconHelm /></span>}
                   <div className="mcdesc">More time and unlimited Health.</div>
                 </div>
@@ -375,7 +376,7 @@ export function Title({ onSettings }: { onSettings: () => void }) {
                 <div className="mcframe" data-mode="learn">
                   <div className="mcname">Tutorial</div>
                   {modeArt('learn')
-                    ? <div className="mcart-clip"><img decoding="sync" className="mcframe-art" src={modeArt('learn')} alt="" draggable={false} /></div>
+                    ? <div className="mcart-clip"><FadeImg className="mcframe-art" src={modeArt('learn')} alt="" draggable={false} /></div>
                     : <span className="mcemblem"><IconHelm /></span>}
                   <div className="mcdesc">A coached first game. Every mechanic, then graduate.</div>
                 </div>

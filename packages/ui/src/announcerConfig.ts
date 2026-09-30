@@ -49,6 +49,8 @@ export const ANNOUNCER_TUNER_EVENTS = [
   // The moment catalog's group D (owner 2026-09-25): the per-hero / per-tribe moments.
   'heroPick', 'tribeTakeover', 'opponentHero', 'tribeSurge', 'rankUp',
   'grimPayout', 'hanGover', 'kurseGolem', 'wolvieRise',
+  // The Gauntlet's round call (owner 2026-09-30): the only line a Gauntlet speaks.
+  'gauntletRound',
 ] as const satisfies readonly AnnouncerEvent[];
 
 type VolKey = `${AnnouncerEvent}Vol`;
@@ -193,6 +195,7 @@ const EVENT_LABEL: Record<AnnouncerEvent, string> = {
   hanGover: 'Han Gover Pummel pays out (as shown, 3 s in)',
   kurseGolem: 'Kurse summons a Golem (as shown, 3 s in)',
   wolvieRise: 'A Beast Wolvie gave Rise Rises (as shown, 3 s in)',
+  gauntletRound: 'Gauntlet: "Round N" as each Shop turn starts (round 1 with Game start, then 1000 ms after the return)',
 };
 
 /**

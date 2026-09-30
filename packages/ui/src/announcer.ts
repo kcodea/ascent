@@ -144,6 +144,16 @@ export const SPECIALTY_EVENTS: readonly AnnouncerEvent[] = ['buyDrakko', 'buySyl
 export const ANNOUNCER_NAMED_BUYS: Readonly<Record<string, AnnouncerEvent>> = { drummer: 'buyDrakko', sylus: 'buySylus' };
 /** Round7: the wave whose Shop may (rarely) say it. */
 export const ANNOUNCER_ROUND_SEVEN = 7;
+/** THE GAUNTLET'S ROUND CALL (owner 2026-09-30): a recorded "Round N" for rounds 1 to 10 (a stage is 10 rounds). */
+export const ANNOUNCER_GAUNTLET_ROUNDS = 10;
+/** The ONLY events a Gauntlet stage speaks. Every other line keys on an 8-seat table (seat counts, standings,
+ *  knockouts) or the rated game and would misfire on a Gauntlet's 2-seat one (owner ruling 2026-09-29), so the queue
+ *  refuses anything else while a Gauntlet is on screen (`enqueue`). */
+export const GAUNTLET_ANNOUNCER_EVENTS: readonly AnnouncerEvent[] = ['gauntletRound'];
+/** The one take round `round` may play ("Round N"), or none past the recorded rounds. */
+export function gauntletRoundTakes(round: number): readonly string[] {
+  return round >= 1 && round <= ANNOUNCER_GAUNTLET_ROUNDS ? [`gauntlet-round-${round}`] : [];
+}
 /** TimeRunningOut: the Shop clock's seconds left that trigger it, EVERY Shop turn (owner 2026-09-25: "the running
  *  out of time can play everytime theres 15 seconds left"). */
 export const ANNOUNCER_TIME_WARNING_SECONDS = 15;
@@ -425,6 +435,9 @@ export const ANNOUNCER_LINES: Record<AnnouncerEvent, readonly string[]> = {
   hanGover: ['han-gover-1'],
   kurseGolem: ['kurse-golem-1'],
   wolvieRise: ['wolvie-rise-1'],
+  // The Gauntlet's round call (owner 2026-09-30: "have the announcer say "Round 1" when round 1 starts, "Round 2"
+  // when round 2 starts, and so on"): take N is "Round N", and only round N's own take may play (`gauntletRoundTakes`).
+  gauntletRound: Array.from({ length: ANNOUNCER_GAUNTLET_ROUNDS }, (_, i) => `gauntlet-round-${i + 1}`),
 };
 
 /** The moment catalog's first batch (owner 2026-09-25), in ANNOUNCER_LINES order. */
@@ -597,6 +610,9 @@ export const ANNOUNCER_PRIORITY: Record<AnnouncerEvent, number> = {
   hanGover: 36,
   kurseGolem: 36,
   wolvieRise: 36,
+  // The Gauntlet's round call: the only line a Gauntlet speaks, so its rank only matters against nothing; beside
+  // GameStart, the other "the turn is starting" line.
+  gauntletRound: 15,
 };
 
 /** When a pending line goes stale: 'shop' lines when combat starts, 'combat' lines when the next shop opens. */
@@ -699,10 +715,13 @@ export interface AnnouncerStateLike extends MusicStateLike {
   rankResult?: { runId: string; promoted: boolean } | null | undefined;
 }
 
-/** The pure gate: the music's (lobby / practice on screen, no sandbox, no replay, no title) MINUS the Gauntlet. The
- *  Gauntlet has music but no announcer in v1 (owner ruling 2026-09-29): several lines key on seat counts and would
- *  misfire on its 2-seat table. */
-export const isAnnouncerWanted = (s: MusicStateLike): boolean => s.run.mode !== 'gauntlet' && isMusicWanted(s);
+/** The pure gate: the music's (lobby / practice / Gauntlet on screen, no sandbox, no replay, no title). A Gauntlet
+ *  speaks ONLY its round call (owner 2026-09-30, on top of the 2026-09-29 ruling that kept every other line out:
+ *  several key on seat counts and would misfire on its 2-seat table); `isGauntletAnnouncer` + `enqueue` hold it to
+ *  `GAUNTLET_ANNOUNCER_EVENTS`. */
+export const isAnnouncerWanted = (s: MusicStateLike): boolean => isMusicWanted(s);
+/** A Gauntlet on screen: the announcer speaks only `GAUNTLET_ANNOUNCER_EVENTS`. */
+export const isGauntletAnnouncer = (s: MusicStateLike): boolean => s.run.mode === 'gauntlet';
 
 // ── Injected seams (the real browser APIs by default; tests replace them) ───────────────────────────────────
 export interface AnnouncerHandle {
@@ -906,6 +925,8 @@ export type AnnouncerLogKind = 'queue' | 'play' | 'drop' | 'expire' | 'cancel' |
 export interface AnnouncerLogEntry { t: number; kind: AnnouncerLogKind; event: AnnouncerEvent; file?: string; why?: string }
 
 let active = false;
+/** A Gauntlet is on screen: the queue takes only `GAUNTLET_ANNOUNCER_EVENTS` (see `enqueue`). */
+let gauntletOnly = false;
 let runKey: number | null = null;
 let slice: AnnouncedSlice | null = null;
 let mark: ((event: AnnouncerEvent, wave: number, take?: string, reshuffle?: boolean) => void) | null = null;
@@ -1035,6 +1056,9 @@ function chanceAllows(s: AnnouncedSlice, event: AnnouncerEvent, wave: number, in
 
 function enqueue(line: PendingLine): void {
   if (!active) return;
+  // A Gauntlet speaks only its round call: every detector (and the combat / clock observers) may still see its moment,
+  // but nothing else reaches the queue.
+  if (gauntletOnly && !GAUNTLET_ANNOUNCER_EVENTS.includes(line.event)) return;
   if (pending.some((p) => p.event === line.event)) return;
   if (slice && announcerExhausted(slice, line.event)) return; // the no-repeat rule: nothing left to say
   // A keyed moment (group D): nothing left to say for THIS hero / tribe.
@@ -1344,6 +1368,7 @@ function trailingRun(h: readonly string[]): { result: string | null; length: num
 function enterRun(s: AnnouncerStateLike, prev: AnnouncerStateLike | null): void {
   cancelAnnouncer('run change');
   active = true;
+  gauntletOnly = isGauntletAnnouncer(s);
   runKey = s.run.seed;
   lastLineEndedAt = -Infinity;
   lastLine = null;
@@ -1361,6 +1386,12 @@ function enterRun(s: AnnouncerStateLike, prev: AnnouncerStateLike | null): void 
   tribeBuys = { wave: -1, byTribe: new Map(), all: 0 };
   freshBatch3Tallies();
   endLineAt = null;
+  if (gauntletOnly) {
+    // A Gauntlet (owner 2026-09-30): the round call is its only line. Round 1 speaks when GameStart would (after the
+    // Good Luck intro, past the music's fade-in); a Continue into a Shop turn whose call never spoke hears it then.
+    enqueueGauntletRound(s.run, runEnteredAt + ANNOUNCER_GAME_START_DELAY_MS);
+    return;
+  }
   if (enteredAtWaveOne && !hasFired(slice!, 'gameStart')) {
     enqueue({ event: 'gameStart', shelf: 'shop', notBefore: runEnteredAt + ANNOUNCER_GAME_START_DELAY_MS, wave: 1 });
   }
@@ -1384,6 +1415,7 @@ function enterRun(s: AnnouncerStateLike, prev: AnnouncerStateLike | null): void 
 function leaveRun(): void {
   cancelAnnouncer('left the run');
   active = false;
+  gauntletOnly = false;
   runKey = null;
   slice = null;
   mark = null;
@@ -1400,8 +1432,12 @@ export function syncAnnouncer(s: AnnouncerStateLike, prev: AnnouncerStateLike | 
   const run = s.run;
   slice = announcedFor(s.announced, run.seed);
   mark = s.markAnnounced;
-  if (!active || runKey !== run.seed) {
+  if (!active || runKey !== run.seed || gauntletOnly !== isGauntletAnnouncer(s)) {
     enterRun(s, prev);
+    return;
+  }
+  if (gauntletOnly) {
+    syncGauntlet(run, prev?.run);
     return;
   }
   // UNDERDOG / FAVOURITE: the rail's pre-fight odds arrive on their own update (the deferred probe), before or
@@ -1588,6 +1624,38 @@ export function syncAnnouncer(s: AnnouncerStateLike, prev: AnnouncerStateLike | 
     detectShopTurn(slice, p, run, now);
     detectShopBatch3(slice, p, run, now, acts, s.replayActions);
   }
+}
+
+/** THE GAUNTLET'S ROUND CALL (owner 2026-09-30: *"have the announcer say "Round 1" when round 1 starts, "Round 2"
+ *  when round 2 starts, and so on"*): "Round N" once per Shop turn N, round N's own take only. Once per round per
+ *  run: the round is recorded in the persisted slice (`fired`), so a Save & Continue or a re-render never repeats
+ *  it. Bypasses the cooldown (it is the Gauntlet's only line, nothing else can crowd it); a Shop line, so a Shop
+ *  turn ended before it spoke drops it. The channel's volume / mute and the tuner's Vol / Offset / Chance apply. */
+function enqueueGauntletRound(run: AnnouncerRunLike, at: number): void {
+  if (!slice || run.phase !== 'recruit' || firedWaves(slice, 'gauntletRound').includes(run.wave)) return;
+  const takes = gauntletRoundTakes(run.wave);
+  if (!takes.length) return;
+  enqueue({ event: 'gauntletRound', shelf: 'shop', notBefore: at, wave: run.wave, takes, bypassCooldown: true });
+}
+
+/** A Gauntlet's store update: only the phase flips matter (the round call on each return to the Shop). */
+function syncGauntlet(run: AnnouncerRunLike, p: AnnouncerRunLike | undefined): void {
+  if (!p || p === run || p.seed !== run.seed || p.phase === run.phase) return;
+  if (run.phase === 'combat') {
+    expire('shop');
+    combatStartedAt = deps.now();
+    return;
+  }
+  combatStartedAt = null;
+  if (run.phase === 'recruit') {
+    expire('combat');
+    // Rounds 2 to 10: the Shop reopens after the fight, on the return lines' beat (1000 ms after the wipe).
+    enqueueGauntletRound(run, deps.now() + ANNOUNCER_BACK_TO_SHOP_DELAY_MS);
+    return;
+  }
+  // The stage is over (cleared or defeated): nothing left to call.
+  expire('shop');
+  expire('combat');
 }
 
 /** The fight's verdict: the catalog's result and streak lines. `at` is the verdict lines' shared time. */
@@ -2118,6 +2186,7 @@ export function resetAnnouncerForTests(): void {
   playing = null;
   pending = [];
   active = false;
+  gauntletOnly = false;
   runKey = null;
   slice = null;
   mark = null;

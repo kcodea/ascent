@@ -62,6 +62,14 @@ export const PATCH_NOTES: PatchNote[] = [
         category: 'Systems',
         text: 'The lobby strength number is hidden from match history for now while we improve it.',
       },
+      {
+        category: 'Systems',
+        text: 'The loading screen now loads all the art before you play, so nothing pops in.',
+        details: [
+          'The bar shows real progress: every card, hero, rune and frame is ready before the menu opens.',
+          'On a slow connection the first load takes longer. After that the game loads from your browser in a moment.',
+        ],
+      },
     ],
   },
   {

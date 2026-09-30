@@ -39,6 +39,21 @@ describe('asset queue', () => {
     expect(h.q.stats().inFlight).toBe(2);
   });
 
+  it('setConcurrency widens the pipe at once and narrows it without cancelling in-flight work (the boot gate)', async () => {
+    const h = harness(2);
+    for (const k of ['a', 'b', 'c', 'd', 'e', 'f']) h.req(k, 'set');
+    h.q.setConcurrency(4);
+    expect(h.inFlight()).toEqual(['a', 'b', 'c', 'd']);
+    h.q.setConcurrency(1);
+    expect(h.inFlight()).toEqual(['a', 'b', 'c', 'd']); // nothing cancelled
+    await h.finish('a');
+    await h.finish('b');
+    await h.finish('c');
+    expect(h.inFlight()).toEqual(['d']); // no new start until under the new cap
+    await h.finish('d');
+    expect(h.inFlight()).toEqual(['e']);
+  });
+
   it('drains lanes strictly in priority order, FIFO within a lane', async () => {
     const h = harness(1);
     h.req('blocker', 'idle'); // occupies the one slot

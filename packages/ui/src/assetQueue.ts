@@ -33,11 +33,14 @@ export interface AssetQueue {
   subscribe(key: string, cb: () => void): () => void;
   /** Counters for tests + the devlog numbers. */
   stats(): { queued: number; inFlight: number; done: number; started: string[] };
+  /** Change how many tasks may run at once (the boot gate opens it wider while nothing else is on screen). A raise
+   *  starts queued work at once; a lower cap only stops NEW starts until the in-flight count drops under it. */
+  setConcurrency(n: number): void;
 }
 
 interface Entry { key: string; lane: number; task: (lane: Lane) => Promise<unknown> }
 
-export function createAssetQueue(concurrency = 6, opts: { trackStarted?: boolean } = {}): AssetQueue {
+export function createAssetQueue(initialConcurrency = 6, opts: { trackStarted?: boolean } = {}): AssetQueue {
   // One FIFO per lane — O(1) enqueue, and a raise just moves the entry (rare: only when art is needed sooner).
   const lanes: Entry[][] = LANES.map(() => []);
   const queued = new Map<string, Entry>();
@@ -45,6 +48,7 @@ export function createAssetQueue(concurrency = 6, opts: { trackStarted?: boolean
   const done = new Set<string>();
   const subs = new Map<string, Set<() => void>>();
   const started: string[] = [];
+  let concurrency = Math.max(1, initialConcurrency);
 
   const settle = (key: string): void => {
     inFlight.delete(key);
@@ -113,5 +117,9 @@ export function createAssetQueue(concurrency = 6, opts: { trackStarted?: boolean
       return () => { s!.delete(cb); };
     },
     stats: () => ({ queued: queued.size, inFlight: inFlight.size, done: done.size, started: [...started] }),
+    setConcurrency(n) {
+      concurrency = Math.max(1, Math.floor(n));
+      pump();
+    },
   };
 }

@@ -26,7 +26,7 @@ let elementComplete = true;
 Object.defineProperty(HTMLImageElement.prototype, 'complete', { configurable: true, get: () => elementComplete });
 
 import { FadeImg } from './FadeImg';
-import { artReady, markArtReady, requestArt } from './artPreload';
+import { artReady, markArtReady, requestArt, whenArtReady } from './artPreload';
 
 let ui: Mounted | null = null;
 afterEach(() => { ui?.unmount(); ui = null; elementComplete = true; });
@@ -100,5 +100,36 @@ describe('the Card and the CSS keep the rule', () => {
     const wait = /\.art\.art-wait \{([^}]*)\}/.exec(css)?.[1] ?? '';
     expect(wait).toMatch(/background:/);
     expect(wait).not.toMatch(/animation|transition/);
+  });
+});
+
+describe('whenArtReady: the boot loading gate (owner 2026-09-30: "i think id rather load everything")', () => {
+  it('reports real progress and resolves only once EVERY image has decoded (or failed)', async () => {
+    const urls = ['/art/gate-a.webp', '/art/gate-b.webp', '/art/gate-c.webp', '/art/gate-a.webp'];
+    const seen: [number, number][] = [];
+    let open = false;
+    const start = decodes.length;
+    void whenArtReady(urls, (d, t) => seen.push([d, t])).then(() => { open = true; });
+    await flush();
+    expect(seen[0]).toEqual([0, 3]); // deduped total, painted before anything lands
+    expect(decodes.length - start).toBe(3); // it queued what nobody had asked for yet
+    decodes[start]!();
+    await flush();
+    expect(open).toBe(false);
+    expect(seen.at(-1)).toEqual([1, 3]);
+    decodes[start + 1]!();
+    decodes[start + 2]!();
+    await flush();
+    expect(seen.at(-1)).toEqual([3, 3]);
+    expect(open).toBe(true);
+    for (const u of urls) expect(artReady(u)).toBe(true);
+  });
+
+  it('opens at once when everything is already decoded (a returning visit, or an empty list)', async () => {
+    let open = 0;
+    void whenArtReady([], () => {}).then(() => { open++; });
+    void whenArtReady(['/art/gate-a.webp'], () => {}).then(() => { open++; });
+    await flush();
+    expect(open).toBe(2);
   });
 });

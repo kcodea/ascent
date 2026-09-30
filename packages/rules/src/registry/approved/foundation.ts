@@ -3387,7 +3387,7 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'only). Art already decoded renders exactly as before, with no fade. Loading is ONE ordered pipe (6 in flight): '
       + 'what is on screen first, then the title and shop chrome, then the live set\x27s tier 1-2 cards and the heroes, '
       + 'then the rest of the run\x27s PINNED pool (`poolOf(run)`) tier-first, then sounds, then everything else '
-      + '(fetch-only). The web build ships Netlify `_headers` making hashed assets immutable and index.html no-cache.',
+      + '(decoded too since 2026-09-30, when the boot splash became a real loading gate: R-PRESENT-26). The web build ships Netlify `_headers` making hashed assets immutable and index.html no-cache.',
     domain: 'foundation',
     status: 'approved',
     evidence: [
@@ -3416,6 +3416,41 @@ export const FOUNDATION_RULES: GameRule[] = [
         'apps/web/publicArt.test.ts',
       ],
       lastVerifiedAt: '2026-09-29',
+    },
+  },
+  {
+    id: 'R-PRESENT-26',
+    title: 'The boot splash is a real loading gate: every image a session can show is decoded before play',
+    statement:
+      'The menu never opens until every image a session on the live set can show is fetched AND decoded: every card '
+      + 'of the live set (and of the saved run\x27s set), every token, Ruby, gift and Choose One branch, heroes, hero '
+      + 'powers, skins, equipment, quests, the runes those sets can offer, Ancients, FX images, card frames, plates, '
+      + 'medallions, boards and all UI chrome. The splash bar shows REAL progress (images decoded / total, scaleX '
+      + 'only) with a count under it; a slow line just waits longer, never a partial game. Every image stays held '
+      + 'for the session. Cards and runes only an unplayable set owns keep decoding behind the gate (the '
+      + 'Collection\x27s set picker); sounds stream after the art. The R-PRESENT-25 placeholder remains only as a '
+      + 'safety net.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      {
+        kind: 'owner-chat',
+        ref: 'Claude Code session, 2026-09-30 (instead of blurry previews + next-shop prediction)',
+        quote: 'i think id rather load everything. i dont want blurry images, i wanna stop pop in.',
+      },
+      { kind: 'code', ref: 'packages/ui/src/Boot.tsx; packages/ui/src/preloadPlan.ts (preloadBootArt); packages/ui/src/artPreload.ts (whenArtReady); apps/web/index.html (#bootsplash)' },
+    ],
+    currentBehaviour:
+      'Conforms as of 2026-09-30. See docs/devlog/2026-09-30-art-loading-gate.md for the gate size, its time at '
+      + '4 / 10 / 50 Mbps cold and warm, and the memory it costs.',
+    enforcement: {
+      kind: 'scenario',
+      refs: [
+        'packages/ui/src/preloadPlan.test.ts',
+        'packages/ui/src/artFade.test.tsx',
+        'packages/ui/src/assetQueue.test.ts',
+      ],
+      lastVerifiedAt: '2026-09-30',
     },
   },
 ];

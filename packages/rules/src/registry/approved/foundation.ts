@@ -2116,6 +2116,26 @@ export const FOUNDATION_RULES: GameRule[] = [
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/skins/skins.test.tsx', 'packages/progression/src/skins.test.ts', 'packages/progression/src/cosmetics.test.ts', 'packages/ui/src/progression/CollectionSkins.test.tsx'], lastVerifiedAt: '2026-09-28' },
   },
   {
+    id: 'R-PROG-SKINS-08',
+    title: 'Skins batch 3: four minion skins and the first Frantic Frank hero skin join the crates, rarities by the owner',
+    statement:
+      'Five skins are crate items, each targeting its card or hero by stable id and shipping its own art '
+      + '(packages/ui/src/art/skins/<id>.webp): skin_oona_1 "Rooks Oona" (Epic, King Oona b2_oona; master RooksOona.png), '
+      + 'skin_sylus_3 "Stencil Sylus" (Rare, Sylus; StencilSylus.png), skin_seaurchin_1 "Mace Urchin" (Rare, '
+      + 'Sea Urchin; MaceUrchin.png), skin_buddy_1 "Magician Buddy Buddy" (Epic, Buddy Buddy; MagicianBuddyBuddyEpic.png) and '
+      + 'the hero skin skin_frank_1 "Armourer Frank" (Common, hero frank; ArmourerFrank.png). Rarities are the '
+      + 'owner picks; names are matched to the art. With them in, a first crate holds 9 Common, 19 Rare, 14 Epic and 16 '
+      + 'Legendary items (each Common 5.556%, Rare 1.579%, Epic 1.071%, Legendary 0.313%).',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-29 (skins batch 3)', quote: 'added a few more hero and minion skins - i want to name them appropriately and then decide rarities' },
+      { kind: 'code', ref: 'packages/progression/src/cosmetics.ts (COSMETICS, skins batch 3); packages/ui/src/art/skins/*.webp' },
+    ],
+    currentBehaviour: 'Conforms, built 2026-09-29. Reaches the database on the next deploy of progression-inventory (the catalog sync, R-PROG-SKINS-05).',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/skins/skins.test.tsx', 'packages/progression/src/skins.test.ts', 'packages/progression/src/cosmetics.test.ts', 'packages/ui/src/progression/CollectionSkins.test.tsx'], lastVerifiedAt: '2026-09-29' },
+  },
+  {
     id: 'R-PROG-COLLECTION-03',
     title: 'The crate opening draws the owner\x27s two-layer treasure chest: the lid blasts off, the open body stays',
     statement:

@@ -60,6 +60,10 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: 'New skins in crates: Rooks Oona, Stencil Sylus, Mace Urchin, Magician Buddy Buddy and a first Frantic Frank hero skin, Armourer Frank.',
+      },
+      {
+        category: 'Systems',
         text: 'Playing as a guest? A glowing Sign in! button now sits next to your portrait on the main menu.',
         details: [
           'It opens the account screen. Make a free account with just your email and your progress is saved to it.',

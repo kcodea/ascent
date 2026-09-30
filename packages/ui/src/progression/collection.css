@@ -303,3 +303,6 @@
 /* A guest's Open wears a small lock: it opens the gate, not the crate. */
 .colls-open .colls-lock { width: 12px; height: 12px; margin-right: 6px; vertical-align: -1px; }
 .colls-bay-guest { font-weight: 700; font-size: 13px; color: #ffb45a; }
+
+/* CROSS-DEVICE SAVES: the "your game moved" prompt blocks the stale run, above the game HUD and menus. */
+.nrw-scrim.cloudmoved-scrim { z-index: 8000; }

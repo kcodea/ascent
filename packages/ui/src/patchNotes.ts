@@ -75,6 +75,16 @@ export const PATCH_NOTES: PatchNote[] = [
       },
       {
         category: 'Systems',
+        text: 'Signed-in players can now continue a saved game on another device. Save and quit on one, then press Continue on the other.',
+        details: [
+          'Your game saves to your account at the start of each shop phase and when you quit.',
+          'A game can only be played on one device at a time. If you continue it somewhere else, the first device tells you and offers to load the newer copy.',
+          'When a game ends, Continue disappears on all your devices.',
+          'Guests still save on their device only. Sign in to take your game with you.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'Continue now only appears after you pick a hero and start a game. Backing out of hero select no longer leaves a run to continue.',
         details: [
           'An old saved run from the retired 17-round format is cleared instead of resumed.',

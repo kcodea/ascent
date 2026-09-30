@@ -520,4 +520,54 @@ export const PERSISTENCE_RULES: GameRule[] = [
     currentBehaviour: 'Conforms since 2026-09-30: flushSave refuses pre-run states, writeSave/loadSave refuse lobby-less runs, and the Ascent/Rift course entry points are gone.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/continueNoLegacyCourse.test.ts'], lastVerifiedAt: '2026-09-30' },
   },
+  {
+    id: 'R-PERSIST-CLOUD-01',
+    title: 'A signed-in player can continue a saved game on any device they are signed in on',
+    statement:
+      'For a signed-in (non-guest) player, the saved game is also stored on their account: at the start of each shop '
+      + 'phase, on Save & Quit and when the tab is hidden. The local save is always written first and offline play is '
+      + 'unchanged; the upload retries until it lands. On the title, a newer account copy (or one with no local copy) '
+      + 'becomes the Continue, resuming exactly the saved run, its lobby and its pinned opponents included. Guests stay '
+      + 'on their device only.',
+    domain: 'persistence',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Feature request 2026-09-30 (plan approved the same day)', quote: 'if a player is playing on one device and they save/quit, can we allow that to be picked up from another device they are signed in on?' },
+      { kind: 'code', ref: 'packages/ui/src/cloudSave.ts + store.ts (writeSave / flushSave upload, syncCloudAtTitle, adoptCloudRun); supabase/migrations/2026-09-30-saved-runs.sql' },
+    ],
+    currentBehaviour: 'Conforms since 2026-09-30 once the owner runs the saved_runs SQL; before that the feature detects the missing table and stays local-only.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/crossDeviceSaves.test.ts', 'packages/ui/src/cloudSave.test.ts'], lastVerifiedAt: '2026-09-30' },
+  },
+  {
+    id: 'R-PERSIST-CLOUD-02',
+    title: 'A saved game is played on one device at a time and newer progress is never overwritten',
+    statement:
+      'Pressing Continue claims the game for that device. A save from a device holding an older copy is refused by the '
+      + 'server, and that device stops the game and offers to load the newer copy or return to the menu. No path lets '
+      + 'an older copy replace newer progress.',
+    domain: 'persistence',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Feature request 2026-09-30 (plan approved the same day)', quote: 'if a player is playing on one device and they save/quit, can we allow that to be picked up from another device they are signed in on?' },
+      { kind: 'code', ref: 'put_saved_run (revision-checked write/claim) + store onCloudMoved / CloudMovedModal' },
+    ],
+    currentBehaviour: 'Conforms since 2026-09-30 (with the SQL applied).',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/crossDeviceSaves.test.ts', 'packages/ui/src/cloudSave.test.ts'], lastVerifiedAt: '2026-09-30' },
+  },
+  {
+    id: 'R-PERSIST-CLOUD-03',
+    title: 'A finished game clears its saves everywhere and never comes back as Continue',
+    statement:
+      'When a game ends (or its save is discarded), the account copy is cleared along with the local one, so Continue '
+      + 'disappears on every device. A local copy of that same game left on another device is dropped at its title, '
+      + 'not resumed and not uploaded again.',
+    domain: 'persistence',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Feature request 2026-09-30 (plan approved the same day)', quote: 'if a player is playing on one device and they save/quit, can we allow that to be picked up from another device they are signed in on?' },
+      { kind: 'code', ref: 'clear_saved_run + store run-end / clearRun cloudSave.endRun + decideAtTitle discard-local' },
+    ],
+    currentBehaviour: 'Conforms since 2026-09-30 (with the SQL applied).',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/crossDeviceSaves.test.ts', 'packages/ui/src/cloudSave.test.ts'], lastVerifiedAt: '2026-09-30' },
+  },
 ];

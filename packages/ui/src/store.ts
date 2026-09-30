@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { loadFpsCap, saveFpsCap } from './fpsCap';
 import { CARD_INDEX, activeSet, type SetId } from '@game/content';
-import { type CombatOdds, HEROES, playableHeroes, practiceHeroChoiceIds, runTribesForSeed, OPPONENT_POOL, OPPONENT_POOL_DATA, registerOpponents, createRun, deserialize, initialProfile, resolveServerRank, adoptServerRank, legacyRatingChangeOf, type RankResult, type RankedProfile, isPlayerAction, missingCardIds, nextOpponent, parseQaScenario, reconstructRunTelemetry, recordTelemetryAction, emptyTelemetryLog, withLiveTelemetry, telemetrySourceOf, setIdOf, type TelemetryLog, beginDerive, observeAction, finishDerive, progressionFactsOf, type DeriveState, reduce, reduceWithPresentation, serialize, snapshotBoard, type Action, type BoardSnapshot, type PlayerProfile, type RatingChange, type Replay, type RunMode, type RunState, combatFrameOf, deltaShopFrameOf, shopFrameOf, runRecord, type DragPath, type ReplayFrame, type ReplayV2, type ShopView, appendInspectEvent, type InspectEvent, type InspectSnapshot, createLobbyRun, DEFAULT_HERO_ID, enableAncients, createTutorialRun, type TutorialCourse, type PracticeConfig, type BotLevel, DEFAULT_PRACTICE_CONFIG, normalizeBotDifficulty, normalizePracticeTribes, practiceRunTribes, warmLobbySeat, prepareActionWithPresentation, type PreparedPresentationAction, fightRowsOf, opponentFightKeys, type LobbyStrength, type FightRow, buildMatchDetails, type MatchDetails, lobbyPoolTelemetryOf, lobbyIsUnrated } from '@game/sim';
+import { type CombatOdds, HEROES, playableHeroes, practiceHeroChoiceIds, runTribesForSeed, OPPONENT_POOL, OPPONENT_POOL_DATA, registerOpponents, createRun, deserialize, initialProfile, resolveServerRank, adoptServerRank, legacyRatingChangeOf, type RankResult, type RankedProfile, isPlayerAction, missingCardIds, nextOpponent, parseQaScenario, reconstructRunTelemetry, recordTelemetryAction, emptyTelemetryLog, withLiveTelemetry, telemetrySourceOf, setIdOf, type TelemetryLog, beginDerive, observeAction, finishDerive, progressionFactsOf, type DeriveState, reduce, reduceWithPresentation, serialize, snapshotBoard, type Action, type BoardSnapshot, type PlayerProfile, type RatingChange, type Replay, type RunMode, type RunState, combatFrameOf, deltaShopFrameOf, shopFrameOf, runRecord, type DragPath, type ReplayFrame, type ReplayV2, type ShopView, appendInspectEvent, type InspectEvent, type InspectSnapshot, createLobbyRun, DEFAULT_HERO_ID, enableAncients, createTutorialRun, type TutorialCourse, type PracticeConfig, type BotLevel, DEFAULT_PRACTICE_CONFIG, normalizeBotDifficulty, normalizePracticeTribes, practiceRunTribes, warmLobbySeat, prepareActionWithPresentation, type PreparedPresentationAction, registerOpponentRuns, resetLobbyDrivers, playerRunsFrom, fightRowsOf, opponentFightKeys, type LobbyStrength, type FightRow, buildMatchDetails, type MatchDetails, lobbyPoolTelemetryOf, lobbyIsUnrated } from '@game/sim';
 import type { PresentationBatch } from '@game/core';
 import { combatTimelineFrom } from './choreographer/combatTimeline';
 import type { RuneLockInCard } from './RuneLockIn';
@@ -77,9 +77,11 @@ import { type AnnouncedSlice, type AnnouncerEvent, announcedFor, emptyAnnounced,
 import { perfMonitor } from './perfMonitor';
 import { boardStrengthScorer, lobbyBandFor, STRENGTH_RUN_END_WAIT_MS } from './boardStrength';
 import { runStrengthFromScores, type StrengthScore } from '@game/sim';
-import { fetchRankedProfile, remoteEnabled, setPoolBandFallback, setPoolBandProvider, strengthHistogram, runStrengthHistogram, refreshStrengthHistogram, fetchAndRegisterBoardRecords, fetchAndRegisterPool, opponentPoolLoader, recordFightResult, recordLobbyFights, fetchLobbyStrength, refreshOpponentPoolAndRecords, supabaseAuthProvider, uploadBoards, uploadPlayerProfile, uploadRunHistory, uploadRunTelemetry, uploadVictory, uploadPracticeGame, fetchRunHistory, claimHandle, flushUploadQueue } from './remoteBoards';
+import { fetchRankedProfile, remoteEnabled, setPoolBandFallback, setPoolBandProvider, strengthHistogram, runStrengthHistogram, refreshStrengthHistogram, fetchAndRegisterBoardRecords, fetchAndRegisterPool, opponentPoolLoader, recordFightResult, recordLobbyFights, fetchLobbyStrength, refreshOpponentPoolAndRecords, supabaseAuthProvider, uploadBoards, uploadPlayerProfile, uploadRunHistory, uploadRunTelemetry, uploadVictory, uploadPracticeGame, fetchRunHistory, claimHandle, flushUploadQueue, supabaseClient } from './remoteBoards';
 import { practiceGameOf } from './practiceGames';
 import { initIdentity, currentIdentity, currentUserId as currentProgressionUserId } from './identity';
+import { createCloudSave, deviceId, noteLocalClear, noteLocalSave, runKeyOf, type CloudRow, type CloudRowMeta } from './cloudSave';
+import { supabaseCloudSaveApi } from './cloudSaveRemote';
 import { notifyTutorialActions } from './tutorial/actionBus';
 import { gateBlocks, notifyGateNudge } from './tutorial/gateBus';
 import { beginCourseFresh } from './tutorial/tutorialProfile';
@@ -584,6 +586,11 @@ interface GameStore {
   clearPendingResume: () => void;
   /** Resume the saved in-progress run (from the title). */
   continueRun: () => void;
+  /** CROSS-DEVICE SAVES (R-PERSIST-CLOUD-02): set when the server refused this device's save because the run was
+   *  continued on another device (`ended`: it finished there). Drives the blocking CloudMovedModal. */
+  cloudMoved: { ended: boolean } | null;
+  /** The CloudMovedModal's answer: load the newer copy and play on, or go to the menu. */
+  resolveCloudMoved: (choice: 'load' | 'menu') => void;
   /** Persist the live run NOW, outside the normal turn-boundary autosave (see `writeSave`). Called when the
    *  player leaves the run mid-turn — quitting to the title, or the tab being hidden/closed — so an
    *  interrupted shop turn is never lost. No-op at the title (the dormant `run` there is a throwaway) and
@@ -951,6 +958,17 @@ function loadSave(): SavedGame | null {
   try {
     const raw = localStorage.getItem(SAVE_KEY);
     if (!raw) return null;
+    const save = parseSave(raw);
+    // A save that fails the checks below is dropped from the slot (never offered as Continue).
+    if (!save) { clearSave(); return null; }
+    registerSavedSeatRuns(save.run); // CROSS-DEVICE SAVES: a run adopted from another device brings its seats
+    return save;
+  } catch { return null; }
+}
+/** Parse + validate one save string (the local slot at boot, or a cloud copy being adopted). Null = unusable:
+ *  finished, the retired course format, or a card this build no longer has. Never touches storage. */
+function parseSave(raw: string): SavedGame | null {
+  try {
     const o = JSON.parse(raw) as { run: string; actions?: Action[]; boards?: BoardSnapshot[]; telemetry?: TelemetryLog; derive?: DeriveState; turnRemaining?: number; announced?: AnnouncedSlice };
     const run = deserialize(o.run, { turnRemaining: o.turnRemaining }); // heals older-schema saves (+ closes a Thymepiece window the saved clock is past)
     if (run.phase === 'gameover' || run.phase === 'victory') return null; // finished → not resumable
@@ -959,7 +977,6 @@ function loadSave(): SavedGame | null {
     // so it is discarded here and no Continue is offered. Replays never read this slot, so they are untouched.
     if (!isResumableRun(run)) {
       console.warn('[ascent] discarding a saved run in the retired course format (no lobby)');
-      clearSave();
       return null;
     }
     // A save can reference a card this build no longer has — a card deleted or renamed during content work, a
@@ -972,7 +989,6 @@ function loadSave(): SavedGame | null {
     const missing = missingCardIds(run);
     if (missing.length > 0) {
       console.warn(`[ascent] discarding a saved run that references ${missing.length} card(s) this build no longer has:`, missing.join(', '));
-      clearSave();
       return null;
     }
     return { run, actions: o.actions ?? [], boards: o.boards ?? [], telemetry: o.telemetry, derive: o.derive, turnRemaining: o.turnRemaining, announced: o.announced };
@@ -986,6 +1002,9 @@ function writeSave(run: RunState, actions: Action[], boards: BoardSnapshot[] = [
   // Only a started LOBBY run is ever the save (R-PERSIST-01): the dormant throwaway behind the title is a
   // lobby-less `createRun`, and persisting it is exactly what offered a Continue into the old course format.
   if (!isResumableRun(run)) return;
+  // CROSS-DEVICE SAVES (R-PERSIST-CLOUD-02): this device's copy was refused because the run moved to another
+  // device. Writing it now would only bury the newer copy the player is about to load.
+  if (cloudMovedLock) return;
   // `boards` rides along for the same reason `actions` does: it's what board capture reads when the run ends.
   // A lobby run captures its boards live instead of replaying for them (see `capturedBoards`), so without this
   // a quit-and-resume would finish the run having lost every board played before the reload.
@@ -1000,12 +1019,65 @@ function writeSave(run: RunState, actions: Action[], boards: BoardSnapshot[] = [
     // passes it; the turn-boundary autosave omits it, so resuming from a boundary starts the next turn at full.
     // `announced` (the announcer's spoken lines, announcerSlice.ts) rides along so a Continue never replays a line.
     localStorage.setItem(SAVE_KEY, JSON.stringify({ run: serialize(run), actions, ...(boards.length ? { boards } : {}), ...(telemetry ? { telemetry } : {}), ...(derive ? { derive } : {}), ...(turnRemaining != null ? { turnRemaining } : {}), ...(announced ? { announced } : {}) }));
-  } catch { /* ignore */ }
+  } catch { return; }
+  // CROSS-DEVICE SAVES: the local write above always comes first (offline play is unchanged). The cloud copy
+  // follows at the start of each shop phase (a new run opens on one too); Save & Quit / tab hide push it from
+  // `flushSave`. Fire-and-forget: the upload is async and never blocks this frame.
+  noteLocalSave(runKeyOf(run));
+  if (run.phase === 'recruit') void cloudSave.requestUpload();
 }
 function clearSave(): void {
   autosave.cancel(); // a write still waiting for idle time must not resurrect the run being cleared
-  try { localStorage.removeItem(SAVE_KEY); } catch { /* ignore */ }
+  try { localStorage.removeItem(SAVE_KEY); localStorage.removeItem(SEAT_RUNS_KEY); } catch { /* ignore */ }
+  noteLocalClear();
 }
+
+// ── CROSS-DEVICE SAVES (owner ask 2026-09-30, R-PERSIST-CLOUD-01..03; see cloudSave.ts) ─────────────────────
+/** Set while this device's copy is known to be stale (the run moved to another device): nothing is saved. */
+let cloudMovedLock = false;
+/** The recordings behind a saved lobby's SNAPSHOT seats. A seat keeps only a `runKey` resolved against this
+ *  session's pool, and another device's pool is a different random sample, so a run adopted from the cloud
+ *  brings the boards with it (stored beside the save, registered at boot / adoption). */
+const SEAT_RUNS_KEY = 'ascent.save.seatruns';
+let seatRunsMemo: { runKey: string; runs: BoardSnapshot[][] } | null = null;
+function seatRunsFor(run: RunState | null): BoardSnapshot[][] | undefined {
+  const lobby = run?.lobby;
+  if (!run || !lobby) return undefined;
+  const key = runKeyOf(run);
+  if (seatRunsMemo?.runKey === key) return seatRunsMemo.runs;
+  let runs: BoardSnapshot[][] = [];
+  try {
+    const stored = JSON.parse(localStorage.getItem(SEAT_RUNS_KEY) ?? 'null') as { runKey?: string; runs?: BoardSnapshot[][] } | null;
+    if (stored?.runKey === key && Array.isArray(stored.runs)) runs = stored.runs;
+  } catch { /* fall through to the pool */ }
+  if (runs.length === 0) {
+    const wanted = new Set(lobby.seats.filter((st) => st.kind === 'snapshot' && st.runKey).map((st) => st.runKey!));
+    if (wanted.size > 0) runs = playerRunsFrom(OPPONENT_POOL, undefined, lobby.setId).filter((r) => wanted.has(r.key)).map((r) => r.snaps);
+  }
+  seatRunsMemo = { runKey: key, runs };
+  return runs;
+}
+/** Boot: a save adopted from another device registers its snapshot seats' recordings before any driver is built. */
+function registerSavedSeatRuns(run: RunState): void {
+  try {
+    const stored = JSON.parse(localStorage.getItem(SEAT_RUNS_KEY) ?? 'null') as { runKey?: string; runs?: BoardSnapshot[][] } | null;
+    if (stored?.runKey === runKeyOf(run) && Array.isArray(stored.runs) && stored.runs.length) registerOpponentRuns(stored.runs);
+  } catch { /* the seats fall back deterministically, as they always have */ }
+}
+/** Signed in with a REAL account (guests stay local-only: their account lives on one device). */
+function cloudUserId(): string | null {
+  const id = currentIdentity();
+  return id && !id.anonymous ? id.userId : null;
+}
+const cloudSave = createCloudSave({
+  api: supabaseCloudSaveApi(supabaseClient, cloudUserId),
+  userId: cloudUserId,
+  readLocal: () => { try { return localStorage.getItem(SAVE_KEY); } catch { return null; } },
+  seatRuns: () => seatRunsFor(useGame.getState().savedRun),
+  onMoved: (current) => onCloudMoved(current),
+});
+/** Tests: the live sync service. */
+export const cloudSaveForTests = (): typeof cloudSave => cloudSave;
 /**
  * THE PHASE-BOUNDARY AUTOSAVE, OFF THE FRAME (perf 2026-09-17). `writeSave` serializes the whole run + the
  * action log + the captured boards + the telemetry to JSON and pushes it through localStorage — and it ran
@@ -1834,7 +1906,9 @@ function commitResolvedAction(
     // shorter save cadence costs no durability — see the listeners at the bottom of this file.
     let savedRun = s.savedRun;
     if (changed) {
-      if (finished) { clearSave(); savedRun = null; }
+      // The run ENDED: clear the cloud copy too (R-PERSIST-CLOUD-03), so Continue disappears on every device.
+      // `endRun` reads the lease before `clearSave` drops it.
+      if (finished) { void cloudSave.endRun(); clearSave(); savedRun = null; }
       // `next.sandbox` — a Scene Builder run never reaches the autosave OR the Continue slot. Both are
       // guarded here rather than only inside `writeSave`, because `savedRun` is what the title offers.
       else if (next.phase !== s.run.phase && isResumableRun(next)) {
@@ -1924,12 +1998,26 @@ export const useGame = create<GameStore>((rawSet, get) => {
     // looking at the shop, not when the round resolves.
     warmLobbyDrivers(get().run);
     set({ showTitle: false, heroChoices: null, avatarPickerOpen: false });
+    // CROSS-DEVICE SAVES (R-PERSIST-CLOUD-02): continuing CLAIMS the run for this device, so a copy still open
+    // on another device can no longer save over it. Never blocks: offline, the next upload settles it.
+    void cloudSave.claim();
+  },
+  cloudMoved: null,
+  resolveCloudMoved: (choice) => {
+    set({ cloudMoved: null, showTitle: true, heroChoices: null, titleView: 'menu', ...PAGES_CLOSED });
+    // Back at the title the reconcile adopts the newer copy (or drops a run that ended), then `load` plays on.
+    void syncCloudAtTitle().then(() => {
+      cloudMovedLock = false;
+      const st = useGame.getState();
+      if (choice === 'load' && st.showTitle && st.savedRun) st.continueRun();
+    });
   },
   // Discard the saved run: wipe the autosave + `savedRun`, and reset the dormant `run` to a fresh throwaway so
   // state mirrors a boot with no save (Play/Practice will replace it). Stays on the title. Irreversible.
   clearRun: () => {
     // QUITTING COSTS RATING (R-RANK-05): discarding an unfinished RATED save settles it at the lowest open place.
     settleAbandonedRun(get().savedRun);
+    void cloudSave.endRun(); // …and the cloud copy with it (R-PERSIST-CLOUD-03); reads the lease before clearSave
     clearSave();
     discardReplayDraft(); // the in-progress recording goes with the run it was recording
     dropBoardFx();
@@ -1966,6 +2054,8 @@ export const useGame = create<GameStore>((rawSet, get) => {
     // mid-shop would lose every action taken since the round opened.
     persistReplayWave(s.run, s.replayFrames, replayInspectTrail, s.run.wave);
     set({ savedRun: s.run });
+    // CROSS-DEVICE SAVES: Save & Quit / tab hide pushes the save to the account (any phase; a no-op for guests).
+    if (!cloudMovedLock) void cloudSave.requestUpload();
   },
   heroArmed: false,
   heroArmedSlot: 0,
@@ -2432,7 +2522,7 @@ export const useGame = create<GameStore>((rawSet, get) => {
   // Returning to the title lands on the MAIN menu, not whatever sub-menu was open when the run started (owner
   // ask 2026-08-24: Save & Quit went back to the mode picker) — and with every ladder page closed, since the
   // menu sidebar can open Settings (Save & Quit / Leave replay, "back to the main menu") from any page.
-  openTitle: () => { get().flushSave(); set({ showTitle: true, heroChoices: null, titleView: 'menu', ...PAGES_CLOSED }); },
+  openTitle: () => { get().flushSave(); set({ showTitle: true, heroChoices: null, titleView: 'menu', ...PAGES_CLOSED }); void syncCloudAtTitle(); },
   titleView: 'menu',
   setTitleView: (view) => set({ titleView: view }),
   goTo: (dest) => {
@@ -2787,6 +2877,101 @@ function applyRankOutcome(item: Pick<PendingRank, 'runId'>, outcome: RankSubmitO
   }
   if (isCurrent) useGame.setState({ rankSubmission: outcome.status, rankSubmissionError: outcome.reason });
 }
+// ── CROSS-DEVICE SAVES: the store side (owner ask 2026-09-30, R-PERSIST-CLOUD-01..03; see cloudSave.ts) ─────
+/** Is the player at the title with no run open (the only moment a save may be swapped under them)? */
+function atTitle(): boolean {
+  const st = useGame.getState();
+  return st.showTitle && st.heroChoices === null && !st.practiceSetupOpen && !st.replaying;
+}
+
+/**
+ * Adopt a cloud copy into the local slot, exactly as a boot with that save would have loaded it: the save string
+ * is written to `ascent.save` VERBATIM (so the resumed run is byte-for-byte the one the other device saved,
+ * pinned opponents and lobby included), its seat recordings are registered, and the store is re-seated from it.
+ * Continue then resumes it through the normal path. Returns false when the copy is unusable here (a card this
+ * build doesn't have, a finished run), leaving the local slot alone.
+ */
+export function adoptCloudRun(row: CloudRow): boolean {
+  const save = parseSave(row.payload.save);
+  if (!save) return false;
+  const st = useGame.getState();
+  const previous = st.savedRun;
+  // A DIFFERENT run is being replaced: the local one is given up, which is an abandonment (R-RANK-05). The rank
+  // server settles a run id once, so a run that already finished or was settled elsewhere is not counted twice.
+  if (previous && runKeyOf(previous) !== row.runKey) settleAbandonedRun(previous);
+  try {
+    localStorage.setItem(SAVE_KEY, row.payload.save);
+    if (row.payload.seatRuns?.length) localStorage.setItem(SEAT_RUNS_KEY, JSON.stringify({ runKey: row.runKey, runs: row.payload.seatRuns }));
+    else localStorage.removeItem(SEAT_RUNS_KEY);
+  } catch { /* storage full: the store still resumes it this session */ }
+  cloudSave.adopted(row);
+  seatRunsMemo = row.payload.seatRuns?.length ? { runKey: row.runKey, runs: row.payload.seatRuns } : null;
+  // The snapshot seats resolve against the pool: register the recordings, and evict any driver this session
+  // already built for those seats (it would be a fallback bot, or an older copy advanced to another round).
+  if (row.payload.seatRuns?.length) registerOpponentRuns(row.payload.seatRuns);
+  if (save.run.lobby) resetLobbyDrivers(save.run.lobby.seats);
+  dropBoardFx();
+  const run = save.run;
+  useGame.setState({
+    run, savedRun: run, savedTurnRemaining: save.turnRemaining ?? null,
+    replayActions: save.actions, capturedBoards: save.boards,
+    telemetryLog: save.telemetry ?? emptyTelemetryLog(), deriveState: save.derive ?? beginDerive(run),
+    announced: announcedFor(save.announced, run.seed), combatOdds: null,
+    replayFrames: seedReplayFrames(run), replayPartial: true,
+  });
+  // Replay frames live in THIS device's IndexedDB. A copy another device wrote may have rounds this device never
+  // saw, so its local draft (if any) would splice in with a hole: drop it and record from here (partial).
+  // A copy this device wrote itself restores its frames as a boot would.
+  if (row.deviceId !== deviceId()) {
+    void replayDrafts.remove(draftRunId(run)).catch(() => undefined).then(() => hydrateReplayDraft(run));
+  } else void hydrateReplayDraft(run);
+  return true;
+}
+
+/** Drop a local save whose run ENDED on another device (its synced cloud row is gone). Not an abandonment:
+ *  it already has its result. */
+function dropEndedLocalRun(): void {
+  clearSave();
+  discardReplayDraft();
+  dropBoardFx();
+  const fresh = createRun(randomSeed());
+  useGame.setState({ savedRun: null, run: fresh, replayActions: [], capturedBoards: [], replayFrames: [], replayPartial: false, ...freshObservers(fresh) });
+}
+
+/** The title reconcile: compare the local save with the account's cloud copy and act. Signed-in players only;
+ *  a guest or an offline player keeps exactly today's local Continue. */
+export async function syncCloudAtTitle(): Promise<void> {
+  if (!cloudSave.active() || !atTitle()) return;
+  const local = useGame.getState().savedRun;
+  const { decision, row } = await cloudSave.checkAtTitle(local ? runKeyOf(local) : null);
+  // Re-check: the player may have pressed Continue or Play while the read was in flight.
+  if (!atTitle() || useGame.getState().savedRun !== local) return;
+  if (decision === 'adopt' && row) adoptCloudRun(row);
+  else if (decision === 'discard-local') dropEndedLocalRun();
+  else if (decision === 'push') void cloudSave.requestUpload();
+}
+
+/** The server refused this device's write: the run moved (or ended) elsewhere. At the title that is just a
+ *  reconcile; mid-run it locks saving and asks the player (CloudMovedModal). */
+function onCloudMoved(current: CloudRowMeta | null): void {
+  if (atTitle()) { void syncCloudAtTitle(); return; }
+  if (useGame.getState().showTitle) return; // a menu over the title: the next title visit reconciles
+  cloudMovedLock = true;
+  autosave.cancel();
+  useGame.setState({ cloudMoved: { ended: current === null } });
+}
+
+if (typeof window !== 'undefined') {
+  // Coming back to this tab (maybe after playing on another device): check before the player acts on a stale copy.
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState !== 'visible' || !cloudSave.active()) return;
+    if (atTitle()) { void syncCloudAtTitle(); return; }
+    if (useGame.getState().showTitle || cloudMovedLock) return;
+    void cloudSave.movedElsewhere().then((m) => { if (m !== false && !atTitle()) onCloudMoved(m); });
+  });
+  window.addEventListener('online', () => { void cloudSave.requestUpload(); });
+}
+
 if (typeof window !== 'undefined') syncProfileFromServer(loadPlayerName());
 
 // ACCOUNTS C1/C2 — identity boot, wired here (after `useGame` + `syncProfileFromServer` exist).
@@ -2801,6 +2986,7 @@ function initAccounts(): void {
     if (!id) return;
     useGame.setState((st) => ({ account: { ...st.account, userId: id.userId, email: id.email, anonymous: id.anonymous } }));
     void flushUploadQueue(); // a session now exists — replay anything queued while offline
+    if (!id.anonymous) void syncCloudAtTitle(); // CROSS-DEVICE SAVES: a signed-in player's cloud Continue
     void flushPendingRanks(applyRankOutcome); // …and any rated result stranded pending under THIS account
     void probeProgression(); // ACCOUNT PROGRESSION: is the feature on? then the mirror + any XP stranded pending
     void flushBugReportQueue(); // …and any bug reports stranded offline / pre-handshake (§6.2 auth trigger)
@@ -2818,6 +3004,7 @@ function initAccounts(): void {
     if (id) void probeProgression(); // …and progression (same user id across the magic-link upgrade)
     if (id) void flushBugReportQueue(); // §6.2: retry bug reports after authentication restoration
     if (id && !id.anonymous) {
+      void syncCloudAtTitle(); // CROSS-DEVICE SAVES: a real account just landed — offer its cloud Continue
       syncProfileFromServer(loadPlayerName()); // a real account just landed — pull its authoritative row
       // Re-claim so the now-known email is written onto the profile, and mirror the tag back.
       const nm = loadPlayerName();

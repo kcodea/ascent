@@ -102,14 +102,18 @@ describe('the background scorer', () => {
 });
 
 describe('the rank band', () => {
-  it('follows the medal: Bronze 0-30, Silver 10-40, Gold 20-65, Platinum and up uncapped', () => {
+  it('follows the medal: Bronze 0-30, Silver 10-40, Gold 20-65, Platinum uncapped, Diamond 10-100, Ascendant 20-100', () => {
     const at = (divisionIndex: number) => lobbyBandFor({ rank: { position: { divisionIndex, points: 0 } } } as never);
     expect(at(0)).toEqual({ min: 0, max: 30 });
     expect(at(2)).toEqual({ min: 0, max: 30 });
     expect(at(3)).toEqual({ min: 10, max: 40 });
     expect(at(8)).toEqual({ min: 20, max: 65 });
     expect(at(9)).toBeNull();
-    expect(at(17)).toBeNull();
+    expect(at(11)).toBeNull();
+    expect(at(12)).toEqual({ min: 10, max: 100 });
+    expect(at(14)).toEqual({ min: 10, max: 100 });
+    expect(at(15)).toEqual({ min: 20, max: 100 });
+    expect(at(17)).toEqual({ min: 20, max: 100 });
     expect(lobbyBandFor(null)).toBeNull();
     expect(at(5)).toEqual(strengthBandForDivision(5));
   });

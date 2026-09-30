@@ -9,7 +9,8 @@ import { BAND_WIDEN_STEP, OPPONENT_SEATS, STRENGTH_BANDS, bandSteps, inStrengthB
 
 /**
  * MATCHMAKING BANDS (R-LOBBY-09, owner 2026-09-30): "serve for example 0-30 for bronze, 10-40 in silver, 20-65 in
- * gold, and then uncap plat". Registers into the module-global pool, so it lives in its own file.
+ * gold, and then uncap plat", then "maybe plat should be 50 and then diamond is like 55 average and ascendant is 60
+ * average? i dont want every game to just be insanely sweaty and unwinnable". Registers into the module-global pool, so it lives in its own file.
  */
 
 const HEROES = playableHeroes().map((h) => h.id);
@@ -26,18 +27,24 @@ afterEach(() => { OPPONENT_POOL.length = 0; });
 it('has enough distinct heroes for these tables', () => { expect(HEROES.length).toBeGreaterThanOrEqual(20); });
 
 describe('the bands', () => {
-  it('every division of a medal shares its band: Bronze 0-30, Silver 10-40, Gold 20-65, Platinum and up uncapped', () => {
+  it('every division of a medal shares its band: Bronze 0-30, Silver 10-40, Gold 20-65, Platinum uncapped, Diamond 10-100, Ascendant 20-100', () => {
     for (let d = 0; d < rankDivisionCount(); d++) expect(strengthBandForDivision(d), `division ${d}`).toEqual(STRENGTH_BANDS[medalOf(d)]);
     expect(STRENGTH_BANDS.Bronze).toEqual({ min: 0, max: 30 });
     expect(STRENGTH_BANDS.Silver).toEqual({ min: 10, max: 40 });
     expect(STRENGTH_BANDS.Gold).toEqual({ min: 20, max: 65 });
-    for (const m of RANK_MEDALS.slice(3)) expect(STRENGTH_BANDS[m]).toBeNull();
+    expect(STRENGTH_BANDS.Platinum).toBeNull();
+    expect(STRENGTH_BANDS.Diamond).toEqual({ min: 10, max: 100 });
+    expect(STRENGTH_BANDS.Ascendant).toEqual({ min: 20, max: 100 });
+    expect(RANK_MEDALS).toEqual(['Bronze', 'Silver', 'Gold', 'Platinum', 'Diamond', 'Ascendant']);
   });
 
   it('widens by 10 on each capped side until uncapped', () => {
     expect(BAND_WIDEN_STEP).toBe(10);
     expect(bandSteps({ min: 0, max: 30 })).toEqual([{ min: 0, max: 30 }, { min: 0, max: 40 }, { min: 0, max: 50 }, { min: 0, max: 60 }, { min: 0, max: 70 }, { min: 0, max: 80 }, { min: 0, max: 90 }, null]);
     expect(bandSteps({ min: 20, max: 65 })).toEqual([{ min: 20, max: 65 }, { min: 10, max: 75 }, { min: 0, max: 85 }, { min: 0, max: 95 }, null]);
+    // Diamond and Ascendant have only a floor: widening lowers it by 10 a step.
+    expect(bandSteps({ min: 20, max: 100 })).toEqual([{ min: 20, max: 100 }, { min: 10, max: 100 }, null]);
+    expect(bandSteps({ min: 10, max: 100 })).toEqual([{ min: 10, max: 100 }, null]);
     expect(bandSteps(null)).toEqual([null]);
     expect(widenBand(null)).toBeNull();
   });
@@ -90,6 +97,22 @@ describe('seat selection inside a band', () => {
     expect(lobby.poolAtStart?.band).toEqual({ requested: { min: 0, max: 30 }, used: { min: 0, max: 40 }, widenings: 1 });
     const t = lobbyPoolTelemetryOf(lobby);
     expect([t.strengthBand, t.strengthBandUsed, t.bandWidenings]).toEqual(['0-30', '0-40', 1]);
+  });
+
+  it('an Ascendant band (20-100) draws the strong runs and lowers its floor when they cannot fill the table', () => {
+    seedPool(); // strengths 5..100, one run each: 17 runs at 20+
+    for (let seed = 1; seed <= 10; seed++) {
+      const { lobby, strengths } = strengthsOf(seed, { min: 20, max: 100 });
+      expect(strengths.length).toBe(7);
+      for (const st of strengths) expect(st!).toBeGreaterThanOrEqual(20);
+      expect(lobby.poolAtStart?.band?.widenings).toBe(0);
+    }
+    OPPONENT_POOL.length = 0;
+    // Only 4 runs at 20+ (strengths 5, 10, 15 below): the floor drops to 10, then to 0 (uncapped).
+    registerOpponentRuns(HEROES.slice(0, 7).map((h, i) => run(`A${i}`, h, 900 + i, [5, 10, 15, 20, 40, 60, 80][i], `a${i}`)));
+    const { lobby, strengths } = strengthsOf(2, { min: 20, max: 100 });
+    expect(strengths.length).toBe(7);
+    expect(lobby.poolAtStart?.band).toEqual({ requested: { min: 20, max: 100 }, used: null, widenings: 2 });
   });
 
   it('falls back to generated seats only after the band is fully widened', () => {

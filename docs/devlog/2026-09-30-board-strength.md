@@ -6,7 +6,7 @@ against as well, and then serve for example 0-30 for bronze, 10-40 in silver, 20
 *"can we show that score to the player too maybe? like maybe that is shown in match history?"*, *"72 would basically
 mean like... a 72/100 aka 72nd percentile"*. Not now: a separate Ancients / Platinum+ pool (*"dont worry about the
 ancients and plat separation just yet ... keep it all in the same bracket"*), but the selection takes a pool id so a
-second pool is a small change later. Rule: **R-LOBBY-09**.
+second pool is a small change later. Upper ranks, decided the same day: *"maybe plat should be 50 and then diamond is like 55 average and ascendant is 60 average? i dont want every game to just be insanely sweaty and unwinnable"*. Rule: **R-LOBBY-09**.
 
 ## The rules as built
 
@@ -29,13 +29,15 @@ second pool is a small change later. Rule: **R-LOBBY-09**.
    recomputed on every refresh (one window over `pool_runs`, only changed rows written). Why: averaging percentiles
    pulls toward 50 (a run is rarely the weakest in every round), so the plain average spread only 9-83 and Bronze
    0-30 held 13% of runs while Gold 20-65 held 82%.
-4. **Bands.** Bronze 0-30, Silver 10-40, Gold 20-65, Platinum and above uncapped; every division of a medal shares the
-   medal's band (`STRENGTH_BANDS`, `strengthBandForDivision`). RATED lobbies only; Practice and the tutorial have no
+4. **Bands.** Bronze 0-30, Silver 10-40, Gold 20-65, Platinum uncapped (average opponent ~50), Diamond 10-100 (~55),
+   Ascendant 20-100 (~60); every division of a medal shares the medal's band (`STRENGTH_BANDS`,
+   `strengthBandForDivision`). RATED lobbies only; Practice and the tutorial have no
    band. Inside the band: the same uniform seeded shuffle, whole runs, at most 4 seats per player, never your own runs.
 5. **Unscored runs** (no score yet, not backfilled) are **inside every band**. Before the SQL and the backfill nothing
    is scored, so selection is exactly R-LOBBY-08's, seat for seat (pinned by a test).
 6. **Widening.** When a band cannot fill the table it widens by 10 on each capped side, one step at a time (Bronze
-   0-30, 0-40, ... 0-90, uncapped; Gold 20-65, 10-75, 0-85, 0-95, uncapped). Two places widen: the pool FETCH (the
+   0-30, 0-40, ... 0-90, uncapped; Gold 20-65, 10-75, 0-85, 0-95, uncapped; Ascendant 20-100, 10-100, uncapped: a
+   floor-only band just lowers its floor). Two places widen: the pool FETCH (the
    server sample is asked again with the wider band while the runs it holds cannot seat 7 under the 4-per-player
    cap) and SEAT SELECTION (a second pass over the same shuffle with the wider band; runs considered once are never
    reconsidered, so every run keeps its equal chance inside each step). Only after the band is uncapped do generated
@@ -109,18 +111,26 @@ p90 91, max 99; per decile (1-10 ... 91-100): 15, 17, 14, 15, 17, 12, 17, 18, 12
 | Bronze 0-30 | 46 (30%) | 9 (LazerLemon 17, Orangez 17, Rooks 6, ...) | 22 | never |
 | Silver 10-40 | 47 (31%) | 7 | 20 | never |
 | Gold 20-65 | 72 (47%) | 7 (LazerLemon 36, Orangez 27, ...) | 17 | never |
-| Platinum+ (uncapped) | 153 | 10 | 28 | n/a |
+| Platinum (uncapped) | 153 | 10 | 28 | n/a |
+| Diamond 10-100 | 139 (91%) | 9 | 25 | never |
+| Ascendant 20-100 | 125 (82%) | 9 | 23 | never |
 
 Real lobbies (`createRunLobby` over the live pool with every run's strength stamped, 200 lobbies per medal): **0
 widenings and 0 generated seats in every case**, as a newcomer, as LazerLemon and as Orangez (their own runs
-excluded). Mean strength of the seated runs:
+excluded). Seated-run strength per medal: the mean over all seats, and the mean of each table's strongest and weakest
+seat (newcomer; LazerLemon / Orangez in brackets):
 
-| Medal | Newcomer | As LazerLemon | As Orangez |
+| Medal | Mean seat | Strongest seat | Weakest seat |
 |---|---|---|---|
-| Bronze | 15.1 | 16.1 | 14.1 |
-| Silver | 25.2 | 22.6 | 24.8 |
-| Gold | 41.2 | 36.9 | 39.6 |
-| Platinum+ | 49.9 | 46.3 | 45.2 |
+| Bronze | 15.1 (16.1 / 14.1) | 26.7 (27.0 / 27.2) | 3.6 (4.7 / 2.5) |
+| Silver | 25.2 (22.6 / 24.8) | 37.2 (34.4 / 37.4) | 13.5 (12.8 / 12.4) |
+| Gold | 41.2 (36.9 / 39.6) | 58.7 (58.0 / 58.7) | 23.9 (21.7 / 22.8) |
+| Platinum | 49.9 (46.3 / 45.2) | 88.2 (87.9 / 84.3) | 11.7 (9.2 / 8.8) |
+| Diamond | 54.3 (50.7 / 50.4) | 89.7 (88.7 / 85.6) | 20.0 (15.7 / 16.5) |
+| Ascendant | 59.3 (58.0 / 56.2) | 90.7 (90.7 / 87.2) | 28.3 (25.1 / 25.6) |
+
+The upper medals land on the owner's targets (~50 / ~55 / ~60) for a newcomer; the two big authors see a little less
+because their own (often strong) runs are excluded.
 
 (Before the ranking change the same lobbies averaged Bronze 22.9, Silver 30.6, Gold 45.6, uncapped 48.0: Gold was
 barely easier than uncapped.)

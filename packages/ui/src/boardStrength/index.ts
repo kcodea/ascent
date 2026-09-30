@@ -32,7 +32,7 @@ export function boardStrengthScorer(): StrengthScorer {
   return scorer;
 }
 
-/** The matchmaking band a RATED lobby draws from, by the player's medal (Platinum and up: none). */
+/** The matchmaking band a RATED lobby draws from, by the player's medal (Platinum: none). */
 export function lobbyBandFor(profile: Pick<PlayerProfile, 'rank'> | null | undefined): StrengthBand | null {
   const division = profile?.rank?.position?.divisionIndex;
   return typeof division === 'number' ? strengthBandForDivision(division) : null;

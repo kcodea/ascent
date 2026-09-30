@@ -75,11 +75,13 @@ medal + division — see *Ranked ladder* below).
     pool (the plain average squeezed toward 50). Averages refresh on every upload for the uploaded runs and for every
     run at most every 10 minutes; ranks are recomputed on every refresh.
   - **Bands by medal** (every division of a medal shares it): Bronze **0-30**, Silver **10-40**, Gold **20-65**,
-    Platinum and above **uncapped**. A rated lobby's recorded seats come only from runs inside the band (the server
-    samples inside it, and seat selection filters to it), still whole runs, still at most 4 seats per player, never
-    your own runs. A run with **no score yet counts as inside every band**. When the band cannot fill the table it
-    **widens by 10 on each capped side**, one step at a time (each step logged to the pool telemetry), until it is
-    uncapped; only then do generated seats fill the rest. Practice and the tutorial have no band.
+    Platinum **uncapped** (average opponent ~50), Diamond **10-100** (~55), Ascendant **20-100** (~60) (owner
+    2026-09-30: *"maybe plat should be 50 and then diamond is like 55 average and ascendant is 60 average? i dont want every game to just be insanely sweaty and unwinnable"*). A rated lobby's recorded seats come only from runs inside the band (the
+    server samples inside it, and seat selection filters to it), still whole runs, still at most 4 seats per player,
+    never your own runs. A run with **no score yet counts as inside every band**. When the band cannot fill the table
+    it **widens by 10 on each capped side**, one step at a time (each step logged to the pool telemetry), until it is
+    uncapped; for Diamond and Ascendant, which only have a floor, that means the floor drops 10 a step. Only then do
+    generated seats fill the rest. Practice and the tutorial have no band.
   - Your own boards are scored in the background while you play (idle time only; the last board during its combat)
     and upload with their scores. When the game ends, each round's board percentile and the run's strength (its
     average ranked against the pool's run averages) are **frozen** into the game's record: the Career and Recent Games

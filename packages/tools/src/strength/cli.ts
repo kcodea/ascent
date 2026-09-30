@@ -235,7 +235,7 @@ async function measure(): Promise<void> {
     const mine = runs.find((r) => r.author === me);
     const myOwner = mine ? owners.get(mine.key) : null;
     const lines: string[] = [];
-    for (const medal of ['Bronze', 'Silver', 'Gold'] as const) {
+    for (const medal of ['Bronze', 'Silver', 'Gold', 'Diamond', 'Ascendant'] as const) {
       const steps = bandSteps(STRENGTH_BANDS[medal]);
       let used = 0;
       for (const [si, b] of steps.entries()) {
@@ -270,9 +270,9 @@ function simulateLobbies(pool: LivePool, strength: Map<string, number | null>): 
   for (const who of ['newcomer', 'LazerLemon', 'Orangez']) {
     const exclude = who === 'newcomer' ? null : me(who);
     const out: string[] = [];
-    for (const [medal, division] of [['Bronze', 0], ['Silver', 3], ['Gold', 6], ['Platinum', 9]] as const) {
+    for (const [medal, division] of [['Bronze', 0], ['Silver', 3], ['Gold', 6], ['Platinum', 9], ['Diamond', 12], ['Ascendant', 15]] as const) {
       const hist = new Map<number, number>();
-      let generated = 0; let meanStrength = 0; let n = 0;
+      let generated = 0; let meanStrength = 0; let n = 0; let top = 0; let bottom = 0; let tables = 0;
       const LOBBIES = 200;
       for (let i = 0; i < LOBBIES; i++) {
         const lobby = createRunLobby(1000 + i, heroes[i % heroes.length]!, {}, SET, { excludeOwnerId: exclude, strengthBand: strengthBandForDivision(division) });
@@ -280,9 +280,11 @@ function simulateLobbies(pool: LivePool, strength: Map<string, number | null>): 
         const w = lobby.poolAtStart?.band?.widenings ?? 0;
         hist.set(w, (hist.get(w) ?? 0) + 1);
         generated += lobby.seats.filter((s) => s.kind === 'hybrid' || s.kind === 'bot').length;
-        for (const s of lobby.seats) { const v = s.runKey ? strength.get(s.runKey) : null; if (typeof v === 'number') { meanStrength += v; n++; } }
+        const seated: number[] = [];
+        for (const s of lobby.seats) { const v = s.runKey ? strength.get(s.runKey) : null; if (typeof v === 'number') { meanStrength += v; n++; seated.push(v); } }
+        if (seated.length) { top += Math.max(...seated); bottom += Math.min(...seated); tables++; }
       }
-      out.push(`${medal}: widenings ${[...hist.entries()].sort((a, b) => a[0] - b[0]).map(([k, v]) => `${k}x${v}`).join(' ')}, generated seats/lobby ${(generated / LOBBIES).toFixed(2)}, mean seat strength ${(meanStrength / Math.max(1, n)).toFixed(1)}`);
+      out.push(`${medal}: widenings ${[...hist.entries()].sort((a, b) => a[0] - b[0]).map(([k, v]) => `${k}x${v}`).join(' ')}, generated seats/lobby ${(generated / LOBBIES).toFixed(2)}, mean seat strength ${(meanStrength / Math.max(1, n)).toFixed(1)}, strongest seat ${(top / Math.max(1, tables)).toFixed(1)}, weakest seat ${(bottom / Math.max(1, tables)).toFixed(1)}`);
     }
     console.log(`\nlobbies as ${who} (200 per medal):\n  ${out.join('\n  ')}`);
   }

@@ -668,7 +668,8 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'ranked against every other run\'s average in the set by the same rule, so 30 means the bottom 30% of runs and '
       + 'each band holds about its nominal share (owner-approved follow-up: averages alone squeezed toward 50). A RATED lobby draws its '
       + 'recorded seats uniformly at random from the runs inside the band of the player\'s medal (Bronze 0-30, Silver '
-      + '10-40, Gold 20-65, Platinum and above uncapped; every division of a medal shares it), still whole runs, at '
+      + '10-40, Gold 20-65, Platinum uncapped, Diamond 10-100, Ascendant 20-100, so the upper medals average about 50, '
+      + '55 and 60; every division of a medal shares it; a floor-only band widens by lowering its floor), still whole runs, at '
       + 'most 4 seats per player, never the player\'s own runs. A run with no score yet is inside every band. When a '
       + 'band cannot fill the table it widens by 10 on each capped side, step by step (each step logged), before '
       + 'generated seats fill the rest. Practice and the tutorial have no band. The player\'s own game shows '
@@ -697,6 +698,11 @@ export const FOUNDATION_RULES: GameRule[] = [
         kind: 'owner-chat',
         ref: 'Claude Code session, 2026-09-30 (show it)',
         quote: 'can we show that score to the player too maybe? like maybe that is shown in match history?',
+      },
+      {
+        kind: 'owner-chat',
+        ref: 'Owner decision on the upper ranks for PR #1871, relayed verbatim by the coordinator, 2026-09-30',
+        quote: 'maybe plat should be 50 and then diamond is like 55 average and ascendant is 60 average? i dont want every game to just be insanely sweaty and unwinnable',
       },
       {
         kind: 'owner-chat',

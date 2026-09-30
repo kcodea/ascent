@@ -54,7 +54,7 @@ export interface PoolFetchOptions {
   ownerId: string | null;
   /** Uniform [0, 1). `Math.random` in the app; seeded in tests. */
   random(): number;
-  /** The player's matchmaking band (R-LOBBY-09); null = uncapped (Platinum and up, or no rank yet). */
+  /** The player's matchmaking band (R-LOBBY-09); null = uncapped (Platinum, or no rank yet). */
   band?: StrengthBand | null;
 }
 

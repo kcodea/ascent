@@ -3220,5 +3220,23 @@ export const FOUNDATION_RULES: GameRule[] = [
     example: 'An opponent with a Rally-repeat rune from round 6 and the same rune again from round 9 rallies once extra on rounds 6–8 and twice extra from round 9.',
     currentBehaviour: 'Conforms as of the Gauntlet engine PR (2026-09-29). Only rune effects that surface as combat modifiers act for an opponent; shop-only runes do nothing. Pinned by the opponent-runes tests (a combat rune maps to its modifier; runeCombatModsFor never throws on any rune; an authored seat fields no runes on round 5, one on 6 and two on 9 with the modifier stacking; a rune-less seat is unchanged; the stage definition becomes authoredRunes at rounds 6 and 9). The stacking assertion uses two copies of one rune.',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/lobby/gauntlet.test.ts'], lastVerifiedAt: '2026-09-29' },
+  },  {
+    id: 'R-GAUNTLET-04',
+    title: 'Gauntlet: the shop has no clock until 30 Gold is spent in a round, then 60 seconds',
+    statement:
+      'In a Gauntlet stage the shop has no clock at the start of a round. Once the player has spent 30 Gold in that round, '
+      + 'a 60-second countdown starts, and it never restarts for more Gold spent later in the round. When it reaches 0 the '
+      + 'shop behaves exactly as the normal game\x27s timeout does. A time-limited discount window opened while the clock is '
+      + 'still waiting keeps its full length once the clock starts.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-29 (Gauntlet design)', quote: 'there should be a 60 second timer once a player spends 30 gold in a single round. this is to avoid infinite loops' },
+      { kind: 'code', ref: 'packages/ui/src/gauntlet/gauntletClock.ts (GAUNTLET_CLOCK_GOLD / _SECONDS / _WAITING, gauntletTurnClock, gauntletClockReading); packages/ui/src/Recruit.tsx (turnSeconds, the turnClockMayTick clockWaiting gate)' },
+      { kind: 'fix-pr', ref: 'feat/gauntlet-screens (Gauntlet PR 3): commits 50c2a3519 (the timer) and dbe3a28b4 (a Thymepiece window opened before the clock starts keeps its full length)' },
+    ],
+    example: 'You spend 12 Gold, then 18 more: the moment the total reaches 30, a 60-second clock starts. You activate Thymepiece before spending anything: its 8-second window still lasts 8 seconds once the clock starts.',
+    currentBehaviour: 'Conforms as of Gauntlet PR 3 (2026-09-29). Pinned by the clock tests: the 30 Gold / 60 second constants; waiting below 30 and running from 30; no restart once running; resume keeps the saved seconds; the countdown gate holds while waiting; Recruit parks every Gauntlet turn and starts the clock after the turn reset (a source check); and the Thymepiece window run through the reducer. PARTIAL pin: the 0-second behaviour is the normal timeout path, which the Gauntlet reuses unchanged and which the Gauntlet tests do not assert separately.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/gauntlet/gauntletClock.test.ts'], lastVerifiedAt: '2026-09-29' },
   },
 ];

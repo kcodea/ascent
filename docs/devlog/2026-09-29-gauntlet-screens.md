@@ -23,7 +23,7 @@ Home. Quitting mid-run resumes like a normal game (autosave covers it).
 
 ## Gauntlet panel and run-aware caps
 
-A Gauntlet panel shows the stage, round and the round's cap; the caps (5 / 10 / 15 / none by stage band) are read
+A Gauntlet panel shows the stage, round and the round's cap; the caps (5 / 10 / 15 / none by ROUND band: rounds 1–3 / 4–6 / 7–8 / 9–10) are read
 run-aware across the UI rather than assuming lobby rules.
 
 ## Timer

@@ -3961,6 +3961,20 @@ body.dragging .statusbar .heropanel { pointer-events: none; } /* let a corner-re
    Colour only (no per-frame paint). The owner's authored cue is a Pixi loop on the slot button, not CSS
    (`useAmplifiedSlotFx`, 2026-09-22); `[data-fx="equipment-amplified"]` on the tally stays as the tooling mark. */
 .hpwrap .hpb-tally.amplified { color: #7fc4ff; }
+/* FRANK × ANCIENT OF WAR (owner 2026-09-30): the Clearance uses count (2+) as a filled RED pip, top centre of the power,
+   sitting on the rim above the art. Sized off the gold cost coin (44u coin / 22u number) so it scales with the stage the
+   same way (owner on 5173: "the 2 needs to be larger"). Static paint only; it re-keys on every change, so the inherited
+   one-shot `stepbump` (transform) is the tick. */
+.hpwrap .hpb-tally.clearance-uses {
+  top: calc(-30 * var(--u)); /* its bottom meets the art edge: on the rim, never over the art */
+  width: calc(34 * var(--u)); height: calc(34 * var(--u)); box-sizing: border-box;
+  display: grid; place-items: center; border-radius: 50%;
+  background: radial-gradient(circle at 38% 30%, #ff8a7a, #d8332b 58%, #8e1712);
+  border: calc(3 * var(--u)) solid #1b1d22;
+  box-shadow: 0 3px 7px rgba(0, 0, 0, 0.45), inset 0 2px 2px rgba(255, 255, 255, 0.4);
+  font-weight: 900; font-size: calc(20 * var(--u)); color: #fff6e2;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.7);
+}
 .equipslot .hplabel {
   transform: translate(calc(var(--eqn-x, 0) * 1px), calc(var(--eqn-y, 0) * 1px)) scale(var(--eqn-scale, 1)); }
 /* THE CLOCK-WINDOW READOUT (Thymepiece, 2026-09-12): a pill — "−1 Gold · 6s" — in the same discount GREEN the

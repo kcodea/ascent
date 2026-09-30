@@ -102,6 +102,7 @@ export const SNAPSHOT_EXCUSED: Readonly<Record<string, SnapshotExcuse>> = {
   // ── 'capture': recruit-economy fields a served board (which only fights) never reads ──
   'capture:unityTribes': { boundary: 'capture', kind: 'shop-only', why: 'Rune of Unity Shop mark, recomputed by syncUnity for isTribe; a served board re-derives Unity in combat from questMods.runeUnity (syncUnityCombat), which reads natural tribes only' },
   'capture:sellOverride': { boundary: 'capture', kind: 'shop-only', why: 'Rune of the Bargain Bin sell price, read only by sellValueOf — a served board never sells' },
+  'capture:clearanceBuy': { boundary: 'capture', kind: 'shop-only', why: 'Frantic Frank x Ancients (Fortune sell price, Bonds sale hand-off), read only at a sale — a served board never sells' },
   'capture:grantedTier': { boundary: 'capture', kind: 'shop-only', why: 'frozen Discover tier read by the discoverOnPlay resolution — a hand/Discover contract, nothing for a served board' },
   'capture:manaBonus': { boundary: 'capture', kind: 'shop-only', why: 'absorbed Money-Bot Gold-per-turn, read by the shop economy only' },
   'capture:attachments': { boundary: 'capture', kind: 'shop-only', why: 'weld count driving Blueprint Cache’s End-of-Turn SHOP pass' },

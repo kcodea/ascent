@@ -1908,6 +1908,11 @@ export interface QuestCombatMods {
    *  (a live `toHand`), at most once per combat. The tally after the fight comes home as
    *  `CombatCarryBacks.ancientPummelDealt`. Player-only; never snapshotted. */
   ancientPummel?: { every: number; count: number; cardId: string; dealt: number; label: string };
+  /** ANCIENT OF WAR × Frantic Frank (owner 2026-09-30): "Avenge (3): Gain a Clearance stack." A hero-level Avenge on the
+   *  avenge bus (every `every` friendly deaths this fight; Rune of Fury fires it again). Each fire is one stack, shown
+   *  live as a `questTrigger` with `flag`, and the fight's total comes home as `CombatCarryBacks.ancientClearanceStacks`.
+   *  Player-only; never snapshotted. */
+  ancientClearanceStacks?: { every: number; flag: string; label: string };
   /** LEGACY (pre-2026-09-28 runs): the run-wide Beast Health channel `beastBuyHp`, re-added to from-base Beast
    *  bodies (summons / Reborn). Nothing feeds it any more — Beast buffs are combat-only (R-AURA-03). */
   beastAuraHp?: number;
@@ -3141,6 +3146,8 @@ export interface CombatCarryBacks {
   summonsMade?: number;
   /** ANCIENTS (Albus's War): the side's lifetime hero-Pummel tally after this fight (only when `ancientPummel`). */
   ancientPummelDealt?: number;
+  /** ANCIENTS (Frank's War): Clearance stacks this fight's Avenges gained (only when `ancientClearanceStacks`). */
+  ancientClearanceStacks?: number;
 }
 
 /** One side's hero damage, itemized (`CombatResult.damageBreakdown` / `enemyDamageBreakdown`). */
@@ -3426,6 +3433,8 @@ export interface CombatResult {
   playerSummonsMade?: number;
   /** ANCIENTS (Albus's War): the player's `CombatCarryBacks.ancientPummelDealt`. */
   playerAncientPummelDealt?: number;
+  /** ANCIENTS (Frank's War): the player's `CombatCarryBacks.ancientClearanceStacks`. */
+  playerAncientClearanceStacks?: number;
   /** Outcome odds (fractions summing to 1) — estimated by the run loop re-simulating these boards
    *  on many independent seeds. Not produced by `simulate` itself (a single fight); the run loop fills it.
    *  `avgLossDamage` is the mean Resolve lost across the losing sims (round-capped), i.e. how much damage

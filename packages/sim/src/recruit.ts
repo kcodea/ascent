@@ -1,5 +1,5 @@
 import { soulFurnaceHealth, ALE_IDS, RUBY_TYPE_IDS, SPECIAL_RUBY_IDS, TRIBES, inRunTribes, alignAllows, makeRng, SILENT_ONPLAY, isShopPoolSpell, shopSpellGrowth, COMBAT_REPLAYABLE_BATTLECRIES, NO_COPY_SPELL_IDS, extraTriggerFires, foldEchoExtraFires, socTwilightExtraFires, BODY_COUNTING_DEATHS, ARENA_EFFECTS, beatIdentity, type EffectArena, type PresentationCollector, type PresentationPhase, type PresentationPolicy, type Rng, type CardDef, type EffectDef, type Keyword, type TriggerFamily, type TriggerSourceRef, type Tribe } from '@game/core';
-import { ancientOnSale, ancientOnShopDeath, ancientOnShopShout, ancientOnShopRise, ancientPowerText, ancientEotWardBuff, ancientRunEotWardBuff, ancientBondsReact, ancientOnPlay, ANCIENTS } from './ancients';
+import { ancientClearanceSellValue, ancientOnSale, ancientOnShopDeath, ancientOnShopShout, ancientOnShopRise, ancientPowerText, ancientEotWardBuff, ancientRunEotWardBuff, ancientBondsReact, ancientOnPlay, ANCIENTS } from './ancients';
 import { runSpells } from './spellPool';
 import { REVELER_IDS, RUNE_INDEX, CARD_INDEX, EQUIPMENT_INDEX, STAR_DESTROYER, equipmentOf, recurringEotOwner, type EquipmentDefinition } from '@game/content';
 import { equipIsNews, equipmentParams as equipmentParamsFor, grantEquipment as grantEquipmentToPlayer, armCalibration, unusedEquipmentCount } from './equipment';
@@ -1057,13 +1057,16 @@ export interface HeroPowerLive {
   /** Friendly damage LANDED so far in the fight being replayed (Heavy Hand folded); undefined outside a fight.
    *  Albus × Ancient of War prints its hero Pummel progress live. */
   friendlyDamage?: number;
+  /** Clearance stacks gained SO FAR in the fight being replayed; undefined outside a fight. Frantic Frank × Ancient of
+   *  War prints its banked stacks live. */
+  clearanceStacks?: number;
 }
 
 export function heroPowerText(state: RunState, which = 0, live: HeroPowerLive = {}): string {
   const base = baseHeroPowerText(state, which, live);
   // ANCIENTS (owner ruling 2026-09-25): an awakened Ancient's pairing prints the COMBINED power on the main slot.
   // `ancientPowerText` is undefined unless the run has Ancients on and a written pairing is picked.
-  return (which === 0 ? ancientPowerText(state, base, { combatSummons: live.summons, friendlyDamage: live.friendlyDamage }) : undefined) ?? base;
+  return (which === 0 ? ancientPowerText(state, base, { combatSummons: live.summons, friendlyDamage: live.friendlyDamage, clearanceStacks: live.clearanceStacks }) : undefined) ?? base;
 }
 
 function baseHeroPowerText(state: RunState, which: number, live: HeroPowerLive): string {
@@ -1153,9 +1156,15 @@ export function allInPayoutOf(state: RunState): number {
 
 /** The Gold a minion sells for: Hoarder a flat 2 (golden 4), everything else `CONFIG.sellValue`. Shared by
  *  the reducer's sell case and the UI's sell-amount float so the two never drift. */
-export function sellValueOf(card: BoardCard, state?: Pick<RunState, 'runeBartering' | 'runeStacks'>): number {
+export function sellValueOf(card: BoardCard, state?: Pick<RunState, 'runeBartering' | 'runeStacks'> & Partial<Pick<RunState, 'ancientsEnabled' | 'ancients' | 'heroId'>>): number {
   // Rune of the Bargain Bin: a bin-bought minion sells for its overridden value (0) — checked first so it wins.
   if (card.sellOverride !== undefined) return card.sellOverride;
+  // ANCIENT OF FORTUNE × Frantic Frank: a Clearance minion sells for 2 Gold (never below what it would sell for anyway).
+  const clearance = card.clearanceBuy && state?.heroId ? ancientClearanceSellValue(card, state as Pick<RunState, 'ancientsEnabled' | 'ancients' | 'heroId'>) : undefined;
+  return clearance !== undefined ? Math.max(clearance, baseSellValueOf(card, state)) : baseSellValueOf(card, state);
+}
+
+function baseSellValueOf(card: BoardCard, state?: Pick<RunState, 'runeBartering' | 'runeStacks'>): number {
   // Rune of Bartering: a Shout (Battlecry) minion sells for 2 Gold — folded HERE so every sell path AND the
   // UI's sell-value coin/float read the same number (never below a card's own higher sell value).
   // 2 Gold per Bartering copy held (owner 2026-08-27, unique-engine doubling — "Bartering +2g").

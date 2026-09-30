@@ -17,7 +17,7 @@
  * Pure orchestration over injected deps (fetch, register, cache, clock), so the tests drive it without a network,
  * a browser or real time. Everything here is async and off the render path; nothing blocks the menu.
  */
-import type { BoardSnapshot, RunRegistration } from '@game/sim';
+import { sameBand, type BoardSnapshot, type RunRegistration, type StrengthBand } from '@game/sim';
 import type { SetId } from '@game/content';
 
 export type PoolStatus = 'idle' | 'loading' | 'ready' | 'failed';
@@ -35,6 +35,9 @@ export interface PoolLoadState {
   boards: number;
   /** Runs refused because they arrived incomplete or held a board this build cannot serve. Should stay 0. */
   runsDropped: number;
+  /** MATCHMAKING BAND (R-LOBBY-09): widening steps the last network sample needed to find enough runs for the
+   *  player's band. Null without a band (uncapped, or the server does not take one yet). */
+  bandWidenings: number | null;
 }
 
 /** One run as the network (or the cache) delivers it: the run's key, its owner, how many distinct waves the
@@ -45,11 +48,16 @@ export interface PoolRun {
   /** Distinct waves the server recorded for this run. When present, a run that arrives with fewer is refused. */
   waves?: number;
   snaps: BoardSnapshot[];
+  /** The run's strength percentile (`pool_runs.strength`); absent = unscored. Stamped on every board as
+   *  `runStrength` at registration (matchmaking band, Match details). */
+  strength?: number;
 }
 
 export interface PoolFetch {
   runs: PoolRun[];
   path: 'rpc' | 'fallback';
+  /** Widening steps the band needed (absent without a band). */
+  widenings?: number;
 }
 
 /** Bump when the cached shape changes: a record of another version is ignored (so a pre-2026-09-29 per-wave
@@ -79,6 +87,9 @@ export interface PoolLoaderDeps {
   cache: PoolCacheStore;
   /** The set whose runs are worth caching (the live set). */
   setId(): SetId;
+  /** The player's matchmaking band now (R-LOBBY-09). A load for another band than the last one fetches again,
+   *  so a player who ranks up draws from their new band. Absent = no band. */
+  band?(): StrengthBand | null;
   patchPrefix: string;
   now(): number;
   sleep(ms: number): Promise<void>;
@@ -161,6 +172,8 @@ export function createPoolLoader(deps: PoolLoaderDeps): PoolLoader {
   let runs = 0;
   let boards = 0;
   let runsDropped = 0;
+  let bandWidenings: number | null = null;
+  let loadedBand: StrengthBand | null = null;
   let status: PoolStatus = 'idle';
   let inFlight: Promise<PoolLoadState> | null = null;
   let cachePromise: Promise<CachedPool | null> | null = null;
@@ -170,7 +183,8 @@ export function createPoolLoader(deps: PoolLoaderDeps): PoolLoader {
   let cancelRetry: (() => void) | null = null;
   const listeners = new Set<(s: PoolLoadState) => void>();
 
-  const snapshot = (): PoolLoadState => ({ status, source, runs, boards, runsDropped });
+  const snapshot = (): PoolLoadState => ({ status, source, runs, boards, runsDropped, bandWidenings });
+  const bandNow = (): StrengthBand | null => deps.band?.() ?? null;
   const emit = (): void => { const s = snapshot(); for (const fn of listeners) fn(s); };
 
   /** Validate, stamp and register whole runs. Returns the runs that were accepted. */
@@ -185,6 +199,7 @@ export function createPoolLoader(deps: PoolLoaderDeps): PoolLoader {
       ...s,
       remote: true as const, // live-shared-pool mark, as before
       ...(r.ownerId ? { ownerId: r.ownerId } : {}),
+      ...(typeof r.strength === 'number' ? { runStrength: r.strength } : {}),
     })));
     const res = deps.registerRuns(stamped);
     runs += res.runs;
@@ -206,10 +221,13 @@ export function createPoolLoader(deps: PoolLoaderDeps): PoolLoader {
       if (attempt > 0) await deps.sleep(opts.retryBaseMs * 2 ** (attempt - 1));
       const ctl = new AbortController();
       try {
+        const band = bandNow();
         const got = await withTimeout(deps.fetchRuns(ctl.signal), opts.perRequestMs, ctl);
         const accepted = register(got.runs);
         for (const r of accepted) freshRuns.set(r.key, r);
         fresh = true;
+        loadedBand = band;
+        bandWidenings = typeof got.widenings === 'number' ? got.widenings : null;
         source = got.path;
         emit();
         return true;
@@ -237,7 +255,7 @@ export function createPoolLoader(deps: PoolLoaderDeps): PoolLoader {
   };
 
   const run = async (opts: LoadOptions, refresh: boolean): Promise<PoolLoadState> => {
-    if (fresh && !refresh) return snapshot();
+    if (fresh && !refresh && sameBand(loadedBand, bandNow())) return snapshot();
     if (status !== 'ready') status = 'loading';
     emit();
     const ok = await fetchOnce(opts);
@@ -271,7 +289,12 @@ export function createPoolLoader(deps: PoolLoaderDeps): PoolLoader {
     subscribe(fn) { listeners.add(fn); return () => { listeners.delete(fn); }; },
     load,
     async ensure() {
-      if (status === 'ready') return snapshot();
+      // Ready with the pool of another band (a rank change since the last load): the pool on hand still seats a
+      // table (the lobby widens from it), so go now and refresh for the new band in the background.
+      if (status === 'ready') {
+        if (fresh && !sameBand(loadedBand, bandNow())) void load({ ...STARTUP_LOAD, refresh: true });
+        return snapshot();
+      }
       if (inFlight) {
         const s = await inFlight;
         if (s.status === 'ready') return s;

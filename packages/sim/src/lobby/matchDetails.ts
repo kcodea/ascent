@@ -75,7 +75,16 @@ export interface MatchSeat {
   board: MatchBoard | null;
   /** The skins this seat's owner wore (display only; filtered through the opponent toggle by the UI). */
   cosmetics?: RunCosmeticSnapshot;
+  /** BOARD STRENGTH (R-LOBBY-09, 2026-09-30): the run's strength percentile (1-100) as it stood when the game ended.
+   *  An opponent seat carries its run's pool strength; your own seat the average of your rounds. Absent = not
+   *  scored (generated seats, older records, a score that was not ready): the UI then shows nothing. */
+  strength?: number;
+  /** Your own seat only: the strength of each round's board, in round order. */
+  roundStrength?: MatchRoundStrength[];
 }
+
+/** One round's board strength (a percentile, 1-100). */
+export interface MatchRoundStrength { round: number; value: number }
 
 export interface MatchDetails {
   v: 1;
@@ -102,7 +111,18 @@ export interface MatchDetailsInput {
   titleId?: string | null;
   /** Your own run's ledger key (ranked only; see `MatchSeat.runKey`). */
   selfRunKey?: string | null;
+  /** Your board strength, when it was scored by the time the record is built (see `MatchSeat.strength`). */
+  selfStrength?: { value: number | null; rounds: readonly MatchRoundStrength[] } | null;
 }
+
+const pctOf = (v: unknown): number | undefined =>
+  typeof v === 'number' && Number.isFinite(v) && v >= 1 && v <= 100 ? Math.round(v) : undefined;
+const roundsOf = (v: unknown): MatchRoundStrength[] =>
+  Array.isArray(v)
+    ? v.map((r) => (r && typeof r === 'object' ? { round: (r as MatchRoundStrength).round, value: pctOf((r as MatchRoundStrength).value) } : null))
+      .filter((r): r is MatchRoundStrength => !!r && typeof r.round === 'number' && Number.isFinite(r.round) && r.value !== undefined)
+      .slice(0, 80)
+    : [];
 
 /** The round your game ended on: your knockout round, else the last settled round. */
 export function matchEndRound(lobby: Pick<RunLobby, 'seats' | 'round'>): number {
@@ -212,12 +232,19 @@ export function buildMatchDetails(lobby: RunLobby, input: MatchDetailsInput): Ma
         if (input.selfBoard) out.board = boardOf(input.selfBoard.minions, input.selfBoard.tier, endRound, keepText, input.selfBoard.runes);
         const c = parseCosmeticSnapshot(input.selfCosmetics);
         if (c) out.cosmetics = c;
+        const st = pctOf(input.selfStrength?.value);
+        if (st !== undefined) out.strength = st;
+        const rs = roundsOf(input.selfStrength?.rounds);
+        if (rs.length) out.roundStrength = rs;
       } else {
         const round = seatBoardRound(seat, endRound);
         const b = fieldedBoard(lobby, seat, round);
         if (b) out.board = boardOf(b.minions, b.tier, round, keepText, b.snapshot?.runes);
         const c = parseCosmeticSnapshot(seat.cosmetics ?? b?.snapshot?.cosmetics);
         if (c) out.cosmetics = c;
+        // The run's pool strength, frozen here (a recorded seat's boards all carry it, stamped at pool load).
+        const st = seat.kind === 'snapshot' ? pctOf(b?.snapshot?.runStrength) : undefined;
+        if (st !== undefined) out.strength = st;
       }
       return out;
     });
@@ -301,6 +328,10 @@ function parseSeat(v: unknown): MatchSeat | null {
   if (er !== undefined) s.eliminatedRound = er;
   const c = parseCosmeticSnapshot(o.cosmetics);
   if (c) s.cosmetics = c;
+  const st = pctOf(o.strength);
+  if (st !== undefined) s.strength = st;
+  const rs = roundsOf(o.roundStrength);
+  if (rs.length) s.roundStrength = rs;
   return s;
 }
 

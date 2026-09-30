@@ -33,8 +33,9 @@ medal + division — see *Ranked ladder* below).
   so an empty pool degrades to a fully generated table rather than a smaller one. **Which** snapshot runs sit
   at the table is a seeded uniform shuffle of every eligible run in the lobby's set (owner 2026-09-13): every
   run is equally likely, the same lobby seed always seats the same table (restore / replay), and nothing
-  weights the draw — no strength band, no recency, no win-rate weighting (that exists only on the pre-lobby
-  pool pick). **One player holds at most 4 seats** (owner 2026-09-29, R-LOBBY-08: "so it's not literally like 7
+  weights the draw — no recency, no win-rate weighting (that exists only on the pre-lobby pool pick). A RATED
+  lobby draws only from the runs inside the player's **strength band** (below, R-LOBBY-09); inside the band the
+  draw is the same uniform shuffle. **One player holds at most 4 seats** (owner 2026-09-29, R-LOBBY-08: "so it's not literally like 7
   of me always"): a run whose player already holds 4 is passed over for the next in the shuffle, which leaves
   every other run equally likely; when the pool lacks enough players, generated seats fill the rest. **Your own
   runs sit at your table like anyone else's, under the same cap of 4** (owner 2026-09-30: *"this is a problem - you should face your own boards too. you should also be able to occupy up to 4 of your own snapshots. please fix this"*;
@@ -57,6 +58,37 @@ medal + division — see *Ranked ladder* below).
   board never appears, except past the run's end, where the stale-final-board rule applies (the run keeps its
   final board, with its own Armor). Until 2026-09-29 the pool was pulled as the newest boards per wave, which cut
   older runs down to their late waves and served a wave-10 board on round 5.
+- **Board strength and matchmaking bands** (owner 2026-09-30, R-LOBBY-09: *"can we build an algorithm for board
+  strength to get as good of an idea of how strong a snapshot's run is, and assign it a 1-100 value?"*, *"serve for
+  example 0-30 for bronze, 10-40 in silver, 20-65 in gold, and then uncap plat?"*, *"72 would basically mean like...
+  a 72/100 aka 72nd percentile"*).
+  - A board's **raw strength** is its win rate (win 1, draw 0.5) against a frozen, versioned **reference set** of
+    ~30 real boards of its wave (`strengthReference.v1.json`, version `set2-v1`, generated once from the live pool,
+    weakest to strongest), two seeded fights per reference board, the scored board once on each side, both sides
+    fought with the full combat side a recorded seat fights with (runes, auras, spell power). Waves past the last
+    reference wave (15) are scored against it. Deterministic; stored permanently with the board
+    (`boards.strength_raw` / `strength_ref` / `strength_wave`), never recomputed.
+  - Its **percentile** (1-100) is its place among every scored board at the same reference wave: the share it is
+    stronger than, ties counted half, rounded. Derived, so it follows the pool as it grows; never stored on a board.
+  - A **run's strength** is a **percentile among runs** (owner-approved 2026-09-30): the average of its boards'
+    percentiles (`pool_runs.strength_avg`), then ranked against every other run's average in the set by the same
+    rule (`pool_runs.strength`). 72 = stronger than 72% of runs, and each band holds about its nominal share of the
+    pool (the plain average squeezed toward 50). Averages refresh on every upload for the uploaded runs and for every
+    run at most every 10 minutes; ranks are recomputed on every refresh.
+  - **Bands by medal** (every division of a medal shares it): Bronze **0-30**, Silver **10-40**, Gold **20-65**,
+    Platinum **uncapped** (average opponent ~50), Diamond **10-100** (~55), Ascendant **20-100** (~60) (owner
+    2026-09-30: *"maybe plat should be 50 and then diamond is like 55 average and ascendant is 60 average? i dont want every game to just be insanely sweaty and unwinnable"*). A rated lobby's recorded seats come only from runs inside the band (the
+    server samples inside it, and seat selection filters to it), still whole runs, still at most 4 seats per player
+    (your own runs included, under the same cap). A run with **no score yet counts as inside every band**. When the band cannot fill the table
+    it **widens by 10 on each capped side**, one step at a time (each step logged to the pool telemetry), until it is
+    uncapped; for Diamond and Ascendant, which only have a floor, that means the floor drops 10 a step. Only then do
+    generated seats fill the rest. Practice and the tutorial have no band.
+  - Your own boards are scored in the background while you play (idle time only; the last board during its combat)
+    and upload with their scores. When the game ends, each round's board percentile and the run's strength (its
+    average ranked against the pool's run averages) are **frozen** into the game's record: the Career and Recent Games
+    rows print **"Board strength N"** (the run's strength), and Match details shows your per-round board percentiles
+    and each opponent seat's run strength. A game that was not scored (the
+    pool's strength data unavailable, or older games) shows nothing.
 - **A lobby that seats player runs waits for the opponent pool** (owner 2026-09-28, R-LOBBY-06). A rated lobby
   or Practice against players is not built until the shared pool has loaded: instantly when it already has,
   otherwise behind a cancellable "Finding opponents..." wait while it retries. Only a genuine failure (offline)
@@ -90,7 +122,8 @@ medal + division — see *Ranked ladder* below).
 - A run **pins its set at creation** and reads it forever after, so an in-progress or replayed run is
   unaffected by a later global set change.
 
-Source: `packages/sim/src/lobby/lobby.ts` (`DEFAULT_LOBBY_RULES`, damage application),
+Source: `packages/sim/src/lobby/boardStrength.ts` + `strengthBands.ts` (board strength, bands),
+`supabase/migrations/2026-09-30-board-strength.sql`, `packages/sim/src/lobby/lobby.ts` (`DEFAULT_LOBBY_RULES`, damage application),
 `packages/sim/src/lobby/runLobby.ts`, `packages/sim/src/lobby/seats.ts`,
 `packages/sim/src/lobby/snapshotSeats.ts`, `packages/sim/src/lobby/fightLedger.ts`, `packages/sim/src/rank.ts`,
 `packages/sim/src/lobbyStrength.ts`, the `run_fight_records` view (`supabase/migrations/2026-09-22-fight-ledger.sql`).
@@ -114,6 +147,8 @@ Source: `packages/sim/src/lobby/lobby.ts` (`DEFAULT_LOBBY_RULES`, damage applica
   seat whose run is currently on the **Hall of Champions** wears a gold crown (one cached read of the Hall's own
   query per panel open; offline = no crown). Board cards are always the compact tile here (the hover reveal shows
   the full card) and the panel reserves its scrollbar gutter, so it never shifts.
+- **Board strength** (R-LOBBY-09): each seat whose run was scored shows "Board strength N" (its run's strength when
+  the game ended), and your own seat also shows each round's board strength. Unscored seats show nothing.
 - The record is saved with the match (`run_history.entry.match` for Ranked, `practice_games.replay.match` for
   Practice; both existing JSON columns) so the Career's match history shows it again under each match's **Lobby**
   button. Older matches say the details were not recorded.

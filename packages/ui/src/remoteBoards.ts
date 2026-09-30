@@ -16,6 +16,7 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { activeSet, type SetId } from '@game/content';
 import type { FightRow, LobbyStrength, MatchDetails, StrengthInput } from '@game/sim';
+import { STRENGTH_REF_VERSION, parseBoardStrength, type RunStrengthHistogramEntry, type StrengthBand, type StrengthHistogram, type StrengthScore } from '@game/sim';
 import { RANK_SEASON, initialRankedProfile, lobbyStrengthOf, excludeOwnFights, parseLobbyStrength, parseMatchDetails, parseRankResult, parseRankedProfile, registerBoardRecords, registerOpponentRuns, type BoardSnapshot, type DerivedRun, type PlayerKeyBasis, type RankedProfile, type ReplayV2, type RunTelemetry, type RunTelemetryRow, type TelemetrySource, isRankPosition, type RankPosition } from '@game/sim';
 import { currentIdentity, currentUserId, setIdentity, type AuthProvider, type Identity } from './identity';
 import type { RankSubmitOutcome, RankSubmitRequest } from './rank/types';
@@ -286,16 +287,29 @@ const toRow = (b: BoardSnapshot) => ({
   snapshot: b, // the board's fight-ledger id travels inside here (b.id) — no separate column needed
 });
 
+/** A board on its way up, with its BOARD STRENGTH score (R-LOBBY-09) riding beside the snapshot. The score goes into
+ *  its own columns (`strength_raw` / `strength_ref` / `strength_wave`), never into the snapshot jsonb, and it
+ *  survives the offline queue with the board. */
+export type BoardUpload = BoardSnapshot & { strengthScore?: StrengthScore };
+
 /** Upload a finished run's boards. Fire-and-forget — never throws, never blocks the game (offline → skipped). */
-export async function uploadBoards(boards: BoardSnapshot[], opts?: { unrated?: boolean }): Promise<void> {
+export async function uploadBoards(boards: BoardUpload[], opts?: { unrated?: boolean }): Promise<void> {
   const c = client();
   if (!c || boards.length === 0) return;
   // No session yet (offline / pre-handshake) → QUEUE rather than lose the boards; flushed when one lands.
   if (!currentUserId()) { enqueueUpload('boards', boards); return; }
   try {
-    const rows = boards.map((b) => toRow(b));
+    const rows = boards.map((b) => { const snap: BoardUpload = { ...b }; delete snap.strengthScore; return toRow(snap); });
     const tagged = rows.map((r) => ({ ...r, unrated: opts?.unrated ?? false }));
-    const res = await c.from(TABLE).insert(tagged);
+    // BOARD STRENGTH (2026-09-30): the scored columns. A DB without them (the SQL not run yet) rejects the insert,
+    // so the ladder steps down: without the strength columns, then without `unrated` too (the C2b rung below).
+    const scored = boards.some((b) => b.strengthScore);
+    const withStrength = tagged.map((r, i) => {
+      const s = boards[i]!.strengthScore;
+      return s ? { ...r, strength_raw: s.raw, strength_ref: s.ref, strength_wave: s.wave } : r;
+    });
+    let res = await c.from(TABLE).insert(scored ? withStrength : tagged);
+    if (res.error && scored) res = await c.from(TABLE).insert(tagged);
     // `unrated` is a C2b column; on a DB that hasn't run that migration the insert fails, so retry WITHOUT it
     // — boards keep uploading, they just aren't tagged until the ALTER is applied. Same discipline as the
     // telemetry fallback ladder below.
@@ -314,6 +328,19 @@ export async function uploadBoards(boards: BoardSnapshot[], opts?: { unrated?: b
 // boards of each wave), which cut older runs in half: their early waves fell outside the cut, and a lobby seat
 // served a wave-10 board on round 5. See `opponentPool/poolFetch.ts`.
 let poolLoaderSingleton: PoolLoader | null = null;
+
+/** The player's matchmaking band (R-LOBBY-09), provided by the store once it exists (`setPoolBandProvider`); before
+ *  that, `bandFallback` (the stored profile) answers, so the startup load already asks for the right band. */
+let poolBandProvider: (() => StrengthBand | null) | null = null;
+let bandFallback: () => StrengthBand | null = () => null;
+export function setPoolBandProvider(fn: () => StrengthBand | null, fallback?: () => StrengthBand | null): void {
+  poolBandProvider = fn;
+  if (fallback) bandFallback = fallback;
+}
+export function setPoolBandFallback(fn: () => StrengthBand | null): void { bandFallback = fn; }
+const currentPoolBand = (): StrengthBand | null => {
+  try { return (poolBandProvider ?? bandFallback)(); } catch { return null; }
+};
 
 function poolApi(c: SupabaseClient): PoolApi {
   return {
@@ -343,8 +370,9 @@ export function opponentPoolLoader(patchPrefix = `${typeof __APP_VERSION__ === '
   const loader = createPoolLoader({
     patchPrefix,
     fetchRuns: (signal) => fetchPoolRuns(api, {
-      setId: activeSet().id, patchPrefix, random: Math.random,
+      setId: activeSet().id, patchPrefix, random: Math.random, band: currentPoolBand(),
     }, signal, session),
+    band: currentPoolBand,
     registerRuns: registerOpponentRuns,
     cache: idbPoolCache(),
     setId: () => activeSet().id,
@@ -784,6 +812,9 @@ export interface RecentGameRow {
    *  2026-09-22, shown only post-game on the Career and Recent Games rows). Null on rows from before it existed
    *  and on runs whose strength fetch failed; the row then prints nothing for it. */
   lobbyStrength: LobbyStrength | null;
+  /** BOARD STRENGTH (R-LOBBY-09): the run's strength percentile, frozen when it ended
+   *  (`replay->v2->result->>boardStrength`). Null when it was not scored; the row then prints nothing. */
+  boardStrength?: number | null;
 }
 
 // ── Replay v2 (spectate — docs/replay-v2-handoff.md Phase C) ───────────────────────────────────────────────
@@ -851,6 +882,7 @@ export function asRecentGameRow(r: Record<string, unknown>): RecentGameRow {
     runes: picked.length > 0 ? picked : (board?.runes ?? []),
     wave: numOf(r.final_wave),
     lobbyStrength: parseLobbyStrength(r.lobby_strength),
+    boardStrength: parseBoardStrength(r.board_strength),
   };
 }
 
@@ -860,7 +892,7 @@ export function asRecentGameRow(r: Record<string, unknown>): RecentGameRow {
  *  `picked_runes` / `replay` need their migrations. A backend that rejects a select falls to the next,
  *  plainer rung, costing only what that rung reads (run length → banner facts → Watch). Exported for tests. */
 const RECENT_BASE = 'id, user_id, author, hero_id, wins, placement, created_at';
-const RECENT_FACTS = 'picked_runes, replay_v2_version:replay->v2->version, final_board:replay->v2->result->finalBoard, record:replay->v2->result->record, partial:replay->v2->>partial, first_wave:replay->v2->>firstRecordedWave, final_wave:derived->>finalWave, lobby_strength:replay->v2->result->lobbyStrength';
+const RECENT_FACTS = 'picked_runes, replay_v2_version:replay->v2->version, final_board:replay->v2->result->finalBoard, record:replay->v2->result->record, partial:replay->v2->>partial, first_wave:replay->v2->>firstRecordedWave, final_wave:derived->>finalWave, lobby_strength:replay->v2->result->lobbyStrength, board_strength:replay->v2->result->>boardStrength';
 export const RECENT_GAMES_SELECTS: readonly string[] = [
   `${RECENT_BASE}, ${RECENT_FACTS}, first_t:replay->v2->frames->0->>tMs, last_t:replay->v2->frames->-1->>tMs`,
   `${RECENT_BASE}, ${RECENT_FACTS}`,
@@ -1585,7 +1617,7 @@ export const CAREER_DETAIL_ROWS = 25;
  *  `entry` jsonb server-side so a 100-row pull stays a few KB instead of shipping 100 boards. `rating_after` is
  *  the MMR after settle that `settle_rank` stamps onto the row (the MMR trend); a row the stamp never reached
  *  simply projects NULL for it — a JSON path to a missing key is never an error. */
-const CAREER_LIGHT_SELECT = 'id, created_at, hero_id, wave, wins, placement, mode, losses:entry->>losses, draws:entry->>draws, apt:entry->>apt, seed:entry->>seed, gold_spent:entry->>goldSpent, rating_delta:entry->>ratingDelta, rating_after:entry->>ratingAfter, at:entry->>at, dominant_tribe:entry->>dominantTribe, lobby_strength:entry->lobbyStrength';
+const CAREER_LIGHT_SELECT = 'id, created_at, hero_id, wave, wins, placement, mode, losses:entry->>losses, draws:entry->>draws, apt:entry->>apt, seed:entry->>seed, gold_spent:entry->>goldSpent, rating_delta:entry->>ratingDelta, rating_after:entry->>ratingAfter, at:entry->>at, dominant_tribe:entry->>dominantTribe, lobby_strength:entry->lobbyStrength, board_strength:entry->>boardStrength';
 
 /** The light `run_telemetry` probe: the row id (the Watch handle), the seed (the join), the v2 stamp (the
  *  watchability gate) and the first/last frame clocks (the run length). PostgREST resolves `frames->-1` as
@@ -2024,4 +2056,60 @@ export async function fetchAndRegisterBoardRecords(): Promise<number> {
 export function refreshOpponentPoolAndRecords(patchPrefix?: string): void {
   void fetchAndRegisterPool(patchPrefix);
   void fetchAndRegisterBoardRecords();
+  void refreshStrengthHistogram();
+}
+
+// ── Board strength: the pool's histogram (R-LOBBY-09) ─────────────────────────────────────────────────────────
+// Per reference wave, how many pool boards hold each raw score (`board_strength_histogram`). The player's own raw
+// scores become percentiles against it at run end, so the number a game shows is frozen then. Fetched at startup and
+// between runs, like the pool; a backend without the SQL answers "not found" and the cache stays null, so nothing
+// is shown (never a guess).
+let strengthHistogramCache: StrengthHistogram | null = null;
+export const strengthHistogram = (): StrengthHistogram | null => strengthHistogramCache;
+// …and the pool's run AVERAGES (`run_strength_histogram`), which a finished game's average is ranked against: a run's
+// strength is a percentile among runs (owner-approved 2026-09-30).
+let runStrengthHistogramCache: RunStrengthHistogramEntry[] | null = null;
+export const runStrengthHistogram = (): RunStrengthHistogramEntry[] | null => runStrengthHistogramCache;
+
+/** Rows of `run_strength_histogram` into entries (exported for the tests); null when empty. */
+export function runHistogramOf(rows: ReadonlyArray<{ avg: unknown; n: unknown }>): RunStrengthHistogramEntry[] | null {
+  const out: RunStrengthHistogramEntry[] = [];
+  for (const r of rows) {
+    const avg = Number(r.avg); const count = Number(r.n);
+    if (Number.isFinite(avg) && count > 0) out.push({ avg, count });
+  }
+  return out.length ? out : null;
+}
+
+/** Rows of the RPC into the histogram shape (exported for the tests). */
+export function histogramOf(rows: ReadonlyArray<{ wave: unknown; raw: unknown; n: unknown }>): StrengthHistogram | null {
+  const out: StrengthHistogram = {};
+  let any = false;
+  for (const r of rows) {
+    const wave = Number(r.wave); const raw = Number(r.raw); const count = Number(r.n);
+    if (!Number.isFinite(wave) || !Number.isFinite(raw) || !(count > 0)) continue;
+    (out[String(wave)] ??= []).push({ raw, count });
+    any = true;
+  }
+  return any ? out : null;
+}
+
+export async function refreshStrengthHistogram(): Promise<StrengthHistogram | null> {
+  const c = client();
+  if (!c) return null;
+  try {
+    const timeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), FETCH_TIMEOUT_MS));
+    const [result, runs] = await Promise.all([
+      Promise.race([Promise.resolve(c.rpc('board_strength_histogram', { p_ref: STRENGTH_REF_VERSION })), timeout]),
+      Promise.race([Promise.resolve(c.rpc('run_strength_histogram', { p_set: activeSet().id })), timeout]),
+    ]);
+    if (runs && !runs.error && Array.isArray(runs.data)) {
+      runStrengthHistogramCache = runHistogramOf(runs.data as Array<{ avg: unknown; n: unknown }>) ?? runStrengthHistogramCache;
+    }
+    if (!result || result.error || !Array.isArray(result.data)) return strengthHistogramCache;
+    strengthHistogramCache = histogramOf(result.data as Array<{ wave: unknown; raw: unknown; n: unknown }>) ?? strengthHistogramCache;
+    return strengthHistogramCache;
+  } catch {
+    return strengthHistogramCache;
+  }
 }

@@ -56,6 +56,14 @@ behaviour from a legacy symbol.**
   Seat selection caps one player at `MAX_SEATS_PER_PLAYER` (4) seats, without weighting the shuffle. The player's
   OWN runs are seated like anyone else's under that same cap (owner 2026-09-30); nothing excludes them (the client
   sends `p_exclude_user: null`, and `excludeOwnerId` is gone).
+- **Board strength + rank bands** (R-LOBBY-09, 2026-09-30): a board's raw strength is its seeded win rate against the
+  frozen reference set (`lobby/boardStrength.ts`, `strengthReference.v1.json`), stored with the board; percentiles and
+  a run's strength (`pool_runs.strength`: its board-percentile average RANKED among the runs, so bands hold their nominal share) are derived server-side. A RATED lobby passes `strengthBand` (Bronze 0-30,
+  Silver 10-40, Gold 20-65, Platinum none, Diamond 10-100, Ascendant 20-100) to both the pool fetch and `createRunLobby`; unscored runs are in every
+  band, and a band that cannot fill the table widens +10 per capped side before generated seats. With no band the
+  selection is R-LOBBY-08's, seat for seat. Your own boards are scored in idle slices from capture
+  (`ui/src/boardStrength/`), never on an interaction path; the run-end freeze reads them. Never read `runStrength`
+  in combat.
 - A generated (hybrid) seat is seated only if its RECORDING fields a board (`hybridSeat.canFieldBoard` checks a
   one-board `autoplayRun` prefix, not just the live bot). `autoplayRun` must answer every blocking modal a hero
   can raise (quest, Runeforge, `powerOffer`, Discover, chooseOne, target) or that hero records nothing — the

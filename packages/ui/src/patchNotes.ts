@@ -59,6 +59,17 @@ export const PATCH_NOTES: PatchNote[] = [
     date: '2026-09-30',
     changes: [
       {
+        category: 'Balance',
+        text: 'Ranked opponents now match your medal. Board strength shows in your match history.',
+        details: [
+          'Every game gets a Board strength from 1 to 100. It says how strong your boards were compared to other games. 72 means stronger than 72 out of 100 games.',
+          'In Ranked, Bronze meets opponents from 0 to 30, Silver from 10 to 40 and Gold from 20 to 65. Platinum meets everyone, Diamond meets 10 to 100 and Ascendant meets 20 to 100.',
+          'If there are not enough opponents in your range, the range grows a little at a time.',
+          'Your match history shows the Board strength of each game. Match details also shows how each of your rounds compared to other boards at that round, and each opponent\'s Board strength.',
+          'Practice is not affected.',
+        ],
+      },
+      {
         category: 'Systems',
         text: 'You can now face your own past games in Ranked and Practice, up to 4 of the 7 seats, like any other player.',
       },

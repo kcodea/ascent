@@ -145,21 +145,22 @@ describe('seat selection inside a band', () => {
     expect(a.poolAtStart?.band).toBeUndefined();
   });
 
-  it(`still caps a player at ${MAX_SEATS_PER_PLAYER} seats inside a band, and skips your own runs`, () => {
-    // One prolific player with 10 weak runs, three others with one weak run each, and the viewer's own weak run.
+  it(`still caps a player at ${MAX_SEATS_PER_PLAYER} seats inside a band; your own runs count like anyone's`, () => {
+    // One prolific player with 10 weak runs, three others with one weak run each, and the viewer's own weak run (your
+    // own runs sit at your table like anyone else's, owner 2026-09-30).
     const prolific = HEROES.slice(0, 10).map((h, i) => run('Big', h, 500 + i, 10, 'big'));
     const others = HEROES.slice(10, 13).map((h, i) => run(`O${i}`, h, 600 + i, 15, `o${i}`));
     const mine = [run('Me', HEROES[13]!, 700, 5, 'me')];
     const strong = HEROES.slice(14, 20).map((h, i) => run(`S${i}`, h, 800 + i, 90, `s${i}`));
     registerOpponentRuns([...prolific, ...others, ...mine, ...strong]);
     for (let seed = 1; seed <= 20; seed++) {
-      const lobby = createRunLobby(seed, 'zz-none', {}, 'set1', { strengthBand: { min: 0, max: 30 }, excludeOwnerId: 'me' });
+      const lobby = createRunLobby(seed, 'zz-none', {}, 'set1', { strengthBand: { min: 0, max: 30 } });
       resetLobbyDrivers(lobby.seats);
       const runs = new Map(playerRunsFrom(undefined, undefined, 'set1').map((r) => [r.key, r]));
       const owners = lobby.seats.filter((s) => s.kind === 'snapshot').map((s) => runOwnerOf(runs.get(s.runKey!)!));
       expect(owners.filter((o) => o === 'id:big').length).toBe(MAX_SEATS_PER_PLAYER);
-      expect(owners).not.toContain('id:me');
-      // 4 + 3 = 7 weak seats: the table fills inside the band, no strong run needed.
+      expect(owners.length).toBe(7);
+      // 4 + 3 + your 1 = 8 weak candidates for 7 seats: the table fills inside the band, no strong run needed.
       expect(owners.filter((o) => o?.startsWith('id:s')).length).toBe(0);
     }
   });

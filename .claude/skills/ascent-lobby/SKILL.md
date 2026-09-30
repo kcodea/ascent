@@ -53,8 +53,9 @@ behaviour from a legacy symbol.**
   path that fetches or caches boards per wave, per page or with any row limit that can cut a run. A recorded seat
   serves its OWN wave-N board (`boardAt`: one missing wave may borrow the previous one, a run starting at wave 2
   lends it to round 1, nothing further ahead); a later board appears only past the run's end (repeatFinal).
-  Seat selection caps one player at `MAX_SEATS_PER_PLAYER` (4) seats and skips the player's own runs
-  (`LobbySeatOptions.excludeOwnerId`), without weighting the shuffle.
+  Seat selection caps one player at `MAX_SEATS_PER_PLAYER` (4) seats, without weighting the shuffle. The player's
+  OWN runs are seated like anyone else's under that same cap (owner 2026-09-30); nothing excludes them (the client
+  sends `p_exclude_user: null`, and `excludeOwnerId` is gone).
 - **Board strength + rank bands** (R-LOBBY-09, 2026-09-30): a board's raw strength is its seeded win rate against the
   frozen reference set (`lobby/boardStrength.ts`, `strengthReference.v1.json`), stored with the board; percentiles and
   a run's strength (`pool_runs.strength`: its board-percentile average RANKED among the runs, so bands hold their nominal share) are derived server-side. A RATED lobby passes `strengthBand` (Bronze 0-30,

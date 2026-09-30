@@ -36,6 +36,7 @@ import { playHeroCoin } from '../heroCoin/heroCoin';
 import { playHeroBoomerang } from '../heroBoomerang/heroBoomerang';
 import { playHeroBubble } from '../heroBubble/heroBubble';
 import { playHeroBackstab } from '../heroBackstab/heroBackstab';
+import { playHeroBasketball } from '../heroBasketball/heroBasketball';
 import { SPEC, boardOf } from '../DamageFormationTuner';
 import { Sequence } from './sequence';
 import type { HeroAttackHandle, HeroAttackOptions } from './options';
@@ -330,6 +331,7 @@ describe('the runners', () => {
       ['boomerang', (o) => playHeroBoomerang({ ...o, textures: TEX })],
       ['bubble', (o) => playHeroBubble({ ...o, textures: TEX })],
       ['backstab', (o) => playHeroBackstab({ ...o, textures: TEX })],
+      ['basketball', (o) => playHeroBasketball({ ...o, textures: TEX })],
     ];
     const lead = leadInOf([4, 2, 3, 4], false, true);
     for (const [name, play] of styles) {
@@ -486,6 +488,7 @@ describe('no attack ever pauses its clock (owner 2026-09-28: "remove the freezei
     ['boomerang', (o) => playHeroBoomerang({ ...o, textures: null })],
     ['bubble', (o) => playHeroBubble({ ...o, textures: null })],
     ['backstab', (o) => playHeroBackstab({ ...o, textures: null })],
+    ['basketball', (o) => playHeroBasketball({ ...o, textures: null })],
   ];
 
   it('every style (and the formation inside it, through the capped slash) advances the clock by exactly the time played, every frame', () => {

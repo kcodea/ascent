@@ -2238,8 +2238,8 @@ export const useGame = create<GameStore>((rawSet, get) => {
         // Your OWN runs never sit at your table (R-LOBBY-08): the seat builder skips runs your account uploaded.
         ? createLobbyRun(seed, heroId, {}, s.pendingMode, s.pendingMode === 'practice' ? s.practiceDraft : undefined, undefined,
           // MATCHMAKING BAND (R-LOBBY-09): a RATED lobby draws its recorded seats from the band of the player's medal;
-          // Practice is never banded.
-          { excludeOwnerId: currentProgressionUserId(), ...(s.pendingMode === 'lobby' ? { strengthBand: lobbyBandFor(s.profile) } : {}) })
+          // Practice is never banded. Your own runs are seated like anyone else's (owner 2026-09-30).
+          s.pendingMode === 'lobby' ? { strengthBand: lobbyBandFor(s.profile) } : {})
         : createRun(seed, heroId, s.pendingMode, s.profile.currentLine);
       // MEDAL RANK: a RATED lobby is minted its stable ranked identity HERE, once, and it travels with the save
       // — a retried settlement always names the same run. Practice (and every other mode) gets none.

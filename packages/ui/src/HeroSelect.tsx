@@ -4,6 +4,7 @@ import { mdBold } from './Card';
 import { getHero, activeRift, heroTip, SHOW_HERO_TIPS } from '@game/sim';
 import { RiftPill } from './RiftPill';
 import { heroPowerArt } from './art';
+import { FadeImg } from './FadeImg';
 import { heroPortrait, useLiveLoadout } from './skins/skins';
 import { PortraitFrame, pfClass, usePortraitFrame } from './portraitFrame/PortraitFrame';
 import { Icon } from './Icon';
@@ -184,8 +185,8 @@ export function HeroSelect() {
                 >
                   <div className={`hcframe${pfClass(frame)}`} style={frame?.hostStyle}>
                     <div className="hcname">{hero.name}</div>
-                    {art ? <img decoding="sync" className="hcframe-art" src={art} alt={hero.name} draggable={false} /> : <Icon name="anvil" />}
-                    {powArt && <img decoding="sync" className="hcframe-pow" src={powArt} alt="" draggable={false} aria-hidden="true" />}
+                    {art ? <FadeImg className="hcframe-art" src={art} alt={hero.name} draggable={false} /> : <Icon name="anvil" />}
+                    {powArt && <FadeImg className="hcframe-pow" src={powArt} alt="" draggable={false} aria-hidden="true" />}
                     {/* PRACTICE-ONLY heroes (owner ask 2026-08-23): withheld from Play while they are reworked.
                         These can only ever appear in THIS picker, so the note needs no mode check of its own.
                         It rides the PORTRAIT rather than the text block below it — `.hcbelow` reserves a fixed

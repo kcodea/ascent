@@ -69,11 +69,40 @@ export const PATCH_NOTES: PatchNote[] = [
           'Practice is not affected.',
         ],
       },
+      {
+        category: 'Systems',
+        text: 'You can now face your own past games in Ranked and Practice, up to 4 of the 7 seats, like any other player.',
+      },
+      {
+        category: 'Systems',
+        text: 'The lobby strength number is hidden from match history for now while we improve it.',
+      },
+      {
+        category: 'Systems',
+        text: 'The loading screen now loads all the art before you play, so nothing pops in.',
+        details: [
+          'The bar shows real progress: every card, hero, rune and frame is ready before the menu opens.',
+          'On a slow connection the first load takes longer. After that the game loads from your browser in a moment.',
+        ],
+      },
     ],
   },
   {
     date: '2026-09-29',
     changes: [
+      {
+        category: 'Systems',
+        text: 'New Legendary hero attack: Nothing But Net. Your hero plays basketball on the loser.',
+        details: [
+          'Small: a jump shot from where your hero stands, swishing through a hoop on the target.',
+          'Tier II: a slide to mid court with a dribble move (behind the back, a crossover or a spin), then a fadeaway jumper.',
+          'Tier III: your hero runs to a spot, catches a pass from off screen, pump fakes, steps back and drains a three in slow motion.',
+          'Huge: your hero fires the ball off the backboard, it bounces high, your hero leaps, catches it in slow motion and slams it down into an explosion.',
+          'The dribble move and the spot change from fight to fight.',
+          'With a whistle, dribbles, squeaking sneakers, the swish, the rim and the crowd.',
+          'Found in crates. Equip it in the Collection.',
+        ],
+      },
       {
         category: 'Systems',
         text: 'Opponents are now picked at random from every whole game in the pool.',
@@ -366,6 +395,15 @@ export const PATCH_NOTES: PatchNote[] = [
       {
         category: 'Systems',
         text: 'New skins in crates: Rooks Oona, Stencil Sylus, Mace Urchin, Magician Buddy Buddy and a first Frantic Frank hero skin, Armourer Frank.',
+      },
+      {
+        category: 'Systems',
+        text: 'Card art no longer pops in. Cards, frames and heroes now load in the order you will see them.',
+        details: [
+          'The game fetches what is on screen first, then your shop cards, then the rest of the set in the background.',
+          'If a picture is still loading, the card shows a dark portrait and the art fades in. No more blank or white frames.',
+          'Coming back to the game loads the art straight from your browser, so it is ready at once.',
+        ],
       },
     ],
   },

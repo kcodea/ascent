@@ -32,7 +32,8 @@ second pool is a small change later. Upper ranks, decided the same day: *"maybe 
 4. **Bands.** Bronze 0-30, Silver 10-40, Gold 20-65, Platinum uncapped (average opponent ~50), Diamond 10-100 (~55),
    Ascendant 20-100 (~60); every division of a medal shares the medal's band (`STRENGTH_BANDS`,
    `strengthBandForDivision`). RATED lobbies only; Practice and the tutorial have no
-   band. Inside the band: the same uniform seeded shuffle, whole runs, at most 4 seats per player, never your own runs.
+   band. Inside the band: the same uniform seeded shuffle, whole runs, at most 4 seats per player, your own runs included under the same cap (owner 2026-09-30, merged in
+   from #1875).
 5. **Unscored runs** (no score yet, not backfilled) are **inside every band**. Before the SQL and the backfill nothing
    is scored, so selection is exactly R-LOBBY-08's, seat for seat (pinned by a test).
 6. **Widening.** When a band cannot fill the table it widens by 10 on each capped side, one step at a time (Bronze
@@ -116,21 +117,22 @@ p90 91, max 99; per decile (1-10 ... 91-100): 15, 17, 14, 15, 17, 12, 17, 18, 12
 | Ascendant 20-100 | 125 (82%) | 9 | 23 | never |
 
 Real lobbies (`createRunLobby` over the live pool with every run's strength stamped, 200 lobbies per medal): **0
-widenings and 0 generated seats in every case**, as a newcomer, as LazerLemon and as Orangez (their own runs
-excluded). Seated-run strength per medal: the mean over all seats, and the mean of each table's strongest and weakest
-seat (newcomer; LazerLemon / Orangez in brackets):
+widenings and 0 generated seats in every case**. Your own runs are now seated like anyone else's (owner 2026-09-30,
+#1875), so who is asking no longer changes the table: a newcomer, LazerLemon and Orangez all get the same lobbies.
+Seated-run strength per medal (the mean over all seats, and the mean of each table's strongest and weakest seat), and
+how many of the 7 seats LazerLemon's and Orangez's runs take on average (so how often those two now meet themselves):
 
-| Medal | Mean seat | Strongest seat | Weakest seat |
-|---|---|---|---|
-| Bronze | 15.1 (16.1 / 14.1) | 26.7 (27.0 / 27.2) | 3.6 (4.7 / 2.5) |
-| Silver | 25.2 (22.6 / 24.8) | 37.2 (34.4 / 37.4) | 13.5 (12.8 / 12.4) |
-| Gold | 41.2 (36.9 / 39.6) | 58.7 (58.0 / 58.7) | 23.9 (21.7 / 22.8) |
-| Platinum | 49.9 (46.3 / 45.2) | 88.2 (87.9 / 84.3) | 11.7 (9.2 / 8.8) |
-| Diamond | 54.3 (50.7 / 50.4) | 89.7 (88.7 / 85.6) | 20.0 (15.7 / 16.5) |
-| Ascendant | 59.3 (58.0 / 56.2) | 90.7 (90.7 / 87.2) | 28.3 (25.1 / 25.6) |
+| Medal | Mean seat | Strongest seat | Weakest seat | LazerLemon seats | Orangez seats |
+|---|---|---|---|---|---|
+| Bronze | 15.1 | 26.7 | 3.6 | 2.53 | 2.60 |
+| Silver | 25.2 | 37.2 | 13.5 | 2.52 | 2.80 |
+| Gold | 41.2 | 58.7 | 23.9 | 3.31 | 2.72 |
+| Platinum | 49.9 | 88.2 | 11.7 | 3.07 | 2.80 |
+| Diamond | 54.3 | 89.7 | 20.0 | 3.06 | 2.83 |
+| Ascendant | 59.3 | 90.7 | 28.3 | 3.13 | 2.92 |
 
-The upper medals land on the owner's targets (~50 / ~55 / ~60) for a newcomer; the two big authors see a little less
-because their own (often strong) runs are excluded.
+The upper medals land on the owner's targets (~50 / ~55 / ~60). (Before own runs were allowed, LazerLemon and Orangez
+saw slightly weaker tables, e.g. Ascendant 58.0 and 56.2, because their own strong runs were left out.)
 
 (Before the ranking change the same lobbies averaged Bronze 22.9, Silver 30.6, Gold 45.6, uncapped 48.0: Gold was
 barely easier than uncapped.)

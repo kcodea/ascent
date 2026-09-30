@@ -38,7 +38,8 @@ medal + division — see *Ranked ladder* below).
   draw is the same uniform shuffle. **One player holds at most 4 seats** (owner 2026-09-29, R-LOBBY-08: "so it's not literally like 7
   of me always"): a run whose player already holds 4 is passed over for the next in the shuffle, which leaves
   every other run equally likely; when the pool lacks enough players, generated seats fill the rest. **Your own
-  runs never sit at your table.** A player is their account (`boards.user_id`), else their display name.
+  runs sit at your table like anyone else's, under the same cap of 4** (owner 2026-09-30: *"this is a problem - you should face your own boards too. you should also be able to occupy up to 4 of your own snapshots. please fix this"*;
+  until then your own runs were left out). A player is their account (`boards.user_id`), else their display name.
   **All eight heroes are unique per lobby, the player's included** (owner 2026-09-13): a run on a hero already
   seated — or on the player's hero — is passed over for the next run in the shuffle, and generated seats never
   repeat a hero either.
@@ -77,8 +78,8 @@ medal + division — see *Ranked ladder* below).
   - **Bands by medal** (every division of a medal shares it): Bronze **0-30**, Silver **10-40**, Gold **20-65**,
     Platinum **uncapped** (average opponent ~50), Diamond **10-100** (~55), Ascendant **20-100** (~60) (owner
     2026-09-30: *"maybe plat should be 50 and then diamond is like 55 average and ascendant is 60 average? i dont want every game to just be insanely sweaty and unwinnable"*). A rated lobby's recorded seats come only from runs inside the band (the
-    server samples inside it, and seat selection filters to it), still whole runs, still at most 4 seats per player,
-    never your own runs. A run with **no score yet counts as inside every band**. When the band cannot fill the table
+    server samples inside it, and seat selection filters to it), still whole runs, still at most 4 seats per player
+    (your own runs included, under the same cap). A run with **no score yet counts as inside every band**. When the band cannot fill the table
     it **widens by 10 on each capped side**, one step at a time (each step logged to the pool telemetry), until it is
     uncapped; for Diamond and Ascendant, which only have a floor, that means the floor drops 10 a step. Only then do
     generated seats fill the rest. Practice and the tutorial have no band.
@@ -210,7 +211,10 @@ route) moves it; Practice, the tutorial and sandbox runs never do.
   entry (the Career row) carries the server's own computation, stamped at settle time, because the history
   insert never waits on the client's fetch. Shown as a percentage, e.g. "47%" (no tier word, owner 2026-09-22), on the **Career match rows and the Recent
   Games rows only** — never on the post-game screen, never on the rail before or during a game (owner answers
-  4 and 5).
+  4 and 5). **Currently HIDDEN** (owner 2026-09-30: *"we can hide the lobby% number for now since it doesnt seem
+  to be working too well at the moment"*): one flag, `SHOW_LOBBY_STRENGTH` in `packages/ui/src/lobbyStrengthDisplay.ts`,
+  switches the readout off on every surface; the value is still computed, stamped, uploaded and still drives the
+  strength bonus.
 - **Promotion games.** Reaching **100** does not promote; it makes the **next** rated game a promotion game
   (overflow past 100 is discarded; the delta shown is the delta applied). To move up **a division** (Gold I
   → Gold II) the promotion game needs a **top-4 finish**; to move up **a medal** (Gold III → Platinum I) it
@@ -424,7 +428,25 @@ progression **epoch**; nothing finished before the epoch counts (no backfill).
   mega-slash zips through the target EIGHT times, each in from the far side of the screen on its own line,
   accelerating into a blur (each zip a tick) and flinging blood that piles up across the whole screen, a beat of held
   tension, and a huge bloody explosion that paints the screen in blood and fades out, the blow landing on the
-  explosion; the claw rakes before it sweep wide lines too). **Card Shark** and
+  explosion; the claw rakes before it sweep wide lines too). **Nothing But Net** is the fourteenth,
+  `attack_basketball` ("Nothing But Net", a placeholder name; Legendary, from crates; R-PROG-ATTACK-33): the striking
+  PORTRAIT plays basketball, drawn flat, with a hoop (backboard, rim, net) appearing on the struck hero. A referee's
+  whistle opens every tier. I the jumper: a dribble where it stands, a small jump, a high arcing shot with backspin that
+  swishes through the net (the blow lands on the swish). II the fadeaway: it dribbles out to mid court with one of three
+  dribble moves rolled per fight (a behind-the-back wrap, a crossover, a spin move), pushes off
+  backwards and to the side with more room, releases at the top of the fade, swish (a small crowd "ooh"), and slides
+  home. III the pull-up three: it scoots from its slot to one of three spots rolled per fight (straight up court, the
+  left wing or the right corner; down court for a foe striking from the top), a pass flies in from off the edge of the
+  screen the spot faces and it catches it, pump fakes, dribbles back and pulls up for a long high three in a moment of
+  slow motion that eases back as the ball flies, and it swishes (a bigger swish, rings, confetti and the crowd's "ooh"),
+  then slides home. The roll comes from the run seed and the round, so a replay rolls the same. IV the self
+  alley-oop: from its slot it fires the ball fast and flat at the hoop over the struck hero, the ball clangs off the
+  backboard beside the portrait (never its face; the struck hero does not react until the slam) and bounces high, the striker takes a quick run-up and leaps, catches the ball at the top
+  in slow motion, and the clock eases back in, a touch faster than normal, for the slam down into an explosion: a fireball, shockwave rings, debris and sparks, the backboard's glass, the whole
+  board shaking, the crowd roaring (the blow lands on the slam). Sneaker squeaks on every push-off and stop, dribbles, the swish, the
+  rim and the slam are heard. Every point it visits stays on screen and every shot and slam lands on the struck hero's
+  centre; its portrait is restored exactly after (on the end, a skip or leaving the fight). The slow motion is a smooth
+  ramp of the whole attack's clock, never a freeze. **Card Shark** and
   **Storm Call** (2026-09-29; R-PROG-ATTACK-26, R-PROG-ATTACK-27) are the first EPIC hero attacks: one idea each, shorter
   than the Legendaries, and THREE looks instead of four (they read the same shared tier and map it: I small, II and III
   medium, IV big; a knockout plays big). `attack_cards` ("Card Shark", a placeholder name; Epic, from crates): the hero
@@ -447,7 +469,7 @@ progression **epoch**; nothing finished before the epoch counts (no backfill).
   a big one with a splash ring. `attack_backstab` ("Shadow Step"): the striking PORTRAIT fades into smoke, steps out
   behind the struck hero and stabs back toward its own side, then smokes home and settles; Big lunges first, then stabs
   from the side, then from behind (kept on screen, always striking the target; its portrait restored exactly after).
-  Each lands the blow once, on its last hit. All nineteen anchor on the round portrait art at rest
+  Each lands the blow once, on its last hit. All twenty anchor on the round portrait art at rest
   (R-PROG-ATTACK-04). Equipped
   account-wide in the Collection's Attack Animations tab ("Use Classic" takes it off). The STRIKER's attack plays:
   yours when you win, the opponent's (from their recorded snapshot) when they win. Recorded per run like skins;

@@ -370,7 +370,7 @@ export function opponentPoolLoader(patchPrefix = `${typeof __APP_VERSION__ === '
   const loader = createPoolLoader({
     patchPrefix,
     fetchRuns: (signal) => fetchPoolRuns(api, {
-      setId: activeSet().id, patchPrefix, ownerId: currentUserId(), random: Math.random, band: currentPoolBand(),
+      setId: activeSet().id, patchPrefix, random: Math.random, band: currentPoolBand(),
     }, signal, session),
     band: currentPoolBand,
     registerRuns: registerOpponentRuns,

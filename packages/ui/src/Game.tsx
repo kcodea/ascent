@@ -65,7 +65,7 @@ import { PixiFxLayer } from './PixiFxLayer';
 import { CastPreviewLayer } from './CastPreviewLayer';
 import { discoverFx, pixiFx, warmDiscoverFx } from './pixiFx';
 import { applyFpsCap } from './fpsCap';
-import { warmArt } from './art';
+import { preloadRunArt } from './preloadPlan';
 import { audioContext, onStopAllAudio, sfx } from './sfx';
 import { cancelAnnouncer, setAnnouncerAudioContextProvider, syncAnnouncer } from './announcer';
 import { setMusicAudioContextProvider, syncMusic } from './music';
@@ -323,9 +323,10 @@ export function Game() {
     return () => { delete w.__perfHud; delete w.__perf; };
   }, []);
 
-  // Preload all card/hero art once, on idle, so the first shop renders with art already cached — kills the
-  // cold-load "pop-in" (esp. the itch CDN, where each webp is a separate first-appearance round-trip).
-  useEffect(() => { warmArt(); }, []);
+  // ART PIPE, run half (art pop-in fix 2026-09-29): the run's PINNED pool, up to one tier past the tavern first.
+  // Keyed on a primitive so this re-runs only when the set / tribes / tier actually move (boot queued the rest).
+  const runArtKey = useGame((s) => `${s.run.setId ?? 'set1'}|${(s.run.tribes ?? []).join(',')}|${s.run.tier}`);
+  useEffect(() => { preloadRunArt(useGame.getState().run); }, [runArtKey]);
   // …and build the Discover overlay's separate Pixi app on idle, so the first Discover doesn't pay a ~60-108ms
   // WebGL-context stall mid-shop (see `warmDiscoverFx`).
   useEffect(() => { warmDiscoverFx(); }, []);

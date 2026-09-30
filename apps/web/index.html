@@ -31,14 +31,15 @@
          Its CSS is inlined here for the same reason — waiting on the stylesheet (which ships with the bundle)
          would reintroduce the blank gap this exists to remove.
 
-         `Boot` (packages/ui/src/Boot.tsx) owns the rest of its life: it holds the splash for a FIXED 3.5s (the
-         bar fills via pure CSS over the same 3.5s), then adds `.is-out` to fade it and removes the node on
-         transitionend. Fading OPACITY only —
+         `Boot` (packages/ui/src/Boot.tsx) owns the rest of its life: it is the LOADING GATE (2026-09-30). It holds
+         the splash until every image a session can show is decoded, drives the bar with REAL progress (scaleX on
+         the fill + a count under it), then adds `.is-out` to fade it and removes the node on transitionend. Fading OPACITY only —
          compositor-only, per docs/performance.md; a filter/background fade here would repaint the whole
          viewport on every frame of the transition. -->
     <div id="bootsplash">
       <img id="bootsplash-img" src="./ascenticon.png" alt="" aria-hidden="true" draggable="false" />
       <div id="bootsplash-bar"><i></i></div>
+      <div id="bootsplash-note" aria-live="polite"></div>
     </div>
     <script>
       /* Fade the splash IN once the image has actually DECODED (owner ask 2026-08-22: "fade in from a black
@@ -115,27 +116,27 @@
         opacity: 0; transition: opacity 700ms ease-out;   /* arrives with the logo, not before it */
       }
       #bootsplash.is-in #bootsplash-bar { opacity: 1; }
-      /* FAKE LOAD (owner ask 2026-08-24, made absolute 2026-08-25): the fill is a pure CSS transition — scaleX
-         0→1 over 3.5s the moment the splash reveals — and is not driven by real art progress. scaleX (not width)
-         so the whole animation is compositor-only, never a per-frame layout. The duration MUST match `SPLASH_MS`
-         in Boot.tsx: that timer is now the ONLY thing gating the menu, so the bar finishing and the splash
-         leaving are the same moment, whatever the real loading is doing. */
+      /* REAL PROGRESS (loading gate, owner 2026-09-30, replacing the fixed 3.5 s fake fill of 2026-08-25): Boot.tsx
+         writes `transform: scaleX(done / total)` onto the fill as the art pipe decodes the session's images, at
+         most once a frame. The short TRANSFORM transition glides between steps; scaleX (never width) keeps the
+         whole thing compositor-only, never a per-frame layout or paint. It starts empty and only ever grows. */
       #bootsplash-bar > i {
         display: block; height: 100%; border-radius: 999px; background: #f0902e;
         transform: scaleX(0); transform-origin: left center;
+        transition: transform 220ms linear;
       }
-      /* The fill is a keyframe ANIMATION, not a transition. A transition needs its scaleX(0) START state to have
-         been PAINTED in a prior frame — but the AscentIcon loads before the first paint on any warm/dev load, so
-         `.is-in` lands in the same frame the bar first renders and the transition has no "before" to animate
-         from: the bar just SNAPS full (owner report 2026-08-26: "instantly full"). An animation runs from its 0%
-         keyframe unconditionally, so it always fills over the 3.5s regardless of when `.is-in` is added. Keep the
-         duration in sync with `SPLASH_MS` in Boot.tsx (the gate opens when the fill completes). */
-      @keyframes bootbarfill { from { transform: scaleX(0); } to { transform: scaleX(1); } }
-      #bootsplash.is-in #bootsplash-bar > i { animation: bootbarfill 3500ms linear forwards; }
+      /* The count under the bar ("Loading art 412 / 903"). Static text, updated at most once a frame. */
+      #bootsplash-note {
+        position: absolute; left: 50%; transform: translateX(-50%);
+        bottom: calc(var(--ls-bar-bottom, 22.5vh) - 30px);
+        font: 600 13px/1 system-ui, sans-serif; letter-spacing: 0.06em; color: rgba(255, 255, 255, 0.55);
+        font-variant-numeric: tabular-nums; white-space: nowrap;
+        opacity: 0; transition: opacity 700ms ease-out;
+      }
+      #bootsplash.is-in #bootsplash-note { opacity: 1; }
       /* The bar is progress feedback, not decoration — freeze motion for anyone who asked for less. */
       @media (prefers-reduced-motion: reduce) {
-        #bootsplash, #bootsplash-img, #bootsplash-bar { transition: none; }
-        #bootsplash-bar > i, #bootsplash.is-in #bootsplash-bar > i { animation: none; transform: scaleX(1); }
+        #bootsplash, #bootsplash-img, #bootsplash-bar, #bootsplash-note, #bootsplash-bar > i { transition: none; }
       }
     </style>
     <div id="root"></div>

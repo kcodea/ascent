@@ -23,6 +23,7 @@ import {
   type CategoryConfig,
 } from './audio/config';
 import { familyOf } from './audio/clipFamily';
+import { requestAssetTask } from './artPreload';
 import { createPickPressLatch } from './pickPressLatch';
 import { SCENES } from './audio/scenes';
 import { slugify, isValidSlug, saveSound } from './fx/defStore';
@@ -267,6 +268,8 @@ const SAMPLE_URLS = {
 } as Record<string, string>;
 const buffers = new Map<string, AudioBuffer>();
 const loadingSamples = new Set<string>();
+const sampleAttempts = new Map<string, number>();
+const sampleTaskKey = new Map<string, string>();
 // Key = path under ./audio/ minus extension: `./audio/roll.mp3` → `roll`, `./audio/cards/karthus.mp3` → `cards/karthus`.
 const sampleName = (path: string): string => path.replace(/^\.\/audio\//, '').replace(/\.(mp3|wav|mp4)$/, '');
 
@@ -297,9 +300,16 @@ function readAsDataUrl(file: File): Promise<string> {
   });
 }
 
-function loadSample(name: string): void {
+/**
+ * Fetch + decode one sample THROUGH THE ASSET QUEUE (art pop-in fix 2026-09-29). The whole bank used to fire
+ * ~430 fetches the moment the player first clicked, which on a remote connection took the bandwidth the shop's
+ * card art needed. Now the bank prefetch rides the `audio` lane (behind the art on screen and the run's early
+ * cards), and a sound actually asked for (`lane: 'now'`) jumps the queue — a re-request only ever raises it.
+ */
+function loadSample(name: string, lane: 'now' | 'audio' = 'now'): void {
   const a = audio();
-  if (!a || buffers.has(name) || loadingSamples.has(name)) return;
+  if (!a || buffers.has(name)) return;
+  if (loadingSamples.has(name)) { requestAssetTask(sampleTaskKey.get(name) ?? `sfx:${name}`, lane, () => Promise.resolve()); return; }
   const entry = Object.entries(SAMPLE_URLS).find(([p]) => sampleName(p) === name);
   // A just-imported fx clip isn't in the frozen glob until a restart; in DEV fall back to the serve route so a
   // reload can still re-fetch it off disk (`importedFxExt` remembers which ext it was written as).
@@ -310,11 +320,17 @@ function loadSample(name: string): void {
   }
   if (url === undefined) return;
   loadingSamples.add(name);
-  fetch(url)
-    .then((r) => r.arrayBuffer())
-    .then((ab) => a.decodeAudioData(ab))
-    .then((buf) => { buffers.set(name, buf); loadingSamples.delete(name); })
-    .catch(() => loadingSamples.delete(name));
+  const src = url;
+  // One queue key per ATTEMPT: a failed fetch leaves the sample loadable again on its next play, as before.
+  const key = `sfx:${name}#${(sampleAttempts.get(name) ?? 0) + 1}`;
+  sampleAttempts.set(name, (sampleAttempts.get(name) ?? 0) + 1);
+  sampleTaskKey.set(name, key);
+  requestAssetTask(key, lane, () =>
+    fetch(src)
+      .then((r) => r.arrayBuffer())
+      .then((ab) => a.decodeAudioData(ab))
+      .then((buf) => { buffers.set(name, buf); loadingSamples.delete(name); })
+      .catch(() => { loadingSamples.delete(name); }));
 }
 
 /**
@@ -344,7 +360,7 @@ export async function importFxSound(file: File): Promise<{ id: string; label: st
 }
 
 function prefetchSamples(): void {
-  for (const path of Object.keys(SAMPLE_URLS)) loadSample(sampleName(path));
+  for (const path of Object.keys(SAMPLE_URLS)) loadSample(sampleName(path), 'audio');
 }
 
 // Variant families: a logical clip (e.g. `smack`) can be backed by N numbered files (`smack1.mp3`…`smackN.mp3`);

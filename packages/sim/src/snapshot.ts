@@ -77,8 +77,8 @@ export interface BoardSnapshot {
   remote?: boolean;
   /** The ACCOUNT that uploaded this board (`boards.user_id`), stamped by the client when the board arrives from
    *  the shared pool (pool whole-runs fix, 2026-09-29). Never part of an upload: a local capture has none. Read by
-   *  lobby seat selection for the per-player seat cap and to keep your own runs out of your own lobby
-   *  (R-LOBBY-08). Absent = unknown (committed pool, legacy caches): the display `author` stands in. */
+   *  lobby seat selection for the per-player seat cap, which counts your own runs like anyone's
+   *  (R-LOBBY-08, owner 2026-09-30). Absent = unknown (committed pool, legacy caches): the display `author` stands in. */
   ownerId?: string;
   /** The RUN's strength percentile (1-100, `pool_runs.strength`), stamped by the client when the board arrives from
    *  the shared pool (board strength, R-LOBBY-09, 2026-09-30). Read by seat selection for the matchmaking band and by

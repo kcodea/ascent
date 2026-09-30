@@ -143,7 +143,7 @@ describe('the pool fetch with a band', () => {
       boardsForSeeds: async () => ({ data: [], error: null }),
     };
   }
-  const opts = (band: { min: number; max: number } | null) => ({ setId: 'set2' as const, patchPrefix: '0.1.0+', ownerId: null, random: Math.random, band });
+  const opts = (band: { min: number; max: number } | null) => ({ setId: 'set2' as const, patchPrefix: '0.1.0+', random: Math.random, band });
   const runs = Array.from({ length: 20 }, (_, i) => ({ key: `P${i}|h${i}|${i}`, strength: (i + 1) * 5, user: `u${i}` }));
 
   it('asks for the band, and stops there when it can seat a table', async () => {

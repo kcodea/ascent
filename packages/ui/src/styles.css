@@ -804,10 +804,28 @@ body.wipe-up .lobbydmg-float { z-index: 240; }
 /* GAUNTLET: before the clock starts, the plaque shows Gold spent this round filling toward the 30 that starts it.
    The fill scales on the compositor (transform), with a one-shot ease per purchase. */
 .statcell.time .gclock { display: inline-flex; align-items: center; gap: calc(8 * var(--u)); }
-.statcell.time .gclock-bar { position: relative; overflow: hidden; width: calc(90 * var(--u)); height: calc(10 * var(--u));
+/* Swapped (owner ask 2026-09-30): while waiting, the Gold counter leads and the clock icon trails the bar. */
+.statcell.time.gwait .sc-ic { order: 2; }
+.statcell.time.gwait .gclock { order: 1; }
+.statcell.time .gclock-n { order: -1; }
+.statcell.time .gclock-bar { position: relative; overflow: visible; width: calc(90 * var(--u)); height: calc(10 * var(--u));
   border-radius: 999px; background: rgba(0, 0, 0, 0.45); box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.6); }
-.statcell.time .gclock-fill { position: absolute; inset: 0; transform-origin: left center;
-  background: linear-gradient(180deg, #ffd66b, #e0a526); transition: transform 260ms ease-out; }
+.statcell.time .gclock-fill { position: absolute; inset: 0; border-radius: inherit; transform-origin: left center;
+  background: linear-gradient(180deg, #ffe89a, #f0b534 55%, #d28f14); transition: transform 260ms ease-out;
+  /* A STATIC glow (no looping paint): the fill wears a soft golden halo. */
+  box-shadow: 0 0 calc(6 * var(--u)) rgba(255, 200, 70, 0.85), 0 0 calc(14 * var(--u)) rgba(255, 170, 40, 0.45); }
+/* The burst sits on the fill's leading edge; it slides with the tip (one `left` write per purchase, not per frame). */
+.statcell.time .gclock-sparks { position: absolute; top: 50%; width: 0; height: 0; pointer-events: none;
+  transition: left 260ms ease-out; }
+.statcell.time .gclock-spark { position: absolute; left: 0; top: 0; width: calc(4 * var(--u)); height: calc(4 * var(--u));
+  margin: calc(-2 * var(--u)) 0 0 calc(-2 * var(--u)); border-radius: 50%;
+  background: radial-gradient(circle, #fff7d6 0 35%, #ffc93f 60%, rgba(255, 170, 40, 0) 100%);
+  opacity: 0; animation: gclockspark 620ms ease-out both;
+  --a: calc(-70deg + var(--i) * 28deg); animation-delay: calc(200ms + var(--i) * 18ms); }
+@keyframes gclockspark {
+  0%   { opacity: 1; transform: rotate(var(--a)) translateX(0) scale(1.2); }
+  100% { opacity: 0; transform: rotate(var(--a)) translateX(calc(22 * var(--u))) scale(0.3); }
+}
 .statcell.time .gclock-n { font-weight: 800; font-size: calc(17 * var(--u)); line-height: 1; color: #ffd66b; font-variant-numeric: tabular-nums; }
 .statcell.time.low { background: color-mix(in srgb, var(--threat) 14%, var(--card)); }
 .statcell.time.low .sc-ic svg, .statcell.time.low .sc-v { color: var(--threat-dk); }
@@ -10824,7 +10842,7 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
    dials, so the row COUNTER-scales to render badges at true rune size; its wrapper reserves the scaled height. */
 .gauntletfoe-runes { position: relative; z-index: 2; width: 0;
   /* Sockets render at 1.2× the player's rune size and sit tucked up under the pill (owner ask 2026-09-30). */
-  height: calc(1.2 * 53 * var(--u) / (var(--hd-opp-s, 2.4) * var(--hd-gfoe-s, 1))); margin-top: calc(-6 * var(--u)); }
+  height: calc(1.2 * 53 * var(--u) / (var(--hd-opp-s, 2.4) * var(--hd-gfoe-s, 1))); margin-top: calc(-10 * var(--u)); }
 .gauntletfoe-runerow { position: absolute; left: 0; top: 0; display: flex; gap: calc(14 * var(--u));
   /* scale THEN centre: with origin 0 0, `scale(k) translateX(-50%)` centres the scaled row on the wrapper's x. */
   transform: scale(calc(1.2 / (var(--hd-opp-s, 2.4) * var(--hd-gfoe-s, 1)))) translateX(-50%); transform-origin: 0 0;

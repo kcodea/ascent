@@ -410,12 +410,21 @@ const ShopTimer = memo(function ShopTimer({ practice, gauntlet }: { practice?: b
   // …and while it waits, a bar fills with the Gold spent this round toward that threshold (owner ask 2026-09-30).
   const goldSpent = useGame((st) => (gauntlet ? Math.min(st.run.goldSpentThisTurn ?? 0, GAUNTLET_CLOCK_GOLD) : 0));
   return (
-    <div className={`statcell time${s <= 5 ? ' low' : ''}`} aria-label="Time left this turn">
+    <div className={`statcell time${s <= 5 ? ' low' : ''}${gauntletWaiting ? ' gwait' : ''}`} aria-label="Time left this turn">
       <span className="sc-ic"><Icon name="clock" /></span>
       {/* Practice on Unlimited time: no countdown to read, so show the symbol, not an absurd 1666:39. */}
       {gauntletWaiting ? (
         <span className="gclock" aria-label={`${goldSpent} of ${GAUNTLET_CLOCK_GOLD} Gold spent`}>
-          <span className="gclock-bar"><span className="gclock-fill" style={{ transform: `scaleX(${goldSpent / GAUNTLET_CLOCK_GOLD})` }} /></span>
+          <span className="gclock-bar">
+            <span className="gclock-fill" style={{ transform: `scaleX(${goldSpent / GAUNTLET_CLOCK_GOLD})` }} />
+            {/* SPARKS off the growing tip (owner ask 2026-09-30): a one-shot burst, re-keyed on every spend so each
+                purchase fires it once. Transform/opacity only; nothing loops. */}
+            {goldSpent > 0 && (
+              <span key={goldSpent} className="gclock-sparks" style={{ left: `${(goldSpent / GAUNTLET_CLOCK_GOLD) * 100}%` }} aria-hidden="true">
+                {[0, 1, 2, 3, 4, 5].map((i) => <span key={i} className="gclock-spark" style={{ ['--i' as string]: i }} />)}
+              </span>
+            )}
+          </span>
           <span className="gclock-n">{goldSpent}/{GAUNTLET_CLOCK_GOLD}</span>
         </span>
       ) : (

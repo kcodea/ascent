@@ -146,6 +146,10 @@ route) moves it; Practice, the tutorial and sandbox runs never do.
   the saved lobby and submits it through the normal rank queue (`settleAbandonedRun` → `submit-rating`); a quit
   writes no career row, fight-ledger rows or XP. A save the game drops itself (a card this build no longer has)
   is not a quit and does not settle.
+- **What Continue resumes** (owner 2026-09-30, R-PERSIST-01). A game is saved only once a hero is picked and it has
+  started; backing out of the title, the Practice setup screen or the hero picker saves nothing. Only a lobby game
+  (Play, Practice, the tutorial) is ever saved or resumed. A saved run in the retired 17-round course format is
+  dropped at load (not a quit, no settlement) and no Continue is offered; no menu starts a course run any more.
 
 - **Six medals — Bronze, Silver, Gold, Platinum, Diamond, Ascendant — three divisions each**, ordered
   **I → II → III** and then the next medal's I (18 divisions, `Bronze I` lowest, `Ascendant III` highest).

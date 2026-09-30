@@ -415,7 +415,7 @@ export function Game() {
           displayed or happening until the player actually enters a lobby").
 
           `showTitle: false` used to be the only gate, but it means "the title is closed", not "a run is on
-          screen" — every entry path (`startAscent`, `startPractice`, `startRift`, `startLobby`) drops it just
+          screen" — every entry path (`startPractice`, `startLobby`) drops it just
           to open a picker. With the board mounted behind the title, that uncovered the dormant run for as
           long as the next overlay took to paint: the flash on pressing Practice.
 

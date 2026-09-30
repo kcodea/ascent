@@ -502,4 +502,22 @@ export const PERSISTENCE_RULES: GameRule[] = [
     currentBehaviour: 'Conforms since 2026-09-29: an anon read of profiles.email or select=* is refused; the display, rank and progression columns still read.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/profileEmailPrivate.test.ts'], lastVerifiedAt: '2026-09-29' },
   },
+  {
+    id: 'R-PERSIST-01',
+    title: 'Continue only resumes a started lobby game, never the retired course format',
+    statement:
+      'A saved run (and the title Continue button) exists only once the player has picked a hero and the game has '
+      + 'started. Leaving from the title, the Practice setup screen or the hero picker writes nothing, so the next '
+      + 'Play starts fresh. Only a lobby run (Play, Practice or the tutorial) may be saved or resumed: a saved run '
+      + 'in the retired 17-round course format is discarded at load and no Continue is offered, and no menu path '
+      + 'creates a course run.',
+    domain: 'persistence',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Bug report 2026-09-30 (quit from hero select, Continue opened a Round 1/17 course run)', quote: 'remove the wave format option entirely, and only create a continue option if the player selects a hero and starts a game.' },
+      { kind: 'code', ref: 'packages/ui/src/store.ts isResumableRun + flushSave isPreRun guard + pickHero always createLobbyRun' },
+    ],
+    currentBehaviour: 'Conforms since 2026-09-30: flushSave refuses pre-run states, writeSave/loadSave refuse lobby-less runs, and the Ascent/Rift course entry points are gone.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/continueNoLegacyCourse.test.ts'], lastVerifiedAt: '2026-09-30' },
+  },
 ];

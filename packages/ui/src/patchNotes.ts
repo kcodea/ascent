@@ -60,6 +60,13 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: 'Continue now only appears after you pick a hero and start a game. Backing out of hero select no longer leaves a run to continue.',
+        details: [
+          'An old saved run from the retired 17-round format is cleared instead of resumed.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'The lobby strength number is hidden from match history for now while we improve it.',
       },
       {

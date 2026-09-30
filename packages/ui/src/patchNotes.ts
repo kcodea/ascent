@@ -337,6 +337,10 @@ export const PATCH_NOTES: PatchNote[] = [
           'The zoom, the shake, the timing and how the portraits move are exactly the same.',
         ],
       },
+      {
+        category: 'Systems',
+        text: 'New skins in crates: Rooks Oona, Stencil Sylus, Mace Urchin, Magician Buddy Buddy and a first Frantic Frank hero skin, Armourer Frank.',
+      },
     ],
   },
   {

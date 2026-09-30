@@ -3239,4 +3239,40 @@ export const FOUNDATION_RULES: GameRule[] = [
     currentBehaviour: 'Conforms as of Gauntlet PR 3 (2026-09-29). Pinned by the clock tests: the 30 Gold / 60 second constants; waiting below 30 and running from 30; no restart once running; resume keeps the saved seconds; the countdown gate holds while waiting; Recruit parks every Gauntlet turn and starts the clock after the turn reset (a source check); and the Thymepiece window run through the reducer. PARTIAL pin: the 0-second behaviour is the normal timeout path, which the Gauntlet reuses unchanged and which the Gauntlet tests do not assert separately.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/gauntlet/gauntletClock.test.ts'], lastVerifiedAt: '2026-09-29' },
   },
+  {
+    id: 'R-GAUNTLET-05',
+    title: 'Gauntlet: the first clear of each stage grants one crate to a signed-in account; replays and players who are not signed in get none',
+    statement:
+      'Gauntlet progress belongs to the player\x27s account. The first time a signed-in account clears a stage, it earns one '
+      + 'crate; clearing that stage again never earns anything more, though the stage can always be replayed. A player '
+      + 'who is not signed in (including a guest) can play every stage they unlock, but their progress is kept on that '
+      + 'device only, their clears earn no crates, and they are told so before they play. Signing in later never grants '
+      + 'crates for clears made while not signed in, and never carries that device progress onto the account.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-29 (Gauntlet design)', quote: 'clearing each stage grants a crate' },
+      { kind: 'owner-chat', ref: 'Same session', quote: 'players can replay stages they\x27ve already cleared, but will not get any more rewards for clearing it more than once' },
+      { kind: 'owner-chat', ref: 'Same session', quote: 'progress should be stored on account level' },
+      { kind: 'owner-chat', ref: 'Same session', quote: 'lets not require sign-in, but let the player know with a warning that they will not get rewards for any progress made' },
+      { kind: 'owner-chat', ref: 'Same session', quote: 'signing in later would not grant them rewards' },
+      { kind: 'owner-chat', ref: 'Same session (the server does not re-check a clear)', quote: 'yes, trust the client for now' },
+      { kind: 'code', ref: 'supabase/migrations/2026-09-29-gauntlet-progress.sql record_gauntlet_clear (first clear = progress row + one sealed loot_crates row with no level and source gauntlet:N, in one transaction; later clears already_cleared); packages/progression/src/gauntlet.ts (the gauntlet-clear handler: 403 sign_in_required for an anonymous account); packages/ui/src/gauntlet/gauntletProgress.ts (account vs device store, no import on sign-in) + gauntletClearQueue.ts (durable retrying queue); packages/ui/src/gauntlet/GauntletEndScreen.tsx (the crate on the win screen, the sign-in prompt)' },
+      { kind: 'fix-pr', ref: 'feat/gauntlet-progress (Gauntlet PR 4, 2026-09-29)' },
+    ],
+    example: 'Signed in, you clear stage 2 for the first time: a crate appears on the win screen. You clear it again next week: no crate. A friend plays as a guest and clears stages 1 to 3: they keep that progress on their computer but earn no crates, and signing in afterwards starts their account at stage 1 with no crates.',
+    currentBehaviour: 'Implemented on Gauntlet PR 4 (2026-09-29), but NOT live until the owner pastes supabase/migrations/2026-09-29-gauntlet-progress.sql into the Supabase SQL editor and deploys the gauntlet-clear function; until then a signed-in clear stays in the retrying clear queue and counts on the account mirror, and no crate is granted. The server trusts the client\x27s clear and only checks the stage is 1 to 10. "Signed in" means a non-anonymous account: a guest (anonymous session) is treated exactly like no session. Pinned by the database test (first clear = one row + one crate, replay grants nothing, stage validation, a crate even with crates switched off, client roles cannot write), the handler test (403 for a guest), the account-progress test (account vs device store, no import on sign-in, the crate queued once, a replay grants nothing), the clear-queue test, and the stage-select and end-screen tests (the not-signed-in warning, the replay note, the crate only for the stage just cleared). PARTIAL pin: the no-crate-for-guests path is enforced by the handler refusing anonymous callers and the client never queueing a guest clear; there is no end-to-end test against a deployed function.',
+    enforcement: {
+      kind: 'scenario',
+      refs: [
+        'packages/progression/src/gauntlet.db.test.ts',
+        'packages/progression/src/gauntlet.test.ts',
+        'packages/ui/src/gauntlet/gauntletAccountProgress.test.ts',
+        'packages/ui/src/gauntlet/gauntletClearQueue.test.ts',
+        'packages/ui/src/gauntlet/StageSelect.test.tsx',
+        'packages/ui/src/gauntlet/GauntletEndScreen.test.tsx',
+      ],
+      lastVerifiedAt: '2026-09-29',
+    },
+  },
 ];

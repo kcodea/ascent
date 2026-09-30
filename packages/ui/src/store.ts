@@ -73,7 +73,9 @@ import { resetMilestoneLatches } from './fx/milestoneBadgeFx';
 import { clearAllHandBuffs } from './handBuffFx';
 import { liveBoardView } from './instView';
 import { saveCapturedBoards, saveRunBoards } from './boardLibrary';
-import { isStagePlayable, recordClear } from './gauntlet/gauntletProgress';
+import { flushGauntletAccount, gauntletAccountMode, isStagePlayable, recordClear, refreshGauntletAccount, settleGauntletClear, type GauntletReward } from './gauntlet/gauntletProgress';
+import { installGauntletClearRetryTriggers, type PendingGauntletClear } from './gauntlet/gauntletClearQueue';
+import type { GauntletSubmitOutcome } from './gauntlet/gauntletRemote';
 import { gauntletClockReading } from './gauntlet/gauntletClock';
 import { type AnnouncedSlice, type AnnouncerEvent, announcedFor, emptyAnnounced, withAnnounced } from './announcerSlice';
 import { perfMonitor } from './perfMonitor';
@@ -464,6 +466,12 @@ interface GameStore {
   /** GAUNTLET: the verdict of the last finished Gauntlet run, set once at its run end for the end screen (`round` =
    *  the round the player fell on, or the last round on a clear). Null outside that; every new run resets it. */
   gauntletResult: { stage: number; outcome: 'cleared' | 'defeated'; round: number; firstClear: boolean } | null;
+  /** GAUNTLET ACCOUNT PROGRESS (2026-09-29): the crate a signed-in player's FIRST clear of `stage` was granted, once
+   *  the server confirmed it. Null otherwise (a replay, a guest, still saving); every new run resets it. */
+  gauntletReward: GauntletReward | null;
+  /** The stage whose signed-in clear is still being saved to the account (queued, not yet confirmed). Null once the
+   *  server has answered, for a guest, and on every new run. */
+  gauntletSaving: number | null;
   /** Bumped by every replay SEEK. `Game.tsx` folds it into Recruit's mount key, so a seek REMOUNTS the recruit
    *  tree — every FX hook's `useRef(seq)` re-inits to the target frame's counters and a jump across 30 frames
    *  can't fire 30 stale sequence-diff effects. Ordinary frame-to-frame stepping keeps its FX (a feature:
@@ -1783,8 +1791,10 @@ function commitResolvedAction(
       setTimeout(() => { beginRunProgression(String(next.seed), facts); }, 0); // deferred like every run-end write
     }
     // GAUNTLET (spec §1): a finished stage never rates or uploads (the ladder block above excludes it). Its one write
-    // is the device-local clear; the verdict goes to the end screen through `gauntletResult`. Never a sandbox.
+    // is the clear (device-local for a guest; queued for the account when signed in, 2026-09-29, whose first clear
+    // earns a crate); the verdict goes to the end screen through `gauntletResult`. Never a sandbox.
     let gauntletResult: GameStore['gauntletResult'] | undefined;
+    let gauntletSaving: number | undefined;
     if (next.phase === 'gameover' && s.run.phase !== 'gameover' && next.mode === 'gauntlet' && !next.sandbox && next.gauntletStage != null) {
       const outcome = gauntletOutcome(next);
       if (outcome) {
@@ -1793,6 +1803,10 @@ function commitResolvedAction(
         const me = next.lobby?.seats[0];
         const round = me?.eliminatedRound ?? Math.max(1, (next.lobby?.round ?? 2) - 1);
         gauntletResult = { stage, outcome, round, firstClear };
+        if (outcome === 'cleared' && gauntletAccountMode() === 'account') {
+          gauntletSaving = stage;
+          setTimeout(() => { void flushGauntlet(); }, 0); // deferred like every run-end write
+        }
       }
     }
     const changed = next !== s.run;
@@ -1847,6 +1861,7 @@ function commitResolvedAction(
       // flag off and re-open the "leaving a replay advances the wave" hole.
       sandboxReplay: next.phase !== s.run.phase ? false : s.sandboxReplay,
       ...(gauntletResult ? { gauntletResult } : {}),
+      ...(gauntletSaving !== undefined ? { gauntletSaving } : {}),
     };
 }
 
@@ -2045,6 +2060,8 @@ export const useGame = create<GameStore>((rawSet, get) => {
   lastReplay: null,
   lastMatch: null,
   gauntletResult: null,
+  gauntletReward: null,
+  gauntletSaving: null,
   replaySeekEpoch: 0,
   latestBatch: null,
   beatRevision: 0,
@@ -2676,7 +2693,7 @@ export function syncProfileFromServer(_name: string): void {
  *  wrong run; a still-pending settlement of the PREVIOUS run keeps flushing through the queue regardless and
  *  its profile is still adopted (`applyRankOutcome` only skips the slice for a non-current run). The Gauntlet's
  *  `gauntletResult` rides here for the same reason: it is the last run's verdict and must never outlive it. */
-const RANK_SLICE_RESET = { rankResult: null, rankSubmission: 'unrated' as const, rankSubmissionError: null, rankRunId: null, gauntletResult: null };
+const RANK_SLICE_RESET = { rankResult: null, rankSubmission: 'unrated' as const, rankSubmissionError: null, rankRunId: null, gauntletResult: null, gauntletReward: null, gauntletSaving: null };
 
 /** THE OBSERVERS a NEW run starts with: the flat telemetry log and the live balance derivation, both primed
  *  against THIS run's opening state. Every door a run starts through (the hero picker, `newRun`, a tutorial,
@@ -2740,6 +2757,21 @@ function settleAbandonedRun(abandoned: RunState | null | undefined): void {
 }
 
 /**
+ * GAUNTLET ACCOUNT PROGRESS (2026-09-29): one queued clear's server answer. `settleGauntletClear` queues a first
+ * clear's crate in New Rewards and re-reads the crate list; its crate reaches the win screen through
+ * `gauntletReward`. Any definite answer ends the "saving" state for that stage.
+ */
+function onGauntletSettled(item: PendingGauntletClear, outcome: GauntletSubmitOutcome): Promise<void> {
+  if (outcome.status !== 'retryable' && useGame.getState().gauntletSaving === item.stage) useGame.setState({ gauntletSaving: null });
+  return settleGauntletClear(item, outcome, (reward) => useGame.setState({ gauntletReward: reward }));
+}
+
+/** Send the account's queued Gauntlet clears now (run end, boot, sign-in). Never throws. */
+function flushGauntlet(): Promise<void> {
+  return flushGauntletAccount(onGauntletSettled).catch(() => { /* never throws */ });
+}
+
+/**
  * MEDAL RANK — one submission's answer lands in the store. The server's profile is adopted through
  * `adoptServerRank` (revision-compared: a late, older answer never rolls a newer profile back — but it is
  * still THAT run's result, so a queued older run that is the current `rankRunId` still shows its own
@@ -2793,6 +2825,7 @@ function initAccounts(): void {
     void flushUploadQueue(); // a session now exists — replay anything queued while offline
     void flushPendingRanks(applyRankOutcome); // …and any rated result stranded pending under THIS account
     void probeProgression(); // ACCOUNT PROGRESSION: is the feature on? then the mirror + any XP stranded pending
+    void refreshGauntletAccount().then(flushGauntlet); // GAUNTLET: the account's cleared stages + clears queued offline
     void flushBugReportQueue(); // …and any bug reports stranded offline / pre-handshake (§6.2 auth trigger)
     // Ensure this account carries a `#tag` (and its author/email are current) once identity exists.
     if (name) void claimHandle(name).then((h) => { if (h) useGame.setState((st) => ({ account: { ...st.account, discriminator: h.discriminator } })); });
@@ -2806,6 +2839,7 @@ function initAccounts(): void {
     if (id) void flushUploadQueue(); // session (re)established → flush the offline queue
     if (id) void flushPendingRanks(applyRankOutcome); // rated results parked under this account resume here
     if (id) void probeProgression(); // …and progression (same user id across the magic-link upgrade)
+    if (id && !id.anonymous) void refreshGauntletAccount().then(flushGauntlet); // …and a signed-in Gauntlet's stages
     if (id) void flushBugReportQueue(); // §6.2: retry bug reports after authentication restoration
     if (id && !id.anonymous) {
       syncProfileFromServer(loadPlayerName()); // a real account just landed — pull its authoritative row
@@ -2818,6 +2852,7 @@ function initAccounts(): void {
 initAccounts();
 installRankRetryTriggers(applyRankOutcome); // MEDAL RANK: network return → retry pending settlements
 installProgression(); // ACCOUNT PROGRESSION: network return → retry pending XP settlements
+installGauntletClearRetryTriggers((item, outcome) => { void onGauntletSettled(item, outcome); }); // GAUNTLET: network return → retry queued clears
 
 // BUG REPORTER (PR 2): wire the environment retry triggers — flush at app boot (reports stranded by a
 // previous session) + on the browser `online` event. The auth trigger rides `initAccounts` above.

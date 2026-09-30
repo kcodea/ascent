@@ -43,6 +43,10 @@ vi.mock('./remoteBoards', async (importOriginal) => ({
   fetchPracticeGames: () => fetchPracticeGames(),
   fetchPracticeReplay: (id: number) => fetchPracticeReplay(id),
 }));
+// The LOBBY STRENGTH readout is hidden behind one switch (owner 2026-09-30); a getter-backed mock lets a test
+// flip it on and prove the readout still renders when the switch comes back.
+const lobbyDisplay = vi.hoisted(() => ({ show: false }));
+vi.mock('./lobbyStrengthDisplay', () => ({ get SHOW_LOBBY_STRENGTH() { return lobbyDisplay.show; } }));
 vi.mock('./replay/replayPlayer', () => ({ startReplay: (...a: unknown[]) => startReplay(...a) }));
 
 import { Rankings } from './Rankings';
@@ -398,9 +402,20 @@ describe('RecentGames — the recording banners', () => {
     expect(rows[1]!.querySelector('.lb-runes-none')?.textContent).toBe('No runes taken');
     expect(text('.lb-verdict')).toEqual(['VICTORY', '5TH', '2ND']);
     expect([...ui.container.querySelectorAll('.lb-verdict')].map((v) => v.className)).toEqual(['lb-verdict won', 'lb-verdict lost', 'lb-verdict top4']);
-    // length · rounds · (lobby strength, only on a row that carries the stamp) per row; row 3 has no rounds
-    expect(text('.lb-fact-v')).toEqual(['18 min', '15', '74%', '7 min', '11', '—']);
-    expect(text('.lb-fact-lobby')).toEqual(['74%']);
+    // length · rounds per row; row 3 has no rounds. The lobby strength is HIDDEN for now (owner 2026-09-30).
+    expect(text('.lb-fact-v')).toEqual(['18 min', '15', '7 min', '11', '—']);
+    expect(text('.lb-fact-lobby')).toEqual([]);
+  });
+
+  it('with SHOW_LOBBY_STRENGTH on, the Lobby % returns, only on a row that carries the stamp', async () => {
+    lobbyDisplay.show = true;
+    try {
+      ui.unmount();
+      ui = mount(<RecentGames />);
+      await flush();
+      expect(text('.lb-fact-v')).toEqual(['18 min', '15', '74%', '7 min', '11', '—']);
+      expect(text('.lb-fact-lobby')).toEqual(['74%']);
+    } finally { lobbyDisplay.show = false; }
   });
 
   it('labels the partial recording, and the board-less row gets the empty plate', () => {

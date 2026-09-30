@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useMemo, useRef, useState } from 
 import { createPortal } from 'react-dom';
 import { RUNE_INDEX } from '@game/content';
 import { getHero, strengthText } from '@game/sim';
+import { SHOW_LOBBY_STRENGTH } from './lobbyStrengthDisplay';
 import type { BoardSnapshot, MatchDetails } from '@game/sim';
 import { StoredTeam } from './StoredTeam';
 import { MatchScoreboard } from './matchDetails/MatchScoreboard';
@@ -292,8 +293,9 @@ function MatchRow({ run, focus, busy, unplayable, onWatch }: {
             <span className="cv2-meta"><span className="cv2-meta-l">Length</span><span className="cv2-meta-v cv2-row-length">{length}</span></span>
             <span className="cv2-meta"><span className="cv2-meta-l">Gold spent</span><span className="cv2-meta-v cv2-row-gold-v">{run.goldSpent === null ? '—' : run.goldSpent}</span></span>
             {/* LOBBY STRENGTH (owner 2026-09-22): the number as a percentage, post-game only, and only when the run
-                carries a stamp — a row without one prints nothing here rather than a guess. */}
-            {run.lobbyStrength && (
+                carries a stamp — a row without one prints nothing here rather than a guess. Hidden for now behind
+                SHOW_LOBBY_STRENGTH (owner 2026-09-30); the stamp itself is still read. */}
+            {SHOW_LOBBY_STRENGTH && run.lobbyStrength && (
               <span className="cv2-meta"><span className="cv2-meta-l">Lobby</span><span className="cv2-meta-v cv2-row-lobby" aria-label={`Lobby strength ${run.lobbyStrength.value} percent`}>{strengthText(run.lobbyStrength)}</span></span>
             )}
           </div>

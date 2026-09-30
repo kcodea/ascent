@@ -8319,7 +8319,7 @@ body:has(.book-ov) .cardref { z-index: 490; }
 }
 .modecard[data-mp='learn'] {
   width: var(--mp-learn-w, 880px); height: var(--mp-learn-h, 128px);
-  transform: translate(var(--mp-learn-x, 177px), var(--mp-learn-y, 82px)) scale(var(--mp-learn-s, 1));
+  transform: translate(var(--mp-learn-x, 177px), var(--mp-learn-y, 255px)) scale(var(--mp-learn-s, 1));
 }
 .modecard[data-mp='practice'] {
   width: var(--mp-practice-w, 306px); height: var(--mp-practice-h, 284px);
@@ -8329,7 +8329,7 @@ body:has(.book-ov) .cardref { z-index: 490; }
    row below Learn's layout box; the fallbacks lift it to sit ~44px under Learn's visual edge, lined up with it. */
 .modecard[data-mp='gauntlet'] {
   width: var(--mp-gauntlet-w, 880px); height: var(--mp-gauntlet-h, 128px);
-  transform: translate(var(--mp-gauntlet-x, 6px), var(--mp-gauntlet-y, -30px)) scale(var(--mp-gauntlet-s, 1));
+  transform: translate(var(--mp-gauntlet-x, 6px), var(--mp-gauntlet-y, -203px)) scale(var(--mp-gauntlet-s, 1));
 }
 /* The frame fills the (sized) card; no per-frame transform now (that's on the card). */
 .mcframe[data-mp] { width: 100%; height: 100%; aspect-ratio: auto; margin-bottom: 0; transform: none; }
@@ -9128,8 +9128,51 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 .stagebuilder .stb-add { padding: calc(2 * var(--u)) calc(7 * var(--u)); font-size: calc(10 * var(--u)); }
 .stagebuilder .stb-noeffect { color: var(--sb-ink3); }
 .stagebuilder option.stb-noeffect { color: #7d7262; }
+.stagebuilder .stb-runepick { display: flex; align-items: center; gap: calc(6 * var(--u)); width: 100%; justify-content: space-between; text-align: left; }
+.stagebuilder .stb-runepick .sb-name { flex: 1; }
+.stagebuilder .stb-runes { max-height: calc(220 * var(--u)); }
+.stagebuilder .stb-runerow.on { border-color: var(--sb-brass); color: var(--sb-ink); }
+.stagebuilder .stb-runerow:focus-visible { border-color: var(--sb-brass); outline: none; }
+.stagebuilder .sb-tag.stb-noeffect { opacity: 0.8; }
 .stagebuilder .stb-confirm { flex-wrap: wrap; padding: calc(6 * var(--u)) calc(12 * var(--u)); }
 .stagebuilder .stb-confirm .sb-warn { display: inline; margin: 0; }
+/* ---- STAGE BOARD CANVAS (dev, `stageBuilder/StageBoardCanvas.tsx`) ----
+   While the Stage Builder is open this covers the whole stage, opaque, with the COMBAT board art and only the
+   opponent's warband: the recruit UI beneath is neither visible nor reachable. Below the builder panel (a draggable
+   dev panel, z600+) and the unit editor (.uned, z5000); above the in-game layers and overlays (≤ z400), below the card hover reveal (.cardref, z460). */
+.stbc { position: fixed; inset: 0; z-index: 440; overflow: hidden; background: #15101c;
+  display: flex; flex-direction: column; align-items: center; font-family: var(--font-ui); color: #efe7db;
+  --ch: calc(var(--ch-base) * var(--card-scale, 0.75)); }
+.stbc .boardbg { z-index: 0; }
+.stbc-head { position: relative; z-index: 1; margin-top: calc(70 * var(--u)); display: flex; align-items: baseline; gap: calc(16 * var(--u));
+  padding: calc(8 * var(--u)) calc(22 * var(--u)); border-radius: calc(12 * var(--u)); background: rgb(16 13 8 / 0.82); border: 1px solid #4a4136;
+  box-shadow: 0 8px 24px -8px rgb(0 0 0 / 0.8); font-size: calc(15 * var(--u)); font-weight: 700; white-space: nowrap; }
+.stbc-stage { color: #c8a45c; letter-spacing: 0.04em; text-transform: uppercase; font-size: calc(12 * var(--u)); font-weight: 800; }
+.stbc-round { font-size: calc(22 * var(--u)); font-weight: 900; color: #f6e3b4; }
+.stbc-opp { color: #efe7db; }
+.stbc-tier { color: #150f06; background: #c8a45c; border-radius: 999px; padding: 0 calc(9 * var(--u)); font-size: calc(12 * var(--u)); font-weight: 900; }
+.stbc-hint { position: relative; z-index: 1; margin-top: calc(8 * var(--u)); font-size: calc(11 * var(--u)); color: #d8c8a2;
+  background: rgb(16 13 8 / 0.6); border-radius: 999px; padding: calc(2 * var(--u)) calc(10 * var(--u)); }
+/* Where the foe's row sits in a real fight: the upper-middle of the board. */
+.stbc-row { position: relative; z-index: 1; margin-top: calc(150 * var(--u)); }
+.stbc-slot { position: relative; display: flex; border-radius: 16px; }
+.stbc-slot.editing { outline: 2px solid #c8a45c; outline-offset: 6px; }
+.stbc-add { flex: 0 0 var(--ccw); width: var(--ccw); height: var(--ccw); border-radius: var(--arch-radius);
+  border: 2px dashed rgb(232 216 176 / 0.45); background: rgb(16 13 8 / 0.35); color: rgb(246 227 180 / 0.8);
+  font-family: var(--font-ui); font-size: calc(40 * var(--u)); font-weight: 300; transition: background 0.12s, border-color 0.12s; }
+.stbc-add:hover { background: rgb(16 13 8 / 0.6); border-color: #c8a45c; color: #f6e3b4; }
+
+.stbc-none { color: #8a7f6d; font-size: 11px; padding: 2px 4px; }
+.uned-find { width: 100%; }
+.uned-found { display: flex; flex-direction: column; gap: 2px; max-height: 260px; overflow-y: auto; }
+.uned-foundrow { display: flex; align-items: center; gap: 6px; text-align: left; background: #241f17; border: 1px solid #4a4136; color: #efe7db;
+  border-radius: 6px; padding: 3px 6px; font-family: var(--font-ui); font-size: 12px; }
+.uned-foundrow:hover, .uned-foundrow:focus-visible { border-color: #c8a45c; }
+.uned-foundrow .sb-t { width: 16px; height: 16px; font-size: 10px; }
+.uned-kwbtn.locked { opacity: 0.6; }
+/* The game cursor, doubled like `.uned.uned` below it in intent. */
+.stbc.stbc, .stbc.stbc * { cursor: url('/cursors/gauntlet_default.svg') 6 2, default; }
+.stbc.stbc .stbc-add, .stbc.stbc .stbc-slot, .stbc.stbc .stbc-slot * { cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; }
 .bsc-id { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .bsc-banner { background: #3a2413; border: 1px solid #a0632a; border-radius: calc(6 * var(--u)); color: #f0b978; font-size: calc(12 * var(--u)); line-height: 1.4; padding: calc(6 * var(--u)) calc(8 * var(--u)); }
 .bsc-badges { gap: calc(4 * var(--u)); }
@@ -11153,7 +11196,7 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
    coordinates by the component; everything here is appearance only. Workshop-slate, matching the tuner
    panels and the FX workbench (DESIGN.md, "The dev tooling surface"). */
 .uned {
-  position: fixed; z-index: 600; display: flex; flex-direction: column; gap: 6px;
+  position: fixed; z-index: 5000; /* above the draggable dev panels (useDraggablePanel: 600 and up) */ display: flex; flex-direction: column; gap: 6px;
   padding: 8px; border-radius: 8px;
   background: #100d08; border: 1px solid #4a4136; color: #efe7db;
   font-family: var(--font-ui); font-size: 12px;

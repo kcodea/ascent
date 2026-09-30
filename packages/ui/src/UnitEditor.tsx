@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { StatBadgeField } from './StatBadgeField';
 import { createPortal } from 'react-dom';
 import { BUYABLE_CARDS } from '@game/content';
@@ -38,7 +38,7 @@ export const KEYWORD_LABEL: Record<string, string> = {
 };
 
 export function UnitEditor({
-  value, anchor, onChange, onToggleKeyword, onRemove, onClose, cards: cardsProp, golden, onToggleGolden,
+  value, anchor, onChange, onToggleKeyword, onRemove, onClose, cards: cardsProp, golden, onToggleGolden, lockedKeywords, searchable,
 }: {
   value: UnitEditorValue;
   /** The edited card's rect, in viewport coordinates — the popover seats itself under it. */
@@ -53,7 +53,14 @@ export function UnitEditor({
    * that list is `@deprecated` and pinned to set 1, so a sandbox run on another set would otherwise be offered
    * the wrong cards. Callers that know the run's own pool (e.g. via `poolOf(run)`) should pass it.
    */
-  cards?: { id: string; name: string }[];
+  cards?: { id: string; name: string; hay?: string }[];
+  /**
+   * Keywords printed on the card (the Stage Builder): shown on and disabled — the author adds keywords on top,
+   * never strips a printed one. Absent = every toggle is live (the sandbox, which edits the keyword set whole).
+   */
+  lockedKeywords?: readonly Keyword[];
+  /** Offer a search box over the swap list, for a long list (every minion card). Matches `hay`, else the name. */
+  searchable?: boolean;
   /** Golden state + toggle, offered only when a handler is given (the sandbox enemy editor / Stage Builder). */
   golden?: boolean;
   onToggleGolden?: () => void;
@@ -63,10 +70,20 @@ export function UnitEditor({
     () => [...BUYABLE_CARDS].sort((a, b) => a.name.localeCompare(b.name)).map((c) => ({ id: c.id, name: c.name })),
     [],
   );
-  const cards = useMemo(
+  const cards = useMemo<{ id: string; name: string; hay?: string }[]>(
     () => (cardsProp !== undefined ? [...cardsProp].sort((a, b) => a.name.localeCompare(b.name)) : fallbackCards),
     [cardsProp, fallbackCards],
   );
+  const [query, setQuery] = useState('');
+  const found = useMemo(() => {
+    const terms = query.trim().toLowerCase().split(/\s+/).filter(Boolean);
+    if (searchable !== true || terms.length === 0) return [];
+    return cards.filter((c) => {
+      const h = c.hay ?? c.name.toLowerCase();
+      return terms.every((t) => h.includes(t));
+    }).slice(0, 8);
+  }, [cards, query, searchable]);
+  const pick = (cardId: string): void => { onChange({ cardId }); setQuery(''); };
 
   // Escape closes, and a pointerdown anywhere outside closes. Both on the CAPTURE phase: the board beneath
   // has its own pointerdown handlers (drag, buy), and a bubbling listener would let the click start a drag
@@ -101,6 +118,23 @@ export function UnitEditor({
       >
         {cards.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
       </select>
+      {searchable === true && (
+        <input
+          className="uned-find"
+          value={query}
+          placeholder="search cards to swap…"
+          onChange={(e) => setQuery(e.target.value)}
+          onKeyDown={(e) => { if (e.key === 'Enter' && found[0]) { e.preventDefault(); pick(found[0].id); } }}
+          aria-label="Search every card to swap this unit to. Enter picks the top match."
+        />
+      )}
+      {found.length > 0 && (
+        <div className="uned-found">
+          {found.map((c) => (
+            <button key={c.id} className="uned-foundrow" onClick={() => pick(c.id)}>{c.name}</button>
+          ))}
+        </div>
+      )}
       {/* The game's own stat badges, typeable (owner ask 2026-09-16) — `.sb-stats` un-absolutes them. The floors
           (0 attack, 1 health) are applied by the field on commit AND by `sandboxEdit.ts` (the rules), so the
           badge always settles on what the sim accepted. */}
@@ -109,16 +143,22 @@ export function UnitEditor({
         <StatBadgeField stat="hp" min={1} value={value.health} onCommit={(n) => onChange({ health: n })} title="Health — click to type, ↑/↓ or wheel to step (Shift = 5)" />
       </div>
       <div className="uned-kw">
-        {EDITABLE_KEYWORDS.map((kw) => (
-          <button
-            key={kw}
-            className={`uned-kwbtn${value.keywords.includes(kw) ? ' on' : ''}`}
-            onClick={() => onToggleKeyword(kw)}
-            aria-label={KEYWORD_LABEL[kw] ?? kw}
-          >
-            {KEYWORD_LABEL[kw] ?? kw}
-          </button>
-        ))}
+        {EDITABLE_KEYWORDS.map((kw) => {
+          const locked = lockedKeywords?.includes(kw) === true;
+          const on = locked || value.keywords.includes(kw);
+          return (
+            <button
+              key={kw}
+              className={`uned-kwbtn${on ? ' on' : ''}${locked ? ' locked' : ''}`}
+              disabled={locked}
+              aria-pressed={on}
+              onClick={() => { if (!locked) onToggleKeyword(kw); }}
+              aria-label={`${KEYWORD_LABEL[kw] ?? kw}${locked ? ' (printed on the card)' : ''}`}
+            >
+              {KEYWORD_LABEL[kw] ?? kw}
+            </button>
+          );
+        })}
       </div>
       {onToggleGolden !== undefined && (
         <button

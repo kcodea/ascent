@@ -1,5 +1,5 @@
-import type { BoardMinion } from '@game/core';
-import { CARD_INDEX, cardRevision, type GauntletMinion, type GauntletRound, type GauntletStage } from '@game/content';
+import type { BoardMinion, Keyword } from '@game/core';
+import { CARD_INDEX, GAUNTLET_BOARD_MAX, cardRevision, type GauntletMinion, type GauntletRound, type GauntletStage } from '@game/content';
 import { GAUNTLET_DEFAULT_TIERS, runeCombatModsFor, type BoardSnapshot } from '@game/sim';
 import { stagedBoard } from '../sandboxEdit';
 
@@ -130,4 +130,64 @@ export function stampForSave(stage: GauntletStage): GauntletStage {
       };
     }),
   };
+}
+
+/* ── Minion edits (shared by the panel's list and the board canvas, so both write the draft identically) ── */
+
+/** Drop an optional key rather than writing `undefined`, so a toggled-back minion compares equal to its saved self. */
+export function without<T extends object, K extends keyof T>(o: T, k: K): T {
+  const next = { ...o };
+  delete next[k];
+  return next;
+}
+
+/** Apply `fn` to minion `idx` of `round`. Out of range is a no-op. */
+export function editMinion(stage: GauntletStage, round: number, idx: number, fn: (m: GauntletMinion) => GauntletMinion): GauntletStage {
+  const r = stage.rounds[round - 1];
+  if (!r || idx < 0 || idx >= r.board.length) return stage;
+  return withRound(stage, round, { ...r, board: r.board.map((m, i) => (i === idx ? fn(m) : m)) });
+}
+
+/** Append a minion at its printed stats. Refused when the card is unknown or the board is full. */
+export function addMinion(stage: GauntletStage, round: number, cardId: string): GauntletStage {
+  const r = stage.rounds[round - 1];
+  const def = CARD_INDEX[cardId];
+  if (!r || !def || r.board.length >= GAUNTLET_BOARD_MAX) return stage;
+  return withRound(stage, round, { ...r, board: [...r.board, { cardId, attack: def.attack, health: def.health, cardVersion: cardRevision(def) }] });
+}
+
+export function removeMinion(stage: GauntletStage, round: number, idx: number): GauntletStage {
+  const r = stage.rounds[round - 1];
+  if (!r || idx < 0 || idx >= r.board.length) return stage;
+  return withRound(stage, round, { ...r, board: r.board.filter((_, i) => i !== idx) });
+}
+
+/** Stats, floored like the game (0 Attack, 1 Health). */
+export function setMinionStats(stage: GauntletStage, round: number, idx: number, patch: { attack?: number; health?: number }): GauntletStage {
+  return editMinion(stage, round, idx, (m) => ({
+    ...m,
+    ...(patch.attack !== undefined ? { attack: Math.max(0, Math.round(patch.attack)) } : {}),
+    ...(patch.health !== undefined ? { health: Math.max(1, Math.round(patch.health)) } : {}),
+  }));
+}
+
+/** Swap the card: a fresh unit of the new card at its printed stats (golden + added keywords dropped, as the sandbox does). */
+export function swapMinionCard(stage: GauntletStage, round: number, idx: number, cardId: string): GauntletStage {
+  const def = CARD_INDEX[cardId];
+  if (!def) return stage;
+  return editMinion(stage, round, idx, () => ({ cardId, attack: def.attack, health: def.health, cardVersion: cardRevision(def) }));
+}
+
+/** Toggle an ADDED keyword. A keyword printed on the card is not the author's to add or remove — a no-op. */
+export function toggleAddedKeyword(stage: GauntletStage, round: number, idx: number, kw: Keyword): GauntletStage {
+  return editMinion(stage, round, idx, (m) => {
+    if ((CARD_INDEX[m.cardId]?.keywords ?? []).includes(kw)) return m;
+    const added = m.addedKeywords ?? [];
+    const next = added.includes(kw) ? added.filter((k) => k !== kw) : [...added, kw];
+    return next.length ? { ...m, addedKeywords: next } : without(m, 'addedKeywords');
+  });
+}
+
+export function toggleMinionGolden(stage: GauntletStage, round: number, idx: number): GauntletStage {
+  return editMinion(stage, round, idx, (m) => (m.golden ? without(m, 'golden') : { ...m, golden: true }));
 }

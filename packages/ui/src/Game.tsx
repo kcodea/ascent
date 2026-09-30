@@ -32,7 +32,6 @@ import { DevMenu } from './DevMenu';
 import { EditorOverlay } from './uiEditor/EditorOverlay';
 import { setFxScene } from './fx/fxBudget';
 import { ensureDefsReady } from './fx/playDef';
-import { SceneBuilder } from './SceneBuilder';
 import { BugScenarioPanel } from './bug-report/BugScenarioPanel';
 import { BalancePanel } from './BalancePanel';
 import { PatchNotes } from './PatchNotesOverlay';
@@ -45,10 +44,11 @@ import { uploadRun } from './perfCloud';
 import { toRun } from './perfStore';
 import { isRealPlayRun } from './perfCaptureScope';
 
-/** The Stage Builder panel (DEV): loaded on demand so it and its store never reach the player chunk — in a production
- *  build `import.meta.env.DEV` is false, the ternary folds to `null` and the dynamic import is dropped. */
-const StageBuilderMount = import.meta.env.DEV
-  ? lazy(() => import('./stageBuilder/StageBuilder').then((m) => ({ default: m.StageBuilderMount })))
+/** The sandbox's DEV panels: the Scene Builder, or — once opened from the title — the Stage Builder's board canvas +
+ *  panel in its place. Loaded on demand so the Stage Builder and its store never reach the player chunk — in a
+ *  production build `import.meta.env.DEV` is false, the ternary folds to `null` and the dynamic import is dropped. */
+const SandboxDevPanels = import.meta.env.DEV
+  ? lazy(() => import('./stageBuilder/StageBuilder').then((m) => ({ default: m.SandboxDevPanels })))
   : null;
 
 /** Seconds of live recording an auto-share needs before it is worth a row. A reload is not a session. */
@@ -486,10 +486,9 @@ export function Game() {
       {/* DEV-only in-run UI editor overlay — direct-manipulation move/resize/restyle of live UI, toggled
           from the DevMenu's "UI Edit Mode" action (stripped from production). */}
       {import.meta.env.DEV && <EditorOverlay />}
-      {/* Scene Builder control panel — mounts alongside the live sandbox run (its own title-launched mode). */}
-      {import.meta.env.DEV && sandbox && <SceneBuilder />}
-      {/* Stage Builder (Gauntlet authoring) — beside the Scene Builder; renders nothing until opened from the title. */}
-      {StageBuilderMount && sandbox && <Suspense fallback={null}><StageBuilderMount /></Suspense>}
+      {/* Scene Builder control panel — mounts alongside the live sandbox run (its own title-launched mode). While
+          the Stage Builder (Gauntlet authoring) is open, its board canvas + panel take the Scene Builder's place. */}
+      {SandboxDevPanels && sandbox && <Suspense fallback={null}><SandboxDevPanels /></Suspense>}
       {/* Bug-scenario report side panel (PR 4) — mounts with a loaded scenario. Independent of `sandbox`:
           a content-mismatch load is READ-ONLY (the run is never entered), but its evidence still shows. */}
       {import.meta.env.DEV && bugScenarioLoaded && <BugScenarioPanel />}

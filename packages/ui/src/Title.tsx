@@ -259,7 +259,7 @@ export function Title({ onSettings }: { onSettings: () => void }) {
           )}
           {/* DEV-ONLY: the Stage Builder authors the Gauntlet's stage boards on top of the Scene Builder sandbox. */}
           {import.meta.env.DEV && (
-            <button className="menubtn" onClick={() => { sfx.pulse(); void startStageBuilder(); }} data-tip="A dev tool. Author the Gauntlet's stage boards round by round, and test each round against your own board.">
+            <button className="menubtn" onClick={() => { sfx.pulse(); void startStageBuilder(); }} data-tip="A dev tool. Author the Gauntlet's stages: the opponent's warband for each round, edited on the board.">
               <span className="mbicon"><Icon name="sword" /></span>
               <span className="mblabel">Stage Builder</span>
             </button>

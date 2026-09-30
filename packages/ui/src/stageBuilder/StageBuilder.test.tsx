@@ -113,11 +113,38 @@ describe('the Stage Builder panel', () => {
     const acting = all.find((r) => runeActsForOpponent(r.id))!;
     expect(inert).toBeDefined();
     expect(acting).toBeDefined();
-    const opt = (id: string): HTMLOptionElement | undefined =>
-      qa<HTMLOptionElement>('select.stb-rune[data-slot="round6"] option').find((o) => o.value === id);
-    expect(opt(inert.id)?.textContent).toMatch(/— no effect for opponents$/);
-    expect(opt(inert.id)?.className).toMatch(/stb-noeffect/);
-    expect(opt(acting.id)?.textContent).toBe(acting.name);
+    expect(q('select.stb-rune'), 'the rune <select>s are gone').toBeNull();
+    click(q('button.stb-runepick[data-slot="round6"]'));
+    const row = (id: string): HTMLButtonElement | undefined =>
+      qa<HTMLButtonElement>('.stb-runes[data-slot="round6"] button.stb-runerow').find((b) => b.dataset.rune === id);
+    expect(row('')?.textContent).toBe('none');
+    expect(row(inert.id)?.textContent).toMatch(/no effect for opponents$/);
+    expect(row(inert.id)?.className).toMatch(/stb-noeffect/);
+    expect(row(acting.id)?.textContent).not.toMatch(/no effect/);
+    // Picking the inert rune writes it and badges the slot's trigger; "none" clears it.
+    click(row(inert.id));
+    expect(useStageBuilder.getState().draft!.runes.round6).toBe(inert.id);
+    expect(q('button.stb-runepick[data-slot="round6"]')!.textContent).toMatch(/no effect for opponents/);
+    click(q('button.stb-runepick[data-slot="round6"]'));
+    click(row(''));
+    expect(useStageBuilder.getState().draft!.runes.round6).toBeUndefined();
+  });
+
+  it('hovering or focusing a rune in the list previews the real rune tablet', () => {
+    const rune = RUNES[0]!;
+    click(q('button.stb-runepick[data-slot="round9"]'));
+    const row = qa<HTMLButtonElement>('.stb-runes[data-slot="round9"] button.stb-runerow').find((b) => b.dataset.rune === rune.id)!;
+    expect(document.querySelector('[data-testid="sb-preview"]')).toBeNull();
+    act(() => { row.dispatchEvent(new MouseEvent('mouseover', { bubbles: true })); });
+    const preview = document.querySelector('[data-testid="sb-preview"]');
+    expect(preview, 'hover shows the preview').not.toBeNull();
+    expect(preview!.querySelector('.sb-preview-inner.rune')).not.toBeNull();
+    expect(preview!.textContent).toContain(rune.name);
+    act(() => { row.dispatchEvent(new MouseEvent('mouseout', { bubbles: true })); });
+    act(() => { q('.stb-runes[data-slot="round9"]')!.dispatchEvent(new MouseEvent('mouseout', { bubbles: true, relatedTarget: document.body })); });
+    // Keyboard: focusing a row previews it too.
+    act(() => { row.focus(); });
+    expect(document.querySelector('[data-testid="sb-preview"]')?.textContent).toContain(rune.name);
   });
 
   it('Close while dirty asks to confirm first; confirming closes and drops the edits', () => {

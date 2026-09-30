@@ -3,7 +3,8 @@ import { CARD_INDEX, cardRevision, type GauntletStage } from '@game/content';
 import type { Keyword } from '@game/core';
 import { GAUNTLET_DEFAULT_TIERS } from '@game/sim';
 import {
-  activeRunes, copyPreviousRound, moveMinion, roundToSnapshot, roundTier, roundsEqual, snapshotToRound, stampForSave,
+  activeRunes, addMinion, copyPreviousRound, moveMinion, removeMinion, roundToSnapshot, roundTier, roundsEqual, setMinionStats,
+  snapshotToRound, stampForSave, swapMinionCard, toggleAddedKeyword, toggleMinionGolden,
 } from './stageDraft';
 import { moveEnemy, toggleEnemyGolden } from '../sandboxEdit';
 
@@ -114,5 +115,45 @@ describe('stageDraft', () => {
     expect(moveEnemy(snap, 0, 2).minions.map((m) => m.attack)).toEqual([2, 1, 5]);
     expect(moveEnemy(snap, 5, 0)).toBe(snap);
     expect(snap.minions.map((m) => m.attack)).toEqual([5, 2, 1]);
+  });
+});
+
+describe('stageDraft minion edits (shared by the panel and the board canvas)', () => {
+  it('addMinion appends at printed stats, refusing a full board or an unknown card', () => {
+    const s = stage();
+    const next = addMinion(s, 3, plain.id);
+    expect(next.rounds[2]!.board).toHaveLength(4);
+    expect(next.rounds[2]!.board[3]).toEqual({ cardId: plain.id, attack: plain.attack, health: plain.health, cardVersion: cardRevision(plain) });
+    expect(s.rounds[2]!.board).toHaveLength(3); // never mutates
+    expect(addMinion(s, 3, 'no_such_card')).toBe(s);
+    let full = s;
+    for (let i = 0; i < 10; i++) full = addMinion(full, 3, plain.id);
+    expect(full.rounds[2]!.board).toHaveLength(7);
+  });
+
+  it('removeMinion / setMinionStats (floored 0 / 1) edit only the one minion', () => {
+    const s = stage();
+    expect(removeMinion(s, 3, 1).rounds[2]!.board.map((m) => m.attack)).toEqual([5, 1]);
+    expect(removeMinion(s, 3, 9)).toBe(s);
+    const st = setMinionStats(s, 3, 0, { attack: -4, health: 0 }).rounds[2]!.board[0]!;
+    expect([st.attack, st.health]).toEqual([0, 1]);
+    expect(setMinionStats(s, 3, 0, { attack: 12 }).rounds[2]!.board[0]!.health).toBe(6);
+  });
+
+  it('toggleAddedKeyword adds/removes an added keyword and ignores a printed one', () => {
+    const s = stage();
+    const on = toggleAddedKeyword(s, 3, 0, 'DS');
+    expect(on.rounds[2]!.board[0]!.addedKeywords).toEqual(['DS']);
+    expect('addedKeywords' in toggleAddedKeyword(on, 3, 0, 'DS').rounds[2]!.board[0]!).toBe(false);
+    expect(toggleAddedKeyword(s, 3, 1, printed[0]!).rounds[2]!.board[1]).toEqual(s.rounds[2]!.board[1]);
+  });
+
+  it('toggleMinionGolden flips the flag (no undefined key); swapMinionCard makes a fresh unit of the new card', () => {
+    const s = stage();
+    expect('golden' in toggleMinionGolden(s, 3, 0).rounds[2]!.board[0]!).toBe(false);
+    expect(toggleMinionGolden(s, 3, 2).rounds[2]!.board[2]!.golden).toBe(true);
+    const sw = swapMinionCard(s, 3, 1, plain.id).rounds[2]!.board[1]!;
+    expect(sw).toEqual({ cardId: plain.id, attack: plain.attack, health: plain.health, cardVersion: cardRevision(plain) });
+    expect(swapMinionCard(s, 3, 1, 'no_such_card')).toBe(s);
   });
 });

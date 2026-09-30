@@ -1,46 +1,37 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import {
-  CARD_INDEX, EPIC_RUNES, GAUNTLET_BOARD_MAX, GAUNTLET_STAGES, RUNES, cardRevision, stageDrift, validateStage,
-  type GauntletMinion, type GauntletRound, type GauntletStage,
+  CARD_INDEX, EPIC_RUNES, GAUNTLET_BOARD_MAX, GAUNTLET_STAGES, RUNES, stageDrift, validateStage,
+  type GauntletRound, type GauntletStage,
 } from '@game/content';
 import { GAUNTLET_DEFAULT_TIERS } from '@game/sim';
 import type { Keyword } from '@game/core';
 import { useGame } from '../store';
 import { useDraggablePanel, DevPanelContext } from '../useDraggablePanel';
-import { Sec } from '../SceneBuilder';
+import { SceneBuilder, Sec } from '../SceneBuilder';
 import { SceneBuilderPreview, type SbPreviewTarget } from '../SceneBuilderPreview';
 import { StatBadgeField } from '../StatBadgeField';
 import { EDITABLE_KEYWORDS, KEYWORD_LABEL } from '../UnitEditor';
 import { toStage } from '../stage';
 import { useStageBuilder } from './stageBuilderStore';
-import { copyPreviousRound, moveMinion } from './stageDraft';
+import {
+  addMinion as addToRound, copyPreviousRound, moveMinion, removeMinion, setMinionStats, toggleAddedKeyword,
+  toggleMinionGolden, without,
+} from './stageDraft';
+import { searchMinions } from './minionSearch';
 import { runeActsForOpponent } from './runeEffect';
+import { StageBoardCanvas } from './StageBoardCanvas';
 
 /**
- * DEV-only STAGE BUILDER panel — authors a Gauntlet stage round by round, beside the Scene Builder. All state and
- * the board-pin link live in `stageBuilderStore.ts`; this is the input surface. Every edit goes through
- * `editDraft` (so the selected round re-pins as the next fight's opponent), shaped by the pure `stageDraft.ts`
- * helpers. Sections: Stage (slot + opponent name) · Rounds (dirty dot, red = `validateStage` issue, amber =
- * `stageDrift`) · Round N (tier + the ≤7 minions + a card search) · Runes (rounds 6 and 9) · Actions.
+ * DEV-only STAGE BUILDER panel — authors a Gauntlet stage's OPPONENT warband round by round. All state lives in
+ * `stageBuilderStore.ts`; this is the input surface, beside the full-stage board canvas (`StageBoardCanvas.tsx`,
+ * the visual editor). Every edit goes through `editDraft`, shaped by the pure `stageDraft.ts` helpers, so the two
+ * surfaces always show the same draft. Sections: Stage (slot + opponent name) · Rounds (dirty dot, red =
+ * `validateStage` issue, amber = `stageDrift`) · Round N (tier + the ≤7 minions + a card search) · Runes (rounds 6
+ * and 9) · Actions.
  *
- * Mounted lazily by Game.tsx (DEV + sandbox + `open`), so neither this nor its store reaches the player chunk.
- * Wears the Scene Builder's slate (`.scenebuilder`) plus a few `.stb-*` pieces in styles.css.
+ * Mounted lazily by Game.tsx through `SandboxDevPanels` (DEV + sandbox), so neither this nor its store reaches the
+ * player chunk. Wears the Scene Builder's slate (`.scenebuilder`) plus a few `.stb-*` pieces in styles.css.
  */
-
-/** Everything a search row matches on, lowercased once (the Scene Builder Library's `hay`/`matches` approach). */
-const hay = (...parts: (string | undefined)[]): string => parts.filter(Boolean).join(' ').toLowerCase();
-const matches = (haystack: string, terms: string[]): boolean => terms.every((t) => haystack.includes(t));
-
-type CardRow = { id: string; name: string; tier: number; hay: string };
-/** Every minion card (tokens included — an opponent may field one), sorted by tier then name. Built once. */
-let minionRows: CardRow[] | null = null;
-const allMinions = (): CardRow[] => (minionRows ??= Object.values(CARD_INDEX)
-  .filter((c) => !c.spell)
-  .map((c) => ({
-    id: c.id, name: c.name, tier: c.tier ?? 0,
-    hay: hay(c.name, c.id, c.tribe, c.tribe2, c.text, (c.keywords ?? []).join(' ')),
-  }))
-  .sort((a, b) => a.tier - b.tier || a.name.localeCompare(b.name)));
 
 const RUNE_OPTIONS = [...RUNES, ...EPIC_RUNES]
   .map((r) => ({ id: r.id, name: r.name, epic: !!r.epic }))
@@ -56,14 +47,6 @@ function issueRound(issue: string): number | null {
 
 const withRound = (s: GauntletStage, round: number, fn: (r: GauntletRound) => GauntletRound): GauntletStage =>
   ({ ...s, rounds: s.rounds.map((r, i) => (i === round - 1 ? fn(r) : r)) });
-const withMinion = (s: GauntletStage, round: number, idx: number, fn: (m: GauntletMinion) => GauntletMinion): GauntletStage =>
-  withRound(s, round, (r) => ({ ...r, board: r.board.map((m, i) => (i === idx ? fn(m) : m)) }));
-/** Drop an optional key rather than writing `undefined`, so a toggled-back minion compares equal to its saved self. */
-function without<T extends object, K extends keyof T>(o: T, k: K): T {
-  const next = { ...o };
-  delete next[k];
-  return next;
-}
 
 const SB_FOLD_KEY = 'ascent.stb.fold';
 function loadFolded(): Record<string, boolean> {
@@ -85,10 +68,20 @@ export function StageBuilder() {
   );
 }
 
-/** What Game.tsx mounts: nothing until the builder is opened from the title. */
-export function StageBuilderMount() {
+/**
+ * What Game.tsx mounts beside a sandbox run: the Scene Builder panel normally, and — once the Stage Builder is
+ * opened from the title — the board canvas + this panel INSTEAD (owner 2026-09-29: the stage is authored purely as
+ * the opponent's boards, so the sandbox's own panel, warband and shop have no part in it).
+ */
+export function SandboxDevPanels() {
   const open = useStageBuilder((s) => s.open);
-  return open ? <StageBuilder /> : null;
+  if (!open) return <SceneBuilder />;
+  return (
+    <>
+      <StageBoardCanvas />
+      <StageBuilder />
+    </>
+  );
 }
 
 function StageBuilderInner({ confirming, setConfirming, requestClose }: {
@@ -100,8 +93,8 @@ function StageBuilderInner({ confirming, setConfirming, requestClose }: {
   const { panelRef, headerPointerDown, panelStyle } = useDraggablePanel('stagebuilder');
   const [collapsed, setCollapsed] = useState(false);
   const [query, setQuery] = useState('');
-  const [testHint, setTestHint] = useState(false);
   const [preview, setPreview] = useState<SbPreviewTarget | null>(null);
+  const [runeOpen, setRuneOpen] = useState<'round6' | 'round9' | null>(null);
   const [folded, setFolded] = useState<Record<string, boolean>>(loadFolded);
   const fold = (id: string, closed: boolean): void => setFolded((f) => {
     const next = { ...f, [id]: closed };
@@ -119,14 +112,13 @@ function StageBuilderInner({ confirming, setConfirming, requestClose }: {
   // The first full pass builds a scratch run per rune (~25 ms for all of them, measured) — once per session.
   const runeActs = useMemo(() => new Map(RUNE_OPTIONS.map((r) => [r.id, runeActsForOpponent(r.id)])), []);
 
-  const terms = useMemo(() => query.trim().toLowerCase().split(/\s+/).filter(Boolean), [query]);
-  const results = useMemo(() => (terms.length ? allMinions().filter((c) => matches(c.hay, terms)) : []), [terms]);
+  const results = useMemo(() => searchMinions(query), [query]);
 
-  const previewRow = useCallback((id: string, el: HTMLElement): void => {
+  const previewRow = useCallback((kind: 'card' | 'rune', id: string, el: HTMLElement): void => {
     const row = el.getBoundingClientRect();
     const panel = el.closest('.stagebuilder')?.getBoundingClientRect();
     const right = Math.max(row.right, panel?.right ?? 0);
-    setPreview({ kind: 'card', id, anchor: new DOMRect(toStage(row.left), toStage(row.top), toStage(right - row.left), toStage(row.height)) });
+    setPreview({ kind, id, anchor: new DOMRect(toStage(row.left), toStage(row.top), toStage(right - row.left), toStage(row.height)) });
   }, []);
   const clearPreview = useCallback((): void => setPreview(null), []);
 
@@ -135,15 +127,8 @@ function StageBuilderInner({ confirming, setConfirming, requestClose }: {
   const full = board.length >= GAUNTLET_BOARD_MAX;
   const defaultTier = GAUNTLET_DEFAULT_TIERS[round - 1] ?? 6;
 
-  const edit = (fn: (s: GauntletStage) => GauntletStage): void => { setTestHint(false); editDraft(fn); };
-  const editMinion = (idx: number, fn: (m: GauntletMinion) => GauntletMinion): void => edit((s) => withMinion(s, round, idx, fn));
-  const addMinion = (cardId: string): void => {
-    const def = CARD_INDEX[cardId];
-    if (!def || full) return;
-    edit((s) => withRound(s, round, (r) => ({
-      ...r, board: [...r.board, { cardId, attack: def.attack, health: def.health, cardVersion: cardRevision(def) }],
-    })));
-  };
+  const edit = editDraft;
+  const addMinion = (cardId: string): void => { if (!full) edit((s) => addToRound(s, round, cardId)); };
   const setTier = (text: string): void => {
     const n = Math.round(Number(text));
     edit((s) => withRound(s, round, (r) => (text.trim() === '' || !Number.isFinite(n)
@@ -152,11 +137,7 @@ function StageBuilderInner({ confirming, setConfirming, requestClose }: {
   };
   const setRune = (slot: 'round6' | 'round9', id: string): void =>
     edit((s) => ({ ...s, runes: id ? { ...s.runes, [slot]: id } : without(s.runes, slot) }));
-  const toggleKeyword = (idx: number, kw: Keyword): void => editMinion(idx, (m) => {
-    const added = m.addedKeywords ?? [];
-    const next = added.includes(kw) ? added.filter((k) => k !== kw) : [...added, kw];
-    return next.length ? { ...m, addedKeywords: next } : without(m, 'addedKeywords');
-  });
+  const toggleKeyword = (idx: number, kw: Keyword): void => edit((s) => toggleAddedKeyword(s, round, idx, kw));
 
   const stageDirty = dirty.includes(0);
   const anyDirty = dirty.length > 0;
@@ -220,7 +201,7 @@ function StageBuilderInner({ confirming, setConfirming, requestClose }: {
                     const flags = [issueRounds.has(n) ? ' err' : '', driftRounds.has(n) ? ' drift' : ''].join('');
                     return (
                       <button key={n} type="button" data-round={n} className={`sb-btn stb-round${n === round ? ' on' : ''}${flags}`}
-                        aria-pressed={n === round} onClick={() => { setTestHint(false); selectRound(n); }}
+                        aria-pressed={n === round} onClick={() => selectRound(n)}
                         aria-description={[`Round ${n}`, dirty.includes(n) ? 'unsaved' : '', issueRounds.has(n) ? 'has a problem' : '', driftRounds.has(n) ? 'a card changed since saved' : ''].filter(Boolean).join(' · ')}>
                         {n}
                         {dirty.includes(n) && <span className="stb-dot" aria-hidden />}
@@ -255,15 +236,15 @@ function StageBuilderInner({ confirming, setConfirming, requestClose }: {
                           {driftSlots.has(idx) && <span className="sb-tag stb-drift">changed since saved</span>}
                           <button type="button" className="sb-btn stb-ico" disabled={idx === 0} onClick={() => edit((s) => moveMinion(s, round, idx, idx - 1))} aria-label="Move left">◀</button>
                           <button type="button" className="sb-btn stb-ico" disabled={idx === board.length - 1} onClick={() => edit((s) => moveMinion(s, round, idx, idx + 1))} aria-label="Move right">▶</button>
-                          <button type="button" className="sb-btn stb-ico stb-x" onClick={() => edit((s) => withRound(s, round, (r) => ({ ...r, board: r.board.filter((_, i) => i !== idx) })))} aria-label="Remove">✕</button>
+                          <button type="button" className="sb-btn stb-ico stb-x" onClick={() => edit((s) => removeMinion(s, round, idx))} aria-label="Remove">✕</button>
                         </div>
                         <div className="sb-row stb-mrow">
                           <span className="sb-stats" aria-label="Stats">
-                            <StatBadgeField stat="atk" value={m.attack} min={0} onCommit={(n) => editMinion(idx, (x) => ({ ...x, attack: n }))} title="Attack — click to type, ↑/↓ or wheel to step (Shift = 5)" />
-                            <StatBadgeField stat="hp" value={m.health} min={1} onCommit={(n) => editMinion(idx, (x) => ({ ...x, health: n }))} title="Health — click to type, ↑/↓ or wheel to step (Shift = 5)" />
+                            <StatBadgeField stat="atk" value={m.attack} min={0} onCommit={(n) => edit((s) => setMinionStats(s, round, idx, { attack: n }))} title="Attack — click to type, ↑/↓ or wheel to step (Shift = 5)" />
+                            <StatBadgeField stat="hp" value={m.health} min={1} onCommit={(n) => edit((s) => setMinionStats(s, round, idx, { health: n }))} title="Health — click to type, ↑/↓ or wheel to step (Shift = 5)" />
                           </span>
                           <button type="button" className={`uned-kwbtn stb-gold${m.golden ? ' on' : ''}`} aria-pressed={!!m.golden}
-                            onClick={() => editMinion(idx, (x) => (x.golden ? without(x, 'golden') : { ...x, golden: true }))}>Golden</button>
+                            onClick={() => edit((s) => toggleMinionGolden(s, round, idx))}>Golden</button>
                           {EDITABLE_KEYWORDS.map((kw) => {
                             const locked = printed.includes(kw);
                             const on = locked || added.includes(kw);
@@ -286,11 +267,11 @@ function StageBuilderInner({ confirming, setConfirming, requestClose }: {
                 {results.length > 0 && (
                   <div className="sb-results" onMouseLeave={clearPreview}>
                     {results.map((c) => (
-                      <div key={c.id} className="stb-result" onMouseEnter={(e) => previewRow(c.id, e.currentTarget)}>
+                      <div key={c.id} className="stb-result" onMouseEnter={(e) => previewRow('card', c.id, e.currentTarget)}>
                         <span className={`sb-t sb-t${c.tier}`}>{c.tier}</span>
                         <span className="sb-name">{c.name}</span>
                         <button type="button" className="sb-btn stb-add" disabled={full} onClick={() => addMinion(c.id)}
-                          onFocus={(e) => previewRow(c.id, e.currentTarget)} onBlur={clearPreview}
+                          onFocus={(e) => previewRow('card', c.id, e.currentTarget)} onBlur={clearPreview}
                           aria-label={full ? `Board full (${GAUNTLET_BOARD_MAX})` : `Add ${c.name} to round ${round}`}>+ add</button>
                       </div>
                     ))}
@@ -298,44 +279,26 @@ function StageBuilderInner({ confirming, setConfirming, requestClose }: {
                 )}
               </Sec>
 
-              {/* RUNES — the opponent's two rune slots. Greyed = no combat effect for an opponent (shop-only). */}
+              {/* RUNES — the opponent's two rune slots: a picker per slot whose rows preview the REAL rune on hover /
+                  keyboard focus (owner 2026-09-29). Greyed + badged = no combat effect for an opponent (shop-only). */}
               <Sec id="runes" title="Runes" folded={folded} onFold={fold}>
-                {(['round6', 'round9'] as const).map((slot) => {
-                  const value = draft.runes[slot] ?? '';
-                  const inert = value !== '' && runeActs.get(value) === false;
-                  return (
-                    <label key={slot} className="sb-field">
-                      <span className="sb-mini">from round {slot === 'round6' ? 6 : 9}</span>
-                      <select className={`sb-select stb-rune${inert ? ' stb-noeffect' : ''}`} data-slot={slot} value={value}
-                        onChange={(e) => setRune(slot, e.target.value)}
-                        aria-label={`The opponent's rune from round ${slot === 'round6' ? 6 : 9} onward`}>
-                        <option value="">none</option>
-                        {RUNE_OPTIONS.map((r) => {
-                          const acts = runeActs.get(r.id) !== false;
-                          return (
-                            <option key={r.id} value={r.id} className={acts ? '' : 'stb-noeffect'}>
-                              {acts ? r.name : `${r.name} — no effect for opponents`}
-                            </option>
-                          );
-                        })}
-                      </select>
-                    </label>
-                  );
-                })}
+                {(['round6', 'round9'] as const).map((slot) => (
+                  <RunePicker key={slot} slot={slot} value={draft.runes[slot] ?? ''} runeActs={runeActs}
+                    open={runeOpen === slot} setOpen={(on) => { setRuneOpen(on ? slot : null); if (!on) clearPreview(); }}
+                    onPick={(id) => { setRune(slot, id); setRuneOpen(null); clearPreview(); }}
+                    onPreview={(id, el) => previewRow('rune', id, el)} onClearPreview={clearPreview} />
+                ))}
               </Sec>
 
-              {/* ACTIONS — Test re-pins this round as the next fight; Save validates, stamps and writes the file. */}
+              {/* ACTIONS — Save validates, stamps and writes the file. */}
               <Sec id="actions" title="Actions" folded={folded} onFold={fold}>
                 <div className="sb-row">
-                  <button type="button" className="sb-btn" onClick={() => { selectRound(round); setTestHint(true); }}
-                    aria-description="Pin this round as the next fight's opponent (runes included)">Test this round</button>
                   <button type="button" className="sb-btn sb-primary stb-save" disabled={!anyDirty} onClick={() => void save()}
                     aria-description="Validate, stamp each card's version and write the stage file">Save all edits</button>
                   <button type="button" className="sb-btn" disabled={!anyDirty} onClick={() => { setConfirming(false); discard(); }}
                     aria-description="Throw away every unsaved edit">Discard</button>
                   <button type="button" className="sb-btn stb-close" onClick={requestClose} aria-description="Close the Stage Builder">Close</button>
                 </div>
-                {testHint && <div className="sb-mini sb-note">End Turn to fight it</div>}
               </Sec>
             </>
           )}
@@ -351,5 +314,80 @@ function StageBuilderInner({ confirming, setConfirming, requestClose }: {
     </div>
     <SceneBuilderPreview target={collapsed ? null : preview} run={run} />
     </>
+  );
+}
+
+type RuneOption = (typeof RUNE_OPTIONS)[number];
+
+/**
+ * One rune slot's picker: a trigger showing the chosen rune, opening a searchable list ("none" + every rune).
+ * Hovering or focusing a row previews the REAL rune tablet (`SceneBuilderPreview`, via `onPreview`) — focus covers
+ * the keyboard (↑/↓ walk the rows) and touch (a tap focuses the row before it picks), so no hover-only CSS is added.
+ */
+function RunePicker({ slot, value, runeActs, open, setOpen, onPick, onPreview, onClearPreview }: {
+  slot: 'round6' | 'round9';
+  value: string;
+  runeActs: Map<string, boolean>;
+  open: boolean;
+  setOpen: (on: boolean) => void;
+  onPick: (id: string) => void;
+  onPreview: (id: string, el: HTMLElement) => void;
+  onClearPreview: () => void;
+}) {
+  const [query, setQuery] = useState('');
+  const listRef = useRef<HTMLDivElement | null>(null);
+  const from = slot === 'round6' ? 6 : 9;
+  const chosen = RUNE_OPTIONS.find((r) => r.id === value);
+  const inert = value !== '' && runeActs.get(value) === false;
+  const shown = useMemo<RuneOption[]>(() => {
+    const terms = query.trim().toLowerCase().split(/\s+/).filter(Boolean);
+    return terms.length ? RUNE_OPTIONS.filter((r) => terms.every((t) => `${r.name} ${r.id}`.toLowerCase().includes(t))) : RUNE_OPTIONS;
+  }, [query]);
+  const walk = (e: React.KeyboardEvent<HTMLElement>): void => {
+    if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); setOpen(false); return; }
+    if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return;
+    e.preventDefault();
+    const rows = [...(listRef.current?.querySelectorAll<HTMLButtonElement>('button.stb-runerow') ?? [])];
+    const at = rows.indexOf(document.activeElement as HTMLButtonElement);
+    const next = e.key === 'ArrowDown' ? Math.min(rows.length - 1, at + 1) : at - 1;
+    rows[next]?.focus();
+  };
+  const noEffect = (id: string): boolean => runeActs.get(id) === false;
+
+  return (
+    <div className="sb-field stb-runeslot">
+      <span className="sb-mini">from round {from}</span>
+      <button type="button" className={`sb-btn stb-runepick${inert ? ' stb-noeffect' : ''}${open ? ' on' : ''}`} data-slot={slot}
+        aria-expanded={open} aria-haspopup="listbox" onClick={() => setOpen(!open)}
+        onMouseEnter={(e) => { if (value) onPreview(value, e.currentTarget); }} onMouseLeave={() => { if (!open) onClearPreview(); }}
+        aria-label={`The opponent's rune from round ${from} onward: ${chosen ? chosen.name : 'none'}${inert ? ' (no effect for opponents)' : ''}`}>
+        <span className="sb-name">{chosen ? chosen.name : 'none'}</span>
+        {inert && <span className="sb-tag stb-noeffect">no effect for opponents</span>}
+        <span aria-hidden>{open ? '▴' : '▾'}</span>
+      </button>
+      {open && (
+        <>
+          <input className="sb-search" autoFocus value={query} placeholder="search runes…" onChange={(e) => setQuery(e.target.value)}
+            onKeyDown={walk} aria-label="Search runes. ↓ walks the list; hovering or focusing a rune previews it." />
+          <div className="sb-results stb-runes" role="listbox" ref={listRef} data-slot={slot} onMouseLeave={onClearPreview}>
+            <button type="button" role="option" aria-selected={value === ''} className={`sb-card stb-runerow${value === '' ? ' on' : ''}`} data-rune=""
+              onClick={() => onPick('')} onFocus={onClearPreview} onMouseEnter={onClearPreview} onKeyDown={walk}>
+              <span className="sb-name">none</span>
+            </button>
+            {shown.map((r) => (
+              <button key={r.id} type="button" role="option" aria-selected={r.id === value} data-rune={r.id}
+                className={`sb-card stb-runerow${r.id === value ? ' on' : ''}${noEffect(r.id) ? ' stb-noeffect' : ''}`}
+                onClick={() => onPick(r.id)} onMouseEnter={(e) => onPreview(r.id, e.currentTarget)}
+                onFocus={(e) => onPreview(r.id, e.currentTarget)} onBlur={onClearPreview} onKeyDown={walk}>
+                <span className="sb-name">{r.name}</span>
+                {r.epic && <span className="sb-tag">epic</span>}
+                {noEffect(r.id) && <span className="sb-tag stb-noeffect">no effect for opponents</span>}
+              </button>
+            ))}
+            {shown.length === 0 && <div className="sb-empty">no matches</div>}
+          </div>
+        </>
+      )}
+    </div>
   );
 }

@@ -1,71 +1,67 @@
-import gsap from 'gsap';
 import { Flip } from 'gsap/Flip';
-import { stageScale, toStage } from './stage';
-
-/** An element's current `x` / `y` translate in layout px, re-parsed from its computed transform (GSAP's
- *  `getProperty` 4th argument, `uncache` — untyped in gsap's .d.ts). Flip reads its end state the same way. */
-const freshTranslate = (el: Element, prop: 'x' | 'y'): number =>
-  Number((gsap.getProperty as (t: Element, p: string, unit?: string, uncache?: boolean) => string | number)(el, prop, undefined, true)) || 0;
+import { stageScale } from './stage';
 
 /**
- * GSAP Flip's `simple: true` fast path on the SCALED STAGE (stage.ts).
+ * GSAP Flip's `simple: true` fast path on the SCALED STAGE (stage.ts) — still Flip, at every scale.
  *
  * The row slides (board / shop / hand reorders, the drag's pre-emptive parting) use `Flip.getState(…, { simple:
  * true })` because the full path forces a layout per card (owner drag-stutter traces 2026-09-04 / 09-17). The simple
- * path adds the SCREEN-px distance between the old and new box straight onto the element's `x` / `y`, which are
- * LAYOUT px. Unscaled those are the same unit; on a scaled stage the offset comes out `1 / s` too big and every
- * card flies in from far outside its row (2.8× on a phone). The full path accounts for the ancestor scale, but it
- * is exactly the per-card forced layout the simple path was chosen to avoid.
+ * path records each card's on-screen box and, in `Flip.from`, adds the SCREEN-px distance between the recorded box
+ * and the current one straight onto the element's `x` / `y`, which are LAYOUT px. Unscaled those are the same unit;
+ * on a scaled stage that offset is `1 / s` too big and every card would fly in from far outside its row.
  *
- * So below the design size this module does the same translate-only FLIP by hand, at the simple path's cost (one
- * rect per card at capture, one at play): capture each element's on-screen box, and on play start it
- * `toStage(old − new)` away from its CURRENT transform and tween back to that transform. At `s === 1` both functions
- * are exactly `Flip.getState` / `Flip.from`.
- *
- * The END of the glide is the element's current transform, read FRESH — never `x: 0`, never GSAP's cached value
- * (owner report 2026-09-30, R-PRESENT-27). During a drag the row opens its gap with a React `slideDir` transform
- * (Card.tsx) that GSAP never wrote, so its cache is stale; Flip re-reads it (`cache.uncache = 1`) and ends on it.
- * Tweening to 0 instead wiped the make-room slide the instant it was applied — the warband twitched and fell back
- * instead of parting, but only below full screen.
+ * The fix is ONE unit conversion, applied to the recorded state just before `Flip.from` runs: each recorded
+ * position is pulled toward the element's CURRENT position so that `recorded − current` becomes
+ * `(recorded − current) / s`, i.e. the same distance in layout px. Everything else stays GSAP Flip's own behaviour —
+ * and that behaviour is load-bearing (owner report 2026-09-30, R-PRESENT-27: *"its perfect in full screen, when not
+ * in full screen its broken"*):
+ *   · `Flip.getState` FINISHES any in-flight flip on its targets (and the drag captures right after each
+ *     `Flip.from`), so the row always lands on the slide React just rendered;
+ *   · `Flip.from` ends by restoring the element's own inline transform — the React `slideDir` translate that opens
+ *     the drag's make-room gap (Card.tsx), never an `x: 0` or a cached value.
+ * A hand-rolled FLIP below the design size (2026-09-26 → 09-30) diverged on both: its capture recorded where each
+ * glide STARTED and left it running, so the next slot crossing replayed every earlier glide from its old spot (the
+ * gap snapped back toward where the drag had come from) and a crossing that landed mid-glide froze cards part-way;
+ * the first version also tweened to `x: 0`, wiping the gap outright. Only below full screen, because at `s === 1`
+ * it was never used.
  */
 
-interface StageRecord { el: Element; left: number; top: number }
-export type StageFlipState = ReturnType<typeof Flip.getState> | { stageRecords: StageRecord[] };
+export type StageFlipState = ReturnType<typeof Flip.getState>;
 
-/** `Flip.getState(targets, { simple: true })`, scaled-stage safe. */
+/** `Flip.getState(targets, { simple: true })` — identical at every stage scale (the unit fix happens at play). */
 export function getSimpleState(targets: string | Element[]): StageFlipState {
-  if (stageScale() === 1) return Flip.getState(targets, { simple: true });
-  const els = typeof targets === 'string' ? Array.from(document.querySelectorAll(targets)) : targets;
-  return {
-    stageRecords: els.map((el) => {
-      const r = el.getBoundingClientRect();
-      return { el, left: r.left, top: r.top };
-    }),
-  };
+  return Flip.getState(targets, { simple: true });
 }
 
-/** `Flip.from(state, { ...vars, simple: true })`, scaled-stage safe. Translate-only (what these rows do). */
+/** A recorded element box's position, as Flip keeps it (a translate-only matrix; `e`/`f` = page left/top). */
+interface RecordedBox { element: Element; bounds: DOMRect; matrix: { e: number; f: number } }
+
+/**
+ * Convert a simple state's recorded offsets from screen px to layout px, relative to where each element is NOW:
+ * `recorded' = now + (recorded − now) / s`. Reads one rect per recorded element — on the same flush `Flip.from`
+ * measures right after, so it adds no layout. A no-op at `s === 1`. Exported for the tests.
+ */
+export function rescaleSimpleState(state: StageFlipState, s: number): void {
+  if (s === 1) return;
+  for (const es of state.elementStates as unknown as RecordedBox[]) {
+    const el = es.element;
+    if (!el?.isConnected) continue;
+    const r = el.getBoundingClientRect();
+    if (r.width === 0 && r.height === 0) continue;
+    const m = es.matrix;
+    // `matrix.e/f` = the recorded box + the page scroll at capture; keep that scroll term on both sides.
+    const nowE = r.left + (m.e - es.bounds.left);
+    const nowF = r.top + (m.f - es.bounds.top);
+    m.e = nowE + (m.e - nowE) / s;
+    m.f = nowF + (m.f - nowF) / s;
+  }
+}
+
+/** `Flip.from(state, { ...vars, simple: true })`, scaled-stage safe. Consumes `state` (its offsets are rescaled). */
 export function fromSimpleState(
   state: StageFlipState,
   vars: { duration: number; ease: string; onComplete?: () => void },
-): gsap.core.Timeline | gsap.core.Animation {
-  if (!('stageRecords' in state)) return Flip.from(state, { ...vars, simple: true });
-  const tl = gsap.timeline({ onComplete: vars.onComplete });
-  for (const rec of state.stageRecords) {
-    const el = rec.el as HTMLElement;
-    if (!el.isConnected) continue;
-    const r = el.getBoundingClientRect();
-    if (r.width === 0 && r.height === 0) continue;
-    // Where the element's transform puts it NOW (layout px), read fresh like Flip does: the drag's make-room slide
-    // is a React transform GSAP's cache has never seen. That is the glide's END; its start is the old-minus-new
-    // on-screen offset (screen px -> layout px) away from it.
-    const curX = freshTranslate(el, 'x');
-    const curY = freshTranslate(el, 'y');
-    const dx = toStage(rec.left - r.left);
-    const dy = toStage(rec.top - r.top);
-    if (Math.abs(dx) < 0.5 && Math.abs(dy) < 0.5) continue; // already where the layout wants it
-    gsap.killTweensOf(el, 'x,y');
-    tl.fromTo(el, { x: curX + dx, y: curY + dy }, { x: curX, y: curY, duration: vars.duration, ease: vars.ease, immediateRender: true }, 0);
-  }
-  return tl;
+): gsap.core.Timeline {
+  rescaleSimpleState(state, stageScale());
+  return Flip.from(state, { ...vars, simple: true });
 }

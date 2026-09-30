@@ -3593,15 +3593,23 @@ export const FOUNDATION_RULES: GameRule[] = [
         ref: 'Owner report 2026-09-30 (same thread)',
         quote: 'its perfect in full screen, when not in full screen its broken',
       },
-      { kind: 'fix-pr', ref: 'fix/warband-drag-scaled-stage: packages/ui/src/stageFlip.ts (fromSimpleState ends each glide on the fresh-read transform); packages/ui/src/Recruit.tsx (collapseY -> toScreen)' },
+      {
+        kind: 'owner-chat',
+        ref: 'Owner, 2026-09-30, about the last build before the scaled stage (main@e14b9073d)',
+        quote: 'yes - that version works perfectly',
+      },
+      { kind: 'fix-pr', ref: 'fix/warband-drag-scaled-stage: packages/ui/src/Recruit.tsx (collapseY -> toScreen)' },
+      { kind: 'fix-pr', ref: 'fix/drag-scaled-stage-root: packages/ui/src/stageFlip.ts (GSAP Flip at every scale; rescaleSimpleState converts the recorded offsets to layout px)' },
     ],
     currentBehaviour:
-      'Conforms as of 2026-09-30. Since the scaled stage (#1762, 2026-09-27) the below-full-screen FLIP in '
-      + 'stageFlip.ts read x from the stale GSAP cache and tweened every card to x: 0, so the React slideDir transform of the drag '
-      + 'was wiped each time the gap moved: the neighbours twitched and fell back to their slots. It now '
-      + 're-reads the transform fresh (as GSAP Flip does at full screen) and ends the glide on it. The row-collapse '
-      + 'lift (owner-tuned layout px) is converted to screen px before meeting the screen-px pointer lift. Full '
-      + 'screen (s = 1) runs GSAP Flip unchanged.',
+      'Conforms as of 2026-09-30 (fix/drag-scaled-stage-root). Since the scaled stage (#1762, 2026-09-27), below full '
+      + 'screen stageFlip.ts replaced GSAP Flip with a hand-rolled FLIP that behaved differently: it first tweened every '
+      + 'card to x: 0 (wiping the drag gap), and after a first fix (#1879) its capture still recorded where each glide '
+      + 'STARTED and left it running, so each slot crossing replayed the row from its resting spots (the gap shut and '
+      + 're-opened) and a crossing mid-glide froze cards part-way. Full screen runs Flip, whose capture finishes the '
+      + 'glide and whose from() restores the React slide. stageFlip now runs GSAP Flip at every scale and only rescales '
+      + 'the recorded offsets from screen px to layout px (rescaleSimpleState). The row-collapse lift (owner-tuned '
+      + 'layout px) is converted to screen px before meeting the screen-px pointer lift (#1879).',
     enforcement: {
       kind: 'scenario',
       refs: ['packages/ui/src/stageFlip.test.ts'],

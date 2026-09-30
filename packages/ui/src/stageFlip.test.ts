@@ -1,63 +1,61 @@
 // @vitest-environment jsdom
 /**
- * THE DRAG'S MAKE-ROOM SLIDE ON A SCALED STAGE (owner report 2026-09-30: *"im seeing issues with the warband units
- * not reacting appropriately when dragging units onto the board and repositioning them"* … *"its perfect in full
- * screen, when not in full screen its broken"*).
+ * THE DRAG'S MAKE-ROOM GAP ON A SCALED STAGE (owner report 2026-09-30: *"its perfect in full screen, when not in full
+ * screen its broken"*; the pre-scaled-stage build *"works perfectly"*). R-PRESENT-27.
  *
- * While a card is dragged, the rows open the drop gap by giving each neighbour a React `slideDir` transform
- * (`translateX(calc((var(--ccw) + 22px) * n))`, Card.tsx), and `fromSimpleState` glides each card from where it
- * WAS to where that transform now puts it. At `s === 1` that is GSAP `Flip.from`, which re-reads each card's
- * transform fresh (`cache.uncache = 1`) and tweens TO it. Below the design size stageFlip.ts did the FLIP by hand,
- * read `x` from GSAP's stale cache and tweened every card TO `x: 0` — its natural slot. That wiped the slide the
- * row had just applied: the neighbours twitched and fell back instead of parting, so the warband never made room.
+ * While a card is dragged, the row opens the drop gap with a React `slideDir` transform on each neighbour
+ * (`translateX(calc((var(--ccw) + 22px) * n))`, Card.tsx) and `RowFlip` runs, per slot crossing:
+ * `fromSimpleState(prevState)` → `prevState = getSimpleState(row)`. At `s === 1` that is GSAP Flip, whose
+ * `getState` FINISHES the flip it just started (so the row always stands exactly on React's slides) and whose
+ * `from` ends by restoring React's own inline transform. Below the design size a hand-rolled FLIP stood in for it
+ * and did neither: the capture recorded where each glide STARTED and left it running, so every crossing replayed
+ * the whole row from its resting spots (the parting snapped shut and re-opened from where the drag had come from),
+ * a crossing that landed mid-glide froze cards part-way, and the first version even tweened to `x: 0` (no gap).
  *
- * GSAP is faked here (jsdom computes no transforms): a per-element "live" transform (what a fresh parse sees —
- * React's slide) and a separately cached value (what GSAP last wrote), so the test pins that the scaled path reads
- * the live transform and ends the glide ON it, exactly like Flip.
+ * These tests run the REAL gsap + Flip + stageFlip against a modelled row: jsdom lays nothing out, so each card's
+ * on-screen box is `(natural + its current translate) × s`, where the translate is whatever GSAP or React last wrote
+ * inline (and `getComputedStyle().transform` reports the same thing as a matrix, the way a browser would).
  */
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
+import gsap from 'gsap';
+import { Flip } from 'gsap/Flip';
+import { applyStage, stageScale } from './stage';
+import { fromSimpleState, getSimpleState } from './stageFlip';
+import { indexFromSlots, reorderIndexFromSlots } from './dragDecision';
 
-interface Live { x: number; y: number }
-const live = new Map<Element, Live>();    // the element's CURRENT transform (layout px) — what a fresh parse returns
-const cached = new Map<Element, Live>();  // GSAP's transform cache — what it last parsed / wrote
-interface Tween { el: Element; from?: Partial<Live>; to: Partial<Live> }
-const tweens: Tween[] = [];
-const flipFrom = vi.fn();
+gsap.registerPlugin(Flip);
 
-vi.mock('gsap', () => {
-  const read = (el: Element, prop: 'x' | 'y', uncache?: boolean): number => {
-    const c = cached.get(el);
-    if (c && !uncache) return c[prop];
-    const l = live.get(el) ?? { x: 0, y: 0 };
-    cached.set(el, { ...l });
-    return l[prop];
-  };
-  const write = (el: Element, v: Partial<Live>): void => {
-    const cur = live.get(el) ?? { x: 0, y: 0 };
-    const next = { x: v.x ?? cur.x, y: v.y ?? cur.y };
-    live.set(el, next);
-    cached.set(el, { ...next });
-  };
-  const timeline = () => {
-    const tl = {
-      fromTo: (el: Element, from: Partial<Live>, to: Partial<Live>) => { tweens.push({ el, from, to }); write(el, to); return tl; },
-      to: (el: Element, to: Partial<Live>) => { tweens.push({ el, to }); write(el, to); return tl; },
-      set: (el: Element, v: Partial<Live>) => { write(el, v); return tl; },
-    };
-    return tl;
-  };
-  const gsap = {
-    getProperty: (el: Element, prop: 'x' | 'y', _unit?: string, uncache?: boolean) => read(el, prop, uncache),
-    timeline,
-    killTweensOf: () => {},
-    set: (el: Element, v: Partial<Live>) => write(el, v),
-  };
-  return { default: gsap, gsap };
-});
-vi.mock('gsap/Flip', () => ({ Flip: { getState: vi.fn(() => ({ flip: true })), from: flipFrom } }));
+// A 5-minion warband: one slot (and one slideDir unit) = 200 LAYOUT px, the row starting at layout x 560.
+const PITCH = 200, CCW = 178, ROW_LEFT = 560, N = 5;
+const natural = (i: number): number => ROW_LEFT + PITCH * i;
 
-const { applyStage, stageScale } = await import('./stage');
-const { fromSimpleState, getSimpleState } = await import('./stageFlip');
+// ── the modelled DOM ────────────────────────────────────────────────────────────────────────────────────────────
+const reactX = new WeakMap<Element, number>(); // what React's calc() slide resolves to (layout px)
+const lastSlide = new WeakMap<Element, number>(); // React's own last-rendered slideDir (it only writes on change)
+
+/** The element's current translateX in layout px: GSAP's inline `translate(…px, …px)`, React's slide, or 0. */
+function liveX(el: HTMLElement): number {
+  const t = el.style.transform;
+  const g = /translate(?:3d)?\((-?[\d.e+-]+)px/.exec(t);
+  if (g) return Number(g[1]);
+  if (t.startsWith('translateX(calc(')) return reactX.get(el) ?? 0;
+  return 0;
+}
+
+const realGetComputedStyle = window.getComputedStyle.bind(window);
+(window as unknown as { getComputedStyle: typeof window.getComputedStyle }).getComputedStyle = (e: Element, p?: string | null) => {
+  const cs = realGetComputedStyle(e, p);
+  if (!(e as HTMLElement).dataset?.modelled) return cs;
+  const tf = (): string => { const v = liveX(e as HTMLElement); return v ? `matrix(1, 0, 0, 1, ${v}, 0)` : 'none'; };
+  return new Proxy(cs, {
+    get(t, k) {
+      if (k === 'transform') return tf();
+      if (k === 'getPropertyValue') return (n: string) => (n === 'transform' ? tf() : t.getPropertyValue(n));
+      const v = Reflect.get(t, k) as unknown;
+      return typeof v === 'function' ? (v as (...a: unknown[]) => unknown).bind(t) : v;
+    },
+  });
+};
 
 function setWindow(w: number, h: number): void {
   Object.defineProperty(window, 'innerWidth', { value: w, configurable: true });
@@ -65,82 +63,126 @@ function setWindow(w: number, h: number): void {
   applyStage();
 }
 
-/** A card whose on-screen box we control (jsdom lays nothing out). */
-function card(uid: string): HTMLElement & { at: (left: number, top?: number) => void } {
-  const el = document.createElement('div') as unknown as HTMLElement & { at: (left: number, top?: number) => void };
-  el.dataset.uid = uid;
-  document.body.appendChild(el);
-  let box = { left: 0, top: 0 };
-  el.at = (left, top = 0) => { box = { left, top }; };
-  el.getBoundingClientRect = () => ({ left: box.left, top: box.top, width: 150, height: 210, right: box.left + 150, bottom: box.top + 210, x: box.left, y: box.top, toJSON: () => ({}) }) as DOMRect;
-  return el;
+function row(): HTMLElement[] {
+  document.body.innerHTML = '';
+  return Array.from({ length: N }, (_, i) => {
+    const el = document.createElement('div');
+    el.dataset.modelled = '1';
+    el.dataset.uid = `m${i}`;
+    document.body.appendChild(el);
+    el.getBoundingClientRect = () => {
+      const s = stageScale();
+      const left = (natural(i) + liveX(el)) * s;
+      return { left, top: 700 * s, width: CCW * s, height: 250 * s, right: left + CCW * s, bottom: 950 * s, x: left, y: 700 * s, toJSON: () => ({}) } as DOMRect;
+    };
+    return el;
+  });
 }
 
-describe('fromSimpleState on a scaled stage — the make-room slide lands where the row put the card', () => {
-  beforeEach(() => {
-    live.clear(); cached.clear(); tweens.length = 0; flipFrom.mockClear();
-    document.body.innerHTML = '';
+/** React's commit of the rows' `slideDir`s: writes only the ones that changed, like React's style diff. */
+function reactCommit(els: HTMLElement[], slides: readonly number[]): void {
+  els.forEach((el, i) => {
+    const n = slides[i]!;
+    if ((lastSlide.get(el) ?? 0) === n) return;
+    lastSlide.set(el, n);
+    reactX.set(el, n * PITCH);
+    el.style.transform = n ? `translateX(calc((var(--ccw) + 22px) * ${n}))` : '';
   });
+}
+
+const screenLefts = (els: HTMLElement[]): number[] => els.map((el) => el.getBoundingClientRect().left);
+/** Where the row SHOULD stand for these slides (screen px) — what Flip shows at s === 1. */
+const wanted = (slides: readonly number[]): number[] => slides.map((n, i) => (natural(i) + n * PITCH) * stageScale());
+
+let clock = 0;
+/** Advance GSAP's root timeline by `ms` (jsdom has no frames; the tests drive the clock). */
+function advance(ms: number): void {
+  clock = Math.max(clock, gsap.globalTimeline.time()) + ms / 1000;
+  gsap.updateRoot(clock);
+}
+
+/**
+ * RowFlip's drag branch, crossing by crossing: React commits the new slides, `fromSimpleState(prev)` glides the row,
+ * `getSimpleState` captures the next baseline, then `stepMs` pass before the next crossing. Returns the row as it
+ * stands right after each crossing, and once everything has settled.
+ */
+function dragWalk(steps: readonly (readonly number[])[], stepMs: number): { perCrossing: number[][]; settled: number[] } {
+  const els = row();
+  let state = getSimpleState(els); // captured at drag start (startDragSession)
+  const perCrossing: number[][] = [];
+  for (const slides of steps) {
+    reactCommit(els, slides);
+    fromSimpleState(state, { duration: 0.18, ease: 'power2.out' }); // flipConfig.dragMs = 180
+    state = getSimpleState(els);
+    perCrossing.push(screenLefts(els));
+    advance(stepMs);
+  }
+  advance(1000);
+  return { perCrossing, settled: screenLefts(els) };
+}
+
+const expectRow = (got: number[], want: number[], what: string): void =>
+  got.forEach((v, i) => expect(v, `${what}: m${i}`).toBeCloseTo(want[i]!, 1));
+
+/** A hand minion played into the row: half a slot each side of the gap (WarbandRow's `boardSlide`). */
+const handPlay = (g: number): number[] => Array.from({ length: N }, (_, i) => (i < g ? -0.5 : 0.5));
+/** Reordering m0 (it holds its slot, invisible): every card the gap has crossed shifts one slot left. */
+const reorderM0 = (g: number): number[] => Array.from({ length: N }, (_, i) => (i === 0 ? 0 : i - 1 < g ? -1 : 0));
+
+describe('the drag make-room gap stands where the row put it — on a scaled stage exactly as at full screen', () => {
   afterEach(() => setWindow(1920, 1080));
 
-  // 1440×810 → s = 0.75. One slot = --ccw + 22px = 200 LAYOUT px = 150 SCREEN px.
-  const SLOT = 200;
+  for (const [w, h] of [[1920, 1080], [1440, 810], [1280, 720]] as const) {
+    it(`${w}×${h}: a hand minion dragged LEFT along the warband — the gap follows the cursor at every crossing`, () => {
+      setWindow(w, h);
+      const steps = [handPlay(5), handPlay(4), handPlay(3), handPlay(2)];
+      for (const stepMs of [250, 60]) { // crossings after the glide settled, and crossings mid-glide
+        const { perCrossing, settled } = dragWalk(steps, stepMs);
+        perCrossing.forEach((got, k) => expectRow(got, wanted(steps[k]!), `${stepMs}ms, crossing ${k}`));
+        expectRow(settled, wanted(steps[steps.length - 1]!), `${stepMs}ms, settled`);
+      }
+    });
 
-  it('a neighbour shifted one slot by the drag glides FROM its old spot TO the slide (not back to its natural slot)', () => {
-    setWindow(1440, 810);
-    expect(stageScale()).toBeCloseTo(0.75, 10);
-    const b = card('b');
-    b.at(750);                        // resting: natural slot at layout 1000 = screen 750, no transform
-    cached.set(b, { x: 0, y: 0 });    // GSAP last saw it untranslated (a previous glide ended at 0)
-    const state = getSimpleState([b]);
-    // The gap crosses it: React writes slideDir -1 → translateX(-200 layout px); it now draws one slot left.
-    live.set(b, { x: -SLOT, y: 0 });
-    b.at(750 - SLOT * 0.75);
-    fromSimpleState(state, { duration: 0.12, ease: 'power2.out' });
-    const tw = tweens.filter((t) => t.el === b);
-    expect(tw.length).toBe(1);
-    // Starts where it visually WAS (layout x 0 = its old spot) and ends ON the slide — what Flip.from does at s === 1.
-    expect(tw[0]!.from?.x).toBeCloseTo(0, 6);
-    expect(tw[0]!.to.x).toBeCloseTo(-SLOT, 6);
-    expect(live.get(b)!.x).toBeCloseTo(-SLOT, 6); // after the glide the card sits in the gap's neighbour slot
+    it(`${w}×${h}: a board minion reordered RIGHT — the neighbours step aside under the cursor and stay there`, () => {
+      setWindow(w, h);
+      const steps = [reorderM0(1), reorderM0(2), reorderM0(3), reorderM0(4), reorderM0(3)];
+      for (const stepMs of [250, 60]) {
+        const { perCrossing, settled } = dragWalk(steps, stepMs);
+        perCrossing.forEach((got, k) => expectRow(got, wanted(steps[k]!), `${stepMs}ms, crossing ${k}`));
+        expectRow(settled, wanted(steps[steps.length - 1]!), `${stepMs}ms, settled`);
+      }
+    });
+  }
+
+  it('a glide that is left to run (the hand-reorder settle) starts where the card WAS on screen — the offset is layout px', () => {
+    for (const [w, h] of [[1920, 1080], [1440, 810], [844, 390]] as const) {
+      setWindow(w, h);
+      const els = row();
+      const before = screenLefts(els);
+      const state = getSimpleState(els);
+      // The layout changes under the cards (a reorder commit): m1 now sits one slot right, m2 one slot left.
+      reactCommit(els, [0, 1, -1, 0, 0]);
+      const moved = screenLefts(els);
+      fromSimpleState(state, { duration: 0.2, ease: 'none' });
+      expectRow(screenLefts(els), before, `${w}×${h} t=0`); // FLIP: nothing visibly jumps
+      advance(100);
+      expectRow(screenLefts(els), before.map((b, i) => (b + moved[i]!) / 2), `${w}×${h} halfway`);
+      advance(500);
+      expectRow(screenLefts(els), moved, `${w}×${h} end`);
+      expect(els[1]!.style.transform.startsWith('translateX(calc(')).toBe(true); // React's own transform restored
+    }
   });
 
-  it('a card that did not move is left on its current slide (no glide back to x: 0)', () => {
-    setWindow(1440, 810);
-    const c = card('c');
-    live.set(c, { x: SLOT, y: 0 }); // already parted right by an earlier crossing
-    c.at(900);
-    const state = getSimpleState([c]);
-    fromSimpleState(state, { duration: 0.12, ease: 'power2.out' }); // nothing moved this commit
-    expect(live.get(c)!.x).toBeCloseTo(SLOT, 6);
-    for (const t of tweens.filter((w) => w.el === c)) expect(t.to.x ?? SLOT).toBeCloseTo(SLOT, 6);
-  });
-
-  it('keeps a card\'s own vertical offset (the hand tuck) through a horizontal glide', () => {
-    setWindow(1440, 810);
-    const h = card('h');
-    live.set(h, { x: 0, y: 14 }); // translateY(var(--hand-tuck))
-    h.at(400, 900);
-    const state = getSimpleState([h]);
-    live.set(h, { x: -120, y: 14 });
-    h.at(400 - 120 * 0.75, 900);
-    fromSimpleState(state, { duration: 0.12, ease: 'power2.out' });
-    const tw = tweens.find((t) => t.el === h)!;
-    expect(tw.from?.x).toBeCloseTo(0, 6);
-    expect(tw.to.x).toBeCloseTo(-120, 6);
-    expect(tw.from?.y).toBeCloseTo(14, 6);
-    expect(tw.to.y).toBeCloseTo(14, 6);
-  });
-
-  it('is exactly GSAP Flip (simple) at s === 1 — full screen keeps its code path', () => {
+  it('is plain GSAP Flip (simple) at s === 1 — full screen keeps its code path', () => {
     setWindow(1920, 1080);
     expect(stageScale()).toBe(1);
-    const a = card('a');
-    const state = getSimpleState([a]);
-    expect(state).toEqual({ flip: true });
-    fromSimpleState(state, { duration: 0.12, ease: 'power2.out' });
-    expect(flipFrom).toHaveBeenCalledWith({ flip: true }, { duration: 0.12, ease: 'power2.out', simple: true });
-    expect(tweens.length).toBe(0);
+    const els = row();
+    const state = getSimpleState(els);
+    const matrixE = (state.elementStates as unknown as { matrix: { e: number } }[]).map((es) => es.matrix.e);
+    reactCommit(els, [0, 1, -1, 0, 0]);
+    fromSimpleState(state, { duration: 0.2, ease: 'none' });
+    // No rescale at s === 1: the recorded boxes reach Flip.from untouched.
+    expect((state.elementStates as unknown as { matrix: { e: number } }[]).map((es) => es.matrix.e)).toEqual(matrixE);
   });
 });
 
@@ -152,23 +194,10 @@ describe('the drag decision compares like with like on a scaled stage', () => {
     expect(recruit.includes('collapseY: toScreen(getDragFeel().collapseY)')).toBe(true);
     expect(recruit.includes('collapseY: getDragFeel().collapseY,')).toBe(false);
   });
-});
-
-// ── The owner's recording (2026-09-30, windowed): while a card is dragged along the warband the parting shows up to
-// the RIGHT of the cursor and the neighbours' slides don't match where the card is held. Two halves to pin: the
-// insertion INDEX (which slot the gap belongs in) and the SLIDE (whether the row actually shows it there).
-const { indexFromSlots, reorderIndexFromSlots } = await import('./dragDecision');
-
-describe('warband drag at s = 0.75: the gap opens under the cursor and the row shows it there', () => {
-  // A 5-minion warband, one slot = --ccw 178 + 22px gap = 200 LAYOUT px, the row starting at layout x 560.
-  const PITCH = 200, CCW = 178, ROW_LEFT = 560, N = 5;
-  const natural = (i: number): number => ROW_LEFT + PITCH * i;
-  /** The resting slots exactly as `getBoundingClientRect` reports them on a stage of scale `s` (screen px). */
-  const slotsAt = (s: number) => Array.from({ length: N }, (_, i) => ({ uid: `m${i}`, left: natural(i) * s, width: CCW * s }));
-
-  afterEach(() => setWindow(1920, 1080));
 
   it('the insertion index for a pointer held over slot k is k — at s = 0.75 exactly as at s = 1', () => {
+    // The resting slots exactly as `getBoundingClientRect` reports them on a stage of scale `s` (screen px).
+    const slotsAt = (s: number) => Array.from({ length: N }, (_, i) => ({ uid: `m${i}`, left: natural(i) * s, width: CCW * s }));
     for (const s of [1, 0.75]) {
       const slots = slotsAt(s);
       for (let k = 0; k <= N; k++) {
@@ -179,41 +208,6 @@ describe('warband drag at s = 0.75: the gap opens under the cursor and the row s
       // Reordering m1: held over the right half of m3's slot → the gap is at 3 (after m0, m2, m3).
       expect(reorderIndexFromSlots(slots, (natural(3) + 150) * s, 'm1', 1)).toBe(3);
       expect(reorderIndexFromSlots(slots, (natural(0) + 40) * s, 'm1', 1)).toBe(0);
-    }
-  });
-
-  it('as the gap walks 0→1→2→3→2→1 every neighbour glides from where it was and ENDS on its slide', () => {
-    setWindow(1440, 810);
-    const s = stageScale();
-    expect(s).toBeCloseTo(0.75, 10);
-    document.body.innerHTML = '';
-    live.clear(); cached.clear(); tweens.length = 0;
-    const els = Array.from({ length: N }, (_, i) => {
-      const el = document.createElement('div');
-      el.dataset.uid = `m${i}`;
-      document.body.appendChild(el);
-      // On screen = the natural slot plus whatever transform is live right now, all shrunk by the stage.
-      el.getBoundingClientRect = () => {
-        const left = (natural(i) + (live.get(el)?.x ?? 0)) * s;
-        return { left, top: 700 * s, width: CCW * s, height: 250 * s, right: left + CCW * s, bottom: 950 * s, x: left, y: 700 * s, toJSON: () => ({}) } as DOMRect;
-      };
-      return el;
-    });
-    // A hand minion played into the row: half a slot each side of the gap (WarbandRow's `boardSlide`).
-    const slideOf = (i: number, gap: number): number => (i < gap ? -0.5 : 0.5) * PITCH;
-    let state = getSimpleState(els); // captured at drag start, every card at rest
-    for (const gap of [0, 1, 2, 3, 2, 1]) {
-      const before = els.map((el) => live.get(el)?.x ?? 0);
-      tweens.length = 0;
-      // React commits the new `slideDir` transforms (only the ones that changed) — GSAP's cache never sees these.
-      els.forEach((el, i) => { if ((live.get(el)?.x ?? 0) !== slideOf(i, gap)) live.set(el, { x: slideOf(i, gap), y: 0 }); });
-      fromSimpleState(state, { duration: 0.12, ease: 'power2.out' });
-      els.forEach((el, i) => {
-        expect(live.get(el)!.x, `gap ${gap}: m${i} rests on its slide`).toBeCloseTo(slideOf(i, gap), 6);
-        const tw = tweens.find((t) => t.el === el);
-        if (tw) expect(tw.from?.x, `gap ${gap}: m${i} starts where it was`).toBeCloseTo(before[i]!, 6);
-      });
-      state = getSimpleState(els); // the next crossing's baseline (RowFlip re-captures after each drag commit)
     }
   });
 });

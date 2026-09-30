@@ -13,7 +13,7 @@ import { parseProgressionResult } from './rules';
  *   the FIRST clear of a stage records a `gauntlet_progress` row AND grants one sealed crate (no level, source
  *   `gauntlet:N`) in the same transaction; every later clear of that stage is `already_cleared` and grants nothing;
  *   the stage is validated (1 to 10); level crates keep settling exactly as before; the Gauntlet crate opens through
- *   the normal `open_crate`; with `crates_enabled = false` the clear is recorded but no crate is granted; clients can
+ *   the normal `open_crate`; with `crates_enabled = false` the crate is still granted (the switch only gates opening); clients can
  *   neither call the writer nor write the table, and read only their own rows. The file re-runs cleanly.
  */
 
@@ -148,18 +148,22 @@ describe('the first clear of a stage grants one crate; replays grant nothing', (
     expect(await progress(u)).toEqual([]);
   });
 
-  it('with crates_enabled = false the clear is recorded but no crate is granted (and a replay later grants none either)', async () => {
+  it('with crates_enabled = false a first clear STILL grants its crate (banked sealed); the switch only gates opening', async () => {
     const u = await newUser();
     await db.exec('update public.progression_config set crates_enabled = false where id = 1');
     try {
-      expect(await clear(u, 2)).toEqual({ status: 'first_clear', crate: null });
+      const r = await clear(u, 2);
+      expect(r.status).toBe('first_clear');
+      expect(r.crate).toMatchObject({ earnedLevel: null, source: 'gauntlet:2', state: 'sealed' });
+      expect(await raises('select public.open_crate($1, $2)', [u, r.crate!.crateId])).toContain('crates_disabled');
+      expect(await clear(u, 2)).toEqual({ status: 'already_cleared', crate: null });
     } finally {
       await db.exec('update public.progression_config set crates_enabled = true where id = 1');
     }
-    expect(await progress(u)).toEqual([{ stage: 2, crate_granted: false, crate_id: null }]);
-    expect(await crates(u)).toEqual([]);
-    expect(await clear(u, 2)).toEqual({ status: 'already_cleared', crate: null });
-    expect(await crates(u)).toEqual([]);
+    const cs = await crates(u);
+    expect(cs).toHaveLength(1);
+    expect(cs[0]).toMatchObject({ source: 'gauntlet:2', state: 'sealed' });
+    expect(await progress(u)).toEqual([{ stage: 2, crate_granted: true, crate_id: cs[0]!.crate_id }]);
   });
 });
 

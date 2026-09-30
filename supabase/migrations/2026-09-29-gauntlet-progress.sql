@@ -18,9 +18,9 @@
 --    of a stage records the row and grants one sealed crate in the same transaction (`first_clear` + the crate);
 --    every later clear is a no-op (`already_cleared`, no crate). The server trusts the client's clear (owner
 --    2026-09-29) and only validates the stage (an integer 1 to 10). It takes the settlement's per-user advisory lock.
---  - THE CRATES SWITCH: while `progression_config.crates_enabled` is false the clear is still recorded, but NO crate
---    is granted (`crate_granted` false) and a later replay grants none either. (Unlike level crates, which the
---    settlement banks while the switch is off.) Keep the switch on while the Gauntlet is live.
+--  - THE CRATES SWITCH (`progression_config.crates_enabled`) only gates OPENING (`open_crate`). A first clear ALWAYS
+--    grants its crate, banked sealed while the switch is off, exactly like the settlement's level crates: gating the
+--    grant would lose that stage's crate forever, since a replay never grants one.
 
 -- ── 1. loot_crates: a crate may come from a source instead of a level ─────────────────────────────────────
 alter table public.loot_crates alter column earned_level drop not null;
@@ -75,8 +75,8 @@ create policy "read own gauntlet_progress" on public.gauntlet_progress for selec
 
 -- ── 3. record_gauntlet_clear: THE clear transaction. Service role only. ─────────────────────────────────
 -- Validate → the per-user advisory lock (the same one settlement and opening take) → the progress row, keyed
--- (a replay inserts nothing and answers `already_cleared`) → on a first clear, one sealed crate (unless the crates
--- switch is off) linked from the progress row, all in this transaction.
+-- (a replay inserts nothing and answers `already_cleared`) → on a first clear, one sealed crate (always, whatever
+-- the crates switch) linked from the progress row, all in this transaction.
 create or replace function public.record_gauntlet_clear(p_user uuid, p_stage int)
 returns jsonb
 language plpgsql
@@ -85,7 +85,6 @@ set search_path = public
 as $$
 declare
   v_rows    int;
-  v_enabled boolean;
   v_crate   public.loot_crates%rowtype;
 begin
   if p_user is null then raise exception 'unauthenticated'; end if;
@@ -97,11 +96,6 @@ begin
   get diagnostics v_rows = row_count;
   if v_rows = 0 then
     return jsonb_build_object('status', 'already_cleared', 'crate', null);
-  end if;
-
-  select crates_enabled into v_enabled from public.progression_config where id = 1;
-  if not coalesce(v_enabled, false) then
-    return jsonb_build_object('status', 'first_clear', 'crate', null);
   end if;
 
   insert into public.loot_crates (user_id, earned_level, source, source_id)

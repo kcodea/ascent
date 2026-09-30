@@ -12630,3 +12630,12 @@ body:has(.heroselect.rankend) .pixifx-above { z-index: 470; }
 .pfprev-disc .pfprev-art { width: 100%; height: 100%; object-fit: cover; display: block; }
 .pfprev-cap { font-size: 11px; opacity: 0.7; }
 .pfprev-row { display: flex; justify-content: center; gap: 10px; font-size: 11px; opacity: 0.8; padding-bottom: 6px; }
+
+/* GAUNTLET END SCREEN (gauntlet/GauntletEndScreen.tsx): the shared end-screen chrome (.heroselect.endscreen +
+   .endbox, .hstitle, .endsub, .endboard, .endplay) with a two-button action row. Home is the quieter of the two. */
+.gauntletend .hstitle { font-size: 104px; }
+.gauntletend-unlock { margin-top: 14px; font-family: var(--font-ui); font-weight: 800; font-size: 22px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--gold); }
+.gauntletend-reward { margin-top: 24px; }
+.gauntletend-actions { display: flex; align-items: center; justify-content: center; gap: 24px; }
+.gauntletend-home { background: rgba(255, 255, 255, 0.06); border-color: color-mix(in srgb, var(--gold) 55%, #000); box-shadow: 0 7px 0 color-mix(in srgb, var(--gold) 40%, #000), 0 14px 34px -8px rgba(0, 0, 0, 0.55); }
+.gauntletend-home:hover { background: rgba(255, 255, 255, 0.12); }

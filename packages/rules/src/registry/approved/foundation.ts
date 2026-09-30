@@ -2319,6 +2319,35 @@ export const FOUNDATION_RULES: GameRule[] = [
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/skins/skins.test.tsx', 'packages/progression/src/skins.test.ts', 'packages/progression/src/cosmetics.test.ts', 'packages/ui/src/progression/CollectionSkins.test.tsx'], lastVerifiedAt: '2026-09-29' },
   },
   {
+    id: 'R-PROG-SKINS-09',
+    title: 'Skins batch 4: sixteen minion skins and sixteen hero skins join the crates',
+    statement:
+      'Thirty-two skins are crate items, each targeting its card or hero by stable id and shipping its own art '
+      + '(packages/ui/src/art/skins/<id>.webp, 512px WebP). Minion skins: Beefy Arnold (Common, dw_arnold); Blown Glass '
+      + 'Recaller (Epic), Magma Recaller and Starform Recaller (Rare) (d2_recaller); Bouncer Pimm (Rare) and Prophet Pimm '
+      + '(Epic) (dw_pimm); Crimson Chimerus (Rare, chimerus); Chrome Scalefeather (Rare) and Mecha Scalefeather (Epic) '
+      + '(d2_chronicler, the card named Scalefeather); Edward Colada Hands (Legendary, dw_edward); Epic Baal (Rare, dw_baal); '
+      + 'Lavish Date (Epic, k_pouchpincher, Cheap Date); Portal Buddy and Sketch Buddy (Legendary, buddy); Sketch Drakko '
+      + '(Rare, drummer); Thor Orin (Epic, dw_orin). Hero skins: Waitress Ayse (Common) and Raptor Rider Ayse (Rare) (cia); '
+      + 'Black Friday Frank (Epic) and Coaster Frank (Rare) (frank); Treasure Hoard Braum (Rare, bram); Leg Day Darah (Epic) '
+      + 'and Rose Vortex Darah (Rare) (darah); Birdsong Emerald (Rare, emeraldwarden); Dance Night Hunch (Rare, hunch); '
+      + 'Keshi the Cityguard and Pop Star Keshi (Epic, keshi); King Soren (Epic) and Mastered Soren (Common) (soren); Master '
+      + 'Brakkus (Epic) and Young Brakkus (Common) (brackus); Ninja Robin (Common, robin). Rarity comes from the master\x27s '
+      + 'filename; the ten masters with none took the owner\x27s random draw between Common and Epic. Chimerus (the Dragon '
+      + 'quest reward) and Baal (forged by the Rune of Baal) are token-flagged cards the Shop never offers, and are the two '
+      + 'token targets a skin may name. With them in, a first crate holds 14 Common, 32 Rare, 25 Epic and 20 Legendary '
+      + 'items (each Common 3.571%, Rare 0.938%, Epic 0.6%, Legendary 0.25%).',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-30 (skins batch 4)', quote: 'can you wire all the new skins that i added to the folder' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-30 (skins batch 4, relayed)', quote: 'randomize the ten unlabelled skins between common and epic' },
+      { kind: 'code', ref: 'packages/progression/src/cosmetics.ts (COSMETICS, skins batch 4); packages/ui/src/art/skins/*.webp' },
+    ],
+    currentBehaviour: 'Conforms, built 2026-09-30. Reaches the database on the next deploy of progression-inventory (the catalog sync, R-PROG-SKINS-05).',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/skins/skins.test.tsx', 'packages/progression/src/skins.test.ts', 'packages/progression/src/cosmetics.test.ts', 'packages/ui/src/progression/CollectionSkins.test.tsx'], lastVerifiedAt: '2026-09-30' },
+  },
+  {
     id: 'R-PROG-COLLECTION-03',
     title: 'The crate opening draws the owner\x27s two-layer treasure chest: the lid blasts off, the open body stays',
     statement:

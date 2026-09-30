@@ -37,16 +37,38 @@ function policyStep(policy: SeatPolicy, run: RunState, ctrl: { c: BotControllerS
  * change at the call site, and swapping ALL of them is a loop.
  */
 
-/** Board-for-round lookup shared by both drivers: prefer an exact wave, else the closest earlier one. */
-function boardAt(snaps: readonly BoardSnapshot[], round: number): BoardSnapshot | null {
-  let best: BoardSnapshot | null = null;
+/**
+ * THE ROUND-EXACT RULE (owner 2026-09-29, R-LOBBY-08: "isnt it just replaying snapshots from the player's game?").
+ * A recorded seat's board for round N is ITS OWN wave-N board. The two tolerances below exist only for boards a
+ * real game legitimately never uploads (an EMPTY board is not captured, so a run may lack one wave), and they are
+ * the same bounds seat eligibility enforces (`runCoversItsRounds`), so an eligible run never needs more:
+ *
+ *  - a missing wave serves the run's board from at most `MAX_MISSING_WAVES` wave EARLIER;
+ *  - a run whose recording starts at wave 2 (an empty wave-1 board) serves that board in round 1: at most
+ *    `MAX_FIRST_WAVE - 1` wave ahead, and only before the recording begins.
+ *
+ * It NEVER reaches further forward. Until 2026-09-29 it fell through to "the earliest board", which served a
+ * wave-10 board on round 5 for a run whose early waves were cut off by the per-wave pool pull (R-LOBBY-07).
+ * Past a bound (unreachable for an eligible run) it prefers a weaker EARLIER board, and before the recording
+ * with no earlier board it serves an empty board: honest ("nothing recorded yet"), never a later round's.
+ * Past the run's END the driver returns null and the lobby's `repeatFinal` policy serves the final board with
+ * the seat's own Armor (owner ruling, "stale final board"), which is the only place a later board may appear.
+ */
+export const MAX_FIRST_WAVE = 2;
+export const MAX_MISSING_WAVES = 1;
+
+/** Board-for-round lookup shared by the recorded drivers (see the round-exact rule above). */
+export function boardAt(snaps: readonly BoardSnapshot[], round: number): BoardSnapshot | null {
+  let earlier: BoardSnapshot | null = null;
+  let first: BoardSnapshot | null = null;
   for (const s of snaps) {
     if (s.wave === round) return s;
-    if (s.wave < round && (!best || s.wave > best.wave)) best = s;
+    if (s.wave < round && (!earlier || s.wave > earlier.wave)) earlier = s;
+    if (!first || s.wave < first.wave) first = s;
   }
-  // A round EARLIER than anything recorded (a run whose first snapshot is wave 2) serves the earliest board
-  // rather than nothing — otherwise the seat silently sits out round 1 and a quarter of the table never fights.
-  return best ?? (snaps.length ? snaps[0]! : null);
+  if (earlier) return earlier; // within MAX_MISSING_WAVES for an eligible run; never a later round either way
+  if (first && first.wave - round <= MAX_FIRST_WAVE - 1) return first; // round 1 of a run that starts at wave 2
+  return null;
 }
 
 const toPrepared = (snap: BoardSnapshot): PreparedBoard => ({
@@ -79,9 +101,11 @@ export function recordedSeat(label: string, snaps: readonly BoardSnapshot[]): Se
     heroId: sorted[0]?.heroId ?? 'warden',
     lastWave,
     prepare: (round) => {
-      if (round > lastWave) return null; // out of material — the lobby decides what that means
+      if (round > lastWave) return null; // out of material — the lobby decides what that means (repeatFinal)
       const snap = boardAt(sorted, round);
-      return snap ? toPrepared(snap) : null;
+      // Nothing recorded this early (unreachable for an eligible run): an EMPTY board, never null, because a
+      // null here would make the lobby serve the FINAL board in an early round (see the round-exact rule).
+      return snap ? toPrepared(snap) : { minions: [], tier: 1 };
     },
     finalBoard: () => (sorted.length ? toPrepared(sorted[sorted.length - 1]!) : null),
     settle: () => {

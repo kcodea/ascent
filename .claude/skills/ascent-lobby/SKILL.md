@@ -47,6 +47,14 @@ behaviour from a legacy symbol.**
   `settleAbandonedRun(savedRun)` first.
 - Lobby state is serializable; runtime seat drivers are reconstructed from serializable metadata.
 - Missing snapshot data degrades deterministically — fill the seat, never shrink the table.
+- **The shared pool is WHOLE RUNS** (R-LOBBY-08, 2026-09-29): fetched as a uniform random sample of eligible runs
+  (`pool_runs_sample` RPC, one row per run with every board; `opponentPool/poolFetch.ts`), checked complete
+  (`isWholeRun`), registered all-or-nothing (`registerOpponentRuns`), cached as whole runs (cache v2). Never add a
+  path that fetches or caches boards per wave, per page or with any row limit that can cut a run. A recorded seat
+  serves its OWN wave-N board (`boardAt`: one missing wave may borrow the previous one, a run starting at wave 2
+  lends it to round 1, nothing further ahead); a later board appears only past the run's end (repeatFinal).
+  Seat selection caps one player at `MAX_SEATS_PER_PLAYER` (4) seats and skips the player's own runs
+  (`LobbySeatOptions.excludeOwnerId`), without weighting the shuffle.
 - A generated (hybrid) seat is seated only if its RECORDING fields a board (`hybridSeat.canFieldBoard` checks a
   one-board `autoplayRun` prefix, not just the live bot). `autoplayRun` must answer every blocking modal a hero
   can raise (quest, Runeforge, `powerOffer`, Discover, chooseOne, target) or that hero records nothing — the

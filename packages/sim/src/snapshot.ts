@@ -75,6 +75,11 @@ export interface BoardSnapshot {
    *  `'self'` — so `pickOpponent` uses this flag to prefer the live shared pool. Absent for committed +
    *  local-captured boards. */
   remote?: boolean;
+  /** The ACCOUNT that uploaded this board (`boards.user_id`), stamped by the client when the board arrives from
+   *  the shared pool (pool whole-runs fix, 2026-09-29). Never part of an upload: a local capture has none. Read by
+   *  lobby seat selection for the per-player seat cap and to keep your own runs out of your own lobby
+   *  (R-LOBBY-08). Absent = unknown (committed pool, legacy caches): the display `author` stands in. */
+  ownerId?: string;
   /** The skins its owner wore (skins v1, 2026-09-28): the run's recorded `cosmetics`, SCOPED to this board's
    *  hero and cards (handoff §13: only what the payload can show). Display only, never read by combat or
    *  matchmaking. Absent on every board from before skins = default art. */

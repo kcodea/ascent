@@ -10,7 +10,7 @@ import { createRun, type RunState, type PracticeConfig } from '../state';
 import { normalizePracticeTribes } from '../practiceTribes';
 import { createPracticeBotLobby } from './practiceBots';
 import { botSeat, hybridSeat, type SeatPolicy } from './seats';
-import { playerRunByKey, playerRunsFrom, snapshotSeat } from './snapshotSeats';
+import { MAX_SEATS_PER_PLAYER, playerRunByKey, playerRunsFrom, runOwnerOf, snapshotSeat } from './snapshotSeats';
 import { OPPONENT_POOL } from '../opponents';
 import { handleKeyOf, uniqueHandleFor, adjectiveHandle } from './handles';
 import type { LobbyEncounter, LobbyRules, PreparedBoard, SeatDriver } from './types';
@@ -299,7 +299,13 @@ function shuffleRuns<T>(runs: readonly T[], rng: { int: (n: number) => number })
   return out;
 }
 
-export function createRunLobby(seed: number, playerHeroId: string, rules: Partial<LobbyRules> = {}, setId?: SetId): RunLobby {
+/** Who is asking for a lobby, for seat selection only (never stored on the lobby). */
+export interface LobbySeatOptions {
+  /** The player's own account id: their OWN runs never sit at their own table (R-LOBBY-08). */
+  excludeOwnerId?: string | null;
+}
+
+export function createRunLobby(seed: number, playerHeroId: string, rules: Partial<LobbyRules> = {}, setId?: SetId, opts: LobbySeatOptions = {}): RunLobby {
   const r: LobbyRules = { ...DEFAULT_LOBBY_RULES, ...rules };
   // `playableHeroes` (not the raw roster): a `practiceOnly` hero is off PLAY mode, and a rival seat in a rated
   // lobby is play mode — a hero the owner has pulled for rework should not be driving boards that feed the
@@ -345,7 +351,16 @@ export function createRunLobby(seed: number, playerHeroId: string, rules: Partia
   // the pool size hit a multiple of 7 (#838) and let nearby seeds see near-identical tables. Fisher–Yates on
   // its own RNG stream (a tag distinct from the pairing / seat-combat mixes below) so this draw never moves
   // those.
-  const available = shuffleRuns(playerRunsFrom(undefined, undefined, setId), makeRng(seed ^ 0x2545f491));
+  //
+  // Two filters on top of the shuffle (owner 2026-09-29, R-LOBBY-08), neither of which weights the draw: your OWN
+  // runs never sit at your table, and one player holds at most `MAX_SEATS_PER_PLAYER` seats ("so it's not
+  // literally like 7 of me always"). A run over the cap is passed over for the next one in the shuffle, so every
+  // run of an under-cap player stays equally likely; when the pool genuinely lacks enough players, generated
+  // seats fill the rest below, exactly as for an empty pool.
+  const own = opts.excludeOwnerId ? `id:${opts.excludeOwnerId}` : null;
+  const available = shuffleRuns(playerRunsFrom(undefined, undefined, setId), makeRng(seed ^ 0x2545f491))
+    .filter((run) => !own || runOwnerOf(run) !== own);
+  const seatsByOwner = new Map<string, number>();
   const maxSnapshotSeats = Math.min(r.snapshotSeats ?? r.seatCount - 1, available.length);
   for (let i = 0; i < available.length && picked < r.seatCount - 1 && seats.filter((x) => x.kind === 'snapshot').length < maxSnapshotSeats; i++) {
     const run = available[i]!;
@@ -354,6 +369,8 @@ export function createRunLobby(seed: number, playerHeroId: string, rules: Partia
     // heroes. The hybrid loop below already skipped a held hero; snapshot seats now do too, so a second
     // player run on the same hero is passed over for the next eligible run in the shuffle.
     if (seats.some((x) => x.heroId === run.heroId)) continue;
+    const owner = runOwnerOf(run);
+    if (owner && (seatsByOwner.get(owner) ?? 0) >= MAX_SEATS_PER_PLAYER) continue; // per-player seat cap
     // A real author's name when the run has one; otherwise a generated handle. 142 of the pool's 664 boards
     // carry no author, and labelling those "run 1534" leaked the seed and read as debug output. An author
     // holding SEVERAL seats gets an ADJECTIVE prefix ("Sneaky Orangez", "Groovy Orangez") rather than the old
@@ -375,6 +392,7 @@ export function createRunLobby(seed: number, playerHeroId: string, rules: Partia
     if (!canPlay(seat)) continue; // no round-1 board — skip rather than seat a ghost
     taken.add(seat.label.toLowerCase());
     seats.push(seat);
+    if (owner) seatsByOwner.set(owner, (seatsByOwner.get(owner) ?? 0) + 1);
     picked++;
   }
 
@@ -929,7 +947,7 @@ export function lobbyOpponentBoard(
  */
 export function createLobbyRun(
   seed: number, heroId: string, rules: Partial<LobbyRules> = {}, mode: 'lobby' | 'practice' = 'lobby',
-  practiceConfig?: PracticeConfig, setId?: SetId,
+  practiceConfig?: PracticeConfig, setId?: SetId, seatOpts?: LobbySeatOptions,
 ): RunState {
   // PRACTICE is a lobby too since 2026-07-31 — same 8 seats, same recorded opponents (reads the shared pool;
   // writes nothing back), same flow. Its extra rules (invulnerability, the round-15 curtain, the shop-timer
@@ -947,7 +965,7 @@ export function createLobbyRun(
   // BOTS opponents: seat seven authored, scaling omen boards instead of recorded player runs.
   const lobby = practiceConfig?.opponents === 'bots'
     ? createPracticeBotLobby(seed, heroId, practiceConfig.botDifficulty, rules)
-    : createRunLobby(seed, heroId, rules, run.setId);
+    : createRunLobby(seed, heroId, rules, run.setId, seatOpts);
   const me = lobby.seats[0]!;
   // The seat's pools ARE the run's health, so the HUD and every health-aware effect read one number.
   me.resolve = run.resolve;

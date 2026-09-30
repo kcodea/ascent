@@ -2199,7 +2199,9 @@ export const useGame = create<GameStore>((rawSet, get) => {
       const run = s.pendingMode === 'lobby' || s.pendingMode === 'practice'
         // Practice carries the setup options chosen on the Practice screen (bots vs recorded opponents, health,
         // tribe surge); a plain lobby uses none.
-        ? createLobbyRun(seed, heroId, {}, s.pendingMode, s.pendingMode === 'practice' ? s.practiceDraft : undefined)
+        // Your OWN runs never sit at your table (R-LOBBY-08): the seat builder skips runs your account uploaded.
+        ? createLobbyRun(seed, heroId, {}, s.pendingMode, s.pendingMode === 'practice' ? s.practiceDraft : undefined, undefined,
+          { excludeOwnerId: currentProgressionUserId() })
         : createRun(seed, heroId, s.pendingMode, s.profile.currentLine);
       // MEDAL RANK: a RATED lobby is minted its stable ranked identity HERE, once, and it travels with the save
       // — a retried settlement always names the same run. Practice (and every other mode) gets none.

@@ -12,7 +12,7 @@ let m: Mounted | null = null;
 afterEach(() => { m?.unmount(); m = null; });
 
 const state = (status: PoolLoadState['status']): PoolLoadState =>
-  ({ status, source: 'none', wavesFresh: 0, wavesFromCache: 0, wavesTotal: 17, boards: 0 });
+  ({ status, source: 'none', runs: 0, boards: 0, runsDropped: 0 });
 
 /** A loader whose `ensure()` the test resolves by hand. */
 function stubLoader(): PoolLoader & { resolve(s: PoolLoadState): void } {

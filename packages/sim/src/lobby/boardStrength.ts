@@ -21,6 +21,8 @@ import { mixSeed } from '../state';
  *    the pool. It moves as the pool grows, so it is derived (server-side for the pool, from the server's
  *    histogram for the player's own board) and never stored on a board. `percentileOf` is the one definition;
  *    the SQL (`supabase/migrations/2026-09-30-board-strength.sql`) is parity-tested against it.
+ *  - A RUN's strength is a true percentile among RUNS (owner-approved 2026-09-30): the average of its board
+ *    percentiles (`runAverageOf`), ranked against every other run's average by the same rule (`runPercentileOf`).
  *
  * The reference set lives in `strengthReference.v1.json`, generated ONCE by `npm run strength -- ref` from the
  * live pool. It is loaded lazily (`loadStrengthReference`): it is ~0.5 MB of boards, and nothing on the menu or
@@ -180,11 +182,25 @@ export function pctFromCounts(below: number, equal: number, n: number): number |
 /** Round to a whole 1..100 (a percentile of 0 reads as "no score"; the weakest board is 1). */
 export const clampPct = (x: number): number => Math.min(100, Math.max(1, Math.round(x)));
 
-/** A run's strength: the average of its per-wave percentiles, rounded (null with none). */
-export function runStrengthOf(percentiles: readonly (number | null | undefined)[]): number | null {
+/** A run's AVERAGE: the mean of its per-board percentiles, rounded (null with none). Averages pull toward 50 (a run
+ *  is rarely the weakest in every round), so this is not yet the run's strength; `runPercentileOf` ranks it. */
+export function runAverageOf(percentiles: readonly (number | null | undefined)[]): number | null {
   const xs = percentiles.filter((p): p is number => typeof p === 'number' && Number.isFinite(p));
   if (!xs.length) return null;
   return clampPct(xs.reduce((a, b) => a + b, 0) / xs.length);
+}
+
+/** How many runs of the set hold each average (the server's `run_strength_histogram`). */
+export interface RunStrengthHistogramEntry { avg: number; count: number }
+
+/**
+ * A RUN's strength (owner-approved 2026-09-30): its average ranked among the pool's run averages with the same
+ * tie-halving 1..100 rule as a board, so 30 means the bottom 30% of runs and every band holds about its nominal share.
+ * `includeSelf` counts the run itself in the population (the player's finished game, not uploaded yet). SQL twin: the
+ * rank window in `pool_strength_refresh`.
+ */
+export function runPercentileOf(avg: number, runs: readonly RunStrengthHistogramEntry[] | null | undefined, includeSelf = true): number | null {
+  return percentileOf(avg, (runs ?? []).map((r) => ({ raw: r.avg, count: r.count })), includeSelf);
 }
 
 /** A stored board strength (a history entry, a replay result, a JSON-path text scalar) back to 1..100, or null for
@@ -195,13 +211,15 @@ export function parseBoardStrength(v: unknown): number | null {
 }
 
 /**
- * The player's own run: each round's percentile against the pool's histogram (the board counted as if it were
- * already in the pool), and the run's strength (their average). Null without a histogram (the server cannot give
+ * The player's own run: each round's percentile against the pool's board histogram (the board counted as if it were
+ * already in the pool), their average, and the run's strength (that average ranked among the pool's runs). `value`
+ * is null without the run histogram, and the whole result null without the board histogram (the server cannot give
  * one yet): the UI then shows nothing rather than a guess. Scores against another reference version are skipped.
  */
 export function runStrengthFromScores(
-  scores: Iterable<readonly [number, StrengthScore]>, hist: StrengthHistogram | null | undefined, ref: string = STRENGTH_REF_VERSION,
-): { value: number | null; rounds: { round: number; value: number }[] } | null {
+  scores: Iterable<readonly [number, StrengthScore]>, hist: StrengthHistogram | null | undefined,
+  runs: readonly RunStrengthHistogramEntry[] | null | undefined, ref: string = STRENGTH_REF_VERSION,
+): { value: number | null; average: number | null; rounds: { round: number; value: number }[] } | null {
   if (!hist) return null;
   const rounds: { round: number; value: number }[] = [];
   for (const [round, score] of scores) {
@@ -212,5 +230,7 @@ export function runStrengthFromScores(
     if (value !== null) rounds.push({ round, value });
   }
   rounds.sort((a, b) => a.round - b.round);
-  return { value: runStrengthOf(rounds.map((r) => r.value)), rounds };
+  const average = runAverageOf(rounds.map((r) => r.value));
+  const value = average !== null && runs?.length ? runPercentileOf(average, runs, true) : null;
+  return { value, average, rounds };
 }

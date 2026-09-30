@@ -17,7 +17,7 @@ import { CARD_INDEX, poolFor, type SetId } from '@game/content';
 import {
   opponentBoard, sideFromSnapshot, STRENGTH_REF_VERSION, loadStrengthReference, createStrengthProbe, percentileOf,
   OPPONENT_POOL, registerOpponentRuns, createRunLobby, resetLobbyDrivers, playableHeroes, strengthBandForDivision,
-  runStrengthOf, type BoardSnapshot, type StrengthReference, type StrengthHistogramEntry, STRENGTH_BANDS,
+  runAverageOf, runPercentileOf, type RunStrengthHistogramEntry, type BoardSnapshot, type StrengthReference, type StrengthHistogramEntry, STRENGTH_BANDS,
   bandSteps, inStrengthBand, type StrengthBand, MAX_SEATS_PER_PLAYER, RANK_MEDALS,
 } from '@game/sim';
 import { loadLivePool, type LivePool, type LiveRun } from './livePool';
@@ -187,11 +187,22 @@ async function measure(): Promise<void> {
     pctByRun.set(s.runKey, list);
   }
   const runs = eligibleRuns(pool);
-  const strength = new Map(runs.map((r) => [r.key, runStrengthOf(pctByRun.get(r.key) ?? [])]));
+  // A run's AVERAGE of board percentiles, then its strength = that average ranked among every scored run of the set
+  // (the SQL's population: every pool_runs row with an average), itself counted once.
+  const averages = new Map(pool.runs.filter((r) => r.setId === SET).map((r) => [r.key, runAverageOf(pctByRun.get(r.key) ?? [])]));
+  const avgHist = new Map<number, number>();
+  for (const a of averages.values()) if (a !== null) avgHist.set(a, (avgHist.get(a) ?? 0) + 1);
+  const runHist = (skip: number): RunStrengthHistogramEntry[] => [...avgHist.entries()].map(([avg, count]) => ({ avg, count: avg === skip ? count - 1 : count }));
+  const strength = new Map(runs.map((r) => {
+    const a = averages.get(r.key) ?? null;
+    return [r.key, a === null ? null : runPercentileOf(a, runHist(a), true)] as const;
+  }));
+  const avgValues = runs.map((r) => averages.get(r.key)).filter((x): x is number => typeof x === 'number').sort((a, b) => a - b);
   const values = [...strength.values()].filter((x): x is number => x !== null).sort((a, b) => a - b);
-  const q = (p: number): number => values[Math.min(values.length - 1, Math.floor(p * values.length))]!;
+  const q = (p: number, xs = values): number => xs[Math.min(xs.length - 1, Math.floor(p * xs.length))]!;
   console.log(`\neligible runs ${runs.length}, scored ${values.length}`);
-  console.log(`run strength: min ${values[0]} p10 ${q(0.1)} p25 ${q(0.25)} median ${q(0.5)} p75 ${q(0.75)} p90 ${q(0.9)} max ${values[values.length - 1]}`);
+  console.log(`run AVERAGE of board percentiles: min ${avgValues[0]} p10 ${q(0.1, avgValues)} median ${q(0.5, avgValues)} p90 ${q(0.9, avgValues)} max ${avgValues[avgValues.length - 1]}`);
+  console.log(`run strength (ranked among runs): min ${values[0]} p10 ${q(0.1)} p25 ${q(0.25)} median ${q(0.5)} p75 ${q(0.75)} p90 ${q(0.9)} max ${values[values.length - 1]}`);
   const deciles = Array.from({ length: 10 }, (_, i) => values.filter((v) => v > i * 10 && v <= (i + 1) * 10).length);
   console.log('runs per decile (1-10, 11-20, ... 91-100):', deciles.join(' '));
   // Raw win rate by wave (the per-board spread the percentile sits on).

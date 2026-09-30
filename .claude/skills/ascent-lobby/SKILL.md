@@ -57,7 +57,7 @@ behaviour from a legacy symbol.**
   (`LobbySeatOptions.excludeOwnerId`), without weighting the shuffle.
 - **Board strength + rank bands** (R-LOBBY-09, 2026-09-30): a board's raw strength is its seeded win rate against the
   frozen reference set (`lobby/boardStrength.ts`, `strengthReference.v1.json`), stored with the board; percentiles and
-  a run's strength (`pool_runs.strength`) are derived server-side. A RATED lobby passes `strengthBand` (Bronze 0-30,
+  a run's strength (`pool_runs.strength`: its board-percentile average RANKED among the runs, so bands hold their nominal share) are derived server-side. A RATED lobby passes `strengthBand` (Bronze 0-30,
   Silver 10-40, Gold 20-65, Platinum+ none) to both the pool fetch and `createRunLobby`; unscored runs are in every
   band, and a band that cannot fill the table widens +10 per capped side before generated seats. With no band the
   selection is R-LOBBY-08's, seat for seat. Your own boards are scored in idle slices from capture

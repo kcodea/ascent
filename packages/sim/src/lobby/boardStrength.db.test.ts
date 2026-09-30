@@ -3,13 +3,14 @@ import { PGlite } from '@electric-sql/pglite';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { makeRng } from '@game/core';
-import { pctFromCounts, percentileOf, runStrengthOf, type StrengthHistogramEntry } from './boardStrength';
+import { pctFromCounts, percentileOf, runAverageOf, runPercentileOf, type StrengthHistogramEntry } from './boardStrength';
 
 /**
  * THE BOARD-STRENGTH SQL, EXECUTED (R-LOBBY-09, 2026-09-30). PGlite runs the 2026-09-29 whole-run pool migration
  * and then `supabase/migrations/2026-09-30-board-strength.sql` on a stub `boards` table, and checks:
- *  - `board_strength_pct` equals the TS `pctFromCounts` on every count triple, and a run's `pool_runs.strength`
- *    equals `runStrengthOf(percentileOf(...))` computed in TS from the same boards;
+ *  - `board_strength_pct` equals the TS `pctFromCounts` on every count triple; a run's `strength_avg` equals
+ *    `runAverageOf(percentileOf(...))` and its `strength` equals `runPercentileOf` (the average ranked among the
+ *    runs), both computed in TS from the same boards;
  *  - uploads with a score refresh their run through the trigger (insert and the backfill's update);
  *  - `pool_runs_sample` honours a band, counts an unscored run as inside every band, keeps whole runs and the
  *    own-run exclusion, is uniform inside the band, and still answers the old four-argument call;
@@ -83,7 +84,7 @@ describe('the SQL percentile equals the TS percentile', () => {
     rows.forEach((r, i) => expect(r.p, `below ${triples[i]![0]} equal ${triples[i]![1]} n ${triples[i]![2]}`).toBe(pctFromCounts(...triples[i]!)));
   });
 
-  it("a run's strength is the average of its boards' percentiles, the same number the client computes", async () => {
+  it("a run's average and its strength (the average ranked among runs) are the numbers the client computes", async () => {
     const rng = makeRng(930);
     const specs: RunSpec[] = [];
     // Raw scores on a 1/120 grid, as a 60-fight score is, so ties are common.
@@ -99,10 +100,24 @@ describe('the SQL percentile equals the TS percentile', () => {
       for (const r of byWave.get(w) ?? []) { if (!skipped && r === skipOne) { skipped = true; continue; } m.set(r, (m.get(r) ?? 0) + 1); }
       return [...m].map(([raw, count]) => ({ raw, count }));
     };
+    const avgs = new Map<string, number | null>();
     for (const s of specs) {
       const pcts = s.raws.map((r, i) => (r === null ? null : percentileOf(Number(r.toFixed(4)), hist(i + 1, Number(r.toFixed(4))), true)));
-      expect(await strengthOf(`${s.author}|${s.hero}|${s.seed}`), s.hero).toBe(runStrengthOf(pcts));
+      avgs.set(`${s.author}|${s.hero}|${s.seed}`, runAverageOf(pcts));
     }
+    const sqlAvg = new Map((await q<{ k: string; a: string | null }>(`select author || '|' || hero_id || '|' || seed as k, strength_avg::text as a from public.pool_runs`)).map((r) => [r.k, r.a === null ? null : Number(r.a)]));
+    for (const [k, a] of avgs) expect(sqlAvg.get(k), k).toBe(a);
+    // The rank among runs, itself counted once.
+    const all = [...avgs.values()].filter((a): a is number => a !== null);
+    for (const [k, a] of avgs) {
+      const others = new Map<number, number>();
+      let skipped = false;
+      for (const x of all) { if (!skipped && x === a) { skipped = true; continue; } others.set(x, (others.get(x) ?? 0) + 1); }
+      expect(await strengthOf(k), k).toBe(runPercentileOf(a!, [...others].map(([avg, count]) => ({ avg, count })), true));
+    }
+    const strengths = await Promise.all([...avgs.keys()].map((k) => strengthOf(k)));
+    expect(Math.min(...(strengths as number[]))).toBeLessThanOrEqual(5); // ranked: spans the scale
+    expect(Math.max(...(strengths as number[]))).toBeGreaterThanOrEqual(95);
   });
 });
 
@@ -110,7 +125,7 @@ describe('keeping pool_runs.strength current', () => {
   it('an upload with scores refreshes its run; an unscored upload stays unscored', async () => {
     await upload({ author: 'Fresh', hero: 'f', seed: 5001, raws: [0.9, 0.95, 0.9, 1] });
     await upload({ author: 'Old', hero: 'o', seed: 5002, raws: [null, null, null, null] });
-    expect(await strengthOf('Fresh|f|5001')).toBeGreaterThan(80);
+    expect(await strengthOf('Fresh|f|5001')).toBeGreaterThan(90); // the strongest run of the set
     expect(await strengthOf('Old|o|5002')).toBeNull();
   });
 
@@ -118,7 +133,7 @@ describe('keeping pool_runs.strength current', () => {
     await db.exec(`update public.boards set strength_raw = 0, strength_ref = '${REF}', strength_wave = wave where author = 'Old' and strength_raw is null`);
     const s = await strengthOf('Old|o|5002');
     expect(s).not.toBeNull();
-    expect(s!).toBeLessThan(20);
+    expect(s!).toBeLessThan(10); // the weakest run of the set
   });
 });
 
@@ -177,6 +192,9 @@ describe('the histogram and grants', () => {
     try {
       const rows = await q<{ wave: number; raw: string; n: string }>(`select wave, raw::text as raw, n::text as n from public.board_strength_histogram('${REF}')`);
       expect(rows.map((r) => [r.wave, Number(r.raw), Number(r.n)])).toEqual([[1, 0.5, 2], [2, 0.25, 1], [2, 0.75, 1]]);
+      // Run averages: H1 = mean(50, 25) = 38 (37.5 half up), H2 = mean(50, 75) = 63 (62.5 half up).
+      const runs = await q<{ avg: string; n: string }>(`select avg::text as avg, n::text as n from public.run_strength_histogram('set2')`);
+      expect(runs.map((r) => [Number(r.avg), Number(r.n)])).toEqual([[38, 1], [63, 1]]);
       expect((await sample(10, 'anon')).length).toBe(2);
       await expect(db.query('select public.pool_strength_refresh(null, null, null)')).rejects.toThrow(/permission denied/);
       await expect(db.query('update public.pool_runs set strength = 1')).rejects.toThrow();

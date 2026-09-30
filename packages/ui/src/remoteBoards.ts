@@ -16,7 +16,7 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { activeSet, type SetId } from '@game/content';
 import type { FightRow, LobbyStrength, MatchDetails, StrengthInput } from '@game/sim';
-import { STRENGTH_REF_VERSION, parseBoardStrength, type StrengthBand, type StrengthHistogram, type StrengthScore } from '@game/sim';
+import { STRENGTH_REF_VERSION, parseBoardStrength, type RunStrengthHistogramEntry, type StrengthBand, type StrengthHistogram, type StrengthScore } from '@game/sim';
 import { RANK_SEASON, initialRankedProfile, lobbyStrengthOf, excludeOwnFights, parseLobbyStrength, parseMatchDetails, parseRankResult, parseRankedProfile, registerBoardRecords, registerOpponentRuns, type BoardSnapshot, type DerivedRun, type PlayerKeyBasis, type RankedProfile, type ReplayV2, type RunTelemetry, type RunTelemetryRow, type TelemetrySource, isRankPosition, type RankPosition } from '@game/sim';
 import { currentIdentity, currentUserId, setIdentity, type AuthProvider, type Identity } from './identity';
 import type { RankSubmitOutcome, RankSubmitRequest } from './rank/types';
@@ -2066,6 +2066,20 @@ export function refreshOpponentPoolAndRecords(patchPrefix?: string): void {
 // is shown (never a guess).
 let strengthHistogramCache: StrengthHistogram | null = null;
 export const strengthHistogram = (): StrengthHistogram | null => strengthHistogramCache;
+// …and the pool's run AVERAGES (`run_strength_histogram`), which a finished game's average is ranked against: a run's
+// strength is a percentile among runs (owner-approved 2026-09-30).
+let runStrengthHistogramCache: RunStrengthHistogramEntry[] | null = null;
+export const runStrengthHistogram = (): RunStrengthHistogramEntry[] | null => runStrengthHistogramCache;
+
+/** Rows of `run_strength_histogram` into entries (exported for the tests); null when empty. */
+export function runHistogramOf(rows: ReadonlyArray<{ avg: unknown; n: unknown }>): RunStrengthHistogramEntry[] | null {
+  const out: RunStrengthHistogramEntry[] = [];
+  for (const r of rows) {
+    const avg = Number(r.avg); const count = Number(r.n);
+    if (Number.isFinite(avg) && count > 0) out.push({ avg, count });
+  }
+  return out.length ? out : null;
+}
 
 /** Rows of the RPC into the histogram shape (exported for the tests). */
 export function histogramOf(rows: ReadonlyArray<{ wave: unknown; raw: unknown; n: unknown }>): StrengthHistogram | null {
@@ -2084,9 +2098,14 @@ export async function refreshStrengthHistogram(): Promise<StrengthHistogram | nu
   const c = client();
   if (!c) return null;
   try {
-    const request = Promise.resolve(c.rpc('board_strength_histogram', { p_ref: STRENGTH_REF_VERSION }));
     const timeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), FETCH_TIMEOUT_MS));
-    const result = await Promise.race([request, timeout]);
+    const [result, runs] = await Promise.all([
+      Promise.race([Promise.resolve(c.rpc('board_strength_histogram', { p_ref: STRENGTH_REF_VERSION })), timeout]),
+      Promise.race([Promise.resolve(c.rpc('run_strength_histogram', { p_set: activeSet().id })), timeout]),
+    ]);
+    if (runs && !runs.error && Array.isArray(runs.data)) {
+      runStrengthHistogramCache = runHistogramOf(runs.data as Array<{ avg: unknown; n: unknown }>) ?? runStrengthHistogramCache;
+    }
     if (!result || result.error || !Array.isArray(result.data)) return strengthHistogramCache;
     strengthHistogramCache = histogramOf(result.data as Array<{ wave: unknown; raw: unknown; n: unknown }>) ?? strengthHistogramCache;
     return strengthHistogramCache;

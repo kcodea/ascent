@@ -2,7 +2,7 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import type { BoardSnapshot } from '../snapshot';
 import {
   STRENGTH_REF_VERSION, createStrengthProbe, loadStrengthReference, parseBoardStrength, pctFromCounts, percentileOf,
-  referenceWaveOf, runStrengthFromScores, runStrengthOf, scoreBoard, type StrengthReference, type StrengthScore,
+  referenceWaveOf, runAverageOf, runPercentileOf, runStrengthFromScores, scoreBoard, type StrengthReference, type StrengthScore,
 } from './boardStrength';
 
 /**
@@ -119,20 +119,42 @@ describe('the percentile', () => {
     }
   });
 
-  it("a run's strength is the average of its rounds, rounded", () => {
-    expect(runStrengthOf([50, 60, 71])).toBe(60);
-    expect(runStrengthOf([10, 11])).toBe(11); // 10.5 -> 11
-    expect(runStrengthOf([null, undefined])).toBeNull();
+  it("a run's average is the mean of its rounds, rounded", () => {
+    expect(runAverageOf([50, 60, 71])).toBe(60);
+    expect(runAverageOf([10, 11])).toBe(11); // 10.5 -> 11
+    expect(runAverageOf([null, undefined])).toBeNull();
   });
 
-  it("the player's own rounds are placed against the pool's histogram; nothing without one", () => {
+  it("a run's strength is its average RANKED among the runs (owner-approved 2026-09-30): averages near 50 spread to 1-100", () => {
+    // 100 runs whose averages all sit between 35 and 64 (the squeeze toward 50): ranked, they span the whole scale,
+    // and each band holds its nominal share.
+    const runs = Array.from({ length: 30 }, (_, i) => ({ avg: 35 + i, count: i % 3 === 0 ? 4 : 3 }));
+    const n = runs.reduce((a, r) => a + r.count, 0);
+    expect(n).toBe(100);
+    const pct = runs.map((r) => ({ ...r, pct: runPercentileOf(r.avg, runs.map((x) => (x.avg === r.avg ? { ...x, count: x.count - 1 } : x)))! }));
+    expect(Math.min(...pct.map((p) => p.pct))).toBeLessThanOrEqual(3);
+    expect(Math.max(...pct.map((p) => p.pct))).toBeGreaterThanOrEqual(97);
+    const share = (lo: number, hi: number): number => pct.filter((p) => p.pct >= lo && p.pct <= hi).reduce((a, p) => a + p.count, 0) / n;
+    expect(share(0, 30)).toBeGreaterThan(0.25); expect(share(0, 30)).toBeLessThan(0.35);
+    expect(share(10, 40)).toBeGreaterThan(0.25); expect(share(10, 40)).toBeLessThan(0.36);
+    expect(share(20, 65)).toBeGreaterThan(0.40); expect(share(20, 65)).toBeLessThan(0.51);
+    // Worked example: beats 72 of 99 others, alone at its average -> (72 + 0.5) / 100 = 72.5 -> 73.
+    expect(runPercentileOf(60, [{ avg: 40, count: 72 }, { avg: 80, count: 27 }])).toBe(73);
+    expect(runPercentileOf(60, [], false)).toBeNull();
+  });
+
+  it("the player's own rounds are placed against the pool's boards, and the run against the pool's runs", () => {
     const score = (wave: number, raw: number): StrengthScore => ({ raw, wave, ref: STRENGTH_REF_VERSION, fights: 60 });
     const hist = { '1': [{ raw: 0.2, count: 3 }, { raw: 0.8, count: 1 }], '2': [{ raw: 0.5, count: 4 }] };
-    const out = runStrengthFromScores([[2, score(2, 0.9)], [1, score(1, 0.5)], [3, score(3, 0.5)]], hist)!;
+    const runs = [{ avg: 40, count: 5 }, { avg: 80, count: 2 }, { avg: 90, count: 2 }];
+    const out = runStrengthFromScores([[2, score(2, 0.9)], [1, score(1, 0.5)], [3, score(3, 0.5)]], hist, runs)!;
     expect(out.rounds).toEqual([{ round: 1, value: 70 }, { round: 2, value: 90 }]); // round 3: no pool boards yet
-    expect(out.value).toBe(80);
-    expect(runStrengthFromScores([[1, score(1, 0.5)]], null)).toBeNull();
-    expect(runStrengthFromScores([[1, { ...score(1, 0.5), ref: 'old' }]], hist)!.value).toBeNull();
+    expect(out.average).toBe(80);
+    expect(out.value).toBe(65); // (5 below + (2 + itself) / 2) / 10 = 6.5 / 10
+    // No run histogram yet: the rounds stand, the run has no strength (nothing is shown for it).
+    expect(runStrengthFromScores([[1, score(1, 0.5)]], hist, null)!.value).toBeNull();
+    expect(runStrengthFromScores([[1, score(1, 0.5)]], null, runs)).toBeNull();
+    expect(runStrengthFromScores([[1, { ...score(1, 0.5), ref: 'old' }]], hist, runs)!.value).toBeNull();
   });
 
   it('reads a stored strength back, or null', () => {

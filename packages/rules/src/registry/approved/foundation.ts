@@ -664,14 +664,17 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'versioned reference set of ~30 real boards of its wave (two seeded fights each, the board once on each side, '
       + 'both sides fought through the recorded-seat combat side), stored permanently with the board. Its PERCENTILE '
       + '(1-100) is its place among every scored board at the same reference wave (ties half; 72 = stronger than 72%), '
-      + 'derived, never stored; a run\'s strength is the average of its boards\' percentiles. A RATED lobby draws its '
+      + 'derived, never stored. A run\'s strength is a percentile among RUNS: the average of its boards\' percentiles, '
+      + 'ranked against every other run\'s average in the set by the same rule, so 30 means the bottom 30% of runs and '
+      + 'each band holds about its nominal share (owner-approved follow-up: averages alone squeezed toward 50). A RATED lobby draws its '
       + 'recorded seats uniformly at random from the runs inside the band of the player\'s medal (Bronze 0-30, Silver '
       + '10-40, Gold 20-65, Platinum and above uncapped; every division of a medal shares it), still whole runs, at '
       + 'most 4 seats per player, never the player\'s own runs. A run with no score yet is inside every band. When a '
       + 'band cannot fill the table it widens by 10 on each capped side, step by step (each step logged), before '
       + 'generated seats fill the rest. Practice and the tutorial have no band. The player\'s own game shows '
-      + '"Board strength N" in the Career and Recent Games rows and in Match details (with each round and each '
-      + 'opponent seat), frozen at the moment the game ended; a game that was not scored shows nothing.',
+      + '"Board strength N" (the run\'s strength) in the Career and Recent Games rows and in Match details (with each '
+      + 'round\'s board percentile and each opponent seat\'s run strength), frozen at the moment the game ended; a '
+      + 'game that was not scored shows nothing.',
     domain: 'foundation',
     status: 'approved',
     evidence: [
@@ -694,6 +697,11 @@ export const FOUNDATION_RULES: GameRule[] = [
         kind: 'owner-chat',
         ref: 'Claude Code session, 2026-09-30 (show it)',
         quote: 'can we show that score to the player too maybe? like maybe that is shown in match history?',
+      },
+      {
+        kind: 'owner-chat',
+        ref: 'Owner approval of the suggested fix on PR #1871, relayed by the coordinator, 2026-09-30 (run strength ranked among runs)',
+        quote: 'make a RUN\'s strength a true percentile among runs',
       },
       { kind: 'code', ref: 'packages/sim/src/lobby/boardStrength.ts + strengthBands.ts + strengthReference.v1.json; packages/sim/src/lobby/runLobby.ts createRunLobby (strengthBand); packages/ui/src/boardStrength/ (background scorer); packages/ui/src/opponentPool/poolFetch.ts (band + widening); supabase/migrations/2026-09-30-board-strength.sql' },
     ],

@@ -21,8 +21,14 @@ second pool is a small change later. Rule: **R-LOBBY-09**.
 2. **Percentile (per board).** `100 * (below + equal / 2) / n` over every scored board at the same reference wave and
    version, the board itself counted in `equal`, rounded half up, clamped to 1..100, computed in integer arithmetic
    so TS (`pctFromCounts`) and SQL (`board_strength_pct`) cannot round differently. Derived, never stored on a board.
-3. **Run strength.** The average of the run's per-board percentiles, rounded (`pool_runs.strength`). Refreshed for the
-   uploaded runs on every scored upload, and for every run whenever the oldest stamp is over 10 minutes old.
+3. **Run strength: a true percentile among RUNS** (owner-approved follow-up, same day). First the run's AVERAGE of its
+   per-board percentiles, rounded (`pool_runs.strength_avg`, `runAverageOf`); then that average RANKED against every
+   other run's average in the set with the same tie-halving 1..100 rule (`pool_runs.strength`, `runPercentileOf`), so
+   30 means the bottom 30% of runs and each band holds about its nominal share. Averages are refreshed for the
+   uploaded runs on every scored upload (every run when the oldest stamp is over 10 minutes old); every run's rank is
+   recomputed on every refresh (one window over `pool_runs`, only changed rows written). Why: averaging percentiles
+   pulls toward 50 (a run is rarely the weakest in every round), so the plain average spread only 9-83 and Bronze
+   0-30 held 13% of runs while Gold 20-65 held 82%.
 4. **Bands.** Bronze 0-30, Silver 10-40, Gold 20-65, Platinum and above uncapped; every division of a medal shares the
    medal's band (`STRENGTH_BANDS`, `strengthBandForDivision`). RATED lobbies only; Practice and the tutorial have no
    band. Inside the band: the same uniform seeded shuffle, whole runs, at most 4 seats per player, never your own runs.
@@ -35,16 +41,18 @@ second pool is a small change later. Rule: **R-LOBBY-09**.
    reconsidered, so every run keeps its equal chance inside each step). Only after the band is uncapped do generated
    seats fill the rest. Both are logged: `lobbyPool.strengthBand`, `strengthBandUsed`, `bandWidenings`,
    `poolFetchWidenings` in the lobby telemetry row.
-7. **Showing it.** Career rows and Recent Games rows print **"Board strength 72"**; Match details shows it per seat
-   (each opponent's run strength, as the pool delivered it) and your own strength by round. The number is FROZEN
-   when the game ends: `run_history.entry.boardStrength`, `replay.v2.result.boardStrength`, and the Match details
-   seats. A game that was not scored shows nothing (no placeholder).
+7. **Showing it.** Career rows and Recent Games rows print **"Board strength 72"** (the run's strength, the percentile
+   among runs); Match details shows it per seat (each opponent's run strength, as the pool delivered it) and your own
+   per-round numbers (those stay BOARD percentiles: each round's board against the pool's boards of that wave). The
+   number is FROZEN when the game ends: `run_history.entry.boardStrength`, `replay.v2.result.boardStrength`, and the
+   Match details seats. A game that was not scored shows nothing (no placeholder).
 
 ## Decisions I made (flag any to change)
 
-- **The player's own percentile is computed on the client**, from the server's histogram
-  (`board_strength_histogram`, fetched at startup and between runs), with the fresh board counted as if already in
-  the pool. That is what lets the number be frozen in the history row at insert time: `run_history` is insert-only
+- **The player's own numbers are computed on the client**, from two server histograms fetched at startup and between
+  runs: `board_strength_histogram` (per-round percentiles, the fresh board counted as if already in the pool) and
+  `run_strength_histogram` (the pool's run averages; the finished game's average is ranked against them, counted as
+  if already in). Without the run histogram the per-round numbers still freeze but the run shows no strength. That is what lets the number be frozen in the history row at insert time: `run_history` is insert-only
   for clients, and the history insert must not wait on a network call (it goes out ahead of the rank request).
 - **Scoring is incremental**, not after the game: each board is queued the moment it is captured (End Turn) and
   scored in idle slices (`requestIdleCallback`, 4 fights per uninterruptible step, continue only while the deadline
@@ -56,8 +64,9 @@ second pool is a small change later. Rule: **R-LOBBY-09**.
 - **Reference waves.** 15 reference waves; a wave with fewer than 20 eligible boards is merged with every later wave
   into the last reference wave (live: waves 15-18 = 60 boards, so wave 16+ boards are scored against wave 15's
   set). Percentiles are bucketed by that reference wave too.
-- **Population.** Every board with a score (both copies agree): only boards with minions are ever scored, and
-  synthetic boards never, so the count is an index-only scan and never reads a snapshot.
+- **Population.** Boards: every board with a score (both copies agree): only boards with minions are ever scored, and
+  synthetic boards never, so the count is an index-only scan and never reads a snapshot. Runs: every `pool_runs` row
+  of the set with an average (eligible or not; 5 of 158 today are ineligible).
 - **Monotonicity.** A flat +3/+3 on every minion never costs more than 2 of 60 fights and on average only helps; a
   flat +40/+40 never scores lower. It is not strictly monotone per board because the fights are seeded, not
   scripted: a buffed minion survives a hit, later random targets differ, one fight flips. Worth knowing: the wave-13
@@ -90,31 +99,39 @@ For comparison, the odds probe already runs 200 sims per combat in 10-sim steps 
 
 ## Measured against the live pool (read-only, 2026-09-30)
 
-Run strength (153 eligible runs, all scored): min 9, p10 30, p25 38, **median 48**, p75 59, p90 68, max 83. Per
-decile (1-10 ... 91-100): 1, 6, 13, 27, 38, 35, 20, 11, 2, 0. Raw win rates spread well inside every wave (p10 ~0.13,
-median ~0.5, p90 ~0.86; 24 to 88 distinct values per wave).
+Raw win rates spread well inside every wave (p10 ~0.13, median ~0.5, p90 ~0.86; 24 to 88 distinct values per wave).
+The run AVERAGES of board percentiles (153 eligible runs, all scored) squeeze toward 50: min 9, p10 30, median 48,
+p90 68, max 83. Ranked among runs, the run STRENGTH spans the scale: min 1, p10 12, p25 27, **median 50**, p75 75,
+p90 91, max 99; per decile (1-10 ... 91-100): 15, 17, 14, 15, 17, 12, 17, 18, 12, 16.
 
-| Band | Runs in band | Players | Seats it can fill (4-cap) | Widening needed |
+| Band | Runs in band (share) | Players | Seats it can fill (4-cap) | Widening needed |
 |---|---|---|---|---|
-| Bronze 0-30 | 20 | 7 (LazerLemon 8, Orangez 5, Rooks 4, 3 others 1 each) | 16 | never |
-| Silver 10-40 | 46 | 9 | 22 | never |
-| Gold 20-65 | 126 | 9 | 25 | never |
+| Bronze 0-30 | 46 (30%) | 9 (LazerLemon 17, Orangez 17, Rooks 6, ...) | 22 | never |
+| Silver 10-40 | 47 (31%) | 7 | 20 | never |
+| Gold 20-65 | 72 (47%) | 7 (LazerLemon 36, Orangez 27, ...) | 17 | never |
 | Platinum+ (uncapped) | 153 | 10 | 28 | n/a |
 
-Real lobbies (`createRunLobby` over the live pool with every run's strength stamped, 200 lobbies per medal, as a
-newcomer, as LazerLemon and as Orangez with their own runs excluded): **0 widenings and 0 generated seats in every
-case**. Mean strength of the seated runs: Bronze 22.9, Silver 30.6, Gold 45.6, uncapped 48.0 (newcomer).
+Real lobbies (`createRunLobby` over the live pool with every run's strength stamped, 200 lobbies per medal): **0
+widenings and 0 generated seats in every case**, as a newcomer, as LazerLemon and as Orangez (their own runs
+excluded). Mean strength of the seated runs:
+
+| Medal | Newcomer | As LazerLemon | As Orangez |
+|---|---|---|---|
+| Bronze | 15.1 | 16.1 | 14.1 |
+| Silver | 25.2 | 22.6 | 24.8 |
+| Gold | 41.2 | 36.9 | 39.6 |
+| Platinum+ | 49.9 | 46.3 | 45.2 |
+
+(Before the ranking change the same lobbies averaged Bronze 22.9, Silver 30.6, Gold 45.6, uncapped 48.0: Gold was
+barely easier than uncapped.)
 
 SQL parity on the real data: the live boards loaded into PGlite, both migrations and the backfill run: `pool_runs.strength`
-equals the TS computation on **158 of 158** runs; the backfill took 254 ms, a full refresh 29 ms; a Bronze sample
-returns the same 20 runs.
+equals the TS computation on **158 of 158** runs; the backfill took 386 ms, a full refresh 52 ms; the Bronze, Silver
+and Gold samples return 46, 47 and 72 runs, the same as the TS count.
 
-**Two things to look at.** (1) An average of per-wave percentiles pulls toward 50 (a run is rarely weakest in every
-round), so run strengths spread 9-83, not 1-100: the Bronze band holds 13% of runs, not 30%, and **the Gold band
-(20-65) holds 82% of runs**, so Gold lobbies are barely easier than uncapped ones today (45.6 vs 48.0). If you want
-the bands to cut the pool in the proportions their numbers suggest, the fix is to rank the run averages into a
-percentile among runs; one line in SQL and TS. (2) The pool is mostly two authors, so Bronze is 8 LazerLemon + 5
-Orangez + 4 Rooks runs; fine for filling tables, thin for variety.
+**Worth knowing.** The pool is mostly two authors, so every band is mostly LazerLemon and Orangez runs (Bronze: 17 +
+17 + Rooks 6); fine for filling tables, thin for variety. The backfill file does not depend on the ranking (it only
+writes each board's raw score; the ranks are derived), so it did not change.
 
 ## Owner runbook
 
@@ -135,13 +152,16 @@ Orangez + 4 Rooks runs; fine for filling tables, thin for variety.
    select count(*) from public.pool_runs_sample(300, 'set2', '0.1.0+', null, 'check', 0, 30);
    ```
 
-   Expect about 1,856 scored boards, ~153 scored eligible runs, median near 48, and ~20 runs in the Bronze sample.
+   Expect about 1,856 scored boards, ~153 scored eligible runs, median near 50, and ~46 runs in the Bronze sample.
 5. Anon check (any terminal; URL and anon key in `apps/web/.env`):
 
    ```sh
    curl -s -X POST "$VITE_SUPABASE_URL/rest/v1/rpc/board_strength_histogram" \
      -H "apikey: $VITE_SUPABASE_ANON_KEY" -H "Authorization: Bearer $VITE_SUPABASE_ANON_KEY" \
      -H "Content-Type: application/json" -d '{"p_ref":"set2-v1"}' | head -c 300
+   curl -s -X POST "$VITE_SUPABASE_URL/rest/v1/rpc/run_strength_histogram" \
+     -H "apikey: $VITE_SUPABASE_ANON_KEY" -H "Authorization: Bearer $VITE_SUPABASE_ANON_KEY" \
+     -H "Content-Type: application/json" -d '{"p_set":"set2"}' | head -c 300
    ```
 
 Nothing else. Deployed clients switch on by themselves: the pool fetch starts sending the band (it had dropped it for
@@ -152,7 +172,7 @@ Repair: `select public.pool_strength_refresh();` recomputes every run's strength
 
 ## Where it lives
 
-- Sim: `packages/sim/src/lobby/boardStrength.ts` (scoring, percentile, run strength), `strengthBands.ts` (bands,
+- Sim: `packages/sim/src/lobby/boardStrength.ts` (scoring, percentile, run average, run percentile), `strengthBands.ts` (bands,
   widening, seat estimate), `strengthReference.v1.json`, `runLobby.ts` (`LobbySeatOptions.strengthBand`,
   `poolAtStart.band`), `snapshotSeats.ts` (`PlayerRun.strength`), `matchDetails.ts` (`MatchSeat.strength`,
   `roundStrength`), `snapshot.ts` (`BoardSnapshot.runStrength`, stamped at pool load, never uploaded).

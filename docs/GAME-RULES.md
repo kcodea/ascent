@@ -68,10 +68,12 @@ medal + division — see *Ranked ladder* below).
     reference wave (15) are scored against it. Deterministic; stored permanently with the board
     (`boards.strength_raw` / `strength_ref` / `strength_wave`), never recomputed.
   - Its **percentile** (1-100) is its place among every scored board at the same reference wave: the share it is
-    stronger than, ties counted half, rounded (72 = stronger than 72%). Derived, so it follows the pool as it
-    grows; never stored on a board. A **run's strength** is the average of its boards' percentiles
-    (`pool_runs.strength`, refreshed on every upload for the uploaded runs and for every run at most every 10
-    minutes).
+    stronger than, ties counted half, rounded. Derived, so it follows the pool as it grows; never stored on a board.
+  - A **run's strength** is a **percentile among runs** (owner-approved 2026-09-30): the average of its boards'
+    percentiles (`pool_runs.strength_avg`), then ranked against every other run's average in the set by the same
+    rule (`pool_runs.strength`). 72 = stronger than 72% of runs, and each band holds about its nominal share of the
+    pool (the plain average squeezed toward 50). Averages refresh on every upload for the uploaded runs and for every
+    run at most every 10 minutes; ranks are recomputed on every refresh.
   - **Bands by medal** (every division of a medal shares it): Bronze **0-30**, Silver **10-40**, Gold **20-65**,
     Platinum and above **uncapped**. A rated lobby's recorded seats come only from runs inside the band (the server
     samples inside it, and seat selection filters to it), still whole runs, still at most 4 seats per player, never
@@ -79,9 +81,10 @@ medal + division — see *Ranked ladder* below).
     **widens by 10 on each capped side**, one step at a time (each step logged to the pool telemetry), until it is
     uncapped; only then do generated seats fill the rest. Practice and the tutorial have no band.
   - Your own boards are scored in the background while you play (idle time only; the last board during its combat)
-    and upload with their scores. When the game ends, each round's percentile against the pool and their average
-    are **frozen** into the game's record: the Career and Recent Games rows print **"Board strength N"**, and Match
-    details shows your strength by round and each opponent seat's run strength. A game that was not scored (the
+    and upload with their scores. When the game ends, each round's board percentile and the run's strength (its
+    average ranked against the pool's run averages) are **frozen** into the game's record: the Career and Recent Games
+    rows print **"Board strength N"** (the run's strength), and Match details shows your per-round board percentiles
+    and each opponent seat's run strength. A game that was not scored (the
     pool's strength data unavailable, or older games) shows nothing.
 - **A lobby that seats player runs waits for the opponent pool** (owner 2026-09-28, R-LOBBY-06). A rated lobby
   or Practice against players is not built until the shared pool has loaded: instantly when it already has,

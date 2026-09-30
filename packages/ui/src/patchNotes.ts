@@ -62,10 +62,10 @@ export const PATCH_NOTES: PatchNote[] = [
         category: 'Balance',
         text: 'Ranked opponents now match your medal. Board strength shows in your match history.',
         details: [
-          'Every board gets a Board strength from 1 to 100. It says how strong the board is compared to other boards at the same round. 72 means stronger than 72 out of 100.',
+          'Every game gets a Board strength from 1 to 100. It says how strong your boards were compared to other games. 72 means stronger than 72 out of 100 games.',
           'In Ranked, Bronze meets opponents from 0 to 30, Silver from 10 to 40 and Gold from 20 to 65. Platinum and above meet everyone.',
           'If there are not enough opponents in your range, the range grows a little at a time.',
-          'Your match history shows the Board strength of each game. Match details shows it for every round and for each opponent.',
+          'Your match history shows the Board strength of each game. Match details also shows how each of your rounds compared to other boards at that round, and each opponent\'s Board strength.',
           'Practice is not affected.',
         ],
       },

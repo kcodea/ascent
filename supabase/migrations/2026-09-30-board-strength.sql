@@ -17,15 +17,21 @@
 --  - A board's PERCENTILE is derived: the share of the boards at the same reference wave (same version) it is
 --    stronger than, ties counted half, a whole number 1..100 (`board_strength_pct`, the SQL twin of the TS
 --    `percentileOf`, parity-tested in packages/sim/src/lobby/boardStrength.db.test.ts).
---  - `pool_runs.strength`: the run's strength, the average of its boards' percentiles (null = not scored yet).
---    Refreshed for the uploaded runs on every upload, and for every run at most every 10 minutes, so it follows the
---    pool as it grows.
+--  - `pool_runs.strength_avg`: the average of the run's board percentiles (rounded, 1..100). Averages pull toward
+--    50 (a run is rarely the weakest in every round), so they are not themselves a percentile of RUNS.
+--  - `pool_runs.strength`: the run's strength, a TRUE percentile among runs (owner-approved 2026-09-30): its
+--    `strength_avg` ranked against every other run's of the same set, with the same tie-halving 1..100 rule. 30 means
+--    the bottom 30% of runs, so each band holds about its nominal share. Null = not scored yet. Averages are
+--    refreshed for the uploaded runs on every upload (and for every run at most every 10 minutes); the ranks of all
+--    runs are recomputed on every refresh (a window over pool_runs; only changed rows are written).
 --  - `pool_runs_sample` gains an optional band (`p_strength_min`, `p_strength_max`): a run is drawn only if its
 --    strength is inside, and an UNSCORED run counts as inside every band, so nothing changes before the backfill.
 --    Still uniform within the band, whole runs, never the caller's own. `p_pool` is the hook for a second pool
 --    later (`pool_runs.pool_id`, 'main' for every run today).
---  - `board_strength_histogram(p_ref)`: per reference wave, how many boards hold each raw score. The client turns
---    its own fresh raw scores into percentiles with it, so the number a game shows is frozen when it ends.
+--  - `board_strength_histogram(p_ref)`: per reference wave, how many boards hold each raw score, and
+--    `run_strength_histogram(p_set)`: how many runs hold each average. The client turns its own fresh raw scores into
+--    per-round percentiles with the first and ranks their average with the second, so the number a game shows is
+--    frozen when it ends.
 --
 -- The population is every board with a score. Only boards with minions are ever scored (client and backfill),
 -- and synthetic boards are never scored, so no snapshot has to be read to count it (an index-only scan).
@@ -36,7 +42,8 @@ alter table public.boards add column if not exists strength_ref text;
 alter table public.boards add column if not exists strength_wave smallint;
 create index if not exists boards_strength on public.boards (strength_ref, strength_wave, strength_raw) where strength_raw is not null;
 
-alter table public.pool_runs add column if not exists strength numeric;      -- run percentile 1..100; null = unscored
+alter table public.pool_runs add column if not exists strength numeric;      -- run percentile among runs 1..100; null = unscored
+alter table public.pool_runs add column if not exists strength_avg numeric;  -- average of the run's board percentiles
 alter table public.pool_runs add column if not exists strength_at timestamptz;
 alter table public.pool_runs add column if not exists pool_id text not null default 'main';
 
@@ -66,8 +73,9 @@ language sql stable set search_path = public as $$
 $$;
 
 -- ── 3. Keep pool_runs.strength current ─────────────────────────────────────────────────────────────────────
--- Recompute the strength of these runs (parallel arrays author, hero, seed), or of EVERY run when p_author is
--- null. Returns the number of runs touched.
+-- Recompute the board-percentile AVERAGE of these runs (parallel arrays author, hero, seed), or of EVERY run when
+-- p_author is null, then re-rank every run's average among the runs of its set (`strength`). Returns the number of
+-- runs whose average was recomputed.
 create or replace function public.pool_strength_refresh(p_author text[] default null, p_hero text[] default null, p_seed bigint[] default null) returns int
 language plpgsql set search_path = public as $$
 declare v int;
@@ -86,9 +94,24 @@ begin
     where x.strength_raw is not null
   ),
   agg as (select run_id, least(100, greatest(1, round(avg(p))))::numeric as s from pct group by run_id)
-  update public.pool_runs r set strength = (select a.s from agg a where a.run_id = r.id), strength_at = now()
+  update public.pool_runs r set strength_avg = (select a.s from agg a where a.run_id = r.id), strength_at = now()
   from keys k where r.id = k.id;
   get diagnostics v = row_count;
+
+  -- Every run's rank among the runs of its set: below = runs with a lower average, equal = runs with the same
+  -- average (itself included), n = runs with an average. The same `board_strength_pct` rule as a board.
+  with ranked as (
+    select r.id, public.board_strength_pct(
+      (rank() over w - 1)::bigint,
+      count(*) over (partition by r.set_id, r.strength_avg),
+      count(*) over (partition by r.set_id))::numeric as s
+    from public.pool_runs r
+    where r.strength_avg is not null
+    window w as (partition by r.set_id order by r.strength_avg)
+  )
+  update public.pool_runs r set strength = x.s
+  from (select p.id, rk.s from public.pool_runs p left join ranked rk on rk.id = p.id) x
+  where r.id = x.id and r.strength is distinct from x.s;
   return v;
 end $$;
 
@@ -127,6 +150,14 @@ language sql stable set search_path = public as $$
   from public.boards b
   where b.strength_ref = p_ref and b.strength_raw is not null and b.strength_wave is not null
   group by 1, 2 order by 1, 2
+$$;
+
+-- How many runs of a set hold each board-percentile average (the population a run's strength is ranked in).
+create or replace function public.run_strength_histogram(p_set text) returns table (avg numeric, n bigint)
+language sql stable set search_path = public as $$
+  select r.strength_avg, count(*) from public.pool_runs r
+  where r.set_id = p_set and r.strength_avg is not null
+  group by 1 order by 1
 $$;
 
 -- ── 5. The sample, with a strength band and a pool id ──────────────────────────────────────────────────────
@@ -201,6 +232,7 @@ revoke all on function public.pool_strength_refresh(text[], text[], bigint[]) fr
 revoke all on function public.pool_strength_after_boards() from public, anon, authenticated;
 revoke all on function public.board_strength_cumulative() from public, anon, authenticated;
 grant execute on function public.board_strength_histogram(text) to anon, authenticated;
+grant execute on function public.run_strength_histogram(text) to anon, authenticated;
 grant execute on function public.pool_runs_sample(int, text, text, uuid, text, numeric, numeric, text) to anon, authenticated;
 
 -- ── 7. Refresh (idempotent; every run is unscored until the backfill file is run) ─────────────────────────

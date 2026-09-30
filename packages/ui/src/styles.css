@@ -752,6 +752,9 @@ body.wipe-up .lobbydmg-float { z-index: 240; }
    never reflowed siblings to begin with. */
 .shopbar { position: relative; --u-fix: calc(var(--u-base) * var(--ui-scale, 0.96)); --u: calc(var(--u-fix) * var(--z-shopui-s, 1.6)); top: calc(var(--z-shopui-y, -6px) * var(--scale)); left: calc(var(--z-shopui-x, 5px) * var(--scale)); align-self: center; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: calc(5 * var(--u)); height: calc(111 * var(--u-fix)); overflow: visible; margin-top: calc(10 * var(--u-fix)); margin-bottom: calc(10 * var(--u-fix)); flex: none; z-index: 6; }
 .shopbar.closing { animation: shopclose 0.45s ease forwards; pointer-events: none; }
+/* The timer's hover tip drops down over the board, where the Freeze diamond (`.frzwrap`, z 41) sits above the shop
+   bar's own layer (z 6). Lift the bar while its timer is hovered (or tapped: `.tt-on`) so the tip reads in front. */
+.shopbar:has(.statcell.time:hover), .shopbar:has(.statcell.time.tt-on) { z-index: 50; }
 .shoprow { display: flex; align-items: center; gap: calc(13 * var(--u)); }
 /* Info strip — the turn's read-only stats (Gold · Tier · Setup Time) in ONE segmented cream plaque, gold-
    trimmed to match the shop-control language. Segments are split by a thin gold rule; the whole strip centres
@@ -798,6 +801,14 @@ body.wipe-up .lobbydmg-float { z-index: 240; }
 .statcell.tier[data-tier='7'] .sc-v { color: var(--tier-7); }
 /* Time cell — smaller tabular digits; fills red-tinted in the final 5s. */
 .statcell.time .sc-v { font-size: calc(21 * var(--u)); }
+/* GAUNTLET: before the clock starts, the plaque shows Gold spent this round filling toward the 30 that starts it.
+   The fill scales on the compositor (transform), with a one-shot ease per purchase. */
+.statcell.time .gclock { display: inline-flex; align-items: center; gap: calc(8 * var(--u)); }
+.statcell.time .gclock-bar { position: relative; overflow: hidden; width: calc(90 * var(--u)); height: calc(10 * var(--u));
+  border-radius: 999px; background: rgba(0, 0, 0, 0.45); box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.6); }
+.statcell.time .gclock-fill { position: absolute; inset: 0; transform-origin: left center;
+  background: linear-gradient(180deg, #ffd66b, #e0a526); transition: transform 260ms ease-out; }
+.statcell.time .gclock-n { font-weight: 800; font-size: calc(17 * var(--u)); line-height: 1; color: #ffd66b; font-variant-numeric: tabular-nums; }
 .statcell.time.low { background: color-mix(in srgb, var(--threat) 14%, var(--card)); }
 .statcell.time.low .sc-ic svg, .statcell.time.low .sc-v { color: var(--threat-dk); }
 /* Info-strip cells reuse the shop tip pill on hover. */

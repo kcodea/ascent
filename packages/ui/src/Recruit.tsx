@@ -70,7 +70,7 @@ import { LobbyPanel } from './LobbyPanel';
 import { GauntletFoe } from './gauntlet/GauntletFoe';
 import { TRIBE_ICON } from './gauntlet/tribeIcon';
 import { foePortrait } from './gauntlet/foePortrait';
-import { GAUNTLET_CLOCK_WAITING, gauntletClockState, gauntletClockWaiting, gauntletTurnClock } from './gauntlet/gauntletClock';
+import { GAUNTLET_CLOCK_GOLD, GAUNTLET_CLOCK_WAITING, gauntletClockState, gauntletClockWaiting, gauntletTurnClock } from './gauntlet/gauntletClock';
 import { CombatOpponent } from './CombatOpponent';
 import { playHeroBlast } from './heroBlast/heroBlast';
 import type { HeroAttackHandle } from './heroAttack/options';
@@ -407,11 +407,20 @@ const ShopTimer = memo(function ShopTimer({ practice, gauntlet }: { practice?: b
   const setPracticeTimer = useGame((st) => st.setPracticeTimer);
   // A Gauntlet round has no clock until 30 Gold is spent: the clock sits parked on its waiting value until then.
   const gauntletWaiting = !!gauntlet && gauntletClockWaiting(s);
+  // …and while it waits, a bar fills with the Gold spent this round toward that threshold (owner ask 2026-09-30).
+  const goldSpent = useGame((st) => (gauntlet ? Math.min(st.run.goldSpentThisTurn ?? 0, GAUNTLET_CLOCK_GOLD) : 0));
   return (
     <div className={`statcell time${s <= 5 ? ' low' : ''}`} aria-label="Time left this turn">
       <span className="sc-ic"><Icon name="clock" /></span>
       {/* Practice on Unlimited time: no countdown to read, so show the symbol, not an absurd 1666:39. */}
-      <span className="sc-v">{gauntletWaiting ? '∞' : practice && practiceTimer === 0 ? '∞' : `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`}</span>
+      {gauntletWaiting ? (
+        <span className="gclock" aria-label={`${goldSpent} of ${GAUNTLET_CLOCK_GOLD} Gold spent`}>
+          <span className="gclock-bar"><span className="gclock-fill" style={{ transform: `scaleX(${goldSpent / GAUNTLET_CLOCK_GOLD})` }} /></span>
+          <span className="gclock-n">{goldSpent}/{GAUNTLET_CLOCK_GOLD}</span>
+        </span>
+      ) : (
+        <span className="sc-v">{practice && practiceTimer === 0 ? '∞' : `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`}</span>
+      )}
       {/* PRACTICE only — practice is the unscored mode, so letting the player slow the clock costs nothing.
           Deliberately absent in scored runs: the turn timer is part of the challenge there. `stopPropagation`
           on the pointer keeps a click on the select from reaching the board's drag handler. */}
@@ -431,7 +440,7 @@ const ShopTimer = memo(function ShopTimer({ practice, gauntlet }: { practice?: b
         {practice
           ? 'Time left this turn. Practice only: pick 1–4× to lengthen the shop timer (1× matches a scored run), or ∞ for no timer.'
           : gauntletWaiting
-            ? 'No clock yet. Once you spend 30 Gold this round, a 60-second timer starts.'
+            ? `A countdown begins once you've spent ${GAUNTLET_CLOCK_GOLD} Gold.`
             : 'Time left this turn. At 0 your actions lock, so hit End Turn first.'}
       </span>
     </div>

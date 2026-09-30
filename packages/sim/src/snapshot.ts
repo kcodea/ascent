@@ -77,8 +77,8 @@ export interface BoardSnapshot {
   remote?: boolean;
   /** The ACCOUNT that uploaded this board (`boards.user_id`), stamped by the client when the board arrives from
    *  the shared pool (pool whole-runs fix, 2026-09-29). Never part of an upload: a local capture has none. Read by
-   *  lobby seat selection for the per-player seat cap and to keep your own runs out of your own lobby
-   *  (R-LOBBY-08). Absent = unknown (committed pool, legacy caches): the display `author` stands in. */
+   *  lobby seat selection for the per-player seat cap, which counts your own runs like anyone's
+   *  (R-LOBBY-08, owner 2026-09-30). Absent = unknown (committed pool, legacy caches): the display `author` stands in. */
   ownerId?: string;
   /** The skins its owner wore (skins v1, 2026-09-28): the run's recorded `cosmetics`, SCOPED to this board's
    *  hero and cards (handoff §13: only what the payload can show). Display only, never read by combat or

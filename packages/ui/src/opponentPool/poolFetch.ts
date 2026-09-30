@@ -43,8 +43,6 @@ export interface PoolApi {
 export interface PoolFetchOptions {
   setId: SetId;
   patchPrefix: string;
-  /** The player's own account: their runs are not worth a pick (the lobby also refuses them, R-LOBBY-08). */
-  ownerId: string | null;
   /** Uniform [0, 1). `Math.random` in the app; seeded in tests. */
   random(): number;
 }
@@ -73,7 +71,9 @@ export function sampleUniform<T>(items: readonly T[], n: number, random: () => n
 
 export async function fetchPoolRuns(api: PoolApi, opts: PoolFetchOptions, signal: AbortSignal, session: PoolFetchSession): Promise<PoolFetch> {
   if (!session.rpcMissing) {
-    const res = await api.sample({ p_limit: POOL_SAMPLE_RUNS, p_set: opts.setId, p_patch_prefix: opts.patchPrefix, p_exclude_user: opts.ownerId }, signal);
+    // `p_exclude_user` stays null (owner 2026-09-30: your own runs are opponents too). The SQL keeps the parameter,
+    // defaulting to null, so no migration is needed.
+    const res = await api.sample({ p_limit: POOL_SAMPLE_RUNS, p_set: opts.setId, p_patch_prefix: opts.patchPrefix, p_exclude_user: null }, signal);
     if (!res.error) {
       const runs: PoolRun[] = (res.data ?? []).map((r) => ({
         key: r.run_key, ownerId: r.user_id, waves: r.wave_count, snaps: Array.isArray(r.boards) ? r.boards : [],
@@ -103,9 +103,9 @@ async function fallbackRuns(api: PoolApi, opts: PoolFetchOptions, signal: AbortS
     }
     if (rows.length < FALLBACK_PAGE) break;
   }
-  // 2. The eligible runs of this set (the same rule as seat selection), not the player's own, sampled uniformly.
+  // 2. The eligible runs of this set (the same rule as seat selection), yours included, sampled uniformly.
   const eligible = [...byRun.entries()].filter(([, e]) =>
-    e.setId === opts.setId && (!opts.ownerId || e.ownerId !== opts.ownerId)
+    e.setId === opts.setId
     && e.waves.size >= MIN_RUN_WAVES && runWavesCover([...e.waves]));
   const picked = sampleUniform(eligible, POOL_SAMPLE_RUNS, opts.random);
   // 3. Download the picked runs WHOLE: by seed, with no per-wave or per-run limit.

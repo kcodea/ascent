@@ -53,8 +53,9 @@ behaviour from a legacy symbol.**
   path that fetches or caches boards per wave, per page or with any row limit that can cut a run. A recorded seat
   serves its OWN wave-N board (`boardAt`: one missing wave may borrow the previous one, a run starting at wave 2
   lends it to round 1, nothing further ahead); a later board appears only past the run's end (repeatFinal).
-  Seat selection caps one player at `MAX_SEATS_PER_PLAYER` (4) seats and skips the player's own runs
-  (`LobbySeatOptions.excludeOwnerId`), without weighting the shuffle.
+  Seat selection caps one player at `MAX_SEATS_PER_PLAYER` (4) seats, without weighting the shuffle. The player's
+  OWN runs are seated like anyone else's under that same cap (owner 2026-09-30); nothing excludes them (the client
+  sends `p_exclude_user: null`, and `excludeOwnerId` is gone).
 - A generated (hybrid) seat is seated only if its RECORDING fields a board (`hybridSeat.canFieldBoard` checks a
   one-board `autoplayRun` prefix, not just the live bot). `autoplayRun` must answer every blocking modal a hero
   can raise (quest, Runeforge, `powerOffer`, Discover, chooseOne, target) or that hero records nothing — the

@@ -60,6 +60,15 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: 'Fixed opponents sometimes bringing impossible boards early in a game.',
+        details: [
+          'An opponent could show up with a board from much later in their game, like a full late-game board on round 5.',
+          'Opponents now always bring the board they really had at that point in their game.',
+          'Computer-played opponents now pick a rune at the Runeforge like everyone else, so none shows up rune-less from round 6.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'Playing as a guest? A glowing Sign in! button now sits next to your portrait on the main menu.',
         details: [
           'It opens the account screen. Make a free account with just your email and your progress is saved to it.',

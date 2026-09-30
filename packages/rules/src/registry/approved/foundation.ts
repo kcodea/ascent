@@ -558,6 +558,50 @@ export const FOUNDATION_RULES: GameRule[] = [
     },
   },
   {
+    id: 'R-LOBBY-07',
+    title: 'A recorded seat never brings a board from later in its run than the round being played',
+    statement:
+      'A real player run takes a lobby seat only when its recording covers the rounds it will be asked for: its '
+      + 'first board is at wave 1 or 2 and it never skips more than one wave in a row (a single missing wave is '
+      + 'normal, because an empty board is not uploaded). A run with its early waves missing, or a multi-wave '
+      + 'hole, is incomplete material and is not seated; the next run in the shuffle takes the seat. A run is '
+      + 'also not seated when any of its boards shows a shop tier above what a real game could reach by that '
+      + 'wave: the tier from spending every Gold of the base economy on tavern-ups, plus two tiers of slack '
+      + '(3 at wave 1, 4 at waves 2 and 3, 5 at wave 4, 6 from wave 5). The rule lives in seat selection '
+      + '(`playerRunsFrom`), so a restored lobby resolves its seats the same way. A GENERATED seat recording '
+      + '(`autoplayRun`) buys the first rune it can afford at every Runeforge instead of skipping it, so from '
+      + 'round 6 a generated opponent owns a rune like a real player does.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      {
+        kind: 'owner-chat',
+        ref: 'Claude Code session, 2026-09-29 (round-5 seven-Beast board)',
+        quote: 'my friend is playing a game and just faced this board on turn 5 which is clearly wrong. can you look into this?',
+      },
+      {
+        kind: 'owner-chat',
+        ref: 'Claude Code session, 2026-09-29 (round-6 opponent with no rune)',
+        quote: 'on round 6 he just faced a player without a rune too. something is wrong with our snapshots',
+      },
+      { kind: 'code', ref: 'packages/sim/src/snapshot.ts autoplayRun (runeforgeOffer branch); packages/sim/src/lobby/snapshotSeats.ts runCoversItsRounds + maxPlausibleTier + playerRunsFrom; packages/ui/src/remoteBoards.ts opponentPoolLoader (newest 120 boards per wave)' },
+    ],
+    currentBehaviour:
+      'Conforms as of 2026-09-29. Before the fix the client pulled the newest 120 boards of each wave, and the '
+      + 'early waves hold far more rows than the late ones, so an older run (Orangez, Soren, seed 1129878061, '
+      + 'uploaded 2026-08-22) arrived with only its waves 10 to 17. That still passed the 4-wave minimum, and on '
+      + 'round 5 its seat served "the earliest board it has": the wave-10 board, tier 6, seven Beasts. 17 of 146 '
+      + 'live runs were cut this way. The boards themselves were genuine (not Practice, sandbox or dev-altered). '
+      + 'The same holes explain a rune-less opponent on round 6: a run kept as waves 1 to 4 then 8 on served its '
+      + 'wave-4 board (no rune yet) on rounds 5 to 7, while every wave-6 board in the pool (145 of 145) carries a '
+      + 'rune. Generated seats also never had one: their recording skipped every Runeforge.',
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/sim/src/lobby/runCoverage.test.ts'],
+      lastVerifiedAt: '2026-09-29',
+    },
+  },
+  {
     id: 'R-HALL-02',
     title: 'Hall of Champions: the own-game line counts the same fights as the record line',
     statement:

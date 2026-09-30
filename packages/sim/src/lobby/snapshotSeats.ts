@@ -2,6 +2,7 @@ import type { SetId } from '@game/content';
 import type { BoardSnapshot } from '../snapshot';
 import type { RunCosmeticSnapshot } from '@game/progression';
 import { OPPONENT_POOL } from '../opponents';
+import { CONFIG } from '../config';
 import { recordedSeat, type SeatPolicy } from './seats';
 import type { PreparedBoard, SeatDriver } from './types';
 
@@ -54,6 +55,72 @@ function runCosmetics(snaps: readonly BoardSnapshot[]): RunCosmeticSnapshot | un
 const MIN_WAVES = 4;
 
 /**
+ * A RUN MUST COVER THE ROUNDS IT WILL BE ASKED FOR (fix 2026-09-29, R-LOBBY-07).
+ *
+ * `recordedSeat` serves "the board of this wave, else the closest EARLIER one, else the EARLIEST one". That is
+ * right for a whole recording, but the client pool is pulled per wave (the newest N boards of each wave), and the
+ * early waves hold far more rows than the late ones (every run has a wave 3, few reach wave 13). So an older run
+ * keeps its late boards and loses its early ones, and the reassembled run starts at, say, wave 10. Seated in a
+ * lobby, round 5 asked for a board the run did not have, fell through to "the earliest one" and served the run's
+ * WAVE-10 board: a friend faced a tier-6 board of 7 Beasts on round 5 (owner report 2026-09-29).
+ *
+ * So a run is seated only when its recording starts by wave `MAX_FIRST_WAVE` and never skips more than
+ * `MAX_MISSING_WAVES` wave in a row (a lone missing wave is normal: empty boards are not uploaded). A run that
+ * fails either is incomplete material, not a player's build order, and is left out. Measured on the live pool
+ * 2026-09-29: complete runs start at wave 1 or 2 (140 of 146) and never miss more than one wave in a row; the
+ * runs this drops are the ones the per-wave pull cut in half (plus six that start at waves 3 to 5, which would
+ * otherwise serve a later board in rounds 1 to 4).
+ */
+export const MAX_FIRST_WAVE = 2;
+export const MAX_MISSING_WAVES = 1;
+
+/** Does this run's recording (ascending, one board per wave) cover every round it could be asked for? */
+export function runCoversItsRounds(ordered: readonly BoardSnapshot[]): boolean {
+  if (!ordered.length || ordered[0]!.wave > MAX_FIRST_WAVE) return false;
+  for (let i = 1; i < ordered.length; i++) {
+    if (ordered[i]!.wave - ordered[i - 1]!.wave - 1 > MAX_MISSING_WAVES) return false;
+  }
+  return true;
+}
+
+/**
+ * The highest shop tier a board can PLAUSIBLY show at a wave: the tier a player reaches by spending every Gold of
+ * the base economy on tavern-ups (start Gold, +1 per wave to the cap, the tier-up cost falling by the per-wave
+ * discount), plus `TIER_SLACK` for everything that bends the economy (Gold makers, tier-up discounts, hero
+ * powers, runes). Deliberately generous: it exists to reject a board no real game could have built by that wave
+ * (a dev-altered run, or a board filed under the wrong wave), never to judge a strong one. The greedy curve is
+ * 1,2,2,3,4,4,5,6 for waves 1 to 8, so the bound is 3 at wave 1, 4 at waves 2 and 3, 5 at wave 4 and 6 from wave
+ * 5 on. The live pool's highest board against it (a Runesmith at tier 6 on wave 6) sits inside it.
+ */
+export const TIER_SLACK = 2;
+const GREEDY_TIER: readonly number[] = (() => {
+  const out = [1];
+  let tier = 1;
+  let cost = CONFIG.upgradeCost[2] ?? Infinity;
+  for (let wave = 1; wave <= 40; wave++) {
+    const gold = Math.min(CONFIG.startEmbers + (wave - 1) * CONFIG.embersPerWave, CONFIG.embersCap);
+    if (wave > 1) cost = Math.max(CONFIG.upgradeCostFloor, cost - CONFIG.upgradeDiscountPerWave);
+    if (tier < CONFIG.maxTier && gold >= cost) {
+      tier++;
+      cost = CONFIG.upgradeCost[tier + 1] ?? Infinity;
+    }
+    out[wave] = tier;
+  }
+  return out;
+})();
+
+/** See `TIER_SLACK`. */
+export function maxPlausibleTier(wave: number): number {
+  const w = Math.max(1, Math.min(Math.floor(wave), GREEDY_TIER.length - 1));
+  return GREEDY_TIER[w]! + TIER_SLACK;
+}
+
+/** Is every board of this run one a real game could have built by its wave? */
+export function runTiersPlausible(ordered: readonly BoardSnapshot[]): boolean {
+  return ordered.every((s) => typeof s.tier !== 'number' || s.tier <= maxPlausibleTier(s.wave));
+}
+
+/**
  * Group snapshots back into runs.
  *
  * Synthetic boards are excluded: they are generated per-wave against a power curve and were never a single
@@ -86,6 +153,9 @@ export function playerRunsFrom(
     for (const s of snaps) if (!byWave.has(s.wave)) byWave.set(s.wave, s);
     const ordered = [...byWave.values()].sort((a, b) => a.wave - b.wave);
     if (ordered.length < minWaves) continue;
+    // Incomplete (early waves cut off by the per-wave pull) or implausible material never takes a seat
+    // (R-LOBBY-07; see `runCoversItsRounds` / `maxPlausibleTier` above).
+    if (!runCoversItsRounds(ordered) || !runTiersPlausible(ordered)) continue;
     const cosmetics = runCosmetics(ordered);
     runs.push({ key, author: ordered[0]!.author ?? 'anon', heroId: ordered[0]!.heroId, snaps: ordered, ...(cosmetics ? { cosmetics } : {}) });
   }

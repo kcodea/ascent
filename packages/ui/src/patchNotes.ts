@@ -60,6 +60,10 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: "Dragging and reordering minions now works correctly when the game isn't full screen.",
+      },
+      {
+        category: 'Systems',
         text: '32 new skins in crates: 16 hero skins, including the first for Ayse, Braum, Darah, Emerald Warden, Hunch, Keshi, Soren, Brackus and Robin, and 16 minion skins.',
       },
       {

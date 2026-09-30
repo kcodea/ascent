@@ -2952,7 +2952,7 @@ export function Recruit() {
     // across the screen eight times and ends in a bloody explosion; the Rares, two tiers each: Pocket Change flicks a coin that pings and ricochets,
     // Come Back Around throws a boomerang that thwacks and is caught, Bubble Trouble pops a bubble round the face, and
     // Shadow Step fades the striker into smoke and stabs from behind; Nothing But Net: the striker plays ball, a jump shot, a
-    // fadeaway, a pull-up three and a self alley-oop that shatters the backboard). Same blow, same consequence, only drawn differently;
+    // fadeaway, a pull-up three and a self alley-oop slammed into an explosion). Same blow, same consequence, only drawn differently;
     // the style is the ATTACKER's (their equipped cosmetic, or the dev override). Every runner takes the same options
     // (`heroAttack/options.ts`).
     const attackStyle = resolveHeroAttackStyle({ attacker: side, attackerCosmeticId: attackerCosmeticOf(run0, side, useGame.getState().showOpponentSkins) });

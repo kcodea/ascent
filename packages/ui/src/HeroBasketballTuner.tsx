@@ -10,7 +10,7 @@ import { TunerPanel } from './TunerPanel';
 /**
  * DEV tuner for the BASKETBALL hero attack (the Nothing But Net cosmetic, a Legendary; owner ask 2026-09-29: "tier 1 =
  * basketball shot from place / tier 2 = a fadeaway ... / tier 3 = a slam dunk on the target / tier 4 = a self alley
- * oop"; reviewed the same day: III became a pull-up three, IV a chuck, a run to half court and a catch). Four groups of
+ * oop"; reviewed: III became a pull-up three, IV a fast throw that bounces high, a leap, a catch and an explosive slam). Four groups of
  * per-tier dials (I the jumper, II the fadeaway, III the pull-up three, IV the alley-oop), the moves'
  * geometry, the colours and one clip / gain / pitch row per sound cue (whistle, dribble, sneaker squeak, throw, swish,
  * catch, rim, slam, glass, crowd "ooh", cheer). The Play buttons run the real runner between the two real portraits.
@@ -40,8 +40,10 @@ const GLOBALS: Record<string, RareGlobalSpec> = {
   pumpLift: ['Pump fake lift', '×', 'III: how high the ball comes up on the pump fake (striker radii).', 'Moves: the three (III)'],
   backMs: ['Dribble back', 'ms', 'III: the dribble back before the pull-up (its dribbles are Tier III\'s Dribbles).', 'Moves: the three (III)'],
   dribbleBack: ['Step back', '×', 'III: how far it dribbles back, away from the target (striker radii).', 'Moves: the three (III)'],
-  halfCourt: ['Half court', '×', 'IV: how far toward the target the run-up goes before the leap (0.5 = halfway).', 'Moves: the alley-oop (IV)'],
-  alleyRise: ['Catch height', '×', 'IV: how far above the target the chucked ball is caught (struck radii).', 'Moves: the alley-oop (IV)'],
+  halfCourt: ['Run-up', '×', 'IV: how far toward the target the quick run-up goes before the leap (0 = it leaps from its slot).', 'Moves: the alley-oop (IV)'],
+  alleyRise: ['Bounce height', '×', 'IV: how high the ball bounces off the target, where it is caught (struck radii).', 'Moves: the alley-oop (IV)'],
+  riseMs: ['Bounce rise', 'ms', 'IV: the ball rising off the target to the top of its bounce (the leap is timed to meet it there).', 'Moves: the alley-oop (IV)'],
+  blastSize: ['Explosion size', '×', 'IV: the explosion under the slam (fireball, shock ring, debris, sparks; 0 = none).', 'Moves: the alley-oop (IV)'],
   hangMs: ['Hang time', 'ms', 'IV: the moment in the air after the catch before the slam.', 'Moves: the alley-oop (IV)'],
   slamContact: ['Slam depth', '×', 'IV: where the striker stops on the slam (0 = right over the target\'s centre).', 'Moves: the alley-oop (IV)'],
   hoopSize: ['Hoop size', '×', 'The hoop drawn on the target (rim, net, backboard).', 'Hoop and words'],
@@ -53,17 +55,17 @@ const GLOBALS: Record<string, RareGlobalSpec> = {
   reducedFadeMs: ['Reduced motion fade', 'ms', 'With reduced motion on, the numbers and total just fade over this.', 'Camera and portraits'],
   sfxWhistleGain: ['whistle: gain', undefined, 'The referee\'s whistle as it starts (softer on I).', 'Sound: whistle'],
   sfxWhistleRate: ['whistle: pitch', '×', 'Pitch of the whistle.', 'Sound: whistle'],
-  sfxDribbleGain: ['dribble: gain', undefined, 'Each dribble on the floor.', 'Sound: dribble'],
+  sfxDribbleGain: ['dribble: gain', undefined, 'Each dribble on the floor (and IV\'s smack off the target, lower).', 'Sound: dribble'],
   sfxDribbleRate: ['dribble: pitch', '×', 'Pitch of the dribble.', 'Sound: dribble'],
   sfxSqueakGain: ['squeak: gain', undefined, 'The sneakers: the push-offs, the stops, the catch, the pump fake, the step back, the take-off, the slide home.', 'Sound: sneakers'],
   sfxSqueakRate: ['squeak: pitch', '×', 'Pitch of the squeak.', 'Sound: sneakers'],
-  sfxThrowGain: ['throw: gain', undefined, 'The whoosh of a shot, III\'s pass, IV\'s chuck and its leap.', 'Sound: throw'],
+  sfxThrowGain: ['throw: gain', undefined, 'The whoosh of a shot, III\'s pass, IV\'s throw and its leap.', 'Sound: throw'],
   sfxThrowRate: ['throw: pitch', '×', 'Pitch of the whoosh.', 'Sound: throw'],
   sfxSwishGain: ['swish: gain', undefined, 'I-III: nothing but net (THE impact; louder on the three).', 'Sound: swish'],
   sfxSwishRate: ['swish: pitch', '×', 'Pitch of the swish.', 'Sound: swish'],
   sfxCatchGain: ['catch: gain', undefined, 'III: the pass slapped into the hands; IV: the catch at the top of the leap.', 'Sound: catch'],
   sfxCatchRate: ['catch: pitch', '×', 'Pitch of the catch.', 'Sound: catch'],
-  sfxRimGain: ['rim: gain', undefined, 'IV: the rim rattling on the slam.', 'Sound: rim'],
+  sfxRimGain: ['rim: gain', undefined, 'IV: the rim rattling on the slam (and softly on the smack).', 'Sound: rim'],
   sfxRimRate: ['rim: pitch', '×', 'Pitch of the rim.', 'Sound: rim'],
   sfxSlamGain: ['slam: gain', undefined, 'IV: the slam landing (THE impact).', 'Sound: slam'],
   sfxSlamRate: ['slam: pitch', '×', 'Pitch of the slam.', 'Sound: slam'],
@@ -80,10 +82,10 @@ const LEVEL_SPECS: Record<BasketballTierSuffix, RareLevelSpec> = {
   ReadyMs: ['Ready', 'ms', 'A beat before the striker moves.'],
   Dribbles: ['Dribbles', undefined, 'How many dribbles (I where it stands; II-IV along the run).'],
   DribbleMs: ['Dribble', 'ms', 'One dribble where it stands (I, IV); the dribble\'s shape along a run (II, III).'],
-  ApproachMs: ['Run', 'ms', 'II the slide to mid court; III the scoot up court; IV the run-up to half court (I stands still).'],
-  LeapMs: ['Leap', 'ms', 'I the jump up (and as long down); II the whole fade; III the whole pull-up; IV the leap to the catch.'],
-  FlightMs: ['Shot flight', 'ms', 'I-III: the shot to the net (IV\'s chuck lasts from the throw to the catch).'],
-  Arc: ['Arc', '×', 'How high the shot, or IV\'s chuck, arcs (a fraction of the distance; trimmed to stay on screen).'],
+  ApproachMs: ['Run', 'ms', 'II the slide to mid court; III the scoot up court; IV the quick run-up (at most, it must fit before the leap). I stands still.'],
+  LeapMs: ['Leap', 'ms', 'I the jump up (and as long down); II the whole fade; III the whole pull-up; IV the leap to the catch (its timing).'],
+  FlightMs: ['Shot flight', 'ms', 'I-III: the shot to the net; IV: the throw at the target (lower = faster).'],
+  Arc: ['Arc', '×', 'How high the shot arcs (a fraction of the distance; trimmed to stay on screen). IV\'s throw is nearly flat.'],
   SlamMs: ['Slam', 'ms', 'IV: the slam down onto the target.'],
   HoldMs: ['Hold', 'ms', 'After the impact before it heads home (and the end on I).'],
   ReturnMs: ['Return', 'ms', 'II-IV: the slide or the drop back home.'],
@@ -94,7 +96,7 @@ const LEVEL_SPECS: Record<BasketballTierSuffix, RareLevelSpec> = {
   Burst: ['Burst', '×', 'The size of the swish or the slam (flash, rings, sparks, the word).'],
   Rings: ['Shockwaves', undefined, 'III: rings rippling off the swish; IV: shockwave rings on the slam.'],
   Shards: ['Glass shards', undefined, 'The backboard shattering on the slam (IV).'],
-  Confetti: ['Confetti', undefined, 'Confetti thrown on the three\'s swish and the slam.'],
+  Confetti: ['Confetti', undefined, 'Confetti thrown on the three\'s swish (and the slam, if set).'],
   Dim: ['Dim', 'opacity', 'How far everything but the two heroes dims.'],
 };
 
@@ -115,6 +117,7 @@ const built = rareTunerSpec({
     ['colorNet', 'Net', 'The net and the swish ring.'],
     ['colorGlass', 'Glass', 'The backboard and its shards.'],
     ['colorFlash', 'Flash', 'The impact flashes, stars and the catch.'],
+    ['colorBlast', 'Explosion', 'IV: the fireball and embers of the explosion (and the smack\'s glow).'],
     ['colorConfettiA', 'Confetti A', 'One of the confetti colours.'],
     ['colorConfettiB', 'Confetti B', 'Another confetti colour.'],
     ['colorPlayer', 'Your side', 'Your glow, rings and total colour when YOU strike.'],
@@ -138,7 +141,7 @@ const built = rareTunerSpec({
     'the jumper, a dribble, a jump shot and a swish from where it stands.',
     'the fadeaway, a slide to mid court, a fade back to the side and a swish.',
     'the pull-up three, a scoot up court, a pass from the right, a pump fake, a dribble back and a three.',
-    'the self alley-oop, a chuck from the slot, a run to half court, the catch in the air and a slam that shatters the backboard.',
+    'the self alley-oop, a fast throw off the target, a high bounce, the leap, the catch and a slam into an explosion.',
   ],
 });
 

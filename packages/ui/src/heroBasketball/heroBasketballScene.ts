@@ -9,8 +9,9 @@
  * (the backboard, the net and the rim; the rim is drawn over the ball so a shot goes THROUGH it, and it rattles).
  *
  * FIRE-AND-FORGET (pooled, under a hard cap): the ball's soft trail, the dribble's dust, the sneakers' skid marks, the
- * release glint, the SWISH (a net ring, sparkles, the word), the catch flashes, and the SLAM
- * (a flash, shockwave rings, sparks, dust, the word; IV adds the backboard's glass shards and confetti).
+ * release glint, the SWISH (a net ring, sparkles, the word), IV's smack on the target, the catch flashes, and the SLAM
+ * (a flash, shockwave rings, sparks, dust, the word; IV adds an explosion: a fireball, debris,
+ * the backboard's glass shards).
  */
 import { Sprite, type Texture } from 'pixi.js';
 import type { HeroArcanaTextures } from '../heroArcana/heroArcanaScene';
@@ -30,7 +31,7 @@ export interface HeroBasketballTextures extends HeroArcanaTextures {
   wordSlam: Texture;
 }
 
-export interface BasketballColors { ball: number; rim: number; net: number; glass: number; flash: number; confettiA: number; confettiB: number; side: number }
+export interface BasketballColors { ball: number; rim: number; net: number; glass: number; flash: number; blast: number; confettiA: number; confettiB: number; side: number }
 
 export interface BasketballLook {
   /** The ball's diameter in striker radii. */
@@ -215,6 +216,35 @@ export class HeroBasketballScene extends FxPool {
     this.word(this.tex.wordSwish, at, 0.85 * burst);
   }
 
+  /**
+   * IV's EXPLOSION under the slam: a white-hot core, a fireball blooming out and rolling up, a second shock ring, a
+   * ring of debris chunks thrown out and falling, and embers. `k` scales it.
+   */
+  private explosion(at: Pt, k: number): void {
+    const S = this.scale;
+    const c = this.colors;
+    const R = this.dR * k;
+    this.spawn('core', this.tex.glow, 0xffffff, at.x, at.y, { dur: 220, from: (R * 0.6) / GLOW_PX / S, to: (R * 2.2) / GLOW_PX / S, a0: 1, mode: 'punch', peakAt: 0.08 });
+    for (let i = 0; i < 9; i++) {
+      const a = (i / 9) * Math.PI * 2 + this.rnd() * 0.5;
+      const d = R * (0.2 + this.rnd() * 0.35);
+      this.spawn('glow', this.tex.glow, i % 3 ? c.blast : whiten(c.blast, 0.45), at.x + Math.cos(a) * d, at.y + Math.sin(a) * d, {
+        dur: 520 + this.rnd() * 220, from: (R * 0.7) / GLOW_PX / S, to: (R * (1.8 + this.rnd() * 0.8)) / GLOW_PX / S, a0: 0.75, mode: 'punch', peakAt: 0.12,
+        ease: 'cubic', vx: Math.cos(a) * 160, vy: Math.sin(a) * 110 - 120, drag: 0.2,
+      });
+    }
+    this.spawn('glow', this.tex.ring, c.blast, at.x, at.y, { dur: 520, from: (R * 0.5) / RING_PX / S, to: (R * 4.2) / RING_PX / S, a0: 0.8, ease: 'cubic', delay: 40 });
+    for (let i = 0; i < 14; i++) {
+      const a = -Math.PI / 2 + (this.rnd() - 0.5) * 3.6;
+      const sp = 420 + this.rnd() * 620;
+      this.spawn('body', this.tex.confetti, i % 2 ? 0x3a2a1c : 0x5c4630, at.x, at.y, {
+        dur: 700 + this.rnd() * 300, from: 1.2 + this.rnd() * 1.2, to: 1, a0: 1, mode: 'hold', ease: 'linear',
+        vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 150, drag: 0.4, grav: 1600, rot: this.rnd() * Math.PI, spin: (this.rnd() - 0.5) * 0.03,
+      });
+    }
+    this.burst('core', this.tex.spark, [c.blast, c.flash, whiten(c.blast, 0.5)], at.x, at.y, Math.round(18 * k), { speed: 900 * k, life: 520, size: 0.6, drag: 0.15, align: true, grav: 400 });
+  }
+
   /** Confetti thrown up from a point, fluttering down. */
   private confettiBurst(at: Pt, count: number): void {
     const c = this.colors;
@@ -230,6 +260,17 @@ export class HeroBasketballScene extends FxPool {
     }
   }
 
+  /** IV: the throw SMACKS the target (a tick, no damage): a pop, a ring, sparks, a jolt of dust. */
+  bounce(at: Pt): void {
+    const S = this.scale;
+    const r = this.aR * this.look.ballSize;
+    const c = this.colors;
+    this.spawn('glow', this.tex.ring, c.flash, at.x, at.y, { dur: 280, from: (r * 0.8) / RING_PX / S, to: (r * 3.4) / RING_PX / S, a0: 0.7, ease: 'cubic' });
+    this.spawn('core', this.tex.star, c.flash, at.x, at.y, { dur: 220, from: 0.5, to: 1.4, a0: 1, mode: 'punch', peakAt: 0.2, rot: 0.2 });
+    this.spawn('glow', this.tex.glow, c.blast, at.x, at.y, { dur: 240, from: (r * 0.8) / GLOW_PX / S, to: (r * 2.4) / GLOW_PX / S, a0: 0.5, mode: 'punch', peakAt: 0.15 });
+    this.burst('core', this.tex.spark, [c.flash, c.ball], at.x, at.y, 8, { speed: 480, life: 280, size: 0.45, drag: 0.1, align: true });
+  }
+
   /** A catch (III: the pass; IV: at the top of the leap): a bright flash on the ball. `k` scales it. */
   catchFlash(at: Pt, k = 1): void {
     const S = this.scale;
@@ -243,7 +284,7 @@ export class HeroBasketballScene extends FxPool {
    * THE SLAM on the target (`at` = its centre; `dir` = the way the slam drives). A flash, shockwave rings, sparks and
    * dust thrown out, the word; IV's backboard bursts into glass shards and confetti rains.
    */
-  slam(at: Pt, dir: Pt, o: { burst: number; rings: number; shards: number; confetti: number }): void {
+  slam(at: Pt, dir: Pt, o: { burst: number; rings: number; shards: number; confetti: number; blast?: number }): void {
     const S = this.scale;
     const c = this.colors;
     const R = this.dR;
@@ -264,6 +305,7 @@ export class HeroBasketballScene extends FxPool {
         dur: 420 + this.rnd() * 160, from: (R * 0.5) / GLOW_PX / S, to: (R * 1.3) / GLOW_PX / S, a0: 0.3, vx: Math.cos(a) * 180, vy: Math.sin(a) * 120, drag: 0.12,
       });
     }
+    if ((o.blast ?? 0) > 0) this.explosion(at, o.blast!);
     if (o.shards > 0) {
       // The backboard bursts: glass slivers thrown up and out, spinning, falling.
       const w = this.dR * 1.35 * this.look.hoopSize;

@@ -65,7 +65,7 @@ export const PATCH_NOTES: PatchNote[] = [
           'Small: a jump shot from where your hero stands, swishing through a hoop on the target.',
           'Tier II: a slide to mid court and a fadeaway jumper.',
           'Tier III: your hero scoots up, catches a pass from off screen, pump fakes, steps back and drains a three.',
-          'Huge: your hero throws the ball up, runs to half court, leaps, catches it in the air and slams it home. The backboard shatters.',
+          'Huge: your hero fires the ball off the target, it bounces high, your hero leaps, catches it and slams it down into an explosion.',
           'With a whistle, dribbles, squeaking sneakers, the swish, the rim and the crowd.',
           'Found in crates. Equip it in the Collection.',
         ],

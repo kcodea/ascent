@@ -138,11 +138,15 @@ describe('the plan', () => {
     expect(p.endAt - p.chargeAt).toBeLessThanOrEqual(4200);
   });
 
-  it('IV THE ALLEY-OOP: the chuck from the slot, the run to half court, the leap, the catch at its top, the slam = THE impact', () => {
+  it('IV THE ALLEY-OOP: a fast throw from the start, the smack (a TICK), the high bounce, the leap timed to the catch, the slam = THE impact', () => {
     const p = plan(40);
     expect(p.kind).toBe('alleyoop');
+    expect(p.dribbles).toEqual([]); // a direct throw from the beginning
+    expect(p.releaseAt - p.startAt).toBeLessThan(200);
+    expect(p.bounceAt!).toBe(p.releaseAt + C.t4FlightMs);
+    expect(C.t4FlightMs).toBeLessThanOrEqual(320); // fast
+    expect(p.catchAt!).toBe(p.bounceAt! + C.riseMs);
     expect(p.releaseAt).toBeLessThan(p.approachAt);
-    expect(p.approachEnd).toBeGreaterThan(p.approachAt);
     expect(p.takeoffAt).toBeGreaterThanOrEqual(p.approachEnd);
     expect(p.catchAt!).toBe(p.takeoffAt + C.t4LeapMs);
     expect(p.slamAt!).toBeGreaterThan(p.catchAt!);
@@ -151,6 +155,8 @@ describe('the plan', () => {
     const kinds = basketballCues(p).map((q) => q.kind);
     expect(kinds.filter((k) => k === 'impact')).toHaveLength(1);
     expect(kinds.filter((k) => k === 'catch')).toHaveLength(1);
+    expect(kinds.filter((k) => k === 'bounce')).toHaveLength(1);
+    expect(kinds.indexOf('bounce')).toBeLessThan(kinds.indexOf('impact'));
     expect(kinds[0]).toBe('charge');
     expect(p.endAt - p.chargeAt).toBeLessThanOrEqual(3500);
   });
@@ -280,15 +286,27 @@ describe('the pose and the ball', () => {
     { const e = at(x.p.endAt - 1); expect(Math.hypot(e.x, e.y)).toBeLessThan(0.05); }
   });
 
-  it('IV: chucked from the slot, it runs to half court, leaps from there and meets the ball at its catch point, then slams', () => {
+  it('IV: fired flat from the slot straight at the target, it bounces HIGH, the portrait leaps and meets it at the top, then slams', () => {
     const x = ctx(40);
     const at = (t: number) => basketballPose(x.p, x.segs, C, t);
-    // the chuck leaves from the slot (the portrait has not left it)
+    // the throw leaves from the slot (the portrait has not left it)
     const r = at(x.p.releaseAt);
     expect(Math.hypot(r.x, r.y)).toBeLessThan(R * 0.2);
+    // flat and direct: mid-flight it is within a few px of the straight line to the target
+    const from = basketballBall(x, x.p.releaseAt);
+    const mid = basketballBall(x, (x.p.releaseAt + x.p.bounceAt!) / 2);
+    expect(mid.flying).toBe(true);
+    expect(dist(mid, { x: (from.x + D.x) / 2, y: (from.y + D.y) / 2 })).toBeLessThan(0.05 * dist(from, D) + 1);
+    // it smacks the target, then rises HIGH (well above it) to where it is caught
+    expect(dist(basketballBall(x, x.p.bounceAt!), D)).toBeLessThan(1);
+    expect(basketballBall(x, x.p.bounceAt! + 1).visible).toBe(true);
+    // (with room above the target it goes the full bounce height, straight up)
+    const room = ctx(40, A, { x: 960, y: 520 });
+    expect(room.g.ballApex.y).toBeCloseTo(520 - R * C.alleyRise, 6);
+    expect(room.g.ballApex.x).toBeCloseTo(960, 6);
     const h = at(x.p.approachEnd);
     expect(dist({ x: A.x + h.x, y: A.y + h.y }, x.g.half)).toBeLessThan(1);
-    expect(basketballBall(x, (x.p.releaseAt + x.p.catchAt!) / 2).flying).toBe(true);
+    expect(at(x.p.catchAt!).air).toBe(1);
     const top = basketballBall(x, x.p.catchAt! - 0.01);
     expect(dist(top, x.g.ballApex)).toBeLessThan(2);
     const hero = basketballPose(x.p, x.segs, C, x.p.catchAt!);
@@ -355,11 +373,13 @@ function expectRestored(r: ReturnType<typeof run>, zClass = 'duel-attacker-playe
 describe('the runner (the shared clock, the portrait restored on every exit)', () => {
   afterEach(() => { document.body.innerHTML = ''; document.body.className = ''; });
 
-  it('IV: the chuck and the catch never land it; the blow lands ONCE on the slam; the portrait moved, raised, and is put back EXACTLY at the end', () => {
+  it('IV: the smack, the bounce and the catch never land it; the blow lands ONCE on the slam; the portrait moved, raised, and is put back EXACTLY at the end', () => {
     const r = run({ total: 40, formation: formationOf([40], 40) });
     const { h, f, onImpact, onDone } = r;
     expect(r.host.querySelector('.hblast.hbasketball')).not.toBeNull();
-    f.tick(h.plan.catchAt! + 8, 4);
+    f.tick(h.plan.bounceAt! + 8, 4);
+    expect(onImpact).not.toHaveBeenCalled(); // the smack is a tick
+    f.tick(h.plan.catchAt! - h.elapsed() + 8, 4);
     expect(onImpact).not.toHaveBeenCalled();
     expect(document.body.classList.contains('duel-attacker-player')).toBe(true);
     expect(r.attackerEl.style.transform).toContain('translate(');
@@ -459,15 +479,15 @@ describe('the runner (the shared clock, the portrait restored on every exit)', (
 describe('the scene (headless Pixi)', () => {
   it('pools, stays under the cap, hides its own objects, drains, and destroy leaves nothing', () => {
     const scene = new HeroBasketballScene(TEX, {
-      ball: 0xe8742a, rim: 0xff5a1f, net: 0xffffff, glass: 0xcfeeff, flash: 0xfff4dc, confettiA: 0xffd23f, confettiB: 0x3fa9ff, side: 0xffcf5a,
+      ball: 0xe8742a, rim: 0xff5a1f, net: 0xffffff, glass: 0xcfeeff, flash: 0xfff4dc, blast: 0xff7a1a, confettiA: 0xffd23f, confettiB: 0x3fa9ff, side: 0xffcf5a,
     }, { ballSize: 0.5, shadowDrop: 0.5, hoopSize: 1, wordSize: 1 }, R, R, 1, 9);
     scene.setBall({ visible: true, x: 10, y: 10, rot: 0, scale: 1, alpha: 1, air: 0.5, squash: 0.1, flying: true });
     scene.setHeroShadow({ x: 0, y: 0 }, 0.6, 1);
     scene.setHoop(D, 1, 0.1, true);
     expect(scene.ownVisible).toBe(true);
     for (let i = 0; i < 3; i++) {
-      scene.dribble(A, 1); scene.squeak(A, { x: 0, y: -1 }); scene.release(A); scene.swish(D, 1.5, { rings: 6, confetti: 80 }); scene.catchFlash(D, 0.6);
-      scene.slam(D, { x: 0, y: 1 }, { burst: 2, rings: 8, shards: 40, confetti: 80 });
+      scene.dribble(A, 1); scene.squeak(A, { x: 0, y: -1 }); scene.release(A); scene.swish(D, 1.5, { rings: 6, confetti: 80 }); scene.bounce(D); scene.catchFlash(D, 0.6);
+      scene.slam(D, { x: 0, y: 1 }, { burst: 2, rings: 8, shards: 40, confetti: 80, blast: 3 });
       scene.trail({ visible: true, x: 5, y: 5, rot: 0, scale: 1, alpha: 1, air: 0.2, squash: 0, flying: true });
     }
     expect(scene.liveSprites).toBeLessThanOrEqual(MAX_BASKETBALL_SPRITES);

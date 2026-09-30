@@ -90,8 +90,8 @@
  * 2026-09-29: "make a basketball attack animation"): the striking PORTRAIT plays ball. I a jump shot from where it
  * stands that swishes through a net on the target; II a fadeaway (a slide to mid court, a fade back to one side, a high
  * arc, swish); III a pull-up three (a scoot up court, a pass from off the right edge, a pump fake, a dribble back, a long
- * swish); IV a self alley-oop (chucked from the slot, a run to half court, caught in the air above the target and
- * slammed down; the backboard shatters). A whistle, dribbles, sneaker squeaks,
+ * swish); IV a self alley-oop (fired straight at the target, bounced high off it, caught at the top of a leap and
+ * slammed down into an explosion; the backboard shatters). A whistle, dribbles, sneaker squeaks,
  * the swish, the rim and a crowd "ooh" (`../heroBasketball/`).
  *
  * The style is the ATTACKER's: the equipped item recorded in the striking player's cosmetic snapshot (yours when you

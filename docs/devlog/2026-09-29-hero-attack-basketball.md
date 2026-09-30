@@ -11,6 +11,10 @@ and he pump fakes, dribbles back and then pulls up for a 3. for the huge self al
 ball from its starting position, and then run up and leap from half court, catching the ball and massively slamming on
 the target." The slam dunk and the bounce-off-the-target alley-oop were replaced.
 
+Owner review of PR #1867 (Tier IV only): "i want a direct throw from the beginning that's fast and bounces high off
+the target and the attacker leaps into the air and slams it down into an explosion". Tier IV was rebuilt again (below);
+I-III are unchanged.
+
 ## What it does
 
 The fourteenth Legendary hero attack, the style `basketball`, the cosmetic `attack_basketball` ("Nothing But Net", a
@@ -27,10 +31,13 @@ rim and a white net) drawn on the struck hero. Flat 2D, no hit-stop, the blow la
   pass whips in from off the RIGHT edge of the screen and it catches it (a flash, a squeak); a pump fake (the ball
   snapped up and pulled back); it dribbles back, away from the target; then pulls up for a long, high three: a bigger
   swish with rings rippling out, confetti and the crowd's "ooh" (THE impact), then it slides home.
-- **IV, the self alley-oop:** a dribble, it chucks the ball high from its slot, runs up to half court (sneaker squeaks),
-  leaps from there, catches the ball in the air above the struck hero (a catch flash) and slams it down: the backboard
-  shatters into glass shards, four shockwave rings, confetti, the whole board shakes, rim + slam + a loud "ooh" + a cheer
-  (THE impact). A knockout always plays IV.
+- **IV, the self alley-oop:** straight from the start, it FIRES the ball from its slot directly at the target (fast,
+  flat, spinning, a speed trail); the ball SMACKS the target (a pop, a thud and a rim tick, a small knock; no damage) and
+  BOUNCES HIGH straight up (swung toward the middle of the screen when the target is tucked against the top edge); the
+  portrait takes a quick run-up, LEAPS to meet it, CATCHES it at the top (a flash, a squeak) and SLAMS it down into an
+  EXPLOSION: a white-hot core, a fireball blooming and rolling up, shockwave rings, debris chunks and sparks, the
+  backboard's glass shards, the whole board shaking, rim + slam + glass + a loud "ooh" + a cheer (THE impact). A
+  knockout always plays IV.
 
 Every point the portrait visits is clamped on screen; the catch point "above" the target swings round it toward the
 middle of the screen when the target is tucked in a corner (the foe at 1920 x 1080), and every shot and slam lands on the
@@ -49,7 +56,8 @@ exactly and hides the ball, both shadows and the hoop (tests pin each path; the 
 - The tuner (`HeroBasketballTuner.tsx`) is built on the Rare tuner builder with four tier groups; `rareTunerSpec` gained
   an optional `tierHints` for a four-tier attack's Play button hints. Buttons on top, no Speed / Reduced motion.
   Dials for the new motions: scoot height, pass flight / entry / arc, pump fake time and lift, dribble back time and
-  distance, half court, catch height, hang time, and the chuck's arc (Tier IV Arc). One clip / gain / pitch row per cue.
+  distance; IV's throw speed (Tier IV Shot flight), bounce height and rise, run-up, leap timing (Tier IV Leap), hang
+  time and explosion size (plus an Explosion colour). One clip / gain / pitch row per cue.
 - Wired: the style registry, Recruit dispatch, the Collection preview, DevMenu, `tunerAll`, the cosmetic + its Edge
   mirror, the knockout / camera / formation / tuner-button lists, the style-list pins, the crate pins (Legendary 16 ->
   17 items, 5 / 17 = 0.294% each; hero attacks together 12.6%) and the Collection counts (20 attacks, 93 items).
@@ -77,10 +85,10 @@ Reused: the throw / pass / chuck whoosh (`fx/stereogenicstudio-swish-swoosh-woos
 
 Cues: the whistle at the start of every tier (softer on I); a dribble on each bounce; sneaker squeaks on the push-offs,
 the stops, the catch, the pump fake, the step back, the take-off and the slide home; the whoosh on shots, the pass and
-the chuck; the swish on I-III (louder on III) with the "ooh" soft on II and full on III; IV: rim + slam + glass + a loud
-"ooh" + the cheer.
+IV's throw; the swish on I-III (louder on III) with the "ooh" soft on II and full on III; IV's smack: a low thud and a
+soft rim tick; IV's slam: rim + slam + glass + a loud "ooh" + the cheer.
 
-## Perf (PROD build, `vite build` + `vite preview`, headless Chrome over CDP, 1920 x 1080, RTX 4080 D3D11)
+## Perf (re-measured after the Tier IV rework) (PROD build, `vite build` + `vite preview`, headless Chrome over CDP, 1920 x 1080, RTX 4080 D3D11)
 
 A temporary, uncommitted hook reached the runner between the real portraits in a Practice lobby. Frame times in ms.
 
@@ -88,13 +96,13 @@ Vsync and the frame cap OFF (raw frame cost, sound off), as the Banana devlog me
 
 | run | frames | p50 | p95 | p99 | worst | > 16.7 ms | long tasks |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| IV you (40, first play, cold page) | 2464 | 2.1 | 3.1 | 20.7 | 125.9 | 29 | 2 |
-| IV foe (40, first foe play) | 976 | 3.4 | 23.2 | 26.9 | 75.1 | 137 | 2 |
-| III (14) | 8935 | 0.6 | 1.0 | 3.0 | 8.6 | 0 | 0 |
-| II (8) | 7902 | 0.6 | 1.0 | 1.7 | 7.4 | 0 | 0 |
-| I (3) | 7377 | 0.6 | 1.0 | 1.5 | 9.4 | 0 | 0 |
-| IV you (40, again) | 9332 | 0.6 | 1.1 | 1.9 | 9.0 | 0 | 0 |
-| IV foe (40, again) | 9494 | 0.6 | 1.0 | 1.5 | 14.2 | 0 | 0 |
+| IV you (40, first play, cold page) | 2739 | 1.4 | 3.3 | 17.8 | 181.9 | 51 | 2 |
+| IV foe (40, first foe play) | 1353 | 2.1 | 16.0 | 18.7 | 54.5 | 52 | 1 |
+| III (14) | 11694 | 0.5 | 0.8 | 2.0 | 6.3 | 0 | 0 |
+| II (8) | 9898 | 0.5 | 0.8 | 1.4 | 6.4 | 0 | 0 |
+| I (3) | 9558 | 0.4 | 0.8 | 1.2 | 6.8 | 0 | 0 |
+| IV you (40, again) | 10584 | 0.5 | 0.9 | 1.4 | 7.8 | 0 | 0 |
+| IV foe (40, again) | 10726 | 0.5 | 0.8 | 1.1 | 14.0 | 0 | 0 |
 
 At 240 Hz vsync with sound ON: p50 4.2 / p95 4.3 / p99 4.3 on every warm run; one or two 21-29 ms frames per play (one
 about 50 ms after the whistle, where the camera and the z-order come on, and one at the teardown). The cold first plays

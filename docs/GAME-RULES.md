@@ -398,9 +398,10 @@ progression **epoch**; nothing finished before the epoch counts (no backfill).
   home. III the pull-up three: it scoots straight up court from its slot (down court for a foe striking from the top), a
   pass flies in from off the right edge of the screen and it catches it, pump fakes, dribbles back and pulls up for a
   long high three that swishes (a bigger swish, rings, confetti and the crowd's "ooh"), then slides home. IV the self
-  alley-oop: it chucks the ball high from its slot, runs up to half court, leaps from there, catches the ball in the air
-  above the struck hero and slams it down: the backboard shatters, shockwave rings, confetti, the whole board shakes,
-  the crowd roars (the blow lands on the slam). Sneaker squeaks on every push-off and stop, dribbles, the swish, the
+  alley-oop: from its slot it fires the ball straight at the struck hero (fast, flat, spinning), the ball smacks it (a
+  pop, no damage) and bounces high straight up, the striker takes a quick run-up and leaps, catches the ball at the top
+  and slams it down into an explosion: a fireball, shockwave rings, debris and sparks, the backboard's glass, the whole
+  board shaking, the crowd roaring (the blow lands on the slam). Sneaker squeaks on every push-off and stop, dribbles, the swish, the
   rim and the slam are heard. Every point it visits stays on screen and every shot and slam lands on the struck hero's
   centre; its portrait is restored exactly after (on the end, a skip or leaving the fight). **Card Shark** and
   **Storm Call** (2026-09-29; R-PROG-ATTACK-26, R-PROG-ATTACK-27) are the first EPIC hero attacks: one idea each, shorter

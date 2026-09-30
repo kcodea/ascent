@@ -316,8 +316,8 @@ export const COSMETICS: readonly CosmeticDef[] = Object.freeze([
   // target back towards the player portrait and settles".
   heroAttack('attack_backstab', 'Shadow Step', 'rare', 'backstab'),
   // Owner 2026-09-29: "branch off and make a basketball attack animation. tier 1 = basketball shot from place / tier 2 = a
-  // fadeaway ... / tier 4 = a self alley oop" (reviewed the same day: III a pull-up three, IV a chuck and a run-up). The
-  // striking portrait plays ball: a jump shot, a fadeaway, a pull-up three, and a self alley-oop that shatters the backboard. Four tiers, so
+  // fadeaway ... / tier 4 = a self alley oop" (reviewed: III a pull-up three, IV a throw that bounces high, a leap, a slam). The
+  // striking portrait plays ball: a jump shot, a fadeaway, a pull-up three, and a self alley-oop slammed into an explosion. Four tiers, so
   // Legendary like the others. The name is the builder's placeholder for the owner to rename (the id stays).
   heroAttack('attack_basketball', 'Nothing But Net', 'legendary', 'basketball'),
   // HERO TITLES (owner 2026-09-29), 33 heroes x (title + golden master). Achievement rewards, never in a crate.

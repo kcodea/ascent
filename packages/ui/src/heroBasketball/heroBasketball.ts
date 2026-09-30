@@ -15,7 +15,7 @@
  * transform, its opacity and the z-order class exactly, and hides the ball, the shadows and the hoop.
  *
  * THE CONTRACT: the consequence (`onImpact`) lands exactly ONCE: on the swish (I-III) or the slam (IV). Nothing before
- * it (the pass, the pump fake, the chuck, the catch) touches the target.
+ * it (the pass, the pump fake, IV's smack and bounce, the catch) lands it.
  *
  * Perf: DOM writes are `transform` from the clock; layout is read once at the start; pooled sprites under a hard cap
  * plus six own objects; textures painted once per session and pre-warmed during the formation; the updater unhooks the
@@ -106,7 +106,7 @@ export function playHeroBasketball(o: HeroBasketballOptions): HeroBasketballHand
   const textures = o.textures !== undefined ? o.textures : heroBasketballTextures();
   const scene = textures && !reduced
     ? new HeroBasketballScene(textures, {
-      ball: hexToNum(c.colorBall), rim: hexToNum(c.colorRim), net: hexToNum(c.colorNet), glass: hexToNum(c.colorGlass), flash: hexToNum(c.colorFlash),
+      ball: hexToNum(c.colorBall), rim: hexToNum(c.colorRim), net: hexToNum(c.colorNet), glass: hexToNum(c.colorGlass), flash: hexToNum(c.colorFlash), blast: hexToNum(c.colorBlast),
       confettiA: hexToNum(c.colorConfettiA), confettiB: hexToNum(c.colorConfettiB), side: hexToNum(sideHex),
     }, { ballSize: c.ballSize, shadowDrop: c.shadowDrop, hoopSize: c.hoopSize, wordSize: c.wordSize }, aRadius, radius, s, basketballSeed(o.total, dist, o.side))
     : null;
@@ -178,12 +178,18 @@ export function playHeroBasketball(o: HeroBasketballOptions): HeroBasketballHand
         cue(c.sfxSqueakClip, c.sfxSqueakGain * 0.5, c.sfxSqueakRate * 1.2);
         break;
       case 'release': {
-        // The shot (I-III) or IV's chuck, lower and longer.
-        cue(c.sfxThrowClip, c.sfxThrowGain * (big ? 1.2 : 1), c.sfxThrowRate * (big ? 0.85 : 1), { lenMs: big ? 700 : 500, fadeMs: 200 });
+        // The shot (I-III), or IV's throw fired straight at the target (harder and quicker).
+        cue(c.sfxThrowClip, c.sfxThrowGain * (big ? 1.3 : 1), c.sfxThrowRate * (big ? 1.25 : 1), { lenMs: big ? 400 : 500, fadeMs: 160 });
         const b = ball(t);
         scene?.release({ x: b.x, y: b.y });
         break;
       }
+      case 'bounce':
+        // IV: the throw SMACKS the target and bounces high (FX and sound only; the blow waits for the slam).
+        cue(c.sfxDribbleClip, c.sfxDribbleGain * 1.25, c.sfxDribbleRate * 0.8);
+        cue(c.sfxRimClip, c.sfxRimGain * 0.35, c.sfxRimRate * 1.2, { lenMs: 450, fadeMs: 200 });
+        scene?.bounce(geo.hit);
+        break;
       case 'catch': {
         // III: the pass slapped into the hands (and a squeak as it plants); IV: the catch at the top of the leap.
         cue(c.sfxCatchClip, c.sfxCatchGain, c.sfxCatchRate, { lenMs: 200, fadeMs: 80 });
@@ -200,7 +206,7 @@ export function playHeroBasketball(o: HeroBasketballOptions): HeroBasketballHand
           cue(c.sfxOohClip, c.sfxOohGain * 1.35, c.sfxOohRate, { delayMs: real(110), fadeMs: 400 });
           cue(c.sfxShatterClip, c.sfxShatterGain, c.sfxShatterRate, { lenMs: 1200, fadeMs: 300 });
           cue(c.sfxCheerClip, c.sfxCheerGain, c.sfxCheerRate, { delayMs: real(380), lenMs: 2200, fadeMs: 700 });
-          scene?.slam(geo.hit, blowDir, { burst: plan.burst, rings: plan.rings, shards: plan.shards, confetti: plan.confetti });
+          scene?.slam(geo.hit, blowDir, { burst: plan.burst, rings: plan.rings, shards: plan.shards, confetti: plan.confetti, blast: c.blastSize });
         } else {
           // SWISH: nothing but net. II's fade gets a small "ooh"; III's three a bigger swish and a full one.
           cue(c.sfxSwishClip, c.sfxSwishGain * (plan.kind === 'three' ? 1.15 : 1), c.sfxSwishRate);
@@ -252,9 +258,13 @@ export function playHeroBasketball(o: HeroBasketballOptions): HeroBasketballHand
       scene.setHoop(geo.hit, h.alpha, h.rattle, h.board);
     }
     if (foe.el) {
-      // The target takes the blow: a small bob on a swish, a hard squash down on the slam.
+      // The target takes the blow: a small bob on a swish, a hard squash down on the slam (IV's smack a small knock first).
       let kx = 0, ky = 0, sq = 0;
       const px = local ? 0.45 : 1;
+      if (plan.bounceAt !== null && t >= plan.bounceAt) {
+        const k = spring(t - plan.bounceAt, 5, 60);
+        kx += geo.u.x * c.knockPx * 0.4 * k * px; ky += geo.u.y * c.knockPx * 0.4 * k * px; sq += c.squash * 0.4 * k;
+      }
       if (t >= plan.impactAt) {
         const k = spring(t - plan.impactAt, big ? 4 : 5, big ? 95 : 70);
         const w = big ? 0.8 + 0.5 * plan.k : 0.35;

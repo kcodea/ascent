@@ -10782,7 +10782,7 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
    size × the combat portrait's). Pointer-inert so a card dragged near the right edge never catches it. */
 .gauntletfoe {
   position: absolute; z-index: 60; width: 0; height: 0;
-  right: calc((210px - var(--hd-gfoe-x, 0px)) * var(--scale));
+  right: calc((250px - var(--hd-gfoe-x, 0px)) * var(--scale));
   top: calc(46% + var(--hd-gfoe-y, 0px) * var(--scale));
   pointer-events: none;
   transition: transform 420ms cubic-bezier(0.4, 0, 0.2, 1), opacity 320ms ease-out;
@@ -10797,8 +10797,15 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 .gauntletfoe-face { display: block; position: relative; z-index: 0; }
 /* The round / loss-cap line takes the combat HEALTH pill's slot + paint (shared rule below, `.combatopp-hp`),
    with its own quieter type — it is a readout, not a life total (scoped one step up so it outranks that later rule). */
-.gauntletfoe-group .gauntletfoe-meta { position: relative; z-index: 2; white-space: nowrap;
-  font-size: calc(11 * var(--u)); letter-spacing: 0.03em; color: #f4ecdb; padding: calc(5 * var(--u)) calc(13 * var(--u)); }
+.gauntletfoe-group .gauntletfoe-meta,
+.gauntletfoe-group .gauntletfoe-cap { position: relative; z-index: 2; white-space: nowrap;
+  font-size: calc(11 * var(--u)); letter-spacing: 0.03em; color: #f4ecdb; padding: calc(5 * var(--u)) calc(13 * var(--u));
+  /* Nudged a little lower than combat's health-pill slot (owner ask 2026-09-30). */
+  transform: translate(calc(var(--hd-hp-x, 0px) * var(--scale)), calc((var(--hd-hp-y, -31px) + 14px) * var(--scale))) scale(var(--hd-hp-s, 0.65)); }
+/* The loss-cap pill sits right under the round pill; its number + heart read in the threat red. */
+.gauntletfoe-group .gauntletfoe-cap { margin-top: calc(-10 * var(--u)); }
+.gauntletfoe-capnum { display: inline-flex; align-items: center; gap: calc(4 * var(--u)); color: var(--threat); font-size: calc(14 * var(--u)); }
+.gauntletfoe-capnum svg { flex: none; width: calc(14 * var(--u)); height: calc(14 * var(--u)); color: var(--threat); }
 /* Health / placement sit on row 2 at the right, beside the round-damage number, now the name owns row 1. */
 .lobbyhp, .lobbyplace { grid-column: 3; grid-row: 2; justify-self: start; transform: translateX(calc(var(--lby-hp-x, 7) * var(--lrow))); }
 /* The health number LEFT-aligns at a fixed start toward the right (owner ask 2026-08-28): it reserves a width
@@ -11808,7 +11815,8 @@ body.duel-attacker-opp .combatopp-hp { opacity: 0; }
    dark-gold border, threat-pink heart and lightened number from `.statusbar .hero .hpbox`, verbatim. The Gauntlet
    shop foe's round line (`.gauntletfoe-meta`) wears the same pill in the same slot; its type is overridden above. */
 .combatopp-hp,
-.gauntletfoe-meta {
+.gauntletfoe-meta,
+.gauntletfoe-cap {
   display: inline-flex; align-items: center; gap: calc(7 * var(--u));
   background: linear-gradient(180deg, #241a13, #17110c);
   border: 2px solid color-mix(in srgb, var(--gold) 55%, #000); border-radius: calc(16 * var(--u));

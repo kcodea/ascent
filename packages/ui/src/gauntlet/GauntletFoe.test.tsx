@@ -48,7 +48,9 @@ describe('GauntletFoe', () => {
     expect(el.querySelector('.gauntletfoe-group > .combatopp-name')!.textContent).toBe('The Demon Host');
     expect(el.querySelector('.gauntletfoe-group .combatopp-portrait .combatopp-emblem svg')).not.toBeNull();
     expect(el.querySelector('.combatopp-portrait img')).toBeNull();
-    expect(el.querySelector('.gauntletfoe-meta')!.textContent).toBe('Round 3 / 10 · Max loss 5');
+    expect(el.querySelector('.gauntletfoe-meta')!.textContent).toBe('Round 3 / 10');
+    expect(el.querySelector('.gauntletfoe-cap')!.textContent).toBe('Max loss 5');
+    expect(el.querySelector('.gauntletfoe-cap .gauntletfoe-capnum svg')).not.toBeNull();
     // Runes are combat-only; the stage foe takes no damage (no health pill), has no hero power, and the shop copy
     // is never the strike's lunge target (`.combatopp-body` is heroBlast's query hook).
     expect(el.querySelector('.combatopp-runes, .combatopp-rune, .combatopp-runeslots, .runebadge')).toBeNull();
@@ -91,12 +93,13 @@ describe('GauntletFoe', () => {
 
   it('reads "No cap" on the uncapped final rounds', () => {
     const el = show(atRound(9));
-    expect(el.querySelector('.gauntletfoe-meta')!.textContent).toBe('Round 9 / 10 · No cap');
+    expect(el.querySelector('.gauntletfoe-meta')!.textContent).toBe('Round 9 / 10');
+    expect(el.querySelector('.gauntletfoe-cap')!.textContent).toBe('No cap');
   });
 
   it('holds the round at 10 once the final round is past', () => {
     const el = show(atRound(11));
-    expect(el.querySelector('.gauntletfoe-meta')!.textContent).toMatch(/^Round 10 \/ 10 · /);
+    expect(el.querySelector('.gauntletfoe-meta')!.textContent).toBe('Round 10 / 10');
   });
 });
 

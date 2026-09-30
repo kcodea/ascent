@@ -25,6 +25,7 @@ import { useGame } from '../store';
 import { usePortraitFrame } from '../portraitFrame/PortraitFrame';
 import { FoePortraitDisc } from '../FoePortraitDisc';
 import { foePortrait } from './foePortrait';
+import { Icon } from '../Icon';
 
 export const GauntletFoe = memo(function GauntletFoe(): JSX.Element | null {
   const name = useGame((s) => s.run.lobby?.seats[1]?.label ?? '');
@@ -42,8 +43,12 @@ export const GauntletFoe = memo(function GauntletFoe(): JSX.Element | null {
         <div className="gauntletfoe-face" aria-hidden="true">
           <FoePortraitDisc art={art} gauntlet tribe={tribe} frame={frame} />
         </div>
-        <div className="gauntletfoe-meta">
-          Round {round} / {GAUNTLET_ROUNDS} · {Number.isFinite(cap) ? `Max loss ${cap}` : 'No cap'}
+        <div className="gauntletfoe-meta">Round {round} / {GAUNTLET_ROUNDS}</div>
+        {/* The round's loss cap in its own pill below (owner ask 2026-09-30): the number + heart in red. */}
+        <div className="gauntletfoe-cap">
+          {Number.isFinite(cap)
+            ? <>Max loss <span className="gauntletfoe-capnum"><Icon name="heart" />{cap}</span></>
+            : 'No cap'}
         </div>
       </div>
     </div>

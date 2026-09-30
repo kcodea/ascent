@@ -119,11 +119,72 @@ describe('the catalog <-> the bundle', () => {
     expect(skinArtOf(c)).toBeTruthy();
     expect(heroSkinOf({ heroSkinByHeroId: { frank: 'skin_frank_1' } }, 'frank')?.id).toBe('skin_frank_1');
   });
-  it('every skin targets a REAL collectible card (never a token) or a REAL hero, by stable id', () => {
+  // Skins batch 4 (owner 2026-09-30: "can you wire all the new skins that i added to the folder"). Rarity from the
+  // filename suffix; the ten masters with none took the owner's random draw between Common and Epic. Same checks.
+  const BATCH4: [id: string, rarity: string, cardId: string, cardName: string, master: string][] = [
+    ['skin_arnold_1', 'common', 'dw_arnold', 'Arnold', 'BeefyArnoldCommon.png'],
+    ['skin_recaller_1', 'epic', 'd2_recaller', 'Recaller', 'BlownGlassRecallerEpic.png'],
+    ['skin_recaller_2', 'rare', 'd2_recaller', 'Recaller', 'MagmaRecallerRare.png'],
+    ['skin_recaller_3', 'rare', 'd2_recaller', 'Recaller', 'StarformRecallerRare.png'],
+    ['skin_pimm_1', 'rare', 'dw_pimm', 'Paymaster Pimm', 'BouncerPimmRare.png'],
+    ['skin_pimm_2', 'epic', 'dw_pimm', 'Paymaster Pimm', 'ProphetPimm.png'],
+    ['skin_chimerus_1', 'rare', 'chimerus', 'Chimerus', 'ChimerusSkinRare.png'],
+    ['skin_chronicler_1', 'rare', 'd2_chronicler', 'Scalefeather', 'ChromeScalefeatherRare.png'],
+    ['skin_chronicler_2', 'epic', 'd2_chronicler', 'Scalefeather', 'MechaScalefeatherEpic.png'],
+    ['skin_edward_1', 'legendary', 'dw_edward', 'Edward Keg-hands', 'EdwardColadaHandsLegendary.png'],
+    ['skin_baal_1', 'rare', 'dw_baal', 'Baal', 'EpicBaalRare.png'],
+    ['skin_pouchpincher_1', 'epic', 'k_pouchpincher', 'Cheap Date', 'LavishDateEpic.png'],
+    ['skin_buddy_2', 'legendary', 'buddy', 'Buddy Buddy', 'PortalBuddyLegendary.png'],
+    ['skin_buddy_3', 'legendary', 'buddy', 'Buddy Buddy', 'SketchBuddyLegendary.png'],
+    ['skin_drummer_4', 'rare', 'drummer', 'Drakko', 'SketchDrakko.png'],
+    ['skin_orin_1', 'epic', 'dw_orin', 'Oathshield Orin', 'ThorOrinEpic.png'],
+  ];
+  it.each(BATCH4)('batch 4: %s (%s) exists, targets %s, and ships its art', (id, rarity, cardId, cardName, master) => {
+    const c = cosmeticOf(id)!;
+    expect(c).toBeTruthy();
+    expect([c.category, c.rarity, c.target, c.assets.master, c.active]).toEqual(['minion_skin', rarity, { type: 'card', id: cardId }, master, true]);
+    expect(CARD_INDEX[cardId]?.name).toBe(cardName);
+    expect(skinArtKeys()).toContain(id);
+    expect(skinArtOf(c)).toBeTruthy();
+    expect(minionSkinOf({ minionSkinByCardId: { [cardId]: id } }, cardId)?.id).toBe(id);
+  });
+  const BATCH4_HEROES: [id: string, rarity: string, heroId: string, heroName: string, master: string][] = [
+    ['skin_cia_1', 'common', 'cia', 'Ayse', 'AyseSkinCommon.png'],
+    ['skin_cia_2', 'rare', 'cia', 'Ayse', 'AyseSkinRare.png'],
+    ['skin_frank_2', 'epic', 'frank', 'Frantic Frank', 'BlackFridayFrank.jpg'],
+    ['skin_frank_3', 'rare', 'frank', 'Frantic Frank', 'CoasterFrank.png'],
+    ['skin_bram_1', 'rare', 'bram', 'Braum', 'BraumSkinRare.png'],
+    ['skin_darah_1', 'epic', 'darah', 'Darah', 'DarahSkinEpic.png'],
+    ['skin_darah_2', 'rare', 'darah', 'Darah', 'DarahSkinRare.png'],
+    ['skin_emeraldwarden_1', 'rare', 'emeraldwarden', 'Emerald Warden', 'EmeraldWardenSkinRare.png'],
+    ['skin_hunch_1', 'rare', 'hunch', 'Hunch', 'HunchSkinRare.png'],
+    ['skin_keshi_1', 'epic', 'keshi', 'Keshi the Protector', 'KeshiTheCityguard.png'],
+    ['skin_keshi_2', 'epic', 'keshi', 'Keshi the Protector', 'PopStarKeshi.png'],
+    ['skin_soren_1', 'epic', 'soren', 'Soren', 'KingSorenEpic.png'],
+    ['skin_soren_2', 'common', 'soren', 'Soren', 'MasteredSoren.png'],
+    ['skin_brackus_1', 'epic', 'brackus', 'Brackus', 'MasterBrakkus.png'],
+    ['skin_brackus_2', 'common', 'brackus', 'Brackus', 'YoungBrakkus.png'],
+    ['skin_robin_1', 'common', 'robin', 'Robin', 'NinjaRobin.png'],
+  ];
+  it.each(BATCH4_HEROES)('batch 4: %s (%s) exists, targets the hero %s, and ships its art', (id, rarity, heroId, heroName, master) => {
+    const c = cosmeticOf(id)!;
+    expect(c).toBeTruthy();
+    expect([c.category, c.rarity, c.target, c.assets.master, c.active]).toEqual(['hero_skin', rarity, { type: 'hero', id: heroId }, master, true]);
+    expect(HEROES.find((h) => h.id === heroId)!.name).toBe(heroName);
+    expect(skinArtKeys()).toContain(id);
+    expect(skinArtOf(c)).toBeTruthy();
+    expect(heroSkinOf({ heroSkinByHeroId: { [heroId]: id } }, heroId)?.id).toBe(id);
+  });
+  const EARNED_TOKEN_TARGETS = new Set(['chimerus', 'dw_baal']);
+  it('every skin targets a REAL collectible card (never a token, except the two earned ones) or a REAL hero, by stable id', () => {
     for (const c of skins) {
       if (c.category === 'minion_skin') {
         const def = CARD_INDEX[c.target!.id];
         expect(def, `${c.id} -> ${c.target!.id}`).toBeTruthy();
+        // Chimerus (the Dragon quest reward) and Baal (forged by the Rune of Baal) are token-flagged only because the
+        // Shop never offers them; they are real minions a player puts on the board, and the owner drew skins for them
+        // (batch 4, 2026-09-30). Every other token stays unskinnable.
+        if (EARNED_TOKEN_TARGETS.has(c.target!.id)) continue;
         expect(def!.token, `${c.id} targets a token`).toBeFalsy();
       } else {
         expect(HEROES.some((h) => h.id === c.target!.id), `${c.id} -> ${c.target!.id}`).toBe(true);

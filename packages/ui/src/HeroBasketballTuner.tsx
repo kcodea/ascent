@@ -10,7 +10,7 @@ import { TunerPanel } from './TunerPanel';
 /**
  * DEV tuner for the BASKETBALL hero attack (the Nothing But Net cosmetic, a Legendary; owner ask 2026-09-29: "tier 1 =
  * basketball shot from place / tier 2 = a fadeaway ... / tier 3 = a slam dunk on the target / tier 4 = a self alley
- * oop"; reviewed: III became a pull-up three, IV a fast throw that bounces high, a leap, a catch and an explosive slam). Four groups of
+ * oop"; reviewed: III became a pull-up three, IV two threes, a chest pass off the backboard, an epic leap to the rebound at half court, a slow-mo catch and one flying slam). Four groups of
  * per-tier dials (I the jumper, II the fadeaway, III the pull-up three, IV the alley-oop), the moves'
  * geometry, the colours and one clip / gain / pitch row per sound cue (whistle, dribble, sneaker squeak, throw, swish,
  * catch, rim, slam, glass, crowd "ooh", cheer). The Play buttons run the real runner between the two real portraits.
@@ -42,14 +42,24 @@ const GLOBALS: Record<string, RareGlobalSpec> = {
   backMs: ['Dribble back', 'ms', 'III: the dribble back before the pull-up (its dribbles are Tier III\'s Dribbles).', 'Moves: the three (III)'],
   dribbleBack: ['Step back', '×', 'III: how far it dribbles back, away from the target (striker radii).', 'Moves: the three (III)'],
   halfCourt: ['Run-up', '×', 'IV: how far toward the target the quick run-up goes before the leap (0 = it leaps from its slot).', 'Moves: the alley-oop (IV)'],
-  alleyRise: ['Bounce height', '×', 'IV: how high the ball bounces off the backboard, where it is caught (struck radii above the target).', 'Moves: the alley-oop (IV)'],
-  riseMs: ['Bounce rise', 'ms', 'IV: the ball rising off the backboard to the top of its bounce (the leap is timed to meet it there).', 'Moves: the alley-oop (IV)'],
+  oopThrees: ['Opening threes', undefined, 'IV: how many pull-up threes before the slam (2 = one from the slot, one from a spot up court off a pass; 0 = straight to the slam). Ticks: no damage.', 'Moves: the alley-oop (IV)'],
+  oopShotMs: ['Opening three flight', 'ms', 'IV: each opening three flight to the net.', 'Moves: the alley-oop (IV)'],
+  oopScootMs: ['Rotate up', 'ms', 'IV: the rotation up court to the spot after the first three.', 'Moves: the alley-oop (IV)'],
+  oopPassMs: ['Opening pass', 'ms', 'IV: the pass flying in to the spot for the second three.', 'Moves: the alley-oop (IV)'],
+  oopBackMs: ['Rotate back', 'ms', 'IV: the rotation back to the baseline (its slot) before the slam sequence.', 'Moves: the alley-oop (IV)'],
+  reboundMs: ['Rebound', 'ms', 'IV: the ball coming off the backboard back out to half court.', 'Moves: the alley-oop (IV)'],
+  ballLeadMs: ['Ball first by', 'ms', 'IV: how long the ball is at half court before the player gets there (the leap never beats the ball).', 'Moves: the alley-oop (IV)'],
+  alleyRise: ['Catch height', '×', 'IV: how high above the player\'s head the ball is caught at half court (striker radii).', 'Moves: the alley-oop (IV)'],
+  crouchMs: ['Crouch', 'ms', 'IV: the deep crouch before the launch (the charge-up).', 'Moves: the alley-oop (IV)'],
+  crouchSquash: ['Crouch depth', '×', 'IV: how far the striker squashes down in the crouch (and springs tall on the launch).', 'Moves: the alley-oop (IV)'],
+  launchSize: ['Launch', '×', 'IV: the launch out of the crouch (the dust shock ring, the grit, the flash under the feet).', 'Moves: the alley-oop (IV)'],
+  auraSize: ['Aura', '×', 'IV: the aura building round the striker from the crouch to the slam (0 = none).', 'Moves: the alley-oop (IV)'],
   blastSize: ['Explosion size', '×', 'IV: the explosion under the slam (fireball, shock ring, debris, sparks; 0 = none).', 'Moves: the alley-oop (IV)'],
   threeSlow: ['III slow mo', '×', 'III: how slow the clock gets around the pull-up and release (1 = none). A smooth ramp, never a freeze.', 'Slow mo'],
   threeSlowMs: ['III slow mo length', 'ms', 'III: roughly how long (real time) the slow mo lasts around the release.', 'Slow mo'],
   alleySlow: ['IV slow mo', '×', 'IV: how slow the clock gets around the catch at the top of the leap (1 = none).', 'Slow mo'],
   alleySlowMs: ['IV slow mo length', 'ms', 'IV: roughly how long (real time) the hang-time slow mo lasts.', 'Slow mo'],
-  slamBoost: ['IV slam speed', '×', 'IV: the clock runs this much FASTER through the slam, after the slow mo eases back in.', 'Slow mo'],
+  slamBoost: ['IV slam speed', '×', 'IV: the clock runs this much FASTER through the one fluid slam, after the slow mo eases back in.', 'Slow mo'],
   slowRampMs: ['Slow mo ease', 'ms', 'How long (attack time) the clock eases into and out of the slow mo.', 'Slow mo'],
   slowZoom: ['Slow mo push', '×', 'A subtle extra push in on the view during the slow mo.', 'Slow mo'],
   hangMs: ['Hang time', 'ms', 'IV: the moment in the air after the catch before the slam.', 'Moves: the alley-oop (IV)'],
@@ -73,7 +83,7 @@ const GLOBALS: Record<string, RareGlobalSpec> = {
   sfxSwishRate: ['swish: pitch', '×', 'Pitch of the swish.', 'Sound: swish'],
   sfxCatchGain: ['catch: gain', undefined, 'III: the pass slapped into the hands; IV: the catch at the top of the leap.', 'Sound: catch'],
   sfxCatchRate: ['catch: pitch', '×', 'Pitch of the catch.', 'Sound: catch'],
-  sfxRimGain: ['rim: gain', undefined, 'IV: the clang off the backboard, and the rim rattling on the slam.', 'Sound: rim'],
+  sfxRimGain: ['rim: gain', undefined, 'IV: the rim rattling on the slam.', 'Sound: rim'],
   sfxRimRate: ['rim: pitch', '×', 'Pitch of the rim.', 'Sound: rim'],
   sfxSlamGain: ['slam: gain', undefined, 'IV: the slam landing (THE impact).', 'Sound: slam'],
   sfxSlamRate: ['slam: pitch', '×', 'Pitch of the slam.', 'Sound: slam'],
@@ -152,7 +162,7 @@ const built = rareTunerSpec({
     'the jumper, a dribble, a jump shot and a swish from where it stands.',
     'the fadeaway, a dribble move (wrap, crossover or spin) on the slide to mid court, a fade back to the side and a swish.',
     'the pull-up three, a scoot to a spot (up, the left wing or the right corner), a pass, a pump fake, a dribble back and a slow-mo three.',
-    'the self alley-oop, a fast throw off the backboard, a high bounce, the leap, a slow-mo catch and a fast slam into an explosion.',
+    'two threes (from the slot, then off a pass up court), then a chest pass off the backboard, a leap to catch the rebound at half court in slow mo, and one flying slam into an explosion.',
   ],
 });
 

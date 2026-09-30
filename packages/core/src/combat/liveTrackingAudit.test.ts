@@ -79,6 +79,7 @@ const EXEMPT: Record<string, string> = {
   playerRises: "Risen x Fortune's Rise count, paid as next-turn Gold (as its text says); each Rise already animates live as its own reborn beat",
   playerSummonsMade: "Risen x Time's summon count, paid at the next Start of Turn (as its text says); each summon already animates live as its own summon beat",
   playerAncientPummelDealt: "Albus x War's lifetime hero-Pummel tally, stored for the next fight; the Strange Revisions it earns are granted LIVE mid-fight (a toHand on the crossing hit), and the power text folds in the replay's friendly damage so far (R-REALTIME-01)",
+  playerAncientClearanceStacks: "Frantic Frank x War's Clearance stacks, spent only in the Shop; each stack is gained LIVE mid-fight (a questTrigger per stack) and the power text folds the replay's stacks so far in (R-REALTIME-01)",
   playerFreeRolls: 'ditto — rerolls are a shop-phase affordance',
   playerMaxGoldGain: 'max-Gold has no combat surface; the maxGold event exists for the replay log only',
   playerFodderGrants: 'queued into the next tavern — no combat surface',

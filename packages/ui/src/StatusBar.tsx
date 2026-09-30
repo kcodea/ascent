@@ -7,7 +7,7 @@ import { renameTerms } from './terms';
 import { Card, mdBold } from './Card';
 import { instView } from './instView';
 import { ANCIENTS, dragonTamerCostOf, heroPowerCostOf, INDY_GILD_RECHARGE_GOLD, KESHI_CROWN_THRESHOLD, roundedSpellbookCostOf, allInPayoutOf, exhibitionGrantOf, tempestGrantOf, bladeMasteryGrantOf, hoardWhelpStatsOf, TEMPEST_KILLS_PER_STEP, BLADE_ATTACKS_PER_STEP, heroPowerText, commissionOffer, COMMISSION_NAME, COMMISSION_REWARD, COMMISSION_DELAY, getHero, spellAmplifyBonus, spellAttackBonusLive, spellHealthBonusLive, spellEscalationLive, rubyStatBonus, heroPowerLockTurns, activePowers, type RunState, type HeroPower } from '@game/sim';
-import { henchmanOffer } from '@game/sim';
+import { henchmanOffer, ancientClearanceAvengeLeft, ancientClearanceStacks, ancientClearanceUsesBadge } from '@game/sim';
 import { equipmentWillAmplify, equipmentCostOf, equipmentPool, equipmentState, equipmentText, equipmentUsesLeft, selectedEquipment, selectedEquipmentDef } from '@game/sim';
 import { CARD_INDEX, EQUIPMENT_INDEX } from '@game/content';
 import type { Keyword } from '@game/core';
@@ -159,7 +159,10 @@ export function StatusBar() {
   const combatDamage = useGame((s) => s.combatQuestDelta?.friendlyDamage);
   const heavyShare = run.questFlags?.runeHeavyHand ? Math.max(1, run.flagCopies?.runeHeavyHand ?? 1) : 0;
   const friendlyDamage = combatDamage === undefined ? undefined : combatDamage * (1 + heavyShare);
-  const heroPowerLive = useMemo(() => ({ attacks: combatAttacks, summons: combatSummons, friendlyDamage }), [combatAttacks, combatSummons, friendlyDamage]);
+  // FRANK × WAR, LIVE (R-REALTIME-01): Clearance stacks gained so far this fight. Undefined outside a fight.
+  const clearanceStacks = useGame((s) => s.combatQuestDelta?.clearanceStacks);
+  const combatFriendlyDeaths = useGame((s) => s.combatQuestDelta?.friendlyDeaths);
+  const heroPowerLive = useMemo(() => ({ attacks: combatAttacks, summons: combatSummons, friendlyDamage, clearanceStacks }), [combatAttacks, combatSummons, friendlyDamage, clearanceStacks]);
   // While spectating a replay, the hero panel belongs to the RECORDED player, so show their name — not the
   // local account's. Falls back to your own name for normal play (replaySession is null outside playback).
   const playerName = useGame((s) => s.replaySession?.authorName ?? s.playerName);
@@ -438,6 +441,21 @@ export function StatusBar() {
   // The button's rect is read ONCE per roll, here, never per frame. `settled` flips at t = 1 so the held face
   // appears under the fading overlay; `null` again once the overlay has retired.
   const powerBtnRef = useRef<HTMLButtonElement>(null);
+  // FRANK × ANCIENT OF WAR: each Clearance stack an Avenge gains MID-FIGHT pops the power with the one-shot
+  // 'hero-power-spark' as it happens (the red uses count re-keys and bumps alongside). One rect read per gain, never
+  // per frame; a new fight resets the delta to 0, which is not a gain.
+  const prevClearanceStacks = useRef(clearanceStacks ?? 0);
+  useEffect(() => {
+    const now = clearanceStacks ?? 0;
+    const was = prevClearanceStacks.current;
+    prevClearanceStacks.current = now;
+    if (now <= was) return;
+    const el = powerBtnRef.current;
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    const cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+    playDef('hero-power-spark', { source: { x: cx, y: cy }, target: { x: cx, y: cy } });
+  }, [clearanceStacks]);
   const [dieRoll, setDieRoll] = useState<{ result: DieFace; anchor: { x: number; y: number }; seed: number; settled: boolean } | null>(null);
   const prevDiceLock = useRef(run.heroDiceLockUntil);
   useEffect(() => {
@@ -538,7 +556,8 @@ export function StatusBar() {
     unlocked &&
     !eotAnimating &&
     withinUses &&
-    (power.oncePerGame ? !run.heroPowerSpent : run.heroReady) &&
+    // ANCIENT OF WAR × Frantic Frank: a banked Clearance stack re-arms a spent Clearance (the reducer's `stackUse`).
+    (power.oncePerGame ? !run.heroPowerSpent : run.heroReady || (power.kind === 'clearance' && ancientClearanceStacks(run) > 0)) &&
     // ONE price, checked once. A shrinking power (Dragon Tamer / Dynamite Dig / Hunch / Buyout) used to be
     // gated by its DISCOUNTED cost *and* its printed base cost, so between the two you could see the real,
     // payable price on the coin while the button read as unaffordable — and the art dimmed to 10% (the
@@ -550,6 +569,10 @@ export function StatusBar() {
   // Live power TALLY (owner ask 2026-07-16) — the Avenge-style numerals riding ABOVE the diamond for powers
   // that track a value: recharge/quest progress, cadence countdowns, scaling values, Jenkins's dig tier.
   // Null hides it (e.g. a completed quest fades away by unmounting; Robin with nothing banked shows nothing).
+  // FRANK × ANCIENT OF WAR (owner 2026-09-30): the Clearance uses available right now (the turn's own + banked stacks +
+  // stacks gained so far in the fight on screen), shown as a RED count at the top centre of the power while it is 2+.
+  const clearanceUses = power.kind === 'clearance' && run.ancientsEnabled ? ancientClearanceUsesBadge(run, clearanceStacks ?? 0) : null;
+  const clearanceStackCount = power.kind === 'clearance' && run.ancientsEnabled ? ancientClearanceStacks(run) : 0;
   const powerTally: string | null = (grantQuest && grantQuestDef)
     // A granted QUEST owns the slot while it runs: its objective tracker is the useful number.
     ? questProgressText(grantQuest.progress, grantQuestDef.objective, grantQuest.completed)
@@ -557,7 +580,9 @@ export function StatusBar() {
   // A live MAGNITUDE printed on the power art itself (the pill above it carries progress). Odelle only, for
   // now — the slot exists because "how much is this giving me" and "how close is the next step" are two
   // different questions, and one pill cannot answer both (owner ask 2026-08-22).
-  const powerCenter = heroPowerCenterOf(power, run, combatEnemyDeaths);
+  // FRANK × ANCIENT OF WAR: the Avenge (3) countdown owns the centre readout (live: the fight's friendly deaths so far).
+  const avengeLeft = power.kind === 'clearance' && run.ancientsEnabled ? ancientClearanceAvengeLeft(run, combatFriendlyDeaths ?? 0) : null;
+  const powerCenter = avengeLeft != null ? String(avengeLeft) : heroPowerCenterOf(power, run, combatEnemyDeaths);
   // The big line under the hero name: what tapping the power does *right now*.
   const powerLine = isPassive
     ? power.kind === 'spellAmplify'
@@ -603,7 +628,10 @@ export function StatusBar() {
                             // still enforced, it just isn't what the player needs told.
                             : power.maxUses
                               ? `${power.name} · ${(run.heroPowerUses ?? 0) >= power.maxUses ? 'spent' : usesPerGame(power.maxUses)}`
-                              : `${power.name} · ${run.heroReady ? 'once per turn' : 'used'}`;
+                              // FRANK × WAR: with banked stacks it is no longer once per turn, so say how many uses remain.
+                              : clearanceStackCount > 0
+                                ? `${power.name} · ${(run.heroReady ? 1 : 0) + clearanceStackCount} ${(run.heroReady ? 1 : 0) + clearanceStackCount === 1 ? 'use' : 'uses'} left`
+                                : `${power.name} · ${run.heroReady ? 'once per turn' : 'used'}`;
   // The live status line (current magnitude + countdown) shown ON HOVER, with the leading "Name · " stripped
   // (the name is the tip's header). Reuses the same live computations the old always-visible line did.
   const powerStatus = powerLine.startsWith(`${power.name} · `) ? powerLine.slice(power.name.length + 3) : powerLine;
@@ -820,7 +848,7 @@ export function StatusBar() {
               {/* The REFRESH bloom — a one-shot circular flash as the power re-arms (never a loop). */}
               {refreshFlash && <span className="hpb-flash" aria-hidden="true" />}
             </button>
-            {liveCost ? <span className="hpcost"><span className="costn">{liveCost}</span></span> : null}
+            {liveCost && !isPassive ? <span className="hpcost"><span className="costn">{liveCost}</span></span> : null}
             {/* ANCIENTS (proof of concept): the segmented meter ring + its points medallion / the awakened badge. */}
             {run.ancientsEnabled && <AncientMeter run={run} />}
             {run.ancientsEnabled && <AncientGate run={run} />}
@@ -829,7 +857,9 @@ export function StatusBar() {
             {diceHeldShown
               ? <span key="die-held" className="hpb-tally hpb-dice">{diceHeld}</span>
               : dieRoll != null ? null
-                : powerTally ? <span key={powerTally} className="hpb-tally">{powerTally}</span> : null}
+                : clearanceUses != null
+                  ? <span key={`cu${clearanceUses}`} className="hpb-tally clearance-uses" data-testid="clearance-uses">{clearanceUses}</span>
+                  : powerTally ? <span key={powerTally} className="hpb-tally">{powerTally}</span> : null}
             {dieRoll && (
               <DiceRoll
                 result={dieRoll.result}
@@ -845,7 +875,7 @@ export function StatusBar() {
                 RIGHT NOW. Suppressed while the Gambler's die owns the centre, so two heroes can never both
                 claim the slot (only reachable at all through a Void holding both). */}
             {powerCenter && dieRoll == null && diceHeld == null && (
-              <span key={powerCenter} className="hpb-tally hpb-center">{powerCenter}</span>
+              <span key={powerCenter} className={`hpb-tally hpb-center${avengeLeft != null ? ' hpb-avenge' : ''}`} data-testid={avengeLeft != null ? 'clearance-avenge' : undefined}>{powerCenter}</span>
             )}
             {/* CASSEN'S COMMISSION PICKER — reuses the Discover overlay's shell so it reads as the same kind of
           decision, but its options are plain text tiles rather than cards (a commission is not a card). Only

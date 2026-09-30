@@ -60,6 +60,18 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: 'New Gauntlet mode in the Play menu: ten stages, each a ten-round duel against a hand-built foe.',
+        details: [
+          'Survive all ten rounds of a stage to clear it and unlock the next one.',
+          'The first stages are on their way; the rest show as coming soon.',
+        ],
+      },
+      {
+        category: 'Systems',
+        text: 'Practice no longer offers bot opponents. It is always against players now.',
+      },
+      {
+        category: 'Systems',
         text: 'Hero attack effects now stay on the hero they hit while the view zooms in.',
         details: [
           'During the push-in, the effects of every hero attack could drift off the struck hero, by up to about a portrait width.',

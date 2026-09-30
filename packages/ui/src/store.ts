@@ -894,6 +894,8 @@ function loadPracticeConfig(): PracticeConfig {
     return {
       ...DEFAULT_PRACTICE_CONFIG,
       ...rest,
+      // Practice is always vs players (2026-09-29): a draft saved while the Bots option existed can't stick.
+      opponents: 'players',
       // Drafts saved before 2026-09-02 hold 'easy' | 'medium' | 'hard'; the ladder is 1–10 now.
       botDifficulty: normalizeBotDifficulty(parsed.botDifficulty),
       // Only the live set's tribes, in set order (a tribe saved while another set was live is dropped).
@@ -2278,7 +2280,9 @@ export const useGame = create<GameStore>((rawSet, get) => {
     // both start where the setup screen left them.
     try { localStorage.setItem('ascent.practicetimer', String(s.practiceDraft.timeMult)); } catch { /* ignore */ }
     const seed = randomSeed();
-    return { practiceSetupOpen: false, practiceTimer: s.practiceDraft.timeMult, pendingMode: 'practice', pendingSeed: seed, heroChoices: practiceHeroChoiceIds(s.practiceDraft.heroes, practiceRunTribes(seed, s.practiceDraft)) };
+    // Practice is always vs players (2026-09-29); the bots option is gone from the setup screen.
+    const draft: PracticeConfig = { ...s.practiceDraft, opponents: 'players' };
+    return { practiceSetupOpen: false, practiceDraft: draft, practiceTimer: draft.timeMult, pendingMode: 'practice', pendingSeed: seed, heroChoices: practiceHeroChoiceIds(draft.heroes, practiceRunTribes(seed, draft)) };
   }),
   cancelPracticeSetup: () => set({ practiceSetupOpen: false, showTitle: true, titleView: 'menu' }),
   startRift: () => set(() => { const seed = randomSeed(); return { showTitle: false, pendingMode: 'rift', pendingSeed: seed, heroChoices: rollHeroChoices(tribesForSeed(seed)), avatarPickerOpen: false }; }),

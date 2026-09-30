@@ -44,6 +44,10 @@ vi.mock('./remoteBoards', async (importOriginal) => ({
   fetchPracticeReplay: (id: number) => fetchPracticeReplay(id),
   fetchPlayerRating: async () => undefined, // syncProfileFromServer: "couldn't ask" → keep the local rating
 }));
+// The LOBBY STRENGTH readout is hidden behind one switch (owner 2026-09-30); a getter-backed mock lets a test
+// flip it on and prove the readout still renders when the switch comes back.
+const lobbyDisplay = vi.hoisted(() => ({ show: false }));
+vi.mock('./lobbyStrengthDisplay', () => ({ get SHOW_LOBBY_STRENGTH() { return lobbyDisplay.show; } }));
 vi.mock('./replay/replayPlayer', () => ({ startReplay: (...a: unknown[]) => startReplay(...a) }));
 
 import { Career } from './Career';
@@ -236,6 +240,17 @@ describe('Match History', () => {
     }
   });
 
+  it('with SHOW_LOBBY_STRENGTH on, the Lobby % is a fourth labelled fact, only on a run that carries a stamp', async () => {
+    lobbyDisplay.show = true;
+    try {
+      ui.unmount();
+      ui = mount(<Career />);
+      await flush();
+      expect(text('.cv2-row .cv2-meta-l')).toEqual(['Played', 'Length', 'Gold spent', 'Lobby', 'Played', 'Length', 'Gold spent', 'Played', 'Length', 'Gold spent']);
+      expect(text('.cv2-row-lobby')).toEqual(['74%']);
+    } finally { lobbyDisplay.show = false; }
+  });
+
   it('the outcome block: VICTORY for 1st (green) else the placement; the date, run length and Gold, each labelled; "—" when unknown', () => {
     const verdicts = [...ui.container.querySelectorAll('.cv2-verdict')];
     expect(verdicts.map((v) => v.textContent)).toEqual(['VICTORY', '3RD', '7TH']);
@@ -245,9 +260,9 @@ describe('Match History', () => {
     // The banner's edge carries the same result colour.
     expect([...ui.container.querySelectorAll('.cv2-row')].map((r) => r.classList.contains('won'))).toEqual([true, false, false]);
     expect(text('.cv2-row-outcome .cv2-row-label')).toEqual(['Match Outcome', 'Match Outcome', 'Match Outcome']);
-    // The LOBBY STRENGTH (owner 2026-09-22) is a fourth labelled fact, only on a run that carries a stamp.
-    expect(text('.cv2-row .cv2-meta-l')).toEqual(['Played', 'Length', 'Gold spent', 'Lobby', 'Played', 'Length', 'Gold spent', 'Played', 'Length', 'Gold spent']);
-    expect(text('.cv2-row-lobby')).toEqual(['74%']);
+    // The LOBBY STRENGTH (owner 2026-09-22) is HIDDEN for now (owner 2026-09-30): no Lobby fact even on the stamped run.
+    expect(text('.cv2-row .cv2-meta-l')).toEqual(['Played', 'Length', 'Gold spent', 'Played', 'Length', 'Gold spent', 'Played', 'Length', 'Gold spent']);
+    expect(text('.cv2-row-lobby')).toEqual([]);
     const when = text('.cv2-row-when');
     expect(when[0]).toMatch(/\d{4}$/);          // a real date
     expect(text('.cv2-row-length')).toEqual(['15 min', '12 min', '—']);   // 883 s · 690 s · no telemetry clock

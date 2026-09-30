@@ -231,15 +231,19 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'on the fetch (a delayed insert would miss settle_rank\'s rank stamp for good). It is shown only after '
       + 'the game, on the Career match rows and the Recent Games '
       + 'rows, as a percentage with no tier word ("47%", owner 2026-09-22; the tier is stored, never printed); never on the post-game screen, never on the rail before '
-      + 'or during a game. A run with no stamp shows nothing rather than a guess.',
+      + 'or during a game. A run with no stamp shows nothing rather than a guess. HIDDEN FOR NOW (owner 2026-09-30): '
+      + 'the readout is switched off on every surface by one flag (`SHOW_LOBBY_STRENGTH = false`, '
+      + 'packages/ui/src/lobbyStrengthDisplay.ts) while the number is improved; the value is still computed, stamped '
+      + 'and uploaded, and the placement above is where it returns when the flag is flipped back.',
     domain: 'foundation',
     status: 'approved',
     evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-30 (hide lobby strength)', quote: 'we can hide the lobby% number for now since it doesnt seem to be working too well at the moment.' },
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-22 (lobby strength as a percentage)', quote: 'can you remove the easy/medium/hard etc and just have it say for example, 47% since its basically a percentile.' },
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-22 (lobby strength)', quote: 'make an algorithm that can essentially assign a lobby strength value/indicator … we can then make winning really difficult lobbies more rewarding' },
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-22 (scoping answers)', quote: 'we dont want to use rank as a metric. we want to use raw data on win rate across all rounds served for the board. rank is not important right now as a factor in this small playtest. eventually it will be' },
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-22 (scoping answers)', quote: 'both, but put it in the career page match results instead of post game information … no only post game in careers and recent games pages' },
-      { kind: 'code', ref: 'packages/sim/src/lobbyStrength.ts (lobbyStrengthOf, STRENGTH_TIERS); supabase/functions/_shared/lobbyRating.ts lobbyStrengthValue; settle_rank step 5 in supabase/migrations/2026-09-22-fight-ledger.sql; packages/ui/src/Career.tsx + RecentGames.tsx' },
+      { kind: 'code', ref: 'packages/sim/src/lobbyStrength.ts (lobbyStrengthOf, STRENGTH_TIERS); supabase/functions/_shared/lobbyRating.ts lobbyStrengthValue; settle_rank step 5 in supabase/migrations/2026-09-22-fight-ledger.sql; packages/ui/src/Career.tsx + RecentGames.tsx (gated by packages/ui/src/lobbyStrengthDisplay.ts SHOW_LOBBY_STRENGTH)' },
     ],
     currentBehaviour:
       'Conforms as of 2026-09-22 (the feature branch). The prior (10 in 20) and the identity mapping are the '
@@ -464,10 +468,12 @@ export const FOUNDATION_RULES: GameRule[] = [
       + '`lobby_seed <> p_seed`; the client subtracts the rows it is about to upload from what the view reports), '
       + 'so the Career row (the server\'s stamp) and the Recent Games row (the client\'s stamp) print the same '
       + 'number and that number never depends on how the game itself went. It is printed as a percentage with no '
-      + 'tier word ("47%") on every surface; the tier is stored, never shown.',
+      + 'tier word ("47%") on every surface; the tier is stored, never shown. The printed readout is HIDDEN FOR NOW '
+      + '(owner 2026-09-30, `SHOW_LOBBY_STRENGTH = false`); both stamps are still computed and must still agree.',
     domain: 'foundation',
     status: 'approved',
     evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-30 (hide lobby strength)', quote: 'we can hide the lobby% number for now since it doesnt seem to be working too well at the moment.' },
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-22 (lobby strength 47 vs 50)', quote: 'the lobby difficulty shows 47 in my career and 50 in recent games, why' },
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-22 (lobby strength as a percentage)', quote: 'can you remove the easy/medium/hard etc and just have it say for example, 47% since its basically a percentile.' },
       { kind: 'code', ref: 'packages/sim/src/lobbyStrength.ts excludeOwnFights + strengthText; packages/ui/src/remoteBoards.ts fetchLobbyStrength(keys, ownRows); packages/ui/src/store.ts the run-end tick; supabase/migrations/2026-09-22-lobby-strength-going-in.sql settle_rank step 5' },

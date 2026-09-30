@@ -60,6 +60,10 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: 'The lobby strength number is hidden from match history for now while we improve it.',
+      },
+      {
+        category: 'Systems',
         text: 'The loading screen now loads all the art before you play, so nothing pops in.',
         details: [
           'The bar shows real progress: every card, hero, rune and frame is ready before the menu opens.',

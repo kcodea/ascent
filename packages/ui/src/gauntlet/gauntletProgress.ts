@@ -77,28 +77,33 @@ export function clearedStages(): number[] {
 }
 
 /** Mark `stage` cleared. `firstClear` is true only the first time it is cleared (on this device, or — signed in —
- *  as far as this client knows; the server decides whether a crate comes with it). */
-export function recordClear(stage: number): { firstClear: boolean } {
+ *  as far as this client knows; the server decides whether a crate comes with it). `queued` is true only when the
+ *  clear is waiting in the clear queue for `gauntlet-clear` (signed in AND a backend), i.e. a server answer will come. */
+export function recordClear(stage: number): { firstClear: boolean; queued: boolean } {
   const cleared = clearedStages();
   const firstClear = !cleared.includes(stage);
   const userId = accountUserId();
   if (userId) {
     // Queued even when already known: a replay costs the server one no-op, and a clear the mirror only guessed at
     // (an earlier optimistic mark) still reaches it.
-    enqueueGauntletClear(stage);
+    const queued = enqueueGauntletClear(stage) !== null;
     if (firstClear) writeStages(ACCOUNT_KEY_PREFIX + userId, sortedUnion(readStages(ACCOUNT_KEY_PREFIX + userId), [stage]));
-    return { firstClear };
+    return { firstClear, queued };
   }
   if (firstClear) writeStages(GAUNTLET_LOCAL_KEY, sortedUnion(cleared, [stage]));
-  return { firstClear };
+  return { firstClear, queued: false };
 }
 
 /** Re-read the signed-in account's cleared stages into its mirror. No-op for a guest; an unanswerable read or a
- *  server without the table keeps the mirror as it was. */
+ *  server without the table keeps the mirror as it was. Only the LATEST refresh writes: an older read answering
+ *  after a newer one (a slow boot read behind a post-clear read) would roll the mirror back. */
+let refreshSeq = 0;
 export async function refreshGauntletAccount(): Promise<void> {
   const userId = accountUserId();
   if (!userId) return;
+  const seq = ++refreshSeq;
   const stages = await fetchGauntletProgress(userId).catch(() => undefined);
+  if (seq !== refreshSeq) return;
   if (Array.isArray(stages) && accountUserId() === userId) writeStages(ACCOUNT_KEY_PREFIX + userId, stages);
 }
 

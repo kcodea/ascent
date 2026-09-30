@@ -73,7 +73,7 @@ import { resetMilestoneLatches } from './fx/milestoneBadgeFx';
 import { clearAllHandBuffs } from './handBuffFx';
 import { liveBoardView } from './instView';
 import { saveCapturedBoards, saveRunBoards } from './boardLibrary';
-import { flushGauntletAccount, gauntletAccountMode, isStagePlayable, recordClear, refreshGauntletAccount, settleGauntletClear, type GauntletReward } from './gauntlet/gauntletProgress';
+import { flushGauntletAccount, isStagePlayable, recordClear, refreshGauntletAccount, settleGauntletClear, type GauntletReward } from './gauntlet/gauntletProgress';
 import { installGauntletClearRetryTriggers, type PendingGauntletClear } from './gauntlet/gauntletClearQueue';
 import type { GauntletSubmitOutcome } from './gauntlet/gauntletRemote';
 import { gauntletClockReading } from './gauntlet/gauntletClock';
@@ -1799,11 +1799,14 @@ function commitResolvedAction(
       const outcome = gauntletOutcome(next);
       if (outcome) {
         const stage = next.gauntletStage;
-        const firstClear = outcome === 'cleared' ? recordClear(stage).firstClear : false;
+        const clear = outcome === 'cleared' ? recordClear(stage) : null;
+        const firstClear = clear?.firstClear ?? false;
         const me = next.lobby?.seats[0];
         const round = me?.eliminatedRound ?? Math.max(1, (next.lobby?.round ?? 2) - 1);
         gauntletResult = { stage, outcome, round, firstClear };
-        if (outcome === 'cleared' && gauntletAccountMode() === 'account') {
+        // "Saving" only when the clear really is queued: a signed-in player with no backend queues nothing, and the
+        // server answer that would end the saving state never comes.
+        if (clear?.queued) {
           gauntletSaving = stage;
           setTimeout(() => { void flushGauntlet(); }, 0); // deferred like every run-end write
         }

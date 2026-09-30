@@ -11,6 +11,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 type Invoke = { body: Record<string, unknown> };
 let invokeImpl: (opts: Invoke) => Promise<{ data: unknown; error: unknown }>;
 let progressRows: Array<{ stage: number }> = [];
+/** Per-read gates, oldest first: a read snapshots `progressRows` when it is issued, then waits for its gate (if any). */
+let progressGates: Array<Promise<void>> = [];
 let userId: string | null = 'u-1';
 let anonymous = false;
 
@@ -21,7 +23,13 @@ vi.mock('@supabase/supabase-js', () => ({
     functions: { invoke: async (_fn: string, opts: Invoke) => invokeImpl(opts) },
     from: (table: string) => ({
       select: () => {
-        const res = async () => (table === 'gauntlet_progress' ? { data: progressRows, error: null } : { data: [], error: null });
+        const rows = progressRows; // the read is issued now: it sees the rows as they are now
+        const gate = table === 'gauntlet_progress' ? progressGates.shift() : undefined;
+        const res = async () => {
+          if (table !== 'gauntlet_progress') return { data: [], error: null };
+          if (gate) await gate;
+          return { data: rows, error: null };
+        };
         return { eq: () => ({ order: res, then: (f: (r: unknown) => unknown, r?: (e: unknown) => unknown) => res().then(f, r) }) };
       },
     }),
@@ -57,6 +65,7 @@ beforeEach(() => {
   resetNewRewardsForTests();
   serverCleared.clear();
   progressRows = [];
+  progressGates = [];
   userId = 'u-1';
   anonymous = false;
   invokeImpl = realServer;
@@ -73,8 +82,8 @@ describe('which store counts', () => {
 
   it('a guest clears on the device, exactly as before (nothing queued)', () => {
     anonymous = true;
-    expect(recordClear(1)).toEqual({ firstClear: true });
-    expect(recordClear(1)).toEqual({ firstClear: false });
+    expect(recordClear(1)).toEqual({ firstClear: true, queued: false });
+    expect(recordClear(1)).toEqual({ firstClear: false, queued: false });
     expect(clearedStages()).toEqual([1]);
     expect(JSON.parse(localStorage.getItem(GAUNTLET_LOCAL_KEY)!)).toEqual([1]);
     expect(pendingGauntletClears()).toHaveLength(0);
@@ -91,11 +100,24 @@ describe('which store counts', () => {
   });
 
   it('a signed-in clear queues, counts at once (optimistic), and never writes the device list', () => {
-    expect(recordClear(2)).toEqual({ firstClear: true });
+    expect(recordClear(2)).toEqual({ firstClear: true, queued: true });
     expect(clearedStages()).toEqual([2]);
     expect(pendingGauntletClears()).toEqual([expect.objectContaining({ userId: 'u-1', stage: 2 })]);
-    expect(recordClear(2)).toEqual({ firstClear: false });
+    expect(recordClear(2)).toEqual({ firstClear: false, queued: true });
     expect(localStorage.getItem(GAUNTLET_LOCAL_KEY)).toBeNull();
+  });
+
+  it('an older refresh answering after a newer one never overwrites the mirror', async () => {
+    let releaseOld!: () => void;
+    progressGates = [new Promise<void>((r) => { releaseOld = r; })];
+    progressRows = [{ stage: 1 }]; // what the OLD read sees
+    const older = refreshGauntletAccount();
+    progressRows = [{ stage: 1 }, { stage: 2 }]; // the account moved on; the NEW read sees it
+    await refreshGauntletAccount();
+    expect(clearedStages()).toEqual([1, 2]);
+    releaseOld();
+    await older;
+    expect(clearedStages()).toEqual([1, 2]);
   });
 
   it('another account\'s mirror and queued clears never count for this one', () => {
@@ -116,7 +138,7 @@ describe('the crate', () => {
     expect(pendingGauntletClears()).toHaveLength(0);
     expect(clearedStages()).toEqual([1]); // the mirror is the account's rows now
 
-    expect(recordClear(1)).toEqual({ firstClear: false });
+    expect(recordClear(1)).toEqual({ firstClear: false, queued: true });
     await flushGauntletAccount((r) => rewards.push(r));
     expect(rewards).toHaveLength(1);
     expect(useNewRewards.getState().unseen.crates).toHaveLength(1);

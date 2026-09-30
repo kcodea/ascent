@@ -99,11 +99,17 @@ export interface GauntletFlushOptions {
 }
 
 /**
- * Submit every due clear for the CURRENT account, oldest first, one at a time. Concurrent calls share one flush.
- * A retryable failure records the attempt, arms the backoff timer and STOPS; confirmed and rejected items leave.
+ * Submit every due clear for the CURRENT account, oldest first, one at a time. Only one flush runs at a time: a
+ * call made mid-flush waits for it, then runs its OWN pass (its `onSettled`, its `force`), because the in-flight
+ * pass read the queue before this call and would miss a clear queued since. That pass sends only what is still
+ * pending, so it is usually empty. A retryable failure records the attempt, arms the backoff timer and STOPS;
+ * confirmed and rejected items leave.
  */
 export function flushGauntletClears(onSettled: GauntletClearSettleListener, opts: GauntletFlushOptions = {}): Promise<void> {
-  if (flushing) return flushing;
+  if (flushing) {
+    const again = (): Promise<void> => flushGauntletClears(onSettled, opts);
+    return flushing.then(again, again);
+  }
   const now = opts.now ?? Date.now;
   const run = async (): Promise<void> => {
     for (const item of pendingGauntletClears()) {

@@ -10,6 +10,7 @@ import type { CombatResult } from '@game/core';
 import type { GauntletStage } from '@game/content';
 
 const stages = vi.hoisted(() => new Map<number, unknown>());
+const remote = vi.hoisted(() => ({ on: true }));
 vi.mock('@game/content', async (orig) => ({
   ...(await orig<typeof import('@game/content')>()),
   gauntletStage: (n: number) => stages.get(n),
@@ -19,7 +20,7 @@ vi.mock('../remoteBoards', async (importOriginal) => {
   const mod = await importOriginal<typeof import('../remoteBoards')>();
   return {
     ...mod,
-    remoteEnabled: () => true,
+    remoteEnabled: () => remote.on,
     uploadBoards: vi.fn(async () => {}),
     uploadVictory: vi.fn(async () => {}),
     uploadRunTelemetry: vi.fn(async () => {}),
@@ -38,6 +39,8 @@ import { createGauntletRun, practiceHeroChoiceIds, runTribesForSeed, type BoardC
 import { useGame } from '../store';
 import { recordFightResult, uploadBoards, uploadPracticeGame, uploadRunHistory, uploadRunTelemetry } from '../remoteBoards';
 import { clearedStages } from './gauntletProgress';
+import { clearGauntletClearQueue, pendingGauntletClears } from './gauntletClearQueue';
+import { resetIdentityForTests, setIdentity } from '../identity';
 
 const minion = { cardId: 'alley', attack: 1, health: 1, cardVersion: 'x' };
 const stage = (number: number, status: 'ready' | 'draft', filledRounds: number): GauntletStage => ({
@@ -56,7 +59,7 @@ beforeEach(() => {
   stages.set(3, stage(3, 'draft', 0)); // never playable
   useGame.setState({ showTitle: true, heroChoices: null, pendingMode: 'ascent', pendingSeed: undefined, pendingGauntletStage: undefined, gauntletResult: null });
 });
-afterEach(() => { vi.unstubAllEnvs(); });
+afterEach(() => { vi.unstubAllEnvs(); remote.on = true; resetIdentityForTests(); clearGauntletClearQueue(); });
 
 describe('startGauntlet', () => {
   it('opens the full-roster hero picker for a playable stage', () => {
@@ -170,6 +173,24 @@ describe('a finished gauntlet run', () => {
     expect(clearedStages()).toEqual([]);
     await sleep(30);
     expect(vi.mocked(uploadRunHistory)).not.toHaveBeenCalled();
+  });
+
+  it('signed in with a backend: the clear is queued, so the end screen shows "saving"', () => {
+    setIdentity({ userId: 'u-1', displayName: 'Mike', anonymous: false, email: 'm@example.com' });
+    useGame.setState({ gauntletSaving: null });
+    useGame.getState().dispatch({ type: 'resolveCombat' });
+    expect(pendingGauntletClears()).toEqual([expect.objectContaining({ userId: 'u-1', stage: 1 })]);
+    expect(useGame.getState().gauntletSaving).toBe(1);
+  });
+
+  it('signed in but no backend: nothing is queued, so "saving" never shows (it would never end)', () => {
+    remote.on = false;
+    setIdentity({ userId: 'u-1', displayName: 'Mike', anonymous: false, email: 'm@example.com' });
+    useGame.setState({ gauntletSaving: null });
+    useGame.getState().dispatch({ type: 'resolveCombat' });
+    expect(useGame.getState().gauntletResult).toMatchObject({ stage: 1, outcome: 'cleared', firstClear: true });
+    expect(pendingGauntletClears()).toHaveLength(0);
+    expect(useGame.getState().gauntletSaving).toBeNull();
   });
 
   it('a new run clears the previous result', () => {

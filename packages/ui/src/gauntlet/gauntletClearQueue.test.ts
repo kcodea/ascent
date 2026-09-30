@@ -103,6 +103,38 @@ describe('flush', () => {
     expect(pendingGauntletClears()).toHaveLength(0);
   });
 
+  it('a flush called mid-flush still sends clears queued after the in-flight one began, and settles them to ITS caller', async () => {
+    let release!: () => void;
+    const gate = new Promise<void>((r) => { release = r; });
+    invokeImpl = async (o) => { if (o.body.stage === 1) await gate; return already; };
+    enqueueGauntletClear(1);
+    const seenA: number[] = [];
+    const a = flushGauntletClears((item) => seenA.push(item.stage));
+    enqueueGauntletClear(2); // queued while stage 1 is in flight
+    const seenB: number[] = [];
+    const b = flushGauntletClears((item) => seenB.push(item.stage), { force: true });
+    release();
+    await Promise.all([a, b]);
+    expect(invokes.map((i) => i.body.stage)).toEqual([1, 2]);
+    expect(seenA).toEqual([1]);
+    expect(seenB).toEqual([2]);
+    expect(pendingGauntletClears()).toHaveLength(0);
+  });
+
+  it('a joining flush keeps its own force: a forced join retries an item the in-flight flush backed off', async () => {
+    let release!: () => void;
+    const gate = new Promise<void>((r) => { release = r; });
+    let calls = 0;
+    invokeImpl = async () => { calls++; if (calls === 1) { await gate; return httpError(503, 'gauntlet_failed'); } return already; };
+    enqueueGauntletClear(1);
+    const a = flushGauntletClears(() => {});
+    const b = flushGauntletClears(() => {}, { force: true });
+    release();
+    await Promise.all([a, b]);
+    expect(invokes).toHaveLength(2);
+    expect(pendingGauntletClears()).toHaveLength(0);
+  });
+
   it('a definite refusal leaves the queue (it would be refused again)', async () => {
     invokeImpl = async () => httpError(403, 'sign_in_required');
     enqueueGauntletClear(3);

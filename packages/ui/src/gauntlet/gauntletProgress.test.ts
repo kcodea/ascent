@@ -40,9 +40,9 @@ describe('clearedStages / recordClear', () => {
   });
 
   it('records a clear once: the first clear is first, a repeat is not, and the list stays sorted + unique', () => {
-    expect(recordClear(2)).toEqual({ firstClear: true });
-    expect(recordClear(1)).toEqual({ firstClear: true });
-    expect(recordClear(2)).toEqual({ firstClear: false });
+    expect(recordClear(2)).toEqual({ firstClear: true, queued: false });
+    expect(recordClear(1)).toEqual({ firstClear: true, queued: false });
+    expect(recordClear(2)).toEqual({ firstClear: false, queued: false });
     expect(clearedStages()).toEqual([1, 2]);
   });
 

@@ -10803,9 +10803,11 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
   /* Nudged a little lower than combat's health-pill slot (owner ask 2026-09-30). */
   transform: translate(calc(var(--hd-hp-x, 0px) * var(--scale)), calc((var(--hd-hp-y, -31px) + 14px) * var(--scale))) scale(var(--hd-hp-s, 0.65)); }
 /* The loss-cap pill sits right under the round pill; its number + heart read in the threat red. */
-.gauntletfoe-group .gauntletfoe-cap { margin-top: calc(-10 * var(--u)); }
-.gauntletfoe-capnum { display: inline-flex; align-items: center; gap: calc(4 * var(--u)); color: var(--threat); font-size: calc(14 * var(--u)); }
-.gauntletfoe-capnum svg { flex: none; width: calc(14 * var(--u)); height: calc(14 * var(--u)); color: var(--threat); }
+/* Sizes swapped (owner ask 2026-09-30): the ROUND pill is the big one, the loss-cap pill the small one under it. */
+.gauntletfoe-group .gauntletfoe-meta { font-size: calc(14 * var(--u)); padding: calc(6 * var(--u)) calc(16 * var(--u)); }
+.gauntletfoe-group .gauntletfoe-cap { margin-top: calc(-10 * var(--u)); font-size: calc(9 * var(--u)); padding: calc(4 * var(--u)) calc(11 * var(--u)); }
+.gauntletfoe-capnum { display: inline-flex; align-items: center; gap: calc(3 * var(--u)); color: var(--threat); font-size: calc(11 * var(--u)); }
+.gauntletfoe-capnum svg { flex: none; width: calc(11 * var(--u)); height: calc(11 * var(--u)); color: var(--threat); }
 /* Health / placement sit on row 2 at the right, beside the round-damage number, now the name owns row 1. */
 .lobbyhp, .lobbyplace { grid-column: 3; grid-row: 2; justify-self: start; transform: translateX(calc(var(--lby-hp-x, 7) * var(--lrow))); }
 /* The health number LEFT-aligns at a fixed start toward the right (owner ask 2026-08-28): it reserves a width

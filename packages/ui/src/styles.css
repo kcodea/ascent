@@ -10819,6 +10819,22 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 .gauntletfoe-group .gauntletfoe-cap { margin-top: calc(-10 * var(--u)); font-size: calc(9 * var(--u)); padding: calc(4 * var(--u)) calc(11 * var(--u)); }
 .gauntletfoe-capnum { display: inline-flex; align-items: center; gap: calc(3 * var(--u)); color: var(--threat); font-size: calc(11 * var(--u)); }
 .gauntletfoe-capnum svg { flex: none; width: calc(11 * var(--u)); height: calc(11 * var(--u)); color: var(--threat); }
+/* The opponent's two RUNE SOCKETS under the loss-cap pill (owner ask 2026-09-30): dotted circles until round 6 / 9,
+   then the rune badge (the player's `.questbadge.runebadge`, so art + tip match). The group is scaled up by the duel
+   dials, so the row COUNTER-scales to render badges at true rune size; its wrapper reserves the scaled height. */
+.gauntletfoe-runes { position: relative; z-index: 2; width: 0;
+  /* Sockets render at 1.2× the player's rune size and sit tucked up under the pill (owner ask 2026-09-30). */
+  height: calc(1.2 * 53 * var(--u) / (var(--hd-opp-s, 2.4) * var(--hd-gfoe-s, 1))); margin-top: calc(-6 * var(--u)); }
+.gauntletfoe-runerow { position: absolute; left: 0; top: 0; display: flex; gap: calc(14 * var(--u));
+  /* scale THEN centre: with origin 0 0, `scale(k) translateX(-50%)` centres the scaled row on the wrapper's x. */
+  transform: scale(calc(1.2 / (var(--hd-opp-s, 2.4) * var(--hd-gfoe-s, 1)))) translateX(-50%); transform-origin: 0 0;
+  pointer-events: auto; }
+.gauntletfoe-runeslot { position: relative; flex: none; width: calc(53 * var(--u)); height: calc(53 * var(--u)); box-sizing: border-box;
+  border: 3px dotted color-mix(in srgb, var(--gold) 70%, #fff); border-radius: 50%; background: rgba(12, 9, 6, 0.45); }
+.gauntletfoe-runeslot:hover .questbadge-tip, .gauntletfoe-runeslot.tt-on .questbadge-tip { opacity: 1; transition-delay: 0.3s; }
+/* Tips open to the LEFT (the foe sits at the board's right edge). */
+.gauntletfoe-runerow .questbadge-tip { bottom: auto; top: 50%; left: auto; right: calc(100% + 8px); transform: translateY(-50%); }
+.gauntletfoe-runerow > :hover { z-index: 10; }
 /* Health / placement sit on row 2 at the right, beside the round-damage number, now the name owns row 1. */
 .lobbyhp, .lobbyplace { grid-column: 3; grid-row: 2; justify-self: start; transform: translateX(calc(var(--lby-hp-x, 7) * var(--lrow))); }
 /* The health number LEFT-aligns at a fixed start toward the right (owner ask 2026-08-28): it reserves a width

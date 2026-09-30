@@ -20,12 +20,14 @@
  */
 import { memo } from 'react';
 import { roundLossCap } from '@game/sim';
-import { GAUNTLET_ROUNDS } from '@game/content';
+import { GAUNTLET_ROUNDS, RUNE_INDEX, gauntletStage } from '@game/content';
 import { useGame } from '../store';
 import { usePortraitFrame } from '../portraitFrame/PortraitFrame';
 import { FoePortraitDisc } from '../FoePortraitDisc';
 import { foePortrait } from './foePortrait';
 import { Icon } from '../Icon';
+import { runeArt } from '../art';
+import { mdBold } from '../Card';
 
 export const GauntletFoe = memo(function GauntletFoe(): JSX.Element | null {
   const name = useGame((s) => s.run.lobby?.seats[1]?.label ?? '');
@@ -36,6 +38,11 @@ export const GauntletFoe = memo(function GauntletFoe(): JSX.Element | null {
   // The SAME ring the combat opponent wears (null = the baked gold CSS border).
   const frame = usePortraitFrame('opp');
   const { art, tribe } = foePortrait(stage);
+  // The opponent's two rune sockets (owner ask 2026-09-30): dotted until the rune's round, then its art + tip.
+  const stageRunes = stage !== undefined ? gauntletStage(stage)?.runes : undefined;
+  const sockets: { from: number; id?: string }[] = [
+    { from: 6, id: stageRunes?.round6 }, { from: 9, id: stageRunes?.round9 },
+  ];
   return (
     <div className="gauntletfoe" aria-label={`Your opponent: ${name}`}>
       <div className="gauntletfoe-group">
@@ -49,6 +56,37 @@ export const GauntletFoe = memo(function GauntletFoe(): JSX.Element | null {
           {Number.isFinite(cap)
             ? <>Max loss <span className="gauntletfoe-capnum"><Icon name="heart" />{cap}</span></>
             : 'No cap'}
+        </div>
+        <div className="gauntletfoe-runes">
+          <div className="gauntletfoe-runerow">
+            {sockets.map(({ from, id }) => {
+              const rune = id && round >= from ? RUNE_INDEX[id] : undefined;
+              if (!rune) {
+                return (
+                  <div className="gauntletfoe-runeslot" key={from} aria-label={`Rune socket, round ${from}`}>
+                    <div className="questbadge-tip" role="tooltip">
+                      <b>Opponent rune</b>
+                      <span className="questbadge-tip-state">{id ? `Arrives on round ${from}` : 'None this stage'}</span>
+                    </div>
+                  </div>
+                );
+              }
+              const rart = runeArt(rune.id);
+              return (
+                <div className="questbadge runebadge gauntletfoe-rune" key={from} data-source-id={rune.id}>
+                  <div className="questbadge-inner">
+                    {rart
+                      ? <img decoding="sync" className="questbadge-art" src={rart} alt="" aria-hidden />
+                      : <span className="questbadge-emblem" aria-hidden><Icon name="sc" /></span>}
+                  </div>
+                  <div className="questbadge-tip" role="tooltip">
+                    <b>{rune.name}</b>
+                    <span className="questbadge-tip-reward" dangerouslySetInnerHTML={{ __html: mdBold(rune.text) }} />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         </div>
       </div>
     </div>

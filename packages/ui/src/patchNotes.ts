@@ -364,6 +364,15 @@ export const PATCH_NOTES: PatchNote[] = [
         category: 'Systems',
         text: 'New skins in crates: Rooks Oona, Stencil Sylus, Mace Urchin, Magician Buddy Buddy and a first Frantic Frank hero skin, Armourer Frank.',
       },
+      {
+        category: 'Systems',
+        text: 'Card art no longer pops in. Cards, frames and heroes now load in the order you will see them.',
+        details: [
+          'The game fetches what is on screen first, then your shop cards, then the rest of the set in the background.',
+          'If a picture is still loading, the card shows a dark portrait and the art fades in. No more blank or white frames.',
+          'Coming back to the game loads the art straight from your browser, so it is ready at once.',
+        ],
+      },
     ],
   },
   {

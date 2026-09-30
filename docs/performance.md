@@ -606,6 +606,41 @@ mechanisms don't):
 - Healthy and holding: engine 0.03 ms/dispatch; view-building memoized; autosave phase-boundary-only; the
   turn clock externalized; ~450 DOM nodes in shop.
 
+## 3e. Art delivery: never show undecoded art, preload the run's set (2026-09-29)
+
+Owner report: *"seeing a lot of pop in when i watch my friends play when they roll into a fresh shop"*. Remote
+players see it worst, but it also happens on localhost (a few blank frames per session: art the old warm-up never
+covered, and `no-cache` revalidation of new `<img>` elements). **Measure both**: the prod build throttled
+(a bandwidth-capped, latency-adding server with Netlify's default headers; a cold fresh-profile run and a warm
+second visit) AND unthrottled on `vite preview` / the dev server. The numbers and the harness are in
+`docs/devlog/2026-09-29-art-pop-in.md`.
+
+The rules:
+
+- **Order the pipe; never fire everything at once.** A connection is one pipe. Every art URL (and the SFX bank)
+  goes through ONE queue, `assetQueue.ts`, 6 in flight, in lanes: `now` (on screen) → `chrome` (title, board,
+  card frames, shop buttons) → `early` (the live set's tier 1-2 cards, heroes) → `set` (the run's pinned pool,
+  `poolOf(run)`) → `audio` → `idle` (other sets, runes, quests; fetch-only, never decoded or held). The old
+  warm-up fired ~650 images plus ~430 audio fetches together in alphabetical order, so the card in the shop
+  waited behind the whole bundle (6.9 s at 10 Mbps).
+- **Never show an undecoded image.** A card's art, frame and hand plate use `useArtFade` (`artPreload.ts`), and
+  its small chrome images, portraits and tiles use `FadeImg`: not ready = invisible over a static dark stand-in,
+  then a one-shot 180 ms opacity fade. Ready art gets no class and renders exactly as before. "Ready" is checked
+  twice: the URL (decoded by the pipe) AND the element (`img.complete` at commit, before paint), because a NEW
+  `<img>` for an already-loaded URL can still load asynchronously: on a `no-cache` server (the Vite dev server,
+  `vite preview`, Netlify before `_headers`) it revalidates first. That is the local pop-in Mike and Kevin saw
+  with no network in play. A new art surface uses `FadeImg` (or `useArtFade`), not a bare `<img>`.
+- **A new art family must enter the plan.** New bundled art = a glob in `art.ts` + a lane in
+  `preloadPlan.ts`. New public-folder art is picked up automatically (`__PUBLIC_ART__`, derived at build time
+  from the files the UI source names, `apps/web/publicArt.ts`); a first-shop public image also needs its
+  pattern in `PUBLIC_CHROME_ORDER`.
+- **Cache headers are part of the fix.** `apps/web/public/_headers` makes `/assets/*` (hashed)
+  `immutable` for a year and `index.html` `no-cache`. Without it Netlify sends `max-age=0, must-revalidate`, so a
+  returning player's browser re-asks the server about every image (722 revalidations in one measured warm
+  visit) before it may use its own copy. `npm run release:web` refuses a build without it.
+- **Don't decode what a run won't show.** Holding decoded Images for the whole bundle cost ~250 MB of renderer
+  memory in measurement; that is why the `idle` lane only fetches.
+
 ## 4. Established anti-patterns (don't reintroduce these)
 
 These are the rules the audits surfaced; the codebase already follows them — keep it that way.
@@ -704,6 +739,10 @@ These are the rules the audits surfaced; the codebase already follows them — k
   one `DocumentFragment`.** `plateGild` resolved the *same* source card's computed style once per clone (3×
   `getComputedStyle` + 72 `getPropertyValue`) and appended the three clones one at a time. One read + one
   append: synchronous setup 1.7ms → 1.3–1.5ms (medians of 31).
+- **Never render art before it is decoded, and never warm art all at once.** A card that paints before its image
+  is decoded shows a blank (or white) window and then snaps: that is the pop-in friends saw on the Netlify build.
+  Route art through the asset queue (`requestArt` / `preloadPlan.ts`), render it with `useArtFade` / `FadeImg`,
+  and keep `_headers` shipping. See §3e.
 - **`Math.random` is banned in `core`/`content`/`sim`** (determinism + replay). Tools (`perf.ts`) may use
   `performance.now()` for timing.
 

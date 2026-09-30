@@ -6,6 +6,8 @@ declare const __BUILD_SHA__: string;
 declare const __BUILD_DIRTY__: boolean;
 /** ISO timestamp of the build. */
 declare const __BUILD_DATE__: string;
+/** Public images the UI references (BASE_URL-relative), baked by apps/web/vite.config.ts — see preloadPlan.ts. */
+declare const __PUBLIC_ART__: string[];
 
 // Vite env vars (apps/web/.env*) — the optional Supabase board backend (see remoteBoards.ts). Absent → the
 // remote sync no-ops and the game runs fully offline off the committed pool.

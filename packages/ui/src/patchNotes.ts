@@ -60,6 +60,15 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: 'Nothing But Net: the hoop is fixed and the Huge version is longer and bigger.',
+        details: [
+          'The hoop is one piece again, with the backboard behind the rim, and it always sits on the hero being hit.',
+          'Huge: your hero drills a three, moves up for a pass and drills another, then chest passes the ball off the backboard, leaps, catches the rebound at half court in slow motion and flies in for the slam.',
+          'The ball always gets there before your hero, and the slam is one smooth flight into the explosion.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'The lobby strength number is hidden from match history for now while we improve it.',
       },
       {

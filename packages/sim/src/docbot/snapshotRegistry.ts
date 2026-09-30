@@ -112,6 +112,7 @@ export const SNAPSHOT_EXCUSED: Readonly<Record<string, SnapshotExcuse>> = {
   'capture:lockedUntilGoldSpent': { boundary: 'capture', kind: 'shop-only', why: 'Brackus hand-card play gate, same contract as lockedUntilTier' },
   'capture:lockedUntilWave': { boundary: 'capture', kind: 'shop-only', why: 'Hourglass Reserve hand-card play gate, same contract as lockedUntilTier' },
   'capture:extraCasts': { boundary: 'capture', kind: 'shop-only', why: 'Rune of the Astral Draft hand-SPELL extra-cast stamp (read by spellCasts at the play sites); a spell never reaches a fighting board' },
+  'capture:castMult': { boundary: 'capture', kind: 'shop-only', why: 'Ancient of Time x Hunch hand-SPELL cast multiplier (a Rounded Spellbook copy casts twice; read by spellCasts at the play sites); a spell never reaches a fighting board' },
   'capture:borrowed': { boundary: 'capture', kind: 'shop-only', why: 'Funeral on Loan hand-card contract (play → Echo → destroyed); never reaches a fighting board' },
   'capture:boughtWave': { boundary: 'capture', kind: 'shop-only', why: 'Hoarder sell-value input (currentWave - boughtWave), read only by sellValueOf' },
   'capture:goldTick': { boundary: 'capture', kind: 'shop-only', why: 'gold-spend meter (Acid/Banksly) for recruit `goldSpent` effects — a served board spends no Gold' },

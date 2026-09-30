@@ -146,6 +146,9 @@ export interface BoardCard {
   /** A HAND SPELL that casts this many extra times (Rune of the Astral Draft's Discover pick). Read by `spellCasts`
    *  when the cast site passes the instance, so the x N badge previews it. Absent = 0. */
   extraCasts?: number;
+  /** A HAND SPELL whose casts are MULTIPLIED by this (Ancient of Time × Hunch: a Rounded Spellbook copy "casts
+   *  twice" = 2). Read by `spellCasts` beside the other "casts twice" multipliers. Absent = 1. */
+  castMult?: number;
   keywords: Keyword[];
   golden: boolean;
   /** Anomaly Reactor: extra tribes granted to THIS instance beyond its printed tribe(s) (a spell-added Mech
@@ -492,6 +495,9 @@ export interface BuffFxEvent {
    *  body, the minion twin of `sourceRuneId` (owner 2026-09-24: "all spell animations and sfx should be wired to play
    *  whenever a spell or minion is cast/played from any source"). Absent for every other buff. */
   castByUid?: string;
+  /** A HERO POWER's grant with no body to leave from (Ancient of Bonds × Hunch): the presentation streams the generic
+   *  tendril from the hero-power button instead of descending sourceless. Absent for every other buff. */
+  fromHeroPower?: true;
 }
 
 /** One card a Ruby landed on this action, and HOW MANY landed on it. The count is the information: a gilded

@@ -3961,13 +3961,9 @@ body.dragging .statusbar .heropanel { pointer-events: none; } /* let a corner-re
    Colour only (no per-frame paint). The owner's authored cue is a Pixi loop on the slot button, not CSS
    (`useAmplifiedSlotFx`, 2026-09-22); `[data-fx="equipment-amplified"]` on the tally stays as the tooling mark. */
 .hpwrap .hpb-tally.amplified { color: #7fc4ff; }
-/* FRANK × ANCIENT OF WAR (owner 2026-09-30): the Clearance uses count (2+) as a filled RED pip, top centre of the power,
-   sitting on the rim above the art. Sized off the gold cost coin (44u coin / 22u number) so it scales with the stage the
-   same way (owner on 5173: "the 2 needs to be larger"). Static paint only; it re-keys on every change, so the inherited
-   one-shot `stepbump` (transform) is the tick. */
-/* FRANK × ANCIENT OF WAR: the Avenge (3) countdown in the CENTRE of the power (owner 2026-09-30), on a small dark disc
-   with War's crimson rim so it reads over any art, clear of the red uses pip above and the name plate below. Static
-   paint; each change re-keys it and plays the one-shot centred bump (transform only). */
+/* ANCIENT AVENGE COUNTDOWN in the CENTRE of the power (owner 2026-09-30: Frank × War's Avenge (3), Hunch × Death's
+   Avenge (4)), on a small dark disc with a crimson rim so it reads over any art. Static paint; each change re-keys it
+   and plays the one-shot centred bump (transform only). One rule for both heroes (the shared `ancientAvengeCountdown`). */
 .hpwrap .hpb-center.hpb-avenge {
   width: calc(40 * var(--u)); height: calc(40 * var(--u)); box-sizing: border-box;
   display: grid; place-items: center; border-radius: 50%;
@@ -3983,6 +3979,10 @@ body.dragging .statusbar .heropanel { pointer-events: none; } /* let a corner-re
   45% { transform: translate(-50%, -50%) scale(1.22); }
   100% { transform: translate(-50%, -50%) scale(1); }
 }
+/* FRANK × ANCIENT OF WAR (owner 2026-09-30): the Clearance uses count (2+) as a filled RED pip, top centre of the power,
+   sitting on the rim above the art. Sized off the gold cost coin (44u coin / 22u number) so it scales with the stage the
+   same way (owner on 5173: "the 2 needs to be larger"). Static paint only; it re-keys on every change, so the inherited
+   one-shot `stepbump` (transform) is the tick. */
 .hpwrap .hpb-tally.clearance-uses {
   top: calc(-30 * var(--u)); /* its bottom meets the art edge: on the rim, never over the art */
   width: calc(34 * var(--u)); height: calc(34 * var(--u)); box-sizing: border-box;

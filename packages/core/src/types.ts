@@ -1908,6 +1908,18 @@ export interface QuestCombatMods {
    *  (a live `toHand`), at most once per combat. The tally after the fight comes home as
    *  `CombatCarryBacks.ancientPummelDealt`. Player-only; never snapshotted. */
   ancientPummel?: { every: number; count: number; cardId: string; dealt: number; label: string };
+  /** ANCIENT OF DEATH × Hunch (owner 2026-09-30): "Avenge (4) Improve your spells by +1/+1." Every `every`th friendly
+   *  death in the fight improves the side's spells by +attack/+health through `grantSpellPower` (the Rune of
+   *  Appraisal shape: Rune of Mastery's improve reps and Rune of Fury's extra Avenge fire both apply). The total the
+   *  fight granted comes home as `CombatCarryBacks.ancientSpellImproved`. Player-only; never snapshotted. */
+  ancientAvengeSpells?: { every: number; attack: number; health: number; label: string };
+  /** ANCIENT OF WAR × Hunch (owner 2026-09-30): "Shop Spells cast an additional time in combat." Seeds the side's
+   *  extra combat casts (`spellCastRepsFor`, Runebloom Matriarch's channel) at the start of the fight. */
+  ancientSpellCastExtra?: number;
+  /** ANCIENT OF BONDS × Hunch (owner 2026-09-30): "Casting spells grants your left and right-most minion +2/+3." Every
+   *  combat spell cast (`ctx.castSpell`, once per repetition) buffs the side's left-most and right-most LIVING
+   *  minions (once when they are the same body). A combat buff: it lasts the fight. Player-only. */
+  ancientSpellEdges?: { attack: number; health: number; label: string };
   /** ANCIENT OF WAR × Frantic Frank (owner 2026-09-30): "Avenge (3): Gain a Clearance stack." A hero-level Avenge on the
    *  avenge bus (every `every` friendly deaths this fight; Rune of Fury fires it again). Each fire is one stack, shown
    *  live as a `questTrigger` with `flag`, and the fight's total comes home as `CombatCarryBacks.ancientClearanceStacks`.
@@ -2799,7 +2811,7 @@ export interface MinionSnapshot {
  *  metadata — it never affects outcomes — letting the UI's moment compiler know true simultaneity instead
  *  of inferring it. Optional so synthetic fixtures (tests) can omit it; real sim output always carries it. */
 export type CombatEvent = (
-  | { type: 'sc'; source: string; text: string; cast?: true; side?: Side; spellId?: string; rune?: string } // `rune` = the RUNE that cast `spellId` (Rune of Spellhide's Start-of-Combat re-cast, the Flooded Vault's free cast), when a rune is the caster: `source` is then the body the cast resolved through, and the presentation stems the spell's effect from the rune's node on the rail (owner ruling 2026-09-24: "spells cast from runes and cards should use the spell effects … they can stem from the rune if there needs to be a source position").
+  | { type: 'sc'; source: string; text: string; cast?: true; side?: Side; spellId?: string; rune?: string; heroPower?: true } // `rune` = the RUNE that cast `spellId` (Rune of Spellhide's Start-of-Combat re-cast, the Flooded Vault's free cast), when a rune is the caster: `source` is then the body the cast resolved through, and the presentation stems the spell's effect from the rune's node on the rail (owner ruling 2026-09-24: "spells cast from runes and cards should use the spell effects … they can stem from the rune if there needs to be a source position"). `heroPower` = the grant came from the HERO's power (an Ancient: Hunch × Death's Avenge), so the presentation anchors it on the hero-power button, never on `source`'s body.
   // `cast` = a genuine Start-of-Combat damage cast (UI plays the zap + bolt + flash); absent = mid-combat narration (spell-power gain, etc.) — log + trigger pulse only. `side` is stamped on side-scoped gain telegraphs (Ruby Power — BOTH sides can gain it) so the Buffs drawer counts only the player's; player-only channels (Spell Power) never emit for an enemy and need no tag. (`grantsEcho`, the old Rune of Rebirth marker, retired 2026-09-16 — the rune grants the Rebirth KEYWORD now, a plain `keyword` event.) `spellId` is the CARD ID of the spell this cast resolved, stamped by every "X casts Y" emit: without it a cast is identified only by the BODY that cast it, so an authored spell effect had to be bound to each caster and a new caster arrived silently unanimated (owner ask 2026-09-01: Dragonflame's animation must play "anytime dragonflame is played … anything").
   | { type: 'attack'; attacker: string; defender: string; swing: number; crit?: boolean }
   | { type: 'dmg'; target: string; amount: number; remainingHp: number; source?: string } // `source` = the uid that dealt this hit (attacker, poisoner, an AoE's caster). Optional: truly sourceless damage omits it. Lets presentation attribute a sourceless-looking damage MOMENT to its actor — e.g. Fel Spikes' Echo volley fires FROM the dying body (source→target FX), the way an `sc` event carries a Start-of-Combat cast's source.
@@ -3146,6 +3158,8 @@ export interface CombatCarryBacks {
   summonsMade?: number;
   /** ANCIENTS (Albus's War): the side's lifetime hero-Pummel tally after this fight (only when `ancientPummel`). */
   ancientPummelDealt?: number;
+  /** ANCIENTS (Hunch's Death): the spell improvement this fight's Avenges granted (only when `ancientAvengeSpells`). */
+  ancientSpellImproved?: { attack: number; health: number };
   /** ANCIENTS (Frank's War): Clearance stacks this fight's Avenges gained (only when `ancientClearanceStacks`). */
   ancientClearanceStacks?: number;
 }
@@ -3433,6 +3447,8 @@ export interface CombatResult {
   playerSummonsMade?: number;
   /** ANCIENTS (Albus's War): the player's `CombatCarryBacks.ancientPummelDealt`. */
   playerAncientPummelDealt?: number;
+  /** ANCIENTS (Hunch's Death): the player's `CombatCarryBacks.ancientSpellImproved`. */
+  playerAncientSpellImproved?: { attack: number; health: number };
   /** ANCIENTS (Frank's War): the player's `CombatCarryBacks.ancientClearanceStacks`. */
   playerAncientClearanceStacks?: number;
   /** Outcome odds (fractions summing to 1) — estimated by the run loop re-simulating these boards

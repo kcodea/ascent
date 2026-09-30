@@ -1,5 +1,5 @@
 import { soulFurnaceHealth, ALE_IDS, RUBY_TYPE_IDS, SPECIAL_RUBY_IDS, TRIBES, inRunTribes, alignAllows, makeRng, SILENT_ONPLAY, isShopPoolSpell, shopSpellGrowth, COMBAT_REPLAYABLE_BATTLECRIES, NO_COPY_SPELL_IDS, extraTriggerFires, foldEchoExtraFires, socTwilightExtraFires, BODY_COUNTING_DEATHS, ARENA_EFFECTS, beatIdentity, type EffectArena, type PresentationCollector, type PresentationPhase, type PresentationPolicy, type Rng, type CardDef, type EffectDef, type Keyword, type TriggerFamily, type TriggerSourceRef, type Tribe } from '@game/core';
-import { ancientClearanceSellValue, ancientOnSale, ancientOnShopDeath, ancientOnShopShout, ancientOnShopRise, ancientPowerText, ancientEotWardBuff, ancientRunEotWardBuff, ancientBondsReact, ancientOnPlay, ANCIENTS } from './ancients';
+import { ancientOnSale, ancientOnShopDeath, ancientOnShopShout, ancientOnShopRise, ancientPowerText, ancientEotWardBuff, ancientRunEotWardBuff, ancientBondsReact, ancientOnPlay, ancientOnSpellCast, ANCIENTS, ancientClearanceSellValue } from './ancients';
 import { runSpells } from './spellPool';
 import { REVELER_IDS, RUNE_INDEX, CARD_INDEX, EQUIPMENT_INDEX, STAR_DESTROYER, equipmentOf, recurringEotOwner, type EquipmentDefinition } from '@game/content';
 import { equipIsNews, equipmentParams as equipmentParamsFor, grantEquipment as grantEquipmentToPlayer, armCalibration, unusedEquipmentCount } from './equipment';
@@ -1600,7 +1600,7 @@ export function giftCastCount(state: Pick<RunState, 'board' | 'nextSpellExtraCas
   return 1 + yazzusExtraCasts(state as RunState) + (state.nextSpellExtraCasts ?? 0);
 }
 
-export function spellCasts(state: RunState, def: CardDef, card?: Pick<BoardCard, 'extraCasts'>): number {
+export function spellCasts(state: RunState, def: CardDef, card?: Pick<BoardCard, 'extraCasts' | 'castMult'>): number {
   return spellCastsWithout(state, def, card, NO_RUNES_OFF);
 }
 
@@ -1628,7 +1628,7 @@ function spellDoubleRuneOf(state: RunState, spellId: string): string | undefined
  * doubling rune multiplies another multiplier. Read-only, like `spellCasts`; presentation only (the cast-actor
  * stack), never gameplay.
  */
-export function runeExtraCasts(state: RunState, def: CardDef, card?: Pick<BoardCard, 'extraCasts'>): { runeId: string; count: number }[] {
+export function runeExtraCasts(state: RunState, def: CardDef, card?: Pick<BoardCard, 'extraCasts' | 'castMult'>): { runeId: string; count: number }[] {
   if (def.singleCast) return [];
   const runes: string[] = [];
   const dbl = spellDoubleRuneOf(state, def.id);
@@ -1672,10 +1672,12 @@ export function castWithRuneRepeats(casts: number, extras: readonly { runeId: st
   }
 }
 
-function spellCastsWithout(state: RunState, def: CardDef, card: Pick<BoardCard, 'extraCasts'> | undefined, off: ReadonlySet<string>): number {
+function spellCastsWithout(state: RunState, def: CardDef, card: Pick<BoardCard, 'extraCasts' | 'castMult'> | undefined, off: ReadonlySet<string>): number {
   if (def.singleCast) return 1; // Channeling the Devourer never multiplies
   let mult = def.target ? spellCastMult(state) : 1; // Yazzus multiplies aimed spells; untargeted = 1
   if (state.spellDoubleAlways) mult *= 2; // Ancient Runes: every spell casts twice
+  // Ancient of Time × Hunch: a Rounded Spellbook copy "casts twice" (a per-instance multiplier, like the ones above).
+  if ((card?.castMult ?? 1) > 1) mult *= card!.castMult!;
   // Rune of Hoardflame / Rune of Dragon Breath: THIS spell id casts an extra time. Card-scoped (the Edward
   // Keg-hands shape below, by id rather than by Ale list) and read-only, so the UI's x N badge previews the
   // real count — which is what makes the multicast modifier show while the rune is armed.
@@ -12628,6 +12630,8 @@ export function noteSpellForCountRunes(state: RunState, spellId: string): void {
   // count") rides this same every-spell chokepoint: a Shop spell, a Gift and a Ruby each advance it once per cast,
   // unlike `spellCast`, which only Shop-spell casts (and a Spellstone Ruby) advance.
   advanceRuneThresholds(state, 'anySpell', 1);
+  // ANCIENTS x Hunch (a no-op unless picked): Genesis counts every spell cast; Bonds buffs the board's two ends.
+  ancientOnSpellCast(state);
   const ids = state.spellIdsThisTurn = [...(state.spellIdsThisTurn ?? []), spellId];
   const n = ids.length;
   const skies = state.runeChartedSkies;

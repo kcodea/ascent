@@ -129,6 +129,7 @@ function boardCardExemplar(): Required<BoardCard> {
     lockedUntilGoldSpent: 70,
     lockedUntilWave: 5,
     extraCasts: 1,
+    castMult: 2,
     borrowed: true,
     eotBonus: 3,
     spellProgress: 4,

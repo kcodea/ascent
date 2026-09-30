@@ -5,13 +5,13 @@ import { playerOpponent, getHero } from '@game/sim';
 import { RUNE_INDEX } from '@game/content';
 import { runeArt, heroPowerArt } from './art';
 import { heroPortrait, opponentSkins, seatCosmetics } from './skins/skins';
-import { PortraitFrame, pfClass, usePortraitFrame } from './portraitFrame/PortraitFrame';
+import { usePortraitFrame } from './portraitFrame/PortraitFrame';
+import { FoePortraitDisc } from './FoePortraitDisc';
 import { mdBold } from './Card';
 import { Icon } from './Icon';
 import { BuffsFrame } from './BuffsFrame';
 import { gatherSnapshotBuffs } from './runBuffs';
 import { stageHost } from './stage';
-import { TRIBE_ICON } from './gauntlet/tribeIcon';
 import { foePortrait } from './gauntlet/foePortrait';
 
 /**
@@ -110,25 +110,23 @@ export const CombatOpponent = memo(function CombatOpponent(): JSX.Element | null
       <div className="combatopp-drop">
         <div className="combatopp-name">{seat.label}</div>
         <div className="combatopp-body">
-          <div
-            className={`combatopp-portrait${hasBuffs ? ' hasbuffs' : ''}${buffsOpen ? ' buffsopen' : ''}${pfClass(frame)}`}
-            style={frame?.hostStyle}
+          {/* The disc itself is shared with the Gauntlet's shop foe (FoePortraitDisc), so the two faces match. */}
+          <FoePortraitDisc
+            art={art}
+            gauntlet={gauntlet}
+            tribe={tribe}
+            frame={frame}
+            extraClass={`${hasBuffs ? ' hasbuffs' : ''}${buffsOpen ? ' buffsopen' : ''}`}
             onClick={() => { if (hasBuffs) setBuffsOpen((o) => !o); }}
             role={hasBuffs ? 'button' : undefined}
           >
-            {art
-              ? <img decoding="sync" className={`combatopp-img${gauntlet ? ' combatopp-cardart' : ''}`} src={art} alt="" draggable={false} />
-              : gauntlet
-              ? <span className="combatopp-emblem"><Icon name={tribe ? TRIBE_ICON[tribe] : 'anvil'} /></span>
-              : <Icon name="anvil" />}
             {/* Hover affordance — the same darkened prompt the player's portrait wears (owner ask 2026-08-30). */}
             {hasBuffs && (
               <span className="herohover" aria-hidden="true">
                 Click hero portrait to open / close the Buffs Panel
               </span>
             )}
-            <PortraitFrame frame={frame} />
-          </div>
+          </FoePortraitDisc>
         </div>
         {/* GAUNTLET: the stage opponent takes no damage and is never eliminated (R-GAUNTLET-02), so it wears no
             health pill — a number that could only ever "drop" and snap back would misreport the fight. */}

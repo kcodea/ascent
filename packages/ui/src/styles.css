@@ -10772,32 +10772,33 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 .lobbyarmor { display: inline-flex; align-items: center; gap: calc(1 * var(--lfont)); color: var(--lby-armor-col, #a3a3a3); font-weight: 800; }
 .lobbyarmor svg { width: calc(8 * var(--lfont) * var(--lby-hp-size, 1.45)); height: calc(8 * var(--lfont) * var(--lby-hp-size, 1.45)); }
 .lobbyplace { color: rgba(255, 255, 255, 0.62); font-weight: 700; }
-/* GAUNTLET FOE (GauntletFoe.tsx, owner ask 2026-09-29) — no rail: the stage opponent's tribe emblem in a portrait
-   disc (the same gold ring + dark well the combat portrait wears) with its name and a one-line round / loss-cap
-   readout under it, floating free on the right side of the shop. No backplate or frame. Pointer-inert so a card
-   dragged near the right edge never catches it. Slides away for combat with the lobby rail's own one-shot
-   transform/opacity transition (see `.app.staged .gauntletfoe` beside the rail's rule). */
+/* GAUNTLET FOE (GauntletFoe.tsx) — no rail: the stage opponent's face floats free on the right side of the shop,
+   vertically centred where the lobby rail used to stand. Owner ask 2026-09-30: it MIMICS the combat opponent, so the
+   face is the combat group's own markup + classes (`.combatopp-name` plate, the shared `FoePortraitDisc` =
+   `.combatopp-portrait`), scaled by the SAME `--hd-opp-s` the combat group uses — one look, tuned in one place.
+   `.gauntletfoe` is a zero-size ANCHOR POINT (the portrait's centre); `.gauntletfoe-group` centres on it and carries
+   the scale, so the rail-style slide-away (`.app.staged .gauntletfoe`, a transform on the anchor) never fights it.
+   Placement knobs: ⚔️ Hero Duel → "Gauntlet shop foe" (`--hd-gfoe-*`, reference px × --scale; +X = right, +Y = down;
+   size × the combat portrait's). Pointer-inert so a card dragged near the right edge never catches it. */
 .gauntletfoe {
-  --u: calc(var(--u-base) * var(--ui-scale, 0.96));
-  position: absolute; z-index: 60; right: calc(52 * var(--u)); top: 24%;
-  display: flex; flex-direction: column; align-items: center; gap: calc(6 * var(--u));
-  width: calc(210 * var(--u)); pointer-events: none; text-align: center;
+  position: absolute; z-index: 60; width: 0; height: 0;
+  right: calc((210px - var(--hd-gfoe-x, 0px)) * var(--scale));
+  top: calc(46% + var(--hd-gfoe-y, 0px) * var(--scale));
+  pointer-events: none;
   transition: transform 420ms cubic-bezier(0.4, 0, 0.2, 1), opacity 320ms ease-out;
 }
-.gauntletfoe-portrait {
-  width: calc(112 * var(--u)); height: calc(112 * var(--u)); border-radius: 50%; overflow: hidden;
-  border: calc(3 * var(--u)) solid var(--gold);
-  box-shadow: 0 calc(4 * var(--u)) calc(14 * var(--u)) rgba(0, 0, 0, 0.55), inset 0 0 0 2px rgba(0, 0, 0, 0.45);
-  background: radial-gradient(circle at 50% 30%, #2c211a, #0e0a07);
+/* Mirrors `.combatopp` (the scale) + `.combatopp-drop` (the column) — minus the drop-in, which is combat's entrance. */
+.gauntletfoe-group {
+  position: absolute; left: 0; top: 0; width: max-content;
+  transform: translate(-50%, -50%) scale(calc(var(--hd-opp-s, 2.4) * var(--hd-gfoe-s, 1)));
+  display: flex; flex-direction: column; align-items: center; gap: calc(4 * var(--u));
 }
-.gauntletfoe-img { display: block; width: 100%; height: 100%; object-fit: cover; object-position: 50% 30%; }
-.gauntletfoe-emblem { display: grid; place-items: center; width: 100%; height: 100%; }
-.gauntletfoe-emblem svg { width: 62%; height: 62%; color: #f0c9b8; filter: drop-shadow(0 calc(2 * var(--u)) calc(5 * var(--u)) rgba(0, 0, 0, 0.6)); }
-.gauntletfoe-name { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-  font-family: var(--font-ui); font-weight: 800; font-size: calc(19 * var(--u)); color: #fff6e4;
-  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.9), 0 0 2px rgba(0, 0, 0, 0.8); }
-.gauntletfoe-meta { font-family: var(--font-ui); font-weight: 700; font-size: calc(12 * var(--u)); letter-spacing: 0.04em;
-  color: rgba(255, 246, 228, 0.78); text-shadow: 0 1px 4px rgba(0, 0, 0, 0.9); white-space: nowrap; }
+/* Mirrors `.combatopp-body`: the face sits UNDER the name plate and the round line that overlap its rim. */
+.gauntletfoe-face { display: block; position: relative; z-index: 0; }
+/* The round / loss-cap line takes the combat HEALTH pill's slot + paint (shared rule below, `.combatopp-hp`),
+   with its own quieter type — it is a readout, not a life total (scoped one step up so it outranks that later rule). */
+.gauntletfoe-group .gauntletfoe-meta { position: relative; z-index: 2; white-space: nowrap;
+  font-size: calc(11 * var(--u)); letter-spacing: 0.03em; color: #f4ecdb; padding: calc(5 * var(--u)) calc(13 * var(--u)); }
 /* Health / placement sit on row 2 at the right, beside the round-damage number, now the name owns row 1. */
 .lobbyhp, .lobbyplace { grid-column: 3; grid-row: 2; justify-self: start; transform: translateX(calc(var(--lby-hp-x, 7) * var(--lrow))); }
 /* The health number LEFT-aligns at a fixed start toward the right (owner ask 2026-08-28): it reserves a width
@@ -11668,7 +11669,9 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 /* Slide away on `.staged` — the wipe curtain's covered window — not on `.combat` (the raw phase): the rail
    holds still while the entry curtain sweeps over it and does its slide UNDER the blue, and on exit it
    slides back under the blue too, so the reveal sweep always exposes it settled (owner ask 2026-08-28). */
-.app.staged .lobbyrail, .app.staged .gauntletfoe { transform: translateX(115%); opacity: 0; pointer-events: none; }
+.app.staged .lobbyrail { transform: translateX(115%); opacity: 0; pointer-events: none; }
+/* The Gauntlet foe's box is a zero-size anchor (see `.gauntletfoe`), so it slides a fixed distance instead of 115%. */
+.app.staged .gauntletfoe { transform: translateX(calc(520 * var(--u))); opacity: 0; }
 
 /* 1b. THE FOE ARRIVES — the opponent's hero portrait drops onto the Refresh button's anchor (that button is
    inert in combat, so the space is free). Same top-right base point as `.rfbwrap`, so the two occupy the same
@@ -11802,8 +11805,10 @@ body.duel-attacker-opp .combatopp-hp { opacity: 0; }
   transform: translate(calc(var(--hd-name-x, 0px) * var(--scale)), calc(var(--hd-name-y, 26px) * var(--scale))) scale(var(--hd-name-s, 0.65));
 }
 /* Opponent HEALTH — the SAME pill the PLAYER wears in the HUD (owner ask 2026-08-25): the dark gradient box,
-   dark-gold border, threat-pink heart and lightened number from `.statusbar .hero .hpbox`, verbatim. */
-.combatopp-hp {
+   dark-gold border, threat-pink heart and lightened number from `.statusbar .hero .hpbox`, verbatim. The Gauntlet
+   shop foe's round line (`.gauntletfoe-meta`) wears the same pill in the same slot; its type is overridden above. */
+.combatopp-hp,
+.gauntletfoe-meta {
   display: inline-flex; align-items: center; gap: calc(7 * var(--u));
   background: linear-gradient(180deg, #241a13, #17110c);
   border: 2px solid color-mix(in srgb, var(--gold) 55%, #000); border-radius: calc(16 * var(--u));

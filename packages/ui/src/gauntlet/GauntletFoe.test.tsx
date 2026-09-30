@@ -1,8 +1,9 @@
 // @vitest-environment jsdom
 /**
  * GAUNTLET IN-RUN FOE — what a Gauntlet run floats on the right of the shop in place of the 8-seat lobby rail (owner
- * ask 2026-09-29: no rail, just the opponent's portrait + name). Pins: the stage opponent's name + tribe emblem in a
- * portrait disc, one "Round N / 10 · Max loss N" line (held at 10 once the final round is past; "No cap" on round 9),
+ * ask 2026-09-29: no rail, just the opponent's portrait + name; 2026-09-30: it mimics the combat portrait). Pins: the
+ * combat opponent's own name plate + portrait disc (identical markup), one "Round N / 10 · Max loss N" line (held at
+ * 10 once the final round is past; "No cap" on round 9), NO runes / health pill / hero power,
  * NO rail box, NO seat list / scouting and NO player Resolve. Plus the regression that the normal lobby rail still
  * reads the normal cap table (round 8 → −15), and the combat opponent: the stage's tribe emblem in place of the
  * stand-in hero portrait, no hero power, no health pill, name kept. */
@@ -40,13 +41,20 @@ const show = (run: RunState): HTMLElement => {
 };
 
 describe('GauntletFoe', () => {
-  it('floats the opponent emblem + name with one round / cap line — no rail box, no seat list, no own health', () => {
+  it('wears the combat opponent face (name plate + portrait disc) with one round / cap line — no runes, no health, no rail', () => {
     const run = { ...atRound(3), gauntletStage: 2 }; // Kobolds: no portrait card, so the tribe emblem
     const el = show(run);
-    expect(el.querySelector('.gauntletfoe-name')!.textContent).toBe('The Demon Host');
-    expect(el.querySelector('.gauntletfoe-portrait .gauntletfoe-emblem svg')).not.toBeNull();
-    expect(el.querySelector('.gauntletfoe-portrait img')).toBeNull();
+    // The combat group's own name plate + the shared portrait disc (FoePortraitDisc), inside the scaled group.
+    expect(el.querySelector('.gauntletfoe-group > .combatopp-name')!.textContent).toBe('The Demon Host');
+    expect(el.querySelector('.gauntletfoe-group .combatopp-portrait .combatopp-emblem svg')).not.toBeNull();
+    expect(el.querySelector('.combatopp-portrait img')).toBeNull();
     expect(el.querySelector('.gauntletfoe-meta')!.textContent).toBe('Round 3 / 10 · Max loss 5');
+    // Runes are combat-only; the stage foe takes no damage (no health pill), has no hero power, and the shop copy
+    // is never the strike's lunge target (`.combatopp-body` is heroBlast's query hook).
+    expect(el.querySelector('.combatopp-runes, .combatopp-rune, .combatopp-runeslots, .runebadge')).toBeNull();
+    expect(el.querySelector('.combatopp-hp')).toBeNull();
+    expect(el.querySelector('.combatopp-body, .combatopp')).toBeNull();
+    expect(document.body.querySelector('.opp-power')).toBeNull();
     // No rail chrome, no seats, no scouting, no player Resolve/Armor, no native tooltips.
     expect(el.querySelector('.lobbyrail')).toBeNull();
     expect(el.querySelector('.lobbyseat, .lobbyseats, .lobbyhp, .lobbyarmor')).toBeNull();
@@ -57,14 +65,28 @@ describe('GauntletFoe', () => {
     expect(document.body.querySelector('.lobbyscout')).toBeNull();
   });
 
-  it('a stage with a portrait card shows that card art (sync-decoded, no emblem)', () => {
+  it('a stage with a portrait card shows that card art with the combat crop (sync-decoded, no emblem)', () => {
     const run = { ...atRound(3), gauntletStage: 1 };
     const el = show(run);
-    const img = el.querySelector<HTMLImageElement>('.gauntletfoe-portrait img.gauntletfoe-img')!;
+    const img = el.querySelector<HTMLImageElement>('.combatopp-portrait img.combatopp-img.combatopp-cardart')!;
     expect(img).not.toBeNull();
     expect(img.getAttribute('decoding')).toBe('sync');
     expect(img.getAttribute('src')).toBe(artFor('dm_grobbus'));
-    expect(el.querySelector('.gauntletfoe-emblem')).toBeNull();
+    expect(el.querySelector('.combatopp-emblem')).toBeNull();
+  });
+
+  it('the shop portrait disc is the SAME markup the combat opponent renders (owner ask 2026-09-30: mimic combat)', () => {
+    for (const stageNo of [1, 2]) { // portrait card art, then the tribe emblem
+      const run: RunState = { ...atRound(2), gauntletStage: stageNo };
+      const shop = show(run).querySelector('.combatopp-portrait')!.outerHTML;
+      ui!.unmount(); ui = null;
+      act(() => { useGame.setState({ run: { ...run, phase: 'combat' }, combatStaged: true }); });
+      ui = mount(<CombatOpponent />);
+      const combat = document.body.querySelector('.combatopp .combatopp-portrait')!.outerHTML;
+      act(() => { useGame.setState({ combatStaged: false }); });
+      ui.unmount(); ui = null;
+      expect(shop).toBe(combat);
+    }
   });
 
   it('reads "No cap" on the uncapped final rounds', () => {

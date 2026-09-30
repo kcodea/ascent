@@ -48,7 +48,7 @@ const startGauntlet = vi.fn();
 const openTitle = vi.fn();
 const openCollection = vi.fn();
 const openAccountPanel = vi.fn();
-const RESET = { gauntletResult: null, gauntletReward: null, gauntletSaving: null };
+const RESET = { gauntletResult: null, gauntletReward: null, gauntletSaving: null, gauntletSaveDeferred: null };
 
 beforeEach(() => {
   localStorage.clear();
@@ -157,6 +157,22 @@ describe('GauntletEndScreen', () => {
       m = mount(<GauntletEndScreen run={gauntletRun(1, 'cleared')} />);
       expect(rewardBox()?.textContent).toBe('Saving your clear…');
       expect(m.container.textContent).not.toContain('Crate!');
+    });
+
+    it('signed in + the queued clear got a retryable answer: "Clear saved..." instead of an endless "Saving"', () => {
+      signIn();
+      clearedStage1(true);
+      useGame.setState({ gauntletSaving: 1, gauntletSaveDeferred: 1 });
+      m = mount(<GauntletEndScreen run={gauntletRun(1, 'cleared')} />);
+      expect(rewardBox()?.textContent).toBe("Clear saved. Your crate arrives when you're back online.");
+    });
+
+    it('signed in + a stale reward for this stage on a REPLAY (not a first clear) is not shown', () => {
+      signIn();
+      clearedStage1(false);
+      useGame.setState({ gauntletReward: { stage: 1, crateId: 'old' } });
+      m = mount(<GauntletEndScreen run={gauntletRun(1, 'cleared')} />);
+      expect(rewardBox()).toBeNull();
     });
 
     it('signed in + a replay (answered, no crate): nothing', () => {

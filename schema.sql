@@ -4757,8 +4757,8 @@ update public.profiles p set equipped_title_id = p.equipped_title_id || '_master
 -- GAUNTLET PROGRESS: stage clears on the account; the FIRST clear of each stage grants one crate  (2026-09-29)
 -- ══════════════════════════════════════════════════════════════════════════════════════════════════════════
 --
--- Paste into the Supabase SQL Editor and Run, AFTER 2026-09-29-hero-titles.sql (and every earlier progression
--- file). Idempotent (safe to re-run). The same block is appended to schema.sql; keep the two identical. This file
+-- Paste into the Supabase SQL Editor and Run, AFTER 2026-09-28-progression-crates.sql (it replaces functions from
+-- that file); it can run before or after 2026-09-29-hero-titles.sql. Idempotent (safe to re-run). The same block is appended to schema.sql; keep the two identical. This file
 -- REPLACES `loot_crates_transition_guard` and `progression_crate_json` (both from 2026-09-28-progression-crates.sql):
 -- if the crates file is ever re-run, run this one again after it.
 --

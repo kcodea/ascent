@@ -9,7 +9,7 @@
  *
  * A clear's reward line (`GauntletClearReward`, the default `reward`) never promises a crate the server has not
  * granted: signed in, it shows the crate once `gauntletReward` names THIS stage (that slice is not run-scoped), else
- * "Saving your clear…" while `gauntletSaving` is this stage, else nothing (a replay). Signed out it invites a sign-in.
+ * "Saving your clear…" while `gauntletSaving` is this stage ("Clear saved…" once the server was unreachable), else nothing (a replay). Signed out it invites a sign-in.
  */
 import type { ReactNode } from 'react';
 import { GAUNTLET_ROUNDS, gauntletStage } from '@game/content';
@@ -39,6 +39,8 @@ export function resolveGauntletResult(run: RunState, stored: StoredResult): Gaun
 export function GauntletClearReward({ stage }: { stage: number }): JSX.Element | null {
   const reward = useGame((s) => s.gauntletReward);
   const saving = useGame((s) => s.gauntletSaving);
+  const deferred = useGame((s) => s.gauntletSaveDeferred);
+  const firstClear = useGame((s) => s.gauntletResult?.firstClear === true);
   const openCollection = useGame((s) => s.openCollection);
   const openAccountPanel = useGame((s) => s.openAccountPanel);
   useGame((s) => `${s.account.userId ?? ''}:${s.account.anonymous}`); // re-render on sign-in / sign-out
@@ -50,7 +52,7 @@ export function GauntletClearReward({ stage }: { stage: number }): JSX.Element |
       </div>
     );
   }
-  if (reward?.stage === stage) {
+  if (reward?.stage === stage && firstClear) { // a late answer from an earlier run of this stage is not THIS clear's crate
     return (
       <div className="gauntletend-reward gauntletend-crate earned">
         <span className="colls-crate" aria-hidden />
@@ -61,6 +63,7 @@ export function GauntletClearReward({ stage }: { stage: number }): JSX.Element |
       </div>
     );
   }
+  if (saving === stage && deferred === stage) return <div className="gauntletend-reward gauntletend-crate-note" role="status">Clear saved. Your crate arrives when you're back online.</div>;
   if (saving === stage) return <div className="gauntletend-reward gauntletend-crate-note" role="status">Saving your clear…</div>;
   return null;
 }

@@ -57,8 +57,8 @@ retrying queue (see "Before the runbook").
 
 1. **Merge the PR and ship the client.** Safe before the server work: see "Before the runbook".
 2. **Paste the SQL.** Supabase, SQL Editor, New query: paste ALL of `supabase/migrations/2026-09-29-gauntlet-progress.sql`
-   and Run. Expected: "Success. No rows returned". It must run AFTER `2026-09-29-hero-titles.sql` (the newest
-   progression file) and every earlier progression file. It replaces `loot_crates_transition_guard` and
+   and Run. Expected: "Success. No rows returned". It must run AFTER `2026-09-28-progression-crates.sql` (it
+   replaces functions from that file); it can run before or after `2026-09-29-hero-titles.sql`. It replaces `loot_crates_transition_guard` and
    `progression_crate_json` from `2026-09-28-progression-crates.sql`: if that file is ever re-run, run this one again
    after it. Idempotent: safe to re-run.
 3. **Verify in the same editor** (expected answers in the comments):
@@ -67,11 +67,14 @@ retrying queue (see "Before the runbook").
    select count(*) from pg_proc where proname = 'record_gauntlet_clear';                  -- 1
    select is_nullable from information_schema.columns
     where table_schema = 'public' and table_name = 'loot_crates' and column_name = 'earned_level';  -- YES
+   select proname, prosrc like '%source%' from pg_proc
+    where proname in ('progression_crate_json','loot_crates_transition_guard');            -- true for both
    ```
-4. **Deploy the Edge Functions** from the repo (Supabase CLI logged in):
+4. **Deploy the Edge Functions** from the repo (Supabase CLI logged in), `progression-inventory` FIRST so a granted
+   crate can never be unreadable:
    ```
-   npx supabase functions deploy gauntlet-clear --project-ref zcwhbejpqcdcfdpfxeza
    npx supabase functions deploy progression-inventory --project-ref zcwhbejpqcdcfdpfxeza
+   npx supabase functions deploy gauntlet-clear --project-ref zcwhbejpqcdcfdpfxeza
    ```
    `gauntlet-clear` is new. `progression-inventory` must be redeployed too: its bundled crate parser now accepts a
    crate with no level and a `gauntlet:N` source. The currently deployed copy would answer `inventory_malformed`

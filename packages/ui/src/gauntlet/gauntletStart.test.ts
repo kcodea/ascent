@@ -38,7 +38,7 @@ vi.mock('../remoteBoards', async (importOriginal) => {
 import { createGauntletRun, practiceHeroChoiceIds, runTribesForSeed, type BoardCard, type RunState } from '@game/sim';
 import { useGame } from '../store';
 import { recordFightResult, uploadBoards, uploadPracticeGame, uploadRunHistory, uploadRunTelemetry } from '../remoteBoards';
-import { clearedStages } from './gauntletProgress';
+import { clearedStages, recordClear } from './gauntletProgress';
 import { clearGauntletClearQueue, pendingGauntletClears } from './gauntletClearQueue';
 import { resetIdentityForTests, setIdentity } from '../identity';
 
@@ -181,6 +181,26 @@ describe('a finished gauntlet run', () => {
     useGame.getState().dispatch({ type: 'resolveCombat' });
     expect(pendingGauntletClears()).toEqual([expect.objectContaining({ userId: 'u-1', stage: 1 })]);
     expect(useGame.getState().gauntletSaving).toBe(1);
+  });
+
+  it('signed in, a REPLAY of a cleared stage: queued for the server but never shows "saving"', () => {
+    setIdentity({ userId: 'u-1', displayName: 'Mike', anonymous: false, email: 'm@example.com' });
+    recordClear(1); // already cleared, so this run's clear is not a first clear
+    clearGauntletClearQueue();
+    useGame.setState({ gauntletSaving: null });
+    useGame.getState().dispatch({ type: 'resolveCombat' });
+    expect(useGame.getState().gauntletResult).toMatchObject({ stage: 1, outcome: 'cleared', firstClear: false });
+    expect(useGame.getState().gauntletSaving).toBeNull();
+  });
+
+  it('signed in, the server unreachable (retryable): "saving" turns into "saved, arrives when back online"', async () => {
+    setIdentity({ userId: 'u-1', displayName: 'Mike', anonymous: false, email: 'm@example.com' });
+    useGame.setState({ gauntletSaving: null, gauntletSaveDeferred: null });
+    useGame.getState().dispatch({ type: 'resolveCombat' });
+    expect(useGame.getState().gauntletSaveDeferred).toBeNull();
+    await sleep(60); // the deferred flush gets its (retryable) answer
+    expect(useGame.getState().gauntletSaving).toBe(1);
+    expect(useGame.getState().gauntletSaveDeferred).toBe(1);
   });
 
   it('signed in but no backend: nothing is queued, so "saving" never shows (it would never end)', () => {

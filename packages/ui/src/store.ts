@@ -472,6 +472,9 @@ interface GameStore {
   /** The stage whose signed-in clear is still being saved to the account (queued, not yet confirmed). Null once the
    *  server has answered, for a guest, and on every new run. */
   gauntletSaving: number | null;
+  /** The stage whose queued clear got a retryable answer (backend not deployed / offline): it stays queued and lands
+   *  later, so the end screen stops saying "Saving" and says it is saved. Null otherwise; every new run resets it. */
+  gauntletSaveDeferred: number | null;
   /** Bumped by every replay SEEK. `Game.tsx` folds it into Recruit's mount key, so a seek REMOUNTS the recruit
    *  tree — every FX hook's `useRef(seq)` re-inits to the target frame's counters and a jump across 30 frames
    *  can't fire 30 stale sequence-diff effects. Ordinary frame-to-frame stepping keeps its FX (a feature:
@@ -1806,8 +1809,9 @@ function commitResolvedAction(
         gauntletResult = { stage, outcome, round, firstClear };
         // "Saving" only when the clear really is queued: a signed-in player with no backend queues nothing, and the
         // server answer that would end the saving state never comes.
+        // Only a FIRST clear can earn a crate, so only it shows "saving" (a replay never does).
         if (clear?.queued) {
-          gauntletSaving = stage;
+          if (firstClear) gauntletSaving = stage;
           setTimeout(() => { void flushGauntlet(); }, 0); // deferred like every run-end write
         }
       }
@@ -1864,7 +1868,7 @@ function commitResolvedAction(
       // flag off and re-open the "leaving a replay advances the wave" hole.
       sandboxReplay: next.phase !== s.run.phase ? false : s.sandboxReplay,
       ...(gauntletResult ? { gauntletResult } : {}),
-      ...(gauntletSaving !== undefined ? { gauntletSaving } : {}),
+      ...(gauntletSaving !== undefined ? { gauntletSaving, gauntletSaveDeferred: null } : {}),
     };
 }
 
@@ -2065,6 +2069,7 @@ export const useGame = create<GameStore>((rawSet, get) => {
   gauntletResult: null,
   gauntletReward: null,
   gauntletSaving: null,
+  gauntletSaveDeferred: null,
   replaySeekEpoch: 0,
   latestBatch: null,
   beatRevision: 0,
@@ -2696,7 +2701,7 @@ export function syncProfileFromServer(_name: string): void {
  *  wrong run; a still-pending settlement of the PREVIOUS run keeps flushing through the queue regardless and
  *  its profile is still adopted (`applyRankOutcome` only skips the slice for a non-current run). The Gauntlet's
  *  `gauntletResult` rides here for the same reason: it is the last run's verdict and must never outlive it. */
-const RANK_SLICE_RESET = { rankResult: null, rankSubmission: 'unrated' as const, rankSubmissionError: null, rankRunId: null, gauntletResult: null, gauntletReward: null, gauntletSaving: null };
+const RANK_SLICE_RESET = { rankResult: null, rankSubmission: 'unrated' as const, rankSubmissionError: null, rankRunId: null, gauntletResult: null, gauntletReward: null, gauntletSaving: null, gauntletSaveDeferred: null };
 
 /** THE OBSERVERS a NEW run starts with: the flat telemetry log and the live balance derivation, both primed
  *  against THIS run's opening state. Every door a run starts through (the hero picker, `newRun`, a tutorial,
@@ -2765,7 +2770,10 @@ function settleAbandonedRun(abandoned: RunState | null | undefined): void {
  * `gauntletReward`. Any definite answer ends the "saving" state for that stage.
  */
 function onGauntletSettled(item: PendingGauntletClear, outcome: GauntletSubmitOutcome): Promise<void> {
-  if (outcome.status !== 'retryable' && useGame.getState().gauntletSaving === item.stage) useGame.setState({ gauntletSaving: null });
+  if (useGame.getState().gauntletSaving === item.stage) {
+    if (outcome.status === 'retryable') useGame.setState({ gauntletSaveDeferred: item.stage });
+    else useGame.setState({ gauntletSaving: null, gauntletSaveDeferred: null });
+  }
   return settleGauntletClear(item, outcome, (reward) => useGame.setState({ gauntletReward: reward }));
 }
 

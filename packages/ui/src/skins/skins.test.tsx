@@ -15,7 +15,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act } from 'react';
 import { CARD_INDEX } from '@game/content';
 import { HEROES } from '@game/sim';
-import { COSMETICS, cosmeticOf, minionSkinOf, type RunCosmeticSnapshot } from '@game/progression';
+import { COSMETICS, cosmeticOf, heroSkinOf, minionSkinOf, type RunCosmeticSnapshot } from '@game/progression';
 
 vi.mock('../identity', async (orig) => ({ ...(await orig<typeof import('../identity')>()), currentUserId: () => 'u-1' }));
 
@@ -92,6 +92,32 @@ describe('the catalog <-> the bundle', () => {
     expect(skinArtKeys()).toContain(id);
     expect(skinArtOf(c)).toBeTruthy();
     expect(minionSkinOf({ minionSkinByCardId: { [cardId]: id } }, cardId)?.id).toBe(id);
+  });
+  // Skins batch 3 (owner 2026-09-29: "added a few more hero and minion skins - i want to name them appropriately and
+  // then decide rarities"). Rarities are the owner's; names match the art. Same checks as batch 2.
+  const BATCH3: [id: string, rarity: string, cardId: string, cardName: string, master: string][] = [
+    ['skin_oona_1', 'epic', 'b2_oona', 'King Oona', 'RooksOona.png'],
+    ['skin_sylus_3', 'rare', 'sylus', 'Sylus', 'StencilSylus.png'],
+    ['skin_seaurchin_1', 'rare', 'seaurchin', 'Sea Urchin', 'MaceUrchin.png'],
+    ['skin_buddy_1', 'epic', 'buddy', 'Buddy Buddy', 'MagicianBuddyBuddyEpic.png'],
+  ];
+  it.each(BATCH3)('batch 3: %s (%s) exists, targets %s, and ships its art', (id, rarity, cardId, cardName, master) => {
+    const c = cosmeticOf(id)!;
+    expect(c).toBeTruthy();
+    expect([c.category, c.rarity, c.target, c.assets.master, c.active]).toEqual(['minion_skin', rarity, { type: 'card', id: cardId }, master, true]);
+    expect(CARD_INDEX[cardId]?.name).toBe(cardName);
+    expect(skinArtKeys()).toContain(id);
+    expect(skinArtOf(c)).toBeTruthy();
+    expect(minionSkinOf({ minionSkinByCardId: { [cardId]: id } }, cardId)?.id).toBe(id);
+  });
+  it('batch 3: the Frantic Frank hero skin (Common) exists, targets the hero frank, and ships its art', () => {
+    const c = cosmeticOf('skin_frank_1')!;
+    expect(c).toBeTruthy();
+    expect([c.category, c.rarity, c.target, c.assets.master, c.active]).toEqual(['hero_skin', 'common', { type: 'hero', id: 'frank' }, 'ArmourerFrank.png', true]);
+    expect(HEROES.find((h) => h.id === 'frank')!.name).toBe('Frantic Frank');
+    expect(skinArtKeys()).toContain('skin_frank_1');
+    expect(skinArtOf(c)).toBeTruthy();
+    expect(heroSkinOf({ heroSkinByHeroId: { frank: 'skin_frank_1' } }, 'frank')?.id).toBe('skin_frank_1');
   });
   it('every skin targets a REAL collectible card (never a token) or a REAL hero, by stable id', () => {
     for (const c of skins) {

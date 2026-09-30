@@ -146,20 +146,25 @@ describe('the roll', () => {
   it('the per-item chances of a first crate (2026-09-29 catalog): each item = its rarity\'s odds / that rarity\'s item count', () => {
     const all = eligibleCrateCosmetics([]);
     const count = (r: string): number => all.filter((c) => c.rarity === r).length;
-    expect(COSMETIC_RARITIES.map(count)).toEqual([8, 17, 12, 16]); // 2026-09-29: Inferno, Grave Call, the Stampede, Oona's Banana Cannon and Hemorrhage made Legendary 16; the first Epic attacks, Card Shark and Storm Call, made Epic 12; the four Rare hero attacks (coin, boomerang, bubble, backstab) made Rare 17
+    expect(COSMETIC_RARITIES.map(count)).toEqual([9, 19, 14, 16]); // 2026-09-29 (skins batch 3): Shopping Spree Frank made Common 9; Pencil Sketch Sylus and Morning Star Urchin made Rare 19; Banana Chess Oona and Top Hat Buddy Buddy made Epic 14. Before that, 2026-09-29: Inferno, Grave Call, the Stampede, Oona's Banana Cannon and Hemorrhage made Legendary 16; the first Epic attacks, Card Shark and Storm Call, made Epic 12; the four Rare hero attacks (coin, boomerang, bubble, backstab) made Rare 17
     const ch = crateChances(all);
     const pct = (id: string): number => Math.round(100000 * ch.get(id)!) / 1000;
-    expect(pct('skin_blackbelt_4')).toBe(6.25);       // Common: 50 / 8
-    expect(pct('title_board_builder')).toBe(6.25);
-    expect(pct('skin_blackbelt_1')).toBe(1.765);      // Rare: 30 / 17
-    expect(pct('title_grave_whisperer')).toBe(1.765);
-    expect(pct('attack_coin')).toBe(1.765);
-    expect(pct('attack_backstab')).toBe(1.765);
-    expect(pct('skin_bellringer_1')).toBe(1.25);      // Epic: 15 / 12
-    expect(pct('skin_albus_1')).toBe(1.25);
-    expect(pct('title_kingbreaker')).toBe(1.25);
-    expect(pct('attack_cards')).toBe(1.25);
-    expect(pct('attack_storm')).toBe(1.25);
+    expect(pct('skin_blackbelt_4')).toBe(5.556);      // Common: 50 / 9
+    expect(pct('title_board_builder')).toBe(5.556);
+    expect(pct('skin_frank_1')).toBe(5.556);
+    expect(pct('skin_blackbelt_1')).toBe(1.579);      // Rare: 30 / 19
+    expect(pct('title_grave_whisperer')).toBe(1.579);
+    expect(pct('skin_sylus_3')).toBe(1.579);
+    expect(pct('skin_seaurchin_1')).toBe(1.579);
+    expect(pct('attack_coin')).toBe(1.579);
+    expect(pct('attack_backstab')).toBe(1.579);
+    expect(pct('skin_bellringer_1')).toBe(1.071);      // Epic: 15 / 14
+    expect(pct('skin_albus_1')).toBe(1.071);
+    expect(pct('skin_oona_1')).toBe(1.071);
+    expect(pct('skin_buddy_1')).toBe(1.071);
+    expect(pct('title_kingbreaker')).toBe(1.071);
+    expect(pct('attack_cards')).toBe(1.071);
+    expect(pct('attack_storm')).toBe(1.071);
     expect(pct('skin_blackbelt_3')).toBe(0.313);      // Legendary: 5 / 16
     expect(pct('attack_arcana')).toBe(0.313);
     expect(pct('attack_fire')).toBe(0.313);
@@ -169,7 +174,7 @@ describe('the roll', () => {
     expect(pct('attack_bleed')).toBe(0.313);
     expect(pct('title_the_unbroken')).toBe(0.313);
     const cat = (k: string): number => Math.round(1000 * all.filter((c) => c.category === k).reduce((a, c) => a + ch.get(c.id)!, 0)) / 10;
-    expect([cat('title'), cat('minion_skin'), cat('hero_skin'), cat('hero_attack')]).toEqual([55.4, 28.5, 2.5, 13.6]); // thirteen Legendary attacks x 5 / 16 + the two Epic attacks x 15 / 12 (Card Shark, Storm Call) + the four Rare attacks x 30 / 17 (2026-09-29)
+    expect([cat('title'), cat('minion_skin'), cat('hero_skin'), cat('hero_attack')]).toEqual([49.2, 30.5, 7.7, 12.5]); // thirteen Legendary attacks x 5 / 16 + the two Epic attacks x 15 / 14 (Card Shark, Storm Call) + the four Rare attacks x 30 / 19 (2026-09-29, re-pinned for skins batch 3; was 55.4 / 28.5 / 2.5 / 13.6)
     expect([...ch.values()].reduce((a, b) => a + b, 0)).toBeCloseTo(1, 12);
   });
 

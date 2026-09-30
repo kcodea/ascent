@@ -148,6 +148,8 @@ describe('no redundant PNG masters ship alongside their WebP builds', () => {
     // Joker, Nimbus, Paragon, Steward of Spells, two Sylus, Venom, Zyff; owner-named: "i added some skins here").
     // → 1303: hero portrait FRAMES 2026-09-29 (+8 in a new `art/frames/`: default, bronze, silver, gold, platinum,
     // diamond, ascendant, rank1; the owner named the folder: "i added frames here").
-    expect(total, `art files: ${total} — the WHOLE-ZIP count (~${total + 176}) is what itch caps at 1000`).toBeLessThan(1303);
+    // → 1308: skins batch 3 2026-09-29 (+5 in `art/skins/`: King Oona, Sylus, Sea Urchin, Buddy Buddy and the Frantic
+    // Frank hero skin; owner-named: "added a few more hero and minion skins").
+    expect(total, `art files: ${total} — the WHOLE-ZIP count (~${total + 176}) is what itch caps at 1000`).toBeLessThan(1308);
   });
 });

@@ -3,7 +3,7 @@ import type { BoardSnapshot } from '../snapshot';
 import type { RunCosmeticSnapshot } from '@game/progression';
 import { OPPONENT_POOL } from '../opponents';
 import { CONFIG } from '../config';
-import { recordedSeat, type SeatPolicy } from './seats';
+import { MAX_FIRST_WAVE, MAX_MISSING_WAVES, recordedSeat, type SeatPolicy } from './seats';
 import type { PreparedBoard, SeatDriver } from './types';
 
 /**
@@ -24,6 +24,8 @@ export interface PlayerRun {
   key: string;
   author: string;
   heroId: string;
+  /** The uploading account (`BoardSnapshot.ownerId`), when the shared pool stamped it. */
+  ownerId?: string;
   /** Per-wave boards, ascending. */
   snaps: BoardSnapshot[];
   /** The skins the run's owner wore: the UNION of every board's scoped `cosmetics` (a card skinned on wave 9 is
@@ -51,9 +53,6 @@ function runCosmetics(snaps: readonly BoardSnapshot[]): RunCosmeticSnapshot | un
   };
 }
 
-/** A run is only worth a seat if it has enough material to hold one for a while. */
-const MIN_WAVES = 4;
-
 /**
  * A RUN MUST COVER THE ROUNDS IT WILL BE ASKED FOR (fix 2026-09-29, R-LOBBY-07).
  *
@@ -70,17 +69,48 @@ const MIN_WAVES = 4;
  * 2026-09-29: complete runs start at wave 1 or 2 (140 of 146) and never miss more than one wave in a row; the
  * runs this drops are the ones the per-wave pull cut in half (plus six that start at waves 3 to 5, which would
  * otherwise serve a later board in rounds 1 to 4).
+ *
+ * ROOT CAUSE FIXED the same day (R-LOBBY-08): the pool now arrives as WHOLE RUNS (`registerOpponentRuns`, the
+ * `pool_runs_sample` RPC), so a cut-down run never reaches this function from the shared pool. This check stays
+ * as defence in depth, and the SQL eligibility mirrors it so the server never spends a pick on a run it drops.
  */
-export const MAX_FIRST_WAVE = 2;
-export const MAX_MISSING_WAVES = 1;
+export { MAX_FIRST_WAVE, MAX_MISSING_WAVES };
+/** A run is only worth a seat if it has enough material to hold one for a while. */
+export const MIN_RUN_WAVES = 4;
+const MIN_WAVES = MIN_RUN_WAVES;
 
 /** Does this run's recording (ascending, one board per wave) cover every round it could be asked for? */
 export function runCoversItsRounds(ordered: readonly BoardSnapshot[]): boolean {
-  if (!ordered.length || ordered[0]!.wave > MAX_FIRST_WAVE) return false;
-  for (let i = 1; i < ordered.length; i++) {
-    if (ordered[i]!.wave - ordered[i - 1]!.wave - 1 > MAX_MISSING_WAVES) return false;
+  return runWavesCover(ordered.map((s) => s.wave));
+}
+
+/** `runCoversItsRounds` over bare wave numbers (any order, duplicates allowed). The pool fetch's fallback path
+ *  uses it to pre-screen runs from a light listing before downloading their boards, and the SQL `pool_runs`
+ *  eligibility mirrors it (parity-tested in `poolRuns.db.test.ts`). */
+export function runWavesCover(waves: readonly number[]): boolean {
+  const ws = [...new Set(waves)].sort((a, b) => a - b);
+  if (!ws.length || ws[0]! > MAX_FIRST_WAVE) return false;
+  for (let i = 1; i < ws.length; i++) {
+    if (ws[i]! - ws[i - 1]! - 1 > MAX_MISSING_WAVES) return false;
   }
   return true;
+}
+
+/** A run's identity, the key a seat stores: `author|heroId|seed` (GAME-RULES, "sides named by run key"). */
+export const runKeyOf = (s: Pick<BoardSnapshot, 'author' | 'heroId' | 'seed'>): string => `${s.author ?? 'anon'}|${s.heroId}|${s.seed}`;
+
+/**
+ * THE PER-PLAYER SEAT CAP (owner 2026-09-29: "let's have a cap of 4 snapshots from a player i guess, so it's not
+ * literally like 7 of me always or something"). Selection stays a uniform shuffle over every whole run; a run
+ * whose player already holds this many seats is passed over for the next one in the shuffle (R-LOBBY-08).
+ */
+export const MAX_SEATS_PER_PLAYER = 4;
+
+/** Who a run belongs to, for the seat cap: the uploading account when the pool stamped it, else the display
+ *  author (a run with neither is nobody's, and is never capped). */
+export function runOwnerOf(run: Pick<PlayerRun, 'ownerId' | 'author'>): string | null {
+  if (run.ownerId) return `id:${run.ownerId}`;
+  return run.author && run.author !== 'anon' ? `name:${run.author.toLowerCase()}` : null;
 }
 
 /**
@@ -141,7 +171,7 @@ export function playerRunsFrom(
     if ((s.origin ?? 'house') === 'synthetic') continue;
     if (!s.minions?.length) continue;
     if (setId && (s.setId ?? 'set1') !== setId) continue; // legacy boards predate sets → they are set 1
-    const key = `${s.author ?? 'anon'}|${s.heroId}|${s.seed}`;
+    const key = runKeyOf(s);
     const list = byRun.get(key);
     if (list) list.push(s);
     else byRun.set(key, [s]);
@@ -157,7 +187,11 @@ export function playerRunsFrom(
     // (R-LOBBY-07; see `runCoversItsRounds` / `maxPlausibleTier` above).
     if (!runCoversItsRounds(ordered) || !runTiersPlausible(ordered)) continue;
     const cosmetics = runCosmetics(ordered);
-    runs.push({ key, author: ordered[0]!.author ?? 'anon', heroId: ordered[0]!.heroId, snaps: ordered, ...(cosmetics ? { cosmetics } : {}) });
+    const ownerId = ordered.find((x) => x.ownerId)?.ownerId;
+    runs.push({
+      key, author: ordered[0]!.author ?? 'anon', heroId: ordered[0]!.heroId, snaps: ordered,
+      ...(ownerId ? { ownerId } : {}), ...(cosmetics ? { cosmetics } : {}),
+    });
   }
   // Deterministic order — the pool's iteration order is an accident of registration, and seat selection must
   // reproduce across sessions and replays.

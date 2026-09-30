@@ -16,19 +16,19 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { activeSet, type SetId } from '@game/content';
 import type { FightRow, LobbyStrength, MatchDetails, StrengthInput } from '@game/sim';
-import { CONFIG, RANK_SEASON, initialRankedProfile, lobbyStrengthOf, excludeOwnFights, parseLobbyStrength, parseMatchDetails, parseRankResult, parseRankedProfile, registerBoardRecords, registerOpponents, type BoardSnapshot, type DerivedRun, type PlayerKeyBasis, type RankedProfile, type ReplayV2, type RunTelemetry, type RunTelemetryRow, type TelemetrySource, isRankPosition, type RankPosition } from '@game/sim';
+import { RANK_SEASON, initialRankedProfile, lobbyStrengthOf, excludeOwnFights, parseLobbyStrength, parseMatchDetails, parseRankResult, parseRankedProfile, registerBoardRecords, registerOpponentRuns, type BoardSnapshot, type DerivedRun, type PlayerKeyBasis, type RankedProfile, type ReplayV2, type RunTelemetry, type RunTelemetryRow, type TelemetrySource, isRankPosition, type RankPosition } from '@game/sim';
 import { currentIdentity, currentUserId, setIdentity, type AuthProvider, type Identity } from './identity';
 import type { RankSubmitOutcome, RankSubmitRequest } from './rank/types';
 import { createPoolLoader, STARTUP_LOAD, type PoolLoader } from './opponentPool/poolLoader';
 import { idbPoolCache } from './opponentPool/poolCache';
+import { fetchPoolRuns, type PoolApi, type PoolFetchSession } from './opponentPool/poolFetch';
 import { careerRunOf, joinTelemetry, type CareerRun, type RunHistoryRowLike, type TelemetryProbeRow } from './careerData';
 import { hallHistoryKeyOf, ownGameRecordsOf, type HallLedgerFight, type HallOwnRecord } from './leaderboardData';
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
 const TABLE = 'boards';
-const FETCH_LIMIT = 2000; // cap for the author/board lookups (the pool pull is capped PER WAVE below)
-const POOL_PER_WAVE_LIMIT = 120; // startup pool: newest N boards per wave (~17 × 120 ≈ the old 2000 total)
+const FETCH_LIMIT = 2000; // cap for the author/board lookups (the pool itself is a sample of WHOLE RUNS below)
 const FETCH_TIMEOUT_MS = 4000; // never block boot on a slow / absent network
 
 /** True when a backend is configured (both env vars present). */
@@ -305,31 +305,47 @@ export async function uploadBoards(boards: BoardSnapshot[], opts?: { unrated?: b
   }
 }
 
-// ── The shared opponent pool (fix 2026-09-28) ─────────────────────────────────────────────────────────────
-// One capped, NEWEST-first pull PER WAVE (not a single global `order(wave).limit(2000)`): the global pull
-// filled the cap from wave 1 upward, so mid/high waves were truncated out once the table grew (owner report
-// 2026-07-17). What changed on 2026-09-28: each wave now has its OWN timeout and retry and registers the moment
-// it lands (it used to be one 4 s race over all 17, so one slow wave discarded the whole pool and a rated lobby
-// sat seven generated seats), a last-good copy is cached in IndexedDB, missing waves retry in the background
-// and when the browser comes back online, and the lobby launch waits for it (`opponentPool/poolGate.ts`).
+// ── The shared opponent pool ──────────────────────────────────────────────────────────────────────────────
+// 2026-09-28: per-request timeout + retry, a last-good IndexedDB cache, a background retry, and a lobby launch
+// that waits for it (`opponentPool/poolGate.ts`).
+// 2026-09-29 (R-LOBBY-08): the pool is a uniform random sample of WHOLE RUNS, chosen server-side by the
+// `pool_runs_sample` RPC (one row per run, every board of it), with a client-side whole-run fallback until the
+// owner has run supabase/migrations/2026-09-29-pool-whole-runs.sql. It replaces the per-wave pull (newest 120
+// boards of each wave), which cut older runs in half: their early waves fell outside the cut, and a lobby seat
+// served a wave-10 board on round 5. See `opponentPool/poolFetch.ts`.
 let poolLoaderSingleton: PoolLoader | null = null;
+
+function poolApi(c: SupabaseClient): PoolApi {
+  return {
+    async sample(args, signal) {
+      const res = await c.rpc('pool_runs_sample', args).abortSignal(signal);
+      return { data: (res.data ?? null) as never, error: res.error ? { code: res.error.code, message: res.error.message } : null };
+    },
+    async lightPage(patchPrefix, from, to, signal) {
+      const res = await c.from(TABLE).select('author,hero_id,seed,wave,user_id,set_id:snapshot->>setId')
+        .like('patch', `${patchPrefix}%`).order('id', { ascending: true }).range(from, to).abortSignal(signal);
+      return { data: (res.data ?? null) as never, error: res.error ? { code: res.error.code, message: res.error.message } : null };
+    },
+    async boardsForSeeds(patchPrefix, seeds, signal) {
+      const res = await c.from(TABLE).select('snapshot,user_id').like('patch', `${patchPrefix}%`).in('seed', seeds).abortSignal(signal);
+      return { data: (res.data ?? null) as never, error: res.error ? { code: res.error.code, message: res.error.message } : null };
+    },
+  };
+}
 
 /** The session's pool loader, or null when no backend is configured (offline builds, tests). */
 export function opponentPoolLoader(patchPrefix = `${typeof __APP_VERSION__ === 'string' ? __APP_VERSION__ : ''}+`): PoolLoader | null {
   if (poolLoaderSingleton) return poolLoaderSingleton;
   const c = client();
   if (!c) return null;
+  const api = poolApi(c);
+  const session: PoolFetchSession = { rpcMissing: false };
   const loader = createPoolLoader({
-    waves: CONFIG.courseRounds,
     patchPrefix,
-    async fetchWave(wave, signal) {
-      let q = c.from(TABLE).select('snapshot').eq('wave', wave);
-      if (patchPrefix) q = q.like('patch', `${patchPrefix}%`);
-      const res = await q.order('created_at', { ascending: false }).limit(POOL_PER_WAVE_LIMIT).abortSignal(signal);
-      if (res.error) throw new Error(res.error.message);
-      return ((res.data ?? []) as { snapshot: BoardSnapshot }[]).map((r) => r.snapshot);
-    },
-    register: registerOpponents,
+    fetchRuns: (signal) => fetchPoolRuns(api, {
+      setId: activeSet().id, patchPrefix, ownerId: currentUserId(), random: Math.random,
+    }, signal, session),
+    registerRuns: registerOpponentRuns,
     cache: idbPoolCache(),
     setId: () => activeSet().id,
     now: () => Date.now(),
@@ -345,7 +361,7 @@ export function opponentPoolLoader(patchPrefix = `${typeof __APP_VERSION__ === '
  * Fetch the shared pool for the current patch and register it into the static opponent pool. Best-effort;
  * resolves to how many boards arrived (0 with no backend). `patchPrefix` matches by build VERSION (e.g.
  * `"0.1.0+"`) so per-commit SHA churn doesn't hide your own boards. The first call is the startup load; later
- * calls (the between-runs refresh) re-pull every wave, and registration dedupes.
+ * calls (the between-runs refresh) draw a fresh sample of whole runs, and registration dedupes.
  */
 export async function fetchAndRegisterPool(patchPrefix?: string): Promise<number> {
   const loader = opponentPoolLoader(patchPrefix);

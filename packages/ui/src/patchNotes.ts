@@ -60,6 +60,16 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: 'Opponents are now picked at random from every whole game in the pool.',
+        details: [
+          'Each opponent plays the game they really played, round by round, from their first round to their last.',
+          'Older games are just as likely to show up as new ones.',
+          'One player can fill at most 4 of the 7 seats in your lobby.',
+          'You never face your own games.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'Fixed opponents sometimes bringing impossible boards early in a game.',
         details: [
           'An opponent could show up with a board from much later in their game, like a full late-game board on round 5.',

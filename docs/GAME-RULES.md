@@ -33,23 +33,35 @@ medal + division — see *Ranked ladder* below).
   so an empty pool degrades to a fully generated table rather than a smaller one. **Which** snapshot runs sit
   at the table is a seeded uniform shuffle of every eligible run in the lobby's set (owner 2026-09-13): every
   run is equally likely, the same lobby seed always seats the same table (restore / replay), and nothing
-  weights the draw — no strength band, no author cap (an author may hold several seats through different
-  runs; a per-author cap is a future knob), no win-rate weighting (that exists only on the pre-lobby pool pick).
+  weights the draw — no strength band, no recency, no win-rate weighting (that exists only on the pre-lobby
+  pool pick). **One player holds at most 4 seats** (owner 2026-09-29, R-LOBBY-08: "so it's not literally like 7
+  of me always"): a run whose player already holds 4 is passed over for the next in the shuffle, which leaves
+  every other run equally likely; when the pool lacks enough players, generated seats fill the rest. **Your own
+  runs never sit at your table.** A player is their account (`boards.user_id`), else their display name.
   **All eight heroes are unique per lobby, the player's included** (owner 2026-09-13): a run on a hero already
   seated — or on the player's hero — is passed over for the next run in the shuffle, and generated seats never
   repeat a hero either.
 - **An eligible run covers the rounds it will be asked for** (2026-09-29, R-LOBBY-07): at least 4 recorded
   waves, the first at wave 1 or 2, never more than one wave missing in a row, and no board above a plausible
-  shop tier for its wave (the all-in tavern-up curve + 2). A recorded seat serves its board for the round, else
-  its closest earlier one, so a run whose early waves never reached this client (the pool is pulled as the
-  newest boards per wave) would otherwise serve a late-game board in an early round. Such a run is skipped.
-  A generated seat's recording buys the first rune it can afford at each Runeforge, as a real player does.
+  shop tier for its wave (the all-in tavern-up curve + 2). Such a run is skipped. A generated seat's recording
+  buys the first rune it can afford at each Runeforge, as a real player does.
+- **The pool is made of WHOLE RUNS, drawn at random** (owner 2026-09-29, R-LOBBY-08: "isnt it just replaying
+  snapshots from the player's game?", "make sure this is firmly fixed and will be scalable and a non issue moving
+  forward", "i want them random from all snapshots in the pool"). The client receives a uniform random sample of
+  the eligible runs of its set and build version (150 runs; every run equally likely, however old), each run with
+  ALL of its boards, or not at all: the server picks runs (`pool_runs_sample`), a run that arrives incomplete is
+  refused whole, and the local cache stores whole runs. **A recorded seat's board for round N is that run's own
+  wave-N board.** The only tolerances are for boards a real game never uploads (an empty board): a single missing
+  wave serves the run's previous board, and a run that starts at wave 2 serves that board in round 1. A later
+  board never appears, except past the run's end, where the stale-final-board rule applies (the run keeps its
+  final board, with its own Armor). Until 2026-09-29 the pool was pulled as the newest boards per wave, which cut
+  older runs down to their late waves and served a wave-10 board on round 5.
 - **A lobby that seats player runs waits for the opponent pool** (owner 2026-09-28, R-LOBBY-06). A rated lobby
   or Practice against players is not built until the shared pool has loaded: instantly when it already has,
   otherwise behind a cancellable "Finding opponents..." wait while it retries. Only a genuine failure (offline)
   falls back, and never silently: the player chooses Retry, Play anyway (generated seats, **unrated**, see
-  below) or Back to menu. The last good pool for the live set
-  is cached locally and fills any wave the network cannot supply.
+  below) or Back to menu. The last good pool for the live set (whole runs) is cached locally and is used when
+  the network cannot supply a sample.
 - The lobby is **asynchronous**: opponents are recordings and generated runs, never live opponents. It never
   requires two players online at once.
 - Each round, surviving seats are **paired**. **One authoritative `simulate()` resolves each encounter and

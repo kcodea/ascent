@@ -602,6 +602,61 @@ export const FOUNDATION_RULES: GameRule[] = [
     },
   },
   {
+    id: 'R-LOBBY-08',
+    title: 'The opponent pool is made of whole runs, drawn uniformly at random, and a seat serves its own board for the round',
+    statement:
+      'The shared opponent pool reaches the client as WHOLE RUNS: the server (`pool_runs_sample`) draws a uniform '
+      + 'random sample of the eligible runs of the set and build version (every run equally likely, however old; no '
+      + 'recency, no weighting) and returns each with ALL of its boards, one row per run. A run that arrives '
+      + 'incomplete, or holds a board this build cannot serve, is refused whole, and the local cache stores whole '
+      + 'runs only. A recorded seat serves the OWN board of that run for the round: a single missing wave (an empty '
+      + 'board is not uploaded) serves the previous board, and a run starting at wave 2 serves that board in round 1; '
+      + 'nothing further ahead, ever. Past the end of the run the lobby serves its final board (the stale-final-board '
+      + 'rule). Seat selection stays a uniform shuffle, with two filters that do not weight it: one player holds at '
+      + 'most 4 seats (a run over the cap is passed over for the next), and the own runs of the player never sit at '
+      + 'their own table. A player is their account id, else their display name.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      {
+        kind: 'owner-chat',
+        ref: 'Claude Code session, 2026-09-29 (pool snapshot bug)',
+        quote: "isnt it just replaying snapshots from the player's game?",
+      },
+      {
+        kind: 'owner-chat',
+        ref: 'Claude Code session, 2026-09-29 (root-cause fix ask)',
+        quote: 'make sure this is firmly fixed and will be scalable and a non issue moving forward',
+      },
+      {
+        kind: 'owner-chat',
+        ref: 'Claude Code session, 2026-09-29 (selection)',
+        quote: 'i want opponent snapshots to be completely random but i want them to be accurate. i dont want more recent boards to show up just cause they are recent. i want them random from all snapshots in the pool',
+      },
+      {
+        kind: 'owner-chat',
+        ref: 'Claude Code session, 2026-09-29 (seat cap)',
+        quote: "let's have a cap of 4 snapshots from a player i guess, so it's not literally like 7 of me always or something",
+      },
+      { kind: 'code', ref: 'supabase/migrations/2026-09-29-pool-whole-runs.sql (pool_runs + pool_runs_sample); packages/ui/src/opponentPool/poolFetch.ts + poolLoader.ts (isWholeRun, cache v2); packages/sim/src/opponents.ts registerOpponentRuns; packages/sim/src/lobby/seats.ts boardAt; packages/sim/src/lobby/runLobby.ts createRunLobby (MAX_SEATS_PER_PLAYER, excludeOwnerId)' },
+    ],
+    currentBehaviour:
+      'Conforms as of 2026-09-29. Before it the client pulled the newest 120 boards of each wave and glued them '
+      + 'into runs; early waves hold more rows than late ones, so on the live pool 30 of 150 runs arrived cut '
+      + '(and 1 not at all) and a seat served a wave-10 board on round 5. R-LOBBY-07 (seat eligibility) stays as '
+      + 'defence in depth.',
+    enforcement: {
+      kind: 'scenario',
+      refs: [
+        'packages/sim/src/lobby/poolRuns.db.test.ts',
+        'packages/sim/src/lobby/poolWholeRuns.test.ts',
+        'packages/ui/src/opponentPool/poolFetch.test.ts',
+        'packages/ui/src/opponentPool/poolLoader.test.ts',
+      ],
+      lastVerifiedAt: '2026-09-29',
+    },
+  },
+  {
     id: 'R-HALL-02',
     title: 'Hall of Champions: the own-game line counts the same fights as the record line',
     statement:

@@ -10763,20 +10763,31 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 .lobbyarmor { display: inline-flex; align-items: center; gap: calc(1 * var(--lfont)); color: var(--lby-armor-col, #a3a3a3); font-weight: 800; }
 .lobbyarmor svg { width: calc(8 * var(--lfont) * var(--lby-hp-size, 1.45)); height: calc(8 * var(--lfont) * var(--lby-hp-size, 1.45)); }
 .lobbyplace { color: rgba(255, 255, 255, 0.62); font-weight: 700; }
-/* GAUNTLET RAIL (GauntletPanel.tsx) — the lobby rail's shell with no seat table: the stage's opponent (tribe
-   emblem + name) over your own health. Same units as the rail, so the 🪑 Lobby Rail dials scale it too. */
-.gauntletrail-foe { display: flex; align-items: center; gap: calc(6 * var(--lu)); min-width: 0; }
-.gauntletrail-emblem { flex: none; display: grid; place-items: center; width: calc(3.2 * var(--lrow)); height: calc(3.2 * var(--lrow)); }
-.gauntletrail-emblem svg { width: 100%; height: 100%; color: #f0c9b8; filter: drop-shadow(0 2px 5px rgba(0, 0, 0, 0.55)); }
-.gauntletrail-foetext { display: flex; flex-direction: column; min-width: 0; line-height: 1.15; }
-.gauntletrail-stage { font-size: calc(9 * var(--lfont)); font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: var(--lby-alive-col, #f4d58a); }
-.gauntletrail-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #fff;
-  font-size: calc(11 * var(--lfont) * var(--lby-name-size, 1.5)); font-weight: 800; }
-.gauntletrail-you { display: flex; align-items: center; justify-content: space-between; gap: calc(5 * var(--lu));
-  padding-top: calc(4 * var(--lu)); border-top: 1px solid rgba(255, 255, 255, 0.12); }
-.gauntletrail-youlabel { font-size: calc(9 * var(--lfont)); font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: rgba(255, 255, 255, 0.72); }
-/* The seat grid's column offset + reserve do not apply outside a seat row. */
-.gauntletrail .lobbyhp { transform: none; min-width: 0; }
+/* GAUNTLET FOE (GauntletFoe.tsx, owner ask 2026-09-29) — no rail: the stage opponent's tribe emblem in a portrait
+   disc (the same gold ring + dark well the combat portrait wears) with its name and a one-line round / loss-cap
+   readout under it, floating free on the right side of the shop. No backplate or frame. Pointer-inert so a card
+   dragged near the right edge never catches it. Slides away for combat with the lobby rail's own one-shot
+   transform/opacity transition (see `.app.staged .gauntletfoe` beside the rail's rule). */
+.gauntletfoe {
+  --u: calc(var(--u-base) * var(--ui-scale, 0.96));
+  position: absolute; z-index: 60; right: calc(52 * var(--u)); top: 24%;
+  display: flex; flex-direction: column; align-items: center; gap: calc(6 * var(--u));
+  width: calc(210 * var(--u)); pointer-events: none; text-align: center;
+  transition: transform 420ms cubic-bezier(0.4, 0, 0.2, 1), opacity 320ms ease-out;
+}
+.gauntletfoe-portrait {
+  width: calc(112 * var(--u)); height: calc(112 * var(--u)); border-radius: 50%; overflow: hidden;
+  border: calc(3 * var(--u)) solid var(--gold);
+  box-shadow: 0 calc(4 * var(--u)) calc(14 * var(--u)) rgba(0, 0, 0, 0.55), inset 0 0 0 2px rgba(0, 0, 0, 0.45);
+  background: radial-gradient(circle at 50% 30%, #2c211a, #0e0a07);
+}
+.gauntletfoe-emblem { display: grid; place-items: center; width: 100%; height: 100%; }
+.gauntletfoe-emblem svg { width: 62%; height: 62%; color: #f0c9b8; filter: drop-shadow(0 calc(2 * var(--u)) calc(5 * var(--u)) rgba(0, 0, 0, 0.6)); }
+.gauntletfoe-name { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-family: var(--font-ui); font-weight: 800; font-size: calc(19 * var(--u)); color: #fff6e4;
+  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.9), 0 0 2px rgba(0, 0, 0, 0.8); }
+.gauntletfoe-meta { font-family: var(--font-ui); font-weight: 700; font-size: calc(12 * var(--u)); letter-spacing: 0.04em;
+  color: rgba(255, 246, 228, 0.78); text-shadow: 0 1px 4px rgba(0, 0, 0, 0.9); white-space: nowrap; }
 /* Health / placement sit on row 2 at the right, beside the round-damage number, now the name owns row 1. */
 .lobbyhp, .lobbyplace { grid-column: 3; grid-row: 2; justify-self: start; transform: translateX(calc(var(--lby-hp-x, 7) * var(--lrow))); }
 /* The health number LEFT-aligns at a fixed start toward the right (owner ask 2026-08-28): it reserves a width
@@ -11647,7 +11658,7 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 /* Slide away on `.staged` — the wipe curtain's covered window — not on `.combat` (the raw phase): the rail
    holds still while the entry curtain sweeps over it and does its slide UNDER the blue, and on exit it
    slides back under the blue too, so the reveal sweep always exposes it settled (owner ask 2026-08-28). */
-.app.staged .lobbyrail { transform: translateX(115%); opacity: 0; pointer-events: none; }
+.app.staged .lobbyrail, .app.staged .gauntletfoe { transform: translateX(115%); opacity: 0; pointer-events: none; }
 
 /* 1b. THE FOE ARRIVES — the opponent's hero portrait drops onto the Refresh button's anchor (that button is
    inert in combat, so the space is free). Same top-right base point as `.rfbwrap`, so the two occupy the same

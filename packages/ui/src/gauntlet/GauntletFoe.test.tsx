@@ -1,11 +1,11 @@
 // @vitest-environment jsdom
 /**
- * GAUNTLET IN-RUN PANEL — the rail a Gauntlet run shows in place of the 8-seat lobby table. Pins: the stage's
- * opponent name + tribe emblem, "Round N / 10" (held at 10 once the final round is past), the Gauntlet's own loss
- * cap ("Max loss: 5" on round 3, "No cap" on round 9), your own Resolve, and NO seat list / scouting. Plus the
- * regression that the normal lobby rail still reads the normal cap table (round 8 → −15), and the combat opponent:
- * the stage's tribe emblem in place of the stand-in hero portrait, no hero power, no health pill, name kept.
- */
+ * GAUNTLET IN-RUN FOE — what a Gauntlet run floats on the right of the shop in place of the 8-seat lobby rail (owner
+ * ask 2026-09-29: no rail, just the opponent's portrait + name). Pins: the stage opponent's name + tribe emblem in a
+ * portrait disc, one "Round N / 10 · Max loss N" line (held at 10 once the final round is past; "No cap" on round 9),
+ * NO rail box, NO seat list / scouting and NO player Resolve. Plus the regression that the normal lobby rail still
+ * reads the normal cap table (round 8 → −15), and the combat opponent: the stage's tribe emblem in place of the
+ * stand-in hero portrait, no hero power, no health pill, name kept. */
 import { afterEach, describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -17,7 +17,7 @@ import { mount, type Mounted } from '../renderedText.mount';
 import { LobbyPanel } from '../LobbyPanel';
 import { CombatOpponent } from '../CombatOpponent';
 import { useGame } from '../store';
-import { GauntletPanel } from './GauntletPanel';
+import { GauntletFoe } from './GauntletFoe';
 
 let ui: Mounted | null = null;
 afterEach(() => { ui?.unmount(); ui = null; });
@@ -34,38 +34,35 @@ const atRound = (round: number): RunState => {
 
 const show = (run: RunState): HTMLElement => {
   act(() => { useGame.setState({ run }); });
-  ui = mount(<GauntletPanel lobby={run.lobby!} stage={run.gauntletStage} />);
+  ui = mount(<GauntletFoe />);
   return ui.container;
 };
 
-describe('GauntletPanel', () => {
-  it('shows the opponent, the round out of 10 and the Gauntlet cap, with no seat list', () => {
+describe('GauntletFoe', () => {
+  it('floats the opponent emblem + name with one round / cap line — no rail box, no seat list, no own health', () => {
     const run = atRound(3);
     const el = show(run);
-    expect(el.textContent).toContain('The Demon Host');
-    expect(el.textContent).toContain('Round 3 / 10');
-    expect(el.textContent).toContain('Max loss: 5');
-    expect(el.textContent).toContain(String(run.resolve));
-    expect(el.querySelector('.gauntletrail-emblem')).not.toBeNull();
-    // No scouting: no seat rows, no hover scout card, and no native tooltips.
-    expect(el.querySelector('.lobbyseat')).toBeNull();
-    expect(el.querySelector('.lobbyseats')).toBeNull();
+    expect(el.querySelector('.gauntletfoe-name')!.textContent).toBe('The Demon Host');
+    expect(el.querySelector('.gauntletfoe-portrait .gauntletfoe-emblem svg')).not.toBeNull();
+    expect(el.querySelector('.gauntletfoe-meta')!.textContent).toBe('Round 3 / 10 · Max loss 5');
+    // No rail chrome, no seats, no scouting, no player Resolve/Armor, no native tooltips.
+    expect(el.querySelector('.lobbyrail')).toBeNull();
+    expect(el.querySelector('.lobbyseat, .lobbyseats, .lobbyhp, .lobbyarmor')).toBeNull();
+    expect(el.textContent).not.toContain('You');
     expect(el.querySelector('[title]')).toBeNull();
-    const rail = el.querySelector('.lobbyrail')!;
-    act(() => { rail.dispatchEvent(new MouseEvent('mouseover', { bubbles: true, relatedTarget: document.body })); });
+    const foe = el.querySelector('.gauntletfoe')!;
+    act(() => { foe.dispatchEvent(new MouseEvent('mouseover', { bubbles: true, relatedTarget: document.body })); });
     expect(document.body.querySelector('.lobbyscout')).toBeNull();
   });
 
   it('reads "No cap" on the uncapped final rounds', () => {
     const el = show(atRound(9));
-    expect(el.textContent).toContain('Round 9 / 10');
-    expect(el.textContent).toContain('No cap');
-    expect(el.textContent).not.toContain('Max loss');
+    expect(el.querySelector('.gauntletfoe-meta')!.textContent).toBe('Round 9 / 10 · No cap');
   });
 
   it('holds the round at 10 once the final round is past', () => {
     const el = show(atRound(11));
-    expect(el.textContent).toContain('Round 10 / 10');
+    expect(el.querySelector('.gauntletfoe-meta')!.textContent).toMatch(/^Round 10 \/ 10 · /);
   });
 });
 

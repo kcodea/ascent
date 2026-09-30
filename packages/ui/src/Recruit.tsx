@@ -67,7 +67,7 @@ import { instView, liveCardText, type LiveTextParams } from './instView';
 import { diffHandBuffs, fireHandBuff, fireHandBuffOnHandSpells, fireHandBuffOnHandRubies } from './handBuffFx';
 import { HudBar } from './HudBar';
 import { LobbyPanel } from './LobbyPanel';
-import { GauntletPanel } from './gauntlet/GauntletPanel';
+import { GauntletFoe } from './gauntlet/GauntletFoe';
 import { TRIBE_ICON } from './gauntlet/tribeIcon';
 import { GAUNTLET_CLOCK_WAITING, gauntletClockState, gauntletClockWaiting, gauntletTurnClock } from './gauntlet/gauntletClock';
 import { CombatOpponent } from './CombatOpponent';
@@ -7364,10 +7364,11 @@ export function Recruit() {
       {/* LOBBY RAIL — the 8-seat table down the right edge of the stage. A direct child of `.app` (not the HUD
           bar) so it can be anchored to the STAGE height and run tall beside the board, instead of hanging off
           the top-right corner where it had to stay short and wide. */}
-      {/* A GAUNTLET run is a 2-seat table against one authored foe: it shows its own rail (opponent, round / 10,
-          the Gauntlet cap) and no seat list, so there is nothing to scout (GauntletPanel.tsx). */}
+      {/* A GAUNTLET run is a 2-seat table against one authored foe: no rail at all, just the opponent's emblem
+          portrait + name floating on the right (round / 10 + the Gauntlet cap under it), nothing to scout
+          (GauntletFoe.tsx; owner ask 2026-09-29). */}
       {run.lobby && (run.mode === 'gauntlet'
-        ? <GauntletPanel lobby={run.lobby} stage={run.gauntletStage} />
+        ? <GauntletFoe />
         : <LobbyPanel lobby={run.lobby} />)}
       {/* The foe's face for the duel — drops onto the Refresh button's anchor while the rail slides away
           (owner ask 2026-08-25). Self-gates on lobby + combat. Also the lunge target for the hero strike. */}

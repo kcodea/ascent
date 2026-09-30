@@ -389,7 +389,20 @@ progression **epoch**; nothing finished before the epoch counts (no backfill).
   mega-slash zips through the target EIGHT times, each in from the far side of the screen on its own line,
   accelerating into a blur (each zip a tick) and flinging blood that piles up across the whole screen, a beat of held
   tension, and a huge bloody explosion that paints the screen in blood and fades out, the blow landing on the
-  explosion; the claw rakes before it sweep wide lines too). **Card Shark** and
+  explosion; the claw rakes before it sweep wide lines too). **Nothing But Net** is the fourteenth,
+  `attack_basketball` ("Nothing But Net", a placeholder name; Legendary, from crates; R-PROG-ATTACK-33): the striking
+  PORTRAIT plays basketball, drawn flat, with a hoop (backboard, rim, net) appearing on the struck hero. A referee's
+  whistle opens every tier. I the jumper: a dribble where it stands, a small jump, a high arcing shot with backspin that
+  swishes through the net (the blow lands on the swish). II the fadeaway: it dribbles out to mid court, pushes off
+  backwards and to the side with more room, releases at the top of the fade, swish (a small crowd "ooh"), and slides
+  home. III the pull-up three: it scoots straight up court from its slot (down court for a foe striking from the top), a
+  pass flies in from off the right edge of the screen and it catches it, pump fakes, dribbles back and pulls up for a
+  long high three that swishes (a bigger swish, rings, confetti and the crowd's "ooh"), then slides home. IV the self
+  alley-oop: it chucks the ball high from its slot, runs up to half court, leaps from there, catches the ball in the air
+  above the struck hero and slams it down: the backboard shatters, shockwave rings, confetti, the whole board shakes,
+  the crowd roars (the blow lands on the slam). Sneaker squeaks on every push-off and stop, dribbles, the swish, the
+  rim and the slam are heard. Every point it visits stays on screen and every shot and slam lands on the struck hero's
+  centre; its portrait is restored exactly after (on the end, a skip or leaving the fight). **Card Shark** and
   **Storm Call** (2026-09-29; R-PROG-ATTACK-26, R-PROG-ATTACK-27) are the first EPIC hero attacks: one idea each, shorter
   than the Legendaries, and THREE looks instead of four (they read the same shared tier and map it: I small, II and III
   medium, IV big; a knockout plays big). `attack_cards` ("Card Shark", a placeholder name; Epic, from crates): the hero
@@ -412,7 +425,7 @@ progression **epoch**; nothing finished before the epoch counts (no backfill).
   a big one with a splash ring. `attack_backstab` ("Shadow Step"): the striking PORTRAIT fades into smoke, steps out
   behind the struck hero and stabs back toward its own side, then smokes home and settles; Big lunges first, then stabs
   from the side, then from behind (kept on screen, always striking the target; its portrait restored exactly after).
-  Each lands the blow once, on its last hit. All nineteen anchor on the round portrait art at rest
+  Each lands the blow once, on its last hit. All twenty anchor on the round portrait art at rest
   (R-PROG-ATTACK-04). Equipped
   account-wide in the Collection's Attack Animations tab ("Use Classic" takes it off). The STRIKER's attack plays:
   yours when you win, the opponent's (from their recorded snapshot) when they win. Recorded per run like skins;

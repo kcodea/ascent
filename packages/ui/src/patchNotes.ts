@@ -60,6 +60,18 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: 'New Legendary hero attack: Nothing But Net. Your hero plays basketball on the loser.',
+        details: [
+          'Small: a jump shot from where your hero stands, swishing through a hoop on the target.',
+          'Tier II: a slide to mid court and a fadeaway jumper.',
+          'Tier III: your hero scoots up, catches a pass from off screen, pump fakes, steps back and drains a three.',
+          'Huge: your hero throws the ball up, runs to half court, leaps, catches it in the air and slams it home. The backboard shatters.',
+          'With a whistle, dribbles, squeaking sneakers, the swish, the rim and the crowd.',
+          'Found in crates. Equip it in the Collection.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'Opponents are now picked at random from every whole game in the pool.',
         details: [
           'Each opponent plays the game they really played, round by round, from their first round to their last.',

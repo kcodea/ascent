@@ -32,6 +32,7 @@ import { playHeroCoin } from '../heroCoin/heroCoin';
 import { playHeroBoomerang } from '../heroBoomerang/heroBoomerang';
 import { playHeroBubble } from '../heroBubble/heroBubble';
 import { playHeroBackstab } from '../heroBackstab/heroBackstab';
+import { playHeroBasketball } from '../heroBasketball/heroBasketball';
 import { heroStrikeDamage, heroStrikeKnockout } from '../heroBlast/heroStrikeDamage';
 
 describe('attackTier: the one shared tier rule', () => {
@@ -85,6 +86,7 @@ describe('every style plays its Tier IV on a knockout blow of 3, and Tier I on a
     ['boomerang', (o) => playHeroBoomerang({ ...o, textures: null })],
     ['bubble', (o) => playHeroBubble({ ...o, textures: null })],
     ['backstab', (o) => playHeroBackstab({ ...o, textures: null })],
+    ['basketball', (o) => playHeroBasketball({ ...o, textures: null })],
   ];
 
   it('the cosmetic styles', () => {

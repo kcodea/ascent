@@ -2385,7 +2385,7 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'attack_bleed ("Hemorrhage", Legendary, style bleed: R-PROG-ATTACK-21), joined the same day under the same fixed odds, '
       + 'making Legendary sixteen items at 0.3125% each and the thirteen attacks together 4.06%. The four Rare attacks '
       + '(attack_coin, attack_boomerang, attack_bubble, attack_backstab: R-PROG-ATTACK-28 to 32) made Rare seventeen items '
-      + 'at 1.765% each; every hero attack together is now 11.1% of a first crate.',
+      + 'at 1.765% each; every hero attack together is now 11.1% of a first crate. The fourteenth Legendary, attack_basketball ("Nothing But Net", style basketball: R-PROG-ATTACK-33), made Legendary seventeen items at 0.294% each (2026-09-29).',
     domain: 'foundation',
     status: 'approved',
     evidence: [
@@ -3260,6 +3260,40 @@ export const FOUNDATION_RULES: GameRule[] = [
     ],
     currentBehaviour: 'Conforms, built 2026-09-29.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/heroBackstab/heroBackstab.test.ts', 'packages/progression/src/cosmetics.test.ts', 'packages/ui/src/heroAttack/damageFormation.test.ts'], lastVerifiedAt: '2026-09-29' },
+  },
+  {
+    id: 'R-PROG-ATTACK-33',
+    title: 'Nothing But Net (attack_basketball, Legendary): the striking PORTRAIT plays basketball: a jump shot / a fadeaway / a pull-up three off a pass / a self alley-oop from half court; the blow lands ONCE on the swish or the slam; the portrait is always restored',
+    statement:
+      'attack_basketball ("Nothing But Net", a placeholder name; Legendary, crate, account-wide, style basketball): after the '
+      + 'shared damage formation (R-PROG-ATTACK-08) a referee\x27s whistle sounds and the striking hero\x27s own PORTRAIT '
+      + 'moves (as Classic, Enraged and Shadow Step do), with a hoop (backboard, rim, net) drawn on the struck hero, flat 2D. '
+      + 'It escalates on the shared tiers (thresholds 6 / 12 / 20; a knockout plays IV, R-PROG-ATTACK-20): I the jumper (a '
+      + 'dribble where it stands, a small jump, a high arcing shot with backspin that swishes); II the fadeaway (it dribbles '
+      + 'out to mid court, pushes off BACKWARDS and to the side with more room, releases at the top of the fade, swish, a '
+      + 'small crowd "ooh", slides home); III the pull-up three (it scoots STRAIGHT up court from its slot, down court for a '
+      + 'foe striking from the top; a PASS flies in from off the RIGHT edge of the screen and is caught; a PUMP FAKE; it '
+      + 'DRIBBLES BACK and pulls up for a long high three that swishes with rings, confetti and the crowd\x27s "ooh", then '
+      + 'slides home); IV the self alley-oop (it CHUCKS the ball high from its slot, RUNS UP to half court, LEAPS from there, '
+      + 'CATCHES it in the air above the struck hero and SLAMS it down: the backboard shatters, shockwave rings, confetti, '
+      + 'the whole board shakes, rim + slam + a loud crowd "ooh" and a cheer). Dribbles, sneaker squeaks on the push-offs, '
+      + 'stops and take-offs, the swish, the rim and the slam are heard; every cue has its own clip / gain / pitch dial. '
+      + 'The consequence (the damage, Armor, Resolve) lands exactly ONCE: on the swish (I-III) or the slam (IV); the pass, '
+      + 'the pump fake, the chuck and the catch never touch the target. Every point the portrait visits is kept on screen '
+      + '(a catch above a target tucked in a corner swings round it toward the middle of the screen) and every shot and '
+      + 'slam lands on the struck hero\x27s centre. The striker is raised over the target (the .duel-attacker-* z-order) '
+      + 'for the whole attack, and its transform, opacity and z-order class are restored exactly, and the ball, shadows and '
+      + 'hoop hidden, on every exit (the end, finish, cancel, the safety timer, an unmount). No hit-stop or freeze '
+      + '(R-PROG-ATTACK-10); presentation only; reduced motion is fades only.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-29 (the basketball attack, relayed by the coordinator)', quote: 'branch off and make a basketball attack animation. tier 1 = basketball shot from place / tier 2 = a fadeaway, the attacker hero slides to mid court, then slides to the left or right kind backwards and shoots a basketball at the target' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-29 (Basketball review, relayed by the coordinator)', quote: 'the fadeaway is the best, let\x27s make the tier 3 another like it - let\x27s have the attacker scoot straight upwards and get a pass thrown to him from off-screen from the right side and he pump fakes, dribbles back and then pulls up for a 3. for the huge self alley oop - have the attacker chuck the ball from its starting position, and then run up and leap from half court, catching the ball and massively slamming on the target.' },
+      { kind: 'code', ref: 'packages/progression/src/cosmetics.ts (attack_basketball); packages/ui/src/heroBasketball/ (basketballPlan / basketballCues / basketballGeo / fitDir / poseSegs / basketballPose / basketballBall / hoopAt / basketballCameraAt, playHeroBasketball, HeroBasketballScene, heroBasketballTextures); packages/ui/src/audio/fx/bball-*.mp3' },
+    ],
+    currentBehaviour: 'Conforms, built 2026-09-29. The item reaches the database on the next deploy of progression-inventory (the catalog sync); the equip SQL already accepts the hero_attack slot.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/heroBasketball/heroBasketball.test.ts', 'packages/progression/src/cosmetics.test.ts', 'packages/ui/src/progression/CollectionHeroAttack.test.tsx', 'packages/ui/src/heroAttack/damageFormation.test.ts', 'packages/ui/src/heroAttack/stageCamera.test.ts', 'packages/ui/src/heroAttack/knockoutTier.test.ts'], lastVerifiedAt: '2026-09-29' },
   },
   {
     id: 'R-PROG-ATTACK-25',

@@ -5,7 +5,7 @@
   "focus": "ARCHITECTURE ONLY — how the game is coded/structured. NEVER ask game-rules questions (see daily-prompt.md).",
   "difficulty": 1,
   "difficultyScale": "1 = gentlest (what is a function, what is a package). 5 = deep (trace an event through the architecture). Ramp only per the rules in daily-prompt.md.",
-  "totalQuizzes": 48,
+  "totalQuizzes": 49,
   "recentScores": [],
   "topics": {
     "what-is-a-function": {
@@ -49,44 +49,44 @@
       "lastAsked": "2026-09-29"
     },
     "reducer-run-state": {
-      "asked": 23,
-      "lastAsked": "2026-09-28"
+      "asked": 24,
+      "lastAsked": "2026-09-30"
     },
     "zustand-store": {
-      "asked": 23,
-      "lastAsked": "2026-09-28"
+      "asked": 24,
+      "lastAsked": "2026-09-30"
     },
     "event-bus": {
-      "asked": 23,
-      "lastAsked": "2026-09-28"
+      "asked": 24,
+      "lastAsked": "2026-09-30"
     },
     "cards-in-sets": {
-      "asked": 23,
-      "lastAsked": "2026-09-28"
+      "asked": 24,
+      "lastAsked": "2026-09-30"
     },
     "package-boundaries": {
-      "asked": 23,
-      "lastAsked": "2026-09-28"
+      "asked": 24,
+      "lastAsked": "2026-09-30"
     },
     "effects-as-subscriptions": {
-      "asked": 23,
-      "lastAsked": "2026-09-28"
+      "asked": 24,
+      "lastAsked": "2026-09-30"
     },
     "effect-timing-pipeline": {
-      "asked": 23,
-      "lastAsked": "2026-09-28"
+      "asked": 24,
+      "lastAsked": "2026-09-30"
     },
     "testing-vitest": {
-      "asked": 23,
-      "lastAsked": "2026-09-28"
+      "asked": 24,
+      "lastAsked": "2026-09-30"
     },
     "types-basics": {
-      "asked": 23,
-      "lastAsked": "2026-09-28"
+      "asked": 24,
+      "lastAsked": "2026-09-30"
     },
     "immutability": {
-      "asked": 23,
-      "lastAsked": "2026-09-28"
+      "asked": 24,
+      "lastAsked": "2026-09-30"
     }
   },
   "curriculum": [
@@ -1110,6 +1110,25 @@
       ],
       "scored": null,
       "note": "Still no score ever reported by Mike (48 quizzes in), so mastery/difficulty stayed at 1/untouched. Picked this topic group (lastAsked 2026-09-27) over the other group (lastAsked 2026-09-28) to keep the spaced two-group rotation going. Read the three most recent archives on this exact topic set (2026-09-23, 2026-09-25, 2026-09-27) to see which angles were already used, then read live source myself for ten fresh, unused facts: `alignmentAt(count, index)` in sim/src/alignment.ts, whose doc comment calls it \"Pure arithmetic — no board needed\" (what-is-a-function); opponents.ts's own honest \"determinism scope\" comment — byte-identical WITHIN a session, but the live Supabase-fetched pool can legitimately differ ACROSS sessions, which is a different input, not a broken promise (deterministic-sim); rng.ts's `|0`/`>>>0` coercions forcing mulberry32's math to stay in real 32-bit-integer range despite JS having no native int type (seeded-rng); core/src/presentation/policies.ts's 654-entry effect-classification registry living in `core` (not `ui`), with `presentationPolicies.test.ts` as a CI tripwire against an unclassified effect (sim-ui-decoupling); packages/core/package.json having NO `dependencies` key at all — the base of the monorepo's dependency graph, contrasted with content/sim/ui/tools all depending on `@game/core` (monorepo-packages); `hasTier7Access` in sim/src/config.ts being built entirely from calling the already-pure `maxTierFor` on its own inputs, illustrating that purity composes (pure-functions); a real card entry (`d2_embermouth`) from content/src/cards/set2/dragons.ts as a plain object literal with zero custom code (data-vs-code); the `death` CombatEvent's `rise?: true` field in types.ts, stamped by the simulator so the replayer never has to re-derive \"was this a real kill\" itself (event-log-replay); eslint.config.mjs's `.claude/**` ignore entry and its reasoning — a gitignored, per-machine folder that no PR could ever fix, so leaving it linted would fail clean PRs for unrelated reasons (eslint-rules); and docs/performance.md's shader.destroy(true) story — a 160ms GLSL recompile freeze caused by \"responsible\" cleanup evicting a SHARED program cache, with the doc's own rule quoted directly (performance-memo). Verified all ten facts by reading the live source directly (packages/sim/src/alignment.ts, packages/sim/src/opponents.ts, packages/core/src/rng.ts, packages/core/src/presentation/policies.ts, packages/core/package.json + packages/content/package.json + packages/sim/package.json + packages/ui/package.json + packages/tools/package.json, packages/sim/src/config.ts, packages/content/src/cards/set2/dragons.ts, packages/core/src/types.ts, eslint.config.mjs, docs/performance.md). Answer letters: A,C,B,D,A,C,D,B,A,C (3xA, 2xB, 3xC, 2xD, no consecutive repeats). Verified the embedded QUESTIONS array parses as valid JS (10 questions, 4 choices each, in-range unique answer, all 10 topicIds present and unique, no duplicates) via a node script before publishing. Published as an interactive Artifact and archived to docs/quiz/archive/2026-09-29.html."
+    },
+    {
+      "date": "2026-09-30",
+      "quizNumber": 49,
+      "difficulty": 1,
+      "topics": [
+        "reducer-run-state",
+        "zustand-store",
+        "event-bus",
+        "cards-in-sets",
+        "package-boundaries",
+        "effects-as-subscriptions",
+        "effect-timing-pipeline",
+        "testing-vitest",
+        "types-basics",
+        "immutability"
+      ],
+      "scored": null,
+      "note": "Still no score ever reported by Mike (49 quizzes in), so mastery/difficulty stayed at 1/untouched. Read the three most recent archives on this exact topic group (2026-09-24, 2026-09-26, 2026-09-28) first and found 2026-09-28 had asked several of these topics at nearly the same generic beginner framing (\"what is a reducer/Zustand/union type\"), so rewrote those with fresh, more specific facts grounded in live source instead: state.ts COMBAT_FLOW_ACTIONS + isPlayerAction filtering automatic combat-flow transitions out of the actions-per-round stat (reducer-run-state); store.ts resetCareer using the function form of Zustand set() because careerVersion+1 depends on current state, vs continueRun's plain-object set() (zustand-store); events.ts's own doc comment on CombatBus warning about unbounded emit cascades and the simulator's iteration guard (event-bus); sim/package.json's exports map pointing at src/index.ts as the actual file CLAUDE.md means by \"public entrypoint\" (package-boundaries); schema.ts's .strict() on CardDefSchema turning a typo'd optional key into a loud validation failure instead of a silent no-op (effects-as-subscriptions); CombatContext's rng/bus/boards/events fields as the concrete reason combat-time effects need a context object that recruit-phase effects don't (effect-timing-pipeline); and a real e.type==='death' narrowing example from ui/src/useCombatReplay.ts:303 instead of an abstract union-type definition (types-basics). Kept cards-in-sets (set pinning), testing-vitest (golden test vs the game's own Gold currency as a name-collision trap), and immutability (CardDef sharing) as originally drafted since those angles were already fresh against the three checked archives. Verified the embedded QUESTIONS array parses as valid JS (10 questions, 4 choices each, in-range unique answer, all 10 topicIds present and unique) via a node script, then rebalanced which letter is correct per question (originally all defaulted to A) to C,A,D,B,C,A,D,B,C,A (3xA, 2xB, 3xC, 2xD, no consecutive repeats) — and rewrote every explanation's letter-based distractor callout (\"B is wrong\", \"D is a distractor\") as a content-based callout so the reasoning stays correct regardless of choice order. Verified the array again after reordering. Published as an interactive Artifact and archived to docs/quiz/archive/2026-09-30.html."
     }
   ],
   "notes": "2026-08-15: refocused to ARCHITECTURE ONLY per Mike — removed game-rules topics (shop-vs-combat, auto-battler-loop) and expanded the code-architecture curriculum. Do not quiz on game rules; see the hard constraint in daily-prompt.md."

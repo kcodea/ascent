@@ -1,0 +1,538 @@
+<title>Ascent Quiz #49 — 2026-09-30</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  /* Layout: one question-card at a time, centered column, progress rail up top, score chip pinned corner */
+  :root {
+    --bg: #f4f2ec;
+    --surface: #ffffff;
+    --surface-2: #ece8dd;
+    --border: #ddd6c4;
+    --fg: #26221a;
+    --muted: #6f6858;
+    --accent: #8a5a1f;
+    --accent-2: #b9852f;
+    --good: #2f7a4f;
+    --good-bg: #e3f3e7;
+    --bad: #b0402f;
+    --bad-bg: #fbe7e2;
+    --font-display: 'Cinzel', Georgia, serif;
+    --font-body: 'Inter', system-ui, -apple-system, sans-serif;
+    --font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #17140f;
+      --surface: #221e17;
+      --surface-2: #2c2619;
+      --border: #423a29;
+      --fg: #f1ecdf;
+      --muted: #b3a88f;
+      --accent: #d9a34a;
+      --accent-2: #e8bd6f;
+      --good: #6fce93;
+      --good-bg: #1c3324;
+      --bad: #ef8271;
+      --bad-bg: #3a201b;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #17140f;
+    --surface: #221e17;
+    --surface-2: #2c2619;
+    --border: #423a29;
+    --fg: #f1ecdf;
+    --muted: #b3a88f;
+    --accent: #d9a34a;
+    --accent-2: #e8bd6f;
+    --good: #6fce93;
+    --good-bg: #1c3324;
+    --bad: #ef8271;
+    --bad-bg: #3a201b;
+    color-scheme: dark;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    background: var(--bg);
+    color: var(--fg);
+    font-family: var(--font-body);
+    margin: 0;
+    padding-inline: 16px;
+    padding-block: max(24px, env(safe-area-inset-top, 0px)) max(32px, env(safe-area-inset-bottom, 0px));
+    display: flex;
+    justify-content: center;
+    min-height: 100%;
+  }
+  main {
+    width: 100%;
+    max-width: 640px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  header.top {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .eyebrow {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  h1 {
+    font-family: var(--font-display);
+    font-size: clamp(22px, 5vw, 28px);
+    margin: 2px 0 0;
+    text-wrap: balance;
+    color: var(--fg);
+  }
+  .score-chip {
+    font-family: var(--font-mono);
+    font-weight: 500;
+    font-size: 14px;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    padding: 6px 14px;
+    color: var(--fg);
+    white-space: nowrap;
+  }
+  .score-chip b { color: var(--accent); font-weight: 700; }
+
+  .progress-rail {
+    display: flex;
+    gap: 5px;
+  }
+  .progress-rail .seg {
+    flex: 1;
+    height: 6px;
+    border-radius: 3px;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    overflow: hidden;
+  }
+  .progress-rail .seg > i {
+    display: block;
+    height: 100%;
+    width: 0%;
+    background: var(--accent-2);
+  }
+  .progress-rail .seg.done > i { width: 100%; background: var(--good); }
+  .progress-rail .seg.wrong > i { width: 100%; background: var(--bad); }
+  .progress-rail .seg.current > i { width: 100%; background: var(--accent-2); }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 22px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  .topic-tag {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--accent);
+    background: var(--good-bg);
+    background: color-mix(in srgb, var(--accent) 14%, var(--surface));
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 3px 8px;
+    align-self: flex-start;
+  }
+  .question-text {
+    font-size: 18px;
+    line-height: 1.5;
+    margin: 0;
+  }
+  .question-text code {
+    font-family: var(--font-mono);
+    font-size: 0.88em;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 1px 5px;
+  }
+
+  .choices {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .choice {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    text-align: left;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 13px 14px;
+    font: inherit;
+    font-size: 15px;
+    color: var(--fg);
+    cursor: pointer;
+    transition: border-color 0.12s ease, transform 0.06s ease;
+    min-width: 0;
+  }
+  .choice:hover:not(:disabled) {
+    border-color: var(--accent-2);
+  }
+  .choice:active:not(:disabled) { transform: scale(0.995); }
+  .choice:disabled { cursor: default; }
+  .choice .letter {
+    font-family: var(--font-mono);
+    font-weight: 600;
+    flex-shrink: 0;
+    width: 22px;
+    height: 22px;
+    border-radius: 6px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+  }
+  .choice .label { min-width: 0; overflow-wrap: break-word; }
+  .choice.correct {
+    background: var(--good-bg);
+    border-color: var(--good);
+  }
+  .choice.correct .letter { background: var(--good); border-color: var(--good); color: var(--surface); }
+  .choice.incorrect {
+    background: var(--bad-bg);
+    border-color: var(--bad);
+  }
+  .choice.incorrect .letter { background: var(--bad); border-color: var(--bad); color: var(--surface); }
+  .choice.faded { opacity: 0.55; }
+
+  .explanation {
+    display: none;
+    font-size: 14.5px;
+    line-height: 1.6;
+    color: var(--muted);
+    background: var(--surface-2);
+    border-left: 3px solid var(--accent);
+    border-radius: 0 8px 8px 0;
+    padding: 13px 16px;
+  }
+  .explanation.show { display: block; }
+  .explanation b { color: var(--fg); }
+  .explanation code {
+    font-family: var(--font-mono);
+    font-size: 0.9em;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 1px 5px;
+    color: var(--fg);
+  }
+
+  .next-row {
+    display: flex;
+    justify-content: flex-end;
+  }
+  .next-btn {
+    font: inherit;
+    font-weight: 600;
+    font-size: 14px;
+    background: var(--accent);
+    color: #fff8ec;
+    border: none;
+    border-radius: 8px;
+    padding: 10px 20px;
+    cursor: pointer;
+    display: none;
+  }
+  .next-btn.show { display: inline-flex; align-items: center; gap: 6px; }
+  .next-btn:hover { background: var(--accent-2); }
+
+  .final-card {
+    display: none;
+    text-align: center;
+    gap: 14px;
+  }
+  .final-card.show { display: flex; }
+  .final-score {
+    font-family: var(--font-display);
+    font-size: 48px;
+    color: var(--accent);
+  }
+  .final-line { font-size: 16px; color: var(--muted); line-height: 1.6; }
+  .final-topics {
+    font-family: var(--font-mono);
+    font-size: 12.5px;
+    color: var(--muted);
+    border-top: 1px solid var(--border);
+    padding-top: 14px;
+    line-height: 1.8;
+    text-align: left;
+  }
+  footer.foot {
+    text-align: center;
+    font-size: 12px;
+    color: var(--muted);
+  }
+</style>
+
+<main>
+  <header class="top">
+    <div>
+      <div class="eyebrow">Daily Ascent Code Quiz</div>
+      <h1 id="pageTitle">Ascent Quiz #49</h1>
+    </div>
+    <div class="score-chip">Score <b id="scoreNow">0</b> / 10</div>
+  </header>
+
+  <div class="progress-rail" id="progressRail"></div>
+
+  <section class="card" id="quizCard"></section>
+
+  <section class="card final-card" id="finalCard">
+    <div class="eyebrow">Quiz complete</div>
+    <div class="final-score" id="finalScore">0 / 10</div>
+    <div class="final-line" id="finalLine"></div>
+    <div class="final-topics" id="finalTopics"></div>
+  </section>
+
+  <footer class="foot">Ascent architecture quiz · 2026-09-30 · reply with your score to tune tomorrow's difficulty</footer>
+</main>
+
+<script>
+(function () {
+  var QUESTIONS = [
+    {
+      topicId: 'reducer-run-state',
+      question: "packages/sim/src/state.ts defines <code>const COMBAT_FLOW_ACTIONS = new Set&lt;Action['type']&gt;(['faceOmen', 'settleCombat', 'resolveCombat'])</code>, then <code>export const isPlayerAction = (a: Action) =&gt; !COMBAT_FLOW_ACTIONS.has(a.type)</code>. Every one of these still flows through the exact same <code>reduce(state, action)</code>. Why bother telling them apart at all?",
+      choices: [
+        'Because only player actions are allowed to change RunState — combat-flow actions are read-only',
+        'Because faceOmen, settleCombat and resolveCombat run in a different package than buy/sell/roll',
+        'Some actions are automatic combat-flow transitions the engine dispatches every round no matter what the player does, so a stat like "actions per round" needs to exclude them to actually measure player decisions',
+        'Because TypeScript requires every Set to be built from exactly one Action variant'
+      ],
+      answer: 2,
+      explanation: "The source comment says it directly: these three fire ~once per round regardless of how the player builds, so they're excluded from a stat that's meant to measure player decisions. The \"read-only\" idea is wrong: combat-flow actions absolutely write to RunState too, through the exact same <code>reduce</code> function as everything else. This is a general lesson for any event-driven system: not every event flowing through your handler was caused by the user, so if you want to measure USER behavior specifically, you have to tag which events actually were."
+    },
+    {
+      topicId: 'zustand-store',
+      question: "In packages/ui/src/store.ts, <code>resetCareer</code> calls <code>set((s) =&gt; ({ ...s, careerVersion: s.careerVersion + 1 }))</code> — passing Zustand's <code>set()</code> a FUNCTION. Most other actions, like <code>continueRun</code>, just call <code>set({ showTitle: false, ... })</code> with a plain object. Why does <code>resetCareer</code> need the function form?",
+      choices: [
+        'The new value (<code>careerVersion + 1</code>) depends on the CURRENT state, so the function form hands you the state at the exact moment the update runs, instead of a value some surrounding code captured earlier that might already be stale',
+        "Because plain object literals aren't allowed to contain more than two keys",
+        "Because resetCareer runs outside of React, so set() requires the function form there",
+        'Because Zustand requires alternating between the object and function forms on every other call'
+      ],
+      answer: 0,
+      explanation: "Whenever a new value depends on the OLD one, you want the function form: it guarantees you're computing from the freshest state, not a snapshot taken earlier that other code might have already changed. <code>continueRun</code>'s updates don't need this because none of its new values depend on the current ones — they're just flat replacements. This is the same reasoning behind React's own <code>setState(prev =&gt; ...)</code> updater form."
+    },
+    {
+      topicId: 'event-bus',
+      question: "packages/core/src/events.ts's doc comment on <code>CombatBus</code> says: \"Handlers may themselves cause emits (a Deathrattle summon → onSummon); the simulator's iteration guard bounds any cascade.\" What real risk is that guarding against?",
+      choices: [
+        'Two different minions accidentally registering handlers under the exact same event name',
+        'The bus running out of memory because it stores every event that has ever fired, forever',
+        "A race condition between two players' browsers emitting events at the same time",
+        'A handler reacting to an event could trigger ANOTHER event, whose handler triggers another, and so on — an unbounded chain reaction that could hang the game if nothing capped it'
+      ],
+      answer: 3,
+      explanation: "A Deathrattle that summons a minion fires <code>onSummon</code>, which might trigger another minion's reactive effect, which might trigger something else — a cleverly built board could chain-react indefinitely without a cap. This is a general lesson for any event-driven system: the moment a handler can cause MORE of the same kind of event, you need a circuit breaker, not just faith that it'll terminate on its own. The multiplayer-race-condition answer is a distractor — nothing during combat is networked; everything here happens inside one local <code>simulate()</code> call."
+    },
+    {
+      topicId: 'cards-in-sets',
+      question: "packages/content/src/sets.ts defines <code>SETS: Record&lt;SetId, SetDef&gt;</code>, and a run reads its cards through <code>poolOf(state)</code>. CLAUDE.md says a run \"PINS its set at creation.\" Why does that matter?",
+      choices: [
+        'Because each set needs its own random number generator seed',
+        "So flipping which set is \"active\" (like a live rift) can never change the cards an already-started or already-recorded run sees, even on replay",
+        'Because TypeScript will not compile unless every run declares a literal SetId',
+        'So the UI can pick a different background color per set'
+      ],
+      answer: 1,
+      explanation: 'CLAUDE.md says it plainly: a run pins its set at creation and reads it via <code>poolOf(state)</code> forever after, so flipping the switch never changes an in-flight or replayed run. That is why <code>RunState</code> stores its own <code>setId</code> instead of always asking "what is active right now?" — otherwise a replay watched later could show different cards than the ones actually drawn.'
+    },
+    {
+      topicId: 'package-boundaries',
+      question: 'packages/sim/package.json declares <code>"exports": { ".": "./src/index.ts" }</code>, and that <code>src/index.ts</code> re-exports the pieces other packages are meant to use (<code>export * from \'./state\'</code>, etc.). When CLAUDE.md says UI must import through "public package entrypoints only," which file is it pointing at?',
+      choices: [
+        '<code>package.json</code> itself, which UI is expected to <code>import</code> directly',
+        'Any file in the package that begins with the word <code>export</code>',
+        "The package's own <code>src/index.ts</code> — the one file whose exports make up that package's public surface, as opposed to reaching straight into a file like <code>reducer.ts</code> that index.ts doesn't re-export",
+        "<code>apps/web/src/main.tsx</code>, since that's where the whole app boots"
+      ],
+      answer: 2,
+      explanation: "<code>index.ts</code> is a deliberate, curated re-export list — the package's public surface. Reaching past it into an internal file it doesn't re-export is called \"leaking the boundary\": UI would now depend on an implementation detail the owning package is free to rename or restructure at any time, silently breaking UI elsewhere. The <code>package.json</code> answer is a trap — the manifest just points Node/TypeScript AT <code>index.ts</code>; nothing imports the manifest file itself."
+    },
+    {
+      topicId: 'effects-as-subscriptions',
+      question: "packages/content/src/schema.ts marks <code>CardDefSchema</code> with <code>.strict()</code>, and a comment explains: a typo'd optional key would otherwise validate silently and the card would ship without the feature. What problem does <code>.strict()</code> actually solve?",
+      choices: [
+        'Zod rejects any key on a card object that is not explicitly declared in the schema, so a misspelled field like <code>goldentext</code> fails loudly at validation time instead of silently doing nothing',
+        'It makes the schema validate faster by skipping unnecessary checks',
+        'It prevents two different cards from sharing the same id',
+        'It converts every field on the card into a required field'
+      ],
+      answer: 0,
+      explanation: "Without <code>.strict()</code>, Zod would just ignore an extra, misspelled key — the card would validate FINE, ship, and simply not have the feature its author thought they'd added, with no error anywhere. <code>.strict()</code> turns that silent failure into an immediate, loud one. General lesson: a schema that only checks the fields it already knows about can hide typos forever — a \"no extra properties\" mode like this is how you close that gap. This is exactly why cards can safely stay pure data (<code>{ on, do, params }</code>) instead of hand-written classes: the schema is strict enough to catch the mistakes a class's compiler would otherwise catch for you."
+    },
+    {
+      topicId: 'effect-timing-pipeline',
+      question: "Combat-time effects (Deathrattle, Start-of-Combat) all run through a <code>CombatContext</code> argument carrying <code>rng</code>, <code>bus</code> (the CombatBus), <code>boards</code>, and <code>events</code>. Recruit-phase effects (Battlecry, buff-on-summon) need none of that — they just adjust the board directly. Why the difference?",
+      choices: [
+        'Combat-time effects are written by a different engineer than recruit-phase effects',
+        '<code>CombatContext</code> is only a TypeScript type, so it does not change what the code actually does at runtime',
+        'Recruit-phase effects run in the UI package while combat-time effects run in core',
+        "Combat-time effects run inside one deterministic <code>simulate()</code> call that must produce a replayable event log and react to a live bus of in-combat triggers — none of which exists yet during the shop phase; recruit-phase effects just adjust a minion's stats on the spot"
+      ],
+      answer: 3,
+      explanation: "A recruit-phase Battlecry just needs a board to adjust. A combat-time effect needs the whole apparatus of a live, seeded fight in progress: something to draw randomness from (<code>rng</code>), something to react to other effects through (<code>bus</code> — the cascade-guarded CombatBus from an earlier question), and something to record into so the fight can be replayed later (<code>events</code>, the CombatEvent log). The UI/core split answer is wrong: both recruit and combat effects live in <code>content</code>/<code>core</code>/<code>sim</code> — the UI only ever animates the finished event log afterward, it never computes any of this."
+    },
+    {
+      topicId: 'testing-vitest',
+      question: '<code>npm test</code> runs Vitest suites CLAUDE.md calls "determinism + golden tests." What is a "golden test" actually checking?',
+      choices: [
+        'That the in-game Gold economy numbers are correctly balanced',
+        'That a specific, already-known input produces the EXACT same recorded output every time — so any accidental change to engine behavior gets caught immediately',
+        "That the UI's yellow/gold color theme renders correctly",
+        "That the RNG seed used in the test happens to equal the number \"gold\""
+      ],
+      answer: 1,
+      explanation: '"Golden" here is a general software-testing term (a stored "golden" reference output) — nothing to do with the game\'s Gold currency, which is exactly why the Gold-economy and RNG-seed-literally-"gold" answers are tempting name-collisions. A golden test locks in a known-correct result (say, one specific combat\'s event log) and fails loudly the moment a future change makes the engine produce something different, even a change nobody meant to make.'
+    },
+    {
+      topicId: 'types-basics',
+      question: "packages/ui/src/useCombatReplay.ts has code like <code>else if (e.type === 'death') { ... }</code>, and inside that block it safely reads <code>e.target</code> and <code>e.rise</code> — fields that only exist on the 'death' variant of the <code>CombatEvent</code> union in types.ts. What actually makes that safe?",
+      choices: [
+        'TypeScript trusts the surrounding code automatically, with no real type checking involved',
+        '<code>e.target</code> and <code>e.rise</code> are optional on every single CombatEvent variant, so they are always safe to read',
+        "Every variant of the union shares a <code>type</code> field with its own literal value ('attack', 'death', 'summon', …), so once TypeScript sees <code>e.type === 'death'</code> is true, it knows exactly which variant's extra fields are now available",
+        "useCombatReplay.ts casts <code>e</code> to <code>any</code> before checking <code>e.type</code>"
+      ],
+      answer: 2,
+      explanation: 'This is what "discriminated union" means in practice: the shared <code>type</code> field is the discriminant, and TypeScript\'s control-flow analysis narrows <code>e</code> down to just the \'death\' shape inside that branch — so <code>e.rise</code> is only reachable where it can actually exist. The "always optional" answer is the tempting wrong one, but if <code>rise</code> were optional on every variant you would LOSE protection: nothing would stop you from typo-reaching for a field that only some other variant has.'
+    },
+    {
+      topicId: 'immutability',
+      question: 'CLAUDE.md says: "Never mutate shared CardDefs — clone into combat Minion instances." What actually goes wrong if you skip the clone and just edit a CardDef directly?',
+      choices: [
+        'A CardDef is the ONE shared definition every copy of that card points to — editing it directly would leak the change into every other copy of that card on every board, everywhere, not just the minion you meant to buff',
+        'Nothing goes wrong at runtime — it is purely a stylistic preference with no real consequence',
+        'CardDefs are stored as read-only files on disk, so the code physically cannot change them',
+        'Minion objects are smaller in memory than CardDefs, so cloning is only about saving space'
+      ],
+      answer: 0,
+      explanation: "There is exactly one CardDef object for a given card — every copy on every board, in every shop, in every run, points at the SAME object in memory. Combat clones it into a fresh Minion instance per copy so a buff or a death only affects that one instance. Skip the clone, and a single combat's Attack buff could visibly bleed into a completely unrelated board's copy of the same card the next time it is drawn."
+    }
+  ];
+
+  var state = { i: 0, score: 0, answered: [] };
+
+  var rail = document.getElementById('progressRail');
+  var card = document.getElementById('quizCard');
+  var finalCard = document.getElementById('finalCard');
+  var scoreNow = document.getElementById('scoreNow');
+
+  QUESTIONS.forEach(function () {
+    var seg = document.createElement('div');
+    seg.className = 'seg';
+    seg.innerHTML = '<i></i>';
+    rail.appendChild(seg);
+  });
+
+  function renderQuestion() {
+    var q = QUESTIONS[state.i];
+    var segs = rail.children;
+    for (var s = 0; s < segs.length; s++) {
+      segs[s].className = 'seg' + (s < state.i ? '' : s === state.i ? ' current' : '');
+      if (state.answered[s] === true) segs[s].className = 'seg done';
+      if (state.answered[s] === false) segs[s].className = 'seg wrong';
+    }
+
+    var html = '';
+    html += '<div class="topic-tag">' + q.topicId + '</div>';
+    html += '<p class="question-text">' + (state.i + 1) + '. ' + q.question + '</p>';
+    html += '<div class="choices" id="choicesWrap">';
+    var letters = ['A', 'B', 'C', 'D'];
+    q.choices.forEach(function (c, idx) {
+      html += '<button class="choice" data-idx="' + idx + '"><span class="letter">' + letters[idx] + '</span><span class="label">' + c + '</span></button>';
+    });
+    html += '</div>';
+    html += '<div class="explanation" id="explanation"><b>Why:</b> ' + q.explanation + '</div>';
+    html += '<div class="next-row"><button class="next-btn" id="nextBtn">' + (state.i === QUESTIONS.length - 1 ? 'See results →' : 'Next question →') + '</button></div>';
+    card.innerHTML = html;
+
+    var buttons = card.querySelectorAll('.choice');
+    buttons.forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        onAnswer(q, buttons, parseInt(btn.getAttribute('data-idx'), 10));
+      });
+    });
+  }
+
+  function onAnswer(q, buttons, idx) {
+    var correct = idx === q.answer;
+    state.answered[state.i] = correct;
+    if (correct) {
+      state.score++;
+      scoreNow.textContent = state.score;
+    }
+    buttons.forEach(function (btn, i) {
+      btn.disabled = true;
+      if (i === q.answer) btn.classList.add('correct');
+      else if (i === idx) btn.classList.add('incorrect');
+      else btn.classList.add('faded');
+    });
+    document.getElementById('explanation').classList.add('show');
+    document.getElementById('nextBtn').classList.add('show');
+    document.getElementById('nextBtn').addEventListener('click', advance);
+    try { localStorage.setItem('ascentQuiz49Progress', JSON.stringify(state)); } catch (e) {}
+  }
+
+  function advance() {
+    state.i++;
+    if (state.i >= QUESTIONS.length) {
+      showFinal();
+    } else {
+      renderQuestion();
+    }
+  }
+
+  function showFinal() {
+    var segs = rail.children;
+    for (var s = 0; s < segs.length; s++) {
+      segs[s].className = state.answered[s] ? 'seg done' : 'seg wrong';
+    }
+    card.style.display = 'none';
+    finalCard.classList.add('show');
+    document.getElementById('finalScore').textContent = state.score + ' / ' + QUESTIONS.length;
+    var lines = [
+      [10, "Perfect run — you called every single one. You're reading this codebase like you built it."],
+      [8, "Strong showing! Ascent's architecture is clearly starting to click for you."],
+      [6, "Solid — more than half locked in. A couple of ideas are worth a second look."],
+      [4, "Good starting point. These ideas take repetition — tomorrow revisits the ones that were shaky."],
+      [0, "Everyone starts here. Reply with which ones tripped you up and tomorrow will circle back to them."]
+    ];
+    var line = lines.find(function (l) { return state.score >= l[0]; })[1];
+    document.getElementById('finalLine').textContent = line;
+    var topicNames = QUESTIONS.map(function (q, i) {
+      return (state.answered[i] ? '✓ ' : '✗ ') + q.topicId;
+    });
+    document.getElementById('finalTopics').innerHTML = "Today's topics:<br>" + topicNames.join('<br>');
+    try { localStorage.removeItem('ascentQuiz49Progress'); } catch (e) {}
+  }
+
+  renderQuestion();
+})();
+</script>

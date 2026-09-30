@@ -20,8 +20,17 @@
  *  - III THE PULL-UP THREE: the portrait SCOOTS straight up court from its slot, a PASS flies in from off the RIGHT edge
  *    of the screen and it catches it, PUMP FAKES, DRIBBLES BACK, and PULLS UP for a three: a long high arc that swishes
  *    (THE impact, a bigger swish and the crowd's "ooh"), then it slides home.
- *  - IV THE SELF ALLEY-OOP (owner review of #1867: "i want a direct throw from the beginning that's fast and bounces
- *    high off the target and the attacker leaps into the air and slams it down into an explosion"): from its slot it
+ *  - IV THE SELF ALLEY-OOP, as it is now (owner reviews: "he drills a 3 then rotates up and gets passed a ball and drills
+ *    another, than rotates back to baseline and does the slam dunk sequence"; "the slam still has a 'first hit' thing that
+ *    i dont want, add more epic emphasis to the leap, slow down that part where he catches it, then one fluid slam motion
+ *    to deal the dmg and blast pixi"): two pull-up threes (from the slot, then from a spot up court off a pass; swishes
+ *    that are ticks), back to the slot, then (owner: "he should chest pass the basketball that bangs against the backboard and
+ *    bounces off it, then the player leaps into the air and catches it at half court and slams it into the opponent") a
+ *    hard CHEST PASS that bangs off the BACKBOARD (the board wobbles; the target itself does not react) and rebounds out
+ *    to HALF COURT, a deep CROUCH that charges up, an explosive LAUNCH (a shock ring of dust, speed lines, a building
+ *    aura) timed so the ball is there FIRST, the catch in the air at half court in deep SLOW MO, and ONE fluid flying slam
+ *    from half court into the target's hoop: THE impact, the blast.
+ *    (Earlier builds, kept for the record:) from its slot it
  *    FIRES the ball fast and flat at the hoop over the target (spinning, a speed trail); it CLANGS off the backboard
  *    beside the portrait (never the face: the target does not react until the slam) and BOUNCES HIGH; the portrait
  *    takes a quick run-up, LEAPS, CATCHES it at the top (a flash, a
@@ -96,9 +105,19 @@ interface GlobalConfig {
   dribbleBack: number;
   halfCourt: number;
   alleyRise: number;
-  riseMs: number;
   blastSize: number;
   wrapMs: number;
+  oopThrees: number;
+  reboundMs: number;
+  ballLeadMs: number;
+  crouchMs: number;
+  crouchSquash: number;
+  launchSize: number;
+  auraSize: number;
+  oopShotMs: number;
+  oopScootMs: number;
+  oopPassMs: number;
+  oopBackMs: number;
   threeSlow: number;
   threeSlowMs: number;
   alleySlow: number;
@@ -160,12 +179,12 @@ const TIER_DEFAULTS: Record<BasketballTierSuffix, [number, number, number, numbe
   Dribbles: [1, 2, 2, 0],
   DribbleMs: [300, 250, 220, 260],
   ApproachMs: [0, 520, 300, 240],
-  LeapMs: [260, 440, 480, 440],
-  FlightMs: [620, 700, 820, 260],
-  Arc: [0.32, 0.45, 0.55, 0.03],
-  SlamMs: [0, 0, 0, 140],
-  HoldMs: [380, 260, 260, 460],
-  ReturnMs: [0, 420, 460, 540],
+  LeapMs: [260, 440, 480, 420],
+  FlightMs: [620, 700, 820, 280],
+  Arc: [0.32, 0.45, 0.55, 0.04],
+  SlamMs: [0, 0, 0, 300],
+  HoldMs: [380, 260, 260, 320],
+  ReturnMs: [0, 420, 460, 420],
   JumpScale: [0.05, 0.07, 0.09, 0.22],
   Zoom: [0.02, 0.025, 0.035, 0.06],
   Punch: [0.01, 0.015, 0.02, 0.045],
@@ -223,15 +242,25 @@ export const HERO_BASKETBALL_DEFAULTS: HeroBasketballConfig = {
   backMs: 520,
   dribbleBack: 1.4,
   halfCourt: 0.3,
-  alleyRise: 2.6,
-  riseMs: 520,
+  alleyRise: 0.25,
   blastSize: 1.4,
   wrapMs: 440,
+  oopThrees: 2,
+  reboundMs: 560,
+  ballLeadMs: 100,
+  crouchMs: 280,
+  crouchSquash: 0.16,
+  launchSize: 1.3,
+  auraSize: 1,
+  oopShotMs: 420,
+  oopScootMs: 260,
+  oopPassMs: 320,
+  oopBackMs: 280,
   threeSlow: 0.45,
   threeSlowMs: 320,
-  alleySlow: 0.35,
-  alleySlowMs: 380,
-  slamBoost: 1.2,
+  alleySlow: 0.25,
+  alleySlowMs: 560,
+  slamBoost: 1.3,
   slowRampMs: 70,
   slowZoom: 0.015,
   variation: '',
@@ -293,10 +322,20 @@ const GLOBAL_RANGES: Record<Exclude<keyof GlobalConfig, HeroBasketballStrKey>, [
   backMs: [100, 1500, 10],
   dribbleBack: [0, 4, 0.05],
   halfCourt: [0, 0.8, 0.01],
-  alleyRise: [0.5, 4, 0.05],
-  riseMs: [120, 1500, 10],
+  alleyRise: [0, 2, 0.05],
   blastSize: [0, 3, 0.05],
   wrapMs: [150, 1200, 10],
+  oopThrees: [0, 2, 1],
+  reboundMs: [200, 2000, 10],
+  ballLeadMs: [0, 400, 10],
+  crouchMs: [60, 800, 10],
+  crouchSquash: [0, 0.4, 0.01],
+  launchSize: [0, 3, 0.05],
+  auraSize: [0, 3, 0.05],
+  oopShotMs: [200, 1200, 10],
+  oopScootMs: [100, 1000, 10],
+  oopPassMs: [120, 1000, 10],
+  oopBackMs: [100, 1000, 10],
   threeSlow: [0.2, 1, 0.01],
   threeSlowMs: [0, 1200, 10],
   alleySlow: [0.2, 1, 0.01],
@@ -423,8 +462,17 @@ export interface BasketballPlan {
   apexAt: number;
   /** I-III: back on the floor. IV: the slam. */
   landAt: number;
-  /** IV: the throw clangs off the backboard (never the portrait) and bounces high (FX and sound only, no damage). */
+  /** IV: the chest pass BANGS the backboard (the board wobbles; the target does not react; no damage). */
   bounceAt: number | null;
+  /** IV: the deep crouch before the launch (the charge-up). */
+  crouchAt: number | null;
+  /**
+   * IV's OPENING (owner: "add to huge -> he drills a 3 then rotates up and gets passed a ball and drills another, than
+   * rotates back to baseline and does the slam dunk sequence"): a pull-up three from the slot, a rotation up court to the
+   * rolled spot and a pass, a second three, the rotation back to the slot. The swishes are ticks (no damage). Null when
+   * `oopThrees` is 0 (and for I-III).
+   */
+  pre: OopPre | null;
   /** IV: the slam starts down. */
   slamAt: number | null;
   /** THE impact: the swish (I-III) or the slam (IV). The blow lands here, once. */
@@ -460,7 +508,7 @@ export function basketballPlan(input: BasketballPlanInput, c: HeroBasketballConf
     shakePx: clamp(L.Shake, 0, BASKETBALL_CAPS.shakePx), burst: L.Burst, rings: Math.round(L.Rings), shards: Math.round(L.Shards),
     confetti: Math.round(L.Confetti), dim: L.Dim,
   };
-  const none = { passAt: null, catchAt: null, pumpAt: null, pumpEnd: null, backAt: null, backEnd: null, slamAt: null, bounceAt: null, flairAt: null, flairEnd: null };
+  const none = { passAt: null, catchAt: null, pumpAt: null, pumpEnd: null, backAt: null, backEnd: null, slamAt: null, bounceAt: null, flairAt: null, flairEnd: null, pre: null, crouchAt: null };
   if (input.reduced) {
     const r = reducedAttackTimeline(input.leadIn ?? 0, c.reducedFadeMs);
     const at = r.impactAt;
@@ -534,36 +582,90 @@ export function basketballPlan(input: BasketballPlanInput, c: HeroBasketballConf
     const homeEnd = homeAt + L.ReturnMs;
     return {
       ...looks, reduced: false, chargeAt, absorbEnd, startAt, approachAt: startAt, approachEnd, dribbles: spread(backAt, c.backMs),
-      squeaks: [startAt, approachEnd, backAt, takeoffAt, homeAt], passAt, catchAt, pumpAt, pumpEnd, backAt, backEnd, slamAt: null, bounceAt: null, flairAt: null, flairEnd: null,
+      squeaks: [startAt, approachEnd, backAt, takeoffAt, homeAt], passAt, catchAt, pumpAt, pumpEnd, backAt, backEnd, slamAt: null, bounceAt: null, flairAt: null, flairEnd: null, pre: null, crouchAt: null,
       gatherAt, takeoffAt, releaseAt, apexAt, landAt, impactAt, homeAt, homeEnd, endAt: Math.max(homeEnd, impactAt + L.HoldMs),
     };
   }
-  // THE SELF ALLEY-OOP: (any dribbles), a wind-up, the ball FIRED straight at the target, the smack and the high bounce;
-  // a quick run-up (what fits before the leap), the leap timed to meet the ball at the top, the catch, the slam.
-  const dribbles = Array.from({ length: n }, (_, i) => startAt + L.DribbleMs * (i + 0.5));
-  const gatherAt = startAt + n * L.DribbleMs;
+  // IV's OPENING: up to two pull-up threes (the first from the slot; the second after a rotation up court and a pass),
+  // then the rotation back to the slot. Each swish is a tick.
+  const nThrees = clamp(Math.round(c.oopThrees), 0, 2);
+  const T3 = basketballTierDials(3, c);
+  const shotAt = (from: number): OopShot => {
+    const gatherAt = from;
+    const takeoffAt = gatherAt + c.gatherMs;
+    const leap = T3.LeapMs * 0.8; // a quicker pull-up than III's own (they are the opening act)
+    const apexAt = takeoffAt + leap * 0.45;
+    return { gatherAt, takeoffAt, releaseAt: apexAt, apexAt, landAt: takeoffAt + leap * 0.85, swishAt: apexAt + c.oopShotMs };
+  };
+  let pre: OopPre | null = null;
+  let seqAt = startAt;
+  const preSqueaks: number[] = [];
+  if (nThrees > 0) {
+    const shots: OopShot[] = [shotAt(startAt)];
+    const s0 = shots[0]!;
+    const scootAt = s0.landAt + 20;
+    const scootEnd = scootAt + (nThrees > 1 ? c.oopScootMs : 0);
+    let passAt = s0.swishAt, receiveAt = s0.swishAt, backAt = s0.landAt + 40;
+    if (nThrees > 1) {
+      // The pass comes in once the first ball has gone through (one ball in play at a time).
+      passAt = Math.max(s0.swishAt + 20, scootEnd - c.oopPassMs + 40);
+      receiveAt = passAt + c.oopPassMs;
+      const s1 = shotAt(receiveAt + 60);
+      shots.push(s1);
+      backAt = s1.landAt + 20;
+      preSqueaks.push(scootAt, scootEnd, s1.takeoffAt);
+    }
+    const backEnd = backAt + (nThrees > 1 ? c.oopBackMs : 0);
+    const last = shots[shots.length - 1]!;
+    const reloadAt = last.swishAt + 60;
+    preSqueaks.unshift(s0.takeoffAt);
+    if (nThrees > 1) preSqueaks.push(backAt, backEnd);
+    pre = { shots, scootAt, scootEnd, passAt, receiveAt, backAt, backEnd, reloadAt };
+    seqAt = Math.max(backEnd, reloadAt) + 60;
+  }
+  // THE SLAM SEQUENCE: (any dribbles), a wind-up, the CHEST PASS that bangs the backboard and rebounds out to half court,
+  // the deep crouch, the launch (the ball gets there first), the catch in the air at half court (deep slow mo), one
+  // fluid flying slam into the target's hoop.
+  const dribbles = Array.from({ length: n }, (_, i) => seqAt + L.DribbleMs * (i + 0.5));
+  const gatherAt = seqAt + n * L.DribbleMs;
   const releaseAt = gatherAt + c.gatherMs * 1.4;
+  // The chest pass bangs the backboard; the rebound reaches half court `ballLeadMs` BEFORE the player gets there (the
+  // leap must never beat the ball), and the catch is when the player arrives.
   const bounceAt = releaseAt + flight;
-  const catchAt = bounceAt + c.riseMs;
-  const takeoffAt = Math.max(releaseAt + 100, catchAt - L.LeapMs);
+  const catchAt = bounceAt + c.reboundMs + c.ballLeadMs;
+  const takeoffAt = Math.max(releaseAt + 100 + c.crouchMs, catchAt - L.LeapMs);
+  const crouchAt = Math.max(releaseAt + 80, takeoffAt - c.crouchMs);
   const approachAt = releaseAt + 60;
-  const approachEnd = Math.max(approachAt, Math.min(approachAt + L.ApproachMs, takeoffAt - c.gatherMs * 0.6));
+  const approachEnd = Math.max(approachAt, Math.min(approachAt + L.ApproachMs, crouchAt));
   const slamAt = catchAt + c.hangMs;
   const impactAt = slamAt + Math.max(40, L.SlamMs);
   const homeAt = impactAt + L.HoldMs;
   const homeEnd = homeAt + L.ReturnMs;
   return {
     ...looks, ...none, reduced: false, chargeAt, absorbEnd, startAt, approachAt, approachEnd, dribbles,
-    squeaks: approachEnd > approachAt + 40 ? [approachAt, takeoffAt] : [takeoffAt], catchAt, slamAt, bounceAt,
+    squeaks: [...preSqueaks, ...(approachEnd > approachAt + 40 ? [approachAt, crouchAt, takeoffAt] : [crouchAt, takeoffAt])], catchAt, slamAt, bounceAt, pre, crouchAt,
     gatherAt, takeoffAt, releaseAt, apexAt: catchAt, landAt: impactAt, impactAt, homeAt, homeEnd, endAt: Math.max(homeEnd, impactAt + L.HoldMs),
   };
 }
 
-export type BasketballCueKind = 'charge' | 'hoop' | 'dribble' | 'squeak' | 'pass' | 'catch' | 'pump' | 'jump' | 'release' | 'bounce' | 'impact' | 'home' | 'end';
+/** One pull-up three in IV's opening. */
+export interface OopShot { gatherAt: number; takeoffAt: number; releaseAt: number; apexAt: number; landAt: number; swishAt: number }
+export interface OopPre {
+  shots: OopShot[];
+  /** The rotation up court (after the first three), the pass in and its catch, the rotation back to the slot. */
+  scootAt: number; scootEnd: number;
+  passAt: number; receiveAt: number;
+  backAt: number; backEnd: number;
+  /** A fresh ball in the hands for the slam sequence. */
+  reloadAt: number;
+}
+
+export type BasketballCueKind = 'charge' | 'hoop' | 'dribble' | 'squeak' | 'pass' | 'catch' | 'pump' | 'jump' | 'release' | 'crouch' | 'bounce' | 'shot' | 'swish' | 'receive' | 'impact' | 'home' | 'end';
 export interface BasketballCue { at: number; kind: BasketballCueKind; i: number }
 
 /** When the hoop fades in on the target (just before the shot or the throw). */
 export function hoopInAt(p: BasketballPlan): number {
+  if (p.pre) return Math.max(p.chargeAt, p.pre.shots[0]!.releaseAt - 120);
   return Math.max(p.chargeAt, p.releaseAt - (p.kind === 'alleyoop' ? 120 : 60));
 }
 
@@ -580,15 +682,64 @@ export function basketballCues(p: BasketballPlan): BasketballCue[] {
     if (p.pumpAt !== null) out.push({ at: p.pumpAt, kind: 'pump', i: 0 });
     out.push({ at: p.takeoffAt, kind: 'jump', i: 0 });
     out.push({ at: p.releaseAt, kind: 'release', i: 0 });
+    if (p.crouchAt !== null) out.push({ at: p.crouchAt, kind: 'crouch', i: 0 });
     if (p.bounceAt !== null) out.push({ at: p.bounceAt, kind: 'bounce', i: 0 });
+    if (p.pre) {
+      p.pre.shots.forEach((sh, i) => {
+        out.push({ at: sh.takeoffAt, kind: 'jump', i: i + 1 });
+        out.push({ at: sh.releaseAt, kind: 'shot', i });
+        out.push({ at: sh.swishAt, kind: 'swish', i });
+      });
+      if (p.pre.shots.length > 1) {
+        out.push({ at: p.pre.passAt, kind: 'pass', i: 0 });
+        out.push({ at: p.pre.receiveAt, kind: 'receive', i: 0 });
+      }
+    }
     if (p.homeEnd > p.homeAt) out.push({ at: p.homeAt, kind: 'home', i: 0 });
   }
   out.push({ at: p.impactAt, kind: 'impact', i: 0 });
   out.push({ at: p.endAt, kind: 'end', i: 0 });
   const order: Record<BasketballCueKind, number> = {
-    charge: 0, hoop: 1, dribble: 2, squeak: 3, pass: 4, catch: 5, pump: 6, jump: 7, release: 8, bounce: 9, impact: 10, home: 11, end: 12,
+    charge: 0, hoop: 1, dribble: 2, squeak: 3, pass: 4, receive: 5, catch: 6, pump: 7, jump: 8, shot: 9, release: 10, swish: 11, crouch: 12, bounce: 13, impact: 14, home: 15, end: 16,
   };
   return out.sort((a, b) => a.at - b.at || order[a.kind] - order[b.kind]);
+}
+
+// ─── the hoop assembly (pure) ─────────────────────────────────────────────────────────────────────────────────────
+
+/** Where the rim sits on the backboard texture: the bottom edge of the shooter's square (0 = top, 1 = bottom). */
+export const HOOP_RIM_Y = 0.86;
+/** The backboard texture's aspect (its height / width). */
+export const HOOP_BOARD_ASPECT = 168 / 256;
+
+/**
+ * THE HOOP AS ONE ASSEMBLY, from its rim: the rim's width, the net hanging from the rim, and the backboard BEHIND it with
+ * the rim on its lower centre (the board's x-centre is the rim's; the rim sits at `HOOP_RIM_Y` of the board's height).
+ * The scene draws from this and nothing else, so the three can never drift apart. Pure.
+ */
+export interface HoopLayout {
+  rim: Pt;
+  net: Pt;
+  /** The rim's drawn width. */
+  w: number;
+  boardW: number;
+  boardH: number;
+  boardTop: number;
+  boardBottom: number;
+  boardLeft: number;
+  boardRight: number;
+  boardCenter: Pt;
+}
+
+export function hoopLayout(rim: Pt, dR: number, hoopSize: number): HoopLayout {
+  const w = dR * 1.35 * hoopSize;
+  const boardW = w * 1.45;
+  const boardH = boardW * HOOP_BOARD_ASPECT;
+  const boardTop = rim.y - boardH * HOOP_RIM_Y;
+  return {
+    rim: { ...rim }, net: { x: rim.x, y: rim.y + w * 0.06 }, w, boardW, boardH, boardTop, boardBottom: boardTop + boardH,
+    boardLeft: rim.x - boardW / 2, boardRight: rim.x + boardW / 2, boardCenter: { x: rim.x, y: boardTop + boardH / 2 },
+  };
 }
 
 // ─── the geometry (pure) ───────────────────────────────────────────────────────────────────────────────────────
@@ -612,17 +763,17 @@ export interface BasketballGeo {
   half: Pt;
   /** Unit from the target toward the catch ("up", swung round toward the middle when a frame edge is in the way). */
   up: Pt;
-  /** IV: the ball at the top of its bounce off the target, and the portrait catching it there. */
+  /** IV: the ball caught in the air at half court, and the portrait catching it there. */
   ballApex: Pt;
   catchAt: Pt;
   /** IV: the portrait on the slam (overlapping the target; the BALL hits the target's centre), and the rebound. */
   contact: Pt;
   rebound: Pt;
-  /**
-   * IV: where the fast throw CLANGS off the backboard and rim: off the struck portrait (never on its face), up the board
-   * and toward the thrower's side, so the throw never crosses the portrait before it gets there.
-   */
-  board: Pt;
+  /** The hoop's RIM: always the struck portrait's centre (the backboard is mounted behind it: `hoopLayout(rimAt, ...)`). */
+  rimAt: Pt;
+  /** IV: where the chest pass bangs the backboard (its upper area, toward the thrower's side). */
+  bang: Pt;
+
   /** The target's centre: where every shot and slam lands. */
   hit: Pt;
 }
@@ -692,41 +843,25 @@ export function basketballGeo(a: Pt, d: Pt, aR: number, dR: number, frame: Frame
   const back = clampToFrame({ x: scoot.x - u.x * aR * c.dribbleBack, y: scoot.y - u.y * aR * c.dribbleBack }, frame, aR * 1.05);
   // IV: the run-up spot, and the catch "above" the target (screen up, swung toward the middle when an edge is in the way).
   const half = clampToFrame(along(clamp(dist * c.halfCourt, 0, Math.max(0, dist - clear))), frame, m);
-  const reach = Math.max(dR * c.alleyRise, aR * 1.2);
-  const { dir: up, k: fitK } = fitDir(d, { x: 0, y: -1 }, reach, frame, Math.max(m * 0.6, aR * 0.5));
-  const ballApex = clampToFrame({ x: d.x + up.x * dR * c.alleyRise * fitK, y: d.y + up.y * dR * c.alleyRise * fitK }, frame, aR * 0.4);
-  const catchPt = clampToFrame({ x: ballApex.x - up.x * aR * 0.75, y: ballApex.y - up.y * aR * 0.75 }, frame, m * 0.85);
+  // IV: the catch IN THE AIR AT HALF COURT (the portrait lifted a little above the floor there, the ball just above its
+  // head); `up` points from the target back toward it (the ball is cocked back on that side, and the slam flies along it).
+  const halfPt = clampToFrame(along(dist * 0.5), frame, m);
+  const catchPt = clampToFrame({ x: halfPt.x, y: halfPt.y - aR * 0.35 }, frame, m * 0.85);
+  const toCatch = { x: catchPt.x - d.x, y: catchPt.y - d.y };
+  const tl = Math.hypot(toCatch.x, toCatch.y) || 1;
+  const up = { x: toCatch.x / tl, y: toCatch.y / tl };
+  const ballApex = clampToFrame({ x: catchPt.x, y: catchPt.y - aR * (0.75 + c.alleyRise) }, frame, aR * 0.4);
   const contact = { x: d.x + up.x * aR * c.slamContact, y: d.y + up.y * aR * c.slamContact };
   const rebound = clampToFrame({ x: contact.x + up.x * aR * 0.35, y: contact.y + up.y * aR * 0.35 }, frame, m * 0.85);
-  // IV's clang point: up the board and back toward the thrower, clear of the portrait (owner on 5173: "the dunk has a weird
-  // moment before the dunk where he hits the player with the ball, remove that").
-  // Far enough out that the whole ball (at its largest) stays clear of the face, and placed so the straight throw from
-  // the thrower never crosses the portrait: from "up" the board, swung toward the thrower's side until the whole
-  // flight line stays clear (and the point is on screen).
-  const ballR = aR * c.ballSize * 1.15;
-  const clearR = dR * 1.3 + ballR;
-  const segDist = (p0: Pt, p1: Pt, q: Pt): number => {
-    const vx = p1.x - p0.x, vy = p1.y - p0.y;
-    const L2 = vx * vx + vy * vy || 1;
-    const k = clamp01(((q.x - p0.x) * vx + (q.y - p0.y) * vy) / L2);
-    return Math.hypot(p0.x + vx * k - q.x, p0.y + vy * k - q.y);
-  };
-  const a0 = Math.atan2(up.y, up.x);
-  // Which way round from "up" heads toward the thrower (so the board point ends on the near side first).
-  const towardThrower = Math.cos(a0 + 0.3) * -u.x + Math.sin(a0 + 0.3) * -u.y >= Math.cos(a0 - 0.3) * -u.x + Math.sin(a0 - 0.3) * -u.y ? 1 : -1;
-  let board = { x: d.x + up.x * clearR, y: d.y + up.y * clearR };
-  let best = -Infinity;
-  search: for (const off of [0, 0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2, 2.4, 2.8]) {
-    for (const sg of off === 0 ? [1] : [towardThrower, -towardThrower]) {
-      const an = a0 + sg * off;
-      const q = { x: d.x + Math.cos(an) * clearR, y: d.y + Math.sin(an) * clearR };
-      if (!inFrame(q, frame, ballR * 0.6)) continue;
-      const clear = segDist(a, q, d);
-      if (clear >= clearR * 0.97) { board = q; break search; }
-      if (clear > best) { best = clear; board = q; }
-    }
-  }
-  return { u, dist, mid, fade, side, scoot, passFrom, back, half, up, ballApex, catchAt: catchPt, contact, rebound, board, hit: { ...d } };
+  // THE HOOP, ONE ASSEMBLY, ALWAYS ON THE STRUCK PORTRAIT (owner: "the backboard on the slam is not behind the rim, it's
+  // broken and offset", then "the hoop should be like in the second image, on the enemy player"): the rim on the target's
+  // centre, the backboard behind it with the rim on its lower centre, the net hanging from the rim, at every tier and in
+  // both directions. IV's chest pass bangs its backboard (the board wobbles; the portrait does not react).
+  const rimAt = { ...d };
+  const hoop = hoopLayout(rimAt, dR, c.hoopSize);
+  const sideX = Math.abs(a.x - rimAt.x) > 2 ? Math.sign(a.x - rimAt.x) : 1;
+  const bang = { x: rimAt.x + sideX * hoop.boardW * 0.25, y: hoop.boardTop + hoop.boardH * 0.32 };
+  return { u, dist, mid, fade, side, scoot, passFrom, back, half, up, ballApex, catchAt: catchPt, contact, rebound, rimAt, bang, hit: { ...d } };
 }
 
 // ─── the pose (pure) ───────────────────────────────────────────────────────────────────────────────────────────
@@ -811,19 +946,46 @@ export function poseSegs(p: BasketballPlan, g: BasketballGeo, c: HeroBasketballC
       seg(p.homeAt, p.homeEnd, bk, O),
     ];
   }
-  // THE SELF ALLEY-OOP.
+  // THE SELF ALLEY-OOP: the opening threes (from the slot, then from the spot up court), then the slam sequence.
+  const opening: Seg[] = [];
+  if (p.pre) {
+    const P = p.pre;
+    const spot = P.shots.length > 1 ? rel(g.scoot) : O;
+    P.shots.forEach((sh, i) => {
+      const at = i === 0 ? O : spot;
+      const top = { x: at.x, y: at.y - aR * c.jumpLift * 1.2 };
+      opening.push(
+        seg(sh.gatherAt, sh.takeoffAt, at, at, { sc1: 0.95, rot0: i === 1 ? 6 : 0 }),
+        seg(sh.takeoffAt, sh.apexAt, at, top, { ease: easeOutCubic, air1: 1, sc0: 0.95, sc1: 1 + js * 0.5 }),
+        seg(sh.apexAt, sh.landAt, top, at, { ease: easeInQuad, air0: 1, sc0: 1 + js * 0.5, sc1: 1 }),
+      );
+      if (i === 0 && P.shots.length > 1) {
+        opening.push(seg(P.scootAt, P.scootEnd, O, spot, { ease: easeOutCubic }));
+        opening.push(seg(P.scootEnd, P.receiveAt, spot, spot, { rot1: 6, ease: easeOutQuad }));
+      }
+    });
+    if (P.shots.length > 1) opening.push(seg(P.backAt, P.backEnd, spot, O, { ease: easeInOutSine }));
+    opening.sort((x, y) => x.t0 - y.t0);
+  }
   const back = { x: -g.u.x * aR * 0.12, y: -g.u.y * aR * 0.12 };
   const follow = { x: g.u.x * aR * 0.1, y: g.u.y * aR * 0.1 };
-  const half = rel(g.half), cat = rel(g.catchAt), hang = { x: cat.x + g.up.x * aR * 0.12, y: cat.y + g.up.y * aR * 0.12 };
+  const cat = rel(g.catchAt), hang = { x: cat.x + g.up.x * aR * 0.12, y: cat.y + g.up.y * aR * 0.12 };
+  const follow0 = { x: g.u.x * aR * 0.1, y: g.u.y * aR * 0.1 };
+  // It launches from where it stands after the pass (the baseline): the leap carries it to half court.
+  const half = follow0;
   const hit = rel(g.contact), reb = rel(g.rebound);
   return [
+    ...opening,
     seg(p.gatherAt, p.releaseAt, O, back, { ease: easeOutQuad, rot1: -drive * 1.5, sc1: 0.96 }),
     seg(p.releaseAt, p.approachAt, back, follow, { ease: easeOutCubic, rot0: -drive * 1.5, rot1: drive, sc0: 0.96, sc1: 1 }),
     seg(p.approachAt, p.approachEnd, follow, half, { ease: easeOutQuad, rot0: drive, rot1: drive * 1.5 }),
-    seg(p.approachEnd, p.takeoffAt, half, half, { rot0: drive * 1.5, sc1: 0.88 }),
-    seg(p.takeoffAt, p.catchAt!, half, cat, { ease: easeOutCubic, air1: 1, sc0: 0.88, sc1: 1 + js }),
-    seg(p.catchAt!, p.slamAt!, cat, hang, { ease: easeOutQuad, air0: 1, air1: 1, sc0: 1 + js, sc1: 1 + js * 1.05 }),
-    seg(p.slamAt!, p.impactAt, hang, hit, { ease: easeIn, air0: 1, air1: 0.55, sc0: 1 + js * 1.05, sc1: 1 + js * 0.6 }),
+    // THE CROUCH: down low, gathering (the squash is the pose's; see basketballPose).
+    seg(p.crouchAt!, p.takeoffAt, half, { x: half.x, y: half.y + aR * 0.08 }, { ease: easeOutCubic, rot0: drive * 1.5, rot1: 0, sc1: 1 - c.crouchSquash * 0.5 }),
+    // THE LAUNCH: explosive (fast out of the crouch), rising and growing toward the camera to the catch.
+    seg(p.takeoffAt, p.catchAt!, { x: half.x, y: half.y + aR * 0.08 }, cat, { ease: easeOutCubic, air1: 1, sc0: 1 - c.crouchSquash * 0.5, sc1: 1 + js * 1.25 }),
+    seg(p.catchAt!, p.slamAt!, cat, hang, { ease: easeOutQuad, air0: 1, air1: 1, sc0: 1 + js * 1.25, sc1: 1 + js * 1.3 }),
+    // ONE FLUID SLAM: a single accelerating stroke from the top straight through the rim onto the target.
+    seg(p.slamAt!, p.impactAt, hang, hit, { ease: easeIn, air0: 1, air1: 0.55, sc0: 1 + js * 1.3, sc1: 1 + js * 0.6 }),
     seg(p.impactAt, p.homeAt, hit, reb, { ease: easeOutCubic, air0: 0.55, air1: 0.35, sc0: 1 + js * 0.6, sc1: 1 + js * 0.4 }),
     seg(p.homeAt, p.homeEnd, reb, O, { air0: 0.35, sc0: 1 + js * 0.4 }),
   ];
@@ -850,6 +1012,9 @@ export function basketballPose(p: BasketballPlan, segs: readonly Seg[], c: HeroB
   // The squash: on the landing (I-III) and on the slam (IV).
   const land = p.kind === 'alleyoop' ? p.impactAt : p.landAt;
   if (t >= land) pose.squash = c.squash * 0.8 * Math.max(0, spring(t - land, 4, 70));
+  // IV's crouch squashes the portrait down (the charge-up), and the launch springs it tall for a moment.
+  if (p.crouchAt !== null && t >= p.crouchAt && t < p.takeoffAt) pose.squash += c.crouchSquash * easeOutCubic((t - p.crouchAt) / Math.max(1, p.takeoffAt - p.crouchAt));
+  if (p.crouchAt !== null && t >= p.takeoffAt && t < p.catchAt!) pose.squash -= c.crouchSquash * 0.8 * Math.max(0, spring(t - p.takeoffAt, 3, 90));
   if (t >= p.homeEnd && p.homeEnd > p.homeAt) pose.squash += c.squash * 0.4 * Math.max(0, spring(t - p.homeEnd, 4, 60));
   return pose;
 }
@@ -888,7 +1053,10 @@ function overBlend(p: BasketballPlan, t: number): number {
     const pump = t >= a && t < e ? Math.sin(Math.PI * ((t - a) / Math.max(1, e - a))) : 0;
     return Math.max(pump, ramp(p.gatherAt));
   }
-  if (p.kind === 'alleyoop') return t < p.releaseAt ? ramp(p.gatherAt) : ramp(p.catchAt!);
+  if (p.kind === 'alleyoop') {
+    if (p.pre) for (const sh of p.pre.shots) if (t >= sh.gatherAt && t < sh.releaseAt) return ramp(sh.gatherAt);
+    return t < p.releaseAt ? (t >= p.gatherAt ? ramp(p.gatherAt) : 0) : ramp(p.catchAt!);
+  }
   return ramp(p.gatherAt);
 }
 
@@ -946,6 +1114,7 @@ export function basketballBall(x: BallCtx, t: number): BallState {
       by += aR * 0.6 * (1 - v * v);
       if (Math.abs(dt) < 40) squash = 0.18 * (1 - Math.abs(dt) / 40);
     }
+    if (x.frame) by = Math.max(by, x.frame.y0 + aR * c.ballSize * 0.5);
     return { visible: alpha > 0.001, x: bx, y: by, rot: 0, scale: q.scale * scaleK, alpha, air: q.air * 0.8, squash, flying: false };
   };
   const flight = (from: Pt, to: Pt, t0: number, t1: number, arc: number, spinK = 1): BallState => {
@@ -980,30 +1149,43 @@ export function basketballBall(x: BallCtx, t: number): BallState {
   }
   // THE SELF ALLEY-OOP: held, FIRED flat at the target, a smack and a high bounce straight up, caught at the top of the
   // leap, held over the head, slammed.
-  const rel = p.releaseAt, bounce = p.bounceAt!, caught = p.catchAt!;
+  const rel = p.releaseAt, caught = p.catchAt!;
+  if (p.pre) {
+    // THE OPENING: a three from the slot, the pass in, a three from the spot; each ball drops away through the net (the
+    // scene throws it), then a fresh ball appears in the hands for the slam sequence.
+    const P = p.pre, s0 = P.shots[0]!, s1 = P.shots[1];
+    const T3arc = basketballTierDials(3, c).Arc;
+    if (t < s0.releaseAt) return popped(held(t));
+    if (t < s0.swishAt) return flight(held(s0.releaseAt), g.hit, s0.releaseAt, s0.swishAt, T3arc);
+    if (s1) {
+      if (t < P.passAt) return { ...HIDDEN };
+      if (t < P.receiveAt) return { ...flight(g.passFrom, held(P.receiveAt), P.passAt, P.receiveAt, c.passArc, -0.6), air: 0.3 };
+      if (t < s1.releaseAt) return held(t);
+      if (t < s1.swishAt) return flight(held(s1.releaseAt), g.hit, s1.releaseAt, s1.swishAt, T3arc);
+    }
+    if (t < P.reloadAt) return { ...HIDDEN };
+    if (t < rel) { const b = held(t); return { ...b, scale: b.scale * easeOutCubic((t - P.reloadAt) / 140) }; }
+  }
   if (t < rel) return popped(held(t));
-  if (t < bounce) return flight(held(rel), g.board, rel, bounce, p.arc, 1.8);
+  const bang = p.bounceAt!, arrive = caught - c.ballLeadMs;
+  if (t < bang) {
+    // THE CHEST PASS: hard and flat at the backboard.
+    return { ...flight(held(rel), g.bang, rel, bang, p.arc, 1.6), air: 0.3 };
+  }
+  if (t < arrive) {
+    // Off the board and back out to half court, arcing up (a squash as it leaves the glass).
+    const b = flight(g.bang, g.ballApex, bang, arrive, 0.22, -0.8);
+    return { ...b, squash: t - bang < 50 ? 0.25 * (1 - (t - bang) / 50) : 0, air: Math.min(1, 0.3 + (t - bang) / Math.max(1, arrive - bang)) };
+  }
   if (t < caught) {
-    const u = easeOutQuad((t - bounce) / Math.max(1, caught - bounce));
-    const sq = t - bounce < 60 ? 0.3 * (1 - (t - bounce) / 60) : 0;
-    return {
-      // Round the target, not across it: angle and distance from the target's centre are eased separately, so the rise
-      // off the backboard never passes over the face.
-      ...(() => {
-        const b0 = { x: g.board.x - g.hit.x, y: g.board.y - g.hit.y }, b1 = { x: g.ballApex.x - g.hit.x, y: g.ballApex.y - g.hit.y };
-        const th0 = Math.atan2(b0.y, b0.x);
-        let dth = Math.atan2(b1.y, b1.x) - th0;
-        while (dth > Math.PI) dth -= 2 * Math.PI;
-        while (dth < -Math.PI) dth += 2 * Math.PI;
-        const th = th0 + dth * u, rr = lerp(Math.hypot(b0.x, b0.y), Math.hypot(b1.x, b1.y), u);
-        return { x: g.hit.x + Math.cos(th) * rr, y: g.hit.y + Math.sin(th) * rr };
-      })(),
-      visible: true, rot: -c.spin * 2 * Math.PI * ((t - bounce) / 1000),
-      scale: 1 + 0.12 * u, alpha: 1, air: u, squash: sq, flying: true,
-    };
+    // There FIRST: it floats at the top while the player rises to meet it.
+    const k = (t - arrive) / Math.max(1, caught - arrive);
+    return { visible: true, x: g.ballApex.x, y: g.ballApex.y - 6 * Math.sin(Math.PI * k), rot: 0.4 * k, scale: 1.08, alpha: 1, air: 1, squash: 0, flying: true };
   }
   if (t < p.slamAt!) return held(t);
   if (t < p.impactAt) {
+    // ONE FLUID SLAM: a single accelerating stroke from the hands straight through the rim (on the target's centre) onto
+    // the target; the only contact of the whole sequence, where the blow lands.
     const from = held(p.slamAt!);
     const u = easeIn((t - p.slamAt!) / Math.max(1, p.impactAt - p.slamAt!));
     return { ...from, x: lerp(from.x, g.hit.x, u), y: lerp(from.y, g.hit.y, u), rot: -u * 1.4, air: lerp(from.air, 0, u) };
@@ -1030,7 +1212,7 @@ export function slowWindow(p: BasketballPlan, c: HeroBasketballConfig): { a: num
   }
   if (p.kind === 'alleyoop' && c.alleySlowMs > 0 && c.alleySlow < 1 && p.catchAt !== null) {
     const len = c.alleySlowMs * c.alleySlow;
-    return { a: p.catchAt - len * 0.4, b: p.catchAt + len * 0.6, factor: c.alleySlow };
+    return { a: p.catchAt - len * 0.4, b: Math.min(p.catchAt + len * 0.6, (p.slamAt ?? p.catchAt) + 10), factor: c.alleySlow };
   }
   return null;
 }
@@ -1060,18 +1242,21 @@ export function slowExtraMs(p: BasketballPlan, c: HeroBasketballConfig): number 
 
 // ─── the hoop (pure) ───────────────────────────────────────────────────────────────────────────────────────────
 
-/** The hoop drawn on the target: its opacity and the rim's rattle (a tilt, radians). IV's backboard is gone at the slam. */
-export function hoopAt(p: BasketballPlan, t: number): { alpha: number; rattle: number; board: boolean } {
-  if (p.reduced) return { alpha: 0, rattle: 0, board: false };
+/** The hoop's opacity and the rim's rattle (a tilt, radians); IV's backboard is gone at the slam (it shatters). Where it
+ * hangs is the geometry's (`rimAt` / `hit`) and its shape is `hoopLayout`. */
+export function hoopAt(p: BasketballPlan, t: number): { alpha: number; rattle: number; board: boolean; wobble: number } {
+  if (p.reduced) return { alpha: 0, rattle: 0, board: false, wobble: 0 };
   const inAt = hoopInAt(p);
-  if (t < inAt) return { alpha: 0, rattle: 0, board: false };
+  if (t < inAt) return { alpha: 0, rattle: 0, board: false, wobble: 0 };
   const fadeIn = easeOutCubic((t - inAt) / 160);
   const outFrom = p.impactAt + (p.kind === 'alleyoop' ? 380 : 280);
   const out = clamp01((t - outFrom) / 260);
   const shake = p.kind === 'alleyoop' ? 0.22 : 0.05;
   const rattle = (t >= p.impactAt ? shake * spring(t - p.impactAt, 9, 180) : 0)
-    + (p.bounceAt !== null && t >= p.bounceAt ? 0.08 * spring(t - p.bounceAt, 9, 120) : 0);
-  return { alpha: fadeIn * (1 - out), rattle, board: p.kind !== 'alleyoop' || t < p.impactAt };
+
+  // IV's chest pass bangs the backboard: the board (only) wobbles.
+  const wobble = p.bounceAt !== null && t >= p.bounceAt && t < p.impactAt ? 0.09 * spring(t - p.bounceAt, 7, 160) : 0;
+  return { alpha: fadeIn * (1 - out), rattle, board: p.kind !== 'alleyoop' || t < p.impactAt, wobble };
 }
 
 // ─── the camera (pure) ─────────────────────────────────────────────────────────────────────────────────────────

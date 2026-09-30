@@ -175,7 +175,10 @@ route) moves it; Practice, the tutorial and sandbox runs never do.
   entry (the Career row) carries the server's own computation, stamped at settle time, because the history
   insert never waits on the client's fetch. Shown as a percentage, e.g. "47%" (no tier word, owner 2026-09-22), on the **Career match rows and the Recent
   Games rows only** — never on the post-game screen, never on the rail before or during a game (owner answers
-  4 and 5).
+  4 and 5). **Currently HIDDEN** (owner 2026-09-30: *"we can hide the lobby% number for now since it doesnt seem
+  to be working too well at the moment"*): one flag, `SHOW_LOBBY_STRENGTH` in `packages/ui/src/lobbyStrengthDisplay.ts`,
+  switches the readout off on every surface; the value is still computed, stamped, uploaded and still drives the
+  strength bonus.
 - **Promotion games.** Reaching **100** does not promote; it makes the **next** rated game a promotion game
   (overflow past 100 is discarded; the delta shown is the delta applied). To move up **a division** (Gold I
   → Gold II) the promotion game needs a **top-4 finish**; to move up **a medal** (Gold III → Platinum I) it

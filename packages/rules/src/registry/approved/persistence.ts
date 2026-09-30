@@ -486,4 +486,20 @@ export const PERSISTENCE_RULES: GameRule[] = [
     currentBehaviour: 'Conforms: the carry-back reads every fight-board minion, dead ones included, and a Rise does not clear the gains.',
     enforcement: { kind: 'scenario', refs: ['packages/core/src/combat/engravedKeepsGainsWhenDead.test.ts'], lastVerifiedAt: '2026-09-29' },
   },
+  {
+    id: 'R-PERSIST-EMAIL-01',
+    title: "A player's email is never readable by other players",
+    statement:
+      'The email a player signs up with is stored on their profile but is never readable through the public or '
+      + 'signed-in client roles. Other profile columns (name, tag, rank, level, title) stay readable. The client '
+      + 'writes its own email but never reads any email back.',
+    domain: 'persistence',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-29 (pool investigation found profiles.email readable with the anon key; owner ran the fix)', quote: 'ran the sql' },
+      { kind: 'code', ref: 'supabase/migrations/2026-09-29-hide-profile-email.sql (column-level SELECT grant without email)' },
+    ],
+    currentBehaviour: 'Conforms since 2026-09-29: an anon read of profiles.email or select=* is refused; the display, rank and progression columns still read.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/profileEmailPrivate.test.ts'], lastVerifiedAt: '2026-09-29' },
+  },
 ];

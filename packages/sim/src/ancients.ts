@@ -93,6 +93,25 @@
  *  · `playParityBuff`             SHOP: `playCard` (the one "played from hand" chokepoint): playing an odd-tier minion
  *                                 gives your OTHER odd-tier minions +a/+h, even likewise. Combat has no play. (Bonds)
  *
+ *  HUNCH (Rounded Spellbook, `roundedSpellbook`; owner pairings 2026-09-30). Rounded Spellbook = "Get a copy of the
+ *  last spell you cast. Costs 3 Gold, reduced by 1 each turn." (once per turn; the price is `roundedSpellbookCostOf`).
+ *  "A spell cast" for Genesis and Bonds is EVERY spell cast (a Shop spell, a Gift / Clue, a Ruby; never a reward
+ *  token), the owner's "all spells count" rule (2026-09-18 / 09-23): the Shop's every-spell chokepoint is
+ *  `noteSpellForCountRunes`, combat's is `ctx.castSpell` (one per cast repetition).
+ *  · `avengeImproveSpells`        COMBAT: `QuestCombatMods.ancientAvengeSpells`, an Avenge (4) on the fight's friendly
+ *                                 deaths that improves your spells +1/+1 (`grantSpellPower`, the Rune of Appraisal
+ *                                 shape). Avenge is combat-only in this game. (Death)
+ *  · `spellbookMaxGold`           the reducer's `roundedSpellbook` branch: each use also gives +1 max Gold, permanently
+ *                                 (`maxGoldBonus`, the Gold Font channel). (Fortune)
+ *  · `shopSpellsCastExtraInCombat` COMBAT: `QuestCombatMods.ancientSpellCastExtra`, Runebloom Matriarch's
+ *                                 `spellCastRepsFor` channel seeded for the whole fight. (War)
+ *  · `spellsRechargeSpellbook`    every `every`th spell cast (a running count since the pick, across turns and phases)
+ *                                 recharges Rounded Spellbook and sets its price to 1 Gold (never raising it). Shop:
+ *                                 `ancientOnSpellCast`; combat casts count at settle (`ancientAfterCombat`). (Genesis)
+ *  · `spellbookCastsTwice`        the `roundedSpellbook` branch stamps each copy `castMult: 2` ("casts twice"). (Time)
+ *  · `spellCastBuffsEdges`        SHOP: `ancientOnSpellCast` (every spell, real time); COMBAT:
+ *                                 `QuestCombatMods.ancientSpellEdges` in `ctx.castSpell`. (Bonds)
+ *
  * Serialisable plain data throughout, so saves / snapshots / replays can carry it cheaply later (not in the MVP).
  */
 import { makeRng, type CardDef, type EffectDef, type Keyword, type QuestCombatMods, type RiseTint } from '@game/core';
@@ -101,7 +120,7 @@ import { mixSeed, type BoardCard, type RunState, type ShopCard, type SotBeatFx }
 import { pushSotBeat, recordSotBeat } from './sotBeat';
 import type { HeroPower } from './heroes';
 import type { CombatResult } from '@game/core';
-import { addBuff, aegisGrantOf, captureBuffFx, destroyMinionInShop, fireShopEchoOf, grantMinionToHandOrBoard, instanceEffects, makeContext, queueDiscover } from './recruit';
+import { addBuff, aegisGrantOf, captureBuffFx, destroyMinionInShop, fireShopEchoOf, grantMinionToHandOrBoard, improveReps, instanceEffects, makeContext, queueDiscover } from './recruit';
 import { INDY_GILD_RECHARGE_GOLD, hasTier7Access } from './config';
 
 export type AncientId = 'death' | 'fortune' | 'war' | 'genesis' | 'time' | 'bonds';
@@ -201,7 +220,20 @@ export type AncientEffect =
   /** Empowerment is passive; Start of Turn: Discover a minion from the tier above your Shop tier. */
   | { do: 'sotDiscoverTierAbove' }
   /** Playing an odd-tier minion from hand gives your other odd-tier minions +a/+h (even likewise). */
-  | { do: 'playParityBuff'; attack: number; health: number };
+  | { do: 'playParityBuff'; attack: number; health: number }
+  // ── Hunch (Rounded Spellbook) ──
+  /** Avenge (`every`) in combat: improve your spells by +a/+h (spell power, permanent). */
+  | { do: 'avengeImproveSpells'; every: number; attack: number; health: number }
+  /** Each Rounded Spellbook use also gives +`gold` max Gold, permanently. */
+  | { do: 'spellbookMaxGold'; gold: number }
+  /** Your Shop Spells cast `extra` more times in combat. */
+  | { do: 'shopSpellsCastExtraInCombat'; extra: number }
+  /** Every `every` spells cast: Rounded Spellbook recharges and costs `price` Gold (never more than it already did). */
+  | { do: 'spellsRechargeSpellbook'; every: number; price: number }
+  /** Spells from Rounded Spellbook cast `mult` times. */
+  | { do: 'spellbookCastsTwice'; mult: number }
+  /** Whenever you cast a spell (Shop AND combat), your left-most and right-most minions gain +a/+h. */
+  | { do: 'spellCastBuffsEdges'; attack: number; health: number };
 
 export interface AncientPairing {
   /** The Ancient's text for this hero, as shown on the offer and the preview (the owner's words). */
@@ -441,6 +473,46 @@ export const ANCIENT_PAIRINGS: Record<string, Partial<Record<AncientId, AncientP
       effects: [{ do: 'playParityBuff', attack: 3, health: 3 }],
     },
   },
+  // HUNCH (owner pairings 2026-09-30, quoted above each entry). Rounded Spellbook = "Get a copy of the last spell you
+  // cast. Costs 3 Gold, reduced by 1 each turn." (once per turn).
+  hunch: {
+    death: {
+      // "Avenge (4) Improve your spells by +1/+1."
+      offerText: '**Avenge (4):** improve your spells by **+1/+1**.',
+      powerText: '{base} **Avenge (4):** improve your spells by **+1/+1** (**{avengeNow}/4**). Improved so far: **+{deathA}/+{deathH}**.',
+      effects: [{ do: 'avengeImproveSpells', every: 4, attack: 1, health: 1 }],
+    },
+    fortune: {
+      // "Rounded Spellbook also increases max gold by 1."
+      offerText: 'Rounded Spellbook also gives you **+1 max Gold**.',
+      powerText: '{base} It also gives you **+1 max Gold**. **+{bookGold}** so far.',
+      effects: [{ do: 'spellbookMaxGold', gold: 1 }],
+    },
+    war: {
+      // "Shop Spells cast an additional time in combat" (Runebloom Matriarch's rule, from the hero).
+      offerText: 'Your **Shop Spells** cast an extra time in combat.',
+      powerText: '{base} Your **Shop Spells** cast an extra time in combat.',
+      effects: [{ do: 'shopSpellsCastExtraInCombat', extra: 1 }],
+    },
+    genesis: {
+      // "Casting 5 spells resets rounded spellbook at 1g"
+      offerText: 'Every **5** spells you cast, Rounded Spellbook recharges and costs **1 Gold**.',
+      powerText: '{base} Every **5** spells you cast, it recharges and costs **1 Gold** (**{genesisLeft}** more to go).',
+      effects: [{ do: 'spellsRechargeSpellbook', every: 5, price: 1 }],
+    },
+    time: {
+      // "Spells from rounded spellbook cast twice."
+      offerText: 'Spells you get from Rounded Spellbook cast **twice**.',
+      powerText: '{base} The copy casts **twice**.',
+      effects: [{ do: 'spellbookCastsTwice', mult: 2 }],
+    },
+    bonds: {
+      // "Casting spells grants your left and right-most minion +2/+3."
+      offerText: 'Whenever you cast a spell, give your left and right-most minions **+2/+3**.',
+      powerText: '{base} Whenever you cast a spell, give your left and right-most minions **+2/+3**.',
+      effects: [{ do: 'spellCastBuffsEdges', attack: 2, health: 3 }],
+    },
+  },
 };
 
 export function ancientPairingFor(heroId: string, id: AncientId): AncientPairing | undefined {
@@ -510,6 +582,16 @@ export interface AncientsState {
   lastSummons?: number;
   /** ALBUS × WAR: the hero-Pummel LIFETIME tally (friendly damage dealt), carried across combats like the keyword. */
   pummelDealt?: number;
+  /** HUNCH × DEATH: the total spell improvement its Avenges have granted (banked at settle; printed live). */
+  spellImproved?: { attack: number; health: number };
+  /** HUNCH × FORTUNE: max Gold Rounded Spellbook has granted this run (printed live). */
+  bookMaxGold?: number;
+  /** HUNCH × GENESIS: spells cast since the pick (every phase), the running count toward the next recharge. */
+  genesisSpells?: number;
+  /** HUNCH presentation cues (monotonic; the UI plays one beat per bump): Fortune's +max Gold on the Gold pill, and
+   *  Genesis' recharge on the hero-power button. Never read by gameplay. */
+  bookGoldFxSeq?: number;
+  rechargeFxSeq?: number;
 }
 
 /** Turn Ancients on for a run (the Scene Builder's Set 3 flag). Pure: returns a new run. */
@@ -628,11 +710,40 @@ export function ancientPowerText(state: RunState, base: string, combat: AncientP
   const summons = liveSummons ? combat.combatSummons! : a?.lastSummons ?? 0;
   const pummel = effectOf(state, 'pummelGrantsCards');
   const pummelNow = pummel ? ((a?.pummelDealt ?? 0) + (combat.friendlyDamage ?? 0)) % Math.max(1, pummel.every) : 0;
-  return text.replace('{base}', base).replace('{timeTier}', String(albusTimeTier(state)))
+  const hunch = hunchLive(state);
+  return text.replace('{base}', base).replace('{avengeNow}', String(hunch.avengeNow)).replace('{deathA}', String(hunch.deathA)).replace('{deathH}', String(hunch.deathH))
+    .replace('{bookGold}', String(a?.bookMaxGold ?? 0)).replace('{genesisLeft}', String(hunch.genesisLeft)).replace('{timeTier}', String(albusTimeTier(state)))
     .replace('{pummelNow}', String(pummelNow)).replace('{pummelEvery}', String(pummel?.every ?? 0)).replace('{timeWhen}', liveSummons ? 'This combat' : 'Last combat').replace('{shoutGold}', String(shoutGold))
     .replace('{riseGold}', String(a?.riseGold ?? 0)).replace('{summons}', String(summons))
     .replace('{timeA}', String((time?.attack ?? 0) * summons)).replace('{timeH}', String((time?.health ?? 0) * summons)).replace('{aegis}', aegis).replace('{wardLeft}', String(wardLeft)).replace('{recharge}', String(INDY_GILD_RECHARGE_GOLD))
     .replace('{gilds}', String(gilds)).replace('{gildA}', String((per?.attack ?? 0) * gilds)).replace('{gildH}', String((per?.health ?? 0) * gilds));
+}
+
+/**
+ * HUNCH's live readouts (R-REALTIME-01): during a fight being replayed they fold the replay's display-only previews
+ * (`fxFriendlyDeathPreview`, `fxSpellsCastPreview`, the same folds Cindara and Yirin print from), so the numbers tick
+ * with each death / cast and land exactly where settle banks them.
+ *  - DEATH: `avengeNow` = friendly deaths this fight toward the next Avenge (0 outside a fight); `deathA` / `deathH` =
+ *    the improvement banked so far plus what this fight's Avenges have already granted (Rune of Fury's extra fire
+ *    and Rune of Mastery's improve reps, the simulator's own rule).
+ *  - GENESIS: `genesisLeft` = spells still to cast before the next recharge.
+ */
+function hunchLive(state: RunState): { avengeNow: number; deathA: number; deathH: number; genesisLeft: number } {
+  const a = live(state);
+  const death = effectOf(state, 'avengeImproveSpells');
+  const deaths = state.fxFriendlyDeathPreview ?? 0;
+  let avengeNow = 0, deathA = a?.spellImproved?.attack ?? 0, deathH = a?.spellImproved?.health ?? 0;
+  if (death) {
+    const every = Math.max(1, death.every);
+    avengeNow = deaths % every;
+    const fury = state.questFlags?.runeFury ? Math.max(1, state.flagCopies?.runeFury ?? 1) : 0;
+    const steps = Math.floor(deaths / every) * (1 + fury) * improveReps(state);
+    deathA += steps * death.attack;
+    deathH += steps * death.health;
+  }
+  const gen = effectOf(state, 'spellsRechargeSpellbook');
+  const genesisLeft = gen ? gen.every - (((a?.genesisSpells ?? 0) + (state.fxSpellsCastPreview ?? 0)) % Math.max(1, gen.every)) : 0;
+  return { avengeNow, deathA, deathH, genesisLeft };
 }
 
 // ── Hooks ────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -721,6 +832,14 @@ export function ancientCombatMods(state: RunState): Partial<QuestCombatMods> {
   if (pummel) {
     out.ancientPummel = { every: pummel.every, count: pummel.count, cardId: pummel.cardId, dealt: live(state)?.pummelDealt ?? 0, label: ANCIENTS.war.name };
   }
+  const avenge = effectOf(state, 'avengeImproveSpells');
+  if (avenge) out.ancientAvengeSpells = { every: avenge.every, attack: avenge.attack, health: avenge.health, label: ANCIENTS.death.name };
+  const castExtra = effectOf(state, 'shopSpellsCastExtraInCombat');
+  if (castExtra) out.ancientSpellCastExtra = castExtra.extra;
+  const edges = effectOf(state, 'spellCastBuffsEdges');
+  // Labelled with the POWER's name: a label-sourced combat grant named in `HERO_POWER_BUFF_LABELS` (ui bindings) plays
+  // the generic tendril from the hero-power button, the way Emissary's United Front does.
+  if (edges) out.ancientSpellEdges = { attack: edges.attack, health: edges.health, label: HUNCH_BONDS_COMBAT_LABEL };
   return out;
 }
 
@@ -830,6 +949,17 @@ export function ancientAfterCombat(state: RunState, result: CombatResult): void 
   if (effectOf(state, 'sotBuffPerCombatSummon')) a.lastSummons = result.playerSummonsMade ?? 0;
   // ALBUS × WAR: the lifetime Pummel tally the fight hands back (the payout already happened mid-fight).
   if (effectOf(state, 'pummelGrantsCards') && result.playerAncientPummelDealt !== undefined) a.pummelDealt = result.playerAncientPummelDealt;
+  // HUNCH x DEATH: bank the improvement this fight's Avenges granted (the spell power itself settles through
+  // `playerSpellPower`, like every combat spell-power gain).
+  const imp = result.playerAncientSpellImproved;
+  if (effectOf(state, 'avengeImproveSpells') && imp && (imp.attack > 0 || imp.health > 0)) {
+    a.spellImproved = { attack: (a.spellImproved?.attack ?? 0) + imp.attack, health: (a.spellImproved?.health ?? 0) + imp.health };
+  }
+  // HUNCH x GENESIS: combat casts count toward the running total. A recharge earned in combat lands on the NEXT Shop
+  // (at settle the run is still on the fight's wave; the power recharges at the new turn anyway), at 1 Gold.
+  if (effectOf(state, 'spellsRechargeSpellbook')) {
+    for (let i = 0; i < (result.playerSpellsCast ?? 0); i++) hunchGenesisTick(state, 1);
+  }
   if (!effectOf(state, 'wardBreaksGetCopy')) return;
   a.wardBreaks = (a.wardBreaks ?? 0) + breaks.length;
   if (result.playerWardWindow) a.wardWindow = [...result.playerWardWindow];
@@ -990,4 +1120,63 @@ export function ancientOnPlay(state: RunState, played: BoardCard): void {
   const mates = state.board.filter((c) => c !== played && (CARD_INDEX[c.cardId]?.tier ?? -1) % 2 === parity);
   if (mates.length === 0) return;
   captureBuffFx(state, played, 'minion', () => { for (const c of mates) addBuff(c, ANCIENTS.bonds.name, e.attack, e.health); });
+}
+
+/** The combat buff label for Hunch × Bonds (the key the UI's hero-power tendril route matches). */
+export const HUNCH_BONDS_COMBAT_LABEL = 'Rounded Spellbook';
+
+// ── Hunch (Rounded Spellbook) hooks ──────────────────────────────────────────────────────────────────────────
+/**
+ * GENESIS: one spell was cast. Every `every`th (a running count since the pick) recharges Rounded Spellbook (usable
+ * again if already used this turn) and sets its price to `price` Gold, never RAISING it (a Spellbook already down to
+ * 0 stays at 0). The price rides Hunch's own clock (`hunchResetWave`): re-basing it `3 - price` turns back makes the
+ * coin read `price` now and keep shrinking 1 per turn from there, exactly like the native countdown. `waveAhead` = 1
+ * for a combat cast counted at settle, so the price is set for the next Shop.
+ */
+function hunchGenesisTick(state: RunState, waveAhead: 0 | 1): void {
+  const a = live(state);
+  const e = effectOf(state, 'spellsRechargeSpellbook');
+  if (!a || !e) return;
+  a.genesisSpells = (a.genesisSpells ?? 0) + 1;
+  if (a.genesisSpells % Math.max(1, e.every) !== 0) return;
+  const wave = state.wave + waveAhead;
+  const priceThen = Math.max(0, 3 - Math.max(0, wave - (state.hunchResetWave ?? 1)));
+  if (priceThen > e.price) state.hunchResetWave = wave - (3 - e.price);
+  if (!waveAhead) state.heroReady = true;
+  a.rechargeFxSeq = (a.rechargeFxSeq ?? 0) + 1; // the hero-power pulse (presentation only)
+}
+
+/**
+ * A SPELL WAS CAST in the Shop (Shop spell, Gift / Clue or Ruby; never a reward token): called once per cast
+ * resolution from `noteSpellForCountRunes`, the Shop's every-spell chokepoint. GENESIS counts it; BONDS gives the
+ * left-most and right-most board minions +a/+h, permanently, in real time (once when they are the same minion).
+ */
+export function ancientOnSpellCast(state: RunState): void {
+  if (!live(state)) return;
+  hunchGenesisTick(state, 0);
+  const e = effectOf(state, 'spellCastBuffsEdges');
+  if (!e || state.board.length === 0) return;
+  const ends = state.board.length === 1 ? [state.board[0]!] : [state.board[0]!, state.board[state.board.length - 1]!];
+  // The grants leave the HERO-POWER button (the generic tendril, `fromHeroPower`), the shop twin of the combat
+  // replay's `HERO_POWER_BUFF_LABELS` route: stamp the records this capture pushed.
+  const from = state.recruitBuffFx.length;
+  captureBuffFx(state, undefined, 'spell', () => { for (const c of ends) addBuff(c, ANCIENTS.bonds.name, e.attack, e.health); });
+  for (let i = from; i < state.recruitBuffFx.length; i++) state.recruitBuffFx[i]!.fromHeroPower = true;
+}
+
+/**
+ * Rounded Spellbook just resolved and handed `copies` to hand. FORTUNE: +gold max Gold, permanently (the Gold Font
+ * channel `maxGoldBonus`: above the natural cap, no Gold this turn). TIME: each copy casts twice (`castMult`).
+ */
+export function ancientOnSpellbook(state: RunState, copies: BoardCard[]): void {
+  const a = live(state);
+  if (!a) return;
+  const gold = effectOf(state, 'spellbookMaxGold');
+  if (gold) {
+    state.maxGoldBonus = (state.maxGoldBonus ?? 0) + gold.gold;
+    a.bookMaxGold = (a.bookMaxGold ?? 0) + gold.gold;
+    a.bookGoldFxSeq = (a.bookGoldFxSeq ?? 0) + 1; // the Gold pill's coin burst (presentation only)
+  }
+  const twice = effectOf(state, 'spellbookCastsTwice');
+  if (twice) for (const c of copies) c.castMult = Math.max(c.castMult ?? 1, twice.mult);
 }

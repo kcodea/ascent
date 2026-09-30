@@ -1529,6 +1529,21 @@ export function Recruit() {
     return () => { for (const t of timers) clearTimeout(t); for (const s of stops) s(); };
     // Keyed on the seq only — the payload is read at the moment it moved (the `bounceFx` watcher's contract).
   }, [run.rubyRiderFxSeq]);
+  // ANCIENT OF FORTUNE × HUNCH (2026-09-30): each Rounded Spellbook use raises max Gold by 1. The coin burst out of
+  // the GOLD PILL (the authored `coin` def the sell path already plays there) is the beat, one per bump of the sim's
+  // presentation counter. Nothing on the first render (the ref starts at the current value).
+  const prevBookGoldSeq = useRef(run.ancients?.bookGoldFxSeq);
+  useEffect(() => {
+    const seq = run.ancients?.bookGoldFxSeq;
+    if (seq === undefined || seq === prevBookGoldSeq.current) return;
+    prevBookGoldSeq.current = seq;
+    if (!canPlayDefs()) return;
+    const goldEl = document.querySelector('.goldpill');
+    if (!goldEl) return;
+    const gr = goldEl.getBoundingClientRect();
+    const g = { x: gr.left + gr.width / 2, y: gr.top + gr.height / 2 };
+    playDef('coin', { source: g, target: g, cursor: g });
+  }, [run.ancients?.bookGoldFxSeq]);
   // RUNE-BUFF-UNIT: any minion a rune buffed this SHOP action gets the `rune-buff-unit` sparkle, on the unit
   // (owner ask 2026-08-19). The sim diffs each minion's rune-buff total (`runeBuffFxUnits`), so this fires for
   // every rune that buffs a unit with no per-rune wiring. Measured on the next frame — a stat change re-renders
@@ -4818,6 +4833,18 @@ export function Recruit() {
       // EMS), a Funeral on Loan return, a Reveler's sell — so `findEl` finds nothing; the departure cache still
       // holds the slot it stood in, and the tribe ribbon leaves from there. An Echo fired on a LIVING body
       // (Ossuary Rite, Deathsayer, the Reliquary) simply measures the body. Only a `spell` capture is sourceless.
+      // A HERO POWER'S grant (Ancient of Bonds × Hunch): the generic tendril from the hero-power button, the shop
+      // twin of the combat replay's `heroPowerBuffLabelFor` route. With no button measurable it falls through to
+      // the sourceless path below.
+      if (ev.fromHeroPower) {
+        const btn = document.querySelector<HTMLElement>('.statusbar .heropanel:not(.heropanel2):not(.equipslot) .heropowerbtn')
+          ?? document.querySelector<HTMLElement>('.statusbar .heropowerbtn');
+        const br = btn?.getBoundingClientRect();
+        if (br && (br.width > 0 || br.height > 0)) {
+          fireBuffFx({ source: { x: br.left + br.width / 2, y: br.top + br.height / 2 }, target, cardId: '', tribe: 'neutral', sourceless: false, uids: { source: null, target: ev.targetUid } });
+          return;
+        }
+      }
       const src = resolveBuffSource({
         label: ev.kind === 'spell' || !ev.sourceUid,
         live: () => { const el = ev.sourceUid ? findEl(ev.sourceUid) : null; return el ? restingCenterOf(el as HTMLElement) : null; },
@@ -6951,9 +6978,11 @@ export function Recruit() {
   };
   // Yazzus replays the cast: fire the spell's spark once per resolution (2× / 3× when golden — AIMED
   // spells only, matching `spellCasts`), staggered, so a doubled cast visibly procs more than once.
-  const castSparks = (fn: () => void, cardId: string): void => {
+  const castSparks = (fn: () => void, cardId: string, card?: Parameters<typeof spellCasts>[2]): void => {
     const def = CARD_INDEX[cardId];
-    const n = def ? ownCastCount(useGame.getState().run, def) : 1;
+    // `card` = the HAND instance just cast (read before the dispatch removed it), so a per-card multiplier (a
+    // Rounded Spellbook copy that casts twice, Ancient of Time × Hunch) gets one burst per cast.
+    const n = def ? ownCastCount(useGame.getState().run, def, card) : 1;
     fn();
     for (let i = 1; i < n; i++) window.setTimeout(fn, i * 200);
   };
@@ -6964,8 +6993,8 @@ export function Recruit() {
   // Bloody) additionally carries the minions it buffed THIS action as trail targets, so the def fans out
   // cursor→minion instead of firing once at the point, and claims them for the buff-FX suppression filter
   // (Step 4 below) so the generic tendril pop doesn't ALSO play on top of the authored trail.
-  const fireSpellCastFx = (cardId: string, pt: { x: number; y: number }): void => {
-    if (!bindingFor(cardId, 'spellCast')) { castSparks(() => fireSpark(pt.x, pt.y), cardId); return; }
+  const fireSpellCastFx = (cardId: string, pt: { x: number; y: number }, card?: Parameters<typeof spellCasts>[2]): void => {
+    if (!bindingFor(cardId, 'spellCast')) { castSparks(() => fireSpark(pt.x, pt.y), cardId, card); return; }
     const st = useGame.getState().run;
     const def = CARD_INDEX[cardId];
     // The minions this cast buffed THIS action are the trail targets (leftmost / 3 randoms); distinct uids.
@@ -6994,7 +7023,7 @@ export function Recruit() {
     // does (`castSparks` above). Read from the run BEFORE this action's bookkeeping cleared its one-shot
     // freebies would be wrong — this runs after the dispatch, and `spellCastCount` is the same read the
     // spark path makes at the same moment, so the two agree by construction.
-    runRecruitMomentCues(spellCastMoment(cardId, pt, recipients, def ? ownCastCount(st, def) : 1), ctx);
+    runRecruitMomentCues(spellCastMoment(cardId, pt, recipients, def ? ownCastCount(st, def, card) : 1), ctx);
     // EDWARD KEG-HANDS echo: Edward (`dw_edward`) makes Ales trigger twice (three times gilded) — the sim already
     // re-ran the buff, but we dedupe the targets, so the repeat would be invisible. Re-fire the SAME fan-out from
     // Edward's card: 1 extra volley for ×2, 2 for ×3 (gilded), each 80ms after the last. Gated on `recipients`
@@ -7195,17 +7224,19 @@ export function Recruit() {
           }
           return true;
         }
+        const castCard = run.hand.find((c) => c.uid === d.uid); // the instance, before the cast removes it
         dispatch({ type: 'play', uid: d.uid, targetUid });
-        if (bindingFor(d.view.cardId, 'spellCast')) fireSpellCastFx(d.view.cardId, { x, y });
-        else castSparks(() => sparkAtUid(targetUid, x, y), d.view.cardId); // spark per cast (Yazzus, aimed)
+        if (bindingFor(d.view.cardId, 'spellCast')) fireSpellCastFx(d.view.cardId, { x, y }, castCard);
+        else castSparks(() => sparkAtUid(targetUid, x, y), d.view.cardId, castCard); // spark per cast (Yazzus, aimed)
         return true;
       }
       if (up) {
         lassoDropRef.current = { x, y }; // where the card left the hand — a Lasso beam launches from here
+        const castCard = run.hand.find((c) => c.uid === d.uid); // the instance, before the cast removes it
         dispatch({ type: 'play', uid: d.uid });
         // A Choose One that is about to open its prompt casts nothing yet — firing the cast FX here would
         // flash a spell that has not resolved (and would fire again on the real cast).
-        if (!asksFirst) fireSpellCastFx(d.view.cardId, { x, y }); // authored def if bound; else the generic spark
+        if (!asksFirst) fireSpellCastFx(d.view.cardId, { x, y }, castCard); // authored def if bound; else the generic spark
         return true;
       }
       return false;

@@ -339,6 +339,24 @@ export function StatusBar() {
     playDef('equipment-used-up', { source: at, target: at, cursor: at });
   }, [equipUses, hasEquip]);
 
+  // ANCIENT OF GENESIS × HUNCH (2026-09-30): every 5th spell recharges Rounded Spellbook at 1 Gold. The button plays
+  // the authored `hero-power-spark` (the press flourish) plus the pulse cue, one per bump of the sim's presentation
+  // counter; a fresh mount is silent (the ref starts at the current value).
+  const rechargeSeq = run.ancients?.rechargeFxSeq;
+  const rechargeRef = useRef(rechargeSeq);
+  useEffect(() => {
+    if (rechargeSeq === undefined || rechargeSeq === rechargeRef.current) return;
+    rechargeRef.current = rechargeSeq;
+    if (!canPlayDefs()) return;
+    const el = document.querySelector<HTMLElement>('.statusbar .heropanel:not(.heropanel2):not(.equipslot) .heropowerbtn')
+      ?? document.querySelector<HTMLElement>('.statusbar .heropowerbtn');
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    const at = { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+    sfx.pulse();
+    playDef('hero-power-spark', { source: at, target: at });
+  }, [rechargeSeq]);
+
   const equipSnapRef = useRef<{ name: string; rule: string; art?: string; cost: number; discounted: boolean; version: string } | null>(null);
   if (hasEquip) {
     equipSnapRef.current = {

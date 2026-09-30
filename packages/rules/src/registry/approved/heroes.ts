@@ -437,6 +437,90 @@ export const HEROES_RULES: GameRule[] = [
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsAlbus.test.ts'], lastVerifiedAt: '2026-09-28' },
   },
   {
+    id: 'R-ANCHUNCH-01',
+    title: 'Hunch × Ancient of Death: Avenge (4), improve your spells by +1/+1',
+    statement:
+      'With the Ancient of Death, every 4th friendly death in a combat improves your spells by +1/+1 (spell power, permanent), the moment the 4th death lands, through the same channel as Rune of Appraisal: Rune of Mastery multiplies the improvement and Rune of Fury fires it again. Avenge is a combat keyword, so this counts combat deaths only. The power text prints the Avenge progress and the total improvement so far, live during the fight.',
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-30 (Hunch Ancients)', quote: 'Death - Avenge (4) Improve your spells by +1/+1.' },
+      { kind: 'code', ref: 'packages/sim/src/ancients.ts avengeImproveSpells / hunchLive; packages/core/src/combat/simulate.ts ancientAvengeSpells (avenge bus, grantSpellPower)' },
+    ],
+    currentBehaviour: 'Conforms (built 2026-09-30). Dev-only (Scene Builder, Set 3, the Ancients flag).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsHunch.test.ts'], lastVerifiedAt: '2026-09-30' },
+  },
+  {
+    id: 'R-ANCHUNCH-02',
+    title: 'Hunch × Ancient of Fortune: each Rounded Spellbook use also gives +1 max Gold',
+    statement:
+      'With the Ancient of Fortune, every Rounded Spellbook use that hands over its copy also raises your max Gold by 1, permanently, through the Gold Font channel (above the natural Gold curve; no extra Gold this turn). Once per use, not once per copy. The power text prints the max Gold granted so far.',
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-30 (Hunch Ancients)', quote: 'Fortune - Rounded Spellbook also increases max gold by 1.' },
+      { kind: 'code', ref: 'packages/sim/src/ancients.ts spellbookMaxGold / ancientOnSpellbook; packages/sim/src/reducer.ts roundedSpellbook branch' },
+    ],
+    currentBehaviour: 'Conforms (built 2026-09-30). Dev-only (Scene Builder, Set 3, the Ancients flag).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsHunch.test.ts'], lastVerifiedAt: '2026-09-30' },
+  },
+  {
+    id: 'R-ANCHUNCH-03',
+    title: 'Hunch × Ancient of War: your Shop Spells cast an additional time in combat',
+    statement:
+      "With the Ancient of War, every Shop Spell your side casts in combat resolves one extra time, as a genuine second cast (every cast watcher sees it). It is Runebloom Matriarch's combat cast channel, granted by the hero for the whole fight.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-30 (Hunch Ancients)', quote: 'War - Shop Spells cast an additional time in combat' },
+      { kind: 'code', ref: 'packages/sim/src/ancients.ts shopSpellsCastExtraInCombat; packages/core/src/combat/simulate.ts spellCastExtra (ancientSpellCastExtra); packages/core/src/effects/factories.ts castInCombat' },
+    ],
+    currentBehaviour: 'Conforms (built 2026-09-30). Dev-only (Scene Builder, Set 3, the Ancients flag).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsHunch.test.ts'], lastVerifiedAt: '2026-09-30' },
+  },
+  {
+    id: 'R-ANCHUNCH-04',
+    title: 'Hunch × Ancient of Genesis: every 5 spells cast recharges Rounded Spellbook at 1 Gold',
+    statement:
+      'With the Ancient of Genesis, every spell you cast (Shop spells, Gifts and Rubies; reward tokens never count) adds to a running count that carries across turns and phases. Every 5th recharges Rounded Spellbook (usable again this turn if already used) and sets its price to 1 Gold, never raising a lower price; it then keeps shrinking by 1 per turn as usual. A recharge earned by combat casts prices the next Shop at 1 Gold. The power text prints how many spells are left, live during a fight.',
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-30 (Hunch Ancients)', quote: 'Genesis - Casting 5 spells resets rounded spellbook at 1g' },
+      { kind: 'code', ref: 'packages/sim/src/ancients.ts spellsRechargeSpellbook / hunchGenesisTick / ancientOnSpellCast / ancientAfterCombat; packages/sim/src/recruit.ts noteSpellForCountRunes' },
+    ],
+    currentBehaviour: 'Conforms (built 2026-09-30). Dev-only (Scene Builder, Set 3, the Ancients flag).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsHunch.test.ts'], lastVerifiedAt: '2026-09-30' },
+  },
+  {
+    id: 'R-ANCHUNCH-05',
+    title: 'Hunch × Ancient of Time: spells from Rounded Spellbook cast twice',
+    statement:
+      'With the Ancient of Time, each copy Rounded Spellbook hands over is stamped to cast twice (a per-card multiplier, like the other "casts twice" effects). Playing it resolves two genuine casts, each its own cast with its own tick, and the hand badge shows x2.',
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-30 (Hunch Ancients)', quote: 'Time - Spells from rounded spellbook cast twice.' },
+      { kind: 'code', ref: 'packages/sim/src/ancients.ts spellbookCastsTwice / ancientOnSpellbook; packages/sim/src/recruit.ts spellCastsWithout (castMult)' },
+    ],
+    currentBehaviour: 'Conforms (built 2026-09-30). Dev-only (Scene Builder, Set 3, the Ancients flag).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsHunch.test.ts'], lastVerifiedAt: '2026-09-30' },
+  },
+  {
+    id: 'R-ANCHUNCH-06',
+    title: 'Hunch × Ancient of Bonds: casting a spell gives your left-most and right-most minions +2/+3',
+    statement:
+      'With the Ancient of Bonds, every spell you cast gives your left-most and right-most minions +2/+3 right then. A lone minion is both ends and gains it once. In the Shop every spell counts (Shop spells, Gifts, Rubies) and the gain is permanent; in combat every spell cast buffs the left-most and right-most living minions for the fight (the standing combat buff rule).',
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-30 (Hunch Ancients)', quote: 'Bonds - Casting spells grants your left and right-most minion +2/+3.' },
+      { kind: 'code', ref: 'packages/sim/src/ancients.ts spellCastBuffsEdges / ancientOnSpellCast; packages/core/src/combat/simulate.ts ctx.castSpell (ancientSpellEdges)' },
+    ],
+    currentBehaviour: 'Conforms (built 2026-09-30). Dev-only (Scene Builder, Set 3, the Ancients flag).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsHunch.test.ts'], lastVerifiedAt: '2026-09-30' },
+  },
+  {
     id: 'R-MIMIC-01',
     title: "Kindness is not in Mimic's hero power pool",
     statement:

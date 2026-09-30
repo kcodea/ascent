@@ -1908,6 +1908,18 @@ export interface QuestCombatMods {
    *  (a live `toHand`), at most once per combat. The tally after the fight comes home as
    *  `CombatCarryBacks.ancientPummelDealt`. Player-only; never snapshotted. */
   ancientPummel?: { every: number; count: number; cardId: string; dealt: number; label: string };
+  /** ANCIENT OF DEATH × Hunch (owner 2026-09-30): "Avenge (4) Improve your spells by +1/+1." Every `every`th friendly
+   *  death in the fight improves the side's spells by +attack/+health through `grantSpellPower` (the Rune of
+   *  Appraisal shape: Rune of Mastery's improve reps and Rune of Fury's extra Avenge fire both apply). The total the
+   *  fight granted comes home as `CombatCarryBacks.ancientSpellImproved`. Player-only; never snapshotted. */
+  ancientAvengeSpells?: { every: number; attack: number; health: number; label: string };
+  /** ANCIENT OF WAR × Hunch (owner 2026-09-30): "Shop Spells cast an additional time in combat." Seeds the side's
+   *  extra combat casts (`spellCastRepsFor`, Runebloom Matriarch's channel) at the start of the fight. */
+  ancientSpellCastExtra?: number;
+  /** ANCIENT OF BONDS × Hunch (owner 2026-09-30): "Casting spells grants your left and right-most minion +2/+3." Every
+   *  combat spell cast (`ctx.castSpell`, once per repetition) buffs the side's left-most and right-most LIVING
+   *  minions (once when they are the same body). A combat buff: it lasts the fight. Player-only. */
+  ancientSpellEdges?: { attack: number; health: number; label: string };
   /** LEGACY (pre-2026-09-28 runs): the run-wide Beast Health channel `beastBuyHp`, re-added to from-base Beast
    *  bodies (summons / Reborn). Nothing feeds it any more — Beast buffs are combat-only (R-AURA-03). */
   beastAuraHp?: number;
@@ -3141,6 +3153,8 @@ export interface CombatCarryBacks {
   summonsMade?: number;
   /** ANCIENTS (Albus's War): the side's lifetime hero-Pummel tally after this fight (only when `ancientPummel`). */
   ancientPummelDealt?: number;
+  /** ANCIENTS (Hunch's Death): the spell improvement this fight's Avenges granted (only when `ancientAvengeSpells`). */
+  ancientSpellImproved?: { attack: number; health: number };
 }
 
 /** One side's hero damage, itemized (`CombatResult.damageBreakdown` / `enemyDamageBreakdown`). */
@@ -3426,6 +3440,8 @@ export interface CombatResult {
   playerSummonsMade?: number;
   /** ANCIENTS (Albus's War): the player's `CombatCarryBacks.ancientPummelDealt`. */
   playerAncientPummelDealt?: number;
+  /** ANCIENTS (Hunch's Death): the player's `CombatCarryBacks.ancientSpellImproved`. */
+  playerAncientSpellImproved?: { attack: number; health: number };
   /** Outcome odds (fractions summing to 1) — estimated by the run loop re-simulating these boards
    *  on many independent seeds. Not produced by `simulate` itself (a single fight); the run loop fills it.
    *  `avgLossDamage` is the mean Resolve lost across the losing sims (round-capped), i.e. how much damage

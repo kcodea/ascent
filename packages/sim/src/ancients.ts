@@ -1120,6 +1120,19 @@ export function ancientClearanceUsesBadge(state: Pick<RunState, 'ancientsEnabled
   return uses >= 2 ? uses : null;
 }
 
+/**
+ * WAR: the Avenge (N) countdown shown in the CENTRE of the power (owner 2026-09-30: "show it in the center of the hero
+ * power when war is active"): friendly deaths still needed for the next stack. Avenge counts deaths within ONE fight
+ * (the avenge bus's `count`), so outside a fight it reads the full N; `deaths` = friendly deaths so far in the fight on
+ * screen. null = War not picked.
+ */
+export function ancientClearanceAvengeLeft(state: Pick<RunState, 'ancientsEnabled' | 'ancients' | 'heroId'>, deaths = 0): number | null {
+  const e = effectOf(state as RunState, 'avengeClearanceStack');
+  if (!e) return null;
+  const every = Math.max(1, e.every);
+  return every - (Math.max(0, deaths) % every);
+}
+
 /** WAR: a Clearance use past the turn's own charge spends one stack. */
 export function ancientSpendClearanceStack(state: RunState): void {
   const a = live(state);

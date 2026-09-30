@@ -859,6 +859,10 @@ export function roundedSpellbookCostOf(state: RunState): number {
  * Dig escalates on it, so a Void wielding Dig in slot 1 prices off slot 1's count, never slot 0's.
  */
 export function heroPowerCostOf(power: HeroPower, state: RunState, uses: number): number {
+  // A PASSIVE power is never activated, so it has no price: no cost coin (owner 2026-09-30, Frank × Ancient of Time:
+  // "the cost of the hero power should go away because it's not activatable anymore"). This is what makes an Ancient's
+  // `passive` override (Frank's / Albus's / the Auctioneer's Time) render exactly like a natively passive power.
+  if (power.passive) return 0;
   switch (power.kind) {
     case 'dynamiteDig': return uses; // Jenkins — the first dig is free, then 1, 2, …
     case 'dragonTamer': return dragonTamerCostOf(state); // Tiff

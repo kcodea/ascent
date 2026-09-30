@@ -7,7 +7,7 @@ import { renameTerms } from './terms';
 import { Card, mdBold } from './Card';
 import { instView } from './instView';
 import { ANCIENTS, dragonTamerCostOf, heroPowerCostOf, INDY_GILD_RECHARGE_GOLD, KESHI_CROWN_THRESHOLD, roundedSpellbookCostOf, allInPayoutOf, exhibitionGrantOf, tempestGrantOf, bladeMasteryGrantOf, hoardWhelpStatsOf, TEMPEST_KILLS_PER_STEP, BLADE_ATTACKS_PER_STEP, heroPowerText, commissionOffer, COMMISSION_NAME, COMMISSION_REWARD, COMMISSION_DELAY, getHero, spellAmplifyBonus, spellAttackBonusLive, spellHealthBonusLive, spellEscalationLive, rubyStatBonus, heroPowerLockTurns, activePowers, type RunState, type HeroPower } from '@game/sim';
-import { henchmanOffer, ancientClearanceStacks, ancientClearanceUsesBadge } from '@game/sim';
+import { henchmanOffer, ancientClearanceAvengeLeft, ancientClearanceStacks, ancientClearanceUsesBadge } from '@game/sim';
 import { equipmentWillAmplify, equipmentCostOf, equipmentPool, equipmentState, equipmentText, equipmentUsesLeft, selectedEquipment, selectedEquipmentDef } from '@game/sim';
 import { CARD_INDEX, EQUIPMENT_INDEX } from '@game/content';
 import type { Keyword } from '@game/core';
@@ -161,6 +161,7 @@ export function StatusBar() {
   const friendlyDamage = combatDamage === undefined ? undefined : combatDamage * (1 + heavyShare);
   // FRANK × WAR, LIVE (R-REALTIME-01): Clearance stacks gained so far this fight. Undefined outside a fight.
   const clearanceStacks = useGame((s) => s.combatQuestDelta?.clearanceStacks);
+  const combatFriendlyDeaths = useGame((s) => s.combatQuestDelta?.friendlyDeaths);
   const heroPowerLive = useMemo(() => ({ attacks: combatAttacks, summons: combatSummons, friendlyDamage, clearanceStacks }), [combatAttacks, combatSummons, friendlyDamage, clearanceStacks]);
   // While spectating a replay, the hero panel belongs to the RECORDED player, so show their name — not the
   // local account's. Falls back to your own name for normal play (replaySession is null outside playback).
@@ -579,7 +580,9 @@ export function StatusBar() {
   // A live MAGNITUDE printed on the power art itself (the pill above it carries progress). Odelle only, for
   // now — the slot exists because "how much is this giving me" and "how close is the next step" are two
   // different questions, and one pill cannot answer both (owner ask 2026-08-22).
-  const powerCenter = heroPowerCenterOf(power, run, combatEnemyDeaths);
+  // FRANK × ANCIENT OF WAR: the Avenge (3) countdown owns the centre readout (live: the fight's friendly deaths so far).
+  const avengeLeft = power.kind === 'clearance' && run.ancientsEnabled ? ancientClearanceAvengeLeft(run, combatFriendlyDeaths ?? 0) : null;
+  const powerCenter = avengeLeft != null ? String(avengeLeft) : heroPowerCenterOf(power, run, combatEnemyDeaths);
   // The big line under the hero name: what tapping the power does *right now*.
   const powerLine = isPassive
     ? power.kind === 'spellAmplify'
@@ -845,7 +848,7 @@ export function StatusBar() {
               {/* The REFRESH bloom — a one-shot circular flash as the power re-arms (never a loop). */}
               {refreshFlash && <span className="hpb-flash" aria-hidden="true" />}
             </button>
-            {liveCost ? <span className="hpcost"><span className="costn">{liveCost}</span></span> : null}
+            {liveCost && !isPassive ? <span className="hpcost"><span className="costn">{liveCost}</span></span> : null}
             {/* ANCIENTS (proof of concept): the segmented meter ring + its points medallion / the awakened badge. */}
             {run.ancientsEnabled && <AncientMeter run={run} />}
             {run.ancientsEnabled && <AncientGate run={run} />}
@@ -872,7 +875,7 @@ export function StatusBar() {
                 RIGHT NOW. Suppressed while the Gambler's die owns the centre, so two heroes can never both
                 claim the slot (only reachable at all through a Void holding both). */}
             {powerCenter && dieRoll == null && diceHeld == null && (
-              <span key={powerCenter} className="hpb-tally hpb-center">{powerCenter}</span>
+              <span key={powerCenter} className={`hpb-tally hpb-center${avengeLeft != null ? ' hpb-avenge' : ''}`} data-testid={avengeLeft != null ? 'clearance-avenge' : undefined}>{powerCenter}</span>
             )}
             {/* CASSEN'S COMMISSION PICKER — reuses the Discover overlay's shell so it reads as the same kind of
           decision, but its options are plain text tiles rather than cards (a commission is not a card). Only

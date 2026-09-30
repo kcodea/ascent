@@ -67,6 +67,9 @@ export interface CombatQuestDelta {
   /** Clearance stacks gained so far this fight (the player's `questTrigger` events for Frank × Ancient of War's
    *  Avenge), so the power text's banked count ticks mid-fight (R-REALTIME-01). */
   clearanceStacks?: number;
+  /** Friendly deaths so far this fight (the player's `death` events, a Rise's first death excluded: the Avenge count),
+   *  for Frank × Ancient of War's centre Avenge countdown, live. */
+  friendlyDeaths?: number;
 }
 import { sfx } from './sfx';
 import { ancientMeterOverride } from './ancients/ancientsConfig';

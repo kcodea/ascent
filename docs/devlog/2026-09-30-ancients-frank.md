@@ -57,6 +57,14 @@ stamps at 2 Gold also carries `ShopCard.clearance`, and the minion bought from o
   - War: each stack gained mid-fight plays the one-shot `hero-power-spark` on the power as the red count bumps.
   - Fortune: the sell float already reads `sellValueWithBonus` → `sellValueOf`, so it floats the 2.
   - Genesis: the ordinary refresh beat. Time: the live prices on the offers' coins.
+- **War's Avenge countdown** (owner: "show it in the center of the hero power when war is active"): the power's centre
+  readout (`.hpb-center.hpb-avenge`, a dark disc with War's crimson rim) shows the friendly deaths still needed for the
+  next stack (`ancientClearanceAvengeLeft`): 3 in the Shop, counting down live in a fight (`CombatQuestDelta.friendlyDeaths`,
+  the player's non-Rise `death` events), back to 3 after each stack. Measured clear of the red pip and the name plate at
+  1920x1080 and 1600x900.
+- **No cost coin on a passive power** (owner, Time: "the cost of the hero power should go away because it's not
+  activatable anymore"): `heroPowerCostOf` returns 0 for any passive power and the coin also gates on `!isPassive`, so
+  Frank's, Albus's and the Auctioneer's Time all render like a natively passive power (no coin, disabled, no ready glow).
 
 ## Judgement calls (open for the owner)
 

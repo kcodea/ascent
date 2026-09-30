@@ -7,8 +7,8 @@ import { describe, expect, it } from 'vitest';
 import { CARD_INDEX } from '@game/content';
 import type { CombatEvent } from '@game/core';
 import {
-  ANCIENT_CLEARANCE_STACK_FLAG, ANCIENT_IDS, activePowers, ancientClearanceUsesBadge, ancientCombatMods, ancientOfferText, createRun, defIsTribe, enableAncients,
-  heroPowerText, offerBuyPrice, poolOf, reduce, sellValueOf,
+  ANCIENT_CLEARANCE_STACK_FLAG, ANCIENT_IDS, activePowers, ancientClearanceAvengeLeft, ancientClearanceUsesBadge, ancientCombatMods, ancientOfferText, createRun, defIsTribe, enableAncients,
+  heroPowerCostOf, heroPowerText, offerBuyPrice, poolOf, reduce, sellValueOf,
   type AncientId, type BoardCard, type BoardSnapshot, type RunState,
 } from './index';
 
@@ -191,6 +191,12 @@ describe('Frank × WAR — Avenge (3): gain a Clearance stack; each stack is one
     expect(ancientClearanceUsesBadge(s, 1), 'a stack gained mid-fight counts at once').toBe(2);
     expect(ancientClearanceUsesBadge(picked('death', { ancients: undefined } as never)), 'War only').toBeNull();
   });
+  it('the centre Avenge countdown: 3 in the Shop, counting down with the fight’s deaths, resetting after each stack', () => {
+    const s = picked('war');
+    expect(ancientClearanceAvengeLeft(s)).toBe(3);
+    expect([1, 2, 3, 4, 6].map((d) => ancientClearanceAvengeLeft(s, d))).toEqual([2, 1, 3, 2, 3]);
+    expect(ancientClearanceAvengeLeft(picked('death')), 'War only').toBeNull();
+  });
   it('prints the live stack count, and folds in the fight on screen', () => {
     let s = picked('war');
     s = { ...s, ancients: { ...s.ancients!, clearanceStacks: 2 } };
@@ -243,6 +249,16 @@ describe('Frank × TIME — Clearance becomes: the first 3 minions you buy each 
     const s = picked('time');
     expect(activePowers(s)[0]!.passive).toBe(true);
     expect(clearance(s)).toBe(s);
+  });
+  it("a passive power has no price, so no cost coin (Frank's and Albus's Time alike)", () => {
+    const s = picked('time');
+    expect(heroPowerCostOf(activePowers(s)[0]!, s, 0)).toBe(0);
+    expect(heroPowerCostOf(activePowers(picked('death'))[0]!, picked('death'), 0), 'an active Clearance keeps its 1 Gold').toBe(1);
+    let albus = enableAncients({ ...createRun(7, 'albus'), phase: 'recruit' } as RunState);
+    albus = { ...albus, ancients: { ...albus.ancients!, points: albus.ancients!.cost, offer: ['time', 'death', 'war'] } };
+    albus = reduce(albus, { type: 'pickAncient', id: 'time' });
+    expect(activePowers(albus)[0]!.passive).toBe(true);
+    expect(heroPowerCostOf(activePowers(albus)[0]!, albus, 0)).toBe(0);
   });
   it('the first 3 minion buys cost 2, the 4th pays full price, and the count resets next turn', () => {
     let s = picked('time', { board: [card('x', T1, { attack: 1, health: 50 })] });

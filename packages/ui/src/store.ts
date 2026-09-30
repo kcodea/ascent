@@ -74,6 +74,7 @@ import { clearAllHandBuffs } from './handBuffFx';
 import { liveBoardView } from './instView';
 import { saveCapturedBoards, saveRunBoards } from './boardLibrary';
 import { isStagePlayable, recordClear } from './gauntlet/gauntletProgress';
+import { gauntletClockReading } from './gauntlet/gauntletClock';
 import { type AnnouncedSlice, type AnnouncerEvent, announcedFor, emptyAnnounced, withAnnounced } from './announcerSlice';
 import { perfMonitor } from './perfMonitor';
 import { fetchRankedProfile, remoteEnabled, fetchAndRegisterBoardRecords, fetchAndRegisterPool, opponentPoolLoader, recordFightResult, recordLobbyFights, fetchLobbyStrength, refreshOpponentPoolAndRecords, supabaseAuthProvider, uploadBoards, uploadPlayerProfile, uploadRunHistory, uploadRunTelemetry, uploadVictory, uploadPracticeGame, fetchRunHistory, claimHandle, flushUploadQueue } from './remoteBoards';
@@ -2083,7 +2084,8 @@ export const useGame = create<GameStore>((rawSet, get) => {
     // replayed. RAW `turnClock` seconds: Practice's multiplier and the sandbox's frozen clock only change how
     // many real seconds a clock-second lasts; the window is 8 clock-seconds in every mode.
     if (action.type === 'activateEquipment' && action.clockSeconds === undefined && prev.phase === 'recruit') {
-      action = { ...action, clockSeconds: turnClock.get() };
+      // A parked Gauntlet clock (no clock until 30 Gold is spent) reads as the 60 it starts from — see gauntletClock.ts.
+      action = { ...action, clockSeconds: gauntletClockReading(prev.mode, turnClock.get()) };
     }
     set((s) => {
       // MEASURED for the perf HUD, keyed by action type: `reduce` is the single chokepoint for all run

@@ -24,9 +24,21 @@ export function gauntletClockState(goldSpentThisTurn: number): 'waiting' | 'runn
   return goldSpentThisTurn >= GAUNTLET_CLOCK_GOLD ? 'running' : 'waiting';
 }
 
-/** Whether a clock reading is still the parked waiting value (for the timer plaque). */
+/** Whether a clock reading is still the parked waiting value (for the timer plaque). The tick is held while
+ *  parked, so the value stays exactly the sentinel until the countdown starts. */
 export function gauntletClockWaiting(seconds: number): boolean {
-  return seconds > GAUNTLET_CLOCK_SECONDS;
+  return seconds === GAUNTLET_CLOCK_WAITING;
+}
+
+/**
+ * The clock READING that anything anchored to the turn clock should use (a Thymepiece discount window stamps it at
+ * activation and its readout counts from it). A parked Gauntlet clock reads as the `GAUNTLET_CLOCK_SECONDS` it will
+ * start from: anchored to the raw parked value, a window opened before 30 Gold is spent would expire on the first
+ * tick after the jump to 60. The window is held while parked (the tick is), then gets its full length once the
+ * countdown runs. Every other mode, and a running Gauntlet clock, reads raw.
+ */
+export function gauntletClockReading(mode: string | undefined, seconds: number): number {
+  return mode === 'gauntlet' && gauntletClockWaiting(seconds) ? GAUNTLET_CLOCK_SECONDS : seconds;
 }
 
 /**

@@ -534,4 +534,91 @@ export const HEROES_RULES: GameRule[] = [
     currentBehaviour: 'Conforms (fixed 2026-09-29).',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/heroBatchAug22.test.ts'], lastVerifiedAt: '2026-09-29' },
   },
+  {
+    id: 'R-ANCFRANK-01',
+    title: 'Frantic Frank × Ancient of Death: Clearance destroys your left-most minion, and the first minion you buy from it is free',
+    statement:
+      "With the Ancient of Death, Clearance refreshes the Shop as usual, stamps its minions at 0 Gold instead of 2, then destroys your left-most board minion (a real Shop death: its Echo, the death watchers, a Rebirth or Rise return; an empty board skips it). The FIRST Clearance minion you buy is free; that buy re-prices the rest of the set to the Clearance 2 Gold. A later ordinary refresh builds un-stamped offers, so the free buy never carries past its Clearance Shop. The Clearance offers' price coins and the power text (\"Free buy ready.\") show the free buy live.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-30 (Frank Ancients, Death revised the same day)', quote: 'make death - destroy leftmost minion and makes the first minion you buy from clearance free' },
+      { kind: 'code', ref: 'packages/sim/src/ancients.ts clearanceDestroyFirstFree / ancientMarkClearanceOffer / ancientAfterClearance / ancientOnClearanceBuy; packages/sim/src/reducer.ts clearance branch + buy' },
+    ],
+    currentBehaviour: 'Conforms (built 2026-09-30). Dev-only (Scene Builder, Set 3, the Ancients flag).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsFrank.test.ts'], lastVerifiedAt: '2026-09-30' },
+  },
+  {
+    id: 'R-ANCFRANK-02',
+    title: 'Frantic Frank × Ancient of Fortune: Clearance minions sell for 2 Gold',
+    statement:
+      'With the Ancient of Fortune, a minion bought from a Clearance-marked Shop offer is a Clearance minion (a per-instance mark, BoardCard.clearanceBuy, that survives combat, saves and hand/board moves) and sells for 2 Gold (never less than it would sell for anyway). Every sale path reads it through sellValueOf, so the sell float shows the same number. The card text of the minion prints its current sale price as a blue note, "Sells for 2 Gold." (or its higher real value), on the Shop surfaces (board, hand, hover); never for other minions or without Fortune (owner 2026-09-30).',
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-30 (Frank Ancients)', quote: 'Fortune - Clearance minions sell for 2g' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-30 (Frank Ancients, Fortune review)', quote: 'just add sells for 2g if it is a fortune frank purchase' },
+      { kind: 'code', ref: 'packages/sim/src/ancients.ts clearanceSellValue / ancientClearanceSellValue; packages/sim/src/recruit.ts sellValueOf' },
+    ],
+    currentBehaviour: 'Conforms (built 2026-09-30). Dev-only (Scene Builder, Set 3, the Ancients flag).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsFrank.test.ts', 'packages/ui/src/ancientsFrankText.test.ts'], lastVerifiedAt: '2026-09-30' },
+  },
+  {
+    id: 'R-ANCFRANK-03',
+    title: 'Frantic Frank × Ancient of War: Avenge (3) gains a Clearance stack; each stack is one more Clearance use',
+    statement:
+      "With the Ancient of War, every 3rd friendly death in a combat (the Avenge count, a hero-level Avenge like Cindara's Hoard; Rune of Fury fires it again) gains one Clearance stack right then, mid-fight (a questTrigger the replay counts, so the power text's banked count ticks live, R-REALTIME-01). Stacks are banked and kept across turns until used. Once the turn's own Clearance is spent, each further Clearance that turn takes one stack (and still costs its Gold); with no charge and no stack it is refused. Avenge is a combat trigger, so Shop deaths do not count. While 2 or more uses are available (the turn's own use + banked stacks + stacks gained so far in the fight on screen) the power shows that count in RED at its top centre (owner 2026-09-30), re-keyed so each change bumps, and each stack gained mid-fight pops the power with the one-shot hero-power spark; the tooltip then says how many uses are left instead of \"once per turn\". The Avenge (3) countdown (friendly deaths still needed for the next stack: 3 in the Shop, counting down with the fight's deaths, back to 3 after each stack) sits in the CENTRE of the power on a dark disc, live (owner 2026-09-30).",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-30 (Frank Ancients)', quote: 'War - Avenge (3): Gain a Clearance stack. this lets clearance be used more than once per turn' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-30 (Frank Ancients, War review on 5173)', quote: 'when there are multiple stacks of clearance, show the # in Red in the center top of the hero power' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-30 (Frank Ancients, War review on 5173)', quote: 'can you show it in the center of the hero power when war is active' },
+      { kind: 'code', ref: 'packages/sim/src/ancients.ts avengeClearanceStack; packages/core/src/combat/simulate.ts ancientClearanceStacks avenge listener; packages/sim/src/reducer.ts heroPower stackUse; packages/ui/src/StatusBar.tsx canHero' },
+    ],
+    currentBehaviour: 'Conforms (built 2026-09-30). Dev-only (Scene Builder, Set 3, the Ancients flag).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsFrank.test.ts'], lastVerifiedAt: '2026-09-30' },
+  },
+  {
+    id: 'R-ANCFRANK-04',
+    title: 'Frantic Frank × Ancient of Genesis: Clearance costs 3 Gold and refreshes with minions of your most common type',
+    statement:
+      "With the Ancient of Genesis, Clearance costs 3 Gold, and its refresh draws only minions of your board's most common type (the Reinforcing Ale rule: both types of a dual-type card count, ties go to the first seen on the board), still stamped at the Clearance 2 Gold. The narrowing applies to that one roll only; a type with no stock left at your tier falls back to the ordinary draw, and a board with no type refreshes normally. The power text names the type it would refresh into right now.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-30 (Frank Ancients)', quote: 'Genesis - Clearance costs 3g but refreshes with minions of your most common type.' },
+      { kind: 'code', ref: 'packages/sim/src/ancients.ts clearanceTopTribe / ancientClearanceRefresh + power override (cost 3); packages/sim/src/shop.ts rollShopRow (rollTribe)' },
+    ],
+    currentBehaviour: 'Conforms (built 2026-09-30). Dev-only (Scene Builder, Set 3, the Ancients flag).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsFrank.test.ts'], lastVerifiedAt: '2026-09-30' },
+  },
+  {
+    id: 'R-ANCFRANK-05',
+    title: 'Frantic Frank × Ancient of Time: Clearance becomes "The first 3 minions you buy each turn cost 2 Gold"',
+    statement:
+      'With the Ancient of Time, Clearance is passive (never activatable), and like every passive power it has no price, so no cost coin shows (heroPowerCostOf returns 0 for a passive power; the same holds for the Time pairings of Albus and the Auctioneer). The first 3 minions you buy each turn (every minion buy counts, the Starform included) have their price capped at 2 Gold in offerBuyPrice, the one price the buy charges and the coin shows; other discounts still apply on top. The count resets each turn, and the power text prints how many discounted buys are left this turn. A displaced (held) offer restored at its flat price is not discounted and does not count.',
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-30 (Frank Ancients)', quote: 'Time - Clearance becomes "The first 3 minions you buy each turn cost 2g."' },
+      { kind: 'code', ref: 'packages/sim/src/ancients.ts firstBuysCost / ancientTimePrice / ancientNoteMinionBuy + power override (passive); packages/sim/src/reducer.ts offerBuyPrice' },
+    ],
+    currentBehaviour: 'Conforms (built 2026-09-30). Dev-only (Scene Builder, Set 3, the Ancients flag).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsFrank.test.ts'], lastVerifiedAt: '2026-09-30' },
+  },
+  {
+    id: 'R-ANCFRANK-06',
+    title: "Frantic Frank × Ancient of Bonds: selling a Clearance minion gives its stats to a random friendly minion",
+    statement:
+      "With the Ancient of Bonds, selling a Clearance minion (through the shared sale path, settleMinionSale) gives its CURRENT Attack and Health to a random friendly board minion, permanently, right then, with its beat: a buff tendril from the slot the sold minion left to the recipient (a deathrattle-kind capture keyed on the sold uid) and the recipient's stat pop. The sold minion is gone first, so it is never its own recipient; with no other minion nothing happens. Sales only happen in the Shop.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-30 (Frank Ancients)', quote: 'Bonds - Selling Clearance minions grants the minions stats to a random friendly minion.' },
+      { kind: 'code', ref: 'packages/sim/src/ancients.ts clearanceSaleGivesStats / ancientOnSale; packages/sim/src/recruit.ts settleMinionSale' },
+    ],
+    currentBehaviour: 'Conforms (built 2026-09-30). Dev-only (Scene Builder, Set 3, the Ancients flag).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsFrank.test.ts'], lastVerifiedAt: '2026-09-30' },
+  },
 ];

@@ -1,5 +1,5 @@
 import { type PresentationCollector, type ConsequenceDraft, type CombatEvent, beatIdentity, inRunTribes, socTwilightExtraFires, COMBATATIVE_RUBIES_ATTACKS, BODY_COUNTING_DEATHS, ALE_IDS, combatSide, makeCollector, makeRng, simulate, type BoardMinion, type CardDef, type CombatConfig, type CombatResult, type CombatSideState, type Keyword, type PendingCombatQuest, type PresentationBatch, type QuestCombatMods, type QuestDef, type QuestObjective, type QuestObjectiveEvent, type Tribe, TRIBES } from '@game/core';
-import { ancientCombatMods, ancientAfterPowerGild, ancientOfferOpen, ancientPowerTargetsGilded, ancientReplacesPowerGild, ancientsCombatTick, ancientsRefreshTick, ancientsSetMeter, pickAncient, ancientPulseExtraThenDestroy, ancientPulseDiscovers, ancientPulsePassive, ancientAfterPulse, ancientAegisDestroys, ancientAegisRecipient, ancientAegisDestroyAndGive, ancientAegisResilient, ancientAfterCombat, ancientBondsReact, ancientStartOfTurn, ancientEmpowerPassive, ancientOnEmpowerPick, ancientOnSpellbook } from './ancients';
+import { ancientCombatMods, ancientAfterPowerGild, ancientOfferOpen, ancientPowerTargetsGilded, ancientReplacesPowerGild, ancientsCombatTick, ancientsRefreshTick, ancientsSetMeter, pickAncient, ancientPulseExtraThenDestroy, ancientPulseDiscovers, ancientPulsePassive, ancientAfterPulse, ancientAegisDestroys, ancientAegisRecipient, ancientAegisDestroyAndGive, ancientAegisResilient, ancientAfterCombat, ancientBondsReact, ancientStartOfTurn, ancientEmpowerPassive, ancientOnEmpowerPick, ancientOnSpellbook, ancientClearancePassive, ancientClearanceStacks, ancientSpendClearanceStack, ancientClearanceRefresh, ancientMarkClearanceOffer, ancientAfterClearance, ancientOnClearanceBuy, ancientTimePrice, ancientNoteMinionBuy } from './ancients';
 import { runSpells } from './spellPool';
 import { currentCollector, withActiveCollector } from './activeCollector';
 import { surfaceKeyForRune, surfaceKeyForQuest, CARD_INDEX, EPIC_RUNES, GIFT_IDS, QUEST_INDEX, RUNE_INDEX, RUNES, runeSynergies, type SynergyTag } from '@game/content';
@@ -279,7 +279,11 @@ export function offerBuyPrice(s: RunState, offer: { cardId: string; cost?: numbe
   // Set 3 Dwarves — Thymepiece: "all cards cost −N Gold for the next 8 seconds" (a clock window the UI's tick
   // closes via `discountWindowExpired`). Every non-held CARD, spells included (`spellCostReduction`).
   const windowOff = !freeBuy ? (s.cardDiscountWindow?.amount ?? 0) : 0;
-  const cost = freeBuy ? 0 : Math.max(0, (offer.cost ?? heroOfferPrice(s, offer) ?? s.minionCostOverride ?? minionCostOf(s)) - cadenceOff - tradeInOff - spiritOff - giftMinionOff - windowOff);
+  // ANCIENT OF TIME × Frantic Frank: the first N minions bought each turn cost at most the Time price (every price
+  // source above, the Starform's live price included, is capped; the discounts below still apply on top).
+  const priced = offer.cost ?? heroOfferPrice(s, offer) ?? s.minionCostOverride ?? minionCostOf(s);
+  const timeCap = ancientTimePrice(s);
+  const cost = freeBuy ? 0 : Math.max(0, (timeCap !== undefined ? Math.min(timeCap, priced) : priced) - cadenceOff - tradeInOff - spiritOff - giftMinionOff - windowOff);
   return { cost, freeBuy, cadenceOff, tradeInOff, spiritOff, giftMinionOff, windowOff };
 }
 
@@ -1542,6 +1546,7 @@ function reduceCore(state: RunState, action: Action): RunState {
         if (sfCad) { procRuneId(s, 'rune_cadence'); s.cadenceMinionOff = undefined; }
         if (sfTi) { procRuneId(s, 'rune_trade_in'); s.tradeInTribe = undefined; }
         if (sfFree) s.freeBuyUsedThisTurn = true;
+        ancientNoteMinionBuy(s); // ANCIENT OF TIME × Frank: the Starform is a minion bought (one of the first 3)
         buyStarform(s); // removes the offer, buffs the left-most Celestial, fires `starformRemoved('consume')`
         ciaBuyEnchanted(s, offer);
         if (s.runeCadence) s.cadenceSpellOff = runeStacksOf(s, 'rune_cadence');
@@ -1589,6 +1594,10 @@ function reduceCore(state: RunState, action: Action): RunState {
       const { cost: buyCost, freeBuy, cadenceOff, tradeInOff, spiritOff } = offerBuyPrice(s, offer);
       if (s.embers < buyCost || s.hand.length >= handCap(s)) return state;
       s.shop.splice(i, 1);
+      // ANCIENTS × Frantic Frank (no-ops unless the run has them): DEATH's free buy is spent (the rest of the set goes
+      // back to 2 Gold), TIME counts the buy, and a Clearance offer buys in as a Clearance minion.
+      const clearanceBuy = ancientOnClearanceBuy(s, offer);
+      ancientNoteMinionBuy(s);
       ciaBuyEnchanted(s, offer); // Croupier Ayse: an Enchanted buy advances her prize counter
       spendGold(s, buyCost);
       spendFreeCard(s, freeBuy); // Rune of Festival Wages: an armed free card is spent by this buy
@@ -1641,6 +1650,7 @@ function reduceCore(state: RunState, action: Action): RunState {
         golden: offer.golden ?? false, // Golden Touch: a gilded tavern offer buys in as a Golden
         boughtWave: s.wave, // Hoarder's sell value climbs from the wave it was bought
         ...(offer.sellZero ? { sellOverride: 0 } : {}), // Rune of the Bargain Bin: bought from the bin → sells for 0
+        ...(clearanceBuy ? { clearanceBuy: true } : {}), // ANCIENTS × Frank: a "Clearance minion" (Fortune / Bonds)
       };
       // Tavern buffs on the offer (Apples / Fortify / Fried Circuits / next-shop) bake in under their REAL
       // source names, not a blanket "Fortify"; whatever `atk`/`hp` carry beyond the ledger (a legacy offer with
@@ -3009,13 +3019,16 @@ function reduceCore(state: RunState, action: Action): RunState {
       const slotReady = slot === 1 ? (s.heroReady2 ?? true) : s.heroReady;
       const slotSpent = slot === 1 ? s.heroPowerSpent2 : s.heroPowerSpent;
       const usesThisTurn = s.heroUsesThisTurn ?? 0;
-      const available = power.usesPerTurn
+      const readyNow = power.usesPerTurn
         ? usesThisTurn < power.usesPerTurn // Fibbsy: N times a turn, not the plain once-per-turn heroReady
         : power.maxUses
         ? heroUses < power.maxUses && slotReady
         : power.oncePerGame
           ? !slotSpent
           : slotReady;
+      // ANCIENT OF WAR × Frantic Frank: once the turn's own Clearance is spent, a banked stack pays for one more use.
+      const stackUse = !readyNow && slot === 0 && power.kind === 'clearance' && ancientClearanceStacks(s) > 0;
+      const available = readyNow || stackUse;
       if (!available) return state;
       // Powers with a Mana cost (Nadja's Mana Font) also need the Mana on hand.
       if (power.cost && s.embers < power.cost) return state;
@@ -3220,16 +3233,24 @@ function reduceCore(state: RunState, action: Action): RunState {
       } else if (power.kind === 'clearance') {
         // Frantic Frank: refresh the Shop (free — the 1-Gold power cost is the shared block's) and mark this
         // turn so its minions cost 2 Gold (read in the buy case). Once per turn via heroReady.
-        refreshTavern(s);
-        applyShopRefreshed(s);
+        // ANCIENT OF TIME makes Clearance passive (its first-buys price lives in `offerBuyPrice`) — never activatable.
+        if (ancientClearancePassive(s)) return state;
+        // ANCIENT OF GENESIS narrows this refresh to your most common type (a no-op wrapper otherwise).
+        ancientClearanceRefresh(s, () => {
+          refreshTavern(s);
+          applyShopRefreshed(s);
+        });
         // The 2-Gold price belongs to THIS SHOP, not the turn (owner clarification 2026-08-16): refresh again
         // normally, or roll into the next turn, and minions are back to full price. Stamping the price onto
         // the offers themselves is what makes that true by construction — any later roll builds new offers
         // with no stamp, so there is no flag to expire and no way for the discount to leak.
         for (const o of s.shop) {
           const d = CARD_INDEX[o.cardId];
-          if (d && !d.spell && !d.ruby) o.cost = 2;
+          if (d && !d.spell && !d.ruby) { o.cost = 2; ancientMarkClearanceOffer(s, o); } // + Death's free first buy
         }
+        // ANCIENT OF DEATH: Clearance also destroys your left-most minion (after the refresh, so a Shop-touching Echo
+        // lands on the new Clearance offers).
+        ancientAfterClearance(s);
       } else if (power.kind === 'archive') {
         // Quillen: archive a chosen minion — FRIENDLY (board) or SHOP (owner ruling 2026-08-14). It leaves
         // play and its TYPE is recorded. Once per turn (heroReady). On the 3rd archived minion, immediately
@@ -3495,7 +3516,8 @@ function reduceCore(state: RunState, action: Action): RunState {
         }
       }
 
-      if (power.usesPerTurn) {
+      if (stackUse) ancientSpendClearanceStack(s); // WAR: the extra use takes a stack (the turn's charge is already spent)
+      else if (power.usesPerTurn) {
         // Fibbsy: count this turn's use; heroReady stays TRUE until the last charge is spent, so the button is
         // still armed for the second press. On the final use it flips false, which is how every "used" UI cue
         // (dimmed art, "used" line) reads the power as spent for the turn.

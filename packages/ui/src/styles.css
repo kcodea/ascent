@@ -3963,7 +3963,7 @@ body.dragging .statusbar .heropanel { pointer-events: none; } /* let a corner-re
 .hpwrap .hpb-tally.amplified { color: #7fc4ff; }
 /* ANCIENT AVENGE COUNTDOWN in the CENTRE of the power (owner 2026-09-30: Frank × War's Avenge (3), Hunch × Death's
    Avenge (4)), on a small dark disc with a crimson rim so it reads over any art. Static paint; each change re-keys it
-   and plays the one-shot centred bump (transform only). Identical to the Frank branch's rule, so the two converge. */
+   and plays the one-shot centred bump (transform only). One rule for both heroes (the shared `ancientAvengeCountdown`). */
 .hpwrap .hpb-center.hpb-avenge {
   width: calc(40 * var(--u)); height: calc(40 * var(--u)); box-sizing: border-box;
   display: grid; place-items: center; border-radius: 50%;
@@ -3978,6 +3978,20 @@ body.dragging .statusbar .heropanel { pointer-events: none; } /* let a corner-re
   0% { transform: translate(-50%, -50%) scale(1); }
   45% { transform: translate(-50%, -50%) scale(1.22); }
   100% { transform: translate(-50%, -50%) scale(1); }
+}
+/* FRANK × ANCIENT OF WAR (owner 2026-09-30): the Clearance uses count (2+) as a filled RED pip, top centre of the power,
+   sitting on the rim above the art. Sized off the gold cost coin (44u coin / 22u number) so it scales with the stage the
+   same way (owner on 5173: "the 2 needs to be larger"). Static paint only; it re-keys on every change, so the inherited
+   one-shot `stepbump` (transform) is the tick. */
+.hpwrap .hpb-tally.clearance-uses {
+  top: calc(-30 * var(--u)); /* its bottom meets the art edge: on the rim, never over the art */
+  width: calc(34 * var(--u)); height: calc(34 * var(--u)); box-sizing: border-box;
+  display: grid; place-items: center; border-radius: 50%;
+  background: radial-gradient(circle at 38% 30%, #ff8a7a, #d8332b 58%, #8e1712);
+  border: calc(3 * var(--u)) solid #1b1d22;
+  box-shadow: 0 3px 7px rgba(0, 0, 0, 0.45), inset 0 2px 2px rgba(255, 255, 255, 0.4);
+  font-weight: 900; font-size: calc(20 * var(--u)); color: #fff6e2;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.7);
 }
 .equipslot .hplabel {
   transform: translate(calc(var(--eqn-x, 0) * 1px), calc(var(--eqn-y, 0) * 1px)) scale(var(--eqn-scale, 1)); }

@@ -64,6 +64,12 @@ export interface CombatQuestDelta {
   /** Damage LANDED so far by the player's minions (raw, before Heavy Hand): the `dmg` events whose dealer is a player
    *  body. Albus × Ancient of War prints its hero Pummel progress off it, live (R-REALTIME-01). */
   friendlyDamage?: number;
+  /** Clearance stacks gained so far this fight (the player's `questTrigger` events for Frank × Ancient of War's
+   *  Avenge), so the power text's banked count ticks mid-fight (R-REALTIME-01). */
+  clearanceStacks?: number;
+  /** Friendly deaths so far this fight (the player's `death` events, a Rise's first death excluded: the Avenge count),
+   *  for Frank × Ancient of War's centre Avenge countdown, live. */
+  friendlyDeaths?: number;
 }
 import { sfx } from './sfx';
 import { ancientMeterOverride } from './ancients/ancientsConfig';

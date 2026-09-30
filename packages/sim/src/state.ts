@@ -57,6 +57,12 @@ export interface ShopCard {
   cardId: string;
   /** Rune of the Bargain Bin: this offer sells for 0 once bought (stamped onto the bought minion's `sellOverride`). */
   sellZero?: boolean;
+  /** ANCIENTS × Frantic Frank: this offer was stamped by Clearance (its 2 Gold mark). Set only on a run with Ancients
+   *  on; bought, it becomes a `clearanceBuy` minion (Fortune's 2 Gold sale, Bonds' stat hand-off). */
+  clearance?: boolean;
+  /** ANCIENT OF DEATH × Frantic Frank: this Clearance offer is on the "first one bought is free" price (cost 0). The
+   *  first buy from the set re-prices the rest back to 2 Gold and clears the flag. */
+  clearanceFree?: boolean;
   /** Buffs applied to this offer while it's in the tavern (e.g. the hero power targeting
    *  a shop minion) — baked into the minion's stats/keywords when it's bought. */
   atk?: number;
@@ -134,6 +140,9 @@ export interface BoardCard {
   health: number;
   /** Rune of the Bargain Bin: an overridden sell value (0) — read by `sellValueOf` ahead of the normal calc. */
   sellOverride?: number;
+  /** ANCIENTS × Frantic Frank: bought from a Clearance-marked Shop (a "Clearance minion"). Per instance, so it survives
+   *  combat, saves and hand/board moves. Fortune sells it for 2 Gold; Bonds hands its stats on when it is sold. */
+  clearanceBuy?: boolean;
   /** A HAND SPELL that casts this many extra times (Rune of the Astral Draft's Discover pick). Read by `spellCasts`
    *  when the cast site passes the instance, so the x N badge previews it. Absent = 0. */
   extraCasts?: number;

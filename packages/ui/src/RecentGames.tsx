@@ -181,6 +181,8 @@ export function RecentGames(): JSX.Element | null {
                       {cfg && <span className="lb-fact"><span className="lb-fact-l">Opponents</span><span className="lb-fact-v">{practiceOpponentsText(cfg)}</span></span>}
                       {cfg && <span className="lb-fact"><span className="lb-fact-l">Health</span><span className="lb-fact-v">{cfg.health === 'normal' ? 'Normal' : 'Unlimited'}</span></span>}
                       {SHOW_LOBBY_STRENGTH && r.lobbyStrength && <span className="lb-fact"><span className="lb-fact-l">Lobby</span><span className="lb-fact-v lb-fact-lobby" aria-label={`Lobby strength ${r.lobbyStrength.value} percent`}>{strengthText(r.lobbyStrength)}</span></span>}
+                      {/* BOARD STRENGTH (R-LOBBY-09): frozen when the game ended; nothing at all when it was not scored. */}
+                      {r.boardStrength != null && <span className="lb-fact"><span className="lb-fact-l">Board strength</span><span className="lb-fact-v lb-fact-bstrength" aria-label={`Board strength ${r.boardStrength} out of 100`}>{r.boardStrength}</span></span>}
                     </div>
                     {r.partial && <div className="lb-partial"><Icon name="clock" />{partialText(r.firstRecordedWave)}</div>}
                     {(!practice || watchable) && <button

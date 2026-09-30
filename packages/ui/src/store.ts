@@ -75,7 +75,9 @@ import { liveBoardView } from './instView';
 import { saveCapturedBoards, saveRunBoards } from './boardLibrary';
 import { type AnnouncedSlice, type AnnouncerEvent, announcedFor, emptyAnnounced, withAnnounced } from './announcerSlice';
 import { perfMonitor } from './perfMonitor';
-import { fetchRankedProfile, remoteEnabled, fetchAndRegisterBoardRecords, fetchAndRegisterPool, opponentPoolLoader, recordFightResult, recordLobbyFights, fetchLobbyStrength, refreshOpponentPoolAndRecords, supabaseAuthProvider, uploadBoards, uploadPlayerProfile, uploadRunHistory, uploadRunTelemetry, uploadVictory, uploadPracticeGame, fetchRunHistory, claimHandle, flushUploadQueue } from './remoteBoards';
+import { boardStrengthScorer, lobbyBandFor, STRENGTH_RUN_END_WAIT_MS } from './boardStrength';
+import { runStrengthFromScores, type StrengthScore } from '@game/sim';
+import { fetchRankedProfile, remoteEnabled, setPoolBandFallback, setPoolBandProvider, strengthHistogram, runStrengthHistogram, refreshStrengthHistogram, fetchAndRegisterBoardRecords, fetchAndRegisterPool, opponentPoolLoader, recordFightResult, recordLobbyFights, fetchLobbyStrength, refreshOpponentPoolAndRecords, supabaseAuthProvider, uploadBoards, uploadPlayerProfile, uploadRunHistory, uploadRunTelemetry, uploadVictory, uploadPracticeGame, fetchRunHistory, claimHandle, flushUploadQueue } from './remoteBoards';
 import { practiceGameOf } from './practiceGames';
 import { initIdentity, currentIdentity, currentUserId as currentProgressionUserId } from './identity';
 import { notifyTutorialActions } from './tutorial/actionBus';
@@ -125,7 +127,11 @@ if (OPPONENT_POOL.length === 0) registerOpponents([...OPPONENT_POOL_DATA]);
 // unconfigured backend already behaves.
 // ACCOUNTS C1/C2: establish identity first, and seed + subscribe the account mirror. Wired at the bottom of
 // this module (after `useGame` exists) — see `initAccounts()`.
+// MATCHMAKING BAND (R-LOBBY-09): until the store exists, the stored profile says which band to fetch for.
+setPoolBandFallback(() => lobbyBandFor(loadProfile()));
 void fetchAndRegisterPool(`${__APP_VERSION__}+`);
+// BOARD STRENGTH: the pool's histogram, so a game that ends can freeze its percentile (same startup moment).
+void refreshStrengthHistogram();
 // Board win-rate records for matchmaking weighting — same startup moment, same session-static contract.
 void fetchAndRegisterBoardRecords();
 
@@ -1321,12 +1327,16 @@ function endStateBoard(run: RunState): BoardSnapshot | null {
  * (never on the click that ended the run): recorded seats are cheap lookups, but a driver the session has not
  * built yet costs a rebuild. Best-effort: a failure costs the Match details button, never the end screen.
  */
-function matchDetailsOf(run: RunState, author: string, finalBoard: BoardSnapshot | null, placement: number | null, selfRunKey?: string): MatchDetails | null {
+function matchDetailsOf(
+  run: RunState, author: string, finalBoard: BoardSnapshot | null, placement: number | null, selfRunKey?: string,
+  selfStrength?: { value: number | null; rounds: { round: number; value: number }[] } | null,
+): MatchDetails | null {
   if (!run.lobby || placement === null || placement <= 0) return null;
   try {
     const titleId = mirrorFor(currentProgressionUserId(), useProgression.getState().mirror)?.equippedTitleId ?? null;
     return buildMatchDetails(run.lobby, {
       name: author, placement, selfBoard: finalBoard, selfCosmetics: finalBoard?.cosmetics ?? run.cosmetics ?? null, titleId, selfRunKey,
+      ...(selfStrength ? { selfStrength } : {}),
     });
   } catch (e) {
     if (import.meta.env.DEV) console.warn('[run-end] match details could not be assembled', e);
@@ -1465,6 +1475,13 @@ function commitResolvedAction(
     const capturedBoards = action.type === 'faceOmen' && next !== s.run && next.lastCombat && next.mode === 'lobby'
       ? [...s.capturedBoards, snapshotBoard(next)]
       : s.capturedBoards;
+    // BOARD STRENGTH (R-LOBBY-09): score each captured board in idle time, from the moment it is captured, so the
+    // run-end uploads never wait for it. Every captured board is offered (the scorer skips the ones it has), which
+    // also catches up the boards of a game resumed from a save. Rated lobbies only: the boards the pool receives.
+    if (capturedBoards !== s.capturedBoards && !next.sandbox) {
+      const scorer = boardStrengthScorer();
+      for (const b of capturedBoards) scorer.enqueue(next.seed, { ...b, setId: next.setId });
+    }
     // A run just ended → capture its boards into the library (loaded into the opponent pool next
     // startup, so you face boards you actually built). Deferred so it never hitches the end screen.
     // PRACTICE runs are read-only against the snapshot DB: they fight real captured boards but never
@@ -1505,10 +1522,27 @@ function commitResolvedAction(
       // the end screen; all best-effort and never throw.
       // OFFLINE = UNRATED (owner 2026-09-28): a lobby with no recorded player run at the table ranks nothing.
       const unratedLobby = next.mode === 'lobby' && !!next.lobby && lobbyIsUnrated(next.lobby);
-      setTimeout(() => {
+      // BOARD STRENGTH (R-LOBBY-09): the uploads below carry each board's score and the history freezes the run's
+      // percentile, so they go out once the scores are in. That is at once in practice (every board but the last
+      // was scored rounds ago, the last one during its combat); a slow machine waits at most
+      // STRENGTH_RUN_END_WAIT_MS, then goes without the missing scores (those boards stay unscored, nothing shows).
+      const strengthSeed = next.seed;
+      // Any captured board not offered yet (normally none) joins the queue first.
+      if (lobbyBoards) for (const b of lobbyBoards) boardStrengthScorer().enqueue(strengthSeed, { ...b, setId });
+      const scoring = lobbyBoards && !next.sandbox
+        ? boardStrengthScorer().settled(strengthSeed, STRENGTH_RUN_END_WAIT_MS)
+        : Promise.resolve(new Map<number, StrengthScore>() as ReadonlyMap<number, StrengthScore>);
+      setTimeout(() => { void scoring.then((strengthScores) => {
+        boardStrengthScorer().forget(strengthSeed);
+        // The frozen numbers: each round's percentile against the pool's boards as it stands now, and the run's
+        // strength (their average ranked among the pool's runs; owner-approved 2026-09-30).
+        const boardStrength = lobbyBoards ? runStrengthFromScores(strengthScores, strengthHistogram(), runStrengthHistogram()) : null;
         const fresh = lobbyBoards ? saveCapturedBoards(lobbyBoards, setId, author) : saveRunBoards(replay, author, next.cosmetics);
         set({ lastRunBoards: fresh.length }); // A6: surface "you contributed N boards" on the end screen
-        void uploadBoards(fresh, unratedLobby ? { unrated: true } : undefined);
+        void uploadBoards(fresh.map((b) => {
+          const score = strengthScores.get(b.wave);
+          return score ? { ...b, strengthScore: score } : b;
+        }), unratedLobby ? { unrated: true } : undefined);
         // Between-runs pool + win-rate refresh (owner ask 2026-07-18): the NEXT run in this session sees
         // fresh remote boards (registerOpponents dedupes) + fresh ledger weights. Delayed a beat so this
         // run's own uploads above land first and can flow back in. Never mid-run — the run just ended.
@@ -1566,7 +1600,7 @@ function commitResolvedAction(
         // the one the table fielded up to this player's end, and saved into the career entry (`entry.match`).
         // The own key is the fight ledger's reporter key (`author|heroId|seed`), so a run that later reaches the Hall
         // of Champions wears the crown in its own Match details too.
-        const match = next.mode === 'lobby' ? matchDetailsOf(next, author, finalBoard, lobbyPlacement, `${author}|${next.heroId}|${next.seed}`) : null;
+        const match = next.mode === 'lobby' ? matchDetailsOf(next, author, finalBoard, lobbyPlacement, `${author}|${next.heroId}|${next.seed}`, boardStrength) : null;
         set({ lastMatch: match ? { seed: next.seed, details: match } : null });
         // THE FIGHT LEDGER + LOBBY STRENGTH (owner 2026-09-22). Every fight this table resolved — the ones this
         // player witnessed plus, when they fell early, the rounds a deterministic play-out resolves on a CLONE
@@ -1608,7 +1642,7 @@ function commitResolvedAction(
         // rides along (the same value the run's pool key and fight-ledger key carry) so the Hall can join a
         // run's own career row by its full run key, never by seed + hero alone.
         const entry = buildRunHistoryEntry(next, { date, at: nowIso, boardsContributed: fresh.length, board: finalBoard, apt, cardsPlayed });
-        void uploadRunHistory({ ...entry, ...(match ? { match } : {}), ...(unratedLobby ? { unrated: 'all-generated' } : {}), author, placement: lobbyPlacement ?? undefined, mode: next.mode, patch: `${__APP_VERSION__}+${__BUILD_SHA__}` })
+        void uploadRunHistory({ ...entry, ...(match ? { match } : {}), ...(unratedLobby ? { unrated: 'all-generated' } : {}), ...(boardStrength?.value != null ? { boardStrength: boardStrength.value } : {}), author, placement: lobbyPlacement ?? undefined, mode: next.mode, patch: `${__APP_VERSION__}+${__BUILD_SHA__}` })
           .then(() => fetchRunHistory<RunHistoryEntry>())
           .then((remote) => {
             // A FAILED read returns null, and we skip the profile write entirely rather than upserting
@@ -1644,10 +1678,12 @@ function commitResolvedAction(
         // REPLAY V2 (state replay): the recorded frames + the recorded outcome. Assembled for EVERY run that
         // reaches this block (lobby or not) and stashed on the store so "Rewatch last game" (Phase B) can play
         // it back locally; the lobby telemetry upload below rides the same object.
-        const v2 = assembleReplayV2(next, {
+        const v2Base = assembleReplayV2(next, {
           author, partial: s.replayPartial, frames: replayFrames, inspectTrail, cursorTrail,
           placement: lobbyPlacement ?? 0, finalBoard,
         });
+        // BOARD STRENGTH rides on the recorded result, for the Recent Games row (which reads this, never the history).
+        const v2: ReplayV2 = boardStrength?.value != null ? { ...v2Base, result: { ...v2Base.result, boardStrength: boardStrength.value } } : v2Base;
         set({ lastReplay: v2 });
         // The recording is assembled and now lives on the store (and inside the upload closure below), so the
         // on-disk draft has done its job. Dropping it here is what keeps IndexedDB from accumulating one
@@ -1718,7 +1754,7 @@ function commitResolvedAction(
             history: next.history.map((r) => (r === 'win' ? 'W' : r === 'lose' ? 'L' : 'D')).join(''),
           });
         }
-      }, 0);
+      }); }, 0);
     }
     // PRACTICE GAMES (owner ask 2026-09-24): a finished PRACTICE run writes ONE row to its own table
     // (`practice_games`), for Recent Games' and the Career's Practice tabs. It never touches the ladder tables
@@ -2223,14 +2259,19 @@ export const useGame = create<GameStore>((rawSet, get) => {
       const mode: 'lobby' | 'practice' = s.pendingMode === 'practice' ? 'practice' : 'lobby';
       // Practice carries the setup options chosen on the Practice screen (bots vs recorded opponents, health,
       // tribe surge); a plain lobby uses none.
-      // Your OWN runs never sit at your table (R-LOBBY-08): the seat builder skips runs your account uploaded.
       const run = createLobbyRun(seed, heroId, {}, mode, mode === 'practice' ? s.practiceDraft : undefined, undefined,
-        { excludeOwnerId: currentProgressionUserId() });
+        // MATCHMAKING BAND (R-LOBBY-09): a RATED lobby draws its recorded seats from the band of the player's medal;
+        // Practice is never banded. Your own runs are seated like anyone else's (owner 2026-09-30).
+        mode === 'lobby' ? { strengthBand: lobbyBandFor(s.profile) } : {});
       // MEDAL RANK: a RATED lobby is minted its stable ranked identity HERE, once, and it travels with the save
       // — a retried settlement always names the same run. Practice (and every other mode) gets none.
       if (mode === 'lobby') run.runId = mintRunId();
       // POOL TELEMETRY (fix 2026-09-28): note where the live pool came from when this table was seated.
-      if (run.lobby?.poolAtStart) run.lobby.poolAtStart.source = opponentPoolLoader()?.state().source ?? 'none';
+      if (run.lobby?.poolAtStart) {
+        const poolState = opponentPoolLoader()?.state();
+        run.lobby.poolAtStart.source = poolState?.source ?? 'none';
+        if (typeof poolState?.bandWidenings === 'number' && run.lobby.poolAtStart.band) run.lobby.poolAtStart.fetchWidenings = poolState.bandWidenings;
+      }
       recordRunCosmetics(run);
       // Get the opponent seats built while the player reads their opening shop, not while they wait for it.
       if (run.lobby) warmLobbyDrivers(run);
@@ -2244,7 +2285,7 @@ export const useGame = create<GameStore>((rawSet, get) => {
     set((s) => {
       // A lobby run, like pickHero's (R-PERSIST-01) — never the retired course.
       const run = recordRunCosmetics(createLobbyRun(seed ?? randomSeed(), heroId ?? DEFAULT_HERO_ID, {}, 'lobby', undefined, undefined,
-        { excludeOwnerId: currentProgressionUserId() }));
+        { strengthBand: lobbyBandFor(s.profile) })); // R-LOBBY-09 band; own runs seat like anyone's (owner 2026-09-30)
       warmLobbyDrivers(run);
       writeSave(run, []);
       return { run, savedRun: run, lastRunBoards: 0, presentationTx: null, heroArmed: false, endTurnAnimating: false, sellTick: 0, inspect: null, heroChoices: null, showTitle: false, avatarPickerOpen: false, replayActions: [], capturedBoards: [], replayFrames: beginReplayCapture(run), replayPartial: false, ...freshObservers(run), ...RANK_SLICE_RESET };
@@ -2785,6 +2826,8 @@ function initAccounts(): void {
   });
 }
 initAccounts();
+// MATCHMAKING BAND (R-LOBBY-09): the pool fetch asks for the band of the player's CURRENT rank.
+setPoolBandProvider(() => lobbyBandFor(useGame.getState().profile));
 installRankRetryTriggers(applyRankOutcome); // MEDAL RANK: network return → retry pending settlements
 installProgression(); // ACCOUNT PROGRESSION: network return → retry pending XP settlements
 

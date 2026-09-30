@@ -55,6 +55,13 @@ describe('careerRunOf — one run_history row → one CareerRun', () => {
     expect(r.atMs).toBe(NOW - DAY);
   });
 
+  it('BOARD STRENGTH (R-LOBBY-09): the frozen percentile off the entry or the light alias; nothing when absent', () => {
+    expect(careerRunOf(detailedRow({}, { boardStrength: 72 })).boardStrength).toBe(72);
+    expect(careerRunOf(lightRow({ board_strength: '41' })).boardStrength).toBe(41);
+    expect(careerRunOf(detailedRow()).boardStrength).toBeNull();
+    expect(careerRunOf(detailedRow({}, { boardStrength: 'junk' })).boardStrength).toBeNull();
+  });
+
   it("the run's RUNES ride on the board snapshot (`board.runes` = the run's ownedRunes, in pick order); none → []", () => {
     expect(careerRunOf(detailedRow()).runes).toEqual(['rune_broodpit', 'rune_epic_forge']);
     // Rune of Duplication legitimately repeats an id — both slots are kept.

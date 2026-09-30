@@ -9,7 +9,7 @@
  * (the backboard, the net and the rim; the rim is drawn over the ball so a shot goes THROUGH it, and it rattles).
  *
  * FIRE-AND-FORGET (pooled, under a hard cap): the ball's soft trail, the dribble's dust, the sneakers' skid marks, the
- * release glint, the SWISH (a net ring, sparkles, the word), IV's clang off the backboard, the catch flashes, and the SLAM
+ * release glint, the SWISH (a net ring, sparkles, the word), IV's launch, aura and speed lines, the catch flashes, and the SLAM
  * (a flash, shockwave rings, sparks, dust, the word; IV adds an explosion: a fireball, debris,
  * the backboard's glass shards).
  */
@@ -17,7 +17,7 @@ import { Sprite, type Texture } from 'pixi.js';
 import type { HeroArcanaTextures } from '../heroArcana/heroArcanaScene';
 import { whiten, type Pt } from '../heroAttack/easing';
 import { FxPool } from '../heroAttack/fxPool';
-import type { BallState } from './heroBasketballConfig';
+import { HOOP_RIM_Y, type BallState, type HoopLayout } from './heroBasketballConfig';
 
 export interface HeroBasketballTextures extends HeroArcanaTextures {
   ball: Texture;
@@ -77,7 +77,8 @@ export class HeroBasketballScene extends FxPool {
     };
     this.heroShadow = mk('under', tex.shadow, 0x000000);
     this.ballShadow = mk('under', tex.shadow, 0x000000);
-    this.board = mk('body', tex.board, colors.glass, 0.5, 1);
+    // The backboard's anchor is the RIM's mount (its lower centre), so the rim and the board share one point.
+    this.board = mk('body', tex.board, colors.glass, 0.5, HOOP_RIM_Y);
     this.net = mk('body', tex.net, colors.net, 0.5, 0);
     this.ball = mk('body', tex.ball, colors.ball);
     this.rim = mk('body', tex.rim, colors.rim);
@@ -123,21 +124,20 @@ export class HeroBasketballScene extends FxPool {
     this.refresh();
   }
 
-  /** The hoop on the target (`at` = its centre): opacity, the rim's rattle (radians), whether the backboard stands. */
-  setHoop(at: Pt, alpha: number, rattle: number, board: boolean, boardAt: Pt | null = null): void {
+  /**
+   * The hoop, ONE assembly from `hoopLayout` (the rim, the net hanging from it, the backboard behind it with the rim on its
+   * lower centre): opacity, the rim's rattle (radians; the board and net sway with it), whether the backboard stands.
+   */
+  setHoop(h: HoopLayout, alpha: number, rattle: number, board: boolean, wobble = 0): void {
     if (this.destroyed) return;
     const show = alpha > 0.004;
-    const w = this.dR * 1.35 * this.look.hoopSize;
     this.rim.visible = show; this.net.visible = show; this.board.visible = show && board;
     if (show) {
-      const rk = w / RIM_W;
-      this.rim.position.set(at.x, at.y); this.rim.scale.set(rk); this.rim.rotation = rattle; this.rim.alpha = alpha;
-      const nk = (w * 0.84) / NET_W;
-      this.net.position.set(at.x, at.y + w * 0.06); this.net.scale.set(nk, nk * (1 + Math.abs(rattle) * 0.8)); this.net.rotation = rattle * 0.5; this.net.alpha = alpha * 0.78;
-      const bk = (w * 1.45) / BOARD_W;
-      // IV stands its backboard where the throw clangs (beside the portrait, never over the face); I-III above the rim.
-      if (boardAt) { this.board.anchor.set(0.5, 0.5); this.board.position.set(boardAt.x, boardAt.y); } else { this.board.anchor.set(0.5, 1); this.board.position.set(at.x, at.y - w * 0.08); }
-      this.board.scale.set(bk); this.board.rotation = rattle * 0.15; this.board.alpha = alpha * 0.55;
+      const rk = h.w / RIM_W;
+      this.rim.position.set(h.rim.x, h.rim.y); this.rim.scale.set(rk); this.rim.rotation = rattle; this.rim.alpha = alpha;
+      const nk = (h.w * 0.84) / NET_W;
+      this.net.position.set(h.net.x, h.net.y); this.net.scale.set(nk, nk * (1 + Math.abs(rattle) * 0.8)); this.net.rotation = rattle * 0.5; this.net.alpha = alpha * 0.78;
+      this.board.position.set(h.rim.x, h.rim.y); this.board.scale.set(h.boardW / BOARD_W); this.board.rotation = rattle * 0.15 + wobble; this.board.alpha = alpha * 0.55;
     }
     this.refresh();
   }
@@ -247,6 +247,15 @@ export class HeroBasketballScene extends FxPool {
     this.burst('core', this.tex.spark, [c.blast, c.flash, whiten(c.blast, 0.5)], at.x, at.y, Math.round(18 * k), { speed: 900 * k, life: 520, size: 0.6, drag: 0.15, align: true, grav: 400 });
   }
 
+  /** A ball dropping away through the net (IV's opening threes: the next ball is already on its way). */
+  dropBall(at: Pt, dir: number): void {
+    const S = this.scale;
+    const k = (this.aR * 2 * this.look.ballSize) / BALL_PX / S;
+    this.spawn('body', this.tex.ball, this.colors.ball, at.x, at.y, {
+      dur: 460, from: k, to: k * 0.9, a0: 1, mode: 'hold', ease: 'linear', vx: dir * 60, vy: 40, grav: 2400 * (this.aR / 80) / S, drag: 0.6, spin: dir * 0.005,
+    });
+  }
+
   /** Confetti thrown up from a point, fluttering down. */
   private confettiBurst(at: Pt, count: number): void {
     const c = this.colors;
@@ -262,13 +271,52 @@ export class HeroBasketballScene extends FxPool {
     }
   }
 
-  /** IV: the throw CLANGS off the backboard (`at` = the clang point, off the portrait): a small metal ring and sparks. */
-  bounce(at: Pt): void {
+  /** IV: the chest pass BANGS the backboard (`at` on the glass): a small glass ring and a few sparks, on the board only. */
+  bang(at: Pt): void {
     const S = this.scale;
     const r = this.aR * this.look.ballSize;
+    this.spawn('glow', this.tex.ring, this.colors.glass, at.x, at.y, { dur: 240, from: (r * 0.7) / RING_PX / S, to: (r * 2.2) / RING_PX / S, a0: 0.55, ease: 'cubic' });
+    this.burst('core', this.tex.spark, [0xffffff, this.colors.glass], at.x, at.y, 5, { speed: 360, life: 220, size: 0.35, drag: 0.1, align: true });
+  }
+
+  /** IV's LAUNCH out of the crouch: a shock ring of dust at the take-off point, a burst of grit, a flash under the feet. */
+  launch(at: Pt, r: number, k: number): void {
+    if (k <= 0) return;
+    const S = this.scale;
     const c = this.colors;
-    this.spawn('glow', this.tex.ring, c.glass, at.x, at.y, { dur: 240, from: (r * 0.7) / RING_PX / S, to: (r * 2.2) / RING_PX / S, a0: 0.55, ease: 'cubic' });
-    this.burst('core', this.tex.spark, [c.flash, c.rim], at.x, at.y, 6, { speed: 420, life: 240, size: 0.4, drag: 0.1, align: true });
+    const feet = { x: at.x, y: at.y + r * 0.6 };
+    this.spawn('glow', this.tex.ring, 0xffffff, feet.x, feet.y, { dur: 420, from: (r * 0.6) / RING_PX / S, to: (r * 3.4 * k) / RING_PX / S, a0: 0.7, sy: 0.45, ease: 'cubic' });
+    this.spawn('glow', this.tex.ring, c.side, feet.x, feet.y, { dur: 520, from: (r * 0.5) / RING_PX / S, to: (r * 2.6 * k) / RING_PX / S, a0: 0.5, sy: 0.45, ease: 'cubic', delay: 60 });
+    this.spawn('core', this.tex.glow, c.flash, feet.x, feet.y, { dur: 220, from: (r * 0.6) / GLOW_PX / S, to: (r * 1.8 * k) / GLOW_PX / S, a0: 0.6, mode: 'punch', peakAt: 0.15 });
+    for (let i = 0; i < Math.round(8 * k); i++) {
+      const a = Math.PI + (this.rnd() - 0.5) * Math.PI * 1.1 + (i % 2 ? 0 : Math.PI);
+      this.spawn('under', this.tex.glow, 0xd9c7a6, feet.x, feet.y, {
+        dur: 420 + this.rnd() * 200, from: (r * 0.4) / GLOW_PX / S, to: (r * 1.1) / GLOW_PX / S, a0: 0.35, vx: Math.cos(a) * 220 * k, vy: Math.sin(a) * 60 - 20, drag: 0.08,
+      });
+    }
+    this.burst('core', this.tex.spark, [c.flash, c.side], feet.x, feet.y, Math.round(8 * k), { speed: 420 * k, life: 300, size: 0.4, drag: 0.1, align: true, lift: 200 });
+  }
+
+  /** IV: the aura round the striker from the crouch to the slam (a soft pulse of its colour; `k` grows as it builds). */
+  aura(at: Pt, r: number, k: number): void {
+    if (k <= 0) return;
+    const S = this.scale;
+    this.spawn('glow', this.tex.glow, this.colors.side, at.x, at.y, { dur: 260, from: (r * 1.6 * k) / GLOW_PX / S, to: (r * 2.3 * k) / GLOW_PX / S, a0: 0.22, mode: 'punch', peakAt: 0.35 });
+    const a = this.rnd() * Math.PI * 2;
+    this.spawn('core', this.tex.star, whiten(this.colors.side, 0.4), at.x + Math.cos(a) * r * 0.9, at.y + Math.sin(a) * r * 0.9, { dur: 380, from: 0.25, to: 0.05, a0: 0.8, vy: -60, drag: 0.4 });
+  }
+
+  /** IV: a speed line behind the launch, from where the striker was a moment ago to where it is. */
+  speedLine(at: Pt, from: Pt, r: number): void {
+    const S = this.scale;
+    const dx = at.x - from.x, dy = at.y - from.y;
+    const l = Math.hypot(dx, dy);
+    if (l < 2) return;
+    const head = Math.atan2(dy, dx);
+    for (const off of [-0.55, 0, 0.55]) {
+      const x = from.x + Math.cos(head + Math.PI / 2) * r * off, y = from.y + Math.sin(head + Math.PI / 2) * r * off;
+      this.spawn('glow', this.tex.streak, 0xffffff, x, y, { dur: 200, from: (l * 2.2) / 128 / S, to: (l * 1.2) / 128 / S, a0: 0.4, sy: 0.18, rot: head, ease: 'linear' });
+    }
   }
 
   /** A catch (III: the pass; IV: at the top of the leap): a bright flash on the ball. `k` scales it. */

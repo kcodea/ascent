@@ -1,5 +1,5 @@
 import type { Tribe } from '@game/core';
-import { parseLobbyStrength, parseMatchDetails, type BoardSnapshot, type LobbyStrength, type MatchDetails, type ReplayV2 } from '@game/sim';
+import { parseBoardStrength, parseLobbyStrength, parseMatchDetails, type BoardSnapshot, type LobbyStrength, type MatchDetails, type ReplayV2 } from '@game/sim';
 
 /**
  * CAREER PAGE DATA (owner rebuild 2026-09-19) — the pure half of the Career page: the run row model the page
@@ -66,6 +66,9 @@ export interface CareerRun {
   /** The LOBBY STRENGTH the run was played at (owner 2026-09-22): `entry.lobbyStrength`, stamped at run end
    *  (or back-filled by `settle_rank`). Null on rows without a stamp — the row then prints nothing for it. */
   lobbyStrength: LobbyStrength | null;
+  /** BOARD STRENGTH (R-LOBBY-09): `entry.boardStrength`, the run's strength percentile frozen when it ended. Null =
+   *  not scored (older runs, a score not ready in time); the row prints nothing. */
+  boardStrength?: number | null;
   /** MATCH DETAILS (2026-09-28): the lobby at the moment this run ended (`entry.match`), only on detailed rows.
    *  Null on light rows and on every run recorded before it existed ("Details weren't recorded for this match"). */
   match?: MatchDetails | null;
@@ -88,6 +91,8 @@ export interface RunHistoryRowLike {
   rating_delta?: unknown; rating_after?: unknown; at?: unknown; dominant_tribe?: unknown;
   /** `lobby_strength:entry->lobbyStrength` (`->`, so the JSON object itself). */
   lobby_strength?: unknown;
+  /** `board_strength:entry->>boardStrength` (text). */
+  board_strength?: unknown;
 }
 
 /** One `run_telemetry` row as the LIGHT probe projects it — scalars only, never the replay payload. */
@@ -157,6 +162,7 @@ export function careerRunOf(row: RunHistoryRowLike): CareerRun {
     replayRowId: null,
     durationMs: null,
     lobbyStrength: parseLobbyStrength(e.lobbyStrength) ?? parseLobbyStrength(row.lobby_strength),
+    boardStrength: parseBoardStrength(e.boardStrength) ?? parseBoardStrength(row.board_strength),
     match: parseMatchDetails(e.match),
   };
 }

@@ -619,8 +619,9 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'board is not uploaded) serves the previous board, and a run starting at wave 2 serves that board in round 1; '
       + 'nothing further ahead, ever. Past the end of the run the lobby serves its final board (the stale-final-board '
       + 'rule). Seat selection stays a uniform shuffle, with two filters that do not weight it: one player holds at '
-      + 'most 4 seats (a run over the cap is passed over for the next), and the own runs of the player never sit at '
-      + 'their own table. A player is their account id, else their display name.',
+      + 'most 4 seats (a run over the cap is passed over for the next), and that cap is the only limit on the '
+      + 'player\'s OWN runs: they sit at their own table like anyone else\'s, at most 4 of the 7 seats. A player is '
+      + 'their account id, else their display name.',
     domain: 'foundation',
     status: 'approved',
     evidence: [
@@ -644,13 +645,19 @@ export const FOUNDATION_RULES: GameRule[] = [
         ref: 'Claude Code session, 2026-09-29 (seat cap)',
         quote: "let's have a cap of 4 snapshots from a player i guess, so it's not literally like 7 of me always or something",
       },
-      { kind: 'code', ref: 'supabase/migrations/2026-09-29-pool-whole-runs.sql (pool_runs + pool_runs_sample); packages/ui/src/opponentPool/poolFetch.ts + poolLoader.ts (isWholeRun, cache v2); packages/sim/src/opponents.ts registerOpponentRuns; packages/sim/src/lobby/seats.ts boardAt; packages/sim/src/lobby/runLobby.ts createRunLobby (MAX_SEATS_PER_PLAYER, excludeOwnerId)' },
+      {
+        kind: 'owner-chat',
+        ref: 'Owner ruling 2026-09-30, relayed verbatim by the coordinator (own runs at your own table)',
+        quote: 'this is a problem - you should face your own boards too. you should also be able to occupy up to 4 of your own snapshots. please fix this',
+      },
+      { kind: 'code', ref: 'supabase/migrations/2026-09-29-pool-whole-runs.sql (pool_runs + pool_runs_sample); packages/ui/src/opponentPool/poolFetch.ts + poolLoader.ts (isWholeRun, cache v2); packages/sim/src/opponents.ts registerOpponentRuns; packages/sim/src/lobby/seats.ts boardAt; packages/sim/src/lobby/runLobby.ts createRunLobby (MAX_SEATS_PER_PLAYER; no own-run exclusion since 2026-09-30)' },
     ],
     currentBehaviour:
       'Conforms as of 2026-09-29. Before it the client pulled the newest 120 boards of each wave and glued them '
       + 'into runs; early waves hold more rows than late ones, so on the live pool 30 of 150 runs arrived cut '
       + '(and 1 not at all) and a seat served a wave-10 board on round 5. R-LOBBY-07 (seat eligibility) stays as '
-      + 'defence in depth.',
+      + 'defence in depth. 2026-09-30: the own-run exclusion of 2026-09-29 was removed (the client sends '
+      + 'p_exclude_user null; the SQL parameter stays, defaulting to null).',
     enforcement: {
       kind: 'scenario',
       refs: [
@@ -660,6 +667,77 @@ export const FOUNDATION_RULES: GameRule[] = [
         'packages/ui/src/opponentPool/poolLoader.test.ts',
       ],
       lastVerifiedAt: '2026-09-29',
+    },
+  },
+  {
+    id: 'R-LOBBY-09',
+    title: 'Board strength: a 1-100 percentile per board and per run, matchmaking bands by rank, and the frozen number in match history',
+    statement:
+      'Every board a rated lobby uploads is scored: its RAW strength is its win rate (win 1, draw 0.5) against a frozen, '
+      + 'versioned reference set of ~30 real boards of its wave (two seeded fights each, the board once on each side, '
+      + 'both sides fought through the recorded-seat combat side), stored permanently with the board. Its PERCENTILE '
+      + '(1-100) is its place among every scored board at the same reference wave (ties half; 72 = stronger than 72%), '
+      + 'derived, never stored. A run\'s strength is a percentile among RUNS: the average of its boards\' percentiles, '
+      + 'ranked against every other run\'s average in the set by the same rule, so 30 means the bottom 30% of runs and '
+      + 'each band holds about its nominal share (owner-approved follow-up: averages alone squeezed toward 50). A RATED lobby draws its '
+      + 'recorded seats uniformly at random from the runs inside the band of the player\'s medal (Bronze 0-30, Silver '
+      + '10-40, Gold 20-65, Platinum uncapped, Diamond 10-100, Ascendant 20-100, so the upper medals average about 50, '
+      + '55 and 60; every division of a medal shares it; a floor-only band widens by lowering its floor), still whole runs, at '
+      + 'most 4 seats per player (the player\'s own runs included, under the same cap). A run with no score yet is inside every band. When a '
+      + 'band cannot fill the table it widens by 10 on each capped side, step by step (each step logged), before '
+      + 'generated seats fill the rest. Practice and the tutorial have no band. The player\'s own game shows '
+      + '"Board strength N" (the run\'s strength) in the Career and Recent Games rows and in Match details (with each '
+      + 'round\'s board percentile and each opponent seat\'s run strength), frozen at the moment the game ended; a '
+      + 'game that was not scored shows nothing.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      {
+        kind: 'owner-chat',
+        ref: 'Claude Code session, 2026-09-30 (board strength design)',
+        quote: "can we build an algorithm for board strength to get as good of an idea of how strong a snapshot's run is, and assign it a 1-100 value?",
+      },
+      {
+        kind: 'owner-chat',
+        ref: 'Claude Code session, 2026-09-30 (bands)',
+        quote: 'serve for example 0-30 for bronze, 10-40 in silver, 20-65 in gold, and then uncap plat?',
+      },
+      {
+        kind: 'owner-chat',
+        ref: 'Claude Code session, 2026-09-30 (percentile)',
+        quote: '72 would basically mean like... a 72/100 aka 72nd percentile',
+      },
+      {
+        kind: 'owner-chat',
+        ref: 'Claude Code session, 2026-09-30 (show it)',
+        quote: 'can we show that score to the player too maybe? like maybe that is shown in match history?',
+      },
+      {
+        kind: 'owner-chat',
+        ref: 'Owner decision on the upper ranks for PR #1871, relayed verbatim by the coordinator, 2026-09-30',
+        quote: 'maybe plat should be 50 and then diamond is like 55 average and ascendant is 60 average? i dont want every game to just be insanely sweaty and unwinnable',
+      },
+      {
+        kind: 'owner-chat',
+        ref: 'Owner approval of the suggested fix on PR #1871, relayed by the coordinator, 2026-09-30 (run strength ranked among runs)',
+        quote: 'make a RUN\'s strength a true percentile among runs',
+      },
+      { kind: 'code', ref: 'packages/sim/src/lobby/boardStrength.ts + strengthBands.ts + strengthReference.v1.json; packages/sim/src/lobby/runLobby.ts createRunLobby (strengthBand); packages/ui/src/boardStrength/ (background scorer); packages/ui/src/opponentPool/poolFetch.ts (band + widening); supabase/migrations/2026-09-30-board-strength.sql' },
+    ],
+    currentBehaviour:
+      'Built 2026-09-30. The bands switch on by themselves once the owner has run the SQL and the backfill: before, '
+      + 'the RPC takes no band (feature-detected, the band is dropped for the session) and every run is unscored, '
+      + 'so selection is exactly R-LOBBY-08\'s.',
+    enforcement: {
+      kind: 'scenario',
+      refs: [
+        'packages/sim/src/lobby/boardStrength.test.ts',
+        'packages/sim/src/lobby/boardStrength.db.test.ts',
+        'packages/sim/src/lobby/strengthBands.test.ts',
+        'packages/ui/src/boardStrength/boardStrength.test.ts',
+        'packages/ui/src/boardStrength/runEndStrength.test.ts',
+      ],
+      lastVerifiedAt: '2026-09-30',
     },
   },
   {
@@ -3283,16 +3361,20 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'in from off the edge of the screen the spot faces and is caught; a PUMP FAKE; it DRIBBLES BACK and pulls up, the '
       + 'clock easing into SLOW MOTION around the release and back to normal as the ball flies, for a long high three that '
       + 'swishes with rings, confetti and the crowd\x27s "ooh", then '
-      + 'slides home); IV the self alley-oop (from its slot it FIRES the ball at the hoop over the struck hero, fast, flat and '
-      + 'spinning with a speed trail; it CLANGS off the backboard beside the portrait, never its face (the struck hero does '
-      + 'not react at all until the slam), and BOUNCES HIGH; a quick run-up, '
-      + 'a big LEAP timed to meet it, the CATCH at the top in SLOW MOTION, the clock easing back in (a touch faster than '
-      + 'normal through the slam), and the SLAM down into an EXPLOSION: a white-hot core, a '
+      + 'slides home); IV the self alley-oop (from its slot a pull-up THREE that swishes; a rotation up court to the rolled '
+      + 'spot, a pass and a second THREE that swishes (both ticks: no damage, no reaction from the target); back to the '
+      + 'slot; a hard CHEST PASS that BANGS the BACKBOARD (the board wobbles; the target itself does not react, no damage) '
+      + 'and rebounds out to HALF COURT, where it arrives FIRST (the leap never beats the ball); a deep CROUCH that '
+      + 'charges up and an explosive LAUNCH (a dust shock ring, speed lines, a building aura); the CATCH in the air at half '
+      + 'court in deep SLOW MOTION (0.25x); and ONE fluid, accelerating flying SLAM from there through the rim onto the target, a touch faster than normal, '
+      + 'into an EXPLOSION: a white-hot core, a '
       + 'fireball, shockwave rings, debris and sparks, the backboard\x27s glass, the whole board shaking, rim + slam + a '
       + 'loud crowd "ooh" and a cheer). Dribbles, sneaker squeaks on the push-offs, '
       + 'stops and take-offs, the swish, the rim and the slam are heard; every cue has its own clip / gain / pitch dial. '
       + 'The consequence (the damage, Armor, Resolve) lands exactly ONCE: on the swish (I-III) or the slam (IV); the pass, '
-      + 'the pump fake, IV\x27s clang off the backboard, and the catch never land it or touch the target. Every point the portrait visits is kept on screen '
+      + 'the pump fake, IV\x27s opening threes, the chest pass off the backboard and the catch never land it or touch the target, the rim or the '
+      + 'backboard. The hoop is ONE assembly (the backboard behind the rim, the rim on its lower centre, the net hanging from '
+      + 'it) that always hangs on the STRUCK portrait, in both directions. Every point the portrait visits is kept on screen '
       + '(a catch above a target tucked in a corner swings round it toward the middle of the screen) and every shot and '
       + 'slam lands on the struck hero\x27s centre. The striker is raised over the target (the .duel-attacker-* z-order) '
       + 'for the whole attack, and its transform, opacity and z-order class are restored exactly, and the ball, shadows and '
@@ -3309,7 +3391,11 @@ export const FOUNDATION_RULES: GameRule[] = [
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-30 (PR #1867 review, Tier IV, relayed by the coordinator)', quote: 'i want a direct throw from the beginning that\x27s fast and bounces high off the target and the attacker leaps into the air and slams it down into an explosion' },
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-30 (PR #1867 review, variety and slow mo, relayed by the coordinator)', quote: 'add variety to the fadeaway and the catch dribble shot. for the fadeaway, add some pizzaz to the dribble part where he like wraps the ball around his back and stuff. make like 3 variations that randomly roll each time. for the dribble 3, also add variations to where he runs to and receives the pass. have it go "slow mo" as he pulls up and releases the shot to add some excitement, but dont overdo it. add "slow mo" to the alley oop when he catches it and then ease it back in for an aggressive and satisfying slam' },
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-30 (5173 review of Tier IV, relayed by the coordinator)', quote: 'the dunk has a weird moment before the dunk where he hits the player with the ball, remove that' },
-      { kind: 'code', ref: 'packages/progression/src/cosmetics.ts (attack_basketball); packages/ui/src/heroBasketball/ (basketballPlan / basketballCues / basketballGeo / fitDir / poseSegs / basketballPose / basketballBall / hoopAt / basketballCameraAt, variantOf / basketballTimeScale / slowExtraMs, playHeroBasketball, HeroBasketballScene, heroBasketballTextures); packages/ui/src/audio/fx/bball-*.mp3' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-30 (5173 review: the hoop)', quote: 'the backboard on the slam is not behind the rim, it\x27s broken and offset. can you fix it?' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-30 (5173 review: the hoop on the target, IV extended)', quote: 'the hoop should be like in the second image, on the enemy player. add to huge -> he drills a 3 then rotates up and gets passed a ball and drills another, than rotates back to baseline and does the slam dunk sequence' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-30 (5173 review: the slam)', quote: 'the slam still has a \x27first hit\x27 thing that i dont want, add more epic emphasis to the leap, slow down that part where he catches it, then one fluid slam motion to deal the dmg and blast pixi' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-30 (5173 review: the chest pass and the half-court catch)', quote: 'the basketball -> huge\x27s leap should not beat the basketball there. he should chest pass the basketball that bangs against the backboard and bounces off it, then the player leaps into the air and catches it at half court and slams it into the opponent' },
+      { kind: 'code', ref: 'packages/progression/src/cosmetics.ts (attack_basketball); packages/ui/src/heroBasketball/ (basketballPlan / basketballCues / basketballGeo / hoopLayout / fitDir / poseSegs / basketballPose / basketballBall / hoopAt / basketballCameraAt, variantOf / basketballTimeScale / slowExtraMs, playHeroBasketball, HeroBasketballScene, heroBasketballTextures); packages/ui/src/audio/fx/bball-*.mp3' },
     ],
     currentBehaviour: 'Conforms, built 2026-09-29. The item reaches the database on the next deploy of progression-inventory (the catalog sync); the equip SQL already accepts the hero_attack slot.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/heroBasketball/heroBasketball.test.ts', 'packages/progression/src/cosmetics.test.ts', 'packages/ui/src/progression/CollectionHeroAttack.test.tsx', 'packages/ui/src/heroAttack/damageFormation.test.ts', 'packages/ui/src/heroAttack/stageCamera.test.ts', 'packages/ui/src/heroAttack/knockoutTier.test.ts'], lastVerifiedAt: '2026-09-29' },

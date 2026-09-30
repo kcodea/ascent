@@ -59,6 +59,21 @@ export const PATCH_NOTES: PatchNote[] = [
     date: '2026-09-30',
     changes: [
       {
+        category: 'Balance',
+        text: 'Ranked opponents now match your medal. Board strength shows in your match history.',
+        details: [
+          'Every game gets a Board strength from 1 to 100. It says how strong your boards were compared to other games. 72 means stronger than 72 out of 100 games.',
+          'In Ranked, Bronze meets opponents from 0 to 30, Silver from 10 to 40 and Gold from 20 to 65. Platinum meets everyone, Diamond meets 10 to 100 and Ascendant meets 20 to 100.',
+          'If there are not enough opponents in your range, the range grows a little at a time.',
+          'Your match history shows the Board strength of each game. Match details also shows how each of your rounds compared to other boards at that round, and each opponent\'s Board strength.',
+          'Practice is not affected.',
+        ],
+      },
+      {
+        category: 'Systems',
+        text: 'You can now face your own past games in Ranked and Practice, up to 4 of the 7 seats, like any other player.',
+      },
+      {
         category: 'Systems',
         text: 'Continue now only appears after you pick a hero and start a game. Backing out of hero select no longer leaves a run to continue.',
         details: [
@@ -75,6 +90,15 @@ export const PATCH_NOTES: PatchNote[] = [
         details: [
           'The bar shows real progress: every card, hero, rune and frame is ready before the menu opens.',
           'On a slow connection the first load takes longer. After that the game loads from your browser in a moment.',
+        ],
+      },
+      {
+        category: 'Systems',
+        text: 'Nothing But Net: the hoop is fixed and the Huge version is longer and bigger.',
+        details: [
+          'The hoop is one piece again, with the backboard behind the rim, and it always sits on the hero being hit.',
+          'Huge: your hero drills a three, moves up for a pass and drills another, then chest passes the ball off the backboard, leaps, catches the rebound at half court in slow motion and flies in for the slam.',
+          'The ball always gets there before your hero, and the slam is one smooth flight into the explosion.',
         ],
       },
     ],

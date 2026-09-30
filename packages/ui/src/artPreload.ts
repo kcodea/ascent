@@ -150,12 +150,20 @@ export function useArtFade(url: string | undefined): {
   const ref = useCallback((el: HTMLImageElement | null) => {
     if (el && url && !el.complete) setElWait(url);
   }, [url]);
-  const waiting = !!url && (!ready || elWait === url);
-  if (waiting) seenPending.current = url;
+  // `loading`: the URL itself is not decoded yet (the only case that shows the dark art placeholder and fades).
+  // `hidden`: also covers the few-ms element re-check below, which just stays invisible and then appears.
+  const loading = !!url && !ready;
+  const hidden = loading || (!!url && elWait === url);
+  // FADE ONLY ART THAT WAS GENUINELY NOT LOADED (owner 2026-09-30: "a ton of that fading pop in on my local
+  // server"). A new <img> for a URL we already decoded can still read `complete === false` for a moment (the dev
+  // server and vite preview send no-cache, so the browser re-checks the file). That wait is a few ms: the image
+  // stays hidden for it (never an undecoded paint) and then appears INSTANTLY, with no fade. The 180 ms fade is
+  // kept for art whose URL was not decoded yet, which after the loading gate should almost never happen.
+  if (!ready && url) seenPending.current = url;
   const settle = (): void => { markArtReady(url); setElWait(undefined); };
   return {
-    cls: waiting ? ' art-pending' : seenPending.current === url && url ? ' art-fadein' : '',
-    waiting,
+    cls: hidden ? ' art-pending' : seenPending.current === url && url ? ' art-fadein' : '',
+    waiting: loading,
     ref,
     onLoad: (e) => {
       const img = e.currentTarget;

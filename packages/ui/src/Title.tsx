@@ -20,6 +20,7 @@ import { RankCrest } from './rank/RankBar';
 import { useCurrentRank } from './rank/rankSource';
 import { rankLabel } from './rank/rankFormat';
 import { NewPill, useHasNewRewards } from './progression/NewRewardsPopup';
+import { StageSelect } from './gauntlet/StageSelect';
 
 /**
  * The title screen — the game's front door, shown at boot and after a run ends. Styled after the
@@ -356,6 +357,19 @@ export function Title({ onSettings }: { onSettings: () => void }) {
                 </div>
               </button>
             </div>
+
+            {/* GAUNTLET — a wide banner on its own row under Learn (same footprint), opening the stage select. */}
+            <div className="mprow">
+              <button className="modecard" data-mp="gauntlet" onClick={() => { sfx.pulse(); setTitleView('gauntlet'); }}>
+                <div className="mcframe" data-mode="gauntlet" data-mp="gauntlet">
+                  <div className="mcname">Gauntlet</div>
+                  {modeArt('gauntlet')
+                    ? <div className="mcart-clip"><img decoding="sync" className="mcframe-art" src={modeArt('gauntlet')} alt="" draggable={false} /></div>
+                    : <span className="mcemblem"><Crest /></span>}
+                  <div className="mcdesc">Survive 10 rounds against a hand-built foe.</div>
+                </div>
+              </button>
+            </div>
           </div>
         </SidebarHost>
       )}
@@ -386,6 +400,18 @@ export function Title({ onSettings }: { onSettings: () => void }) {
                 </div>
               </button>
             </div>
+          </div>
+        </SidebarHost>
+      )}
+
+      {/* GAUNTLET STAGE SELECT — opened from the Gauntlet card in the mode picker (the Learn hub's pattern: it sits
+          over the picker, and Back returns to it). Picking a stage opens the hero picker for that stage. */}
+      {titleView === 'gauntlet' && (
+        <SidebarHost className="modepick sb-host" role="dialog" aria-label="Gauntlet">
+          <MenuSidebar current="modes" onBack={() => { sfx.pulse(); setTitleView('modes'); }} />
+          <div className="mpbox">
+            <h1 className="disp mptitle">GAUNTLET</h1>
+            <StageSelect />
           </div>
         </SidebarHost>
       )}

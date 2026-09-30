@@ -34,8 +34,8 @@ export interface CareerView {
   focus?: CareerFocus;
 }
 
-/** The title screen's view: the main menu, the MODE picker, or the LEARN hub inside it. */
-export type TitleView = 'menu' | 'modes' | 'learn';
+/** The title screen's view: the main menu, the MODE picker, or the LEARN hub / GAUNTLET stage select inside it. */
+export type TitleView = 'menu' | 'modes' | 'learn' | 'gauntlet';
 /** Where the menu sidebar can send the player: the title menu / mode picker, or one of the four ladder pages. */
 export type MenuDest = 'menu' | 'modes' | 'career' | 'rankings' | 'hall' | 'recent' | 'collection';
 /** Every ladder page closed — the set `goTo` / `openTitle` clear (and the one `startReplay` clears). */

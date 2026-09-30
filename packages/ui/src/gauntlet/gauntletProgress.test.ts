@@ -84,10 +84,13 @@ describe('stageSlotState', () => {
     expect(stageSlotState(2, { dev: false, cleared: [] })).toBe('locked');
   });
 
-  it('in DEV an unlocked draft with content is "draft"; locked still reads locked; an empty draft stays soon', () => {
+  it('in DEV a draft with content is "draft" regardless of unlock order; an empty draft stays soon', () => {
     expect(stageSlotState(3, { dev: true, cleared: [1, 2] })).toBe('draft');
     expect(stageSlotState(3, { dev: true, cleared: [1, 2, 3] })).toBe('draft');
-    expect(stageSlotState(3, { dev: true, cleared: [1] })).toBe('locked');
+    // The author can test stage 3 without clearing 1–2 first (controller ruling 2026-09-29).
+    expect(stageSlotState(3, { dev: true, cleared: [] })).toBe('draft');
     expect(stageSlotState(4, { dev: true, cleared: [1, 2, 3] })).toBe('soon');
+    // A READY stage still respects unlock order in DEV.
+    expect(stageSlotState(2, { dev: true, cleared: [] })).toBe('locked');
   });
 });

@@ -48,11 +48,12 @@ export function isStagePlayable(stage: number, dev: boolean): boolean {
   return dev && s.rounds.some((r) => r.board.length > 0);
 }
 
-/** How the stage-select slot for `stage` reads. No playable data → `soon` (players never see a draft); then
- *  `locked` unless unlocked; then a DEV-playable draft reads `draft`; else `cleared` / `available`. */
+/** How the stage-select slot for `stage` reads. No playable data → `soon` (players never see a draft); then a
+ *  DEV-playable draft reads `draft` REGARDLESS of unlock order, so its author can test stage 3 without clearing
+ *  1–2; then `locked` unless unlocked; else `cleared` / `available`. */
 export function stageSlotState(stage: number, opts: { dev: boolean; cleared: readonly number[] }): StageSlotState {
   if (!isStagePlayable(stage, opts.dev)) return 'soon';
-  if (!isStageUnlocked(stage, opts.cleared)) return 'locked';
   if (gauntletStage(stage)?.status === 'draft') return 'draft';
+  if (!isStageUnlocked(stage, opts.cleared)) return 'locked';
   return opts.cleared.includes(stage) ? 'cleared' : 'available';
 }

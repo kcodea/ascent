@@ -8300,6 +8300,7 @@ body:has(.book-ov) .cardref { z-index: 490; }
 .mcframe[data-mode='practice'] { background: radial-gradient(120% 100% at 50% 0%, #3a3226 0%, #221d16 60%, #14110c 100%); }
 .mcframe[data-mode='learn'] { background: radial-gradient(120% 100% at 50% 0%, #1e5a3f 0%, #10331f 60%, #0a1f14 100%); }
 .mcframe[data-mode='soon'] { background: radial-gradient(120% 100% at 50% 0%, #2a2f3a 0%, #191d24 60%, #10131a 100%); }
+.mcframe[data-mode='gauntlet'] { background: radial-gradient(120% 100% at 50% 0%, #63221e 0%, #331210 60%, #200a0a 100%); }
 
 /* WIDE mode card — a 21:9 banner (PlayMode2 / LearnMode art is 1916×821). The frame keeps the same gold border
    and eclipsing name pill; only its footprint changes. `mpbox` stacks two `.mprow`s (Play; then Learn+Practice),
@@ -8321,6 +8322,12 @@ body:has(.book-ov) .cardref { z-index: 490; }
   width: var(--mp-practice-w, 306px); height: var(--mp-practice-h, 284px);
   transform: translate(var(--mp-practice-x, -160px), var(--mp-practice-y, -266px)) scale(var(--mp-practice-s, 0.84));
 }
+/* GAUNTLET — a third row under Learn, same 880×128 banner footprint. Alone in its row it lays out centred, one
+   row below Learn's layout box; the fallbacks lift it to sit ~44px under Learn's visual edge, lined up with it. */
+.modecard[data-mp='gauntlet'] {
+  width: var(--mp-gauntlet-w, 880px); height: var(--mp-gauntlet-h, 128px);
+  transform: translate(var(--mp-gauntlet-x, 6px), var(--mp-gauntlet-y, -30px)) scale(var(--mp-gauntlet-s, 1));
+}
 /* The frame fills the (sized) card; no per-frame transform now (that's on the card). */
 .mcframe[data-mp] { width: 100%; height: 100%; aspect-ratio: auto; margin-bottom: 0; transform: none; }
 
@@ -8331,6 +8338,45 @@ body:has(.book-ov) .cardref { z-index: 490; }
 .mcframe[data-mp='play'] .mcframe-art { transform: translate(var(--mp-play-artx, 0px), var(--mp-play-arty, 0px)) scale(var(--mp-play-arts, 1)); }
 .mcframe[data-mp='learn'] .mcframe-art { transform: translate(var(--mp-learn-artx, 0px), var(--mp-learn-arty, 3px)) scale(var(--mp-learn-arts, 1.02)); }
 .mcframe[data-mp='practice'] .mcframe-art { transform: translate(var(--mp-practice-artx, 0px), var(--mp-practice-arty, 0px)) scale(var(--mp-practice-arts, 1)); }
+.mcframe[data-mp='gauntlet'] .mcframe-art { transform: translate(var(--mp-gauntlet-artx, 0px), var(--mp-gauntlet-arty, 0px)) scale(var(--mp-gauntlet-arts, 1)); }
+/* The banner is only 128px tall, so the fallback emblem shrinks to fit inside it. */
+.mcframe[data-mp='gauntlet'] .mcemblem { width: 84px; height: 84px; }
+.mcframe[data-mode='gauntlet'] .mcemblem svg { color: #f0c9b8; }
+
+/* ── GAUNTLET STAGE SELECT (`gauntlet/StageSelect.tsx`) — ten framed slots, five to a row, in the mode-card
+   idiom (gold border, dark tint, cream name). No per-slot `cursor` — the global button rule paints the game
+   cursor; a disabled slot inherits `.modepick`'s default gauntlet. Hover lift is transform-only, one-shot. ── */
+.gstages { display: grid; grid-template-columns: repeat(5, 176px); gap: 22px; justify-content: center; }
+.gslot {
+  position: relative; height: 220px; padding: 16px 10px 14px;
+  display: flex; flex-direction: column; align-items: center; justify-content: space-between; gap: 6px;
+  border-radius: 20px; border: 3px solid var(--gold);
+  background: radial-gradient(120% 100% at 50% 0%, #63221e 0%, #331210 60%, #200a0a 100%);
+  box-shadow: inset 0 0 0 2px rgba(0, 0, 0, 0.35), 0 8px 22px -10px rgba(0, 0, 0, 0.5);
+  color: #f6efe2; font-family: var(--font-ui);
+  transition: transform 0.16s ease;
+}
+.gslot:not(:disabled):hover { transform: translateY(-5px); }
+.gslot:disabled { cursor: url('/cursors/gauntlet_default.svg') 6 2, default; }
+.gslot[data-state='locked'], .gslot[data-state='soon'] {
+  background: radial-gradient(120% 100% at 50% 0%, #2a2f3a 0%, #191d24 60%, #10131a 100%); opacity: 0.6;
+}
+.gslot[data-state='cleared'] { border-color: #7fd18b; }
+.gslot[data-state='draft'] { border-style: dashed; }
+.gslot-num { font-family: var(--font-title); font-weight: 900; font-size: 34px; line-height: 1; color: #f6efe2; }
+.gslot-emblem-slot { display: grid; place-items: center; width: 64px; height: 64px; }
+.gslot-emblem { display: grid; place-items: center; width: 64px; height: 64px; }
+.gslot-emblem svg { width: 100%; height: 100%; color: #f0c9b8; filter: drop-shadow(0 3px 8px rgba(0, 0, 0, 0.55)); }
+.gslot-lock svg, .gslot-soon svg { color: #b9c0cc; width: 70%; height: 70%; }
+.gslot-name { font-weight: 900; font-size: 20px; letter-spacing: 0.02em; }
+.gslot-tag {
+  font-weight: 800; font-size: 12.5px; letter-spacing: 0.08em; text-transform: uppercase;
+  padding: 3px 12px; border-radius: 999px; border: 2px solid var(--gold);
+  background: linear-gradient(180deg, #fff, #f3ead4); color: var(--ink);
+}
+.gslot[data-state='locked'] .gslot-tag, .gslot[data-state='soon'] .gslot-tag { background: linear-gradient(180deg, #e9e9ee, #d3d3db); }
+.gslot[data-state='cleared'] .gslot-tag { border-color: #7fd18b; }
+.gslot[data-state='draft'] .gslot-tag { border-style: dashed; }
 
 /* MODE title — scale + nudge from the tuner (fallbacks = shipped: no-op). */
 .mptitle { transform: translate(var(--mp-title-x, 0px), var(--mp-title-y, -30px)) scale(var(--mp-title-s, 1.23)); }

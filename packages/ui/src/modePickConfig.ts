@@ -1,6 +1,6 @@
 /**
  * DEV-only Play-Screen (MODE picker) config — live scale + size + position for each mode card (Play, Learn,
- * Practice) AND the art inside each card AND the "MODE" title, driven by CSS custom properties on `:root` (the
+ * Practice, Gauntlet) AND the art inside each card AND the "MODE" title, driven by CSS custom properties on `:root` (the
  * same trick the Layout Lab uses). Per card: Scale, Width, Height, X/Y offset, plus Art scale + Art X/Y (the art
  * is clipped to the frame, so it can be panned/zoomed inside it). The MODE title gets Scale + X/Y.
  *
@@ -26,7 +26,7 @@ interface CardDefaults { s: number; w: number; h: number; x: number; y: number; 
 
 // Per-card knob set. `def`s mirror the shipped `.mcframe[data-mp=…]` values in styles.css — keep the two in
 // sync so a Reset (and production) matches what players see. Art defaults are neutral (×1 / 0px).
-function cardVars(id: 'play' | 'learn' | 'practice', group: string, d: CardDefaults): ModePickVarDef[] {
+function cardVars(id: 'play' | 'learn' | 'practice' | 'gauntlet', group: string, d: CardDefaults): ModePickVarDef[] {
   return [
     { key: `${id}S`, cssVar: `--mp-${id}-s`, label: 'Scale', group, min: 0.3, max: 2.5, step: 0.01, def: d.s, fmt: 'mul' },
     { key: `${id}W`, cssVar: `--mp-${id}-w`, label: 'Width', group, min: 120, max: 1400, step: 2, def: d.w, fmt: 'px' },
@@ -43,6 +43,7 @@ export const MODEPICK_VARS: ModePickVarDef[] = [
   ...cardVars('play', 'Play', { s: 0.84, w: 660, h: 284, x: -160, y: 18, artS: 1, artX: 0, artY: 0 }),
   ...cardVars('learn', 'Learn', { s: 1, w: 880, h: 128, x: 177, y: 82, artS: 1.02, artX: 0, artY: 3 }),
   ...cardVars('practice', 'Practice', { s: 0.84, w: 306, h: 284, x: -160, y: -266, artS: 1, artX: 0, artY: 0 }),
+  ...cardVars('gauntlet', 'Gauntlet', { s: 1, w: 880, h: 128, x: 6, y: -30, artS: 1, artX: 0, artY: 0 }),
   { key: 'titleS', cssVar: '--mp-title-s', label: 'Scale', group: 'MODE title', min: 0.3, max: 2.5, step: 0.01, def: 1.23, fmt: 'mul' },
   { key: 'titleX', cssVar: '--mp-title-x', label: 'X offset', group: 'MODE title', min: -1200, max: 1200, step: 1, def: 0, fmt: 'px' },
   { key: 'titleY', cssVar: '--mp-title-y', label: 'Y offset', group: 'MODE title', min: -1000, max: 1000, step: 1, def: -30, fmt: 'px' },

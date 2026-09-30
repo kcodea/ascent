@@ -56,6 +56,19 @@ export interface PatchNote {
 /** Newest first. PREPEND new entries. */
 export const PATCH_NOTES: PatchNote[] = [
   {
+    date: '2026-09-30',
+    changes: [
+      {
+        category: 'Systems',
+        text: 'The loading screen now loads all the art before you play, so nothing pops in.',
+        details: [
+          'The bar shows real progress: every card, hero, rune and frame is ready before the menu opens.',
+          'On a slow connection the first load takes longer. After that the game loads from your browser in a moment.',
+        ],
+      },
+    ],
+  },
+  {
     date: '2026-09-29',
     changes: [
       {

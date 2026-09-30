@@ -14,19 +14,17 @@ import { createAssetQueue, type AssetQueue, type Lane } from './assetQueue';
  *      it in once decoded (`Card.tsx` `.artimg.art-pending` / `.art-fadein`). Art that is already ready renders
  *      exactly as before, with no fade and no extra work: that is the common case once the preload has run.
  *
- * DECODED lanes (`now` … `set`: the chrome, the heroes, the run's pinned pool) are fetched AND decoded, and their
- * Image object is held for the session so the browser keeps the bytes to hand (the same hold the old warm-up
- * did). The `idle` lane — other sets, runes, quests, Ancients — only FETCHES, with `fetch()`, into the HTTP
- * cache: no decode, no Image, no renderer memory held (measured: holding them as Images cost ~250 MB of renderer
- * memory for art a run mostly never shows). An idle-lane URL is therefore NOT "ready"; when a card does render
- * it, `useArtReady` raises it to `now`, which decodes it straight from the disk cache in a few milliseconds —
- * behind the placeholder, then a fade — never a blank frame.
+ * EVERY lane fetches AND decodes, and the Image object is held for the session so the browser keeps the bytes to
+ * hand. Since 2026-09-30 the boot splash is a real LOADING GATE (owner: "i think id rather load everything. i dont
+ * want blurry images, i wanna stop pop in."): `Boot` waits on `whenArtReady` for everything a session on the
+ * live set can show before the menu appears, and the rest (other sets' cards for the Collection's set picker)
+ * keeps decoding behind it in the `idle` lane. The old `idle` lane only FETCHED (no decode, no held Image) to
+ * save ~250 MB of renderer memory; the owner chose zero pop-in over that saving, and the cost is measured in
+ * docs/devlog/2026-09-30-art-loading-gate.md. The placeholder above stays as a safety net only.
  */
 
 const queue: AssetQueue = createAssetQueue(6);
 const KEEP = new Map<string, HTMLImageElement>();
-/** Every URL ever requested in a DECODED lane (the idle fetch skips these). */
-const decodeRequested = new Set<string>();
 /** decode() can stall in a backgrounded / throttled tab. Never let one hold a lane (or a card hidden) forever. */
 const DECODE_TIMEOUT_MS = 15000;
 
@@ -45,23 +43,10 @@ function decodeImage(url: string): Promise<void> {
   });
 }
 
-/** Warm the HTTP cache only. The body is read to the end (so the cache entry completes) and dropped. */
-function fetchOnly(url: string): Promise<void> {
-  if (typeof fetch !== 'function') return Promise.resolve();
-  return fetch(url).then((r) => r.arrayBuffer()).then(() => undefined, () => undefined);
-}
-
-/** Queue `url` (or raise it to `lane`). Cheap to call repeatedly: a known URL is a Map lookup. The queue key
- *  for a decode is the URL itself (so `queue.ready(url)` means DECODED); an idle fetch is keyed `f:<url>`. */
+/** Queue `url` (or raise it to `lane`). Cheap to call repeatedly: a known URL is a Map lookup. The queue key is
+ *  the URL itself, so `queue.ready(url)` means fetched AND decoded (or failed: a broken file never holds a card). */
 export function requestArt(url: string | undefined, lane: Lane): void {
   if (!url) return;
-  if (lane === 'idle') {
-    // Never fetch() a URL the decoded lanes own: it is a wasted request at best, and on a no-cache server the
-    // fetch's revalidation made the next <img> for that URL revalidate too (a blank frame, measured 2026-09-29).
-    if (!decodeRequested.has(url)) queue.request(`f:${url}`, 'idle', () => fetchOnly(url));
-    return;
-  }
-  decodeRequested.add(url);
   queue.request(url, lane, () => decodeImage(url));
 }
 
@@ -97,6 +82,38 @@ export function useArtReady(url: string | undefined): boolean {
   );
   if (!ready) requestArt(url, 'now');
   return ready;
+}
+
+/**
+ * Resolve once every URL in `urls` is ready (decoded, or failed / timed out: `decodeImage` settles every case, so
+ * this always resolves). `onProgress(done, total)` is called once up front and after each settle. A URL not yet
+ * queued is requested in the `set` lane (a URL already queued keeps its lane: never demoted), so the promise can
+ * never wait on a key nobody asked for. Used by the boot LOADING GATE (Boot.tsx).
+ */
+export function whenArtReady(urls: readonly string[], onProgress?: (done: number, total: number) => void): Promise<void> {
+  const unique = [...new Set(urls.filter(Boolean))];
+  const total = unique.length;
+  let done = 0;
+  return new Promise<void>((resolve) => {
+    const tick = (): void => {
+      done++;
+      onProgress?.(done, total);
+      if (done === total) resolve();
+    };
+    onProgress?.(0, total);
+    if (total === 0) { resolve(); return; }
+    for (const u of unique) {
+      requestArt(u, 'set');
+      if (queue.ready(u)) queueMicrotask(tick);
+      else queue.subscribe(u, tick);
+    }
+  });
+}
+
+/** How many art/audio tasks the pipe runs at once. The boot gate opens it wider while the splash is up (no
+ *  frame to protect, only throughput), then puts it back. */
+export function setArtConcurrency(n: number): void {
+  queue.setConcurrency(n);
 }
 
 /** For tests / the perf HUD: queue depth. */

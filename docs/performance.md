@@ -620,7 +620,8 @@ The rules:
 - **Order the pipe; never fire everything at once.** A connection is one pipe. Every art URL (and the SFX bank)
   goes through ONE queue, `assetQueue.ts`, 6 in flight, in lanes: `now` (on screen) → `chrome` (title, board,
   card frames, shop buttons) → `early` (the live set's tier 1-2 cards, heroes) → `set` (the run's pinned pool,
-  `poolOf(run)`) → `audio` → `idle` (other sets, runes, quests; fetch-only, never decoded or held). The old
+  `poolOf(run)`) → `audio` → `idle` (cards and runes only an unplayable set owns; since 2026-09-30 decoded and
+  held like the rest, behind the boot gate below). The old
   warm-up fired ~650 images plus ~430 audio fetches together in alphabetical order, so the card in the shop
   waited behind the whole bundle (6.9 s at 10 Mbps).
 - **Never show an undecoded image.** A card's art, frame and hand plate use `useArtFade` (`artPreload.ts`), and
@@ -638,8 +639,14 @@ The rules:
   `immutable` for a year and `index.html` `no-cache`. Without it Netlify sends `max-age=0, must-revalidate`, so a
   returning player's browser re-asks the server about every image (722 revalidations in one measured warm
   visit) before it may use its own copy. `npm run release:web` refuses a build without it.
-- **Don't decode what a run won't show.** Holding decoded Images for the whole bundle cost ~250 MB of renderer
-  memory in measurement; that is why the `idle` lane only fetches.
+- **The boot splash is a LOADING GATE (2026-09-30).** Owner: *"i think id rather load everything. i dont want
+  blurry images, i wanna stop pop in."* `Boot` holds the splash until everything a session on the live set can
+  show is fetched AND decoded (`preloadBootArt` returns the list, `whenArtReady` waits on it), and the splash bar
+  is real progress (`scaleX` on the fill, written at most once a frame, plus a count). While it is up the pipe runs
+  16 wide (nothing on screen to protect); it drops back to 6 when the menu opens. Every lane now decodes and holds
+  its Image (the `idle` lane used to fetch only, to save ~250 MB): the owner chose zero pop-in over that memory,
+  and the cost is measured in `docs/devlog/2026-09-30-art-loading-gate.md`. A new art family MUST join
+  `preloadBootArt`'s gate, or it can pop in (only the placeholder safety net stands between it and a blank frame).
 
 ## 4. Established anti-patterns (don't reintroduce these)
 

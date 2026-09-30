@@ -811,9 +811,12 @@ body.wipe-up .lobbydmg-float { z-index: 240; }
 .statcell.time .gclock-bar { position: relative; overflow: visible; width: calc(90 * var(--u)); height: calc(10 * var(--u));
   border-radius: 999px; background: rgba(0, 0, 0, 0.45); box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.6); }
 .statcell.time .gclock-fill { position: absolute; inset: 0; border-radius: inherit; transform-origin: left center;
-  background: linear-gradient(180deg, #ffe89a, #f0b534 55%, #d28f14); transition: transform 260ms ease-out;
-  /* A STATIC glow (no looping paint): the fill wears a soft golden halo. */
-  box-shadow: 0 0 calc(6 * var(--u)) rgba(255, 200, 70, 0.85), 0 0 calc(14 * var(--u)) rgba(255, 170, 40, 0.45); }
+  background: linear-gradient(180deg, #ffe89a, #f0b534 55%, #d28f14); transition: transform 260ms ease-out; }
+/* The halo shows ONLY while the bar grows: a static shadow whose OPACITY plays once per spend (compositor-only). */
+.statcell.time .gclock-glow { position: absolute; inset: 0; border-radius: inherit; transform-origin: left center; pointer-events: none;
+  box-shadow: 0 0 calc(6 * var(--u)) rgba(255, 200, 70, 0.85), 0 0 calc(14 * var(--u)) rgba(255, 170, 40, 0.45);
+  opacity: 0; animation: gclockglow 820ms ease-out both; }
+@keyframes gclockglow { 0% { opacity: 0; } 25% { opacity: 1; } 100% { opacity: 0; } }
 /* The burst sits on the fill's leading edge; it slides with the tip (one `left` write per purchase, not per frame). */
 .statcell.time .gclock-sparks { position: absolute; top: 50%; width: 0; height: 0; pointer-events: none;
   transition: left 260ms ease-out; }

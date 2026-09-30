@@ -419,6 +419,10 @@ const ShopTimer = memo(function ShopTimer({ practice, gauntlet }: { practice?: b
             <span className="gclock-fill" style={{ transform: `scaleX(${goldSpent / GAUNTLET_CLOCK_GOLD})` }} />
             {/* SPARKS off the growing tip (owner ask 2026-09-30): a one-shot burst, re-keyed on every spend so each
                 purchase fires it once. Transform/opacity only; nothing loops. */}
+            {/* The GLOW only while the bar moves (owner ask 2026-09-30): a one-shot halo over the fill, re-keyed per spend. */}
+            {goldSpent > 0 && (
+              <span key={`g${goldSpent}`} className="gclock-glow" style={{ transform: `scaleX(${goldSpent / GAUNTLET_CLOCK_GOLD})` }} aria-hidden="true" />
+            )}
             {goldSpent > 0 && (
               <span key={goldSpent} className="gclock-sparks" style={{ left: `${(goldSpent / GAUNTLET_CLOCK_GOLD) * 100}%` }} aria-hidden="true">
                 {[0, 1, 2, 3, 4, 5].map((i) => <span key={i} className="gclock-spark" style={{ ['--i' as string]: i }} />)}

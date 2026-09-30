@@ -60,11 +60,15 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
-        text: 'Card art no longer pops in. Cards, frames and heroes now load in the order you will see them.',
+        text: 'New Legendary hero attack: Nothing But Net. Your hero plays basketball on the loser.',
         details: [
-          'The game fetches what is on screen first, then your shop cards, then the rest of the set in the background.',
-          'If a picture is still loading, the card shows a dark portrait and the art fades in. No more blank or white frames.',
-          'Coming back to the game loads the art straight from your browser, so it is ready at once.',
+          'Small: a jump shot from where your hero stands, swishing through a hoop on the target.',
+          'Tier II: a slide to mid court with a dribble move (behind the back, a crossover or a spin), then a fadeaway jumper.',
+          'Tier III: your hero runs to a spot, catches a pass from off screen, pump fakes, steps back and drains a three in slow motion.',
+          'Huge: your hero fires the ball off the backboard, it bounces high, your hero leaps, catches it in slow motion and slams it down into an explosion.',
+          'The dribble move and the spot change from fight to fight.',
+          'With a whistle, dribbles, squeaking sneakers, the swish, the rim and the crowd.',
+          'Found in crates. Equip it in the Collection.',
         ],
       },
       {
@@ -359,6 +363,15 @@ export const PATCH_NOTES: PatchNote[] = [
       {
         category: 'Systems',
         text: 'New skins in crates: Rooks Oona, Stencil Sylus, Mace Urchin, Magician Buddy Buddy and a first Frantic Frank hero skin, Armourer Frank.',
+      },
+      {
+        category: 'Systems',
+        text: 'Card art no longer pops in. Cards, frames and heroes now load in the order you will see them.',
+        details: [
+          'The game fetches what is on screen first, then your shop cards, then the rest of the set in the background.',
+          'If a picture is still loading, the card shows a dark portrait and the art fades in. No more blank or white frames.',
+          'Coming back to the game loads the art straight from your browser, so it is ready at once.',
+        ],
       },
     ],
   },

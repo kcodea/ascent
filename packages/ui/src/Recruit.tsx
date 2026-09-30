@@ -107,6 +107,8 @@ import { playHeroBubble } from './heroBubble/heroBubble';
 import { heroBubblePreviewSpeed } from './heroBubble/heroBubbleConfig';
 import { playHeroBackstab } from './heroBackstab/heroBackstab';
 import { heroBackstabPreviewSpeed } from './heroBackstab/heroBackstabConfig';
+import { playHeroBasketball } from './heroBasketball/heroBasketball';
+import { heroBasketballPreviewSpeed } from './heroBasketball/heroBasketballConfig';
 import { resolveHeroAttackStyle } from './heroBlast/heroAttackStyle';
 import { attackerCosmeticOf } from './heroBlast/attackerCosmetic';
 import { heroStrikeDamage, heroStrikeKnockout, heroStrikeNumbers } from './heroBlast/heroStrikeDamage';
@@ -2949,12 +2951,15 @@ export function Recruit() {
     // six times until it bursts; Hemorrhage: crimson crescents cut gashes that bleed, and the top tier zips a mega-slash
     // across the screen eight times and ends in a bloody explosion; the Rares, two tiers each: Pocket Change flicks a coin that pings and ricochets,
     // Come Back Around throws a boomerang that thwacks and is caught, Bubble Trouble pops a bubble round the face, and
-    // Shadow Step fades the striker into smoke and stabs from behind). Same blow, same consequence, only drawn differently;
+    // Shadow Step fades the striker into smoke and stabs from behind; Nothing But Net: the striker plays ball, a jump shot, a
+    // fadeaway, a pull-up three and a self alley-oop slammed into an explosion). Same blow, same consequence, only drawn differently;
     // the style is the ATTACKER's (their equipped cosmetic, or the dev override). Every runner takes the same options
     // (`heroAttack/options.ts`).
     const attackStyle = resolveHeroAttackStyle({ attacker: side, attackerCosmeticId: attackerCosmeticOf(run0, side, useGame.getState().showOpponentSkins) });
     if (attackStyle !== 'classic') {
-      const runner = attackStyle === 'backstab'
+      const runner = attackStyle === 'basketball'
+        ? { play: playHeroBasketball, preview: heroBasketballPreviewSpeed() }
+        : attackStyle === 'backstab'
         ? { play: playHeroBackstab, preview: heroBackstabPreviewSpeed() }
         : attackStyle === 'bubble'
         ? { play: playHeroBubble, preview: heroBubblePreviewSpeed() }
@@ -3002,6 +3007,8 @@ export function Recruit() {
         formation,
         total: strikeDmg,
         knockout,
+        // A stable per-blow seed for a style that rolls a variation (the run seed and the round): a replay rolls the same.
+        rollSeed: (run0.seed ^ Math.imul(run0.wave + 1, 0x9e3779b1)) >>> 0,
         side,
         attacker: aPt,
         defender: dPt,

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react';
 import { createPortal } from 'react-dom';
-import { COSMETIC_CATEGORY_DEFS, RARITY_LABELS, cosmeticOf, crateName, type OpenCrateResult } from '@game/progression';
+import { COSMETIC_CATEGORY_DEFS, RARITY_LABELS, cosmeticOf, crateLabel, type OpenCrateResult } from '@game/progression';
 import { playTailedClip, sfx, type SfxHandle } from '../sfx';
 import { stageHost } from '../stage';
 import { openCrate, type CrateOpenOutcome } from './progressionStore';
@@ -36,7 +36,8 @@ import './crateFx/crateTheatre.css';
 /** The painted gem the nameplate wears (recoloured per rarity in CSS, a static filter). */
 const GEM_ART = `${import.meta.env.BASE_URL}frames/end_button_gem.webp`;
 
-export interface CrateQueueItem { crateId: string; earnedLevel: number }
+/** `earnedLevel` null + `source` = a non-level crate (a Gauntlet crate, 2026-09-29); `crateLabel` names both. */
+export interface CrateQueueItem { crateId: string; earnedLevel: number | null; source?: string }
 
 type Phase = 'sealed' | 'anticipation' | 'charge' | 'burst' | 'reveal' | 'settled' | 'exhausted' | 'error';
 
@@ -393,7 +394,7 @@ export function CrateOpener({ queue, autoOpen = false, openAll = false, reducedM
       <div className="crth-box">
         {/* The Pixi canvas covers the whole theatre, so the flash, rings and rays never clip at a box edge. */}
         <div className="crth-fx" ref={hostRef} aria-hidden />
-        <div className="crate-name">{crateName(shown.earnedLevel)}</div>
+        <div className="crate-name">{crateLabel(shown)}</div>
         <div className="crate-stage crth-stage">
           {domCrate && (
             <div className={`crate-box${phase === 'anticipation' || phase === 'charge' ? ' shaking' : ''}${revealed ? ' open' : ''}${reward?.rarity ? ` r-${reward.rarity}` : ''}`} aria-hidden>

@@ -506,8 +506,19 @@ export function autoplayRun(seed: number, heroId?: string, opts?: BotOptions, ma
   while (s.phase !== 'gameover' && s.phase !== 'victory' && snaps.length < maxBoards && steps++ < 5000) {
     if (s.questOffer) { if (step({ type: 'buyQuest', index: 0 })) continue; break; } // quest shop → buy to open the turn
     // The Runeforge (universal on turns 6/9 since Set 2 went live) blocks every non-forge action while open —
-    // before this branch existed, recordings silently ended at wave 5. Skip it, like the production bot does.
-    if (s.runeforgeOffer) { if (step({ type: 'skipRuneforge' })) continue; break; }
+    // before this branch existed, recordings silently ended at wave 5. It BUYS the first offered rune it can
+    // afford (fix 2026-09-29, R-LOBBY-07): the recording plays a generated LOBBY SEAT, and every real run in the
+    // live pool owns a rune from wave 6 on (141 of 146 runs forge on turn 6), so a generated seat that always
+    // skipped read to the player as "an opponent with no rune" on round 6 (owner report 2026-09-29). Only when
+    // nothing is affordable does it skip.
+    if (s.runeforgeOffer) {
+      let bought = false;
+      const offers = s.runeforgeOffer.length; // `step` replaces `s`, and a buy closes the forge
+      for (let i = 0; i < offers && !bought; i++) bought = step({ type: 'buyRune', index: i });
+      if (bought) continue;
+      if (step({ type: 'skipRuneforge' })) continue;
+      break;
+    }
     // The hero-power Discover (Mimic at the start of EVERY turn, Void on turn 4, the Power Shifter spell) is
     // mandatory and blocks every other action, faceOmen included. Before this branch existed a Mimic recording
     // bailed on turn 1 with ZERO boards, so a generated Mimic lobby seat never fielded a board (bug 2026-09-28).

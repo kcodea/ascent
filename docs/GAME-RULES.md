@@ -38,6 +38,12 @@ medal + division — see *Ranked ladder* below).
   **All eight heroes are unique per lobby, the player's included** (owner 2026-09-13): a run on a hero already
   seated — or on the player's hero — is passed over for the next run in the shuffle, and generated seats never
   repeat a hero either.
+- **An eligible run covers the rounds it will be asked for** (2026-09-29, R-LOBBY-07): at least 4 recorded
+  waves, the first at wave 1 or 2, never more than one wave missing in a row, and no board above a plausible
+  shop tier for its wave (the all-in tavern-up curve + 2). A recorded seat serves its board for the round, else
+  its closest earlier one, so a run whose early waves never reached this client (the pool is pulled as the
+  newest boards per wave) would otherwise serve a late-game board in an early round. Such a run is skipped.
+  A generated seat's recording buys the first rune it can afford at each Runeforge, as a real player does.
 - **A lobby that seats player runs waits for the opponent pool** (owner 2026-09-28, R-LOBBY-06). A rated lobby
   or Practice against players is not built until the shared pool has loaded: instantly when it already has,
   otherwise behind a cancellable "Finding opponents..." wait while it retries. Only a genuine failure (offline)

@@ -60,7 +60,12 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
-        text: 'New skins in crates: Rooks Oona, Stencil Sylus, Mace Urchin, Magician Buddy Buddy and a first Frantic Frank hero skin, Armourer Frank.',
+        text: 'Fixed opponents sometimes bringing impossible boards early in a game.',
+        details: [
+          'An opponent could show up with a board from much later in their game, like a full late-game board on round 5.',
+          'Opponents now always bring the board they really had at that point in their game.',
+          'Computer-played opponents now pick a rune at the Runeforge like everyone else, so none shows up rune-less from round 6.',
+        ],
       },
       {
         category: 'Systems',
@@ -331,6 +336,10 @@ export const PATCH_NOTES: PatchNote[] = [
           'They now land right on the portrait, in fights and in the Collection preview.',
           'The zoom, the shake, the timing and how the portraits move are exactly the same.',
         ],
+      },
+      {
+        category: 'Systems',
+        text: 'New skins in crates: Rooks Oona, Stencil Sylus, Mace Urchin, Magician Buddy Buddy and a first Frantic Frank hero skin, Armourer Frank.',
       },
     ],
   },

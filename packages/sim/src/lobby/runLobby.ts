@@ -299,11 +299,9 @@ function shuffleRuns<T>(runs: readonly T[], rng: { int: (n: number) => number })
   return out;
 }
 
-/** Who is asking for a lobby, for seat selection only (never stored on the lobby). */
-export interface LobbySeatOptions {
-  /** The player's own account id: their OWN runs never sit at their own table (R-LOBBY-08). */
-  excludeOwnerId?: string | null;
-}
+/** Who is asking for a lobby, for seat selection only (never stored on the lobby). Nothing today: your own runs are
+ *  seated like anyone else's (owner 2026-09-30), so the old `excludeOwnerId` is gone. Kept as the extension point. */
+export type LobbySeatOptions = Record<string, unknown>;
 
 export function createRunLobby(seed: number, playerHeroId: string, rules: Partial<LobbyRules> = {}, setId?: SetId, opts: LobbySeatOptions = {}): RunLobby {
   const r: LobbyRules = { ...DEFAULT_LOBBY_RULES, ...rules };
@@ -352,14 +350,13 @@ export function createRunLobby(seed: number, playerHeroId: string, rules: Partia
   // its own RNG stream (a tag distinct from the pairing / seat-combat mixes below) so this draw never moves
   // those.
   //
-  // Two filters on top of the shuffle (owner 2026-09-29, R-LOBBY-08), neither of which weights the draw: your OWN
-  // runs never sit at your table, and one player holds at most `MAX_SEATS_PER_PLAYER` seats ("so it's not
-  // literally like 7 of me always"). A run over the cap is passed over for the next one in the shuffle, so every
-  // run of an under-cap player stays equally likely; when the pool genuinely lacks enough players, generated
-  // seats fill the rest below, exactly as for an empty pool.
-  const own = opts.excludeOwnerId ? `id:${opts.excludeOwnerId}` : null;
-  const available = shuffleRuns(playerRunsFrom(undefined, undefined, setId), makeRng(seed ^ 0x2545f491))
-    .filter((run) => !own || runOwnerOf(run) !== own);
+  // One filter on top of the shuffle (owner 2026-09-29, R-LOBBY-08), which does not weight the draw: one player
+  // holds at most `MAX_SEATS_PER_PLAYER` seats ("so it's not literally like 7 of me always"). A run over the cap is
+  // passed over for the next one in the shuffle, so every run of an under-cap player stays equally likely; when the
+  // pool genuinely lacks enough players, generated seats fill the rest below, exactly as for an empty pool. YOUR OWN
+  // runs are seated like anyone else's, under the same cap (owner 2026-09-30: "this is a problem - you should face your own boards too. you should also be able to occupy up to 4 of your own snapshots. please fix this").
+  void opts;
+  const available = shuffleRuns(playerRunsFrom(undefined, undefined, setId), makeRng(seed ^ 0x2545f491));
   const seatsByOwner = new Map<string, number>();
   const maxSnapshotSeats = Math.min(r.snapshotSeats ?? r.seatCount - 1, available.length);
   for (let i = 0; i < available.length && picked < r.seatCount - 1 && seats.filter((x) => x.kind === 'snapshot').length < maxSnapshotSeats; i++) {

@@ -10,7 +10,7 @@ import { createRunLobby, resetLobbyDrivers } from './runLobby';
 /**
  * R-LOBBY-08 (2026-09-29), the lobby half: a recorded seat serves its OWN board for the round (never a later one,
  * except the stale final board past the run's end), the pool registers whole runs or nothing, one player holds at
- * most four seats, and your own runs never sit at your table. This file registers into the module-global pool, so it
+ * most four seats, and your own runs sit at your table like anyone else's, under the same cap (owner 2026-09-30). This file registers into the module-global pool, so it
  * lives in its own file.
  */
 
@@ -76,7 +76,7 @@ describe('registration is by whole run', () => {
   });
 });
 
-describe('seat selection: at most four seats per player, never your own runs', () => {
+describe('seat selection: at most four seats per player, your own runs included', () => {
   it(`no player ever holds more than ${MAX_SEATS_PER_PLAYER} seats, over many seeded lobbies`, () => {
     // One prolific player with a run on every hero, two small ones.
     const runs = [
@@ -124,16 +124,32 @@ describe('seat selection: at most four seats per player, never your own runs', (
     resetLobbyDrivers(lobby.seats);
   });
 
-  it('your own runs never sit at your table', () => {
+  it('your own runs sit at your table too, at most four of them (owner 2026-09-30)', () => {
+    // Owner: "this is a problem - you should face your own boards too. you should also be able to occupy up to 4 of your own snapshots. please fix this"
     registerOpponentRuns([
       ...HEROES.slice(0, 8).map((h, i) => run('Me', h, 600 + i, 8, 'u-me')),
-      ...HEROES.slice(0, 8).map((h, i) => run(`Friend${i}`, h, 700 + i, 8, `u-f${i}`)),
+      ...HEROES.slice(8, 16).map((h, i) => run(`Friend${i}`, h, 700 + i, 8, `u-f${i}`)),
     ]);
-    for (let seed = 1; seed <= 40; seed++) {
-      const lobby = createRunLobby(seed, HEROES[HEROES.length - 1]!, {}, 'set1', { excludeOwnerId: 'u-me' });
-      expect(lobby.seats.some((s) => s.runKey?.startsWith('Me|'))).toBe(false);
+    let seenMine = 0; let seenFour = 0;
+    for (let seed = 1; seed <= 60; seed++) {
+      const lobby = createRunLobby(seed, HEROES[HEROES.length - 1]!, {}, 'set1');
+      const mine = lobby.seats.filter((s) => s.runKey?.startsWith('Me|')).length;
+      expect(mine, `seed ${seed}`).toBeLessThanOrEqual(MAX_SEATS_PER_PLAYER);
+      if (mine > 0) seenMine++;
+      if (mine === MAX_SEATS_PER_PLAYER) seenFour++;
       resetLobbyDrivers(lobby.seats);
     }
+    expect(seenMine).toBeGreaterThan(50); // 8 of 16 runs are yours: you almost always meet some
+    expect(seenFour).toBeGreaterThan(0);  // and the cap, not an exclusion, is what stops you
+  });
+
+  it('a pool of ONLY your own runs fills four seats and generates the rest', () => {
+    registerOpponentRuns(HEROES.slice(0, 10).map((h, i) => run('Me', h, 800 + i, 8, 'u-me')));
+    const lobby = createRunLobby(4, HEROES[HEROES.length - 1]!, {}, 'set1');
+    expect(lobby.seats.filter((s) => s.runKey?.startsWith('Me|')).length).toBe(MAX_SEATS_PER_PLAYER);
+    expect(lobby.seats.length).toBe(8);
+    expect(lobby.unrated).toBeUndefined(); // your own runs are real runs: the lobby is rated
+    resetLobbyDrivers(lobby.seats);
   });
 
   it('a run is owned by its account when stamped, else by its display name', () => {

@@ -619,8 +619,9 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'board is not uploaded) serves the previous board, and a run starting at wave 2 serves that board in round 1; '
       + 'nothing further ahead, ever. Past the end of the run the lobby serves its final board (the stale-final-board '
       + 'rule). Seat selection stays a uniform shuffle, with two filters that do not weight it: one player holds at '
-      + 'most 4 seats (a run over the cap is passed over for the next), and the own runs of the player never sit at '
-      + 'their own table. A player is their account id, else their display name.',
+      + 'most 4 seats (a run over the cap is passed over for the next), and that cap is the only limit on the '
+      + 'player\'s OWN runs: they sit at their own table like anyone else\'s, at most 4 of the 7 seats. A player is '
+      + 'their account id, else their display name.',
     domain: 'foundation',
     status: 'approved',
     evidence: [
@@ -644,13 +645,19 @@ export const FOUNDATION_RULES: GameRule[] = [
         ref: 'Claude Code session, 2026-09-29 (seat cap)',
         quote: "let's have a cap of 4 snapshots from a player i guess, so it's not literally like 7 of me always or something",
       },
-      { kind: 'code', ref: 'supabase/migrations/2026-09-29-pool-whole-runs.sql (pool_runs + pool_runs_sample); packages/ui/src/opponentPool/poolFetch.ts + poolLoader.ts (isWholeRun, cache v2); packages/sim/src/opponents.ts registerOpponentRuns; packages/sim/src/lobby/seats.ts boardAt; packages/sim/src/lobby/runLobby.ts createRunLobby (MAX_SEATS_PER_PLAYER, excludeOwnerId)' },
+      {
+        kind: 'owner-chat',
+        ref: 'Owner ruling 2026-09-30, relayed verbatim by the coordinator (own runs at your own table)',
+        quote: 'this is a problem - you should face your own boards too. you should also be able to occupy up to 4 of your own snapshots. please fix this',
+      },
+      { kind: 'code', ref: 'supabase/migrations/2026-09-29-pool-whole-runs.sql (pool_runs + pool_runs_sample); packages/ui/src/opponentPool/poolFetch.ts + poolLoader.ts (isWholeRun, cache v2); packages/sim/src/opponents.ts registerOpponentRuns; packages/sim/src/lobby/seats.ts boardAt; packages/sim/src/lobby/runLobby.ts createRunLobby (MAX_SEATS_PER_PLAYER; no own-run exclusion since 2026-09-30)' },
     ],
     currentBehaviour:
       'Conforms as of 2026-09-29. Before it the client pulled the newest 120 boards of each wave and glued them '
       + 'into runs; early waves hold more rows than late ones, so on the live pool 30 of 150 runs arrived cut '
       + '(and 1 not at all) and a seat served a wave-10 board on round 5. R-LOBBY-07 (seat eligibility) stays as '
-      + 'defence in depth.',
+      + 'defence in depth. 2026-09-30: the own-run exclusion of 2026-09-29 was removed (the client sends '
+      + 'p_exclude_user null; the SQL parameter stays, defaulting to null).',
     enforcement: {
       kind: 'scenario',
       refs: [

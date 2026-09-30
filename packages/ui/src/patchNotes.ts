@@ -60,6 +60,10 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: 'You can now face your own past games in Ranked and Practice, up to 4 of the 7 seats, like any other player.',
+      },
+      {
+        category: 'Systems',
         text: 'The lobby strength number is hidden from match history for now while we improve it.',
       },
       {

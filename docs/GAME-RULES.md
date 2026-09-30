@@ -37,7 +37,8 @@ medal + division — see *Ranked ladder* below).
   pool pick). **One player holds at most 4 seats** (owner 2026-09-29, R-LOBBY-08: "so it's not literally like 7
   of me always"): a run whose player already holds 4 is passed over for the next in the shuffle, which leaves
   every other run equally likely; when the pool lacks enough players, generated seats fill the rest. **Your own
-  runs never sit at your table.** A player is their account (`boards.user_id`), else their display name.
+  runs sit at your table like anyone else's, under the same cap of 4** (owner 2026-09-30: *"this is a problem - you should face your own boards too. you should also be able to occupy up to 4 of your own snapshots. please fix this"*;
+  until then your own runs were left out). A player is their account (`boards.user_id`), else their display name.
   **All eight heroes are unique per lobby, the player's included** (owner 2026-09-13): a run on a hero already
   seated — or on the player's hero — is passed over for the next run in the shuffle, and generated seats never
   repeat a hero either.

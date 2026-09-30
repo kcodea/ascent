@@ -78,7 +78,7 @@ function oldPerWavePull(rows: Row[]): Map<string, number[]> {
   return runs;
 }
 
-const opts = { setId: SET, patchPrefix: '0.1.0+', ownerId: null, random: makeRng(1).next };
+const opts = { setId: SET, patchPrefix: '0.1.0+', random: makeRng(1).next };
 const signal = new AbortController().signal;
 
 afterEach(() => { OPPONENT_POOL.length = 0; });
@@ -142,10 +142,15 @@ describe('after: both fetch paths deliver whole runs', () => {
     expect(seated).toBeGreaterThan(100);
   });
 
-  it('the player\'s own runs are not requested', async () => {
-    const got = await fetchPoolRuns(fakeApi(livePool(), { rpc: false }), { ...opts, ownerId: 'u-3' }, signal, { rpcMissing: false });
-    expect(got.runs.some((r) => r.ownerId === 'u-3')).toBe(false);
-    expect(got.runs.length).toBeGreaterThan(100);
+  it('the player\'s own runs are requested like anyone else\'s (owner 2026-09-30)', async () => {
+    const api = fakeApi(livePool(), { rpc: true });
+    const calls: unknown[] = [];
+    const sample = api.sample.bind(api);
+    api.sample = async (args, sig) => { calls.push(args.p_exclude_user); return sample(args, sig); };
+    await fetchPoolRuns(api, opts, signal, { rpcMissing: false });
+    expect(calls).toEqual([null]); // nobody excluded
+    const fb = await fetchPoolRuns(fakeApi(livePool(), { rpc: false }), opts, signal, { rpcMissing: false });
+    expect(fb.runs.some((r) => r.ownerId === 'u-3')).toBe(true); // the fallback keeps every player's runs too
   });
 
   it('a real server error is an error, not a silent switch to the fallback', async () => {

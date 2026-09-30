@@ -2,7 +2,7 @@ import { memo, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useGame } from './store';
 import { playerOpponent, getHero } from '@game/sim';
-import { RUNE_INDEX, gauntletStage } from '@game/content';
+import { RUNE_INDEX } from '@game/content';
 import { runeArt, heroPowerArt } from './art';
 import { heroPortrait, opponentSkins, seatCosmetics } from './skins/skins';
 import { PortraitFrame, pfClass, usePortraitFrame } from './portraitFrame/PortraitFrame';
@@ -12,6 +12,7 @@ import { BuffsFrame } from './BuffsFrame';
 import { gatherSnapshotBuffs } from './runBuffs';
 import { stageHost } from './stage';
 import { TRIBE_ICON } from './gauntlet/tribeIcon';
+import { foePortrait } from './gauntlet/foePortrait';
 
 /**
  * THE COMBAT OPPONENT — the foe's hero portrait, dropped in over the Refresh button for the fight (owner ask
@@ -73,8 +74,9 @@ export const CombatOpponent = memo(function CombatOpponent(): JSX.Element | null
   const leaving = phase === 'out';
   // SKINS: the foe's recorded hero skin, or default art when "Show opponent skins" is off.
   const gauntlet = gauntletNo !== null;
-  const tribe = gauntlet ? gauntletStage(gauntletNo)?.tribe : undefined;
-  const art = gauntlet ? undefined : heroPortrait(seat.heroId, opponentSkins(showOppSkins, seatCosmetics(seat, next.board)));
+  const gauntletFace = gauntlet ? foePortrait(gauntletNo) : undefined;
+  const tribe = gauntletFace?.tribe;
+  const art = gauntlet ? gauntletFace?.art : heroPortrait(seat.heroId, opponentSkins(showOppSkins, seatCosmetics(seat, next.board)));
   // The foe's health drops the moment the blow lands, not at resolve — mirroring the player's live drop. The
   // seat itself settles later (resolveCombat); `dmgDealt` carries the reduction until then. Armor absorbs first.
   const shownArmor = Math.max(0, seat.armor - dmgDealt);
@@ -114,9 +116,11 @@ export const CombatOpponent = memo(function CombatOpponent(): JSX.Element | null
             onClick={() => { if (hasBuffs) setBuffsOpen((o) => !o); }}
             role={hasBuffs ? 'button' : undefined}
           >
-            {gauntlet
+            {art
+              ? <img decoding="sync" className={`combatopp-img${gauntlet ? ' combatopp-cardart' : ''}`} src={art} alt="" draggable={false} />
+              : gauntlet
               ? <span className="combatopp-emblem"><Icon name={tribe ? TRIBE_ICON[tribe] : 'anvil'} /></span>
-              : art ? <img decoding="sync" className="combatopp-img" src={art} alt="" draggable={false} /> : <Icon name="anvil" />}
+              : <Icon name="anvil" />}
             {/* Hover affordance — the same darkened prompt the player's portrait wears (owner ask 2026-08-30). */}
             {hasBuffs && (
               <span className="herohover" aria-hidden="true">

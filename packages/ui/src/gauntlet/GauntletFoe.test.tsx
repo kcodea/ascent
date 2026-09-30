@@ -17,6 +17,7 @@ import { mount, type Mounted } from '../renderedText.mount';
 import { LobbyPanel } from '../LobbyPanel';
 import { CombatOpponent } from '../CombatOpponent';
 import { useGame } from '../store';
+import { artFor } from '../art';
 import { GauntletFoe } from './GauntletFoe';
 
 let ui: Mounted | null = null;
@@ -40,10 +41,11 @@ const show = (run: RunState): HTMLElement => {
 
 describe('GauntletFoe', () => {
   it('floats the opponent emblem + name with one round / cap line — no rail box, no seat list, no own health', () => {
-    const run = atRound(3);
+    const run = { ...atRound(3), gauntletStage: 2 }; // Kobolds: no portrait card, so the tribe emblem
     const el = show(run);
     expect(el.querySelector('.gauntletfoe-name')!.textContent).toBe('The Demon Host');
     expect(el.querySelector('.gauntletfoe-portrait .gauntletfoe-emblem svg')).not.toBeNull();
+    expect(el.querySelector('.gauntletfoe-portrait img')).toBeNull();
     expect(el.querySelector('.gauntletfoe-meta')!.textContent).toBe('Round 3 / 10 · Max loss 5');
     // No rail chrome, no seats, no scouting, no player Resolve/Armor, no native tooltips.
     expect(el.querySelector('.lobbyrail')).toBeNull();
@@ -53,6 +55,16 @@ describe('GauntletFoe', () => {
     const foe = el.querySelector('.gauntletfoe')!;
     act(() => { foe.dispatchEvent(new MouseEvent('mouseover', { bubbles: true, relatedTarget: document.body })); });
     expect(document.body.querySelector('.lobbyscout')).toBeNull();
+  });
+
+  it('a stage with a portrait card shows that card art (sync-decoded, no emblem)', () => {
+    const run = { ...atRound(3), gauntletStage: 1 };
+    const el = show(run);
+    const img = el.querySelector<HTMLImageElement>('.gauntletfoe-portrait img.gauntletfoe-img')!;
+    expect(img).not.toBeNull();
+    expect(img.getAttribute('decoding')).toBe('sync');
+    expect(img.getAttribute('src')).toBe(artFor('dm_grobbus'));
+    expect(el.querySelector('.gauntletfoe-emblem')).toBeNull();
   });
 
   it('reads "No cap" on the uncapped final rounds', () => {
@@ -68,7 +80,7 @@ describe('GauntletFoe', () => {
 
 describe('CombatOpponent in a Gauntlet', () => {
   it('wears the tribe emblem, keeps the name and shows no hero power or health (it takes no damage, R-GAUNTLET-02)', () => {
-    const run: RunState = { ...atRound(2), phase: 'combat' };
+    const run: RunState = { ...atRound(2), gauntletStage: 2, phase: 'combat' }; // Kobolds: no portrait card
     act(() => { useGame.setState({ run, combatStaged: true }); });
     ui = mount(<CombatOpponent />);
     const opp = document.body.querySelector('.combatopp')!;
@@ -78,6 +90,18 @@ describe('CombatOpponent in a Gauntlet', () => {
     expect(opp.querySelector('.combatopp-img')).toBeNull();
     expect(document.body.querySelector('.opp-power')).toBeNull();
     expect(document.body.querySelector('.combatopp-hp')).toBeNull();
+    act(() => { useGame.setState({ combatStaged: false }); });
+  });
+
+  it('a stage with a portrait card wears that card art instead of the emblem', () => {
+    const run: RunState = { ...atRound(2), gauntletStage: 1, phase: 'combat' };
+    act(() => { useGame.setState({ run, combatStaged: true }); });
+    ui = mount(<CombatOpponent />);
+    const img = document.body.querySelector<HTMLImageElement>('.combatopp-portrait img.combatopp-img')!;
+    expect(img).not.toBeNull();
+    expect(img.getAttribute('src')).toBe(artFor('dm_grobbus'));
+    expect(img.getAttribute('decoding')).toBe('sync');
+    expect(document.body.querySelector('.combatopp-emblem')).toBeNull();
     act(() => { useGame.setState({ combatStaged: false }); });
   });
 
@@ -97,7 +121,9 @@ describe('Now Facing in a Gauntlet (Recruit source pin — the wipe is too deep 
 
   it('wears the stage tribe emblem instead of the stand-in hero portrait; a lobby keeps the portrait', () => {
     expect(at).toBeGreaterThan(-1);
-    expect(block).toMatch(/run\.mode === 'gauntlet'\s*\?\s*<span className="wipevs-face wipevs-emblem"><Icon name=\{tribe \? TRIBE_ICON\[tribe\]/);
+    expect(block).toMatch(/foePortrait\(run\.gauntletStage/);
+    expect(block).toMatch(/<img decoding="sync" className="wipevs-face wipevs-cardart" src=\{gFace\.art\}/);
+    expect(block).toMatch(/<span className="wipevs-face wipevs-emblem"><Icon name=\{tribe \? TRIBE_ICON\[tribe\]/);
     expect(block).toMatch(/:\s*<img decoding="sync" className="wipevs-face" src=\{heroPortrait\(foe\.seat\.heroId/);
   });
 });

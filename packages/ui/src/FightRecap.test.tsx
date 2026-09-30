@@ -115,7 +115,7 @@ describe('FightRecap vs the Gauntlet opponent (invulnerable, R-GAUNTLET-02)', ()
 
   it('never shows damage dealt, nor an average dealt, and wears the stage tribe emblem with no hero name', () => {
     const { lobby, heroName } = gauntletLobby();
-    ui = mount(<FightRecap {...props({ result: 'win', lastCombat: winFight, combatOdds: odds, lobby, mode: 'gauntlet', gauntletStage: 1 })} />);
+    ui = mount(<FightRecap {...props({ result: 'win', lastCombat: winFight, combatOdds: odds, lobby, mode: 'gauntlet', gauntletStage: 2 })} />);
     expect(text()).toContain('Won against:');
     expect(text()).toContain('The Demon Host');
     expect(text()).not.toContain('You dealt');
@@ -126,6 +126,15 @@ describe('FightRecap vs the Gauntlet opponent (invulnerable, R-GAUNTLET-02)', ()
     expect(ui.container.querySelector('.fr-foe-pic .fr-foe-emblem svg')).not.toBeNull();
     expect(ui.container.querySelector('.fr-foe-hero')).toBeNull();
     if (heroName) expect(text()).not.toContain(heroName);
+  });
+
+  it('a stage with a portrait card shows that card art in the foe disc instead of the emblem', () => {
+    const { lobby } = gauntletLobby();
+    ui = mount(<FightRecap {...props({ result: 'win', lastCombat: winFight, combatOdds: odds, lobby, mode: 'gauntlet', gauntletStage: 1 })} />);
+    const img = ui.container.querySelector<HTMLImageElement>('.fr-foe-pic img.fr-foe-cardart')!;
+    expect(img).not.toBeNull();
+    expect(img.getAttribute('decoding')).toBe('sync');
+    expect(ui.container.querySelector('.fr-foe-emblem')).toBeNull();
   });
 
   it('a lobby foe is unchanged: its portrait, hero name, You dealt and avg dealt all show', () => {

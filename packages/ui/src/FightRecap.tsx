@@ -1,6 +1,5 @@
 import { memo, useMemo, useState } from 'react';
 import type { CombatResult } from '@game/core';
-import { gauntletStage as gauntletStageDef } from '@game/content';
 import { getHero, playerLossDamage, playerOpponent, roundLossCap, type CombatOdds, type RunState } from '@game/sim';
 import { artFor } from './art';
 import { heroPortrait, opponentSkins, seatCosmetics, useMinionSkinMap } from './skins/skins';
@@ -9,6 +8,7 @@ import { useGame } from './store';
 import { Icon } from './Icon';
 import { combatGainItems, oddsRecap, type GainItem } from './fightRecapData';
 import { TRIBE_ICON } from './gauntlet/tribeIcon';
+import { foePortrait } from './gauntlet/foePortrait';
 
 /**
  * FIGHT RECAP (owner ask 2026-09-24): the redesigned post-combat summary, opened only from the Summary pill.
@@ -106,7 +106,8 @@ export const FightRecap = memo(function FightRecap({ result, combatOdds, lastCom
     const dealt = !lastCombat || lastCombat.result !== 'win' || foe?.ghost || invulnerable ? 0 : Math.min(lastCombat.enemyDamage ?? 0, cap);
     // GAUNTLET: the stage opponent has no hero (its `heroId` is a stand-in) — its face is the stage's tribe emblem
     // and no hero name is shown.
-    const tribe = mode === 'gauntlet' ? gauntletStageDef(gauntletStage ?? 0)?.tribe ?? null : null;
+    const face = mode === 'gauntlet' ? foePortrait(gauntletStage ?? 0) : undefined;
+    const tribe = face?.tribe ?? null;
     return {
       round: lobby ? lobby.round : wave,
       foe: foe?.seat ? {
@@ -115,6 +116,7 @@ export const FightRecap = memo(function FightRecap({ result, combatOdds, lastCom
       } : null,
       gauntlet: mode === 'gauntlet',
       tribe,
+      cardArt: face?.art,
       invulnerable,
       dealt,
       taken,
@@ -136,7 +138,9 @@ export const FightRecap = memo(function FightRecap({ result, combatOdds, lastCom
           </div>
           <div className="fr-foe">
             <div className={`fr-foe-pic${pfClass(foeFrame)}`} style={foeFrame?.hostStyle}>
-              {head.gauntlet
+              {head.gauntlet && head.cardArt
+                ? <img decoding="sync" className="fr-foe-cardart" src={head.cardArt} alt="" draggable={false} />
+                : head.gauntlet
                 ? <span className="fr-foe-emblem"><Icon name={head.tribe ? TRIBE_ICON[head.tribe] : 'anvil'} /></span>
                 : head.foe && heroPortrait(head.foe.heroId, opponentSkins(showOppSkins, head.foe.cosmetics))
                 ? <img decoding="sync" src={heroPortrait(head.foe.heroId, opponentSkins(showOppSkins, head.foe.cosmetics))} alt="" draggable={false} />

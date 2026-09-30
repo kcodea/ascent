@@ -93,6 +93,7 @@ function StageBuilderInner({ confirming, setConfirming, requestClose }: {
   const { panelRef, headerPointerDown, panelStyle } = useDraggablePanel('stagebuilder');
   const [collapsed, setCollapsed] = useState(false);
   const [query, setQuery] = useState('');
+  const [portraitQuery, setPortraitQuery] = useState('');
   const [preview, setPreview] = useState<SbPreviewTarget | null>(null);
   const [runeOpen, setRuneOpen] = useState<'round6' | 'round9' | null>(null);
   const [folded, setFolded] = useState<Record<string, boolean>>(loadFolded);
@@ -113,6 +114,7 @@ function StageBuilderInner({ confirming, setConfirming, requestClose }: {
   const runeActs = useMemo(() => new Map(RUNE_OPTIONS.map((r) => [r.id, runeActsForOpponent(r.id)])), []);
 
   const results = useMemo(() => searchMinions(query), [query]);
+  const portraitResults = useMemo(() => searchMinions(portraitQuery).slice(0, 8), [portraitQuery]);
 
   const previewRow = useCallback((kind: 'card' | 'rune', id: string, el: HTMLElement): void => {
     const row = el.getBoundingClientRect();
@@ -186,6 +188,43 @@ function StageBuilderInner({ confirming, setConfirming, requestClose }: {
                   onChange={(e) => { const v = e.target.value; edit((s) => ({ ...s, opponentName: v })); }}
                   aria-label="Opponent name shown on the in-run portrait" />
               </label>
+            )}
+            {draft && (
+              /* PORTRAIT CARD — the card whose art is the opponent's face (shop foe, combat, recap, Now Facing).
+                 Blank = the tribe emblem. Stage-level, so a change counts as round 0 in the dirty tracking. */
+              <div className="sb-field stb-portrait">
+                <span className="sb-mini">portrait card</span>
+                <div className="sb-row">
+                  <span className={`stb-mname${draft.portraitCardId && !CARD_INDEX[draft.portraitCardId] ? ' err' : ''}`} aria-label="Current portrait card">
+                    {draft.portraitCardId ? (CARD_INDEX[draft.portraitCardId]?.name ?? `unknown card '${draft.portraitCardId}'`) : 'none (tribe emblem)'}
+                  </span>
+                  <button type="button" className="sb-btn" disabled={!draft.portraitCardId}
+                    onClick={() => edit((s) => { const { portraitCardId: _drop, ...rest } = s; return rest; })}
+                    aria-description="Clear the portrait card so the opponent wears its tribe emblem">Clear</button>
+                </div>
+                <input className="sb-search" placeholder="pick a portrait: name, id, tribe…" value={portraitQuery}
+                  onChange={(e) => setPortraitQuery(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && portraitResults[0]) {
+                      e.preventDefault(); const id = portraitResults[0].id;
+                      edit((s) => ({ ...s, portraitCardId: id })); setPortraitQuery('');
+                    }
+                  }}
+                  aria-label="Search cards for the opponent's portrait art. ↵ picks the top match." />
+                {portraitResults.length > 0 && (
+                  <div className="sb-results">
+                    {portraitResults.map((c) => (
+                      <div key={c.id} className="stb-result">
+                        <span className={`sb-t sb-t${c.tier}`}>{c.tier}</span>
+                        <span className="sb-name">{c.name}</span>
+                        <button type="button" className="sb-btn stb-add" data-portrait-pick={c.id}
+                          onClick={() => { edit((s) => ({ ...s, portraitCardId: c.id })); setPortraitQuery(''); }}
+                          aria-label={`Use ${c.name} as the opponent portrait`}>use</button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             )}
             {status && <div className="sb-mini stb-status" role="status">{status}</div>}
           </Sec>

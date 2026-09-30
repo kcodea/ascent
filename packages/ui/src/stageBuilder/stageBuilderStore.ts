@@ -54,7 +54,7 @@ const authoredPin = (run: RunState | undefined): BoardSnapshot | undefined =>
   (run && run.sandboxFoeWave === run.wave ? run.servedBoards?.[run.wave] : undefined) ?? undefined;
 
 const stageFieldsEqual = (a: GauntletStage, b: GauntletStage): boolean =>
-  a.number === b.number && a.name === b.name && a.opponentName === b.opponentName && a.tribe === b.tribe &&
+  a.number === b.number && a.name === b.name && a.opponentName === b.opponentName && a.portraitCardId === b.portraitCardId && a.tribe === b.tribe &&
   a.status === b.status && a.runes.round6 === b.runes.round6 && a.runes.round9 === b.runes.round9;
 
 /** Disk first (the builder always edits the file); the bundled copy if the dev endpoint is unreachable. */

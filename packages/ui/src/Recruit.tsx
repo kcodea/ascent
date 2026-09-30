@@ -1,5 +1,5 @@
 import { Fragment, memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent, type TransitionEvent as ReactTransitionEvent } from 'react';
-import { CARD_INDEX, EQUIPMENT_INDEX, QUEST_INDEX, RUNE_INDEX, gauntletStage } from '@game/content';
+import { CARD_INDEX, EQUIPMENT_INDEX, QUEST_INDEX, RUNE_INDEX } from '@game/content';
 import { compileTimeline } from './choreographer/compileTimeline';
 import { normalizePresentationBatch } from './choreographer/adapters/presentationBatchAdapter';
 import { createTimelinePlayer, runTimeline } from './choreographer/livePlayer';
@@ -69,6 +69,7 @@ import { HudBar } from './HudBar';
 import { LobbyPanel } from './LobbyPanel';
 import { GauntletFoe } from './gauntlet/GauntletFoe';
 import { TRIBE_ICON } from './gauntlet/tribeIcon';
+import { foePortrait } from './gauntlet/foePortrait';
 import { GAUNTLET_CLOCK_WAITING, gauntletClockState, gauntletClockWaiting, gauntletTurnClock } from './gauntlet/gauntletClock';
 import { CombatOpponent } from './CombatOpponent';
 import { playHeroBlast } from './heroBlast/heroBlast';
@@ -7314,9 +7315,12 @@ export function Recruit() {
               {(() => {
                 // GAUNTLET: the stage opponent has no hero (its `heroId` is a stand-in), so the disc wears the
                 // stage's tribe emblem — the same face the combat portrait and the in-run panel show.
-                const tribe = run.mode === 'gauntlet' ? gauntletStage(run.gauntletStage ?? 0)?.tribe : undefined;
-                const face = run.mode === 'gauntlet'
-                  ? <span className="wipevs-face wipevs-emblem"><Icon name={tribe ? TRIBE_ICON[tribe] : 'anvil'} /></span>
+                const gFace = run.mode === 'gauntlet' ? foePortrait(run.gauntletStage ?? 0) : undefined;
+                const tribe = gFace?.tribe;
+                const face = gFace
+                  ? gFace.art
+                    ? <img decoding="sync" className="wipevs-face wipevs-cardart" src={gFace.art} alt="" draggable={false} />
+                    : <span className="wipevs-face wipevs-emblem"><Icon name={tribe ? TRIBE_ICON[tribe] : 'anvil'} /></span>
                   : <img decoding="sync" className="wipevs-face" src={heroPortrait(foe.seat.heroId, opponentSkins(showOppSkins, seatCosmetics(foe.seat, foe.board)))} alt="" draggable={false} />;
                 // With a tuner frame on, the face sits in a disc-sized host that carries the ring; without one
                 // the markup is exactly what it always was.

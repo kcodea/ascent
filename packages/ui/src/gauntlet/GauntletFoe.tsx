@@ -13,10 +13,11 @@
  */
 import { memo } from 'react';
 import { roundLossCap } from '@game/sim';
-import { GAUNTLET_ROUNDS, gauntletStage } from '@game/content';
+import { GAUNTLET_ROUNDS } from '@game/content';
 import { Icon } from '../Icon';
 import { useGame } from '../store';
 import { TRIBE_ICON } from './tribeIcon';
+import { foePortrait } from './foePortrait';
 
 export const GauntletFoe = memo(function GauntletFoe(): JSX.Element | null {
   const name = useGame((s) => s.run.lobby?.seats[1]?.label ?? '');
@@ -24,11 +25,13 @@ export const GauntletFoe = memo(function GauntletFoe(): JSX.Element | null {
   // The lobby's round runs one past the last once the stage is over; the readout holds at the final round.
   const round = useGame((s) => Math.min(s.run.lobby?.round ?? 1, GAUNTLET_ROUNDS));
   const cap = useGame((s) => roundLossCap(s.run.lobby?.rules, Math.min(s.run.lobby?.round ?? 1, GAUNTLET_ROUNDS)));
-  const tribe = stage !== undefined ? gauntletStage(stage)?.tribe : undefined;
+  const { art, tribe } = foePortrait(stage);
   return (
     <div className="gauntletfoe" aria-label={`Your opponent: ${name}`}>
       <div className="gauntletfoe-portrait" aria-hidden="true">
-        <span className="gauntletfoe-emblem"><Icon name={tribe ? TRIBE_ICON[tribe] : 'anvil'} /></span>
+        {art
+          ? <img decoding="sync" className="gauntletfoe-img" src={art} alt="" draggable={false} />
+          : <span className="gauntletfoe-emblem"><Icon name={tribe ? TRIBE_ICON[tribe] : 'anvil'} /></span>}
       </div>
       <div className="gauntletfoe-name">{name}</div>
       <div className="gauntletfoe-meta">

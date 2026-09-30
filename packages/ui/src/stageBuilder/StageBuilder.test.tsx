@@ -107,6 +107,21 @@ describe('the Stage Builder panel', () => {
     expect(roundBtn(3).querySelector('.stb-dot')).toBeNull();
   });
 
+  it('the portrait card picker shows the stage card, sets a new one (Save enables), and clears it', () => {
+    expect(q('.stb-portrait .stb-mname')!.textContent).toBe(CARD_INDEX.dm_grobbus!.name);
+    expect(saveBtn().disabled).toBe(true);
+    type(q<HTMLInputElement>('.stb-portrait input.sb-search'), MINION.name);
+    click(q(`.stb-portrait [data-portrait-pick="${MINION.id}"]`));
+    expect(useStageBuilder.getState().draft!.portraitCardId).toBe(MINION.id);
+    expect(q('.stb-portrait .stb-mname')!.textContent).toBe(MINION.name);
+    expect(useStageBuilder.getState().dirtyRounds()).toContain(0);
+    expect(saveBtn().disabled).toBe(false);
+    click(qa<HTMLButtonElement>('.stb-portrait button').find((b) => b.textContent === 'Clear'));
+    expect(useStageBuilder.getState().draft!.portraitCardId).toBeUndefined();
+    expect(q('.stb-portrait .stb-mname')!.textContent).toMatch(/^none/);
+    expect(saveBtn().disabled).toBe(false); // cleared differs from the saved Grobbus
+  });
+
   it('a rune with no combat effect for an opponent carries the badge; one that acts does not', () => {
     const all = [...RUNES, ...EPIC_RUNES];
     const inert = all.find((r) => !runeActsForOpponent(r.id))!;

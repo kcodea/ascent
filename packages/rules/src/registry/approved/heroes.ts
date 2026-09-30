@@ -468,15 +468,16 @@ export const HEROES_RULES: GameRule[] = [
     id: 'R-ANCFRANK-02',
     title: 'Frantic Frank × Ancient of Fortune: Clearance minions sell for 2 Gold',
     statement:
-      'With the Ancient of Fortune, a minion bought from a Clearance-marked Shop offer is a Clearance minion (a per-instance mark, BoardCard.clearanceBuy, that survives combat, saves and hand/board moves) and sells for 2 Gold (never less than it would sell for anyway). Every sale path reads it through sellValueOf, so the sell float shows the same number.',
+      'With the Ancient of Fortune, a minion bought from a Clearance-marked Shop offer is a Clearance minion (a per-instance mark, BoardCard.clearanceBuy, that survives combat, saves and hand/board moves) and sells for 2 Gold (never less than it would sell for anyway). Every sale path reads it through sellValueOf, so the sell float shows the same number. The card text of the minion prints its current sale price as a blue note, "Sells for 2 Gold." (or its higher real value), on the Shop surfaces (board, hand, hover); never for other minions or without Fortune (owner 2026-09-30).',
     domain: 'heroes',
     status: 'approved',
     evidence: [
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-30 (Frank Ancients)', quote: 'Fortune - Clearance minions sell for 2g' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-30 (Frank Ancients, Fortune review)', quote: 'just add sells for 2g if it is a fortune frank purchase' },
       { kind: 'code', ref: 'packages/sim/src/ancients.ts clearanceSellValue / ancientClearanceSellValue; packages/sim/src/recruit.ts sellValueOf' },
     ],
     currentBehaviour: 'Conforms (built 2026-09-30). Dev-only (Scene Builder, Set 3, the Ancients flag).',
-    enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsFrank.test.ts'], lastVerifiedAt: '2026-09-30' },
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsFrank.test.ts', 'packages/ui/src/ancientsFrankText.test.ts'], lastVerifiedAt: '2026-09-30' },
   },
   {
     id: 'R-ANCFRANK-03',

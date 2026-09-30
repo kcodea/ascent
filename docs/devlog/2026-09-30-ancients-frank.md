@@ -55,7 +55,10 @@ stamps at 2 Gold also carries `ShopCard.clearance`, and the minion bought from o
   - Death: the destroy walks `destroyMinionInShop`, which stamps its Shop death beat. The free offers' price coins
     read a green 0 (`offerBuyPrice`, `costChanged`), and the power text says "Free buy ready." until it is spent.
   - War: each stack gained mid-fight plays the one-shot `hero-power-spark` on the power as the red count bumps.
-  - Fortune: the sell float already reads `sellValueWithBonus` → `sellValueOf`, so it floats the 2.
+  - Fortune: the sell float already reads `sellValueWithBonus` → `sellValueOf`, so it floats the 2. The Clearance
+    minion's text also prints a blue note, "Sells for 2 Gold." (owner: "just add sells for 2g if it is a fortune frank
+    purchase"), at its CURRENT value (`clearanceSellGoldOf` in `instView.ts`: a minion that would sell for more prints
+    that), on the Shop chain (board, hand, hover). A SALE banner was tried and dropped the same day at the owner's call.
   - Genesis: the ordinary refresh beat. Time: the live prices on the offers' coins.
 - **War's Avenge countdown** (owner: "show it in the center of the hero power when war is active"): the power's centre
   readout (`.hpb-center.hpb-avenge`, a dark disc with War's crimson rim) shows the friendly deaths still needed for the

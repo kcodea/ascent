@@ -60,7 +60,7 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
-        text: 'New skins in crates: Banana Chess Oona, Pencil Sketch Sylus, Morning Star Urchin, Top Hat Buddy Buddy and a first Frantic Frank hero skin, Shopping Spree Frank.',
+        text: 'New skins in crates: Rooks Oona, Stencil Sylus, Mace Urchin, Magician Buddy Buddy and a first Frantic Frank hero skin, Armourer Frank.',
       },
       {
         category: 'Systems',

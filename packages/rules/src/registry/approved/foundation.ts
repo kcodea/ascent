@@ -2120,10 +2120,10 @@ export const FOUNDATION_RULES: GameRule[] = [
     title: 'Skins batch 3: four minion skins and the first Frantic Frank hero skin join the crates, rarities by the owner',
     statement:
       'Five skins are crate items, each targeting its card or hero by stable id and shipping its own art '
-      + '(packages/ui/src/art/skins/<id>.webp): skin_oona_1 "Banana Chess Oona" (Epic, King Oona b2_oona; master RooksOona.png), '
-      + 'skin_sylus_3 "Pencil Sketch Sylus" (Rare, Sylus; StencilSylus.png), skin_seaurchin_1 "Morning Star Urchin" (Rare, '
-      + 'Sea Urchin; MaceUrchin.png), skin_buddy_1 "Top Hat Buddy Buddy" (Epic, Buddy Buddy; MagicianBuddyBuddyEpic.png) and '
-      + 'the hero skin skin_frank_1 "Shopping Spree Frank" (Common, hero frank; ArmourerFrank.png). Rarities are the '
+      + '(packages/ui/src/art/skins/<id>.webp): skin_oona_1 "Rooks Oona" (Epic, King Oona b2_oona; master RooksOona.png), '
+      + 'skin_sylus_3 "Stencil Sylus" (Rare, Sylus; StencilSylus.png), skin_seaurchin_1 "Mace Urchin" (Rare, '
+      + 'Sea Urchin; MaceUrchin.png), skin_buddy_1 "Magician Buddy Buddy" (Epic, Buddy Buddy; MagicianBuddyBuddyEpic.png) and '
+      + 'the hero skin skin_frank_1 "Armourer Frank" (Common, hero frank; ArmourerFrank.png). Rarities are the '
       + 'owner picks; names are matched to the art. With them in, a first crate holds 9 Common, 19 Rare, 14 Epic and 16 '
       + 'Legendary items (each Common 5.556%, Rare 1.579%, Epic 1.071%, Legendary 0.313%).',
     domain: 'foundation',

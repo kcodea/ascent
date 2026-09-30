@@ -220,13 +220,13 @@ export const COSMETICS: readonly CosmeticDef[] = Object.freeze([
   skin('skin_zyff_1', 'minion_skin', 'Double Agent Zyff', 'rare', 'zyff', 'ZyffSkinRare.png'),
   // Batch 3. Owner 2026-09-29: "added a few more hero and minion skins - i want to name them appropriately and then
   // decide rarities". Rarities are the owner's; names are matched to the art. King Oona is the Set 2 card (b2_oona).
-  skin('skin_oona_1', 'minion_skin', 'Banana Chess Oona', 'epic', 'b2_oona', 'RooksOona.png'),
-  skin('skin_sylus_3', 'minion_skin', 'Pencil Sketch Sylus', 'rare', 'sylus', 'StencilSylus.png'),
-  skin('skin_seaurchin_1', 'minion_skin', 'Morning Star Urchin', 'rare', 'seaurchin', 'MaceUrchin.png'),
-  skin('skin_buddy_1', 'minion_skin', 'Top Hat Buddy Buddy', 'epic', 'buddy', 'MagicianBuddyBuddyEpic.png'),
+  skin('skin_oona_1', 'minion_skin', 'Rooks Oona', 'epic', 'b2_oona', 'RooksOona.png'),
+  skin('skin_sylus_3', 'minion_skin', 'Stencil Sylus', 'rare', 'sylus', 'StencilSylus.png'),
+  skin('skin_seaurchin_1', 'minion_skin', 'Mace Urchin', 'rare', 'seaurchin', 'MaceUrchin.png'),
+  skin('skin_buddy_1', 'minion_skin', 'Magician Buddy Buddy', 'epic', 'buddy', 'MagicianBuddyBuddyEpic.png'),
   skin('skin_albus_1', 'hero_skin', 'Surf Day Albus', 'epic', 'albus', 'Albus1.png'),
   skin('skin_warden_1', 'hero_skin', 'Bath Day Warden', 'epic', 'warden', 'Warden1.png'),
-  skin('skin_frank_1', 'hero_skin', 'Shopping Spree Frank', 'common', 'frank', 'ArmourerFrank.png'),
+  skin('skin_frank_1', 'hero_skin', 'Armourer Frank', 'common', 'frank', 'ArmourerFrank.png'),
   // HERO ATTACKS. Owner 2026-09-28: "the new blast attack is going to be a cosmetic unlock, not a new default". The
   // numbers combine, the hero charges, the view shakes and pushes in, bolts carry the blow. Then, on seeing it: "those
   // are good thresholds, this blast animation looks good! make it a legendary reward" (Epic -> Legendary). The name is

@@ -146,7 +146,7 @@ describe('the roll', () => {
   it('the per-item chances of a first crate (2026-09-29 catalog): each item = its rarity\'s odds / that rarity\'s item count', () => {
     const all = eligibleCrateCosmetics([]);
     const count = (r: string): number => all.filter((c) => c.rarity === r).length;
-    expect(COSMETIC_RARITIES.map(count)).toEqual([9, 19, 14, 16]); // 2026-09-29 (skins batch 3): Shopping Spree Frank made Common 9; Pencil Sketch Sylus and Morning Star Urchin made Rare 19; Banana Chess Oona and Top Hat Buddy Buddy made Epic 14. Before that, 2026-09-29: Inferno, Grave Call, the Stampede, Oona's Banana Cannon and Hemorrhage made Legendary 16; the first Epic attacks, Card Shark and Storm Call, made Epic 12; the four Rare hero attacks (coin, boomerang, bubble, backstab) made Rare 17
+    expect(COSMETIC_RARITIES.map(count)).toEqual([9, 19, 14, 16]); // 2026-09-29 (skins batch 3): Armourer Frank made Common 9; Stencil Sylus and Mace Urchin made Rare 19; Rooks Oona and Magician Buddy Buddy made Epic 14. Before that, 2026-09-29: Inferno, Grave Call, the Stampede, Oona's Banana Cannon and Hemorrhage made Legendary 16; the first Epic attacks, Card Shark and Storm Call, made Epic 12; the four Rare hero attacks (coin, boomerang, bubble, backstab) made Rare 17
     const ch = crateChances(all);
     const pct = (id: string): number => Math.round(100000 * ch.get(id)!) / 1000;
     expect(pct('skin_blackbelt_4')).toBe(5.556);      // Common: 50 / 9

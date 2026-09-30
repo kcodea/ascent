@@ -76,10 +76,11 @@ describe('the Heroes and Minions tabs', () => {
     open();
     act(() => tab('Minions').click());
     expect(tileNames().sort()).toEqual([
-      'Banana Chess Oona', 'Candy Cane Venom', 'Cashier Drakko', 'Clocktower Voss', 'Crowd Surf Drakko', 'Double Agent Zyff',
-      'Glitch Brian', 'Grandmaster Brian', 'Joyride Jensen & Fi', 'Lounge Act Joker', 'Morning Star Urchin',
-      'Pencil Sketch Sylus', 'Potion Stand Steward', 'Rock Star Drakko', 'Sheriff Brian', 'Sketchbook Brian',
-      'Slam Dunk Sylus', 'Storm Front Nimbus', 'Superfan Paragon', 'Tee Time Sylus', 'Top Hat Buddy Buddy',
+      'Candy Cane Venom', 'Cashier Drakko', 'Clocktower Voss', 'Crowd Surf Drakko', 'Double Agent Zyff',
+      'Glitch Brian', 'Grandmaster Brian', 'Joyride Jensen & Fi', 'Lounge Act Joker', 'Mace Urchin',
+      'Magician Buddy Buddy', 'Potion Stand Steward', 'Rock Star Drakko', 'Rooks Oona', 'Sheriff Brian',
+      'Sketchbook Brian', 'Slam Dunk Sylus', 'Stencil Sylus', 'Storm Front Nimbus', 'Superfan Paragon',
+      'Tee Time Sylus',
     ]);
     const owned = tile('Sheriff Brian');
     expect(owned.className).toMatch(/\bskin\b/);
@@ -150,9 +151,9 @@ describe('the kill switch in the Collection (retired = hidden, owned or not; res
     act(() => applyServerCatalogState({ retiredIds: ['skin_blackbelt_1'], disabledCategories: [] }));
     expect(tileNames()).toEqual([ // rarest first, then catalog order
       'Grandmaster Brian', 'Tee Time Sylus',
-      'Glitch Brian', 'Clocktower Voss', 'Crowd Surf Drakko', 'Cashier Drakko', 'Potion Stand Steward', 'Candy Cane Venom', 'Banana Chess Oona', 'Top Hat Buddy Buddy',
+      'Glitch Brian', 'Clocktower Voss', 'Crowd Surf Drakko', 'Cashier Drakko', 'Potion Stand Steward', 'Candy Cane Venom', 'Rooks Oona', 'Magician Buddy Buddy',
       'Rock Star Drakko', 'Joyride Jensen & Fi', 'Lounge Act Joker', 'Storm Front Nimbus', 'Superfan Paragon', 'Slam Dunk Sylus', 'Double Agent Zyff',
-      'Pencil Sketch Sylus', 'Morning Star Urchin',
+      'Stencil Sylus', 'Mace Urchin',
       'Sketchbook Brian',
     ]);
     expect(tab('Minions').querySelector('.colls-tab-count')?.textContent).toBe('0/20');

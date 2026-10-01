@@ -34,7 +34,7 @@ import { pixiFx } from './pixiFx';
 import { getAimFxConfig } from './aimFxConfig'; // also reflects the --hpb-* vars at load (side-effect)
 import './heroPanelConfig'; // side-effect: reflects the --hpn-* hero-panel transform vars at load
 import { rectToStage, stageHost, stageViewport } from './stage';
-import { PortraitFrame, pfClass, usePortraitFrame } from './portraitFrame/PortraitFrame';
+import { PortraitFrame, frameIdOf, pfClass, usePortraitFrame } from './portraitFrame/PortraitFrame';
 
 
 /** Shrink a pill's TEXT to fit its box (owner note 2026-07-16: no ellipsis — "Lord of the Risen" should
@@ -184,8 +184,9 @@ export function StatusBar() {
   // SKINS: your portrait (the combat hero too: it is the lunge target) wears the skin recorded on this run.
   const runSkins = useRunSkins();
   const heroImg = heroPortrait(hero.id, runSkins);
-  // The portrait-frames tuner's ring (null = today's look). The disc host is `.herolunge`, so the ring lunges too.
-  const frame = usePortraitFrame('self');
+  // The portrait frame RECORDED on this run, like the skin (owner 2026-10-01), else the portrait-frames tuner's ring
+  // (null = today's look). The disc host is `.herolunge`, so the ring lunges too.
+  const frame = usePortraitFrame('self', frameIdOf(runSkins));
   const powers = activePowers(run);
   const power = powers[0]!;
   const secondPower = powers[1];

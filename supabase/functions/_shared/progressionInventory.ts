@@ -17,7 +17,8 @@
  *                                           caller OWNS on the target it was made for, or null for Default. The
  *                                           SQL checks ownership, category = slot, target and that the item is
  *                                           live (a retired skin cannot be equipped). Also the account-wide
- *                                           `hero_attack` slot (target '', null = Classic), same checks.
+ *                                           `hero_attack` slot (target '', null = Classic) and, since 2026-10-01, the account-wide
+ *                                           `portrait_frame` slot (target '', null = the default ring), same checks.
  *
  * WHY A SEPARATE FUNCTION (not an extension of submit-progression): settlement is a queued, retried, byte-pinned
  * request whose contract is already live; opening and equipping are interactive, never queued, and fail
@@ -28,7 +29,7 @@
  * the SQL decides. `npm run progression:shared` generates this file VERBATIM into
  * supabase/functions/_shared/progressionInventory.ts; `sharedArtifact.test.ts` fails CI on drift.
  */
-import { COSMETIC_CATEGORY_DEFS, EQUIP_SLOTS, catalogHash, catalogSyncPayload, cosmeticOf, parseOpenCrateResult, type EquipSlot, type OpenCrateResult } from './progressionCosmetics.ts';
+import { COSMETIC_CATEGORY_DEFS, EQUIP_SLOTS, GLOBAL_EQUIP_SLOTS, catalogHash, catalogSyncPayload, cosmeticOf, parseOpenCrateResult, type EquipSlot, type OpenCrateResult } from './progressionCosmetics.ts';
 import { parseProgressionProfile, type ProgressionProfile } from './progressionRules.ts';
 import type { HandlerResponse, RpcCall } from './progressionServer.ts';
 
@@ -60,7 +61,7 @@ export function validateInventoryBody(body: unknown): InventoryValidation {
   if (b.action === 'equip_cosmetic') {
     if (typeof b.slot !== 'string' || !(EQUIP_SLOTS as readonly string[]).includes(b.slot)) return { ok: false, status: 400, error: 'bad_slot' };
     // A hero attack is account-wide: its target is always '' (the global slot). A skin names its hero or card.
-    if (typeof b.targetId !== 'string' || (b.slot === 'hero_attack' ? b.targetId !== '' : !TARGET_ID.test(b.targetId))) return { ok: false, status: 400, error: 'bad_target' };
+    if (typeof b.targetId !== 'string' || ((GLOBAL_EQUIP_SLOTS as readonly string[]).includes(b.slot) ? b.targetId !== '' : !TARGET_ID.test(b.targetId))) return { ok: false, status: 400, error: 'bad_target' };
     if (b.cosmeticId !== null && (typeof b.cosmeticId !== 'string' || !COSMETIC_ID.test(b.cosmeticId))) return { ok: false, status: 400, error: 'bad_cosmetic_id' };
     return { ok: true, request: { action: 'equip_cosmetic', slot: b.slot as EquipSlot, targetId: b.targetId, cosmeticId: b.cosmeticId as string | null } };
   }

@@ -51,7 +51,7 @@ const EMPTY: MinionSkinMap = new Map();
  * Both caches are tiny (a handful of distinct loadouts per session) and capped anyway.
  */
 const CACHE_CAP = 256;
-const keyOf = (s: RunCosmeticSnapshot): string => JSON.stringify([s.heroSkinByHeroId ?? null, s.minionSkinByCardId ?? null, s.heroAttack ?? null, s.title ?? null]);
+const keyOf = (s: RunCosmeticSnapshot): string => JSON.stringify([s.heroSkinByHeroId ?? null, s.minionSkinByCardId ?? null, s.heroAttack ?? null, s.title ?? null, s.portraitFrame ?? null]);
 const interned = new Map<string, RunCosmeticSnapshot>();
 const mapCache = new Map<string, { epoch: number; map: MinionSkinMap }>();
 

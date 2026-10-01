@@ -120,7 +120,7 @@ afterAll(async () => { await db?.close(); });
 describe('the migration', () => {
   it('after the first sync: the two skin categories are on and the four skins exist (rows equal the TS catalog)', async () => {
     const cats = (await db.query<{ category: string }>('select category from public.cosmetic_categories where enabled order by category')).rows.map((r) => r.category);
-    expect(cats).toEqual(['hero_attack', 'hero_skin', 'minion_skin', 'title']);
+    expect(cats).toEqual(['hero_attack', 'hero_skin', 'minion_skin', 'portrait_frame', 'title']);
     const rows = (await db.query<{ cosmetic_id: string; category: string; target_type: string; target_id: string; active: boolean }>(
       "select cosmetic_id, category, target_type, target_id, active from public.cosmetic_catalog where category in ('hero_skin', 'minion_skin') order by cosmetic_id")).rows;
     expect(rows).toEqual(COSMETICS.filter((c) => c.target).sort((a, b) => (a.id < b.id ? -1 : 1))
@@ -338,10 +338,10 @@ describe('the catalog sync (owner 2026-09-28: "make it automated when i add skin
     const p = base();
     const categories = p.categories.filter((c) => c.category !== 'title').map((c) => (c.category === 'hero_skin' ? { ...c, enabled: false } : c));
     expect((await sync({ ...p, categories }, 'test-hash-cat-1')).status).toBe('synced');
-    expect(await enabledCats()).toEqual(['hero_attack', 'minion_skin']);
+    expect(await enabledCats()).toEqual(['hero_attack', 'minion_skin', 'portrait_frame']);
     expect((await poolIds(await playerOwning([]))).filter((id) => id.startsWith('skin_albus') || id.startsWith('title_'))).toEqual([]);
     await sync();
-    expect(await enabledCats()).toEqual(['hero_attack', 'hero_skin', 'minion_skin', 'title']);
+    expect(await enabledCats()).toEqual(['hero_attack', 'hero_skin', 'minion_skin', 'portrait_frame', 'title']);
   });
 
   it('the emergency switch WINS: admin_off on an item and a category survives any number of syncs', async () => {

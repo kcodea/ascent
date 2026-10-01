@@ -3,7 +3,7 @@ import type { CombatResult } from '@game/core';
 import { getHero, playerLossDamage, playerOpponent, roundLossCap, type CombatOdds, type RunState } from '@game/sim';
 import { artFor } from './art';
 import { heroPortrait, opponentSkins, seatCosmetics, useMinionSkinMap } from './skins/skins';
-import { PortraitFrame, pfClass, usePortraitFrame } from './portraitFrame/PortraitFrame';
+import { PortraitFrame, frameIdOf, pfClass, usePortraitFrame } from './portraitFrame/PortraitFrame';
 import { useGame } from './store';
 import { Icon } from './Icon';
 import { combatGainItems, oddsRecap, type GainItem } from './fightRecapData';
@@ -88,8 +88,6 @@ export const FightRecap = memo(function FightRecap({ result, combatOdds, lastCom
   const [details, setDetails] = useState(false);
   const [detailTab, setDetailTab] = useState<'procs' | 'log'>('procs');
   const showOppSkins = useGame((s) => s.showOpponentSkins);
-  // The portrait-frames tuner's opponent ring for the foe face (null = today's CSS border).
-  const foeFrame = usePortraitFrame('opp');
   const ownSkinArt = useMinionSkinMap();
 
   // The foe + the damage both ways. The summary only exists during the combat phase, BEFORE the lobby round
@@ -122,6 +120,9 @@ export const FightRecap = memo(function FightRecap({ result, combatOdds, lastCom
       taken,
     };
   }, [lobby, wave, mode, gauntletStage, lastCombat]);
+  // The foe face's ring: its recorded portrait frame (through "Show opponent cosmetics"), else the portrait-frames
+  // tuner's opponent ring (null = today's CSS border).
+  const foeFrame = usePortraitFrame('opp', head.gauntlet ? null : frameIdOf(opponentSkins(showOppSkins, head.foe?.cosmetics)));
 
   const odds = useMemo(() => oddsRecap(combatOdds, result), [combatOdds, result]);
   const gains = useMemo<GainItem[]>(() => combatGainItems(lastCombat, board), [lastCombat, board]);

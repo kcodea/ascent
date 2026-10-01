@@ -232,6 +232,8 @@
 .colls-tile-for { font-weight: 800; font-size: 12px; letter-spacing: 0.12em; text-transform: uppercase; color: rgba(255, 246, 228, 0.85); text-shadow: 0 1px 4px #000; }
 .colls-tile.skin.missing .colls-tile-art { filter: blur(6px) saturate(0.35) brightness(0.45); transform: scale(1.08); }
 .colls-tile.skin.missing .colls-tile-for { color: rgba(255, 246, 228, 0.55); }
+/* A PORTRAIT FRAME's tile (2026-10-01): the ring shown whole, centred above the name (static). */
+.colls-tile.ring .colls-tile-art { object-fit: contain; inset: 14px 14px 46px; width: calc(100% - 28px); height: calc(100% - 60px); border-radius: 0; }
 
 .colls-skinart { position: relative; align-self: center; overflow: hidden; border: 2px solid color-mix(in srgb, var(--rc) 72%, #000);
   box-shadow: 0 0 0 1px rgba(232, 200, 119, 0.25), 0 12px 28px -14px #000; }
@@ -257,6 +259,9 @@
 .colls-detail.skin .colls-plate-name { font-size: 30px; }
 .colls-skinart img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .colls-detail.missing .colls-skinart img { filter: blur(8px) saturate(0.35) brightness(0.5); transform: scale(1.08); }
+/* An UNOWNED portrait frame in the detail panel: the ring alone, blurred by the rule above, never around a portrait. */
+.colls-skinart.colls-framelocked { width: 220px; height: 220px; border: 0; box-shadow: none; background: transparent; border-radius: 50%; }
+.colls-skinart.colls-framelocked img { object-fit: contain; }
 
 /* ── NEW REWARDS (owner ask 2026-09-28): the NEW pill on every Collection entry point, and the one-time pop-up the
    Collection opens with. Static styling; the pop-up's entrance is one-shot. The gauntlet cursor comes from the

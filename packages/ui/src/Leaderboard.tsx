@@ -8,6 +8,7 @@ import { HALL_MIN_FIGHTS, HALL_ROWS, fetchHallHistory, fetchHallOwnGames, fetchH
 import { LbHeroFrame, LbLabel, LbMedallion, LbRunes, LbTeam } from './LadderBits';
 import { TitleBadge } from './titles/TitleBadge';
 import { opponentSkins } from './skins/skins';
+import { frameIdOf } from './portraitFrame/PortraitFrame';
 import { hallHistoryFor, hallRowsOf, parseRunKey, playedOnText, recordText, winRateText, type HallOwnRecord, type HallSort } from './leaderboardData';
 
 /**
@@ -110,7 +111,7 @@ export function Leaderboard() {
                 <div className="lb-row" key={r.key}>
                   <div className="lb-row-rank"><LbMedallion rank={i + 1} /></div>
                   <div className="lb-row-hero">
-                    <LbHeroFrame heroId={r.heroId} />
+                    <LbHeroFrame heroId={r.heroId} frameId={frameIdOf(opponentSkins(showOppCosmetics, (r.board as BoardSnapshot | null)?.cosmetics))} />
                     <div className="lb-row-name">{r.author && r.author !== 'anon' ? r.author : hero.name}</div>
                     {/* The title RECORDED with this run (owner ask 2026-09-28), off the board the row already has, through
                         the opponent cosmetics switch (a Hall row carries no account id, so it cannot exempt your own). */}

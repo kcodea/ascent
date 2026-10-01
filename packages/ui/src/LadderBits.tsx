@@ -25,10 +25,11 @@ import { medalOf } from './leaderboardData';
  *  Hall + Recent Games, inside `.lb-row-hero`) CSS alone re-seats this same markup in the game's gold
  *  portrait-ring PNG (owner 2026-09-21, the `.portring` recipe) — no wrapper, no extra class.
  *  `side` picks the portrait-frames tuner ring: `self` for your own row, `opp` (default) for everyone else. */
-export function LbHeroFrame({ heroId, size = 'row', side = 'opp' }: { heroId: string | null | undefined; size?: 'row' | 'big'; side?: PortraitSide }) {
+export function LbHeroFrame({ heroId, size = 'row', side = 'opp', frameId }: { heroId: string | null | undefined; size?: 'row' | 'big'; side?: PortraitSide; frameId?: string | null }) {
   const art = heroId ? heroArt(heroId) : undefined;
   const name = heroId ? getHero(heroId).name : '';
-  const frame = usePortraitFrame(side);
+  // `frameId`: a row's RECORDED portrait frame (owner 2026-10-01), already through "Show opponent cosmetics".
+  const frame = usePortraitFrame(side, frameId);
   return (
     <div className={`lb-heroframe${size === 'big' ? ' big' : ''}${pfClass(frame)}`} style={frame?.hostStyle}>
       <div className="hero">

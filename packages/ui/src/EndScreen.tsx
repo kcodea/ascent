@@ -5,7 +5,7 @@ import { buildTags, CONFIG, getHero, isCalibrationRound, isPlayerAction, lineRes
 import { Card, type CardView } from './Card';
 import { liveBoardView } from './instView';
 import { heroPortrait, useRunSkins } from './skins/skins';
-import { PortraitFrame, pfClass, usePortraitFrame } from './portraitFrame/PortraitFrame';
+import { PortraitFrame, frameIdOf, pfClass, usePortraitFrame } from './portraitFrame/PortraitFrame';
 import { Icon } from './Icon';
 import { useGame } from './store';
 import { sfx } from './sfx';
@@ -176,8 +176,9 @@ function TutorialGraduationScreen({ run, onDone }: { run: RunState; onDone: () =
 export function EndScreen({ won }: { won: boolean }) {
   const run = useGame((s) => s.run);
   const runSkins = useRunSkins();
-  // The portrait-frames tuner's ring (null = today's CSS border). Before the early returns below.
-  const frame = usePortraitFrame('self');
+  // The portrait frame recorded on this run (owner 2026-10-01), else the portrait-frames tuner's ring (null = today's
+  // CSS border). Before the early returns below.
+  const frame = usePortraitFrame('self', frameIdOf(runSkins));
   const openTitle = useGame((s) => s.openTitle);
   const actions = useGame((s) => s.replayActions);
   // A lobby result is a placement, not a graded climb — its own screen, before any of the scored-run

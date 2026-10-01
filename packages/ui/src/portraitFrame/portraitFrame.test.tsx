@@ -164,18 +164,20 @@ describe('every hero-portrait surface goes through the shared renderer', () => {
   const SURFACES: [string, RegExp][] = [
     ['HeroSelect.tsx', /usePortraitFrame\('self'\)/],
     ['hero-select/HeroSelectCeremony.tsx', /usePortraitFrame\('self'\)/],
-    ['StatusBar.tsx', /usePortraitFrame\('self'\)/],
-    ['CombatOpponent.tsx', /usePortraitFrame\('opp'\)/],
+    // In-run surfaces pass the frame RECORDED on the run (yours) or the seat (theirs, through "Show opponent
+    // cosmetics"), the portrait frame cosmetics (owner 2026-10-01).
+    ['StatusBar.tsx', /usePortraitFrame\('self', frameIdOf\(runSkins\)\)/],
+    ['CombatOpponent.tsx', /usePortraitFrame\('opp', [^;]*frameIdOf\(opponentSkins\(showOppSkins/],
     ['gauntlet/GauntletFoe.tsx', /usePortraitFrame\('opp'\)/], // the combat face's shop twin (2026-09-30)
-    ['Recruit.tsx', /usePortraitFrame\('opp'\)/], // Now Facing
-    ['LobbyPanel.tsx', /usePortraitFrame\('self'\)[\s\S]*usePortraitFrame\('opp'\)/],
-    ['EndScreen.tsx', /usePortraitFrame\('self'\)/],
-    ['FightRecap.tsx', /usePortraitFrame\('opp'\)/],
-    ['OpponentFrame.tsx', /usePortraitFrame\('opp'\)/],
+    ['Recruit.tsx', /usePortraitFrame\('opp'\)[\s\S]*resolvePortraitFrame\('opp', frameIdOf\(opponentSkins\(showOppSkins/], // Now Facing
+    ['LobbyPanel.tsx', /usePortraitFrame\('self', frameIdOf\(runSkins\)\)[\s\S]*usePortraitFrame\('opp'\)[\s\S]*frameIdOf\(opponentSkins\(showOppSkins, seat\.cosmetics\)\)/],
+    ['EndScreen.tsx', /usePortraitFrame\('self', frameIdOf\(runSkins\)\)/],
+    ['FightRecap.tsx', /usePortraitFrame\('opp', [^;]*frameIdOf\(opponentSkins\(showOppSkins/],
+    ['OpponentFrame.tsx', /usePortraitFrame\('opp', frameIdOf\(opponentSkins\(showOppSkins/],
     // Career and the Collection's hero-skin preview paint the shared ring component, which asks for its side.
-    ['portraitFrame/HeroPortraitRing.tsx', /usePortraitFrame\(side\)/],
-    ['LadderBits.tsx', /usePortraitFrame\(side\)/], // Hall, Rankings, Recent Games
-    ['matchDetails/MatchScoreboard.tsx', /usePortraitFrame\(self \? 'self' : 'opp'\)/],
+    ['portraitFrame/HeroPortraitRing.tsx', /usePortraitFrame\(side, frameId\)/],
+    ['LadderBits.tsx', /usePortraitFrame\(side, frameId\)/], // Hall, Rankings, Recent Games
+    ['matchDetails/MatchScoreboard.tsx', /usePortraitFrame\(self \? 'self' : 'opp', frameIdOf\(skins\)\)/],
     ['Title.tsx', /usePortraitFrame\('self'\)/],
   ];
   it.each(SURFACES)('%s', (file, side) => {

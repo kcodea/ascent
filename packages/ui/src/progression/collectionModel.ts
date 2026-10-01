@@ -72,11 +72,12 @@ export function collectibleItems(catalog: readonly CosmeticDef[] = COSMETICS, ow
 export const ownedIds = (p: Pick<ProgressionProfile, 'titles' | 'cosmetics'> | null | undefined): readonly string[] => p?.cosmetics ?? p?.titles ?? [];
 
 /** Whether this item is the one worn: the title slot, the skin slot of the item's own hero / card, or the
- *  account-wide hero attack slot. */
+ *  account-wide hero attack / portrait frame slot. */
 export function isEquipped(item: CosmeticDef, p: Pick<ProgressionProfile, 'equippedTitleId' | 'loadout'> | null | undefined): boolean {
   if (!p) return false;
   if (item.category === 'title') return p.equippedTitleId === item.id;
   if (item.category === 'hero_attack') return p.loadout?.heroAttack === item.id;
+  if (item.category === 'portrait_frame') return p.loadout?.portraitFrame === item.id;
   const target = item.target?.id;
   if (!target) return false;
   if (item.category === 'hero_skin') return p.loadout?.heroSkinByHeroId?.[target] === item.id;
@@ -145,6 +146,7 @@ export const COMING_BLURB: Readonly<Record<CosmeticCategory, string>> = {
   hero_attack: 'New ways for your hero to strike.',
   board: 'New boards to fight on.',
   music: 'New music for your games.',
+  portrait_frame: 'New rings for your hero portrait.',
 };
 
 // ── NEW: the local "seen" list ────────────────────────────────────────────────────────────────────────────

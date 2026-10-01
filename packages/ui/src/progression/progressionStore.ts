@@ -296,6 +296,8 @@ export async function refreshServerCatalog(): Promise<void> {
 export async function equipCosmetic(slot: EquipSlot, targetId: string, cosmeticId: string | null): Promise<boolean> {
   const userId = currentUserId();
   if (!userId) return false;
+  // DEV ONLY: a frame granted by the dev test path equips locally, never on the server (see devGrantPortraitFrame).
+  if (import.meta.env.DEV && slot === 'portrait_frame' && devEquipPortraitFrame(cosmeticId)) return true;
   const out = await equipCosmeticRemote(slot, targetId, cosmeticId).catch(() => null);
   if (!out || out.status !== 'ok') return false;
   adoptProgressionProfile(userId, out.profile);
@@ -320,6 +322,84 @@ export function devPreviewHeroTitles(tier: 'titles' | 'masters' | 'clear', userI
       equippedTitleId: tier === 'masters' ? heroMasterTitleId('warden') : heroTitleId('warden'),
     },
   });
+}
+
+// ── DEV ONLY: a local test grant for portrait frames ─────────────────────────────────────────────────────────
+
+/**
+ * DEV ONLY (owner 2026-10-01: "put a test frame in the collections, and set it to the gold one, and let me test
+ * equipping it and see what it looks like in game"). The `portrait_frame` SQL is not live yet, so this grants a frame
+ * to THIS client only: the Crate opening tuner's "Dev: grant Gilded frame" adds it to the owned set, and the
+ * Collection's Equip / "Use default frame" then work LOCALLY (`equipCosmetic` short-circuits for a dev-granted id).
+ * Kept in localStorage (`ascent.dev.portraitFrames`) so it survives a reload; laid over the mirror IN MEMORY (the
+ * saved mirror and the server are never written), re-applied whenever the mirror changes. The frame then reaches
+ * every portrait through the NORMAL path: the mirror's loadout -> `usePortraitFrame('self')`, and a new run records it
+ * in `run.cosmetics` -> the in-run portrait. Production builds never install it (`import.meta.env.DEV`).
+ */
+const DEV_FRAMES_KEY = 'ascent.dev.portraitFrames';
+interface DevFrames { owned: string[]; equipped: string | null }
+function loadDevFrames(): DevFrames {
+  try {
+    const o = JSON.parse(localStorage.getItem(DEV_FRAMES_KEY) ?? 'null') as Partial<DevFrames> | null;
+    const owned = Array.isArray(o?.owned) ? o!.owned.filter((x): x is string => typeof x === 'string') : [];
+    return { owned, equipped: typeof o?.equipped === 'string' && owned.includes(o.equipped) ? o.equipped : null };
+  } catch {
+    return { owned: [], equipped: null };
+  }
+}
+function saveDevFrames(d: DevFrames): void {
+  try { if (d.owned.length) localStorage.setItem(DEV_FRAMES_KEY, JSON.stringify(d)); else localStorage.removeItem(DEV_FRAMES_KEY); } catch { /* ignore */ }
+}
+/** The mirror with the dev grant laid over it, or null when it already carries it (so the subscriber never loops). */
+function withDevFrames(m: ProgressionMirror | null, d: DevFrames, wasEquipped: string | null = null): ProgressionMirror | null {
+  if (!d.owned.length && !wasEquipped) return null;
+  const userId = currentUserId();
+  const base: ProgressionMirror | null = m ?? (userId ? { userId, accountXp: 0, accountLevel: 1, revision: 0, equippedTitleId: null, titles: [] } : null);
+  if (!base) return null;
+  const owned = base.cosmetics ?? base.titles;
+  const missing = d.owned.filter((id) => !owned.includes(id));
+  const worn = base.loadout?.portraitFrame ?? null;
+  // Wear the dev frame; on "Use default", take off only a frame the dev grant put on.
+  const want = d.equipped ?? (worn && (worn === wasEquipped || d.owned.includes(worn)) ? null : worn);
+  if (!missing.length && worn === want && m) return null;
+  const loadout = { ...(base.loadout ?? {}) };
+  if (want) loadout.portraitFrame = want; else delete loadout.portraitFrame;
+  return { ...base, cosmetics: [...owned, ...missing], loadout };
+}
+function applyDevFrames(wasEquipped: string | null = null): void {
+  const next = withDevFrames(useProgression.getState().mirror, loadDevFrames(), wasEquipped);
+  if (next) useProgression.setState({ mirror: next });
+}
+/** Equip (or, with null, take off) a dev-granted frame locally. False = not a dev frame: the server handles it. */
+function devEquipPortraitFrame(cosmeticId: string | null): boolean {
+  const d = loadDevFrames();
+  if (cosmeticId ? !d.owned.includes(cosmeticId) : !d.equipped) return false;
+  const was = d.equipped;
+  saveDevFrames({ ...d, equipped: cosmeticId });
+  applyDevFrames(was);
+  return true;
+}
+/** DEV: grant `id` (a portrait frame cosmetic) to this client; `clear` drops every dev grant. */
+export function devGrantPortraitFrame(id: string | 'clear'): void {
+  if (!import.meta.env.DEV) return;
+  const d = loadDevFrames();
+  if (id === 'clear') {
+    saveDevFrames({ owned: [], equipped: null });
+    useProgression.setState({ mirror: loadMirror() });
+    return;
+  }
+  if (!d.owned.includes(id)) saveDevFrames({ ...d, owned: [...d.owned, id] });
+  applyDevFrames();
+}
+if (import.meta.env.DEV && typeof localStorage !== 'undefined') {
+  // Re-lay the grant over every new mirror (a server read, an adopt, a reload's saved copy).
+  let applying = false;
+  useProgression.subscribe((s, prev) => {
+    if (applying || s.mirror === prev.mirror) return;
+    applying = true;
+    try { applyDevFrames(); } finally { applying = false; }
+  });
+  applyDevFrames();
 }
 
 /** The equipped title's display name for a mirror/profile, or null. */

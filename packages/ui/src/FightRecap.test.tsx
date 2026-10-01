@@ -14,6 +14,15 @@ import { createLobbyRun, getHero, playerOpponent } from '@game/sim';
 import { mount, type Mounted } from './renderedText.mount';
 import { FightRecap, type FightRecapProps } from './FightRecap';
 
+/** Stage 1 wears a portrait card here regardless of what the shipped stage file carries (the test owns its fixture). */
+vi.mock('@game/content', async (importOriginal) => {
+  const m = await importOriginal<typeof import('@game/content')>();
+  return {
+    ...m,
+    gauntletStage: (n: number) => (n === 1 ? { ...m.gauntletStage(1)!, portraitCardId: 'dm_grobbus' } : m.gauntletStage(n)),
+  };
+});
+
 let ui: Mounted | null = null;
 afterEach(() => { ui?.unmount(); ui = null; });
 

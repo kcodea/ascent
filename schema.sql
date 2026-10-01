@@ -5500,6 +5500,7 @@ $$;
 revoke all on function public.record_gauntlet_clear(uuid, int) from public, anon, authenticated;
 grant execute on function public.record_gauntlet_clear(uuid, int) to service_role;
 
+-- ══════════════════════════════════════════════════════════════════════════════════════════════════════════
 -- WEIGHTED RUN STRENGTH: a run's average weighs its rounds by group  (2026-09-30, R-LOBBY-09)
 -- ══════════════════════════════════════════════════════════════════════════════════════════════════════════
 --

@@ -23,7 +23,7 @@ vi.mock('./progressionRemote', async (orig) => ({
 }));
 
 import { CollectionPage } from './CollectionScreen';
-import { applyServerCatalogState, resetProgressionForTests, useProgression } from './progressionStore';
+import { applyServerCatalogState, devGrantPortraitFrame, equipCosmetic, resetProgressionForTests, useProgression } from './progressionStore';
 import { setCrateFxFactoryForTests } from './crateFx/crateFxPixi';
 import { useGame } from '../store';
 
@@ -133,5 +133,23 @@ describe('the Portrait Frames tab', () => {
     applyServerCatalogState({ retiredIds: [], disabledCategories: ['portrait_frame'] }, false);
     open();
     expect(tab('Portrait Frames')!.className).toMatch(/\blocked\b/);
+  });
+});
+
+describe('the DEV local frame grant (owner 2026-10-01: "put a test frame in the collections, and set it to the gold one")', () => {
+  it('grants Gilded on this client; Equip and Use default frame work locally and never call the server; clear undoes it', async () => {
+    useProgression.setState({ mirror: { userId: 'u-1', ...base, cosmetics: ['alpha_tester'] } });
+    devGrantPortraitFrame('frame_gold');
+    expect(useProgression.getState().mirror?.cosmetics).toContain('frame_gold');
+    expect(await equipCosmetic('portrait_frame', '', 'frame_gold')).toBe(true);
+    expect(useProgression.getState().mirror?.loadout?.portraitFrame).toBe('frame_gold');
+    // a fresh server read (no frame on it) keeps the local grant laid over it
+    useProgression.setState({ mirror: { userId: 'u-1', ...base, cosmetics: ['alpha_tester'], revision: 12 } });
+    expect(useProgression.getState().mirror?.loadout?.portraitFrame).toBe('frame_gold');
+    expect(await equipCosmetic('portrait_frame', '', null)).toBe(true);
+    expect(useProgression.getState().mirror?.loadout?.portraitFrame).toBeUndefined();
+    expect(equipCosmeticRemote).not.toHaveBeenCalled();
+    devGrantPortraitFrame('clear');
+    expect(localStorage.getItem('ascent.dev.portraitFrames')).toBeNull();
   });
 });

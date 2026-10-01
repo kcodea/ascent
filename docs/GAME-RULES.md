@@ -358,7 +358,7 @@ progression **epoch**; nothing finished before the epoch counts (no backfill).
 - **The catalog (2026-09-28).** Data in `packages/progression/src/cosmetics.ts`, which OWNS the database copy: the
   `progression-inventory` Edge Function syncs it on its first request per cold start (`sync_cosmetic_catalog`;
   R-PROG-SKINS-05), so a new or retired cosmetic is a code change plus one deploy, never SQL. Shaped
-  for every cosmetic category (announcer, hero skin, minion skin, title, hero attack, board, music). Switched on:
+  for every cosmetic category (announcer, hero skin, minion skin, title, hero attack, board, music, portrait frame). Switched on:
   **titles** (15 crate titles: 7 Common, 5 Rare, 2 Epic, 1 Legendary) and, since the skins shipped the same day,
   **hero skins** and **minion skins** (all from crates) and **hero attacks** (Arcane Barrage, Tectonic Slam, Arcana, Phantom Blades, Enraged Strike, Venom Volley, Frost Nova, Consecration, then Inferno, Grave Call, the Stampede, Oona's Banana Cannon and Hemorrhage, all Legendary; then the first Epics, Card Shark and Storm Call; then the Rares Pocket Change, Come Back Around, Bubble Trouble and Shadow Step). The other
   categories are feature-flagged off until their art exists. Crate odds are the fixed rarity odds above, then an equal
@@ -527,6 +527,15 @@ progression **epoch**; nothing finished before the epoch counts (no backfill).
   account-wide in the Collection's Attack Animations tab ("Use Classic" takes it off). The STRIKER's attack plays:
   yours when you win, the opponent's (from their recorded snapshot) when they win. Recorded per run like skins;
   unknown or retired ids play Classic. Presentation only: the same blow, landed once on the impact beat.
+- **Portrait frames (2026-10-01; oracle R-PROG-FRAME-01..03).** A cosmetic ring that replaces the default ring
+  around a player's hero portrait. 13 frames, all from crates at their master folder's rarity: Rare Burnished,
+  Sterling, Gilded, Seaglass; Epic Amethyst, Shard, Prism, Frost, Pearlescent, Crimson; Legendary Fire, Reaper, Water
+  (each "... Frame"; the names avoid the ranked medal words so a crate frame never reads as a Ranked reward).
+  Account-wide (any hero): equipped in the Collection's Portrait Frames tab ("Use default frame" takes it off; an
+  owned frame previews around your avatar, an unowned one never does). Your portrait wears it on every surface (in a
+  run, the frame recorded on that run, like a skin). Recorded per run, so opponents see it on your seat (combat
+  portrait, Now Facing, lobby rail, fight recap, Match details, the Hall, Career rows) while their **Show opponent
+  cosmetics** is on. No frame, an unknown or a retired one paints today's default ring. Presentation only.
 - **Show opponent cosmetics (Settings, on by default; was "Show opponent skins"; R-PROG-SKINS-02).** Off, every
   OPPONENT's skins render as default art (lobby, combat, the scouted board, replays, another player's Career) and an
   opponent who strikes you plays the Classic attack. Your own always show. Display only; stored locally like the

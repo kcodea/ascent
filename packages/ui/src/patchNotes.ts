@@ -56,6 +56,20 @@ export interface PatchNote {
 /** Newest first. PREPEND new entries. */
 export const PATCH_NOTES: PatchNote[] = [
   {
+    date: '2026-10-01',
+    changes: [
+      {
+        category: 'Systems',
+        text: 'Portrait frames: 13 new rings for your hero portrait, found in crates. Equip one in the Collection and every player you meet sees it.',
+        details: [
+          'Four Rare, six Epic and three Legendary frames.',
+          'A new Portrait Frames tab in the Collection. Use default frame puts the usual ring back.',
+          'Turn off Show opponent cosmetics to see every opponent in the usual ring.',
+        ],
+      },
+    ],
+  },
+  {
     date: '2026-09-30',
     changes: [
       {

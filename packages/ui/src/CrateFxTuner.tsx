@@ -1,3 +1,5 @@
+import { useState } from 'react';
+import { devUnlockAllOn, setDevUnlockAll } from './progression/progressionStore';
 import { SPEC } from './progression/crateFx/crateFxConfig';
 import { TunerPanel } from './TunerPanel';
 import { devPreviewHeroTitles } from './progression/progressionStore';
@@ -21,5 +23,24 @@ const SPEC_WITH_TITLE_PREVIEW = {
  * server, a failure, Open all, and slow motion. Production always plays the baked defaults.
  */
 export function CrateFxTuner(): JSX.Element {
-  return <TunerPanel spec={SPEC_WITH_TITLE_PREVIEW} />;
+  return <TunerPanel spec={SPEC_WITH_DEV_UNLOCK} />;
+}
+
+/** UNLOCK EVERYTHING (owner 2026-10-01): own every catalog item on this client; off = the real account again. Rides
+ *  the panel's readout slot (above the controls), so it sits with the other progression previews. */
+const SPEC_WITH_DEV_UNLOCK = {
+  ...SPEC_WITH_TITLE_PREVIEW,
+  readout: (): JSX.Element => <>{SPEC_WITH_TITLE_PREVIEW.readout?.()}<DevUnlockAllToggle /></>,
+};
+
+function DevUnlockAllToggle(): JSX.Element {
+  const [on, setOn] = useState(devUnlockAllOn);
+  return (
+    <div className="tuner-previews">
+      <label className="tuner-preview" aria-label="Own every item in the Collection on this client only, so you can equip and preview anything and see it in game. Equips made while on stay local. Nothing is sent to the server, and opening real crates is paused. Off puts your real account and loadout back exactly.">
+        <input type="checkbox" checked={on} onChange={(e) => { setDevUnlockAll(e.target.checked); setOn(devUnlockAllOn()); }} />
+        <span>Unlock everything (dev)</span>
+      </label>
+    </div>
+  );
 }

@@ -2427,7 +2427,8 @@ export const FOUNDATION_RULES: GameRule[] = [
       'Skin masters live in C:/Game Assets/Ascent Art/Skins/Minion Skins/<Rarity>/ and Hero Skins/<Rarity>/ (Common, Rare, '
       + 'Epic, Legendary). The folder is the skin\x27s rarity: every wired skin\x27s catalog rarity in '
       + 'packages/progression/src/cosmetics.ts equals its folder, and a rarity word in the filename (SkinRare, Epic, ...) is '
-      + 'stale and ignored. Only skins the owner names are wired; a file in a folder is not wired by being there. The '
+      + 'stale and ignored. Every image in a Hero, Minion or Spell Skins rarity folder is wired as a catalog skin (owner '
+      + '2026-10-01: make sure all get added); skinRarityFolders.test.ts fails while one sits there unwired. The '
       + 'wire-art skins job reads the eight rarity sub-folders. On 2026-10-01 forty wired skins moved to their folder\x27s '
       + 'rarity; a first crate then holds 24 Common, 27 Rare, 23 Epic and 29 Legendary items (each Common 2.083%, Rare '
       + '1.111%, Epic 0.652%, Legendary 0.172%). A player who owns a skin keeps it; only its shown rarity and future crate '
@@ -2441,6 +2442,28 @@ export const FOUNDATION_RULES: GameRule[] = [
     ],
     currentBehaviour: 'Conforms, built 2026-10-01. Reaches the database on the next deploy of progression-inventory (the catalog sync, R-PROG-SKINS-05).',
     enforcement: { kind: 'scenario', refs: ['packages/progression/src/skinRarityFolders.test.ts', 'packages/progression/src/cosmetics.test.ts', 'packages/progression/src/skins.test.ts', 'packages/ui/src/skins/skins.test.tsx', 'packages/ui/src/progression/CollectionSkins.test.tsx'], lastVerifiedAt: '2026-10-01' },
+  },
+  {
+    id: 'R-PROG-SKINS-12',
+    title: 'Skins batch 6: nine minion skins join the crates, rarity from the art folder',
+    statement:
+      'Nine minion skins are crate items, each targeting its card by stable id and shipping its own art (a 512px WebP in '
+      + 'packages/ui/src/art/skins/), with the rarity of the folder its master sits in (R-PROG-SKINS-11): Amber Deepvein '
+      + 'and Static Deepvein (Common, k_deepvein, Deepvein Tender); Frost Wardkeeper (Common, dw_wardkeeper); Infernal '
+      + 'Wayfinder (Common) and Sea Dragon Wayfinder (Rare) (wayfinder); Timeworn Spellsword (Rare, n2_spellsword); Frost '
+      + 'Commander (Rare), Nature Commander (Epic) and Cybernetic Warpath (Legendary) (d2_blazingkeeper, Commander '
+      + 'Warpath, never Commander Impala: the two Commander masters repaint Warpath\x27s own dragon art). Names come from '
+      + 'the master filenames; three over the 20-character cap were shortened (AmberDeepveinTender, '
+      + 'StaticDeepveinTender, WaterdragonWayfinder). With them in, a first crate holds 28 Common, 30 Rare, 24 Epic and 30 '
+      + 'Legendary items (each Common 1.786%, Rare 1%, Epic 0.625%, Legendary 0.167%).',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-01 (skins batch 6)', quote: 'i added a bunch of art/portrait arts etc, can you make sure all get added' },
+      { kind: 'code', ref: 'packages/progression/src/cosmetics.ts (COSMETICS, skins batch 6); packages/ui/src/art/skins/*.webp' },
+    ],
+    currentBehaviour: 'Conforms, built 2026-10-01. Reaches the database on the next deploy of progression-inventory (the catalog sync, R-PROG-SKINS-05).',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/skins/skins.test.tsx', 'packages/progression/src/skins.test.ts', 'packages/progression/src/cosmetics.test.ts', 'packages/progression/src/skinRarityFolders.test.ts', 'packages/ui/src/progression/CollectionSkins.test.tsx'], lastVerifiedAt: '2026-10-01' },
   },
   {
     id: 'R-PROG-COLLECTION-03',

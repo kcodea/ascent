@@ -154,6 +154,8 @@ describe('no redundant PNG masters ship alongside their WebP builds', () => {
     // all the new skins that i added to the folder").
     // → 1352: skins batch 5 2026-09-30 (+12 in `art/skins/`: 11 minion skins and Influencer Indy; owner-named: "i added
     // more skins").
-    expect(total, `art files: ${total} — the WHOLE-ZIP count (~${total + 176}) is what itch caps at 1000`).toBeLessThan(1352);
+    // → 1361: skins batch 6 2026-10-01 (+9 in `art/skins/`: 9 minion skins; owner-named: "i added a bunch of
+    // art/portrait arts etc, can you make sure all get added").
+    expect(total, `art files: ${total} — the WHOLE-ZIP count (~${total + 176}) is what itch caps at 1000`).toBeLessThan(1361);
   });
 });

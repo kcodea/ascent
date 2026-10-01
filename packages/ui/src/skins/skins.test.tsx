@@ -200,6 +200,29 @@ describe('the catalog <-> the bundle', () => {
     expect(skinArtOf(c)).toBeTruthy();
     expect(minionSkinOf({ minionSkinByCardId: { [cardId]: id } }, cardId)?.id).toBe(id);
   });
+  // Skins batch 6 (owner 2026-10-01: "i added a bunch of art/portrait arts etc, can you make sure all get added").
+  // Rarity is the art folder (R-PROG-SKINS-11). The three Commander masters are Commander Warpath (d2_blazingkeeper),
+  // never Commander Impala. Same checks as batch 5.
+  const BATCH6: [id: string, rarity: string, cardId: string, cardName: string, master: string][] = [
+    ['skin_deepvein_1', 'common', 'k_deepvein', 'Deepvein Tender', 'AmberDeepveinTender.png'],
+    ['skin_deepvein_2', 'common', 'k_deepvein', 'Deepvein Tender', 'StaticDeepveinTender.png'],
+    ['skin_wardkeeper_2', 'common', 'dw_wardkeeper', 'Wardkeeper', 'FrostWardkeeper.png'],
+    ['skin_wayfinder_2', 'common', 'wayfinder', 'Wayfinder', 'InfernalWayfinder.png'],
+    ['skin_wayfinder_3', 'rare', 'wayfinder', 'Wayfinder', 'WaterdragonWayfinder.png'],
+    ['skin_spellsword_2', 'rare', 'n2_spellsword', 'Coppercoat Spellsword', 'TimewornSpellsword.png'],
+    ['skin_blazingkeeper_1', 'rare', 'd2_blazingkeeper', 'Commander Warpath', 'FrostCommander.png'],
+    ['skin_blazingkeeper_2', 'epic', 'd2_blazingkeeper', 'Commander Warpath', 'NatureCommander.png'],
+    ['skin_blazingkeeper_3', 'legendary', 'd2_blazingkeeper', 'Commander Warpath', 'CyberneticWarpath.png'],
+  ];
+  it.each(BATCH6)('batch 6: %s (%s) exists, targets %s, and ships its art', (id, rarity, cardId, cardName, master) => {
+    const c = cosmeticOf(id)!;
+    expect(c).toBeTruthy();
+    expect([c.category, c.rarity, c.target, c.assets.master, c.active]).toEqual(['minion_skin', rarity, { type: 'card', id: cardId }, master, true]);
+    expect(CARD_INDEX[cardId]?.name).toBe(cardName);
+    expect(skinArtKeys()).toContain(id);
+    expect(skinArtOf(c)).toBeTruthy();
+    expect(minionSkinOf({ minionSkinByCardId: { [cardId]: id } }, cardId)?.id).toBe(id);
+  });
   it('batch 5: Influencer Indy (Epic) exists, targets the hero indy, and ships its art', () => {
     const c = cosmeticOf('skin_indy_1')!;
     expect([c.category, c.rarity, c.target, c.assets.master, c.active]).toEqual(['hero_skin', 'epic', { type: 'hero', id: 'indy' }, 'InfluencerIndy.png', true]);

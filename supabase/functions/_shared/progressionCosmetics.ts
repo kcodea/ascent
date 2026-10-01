@@ -265,6 +265,20 @@ export const COSMETICS: readonly CosmeticDef[] = Object.freeze([
   skin('skin_wayfinder_1', 'minion_skin', 'Soul Surf Wayfinder', 'common', 'wayfinder', 'SoulSurferWayfinder.png'),
   skin('skin_seaurchin_2', 'minion_skin', 'Star Urchin', 'rare', 'seaurchin', 'StarUrchin.png'),
   skin('skin_wardkeeper_1', 'minion_skin', 'Hexhunter Wardkeeper', 'common', 'dw_wardkeeper', 'WitchHunterWardkeeper.png'),
+  // Batch 6. Owner 2026-10-01: "i added a bunch of art/portrait arts etc, can you make sure all get added". Rarity is
+  // the folder each master sits in. Names come from the filenames; two over the 20-character cap were shortened
+  // (Amber/Static Deepvein, Sea Dragon Wayfinder). Deepvein Tender is k_deepvein. The three "Commander" masters are
+  // Commander Warpath (d2_blazingkeeper): CyberneticWarpath names it, and Frost/Nature Commander are recolours of
+  // Warpath's own art (the winged dragon with the sun staff), not Commander Impala (the Set 1 imp).
+  skin('skin_deepvein_1', 'minion_skin', 'Amber Deepvein', 'common', 'k_deepvein', 'AmberDeepveinTender.png'),
+  skin('skin_deepvein_2', 'minion_skin', 'Static Deepvein', 'common', 'k_deepvein', 'StaticDeepveinTender.png'),
+  skin('skin_wardkeeper_2', 'minion_skin', 'Frost Wardkeeper', 'common', 'dw_wardkeeper', 'FrostWardkeeper.png'),
+  skin('skin_wayfinder_2', 'minion_skin', 'Infernal Wayfinder', 'common', 'wayfinder', 'InfernalWayfinder.png'),
+  skin('skin_wayfinder_3', 'minion_skin', 'Sea Dragon Wayfinder', 'rare', 'wayfinder', 'WaterdragonWayfinder.png'),
+  skin('skin_spellsword_2', 'minion_skin', 'Timeworn Spellsword', 'rare', 'n2_spellsword', 'TimewornSpellsword.png'),
+  skin('skin_blazingkeeper_1', 'minion_skin', 'Frost Commander', 'rare', 'd2_blazingkeeper', 'FrostCommander.png'),
+  skin('skin_blazingkeeper_2', 'minion_skin', 'Nature Commander', 'epic', 'd2_blazingkeeper', 'NatureCommander.png'),
+  skin('skin_blazingkeeper_3', 'minion_skin', 'Cybernetic Warpath', 'legendary', 'd2_blazingkeeper', 'CyberneticWarpath.png'),
   skin('skin_albus_1', 'hero_skin', 'Surf Day Albus', 'epic', 'albus', 'Albus1.png'),
   skin('skin_warden_1', 'hero_skin', 'Bath Day Warden', 'epic', 'warden', 'Warden1.png'),
   skin('skin_frank_1', 'hero_skin', 'Armourer Frank', 'common', 'frank', 'ArmourerFrank.png'),

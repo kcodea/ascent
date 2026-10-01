@@ -246,7 +246,7 @@ describe('Match History', () => {
       ui.unmount();
       ui = mount(<Career />);
       await flush();
-      expect(text('.cv2-row .cv2-meta-l')).toEqual(['Played', 'Length', 'Gold spent', 'Lobby', 'Board strength', 'Played', 'Length', 'Gold spent', 'Played', 'Length', 'Gold spent']);
+      expect(text('.cv2-row .cv2-meta-l')).toEqual(['Played', 'Length', 'Gold spent', 'Lobby', 'Game strength', 'Played', 'Length', 'Gold spent', 'Played', 'Length', 'Gold spent']);
       expect(text('.cv2-row-lobby')).toEqual(['74%']);
     } finally { lobbyDisplay.show = false; }
   });
@@ -262,7 +262,7 @@ describe('Match History', () => {
     expect(text('.cv2-row-outcome .cv2-row-label')).toEqual(['Match Outcome', 'Match Outcome', 'Match Outcome']);
     // The LOBBY STRENGTH (owner 2026-09-22) is HIDDEN for now (owner 2026-09-30): no Lobby fact even on the stamped run.
     // BOARD STRENGTH (R-LOBBY-09) shows, frozen on the run; a run without a score prints nothing (no placeholder).
-    expect(text('.cv2-row .cv2-meta-l')).toEqual(['Played', 'Length', 'Gold spent', 'Board strength', 'Played', 'Length', 'Gold spent', 'Played', 'Length', 'Gold spent']);
+    expect(text('.cv2-row .cv2-meta-l')).toEqual(['Played', 'Length', 'Gold spent', 'Game strength', 'Played', 'Length', 'Gold spent', 'Played', 'Length', 'Gold spent']);
     expect(text('.cv2-row-lobby')).toEqual([]);
     expect(text('.cv2-row-bstrength')).toEqual(['72']);
     const when = text('.cv2-row-when');

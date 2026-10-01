@@ -70,8 +70,13 @@ medal + division — see *Ranked ladder* below).
     (`boards.strength_raw` / `strength_ref` / `strength_wave`), never recomputed.
   - Its **percentile** (1-100) is its place among every scored board at the same reference wave: the share it is
     stronger than, ties counted half, rounded. Derived, so it follows the pool as it grows; never stored on a board.
-  - A **run's strength** is a **percentile among runs** (owner-approved 2026-09-30): the average of its boards'
-    percentiles (`pool_runs.strength_avg`), then ranked against every other run's average in the set by the same
+  - A **run's strength** is a **percentile among runs** (owner-approved 2026-09-30): the **round-weighted** average
+    of its boards' percentiles (`pool_runs.strength_avg`; owner 2026-09-30: *"rounds 1-5 matter much less than 6-9
+    which matter less than 10+"*): rounds 1-5 share **20%** of the weight, rounds 6-9 **35%**, rounds 10+ **45%**,
+    split evenly over the run's boards inside each group (a duplicate board for a round counts twice, as the plain
+    average always did). A group the run never reached drops out and the rest renormalise (a run that ended in round
+    8: 20/55 and 35/55). Rounded half up to 1..100. Numbers already frozen in match history keep the plain average
+    they were frozen with. Then ranked against every other run's average in the set by the same
     rule (`pool_runs.strength`). 72 = stronger than 72% of runs, and each band holds about its nominal share of the
     pool (the plain average squeezed toward 50). Averages refresh on every upload for the uploaded runs and for every
     run at most every 10 minutes; ranks are recomputed on every refresh.
@@ -86,7 +91,7 @@ medal + division — see *Ranked ladder* below).
   - Your own boards are scored in the background while you play (idle time only; the last board during its combat)
     and upload with their scores. When the game ends, each round's board percentile and the run's strength (its
     average ranked against the pool's run averages) are **frozen** into the game's record: the Career and Recent Games
-    rows print **"Board strength N"** (the run's strength), and Match details shows your per-round board percentiles
+    rows print **"Game strength N"** (the run's strength; renamed from "Board strength" for display, owner 2026-09-30, with a hover tip), and Match details shows your per-round board percentiles
     and each opponent seat's run strength. A game that was not scored (the
     pool's strength data unavailable, or older games) shows nothing.
 - **A lobby that seats player runs waits for the opponent pool** (owner 2026-09-28, R-LOBBY-06). A rated lobby
@@ -165,7 +170,7 @@ Source: `packages/sim/src/lobby/gauntlet.ts`, `packages/sim/src/lobby/gauntlet.t
   seat whose run is currently on the **Hall of Champions** wears a gold crown (one cached read of the Hall's own
   query per panel open; offline = no crown). Board cards are always the compact tile here (the hover reveal shows
   the full card) and the panel reserves its scrollbar gutter, so it never shifts.
-- **Board strength** (R-LOBBY-09): each seat whose run was scored shows "Board strength N" (its run's strength when
+- **Board strength** (R-LOBBY-09): each seat whose run was scored shows "Game strength N" (hover tip: what it means) (its run's strength when
   the game ended), and your own seat also shows each round's board strength. Unscored seats show nothing.
 - The record is saved with the match (`run_history.entry.match` for Ranked, `practice_games.replay.match` for
   Practice; both existing JSON columns) so the Career's match history shows it again under each match's **Lobby**

@@ -13,7 +13,7 @@ import { sfx } from '../sfx';
 import { stageHost } from '../stage';
 import { TitleBadge } from '../titles/TitleBadge';
 import { useHallKeys } from './hallKeys';
-import { boardCaption, defaultSeatId, placeLabel, statusText, strengthLabel, summaryText } from './matchDetailsText';
+import { boardCaption, defaultSeatId, placeLabel, statusText, strengthLabel, summaryText, GAME_STRENGTH_TIP } from './matchDetailsText';
 import './matchDetails.css';
 
 /**
@@ -112,7 +112,7 @@ const SeatRow = memo(function SeatRow({ seat, place, status, selected, killer, h
           <span className="mds-hero">{heroName}</span>
           {title && <TitleBadge snapshot={title} className="mds-row-title" />}
         </span>
-        {strength && <span className="mds-strength">{strength}</span>}
+        {strength && <span className="mds-strength gtip" data-tip={GAME_STRENGTH_TIP}>{strength}</span>}
         <span className={`mds-status${winner ? ' winner' : standing ? ' in' : ' out'}`}>
           {winner && <Icon name="crown" />}{status}
           {killer && <span className="mds-killer"><Icon name="sword" />Knocked you out</span>}
@@ -151,7 +151,7 @@ function SeatStrength({ seat }: { seat: MatchSeat }) {
   if (!label && rounds.length === 0) return null;
   return (
     <div className="mds-strength-panel">
-      {label && <span className="cv2-row-label">{label}</span>}
+      {label && <span className="cv2-row-label gtip" data-tip={GAME_STRENGTH_TIP}>{label}</span>}
       {rounds.length > 0 && (
         <div className="mds-strength-rounds" aria-label="Your board strength by round">
           {rounds.map((r) => <span className="mds-strength-round" key={r.round}><span className="mds-strength-r">R{r.round}</span>{r.value}</span>)}

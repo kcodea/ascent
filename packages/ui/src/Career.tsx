@@ -6,7 +6,7 @@ import { SHOW_LOBBY_STRENGTH } from './lobbyStrengthDisplay';
 import type { BoardSnapshot, MatchDetails } from '@game/sim';
 import { StoredTeam } from './StoredTeam';
 import { MatchScoreboard } from './matchDetails/MatchScoreboard';
-import { NO_DETAILS_TEXT } from './matchDetails/matchDetailsText';
+import { GAME_STRENGTH_LABEL, GAME_STRENGTH_TIP, NO_DETAILS_TEXT } from './matchDetails/matchDetailsText';
 import { RuneEmblem } from './RuneEmblem';
 import { heroPortrait, opponentSkins } from './skins/skins';
 import type { RunCosmeticSnapshot } from '@game/progression';
@@ -300,7 +300,7 @@ function MatchRow({ run, focus, busy, unplayable, onWatch }: {
             )}
             {/* BOARD STRENGTH (R-LOBBY-09): the run's percentile, frozen when it ended; nothing when it was not scored. */}
             {run.boardStrength != null && (
-              <span className="cv2-meta"><span className="cv2-meta-l">Board strength</span><span className="cv2-meta-v cv2-row-bstrength" aria-label={`Board strength ${run.boardStrength} out of 100`}>{run.boardStrength}</span></span>
+              <span className="cv2-meta gtip" data-tip={GAME_STRENGTH_TIP}><span className="cv2-meta-l">{GAME_STRENGTH_LABEL}</span><span className="cv2-meta-v cv2-row-bstrength" aria-label={`${GAME_STRENGTH_LABEL} ${run.boardStrength} out of 100`}>{run.boardStrength}</span></span>
             )}
           </div>
         </div>

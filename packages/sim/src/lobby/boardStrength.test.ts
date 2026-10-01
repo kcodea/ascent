@@ -2,7 +2,8 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import type { BoardSnapshot } from '../snapshot';
 import {
   STRENGTH_REF_VERSION, createStrengthProbe, loadStrengthReference, parseBoardStrength, pctFromCounts, percentileOf,
-  referenceWaveOf, runAverageOf, runPercentileOf, runStrengthFromScores, scoreBoard, type StrengthReference, type StrengthScore,
+  referenceWaveOf, runAverageOf, runPercentileOf, runStrengthFromScores, runWeightedAverageOf, scoreBoard, strengthRoundGroup,
+  STRENGTH_ROUND_GROUPS, weightedAvgFromGroups, type StrengthReference, type StrengthScore,
 } from './boardStrength';
 
 /**
@@ -125,6 +126,45 @@ describe('the percentile', () => {
     expect(runAverageOf([null, undefined])).toBeNull();
   });
 
+  it("a run's average weighs its rounds by group: 1-5 share 20%, 6-9 share 35%, 10+ share 45% (owner 2026-09-30)", () => {
+    expect(STRENGTH_ROUND_GROUPS.map((g) => g.weight)).toEqual([20, 35, 45]);
+    expect([1, 5, 6, 9, 10, 18].map(strengthRoundGroup)).toEqual([0, 0, 1, 1, 2, 2]);
+    const run = (vals: [number, number][]): number | null => runWeightedAverageOf(vals.map(([round, value]) => ({ round, value })));
+    // A full run, flat inside each group: 0.2 * 20 + 0.35 * 50 + 0.45 * 80 = 57.5 -> 58 (the plain mean of 5x20,
+    // 4x50, 2x80 would be 41.8).
+    const full: [number, number][] = [[1, 20], [2, 20], [3, 20], [4, 20], [5, 20], [6, 50], [7, 50], [8, 50], [9, 50], [10, 80], [11, 80]];
+    expect(run(full)).toBe(58);
+    expect(runAverageOf(full.map((r) => r[1]))).toBe(42);
+    // Inside a group the share splits evenly: round 10 = 60, round 11 = 100 -> the group is 80, same answer.
+    expect(run([...full.slice(0, 9), [10, 60], [11, 100]])).toBe(58);
+    // Renormalised over the groups a run has: ended in round 8 -> 20/55 * 20 + 35/55 * 50 = 39.09 -> 39.
+    expect(run(full.slice(0, 8))).toBe(39);
+    // Only early rounds: just their mean. Only late rounds: just theirs.
+    expect(run([[1, 10], [2, 11]])).toBe(11);
+    expect(run([[12, 70]])).toBe(70);
+    // A slow start with a late spike rises above its plain mean; a fast start that fades falls below it.
+    const slow: [number, number][] = [[1, 10], [2, 10], [3, 10], [4, 10], [5, 10], [6, 40], [7, 40], [8, 40], [9, 40], [10, 90]];
+    expect(run(slow)).toBeGreaterThan(runAverageOf(slow.map((r) => r[1]))!);
+    expect(run(slow.map(([r, v]) => [r, 100 - v]))).toBeLessThan(runAverageOf(slow.map((r) => 100 - r[1]))!);
+    // A duplicate board for a round counts twice inside its group (the plain average's convention): 1-5 = (20 + 40 + 40) / 3.
+    expect(run([[1, 20], [2, 40], [2, 40]])).toBe(33);
+    // Unscored rounds are skipped; nothing scored -> null.
+    expect(runWeightedAverageOf([{ round: 1, value: null }, { round: 7, value: undefined }])).toBeNull();
+    expect(run([])).toBeNull();
+  });
+
+  it('the weighted average rounds exactly (integer arithmetic): x.5 goes up', () => {
+    // 20 * 50 + 35 * 51 over 55 = 50.636 -> 51; (20 * 1 + 35 * 2 + 45 * 1) / 100 = 1.35 -> 1; 0.5 boundaries:
+    expect(weightedAvgFromGroups([50, 51, 0], [1, 1, 0])).toBe(51);
+    expect(weightedAvgFromGroups([1, 2, 1], [1, 1, 1])).toBe(1);
+    expect(weightedAvgFromGroups([3, 0, 0], [2, 0, 0])).toBe(2); // 1.5 -> 2
+    expect(weightedAvgFromGroups([0, 0, 0], [0, 0, 0])).toBeNull();
+    for (let a = 1; a <= 100; a += 7) for (let b = 1; b <= 100; b += 11) for (let c = 1; c <= 100; c += 13) {
+      const exact = (20 * a + 35 * b + 45 * c) / 100;
+      expect(weightedAvgFromGroups([a, b, c], [1, 1, 1]), `${a}/${b}/${c}`).toBe(Math.floor(exact + 0.5 + 1e-9));
+    }
+  });
+
   it("a run's strength is its average RANKED among the runs (owner-approved 2026-09-30): averages near 50 spread to 1-100", () => {
     // 100 runs whose averages all sit between 35 and 64 (the squeeze toward 50): ranked, they span the whole scale,
     // and each band holds its nominal share.
@@ -150,6 +190,10 @@ describe('the percentile', () => {
     const out = runStrengthFromScores([[2, score(2, 0.9)], [1, score(1, 0.5)], [3, score(3, 0.5)]], hist, runs)!;
     expect(out.rounds).toEqual([{ round: 1, value: 70 }, { round: 2, value: 90 }]); // round 3: no pool boards yet
     expect(out.average).toBe(80);
+    // The frozen game number is round-weighted too: round 1 = 70 and round 10 = 90 -> (20 * 70 + 45 * 90) / 65 = 83.8.
+    const late = runStrengthFromScores([[1, score(1, 0.5)], [10, score(10, 0.9)]], { ...hist, '10': [{ raw: 0.5, count: 4 }] }, runs)!;
+    expect(late.rounds).toEqual([{ round: 1, value: 70 }, { round: 10, value: 90 }]);
+    expect(late.average).toBe(84);
     expect(out.value).toBe(65); // (5 below + (2 + itself) / 2) / 10 = 6.5 / 10
     // No run histogram yet: the rounds stand, the run has no strength (nothing is shown for it).
     expect(runStrengthFromScores([[1, score(1, 0.5)]], hist, null)!.value).toBeNull();

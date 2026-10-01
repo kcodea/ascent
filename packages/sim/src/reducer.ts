@@ -24,6 +24,7 @@ import {
 import { applyChooseOnePlayed, spendChooseBothCharge, noteSpellCast, applyCastEffects, makeContext, discoverSpecFor, heroPowerCostOf, commissionOffer, COMMISSION_DELAY, aegisGrantOf, allInPayoutOf, threeDistinctTypes, exhibitionGrantOf, stampSableBond, stampSharedSpoils, heroOfferPrice, addBuff, addOfferBuff, applyBattlecryTarget, applyCardsBought, applyCardsPlayed, applyChooseOne, applyChooseOneTarget, chooseBothActive, chooseOneNeedsChoice, applyEndOfTurn, applyStartOfTurn, applyOnBuy, applyGoldSpent, advanceRuneThresholds, applySecondLife, effectiveTargetTribe, dominantBoardTribe, uncontrolledTribes, gainGold, applyRunShopBuff, applyShoutsForEndlessVerse, applyShoutsForShopBuff, auraFxTargets, boardManaBonus, buffImpsRunWide, buffUndeadAttackEverywhere, buffCardTypeRunWide, buffFodderRunWide, cardBuff, captureBuffFx, conjuredStats, castSpell, castSpellOnOffer, conjureToHand, consumeTavernFodder, fireGravetwinEchoes, fireOnGainAttack, fireOnRubyCast, fireOnRubyPlayed, applyRubyRiderAction, mintRandomRubies, recordRubyRiderFx, fireOnMinionSold, fireOnSell, fireOnGainCard, fireSummonBuffs, fireDemonPlayRunes, foldOfferBuffs, creditShopBuffSource, gildMinion, grantMinionToHandOrBoard, grantTopTypeMinion, hasBattlecry, isTribe, mintRubies, modalOpen, openDiscover, playCard, queueDiscover, replayBattlecry, replayEconomyBattlecry, replayEndOfTurn, restoreHeldOffer, replayRecurringEndOfTurn, withEotDiscoverGrantBeat, sellValueOf, sellValueWithBonus, rubyCastCount, giftCastCount, rubyStatBonus, yazzusExtraCasts, consumeGrimoireCharge, countRubyAsShopSpell, fireSpellCastWatchersForRuby, spellAttackBonus, spellCasts, spellCostReduction, spellHealthBonus, stampImproveReps, swapWithTavern, applySpellBought, applyShopRefreshed, taughtAimSpell, triggerBorrowedEcho, landBorrowed, settlePendingDeath, stampEquipFx, equipmentFxMark, buffedFxTargets, fireEquipmentTriggers, fireEquipmentActivated, buyHealthAura, undeadBuyBonus, weldMagnetic, defIsTribe, handCardLocked, fireStatGainReactors, fireEquipmentFree, applyRuneGrafts, noteSpellForCountRunes, settleMinionSale, distillationEdges, fireRunicHoard, applyLorekeeping, runeExtraCasts, castWithRuneRepeats, withCastActor, withHandCast, fireSoldChoice, noteGilded, destroyMinionInShop } from './recruit';
 import { handCap, recordBounceFx, mixSeed, reservedHandSlots, TAG, henchmanOffer, type Action, type DeferredFight, type PreparedCombatSide, type ActiveQuest, type AuraFxTribe, type BoardCard, type CardBuff, type ShopCard, type CiaSuit, type Commission, type CommissionKind, type RunState, type RubyLandedFx, type SotBeatSource, gateUses, procRune, procRuneId, runeBuffMagnitude, PACKCRAFT_STEP, REINVESTMENT_PER_SUMMON, SLAYING_KILLS, EQUIPMENT_FX_ANCHOR } from './state';
 import { alignmentsOf } from './alignment';
+import { blockedByShopClock } from './shopClock';
 import { pushSotBeat, recordSotBeat } from './sotBeat';
 import { RUNE_DUP_SWEETENER, RUNE_DUP_UNIQUE, forgeFilteredDuplicate, runeStacksOf } from './runeDup';
 import { spellFizzles } from './spellFizzle';
@@ -1350,6 +1351,12 @@ function reduceCore(state: RunState, action: Action): RunState {
   if (action.type === 'resolveShopDeath' && !state.pendingDeath) return state;
   // No window open — a late or duplicate expiry tick (Thymepiece) is a free no-op, not a clone.
   if (action.type === 'discountWindowExpired' && !state.cardDiscountWindow) return state;
+  // THE SHOP CLOCK LOCK (owner 2026-09-30, R-TIMER-LOCK-01): once the recruit clock reached 0:00 the Shop's player
+  // actions (buy / sell / play / roll / upgrade / hero power / Equipment / Henchman) are refused — ONE predicate
+  // shared with the UI, keyed on an exhaustive per-action table so a new action cannot forget it (`shopClock.ts`).
+  if (blockedByShopClock(state, action)) return state;
+  // A repeat expiry (or one outside the Shop) is a free no-op.
+  if (action.type === 'shopClockExpired' && (state.phase !== 'recruit' || state.shopClockExpired)) return state;
 
   // THE DISPLAY-ONLY COMBAT PREVIEWS (owner report 2026-09-22: spell text "not updating in real time from
   // buffs in combat"). These carry no gameplay: the replay publishes what the EVENT LOG already says has
@@ -2819,6 +2826,12 @@ function reduceCore(state: RunState, action: Action): RunState {
       return s;
     }
 
+    case 'shopClockExpired':
+      // The recruit clock hit 0:00 (the UI's tick dispatches it; the reducer never reads a clock). Cleared at the
+      // turn flip and on combat entry. See `shopClock.ts`.
+      s.shopClockExpired = true;
+      return s;
+
     case 'discountWindowExpired':
       // Thymepiece's clock window ran out (the UI's clock tick crossed `untilClock`). The reducer never reads a
       // clock — the tick DISPATCHES, so a paused clock is a paused window and a recording replays the expiry.
@@ -4176,6 +4189,7 @@ function endRecruitTurn(s: RunState): void {
   // Thymepiece's clock window ends with the shop: the clock stops in combat, so an unexpired window would
   // otherwise sit open until the next turn's first tick. (The turn flip clears it again, belt and braces.)
   s.cardDiscountWindow = undefined;
+  s.shopClockExpired = undefined; // the 0:00 lock belongs to this Shop turn only (R-TIMER-LOCK-01)
   // An unresolved targeted Battlecry (the player ended the turn mid-pick) auto-resolves on the
   // carry — never strand a played Toxin Tender without its grant.
   if (s.pendingTarget?.deferredPlay) {
@@ -5422,6 +5436,7 @@ function advanceCombat(s: RunState): void {
   s.minionCostOffTurn = 0;
   s.spiritDiscount = 0; // Festival Treasurer: "this turn"
   s.cardDiscountWindow = undefined; // Thymepiece: an 8-second window never outlives the turn it opened in
+  s.shopClockExpired = undefined; // a fresh turn's clock is running again (R-TIMER-LOCK-01)
   s.processionReturned = []; // Grand Procession: one return per Reveler type per turn
   s.handCopiedThisTurn = []; // the hand-summon mechanic's shop twin: one copy per hand card per turn
   s.dupeUsedThisTurn = false; // Dupes: the first-buy copy is a per-turn freebie

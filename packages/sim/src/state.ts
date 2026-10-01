@@ -812,6 +812,11 @@ export interface RunState {
    * flip, on combat entry, and on a Continue whose saved clock is already past it (`deserialize`).
    */
   cardDiscountWindow?: { amount: number; untilClock: number | null };
+  /** The recruit clock reached 0:00 this turn (owner 2026-09-30, R-TIMER-LOCK-01). Set by the `shopClockExpired`
+   *  ACTION the UI's tick dispatches (the engine never reads a clock), cleared at the turn flip. While set, the
+   *  reducer refuses every action `SHOP_CLOCK_POLICY` marks locked (buy / sell / play / roll / upgrade / hero power /
+   *  Equipment / Henchman). Absent = the clock is still running (or the run is untimed). See `shopClock.ts`. */
+  shopClockExpired?: boolean;
   /** Set 2 — Mushy: a charge to copy the FIRST spell you cast on/after `activateWave` (= the wave
    *  AFTER the Echo fired, so "next turn" is exact whether it died in combat or was re-fired in recruit).
    *  `count` copies (golden 2, multiple Scalefeathers sum). Spent + cleared by that first cast. */
@@ -2688,6 +2693,11 @@ export type Action =
    *  crosses `cardDiscountWindow.untilClock`. A real ACTION so a recording replays the expiry where the player
    *  lived it, and so the reducer never reads a clock. A no-op when no window is open. */
   | { type: 'discountWindowExpired' }
+  /** The recruit clock reached 0:00: the UI's tick dispatches this ONCE as it lands on 0. A real ACTION so a
+   *  recording replays the lock where the player lived it and the reducer never reads a clock. Locks the Shop's
+   *  player actions until the turn flips (`shopClock.ts`). Never dispatched by an untimed run (tutorial, God
+   *  sandbox, Practice's unlimited time). */
+  | { type: 'shopClockExpired' }
   | { type: 'closeScout' } // Farseer's Report: dismiss the scout reveal
   /** End the turn. `deferFight` (balance bot B1): end the turn and prepare the full combat side, but resolve NO
    *  fight — the self-play lobby simulates the pair once and lands the result via `resolveCombat { fight }`. */

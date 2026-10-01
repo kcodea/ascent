@@ -528,10 +528,10 @@ progression **epoch**; nothing finished before the epoch counts (no backfill).
   yours when you win, the opponent's (from their recorded snapshot) when they win. Recorded per run like skins;
   unknown or retired ids play Classic. Presentation only: the same blow, landed once on the impact beat.
 - **Portrait frames (2026-10-01; oracle R-PROG-FRAME-01..04).** A cosmetic ring that replaces the default ring
-  around a player's hero portrait. 26 frames, all from crates at the rarity of the folder their master sits in
-  (`Skins/Portraits/<Common|Rare|Epic|Legendary>/`; the folder IS the rarity): Common Honey, Ale, Ruby, Steel, Wood;
-  Rare Burnished, Sterling, Gilded, Seaglass, Glass Shard, Paragon, Vine, Magic; Epic Aura, Amethyst, Shard, Prism, Frost, Pearlescent, Crimson,
-  Nimbus; Legendary Fire, Reaper, Water, Stained Glass, Wind (each "... Frame"; the names avoid the ranked medal
+  around a player's hero portrait. 31 frames, all from crates at the rarity of the folder their master sits in
+  (`Skins/Portraits/<Common|Rare|Epic|Legendary>/`; the folder IS the rarity): Common Honey, Ale, Ruby, Steel, Wood,
+  Dark Scale, Gilt Scale; Rare Burnished, Sterling, Gilded, Seaglass, Glass Shard, Paragon, Vine, Magic; Epic Aura, Amethyst, Shard, Prism, Frost, Pearlescent, Crimson,
+  Nimbus, Dark Cloud, Venom, Wedding; Legendary Fire, Reaper, Water, Stained Glass, Wind (each "... Frame"; the names avoid the ranked medal
   words so a crate frame never reads as a Ranked reward).
   Account-wide (any hero): equipped in the Collection's Portrait Frames tab ("Use default frame" takes it off; an
   owned frame previews around your avatar, an unowned one never does). Your portrait wears it on every surface (in a

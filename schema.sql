@@ -5618,7 +5618,7 @@ commit;
 --
 -- WHAT THIS IS (owner 2026-10-01: "we're adding portrait skins ... we want this to replace the default portrait png
 -- when a skin is applied").
---  - The `portrait_frame` category and its 26 items arrive through the code-owned catalog sync like every other
+--  - The `portrait_frame` category and its 31 items arrive through the code-owned catalog sync like every other
 --    cosmetic (packages/progression/src/cosmetics.ts, deploy progression-inventory). No catalog SQL: the sync inserts
 --    the category row (weight 10, enabled, target global) and the items, so they join the crate pool on that deploy.
 --  - A portrait frame is ACCOUNT-WIDE (category target `global`), like the hero attack: one row in

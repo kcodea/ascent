@@ -77,7 +77,7 @@ export const PATCH_NOTES: PatchNote[] = [
       },
       {
         category: 'Systems',
-        text: 'More in crates: 3 new hero skins (Goth Merrin, Iron Guardian and Robin Hood) and 5 more portrait frames (Ale, Ruby, Steel, Wood and Magic).',
+        text: 'More in crates: 3 new hero skins (Goth Merrin, Iron Guardian and Robin Hood) and 10 more portrait frames (Ale, Ruby, Steel, Wood, Dark Scale, Gilt Scale, Magic, Dark Cloud, Venom and Wedding).',
       },
       {
         category: 'Balance',

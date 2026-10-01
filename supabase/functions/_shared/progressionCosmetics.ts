@@ -426,6 +426,10 @@ export const COSMETICS: readonly CosmeticDef[] = Object.freeze([
   portraitFrame('frame_ruby', 'Ruby Frame', 'common', 'Common/Ruby.png'),
   portraitFrame('frame_steel', 'Steel Frame', 'common', 'Common/Steel.png'),
   portraitFrame('frame_wood', 'Wood Frame', 'common', 'Common/Wood.png'),
+  // Owner 2026-10-01: "added more portrait skins etc". The 20-character name cap and the medal-word rule (Golden) mean
+  // the two Dragonscale rings are named by look: Dark Scale, Gilt Scale (ids keep the master names).
+  portraitFrame('frame_dark_dragonscale', 'Dark Scale Frame', 'common', 'Common/DarkDragonscale.png'),
+  portraitFrame('frame_golden_dragonscale', 'Gilt Scale Frame', 'common', 'Common/GoldenDragonscale.png'),
   portraitFrame('frame_bronze', 'Burnished Frame', 'rare', 'Rare/BronzeFrame.png'),
   portraitFrame('frame_silver', 'Sterling Frame', 'rare', 'Rare/SilverFrame.png'),
   portraitFrame('frame_gold', 'Gilded Frame', 'rare', 'Rare/GoldFrame.png'),
@@ -442,6 +446,9 @@ export const COSMETICS: readonly CosmeticDef[] = Object.freeze([
   portraitFrame('frame_pearlescent', 'Pearlescent Frame', 'epic', 'Epic/Pearlescent.png'),
   portraitFrame('frame_rank1', 'Crimson Frame', 'epic', 'Epic/Rank1Frame.png'),
   portraitFrame('frame_nimbus', 'Nimbus Frame', 'epic', 'Epic/Nimbus.png'),
+  portraitFrame('frame_dark_cloud', 'Dark Cloud Frame', 'epic', 'Epic/DarkCloudPortrait.png'),
+  portraitFrame('frame_venom', 'Venom Frame', 'epic', 'Epic/VenomPortrait.png'),
+  portraitFrame('frame_wedding', 'Wedding Frame', 'epic', 'Epic/WeddingPortrait.png'),
   portraitFrame('frame_fire', 'Fire Frame', 'legendary', 'Legendary/Fire.png'),
   portraitFrame('frame_reaper', 'Reaper Frame', 'legendary', 'Legendary/Reaper.png'),
   portraitFrame('frame_water', 'Water Frame', 'legendary', 'Legendary/Water.png'),

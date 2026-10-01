@@ -8480,6 +8480,11 @@ body:has(.book-ov) .cardref { z-index: 490; }
 .gslot.hasart > :not(.gslot-art) { position: relative; z-index: 1; }
 .gslot.hasart .gslot-num, .gslot.hasart .gslot-name { text-shadow: 0 2px 6px rgba(0, 0, 0, 0.85); }
 .gslot.hasart[data-state='locked'] .gslot-art img { filter: grayscale(0.85) brightness(0.7); }
+/* The stage NUMBER sits in a thin ring that frosts the art behind it (owner ask 2026-10-01). Static backdrop blur on a
+   menu screen, never animated. */
+.gslot.hasart .gslot-num { display: grid; place-items: center; width: 52px; height: 52px; border-radius: 50%;
+  border: 1.5px solid rgba(246, 239, 226, 0.85); background: rgba(12, 6, 6, 0.25);
+  -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); font-size: 28px; text-shadow: 0 1px 4px rgba(0, 0, 0, 0.7); }
 .gslot-num { font-family: var(--font-title); font-weight: 900; font-size: 34px; line-height: 1; color: #f6efe2; }
 .gslot-emblem-slot { display: grid; place-items: center; width: 64px; height: 64px; }
 .gslot-emblem { display: grid; place-items: center; width: 64px; height: 64px; }

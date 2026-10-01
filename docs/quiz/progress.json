@@ -5,48 +5,48 @@
   "focus": "ARCHITECTURE ONLY — how the game is coded/structured. NEVER ask game-rules questions (see daily-prompt.md).",
   "difficulty": 1,
   "difficultyScale": "1 = gentlest (what is a function, what is a package). 5 = deep (trace an event through the architecture). Ramp only per the rules in daily-prompt.md.",
-  "totalQuizzes": 49,
+  "totalQuizzes": 50,
   "recentScores": [],
   "topics": {
     "what-is-a-function": {
-      "asked": 24,
-      "lastAsked": "2026-09-29"
+      "asked": 25,
+      "lastAsked": "2026-10-01"
     },
     "deterministic-sim": {
-      "asked": 24,
-      "lastAsked": "2026-09-29"
+      "asked": 25,
+      "lastAsked": "2026-10-01"
     },
     "seeded-rng": {
-      "asked": 24,
-      "lastAsked": "2026-09-29"
+      "asked": 25,
+      "lastAsked": "2026-10-01"
     },
     "sim-ui-decoupling": {
-      "asked": 24,
-      "lastAsked": "2026-09-29"
+      "asked": 25,
+      "lastAsked": "2026-10-01"
     },
     "monorepo-packages": {
-      "asked": 24,
-      "lastAsked": "2026-09-29"
+      "asked": 25,
+      "lastAsked": "2026-10-01"
     },
     "pure-functions": {
-      "asked": 24,
-      "lastAsked": "2026-09-29"
+      "asked": 25,
+      "lastAsked": "2026-10-01"
     },
     "data-vs-code": {
-      "asked": 24,
-      "lastAsked": "2026-09-29"
+      "asked": 25,
+      "lastAsked": "2026-10-01"
     },
     "event-log-replay": {
-      "asked": 24,
-      "lastAsked": "2026-09-29"
+      "asked": 25,
+      "lastAsked": "2026-10-01"
     },
     "eslint-rules": {
-      "asked": 23,
-      "lastAsked": "2026-09-29"
+      "asked": 24,
+      "lastAsked": "2026-10-01"
     },
     "performance-memo": {
-      "asked": 23,
-      "lastAsked": "2026-09-29"
+      "asked": 24,
+      "lastAsked": "2026-10-01"
     },
     "reducer-run-state": {
       "asked": 24,
@@ -1129,6 +1129,25 @@
       ],
       "scored": null,
       "note": "Still no score ever reported by Mike (49 quizzes in), so mastery/difficulty stayed at 1/untouched. Read the three most recent archives on this exact topic group (2026-09-24, 2026-09-26, 2026-09-28) first and found 2026-09-28 had asked several of these topics at nearly the same generic beginner framing (\"what is a reducer/Zustand/union type\"), so rewrote those with fresh, more specific facts grounded in live source instead: state.ts COMBAT_FLOW_ACTIONS + isPlayerAction filtering automatic combat-flow transitions out of the actions-per-round stat (reducer-run-state); store.ts resetCareer using the function form of Zustand set() because careerVersion+1 depends on current state, vs continueRun's plain-object set() (zustand-store); events.ts's own doc comment on CombatBus warning about unbounded emit cascades and the simulator's iteration guard (event-bus); sim/package.json's exports map pointing at src/index.ts as the actual file CLAUDE.md means by \"public entrypoint\" (package-boundaries); schema.ts's .strict() on CardDefSchema turning a typo'd optional key into a loud validation failure instead of a silent no-op (effects-as-subscriptions); CombatContext's rng/bus/boards/events fields as the concrete reason combat-time effects need a context object that recruit-phase effects don't (effect-timing-pipeline); and a real e.type==='death' narrowing example from ui/src/useCombatReplay.ts:303 instead of an abstract union-type definition (types-basics). Kept cards-in-sets (set pinning), testing-vitest (golden test vs the game's own Gold currency as a name-collision trap), and immutability (CardDef sharing) as originally drafted since those angles were already fresh against the three checked archives. Verified the embedded QUESTIONS array parses as valid JS (10 questions, 4 choices each, in-range unique answer, all 10 topicIds present and unique) via a node script, then rebalanced which letter is correct per question (originally all defaulted to A) to C,A,D,B,C,A,D,B,C,A (3xA, 2xB, 3xC, 2xD, no consecutive repeats) — and rewrote every explanation's letter-based distractor callout (\"B is wrong\", \"D is a distractor\") as a content-based callout so the reasoning stays correct regardless of choice order. Verified the array again after reordering. Published as an interactive Artifact and archived to docs/quiz/archive/2026-09-30.html."
+    },
+    {
+      "date": "2026-10-01",
+      "quizNumber": 50,
+      "difficulty": 1,
+      "topics": [
+        "what-is-a-function",
+        "deterministic-sim",
+        "seeded-rng",
+        "sim-ui-decoupling",
+        "monorepo-packages",
+        "pure-functions",
+        "data-vs-code",
+        "event-log-replay",
+        "eslint-rules",
+        "performance-memo"
+      ],
+      "scored": null,
+      "note": "Still no score ever reported by Mike (50 quizzes in), so mastery/difficulty remain untouched at 1 and all 20 curriculum topics are tied on mastery. With rule 1 (re-teach weak spots) non-differentiating, picked the 10 topics least recently asked (all last asked 2026-09-29, one day older than the other half's 2026-09-30) to keep the two-day rotation even — eslint-rules and performance-memo were also 1 ask behind the rest (23 vs 24) going in, so this quiz brings the whole curriculum back to parity (24-25 asks each). Re-grounded every question in a fresh, concrete source fact rather than reusing prior framings: simulate()'s 4-argument signature as the function example (what-is-a-function); swapping Math.random() in for the seeded rng as a thought experiment on why determinism matters (deterministic-sim); fork() deriving an independent child stream from rng.ts (seeded-rng); the UI only replaying simulate()'s events array, never recomputing outcomes (sim-ui-decoupling); the 'core -> nothing' dependency direction naming core as the leaf package (monorepo-packages); simulate() cloning minions instead of editing CardDefs as the concrete purity example (pure-functions); CardDefSchema's Zod validation as what 'cards are data' means in practice (data-vs-code); why the full event array is kept instead of just a winner (event-log-replay); eslint.config.mjs's banMathRandom scope explicitly including packages/tools, not just core (eslint-rules); and docs/performance.md's explanation of why Unit uses a value comparator instead of React.memo's default reference check (performance-memo). Verified the embedded QUIZ.questions array parses as valid JS via a node script (10 questions, 4 unique choices each, answer index in range, 10 unique topicIds) before publishing, then caught that every correct answer had been left at index 0 (A) — reshuffled choice order per question to C,A,D,B,C,A,D,B,B,A and rewrote the explanations' wrong-choice callouts to be content-based instead of letter-based so they stay correct regardless of order, then re-verified. Published as an interactive Artifact and archived to docs/quiz/archive/2026-10-01.html."
     }
   ],
   "notes": "2026-08-15: refocused to ARCHITECTURE ONLY per Mike — removed game-rules topics (shop-vs-combat, auto-battler-loop) and expanded the code-architecture curriculum. Do not quiz on game rules; see the hard constraint in daily-prompt.md."

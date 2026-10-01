@@ -1,0 +1,614 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Ascent Quiz #50</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700;800&family=Public+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+  /* Layout: a single centered "quest card" — progress rail up top, one question
+     at a time below, a file-path "scroll tag" styling nods to the codebase it quizzes on. */
+  :root {
+    --bg: #f5f3ee;
+    --bg-deep: #ece8df;
+    --surface: #ffffff;
+    --surface-2: #faf8f3;
+    --ink: #221c14;
+    --ink-dim: #6b6354;
+    --line: #ddd5c4;
+    --accent: #b9772f;
+    --accent-ink: #5c3a14;
+    --good: #2f7a4f;
+    --good-bg: #e4f3e8;
+    --bad: #b5402f;
+    --bad-bg: #fbe8e3;
+    --font-display: 'Sora', system-ui, sans-serif;
+    --font-body: 'Public Sans', system-ui, sans-serif;
+    --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #17140f;
+      --bg-deep: #100e0a;
+      --surface: #221d16;
+      --surface-2: #2a2419;
+      --ink: #f3ece0;
+      --ink-dim: #b2a890;
+      --line: #3c3426;
+      --accent: #e0a24c;
+      --accent-ink: #f6d9a3;
+      --good: #6fcb94;
+      --good-bg: #1c3426;
+      --bad: #e08573;
+      --bad-bg: #3a2019;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #17140f;
+    --bg-deep: #100e0a;
+    --surface: #221d16;
+    --surface-2: #2a2419;
+    --ink: #f3ece0;
+    --ink-dim: #b2a890;
+    --line: #3c3426;
+    --accent: #e0a24c;
+    --accent-ink: #f6d9a3;
+    --good: #6fcb94;
+    --good-bg: #1c3426;
+    --bad: #e08573;
+    --bad-bg: #3a2019;
+    color-scheme: dark;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    background: radial-gradient(ellipse at top, var(--bg-deep), var(--bg) 60%);
+    color: var(--ink);
+    font-family: var(--font-body);
+    margin: 0;
+    min-height: 100%;
+    padding: 28px 16px 48px;
+    display: flex;
+    justify-content: center;
+  }
+  .wrap { width: 100%; max-width: 640px; }
+
+  header.top {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 18px;
+  }
+  .kicker {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--accent-ink);
+    background: color-mix(in srgb, var(--accent) 16%, transparent);
+    padding: 4px 10px;
+    border-radius: 999px;
+  }
+  h1 {
+    font-family: var(--font-display);
+    font-weight: 800;
+    font-size: clamp(22px, 5vw, 28px);
+    margin: 6px 0 2px;
+    text-wrap: balance;
+  }
+  .sub { color: var(--ink-dim); font-size: 14px; margin: 0; }
+
+  .rail {
+    display: flex;
+    gap: 5px;
+    margin: 18px 0 22px;
+  }
+  .rail .seg {
+    flex: 1;
+    height: 6px;
+    border-radius: 999px;
+    background: var(--line);
+    overflow: hidden;
+  }
+  .rail .seg i {
+    display: block;
+    height: 100%;
+    width: 0%;
+    background: var(--accent);
+    transition: width .25s ease;
+  }
+  .rail .seg.correct i { width: 100%; background: var(--good); }
+  .rail .seg.wrong i { width: 100%; background: var(--bad); }
+  .rail .seg.current i { width: 100%; }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    padding: 24px;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+  }
+  .qmeta {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 14px;
+  }
+  .qnum {
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 13px;
+    color: var(--ink-dim);
+  }
+  .topic-tag {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--ink-dim);
+    background: var(--surface-2);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 2px 7px;
+  }
+  .qtext {
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: 18px;
+    line-height: 1.45;
+    margin: 0 0 18px;
+    text-wrap: balance;
+  }
+
+  .choices { display: flex; flex-direction: column; gap: 10px; }
+  .choice {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    width: 100%;
+    text-align: left;
+    background: var(--surface-2);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 13px 14px;
+    font-family: var(--font-body);
+    font-size: 15px;
+    line-height: 1.4;
+    color: var(--ink);
+    cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="1" height="1"/>') 0 0, pointer;
+    transition: border-color .15s ease, transform .1s ease;
+  }
+  .choice:hover:not(:disabled) { border-color: var(--accent); }
+  .choice:active:not(:disabled) { transform: scale(0.99); }
+  .choice:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .choice .letter {
+    flex: 0 0 auto;
+    width: 26px; height: 26px;
+    border-radius: 7px;
+    background: var(--bg-deep);
+    border: 1px solid var(--line);
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--font-mono);
+    font-weight: 500;
+    font-size: 13px;
+    color: var(--ink-dim);
+  }
+  .choice:disabled { cursor: default; }
+  .choice.correct { background: var(--good-bg); border-color: var(--good); }
+  .choice.correct .letter { background: var(--good); border-color: var(--good); color: #fff; }
+  .choice.wrong { background: var(--bad-bg); border-color: var(--bad); }
+  .choice.wrong .letter { background: var(--bad); border-color: var(--bad); color: #fff; }
+  .choice.dim { opacity: 0.55; }
+
+  .result-line {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 16px;
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 14px;
+  }
+  .result-line.correct { color: var(--good); }
+  .result-line.wrong { color: var(--bad); }
+
+  .explain {
+    margin-top: 10px;
+    padding: 14px 16px;
+    background: var(--surface-2);
+    border: 1px dashed var(--line);
+    border-radius: 10px;
+    font-size: 14px;
+    line-height: 1.55;
+    color: var(--ink);
+  }
+  .explain code {
+    font-family: var(--font-mono);
+    font-size: 0.9em;
+    background: color-mix(in srgb, var(--accent) 14%, transparent);
+    padding: 1px 5px;
+    border-radius: 4px;
+  }
+
+  .nextrow { display: flex; justify-content: flex-end; margin-top: 18px; }
+  button.next, button.restart {
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 14px;
+    color: #fff;
+    background: var(--accent);
+    border: none;
+    border-radius: 10px;
+    padding: 11px 20px;
+    cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="1" height="1"/>') 0 0, pointer;
+  }
+  button.next:hover, button.restart:hover { filter: brightness(1.08); }
+  button.next:focus-visible, button.restart:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  .scoreboard { text-align: center; padding: 10px 6px 4px; }
+  .scoreboard .big {
+    font-family: var(--font-display);
+    font-weight: 800;
+    font-size: clamp(40px, 12vw, 56px);
+    font-variant-numeric: tabular-nums;
+    margin: 6px 0 2px;
+  }
+  .scoreboard .line { color: var(--ink-dim); font-size: 14px; margin: 0 0 18px; }
+  .scoreboard .pep {
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: 17px;
+    margin: 0 0 22px;
+    text-wrap: balance;
+  }
+  .recap {
+    text-align: left;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-bottom: 20px;
+  }
+  .recap .row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 10px;
+    border-radius: 8px;
+    background: var(--surface-2);
+    border: 1px solid var(--line);
+    font-size: 13px;
+  }
+  .recap .row .mark { font-weight: 700; width: 18px; text-align: center; }
+  .recap .row.correct .mark { color: var(--good); }
+  .recap .row.wrong .mark { color: var(--bad); }
+  .recap .row .qn { font-family: var(--font-mono); color: var(--ink-dim); flex: 0 0 auto; }
+  .recap .row .tt { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  footer.hint {
+    text-align: center;
+    color: var(--ink-dim);
+    font-size: 12px;
+    margin-top: 22px;
+    line-height: 1.6;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .rail .seg i, .choice { transition: none; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div>
+      <span class="kicker">Daily Ascent Code Quiz</span>
+      <h1 id="quizTitle">Ascent Quiz #50</h1>
+      <p class="sub" id="quizSub">October 1, 2026 · 10 questions on how the engine is built</p>
+    </div>
+  </header>
+
+  <div class="rail" id="rail"></div>
+
+  <main class="card" id="card"></main>
+
+  <footer class="hint">Grounded in the real Ascent source — every explanation names the file to go read.</footer>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  var QUIZ = {
+    number: 50,
+    dateLabel: "October 1, 2026",
+    questions: [
+      {
+        topicId: "what-is-a-function",
+        topicLabel: "what a function is",
+        question: "In packages/core/src/combat/simulate.ts, `simulate(playerSide, enemySide, rng, cards)` is a function. What makes it a function in programming terms?",
+        choices: [
+          "It's any file that contains code.",
+          "It only works if it's written inside a class.",
+          "It takes some values in (its parameters) and produces an output, which other code can call by name.",
+          "It directly changes variables outside itself whenever it needs to."
+        ],
+        answer: 2,
+        explanation: "A function packages logic behind a name, taking inputs (parameters) and producing an output other code can call — <code>simulate(playerSide, enemySide, rng, cards)</code> is exactly that: four inputs in, one result object out. It isn't just \"a file,\" and it doesn't need a class to exist. Reaching outside itself to change things is actually a separate, usually unwanted habit called a side effect — not a requirement to be a function at all."
+      },
+      {
+        topicId: "deterministic-sim",
+        topicLabel: "deterministic sim",
+        question: "What would most likely go wrong if `simulate()` used `Math.random()` instead of the seeded `rng` it's passed?",
+        choices: [
+          "Replays and shared seeds would break, since the same seed could produce a different outcome each run.",
+          "The combat would resolve faster.",
+          "Nothing — `Math.random` and the seeded Rng always produce identical sequences.",
+          "It would only change shop offers, never combat."
+        ],
+        answer: 0,
+        explanation: "Determinism means the exact same inputs always produce the exact same outputs — that's what lets Ascent replay a fight byte-for-byte or let two people compare an identical seeded run. <code>Math.random()</code> isn't reproducible, so swapping it in would silently break both. That's why it's ESLint-banned in the engine packages — everything routes through the seeded <code>Rng</code> in packages/core/src/rng.ts instead."
+      },
+      {
+        topicId: "seeded-rng",
+        topicLabel: "seeded RNG & fork()",
+        question: "packages/core/src/rng.ts gives the `Rng` interface a `fork()` method. What is `fork()` for?",
+        choices: [
+          "Resetting the RNG back to its original seed.",
+          "Generating a truly random number from the system clock.",
+          "Splitting the save file into two separate runs.",
+          "Deriving a new, independent child RNG from the parent's current state, so one subsystem (like a single combat) can run in isolation and still reproduce identically."
+        ],
+        answer: 3,
+        explanation: "<code>fork()</code> derives a brand-new, independent RNG from the parent's current internal state, so a subsystem — one combat, one enemy-board build — can be re-run or inspected on its own and still reproduce identically, without disturbing the parent stream. It isn't a reset, and mulberry32 is entirely seed-driven, so there's no real randomness or system clock involved anywhere in it."
+      },
+      {
+        topicId: "sim-ui-decoupling",
+        topicLabel: "sim/UI split",
+        question: "`simulate()` returns an `events` array. What does the UI do with it?",
+        choices: [
+          "It re-runs the combat itself to double-check the sim's math.",
+          "It replays/animates the events on its own clock — it never recomputes who wins or loses.",
+          "It ignores the events and only shows the final HP numbers.",
+          "It feeds the events back into `simulate()` to get a prettier version."
+        ],
+        answer: 1,
+        explanation: "CLAUDE.md states this directly: \"the UI animates the event log on its own clock; it never computes outcomes.\" <code>simulate()</code> already decided the winner and recorded every step as an event; the UI's only job is to play those steps back visually. It never recomputes the fight itself, and it never feeds events back into the sim — the outcome is final the moment <code>simulate()</code> returns."
+      },
+      {
+        topicId: "monorepo-packages",
+        topicLabel: "monorepo packages",
+        question: "Which package in the Ascent monorepo depends on NO other package in the repo?",
+        choices: [
+          "packages/ui — React + Zustand",
+          "packages/sim — the run loop",
+          "packages/core — the pure engine (rng, types, event bus, effects, simulate())",
+          "apps/web — the Vite app"
+        ],
+        answer: 2,
+        explanation: "CLAUDE.md's Monorepo section spells out the dependency direction: \"ui → all, core → nothing.\" <code>packages/sim</code> depends on <code>core</code> and <code>content</code>, and <code>apps/web</code>/<code>packages/ui</code> sit on top of everything through public entrypoints — <code>packages/core</code> is the one package at the bottom that nothing else needs to feed."
+      },
+      {
+        topicId: "pure-functions",
+        topicLabel: "pure functions",
+        question: "`simulate()` clones every minion rather than editing the `CardDef`s it was passed. Why does that matter for it being a pure function?",
+        choices: [
+          "A pure function shouldn't mutate its inputs or any shared state outside itself — cloning keeps the original CardDefs untouched for every other caller.",
+          "Cloning makes the function run faster.",
+          "It's required so TypeScript will compile.",
+          "It lets the function skip returning a value."
+        ],
+        answer: 0,
+        explanation: "CLAUDE.md states the rule plainly: \"Never mutate shared CardDefs — clone into combat Minion instances.\" If <code>simulate()</code> edited the original CardDef, every other part of the game reading that same card would see the change — exactly the hidden side effect purity rules out. Purity isn't about speed or about compiling, and it's about not touching outside state, not about whether a value gets returned."
+      },
+      {
+        topicId: "data-vs-code",
+        topicLabel: "data-driven cards",
+        question: "packages/content/src/schema.ts defines `CardDefSchema` using Zod. What is that schema actually checking?",
+        choices: [
+          "That the card's artwork file is the correct pixel resolution.",
+          "That each card's data (stats, text, which effects it uses, etc.) matches the shape the engine expects, before the game trusts it.",
+          "That the player has unlocked the card.",
+          "That the card compiles into its own TypeScript class."
+        ],
+        answer: 1,
+        explanation: "<code>CardDefSchema</code> is a Zod schema that validates a card's data has the right shape — correct types, only allowed effect ids, etc. — before the engine trusts it, catching a malformed card at validation time instead of as a crash mid-combat. That's the \"cards are data, not classes\" philosophy from CLAUDE.md: a card is data checked against a schema, never a bespoke class."
+      },
+      {
+        topicId: "event-log-replay",
+        topicLabel: "event log & replay",
+        question: "`simulate()` returns `{ events, result, playerDamage, initial }` instead of just the winner. Why keep the full event log at all?",
+        choices: [
+          "It's only for debugging and gets deleted before the UI ever sees it.",
+          "Returning events lets the UI change who actually wins.",
+          "JavaScript functions can't return more than one value any other way.",
+          "The event log is a step-by-step record of everything that happened, so the UI can play it back as an animated sequence — and the same fight can be replayed again later."
+        ],
+        answer: 3,
+        explanation: "CLAUDE.md: \"Combat is a pure function → event log → replay.\" Keeping every step, not just the final winner, is what lets the UI animate the fight beat by beat and lets the exact same combat be replayed later from the recorded log. It's real data the UI depends on, not a debug-only extra, and playing it back can't rewrite who won — the outcome was locked the moment <code>simulate()</code> ran."
+      },
+      {
+        topicId: "eslint-rules",
+        topicLabel: "the Math.random ESLint ban",
+        question: "ESLint's `no-restricted-properties` rule bans `Math.random` in which parts of the Ascent codebase?",
+        choices: [
+          "Only packages/core.",
+          "packages/core, packages/content, packages/sim, AND packages/tools — because `npm run pool` generates a committed file that must build the same way every time.",
+          "The entire repo, including packages/ui.",
+          "It's only a note in the docs, not an enforced lint rule."
+        ],
+        answer: 1,
+        explanation: "eslint.config.mjs's <code>banMathRandom</code> rule lists <code>packages/core/**</code>, <code>packages/content/**</code>, <code>packages/sim/**</code>, AND <code>packages/tools/**</code>. Tools is included because <code>npm run pool</code> uses it to generate the committed opponent-pool file, and that generation has to be reproducible too. <code>packages/ui</code> is deliberately exempt, since cosmetic randomness there doesn't affect game outcomes."
+      },
+      {
+        topicId: "performance-memo",
+        topicLabel: "React.memo + value comparators",
+        question: "docs/performance.md notes that combat's `Unit` component is wrapped in `React.memo` with a custom *value* comparator instead of the default reference comparator. Why?",
+        choices: [
+          "The combat frame rebuilds fresh prop objects every beat, so a reference-equality check would always see \"different\" and re-render anyway — comparing actual values lets the memo skip real no-op renders.",
+          "Value comparators are simply faster than reference comparators in every case.",
+          "React.memo doesn't support reference comparison for list items.",
+          "It was required to fix a TypeScript type error."
+        ],
+        answer: 0,
+        explanation: "Because the combat frame rebuilds fresh prop objects every beat, React's default reference-equality memo check would see a \"new\" object every time and re-render regardless of whether anything meaningful changed. A value comparator actually compares the underlying values, so <code>Unit</code> can skip real no-op re-renders — a targeted fix for how this data flows, not a general rule about comparator speed or a type-checking requirement."
+      }
+    ]
+  };
+
+  var state = {
+    idx: 0,
+    answered: new Array(QUIZ.questions.length).fill(null), // index of choice picked, or null
+    score: 0
+  };
+
+  var railEl = document.getElementById("rail");
+  var cardEl = document.getElementById("card");
+
+  try {
+    var saved = JSON.parse(localStorage.getItem("ascentQuiz50") || "null");
+    if (saved && Array.isArray(saved.answered) && saved.answered.length === QUIZ.questions.length) {
+      state = saved;
+    }
+  } catch (e) { /* ignore — fresh start */ }
+
+  function persist() {
+    try { localStorage.setItem("ascentQuiz50", JSON.stringify(state)); } catch (e) { /* ignore */ }
+  }
+
+  function buildRail() {
+    railEl.innerHTML = "";
+    QUIZ.questions.forEach(function (q, i) {
+      var seg = document.createElement("div");
+      seg.className = "seg";
+      var picked = state.answered[i];
+      if (picked !== null) {
+        seg.className += picked === q.answer ? " correct" : " wrong";
+      } else if (i === state.idx) {
+        seg.className += " current";
+      }
+      var fill = document.createElement("i");
+      seg.appendChild(fill);
+      railEl.appendChild(seg);
+    });
+  }
+
+  var LETTERS = ["A", "B", "C", "D"];
+
+  function renderQuestion(i) {
+    var q = QUIZ.questions[i];
+    var picked = state.answered[i];
+
+    var html = '';
+    html += '<div class="qmeta"><span class="qnum">Question ' + (i + 1) + ' / ' + QUIZ.questions.length + '</span>' +
+            '<span class="topic-tag">' + q.topicLabel + '</span></div>';
+    html += '<p class="qtext">' + q.question + '</p>';
+    html += '<div class="choices" id="choices"></div>';
+    if (picked !== null) {
+      var correct = picked === q.answer;
+      html += '<div class="result-line ' + (correct ? "correct" : "wrong") + '">' +
+              (correct ? "Correct." : "Not quite.") + '</div>';
+      html += '<div class="explain">' + q.explanation + '</div>';
+      html += '<div class="nextrow"><button class="next" id="nextBtn">' +
+              (i + 1 === QUIZ.questions.length ? "See results" : "Next question") +
+              '</button></div>';
+    }
+    cardEl.innerHTML = html;
+
+    var choicesEl = document.getElementById("choices");
+    q.choices.forEach(function (choiceText, ci) {
+      var btn = document.createElement("button");
+      btn.className = "choice";
+      btn.type = "button";
+      var letter = document.createElement("span");
+      letter.className = "letter";
+      letter.textContent = LETTERS[ci];
+      var label = document.createElement("span");
+      label.textContent = choiceText;
+      btn.appendChild(letter);
+      btn.appendChild(label);
+
+      if (picked !== null) {
+        btn.disabled = true;
+        if (ci === q.answer) btn.className += " correct";
+        else if (ci === picked) btn.className += " wrong";
+        else btn.className += " dim";
+      } else {
+        btn.addEventListener("click", function () { answer(i, ci); });
+      }
+      choicesEl.appendChild(btn);
+    });
+
+    var nextBtn = document.getElementById("nextBtn");
+    if (nextBtn) {
+      nextBtn.addEventListener("click", function () {
+        if (i + 1 === QUIZ.questions.length) {
+          showResults();
+        } else {
+          state.idx = i + 1;
+          persist();
+          buildRail();
+          renderQuestion(state.idx);
+        }
+      });
+    }
+  }
+
+  function answer(i, ci) {
+    if (state.answered[i] !== null) return;
+    state.answered[i] = ci;
+    if (ci === QUIZ.questions[i].answer) state.score++;
+    persist();
+    buildRail();
+    renderQuestion(i);
+  }
+
+  function pepTalk(score, total) {
+    var pct = score / total;
+    if (pct === 1) return "Perfect run — every one of those stuck.";
+    if (pct >= 0.8) return "Strong showing. The pattern's clicking.";
+    if (pct >= 0.5) return "Solid progress — the misses are exactly what tomorrow will re-ask.";
+    return "That's alright — this stuff takes repetition, and the curriculum is built to circle back.";
+  }
+
+  function showResults() {
+    railEl.style.display = "none";
+    var total = QUIZ.questions.length;
+    var html = '<div class="scoreboard">';
+    html += '<p class="sub" style="margin:0;">You scored</p>';
+    html += '<div class="big">' + state.score + ' / ' + total + '</div>';
+    html += '<p class="pep">' + pepTalk(state.score, total) + '</p>';
+    html += '<div class="recap">';
+    QUIZ.questions.forEach(function (q, i) {
+      var picked = state.answered[i];
+      var correct = picked === q.answer;
+      html += '<div class="row ' + (correct ? "correct" : "wrong") + '">' +
+              '<span class="mark">' + (correct ? "✓" : "✕") + '</span>' +
+              '<span class="qn">Q' + (i + 1) + '</span>' +
+              '<span class="tt">' + q.topicLabel + '</span></div>';
+    });
+    html += '</div>';
+    html += '<button class="restart" id="restartBtn">Retake this quiz</button>';
+    html += '</div>';
+    cardEl.innerHTML = html;
+    document.getElementById("restartBtn").addEventListener("click", function () {
+      state = { idx: 0, answered: new Array(QUIZ.questions.length).fill(null), score: 0 };
+      persist();
+      railEl.style.display = "";
+      buildRail();
+      renderQuestion(0);
+    });
+  }
+
+  var allAnswered = state.answered.every(function (a) { return a !== null; });
+  if (allAnswered) {
+    showResults();
+  } else {
+    buildRail();
+    renderQuestion(state.idx);
+  }
+})();
+</script>
+</body>
+</html>

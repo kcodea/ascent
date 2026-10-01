@@ -13925,8 +13925,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     "tags": [
       "activation:turn-number",
       "power-kind:epicRuneforge",
-      "passive",
-      "wip"
+      "passive"
     ],
     "triggers": [
       {
@@ -13960,8 +13959,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       "activation:turn-number",
       "power-kind:runeforge",
       "once-per-game",
-      "passive",
-      "wip"
+      "passive"
     ],
     "triggers": [
       {

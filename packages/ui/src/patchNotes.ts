@@ -66,6 +66,10 @@ export const PATCH_NOTES: PatchNote[] = [
         category: 'Systems',
         text: '9 new minion skins in crates: three for Commander Warpath, two each for Deepvein Tender and Wayfinder, and one each for Wardkeeper and Coppercoat Spellsword.',
       },
+      {
+        category: 'Balance',
+        text: 'Runesmith and Guardian are back. You can pick them again in Play and Practice.',
+      },
     ],
   },
   {

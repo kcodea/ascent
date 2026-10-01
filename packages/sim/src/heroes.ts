@@ -436,7 +436,6 @@ export const HEROES: HeroDef[] = [
   },
   {
     id: 'runesmith',
-    wip: true, // ARCHIVED 2026-09-24 (owner: "Archive these heroes ... they should only show in scene builder"). See `HeroDef.wip`.
     name: 'Runesmith',
     blurb: 'The forge fires once. Spend well, for its rune lasts the whole climb.',
     resolve: 30,
@@ -451,7 +450,6 @@ export const HEROES: HeroDef[] = [
   },
   {
     id: 'runeguard',
-    wip: true, // ARCHIVED 2026-09-24 (owner: "Archive these heroes ... they should only show in scene builder"). See `HeroDef.wip`.
     name: 'Guardian',
     blurb: 'Sworn to the forge. Its greater runes answer only to those who hold the line.',
     resolve: 30,

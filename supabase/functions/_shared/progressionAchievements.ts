@@ -316,7 +316,7 @@ const RANKED: AchievementDef[] = [
 
 // Heroes ─────────────────────────────────────────────────────────────────────────────────────────────────────
 /**
- * The 33 playable heroes (not archived), id and display name. The progression package stays dependency-free, so
+ * The 35 playable heroes (not archived), id and display name. The progression package stays dependency-free, so
  * the list lives here; packages/sim/src/achievementHeroes.test.ts fails CI when it drifts from `playableHeroes()`.
  * Each hero's TITLE name lives with the catalog (`HERO_TITLE_NAMES` in cosmetics.ts, owner 2026-09-29).
  */
@@ -325,7 +325,8 @@ export const ACHIEVEMENT_HEROES: ReadonlyArray<{ id: string; name: string }> = O
   { id: 'nadja', name: 'Nadja' }, { id: 'cassen', name: 'Cassen' }, { id: 'drakko', name: 'Drakko' }, { id: 'robin', name: 'Robin' },
   { id: 'darah', name: 'Darah' }, { id: 'risen', name: 'Lord of the Risen' }, { id: 'gildmaster', name: 'Gildmaster' },
   { id: 'discodan', name: 'Disco Dan' }, { id: 'brackus', name: 'Brackus' }, { id: 'baggerben', name: 'Rascal' },
-  { id: 'hermithank', name: 'Tradesman' }, { id: 'repete', name: 'Re-Pete' }, { id: 'gorr', name: 'Gorr' }, { id: 'kindness', name: 'Kindness' },
+  { id: 'hermithank', name: 'Tradesman' },
+  { id: 'runesmith', name: 'Runesmith' }, { id: 'runeguard', name: 'Guardian' }, { id: 'repete', name: 'Re-Pete' }, { id: 'gorr', name: 'Gorr' }, { id: 'kindness', name: 'Kindness' },
   { id: 'merrin', name: 'Merrin' }, { id: 'gambler', name: 'Gambler' }, { id: 'xerox', name: 'Xerox' }, { id: 'frank', name: 'Frantic Frank' },
   { id: 'quillen', name: 'Quillen' }, { id: 'hunch', name: 'Hunch' }, { id: 'emeraldwarden', name: 'Emerald Warden' }, { id: 'albus', name: 'Albus' },
   { id: 'flash', name: 'Flash' }, { id: 'midas', name: 'Midas' }, { id: 'juggler', name: 'Juggler' }, { id: 'bram', name: 'Braum' },

@@ -322,7 +322,7 @@ describe('the hero titles migration (2026-09-29): a title at 3 Ranked 1sts with 
     }));
     const hero = new Set(HERO_TITLE_COSMETICS.map((c) => c.id));
     expect([...sqlRows].sort((a, b) => (a.cosmeticId < b.cosmeticId ? -1 : 1))).toEqual(catalogSyncPayload().items.filter((i) => hero.has(i.cosmeticId)));
-    expect(sqlRows).toHaveLength(66);
+    expect(sqlRows).toHaveLength(70);
     expect(sqlRows.every((r) => r.acquisitionSource === 'achievement')).toBe(true);
     const at = heroTitles.indexOf('insert into public.cosmetic_catalog (');
     expect(heroTitles.slice(heroTitles.indexOf('on conflict', at), heroTitles.indexOf(';', heroTitles.indexOf('on conflict', at)))).toMatch(/do nothing$/);

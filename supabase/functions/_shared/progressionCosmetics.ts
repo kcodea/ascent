@@ -156,6 +156,7 @@ export const HERO_TITLE_NAMES: ReadonlyArray<readonly [heroId: string, title: st
   ['warden', 'Warded'], ['indy', 'Masterworker'], ['myra', 'Going Once'], ['soren', 'Reclaimed'], ['nadja', 'Wishing Well'],
   ['cassen', 'On Commission'], ['drakko', 'Drum Major'], ['robin', 'Merry Outlaw'], ['darah', 'Switcheroo'], ['risen', 'Risen Again'],
   ['gildmaster', 'Gildwright'], ['discodan', 'Groovy'], ['brackus', 'Summit Seeker'], ['baggerben', 'All In'], ['hermithank', 'Penny Pincher'],
+  ['runesmith', 'Runecarver'], ['runeguard', 'Runebound'], // re-activated 2026-10-01; placeholder names for the owner
   ['repete', 'Deja Vu'], ['gorr', 'Four Peater'], ['kindness', 'Kind Soul'], ['merrin', 'Pocket Mage'], ['gambler', 'Gambling Addict'],
   ['xerox', 'Paper Jam'], ['frank', 'Bargain Hunter'], ['quillen', 'Archivist'], ['hunch', 'Bookworm'], ['emeraldwarden', 'Vanguard'],
   ['albus', 'Albus Student'], ['flash', 'Speedrunner'], ['midas', 'Midas Touched'], ['juggler', 'Juggling Act'], ['bram', 'Compound Interest'],

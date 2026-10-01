@@ -428,6 +428,41 @@ export const FOUNDATION_RULES: GameRule[] = [
     },
   },
   {
+    id: 'R-PRESENT-29',
+    title: 'The FX particle budget holds for effects fired in the same frame, and many-instance loops share one filter pass',
+    statement:
+      'The FX budget counts a def play that has not emitted yet (still inside its ramp: latest burst `at`, emitter '
+      + '`at + life`) at its expected particle load, so several plays fired in the same frame can never all pass the '
+      + 'cap by reading a near-empty pool; a still-ramping play is never trimmed. When trimming older plays cannot make '
+      + 'room, the incoming play spawns THINNED (burst count / emitter rate scaled, never below 35%, nothing else '
+      + 'changed; loops and follows are never thinned) rather than over the cap. The shop has its own ceiling '
+      + '(1,500) and the hand-written sprite particles their own (1,200, oldest first). Persistent loops that many '
+      + 'units wear at once (the milestone badges) draw through one shared filter stack per def, not a full-screen '
+      + 'filter pass per play.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      {
+        kind: 'owner-chat',
+        ref: 'In-game perf monitor report pasted by the owner, 2026-09-30',
+        quote: 'fx:particles PEAKED AT 8,661 during recruit (Shop); fx:tick worst 60.7 ms',
+      },
+      { kind: 'code', ref: 'packages/ui/src/fx/fxBudget.ts admit / rampMsOf / thinDef; packages/ui/src/fx/playDef.ts; packages/ui/src/fx/sharedFilters.ts; packages/ui/src/pixiFx.ts MAX_SPRITE_PARTICLES; packages/ui/src/Game.tsx fxSceneOf' },
+      { kind: 'fix-pr', ref: 'perf/report-2026-09-30' },
+    ],
+    example: 'All seven shop cards are buffed at once: every card still shows its burst, but the shop peaks near 3,250 live particles instead of 6,993. A board of seven 6,000/6,000 minions runs 4 filter passes for its badge glows instead of 112.',
+    currentBehaviour:
+      'Conforms as of 2026-09-30. Before it, admission compared only the live count of the pool (which lags a play fired '
+      + 'this frame), so a 7-wide fan reached 6,993 to 9,317 live particles against a 4,000 cap with nothing culled, '
+      + 'and each milestone-badge loop ran Bloom + Glow on every draining cycle (112 full-screen passes on a full '
+      + 'board).',
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/ui/src/fx/fxBudget.test.ts', 'packages/ui/src/fx/sharedFilters.test.ts'],
+      lastVerifiedAt: '2026-09-30',
+    },
+  },
+  {
     id: 'R-PRESENT-05',
     title: 'The Runeforge rune row never moves when the free re-roll is spent',
     statement:

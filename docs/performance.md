@@ -153,7 +153,8 @@ and the `long-task` verdict print it. **`layout:read-in-move`** is a per-bucket 
 (`getBoundingClientRect` / `offsetLeft` / `elementFromPoint`, routed through `layoutRead.ts`) made while an
 `input:` span or `drag:flushMove` is open — a read there is the forced-reflow-per-pointer-event pattern; it
 must read 0. **`nodesBy`** is the DOM node count per container (`perfDomContainers.ts`: shop, hand, board,
-FX roots, body portals, other), once a second, so the *DOM nodes by container* table can say where a leak is.
+FX roots, body portals, other), once a second, so the *DOM nodes by container* table can say where a leak is. (Since the responsive stage, `#root` sits inside `#stage`: the `portals` selector counts `#stage > :not(#root)`
+plus body children outside both; until 2026-09-30 it matched `#stage` and counted the whole game.)
 
 **The FX budget** (`fx/fxBudget.ts`, caps in `fx/fxBudgetConfig.ts`; added 2026-09-16 after a 2002 s capture
 peaked at 5,778 live particles / 80 filters with `fx:tick` at 20.2 ms): `playDef` enforces a global
@@ -172,6 +173,21 @@ render costs ≈ 0.66 µs per live particle (0.27 ms at 794 · 0.93 at 1,588 · 
 means), so 2,000 keeps `fx:tick` near 1.3 ms and still clears the largest legitimate Discover moment
 (≈ 1,860). Against the 2,673-particle Discover peak in the 2026-09-17 capture it would have retired the oldest
 plays down to ≤ 2,000 — never the burst landing now. `window.__fx.budget.scene()` reads the scene in force.
+
+**Pending load, thinning, the shop cap and the sprite cap** (2026-09-30, `docs/devlog/2026-09-30-perf-report.md`):
+the owner's 33-minute capture peaked at 8,661 live particles in a SHOP second, because admission read the pool's
+REAL live count, which lags a play fired this frame (nothing emitted yet), so a same-frame fan of seven plays all
+passed (9,317 live from a 4,000 cap, `fx:culled` 0). Now: a play still ramping (`rampMsOf`) counts at its expected
+load and is never a victim; when trimming cannot make room the incoming play is THINNED (`thinDef`: burst `count` /
+emitter `rate` only, floor `MIN_PARTICLE_SCALE` 0.35, `fx:thinned` counter), never a loop or follow; the shop has
+its own ceiling (`maxParticlesShop` 1,500, scene `'shop'` while `phase === 'recruit'`); and the hand-written sprite
+particles are capped at `MAX_SPRITE_PARTICLES` (1,200 per controller, oldest first).
+
+**Shared filter groups** (2026-09-30): a def layer's filters are per layer container, and every particle container
+carries a huge `boundsArea`, so **every filter pass is full-screen**. A persistent effect that many units wear at
+once must not carry per-play filters: pass `shareFilters` to `playDef` (`fx/sharedFilters.ts`) so all plays of the
+def draw through one filter stack. The milestone badges (14 loops, 112 passes, 16-24 ms/frame) went to 4 filters
+and ~2.7 ms. Only time-invariant filters can share (flat curves, same params on every layer).
 
 **A play's lifetime ceiling** (2026-09-17): a `playDef` play used to have one backstop against a layer that
 never completes — 15 s of wall clock. It is now `playLifetimeMs(def) / speed` (`fx/playLifetime.ts`): the def's
@@ -410,6 +426,11 @@ with HMR *and* React **StrictMode**, which double-invokes every render and effec
 (`npm run package:itch`, or `npm run build:web && npm run preview -w apps/web`) is dramatically smoother and
 is what players actually run. Always confirm a "slow" report against the prod build before chasing it — it's
 often partly the dev overhead.
+
+**Driving a PROD bundle into a measured scene:** every FX / store console handle is DEV-only, so build with
+`VITE_PERF_BENCH=1 npm run build:web` and serve with `npx vite preview --port <yours>`: `window.__bench` then holds
+the store, the FX overlay and `playDef` (`packages/ui/src/perfBench.ts`; player builds never set the variable). The
+2026-09-30 before/after numbers were taken this way, with `origin/main` + `perfBench.ts` as the baseline build.
 
 **Chrome DevTools → Performance panel** (the main tool):
 1. Open DevTools (F12) → **Performance**. Set CPU throttling to **4×** to amplify jank (or leave at none for a
@@ -750,6 +771,14 @@ These are the rules the audits surfaced; the codebase already follows them — k
   is decoded shows a blank (or white) window and then snaps: that is the pop-in friends saw on the Netlify build.
   Route art through the asset queue (`requestArt` / `preloadPlan.ts`), render it with `useArtFade` / `FadeImg`,
   and keep `_headers` shipping. See §3e.
+- **Never hit-test with `elementFromPoint` inside a pointer handler.** A hit test is a layout read. Measure the
+  candidates once per gesture and hit-test numbers (`targetRectsRef` / `insertRectsRef` for drags, `aimRectCache.ts`
+  for aims, which re-measures on a timer and on resize, outside any `input:` span). `layout:read-in-move` must read 0.
+- **Don't give a many-instance persistent effect per-play filters.** Each filter is a full-screen render-to-texture
+  pass per play per draining loop cycle (see the shared filter groups in the FX budget section).
+- **A frame that spans a hidden tab is not a frame.** rAF stops in the background, so the first interval back is the
+  whole absence; the warm-up reports it as `hiddenMs` rather than `worst`. Read a startup's `hiddenMs` before
+  chasing a multi-second "phase-start spike".
 - **`Math.random` is banned in `core`/`content`/`sim`** (determinism + replay). Tools (`perf.ts`) may use
   `performance.now()` for timing.
 

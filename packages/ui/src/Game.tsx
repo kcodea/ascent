@@ -31,6 +31,7 @@ import { EscMenu } from './EscMenu';
 import { DevMenu } from './DevMenu';
 import { EditorOverlay } from './uiEditor/EditorOverlay';
 import { setFxScene, type FxScene } from './fx/fxBudget';
+import { installPerfBench } from './perfBench';
 import { ensureDefsReady } from './fx/playDef';
 import { BugScenarioPanel } from './bug-report/BugScenarioPanel';
 import { BalancePanel } from './BalancePanel';
@@ -133,6 +134,8 @@ export function Game() {
 
   // The OS `title` tooltip never shows anywhere in the game (owner ruling 2026-09-18) — see noNativeTooltips.ts.
   useEffect(() => installNoNativeTooltips(), []);
+  // `window.__bench` on a VITE_PERF_BENCH=1 build only (perfBench.ts): prod-bundle measurement handles.
+  useEffect(() => installPerfBench(), []);
   // Load the FX primitives once, in EVERY build, so the authored defs actually play — for players as well as
   // in a dev session. This is the third of the three gates that used to keep defs off the shipped game (the
   // other two are the `import.meta.glob` in `fx/fxDefs.ts` and the dynamic import in `fx/playDef.ts`), and it

@@ -60,6 +60,10 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: 'Smoother late games: boards full of huge minions, and shops where many cards get buffed at once, no longer drop frames.',
+      },
+      {
+        category: 'Systems',
         text: 'Collection: hover a minion skin to see the card as it looks in a game, hero skins preview in the real portrait frame, and "Use default art" now shows the default look right away.',
       },
       {

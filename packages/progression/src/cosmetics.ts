@@ -357,6 +357,11 @@ export const COSMETICS: readonly CosmeticDef[] = Object.freeze([
   // striking portrait plays ball: a jump shot, a fadeaway, a pull-up three, and a self alley-oop slammed into an explosion. Four tiers, so
   // Legendary like the others. The name is the builder's placeholder for the owner to rename (the id stays).
   heroAttack('attack_basketball', 'Nothing But Net', 'legendary', 'basketball'),
+  // Owner 2026-09-30: "create a brand new attack animation that is on par with hearthstone/modern world of warcraft level
+  // animation art style performance readability and everything", theme fel / chaos bolt. A warlock's chaos bolt: one,
+  // two, two and a great bolt that sets the target burning, and a rune circle with a chaos meteor that erupts. Four
+  // tiers, so Legendary. The name is the builder's placeholder for the owner to rename (the id stays).
+  heroAttack('attack_fel', 'Chaos Bolt', 'legendary', 'fel'),
   // HERO TITLES (owner 2026-09-29), 33 heroes x (title + golden master). Achievement rewards, never in a crate.
   ...HERO_TITLE_COSMETICS,
 ]);

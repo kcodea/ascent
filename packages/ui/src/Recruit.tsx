@@ -109,6 +109,8 @@ import { playHeroBackstab } from './heroBackstab/heroBackstab';
 import { heroBackstabPreviewSpeed } from './heroBackstab/heroBackstabConfig';
 import { playHeroBasketball } from './heroBasketball/heroBasketball';
 import { heroBasketballPreviewSpeed } from './heroBasketball/heroBasketballConfig';
+import { playHeroFel } from './heroFel/heroFel';
+import { heroFelPreviewSpeed } from './heroFel/heroFelConfig';
 import { resolveHeroAttackStyle } from './heroBlast/heroAttackStyle';
 import { attackerCosmeticOf } from './heroBlast/attackerCosmetic';
 import { heroStrikeDamage, heroStrikeKnockout, heroStrikeNumbers } from './heroBlast/heroStrikeDamage';
@@ -2967,12 +2969,15 @@ export function Recruit() {
     // across the screen eight times and ends in a bloody explosion; the Rares, two tiers each: Pocket Change flicks a coin that pings and ricochets,
     // Come Back Around throws a boomerang that thwacks and is caught, Bubble Trouble pops a bubble round the face, and
     // Shadow Step fades the striker into smoke and stabs from behind; Nothing But Net: the striker plays ball, a jump shot, a
-    // fadeaway, a pull-up three and a self alley-oop slammed into an explosion). Same blow, same consequence, only drawn differently;
+    // fadeaway, a pull-up three and a self alley-oop slammed into an explosion; Chaos Bolt: fel bolts in dark crackling shells, and
+    // the top tier opens a rune circle over the target that a chaos meteor falls into and erupts). Same blow, same consequence, only drawn differently;
     // the style is the ATTACKER's (their equipped cosmetic, or the dev override). Every runner takes the same options
     // (`heroAttack/options.ts`).
     const attackStyle = resolveHeroAttackStyle({ attacker: side, attackerCosmeticId: attackerCosmeticOf(run0, side, useGame.getState().showOpponentSkins) });
     if (attackStyle !== 'classic') {
-      const runner = attackStyle === 'basketball'
+      const runner = attackStyle === 'fel'
+        ? { play: playHeroFel, preview: heroFelPreviewSpeed() }
+        : attackStyle === 'basketball'
         ? { play: playHeroBasketball, preview: heroBasketballPreviewSpeed() }
         : attackStyle === 'backstab'
         ? { play: playHeroBackstab, preview: heroBackstabPreviewSpeed() }

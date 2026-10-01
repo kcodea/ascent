@@ -1,6 +1,7 @@
 import type { CSSProperties, RefObject } from 'react';
 import { rankArt } from '../art';
 import { Icon } from '../Icon';
+import { FadeImg } from '../FadeImg';
 import { barFraction, pointsText, rankLabel, standingGateText } from './rankFormat';
 import { divisionNumeralOf, isPromotionReady, medalOf, type RankPosition } from './types';
 
@@ -42,7 +43,7 @@ export function RankCrest({ divisionIndex, size = 'row', className = '', style, 
     <div className={`rankcrest portring rankcrest-${size} rankcrest-${medal.toLowerCase()} ${className}`.trim()} style={style} ref={crestRef} aria-hidden="true">
       <div className="hero">
         <div className="f">
-          {art ? <img decoding="sync" className="heroimg" src={art} alt="" draggable={false} /> : <Icon name="crown" />}
+          {art ? <FadeImg className="heroimg" src={art} alt="" draggable={false} /> : <Icon name="crown" />}
         </div>
       </div>
       {!hideDivision && <span className="rankcrest-plate">{divisionNumeralOf(divisionIndex)}</span>}

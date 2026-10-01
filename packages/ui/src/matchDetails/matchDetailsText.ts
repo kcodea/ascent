@@ -55,6 +55,11 @@ export function summaryText(d: MatchDetails): string {
   return youWon(d) ? `You won in round ${d.endRound}.` : `You placed ${ordinalOf(d.placement)}. Round ${d.endRound}.`;
 }
 
+/** BOARD STRENGTH (R-LOBBY-09): "Board strength 72", or null when the seat was not scored (show nothing). */
+export function strengthLabel(seat: Pick<MatchSeat, 'strength'>): string | null {
+  return typeof seat.strength === 'number' ? `Board strength ${seat.strength}` : null;
+}
+
 /** Shown where a stored match has no details (recorded before this feature, or never uploaded). */
 export const NO_DETAILS_TEXT = 'Details weren’t recorded for this match.';
 

@@ -215,8 +215,72 @@ export const COSMETICS: readonly CosmeticDef[] = Object.freeze([
   skin('skin_sylus_2', 'minion_skin', 'Tee Time Sylus', 'legendary', 'sylus', 'SylusSkinLegendary.png'),
   skin('skin_venom_1', 'minion_skin', 'Candy Cane Venom', 'epic', 'venom', 'VenomSkinEpic.png'),
   skin('skin_zyff_1', 'minion_skin', 'Double Agent Zyff', 'rare', 'zyff', 'ZyffSkinRare.png'),
+  // Batch 3. Owner 2026-09-29: "added a few more hero and minion skins - i want to name them appropriately and then
+  // decide rarities". Rarities are the owner's; names are matched to the art. King Oona is the Set 2 card (b2_oona).
+  skin('skin_oona_1', 'minion_skin', 'Rooks Oona', 'epic', 'b2_oona', 'RooksOona.png'),
+  skin('skin_sylus_3', 'minion_skin', 'Stencil Sylus', 'rare', 'sylus', 'StencilSylus.png'),
+  skin('skin_seaurchin_1', 'minion_skin', 'Mace Urchin', 'rare', 'seaurchin', 'MaceUrchin.png'),
+  skin('skin_buddy_1', 'minion_skin', 'Magician Buddy Buddy', 'epic', 'buddy', 'MagicianBuddyBuddyEpic.png'),
+  // Batch 4. Owner 2026-09-30: "can you wire all the new skins that i added to the folder". Rarity from the filename
+  // suffix; the two minion masters with none (Prophet Pimm, Sketch Drakko) took the owner's random draw between Common
+  // and Epic. Names come from the filenames; the "<Character>Skin<Rarity>" masters were named from the art. Scalefeather
+  // is the card d2_chronicler (d2_scalefeather is Mushy); Lavish Date is Cheap Date (k_pouchpincher); Edward is Edward
+  // Keg-hands; Orin is Oathshield Orin. Chimerus (the Dragon quest reward) and Baal (forged by the Rune of Baal) are
+  // token-flagged because the Shop never offers them, but they are real minions a player puts on the board.
+  skin('skin_arnold_1', 'minion_skin', 'Beefy Arnold', 'common', 'dw_arnold', 'BeefyArnoldCommon.png'),
+  skin('skin_recaller_1', 'minion_skin', 'Blown Glass Recaller', 'epic', 'd2_recaller', 'BlownGlassRecallerEpic.png'),
+  skin('skin_recaller_2', 'minion_skin', 'Magma Recaller', 'rare', 'd2_recaller', 'MagmaRecallerRare.png'),
+  skin('skin_recaller_3', 'minion_skin', 'Starform Recaller', 'rare', 'd2_recaller', 'StarformRecallerRare.png'),
+  skin('skin_pimm_1', 'minion_skin', 'Bouncer Pimm', 'rare', 'dw_pimm', 'BouncerPimmRare.png'),
+  skin('skin_pimm_2', 'minion_skin', 'Prophet Pimm', 'epic', 'dw_pimm', 'ProphetPimm.png'),
+  skin('skin_chimerus_1', 'minion_skin', 'Crimson Chimerus', 'rare', 'chimerus', 'ChimerusSkinRare.png'),
+  skin('skin_chronicler_1', 'minion_skin', 'Chrome Scalefeather', 'rare', 'd2_chronicler', 'ChromeScalefeatherRare.png'),
+  skin('skin_chronicler_2', 'minion_skin', 'Mecha Scalefeather', 'epic', 'd2_chronicler', 'MechaScalefeatherEpic.png'),
+  skin('skin_edward_1', 'minion_skin', 'Edward Colada Hands', 'legendary', 'dw_edward', 'EdwardColadaHandsLegendary.png'),
+  skin('skin_baal_1', 'minion_skin', 'Epic Baal', 'rare', 'dw_baal', 'EpicBaalRare.png'),
+  skin('skin_pouchpincher_1', 'minion_skin', 'Lavish Date', 'epic', 'k_pouchpincher', 'LavishDateEpic.png'),
+  skin('skin_buddy_2', 'minion_skin', 'Portal Buddy', 'legendary', 'buddy', 'PortalBuddyLegendary.png'),
+  skin('skin_buddy_3', 'minion_skin', 'Sketch Buddy', 'legendary', 'buddy', 'SketchBuddyLegendary.png'),
+  skin('skin_drummer_4', 'minion_skin', 'Sketch Drakko', 'rare', 'drummer', 'SketchDrakko.png'),
+  skin('skin_orin_1', 'minion_skin', 'Thor Orin', 'epic', 'dw_orin', 'ThorOrinEpic.png'),
+  // Batch 5. Owner 2026-09-30: "i added more skins". Names come from the filenames; three over the 20-character cap
+  // were shortened (Lightblade Sword, Soul Surf Wayfinder, Hexhunter Wardkeeper). Rarities are the owner's random draw
+  // between Common and Epic. Spellsword is Coppercoat Spellsword (n2_spellsword), Butcher is Contract Butcher
+  // (dm_butcher), Chorusdrake is Chorus Drake (d2_chorus), Scalefeather is d2_chronicler.
+  skin('skin_nimbus_2', 'minion_skin', 'Cotton Candy Nimbus', 'common', 'nimbus', 'CottonCandyNimbus.png'),
+  skin('skin_nimbus_3', 'minion_skin', 'Dark Nimbus', 'rare', 'nimbus', 'DarkNimbus.jpg'),
+  skin('skin_nimbus_4', 'minion_skin', 'Smog Nimbus', 'common', 'nimbus', 'SmogNimbus.png'),
+  skin('skin_spellsword_1', 'minion_skin', 'Lightblade Sword', 'rare', 'n2_spellsword', 'LightbladeSpellsword.png'),
+  skin('skin_chronicler_3', 'minion_skin', 'Mascot Scalefeather', 'rare', 'd2_chronicler', 'MascotScalefeather.png'),
+  skin('skin_joker_2', 'minion_skin', 'Mime Joker', 'common', 'joker', 'MimeJoker.png'),
+  skin('skin_butcher_1', 'minion_skin', 'Pastry Chef Butcher', 'rare', 'dm_butcher', 'PastryChefButcher.png'),
+  skin('skin_chorus_1', 'minion_skin', 'Quartet Chorusdrake', 'rare', 'd2_chorus', 'QuartetChorusdrake.jpg'),
+  skin('skin_wayfinder_1', 'minion_skin', 'Soul Surf Wayfinder', 'rare', 'wayfinder', 'SoulSurferWayfinder.png'),
+  skin('skin_seaurchin_2', 'minion_skin', 'Star Urchin', 'epic', 'seaurchin', 'StarUrchin.png'),
+  skin('skin_wardkeeper_1', 'minion_skin', 'Hexhunter Wardkeeper', 'rare', 'dw_wardkeeper', 'WitchHunterWardkeeper.png'),
   skin('skin_albus_1', 'hero_skin', 'Surf Day Albus', 'epic', 'albus', 'Albus1.png'),
   skin('skin_warden_1', 'hero_skin', 'Bath Day Warden', 'epic', 'warden', 'Warden1.png'),
+  skin('skin_frank_1', 'hero_skin', 'Armourer Frank', 'common', 'frank', 'ArmourerFrank.png'),
+  // Batch 4 hero skins (owner 2026-09-30). Ayse is the hero cia, Braum is bram. The eight masters with no rarity in
+  // the name took the owner's random draw between Common and Epic.
+  skin('skin_cia_1', 'hero_skin', 'Waitress Ayse', 'common', 'cia', 'AyseSkinCommon.png'),
+  skin('skin_cia_2', 'hero_skin', 'Raptor Rider Ayse', 'rare', 'cia', 'AyseSkinRare.png'),
+  skin('skin_frank_2', 'hero_skin', 'Black Friday Frank', 'epic', 'frank', 'BlackFridayFrank.jpg'),
+  skin('skin_frank_3', 'hero_skin', 'Coaster Frank', 'rare', 'frank', 'CoasterFrank.png'),
+  skin('skin_bram_1', 'hero_skin', 'Treasure Hoard Braum', 'rare', 'bram', 'BraumSkinRare.png'),
+  skin('skin_darah_1', 'hero_skin', 'Leg Day Darah', 'epic', 'darah', 'DarahSkinEpic.png'),
+  skin('skin_darah_2', 'hero_skin', 'Rose Vortex Darah', 'rare', 'darah', 'DarahSkinRare.png'),
+  skin('skin_emeraldwarden_1', 'hero_skin', 'Birdsong Emerald', 'rare', 'emeraldwarden', 'EmeraldWardenSkinRare.png'),
+  skin('skin_hunch_1', 'hero_skin', 'Dance Night Hunch', 'rare', 'hunch', 'HunchSkinRare.png'),
+  skin('skin_keshi_1', 'hero_skin', 'Keshi the Cityguard', 'epic', 'keshi', 'KeshiTheCityguard.png'),
+  skin('skin_keshi_2', 'hero_skin', 'Pop Star Keshi', 'epic', 'keshi', 'PopStarKeshi.png'),
+  skin('skin_soren_1', 'hero_skin', 'King Soren', 'epic', 'soren', 'KingSorenEpic.png'),
+  skin('skin_soren_2', 'hero_skin', 'Mastered Soren', 'common', 'soren', 'MasteredSoren.png'),
+  skin('skin_brackus_1', 'hero_skin', 'Master Brakkus', 'epic', 'brackus', 'MasterBrakkus.png'),
+  skin('skin_brackus_2', 'hero_skin', 'Young Brakkus', 'common', 'brackus', 'YoungBrakkus.png'),
+  skin('skin_robin_1', 'hero_skin', 'Ninja Robin', 'common', 'robin', 'NinjaRobin.png'),
+  // Batch 5 hero skin (owner 2026-09-30: "i added more skins"). Rare by the owner's random draw.
+  skin('skin_indy_1', 'hero_skin', 'Influencer Indy', 'rare', 'indy', 'InfluencerIndy.png'),
   // HERO ATTACKS. Owner 2026-09-28: "the new blast attack is going to be a cosmetic unlock, not a new default". The
   // numbers combine, the hero charges, the view shakes and pushes in, bolts carry the blow. Then, on seeing it: "those
   // are good thresholds, this blast animation looks good! make it a legendary reward" (Epic -> Legendary). The name is
@@ -305,6 +369,11 @@ export const COSMETICS: readonly CosmeticDef[] = Object.freeze([
   // Owner 2026-09-29: "add a stealth backstab attack to the rare branch. portrait fades and attacks from behind the
   // target back towards the player portrait and settles".
   heroAttack('attack_backstab', 'Shadow Step', 'rare', 'backstab'),
+  // Owner 2026-09-29: "branch off and make a basketball attack animation. tier 1 = basketball shot from place / tier 2 = a
+  // fadeaway ... / tier 4 = a self alley oop" (reviewed: III a pull-up three, IV a throw that bounces high, a leap, a slam). The
+  // striking portrait plays ball: a jump shot, a fadeaway, a pull-up three, and a self alley-oop slammed into an explosion. Four tiers, so
+  // Legendary like the others. The name is the builder's placeholder for the owner to rename (the id stays).
+  heroAttack('attack_basketball', 'Nothing But Net', 'legendary', 'basketball'),
   // HERO TITLES (owner 2026-09-29), 33 heroes x (title + golden master). Achievement rewards, never in a crate.
   ...HERO_TITLE_COSMETICS,
 ]);

@@ -231,15 +231,19 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'on the fetch (a delayed insert would miss settle_rank\'s rank stamp for good). It is shown only after '
       + 'the game, on the Career match rows and the Recent Games '
       + 'rows, as a percentage with no tier word ("47%", owner 2026-09-22; the tier is stored, never printed); never on the post-game screen, never on the rail before '
-      + 'or during a game. A run with no stamp shows nothing rather than a guess.',
+      + 'or during a game. A run with no stamp shows nothing rather than a guess. HIDDEN FOR NOW (owner 2026-09-30): '
+      + 'the readout is switched off on every surface by one flag (`SHOW_LOBBY_STRENGTH = false`, '
+      + 'packages/ui/src/lobbyStrengthDisplay.ts) while the number is improved; the value is still computed, stamped '
+      + 'and uploaded, and the placement above is where it returns when the flag is flipped back.',
     domain: 'foundation',
     status: 'approved',
     evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-30 (hide lobby strength)', quote: 'we can hide the lobby% number for now since it doesnt seem to be working too well at the moment.' },
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-22 (lobby strength as a percentage)', quote: 'can you remove the easy/medium/hard etc and just have it say for example, 47% since its basically a percentile.' },
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-22 (lobby strength)', quote: 'make an algorithm that can essentially assign a lobby strength value/indicator … we can then make winning really difficult lobbies more rewarding' },
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-22 (scoping answers)', quote: 'we dont want to use rank as a metric. we want to use raw data on win rate across all rounds served for the board. rank is not important right now as a factor in this small playtest. eventually it will be' },
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-22 (scoping answers)', quote: 'both, but put it in the career page match results instead of post game information … no only post game in careers and recent games pages' },
-      { kind: 'code', ref: 'packages/sim/src/lobbyStrength.ts (lobbyStrengthOf, STRENGTH_TIERS); supabase/functions/_shared/lobbyRating.ts lobbyStrengthValue; settle_rank step 5 in supabase/migrations/2026-09-22-fight-ledger.sql; packages/ui/src/Career.tsx + RecentGames.tsx' },
+      { kind: 'code', ref: 'packages/sim/src/lobbyStrength.ts (lobbyStrengthOf, STRENGTH_TIERS); supabase/functions/_shared/lobbyRating.ts lobbyStrengthValue; settle_rank step 5 in supabase/migrations/2026-09-22-fight-ledger.sql; packages/ui/src/Career.tsx + RecentGames.tsx (gated by packages/ui/src/lobbyStrengthDisplay.ts SHOW_LOBBY_STRENGTH)' },
     ],
     currentBehaviour:
       'Conforms as of 2026-09-22 (the feature branch). The prior (10 in 20) and the identity mapping are the '
@@ -464,10 +468,12 @@ export const FOUNDATION_RULES: GameRule[] = [
       + '`lobby_seed <> p_seed`; the client subtracts the rows it is about to upload from what the view reports), '
       + 'so the Career row (the server\'s stamp) and the Recent Games row (the client\'s stamp) print the same '
       + 'number and that number never depends on how the game itself went. It is printed as a percentage with no '
-      + 'tier word ("47%") on every surface; the tier is stored, never shown.',
+      + 'tier word ("47%") on every surface; the tier is stored, never shown. The printed readout is HIDDEN FOR NOW '
+      + '(owner 2026-09-30, `SHOW_LOBBY_STRENGTH = false`); both stamps are still computed and must still agree.',
     domain: 'foundation',
     status: 'approved',
     evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-30 (hide lobby strength)', quote: 'we can hide the lobby% number for now since it doesnt seem to be working too well at the moment.' },
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-22 (lobby strength 47 vs 50)', quote: 'the lobby difficulty shows 47 in my career and 50 in recent games, why' },
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-22 (lobby strength as a percentage)', quote: 'can you remove the easy/medium/hard etc and just have it say for example, 47% since its basically a percentile.' },
       { kind: 'code', ref: 'packages/sim/src/lobbyStrength.ts excludeOwnFights + strengthText; packages/ui/src/remoteBoards.ts fetchLobbyStrength(keys, ownRows); packages/ui/src/store.ts the run-end tick; supabase/migrations/2026-09-22-lobby-strength-going-in.sql settle_rank step 5' },
@@ -555,6 +561,183 @@ export const FOUNDATION_RULES: GameRule[] = [
       kind: 'scenario',
       refs: ['packages/ui/src/opponentPool/poolLoader.test.ts', 'packages/ui/src/opponentPool/PoolWaitPanel.test.tsx', 'packages/sim/src/lobby/poolLoadRepro.test.ts', 'packages/ui/src/rank/unratedLobby.test.ts', 'packages/ui/src/rank/RankScreen.test.tsx'],
       lastVerifiedAt: '2026-09-28',
+    },
+  },
+  {
+    id: 'R-LOBBY-07',
+    title: 'A recorded seat never brings a board from later in its run than the round being played',
+    statement:
+      'A real player run takes a lobby seat only when its recording covers the rounds it will be asked for: its '
+      + 'first board is at wave 1 or 2 and it never skips more than one wave in a row (a single missing wave is '
+      + 'normal, because an empty board is not uploaded). A run with its early waves missing, or a multi-wave '
+      + 'hole, is incomplete material and is not seated; the next run in the shuffle takes the seat. A run is '
+      + 'also not seated when any of its boards shows a shop tier above what a real game could reach by that '
+      + 'wave: the tier from spending every Gold of the base economy on tavern-ups, plus two tiers of slack '
+      + '(3 at wave 1, 4 at waves 2 and 3, 5 at wave 4, 6 from wave 5). The rule lives in seat selection '
+      + '(`playerRunsFrom`), so a restored lobby resolves its seats the same way. A GENERATED seat recording '
+      + '(`autoplayRun`) buys the first rune it can afford at every Runeforge instead of skipping it, so from '
+      + 'round 6 a generated opponent owns a rune like a real player does.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      {
+        kind: 'owner-chat',
+        ref: 'Claude Code session, 2026-09-29 (round-5 seven-Beast board)',
+        quote: 'my friend is playing a game and just faced this board on turn 5 which is clearly wrong. can you look into this?',
+      },
+      {
+        kind: 'owner-chat',
+        ref: 'Claude Code session, 2026-09-29 (round-6 opponent with no rune)',
+        quote: 'on round 6 he just faced a player without a rune too. something is wrong with our snapshots',
+      },
+      { kind: 'code', ref: 'packages/sim/src/snapshot.ts autoplayRun (runeforgeOffer branch); packages/sim/src/lobby/snapshotSeats.ts runCoversItsRounds + maxPlausibleTier + playerRunsFrom; packages/ui/src/remoteBoards.ts opponentPoolLoader (newest 120 boards per wave)' },
+    ],
+    currentBehaviour:
+      'Conforms as of 2026-09-29. Before the fix the client pulled the newest 120 boards of each wave, and the '
+      + 'early waves hold far more rows than the late ones, so an older run (Orangez, Soren, seed 1129878061, '
+      + 'uploaded 2026-08-22) arrived with only its waves 10 to 17. That still passed the 4-wave minimum, and on '
+      + 'round 5 its seat served "the earliest board it has": the wave-10 board, tier 6, seven Beasts. 17 of 146 '
+      + 'live runs were cut this way. The boards themselves were genuine (not Practice, sandbox or dev-altered). '
+      + 'The same holes explain a rune-less opponent on round 6: a run kept as waves 1 to 4 then 8 on served its '
+      + 'wave-4 board (no rune yet) on rounds 5 to 7, while every wave-6 board in the pool (145 of 145) carries a '
+      + 'rune. Generated seats also never had one: their recording skipped every Runeforge.',
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/sim/src/lobby/runCoverage.test.ts'],
+      lastVerifiedAt: '2026-09-29',
+    },
+  },
+  {
+    id: 'R-LOBBY-08',
+    title: 'The opponent pool is made of whole runs, drawn uniformly at random, and a seat serves its own board for the round',
+    statement:
+      'The shared opponent pool reaches the client as WHOLE RUNS: the server (`pool_runs_sample`) draws a uniform '
+      + 'random sample of the eligible runs of the set and build version (every run equally likely, however old; no '
+      + 'recency, no weighting) and returns each with ALL of its boards, one row per run. A run that arrives '
+      + 'incomplete, or holds a board this build cannot serve, is refused whole, and the local cache stores whole '
+      + 'runs only. A recorded seat serves the OWN board of that run for the round: a single missing wave (an empty '
+      + 'board is not uploaded) serves the previous board, and a run starting at wave 2 serves that board in round 1; '
+      + 'nothing further ahead, ever. Past the end of the run the lobby serves its final board (the stale-final-board '
+      + 'rule). Seat selection stays a uniform shuffle, with two filters that do not weight it: one player holds at '
+      + 'most 4 seats (a run over the cap is passed over for the next), and that cap is the only limit on the '
+      + 'player\'s OWN runs: they sit at their own table like anyone else\'s, at most 4 of the 7 seats. A player is '
+      + 'their account id, else their display name.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      {
+        kind: 'owner-chat',
+        ref: 'Claude Code session, 2026-09-29 (pool snapshot bug)',
+        quote: "isnt it just replaying snapshots from the player's game?",
+      },
+      {
+        kind: 'owner-chat',
+        ref: 'Claude Code session, 2026-09-29 (root-cause fix ask)',
+        quote: 'make sure this is firmly fixed and will be scalable and a non issue moving forward',
+      },
+      {
+        kind: 'owner-chat',
+        ref: 'Claude Code session, 2026-09-29 (selection)',
+        quote: 'i want opponent snapshots to be completely random but i want them to be accurate. i dont want more recent boards to show up just cause they are recent. i want them random from all snapshots in the pool',
+      },
+      {
+        kind: 'owner-chat',
+        ref: 'Claude Code session, 2026-09-29 (seat cap)',
+        quote: "let's have a cap of 4 snapshots from a player i guess, so it's not literally like 7 of me always or something",
+      },
+      {
+        kind: 'owner-chat',
+        ref: 'Owner ruling 2026-09-30, relayed verbatim by the coordinator (own runs at your own table)',
+        quote: 'this is a problem - you should face your own boards too. you should also be able to occupy up to 4 of your own snapshots. please fix this',
+      },
+      { kind: 'code', ref: 'supabase/migrations/2026-09-29-pool-whole-runs.sql (pool_runs + pool_runs_sample); packages/ui/src/opponentPool/poolFetch.ts + poolLoader.ts (isWholeRun, cache v2); packages/sim/src/opponents.ts registerOpponentRuns; packages/sim/src/lobby/seats.ts boardAt; packages/sim/src/lobby/runLobby.ts createRunLobby (MAX_SEATS_PER_PLAYER; no own-run exclusion since 2026-09-30)' },
+    ],
+    currentBehaviour:
+      'Conforms as of 2026-09-29. Before it the client pulled the newest 120 boards of each wave and glued them '
+      + 'into runs; early waves hold more rows than late ones, so on the live pool 30 of 150 runs arrived cut '
+      + '(and 1 not at all) and a seat served a wave-10 board on round 5. R-LOBBY-07 (seat eligibility) stays as '
+      + 'defence in depth. 2026-09-30: the own-run exclusion of 2026-09-29 was removed (the client sends '
+      + 'p_exclude_user null; the SQL parameter stays, defaulting to null).',
+    enforcement: {
+      kind: 'scenario',
+      refs: [
+        'packages/sim/src/lobby/poolRuns.db.test.ts',
+        'packages/sim/src/lobby/poolWholeRuns.test.ts',
+        'packages/ui/src/opponentPool/poolFetch.test.ts',
+        'packages/ui/src/opponentPool/poolLoader.test.ts',
+      ],
+      lastVerifiedAt: '2026-09-29',
+    },
+  },
+  {
+    id: 'R-LOBBY-09',
+    title: 'Board strength: a 1-100 percentile per board and per run, matchmaking bands by rank, and the frozen number in match history',
+    statement:
+      'Every board a rated lobby uploads is scored: its RAW strength is its win rate (win 1, draw 0.5) against a frozen, '
+      + 'versioned reference set of ~30 real boards of its wave (two seeded fights each, the board once on each side, '
+      + 'both sides fought through the recorded-seat combat side), stored permanently with the board. Its PERCENTILE '
+      + '(1-100) is its place among every scored board at the same reference wave (ties half; 72 = stronger than 72%), '
+      + 'derived, never stored. A run\'s strength is a percentile among RUNS: the average of its boards\' percentiles, '
+      + 'ranked against every other run\'s average in the set by the same rule, so 30 means the bottom 30% of runs and '
+      + 'each band holds about its nominal share (owner-approved follow-up: averages alone squeezed toward 50). A RATED lobby draws its '
+      + 'recorded seats uniformly at random from the runs inside the band of the player\'s medal (Bronze 0-30, Silver '
+      + '10-40, Gold 20-65, Platinum uncapped, Diamond 10-100, Ascendant 20-100, so the upper medals average about 50, '
+      + '55 and 60; every division of a medal shares it; a floor-only band widens by lowering its floor), still whole runs, at '
+      + 'most 4 seats per player (the player\'s own runs included, under the same cap). A run with no score yet is inside every band. When a '
+      + 'band cannot fill the table it widens by 10 on each capped side, step by step (each step logged), before '
+      + 'generated seats fill the rest. Practice and the tutorial have no band. The player\'s own game shows '
+      + '"Board strength N" (the run\'s strength) in the Career and Recent Games rows and in Match details (with each '
+      + 'round\'s board percentile and each opponent seat\'s run strength), frozen at the moment the game ended; a '
+      + 'game that was not scored shows nothing.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      {
+        kind: 'owner-chat',
+        ref: 'Claude Code session, 2026-09-30 (board strength design)',
+        quote: "can we build an algorithm for board strength to get as good of an idea of how strong a snapshot's run is, and assign it a 1-100 value?",
+      },
+      {
+        kind: 'owner-chat',
+        ref: 'Claude Code session, 2026-09-30 (bands)',
+        quote: 'serve for example 0-30 for bronze, 10-40 in silver, 20-65 in gold, and then uncap plat?',
+      },
+      {
+        kind: 'owner-chat',
+        ref: 'Claude Code session, 2026-09-30 (percentile)',
+        quote: '72 would basically mean like... a 72/100 aka 72nd percentile',
+      },
+      {
+        kind: 'owner-chat',
+        ref: 'Claude Code session, 2026-09-30 (show it)',
+        quote: 'can we show that score to the player too maybe? like maybe that is shown in match history?',
+      },
+      {
+        kind: 'owner-chat',
+        ref: 'Owner decision on the upper ranks for PR #1871, relayed verbatim by the coordinator, 2026-09-30',
+        quote: 'maybe plat should be 50 and then diamond is like 55 average and ascendant is 60 average? i dont want every game to just be insanely sweaty and unwinnable',
+      },
+      {
+        kind: 'owner-chat',
+        ref: 'Owner approval of the suggested fix on PR #1871, relayed by the coordinator, 2026-09-30 (run strength ranked among runs)',
+        quote: 'make a RUN\'s strength a true percentile among runs',
+      },
+      { kind: 'code', ref: 'packages/sim/src/lobby/boardStrength.ts + strengthBands.ts + strengthReference.v1.json; packages/sim/src/lobby/runLobby.ts createRunLobby (strengthBand); packages/ui/src/boardStrength/ (background scorer); packages/ui/src/opponentPool/poolFetch.ts (band + widening); supabase/migrations/2026-09-30-board-strength.sql' },
+    ],
+    currentBehaviour:
+      'Built 2026-09-30. The bands switch on by themselves once the owner has run the SQL and the backfill: before, '
+      + 'the RPC takes no band (feature-detected, the band is dropped for the session) and every run is unscored, '
+      + 'so selection is exactly R-LOBBY-08\'s.',
+    enforcement: {
+      kind: 'scenario',
+      refs: [
+        'packages/sim/src/lobby/boardStrength.test.ts',
+        'packages/sim/src/lobby/boardStrength.db.test.ts',
+        'packages/sim/src/lobby/strengthBands.test.ts',
+        'packages/ui/src/boardStrength/boardStrength.test.ts',
+        'packages/ui/src/boardStrength/runEndStrength.test.ts',
+      ],
+      lastVerifiedAt: '2026-09-30',
     },
   },
   {
@@ -1765,6 +1948,28 @@ export const FOUNDATION_RULES: GameRule[] = [
     enforcement: { kind: 'scenario', refs: ['packages/progression/src/sqlParity.test.ts', 'packages/progression/src/rules.test.ts', 'packages/ui/src/progression/ProgressionPostgame.test.tsx', 'packages/ui/src/Career.test.tsx'], lastVerifiedAt: '2026-09-27' },
   },
   {
+    id: 'R-PROG-GUEST-01',
+    title: 'A guest sees a slow-blinking "Sign in!" button left of their portrait, and must sign in to change the portrait',
+    statement:
+      'On the main menu, a guest (an anonymous account) sees a "Sign in!" button just left of their portrait in the top-right '
+      + 'account corner. It blinks slowly (a glow that breathes on about a 2.4 second cycle; still under reduced motion) and '
+      + 'opens the account panel, which upgrades the guest in place. It is gone the moment the account is real, with no reload, '
+      + 'and it never shows when there is no account backend or no session (nothing to sign into). A guest cannot change their '
+      + 'portrait: clicking it opens a "Sign in to change your portrait" prompt (Not now / Create account) instead of the avatar '
+      + 'picker, the picker refuses to render for a guest, and with no backend the prompt says accounts are unavailable. A '
+      + 'signed-in player changes their portrait as before. Client-side only.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-29 (guest sign-in button)', quote: 'add a "sign in!" button that slow flashes/blinks in the top right to the left of the player icon/name. don\x27t let non-signed in players change the portrait either, they need to sign in for that.' },
+      { kind: 'code', ref: 'packages/ui/src/GuestSignIn.tsx (GuestSignInButton, PortraitSignInGate, accountsAvailable); packages/ui/src/Title.tsx (the account corner); packages/ui/src/AvatarPicker.tsx (the guest guard); styles.css .guestsignin / guestsigninblink' },
+    ],
+    currentBehaviour:
+      'Conforms, built 2026-09-29. The title account corner is the only place the player identity and the portrait picker '
+      + 'live. The chosen portrait itself is still stored on the device (localStorage); the gate is a client-side nudge, not a server check.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/GuestSignIn.test.tsx'], lastVerifiedAt: '2026-09-29' },
+  },
+  {
     id: 'R-PROG-NEWREWARDS-01',
     title: 'The end screen stays short; achievements, titles and crates wait in a one-time New rewards pop-up in the Collection',
     statement:
@@ -2094,6 +2299,78 @@ export const FOUNDATION_RULES: GameRule[] = [
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/skins/skins.test.tsx', 'packages/progression/src/skins.test.ts', 'packages/progression/src/cosmetics.test.ts', 'packages/ui/src/progression/CollectionSkins.test.tsx'], lastVerifiedAt: '2026-09-28' },
   },
   {
+    id: 'R-PROG-SKINS-08',
+    title: 'Skins batch 3: four minion skins and the first Frantic Frank hero skin join the crates, rarities by the owner',
+    statement:
+      'Five skins are crate items, each targeting its card or hero by stable id and shipping its own art '
+      + '(packages/ui/src/art/skins/<id>.webp): skin_oona_1 "Rooks Oona" (Epic, King Oona b2_oona; master RooksOona.png), '
+      + 'skin_sylus_3 "Stencil Sylus" (Rare, Sylus; StencilSylus.png), skin_seaurchin_1 "Mace Urchin" (Rare, '
+      + 'Sea Urchin; MaceUrchin.png), skin_buddy_1 "Magician Buddy Buddy" (Epic, Buddy Buddy; MagicianBuddyBuddyEpic.png) and '
+      + 'the hero skin skin_frank_1 "Armourer Frank" (Common, hero frank; ArmourerFrank.png). Rarities are the '
+      + 'owner picks; names are matched to the art. With them in, a first crate holds 9 Common, 19 Rare, 14 Epic and 16 '
+      + 'Legendary items (each Common 5.556%, Rare 1.579%, Epic 1.071%, Legendary 0.313%).',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-29 (skins batch 3)', quote: 'added a few more hero and minion skins - i want to name them appropriately and then decide rarities' },
+      { kind: 'code', ref: 'packages/progression/src/cosmetics.ts (COSMETICS, skins batch 3); packages/ui/src/art/skins/*.webp' },
+    ],
+    currentBehaviour: 'Conforms, built 2026-09-29. Reaches the database on the next deploy of progression-inventory (the catalog sync, R-PROG-SKINS-05).',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/skins/skins.test.tsx', 'packages/progression/src/skins.test.ts', 'packages/progression/src/cosmetics.test.ts', 'packages/ui/src/progression/CollectionSkins.test.tsx'], lastVerifiedAt: '2026-09-29' },
+  },
+  {
+    id: 'R-PROG-SKINS-09',
+    title: 'Skins batch 4: sixteen minion skins and sixteen hero skins join the crates',
+    statement:
+      'Thirty-two skins are crate items, each targeting its card or hero by stable id and shipping its own art '
+      + '(packages/ui/src/art/skins/<id>.webp, 512px WebP). Minion skins: Beefy Arnold (Common, dw_arnold); Blown Glass '
+      + 'Recaller (Epic), Magma Recaller and Starform Recaller (Rare) (d2_recaller); Bouncer Pimm (Rare) and Prophet Pimm '
+      + '(Epic) (dw_pimm); Crimson Chimerus (Rare, chimerus); Chrome Scalefeather (Rare) and Mecha Scalefeather (Epic) '
+      + '(d2_chronicler, the card named Scalefeather); Edward Colada Hands (Legendary, dw_edward); Epic Baal (Rare, dw_baal); '
+      + 'Lavish Date (Epic, k_pouchpincher, Cheap Date); Portal Buddy and Sketch Buddy (Legendary, buddy); Sketch Drakko '
+      + '(Rare, drummer); Thor Orin (Epic, dw_orin). Hero skins: Waitress Ayse (Common) and Raptor Rider Ayse (Rare) (cia); '
+      + 'Black Friday Frank (Epic) and Coaster Frank (Rare) (frank); Treasure Hoard Braum (Rare, bram); Leg Day Darah (Epic) '
+      + 'and Rose Vortex Darah (Rare) (darah); Birdsong Emerald (Rare, emeraldwarden); Dance Night Hunch (Rare, hunch); '
+      + 'Keshi the Cityguard and Pop Star Keshi (Epic, keshi); King Soren (Epic) and Mastered Soren (Common) (soren); Master '
+      + 'Brakkus (Epic) and Young Brakkus (Common) (brackus); Ninja Robin (Common, robin). Rarity comes from the master\x27s '
+      + 'filename; the ten masters with none took the owner\x27s random draw between Common and Epic. Chimerus (the Dragon '
+      + 'quest reward) and Baal (forged by the Rune of Baal) are token-flagged cards the Shop never offers, and are the two '
+      + 'token targets a skin may name. With them in, a first crate holds 14 Common, 32 Rare, 25 Epic and 20 Legendary '
+      + 'items (each Common 3.571%, Rare 0.938%, Epic 0.6%, Legendary 0.25%).',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-30 (skins batch 4)', quote: 'can you wire all the new skins that i added to the folder' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-30 (skins batch 4, relayed)', quote: 'randomize the ten unlabelled skins between common and epic' },
+      { kind: 'code', ref: 'packages/progression/src/cosmetics.ts (COSMETICS, skins batch 4); packages/ui/src/art/skins/*.webp' },
+    ],
+    currentBehaviour: 'Conforms, built 2026-09-30. Reaches the database on the next deploy of progression-inventory (the catalog sync, R-PROG-SKINS-05).',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/skins/skins.test.tsx', 'packages/progression/src/skins.test.ts', 'packages/progression/src/cosmetics.test.ts', 'packages/ui/src/progression/CollectionSkins.test.tsx'], lastVerifiedAt: '2026-09-30' },
+  },
+  {
+    id: 'R-PROG-SKINS-10',
+    title: 'Skins batch 5: eleven minion skins and an Indy hero skin join the crates',
+    statement:
+      'Twelve skins are crate items, each targeting its card or hero by stable id and shipping its own art (a 512px WebP '
+      + 'in packages/ui/src/art/skins/). Minion skins: Cotton Candy Nimbus (Common), Dark Nimbus (Rare) and Smog Nimbus '
+      + '(Common) (nimbus); Lightblade Sword (Rare, n2_spellsword, Coppercoat Spellsword); Mascot Scalefeather (Rare, '
+      + 'd2_chronicler); Mime Joker (Common, joker); Pastry Chef Butcher (Rare, dm_butcher, Contract Butcher); Quartet '
+      + 'Chorusdrake (Rare, d2_chorus, Chorus Drake); Soul Surf Wayfinder (Rare, wayfinder); Star Urchin (Epic, seaurchin); '
+      + 'Hexhunter Wardkeeper (Rare, dw_wardkeeper). Hero skin: Influencer Indy (Rare, indy). Names come from the master '
+      + 'filenames; three over the 20-character cap were shortened (LightbladeSpellsword, SoulSurferWayfinder, '
+      + 'WitchHunterWardkeeper). Rarities are the owner\x27s random draw between Common and Epic. With them in, a first '
+      + 'crate holds 17 Common, 40 Rare, 26 Epic and 20 Legendary items (each Common 2.941%, Rare 0.75%, Epic 0.577%, '
+      + 'Legendary 0.25%).',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-30 (skins batch 5)', quote: 'i added more skins' },
+      { kind: 'code', ref: 'packages/progression/src/cosmetics.ts (COSMETICS, skins batch 5); packages/ui/src/art/skins/*.webp' },
+    ],
+    currentBehaviour: 'Conforms, built 2026-09-30. Reaches the database on the next deploy of progression-inventory (the catalog sync, R-PROG-SKINS-05).',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/skins/skins.test.tsx', 'packages/progression/src/skins.test.ts', 'packages/progression/src/cosmetics.test.ts', 'packages/ui/src/progression/CollectionSkins.test.tsx'], lastVerifiedAt: '2026-09-30' },
+  },
+  {
     id: 'R-PROG-COLLECTION-03',
     title: 'The crate opening draws the owner\x27s two-layer treasure chest: the lid blasts off, the open body stays',
     statement:
@@ -2244,7 +2521,7 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'attack_bleed ("Hemorrhage", Legendary, style bleed: R-PROG-ATTACK-21), joined the same day under the same fixed odds, '
       + 'making Legendary sixteen items at 0.3125% each and the thirteen attacks together 4.06%. The four Rare attacks '
       + '(attack_coin, attack_boomerang, attack_bubble, attack_backstab: R-PROG-ATTACK-28 to 32) made Rare seventeen items '
-      + 'at 1.765% each; every hero attack together is now 11.1% of a first crate.',
+      + 'at 1.765% each; every hero attack together is now 11.1% of a first crate. The fourteenth Legendary, attack_basketball ("Nothing But Net", style basketball: R-PROG-ATTACK-33), made Legendary seventeen items at 0.294% each (2026-09-29).',
     domain: 'foundation',
     status: 'approved',
     evidence: [
@@ -3121,6 +3398,61 @@ export const FOUNDATION_RULES: GameRule[] = [
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/heroBackstab/heroBackstab.test.ts', 'packages/progression/src/cosmetics.test.ts', 'packages/ui/src/heroAttack/damageFormation.test.ts'], lastVerifiedAt: '2026-09-29' },
   },
   {
+    id: 'R-PROG-ATTACK-33',
+    title: 'Nothing But Net (attack_basketball, Legendary): the striking PORTRAIT plays basketball: a jump shot / a fadeaway / a pull-up three off a pass / a self alley-oop off a high bounce into an explosion; the blow lands ONCE on the swish or the slam; the portrait is always restored',
+    statement:
+      'attack_basketball ("Nothing But Net", a placeholder name; Legendary, crate, account-wide, style basketball): after the '
+      + 'shared damage formation (R-PROG-ATTACK-08) a referee\x27s whistle sounds and the striking hero\x27s own PORTRAIT '
+      + 'moves (as Classic, Enraged and Shadow Step do), with a hoop (backboard, rim, net) drawn on the struck hero, flat 2D. '
+      + 'It escalates on the shared tiers (thresholds 6 / 12 / 20; a knockout plays IV, R-PROG-ATTACK-20): I the jumper (a '
+      + 'dribble where it stands, a small jump, a high arcing shot with backspin that swishes); II the fadeaway (it dribbles '
+      + 'out to mid court with one of three DRIBBLE MOVES rolled per blow (a behind-the-back wrap, the ball hidden while it '
+      + 'passes behind the portrait; a crossover; a spin move), pushes off BACKWARDS and to the side with more room, releases at the top of the fade, swish, a '
+      + 'small crowd "ooh", slides home); III the pull-up three (it scoots from its slot to one of three SPOTS rolled per '
+      + 'blow: straight up court, the left wing or the right corner, down court for a foe striking from the top; a PASS flies '
+      + 'in from off the edge of the screen the spot faces and is caught; a PUMP FAKE; it DRIBBLES BACK and pulls up, the '
+      + 'clock easing into SLOW MOTION around the release and back to normal as the ball flies, for a long high three that '
+      + 'swishes with rings, confetti and the crowd\x27s "ooh", then '
+      + 'slides home); IV the self alley-oop (from its slot a pull-up THREE that swishes; a rotation up court to the rolled '
+      + 'spot, a pass and a second THREE that swishes (both ticks: no damage, no reaction from the target); back to the '
+      + 'slot; a hard CHEST PASS that BANGS the BACKBOARD (the board wobbles; the target itself does not react, no damage) '
+      + 'and rebounds out to HALF COURT, where it arrives FIRST (the leap never beats the ball); a deep CROUCH that '
+      + 'charges up and an explosive LAUNCH (a dust shock ring, speed lines, a building aura); the CATCH in the air at half '
+      + 'court in deep SLOW MOTION (0.25x); and ONE fluid, accelerating flying SLAM from there through the rim onto the target, a touch faster than normal, '
+      + 'into an EXPLOSION: a white-hot core, a '
+      + 'fireball, shockwave rings, debris and sparks, the backboard\x27s glass, the whole board shaking, rim + slam + a '
+      + 'loud crowd "ooh" and a cheer). Dribbles, sneaker squeaks on the push-offs, '
+      + 'stops and take-offs, the swish, the rim and the slam are heard; every cue has its own clip / gain / pitch dial. '
+      + 'The consequence (the damage, Armor, Resolve) lands exactly ONCE: on the swish (I-III) or the slam (IV); the pass, '
+      + 'the pump fake, IV\x27s opening threes, the chest pass off the backboard and the catch never land it or touch the target, the rim or the '
+      + 'backboard. The hoop is ONE assembly (the backboard behind the rim, the rim on its lower centre, the net hanging from '
+      + 'it) that always hangs on the STRUCK portrait, in both directions. Every point the portrait visits is kept on screen '
+      + '(a catch above a target tucked in a corner swings round it toward the middle of the screen) and every shot and '
+      + 'slam lands on the struck hero\x27s centre. The striker is raised over the target (the .duel-attacker-* z-order) '
+      + 'for the whole attack, and its transform, opacity and z-order class are restored exactly, and the ball, shadows and '
+      + 'hoop hidden, on every exit (the end, finish, cancel, the safety timer, an unmount). The variation is rolled from a '
+      + 'stable per-blow seed (the run seed and the round), so a replay rolls the same. The slow motion is a smooth ramp of '
+      + 'the attack\x27s one clock that never reaches 0: everything slows together and the blow still lands once on its beat. '
+      + 'No hit-stop or freeze '
+      + '(R-PROG-ATTACK-10); presentation only; reduced motion is fades only.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-29 (the basketball attack, relayed by the coordinator)', quote: 'branch off and make a basketball attack animation. tier 1 = basketball shot from place / tier 2 = a fadeaway, the attacker hero slides to mid court, then slides to the left or right kind backwards and shoots a basketball at the target' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-29 (Basketball review, relayed by the coordinator)', quote: 'the fadeaway is the best, let\x27s make the tier 3 another like it - let\x27s have the attacker scoot straight upwards and get a pass thrown to him from off-screen from the right side and he pump fakes, dribbles back and then pulls up for a 3. for the huge self alley oop - have the attacker chuck the ball from its starting position, and then run up and leap from half court, catching the ball and massively slamming on the target.' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-30 (PR #1867 review, Tier IV, relayed by the coordinator)', quote: 'i want a direct throw from the beginning that\x27s fast and bounces high off the target and the attacker leaps into the air and slams it down into an explosion' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-30 (PR #1867 review, variety and slow mo, relayed by the coordinator)', quote: 'add variety to the fadeaway and the catch dribble shot. for the fadeaway, add some pizzaz to the dribble part where he like wraps the ball around his back and stuff. make like 3 variations that randomly roll each time. for the dribble 3, also add variations to where he runs to and receives the pass. have it go "slow mo" as he pulls up and releases the shot to add some excitement, but dont overdo it. add "slow mo" to the alley oop when he catches it and then ease it back in for an aggressive and satisfying slam' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-30 (5173 review of Tier IV, relayed by the coordinator)', quote: 'the dunk has a weird moment before the dunk where he hits the player with the ball, remove that' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-30 (5173 review: the hoop)', quote: 'the backboard on the slam is not behind the rim, it\x27s broken and offset. can you fix it?' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-30 (5173 review: the hoop on the target, IV extended)', quote: 'the hoop should be like in the second image, on the enemy player. add to huge -> he drills a 3 then rotates up and gets passed a ball and drills another, than rotates back to baseline and does the slam dunk sequence' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-30 (5173 review: the slam)', quote: 'the slam still has a \x27first hit\x27 thing that i dont want, add more epic emphasis to the leap, slow down that part where he catches it, then one fluid slam motion to deal the dmg and blast pixi' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-30 (5173 review: the chest pass and the half-court catch)', quote: 'the basketball -> huge\x27s leap should not beat the basketball there. he should chest pass the basketball that bangs against the backboard and bounces off it, then the player leaps into the air and catches it at half court and slams it into the opponent' },
+      { kind: 'code', ref: 'packages/progression/src/cosmetics.ts (attack_basketball); packages/ui/src/heroBasketball/ (basketballPlan / basketballCues / basketballGeo / hoopLayout / fitDir / poseSegs / basketballPose / basketballBall / hoopAt / basketballCameraAt, variantOf / basketballTimeScale / slowExtraMs, playHeroBasketball, HeroBasketballScene, heroBasketballTextures); packages/ui/src/audio/fx/bball-*.mp3' },
+    ],
+    currentBehaviour: 'Conforms, built 2026-09-29. The item reaches the database on the next deploy of progression-inventory (the catalog sync); the equip SQL already accepts the hero_attack slot.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/heroBasketball/heroBasketball.test.ts', 'packages/progression/src/cosmetics.test.ts', 'packages/ui/src/progression/CollectionHeroAttack.test.tsx', 'packages/ui/src/heroAttack/damageFormation.test.ts', 'packages/ui/src/heroAttack/stageCamera.test.ts', 'packages/ui/src/heroAttack/knockoutTier.test.ts'], lastVerifiedAt: '2026-09-29' },
+  },
+  {
     id: 'R-PROG-ATTACK-25',
     title: 'A hero attack\x27s camera reaches its FX exactly ONCE: while the view zooms and shakes, the effects stay on the struck portrait',
     statement:
@@ -3220,5 +3552,180 @@ export const FOUNDATION_RULES: GameRule[] = [
     example: 'An opponent with a Rally-repeat rune from round 6 and the same rune again from round 9 rallies once extra on rounds 6–8 and twice extra from round 9.',
     currentBehaviour: 'Conforms as of the Gauntlet engine PR (2026-09-29). Only rune effects that surface as combat modifiers act for an opponent; shop-only runes do nothing. Pinned by the opponent-runes tests (a combat rune maps to its modifier; runeCombatModsFor never throws on any rune; an authored seat fields no runes on round 5, one on 6 and two on 9 with the modifier stacking; a rune-less seat is unchanged; the stage definition becomes authoredRunes at rounds 6 and 9). The stacking assertion uses two copies of one rune.',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/lobby/gauntlet.test.ts'], lastVerifiedAt: '2026-09-29' },
+  },
+  {
+    id: 'R-PROG-CRATE-05',
+    title: 'The crate opening\x27s shake stops shortly after the burst; it never trembles through the reveal',
+    statement:
+      'In the crate theatre every shake (the chest\x27s own shake, the charge\x27s rumble through the view, the burst hit) belongs to '
+      + 'the build-up and the hit. Once the chest bursts, the view settles to rest within about half a second, well before the '
+      + 'reward plate lands, and stays still through the reveal and the settled screen. Every rarity, every crate.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-29 (rewards screen)', quote: 'the chest shakes for two long after the reward is revealed. have it come to a stop shortly after it bursts' },
+      { kind: 'code', ref: 'packages/ui/src/progression/crateFx/crateScene.ts (update: camShakeHold decays outside the charge; cameraShake getter)' },
+    ],
+    currentBehaviour: 'Conforms since 2026-09-29. Before, the charge\x27s sustained ground shake (camShakeHold) was only cleared on a wind-down or a reset, so it kept shaking the view through the reveal until the scene settled.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/progression/crateFx/crateFx.test.ts'], lastVerifiedAt: '2026-09-29' },
+  },
+  {
+    id: 'R-PRESENT-25',
+    title: 'Art is never shown undecoded, and the run\x27s set is preloaded in priority order',
+    statement:
+      'No card, portrait or tile ever paints a blank or half-loaded image: its art, frame, hand plate and chrome images '
+      + 'appear only once the image is decoded AND the element itself can paint it (`img.complete` at commit, before '
+      + 'paint); until then the image is invisible over a static dark placeholder and fades in once (180 ms, opacity '
+      + 'only). Art already decoded renders exactly as before, with no fade. Loading is ONE ordered pipe (6 in flight): '
+      + 'what is on screen first, then the title and shop chrome, then the live set\x27s tier 1-2 cards and the heroes, '
+      + 'then the rest of the run\x27s PINNED pool (`poolOf(run)`) tier-first, then sounds, then everything else '
+      + '(decoded too since 2026-09-30, when the boot splash became a real loading gate: R-PRESENT-26). The web build ships Netlify `_headers` making hashed assets immutable and index.html no-cache.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-30 (local dev server: every re-checked image replayed the fade)', quote: 'im getting a ton of that fading pop in on my local server, like a ton' },
+      {
+        kind: 'owner-chat',
+        ref: 'Claude Code session, 2026-09-29 (friends playing the Netlify build)',
+        quote: 'seeing a lot of pop in when i watch my friends play when they roll into a fresh shop etc. how can we stop pop in entirely?',
+      },
+      {
+        kind: 'owner-chat',
+        ref: 'Claude Code session, 2026-09-29 (local builds too)',
+        quote: 'i dont think it\x27s just a netlify issue - mike\x27s has pop in sometimes too',
+      },
+      { kind: 'code', ref: 'packages/ui/src/assetQueue.ts; packages/ui/src/artPreload.ts (useArtFade); packages/ui/src/preloadPlan.ts; packages/ui/src/FadeImg.tsx; apps/web/public/_headers' },
+    ],
+    currentBehaviour:
+      'Conforms as of 2026-09-29 (PR #1866). Measured on the prod build: blank card frames went from 96% of the first '
+      + 'shop at 10 Mbps (art after 6.9 s), whole rolls, 41-80 per returning-visit shop and 9-11 per local session, to 0 '
+      + 'in every scenario. See docs/devlog/2026-09-29-art-pop-in.md.',
+    enforcement: {
+      kind: 'scenario',
+      refs: [
+        'packages/ui/src/assetQueue.test.ts',
+        'packages/ui/src/preloadPlan.test.ts',
+        'packages/ui/src/artFade.test.tsx',
+        'apps/web/publicArt.test.ts',
+      ],
+      lastVerifiedAt: '2026-09-29',
+    },
+  },
+  {
+    id: 'R-PRESENT-26',
+    title: 'The boot splash is a real loading gate: every image a session can show is decoded before play',
+    statement:
+      'The menu never opens until every image a session on the live set can show is fetched AND decoded: every card '
+      + 'of the live set (and of the saved run\x27s set), every token, Ruby, gift and Choose One branch, heroes, hero '
+      + 'powers, skins, equipment, quests, the runes those sets can offer, Ancients, FX images, card frames, plates, '
+      + 'medallions, boards and all UI chrome. The splash bar shows REAL progress (images decoded / total, scaleX '
+      + 'only) with a count under it; a slow line just waits longer, never a partial game. Every image stays held '
+      + 'for the session. Cards and runes only an unplayable set owns keep decoding behind the gate (the '
+      + 'Collection\x27s set picker); sounds stream after the art. The R-PRESENT-25 placeholder remains only as a '
+      + 'safety net.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      {
+        kind: 'owner-chat',
+        ref: 'Claude Code session, 2026-09-30 (instead of blurry previews + next-shop prediction)',
+        quote: 'i think id rather load everything. i dont want blurry images, i wanna stop pop in.',
+      },
+      { kind: 'code', ref: 'packages/ui/src/Boot.tsx; packages/ui/src/preloadPlan.ts (preloadBootArt); packages/ui/src/artPreload.ts (whenArtReady); apps/web/index.html (#bootsplash)' },
+    ],
+    currentBehaviour:
+      'Conforms as of 2026-09-30. See docs/devlog/2026-09-30-art-loading-gate.md for the gate size, its time at '
+      + '4 / 10 / 50 Mbps cold and warm, and the memory it costs.',
+    enforcement: {
+      kind: 'scenario',
+      refs: [
+        'packages/ui/src/preloadPlan.test.ts',
+        'packages/ui/src/artFade.test.tsx',
+        'packages/ui/src/assetQueue.test.ts',
+      ],
+      lastVerifiedAt: '2026-09-30',
+    },
+  },
+  // ── The drag's make-room slide on a scaled stage (owner report 2026-09-30) ────────────────────────────────────
+  {
+    id: 'R-PRESENT-27',
+    title: 'Dragging and reordering cards behaves exactly the same at every window size',
+    statement:
+      'Picking up, dragging, reordering and playing cards look and behave the same in a window of any size as they '
+      + 'do full screen. While a card is dragged over a row, the neighbours part to open the drop gap and stay '
+      + 'parted until the gap moves; each glides from where it was to its new spot and never springs back to its '
+      + 'old slot. The distances a player drags (how far to lift a card out before the row closes up, where the '
+      + 'drop slot opens) are the same share of a card at every size. Applies to the warband, the shop row and '
+      + 'the hand.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      {
+        kind: 'owner-chat',
+        ref: 'Owner report 2026-09-30 (warband drag below full screen)',
+        quote: 'im seeing issues with the warband units not reacting appropriately when dragging units onto the board and repositioning them',
+      },
+      {
+        kind: 'owner-chat',
+        ref: 'Owner report 2026-09-30 (same thread)',
+        quote: 'its perfect in full screen, when not in full screen its broken',
+      },
+      {
+        kind: 'owner-chat',
+        ref: 'Owner, 2026-09-30, about the last build before the scaled stage (main@e14b9073d)',
+        quote: 'yes - that version works perfectly',
+      },
+      { kind: 'fix-pr', ref: 'fix/warband-drag-scaled-stage: packages/ui/src/Recruit.tsx (collapseY -> toScreen)' },
+      { kind: 'fix-pr', ref: 'fix/drag-scaled-stage-root: packages/ui/src/stageFlip.ts (GSAP Flip at every scale; rescaleSimpleState converts the recorded offsets to layout px)' },
+    ],
+    currentBehaviour:
+      'Conforms as of 2026-09-30 (fix/drag-scaled-stage-root). Since the scaled stage (#1762, 2026-09-27), below full '
+      + 'screen stageFlip.ts replaced GSAP Flip with a hand-rolled FLIP that behaved differently: it first tweened every '
+      + 'card to x: 0 (wiping the drag gap), and after a first fix (#1879) its capture still recorded where each glide '
+      + 'STARTED and left it running, so each slot crossing replayed the row from its resting spots (the gap shut and '
+      + 're-opened) and a crossing mid-glide froze cards part-way. Full screen runs Flip, whose capture finishes the '
+      + 'glide and whose from() restores the React slide. stageFlip now runs GSAP Flip at every scale and only rescales '
+      + 'the recorded offsets from screen px to layout px (rescaleSimpleState). The row-collapse lift (owner-tuned '
+      + 'layout px) is converted to screen px before meeting the screen-px pointer lift (#1879).',
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/ui/src/stageFlip.test.ts'],
+      lastVerifiedAt: '2026-09-30',
+    },
+  },
+  // ── Failed art loads retry (owner report 2026-09-30: a friend's shop of blank ovals) ──────────────────────────
+  {
+    id: 'R-PRESENT-28',
+    title: 'An image that fails to load is retried, and never shown as a blank or broken picture',
+    statement:
+      'When an image request fails (a network hiccup, a dropped connection, a timeout), the game asks again after about '
+      + '1 s, 3 s and 8 s, through the same ordered pipe as every other image (R-PRESENT-25), never more than 6 at once '
+      + 'and holding no slot while it waits. The early tries reuse the same address (so a copy that reached the cache '
+      + 'is used); only the last adds a cache-busting query. While a retry is pending the card shows its dark art '
+      + 'placeholder (any other image is simply invisible), never a blank oval or a broken-image icon, and an image '
+      + 'already on screen reloads itself once the pipe has it. After the last try the image stays on the placeholder '
+      + 'and stops asking; the network coming back (`online`) or the tab being shown again retries every failed '
+      + 'image. A failed image never blocks play: the loading gate (R-PRESENT-26) counts it as settled.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      {
+        kind: 'owner-chat',
+        ref: 'Owner report 2026-09-30 (a friend on the Netlify build, round 12: six Shop minions as blank ovals, one spell slot as a bare frame)',
+        quote: 'why did this happen?',
+      },
+      { kind: 'code', ref: 'packages/ui/src/assetQueue.ts (retryDelays, fail, retryFailed); packages/ui/src/artPreload.ts (decodeImage, useArtFade onError, the document error safety net)' },
+    ],
+    currentBehaviour:
+      'Conforms as of 2026-09-30 (fix/art-load-retry). Before, a failed request was final: the old build never asked '
+      + 'again, and since #1866 the pipe settled a failed URL as READY and an erroring <img> marked itself ready, so the '
+      + 'card painted its broken image for the rest of the session. Measured on the prod build with every image failing '
+      + 'for 5 s from page load: before, 4 of 4 title-screen images stayed blank 20 s later; after, 4 of 4 loaded. '
+      + 'See docs/devlog/2026-09-30-art-load-retry.md.',
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/ui/src/artRetry.test.tsx', 'packages/ui/src/assetQueue.test.ts', 'packages/ui/src/artFade.test.tsx'],
+      lastVerifiedAt: '2026-09-30',
+    },
   },
 ];

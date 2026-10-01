@@ -86,6 +86,14 @@
  *    target and stabs back toward home, then smokes back and settles; Big lunges first, vanishes, strikes from the side,
  *    vanishes again and strikes from behind (`../heroBackstab/`).
  *
+ * `basketball` is the fourteenth Legendary (`attack_basketball`, "Nothing But Net" until the owner renames it; owner ask
+ * 2026-09-29: "make a basketball attack animation"): the striking PORTRAIT plays ball. I a jump shot from where it
+ * stands that swishes through a net on the target; II a fadeaway (a slide to mid court, a fade back to one side, a high
+ * arc, swish); III a pull-up three (a scoot up court, a pass from off the right edge, a pump fake, a dribble back, a long
+ * swish); IV a self alley-oop (fired off the backboard over the target, bounced high, caught at the top of a leap and
+ * slammed down into an explosion; the backboard shatters). A whistle, dribbles, sneaker squeaks,
+ * the swish, the rim and a crowd "ooh" (`../heroBasketball/`).
+ *
  * The style is the ATTACKER's: the equipped item recorded in the striking player's cosmetic snapshot (yours when you
  * win; the foe's seat snapshot when they win, and only while "Show opponent cosmetics" is on). The catalog item names
  * its animation in `assets.style`; an unknown, retired or unrecognised item plays Classic.
@@ -98,7 +106,7 @@
  */
 import { heroAttackOf } from '@game/progression';
 
-export const HERO_ATTACK_STYLES = ['classic', 'blast', 'quake', 'arcana', 'blades', 'enraged', 'poison', 'frost', 'holy', 'fire', 'undead', 'beast', 'banana', 'bleed', 'cards', 'storm', 'coin', 'boomerang', 'bubble', 'backstab'] as const;
+export const HERO_ATTACK_STYLES = ['classic', 'blast', 'quake', 'arcana', 'blades', 'enraged', 'poison', 'frost', 'holy', 'fire', 'undead', 'beast', 'banana', 'bleed', 'cards', 'storm', 'coin', 'boomerang', 'bubble', 'backstab', 'basketball'] as const;
 export type HeroAttackStyle = (typeof HERO_ATTACK_STYLES)[number];
 
 /** What a player without an equipped hero attack sees (owner 2026-09-28: Blast is a cosmetic, not a new default). */
@@ -115,7 +123,7 @@ export function styleOfCosmetic(id: string | null | undefined): HeroAttackStyle 
 }
 
 /** The dev override: `auto` = what a player would see; the others force one style for BOTH sides. */
-export const DEV_HERO_ATTACK_CHOICES = ['auto', 'classic', 'blast', 'quake', 'arcana', 'blades', 'enraged', 'poison', 'frost', 'holy', 'fire', 'undead', 'beast', 'banana', 'bleed', 'cards', 'storm', 'coin', 'boomerang', 'bubble', 'backstab'] as const;
+export const DEV_HERO_ATTACK_CHOICES = ['auto', 'classic', 'blast', 'quake', 'arcana', 'blades', 'enraged', 'poison', 'frost', 'holy', 'fire', 'undead', 'beast', 'banana', 'bleed', 'cards', 'storm', 'coin', 'boomerang', 'bubble', 'backstab', 'basketball'] as const;
 export type DevHeroAttackChoice = (typeof DEV_HERO_ATTACK_CHOICES)[number];
 
 /** The dev "Attack style" row's labels, shared by every hero attack tuner. */
@@ -125,6 +133,7 @@ export const DEV_HERO_ATTACK_LABELS: Record<DevHeroAttackChoice, string> = {
   cards: 'Card Shark (Epic)', storm: 'Storm Call (Epic)',
   coin: 'Pocket Change (coin, Rare)', boomerang: 'Come Back Around (boomerang, Rare)', bubble: 'Bubble Trouble (bubble, Rare)',
   backstab: 'Shadow Step (backstab, Rare)',
+  basketball: 'Nothing But Net (basketball)',
 };
 
 const KEY = 'ascent.heroattackstyle';

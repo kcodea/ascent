@@ -486,4 +486,88 @@ export const PERSISTENCE_RULES: GameRule[] = [
     currentBehaviour: 'Conforms: the carry-back reads every fight-board minion, dead ones included, and a Rise does not clear the gains.',
     enforcement: { kind: 'scenario', refs: ['packages/core/src/combat/engravedKeepsGainsWhenDead.test.ts'], lastVerifiedAt: '2026-09-29' },
   },
+  {
+    id: 'R-PERSIST-EMAIL-01',
+    title: "A player's email is never readable by other players",
+    statement:
+      'The email a player signs up with is stored on their profile but is never readable through the public or '
+      + 'signed-in client roles. Other profile columns (name, tag, rank, level, title) stay readable. The client '
+      + 'writes its own email but never reads any email back.',
+    domain: 'persistence',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-29 (pool investigation found profiles.email readable with the anon key; owner ran the fix)', quote: 'ran the sql' },
+      { kind: 'code', ref: 'supabase/migrations/2026-09-29-hide-profile-email.sql (column-level SELECT grant without email)' },
+    ],
+    currentBehaviour: 'Conforms since 2026-09-29: an anon read of profiles.email or select=* is refused; the display, rank and progression columns still read.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/profileEmailPrivate.test.ts'], lastVerifiedAt: '2026-09-29' },
+  },
+  {
+    id: 'R-PERSIST-01',
+    title: 'Continue only resumes a started lobby game, never the retired course format',
+    statement:
+      'A saved run (and the title Continue button) exists only once the player has picked a hero and the game has '
+      + 'started. Leaving from the title, the Practice setup screen or the hero picker writes nothing, so the next '
+      + 'Play starts fresh. Only a lobby run (Play, Practice or the tutorial) may be saved or resumed: a saved run '
+      + 'in the retired 17-round course format is discarded at load and no Continue is offered, and no menu path '
+      + 'creates a course run.',
+    domain: 'persistence',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Bug report 2026-09-30 (quit from hero select, Continue opened a Round 1/17 course run)', quote: 'remove the wave format option entirely, and only create a continue option if the player selects a hero and starts a game.' },
+      { kind: 'code', ref: 'packages/ui/src/store.ts isResumableRun + flushSave isPreRun guard + pickHero always createLobbyRun' },
+    ],
+    currentBehaviour: 'Conforms since 2026-09-30: flushSave refuses pre-run states, writeSave/loadSave refuse lobby-less runs, and the Ascent/Rift course entry points are gone.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/continueNoLegacyCourse.test.ts'], lastVerifiedAt: '2026-09-30' },
+  },
+  {
+    id: 'R-PERSIST-CLOUD-01',
+    title: 'A signed-in player can continue a saved game on any device they are signed in on',
+    statement:
+      'For a signed-in (non-guest) player, the saved game is also stored on their account: at the start of each shop '
+      + 'phase, on Save & Quit and when the tab is hidden. The local save is always written first and offline play is '
+      + 'unchanged; the upload retries until it lands. On the title, a newer account copy (or one with no local copy) '
+      + 'becomes the Continue, resuming exactly the saved run, its lobby and its pinned opponents included. Guests stay '
+      + 'on their device only.',
+    domain: 'persistence',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Feature request 2026-09-30 (plan approved the same day)', quote: 'if a player is playing on one device and they save/quit, can we allow that to be picked up from another device they are signed in on?' },
+      { kind: 'code', ref: 'packages/ui/src/cloudSave.ts + store.ts (writeSave / flushSave upload, syncCloudAtTitle, adoptCloudRun); supabase/migrations/2026-09-30-saved-runs.sql' },
+    ],
+    currentBehaviour: 'Conforms since 2026-09-30 once the owner runs the saved_runs SQL; before that the feature detects the missing table and stays local-only.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/crossDeviceSaves.test.ts', 'packages/ui/src/cloudSave.test.ts'], lastVerifiedAt: '2026-09-30' },
+  },
+  {
+    id: 'R-PERSIST-CLOUD-02',
+    title: 'A saved game is played on one device at a time and newer progress is never overwritten',
+    statement:
+      'Pressing Continue claims the game for that device. A save from a device holding an older copy is refused by the '
+      + 'server, and that device stops the game and offers to load the newer copy or return to the menu. No path lets '
+      + 'an older copy replace newer progress.',
+    domain: 'persistence',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Feature request 2026-09-30 (plan approved the same day)', quote: 'if a player is playing on one device and they save/quit, can we allow that to be picked up from another device they are signed in on?' },
+      { kind: 'code', ref: 'put_saved_run (revision-checked write/claim) + store onCloudMoved / CloudMovedModal' },
+    ],
+    currentBehaviour: 'Conforms since 2026-09-30 (with the SQL applied).',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/crossDeviceSaves.test.ts', 'packages/ui/src/cloudSave.test.ts'], lastVerifiedAt: '2026-09-30' },
+  },
+  {
+    id: 'R-PERSIST-CLOUD-03',
+    title: 'A finished game clears its saves everywhere and never comes back as Continue',
+    statement:
+      'When a game ends (or its save is discarded), the account copy is cleared along with the local one, so Continue '
+      + 'disappears on every device. A local copy of that same game left on another device is dropped at its title, '
+      + 'not resumed and not uploaded again.',
+    domain: 'persistence',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Feature request 2026-09-30 (plan approved the same day)', quote: 'if a player is playing on one device and they save/quit, can we allow that to be picked up from another device they are signed in on?' },
+      { kind: 'code', ref: 'clear_saved_run + store run-end / clearRun cloudSave.endRun + decideAtTitle discard-local' },
+    ],
+    currentBehaviour: 'Conforms since 2026-09-30 (with the SQL applied).',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/crossDeviceSaves.test.ts', 'packages/ui/src/cloudSave.test.ts'], lastVerifiedAt: '2026-09-30' },
+  },
 ];

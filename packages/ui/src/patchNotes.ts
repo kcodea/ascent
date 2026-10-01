@@ -56,11 +56,135 @@ export interface PatchNote {
 /** Newest first. PREPEND new entries. */
 export const PATCH_NOTES: PatchNote[] = [
   {
+    date: '2026-09-30',
+    changes: [
+      {
+        category: 'Systems',
+        text: '12 new skins in crates: the first Indy hero skin, and 11 minion skins, including three for Nimbus.',
+      },
+      {
+        category: 'Systems',
+        text: 'Card art that fails to load on a bad connection now tries again by itself, instead of leaving a blank card.',
+      },
+      {
+        category: 'Systems',
+        text: "Dragging and reordering minions now works correctly when the game isn't full screen.",
+      },
+      {
+        category: 'Systems',
+        text: '32 new skins in crates: 16 hero skins, including the first for Ayse, Braum, Darah, Emerald Warden, Hunch, Keshi, Soren, Brackus and Robin, and 16 minion skins.',
+      },
+      {
+        category: 'Balance',
+        text: 'Ranked opponents now match your medal. Board strength shows in your match history.',
+        details: [
+          'Every game gets a Board strength from 1 to 100. It says how strong your boards were compared to other games. 72 means stronger than 72 out of 100 games.',
+          'In Ranked, Bronze meets opponents from 0 to 30, Silver from 10 to 40 and Gold from 20 to 65. Platinum meets everyone, Diamond meets 10 to 100 and Ascendant meets 20 to 100.',
+          'If there are not enough opponents in your range, the range grows a little at a time.',
+          'Your match history shows the Board strength of each game. Match details also shows how each of your rounds compared to other boards at that round, and each opponent\'s Board strength.',
+          'Practice is not affected.',
+        ],
+      },
+      {
+        category: 'Systems',
+        text: 'You can now face your own past games in Ranked and Practice, up to 4 of the 7 seats, like any other player.',
+      },
+      {
+        category: 'Systems',
+        text: 'Signed-in players can now continue a saved game on another device. Save and quit on one, then press Continue on the other.',
+        details: [
+          'Your game saves to your account at the start of each shop phase and when you quit.',
+          'A game can only be played on one device at a time. If you continue it somewhere else, the first device tells you and offers to load the newer copy.',
+          'When a game ends, Continue disappears on all your devices.',
+          'Guests still save on their device only. Sign in to take your game with you.',
+        ],
+      },
+      {
+        category: 'Systems',
+        text: 'Continue now only appears after you pick a hero and start a game. Backing out of hero select no longer leaves a run to continue.',
+        details: [
+          'An old saved run from the retired 17-round format is cleared instead of resumed.',
+        ],
+      },
+      {
+        category: 'Systems',
+        text: 'The lobby strength number is hidden from match history for now while we improve it.',
+      },
+      {
+        category: 'Systems',
+        text: 'The loading screen now loads all the art before you play, so nothing pops in.',
+        details: [
+          'The bar shows real progress: every card, hero, rune and frame is ready before the menu opens.',
+          'On a slow connection the first load takes longer. After that the game loads from your browser in a moment.',
+        ],
+      },
+      {
+        category: 'Systems',
+        text: 'Nothing But Net: the hoop is fixed and the Huge version is longer and bigger.',
+        details: [
+          'The hoop is one piece again, with the backboard behind the rim, and it always sits on the hero being hit.',
+          'Huge: your hero drills a three, moves up for a pass and drills another, then chest passes the ball off the backboard, leaps, catches the rebound at half court in slow motion and flies in for the slam.',
+          'The ball always gets there before your hero, and the slam is one smooth flight into the explosion.',
+        ],
+      },
+      {
+        category: 'Systems',
+        text: 'When the Shop timer runs out, hero powers and Equipment can no longer be used. Their buttons turn off at 0:00.',
+        details: [
+          'This covers every hero power, both powers for heroes with two, and Equipment.',
+          'You can still end your turn, Freeze and rearrange your board at 0:00.',
+          'End of Turn effects and passive powers still happen as normal.',
+        ],
+      },
+    ],
+  },
+  {
     date: '2026-09-29',
     changes: [
       {
         category: 'Systems',
-        text: 'Hero attack effects now stay on the hero they hit while the view zooms in.',
+        text: 'New Legendary hero attack: Nothing But Net. Your hero plays basketball on the loser.',
+        details: [
+          'Small: a jump shot from where your hero stands, swishing through a hoop on the target.',
+          'Tier II: a slide to mid court with a dribble move (behind the back, a crossover or a spin), then a fadeaway jumper.',
+          'Tier III: your hero runs to a spot, catches a pass from off screen, pump fakes, steps back and drains a three in slow motion.',
+          'Huge: your hero fires the ball off the backboard, it bounces high, your hero leaps, catches it in slow motion and slams it down into an explosion.',
+          'The dribble move and the spot change from fight to fight.',
+          'With a whistle, dribbles, squeaking sneakers, the swish, the rim and the crowd.',
+          'Found in crates. Equip it in the Collection.',
+        ],
+      },
+      {
+        category: 'Systems',
+        text: 'Opponents are now picked at random from every whole game in the pool.',
+        details: [
+          'Each opponent plays the game they really played, round by round, from their first round to their last.',
+          'Older games are just as likely to show up as new ones.',
+          'One player can fill at most 4 of the 7 seats in your lobby.',
+          'You never face your own games.',
+        ],
+      },
+      {
+        category: 'Systems',
+        text: 'Fixed opponents sometimes bringing impossible boards early in a game.',
+        details: [
+          'An opponent could show up with a board from much later in their game, like a full late-game board on round 5.',
+          'Opponents now always bring the board they really had at that point in their game.',
+          'Computer-played opponents now pick a rune at the Runeforge like everyone else, so none shows up rune-less from round 6.',
+        ],
+      },
+      {
+        category: 'Systems',
+        text: 'Playing as a guest? A glowing Sign in! button now sits next to your portrait on the main menu.',
+        details: [
+          'It opens the account screen. Make a free account with just your email and your progress is saved to it.',
+          'Changing your portrait now needs an account. As a guest, clicking your portrait asks you to sign in first.',
+          'Once you are signed in the button goes away and your portrait works as before.',
+        ],
+      },
+      {
+        category: 'Systems',
+        text: 'A new Legendary hero attack, Hemorrhage, can drop from crates.',
         details: [
           'During the push-in, the effects of every hero attack could drift off the struck hero, by up to about a portrait width.',
           'They now land right on the portrait, in fights and in the Collection preview.',
@@ -94,13 +218,11 @@ export const PATCH_NOTES: PatchNote[] = [
       },
       {
         category: 'Systems',
-        text: 'A new Legendary hero attack, Hemorrhage, can drop from crates.',
+        text: 'Crate openings look cleaner.',
         details: [
-          'Your damage builds up, then your hero draws a blade and swings crimson crescents at the other hero.',
-          'Each one cuts across the face and leaves a gash that bleeds. Bigger hits cut a cross, then a flurry that ends in a claw rake.',
-          'On the biggest hits it goes completely over the top: the wounds throb like a heartbeat, then a huge slash zips across the whole screen eight times, faster and faster, flinging blood that piles up all over the board, a beat of held breath, and the other hero bursts in an enormous bloody explosion that paints the whole screen red.',
-          'Equip it from the Attack Animations tab of the Collection. There is a preview button there too.',
-          'Hero attacks are looks only. The damage is exactly the same.',
+          'A skin you open now shows its art right beside the reward banner.',
+          'The reward name is crisp solid white.',
+          'The chest stops shaking shortly after it bursts, instead of trembling through the reveal.',
         ],
       },
       {
@@ -310,6 +432,28 @@ export const PATCH_NOTES: PatchNote[] = [
           'Guests still earn crates. They wait sealed in the Collection until you make an account.',
           'Making an account keeps everything you earned as a guest. You only need an email.',
           'Signing into an account you already have switches to it. Crates earned as a guest stay on the guest.',
+        ],
+      },
+      {
+        category: 'Systems',
+        text: 'Hero attack effects now stay on the hero they hit while the view zooms in.',
+        details: [
+          'During the push-in, the effects of every hero attack could drift off the struck hero, by up to about a portrait width.',
+          'They now land right on the portrait, in fights and in the Collection preview.',
+          'The zoom, the shake, the timing and how the portraits move are exactly the same.',
+        ],
+      },
+      {
+        category: 'Systems',
+        text: 'New skins in crates: Rooks Oona, Stencil Sylus, Mace Urchin, Magician Buddy Buddy and a first Frantic Frank hero skin, Armourer Frank.',
+      },
+      {
+        category: 'Systems',
+        text: 'Card art no longer pops in. Cards, frames and heroes now load in the order you will see them.',
+        details: [
+          'The game fetches what is on screen first, then your shop cards, then the rest of the set in the background.',
+          'If a picture is still loading, the card shows a dark portrait and the art fades in. No more blank or white frames.',
+          'Coming back to the game loads the art straight from your browser, so it is ready at once.',
         ],
       },
     ],

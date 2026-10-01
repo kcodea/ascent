@@ -22,7 +22,7 @@ describe('the board is gated on actually being in a run', () => {
   });
 
   it('is pre-run in the hero picker, however the player got there', () => {
-    // startAscent / startRift / startLobby all drop showTitle and roll hero choices.
+    // startLobby (and Practice setup) drop showTitle and roll hero choices.
     expect(isPreRun({ ...base, heroChoices: ['albus', 'warden'] })).toBe(true);
     expect(isPreRun({ ...base, heroChoices: [] })).toBe(true);   // empty !== absent
   });

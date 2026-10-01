@@ -11,6 +11,7 @@ import { bugBoardPlugin } from './bugBoardPlugin';
 import { qaScenarioPlugin } from './qaScenarioPlugin';
 import { gauntletStagePlugin, STAGES_DIR } from './gauntletStagePlugin';
 import { workbenchPlugin } from './workbenchPlugin';
+import { publicArtList } from './publicArt';
 
 const r = (p: string) => fileURLToPath(new URL(p, import.meta.url));
 
@@ -27,6 +28,9 @@ const buildDirty = (() => {
   try { return execSync('git status --porcelain --untracked-files=all').toString().trim().length > 0; } catch { return true; }
 })();
 const buildDate = new Date().toISOString();
+// The public images the UI references, in BASE_URL-relative form — the art preload warms them in priority order
+// (packages/ui/src/preloadPlan.ts; art pop-in fix 2026-09-29). Derived from the source so it never goes stale.
+const publicArt = publicArtList(r('./public'), [r('../../packages/ui/src'), r('./src')]);
 
 // Resolve workspace packages straight to their TS source so Vite compiles them
 // directly (no per-package build step). Boundaries stay enforced by imports.
@@ -39,6 +43,7 @@ export default defineConfig(({ command }) => ({
     __BUILD_SHA__: JSON.stringify(buildSha),
     __BUILD_DIRTY__: JSON.stringify(buildDirty),
     __BUILD_DATE__: JSON.stringify(buildDate),
+    __PUBLIC_ART__: JSON.stringify(publicArt),
   },
   // `fxDefsPlugin`, `uiAssetPlugin`, and `beatLabPlugin` are all `apply: 'serve'` — they add write endpoints to
   // the dev server ONLY, and are inert (never instantiated) in a production build. `fxDefsPlugin` = the FX

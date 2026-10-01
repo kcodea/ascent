@@ -10,6 +10,7 @@
  * those anywhere else would mean tuning the home screen silently dragged the hero-select logo with it.
  */
 import { getTitleText } from './titleTextConfig';
+import { FadeImg } from './FadeImg';
 
 // The brand mark (owner art, `Reference Art/Ascent Logo Fantasy.svg` — a raster logo, extracted to
 // `frames/title-logo.png`). Public-folder art carries BASE_URL: itch serves from a CDN sub-path, so a
@@ -19,7 +20,7 @@ const TITLE_LOGO_SRC = `${import.meta.env.BASE_URL}frames/title-logo.png`;
 export function AscentLogo({ className, headingClass = 'disp titleword' }: { className: string; headingClass?: string }) {
   return (
     <div className={className}>
-      <img decoding="sync" className="crest" src={TITLE_LOGO_SRC} alt="" aria-hidden="true" draggable={false} />
+      <FadeImg className="crest" src={TITLE_LOGO_SRC} alt="" aria-hidden="true" draggable={false} />
       <h1 className={headingClass}>{getTitleText().wordmark}</h1>
     </div>
   );

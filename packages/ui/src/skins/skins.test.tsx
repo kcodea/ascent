@@ -176,6 +176,39 @@ describe('the catalog <-> the bundle', () => {
     expect(heroSkinOf({ heroSkinByHeroId: { [heroId]: id } }, heroId)?.id).toBe(id);
   });
   const EARNED_TOKEN_TARGETS = new Set(['chimerus', 'dw_baal']);
+  // Skins batch 5 (owner 2026-09-30: "i added more skins"). Rarities are the owner's random draw between Common and
+  // Epic; three names were shortened to fit the 20-character cap. Same checks as batch 4.
+  const BATCH5: [id: string, rarity: string, cardId: string, cardName: string, master: string][] = [
+    ['skin_nimbus_2', 'common', 'nimbus', 'Nimbus', 'CottonCandyNimbus.png'],
+    ['skin_nimbus_3', 'rare', 'nimbus', 'Nimbus', 'DarkNimbus.jpg'],
+    ['skin_nimbus_4', 'common', 'nimbus', 'Nimbus', 'SmogNimbus.png'],
+    ['skin_spellsword_1', 'rare', 'n2_spellsword', 'Coppercoat Spellsword', 'LightbladeSpellsword.png'],
+    ['skin_chronicler_3', 'rare', 'd2_chronicler', 'Scalefeather', 'MascotScalefeather.png'],
+    ['skin_joker_2', 'common', 'joker', 'Mysterious Joker', 'MimeJoker.png'],
+    ['skin_butcher_1', 'rare', 'dm_butcher', 'Contract Butcher', 'PastryChefButcher.png'],
+    ['skin_chorus_1', 'rare', 'd2_chorus', 'Chorus Drake', 'QuartetChorusdrake.jpg'],
+    ['skin_wayfinder_1', 'rare', 'wayfinder', 'Wayfinder', 'SoulSurferWayfinder.png'],
+    ['skin_seaurchin_2', 'epic', 'seaurchin', 'Sea Urchin', 'StarUrchin.png'],
+    ['skin_wardkeeper_1', 'rare', 'dw_wardkeeper', 'Wardkeeper', 'WitchHunterWardkeeper.png'],
+  ];
+  it.each(BATCH5)('batch 5: %s (%s) exists, targets %s, and ships its art', (id, rarity, cardId, cardName, master) => {
+    const c = cosmeticOf(id)!;
+    expect(c).toBeTruthy();
+    expect([c.category, c.rarity, c.target, c.assets.master, c.active]).toEqual(['minion_skin', rarity, { type: 'card', id: cardId }, master, true]);
+    expect(CARD_INDEX[cardId]?.name).toBe(cardName);
+    expect(skinArtKeys()).toContain(id);
+    expect(skinArtOf(c)).toBeTruthy();
+    expect(minionSkinOf({ minionSkinByCardId: { [cardId]: id } }, cardId)?.id).toBe(id);
+  });
+  it('batch 5: Influencer Indy (Rare) exists, targets the hero indy, and ships its art', () => {
+    const c = cosmeticOf('skin_indy_1')!;
+    expect([c.category, c.rarity, c.target, c.assets.master, c.active]).toEqual(['hero_skin', 'rare', { type: 'hero', id: 'indy' }, 'InfluencerIndy.png', true]);
+    expect(HEROES.find((h) => h.id === 'indy')).toBeTruthy();
+    expect(skinArtKeys()).toContain('skin_indy_1');
+    expect(skinArtOf(c)).toBeTruthy();
+    expect(heroSkinOf({ heroSkinByHeroId: { indy: 'skin_indy_1' } }, 'indy')?.id).toBe('skin_indy_1');
+  });
+
   it('every skin targets a REAL collectible card (never a token, except the two earned ones) or a REAL hero, by stable id', () => {
     for (const c of skins) {
       if (c.category === 'minion_skin') {

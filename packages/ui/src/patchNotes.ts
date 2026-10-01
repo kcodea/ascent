@@ -60,6 +60,10 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: '12 new skins in crates: the first Indy hero skin, and 11 minion skins, including three for Nimbus.',
+      },
+      {
+        category: 'Systems',
         text: 'Card art that fails to load on a bad connection now tries again by itself, instead of leaving a blank card.',
       },
       {

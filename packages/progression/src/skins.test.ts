@@ -17,7 +17,7 @@ afterEach(() => setServerCatalogState(null));
 
 const skins = COSMETICS.filter((c) => c.category === 'hero_skin' || c.category === 'minion_skin');
 
-describe('the fifty-six skins', () => {
+describe('the sixty-eight skins', () => {
   // 2026-09-28: a third Black Belt Brian (Legendary) joined; owner: "i added a legendary black belt brian skin and
   // renaemd skins to match their rarity" (masters renamed SkinRare / SkinEpic / SkinLegendary; ids unchanged); then
   // "put the bellringer voss skin in too" (an Epic for Bellringer Voss). Then skins batch 2: "i added some skins here:
@@ -25,8 +25,9 @@ describe('the fifty-six skins', () => {
   // "added a few more hero and minion skins - i want to name them appropriately and then decide rarities" (4 minion
   // skins + the first Frantic Frank hero skin; rarities are the owner's). Then skins batch 4 (2026-09-30): "can you
   // wire all the new skins that i added to the folder" (16 minion + 16 hero skins; rarity from the filename suffix, the
-  // ten with none took the owner's random draw between Common and Epic; Black Friday Frank's master is a JPEG).
-  it('four Black Belt Brian minion skins (Rare, Epic, Legendary, Common), Bellringer Voss, batches 2, 3 and 4, and the hero skins; crate items with art keys and attributed masters', () => {
+  // ten with none took the owner's random draw between Common and Epic; Black Friday Frank's master is a JPEG). Then skins batch 5 (2026-09-30): "i added more skins"
+  // (11 minion skins + Influencer Indy; rarities are the owner's random draw between Common and Epic).
+  it('four Black Belt Brian minion skins (Rare, Epic, Legendary, Common), Bellringer Voss, batches 2, 3, 4 and 5, and the hero skins; crate items with art keys and attributed masters', () => {
     expect(skins.map((c) => [c.id, c.category, c.target, c.rarity])).toEqual([
       ['skin_blackbelt_1', 'minion_skin', { type: 'card', id: 'blackbelt' }, 'rare'],
       ['skin_blackbelt_2', 'minion_skin', { type: 'card', id: 'blackbelt' }, 'epic'],
@@ -65,6 +66,17 @@ describe('the fifty-six skins', () => {
       ['skin_buddy_3', 'minion_skin', { type: 'card', id: 'buddy' }, 'legendary'],
       ['skin_drummer_4', 'minion_skin', { type: 'card', id: 'drummer' }, 'rare'],
       ['skin_orin_1', 'minion_skin', { type: 'card', id: 'dw_orin' }, 'epic'],
+      ['skin_nimbus_2', 'minion_skin', { type: 'card', id: 'nimbus' }, 'common'],
+      ['skin_nimbus_3', 'minion_skin', { type: 'card', id: 'nimbus' }, 'rare'],
+      ['skin_nimbus_4', 'minion_skin', { type: 'card', id: 'nimbus' }, 'common'],
+      ['skin_spellsword_1', 'minion_skin', { type: 'card', id: 'n2_spellsword' }, 'rare'],
+      ['skin_chronicler_3', 'minion_skin', { type: 'card', id: 'd2_chronicler' }, 'rare'],
+      ['skin_joker_2', 'minion_skin', { type: 'card', id: 'joker' }, 'common'],
+      ['skin_butcher_1', 'minion_skin', { type: 'card', id: 'dm_butcher' }, 'rare'],
+      ['skin_chorus_1', 'minion_skin', { type: 'card', id: 'd2_chorus' }, 'rare'],
+      ['skin_wayfinder_1', 'minion_skin', { type: 'card', id: 'wayfinder' }, 'rare'],
+      ['skin_seaurchin_2', 'minion_skin', { type: 'card', id: 'seaurchin' }, 'epic'],
+      ['skin_wardkeeper_1', 'minion_skin', { type: 'card', id: 'dw_wardkeeper' }, 'rare'],
       ['skin_albus_1', 'hero_skin', { type: 'hero', id: 'albus' }, 'epic'],
       ['skin_warden_1', 'hero_skin', { type: 'hero', id: 'warden' }, 'epic'],
       ['skin_frank_1', 'hero_skin', { type: 'hero', id: 'frank' }, 'common'],
@@ -84,11 +96,12 @@ describe('the fifty-six skins', () => {
       ['skin_brackus_1', 'hero_skin', { type: 'hero', id: 'brackus' }, 'epic'],
       ['skin_brackus_2', 'hero_skin', { type: 'hero', id: 'brackus' }, 'common'],
       ['skin_robin_1', 'hero_skin', { type: 'hero', id: 'robin' }, 'common'],
+      ['skin_indy_1', 'hero_skin', { type: 'hero', id: 'indy' }, 'rare'],
     ]);
     for (const c of skins) {
       expect(c.acquisition).toEqual({ type: 'crate' });
       expect(c.assets.art, c.id).toBe(c.id);
-      expect(c.assets.master, c.id).toMatch(/^[A-Za-z0-9]+\.(png|jpg)$/); // BlackFridayFrank.jpg (batch 4) is the one JPEG master
+      expect(c.assets.master, c.id).toMatch(/^[A-Za-z0-9]+\.(png|jpg)$/); // JPEG masters: BlackFridayFrank.jpg (batch 4), DarkNimbus.jpg and QuartetChorusdrake.jpg (batch 5)
       expect(c.active).toBe(true);
     }
     expect(skinsForTarget('minion_skin', 'blackbelt').map((c) => c.id)).toEqual(['skin_blackbelt_1', 'skin_blackbelt_2', 'skin_blackbelt_3', 'skin_blackbelt_4']);
@@ -99,6 +112,8 @@ describe('the fifty-six skins', () => {
     expect(skinsForTarget('minion_skin', 'drummer').map((c) => c.id)).toEqual(['skin_drummer_1', 'skin_drummer_2', 'skin_drummer_3', 'skin_drummer_4']);
     expect(skinsForTarget('minion_skin', 'buddy').map((c) => c.id)).toEqual(['skin_buddy_1', 'skin_buddy_2', 'skin_buddy_3']);
     expect(skinsForTarget('minion_skin', 'd2_recaller').map((c) => c.id)).toEqual(['skin_recaller_1', 'skin_recaller_2', 'skin_recaller_3']);
+    expect(skinsForTarget('minion_skin', 'nimbus').map((c) => c.id)).toEqual(['skin_nimbus_1', 'skin_nimbus_2', 'skin_nimbus_3', 'skin_nimbus_4']);
+    expect(skinsForTarget('minion_skin', 'd2_chronicler').map((c) => c.id)).toEqual(['skin_chronicler_1', 'skin_chronicler_2', 'skin_chronicler_3']);
     expect(skinsForTarget('minion_skin', 'sylus').map((c) => c.id)).toEqual(['skin_sylus_1', 'skin_sylus_2', 'skin_sylus_3']);
     expect(skinsForTarget('hero_skin', 'warden').map((c) => c.id)).toEqual(['skin_warden_1']);
     expect(skinsForTarget('hero_skin', 'frank').map((c) => c.id)).toEqual(['skin_frank_1', 'skin_frank_2', 'skin_frank_3']);

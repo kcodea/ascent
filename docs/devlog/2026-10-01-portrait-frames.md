@@ -48,10 +48,15 @@ rank-named ones included.
   pass `frameIdOf(opponentSkins(show, snapshot))`, so "Show opponent cosmetics" off gives the default ring. The run
   snapshot carries the frame on every captured board (`scopeCosmetics`), every pool run (`runCosmetics` union) and
   every lobby seat.
-- **In-game socket** (owner report on the first build: "it overlaps and doesnt seem to replace the existing?"). The
-  in-game portrait's copper rim and dish are baked into the board art (`augustfullboard.webp`), not CSS. While a frame
-  is on, `.statusbar .hero.pf-top::before` paints one static, play-mat-coloured disc under the portrait that covers
-  that socket, so the frame replaces it. Every other surface already dropped its CSS ring under `.pf-on`.
+- **In-game socket** (owner reports on the first builds: "it overlaps and doesnt seem to replace the existing?", then
+  "why did the art get biffed here"). The in-game portrait's copper rim and dish are baked into the board art
+  (`augustfullboard.webp` and the combat variant), not CSS. Two looks were tried:
+  - A flat play-mat-coloured disc covering the socket. Reverted: it showed as a purple halo that never matched the
+    board's lighting.
+  - The frame SEATED INSIDE the socket, over its inner rim, with the dish framing it like a bezel. Shipped as the
+    cleaner one.
+  The hero art's crop and scale were never changed. Truly removing the socket needs a board image without it, which is
+  owner art. Every other surface drops its CSS ring under `.pf-on`.
 - **Collection**: a Portrait Frames tab. Ring tiles are blurred and locked until owned. An owned frame previews
   around your avatar; an unowned one shows only the blurred ring ("do not allow preview if you do not own the art").
   Equip and "Use default frame" are there, the latter previewing the default ring at once.
@@ -80,5 +85,5 @@ change your portrait frame" without changing anything. Frames drop only after st
 ## Verification
 
 Typecheck, lint, test and build:web are green. In a browser on :5207 (a clean profile, the dev grant): Collection
-equip, the Title ring, the in-game StatusBar portrait (before and after at 1920x1080), and the lobby rail opponent
+equip, the Title ring, the in-game StatusBar portrait (frame seated in the board socket, at 1920x1080), and the lobby rail opponent
 seats wearing their recorded Fire / Water frames.

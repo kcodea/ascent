@@ -12828,15 +12828,11 @@ body:has(.heroselect.rankend) .pixifx-above { z-index: 470; }
    the block's own box is a transparent rounded square that meets the diamond only at a corner outside its radius,
    so every press on the diamond still lands on `.heropowerbtn`. */
 .statusbar .hero.pf-top { z-index: 42; }
-/* YOUR IN-GAME PORTRAIT'S DEFAULT RING IS BOARD ART (owner report 2026-10-01: "it overlaps and doesnt seem to replace
-   the existing?"). The copper rim and the dish around your portrait are baked into the board image (`--board`,
-   augustfullboard), not CSS, so a frame sat INSIDE that socket and read as two rings. While a frame is on, one static
-   disc of the play-mat colour under the portrait (inside the hero block, under `.f`) covers the socket's rim and dish,
-   so the frame replaces it. The dish is lit from the top left, so the cover sits a touch toward the bottom right.
-   Static paint, no animation; the hero block does not move during the lunge (only `.herolunge` inside it does). */
-.statusbar .hero.pf-top::before { content: ''; position: absolute; left: 50%; top: 50%; width: 134%; height: 134%;
-  translate: -46% -46%; border-radius: 50%; z-index: -1; pointer-events: none;
-  background: radial-gradient(closest-side, rgb(63, 53, 124) 84%, rgba(63, 53, 124, 0) 100%); }
+/* YOUR IN-GAME PORTRAIT SITS IN A SOCKET BAKED INTO THE BOARD ART (owner reports 2026-10-01). The copper rim and the
+   dish around your portrait are part of the board image (`--board`, augustfullboard), not CSS, so there is nothing to
+   hide: a frame SEATS INSIDE that socket, over its inner rim, and the socket's dish frames it like a bezel. (A flat
+   mat-coloured cover over the socket was tried and reverted: it showed as a purple halo that never matched the board's
+   lighting.) Hiding the socket for real needs a board image without it. */
 /* The `.portring` group (Career, ladder banners, match details, the title corner): the copper ring is the
    container's ::after, and the disc is the `.hero` inside it. The tuner ring replaces the ::after and rides the
    disc instead. */

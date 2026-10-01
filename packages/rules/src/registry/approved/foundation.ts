@@ -3616,4 +3616,39 @@ export const FOUNDATION_RULES: GameRule[] = [
       lastVerifiedAt: '2026-09-30',
     },
   },
+  // ── Failed art loads retry (owner report 2026-09-30: a friend's shop of blank ovals) ──────────────────────────
+  {
+    id: 'R-PRESENT-28',
+    title: 'An image that fails to load is retried, and never shown as a blank or broken picture',
+    statement:
+      'When an image request fails (a network hiccup, a dropped connection, a timeout), the game asks again after about '
+      + '1 s, 3 s and 8 s, through the same ordered pipe as every other image (R-PRESENT-25), never more than 6 at once '
+      + 'and holding no slot while it waits. The early tries reuse the same address (so a copy that reached the cache '
+      + 'is used); only the last adds a cache-busting query. While a retry is pending the card shows its dark art '
+      + 'placeholder (any other image is simply invisible), never a blank oval or a broken-image icon, and an image '
+      + 'already on screen reloads itself once the pipe has it. After the last try the image stays on the placeholder '
+      + 'and stops asking; the network coming back (`online`) or the tab being shown again retries every failed '
+      + 'image. A failed image never blocks play: the loading gate (R-PRESENT-26) counts it as settled.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      {
+        kind: 'owner-chat',
+        ref: 'Owner report 2026-09-30 (a friend on the Netlify build, round 12: six Shop minions as blank ovals, one spell slot as a bare frame)',
+        quote: 'why did this happen?',
+      },
+      { kind: 'code', ref: 'packages/ui/src/assetQueue.ts (retryDelays, fail, retryFailed); packages/ui/src/artPreload.ts (decodeImage, useArtFade onError, the document error safety net)' },
+    ],
+    currentBehaviour:
+      'Conforms as of 2026-09-30 (fix/art-load-retry). Before, a failed request was final: the old build never asked '
+      + 'again, and since #1866 the pipe settled a failed URL as READY and an erroring <img> marked itself ready, so the '
+      + 'card painted its broken image for the rest of the session. Measured on the prod build with every image failing '
+      + 'for 5 s from page load: before, 4 of 4 title-screen images stayed blank 20 s later; after, 4 of 4 loaded. '
+      + 'See docs/devlog/2026-09-30-art-load-retry.md.',
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/ui/src/artRetry.test.tsx', 'packages/ui/src/assetQueue.test.ts', 'packages/ui/src/artFade.test.tsx'],
+      lastVerifiedAt: '2026-09-30',
+    },
+  },
 ];

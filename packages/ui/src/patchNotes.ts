@@ -60,6 +60,10 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: 'Card art that fails to load on a bad connection now tries again by itself, instead of leaving a blank card.',
+      },
+      {
+        category: 'Systems',
         text: "Dragging and reordering minions now works correctly when the game isn't full screen.",
       },
       {

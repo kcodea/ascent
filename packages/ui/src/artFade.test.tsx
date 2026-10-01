@@ -7,7 +7,8 @@
  *  - art already decoded before it renders gets neither class: no fade, no flash, identical to a plain <img>;
  *  - a NEW element that is not `complete` yet is hidden too, even when the URL is decoded (a no-cache server
  *    makes a new <img> revalidate: the local-build pop-in);
- *  - a broken file settles too (the card is never held hidden);
+ *  - an <img> that errors stays hidden over the placeholder until the pipe re-fetches it (never a broken image;
+ *    the retry/backoff contract itself is in artRetry.test.tsx);
  *  - the Card wires the rule onto its art window, its frame and its hand plate, and the CSS keeps it
  *    compositor-only (opacity) with a static placeholder.
  */
@@ -70,12 +71,22 @@ describe('FadeImg / useArtFade', () => {
     expect(img().className).toBe('lobbyface'); // already-decoded art never replays the fade
   });
 
-  it('the on-screen <img> finishing first settles it (markArtReady), and a broken file never stays hidden', async () => {
+  it('an on-screen <img> that errors is never painted broken: it stays hidden until the pipe has the art, then reloads and fades in (retry fix 2026-09-30)', async () => {
     ui = mount(<FadeImg className="x" src="/art/broken.webp" alt="" />);
     expect(img().className).toBe('x art-pending');
     act(() => { img().dispatchEvent(new Event('error')); });
     await flush();
+    expect(img().className).toBe('x art-pending'); // was 'x art-fadein': a visible broken image, the blank oval
+    decodes.splice(0).forEach((d) => d()); // the pipe's own fetch lands
+    await flush();
+    expect(img().className).toBe('x art-pending'); // the element reloads, still hidden until its own load
+    act(() => { img().dispatchEvent(new Event('load')); });
+    decodes.splice(0).forEach((d) => d());
+    await flush();
     expect(img().className).toBe('x art-fadein');
+  });
+
+  it('the on-screen <img> finishing first settles it (markArtReady)', () => {
     markArtReady('/art/other.webp');
     expect(artReady('/art/other.webp')).toBe(true);
   });

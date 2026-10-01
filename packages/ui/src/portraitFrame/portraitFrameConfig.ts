@@ -249,16 +249,26 @@ export interface ResolvedFrame {
   geometry: FrameGeometry;
 }
 
-const cache = new Map<AnyFrameId, ResolvedFrame | null>();
+/** Where a frame is painted. `socket` = YOUR in-game portrait (StatusBar), which sits in a socket baked into the
+ *  board art and needs its own seat; `default` = every other surface (Career, ladder, lobby rail, match details, …). */
+export type FrameSurface = 'default' | 'socket';
+
+/** THE IN-GAME SOCKET FIT (owner-tuned 2026-10-01 on the Gilded frame): seats a frame over the board's baked socket.
+ *  Applied ONLY to your in-game portrait; owner: "using this in career and other places seems to mess with the art,
+ *  so can you only apply this fit to the in game portrait?". Other surfaces keep the tuner fit (neutral in prod). */
+export const SOCKET_FIT: FrameFit = { scale: 1.005, art: 1, dx: 1.25, dy: -3.6 };
+
+const cache = new Map<string, ResolvedFrame | null>();
 const r4 = (n: number): number => Math.round(n * 1e4) / 1e4;
 
-export function resolveImageFrame(id: AnyFrameId): ResolvedFrame | null {
-  const hit = cache.get(id);
+export function resolveImageFrame(id: AnyFrameId, surface: FrameSurface = 'default'): ResolvedFrame | null {
+  const key = `${surface}:${id}`;
+  const hit = cache.get(key);
   if (hit !== undefined) return hit;
   const src = artOf(id) ? frameSrc(id) : undefined;
   let out: ResolvedFrame | null = null;
   if (src) {
-    const g = frameGeometry(id, effectiveFit(id));
+    const g = frameGeometry(id, surface === 'socket' ? SOCKET_FIT : effectiveFit(id));
     out = {
       id,
       src,
@@ -267,14 +277,14 @@ export function resolveImageFrame(id: AnyFrameId): ResolvedFrame | null {
       hostStyle: { '--pf-art': String(r4(g.art)) } as CSSProperties,
     };
   }
-  cache.set(id, out);
+  cache.set(key, out);
   return out;
 }
 
 /** The whole lookup: null = keep the surface's current look. */
-export function resolvePortraitFrame(side: PortraitSide, frameId?: string | null): ResolvedFrame | null {
+export function resolvePortraitFrame(side: PortraitSide, frameId?: string | null, surface: FrameSurface = 'default'): ResolvedFrame | null {
   const choice = resolveFrameChoice(side, frameId);
-  return choice === 'current' ? null : resolveImageFrame(choice);
+  return choice === 'current' ? null : resolveImageFrame(choice, surface);
 }
 
 /** For the hero-select ceremony, which draws its own ring at a tuned size around the default ring's geometry:

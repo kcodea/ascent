@@ -32,6 +32,7 @@ import {
   writePortraitFrameNumber,
   writePortraitFrameString,
   NEUTRAL_FIT,
+  SOCKET_FIT,
 } from './portraitFrameConfig';
 
 const SRC = join(__dirname, '..');
@@ -151,6 +152,17 @@ describe('geometry', () => {
     expect(b.cx - 50).toBeCloseTo((a.cx - 50) * 1.2 + 3, 5);
   });
 
+  it('the in-game socket fit applies ONLY to the in-game portrait (owner 2026-10-01)', () => {
+    setPortraitFrameState({ self: 'gold' });
+    const socket = resolvePortraitFrame('self', undefined, 'socket')!;
+    const career = resolvePortraitFrame('self')!;
+    const s = frameGeometry('gold', SOCKET_FIT);
+    expect(socket.geometry.width).toBeCloseTo(s.width, 5);
+    expect(socket.geometry.cy).toBeCloseTo(s.cy, 5);
+    expect(career.geometry).toEqual(frameGeometry('gold', NEUTRAL_FIT));
+    expect(read('StatusBar.tsx')).toMatch(/usePortraitFrame\('self', frameIdOf\(runSkins\), 'socket'\)/);
+  });
+
   it('the hero ceremony ring is the default ring for the default frame', () => {
     setPortraitFrameState({ self: 'default' });
     const r = ringRelativeToDefault(resolvePortraitFrame('self')!);
@@ -166,7 +178,7 @@ describe('every hero-portrait surface goes through the shared renderer', () => {
     ['hero-select/HeroSelectCeremony.tsx', /usePortraitFrame\('self'\)/],
     // In-run surfaces pass the frame RECORDED on the run (yours) or the seat (theirs, through "Show opponent
     // cosmetics"), the portrait frame cosmetics (owner 2026-10-01).
-    ['StatusBar.tsx', /usePortraitFrame\('self', frameIdOf\(runSkins\)\)/],
+    ['StatusBar.tsx', /usePortraitFrame\('self', frameIdOf\(runSkins\), 'socket'\)/],
     ['CombatOpponent.tsx', /usePortraitFrame\('opp', [^;]*frameIdOf\(opponentSkins\(showOppSkins/],
     ['gauntlet/GauntletFoe.tsx', /usePortraitFrame\('opp'\)/], // the combat face's shop twin (2026-09-30)
     ['Recruit.tsx', /usePortraitFrame\('opp'\)[\s\S]*resolvePortraitFrame\('opp', frameIdOf\(opponentSkins\(showOppSkins/], // Now Facing

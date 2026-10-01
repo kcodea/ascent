@@ -6,6 +6,7 @@ import {
   getPortraitFrameVersion,
   resolvePortraitFrame,
   subscribePortraitFrames,
+  type FrameSurface,
   type PortraitSide,
   type ResolvedFrame,
 } from './portraitFrameConfig';
@@ -26,12 +27,12 @@ import {
  * opponent's recorded frame, a Collection preview); `null` = no cosmetic frame (the tuner's look). Opponent surfaces
  * pass `frameIdOf(opponentSkins(show, snapshot))`, so "Show opponent cosmetics" off puts the default ring back.
  */
-export function usePortraitFrame(side: PortraitSide, frameId?: string | null): ResolvedFrame | null {
+export function usePortraitFrame(side: PortraitSide, frameId?: string | null, surface: FrameSurface = 'default'): ResolvedFrame | null {
   const v = useSyncExternalStore(subscribePortraitFrames, getPortraitFrameVersion, getPortraitFrameVersion);
   const own = useOwnPortraitFrameId();
   const id = frameId !== undefined ? frameId : side === 'self' ? own : null;
   // `v` is the cache key: the resolver's own cache is cleared on every tuner write.
-  return useMemo(() => resolvePortraitFrame(side, id), [v, side, id]);
+  return useMemo(() => resolvePortraitFrame(side, id, surface), [v, side, id, surface]);
 }
 
 /** Your equipped portrait frame (the live loadout), or null. A primitive, so a selector never re-renders for nothing;

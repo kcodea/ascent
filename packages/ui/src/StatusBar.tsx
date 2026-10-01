@@ -185,8 +185,9 @@ export function StatusBar() {
   const runSkins = useRunSkins();
   const heroImg = heroPortrait(hero.id, runSkins);
   // The portrait frame RECORDED on this run, like the skin (owner 2026-10-01), else the portrait-frames tuner's ring
-  // (null = today's look). The disc host is `.herolunge`, so the ring lunges too.
-  const frame = usePortraitFrame('self', frameIdOf(runSkins));
+  // (null = today's look). The disc host is `.herolunge`, so the ring lunges too. `socket`: the owner-tuned seat over
+  // the board's baked socket, used here only (SOCKET_FIT).
+  const frame = usePortraitFrame('self', frameIdOf(runSkins), 'socket');
   const powers = activePowers(run);
   const power = powers[0]!;
   const secondPower = powers[1];

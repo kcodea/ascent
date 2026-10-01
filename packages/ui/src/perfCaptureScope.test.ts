@@ -59,7 +59,7 @@ describe('auto-capture scope', () => {
 
   it('decides every RunMode explicitly — a new mode is excluded until someone rules on it', () => {
     // The full union, so adding a mode fails here rather than silently landing on one side of the gate.
-    const verdict: Record<RunMode, boolean> = { lobby: true, ascent: true, practice: false, tutorial: false, rift: false };
+    const verdict: Record<RunMode, boolean> = { lobby: true, ascent: true, practice: false, tutorial: false, rift: false, gauntlet: false };
     for (const [mode, expected] of Object.entries(verdict) as [RunMode, boolean][]) {
       expect(isRealPlayRun(run({ mode })), mode).toBe(expected);
     }

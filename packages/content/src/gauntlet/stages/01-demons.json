@@ -1,0 +1,12 @@
+{
+  "number": 1,
+  "name": "Demons",
+  "opponentName": "The Demon Host",
+  "tribe": "demon",
+  "status": "draft",
+  "runes": {},
+  "rounds": [
+    { "board": [] }, { "board": [] }, { "board": [] }, { "board": [] }, { "board": [] },
+    { "board": [] }, { "board": [] }, { "board": [] }, { "board": [] }, { "board": [] }
+  ]
+}

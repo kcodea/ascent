@@ -8,10 +8,11 @@ import { poolOf, setIdOf } from './cardPool';
 import { ACE_DISCOUNT_MAX_TIER, ACE_TIER_DISCOUNT, CONFIG, INDY_GILD_RECHARGE_GOLD, KESHI_CROWN_THRESHOLD, maxTierFor, hasTier7Access } from './config';
 import { lobbyOpponentBoard, settleRunLobbyRound, playerEliminated, practicePlayerPlacement, playerLossDamage } from './lobby/runLobby';
 import { botDamageMultFor } from './lobby/practiceBots';
+import type { LobbyRules } from './lobby/types';
 import { accumulateContribution, tallyCombat } from './contribution';
 import { rollShop, topUpTavern, returnToPool, takeFromPool, rollCiaEnchants, tierSlots } from './shop';
 import { generateQuestOffer, questOfferPlan } from './quests';
-import { activePowers, getHero, gildCopiesNeeded, hasPower, powerDiscoverPool } from './heroes';
+import { DEFAULT_HERO_ID, activePowers, getHero, gildCopiesNeeded, hasPower, powerDiscoverPool } from './heroes';
 import { buildEnemyBoard, selectThreat } from './threats';
 import { pickOpponent, opponentBoard, oppKey } from './opponents';
 import type { BoardSnapshot } from './snapshot';
@@ -22,7 +23,7 @@ import {
   selectEquipment, selectedEquipment, amplifyAllHeld, amplifyUnactivated, consumeAmplified,
 } from './equipment';
 import { applyChooseOnePlayed, spendChooseBothCharge, noteSpellCast, applyCastEffects, makeContext, discoverSpecFor, heroPowerCostOf, commissionOffer, COMMISSION_DELAY, aegisGrantOf, allInPayoutOf, threeDistinctTypes, exhibitionGrantOf, stampSableBond, stampSharedSpoils, heroOfferPrice, addBuff, addOfferBuff, applyBattlecryTarget, applyCardsBought, applyCardsPlayed, applyChooseOne, applyChooseOneTarget, chooseBothActive, chooseOneNeedsChoice, applyEndOfTurn, applyStartOfTurn, applyOnBuy, applyGoldSpent, advanceRuneThresholds, applySecondLife, effectiveTargetTribe, dominantBoardTribe, uncontrolledTribes, gainGold, applyRunShopBuff, applyShoutsForEndlessVerse, applyShoutsForShopBuff, auraFxTargets, boardManaBonus, buffImpsRunWide, buffUndeadAttackEverywhere, buffCardTypeRunWide, buffFodderRunWide, cardBuff, captureBuffFx, conjuredStats, castSpell, castSpellOnOffer, conjureToHand, consumeTavernFodder, fireGravetwinEchoes, fireOnGainAttack, fireOnRubyCast, fireOnRubyPlayed, applyRubyRiderAction, mintRandomRubies, recordRubyRiderFx, fireOnMinionSold, fireOnSell, fireOnGainCard, fireSummonBuffs, fireDemonPlayRunes, foldOfferBuffs, creditShopBuffSource, gildMinion, grantMinionToHandOrBoard, grantTopTypeMinion, hasBattlecry, isTribe, mintRubies, modalOpen, openDiscover, playCard, queueDiscover, replayBattlecry, replayEconomyBattlecry, replayEndOfTurn, restoreHeldOffer, replayRecurringEndOfTurn, withEotDiscoverGrantBeat, sellValueOf, sellValueWithBonus, rubyCastCount, giftCastCount, rubyStatBonus, yazzusExtraCasts, consumeGrimoireCharge, countRubyAsShopSpell, fireSpellCastWatchersForRuby, spellAttackBonus, spellCasts, spellCostReduction, spellHealthBonus, stampImproveReps, swapWithTavern, applySpellBought, applyShopRefreshed, taughtAimSpell, triggerBorrowedEcho, landBorrowed, settlePendingDeath, stampEquipFx, equipmentFxMark, buffedFxTargets, fireEquipmentTriggers, fireEquipmentActivated, buyHealthAura, undeadBuyBonus, weldMagnetic, defIsTribe, handCardLocked, fireStatGainReactors, fireEquipmentFree, applyRuneGrafts, noteSpellForCountRunes, settleMinionSale, distillationEdges, fireRunicHoard, applyLorekeeping, runeExtraCasts, castWithRuneRepeats, withCastActor, withHandCast, fireSoldChoice, noteGilded, destroyMinionInShop } from './recruit';
-import { handCap, recordBounceFx, mixSeed, reservedHandSlots, TAG, henchmanOffer, type Action, type DeferredFight, type PreparedCombatSide, type ActiveQuest, type AuraFxTribe, type BoardCard, type CardBuff, type ShopCard, type CiaSuit, type Commission, type CommissionKind, type RunState, type RubyLandedFx, type SotBeatSource, gateUses, procRune, procRuneId, runeBuffMagnitude, PACKCRAFT_STEP, REINVESTMENT_PER_SUMMON, SLAYING_KILLS, EQUIPMENT_FX_ANCHOR } from './state';
+import { createRun, handCap, recordBounceFx, mixSeed, reservedHandSlots, TAG, henchmanOffer, type Action, type DeferredFight, type PreparedCombatSide, type ActiveQuest, type AuraFxTribe, type BoardCard, type CardBuff, type ShopCard, type CiaSuit, type Commission, type CommissionKind, type RunState, type RubyLandedFx, type SotBeatSource, gateUses, procRune, procRuneId, runeBuffMagnitude, PACKCRAFT_STEP, REINVESTMENT_PER_SUMMON, SLAYING_KILLS, EQUIPMENT_FX_ANCHOR } from './state';
 import { alignmentsOf } from './alignment';
 import { blockedByShopClock } from './shopClock';
 import { pushSotBeat, recordSotBeat } from './sotBeat';
@@ -485,6 +486,19 @@ export function nextOpponent(s: RunState): BoardSnapshot | null {
 export function lossDamageCap(wave: number): number {
   return wave <= 3 ? 5 : wave <= 7 ? 10 : wave <= 11 ? 15 : wave <= 15 ? 20 : Infinity;
 }
+
+/** The loss cap for `round` under a lobby's rules: its own `lossCaps` table when it has one (Gauntlet), else the
+ *  normal game's `lossDamageCap`. The ONE cap every reader asks — the reducer's fight, the lobby settle, the
+ *  odds probe and the HUD — so a mode with its own caps can't have two of them disagree. */
+export function roundLossCap(rules: Pick<LobbyRules, 'lossCaps'> | undefined, round: number): number {
+  const caps = rules?.lossCaps;
+  if (!caps) return lossDamageCap(round);
+  const cap = caps[round - 1];
+  return cap === null || cap === undefined ? Infinity : cap;
+}
+
+/** `roundLossCap` for a run's current round. */
+export const runLossCap = (run: Pick<RunState, 'lobby' | 'wave'>): number => roundLossCap(run.lobby?.rules, run.wave);
 
 /** Practice-BOT damage multiplier by difficulty (1 = every other mode, untouched). The stock face-damage formula
  *  tops out around 13 even against a tier-6 full board, which made bot games drag (owner ask 2026-08-25); this
@@ -3666,7 +3680,7 @@ function reduceCore(state: RunState, action: Action): RunState {
         combat.playerDamage = Math.round(combat.playerDamage * practiceBotDamageMult(s));
         // The presentation's hero damage formation (owner ask 2026-09-28) shows the blow before and after the cap:
         // stamp both here, where the cap is applied, so the screen never recomputes either.
-        const roundCap = lossDamageCap(s.wave);
+        const roundCap = runLossCap(s);
         if (combat.result === 'lose') combat.playerDamageUncapped = combat.playerDamage;
         if (Number.isFinite(roundCap)) combat.damageCap = roundCap;
         combat.playerDamage = Math.min(combat.playerDamage, roundCap); // round cap
@@ -5173,8 +5187,8 @@ function settleCombat(s: RunState, result: CombatResult): void {
   }
   // LOBBY / TUTORIAL: the seat already took this hit (with the lobby's own cap and stall pressure) and the run
   // was synced to it above, so applying it again here charges the player twice — visible as the HUD reading 2
-  // lower than the table for the same fight. A tutorial carries a lobby too, so it is excluded for the same reason.
-  if (result.result === 'lose' && s.mode !== 'practice' && s.mode !== 'lobby' && s.mode !== 'tutorial') {
+  // lower than the table for the same fight. A tutorial or Gauntlet carries a lobby too, so each is excluded for the same reason.
+  if (result.result === 'lose' && s.mode !== 'practice' && s.mode !== 'lobby' && s.mode !== 'tutorial' && s.mode !== 'gauntlet') {
     // Armor absorbs the hit first (extra effective HP), the overflow chips Resolve. Practice: unlimited health.
     const absorbed = Math.min(s.armor, result.playerDamage);
     s.armor -= absorbed;
@@ -5288,9 +5302,9 @@ function advanceCombat(s: RunState): void {
   // A LOBBY seat has no course clock: the lobby ends by elimination, with no fixed round count, so the seat
   // must keep shopping and scaling for as long as the lobby lasts. Without this a bot seat froze at wave 17
   // and every late round was fought with a stale board — the exact pacing failure the prototype measured.
-  // Tutorial is excluded alongside lobby/practice: it carries a lobby and ends by the lobby's round cap (above),
+  // Tutorial (and Gauntlet) are excluded alongside lobby/practice: each carries a lobby and ends by the lobby's round cap (above),
   // never by the 17-round course clock.
-  if (s.mode !== 'practice' && s.mode !== 'lobby' && s.mode !== 'tutorial' && s.wave >= CONFIG.courseRounds) {
+  if (s.mode !== 'practice' && s.mode !== 'lobby' && s.mode !== 'tutorial' && s.mode !== 'gauntlet' && s.wave >= CONFIG.courseRounds) {
     s.phase = 'victory';
     return;
   }
@@ -7775,6 +7789,28 @@ export function questCombatMods(s: RunState): QuestCombatMods {
       return { attack: held.attack, health: held.health, copies: runeStacksOf(s, 'rune_held_strength') };
     })(),
   };
+}
+
+/**
+ * The combat modifiers a set of runes gives a side that owns them — for an AUTHORED opponent (Gauntlet), which has
+ * no run of its own. Applies each rune's reward to a scratch run through the same `applyQuestReward` the Runeforge
+ * uses (with the Runeforge's duplicate rules: a unique or sweetener-only duplicate adds nothing), then reads
+ * `questCombatMods`, so an opponent's rune behaves in combat exactly like a player's. A rune whose reward only acts
+ * in the shop (Gold, refreshes, Discovers, End of Turn) leaves no combat modifier: an authored opponent has no
+ * recruit phase, so such a rune does nothing for it. Pure and deterministic (fixed scratch seed).
+ */
+export function runeCombatModsFor(runeIds: readonly string[]): QuestCombatMods {
+  const s = createRun(1, DEFAULT_HERO_ID, 'gauntlet');
+  for (const id of runeIds) {
+    const rune = RUNE_INDEX[id];
+    if (!rune) continue;
+    const isDuplicate = (s.ownedRunes ?? []).includes(rune.id);
+    if (!(isDuplicate && (RUNE_DUP_UNIQUE.has(rune.id) || RUNE_DUP_SWEETENER.has(rune.id)))) {
+      applyQuestReward(s, { id: rune.id, name: rune.name, reward: rune.reward } as unknown as QuestDef, true, 'rune');
+    }
+    (s.ownedRunes ??= []).push(rune.id);
+  }
+  return questCombatMods(s);
 }
 
 /**

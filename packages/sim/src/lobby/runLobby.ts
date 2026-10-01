@@ -5,7 +5,7 @@ import type { RunCosmeticSnapshot } from '@game/progression';
 import { combatSide, makeRng, simulate } from '@game/core';
 import { CARD_INDEX } from '@game/content';
 import { HEROES, playableHeroes } from '../heroes';
-import { lossDamageCap } from '../reducer';
+import { roundLossCap } from '../reducer';
 import { createRun, type RunState, type PracticeConfig } from '../state';
 import { normalizePracticeTribes } from '../practiceTribes';
 import { createPracticeBotLobby } from './practiceBots';
@@ -15,7 +15,7 @@ import { OPPONENT_POOL } from '../opponents';
 import { handleKeyOf, uniqueHandleFor, adjectiveHandle } from './handles';
 import type { LobbyEncounter, LobbyRules, PreparedBoard, SeatDriver } from './types';
 import { DEFAULT_LOBBY_RULES } from './lobby';
-import { authoredSeat } from './tutorialSeats';
+import { authoredSeat, type AuthoredOmen } from './tutorialSeats';
 import { bandSteps, inStrengthBand, type StrengthBand } from './strengthBands';
 
 /**
@@ -40,13 +40,21 @@ export interface LobbySeatState {
   /** `authored` seats only (the tutorial): the course's per-round omen board table (index = round − 1). Plain
    *  data so the seat stays serializable; `driverFor` builds an `authoredSeat` driver from it. Every authored
    *  seat in a tutorial lobby carries the SAME table, so the player faces the round's board whatever the pairing. */
-  authoredBoards?: { attack: number; health: number; cardId?: string }[][];
+  authoredBoards?: AuthoredOmen[][];
   /** Authored seats only — climb one tavern tier every N rounds (capped at 6), which is what makes losing to
    *  this seat actually cost Resolve (face damage = opponent tier + surviving minions). Absent = pinned tier 1,
    *  which is what the tutorial wants. See `authoredTierFor`. */
   authoredTierRamp?: number;
   /** Authored seats only — the tier the climb starts from (default 1). The top practice-bot levels open higher. */
   authoredTierStart?: number;
+  /** Authored seats only (Gauntlet): the opponent's tavern tier for each round (index = round − 1). Wins over
+   *  `authoredTierRamp` for every round it covers. */
+  authoredTiers?: number[];
+  /** Authored seats only (Gauntlet): the opponent's runes, each active from `fromRound` on (they stack). */
+  authoredRunes?: { fromRound: number; runeId: string }[];
+  /** Gauntlet's opponent: the settle never charges this seat, so it can never be eliminated (the player's goal
+   *  is to SURVIVE, not to knock it out). Its hits are still recorded as 0 dealt to it. */
+  invulnerable?: true;
   /** Practice-bot seats only — the difficulty damage multiplier applied to this table's seat-vs-seat fights
    *  (and mirrored on the player's fight by `practiceBotDamageMult`). Absent everywhere else = 1. */
   botDamageMult?: number;
@@ -752,7 +760,7 @@ export function seatResults(lobby: RunLobby, seatId: string, n = 3): SeatResult[
  */
 export function playerLossDamage(lobby: Pick<RunLobby, 'rules' | 'round'>, result: CombatResult): number {
   if (result.result === 'win') return 0;
-  return Math.min(lossDamageCap(lobby.round), result.playerDamage);
+  return Math.min(roundLossCap(lobby.rules, lobby.round), result.playerDamage);
 }
 
 export function settleRunLobbyRound(lobby: RunLobby, playerResult: CombatResult): RunLobby {
@@ -761,7 +769,7 @@ export function settleRunLobbyRound(lobby: RunLobby, playerResult: CombatResult)
   const rng = makeRng(lobby.seed ^ (lobby.round * 0x51ed270b));
   const eliminated: LobbySeatState[] = [];
   const hpBefore = new Map(lobby.seats.map((s) => [s.id, s.armor + s.resolve]));
-  const cap = lossDamageCap(lobby.round);
+  const cap = roundLossCap(lobby.rules, lobby.round);
   // PRACTICE-BOT tables hit harder seat-to-seat (owner ask 2026-08-25). Read off the seats themselves - stamped
   // by `createPracticeBotLobby` - so the signature stays put and every other lobby (rated, practice-vs-players,
   // tutorial) keeps a multiplier of exactly 1.
@@ -830,6 +838,8 @@ export function settleRunLobbyRound(lobby: RunLobby, playerResult: CombatResult)
       dmgToB = Math.min(seatCap, Math.round((r.enemyDamage ?? 0) * seatDamageMult));
     }
 
+    if (a.invulnerable) dmgToA = 0;
+    if (b.invulnerable) dmgToB = 0;
     hitSeat(a, dmgToA);
     hitSeat(b, dmgToB);
     for (const [seat, taken, dealt] of [[a, dmgToA, dmgToB], [b, dmgToB, dmgToA]] as const) {

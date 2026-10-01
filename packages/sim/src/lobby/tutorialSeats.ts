@@ -12,9 +12,12 @@
  * Nothing here fakes an outcome: combat still runs in `simulate`, damage still flows through the lobby. The
  * course only supplies the INPUT board, exactly like a recorded seat supplies its input board.
  */
-import type { BoardMinion, Tribe } from '@game/core';
+import type { BoardMinion, Keyword, Tribe } from '@game/core';
+import { CARD_INDEX } from '@game/content';
 import { createRun, type RunState } from '../state';
 import { rollShop } from '../shop';
+import { runeCombatModsFor } from '../reducer';
+import type { BoardSnapshot } from '../snapshot';
 import type { LobbyRules, PreparedBoard, SeatDriver } from './types';
 import { DEFAULT_LOBBY_RULES } from './lobby';
 import type { LobbySeatState, RunLobby } from './runLobby';
@@ -26,20 +29,30 @@ export interface AuthoredOmen {
   attack: number;
   health: number;
   cardId?: string;
+  /** Gauntlet: a golden (tripled) copy. */
+  golden?: boolean;
+  /** Gauntlet: keywords granted ON TOP of the card's printed keywords. */
+  addedKeywords?: Keyword[];
 }
 
 /** Materialize a round's authored omen stat-line into real `omen` `BoardMinion`s (textless, keywordless —
  *  matching how `threats.ts` builds omen bodies). No snapshot is needed: an effectless board wants exactly the
  *  base neutral side, which the reducer supplies when `PreparedBoard.snapshot` is omitted. */
 export function omenBoardMinions(board: readonly AuthoredOmen[]): BoardMinion[] {
-  return board.map((m) => ({
-    cardId: m.cardId ?? 'omen',
-    attack: Math.max(1, Math.round(m.attack)),
-    health: Math.max(1, Math.round(m.health)),
-    // A real card keeps its printed keywords (`instantiate` falls back to the CardDef when this is absent);
-    // an omen is explicitly keywordless.
-    ...(m.cardId ? {} : { keywords: [] }),
-  }));
+  return board.map((m) => {
+    const base: BoardMinion = {
+      cardId: m.cardId ?? 'omen',
+      attack: Math.max(1, Math.round(m.attack)),
+      health: Math.max(1, Math.round(m.health)),
+    };
+    if (!m.cardId) return { ...base, keywords: [] }; // an omen is explicitly keywordless
+    // A real card keeps its printed keywords (`instantiate` falls back to the CardDef when `keywords` is absent), but
+    // a set `keywords` OVERRIDES them — so added keywords must carry the printed ones with them. With nothing
+    // added, leave it unset so the card keeps its printed keywords exactly.
+    const added = m.addedKeywords ?? [];
+    const keywords = added.length ? [...new Set([...(CARD_INDEX[m.cardId]?.keywords ?? []), ...added])] : undefined;
+    return { ...base, ...(m.golden ? { golden: true } : {}), ...(keywords ? { keywords } : {}) };
+  });
 }
 
 /**
@@ -54,7 +67,11 @@ export function omenBoardMinions(board: readonly AuthoredOmen[]): BoardMinion[] 
  * the real 6-tier ceiling), mirroring how a live board tiers up; without the field it stays on its start tier.
  * `authoredTierStart` (default 1) is where the climb begins — the top practice-bot levels open above tier 1.
  */
-export function authoredTierFor(seat: Pick<LobbySeatState, 'authoredTierRamp' | 'authoredTierStart'>, round: number): number {
+export function authoredTierFor(
+  seat: Pick<LobbySeatState, 'authoredTierRamp' | 'authoredTierStart' | 'authoredTiers'>, round: number,
+): number {
+  const explicit = seat.authoredTiers?.[Math.max(1, round) - 1];
+  if (explicit !== undefined) return Math.min(6, Math.max(1, explicit));
   const start = Math.min(6, Math.max(1, seat.authoredTierStart ?? 1));
   const ramp = seat.authoredTierRamp;
   if (!ramp || ramp <= 0) return start;
@@ -63,6 +80,22 @@ export function authoredTierFor(seat: Pick<LobbySeatState, 'authoredTierRamp' | 
 
 export function authoredSeat(seat: LobbySeatState): SeatDriver {
   const boards = seat.authoredBoards ?? [];
+  const modsCache = new Map<string, BoardSnapshot['questMods']>();
+  /** The rune snapshot for a round, or undefined when no rune is active yet — so a rune-less authored seat (the
+   *  tutorial, practice bots) prepares exactly the board it always did. The reducer's lobby path builds the enemy
+   *  side from `PreparedBoard.snapshot`, and `sideFromSnapshot` threads `questMods` into combat, so the runes act
+   *  in the fight with no combat change. `threat` is a required placeholder (an authored seat has no threat). */
+  const runeSnapshot = (round: number, minions: BoardMinion[], tier: number): BoardSnapshot | undefined => {
+    const runes = (seat.authoredRunes ?? []).filter((r) => r.fromRound <= round).map((r) => r.runeId);
+    if (runes.length === 0) return undefined;
+    const key = runes.join('|');
+    if (!modsCache.has(key)) modsCache.set(key, runeCombatModsFor(runes));
+    return {
+      v: 1, wave: round, heroId: seat.heroId, resolve: seat.resolve, armor: seat.armor, tier, triples: 0,
+      tribes: [], threat: 'venom', power: minions.reduce((n, m) => n + m.attack + m.health, 0), minions, seed: seat.seed,
+      questMods: modsCache.get(key), runes,
+    };
+  };
   const boardFor = (round: number): PreparedBoard | null => {
     // Rounds are 1-based; clamp past the last authored board to the final one (the course's exhaustion tail),
     // so a lobby that runs a round longer than authored still fields a real board rather than a bye.
@@ -72,7 +105,10 @@ export function authoredSeat(seat: LobbySeatState): SeatDriver {
     // seat pinned at tier 1 deals a trickle no matter how big its bodies are. `authoredTierRamp` lets a seat
     // climb like a real board would (practice bots — owner ask 2026-08-25: games lasted far too long); absent, it
     // stays tier 1 so the TUTORIAL's gentle pacing is unchanged.
-    return { minions: omenBoardMinions(boards[idx]!), tier: authoredTierFor(seat, idx + 1) };
+    const minions = omenBoardMinions(boards[idx]!);
+    const tier = authoredTierFor(seat, idx + 1);
+    const snapshot = runeSnapshot(round, minions, tier);
+    return { minions, tier, ...(snapshot ? { snapshot } : {}) };
   };
   return {
     kind: 'recorded',

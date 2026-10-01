@@ -1,0 +1,12 @@
+{
+  "number": 5,
+  "name": "Beasts",
+  "opponentName": "The Beast Pack",
+  "tribe": "beast",
+  "status": "draft",
+  "runes": {},
+  "rounds": [
+    { "board": [] }, { "board": [] }, { "board": [] }, { "board": [] }, { "board": [] },
+    { "board": [] }, { "board": [] }, { "board": [] }, { "board": [] }, { "board": [] }
+  ]
+}

@@ -172,7 +172,8 @@ describe('every hero-portrait surface goes through the shared renderer', () => {
     ['EndScreen.tsx', /usePortraitFrame\('self'\)/],
     ['FightRecap.tsx', /usePortraitFrame\('opp'\)/],
     ['OpponentFrame.tsx', /usePortraitFrame\('opp'\)/],
-    ['Career.tsx', /usePortraitFrame\(useContext\(CareerSkinContext\)\.own \? 'self' : 'opp'\)/],
+    // Career and the Collection's hero-skin preview paint the shared ring component, which asks for its side.
+    ['portraitFrame/HeroPortraitRing.tsx', /usePortraitFrame\(side\)/],
     ['LadderBits.tsx', /usePortraitFrame\(side\)/], // Hall, Rankings, Recent Games
     ['matchDetails/MatchScoreboard.tsx', /usePortraitFrame\(self \? 'self' : 'opp'\)/],
     ['Title.tsx', /usePortraitFrame\('self'\)/],
@@ -189,6 +190,11 @@ describe('every hero-portrait surface goes through the shared renderer', () => {
     } else {
       expect(src).toMatch(/<PortraitFrame frame=\{/);
     }
+  });
+
+  it('Career passes its page owner side; the Collection previews a hero skin in the same ring as self', () => {
+    expect(read('Career.tsx')).toMatch(/<HeroPortraitRing [^>]*side=\{useContext\(CareerSkinContext\)\.own \? 'self' : 'opp'\}/);
+    expect(read('progression/CollectionScreen.tsx')).toMatch(/<HeroPortraitRing art=\{art\}/);
   });
 
   it('Rankings passes your own row as self', () => {

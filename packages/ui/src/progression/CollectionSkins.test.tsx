@@ -104,7 +104,7 @@ describe('the Heroes and Minions tabs', () => {
     act(() => tab('Heroes').click());
     expect(tile('Surf Day Albus').className).toMatch(/\bworn\b/);
     expect(text('.colls-detail .colls-kicker')).toBe('Hero skin');
-    expect($('.colls-skinart.hero img')?.getAttribute('src')).toContain('skin_albus_1');
+    expect($('.colls-heroring .hero .f img.heroimg')?.getAttribute('src')).toContain('skin_albus_1');
     expect(text('.colls-detail')).toContain('Albus');
     expect(button('Use default art')).toBeTruthy();
     clean();

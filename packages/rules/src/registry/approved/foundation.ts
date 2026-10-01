@@ -2466,6 +2466,25 @@ export const FOUNDATION_RULES: GameRule[] = [
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/skins/skins.test.tsx', 'packages/progression/src/skins.test.ts', 'packages/progression/src/cosmetics.test.ts', 'packages/progression/src/skinRarityFolders.test.ts', 'packages/ui/src/progression/CollectionSkins.test.tsx'], lastVerifiedAt: '2026-10-01' },
   },
   {
+    id: 'R-PROG-SKINS-13',
+    title: 'Skins batch 7: three hero skins join the crates, rarity from the art folder',
+    statement:
+      'Three hero skins are crate items, each targeting its hero by stable id and shipping its own art (a 512px WebP in '
+      + 'packages/ui/src/art/skins/), with the rarity of the Hero Skins folder its master sits in (R-PROG-SKINS-11): Goth '
+      + 'Merrin (Epic, merrin, GothMerrin.png); Iron Guardian (Epic, runeguard, the Guardian hero re-activated '
+      + '2026-10-01, IronGuardian.png); Robin Hood (Rare, robin, RobinHood.png; a second Robin skin after Ninja Robin). '
+      + 'With them and portrait frames batch 3 in, a first crate holds 35 Common, 39 Rare, 37 Epic and 35 Legendary items '
+      + '(each Common 1.429%, Rare 0.769%, Epic 0.405%, Legendary 0.143%).',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-01 (skins batch 7)', quote: 'i added a bunch of art/portrait arts etc, can you make sure all get added' },
+      { kind: 'code', ref: 'packages/progression/src/cosmetics.ts (COSMETICS, skins batch 7); packages/ui/src/art/skins/*.webp' },
+    ],
+    currentBehaviour: 'Conforms, built 2026-10-01. Reaches the database on the next deploy of progression-inventory (the catalog sync, R-PROG-SKINS-05).',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/skins/skins.test.tsx', 'packages/progression/src/skins.test.ts', 'packages/progression/src/cosmetics.test.ts', 'packages/progression/src/skinRarityFolders.test.ts', 'packages/ui/src/progression/CollectionSkins.test.tsx'], lastVerifiedAt: '2026-10-01' },
+  },
+  {
     id: 'R-PROG-COLLECTION-03',
     title: 'The crate opening draws the owner\x27s two-layer treasure chest: the lid blasts off, the open body stays',
     statement:
@@ -3908,12 +3927,12 @@ export const FOUNDATION_RULES: GameRule[] = [
   },
   {
     id: 'R-PROG-FRAME-01',
-    title: 'Portrait frames are a crate cosmetic: 21 frames (1 Common, 7 Rare, 8 Epic, 5 Legendary, the rank-named masters included) in the account-wide portrait_frame slot; names avoid the ranked medal words',
+    title: 'Portrait frames are a crate cosmetic: 31 frames (7 Common, 8 Rare, 11 Epic, 5 Legendary, the rank-named masters included) in the account-wide portrait_frame slot; names avoid the ranked medal words',
     statement:
-      'The portrait_frame category ("Portrait Frames", target global, enabled) holds 21 crate items, one per master in '
-      + 'C:/Game Assets/Ascent Art/Skins/Portraits at its folder rarity (R-PROG-FRAME-04): Common Honey; Rare Burnished, '
-      + 'Sterling, Gilded, Seaglass, Glass Shard, Paragon, Vine; Epic Aura, Amethyst, Shard, Prism, Frost, Pearlescent, '
-      + 'Crimson, Nimbus; Legendary Fire, Reaper, Water, Stained Glass, Wind (each "<name> Frame"; ids keep the master '
+      'The portrait_frame category ("Portrait Frames", target global, enabled) holds 31 crate items, one per master in '
+      + 'C:/Game Assets/Ascent Art/Skins/Portraits at its folder rarity (R-PROG-FRAME-04): Common Honey, Ale, Ruby, Steel, '
+      + 'Wood, Dark Scale, Gilt Scale; Rare Burnished, Sterling, Gilded, Seaglass, Glass Shard, Paragon, Vine, Magic; Epic Aura, Amethyst, Shard, Prism, Frost, Pearlescent, '
+      + 'Crimson, Nimbus, Dark Cloud, Venom, Wedding; Legendary Fire, Reaper, Water, Stained Glass, Wind (each "<name> Frame"; ids keep the master '
       + 'names, e.g. frame_gold, frame_rank1, frame_wind). Every one is in the crate pool at the fixed rarity odds, equal '
       + 'chance within a rarity. A frame is ACCOUNT-WIDE: equip_cosmetic(user, \x27portrait_frame\x27, \x27\x27, id) wears an '
       + 'owned, live frame (one cosmetic_loadouts row, target \x27\x27); null takes it off (the default ring). The display names '
@@ -3974,11 +3993,13 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'its folder, and its catalog rarity equals that folder. npm run art:frames reads the master at that path. Where the '
       + 'art folder exists (the owner\x27s machine; CI skips this half) each master must sit in exactly one rarity folder '
       + 'and every PNG in the four folders must be wired. On 2026-10-01 the folders held 21 frames (1 Common, 7 Rare, 8 '
-      + 'Epic, 5 Legendary); the first 13 already matched their folders, and 8 were added at their folder rarity.',
+      + 'Epic, 5 Legendary); the first 13 already matched their folders, and 8 were added at their folder rarity. Batch 3 '
+      + '(the same day) added 10 more at their folder rarity: Ale, Ruby, Steel, Wood, Dark Scale and Gilt Scale (Common), '
+      + 'Magic (Rare), and Dark Cloud, Venom and Wedding (Epic), 31 in all (7 Common, 8 Rare, 11 Epic, 5 Legendary).',
     domain: 'foundation',
     status: 'approved',
     evidence: [
-      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-01 (portrait frames batch 2)', quote: 'i added a bunch of art/portrait arts etc, can you make sure all get added' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-01 (portrait frames batches 2 and 3)', quote: 'i added a bunch of art/portrait arts etc, can you make sure all get added' },
       { kind: 'code', ref: 'packages/progression/src/cosmetics.ts (portraitFrame items); packages/tools/src/wire-portrait-frames.ts' },
     ],
     currentBehaviour: 'Conforms, built 2026-10-01. Reaches the database on the next deploy of progression-inventory (the catalog sync).',

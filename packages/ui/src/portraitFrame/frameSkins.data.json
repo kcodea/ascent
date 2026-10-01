@@ -1,4 +1,10 @@
 {
+  "frame_ale": {
+    "aspect": 1,
+    "holeD": 0.8254,
+    "holeCx": 0.4992,
+    "holeCy": 0.48
+  },
   "frame_ascendant": {
     "aspect": 1,
     "holeD": 0.7687,
@@ -17,11 +23,23 @@
     "holeCx": 0.4942,
     "holeCy": 0.4868
   },
+  "frame_dark_cloud": {
+    "aspect": 1,
+    "holeD": 0.6946,
+    "holeCx": 0.502,
+    "holeCy": 0.4837
+  },
   "frame_dark_diamond": {
     "aspect": 1.0234,
     "holeD": 0.8782,
     "holeCx": 0.495,
     "holeCy": 0.49
+  },
+  "frame_dark_dragonscale": {
+    "aspect": 1,
+    "holeD": 0.748,
+    "holeCx": 0.5011,
+    "holeCy": 0.4771
   },
   "frame_diamond": {
     "aspect": 1,
@@ -47,6 +65,12 @@
     "holeCx": 0.4948,
     "holeCy": 0.4869
   },
+  "frame_golden_dragonscale": {
+    "aspect": 1,
+    "holeD": 0.748,
+    "holeCx": 0.5013,
+    "holeCy": 0.4773
+  },
   "frame_honey": {
     "aspect": 1.0324,
     "holeD": 0.859,
@@ -58,6 +82,12 @@
     "holeD": 0.8349,
     "holeCx": 0.4981,
     "holeCy": 0.4826
+  },
+  "frame_magic": {
+    "aspect": 1,
+    "holeD": 0.7998,
+    "holeCx": 0.4999,
+    "holeCy": 0.4852
   },
   "frame_nimbus": {
     "aspect": 1,
@@ -95,6 +125,12 @@
     "holeCx": 0.5005,
     "holeCy": 0.4641
   },
+  "frame_ruby": {
+    "aspect": 1,
+    "holeD": 0.7992,
+    "holeCx": 0.4965,
+    "holeCy": 0.4734
+  },
   "frame_silver": {
     "aspect": 1,
     "holeD": 0.8397,
@@ -106,6 +142,18 @@
     "holeD": 0.7058,
     "holeCx": 0.4981,
     "holeCy": 0.4709
+  },
+  "frame_steel": {
+    "aspect": 1,
+    "holeD": 0.8285,
+    "holeCx": 0.4938,
+    "holeCy": 0.4789
+  },
+  "frame_venom": {
+    "aspect": 1,
+    "holeD": 0.795,
+    "holeCx": 0.4989,
+    "holeCy": 0.4699
   },
   "frame_vines": {
     "aspect": 1,
@@ -119,10 +167,22 @@
     "holeCx": 0.5007,
     "holeCy": 0.4811
   },
+  "frame_wedding": {
+    "aspect": 1,
+    "holeD": 0.6412,
+    "holeCx": 0.5028,
+    "holeCy": 0.5769
+  },
   "frame_wind": {
     "aspect": 1,
     "holeD": 0.6818,
     "holeCx": 0.5,
     "holeCy": 0.4826
+  },
+  "frame_wood": {
+    "aspect": 1,
+    "holeD": 0.819,
+    "holeCx": 0.4963,
+    "holeCy": 0.4786
   }
 }

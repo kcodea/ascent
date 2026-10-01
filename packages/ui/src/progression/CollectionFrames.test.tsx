@@ -65,7 +65,7 @@ describe('the Portrait Frames tab', () => {
     expect(tab('Portrait Frames')!.className).not.toMatch(/\blocked\b/);
     expect(tab('Portrait Frames')!.querySelector('.colls-tab-count')?.textContent).toBe(`2/${FRAMES.length}`);
     const tiles = $$('.colls-grid .colls-tile');
-    expect(tiles).toHaveLength(21);
+    expect(tiles).toHaveLength(31);
     expect(tiles.every((t) => t.className.includes('ring') && !!t.querySelector('img.colls-tile-art'))).toBe(true);
     // rarest first: the five Legendary frames lead
     expect(tiles.slice(0, 5).map((t) => t.querySelector('.colls-tile-name')?.textContent)).toEqual(['Fire Frame', 'Reaper Frame', 'Water Frame', 'Stained Glass Frame', 'Wind Frame']);

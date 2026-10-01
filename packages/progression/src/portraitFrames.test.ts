@@ -7,7 +7,7 @@ import { validateInventoryBody } from './inventory';
 
 /**
  * PORTRAIT FRAMES (owner 2026-10-01: "we're adding portrait skins: C:\Game Assets\Ascent Art\Skins\Portraits. we want
- * this to replace the default portrait png when a skin is applied"). The 21 frames (every one a crate drop at its
+ * this to replace the default portrait png when a skin is applied"). The 31 frames (every one a crate drop at its
  * folder's rarity, the rank-named masters included), the account-wide `portrait_frame` slot, the loadout and the run
  * snapshot carrying it, and the one resolver that drops unknown / retired / wrong-category ids.
  */
@@ -16,11 +16,13 @@ const FRAMES = COSMETICS.filter((c) => c.category === 'portrait_frame');
 afterEach(() => setServerCatalogState(null));
 
 describe('the portrait frame catalog', () => {
-  it('21 crate frames at their folder rarity (1 Common, 7 Rare, 8 Epic, 5 Legendary), each naming its master and art key', () => {
+  it('31 crate frames at their folder rarity (7 Common, 8 Rare, 11 Epic, 5 Legendary), each naming its master and art key', () => {
     expect(Object.fromEntries(FRAMES.map((c) => [c.id, c.rarity]))).toEqual({
-      frame_honey: 'common',
-      frame_bronze: 'rare', frame_silver: 'rare', frame_gold: 'rare', frame_platinum: 'rare', frame_glass_shard: 'rare', frame_paragon: 'rare', frame_vines: 'rare',
+      frame_honey: 'common', frame_ale: 'common', frame_ruby: 'common', frame_steel: 'common', frame_wood: 'common',
+      frame_dark_dragonscale: 'common', frame_golden_dragonscale: 'common',
+      frame_bronze: 'rare', frame_silver: 'rare', frame_gold: 'rare', frame_platinum: 'rare', frame_glass_shard: 'rare', frame_paragon: 'rare', frame_vines: 'rare', frame_magic: 'rare',
       frame_aura: 'epic', frame_ascendant: 'epic', frame_dark_diamond: 'epic', frame_diamond: 'epic', frame_ice: 'epic', frame_pearlescent: 'epic', frame_rank1: 'epic', frame_nimbus: 'epic',
+      frame_dark_cloud: 'epic', frame_venom: 'epic', frame_wedding: 'epic',
       frame_fire: 'legendary', frame_reaper: 'legendary', frame_water: 'legendary', frame_stained_glass: 'legendary', frame_wind: 'legendary',
     });
     for (const c of FRAMES) {
@@ -36,9 +38,9 @@ describe('the portrait frame catalog', () => {
 
   it('the names avoid the ranked medal words, so a crate frame never reads as a Ranked reward', () => {
     expect(FRAMES.map((c) => c.name)).toEqual([
-      'Honey Frame', 'Burnished Frame', 'Sterling Frame', 'Gilded Frame', 'Seaglass Frame', 'Glass Shard Frame', 'Paragon Frame',
-      'Vine Frame', 'Aura Frame', 'Amethyst Frame', 'Shard Frame', 'Prism Frame', 'Frost Frame', 'Pearlescent Frame',
-      'Crimson Frame', 'Nimbus Frame', 'Fire Frame', 'Reaper Frame', 'Water Frame', 'Stained Glass Frame', 'Wind Frame',
+      'Honey Frame', 'Ale Frame', 'Ruby Frame', 'Steel Frame', 'Wood Frame', 'Dark Scale Frame', 'Gilt Scale Frame', 'Burnished Frame', 'Sterling Frame', 'Gilded Frame',
+      'Seaglass Frame', 'Glass Shard Frame', 'Paragon Frame', 'Vine Frame', 'Magic Frame', 'Aura Frame', 'Amethyst Frame', 'Shard Frame', 'Prism Frame', 'Frost Frame', 'Pearlescent Frame',
+      'Crimson Frame', 'Nimbus Frame', 'Dark Cloud Frame', 'Venom Frame', 'Wedding Frame', 'Fire Frame', 'Reaper Frame', 'Water Frame', 'Stained Glass Frame', 'Wind Frame',
     ]);
     expect(new Set(FRAMES.map((c) => c.name)).size).toBe(FRAMES.length);
   });

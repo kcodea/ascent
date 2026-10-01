@@ -161,6 +161,10 @@ describe('no redundant PNG masters ship alongside their WebP builds', () => {
     // Nimbus, Stained Glass, Wind, Glass Shard, Paragon, Vine; owner-named: "i added a bunch of art/portrait arts etc,
     // can you make sure all get added").
     // → 1383: skins batch 6 2026-10-01 (+9 in `art/skins/`: 9 minion skins), merged with the frames.
-    expect(total, `art files: ${total} — the WHOLE-ZIP count (~${total + 176}) is what itch caps at 1000`).toBeLessThan(1383);
+    // → 1396: skins + frames batch 3 2026-10-01 (+3 hero skins in `art/skins/`: Goth Merrin, Iron Guardian, Robin Hood;
+    // +10 frame webps in `art/frames/skins/`, carried as above: Ale, Ruby, Steel, Wood, Magic, then Dark Scale, Gilt
+    // Scale, Dark Cloud, Venom, Wedding; owner-named: "i added a bunch of art/portrait arts etc, can you make sure all
+    // get added", then "added more portrait skins etc").
+    expect(total, `art files: ${total} — the WHOLE-ZIP count (~${total + 176}) is what itch caps at 1000`).toBeLessThan(1396);
   });
 });

@@ -76,6 +76,10 @@ export const PATCH_NOTES: PatchNote[] = [
         text: '9 new minion skins in crates: three for Commander Warpath, two each for Deepvein Tender and Wayfinder, and one each for Wardkeeper and Coppercoat Spellsword.',
       },
       {
+        category: 'Systems',
+        text: 'More in crates: 3 new hero skins (Goth Merrin, Iron Guardian and Robin Hood) and 10 more portrait frames (Ale, Ruby, Steel, Wood, Dark Scale, Gilt Scale, Magic, Dark Cloud, Venom and Wedding).',
+      },
+      {
         category: 'Balance',
         text: 'Runesmith and Guardian are back. You can pick them again in Play and Practice.',
       },

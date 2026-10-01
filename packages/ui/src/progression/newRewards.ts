@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { achievementOf, type ProgressionResult } from '@game/progression';
+import { achievementOf, type CrateRow, type ProgressionResult } from '@game/progression';
 
 /**
  * NEW REWARDS, shown in the Collection (owner ask 2026-09-28: "the end game screen here is full of stuff. can you
@@ -17,7 +17,9 @@ import { achievementOf, type ProgressionResult } from '@game/progression';
  */
 
 export interface QueuedAchievement { id: string; xp: number }
-export interface QueuedCrate { crateId: string; earnedLevel: number }
+/** A level crate carries its level; a Gauntlet crate (2026-09-29) has `earnedLevel` null and a `source` instead
+ *  (`crateLabel` names both). */
+export interface QueuedCrate { crateId: string; earnedLevel: number | null; source?: string }
 export interface UnseenRewards {
   achievements: QueuedAchievement[];
   titles: string[];
@@ -35,6 +37,12 @@ const EMPTY: UnseenRewards = Object.freeze({ achievements: [], titles: [], crate
 
 const blank = (): Stored => ({ achievements: [], titles: [], crates: [], known: [] });
 
+function readCrate(c: QueuedCrate): QueuedCrate {
+  const source = typeof c.source === 'string' ? c.source : undefined;
+  const earnedLevel = typeof c.earnedLevel === 'number' ? c.earnedLevel : source ? null : 1;
+  return source ? { crateId: c.crateId, earnedLevel, source } : { crateId: c.crateId, earnedLevel };
+}
+
 function load(userId: string): Stored {
   try {
     const raw = JSON.parse(localStorage.getItem(KEY_PREFIX + userId) ?? 'null') as Partial<Stored> | null;
@@ -43,7 +51,7 @@ function load(userId: string): Stored {
     return {
       achievements: Array.isArray(raw.achievements) ? raw.achievements.filter((a): a is QueuedAchievement => !!a && typeof a.id === 'string').map((a) => ({ id: a.id, xp: typeof a.xp === 'number' ? a.xp : 0 })) : [],
       titles: strs(raw.titles),
-      crates: Array.isArray(raw.crates) ? raw.crates.filter((c): c is QueuedCrate => !!c && typeof c.crateId === 'string').map((c) => ({ crateId: c.crateId, earnedLevel: typeof c.earnedLevel === 'number' ? c.earnedLevel : 1 })) : [],
+      crates: Array.isArray(raw.crates) ? raw.crates.filter((c): c is QueuedCrate => !!c && typeof c.crateId === 'string').map(readCrate) : [],
       known: strs(raw.known),
     };
   } catch {
@@ -90,6 +98,22 @@ export function queueNewRewards(userId: string, result: Pick<ProgressionResult, 
   });
   if (!changed) return;
   s.known = [...known].slice(-KNOWN_CAP);
+  save(userId, s);
+  if (useNewRewards.getState().userId === userId || useNewRewards.getState().userId === null) {
+    useNewRewards.setState({ userId, unseen: unseenOf(s) });
+  }
+}
+
+/**
+ * Queue ONE crate the server granted outside a settlement (a first Gauntlet clear, 2026-09-29). Unlike
+ * `queueNewRewards` it infers nothing: the crate's own level / source is stored as given. Idempotent.
+ */
+export function queueNewCrate(userId: string, crate: Pick<CrateRow, 'crateId' | 'earnedLevel' | 'source'>): void {
+  const s = load(userId);
+  const key = `c:${crate.crateId}`;
+  if (s.known.includes(key)) return;
+  s.crates.push(crate.source ? { crateId: crate.crateId, earnedLevel: crate.earnedLevel, source: crate.source } : { crateId: crate.crateId, earnedLevel: crate.earnedLevel });
+  s.known = [...s.known, key].slice(-KNOWN_CAP);
   save(userId, s);
   if (useNewRewards.getState().userId === userId || useNewRewards.getState().userId === null) {
     useNewRewards.setState({ userId, unseen: unseenOf(s) });

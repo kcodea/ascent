@@ -151,7 +151,9 @@ export type AnnouncerEvent =
   | 'grimPayout'
   | 'hanGover'
   | 'kurseGolem'
-  | 'wolvieRise';
+  | 'wolvieRise'
+  // The Gauntlet's round call (owner 2026-09-30): the ONLY line a Gauntlet stage speaks.
+  | 'gauntletRound';
 
 export interface AnnouncedSlice {
   seed: number;

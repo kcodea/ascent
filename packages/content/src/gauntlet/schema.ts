@@ -25,6 +25,7 @@ const stageSchema = z.object({
   number: z.number().int().min(1).max(10),
   name: z.string().min(1),
   opponentName: z.string().min(1),
+  portraitCardId: z.string().optional(),
   tribe: z.enum(STAGE_TRIBES).optional(),
   status: z.enum(['draft', 'ready']),
   runes: z.object({ round6: z.string().optional(), round9: z.string().optional() }).strict(),
@@ -36,6 +37,7 @@ export function validateStage(stage: GauntletStage): string[] {
   const parsed = stageSchema.safeParse(stage);
   if (!parsed.success) return parsed.error.issues.map((i) => `${i.path.join('.')}: ${i.message}`);
   const issues: string[] = [];
+  if (stage.portraitCardId !== undefined && !CARD_INDEX[stage.portraitCardId]) issues.push(`portraitCardId: unknown card '${stage.portraitCardId}'`);
   if (stage.rounds.length !== GAUNTLET_ROUNDS) issues.push(`stage ${stage.number} must have exactly ${GAUNTLET_ROUNDS} rounds (has ${stage.rounds.length})`);
   stage.rounds.forEach((r, i) => {
     const round = i + 1;

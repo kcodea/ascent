@@ -166,6 +166,7 @@ describe('every hero-portrait surface goes through the shared renderer', () => {
     ['hero-select/HeroSelectCeremony.tsx', /usePortraitFrame\('self'\)/],
     ['StatusBar.tsx', /usePortraitFrame\('self'\)/],
     ['CombatOpponent.tsx', /usePortraitFrame\('opp'\)/],
+    ['gauntlet/GauntletFoe.tsx', /usePortraitFrame\('opp'\)/], // the combat face's shop twin (2026-09-30)
     ['Recruit.tsx', /usePortraitFrame\('opp'\)/], // Now Facing
     ['LobbyPanel.tsx', /usePortraitFrame\('self'\)[\s\S]*usePortraitFrame\('opp'\)/],
     ['EndScreen.tsx', /usePortraitFrame\('self'\)/],
@@ -180,8 +181,15 @@ describe('every hero-portrait surface goes through the shared renderer', () => {
   it.each(SURFACES)('%s', (file, side) => {
     const src = read(file);
     expect(src).toMatch(side);
-    // The ceremony draws its own ring <img>; every other surface paints the shared component.
-    if (!file.includes('Ceremony')) expect(src).toMatch(/<PortraitFrame frame=\{/);
+    // The ceremony draws its own ring <img>; every other surface paints the shared component — directly, or through
+    // the shared foe disc (`FoePortraitDisc`, the combat opponent + the Gauntlet shop foe), which paints it itself.
+    if (file.includes('Ceremony')) return;
+    if (src.includes('<FoePortraitDisc')) {
+      expect(src).toMatch(/<FoePortraitDisc[\s\S]*?frame=\{frame\}/);
+      expect(read('FoePortraitDisc.tsx')).toMatch(/<PortraitFrame frame=\{frame\} \/>/);
+    } else {
+      expect(src).toMatch(/<PortraitFrame frame=\{/);
+    }
   });
 
   it('Career passes its page owner side; the Collection previews a hero skin in the same ring as self', () => {

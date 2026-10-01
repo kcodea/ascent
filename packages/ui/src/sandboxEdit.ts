@@ -198,6 +198,26 @@ export function removeEnemy(snap: BoardSnapshot, index: number): BoardSnapshot {
   return { ...snap, minions, power: powerOf(minions) };
 }
 
+/** Flip one enemy's `golden` (absent <-> true). Power is Σ(attack + health), so nothing else changes. Out-of-range = no-op. */
+export function toggleEnemyGolden(snap: BoardSnapshot, index: number): BoardSnapshot {
+  return mapEnemy(snap, index, (m) => {
+    if (m.golden) return Object.fromEntries(Object.entries(m).filter(([k]) => k !== 'golden')) as BoardMinion;
+    return { ...m, golden: true };
+  });
+}
+
+/** Move one enemy from index `from` to `to` (`to` clamped into range). Out-of-range `from` or a no-move is a no-op. */
+export function moveEnemy(snap: BoardSnapshot, from: number, to: number): BoardSnapshot {
+  const n = snap.minions.length;
+  if (from < 0 || from >= n) return snap;
+  const dest = Math.min(Math.max(to, 0), n - 1);
+  if (dest === from) return snap;
+  const minions = snap.minions.slice();
+  const [m] = minions.splice(from, 1);
+  minions.splice(dest, 0, m!);
+  return { ...snap, minions };
+}
+
 /**
  * The opponent board the coming fight will SERVE, as the rig should show and edit it (2026-09-09, the sandbox
  * became a lobby game): the rig's own pin once it has authored this wave (`sandboxFoeWave`), else the paired

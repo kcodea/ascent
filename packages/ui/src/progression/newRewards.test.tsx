@@ -12,7 +12,7 @@ import { mount, type Mounted } from '../renderedText.mount';
 
 HTMLCanvasElement.prototype.getContext = (() => null) as unknown as HTMLCanvasElement['getContext'];
 
-import { markNewRewardsSeen, queueNewRewards, resetNewRewardsForTests, syncNewRewards, unseenCount, useNewRewards } from './newRewards';
+import { markNewRewardsSeen, queueNewCrate, queueNewRewards, resetNewRewardsForTests, syncNewRewards, unseenCount, useNewRewards } from './newRewards';
 import { MenuSidebar } from '../MenuSidebar';
 import { useGame } from '../store';
 
@@ -34,6 +34,15 @@ describe('the queue', () => {
     expect(u.achievements).toEqual([{ id: 'career.games.1', xp: 25 }]);
     expect(u.titles).toEqual(['alpha_tester']);
     expect(u.crates).toEqual([{ crateId: 'c-1', earnedLevel: 2 }, { crateId: 'c-2', earnedLevel: 3 }]);
+  });
+
+  it('a Gauntlet crate (2026-09-29) is queued as given, with no inferred level, once, and survives a reload', () => {
+    const g = { crateId: 'g-3', earnedLevel: null, source: 'gauntlet:3' };
+    queueNewCrate('u-1', g);
+    queueNewCrate('u-1', g);
+    queueNewRewards('u-1', result({ crateIds: ['g-3'] })); // even a settlement naming it cannot re-queue it
+    reload('u-1');
+    expect(useNewRewards.getState().unseen.crates).toEqual([g]);
   });
 
   it('never twice: a duplicate answer adds nothing, and a seen reward never comes back', () => {

@@ -147,6 +147,21 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: 'New Gauntlet mode in the Play menu: ten stages, each a ten-round duel against a hand-built foe.',
+        details: [
+          'Survive all ten rounds of a stage to clear it and unlock the next one.',
+          'The announcer calls out each round as it starts.',
+          'The first clear of each stage earns a crate for signed-in players. Replaying a cleared stage earns nothing more.',
+          'Signed in, your progress is saved to your account. If you are not signed in, it stays on this device and clears do not earn crates.',
+          'The first stages are on their way; the rest show as coming soon.',
+        ],
+      },
+      {
+        category: 'Systems',
+        text: 'Practice no longer offers bot opponents. It is always against players now.',
+      },
+      {
+        category: 'Systems',
         text: 'New Legendary hero attack: Nothing But Net. Your hero plays basketball on the loser.',
         details: [
           'Small: a jump shot from where your hero stands, swishing through a hoop on the target.',

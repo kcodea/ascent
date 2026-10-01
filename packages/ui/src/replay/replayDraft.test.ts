@@ -253,6 +253,7 @@ describe('which runs record a draft at all', () => {
     // run must never leave anything resumable behind (it already can't reach the autosave).
     expect(runRecordsDraft(run('practice'))).toBe(false);
     expect(runRecordsDraft(run('tutorial'))).toBe(false);
+    expect(runRecordsDraft(run('gauntlet'))).toBe(false);
     expect(runRecordsDraft(run('lobby', true))).toBe(false);
   });
 

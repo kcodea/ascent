@@ -752,6 +752,9 @@ body.wipe-up .lobbydmg-float { z-index: 240; }
    never reflowed siblings to begin with. */
 .shopbar { position: relative; --u-fix: calc(var(--u-base) * var(--ui-scale, 0.96)); --u: calc(var(--u-fix) * var(--z-shopui-s, 1.6)); top: calc(var(--z-shopui-y, -6px) * var(--scale)); left: calc(var(--z-shopui-x, 5px) * var(--scale)); align-self: center; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: calc(5 * var(--u)); height: calc(111 * var(--u-fix)); overflow: visible; margin-top: calc(10 * var(--u-fix)); margin-bottom: calc(10 * var(--u-fix)); flex: none; z-index: 6; }
 .shopbar.closing { animation: shopclose 0.45s ease forwards; pointer-events: none; }
+/* The timer's hover tip drops down over the board, where the Freeze diamond (`.frzwrap`, z 41) sits above the shop
+   bar's own layer (z 6). Lift the bar while its timer is hovered (or tapped: `.tt-on`) so the tip reads in front. */
+.shopbar:has(.statcell.time:hover), .shopbar:has(.statcell.time.tt-on) { z-index: 50; }
 .shoprow { display: flex; align-items: center; gap: calc(13 * var(--u)); }
 /* Info strip — the turn's read-only stats (Gold · Tier · Setup Time) in ONE segmented cream plaque, gold-
    trimmed to match the shop-control language. Segments are split by a thin gold rule; the whole strip centres
@@ -798,6 +801,39 @@ body.wipe-up .lobbydmg-float { z-index: 240; }
 .statcell.tier[data-tier='7'] .sc-v { color: var(--tier-7); }
 /* Time cell — smaller tabular digits; fills red-tinted in the final 5s. */
 .statcell.time .sc-v { font-size: calc(21 * var(--u)); }
+/* GAUNTLET: before the clock starts, the plaque shows Gold spent this round filling toward the 30 that starts it.
+   The fill scales on the compositor (transform), with a one-shot ease per purchase. */
+.statcell.time .gclock { display: inline-flex; align-items: center; gap: calc(8 * var(--u)); }
+/* Swapped (owner ask 2026-09-30): while waiting, the Gold counter leads and the clock icon trails the bar. */
+.statcell.time.gwait .sc-ic { order: 2; }
+.statcell.time.gwait .gclock { order: 1; }
+.statcell.time .gclock-n { order: -1; }
+.statcell.time .gclock-bar { position: relative; overflow: visible; width: calc(112.5 * var(--u)); height: calc(10 * var(--u));
+  border-radius: 999px; background: rgba(0, 0, 0, 0.45); box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.6); }
+.statcell.time .gclock-fill { position: absolute; inset: 0; border-radius: inherit; transform-origin: left center;
+  background: linear-gradient(180deg, #ffe89a, #f0b534 55%, #d28f14); transition: transform 260ms ease-out; }
+/* The halo shows ONLY while the bar grows: a static shadow whose OPACITY plays once per spend (compositor-only). */
+.statcell.time .gclock-glow { position: absolute; inset: 0; border-radius: inherit; transform-origin: left center; pointer-events: none;
+  box-shadow: 0 0 calc(6 * var(--u)) rgba(255, 200, 70, 0.85), 0 0 calc(14 * var(--u)) rgba(255, 170, 40, 0.45);
+  opacity: 0; animation: gclockglow 820ms ease-out both; }
+@keyframes gclockglow { 0% { opacity: 0; } 25% { opacity: 1; } 100% { opacity: 0; } }
+/* The burst sits on the fill's leading edge; it slides with the tip (one `left` write per purchase, not per frame). */
+.statcell.time .gclock-sparks { position: absolute; top: 50%; width: 0; height: 0; pointer-events: none;
+  transition: left 260ms ease-out; }
+.statcell.time .gclock-spark { position: absolute; left: 0; top: 0; width: calc(4 * var(--u)); height: calc(4 * var(--u));
+  margin: calc(-2 * var(--u)) 0 0 calc(-2 * var(--u)); border-radius: 50%;
+  background: radial-gradient(circle, #fff7d6 0 35%, #ffc93f 60%, rgba(255, 170, 40, 0) 100%);
+  opacity: 0; animation: gclockspark 620ms ease-out both;
+  --a: calc(-70deg + var(--i) * 28deg); animation-delay: calc(200ms + var(--i) * 18ms); }
+@keyframes gclockspark {
+  0%   { opacity: 1; transform: rotate(var(--a)) translateX(0) scale(1.2); }
+  100% { opacity: 0; transform: rotate(var(--a)) translateX(calc(22 * var(--u))) scale(0.3); }
+}
+.statcell.time .gclock-n { display: inline-flex; align-items: center; gap: calc(4 * var(--u));
+  font-weight: 800; font-size: calc(13 * var(--u)); line-height: 1; color: #ffd66b; font-variant-numeric: tabular-nums; }
+/* A little Gold coin before the count (owner ask 2026-09-30): the game's own Gold icon. */
+.statcell.time .gclock-coin { display: inline-flex; width: calc(13 * var(--u)); height: calc(13 * var(--u)); }
+.statcell.time .gclock-coin svg { width: 100%; height: 100%; }
 .statcell.time.low { background: color-mix(in srgb, var(--threat) 14%, var(--card)); }
 .statcell.time.low .sc-ic svg, .statcell.time.low .sc-v { color: var(--threat-dk); }
 /* Info-strip cells reuse the shop tip pill on hover. */
@@ -5302,6 +5338,11 @@ body.aiming, body.aiming * { cursor: none !important; }
 .fr-foe-pic { width: calc(78 * var(--u)); height: calc(78 * var(--u)); border-radius: 50%; overflow: hidden; display: grid; place-items: center; background: #0f0a06; border: 3px solid color-mix(in srgb, var(--gold) 70%, #000); box-shadow: 0 calc(6 * var(--u)) calc(16 * var(--u)) -6px rgba(0, 0, 0, 0.7); }
 .fr-foe-pic img { width: 100%; height: 100%; object-fit: cover; -webkit-user-drag: none; }
 .fr-foe-pic svg { width: 44%; height: 44%; color: var(--gold); }
+/* GAUNTLET: a stage's portrait card art fills the foe disc, cropped toward the face. */
+.fr-foe-pic img.fr-foe-cardart { object-position: 50% 30%; }
+/* GAUNTLET: the stage's tribe emblem fills the foe disc (no hero portrait); `contents` keeps the svg sized off the disc. */
+.fr-foe-emblem { display: contents; }
+.fr-foe-emblem svg { width: 56%; height: 56%; color: #f0c9b8; }
 .fr-foe-name { margin-top: calc(6 * var(--u)); font-family: var(--font-ui); font-weight: 900; font-size: calc(16 * var(--u)); color: #f4ecdb; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .fr-foe-hero { font-family: var(--font-ui); font-weight: 700; font-size: calc(12 * var(--u)); color: #e8c877; }
 /* The ONE damage readout (owner 2026-09-25): the label, then the number big on its own line, green dealt / red took. */
@@ -8366,6 +8407,7 @@ body:has(.book-ov) .cardref { z-index: 490; }
 .mcframe[data-mode='practice'] { background: radial-gradient(120% 100% at 50% 0%, #3a3226 0%, #221d16 60%, #14110c 100%); }
 .mcframe[data-mode='learn'] { background: radial-gradient(120% 100% at 50% 0%, #1e5a3f 0%, #10331f 60%, #0a1f14 100%); }
 .mcframe[data-mode='soon'] { background: radial-gradient(120% 100% at 50% 0%, #2a2f3a 0%, #191d24 60%, #10131a 100%); }
+.mcframe[data-mode='gauntlet'] { background: radial-gradient(120% 100% at 50% 0%, #63221e 0%, #331210 60%, #200a0a 100%); }
 
 /* WIDE mode card — a 21:9 banner (PlayMode2 / LearnMode art is 1916×821). The frame keeps the same gold border
    and eclipsing name pill; only its footprint changes. `mpbox` stacks two `.mprow`s (Play; then Learn+Practice),
@@ -8381,11 +8423,17 @@ body:has(.book-ov) .cardref { z-index: 490; }
 }
 .modecard[data-mp='learn'] {
   width: var(--mp-learn-w, 880px); height: var(--mp-learn-h, 128px);
-  transform: translate(var(--mp-learn-x, 177px), var(--mp-learn-y, 82px)) scale(var(--mp-learn-s, 1));
+  transform: translate(var(--mp-learn-x, 177px), var(--mp-learn-y, 255px)) scale(var(--mp-learn-s, 1));
 }
 .modecard[data-mp='practice'] {
   width: var(--mp-practice-w, 306px); height: var(--mp-practice-h, 284px);
   transform: translate(var(--mp-practice-x, -160px), var(--mp-practice-y, -266px)) scale(var(--mp-practice-s, 0.84));
+}
+/* GAUNTLET — a third row under Learn, same 880×128 banner footprint. Alone in its row it lays out centred, one
+   row below Learn's layout box; the fallbacks lift it to sit ~44px under Learn's visual edge, lined up with it. */
+.modecard[data-mp='gauntlet'] {
+  width: var(--mp-gauntlet-w, 880px); height: var(--mp-gauntlet-h, 128px);
+  transform: translate(var(--mp-gauntlet-x, 6px), var(--mp-gauntlet-y, -203px)) scale(var(--mp-gauntlet-s, 1));
 }
 /* The frame fills the (sized) card; no per-frame transform now (that's on the card). */
 .mcframe[data-mp] { width: 100%; height: 100%; aspect-ratio: auto; margin-bottom: 0; transform: none; }
@@ -8397,6 +8445,51 @@ body:has(.book-ov) .cardref { z-index: 490; }
 .mcframe[data-mp='play'] .mcframe-art { transform: translate(var(--mp-play-artx, 0px), var(--mp-play-arty, 0px)) scale(var(--mp-play-arts, 1)); }
 .mcframe[data-mp='learn'] .mcframe-art { transform: translate(var(--mp-learn-artx, 0px), var(--mp-learn-arty, 3px)) scale(var(--mp-learn-arts, 1.02)); }
 .mcframe[data-mp='practice'] .mcframe-art { transform: translate(var(--mp-practice-artx, 0px), var(--mp-practice-arty, 0px)) scale(var(--mp-practice-arts, 1)); }
+.mcframe[data-mp='gauntlet'] .mcframe-art { transform: translate(var(--mp-gauntlet-artx, 0px), var(--mp-gauntlet-arty, 0px)) scale(var(--mp-gauntlet-arts, 1)); }
+/* The banner is only 128px tall, so the fallback emblem shrinks to fit inside it. */
+.mcframe[data-mp='gauntlet'] .mcemblem { width: 84px; height: 84px; }
+.mcframe[data-mode='gauntlet'] .mcemblem svg { color: #f0c9b8; }
+
+/* ── GAUNTLET STAGE SELECT (`gauntlet/StageSelect.tsx`) — ten framed slots, five to a row, in the mode-card
+   idiom (gold border, dark tint, cream name). No per-slot `cursor` — the global button rule paints the game
+   cursor; a disabled slot inherits `.modepick`'s default gauntlet. Hover lift is transform-only, one-shot. ── */
+.gstages { display: grid; grid-template-columns: repeat(5, 176px); gap: 22px; justify-content: center; }
+.gslot {
+  position: relative; height: 220px; padding: 16px 10px 14px;
+  display: flex; flex-direction: column; align-items: center; justify-content: space-between; gap: 6px;
+  border-radius: 20px; border: 3px solid var(--gold);
+  background: radial-gradient(120% 100% at 50% 0%, #63221e 0%, #331210 60%, #200a0a 100%);
+  box-shadow: inset 0 0 0 2px rgba(0, 0, 0, 0.35), 0 8px 22px -10px rgba(0, 0, 0, 0.5);
+  color: #f6efe2; font-family: var(--font-ui);
+  transition: transform 0.16s ease;
+}
+.gslot:not(:disabled):hover { transform: translateY(-5px); }
+.gslot:disabled { cursor: url('/cursors/gauntlet_default.svg') 6 2, default; }
+.gslot[data-state='locked'], .gslot[data-state='soon'] {
+  background: radial-gradient(120% 100% at 50% 0%, #2a2f3a 0%, #191d24 60%, #10131a 100%); opacity: 0.6;
+}
+.gslot[data-state='cleared'] { border-color: #7fd18b; }
+.gslot[data-state='draft'] { border-style: dashed; }
+.gslot-num { font-family: var(--font-title); font-weight: 900; font-size: 34px; line-height: 1; color: #f6efe2; }
+.gslot-emblem-slot { display: grid; place-items: center; width: 64px; height: 64px; }
+.gslot-emblem { display: grid; place-items: center; width: 64px; height: 64px; }
+.gslot-emblem svg { width: 100%; height: 100%; color: #f0c9b8; filter: drop-shadow(0 3px 8px rgba(0, 0, 0, 0.55)); }
+.gslot-lock svg, .gslot-soon svg { color: #b9c0cc; width: 70%; height: 70%; }
+.gslot-name { font-weight: 900; font-size: 20px; letter-spacing: 0.02em; }
+.gslot-tag {
+  font-weight: 800; font-size: 12.5px; letter-spacing: 0.08em; text-transform: uppercase;
+  padding: 3px 12px; border-radius: 999px; border: 2px solid var(--gold);
+  background: linear-gradient(180deg, #fff, #f3ead4); color: var(--ink);
+}
+.gslot[data-state='locked'] .gslot-tag, .gslot[data-state='soon'] .gslot-tag { background: linear-gradient(180deg, #e9e9ee, #d3d3db); }
+.gslot[data-state='cleared'] .gslot-tag { border-color: #7fd18b; }
+.gslot[data-state='draft'] .gslot-tag { border-style: dashed; }
+/* Signed out (a guest or no session): the banner above the slots. The Sign in button borrows `.crate-btn`. */
+.gstage-guest {
+  display: flex; align-items: center; justify-content: center; gap: 18px; margin: -6px auto 22px; padding: 10px 14px 10px 22px;
+  border-radius: 14px; border: 2px solid color-mix(in srgb, var(--gold) 60%, #000); background: rgba(20, 8, 8, 0.72);
+  color: #f6efe2; font-family: var(--font-ui); font-weight: 700; font-size: 16px; line-height: 1.35;
+}
 
 /* MODE title — scale + nudge from the tuner (fallbacks = shipped: no-op). */
 .mptitle { transform: translate(var(--mp-title-x, 0px), var(--mp-title-y, -30px)) scale(var(--mp-title-s, 1.23)); }
@@ -9104,6 +9197,93 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 .scenebuilder .sb-empty { color: var(--sb-ink3); }
 .scenebuilder .sb-bugpaste { min-height: calc(30 * var(--u)); }
 .scenebuilder .sb-qa-summary { background: var(--sb-well); border: 1px solid #443a2c; }
+/* ---- STAGE BUILDER (DEV, 2026-09-29) — the Gauntlet stage authoring panel. It wears the Scene Builder skin
+   (`.scenebuilder` on the same root) and adds only its own pieces here. No cursor rules: every control is a
+   <button>/<select>/<input>, so the global game-cursor rule paints them. Static styles only, no loops. */
+.scenebuilder.stagebuilder { width: calc(360 * var(--u)); }
+.stagebuilder .stb-grid { display: grid; gap: calc(3 * var(--u)); }
+.stagebuilder .stb-grid-5 { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+.stagebuilder .stb-grid-10 { grid-template-columns: repeat(10, minmax(0, 1fr)); }
+.stagebuilder .stb-stage { padding: calc(4 * var(--u)) calc(3 * var(--u)); font-size: calc(10 * var(--u)); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.stagebuilder .stb-stage b { color: var(--sb-brass); margin-right: calc(2 * var(--u)); }
+.stagebuilder .sb-btn.on { border-color: var(--sb-brass); color: #f6e3b4; background: linear-gradient(180deg, #3b2f17, #2a2212); }
+.stagebuilder .stb-round { position: relative; padding: calc(5 * var(--u)) 0; text-align: center; }
+.stagebuilder .stb-round.err { border-color: #b0402e; color: #ffb3a3; }
+.stagebuilder .stb-round.drift { box-shadow: inset 0 -2px 0 #e0a866; }
+/* the unsaved dot: a round's top-right corner, or beside a section title */
+.stagebuilder .stb-dot { display: inline-block; width: calc(6 * var(--u)); height: calc(6 * var(--u)); border-radius: 50%; background: #f4be35; box-shadow: 0 0 0 1px #241a08; }
+.stagebuilder .stb-round .stb-dot { position: absolute; top: calc(2 * var(--u)); right: calc(2 * var(--u)); }
+.stagebuilder .stb-status { overflow-wrap: anywhere; }
+.stagebuilder .stb-tier { flex-wrap: nowrap; }
+.stagebuilder .stb-tier .sb-mini { font-size: calc(9 * var(--u)); letter-spacing: 0.08em; text-transform: uppercase; font-weight: 800; flex: none; }
+.stagebuilder .stb-tierin { width: calc(110 * var(--u)); }
+.stagebuilder .stb-board { display: flex; flex-direction: column; gap: calc(4 * var(--u)); }
+.stagebuilder .stb-minion { display: flex; flex-direction: column; gap: calc(4 * var(--u)); padding: calc(5 * var(--u)) calc(6 * var(--u)); border: 1px solid var(--sb-line); border-radius: calc(8 * var(--u)); background: linear-gradient(180deg, #24201a, #1c1812); }
+.stagebuilder .stb-mrow { gap: calc(4 * var(--u)); }
+.stagebuilder .stb-mname { flex: 1; min-width: 0; font-size: calc(12 * var(--u)); font-weight: 800; color: var(--sb-ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.stagebuilder .stb-mname.err { color: #ff8a78; }
+.stagebuilder .stb-drift { color: #e0a866; }
+.stagebuilder .stb-ico { padding: calc(2 * var(--u)) calc(6 * var(--u)); font-size: calc(10 * var(--u)); }
+.stagebuilder .stb-x:hover:not(:disabled) { border-color: #b0402e; color: #ffb3a3; }
+.stagebuilder .uned-kwbtn { padding: calc(2 * var(--u)) calc(5 * var(--u)); font-size: calc(10 * var(--u)); }
+.stagebuilder .uned-kwbtn.locked { opacity: 0.55; }
+.stagebuilder .stb-gold.on { background: #f4be35; border-color: #f4be35; }
+.stagebuilder .stb-result { display: flex; align-items: center; gap: calc(7 * var(--u)); padding: calc(2 * var(--u)) calc(4 * var(--u)) calc(2 * var(--u)) calc(7 * var(--u)); border: 1px solid var(--sb-line); border-radius: calc(7 * var(--u)); background: linear-gradient(180deg, #24201a, #1c1812); color: var(--sb-ink2); font-size: calc(12 * var(--u)); }
+.stagebuilder .stb-add { padding: calc(2 * var(--u)) calc(7 * var(--u)); font-size: calc(10 * var(--u)); }
+.stagebuilder .stb-noeffect { color: var(--sb-ink3); }
+.stagebuilder option.stb-noeffect { color: #7d7262; }
+.stagebuilder .stb-runepick { display: flex; align-items: center; gap: calc(6 * var(--u)); width: 100%; justify-content: space-between; text-align: left; }
+.stagebuilder .stb-runepick .sb-name { flex: 1; }
+.stagebuilder .stb-runes { max-height: calc(220 * var(--u)); }
+.stagebuilder .stb-runerow.on { border-color: var(--sb-brass); color: var(--sb-ink); }
+.stagebuilder .stb-runerow:focus-visible { border-color: var(--sb-brass); outline: none; }
+.stagebuilder .sb-tag.stb-noeffect { opacity: 0.8; }
+.stagebuilder .stb-confirm { flex-wrap: wrap; padding: calc(6 * var(--u)) calc(12 * var(--u)); }
+.stagebuilder .stb-confirm .sb-warn { display: inline; margin: 0; }
+/* ---- STAGE BOARD CANVAS (dev, `stageBuilder/StageBoardCanvas.tsx`) ----
+   While the Stage Builder is open this covers the whole stage, opaque, with the COMBAT board art and only the
+   opponent's warband: the recruit UI beneath is neither visible nor reachable. Below the builder panel (a draggable
+   dev panel, z600+) and the unit editor (.uned, z5000); above the in-game layers and overlays (≤ z400), below the card hover reveal (.cardref, z460). */
+.stbc { position: fixed; inset: 0; z-index: 440; overflow: hidden; background: #15101c;
+  display: flex; flex-direction: column; align-items: center; font-family: var(--font-ui); color: #efe7db;
+  --ch: calc(var(--ch-base) * var(--card-scale, 0.75)); }
+.stbc .boardbg { z-index: 0; }
+.stbc-head { position: relative; z-index: 1; margin-top: calc(70 * var(--u)); display: flex; align-items: baseline; gap: calc(16 * var(--u));
+  padding: calc(8 * var(--u)) calc(22 * var(--u)); border-radius: calc(12 * var(--u)); background: rgb(16 13 8 / 0.82); border: 1px solid #4a4136;
+  box-shadow: 0 8px 24px -8px rgb(0 0 0 / 0.8); font-size: calc(15 * var(--u)); font-weight: 700; white-space: nowrap; }
+.stbc-stage { color: #c8a45c; letter-spacing: 0.04em; text-transform: uppercase; font-size: calc(12 * var(--u)); font-weight: 800; }
+.stbc-round { font-size: calc(22 * var(--u)); font-weight: 900; color: #f6e3b4; }
+.stbc-opp { color: #efe7db; }
+.stbc-tier { color: #150f06; background: #c8a45c; border-radius: 999px; padding: 0 calc(9 * var(--u)); font-size: calc(12 * var(--u)); font-weight: 900; }
+.stbc-hint { position: relative; z-index: 1; margin-top: calc(8 * var(--u)); font-size: calc(11 * var(--u)); color: #d8c8a2;
+  background: rgb(16 13 8 / 0.6); border-radius: 999px; padding: calc(2 * var(--u)) calc(10 * var(--u)); }
+/* Where the foe's row sits in a real fight: the upper-middle of the board. */
+.stbc-row { position: relative; z-index: 1; margin-top: calc(150 * var(--u)); }
+.stbc-slot { position: relative; display: flex; border-radius: 16px; }
+.stbc-slot.editing { outline: 2px solid #c8a45c; outline-offset: 6px; }
+/* DRAG TO REORDER — while a unit is dragged the others glide a slot to make room (transform only; the transition
+   is on only during a reorder, so the drop snaps into the new order). The dragged unit follows the pointer with no
+   transition, lifted above its neighbours. */
+.stbc-slot { user-select: none; touch-action: none; }
+.stbc-row.reordering .stbc-slot:not(.dragged) { transition: transform 150ms cubic-bezier(0.2, 0, 0, 1); }
+.stbc-slot.dragged { z-index: 2; opacity: 0.92; }
+.stbc-add { flex: 0 0 var(--ccw); width: var(--ccw); height: var(--ccw); border-radius: var(--arch-radius);
+  border: 2px dashed rgb(232 216 176 / 0.45); background: rgb(16 13 8 / 0.35); color: rgb(246 227 180 / 0.8);
+  font-family: var(--font-ui); font-size: calc(40 * var(--u)); font-weight: 300; transition: background 0.12s, border-color 0.12s; }
+.stbc-add:hover { background: rgb(16 13 8 / 0.6); border-color: #c8a45c; color: #f6e3b4; }
+
+.stbc-none { color: #8a7f6d; font-size: 11px; padding: 2px 4px; }
+.uned-find { width: 100%; }
+.uned-found { display: flex; flex-direction: column; gap: 2px; max-height: 260px; overflow-y: auto; }
+.uned-foundrow { display: flex; align-items: center; gap: 6px; text-align: left; background: #241f17; border: 1px solid #4a4136; color: #efe7db;
+  border-radius: 6px; padding: 3px 6px; font-family: var(--font-ui); font-size: 12px; }
+.uned-foundrow:hover, .uned-foundrow:focus-visible { border-color: #c8a45c; }
+.uned-foundrow .sb-t { width: 16px; height: 16px; font-size: 10px; }
+.uned-kwbtn.locked { opacity: 0.6; }
+/* The game cursor, doubled like `.uned.uned` below it in intent. */
+.stbc.stbc, .stbc.stbc * { cursor: url('/cursors/gauntlet_default.svg') 6 2, default; }
+.stbc.stbc .stbc-add, .stbc.stbc .stbc-slot, .stbc.stbc .stbc-slot * { cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; }
+.stbc.stbc .stbc-row.reordering, .stbc.stbc .stbc-row.reordering * { cursor: url('/cursors/hand_closed.svg') 13 12, grabbing; }
 .bsc-id { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .bsc-banner { background: #3a2413; border: 1px solid #a0632a; border-radius: calc(6 * var(--u)); color: #f0b978; font-size: calc(12 * var(--u)); line-height: 1.4; padding: calc(6 * var(--u)) calc(8 * var(--u)); }
 .bsc-badges { gap: calc(4 * var(--u)); }
@@ -10694,6 +10874,58 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 .lobbyarmor { display: inline-flex; align-items: center; gap: calc(1 * var(--lfont)); color: var(--lby-armor-col, #a3a3a3); font-weight: 800; }
 .lobbyarmor svg { width: calc(8 * var(--lfont) * var(--lby-hp-size, 1.45)); height: calc(8 * var(--lfont) * var(--lby-hp-size, 1.45)); }
 .lobbyplace { color: rgba(255, 255, 255, 0.62); font-weight: 700; }
+/* GAUNTLET FOE (GauntletFoe.tsx) — no rail: the stage opponent's face floats free on the right side of the shop,
+   vertically centred where the lobby rail used to stand. Owner ask 2026-09-30: it MIMICS the combat opponent, so the
+   face is the combat group's own markup + classes (`.combatopp-name` plate, the shared `FoePortraitDisc` =
+   `.combatopp-portrait`), scaled by the SAME `--hd-opp-s` the combat group uses — one look, tuned in one place.
+   `.gauntletfoe` is a zero-size ANCHOR POINT (the portrait's centre); `.gauntletfoe-group` centres on it and carries
+   the scale, so the rail-style slide-away (`.app.staged .gauntletfoe`, a transform on the anchor) never fights it.
+   Placement knobs: ⚔️ Hero Duel → "Gauntlet shop foe" (`--hd-gfoe-*`, reference px × --scale; +X = right, +Y = down;
+   size × the combat portrait's). Pointer-inert so a card dragged near the right edge never catches it. */
+.gauntletfoe {
+  position: absolute; z-index: 60; width: 0; height: 0;
+  right: calc((170px - var(--hd-gfoe-x, 0px)) * var(--scale));
+  top: calc(46% + var(--hd-gfoe-y, 0px) * var(--scale));
+  pointer-events: none;
+  transition: transform 420ms cubic-bezier(0.4, 0, 0.2, 1), opacity 320ms ease-out;
+}
+/* Mirrors `.combatopp` (the scale) + `.combatopp-drop` (the column) — minus the drop-in, which is combat's entrance. */
+.gauntletfoe-group {
+  position: absolute; left: 0; top: 0; width: max-content;
+  transform: translate(-50%, -50%) scale(calc(var(--hd-opp-s, 2.4) * var(--hd-gfoe-s, 1)));
+  display: flex; flex-direction: column; align-items: center; gap: calc(4 * var(--u));
+}
+/* Mirrors `.combatopp-body`: the face sits UNDER the name plate and the round line that overlap its rim. */
+.gauntletfoe-face { display: block; position: relative; z-index: 0; }
+/* The round / loss-cap line takes the combat HEALTH pill's slot + paint (shared rule below, `.combatopp-hp`),
+   with its own quieter type — it is a readout, not a life total (scoped one step up so it outranks that later rule). */
+.gauntletfoe-group .gauntletfoe-meta,
+.gauntletfoe-group .gauntletfoe-cap { position: relative; z-index: 2; white-space: nowrap;
+  font-size: calc(11 * var(--u)); letter-spacing: 0.03em; color: #f4ecdb; padding: calc(5 * var(--u)) calc(13 * var(--u));
+  /* Nudged a little lower than combat's health-pill slot (owner ask 2026-09-30). */
+  transform: translate(calc(var(--hd-hp-x, 0px) * var(--scale)), calc((var(--hd-hp-y, -31px) + 14px) * var(--scale))) scale(var(--hd-hp-s, 0.65)); }
+/* The loss-cap pill sits right under the round pill; its number + heart read in the threat red. */
+/* Sizes swapped (owner ask 2026-09-30): the ROUND pill is the big one, the loss-cap pill the small one under it. */
+.gauntletfoe-group .gauntletfoe-meta { font-size: calc(14 * var(--u)); padding: calc(6 * var(--u)) calc(16 * var(--u)); }
+.gauntletfoe-group .gauntletfoe-cap { margin-top: calc(-10 * var(--u)); font-size: calc(9 * var(--u)); padding: calc(4 * var(--u)) calc(11 * var(--u)); }
+.gauntletfoe-capnum { display: inline-flex; align-items: center; gap: calc(3 * var(--u)); color: var(--threat); font-size: calc(11 * var(--u)); }
+.gauntletfoe-capnum svg { flex: none; width: calc(11 * var(--u)); height: calc(11 * var(--u)); color: var(--threat); }
+/* The opponent's two RUNE SOCKETS under the loss-cap pill (owner ask 2026-09-30): dotted circles until round 6 / 9,
+   then the rune badge (the player's `.questbadge.runebadge`, so art + tip match). The group is scaled up by the duel
+   dials, so the row COUNTER-scales to render badges at true rune size; its wrapper reserves the scaled height. */
+.gauntletfoe-runes { position: relative; z-index: 2; width: 0;
+  /* Sockets render at 1.2× the player's rune size and sit tucked up under the pill (owner ask 2026-09-30). */
+  height: calc(1.2 * 53 * var(--u) / (var(--hd-opp-s, 2.4) * var(--hd-gfoe-s, 1))); margin-top: calc(-10 * var(--u)); }
+.gauntletfoe-runerow { position: absolute; left: 0; top: 0; display: flex; gap: calc(14 * var(--u));
+  /* scale THEN centre: with origin 0 0, `scale(k) translateX(-50%)` centres the scaled row on the wrapper's x. */
+  transform: scale(calc(1.2 / (var(--hd-opp-s, 2.4) * var(--hd-gfoe-s, 1)))) translateX(-50%); transform-origin: 0 0;
+  pointer-events: auto; }
+.gauntletfoe-runeslot { position: relative; flex: none; width: calc(53 * var(--u)); height: calc(53 * var(--u)); box-sizing: border-box;
+  border: 3px dotted color-mix(in srgb, var(--gold) 70%, #fff); border-radius: 50%; background: rgba(12, 9, 6, 0.45); }
+.gauntletfoe-runeslot:hover .questbadge-tip, .gauntletfoe-runeslot.tt-on .questbadge-tip { opacity: 1; transition-delay: 0.3s; }
+/* Tips open to the LEFT (the foe sits at the board's right edge). */
+.gauntletfoe-runerow .questbadge-tip { bottom: auto; top: 50%; left: auto; right: calc(100% + 8px); transform: translateY(-50%); }
+.gauntletfoe-runerow > :hover { z-index: 10; }
 /* Health / placement sit on row 2 at the right, beside the round-damage number, now the name owns row 1. */
 .lobbyhp, .lobbyplace { grid-column: 3; grid-row: 2; justify-self: start; transform: translateX(calc(var(--lby-hp-x, 7) * var(--lrow))); }
 /* The health number LEFT-aligns at a fixed start toward the right (owner ask 2026-08-28): it reserves a width
@@ -11113,7 +11345,7 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
    coordinates by the component; everything here is appearance only. Workshop-slate, matching the tuner
    panels and the FX workbench (DESIGN.md, "The dev tooling surface"). */
 .uned {
-  position: fixed; z-index: 600; display: flex; flex-direction: column; gap: 6px;
+  position: fixed; z-index: 5000; /* above the draggable dev panels (useDraggablePanel: 600 and up) */ display: flex; flex-direction: column; gap: 6px;
   padding: 8px; border-radius: 8px;
   background: #100d08; border: 1px solid #4a4136; color: #efe7db;
   font-family: var(--font-ui); font-size: 12px;
@@ -11565,6 +11797,8 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
    holds still while the entry curtain sweeps over it and does its slide UNDER the blue, and on exit it
    slides back under the blue too, so the reveal sweep always exposes it settled (owner ask 2026-08-28). */
 .app.staged .lobbyrail { transform: translateX(115%); opacity: 0; pointer-events: none; }
+/* The Gauntlet foe's box is a zero-size anchor (see `.gauntletfoe`), so it slides a fixed distance instead of 115%. */
+.app.staged .gauntletfoe { transform: translateX(calc(520 * var(--u))); opacity: 0; }
 
 /* 1b. THE FOE ARRIVES — the opponent's hero portrait drops onto the Refresh button's anchor (that button is
    inert in combat, so the space is free). Same top-right base point as `.rfbwrap`, so the two occupy the same
@@ -11685,6 +11919,11 @@ body.duel-attacker-opp .combatopp-hp { opacity: 0; }
   background: radial-gradient(circle at 50% 30%, #2c211a, #0e0a07);
 }
 .combatopp-img { width: 100%; height: 100%; object-fit: cover; display: block; }
+/* GAUNTLET: the stage opponent has no hero — its tribe emblem fills the portrait disc instead. */
+/* GAUNTLET: a stage's portrait card art, cropped toward the face like a hero portrait. */
+.combatopp-cardart { object-position: 50% 30%; }
+.combatopp-emblem { display: grid; place-items: center; width: 100%; height: 100%; }
+.combatopp-emblem svg { width: 62%; height: 62%; color: #f0c9b8; filter: drop-shadow(0 calc(2 * var(--u)) calc(5 * var(--u)) rgba(0, 0, 0, 0.6)); }
 .combatopp-name {
   font-family: var(--font-ui); font-weight: 800; font-size: calc(15 * var(--u)); color: var(--ink);
   background: linear-gradient(180deg, #fff, #f3ead4); border: 2px solid var(--gold); border-radius: 999px;
@@ -11693,8 +11932,11 @@ body.duel-attacker-opp .combatopp-hp { opacity: 0; }
   transform: translate(calc(var(--hd-name-x, 0px) * var(--scale)), calc(var(--hd-name-y, 26px) * var(--scale))) scale(var(--hd-name-s, 0.65));
 }
 /* Opponent HEALTH — the SAME pill the PLAYER wears in the HUD (owner ask 2026-08-25): the dark gradient box,
-   dark-gold border, threat-pink heart and lightened number from `.statusbar .hero .hpbox`, verbatim. */
-.combatopp-hp {
+   dark-gold border, threat-pink heart and lightened number from `.statusbar .hero .hpbox`, verbatim. The Gauntlet
+   shop foe's round line (`.gauntletfoe-meta`) wears the same pill in the same slot; its type is overridden above. */
+.combatopp-hp,
+.gauntletfoe-meta,
+.gauntletfoe-cap {
   display: inline-flex; align-items: center; gap: calc(7 * var(--u));
   background: linear-gradient(180deg, #241a13, #17110c);
   border: 2px solid color-mix(in srgb, var(--gold) 55%, #000); border-radius: calc(16 * var(--u));
@@ -12567,6 +12809,11 @@ body:has(.heroselect.rankend) .pixifx-above { z-index: 470; }
 /* Now Facing + the lobby rail: the bare <img> moves into a disc-sized host only while a frame is on. */
 .wipevs-facewrap { position: relative; display: block; width: calc(290 * var(--u, 1px)); height: calc(290 * var(--u, 1px)); }
 .wipevs-facewrap > .wipevs-face { display: block; width: 100%; height: 100%; border: none; box-shadow: none; }
+/* GAUNTLET: the stage opponent's tribe emblem stands in for a hero portrait in the Now Facing disc. */
+.wipevs-cardart { object-position: 50% 30%; }
+.wipevs-emblem { display: grid; place-items: center; background: radial-gradient(circle at 50% 30%, #2c211a, #0e0a07); }
+.wipevs-facewrap > .wipevs-emblem { display: grid; }
+.wipevs-emblem svg { width: 62%; height: 62%; color: #f0c9b8; filter: drop-shadow(0 calc(4 * var(--u, 1px)) calc(10 * var(--u, 1px)) rgba(0, 0, 0, 0.6)); }
 .lobbyface-host { position: relative; display: block; overflow: visible; }
 .lobbyface-host > .lobbyface-img { display: block; width: 100%; height: 100%; object-fit: cover; }
 /* YOUR RING OVER YOUR HERO POWER (owner report 2026-09-29: "fix the Z axis of the hero power here so that the player
@@ -12596,3 +12843,19 @@ body:has(.heroselect.rankend) .pixifx-above { z-index: 470; }
 .pfprev-disc .pfprev-art { width: 100%; height: 100%; object-fit: cover; display: block; }
 .pfprev-cap { font-size: 11px; opacity: 0.7; }
 .pfprev-row { display: flex; justify-content: center; gap: 10px; font-size: 11px; opacity: 0.8; padding-bottom: 6px; }
+
+/* GAUNTLET END SCREEN (gauntlet/GauntletEndScreen.tsx): the shared end-screen chrome (.heroselect.endscreen +
+   .endbox, .hstitle, .endsub, .endboard, .endplay) with a two-button action row. Home is the quieter of the two. */
+.gauntletend .hstitle { font-size: 104px; }
+.gauntletend-unlock { margin-top: 14px; font-family: var(--font-ui); font-weight: 800; font-size: 22px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--gold); }
+.gauntletend-reward { margin-top: 24px; }
+/* The clear's crate line (`GauntletClearReward`): the granted crate beside its Open in Collection button, or one
+   plain note (saving / sign-in). The crate art is the Collection bay's `.colls-crate`, static here. */
+.gauntletend-crate { display: flex; align-items: center; justify-content: center; gap: 22px; }
+.gauntletend-crate.earned .colls-crate { transform: scale(0.8); }
+.gauntletend-crate-body { display: flex; flex-direction: column; align-items: flex-start; gap: 10px; }
+.gauntletend-crate-head { font-family: var(--font-ui); font-weight: 900; font-size: 26px; letter-spacing: 0.06em; text-transform: uppercase; color: #ffe08a; }
+.gauntletend-crate-note { font-family: var(--font-ui); font-weight: 700; font-size: 18px; color: rgba(255, 246, 228, 0.86); }
+.gauntletend-actions { display: flex; align-items: center; justify-content: center; gap: 24px; }
+.gauntletend-home { background: rgba(255, 255, 255, 0.06); border-color: color-mix(in srgb, var(--gold) 55%, #000); box-shadow: 0 7px 0 color-mix(in srgb, var(--gold) 40%, #000), 0 14px 34px -8px rgba(0, 0, 0, 0.55); }
+.gauntletend-home:hover { background: rgba(255, 255, 255, 0.12); }

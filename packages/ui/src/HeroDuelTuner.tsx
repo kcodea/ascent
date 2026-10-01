@@ -21,6 +21,9 @@ const LABELS: Record<keyof HeroDuelConfig, [string, TunerUnit | undefined]> = {
   oppScale:     ['Portrait size', '×'],
   oppX:         ['Portrait X', 'px'],
   oppY:         ['Portrait Y', 'px'],
+  gfoeScale:    ['Shop foe size', '×'],
+  gfoeX:        ['Shop foe X', 'px'],
+  gfoeY:        ['Shop foe Y', 'px'],
   nameScale:    ['Name size', '×'],
   nameX:        ['Name X', 'px'],
   nameY:        ['Name Y', 'px'],
@@ -70,6 +73,7 @@ const LABELS: Record<keyof HeroDuelConfig, [string, TunerUnit | undefined]> = {
 };
 const GROUP: Record<keyof HeroDuelConfig, string> = {
   oppScale: 'Opponent portrait', oppX: 'Opponent portrait', oppY: 'Opponent portrait',
+  gfoeScale: 'Gauntlet shop foe', gfoeX: 'Gauntlet shop foe', gfoeY: 'Gauntlet shop foe',
   nameScale: 'Foe name plate', nameX: 'Foe name plate', nameY: 'Foe name plate',
   hpScale: 'Foe health pill', hpX: 'Foe health pill', hpY: 'Foe health pill',
   powerX: 'Foe hero power', powerY: 'Foe hero power', powerScale: 'Foe hero power', powerAlpha: 'Foe hero power',
@@ -87,6 +91,7 @@ const GROUP: Record<keyof HeroDuelConfig, string> = {
 };
 const ORDER: (keyof HeroDuelConfig)[] = [
   'oppScale', 'oppX', 'oppY',
+  'gfoeScale', 'gfoeX', 'gfoeY',
   'nameScale', 'nameX', 'nameY',
   'hpScale', 'hpX', 'hpY',
   'pillScale', 'pillX', 'pillY',

@@ -21,6 +21,7 @@ import { RankCrest } from './rank/RankBar';
 import { useCurrentRank } from './rank/rankSource';
 import { rankLabel } from './rank/rankFormat';
 import { NewPill, useHasNewRewards } from './progression/NewRewardsPopup';
+import { StageSelect } from './gauntlet/StageSelect';
 import { GuestSignInButton, PortraitSignInGate } from './GuestSignIn';
 
 /**
@@ -55,6 +56,7 @@ export function Title({ onSettings }: { onSettings: () => void }) {
   const startLobby = useGame((s) => s.startLobby);
   const startTutorial = useGame((s) => s.startTutorial);
   const startSceneBuilder = useGame((s) => s.startSceneBuilder);
+  const startStageBuilder = useGame((s) => s.startStageBuilder);
   // SOCIAL → the player's own Career page through `openCareer()` — the plain open, NOT the sidebar's `goTo`:
   // `goTo` stamps `navHopAt`, which makes the destination mount wearing `.hop` (page fade off, sidebar cut in
   // hard) — right for a sidebar hop, wrong for a title open, which should fade in whole like Play → modes
@@ -265,6 +267,13 @@ export function Title({ onSettings }: { onSettings: () => void }) {
               <span className="mblabel">Scene Builder</span>
             </button>
           )}
+          {/* DEV-ONLY: the Stage Builder authors the Gauntlet's stage boards on top of the Scene Builder sandbox. */}
+          {import.meta.env.DEV && (
+            <button className="menubtn" onClick={() => { sfx.pulse(); void startStageBuilder(); }} data-tip="A dev tool. Author the Gauntlet's stages: the opponent's warband for each round, edited on the board.">
+              <span className="mbicon"><Icon name="sword" /></span>
+              <span className="mblabel">Stage Builder</span>
+            </button>
+          )}
           <button className="menubtn" onClick={onSettings}>
             <span className="mbicon"><Icon name="gear" /></span>
             <span className="mblabel">{txt.settings}</span>
@@ -347,6 +356,19 @@ export function Title({ onSettings }: { onSettings: () => void }) {
                 </div>
               </button>
             </div>
+
+            {/* GAUNTLET — a wide banner on its own row under Learn (same footprint), opening the stage select. */}
+            <div className="mprow">
+              <button className="modecard" data-mp="gauntlet" onClick={() => { sfx.pulse(); setTitleView('gauntlet'); }}>
+                <div className="mcframe" data-mode="gauntlet" data-mp="gauntlet">
+                  <div className="mcname">Gauntlet</div>
+                  {modeArt('gauntlet')
+                    ? <div className="mcart-clip"><img decoding="sync" className="mcframe-art" src={modeArt('gauntlet')} alt="" draggable={false} /></div>
+                    : <span className="mcemblem"><Crest /></span>}
+                  <div className="mcdesc">Survive 10 rounds against a hand-built foe.</div>
+                </div>
+              </button>
+            </div>
           </div>
         </SidebarHost>
       )}
@@ -377,6 +399,18 @@ export function Title({ onSettings }: { onSettings: () => void }) {
                 </div>
               </button>
             </div>
+          </div>
+        </SidebarHost>
+      )}
+
+      {/* GAUNTLET STAGE SELECT — opened from the Gauntlet card in the mode picker (the Learn hub's pattern: it sits
+          over the picker, and Back returns to it). Picking a stage opens the hero picker for that stage. */}
+      {titleView === 'gauntlet' && (
+        <SidebarHost className="modepick sb-host" role="dialog" aria-label="Gauntlet">
+          <MenuSidebar current="modes" onBack={() => { sfx.pulse(); setTitleView('modes'); }} />
+          <div className="mpbox">
+            <h1 className="disp mptitle">GAUNTLET</h1>
+            <StageSelect />
           </div>
         </SidebarHost>
       )}

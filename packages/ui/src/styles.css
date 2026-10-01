@@ -1509,6 +1509,9 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
    pending opacity is `!important` because some frame copies (the grounding shadow) carry their own opacity. */
 .art-pending { opacity: 0 !important; }
 .art-fadein { transition: opacity 180ms ease-out; }
+/* Any OTHER <img> (an icon, a button, a logo) whose load failed and is being retried (artPreload.ts, retry fix
+   2026-09-30): invisible instead of a broken image until the retry lands. Static, never animated. */
+.img-retrying { opacity: 0 !important; }
 .art.art-wait { background: radial-gradient(ellipse 70% 55% at 50% 40%, rgba(255, 228, 178, 0.10), transparent 70%), linear-gradient(180deg, #2b2436, #17121d) !important; }
 /* Ward (Divine Shield) — the energy shell. The old INNER dome (a `.ward` stack inside `.art`, trimmed to the
    portrait window) was REMOVED 2026-07-21: with the frame-wide `.wardglass` shell below, the two stacked into

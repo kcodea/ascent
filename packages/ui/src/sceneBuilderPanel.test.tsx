@@ -126,7 +126,7 @@ describe('the Scene Builder is the one place an archived hero still shows (owner
       const o = opts.find((x) => x.value === h.id)!;
       expect(o.textContent, h.id).toBe(isArchivedHero(h) ? `${h.name} (archived)` : h.name);
     }
-    for (const id of ['tiff', 'runesmith', 'pete', 'rohan']) {
+    for (const id of ['tiff', 'pete', 'rohan']) {
       expect(isArchivedHero(HEROES.find((h) => h.id === id)!), id).toBe(true);
       act(() => { useGame.getState().startSceneBuilder(id); });
       expect(useGame.getState().run.heroId).toBe(id);

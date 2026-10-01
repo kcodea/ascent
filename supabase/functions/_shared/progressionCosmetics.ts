@@ -361,10 +361,10 @@ export const COSMETICS: readonly CosmeticDef[] = Object.freeze([
   // Legendary like the others. The name is the builder's placeholder for the owner to rename (the id stays).
   heroAttack('attack_basketball', 'Nothing But Net', 'legendary', 'basketball'),
   // Owner 2026-09-30: "create a brand new attack animation that is on par with hearthstone/modern world of warcraft level
-  // animation art style performance readability and everything", theme fel / chaos bolt. A warlock's chaos bolt: one,
-  // two, two and a great bolt that sets the target burning, and a rune circle with a chaos meteor that erupts. Four
-  // tiers, so Legendary. The name is the builder's placeholder for the owner to rename (the id stays).
-  heroAttack('attack_fel', 'Chaos Bolt', 'legendary', 'fel'),
+  // animation art style performance readability and everything" (theme fel), then "extremely unique ... may be our first
+  // mythic rarity item"; the owner picked THE EYE OF THE LEGION: a demonic eye tears open, its slit pupil hunts and finds
+  // the target, and its gaze burns it (IV: a colossal eye, the target implodes into a starburst). Legendary for now.
+  heroAttack('attack_fel', 'Eye of the Legion', 'legendary', 'fel'),
   // HERO TITLES (owner 2026-09-29), 33 heroes x (title + golden master). Achievement rewards, never in a crate.
   ...HERO_TITLE_COSMETICS,
 ]);

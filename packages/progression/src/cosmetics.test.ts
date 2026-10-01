@@ -147,7 +147,7 @@ describe('the roll', () => {
   it('the per-item chances of a first crate (2026-09-30 catalog): each item = its rarity\'s odds / that rarity\'s item count', () => {
     const all = eligibleCrateCosmetics([]);
     const count = (r: string): number => all.filter((c) => c.rarity === r).length;
-    expect(COSMETIC_RARITIES.map(count)).toEqual([14, 32, 25, 20]); // 2026-09-30 (skins batch 4): Waitress Ayse, Mastered Soren, Young Brakkus, Ninja Robin and Beefy Arnold made Common 14; thirteen Rare skins made Rare 32; eleven Epic skins made Epic 25; Edward Colada Hands, Portal Buddy and Sketch Buddy made Legendary 20. 2026-09-29: Nothing But Net (attack_basketball) made Legendary 17. 2026-09-29 (skins batch 3): Armourer Frank made Common 9; Stencil Sylus and Mace Urchin made Rare 19; Rooks Oona and Magician Buddy Buddy made Epic 14. Before that, 2026-09-29: Inferno, Grave Call, the Stampede, Oona's Banana Cannon and Hemorrhage made Legendary 16; the first Epic attacks, Card Shark and Storm Call, made Epic 12; the four Rare hero attacks (coin, boomerang, bubble, backstab) made Rare 17
+    expect(COSMETIC_RARITIES.map(count)).toEqual([14, 32, 25, 21]); // 2026-09-30: the Eye of the Legion (attack_fel) made Legendary 21. 2026-09-30 (skins batch 4): Waitress Ayse, Mastered Soren, Young Brakkus, Ninja Robin and Beefy Arnold made Common 14; thirteen Rare skins made Rare 32; eleven Epic skins made Epic 25; Edward Colada Hands, Portal Buddy and Sketch Buddy made Legendary 20. 2026-09-29: Nothing But Net (attack_basketball) made Legendary 17. 2026-09-29 (skins batch 3): Armourer Frank made Common 9; Stencil Sylus and Mace Urchin made Rare 19; Rooks Oona and Magician Buddy Buddy made Epic 14. Before that, 2026-09-29: Inferno, Grave Call, the Stampede, Oona's Banana Cannon and Hemorrhage made Legendary 16; the first Epic attacks, Card Shark and Storm Call, made Epic 12; the four Rare hero attacks (coin, boomerang, bubble, backstab) made Rare 17
     const ch = crateChances(all);
     const pct = (id: string): number => Math.round(100000 * ch.get(id)!) / 1000;
     expect(pct('skin_blackbelt_4')).toBe(3.571);      // Common: 50 / 14
@@ -172,17 +172,18 @@ describe('the roll', () => {
     expect(pct('title_kingbreaker')).toBe(0.6);
     expect(pct('attack_cards')).toBe(0.6);
     expect(pct('attack_storm')).toBe(0.6);
-    expect(pct('skin_blackbelt_3')).toBe(0.25);       // Legendary: 5 / 20
-    expect(pct('skin_edward_1')).toBe(0.25);
-    expect(pct('skin_buddy_3')).toBe(0.25);
-    expect(pct('attack_arcana')).toBe(0.25);
-    expect(pct('attack_fire')).toBe(0.25);
-    expect(pct('attack_undead')).toBe(0.25);
-    expect(pct('attack_beast')).toBe(0.25);
-    expect(pct('attack_banana')).toBe(0.25);
-    expect(pct('attack_bleed')).toBe(0.25);
-    expect(pct('attack_basketball')).toBe(0.25);
-    expect(pct('title_the_unbroken')).toBe(0.25);
+    expect(pct('skin_blackbelt_3')).toBe(0.238);       // Legendary: 5 / 21
+    expect(pct('skin_edward_1')).toBe(0.238);
+    expect(pct('skin_buddy_3')).toBe(0.238);
+    expect(pct('attack_arcana')).toBe(0.238);
+    expect(pct('attack_fire')).toBe(0.238);
+    expect(pct('attack_undead')).toBe(0.238);
+    expect(pct('attack_beast')).toBe(0.238);
+    expect(pct('attack_banana')).toBe(0.238);
+    expect(pct('attack_bleed')).toBe(0.238);
+    expect(pct('attack_basketball')).toBe(0.238);
+    expect(pct('attack_fel')).toBe(0.238);
+    expect(pct('title_the_unbroken')).toBe(0.238);
     const cat = (k: string): number => Math.round(1000 * all.filter((c) => c.category === k).reduce((a, c) => a + ch.get(c.id)!, 0)) / 10;
     expect([cat('title'), cat('minion_skin'), cat('hero_skin'), cat('hero_attack')]).toEqual([31.1, 32.1, 28.3, 8.5]); // re-pinned for skins batch 4 (2026-09-30; was 49.2 / 30.5 / 7.7 / 12.6): fourteen Legendary attacks x 5 / 20 (Nothing But Net joined 2026-09-29) + the two Epic attacks x 15 / 25 (Card Shark, Storm Call) + the four Rare attacks x 30 / 32 (2026-09-29, re-pinned for skins batch 3; was 55.4 / 28.5 / 2.5 / 13.6)
     expect([...ch.values()].reduce((a, b) => a + b, 0)).toBeCloseTo(1, 12);

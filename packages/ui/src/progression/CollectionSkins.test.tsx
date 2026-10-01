@@ -69,7 +69,7 @@ describe('the Heroes and Minions tabs', () => {
     expect(tab('Heroes').querySelector('.colls-tab-count')?.textContent).toBe('1/19');
     // 2026-09-28: three Black Belt Brian skins and one Bellringer Voss skin, so Minions is 1/4 and the album 22 items (30 with the eight hero attacks, 2026-09-28); skins batch 2 (2026-09-28) adds 13 minion skins: Minions 1/17, the album 43; the 33 hero titles (2026-09-29) make it 76; the ninth hero attack, Inferno (2026-09-29), 77; Grave Call (2026-09-29), 78; the Stampede (2026-09-29), 79; Oona's Banana Cannon (2026-09-29), 80; Hemorrhage (2026-09-29), 81; skins batch 3 (2026-09-29) adds 4 minion skins (Minions 1/21) and a Frantic Frank hero skin (Heroes 1/3), +5; skins batch 4 (2026-09-30) adds 16 minion skins (Minions 1/37) and 16 hero skins (Heroes 1/19), +32
     expect(tab('Minions').querySelector('.colls-tab-count')?.textContent).toBe('1/37');
-    expect(text('.colls-meter-num')).toBe('3 / 125');
+    expect(text('.colls-meter-num')).toBe('3 / 126');
   });
 
   it('tiles show the art and the target; unowned are dimmed + blurred (missing) with a lock', () => {
@@ -160,10 +160,10 @@ describe('the kill switch in the Collection (retired = hidden, owned or not; res
       'Sketchbook Brian', 'Beefy Arnold',
     ]);
     expect(tab('Minions').querySelector('.colls-tab-count')?.textContent).toBe('0/36');
-    expect(text('.colls-meter-num')).toBe('2 / 124');
+    expect(text('.colls-meter-num')).toBe('2 / 125');
     act(() => applyServerCatalogState({ retiredIds: [], disabledCategories: [] }));
     expect(tile('Sheriff Brian').className).toMatch(/\bowned\b/);
-    expect(text('.colls-meter-num')).toBe('3 / 125');
+    expect(text('.colls-meter-num')).toBe('3 / 126');
   });
 
   it('a disabled CATEGORY becomes a locked Soon tab', () => {
@@ -171,6 +171,6 @@ describe('the kill switch in the Collection (retired = hidden, owned or not; res
     act(() => applyServerCatalogState({ retiredIds: [], disabledCategories: ['hero_skin'] }));
     expect(tab('Heroes').className).toMatch(/\blocked\b/);
     expect(tab('Heroes').textContent).toContain('Soon');
-    expect(text('.colls-meter-num')).toBe('2 / 106');
+    expect(text('.colls-meter-num')).toBe('2 / 107');
   });
 });

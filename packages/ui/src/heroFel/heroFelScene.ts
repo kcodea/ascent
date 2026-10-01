@@ -1,144 +1,121 @@
 /**
- * THE FEL SCENE: everything the Fel ("Chaos Bolt") hero attack draws in Pixi, as a plain scene graph with no renderer,
- * so it runs (and is tested) headless. `heroFel.ts` mounts `root` on the above-portrait overlay and feeds `update(dt)`.
+ * THE EYE OF THE LEGION SCENE: everything the attack draws in Pixi, as a plain scene graph with no renderer, so it
+ * runs (and is tested) headless. `heroFel.ts` mounts `root` on the above-portrait overlay and feeds `update(dt)`.
  *
- * The look (owner 2026-09-30: "on par with hearthstone/modern world of warcraft"), Blizzard's VFX rules applied:
- *  - SILHOUETTE FIRST. A chaos bolt is three reads stacked: a white-green HEART, a DARK spiky SHELL round it (normal
- *    blend, so it stays dark on any board: the bright core / dark rim contrast) with a thin green RIM light outside it,
- *    and the live fel fire (`../heroAttack/pixiFire.ts`, a green palette over dark purple smoke) licking off it. Crackles
- *    of chaos lightning flash round the shell and are left hanging along its path.
- *  - ANTICIPATION. A fel SIGIL spins open where each bolt forms, motes stream into it, the bolt swells, then is drawn
- *    back; the sigil collapses in a flash on the release.
- *  - RELEASE + IMPACT. The impact is a white flash, the shell SHATTERING outward as a dark ring, a green shock ring, a
- *    star of crackles and shards, and fel fire rolling up into dark smoke: a big, chunky, readable pop.
- *  - DISSIPATION. Fire burns down to embers and smoke; Tier IV leaves fel flames on the struck rim and ASH drifting.
- *  - TIER IV, THE HAND: a fel RUNE CIRCLE opens flat over the struck hero (two counter-rotating glyph rings, the ground
- *    under it darkened, flames licking up its rim, motes drawn in), a CHAOS METEOR (a giant bolt) falls into it, and it
- *    ERUPTS: a pillar of fel fire and light towering off the target, shockwaves, the circle flaring and breaking.
+ * THE EYE is a small rig of layered, painted sprites (owner bar 2026-09-30: "extremely unique", Hearthstone / WoW
+ * craft), driven every frame by the PURE pose in `heroFelConfig.ts`:
+ *   a soft fel light | the RIFT (a dark ragged tear, its torn rim glowing) | inside the LIDS (a mask, the almond scaled in
+ *   y): the shaded SCLERA, its VEINS, the IRIS (fibres, a dark limbal ring, a burning ring and a hot collar, darting
+ *   with the look), the slit PUPIL, a fixed specular GLINT | the LID rim (dark, thick) and its fel inner glow.
+ * Shut, the lid band collapses to a glowing SEAM in the tear; the lids crack, then snap open.
  *
- * LAYERS, bottom to top: under (normal: the darkened ground, the scorch, the dark pressure ring) | glow (additive: light,
- * sigils, the rune circle, rims, rings) | the fire's back (normal: smoke, the deep body) | body (normal: the dark
- * shells, ash) | the fire's front (additive: flame, embers) | core (additive: hearts, crackles, shards, flashes).
+ * THE GAZE is a beam of two stretched sprites (a wide fel glow, a white-hot core) with a flare at the pupil and at its
+ * head, sparks spraying where it burns. IV: the iris IGNITES (live fel fire round its ring), the target is DRAWN IN (a
+ * dark core, collapsing rings, motes streaming in), then IMPLODES into a STARBURST.
  *
- * Contract: sprites are POOLED per layer (`FxPool`), bounded by `MAX_FEL_SPRITES`; fire particles by
- * `MAX_FEL_PARTICLES`; textures are the caller's and pre-warmed at construction (while the damage formation plays);
- * positions are the overlay's px; `update` returns whether anything still draws; `destroy()` leaves nothing behind.
- * Scatter is seeded (a replay burns the same fire). The scene's clock is the sequence's.
+ * LAYERS, bottom to top: veil (normal: IV's fel-negative vignette) | under (normal) | glow (additive) | the eyes | the
+ * fire's back (normal) | body (normal) | the fire's front (additive) | core (additive: the gaze, flashes, sparks).
+ *
+ * Contract: one-shots are POOLED (`FxPool`, `MAX_FEL_SPRITES`); fire particles capped (`MAX_FEL_PARTICLES`); the eye rigs
+ * are built once at construction (while the damage formation plays) and only their transforms / alpha change; textures
+ * are the caller's and pre-warmed; `update` returns whether anything still draws; `destroy()` leaves nothing behind.
  */
-import { Sprite, type Texture } from 'pixi.js';
+import { Container, Graphics, Sprite, type Texture } from 'pixi.js';
 import type { HeroArcanaTextures } from '../heroArcana/heroArcanaScene';
-import { clamp01, easeInOutSine, easeOutBack, easeOutCubic, mixColor, whiten, type Pt } from '../heroAttack/easing';
+import { clamp01, easeInOutSine, easeOutCubic, whiten, type Pt } from '../heroAttack/easing';
 import { FxPool, type FxLayer } from '../heroAttack/fxPool';
 import { PixiFire, type FireEmitter, type FireTextures } from '../heroAttack/pixiFire';
-import { boltPose, felMeteorPose, type BoltMotion, type FelMeteorMotion } from './heroFelConfig';
-import { CRACKLE_W, RUNE_R, SHARD_W, SHELL_R } from './heroFelTextures';
+import {
+  almondPoints, beamPose, eyePose, EYE_HW, IRIS_R, LOOK_X, LOOK_Y, pupilPoint, type EyeMotion, type HeroFelConfig,
+} from './heroFelConfig';
+import { BURST_PX, CRACKLE_W, EYE_W, GAZE_H, GAZE_W, IRIS_PX, PUPIL_W, RIFT_W, SHARD_W, VEIL_PX } from './heroFelTextures';
 
 export interface HeroFelTextures extends HeroArcanaTextures {
   fire: FireTextures;
   scorch: Texture;
   shock: Texture;
-  /** The fel rune circle (its outer ring at `RUNE_R` of 256 px). */
-  rune: Texture;
-  /** A jagged fork of chaos lightning (`CRACKLE_W` wide, along +x). */
-  crackle: Texture;
-  /** A ragged dark annulus (its ring at `SHELL_R` of 128 px). */
-  shell: Texture;
-  /** A sharp sliver along +x (`SHARD_W` long). */
-  shard: Texture;
+  sclera: Texture; veins: Texture; iris: Texture; pupil: Texture; lid: Texture; lidGlow: Texture;
+  rift: Texture; riftRim: Texture; gaze: Texture; burst: Texture; veil: Texture; crackle: Texture; shard: Texture;
 }
 
-export interface FelColors { core: number; hot: number; fel: number; deep: number; ember: number; smoke: number; shell: number; rune: number; side: number }
-
-export interface FelLook {
-  kindle: number; sigilSize: number; motes: number;
-  boltFlame: number; boltGlow: number; shell: number; crackle: number; trail: number; trailSmoke: number;
-  turbulence: number; buoyancy: number; smoke: number; embers: number;
-  impactSize: number; shards: number; burnSize: number;
-  gateSize: number; eruptMs: number; eruptHeight: number; burnoutMs: number; ash: number; scorch: number;
+export interface FelColors {
+  sclera: number; vein: number; iris: number; fel: number; hot: number; core: number; pupil: number; lid: number; rift: number; veil: number;
 }
 
-/** Hard cap on the sprites (light, shells, sigils, crackles, shards, ash) alive at once. */
-export const MAX_FEL_SPRITES = 320;
-/** Hard cap on live fire particles (the eruption peaks near it; the pool never grows past it). */
-export const MAX_FEL_PARTICLES = 1100;
+export const MAX_FEL_SPRITES = 300;
+export const MAX_FEL_PARTICLES = 700;
 
-/** Radius (px) a sprite of scale 1 covers, per texture. */
-const GLOW_R = 64, SHOCK_R = 115, SCORCH_R = 102, PUFF_R = 32, SPARK_R = 16;
-const UP = -Math.PI / 2, UP_HALF = Math.PI * 0.62;
+const GLOW_R = 64, SHOCK_R = 115, SPARK_R = 16;
 
-/** One glowing orb of chaos: a bolt, or the Tier IV meteor (a giant one). */
-interface Orb {
-  em: FireEmitter; tail: FireEmitter;
-  heart: Sprite; core: Sprite; halo: Sprite; shell: Sprite; rim: Sprite;
-  spin: number; crackIn: number; lastX: number; lastY: number;
+interface Rig {
+  m: EyeMotion;
+  root: Container;
+  light: Sprite; riftDark: Sprite; riftRim: Sprite;
+  content: Container; mask: Graphics;
+  sclera: Sprite; veins: Sprite; iris: Container; irisBody: Sprite; irisRing: Sprite; irisHot: Sprite; pupil: Sprite; glint: Sprite;
+  lid: Sprite; lidGlow: Sprite;
+  ignite: FireEmitter | null;
+  crackIn: number; sparkIn: number;
+  beam: { glow: Sprite; core: Sprite; head: Sprite; src: Sprite } | null;
+  beamWasOn: boolean;
 }
 
-interface Bolt {
-  m: BoltMotion; orb: Orb; sigil: Sprite | null;
-  state: 'form' | 'fly' | 'gone';
-  /** Ms since the sigil collapsed (-1 while it is open). */
-  sigilGone: number;
-  moteIn: number; formedFx: boolean;
-}
-
-interface Charge { em: FireEmitter; light: Sprite; x: number; y: number; r: number; age: number; dur: number; left: number; releasing: number }
-
-interface Meteor { m: FelMeteorMotion; orb: Orb }
-
-/** Tier IV: the rune circle over the target, from its opening to a beat after it erupts. */
-interface Gate {
-  x: number; y: number; R: number; gr: number;
-  outer: Sprite; inner: Sprite; dark: Sprite; light: Sprite; em: FireEmitter;
-  age: number; dur: number; erupted: number; moteIn: number;
-}
-
-interface Nova { em: FireEmitter; age: number; dur: number; r0: number; r1: number }
-interface Debris { em: FireEmitter; core: Sprite; x: number; y: number; vx: number; vy: number; age: number; life: number }
-interface Later { at: number; kind: 'billow' | 'ash'; x: number; y: number; R: number }
+interface Pull { x: number; y: number; R: number; at: number; until: number; dark: Sprite; light: Sprite; moteIn: number }
 
 export class HeroFelScene extends FxPool {
   private readonly fire: PixiFire;
   private readonly S: number;
+  private readonly eyesLayer = new Container();
+  private readonly veilLayer = new Container();
+  private readonly rigs: Rig[] = [];
+  private veil: Sprite | null = null;
+  private veilPlan: { inAt: number; fullAt: number; outAt: number; goneAt: number; alpha: number } | null = null;
+  private pull: Pull | null = null;
   private clock = 0;
-  private bolts: Bolt[] = [];
-  private charge: Charge | null = null;
-  private meteor: Meteor | null = null;
-  private gate: Gate | null = null;
-  private novas: Nova[] = [];
-  private debris: Debris[] = [];
-  private later: Later[] = [];
   private reserving = true;
+  /** After a clear (a cancel) the eyes are spent: nothing redraws them. */
+  private spent = false;
 
-  constructor(private readonly tex: HeroFelTextures, private readonly colors: FelColors, private readonly look: FelLook, scale = 1, seed = 1) {
+  constructor(
+    private readonly tex: HeroFelTextures, private readonly colors: FelColors, private readonly cfg: HeroFelConfig,
+    eyes: readonly EyeMotion[], scale = 1, seed = 1, screen: { w: number; h: number } = { w: 1920, h: 1080 },
+  ) {
     const f = tex.fire;
-    super('heroFel', [tex.glow, tex.spark, tex.shock, tex.scorch, tex.rune, tex.crackle, tex.shell, tex.shard, ...f.puffs, f.tongue, f.smoke, f.ember, f.glow], 1, seed, MAX_FEL_SPRITES);
+    super('heroFel', [tex.glow, tex.spark, tex.shock, tex.gaze, tex.burst, tex.crackle, tex.shard, f.puffs[0]!, f.tongue, f.smoke, f.ember, f.glow], 1, seed, MAX_FEL_SPRITES);
     this.S = scale;
     this.fire = new PixiFire(f, {
       cap: MAX_FEL_PARTICLES, scale, seed: seed * 31 + 7,
-      palette: { core: colors.core, hot: colors.hot, mid: colors.fel, deep: colors.deep, dark: colors.ember, smoke: colors.smoke },
-      smoke: look.smoke, embers: look.embers, turb: look.turbulence, lift: look.buoyancy,
+      palette: { core: colors.core, hot: colors.hot, mid: colors.fel, deep: 0x1c9e2a, dark: 0x0b3a14, smoke: 0x1d1028 },
+      smoke: 0.7, embers: cfg.embers, turb: 1, lift: 1,
     });
-    // under | glow | fire back | body | fire front | core
-    this.root.addChildAt(this.fire.back, 2);
-    this.root.addChildAt(this.fire.front, 4);
+    this.eyesLayer.label = 'heroFel-eyes';
+    this.veilLayer.label = 'heroFel-veil';
+    // veil | under | glow | eyes | fire back | body | fire front | core
+    this.root.addChildAt(this.veilLayer, 0);
+    this.root.addChildAt(this.eyesLayer, 3);
+    this.root.addChildAt(this.fire.back, 4);
+    this.root.addChildAt(this.fire.front, 6);
+    for (const m of eyes) this.rigs.push(this.buildRig(m));
     this.fire.planReserve();
+    this.screen = screen;
   }
+
+  private readonly screen: { w: number; h: number };
 
   get liveFire(): number { return this.fire.count; }
   get pooledFire(): number { return this.fire.pooled; }
   get emitters(): number { return this.fire.emitting; }
-  get liveBolts(): number { return this.bolts.filter((b) => b.state !== 'gone').length; }
-  get charging(): boolean { return this.charge !== null; }
-  get meteorLive(): boolean { return this.meteor !== null; }
-  get gateOpen(): boolean { return this.gate !== null; }
-  get liveDebris(): number { return this.debris.length; }
   get time(): number { return this.clock; }
-  /** Every live draw: the pooled sprites and the fire particles. */
-  get liveAll(): number { return this.liveSprites + this.fire.count; }
+  /** Eyes showing anything (the rift or the lids). */
+  get eyesShowing(): number { return this.rigs.filter((r) => r.root.visible).length; }
+  get beamsOn(): number { return this.rigs.filter((r) => r.beam !== null).length; }
+  get pulling(): boolean { return this.pull !== null; }
+  get veilAlpha(): number { return this.veil?.visible ? this.veil.alpha : 0; }
+  /** The eye rigs (exposed for tests and the capture rig). */
+  get eyeRigs(): readonly { root: Container; content: Container; mask: Graphics; pupil: Sprite; iris: Container }[] { return this.rigs; }
 
-  // ── small helpers ──────────────────────────────────────────────────────────────────────────────────────────
+  // ── helpers ────────────────────────────────────────────────────────────────────────────────────────────────
 
-  /** A one-shot sprite in px: radius `from` -> `to` on a texture whose scale-1 radius is `unit`. */
   private fxs(layer: FxLayer, t: Texture, tint: number, x: number, y: number, unit: number, o: {
     dur: number; from: number; to: number; a0: number; mode?: 'out' | 'punch' | 'hold'; peakAt?: number; delay?: number;
     rot?: number; spin?: number; sy?: number; vx?: number; vy?: number; drag?: number; grav?: number; align?: boolean; ease?: 'quint' | 'cubic' | 'linear';
@@ -146,510 +123,373 @@ export class HeroFelScene extends FxPool {
     return this.spawn(layer, t, tint, x, y, { ...o, from: o.from / unit, to: o.to / unit });
   }
 
-  /** A crackle of chaos lightning at (x, y), `len` px long, pointing along `rot`. */
-  private crackleAt(x: number, y: number, len: number, rot: number, tint: number, dur = 90, a0 = 1): void {
-    const s = this.fxs('core', this.tex.crackle, tint, x, y, CRACKLE_W / 2, { dur, from: len / 2, to: len / 2 * 1.08, a0, rot, sy: this.rnd() < 0.5 ? 1 : -1, ease: 'linear' });
-    if (s) s.anchor.set(0.5);
+  private crackleAt(x: number, y: number, len: number, rot: number, tint: number, dur = 100): void {
+    this.fxs('core', this.tex.crackle, tint, x, y, CRACKLE_W / 2, { dur, from: len / 2, to: len / 2 * 1.08, a0: 1, rot, sy: this.rnd() < 0.5 ? 1 : -1, ease: 'linear' });
   }
 
-  /** A star of crackles thrown round (x, y). */
-  private crackleStar(x: number, y: number, R: number, n: number, tint: number, dur: number): void {
-    const k = Math.round(n * this.look.crackle);
+  private shardBurst(x: number, y: number, R: number, n: number, speed: number): void {
+    const k = Math.round(n * this.cfg.shards);
     for (let i = 0; i < k; i++) {
-      const a = (i / Math.max(1, k)) * Math.PI * 2 + this.rnd() * 0.5;
-      const len = R * (0.9 + this.rnd() * 0.6);
-      this.crackleAt(x + Math.cos(a) * len * 0.55, y + Math.sin(a) * len * 0.55, len, a, i % 2 ? tint : this.colors.core, dur);
-    }
-  }
-
-  /** Shards flung out of (x, y), tip first, slowing hard. */
-  private shardBurst(x: number, y: number, R: number, n: number, speed: number, dir?: number, spread = Math.PI * 2): void {
-    const k = Math.round(n * this.look.shards);
-    const S = this.S;
-    for (let i = 0; i < k; i++) {
-      const a = dir === undefined ? this.rnd() * Math.PI * 2 : dir + (this.rnd() - 0.5) * spread;
-      const sp = speed * S * (0.55 + this.rnd() * 0.7);
+      const a = this.rnd() * Math.PI * 2;
+      const sp = speed * this.S * (0.55 + this.rnd() * 0.7);
       const len = R * (0.35 + this.rnd() * 0.35);
       this.fxs('core', this.tex.shard, i % 3 === 0 ? this.colors.core : this.colors.hot, x, y, SHARD_W / 2, {
-        dur: 260 + this.rnd() * 160, from: len, to: len * 0.5, a0: 1, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, drag: 0.015, align: true, ease: 'linear', sy: 0.9,
+        dur: 260 + this.rnd() * 180, from: len, to: len * 0.5, a0: 1, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, drag: 0.015, align: true, ease: 'linear', sy: 0.9,
       });
     }
   }
 
-  private makeOrb(x: number, y: number, r: number, o: { rate: number; tail: number; tailK: number; smoke: number }): Orb | null {
-    const c = this.colors;
-    const heart = this.take('core', this.tex.glow, 0xffffff);
-    const core = this.take('core', this.tex.fire.puffs[0]!, c.core);
-    const halo = this.take('glow', this.tex.fire.glow, c.fel);
-    const rim = this.take('glow', this.tex.shell, c.fel);
-    const shell = this.take('body', this.tex.shell, c.shell);
-    if (!heart || !core || !halo || !rim || !shell) { for (const s of [heart, core, halo, rim, shell]) this.give(s); return null; }
-    for (const s of [heart, core, halo, rim, shell]) { s.alpha = 0; s.position.set(x, y); }
-    const em = this.fire.emitter({
-      shape: 'point', x, y, r: r * 0.4, rate: o.rate * this.look.boltFlame, size: r * 1.15, life: 300, lift: 520, speed: 50, heat: 1,
-      turb: 260, tongues: 0.35, body: 0.3, smoke: 0.04, embers: 6, sweep: false,
-    });
-    em.intensity = 0;
-    const tail = this.fire.emitter({
-      shape: 'point', x, y, r: r * 0.4, rate: o.tail * o.tailK * this.look.boltFlame * this.look.trail, size: r * 1.25, life: 420,
-      lift: 220, speed: 40, heat: 0.85, turb: 240, tongues: 0.15, body: 0.35, smoke: o.smoke * this.look.trailSmoke, embers: 28,
-    });
-    tail.intensity = 0;
-    return { em, tail, heart, core, halo, shell, rim, spin: this.rnd() * 6.28, crackIn: 0, lastX: x, lastY: y };
+  private buildRig(m: EyeMotion): Rig {
+    const c = this.colors, T = this.tex;
+    const root = new Container();
+    root.label = `fel-eye-${m.i}`;
+    root.position.set(m.c.x, m.c.y);
+    root.scale.set(m.a / EYE_HW);
+    root.visible = false;
+    const spr = (t: Texture, tint: number, blend: 'normal' | 'add', parent: Container = root): Sprite => {
+      const s = new Sprite(t);
+      s.anchor.set(0.5); s.tint = tint; s.blendMode = blend;
+      parent.addChild(s);
+      return s;
+    };
+    const light = spr(T.fire.glow, c.fel, 'add');
+    light.scale.set((EYE_HW * 2.6) / GLOW_R);
+    const riftDark = spr(T.rift, c.rift, 'normal');
+    const riftRim = spr(T.riftRim, c.fel, 'add');
+    const content = new Container();
+    root.addChild(content);
+    const mask = new Graphics();
+    mask.poly(almondPoints().flatMap((p) => [p.x, p.y])).fill(0xffffff);
+    root.addChild(mask);
+    content.mask = mask;
+    const sclera = spr(T.sclera, c.sclera, 'normal', content);
+    sclera.scale.set((2 * EYE_HW + 16) / EYE_W);
+    const veins = spr(T.veins, c.vein, 'normal', content);
+    veins.alpha = this.cfg.veins;
+    const iris = new Container();
+    content.addChild(iris);
+    const irisBody = spr(T.iris, c.iris, 'normal', iris);
+    irisBody.scale.set((IRIS_R * 2) / IRIS_PX);
+    const irisHot = spr(T.glow, c.hot, 'add', iris);
+    irisHot.scale.set((IRIS_R * 0.9) / GLOW_R);
+    const irisRing = spr(T.shock, c.fel, 'add', iris);
+    irisRing.scale.set((IRIS_R * 1.02) / SHOCK_R);
+    const pupil = spr(T.pupil, c.pupil, 'normal', iris);
+    const glint = spr(T.glow, 0xffffff, 'add', content);
+    glint.position.set(-IRIS_R * 0.55, -IRIS_R * 0.45);
+    glint.scale.set(9 / GLOW_R, 6 / GLOW_R);
+    glint.alpha = 0.85;
+    const lid = spr(T.lid, c.lid, 'normal');
+    const lidGlow = spr(T.lidGlow, c.fel, 'add');
+    this.eyesLayer.addChild(root);
+    return {
+      m, root, light, riftDark, riftRim, content, mask, sclera, veins, iris, irisBody, irisRing, irisHot, pupil, glint, lid, lidGlow,
+      ignite: null, crackIn: 0, sparkIn: 0, beam: null, beamWasOn: false,
+    };
   }
 
-  private dropOrb(o: Orb): void {
-    this.fire.stop(o.em); this.fire.stop(o.tail);
-    for (const s of [o.heart, o.core, o.halo, o.shell, o.rim]) this.give(s);
-  }
-
-  /**
-   * Draw an orb at (x, y), radius `r` (grown), visibility `vis` (0..1). In flight the head rides with it and the tail
-   * streams behind (spread along the swept path); crackles flash round the shell and are left along the path.
-   */
-  private drawOrb(o: Orb, x: number, y: number, r: number, vis: number, flying: boolean, rot: number, dt: number, crackRate: number): void {
-    const L = this.look, c = this.colors, S = this.S;
+  /** Draw one eye at the scene clock. */
+  private drawRig(r: Rig, dt: number): void {
+    const { m } = r;
+    const p = eyePose(m, this.clock, this.cfg);
+    const show = p.rift > 0.001 || p.open > 0.001;
+    r.root.visible = show;
+    if (!show) return;
     const t = this.clock;
-    const flick = 0.9 + 0.1 * Math.sin(t * 0.06 + o.spin) + 0.05 * Math.sin(t * 0.17);
-    o.spin += dt * (flying ? 0.012 : 0.006);
-    o.em.x = x; o.em.y = y; o.em.r = Math.max(1, r * 0.4); o.em.size = Math.max(1, r * 1.15);
-    o.em.intensity = vis;
-    o.tail.x = x; o.tail.y = y;
-    if (flying && dt > 0) {
-      const vx = (x - o.lastX) / dt, vy = (y - o.lastY) / dt;
-      o.em.vx = (vx * 1000 * 0.85) / S; o.em.vy = (vy * 1000 * 0.85) / S; o.em.life = 150; o.em.lift = 100;
-      o.tail.vx = (vx * 1000 * 0.1) / S; o.tail.vy = (vy * 1000 * 0.1) / S;
-      o.tail.intensity = 1; o.tail.size = Math.max(1, r * 1.25);
-    } else {
-      o.tail.lx = x; o.tail.ly = y;
+    const flick = 0.92 + 0.08 * Math.sin(t * 0.03 + m.i * 2);
+    // The rift tears open along its length (x leads, y follows) and seals the same way.
+    const rx = 0.55 + 0.45 * p.rift, ry = Math.max(0.001, p.rift);
+    r.riftDark.scale.set(rx, ry);
+    r.riftDark.alpha = 0.94 * Math.min(1, p.rift * 1.5);
+    r.riftRim.scale.set(rx, ry);
+    // A thin torn line, however big the eye (a big rift's rim is scaled up with it, so it is faded back).
+    r.riftRim.alpha = (0.8 / Math.max(1, m.a / EYE_HW)) * Math.min(1, p.rift * 1.4) * flick;
+    r.light.alpha = (0.25 + 0.35 * p.glow) * p.rift;
+    // The lids: the mask and the lid bands scaled in y together; shut, they are a glowing seam.
+    const o = Math.max(0.0001, Math.min(1.15, p.open));
+    r.mask.scale.set(1, o);
+    r.content.visible = p.open > 0.002;
+    const band = Math.max(0.05, o);
+    r.lid.scale.set(1, band);
+    r.lid.alpha = Math.min(1, p.rift * 2);
+    r.lidGlow.scale.set(1, band);
+    r.lidGlow.alpha = Math.min(1, (0.5 + 0.5 * p.glow) * Math.min(1, p.rift * 2) + p.seam * 0.8) * flick;
+    // The iris darts with the look; the pupil slits; the ring burns brighter as it locks and fires.
+    r.iris.position.set(p.look.x * LOOK_X, p.look.y * LOOK_Y);
+    r.pupil.scale.set((IRIS_R * 1.6 * p.pupil) / PUPIL_W, (IRIS_R * 1.5) / 96);
+    r.irisRing.alpha = Math.min(1, 0.3 + 0.6 * p.glow) * flick;
+    r.irisHot.alpha = Math.min(1, 0.25 + 0.55 * p.glow);
+    r.irisHot.scale.set((IRIS_R * (0.7 + 0.35 * p.glow)) / GLOW_R);
+    r.irisBody.tint = p.glow > 1 ? whiten(this.colors.iris, Math.min(0.5, (p.glow - 1) * 0.6)) : this.colors.iris;
+    // The ignition (IV): live fel fire round the iris ring, burning with the glow.
+    const k = m.a / EYE_HW;
+    const pc = pupilPoint(m, p.look);
+    if (r.ignite) {
+      r.ignite.x = pc.x; r.ignite.y = pc.y; r.ignite.r = IRIS_R * k * 0.98;
+      r.ignite.intensity = Math.max(0, Math.min(1.3, p.glow - 0.5)) * Math.min(1, p.open * 1.5);
+      if (t >= m.closeAt) { this.fire.stop(r.ignite); r.ignite = null; }
     }
-    // The heart: a white-green core (stretched along the flight), a white pin of light inside it.
-    const cs = (r * 0.72 * flick) / PUFF_R;
-    o.core.position.set(x, y); o.core.rotation = rot;
-    o.core.scale.set(cs * (flying ? 1.45 : 1), cs);
-    o.core.alpha = 0.95 * vis;
-    o.heart.position.set(x, y);
-    o.heart.scale.set((r * 0.55) / GLOW_R);
-    o.heart.alpha = 0.9 * vis;
-    // The dark crackling shell (normal blend: dark on any board) and the thin green rim light just outside it.
-    const sh = (r * 1.08) / SHELL_R;
-    o.shell.position.set(x, y); o.shell.rotation = o.spin;
-    o.shell.scale.set(sh * (flying ? 1.18 : 1), sh);
-    o.shell.alpha = Math.min(1, 0.88 * L.shell) * vis;
-    o.rim.position.set(x, y); o.rim.rotation = -o.spin * 0.7;
-    o.rim.scale.set(sh * 1.16 * (flying ? 1.15 : 1), sh * 1.16);
-    o.rim.alpha = 0.55 * vis * flick;
-    o.halo.position.set(x, y);
-    o.halo.scale.set((r * 3.4) / GLOW_R);
-    o.halo.alpha = 0.55 * L.boltGlow * vis * flick;
-    // Crackles round the shell (left hanging where the bolt was: a crackling trail in flight).
-    o.crackIn -= dt;
-    if (vis > 0.5 && crackRate > 0 && o.crackIn <= 0) {
-      o.crackIn = (flying ? 34 : 70) / crackRate;
+    // Fel crackles flicker round the torn rim while it is open.
+    r.crackIn -= dt;
+    if (p.rift > 0.6 && r.crackIn <= 0 && t < m.closeAt) {
+      r.crackIn = 110 + this.rnd() * 120;
       const a = this.rnd() * Math.PI * 2;
-      const len = r * (1.2 + this.rnd() * 0.8);
-      this.crackleAt(x + Math.cos(a) * r * 0.75, y + Math.sin(a) * r * 0.75, len, a + Math.PI / 2 + (this.rnd() - 0.5), this.rnd() < 0.5 ? c.hot : c.core, flying ? 120 : 80, 0.9);
+      const ex = Math.cos(a) * (RIFT_W / 2 - 18) * rx * k, ey = Math.sin(a) * 95 * ry * k;
+      this.crackleAt(m.c.x + ex, m.c.y + ey, m.a * 0.35, a + Math.PI / 2, this.rnd() < 0.5 ? this.colors.hot : this.colors.fel, 110);
     }
-    o.lastX = x; o.lastY = y;
+    this.drawBeam(r, dt);
   }
 
-  // ── beats ──────────────────────────────────────────────────────────────────────────────────────────────────
-
-  /** The hero gathers fel power: green flames catch round its upper rim and its light spreads under it. */
-  startCharge(x: number, y: number, R: number, durMs: number, launches: number): void {
-    if (this.destroyed || this.charge) return;
-    const light = this.take('glow', this.tex.fire.glow, this.colors.fel);
-    if (!light) return;
-    light.position.set(x, y); light.alpha = 0; light.scale.set((R * 2.4) / GLOW_R);
-    const em = this.fire.emitter({
-      shape: 'ring', x, y, r: R * 0.95, a0: UP - UP_HALF, a1: UP + UP_HALF, rate: 320 * this.look.kindle, size: R * 0.5, life: 520,
-      lift: 760, speed: 30, out: 40, heat: 0.95, turb: 300, tongues: 0.3, body: 0.35, smoke: 0.1, embers: 8,
-    });
-    em.intensity = 0;
-    this.charge = { em, light, x, y, r: R, age: 0, dur: Math.max(1, durMs), left: Math.max(1, launches), releasing: -1 };
-  }
-
-  /** A bolt begins: its sigil spins open at its home, motes stream in, the bolt swells out of it. */
-  grow(m: BoltMotion, tailK = 1): void {
-    if (this.destroyed) return;
-    const orb = this.makeOrb(m.home.x, m.home.y, m.radius, { rate: 300, tail: 560, tailK, smoke: m.great ? 0.22 : 0.16 });
-    if (!orb) return;
-    const sigil = this.look.sigilSize > 0 ? this.take('glow', this.tex.rune, this.colors.rune) : null;
-    if (sigil) { sigil.position.set(m.home.x, m.home.y); sigil.alpha = 0; sigil.scale.set(0.01); }
-    this.bolts.push({ m, orb, sigil, state: 'form', sigilGone: -1, moteIn: 0, formedFx: false });
-    this.fxs('core', this.tex.glow, this.colors.core, m.home.x, m.home.y, GLOW_R, { dur: 200, from: m.radius * 0.3, to: m.radius * 1.4, a0: 0.75, mode: 'punch', peakAt: 0.3 });
-  }
-
-  /** A bolt is RELEASED: its sigil collapses in a flash, a kick of fire and crackle off its back, and it flies. */
-  fireBolt(m: BoltMotion): void {
-    const ch = this.charge;
-    if (ch && ch.releasing < 0 && --ch.left <= 0) ch.releasing = 0;
-    const b = this.bolts.find((x) => x.m === m && x.state === 'form');
-    if (!b) return;
-    b.state = 'fly';
-    b.sigilGone = 0;
-    const back = Math.atan2(m.from.y - m.to.y, m.from.x - m.to.x);
-    const r = m.radius;
-    this.fxs('core', this.tex.glow, this.colors.core, m.from.x, m.from.y, GLOW_R, { dur: 140, from: r * 0.9, to: r * 2.2, a0: 0.9 });
-    this.fxs('glow', this.tex.shock, this.colors.hot, m.from.x, m.from.y, SHOCK_R, { dur: 200, from: r * 0.6, to: r * 2, a0: 0.55 });
-    this.fire.burst(m.from.x, m.from.y, { n: 10, radius: r * 0.4, speed: 300, size: r * 0.85, life: 340, dir: back, spread: 1.5, drag: 4, smoke: 0.25 });
-    this.crackleStar(m.from.x, m.from.y, r * 1.1, 3, this.colors.hot, 110);
-  }
-
-  /** A bolt lands: it goes out (its tail burns out on its own). */
-  land(m: BoltMotion): void {
-    const b = this.bolts.find((x) => x.m === m && x.state !== 'gone');
-    if (!b) return;
-    this.dropOrb(b.orb);
-    if (b.sigil) { this.give(b.sigil); b.sigil = null; }
-    b.state = 'gone';
-  }
-
-  /**
-   * A chaos bolt (or the meteor's shell) BURSTS at (x, y): a white flash, the fel light, its dark shell SHATTERING
-   * outward as a dark ring, a green shock ring, a star of crackles and shards, fel fire blooming and rolling up into
-   * dark smoke, and a spray carried on along the blow. `big` is THE impact.
-   */
-  impact(x: number, y: number, R: number, o: { size: number; big: boolean; dir: Pt; flashAlpha: number; embers: number }): void {
-    if (this.destroyed) return;
-    const c = this.colors;
-    const sz = o.size * this.look.impactSize;
-    const big = o.big;
-    this.fxs('core', this.tex.glow, 0xffffff, x, y, GLOW_R, { dur: big ? 110 : 80, from: R * 0.5 * sz, to: R * (big ? 1.25 : 0.85) * sz, a0: o.flashAlpha * (big ? 0.9 : 0.65) });
-    this.fxs('core', this.tex.glow, c.core, x, y, GLOW_R, { dur: big ? 200 : 140, from: R * 0.7 * sz, to: R * (big ? 1.7 : 1.1) * sz, a0: o.flashAlpha * 0.6 });
-    this.fxs('glow', this.tex.fire.glow, c.fel, x, y, GLOW_R, { dur: big ? 760 : 500, from: R * 1.5 * sz, to: R * 2.7 * sz, a0: big ? 0.75 : 0.5 });
-    // The shell shatters outward: a dark ragged ring racing out (normal blend), the contrast that sells the pop.
-    if (this.look.shell > 0) {
-      this.fxs('body', this.tex.shell, c.shell, x, y, SHELL_R, { dur: big ? 300 : 230, from: R * 0.45 * sz, to: R * (big ? 1.9 : 1.3) * sz, a0: Math.min(1, 0.8 * this.look.shell), rot: this.rnd() * 6.28, ease: 'cubic' });
+  private drawBeam(r: Rig, dt: number): void {
+    const b = beamPose(r.m, this.clock, this.cfg);
+    if (!b.on) {
+      if (r.beam) { for (const s of [r.beam.glow, r.beam.core, r.beam.head, r.beam.src]) this.give(s); r.beam = null; }
+      return;
     }
-    this.fxs('glow', this.tex.shock, whiten(c.hot, 0.3), x, y, SHOCK_R, { dur: big ? 300 : 220, from: R * 0.4, to: R * (big ? 2 : 1.35) * sz, a0: big ? 0.8 : 0.55 });
-    this.crackleStar(x, y, R * 0.9 * sz, big ? 7 : 4, c.hot, big ? 150 : 110);
-    this.shardBurst(x, y, R * sz, big ? 10 : 5, big ? 1100 : 800);
-    this.fire.burst(x, y, {
-      n: (big ? 46 : 20) * sz, radius: R * 0.28 * sz, speed: (big ? 580 : 420) * sz, size: R * (big ? 0.62 : 0.5) * sz, life: big ? 640 : 480,
-      lift: 760, drag: 3.2, heat: 1, tongues: 0.2, body: 0.45, smoke: big ? 0.5 : 0.32, embers: o.embers, emberSpeed: big ? 520 : 380,
-    });
-    this.fire.burst(x, y, { n: (big ? 14 : 7) * sz, radius: R * 0.2, speed: 780 * sz, size: R * 0.42 * sz, life: 380, dir: Math.atan2(o.dir.y, o.dir.x), spread: 1.2, drag: 4.5, smoke: 0.2 });
-    this.fire.smokePuffs(x, y - R * 0.3, big ? 5 : 2, { radius: R * 0.5, size: R * 1.1 * sz, life: 1400, rise: 60, alpha: 0.42 });
-  }
-
-  /** The struck portrait's UPPER rim catches fel fire: it burns at `amount` for `holdMs`, then dies down to smoke. */
-  burn(x: number, y: number, R: number, amount: number, holdMs: number): void {
-    if (this.destroyed || !(amount > 0)) return;
-    const k = this.look.burnSize;
-    this.fire.emitter({
-      shape: 'ring', x, y, r: R * 0.95 * k, a0: UP - UP_HALF * 1.05, a1: UP + UP_HALF * 1.05, rate: 170 * amount, size: R * 0.42 * k,
-      life: 540, lift: 860, speed: 40, out: 50, heat: 0.95, turb: 320, tongues: 0.5, body: 0.35, smoke: 0.3, embers: 12 * amount,
-    }, { hold: holdMs, fade: 700 });
-    this.fxs('glow', this.tex.fire.glow, this.colors.fel, x, y, GLOW_R, { dur: holdMs + 700, from: R * 2, to: R * 2.2, a0: Math.min(0.5, 0.3 * amount), mode: 'hold' });
-  }
-
-  /** Tier III's great bolt FLARES the struck hero up: a gout of fel flame roaring off the whole portrait. */
-  flareUp(x: number, y: number, R: number, amount: number): void {
-    if (this.destroyed || !(amount > 0)) return;
-    this.fire.emitter({
-      shape: 'disc', x, y, r: R * 0.8, rate: 420 * amount, size: R * 0.8, life: 640, lift: 1500, speed: 50, heat: 1, turb: 320,
-      tongues: 0.35, body: 0.4, smoke: 0.3, embers: 24 * amount, emberSpeed: 300,
-    }, { hold: 160, fade: 520 });
-    this.fire.burst(x, y - R * 0.3, { n: 28 * amount, radius: R * 0.6, speed: 320, size: R * 0.7, life: 620, lift: 1300, dir: UP, spread: 1.6, drag: 2, tongues: 0.25, smoke: 0.3 });
-  }
-
-  /**
-   * THE HAND (Tier IV): a fel RUNE CIRCLE opens flat over the struck hero for `durMs` (until the eruption): it spins
-   * open with an overshoot, two glyph rings counter-rotating, the ground under it darkening, flames licking up its rim,
-   * motes drawn in, brightening as the meteor nears.
-   */
-  openGate(x: number, y: number, R: number, durMs: number): void {
-    if (this.destroyed || this.gate) return;
-    const c = this.colors;
-    const dark = this.take('under', this.tex.fire.glow, c.shell);
-    const light = this.take('glow', this.tex.fire.glow, c.fel);
-    const outer = this.take('glow', this.tex.rune, c.rune);
-    const inner = this.take('glow', this.tex.rune, whiten(c.hot, 0.2));
-    if (!dark || !light || !outer || !inner) { for (const s of [dark, light, outer, inner]) this.give(s); return; }
-    for (const s of [dark, light, outer, inner]) { s.position.set(x, y); s.alpha = 0; s.scale.set(0.01); }
-    const gr = R * this.look.gateSize;
-    const em = this.fire.emitter({
-      shape: 'ring', x, y, r: gr * 0.92, rate: 300, size: R * 0.38, life: 440, lift: 950, speed: 30, out: 10, heat: 0.95, turb: 320,
-      tongues: 0.45, body: 0.3, smoke: 0.12, embers: 14, emberSpeed: 160,
-    });
-    em.intensity = 0;
-    this.gate = { x, y, R, gr, outer, inner, dark, light, em, age: 0, dur: Math.max(1, durMs), erupted: -1, moteIn: 0 };
-    this.fxs('core', this.tex.glow, c.core, x, y, GLOW_R, { dur: 220, from: R * 0.4, to: gr * 1.1, a0: 0.55 });
-    this.fxs('glow', this.tex.shock, c.hot, x, y, SHOCK_R, { dur: 320, from: R * 0.3, to: gr * 1.05, a0: 0.6 });
-  }
-
-  /** The chaos meteor starts its fall: a giant bolt (heart, dark shell, fel fire, a heavy tail of fire and smoke). */
-  startMeteor(m: FelMeteorMotion): void {
-    if (this.destroyed || this.meteor) return;
-    const orb = this.makeOrb(m.from.x, m.from.y, m.radius, { rate: 380, tail: 520, tailK: 1, smoke: 0.3 });
-    if (!orb) return;
-    this.meteor = { m, orb };
-  }
-
-  /**
-   * THE ERUPTION (Tier IV, the consequence frame, no freeze): a white core and a screen flash, shockwaves and a dark
-   * pressure ring, the meteor's shell shattering, the rune circle flaring and breaking, a towering PILLAR of fel fire
-   * and light off the target, a nova racing out, crackles, shards and burning debris, a scorch, and (a beat later) the
-   * column billowing up and ASH drifting down.
-   */
-  erupt(x: number, y: number, R: number, o: { burst: number; flashAlpha: number; embers: number; screen: number }): void {
-    if (this.destroyed) return;
-    const mt = this.meteor;
-    if (mt) { this.dropOrb(mt.orb); this.meteor = null; }
-    const g = this.gate;
-    if (g && g.erupted < 0) { g.erupted = 0; this.fire.stop(g.em); }
-    const c = this.colors, L = this.look;
-    const b = Math.max(0.5, o.burst);
-    this.fxs('core', this.tex.glow, 0xffffff, x, y, GLOW_R, { dur: 120, from: R * 0.8, to: R * 2, a0: 1 });
-    this.fxs('core', this.tex.glow, c.core, x, y, GLOW_R, { dur: 190, from: R * 1.5, to: R * 2.6 * b, a0: o.flashAlpha });
-    this.fxs('core', this.tex.glow, whiten(c.fel, 0.5), x, y, GLOW_R, { dur: 150, from: o.screen * 0.5, to: o.screen * 0.7, a0: 0.25 * o.flashAlpha });
-    this.fxs('glow', this.tex.fire.glow, c.fel, x, y, GLOW_R, { dur: 1500, from: R * 3, to: R * 5, a0: 0.75 });
-    // The pillar of light: a tall soft column off the target (a stretched glow), then the fire roaring up it.
-    const hgt = L.eruptHeight;
-    this.fxs('glow', this.tex.fire.glow, whiten(c.hot, 0.25), x, y - R * 2 * hgt, GLOW_R, { dur: 520, from: R * 1.1, to: R * 1.35, a0: 0.85, sy: 3.2 * hgt, mode: 'punch', peakAt: 0.15 });
-    this.fxs('glow', this.tex.shock, whiten(c.hot, 0.5), x, y, SHOCK_R, { dur: 560, from: R * 0.8, to: R * 6.5, a0: 1 });
-    this.fxs('glow', this.tex.shock, c.fel, x, y, SHOCK_R, { dur: 720, delay: 70, from: R * 0.6, to: R * 4.8, a0: 0.75 });
-    this.fxs('under', this.tex.shock, mixColor(c.shell, 0x000000, 0.3), x, y, SHOCK_R, { dur: 640, delay: 30, from: R, to: R * 5.8, a0: 0.55 });
-    if (L.shell > 0) this.fxs('body', this.tex.shell, c.shell, x, y, SHELL_R, { dur: 360, from: R * 0.8, to: R * 3.2, a0: Math.min(1, 0.85 * L.shell), rot: this.rnd() * 6.28, ease: 'cubic' });
-    if (L.scorch > 0) this.fxs('under', this.tex.scorch, mixColor(c.smoke, c.ember, 0.4), x, y, SCORCH_R, { dur: 3000, from: R * 2.1 * L.scorch, to: R * 2.5 * L.scorch, a0: 0.85, mode: 'hold' });
-    this.crackleStar(x, y, R * 1.6, 10, c.hot, 200);
-    this.shardBurst(x, y, R * 1.3, 16, 1500);
-    // THE PILLAR: fel fire roaring straight up off the struck hero, then burning out to embers and smoke.
-    this.fire.emitter({
-      shape: 'disc', x, y, r: R * 0.85, rate: 560, size: R * 1.0, life: 760, lift: 1500 * hgt, vy: -900 * hgt, speed: 60, heat: 1, turb: 300,
-      tongues: 0.45, body: 0.4, smoke: 0.3, embers: 30, emberSpeed: 340,
-    }, { hold: L.eruptMs, fade: L.burnoutMs });
-    // A ring of fel fire racing out, and the dome.
-    const nova = this.fire.emitter({
-      shape: 'ring', x, y, r: R * 0.6, rate: 900, size: R * 0.8, life: 460, lift: 500, out: 620, speed: 80, heat: 1, turb: 260,
-      tongues: 0.15, body: 0.25, smoke: 0.2, drag: 2.2,
-    }, { hold: 360, fade: 160 });
-    this.novas.push({ em: nova, age: 0, dur: 360, r0: R * 0.6, r1: R * 3 });
-    this.fire.burst(x, y, {
-      n: 100, radius: R * 0.5, speed: 880, size: R * 0.8, life: 700, lift: 900, drag: 3.6, heat: 0.9, tongues: 0.25, body: 0.45, smoke: 0.5,
-      embers: o.embers, emberSpeed: 700,
-    });
-    this.fire.smokePuffs(x, y - R * 0.6, 6, { radius: R * 0.8, size: R * 1.8, life: 2200, rise: 90, alpha: 0.45 });
-    this.later.push({ at: this.clock + 120, kind: 'billow', x, y: y - R * 0.9, R }, { at: this.clock + 260, kind: 'ash', x, y, R });
-    // Burning debris flung out on arcs, each trailing its own fel fire.
-    const S = this.S;
-    const n = 8;
-    for (let i = 0; i < n; i++) {
-      const a = UP + (i / (n - 1) - 0.5) * 2.7 + Math.sin(i * 12.9898) * 0.15;
-      const sp = (620 + (340 * ((i * 7) % 5)) / 4) * S;
-      const core = this.take('core', this.tex.fire.ember, c.hot);
-      if (!core) break;
-      core.scale.set((R * 0.2) / 8);
-      const em = this.fire.emitter({
-        shape: 'point', x, y, r: R * 0.08, rate: 110, size: R * 0.28, life: 300, lift: 240, speed: 20, heat: 0.95, turb: 200,
-        tongues: 0.1, body: 0.2, smoke: 0.35,
-      });
-      this.debris.push({ em, core, x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, age: 0, life: 680 + 60 * (i % 5) });
+    if (!r.beam) {
+      const glow = this.take('core', this.tex.gaze, this.colors.fel);
+      const core = this.take('core', this.tex.gaze, this.colors.core);
+      const head = this.take('core', this.tex.glow, this.colors.hot);
+      const src = this.take('core', this.tex.glow, this.colors.core);
+      if (!glow || !core || !head || !src) { for (const s of [glow, core, head, src]) this.give(s); return; }
+      glow.anchor.set(0, 0.5); core.anchor.set(0, 0.5);
+      r.beam = { glow, core, head, src };
+      r.beamWasOn = true;
     }
-  }
-
-  private layer(q: Later): void {
-    const { x, y, R } = q;
-    if (q.kind === 'billow') {
-      this.fire.burst(x, y, {
-        n: 34, radius: R * 0.6, speed: 260, size: R * 1.2, life: 900, lift: 1700, dir: UP, spread: 1.3, drag: 1.4, heat: 0.7,
-        tongues: 0.12, body: 0.6, smoke: 0.85,
-      });
-      this.fire.smokePuffs(x, y - R * 0.8, 6, { radius: R * 1.1, size: R * 2, life: 2400, rise: 110, alpha: 0.45 });
-    } else {
-      // ASH: dark flakes fluttering down and drifting across, a few still glowing green at the edge.
-      const n = Math.round(26 * this.look.ash);
-      const ash = mixColor(this.colors.smoke, 0x6a6470, 0.35);
-      const S = this.S;
-      for (let i = 0; i < n; i++) {
-        const a = this.rnd() * Math.PI * 2, d = R * (0.4 + this.rnd() * 2.4);
-        const glowing = i % 5 === 0;
-        const sz = R * (0.05 + this.rnd() * 0.06);
-        this.fxs(glowing ? 'core' : 'body', this.tex.spark, glowing ? this.colors.hot : ash, x + Math.cos(a) * d, y - R * (1.6 + this.rnd() * 1.6) + Math.sin(a) * d * 0.4, SPARK_R, {
-          dur: 1500 + this.rnd() * 900, from: sz, to: sz * 0.7, a0: glowing ? 0.9 : 0.85, mode: 'hold',
-          vx: (this.rnd() - 0.5) * 70 * S, vy: (25 + this.rnd() * 45) * S, drag: 0.8, grav: 12 * S, spin: (this.rnd() - 0.5) * 0.01, rot: this.rnd() * 6.28, sy: 0.6,
+    const dx = b.to.x - b.from.x, dy = b.to.y - b.from.y;
+    const L = Math.hypot(dx, dy) || 1;
+    const rot = Math.atan2(dy, dx);
+    const x0 = b.from.x + dx * b.tail, y0 = b.from.y + dy * b.tail;
+    const len = Math.max(0.5, L * (b.head - b.tail));
+    const flick = 0.9 + 0.1 * Math.sin(this.clock * 0.08) + 0.06 * Math.sin(this.clock * 0.23);
+    const w = r.m.beamR * 0.42 * this.cfg.beamWidth * b.width * flick;
+    const { glow, core, head, src } = r.beam;
+    glow.position.set(x0, y0); glow.rotation = rot; glow.scale.set(len / GAZE_W, (w * 2.4) / GAZE_H); glow.alpha = Math.min(1, 0.95 * this.cfg.beamGlow);
+    core.position.set(x0, y0); core.rotation = rot; core.scale.set(len / GAZE_W, (w * 0.6) / GAZE_H); core.alpha = 1;
+    const hx = b.from.x + dx * b.head, hy = b.from.y + dy * b.head;
+    head.position.set(hx, hy); head.scale.set((w * (b.head >= 1 ? 2.2 : 1.4)) / GLOW_R); head.alpha = b.tail >= 0.98 ? 0 : b.head >= 1 ? 0.55 : 0.95;
+    src.position.set(b.from.x, b.from.y); src.scale.set((w * 1.8) / GLOW_R); src.alpha = b.tail > 0 ? 0.5 * (1 - b.tail) : 0.9;
+    // Where it burns: sparks sprayed back along the beam and off to the sides.
+    if (b.head >= 1 && b.tail < 0.9) {
+      r.sparkIn -= dt;
+      while (r.sparkIn <= 0) {
+        r.sparkIn += 22 / Math.max(0.1, this.cfg.sparks);
+        const a = rot + Math.PI + (this.rnd() - 0.5) * 2.2;
+        const sp = (300 + this.rnd() * 500) * this.S;
+        const sz = (3 + this.rnd() * 4) * this.S;
+        this.fxs('core', this.tex.spark, this.rnd() < 0.4 ? this.colors.core : this.colors.hot, hx, hy, SPARK_R, {
+          dur: 220 + this.rnd() * 160, from: sz, to: sz * 0.3, a0: 1, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, drag: 0.05, grav: 600 * this.S, align: true, ease: 'linear', sy: 0.5,
         });
       }
     }
   }
 
-  /** An aftershock: a small fel burst, a ring and a crackle round the eruption. */
-  boom(x: number, y: number, R: number, size: number): void {
-    if (this.destroyed) return;
-    this.fxs('glow', this.tex.shock, this.colors.hot, x, y, SHOCK_R, { dur: 260, from: R * 0.2, to: R * 0.9 * size, a0: 0.6 });
-    this.crackleStar(x, y, R * 0.6 * size, 3, this.colors.hot, 120);
-    this.fire.burst(x, y, { n: 12 * size, radius: R * 0.2, speed: 380, size: R * 0.42 * size, life: 460, lift: 900, drag: 3.5, smoke: 0.35, embers: 5 });
+  // ── beats ──────────────────────────────────────────────────────────────────────────────────────────────────
+
+  /** IV's fel-negative veil: a vignette over the whole screen (one sprite), faded in and out on the plan's times. */
+  setVeil(v: { inAt: number; fullAt: number; outAt: number; goneAt: number; alpha: number } | null): void {
+    this.veilPlan = v;
+    if (!v || this.veil) return;
+    const s = new Sprite(this.tex.veil);
+    s.anchor.set(0.5); s.tint = this.colors.veil; s.alpha = 0; s.visible = false;
+    const W = this.screen.w * 1.5, H = this.screen.h * 1.5;
+    s.position.set(this.screen.w / 2, this.screen.h / 2);
+    s.scale.set(W / VEIL_PX, H / VEIL_PX);
+    this.veilLayer.addChild(s);
+    this.veil = s;
   }
 
-  // ── the frame ──────────────────────────────────────────────────────────────────────────────────────────────
+  /** The rift tears open: a flash along the tear and a few crackles off its ends. */
+  rift(i: number): void {
+    const r = this.rigs[i]; if (!r || this.destroyed) return;
+    const { c, a } = r.m;
+    this.fxs('core', this.tex.glow, this.colors.core, c.x, c.y, GLOW_R, { dur: 220, from: a * 0.2, to: a * 0.9, a0: 0.7, sy: 0.25, mode: 'punch', peakAt: 0.3 });
+    this.crackleAt(c.x - a * 0.9, c.y, a * 0.5, Math.PI, this.colors.hot, 140);
+    this.crackleAt(c.x + a * 0.9, c.y, a * 0.5, 0, this.colors.hot, 140);
+  }
 
-  private updateCharge(dt: number): void {
-    const ch = this.charge;
-    if (!ch) return;
-    ch.age += dt;
-    if (ch.releasing < 0) {
-      const u = clamp01(ch.age / ch.dur);
-      ch.em.intensity = 0.25 + 0.95 * easeInOutSine(u);
-      ch.light.alpha = 0.5 * easeInOutSine(u) * (0.9 + 0.1 * Math.sin(ch.age * 0.03));
-    } else {
-      ch.releasing += dt;
-      const r = clamp01(ch.releasing / 380);
-      ch.em.intensity = 1.2 * (1 - r);
-      ch.light.alpha = 0.5 * (1 - r);
-      if (r >= 1) { this.fire.stop(ch.em); this.give(ch.light); this.charge = null; }
+  /** The lids snap open: a ring and a puff of embers. */
+  opened(i: number): void {
+    const r = this.rigs[i]; if (!r || this.destroyed) return;
+    const { c, a } = r.m;
+    this.fxs('glow', this.tex.shock, this.colors.fel, c.x, c.y, SHOCK_R, { dur: 320, from: a * 0.6, to: a * 1.5, a0: 0.5, sy: 0.55 });
+    this.fire.embers(c.x, c.y, 6, a * 0.5, { speed: 160 });
+  }
+
+  /** It finds the target: the pupil slams to a slit (a flash on the iris); IV: the iris IGNITES. */
+  locked(i: number, ignite: boolean): void {
+    const r = this.rigs[i]; if (!r || this.destroyed) return;
+    const k = r.m.a / EYE_HW;
+    const pc = pupilPoint(r.m, r.m.lock);
+    this.fxs('core', this.tex.glow, this.colors.hot, pc.x, pc.y, GLOW_R, { dur: 180, from: IRIS_R * k * 0.4, to: IRIS_R * k * 1.4, a0: 0.8 });
+    this.fxs('glow', this.tex.shock, this.colors.hot, pc.x, pc.y, SHOCK_R, { dur: 220, from: IRIS_R * k * 2.2, to: IRIS_R * k * 1.05, a0: 0.8, mode: 'punch', peakAt: 0.4 });
+    if (ignite && !r.ignite && this.cfg.igniteFire > 0) {
+      r.ignite = this.fire.emitter({
+        shape: 'ring', x: pc.x, y: pc.y, r: IRIS_R * k, rate: 420 * this.cfg.igniteFire, size: IRIS_R * k * 0.55, life: 360, lift: 380, speed: 30, out: 70,
+        heat: 1, turb: 260, tongues: 0.45, body: 0, smoke: 0, embers: 8,
+      });
+      r.ignite.intensity = 0;
     }
   }
 
-  /** Motes streaming INTO a point from a ring round it (anticipation): `every` ms per mote. */
-  private motesInto(x: number, y: number, r0: number, r1: number, every: number, acc: { moteIn: number }, dt: number, tint: number): void {
-    if (!(this.look.motes > 0)) return;
-    acc.moteIn -= dt;
-    const S = this.S;
-    while (acc.moteIn <= 0) {
-      acc.moteIn += every / this.look.motes;
-      const a = this.rnd() * Math.PI * 2, d = r0 + this.rnd() * (r1 - r0);
-      const life = 200 + this.rnd() * 80;
-      const sec = life / 1000;
-      const sz = 3 + this.rnd() * 3;
-      this.fxs('core', this.tex.spark, this.rnd() < 0.35 ? this.colors.core : tint, x + Math.cos(a) * d, y + Math.sin(a) * d, SPARK_R / S, {
-        dur: life, from: sz, to: sz * 0.5, a0: 0.95, mode: 'punch', peakAt: 0.35, vx: (-Math.cos(a) * d * 0.92) / sec, vy: (-Math.sin(a) * d * 0.92) / sec,
-        drag: 1, align: true, ease: 'linear', sy: 0.5,
+  /** The gaze leaves the pupil: a flash off the eye. */
+  fired(i: number): void {
+    const r = this.rigs[i]; if (!r || this.destroyed) return;
+    const k = r.m.a / EYE_HW;
+    const pc = pupilPoint(r.m, r.m.lock);
+    this.fxs('core', this.tex.glow, 0xffffff, pc.x, pc.y, GLOW_R, { dur: 130, from: IRIS_R * k * 0.8, to: IRIS_R * k * 2.4, a0: 0.9 });
+  }
+
+  /** A gaze lands (a tick, or THE impact below Tier IV): a flash, a ring, crackles, shards, fel fire on the portrait. */
+  impact(x: number, y: number, R: number, o: { size: number; big: boolean; dir: Pt; flashAlpha: number }): void {
+    if (this.destroyed) return;
+    const c = this.colors;
+    const sz = o.size * this.cfg.burstSize;
+    const big = o.big;
+    this.fxs('core', this.tex.glow, 0xffffff, x, y, GLOW_R, { dur: big ? 120 : 80, from: R * 0.5 * sz, to: R * (big ? 1.3 : 0.85) * sz, a0: o.flashAlpha * (big ? 0.9 : 0.6) });
+    this.fxs('glow', this.tex.fire.glow, c.fel, x, y, GLOW_R, { dur: big ? 700 : 450, from: R * 1.4 * sz, to: R * 2.6 * sz, a0: big ? 0.75 : 0.5 });
+    this.fxs('glow', this.tex.shock, whiten(c.hot, 0.3), x, y, SHOCK_R, { dur: big ? 300 : 220, from: R * 0.4, to: R * (big ? 2 : 1.3) * sz, a0: big ? 0.85 : 0.55 });
+    if (big) this.fxs('core', this.tex.burst, c.hot, x, y, BURST_PX / 2, { dur: 260, from: R * 0.6 * sz, to: R * 1.7 * sz, a0: 0.8, rot: this.rnd() * 6.28, spin: 0.002 });
+    const n = big ? 6 : 3;
+    for (let i = 0; i < n; i++) {
+      const a = (i / n) * Math.PI * 2 + this.rnd() * 0.6;
+      this.crackleAt(x + Math.cos(a) * R * 0.5, y + Math.sin(a) * R * 0.5, R * 0.9 * sz, a, i % 2 ? c.hot : c.core, big ? 160 : 110);
+    }
+    this.shardBurst(x, y, R * sz, big ? 9 : 4, big ? 1000 : 750);
+    this.fire.burst(x, y, {
+      n: (big ? 30 : 12) * sz, radius: R * 0.3 * sz, speed: (big ? 520 : 380) * sz, size: R * (big ? 0.5 : 0.4) * sz, life: big ? 560 : 420,
+      lift: 700, drag: 3.4, heat: 1, tongues: 0.25, body: 0.35, smoke: 0.3, embers: big ? 14 : 5, emberSpeed: 420,
+    });
+    this.fire.burst(x, y, { n: (big ? 10 : 5) * sz, radius: R * 0.2, speed: 760 * sz, size: R * 0.36 * sz, life: 340, dir: Math.atan2(o.dir.y, o.dir.x), spread: 1.2, drag: 4.5, smoke: 0.15 });
+  }
+
+  /** IV: the gaze lands and holds; the target is DRAWN IN until `untilMs` from now (a dark core, collapsing rings, motes). */
+  drawIn(x: number, y: number, R: number, untilMs: number): void {
+    if (this.destroyed || this.pull) return;
+    const dark = this.take('body', this.tex.fire.glow, this.colors.rift);
+    const light = this.take('glow', this.tex.fire.glow, this.colors.fel);
+    if (!dark || !light) { this.give(dark); this.give(light); return; }
+    dark.position.set(x, y); light.position.set(x, y); dark.alpha = 0; light.alpha = 0;
+    this.pull = { x, y, R, at: this.clock, until: this.clock + Math.max(1, untilMs), dark, light, moteIn: 0 };
+    for (let i = 0; i < 3; i++) {
+      this.fxs('glow', this.tex.shock, this.colors.hot, x, y, SHOCK_R, {
+        dur: 300, delay: (untilMs * i) / 3, from: R * 3.2, to: R * 0.35, a0: 0.75, mode: 'punch', peakAt: 0.5, ease: 'cubic',
       });
     }
   }
 
-  private drawBolt(b: Bolt, dt: number): void {
-    const { m } = b;
-    const p = boltPose(m, this.clock);
-    const g = Math.max(0, p.grow);
-    const r = m.radius * g;
-    const born = clamp01((this.clock - m.formAt) / Math.max(1, m.growMs * 0.5));
-    if (b.state === 'form') {
-      // Motes stream in while it swells (thicker for the great bolt).
-      if (this.clock < m.pullAt) this.motesInto(m.home.x, m.home.y, m.radius * 2.2, m.radius * 3.4, m.great ? 14 : 26, b, dt, this.colors.fel);
+  /** IV, THE IMPACT: the drawn-in target IMPLODES into a STARBURST: a white core, rays, rings, shards, fel fire. */
+  starburst(x: number, y: number, R: number, o: { burst: number; flashAlpha: number; screen: number }): void {
+    if (this.destroyed) return;
+    const pl = this.pull;
+    if (pl) { this.give(pl.dark); this.give(pl.light); this.pull = null; }
+    const c = this.colors;
+    const b = Math.max(0.5, o.burst) * this.cfg.burstSize;
+    this.fxs('core', this.tex.glow, 0xffffff, x, y, GLOW_R, { dur: 130, from: R * 0.4, to: R * 2.2, a0: 1 });
+    this.fxs('core', this.tex.glow, whiten(c.fel, 0.5), x, y, GLOW_R, { dur: 160, from: o.screen * 0.45, to: o.screen * 0.65, a0: 0.25 * o.flashAlpha });
+    this.fxs('core', this.tex.burst, c.core, x, y, BURST_PX / 2, { dur: 520, from: R * 0.3, to: R * 3.2 * b * 0.6, a0: 1, rot: this.rnd() * 6.28, spin: 0.0012, ease: 'cubic' });
+    this.fxs('core', this.tex.burst, c.fel, x, y, BURST_PX / 2, { dur: 700, from: R * 0.5, to: R * 4.4 * b * 0.6, a0: 0.85, rot: this.rnd() * 6.28, spin: -0.0008, ease: 'cubic' });
+    this.fxs('glow', this.tex.fire.glow, c.fel, x, y, GLOW_R, { dur: 1300, from: R * 2.5, to: R * 4.5, a0: 0.75 });
+    this.fxs('glow', this.tex.shock, whiten(c.hot, 0.5), x, y, SHOCK_R, { dur: 520, from: R * 0.5, to: R * 6, a0: 1 });
+    this.fxs('glow', this.tex.shock, c.fel, x, y, SHOCK_R, { dur: 700, delay: 70, from: R * 0.4, to: R * 4.4, a0: 0.75 });
+    this.fxs('under', this.tex.shock, c.rift, x, y, SHOCK_R, { dur: 600, delay: 30, from: R, to: R * 5.4, a0: 0.55 });
+    for (let i = 0; i < 8; i++) {
+      const a = (i / 8) * Math.PI * 2 + this.rnd() * 0.4;
+      this.crackleAt(x + Math.cos(a) * R * 0.9, y + Math.sin(a) * R * 0.9, R * 1.5, a, i % 2 ? c.hot : c.core, 200);
     }
-    // A wind-up shiver on the shell (it strains before the snap).
-    const shiver = p.windup > 0 ? 1 + 0.08 * Math.sin(this.clock * 0.25) * p.windup : 1;
-    this.drawOrb(b.orb, p.x, p.y, r * shiver, born, p.flying, p.rot, dt, this.look.crackle * (m.great ? 1.5 : 1));
-    if (!b.formedFx && g >= 1 && !m.great) {
-      b.formedFx = true;
-      this.fire.embers(p.x, p.y, 4, r * 0.5, { speed: 160 });
-    }
-    // The sigil: spins open with an overshoot behind the forming bolt, pulses, and collapses in a flash on release.
-    const sg = b.sigil;
-    if (sg) {
-      const R = m.radius * 2.3 * this.look.sigilSize;
-      if (b.sigilGone < 0) {
-        const u = clamp01((this.clock - m.formAt) / 240);
-        sg.scale.set(Math.max(0.01, (R * easeOutBack(u, 1.6)) / RUNE_R));
-        sg.rotation += dt * 0.003;
-        sg.alpha = 0.85 * u * (0.88 + 0.12 * Math.sin(this.clock * 0.02 + m.phase)) * (1 + 0.15 * p.windup);
-      } else {
-        b.sigilGone += dt;
-        const u = clamp01(b.sigilGone / 170);
-        sg.scale.set(Math.max(0.01, (R * (1 - 0.65 * easeOutCubic(u))) / RUNE_R));
-        sg.rotation += dt * 0.012;
-        sg.alpha = 0.95 * (1 - u);
-        if (u >= 1) { this.give(sg); b.sigil = null; }
-      }
-    }
+    this.shardBurst(x, y, R * 1.3, 16, 1500);
+    this.fire.burst(x, y, {
+      n: 80, radius: R * 0.4, speed: 820, size: R * 0.7, life: 640, lift: 800, drag: 3.6, heat: 1, tongues: 0.3, body: 0.4, smoke: 0.4,
+      embers: 30, emberSpeed: 700,
+    });
+    this.fire.smokePuffs(x, y - R * 0.5, 5, { radius: R * 0.8, size: R * 1.6, life: 1800, rise: 80, alpha: 0.4 });
   }
 
-  private updateGate(dt: number): void {
-    const g = this.gate;
-    if (!g) return;
-    g.age += dt;
-    const R = g.gr;
-    if (g.erupted < 0) {
-      const open = clamp01(g.age / 300);
-      const u = clamp01(g.age / g.dur);
-      const s = Math.max(0.01, easeOutBack(open, 1.5));
-      const pulse = 0.9 + 0.1 * Math.sin(g.age * (0.02 + 0.03 * u));
-      g.outer.scale.set((R * s) / RUNE_R); g.outer.rotation += dt * 0.0012; g.outer.alpha = (0.75 + 0.25 * u) * open * pulse;
-      g.inner.scale.set((R * 0.6 * s) / RUNE_R); g.inner.rotation -= dt * (0.002 + 0.004 * u); g.inner.alpha = (0.45 + 0.5 * u * u) * open;
-      g.dark.scale.set((R * 1.35 * s) / GLOW_R); g.dark.alpha = 0.6 * open;
-      g.light.scale.set((R * (1.2 + 0.5 * u)) / GLOW_R); g.light.alpha = (0.2 + 0.5 * u * u) * open * pulse;
-      g.em.intensity = 0.15 + 1.1 * u * u;
-      this.motesInto(g.x, g.y, R * 1.15, R * 1.6, 18 - 8 * u, g, dt, this.colors.fel);
-    } else {
-      // The circle FLARES and breaks: punched outward and faded, the inner ring flung wider, the ground fading back.
-      g.erupted += dt;
-      const u = clamp01(g.erupted / 650);
-      const e = easeOutCubic(u);
-      g.outer.scale.set((R * (1 + 0.35 * e)) / RUNE_R); g.outer.rotation += dt * 0.004; g.outer.alpha = 1.1 * (1 - u) * (1 - u);
-      g.inner.scale.set((R * (0.6 + 0.9 * e)) / RUNE_R); g.inner.rotation -= dt * 0.008; g.inner.alpha = Math.max(0, 1 - u * 2.2);
-      g.dark.alpha = 0.6 * (1 - u);
-      g.light.alpha = 0.7 * (1 - u);
-      if (u >= 1) {
-        for (const s of [g.outer, g.inner, g.dark, g.light]) this.give(s);
-        this.gate = null;
-      }
-    }
+  /** The eye blinks shut: a small flash along the seam. */
+  closed(i: number): void {
+    const r = this.rigs[i]; if (!r || this.destroyed) return;
+    const { c, a } = r.m;
+    this.fxs('core', this.tex.glow, this.colors.hot, c.x, c.y, GLOW_R, { dur: 160, from: a * 0.3, to: a * 0.9, a0: 0.6, sy: 0.18 });
   }
+
+  /** The rift seals: embers shed along the seam. */
+  sealed(i: number): void {
+    const r = this.rigs[i]; if (!r || this.destroyed) return;
+    const { c, a } = r.m;
+    for (let j = -3; j <= 3; j++) this.fire.embers(c.x + (j / 3) * a * 0.9, c.y, 2, a * 0.06, { speed: 120, life: 900 });
+  }
+
+  // ── the frame ──────────────────────────────────────────────────────────────────────────────────────────────
 
   protected override tick(dt: number): boolean {
     if (this.destroyed) return false;
     const step = Math.max(0, Math.min(100, Number.isFinite(dt) ? dt : 0));
     this.clock += step;
-    if (this.reserving) this.reserving = this.fire.reserveStep(120);
-    this.updateCharge(step);
-    for (const b of this.bolts) if (b.state !== 'gone') this.drawBolt(b, step);
-    const mt = this.meteor;
-    if (mt) {
-      const p = felMeteorPose(mt.m, this.clock);
-      const rot = Math.atan2(mt.m.dir.y, mt.m.dir.x);
-      this.drawOrb(mt.orb, p.x, p.y, mt.m.radius, 1, true, rot, step, this.look.crackle * 1.6);
+    if (this.reserving) this.reserving = this.fire.reserveStep(100);
+    let eyes = false;
+    for (const r of this.rigs) {
+      if (this.spent) break;
+      this.drawRig(r, step);
+      if (r.root.visible || r.beam) eyes = true;
+      if (this.clock < r.m.goneAt) eyes = true;
     }
-    this.updateGate(step);
-    for (let i = this.later.length - 1; i >= 0; i--) {
-      const q = this.later[i]!;
-      if (q.at <= this.clock) { this.later.splice(i, 1); this.layer(q); }
+    const v = this.veilPlan, vs = this.veil;
+    let veil = false;
+    if (v && vs) {
+      const t = this.clock;
+      const a = t < v.inAt ? 0 : t < v.outAt ? easeInOutSine((t - v.inAt) / Math.max(1, v.fullAt - v.inAt)) : 1 - easeInOutSine((t - v.outAt) / Math.max(1, v.goneAt - v.outAt));
+      vs.alpha = v.alpha * a;
+      vs.visible = vs.alpha > 0.002;
+      veil = t < v.goneAt;
     }
-    const sec = step / 1000;
-    for (let i = this.debris.length - 1; i >= 0; i--) {
-      const d = this.debris[i]!;
-      d.age += step;
-      if (d.age >= d.life) { this.fire.stop(d.em); this.give(d.core); this.debris.splice(i, 1); continue; }
-      d.vx *= Math.exp(-0.6 * sec);
-      d.vy += 1900 * this.S * sec;
-      d.x += d.vx * sec; d.y += d.vy * sec;
-      const u = d.age / d.life;
-      d.em.x = d.x; d.em.y = d.y; d.em.intensity = 1 - u * u;
-      d.core.position.set(d.x, d.y); d.core.alpha = 1 - u * u;
-    }
-    for (let i = this.novas.length - 1; i >= 0; i--) {
-      const n = this.novas[i]!;
-      n.age += step;
-      n.em.r = n.r0 + (n.r1 - n.r0) * easeOutCubic(n.age / n.dur);
-      if (!n.em.on) this.novas.splice(i, 1);
+    const pl = this.pull;
+    if (pl) {
+      const u = clamp01((this.clock - pl.at) / Math.max(1, pl.until - pl.at));
+      // A dark core swells on the target, then collapses to a point as the implosion nears.
+      const grow = easeOutCubic(Math.min(1, u * 5));
+      const shrink = 1 - u * u;
+      pl.dark.scale.set((pl.R * 1.2 * grow * Math.max(0.05, shrink)) / GLOW_R);
+      pl.dark.alpha = 0.6 * grow;
+      pl.light.scale.set((pl.R * (2.6 - 1.4 * u)) / GLOW_R);
+      pl.light.alpha = 0.2 + 0.25 * u;
+      pl.moteIn -= step;
+      const every = 14 / Math.max(0.1, this.cfg.drawIn);
+      while (pl.moteIn <= 0) {
+        pl.moteIn += every;
+        const a = this.rnd() * Math.PI * 2, d = pl.R * (1.8 + this.rnd() * 1.6);
+        const life = 220 + this.rnd() * 100, sec = life / 1000;
+        const sz = (3 + this.rnd() * 4) * this.S;
+        this.fxs('core', this.tex.spark, this.rnd() < 0.35 ? this.colors.core : this.colors.fel, pl.x + Math.cos(a) * d, pl.y + Math.sin(a) * d, SPARK_R, {
+          dur: life, from: sz, to: sz * 0.4, a0: 1, mode: 'punch', peakAt: 0.3, vx: (-Math.cos(a) * d * 0.95) / sec, vy: (-Math.sin(a) * d * 0.95) / sec,
+          drag: 1, align: true, ease: 'linear', sy: 0.5,
+        });
+      }
     }
     const burning = this.fire.update(step);
-    this.bolts = this.bolts.filter((b) => b.state !== 'gone' || b.sigil !== null);
-    return burning || this.charge !== null || this.meteor !== null || this.gate !== null || this.later.length > 0 || this.debris.length > 0
-      || this.bolts.length > 0;
+    return burning || eyes || veil || this.pull !== null;
   }
 
   protected override clearOwn(): void {
-    for (const b of this.bolts) {
-      if (b.state !== 'gone') this.dropOrb(b.orb);
-      if (b.sigil) this.give(b.sigil);
+    for (const r of this.rigs) {
+      if (r.beam) { for (const s of [r.beam.glow, r.beam.core, r.beam.head, r.beam.src]) this.give(s); r.beam = null; }
+      if (r.ignite) { this.fire.stop(r.ignite); r.ignite = null; }
+      r.root.visible = false;
     }
-    if (this.charge) this.give(this.charge.light);
-    if (this.meteor) this.dropOrb(this.meteor.orb);
-    if (this.gate) for (const s of [this.gate.outer, this.gate.inner, this.gate.dark, this.gate.light]) this.give(s);
-    for (const d of this.debris) this.give(d.core);
+    if (this.pull) { this.give(this.pull.dark); this.give(this.pull.light); this.pull = null; }
+    if (this.veil) { this.veil.visible = false; this.veil.alpha = 0; }
+    this.veilPlan = null;
     this.fire.clear();
-    this.bolts = []; this.novas = []; this.debris = []; this.later = [];
-    this.charge = null; this.meteor = null; this.gate = null;
+    this.spent = true;
   }
 
   override destroy(): void {
     if (this.destroyed) return;
     this.clear();
-    this.root.removeChild(this.fire.back);
-    this.root.removeChild(this.fire.front);
+    for (const c of [this.fire.back, this.fire.front]) this.root.removeChild(c);
     this.fire.destroy();
+    for (const r of this.rigs) r.root.destroy({ children: true });
+    this.rigs.length = 0;
+    for (const c of [this.eyesLayer, this.veilLayer]) { this.root.removeChild(c); c.destroy({ children: true }); }
     super.destroy();
   }
 }

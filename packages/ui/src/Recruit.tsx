@@ -2969,8 +2969,8 @@ export function Recruit() {
     // across the screen eight times and ends in a bloody explosion; the Rares, two tiers each: Pocket Change flicks a coin that pings and ricochets,
     // Come Back Around throws a boomerang that thwacks and is caught, Bubble Trouble pops a bubble round the face, and
     // Shadow Step fades the striker into smoke and stabs from behind; Nothing But Net: the striker plays ball, a jump shot, a
-    // fadeaway, a pull-up three and a self alley-oop slammed into an explosion; Chaos Bolt: fel bolts in dark crackling shells, and
-    // the top tier opens a rune circle over the target that a chaos meteor falls into and erupts). Same blow, same consequence, only drawn differently;
+    // fadeaway, a pull-up three and a self alley-oop slammed into an explosion; Eye of the Legion: a demonic eye tears open, hunts
+    // and finds the target and burns it with its gaze; the top tier's colossal eye implodes the target into a starburst). Same blow, same consequence, only drawn differently;
     // the style is the ATTACKER's (their equipped cosmetic, or the dev override). Every runner takes the same options
     // (`heroAttack/options.ts`).
     const attackStyle = resolveHeroAttackStyle({ attacker: side, attackerCosmeticId: attackerCosmeticOf(run0, side, useGame.getState().showOpponentSkins) });

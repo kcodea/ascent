@@ -2498,7 +2498,7 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'attack_bleed ("Hemorrhage", Legendary, style bleed: R-PROG-ATTACK-21), joined the same day under the same fixed odds, '
       + 'making Legendary sixteen items at 0.3125% each and the thirteen attacks together 4.06%. The four Rare attacks '
       + '(attack_coin, attack_boomerang, attack_bubble, attack_backstab: R-PROG-ATTACK-28 to 32) made Rare seventeen items '
-      + 'at 1.765% each; every hero attack together is now 11.1% of a first crate. The fourteenth Legendary, attack_basketball ("Nothing But Net", style basketball: R-PROG-ATTACK-33), made Legendary seventeen items at 0.294% each (2026-09-29).',
+      + 'at 1.765% each; every hero attack together is now 11.1% of a first crate. The fourteenth Legendary, attack_basketball ("Nothing But Net", style basketball: R-PROG-ATTACK-33), made Legendary seventeen items at 0.294% each (2026-09-29). The Eye of the Legion (attack_fel, style fel: R-PROG-ATTACK-34) joined the Legendaries on 2026-09-30.',
     domain: 'foundation',
     status: 'approved',
     evidence: [
@@ -3428,6 +3428,34 @@ export const FOUNDATION_RULES: GameRule[] = [
     ],
     currentBehaviour: 'Conforms, built 2026-09-29. The item reaches the database on the next deploy of progression-inventory (the catalog sync); the equip SQL already accepts the hero_attack slot.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/heroBasketball/heroBasketball.test.ts', 'packages/progression/src/cosmetics.test.ts', 'packages/ui/src/progression/CollectionHeroAttack.test.tsx', 'packages/ui/src/heroAttack/damageFormation.test.ts', 'packages/ui/src/heroAttack/stageCamera.test.ts', 'packages/ui/src/heroAttack/knockoutTier.test.ts'], lastVerifiedAt: '2026-09-29' },
+  },
+  {
+    id: 'R-PROG-ATTACK-34',
+    title: 'Eye of the Legion (attack_fel, Legendary): a demonic eye tears open, its slit pupil hunts and finds the target, and its gaze burns it; the blow lands ONCE on the gaze (I-III) or the starburst (IV)',
+    statement:
+      'attack_fel ("Eye of the Legion", Legendary, crate, account-wide, style fel): after the shared damage formation '
+      + '(R-PROG-ATTACK-08) a fel RIFT tears open in the air and a demonic EYE opens inside it: a glowing seam, the lids '
+      + 'cracking and then snapping open, the pupil darting in saccades, then LOCKING on the struck hero (the pupil slams to a '
+      + 'slit, the lids narrow into a glare) and firing its GAZE from the pupil onto the struck portrait. The eye is a flat, '
+      + 'layered painted rig (sclera, veins, an iris with a burning ring, a slit pupil, dark lids with a fel inner glow) whose '
+      + 'lids are a mask scaled in y. It escalates on the shared tiers (6 / 12 / 20; a knockout plays IV, R-PROG-ATTACK-20): '
+      + 'I a small eye over the attacker and a lancing gaze pulse; II two eyes out of sync whose gazes both hold and CROSS on '
+      + 'the target (the first a tick, the second the blow); III a large eye, the board dimmed, the beam fired beside the '
+      + 'target and SWEPT onto it (the blow as it arrives); IV a colossal eye up top (never over the struck portrait), a '
+      + 'fel-negative veil over the screen (one vignette sprite), the iris IGNITING, a thick gaze that lands and holds while '
+      + 'the target is DRAWN IN (a dark core, collapsing rings, motes), then IMPLODES into a STARBURST (the blow). The eye then '
+      + 'blinks shut and the rift seals in embers. Every eye stays on screen, the gaze always lands on the struck hero\x27s '
+      + 'centre in both directions, and the struck portrait\x27s transform is restored on every exit. No hit-stop or freeze '
+      + '(R-PROG-ATTACK-10); presentation only; reduced motion is fades only.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-30 (relayed by the coordinator)', quote: 'create a brand new attack animation that is on par with hearthstone/modern world of warcraft level animation art style performance readability and everything' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-30 (review of the first fel pass, relayed by the coordinator)', quote: 'this needs the bar to be set as an extremely unique animation. this may be our first mythic rarity item. every animation should be extremely unique and special' },
+      { kind: 'code', ref: 'packages/progression/src/cosmetics.ts (attack_fel); packages/ui/src/heroFel/ (felPlan / felCues / eyeMotions / eyePose / beamPose / felCameraAt, playHeroFel, HeroFelScene, heroFelTextures)' },
+    ],
+    currentBehaviour: 'Conforms, built 2026-09-30. The item reaches the database on the next deploy of progression-inventory (the catalog sync).',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/heroFel/heroFel.test.ts', 'packages/progression/src/cosmetics.test.ts', 'packages/ui/src/progression/CollectionHeroAttack.test.tsx', 'packages/ui/src/heroAttack/damageFormation.test.ts', 'packages/ui/src/heroAttack/stageCamera.test.ts', 'packages/ui/src/heroAttack/knockoutTier.test.ts'], lastVerifiedAt: '2026-09-30' },
   },
   {
     id: 'R-PROG-ATTACK-25',

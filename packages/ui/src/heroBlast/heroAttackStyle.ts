@@ -134,7 +134,7 @@ export const DEV_HERO_ATTACK_LABELS: Record<DevHeroAttackChoice, string> = {
   coin: 'Pocket Change (coin, Rare)', boomerang: 'Come Back Around (boomerang, Rare)', bubble: 'Bubble Trouble (bubble, Rare)',
   backstab: 'Shadow Step (backstab, Rare)',
   basketball: 'Nothing But Net (basketball)',
-  fel: 'Chaos Bolt (fel)',
+  fel: 'Eye of the Legion (fel)',
 };
 
 const KEY = 'ascent.heroattackstyle';

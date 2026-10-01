@@ -60,6 +60,15 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: 'New Legendary hero attack in crates: Eye of the Legion. A demonic eye tears open, hunts for its target and burns it with its gaze.',
+        details: [
+          'Small hits: one eye opens over your hero and fires a gaze.',
+          'Bigger hits: two eyes cross their gazes on the target, then a large eye sweeps its beam onto it.',
+          'Huge hits: a colossal eye opens over the board, its iris ignites, and the target implodes into a starburst.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: '32 new skins in crates: 16 hero skins, including the first for Ayse, Braum, Darah, Emerald Warden, Hunch, Keshi, Soren, Brackus and Robin, and 16 minion skins.',
       },
       {

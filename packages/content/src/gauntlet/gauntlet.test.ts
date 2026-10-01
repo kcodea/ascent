@@ -25,6 +25,12 @@ describe('Gauntlet stage data', () => {
     expect(gauntletStage(9)).toBeUndefined();
   });
 
+  it('portraitCardId is optional, and must name a real card', () => {
+    expect(validateStage(stage({ portraitCardId: 'dm_grobbus' }))).toEqual([]);
+    expect(validateStage(stage({ portraitCardId: 'no_such_card' })).join()).toMatch(/portraitCardId.*no_such_card/);
+    for (const s of GAUNTLET_STAGES) if (s.portraitCardId !== undefined) expect(validateStage(s)).toEqual([]); // whatever ships is valid
+  });
+
   it('a well-formed ready stage has no issues', () => {
     expect(validateStage(stage())).toEqual([]);
   });

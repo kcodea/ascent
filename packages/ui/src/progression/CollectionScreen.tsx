@@ -1,6 +1,6 @@
 import { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  COSMETIC_CATEGORY_DEFS, COSMETIC_RARITIES, RARITY_LABELS, crateName, crateOddsLine, isMasterTitle, levelProgress,
+  COSMETIC_CATEGORY_DEFS, COSMETIC_RARITIES, RARITY_LABELS, cosmeticOf, crateLabel, crateOddsLine, isMasterTitle, levelProgress,
   type CosmeticCategory, type CosmeticDef, type CosmeticRarity,
 } from '@game/progression';
 import { tempHandle, useGame } from '../store';
@@ -13,7 +13,10 @@ import {
   COMING_BLURB, acquisitionText, albumOf, categoryLive, collectibleItems, collectionCategories, countOf, filterAlbum, isEquipped, isNew,
   loadSeen, masteryText, missingHint, ownedIds, rarityCounts, saveSeen, skinTargetName, type RarityFilter, type ShowFilter,
 } from './collectionModel';
-import { skinArtOf } from '../skins/skinArt';
+import { defaultArtOf, skinArtOf } from '../skins/skinArt';
+import { HeroPortraitRing } from '../portraitFrame/HeroPortraitRing';
+import { rectToStage, type StageRect } from '../stage';
+import { SkinCardPreview } from './SkinCardPreview';
 import { HeroAttackPreview } from '../heroBlast/HeroAttackPreview';
 import { NewRewardsPopup } from './NewRewardsPopup';
 import { CrateSignInGate } from './CrateSignInGate';
@@ -44,6 +47,11 @@ import './collection.css';
  *               until owned, like a title's name) with the hero / minion it is for; the detail panel shows the art
  *               large, and Equip / "Use default art" wear it on that one target (Default is always selectable).
  *               A RETIRED item (the kill switch) is not in the album at all; see collectionModel.ts.
+ *               (2026-09-30, owner: "show the default skin when the player hits use default", "add a mouseover
+ *               preview of what minions/spells would look like in game", "for heroes the preview image is off")
+ *               "Use default art" flips the preview to the target's DEFAULT art at once (and keeps that item
+ *               selected); a hero skin previews in the in-game portrait ring (`HeroPortraitRing`); hovering a
+ *               card skin's tile or art floats the real in-game `Card` wearing it (`SkinCardPreview`).
  *
  * A guest sees a slim save-progress row, and (owner 2026-09-29, a HARD gate) cannot open a crate: every Open goes
  * through `begin`, which shows the sign-in gate (`CrateSignInGate.tsx`) instead. Sealed crates stay in view.
@@ -84,13 +92,18 @@ export function CollectionPage({ reducedMotion }: { reducedMotion?: boolean }): 
   const [error, setError] = useState<string | null>(null);
   const [theatre, setTheatre] = useState<{ queue: CrateQueueItem[]; openAll: boolean } | null>(null);
   const [gate, setGate] = useState(false);
+  /** The skin whose target was just put back in its default art: its preview shows that default (owner 2026-09-30). */
+  const [defaultShown, setDefaultShown] = useState<string | null>(null);
+  /** The card-skin preview under the pointer: the card, the art to wear (undefined = default), and the anchor
+   *  rect, read ONCE on pointer enter (stage px). */
+  const [hover, setHover] = useState<{ cardId: string; art: string | undefined; rect: StageRect } | null>(null);
   const closeGate = useCallback(() => setGate(false), []);
 
   useEffect(() => { void refreshCrates(); }, []);
   useEffect(() => { setSeen(loadSeen(userId)); }, [userId]);
 
   const sealed: CrateQueueItem[] = useMemo(
-    () => (crateList ?? []).filter((c) => c.state === 'sealed').map((c) => ({ crateId: c.crateId, earnedLevel: c.earnedLevel })),
+    () => (crateList ?? []).filter((c) => c.state === 'sealed').map((c) => ({ crateId: c.crateId, earnedLevel: c.earnedLevel, source: c.source })),
     [crateList],
   );
 
@@ -112,6 +125,15 @@ export function CollectionPage({ reducedMotion }: { reducedMotion?: boolean }): 
     ?? album.find((c) => owned.has(c.id))?.id ?? album[0]?.id ?? null;
   const selected = album.find((c) => c.id === selectedId) ?? null;
 
+  /** Hover a card skin (its tile, or the detail panel's art): float the in-game card wearing it. Mouse / pen only
+   *  (a tap is a pick), and the anchor's rect is read once here, never per frame. */
+  const onHover = useCallback((id: string | null, el?: HTMLElement, asDefault?: boolean) => {
+    const item = id ? cosmeticOf(id) : null;
+    const cardId = item?.target?.type === 'card' ? item.target.id : null;
+    setHover(cardId && el ? { cardId, art: asDefault ? undefined : skinArtOf(item), rect: rectToStage(el.getBoundingClientRect()) } : null);
+  }, []);
+  const clearHover = useCallback(() => setHover(null), []);
+
   const markSeen = useCallback((id: string) => {
     setSeen((prev) => {
       if (prev.has(id)) return prev;
@@ -125,6 +147,7 @@ export function CollectionPage({ reducedMotion }: { reducedMotion?: boolean }): 
   const onPick = useCallback((id: string) => {
     sfx.pulse();
     setPicked(id);
+    setDefaultShown(null);
     setError(null);
     // Only an OWNED item is marked seen: a missing one you peeked at still wears NEW the day a crate gives it.
     if (owned.has(id)) markSeen(id);
@@ -138,12 +161,16 @@ export function CollectionPage({ reducedMotion }: { reducedMotion?: boolean }): 
     setError(null);
     const skin = item.category === 'hero_skin' || item.category === 'minion_skin';
     const attack = item.category === 'hero_attack';
+    // Taking a skin off shows the DEFAULT art at once and keeps this item selected (it would otherwise jump to the
+    // next worn item); wearing one shows the skin again. A failed call puts the preview back.
+    if (skin) { setPicked(item.id); setDefaultShown(on ? null : item.id); }
     const ok = attack
       ? await equipCosmetic('hero_attack', '', on ? item.id : null)
       : skin && item.target
       ? await equipCosmetic(item.category as 'hero_skin' | 'minion_skin', item.target.id, on ? item.id : null)
       : await equipTitle(on ? item.id : null);
     setBusy(false);
+    if (!ok && skin) setDefaultShown(on ? item.id : null);
     if (!ok) setError(attack ? 'Could not change your hero attack. Try again.' : skin ? 'Could not change your skin. Try again.' : 'Could not change your title. Try again.');
   };
 
@@ -157,7 +184,7 @@ export function CollectionPage({ reducedMotion }: { reducedMotion?: boolean }): 
     setTheatre({ queue: [...sealed], openAll });
   };
 
-  const pickCategory = (c: CosmeticCategory): void => { sfx.pulse(); setCategory(c); setPicked(null); setError(null); };
+  const pickCategory = (c: CosmeticCategory): void => { sfx.pulse(); setCategory(c); setPicked(null); setDefaultShown(null); setHover(null); setError(null); };
   const back = (): void => { sfx.pulse(); close(); };
   const lp = levelProgress(me?.accountXp ?? 0);
   const name = playerName || tempHandle(userId);
@@ -239,7 +266,7 @@ export function CollectionPage({ reducedMotion }: { reducedMotion?: boolean }): 
                 </div>
               </div>
 
-              <div className="colls-gridwrap">
+              <div className="colls-gridwrap" onScroll={hover ? clearHover : undefined}>
                 {shown.length === 0 ? (
                   <div className="colls-nomatch">
                     <div>{show === 'owned' && albumCount.owned === 0 ? 'You have none yet. Open a crate to find one.' : show === 'missing' && albumCount.owned === albumCount.total ? 'You have them all.' : 'Nothing matches these filters.'}</div>
@@ -252,7 +279,7 @@ export function CollectionPage({ reducedMotion }: { reducedMotion?: boolean }): 
                         <ItemTile
                           id={c.id} name={c.name} rarity={c.rarity} art={skinArtOf(c)} target={skinTargetName(c) ?? undefined}
                           owned={owned.has(c.id)} equipped={isEquipped(c, me)} fresh={isNew(c.id, owned, seen)} selected={selectedId === c.id} master={isMasterTitle(c.id)}
-                          onPick={onPick}
+                          onPick={onPick} onHover={c.target?.type === 'card' ? onHover : undefined}
                         />
                       </li>
                     ))}
@@ -273,7 +300,8 @@ export function CollectionPage({ reducedMotion }: { reducedMotion?: boolean }): 
           {live && selected && (
             <DetailPanel
               item={selected} owned={owned.has(selected.id)} equipped={isEquipped(selected, me)} busy={busy} error={error} playerName={name}
-              reducedMotion={reducedMotion}
+              reducedMotion={reducedMotion} showDefault={defaultShown === selected.id && (busy || !isEquipped(selected, me))}
+              onHover={onHover}
               onEquip={() => { void onEquip(selected, true); }} onTakeOff={() => { void onEquip(selected, false); }}
             />
           )}
@@ -295,6 +323,7 @@ export function CollectionPage({ reducedMotion }: { reducedMotion?: boolean }): 
       {/* NEW REWARDS (owner 2026-09-28): what the last games awarded, summarised once, then marked seen. */}
       <NewRewardsPopup sealedIds={sealedIds} onOpenCrates={(all) => begin(all)} />
       <CrateSignInGate open={gate} onClose={closeGate} />
+      {hover && <SkinCardPreview key={`${hover.cardId}:${hover.art ?? ''}:${hover.rect.left}:${hover.rect.top}`} cardId={hover.cardId} art={hover.art} anchor={hover.rect} />}
       {theatre && (
         <CrateOpener
           queue={theatre.queue}
@@ -318,9 +347,11 @@ interface TileProps {
   art?: string;
   /** A skin's hero / minion, by name. */
   target?: string;
+  /** A CARD skin: hovering the tile floats the in-game card wearing it (null clears it). */
+  onHover?: (id: string | null, el?: HTMLElement) => void;
 }
 
-const ItemTile = memo(function ItemTile({ id, name, rarity, owned, equipped, fresh, selected, onPick, art, target, master }: TileProps): JSX.Element {
+const ItemTile = memo(function ItemTile({ id, name, rarity, owned, equipped, fresh, selected, onPick, art, target, master, onHover }: TileProps): JSX.Element {
   const state = equipped ? 'equipped' : owned ? 'owned' : 'not owned';
   return (
     <button
@@ -329,6 +360,8 @@ const ItemTile = memo(function ItemTile({ id, name, rarity, owned, equipped, fre
       aria-pressed={selected}
       aria-label={`${name}${target ? `, for ${target}` : ''}, ${RARITY_LABELS[rarity]}, ${state}${fresh ? ', new' : ''}`}
       onClick={() => onPick(id)}
+      onPointerEnter={onHover ? (e) => { if (e.pointerType !== 'touch') onHover(id, e.currentTarget); } : undefined}
+      onPointerLeave={onHover ? () => onHover(null) : undefined}
     >
       {art && <img className="colls-tile-art" src={art} alt="" draggable={false} decoding="sync" />}
       {target && <span className="colls-tile-for">{target}</span>}
@@ -346,10 +379,16 @@ const ItemTile = memo(function ItemTile({ id, name, rarity, owned, equipped, fre
 
 // ── The detail panel ───────────────────────────────────────────────────────────────────────────────────────
 
-function DetailPanel({ item, owned, equipped, busy, error, playerName, reducedMotion, onEquip, onTakeOff }: {
-  item: CosmeticDef; owned: boolean; equipped: boolean; busy: boolean; error: string | null; playerName: string; reducedMotion?: boolean; onEquip: () => void; onTakeOff: () => void;
+function DetailPanel({ item, owned, equipped, busy, error, playerName, reducedMotion, showDefault, onHover, onEquip, onTakeOff }: {
+  item: CosmeticDef; owned: boolean; equipped: boolean; busy: boolean; error: string | null; playerName: string; reducedMotion?: boolean;
+  /** "Use default art" was just pressed for this skin: preview the target's DEFAULT art (owner 2026-09-30). */
+  showDefault?: boolean;
+  onHover?: (id: string | null, el?: HTMLElement, asDefault?: boolean) => void;
+  onEquip: () => void; onTakeOff: () => void;
 }): JSX.Element {
-  const art = skinArtOf(item);
+  const skinArt = skinArtOf(item);
+  const art = showDefault ? defaultArtOf(item) ?? skinArt : skinArt;
+  const cardSkin = item.target?.type === 'card';
   const target = skinTargetName(item);
   const skin = item.category === 'hero_skin' || item.category === 'minion_skin';
   const attack = item.category === 'hero_attack';
@@ -359,10 +398,23 @@ function DetailPanel({ item, owned, equipped, busy, error, playerName, reducedMo
       {/* A hero attack plays in place (the Blast tuner's own runner, in a sandbox box): owned or not, so you can
           see what a crate might give. Keyed by item so switching items starts a fresh stage. */}
       {attack && <HeroAttackPreview key={item.id} style={typeof item.assets.style === 'string' ? item.assets.style : ''} reducedMotion={reducedMotion} />}
-      {/* A skin's art, large (Valorant's big preview). Missing items stay blurred, like a title's name. */}
-      {art && (
-        <div className={`colls-skinart${item.category === 'hero_skin' ? ' hero' : ' minion'}`} aria-label="Preview">
+      {/* A skin's art, large (Valorant's big preview). Missing items stay blurred, like a title's name. A HERO skin
+          sits in the in-game portrait ring (the same disc, crop and frame as your portrait in a run); a CARD skin's
+          art floats the in-game card on hover. After "Use default art" both show the DEFAULT art. */}
+      {item.category === 'hero_skin' && skinArt && (
+        <div className="colls-heropreview" aria-label={showDefault ? 'Preview, default art' : 'Preview'}>
+          <HeroPortraitRing art={art} alt="" className="colls-heroring" />
+          {showDefault && <span className="colls-default-tag">Default art</span>}
+        </div>
+      )}
+      {item.category !== 'hero_skin' && art && (
+        <div
+          className="colls-skinart minion" aria-label={showDefault ? 'Preview, default art' : 'Preview'}
+          onPointerEnter={cardSkin && onHover ? (e) => { if (e.pointerType !== 'touch') onHover(item.id, e.currentTarget, showDefault); } : undefined}
+          onPointerLeave={cardSkin && onHover ? () => onHover(null) : undefined}
+        >
           <img src={art} alt="" draggable={false} decoding="sync" />
+          {showDefault && <span className="colls-default-tag">Default art</span>}
         </div>
       )}
       <div className="colls-plate">
@@ -373,6 +425,7 @@ function DetailPanel({ item, owned, equipped, busy, error, playerName, reducedMo
       <div className="colls-facts">
         <div className="colls-fact"><span>Status</span><b className={owned ? 'yes' : 'no'}>{equipped ? 'Equipped' : owned ? 'Owned' : 'Not owned'}</b></div>
         {target && <div className="colls-fact"><span>For</span><b>{target}</b></div>}
+        {showDefault && !equipped && <div className="colls-fact"><span>In use</span><b>Default art</b></div>}
         {attack && <div className="colls-fact"><span>For</span><b>Your hero, seen by the players you hit</b></div>}
         <div className="colls-fact"><span>How to get</span><b>{acquisitionText(item)}</b></div>
         {masteryText(item) && <div className="colls-fact"><span>Mastery</span><b>{masteryText(item)}</b></div>}
@@ -425,7 +478,7 @@ function CrateBay({ cratesOn, loading, sealed, nextLevel, guest, onOpen, onOpenA
           <div className="colls-bay-sub">None right now. Your next crate comes at Level {nextLevel}.</div>
         ) : (
           <>
-            <div className="colls-bay-sub"><b>{n}</b> ready. Next: {crateName(sealed[0]!.earnedLevel)}</div>
+            <div className="colls-bay-sub"><b>{n}</b> ready. Next: {crateLabel(sealed[0]!)}</div>
             {guest && <div className="colls-bay-guest">Create a free account to open them.</div>}
             <div className="colls-bay-actions">
               <button type="button" className="cv2-btn pressable colls-open" onClick={onOpen} aria-label={guest ? 'Open (needs an account)' : undefined}>{guest && <LockGlyph />}Open</button>

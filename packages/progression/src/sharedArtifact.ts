@@ -13,6 +13,7 @@ export const SHARED_ARTIFACTS: ReadonlyArray<{ source: string; target: string }>
   { source: 'cosmetics.ts', target: 'progressionCosmetics.ts' },
   { source: 'inventory.ts', target: 'progressionInventory.ts' },
   { source: 'achievements.ts', target: 'progressionAchievements.ts' },
+  { source: 'gauntlet.ts', target: 'progressionGauntlet.ts' },
 ];
 
 const HEADER = (source: string): string =>

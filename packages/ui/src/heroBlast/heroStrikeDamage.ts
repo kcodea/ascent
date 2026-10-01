@@ -1,4 +1,4 @@
-import { lossDamageCap, playerLossDamage, playerOpponent, type RunState } from '@game/sim';
+import { playerLossDamage, playerOpponent, runLossCap, type RunState } from '@game/sim';
 
 /**
  * THE BLOW the winning hero lands after a fight, exactly as the engine decided it (moved out of `Recruit.tsx` so
@@ -9,7 +9,7 @@ import { lossDamageCap, playerLossDamage, playerOpponent, type RunState } from '
  * mirror of the same formula (`enemyDamage`), capped the same way.
  */
 export function heroStrikeDamage(run: Pick<RunState, 'lobby' | 'mode' | 'lastCombat' | 'wave'>, won: boolean): number {
-  const cap = lossDamageCap(run.wave);
+  const cap = runLossCap(run); // the run's own cap table (the Gauntlet has its own)
   if (won) return Math.min(run.lastCombat?.enemyDamage ?? 0, cap);
   return run.lobby && run.mode !== 'practice' && run.lastCombat
     ? playerLossDamage(run.lobby, run.lastCombat)
@@ -60,7 +60,8 @@ export function heroStrikeNumbers(run: Pick<RunState, 'lobby' | 'mode' | 'lastCo
  *  - YOUR LOSS: your pools going in are the run's (`settleCombat` re-seeds seat 0 from them before charging it).
  *    Invulnerable Practice (any health but `normal`) never knocks you out: the settle restores the seat.
  *  - YOUR WIN: the paired foe seat's pools. A GHOST (a bye, or a stand-in for a seat with no board) is already out and
- *    is never charged, so it is never a knockout; outside a lobby there is no seat to knock out.
+ *    is never charged, so it is never a knockout; outside a lobby there is no seat to knock out. An INVULNERABLE seat
+ *    (the Gauntlet opponent, R-GAUNTLET-02) takes no damage and is never eliminated, so it is never a knockout either.
  * Presentation only: it picks which version of the attack plays (`attackTier` in `../heroAttack/tiers.ts`).
  */
 export function heroStrikeKnockout(
@@ -75,6 +76,6 @@ export function heroStrikeKnockout(
   }
   if (!run.lobby) return false;
   const foe = playerOpponent(run.lobby);
-  if (!foe || foe.ghost || !foe.seat.alive) return false;
+  if (!foe || foe.ghost || !foe.seat.alive || foe.seat.invulnerable) return false;
   return Math.max(0, foe.seat.resolve) + Math.max(0, foe.seat.armor) <= dmg;
 }

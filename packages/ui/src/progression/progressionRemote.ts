@@ -265,16 +265,25 @@ export async function fetchCratesEnabled(): Promise<boolean | undefined> {
   }
 }
 
-/** THIS account's crates (owner-only read), oldest level first. `undefined` = could not ask. */
+const CRATE_COLUMNS = 'crate_id, earned_level, state, reward_cosmetic_id, earned_at, opened_at';
+
+/**
+ * THIS account's crates (owner-only read), oldest level first (a level-less Gauntlet crate after them). `source`
+ * (2026-09-29) names a Gauntlet crate's stage; a server from before the Gauntlet migration has no such column, so
+ * that one error retries once without it and level crates keep loading. `undefined` = could not ask.
+ */
 export async function fetchOwnCrates(): Promise<CrateRow[] | undefined> {
   const c = supabaseClient();
   const userId = currentUserId();
   if (!c || !userId) return undefined;
   try {
-    const res = await Promise.race([
-      Promise.resolve(c.from('loot_crates').select('crate_id, earned_level, state, reward_cosmetic_id, earned_at, opened_at').eq('user_id', userId).order('earned_level', { ascending: true })),
+    const read = (columns: string) => Promise.race([
+      Promise.resolve(c.from('loot_crates').select(columns).eq('user_id', userId).order('earned_level', { ascending: true })),
       timeout(READ_TIMEOUT_MS, null),
     ]);
+    let res = await read(`${CRATE_COLUMNS}, source`);
+    const code = res?.error ? String((res.error as { code?: string }).code ?? '') : '';
+    if (code === '42703' || code === 'PGRST204') res = await read(CRATE_COLUMNS);
     if (!res || res.error) return undefined;
     return ((res.data as unknown[] | null) ?? []).map(parseCrate).filter((x): x is CrateRow => !!x);
   } catch {

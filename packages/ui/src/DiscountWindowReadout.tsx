@@ -1,5 +1,6 @@
 import type { RunState } from '@game/sim';
 import { useTurnSeconds } from './turnClock';
+import { gauntletClockReading } from './gauntlet/gauntletClock';
 
 /**
  * The live readout for a clock-window card discount (Thymepiece: "all cards cost −1 Gold for the next 8
@@ -13,8 +14,9 @@ import { useTurnSeconds } from './turnClock';
  * reducer's expiry. `untilClock: null` is a window with no clock reading (a legacy recording) — it runs to
  * the end of the turn and prints that instead of a count.
  */
-export function DiscountWindowReadout({ window }: { window: NonNullable<RunState['cardDiscountWindow']> }): JSX.Element {
-  const seconds = useTurnSeconds();
+export function DiscountWindowReadout({ window, mode }: { window: NonNullable<RunState['cardDiscountWindow']>; mode: RunState['mode'] }): JSX.Element {
+  // Read the clock as the window was anchored to it: a parked Gauntlet clock reads as 60 (see gauntletClock.ts).
+  const seconds = gauntletClockReading(mode, useTurnSeconds());
   const left = window.untilClock === null ? null : Math.max(0, seconds - window.untilClock);
   return (
     <div className="hplabel discountwin" aria-live="polite">

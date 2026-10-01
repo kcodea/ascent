@@ -39,7 +39,7 @@ import { heroArt } from '../art';
 import { skinArtOf } from '../skins/skins';
 import { MatchDetailsDialog, MatchScoreboard, seatTitle } from './MatchScoreboard';
 import { resetHallKeysForTests } from './hallKeys';
-import { NO_DETAILS_TEXT, boardCaption, defaultSeatId, placeLabel, statusText, summaryText, youWon } from './matchDetailsText';
+import { GAME_STRENGTH_TIP, NO_DETAILS_TEXT, boardCaption, defaultSeatId, placeLabel, statusText, summaryText, youWon } from './matchDetailsText';
 
 const seat = (over: Partial<MatchSeat> & { id: string }): MatchSeat => ({
   name: over.id, heroId: 'warden', health: 0, armor: 0, board: { round: 11, tier: 4, minions: [{ cardId: 'pack', attack: 3, health: 3 }] }, ...over,
@@ -132,9 +132,12 @@ describe('board strength in match details (R-LOBBY-09)', () => {
   it("prints each scored seat's strength and your rounds; an unscored seat shows nothing", () => {
     ui = mount(<MatchScoreboard details={STRONG} own />);
     const rows = [...ui.container.querySelectorAll('.mds-row')];
-    expect(rows.map((r) => r.querySelector('.mds-strength')?.textContent ?? null)).toEqual(['Board strength 81', 'Board strength 58', null]);
+    expect(rows.map((r) => r.querySelector('.mds-strength')?.textContent ?? null)).toEqual(['Game strength 81', 'Game strength 58', null]);
     // Opens on who knocked you out: their strength under the board, no rounds (those are yours only).
-    expect(ui.container.querySelector('.mds-strength-panel')?.textContent).toBe('Board strength 81');
+    expect(ui.container.querySelector('.mds-strength-panel')?.textContent).toBe('Game strength 81');
+    // The run's number is relabelled "Game strength" with the game's hover bubble (owner 2026-09-30), never title=.
+    expect(rows[0]!.querySelector('.mds-strength')?.getAttribute('data-tip')).toBe(GAME_STRENGTH_TIP);
+    expect(rows[0]!.querySelector('.mds-strength')?.getAttribute('title')).toBeNull();
     act(() => { (rows[1] as HTMLButtonElement).click(); });
     expect([...ui.container.querySelectorAll('.mds-strength-round')].map((e) => e.textContent)).toEqual(['R140', 'R276']);
     act(() => { (rows[2] as HTMLButtonElement).click(); });

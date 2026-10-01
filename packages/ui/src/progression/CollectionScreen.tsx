@@ -129,9 +129,11 @@ export function CollectionPage({ reducedMotion }: { reducedMotion?: boolean }): 
    *  (a tap is a pick), and the anchor's rect is read once here, never per frame. */
   const onHover = useCallback((id: string | null, el?: HTMLElement, asDefault?: boolean) => {
     const item = id ? cosmeticOf(id) : null;
-    const cardId = item?.target?.type === 'card' ? item.target.id : null;
+    // OWNED SKINS ONLY (owner 2026-10-01: "do not allow preview if you do not own the art"): an unowned skin keeps its
+    // locked, blurred tile and never floats its art on a card.
+    const cardId = item && owned.has(item.id) && item.target?.type === 'card' ? item.target.id : null;
     setHover(cardId && el ? { cardId, art: asDefault ? undefined : skinArtOf(item), rect: rectToStage(el.getBoundingClientRect()) } : null);
-  }, []);
+  }, [owned]);
   const clearHover = useCallback(() => setHover(null), []);
 
   const markSeen = useCallback((id: string) => {

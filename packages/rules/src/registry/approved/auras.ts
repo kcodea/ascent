@@ -80,4 +80,27 @@ export const AURAS_RULES: GameRule[] = [
       + 'is still READ, so an older in-flight run or recorded snapshot keeps what it banked; nothing feeds it any more.',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/beastCombatOnly0928.test.ts', 'packages/ui/src/beastCombatOnlyText.test.ts'], lastVerifiedAt: '2026-09-29' },
   },
+  {
+    id: 'R-AURA-04',
+    title: 'The Imp Aura reaches every Imp you control, the moment it grows, exactly once',
+    statement:
+      'A "give your Imps +X/+Y this game" grant (Impossible Todd, and every other Imp Aura source) is an AURA: every Imp '
+      + 'you control gets it wherever it is. In combat the Imps ALREADY alive get it the moment it fires (a real-time '
+      + 'buff on each, mid-fight), Imps summoned later that fight enter with the raised Aura, and after the fight the '
+      + 'Imps on your board and in your hand keep it, as do Imps you get later. Each Imp is paid each grant exactly '
+      + 'once: the Aura is baked into the stats of a held Imp, so a board Imp starts a fight at its stored stats and is '
+      + 'never re-paid the Aura at Start of Combat. Gilding doubles the grant.',
+    domain: 'auras',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner bug 2026-09-30 (Impossible Todd)', quote: "impossible todd should buff imps that are currently alive too since it's an aura buff - they receive the buff everywhere" },
+      { kind: 'code', ref: 'packages/core/src/effects/factories.ts onFriendlyDemonDamageBuffSelf (living Imps + grantImpBuff); packages/core/src/combat/simulate.ts applyAuras (Imp Aura only on from-base bodies); packages/sim/src/reducer.ts settle (playerImpBuffGain baked onto board + hand Imps; Open the Gates Imps enter with impBuff)' },
+    ],
+    contentIds: ['dm_todd', 'impscrap'],
+    currentBehaviour:
+      'Conforms as of 2026-09-30. Until then Todd only raised the Aura (living Imps missed the grant), the settle bumped '
+      + '`impBuff` without paying the Imps you held, and Start of Combat re-added the whole Aura to a board Imp whose '
+      + 'stats already carried it (a 4/4 Imp under a +3/+3 Aura fought as a 7/7).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/toddImpAura.test.ts'], lastVerifiedAt: '2026-09-30' },
+  },
 ];

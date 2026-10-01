@@ -428,6 +428,41 @@ export const FOUNDATION_RULES: GameRule[] = [
     },
   },
   {
+    id: 'R-PRESENT-29',
+    title: 'The FX particle budget holds for effects fired in the same frame, and many-instance loops share one filter pass',
+    statement:
+      'The FX budget counts a def play that has not emitted yet (still inside its ramp: latest burst `at`, emitter '
+      + '`at + life`) at its expected particle load, so several plays fired in the same frame can never all pass the '
+      + 'cap by reading a near-empty pool; a still-ramping play is never trimmed. When trimming older plays cannot make '
+      + 'room, the incoming play spawns THINNED (burst count / emitter rate scaled, never below 35%, nothing else '
+      + 'changed; loops and follows are never thinned) rather than over the cap. The shop has its own ceiling '
+      + '(1,500) and the hand-written sprite particles their own (1,200, oldest first). Persistent loops that many '
+      + 'units wear at once (the milestone badges) draw through one shared filter stack per def, not a full-screen '
+      + 'filter pass per play.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      {
+        kind: 'owner-chat',
+        ref: 'In-game perf monitor report pasted by the owner, 2026-09-30',
+        quote: 'fx:particles PEAKED AT 8,661 during recruit (Shop); fx:tick worst 60.7 ms',
+      },
+      { kind: 'code', ref: 'packages/ui/src/fx/fxBudget.ts admit / rampMsOf / thinDef; packages/ui/src/fx/playDef.ts; packages/ui/src/fx/sharedFilters.ts; packages/ui/src/pixiFx.ts MAX_SPRITE_PARTICLES; packages/ui/src/Game.tsx fxSceneOf' },
+      { kind: 'fix-pr', ref: 'perf/report-2026-09-30' },
+    ],
+    example: 'All seven shop cards are buffed at once: every card still shows its burst, but the shop peaks near 3,250 live particles instead of 6,993. A board of seven 6,000/6,000 minions runs 4 filter passes for its badge glows instead of 112.',
+    currentBehaviour:
+      'Conforms as of 2026-09-30. Before it, admission compared only the live count of the pool (which lags a play fired '
+      + 'this frame), so a 7-wide fan reached 6,993 to 9,317 live particles against a 4,000 cap with nothing culled, '
+      + 'and each milestone-badge loop ran Bloom + Glow on every draining cycle (112 full-screen passes on a full '
+      + 'board).',
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/ui/src/fx/fxBudget.test.ts', 'packages/ui/src/fx/sharedFilters.test.ts'],
+      lastVerifiedAt: '2026-09-30',
+    },
+  },
+  {
     id: 'R-PRESENT-05',
     title: 'The Runeforge rune row never moves when the free re-roll is spent',
     statement:
@@ -677,7 +712,10 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'versioned reference set of ~30 real boards of its wave (two seeded fights each, the board once on each side, '
       + 'both sides fought through the recorded-seat combat side), stored permanently with the board. Its PERCENTILE '
       + '(1-100) is its place among every scored board at the same reference wave (ties half; 72 = stronger than 72%), '
-      + 'derived, never stored. A run\'s strength is a percentile among RUNS: the average of its boards\' percentiles, '
+      + 'derived, never stored. A run\'s strength is a percentile among RUNS: the ROUND-WEIGHTED average of its boards\' '
+      + 'percentiles (rounds 1-5 share 20% of the weight, rounds 6-9 35%, rounds 10+ 45%, split evenly inside a group '
+      + 'over the boards the run has there; a group the run never reached drops out and the rest renormalise, e.g. a run '
+      + 'that ended in round 8 weighs 20/55 and 35/55), rounded half up, '
       + 'ranked against every other run\'s average in the set by the same rule, so 30 means the bottom 30% of runs and '
       + 'each band holds about its nominal share (owner-approved follow-up: averages alone squeezed toward 50). A RATED lobby draws its '
       + 'recorded seats uniformly at random from the runs inside the band of the player\'s medal (Bronze 0-30, Silver '
@@ -686,7 +724,7 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'most 4 seats per player (the player\'s own runs included, under the same cap). A run with no score yet is inside every band. When a '
       + 'band cannot fill the table it widens by 10 on each capped side, step by step (each step logged), before '
       + 'generated seats fill the rest. Practice and the tutorial have no band. The player\'s own game shows '
-      + '"Board strength N" (the run\'s strength) in the Career and Recent Games rows and in Match details (with each '
+      + '"Game strength N" (the display name, owner 2026-09-30: "game strength for the display"; the run\'s strength) in the Career and Recent Games rows and in Match details (with each '
       + 'round\'s board percentile and each opponent seat\'s run strength), frozen at the moment the game ended; a '
       + 'game that was not scored shows nothing.',
     domain: 'foundation',
@@ -722,12 +760,24 @@ export const FOUNDATION_RULES: GameRule[] = [
         ref: 'Owner approval of the suggested fix on PR #1871, relayed by the coordinator, 2026-09-30 (run strength ranked among runs)',
         quote: 'make a RUN\'s strength a true percentile among runs',
       },
-      { kind: 'code', ref: 'packages/sim/src/lobby/boardStrength.ts + strengthBands.ts + strengthReference.v1.json; packages/sim/src/lobby/runLobby.ts createRunLobby (strengthBand); packages/ui/src/boardStrength/ (background scorer); packages/ui/src/opponentPool/poolFetch.ts (band + widening); supabase/migrations/2026-09-30-board-strength.sql' },
+      {
+        kind: 'owner-chat',
+        ref: 'Owner ask relayed verbatim by the coordinator, 2026-09-30 (round weighting)',
+        quote: 'i think we need to weigh the rounds a bit. rounds 1-5 matter much less than 6-9 which matter less than 10+. they are all still important but i wonder if weighing would be better. like 20% ish for 1-5, 35% for 6-9 and 45% for 10+?',
+      },
+      {
+        kind: 'owner-chat',
+        ref: 'Owner ask relayed by the coordinator, 2026-09-30 (display label)',
+        quote: 'game strength for the display',
+      },
+      { kind: 'code', ref: 'packages/sim/src/lobby/boardStrength.ts + strengthBands.ts + strengthReference.v1.json; packages/sim/src/lobby/runLobby.ts createRunLobby (strengthBand); packages/ui/src/boardStrength/ (background scorer); packages/ui/src/opponentPool/poolFetch.ts (band + widening); supabase/migrations/2026-09-30-board-strength.sql + 2026-09-30-weighted-strength.sql (round weights)' },
     ],
     currentBehaviour:
       'Built 2026-09-30. The bands switch on by themselves once the owner has run the SQL and the backfill: before, '
       + 'the RPC takes no band (feature-detected, the band is dropped for the session) and every run is unscored, '
-      + 'so selection is exactly R-LOBBY-08\'s.',
+      + 'so selection is exactly R-LOBBY-08\'s. Round weighting built the same day: new games freeze the weighted '
+      + 'number, numbers already frozen in history stay as they were, and the pool\'s run strengths switch when the '
+      + 'owner runs the weighted-strength SQL (it recomputes every run).',
     enforcement: {
       kind: 'scenario',
       refs: [
@@ -2397,7 +2447,7 @@ export const FOUNDATION_RULES: GameRule[] = [
     statement:
       'In the Collection a HERO skin previews in the in-game portrait ring (the same disc, cover crop and frame as your '
       + 'portrait in a run), never as a bare or offset picture. Hovering a CARD skin (a minion skin, or a spell skin when '
-      + 'there are any), owned or not, on its tile or on the detail panel\x27s art, floats the real in-game card wearing that '
+      + 'there are any), that you OWN (owner 2026-10-01: never an unowned one), on its tile or on the detail panel\x27s art, floats the real in-game card wearing that '
       + 'skin (frame, tier stars, stats, name and text on its plate) beside the tile, never over it, and kept on screen; '
       + 'it is placed once per hover and leaving clears it. Pressing "Use default art" switches the detail preview to the '
       + 'target\x27s DEFAULT art at once (labelled Default art) and keeps that skin selected; once the server answers, its '

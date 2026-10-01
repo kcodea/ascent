@@ -527,10 +527,12 @@ progression **epoch**; nothing finished before the epoch counts (no backfill).
   account-wide in the Collection's Attack Animations tab ("Use Classic" takes it off). The STRIKER's attack plays:
   yours when you win, the opponent's (from their recorded snapshot) when they win. Recorded per run like skins;
   unknown or retired ids play Classic. Presentation only: the same blow, landed once on the impact beat.
-- **Portrait frames (2026-10-01; oracle R-PROG-FRAME-01..03).** A cosmetic ring that replaces the default ring
-  around a player's hero portrait. 13 frames, all from crates at their master folder's rarity: Rare Burnished,
-  Sterling, Gilded, Seaglass; Epic Amethyst, Shard, Prism, Frost, Pearlescent, Crimson; Legendary Fire, Reaper, Water
-  (each "... Frame"; the names avoid the ranked medal words so a crate frame never reads as a Ranked reward).
+- **Portrait frames (2026-10-01; oracle R-PROG-FRAME-01..04).** A cosmetic ring that replaces the default ring
+  around a player's hero portrait. 21 frames, all from crates at the rarity of the folder their master sits in
+  (`Skins/Portraits/<Common|Rare|Epic|Legendary>/`; the folder IS the rarity): Common Honey; Rare Burnished, Sterling,
+  Gilded, Seaglass, Glass Shard, Paragon, Vine; Epic Aura, Amethyst, Shard, Prism, Frost, Pearlescent, Crimson,
+  Nimbus; Legendary Fire, Reaper, Water, Stained Glass, Wind (each "... Frame"; the names avoid the ranked medal
+  words so a crate frame never reads as a Ranked reward).
   Account-wide (any hero): equipped in the Collection's Portrait Frames tab ("Use default frame" takes it off; an
   owned frame previews around your avatar, an unowned one never does). Your portrait wears it on every surface (in a
   run, the frame recorded on that run, like a skin). Recorded per run, so opponents see it on your seat (combat

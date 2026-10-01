@@ -391,20 +391,29 @@ export const COSMETICS: readonly CosmeticDef[] = Object.freeze([
   // PORTRAIT FRAMES (owner 2026-10-01: "we're adding portrait skins: C:\Game Assets\Ascent Art\Skins\Portraits"). Every
   // one drops from crates at its folder's rarity, the rank-named masters included (owner decision 2026-10-01). The NAMES
   // avoid the ranked medal words (the player-text rule below), so a crate frame never reads as a Ranked reward: the
-  // ids keep the masters' names (permanent, never shown).
+  // ids keep the masters' names (permanent, never shown). The masters sit in one sub-folder per RARITY and the folder IS
+  // the rarity (owner 2026-10-01, R-PROG-FRAME-04; portraitFrameRarityFolders.test.ts checks it).
+  portraitFrame('frame_honey', 'Honey Frame', 'common', 'Common/Honey.png'),
   portraitFrame('frame_bronze', 'Burnished Frame', 'rare', 'Rare/BronzeFrame.png'),
   portraitFrame('frame_silver', 'Sterling Frame', 'rare', 'Rare/SilverFrame.png'),
   portraitFrame('frame_gold', 'Gilded Frame', 'rare', 'Rare/GoldFrame.png'),
   portraitFrame('frame_platinum', 'Seaglass Frame', 'rare', 'Rare/PlatinumFrame.png'),
+  portraitFrame('frame_glass_shard', 'Glass Shard Frame', 'rare', 'Rare/GlassShard.png'),
+  portraitFrame('frame_paragon', 'Paragon Frame', 'rare', 'Rare/Paragon.png'),
+  portraitFrame('frame_vines', 'Vine Frame', 'rare', 'Rare/Vines.png'),
+  portraitFrame('frame_aura', 'Aura Frame', 'epic', 'Epic/Aura.png'),
   portraitFrame('frame_ascendant', 'Amethyst Frame', 'epic', 'Epic/Ascendant.png'),
   portraitFrame('frame_dark_diamond', 'Shard Frame', 'epic', 'Epic/DarkDiamond.png'),
   portraitFrame('frame_diamond', 'Prism Frame', 'epic', 'Epic/DiamondFrame.png'),
   portraitFrame('frame_ice', 'Frost Frame', 'epic', 'Epic/Ice.png'),
   portraitFrame('frame_pearlescent', 'Pearlescent Frame', 'epic', 'Epic/Pearlescent.png'),
   portraitFrame('frame_rank1', 'Crimson Frame', 'epic', 'Epic/Rank1Frame.png'),
+  portraitFrame('frame_nimbus', 'Nimbus Frame', 'epic', 'Epic/Nimbus.png'),
   portraitFrame('frame_fire', 'Fire Frame', 'legendary', 'Legendary/Fire.png'),
   portraitFrame('frame_reaper', 'Reaper Frame', 'legendary', 'Legendary/Reaper.png'),
   portraitFrame('frame_water', 'Water Frame', 'legendary', 'Legendary/Water.png'),
+  portraitFrame('frame_stained_glass', 'Stained Glass Frame', 'legendary', 'Legendary/StainedGlass.png'),
+  portraitFrame('frame_wind', 'Wind Frame', 'legendary', 'Legendary/WindPortrait.png'),
   // HERO TITLES (owner 2026-09-29), 33 heroes x (title + golden master). Achievement rewards, never in a crate.
   ...HERO_TITLE_COSMETICS,
 ]);

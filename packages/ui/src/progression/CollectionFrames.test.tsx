@@ -65,10 +65,10 @@ describe('the Portrait Frames tab', () => {
     expect(tab('Portrait Frames')!.className).not.toMatch(/\blocked\b/);
     expect(tab('Portrait Frames')!.querySelector('.colls-tab-count')?.textContent).toBe(`2/${FRAMES.length}`);
     const tiles = $$('.colls-grid .colls-tile');
-    expect(tiles).toHaveLength(13);
+    expect(tiles).toHaveLength(21);
     expect(tiles.every((t) => t.className.includes('ring') && !!t.querySelector('img.colls-tile-art'))).toBe(true);
-    // rarest first: the three Legendary frames lead
-    expect(tiles.slice(0, 3).map((t) => t.querySelector('.colls-tile-name')?.textContent)).toEqual(['Fire Frame', 'Reaper Frame', 'Water Frame']);
+    // rarest first: the five Legendary frames lead
+    expect(tiles.slice(0, 5).map((t) => t.querySelector('.colls-tile-name')?.textContent)).toEqual(['Fire Frame', 'Reaper Frame', 'Water Frame', 'Stained Glass Frame', 'Wind Frame']);
     expect(tile('Reaper Frame').className).toMatch(/\bmissing\b/);
     expect(tile('Reaper Frame').querySelector('.colls-tile-lock')).not.toBeNull();
     expect(tile('Fire Frame').className).toMatch(/\bowned\b/);
@@ -128,7 +128,7 @@ describe('the Portrait Frames tab', () => {
     applyServerCatalogState({ retiredIds: ['frame_fire'], disabledCategories: [] }, false);
     open();
     act(() => tab('Portrait Frames')!.click());
-    expect($$('.colls-grid .colls-tile')).toHaveLength(12);
+    expect($$('.colls-grid .colls-tile')).toHaveLength(FRAMES.length - 1);
     ui?.unmount(); ui = null;
     applyServerCatalogState({ retiredIds: [], disabledCategories: ['portrait_frame'] }, false);
     open();

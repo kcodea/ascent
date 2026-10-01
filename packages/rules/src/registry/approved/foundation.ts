@@ -3863,12 +3863,13 @@ export const FOUNDATION_RULES: GameRule[] = [
   },
   {
     id: 'R-PROG-FRAME-01',
-    title: 'Portrait frames are a crate cosmetic: 13 frames (4 Rare, 6 Epic, 3 Legendary, the rank-named masters included) in the account-wide portrait_frame slot; names avoid the ranked medal words',
+    title: 'Portrait frames are a crate cosmetic: 21 frames (1 Common, 7 Rare, 8 Epic, 5 Legendary, the rank-named masters included) in the account-wide portrait_frame slot; names avoid the ranked medal words',
     statement:
-      'The portrait_frame category ("Portrait Frames", target global, enabled) holds 13 crate items, one per master in '
-      + 'C:/Game Assets/Ascent Art/Skins/Portraits at its folder rarity: Rare Burnished, Sterling, Gilded, Seaglass; Epic '
-      + 'Amethyst, Shard, Prism, Frost, Pearlescent, Crimson; Legendary Fire, Reaper, Water (each "<name> Frame"; ids keep '
-      + 'the master names, e.g. frame_gold, frame_rank1). Every one is in the crate pool at the fixed rarity odds, equal '
+      'The portrait_frame category ("Portrait Frames", target global, enabled) holds 21 crate items, one per master in '
+      + 'C:/Game Assets/Ascent Art/Skins/Portraits at its folder rarity (R-PROG-FRAME-04): Common Honey; Rare Burnished, '
+      + 'Sterling, Gilded, Seaglass, Glass Shard, Paragon, Vine; Epic Aura, Amethyst, Shard, Prism, Frost, Pearlescent, '
+      + 'Crimson, Nimbus; Legendary Fire, Reaper, Water, Stained Glass, Wind (each "<name> Frame"; ids keep the master '
+      + 'names, e.g. frame_gold, frame_rank1, frame_wind). Every one is in the crate pool at the fixed rarity odds, equal '
       + 'chance within a rarity. A frame is ACCOUNT-WIDE: equip_cosmetic(user, \x27portrait_frame\x27, \x27\x27, id) wears an '
       + 'owned, live frame (one cosmetic_loadouts row, target \x27\x27); null takes it off (the default ring). The display names '
       + 'avoid the medal words (Bronze, Silver, Gold, Platinum, Diamond, Ascendant) so a crate frame never reads as a Ranked reward.',
@@ -3918,5 +3919,24 @@ export const FOUNDATION_RULES: GameRule[] = [
     ],
     currentBehaviour: 'Conforms, built 2026-10-01.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/progression/CollectionFrames.test.tsx'], lastVerifiedAt: '2026-10-01' },
+  },
+  {
+    id: 'R-PROG-FRAME-04',
+    title: 'A portrait frame\x27s rarity is the rarity FOLDER its master sits in; every master in those folders is wired',
+    statement:
+      'Portrait frame masters live in C:/Game Assets/Ascent Art/Skins/Portraits/<Rarity>/ (Common, Rare, Epic, Legendary). '
+      + 'The folder is the frame\x27s rarity: every frame\x27s assets.master in packages/progression/src/cosmetics.ts names '
+      + 'its folder, and its catalog rarity equals that folder. npm run art:frames reads the master at that path. Where the '
+      + 'art folder exists (the owner\x27s machine; CI skips this half) each master must sit in exactly one rarity folder '
+      + 'and every PNG in the four folders must be wired. On 2026-10-01 the folders held 21 frames (1 Common, 7 Rare, 8 '
+      + 'Epic, 5 Legendary); the first 13 already matched their folders, and 8 were added at their folder rarity.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-01 (portrait frames batch 2)', quote: 'i added a bunch of art/portrait arts etc, can you make sure all get added' },
+      { kind: 'code', ref: 'packages/progression/src/cosmetics.ts (portraitFrame items); packages/tools/src/wire-portrait-frames.ts' },
+    ],
+    currentBehaviour: 'Conforms, built 2026-10-01. Reaches the database on the next deploy of progression-inventory (the catalog sync).',
+    enforcement: { kind: 'scenario', refs: ['packages/progression/src/portraitFrameRarityFolders.test.ts', 'packages/progression/src/portraitFrames.test.ts', 'packages/progression/src/cosmetics.test.ts'], lastVerifiedAt: '2026-10-01' },
   },
 ];

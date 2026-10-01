@@ -60,9 +60,9 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
-        text: 'Portrait frames: 13 new rings for your hero portrait, found in crates. Equip one in the Collection and every player you meet sees it.',
+        text: 'Portrait frames: 21 new rings for your hero portrait, found in crates. Equip one in the Collection and every player you meet sees it.',
         details: [
-          'Four Rare, six Epic and three Legendary frames.',
+          'One Common, seven Rare, eight Epic and five Legendary frames, from Honey and Vine to Stained Glass and Wind.',
           'A new Portrait Frames tab in the Collection. Use default frame puts the usual ring back.',
           'Turn off Show opponent cosmetics to see every opponent in the usual ring.',
         ],

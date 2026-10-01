@@ -5,6 +5,12 @@
     "holeCx": 0.4997,
     "holeCy": 0.4892
   },
+  "frame_aura": {
+    "aspect": 1,
+    "holeD": 0.7744,
+    "holeCx": 0.5013,
+    "holeCy": 0.4933
+  },
   "frame_bronze": {
     "aspect": 1,
     "holeD": 0.8405,
@@ -29,17 +35,41 @@
     "holeCx": 0.4947,
     "holeCy": 0.4717
   },
+  "frame_glass_shard": {
+    "aspect": 1,
+    "holeD": 0.6539,
+    "holeCx": 0.5003,
+    "holeCy": 0.4715
+  },
   "frame_gold": {
     "aspect": 1,
     "holeD": 0.8381,
     "holeCx": 0.4948,
     "holeCy": 0.4869
   },
+  "frame_honey": {
+    "aspect": 1.0324,
+    "holeD": 0.859,
+    "holeCx": 0.5019,
+    "holeCy": 0.4783
+  },
   "frame_ice": {
     "aspect": 1,
     "holeD": 0.8349,
     "holeCx": 0.4981,
     "holeCy": 0.4826
+  },
+  "frame_nimbus": {
+    "aspect": 1,
+    "holeD": 0.764,
+    "holeCx": 0.5017,
+    "holeCy": 0.5005
+  },
+  "frame_paragon": {
+    "aspect": 1,
+    "holeD": 0.732,
+    "holeCx": 0.4972,
+    "holeCy": 0.4539
   },
   "frame_pearlescent": {
     "aspect": 1,
@@ -71,10 +101,28 @@
     "holeCx": 0.4952,
     "holeCy": 0.4874
   },
+  "frame_stained_glass": {
+    "aspect": 1,
+    "holeD": 0.7058,
+    "holeCx": 0.4981,
+    "holeCy": 0.4709
+  },
+  "frame_vines": {
+    "aspect": 1,
+    "holeD": 0.7687,
+    "holeCx": 0.5117,
+    "holeCy": 0.4737
+  },
   "frame_water": {
     "aspect": 1,
     "holeD": 0.7712,
     "holeCx": 0.5007,
     "holeCy": 0.4811
+  },
+  "frame_wind": {
+    "aspect": 1,
+    "holeD": 0.6818,
+    "holeCx": 0.5,
+    "holeCy": 0.4826
   }
 }

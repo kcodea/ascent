@@ -21,10 +21,18 @@
  */
 import { createContext, useContext } from 'react';
 import { heroSkinOf, minionSkinOf, catalogStateEpoch, type CosmeticDef, type RunCosmeticSnapshot } from '@game/progression';
-import { heroArt, skinArt } from '../art';
+import { artFor, heroArt, skinArt } from '../art';
 
 /** A skin's art url, or undefined when its file is missing (the caller falls back to default art). */
 export const skinArtOf = (def: CosmeticDef | null | undefined): string | undefined => (def ? skinArt(def.assets.art) : undefined);
+
+/** What a skin's target looks like WITHOUT any skin (the Collection's "Use default art" view, owner 2026-09-30):
+ *  the hero's own portrait art, or the card's own art. Undefined for a non-skin or a missing file. */
+export const defaultArtOf = (def: CosmeticDef | null | undefined): string | undefined => {
+  const t = def?.target;
+  if (!t) return undefined;
+  return t.type === 'hero' ? heroArt(t.id) : artFor(t.id);
+};
 
 /** A hero's portrait under a snapshot: the live skin's art, else the hero's own art. */
 export function heroPortrait(heroId: string | null | undefined, snapshot: RunCosmeticSnapshot | null | undefined): string | undefined {

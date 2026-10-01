@@ -365,6 +365,9 @@ progression **epoch**; nothing finished before the epoch counts (no backfill).
   lobby seat built from a recorded run copies its owner's (`LobbySeatState.cosmetics`). So opponents, replays and
   history show the skins worn in **that** run, never anyone's current loadout; any payload from before skins is
   default art.
+  **Collection previews (2026-09-30; oracle R-PROG-COLLECTION-04):** a hero skin previews in the in-game portrait
+  ring; hovering a minion skin (owned or not) floats the real in-game card wearing it; "Use default art" switches the
+  preview to the default art at once and keeps that skin selected, with Equip to put it back on.
 - **The damage formation (2026-09-28; oracle R-PROG-ATTACK-08).** Before EVERY hero attack (Classic and every cosmetic,
   one shared implementation), the blow builds on screen from the engine's own numbers: each surviving minion of the
   striking side pulses its tier badge left to right as its tier number pops up; the numbers flow toward the middle and

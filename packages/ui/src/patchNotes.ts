@@ -59,6 +59,11 @@ export const PATCH_NOTES: PatchNote[] = [
     date: '2026-09-30',
     changes: [
       {
+        category: 'Balance',
+        text: 'Impossible Todd now buffs your Imps everywhere. Imps already in the fight get +2/+1 the moment he triggers, and the Imps on your board and in your hand keep it after combat.',
+        details: ['An Imp on your board no longer gets the Imp bonus counted twice when a fight starts.'],
+      },
+      {
         category: 'Systems',
         text: '12 new skins in crates: the first Indy hero skin, and 11 minion skins, including three for Nimbus.',
       },

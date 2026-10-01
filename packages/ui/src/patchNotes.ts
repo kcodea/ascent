@@ -128,6 +128,10 @@ export const PATCH_NOTES: PatchNote[] = [
           'The ball always gets there before your hero, and the slam is one smooth flight into the explosion.',
         ],
       },
+      {
+        category: 'Systems',
+        text: 'Card art that fails to load on a bad connection now tries again by itself, instead of leaving a blank card.',
+      },
     ],
   },
   {

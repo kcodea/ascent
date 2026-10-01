@@ -1,5 +1,5 @@
-import { useCallback, useRef, useState, useSyncExternalStore } from 'react';
-import { createAssetQueue, type AssetQueue, type Lane } from './assetQueue';
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
+import { createAssetQueue, type AssetQueue, type Attempt, type Lane } from './assetQueue';
 
 /**
  * ART PRELOAD — the image flavour of the asset queue (owner report 2026-09-29: "a lot of pop in when i watch my
@@ -21,33 +21,110 @@ import { createAssetQueue, type AssetQueue, type Lane } from './assetQueue';
  * keeps decoding behind it in the `idle` lane. The old `idle` lane only FETCHED (no decode, no held Image) to
  * save ~250 MB of renderer memory; the owner chose zero pop-in over that saving, and the cost is measured in
  * docs/devlog/2026-09-30-art-loading-gate.md. The placeholder above stays as a safety net only.
+ *
+ * FAILED LOADS RETRY (owner report 2026-09-30: a friend's round-12 shop showed six blank ovals and an empty spell
+ * frame, "why did this happen?"). An image request that fails (a network hiccup, a dropped connection, a timeout)
+ * used to be final: the old build never asked again, and the pipe above settled the URL as "ready" so the card
+ * painted its broken <img> (a blank oval) for the rest of the session. Now a failed decode RETRIES through the
+ * same pipe after 1 s, 3 s and 8 s (the same URL, so a copy that reached the cache elsewhere is used; only the last
+ * try adds a cache-busting query). An on-screen <img> that errors reports it (`queue.fail`), shows the dark
+ * placeholder, and re-sets its src once the pipe has the image. After the last try the URL is FAILED: the card
+ * keeps the placeholder (never a blank), and the network coming back (`online`) or the tab being shown again
+ * re-queues every failed URL. Nothing here ever blocks play: a failed URL is `settled` for the loading gate.
  */
 
-const queue: AssetQueue = createAssetQueue(6);
+/** Backoff before each retry of a failed art load (ms): 4 tries in all, about 12 s end to end. */
+export const ART_RETRY_DELAYS: readonly number[] = [1000, 3000, 8000];
+
+const queue: AssetQueue = createAssetQueue(6, {
+  onGiveUp: (url, attempts) => {
+    // No asset telemetry channel exists; the console line lands in a pasted bug report, the counter in stats.
+    console.warn(`[art] gave up loading ${url} after ${attempts} attempts; showing the placeholder until the network returns`);
+  },
+});
 const KEEP = new Map<string, HTMLImageElement>();
-/** decode() can stall in a backgrounded / throttled tab. Never let one hold a lane (or a card hidden) forever. */
+/** The URL that actually decoded, when it was the cache-busted last try (an on-screen <img> reloads from it). */
+const LOADED_AS = new Map<string, string>();
+/** decode() can stall in a backgrounded / throttled tab, or a request can hang. Treated as a failed try. */
 const DECODE_TIMEOUT_MS = 15000;
 
-/** Fetch + decode, and hold the Image for the session. Settles on success, failure or timeout alike: a missing
- *  or broken file must never keep a card hidden (the card then shows whatever the <img> itself manages). */
-function decodeImage(url: string): Promise<void> {
+/** The last try's URL: the same file with a query the browser cache has never seen. Not for data: / blob: URLs. */
+export function cacheBust(url: string, attempt: number): string {
+  if (/^(data|blob):/i.test(url)) return url;
+  return `${url}${url.includes('?') ? '&' : '?'}retry=${attempt}-${Date.now().toString(36)}`;
+}
+
+/** Fetch + decode, and hold the Image for the session. REJECTS on a failed load or a timeout so the pipe retries. */
+function decodeImage(url: string, attempt: number, last: boolean): Promise<void> {
   if (typeof Image === 'undefined') return Promise.resolve();
-  return new Promise<void>((resolve) => {
+  const src = last && attempt > 0 ? cacheBust(url, attempt) : url;
+  return new Promise<void>((resolve, reject) => {
     const img = new Image();
     img.decoding = 'async';
-    const timer = setTimeout(resolve, DECODE_TIMEOUT_MS);
-    const end = (): void => { clearTimeout(timer); resolve(); };
-    KEEP.set(url, img);
-    img.src = url;
-    img.decode().then(end, end);
+    const timer = setTimeout(() => reject(new Error('timeout')), DECODE_TIMEOUT_MS);
+    img.src = src;
+    img.decode().then(() => {
+      clearTimeout(timer);
+      KEEP.set(url, img);
+      if (src !== url) LOADED_AS.set(url, src);
+      resolve();
+    }, (err: unknown) => { clearTimeout(timer); reject(err); });
   });
 }
 
 /** Queue `url` (or raise it to `lane`). Cheap to call repeatedly: a known URL is a Map lookup. The queue key is
- *  the URL itself, so `queue.ready(url)` means fetched AND decoded (or failed: a broken file never holds a card). */
+ *  the URL itself, so `queue.ready(url)` means fetched AND decoded; a failure retries (ART_RETRY_DELAYS). */
 export function requestArt(url: string | undefined, lane: Lane): void {
   if (!url) return;
-  queue.request(url, lane, () => decodeImage(url));
+  queue.request(url, lane, artTask(url), { retryDelays: ART_RETRY_DELAYS });
+}
+
+const artTask = (url: string) => (_lane: Lane, { attempt, last }: Attempt): Promise<void> => decodeImage(url, attempt, last);
+
+/** An on-screen <img> for `url` errored: the pipe fetches it again (backoff + cap) if it thought it was ready. */
+export function reportArtError(url: string | undefined): void {
+  if (url) queue.fail(url, artTask(url), { retryDelays: ART_RETRY_DELAYS, lane: 'now' });
+}
+
+/** Re-queue every art URL that failed or is backing off (the network came back, or the tab is visible again). */
+export function retryFailedArt(): number {
+  return queue.retryFailed();
+}
+
+/** <img>s wired through `useArtFade` (cards, frames, plates, FadeImg). They handle their own errors. */
+const MANAGED = new WeakSet<HTMLImageElement>();
+
+/**
+ * THE SAFETY NET for every OTHER <img> in the game (an icon, a button, the title logo): one capture-phase `error`
+ * listener on the document. The failed element hides (`.img-retrying`, never a broken image), its URL goes through
+ * the same pipe with the same backoff and cap, and once the pipe has it the element re-sets its src. Nothing runs
+ * unless an image actually fails.
+ */
+function onAnyImgError(ev: Event): void {
+  const el = ev.target;
+  if (typeof HTMLImageElement === 'undefined' || !(el instanceof HTMLImageElement) || MANAGED.has(el)) return;
+  const src = el.getAttribute('src');
+  if (!src || /^(data|blob):/i.test(src)) return;
+  el.classList.add('img-retrying');
+  requestArt(src, 'now');
+  reportArtError(src);
+  const off = queue.subscribe(src, () => {
+    if (!queue.ready(src)) return; // failed for good: stays hidden until the network returns
+    off();
+    if (el.getAttribute('src') !== src) return; // React moved it on to another image
+    el.src = LOADED_AS.get(src) ?? src;
+  });
+}
+function onAnyImgLoad(ev: Event): void {
+  const el = ev.target;
+  if (typeof HTMLImageElement !== 'undefined' && el instanceof HTMLImageElement && !MANAGED.has(el)) el.classList.remove('img-retrying');
+}
+
+if (typeof window !== 'undefined' && typeof document !== 'undefined' && typeof window.addEventListener === 'function') {
+  window.addEventListener('online', () => { retryFailedArt(); });
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') retryFailedArt(); });
+  document.addEventListener('error', onAnyImgError, true);
+  document.addEventListener('load', onAnyImgLoad, true);
 }
 
 /** Queue a list, in order, all in one lane. */
@@ -62,6 +139,8 @@ export function requestAssetTask(key: string, lane: Lane, task: () => Promise<un
 }
 
 export const artReady = (url: string | undefined): boolean => !url || queue.ready(url);
+/** The URL gave up (every retry failed): it shows the placeholder until `retryFailedArt`. */
+export const artFailed = (url: string | undefined): boolean => !!url && queue.failed(url);
 
 /** An on-screen <img> finished loading + decoding before the queue got to it: mark it ready. */
 export function markArtReady(url: string | undefined): void {
@@ -71,7 +150,9 @@ export function markArtReady(url: string | undefined): void {
 const noop = (): void => {};
 /**
  * True when `url` is fetched + decoded (or absent). A pending URL is raised to the `now` lane on the first
- * render that asks — whatever a player can see is always the next thing the pipe fetches.
+ * render that asks — whatever a player can see is always the next thing the pipe fetches. The subscription is
+ * live for the component's life, so a URL that flips back to pending (an on-screen error) and then loads on a
+ * retry re-renders the card both times.
  */
 export function useArtReady(url: string | undefined): boolean {
   const subscribe = useCallback((cb: () => void) => (url ? queue.subscribe(url, cb) : noop), [url]);
@@ -85,8 +166,8 @@ export function useArtReady(url: string | undefined): boolean {
 }
 
 /**
- * Resolve once every URL in `urls` is ready (decoded, or failed / timed out: `decodeImage` settles every case, so
- * this always resolves). `onProgress(done, total)` is called once up front and after each settle. A URL not yet
+ * Resolve once every URL in `urls` is SETTLED (decoded, or failed after every retry: the pipe gives up after
+ * ART_RETRY_DELAYS, so this always resolves). `onProgress(done, total)` is called once up front and after each settle. A URL not yet
  * queued is requested in the `set` lane (a URL already queued keeps its lane: never demoted), so the promise can
  * never wait on a key nobody asked for. Used by the boot LOADING GATE (Boot.tsx).
  */
@@ -104,8 +185,15 @@ export function whenArtReady(urls: readonly string[], onProgress?: (done: number
     if (total === 0) { resolve(); return; }
     for (const u of unique) {
       requestArt(u, 'set');
-      if (queue.ready(u)) queueMicrotask(tick);
-      else queue.subscribe(u, tick);
+      if (queue.settled(u)) { queueMicrotask(tick); continue; }
+      let off: (() => void) | null = null;
+      let ticked = false;
+      off = queue.subscribe(u, () => {
+        if (ticked || !queue.settled(u)) return;
+        ticked = true;
+        off?.();
+        tick();
+      });
     }
   });
 }
@@ -136,6 +224,10 @@ export const artQueueStats = (): ReturnType<AssetQueue['stats']> => queue.stats(
  *      (`decoding="sync"` makes the paint wait for the decode rather than skip the image).
  * Local-only React state; the ref callback's state update is flushed synchronously in the same commit, so the
  * blank element never reaches a paint.
+ *
+ * An ELEMENT that errors is never painted broken (retry fix 2026-09-30): it hides over the placeholder, tells the
+ * pipe (`queue.fail`, which re-fetches the URL through the same ordered, capped queue with backoff), and once the
+ * pipe has the image re-sets its own src so it reloads from the cache. A URL that gave up keeps the placeholder.
  */
 export function useArtFade(url: string | undefined): {
   cls: string;
@@ -146,13 +238,28 @@ export function useArtFade(url: string | undefined): {
 } {
   const ready = useArtReady(url);
   const [elWait, setElWait] = useState<string | undefined>(undefined);
+  /** The URL this element failed to load: hidden over the placeholder until the pipe has it again. */
+  const [elFailed, setElFailed] = useState<string | undefined>(undefined);
   const seenPending = useRef<string | undefined>(undefined);
+  const elRef = useRef<HTMLImageElement | null>(null);
   const ref = useCallback((el: HTMLImageElement | null) => {
+    elRef.current = el;
+    if (el) MANAGED.add(el);
     if (el && url && !el.complete) setElWait(url);
   }, [url]);
-  // `loading`: the URL itself is not decoded yet (the only case that shows the dark art placeholder and fades).
-  // `hidden`: also covers the few-ms element re-check below, which just stays invisible and then appears.
-  const loading = !!url && !ready;
+  // The pipe has the image again after this element errored: reload the element from it (same URL, so the cache
+  // answers; or the cache-busted URL the last try used). Stays hidden until its own load event.
+  useEffect(() => {
+    const el = elRef.current;
+    if (!url || !ready || elFailed !== url || !el) return;
+    setElWait(url);
+    setElFailed(undefined);
+    el.src = LOADED_AS.get(url) ?? url;
+  }, [url, ready, elFailed]);
+  // `loading`: the URL itself is not decoded yet, or this element errored (both show the dark art placeholder,
+  // and fade in when the art lands). `hidden`: also covers the few-ms element re-check below, which just stays
+  // invisible and then appears.
+  const loading = !!url && (!ready || elFailed === url);
   const hidden = loading || (!!url && elWait === url);
   // FADE ONLY ART THAT WAS GENUINELY NOT LOADED (owner 2026-09-30: "a ton of that fading pop in on my local
   // server"). A new <img> for a URL we already decoded can still read `complete === false` for a moment (the dev
@@ -171,6 +278,12 @@ export function useArtFade(url: string | undefined): {
       if (typeof img.decode === 'function') img.decode().then(settle, settle);
       else settle();
     },
-    onError: settle,
+    // NEVER mark a broken element ready (that was the blank oval): hide it, and have the pipe fetch the URL again.
+    onError: () => {
+      if (!url) return;
+      setElWait(undefined);
+      setElFailed(url);
+      reportArtError(url);
+    },
   };
 }

@@ -210,6 +210,13 @@ const ICONS: Record<string, ReactNode> = {
       <circle cx="15.3" cy="5.5" r="2.2" fill="none" stroke="currentColor" strokeWidth="2" />
     </>
   ),
+  // Locked — a padlock (shackle + body), for a Gauntlet stage whose predecessor is uncleared.
+  lock: (
+    <>
+      <path fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" d="M7.5 10.5V8a4.5 4.5 0 019 0v2.5" />
+      <rect x="4.8" y="10.4" width="14.4" height="10.4" rx="2" fill="currentColor" />
+    </>
+  ),
 };
 
 export function Icon({ name }: { name: string }) {

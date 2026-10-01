@@ -491,16 +491,34 @@ export type CrateState = 'sealed' | 'opened';
 
 export interface CrateRow {
   crateId: string;
-  /** The level that earned it (1 = the Welcome Crate). */
-  earnedLevel: number;
+  /** The level that earned it (1 = the Welcome Crate). Null for a crate that came from a `source` instead. */
+  earnedLevel: number | null;
   state: CrateState;
   rewardId: string | null;
   earnedAt: string | null;
   openedAt: string | null;
+  /** Where a non-level crate came from (2026-09-29): `gauntlet:<stage>` for a first Gauntlet clear. Absent on a
+   *  level crate (the SQL sends null; `parseCrate` drops it so level crates keep their exact shape). */
+  source?: string;
 }
 
-/** A crate's player-facing name. */
+/** A level crate's player-facing name. */
 export const crateName = (earnedLevel: number): string => (earnedLevel <= 1 ? 'Welcome Crate' : `Level ${earnedLevel} Crate`);
+
+const GAUNTLET_SOURCE = /^gauntlet:(10|[1-9])$/;
+
+/** The Gauntlet stage a crate `source` names (`gauntlet:<n>`), or null. */
+export function gauntletStageOfSource(source: string | null | undefined): number | null {
+  const m = typeof source === 'string' ? GAUNTLET_SOURCE.exec(source) : null;
+  return m ? Number(m[1]) : null;
+}
+
+/** Any crate's player-facing name: a level crate keeps its `crateName`, a Gauntlet crate names its stage. */
+export function crateLabel(crate: { earnedLevel: number | null; source?: string | null }): string {
+  const stage = gauntletStageOfSource(crate.source);
+  if (crate.earnedLevel === null && stage !== null) return `Gauntlet Crate · Stage ${stage}`;
+  return crateName(crate.earnedLevel ?? 1);
+}
 
 export type OpenCrateStatus = 'opened' | 'already_opened' | 'pool_exhausted';
 
@@ -523,13 +541,18 @@ export function parseCrate(v: unknown): CrateRow | null {
   const crateId = str(o.crateId ?? o.crate_id);
   const earnedLevel = int(o.earnedLevel ?? o.earned_level);
   const state = o.state;
-  if (!crateId || earnedLevel === null || earnedLevel < 1 || (state !== 'sealed' && state !== 'opened')) return null;
-  return {
+  const source = str(o.source);
+  // A level crate needs a level >= 1; a crate without one must name a known source (a Gauntlet stage).
+  const levelOk = earnedLevel === null ? gauntletStageOfSource(source) !== null : earnedLevel >= 1;
+  if (!crateId || !levelOk || (state !== 'sealed' && state !== 'opened')) return null;
+  const row: CrateRow = {
     crateId, earnedLevel, state,
     rewardId: str(o.rewardId ?? o.reward_cosmetic_id),
     earnedAt: str(o.earnedAt ?? o.earned_at),
     openedAt: str(o.openedAt ?? o.opened_at),
   };
+  if (source) row.source = source;
+  return row;
 }
 
 export function parseOpenCrateResult(v: unknown): OpenCrateResult | null {

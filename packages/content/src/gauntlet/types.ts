@@ -32,6 +32,8 @@ export interface GauntletStage {
   name: string;
   /** Shown on the in-run opponent portrait. */
   opponentName: string;
+  /** The card whose art is the opponent's portrait (shop foe, combat, recap, "Now Facing"). Absent = the tribe emblem. */
+  portraitCardId?: string;
   tribe?: Exclude<Tribe, 'neutral'>;
   status: GauntletStageStatus;
   runes: { round6?: string; round9?: string };

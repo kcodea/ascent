@@ -16,6 +16,7 @@ import {
   type MusicStateLike,
 } from './music';
 import { __resetMasterForTests, setMasterVolume, toggleMasterMute } from './audio/master';
+import { isAnnouncerWanted, isGauntletAnnouncer } from './announcer';
 
 class StubAudio implements MusicElement {
   preload = 'none';
@@ -101,6 +102,16 @@ describe('the gate: only a lobby-mode run on screen', () => {
   it('wants music for a lobby run and a Practice run', () => {
     expect(isMusicWanted(state({ mode: 'lobby' }))).toBe(true);
     expect(isMusicWanted(state({ mode: 'practice' }))).toBe(true);
+  });
+  it('wants music and the announcer for a Gauntlet run (owner 2026-09-30: its round call; every other line stays out)', () => {
+    expect(isMusicWanted(state({ mode: 'gauntlet' }))).toBe(true);
+    expect(isAnnouncerWanted(state({ mode: 'gauntlet' }))).toBe(true);
+    expect(isGauntletAnnouncer(state({ mode: 'gauntlet' }))).toBe(true);
+    expect(isGauntletAnnouncer(state({ mode: 'lobby' }))).toBe(false);
+    // The announcer's gate is otherwise the music's.
+    expect(isAnnouncerWanted(state({ mode: 'lobby' }))).toBe(true);
+    expect(isAnnouncerWanted(state({ mode: 'practice' }))).toBe(true);
+    expect(isAnnouncerWanted(state({ mode: 'lobby', showTitle: true }))).toBe(false);
   });
   it('never on the title, the hero picker, the Practice setup, a replay, a tutorial, a sandbox rig or a non-lobby mode', () => {
     expect(isMusicWanted(state({ showTitle: true }))).toBe(false);

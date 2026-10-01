@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { achievementOf, crateName, isMasterTitle, titleName } from '@game/progression';
+import { achievementOf, crateLabel, isMasterTitle, titleName } from '@game/progression';
 import { TitleBadge } from '../titles/TitleBadge';
 import { useGame } from '../store';
 import { sfx } from '../sfx';
@@ -110,7 +110,7 @@ export function NewRewardsPopup({ sealedIds, onOpenCrates }: {
             <span className="acctxp-crates-icon" aria-hidden />
             <div className="nrw-cratetext">
               <div className="nrw-kicker">{crates.length === 1 ? 'Crate earned' : `${crates.length} crates earned`}</div>
-              <div className="nrw-note">{crates.map((c) => crateName(c.earnedLevel)).join(', ')}</div>
+              <div className="nrw-note">{crates.map((c) => crateLabel(c)).join(', ')}</div>
             </div>
             <div className="nrw-crate-actions">
               <button type="button" className="crate-btn pressable" onClick={() => openCrates(false)}>Open</button>

@@ -236,7 +236,22 @@
 .colls-skinart { position: relative; align-self: center; overflow: hidden; border: 2px solid color-mix(in srgb, var(--rc) 72%, #000);
   box-shadow: 0 0 0 1px rgba(232, 200, 119, 0.25), 0 12px 28px -14px #000; }
 .colls-skinart.minion { width: 220px; height: 220px; border-radius: 14px; }
-.colls-skinart.hero { width: 220px; height: 220px; border-radius: 50%; }
+/* A HERO skin previews in the in-game portrait ring (owner 2026-09-30: "for heroes the preview image is off"):
+   `HeroPortraitRing` re-seats StatusBar's `.hero > .f > img.heroimg` disc in the gold ring, so the crop and the frame
+   are the game's own rules; this only sizes it. */
+.colls-heropreview { position: relative; align-self: center; display: grid; place-items: center; }
+.colls-heroring { --ring: 220px; }
+.colls-detail.missing .colls-heroring .heroimg { filter: blur(8px) saturate(0.35) brightness(0.5); transform: scale(1.08); }
+/* "Default art" label on a preview after "Use default art" (static). */
+.colls-default-tag { position: absolute; left: 50%; bottom: 4px; z-index: 3; transform: translateX(-50%); white-space: nowrap; padding: 4px 12px 3px; border-radius: 999px;
+  font-family: var(--font-ui); font-weight: 900; font-size: 12px; letter-spacing: 0.14em; text-transform: uppercase;
+  color: #f4dc9c; background: rgba(6, 10, 20, 0.88); border: 1.5px solid rgba(232, 200, 119, 0.6); box-shadow: 0 2px 8px -2px #000; }
+/* The floating in-game CARD preview of a card skin (owner 2026-09-30), portalled to the stage, placed once on
+   hover. Its card size comes from the inline --ch / --cw / --ccw. Never takes the pointer; the entrance is a
+   one-shot opacity/transform fade. */
+.colls-cardpreview { position: fixed; z-index: 700; pointer-events: none; animation: colls-cardin 0.12s ease-out both; }
+.colls-cardpreview .card { box-shadow: 0 3px 0 var(--shadow), 0 18px 40px -12px rgba(0, 0, 0, 0.8); }
+@keyframes colls-cardin { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
 /* The art IS the preview: a skin's nameplate drops the title plate's tall min-height so Equip stays in view. */
 .colls-detail.skin .colls-plate { flex: 0 0 auto; min-height: 0; padding: 14px 14px 12px; }
 .colls-detail.skin .colls-plate-name { font-size: 30px; }

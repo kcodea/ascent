@@ -18,6 +18,12 @@ export interface HeroDuelConfig {
   oppScale: number;
   oppX: number;
   oppY: number;
+  /** GAUNTLET SHOP FOE (owner ask 2026-09-30) — the combat portrait's twin floating on the shop's right edge.
+   *  Size is a multiplier ON the combat portrait's (1 = identical); X/Y are reference px (× --scale) off its
+   *  right-edge / vertical-centre anchor (+X = right, +Y = down). */
+  gfoeScale: number;
+  gfoeX: number;
+  gfoeY: number;
   /** The foe's NAME plate — sits above the portrait. Scale + px offsets. */
   nameScale: number;
   nameX: number;
@@ -93,6 +99,9 @@ const DEFAULTS: HeroDuelConfig = {
   oppScale: 2.4,
   oppX: 176,
   oppY: 41,
+  gfoeScale: 1,
+  gfoeX: 0,
+  gfoeY: 0,
   // name/hp/pill/rune offsets are now REFERENCE px (× --scale in styles.css) so the whole opponent panel stays
   // pinned to the board at any screen size (owner report 2026-08-29: runes read "off" on a friend's screen).
   nameScale: 0.65,
@@ -148,6 +157,9 @@ export const HERO_DUEL_RANGES: Record<keyof HeroDuelConfig, [number, number, num
   oppScale: [0.4, 2.2, 0.01],
   oppX: [-500, 500, 1],
   oppY: [-500, 500, 1],
+  gfoeScale: [0.3, 1.5, 0.01],
+  gfoeX: [-400, 400, 1],
+  gfoeY: [-600, 600, 1],
   nameScale: [0.4, 3, 0.01],
   nameX: [-200, 200, 1],
   nameY: [-200, 200, 1],
@@ -197,6 +209,9 @@ export const HERO_DUEL_DESC: Record<keyof HeroDuelConfig, string> = {
   oppScale: "Size of the opponent's portrait that drops in for the fight.",
   oppX: "Move the opponent's portrait horizontally from its foe-hero-power anchor.",
   oppY: "Move the opponent's portrait vertically from its foe-hero-power anchor.",
+  gfoeScale: "Size of the Gauntlet foe's SHOP portrait, relative to its combat portrait (1 = the same).",
+  gfoeX: "Move the Gauntlet foe's shop portrait horizontally (+ = right).",
+  gfoeY: "Move the Gauntlet foe's shop portrait vertically (+ = down).",
   nameScale: "Size of the opponent's name plate.",
   nameX: "Move the name plate horizontally.",
   nameY: "Move the name plate vertically (it sits above the portrait).",
@@ -262,6 +277,9 @@ export function applyHeroDuelVars(): void {
   r.setProperty('--hd-opp-s', String(cfg.oppScale));
   r.setProperty('--hd-opp-x', `${cfg.oppX}px`);
   r.setProperty('--hd-opp-y', `${cfg.oppY}px`);
+  r.setProperty('--hd-gfoe-s', String(cfg.gfoeScale));
+  r.setProperty('--hd-gfoe-x', `${cfg.gfoeX}px`);
+  r.setProperty('--hd-gfoe-y', `${cfg.gfoeY}px`);
   r.setProperty('--hd-name-s', String(cfg.nameScale));
   r.setProperty('--hd-name-x', `${cfg.nameX}px`);
   r.setProperty('--hd-name-y', `${cfg.nameY}px`);

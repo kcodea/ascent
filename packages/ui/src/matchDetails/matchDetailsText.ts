@@ -55,9 +55,15 @@ export function summaryText(d: MatchDetails): string {
   return youWon(d) ? `You won in round ${d.endRound}.` : `You placed ${ordinalOf(d.placement)}. Round ${d.endRound}.`;
 }
 
-/** BOARD STRENGTH (R-LOBBY-09): "Board strength 72", or null when the seat was not scored (show nothing). */
+/** The label a RUN's strength (R-LOBBY-09) is shown under, wherever the player sees it: Career, Recent Games and
+ *  Match details (owner 2026-09-30: "game strength for the display"). Per-round numbers stay BOARD percentiles. */
+export const GAME_STRENGTH_LABEL = 'Game strength';
+/** Its hover bubble (the game's `.gtip` data-tip, never a native tooltip). */
+export const GAME_STRENGTH_TIP = "How strong your board was across the whole game, compared with everyone else's. Later rounds count more.";
+
+/** BOARD STRENGTH (R-LOBBY-09): "Game strength 72", or null when the seat was not scored (show nothing). */
 export function strengthLabel(seat: Pick<MatchSeat, 'strength'>): string | null {
-  return typeof seat.strength === 'number' ? `Board strength ${seat.strength}` : null;
+  return typeof seat.strength === 'number' ? `${GAME_STRENGTH_LABEL} ${seat.strength}` : null;
 }
 
 /** Shown where a stored match has no details (recorded before this feature, or never uploaded). */

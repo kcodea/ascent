@@ -17,7 +17,7 @@ import { CARD_INDEX, poolFor, type SetId } from '@game/content';
 import {
   opponentBoard, sideFromSnapshot, STRENGTH_REF_VERSION, loadStrengthReference, createStrengthProbe, percentileOf,
   OPPONENT_POOL, registerOpponentRuns, createRunLobby, resetLobbyDrivers, playableHeroes, strengthBandForDivision,
-  runAverageOf, runPercentileOf, type RunStrengthHistogramEntry, type BoardSnapshot, type StrengthReference, type StrengthHistogramEntry, STRENGTH_BANDS,
+  runAverageOf, runWeightedAverageOf, runPercentileOf, type RunStrengthHistogramEntry, type BoardSnapshot, type StrengthReference, type StrengthHistogramEntry, STRENGTH_BANDS,
   bandSteps, inStrengthBand, type StrengthBand, MAX_SEATS_PER_PLAYER, RANK_MEDALS,
 } from '@game/sim';
 import { loadLivePool, type LivePool, type LiveRun } from './livePool';
@@ -177,26 +177,48 @@ async function measure(): Promise<void> {
     hist.set(s.refWave, h);
   }
   const entries = (w: number): StrengthHistogramEntry[] => [...(hist.get(w) ?? new Map()).entries()].map(([raw, count]) => ({ raw, count }));
-  const pctByRun = new Map<string, number[]>();
+  const pctByRun = new Map<string, { round: number; value: number }[]>();
   for (const s of scored) {
     const others = entries(s.refWave).map((e) => (e.raw === s.raw ? { ...e, count: e.count - 1 } : e));
     const p = percentileOf(s.raw, others, true);
     if (p === null) continue;
     const list = pctByRun.get(s.runKey) ?? [];
-    list.push(p);
+    list.push({ round: s.wave, value: p });
     pctByRun.set(s.runKey, list);
   }
   const runs = eligibleRuns(pool);
-  // A run's AVERAGE of board percentiles, then its strength = that average ranked among every scored run of the set
-  // (the SQL's population: every pool_runs row with an average), itself counted once.
-  const averages = new Map(pool.runs.filter((r) => r.setId === SET).map((r) => [r.key, runAverageOf(pctByRun.get(r.key) ?? [])]));
-  const avgHist = new Map<number, number>();
-  for (const a of averages.values()) if (a !== null) avgHist.set(a, (avgHist.get(a) ?? 0) + 1);
-  const runHist = (skip: number): RunStrengthHistogramEntry[] => [...avgHist.entries()].map(([avg, count]) => ({ avg, count: avg === skip ? count - 1 : count }));
-  const strength = new Map(runs.map((r) => {
-    const a = averages.get(r.key) ?? null;
-    return [r.key, a === null ? null : runPercentileOf(a, runHist(a), true)] as const;
-  }));
+  // A run's AVERAGE of board percentiles (round-weighted since 2026-09-30), then its strength = that average ranked
+  // among every scored run of the set (the SQL's population: every pool_runs row with an average), itself counted once.
+  const strengthBy = (avgOf: (rounds: { round: number; value: number }[]) => number | null): { averages: Map<string, number | null>; strength: Map<string, number | null> } => {
+    const averages = new Map(pool.runs.filter((r) => r.setId === SET).map((r) => [r.key, avgOf(pctByRun.get(r.key) ?? [])]));
+    const avgHist = new Map<number, number>();
+    for (const a of averages.values()) if (a !== null) avgHist.set(a, (avgHist.get(a) ?? 0) + 1);
+    const runHist = (skip: number): RunStrengthHistogramEntry[] => [...avgHist.entries()].map(([avg, count]) => ({ avg, count: avg === skip ? count - 1 : count }));
+    const strength = new Map(runs.map((r) => {
+      const a = averages.get(r.key) ?? null;
+      return [r.key, a === null ? null : runPercentileOf(a, runHist(a), true)] as const;
+    }));
+    return { averages, strength };
+  };
+  const plain = strengthBy((rs) => runAverageOf(rs.map((r) => r.value)));
+  const { averages, strength } = strengthBy((rs) => runWeightedAverageOf(rs));
+  // Before / after the round weighting: the runs whose strength moves most, with their per-group means.
+  const groupMeans = (key: string): string => {
+    const rs = pctByRun.get(key) ?? [];
+    const g = (lo: number, hi: number): string => { const xs = rs.filter((r) => r.round >= lo && r.round <= hi).map((r) => r.value); return xs.length ? `${Math.round(xs.reduce((a, b) => a + b, 0) / xs.length)} (${xs.length})` : '-'; };
+    return `r1-5 ${g(-Infinity, 5)}, r6-9 ${g(6, 9)}, r10+ ${g(10, Infinity)}`;
+  };
+  const moved = runs.map((r) => ({ key: r.key, before: plain.strength.get(r.key), after: strength.get(r.key), avgBefore: plain.averages.get(r.key), avgAfter: averages.get(r.key) }))
+    .filter((m): m is { key: string; before: number; after: number; avgBefore: number; avgAfter: number } => typeof m.before === 'number' && typeof m.after === 'number')
+    .sort((a, b) => Math.abs(b.after - b.before) - Math.abs(a.after - a.before));
+  const plainValues = [...plain.strength.values()].filter((x): x is number => x !== null);
+  console.log(`
+round weighting: mean |change| ${(moved.reduce((a, m) => a + Math.abs(m.after - m.before), 0) / Math.max(1, moved.length)).toFixed(1)}, runs moving >= 10: ${moved.filter((m) => Math.abs(m.after - m.before) >= 10).length} of ${moved.length}`);
+  for (const m of moved.slice(0, 8)) console.log(`  ${m.key}: strength ${m.before} -> ${m.after} (average ${m.avgBefore} -> ${m.avgAfter}); ${groupMeans(m.key)}`);
+  const bandShare = (vals: number[], lo: number, hi: number): string => `${vals.filter((v) => v >= lo && v <= hi).length}`;
+  for (const [name, lo, hi] of [['Bronze', 0, 30], ['Silver', 10, 40], ['Gold', 20, 65], ['Diamond', 10, 100], ['Ascendant', 20, 100]] as const) {
+    console.log(`  ${name} ${lo}-${hi}: plain ${bandShare(plainValues, lo, hi)} runs, weighted ${bandShare([...strength.values()].filter((x): x is number => x !== null), lo, hi)} runs`);
+  }
   const avgValues = runs.map((r) => averages.get(r.key)).filter((x): x is number => typeof x === 'number').sort((a, b) => a - b);
   const values = [...strength.values()].filter((x): x is number => x !== null).sort((a, b) => a - b);
   const q = (p: number, xs = values): number => xs[Math.min(xs.length - 1, Math.floor(p * xs.length))]!;

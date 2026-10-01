@@ -411,6 +411,11 @@ describe('RecentGames — the recording banners', () => {
     expect(text('.lb-fact-lobby')).toEqual([]);
     // BOARD STRENGTH (R-LOBBY-09): only the scored game shows it.
     expect(text('.lb-fact-bstrength')).toEqual(['72']);
+    // Labelled "Game strength" with the game's hover bubble (owner 2026-09-30), never a native title.
+    const fact = ui.container.querySelector('.lb-fact-bstrength')!.parentElement!;
+    expect(fact.querySelector('.lb-fact-l')?.textContent).toBe('Game strength');
+    expect(fact.getAttribute('data-tip')).toMatch(/Later rounds count more\.$/);
+    expect(fact.getAttribute('title')).toBeNull();
   });
 
   it('with SHOW_LOBBY_STRENGTH on, the Lobby % returns, only on a row that carries the stamp', async () => {

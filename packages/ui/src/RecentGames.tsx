@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { getHero, strengthText } from '@game/sim';
 import { SHOW_LOBBY_STRENGTH } from './lobbyStrengthDisplay';
+import { GAME_STRENGTH_LABEL, GAME_STRENGTH_TIP } from './matchDetails/matchDetailsText';
 import { Icon } from './Icon';
 import { sfx } from './sfx';
 import { MenuSidebar, SidebarHost } from './MenuSidebar';
@@ -182,7 +183,7 @@ export function RecentGames(): JSX.Element | null {
                       {cfg && <span className="lb-fact"><span className="lb-fact-l">Health</span><span className="lb-fact-v">{cfg.health === 'normal' ? 'Normal' : 'Unlimited'}</span></span>}
                       {SHOW_LOBBY_STRENGTH && r.lobbyStrength && <span className="lb-fact"><span className="lb-fact-l">Lobby</span><span className="lb-fact-v lb-fact-lobby" aria-label={`Lobby strength ${r.lobbyStrength.value} percent`}>{strengthText(r.lobbyStrength)}</span></span>}
                       {/* BOARD STRENGTH (R-LOBBY-09): frozen when the game ended; nothing at all when it was not scored. */}
-                      {r.boardStrength != null && <span className="lb-fact"><span className="lb-fact-l">Board strength</span><span className="lb-fact-v lb-fact-bstrength" aria-label={`Board strength ${r.boardStrength} out of 100`}>{r.boardStrength}</span></span>}
+                      {r.boardStrength != null && <span className="lb-fact gtip" data-tip={GAME_STRENGTH_TIP}><span className="lb-fact-l">{GAME_STRENGTH_LABEL}</span><span className="lb-fact-v lb-fact-bstrength" aria-label={`${GAME_STRENGTH_LABEL} ${r.boardStrength} out of 100`}>{r.boardStrength}</span></span>}
                     </div>
                     {r.partial && <div className="lb-partial"><Icon name="clock" />{partialText(r.firstRecordedWave)}</div>}
                     {(!practice || watchable) && <button

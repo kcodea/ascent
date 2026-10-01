@@ -3927,12 +3927,14 @@ export const FOUNDATION_RULES: GameRule[] = [
   },
   {
     id: 'R-PROG-FRAME-01',
-    title: 'Portrait frames are a crate cosmetic: 31 frames (7 Common, 8 Rare, 11 Epic, 5 Legendary, the rank-named masters included) in the account-wide portrait_frame slot; names avoid the ranked medal words',
+    title: 'Portrait frames are a crate cosmetic: 36 frames (6 Common, 8 Rare, 14 Epic, 8 Legendary, the rank-named masters included) in the account-wide portrait_frame slot; names are bare (no "Frame") and avoid the ranked medal words',
     statement:
-      'The portrait_frame category ("Portrait Frames", target global, enabled) holds 31 crate items, one per master in '
+      'The portrait_frame category ("Portrait Frames", target global, enabled) holds 36 crate items, one per master in '
       + 'C:/Game Assets/Ascent Art/Skins/Portraits at its folder rarity (R-PROG-FRAME-04): Common Honey, Ale, Ruby, Steel, '
-      + 'Wood, Dark Scale, Gilt Scale; Rare Burnished, Sterling, Gilded, Seaglass, Glass Shard, Paragon, Vine, Magic; Epic Aura, Amethyst, Shard, Prism, Frost, Pearlescent, '
-      + 'Crimson, Nimbus, Dark Cloud, Venom, Wedding; Legendary Fire, Reaper, Water, Stained Glass, Wind (each "<name> Frame"; ids keep the master '
+      + 'Wood, Dark Scale; Rare Burnished, Sterling, Gilded, Seaglass, Glass Shard, Paragon, Vine, Magic; Epic Aura, Amethyst, '
+      + 'Shard, Prism, Frost, Pearlescent, Crimson, Nimbus, Wedding, Multichrome Energy, Blue Energy, Crackling Ruby, Topaz, '
+      + 'Jade; Legendary Gilt Scale, Dark Cloud, Venom, Fire, Reaper, Water, Stained Glass, Wind (a frame\x27s display name '
+      + 'is the bare name, never "<name> Frame" or "<name> Portrait" (owner 2026-10-01); ids keep the master '
       + 'names, e.g. frame_gold, frame_rank1, frame_wind). Every one is in the crate pool at the fixed rarity odds, equal '
       + 'chance within a rarity. A frame is ACCOUNT-WIDE: equip_cosmetic(user, \x27portrait_frame\x27, \x27\x27, id) wears an '
       + 'owned, live frame (one cosmetic_loadouts row, target \x27\x27); null takes it off (the default ring). The display names '
@@ -3941,6 +3943,7 @@ export const FOUNDATION_RULES: GameRule[] = [
     status: 'approved',
     evidence: [
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-01 (portrait skins)', quote: 'we\x27re adding portrait skins: C:\\Game Assets\\Ascent Art\\Skins\\Portraits. we want this to replace the default portrait png when a skin is applied' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-01 (portrait frames batch 4, Mike)', quote: 'lets remove portrait and or frame from all names in the title' },
       { kind: 'code', ref: 'packages/progression/src/cosmetics.ts (portraitFrame items, portrait_frame category, GLOBAL_EQUIP_SLOTS, portraitFrameOf); supabase/migrations/2026-10-01-portrait-frames.sql (equip_cosmetic)' },
     ],
     currentBehaviour: 'Conforms, built 2026-10-01 (the equip SQL is the owner\x27s to run).',
@@ -3995,11 +3998,16 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'and every PNG in the four folders must be wired. On 2026-10-01 the folders held 21 frames (1 Common, 7 Rare, 8 '
       + 'Epic, 5 Legendary); the first 13 already matched their folders, and 8 were added at their folder rarity. Batch 3 '
       + '(the same day) added 10 more at their folder rarity: Ale, Ruby, Steel, Wood, Dark Scale and Gilt Scale (Common), '
-      + 'Magic (Rare), and Dark Cloud, Venom and Wedding (Epic), 31 in all (7 Common, 8 Rare, 11 Epic, 5 Legendary).',
+      + 'Magic (Rare), and Dark Cloud, Venom and Wedding (Epic), 31 in all. Batch 4 (Mike, the same day; his masters are loose '
+      + 'files, wired with npm run art:frames -- --src <dir>, which matches a loose file ignoring spaces and case) added '
+      + 'Multichrome Energy, Blue Energy, Crackling Ruby, Topaz and Jade (Epic) and moved Gilt Scale (from Common), Dark Cloud '
+      + 'and Venom (from Epic) to Legendary by owner ruling, so their masters belong in Legendary/: 36 in all (6 Common, 8 '
+      + 'Rare, 14 Epic, 8 Legendary).',
     domain: 'foundation',
     status: 'approved',
     evidence: [
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-01 (portrait frames batches 2 and 3)', quote: 'i added a bunch of art/portrait arts etc, can you make sure all get added' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-01 (portrait frames batch 4, Mike)', quote: 'Lets make Obsidian Venom and Dark Cloud legendary as well as Gold Dragonscale' },
       { kind: 'code', ref: 'packages/progression/src/cosmetics.ts (portraitFrame items); packages/tools/src/wire-portrait-frames.ts' },
     ],
     currentBehaviour: 'Conforms, built 2026-10-01. Reaches the database on the next deploy of progression-inventory (the catalog sync).',

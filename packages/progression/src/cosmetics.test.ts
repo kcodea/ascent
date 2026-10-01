@@ -149,18 +149,18 @@ describe('the roll', () => {
   it('the per-item chances of a first crate (2026-10-01 catalog): each item = its rarity\'s odds / that rarity\'s item count', () => {
     const all = eligibleCrateCosmetics([]);
     const count = (r: string): number => all.filter((c) => c.rarity === r).length;
-    expect(COSMETIC_RARITIES.map(count)).toEqual([35, 39, 37, 35]); // 2026-10-01 skins + frames batch 3: Ale, Ruby, Steel, Wood, Dark Scale and Gilt Scale frames made Common 35; Robin Hood and the Magic frame made Rare 39; Goth Merrin, Iron Guardian and the Dark Cloud, Venom and Wedding frames made Epic 37. Before that, merged with portrait frames batch 2 (+1 Common, +7 Rare, +8 Epic, +5 Legendary frames). Before that: 2026-10-01 (skins batch 6, rarity from the art folders): Amber Deepvein, Static Deepvein, Frost Wardkeeper and Infernal Wayfinder made Common 28; Sea Dragon Wayfinder, Timeworn Spellsword and Frost Commander made Rare 30; Nature Commander made Epic 24; Cybernetic Warpath made Legendary 30. 2026-10-01 (skin rarity now comes from the owner's art folders, R-PROG-SKINS-11): forty skins changed rarity, making Common 24, Rare 27, Epic 23, Legendary 29. 2026-09-30 (skins batch 5): Cotton Candy Nimbus, Smog Nimbus and Mime Joker made Common 17; Influencer Indy and seven Rare minion skins made Rare 40; Star Urchin made Epic 26. 2026-09-30 (skins batch 4): Waitress Ayse, Mastered Soren, Young Brakkus, Ninja Robin and Beefy Arnold made Common 14; thirteen Rare skins made Rare 32; eleven Epic skins made Epic 25; Edward Colada Hands, Portal Buddy and Sketch Buddy made Legendary 20. 2026-09-29: Nothing But Net (attack_basketball) made Legendary 17. 2026-09-29 (skins batch 3): Armourer Frank made Common 9; Stencil Sylus and Mace Urchin made Rare 19; Rooks Oona and Magician Buddy Buddy made Epic 14. Before that, 2026-09-29: Inferno, Grave Call, the Stampede, Oona's Banana Cannon and Hemorrhage made Legendary 16; the first Epic attacks, Card Shark and Storm Call, made Epic 12; the four Rare hero attacks (coin, boomerang, bubble, backstab) made Rare 17
+    expect(COSMETIC_RARITIES.map(count)).toEqual([34, 39, 40, 38]); // 2026-10-01 frames batch 4: Multichrome Energy, Blue Energy, Crackling Ruby, Topaz and Jade (Epic) made Epic 40 after two left; Gilt Scale (Common), Dark Cloud and Venom (Epic) moved to Legendary 38 (owner). Before that: 2026-10-01 skins + frames batch 3: Ale, Ruby, Steel, Wood, Dark Scale and Gilt Scale frames made Common 35; Robin Hood and the Magic frame made Rare 39; Goth Merrin, Iron Guardian and the Dark Cloud, Venom and Wedding frames made Epic 37. Before that, merged with portrait frames batch 2 (+1 Common, +7 Rare, +8 Epic, +5 Legendary frames). Before that: 2026-10-01 (skins batch 6, rarity from the art folders): Amber Deepvein, Static Deepvein, Frost Wardkeeper and Infernal Wayfinder made Common 28; Sea Dragon Wayfinder, Timeworn Spellsword and Frost Commander made Rare 30; Nature Commander made Epic 24; Cybernetic Warpath made Legendary 30. 2026-10-01 (skin rarity now comes from the owner's art folders, R-PROG-SKINS-11): forty skins changed rarity, making Common 24, Rare 27, Epic 23, Legendary 29. 2026-09-30 (skins batch 5): Cotton Candy Nimbus, Smog Nimbus and Mime Joker made Common 17; Influencer Indy and seven Rare minion skins made Rare 40; Star Urchin made Epic 26. 2026-09-30 (skins batch 4): Waitress Ayse, Mastered Soren, Young Brakkus, Ninja Robin and Beefy Arnold made Common 14; thirteen Rare skins made Rare 32; eleven Epic skins made Epic 25; Edward Colada Hands, Portal Buddy and Sketch Buddy made Legendary 20. 2026-09-29: Nothing But Net (attack_basketball) made Legendary 17. 2026-09-29 (skins batch 3): Armourer Frank made Common 9; Stencil Sylus and Mace Urchin made Rare 19; Rooks Oona and Magician Buddy Buddy made Epic 14. Before that, 2026-09-29: Inferno, Grave Call, the Stampede, Oona's Banana Cannon and Hemorrhage made Legendary 16; the first Epic attacks, Card Shark and Storm Call, made Epic 12; the four Rare hero attacks (coin, boomerang, bubble, backstab) made Rare 17
     const ch = crateChances(all);
     const pct = (id: string): number => Math.round(100000 * ch.get(id)!) / 1000;
-    expect(pct('title_board_builder')).toBe(1.429);      // Common: 50 / 35
-    expect(pct('skin_frank_1')).toBe(1.429);
-    expect(pct('skin_arnold_1')).toBe(1.429);
-    expect(pct('skin_blackbelt_1')).toBe(1.429);
-    expect(pct('skin_frank_3')).toBe(1.429);
-    expect(pct('skin_wardkeeper_1')).toBe(1.429);
-    expect(pct('skin_keshi_1')).toBe(1.429);
-    expect(pct('skin_deepvein_1')).toBe(1.429);
-    expect(pct('skin_wayfinder_2')).toBe(1.429);
+    expect(pct('title_board_builder')).toBe(1.471);      // Common: 50 / 34
+    expect(pct('skin_frank_1')).toBe(1.471);
+    expect(pct('skin_arnold_1')).toBe(1.471);
+    expect(pct('skin_blackbelt_1')).toBe(1.471);
+    expect(pct('skin_frank_3')).toBe(1.471);
+    expect(pct('skin_wardkeeper_1')).toBe(1.471);
+    expect(pct('skin_keshi_1')).toBe(1.471);
+    expect(pct('skin_deepvein_1')).toBe(1.471);
+    expect(pct('skin_wayfinder_2')).toBe(1.471);
     expect(pct('skin_blackbelt_4')).toBe(0.769);      // Rare: 30 / 39
     expect(pct('skin_robin_1')).toBe(0.769);
     expect(pct('skin_joker_2')).toBe(0.769);
@@ -172,47 +172,50 @@ describe('the roll', () => {
     expect(pct('skin_seaurchin_2')).toBe(0.769);
     expect(pct('skin_wayfinder_3')).toBe(0.769);
     expect(pct('skin_blazingkeeper_1')).toBe(0.769);
-    expect(pct('skin_seaurchin_1')).toBe(0.405);      // Epic: 15 / 37
-    expect(pct('skin_indy_1')).toBe(0.405);
-    expect(pct('skin_bellringer_1')).toBe(0.405);
-    expect(pct('skin_albus_1')).toBe(0.405);
-    expect(pct('skin_oona_1')).toBe(0.405);
-    expect(pct('title_kingbreaker')).toBe(0.405);
-    expect(pct('attack_cards')).toBe(0.405);
-    expect(pct('attack_storm')).toBe(0.405);
-    expect(pct('skin_buddy_3')).toBe(0.405);
-    expect(pct('skin_blazingkeeper_2')).toBe(0.405);
-    expect(pct('skin_nimbus_2')).toBe(0.143);      // Legendary: 5 / 35
-    expect(pct('skin_blazingkeeper_3')).toBe(0.143);
-    expect(pct('skin_buddy_1')).toBe(0.143);
-    expect(pct('skin_pimm_2')).toBe(0.143);
-    expect(pct('skin_blackbelt_3')).toBe(0.143);
-    expect(pct('skin_edward_1')).toBe(0.143);
-    expect(pct('attack_arcana')).toBe(0.143);
-    expect(pct('attack_fire')).toBe(0.143);
-    expect(pct('attack_undead')).toBe(0.143);
-    expect(pct('attack_beast')).toBe(0.143);
-    expect(pct('attack_banana')).toBe(0.143);
-    expect(pct('attack_bleed')).toBe(0.143);
-    expect(pct('attack_basketball')).toBe(0.143);
-    expect(pct('title_the_unbroken')).toBe(0.143);
-    expect(pct('frame_honey')).toBe(1.429);
+    expect(pct('skin_seaurchin_1')).toBe(0.375);      // Epic: 15 / 40
+    expect(pct('skin_indy_1')).toBe(0.375);
+    expect(pct('skin_bellringer_1')).toBe(0.375);
+    expect(pct('skin_albus_1')).toBe(0.375);
+    expect(pct('skin_oona_1')).toBe(0.375);
+    expect(pct('title_kingbreaker')).toBe(0.375);
+    expect(pct('attack_cards')).toBe(0.375);
+    expect(pct('attack_storm')).toBe(0.375);
+    expect(pct('skin_buddy_3')).toBe(0.375);
+    expect(pct('skin_blazingkeeper_2')).toBe(0.375);
+    expect(pct('skin_nimbus_2')).toBe(0.132);      // Legendary: 5 / 38
+    expect(pct('skin_blazingkeeper_3')).toBe(0.132);
+    expect(pct('skin_buddy_1')).toBe(0.132);
+    expect(pct('skin_pimm_2')).toBe(0.132);
+    expect(pct('skin_blackbelt_3')).toBe(0.132);
+    expect(pct('skin_edward_1')).toBe(0.132);
+    expect(pct('attack_arcana')).toBe(0.132);
+    expect(pct('attack_fire')).toBe(0.132);
+    expect(pct('attack_undead')).toBe(0.132);
+    expect(pct('attack_beast')).toBe(0.132);
+    expect(pct('attack_banana')).toBe(0.132);
+    expect(pct('attack_bleed')).toBe(0.132);
+    expect(pct('attack_basketball')).toBe(0.132);
+    expect(pct('title_the_unbroken')).toBe(0.132);
+    expect(pct('frame_honey')).toBe(1.471);
     expect(pct('frame_bronze')).toBe(0.769);
     expect(pct('frame_vines')).toBe(0.769);
-    expect(pct('frame_ice')).toBe(0.405);
-    expect(pct('frame_nimbus')).toBe(0.405);
-    expect(pct('frame_fire')).toBe(0.143);
-    expect(pct('frame_wind')).toBe(0.143);
-    expect(pct('frame_ale')).toBe(1.429);
-    expect(pct('frame_wood')).toBe(1.429);
+    expect(pct('frame_ice')).toBe(0.375);
+    expect(pct('frame_nimbus')).toBe(0.375);
+    expect(pct('frame_fire')).toBe(0.132);
+    expect(pct('frame_wind')).toBe(0.132);
+    expect(pct('frame_ale')).toBe(1.471);
+    expect(pct('frame_wood')).toBe(1.471);
     expect(pct('frame_magic')).toBe(0.769);
     expect(pct('skin_robin_2')).toBe(0.769);
-    expect(pct('skin_merrin_1')).toBe(0.405);
-    expect(pct('skin_runeguard_1')).toBe(0.405);
-    expect(pct('frame_golden_dragonscale')).toBe(1.429);
-    expect(pct('frame_wedding')).toBe(0.405);
+    expect(pct('skin_merrin_1')).toBe(0.375);
+    expect(pct('skin_runeguard_1')).toBe(0.375);
+    expect(pct('frame_golden_dragonscale')).toBe(0.132);
+    expect(pct('frame_wedding')).toBe(0.375);
+    expect(pct('frame_jade')).toBe(0.375);
+    expect(pct('frame_dark_cloud')).toBe(0.132);
+    expect(pct('frame_venom')).toBe(0.132);
     const cat = (k: string): number => Math.round(1000 * all.filter((c) => c.category === k).reduce((a, c) => a + ch.get(c.id)!, 0)) / 10;
-    expect([cat('title'), cat('minion_skin'), cat('hero_skin'), cat('hero_attack'), cat('portrait_frame')]).toEqual([14.8, 42.1, 15.9, 5.9, 21.3]); // skins + frames batch 3 (2026-10-01; was 17.2 / 48.1 / 16.6 / 6.2 / 11.9 after skins batch 6 + portrait frames batch 2); // re-pinned 2026-10-01 for skins batch 6 (was 21.6 / 49.1 / 21.1 / 8.2 when skin rarities moved to the owner's art folders, 25.7 / 42 / 24.6 / 7.7 after skins batch 5, 31.1 / 32.1 / 28.3 / 8.5 after batch 4, 49.2 / 30.5 / 7.7 / 12.6 before it): fourteen Legendary attacks x 5 / 20 (Nothing But Net joined 2026-09-29) + the two Epic attacks x 15 / 26 (Card Shark, Storm Call) + the four Rare attacks x 30 / 40 (2026-09-29, re-pinned for skins batch 3; was 55.4 / 28.5 / 2.5 / 13.6)
+    expect([cat('title'), cat('minion_skin'), cat('hero_skin'), cat('hero_attack'), cat('portrait_frame')]).toEqual([15, 42.2, 15.8, 5.7, 21.3]); // frames batch 4 (2026-10-01; was 14.8 / 42.1 / 15.9 / 5.9 / 21.3 after skins + frames batch 3; before that 17.2 / 48.1 / 16.6 / 6.2 / 11.9 after skins batch 6 + portrait frames batch 2); // re-pinned 2026-10-01 for skins batch 6 (was 21.6 / 49.1 / 21.1 / 8.2 when skin rarities moved to the owner's art folders, 25.7 / 42 / 24.6 / 7.7 after skins batch 5, 31.1 / 32.1 / 28.3 / 8.5 after batch 4, 49.2 / 30.5 / 7.7 / 12.6 before it): fourteen Legendary attacks x 5 / 20 (Nothing But Net joined 2026-09-29) + the two Epic attacks x 15 / 26 (Card Shark, Storm Call) + the four Rare attacks x 30 / 40 (2026-09-29, re-pinned for skins batch 3; was 55.4 / 28.5 / 2.5 / 13.6)
     expect([...ch.values()].reduce((a, b) => a + b, 0)).toBeCloseTo(1, 12);
   });
 

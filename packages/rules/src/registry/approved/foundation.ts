@@ -3569,4 +3569,51 @@ export const FOUNDATION_RULES: GameRule[] = [
       lastVerifiedAt: '2026-09-30',
     },
   },
+  // ── The drag's make-room slide on a scaled stage (owner report 2026-09-30) ────────────────────────────────────
+  {
+    id: 'R-PRESENT-27',
+    title: 'Dragging and reordering cards behaves exactly the same at every window size',
+    statement:
+      'Picking up, dragging, reordering and playing cards look and behave the same in a window of any size as they '
+      + 'do full screen. While a card is dragged over a row, the neighbours part to open the drop gap and stay '
+      + 'parted until the gap moves; each glides from where it was to its new spot and never springs back to its '
+      + 'old slot. The distances a player drags (how far to lift a card out before the row closes up, where the '
+      + 'drop slot opens) are the same share of a card at every size. Applies to the warband, the shop row and '
+      + 'the hand.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      {
+        kind: 'owner-chat',
+        ref: 'Owner report 2026-09-30 (warband drag below full screen)',
+        quote: 'im seeing issues with the warband units not reacting appropriately when dragging units onto the board and repositioning them',
+      },
+      {
+        kind: 'owner-chat',
+        ref: 'Owner report 2026-09-30 (same thread)',
+        quote: 'its perfect in full screen, when not in full screen its broken',
+      },
+      {
+        kind: 'owner-chat',
+        ref: 'Owner, 2026-09-30, about the last build before the scaled stage (main@e14b9073d)',
+        quote: 'yes - that version works perfectly',
+      },
+      { kind: 'fix-pr', ref: 'fix/warband-drag-scaled-stage: packages/ui/src/Recruit.tsx (collapseY -> toScreen)' },
+      { kind: 'fix-pr', ref: 'fix/drag-scaled-stage-root: packages/ui/src/stageFlip.ts (GSAP Flip at every scale; rescaleSimpleState converts the recorded offsets to layout px)' },
+    ],
+    currentBehaviour:
+      'Conforms as of 2026-09-30 (fix/drag-scaled-stage-root). Since the scaled stage (#1762, 2026-09-27), below full '
+      + 'screen stageFlip.ts replaced GSAP Flip with a hand-rolled FLIP that behaved differently: it first tweened every '
+      + 'card to x: 0 (wiping the drag gap), and after a first fix (#1879) its capture still recorded where each glide '
+      + 'STARTED and left it running, so each slot crossing replayed the row from its resting spots (the gap shut and '
+      + 're-opened) and a crossing mid-glide froze cards part-way. Full screen runs Flip, whose capture finishes the '
+      + 'glide and whose from() restores the React slide. stageFlip now runs GSAP Flip at every scale and only rescales '
+      + 'the recorded offsets from screen px to layout px (rescaleSimpleState). The row-collapse lift (owner-tuned '
+      + 'layout px) is converted to screen px before meeting the screen-px pointer lift (#1879).',
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/ui/src/stageFlip.test.ts'],
+      lastVerifiedAt: '2026-09-30',
+    },
+  },
 ];

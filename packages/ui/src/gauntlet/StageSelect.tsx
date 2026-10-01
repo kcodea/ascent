@@ -20,6 +20,7 @@ import {
   type StageSlotState,
 } from './gauntletProgress';
 import { TRIBE_ICON } from './tribeIcon';
+import { foePortrait } from './foePortrait';
 
 /** Stage slots on the screen: one per Gauntlet stage, whether or not each has a file yet. */
 const SLOT_COUNT = GAUNTLET_STAGE_COUNT;
@@ -57,12 +58,15 @@ export function StageSelect() {
         {slots.map(({ n, stage, state }) => {
           const playable = state === 'available' || state === 'cleared' || state === 'draft';
           const hidden = state === 'soon';
+          // The slot's backdrop is the stage OPPONENT's portrait art (owner ask 2026-10-01); a "coming soon" slot keeps
+          // its plain face so it never spoils the stage.
+          const art = hidden ? undefined : foePortrait(n).art;
           const tip = state === 'locked' ? `Clear Stage ${n - 1} to unlock` : state === 'cleared' ? REPLAY_NOTE : undefined;
           return (
             <button
               key={n}
               type="button"
-              className={tip ? 'gslot gtip' : 'gslot'}
+              className={`gslot${tip ? ' gtip' : ''}${art ? ' hasart' : ''}`}
               data-stage={n}
               data-state={state}
               data-tip={tip}
@@ -72,11 +76,12 @@ export function StageSelect() {
               aria-label={`Stage ${n}: ${hidden || !stage ? 'coming soon' : `${stage.name}, ${TAG[state].replace('✓ ', '').toLowerCase()}`}`}
               onClick={playable ? () => { sfx.pulse(); startGauntlet(n); } : undefined}
             >
+              {art && <span className="gslot-art" aria-hidden="true"><img decoding="sync" src={art} alt="" draggable={false} /></span>}
               <span className="gslot-num">{n}</span>
               <span className="gslot-emblem-slot" aria-hidden="true">
                 {state === 'locked'
                   ? <span className="gslot-emblem gslot-lock"><Icon name="lock" /></span>
-                  : !hidden && stage?.tribe
+                  : !hidden && !art && stage?.tribe
                     ? <span className="gslot-emblem"><Icon name={TRIBE_ICON[stage.tribe]} /></span>
                     : hidden ? <span className="gslot-emblem gslot-soon"><Icon name="clock" /></span> : null}
               </span>

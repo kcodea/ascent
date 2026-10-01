@@ -57,6 +57,12 @@ export interface ShopCard {
   cardId: string;
   /** Rune of the Bargain Bin: this offer sells for 0 once bought (stamped onto the bought minion's `sellOverride`). */
   sellZero?: boolean;
+  /** ANCIENTS × Frantic Frank: this offer was stamped by Clearance (its 2 Gold mark). Set only on a run with Ancients
+   *  on; bought, it becomes a `clearanceBuy` minion (Fortune's 2 Gold sale, Bonds' stat hand-off). */
+  clearance?: boolean;
+  /** ANCIENT OF DEATH × Frantic Frank: this Clearance offer is on the "first one bought is free" price (cost 0). The
+   *  first buy from the set re-prices the rest back to 2 Gold and clears the flag. */
+  clearanceFree?: boolean;
   /** Buffs applied to this offer while it's in the tavern (e.g. the hero power targeting
    *  a shop minion) — baked into the minion's stats/keywords when it's bought. */
   atk?: number;
@@ -134,9 +140,15 @@ export interface BoardCard {
   health: number;
   /** Rune of the Bargain Bin: an overridden sell value (0) — read by `sellValueOf` ahead of the normal calc. */
   sellOverride?: number;
+  /** ANCIENTS × Frantic Frank: bought from a Clearance-marked Shop (a "Clearance minion"). Per instance, so it survives
+   *  combat, saves and hand/board moves. Fortune sells it for 2 Gold; Bonds hands its stats on when it is sold. */
+  clearanceBuy?: boolean;
   /** A HAND SPELL that casts this many extra times (Rune of the Astral Draft's Discover pick). Read by `spellCasts`
    *  when the cast site passes the instance, so the x N badge previews it. Absent = 0. */
   extraCasts?: number;
+  /** A HAND SPELL whose casts are MULTIPLIED by this (Ancient of Time × Hunch: a Rounded Spellbook copy "casts
+   *  twice" = 2). Read by `spellCasts` beside the other "casts twice" multipliers. Absent = 1. */
+  castMult?: number;
   keywords: Keyword[];
   golden: boolean;
   /** Anomaly Reactor: extra tribes granted to THIS instance beyond its printed tribe(s) (a spell-added Mech
@@ -487,6 +499,9 @@ export interface BuffFxEvent {
    *  body, the minion twin of `sourceRuneId` (owner 2026-09-24: "all spell animations and sfx should be wired to play
    *  whenever a spell or minion is cast/played from any source"). Absent for every other buff. */
   castByUid?: string;
+  /** A HERO POWER's grant with no body to leave from (Ancient of Bonds × Hunch): the presentation streams the generic
+   *  tendril from the hero-power button instead of descending sourceless. Absent for every other buff. */
+  fromHeroPower?: true;
 }
 
 /** One card a Ruby landed on this action, and HOW MANY landed on it. The count is the information: a gilded
@@ -801,6 +816,11 @@ export interface RunState {
    * flip, on combat entry, and on a Continue whose saved clock is already past it (`deserialize`).
    */
   cardDiscountWindow?: { amount: number; untilClock: number | null };
+  /** The recruit clock reached 0:00 this turn (owner 2026-09-30, R-TIMER-LOCK-01). Set by the `shopClockExpired`
+   *  ACTION the UI's tick dispatches (the engine never reads a clock), cleared at the turn flip. While set, the
+   *  reducer refuses every action `SHOP_CLOCK_POLICY` marks locked (buy / sell / play / roll / upgrade / hero power /
+   *  Equipment / Henchman). Absent = the clock is still running (or the run is untimed). See `shopClock.ts`. */
+  shopClockExpired?: boolean;
   /** Set 2 — Mushy: a charge to copy the FIRST spell you cast on/after `activateWave` (= the wave
    *  AFTER the Echo fired, so "next turn" is exact whether it died in combat or was re-fired in recruit).
    *  `count` copies (golden 2, multiple Scalefeathers sum). Spent + cleared by that first cast. */
@@ -2679,6 +2699,11 @@ export type Action =
    *  crosses `cardDiscountWindow.untilClock`. A real ACTION so a recording replays the expiry where the player
    *  lived it, and so the reducer never reads a clock. A no-op when no window is open. */
   | { type: 'discountWindowExpired' }
+  /** The recruit clock reached 0:00: the UI's tick dispatches this ONCE as it lands on 0. A real ACTION so a
+   *  recording replays the lock where the player lived it and the reducer never reads a clock. Locks the Shop's
+   *  player actions until the turn flips (`shopClock.ts`). Never dispatched by an untimed run (tutorial, God
+   *  sandbox, Practice's unlimited time). */
+  | { type: 'shopClockExpired' }
   | { type: 'closeScout' } // Farseer's Report: dismiss the scout reveal
   /** End the turn. `deferFight` (balance bot B1): end the turn and prepare the full combat side, but resolve NO
    *  fight — the self-play lobby simulates the pair once and lands the result via `resolveCombat { fight }`. */

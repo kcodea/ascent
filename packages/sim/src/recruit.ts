@@ -1,5 +1,5 @@
 import { soulFurnaceHealth, ALE_IDS, RUBY_TYPE_IDS, SPECIAL_RUBY_IDS, TRIBES, inRunTribes, alignAllows, makeRng, SILENT_ONPLAY, isShopPoolSpell, shopSpellGrowth, COMBAT_REPLAYABLE_BATTLECRIES, NO_COPY_SPELL_IDS, extraTriggerFires, foldEchoExtraFires, socTwilightExtraFires, BODY_COUNTING_DEATHS, ARENA_EFFECTS, beatIdentity, type EffectArena, type PresentationCollector, type PresentationPhase, type PresentationPolicy, type Rng, type CardDef, type EffectDef, type Keyword, type TriggerFamily, type TriggerSourceRef, type Tribe } from '@game/core';
-import { ancientOnSale, ancientOnShopDeath, ancientOnShopShout, ancientOnShopRise, ancientPowerText, ancientEotWardBuff, ancientRunEotWardBuff, ancientBondsReact, ancientOnPlay, ANCIENTS } from './ancients';
+import { ancientOnSale, ancientOnShopDeath, ancientOnShopShout, ancientOnShopRise, ancientPowerText, ancientEotWardBuff, ancientRunEotWardBuff, ancientBondsReact, ancientOnPlay, ancientOnSpellCast, ANCIENTS, ancientClearanceSellValue } from './ancients';
 import { runSpells } from './spellPool';
 import { REVELER_IDS, RUNE_INDEX, CARD_INDEX, EQUIPMENT_INDEX, STAR_DESTROYER, equipmentOf, recurringEotOwner, type EquipmentDefinition } from '@game/content';
 import { equipIsNews, equipmentParams as equipmentParamsFor, grantEquipment as grantEquipmentToPlayer, armCalibration, unusedEquipmentCount } from './equipment';
@@ -859,6 +859,10 @@ export function roundedSpellbookCostOf(state: RunState): number {
  * Dig escalates on it, so a Void wielding Dig in slot 1 prices off slot 1's count, never slot 0's.
  */
 export function heroPowerCostOf(power: HeroPower, state: RunState, uses: number): number {
+  // A PASSIVE power is never activated, so it has no price: no cost coin (owner 2026-09-30, Frank × Ancient of Time:
+  // "the cost of the hero power should go away because it's not activatable anymore"). This is what makes an Ancient's
+  // `passive` override (Frank's / Albus's / the Auctioneer's Time) render exactly like a natively passive power.
+  if (power.passive) return 0;
   switch (power.kind) {
     case 'dynamiteDig': return uses; // Jenkins — the first dig is free, then 1, 2, …
     case 'dragonTamer': return dragonTamerCostOf(state); // Tiff
@@ -1057,13 +1061,16 @@ export interface HeroPowerLive {
   /** Friendly damage LANDED so far in the fight being replayed (Heavy Hand folded); undefined outside a fight.
    *  Albus × Ancient of War prints its hero Pummel progress live. */
   friendlyDamage?: number;
+  /** Clearance stacks gained SO FAR in the fight being replayed; undefined outside a fight. Frantic Frank × Ancient of
+   *  War prints its banked stacks live. */
+  clearanceStacks?: number;
 }
 
 export function heroPowerText(state: RunState, which = 0, live: HeroPowerLive = {}): string {
   const base = baseHeroPowerText(state, which, live);
   // ANCIENTS (owner ruling 2026-09-25): an awakened Ancient's pairing prints the COMBINED power on the main slot.
   // `ancientPowerText` is undefined unless the run has Ancients on and a written pairing is picked.
-  return (which === 0 ? ancientPowerText(state, base, { combatSummons: live.summons, friendlyDamage: live.friendlyDamage }) : undefined) ?? base;
+  return (which === 0 ? ancientPowerText(state, base, { combatSummons: live.summons, friendlyDamage: live.friendlyDamage, clearanceStacks: live.clearanceStacks }) : undefined) ?? base;
 }
 
 function baseHeroPowerText(state: RunState, which: number, live: HeroPowerLive): string {
@@ -1153,9 +1160,15 @@ export function allInPayoutOf(state: RunState): number {
 
 /** The Gold a minion sells for: Hoarder a flat 2 (golden 4), everything else `CONFIG.sellValue`. Shared by
  *  the reducer's sell case and the UI's sell-amount float so the two never drift. */
-export function sellValueOf(card: BoardCard, state?: Pick<RunState, 'runeBartering' | 'runeStacks'>): number {
+export function sellValueOf(card: BoardCard, state?: Pick<RunState, 'runeBartering' | 'runeStacks'> & Partial<Pick<RunState, 'ancientsEnabled' | 'ancients' | 'heroId'>>): number {
   // Rune of the Bargain Bin: a bin-bought minion sells for its overridden value (0) — checked first so it wins.
   if (card.sellOverride !== undefined) return card.sellOverride;
+  // ANCIENT OF FORTUNE × Frantic Frank: a Clearance minion sells for 2 Gold (never below what it would sell for anyway).
+  const clearance = card.clearanceBuy && state?.heroId ? ancientClearanceSellValue(card, state as Pick<RunState, 'ancientsEnabled' | 'ancients' | 'heroId'>) : undefined;
+  return clearance !== undefined ? Math.max(clearance, baseSellValueOf(card, state)) : baseSellValueOf(card, state);
+}
+
+function baseSellValueOf(card: BoardCard, state?: Pick<RunState, 'runeBartering' | 'runeStacks'>): number {
   // Rune of Bartering: a Shout (Battlecry) minion sells for 2 Gold — folded HERE so every sell path AND the
   // UI's sell-value coin/float read the same number (never below a card's own higher sell value).
   // 2 Gold per Bartering copy held (owner 2026-08-27, unique-engine doubling — "Bartering +2g").
@@ -1587,7 +1600,7 @@ export function giftCastCount(state: Pick<RunState, 'board' | 'nextSpellExtraCas
   return 1 + yazzusExtraCasts(state as RunState) + (state.nextSpellExtraCasts ?? 0);
 }
 
-export function spellCasts(state: RunState, def: CardDef, card?: Pick<BoardCard, 'extraCasts'>): number {
+export function spellCasts(state: RunState, def: CardDef, card?: Pick<BoardCard, 'extraCasts' | 'castMult'>): number {
   return spellCastsWithout(state, def, card, NO_RUNES_OFF);
 }
 
@@ -1615,7 +1628,7 @@ function spellDoubleRuneOf(state: RunState, spellId: string): string | undefined
  * doubling rune multiplies another multiplier. Read-only, like `spellCasts`; presentation only (the cast-actor
  * stack), never gameplay.
  */
-export function runeExtraCasts(state: RunState, def: CardDef, card?: Pick<BoardCard, 'extraCasts'>): { runeId: string; count: number }[] {
+export function runeExtraCasts(state: RunState, def: CardDef, card?: Pick<BoardCard, 'extraCasts' | 'castMult'>): { runeId: string; count: number }[] {
   if (def.singleCast) return [];
   const runes: string[] = [];
   const dbl = spellDoubleRuneOf(state, def.id);
@@ -1659,10 +1672,12 @@ export function castWithRuneRepeats(casts: number, extras: readonly { runeId: st
   }
 }
 
-function spellCastsWithout(state: RunState, def: CardDef, card: Pick<BoardCard, 'extraCasts'> | undefined, off: ReadonlySet<string>): number {
+function spellCastsWithout(state: RunState, def: CardDef, card: Pick<BoardCard, 'extraCasts' | 'castMult'> | undefined, off: ReadonlySet<string>): number {
   if (def.singleCast) return 1; // Channeling the Devourer never multiplies
   let mult = def.target ? spellCastMult(state) : 1; // Yazzus multiplies aimed spells; untargeted = 1
   if (state.spellDoubleAlways) mult *= 2; // Ancient Runes: every spell casts twice
+  // Ancient of Time × Hunch: a Rounded Spellbook copy "casts twice" (a per-instance multiplier, like the ones above).
+  if ((card?.castMult ?? 1) > 1) mult *= card!.castMult!;
   // Rune of Hoardflame / Rune of Dragon Breath: THIS spell id casts an extra time. Card-scoped (the Edward
   // Keg-hands shape below, by id rather than by Ale list) and read-only, so the UI's x N badge previews the
   // real count — which is what makes the multicast modifier show while the rune is armed.
@@ -12615,6 +12630,8 @@ export function noteSpellForCountRunes(state: RunState, spellId: string): void {
   // count") rides this same every-spell chokepoint: a Shop spell, a Gift and a Ruby each advance it once per cast,
   // unlike `spellCast`, which only Shop-spell casts (and a Spellstone Ruby) advance.
   advanceRuneThresholds(state, 'anySpell', 1);
+  // ANCIENTS x Hunch (a no-op unless picked): Genesis counts every spell cast; Bonds buffs the board's two ends.
+  ancientOnSpellCast(state);
   const ids = state.spellIdsThisTurn = [...(state.spellIdsThisTurn ?? []), spellId];
   const n = ids.length;
   const skies = state.runeChartedSkies;

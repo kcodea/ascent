@@ -93,15 +93,50 @@
  *  · `playParityBuff`             SHOP: `playCard` (the one "played from hand" chokepoint): playing an odd-tier minion
  *                                 gives your OTHER odd-tier minions +a/+h, even likewise. Combat has no play. (Bonds)
  *
+ *  HUNCH (Rounded Spellbook, `roundedSpellbook`; owner pairings 2026-09-30). Rounded Spellbook = "Get a copy of the
+ *  last spell you cast. Costs 3 Gold, reduced by 1 each turn." (once per turn; the price is `roundedSpellbookCostOf`).
+ *  "A spell cast" for Genesis and Bonds is EVERY spell cast (a Shop spell, a Gift / Clue, a Ruby; never a reward
+ *  token), the owner's "all spells count" rule (2026-09-18 / 09-23): the Shop's every-spell chokepoint is
+ *  `noteSpellForCountRunes`, combat's is `ctx.castSpell` (one per cast repetition).
+ *  · `avengeImproveSpells`        COMBAT: `QuestCombatMods.ancientAvengeSpells`, an Avenge (4) on the fight's friendly
+ *                                 deaths that improves your spells +1/+1 (`grantSpellPower`, the Rune of Appraisal
+ *                                 shape). Avenge is combat-only in this game. (Death)
+ *  · `spellbookMaxGold`           the reducer's `roundedSpellbook` branch: each use also gives +1 max Gold, permanently
+ *                                 (`maxGoldBonus`, the Gold Font channel). (Fortune)
+ *  · `shopSpellsCastExtraInCombat` COMBAT: `QuestCombatMods.ancientSpellCastExtra`, Runebloom Matriarch's
+ *                                 `spellCastRepsFor` channel seeded for the whole fight. (War)
+ *  · `spellsRechargeSpellbook`    every `every`th spell cast (a running count since the pick, across turns and phases)
+ *                                 recharges Rounded Spellbook and sets its price to 1 Gold (never raising it). Shop:
+ *                                 `ancientOnSpellCast`; combat casts count at settle (`ancientAfterCombat`). (Genesis)
+ *  · `spellbookCastsTwice`        the `roundedSpellbook` branch stamps each copy `castMult: 2` ("casts twice"). (Time)
+ *  · `spellCastBuffsEdges`        SHOP: `ancientOnSpellCast` (every spell, real time); COMBAT:
+ *                                 `QuestCombatMods.ancientSpellEdges` in `ctx.castSpell`. (Bonds)
+ *  FRANTIC FRANK (Clearance, `clearance`; owner pairings 2026-09-30). Clearance = "Refresh the Shop. Its minions cost 2
+ *  Gold this turn." Its 2 Gold rides the refreshed offers' own `cost`; on an Ancients run each stamped offer also
+ *  carries `ShopCard.clearance`, and a minion bought from one carries `BoardCard.clearanceBuy` (a "Clearance minion").
+ *  · `clearanceDestroyFirstFree`  the reducer's `clearance` branch: the Clearance offers are stamped 0 Gold
+ *                                 (`clearanceFree`) until the first is bought (`ancientOnClearanceBuy` re-prices the
+ *                                 rest to 2), then the left-most board minion is destroyed (a real shop death). (Death)
+ *  · `clearanceSellValue`         `sellValueOf`: a Clearance minion sells for `gold` (every sale path reads it). (Fortune)
+ *  · `avengeClearanceStack`       COMBAT: `QuestCombatMods.ancientClearanceStacks`, an Avenge (N) on the avenge bus
+ *                                 (Rune of Fury doubles it); each fire is a stack, live (a `questTrigger`), carried back
+ *                                 to `AncientsState.clearanceStacks`. SHOP: a spent Clearance fires again on a stack. (War)
+ *  · `clearanceTopTribe`          the `clearance` branch's refresh draws only your most common type
+ *                                 (`AncientsState.rollTribe`, read by `rollShopRow`); Clearance costs 3 (`power`). (Genesis)
+ *  · `firstBuysCost`              Clearance is passive (`power`); `offerBuyPrice` caps the first N minion buys each
+ *                                 turn at `price` (`ancientTimePrice`, counted by `ancientNoteMinionBuy`). (Time)
+ *  · `clearanceSaleGivesStats`    `settleMinionSale` (`ancientOnSale`): a sold Clearance minion's current stats go to
+ *                                 a random friendly board minion, real time. (Bonds)
+ *
  * Serialisable plain data throughout, so saves / snapshots / replays can carry it cheaply later (not in the MVP).
  */
-import { makeRng, type CardDef, type EffectDef, type Keyword, type QuestCombatMods, type RiseTint } from '@game/core';
+import { makeRng, type CardDef, type EffectDef, type Keyword, type QuestCombatMods, type RiseTint, type Tribe } from '@game/core';
 import { CARD_INDEX } from '@game/content';
 import { mixSeed, type BoardCard, type RunState, type ShopCard, type SotBeatFx } from './state';
 import { pushSotBeat, recordSotBeat } from './sotBeat';
 import type { HeroPower } from './heroes';
 import type { CombatResult } from '@game/core';
-import { addBuff, aegisGrantOf, captureBuffFx, destroyMinionInShop, fireShopEchoOf, grantMinionToHandOrBoard, instanceEffects, makeContext, queueDiscover } from './recruit';
+import { addBuff, aegisGrantOf, captureBuffFx, destroyMinionInShop, fireShopEchoOf, grantMinionToHandOrBoard, improveReps, instanceEffects, makeContext, queueDiscover, dominantBoardTribe } from './recruit';
 import { INDY_GILD_RECHARGE_GOLD, hasTier7Access } from './config';
 
 export type AncientId = 'death' | 'fortune' | 'war' | 'genesis' | 'time' | 'bonds';
@@ -201,7 +236,33 @@ export type AncientEffect =
   /** Empowerment is passive; Start of Turn: Discover a minion from the tier above your Shop tier. */
   | { do: 'sotDiscoverTierAbove' }
   /** Playing an odd-tier minion from hand gives your other odd-tier minions +a/+h (even likewise). */
-  | { do: 'playParityBuff'; attack: number; health: number };
+  | { do: 'playParityBuff'; attack: number; health: number }
+  // ── Hunch (Rounded Spellbook) ──
+  /** Avenge (`every`) in combat: improve your spells by +a/+h (spell power, permanent). */
+  | { do: 'avengeImproveSpells'; every: number; attack: number; health: number }
+  /** Each Rounded Spellbook use also gives +`gold` max Gold, permanently. */
+  | { do: 'spellbookMaxGold'; gold: number }
+  /** Your Shop Spells cast `extra` more times in combat. */
+  | { do: 'shopSpellsCastExtraInCombat'; extra: number }
+  /** Every `every` spells cast: Rounded Spellbook recharges and costs `price` Gold (never more than it already did). */
+  | { do: 'spellsRechargeSpellbook'; every: number; price: number }
+  /** Spells from Rounded Spellbook cast `mult` times. */
+  | { do: 'spellbookCastsTwice'; mult: number }
+  /** Whenever you cast a spell (Shop AND combat), your left-most and right-most minions gain +a/+h. */
+  | { do: 'spellCastBuffsEdges'; attack: number; health: number }
+  // ── Frantic Frank (Clearance) ──
+  /** Clearance also destroys your left-most minion, and the first minion bought from its Shop is free. */
+  | { do: 'clearanceDestroyFirstFree' }
+  /** A minion bought from a Clearance Shop sells for `gold`. */
+  | { do: 'clearanceSellValue'; gold: number }
+  /** Avenge (`every`): gain a Clearance stack. A stack is one more Clearance use (kept until used). */
+  | { do: 'avengeClearanceStack'; every: number }
+  /** Clearance's refresh draws only minions of your most common type (the cost rides the pairing's `power`). */
+  | { do: 'clearanceTopTribe' }
+  /** Clearance is passive; the first `count` minions you buy each turn cost `price` Gold. */
+  | { do: 'firstBuysCost'; count: number; price: number }
+  /** Selling a minion bought from a Clearance Shop gives its current stats to a random friendly minion. */
+  | { do: 'clearanceSaleGivesStats' };
 
 export interface AncientPairing {
   /** The Ancient's text for this hero, as shown on the offer and the preview (the owner's words). */
@@ -213,7 +274,10 @@ export interface AncientPairing {
    *  `{summons}` / `{timeA}` / `{timeH}` = the Risen's summon count and the Start-of-Turn grant it pays: LIVE during a
    *  fight (the replay's running count, `{timeWhen}` = "This combat"), else the last combat's (`{timeWhen}` = "Last
    *  combat"), R-ANCRISEN-07. Albus: `{timeTier}` = the tier Time's next Discover draws from; `{pummelNow}` /
-   *  `{pummelEvery}` = War's live Pummel progress (toward the next payout, the badge rule) and its X. */
+   *  `{pummelEvery}` = War's live Pummel progress (toward the next payout, the badge rule) and its X. Frank:
+   *  `{deathFree}` = " Free buy ready." while a Death free Clearance offer waits; `{stacks}` = War's banked Clearance stacks
+   *  (plus those gained so far in the fight on screen); `{genesisTribe}` = the type Genesis would refresh into right now;
+   *  `{timeLeft}` = Time's discounted buys left this turn. */
   powerText: string;
   /** Changes to the hero power's own SHAPE while this pairing is live (Auctioneer: Time makes Pulse passive, Genesis
    *  makes it an untargeted 2 Gold Discover). Stamped on the run at the pick (`AncientsState.powerOverride`) and
@@ -441,6 +505,90 @@ export const ANCIENT_PAIRINGS: Record<string, Partial<Record<AncientId, AncientP
       effects: [{ do: 'playParityBuff', attack: 3, health: 3 }],
     },
   },
+  // HUNCH (owner pairings 2026-09-30, quoted above each entry). Rounded Spellbook = "Get a copy of the last spell you
+  // cast. Costs 3 Gold, reduced by 1 each turn." (once per turn).
+  hunch: {
+    death: {
+      // "Avenge (4) Improve your spells by +1/+1."
+      offerText: '**Avenge (4):** improve your spells by **+1/+1**.',
+      powerText: '{base} **Avenge (4):** improve your spells by **+1/+1** (**{avengeNow}/4**). Improved so far: **+{deathA}/+{deathH}**.',
+      effects: [{ do: 'avengeImproveSpells', every: 4, attack: 1, health: 1 }],
+    },
+    fortune: {
+      // "Rounded Spellbook also increases max gold by 1."
+      offerText: 'Rounded Spellbook also gives you **+1 max Gold**.',
+      powerText: '{base} It also gives you **+1 max Gold**. **+{bookGold}** so far.',
+      effects: [{ do: 'spellbookMaxGold', gold: 1 }],
+    },
+    war: {
+      // "Shop Spells cast an additional time in combat" (Runebloom Matriarch's rule, from the hero).
+      offerText: 'Your **Shop Spells** cast an extra time in combat.',
+      powerText: '{base} Your **Shop Spells** cast an extra time in combat.',
+      effects: [{ do: 'shopSpellsCastExtraInCombat', extra: 1 }],
+    },
+    genesis: {
+      // "Casting 5 spells resets rounded spellbook at 1g"
+      offerText: 'Every **5** spells you cast, Rounded Spellbook recharges and costs **1 Gold**.',
+      powerText: '{base} Every **5** spells you cast, it recharges and costs **1 Gold** (**{genesisLeft}** more to go).',
+      effects: [{ do: 'spellsRechargeSpellbook', every: 5, price: 1 }],
+    },
+    time: {
+      // "Spells from rounded spellbook cast twice."
+      offerText: 'Spells you get from Rounded Spellbook cast **twice**.',
+      powerText: '{base} The copy casts **twice**.',
+      effects: [{ do: 'spellbookCastsTwice', mult: 2 }],
+    },
+    bonds: {
+      // "Casting spells grants your left and right-most minion +2/+3."
+      offerText: 'Whenever you cast a spell, give your left and right-most minions **+2/+3**.',
+      powerText: '{base} Whenever you cast a spell, give your left and right-most minions **+2/+3**.',
+      effects: [{ do: 'spellCastBuffsEdges', attack: 2, health: 3 }],
+    },
+  },
+  // FRANTIC FRANK (owner pairings 2026-09-30, quoted above each entry). Clearance = "Refresh the Shop. Its minions cost
+  // 2 Gold this turn." (1 Gold, once per turn). "Clearance minions" = minions bought from a Clearance-marked Shop.
+  frank: {
+    death: {
+      // Owner 2026-09-30 (replacing "makes the Shop free this turn"): "make death - destroy leftmost minion and makes the
+      // first minion you buy from clearance free".
+      offerText: 'Clearance also destroys your left-most minion. The first minion you buy from it is free.',
+      powerText: 'Destroy your left-most minion. Refresh the Shop. Its minions cost 2 Gold this turn, and the first one you buy is free.{deathFree}',
+      effects: [{ do: 'clearanceDestroyFirstFree' }],
+    },
+    fortune: {
+      // "Clearance minions sell for 2g"
+      offerText: 'Minions you buy from Clearance sell for **2 Gold**.',
+      powerText: '{base} Minions you buy from it sell for **2 Gold**.',
+      effects: [{ do: 'clearanceSellValue', gold: 2 }],
+    },
+    war: {
+      // "Avenge (3): Gain a Clearance stack. * this lets clearance be used more than once per turn, up to however many
+      // stacks they have". Stacks are kept until used; a use once the turn's own Clearance is spent takes one.
+      offerText: '**Avenge (3):** gain a Clearance stack. Each stack lets you use Clearance one more time.',
+      powerText: '{base} **Avenge (3):** gain a Clearance stack. Each stack is one more use (**{stacks}** banked).',
+      effects: [{ do: 'avengeClearanceStack', every: 3 }],
+    },
+    genesis: {
+      // "Clearance costs 3g but refreshes with minions of your most common type."
+      offerText: 'Clearance costs **3 Gold**, and it refreshes the Shop with minions of your most common type.',
+      powerText: 'Refresh the Shop with minions of your most common type{genesisTribe}. Its minions cost 2 Gold this turn.',
+      power: { cost: 3 },
+      effects: [{ do: 'clearanceTopTribe' }],
+    },
+    time: {
+      // "Clearance becomes 'The first 3 minions you buy each turn cost 2g.'"
+      offerText: 'Clearance becomes passive: the first **3** minions you buy each turn cost **2 Gold**.',
+      powerText: 'The first **3** minions you buy each turn cost **2 Gold** (**{timeLeft}** left this turn).',
+      power: { passive: true },
+      effects: [{ do: 'firstBuysCost', count: 3, price: 2 }],
+    },
+    bonds: {
+      // "Selling Clearance minions grants the minions stats to a random friendly minion."
+      offerText: 'Selling a minion you bought from Clearance gives its stats to a random friendly minion.',
+      powerText: '{base} Selling a minion you bought from it gives its stats to a random friendly minion.',
+      effects: [{ do: 'clearanceSaleGivesStats' }],
+    },
+  },
 };
 
 export function ancientPairingFor(heroId: string, id: AncientId): AncientPairing | undefined {
@@ -510,6 +658,23 @@ export interface AncientsState {
   lastSummons?: number;
   /** ALBUS × WAR: the hero-Pummel LIFETIME tally (friendly damage dealt), carried across combats like the keyword. */
   pummelDealt?: number;
+  /** HUNCH × DEATH: the total spell improvement its Avenges have granted (banked at settle; printed live). */
+  spellImproved?: { attack: number; health: number };
+  /** HUNCH × FORTUNE: max Gold Rounded Spellbook has granted this run (printed live). */
+  bookMaxGold?: number;
+  /** HUNCH × GENESIS: spells cast since the pick (every phase), the running count toward the next recharge. */
+  genesisSpells?: number;
+  /** HUNCH presentation cues (monotonic; the UI plays one beat per bump): Fortune's +max Gold on the Gold pill, and
+   *  Genesis' recharge on the hero-power button. Never read by gameplay. */
+  bookGoldFxSeq?: number;
+  rechargeFxSeq?: number;
+  /** FRANK × WAR: banked Clearance stacks (each = one more Clearance use). Kept across turns until used. */
+  clearanceStacks?: number;
+  /** FRANK × TIME: minions bought on `wave` (the first `count` each turn are capped at the Time price). */
+  timeBuys?: { wave: number; n: number };
+  /** FRANK × GENESIS: the type Clearance's refresh is narrowed to, set ONLY while that refresh rolls (read by
+   *  `rollShopRow`). Transient: cleared the moment the roll is done. */
+  rollTribe?: Tribe;
 }
 
 /** Turn Ancients on for a run (the Scene Builder's Set 3 flag). Pure: returns a new run. */
@@ -606,6 +771,9 @@ export interface AncientPowerLive {
   /** Friendly minions summoned SO FAR in the fight on screen (the replay's step-tagged `summonCombat` tally, the same
    *  summon-entry chokepoint `ancientCountSummons` counts), so Time's printed count follows the replay beat. */
   combatSummons?: number;
+  /** FRANK × WAR: Clearance stacks gained SO FAR in the fight on screen (the replay's `questTrigger` events for
+   *  `ANCIENT_CLEARANCE_STACK_FLAG`), added to the banked count so the readout ticks with each Avenge. */
+  clearanceStacks?: number;
 }
 
 /** The resolved hero-power text, or undefined when no pairing is active (the caller keeps its base text). */
@@ -628,11 +796,67 @@ export function ancientPowerText(state: RunState, base: string, combat: AncientP
   const summons = liveSummons ? combat.combatSummons! : a?.lastSummons ?? 0;
   const pummel = effectOf(state, 'pummelGrantsCards');
   const pummelNow = pummel ? ((a?.pummelDealt ?? 0) + (combat.friendlyDamage ?? 0)) % Math.max(1, pummel.every) : 0;
-  return text.replace('{base}', base).replace('{timeTier}', String(albusTimeTier(state)))
+  const hunch = hunchLive(state);
+  const stacks = (a?.clearanceStacks ?? 0) + (combat.clearanceStacks ?? 0);
+  const deathFree = effectOf(state, 'clearanceDestroyFirstFree') && state.shop.some((o) => o.clearanceFree) ? ' Free buy ready.' : '';
+  const top = effectOf(state, 'clearanceTopTribe') ? dominantBoardTribe(state) : null;
+  const genesisTribe = top ? ` (**${top.charAt(0).toUpperCase()}${top.slice(1)}**)` : '';
+  return text.replace('{base}', base).replace('{avengeNow}', String(hunch.avengeNow)).replace('{deathA}', String(hunch.deathA)).replace('{deathH}', String(hunch.deathH))
+    .replace('{bookGold}', String(a?.bookMaxGold ?? 0)).replace('{genesisLeft}', String(hunch.genesisLeft)).replace('{timeTier}', String(albusTimeTier(state)))
+    .replace('{stacks}', String(stacks)).replace('{deathFree}', deathFree).replace('{genesisTribe}', genesisTribe).replace('{timeLeft}', String(ancientTimeBuysLeft(state)))
     .replace('{pummelNow}', String(pummelNow)).replace('{pummelEvery}', String(pummel?.every ?? 0)).replace('{timeWhen}', liveSummons ? 'This combat' : 'Last combat').replace('{shoutGold}', String(shoutGold))
     .replace('{riseGold}', String(a?.riseGold ?? 0)).replace('{summons}', String(summons))
     .replace('{timeA}', String((time?.attack ?? 0) * summons)).replace('{timeH}', String((time?.health ?? 0) * summons)).replace('{aegis}', aegis).replace('{wardLeft}', String(wardLeft)).replace('{recharge}', String(INDY_GILD_RECHARGE_GOLD))
     .replace('{gilds}', String(gilds)).replace('{gildA}', String((per?.attack ?? 0) * gilds)).replace('{gildH}', String((per?.health ?? 0) * gilds));
+}
+
+/**
+ * HUNCH's live readouts (R-REALTIME-01): during a fight being replayed they fold the replay's display-only previews
+ * (`fxFriendlyDeathPreview`, `fxSpellsCastPreview`, the same folds Cindara and Yirin print from), so the numbers tick
+ * with each death / cast and land exactly where settle banks them.
+ *  - DEATH: `avengeNow` = friendly deaths this fight toward the next Avenge (0 outside a fight); `deathA` / `deathH` =
+ *    the improvement banked so far plus what this fight's Avenges have already granted (Rune of Fury's extra fire
+ *    and Rune of Mastery's improve reps, the simulator's own rule).
+ *  - GENESIS: `genesisLeft` = spells still to cast before the next recharge.
+ */
+function hunchLive(state: RunState): { avengeNow: number; deathA: number; deathH: number; genesisLeft: number } {
+  const a = live(state);
+  const death = effectOf(state, 'avengeImproveSpells');
+  const deaths = state.fxFriendlyDeathPreview ?? 0;
+  let avengeNow = 0, deathA = a?.spellImproved?.attack ?? 0, deathH = a?.spellImproved?.health ?? 0;
+  if (death) {
+    const every = Math.max(1, death.every);
+    avengeNow = deaths % every;
+    const fury = state.questFlags?.runeFury ? Math.max(1, state.flagCopies?.runeFury ?? 1) : 0;
+    const steps = Math.floor(deaths / every) * (1 + fury) * improveReps(state);
+    deathA += steps * death.attack;
+    deathH += steps * death.health;
+  }
+  const gen = effectOf(state, 'spellsRechargeSpellbook');
+  const genesisLeft = gen ? gen.every - (((a?.genesisSpells ?? 0) + (state.fxSpellsCastPreview ?? 0)) % Math.max(1, gen.every)) : 0;
+  return { avengeNow, deathA, deathH, genesisLeft };
+}
+
+/**
+ * HUNCH × DEATH: friendly deaths still needed for the next Avenge (4) in the fight on screen (the replay's
+ * `fxFriendlyDeathPreview`, live; the full 4 outside a fight, since the Avenge count is per combat). Null when Death is
+ * not the picked pairing. The hero power prints it in its centre (owner 2026-09-30).
+ */
+export function ancientSpellbookAvengeLeft(state: RunState, deaths = state.fxFriendlyDeathPreview ?? 0): number | null {
+  const e = live(state) ? effectOf(state, 'avengeImproveSpells') : undefined;
+  if (!e) return null;
+  const every = Math.max(1, e.every);
+  return every - (Math.max(0, deaths) % every);
+}
+
+/**
+ * THE ONE AVENGE COUNTDOWN the hero power prints in its centre, on the shared disc (`.hpb-avenge`), for whichever hero
+ * Ancient runs a hero-level Avenge: Frantic Frank × War (Avenge (3), a Clearance stack) or Hunch × Death (Avenge (4),
+ * +1/+1 spells). `deaths` = friendly deaths so far in the fight on screen (0 outside one: the count is per combat).
+ * Null = no hero Avenge is live.
+ */
+export function ancientAvengeCountdown(state: RunState, deaths = 0): number | null {
+  return ancientClearanceAvengeLeft(state, deaths) ?? ancientSpellbookAvengeLeft(state, deaths);
 }
 
 // ── Hooks ────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -668,8 +892,10 @@ export function ancientAfterPowerGild(state: RunState, card: BoardCard): void {
   }
 }
 
-/** A minion was sold (Fortune: a gilded one gets a plain copy to hand). */
+/** A minion was sold (Indy's Fortune: a gilded one gets a plain copy to hand; Frank's Bonds: a Clearance minion's
+ *  stats go to a random friendly minion). */
 export function ancientOnSale(state: RunState, sold: BoardCard): void {
+  ancientClearanceSale(state, sold);
   const e = effectOf(state, 'sellGildedGetsPlainCopy');
   if (!e || !sold.golden) return;
   const def = CARD_INDEX[sold.cardId];
@@ -721,6 +947,16 @@ export function ancientCombatMods(state: RunState): Partial<QuestCombatMods> {
   if (pummel) {
     out.ancientPummel = { every: pummel.every, count: pummel.count, cardId: pummel.cardId, dealt: live(state)?.pummelDealt ?? 0, label: ANCIENTS.war.name };
   }
+  const avenge = effectOf(state, 'avengeImproveSpells');
+  if (avenge) out.ancientAvengeSpells = { every: avenge.every, attack: avenge.attack, health: avenge.health, label: ANCIENTS.death.name };
+  const castExtra = effectOf(state, 'shopSpellsCastExtraInCombat');
+  if (castExtra) out.ancientSpellCastExtra = castExtra.extra;
+  const edges = effectOf(state, 'spellCastBuffsEdges');
+  // Labelled with the POWER's name: a label-sourced combat grant named in `HERO_POWER_BUFF_LABELS` (ui bindings) plays
+  // the generic tendril from the hero-power button, the way Emissary's United Front does.
+  if (edges) out.ancientSpellEdges = { attack: edges.attack, health: edges.health, label: HUNCH_BONDS_COMBAT_LABEL };
+  const stack = effectOf(state, 'avengeClearanceStack');
+  if (stack) out.ancientClearanceStacks = { every: stack.every, flag: ANCIENT_CLEARANCE_STACK_FLAG, label: ANCIENTS.war.name };
   return out;
 }
 
@@ -830,6 +1066,21 @@ export function ancientAfterCombat(state: RunState, result: CombatResult): void 
   if (effectOf(state, 'sotBuffPerCombatSummon')) a.lastSummons = result.playerSummonsMade ?? 0;
   // ALBUS × WAR: the lifetime Pummel tally the fight hands back (the payout already happened mid-fight).
   if (effectOf(state, 'pummelGrantsCards') && result.playerAncientPummelDealt !== undefined) a.pummelDealt = result.playerAncientPummelDealt;
+  // HUNCH x DEATH: bank the improvement this fight's Avenges granted (the spell power itself settles through
+  // `playerSpellPower`, like every combat spell-power gain).
+  const imp = result.playerAncientSpellImproved;
+  if (effectOf(state, 'avengeImproveSpells') && imp && (imp.attack > 0 || imp.health > 0)) {
+    a.spellImproved = { attack: (a.spellImproved?.attack ?? 0) + imp.attack, health: (a.spellImproved?.health ?? 0) + imp.health };
+  }
+  // HUNCH x GENESIS: combat casts count toward the running total. A recharge earned in combat lands on the NEXT Shop
+  // (at settle the run is still on the fight's wave; the power recharges at the new turn anyway), at 1 Gold.
+  if (effectOf(state, 'spellsRechargeSpellbook')) {
+    for (let i = 0; i < (result.playerSpellsCast ?? 0); i++) hunchGenesisTick(state, 1);
+  }
+  // FRANK × WAR: the stacks the fight's Avenges gained (each already shown live, mid-fight) join the bank.
+  if (effectOf(state, 'avengeClearanceStack') && (result.playerAncientClearanceStacks ?? 0) > 0) {
+    a.clearanceStacks = (a.clearanceStacks ?? 0) + result.playerAncientClearanceStacks!;
+  }
   if (!effectOf(state, 'wardBreaksGetCopy')) return;
   a.wardBreaks = (a.wardBreaks ?? 0) + breaks.length;
   if (result.playerWardWindow) a.wardWindow = [...result.playerWardWindow];
@@ -990,4 +1241,195 @@ export function ancientOnPlay(state: RunState, played: BoardCard): void {
   const mates = state.board.filter((c) => c !== played && (CARD_INDEX[c.cardId]?.tier ?? -1) % 2 === parity);
   if (mates.length === 0) return;
   captureBuffFx(state, played, 'minion', () => { for (const c of mates) addBuff(c, ANCIENTS.bonds.name, e.attack, e.health); });
+}
+
+/** The combat buff label for Hunch × Bonds (the key the UI's hero-power tendril route matches). */
+export const HUNCH_BONDS_COMBAT_LABEL = 'Rounded Spellbook';
+
+// ── Hunch (Rounded Spellbook) hooks ──────────────────────────────────────────────────────────────────────────
+/**
+ * GENESIS: one spell was cast. Every `every`th (a running count since the pick) recharges Rounded Spellbook (usable
+ * again if already used this turn) and sets its price to `price` Gold, never RAISING it (a Spellbook already down to
+ * 0 stays at 0). The price rides Hunch's own clock (`hunchResetWave`): re-basing it `3 - price` turns back makes the
+ * coin read `price` now and keep shrinking 1 per turn from there, exactly like the native countdown. `waveAhead` = 1
+ * for a combat cast counted at settle, so the price is set for the next Shop.
+ */
+function hunchGenesisTick(state: RunState, waveAhead: 0 | 1): void {
+  const a = live(state);
+  const e = effectOf(state, 'spellsRechargeSpellbook');
+  if (!a || !e) return;
+  a.genesisSpells = (a.genesisSpells ?? 0) + 1;
+  if (a.genesisSpells % Math.max(1, e.every) !== 0) return;
+  const wave = state.wave + waveAhead;
+  const priceThen = Math.max(0, 3 - Math.max(0, wave - (state.hunchResetWave ?? 1)));
+  if (priceThen > e.price) state.hunchResetWave = wave - (3 - e.price);
+  if (!waveAhead) state.heroReady = true;
+  a.rechargeFxSeq = (a.rechargeFxSeq ?? 0) + 1; // the hero-power pulse (presentation only)
+}
+
+/**
+ * A SPELL WAS CAST in the Shop (Shop spell, Gift / Clue or Ruby; never a reward token): called once per cast
+ * resolution from `noteSpellForCountRunes`, the Shop's every-spell chokepoint. GENESIS counts it; BONDS gives the
+ * left-most and right-most board minions +a/+h, permanently, in real time (once when they are the same minion).
+ */
+export function ancientOnSpellCast(state: RunState): void {
+  if (!live(state)) return;
+  hunchGenesisTick(state, 0);
+  const e = effectOf(state, 'spellCastBuffsEdges');
+  if (!e || state.board.length === 0) return;
+  const ends = state.board.length === 1 ? [state.board[0]!] : [state.board[0]!, state.board[state.board.length - 1]!];
+  // The grants leave the HERO-POWER button (the generic tendril, `fromHeroPower`), the shop twin of the combat
+  // replay's `HERO_POWER_BUFF_LABELS` route: stamp the records this capture pushed.
+  const from = state.recruitBuffFx.length;
+  captureBuffFx(state, undefined, 'spell', () => { for (const c of ends) addBuff(c, ANCIENTS.bonds.name, e.attack, e.health); });
+  for (let i = from; i < state.recruitBuffFx.length; i++) state.recruitBuffFx[i]!.fromHeroPower = true;
+}
+
+/**
+ * Rounded Spellbook just resolved and handed `copies` to hand. FORTUNE: +gold max Gold, permanently (the Gold Font
+ * channel `maxGoldBonus`: above the natural cap, no Gold this turn). TIME: each copy casts twice (`castMult`).
+ */
+export function ancientOnSpellbook(state: RunState, copies: BoardCard[]): void {
+  const a = live(state);
+  if (!a) return;
+  const gold = effectOf(state, 'spellbookMaxGold');
+  if (gold) {
+    state.maxGoldBonus = (state.maxGoldBonus ?? 0) + gold.gold;
+    a.bookMaxGold = (a.bookMaxGold ?? 0) + gold.gold;
+    a.bookGoldFxSeq = (a.bookGoldFxSeq ?? 0) + 1; // the Gold pill's coin burst (presentation only)
+  }
+  const twice = effectOf(state, 'spellbookCastsTwice');
+  if (twice) for (const c of copies) c.castMult = Math.max(c.castMult ?? 1, twice.mult);
+}
+
+// ── Frantic Frank (Clearance) hooks ──────────────────────────────────────────────────────────────────────────
+/** The `questTrigger` flag War's combat Avenge emits once per stack gained (the replay counts them for the live text). */
+export const ANCIENT_CLEARANCE_STACK_FLAG = 'ancientClearanceStack';
+
+/** TIME: Clearance is passive (its half is the first-buys price, `ancientTimePrice`). */
+export function ancientClearancePassive(state: RunState): boolean {
+  return !!effectOf(state, 'firstBuysCost');
+}
+
+/** WAR: banked Clearance stacks (0 unless the pairing is live). */
+export function ancientClearanceStacks(state: Pick<RunState, 'ancientsEnabled' | 'ancients' | 'heroId'>): number {
+  const s = state as RunState;
+  return effectOf(s, 'avengeClearanceStack') ? Math.max(0, live(s)?.clearanceStacks ?? 0) : 0;
+}
+
+/**
+ * WAR: the Clearance uses available right now = the turn's own use (while unspent) + the banked stacks + `gained`
+ * (stacks gained so far in the fight on screen). The power's red uses badge shows it ONLY when it is 2 or more (owner
+ * 2026-09-30: "when there are multiple stacks of clearance, show the # in Red in the center top of the hero power");
+ * null = no badge (War not picked, or a single use needs none).
+ */
+export function ancientClearanceUsesBadge(state: Pick<RunState, 'ancientsEnabled' | 'ancients' | 'heroId' | 'heroReady'>, gained = 0): number | null {
+  const s = state as RunState;
+  if (!effectOf(s, 'avengeClearanceStack')) return null;
+  const uses = (state.heroReady ? 1 : 0) + ancientClearanceStacks(state) + Math.max(0, gained);
+  return uses >= 2 ? uses : null;
+}
+
+/**
+ * WAR: the Avenge (N) countdown shown in the CENTRE of the power (owner 2026-09-30: "show it in the center of the hero
+ * power when war is active"): friendly deaths still needed for the next stack. Avenge counts deaths within ONE fight
+ * (the avenge bus's `count`), so outside a fight it reads the full N; `deaths` = friendly deaths so far in the fight on
+ * screen. null = War not picked.
+ */
+export function ancientClearanceAvengeLeft(state: Pick<RunState, 'ancientsEnabled' | 'ancients' | 'heroId'>, deaths = 0): number | null {
+  const e = effectOf(state as RunState, 'avengeClearanceStack');
+  if (!e) return null;
+  const every = Math.max(1, e.every);
+  return every - (Math.max(0, deaths) % every);
+}
+
+/** WAR: a Clearance use past the turn's own charge spends one stack. */
+export function ancientSpendClearanceStack(state: RunState): void {
+  const a = live(state);
+  if (a && (a.clearanceStacks ?? 0) > 0) a.clearanceStacks = a.clearanceStacks! - 1;
+}
+
+/**
+ * Run Clearance's refresh (`refresh` = the reducer's `refreshTavern` + `applyShopRefreshed`). GENESIS narrows it to
+ * your most common type (`dominantBoardTribe`, the Reinforcing Ale tie-break: first seen on the board wins): the
+ * type is parked on `AncientsState.rollTribe` for exactly this roll. No type on the board = an ordinary refresh.
+ */
+export function ancientClearanceRefresh(state: RunState, refresh: () => void): void {
+  const a = live(state);
+  const tribe = a && effectOf(state, 'clearanceTopTribe') ? dominantBoardTribe(state) : null;
+  if (!a || !tribe) { refresh(); return; }
+  a.rollTribe = tribe;
+  try { refresh(); } finally { a.rollTribe = undefined; }
+}
+
+/** GENESIS: the type the roll in progress is narrowed to (read by `rollShopRow`), else undefined. */
+export function ancientRollTribe(state: RunState): Tribe | undefined {
+  return live(state)?.rollTribe;
+}
+
+/** A Clearance offer was just stamped at 2 Gold: mark it as a Clearance offer (Ancients runs only, so every other run's
+ *  state is byte-identical). DEATH: the whole set starts at 0 Gold, "the first one you buy is free". */
+export function ancientMarkClearanceOffer(state: RunState, offer: ShopCard): void {
+  if (!live(state)) return;
+  offer.clearance = true;
+  if (effectOf(state, 'clearanceDestroyFirstFree')) { offer.cost = 0; offer.clearanceFree = true; }
+}
+
+/** DEATH: after Clearance refreshed, destroy the left-most board minion (a real shop death: its Echo, the death
+ *  watchers, a Rebirth / Rise return). An empty board skips it. */
+export function ancientAfterClearance(state: RunState): void {
+  if (!effectOf(state, 'clearanceDestroyFirstFree')) return;
+  const left = state.board[0];
+  if (left) destroyMinionInShop(makeContext(state), left);
+}
+
+/** A Shop offer is being bought. DEATH: buying one of the free Clearance offers spends the free buy, so the rest go
+ *  back to the Clearance 2 Gold. Returns whether the bought minion is a Clearance minion (`BoardCard.clearanceBuy`). */
+export function ancientOnClearanceBuy(state: RunState, offer: ShopCard): boolean {
+  if (!live(state)) return false;
+  if (offer.clearanceFree) {
+    for (const o of state.shop) if (o.clearanceFree && o !== offer) { o.cost = 2; o.clearanceFree = undefined; }
+  }
+  return !!offer.clearance;
+}
+
+/** TIME: discounted buys left this turn (0 unless the pairing is live). */
+export function ancientTimeBuysLeft(state: RunState): number {
+  const e = effectOf(state, 'firstBuysCost');
+  if (!e) return 0;
+  const tb = live(state)?.timeBuys;
+  return Math.max(0, e.count - (tb?.wave === state.wave ? tb.n : 0));
+}
+
+/** TIME: the price cap on the next minion buy (the Time price while buys are left this turn), else undefined. */
+export function ancientTimePrice(state: RunState): number | undefined {
+  const e = effectOf(state, 'firstBuysCost');
+  return e && ancientTimeBuysLeft(state) > 0 ? e.price : undefined;
+}
+
+/** TIME: a minion was bought (every buy counts toward "the first 3", discounted or not). */
+export function ancientNoteMinionBuy(state: RunState): void {
+  const a = live(state);
+  if (!a || !effectOf(state, 'firstBuysCost')) return;
+  const n = a.timeBuys?.wave === state.wave ? a.timeBuys.n : 0;
+  a.timeBuys = { wave: state.wave, n: n + 1 };
+}
+
+/** FORTUNE: what a Clearance minion sells for (undefined = not a Clearance minion, or the pairing is not live). */
+export function ancientClearanceSellValue(card: BoardCard, state: Pick<RunState, 'ancientsEnabled' | 'ancients' | 'heroId'>): number | undefined {
+  if (!card.clearanceBuy) return undefined;
+  return effectOf(state as RunState, 'clearanceSellValue')?.gold;
+}
+
+/** BONDS: a sold Clearance minion's CURRENT stats go to a random friendly board minion, permanently, right then. The
+ *  sold minion has already left, so it is never its own recipient. No other minion = nothing. */
+function ancientClearanceSale(state: RunState, sold: BoardCard): void {
+  if (!sold.clearanceBuy || !effectOf(state, 'clearanceSaleGivesStats')) return;
+  if (state.board.length === 0 || (sold.attack <= 0 && sold.health <= 0)) return;
+  const rng = makeRng(state.rngCursor);
+  const pick = state.board[rng.int(state.board.length)]!;
+  state.rngCursor = rng.state();
+  // A `deathrattle`-kind capture keeps the sold body as its source: the UI streams the buff tendril from the slot it
+  // just left (its last-known position) to the recipient, with the recipient's stat pop.
+  captureBuffFx(state, sold, 'deathrattle', () => addBuff(pick, ANCIENTS.bonds.name, Math.max(0, sold.attack), Math.max(0, sold.health)));
 }

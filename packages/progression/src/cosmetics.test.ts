@@ -142,34 +142,54 @@ describe('the roll', () => {
   // the ninth to thirteenth hero attacks, Inferno (attack_fire), Grave Call (attack_undead), the Stampede (attack_beast),
   // Oona's Banana Cannon (attack_banana) and Hemorrhage (attack_bleed), all Legendary, joined: Legendary 11 -> 16 items
   // (each 5 / 16). The four Rare hero attacks
-  // (attack_coin, attack_boomerang, attack_bubble, attack_backstab) made Rare 13 -> 17 (each 30 / 17).
-  it('the per-item chances of a first crate (2026-09-29 catalog): each item = its rarity\'s odds / that rarity\'s item count', () => {
+  // (attack_coin, attack_boomerang, attack_bubble, attack_backstab) made Rare 13 -> 17 (each 30 / 17). The fourteenth
+  // Legendary attack, Nothing But Net (attack_basketball), made Legendary 16 -> 17 (each 5 / 17).
+  it('the per-item chances of a first crate (2026-09-30 catalog): each item = its rarity\'s odds / that rarity\'s item count', () => {
     const all = eligibleCrateCosmetics([]);
     const count = (r: string): number => all.filter((c) => c.rarity === r).length;
-    expect(COSMETIC_RARITIES.map(count)).toEqual([8, 17, 12, 16]); // 2026-09-29: Inferno, Grave Call, the Stampede, Oona's Banana Cannon and Hemorrhage made Legendary 16; the first Epic attacks, Card Shark and Storm Call, made Epic 12; the four Rare hero attacks (coin, boomerang, bubble, backstab) made Rare 17
+    expect(COSMETIC_RARITIES.map(count)).toEqual([17, 40, 26, 20]); // 2026-09-30 (skins batch 5): Cotton Candy Nimbus, Smog Nimbus and Mime Joker made Common 17; Influencer Indy and seven Rare minion skins made Rare 40; Star Urchin made Epic 26. 2026-09-30 (skins batch 4): Waitress Ayse, Mastered Soren, Young Brakkus, Ninja Robin and Beefy Arnold made Common 14; thirteen Rare skins made Rare 32; eleven Epic skins made Epic 25; Edward Colada Hands, Portal Buddy and Sketch Buddy made Legendary 20. 2026-09-29: Nothing But Net (attack_basketball) made Legendary 17. 2026-09-29 (skins batch 3): Armourer Frank made Common 9; Stencil Sylus and Mace Urchin made Rare 19; Rooks Oona and Magician Buddy Buddy made Epic 14. Before that, 2026-09-29: Inferno, Grave Call, the Stampede, Oona's Banana Cannon and Hemorrhage made Legendary 16; the first Epic attacks, Card Shark and Storm Call, made Epic 12; the four Rare hero attacks (coin, boomerang, bubble, backstab) made Rare 17
     const ch = crateChances(all);
     const pct = (id: string): number => Math.round(100000 * ch.get(id)!) / 1000;
-    expect(pct('skin_blackbelt_4')).toBe(6.25);       // Common: 50 / 8
-    expect(pct('title_board_builder')).toBe(6.25);
-    expect(pct('skin_blackbelt_1')).toBe(1.765);      // Rare: 30 / 17
-    expect(pct('title_grave_whisperer')).toBe(1.765);
-    expect(pct('attack_coin')).toBe(1.765);
-    expect(pct('attack_backstab')).toBe(1.765);
-    expect(pct('skin_bellringer_1')).toBe(1.25);      // Epic: 15 / 12
-    expect(pct('skin_albus_1')).toBe(1.25);
-    expect(pct('title_kingbreaker')).toBe(1.25);
-    expect(pct('attack_cards')).toBe(1.25);
-    expect(pct('attack_storm')).toBe(1.25);
-    expect(pct('skin_blackbelt_3')).toBe(0.313);      // Legendary: 5 / 16
-    expect(pct('attack_arcana')).toBe(0.313);
-    expect(pct('attack_fire')).toBe(0.313);
-    expect(pct('attack_undead')).toBe(0.313);
-    expect(pct('attack_beast')).toBe(0.313);
-    expect(pct('attack_banana')).toBe(0.313);
-    expect(pct('attack_bleed')).toBe(0.313);
-    expect(pct('title_the_unbroken')).toBe(0.313);
+    expect(pct('skin_blackbelt_4')).toBe(2.941);      // Common: 50 / 17
+    expect(pct('title_board_builder')).toBe(2.941);
+    expect(pct('skin_frank_1')).toBe(2.941);
+    expect(pct('skin_arnold_1')).toBe(2.941);
+    expect(pct('skin_robin_1')).toBe(2.941);
+    expect(pct('skin_nimbus_2')).toBe(2.941);
+    expect(pct('skin_joker_2')).toBe(2.941);
+    expect(pct('skin_blackbelt_1')).toBe(0.75);      // Rare: 30 / 40
+    expect(pct('title_grave_whisperer')).toBe(0.75);
+    expect(pct('skin_sylus_3')).toBe(0.75);
+    expect(pct('skin_seaurchin_1')).toBe(0.75);
+    expect(pct('skin_baal_1')).toBe(0.75);
+    expect(pct('skin_frank_3')).toBe(0.75);
+    expect(pct('skin_indy_1')).toBe(0.75);
+    expect(pct('skin_wardkeeper_1')).toBe(0.75);
+    expect(pct('attack_coin')).toBe(0.75);
+    expect(pct('attack_backstab')).toBe(0.75);
+    expect(pct('skin_bellringer_1')).toBe(0.577);        // Epic: 15 / 26
+    expect(pct('skin_albus_1')).toBe(0.577);
+    expect(pct('skin_oona_1')).toBe(0.577);
+    expect(pct('skin_buddy_1')).toBe(0.577);
+    expect(pct('skin_pimm_2')).toBe(0.577);
+    expect(pct('skin_keshi_1')).toBe(0.577);
+    expect(pct('skin_seaurchin_2')).toBe(0.577);
+    expect(pct('title_kingbreaker')).toBe(0.577);
+    expect(pct('attack_cards')).toBe(0.577);
+    expect(pct('attack_storm')).toBe(0.577);
+    expect(pct('skin_blackbelt_3')).toBe(0.25);       // Legendary: 5 / 20
+    expect(pct('skin_edward_1')).toBe(0.25);
+    expect(pct('skin_buddy_3')).toBe(0.25);
+    expect(pct('attack_arcana')).toBe(0.25);
+    expect(pct('attack_fire')).toBe(0.25);
+    expect(pct('attack_undead')).toBe(0.25);
+    expect(pct('attack_beast')).toBe(0.25);
+    expect(pct('attack_banana')).toBe(0.25);
+    expect(pct('attack_bleed')).toBe(0.25);
+    expect(pct('attack_basketball')).toBe(0.25);
+    expect(pct('title_the_unbroken')).toBe(0.25);
     const cat = (k: string): number => Math.round(1000 * all.filter((c) => c.category === k).reduce((a, c) => a + ch.get(c.id)!, 0)) / 10;
-    expect([cat('title'), cat('minion_skin'), cat('hero_skin'), cat('hero_attack')]).toEqual([55.4, 28.5, 2.5, 13.6]); // thirteen Legendary attacks x 5 / 16 + the two Epic attacks x 15 / 12 (Card Shark, Storm Call) + the four Rare attacks x 30 / 17 (2026-09-29)
+    expect([cat('title'), cat('minion_skin'), cat('hero_skin'), cat('hero_attack')]).toEqual([25.7, 42, 24.6, 7.7]); // re-pinned for skins batch 5 (2026-09-30; was 31.1 / 32.1 / 28.3 / 8.5 after batch 4, 49.2 / 30.5 / 7.7 / 12.6 before it): fourteen Legendary attacks x 5 / 20 (Nothing But Net joined 2026-09-29) + the two Epic attacks x 15 / 26 (Card Shark, Storm Call) + the four Rare attacks x 30 / 40 (2026-09-29, re-pinned for skins batch 3; was 55.4 / 28.5 / 2.5 / 13.6)
     expect([...ch.values()].reduce((a, b) => a + b, 0)).toBeCloseTo(1, 12);
   });
 

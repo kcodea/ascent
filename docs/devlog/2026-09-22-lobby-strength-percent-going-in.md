@@ -1,5 +1,7 @@
 # Lobby strength: printed as a percentage, and it is the field going in
 
+> **2026-09-30:** the printed readout is hidden for now (owner: "we can hide the lobby% number for now since it doesnt seem to be working too well at the moment."). One flag, `SHOW_LOBBY_STRENGTH` in `packages/ui/src/lobbyStrengthDisplay.ts`; the pipeline below is unchanged.
+
 **Date:** 2026-09-22 · **Branch:** `fix/lobby-strength-percent` · **Owner asks (verbatim):** "can you remove the
 easy/medium/hard etc and just have it say for example, 47% since its basically a percentile." and, minutes later,
 "the lobby difficulty shows 47 in my career and 50 in recent games, why".

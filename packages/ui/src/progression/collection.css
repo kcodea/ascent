@@ -285,6 +285,13 @@
 /* The side-menu plaque is narrow (and clips its sheen): the pill sits in its top-right corner instead of after the label. */
 .sbbtn .newpill { position: absolute; z-index: 1; top: 5px; right: 6px; margin: 0; font-size: 9px; padding: 1px 5px 0; }
 
+/* THE PORTRAIT SIGN-IN GATE (owner 2026-09-29): a guest's portrait click lands here. The New rewards shell, narrower. */
+.pfgate-panel { width: 480px; }
+.pfgate-panel .nrw-title { font-size: 18px; letter-spacing: 0.1em; line-height: 1.25; }
+.pfgate-body { display: flex; flex-direction: column; gap: 8px; }
+.pfgate-body p { margin: 0; }
+.pfgate-lead { font-family: var(--font-ui); font-weight: 800; font-size: 16px; line-height: 1.4; color: #fff; }
+.pfgate-foot { gap: 10px; align-items: center; }
 /* THE CRATE SIGN-IN GATE (owner 2026-09-29): a guest's Open lands here. The New rewards shell, a narrower panel. */
 .crgate-panel { width: 480px; }
 .crgate-panel .nrw-title { font-size: 18px; letter-spacing: 0.1em; line-height: 1.25; }
@@ -296,3 +303,6 @@
 /* A guest's Open wears a small lock: it opens the gate, not the crate. */
 .colls-open .colls-lock { width: 12px; height: 12px; margin-right: 6px; vertical-align: -1px; }
 .colls-bay-guest { font-weight: 700; font-size: 13px; color: #ffb45a; }
+
+/* CROSS-DEVICE SAVES: the "your game moved" prompt blocks the stale run, above the game HUD and menus. */
+.nrw-scrim.cloudmoved-scrim { z-index: 8000; }

@@ -178,11 +178,11 @@ export const ENTRIES: readonly WikiEntry[] = [
   {
     id: 'lobby-strength',
     topic: 'lobby',
-    q: 'What does the Lobby % on my past games mean?',
-    a: "It's how tough your **seven opponents** were: roughly their average win rate from all their fights, before your game. 50% is an even lobby. Bots count as weak (25%), and a player nobody has data on counts as 50%. You'll only see it after the game, on your Career match history and on Recent Games.",
+    q: 'What is lobby strength?',
+    a: "It's how tough your **seven opponents** were: roughly their average win rate from all their fights, before your game. 50% is an even lobby. Bots count as weak (25%), and a player nobody has data on counts as 50%. It's **hidden for now** while we improve it, so you won't see it on your Career match history or Recent Games at the moment. It still counts toward the lobby strength bonus.",
     aliases: ['lobby strength', 'lobby difficulty', 'percent', 'how hard was my lobby'],
     seeAlso: ['lobby-strength-bonus', 'career-page'],
-    covers: [{ rule: 'R-LOBBY-03', fp: '28ce1b55' }, { rule: 'R-LOBBY-04', fp: 'b133c6de' }],
+    covers: [{ rule: 'R-LOBBY-03', fp: 'c03915d5' }, { rule: 'R-LOBBY-04', fp: '4ab24a9f' }],
   },
   {
     id: 'lobby-strength-bonus',

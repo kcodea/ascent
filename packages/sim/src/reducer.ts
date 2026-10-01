@@ -1,5 +1,5 @@
 import { type PresentationCollector, type ConsequenceDraft, type CombatEvent, beatIdentity, inRunTribes, socTwilightExtraFires, COMBATATIVE_RUBIES_ATTACKS, BODY_COUNTING_DEATHS, ALE_IDS, combatSide, makeCollector, makeRng, simulate, type BoardMinion, type CardDef, type CombatConfig, type CombatResult, type CombatSideState, type Keyword, type PendingCombatQuest, type PresentationBatch, type QuestCombatMods, type QuestDef, type QuestObjective, type QuestObjectiveEvent, type Tribe, TRIBES } from '@game/core';
-import { ancientCombatMods, ancientAfterPowerGild, ancientOfferOpen, ancientPowerTargetsGilded, ancientReplacesPowerGild, ancientsCombatTick, ancientsRefreshTick, ancientsSetMeter, pickAncient, ancientPulseExtraThenDestroy, ancientPulseDiscovers, ancientPulsePassive, ancientAfterPulse, ancientAegisDestroys, ancientAegisRecipient, ancientAegisDestroyAndGive, ancientAegisResilient, ancientAfterCombat, ancientBondsReact, ancientStartOfTurn, ancientEmpowerPassive, ancientOnEmpowerPick } from './ancients';
+import { ancientCombatMods, ancientAfterPowerGild, ancientOfferOpen, ancientPowerTargetsGilded, ancientReplacesPowerGild, ancientsCombatTick, ancientsRefreshTick, ancientsSetMeter, pickAncient, ancientPulseExtraThenDestroy, ancientPulseDiscovers, ancientPulsePassive, ancientAfterPulse, ancientAegisDestroys, ancientAegisRecipient, ancientAegisDestroyAndGive, ancientAegisResilient, ancientAfterCombat, ancientBondsReact, ancientStartOfTurn, ancientEmpowerPassive, ancientOnEmpowerPick, ancientOnSpellbook, ancientClearancePassive, ancientClearanceStacks, ancientSpendClearanceStack, ancientClearanceRefresh, ancientMarkClearanceOffer, ancientAfterClearance, ancientOnClearanceBuy, ancientTimePrice, ancientNoteMinionBuy } from './ancients';
 import { runSpells } from './spellPool';
 import { currentCollector, withActiveCollector } from './activeCollector';
 import { surfaceKeyForRune, surfaceKeyForQuest, CARD_INDEX, EPIC_RUNES, GIFT_IDS, QUEST_INDEX, RUNE_INDEX, RUNES, runeSynergies, type SynergyTag } from '@game/content';
@@ -25,6 +25,7 @@ import {
 import { applyChooseOnePlayed, spendChooseBothCharge, noteSpellCast, applyCastEffects, makeContext, discoverSpecFor, heroPowerCostOf, commissionOffer, COMMISSION_DELAY, aegisGrantOf, allInPayoutOf, threeDistinctTypes, exhibitionGrantOf, stampSableBond, stampSharedSpoils, heroOfferPrice, addBuff, addOfferBuff, applyBattlecryTarget, applyCardsBought, applyCardsPlayed, applyChooseOne, applyChooseOneTarget, chooseBothActive, chooseOneNeedsChoice, applyEndOfTurn, applyStartOfTurn, applyOnBuy, applyGoldSpent, advanceRuneThresholds, applySecondLife, effectiveTargetTribe, dominantBoardTribe, uncontrolledTribes, gainGold, applyRunShopBuff, applyShoutsForEndlessVerse, applyShoutsForShopBuff, auraFxTargets, boardManaBonus, buffImpsRunWide, buffUndeadAttackEverywhere, buffCardTypeRunWide, buffFodderRunWide, cardBuff, captureBuffFx, conjuredStats, castSpell, castSpellOnOffer, conjureToHand, consumeTavernFodder, fireGravetwinEchoes, fireOnGainAttack, fireOnRubyCast, fireOnRubyPlayed, applyRubyRiderAction, mintRandomRubies, recordRubyRiderFx, fireOnMinionSold, fireOnSell, fireOnGainCard, fireSummonBuffs, fireDemonPlayRunes, foldOfferBuffs, creditShopBuffSource, gildMinion, grantMinionToHandOrBoard, grantTopTypeMinion, hasBattlecry, isTribe, mintRubies, modalOpen, openDiscover, playCard, queueDiscover, replayBattlecry, replayEconomyBattlecry, replayEndOfTurn, restoreHeldOffer, replayRecurringEndOfTurn, withEotDiscoverGrantBeat, sellValueOf, sellValueWithBonus, rubyCastCount, giftCastCount, rubyStatBonus, yazzusExtraCasts, consumeGrimoireCharge, countRubyAsShopSpell, fireSpellCastWatchersForRuby, spellAttackBonus, spellCasts, spellCostReduction, spellHealthBonus, stampImproveReps, swapWithTavern, applySpellBought, applyShopRefreshed, taughtAimSpell, triggerBorrowedEcho, landBorrowed, settlePendingDeath, stampEquipFx, equipmentFxMark, buffedFxTargets, fireEquipmentTriggers, fireEquipmentActivated, buyHealthAura, undeadBuyBonus, weldMagnetic, defIsTribe, handCardLocked, fireStatGainReactors, fireEquipmentFree, applyRuneGrafts, noteSpellForCountRunes, settleMinionSale, distillationEdges, fireRunicHoard, applyLorekeeping, runeExtraCasts, castWithRuneRepeats, withCastActor, withHandCast, fireSoldChoice, noteGilded, destroyMinionInShop } from './recruit';
 import { createRun, handCap, recordBounceFx, mixSeed, reservedHandSlots, TAG, henchmanOffer, type Action, type DeferredFight, type PreparedCombatSide, type ActiveQuest, type AuraFxTribe, type BoardCard, type CardBuff, type ShopCard, type CiaSuit, type Commission, type CommissionKind, type RunState, type RubyLandedFx, type SotBeatSource, gateUses, procRune, procRuneId, runeBuffMagnitude, PACKCRAFT_STEP, REINVESTMENT_PER_SUMMON, SLAYING_KILLS, EQUIPMENT_FX_ANCHOR } from './state';
 import { alignmentsOf } from './alignment';
+import { blockedByShopClock } from './shopClock';
 import { pushSotBeat, recordSotBeat } from './sotBeat';
 import { RUNE_DUP_SWEETENER, RUNE_DUP_UNIQUE, forgeFilteredDuplicate, runeStacksOf } from './runeDup';
 import { spellFizzles } from './spellFizzle';
@@ -280,7 +281,11 @@ export function offerBuyPrice(s: RunState, offer: { cardId: string; cost?: numbe
   // Set 3 Dwarves — Thymepiece: "all cards cost −N Gold for the next 8 seconds" (a clock window the UI's tick
   // closes via `discountWindowExpired`). Every non-held CARD, spells included (`spellCostReduction`).
   const windowOff = !freeBuy ? (s.cardDiscountWindow?.amount ?? 0) : 0;
-  const cost = freeBuy ? 0 : Math.max(0, (offer.cost ?? heroOfferPrice(s, offer) ?? s.minionCostOverride ?? minionCostOf(s)) - cadenceOff - tradeInOff - spiritOff - giftMinionOff - windowOff);
+  // ANCIENT OF TIME × Frantic Frank: the first N minions bought each turn cost at most the Time price (every price
+  // source above, the Starform's live price included, is capped; the discounts below still apply on top).
+  const priced = offer.cost ?? heroOfferPrice(s, offer) ?? s.minionCostOverride ?? minionCostOf(s);
+  const timeCap = ancientTimePrice(s);
+  const cost = freeBuy ? 0 : Math.max(0, (timeCap !== undefined ? Math.min(timeCap, priced) : priced) - cadenceOff - tradeInOff - spiritOff - giftMinionOff - windowOff);
   return { cost, freeBuy, cadenceOff, tradeInOff, spiritOff, giftMinionOff, windowOff };
 }
 
@@ -1360,6 +1365,12 @@ function reduceCore(state: RunState, action: Action): RunState {
   if (action.type === 'resolveShopDeath' && !state.pendingDeath) return state;
   // No window open — a late or duplicate expiry tick (Thymepiece) is a free no-op, not a clone.
   if (action.type === 'discountWindowExpired' && !state.cardDiscountWindow) return state;
+  // THE SHOP CLOCK LOCK (owner 2026-09-30, R-TIMER-LOCK-01): once the recruit clock reached 0:00 the Shop's player
+  // actions (buy / sell / play / roll / upgrade / hero power / Equipment / Henchman) are refused — ONE predicate
+  // shared with the UI, keyed on an exhaustive per-action table so a new action cannot forget it (`shopClock.ts`).
+  if (blockedByShopClock(state, action)) return state;
+  // A repeat expiry (or one outside the Shop) is a free no-op.
+  if (action.type === 'shopClockExpired' && (state.phase !== 'recruit' || state.shopClockExpired)) return state;
 
   // THE DISPLAY-ONLY COMBAT PREVIEWS (owner report 2026-09-22: spell text "not updating in real time from
   // buffs in combat"). These carry no gameplay: the replay publishes what the EVENT LOG already says has
@@ -1556,6 +1567,7 @@ function reduceCore(state: RunState, action: Action): RunState {
         if (sfCad) { procRuneId(s, 'rune_cadence'); s.cadenceMinionOff = undefined; }
         if (sfTi) { procRuneId(s, 'rune_trade_in'); s.tradeInTribe = undefined; }
         if (sfFree) s.freeBuyUsedThisTurn = true;
+        ancientNoteMinionBuy(s); // ANCIENT OF TIME × Frank: the Starform is a minion bought (one of the first 3)
         buyStarform(s); // removes the offer, buffs the left-most Celestial, fires `starformRemoved('consume')`
         ciaBuyEnchanted(s, offer);
         if (s.runeCadence) s.cadenceSpellOff = runeStacksOf(s, 'rune_cadence');
@@ -1603,6 +1615,10 @@ function reduceCore(state: RunState, action: Action): RunState {
       const { cost: buyCost, freeBuy, cadenceOff, tradeInOff, spiritOff } = offerBuyPrice(s, offer);
       if (s.embers < buyCost || s.hand.length >= handCap(s)) return state;
       s.shop.splice(i, 1);
+      // ANCIENTS × Frantic Frank (no-ops unless the run has them): DEATH's free buy is spent (the rest of the set goes
+      // back to 2 Gold), TIME counts the buy, and a Clearance offer buys in as a Clearance minion.
+      const clearanceBuy = ancientOnClearanceBuy(s, offer);
+      ancientNoteMinionBuy(s);
       ciaBuyEnchanted(s, offer); // Croupier Ayse: an Enchanted buy advances her prize counter
       spendGold(s, buyCost);
       spendFreeCard(s, freeBuy); // Rune of Festival Wages: an armed free card is spent by this buy
@@ -1655,6 +1671,7 @@ function reduceCore(state: RunState, action: Action): RunState {
         golden: offer.golden ?? false, // Golden Touch: a gilded tavern offer buys in as a Golden
         boughtWave: s.wave, // Hoarder's sell value climbs from the wave it was bought
         ...(offer.sellZero ? { sellOverride: 0 } : {}), // Rune of the Bargain Bin: bought from the bin → sells for 0
+        ...(clearanceBuy ? { clearanceBuy: true } : {}), // ANCIENTS × Frank: a "Clearance minion" (Fortune / Bonds)
       };
       // Tavern buffs on the offer (Apples / Fortify / Fried Circuits / next-shop) bake in under their REAL
       // source names, not a blanket "Fortify"; whatever `atk`/`hp` carry beyond the ledger (a legacy offer with
@@ -2823,6 +2840,12 @@ function reduceCore(state: RunState, action: Action): RunState {
       return s;
     }
 
+    case 'shopClockExpired':
+      // The recruit clock hit 0:00 (the UI's tick dispatches it; the reducer never reads a clock). Cleared at the
+      // turn flip and on combat entry. See `shopClock.ts`.
+      s.shopClockExpired = true;
+      return s;
+
     case 'discountWindowExpired':
       // Thymepiece's clock window ran out (the UI's clock tick crossed `untilClock`). The reducer never reads a
       // clock — the tick DISPATCHES, so a paused clock is a paused window and a recording replays the expiry.
@@ -3023,13 +3046,16 @@ function reduceCore(state: RunState, action: Action): RunState {
       const slotReady = slot === 1 ? (s.heroReady2 ?? true) : s.heroReady;
       const slotSpent = slot === 1 ? s.heroPowerSpent2 : s.heroPowerSpent;
       const usesThisTurn = s.heroUsesThisTurn ?? 0;
-      const available = power.usesPerTurn
+      const readyNow = power.usesPerTurn
         ? usesThisTurn < power.usesPerTurn // Fibbsy: N times a turn, not the plain once-per-turn heroReady
         : power.maxUses
         ? heroUses < power.maxUses && slotReady
         : power.oncePerGame
           ? !slotSpent
           : slotReady;
+      // ANCIENT OF WAR × Frantic Frank: once the turn's own Clearance is spent, a banked stack pays for one more use.
+      const stackUse = !readyNow && slot === 0 && power.kind === 'clearance' && ancientClearanceStacks(s) > 0;
+      const available = readyNow || stackUse;
       if (!available) return state;
       // Powers with a Mana cost (Nadja's Mana Font) also need the Mana on hand.
       if (power.cost && s.embers < power.cost) return state;
@@ -3227,20 +3253,31 @@ function reduceCore(state: RunState, action: Action): RunState {
         if (s.embers < bookCost) return state; // can't afford → no charge spent
         spendGold(s, bookCost);
         s.hunchResetWave = s.wave;
+        const heldUids = new Set(s.hand.map((c) => c.uid));
         conjureToHand(s, [def], reps); // Wishbone: two copies
+        // ANCIENTS x Hunch (a no-op unless picked): Fortune's +1 max Gold, Time's "the copy casts twice".
+        ancientOnSpellbook(s, s.hand.filter((c) => !heldUids.has(c.uid) && c.cardId === def.id));
       } else if (power.kind === 'clearance') {
         // Frantic Frank: refresh the Shop (free — the 1-Gold power cost is the shared block's) and mark this
         // turn so its minions cost 2 Gold (read in the buy case). Once per turn via heroReady.
-        refreshTavern(s);
-        applyShopRefreshed(s);
+        // ANCIENT OF TIME makes Clearance passive (its first-buys price lives in `offerBuyPrice`) — never activatable.
+        if (ancientClearancePassive(s)) return state;
+        // ANCIENT OF GENESIS narrows this refresh to your most common type (a no-op wrapper otherwise).
+        ancientClearanceRefresh(s, () => {
+          refreshTavern(s);
+          applyShopRefreshed(s);
+        });
         // The 2-Gold price belongs to THIS SHOP, not the turn (owner clarification 2026-08-16): refresh again
         // normally, or roll into the next turn, and minions are back to full price. Stamping the price onto
         // the offers themselves is what makes that true by construction — any later roll builds new offers
         // with no stamp, so there is no flag to expire and no way for the discount to leak.
         for (const o of s.shop) {
           const d = CARD_INDEX[o.cardId];
-          if (d && !d.spell && !d.ruby) o.cost = 2;
+          if (d && !d.spell && !d.ruby) { o.cost = 2; ancientMarkClearanceOffer(s, o); } // + Death's free first buy
         }
+        // ANCIENT OF DEATH: Clearance also destroys your left-most minion (after the refresh, so a Shop-touching Echo
+        // lands on the new Clearance offers).
+        ancientAfterClearance(s);
       } else if (power.kind === 'archive') {
         // Quillen: archive a chosen minion — FRIENDLY (board) or SHOP (owner ruling 2026-08-14). It leaves
         // play and its TYPE is recorded. Once per turn (heroReady). On the 3rd archived minion, immediately
@@ -3506,7 +3543,8 @@ function reduceCore(state: RunState, action: Action): RunState {
         }
       }
 
-      if (power.usesPerTurn) {
+      if (stackUse) ancientSpendClearanceStack(s); // WAR: the extra use takes a stack (the turn's charge is already spent)
+      else if (power.usesPerTurn) {
         // Fibbsy: count this turn's use; heroReady stays TRUE until the last charge is spent, so the button is
         // still armed for the second press. On the final use it flips false, which is how every "used" UI cue
         // (dimmed art, "used" line) reads the power as spent for the turn.
@@ -4165,6 +4203,7 @@ function endRecruitTurn(s: RunState): void {
   // Thymepiece's clock window ends with the shop: the clock stops in combat, so an unexpired window would
   // otherwise sit open until the next turn's first tick. (The turn flip clears it again, belt and braces.)
   s.cardDiscountWindow = undefined;
+  s.shopClockExpired = undefined; // the 0:00 lock belongs to this Shop turn only (R-TIMER-LOCK-01)
   // An unresolved targeted Battlecry (the player ended the turn mid-pick) auto-resolves on the
   // carry — never strand a played Toxin Tender without its grant.
   if (s.pendingTarget?.deferredPlay) {
@@ -5411,6 +5450,7 @@ function advanceCombat(s: RunState): void {
   s.minionCostOffTurn = 0;
   s.spiritDiscount = 0; // Festival Treasurer: "this turn"
   s.cardDiscountWindow = undefined; // Thymepiece: an 8-second window never outlives the turn it opened in
+  s.shopClockExpired = undefined; // a fresh turn's clock is running again (R-TIMER-LOCK-01)
   s.processionReturned = []; // Grand Procession: one return per Reveler type per turn
   s.handCopiedThisTurn = []; // the hand-summon mechanic's shop twin: one copy per hand card per turn
   s.dupeUsedThisTurn = false; // Dupes: the first-buy copy is a per-turn freebie

@@ -70,6 +70,12 @@
 .mds-runes { display: flex; align-items: center; gap: 14px; min-height: 58px; padding: 6px 0 8px; border-top: 1px solid rgba(196, 160, 92, 0.16); overflow: hidden; }
 .mds-runes .cv2-runes { flex-wrap: nowrap; overflow: hidden; }
 .mds-norunes { font-family: var(--font-ui); font-weight: 600; font-size: 15px; color: rgba(255, 255, 255, 0.5); }
+/* BOARD STRENGTH (R-LOBBY-09): a quiet line under the row's hero, and the selected seat's strength under its runes. */
+.mds-strength { font-family: var(--font-ui); font-weight: 700; font-size: 12px; letter-spacing: 0.04em; color: rgba(255, 214, 107, 0.82); }
+.mds-strength-panel { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 14px; padding: 6px 0 4px; border-top: 1px solid rgba(196, 160, 92, 0.16); }
+.mds-strength-rounds { display: flex; flex-wrap: wrap; gap: 6px; }
+.mds-strength-round { display: inline-flex; align-items: baseline; gap: 4px; padding: 1px 8px; border-radius: 999px; font-family: var(--font-ui); font-weight: 700; font-size: 13px; color: #f4eee2; background: rgba(196, 160, 92, 0.12); border: 1px solid rgba(196, 160, 92, 0.3); }
+.mds-strength-r { font-size: 11px; color: rgba(255, 255, 255, 0.55); }
 .mds-empty { font-family: var(--font-ui); font-weight: 600; font-size: 15px; color: rgba(255, 255, 255, 0.55); padding: 26px 0 30px; }
 
 /* ── THE END SCREEN DIALOG ── */

@@ -153,11 +153,14 @@ export function waveGapFor(waveCount: number): number {
  * SWALLOWS Earthbreaker's tendril, which is the more informative read (it shows WHO buffed). So among a key's
  * events we keep the first source-attributed one if any, else the first. Ordering is otherwise preserved.
  */
-export function coalesceBuffFxByTarget<T extends { targetUid: string; fxWave?: number; sourceUid?: string; sourceRuneId?: string }>(events: readonly T[]): T[] {
+export function coalesceBuffFxByTarget<T extends { targetUid: string; fxWave?: number; sourceUid?: string; sourceRuneId?: string; fromHeroPower?: true }>(events: readonly T[]): T[] {
   const best = new Map<string, T>();
   const order: string[] = [];
   for (const ev of events) {
-    const k = `${ev.fxWave ?? 'u'}:${ev.targetUid}`;
+    // A HERO POWER's grant (`fromHeroPower`, Hunch × Bonds) is a separate presentation from the cast that set it off:
+    // it keeps its own key, so a stat spell buffing the same minion can never swallow its tendril (owner 2026-09-30,
+    // "ancient of bonds doesnt have tendrils": Growth's record won the target and the Bonds ribbon was dropped).
+    const k = `${ev.fxWave ?? 'u'}:${ev.targetUid}${ev.fromHeroPower ? ':hp' : ''}`;
     const cur = best.get(k);
     if (cur === undefined) { best.set(k, ev); order.push(k); }
     // Upgrade a sourceless winner to a source-attributed tendril for the same key; a tendril already held stays.

@@ -214,3 +214,39 @@ export function registerOpponents(snaps: BoardSnapshot[]): void {
     OPPONENT_POOL.push(s);
   }
 }
+
+/** What `registerOpponentRuns` did with a batch, for pool telemetry. */
+export interface RunRegistration {
+  /** Runs accepted whole (every board servable). */
+  runs: number;
+  /** Boards those runs contributed (after the one-board-per-wave dedupe). */
+  boards: number;
+  /** Runs refused outright because at least one of their boards could not be served. */
+  dropped: number;
+}
+
+/**
+ * Register the shared pool BY WHOLE RUN (pool whole-runs fix 2026-09-29, R-LOBBY-08). The shared pool used to
+ * arrive as the newest N boards of each wave and was reassembled into runs here; early waves hold more rows than
+ * late ones, so an older run kept its late boards and lost its early ones, and a lobby seat served a wave-10
+ * board on round 5. Each element of `runs` is ONE run's complete recording (the server returns runs, not boards).
+ * A run is all or nothing: if any of its boards references a card this build no longer has (the check
+ * `registerOpponents` applies board by board) or has no minions, the WHOLE run is refused, because dropping one
+ * board would punch a hole the seat would have to paper over. Duplicate waves (a re-upload) keep the first.
+ * Idempotent like `registerOpponents`.
+ */
+export function registerOpponentRuns(runs: ReadonlyArray<readonly BoardSnapshot[]>): RunRegistration {
+  const out: RunRegistration = { runs: 0, boards: 0, dropped: 0 };
+  const whole: BoardSnapshot[] = [];
+  for (const run of runs) {
+    if (!run.length) continue;
+    if (!run.every((s) => !!s && Array.isArray(s.minions) && s.minions.length > 0 && isServableBoard(s))) { out.dropped++; continue; }
+    const byWave = new Map<number, BoardSnapshot>();
+    for (const s of run) if (!byWave.has(s.wave)) byWave.set(s.wave, s);
+    out.runs++;
+    out.boards += byWave.size;
+    whole.push(...byWave.values());
+  }
+  registerOpponents(whole);
+  return out;
+}

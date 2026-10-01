@@ -1,15 +1,18 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import './styles.css'; // ensure the boot loading screen is styled even before <Game/> mounts
 import { createPortal } from 'react-dom';
-import { preloadAllArt, ART_COUNT } from './art';
+import type { SetId } from '@game/content';
+import { preloadBootArt } from './preloadPlan';
+import { setArtConcurrency, whenArtReady } from './artPreload';
+import { useGame } from './store';
 
 /**
- * Boot gate: holds a loading screen up front while EVERY bundled art file is fetched + decoded, so the game
- * never renders a card before its illustration is ready — no pop-in (the owner would rather wait a beat at boot
- * than see art appear late in the shop). Children (the actual <Game/>) don't mount until art is ready, so no
- * card can render early. A hard cap resolves the gate anyway if preloading stalls (offline / a broken CDN), so
- * boot can never hang. The loader runs on EVERY load (no skip flag) — cheap when art is already HTTP-cached
- * (onload fires instantly), and it always re-verifies art is ready before a card can render.
+ * THE LOADING GATE (owner 2026-09-30: "i think id rather load everything. i dont want blurry images, i wanna stop
+ * pop in."). The splash stays up until every image a session on the live set can show is fetched AND decoded
+ * (`preloadBootArt` returns that list, `whenArtReady` waits on it), and its bar is REAL progress: items decoded /
+ * total. A slow line just waits longer; there is never a partial game. A returning visit reads everything from
+ * the HTTP cache (`_headers`, 2026-09-29), so the gate is short. The splash replaced a fixed 3.5 s fake timer
+ * (owner ask 2026-08-25), which this ask supersedes. Measured in docs/devlog/2026-09-30-art-loading-gate.md.
  *
  * THE SPLASH ITSELF IS NOT RENDERED HERE (owner ask 2026-08-22: "an image that fades out after art is
  * loaded"). It lives in `apps/web/index.html` with inline CSS so it paints on the FIRST frame — a
@@ -19,57 +22,79 @@ import { preloadAllArt, ART_COUNT } from './art';
  * The fade is why children now mount BEFORE the splash leaves: the game renders underneath at full opacity
  * and the image dissolves off it. Swapping one for the other (the old behaviour) is what made it a cut.
  */
-/** The splash's FIXED lifetime (owner ask 2026-08-25). The bar's CSS fill in index.html runs for exactly this
- *  long, and the gate opens when it completes — so the splash always lasts the same 3.5s whatever the real
- *  loading is doing. There is no hard cap any more because there is nothing left to hang on: the gate is this
- *  timer. Keep in sync with the `#bootsplash-bar > i` transition duration in index.html. */
-const SPLASH_MS = 3500;
 /** Must match the `#bootsplash` opacity transition in index.html (900ms — the owner asked for a gentle
  *  dissolve into the menu rather than a quick wipe). */
 const FADE_MS = 900;
 /** Must match `#bootsplash-img`'s fade-IN in index.html. The out-fade never begins before this has run its
  *  course, so the art is always fully present before it starts dissolving. */
 const FADE_IN_MS = 700;
+/** Tasks in flight while the gate is up. Nothing is on screen to protect, so throughput is all that matters: a
+ *  wider pipe hides per-request latency on a fast line (HTTP/2 multiplexes them; on HTTP/1.1 the browser caps a
+ *  host at 6 anyway). Back to the pipe's normal 6 once the menu is up. */
+const GATE_CONCURRENCY = 32;
+const PLAY_CONCURRENCY = 6;
 
 /** Progress + teardown for the document-level splash. No-ops when it is absent (tests, Storybook, the
  *  desktop shell loading a different host page) — never assume the node is there. */
 function splashEl(): HTMLElement | null {
   return typeof document === 'undefined' ? null : document.getElementById('bootsplash');
 }
+
+/** The set of the saved run Continue would resume, when it is not a live set: the gate covers it too. */
+function savedRunSets(): SetId[] {
+  try {
+    const saved = useGame.getState().savedRun;
+    return saved?.setId ? [saved.setId] : [];
+  } catch { return []; }
+}
+
+/**
+ * Paint gate progress onto the splash bar: `transform: scaleX(p)` on the fill (compositor-only; index.html gives it
+ * a short transform transition so steps glide) and a small count under it. Coalesced to one write per frame.
+ */
+function progressPainter(): (done: number, total: number) => void {
+  let raf = 0;
+  let last = { done: 0, total: 0 };
+  const paint = (): void => {
+    raf = 0;
+    const el = splashEl();
+    const p = last.total ? last.done / last.total : 1;
+    const fill = el?.querySelector<HTMLElement>('#bootsplash-bar > i');
+    if (fill) fill.style.transform = `scaleX(${p.toFixed(4)})`;
+    const note = el?.querySelector<HTMLElement>('#bootsplash-note');
+    if (note) note.textContent = last.total ? `Loading art ${last.done} / ${last.total}` : '';
+    const fb = typeof document === 'undefined' ? null : document.querySelector<HTMLElement>('.bootload-fill');
+    if (fb) fb.style.transform = `scaleX(${p.toFixed(4)})`;
+  };
+  return (done, total) => {
+    last = { done, total };
+    if (!raf && typeof requestAnimationFrame === 'function') raf = requestAnimationFrame(paint);
+  };
+}
+
 export function Boot({ children }: { children: ReactNode }): React.ReactElement {
-  const [ready, setReady] = useState<boolean>(() => ART_COUNT === 0);
-  const [pct, setPct] = useState(0);
+  const [ready, setReady] = useState<boolean>(false);
 
   useEffect(() => {
     if (ready) return;
     // NB: no cross-run guard — under StrictMode the effect runs twice, and the first run's cleanup flips its
     // `alive` to false; a ref guard would block the second run from re-wiring state and deadlock the loader.
-    // Letting it run again is harmless (images are already HTTP-cached from the first pass).
+    // Running it again is harmless: `preloadBootArt` queues once and returns the same list, and `whenArtReady`
+    // only listens.
     let alive = true;
-    const finish = (): void => {
-      if (!alive) return;
-      setReady(true);
-    };
-    // THE GATE IS A FIXED TIMER, NOTHING ELSE (owner ask 2026-08-25: "no matter what the actual loading that's
-    // being done is, it just shows a bar that fills over 3.5s and then goes to the menu"). It used to await the
-    // art preload as well, so a cold load left the bar sitting full — the splash outstayed its own animation by
-    // however long the fetches took (up to the old 20s cap). Now the splash lasts exactly SPLASH_MS every time.
-    //
-    // The preload still RUNS — it is simply never awaited — so the fetch/decode work still warms the cache in
-    // the background and most art is ready by the time anything renders. What it no longer does is HOLD the
-    // gate, which means on a genuinely cold, slow connection a card can now reach the screen before its art has
-    // decoded (the pop-in the old gate existed to prevent). That is the deliberate trade this ask makes.
-    // ANCHOR THE TIMER TO THE BAR, NOT TO REACT. The bar starts filling the instant the splash reveals (the
-    // inline script in index.html adds `.is-in` and stamps `data-inAt`), but this effect only runs once the
-    // ~3 MB bundle has parsed and mounted — measured ~900 ms later on a warm load. Timing SPLASH_MS from here
-    // would therefore leave the bar sitting full for however long the bundle took, which is the exact thing
-    // this ask removes. Counting from `inAt` makes the bar's completion and the menu the same moment.
-    // Absent stamp (no splash node / the image errored) → the full duration, which is the honest fallback.
-    const inAt = Number(splashEl()?.dataset.inAt ?? NaN);
-    const elapsed = Number.isFinite(inAt) ? performance.now() - inAt : 0;
-    const hold = window.setTimeout(finish, Math.max(0, SPLASH_MS - elapsed));
-    void preloadAllArt((loaded, total) => { if (alive) setPct(total ? loaded / total : 1); });
-    return () => { alive = false; window.clearTimeout(hold); };
+    const gate = preloadBootArt(savedRunSets());
+    setArtConcurrency(GATE_CONCURRENCY);
+    const paint = progressPainter();
+    const t0 = typeof performance !== 'undefined' ? performance.now() : 0;
+    void whenArtReady(gate, paint).then(() => {
+      setArtConcurrency(PLAY_CONCURRENCY);
+      if (typeof window !== 'undefined') {
+        // Read by the devlog's measuring script (and handy in a bug report): how long the gate held, for how many.
+        (window as unknown as { __artGate?: unknown }).__artGate = { items: gate.length, ms: Math.round(performance.now() - t0) };
+      }
+      if (alive) setReady(true);
+    });
+    return () => { alive = false; };
   }, [ready]);
 
   // READY → fade the splash off the mounted game, then remove the node.
@@ -82,7 +107,7 @@ export function Boot({ children }: { children: ReactNode }): React.ReactElement 
     if (!ready) return;
     const el = splashEl();
     if (!el) return;
-    // The bar has already filled on its own CSS transition, which runs for exactly SPLASH_MS — nothing to finish.
+    // The bar is full: the gate only opens once every item has settled.
     // HOLD until the fade-IN has finished. With art HTTP-cached the gate can resolve in a few hundred ms —
     // well inside the 700ms in-fade — and cutting to the out-fade there would snatch a half-visible image
     // away. `inAt` is stamped by the inline reveal script; absent (image still loading) we wait the full
@@ -113,8 +138,8 @@ export function Boot({ children }: { children: ReactNode }): React.ReactElement 
       {useFallback && (
         <div className="bootload" aria-live="polite" aria-busy="true">
           <div className="bootload-mark">ASCENT</div>
-          <div className="bootload-bar"><div className="bootload-fill" style={{ width: `${Math.round(pct * 100)}%` }} /></div>
-          <div className="bootload-sub">Loading art… {Math.round(pct * 100)}%</div>
+          <div className="bootload-bar"><div className="bootload-fill" /></div>
+          <div className="bootload-sub">Loading…</div>
         </div>
       )}
       {/* Landscape-only on phones: CSS shows this only on a touch device held in portrait (see `.rotate-prompt`).

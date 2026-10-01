@@ -171,7 +171,50 @@
     { "id": "gauntlet-round-9", "voice": "announcer", "text": "Round 9" },
     { "id": "gauntlet-round-10", "voice": "announcer", "text": "Round 10" }
   ],
-  "sfx": [],
+  "sfx": [
+    {
+      "id": "vo-bball-whistle",
+      "prompt": "a single sharp referee whistle blast, pea whistle, short, clean, no crowd",
+      "dest": "packages/ui/src/audio/fx",
+      "duration": 1,
+      "influence": 0.6
+    },
+    {
+      "id": "vo-bball-ooh",
+      "prompt": "a small arena crowd reacting 'ooooh' impressed after a big play, rising then falling, no music",
+      "dest": "packages/ui/src/audio/fx",
+      "duration": 2,
+      "influence": 0.5
+    },
+    {
+      "id": "vo-bball-dribble",
+      "prompt": "a single basketball bounce on a hardwood court, one dribble, dry, close up",
+      "dest": "packages/ui/src/audio/fx",
+      "duration": 0.5,
+      "influence": 0.6
+    },
+    {
+      "id": "vo-bball-swish",
+      "prompt": "a basketball swishing cleanly through a net, nothing but net, short, no crowd",
+      "dest": "packages/ui/src/audio/fx",
+      "duration": 1,
+      "influence": 0.6
+    },
+    {
+      "id": "vo-bball-rim",
+      "prompt": "a basketball slam dunk hitting the rim hard, metal rim rattle and backboard shake, no crowd",
+      "dest": "packages/ui/src/audio/fx",
+      "duration": 1.5,
+      "influence": 0.5
+    },
+    {
+      "id": "vo-bball-squeak",
+      "prompt": "a single sneaker squeak on a hardwood basketball court, short sharp rubber squeak",
+      "dest": "packages/ui/src/audio/fx",
+      "duration": 0.5,
+      "influence": 0.6
+    }
+  ],
   "designs": [
     {
       "key": "dwarf-oldguard",

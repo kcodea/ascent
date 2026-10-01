@@ -1,0 +1,47 @@
+# Netlify response headers (art pop-in fix, 2026-09-29). Lands at the root of apps/web/dist, which is what gets
+# uploaded. Without this file Netlify sends `Cache-Control: public, max-age=0, must-revalidate` for EVERYTHING,
+# so a returning player's browser re-asks the server about every one of ~1,300 images before it may use its own
+# copy. Rules are kept non-overlapping on purpose (Netlify merges the headers of every rule a path matches).
+
+# Vite's build output: every filename carries a content hash, so a file at a given URL never changes.
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable
+
+# The page itself must always be checked, or a deploy would never reach a returning player.
+/
+  Cache-Control: no-cache
+/index.html
+  Cache-Control: no-cache
+
+# Public-folder art keeps its filename across edits (no hash), so it is NOT immutable: fresh for an hour, then
+# served from cache instantly while the browser re-checks in the background (a replaced frame lands one visit later).
+/frames/*
+  Cache-Control: public, max-age=3600, stale-while-revalidate=604800
+/medallions/*
+  Cache-Control: public, max-age=3600, stale-while-revalidate=604800
+/cursors/*
+  Cache-Control: public, max-age=3600, stale-while-revalidate=604800
+/fx/*
+  Cache-Control: public, max-age=3600, stale-while-revalidate=604800
+/collection/*
+  Cache-Control: public, max-age=3600, stale-while-revalidate=604800
+/music/*
+  Cache-Control: public, max-age=3600, stale-while-revalidate=604800
+/announcer/*
+  Cache-Control: public, max-age=3600, stale-while-revalidate=604800
+/augustfullboard.webp
+  Cache-Control: public, max-age=3600, stale-while-revalidate=604800
+/augustboardcombat.webp
+  Cache-Control: public, max-age=3600, stale-while-revalidate=604800
+/homescreen.webp
+  Cache-Control: public, max-age=3600, stale-while-revalidate=604800
+/runeforgebg2.webp
+  Cache-Control: public, max-age=3600, stale-while-revalidate=604800
+/opponents-backplate.webp
+  Cache-Control: public, max-age=3600, stale-while-revalidate=604800
+/return-to-shop.webp
+  Cache-Control: public, max-age=3600, stale-while-revalidate=604800
+/blast-dmg-icon.webp
+  Cache-Control: public, max-age=3600, stale-while-revalidate=604800
+/opp-rune-slot-*
+  Cache-Control: public, max-age=3600, stale-while-revalidate=604800

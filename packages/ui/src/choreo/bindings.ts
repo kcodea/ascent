@@ -599,6 +599,9 @@ const HERO_POWER_BUFF_LABELS: Record<string, { heroId: string }> = {
   // EMISSARY — United Front, Start of Combat: one friendly of each type +N/+N. Passive, so the button never
   // "fires"; the tendrils leaving it are the whole tell.
   'United Front': { heroId: 'vale' },
+  // HUNCH × ANCIENT OF BONDS (2026-09-30): every combat spell cast gives the left-most and right-most minions +2/+3,
+  // labelled with the power's name (`HUNCH_BONDS_COMBAT_LABEL` in sim/ancients.ts).
+  'Rounded Spellbook': { heroId: 'hunch' },
 };
 
 /** The hero whose power a label-sourced grant belongs to (for the button anchor + power clip), or null. */

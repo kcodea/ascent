@@ -12,7 +12,7 @@
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act } from 'react';
-import { createRun } from '@game/sim';
+import { createLobbyRun } from '@game/sim';
 import { mount, type Mounted } from './renderedText.mount';
 import { EscMenu } from './EscMenu';
 import { useGame } from './store';
@@ -162,7 +162,8 @@ describe('the Audio panel', () => {
 
 describe('the announced slice in the store', () => {
   it('markAnnounced records the line and Save & Quit persists it, keyed by the run seed', () => {
-    const run = { ...createRun(777), mode: 'practice' as const };
+    // A LOBBY run: only a started lobby game may be saved (R-PERSIST-01), so a lobby-less run would write nothing.
+    const run = createLobbyRun(777, 'warden', {}, 'practice', { opponents: 'bots', botDifficulty: 5, health: 'unlimited', timeMult: 1, tribes: [] });
     useGame.setState({ run, showTitle: false, replaying: false, announced: announcedFor(null, run.seed) });
     useGame.getState().markAnnounced('gameStart', 1);
     useGame.getState().markAnnounced('tierSix', 4);

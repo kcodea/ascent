@@ -88,6 +88,44 @@ export interface DragDecision {
   handGapIndex: number;
 }
 
+/** How far into a card the cursor must reach (fraction of width) before the insertion point moves past it: insert
+ *  after a card once the *dragged card's centre* passes its midpoint. */
+export const INSERT_FRAC = 0.5;
+
+/** A row card's cached resting slot (left + width), measured once per drag. SCREEN px, like the pointer. */
+export interface InsertSlot { uid: string; left: number; width: number }
+
+/** Count how many cached slot-midpoints the pointer x has passed (the insertion index). `excludeUid` drops the
+ *  dragged card from the count when *reordering* (it's still in the DOM, so without this a rightward drag
+ *  overshoots by one). `slots` and `x` must be in the SAME space (both screen px) — then the index is the same at
+ *  every stage scale (R-PRESENT-27). */
+export function indexFromSlots(slots: readonly InsertSlot[], x: number, excludeUid?: string): number {
+  let i = 0;
+  for (const c of slots) {
+    if (c.uid === excludeUid) continue;
+    if (x > c.left + c.width * INSERT_FRAC) i++;
+  }
+  return i;
+}
+
+/** Reorder insertion index that measures against each neighbour's CURRENT (shifted) position, not its resting
+ *  slot. As you drag a card aside, its neighbour slides a whole slot to make room; the swap-back trigger must
+ *  follow the neighbour's NEW spot — otherwise (measuring resting midpoints) you'd have to drag ~half a card
+ *  OUT to open the gap but only a sliver BACK to close it (the reported asymmetry). With the gap currently at
+ *  `prevGap`, the p-th non-dragged card sits in slot (p < prevGap ? p : p+1); count those whose centre is < x. */
+export function reorderIndexFromSlots(slots: readonly InsertSlot[], x: number, excludeUid: string, prevGap: number): number {
+  const g = prevGap >= 0 ? prevGap : Math.max(0, slots.findIndex((s) => s.uid === excludeUid));
+  let p = 0;
+  let count = 0;
+  for (const c of slots) {
+    if (c.uid === excludeUid) continue;
+    const slot = slots[p < g ? p : p + 1] ?? c;
+    if (x > slot.left + slot.width * INSERT_FRAC) count++;
+    p++;
+  }
+  return count;
+}
+
 /** The decision when nothing is being dragged (or the drag is a pre-threshold press). */
 export const NO_DRAG_DECISION: DragDecision = {
   wouldMagnetize: false,

@@ -91,6 +91,9 @@ export function turnClockReset(
  * for now"): `settingsOpen` is its own input rather than part of `overlayOpen`, because `overlayOpen` also pauses
  * the combat replay and gates other board work, and the ruling covers only the Shop clock. Closing the menu
  * resumes from the displayed second (a held clock is never reset).
+ *
+ * A GAUNTLET round's clock has not started yet (`clockWaiting`, see `gauntlet/gauntletClock.ts`): it holds, parked on
+ * its waiting value, until the player has spent 30 Gold in the round.
  */
 export function turnClockMayTick(g: {
   recruitPhase: boolean;
@@ -101,7 +104,8 @@ export function turnClockMayTick(g: {
   transitionPlaying?: boolean;
   startOfTurnPlaying?: boolean;
   settingsOpen?: boolean;
+  clockWaiting?: boolean;
 }): boolean {
   return g.recruitPhase && !g.decisionOpen && !g.heroSelecting && !g.overlayOpen && !g.introPlaying
-    && !g.transitionPlaying && !g.startOfTurnPlaying && !g.settingsOpen;
+    && !g.transitionPlaying && !g.startOfTurnPlaying && !g.settingsOpen && !g.clockWaiting;
 }

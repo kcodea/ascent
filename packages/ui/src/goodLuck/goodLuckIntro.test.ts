@@ -18,6 +18,12 @@ describe('which game starts get the intro', () => {
     expect(shouldPlayGoodLuckIntro(run('practice'))).toBe(true);
   });
 
+  it('plays at the start of a Gauntlet stage (its opening turn only)', () => {
+    expect(shouldPlayGoodLuckIntro(run('gauntlet'))).toBe(true);
+    expect(shouldPlayGoodLuckIntro(run('gauntlet', { wave: 2 }))).toBe(false);
+    expect(shouldPlayGoodLuckIntro(run('gauntlet'), { replaying: true })).toBe(false);
+  });
+
   it('never plays in the tutorial, the Scene Builder sandbox or a replay', () => {
     expect(shouldPlayGoodLuckIntro(run('tutorial'))).toBe(false);
     expect(shouldPlayGoodLuckIntro(run('practice', { sandbox: true }))).toBe(false);

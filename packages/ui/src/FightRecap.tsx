@@ -1,12 +1,14 @@
 import { memo, useMemo, useState } from 'react';
 import type { CombatResult } from '@game/core';
-import { getHero, lossDamageCap, playerLossDamage, playerOpponent, type CombatOdds, type RunState } from '@game/sim';
+import { getHero, playerLossDamage, playerOpponent, roundLossCap, type CombatOdds, type RunState } from '@game/sim';
 import { artFor } from './art';
 import { heroPortrait, opponentSkins, seatCosmetics, useMinionSkinMap } from './skins/skins';
 import { PortraitFrame, pfClass, usePortraitFrame } from './portraitFrame/PortraitFrame';
 import { useGame } from './store';
 import { Icon } from './Icon';
 import { combatGainItems, oddsRecap, type GainItem } from './fightRecapData';
+import { TRIBE_ICON } from './gauntlet/tribeIcon';
+import { foePortrait } from './gauntlet/foePortrait';
 
 /**
  * FIGHT RECAP (owner ask 2026-09-24): the redesigned post-combat summary, opened only from the Summary pill.
@@ -29,6 +31,8 @@ export interface FightRecapProps {
   board?: RunState['board'];
   wave: number;
   mode: RunState['mode'];
+  /** The Gauntlet stage this run is on (`run.gauntletStage`); read only when `mode === 'gauntlet'`. */
+  gauntletStage?: number;
   procs: Line[];
   fullLog: Line[];
   /** Absent = no replay to jump to right now (the button is omitted). */
@@ -80,7 +84,7 @@ function OddsDmg({ kind, value }: { kind: 'win' | 'lose'; value: number | null }
   );
 }
 
-export const FightRecap = memo(function FightRecap({ result, combatOdds, lastCombat, lobby, board, wave, mode, procs, fullLog, onWatchReplay, onClose }: FightRecapProps) {
+export const FightRecap = memo(function FightRecap({ result, combatOdds, lastCombat, lobby, board, wave, mode, gauntletStage, procs, fullLog, onWatchReplay, onClose }: FightRecapProps) {
   const [details, setDetails] = useState(false);
   const [detailTab, setDetailTab] = useState<'procs' | 'log'>('procs');
   const showOppSkins = useGame((s) => s.showOpponentSkins);
@@ -93,18 +97,31 @@ export const FightRecap = memo(function FightRecap({ result, combatOdds, lastCom
   // Armor is still its going-in value: exactly what the split needs.
   const head = useMemo(() => {
     const foe = lobby ? playerOpponent(lobby) : null;
-    const cap = lossDamageCap(wave);
+    const cap = roundLossCap(lobby?.rules, wave); // the run's own cap table (the Gauntlet has its own)
     const taken = !lastCombat || lastCombat.result === 'win' ? 0
       : lobby && mode !== 'practice' ? playerLossDamage(lobby, lastCombat)
       : Math.min(lastCombat.playerDamage, cap);
-    const dealt = !lastCombat || lastCombat.result !== 'win' || foe?.ghost ? 0 : Math.min(lastCombat.enemyDamage ?? 0, cap);
+    // An INVULNERABLE foe (the Gauntlet opponent, R-GAUNTLET-02) takes no damage, so nothing is ever "dealt" to it.
+    const invulnerable = !!foe?.seat?.invulnerable;
+    const dealt = !lastCombat || lastCombat.result !== 'win' || foe?.ghost || invulnerable ? 0 : Math.min(lastCombat.enemyDamage ?? 0, cap);
+    // GAUNTLET: the stage opponent has no hero (its `heroId` is a stand-in) — its face is the stage's tribe emblem
+    // and no hero name is shown.
+    const face = mode === 'gauntlet' ? foePortrait(gauntletStage ?? 0) : undefined;
+    const tribe = face?.tribe ?? null;
     return {
       round: lobby ? lobby.round : wave,
-      foe: foe?.seat ? { label: foe.seat.label, heroId: foe.seat.heroId, heroName: getHero(foe.seat.heroId)?.name, ghost: !!foe.ghost, cosmetics: seatCosmetics(foe.seat, foe.board) } : null,
+      foe: foe?.seat ? {
+        label: foe.seat.label, heroId: foe.seat.heroId, ghost: !!foe.ghost, cosmetics: seatCosmetics(foe.seat, foe.board),
+        heroName: mode === 'gauntlet' ? undefined : getHero(foe.seat.heroId)?.name,
+      } : null,
+      gauntlet: mode === 'gauntlet',
+      tribe,
+      cardArt: face?.art,
+      invulnerable,
       dealt,
       taken,
     };
-  }, [lobby, wave, mode, lastCombat]);
+  }, [lobby, wave, mode, gauntletStage, lastCombat]);
 
   const odds = useMemo(() => oddsRecap(combatOdds, result), [combatOdds, result]);
   const gains = useMemo<GainItem[]>(() => combatGainItems(lastCombat, board), [lastCombat, board]);
@@ -121,7 +138,11 @@ export const FightRecap = memo(function FightRecap({ result, combatOdds, lastCom
           </div>
           <div className="fr-foe">
             <div className={`fr-foe-pic${pfClass(foeFrame)}`} style={foeFrame?.hostStyle}>
-              {head.foe && heroPortrait(head.foe.heroId, opponentSkins(showOppSkins, head.foe.cosmetics))
+              {head.gauntlet && head.cardArt
+                ? <img decoding="sync" className="fr-foe-cardart" src={head.cardArt} alt="" draggable={false} />
+                : head.gauntlet
+                ? <span className="fr-foe-emblem"><Icon name={head.tribe ? TRIBE_ICON[head.tribe] : 'anvil'} /></span>
+                : head.foe && heroPortrait(head.foe.heroId, opponentSkins(showOppSkins, head.foe.cosmetics))
                 ? <img decoding="sync" src={heroPortrait(head.foe.heroId, opponentSkins(showOppSkins, head.foe.cosmetics))} alt="" draggable={false} />
                 : <Icon name="sword" />}
               <PortraitFrame frame={foeFrame} />
@@ -138,7 +159,11 @@ export const FightRecap = memo(function FightRecap({ result, combatOdds, lastCom
             <section className="fr-odds" aria-label="Estimated from repeated simulations of this matchup. The actual result was one roll of these odds.">
               <div className="fr-sechead">Fight outcome odds</div>
               <div className="fr-odds-row">
-                <OddsDmg kind="win" value={odds.winDmg} />
+                {/* An invulnerable foe is never dealt damage, so there is no win average to show; the empty slot keeps
+                    the bar centred. */}
+                {head.invulnerable
+                  ? <div className="fr-odds-dmg win none" aria-hidden="true" />
+                  : <OddsDmg kind="win" value={odds.winDmg} />}
                 <div className="fr-odds-mid">
                   <div className="fr-oddsbar" aria-hidden="true">
                     {/* Flex-grow by share, so a 0% segment collapses to nothing but its label still shows below. */}

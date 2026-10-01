@@ -1,6 +1,6 @@
 import { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  COSMETIC_CATEGORY_DEFS, COSMETIC_RARITIES, RARITY_LABELS, cosmeticOf, crateName, crateOddsLine, isMasterTitle, levelProgress,
+  COSMETIC_CATEGORY_DEFS, COSMETIC_RARITIES, RARITY_LABELS, cosmeticOf, crateLabel, crateOddsLine, isMasterTitle, levelProgress,
   type CosmeticCategory, type CosmeticDef, type CosmeticRarity,
 } from '@game/progression';
 import { tempHandle, useGame } from '../store';
@@ -103,7 +103,7 @@ export function CollectionPage({ reducedMotion }: { reducedMotion?: boolean }): 
   useEffect(() => { setSeen(loadSeen(userId)); }, [userId]);
 
   const sealed: CrateQueueItem[] = useMemo(
-    () => (crateList ?? []).filter((c) => c.state === 'sealed').map((c) => ({ crateId: c.crateId, earnedLevel: c.earnedLevel })),
+    () => (crateList ?? []).filter((c) => c.state === 'sealed').map((c) => ({ crateId: c.crateId, earnedLevel: c.earnedLevel, source: c.source })),
     [crateList],
   );
 
@@ -478,7 +478,7 @@ function CrateBay({ cratesOn, loading, sealed, nextLevel, guest, onOpen, onOpenA
           <div className="colls-bay-sub">None right now. Your next crate comes at Level {nextLevel}.</div>
         ) : (
           <>
-            <div className="colls-bay-sub"><b>{n}</b> ready. Next: {crateName(sealed[0]!.earnedLevel)}</div>
+            <div className="colls-bay-sub"><b>{n}</b> ready. Next: {crateLabel(sealed[0]!)}</div>
             {guest && <div className="colls-bay-guest">Create a free account to open them.</div>}
             <div className="colls-bay-actions">
               <button type="button" className="cv2-btn pressable colls-open" onClick={onOpen} aria-label={guest ? 'Open (needs an account)' : undefined}>{guest && <LockGlyph />}Open</button>

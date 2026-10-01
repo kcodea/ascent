@@ -620,8 +620,9 @@ function loadFolded(): Record<string, boolean> {
   try { return (JSON.parse(localStorage.getItem(SB_FOLD_KEY) || '{}') as Record<string, boolean>) ?? {}; } catch { return {}; }
 }
 
-/** One foldable section: a brass heading you can click shut, an optional right-hand slot (a count, tabs). */
-function Sec({ id, title, right, folded, onFold, defaultFolded, children }: {
+/** One foldable section: a brass heading you can click shut, an optional right-hand slot (a count, tabs). Also the
+ *  Stage Builder's sections (same look). */
+export function Sec({ id, title, right, folded, onFold, defaultFolded, children }: {
   id: string; title: string; right?: React.ReactNode; folded: Record<string, boolean>;
   onFold: (id: string, closed: boolean) => void; defaultFolded?: boolean; children: React.ReactNode;
 }): JSX.Element {

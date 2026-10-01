@@ -38,12 +38,14 @@ const odds = readFileSync(join(root, 'supabase/migrations/2026-09-29-crate-fixed
 const uniform = readFileSync(join(root, 'supabase/migrations/2026-09-29-crate-uniform-within-rarity.sql'), 'utf8');
 /** The hero titles migration (2026-09-29) REPLACES `settle_progression` (it grants achievement titles) and seeds the 66 hero titles. */
 const heroTitles = readFileSync(join(root, 'supabase/migrations/2026-09-29-hero-titles.sql'), 'utf8');
+/** The Gauntlet migration (2026-09-29) REPLACES `progression_crate_json` (adds `source`) + the crate transition guard. */
+const gauntlet = readFileSync(join(root, 'supabase/migrations/2026-09-29-gauntlet-progress.sql'), 'utf8');
 const schema = readFileSync(join(root, 'schema.sql'), 'utf8');
 
-/** The body of a function's LATEST definition (hero titles, else equal chance, else fixed odds, else hero attack, else achievements, else skins, else crates, else the MVP's). */
+/** The body of a function's LATEST definition (gauntlet, else hero titles, else equal chance, else fixed odds, else hero attack, else achievements, else skins, else crates, else the MVP's). */
 function fnBody(name: string, from?: string): string {
   const defines = (t: string): boolean => t.includes(`create or replace function public.${name}(`);
-  const text = from ?? (defines(heroTitles) ? heroTitles : defines(uniform) ? uniform : defines(odds) ? odds : defines(heroAttack) ? heroAttack : defines(ach) ? ach : defines(skins) ? skins : defines(crates) ? crates : sql);
+  const text = from ?? (defines(gauntlet) ? gauntlet : defines(heroTitles) ? heroTitles : defines(uniform) ? uniform : defines(odds) ? odds : defines(heroAttack) ? heroAttack : defines(ach) ? ach : defines(skins) ? skins : defines(crates) ? crates : sql);
   const start = text.indexOf(`create or replace function public.${name}(`);
   if (start < 0) throw new Error(`no function ${name} in the migration`);
   const open = text.indexOf('$$', start);
@@ -174,7 +176,7 @@ describe('the migration shape', () => {
 
   it('schema.sql (the cumulative paste file) carries every progression migration verbatim, in order', () => {
     const flat = schema.replace(/\r\n/g, '\n');
-    const at = [sql, crates, skins, ach, heroAttack, odds, uniform, heroTitles].map((t) => flat.indexOf(t.replace(/\r\n/g, '\n').trim()));
+    const at = [sql, crates, skins, ach, heroAttack, odds, uniform, heroTitles, gauntlet].map((t) => flat.indexOf(t.replace(/\r\n/g, '\n').trim()));
     expect(at.every((i) => i >= 0)).toBe(true);
     expect([...at].sort((a, b) => a - b)).toEqual(at);
   });
@@ -208,7 +210,7 @@ describe('the crates migration (2026-09-28)', () => {
     const resultJson = fnBody('progression_result_json');
     for (const k of ['cratesAwarded', 'crateIds']) expect(resultJson, k).toContain(`'${k}'`);
     const crateJson = fnBody('progression_crate_json');
-    for (const k of ['crateId', 'earnedLevel', 'state', 'rewardId', 'earnedAt', 'openedAt']) expect(crateJson, k).toContain(`'${k}'`);
+    for (const k of ['crateId', 'earnedLevel', 'state', 'rewardId', 'earnedAt', 'openedAt', 'source']) expect(crateJson, k).toContain(`'${k}'`);
   });
 
   it('the published rarity odds and the roll version equal the TS rules (owner 2026-09-29: "make it 50/30/15/5 though")', () => {

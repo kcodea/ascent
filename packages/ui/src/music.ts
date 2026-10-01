@@ -5,7 +5,7 @@
  * is in a lobby, and stop immediately if they leave a lobby run or practice etc."*
  *
  * THE CONTRACT (one tiny state machine, driven from the store, no React in here):
- *  · Plays ONLY while a LOBBY-mode run is on screen: `run.mode` 'lobby' or 'practice' (Practice is a lobby too),
+ *  · Plays ONLY while a LOBBY-mode run is on screen: `run.mode` 'lobby', 'practice' or 'gauntlet' (both are lobbies too),
  *    never the title / ladder pages / hero picker / Practice setup (`isPreRun`), never a `tutorial` run, never a
  *    Scene Builder / bug-scenario rig (`run.sandbox`), never a replay (`replaying`).
  *  · Starts MUSIC_START_DELAY_MS (3 s) after the run's shop is shown, for a fresh run AND a Continue.
@@ -69,7 +69,7 @@ export function isMusicWanted(s: MusicStateLike): boolean {
   if (isPreRun(s) || s.replaying) return false;
   const run = s.run;
   if (run.sandbox) return false;
-  return run.mode === 'lobby' || run.mode === 'practice';
+  return run.mode === 'lobby' || run.mode === 'practice' || run.mode === 'gauntlet';
 }
 
 /** The minimum of HTMLMediaElement the machine touches (so a test can hand in a stub). */

@@ -133,7 +133,7 @@ Source: `packages/sim/src/lobby/boardStrength.ts` + `strengthBands.ts` (board st
 ## Gauntlet
 
 Single-player stages, each a 10-round duel against one hand-built opponent whose board grows every round
-(R-GAUNTLET-01, R-GAUNTLET-02, R-GAUNTLET-03).
+(R-GAUNTLET-01, R-GAUNTLET-02, R-GAUNTLET-03, R-GAUNTLET-05).
 
 - **Win a stage** by still standing after round 10's combat, even if you lose or tie that round.
 - **Lose** the moment your Resolve (after Armor) hits 0. The opponent never takes damage and can't be knocked out.
@@ -142,9 +142,16 @@ Single-player stages, each a 10-round duel against one hand-built opponent whose
   normal Resolve and Armor. You can't see the opponent's next board before combat.
 - **Opponent runes:** one from round 6, a second from round 9 (both active from then on). Only their combat effects act.
 - **Stages:** 1 Demons · 2 Kobolds · 3 Dragons · 4 Dwarves · 5 Beasts; 6–10 are unique stages still to come.
-  Clearing a stage unlocks the next; the first clear of each grants a crate.
+  Clearing a stage unlocks the next.
+- **Progress is saved to your account** when you're signed in, so it follows you to any device.
+- **The first clear of each stage earns a crate** (signed in only). You can replay a cleared stage any time, but
+  clearing it again never earns another crate.
+- **Not signed in (or playing as a guest)?** You can still play: your progress is saved on this device only, your
+  clears don't earn crates, and the stage select tells you so. Signing in later starts your account's own
+  progress and doesn't grant crates for stages you cleared before signing in.
 
-Source: `packages/sim/src/lobby/gauntlet.ts`, `packages/sim/src/lobby/gauntlet.test.ts`.
+Source: `packages/sim/src/lobby/gauntlet.ts`, `packages/sim/src/lobby/gauntlet.test.ts`; account progress:
+`packages/ui/src/gauntlet/gauntletProgress.ts`, `supabase/migrations/2026-09-29-gauntlet-progress.sql`.
 
 ---
 

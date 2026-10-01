@@ -60,12 +60,11 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
-        text: 'When the Shop timer runs out, hero powers and Equipment can no longer be used. Their buttons turn off at 0:00.',
-        details: [
-          'This covers every hero power, both powers for heroes with two, and Equipment.',
-          'You can still end your turn, Freeze and rearrange your board at 0:00.',
-          'End of Turn effects and passive powers still happen as normal.',
-        ],
+        text: '12 new skins in crates: the first Indy hero skin, and 11 minion skins, including three for Nimbus.',
+      },
+      {
+        category: 'Systems',
+        text: 'Card art that fails to load on a bad connection now tries again by itself, instead of leaving a blank card.',
       },
       {
         category: 'Systems',
@@ -130,7 +129,12 @@ export const PATCH_NOTES: PatchNote[] = [
       },
       {
         category: 'Systems',
-        text: 'Card art that fails to load on a bad connection now tries again by itself, instead of leaving a blank card.',
+        text: 'When the Shop timer runs out, hero powers and Equipment can no longer be used. Their buttons turn off at 0:00.',
+        details: [
+          'This covers every hero power, both powers for heroes with two, and Equipment.',
+          'You can still end your turn, Freeze and rearrange your board at 0:00.',
+          'End of Turn effects and passive powers still happen as normal.',
+        ],
       },
     ],
   },

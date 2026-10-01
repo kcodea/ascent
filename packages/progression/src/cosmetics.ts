@@ -243,6 +243,21 @@ export const COSMETICS: readonly CosmeticDef[] = Object.freeze([
   skin('skin_buddy_3', 'minion_skin', 'Sketch Buddy', 'legendary', 'buddy', 'SketchBuddyLegendary.png'),
   skin('skin_drummer_4', 'minion_skin', 'Sketch Drakko', 'rare', 'drummer', 'SketchDrakko.png'),
   skin('skin_orin_1', 'minion_skin', 'Thor Orin', 'epic', 'dw_orin', 'ThorOrinEpic.png'),
+  // Batch 5. Owner 2026-09-30: "i added more skins". Names come from the filenames; three over the 20-character cap
+  // were shortened (Lightblade Sword, Soul Surf Wayfinder, Hexhunter Wardkeeper). Rarities are the owner's random draw
+  // between Common and Epic. Spellsword is Coppercoat Spellsword (n2_spellsword), Butcher is Contract Butcher
+  // (dm_butcher), Chorusdrake is Chorus Drake (d2_chorus), Scalefeather is d2_chronicler.
+  skin('skin_nimbus_2', 'minion_skin', 'Cotton Candy Nimbus', 'common', 'nimbus', 'CottonCandyNimbus.png'),
+  skin('skin_nimbus_3', 'minion_skin', 'Dark Nimbus', 'rare', 'nimbus', 'DarkNimbus.jpg'),
+  skin('skin_nimbus_4', 'minion_skin', 'Smog Nimbus', 'common', 'nimbus', 'SmogNimbus.png'),
+  skin('skin_spellsword_1', 'minion_skin', 'Lightblade Sword', 'rare', 'n2_spellsword', 'LightbladeSpellsword.png'),
+  skin('skin_chronicler_3', 'minion_skin', 'Mascot Scalefeather', 'rare', 'd2_chronicler', 'MascotScalefeather.png'),
+  skin('skin_joker_2', 'minion_skin', 'Mime Joker', 'common', 'joker', 'MimeJoker.png'),
+  skin('skin_butcher_1', 'minion_skin', 'Pastry Chef Butcher', 'rare', 'dm_butcher', 'PastryChefButcher.png'),
+  skin('skin_chorus_1', 'minion_skin', 'Quartet Chorusdrake', 'rare', 'd2_chorus', 'QuartetChorusdrake.jpg'),
+  skin('skin_wayfinder_1', 'minion_skin', 'Soul Surf Wayfinder', 'rare', 'wayfinder', 'SoulSurferWayfinder.png'),
+  skin('skin_seaurchin_2', 'minion_skin', 'Star Urchin', 'epic', 'seaurchin', 'StarUrchin.png'),
+  skin('skin_wardkeeper_1', 'minion_skin', 'Hexhunter Wardkeeper', 'rare', 'dw_wardkeeper', 'WitchHunterWardkeeper.png'),
   skin('skin_albus_1', 'hero_skin', 'Surf Day Albus', 'epic', 'albus', 'Albus1.png'),
   skin('skin_warden_1', 'hero_skin', 'Bath Day Warden', 'epic', 'warden', 'Warden1.png'),
   skin('skin_frank_1', 'hero_skin', 'Armourer Frank', 'common', 'frank', 'ArmourerFrank.png'),
@@ -264,6 +279,8 @@ export const COSMETICS: readonly CosmeticDef[] = Object.freeze([
   skin('skin_brackus_1', 'hero_skin', 'Master Brakkus', 'epic', 'brackus', 'MasterBrakkus.png'),
   skin('skin_brackus_2', 'hero_skin', 'Young Brakkus', 'common', 'brackus', 'YoungBrakkus.png'),
   skin('skin_robin_1', 'hero_skin', 'Ninja Robin', 'common', 'robin', 'NinjaRobin.png'),
+  // Batch 5 hero skin (owner 2026-09-30: "i added more skins"). Rare by the owner's random draw.
+  skin('skin_indy_1', 'hero_skin', 'Influencer Indy', 'rare', 'indy', 'InfluencerIndy.png'),
   // HERO ATTACKS. Owner 2026-09-28: "the new blast attack is going to be a cosmetic unlock, not a new default". The
   // numbers combine, the hero charges, the view shakes and pushes in, bolts carry the blow. Then, on seeing it: "those
   // are good thresholds, this blast animation looks good! make it a legendary reward" (Epic -> Legendary). The name is

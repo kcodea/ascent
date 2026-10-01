@@ -2348,6 +2348,29 @@ export const FOUNDATION_RULES: GameRule[] = [
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/skins/skins.test.tsx', 'packages/progression/src/skins.test.ts', 'packages/progression/src/cosmetics.test.ts', 'packages/ui/src/progression/CollectionSkins.test.tsx'], lastVerifiedAt: '2026-09-30' },
   },
   {
+    id: 'R-PROG-SKINS-10',
+    title: 'Skins batch 5: eleven minion skins and an Indy hero skin join the crates',
+    statement:
+      'Twelve skins are crate items, each targeting its card or hero by stable id and shipping its own art (a 512px WebP '
+      + 'in packages/ui/src/art/skins/). Minion skins: Cotton Candy Nimbus (Common), Dark Nimbus (Rare) and Smog Nimbus '
+      + '(Common) (nimbus); Lightblade Sword (Rare, n2_spellsword, Coppercoat Spellsword); Mascot Scalefeather (Rare, '
+      + 'd2_chronicler); Mime Joker (Common, joker); Pastry Chef Butcher (Rare, dm_butcher, Contract Butcher); Quartet '
+      + 'Chorusdrake (Rare, d2_chorus, Chorus Drake); Soul Surf Wayfinder (Rare, wayfinder); Star Urchin (Epic, seaurchin); '
+      + 'Hexhunter Wardkeeper (Rare, dw_wardkeeper). Hero skin: Influencer Indy (Rare, indy). Names come from the master '
+      + 'filenames; three over the 20-character cap were shortened (LightbladeSpellsword, SoulSurferWayfinder, '
+      + 'WitchHunterWardkeeper). Rarities are the owner\x27s random draw between Common and Epic. With them in, a first '
+      + 'crate holds 17 Common, 40 Rare, 26 Epic and 20 Legendary items (each Common 2.941%, Rare 0.75%, Epic 0.577%, '
+      + 'Legendary 0.25%).',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-30 (skins batch 5)', quote: 'i added more skins' },
+      { kind: 'code', ref: 'packages/progression/src/cosmetics.ts (COSMETICS, skins batch 5); packages/ui/src/art/skins/*.webp' },
+    ],
+    currentBehaviour: 'Conforms, built 2026-09-30. Reaches the database on the next deploy of progression-inventory (the catalog sync, R-PROG-SKINS-05).',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/skins/skins.test.tsx', 'packages/progression/src/skins.test.ts', 'packages/progression/src/cosmetics.test.ts', 'packages/ui/src/progression/CollectionSkins.test.tsx'], lastVerifiedAt: '2026-09-30' },
+  },
+  {
     id: 'R-PROG-COLLECTION-03',
     title: 'The crate opening draws the owner\x27s two-layer treasure chest: the lid blasts off, the open body stays',
     statement:

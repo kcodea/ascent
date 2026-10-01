@@ -5,7 +5,7 @@
  * the preview image is off - can you fix that?"). Oracle R-PROG-COLLECTION-04.
  *  - "Use default art" flips the detail preview to the target's DEFAULT art at once, keeps the item selected, and
  *    the status / ribbon / Equip button follow the server's answer; Equip shows the skin again; a refusal reverts.
- *  - hovering a card skin's tile (owned or not) floats the REAL in-game `Card` wearing that skin, beside the tile;
+ *  - hovering an OWNED card skin's tile floats the REAL in-game `Card` wearing that skin, beside the tile;
  *    leaving clears it; a hero skin tile does not.
  *  - a hero skin previews in the in-game portrait ring (`HeroPortraitRing`: `.cv2-heroframe > .hero > .f > img.heroimg`).
  */
@@ -140,12 +140,11 @@ describe('the in-game card preview on hover', () => {
     clean();
   });
 
-  it('an unowned skin previews too, with its own art', () => {
+  it('an unowned skin never previews (owner 2026-10-01: "do not allow preview if you do not own the art")', () => {
     open();
     act(() => tab('Minions').click());
     hover(tile('Glitch Brian'));
-    expect($('.colls-cardpreview .card img.artimg')?.getAttribute('src')).toMatch(/skin_blackbelt_/);
-    expect($('.colls-cardpreview .card img.artimg')?.getAttribute('src')).not.toContain('skin_blackbelt_1.');
+    expect($('.colls-cardpreview')).toBeNull();
   });
 
   it('the detail panel\x27s art previews the card as well; a hero skin tile does not', () => {

@@ -4421,7 +4421,9 @@ function preparePlayerCombatSide(s: RunState): PreparedCombatSide {
     const n = Math.min(s.pendingSCImps * twilightMult, room); // Rune of Twilight doubles this SoC summon too
     socBeat('system:startOfCombat:pendingImps', 'pendingImps', 'Open the Gates', () => {
       for (let k = 0; k < n && impDef; k++) {
-        player.push({ cardId: 'impscrap', attack: impDef.attack, health: impDef.health, keywords: [...impDef.keywords], golden: false });
+        // The Imp Aura is baked into a starting body (simulate re-adds it only to a from-base summon), so these
+        // banked Imps carry the run's `impBuff` in, like any Imp the shop summons.
+        player.push({ cardId: 'impscrap', attack: impDef.attack + (s.impBuff?.attack ?? 0), health: impDef.health + (s.impBuff?.health ?? 0), keywords: [...impDef.keywords], golden: false });
         // `summon.appear` is the staged marker the compiler anchors an arrival to, rather than the
         // source's primary delivery — an Imp should be seen arriving, not simply be present.
         if (socCollector.enabled) socCollector.emit({
@@ -4935,6 +4937,12 @@ function settleCombat(s: RunState, result: CombatResult): void {
       attack: prevImp.attack + result.playerImpBuffGain.attack,
       health: prevImp.health + result.playerImpBuffGain.health,
     };
+    // ...and the Imps you already hold get it too: the aura is BAKED into stored stats (like `buffImpsRunWide`),
+    // so an Imp on the board or in hand was left behind by the bump alone (owner bug 2026-09-30, Impossible Todd:
+    // "they receive the buff everywhere"). Their combat-time copy of the buff never carried back, so this is the
+    // one and only time a held Imp is paid.
+    const { attack, health } = result.playerImpBuffGain;
+    for (const c of [...s.board, ...s.hand]) if (CARD_INDEX[c.cardId]?.imp) addBuff(c, 'Imp Aura', attack, health);
   }
   // Right Hand Hank's Echo: grow the run's right-most Shop-slot accumulator (the same total Market Tormentor
   // feeds). The next shop roll's applyShopRefreshed re-lands it on the right-most offer.

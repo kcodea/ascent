@@ -59,6 +59,11 @@ export const PATCH_NOTES: PatchNote[] = [
     date: '2026-09-30',
     changes: [
       {
+        category: 'Balance',
+        text: 'Impossible Todd now buffs your Imps everywhere. Imps already in the fight get +2/+1 the moment he triggers, and the Imps on your board and in your hand keep it after combat.',
+        details: ['An Imp on your board no longer gets the Imp bonus counted twice when a fight starts.'],
+      },
+      {
         category: 'Systems',
         text: 'Smoother late games: boards full of huge minions, and shops where many cards get buffed at once, no longer drop frames.',
       },
@@ -84,12 +89,13 @@ export const PATCH_NOTES: PatchNote[] = [
       },
       {
         category: 'Balance',
-        text: 'Ranked opponents now match your medal. Board strength shows in your match history.',
+        text: 'Ranked opponents now match your medal. Game strength shows in your match history.',
         details: [
-          'Every game gets a Board strength from 1 to 100. It says how strong your boards were compared to other games. 72 means stronger than 72 out of 100 games.',
+          'Every game gets a Game strength from 1 to 100. It says how strong your boards were compared to other games. 72 means stronger than 72 out of 100 games.',
+          'Later rounds count more toward it. Rounds 1 to 5 count for 20%, rounds 6 to 9 for 35% and round 10 onward for 45%. A game that ended earlier splits the weight over the rounds it played.',
           'In Ranked, Bronze meets opponents from 0 to 30, Silver from 10 to 40 and Gold from 20 to 65. Platinum meets everyone, Diamond meets 10 to 100 and Ascendant meets 20 to 100.',
           'If there are not enough opponents in your range, the range grows a little at a time.',
-          'Your match history shows the Board strength of each game. Match details also shows how each of your rounds compared to other boards at that round, and each opponent\'s Board strength.',
+          'Your match history shows the Game strength of each game. Hover it to see what it means. Match details also shows how each of your rounds compared to other boards at that round, and each opponent\'s Game strength.',
           'Practice is not affected.',
         ],
       },
@@ -143,6 +149,10 @@ export const PATCH_NOTES: PatchNote[] = [
           'You can still end your turn, Freeze and rearrange your board at 0:00.',
           'End of Turn effects and passive powers still happen as normal.',
         ],
+      },
+      {
+        category: 'Systems',
+        text: 'Collection: hover a minion skin you own to see the card as it looks in a game, hero skins preview in the real portrait frame, and "Use default art" now shows the default look right away.',
       },
     ],
   },

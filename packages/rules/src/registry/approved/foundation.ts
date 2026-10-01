@@ -712,7 +712,10 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'versioned reference set of ~30 real boards of its wave (two seeded fights each, the board once on each side, '
       + 'both sides fought through the recorded-seat combat side), stored permanently with the board. Its PERCENTILE '
       + '(1-100) is its place among every scored board at the same reference wave (ties half; 72 = stronger than 72%), '
-      + 'derived, never stored. A run\'s strength is a percentile among RUNS: the average of its boards\' percentiles, '
+      + 'derived, never stored. A run\'s strength is a percentile among RUNS: the ROUND-WEIGHTED average of its boards\' '
+      + 'percentiles (rounds 1-5 share 20% of the weight, rounds 6-9 35%, rounds 10+ 45%, split evenly inside a group '
+      + 'over the boards the run has there; a group the run never reached drops out and the rest renormalise, e.g. a run '
+      + 'that ended in round 8 weighs 20/55 and 35/55), rounded half up, '
       + 'ranked against every other run\'s average in the set by the same rule, so 30 means the bottom 30% of runs and '
       + 'each band holds about its nominal share (owner-approved follow-up: averages alone squeezed toward 50). A RATED lobby draws its '
       + 'recorded seats uniformly at random from the runs inside the band of the player\'s medal (Bronze 0-30, Silver '
@@ -721,7 +724,7 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'most 4 seats per player (the player\'s own runs included, under the same cap). A run with no score yet is inside every band. When a '
       + 'band cannot fill the table it widens by 10 on each capped side, step by step (each step logged), before '
       + 'generated seats fill the rest. Practice and the tutorial have no band. The player\'s own game shows '
-      + '"Board strength N" (the run\'s strength) in the Career and Recent Games rows and in Match details (with each '
+      + '"Game strength N" (the display name, owner 2026-09-30: "game strength for the display"; the run\'s strength) in the Career and Recent Games rows and in Match details (with each '
       + 'round\'s board percentile and each opponent seat\'s run strength), frozen at the moment the game ended; a '
       + 'game that was not scored shows nothing.',
     domain: 'foundation',
@@ -757,12 +760,24 @@ export const FOUNDATION_RULES: GameRule[] = [
         ref: 'Owner approval of the suggested fix on PR #1871, relayed by the coordinator, 2026-09-30 (run strength ranked among runs)',
         quote: 'make a RUN\'s strength a true percentile among runs',
       },
-      { kind: 'code', ref: 'packages/sim/src/lobby/boardStrength.ts + strengthBands.ts + strengthReference.v1.json; packages/sim/src/lobby/runLobby.ts createRunLobby (strengthBand); packages/ui/src/boardStrength/ (background scorer); packages/ui/src/opponentPool/poolFetch.ts (band + widening); supabase/migrations/2026-09-30-board-strength.sql' },
+      {
+        kind: 'owner-chat',
+        ref: 'Owner ask relayed verbatim by the coordinator, 2026-09-30 (round weighting)',
+        quote: 'i think we need to weigh the rounds a bit. rounds 1-5 matter much less than 6-9 which matter less than 10+. they are all still important but i wonder if weighing would be better. like 20% ish for 1-5, 35% for 6-9 and 45% for 10+?',
+      },
+      {
+        kind: 'owner-chat',
+        ref: 'Owner ask relayed by the coordinator, 2026-09-30 (display label)',
+        quote: 'game strength for the display',
+      },
+      { kind: 'code', ref: 'packages/sim/src/lobby/boardStrength.ts + strengthBands.ts + strengthReference.v1.json; packages/sim/src/lobby/runLobby.ts createRunLobby (strengthBand); packages/ui/src/boardStrength/ (background scorer); packages/ui/src/opponentPool/poolFetch.ts (band + widening); supabase/migrations/2026-09-30-board-strength.sql + 2026-09-30-weighted-strength.sql (round weights)' },
     ],
     currentBehaviour:
       'Built 2026-09-30. The bands switch on by themselves once the owner has run the SQL and the backfill: before, '
       + 'the RPC takes no band (feature-detected, the band is dropped for the session) and every run is unscored, '
-      + 'so selection is exactly R-LOBBY-08\'s.',
+      + 'so selection is exactly R-LOBBY-08\'s. Round weighting built the same day: new games freeze the weighted '
+      + 'number, numbers already frozen in history stay as they were, and the pool\'s run strengths switch when the '
+      + 'owner runs the weighted-strength SQL (it recomputes every run).',
     enforcement: {
       kind: 'scenario',
       refs: [
@@ -2432,7 +2447,7 @@ export const FOUNDATION_RULES: GameRule[] = [
     statement:
       'In the Collection a HERO skin previews in the in-game portrait ring (the same disc, cover crop and frame as your '
       + 'portrait in a run), never as a bare or offset picture. Hovering a CARD skin (a minion skin, or a spell skin when '
-      + 'there are any), owned or not, on its tile or on the detail panel\x27s art, floats the real in-game card wearing that '
+      + 'there are any), that you OWN (owner 2026-10-01: never an unowned one), on its tile or on the detail panel\x27s art, floats the real in-game card wearing that '
       + 'skin (frame, tier stars, stats, name and text on its plate) beside the tile, never over it, and kept on screen; '
       + 'it is placed once per hover and leaving clears it. Pressing "Use default art" switches the detail preview to the '
       + 'target\x27s DEFAULT art at once (labelled Default art) and keeps that skin selected; once the server answers, its '

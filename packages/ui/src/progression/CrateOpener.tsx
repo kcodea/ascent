@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { COSMETIC_CATEGORY_DEFS, RARITY_LABELS, cosmeticOf, crateName, type OpenCrateResult } from '@game/progression';
 import { playTailedClip, sfx, type SfxHandle } from '../sfx';
 import { stageHost } from '../stage';
+import { skinArtOf } from '../skins/skinArt';
 import { openCrate, type CrateOpenOutcome } from './progressionStore';
 import {
   CRATE_CUE_CATEGORY, chestTuningOf, crateBeats, crateCue, crateFxSpeed, getCrateFxConfig, presetFor,
@@ -355,6 +356,10 @@ export function CrateOpener({ queue, autoOpen = false, openAll = false, reducedM
   if (!shown) return null;
   const reward = result && result.rewardId ? rewardLabel(result.rewardId) : null;
   const revealed = (phase === 'reveal' || phase === 'settled') && !!reward;
+  // A skin shows its art beside the plate (owner 2026-09-29); a title needs no preview, the plate IS the title.
+  const rewardDef = result?.rewardId ? cosmeticOf(result.rewardId) : undefined;
+  const skinKind = rewardDef?.category === 'hero_skin' ? 'hero' : rewardDef?.category === 'minion_skin' ? 'minion' : null;
+  const skinUrl = skinKind ? skinArtOf(rewardDef) : undefined;
   const next = phase === 'settled' ? pending[0] ?? null : null;
   const c = getCrateFxConfig();
   const k = 1 / crateFxSpeed();
@@ -413,6 +418,11 @@ export function CrateOpener({ queue, autoOpen = false, openAll = false, reducedM
               <span className="crate-reward-name">{reward.name}</span>
               {reward.rarityLabel && <span className="crate-reward-rarity crth-ribbon"><span>{reward.rarityLabel}</span></span>}
               <span className="crth-plate-shine" aria-hidden />
+              {skinUrl && (
+                <span className={`crth-skin ${skinKind}`} aria-hidden>
+                  <img src={skinUrl} alt="" draggable={false} decoding="sync" />
+                </span>
+              )}
             </div>
           )}
         </div>

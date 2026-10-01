@@ -277,6 +277,30 @@ describe('the crate theatre: flow states', () => {
     expect(fxCalls).toEqual([]); // never created
   });
 
+  it('a skin shows its art beside the plate (hero round, minion square); a title shows none', async () => {
+    liveCrates();
+    openCrateRemote.mockResolvedValue({ status: 'ok', value: opened('c-9', 'skin_albus_1', 9), profile: profile() });
+    ui = mount(<CrateOpener queue={[{ crateId: 'c-9', earnedLevel: 9 }]} reducedMotion />);
+    act(() => button('Open')!.click());
+    await settle();
+    expect($('.crth-plate .crth-skin.hero img')?.getAttribute('src')).toContain('skin_albus_1');
+    ui.unmount();
+
+    openCrateRemote.mockResolvedValue({ status: 'ok', value: opened('c-8', 'skin_blackbelt_1', 8), profile: profile() });
+    ui = mount(<CrateOpener queue={[{ crateId: 'c-8', earnedLevel: 8 }]} reducedMotion />);
+    act(() => button('Open')!.click());
+    await settle();
+    expect($('.crth-plate .crth-skin.minion img')?.getAttribute('src')).toContain('skin_blackbelt_1');
+    ui.unmount();
+
+    openCrateRemote.mockResolvedValue({ status: 'ok', value: opened('c-7', 'title_kingbreaker', 7), profile: profile() });
+    ui = mount(<CrateOpener queue={[{ crateId: 'c-7', earnedLevel: 7 }]} reducedMotion />);
+    act(() => button('Open')!.click());
+    await settle();
+    expect(text('.crate-reward-name')).toBe('Kingbreaker');
+    expect($('.crth-skin')).toBeNull();
+  });
+
   it('the Pixi controller is destroyed with the theatre, and no beat fires after', async () => {
     vi.useFakeTimers();
     liveCrates();

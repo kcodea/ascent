@@ -202,6 +202,9 @@ export interface ReplayV2 {
     /** LOBBY STRENGTH (owner 2026-09-22) — stamped at run end so the Recent Games row (which reads this replay
      *  result, never the history row) can print it. Optional: absent when the view could not be read. */
     lobbyStrength?: LobbyStrength;
+    /** BOARD STRENGTH (R-LOBBY-09, 2026-09-30): the run's strength percentile (1-100), frozen when the game ended,
+     *  for the Recent Games row. Absent when it was not scored in time or the pool histogram was unavailable. */
+    boardStrength?: number;
   };
 }
 

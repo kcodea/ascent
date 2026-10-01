@@ -235,6 +235,25 @@ describe('the crate scene (headless Pixi)', () => {
     expect(root.children.length).toBe(0);
   });
 
+  it('the chest comes to rest shortly after the burst: the charge ground shake does not outlive it (R-PROG-CRATE-05)', () => {
+    const root = new Container();
+    const scene = new CrateScene(root, TEX);
+    scene.layout(1920, 1080);
+    const p = presetFor('epic', CRATE_FX_DEFAULTS);
+    scene.anticipate(ant);
+    scene.charge(p);
+    run(scene, p.chargeMs);
+    expect(scene.cameraShake).toBeGreaterThan(p.screenShake * 0.15); // the charge rumbles the view
+    scene.burst(p);
+    expect(scene.cameraShake).toBeGreaterThanOrEqual(p.screenShake); // the hit
+    run(scene, 600);
+    expect(scene.cameraShake).toBeLessThan(0.5); // sub-pixel: at rest well before the plate settles
+    scene.reveal(p);
+    run(scene, 400);
+    expect(scene.cameraShake).toBe(0);
+    scene.destroy();
+  });
+
   it('a failure winds down to a sealed chest at rest; reset restores it', () => {
     const root = new Container();
     const scene = new CrateScene(root, TEX);

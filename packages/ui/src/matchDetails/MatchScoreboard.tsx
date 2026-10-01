@@ -13,7 +13,7 @@ import { sfx } from '../sfx';
 import { stageHost } from '../stage';
 import { TitleBadge } from '../titles/TitleBadge';
 import { useHallKeys } from './hallKeys';
-import { boardCaption, defaultSeatId, placeLabel, statusText, summaryText } from './matchDetailsText';
+import { boardCaption, defaultSeatId, placeLabel, statusText, strengthLabel, summaryText } from './matchDetailsText';
 import './matchDetails.css';
 
 /**
@@ -87,7 +87,8 @@ const SeatRow = memo(function SeatRow({ seat, place, status, selected, killer, h
   const heroName = seat.heroId ? getHero(seat.heroId).name : '';
   const standing = seat.eliminatedRound === undefined && !(seat.self && status.startsWith('Out'));
   const winner = status === 'Winner';
-  const label = `${place ? `${place}. ` : ''}${seat.name}${seat.self ? ' (you)' : ''}, ${heroName}. ${status}.${killer ? ' Knocked you out.' : ''}${hall ? ' On the Hall of Champions.' : ''}`;
+  const strength = strengthLabel(seat);
+  const label = `${place ? `${place}. ` : ''}${seat.name}${seat.self ? ' (you)' : ''}, ${heroName}. ${status}.${killer ? ' Knocked you out.' : ''}${hall ? ' On the Hall of Champions.' : ''}${strength ? ` ${strength}.` : ''}`;
   return (
     <button
       type="button"
@@ -111,6 +112,7 @@ const SeatRow = memo(function SeatRow({ seat, place, status, selected, killer, h
           <span className="mds-hero">{heroName}</span>
           {title && <TitleBadge snapshot={title} className="mds-row-title" />}
         </span>
+        {strength && <span className="mds-strength">{strength}</span>}
         <span className={`mds-status${winner ? ' winner' : standing ? ' in' : ' out'}`}>
           {winner && <Icon name="crown" />}{status}
           {killer && <span className="mds-killer"><Icon name="sword" />Knocked you out</span>}
@@ -137,6 +139,24 @@ function SeatRunes({ runes }: { runes: readonly string[] | undefined }) {
       {known.length > 0
         ? <div className="cv2-runes" aria-label="Runes this player owned">{known.map((id, i) => <RuneEmblem runeId={id} key={`${id}#${i}`} />)}</div>
         : <span className="mds-norunes">No runes</span>}
+    </div>
+  );
+}
+
+/** BOARD STRENGTH (R-LOBBY-09): the selected seat's run strength, and for your own seat each round's board. Renders
+ *  nothing for a seat that was not scored (no placeholder). */
+function SeatStrength({ seat }: { seat: MatchSeat }) {
+  const label = strengthLabel(seat);
+  const rounds = seat.self ? seat.roundStrength ?? [] : [];
+  if (!label && rounds.length === 0) return null;
+  return (
+    <div className="mds-strength-panel">
+      {label && <span className="cv2-row-label">{label}</span>}
+      {rounds.length > 0 && (
+        <div className="mds-strength-rounds" aria-label="Your board strength by round">
+          {rounds.map((r) => <span className="mds-strength-round" key={r.round}><span className="mds-strength-r">R{r.round}</span>{r.value}</span>)}
+        </div>
+      )}
     </div>
   );
 }
@@ -223,6 +243,7 @@ export function MatchScoreboard({ details, own }: { details: MatchDetails; own: 
               : <div className="mds-empty">{selected.board ? 'This board was empty.' : 'No board was recorded for this player.'}</div>}
           </div>
           <SeatRunes runes={selected.board?.runes} />
+          <SeatStrength seat={selected} />
         </section>
       )}
     </div>

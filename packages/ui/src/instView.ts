@@ -1,6 +1,6 @@
 import { damageMeterOf, type Keyword, type Tribe } from '@game/core';
 import { CARD_INDEX } from '@game/content';
-import { spiritsPlayedThisTurn, playedThisTurnFor, anySpellsCastThisTurn, CONFIG, chooseBothActive, dominantBoardTribe, hasTier7Access, rubyStatBonus, runeStacksOf, spellAttackBonus, spellDisplayText, spellHealthBonus, type BoardCard, type RunState, grimToastFold, unityAuraFold, defIsTribe } from '@game/sim';
+import { ancientClearanceSellValue, sellValueOf, spiritsPlayedThisTurn, playedThisTurnFor, anySpellsCastThisTurn, CONFIG, chooseBothActive, dominantBoardTribe, hasTier7Access, rubyStatBonus, runeStacksOf, spellAttackBonus, spellDisplayText, spellHealthBonus, type BoardCard, type RunState, grimToastFold, unityAuraFold, defIsTribe } from '@game/sim';
 import type { CardView } from './Card';
 import {
   abhorrentHorrorText, ascendProgressText, asymSummonBuffText, cadenceProgressText, cardTypeTallyText, chefRaagText, clingProgressText,
@@ -97,6 +97,9 @@ export interface LiveTextParams {
   /** ANCIENTS × the Auctioneer (War): this instance carries the granted "Rally: trigger this minion's Shout" (a
    *  `grantedEffects` graft in the shop, the snapshot's `grantedRallyShout` in combat). Printed as a blue note. */
   grantedRallyShout?: boolean;
+  /** FRANK × ANCIENT OF FORTUNE: this Clearance minion's CURRENT sell value (owner 2026-09-30: "just add sells for 2g if
+   *  it is a fortune frank purchase"). Printed as a blue note; absent = no line. */
+  clearanceSellGold?: number;
   /** Mage-Pup: the spell Moonhowl Mentor taught THIS token, so its Shout line can print that spell's actual
    *  rule instead of "the spell this was taught". Absent on every other card. */
   taughtSpellId?: string;
@@ -136,6 +139,8 @@ export function rubyLiveText(printed: string, grant: string): string {
  */
 /** The blue note a Pulsed minion wears under Ancients × the Auctioneer (War). */
 export const GRANTED_RALLY_SHOUT_NOTE = "[[Rally: trigger this minion's Shout.]]";
+/** Frank × Ancient of Fortune: the Clearance minion's sale line, at the value it sells for right now. */
+export const clearanceSellNote = (gold: number): string => `[[Sells for ${gold} Gold.]]`;
 
 export function liveCardText(cardId: string, p: LiveTextParams): { text: string; goldenText: string | undefined } {
   const r = liveCardTextCore(cardId, p);
@@ -254,7 +259,9 @@ function liveCardTextCore(cardId: string, p: LiveTextParams): { text: string; go
   // card, composing with whatever live values the chain injected above. Both variants carry it.
   // …and a rule GRANTED to this instance (Ancients × the Auctioneer's War Pulse) prints as a blue [[…]] note.
   const grantNote = p.grantedRallyShout ? GRANTED_RALLY_SHOUT_NOTE : '';
-  const runeNote = [runeModifiedNote(c.id, p.runeFlags), grantNote].filter(Boolean).join(' ');
+  // …and Frank × Ancient of Fortune's Clearance sale price, at its CURRENT value (the "2 Gold is a floor" rule folded in).
+  const saleNote = p.clearanceSellGold !== undefined ? clearanceSellNote(p.clearanceSellGold) : '';
+  const runeNote = [runeModifiedNote(c.id, p.runeFlags), grantNote, saleNote].filter(Boolean).join(' ');
   const noted = runeNote ? `${text} ${runeNote}` : text;
   const notedGolden = goldenBase !== undefined && runeNote ? `${goldenBase} ${runeNote}` : goldenBase;
   // Live Imp-stat annotation (owner 2026-08-11): fold the summoned Imp's current X/Y into the "summon … Imp"
@@ -277,6 +284,15 @@ function liveCardTextCore(cardId: string, p: LiveTextParams): { text: string; go
  * tags (Soulsman's Gold, the undeadBuyAtk a new Undead inherits, Eternal Knight's run-wide enchant). Pure —
  * given the instance + the run-wide live inputs, it derives the display without touching game state.
  */
+/** The run fields a minion's sell value reads (`sellValueOf`), for the Fortune sale line. */
+export type SellTextState = Pick<RunState, 'runeBartering' | 'runeStacks' | 'ancientsEnabled' | 'ancients' | 'heroId'>;
+
+/** FRANK × ANCIENT OF FORTUNE: a Clearance minion's current sell value while Fortune is live, else undefined (no line). */
+export function clearanceSellGoldOf(inst: BoardCard, s: SellTextState | undefined): number | undefined {
+  if (!s || !inst.clearanceBuy || ancientClearanceSellValue(inst, s) === undefined) return undefined;
+  return sellValueOf(inst, s);
+}
+
 export function instView(
   inst: BoardCard,
   tier = 1,
@@ -292,7 +308,7 @@ export function instView(
   spellsCast = 0,
   clingEnchant?: { attack: number; health: number },
   fodderConsumed?: { attack: number; health: number },
-  live?: { grimToast?: { attack: number; health: number }; unityAura?: { attack: number; health: number }; nextSpellBonus?: { attack: number; health: number }; undeadBuyAtk?: number; soulsmanGold?: number; impAura?: { attack: number; health: number }; cardBuffs?: Record<string, { attack: number; health: number }>; castMult?: number; goldSpent?: number; goldSpentRun?: number; goldPouchValue?: number; playedThisTurn?: string[]; squirlScoutBuff?: number; conductorBuff?: number; lastSpellName?: string; rememberedSpellNames?: readonly string[]; impBank?: { attack: number; health: number }; firstSpellThisTurnName?: string; lastSpellThisTurnName?: string; topTribe?: string | null; frontToBackBonusH?: number; onBoard?: boolean; inHand?: boolean; eotTickOverride?: number; improveReps?: number; rubyCasts?: number; rubyBonus?: { attack: number; health: number }; clueBonus?: number; starCrashBonus?: { attack: number; health: number }; revelerX?: number; spiritDiscount?: number; spiritsPlayed?: number; anySpellsThisTurn?: number; grimoireCharged?: boolean; runeMammoth?: boolean; runeFlags?: RuneTextFlags; tier7Access?: boolean; alesThisTurn?: number; unusedEquipment?: number; /** The run flags the (Both) predicate reads (`runeFacetwright` / `runeUnbrokenVein`) — passed rather than a precomputed boolean so the ONE predicate stays the only place the rule lives. */ chooseBothState?: { runeFacetwright?: boolean; runeUnbrokenVein?: boolean } },
+  live?: { grimToast?: { attack: number; health: number }; unityAura?: { attack: number; health: number }; nextSpellBonus?: { attack: number; health: number }; undeadBuyAtk?: number; soulsmanGold?: number; impAura?: { attack: number; health: number }; cardBuffs?: Record<string, { attack: number; health: number }>; castMult?: number; goldSpent?: number; goldSpentRun?: number; goldPouchValue?: number; playedThisTurn?: string[]; squirlScoutBuff?: number; conductorBuff?: number; lastSpellName?: string; rememberedSpellNames?: readonly string[]; impBank?: { attack: number; health: number }; firstSpellThisTurnName?: string; lastSpellThisTurnName?: string; topTribe?: string | null; frontToBackBonusH?: number; onBoard?: boolean; inHand?: boolean; eotTickOverride?: number; improveReps?: number; rubyCasts?: number; rubyBonus?: { attack: number; health: number }; clueBonus?: number; starCrashBonus?: { attack: number; health: number }; revelerX?: number; spiritDiscount?: number; spiritsPlayed?: number; anySpellsThisTurn?: number; grimoireCharged?: boolean; runeMammoth?: boolean; runeFlags?: RuneTextFlags; tier7Access?: boolean; alesThisTurn?: number; unusedEquipment?: number; /** The run flags the (Both) predicate reads (`runeFacetwright` / `runeUnbrokenVein`) — passed rather than a precomputed boolean so the ONE predicate stays the only place the rule lives. */ chooseBothState?: { runeFacetwright?: boolean; runeUnbrokenVein?: boolean }; /** What the sell value reads (Frank × Fortune's Clearance sale line). */ sellState?: SellTextState },
 ): CardView {
   const c = CARD_INDEX[inst.cardId];
   const spell = c.spell === true || c.id === 'discoverspell';
@@ -330,6 +346,7 @@ export function instView(
     chooseBoth, // (Both) — no choice to print
     taughtSpellId: inst.taughtSpellId, // a Mage-Pup prints the spell it was taught
     grantedRallyShout: !!inst.grantedEffects?.some((e) => e.do === 'rallyTriggerOwnShout'), // Auctioneer × War
+    clearanceSellGold: clearanceSellGoldOf(inst, live?.sellState), // Frank × Fortune: "Sells for 2 Gold."
     keywords: shownKeywords, // a granted Rise leads the text (owner 2026-09-26)
   });
   // `override` shows transient stats during the End-of-Turn animation (the per-proc value the minion

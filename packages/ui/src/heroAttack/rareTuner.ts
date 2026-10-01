@@ -42,6 +42,11 @@ export interface RareTunerDef<C extends object> {
   /** What each preview blow plays, for the hints. */
   smallHint: string;
   bigHint: string;
+  /**
+   * A FOUR-tier attack (a Legendary on this builder, e.g. the Basketball): what each of the four preview blows plays,
+   * I / II / III / IV. Overrides the Small / Big hints on those buttons.
+   */
+  tierHints?: readonly [string, string, string, string];
 }
 
 type Values<C> = C & { attackStyle: string };
@@ -115,10 +120,10 @@ export function rareTunerSpec<C extends object>(d: RareTunerDef<C>): { spec: Tun
     actions: [
       { label: '▶ You attack', hint: `Your hero ${d.verb} the foe for the preview damage.`, run: () => { void demo('player'); } },
       { label: '▶ Foe attacks', hint: `The foe ${d.verb} your hero for the preview damage.`, run: () => { void demo('opp'); } },
-      { label: '▶ Small (3)', hint: `Your hero attacks for 3 (shared Tier I): ${d.smallHint}`, run: () => { void demo('player', { damage: 3, parts: 2 }); } },
-      { label: '▶ Tier II (8)', hint: `Your hero attacks for 8 (shared Tier II): still ${d.smallHint}`, run: () => { void demo('player', { damage: 8, parts: 3 }); } },
-      { label: '▶ Medium (12)', hint: `Your hero attacks for 12 (shared Tier III): ${d.bigHint}`, run: () => { void demo('player', { damage: 12, parts: 4 }); } },
-      { label: '▶ Huge (40)', hint: `Your hero attacks for 40 (shared Tier IV, as a knockout plays): ${d.bigHint}`, run: () => { void demo('player', { damage: 40, parts: 7 }); } },
+      { label: '▶ Small (3)', hint: `Your hero attacks for 3 (shared Tier I): ${d.tierHints?.[0] ?? d.smallHint}`, run: () => { void demo('player', { damage: 3, parts: 2 }); } },
+      { label: '▶ Tier II (8)', hint: `Your hero attacks for 8 (shared Tier II): ${d.tierHints?.[1] ?? `still ${d.smallHint}`}`, run: () => { void demo('player', { damage: 8, parts: 3 }); } },
+      { label: '▶ Medium (12)', hint: `Your hero attacks for 12 (shared Tier III): ${d.tierHints?.[2] ?? d.bigHint}`, run: () => { void demo('player', { damage: 12, parts: 4 }); } },
+      { label: '▶ Huge (40)', hint: `Your hero attacks for 40 (shared Tier IV, as a knockout plays): ${d.tierHints?.[3] ?? d.bigHint}`, run: () => { void demo('player', { damage: 40, parts: 7 }); } },
       { label: '▶ Foe small (3)', hint: 'The foe attacks your hero for 3.', run: () => { void demo('opp', { damage: 3, parts: 2 }); } },
       { label: '▶ Foe tier II (8)', hint: 'The foe attacks your hero for 8.', run: () => { void demo('opp', { damage: 8, parts: 3 }); } },
       { label: '▶ Foe medium (12)', hint: 'The foe attacks your hero for 12.', run: () => { void demo('opp', { damage: 12, parts: 4 }); } },

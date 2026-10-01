@@ -50,7 +50,7 @@ import { beginDragTrace, cancelDragTrace, endDragTrace, sampleDragTrace } from '
 import { SYM_KINDS } from './choreo/channels/float';
 import { stabilizeViewMap, stabilizeRefMap, stabilizeView } from './cardViewEqual';
 import { buildShopViews, type ShopViewCacheEntry } from './shopViewCache';
-import { deriveDragDecision, dragDecisionEqual, computeCastingSpell, NO_DRAG_DECISION, type DragGeo, type DragDecision } from './dragDecision';
+import { deriveDragDecision, dragDecisionEqual, computeCastingSpell, NO_DRAG_DECISION, INSERT_FRAC, indexFromSlots, reorderIndexFromSlots, type DragGeo, type DragDecision } from './dragDecision';
 import { dragStore, useDragSlice, type DragSnapshot, type DragState } from './dragStore';
 import { QuestCard } from './QuestCard';
 import { RuneforgeDialog } from './runeforgeEntrance/RuneforgeDialog';
@@ -107,6 +107,8 @@ import { playHeroBubble } from './heroBubble/heroBubble';
 import { heroBubblePreviewSpeed } from './heroBubble/heroBubbleConfig';
 import { playHeroBackstab } from './heroBackstab/heroBackstab';
 import { heroBackstabPreviewSpeed } from './heroBackstab/heroBackstabConfig';
+import { playHeroBasketball } from './heroBasketball/heroBasketball';
+import { heroBasketballPreviewSpeed } from './heroBasketball/heroBasketballConfig';
 import { resolveHeroAttackStyle } from './heroBlast/heroAttackStyle';
 import { attackerCosmeticOf } from './heroBlast/attackerCosmetic';
 import { heroStrikeDamage, heroStrikeKnockout, heroStrikeNumbers } from './heroBlast/heroStrikeDamage';
@@ -349,9 +351,6 @@ type Zone = 'tavern' | 'warband' | 'hand';
  *  who genuinely wants to end instantly barely notices. */
 const END_TURN_LOCK_MS = 2000; // 5000 → 2000 (owner re-tune 2026-07-31: the long lock outstayed its welcome)
 // px the pointer must move before a click becomes a drag — live-tunable via the DEV Drag tuner (dragFeel.ts).
-// How far into a card the cursor must reach (fraction of width) before the insertion point
-// moves past it — below 0.5 so cards slide out of the way sooner / more sensitively.
-const INSERT_FRAC = 0.5; // insert after a card once the *dragged card's centre* passes its midpoint
 const TURN_SECONDS = 18; // base round timer; grows +4s/wave (+6s more from round 6 — owner 2026-07-16), capped at 80 — and floored at CHARGE_SECONDS+1, so wave 1 actually kicks off at 21s (see turnSeconds)
 const CHARGE_SECONDS = 20;
 const CHARGE_MAX_FEATHER = 24; // % — the reveal feather = this × (1−charge): soft incoming fronts, 0 at completion (no sigil dimming)
@@ -1527,6 +1526,21 @@ export function Recruit() {
     return () => { for (const t of timers) clearTimeout(t); for (const s of stops) s(); };
     // Keyed on the seq only — the payload is read at the moment it moved (the `bounceFx` watcher's contract).
   }, [run.rubyRiderFxSeq]);
+  // ANCIENT OF FORTUNE × HUNCH (2026-09-30): each Rounded Spellbook use raises max Gold by 1. The coin burst out of
+  // the GOLD PILL (the authored `coin` def the sell path already plays there) is the beat, one per bump of the sim's
+  // presentation counter. Nothing on the first render (the ref starts at the current value).
+  const prevBookGoldSeq = useRef(run.ancients?.bookGoldFxSeq);
+  useEffect(() => {
+    const seq = run.ancients?.bookGoldFxSeq;
+    if (seq === undefined || seq === prevBookGoldSeq.current) return;
+    prevBookGoldSeq.current = seq;
+    if (!canPlayDefs()) return;
+    const goldEl = document.querySelector('.goldpill');
+    if (!goldEl) return;
+    const gr = goldEl.getBoundingClientRect();
+    const g = { x: gr.left + gr.width / 2, y: gr.top + gr.height / 2 };
+    playDef('coin', { source: g, target: g, cursor: g });
+  }, [run.ancients?.bookGoldFxSeq]);
   // RUNE-BUFF-UNIT: any minion a rune buffed this SHOP action gets the `rune-buff-unit` sparkle, on the unit
   // (owner ask 2026-08-19). The sim diffs each minion's rune-buff total (`runeBuffFxUnits`), so this fires for
   // every rune that buffs a unit with no per-rune wiring. Measured on the next frame — a stat change re-renders
@@ -2949,12 +2963,15 @@ export function Recruit() {
     // six times until it bursts; Hemorrhage: crimson crescents cut gashes that bleed, and the top tier zips a mega-slash
     // across the screen eight times and ends in a bloody explosion; the Rares, two tiers each: Pocket Change flicks a coin that pings and ricochets,
     // Come Back Around throws a boomerang that thwacks and is caught, Bubble Trouble pops a bubble round the face, and
-    // Shadow Step fades the striker into smoke and stabs from behind). Same blow, same consequence, only drawn differently;
+    // Shadow Step fades the striker into smoke and stabs from behind; Nothing But Net: the striker plays ball, a jump shot, a
+    // fadeaway, a pull-up three and a self alley-oop slammed into an explosion). Same blow, same consequence, only drawn differently;
     // the style is the ATTACKER's (their equipped cosmetic, or the dev override). Every runner takes the same options
     // (`heroAttack/options.ts`).
     const attackStyle = resolveHeroAttackStyle({ attacker: side, attackerCosmeticId: attackerCosmeticOf(run0, side, useGame.getState().showOpponentSkins) });
     if (attackStyle !== 'classic') {
-      const runner = attackStyle === 'backstab'
+      const runner = attackStyle === 'basketball'
+        ? { play: playHeroBasketball, preview: heroBasketballPreviewSpeed() }
+        : attackStyle === 'backstab'
         ? { play: playHeroBackstab, preview: heroBackstabPreviewSpeed() }
         : attackStyle === 'bubble'
         ? { play: playHeroBubble, preview: heroBubblePreviewSpeed() }
@@ -3002,6 +3019,8 @@ export function Recruit() {
         formation,
         total: strikeDmg,
         knockout,
+        // A stable per-blow seed for a style that rolls a variation (the run seed and the round): a replay rolls the same.
+        rollSeed: (run0.seed ^ Math.imul(run0.wave + 1, 0x9e3779b1)) >>> 0,
         side,
         attacker: aPt,
         defender: dPt,
@@ -3333,6 +3352,14 @@ export function Recruit() {
   useEffect(() => {
     if (timeUp && !inCombat && !run.sandbox) useGame.getState().flushSave();
   }, [timeUp, inCombat, run.sandbox]);
+  // An ARMED hero power / Equipment at 0:00 is dropped (R-TIMER-LOCK-01): the reducer would refuse the pick anyway,
+  // so leaving the aim line up would only invite a click that does nothing.
+  useEffect(() => {
+    if (!timeUp || inCombat) return;
+    const g = useGame.getState();
+    if (g.heroArmed) g.armHero();
+    if (g.equipArmed) g.armEquipment();
+  }, [timeUp, inCombat]);
 
   const zoneAt = (x: number, y: number): Zone | null => {
     const el = document.elementFromPoint(x, y)?.closest('[data-zone]');
@@ -3363,40 +3390,9 @@ export function Recruit() {
     const uid = shopUidAt(x, y);
     return uid && run.shop.find((o) => o.uid === uid)?.starform ? uid : null;
   };
-  // Insertion index in the warband, from the pointer's x against the cards' centres.
-  // `excludeUid` drops the dragged card from the count when *reordering* a board minion
-  // (it's still in the DOM, so without this a rightward drag overshoots by one).
-  // Count how many cached slot-midpoints the pointer x has passed (the insertion index).
-  const indexFromSlots = (slots: { uid: string; left: number; width: number }[], x: number, excludeUid?: string): number => {
-    let i = 0;
-    for (const c of slots) {
-      if (c.uid === excludeUid) continue;
-      if (x > c.left + c.width * INSERT_FRAC) i++;
-    }
-    return i;
-  };
-  // Reorder insertion index that measures against each neighbour's CURRENT (shifted) position, not its resting
-  // slot. As you drag a card aside, its neighbour slides a whole slot to make room; the swap-back trigger must
-  // follow the neighbour's NEW spot — otherwise (measuring resting midpoints) you'd have to drag ~half a card
-  // OUT to open the gap but only a sliver BACK to close it (the reported asymmetry). With the gap currently at
-  // `prevGap`, the p-th non-dragged card sits in slot (p < prevGap ? p : p+1); count those whose centre is < x.
-  const reorderIndexFromSlots = (
-    slots: { uid: string; left: number; width: number }[],
-    x: number,
-    excludeUid: string,
-    prevGap: number,
-  ): number => {
-    const g = prevGap >= 0 ? prevGap : Math.max(0, slots.findIndex((s) => s.uid === excludeUid));
-    let p = 0;
-    let count = 0;
-    for (const c of slots) {
-      if (c.uid === excludeUid) continue;
-      const slot = slots[p < g ? p : p + 1] ?? c;
-      if (x > slot.left + slot.width * INSERT_FRAC) count++;
-      p++;
-    }
-    return count;
-  };
+  // Insertion index in the warband, from the pointer's x against the cards' centres: `indexFromSlots` /
+  // `reorderIndexFromSlots` (dragDecision.ts) count the cached slot midpoints. Both sides are SCREEN px (the
+  // cached rects and the pointer), so the count is the same at any stage scale.
   const warbandIndexAt = (x: number, excludeUid?: string): number => {
     const cached = insertRectsRef.current;
     if (cached)
@@ -3569,13 +3565,19 @@ export function Recruit() {
   }, [run.board, run.hand, run.shop, cardBuffsLive, run.impBuff, spellBonus, spellBonusH, ftbBonus, ftbBonusH, run.goldSpentThisTurn, run.rubyBonus, run.growthBonus]);
   // During the End-of-Turn animation the board shows each minion's per-proc stats (`eotAnimStats`),
   // so the numbers visibly tick up as each effect fires; otherwise the real stats.
+  // Frank × Ancient of Fortune's "Sells for N Gold." line: only what `sellValueOf` reads (the picked Ancient, not the
+  // whole meter state, so a meter tick does not rebuild every view).
+  const sellState = useMemo(
+    () => ({ runeBartering: run.runeBartering, runeStacks: run.runeStacks, ancientsEnabled: run.ancientsEnabled, heroId: run.heroId, ancients: run.ancients?.picked ? ({ picked: run.ancients.picked } as RunState['ancients']) : undefined }),
+    [run.runeBartering, run.runeStacks, run.ancientsEnabled, run.heroId, run.ancients?.picked],
+  );
   const live = useMemo(
-    () => ({ grimToast: grimToastFold(run), unityAura: unityAuraFold(run), undeadBuyAtk: run.undeadBuyAtk, soulsmanGold: run.soulsmanGold ?? 0, nextSpellBonus: run.nextSpellBonus, cardBuffs: cardBuffsLive, impAura: run.impBuff, rubyCasts: run.rubyCasts, goldSpent: run.goldSpentThisTurn ?? 0, goldSpentRun: run.goldSpent, goldPouchValue: run.goldPouchValue, playedThisTurn: run.playedThisTurn, squirlScoutBuff: squirlScoutBuffLive(run), conductorBuff: run.conductorBuff, alesThisTurn: run.alesCastThisTurn, unusedEquipment: unusedEquipmentCount(run), lastSpellName: run.lastSpellCastId ? CARD_INDEX[run.lastSpellCastId]?.name : undefined, firstSpellThisTurnName: run.firstSpellThisTurnId ? CARD_INDEX[run.firstSpellThisTurnId]?.name : undefined, lastSpellThisTurnName: run.lastSpellThisTurnId ? CARD_INDEX[run.lastSpellThisTurnId]?.name : undefined, topTribe: dominantBoardTribe(run), frontToBackBonusH: ftbBonusH, improveReps: run.runeMastery ? 1 + runeStacksOf(run, 'rune_mastery') : 1, rubyBonus: rubyStatBonus(run), clueBonus: run.clueBonus, starCrashBonus: run.starCrashBonus, revelerX: run.revelerX, spiritDiscount: run.spiritDiscount, spiritsPlayed: spiritsPlayedThisTurn(run), anySpellsThisTurn: anySpellsCastThisTurn(run) /* Stellar Chorus's live total in HAND — the shop chain threaded it, this one starved it (owner report 2026-09-12) */, tier7Access: hasTier7Access(run), grimoireCharged: (run.grimoireMult ?? 0) > 1, runeMammoth: !!run.questFlags?.runeMammoth, runeFlags: { matriarch: !!run.runeMatriarch, brokerage: !!run.runeBrokerage, livingTreasure: !!run.questFlags?.runeLivingTreasure, gambling: !!run.runeGambleBoth }, chooseBothState: chooseBothStateOf(run) }),
+    () => ({ grimToast: grimToastFold(run), unityAura: unityAuraFold(run), undeadBuyAtk: run.undeadBuyAtk, soulsmanGold: run.soulsmanGold ?? 0, nextSpellBonus: run.nextSpellBonus, cardBuffs: cardBuffsLive, impAura: run.impBuff, rubyCasts: run.rubyCasts, goldSpent: run.goldSpentThisTurn ?? 0, goldSpentRun: run.goldSpent, goldPouchValue: run.goldPouchValue, playedThisTurn: run.playedThisTurn, squirlScoutBuff: squirlScoutBuffLive(run), conductorBuff: run.conductorBuff, alesThisTurn: run.alesCastThisTurn, unusedEquipment: unusedEquipmentCount(run), lastSpellName: run.lastSpellCastId ? CARD_INDEX[run.lastSpellCastId]?.name : undefined, firstSpellThisTurnName: run.firstSpellThisTurnId ? CARD_INDEX[run.firstSpellThisTurnId]?.name : undefined, lastSpellThisTurnName: run.lastSpellThisTurnId ? CARD_INDEX[run.lastSpellThisTurnId]?.name : undefined, topTribe: dominantBoardTribe(run), frontToBackBonusH: ftbBonusH, improveReps: run.runeMastery ? 1 + runeStacksOf(run, 'rune_mastery') : 1, rubyBonus: rubyStatBonus(run), clueBonus: run.clueBonus, starCrashBonus: run.starCrashBonus, revelerX: run.revelerX, spiritDiscount: run.spiritDiscount, spiritsPlayed: spiritsPlayedThisTurn(run), anySpellsThisTurn: anySpellsCastThisTurn(run) /* Stellar Chorus's live total in HAND — the shop chain threaded it, this one starved it (owner report 2026-09-12) */, tier7Access: hasTier7Access(run), grimoireCharged: (run.grimoireMult ?? 0) > 1, runeMammoth: !!run.questFlags?.runeMammoth, runeFlags: { matriarch: !!run.runeMatriarch, brokerage: !!run.runeBrokerage, livingTreasure: !!run.questFlags?.runeLivingTreasure, gambling: !!run.runeGambleBoth }, chooseBothState: chooseBothStateOf(run), sellState }),
     // `run.board` is a dep because `topTribe` is derived from it — without it the memo held the stale tribe
     // (and the stale spell names) until some other dep happened to move (audit find, live-verified 2026-07-31).
     // `cardBuffsLive` is the value actually consumed (not raw `run.cardBuffs`) — listing it explicitly was an
     // audit find 2026-08-06: coverage was previously incidental via the board dep.
-    [run.questFlags?.runeGrimToast, run.questFlags?.runeUnity, run.undeadAttackBonus, run.undeadHealthBonus, run.undeadBuyAtk, run.soulsmanGold, run.nextSpellBonus, cardBuffsLive, run.goldSpentThisTurn, run.goldSpent, run.goldPouchValue, run.playedThisTurn, run.squirlScoutBuff, run.fxScoutPreview, run.conductorBuff, run.alesCastThisTurn, run.lastSpellCastId, run.firstSpellThisTurnId, run.lastSpellThisTurnId, run.board, ftbBonusH, run.runeMastery, run.runeStacks, run.rubyBonus, run.grimoireMult, run.questFlags?.runeMammoth, run.runeMatriarch, run.runeBrokerage, run.questFlags?.runeLivingTreasure, run.runeFacetwright, run.runeUnbrokenVein, run.impBuff],
+    [run.questFlags?.runeGrimToast, run.questFlags?.runeUnity, run.undeadAttackBonus, run.undeadHealthBonus, run.undeadBuyAtk, run.soulsmanGold, run.nextSpellBonus, cardBuffsLive, run.goldSpentThisTurn, run.goldSpent, run.goldPouchValue, run.playedThisTurn, run.squirlScoutBuff, run.fxScoutPreview, run.conductorBuff, run.alesCastThisTurn, run.lastSpellCastId, run.firstSpellThisTurnId, run.lastSpellThisTurnId, run.board, ftbBonusH, run.runeMastery, run.runeStacks, run.rubyBonus, run.grimoireMult, run.questFlags?.runeMammoth, run.runeMatriarch, run.runeBrokerage, run.questFlags?.runeLivingTreasure, run.runeFacetwright, run.runeUnbrokenVein, run.impBuff, sellState],
   );
   // The board as RENDERED during End-of-Turn playback: the real board, plus any minion summoned this beat
   // (Moira re-firing a summoner) injected as a synthetic card, plus keywords granted this beat overlaid so the
@@ -4015,7 +4017,7 @@ export function Recruit() {
     const decOf = (d0: DragState | null, x: number, y: number, z: Zone | null, magSlide = dragStore.get().magSlide): DragDecision =>
       deriveDragDecision({
         drag: d0, x, y, overZone: z, magSlide, playFloor: playFloorRef.current, spellFloor: spellFloorRef.current,
-        collapseY: getDragFeel().collapseY, boardMax: CONFIG.boardMax, board: run.board, spellUid: run.spell?.uid, geo: gateGeo,
+        collapseY: toScreen(getDragFeel().collapseY) /* owner-tuned layout px vs a screen-px lift (stage.ts) */, boardMax: CONFIG.boardMax, board: run.board, spellUid: run.spell?.uid, geo: gateGeo,
         asksChoiceFirst: asksFirst, aimsStarform: !!d0 && aimsStarform,
       });
     /** Publish a decision point: the drag at (x, y), the zone, the decision and the cast state — one store write,
@@ -4585,7 +4587,13 @@ export function Recruit() {
       const cur = turnClock.get();
       if (cur <= 0) return; // at 0 the timer just stops — actions lock (except End Turn); no auto-combat
       const next = cur - 1;
-      if (next === 0) sfx.turnExplode(); // timer hits 0 — shop locks; syncs with the charge glyph's completion flash
+      if (next === 0) {
+        sfx.turnExplode(); // timer hits 0 — shop locks; syncs with the charge glyph's completion flash
+        // …and the ENGINE locks with it (owner 2026-09-30, R-TIMER-LOCK-01: "make sure hero powers cant be used after
+        // timer ends"). A real action, like Thymepiece's expiry, so the reducer refuses the Shop's player actions
+        // (`blockedByShopClock`) and a recording replays the lock where it was lived.
+        dispatch({ type: 'shopClockExpired' });
+      }
       turnClock.set(next); // (the last-5s tick beeps were retired — the charge-glyph turnCharge cue replaces them)
       if (!infiniteClockRef.current) observeTurnClock(next, run.wave); // the announcer's "Low on time" warning (15 s left, every Shop turn)
       // Thymepiece's window closes on the SAME tick that moves the clock, so whatever pauses this loop (a
@@ -4811,6 +4819,18 @@ export function Recruit() {
       // EMS), a Funeral on Loan return, a Reveler's sell — so `findEl` finds nothing; the departure cache still
       // holds the slot it stood in, and the tribe ribbon leaves from there. An Echo fired on a LIVING body
       // (Ossuary Rite, Deathsayer, the Reliquary) simply measures the body. Only a `spell` capture is sourceless.
+      // A HERO POWER'S grant (Ancient of Bonds × Hunch): the generic tendril from the hero-power button, the shop
+      // twin of the combat replay's `heroPowerBuffLabelFor` route. With no button measurable it falls through to
+      // the sourceless path below.
+      if (ev.fromHeroPower) {
+        const btn = document.querySelector<HTMLElement>('.statusbar .heropanel:not(.heropanel2):not(.equipslot) .heropowerbtn')
+          ?? document.querySelector<HTMLElement>('.statusbar .heropowerbtn');
+        const br = btn?.getBoundingClientRect();
+        if (br && (br.width > 0 || br.height > 0)) {
+          fireBuffFx({ source: { x: br.left + br.width / 2, y: br.top + br.height / 2 }, target, cardId: '', tribe: 'neutral', sourceless: false, uids: { source: null, target: ev.targetUid } });
+          return;
+        }
+      }
       const src = resolveBuffSource({
         label: ev.kind === 'spell' || !ev.sourceUid,
         live: () => { const el = ev.sourceUid ? findEl(ev.sourceUid) : null; return el ? restingCenterOf(el as HTMLElement) : null; },
@@ -4842,12 +4862,16 @@ export function Recruit() {
     // strobing. Events are indexed so a land can find the event it belongs to (a land carries a uid, and a
     // wave can hold several events for different targets).
     const ordered = [...waves.keys()].sort((a, b) => a - b).map((k) => waves.get(k)!);
-    const byUid = new Map(coalesced.map((ev) => [ev.targetUid, ev]));
+    // Each land carries its EVENT's index, not the target uid: two records on one target (a stat spell's descend and
+    // Hunch × Bonds' hero-power tendril, kept apart by `coalesceBuffFxByTarget`) must each play once, where a uid key
+    // played the later one twice and dropped the other.
+    const keyOf = new Map(coalesced.map((ev, i) => [ev, String(i)]));
+    const byKey = new Map(coalesced.map((ev, i) => [String(i), ev]));
     for (const land of scheduleLands(
-      asWaves(ordered.map((wave) => wave.map((ev) => ({ uid: ev.targetUid })))),
+      asWaves(ordered.map((wave) => wave.map((ev) => ({ uid: keyOf.get(ev)! })))),
       { gap: staggerMs, maxGroups: getBuffFxConfig().waveMaxCount },
     )) {
-      const ev = byUid.get(land.uid);
+      const ev = byKey.get(land.uid);
       if (!ev) continue;
       if (land.at <= 0) fireOne(ev);
       else window.setTimeout(() => fireOne(ev), land.at);
@@ -4872,7 +4896,8 @@ export function Recruit() {
     const owned = (rubyOwned.size > 0 || aleOwned.size > 0) ? new Set<string>([...rubyOwned, ...aleOwned]) : null;
     // An Ale's claim covers only the SPELL-kind entries on its targets: a reaction the Ale caused on the same
     // body (Kneel's self-buff) is a separate cue that still plays as itself.
-    const owned0 = owned ? run.recruitBuffFx.filter((e) => !(rubyOwned.has(e.targetUid) || (aleOwned.has(e.targetUid) && e.kind === 'spell' && !e.sourceRuneId && !e.castByUid))) : run.recruitBuffFx;
+    // A HERO POWER's grant (`fromHeroPower`, Hunch × Bonds) is never the Ruby's or the cast's: it keeps its own tendril.
+    const owned0 = owned ? run.recruitBuffFx.filter((e) => e.fromHeroPower || !(rubyOwned.has(e.targetUid) || (aleOwned.has(e.targetUid) && e.kind === 'spell' && !e.sourceRuneId && !e.castByUid))) : run.recruitBuffFx;
     // A record a START OF TURN beat captured is presented BY that beat, after the wipe (R-SOT-BEAT-01): the same
     // objects ride `sotBeatFx[i].buffFx`, so they are left out of this wave rather than played twice.
     const sotOwned = run.sotBeatFx?.length ? new Set(run.sotBeatFx.flatMap((b) => b.buffFx ?? [])) : null;
@@ -6944,9 +6969,11 @@ export function Recruit() {
   };
   // Yazzus replays the cast: fire the spell's spark once per resolution (2× / 3× when golden — AIMED
   // spells only, matching `spellCasts`), staggered, so a doubled cast visibly procs more than once.
-  const castSparks = (fn: () => void, cardId: string): void => {
+  const castSparks = (fn: () => void, cardId: string, card?: Parameters<typeof spellCasts>[2]): void => {
     const def = CARD_INDEX[cardId];
-    const n = def ? ownCastCount(useGame.getState().run, def) : 1;
+    // `card` = the HAND instance just cast (read before the dispatch removed it), so a per-card multiplier (a
+    // Rounded Spellbook copy that casts twice, Ancient of Time × Hunch) gets one burst per cast.
+    const n = def ? ownCastCount(useGame.getState().run, def, card) : 1;
     fn();
     for (let i = 1; i < n; i++) window.setTimeout(fn, i * 200);
   };
@@ -6957,8 +6984,8 @@ export function Recruit() {
   // Bloody) additionally carries the minions it buffed THIS action as trail targets, so the def fans out
   // cursor→minion instead of firing once at the point, and claims them for the buff-FX suppression filter
   // (Step 4 below) so the generic tendril pop doesn't ALSO play on top of the authored trail.
-  const fireSpellCastFx = (cardId: string, pt: { x: number; y: number }): void => {
-    if (!bindingFor(cardId, 'spellCast')) { castSparks(() => fireSpark(pt.x, pt.y), cardId); return; }
+  const fireSpellCastFx = (cardId: string, pt: { x: number; y: number }, card?: Parameters<typeof spellCasts>[2]): void => {
+    if (!bindingFor(cardId, 'spellCast')) { castSparks(() => fireSpark(pt.x, pt.y), cardId, card); return; }
     const st = useGame.getState().run;
     const def = CARD_INDEX[cardId];
     // The minions this cast buffed THIS action are the trail targets (leftmost / 3 randoms); distinct uids.
@@ -6969,7 +6996,8 @@ export function Recruit() {
     // A RUNE'S cast in the same action (Rune of Might answering this cast) is not this cast's: it plays from its
     // own rune node (`sourceRuneId`), so it neither joins this volley nor gets claimed out of the buff replay.
     // A MINION'S cast in the same action (`castByUid`: a Sporebat re-casting it) is the minion's, likewise.
-    const spellHits = st.recruitBuffFx.filter((e) => e.kind === 'spell' && !e.sourceRuneId && !e.castByUid);
+    // A HERO POWER's grant the cast set off (`fromHeroPower`, Hunch × Bonds) is not the cast's own: it plays its tendril.
+    const spellHits = st.recruitBuffFx.filter((e) => e.kind === 'spell' && !e.sourceRuneId && !e.castByUid && !e.fromHeroPower);
     const targets = Array.from(new Set(spellHits.map((e) => e.targetUid)));
     if (targets.length > 0) spellCastOwnedRef.current = { seq: st.recruitFxSeq, uids: new Set(targets) };
     // `count` is how many BUFFS landed on that body this action, not just that it was hit — a multicast spell
@@ -6987,7 +7015,7 @@ export function Recruit() {
     // does (`castSparks` above). Read from the run BEFORE this action's bookkeeping cleared its one-shot
     // freebies would be wrong — this runs after the dispatch, and `spellCastCount` is the same read the
     // spark path makes at the same moment, so the two agree by construction.
-    runRecruitMomentCues(spellCastMoment(cardId, pt, recipients, def ? ownCastCount(st, def) : 1), ctx);
+    runRecruitMomentCues(spellCastMoment(cardId, pt, recipients, def ? ownCastCount(st, def, card) : 1), ctx);
     // EDWARD KEG-HANDS echo: Edward (`dw_edward`) makes Ales trigger twice (three times gilded) — the sim already
     // re-ran the buff, but we dedupe the targets, so the repeat would be invisible. Re-fire the SAME fan-out from
     // Edward's card: 1 extra volley for ×2, 2 for ×3 (gilded), each 80ms after the last. Gated on `recipients`
@@ -7188,17 +7216,19 @@ export function Recruit() {
           }
           return true;
         }
+        const castCard = run.hand.find((c) => c.uid === d.uid); // the instance, before the cast removes it
         dispatch({ type: 'play', uid: d.uid, targetUid });
-        if (bindingFor(d.view.cardId, 'spellCast')) fireSpellCastFx(d.view.cardId, { x, y });
-        else castSparks(() => sparkAtUid(targetUid, x, y), d.view.cardId); // spark per cast (Yazzus, aimed)
+        if (bindingFor(d.view.cardId, 'spellCast')) fireSpellCastFx(d.view.cardId, { x, y }, castCard);
+        else castSparks(() => sparkAtUid(targetUid, x, y), d.view.cardId, castCard); // spark per cast (Yazzus, aimed)
         return true;
       }
       if (up) {
         lassoDropRef.current = { x, y }; // where the card left the hand — a Lasso beam launches from here
+        const castCard = run.hand.find((c) => c.uid === d.uid); // the instance, before the cast removes it
         dispatch({ type: 'play', uid: d.uid });
         // A Choose One that is about to open its prompt casts nothing yet — firing the cast FX here would
         // flash a spell that has not resolved (and would fire again on the real cast).
-        if (!asksFirst) fireSpellCastFx(d.view.cardId, { x, y }); // authored def if bound; else the generic spark
+        if (!asksFirst) fireSpellCastFx(d.view.cardId, { x, y }, castCard); // authored def if bound; else the generic spark
         return true;
       }
       return false;

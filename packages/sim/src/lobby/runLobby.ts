@@ -10,12 +10,13 @@ import { createRun, type RunState, type PracticeConfig } from '../state';
 import { normalizePracticeTribes } from '../practiceTribes';
 import { createPracticeBotLobby } from './practiceBots';
 import { botSeat, hybridSeat, type SeatPolicy } from './seats';
-import { playerRunByKey, playerRunsFrom, snapshotSeat } from './snapshotSeats';
+import { MAX_SEATS_PER_PLAYER, playerRunByKey, playerRunsFrom, runOwnerOf, snapshotSeat } from './snapshotSeats';
 import { OPPONENT_POOL } from '../opponents';
 import { handleKeyOf, uniqueHandleFor, adjectiveHandle } from './handles';
 import type { LobbyEncounter, LobbyRules, PreparedBoard, SeatDriver } from './types';
 import { DEFAULT_LOBBY_RULES } from './lobby';
 import { authoredSeat, type AuthoredOmen } from './tutorialSeats';
+import { bandSteps, inStrengthBand, type StrengthBand } from './strengthBands';
 
 /**
  * THE PLAYER'S LOBBY — the serializable half.
@@ -146,6 +147,12 @@ export interface LobbyPoolStats {
   /** Where the client's live pool came from when the lobby was built (`network`, `cache`, `mixed`, `none`).
    *  Stamped by the UI after creation; the sim never reads it. Absent headless. */
   source?: string;
+  /** MATCHMAKING BAND (R-LOBBY-09, 2026-09-30): the strength band asked for (the player's rank), the band the
+   *  seats were finally drawn from, and how many widening steps that took. Absent = no band (Platinum,
+   *  Practice, headless). Bookkeeping for telemetry only, like the rest of this record. */
+  band?: { requested: StrengthBand; used: StrengthBand | null; widenings: number };
+  /** Widening steps the POOL FETCH took to find enough runs for the band (stamped by the UI, like `source`). */
+  fetchWidenings?: number;
 }
 
 /** Count the player boards a lobby on `setId` could draw from. Pure over the pool; no RNG. */
@@ -173,6 +180,12 @@ export interface LobbyPoolTelemetry {
   poolRuns: number | null;
   poolBoardsByWave: number[] | null;
   poolSource: string | null;
+  /** The matchmaking band asked for and used (`"0-30"`, `"uncapped"`), the widening steps seat selection took,
+   *  and those the pool fetch took. All null without a band (R-LOBBY-09). */
+  strengthBand: string | null;
+  strengthBandUsed: string | null;
+  bandWidenings: number | null;
+  poolFetchWidenings: number | null;
   /** The lobby was unrated because every opponent seat was generated (see `lobbyIsUnrated`). */
   unrated: boolean;
   seats: { recorded: number; hybrid: number; bot: number; authored: number };
@@ -211,6 +224,8 @@ export function abandonPlacementOf(run: Pick<RunState, 'phase' | 'lobby'>): numb
   return alive >= 1 ? alive : null;
 }
 
+const bandLabel = (b: StrengthBand | null): string => (b ? `${b.min}-${b.max}` : 'uncapped');
+
 export function lobbyPoolTelemetryOf(lobby: RunLobby): LobbyPoolTelemetry {
   const seats = { recorded: 0, hybrid: 0, bot: 0, authored: 0 };
   for (const s of lobby.seats) {
@@ -225,6 +240,10 @@ export function lobbyPoolTelemetryOf(lobby: RunLobby): LobbyPoolTelemetry {
     poolRuns: lobby.poolAtStart?.runs ?? null,
     poolBoardsByWave: lobby.poolAtStart?.boardsByWave ?? null,
     poolSource: lobby.poolAtStart?.source ?? null,
+    strengthBand: lobby.poolAtStart?.band ? bandLabel(lobby.poolAtStart.band.requested) : null,
+    strengthBandUsed: lobby.poolAtStart?.band ? bandLabel(lobby.poolAtStart.band.used) : null,
+    bandWidenings: lobby.poolAtStart?.band?.widenings ?? null,
+    poolFetchWidenings: lobby.poolAtStart?.fetchWidenings ?? null,
     seats,
     allGenerated: lobbyAllGenerated(lobby),
   };
@@ -307,7 +326,16 @@ function shuffleRuns<T>(runs: readonly T[], rng: { int: (n: number) => number })
   return out;
 }
 
-export function createRunLobby(seed: number, playerHeroId: string, rules: Partial<LobbyRules> = {}, setId?: SetId): RunLobby {
+/** Who is asking for a lobby, for seat selection only (never stored on the lobby). Your own runs are seated like
+ *  anyone else's (owner 2026-09-30), so there is no `excludeOwnerId`. */
+export interface LobbySeatOptions {
+  /** MATCHMAKING BAND (R-LOBBY-09): draw recorded seats only from runs whose strength is inside this band (an
+   *  unscored run is inside every band), widening step by step (`bandSteps`) while the table cannot be filled.
+   *  Null / absent = no band, exactly the selection of before. */
+  strengthBand?: StrengthBand | null;
+}
+
+export function createRunLobby(seed: number, playerHeroId: string, rules: Partial<LobbyRules> = {}, setId?: SetId, opts: LobbySeatOptions = {}): RunLobby {
   const r: LobbyRules = { ...DEFAULT_LOBBY_RULES, ...rules };
   // `playableHeroes` (not the raw roster): a `practiceOnly` hero is off PLAY mode, and a rival seat in a rated
   // lobby is play mode — a hero the owner has pulled for rework should not be driving boards that feed the
@@ -353,37 +381,64 @@ export function createRunLobby(seed: number, playerHeroId: string, rules: Partia
   // the pool size hit a multiple of 7 (#838) and let nearby seeds see near-identical tables. Fisher–Yates on
   // its own RNG stream (a tag distinct from the pairing / seat-combat mixes below) so this draw never moves
   // those.
+  //
+  // One filter on top of the shuffle (owner 2026-09-29, R-LOBBY-08), which does not weight the draw: one player
+  // holds at most `MAX_SEATS_PER_PLAYER` seats ("so it's not literally like 7 of me always"). A run over the cap is
+  // passed over for the next one in the shuffle, so every run of an under-cap player stays equally likely; when the
+  // pool genuinely lacks enough players, generated seats fill the rest below, exactly as for an empty pool. YOUR OWN
+  // runs are seated like anyone else's, under the same cap (owner 2026-09-30: "this is a problem - you should face your own boards too. you should also be able to occupy up to 4 of your own snapshots. please fix this").
   const available = shuffleRuns(playerRunsFrom(undefined, undefined, setId), makeRng(seed ^ 0x2545f491));
+  const seatsByOwner = new Map<string, number>();
   const maxSnapshotSeats = Math.min(r.snapshotSeats ?? r.seatCount - 1, available.length);
-  for (let i = 0; i < available.length && picked < r.seatCount - 1 && seats.filter((x) => x.kind === 'snapshot').length < maxSnapshotSeats; i++) {
-    const run = available[i]!;
-    if (seats.some((x) => x.runKey === run.key)) continue; // never seat the same run twice
-    // UNIQUE HEROES PER LOBBY (owner 2026-09-13): all eight seats — the player included — wear different
-    // heroes. The hybrid loop below already skipped a held hero; snapshot seats now do too, so a second
-    // player run on the same hero is passed over for the next eligible run in the shuffle.
-    if (seats.some((x) => x.heroId === run.heroId)) continue;
-    // A real author's name when the run has one; otherwise a generated handle. 142 of the pool's 664 boards
-    // carry no author, and labelling those "run 1534" leaked the seed and read as debug output. An author
-    // holding SEVERAL seats gets an ADJECTIVE prefix ("Sneaky Orangez", "Groovy Orangez") rather than the old
-    // "Orangez (2)" numbering, which read as a rendering bug (owner ask 2026-08-24).
-    let label = run.author && run.author !== 'anon' ? run.author : uniqueHandleFor(handleKeyOf(run.key), taken);
-    if (taken.has(label.toLowerCase())) label = adjectiveHandle(label, handleKeyOf(run.key), taken);
-    const seat: LobbySeatState = {
-      id: `s${picked + 1}`,
-      label,
-      heroId: run.heroId,
-      kind: 'snapshot',
-      runKey: run.key,
-      seed: seed * 1000 + picked + 1,
-      resolve: r.startingResolve,
-      armor: r.startingArmor,
-      alive: true,
-      ...(run.cosmetics ? { cosmetics: run.cosmetics } : {}),
-    };
-    if (!canPlay(seat)) continue; // no round-1 board — skip rather than seat a ghost
-    taken.add(seat.label.toLowerCase());
-    seats.push(seat);
-    picked++;
+  const tableFull = (): boolean => picked >= r.seatCount - 1 || seats.filter((x) => x.kind === 'snapshot').length >= maxSnapshotSeats;
+  // THE MATCHMAKING BAND (R-LOBBY-09, owner 2026-09-30). The same shuffle, walked once per band step: first only the
+  // runs inside the player's band (an unscored run is inside every band), then, while the table is not full, the
+  // band widened by 10 on each capped side, until it is uncapped. A run considered once is never reconsidered (a
+  // run passed over for its hero, the cap or its recording stays passed over), so inside each step every run keeps
+  // its equal chance. With no band this is one pass over the whole shuffle: the selection of before, seat for seat.
+  const steps = bandSteps(opts.strengthBand ?? null);
+  const considered = new Set<string>();
+  let usedStep = 0;
+  for (let step = 0; step < steps.length && !tableFull(); step++) {
+    const band = steps[step]!;
+    // Nothing new inside the wider band: widening would add no candidate, so it is not counted.
+    if (step > 0 && !available.some((run) => !considered.has(run.key) && inStrengthBand(run.strength, band))) continue;
+    usedStep = step;
+    for (let i = 0; i < available.length && !tableFull(); i++) {
+      const run = available[i]!;
+      if (considered.has(run.key) || !inStrengthBand(run.strength, band)) continue;
+      considered.add(run.key);
+      if (seats.some((x) => x.runKey === run.key)) continue; // never seat the same run twice
+      // UNIQUE HEROES PER LOBBY (owner 2026-09-13): all eight seats — the player included — wear different
+      // heroes. The hybrid loop below already skipped a held hero; snapshot seats now do too, so a second
+      // player run on the same hero is passed over for the next eligible run in the shuffle.
+      if (seats.some((x) => x.heroId === run.heroId)) continue;
+      const owner = runOwnerOf(run);
+      if (owner && (seatsByOwner.get(owner) ?? 0) >= MAX_SEATS_PER_PLAYER) continue; // per-player seat cap
+      // A real author's name when the run has one; otherwise a generated handle. 142 of the pool's 664 boards
+      // carry no author, and labelling those "run 1534" leaked the seed and read as debug output. An author
+      // holding SEVERAL seats gets an ADJECTIVE prefix ("Sneaky Orangez", "Groovy Orangez") rather than the old
+      // "Orangez (2)" numbering, which read as a rendering bug (owner ask 2026-08-24).
+      let label = run.author && run.author !== 'anon' ? run.author : uniqueHandleFor(handleKeyOf(run.key), taken);
+      if (taken.has(label.toLowerCase())) label = adjectiveHandle(label, handleKeyOf(run.key), taken);
+      const seat: LobbySeatState = {
+        id: `s${picked + 1}`,
+        label,
+        heroId: run.heroId,
+        kind: 'snapshot',
+        runKey: run.key,
+        seed: seed * 1000 + picked + 1,
+        resolve: r.startingResolve,
+        armor: r.startingArmor,
+        alive: true,
+        ...(run.cosmetics ? { cosmetics: run.cosmetics } : {}),
+      };
+      if (!canPlay(seat)) continue; // no round-1 board — skip rather than seat a ghost
+      taken.add(seat.label.toLowerCase());
+      seats.push(seat);
+      if (owner) seatsByOwner.set(owner, (seatsByOwner.get(owner) ?? 0) + 1);
+      picked++;
+    }
   }
 
   for (let offset = 0; picked < r.seatCount - 1 && offset < heroes.length * 2; offset++) {
@@ -411,6 +466,7 @@ export function createRunLobby(seed: number, playerHeroId: string, rules: Partia
   // PROBED seat, not just the seated ones — a rejected candidate's driver is cached too.
   resetLobbyDrivers(probed);
   const lobby: RunLobby = { version: 1, seed, setId, round: 1, seats, encounters: [], finished: false, rules: r, poolAtStart: lobbyPoolStatsOf(OPPONENT_POOL, setId, available.length) };
+  if (opts.strengthBand && lobby.poolAtStart) lobby.poolAtStart.band = { requested: { ...opts.strengthBand }, used: steps[usedStep] ?? null, widenings: usedStep };
   if (lobbyAllGenerated(lobby)) lobby.unrated = 'all-generated';
   return lobby;
 }
@@ -939,7 +995,7 @@ export function lobbyOpponentBoard(
  */
 export function createLobbyRun(
   seed: number, heroId: string, rules: Partial<LobbyRules> = {}, mode: 'lobby' | 'practice' = 'lobby',
-  practiceConfig?: PracticeConfig, setId?: SetId,
+  practiceConfig?: PracticeConfig, setId?: SetId, seatOpts?: LobbySeatOptions,
 ): RunState {
   // PRACTICE is a lobby too since 2026-07-31 — same 8 seats, same recorded opponents (reads the shared pool;
   // writes nothing back), same flow. Its extra rules (invulnerability, the round-15 curtain, the shop-timer
@@ -957,7 +1013,7 @@ export function createLobbyRun(
   // BOTS opponents: seat seven authored, scaling omen boards instead of recorded player runs.
   const lobby = practiceConfig?.opponents === 'bots'
     ? createPracticeBotLobby(seed, heroId, practiceConfig.botDifficulty, rules)
-    : createRunLobby(seed, heroId, rules, run.setId);
+    : createRunLobby(seed, heroId, rules, run.setId, seatOpts);
   const me = lobby.seats[0]!;
   // The seat's pools ARE the run's health, so the HUD and every health-aware effect read one number.
   me.resolve = run.resolve;

@@ -75,6 +75,15 @@ export interface BoardSnapshot {
    *  `'self'` — so `pickOpponent` uses this flag to prefer the live shared pool. Absent for committed +
    *  local-captured boards. */
   remote?: boolean;
+  /** The ACCOUNT that uploaded this board (`boards.user_id`), stamped by the client when the board arrives from
+   *  the shared pool (pool whole-runs fix, 2026-09-29). Never part of an upload: a local capture has none. Read by
+   *  lobby seat selection for the per-player seat cap, which counts your own runs like anyone's
+   *  (R-LOBBY-08, owner 2026-09-30). Absent = unknown (committed pool, legacy caches): the display `author` stands in. */
+  ownerId?: string;
+  /** The RUN's strength percentile (1-100, `pool_runs.strength`), stamped by the client when the board arrives from
+   *  the shared pool (board strength, R-LOBBY-09, 2026-09-30). Read by seat selection for the matchmaking band and by
+   *  Match details. Never part of an upload (a local capture has none); absent = unscored. */
+  runStrength?: number;
   /** The skins its owner wore (skins v1, 2026-09-28): the run's recorded `cosmetics`, SCOPED to this board's
    *  hero and cards (handoff §13: only what the payload can show). Display only, never read by combat or
    *  matchmaking. Absent on every board from before skins = default art. */
@@ -506,8 +515,19 @@ export function autoplayRun(seed: number, heroId?: string, opts?: BotOptions, ma
   while (s.phase !== 'gameover' && s.phase !== 'victory' && snaps.length < maxBoards && steps++ < 5000) {
     if (s.questOffer) { if (step({ type: 'buyQuest', index: 0 })) continue; break; } // quest shop → buy to open the turn
     // The Runeforge (universal on turns 6/9 since Set 2 went live) blocks every non-forge action while open —
-    // before this branch existed, recordings silently ended at wave 5. Skip it, like the production bot does.
-    if (s.runeforgeOffer) { if (step({ type: 'skipRuneforge' })) continue; break; }
+    // before this branch existed, recordings silently ended at wave 5. It BUYS the first offered rune it can
+    // afford (fix 2026-09-29, R-LOBBY-07): the recording plays a generated LOBBY SEAT, and every real run in the
+    // live pool owns a rune from wave 6 on (141 of 146 runs forge on turn 6), so a generated seat that always
+    // skipped read to the player as "an opponent with no rune" on round 6 (owner report 2026-09-29). Only when
+    // nothing is affordable does it skip.
+    if (s.runeforgeOffer) {
+      let bought = false;
+      const offers = s.runeforgeOffer.length; // `step` replaces `s`, and a buy closes the forge
+      for (let i = 0; i < offers && !bought; i++) bought = step({ type: 'buyRune', index: i });
+      if (bought) continue;
+      if (step({ type: 'skipRuneforge' })) continue;
+      break;
+    }
     // The hero-power Discover (Mimic at the start of EVERY turn, Void on turn 4, the Power Shifter spell) is
     // mandatory and blocks every other action, faceOmen included. Before this branch existed a Mimic recording
     // bailed on turn 1 with ZERO boards, so a generated Mimic lobby seat never fielded a board (bug 2026-09-28).

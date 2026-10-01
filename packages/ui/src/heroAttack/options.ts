@@ -21,6 +21,11 @@ export interface HeroAttackOptions {
    * tier from `attackTier` (`tiers.ts`), which applies it. The number shown and the consequence are unchanged.
    */
   knockout?: boolean;
+  /**
+   * A stable per-blow seed (the run seed and the round) for a style that rolls a VARIATION (the Basketball's dribble
+   * move and spot): the same fight rolls the same, so a replay plays it identically. Optional; presentation only.
+   */
+  rollSeed?: number;
   /** Whose blow: sets the colour language (yours gold, theirs red). */
   side?: 'player' | 'opp';
   /** Centres of the striking and the struck hero (screen px, or host px in `local` space). */

@@ -33,17 +33,68 @@ medal + division — see *Ranked ladder* below).
   so an empty pool degrades to a fully generated table rather than a smaller one. **Which** snapshot runs sit
   at the table is a seeded uniform shuffle of every eligible run in the lobby's set (owner 2026-09-13): every
   run is equally likely, the same lobby seed always seats the same table (restore / replay), and nothing
-  weights the draw — no strength band, no author cap (an author may hold several seats through different
-  runs; a per-author cap is a future knob), no win-rate weighting (that exists only on the pre-lobby pool pick).
+  weights the draw — no recency, no win-rate weighting (that exists only on the pre-lobby pool pick). A RATED
+  lobby draws only from the runs inside the player's **strength band** (below, R-LOBBY-09); inside the band the
+  draw is the same uniform shuffle. **One player holds at most 4 seats** (owner 2026-09-29, R-LOBBY-08: "so it's not literally like 7
+  of me always"): a run whose player already holds 4 is passed over for the next in the shuffle, which leaves
+  every other run equally likely; when the pool lacks enough players, generated seats fill the rest. **Your own
+  runs sit at your table like anyone else's, under the same cap of 4** (owner 2026-09-30: *"this is a problem - you should face your own boards too. you should also be able to occupy up to 4 of your own snapshots. please fix this"*;
+  until then your own runs were left out). A player is their account (`boards.user_id`), else their display name.
   **All eight heroes are unique per lobby, the player's included** (owner 2026-09-13): a run on a hero already
   seated — or on the player's hero — is passed over for the next run in the shuffle, and generated seats never
   repeat a hero either.
+- **An eligible run covers the rounds it will be asked for** (2026-09-29, R-LOBBY-07): at least 4 recorded
+  waves, the first at wave 1 or 2, never more than one wave missing in a row, and no board above a plausible
+  shop tier for its wave (the all-in tavern-up curve + 2). Such a run is skipped. A generated seat's recording
+  buys the first rune it can afford at each Runeforge, as a real player does.
+- **The pool is made of WHOLE RUNS, drawn at random** (owner 2026-09-29, R-LOBBY-08: "isnt it just replaying
+  snapshots from the player's game?", "make sure this is firmly fixed and will be scalable and a non issue moving
+  forward", "i want them random from all snapshots in the pool"). The client receives a uniform random sample of
+  the eligible runs of its set and build version (150 runs; every run equally likely, however old), each run with
+  ALL of its boards, or not at all: the server picks runs (`pool_runs_sample`), a run that arrives incomplete is
+  refused whole, and the local cache stores whole runs. **A recorded seat's board for round N is that run's own
+  wave-N board.** The only tolerances are for boards a real game never uploads (an empty board): a single missing
+  wave serves the run's previous board, and a run that starts at wave 2 serves that board in round 1. A later
+  board never appears, except past the run's end, where the stale-final-board rule applies (the run keeps its
+  final board, with its own Armor). Until 2026-09-29 the pool was pulled as the newest boards per wave, which cut
+  older runs down to their late waves and served a wave-10 board on round 5.
+- **Board strength and matchmaking bands** (owner 2026-09-30, R-LOBBY-09: *"can we build an algorithm for board
+  strength to get as good of an idea of how strong a snapshot's run is, and assign it a 1-100 value?"*, *"serve for
+  example 0-30 for bronze, 10-40 in silver, 20-65 in gold, and then uncap plat?"*, *"72 would basically mean like...
+  a 72/100 aka 72nd percentile"*).
+  - A board's **raw strength** is its win rate (win 1, draw 0.5) against a frozen, versioned **reference set** of
+    ~30 real boards of its wave (`strengthReference.v1.json`, version `set2-v1`, generated once from the live pool,
+    weakest to strongest), two seeded fights per reference board, the scored board once on each side, both sides
+    fought with the full combat side a recorded seat fights with (runes, auras, spell power). Waves past the last
+    reference wave (15) are scored against it. Deterministic; stored permanently with the board
+    (`boards.strength_raw` / `strength_ref` / `strength_wave`), never recomputed.
+  - Its **percentile** (1-100) is its place among every scored board at the same reference wave: the share it is
+    stronger than, ties counted half, rounded. Derived, so it follows the pool as it grows; never stored on a board.
+  - A **run's strength** is a **percentile among runs** (owner-approved 2026-09-30): the average of its boards'
+    percentiles (`pool_runs.strength_avg`), then ranked against every other run's average in the set by the same
+    rule (`pool_runs.strength`). 72 = stronger than 72% of runs, and each band holds about its nominal share of the
+    pool (the plain average squeezed toward 50). Averages refresh on every upload for the uploaded runs and for every
+    run at most every 10 minutes; ranks are recomputed on every refresh.
+  - **Bands by medal** (every division of a medal shares it): Bronze **0-30**, Silver **10-40**, Gold **20-65**,
+    Platinum **uncapped** (average opponent ~50), Diamond **10-100** (~55), Ascendant **20-100** (~60) (owner
+    2026-09-30: *"maybe plat should be 50 and then diamond is like 55 average and ascendant is 60 average? i dont want every game to just be insanely sweaty and unwinnable"*). A rated lobby's recorded seats come only from runs inside the band (the
+    server samples inside it, and seat selection filters to it), still whole runs, still at most 4 seats per player
+    (your own runs included, under the same cap). A run with **no score yet counts as inside every band**. When the band cannot fill the table
+    it **widens by 10 on each capped side**, one step at a time (each step logged to the pool telemetry), until it is
+    uncapped; for Diamond and Ascendant, which only have a floor, that means the floor drops 10 a step. Only then do
+    generated seats fill the rest. Practice and the tutorial have no band.
+  - Your own boards are scored in the background while you play (idle time only; the last board during its combat)
+    and upload with their scores. When the game ends, each round's board percentile and the run's strength (its
+    average ranked against the pool's run averages) are **frozen** into the game's record: the Career and Recent Games
+    rows print **"Board strength N"** (the run's strength), and Match details shows your per-round board percentiles
+    and each opponent seat's run strength. A game that was not scored (the
+    pool's strength data unavailable, or older games) shows nothing.
 - **A lobby that seats player runs waits for the opponent pool** (owner 2026-09-28, R-LOBBY-06). A rated lobby
   or Practice against players is not built until the shared pool has loaded: instantly when it already has,
   otherwise behind a cancellable "Finding opponents..." wait while it retries. Only a genuine failure (offline)
   falls back, and never silently: the player chooses Retry, Play anyway (generated seats, **unrated**, see
-  below) or Back to menu. The last good pool for the live set
-  is cached locally and fills any wave the network cannot supply.
+  below) or Back to menu. The last good pool for the live set (whole runs) is cached locally and is used when
+  the network cannot supply a sample.
 - The lobby is **asynchronous**: opponents are recordings and generated runs, never live opponents. It never
   requires two players online at once.
 - Each round, surviving seats are **paired**. **One authoritative `simulate()` resolves each encounter and
@@ -71,7 +122,8 @@ medal + division — see *Ranked ladder* below).
 - A run **pins its set at creation** and reads it forever after, so an in-progress or replayed run is
   unaffected by a later global set change.
 
-Source: `packages/sim/src/lobby/lobby.ts` (`DEFAULT_LOBBY_RULES`, damage application),
+Source: `packages/sim/src/lobby/boardStrength.ts` + `strengthBands.ts` (board strength, bands),
+`supabase/migrations/2026-09-30-board-strength.sql`, `packages/sim/src/lobby/lobby.ts` (`DEFAULT_LOBBY_RULES`, damage application),
 `packages/sim/src/lobby/runLobby.ts`, `packages/sim/src/lobby/seats.ts`,
 `packages/sim/src/lobby/snapshotSeats.ts`, `packages/sim/src/lobby/fightLedger.ts`, `packages/sim/src/rank.ts`,
 `packages/sim/src/lobbyStrength.ts`, the `run_fight_records` view (`supabase/migrations/2026-09-22-fight-ledger.sql`).
@@ -113,6 +165,8 @@ Source: `packages/sim/src/lobby/gauntlet.ts`, `packages/sim/src/lobby/gauntlet.t
   seat whose run is currently on the **Hall of Champions** wears a gold crown (one cached read of the Hall's own
   query per panel open; offline = no crown). Board cards are always the compact tile here (the hover reveal shows
   the full card) and the panel reserves its scrollbar gutter, so it never shifts.
+- **Board strength** (R-LOBBY-09): each seat whose run was scored shows "Board strength N" (its run's strength when
+  the game ended), and your own seat also shows each round's board strength. Unscored seats show nothing.
 - The record is saved with the match (`run_history.entry.match` for Ranked, `practice_games.replay.match` for
   Practice; both existing JSON columns) so the Career's match history shows it again under each match's **Lobby**
   button. Older matches say the details were not recorded.
@@ -146,6 +200,22 @@ route) moves it; Practice, the tutorial and sandbox runs never do.
   the saved lobby and submits it through the normal rank queue (`settleAbandonedRun` → `submit-rating`); a quit
   writes no career row, fight-ledger rows or XP. A save the game drops itself (a card this build no longer has)
   is not a quit and does not settle.
+- **What Continue resumes** (owner 2026-09-30, R-PERSIST-01). A game is saved only once a hero is picked and it has
+  started; backing out of the title, the Practice setup screen or the hero picker saves nothing. Only a lobby game
+  (Play, Practice, the tutorial) is ever saved or resumed. A saved run in the retired 17-round course format is
+  dropped at load (not a quit, no settlement) and no Continue is offered; no menu starts a course run any more.
+- **Continue on any device** (owner 2026-09-30, verbatim: *"if a player is playing on one device and they save/quit,
+  can we allow that to be picked up from another device they are signed in on?"*; R-PERSIST-CLOUD-01..03). A
+  signed-in (non-guest) player's saved game is also stored on their account (`saved_runs`, one per account): at the
+  start of each shop phase, on Save & Quit and on tab hide, always AFTER the local save (offline play is unchanged;
+  the upload retries). At the title a newer account copy becomes the Continue and resumes exactly that run, lobby,
+  pinned opponents and the recordings behind its real-player seats included (a mid-combat quit resumes like a local
+  one). **One device at a time**: Continue claims the game (a revision-checked write); a device still holding an
+  older copy has its next save refused and is stopped with "Your game moved" (load the newer copy, or Main menu).
+  A game that ends (or is Cleared) clears the account copy too, so Continue disappears everywhere and a stale local
+  copy of it elsewhere is dropped. Replacing a different saved game with the account's newer one settles the
+  replaced rated game like any abandonment (the rank server settles a run once). Guests stay local-only. Replay
+  frames stay on the device that recorded them, so a game moved between devices has a partial recording.
 
 - **Six medals — Bronze, Silver, Gold, Platinum, Diamond, Ascendant — three divisions each**, ordered
   **I → II → III** and then the next medal's I (18 divisions, `Bronze I` lowest, `Ascendant III` highest).
@@ -175,7 +245,10 @@ route) moves it; Practice, the tutorial and sandbox runs never do.
   entry (the Career row) carries the server's own computation, stamped at settle time, because the history
   insert never waits on the client's fetch. Shown as a percentage, e.g. "47%" (no tier word, owner 2026-09-22), on the **Career match rows and the Recent
   Games rows only** — never on the post-game screen, never on the rail before or during a game (owner answers
-  4 and 5).
+  4 and 5). **Currently HIDDEN** (owner 2026-09-30: *"we can hide the lobby% number for now since it doesnt seem
+  to be working too well at the moment"*): one flag, `SHOW_LOBBY_STRENGTH` in `packages/ui/src/lobbyStrengthDisplay.ts`,
+  switches the readout off on every surface; the value is still computed, stamped, uploaded and still drives the
+  strength bonus.
 - **Promotion games.** Reaching **100** does not promote; it makes the **next** rated game a promotion game
   (overflow past 100 is discarded; the delta shown is the delta applied). To move up **a division** (Gold I
   → Gold II) the promotion game needs a **top-4 finish**; to move up **a medal** (Gold III → Platinum I) it
@@ -389,7 +462,29 @@ progression **epoch**; nothing finished before the epoch counts (no backfill).
   mega-slash zips through the target EIGHT times, each in from the far side of the screen on its own line,
   accelerating into a blur (each zip a tick) and flinging blood that piles up across the whole screen, a beat of held
   tension, and a huge bloody explosion that paints the screen in blood and fades out, the blow landing on the
-  explosion; the claw rakes before it sweep wide lines too). **Card Shark** and
+  explosion; the claw rakes before it sweep wide lines too). **Nothing But Net** is the fourteenth,
+  `attack_basketball` ("Nothing But Net", a placeholder name; Legendary, from crates; R-PROG-ATTACK-33): the striking
+  PORTRAIT plays basketball, drawn flat, with a hoop (backboard, rim, net) appearing on the struck hero. A referee's
+  whistle opens every tier. I the jumper: a dribble where it stands, a small jump, a high arcing shot with backspin that
+  swishes through the net (the blow lands on the swish). II the fadeaway: it dribbles out to mid court with one of three
+  dribble moves rolled per fight (a behind-the-back wrap, a crossover, a spin move), pushes off
+  backwards and to the side with more room, releases at the top of the fade, swish (a small crowd "ooh"), and slides
+  home. III the pull-up three: it scoots from its slot to one of three spots rolled per fight (straight up court, the
+  left wing or the right corner; down court for a foe striking from the top), a pass flies in from off the edge of the
+  screen the spot faces and it catches it, pump fakes, dribbles back and pulls up for a long high three in a moment of
+  slow motion that eases back as the ball flies, and it swishes (a bigger swish, rings, confetti and the crowd's "ooh"),
+  then slides home. The roll comes from the run seed and the round, so a replay rolls the same. IV the self
+  alley-oop: from its slot it drills a pull-up three (swish), rotates up court to the rolled spot, takes a pass and drills
+  another (swish; both are ticks, no damage, the crowd building), rotates back to its slot, then fires a hard chest pass
+  that bangs the backboard (the board wobbles; the struck hero does not react) and rebounds out to half court, where the
+  ball arrives first; the striker crouches deep, charging up, and LAUNCHES (a shock ring of dust, speed lines, a building
+  aura), catches the ball in the air at half court in deep slow motion, and flies in one fluid, accelerating slam through
+  the rim onto the struck hero: an explosion (a fireball, shockwave rings, debris and sparks, the backboard's glass, the
+  whole board shaking, the crowd roaring). The blow lands on the slam. Sneaker squeaks on every push-off and stop, dribbles, the swish, the
+  rim and the slam are heard. The hoop is ONE assembly (the backboard behind the rim, the rim on its lower centre, the
+  net hanging from it) and it always hangs on the struck hero's portrait, in both directions. Every point it visits
+  stays on screen and every shot and slam lands on the struck hero's centre; its portrait is restored exactly after (on the end, a skip or leaving the fight). The slow motion is a smooth
+  ramp of the whole attack's clock, never a freeze. **Card Shark** and
   **Storm Call** (2026-09-29; R-PROG-ATTACK-26, R-PROG-ATTACK-27) are the first EPIC hero attacks: one idea each, shorter
   than the Legendaries, and THREE looks instead of four (they read the same shared tier and map it: I small, II and III
   medium, IV big; a knockout plays big). `attack_cards` ("Card Shark", a placeholder name; Epic, from crates): the hero
@@ -412,7 +507,7 @@ progression **epoch**; nothing finished before the epoch counts (no backfill).
   a big one with a splash ring. `attack_backstab` ("Shadow Step"): the striking PORTRAIT fades into smoke, steps out
   behind the struck hero and stabs back toward its own side, then smokes home and settles; Big lunges first, then stabs
   from the side, then from behind (kept on screen, always striking the target; its portrait restored exactly after).
-  Each lands the blow once, on its last hit. All nineteen anchor on the round portrait art at rest
+  Each lands the blow once, on its last hit. All twenty anchor on the round portrait art at rest
   (R-PROG-ATTACK-04). Equipped
   account-wide in the Collection's Attack Animations tab ("Use Classic" takes it off). The STRIKER's attack plays:
   yours when you win, the opponent's (from their recorded snapshot) when they win. Recorded per run like skins;

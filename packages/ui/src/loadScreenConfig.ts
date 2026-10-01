@@ -1,7 +1,7 @@
 import { stageHost } from './stage';
 /**
- * Tunable size + placement for the BOOT LOAD SCREEN — the AscentIcon logo and the fake 3.5s progress bar that
- * live in `apps/web/index.html`. Owner-tuned live via the ⏳ Load Screen dev tuner (size the icon, size and
+ * Tunable size + placement for the BOOT LOAD SCREEN — the AscentIcon logo and the loading-gate progress bar
+ * (real progress since 2026-09-30, driven by Boot.tsx) that live in `apps/web/index.html`. Owner-tuned live via the ⏳ Load Screen dev tuner (size the icon, size and
  * position the bar) plus a "Toggle load screen" action that re-shows the splash so it can be judged on demand
  * (the real one is removed the instant boot finishes).
  *
@@ -120,7 +120,7 @@ export function resetLoadScreenConfig(): void {
 /**
  * PREVIEW the splash on demand (the "Toggle load screen" tuner action). The real `#bootsplash` is removed the
  * instant boot finishes, so this rebuilds an equivalent node — reusing the SAME id so all of index.html's
- * splash CSS (gradient, fade-in, the 3.5s bar fill) applies unchanged — and leaves it up (no fade-out) until
+ * splash CSS (gradient, fade-in, the bar) applies unchanged — and leaves it up (no fade-out) until
  * toggled off. Live tuner edits reflect through the shared `--ls-*` vars, so a slider resizes the preview in
  * real time. Returns the new on/off state.
  */
@@ -138,11 +138,18 @@ export function toggleLoadScreenPreview(): boolean {
   img.alt = '';
   const bar = document.createElement('div');
   bar.id = 'bootsplash-bar';
-  bar.appendChild(document.createElement('i'));
+  const fill = document.createElement('i');
+  // The real bar shows live gate progress (Boot.tsx); the preview parks it at a representative 60%.
+  fill.style.transform = 'scaleX(0.6)';
+  bar.appendChild(fill);
+  const note = document.createElement('div');
+  note.id = 'bootsplash-note';
+  note.textContent = 'Loading art 540 / 900';
   el.appendChild(img);
   el.appendChild(bar);
+  el.appendChild(note);
   stageHost().appendChild(el);
-  // Next frame, add `.is-in` so the fade-in + 3.5s bar fill run exactly as they do at boot.
+  // Next frame, add `.is-in` so the fade-in runs exactly as it does at boot.
   requestAnimationFrame(() => el.classList.add('is-in'));
   return true;
 }

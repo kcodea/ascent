@@ -155,13 +155,14 @@ describe('the kill switch in the Collection (retired = hidden, owned or not; res
     expect(tileNames()).toContain('Sheriff Brian');
     act(() => applyServerCatalogState({ retiredIds: ['skin_blackbelt_1'], disabledCategories: [] }));
     expect(tileNames()).toEqual([ // rarest first, then catalog order
-      'Grandmaster Brian', 'Tee Time Sylus', 'Edward Colada Hands', 'Portal Buddy', 'Sketch Buddy',
-      'Glitch Brian', 'Clocktower Voss', 'Crowd Surf Drakko', 'Cashier Drakko', 'Potion Stand Steward', 'Candy Cane Venom', 'Rooks Oona', 'Magician Buddy Buddy',
-      'Blown Glass Recaller', 'Prophet Pimm', 'Mecha Scalefeather', 'Lavish Date', 'Thor Orin', 'Star Urchin',
-      'Rock Star Drakko', 'Joyride Jensen & Fi', 'Lounge Act Joker', 'Storm Front Nimbus', 'Superfan Paragon', 'Slam Dunk Sylus', 'Double Agent Zyff',
-      'Stencil Sylus', 'Mace Urchin', 'Magma Recaller', 'Starform Recaller', 'Bouncer Pimm', 'Crimson Chimerus', 'Chrome Scalefeather', 'Epic Baal', 'Sketch Drakko',
-      'Dark Nimbus', 'Lightblade Sword', 'Mascot Scalefeather', 'Pastry Chef Butcher', 'Quartet Chorusdrake', 'Soul Surf Wayfinder', 'Hexhunter Wardkeeper',
-      'Sketchbook Brian', 'Beefy Arnold', 'Cotton Candy Nimbus', 'Smog Nimbus', 'Mime Joker',
+      'Grandmaster Brian', 'Cashier Drakko', 'Tee Time Sylus', 'Candy Cane Venom', 'Magician Buddy Buddy', 'Prophet Pimm', 'Chrome Scalefeather', 'Edward Colada Hands',
+      'Portal Buddy', 'Cotton Candy Nimbus',
+      'Glitch Brian', 'Clocktower Voss', 'Rock Star Drakko', 'Slam Dunk Sylus', 'Rooks Oona', 'Mace Urchin', 'Magma Recaller', 'Sketch Buddy',
+      'Sketch Drakko', 'Thor Orin', 'Dark Nimbus', 'Pastry Chef Butcher',
+      'Sketchbook Brian', 'Crowd Surf Drakko', 'Lounge Act Joker', 'Storm Front Nimbus', 'Superfan Paragon', 'Stencil Sylus', 'Blown Glass Recaller', 'Crimson Chimerus',
+      'Epic Baal', 'Smog Nimbus', 'Lightblade Sword', 'Mascot Scalefeather', 'Mime Joker', 'Quartet Chorusdrake', 'Star Urchin',
+      'Joyride Jensen & Fi', 'Potion Stand Steward', 'Double Agent Zyff', 'Beefy Arnold', 'Starform Recaller', 'Bouncer Pimm', 'Mecha Scalefeather', 'Lavish Date',
+      'Soul Surf Wayfinder', 'Hexhunter Wardkeeper',
     ]);
     expect(tab('Minions').querySelector('.colls-tab-count')?.textContent).toBe('0/47');
     expect(text('.colls-meter-num')).toBe('2 / 136');

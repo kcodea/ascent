@@ -56,6 +56,15 @@ export interface PatchNote {
 /** Newest first. PREPEND new entries. */
 export const PATCH_NOTES: PatchNote[] = [
   {
+    date: '2026-10-01',
+    changes: [
+      {
+        category: 'Systems',
+        text: 'Some skins changed rarity. Skins you already own stay yours.',
+      },
+    ],
+  },
+  {
     date: '2026-09-30',
     changes: [
       {

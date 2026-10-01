@@ -21,7 +21,8 @@ import {
   prewarmParticleLayers,
   resetParticleLayerPool,
 } from '../particleLayerPool';
-import { activeFilterCount } from '../filterStack';
+import { activeFilterCount, FilterStack } from '../filterStack';
+import { FILTERS } from '../filterRegistry';
 import { resetShaderPools } from '../shaderPool';
 import { prewarmShapeTextures } from '../shapeTextures';
 import { linkRibbonShaderOn, prewarmRibbonShaders } from './ribbon';
@@ -116,6 +117,9 @@ export function prewarmSlotRenderer(renderer: Renderer | null): void {
 // Hand the eagerly-loaded half of the app a handle on the pools, now that they exist. Registering HERE (in
 // the barrel that loads the primitives) rather than exporting the pools directly is what keeps the GLSL out
 // of the entry chunk — see `fxRuntime.ts`'s header.
+/** The registry filters whose look does not ride an ever-advancing clock: shareable by `sharedFilters.ts`. */
+const STATIC_FILTER_IDS: readonly string[] = FILTERS.filter((f) => !f.animateTime).map((f) => f.id);
+
 registerFxRuntimeHooks({
   resetPools: (): void => {
     resetParticleLayerPool();
@@ -125,4 +129,6 @@ registerFxRuntimeHooks({
   liveParticles: liveParticleCount,
   liveLayers: liveLayerCount,
   activeFilters: activeFilterCount,
+  makeFilterStack: (container) => new FilterStack(container, FILTERS),
+  staticFilterIds: () => STATIC_FILTER_IDS,
 });

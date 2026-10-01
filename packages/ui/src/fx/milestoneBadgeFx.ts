@@ -73,9 +73,11 @@ function startBadgeLoop(
   // `uids` hands the def the unit it is about (it anchors to that unit's `badge.attack` / `badge.health` part
   // at fire time); `follow` then re-reads the badge's live point every frame so the effect tracks it. Kept
   // inline (not hoisted to a const) so the literal `uids` is visible to `playDefUids.test.ts`'s call scan.
+  // `shareFilters` (perf report 2026-09-30): every badge loop of one stat draws through ONE Bloom + Glow pass
+  // instead of its own per cycle (`fx/sharedFilters.ts`) — a 7-wide board over 5,000 held 42 filtered layers.
   return stat === 'attack'
-    ? playDef('test-ascent-frame-attack', anchors, { uids: { source: uid }, loop: true, follow: at })
-    : playDef('test-ascent-frame-health', anchors, { uids: { source: uid }, loop: true, follow: at });
+    ? playDef('test-ascent-frame-attack', anchors, { uids: { source: uid }, loop: true, follow: at, shareFilters: 'milestone' })
+    : playDef('test-ascent-frame-health', anchors, { uids: { source: uid }, loop: true, follow: at, shareFilters: 'milestone' });
 }
 
 /**

@@ -132,6 +132,7 @@ import { FxUnderSlot } from './PixiFxLayer';
 import { perfMonitor } from './perfMonitor';
 import { PerfProfiler } from './perfProfiler';
 import { elementAtPoint, readRect } from './layoutRead';
+import { createAimRectCache } from './aimRectCache';
 import { getSwapFxConfig } from './swapFxConfig';
 import { getSpellPowerFxConfig, floatSpellPowerNumber } from './spellPowerFxConfig';
 import { getRubyPowerFxConfig, floatRubyPowerNumber } from './rubyPowerFxConfig';
@@ -4286,9 +4287,11 @@ export function Recruit() {
     // R-TARGET-03 (owner 2026-09-18): an aimed Equipment never lands on the body that granted it — the reducer
     // refuses the self-aim, so the picker must not light it up either.
     const equipSourceUids = equipArmed && !selectedEquipmentDef(run)?.mayTargetSelf ? (selectedEquipment(run)?.sourceUids ?? []) : [];
+    // Hit-tested against rects measured ONCE per aim (refreshed off the input path), never `elementFromPoint` per
+    // move: a hit test is a layout read, 1,813 of them in the owner's 2026-09-30 capture (`aimRectCache.ts`).
+    const rects = createAimRectCache(sel);
     const minionAt = (x: number, y: number): { uid: string } | null => {
-      const el = elementAtPoint(x, y)?.closest(sel);
-      const uid = el?.getAttribute('data-uid');
+      const uid = rects.hit(x, y);
       if (!uid || uid === run.spell?.uid) return null; // a minion, never the spell
       if (equipArmed && equipSourceUids.includes(uid)) return null; // never its own granting body
       // Displace can't target a golden (triple) — it never lights up as a valid pick.
@@ -4312,7 +4315,7 @@ export function Recruit() {
       // Fall back to the first button, then the hero frame — an anchor is better than no aim line at all.
       ?? document.querySelector('.statusbar .heropowerbtn')
       ?? document.querySelector('.statusbar .hero .f');
-    if (!anchorEl) return;
+    if (!anchorEl) { rects.dispose(); return; }
     const ar = anchorEl.getBoundingClientRect();
     const ox = ar.left + ar.width / 2;
     const oy = ar.top + ar.height / 2;
@@ -4387,6 +4390,7 @@ export function Recruit() {
     window.addEventListener('pointerup', up);
     return () => {
       if (raf) cancelAnimationFrame(raf);
+      rects.dispose();
       window.removeEventListener('pointermove', move);
       window.removeEventListener('pointerup', up);
     };
@@ -4436,11 +4440,13 @@ export function Recruit() {
     // reducer's target pool says so, so the picker has to offer it, or choosing "+4 Attack" would silently
     // narrow the spell to the board (it could always hit an offer when the drag did the aiming).
     const aimsTavern = pendingTarget.deferredPlay && def?.target === 'any';
+    // Cached hit-testing, as in the hero-power aim above (`aimRectCache.ts`): no layout read on the move path.
+    const boardRects = createAimRectCache('[data-zone="warband"] .row .card[data-uid]');
+    const shopRects = aimsTavern ? createAimRectCache(`[data-zone="tavern"] .card[data-uid]:not(.spellcard)${SB_FOE_EXCLUDE}`) : null;
     const minionAt = (x: number, y: number): { uid: string } | null => {
-      const el = elementAtPoint(x, y)?.closest('[data-zone="warband"] .row .card[data-uid]');
-      const uid = el?.getAttribute('data-uid');
+      const uid = boardRects.hit(x, y);
       if (uid && valid(uid)) return { uid };
-      const offer = aimsTavern ? shopUidAt(x, y) : null;
+      const offer = shopRects?.hit(x, y) ?? null;
       return offer ? { uid: offer } : null;
     };
     // Same treatment as the hero-power aim: anchor measured once (the source card can't move while you
@@ -4449,7 +4455,7 @@ export function Recruit() {
     // aim origin — otherwise the picker never activates and the second target can't be chosen.
     const originEl = document.querySelector(`[data-zone="warband"] .row .card[data-uid="${pendingTarget.uid}"]`)
       ?? document.querySelector(`[data-zone="hand"] .card[data-uid="${pendingTarget.uid}"]`);
-    if (!originEl) return;
+    if (!originEl) { boardRects.dispose(); shopRects?.dispose(); return; }
     const orr = originEl.getBoundingClientRect();
     const ox = orr.left + orr.width / 2;
     const oy = orr.top + orr.height / 2;
@@ -4483,6 +4489,8 @@ export function Recruit() {
     window.addEventListener('pointerdown', pick);
     return () => {
       if (raf) cancelAnimationFrame(raf);
+      boardRects.dispose();
+      shopRects?.dispose();
       window.removeEventListener('pointermove', move);
       window.removeEventListener('pointerdown', pick);
     };

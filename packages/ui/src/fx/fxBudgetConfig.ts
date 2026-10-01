@@ -68,6 +68,19 @@ export interface FxBudgetConfig {
    * `window.__fx.budget.set('maxParticlesDiscover', n)`.
    */
   maxParticlesDiscover: number;
+  /**
+   * The SHOP SCENE ceiling on live def particles — in force through the recruit phase (`setFxScene('shop')`,
+   * wired from `Game.tsx` off `run.phase`), always the LOWER of this and `maxParticles`.
+   *
+   * ── why (owner's 33-minute capture, 2026-09-30) ──────────────────────────────────────────────────────
+   * `fx:particles` peaked at 8,661 in a SHOP second with `fx:tick` at 60.7 ms. Measured on the dev build: a
+   * same-frame fan of 7 × `shop-buff-purple` (every shop card buffed at once) reached 6,993 live particles at
+   * 13 ms/frame mean, 7 × `blast-pump` 9,317 — the old 4,000 cap never bit because admission read the REAL
+   * live count, which lags a play's delayed layers (see `fxBudget.ts`'s "pending load"). The shop has no
+   * legitimate moment that needs more than ~1,500 at once: a fan wider than that is THINNED (fewer particles
+   * per play, every play still fires — `admit`'s `particleScale`) rather than cut.
+   */
+  maxParticlesShop: number;
 }
 
 const DEFAULTS: FxBudgetConfig = {
@@ -75,6 +88,7 @@ const DEFAULTS: FxBudgetConfig = {
   maxPerDef: 24,
   maxFilters: 48,
   maxParticlesDiscover: 2000,
+  maxParticlesShop: 1500,
 };
 
 /** Slider bounds for a DEV tuner — [min, max, step] per key. */
@@ -83,6 +97,7 @@ export const FXBUDGET_RANGES: Record<keyof FxBudgetConfig, [number, number, numb
   maxPerDef: [1, 64, 1],
   maxFilters: [4, 200, 1],
   maxParticlesDiscover: [500, 20_000, 100],
+  maxParticlesShop: [500, 20_000, 100],
 };
 
 /** The shipped values, exported so a tuner can mark which controls have moved away from them. */

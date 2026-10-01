@@ -30,7 +30,7 @@ import rulesQuestionArt from './rules-question.png';
 import { EscMenu } from './EscMenu';
 import { DevMenu } from './DevMenu';
 import { EditorOverlay } from './uiEditor/EditorOverlay';
-import { setFxScene } from './fx/fxBudget';
+import { setFxScene, type FxScene } from './fx/fxBudget';
 import { ensureDefsReady } from './fx/playDef';
 import { SceneBuilder } from './SceneBuilder';
 import { BugScenarioPanel } from './bug-report/BugScenarioPanel';
@@ -74,6 +74,11 @@ import { installStage, onStageChange, stageScale, stageViewport } from './stage'
 import { installTouchInput } from './touchInput';
 import { OwnSkins } from './skins/skins';
 import { CloudMovedModal } from './CloudMovedModal';
+
+/** The FX budget scene a run state is in (see `fxBudget.ts`): the Discover overlay, else the shop, else none. */
+function fxSceneOf(r: { discover?: unknown; phase?: string } | null | undefined): FxScene | null {
+  return r?.discover ? 'discover' : r?.phase === 'recruit' ? 'shop' : null;
+}
 
 /** Root of the playable game. `Recruit` owns the board and stays mounted across every
  *  phase — combat plays out *in place* (the shop closes, the enemies arrive, the
@@ -175,14 +180,18 @@ export function Game() {
     syncAnnouncer(useGame.getState(), null);
     const unsubAnnouncer = useGame.subscribe((st, prevSt) => syncAnnouncer(st, prevSt));
     const offStopHook = onStopAllAudio(() => cancelAnnouncer('skip'));
+    // Seed the FX scene from the run this screen MOUNTS on: the subscription below only sees later changes, and the
+    // Game screen usually mounts with the run already in the shop (a new run, a Continue).
+    setFxScene(fxSceneOf(useGame.getState().run));
     const unsubWarm = useGame.subscribe((st, prevSt) => {
       if (st.run === prevSt.run) return;
       const start = phaseStartBetween(prevSt.run, st.run);
       if (start) perfMonitor.beginWarmup(start);
       // The FX budget's SCENE (`fxBudget.ts`): the Discover overlay carries its own, lower live-particle cap
-      // (`maxParticlesDiscover`). Told here, off the run state, so the FX layer never imports the store.
-      const inDiscover = !!st.run.discover;
-      if (inDiscover !== !!prevSt.run.discover) setFxScene(inDiscover ? 'discover' : null);
+      // (`maxParticlesDiscover`), and so does the rest of the shop (`maxParticlesShop`, 2026-09-30). Told here,
+      // off the run state, so the FX layer never imports the store.
+      const next = fxSceneOf(st.run);
+      if (next !== fxSceneOf(prevSt.run)) setFxScene(next);
     });
 
     /**

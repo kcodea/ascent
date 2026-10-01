@@ -19,9 +19,12 @@ export const PERF_DOM_CONTAINERS: Readonly<Record<string, string>> = {
   hand: '[data-zone="hand"]',
   board: '[data-zone="warband"]',
   fx: '.pixifx, .pixifx-below',
-  // Everything mounted on <body> outside the React root: the Discover / curtain / drag-card / ref-tip portals,
-  // and any FX DOM wrapper that appends itself there.
-  portals: 'body > :not(#root):not(script):not(style):not(link)',
+  // Everything mounted OUTSIDE the React root: the Discover / curtain / drag-card / ref-tip portals, and any FX
+  // DOM wrapper that appends itself. Since the responsive stage (stage.ts, 2026-09-26) `#root` lives INSIDE
+  // `#stage` and portals go to `#stage` too, so both parents are listed — and `#stage` itself is excluded. The
+  // old `body > :not(#root)` matched `#stage`, i.e. the WHOLE GAME: the 2026-09-30 capture's "portals grew
+  // 82 → 664 and never came back" was the app's own DOM growing from the title into a run, not a leak.
+  portals: '#stage > :not(#root), body > :not(#root):not(#stage):not(script):not(style):not(link)',
 };
 
 /** The remainder key — nodes outside every named container. */

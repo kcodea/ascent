@@ -60,20 +60,39 @@ export interface FxLivePlay {
   readonly retire: () => void;
   /** Never a trim candidate — see the module header. */
   readonly protected: boolean;
+  /** When the play was registered (`performance.now()` clock), and how long until all of its particle layers
+   *  have emitted (`rampMsOf`). While `now - bornAt < rampMs` the play's expected load counts as PENDING (see
+   *  `admit`). Absent = never pending (a test stub, a particle-free play). */
+  readonly bornAt?: number;
+  readonly rampMs?: number;
 }
 
 /** The live totals a cap is checked against. Injectable so the policy is testable without a renderer. */
 export interface FxBudgetReaders {
   liveParticles(): number;
   activeFilters(): number;
+  /** The clock `bornAt` is on. Omitted = no play is ever pending (the pre-2026-09-30 behaviour). */
+  now?(): number;
 }
 
-const RUNTIME_READERS: FxBudgetReaders = { liveParticles: fxLiveParticles, activeFilters: fxActiveFilters };
+const RUNTIME_READERS: FxBudgetReaders = {
+  liveParticles: fxLiveParticles,
+  activeFilters: fxActiveFilters,
+  now: () => performance.now(),
+};
+
+/**
+ * The floor a THINNED play keeps of its authored particle count (see `admit`). Below about a third a burst starts
+ * to read as a different, sparser effect; above it a 7-wide overlapping fan is indistinguishable at a glance.
+ */
+export const MIN_PARTICLE_SCALE = 0.35;
 
 /** Oldest first — `registerLivePlay` appends, so insertion order IS age order. A play is removed by
  *  identity on retire (`unregister`) or when the budget trims it. */
 const plays: FxLivePlay[] = [];
 let culled = 0;
+/** Plays spawned THINNED since load (see `admit`): the `fx:thinned` level. */
+let thinned = 0;
 
 /**
  * The SCENE a spawn is admitted into. A scene may carry its own, lower particle ceiling
@@ -81,7 +100,7 @@ let culled = 0;
  * ordinary play. Set from `Game.tsx` off the run state (`run.discover`), so the FX layer never imports the
  * store.
  */
-export type FxScene = 'discover';
+export type FxScene = 'discover' | 'shop';
 let scene: FxScene | null = null;
 
 export function setFxScene(next: FxScene | null): void {
@@ -92,13 +111,19 @@ export function fxScene(): FxScene | null {
 }
 
 /** PURE: the live-particle ceiling in force for `scene` — the global cap, or the lower scene cap inside one. */
-export function particleCapFor(cfg: Pick<FxBudgetConfig, 'maxParticles' | 'maxParticlesDiscover'>, activeScene: FxScene | null): number {
-  return activeScene === 'discover' ? Math.min(cfg.maxParticles, cfg.maxParticlesDiscover) : cfg.maxParticles;
+export function particleCapFor(
+  cfg: Pick<FxBudgetConfig, 'maxParticles' | 'maxParticlesDiscover'> & Partial<Pick<FxBudgetConfig, 'maxParticlesShop'>>,
+  activeScene: FxScene | null,
+): number {
+  if (activeScene === 'discover') return Math.min(cfg.maxParticles, cfg.maxParticlesDiscover);
+  if (activeScene === 'shop' && cfg.maxParticlesShop !== undefined) return Math.min(cfg.maxParticles, cfg.maxParticlesShop);
+  return cfg.maxParticles;
 }
 
 // Registered at load, once: the FX runtime is a module singleton, and the monitor keeps a Map so a second
 // registration under the same name would only overwrite. A level, read at 20 Hz — never per frame.
 perfMonitor.registerCounter('fx:culled', () => culled);
+perfMonitor.registerCounter('fx:thinned', () => thinned);
 
 const numParam = (params: Record<string, unknown>, key: string, fallback: number): number => {
   const v = params[key];
@@ -136,6 +161,44 @@ export function expectedLoad(
     if (numParam(p, 'blur', 0) > 0) filters++;
   }
   return { particles, filters };
+}
+
+/**
+ * PURE (given the registry): how long after spawn one play of `def` has emitted everything it will put on screen
+ * at once: the latest particle layer's `at`, plus an emitter/smoke layer's `life` (its population only reaches
+ * `rate x life` once the first mote dies). Until then the pool's live count UNDER-reports the play, so `admit`
+ * counts its expected load as pending. 0 for a particle-free def.
+ */
+export function rampMsOf(
+  def: { layers: readonly Pick<FxDef['layers'][number], 'primitive' | 'params' | 'at'>[] },
+): number {
+  let ms = 0;
+  let any = false;
+  for (const layer of def.layers) {
+    const at = typeof layer.at === 'number' && Number.isFinite(layer.at) ? layer.at : 0;
+    if (layer.primitive === 'burst') {
+      ms = Math.max(ms, at);
+      any = true;
+    } else if (layer.primitive === 'emitter' || layer.primitive === 'smoke') {
+      const life = numParam(layer.params as Record<string, unknown>, 'life', specDefault(layer.primitive, 'life', 0));
+      ms = Math.max(ms, at + life);
+      any = true;
+    }
+  }
+  // One frame at the slowest supported refresh (24 Hz) of grace: a layer is spawned on a tick, not at `at`.
+  return any ? ms + 42 : 0;
+}
+
+function isPending(p: FxLivePlay, now: number | undefined): boolean {
+  return now !== undefined && p.rampMs !== undefined && p.bornAt !== undefined && now - p.bornAt < p.rampMs;
+}
+
+/** Sum of the expected particles of the plays still ramping up: what the pool's live count does not see yet. */
+function pendingParticles(now: number | undefined): number {
+  if (now === undefined) return 0;
+  let n = 0;
+  for (const p of plays) if (isPending(p, now)) n += p.load.particles;
+  return n;
 }
 
 /** Add a play to the registry. Returns its idempotent unregister. */
@@ -195,7 +258,44 @@ export function admitPlay(
   readers: FxBudgetReaders = RUNTIME_READERS,
   activeScene: FxScene | null = scene,
 ): number {
+  return admit(id, load, { thinnable: false }, cfg, readers, activeScene).trimmed;
+}
+
+/** What `admit` decided for an incoming play. */
+export interface FxAdmission {
+  /** Older plays retired to make room. */
+  trimmed: number;
+  /** The fraction of its authored particle count the incoming play should spawn with: 1 = as authored, lower =
+   *  THINNED to fit the particle cap (never below `MIN_PARTICLE_SCALE`; always 1 for a non-thinnable play). */
+  particleScale: number;
+}
+
+/**
+ * `admitPlay`, plus PENDING LOAD and THINNING (2026-09-30).
+ *
+ * Pending load: the pool only counts particles that have been EMITTED. A play fired this frame has emitted
+ * nothing yet (its layers spawn on the next tick, delayed layers later still), so a same-frame fan of seven
+ * plays all read the same near-empty pool and all passed: 6,993 live from a 4,000 cap, measured. The plays still
+ * ramping (`rampMsOf`) are therefore counted at their expected load on top of the pool (an over-count of what
+ * they HAVE emitted, for a few hundred ms: the safe side). They are never victims either: they are the moment
+ * landing now, not the pile-up behind it.
+ *
+ * Thinning: when the particle cap is still exceeded after every trimmable, already-emitted play is gone (the
+ * case a same-frame FAN hits), the incoming play is scaled down to the headroom that is left instead of the
+ * cap being ignored. Every play still fires; a wide fan carries fewer particles per play. A caller-owned
+ * persistent treatment (`thinnable: false`, a loop or a follow) keeps its authored density.
+ */
+export function admit(
+  id: string,
+  load: FxPlayLoad,
+  opts: { thinnable?: boolean } = {},
+  cfg: FxBudgetConfig = getFxBudgetConfig(),
+  readers: FxBudgetReaders = RUNTIME_READERS,
+  activeScene: FxScene | null = scene,
+): FxAdmission {
   let n = 0;
+  let particleScale = 1;
+  const now = readers.now?.();
   const maxParticles = particleCapFor(cfg, activeScene);
   // Per-def concurrency: this def's own oldest goes, and only this def's — another def's play cannot
   // relieve a per-def cap.
@@ -209,11 +309,18 @@ export function admitPlay(
   // particle layers are released) plus what this play will add. Inside the Discover the ceiling is the
   // scene's lower cap (`particleCapFor`) — same trim, same protections, only the number changes.
   if (load.particles > 0) {
-    while (readers.liveParticles() + load.particles > maxParticles) {
-      const victim = pickVictim(id, (p) => p.load.particles > 0);
+    const committed = (): number => readers.liveParticles() + pendingParticles(now);
+    while (committed() + load.particles > maxParticles) {
+      const victim = pickVictim(id, (p) => p.load.particles > 0 && !isPending(p, now));
       if (!victim) break;
       trim(victim);
       n++;
+    }
+    const left = maxParticles - committed();
+    if (left < load.particles && opts.thinnable !== false) {
+      particleScale = Math.max(MIN_PARTICLE_SCALE, Math.min(1, Math.max(0, left) / load.particles));
+      thinned++;
+      perfMonitor.count('fx:thinned');
     }
   }
   // Global filters, the same way. A play's filters are built lazily on its first frame, so the live count
@@ -226,7 +333,7 @@ export function admitPlay(
       n++;
     }
   }
-  return n;
+  return { trimmed: n, particleScale };
 }
 
 /**
@@ -268,5 +375,29 @@ export function livePlaysSnapshot(): { id: string; particles: number; filters: n
 export function resetFxBudget(): void {
   plays.length = 0;
   culled = 0;
+  thinned = 0;
   scene = null;
+}
+
+/**
+ * PURE (given the registry): `def` with every particle layer's QUANTITY scaled by `scale` (a burst's `count`, an
+ * emitter/smoke layer's `rate`), for a play `admit` THINNED. Nothing else moves: sizes, timings, colours and the
+ * mesh layers (ribbons, beams, shockwaves) stay exactly as authored, so a thinned play is the same effect with
+ * fewer particles. Returns the input by identity at scale 1.
+ */
+export function thinDef<T extends { layers: readonly FxDef['layers'][number][] }>(def: T, scale: number): T {
+  if (!(scale > 0) || scale >= 1) return def;
+  const layers = def.layers.map((layer) => {
+    const p = layer.params as Record<string, unknown>;
+    if (layer.primitive === 'burst') {
+      const count = numParam(p, 'count', specDefault('burst', 'count', 0));
+      return count > 0 ? { ...layer, params: { ...layer.params, count: Math.max(1, Math.round(count * scale)) } } : layer;
+    }
+    if (layer.primitive === 'emitter' || layer.primitive === 'smoke') {
+      const rate = numParam(p, 'rate', specDefault(layer.primitive, 'rate', 0));
+      return rate > 0 ? { ...layer, params: { ...layer.params, rate: Math.max(1, rate * scale) } } : layer;
+    }
+    return layer;
+  });
+  return { ...def, layers };
 }

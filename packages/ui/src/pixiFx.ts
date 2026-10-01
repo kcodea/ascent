@@ -397,6 +397,16 @@ function sampleLut(lut: Float32Array, t: number): number {
   return i >= EASE_LUT_N ? a : a + (lut[i + 1]! - a) * (f - i);
 }
 
+
+/**
+ * The ceiling on live SPRITE particles per controller (the hand-written bursts: tendril strikes, skull poofs,
+ * trails, power flourishes). Nothing bounded this population until 2026-09-30, when the owner's 33-minute capture
+ * peaked at 8,661 live particles in a shop second. No single moment needs more than a few hundred; 1,200 clears a
+ * stack of the heaviest ones and keeps the sprite sim + batch near 0.3 ms (measured: 0.29 ms mean at 1,500).
+ * Over it the OLDEST particles are recycled first (see `updateInner`).
+ */
+export const MAX_SPRITE_PARTICLES = 1200;
+
 class FxController {
   private app: Application | null = null;
   /** Frame-rate cap for this controller's ticker (0 = uncapped). Every canvas renders from the MAIN app's
@@ -457,6 +467,8 @@ class FxController {
   private readonly descends: DescendFx[] = [];
   private readonly live: Particle[] = [];
   private readonly pool: Sprite[] = [];
+  /** Sprite particles recycled early by the `MAX_SPRITE_PARTICLES` cap since load (`sprite culled` counter). */
+  private spriteCulled = 0;
   private fadeRaf = 0; // in-flight setVisible fade (rAF) — cancelled if a new fade starts
   // Uniform FX size/motion multiplier, tracking the DOM stage `--scale` so particle bursts stay proportional to
   // the (shrinking) cards. Every px dial was tuned at the owner's ~0.745 desktop scale, so `setScale` divides that
@@ -907,6 +919,7 @@ class FxController {
     // one counter blind to it.
     perfMonitor.registerCounter(`${ns}particles`, () => this.live.length);
     perfMonitor.registerCounter(`${ns}sprite pool`, () => this.pool.length);
+    perfMonitor.registerCounter(`${ns}sprite culled`, () => this.spriteCulled);
     perfMonitor.registerCounter(`${ns}weld rings`, () => this.weldRings.length);
     perfMonitor.registerCounter(`${ns}spell arrows`, () => this.spellArrows.length);
     // The WHOLE particle population, not just this controller's own sprite particles: the def runtime's
@@ -3000,16 +3013,28 @@ class FxController {
     const dtMs = ticker.deltaMS;
     this.runExtraUpdaters(dtMs);
     const dt = dtMs / 1000;
-    for (let i = this.live.length - 1; i >= 0; i--) {
+    // THE SPRITE-PARTICLE CAP (2026-09-30): the oldest particles past `MAX_SPRITE_PARTICLES` are recycled before
+    // they are simulated or drawn. `live` is in spawn order, so the head is the oldest (the most faded) and the
+    // burst that just landed is never the one cut. Batched, once per tick, so a 300-mote burst costs one pass.
+    const over = this.live.length - MAX_SPRITE_PARTICLES;
+    if (over > 0) {
+      for (let i = 0; i < over; i++) this.live[i]!.life = 0;
+      this.spriteCulled += over;
+    }
+    // In-place compaction instead of `splice` per death: a mass death (a burst whose motes share a life) used to
+    // be O(n^2) — 9.2 ms in one frame at 8,000 particles, measured. `w` is the write cursor of survivors.
+    let w = 0;
+    const n = this.live.length;
+    for (let i = 0; i < n; i++) {
       const p = this.live[i]!;
       p.life -= dtMs;
       if (p.life <= 0) {
         p.sprite.visible = false;
         this.layer?.removeChild(p.sprite);
         this.pool.push(p.sprite);
-        this.live.splice(i, 1);
         continue;
       }
+      this.live[w++] = p;
       const t = 1 - p.life / p.maxLife; // 0 → 1 over the particle's life
       // frame-rate-independent exponential drag
       const dragF = Math.pow(p.drag, dt);
@@ -3026,6 +3051,7 @@ class FxController {
       s.scale.set(sc * p.stretchX, sc);
       s.alpha = p.peakAlpha * (1 - t * t); // ease-out fade from its peak (lingers, then drops)
     }
+    this.live.length = w;
 
     // Echo skulls: elastic pop-in (+ a tiny wind-up jiggle) over an additive glow, then POOF into smoke/embers.
     for (let i = this.skullPops.length - 1; i >= 0; i--) {

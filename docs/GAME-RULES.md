@@ -469,10 +469,12 @@ progression **epoch**; nothing finished before the epoch counts (no backfill).
   ramp of the whole attack's clock, never a freeze. **Eye of the Legion** (2026-09-30; `attack_fel`, Legendary, from
   crates; R-PROG-ATTACK-34): a fel rift tears open and a demonic eye opens in it (the lids crack, then snap open), its
   slit pupil darts about, finds the struck hero, slits, and the eye glares and burns it with its gaze. I a small eye over
-  the attacker and a gaze pulse; II two eyes whose gazes cross on the target (the first a tick); III a large eye, the
-  board in shadow, a beam swept onto the target; IV a colossal eye up top under a fel veil, the iris ignites, the gaze
-  holds while the target is drawn in, and it implodes into a starburst (the blow). The eye blinks shut and the rift
-  seals. The blow lands once. **Card Shark** and
+  the attacker and a gaze pulse; II two eyes whose gazes cross on the target (the first a tick); III the pair opens and
+  fires, then two more eyes tear open and join, the four beams burn together while the shake builds, and a solid fel
+  impact lands the blow; IV the pair fires, then more and more eyes tear open round the edges of the screen, faster and
+  faster (fourteen in all), each blasting the target, the beams converging into a blinding knot under a fel veil while
+  the shake builds with every eye, until a massive fel explosion (the blow; drawn in from an edge so a corner never crops
+  it). Every eye then snaps shut together and the rifts seal. The blow lands once. **Card Shark** and
   **Storm Call** (2026-09-29; R-PROG-ATTACK-26, R-PROG-ATTACK-27) are the first EPIC hero attacks: one idea each, shorter
   than the Legendaries, and THREE looks instead of four (they read the same shared tier and map it: I small, II and III
   medium, IV big; a knockout plays big). `attack_cards` ("Card Shark", a placeholder name; Epic, from crates): the hero

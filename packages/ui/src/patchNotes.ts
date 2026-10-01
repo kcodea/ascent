@@ -63,8 +63,8 @@ export const PATCH_NOTES: PatchNote[] = [
         text: 'New Legendary hero attack in crates: Eye of the Legion. A demonic eye tears open, hunts for its target and burns it with its gaze.',
         details: [
           'Small hits: one eye opens over your hero and fires a gaze.',
-          'Bigger hits: two eyes cross their gazes on the target, then a large eye sweeps its beam onto it.',
-          'Huge hits: a colossal eye opens over the board, its iris ignites, and the target implodes into a starburst.',
+          'Bigger hits: two eyes cross their gazes on the target, then two more eyes join the barrage.',
+          'Huge hits: more and more eyes tear open around the screen and blast the target, until a massive fel explosion.',
         ],
       },
       {

@@ -3440,11 +3440,15 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'layered painted rig (sclera, veins, an iris with a burning ring, a slit pupil, dark lids with a fel inner glow) whose '
       + 'lids are a mask scaled in y. It escalates on the shared tiers (6 / 12 / 20; a knockout plays IV, R-PROG-ATTACK-20): '
       + 'I a small eye over the attacker and a lancing gaze pulse; II two eyes out of sync whose gazes both hold and CROSS on '
-      + 'the target (the first a tick, the second the blow); III a large eye, the board dimmed, the beam fired beside the '
-      + 'target and SWEPT onto it (the blow as it arrives); IV a colossal eye up top (never over the struck portrait), a '
-      + 'fel-negative veil over the screen (one vignette sprite), the iris IGNITING, a thick gaze that lands and holds while '
-      + 'the target is DRAWN IN (a dark core, collapsing rings, motes), then IMPLODES into a STARBURST (the blow). The eye then '
-      + 'blinks shut and the rift seals in embers. Every eye stays on screen, the gaze always lands on the struck hero\x27s '
+      + 'the target (the first a tick, the second the blow); III and IV are ESCALATING EYES (owner review 2026-09-30): III '
+      + 'the pair opens and fires, then two more eyes tear open and join, the beams burn together while the shake builds, '
+      + 'and a SOLID FEL IMPACT lands the blow; IV the pair fires, then MORE AND MORE eyes (fourteen in all, at most sixteen) '
+      + 'tear open round the edges of the screen and the sky, each gap shorter than the last, each slitting onto the target '
+      + 'and blasting it (every gaze a tick), the beams converging into a blinding knot under a fel veil (one vignette '
+      + 'sprite) while the shake builds with every eye, then a MASSIVE FEL EXPLOSION (the blow: a white-green core, a screen '
+      + 'flash, starbursts, three shockwave rings, a towering fireball, burning debris, a sharp kick and a heavy shake), '
+      + 'centred on the struck portrait but drawn in from an edge so a corner never crops it. III and IV: every eye snaps '
+      + 'shut TOGETHER just after the blow and the rifts seal in embers. Every eye stays on screen, the gaze always lands on the struck hero\x27s '
       + 'centre in both directions, and the struck portrait\x27s transform is restored on every exit. No hit-stop or freeze '
       + '(R-PROG-ATTACK-10); presentation only; reduced motion is fades only.',
     domain: 'foundation',
@@ -3452,7 +3456,8 @@ export const FOUNDATION_RULES: GameRule[] = [
     evidence: [
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-30 (relayed by the coordinator)', quote: 'create a brand new attack animation that is on par with hearthstone/modern world of warcraft level animation art style performance readability and everything' },
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-30 (review of the first fel pass, relayed by the coordinator)', quote: 'this needs the bar to be set as an extremely unique animation. this may be our first mythic rarity item. every animation should be extremely unique and special' },
-      { kind: 'code', ref: 'packages/progression/src/cosmetics.ts (attack_fel); packages/ui/src/heroFel/ (felPlan / felCues / eyeMotions / eyePose / beamPose / felCameraAt, playHeroFel, HeroFelScene, heroFelTextures)' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-30 (Eye of the Legion review, relayed by the coordinator)', quote: 'i think the t3 eye of the legion attack is pretty bad, and i think t4 is kinda anti-climactic. i think it may be cooler if 2 open and fire a beam, and then more and more open and blast the target until a massive fel explosion happens or something and add some screen shake to it.' },
+      { kind: 'code', ref: 'packages/progression/src/cosmetics.ts (attack_fel); packages/ui/src/heroFel/ (felPlan / cascadeTimes / felCues / eyeMotions / eyePose / beamPose / explosionCentre / felCameraAt, playHeroFel, HeroFelScene, heroFelTextures)' },
     ],
     currentBehaviour: 'Conforms, built 2026-09-30. The item reaches the database on the next deploy of progression-inventory (the catalog sync).',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/heroFel/heroFel.test.ts', 'packages/progression/src/cosmetics.test.ts', 'packages/ui/src/progression/CollectionHeroAttack.test.tsx', 'packages/ui/src/heroAttack/damageFormation.test.ts', 'packages/ui/src/heroAttack/stageCamera.test.ts', 'packages/ui/src/heroAttack/knockoutTier.test.ts'], lastVerifiedAt: '2026-09-30' },

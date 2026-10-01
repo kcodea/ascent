@@ -19,13 +19,38 @@ the air and a demonic eye opens inside it. Nothing else in the roster has a watc
 - **I:** a small eye over the attacker; a lancing gaze pulse (the blow).
 - **II:** two eyes out of sync (one over the attacker, one beside it toward the middle); both gazes hold and cross on
   the target. The first is a tick; the second lands the blow.
-- **III:** a large eye; the board dims; the beam fires beside the target (always on screen) and sweeps onto it (the
-  blow as it arrives); it holds and sprays sparks.
-- **IV:** a colossal eye up top (pushed along so it never covers the struck portrait); a fel-negative veil (one
-  vignette sprite); a heavier open; three saccades; the iris IGNITES (live fel fire round its ring); a thick gaze lands
-  and holds while the target is drawn in (a dark core, three collapsing rings, motes streaming in, the portrait
-  shrinking and trembling); it IMPLODES into a STARBURST (two counter-rotating ray bursts, flashes, rings, shards, fel
-  fire): the blow.
+- **III and IV: ESCALATING EYES** (owner review the same day: "i think the t3 eye of the legion attack is pretty bad,
+  and i think t4 is kinda anti-climactic. i think it may be cooler if 2 open and fire a beam, and then more and more open
+  and blast the target until a massive fel explosion happens or something and add some screen shake to it"). The first
+  version's single sweeping eye (III) and colossal imploding eye (IV) were replaced.
+- **III:** the pair opens and fires, then two more eyes tear open and join; the four beams burn together on the target
+  (a knot of light growing with every beam) while the shake builds; a solid fel impact lands the blow; every eye snaps
+  shut together.
+- **IV:** the pair fires, then MORE AND MORE eyes tear open round the edges of the screen and the sky (fourteen in all,
+  each gap 0.8 x the last), each a short sharp performance (a tear, a snap open, a glance, a slit, a gaze); every gaze is a
+  tick; the beams converge into a blinding knot under a fel veil while the shake builds with every eye; then the MASSIVE
+  FEL EXPLOSION (the blow): a white-green core and a screen flash, two starbursts, three shockwave rings and a dark
+  pressure ring, a towering fireball (a column when there is room above the target, a ring of fire when it sits at the
+  top), burning debris, smoke and a scorch, a sharp kick and a heavy shake. It is centred on the struck portrait but
+  drawn in from an edge (at most 1.3 portrait radii), so a target in a corner never has its climax cropped (a camera pan
+  cannot do it without showing the stage's edge). Every eye snaps shut together and the rifts seal.
+- **The shake escalates:** a kick along the gaze on every hit, harder with every eye; a rumble that builds through the
+  barrage; the explosion's sharp kick and heavy ring. All on the shared StageCamera; no freeze.
+
+## Perf (Tier IV, 14 eyes)
+
+DEV server (an upper bound: StrictMode and Vite dev are slower than the prod build), headless Chrome over CDP on the
+RTX 4080 (D3D11), vsync and the frame cap OFF (raw frame cost), sound off, frames from the attack's start to its end:
+
+| run | frames | p50 | p95 | p99 | worst | > 16.7 ms |
+| --- | --- | --- | --- | --- | --- | --- |
+| IV you (first play) | 4170 | 1.4 | 2.4 | 2.8 | 9.2 | 0 |
+| IV foe | 4313 | 1.4 | 2.1 | 2.4 | 5.5 | 0 |
+| IV you (again) | 4352 | 1.3 | 2.3 | 2.8 | 9.9 | 0 |
+| III (4 eyes) | 4059 | 0.8 | 1.7 | 1.9 | 7.5 | 0 |
+
+The eye rigs are built two a frame while the formation plays (never in one burst), the beams and one-shots are pooled
+(420 sprites, 1000 fire particles, 16 eyes at most), and only transforms and alpha change per frame.
 
 ## How
 

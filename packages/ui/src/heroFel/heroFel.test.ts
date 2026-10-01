@@ -1,11 +1,11 @@
 // @vitest-environment jsdom
 /**
  * THE EYE OF THE LEGION (style `fel`, cosmetic `attack_fel`; owner 2026-09-30: "extremely unique", the owner picked
- * the eye): the tier mapping SHARED with every style; the ladder (one eye, two eyes, a large sweeping eye, a colossal
- * eye that implodes the target); the tuner defaults + clamping; the pure plan (the one impact beat, II's tick, IV's
+ * the eye; round 1: "more and more open and blast the target until a massive fel explosion"): the tier mapping SHARED with
+ * every style; the ladder (one eye, the pair, the pair and two more, the pair and a cascade of a dozen ending in the explosion); the tuner defaults + clamping; the pure plan (the one impact beat, II's tick, IV's
  * draw-in, reduced motion, determinism); the eye's pose (the rift, the cracking-then-snapping lids, the saccades, the
- * pupil slamming to a slit, the blink shut); the gaze (from the pupil, onto the struck portrait; the sweep starts on
- * screen); the placement (on screen; IV never over the target); the camera; the runner on the shared clock (the
+ * pupil slamming to a slit, the blink shut); the gaze (from the pupil, onto the struck portrait); the explosion's centre
+ * (drawn in from an edge); the placement (on screen; IV never over the target); the camera; the runner on the shared clock (the
  * consequence lands exactly ONCE; both directions; slow motion; replay; finish / cancel; cleanup; the clock never
  * pauses); the headless scene (pooled, bounded, drains, destroy leaves nothing); and the cosmetic.
  */
@@ -16,7 +16,7 @@ import { HERO_ATTACK_TIER_THRESHOLDS, tierOf as sharedTierOf } from '../heroAtta
 import { fireTexturesFrom } from '../heroAttack/pixiFire';
 import { DEV_HERO_ATTACK_CHOICES, HERO_ATTACK_STYLES, resolveHeroAttackStyle, styleOfCosmetic } from '../heroBlast/heroAttackStyle';
 import {
-  HERO_FEL_DEFAULTS, HERO_FEL_RANGES, almondPoints, beamPose, clampHeroFelValue, eyeMotions, eyePose, felCameraAt, felCameraFocus,
+  HERO_FEL_DEFAULTS, HERO_FEL_RANGES, MAX_EYES, almondPoints, cascadeTimes, explosionCentre, beamPose, clampHeroFelValue, eyeMotions, eyePose, felCameraAt, felCameraFocus,
   felCues, felPlan, felTravelMs, heroFelConfigJson, pupilPoint, sanitizeHeroFelConfig, type HeroFelConfig, type HeroFelNumKey,
 } from './heroFelConfig';
 import { HeroFelScene, MAX_FEL_PARTICLES, MAX_FEL_SPRITES, type HeroFelTextures } from './heroFelScene';
@@ -47,19 +47,16 @@ describe('the damage tiers (shared with every hero attack)', () => {
     expect(felPlan({ total: 3, distance: 1600, knockout: true }, C).tier).toBe(4);
   });
 
-  it('the ladder ESCALATES: one eye (a pulse), two (held, crossing), one large (a sweep), one colossal (a lance that implodes)', () => {
-    expect([P1, P2, P3, P4].map((p) => p.eyes.length)).toEqual([1, 2, 1, 1]);
-    expect([P1, P2, P3, P4].map((p) => p.kind)).toEqual(['pulse', 'hold', 'sweep', 'lance']);
-    expect([P1, P2, P3, P4].map((p) => p.veil !== null)).toEqual([false, false, false, true]);
+  it('the ladder ESCALATES: one eye (a pulse), the pair (crossing), the pair and two more (a fel impact), a cascade of a dozen and more (the explosion)', () => {
+    expect([P1, P2, P3, P4].map((p) => p.eyes.length)).toEqual([1, 2, 4, 14]);
+    expect([P1, P2, P3, P4].map((p) => p.finale)).toEqual(['gaze', 'gaze', 'impact', 'explosion']);
+    expect([P1, P2, P3, P4].map((p) => p.veil !== null)).toEqual([false, false, true, true]);
     for (const k of ['shakePx', 'burst', 'dim'] as const) {
       expect(P2[k], k).toBeGreaterThan(P1[k]);
       expect(P3[k], k).toBeGreaterThan(P2[k]);
       expect(P4[k], k).toBeGreaterThan(P3[k]);
     }
-    // the eye grows tier on tier, on screen
-    const half = [P1, P2, P3, P4].map((p) => eyeMotions(p, A, D, R, R, B, C)[0]!.a);
-    expect(half[2]).toBeGreaterThan(half[0]!);
-    expect(half[3]).toBeGreaterThan(half[2]!);
+    expect(clampHeroFelValue('t4Eyes', 99)).toBe(MAX_EYES);
   });
 });
 
@@ -77,7 +74,7 @@ describe('the tuner values', () => {
   it('clamps numbers into range; junk falls back to the default; colours must be #rrggbb; unknown keys drop', () => {
     expect(clampHeroFelValue('t4EyeSize', 99)).toBe(3);
     expect(clampHeroFelValue('slit', 0)).toBe(0.05);
-    expect(clampHeroFelValue('t4ImplodeMs', 99999)).toBe(1600);
+    expect(clampHeroFelValue('t4BuildMs', 99999)).toBe(1600);
     expect(clampHeroFelValue('squint', Number.NaN)).toBe(C.squint);
     expect(clampHeroFelValue('squint', 'abc')).toBe(C.squint);
     expect(clampHeroFelValue('closeMs', '200')).toBe(200);
@@ -120,7 +117,7 @@ describe('the plan', () => {
         expect(e.openAt).toBeLessThan(e.lockAt);
         expect(e.lockAt).toBeLessThan(e.fireAt);
         expect(e.fireAt).toBeLessThan(e.hitAt);
-        expect(e.closeAt).toBeGreaterThanOrEqual(p.kind === 'pulse' ? e.hitAt : p.impactAt);
+        expect(e.closeAt).toBeGreaterThanOrEqual(p.tier === 1 ? e.hitAt : p.impactAt);
         expect(e.goneAt).toBeLessThanOrEqual(p.endAt);
       }
     }
@@ -132,19 +129,32 @@ describe('the plan', () => {
     for (const m of ms) expect(beamPose(m, P2.impactAt, C).on).toBe(true);
   });
 
-  it('III: the beam lands BESIDE the target and the blow lands as the sweep arrives on it; IV: the lance lands, then the implosion', () => {
-    const e3 = P3.eyes[0]!;
-    expect(P3.impactAt).toBe(e3.sweepEnd);
-    expect(e3.sweepEnd).toBeGreaterThan(e3.hitAt);
-    expect(P4.landAt).toBeLessThan(P4.impactAt);
-    expect(P4.impactAt - P4.landAt).toBe(C.t4ImplodeMs);
-    const kinds = felCues(P4).map((q) => q.kind);
-    expect(kinds.indexOf('land')).toBeLessThan(kinds.indexOf('impact'));
+  it('III / IV: the pair fires first, then the cascade tears open FASTER AND FASTER; every gaze is a tick; the blow lands after the last, once', () => {
+    for (const p of [P3, P4]) {
+      const pairFire = Math.max(p.eyes[0]!.fireAt, p.eyes[1]!.fireAt);
+      const casc = p.eyes.slice(2);
+      for (const e of casc) expect(e.riftAt).toBeGreaterThan(pairFire);
+      expect(p.hits).toHaveLength(p.eyes.length);
+      expect(p.landAt).toBe(Math.max(...p.eyes.map((e) => e.hitAt)));
+      expect(p.impactAt).toBeGreaterThan(p.landAt);
+      const kinds = felCues(p).map((q) => q.kind);
+      expect(kinds.indexOf('land')).toBeLessThan(kinds.indexOf('impact'));
+      // every eye snaps shut together, just after the blow
+      expect(new Set(p.eyes.map((e) => e.closeAt)).size).toBe(1);
+      expect(p.eyes[0]!.closeAt).toBeGreaterThan(p.impactAt);
+      // every beam holds on the target up to the blow
+      for (const m of eyeMotions(p, A, D, R, R, B, C)) expect(beamPose(m, p.impactAt - 1, C).on).toBe(true);
+    }
+    const gaps = P4.eyes.slice(2).map((e, i, a) => (i ? e.riftAt - a[i - 1]!.riftAt : 0)).slice(1);
+    for (let i = 1; i < gaps.length; i++) expect(gaps[i]!).toBeLessThanOrEqual(gaps[i - 1]!);
+    expect(gaps[gaps.length - 1]!).toBeLessThan(gaps[0]!);
+    expect(cascadeTimes(0, 4, 300, 0.5)).toEqual([0, 300, 450, 525]);
+    expect(cascadeTimes(0, 3, 30, 0.5)).toEqual([0, 40, 80]); // a floor on the gap
   });
 
-  it('brisk: Tier I lands within about 1.2 s of the formation; Tier IV within about 3 s', () => {
+  it('brisk: Tier I lands within about 1.2 s of the formation; the Tier IV showpiece within about 4.5 s', () => {
     expect(P1.impactAt - P1.chargeAt).toBeLessThan(1200);
-    expect(P4.impactAt - P4.chargeAt).toBeLessThan(3000);
+    expect(P4.impactAt - P4.chargeAt).toBeLessThan(4500);
     expect(P4.endAt - P4.impactAt).toBeLessThan(1800);
   });
 
@@ -159,7 +169,7 @@ describe('the plan', () => {
 });
 
 describe('the eye', () => {
-  const m = eyeMotions(P3, A, D, R, R, B, C)[0]!;
+  const m = eyeMotions(P2, A, D, R, R, B, C)[0]!;
 
   it('the rift tears first; the lids CRACK (slow) then SNAP open past 1 (overshoot); it narrows into a glare on the lock; it blinks shut; the rift seals', () => {
     expect(eyePose(m, m.riftAt - 1, C).rift).toBe(0);
@@ -178,7 +188,7 @@ describe('the eye', () => {
 
   it('the pupil hunts (saccades away from the target), then FINDS the target and slams to a slit', () => {
     const before = eyePose(m, m.darts[0]! + 80, C);
-    const locked = eyePose(m, m.lockAt + 150, C);
+    const locked = eyePose(m, m.lockAt + 128, C);
     expect(before.pupil).toBeGreaterThan(0.45);
     expect(locked.pupil).toBeCloseTo(C.slit, 1);
     // locked: the look points at the target
@@ -189,40 +199,35 @@ describe('the eye', () => {
     expect(Math.hypot(before.look.x - locked.look.x, before.look.y - locked.look.y)).toBeGreaterThan(0.3);
   });
 
-  it('the gaze leaves the PUPIL and lands on the struck portrait (III: the sweep starts on screen, beside it)', () => {
-    const at = m.sweepEnd + 10;
+  it('the gaze leaves the PUPIL and lands on the struck portrait; IV\'s explosion is drawn in from an edge, never cropped by a corner', () => {
+    const at = m.hitAt + 10;
     const b = beamPose(m, at, C);
     expect(b.on).toBe(true);
     expect(b.to).toEqual(D);
     expect(b.head).toBe(1);
-    const pc = pupilPoint(m, eyePose(m, at, C).look);
-    expect(b.from).toEqual(pc);
-    expect(Math.hypot(m.sweepFrom.x - D.x, m.sweepFrom.y - D.y)).toBeGreaterThan(R);
-    for (const side of [{ a: A, d: D }, { a: D, d: A }]) {
-      const mm = eyeMotions(P3, side.a, side.d, R, R, B, C)[0]!;
-      expect(mm.sweepFrom.x).toBeGreaterThanOrEqual(0);
-      expect(mm.sweepFrom.y).toBeGreaterThanOrEqual(0);
-      expect(mm.sweepFrom.x).toBeLessThanOrEqual(B.w);
-      expect(mm.sweepFrom.y).toBeLessThanOrEqual(B.h);
-    }
+    expect(b.from).toEqual(pupilPoint(m, eyePose(m, at, C).look));
     expect(beamPose(m, m.fireAt - 1, C).on).toBe(false);
+    const corner = explosionCentre({ x: 1840, y: 90 }, 100, B);
+    expect(corner.x).toBeLessThan(1840);
+    expect(corner.y).toBeGreaterThan(90);
+    expect(Math.hypot(corner.x - 1840, corner.y - 90)).toBeLessThanOrEqual(100 * 1.3 * Math.SQRT2 + 1e-6);
+    expect(explosionCentre({ x: 960, y: 540 }, 100, B)).toEqual({ x: 960, y: 540 });
   });
 
-  it('every eye sits on screen, both directions; IV is up top and never over the struck portrait', () => {
+  it('every eye sits on screen, both directions, clear of both portraits (the cascade round the edges)', () => {
     for (const [a, d] of [[A, D], [D, A]] as const) {
       for (const p of [P1, P2, P3, P4]) {
-        for (const e of eyeMotions(p, a, d, R, R, B, C)) {
+        const ms = eyeMotions(p, a, d, R, R, B, C);
+        expect(ms).toHaveLength(p.eyes.length);
+        for (const e of ms) {
           const hh = e.a * 0.5;
           expect(e.c.x - e.a).toBeGreaterThanOrEqual(-1e-6);
           expect(e.c.x + e.a).toBeLessThanOrEqual(B.w + 1e-6);
           expect(e.c.y - hh).toBeGreaterThanOrEqual(-1e-6);
           expect(e.c.y + hh).toBeLessThanOrEqual(B.h + 1e-6);
         }
+        for (const e of ms.slice(2)) expect(Math.hypot(e.c.x - d.x, e.c.y - d.y)).toBeGreaterThan(R * 1.9);
       }
-      const e4 = eyeMotions(P4, a, d, R, R, B, C)[0]!;
-      expect(e4.c.y).toBeLessThan(B.h / 2);
-      const inside = Math.abs(d.x - e4.c.x) < e4.a && Math.abs(d.y - e4.c.y) < e4.a * 0.5;
-      expect(inside).toBe(false);
     }
   });
 
@@ -245,6 +250,10 @@ describe('the camera', () => {
     const eye = { x: 900, y: 200 };
     expect(felCameraFocus(P4, P4.chargeAt, eye, D)).toEqual(eye);
     expect(felCameraFocus(P4, P4.landAt, eye, D)).toEqual(D);
+    // the shake ESCALATES: the rumble near the blow is bigger than early in the barrage
+    const amp = (t: number) => { let mx = 0; for (let k = 0; k < 60; k += 2) { const q = felCameraAt(P4, C, t + k); mx = Math.max(mx, Math.hypot(q.x, q.y)); } return mx; };
+    expect(amp(P4.impactAt - 80)).toBeGreaterThan(amp(P4.hits[0]! + 200));
+    expect(amp(P4.impactAt + 10)).toBeGreaterThan(amp(P4.impactAt - 80));
   });
 });
 
@@ -310,15 +319,16 @@ describe('the runner (the shared clock)', () => {
     expect(root.children).toHaveLength(0);
   });
 
-  it('Tier IV: the veil falls, the iris ignites, the lance lands, the target is DRAWN IN, and the blow lands ONCE on the starburst', () => {
+  it('Tier IV: the veil falls, more and more eyes open and burn the target, the knot builds, and the blow lands ONCE on the EXPLOSION; the eyes shut together', () => {
     const { h, f, onImpact, defenderEl } = run({ total: 40, formation: formationOf([40], 40) });
-    expect(h.plan.kind).toBe('lance');
-    f.tick(h.plan.eyes[0]!.lockAt + 200, 4);
+    expect(h.plan.finale).toBe('explosion');
+    f.tick(h.plan.eyes[1]!.hitAt + 20, 4);
+    expect(h.scene!.beamsOn).toBe(2);
+    f.tick(h.plan.landAt - h.elapsed() + 30, 4);
+    expect(h.scene!.beamsOn).toBe(14); // every eye burning on the target
     expect(h.scene!.veilAlpha).toBeGreaterThan(0.3);
-    expect(h.scene!.emitters).toBeGreaterThan(0); // the ignited iris
-    f.tick(h.plan.landAt - h.elapsed() + 60, 4);
     expect(h.scene!.pulling).toBe(true);
-    expect(defenderEl.style.transform).toContain('scale('); // drawn in (the clock runs on)
+    expect(defenderEl.style.transform).toContain('scale('); // pinned and trembling (the clock runs on)
     expect(onImpact).not.toHaveBeenCalled();
     f.tick(h.plan.impactAt - h.elapsed() - 12, 4);
     expect(onImpact).not.toHaveBeenCalled();
@@ -326,10 +336,13 @@ describe('the runner (the shared clock)', () => {
     expect(onImpact).toHaveBeenCalledTimes(1);
     expect(h.scene!.pulling).toBe(false);
     f.tick(100, 8);
-    expect(h.scene!.liveFire).toBeGreaterThan(40); // the starburst's fel fire
+    expect(h.scene!.liveFire).toBeGreaterThan(80); // the explosion's fel fire
+    f.tick(h.plan.eyes[0]!.closeAt + h.plan.eyes[0]!.closeMs - h.elapsed() + 20, 4);
+    expect(h.scene!.beamsOn).toBe(0);
     f.tick(h.plan.endAt + 5000, 8);
     expect(onImpact).toHaveBeenCalledTimes(1);
     expect(h.scene!.veilAlpha).toBe(0);
+    expect(h.scene!.eyesShowing).toBe(0);
     expect(f.hooked()).toBe(0);
   });
 
@@ -439,6 +452,7 @@ describe('the scene (headless Pixi)', () => {
     const ms = eyeMotions(P4, A, D, R, R, B, C);
     const s = new HeroFelScene(TEX, COLORS, C, ms, 1, 42, { w: 1920, h: 1080 });
     s.setVeil(P4.veil);
+    s.setTarget(D.x, D.y, R);
     let peakS = 0, peakF = 0;
     const cues = felCues(P4);
     let ci = 0;
@@ -447,10 +461,10 @@ describe('the scene (headless Pixi)', () => {
         const q = cues[ci++]!;
         if (q.kind === 'rift') s.rift(q.i);
         else if (q.kind === 'open') s.opened(q.i);
-        else if (q.kind === 'lock') s.locked(q.i, true);
+        else if (q.kind === 'lock') s.locked(q.i);
         else if (q.kind === 'fire') s.fired(q.i);
         else if (q.kind === 'land') s.drawIn(D.x, D.y, R, P4.impactAt - P4.landAt);
-        else if (q.kind === 'impact') s.starburst(D.x, D.y, R, { burst: 2, flashAlpha: 0.85, screen: 1920 });
+        else if (q.kind === 'impact') s.explosion(D.x, D.y, R, { burst: 2.4, flashAlpha: 0.85, screen: 1920, roomAbove: false });
         else if (q.kind === 'close') s.closed(q.i);
         else if (q.kind === 'seal') s.sealed(q.i);
       }

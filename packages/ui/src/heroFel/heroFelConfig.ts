@@ -15,12 +15,15 @@
  *     across and hits (THE impact). The eye blinks shut and the rift seals in embers.
  *  II. Two eyes, out of sync, over the attacker; both lock and both gazes hold, CROSSING on the target. The first is a
  *     tick; the second lands the blow.
- *  III. A large eye; the board dims to fel shadow; the pupil hunts, slams to a slit; the iris flares; the beam fires
- *     beside the target and SWEEPS onto it (THE impact when it arrives), holds, burns, and the eye closes.
- *  IV. A colossal eye fills the top of the screen and the board drops into a fel-negative veil. It opens heavily, looks
- *     round the board, locks, the iris IGNITES (fel flame round its ring), a thick gaze lands on the target and holds
- *     while the target is drawn in (a dark core, motes and rings collapsing on it), then it IMPLODES into a STARBURST
- *     (THE impact). The beam cuts, the eye closes, the rift seals, the veil lifts.
+ *  III and IV (owner 2026-09-30 review: "it may be cooler if 2 open and fire a beam, and then more and more open and
+ *     blast the target until a massive fel explosion happens ... and add some screen shake to it"): ESCALATING EYES.
+ *  III. The pair opens and fires, then two more eyes tear open and join; the four beams converge and burn while the
+ *     shake builds, then a SOLID FEL IMPACT (the blow) and every eye snaps shut together.
+ *  IV. The pair opens and fires, then MORE AND MORE eyes tear open round the edges of the screen and the sky, faster and
+ *     faster (a dozen and more), each slitting onto the target and blasting it; the beams converge into a blinding knot,
+ *     the board drops under a fel veil, the shake builds with every eye; then a MASSIVE FEL EXPLOSION (the blow): a
+ *     white-green core, shockwave rings, a towering fireball, debris and embers, a sharp kick and a heavy shake, the view
+ *     drifting toward the middle so a target in a corner is never cropped. Every eye snaps shut together; the rifts seal.
  *
  * No hit-stop or freeze anywhere (owner 2026-09-28): weight comes from the flash, the squash, the shake and the sound.
  * Flat 2D: the eye is a flat painted shape, its lids a mask scaled in y. The blow lands ONCE, on THE impact.
@@ -37,7 +40,7 @@ export { TIERS, hexToNum, type TierNum };
 
 /** The per-tier dials. A config key is `t1..t4` + one of these. */
 export const FEL_TIER_SUFFIXES = [
-  'EyeSize', 'OpenMs', 'SeekMs', 'ChargeMs', 'GazeMs', 'SweepMs', 'HoldMs', 'ImplodeMs',
+  'EyeSize', 'Eyes', 'OpenMs', 'SeekMs', 'ChargeMs', 'GazeMs', 'CascadeMs', 'Accel', 'BuildMs', 'HoldMs',
   'Shake', 'Zoom', 'Punch', 'Burst', 'Dim', 'Veil', 'SettleMs',
 ] as const;
 export type FelTierSuffix = (typeof FEL_TIER_SUFFIXES)[number];
@@ -62,7 +65,7 @@ interface GlobalConfig {
   veins: number;
   burstSize: number;
   shards: number;
-  igniteFire: number;
+  fireball: number;
   drawIn: number;
   flashAlpha: number;
   knockPx: number;
@@ -118,32 +121,36 @@ export type HeroFelNumKey = Exclude<keyof HeroFelConfig, HeroFelStrKey>;
 
 /** Tier I .. IV per suffix. EyeSize is the eye's half-width in portrait radii (IV: a share of the screen width). */
 const TIER_DEFAULTS: Record<FelTierSuffix, [number, number, number, number]> = {
-  EyeSize: [0.8, 0.66, 1.5, 0.2],
-  OpenMs: [240, 240, 380, 480],
-  SeekMs: [300, 260, 380, 520],
-  ChargeMs: [130, 140, 300, 420],
-  GazeMs: [190, 170, 110, 140],
-  SweepMs: [0, 0, 340, 0],
-  HoldMs: [0, 220, 260, 0],
-  ImplodeMs: [0, 0, 0, 520],
-  Shake: [5, 8, 13, 24],
-  Zoom: [0.03, 0.035, 0.05, 0.07],
-  Punch: [0.02, 0.028, 0.042, 0.07],
-  Burst: [1, 1.15, 1.5, 2.1],
-  Dim: [0.08, 0.18, 0.42, 0.5],
-  Veil: [0, 0, 0, 0.55],
-  SettleMs: [280, 320, 460, 560],
+  EyeSize: [0.8, 0.66, 0.66, 0.62],
+  Eyes: [1, 2, 4, 14],
+  OpenMs: [240, 240, 240, 260],
+  SeekMs: [300, 260, 240, 260],
+  ChargeMs: [130, 140, 130, 140],
+  GazeMs: [190, 170, 160, 150],
+  CascadeMs: [0, 0, 220, 300],
+  Accel: [1, 1, 0.9, 0.8],
+  BuildMs: [0, 0, 240, 460],
+  HoldMs: [0, 220, 60, 0],
+  Shake: [5, 8, 16, 32],
+  Zoom: [0.03, 0.035, 0.04, 0.05],
+  Punch: [0.02, 0.028, 0.05, 0.08],
+  Burst: [1, 1.15, 1.6, 2.4],
+  Dim: [0.08, 0.18, 0.34, 0.5],
+  Veil: [0, 0, 0.22, 0.58],
+  SettleMs: [280, 320, 460, 600],
 };
 
 export const FEL_TIER_RANGES: Record<FelTierSuffix, [number, number, number]> = {
   EyeSize: [0.2, 3, 0.01],
+  Eyes: [1, 16, 1],
   OpenMs: [80, 1200, 10],
   SeekMs: [0, 1500, 10],
   ChargeMs: [0, 1200, 10],
   GazeMs: [60, 800, 10],
-  SweepMs: [0, 1200, 10],
+  CascadeMs: [0, 1200, 10],
+  Accel: [0.5, 1.2, 0.01],
+  BuildMs: [0, 1600, 10],
   HoldMs: [0, 1200, 10],
-  ImplodeMs: [0, 1600, 10],
   Shake: [0, 40, 0.5],
   Zoom: [0, 0.14, 0.002],
   Punch: [0, 0.1, 0.001],
@@ -174,7 +181,7 @@ export const HERO_FEL_DEFAULTS: HeroFelConfig = {
   veins: 0.6,
   burstSize: 1,
   shards: 1,
-  igniteFire: 1,
+  fireball: 1,
   drawIn: 1,
   flashAlpha: 0.85,
   knockPx: 18,
@@ -234,7 +241,7 @@ const GLOBAL_RANGES: Record<Exclude<keyof GlobalConfig, HeroFelStrKey>, [number,
   veins: [0, 1, 0.01],
   burstSize: [0.3, 3, 0.05],
   shards: [0, 3, 0.05],
-  igniteFire: [0, 3, 0.05],
+  fireball: [0, 3, 0.05],
   drawIn: [0, 3, 0.05],
   flashAlpha: [0, 1, 0.01],
   knockPx: [0, 60, 1],
@@ -347,28 +354,31 @@ export function felTravelMs(distance: number, tunedMs: number): number {
   return Math.round(tunedMs * clamp(Math.sqrt(d / FEL_REF_DISTANCE), 0.6, 1.15));
 }
 
-/** How the gaze is drawn: a lancing pulse (I), a held beam (II), a sweeping beam (III), a thick lance that holds (IV). */
-export type GazeKind = 'pulse' | 'hold' | 'sweep' | 'lance';
-export const GAZE_OF: Record<TierNum, GazeKind> = { 1: 'pulse', 2: 'hold', 3: 'sweep', 4: 'lance' };
-export const EYES_OF: Record<TierNum, number> = { 1: 1, 2: 2, 3: 1, 4: 1 };
+/** How a gaze is drawn: a lancing pulse (I) or a beam that holds on the target (II-IV). */
+export type GazeKind = 'pulse' | 'hold';
+/** How the blow lands: on the gaze itself (I, II), a solid fel impact (III), the MASSIVE fel explosion (IV). */
+export type FelFinale = 'gaze' | 'impact' | 'explosion';
+export const FINALE_OF: Record<TierNum, FelFinale> = { 1: 'gaze', 2: 'gaze', 3: 'impact', 4: 'explosion' };
+/** Hard cap on eyes (a dozen and more at IV, never more than this). */
+export const MAX_EYES = 16;
 
 /** One eye's timeline (sequence ms). */
 export interface EyePlan {
-  riftAt: number; openAt: number; openMs: number;
+  riftAt: number; riftMs: number; openAt: number; openMs: number;
   /** The saccades before it finds the target. */
   darts: number[];
   lockAt: number;
   /** The gaze leaves the pupil. */
   fireAt: number;
-  /** Its head reaches the target (pulse, hold, lance) or the point beside it (sweep). */
+  /** Its head reaches the target. */
   hitAt: number;
-  /** Sweep: the beam arrives on the target (else = hitAt). */
-  sweepEnd: number;
   /** The beam starts to retract. */
   holdUntil: number;
   closeAt: number; closeMs: number;
   sealAt: number; goneAt: number;
   kind: GazeKind;
+  /** Size multiplier (the cascade's eyes vary a little). */
+  size: number;
 }
 
 export interface FelPlanInput extends AttackTierContext {
@@ -383,27 +393,35 @@ export interface FelPlan {
   tier: TierNum;
   k: number;
   total: number;
-  /** The total dives into the hero; the rift tears open as it lands. */
+  /** The total dives into the hero; the first rift tears open as it lands. */
   chargeAt: number;
   absorbEnd: number;
   eyes: EyePlan[];
-  kind: GazeKind;
-  /** Gazes that land BEFORE the impact (II's first): FX only. */
+  finale: FelFinale;
+  /** Gazes that land BEFORE the impact: FX and sound only (II's first; every eye of III and IV). */
   hits: number[];
-  /** IV: the lance lands and the target starts to be drawn in (else the impact). */
+  /** The last gaze lands: every beam is on the target (III / IV build from here to the impact). */
   landAt: number;
   /** THE consequence beat. */
   impactAt: number;
   endAt: number;
-  /** IV: the fel-negative veil (null below). */
+  /** III / IV: the fel veil (null below). */
   veil: { inAt: number; fullAt: number; outAt: number; goneAt: number; alpha: number } | null;
   shakePx: number;
   zoom: number;
   punch: number;
   burst: number;
   dim: number;
-  /** The first moment the gaze is on (the camera follows it from here). */
+  /** The first gaze leaves (the camera follows it from here). */
   fireAt: number;
+}
+
+/** The cascade's spawn times after the opening pair: each gap `accel` times the last (an accelerating cascade). */
+export function cascadeTimes(start: number, count: number, gapMs: number, accel: number): number[] {
+  const out: number[] = [];
+  let at = start, gap = Math.max(40, gapMs);
+  for (let j = 0; j < count; j++) { out.push(Math.round(at)); at += gap; gap = Math.max(40, gap * accel); }
+  return out;
 }
 
 /** The whole attack, in base ms. Pure and deterministic. */
@@ -412,56 +430,73 @@ export function felPlan(input: FelPlanInput, c: HeroFelConfig = cfg): FelPlan {
   const tier = attackTier(total, input, c);
   const T = felTierDials(tier, c);
   const k = (tier - 1) / 3;
-  const kind = GAZE_OF[tier];
+  const finale = FINALE_OF[tier];
 
   if (input.reduced) {
     const r = reducedAttackTimeline(input.leadIn ?? 0, c.reducedFadeMs);
     const { impactAt } = r;
     return {
-      reduced: true, tier, k, total, chargeAt: impactAt, absorbEnd: impactAt, eyes: [], kind, hits: [], landAt: impactAt, impactAt,
+      reduced: true, tier, k, total, chargeAt: impactAt, absorbEnd: impactAt, eyes: [], finale, hits: [], landAt: impactAt, impactAt,
       endAt: r.endAt, veil: null, shakePx: 0, zoom: 0, punch: 0, burst: 0, dim: 0, fireAt: impactAt,
     };
   }
 
   const chargeAt = Math.max(0, input.leadIn ?? 0);
   const absorbEnd = chargeAt + c.absorbMs;
-  const n = EYES_OF[tier];
+  const n = tier === 1 ? 1 : clamp(Math.round(T.Eyes), 2, MAX_EYES);
   const gaze = felTravelMs(input.distance, T.GazeMs);
+  const kind: GazeKind = tier === 1 ? 'pulse' : 'hold';
   const eyes: EyePlan[] = [];
-  for (let i = 0; i < n; i++) {
-    const off = i * c.pairGapMs;
-    const riftAt = chargeAt + 60 + off;
+  // The opening pair (I: one eye): the full performance (the crack, the saccades, the lock, the glare).
+  const lead = Math.min(n, 2);
+  for (let i = 0; i < lead; i++) {
+    const riftAt = chargeAt + 60 + i * c.pairGapMs;
     const openAt = riftAt + c.riftMs;
     const seekFrom = openAt + T.OpenMs;
-    const nd = tier === 4 ? 3 : tier === 3 ? 2 : i === 0 ? 2 : 1;
+    const nd = i === 0 ? 2 : 1;
     const darts = Array.from({ length: nd }, (_, j) => Math.round(seekFrom + (T.SeekMs * j) / nd));
     const lockAt = seekFrom + T.SeekMs;
     const fireAt = lockAt + T.ChargeMs;
-    const hitAt = fireAt + gaze;
-    const sweepEnd = kind === 'sweep' ? hitAt + T.SweepMs : hitAt;
     eyes.push({
-      riftAt, openAt, openMs: T.OpenMs, darts, lockAt, fireAt, hitAt, sweepEnd, holdUntil: sweepEnd,
-      closeAt: sweepEnd, closeMs: c.closeMs, sealAt: sweepEnd, goneAt: sweepEnd, kind,
+      riftAt, riftMs: c.riftMs, openAt, openMs: T.OpenMs, darts, lockAt, fireAt, hitAt: fireAt + gaze, holdUntil: 0, closeAt: 0,
+      closeMs: c.closeMs, sealAt: 0, goneAt: 0, kind, size: 1,
     });
   }
-  // The pair: the second eye's gaze lands the blow; both HOLD until it does (they cross on the target).
-  const lastEye = eyes[eyes.length - 1]!;
-  const landAt = lastEye.sweepEnd;
-  const impactAt = kind === 'lance' ? landAt + T.ImplodeMs : landAt;
-  const hits = eyes.slice(0, -1).map((e) => e.hitAt).filter((at) => at < impactAt);
+  // THE CASCADE (III, IV): more and more eyes tear open, faster and faster, each a short sharp performance (a tear, a
+  // snap open, one glance, a lock, a gaze).
+  if (n > lead) {
+    const start = eyes[lead - 1]!.fireAt + Math.max(0, T.CascadeMs * 0.6);
+    cascadeTimes(start, n - lead, T.CascadeMs, T.Accel).forEach((riftAt, j) => {
+      const riftMs = Math.min(c.riftMs, 110);
+      const openAt = riftAt + riftMs;
+      const openMs = Math.min(T.OpenMs, 190);
+      const seek = Math.min(T.SeekMs, 110);
+      const lockAt = openAt + openMs + seek;
+      const fireAt = lockAt + Math.min(T.ChargeMs, 80);
+      eyes.push({
+        riftAt, riftMs, openAt, openMs, darts: [openAt + openMs], lockAt, fireAt, hitAt: fireAt + Math.round(gaze * 0.85), holdUntil: 0, closeAt: 0,
+        closeMs: c.closeMs, sealAt: 0, goneAt: 0, kind, size: 0.78 + 0.22 * (((j * 37) % 10) / 10),
+      });
+    });
+  }
+  const landAt = Math.max(...eyes.map((e) => e.hitAt));
+  const impactAt = finale === 'gaze' ? landAt : landAt + T.BuildMs;
+  const hits = eyes.map((e) => e.hitAt).filter((at) => at < impactAt).sort((a, b) => a - b);
   for (const e of eyes) {
-    e.holdUntil = kind === 'pulse' ? e.hitAt : kind === 'lance' ? impactAt + 60 : Math.max(e.sweepEnd, impactAt) + T.HoldMs;
-    e.closeAt = (kind === 'pulse' ? e.hitAt + 200 : e.holdUntil + 80);
+    e.holdUntil = kind === 'pulse' ? e.hitAt : finale === 'gaze' ? impactAt + T.HoldMs : impactAt + T.HoldMs;
+    // III and IV: every eye snaps shut TOGETHER just after the blow (one satisfying beat).
+    e.closeAt = kind === 'pulse' ? e.hitAt + 200 : finale === 'gaze' ? e.holdUntil + 80 : impactAt + 140;
+    if (finale !== 'gaze') e.closeMs = Math.min(c.closeMs, 110);
     e.sealAt = e.closeAt + e.closeMs;
     e.goneAt = e.sealAt + c.sealMs;
   }
   const veil = T.Veil > 0
-    ? { inAt: chargeAt + 40, fullAt: eyes[0]!.openAt + T.OpenMs * 0.5, outAt: impactAt + 260, goneAt: impactAt + 760, alpha: T.Veil }
+    ? { inAt: chargeAt + 40, fullAt: landAt, outAt: impactAt + 260, goneAt: impactAt + 820, alpha: T.Veil }
     : null;
   const lastBeat = Math.max(impactAt + c.zoomOutMs * 0.8, ...eyes.map((e) => e.goneAt), veil ? veil.goneAt - 200 : 0);
   const endAt = lastBeat + T.SettleMs;
   return {
-    reduced: false, tier, k, total, chargeAt, absorbEnd, eyes, kind, hits, landAt, impactAt, endAt, veil,
+    reduced: false, tier, k, total, chargeAt, absorbEnd, eyes, finale, hits, landAt, impactAt, endAt, veil,
     shakePx: clamp(T.Shake, 0, FEL_CAPS.shakePx), zoom: clamp(T.Zoom, 0, FEL_CAPS.zoom), punch: T.Punch, burst: T.Burst, dim: T.Dim,
     fireAt: eyes[0]!.fireAt,
   };
@@ -483,9 +518,9 @@ export function felCues(p: FelPlan): FelCue[] {
       out.push({ at: e.fireAt, kind: 'fire', i });
       out.push({ at: e.closeAt, kind: 'close', i });
       out.push({ at: e.sealAt, kind: 'seal', i });
+      if (e.hitAt < p.impactAt) out.push({ at: e.hitAt, kind: 'hit', i });
     });
-    p.eyes.slice(0, -1).forEach((e, i) => { if (e.hitAt < p.impactAt) out.push({ at: e.hitAt, kind: 'hit', i }); });
-    if (p.kind === 'lance') out.push({ at: p.landAt, kind: 'land', i: p.eyes.length - 1 });
+    if (p.finale !== 'gaze') out.push({ at: p.landAt, kind: 'land', i: 0 });
   }
   out.push({ at: p.impactAt, kind: 'impact', i: Math.max(0, p.eyes.length - 1) });
   out.push({ at: p.endAt, kind: 'end', i: 0 });
@@ -516,15 +551,13 @@ export function almondPoints(hw = EYE_HW, hh = EYE_HH, n = 28): Pt[] {
   return pts;
 }
 
-/** One eye placed on the screen: its centre, its half-width (px), what it looks at, and (sweep) where the beam starts. */
+/** One eye placed on the screen: its centre, its half-width (px), what it looks at. */
 export interface EyeMotion extends EyePlan {
   i: number;
   c: Pt;
   /** Half-width in px. `a / EYE_HW` is its local-to-screen scale. */
   a: number;
   target: Pt;
-  /** Where the gaze first lands (= target, except a sweep, which lands beside it and sweeps on). */
-  sweepFrom: Pt;
   /** Saccade look vectors (-1..1 each), one per dart. */
   looks: Pt[];
   /** The look that finds the target. */
@@ -535,66 +568,74 @@ export interface EyeMotion extends EyePlan {
 
 export interface Bounds { w: number; h: number; margin: number }
 
+/**
+ * Where the cascade's eyes may open, in screen fractions: round the edges and the sky first, then an inner ring. Spread
+ * in this order so each new eye opens somewhere else (left, right, top, low...).
+ */
+const CASCADE_SPOTS: readonly Pt[] = [
+  { x: 0.5, y: 0.1 }, { x: 0.08, y: 0.36 }, { x: 0.92, y: 0.5 }, { x: 0.28, y: 0.12 }, { x: 0.72, y: 0.11 },
+  { x: 0.1, y: 0.68 }, { x: 0.9, y: 0.82 }, { x: 0.38, y: 0.9 }, { x: 0.62, y: 0.9 }, { x: 0.16, y: 0.14 },
+  { x: 0.84, y: 0.2 }, { x: 0.3, y: 0.42 }, { x: 0.7, y: 0.4 }, { x: 0.5, y: 0.62 }, { x: 0.94, y: 0.33 },
+  { x: 0.06, y: 0.88 }, { x: 0.4, y: 0.28 }, { x: 0.6, y: 0.27 }, { x: 0.22, y: 0.88 }, { x: 0.78, y: 0.64 },
+  { x: 0.5, y: 0.82 }, { x: 0.25, y: 0.62 }, { x: 0.75, y: 0.88 }, { x: 0.94, y: 0.12 },
+];
+
 /** Each eye's place on the screen. Pure: the same fight opens the same eyes in the same places. */
 export function eyeMotions(p: FelPlan, a: Pt, d: Pt, aRadius: number, dRadius: number, b: Bounds, c: HeroFelConfig = cfg): EyeMotion[] {
   if (p.reduced) return [];
   const T = felTierDials(p.tier, c);
   const n = p.eyes.length;
-  // The eye opens on the side of the attacker that faces the middle of the screen (above it from the bottom row).
   const up = a.y > b.h * 0.5 ? -1 : 1;
   const towardX = a.x < b.w * 0.5 ? 1 : -1;
-  return p.eyes.map((e, i) => {
-    let half: number;
-    let cx: number, cy: number;
-    if (p.tier === 4) {
-      half = Math.min(b.w * T.EyeSize, b.h * 0.6, aRadius * 3.2);
-      cx = b.w / 2;
-      cy = half * 0.72 + b.margin; // the rift's torn edge clears the top of the screen
-      // Never over the target: a target up in the top band pushes the eye along, away from it.
-      if (Math.abs(d.y - cy) < half * 0.9 + dRadius && Math.abs(d.x - cx) < half * 1.7 + dRadius) {
-        cx = d.x + (d.x > b.w / 2 ? -1 : 1) * (half * 1.7 + dRadius);
-      }
-    } else if (p.tier === 3) {
-      half = aRadius * T.EyeSize;
-      cx = a.x + (b.w / 2 - a.x) * 0.42;
-      cy = a.y + (b.h / 2 - a.y) * 0.42 + up * aRadius * 0.6;
+  const HH = EYE_HH / EYE_HW;
+  const clampC = (x: number, y: number, half: number): Pt => ({
+    x: clamp(x, half + b.margin, Math.max(half + b.margin, b.w - half - b.margin)),
+    y: clamp(y, half * HH + b.margin, Math.max(half * HH + b.margin, b.h - half * HH - b.margin)),
+  });
+  const placed: { c: Pt; a: number }[] = [];
+  const out: EyeMotion[] = [];
+  let spot = 0;
+  p.eyes.forEach((e, i) => {
+    let half = aRadius * T.EyeSize * e.size;
+    let ctr: Pt;
+    if (i === 0) {
+      ctr = n === 1
+        ? clampC(a.x + towardX * aRadius * 0.35, a.y + up * (aRadius + half * 0.75 + 12), half)
+        : clampC(a.x + towardX * aRadius * 0.15, a.y + up * (aRadius + half * 0.7 + 10), half);
+    } else if (i === 1) {
+      // The pair's second eye: out to the attacker's side, toward the middle (their gazes cross on the target).
+      ctr = clampC(a.x + towardX * (aRadius + half * 1.25), a.y + up * half * 0.2, half);
     } else {
-      half = aRadius * T.EyeSize;
-      if (n === 1) {
-        cx = a.x + towardX * aRadius * 0.35;
-        cy = a.y + up * (aRadius + half * 0.75 + 12);
-      } else if (i === 0) {
-        // The pair: one over the attacker, one out to its side toward the middle (their gazes cross on the target).
-        cx = a.x + towardX * aRadius * 0.15;
-        cy = a.y + up * (aRadius + half * 0.7 + 10);
-      } else {
-        cx = a.x + towardX * (aRadius + half * 1.25);
-        cy = a.y + up * half * 0.2;
+      // The cascade: the next free spot round the screen, clear of both portraits and of every eye already open.
+      ctr = { x: -1, y: -1 };
+      half *= 0.8;
+      for (let tries = 0; tries < CASCADE_SPOTS.length; tries++) {
+        const s = CASCADE_SPOTS[spot++ % CASCADE_SPOTS.length]!;
+        const q = clampC(s.x * b.w, s.y * b.h, half);
+        const clear = Math.hypot(q.x - d.x, q.y - d.y) > dRadius * 1.9 + half
+          && Math.hypot(q.x - a.x, q.y - a.y) > aRadius * 1.5 + half
+          && placed.every((o) => Math.hypot(q.x - o.c.x, (q.y - o.c.y) * 1.6) > (o.a + half) * 1.05);
+        if (clear) { ctr = q; break; }
+      }
+      if (ctr.x < 0) {
+        // Crowded (a tiny box): shrink it and take the spot anyway, still on screen.
+        half *= 0.7;
+        const s = CASCADE_SPOTS[spot++ % CASCADE_SPOTS.length]!;
+        ctr = clampC(s.x * b.w, s.y * b.h, half);
       }
     }
-    const hh = half * (EYE_HH / EYE_HW);
-    const ctr = { x: clamp(cx, half + b.margin, Math.max(half + b.margin, b.w - half - b.margin)), y: clamp(cy, hh + b.margin, Math.max(hh + b.margin, b.h - hh - b.margin)) };
+    placed.push({ c: ctr, a: half });
     const v = { x: d.x - ctr.x, y: d.y - ctr.y };
     const L = Math.hypot(v.x, v.y) || 1;
     const lock = { x: (v.x / L) * c.lookReach, y: (v.y / L) * c.lookReach };
-    // Saccades: away from the target first (it searches), then near it.
     const base = [{ x: -0.85, y: -0.35 }, { x: 0.7, y: 0.45 }, { x: -0.3, y: 0.75 }];
     const looks = e.darts.map((_, j) => {
       const q = base[(j + i) % base.length]!;
       return j === e.darts.length - 1 && j > 0 ? { x: lock.x * 0.4 - q.x * 0.2, y: lock.y * 0.4 + q.y * 0.2 } : q;
     });
-    // A sweep lands beside the target (toward the eye's side, across the line of sight) and sweeps onto it.
-    const nrm = { x: -v.y / L, y: v.x / L };
-    // ...on whichever side keeps it on screen (the side nearer the middle).
-    const side = (sg: number): Pt => ({ x: d.x + nrm.x * sg * dRadius * 2.2, y: d.y + nrm.y * sg * dRadius * 2.2 });
-    const mid = { x: b.w / 2, y: b.h / 2 };
-    const far = (q: Pt): number => Math.hypot(q.x - mid.x, q.y - mid.y);
-    const pick = far(side(1)) <= far(side(-1)) ? side(1) : side(-1);
-    const sweepFrom = e.kind === 'sweep'
-      ? { x: clamp(pick.x, b.margin, b.w - b.margin), y: clamp(pick.y, b.margin, b.h - b.margin) }
-      : { ...d };
-    return { ...e, i, c: ctr, a: half, target: { ...d }, sweepFrom, looks, lock, beamR: dRadius };
+    out.push({ ...e, i, c: ctr, a: half, target: { ...d }, looks, lock, beamR: dRadius });
   });
+  return out;
 }
 
 export interface EyePose {
@@ -606,7 +647,7 @@ export interface EyePose {
   look: Pt;
   /** The pupil's width: `slit` (a slit) .. ~0.8 (round, dilated). */
   pupil: number;
-  /** The iris's burn: 0.3 dim .. 1.5 ignited. */
+  /** The iris's burn: 0.3 dim .. 1.3 blazing. */
   glow: number;
   /** The seam's glow while the lids are still shut (0..1). */
   seam: number;
@@ -617,7 +658,7 @@ const ease = (u: number): number => easeOutCubic(u);
 /** Where the eye is at sequence time `t`. Pure. */
 export function eyePose(m: EyeMotion, t: number, c: HeroFelConfig = cfg): EyePose {
   const rift = t < m.riftAt ? 0
-    : t < m.sealAt ? ease((t - m.riftAt) / Math.max(1, c.riftMs))
+    : t < m.sealAt ? ease((t - m.riftAt) / Math.max(1, m.riftMs))
       : 1 - easeInOutSine((t - m.sealAt) / Math.max(1, c.sealMs));
   // The lids: a crack (a slow first 15 %), then they snap open with an overshoot; a squint (the glare) once it locks;
   // a widening flash as the gaze leaves; a fast blink shut.
@@ -633,17 +674,14 @@ export function eyePose(m: EyeMotion, t: number, c: HeroFelConfig = cfg): EyePos
   // The iris: centred while it opens, then saccades (each a fast 70 ms snap), then it finds the target and stays.
   let look: Pt = { x: 0, y: 0 };
   let from: Pt = look;
-  let at = m.openAt;
   const snap = (to: Pt, when: number): void => {
     if (t < when) return;
     const u = ease((t - when) / 70);
     look = { x: from.x + (to.x - from.x) * u, y: from.y + (to.y - from.y) * u };
     from = to;
-    at = when;
   };
   m.darts.forEach((when, j) => snap(m.looks[j] ?? { x: 0, y: 0 }, when));
   snap(m.lock, m.lockAt);
-  void at;
   // The pupil: wide in the dark; it SLAMS to a slit as it locks; a flare as the gaze leaves.
   const breath = 0.04 * Math.sin(t * 0.012 + m.i);
   let pupil = c.dilate + breath;
@@ -651,7 +689,7 @@ export function eyePose(m: EyeMotion, t: number, c: HeroFelConfig = cfg): EyePos
   if (t >= m.fireAt) pupil += 0.14 * Math.exp(-(t - m.fireAt) / 160);
   let glow = 0.35 + 0.25 * clamp01((t - m.openAt) / Math.max(1, m.openMs));
   if (t >= m.lockAt) glow += 0.3 * ease((t - m.lockAt) / 200);
-  if (t >= m.fireAt) glow += m.kind === 'lance' ? 0.6 : 0.3;
+  if (t >= m.fireAt) glow += 0.3;
   if (t >= m.closeAt) glow *= 1 - clamp01((t - m.closeAt) / Math.max(1, m.closeMs));
   const seam = rift * (1 - clamp01(open * 6));
   return { rift, open, look, pupil, glow, seam };
@@ -666,12 +704,11 @@ export function pupilPoint(m: EyeMotion, look: Pt): Pt {
 export interface BeamPose {
   on: boolean;
   from: Pt;
-  /** Where it is aimed right now (the sweep moves it). */
   to: Pt;
   /** Its head and tail along from -> to (0..1). */
   head: number;
   tail: number;
-  /** Its width as a share of the full width (it swells as it lands). */
+  /** Its width as a share of the full width. */
   width: number;
 }
 
@@ -679,22 +716,29 @@ export interface BeamPose {
 export function beamPose(m: EyeMotion, t: number, c: HeroFelConfig = cfg): BeamPose {
   const pose = eyePose(m, t, c);
   const from = pupilPoint(m, pose.look);
+  const to = m.target;
   const travel = Math.max(1, m.hitAt - m.fireAt);
-  let to: Pt = m.kind === 'sweep' ? m.sweepFrom : m.target;
-  if (m.kind === 'sweep' && t >= m.hitAt) {
-    const u = easeInOutSine((t - m.hitAt) / Math.max(1, m.sweepEnd - m.hitAt));
-    to = { x: m.sweepFrom.x + (m.target.x - m.sweepFrom.x) * u, y: m.sweepFrom.y + (m.target.y - m.sweepFrom.y) * u };
-  }
-  const retract = m.kind === 'pulse' ? 160 : m.kind === 'lance' ? 120 : 180;
+  const retract = m.kind === 'pulse' ? 160 : 120;
   if (t < m.fireAt || t >= m.holdUntil + retract) return { on: false, from, to, head: 0, tail: 0, width: 0 };
   const u = clamp01((t - m.fireAt) / travel);
   const head = 0.3 * u + 0.7 * u * u;
   let tail = 0;
   if (m.kind === 'pulse') tail = t < m.hitAt ? Math.max(0, head - 0.55) : 0.45 + 0.55 * ease((t - m.hitAt) / retract);
   else if (t >= m.holdUntil) tail = ease((t - m.holdUntil) / retract);
-  let width = m.kind === 'pulse' ? 0.55 : m.kind === 'hold' ? 0.7 : m.kind === 'sweep' ? 1 : 0.7;
-  if (m.kind === 'lance' && t >= m.hitAt) width = 0.7 + 0.9 * ease((t - m.hitAt) / 140);
+  // A held beam lands thin and swells as it burns (a cascade eye's a little thinner than the pair's).
+  let width = m.kind === 'pulse' ? 0.55 : 0.7 * (0.75 + 0.25 * m.size);
+  if (m.kind === 'hold' && t >= m.hitAt) width *= 0.8 + 0.2 * ease((t - m.hitAt) / 160);
   return { on: true, from, to, head, tail, width };
+}
+
+/**
+ * Where IV's explosion is centred: on the struck portrait, but drawn in toward the middle of the screen when the
+ * portrait sits against an edge (by at most `R * 1.3`), so the climax is never cropped by the corner. Pure.
+ */
+export function explosionCentre(d: Pt, R: number, b: Bounds): Pt {
+  const keep = R * 2.4;
+  const inward = (v: number, max: number): number => (v < keep ? Math.min(keep - v, R * 1.3) : v > max - keep ? -Math.min(v - (max - keep), R * 1.3) : 0);
+  return { x: d.x + inward(d.x, b.w), y: d.y + inward(d.y, b.h) };
 }
 
 // ─── the camera (pure) ─────────────────────────────────────────────────────────────────────────────────────────
@@ -702,15 +746,21 @@ export function beamPose(m: EyeMotion, t: number, c: HeroFelConfig = cfg): BeamP
 const springAt = (ms: number, hz: number, tau: number): number => (ms < 0 ? 0 : Math.exp(-ms / tau) * Math.cos(2 * Math.PI * hz * (ms / 1000)));
 
 /**
- * The camera at sequence time `t`: a push in on the eye as it opens; a kick on the gaze; a punch and a directional
- * shake on THE impact. IV: a rumble building while the target is drawn in, the starburst punching hardest.
+ * The camera at sequence time `t`. A push in as the first eye opens; a kick back on each gaze leaving; a kick ALONG the
+ * gaze on every hit, harder with every eye that joins (the shake ESCALATES); III / IV: a rumble that builds with the
+ * barrage to the blow; on THE impact a punch and a directional shake (IV: the heaviest, with a sharp kick at the blast).
+ * Deterministic. Pure.
  */
 export function felCameraAt(p: FelPlan, c: HeroFelConfig, t: number, dir: Pt = { x: 1, y: 0 }): { zoom: number; x: number; y: number } {
   if (p.reduced || !p.eyes.length) return { zoom: 1, x: 0, y: 0 };
   const e0 = p.eyes[0]!;
   let z = 0;
-  if (t >= p.chargeAt && t < p.impactAt) z += p.zoom * easeInOutSine((t - e0.riftAt) / Math.max(1, e0.lockAt - e0.riftAt));
-  else if (t >= p.impactAt) z += (p.zoom * (p.kind === 'lance' ? 1.8 : 1) + p.punch) * Math.exp(-(t - p.impactAt) / Math.max(1, c.zoomOutMs / 4));
+  if (t >= p.chargeAt && t < p.impactAt) {
+    z += p.zoom * easeInOutSine((t - e0.riftAt) / Math.max(1, e0.lockAt - e0.riftAt));
+    if (p.finale !== 'gaze' && t >= p.landAt) z += p.zoom * 0.5 * easeInOutSine((t - p.landAt) / Math.max(1, p.impactAt - p.landAt));
+  } else if (t >= p.impactAt) {
+    z += (p.zoom * (p.finale === 'explosion' ? 1.6 : 1) + p.punch) * Math.exp(-(t - p.impactAt) / Math.max(1, c.zoomOutMs / 4));
+  }
   let x = 0, y = 0;
   const kick = (at: number, amp: number, tau: number, hz: number, v: Pt): void => {
     const age = t - at;
@@ -720,18 +770,25 @@ export function felCameraAt(p: FelPlan, c: HeroFelConfig, t: number, dir: Pt = {
     x += v.x * amp * s + -v.y * across;
     y += v.y * amp * s + v.x * across;
   };
-  p.eyes.forEach((e) => kick(e.fireAt, -p.shakePx * 0.12, 45, 14, dir));
-  p.hits.forEach((at) => kick(at, p.shakePx * 0.3, 45, 17, dir));
-  if (p.kind === 'lance') {
-    if (t >= p.landAt && t < p.impactAt) {
-      const u = (t - p.landAt) / Math.max(1, p.impactAt - p.landAt);
-      const a = p.shakePx * (0.05 + 0.2 * u * u);
+  p.eyes.slice(0, 2).forEach((e) => kick(e.fireAt, -p.shakePx * 0.1, 45, 14, dir));
+  const nh = Math.max(1, p.hits.length);
+  p.hits.forEach((at, i) => kick(at, p.shakePx * Math.min(0.45, 0.14 + (0.3 * (i + 1)) / nh), 45, 17, dir));
+  if (p.finale !== 'gaze') {
+    // The rumble builds with the barrage: from the first hit to the blow.
+    const first = p.hits.length ? p.hits[0]! : p.landAt;
+    if (t >= first && t < p.impactAt) {
+      const u = clamp01((t - first) / Math.max(1, p.impactAt - first));
+      const a = p.shakePx * (0.03 + (p.finale === 'explosion' ? 0.22 : 0.12) * u * u);
       x += a * Math.sin(t * 0.13);
       y += a * Math.sin(t * 0.17 + 1.1);
     }
+  }
+  if (p.finale === 'explosion') {
+    // THE BLAST: a sharp kick along the blow, then a heavy shake ringing both ways.
+    kick(p.impactAt, p.shakePx * 0.9, 35, 20, dir);
     const age = t - p.impactAt;
     if (age >= 0) {
-      const env = Math.exp(-age / Math.max(1, c.shakeMs / 4));
+      const env = Math.exp(-age / Math.max(1, c.shakeMs / 3));
       x += p.shakePx * 0.8 * env * Math.sin(age * 0.105 + 0.5);
       y += p.shakePx * env * Math.cos(age * 0.093);
     }
@@ -741,12 +798,12 @@ export function felCameraAt(p: FelPlan, c: HeroFelConfig, t: number, dir: Pt = {
   return { zoom: 1 + Math.max(0, z), x, y };
 }
 
-/** Where the camera anchors: the EYE while it opens and seeks, sliding to the TARGET as the gaze lands. Pure. */
+/** Where the camera anchors: the first EYES while they open, sliding to the TARGET as the gazes land. Pure. */
 export function felCameraFocus(p: FelPlan, t: number, eye: Pt, d: Pt): Pt {
   if (p.reduced || !p.eyes.length) return d;
-  const e = p.eyes[p.eyes.length - 1]!;
+  const e = p.eyes[Math.min(1, p.eyes.length - 1)]!;
   if (t <= e.fireAt) return eye;
-  if (t >= p.landAt) return d;
-  const u = easeInOutSine((t - e.fireAt) / Math.max(1, p.landAt - e.fireAt));
+  if (t >= e.hitAt) return d;
+  const u = easeInOutSine((t - e.fireAt) / Math.max(1, e.hitAt - e.fireAt));
   return { x: eye.x + (d.x - eye.x) * u, y: eye.y + (d.y - eye.y) * u };
 }

@@ -27,7 +27,7 @@ import type { HeroAttackHandle, HeroAttackOptions } from '../heroAttack/options'
 import { Sequence } from '../heroAttack/sequence';
 import { heroFxCanvas, PortraitMover, StageCamera } from '../heroAttack/stageCamera';
 import {
-  eyeMotions, felCameraAt, felCameraFocus, felCues, felPlan, getHeroFelConfig,
+  explosionCentre, eyeMotions, felCameraAt, felCameraFocus, felCues, felPlan, getHeroFelConfig,
   type EyeMotion, type FelCue, type FelPlan, type HeroFelConfig,
 } from './heroFelConfig';
 import { HeroFelScene, type HeroFelTextures } from './heroFelScene';
@@ -73,8 +73,9 @@ export function playHeroFel(o: HeroFelOptions): HeroFelHandle {
   const screen = Math.max(vw, vh);
   const eyes = eyeMotions(plan, o.attacker, o.defender, aRadius * (local ? 0.7 : 1), radius, { w: vw, h: vh, margin: 10 * s * px }, c);
   const d = o.defender;
-  const eyeAt: Pt = eyes.length
-    ? { x: eyes.reduce((t, e) => t + e.c.x, 0) / eyes.length, y: eyes.reduce((t, e) => t + e.c.y, 0) / eyes.length }
+  const pair = eyes.slice(0, 2);
+  const eyeAt: Pt = pair.length
+    ? { x: pair.reduce((t, e) => t + e.c.x, 0) / pair.length, y: pair.reduce((t, e) => t + e.c.y, 0) / pair.length }
     : o.attacker;
   const dir = (() => { const L = Math.hypot(d.x - eyeAt.x, d.y - eyeAt.y) || 1; return { x: (d.x - eyeAt.x) / L, y: (d.y - eyeAt.y) / L }; })();
 
@@ -111,6 +112,14 @@ export function playHeroFel(o: HeroFelOptions): HeroFelHandle {
   ]);
   const real = (ms: number): number => ms / speed;
   const big = plan.tier >= 3;
+  const finale = plan.finale;
+  // The cascade's eyes (III / IV, past the opening pair) are quieter, shorter performances: the barrage builds in
+  // rhythm instead of stacking a dozen full-volume cues.
+  const lead = (i: number): boolean => i < 2;
+  // IV: the explosion is centred on the struck portrait, drawn in from an edge so the corner never crops it.
+  const blast = explosionCentre(d, radius, { w: vw, h: vh, margin: 0 });
+  scene?.setTarget(d.x, d.y, radius);
+  let hitStep = 0;
 
   const fire = (q: FelCue | FormationCue): void => {
     if (q.kind === 'form') { nums.fire(fplan.beats[q.i]!); return; }
@@ -121,7 +130,11 @@ export function playHeroFel(o: HeroFelOptions): HeroFelHandle {
         cam.start();
         break;
       case 'rift':
-        cue(c.sfxRiftClip, c.sfxRiftGain * (big ? 1.2 : 1), c.sfxRiftRate - (big ? 0.1 : 0), { lenMs: 1000, fadeMs: 380 });
+        if (lead(q.i)) {
+          cue(c.sfxRiftClip, c.sfxRiftGain * (big ? 1.2 : 1), c.sfxRiftRate - (big ? 0.1 : 0), { lenMs: 1000, fadeMs: 380 });
+        } else {
+          cue(c.sfxRiftClip, c.sfxRiftGain * 0.45, c.sfxRiftRate + 0.04 * Math.min(10, q.i), { lenMs: 450, fadeMs: 200 });
+        }
         if (sound && q.i === 0) {
           const e = plan.eyes[0]!;
           voices.keep(playSwirlTone('attack', { gain: c.sfxHumGain * (big ? 1.3 : 1), buildMs: real(e.fireAt - e.riftAt), lowHz: c.sfxHumLowHz, highHz: c.sfxHumHighHz }));
@@ -129,41 +142,51 @@ export function playHeroFel(o: HeroFelOptions): HeroFelHandle {
         scene?.rift(q.i);
         break;
       case 'open':
-        cue(c.sfxOpenClip, c.sfxOpenGain * (big ? 1.5 : 1), c.sfxOpenRate - (plan.tier === 4 ? 0.2 : 0), { lenMs: plan.tier === 4 ? 1200 : 700, fadeMs: 300 });
+        if (lead(q.i)) cue(c.sfxOpenClip, c.sfxOpenGain * (big ? 1.3 : 1), c.sfxOpenRate, { lenMs: 700, fadeMs: 300 });
         scene?.opened(q.i);
         break;
       case 'dart':
-        cue(c.sfxDartClip, c.sfxDartGain, c.sfxDartRate + 0.08 * (q.j ?? 0), { lenMs: 200, fadeMs: 80 });
+        if (lead(q.i)) cue(c.sfxDartClip, c.sfxDartGain, c.sfxDartRate + 0.08 * (q.j ?? 0), { lenMs: 200, fadeMs: 80 });
         break;
       case 'lock':
-        cue(c.sfxLockClip, c.sfxLockGain * (big ? 1.3 : 1), c.sfxLockRate, { lenMs: 700, fadeMs: 250 });
-        if (sound && plan.kind === 'lance' && q.i === 0) {
-          voices.keep(playRumble('attack', { gain: c.sfxRumbleGain, buildMs: real(plan.impactAt - plan.eyes[0]!.lockAt), holdMs: real(60), tailMs: real(900), lowHz: 45, highHz: 900 }));
+        cue(c.sfxLockClip, c.sfxLockGain * (lead(q.i) ? (big ? 1.2 : 1) : 0.45), c.sfxLockRate + (lead(q.i) ? 0 : 0.05 * Math.min(10, q.i)), { lenMs: 600, fadeMs: 250 });
+        if (sound && finale !== 'gaze' && q.i === 0) {
+          voices.keep(playRumble('attack', {
+            gain: c.sfxRumbleGain * (finale === 'explosion' ? 1.2 : 0.7), buildMs: real(plan.impactAt - plan.eyes[0]!.lockAt), holdMs: real(60), tailMs: real(1000),
+            lowHz: 40, highHz: 900,
+          }));
         }
-        scene?.locked(q.i, plan.kind === 'lance');
+        scene?.locked(q.i);
         break;
       case 'fire':
-        cue(c.sfxGazeClip, c.sfxGazeGain * (big ? 1.2 : 1), c.sfxGazeRate + 0.06 * q.i - (plan.tier === 4 ? 0.12 : 0), { lenMs: 1000, fadeMs: 320 });
+        cue(c.sfxGazeClip, c.sfxGazeGain * (lead(q.i) ? (big ? 1.15 : 1) : 0.55), c.sfxGazeRate + 0.05 * Math.min(12, q.i), { lenMs: lead(q.i) ? 1000 : 500, fadeMs: 260 });
         scene?.fired(q.i);
         break;
       case 'hit': {
-        cue(c.sfxHitClip, c.sfxHitGain, c.sfxHitRate, { lenMs: 600, fadeMs: 240 });
+        // A gaze lands before the blow: FX and a hit, its pitch climbing with every eye (the barrage building).
+        cue(c.sfxHitClip, c.sfxHitGain * (hitStep < 3 ? 1 : 0.6), c.sfxHitRate + Math.min(0.5, 0.04 * hitStep), { lenMs: 500, fadeMs: 220 });
         const e = eyes[q.i];
-        scene?.impact(d.x, d.y, radius, { size: 0.8, big: false, dir: e ? unit(e.c, d) : dir, flashAlpha: c.flashAlpha });
+        scene?.impact(d.x, d.y, radius, { size: lead(q.i) ? 0.8 : 0.6, big: false, dir: e ? unit(e.c, d) : dir, flashAlpha: c.flashAlpha * (lead(q.i) ? 1 : 0.7) });
+        hitStep++;
         break;
       }
       case 'land':
-        // IV: the lance lands and holds; the target is drawn in; a riser lands its climax on the starburst.
-        voices.riser(c.sfxImplodeClip, c.sfxImplodeGain, c.sfxImplodeRate, real(plan.impactAt - plan.landAt));
-        cue(c.sfxHitClip, c.sfxHitGain, c.sfxHitRate - 0.15, { lenMs: 600, fadeMs: 240 });
+        // Every gaze is on the target: the barrage builds (closing rings, motes drawn in) to the blow; a riser lands its
+        // climax on it.
+        voices.riser(c.sfxImplodeClip, c.sfxImplodeGain * (finale === 'explosion' ? 1 : 0.7), c.sfxImplodeRate, real(plan.impactAt - plan.landAt));
         scene?.drawIn(d.x, d.y, radius, plan.impactAt - plan.landAt);
         break;
       case 'impact':
-        if (plan.kind === 'lance') {
-          cue(c.sfxBurstClip, c.sfxBurstGain, c.sfxBurstRate, { tail: c.sfxTailMix, lenMs: c.sfxImpactLenMs, fadeMs: 450 });
-          cue(c.sfxBlastClip, c.sfxBlastGain * 1.2, c.sfxBlastRate - 0.08, { tail: c.sfxTailMix, lenMs: c.sfxImpactLenMs, fadeMs: 450 });
-          cue(c.sfxImpactClip, c.sfxImpactGain, c.sfxImpactRate - 0.1, { lenMs: 900, fadeMs: 300 });
-          scene?.starburst(d.x, d.y, radius, { burst: plan.burst, flashAlpha: c.flashAlpha, screen });
+        if (finale === 'explosion') {
+          cue(c.sfxBurstClip, c.sfxBurstGain * 1.1, c.sfxBurstRate - 0.05, { tail: c.sfxTailMix, lenMs: c.sfxImpactLenMs, fadeMs: 450 });
+          cue(c.sfxBlastClip, c.sfxBlastGain * 1.3, c.sfxBlastRate - 0.12, { tail: c.sfxTailMix, lenMs: c.sfxImpactLenMs, fadeMs: 450 });
+          cue(c.sfxImpactClip, c.sfxImpactGain, c.sfxImpactRate - 0.12, { lenMs: 900, fadeMs: 300 });
+          scene?.explosion(blast.x, blast.y, radius, { burst: plan.burst, flashAlpha: c.flashAlpha, screen, roomAbove: blast.y - radius * 4 > 0 });
+        } else if (finale === 'impact') {
+          cue(c.sfxImpactClip, c.sfxImpactGain * 1.1, c.sfxImpactRate - 0.05, { lenMs: 900, fadeMs: 300 });
+          cue(c.sfxBlastClip, c.sfxBlastGain * 1.1, c.sfxBlastRate - 0.05, { tail: c.sfxTailMix, lenMs: c.sfxImpactLenMs, fadeMs: 400 });
+          cue(c.sfxBurstClip, c.sfxBurstGain * 0.5, c.sfxBurstRate + 0.1, { lenMs: 700, fadeMs: 260 });
+          scene?.impact(d.x, d.y, radius, { size: 1.8, big: true, dir, flashAlpha: c.flashAlpha });
         } else {
           cue(c.sfxImpactClip, c.sfxImpactGain * (0.85 + 0.05 * plan.tier), c.sfxImpactRate, { lenMs: 900, fadeMs: 300 });
           cue(c.sfxBlastClip, c.sfxBlastGain * (0.75 + 0.08 * plan.tier), c.sfxBlastRate, { tail: c.sfxTailMix, lenMs: c.sfxImpactLenMs, fadeMs: 400 });
@@ -172,7 +195,8 @@ export function playHeroFel(o: HeroFelOptions): HeroFelHandle {
         seq.land();
         break;
       case 'close':
-        cue(c.sfxCloseClip, c.sfxCloseGain, c.sfxCloseRate, { lenMs: 250, fadeMs: 100 });
+        // III / IV: every eye snaps shut together, so the blink is heard once.
+        if (finale === 'gaze' || q.i === 0) cue(c.sfxCloseClip, c.sfxCloseGain * (finale === 'gaze' ? 1 : 1.6), c.sfxCloseRate, { lenMs: 250, fadeMs: 100 });
         scene?.closed(q.i);
         break;
       case 'seal':
@@ -186,15 +210,15 @@ export function playHeroFel(o: HeroFelOptions): HeroFelHandle {
   const paintStage = (t: number): void => {
     if (plan.reduced) return;
     const e0 = plan.eyes[0]!;
-    nums.paintDim(t, e0.riftAt, e0.lockAt, plan.impactAt + (plan.kind === 'lance' ? 420 : 260));
+    nums.paintDim(t, e0.riftAt, e0.lockAt, plan.impactAt + (finale === 'gaze' ? 260 : 420));
     const cm = felCameraAt(plan, c, t, dir);
     cam.apply(felCameraFocus(plan, t, eyeAt, d), cm.zoom, cm.x, cm.y, local ? 1 : s);
     if (hero.el && t >= plan.chargeAt) {
-      // The summoner swells as the eye opens (it is calling it), and is jolted back as the gaze leaves.
+      // The summoner swells as the first eye opens (it is calling it), and is jolted back as the gazes leave.
       let sc = 1 + c.heroSwell * easeInOutSine((t - e0.riftAt) / Math.max(1, e0.lockAt - e0.riftAt));
       if (t >= e0.fireAt) sc = 1 + c.heroSwell * Math.max(0, spring(t - e0.fireAt, 4, 80));
       let bx = 0, by = 0;
-      for (const e of plan.eyes) {
+      for (const e of plan.eyes.slice(0, 2)) {
         const k = e.fireAt <= t ? Math.max(0, spring(t - e.fireAt, 3.5, 55)) : 0;
         bx -= dir.x * 6 * px * k; by -= dir.y * 6 * px * k;
       }
@@ -202,11 +226,11 @@ export function playHeroFel(o: HeroFelOptions): HeroFelHandle {
     }
     if (foe.el) {
       let css: string | null = null;
-      if (plan.kind === 'lance' && t >= plan.landAt && t < plan.impactAt) {
-        // Drawn in: it shrinks toward the collapse and trembles harder (the clock never stops).
+      if (finale !== 'gaze' && t >= plan.landAt && t < plan.impactAt) {
+        // Pinned under every gaze: it trembles harder and is pressed smaller as the barrage builds (the clock runs on).
         const u = clamp01((t - plan.landAt) / Math.max(1, plan.impactAt - plan.landAt));
-        const a = (0.5 + 3 * u * u) * px;
-        css = `translate(${(a * Math.sin(t * 0.47)).toFixed(2)}px, ${(a * Math.sin(t * 0.53)).toFixed(2)}px) scale(${(1 - 0.1 * u * u).toFixed(4)})`;
+        const a = (0.6 + (finale === 'explosion' ? 3.2 : 2) * u * u) * px;
+        css = `translate(${(a * Math.sin(t * 0.47)).toFixed(2)}px, ${(a * Math.sin(t * 0.53)).toFixed(2)}px) scale(${(1 - 0.08 * u * u).toFixed(4)})`;
       } else if (t >= plan.impactAt) {
         const k = spring(t - plan.impactAt, 4.5, 90);
         const knock = c.knockPx * (0.7 + 0.4 * plan.k) * k * px;
@@ -216,6 +240,7 @@ export function playHeroFel(o: HeroFelOptions): HeroFelHandle {
       } else if (plan.hits.length && t >= plan.hits[0]!) {
         let k = 0;
         for (const at of plan.hits) k += Math.max(0, spring(t - at, 6, 45)) * (at <= t ? 1 : 0);
+        k = Math.min(2, k);
         css = k < 0.004 ? null : `translate(${(dir.x * k * 6 * px).toFixed(2)}px, ${(dir.y * k * 6 * px).toFixed(2)}px)`;
       }
       foe.set(css);

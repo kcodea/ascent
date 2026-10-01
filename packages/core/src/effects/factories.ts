@@ -4304,8 +4304,8 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
    *  the printed text says "another"). Golden doubles. */
   /** Set 2 — Impossible Todd / Leech / Axeman: react whenever a FRIENDLY Demon deals combat damage
    *  (attack, retaliation, or incidental; a Ward-absorbed 0-damage hit never fires the event). Gains `attack`/
-   *  `health` on self, and optionally grants your Imps `impAttack`/`impHealth` run-wide (`grantImpBuff` carries
-   *  back to RunState.impBuff — "this game"). The emit already guaranteed the dealer is a Demon; we just
+   *  `health` on self, and optionally grants your Imps `impAttack`/`impHealth` as an aura: every living Imp now,
+   *  plus run-wide via `grantImpBuff` (carries back to RunState.impBuff — "this game"). The emit already guaranteed the dealer is a Demon; we just
    *  confirm it's on our side. `self` MAY be the dealer (a Demon reacting to its own damage counts). */
   onFriendlyDemonDamageBuffSelf: (ctx, self, params, payload) => {
     if (self.dead) return;
@@ -4324,7 +4324,15 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     }
     const ia = num(params.impAttack, 0) * mul(self);
     const ih = num(params.impHealth, 0) * mul(self);
-    if (ia || ih) ctx.grantImpBuff(ia, ih, self.side);
+    if (ia || ih) {
+      // "Give your Imps +2/+1 this game" is an AURA (owner bug 2026-09-30: "they receive the buff everywhere"):
+      // the Imps ALREADY on the field get it right now, in real time, and `grantImpBuff` raises the side's live
+      // Imp Aura (later summons inherit it) and carries it back to RunState.impBuff (board / hand / future Imps).
+      // The same pair Brood Matron / Commander Impala use. A living Imp is buffed once here; the aura only
+      // reaches NEW bodies, so it is never paid twice.
+      for (const m of ctx.living(self.side)) if (ctx.getCard(m.cardId)?.imp) ctx.buff(m, ia, ih, self.uid);
+      ctx.grantImpBuff(ia, ih, self.side);
+    }
   },
 
   /** Set 2 — Kobe (Start of Combat): play `count` PERMANENT Rubies on this minion AND each living adjacent

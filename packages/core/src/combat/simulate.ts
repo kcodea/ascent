@@ -614,8 +614,11 @@ export function simulate(
   const applyAuras = (m: Minion, fromBase: boolean): void => {
     const isPlayer = m.side === 'player';
     // Imp Aura is SIDE-SCOPED, so it applies to both sides' Imps — an enemy Imp King's buff reaches enemy Imps
-    // summoned later, exactly like the player's. (Applied regardless of `fromBase`: it's all live, none baked.)
-    if (cards[m.cardId]?.imp) {
+    // summoned later, exactly like the player's. BAKED, like the Beast/Attachment auras: the shop writes it into a
+    // run-board Imp's stored stats (`buffImpsRunWide`, the recruit summon, the post-combat carry-back), so it is
+    // re-added only to a from-base body (summon / Reborn). Re-adding it to a starting Imp paid it twice (bug
+    // 2026-09-30: a 4/4 board Imp under a +3/+3 aura entered combat at 7/7).
+    if (fromBase && cards[m.cardId]?.imp) {
       const ia = impAura[m.side];
       if (ia.attack > 0) m.attack = Math.max(0, m.attack + ia.attack);
       if (ia.health > 0) { m.health += ia.health; m.maxHealth += ia.health; }

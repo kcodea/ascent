@@ -130,6 +130,23 @@ describe('perfMonitor warm-up — the spike is diverted, not dropped', () => {
     expect(perfMonitor.startups()[0]!.frames).toBe(5);
   });
 
+  it('a hidden tab is not a spike: the interval that spans it is reported as hiddenMs, not as the worst frame', () => {
+    // The owner's 2026-09-30 capture opened with an 18,280 ms `start` "spike" and an 8,254 ms combat one: rAF
+    // does not run in a background tab, so the first frame back carried the whole absence.
+    perfMonitor.setWarmup({ ms: 100, frames: 10 });
+    perfMonitor.start();
+    frames(5, 4);
+    const hidden = vi.spyOn(document, 'hidden', 'get').mockReturnValue(true);
+    document.dispatchEvent(new Event('visibilitychange'));
+    hidden.mockReturnValue(false);
+    frame(18_280);
+    frames(10, 4);
+    const s = perfMonitor.startups()[0]!;
+    expect(s.worst).toBe(4);
+    expect(s.hiddenMs).toBe(18_280);
+    expect(s.frames, 'the hidden interval is not a presented frame').toBe(10);
+  });
+
   it('beginWarmup is inert while stopped, and setWarmup persists', () => {
     perfMonitor.beginWarmup('combat');
     expect(perfMonitor.warmupState().active).toBe(false);

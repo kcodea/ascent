@@ -8,13 +8,14 @@ import type { FxDef, FxSlot } from './def';
 import type { StoredFxDef, StoredFxLayer } from './defStore';
 import { anchorsForUnits, unitSelector } from './combatAnchors';
 import { getDef, listDefs } from './fxDefs';
-import { admitPlay, culledTotal, expectedLoad, fxScene, livePlaysSnapshot, registerLivePlay } from './fxBudget';
+import { admit, culledTotal, expectedLoad, fxScene, livePlaysSnapshot, rampMsOf, registerLivePlay, thinDef } from './fxBudget';
 import { getFxBudgetConfig, resetFxBudgetConfig, setFxBudgetValue } from './fxBudgetConfig';
 import { fxPoolSize } from './fxRuntime';
 import { createPlayer } from './player';
 import { playLifetimeMs } from './playLifetime';
 import { hasPrimitives } from './registry';
 import { scaleDef, type FxScaleAxes } from './scaleDef';
+import { joinFilterGroup, sharedFilterParams, stripFilters, type FilterGroupSeat } from './sharedFilters';
 import { stageScale } from '../stage';
 import type { FxHeadSink } from './anchors';
 import { recolorDef } from './recolorDef';
@@ -140,6 +141,14 @@ export interface PlayDefOptions extends FxScaleAxes {
    * `follow` implies a caller-owned lifetime, so pair it with `loop` (or your own `retire` call).
    */
   follow?: () => { x: number; y: number } | null;
+  /**
+   * SHARE THE DEF'S FILTERS with every other live play of the same def that passes the same key (perf report
+   * 2026-09-30, `sharedFilters.ts`): the plays draw with their per-layer filters off, inside one group container
+   * that carries the filters once, so N plays cost one pass per filter instead of N (times the cycles a seamless
+   * loop keeps draining). Only for many simultaneous, spatially separate plays of one def with time-invariant
+   * filters (the milestone-badge loops); a def whose filters animate is declined and plays as before.
+   */
+  shareFilters?: string;
   /**
    * A per-frame TARGET anchor for a one-shot whose destination may move during the flight — King Oona's banana
    * landing where a summoned Beast ENDS UP while later summons keep sliding it over (owner 2026-09-24). Only
@@ -583,18 +592,35 @@ function playDefInner(
   // Per-call sizing, applied AFTER `getDef` — `scaleDef` reads the primitive registry, and nothing may do
   // that before `playDef`'s own `canPlayDefs()`-gated path (see `fxDefs.ts`'s ORDER MATTERS note). With both
   // axes at their default 1 this returns `playableDef`'s object by identity: an exact no-op.
-  const def = gainScaledDef(staggerLayers(recolorDef(scaleDef(playableDef(stored), opts), opts.recolor, { glow: opts.recolorGlow }), opts.index ?? 0), opts.gain, opts.muteSound);
-  const layers = def.layers;
+  const sized = gainScaledDef(staggerLayers(recolorDef(scaleDef(playableDef(stored), opts), opts.recolor, { glow: opts.recolorGlow }), opts.index ?? 0), opts.gain, opts.muteSound);
   // Every layer muted = an effect that renders nothing. Declining is cheaper and more honest than mounting
   // a container and running an updater for a guaranteed-empty play.
-  if (layers.length === 0) return null;
+  if (sized.layers.length === 0) return null;
 
   // THE BUDGET (see `fxBudget.ts`): make room BEFORE this play exists, so it is never its own victim. Over a
   // cap, the OLDEST play of this same def is retired first — a pile-up pays for itself — then the oldest of
   // any def. Under the caps (every normal moment) this is two counter reads and a Map-free scan of a short
   // array, and nothing is touched. The load is taken off the post-`scaleDef` def, so `intensity` is in it.
-  const load = expectedLoad(def);
-  admitPlay(id, load);
+  // A loop / follow play is a caller-owned persistent treatment and keeps its authored density; every other play
+  // may be THINNED when a same-frame fan would blow the cap (`admit`'s `particleScale` — fewer particles, same
+  // effect, nothing cut).
+  const persistent = opts.loop === true || opts.follow !== undefined || stored.followSource === true;
+  // SHARED FILTERS (`opts.shareFilters`, `sharedFilters.ts`): the def's time-invariant filters move to one
+  // group container shared by every play of this def + key; this play draws with its own filters off.
+  let filterSeat: FilterGroupSeat | null = null;
+  let shared = sized;
+  if (opts.shareFilters) {
+    const fp = sharedFilterParams(sized);
+    if (fp) {
+      filterSeat = joinFilterGroup(`${sized.id}|${opts.shareFilters}`, slot, fp, (c, s) => pixiFx.mountLayer(c, s));
+      if (filterSeat) shared = stripFilters(sized);
+    }
+  }
+  const admissionLoad = expectedLoad(shared);
+  const admission = admit(id, admissionLoad, { thinnable: !persistent });
+  const def = admission.particleScale < 1 ? thinDef(shared, admission.particleScale) : shared;
+  const layers = def.layers;
+  const load = def === shared ? admissionLoad : expectedLoad(def);
 
   // A def can author "ride my source" (`FxDef.followSource`) instead of the caller passing a per-frame
   // `follow`. An explicit `opts.follow` still wins; otherwise, when the def opts in AND a source uid was
@@ -610,7 +636,10 @@ function playDefInner(
   // uniformly smaller. `s === 1` (desktop) is the identity: no scale, the player itself is the sink.
   const k = stageScale();
   if (k !== 1) container.scale.set(k);
-  const unmountLayer = pixiFx.mountLayer(container, slot);
+  const seat = filterSeat;
+  const unmountLayer = seat
+    ? (seat.host.addChild(container), (): void => { container.removeFromParent(); seat.release(); })
+    : pixiFx.mountLayer(container, slot);
   const player = createPlayer(
     def,
     { container, renderer, uids: opts.uids },
@@ -657,6 +686,7 @@ function playDefInner(
   // `onDone` is being sequenced on, so none of the three may be trimmed (see `fxBudget.ts`'s header).
   unregisterPlay = registerLivePlay({
     id, load, retire, protected: opts.loop === true || follow !== undefined || opts.onDone !== undefined,
+    bornAt: performance.now(), rampMs: rampMsOf(def),
   });
 
   // `fx:def:<id>` — the def's PER-FRAME cost (its layers' sims + filter retunes), as distinct from the spawn

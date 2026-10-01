@@ -2,7 +2,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { pixiFx } from '../pixiFx';
 import { perfMonitor } from '../perfMonitor';
 import {
+  admit,
   admitPlay,
+  MIN_PARTICLE_SCALE,
+  rampMsOf,
+  thinDef,
   culledTotal,
   expectedLoad,
   fxScene,
@@ -29,7 +33,7 @@ import type { StoredFxDef } from './defStore';
  * primitive, so the spawn-time hook, the registration and the retire-on-trim are exercised for real.
  */
 
-const CFG: FxBudgetConfig = { maxParticles: 1000, maxPerDef: 3, maxFilters: 8, maxParticlesDiscover: 400 };
+const CFG: FxBudgetConfig = { maxParticles: 1000, maxPerDef: 3, maxFilters: 8, maxParticlesDiscover: 400, maxParticlesShop: 600 };
 
 /** A registry-backed reader: the "live" totals are the sum of what is registered, which is what the pool
  *  would report once every play's layers are acquired. */
@@ -320,5 +324,85 @@ describe('the Discover scene cap', () => {
     expect(admitPlay('c', { particles: 300, filters: 0 }, CFG, registryReaders(live))).toBe(2);
     setFxScene(null);
     expect(fxScene()).toBeNull();
+  });
+});
+
+/**
+ * PENDING LOAD + THINNING (perf report 2026-09-30). The owner's capture peaked at 8,661 live particles in a shop
+ * second; on the dev build a same-frame fan of 7 x `shop-buff-purple` reached 6,993 against the 4,000 cap with
+ * `fx:culled` at 0, because every sibling read the pool before any of them had emitted. These pin the fix: a
+ * play still ramping counts at its expected load, is never a victim, and a fan that cannot fit is THINNED.
+ */
+describe('admit — pending load and thinning (the 2026-09-30 particle blow-up)', () => {
+  /** A play that has emitted NOTHING yet (born at `now`, still ramping) — the pool cannot see it. */
+  function pendingPlay(id: string, particles: number, now: number, prot = false): FxLivePlay {
+    const p: FxLivePlay = { id, load: { particles, filters: 0 }, protected: prot, retire: () => {}, bornAt: now, rampMs: 300 };
+    registerLivePlay(p);
+    return p;
+  }
+  const emptyPool = (now: number): FxBudgetReaders => ({ liveParticles: () => 0, activeFilters: () => 0, now: () => now });
+
+  it('a same-frame fan can never exceed the cap: siblings count while pending and the overflow is thinned', () => {
+    const now = 1000;
+    let committed = 0;
+    for (let i = 0; i < 7; i++) {
+      const { particleScale } = admit('shop-buff-purple', { particles: 300, filters: 0 }, {}, { ...CFG, maxPerDef: 24 }, emptyPool(now), null);
+      const spawned = Math.round(300 * particleScale);
+      pendingPlay('shop-buff-purple', spawned, now);
+      committed += spawned;
+    }
+    // 7 x 300 = 2,100 authored against a 1,000 cap: every play still fires, the total stays at the cap plus at most
+    // the floor-thinned tail (the floor keeps a play recognisable even when the cap is full).
+    expect(committed).toBeLessThanOrEqual(1000 + 4 * Math.round(300 * MIN_PARTICLE_SCALE));
+    expect(committed).toBeLessThan(2100);
+  });
+
+  it('never trims a pending play (it is the moment landing now); an emitted old play still goes first', () => {
+    const now = 5000;
+    const live: FxLivePlay[] = [];
+    const old = play(live, 'old', 600);                // registered without a ramp → already emitted
+    const fresh = pendingPlay('fresh', 300, now);       // fired this frame
+    const readers: FxBudgetReaders = { liveParticles: () => 600, activeFilters: () => 0, now: () => now };
+    const r = admit('incoming', { particles: 300, filters: 0 }, {}, CFG, readers, null);
+    expect(r.trimmed).toBe(1);
+    expect(old.retired()).toBe(true);
+    expect(livePlayCount('fresh')).toBe(1);
+    void fresh;
+  });
+
+  it('a play under the cap spawns as authored; a non-thinnable (loop/follow) play is never thinned', () => {
+    expect(admit('a', { particles: 200, filters: 0 }, {}, CFG, emptyPool(0), null).particleScale).toBe(1);
+    pendingPlay('big', 950, 0);
+    expect(admit('b', { particles: 200, filters: 0 }, { thinnable: false }, CFG, emptyPool(0), null).particleScale).toBe(1);
+    expect(admit('c', { particles: 200, filters: 0 }, {}, CFG, emptyPool(0), null).particleScale).toBeLessThan(1);
+  });
+
+  it('the shop scene carries its own, lower cap', () => {
+    expect(particleCapFor(CFG, 'shop')).toBe(600);
+    expect(particleCapFor({ ...CFG, maxParticlesShop: 5000 }, 'shop')).toBe(1000);
+  });
+
+  it('rampMsOf: latest burst `at`, emitter `at + life`, plus a frame of grace; 0 for a particle-free def', () => {
+    expect(rampMsOf({ layers: [{ primitive: 'burst', at: 110, params: { count: 10 } }, { primitive: 'burst', at: 0, params: { count: 5 } }] })).toBe(152);
+    expect(rampMsOf({ layers: [{ primitive: 'emitter', at: 20, params: { rate: 60, life: 500 } }] })).toBe(562);
+    expect(rampMsOf({ layers: [{ primitive: 'ribbon', at: 0, params: {} }] })).toBe(0);
+  });
+
+  it('thinDef scales burst count and emitter/smoke rate only, and is the identity at 1', () => {
+    const def = {
+      id: 'x', duration: 600,
+      layers: [
+        { primitive: 'burst', anchor: 'target', at: 0, params: { count: 200, size: 9 } },
+        { primitive: 'emitter', anchor: 'target', at: 0, params: { rate: 100, life: 400 } },
+        { primitive: 'ribbon', anchor: 'target', at: 0, params: { width: 4 } },
+      ],
+    } as unknown as Parameters<typeof thinDef>[0];
+    expect(thinDef(def, 1)).toBe(def);
+    const t = thinDef(def, 0.5);
+    expect((t.layers[0]!.params as Record<string, number>).count).toBe(100);
+    expect((t.layers[0]!.params as Record<string, number>).size).toBe(9);
+    expect((t.layers[1]!.params as Record<string, number>).rate).toBe(50);
+    expect(t.layers[2]).toBe(def.layers[2]);
+    expect(expectedLoad(t).particles).toBe(100 + 20);
   });
 });

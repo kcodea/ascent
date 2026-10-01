@@ -97,6 +97,10 @@ export interface PerfStartup {
   hz: number;
   /** Measured spans that landed inside the warm-up — the shader link, the first `layout:flip`, … */
   timings: Record<string, { n: number; total: number; max: number }>;
+  /** Wall clock the tab spent HIDDEN inside this warm-up (2026-09-30). rAF does not run in a background tab, so
+   *  the first frame back used to carry the whole absence as one "frame" (the 18,280 ms `start` spike in the
+   *  owner's 33-minute capture); those intervals are left out of `worst` / `p95` and reported here instead. */
+  hiddenMs?: number;
 }
 
 /** The live warm-up state, for the HUD. `remainingMs` / `framesLeft` are what still has to elapse. */
@@ -359,6 +363,8 @@ class PerfMonitor {
     reason: string; startedAt: number; until: number; framesLeft: number;
     phase?: string; wave?: number;
     timings: Map<string, { n: number; total: number; max: number }>;
+    /** Intervals that spanned a hidden tab — excluded from the frames, summed here. */
+    hiddenMs: number;
   } | null = null;
   private warmFrames = new Float32Array(0);
   private nWarmFrames = 0;
@@ -609,6 +615,7 @@ class PerfMonitor {
       ...(ctx.phase !== undefined ? { phase: ctx.phase } : {}),
       ...(ctx.wave !== undefined ? { wave: ctx.wave } : {}),
       timings: new Map(),
+      hiddenMs: 0,
     };
     this.nWarmFrames = 0;
   }
@@ -645,6 +652,7 @@ class PerfMonitor {
       worst: stats.worst, p95: stats.p95, long: stats.long, jank: stats.jank,
       hz: thresholds.refreshHz,
       timings,
+      ...(w.hiddenMs > 0 ? { hiddenMs: Math.round(w.hiddenMs) } : {}),
     });
     if (this.startupList.length > 200) this.startupList.shift();
   }
@@ -695,6 +703,7 @@ class PerfMonitor {
     this.t0 = performance.now();
     this.lastFrame = this.t0;
     this.bucketStart = this.t0;
+    this.hiddenSinceFrame = false;
     // The monitor's own start is a phase start: page load / module eval / first paint is the biggest spike
     // of all, and the one every capture used to open with.
     this.beginWarmup('start');
@@ -728,7 +737,11 @@ class PerfMonitor {
     for (const type of EVENT_RING_TYPES) document.removeEventListener(type, this.onDomEvent, { capture: true });
   }
 
-  private readonly onVisibility = (): void => { if (document.hidden) this.hiddenDuringBucket = true; };
+  /** Set when the tab goes hidden; the next frame's interval then spans the absence (see `PerfStartup.hiddenMs`). */
+  private hiddenSinceFrame = false;
+  private readonly onVisibility = (): void => {
+    if (document.hidden) { this.hiddenDuringBucket = true; this.hiddenSinceFrame = true; }
+  };
 
   /** Per-frame work: one clock read and one store, plus a counter sample at most every COUNTER_SAMPLE_MS. */
   private readonly tick = (now: number): void => {
@@ -743,7 +756,14 @@ class PerfMonitor {
     r.flag[r.head] = (w ? FLAG_WARM : 0) | (this.phaseCode << 1);
     r.head = (r.head + 1) & (RING_FRAMES - 1);
     if (r.n < RING_FRAMES) r.n++;
-    if (w) {
+    const spannedHidden = this.hiddenSinceFrame;
+    this.hiddenSinceFrame = false;
+    if (w && spannedHidden) {
+      // The interval spans a hidden tab: no frame was dropped, the tab was away. Kept out of the record.
+      w.hiddenMs += dt;
+      this.warmThisBucket++;
+      if (now >= w.until && w.framesLeft <= 0) this.closeWarmup(now);
+    } else if (w) {
       // Warming up: the frame goes to the startup record, not the bucket. One extra branch per frame.
       if (this.nWarmFrames < this.warmFrames.length) this.warmFrames[this.nWarmFrames++] = dt;
       this.warmThisBucket++;

@@ -65,7 +65,11 @@ export const PATCH_NOTES: PatchNote[] = [
       },
       {
         category: 'Systems',
-        text: 'Collection: hover a minion skin you own to see the card as it looks in a game, hero skins preview in the real portrait frame, and "Use default art" now shows the default look right away.',
+        text: 'Smoother late games: boards full of huge minions, and shops where many cards get buffed at once, no longer drop frames.',
+      },
+      {
+        category: 'Systems',
+        text: 'Collection: hover a minion skin to see the card as it looks in a game, hero skins preview in the real portrait frame, and "Use default art" now shows the default look right away.',
       },
       {
         category: 'Systems',
@@ -145,6 +149,10 @@ export const PATCH_NOTES: PatchNote[] = [
           'You can still end your turn, Freeze and rearrange your board at 0:00.',
           'End of Turn effects and passive powers still happen as normal.',
         ],
+      },
+      {
+        category: 'Systems',
+        text: 'Collection: hover a minion skin you own to see the card as it looks in a game, hero skins preview in the real portrait frame, and "Use default art" now shows the default look right away.',
       },
     ],
   },

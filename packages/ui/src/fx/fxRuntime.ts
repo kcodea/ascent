@@ -1,3 +1,5 @@
+import type { Container } from 'pixi.js';
+
 /**
  * A one-field registry letting eagerly-loaded code (`pixiFx.ts`, `playDef.ts`) reach into the LAZILY-loaded
  * FX primitive runtime without importing it.
@@ -27,6 +29,16 @@ export interface FxRuntimeHooks {
   liveLayers(): number;
   /** Filters currently applied across every live `FilterStack` — the perf `fx:filters` counter. */
   activeFilters(): number;
+  /** A `FilterStack` over the filter-lab registry on `container` (`sharedFilters.ts`). */
+  makeFilterStack?(container: Container): FxFilterStackHandle;
+  /** The ids of the registry filters whose look does not depend on an ever-advancing clock. */
+  staticFilterIds?(): readonly string[];
+}
+
+/** The slice of `FilterStack` a shared filter group drives. */
+export interface FxFilterStackHandle {
+  frame(params: Record<string, unknown>, progress: number, dtSec: number): void;
+  destroy(): void;
 }
 
 let hooks: FxRuntimeHooks | null = null;
@@ -50,3 +62,11 @@ export function fxPoolSize(): number {
 export function fxLiveParticles(): number { return hooks?.liveParticles() ?? 0; }
 export function fxLiveLayers(): number { return hooks?.liveLayers() ?? 0; }
 export function fxActiveFilters(): number { return hooks?.activeFilters() ?? 0; }
+/** A filter stack on `container`, or null before the primitives have loaded. */
+export function fxMakeFilterStack(container: Container): FxFilterStackHandle | null {
+  return hooks?.makeFilterStack?.(container) ?? null;
+}
+/** The static (clock-free) filter ids, or none before the primitives have loaded. */
+export function fxFilterIds(): readonly string[] {
+  return hooks?.staticFilterIds?.() ?? [];
+}

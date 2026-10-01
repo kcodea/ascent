@@ -23,8 +23,6 @@ const ARCHIVED_2026_09_24: Record<string, string> = {
   odelle: 'Odelle',
   tiff: 'Tiff',
   underdweller: 'Underdweller',
-  runesmith: 'Runesmith',
-  runeguard: 'Guardian',
   // The owner's second list, same day and same ruling, matched by name AND power:
   flint: 'Foreman Flint', // Company Rate
   gorun: 'Gorun', // Blade Mastery
@@ -38,6 +36,14 @@ const ARCHIVED_2026_09_24: Record<string, string> = {
 const IDS = Object.keys(ARCHIVED_2026_09_24);
 
 describe('the 2026-09-24 hero archive', () => {
+  it('Runesmith and Guardian are back in the game (owner 2026-10-01: "re-activate runesmith and guardian in the game")', () => {
+    for (const id of ['runesmith', 'runeguard']) {
+      expect(isArchivedHero(HERO_INDEX[id]!), `${id} active`).toBe(false);
+      expect(playableHeroes().some((h) => h.id === id), `${id} in Play`).toBe(true);
+      expect(practiceHeroes().some((h) => h.id === id), `${id} in Practice`).toBe(true);
+    }
+  });
+
   it('every named hero is archived, and still resolves by id with its own name (old records render)', () => {
     for (const [id, name] of Object.entries(ARCHIVED_2026_09_24)) {
       expect(HERO_INDEX[id], `${id} must stay in the registry`).toBeDefined();

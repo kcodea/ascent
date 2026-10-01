@@ -17,13 +17,13 @@ const count = (cat: string): number => ACHIEVEMENTS.filter((a) => a.category ===
 const xpOf = (cat: string): number => ACHIEVEMENTS.filter((a) => a.category === cat).reduce((s, a) => s + a.rewards.xp, 0);
 
 describe('the batch 1 registry', () => {
-  it('ships 281 achievements: counts and XP per category (hero titles 2026-09-29 added 33 Titled tiers, 4,950 XP)', () => {
-    expect(ACHIEVEMENTS).toHaveLength(281);
+  it('ships 291 achievements: counts and XP per category (hero titles 2026-09-29 added 33 Titled tiers, 4,950 XP; Runesmith + Guardian back 2026-10-01: +10)', () => {
+    expect(ACHIEVEMENTS).toHaveLength(291);
     expect(Object.fromEntries(ACHIEVEMENT_CATEGORIES.map((c) => [c, count(c)]))).toEqual({
-      career: 17, ranked: 28, heroes: 165, economy: 15, mechanics: 7, runes: 5, set2: 44,
+      career: 17, ranked: 28, heroes: 175, economy: 15, mechanics: 7, runes: 5, set2: 44,
     });
     expect(Object.fromEntries(ACHIEVEMENT_CATEGORIES.map((c) => [c, xpOf(c)]))).toEqual({
-      career: 1550, ranked: 4300, heroes: 19800, economy: 1925, mechanics: 1125, runes: 675, set2: 6400,
+      career: 1550, ranked: 4300, heroes: 21000, economy: 1925, mechanics: 1125, runes: 675, set2: 6400,
     });
   });
 
@@ -81,8 +81,8 @@ describe('the batch 1 registry', () => {
     expect(ACHIEVEMENTS.filter((a) => a.category !== 'set2').every((a) => a.setId === null)).toBe(true);
   });
 
-  it('hero templates: 33 heroes x 5; Debut and Top 4 count any game, the win tiers are Ranked only (owner default 5)', () => {
-    expect(ACHIEVEMENT_HEROES).toHaveLength(33);
+  it('hero templates: 35 heroes x 5; Debut and Top 4 count any game, the win tiers are Ranked only (owner default 5)', () => {
+    expect(ACHIEVEMENT_HEROES).toHaveLength(35);
     for (const h of ACHIEVEMENT_HEROES) {
       const [debut, top, win, titled, mastery] = ['debut', 'top_four', 'victory', 'titled', 'mastery'].map((t) => ACHIEVEMENT_INDEX[`hero.${h.id}.${t}`]!);
       expect([debut!.mode, top!.mode, win!.mode, titled!.mode, mastery!.mode]).toEqual(['any', 'any', 'ranked', 'ranked', 'ranked']);

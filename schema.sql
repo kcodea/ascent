@@ -4270,7 +4270,7 @@ grant execute on function public.open_crate(uuid, uuid) to service_role;
 --
 -- WHAT THIS IS (owner 2026-09-29: "the hero's title is granted at 3 wins with a hero, then the mastery of that
 -- title is after 10 wins with that hero. the master title should be a golden plate and embroidered text"):
---  - 66 catalog titles, two per playable hero: `title_hero_<id>` (from the new `hero.<id>.titled` achievement, 3
+--  - 70 catalog titles (66 at first; Runesmith + Guardian added 2026-10-01), two per playable hero: `title_hero_<id>` (from the new `hero.<id>.titled` achievement, 3
 --    Ranked 1sts) and `title_hero_<id>_master` (from `hero.<id>.mastery`, 10). Achievement-sourced, so
 --    `progression_crate_pool` (crate items only) never offers them. The code owns the catalog
 --    (`sync_cosmetic_catalog`, run by `progression-inventory`); this seed only makes sure the rows exist before the
@@ -4318,6 +4318,10 @@ insert into public.cosmetic_catalog (cosmetic_id, category, rarity, acquisition_
   ('title_hero_baggerben_master', 'title', 'legendary', 'achievement', null, null, null, 'hero.baggerben.mastery', true),
   ('title_hero_hermithank', 'title', 'epic', 'achievement', null, null, null, 'hero.hermithank.titled', true),
   ('title_hero_hermithank_master', 'title', 'legendary', 'achievement', null, null, null, 'hero.hermithank.mastery', true),
+  ('title_hero_runesmith', 'title', 'epic', 'achievement', null, null, null, 'hero.runesmith.titled', true),
+  ('title_hero_runesmith_master', 'title', 'legendary', 'achievement', null, null, null, 'hero.runesmith.mastery', true),
+  ('title_hero_runeguard', 'title', 'epic', 'achievement', null, null, null, 'hero.runeguard.titled', true),
+  ('title_hero_runeguard_master', 'title', 'legendary', 'achievement', null, null, null, 'hero.runeguard.mastery', true),
   ('title_hero_repete', 'title', 'epic', 'achievement', null, null, null, 'hero.repete.titled', true),
   ('title_hero_repete_master', 'title', 'legendary', 'achievement', null, null, null, 'hero.repete.mastery', true),
   ('title_hero_gorr', 'title', 'epic', 'achievement', null, null, null, 'hero.gorr.titled', true),

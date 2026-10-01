@@ -160,6 +160,7 @@ describe('no redundant PNG masters ship alongside their WebP builds', () => {
     // → 1374: portrait frames batch 2 2026-10-01 (+8 frame webps in `art/frames/skins/`, carried the same way: Honey, Aura,
     // Nimbus, Stained Glass, Wind, Glass Shard, Paragon, Vine; owner-named: "i added a bunch of art/portrait arts etc,
     // can you make sure all get added").
-    expect(total, `art files: ${total} — the WHOLE-ZIP count (~${total + 176}) is what itch caps at 1000`).toBeLessThan(1374);
+    // → 1383: skins batch 6 2026-10-01 (+9 in `art/skins/`: 9 minion skins), merged with the frames.
+    expect(total, `art files: ${total} — the WHOLE-ZIP count (~${total + 176}) is what itch caps at 1000`).toBeLessThan(1383);
   });
 });

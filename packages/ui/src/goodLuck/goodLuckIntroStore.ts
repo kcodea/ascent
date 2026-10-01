@@ -58,7 +58,7 @@ export interface GoodLuckRunSlice {
 }
 
 /**
- * Does THIS game start get the intro? Only a real new game from the hero ceremony: a rated lobby or Practice,
+ * Does THIS game start get the intro? Only a real new game from the hero ceremony: a rated lobby, Practice or a Gauntlet stage,
  * on its opening turn. Never the tutorial (it has its own coaching and an untimed clock), never the Scene
  * Builder sandbox, never a replay. Save & Continue never reaches here at all: it does not pass through the
  * ceremony or the launch curtain, which is the only caller.
@@ -69,7 +69,7 @@ export interface GoodLuckRunSlice {
 export function shouldPlayGoodLuckIntro(run: GoodLuckRunSlice | null | undefined, opts: { replaying?: boolean } = {}): boolean {
   if (!run || opts.replaying) return false;
   if (run.sandbox) return false;
-  if (run.mode !== 'lobby' && run.mode !== 'practice') return false;
+  if (run.mode !== 'lobby' && run.mode !== 'practice' && run.mode !== 'gauntlet') return false;
   return run.wave === 1;
 }
 

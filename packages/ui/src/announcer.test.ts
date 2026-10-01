@@ -24,7 +24,7 @@ import {
   ANNOUNCER_BATCH_3_CARDS, ANNOUNCER_BATCH_3_RUNES, type AnnouncerActionLike, type AnnouncerFoe,
   CATALOG_BATCH_4_EVENTS, HERO_PICK_TAKES, OPPONENT_HERO_TAKES, TRIBE_SURGE_TAKES, TRIBE_TAKEOVER_TAKES,
   ANNOUNCER_TRIBE_SURGE_WAVE, ANNOUNCER_TRIBE_TAKEOVER, boardTribeCounts, foeHeroId, keyedTakes, type KeyedTakes,
-  type AnnouncerStateLike,
+  type AnnouncerStateLike, ANNOUNCER_GAUNTLET_ROUNDS, GAUNTLET_ANNOUNCER_EVENTS, gauntletRoundTakes,
 } from './announcer';
 import { announcedFor, emptyAnnounced, withAnnounced, type AnnouncedSlice } from './announcerSlice';
 import {
@@ -1107,7 +1107,10 @@ describe('the third batch (owner 2026-09-25): new takes, TimeRunningOut, the no-
       expect(keys.slice(start, start + batch.length)).toEqual([...batch]);
       prevEnd = start + batch.length;
     }
-    expect(keys.slice(-FIGHT_SPECIAL_EVENTS.length)).toEqual([...FIGHT_SPECIAL_EVENTS]);
+    // The fight specials, then the Gauntlet's round call (owner 2026-09-30) at the very end.
+    const tail = GAUNTLET_ANNOUNCER_EVENTS.length;
+    expect(keys.slice(-FIGHT_SPECIAL_EVENTS.length - tail, -tail)).toEqual([...FIGHT_SPECIAL_EVENTS]);
+    expect(keys.slice(-tail)).toEqual([...GAUNTLET_ANNOUNCER_EVENTS]);
     expect(ANNOUNCER_PRIORITY).toMatchObject({ timeRunningOut: 5, buyDrakko: 36, buySylus: 36, castAle: 16 });
     expect(Math.min(...Object.values(ANNOUNCER_PRIORITY))).toBe(5);
     expect(ANNOUNCER_TIME_WARNING_SECONDS).toBe(15);
@@ -2409,5 +2412,136 @@ describe('the moment catalog\'s group D (owner 2026-09-25): per-hero / per-tribe
       await tick(ANNOUNCER_COOLDOWN_MS);
       expect(plays).toEqual([]);
     });
+  });
+});
+
+describe('the Gauntlet round call (owner 2026-09-30: "Round 1" when round 1 starts, "Round 2" when round 2 starts, …)', () => {
+  /** A Gauntlet stage: a 2-seat lobby against one never-eliminated authored seat. */
+  const gauntlet = (patch: Partial<AnnouncerRunLike> = {}): AnnouncerRunLike =>
+    run({ mode: 'gauntlet', wave: 1, tier: 1, lobby: { seats: [{ alive: true }, { alive: true }] }, ...patch });
+  const roundCalls = (): string[] => files().filter((f) => f.startsWith('gauntlet-round-'));
+
+  it('ten takes, "Round 1" … "Round 10", every file on disk; round N may play only its own take', async () => {
+    const { existsSync } = await import('node:fs');
+    const { resolve } = await import('node:path');
+    const dir = `${resolve(process.cwd(), 'apps/web/public/announcer')}/`;
+    expect(ANNOUNCER_GAUNTLET_ROUNDS).toBe(10);
+    expect(ANNOUNCER_LINES.gauntletRound).toEqual(Array.from({ length: 10 }, (_, i) => `gauntlet-round-${i + 1}`));
+    for (let n = 1; n <= 10; n++) {
+      expect(gauntletRoundTakes(n)).toEqual([`gauntlet-round-${n}`]);
+      expect(existsSync(`${dir}gauntlet-round-${n}.mp3`), `round ${n}`).toBe(true);
+    }
+    expect(gauntletRoundTakes(0)).toEqual([]);
+    expect(gauntletRoundTakes(11)).toEqual([]);
+    expect(GAUNTLET_ANNOUNCER_EVENTS).toEqual(['gauntletRound']);
+  });
+
+  it('a whole stage: Round 1 with the Game start beat, Rounds 2-10 as the Shop reopens, once each, and NOTHING else', async () => {
+    // Every other event unmuted, and a stage built to trip as many of them as it can: a hero with its own pick line,
+    // low Resolve, streaks, Armor, tier 6, Equipment, a triple, the shop clock, a 100-stat minion in the fight.
+    resetAnnouncerTunerConfig();
+    const hero = Object.keys(HERO_PICK_TAKES.byKey)[0]!;
+    let r = go(gauntlet({ heroId: hero, resolve: 8, armor: 25 }));
+    await tick(ANNOUNCER_GAME_START_DELAY_MS - 1);
+    expect(plays).toEqual([]);
+    await tick(1);
+    expect(files()).toEqual(['gauntlet-round-1']); // not GameStart, not the hero's pick line
+    expect(plays[0]!.t - 100_000).toBe(ANNOUNCER_GAME_START_DELAY_MS);
+    for (let wave = 1; wave <= 10; wave++) {
+      r = go({ ...r, tier: Math.min(6, wave), equipment: { available: Array.from({ length: wave }, () => 1) }, board: [g(), g(), g()] });
+      observeTurnClock(ANNOUNCER_TIME_WARNING_SECONDS, wave);
+      observeTurnClock(0, wave);
+      const fighting = go({ ...r, phase: 'combat' });
+      observeCombatBoard([{ attack: 300, health: 300 }], wave);
+      await tick(FIGHT_MS);
+      const result = wave % 2 ? 'win' : 'lose';
+      const settled = go({
+        ...fighting, combatSettled: true, history: [...r.history, result], resolve: 1, armor: 0,
+        lastCombat: { result, enemyDamage: 40, playerDeaths: 0 },
+      });
+      await tick(ANNOUNCER_COMBAT_SILENCE_MS + LINE_MS);
+      if (wave === 10) {
+        go({ ...settled, phase: 'gameover', lobby: { seats: [{ alive: true, placement: 1 }, { alive: true }] } });
+        await tick(ANNOUNCER_END_DELAY_MS + LINE_MS + ANNOUNCER_COOLDOWN_MS);
+        break;
+      }
+      r = backToShop(settled);
+      await tick(ANNOUNCER_BACK_TO_SHOP_DELAY_MS - 1);
+      expect(roundCalls()).toHaveLength(wave);
+      await tick(1);
+      expect(files().at(-1)).toBe(`gauntlet-round-${wave + 1}`);
+      await tick(LINE_MS);
+    }
+    expect(files()).toEqual(Array.from({ length: 10 }, (_, i) => `gauntlet-round-${i + 1}`));
+    expect(announced.fired).toEqual({ gauntletRound: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10] });
+    expect(announcerDebug().log.filter((l) => l.kind === 'queue').every((l) => l.event === 'gauntletRound')).toBe(true);
+  });
+
+  it('once per round: a re-render, or a Continue into a round that already spoke, never repeats it', async () => {
+    const r = go(gauntlet());
+    await tick(ANNOUNCER_GAME_START_DELAY_MS + LINE_MS);
+    go({ ...r, board: [m(BEAST.id)] });
+    go({ ...r, board: [m(BEAST.id), m(DWARF.id)] });
+    await tick(ANNOUNCER_COOLDOWN_MS);
+    expect(files()).toEqual(['gauntlet-round-1']);
+    // A Continue (the machine left the run, then came back to the same round's Shop).
+    go(r, { showTitle: true });
+    go(r);
+    await tick(ANNOUNCER_GAME_START_DELAY_MS + LINE_MS);
+    expect(files()).toEqual(['gauntlet-round-1']);
+  });
+
+  it('a Continue into a Shop turn whose call never spoke hears it with the Game start beat; a Continue mid-fight waits for the Shop', async () => {
+    announced = withAnnounced(withAnnounced(announced, 'gauntletRound', 1, 'gauntlet-round-1'), 'gauntletRound', 2, 'gauntlet-round-2');
+    go(gauntlet({ wave: 4, phase: 'combat' }));
+    await tick(ANNOUNCER_GAME_START_DELAY_MS + LINE_MS);
+    expect(plays).toEqual([]);
+    go(gauntlet({ wave: 3 }), { showTitle: true }); // back to the title, then Continue into round 3's Shop
+    go(gauntlet({ wave: 3 }));
+    await tick(ANNOUNCER_GAME_START_DELAY_MS);
+    expect(files()).toEqual(['gauntlet-round-3']);
+  });
+
+  it('a Shop line: ending the turn before it speaks drops it (never heard over the fight)', async () => {
+    announced = withAnnounced(announced, 'gauntletRound', 1, 'gauntlet-round-1');
+    const r = go(gauntlet());
+    const settled = await fight(r, 'win');
+    const shop = backToShop(settled);
+    await tick(ANNOUNCER_BACK_TO_SHOP_DELAY_MS / 2);
+    go({ ...shop, phase: 'combat' });
+    await tick(ANNOUNCER_COOLDOWN_MS);
+    expect(plays).toEqual([]);
+    expect(expired('gauntletRound')).toBe(true);
+  });
+
+  it('the Announcer settings apply: its Chance dial at 0 mutes it; its Vol dial sets the line gain', async () => {
+    setAnnouncerTunerValue('gauntletRoundChance', 0);
+    let r = go(gauntlet());
+    await tick(ANNOUNCER_GAME_START_DELAY_MS + LINE_MS);
+    expect(plays).toEqual([]);
+    setAnnouncerTunerValue('gauntletRoundChance', 100);
+    setAnnouncerTunerValue('gauntletRoundVol', 150);
+    r = backToShop(await fight(r, 'win'));
+    await tick(ANNOUNCER_BACK_TO_SHOP_DELAY_MS);
+    expect(files()).toEqual(['gauntlet-round-2']);
+    expect(plays[0]!.gain).toBe(1.5);
+  });
+
+  it('the lobby and Practice are unchanged: GameStart on turn 1, never a round call', async () => {
+    for (const mode of ['lobby', 'practice'] as const) {
+      plays = [];
+      announced = emptyAnnounced(SEED);
+      cur = null;
+      go(run({ mode: 'lobby', seed: SEED + 1 }), { showTitle: true }); // leave any previous run
+      let r = go(run({ mode, wave: 1, tier: 1 }));
+      await tick(ANNOUNCER_GAME_START_DELAY_MS);
+      expect(events()).toEqual(['game-start']);
+      for (let i = 0; i < 9; i++) {
+        r = backToShop(await fight(r, 'win'));
+        await tick(ANNOUNCER_BACK_TO_SHOP_DELAY_MS + LINE_MS + ANNOUNCER_COOLDOWN_MS);
+      }
+      expect(roundCalls()).toEqual([]);
+      expect(announced.fired.gauntletRound).toBeUndefined();
+    }
   });
 });

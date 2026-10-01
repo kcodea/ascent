@@ -159,7 +159,18 @@
       }
     }
   },
-  "lines": [],
+  "lines": [
+    { "id": "gauntlet-round-1", "voice": "announcer", "text": "Round 1" },
+    { "id": "gauntlet-round-2", "voice": "announcer", "text": "Round 2" },
+    { "id": "gauntlet-round-3", "voice": "announcer", "text": "Round 3" },
+    { "id": "gauntlet-round-4", "voice": "announcer", "text": "Round 4" },
+    { "id": "gauntlet-round-5", "voice": "announcer", "text": "Round 5" },
+    { "id": "gauntlet-round-6", "voice": "announcer", "text": "Round 6" },
+    { "id": "gauntlet-round-7", "voice": "announcer", "text": "Round 7" },
+    { "id": "gauntlet-round-8", "voice": "announcer", "text": "Round 8" },
+    { "id": "gauntlet-round-9", "voice": "announcer", "text": "Round 9" },
+    { "id": "gauntlet-round-10", "voice": "announcer", "text": "Round 10" }
+  ],
   "sfx": [
     {
       "id": "vo-bball-whistle",

@@ -10,8 +10,18 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { act } from 'react';
 import type { CombatResult, MinionSnapshot } from '@game/core';
+import { createLobbyRun, getHero, playerOpponent } from '@game/sim';
 import { mount, type Mounted } from './renderedText.mount';
 import { FightRecap, type FightRecapProps } from './FightRecap';
+
+/** Stage 1 wears a portrait card here regardless of what the shipped stage file carries (the test owns its fixture). */
+vi.mock('@game/content', async (importOriginal) => {
+  const m = await importOriginal<typeof import('@game/content')>();
+  return {
+    ...m,
+    gauntletStage: (n: number) => (n === 1 ? { ...m.gauntletStage(1)!, portraitCardId: 'dm_grobbus' } : m.gauntletStage(n)),
+  };
+});
 
 let ui: Mounted | null = null;
 afterEach(() => { ui?.unmount(); ui = null; });
@@ -98,5 +108,51 @@ describe('FightRecap', () => {
     ui.render(<FightRecap {...props({ onWatchReplay: onWatch })} />);
     click([...ui.container.querySelectorAll('button')].find((b) => b.textContent?.includes('Watch replay')) ?? null);
     expect(onWatch).toHaveBeenCalledOnce();
+  });
+});
+
+describe('FightRecap vs the Gauntlet opponent (invulnerable, R-GAUNTLET-02)', () => {
+  const winFight: CombatResult = { ...empty, result: 'win', enemyDamage: 5 };
+  const odds = { win: 0.6, draw: 0, lose: 0.4, avgLossDamage: 3, avgWinDamage: 5 };
+  const gauntletLobby = () => {
+    const lobby = createLobbyRun(11, 'aster', {}, 'lobby').lobby!;
+    const foe = playerOpponent(lobby)!;
+    foe.seat.invulnerable = true;
+    foe.seat.label = 'The Demon Host';
+    return { lobby, heroName: getHero(foe.seat.heroId)?.name };
+  };
+
+  it('never shows damage dealt, nor an average dealt, and wears the stage tribe emblem with no hero name', () => {
+    const { lobby, heroName } = gauntletLobby();
+    ui = mount(<FightRecap {...props({ result: 'win', lastCombat: winFight, combatOdds: odds, lobby, mode: 'gauntlet', gauntletStage: 2 })} />);
+    expect(text()).toContain('Won against:');
+    expect(text()).toContain('The Demon Host');
+    expect(text()).not.toContain('You dealt');
+    expect(ui.container.querySelector('.fr-dmgline.zero')?.textContent).toBe('No damage');
+    expect(text()).not.toContain('avg dealt');
+    expect(text()).toContain('avg taken');
+    expect(ui.container.querySelector('.fr-foe-pic img')).toBeNull();
+    expect(ui.container.querySelector('.fr-foe-pic .fr-foe-emblem svg')).not.toBeNull();
+    expect(ui.container.querySelector('.fr-foe-hero')).toBeNull();
+    if (heroName) expect(text()).not.toContain(heroName);
+  });
+
+  it('a stage with a portrait card shows that card art in the foe disc instead of the emblem', () => {
+    const { lobby } = gauntletLobby();
+    ui = mount(<FightRecap {...props({ result: 'win', lastCombat: winFight, combatOdds: odds, lobby, mode: 'gauntlet', gauntletStage: 1 })} />);
+    const img = ui.container.querySelector<HTMLImageElement>('.fr-foe-pic img.fr-foe-cardart')!;
+    expect(img).not.toBeNull();
+    expect(img.getAttribute('decoding')).toBe('sync');
+    expect(ui.container.querySelector('.fr-foe-emblem')).toBeNull();
+  });
+
+  it('a lobby foe is unchanged: its portrait, hero name, You dealt and avg dealt all show', () => {
+    const lobby = createLobbyRun(11, 'aster', {}, 'lobby').lobby!;
+    const heroName = getHero(playerOpponent(lobby)!.seat.heroId)?.name;
+    ui = mount(<FightRecap {...props({ result: 'win', lastCombat: winFight, combatOdds: odds, lobby, mode: 'lobby' })} />);
+    expect(ui.container.querySelector('.fr-dmgline.dealt')?.textContent).toBe('You dealt5');
+    expect(text()).toContain('avg dealt');
+    expect(ui.container.querySelector('.fr-foe-emblem')).toBeNull();
+    if (heroName) expect(ui.container.querySelector('.fr-foe-hero')?.textContent).toBe(heroName);
   });
 });

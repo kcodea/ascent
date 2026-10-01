@@ -11,7 +11,7 @@ import { RuneEmblem } from './RuneEmblem';
 import { heroPortrait, opponentSkins } from './skins/skins';
 import type { RunCosmeticSnapshot } from '@game/progression';
 import { Icon } from './Icon';
-import { PortraitFrame, pfClass, usePortraitFrame } from './portraitFrame/PortraitFrame';
+import { HeroPortraitRing } from './portraitFrame/HeroPortraitRing';
 import { recordText } from './leaderboardData';
 import { sfx } from './sfx';
 import { MenuSidebar, SidebarHost } from './MenuSidebar';
@@ -121,17 +121,7 @@ function HeroFrame({ heroId, small, skins }: { heroId: string; small?: boolean; 
   const art = heroPortrait(heroId, useCareerSkins(skins));
   const name = heroId ? getHero(heroId).name : '';
   // Your own Career wears YOUR frame; someone else's Career wears the opponents' frame.
-  const frame = usePortraitFrame(useContext(CareerSkinContext).own ? 'self' : 'opp');
-  return (
-    <div className={`cv2-heroframe${small ? ' small' : ''}${pfClass(frame)}`} style={frame?.hostStyle}>
-      <div className="hero">
-        <div className="f">
-          {art ? <img decoding="sync" className="heroimg" src={art} alt={name} draggable={false} /> : <Icon name="anvil" />}
-        </div>
-        <PortraitFrame frame={frame} />
-      </div>
-    </div>
-  );
+  return <HeroPortraitRing art={art} alt={name} small={small} side={useContext(CareerSkinContext).own ? 'self' : 'opp'} />;
 }
 
 /** The final team: the shared stored-board renderer, wearing the skins RECORDED on this board (an old board has

@@ -38,9 +38,9 @@ if (import.meta.env.DEV) {
 }
 import { chooseBothText } from './cardText';
 import { relatedCardIds, relatedPickOneIds } from './cardRefs';
-import { type Action, grimToastFold, unityAuraFold, EQUIPMENT_FX_ANCHOR, ancientRiseTint, spiritsPlayedThisTurn, anySpellsCastThisTurn, unusedEquipmentCount, playerOpponent, alignmentsOf, boardHasCelestial, chooseBothActive, chooseBothStateOf, type ChooseBothState, chooseOneNeedsChoice, computeCombatOdds, type CombatOdds, rubyCastCount, giftCastCount, rubyStatBonus, CONFIG, RIFTS, hasTier7Access, maxTierFor, conjuredStats, cardBuff, getHero, isTribe, defIsTribe, magnetizesTo, magnetizeTargets, endOfTurnRepeats, endOfTurnTicksOf, projectEndOfTurnSteps, questEndOfTurnBeats, sellValueWithBonus, spellDisplayText, chooseOneBranchText, spellAttackBonus, spellHealthBonus, spellAttackBonusLive, spellHealthBonusLive, spellEscalationLive, squirlScoutBuffLive, spellCasts, runeExtraCasts, spellCostReduction, implosionCasts, dragonflameCasts, minionCostOf, heroOfferPrice, offerBuyPrice, dominantBoardTribe, effectiveTargetTribe, boardManaBonus, upgradeCostOf, nextRefreshCostOf, poolOf, type RunState, type ShopCard, type CardBuff, type BoardCard, type BoardSnapshot, gildCopiesNeeded, activePowers, gateUses, runeStacksOf, starformSpellAimsToken, createOddsProbe, selectedEquipment, selectedEquipmentDef } from '@game/sim';
+import { type Action, grimToastFold, unityAuraFold, EQUIPMENT_FX_ANCHOR, ancientRiseTint, spiritsPlayedThisTurn, anySpellsCastThisTurn, unusedEquipmentCount, playerOpponent, alignmentsOf, boardHasCelestial, chooseBothActive, chooseBothStateOf, type ChooseBothState, chooseOneNeedsChoice, computeCombatOdds, type CombatOdds, rubyCastCount, giftCastCount, rubyStatBonus, CONFIG, RIFTS, hasTier7Access, maxTierFor, conjuredStats, cardBuff, getHero, isTribe, defIsTribe, magnetizesTo, magnetizeTargets, endOfTurnRepeats, endOfTurnTicksOf, projectEndOfTurnSteps, questEndOfTurnBeats, sellValueWithBonus, spellDisplayText, chooseOneBranchText, spellAttackBonus, spellHealthBonus, spellAttackBonusLive, spellHealthBonusLive, spellEscalationLive, squirlScoutBuffLive, spellCasts, runeExtraCasts, spellCostReduction, implosionCasts, dragonflameCasts, minionCostOf, heroOfferPrice, offerBuyPrice, dominantBoardTribe, effectiveTargetTribe, boardManaBonus, upgradeCostOf, nextRefreshCostOf, poolOf, type RunState, type ShopCard, type CardBuff, type BoardCard, type BoardSnapshot, gildCopiesNeeded, activePowers, gateUses, runeStacksOf, starformSpellAimsToken, createOddsProbe, COMBAT_ODDS_SIMS, runLossCap, selectedEquipment, selectedEquipmentDef } from '@game/sim';
 import { createPortal } from 'react-dom';
-import { setCardId, setCardStats, toggleCardKeyword, setEnemyStats, setEnemyCardId, toggleEnemyKeyword, removeEnemy, foeSnapshotOf } from './sandboxEdit';
+import { setCardId, setCardStats, toggleCardKeyword, setEnemyStats, setEnemyCardId, toggleEnemyKeyword, toggleEnemyGolden, removeEnemy, foeSnapshotOf } from './sandboxEdit';
 import { UnitEditor } from './UnitEditor';
 import { Card, mdBold, type CardView } from './Card';
 import { heroPowerArt, equipmentBranchArtFor } from './art';
@@ -67,6 +67,10 @@ import { instView, liveCardText, type LiveTextParams } from './instView';
 import { diffHandBuffs, fireHandBuff, fireHandBuffOnHandSpells, fireHandBuffOnHandRubies } from './handBuffFx';
 import { HudBar } from './HudBar';
 import { LobbyPanel } from './LobbyPanel';
+import { GauntletFoe } from './gauntlet/GauntletFoe';
+import { TRIBE_ICON } from './gauntlet/tribeIcon';
+import { foePortrait } from './gauntlet/foePortrait';
+import { GAUNTLET_CLOCK_GOLD, GAUNTLET_CLOCK_WAITING, gauntletClockState, gauntletClockWaiting, gauntletTurnClock } from './gauntlet/gauntletClock';
 import { CombatOpponent } from './CombatOpponent';
 import { playHeroBlast } from './heroBlast/heroBlast';
 import type { HeroAttackHandle } from './heroAttack/options';
@@ -396,15 +400,39 @@ function dragTransform(persp: number, tx: number, ty: number, rotX: number, rotY
 
 /** Turn countdown (M:SS) as a shop-plaque widget (matches the Gold/Tavern buttons so it reads at a glance).
  *  Subscribes to the clock so ONLY this reads per-second; the plaque + digits turn red in the last 5s. */
-const ShopTimer = memo(function ShopTimer({ practice }: { practice?: boolean }) {
+const ShopTimer = memo(function ShopTimer({ practice, gauntlet }: { practice?: boolean; gauntlet?: boolean }) {
   const s = Math.max(0, useTurnSeconds());
   const practiceTimer = useGame((st) => st.practiceTimer);
   const setPracticeTimer = useGame((st) => st.setPracticeTimer);
+  // A Gauntlet round has no clock until 30 Gold is spent: the clock sits parked on its waiting value until then.
+  const gauntletWaiting = !!gauntlet && gauntletClockWaiting(s);
+  // …and while it waits, a bar fills with the Gold spent this round toward that threshold (owner ask 2026-09-30).
+  const goldSpent = useGame((st) => (gauntlet ? Math.min(st.run.goldSpentThisTurn ?? 0, GAUNTLET_CLOCK_GOLD) : 0));
   return (
-    <div className={`statcell time${s <= 5 ? ' low' : ''}`} aria-label="Time left this turn">
+    <div className={`statcell time${s <= 5 ? ' low' : ''}${gauntletWaiting ? ' gwait' : ''}`} aria-label="Time left this turn">
       <span className="sc-ic"><Icon name="clock" /></span>
       {/* Practice on Unlimited time: no countdown to read, so show the symbol, not an absurd 1666:39. */}
-      <span className="sc-v">{practice && practiceTimer === 0 ? '∞' : `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`}</span>
+      {gauntletWaiting ? (
+        <span className="gclock" aria-label={`${goldSpent} of ${GAUNTLET_CLOCK_GOLD} Gold spent`}>
+          <span className="gclock-bar">
+            <span className="gclock-fill" style={{ transform: `scaleX(${goldSpent / GAUNTLET_CLOCK_GOLD})` }} />
+            {/* SPARKS off the growing tip (owner ask 2026-09-30): a one-shot burst, re-keyed on every spend so each
+                purchase fires it once. Transform/opacity only; nothing loops. */}
+            {/* The GLOW only while the bar moves (owner ask 2026-09-30): a one-shot halo over the fill, re-keyed per spend. */}
+            {goldSpent > 0 && (
+              <span key={`g${goldSpent}`} className="gclock-glow" style={{ transform: `scaleX(${goldSpent / GAUNTLET_CLOCK_GOLD})` }} aria-hidden="true" />
+            )}
+            {goldSpent > 0 && (
+              <span key={goldSpent} className="gclock-sparks" style={{ left: `${(goldSpent / GAUNTLET_CLOCK_GOLD) * 100}%` }} aria-hidden="true">
+                {[0, 1, 2, 3, 4, 5].map((i) => <span key={i} className="gclock-spark" style={{ ['--i' as string]: i }} />)}
+              </span>
+            )}
+          </span>
+          <span className="gclock-n"><span className="gclock-coin"><Icon name="mana" /></span>{goldSpent}/{GAUNTLET_CLOCK_GOLD}</span>
+        </span>
+      ) : (
+        <span className="sc-v">{practice && practiceTimer === 0 ? '∞' : `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`}</span>
+      )}
       {/* PRACTICE only — practice is the unscored mode, so letting the player slow the clock costs nothing.
           Deliberately absent in scored runs: the turn timer is part of the challenge there. `stopPropagation`
           on the pointer keeps a click on the select from reaching the board's drag handler. */}
@@ -423,7 +451,9 @@ const ShopTimer = memo(function ShopTimer({ practice }: { practice?: boolean }) 
       <span className="sbtip">
         {practice
           ? 'Time left this turn. Practice only: pick 1–4× to lengthen the shop timer (1× matches a scored run), or ∞ for no timer.'
-          : 'Time left this turn. At 0 your actions lock, so hit End Turn first.'}
+          : gauntletWaiting
+            ? `A countdown begins once you've spent ${GAUNTLET_CLOCK_GOLD} Gold in a single turn.`
+            : 'Time left this turn. At 0 your actions lock, so hit End Turn first.'}
       </span>
     </div>
   );
@@ -1130,7 +1160,11 @@ export function Recruit() {
   // Practice's UNLIMITED time (owner 2026-09-27, `practiceTimer` 0) is the same effectively-infinite clock.
   const infiniteClock = (run.sandbox === true && sbRules === 'god') || run.mode === 'tutorial'
     || (run.mode === 'practice' && !run.sandbox && practiceTimer === 0);
-  const turnSeconds = infiniteClock ? 99999 : Math.max(CHARGE_SECONDS + 1, (Math.min(80, TURN_SECONDS + (run.wave - 1) * 4 + (run.wave >= 6 ? 6 : 0)) + (run.wave >= 12 ? 12 : 0)) * (run.mode === 'practice' && !run.sandbox ? practiceTimer : 1));
+  // THE GAUNTLET (spec §1): each round OPENS with no clock, parked on its waiting value; the countdown starts once
+  // 30 Gold is spent in the round (see gauntlet/gauntletClock.ts and the effect beside the clock reset below).
+  // `gauntletClockWaits` flips at most once per turn (goldSpentThisTurn only rises within a wave).
+  const gauntletClockWaits = run.mode === 'gauntlet' && gauntletClockState(run.goldSpentThisTurn ?? 0) === 'waiting';
+  const turnSeconds = run.mode === 'gauntlet' ? GAUNTLET_CLOCK_WAITING : infiniteClock ? 99999 : Math.max(CHARGE_SECONDS + 1, (Math.min(80, TURN_SECONDS + (run.wave - 1) * 4 + (run.wave >= 6 ? 6 : 0)) + (run.wave >= 12 ? 12 : 0)) * (run.mode === 'practice' && !run.sandbox ? practiceTimer : 1));
 
   // Projected STARTING Gold for the next two waves (the Gold-cell hover) — cap-aware, folding in board mana
   // income (Money Bot) and the one-turn Hoarder/Robin bank (into Wave+1 only, since it's consumed then).
@@ -2201,6 +2235,8 @@ export function Recruit() {
   // combat is mounted. Keyed on the lastCombat OBJECT (a new fight is a new object), and it also covers a
   // resumed mid-combat run (oddsInput is serialized with the save). Legacy saves with baked odds short-cut.
   const [combatOdds, setCombatOdds] = useState<CombatOdds | null>(null);
+  // The run's own loss cap (the Gauntlet has its own table), so the odds cap each sim as the real fight would.
+  const oddsLossCap = runLossCap(run);
   useEffect(() => {
     const lc = run.lastCombat;
     setCombatOdds(lc?.odds ?? null); // legacy pre-deferral saves carry odds inline
@@ -2217,7 +2253,7 @@ export function Recruit() {
     const ODDS_YIELD_MS = 4;          // keep stepping only while the idle deadline has more than this left
     const ODDS_SLICE_TIMEOUT_MS = 200; // rIC timeout per callback — a saturated main thread still drains a step every 200 ms
     const ODDS_FALLBACK_MS = 32;      // no rIC: one step every couple of frames
-    const probe = createOddsProbe(input, run.seed, run.wave);
+    const probe = createOddsProbe(input, run.seed, run.wave, COMBAT_ODDS_SIMS, oddsLossCap);
     const hasRIC = typeof requestIdleCallback === 'function';
     let idleId = 0; let timerId = 0;
     const slice = (deadline?: IdleDeadline): void => {
@@ -2250,7 +2286,7 @@ export function Recruit() {
       if (idleId && typeof cancelIdleCallback === 'function') cancelIdleCallback(idleId);
       if (timerId) window.clearTimeout(timerId);
     };
-  }, [run.lastCombat, run.seed, run.wave]);
+  }, [run.lastCombat, run.seed, run.wave, oddsLossCap]);
   const [discoverMin, setDiscoverMin] = useState(false); // B2: the Discover overlay is minimized (inspect the board)
   const [questMin, setQuestMin] = useState(false); // the Quest overlay is minimized (inspect the shop rolled behind it)
   const [forgeMin, setForgeMin] = useState(false);
@@ -4532,6 +4568,16 @@ export function Recruit() {
     }
   }, [run.wave, turnSeconds, heroSelecting, showTitle]);
 
+  // THE GAUNTLET CLOCK STARTS once 30 Gold is spent in the round: move the parked clock to 60. Declared AFTER the
+  // reset above so, on any commit where both run, it sees the value the reset (or a Continue's resume) left — a
+  // countdown already running, including seconds restored by Continue, is never restarted (`gauntletTurnClock`).
+  // Layout effect, like the reset, so the plaque never paints the parked value once the threshold is met.
+  useLayoutEffect(() => {
+    if (run.mode !== 'gauntlet' || showTitle) return;
+    const next = gauntletTurnClock({ goldSpent: run.goldSpentThisTurn ?? 0, current: turnClock.get() });
+    if (next != null) turnClock.set(next);
+  }, [run.mode, gauntletClockWaits, run.wave, heroSelecting, showTitle]);
+
   /**
    * REPLAY PACING for the shop clock (owner report 2026-08-30: *"speed doesnt change the time's speed"*).
    *
@@ -4581,6 +4627,7 @@ export function Recruit() {
       // the clock as normal though since you can play right away"; R-SOT-TIMER-01).
       transitionPlaying: wipe !== 'idle',
       settingsOpen,
+      clockWaiting: gauntletClockWaits, // a Gauntlet round before 30 Gold is spent: no clock yet
     })) return;
     let id = 0;
     const tick = (): void => {
@@ -4606,7 +4653,7 @@ export function Recruit() {
     };
     id = window.setTimeout(tick, tickMs());
     return () => window.clearTimeout(id);
-  }, [run.phase, run.discover, run.questOffer, run.powerOffer, run.runeforgeOffer, run.pendingTarget, run.chooseOne, run.ancients?.offer, heroSelecting, overlayOpen, settingsOpen, introPlaying, run.wave, replaySpeed, wipe, sotPlaying]);
+  }, [run.phase, run.discover, run.questOffer, run.powerOffer, run.runeforgeOffer, run.pendingTarget, run.chooseOne, run.ancients?.offer, heroSelecting, overlayOpen, settingsOpen, introPlaying, run.wave, replaySpeed, wipe, sotPlaying, gauntletClockWaits]);
 
   // Detect a self-buff (a minion's own stats jump in the recruit phase) and fire its self-buff cue. The
   // readout itself is the badge's own job now — see the cut below.
@@ -7318,7 +7365,15 @@ export function Recruit() {
             <div className="wipevs">
               <div className="wipevs-label">Now Facing</div>
               {(() => {
-                const face = <img decoding="sync" className="wipevs-face" src={heroPortrait(foe.seat.heroId, opponentSkins(showOppSkins, seatCosmetics(foe.seat, foe.board)))} alt="" draggable={false} />;
+                // GAUNTLET: the stage opponent has no hero (its `heroId` is a stand-in), so the disc wears the
+                // stage's tribe emblem — the same face the combat portrait and the in-run panel show.
+                const gFace = run.mode === 'gauntlet' ? foePortrait(run.gauntletStage ?? 0) : undefined;
+                const tribe = gFace?.tribe;
+                const face = gFace
+                  ? gFace.art
+                    ? <img decoding="sync" className="wipevs-face wipevs-cardart" src={gFace.art} alt="" draggable={false} />
+                    : <span className="wipevs-face wipevs-emblem"><Icon name={tribe ? TRIBE_ICON[tribe] : 'anvil'} /></span>
+                  : <img decoding="sync" className="wipevs-face" src={heroPortrait(foe.seat.heroId, opponentSkins(showOppSkins, seatCosmetics(foe.seat, foe.board)))} alt="" draggable={false} />;
                 // With a tuner frame on, the face sits in a disc-sized host that carries the ring; without one
                 // the markup is exactly what it always was.
                 return foeFrame ? (
@@ -7365,7 +7420,12 @@ export function Recruit() {
       {/* LOBBY RAIL — the 8-seat table down the right edge of the stage. A direct child of `.app` (not the HUD
           bar) so it can be anchored to the STAGE height and run tall beside the board, instead of hanging off
           the top-right corner where it had to stay short and wide. */}
-      {run.lobby && <LobbyPanel lobby={run.lobby} />}
+      {/* A GAUNTLET run is a 2-seat table against one authored foe: no rail at all, just the opponent's emblem
+          portrait + name floating on the right (round / 10 + the Gauntlet cap under it), nothing to scout
+          (GauntletFoe.tsx; owner ask 2026-09-29). */}
+      {run.lobby && (run.mode === 'gauntlet'
+        ? <GauntletFoe />
+        : <LobbyPanel lobby={run.lobby} />)}
       {/* The foe's face for the duel — drops onto the Refresh button's anchor while the rail slides away
           (owner ask 2026-08-25). Self-gates on lobby + combat. Also the lunge target for the hero strike. */}
       <CombatOpponent />
@@ -7597,7 +7657,8 @@ export function Recruit() {
       <PerfProfiler id="render:recruit:overlays">
       <CombatLogOverlay
         showLog={showLog} result={replay.result} combatOdds={combatOdds} lastCombat={run.lastCombat}
-        lobby={run.lobby} board={run.board} wave={run.wave} mode={run.mode} procs={replay.procs} fullLog={replay.fullLog}
+        lobby={run.lobby} board={run.board} wave={run.wave} mode={run.mode} gauntletStage={run.gauntletStage}
+        procs={replay.procs} fullLog={replay.fullLog}
         onWatchReplay={run.combatSettled ? watchReplay : undefined} onClose={closeLog}
       />
 
@@ -7674,6 +7735,11 @@ export function Recruit() {
               const liveSnap = useGame.getState().run.servedBoards?.[useGame.getState().run.wave] ?? sbEnemySnap;
               applyFoe(toggleEnemyKeyword(liveSnap, i, kw));
             }}
+            golden={m.golden === true}
+            onToggleGolden={() => {
+              const liveSnap = useGame.getState().run.servedBoards?.[useGame.getState().run.wave] ?? sbEnemySnap;
+              applyFoe(toggleEnemyGolden(liveSnap, i));
+            }}
             onRemove={() => {
               const liveSnap = useGame.getState().run.servedBoards?.[useGame.getState().run.wave] ?? sbEnemySnap;
               applyFoe(removeEnemy(liveSnap, i));
@@ -7736,7 +7802,7 @@ const ShopControls = memo(function ShopControls({
             (`turnSeconds` is already effectively infinite there; this just removes the misleading countdown). */}
         {mode !== 'tutorial' && (
           <div className="statstrip">
-            <ShopTimer practice={mode === 'practice' && !sandbox} />
+            <ShopTimer practice={mode === 'practice' && !sandbox} gauntlet={mode === 'gauntlet'} />
           </div>
         )}
         {/* Action tray — the turn's actions grouped into one control bar (Reroll · Freeze), framed by
@@ -8783,9 +8849,9 @@ const DragOverlay = memo(function DragOverlay({ timeUp, heroArmed, equipArmed, h
 /** The post-combat FIGHT RECAP (owner redesign 2026-09-24; was the "Combat Summary"). Memoized so that, while it
  *  is closed (the whole shop phase), a Recruit render costs it a handful of prop compares and nothing else; the
  *  recap itself (FightRecap.tsx) only mounts while open. */
-const CombatLogOverlay = memo(function CombatLogOverlay({ showLog, result, combatOdds, lastCombat, lobby, board, wave, mode, procs, fullLog, onWatchReplay, onClose }: {
+const CombatLogOverlay = memo(function CombatLogOverlay({ showLog, result, combatOdds, lastCombat, lobby, board, wave, mode, gauntletStage, procs, fullLog, onWatchReplay, onClose }: {
   showLog: boolean; result: 'win' | 'lose' | 'draw' | null; combatOdds: CombatOdds | null; lastCombat: RunState['lastCombat'];
-  lobby: RunState['lobby']; board: RunState['board']; wave: number; mode: RunState['mode'];
+  lobby: RunState['lobby']; board: RunState['board']; wave: number; mode: RunState['mode']; gauntletStage?: number;
   procs: ReturnType<typeof useCombatReplay>['procs']; fullLog: ReturnType<typeof useCombatReplay>['fullLog'];
   onWatchReplay?: () => void; onClose: () => void;
 }) {
@@ -8793,7 +8859,7 @@ const CombatLogOverlay = memo(function CombatLogOverlay({ showLog, result, comba
   return (
     <FightRecap
       result={result} combatOdds={combatOdds} lastCombat={lastCombat} lobby={lobby} board={board} wave={wave} mode={mode}
-      procs={procs} fullLog={fullLog} onWatchReplay={onWatchReplay} onClose={onClose}
+      gauntletStage={gauntletStage} procs={procs} fullLog={fullLog} onWatchReplay={onWatchReplay} onClose={onClose}
     />
   );
 });

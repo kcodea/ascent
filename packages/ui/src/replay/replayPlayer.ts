@@ -12,7 +12,8 @@
  */
 import type { CombatResult } from '@game/core';
 import {
-  createOddsProbe, cursorAt, expandFrames, oddsInputFromCombatFrame, rollupRounds, roundMarks,
+  COMBAT_ODDS_SIMS, createOddsProbe, cursorAt, expandFrames, GAUNTLET_LOSS_CAPS, oddsInputFromCombatFrame, rollupRounds, roundLossCap, roundMarks,
+  type RunMode,
   type Action, type CombatFrame, type CursorSample, type DragPath, type InspectEvent, type ReplayV2, type RoundMark, type RoundStat, type ShopFrame, type ShopView,
 } from '@game/sim';
 import { CARD_INDEX } from '@game/content';
@@ -165,7 +166,9 @@ function cancelBackfill(): void {
  * re-renders that row. Cancelled by seek-free `endReplay`; a stale slice checks the token and bails.
  */
 let replayEpoch = 0; // bumps on start/end only — a SEEK must not cancel a running backfill (`token` does)
-function scheduleOddsBackfill(myEpoch: number, seed: number): void {
+function scheduleOddsBackfill(myEpoch: number, seed: number, mode: RunMode): void {
+  // The recording's mode picks the cap table (a replay carries no lobby rules): the Gauntlet's own, else the normal one.
+  const capRules = mode === 'gauntlet' ? { lossCaps: [...GAUNTLET_LOSS_CAPS] } : undefined;
   const pending = roundInfo
     .map((info, i) => ({ info, mark: marks[i]! }))
     .filter(({ info, mark }) => info.winPct === null && mark.combatIndex !== undefined);
@@ -182,7 +185,7 @@ function scheduleOddsBackfill(myEpoch: number, seed: number): void {
       const shop = cur.mark.lastShopIndex !== undefined ? frames[cur.mark.lastShopIndex] : undefined;
       try {
         if (combat?.kind !== 'combat') throw new Error('no combat frame');
-        probe = createOddsProbe(oddsInputFromCombatFrame(combat, shop?.kind === 'shop' ? shop.view : null), seed, cur.mark.wave);
+        probe = createOddsProbe(oddsInputFromCombatFrame(combat, shop?.kind === 'shop' ? shop.view : null), seed, cur.mark.wave, COMBAT_ODDS_SIMS, roundLossCap(capRules, cur.mark.wave));
       } catch {
         // A roster this build can no longer instantiate (a retired card) — leave the cell blank, move on.
         cursor += 1; probe = null; schedule(); return;
@@ -804,7 +807,7 @@ export function startReplay(replay: ReplayV2, meta?: { authorName?: string }): v
   // Older recordings carry no stamped odds — estimate them in idle time, one round per slice, off the render path.
   cancelBackfill();
   replayEpoch += 1;
-  scheduleOddsBackfill(replayEpoch, replay.seed);
+  scheduleOddsBackfill(replayEpoch, replay.seed, replay.mode);
 }
 
 export function pauseReplay(): void {

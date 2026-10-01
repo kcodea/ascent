@@ -259,7 +259,8 @@ export type CrateOpenOutcome = { status: 'ok'; result: OpenCrateResult } | { sta
 function mergeCrate(crate: CrateRow): void {
   const list = useProgression.getState().crateList ?? [];
   const next = list.some((c) => c.crateId === crate.crateId) ? list.map((c) => (c.crateId === crate.crateId ? crate : c)) : [...list, crate];
-  next.sort((a, b) => a.earnedLevel - b.earnedLevel);
+  // Level crates oldest level first (as before); a level-less (Gauntlet) crate after them, as Postgres orders nulls.
+  next.sort((a, b) => (a.earnedLevel ?? Infinity) - (b.earnedLevel ?? Infinity) || 0);
   useProgression.setState({ crateList: next });
 }
 

@@ -14,6 +14,7 @@ import { RankScreen } from './rank/RankScreen';
 import { unratedReasonOf, useRankSource } from './rank/rankSource';
 import { ProgressionPostgame } from './progression/ProgressionPostgame';
 import { MatchDetailsDialog } from './matchDetails/MatchScoreboard';
+import { GauntletEndScreen } from './gauntlet/GauntletEndScreen';
 
 /** A live `CardView` for a final-warband minion — shared with the final-board capture (see `liveBoardView`),
  *  so scaling cards show their *accumulated* magnitude at run's end, not the printed base. */
@@ -235,6 +236,9 @@ export function EndScreen({ won }: { won: boolean }) {
   // Tutorial graduates to its own screen (checked before the lobby branch — a tutorial run also carries a
   // lobby, but a placement/verdict is the wrong frame for a course you just LEARNED).
   if (run.mode === 'tutorial') return <TutorialGraduationScreen run={run} onDone={openTitle} />;
+  // Gauntlet: a stage verdict (cleared / defeated at round R), never a placement or a rating. Before the lobby
+  // branch for the same reason as the tutorial: a Gauntlet run carries a two-seat lobby.
+  if (run.mode === 'gauntlet') return <GauntletEndScreen run={run} />;
   if (lobby) return <LobbyEndScreen lobby={lobby} run={run} onPlayAgain={openTitle} />;
   return (
     <div className={`heroselect endscreen${wonPar ? ' won' : ''}`}>

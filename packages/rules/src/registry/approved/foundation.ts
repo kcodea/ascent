@@ -2407,6 +2407,35 @@ export const FOUNDATION_RULES: GameRule[] = [
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/progression/crateFx/crateFx.test.ts', 'packages/ui/src/progression/Crates.test.tsx'], lastVerifiedAt: '2026-09-28' },
   },
   {
+    id: 'R-PROG-COLLECTION-04',
+    title: 'The Collection previews skins as the game shows them: the portrait ring, the in-game card on hover, and the default art after "Use default art"',
+    statement:
+      'In the Collection a HERO skin previews in the in-game portrait ring (the same disc, cover crop and frame as your '
+      + 'portrait in a run), never as a bare or offset picture. Hovering a CARD skin (a minion skin, or a spell skin when '
+      + 'there are any), owned or not, on its tile or on the detail panel\x27s art, floats the real in-game card wearing that '
+      + 'skin (frame, tier stars, stats, name and text on its plate) beside the tile, never over it, and kept on screen; '
+      + 'it is placed once per hover and leaving clears it. Pressing "Use default art" switches the detail preview to the '
+      + 'target\x27s DEFAULT art at once (labelled Default art) and keeps that skin selected; once the server answers, its '
+      + 'status reads Owned with Default art in use, the Equipped ribbon leaves its tile and Equip puts it back on (the '
+      + 'preview returns to the skin). A refused change puts the skin\x27s preview back. Presentation only: the equip still '
+      + 'goes through the server (R-PROG-SKINS-01).',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      {
+        kind: 'owner-chat',
+        ref: 'Claude Code session, 2026-09-30 (Collection review, Heroes tab screenshots)',
+        quote: 'can you [show] the default skin when the player hits use default? also add a mouseover preview of what minions/spells would look like in game as well please. for heroes the preview image is off - can you fix that?',
+      },
+      { kind: 'code', ref: 'packages/ui/src/progression/CollectionScreen.tsx (defaultShown, onHover, DetailPanel); packages/ui/src/progression/SkinCardPreview.tsx; packages/ui/src/portraitFrame/HeroPortraitRing.tsx; packages/ui/src/skins/skinArt.ts (defaultArtOf)' },
+    ],
+    currentBehaviour:
+      'Conforms as of 2026-09-30 (fix/collection-previews). Before, the hero preview was a plain image in a box that also '
+      + 'carried the global `.hero` class, so the in-run hero panel\x27s padding and pale card fill offset the art and showed '
+      + 'white edges; "Use default art" kept showing the skin; there was no card preview.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/progression/CollectionPreviews.test.tsx', 'packages/ui/src/progression/CollectionSkins.test.tsx'], lastVerifiedAt: '2026-09-30' },
+  },
+  {
     id: 'R-ACH-01',
     title: 'Achievements batch 1 pay XP only: 248 achievements, no titles yet, nothing hidden yet; the reward slot can take a title later',
     statement:
@@ -3567,6 +3596,24 @@ export const FOUNDATION_RULES: GameRule[] = [
     example: 'An opponent with a Rally-repeat rune from round 6 and the same rune again from round 9 rallies once extra on rounds 6–8 and twice extra from round 9.',
     currentBehaviour: 'Conforms as of the Gauntlet engine PR (2026-09-29). Only rune effects that surface as combat modifiers act for an opponent; shop-only runes do nothing. Pinned by the opponent-runes tests (a combat rune maps to its modifier; runeCombatModsFor never throws on any rune; an authored seat fields no runes on round 5, one on 6 and two on 9 with the modifier stacking; a rune-less seat is unchanged; the stage definition becomes authoredRunes at rounds 6 and 9). The stacking assertion uses two copies of one rune.',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/lobby/gauntlet.test.ts'], lastVerifiedAt: '2026-09-29' },
+  },  {
+    id: 'R-GAUNTLET-04',
+    title: 'Gauntlet: the shop has no clock until 30 Gold is spent in a round, then 60 seconds',
+    statement:
+      'In a Gauntlet stage the shop has no clock at the start of a round. Once the player has spent 30 Gold in that round, '
+      + 'a 60-second countdown starts, and it never restarts for more Gold spent later in the round. When it reaches 0 the '
+      + 'shop behaves exactly as the normal game\x27s timeout does. A time-limited discount window opened while the clock is '
+      + 'still waiting keeps its full length once the clock starts.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-29 (Gauntlet design)', quote: 'there should be a 60 second timer once a player spends 30 gold in a single round. this is to avoid infinite loops' },
+      { kind: 'code', ref: 'packages/ui/src/gauntlet/gauntletClock.ts (GAUNTLET_CLOCK_GOLD / _SECONDS / _WAITING, gauntletTurnClock, gauntletClockReading); packages/ui/src/Recruit.tsx (turnSeconds, the turnClockMayTick clockWaiting gate)' },
+      { kind: 'fix-pr', ref: 'feat/gauntlet-screens (Gauntlet PR 3): commits 50c2a3519 (the timer) and dbe3a28b4 (a Thymepiece window opened before the clock starts keeps its full length)' },
+    ],
+    example: 'You spend 12 Gold, then 18 more: the moment the total reaches 30, a 60-second clock starts. You activate Thymepiece before spending anything: its 8-second window still lasts 8 seconds once the clock starts.',
+    currentBehaviour: 'Conforms as of Gauntlet PR 3 (2026-09-29). Pinned by the clock tests: the 30 Gold / 60 second constants; waiting below 30 and running from 30; no restart once running; resume keeps the saved seconds; the countdown gate holds while waiting; Recruit parks every Gauntlet turn and starts the clock after the turn reset (a source check); and the Thymepiece window run through the reducer. PARTIAL pin: the 0-second behaviour is the normal timeout path, which the Gauntlet reuses unchanged and which the Gauntlet tests do not assert separately.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/gauntlet/gauntletClock.test.ts'], lastVerifiedAt: '2026-09-29' },
   },
   {
     id: 'R-PROG-CRATE-05',
@@ -3741,6 +3788,42 @@ export const FOUNDATION_RULES: GameRule[] = [
       kind: 'scenario',
       refs: ['packages/ui/src/artRetry.test.tsx', 'packages/ui/src/assetQueue.test.ts', 'packages/ui/src/artFade.test.tsx'],
       lastVerifiedAt: '2026-09-30',
+    },
+  },
+  {
+    id: 'R-GAUNTLET-05',
+    title: 'Gauntlet: the first clear of each stage grants one crate to a signed-in account; replays and players who are not signed in get none',
+    statement:
+      'Gauntlet progress belongs to the player\x27s account. The first time a signed-in account clears a stage, it earns one '
+      + 'crate; clearing that stage again never earns anything more, though the stage can always be replayed. A player '
+      + 'who is not signed in (including a guest) can play every stage they unlock, but their progress is kept on that '
+      + 'device only, their clears earn no crates, and they are told so before they play. Signing in later never grants '
+      + 'crates for clears made while not signed in, and never carries that device progress onto the account.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-29 (Gauntlet design)', quote: 'clearing each stage grants a crate' },
+      { kind: 'owner-chat', ref: 'Same session', quote: 'players can replay stages they\x27ve already cleared, but will not get any more rewards for clearing it more than once' },
+      { kind: 'owner-chat', ref: 'Same session', quote: 'progress should be stored on account level' },
+      { kind: 'owner-chat', ref: 'Same session', quote: 'lets not require sign-in, but let the player know with a warning that they will not get rewards for any progress made' },
+      { kind: 'owner-chat', ref: 'Same session', quote: 'signing in later would not grant them rewards' },
+      { kind: 'owner-chat', ref: 'Same session (the server does not re-check a clear)', quote: 'yes, trust the client for now' },
+      { kind: 'code', ref: 'supabase/migrations/2026-09-29-gauntlet-progress.sql record_gauntlet_clear (first clear = progress row + one sealed loot_crates row with no level and source gauntlet:N, in one transaction; later clears already_cleared); packages/progression/src/gauntlet.ts (the gauntlet-clear handler: 403 sign_in_required for an anonymous account); packages/ui/src/gauntlet/gauntletProgress.ts (account vs device store, no import on sign-in) + gauntletClearQueue.ts (durable retrying queue); packages/ui/src/gauntlet/GauntletEndScreen.tsx (the crate on the win screen, the sign-in prompt)' },
+      { kind: 'fix-pr', ref: 'feat/gauntlet-progress (Gauntlet PR 4, 2026-09-29)' },
+    ],
+    example: 'Signed in, you clear stage 2 for the first time: a crate appears on the win screen. You clear it again next week: no crate. A friend plays as a guest and clears stages 1 to 3: they keep that progress on their computer but earn no crates, and signing in afterwards starts their account at stage 1 with no crates.',
+    currentBehaviour: 'Implemented on Gauntlet PR 4 (2026-09-29), but NOT live until the owner pastes supabase/migrations/2026-09-29-gauntlet-progress.sql into the Supabase SQL editor and deploys the gauntlet-clear function; until then a signed-in clear stays in the retrying clear queue and counts on the account mirror, and no crate is granted. The server trusts the client\x27s clear and only checks the stage is 1 to 10. "Signed in" means a non-anonymous account: a guest (anonymous session) is treated exactly like no session. Pinned by the database test (first clear = one row + one crate, replay grants nothing, stage validation, a crate even with crates switched off, client roles cannot write), the handler test (403 for a guest), the account-progress test (account vs device store, no import on sign-in, the crate queued once, a replay grants nothing), the clear-queue test, and the stage-select and end-screen tests (the not-signed-in warning, the replay note, the crate only for the stage just cleared). PARTIAL pin: the no-crate-for-guests path is enforced by the handler refusing anonymous callers and the client never queueing a guest clear; there is no end-to-end test against a deployed function.',
+    enforcement: {
+      kind: 'scenario',
+      refs: [
+        'packages/progression/src/gauntlet.db.test.ts',
+        'packages/progression/src/gauntlet.test.ts',
+        'packages/ui/src/gauntlet/gauntletAccountProgress.test.ts',
+        'packages/ui/src/gauntlet/gauntletClearQueue.test.ts',
+        'packages/ui/src/gauntlet/StageSelect.test.tsx',
+        'packages/ui/src/gauntlet/GauntletEndScreen.test.tsx',
+      ],
+      lastVerifiedAt: '2026-09-29',
     },
   },
 ];

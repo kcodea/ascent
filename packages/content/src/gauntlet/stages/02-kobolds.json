@@ -2,6 +2,7 @@
   "number": 2,
   "name": "Kobolds",
   "opponentName": "The Kobold Warren",
+  "portraitCardId": "k_gemstorm",
   "tribe": "kobold",
   "status": "draft",
   "runes": {},

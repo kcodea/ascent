@@ -2,6 +2,7 @@
   "number": 4,
   "name": "Dwarves",
   "opponentName": "The Dwarven Hold",
+  "portraitCardId": "dw_brill",
   "tribe": "dwarf",
   "status": "draft",
   "runes": {},

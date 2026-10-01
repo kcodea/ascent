@@ -58,9 +58,9 @@ export function StageSelect() {
         {slots.map(({ n, stage, state }) => {
           const playable = state === 'available' || state === 'cleared' || state === 'draft';
           const hidden = state === 'soon';
-          // The slot's backdrop is the stage OPPONENT's portrait art (owner ask 2026-10-01); a "coming soon" slot keeps
-          // its plain face so it never spoils the stage.
-          const art = hidden ? undefined : foePortrait(n).art;
+          // The slot's backdrop is the stage OPPONENT's portrait art (owner ask 2026-10-01): a tier-6 unit of its tribe,
+          // shown on "coming soon" stages too (dimmed, name still hidden) so the whole row reads as five tribes.
+          const art = foePortrait(n).art;
           const tip = state === 'locked' ? `Clear Stage ${n - 1} to unlock` : state === 'cleared' ? REPLAY_NOTE : undefined;
           return (
             <button
@@ -83,7 +83,7 @@ export function StageSelect() {
                   ? <span className="gslot-emblem gslot-lock"><Icon name="lock" /></span>
                   : !hidden && !art && stage?.tribe
                     ? <span className="gslot-emblem"><Icon name={TRIBE_ICON[stage.tribe]} /></span>
-                    : hidden ? <span className="gslot-emblem gslot-soon"><Icon name="clock" /></span> : null}
+                    : hidden && !art ? <span className="gslot-emblem gslot-soon"><Icon name="clock" /></span> : null}
               </span>
               <span className="gslot-name">{hidden || !stage ? '???' : stage.name}</span>
               <span className="gslot-tag">{TAG[state]}</span>

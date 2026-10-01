@@ -3352,6 +3352,14 @@ export function Recruit() {
   useEffect(() => {
     if (timeUp && !inCombat && !run.sandbox) useGame.getState().flushSave();
   }, [timeUp, inCombat, run.sandbox]);
+  // An ARMED hero power / Equipment at 0:00 is dropped (R-TIMER-LOCK-01): the reducer would refuse the pick anyway,
+  // so leaving the aim line up would only invite a click that does nothing.
+  useEffect(() => {
+    if (!timeUp || inCombat) return;
+    const g = useGame.getState();
+    if (g.heroArmed) g.armHero();
+    if (g.equipArmed) g.armEquipment();
+  }, [timeUp, inCombat]);
 
   const zoneAt = (x: number, y: number): Zone | null => {
     const el = document.elementFromPoint(x, y)?.closest('[data-zone]');
@@ -4579,7 +4587,13 @@ export function Recruit() {
       const cur = turnClock.get();
       if (cur <= 0) return; // at 0 the timer just stops — actions lock (except End Turn); no auto-combat
       const next = cur - 1;
-      if (next === 0) sfx.turnExplode(); // timer hits 0 — shop locks; syncs with the charge glyph's completion flash
+      if (next === 0) {
+        sfx.turnExplode(); // timer hits 0 — shop locks; syncs with the charge glyph's completion flash
+        // …and the ENGINE locks with it (owner 2026-09-30, R-TIMER-LOCK-01: "make sure hero powers cant be used after
+        // timer ends"). A real action, like Thymepiece's expiry, so the reducer refuses the Shop's player actions
+        // (`blockedByShopClock`) and a recording replays the lock where it was lived.
+        dispatch({ type: 'shopClockExpired' });
+      }
       turnClock.set(next); // (the last-5s tick beeps were retired — the charge-glyph turnCharge cue replaces them)
       if (!infiniteClockRef.current) observeTurnClock(next, run.wave); // the announcer's "Low on time" warning (15 s left, every Shop turn)
       // Thymepiece's window closes on the SAME tick that moves the clock, so whatever pauses this loop (a

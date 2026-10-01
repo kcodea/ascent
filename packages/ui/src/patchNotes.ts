@@ -127,6 +127,15 @@ export const PATCH_NOTES: PatchNote[] = [
           'The ball always gets there before your hero, and the slam is one smooth flight into the explosion.',
         ],
       },
+      {
+        category: 'Systems',
+        text: 'When the Shop timer runs out, hero powers and Equipment can no longer be used. Their buttons turn off at 0:00.',
+        details: [
+          'This covers every hero power, both powers for heroes with two, and Equipment.',
+          'You can still end your turn, Freeze and rearrange your board at 0:00.',
+          'End of Turn effects and passive powers still happen as normal.',
+        ],
+      },
     ],
   },
   {

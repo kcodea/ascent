@@ -180,6 +180,7 @@ export const CARRY_OVER_EXCUSED: Readonly<Record<string, CarryOverExcuse>> = {
   spellCostOffTurn: { kind: 'no-combat-meaning', why: 'Arcane Clearance\'s this-turn spell discount; costs are shop-only (R-TURN-01 conform: nothing in the combat half of the turn can pay a cost)' },
   minionCostOffTurn: { kind: 'no-combat-meaning', why: 'Friends and Family\'s this-turn minion discount; costs are shop-only (R-TURN-01 conform: nothing in the combat half of the turn can pay a cost)' },
   cardDiscountWindow: { kind: 'no-combat-meaning', why: 'Thymepiece\'s 8-second all-cards discount window (a shop price on the turn clock, closed by faceOmen before the fight is built); costs are shop-only' },
+  shopClockExpired: { kind: 'no-combat-meaning', why: 'the recruit clock hit 0:00 (R-TIMER-LOCK-01): it only refuses Shop player actions, and faceOmen clears it before the fight is built' },
   tavernBuyBonusTurn: { kind: 'no-combat-meaning', why: 'Merchant\'s Chorus\' this-turn SHOP-offer buff; enchants offers, not the fought board' },
   banquetUsedThisTurn: { kind: 'no-combat-meaning', why: 'Rune of the Banquet Hall\'s once-per-turn buy latch; shop-only' },
   contrabandRubyUsed: { kind: 'no-combat-meaning', why: 'Rune of Contraband\'s per-turn Ruby latch (shop Ruby casts); the combat Ruby lane has its own mods' },

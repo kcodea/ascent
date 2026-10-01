@@ -7,7 +7,7 @@ import { renameTerms } from './terms';
 import { Card, mdBold } from './Card';
 import { instView } from './instView';
 import { ANCIENTS, dragonTamerCostOf, heroPowerCostOf, INDY_GILD_RECHARGE_GOLD, KESHI_CROWN_THRESHOLD, roundedSpellbookCostOf, allInPayoutOf, exhibitionGrantOf, tempestGrantOf, bladeMasteryGrantOf, hoardWhelpStatsOf, TEMPEST_KILLS_PER_STEP, BLADE_ATTACKS_PER_STEP, heroPowerText, commissionOffer, COMMISSION_NAME, COMMISSION_REWARD, COMMISSION_DELAY, getHero, spellAmplifyBonus, spellAttackBonusLive, spellHealthBonusLive, spellEscalationLive, rubyStatBonus, heroPowerLockTurns, activePowers, type RunState, type HeroPower } from '@game/sim';
-import { henchmanOffer, ancientAvengeCountdown, ancientClearanceStacks, ancientClearanceUsesBadge } from '@game/sim';
+import { shopLocked, henchmanOffer, ancientAvengeCountdown, ancientClearanceStacks, ancientClearanceUsesBadge } from '@game/sim';
 import { equipmentWillAmplify, equipmentCostOf, equipmentPool, equipmentState, equipmentText, equipmentUsesLeft, selectedEquipment, selectedEquipmentDef } from '@game/sim';
 import { CARD_INDEX, EQUIPMENT_INDEX } from '@game/content';
 import type { Keyword } from '@game/core';
@@ -171,6 +171,11 @@ export function StatusBar() {
   const armHero = useGame((s) => s.armHero);
   const dispatch = useGame((s) => s.dispatch);
   const eotAnimating = useGame((s) => s.endTurnAnimating);
+  // THE SHOP CLOCK LOCK (owner 2026-09-30, R-TIMER-LOCK-01: "make sure hero powers cant be used after timer ends").
+  // The reducer refuses a hero power / Equipment / Henchman once the clock hit 0:00 (`shopLocked`); the buttons go
+  // dead on the same tick (the clock's tick dispatches `shopClockExpired` as it lands on 0): no ready glow, no press.
+  // Read from RUN state, the very predicate the reducer applies, so the button and the engine can never disagree.
+  const clockLocked = shopLocked(run);
   const combatEnemyDeaths = useGame((s) => s.combatEnemyDeaths);
   // The hero + its power are data (HEROES registry); the panel renders whatever the run is on.
   // `activePowers`, not `hero.power`: Mimic wields a different hero's power each turn and Void wields TWO —
@@ -209,7 +214,7 @@ export function StatusBar() {
   const equipDiscounted = !!selectedEquipDef && equipCost < selectedEquipDef.baseCost;
   // Visible but DISABLED when unaffordable or spent — the handoff is explicit that the slot keeps showing the
   // Equipment and explains why it cannot be used, rather than vanishing.
-  const equipReady = !!selectedEquipDef && run.phase === 'recruit' && equipUses > 0 && run.embers >= equipCost;
+  const equipReady = !!selectedEquipDef && run.phase === 'recruit' && !clockLocked && equipUses > 0 && run.embers >= equipCost;
   // The wording for the version this player actually holds — a Gilded source prints the Gilded rule, and an
   // Amplified clock-window Equipment prints the doubled window it will really open (owner 2026-09-22).
   const equipRule = selectedEquipDef && selectedEquip
@@ -573,6 +578,7 @@ export function StatusBar() {
     !isPassive &&
     unlocked &&
     !eotAnimating &&
+    !clockLocked &&
     withinUses &&
     // ANCIENT OF WAR × Frantic Frank: a banked Clearance stack re-arms a spent Clearance (the reducer's `stackUse`).
     (power.oncePerGame ? !run.heroPowerSpent : run.heroReady || (power.kind === 'clearance' && ancientClearanceStacks(run) > 0)) &&
@@ -989,7 +995,7 @@ export function StatusBar() {
           {henchman && henchmanDef && (
             <button
               className="hmn-btn gtip"
-              disabled={run.embers < henchman.cost || eotAnimating}
+              disabled={run.embers < henchman.cost || eotAnimating || clockLocked}
               onClick={() => dispatch({ type: 'buyHenchman' })}
               aria-description={`Recruit ${henchmanDef.name}, your hero's henchman. Costs ${henchman.cost} Gold. It gets cheaper every round: win −3, loss −2.`}
               data-tip={`Recruit ${henchmanDef.name}, your hero's henchman. Costs ${henchman.cost} Gold. It gets cheaper every round: win −3, loss −2.`}
@@ -1054,7 +1060,7 @@ export function StatusBar() {
           const liveCost2 = heroPowerCostOf(p2, run, uses2);
           const tally2 = heroPowerTallyOf(p2, run, { spent: !!run.heroPowerSpent2, uses: uses2, combatEnemyDeaths, diceLock: diceLock2 });
           const center2 = heroPowerCenterOf(p2, run, combatEnemyDeaths);
-          const ready2 = !passive2 && !spent2 && (run.heroReady2 ?? true) && run.wave >= (p2.unlockWave ?? 1)
+          const ready2 = !passive2 && !spent2 && !clockLocked && (run.heroReady2 ?? true) && run.wave >= (p2.unlockWave ?? 1)
             && (!liveCost2 || run.embers >= liveCost2) && diceLock2 === 0
             && !(p2.kind === 'commission' && !!run.commission);
           const armed2 = heroArmed && heroArmedSlot === 1;

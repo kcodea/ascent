@@ -2,13 +2,22 @@
  * GAUNTLET FOE PORTRAIT helper — a stage's `portraitCardId` resolves to that card's art; a stage without one (or an
  * unknown stage) falls back to the tribe emblem, so `art` is absent and `tribe` carries the fallback glyph.
  */
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { gauntletStage } from '@game/content';
 import { artFor } from '../art';
 import { foePortrait } from './foePortrait';
 
+/** Stage 1 wears a portrait card here regardless of what the shipped stage file carries (the test owns its fixture). */
+vi.mock('@game/content', async (importOriginal) => {
+  const m = await importOriginal<typeof import('@game/content')>();
+  return {
+    ...m,
+    gauntletStage: (n: number) => (n === 1 ? { ...m.gauntletStage(1)!, portraitCardId: 'dm_grobbus' } : m.gauntletStage(n)),
+  };
+});
+
 describe('foePortrait', () => {
-  it('Demons wear Grobbus: the portrait card art, plus the tribe as the fallback', () => {
+  it("a stage with a portrait card wears that card's art, plus the tribe as the fallback", () => {
     expect(gauntletStage(1)?.portraitCardId).toBe('dm_grobbus');
     const face = foePortrait(1);
     expect(face.art).toBeTruthy();

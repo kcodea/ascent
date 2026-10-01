@@ -7,7 +7,7 @@
  * NO rail box, NO seat list / scouting and NO player Resolve. Plus the regression that the normal lobby rail still
  * reads the normal cap table (round 8 → −15), and the combat opponent: the stage's tribe emblem in place of the
  * stand-in hero portrait, no hero power, no health pill, name kept. */
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -20,6 +20,15 @@ import { CombatOpponent } from '../CombatOpponent';
 import { useGame } from '../store';
 import { artFor } from '../art';
 import { GauntletFoe } from './GauntletFoe';
+
+/** Stage 1 wears a portrait card here regardless of what the shipped stage file carries (the test owns its fixture). */
+vi.mock('@game/content', async (importOriginal) => {
+  const m = await importOriginal<typeof import('@game/content')>();
+  return {
+    ...m,
+    gauntletStage: (n: number) => (n === 1 ? { ...m.gauntletStage(1)!, portraitCardId: 'dm_grobbus' } : m.gauntletStage(n)),
+  };
+});
 
 let ui: Mounted | null = null;
 afterEach(() => { ui?.unmount(); ui = null; });

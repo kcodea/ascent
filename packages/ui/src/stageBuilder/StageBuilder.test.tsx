@@ -23,10 +23,11 @@ vi.mock('../remoteBoards', async (importOriginal) => {
   };
 });
 
-/** Stage 1 as on disk, with one real minion in round 3 so there is a stat to edit. */
+/** Stage 1 with a Grobbus portrait card, and one real minion in round 3 so there is a stat to edit. */
 const MINION = Object.values(CARD_INDEX).find((c) => !c.spell && !c.token && c.tier === 1)!;
 const fixture = (): GauntletStage => {
   const s = structuredClone(gauntletStage(1)!);
+  s.portraitCardId = 'dm_grobbus'; // own the portrait the picker test reads, independent of the shipped stage file
   s.rounds[2] = { board: [{ cardId: MINION.id, attack: 2, health: 3, cardVersion: cardRevision(MINION) }] };
   return s;
 };

@@ -2412,7 +2412,7 @@ export const FOUNDATION_RULES: GameRule[] = [
     statement:
       'In the Collection a HERO skin previews in the in-game portrait ring (the same disc, cover crop and frame as your '
       + 'portrait in a run), never as a bare or offset picture. Hovering a CARD skin (a minion skin, or a spell skin when '
-      + 'there are any), owned or not, on its tile or on the detail panel\x27s art, floats the real in-game card wearing that '
+      + 'there are any), that you OWN (owner 2026-10-01: never an unowned one), on its tile or on the detail panel\x27s art, floats the real in-game card wearing that '
       + 'skin (frame, tier stars, stats, name and text on its plate) beside the tile, never over it, and kept on screen; '
       + 'it is placed once per hover and leaving clears it. Pressing "Use default art" switches the detail preview to the '
       + 'target\x27s DEFAULT art at once (labelled Default art) and keeps that skin selected; once the server answers, its '

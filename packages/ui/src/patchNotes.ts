@@ -56,6 +56,15 @@ export interface PatchNote {
 /** Newest first. PREPEND new entries. */
 export const PATCH_NOTES: PatchNote[] = [
   {
+    date: '2026-10-01',
+    changes: [
+      {
+        category: 'Balance',
+        text: 'Runesmith and Guardian are back. You can pick them again in Play and Practice.',
+      },
+    ],
+  },
+  {
     date: '2026-09-30',
     changes: [
       {

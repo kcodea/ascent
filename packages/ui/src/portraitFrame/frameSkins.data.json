@@ -1,4 +1,10 @@
 {
+  "frame_ale": {
+    "aspect": 1,
+    "holeD": 0.8254,
+    "holeCx": 0.4992,
+    "holeCy": 0.48
+  },
   "frame_ascendant": {
     "aspect": 1,
     "holeD": 0.7687,
@@ -59,6 +65,12 @@
     "holeCx": 0.4981,
     "holeCy": 0.4826
   },
+  "frame_magic": {
+    "aspect": 1,
+    "holeD": 0.7998,
+    "holeCx": 0.4999,
+    "holeCy": 0.4852
+  },
   "frame_nimbus": {
     "aspect": 1,
     "holeD": 0.764,
@@ -95,6 +107,12 @@
     "holeCx": 0.5005,
     "holeCy": 0.4641
   },
+  "frame_ruby": {
+    "aspect": 1,
+    "holeD": 0.7992,
+    "holeCx": 0.4965,
+    "holeCy": 0.4734
+  },
   "frame_silver": {
     "aspect": 1,
     "holeD": 0.8397,
@@ -106,6 +124,12 @@
     "holeD": 0.7058,
     "holeCx": 0.4981,
     "holeCy": 0.4709
+  },
+  "frame_steel": {
+    "aspect": 1,
+    "holeD": 0.8285,
+    "holeCx": 0.4938,
+    "holeCy": 0.4789
   },
   "frame_vines": {
     "aspect": 1,
@@ -124,5 +148,11 @@
     "holeD": 0.6818,
     "holeCx": 0.5,
     "holeCy": 0.4826
+  },
+  "frame_wood": {
+    "aspect": 1,
+    "holeD": 0.819,
+    "holeCx": 0.4963,
+    "holeCy": 0.4786
   }
 }

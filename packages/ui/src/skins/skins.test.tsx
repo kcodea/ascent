@@ -223,6 +223,22 @@ describe('the catalog <-> the bundle', () => {
     expect(skinArtOf(c)).toBeTruthy();
     expect(minionSkinOf({ minionSkinByCardId: { [cardId]: id } }, cardId)?.id).toBe(id);
   });
+  // Skins batch 7 (owner 2026-10-01, same ask): three hero skins, rarity = the Hero Skins folder. IronGuardian is the
+  // Guardian hero (id runeguard, re-activated 2026-10-01). Same checks as the batch 4 heroes.
+  const BATCH7_HEROES: [id: string, rarity: string, heroId: string, heroName: string, master: string][] = [
+    ['skin_merrin_1', 'epic', 'merrin', 'Merrin', 'GothMerrin.png'],
+    ['skin_runeguard_1', 'epic', 'runeguard', 'Guardian', 'IronGuardian.png'],
+    ['skin_robin_2', 'rare', 'robin', 'Robin', 'RobinHood.png'],
+  ];
+  it.each(BATCH7_HEROES)('batch 7: %s (%s) exists, targets the hero %s, and ships its art', (id, rarity, heroId, heroName, master) => {
+    const c = cosmeticOf(id)!;
+    expect(c).toBeTruthy();
+    expect([c.category, c.rarity, c.target, c.assets.master, c.active]).toEqual(['hero_skin', rarity, { type: 'hero', id: heroId }, master, true]);
+    expect(HEROES.find((h) => h.id === heroId)!.name).toBe(heroName);
+    expect(skinArtKeys()).toContain(id);
+    expect(skinArtOf(c)).toBeTruthy();
+    expect(heroSkinOf({ heroSkinByHeroId: { [heroId]: id } }, heroId)?.id).toBe(id);
+  });
   it('batch 5: Influencer Indy (Epic) exists, targets the hero indy, and ships its art', () => {
     const c = cosmeticOf('skin_indy_1')!;
     expect([c.category, c.rarity, c.target, c.assets.master, c.active]).toEqual(['hero_skin', 'epic', { type: 'hero', id: 'indy' }, 'InfluencerIndy.png', true]);

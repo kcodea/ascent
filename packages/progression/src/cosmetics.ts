@@ -314,6 +314,11 @@ export const COSMETICS: readonly CosmeticDef[] = Object.freeze([
   skin('skin_robin_1', 'hero_skin', 'Ninja Robin', 'rare', 'robin', 'NinjaRobin.png'),
   // Batch 5 hero skin (owner 2026-09-30: "i added more skins"). Rare by the owner's random draw.
   skin('skin_indy_1', 'hero_skin', 'Influencer Indy', 'epic', 'indy', 'InfluencerIndy.png'),
+  // Batch 7 hero skins (owner 2026-10-01: "i added a bunch of art/portrait arts etc, can you make sure all get added").
+  // Rarity = the Hero Skins rarity folder. IronGuardian is the Guardian hero (id runeguard, re-activated 2026-10-01).
+  skin('skin_merrin_1', 'hero_skin', 'Goth Merrin', 'epic', 'merrin', 'GothMerrin.png'),
+  skin('skin_runeguard_1', 'hero_skin', 'Iron Guardian', 'epic', 'runeguard', 'IronGuardian.png'),
+  skin('skin_robin_2', 'hero_skin', 'Robin Hood', 'rare', 'robin', 'RobinHood.png'),
   // HERO ATTACKS. Owner 2026-09-28: "the new blast attack is going to be a cosmetic unlock, not a new default". The
   // numbers combine, the hero charges, the view shakes and pushes in, bolts carry the blow. Then, on seeing it: "those
   // are good thresholds, this blast animation looks good! make it a legendary reward" (Epic -> Legendary). The name is
@@ -413,6 +418,11 @@ export const COSMETICS: readonly CosmeticDef[] = Object.freeze([
   // ids keep the masters' names (permanent, never shown). The masters sit in one sub-folder per RARITY and the folder IS
   // the rarity (owner 2026-10-01, R-PROG-FRAME-04; portraitFrameRarityFolders.test.ts checks it).
   portraitFrame('frame_honey', 'Honey Frame', 'common', 'Common/Honey.png'),
+  // Portrait frames batch 3 (owner 2026-10-01): rarity = the Portraits rarity folder.
+  portraitFrame('frame_ale', 'Ale Frame', 'common', 'Common/Ale.png'),
+  portraitFrame('frame_ruby', 'Ruby Frame', 'common', 'Common/Ruby.png'),
+  portraitFrame('frame_steel', 'Steel Frame', 'common', 'Common/Steel.png'),
+  portraitFrame('frame_wood', 'Wood Frame', 'common', 'Common/Wood.png'),
   portraitFrame('frame_bronze', 'Burnished Frame', 'rare', 'Rare/BronzeFrame.png'),
   portraitFrame('frame_silver', 'Sterling Frame', 'rare', 'Rare/SilverFrame.png'),
   portraitFrame('frame_gold', 'Gilded Frame', 'rare', 'Rare/GoldFrame.png'),
@@ -420,6 +430,7 @@ export const COSMETICS: readonly CosmeticDef[] = Object.freeze([
   portraitFrame('frame_glass_shard', 'Glass Shard Frame', 'rare', 'Rare/GlassShard.png'),
   portraitFrame('frame_paragon', 'Paragon Frame', 'rare', 'Rare/Paragon.png'),
   portraitFrame('frame_vines', 'Vine Frame', 'rare', 'Rare/Vines.png'),
+  portraitFrame('frame_magic', 'Magic Frame', 'rare', 'Rare/Magic.png'),
   portraitFrame('frame_aura', 'Aura Frame', 'epic', 'Epic/Aura.png'),
   portraitFrame('frame_ascendant', 'Amethyst Frame', 'epic', 'Epic/Ascendant.png'),
   portraitFrame('frame_dark_diamond', 'Shard Frame', 'epic', 'Epic/DarkDiamond.png'),

@@ -5,7 +5,7 @@ import { poolOf } from './cardPool';
 import { CIA_ENCHANT_CHANCE, POOL_QUANTITIES, maxTierFor } from './config';
 import { getHero, hasPower } from './heroes';
 import type { RunState } from './state';
-import { stampVeinstormRubies } from './recruit';
+import { defIsTribe, stampVeinstormRubies } from './recruit';
 import { buffStarform, starformOf, starformRefreshLand, withStarformPinned } from './starform';
 
 /**
@@ -162,11 +162,16 @@ function rollShopRow(state: RunState, slots: number): void {
       inRunTribes(card, state.tribes) &&
       (state.pool[card.id] ?? 0) > 0,
   );
+  // ANCIENT OF GENESIS × Frantic Frank: Clearance's refresh draws only your most common type (parked on the Ancient
+  // state for exactly that roll). Narrowed here, at the single draw site, like the candle, so the pool stays honest;
+  // a type with no stock left at your tier falls back to the ordinary draw.
+  const rollTribe = state.ancientsEnabled ? state.ancients?.rollTribe : undefined;
   for (let i = kept.length; i < slots; i++) {
     const pool = availableOffers(state);
     // Re-filtered per slot so the stock decrements below are respected; falls back only when the tier is
     // genuinely exhausted, which is the one case where a narrowed shop cannot be filled.
-    const narrowed = lockTier === undefined ? pool : candlePool.filter((c) => (state.pool[c.id] ?? 0) > 0);
+    const candled = lockTier === undefined ? pool : candlePool.filter((c) => (state.pool[c.id] ?? 0) > 0);
+    const narrowed = rollTribe ? candled.filter((c) => !c.spell && !c.ruby && defIsTribe(c, rollTribe)) : candled;
     const id = drawOfferId(rng, narrowed.length > 0 ? narrowed : pool, state.pool);
     if (!id) break; // pool exhausted — fewer offers
     state.pool[id] -= 1;

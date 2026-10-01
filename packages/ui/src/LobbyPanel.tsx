@@ -11,6 +11,7 @@ import { heroPortrait, opponentSkins, useRunSkins } from './skins/skins';
 import { PortraitFrame, usePortraitFrame } from './portraitFrame/PortraitFrame';
 import { mdBold } from './Card';
 import { Icon } from './Icon';
+import { FadeImg } from './FadeImg';
 import { useGame } from './store';
 import { stageHost, stageViewport, toStage } from './stage';
 
@@ -167,10 +168,10 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
                 // that carries the ring; without one the markup is exactly what it always was.
                 return frame ? (
                   <span className="lobbyface lobbyface-host pf-on" style={frame.hostStyle}>
-                    <img decoding="sync" className="lobbyface-img" src={src} alt="" />
+                    <FadeImg className="lobbyface-img" src={src} alt="" />
                     <PortraitFrame frame={frame} />
                   </span>
-                ) : <img decoding="sync" className="lobbyface" src={src} alt="" />;
+                ) : <FadeImg className="lobbyface" src={src} alt="" />;
               })()}
               {/* The opponent name owns its own full-width row (styles.css `.lobbynameline`). The next foe is
                   marked by the seat's own bright pulsing glow (the `foe` class → `.lobbyseat.foe`), not a pill. */}

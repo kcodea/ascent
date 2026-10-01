@@ -191,7 +191,7 @@ body { -webkit-tap-highlight-color: transparent; }
 .bootload { position: fixed; inset: 0; z-index: 9999; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 22px; background: var(--bg2, #efe5d4); color: var(--ink, #2a2017); }
 .bootload-mark { font-family: var(--font-title, 'Outfit'), sans-serif; font-weight: 800; font-size: clamp(40px, calc(7 * var(--vw, 1vw)), 84px); letter-spacing: 0.14em; color: var(--acc, #f0902e); text-shadow: 0 3px 0 var(--acc-dk, #c46f17); }
 .bootload-bar { width: min(340px, calc(60 * var(--vw, 1vw))); height: 12px; border-radius: 999px; background: color-mix(in srgb, var(--ink, #2a2017) 12%, transparent); overflow: hidden; }
-.bootload-fill { height: 100%; border-radius: 999px; background: var(--acc, #f0902e); transition: width 0.18s ease-out; }
+.bootload-fill { height: 100%; border-radius: 999px; background: var(--acc, #f0902e); transform: scaleX(0); transform-origin: left center; transition: transform 0.18s ease-out; }
 .bootload-sub { font-family: var(--font-ui, 'Outfit'), sans-serif; font-weight: 700; font-size: 14px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink3, #9c8b71); font-variant-numeric: tabular-nums; }
 /* the window behind the stage is a dark frame — it only shows as letterbox bars when the
    resolution scaler shrinks the stage below the window (otherwise the stage covers it). */
@@ -1499,6 +1499,20 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
 /* illustrated art (art/minions/<id>.png) fills the panel exactly (absolute so the grid can't
    size it to the square's width-driven height and overflow onto the text below) */
 .artimg { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center; filter: var(--ca-filter, none); display: block; -webkit-user-drag: none; user-select: none; -webkit-touch-callout: none; }
+/* NEVER SHOW UNDECODED ART (art pop-in fix 2026-09-29, `useArtFade` in artPreload.ts). While a card's art is still
+   being fetched/decoded the <img> is invisible and its window shows a dim portrait-shaped stand-in (static: no
+   looping paint), then the art fades in ONCE over 180 ms — opacity only, so it composites. Art that is already
+   decoded never gets either class and renders exactly as before. `!important` on the stand-in because the
+   window's background is set per frame type at up to four-class specificity (spell frames are transparent);
+   this transient state must win over all of them. */
+/* `.art-pending` / `.art-fadein` also ride the card FRAME and hand PLATE images (and FadeImg portraits); the
+   pending opacity is `!important` because some frame copies (the grounding shadow) carry their own opacity. */
+.art-pending { opacity: 0 !important; }
+.art-fadein { transition: opacity 180ms ease-out; }
+/* Any OTHER <img> (an icon, a button, a logo) whose load failed and is being retried (artPreload.ts, retry fix
+   2026-09-30): invisible instead of a broken image until the retry lands. Static, never animated. */
+.img-retrying { opacity: 0 !important; }
+.art.art-wait { background: radial-gradient(ellipse 70% 55% at 50% 40%, rgba(255, 228, 178, 0.10), transparent 70%), linear-gradient(180deg, #2b2436, #17121d) !important; }
 /* Ward (Divine Shield) — the energy shell. The old INNER dome (a `.ward` stack inside `.art`, trimmed to the
    portrait window) was REMOVED 2026-07-21: with the frame-wide `.wardglass` shell below, the two stacked into
    a doubled honeycomb and two competing blues (owner). The card-level outer aura + breathing bloom stay (they
@@ -3950,6 +3964,38 @@ body.dragging .statusbar .heropanel { pointer-events: none; } /* let a corner-re
    Colour only (no per-frame paint). The owner's authored cue is a Pixi loop on the slot button, not CSS
    (`useAmplifiedSlotFx`, 2026-09-22); `[data-fx="equipment-amplified"]` on the tally stays as the tooling mark. */
 .hpwrap .hpb-tally.amplified { color: #7fc4ff; }
+/* ANCIENT AVENGE COUNTDOWN in the CENTRE of the power (owner 2026-09-30: Frank × War's Avenge (3), Hunch × Death's
+   Avenge (4)), on a small dark disc with a crimson rim so it reads over any art. Static paint; each change re-keys it
+   and plays the one-shot centred bump (transform only). One rule for both heroes (the shared `ancientAvengeCountdown`). */
+.hpwrap .hpb-center.hpb-avenge {
+  width: calc(40 * var(--u)); height: calc(40 * var(--u)); box-sizing: border-box;
+  display: grid; place-items: center; border-radius: 50%;
+  background: rgba(14, 12, 18, 0.78);
+  border: calc(3 * var(--u)) solid #c9363b;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.6);
+  font-size: calc(24 * var(--u)); font-weight: 900; color: #fff1d6;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.9);
+  animation: avengecenterbump 220ms ease-out;
+}
+@keyframes avengecenterbump {
+  0% { transform: translate(-50%, -50%) scale(1); }
+  45% { transform: translate(-50%, -50%) scale(1.22); }
+  100% { transform: translate(-50%, -50%) scale(1); }
+}
+/* FRANK × ANCIENT OF WAR (owner 2026-09-30): the Clearance uses count (2+) as a filled RED pip, top centre of the power,
+   sitting on the rim above the art. Sized off the gold cost coin (44u coin / 22u number) so it scales with the stage the
+   same way (owner on 5173: "the 2 needs to be larger"). Static paint only; it re-keys on every change, so the inherited
+   one-shot `stepbump` (transform) is the tick. */
+.hpwrap .hpb-tally.clearance-uses {
+  top: calc(-30 * var(--u)); /* its bottom meets the art edge: on the rim, never over the art */
+  width: calc(34 * var(--u)); height: calc(34 * var(--u)); box-sizing: border-box;
+  display: grid; place-items: center; border-radius: 50%;
+  background: radial-gradient(circle at 38% 30%, #ff8a7a, #d8332b 58%, #8e1712);
+  border: calc(3 * var(--u)) solid #1b1d22;
+  box-shadow: 0 3px 7px rgba(0, 0, 0, 0.45), inset 0 2px 2px rgba(255, 255, 255, 0.4);
+  font-weight: 900; font-size: calc(20 * var(--u)); color: #fff6e2;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.7);
+}
 .equipslot .hplabel {
   transform: translate(calc(var(--eqn-x, 0) * 1px), calc(var(--eqn-y, 0) * 1px)) scale(var(--eqn-scale, 1)); }
 /* THE CLOCK-WINDOW READOUT (Thymepiece, 2026-09-12): a pill — "−1 Gold · 6s" — in the same discount GREEN the
@@ -5809,6 +5855,26 @@ body:has(.titlescreen) .version { visibility: hidden; }
   display: flex; align-items: center; gap: 8px; padding: 4px 16px 4px 5px; border-radius: 999px; white-space: nowrap;
   background: rgba(6, 9, 16, 0.74); border: 1px solid rgba(196, 160, 92, 0.5); box-shadow: 0 4px 14px -6px rgba(0, 0, 0, 0.8); pointer-events: none; }
 .titlerank-label { font-family: var(--font-ui); font-weight: 900; font-size: 15px; letter-spacing: 0.08em; text-transform: uppercase; color: #fff6e4; text-shadow: 0 2px 8px rgba(0, 0, 0, 0.8); }
+/* GUEST SIGN-IN (owner 2026-09-29): a guest's slow-blinking "Sign in!" seated left of the portrait ring, vertically
+   centred on it. The seat owns the position so the button's own transform stays free for hover/press. The BLINK is a
+   real `.guestsignin-glow` element with a STATIC amber ring + halo whose OPACITY breathes on a 2.4 s cycle
+   (compositor-only, the kwglow recipe): no looping box-shadow / filter / background (docs/performance.md). Reduced
+   motion: no blink, the glow simply sits half on. No cursor here: the global button rule paints the gauntlet. */
+.guestsignin-seat { position: absolute; right: calc(100% + 22px); top: 50%; transform: translateY(-50%); z-index: 3; }
+.guestsignin { position: relative; display: block; padding: 10px 26px; border: 2px solid #8a6428; border-radius: 999px;
+  background: linear-gradient(180deg, #ffe39a, #e9a23f); color: #1a1206; white-space: nowrap;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.55), 0 4px 0 #8a6428, 0 10px 24px -10px rgba(0, 0, 0, 0.8);
+  font-family: var(--font-ui); font-weight: 900; font-size: 24px; letter-spacing: 0.06em; line-height: 1.1; text-transform: uppercase;
+  transition: transform 0.14s ease, border-color 0.12s ease; }
+.guestsignin:hover { transform: translateY(-1px) scale(1.04); border-color: #ffe08a; }
+.guestsignin:active { transform: translateY(2px); }
+.guestsignin:focus-visible { outline: 2px solid var(--acc); outline-offset: 4px; }
+.guestsignin-txt { position: relative; z-index: 1; }
+.guestsignin-glow { position: absolute; inset: -6px; border-radius: 999px; pointer-events: none;
+  box-shadow: 0 0 0 3px rgba(255, 216, 120, 0.95), 0 0 26px 8px rgba(255, 176, 64, 0.75);
+  opacity: 0; animation: guestsigninblink 2.4s ease-in-out infinite; }
+@keyframes guestsigninblink { 0%, 100% { opacity: 0.1; } 50% { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .guestsignin-glow { animation: none; opacity: 0.6; } }
 
 /* Font Lab (dev) — bottom-right of the title; a small toggle that opens the per-role font pickers. */
 .fontlab { position: fixed; right: 18px; bottom: 18px; z-index: 460; display: flex; flex-direction: column; align-items: flex-end; gap: 10px; }

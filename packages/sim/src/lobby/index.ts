@@ -9,3 +9,5 @@ export * from './tutorialSeats';
 export * from './practiceBots';
 export * from './matchDetails';
 export * from './gauntlet';
+export * from './boardStrength';
+export * from './strengthBands';

@@ -13,6 +13,7 @@ export * from './quests';
 export * from './buildTags';
 export * from './contribution';
 export * from './reducer';
+export * from './shopClock';
 export * from './preparedAction';
 export * from './beatProbe';
 export { currentCollector, withActiveCollector } from './activeCollector';

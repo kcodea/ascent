@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { AscentLogo } from './AscentLogo';
-import { activeRift, LEARN_ASCENT } from '@game/sim';
+import { LEARN_ASCENT } from '@game/sim';
 import { avatarSrc, modeArt } from './art';
+import { FadeImg } from './FadeImg';
 import { getTitleText, subscribeTitleText, titleContinueNote } from './titleTextConfig';
 import { applyTitleVars } from './titleConfig';
 import { applyTitleVeilVars } from './titleVeilConfig';
@@ -21,6 +22,7 @@ import { useCurrentRank } from './rank/rankSource';
 import { rankLabel } from './rank/rankFormat';
 import { NewPill, useHasNewRewards } from './progression/NewRewardsPopup';
 import { StageSelect } from './gauntlet/StageSelect';
+import { GuestSignInButton, PortraitSignInGate } from './GuestSignIn';
 
 /**
  * The title screen — the game's front door, shown at boot and after a run ends. Styled after the
@@ -53,7 +55,6 @@ export function Title({ onSettings }: { onSettings: () => void }) {
   const startPractice = useGame((s) => s.startPractice);
   const startLobby = useGame((s) => s.startLobby);
   const startTutorial = useGame((s) => s.startTutorial);
-  const startRift = useGame((s) => s.startRift);
   const startSceneBuilder = useGame((s) => s.startSceneBuilder);
   const startStageBuilder = useGame((s) => s.startStageBuilder);
   // SOCIAL → the player's own Career page through `openCareer()` — the plain open, NOT the sidebar's `goTo`:
@@ -101,6 +102,10 @@ export function Title({ onSettings }: { onSettings: () => void }) {
   // retire it. (The mode picker / Learn hub views are `titleView` in the store — returning to the title lands
   // on the MAIN menu because `openTitle` / `cancelPracticeSetup` reset it; owner ask 2026-08-24.)
   const [tutorialPrompt, setTutorialPrompt] = useState(false);
+  // A GUEST's portrait click opens the portrait sign-in gate, not the avatar picker (owner 2026-09-29: "don't let
+  // non-signed in players change the portrait either, they need to sign in for that"). Read fresh per click.
+  const [portraitGate, setPortraitGate] = useState(false);
+  const closePortraitGate = useCallback(() => setPortraitGate(false), []);
 
   if (!showTitle) return null;
 
@@ -115,7 +120,6 @@ export function Title({ onSettings }: { onSettings: () => void }) {
     else startLobby();
   };
 
-  const rift = activeRift(); // the live registry is correct HERE — this is a pre-run choice, not a pinned run
   // A first-time player with no name yet: show the auto-assigned temp handle (the same one on the leaderboard)
   // and NUDGE the chip so they notice it's theirs to change, rather than a bare "Set your name".
   const unnamed = !playerName;
@@ -145,11 +149,15 @@ export function Title({ onSettings }: { onSettings: () => void }) {
           👤 Title Account dev tuner's `--ta-*` vars (see titleAccountConfig.ts). No `data-tip` on `.portring`
           itself — its ::after IS the ring; the tip rides the wrapping button. */}
       <div className="titleaccount">
+        {/* GUEST SIGN-IN (owner 2026-09-29): a slow-blinking "Sign in!" left of the portrait, guests only. */}
+        <GuestSignInButton />
         <button
           className={`titleportrait${avatarSrc(playerAvatar) ? '' : ' noart'}`}
-          onClick={openAvatarPicker}
-          data-tip="Change your avatar"
-          aria-label="Change your avatar"
+          onClick={() => { if (account.anonymous) { sfx.pulse(); setPortraitGate(true); } else openAvatarPicker(); }}
+          // No hover tip for a guest: it pops out LEFT, right over the Sign in! button beside it; the button and the
+          // click prompt already say it.
+          data-tip={account.anonymous ? undefined : 'Change your avatar'}
+          aria-label={account.anonymous ? 'Sign in to change your portrait' : 'Change your avatar'}
         >
           <div className={`portring${pfClass(avatarFrame)}`} style={avatarFrame?.hostStyle}>
             <div className="hero">
@@ -195,6 +203,8 @@ export function Title({ onSettings }: { onSettings: () => void }) {
           </div>
         )}
       </div>
+
+      <PortraitSignInGate open={portraitGate} onClose={closePortraitGate} />
 
       <div className="titlemenu">
         {/* The lockup is shared with hero select — see `AscentLogo`. `.titlelogo` keeps ALL of this screen's
@@ -298,9 +308,8 @@ export function Title({ onSettings }: { onSettings: () => void }) {
 
       {/* MODE PICKER — a full-screen view in the HERO-SELECT idiom (owner request): big framed cards in a
           row, each with a name pill eclipsing the frame's top edge, a tag pill eclipsing the bottom, and the
-          description fading in on hover. Ascent is the clean scored climb; Rift is the SAME climb with the
-          active rift's rules (opt-in as of this screen); Practice is unscored. The Rift card is mounted only
-          while a rift is actually live. */}
+          description fading in on hover. Play is the ranked lobby; Practice is unscored. (The Rift card went
+          with the retired course format, owner 2026-09-30 / R-PERSIST-01: a rift run was a 17-round climb.) */}
       {titleView !== 'menu' && (
         <SidebarHost className="modepick sb-host" role="dialog" aria-label="Choose a mode">
           {/* The menu sidebar carries Back (→ the main menu) + the main menu itself (owner ask 2026-09-21). */}
@@ -311,21 +320,11 @@ export function Title({ onSettings }: { onSettings: () => void }) {
                 everywhere internally (store, run state, replays); only the LABEL is "Play" (owner 2026-08-17).
                 A new player is offered the tutorial first (see `onPlay`). */}
             <div className="mprow">
-              {rift && (
-                <button className="modecard" onClick={() => { sfx.pulse(); startRift(); }}>
-                  <div className="mcframe" data-mode="rift">
-                    <div className="mcname">Rift</div>
-                    <span className="mcemblem mcswirl" aria-hidden="true" />
-                    <div className="mctag">{rift.name}</div>
-                    <div className="mcdesc">{rift.blurb}</div>
-                  </div>
-                </button>
-              )}
               <button className="modecard" data-mp="play" onClick={onPlay}>
                 <div className="mcframe" data-mode="lobby" data-mp="play">
                   <div className="mcname">Play</div>
                   {modeArt('lobby')
-                    ? <div className="mcart-clip"><img decoding="sync" className="mcframe-art" src={modeArt('lobby')} alt="" draggable={false} /></div>
+                    ? <div className="mcart-clip"><FadeImg className="mcframe-art" src={modeArt('lobby')} alt="" draggable={false} /></div>
                     : <span className="mcemblem"><IconHelm /></span>}
                   {/* No rank on the Play card (owner 2026-09-21): the crest + bar live on the Career page and the
                       Leaderboard; the card is just the door to the ranked lobby. */}
@@ -341,7 +340,7 @@ export function Title({ onSettings }: { onSettings: () => void }) {
                 <div className="mcframe" data-mode="learn" data-mp="learn">
                   <div className="mcname">Learn</div>
                   {modeArt('learn')
-                    ? <div className="mcart-clip"><img decoding="sync" className="mcframe-art" src={modeArt('learn')} alt="" draggable={false} /></div>
+                    ? <div className="mcart-clip"><FadeImg className="mcframe-art" src={modeArt('learn')} alt="" draggable={false} /></div>
                     : <span className="mcemblem"><IconHelm /></span>}
                   <div className="mcdesc">Tutorial + techniques.</div>
                 </div>
@@ -351,7 +350,7 @@ export function Title({ onSettings }: { onSettings: () => void }) {
                 <div className="mcframe" data-mode="practice" data-mp="practice">
                   <div className="mcname">Practice</div>
                   {modeArt('practice')
-                    ? <div className="mcart-clip"><img decoding="sync" className="mcframe-art" src={modeArt('practice')} alt="" draggable={false} /></div>
+                    ? <div className="mcart-clip"><FadeImg className="mcframe-art" src={modeArt('practice')} alt="" draggable={false} /></div>
                     : <span className="mcemblem"><IconHelm /></span>}
                   <div className="mcdesc">More time and unlimited Health.</div>
                 </div>
@@ -386,7 +385,7 @@ export function Title({ onSettings }: { onSettings: () => void }) {
                 <div className="mcframe" data-mode="learn">
                   <div className="mcname">Tutorial</div>
                   {modeArt('learn')
-                    ? <div className="mcart-clip"><img decoding="sync" className="mcframe-art" src={modeArt('learn')} alt="" draggable={false} /></div>
+                    ? <div className="mcart-clip"><FadeImg className="mcframe-art" src={modeArt('learn')} alt="" draggable={false} /></div>
                     : <span className="mcemblem"><IconHelm /></span>}
                   <div className="mcdesc">A coached first game. Every mechanic, then graduate.</div>
                 </div>

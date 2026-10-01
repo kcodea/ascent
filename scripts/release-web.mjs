@@ -100,6 +100,13 @@ const refs = [...html.matchAll(/(?:src|href)="([^"]+)"/g)]
 const missing = refs.filter((u) => !existsSync(path.join(dist, u.replace(/^\.?\//, '').split(/[?#]/)[0])));
 if (missing.length) die(`index.html references files that are not in dist:\n    ${missing.join('\n    ')}`);
 console.log(`  ✓ all ${refs.length} local files index.html references are present`);
+// The Netlify caching rules (apps/web/public/_headers, art pop-in fix 2026-09-29). Without them every returning
+// player re-validates ~1,300 images before the browser may use its own copy — the art pops in on every visit.
+const headersFile = path.join(dist, '_headers');
+if (!existsSync(headersFile) || !/\/assets\/\*\s+Cache-Control: public, max-age=31536000, immutable/.test(readFileSync(headersFile, 'utf8'))) {
+  die('dist/_headers is missing or lost its immutable /assets/* rule (it ships from apps/web/public/_headers)');
+}
+console.log('  ✓ _headers present (hashed assets immutable, index.html no-cache)');
 
 // ── 6. zip, with index.html at the ROOT of the archive ────────────────────────────────────────────────────
 step('zipping');

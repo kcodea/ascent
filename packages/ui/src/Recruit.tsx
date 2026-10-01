@@ -45,7 +45,8 @@ import { UnitEditor } from './UnitEditor';
 import { Card, mdBold, type CardView } from './Card';
 import { heroPowerArt, equipmentBranchArtFor } from './art';
 import { MinionSkins, heroPortrait, opponentSkins, seatCosmetics, useCombatFoeSkins, useOpponentSkins } from './skins/skins';
-import { PortraitFrame, usePortraitFrame } from './portraitFrame/PortraitFrame';
+import { PortraitFrame, frameIdOf, usePortraitFrame } from './portraitFrame/PortraitFrame';
+import { resolvePortraitFrame } from './portraitFrame/portraitFrameConfig';
 import { beginDragTrace, cancelDragTrace, endDragTrace, sampleDragTrace } from './replay/dragTrace';
 import { SYM_KINDS } from './choreo/channels/float';
 import { stabilizeViewMap, stabilizeRefMap, stabilizeView } from './cardViewEqual';
@@ -7382,10 +7383,12 @@ export function Recruit() {
                     ? <img decoding="sync" className="wipevs-face wipevs-cardart" src={gFace.art} alt="" draggable={false} />
                     : <span className="wipevs-face wipevs-emblem"><Icon name={tribe ? TRIBE_ICON[tribe] : 'anvil'} /></span>
                   : <img decoding="sync" className="wipevs-face" src={heroPortrait(foe.seat.heroId, opponentSkins(showOppSkins, seatCosmetics(foe.seat, foe.board)))} alt="" draggable={false} />;
-                // With a tuner frame on, the face sits in a disc-sized host that carries the ring; without one
-                // the markup is exactly what it always was.
-                return foeFrame ? (
-                  <span className="wipevs-facewrap pf-on" style={foeFrame.hostStyle}>{face}<PortraitFrame frame={foeFrame} /></span>
+                // The foe's recorded portrait frame (through "Show opponent cosmetics", owner 2026-10-01) wins; else
+                // the tuner's opponent ring (`foeFrame` also keeps this subscribed to tuner writes). With a frame on,
+                // the face sits in a disc-sized host that carries the ring; without one the markup is unchanged.
+                const ring = gFace ? foeFrame : resolvePortraitFrame('opp', frameIdOf(opponentSkins(showOppSkins, seatCosmetics(foe.seat, foe.board))));
+                return ring ? (
+                  <span className="wipevs-facewrap pf-on" style={ring.hostStyle}>{face}<PortraitFrame frame={ring} /></span>
                 ) : face;
               })()}
               <div className="wipevs-name">{foe.seat.label}</div>

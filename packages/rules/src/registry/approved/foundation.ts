@@ -3906,4 +3906,82 @@ export const FOUNDATION_RULES: GameRule[] = [
       lastVerifiedAt: '2026-09-29',
     },
   },
+  {
+    id: 'R-PROG-FRAME-01',
+    title: 'Portrait frames are a crate cosmetic: 21 frames (1 Common, 7 Rare, 8 Epic, 5 Legendary, the rank-named masters included) in the account-wide portrait_frame slot; names avoid the ranked medal words',
+    statement:
+      'The portrait_frame category ("Portrait Frames", target global, enabled) holds 21 crate items, one per master in '
+      + 'C:/Game Assets/Ascent Art/Skins/Portraits at its folder rarity (R-PROG-FRAME-04): Common Honey; Rare Burnished, '
+      + 'Sterling, Gilded, Seaglass, Glass Shard, Paragon, Vine; Epic Aura, Amethyst, Shard, Prism, Frost, Pearlescent, '
+      + 'Crimson, Nimbus; Legendary Fire, Reaper, Water, Stained Glass, Wind (each "<name> Frame"; ids keep the master '
+      + 'names, e.g. frame_gold, frame_rank1, frame_wind). Every one is in the crate pool at the fixed rarity odds, equal '
+      + 'chance within a rarity. A frame is ACCOUNT-WIDE: equip_cosmetic(user, \x27portrait_frame\x27, \x27\x27, id) wears an '
+      + 'owned, live frame (one cosmetic_loadouts row, target \x27\x27); null takes it off (the default ring). The display names '
+      + 'avoid the medal words (Bronze, Silver, Gold, Platinum, Diamond, Ascendant) so a crate frame never reads as a Ranked reward.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-01 (portrait skins)', quote: 'we\x27re adding portrait skins: C:\\Game Assets\\Ascent Art\\Skins\\Portraits. we want this to replace the default portrait png when a skin is applied' },
+      { kind: 'code', ref: 'packages/progression/src/cosmetics.ts (portraitFrame items, portrait_frame category, GLOBAL_EQUIP_SLOTS, portraitFrameOf); supabase/migrations/2026-10-01-portrait-frames.sql (equip_cosmetic)' },
+    ],
+    currentBehaviour: 'Conforms, built 2026-10-01 (the equip SQL is the owner\x27s to run).',
+    enforcement: { kind: 'scenario', refs: ['packages/progression/src/portraitFrames.test.ts', 'packages/progression/src/portraitFrames.db.test.ts', 'packages/progression/src/cosmetics.test.ts', 'packages/progression/src/sqlParity.test.ts'], lastVerifiedAt: '2026-10-01' },
+  },
+  {
+    id: 'R-PROG-FRAME-02',
+    title: 'An equipped portrait frame replaces the default ring on every portrait of that player: yours everywhere, theirs on opponent seats through "Show opponent cosmetics"; unknown or retired ids show the default',
+    statement:
+      'Every hero portrait asks resolvePortraitFrame (via usePortraitFrame). Your own portrait (Title, hero select, '
+      + 'Collection, your Career) wears your equipped frame from the live loadout; in a run (status bar, lobby rail, end '
+      + 'screen) it wears the frame RECORDED on the run, like a hero skin. The run snapshot carries the frame '
+      + '(cosmetics.portraitFrame) on every captured board and lobby seat, so opponents see it on that seat (combat '
+      + 'portrait, Now Facing, next-foe frame, fight recap, lobby rail, Match details, the Hall, Career match rows), but '
+      + 'only while "Show opponent cosmetics" is on; off, theirs fall back to the default. No frame, an unknown id or a '
+      + 'retired one (item or category, TS or server kill switch) paints exactly today\x27s default ring. Each frame seats '
+      + 'on the disc from its hole measured off the master\x27s alpha (npm run art:frames).',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-01 (portrait skins)', quote: 'we want this to replace the default portrait png when a skin is applied' },
+      { kind: 'code', ref: 'packages/ui/src/portraitFrame/PortraitFrame.tsx (usePortraitFrame, frameIdOf); packages/ui/src/portraitFrame/portraitFrameConfig.ts (SKIN_FRAME_ART, resolveFrameChoice); packages/sim/src/snapshot.ts (scopeCosmetics); packages/sim/src/lobby/snapshotSeats.ts (runCosmetics)' },
+    ],
+    currentBehaviour: 'Conforms, built 2026-10-01.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/portraitFrame/portraitFrameCosmetic.test.tsx', 'packages/ui/src/portraitFrame/portraitFrame.test.tsx', 'packages/sim/src/lobby/seatCosmetics.test.ts'], lastVerifiedAt: '2026-10-01' },
+  },
+  {
+    id: 'R-PROG-FRAME-03',
+    title: 'The Collection\x27s Portrait Frames tab: ring tiles, an owned frame previews around your portrait, an unowned one never does; Equip / Use default frame',
+    statement:
+      'Portrait Frames is a live Collection tab with its owned/total count. Each tile shows the ring, dimmed, blurred and '
+      + 'locked until owned. Selecting an OWNED frame previews it around your current hero portrait (your avatar) in the '
+      + 'in-game ring; an unowned frame shows only the blurred ring and never sits around a portrait. Equip wears it '
+      + '(slot portrait_frame, target \x27\x27); when worn, "Use default frame" takes it off and previews the default ring at once.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-01 (owner rule on skin previews)', quote: 'do not allow preview if you do not own the art' },
+      { kind: 'code', ref: 'packages/ui/src/progression/CollectionScreen.tsx (FramePreview, onEquip); packages/ui/src/progression/collectionModel.ts (isEquipped)' },
+    ],
+    currentBehaviour: 'Conforms, built 2026-10-01.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/progression/CollectionFrames.test.tsx'], lastVerifiedAt: '2026-10-01' },
+  },
+  {
+    id: 'R-PROG-FRAME-04',
+    title: 'A portrait frame\x27s rarity is the rarity FOLDER its master sits in; every master in those folders is wired',
+    statement:
+      'Portrait frame masters live in C:/Game Assets/Ascent Art/Skins/Portraits/<Rarity>/ (Common, Rare, Epic, Legendary). '
+      + 'The folder is the frame\x27s rarity: every frame\x27s assets.master in packages/progression/src/cosmetics.ts names '
+      + 'its folder, and its catalog rarity equals that folder. npm run art:frames reads the master at that path. Where the '
+      + 'art folder exists (the owner\x27s machine; CI skips this half) each master must sit in exactly one rarity folder '
+      + 'and every PNG in the four folders must be wired. On 2026-10-01 the folders held 21 frames (1 Common, 7 Rare, 8 '
+      + 'Epic, 5 Legendary); the first 13 already matched their folders, and 8 were added at their folder rarity.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-01 (portrait frames batch 2)', quote: 'i added a bunch of art/portrait arts etc, can you make sure all get added' },
+      { kind: 'code', ref: 'packages/progression/src/cosmetics.ts (portraitFrame items); packages/tools/src/wire-portrait-frames.ts' },
+    ],
+    currentBehaviour: 'Conforms, built 2026-10-01. Reaches the database on the next deploy of progression-inventory (the catalog sync).',
+    enforcement: { kind: 'scenario', refs: ['packages/progression/src/portraitFrameRarityFolders.test.ts', 'packages/progression/src/portraitFrames.test.ts', 'packages/progression/src/cosmetics.test.ts'], lastVerifiedAt: '2026-10-01' },
+  },
 ];

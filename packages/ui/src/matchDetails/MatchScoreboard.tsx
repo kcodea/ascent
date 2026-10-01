@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { getHero, type MatchDetails, type MatchSeat } from '@game/sim';
 import type { RunCosmeticSnapshot } from '@game/progression';
 import { Icon } from '../Icon';
-import { PortraitFrame, pfClass, usePortraitFrame } from '../portraitFrame/PortraitFrame';
+import { PortraitFrame, frameIdOf, pfClass, usePortraitFrame } from '../portraitFrame/PortraitFrame';
 import { StoredTeam } from '../StoredTeam';
 import { RuneEmblem } from '../RuneEmblem';
 import { RUNE_INDEX } from '@game/content';
@@ -53,8 +53,9 @@ export function seatTitle(seat: MatchSeat, own: boolean, showOpponents: boolean)
 /** The hero portrait in the game's gold ring (the Career's `.cv2-heroframe` markup, row-sized). */
 function SeatPortrait({ heroId, skins, self }: { heroId: string; skins: RunCosmeticSnapshot | null; self: boolean }) {
   const art = heroPortrait(heroId, skins);
-  // The portrait-frames tuner's ring: your seat wears yours, the other seven the opponents'.
-  const frame = usePortraitFrame(self ? 'self' : 'opp');
+  // The portrait frame RECORDED on the seat (owner 2026-10-01; `skins` already applies "Show opponent cosmetics" to
+  // the other seats), else the portrait-frames tuner's ring: your seat wears yours, the other seven the opponents'.
+  const frame = usePortraitFrame(self ? 'self' : 'opp', frameIdOf(skins));
   return (
     <div className={`cv2-heroframe mds-portrait${pfClass(frame)}`} style={frame?.hostStyle}>
       <div className="hero">

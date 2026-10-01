@@ -27,9 +27,9 @@ const board = (author: string, heroId: string, seed: number, wave: number, cardI
 // A skinned run: the hero skin on every board, the Brian skin only on the boards where Brian was fielded, and the
 // account-wide hero attack (2026-09-28) on every board.
 const SKINNED = Array.from({ length: 8 }, (_, i) => board('Skye', 'albus', 4242, i + 1, i >= 5 ? 'blackbelt' : 'pack',
-  i >= 5 ? { heroSkinByHeroId: { albus: 'skin_albus_1' }, minionSkinByCardId: { blackbelt: 'skin_blackbelt_2' }, heroAttack: 'attack_blast', title: 'title_kingbreaker' } : { heroSkinByHeroId: { albus: 'skin_albus_1' }, heroAttack: 'attack_blast', title: 'title_kingbreaker' }));
+  i >= 5 ? { heroSkinByHeroId: { albus: 'skin_albus_1' }, minionSkinByCardId: { blackbelt: 'skin_blackbelt_2' }, heroAttack: 'attack_blast', title: 'title_kingbreaker', portraitFrame: 'frame_fire' } : { heroSkinByHeroId: { albus: 'skin_albus_1' }, heroAttack: 'attack_blast', title: 'title_kingbreaker', portraitFrame: 'frame_fire' }));
 // (The equipped TITLE, owner ask 2026-09-28, is account-wide like the hero attack: it rides every board.)
-const SKYE = { heroSkinByHeroId: { albus: 'skin_albus_1' }, minionSkinByCardId: { blackbelt: 'skin_blackbelt_2' }, heroAttack: 'attack_blast', title: 'title_kingbreaker' };
+const SKYE = { heroSkinByHeroId: { albus: 'skin_albus_1' }, minionSkinByCardId: { blackbelt: 'skin_blackbelt_2' }, heroAttack: 'attack_blast', title: 'title_kingbreaker', portraitFrame: 'frame_fire' };
 // A run from before skins: no field anywhere.
 const LEGACY = Array.from({ length: 8 }, (_, i) => board('Olde', 'warden', 4343, i + 1, 'pack'));
 
@@ -130,5 +130,20 @@ describe('replay v2 fidelity: the recorded skins ride the frames', () => {
     const d = deltaShopFrameOf(first.view, next, 'turnStart', 10);
     expect(JSON.stringify(d.frame)).not.toContain('cosmetics');
     expect(d.view.cosmetics).toEqual(run.cosmetics);
+  });
+});
+
+describe('the equipped portrait frame rides every board (owner 2026-10-01: "we want this to replace the default portrait png when a skin is applied")', () => {
+  it('scopeCosmetics keeps the frame on any board, even one with no skin in it; snapshotBoard records it', () => {
+    expect(scopeCosmetics({ portraitFrame: 'frame_water' }, ['cia'], ['pack'])).toEqual({ portraitFrame: 'frame_water' });
+    expect(scopeCosmetics({ heroSkinByHeroId: { warden: 'skin_warden_1' }, portraitFrame: 'frame_gold' }, ['albus'], [])).toEqual({ portraitFrame: 'frame_gold' });
+    const run = { ...createRun(7, 'albus'), cosmetics: { portraitFrame: 'frame_reaper' } };
+    expect(snapshotBoard(run).cosmetics).toEqual({ portraitFrame: 'frame_reaper' });
+  });
+
+  it('the recorded frame survives the save round trip, and a pool run unions it so its lobby seat wears it', () => {
+    const run = { ...createRun(9, 'warden'), cosmetics: { portraitFrame: 'frame_ice' } };
+    expect(deserialize(serialize(run)).cosmetics).toEqual({ portraitFrame: 'frame_ice' });
+    expect(playerRunsFrom().find((r) => r.author === 'Skye')!.cosmetics?.portraitFrame).toBe('frame_fire');
   });
 });

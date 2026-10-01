@@ -12828,6 +12828,11 @@ body:has(.heroselect.rankend) .pixifx-above { z-index: 470; }
    the block's own box is a transparent rounded square that meets the diamond only at a corner outside its radius,
    so every press on the diamond still lands on `.heropowerbtn`. */
 .statusbar .hero.pf-top { z-index: 42; }
+/* YOUR IN-GAME PORTRAIT SITS IN A SOCKET BAKED INTO THE BOARD ART (owner reports 2026-10-01). The copper rim and the
+   dish around your portrait are part of the board image (`--board`, augustfullboard), not CSS, so there is nothing to
+   hide: a frame SEATS INSIDE that socket, over its inner rim, and the socket's dish frames it like a bezel. (A flat
+   mat-coloured cover over the socket was tried and reverted: it showed as a purple halo that never matched the board's
+   lighting.) Hiding the socket for real needs a board image without it. */
 /* The `.portring` group (Career, ladder banners, match details, the title corner): the copper ring is the
    container's ::after, and the disc is the `.hero` inside it. The tuner ring replaces the ::after and rides the
    disc instead. */

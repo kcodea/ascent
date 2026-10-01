@@ -154,8 +154,13 @@ describe('no redundant PNG masters ship alongside their WebP builds', () => {
     // all the new skins that i added to the folder").
     // → 1352: skins batch 5 2026-09-30 (+12 in `art/skins/`: 11 minion skins and Influencer Indy; owner-named: "i added
     // more skins").
-    // → 1361: skins batch 6 2026-10-01 (+9 in `art/skins/`: 9 minion skins; owner-named: "i added a bunch of
-    // art/portrait arts etc, can you make sure all get added").
-    expect(total, `art files: ${total} — the WHOLE-ZIP count (~${total + 176}) is what itch caps at 1000`).toBeLessThan(1361);
+    // → 1366: portrait frames 2026-10-01 (+1 here: the new `art/frames/skins/` dir; its 13 frame webps sit one level
+    // down, which this top-level walk does not count, so the budget carries them too: 1352 + 1 + 13; owner-named:
+    // "we're adding portrait skins: C:\Game Assets\Ascent Art\Skins\Portraits").
+    // → 1374: portrait frames batch 2 2026-10-01 (+8 frame webps in `art/frames/skins/`, carried the same way: Honey, Aura,
+    // Nimbus, Stained Glass, Wind, Glass Shard, Paragon, Vine; owner-named: "i added a bunch of art/portrait arts etc,
+    // can you make sure all get added").
+    // → 1383: skins batch 6 2026-10-01 (+9 in `art/skins/`: 9 minion skins), merged with the frames.
+    expect(total, `art files: ${total} — the WHOLE-ZIP count (~${total + 176}) is what itch caps at 1000`).toBeLessThan(1383);
   });
 });

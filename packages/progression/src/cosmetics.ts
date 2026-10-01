@@ -37,7 +37,7 @@
 
 // ── Categories, rarities, weights ─────────────────────────────────────────────────────────────────────────
 
-export const COSMETIC_CATEGORIES = ['announcer', 'hero_skin', 'minion_skin', 'title', 'hero_attack', 'board', 'music'] as const;
+export const COSMETIC_CATEGORIES = ['announcer', 'hero_skin', 'minion_skin', 'title', 'hero_attack', 'board', 'music', 'portrait_frame'] as const;
 export type CosmeticCategory = typeof COSMETIC_CATEGORIES[number];
 
 export const COSMETIC_RARITIES = ['common', 'rare', 'epic', 'legendary'] as const;
@@ -77,6 +77,10 @@ export const COSMETIC_CATEGORY_DEFS: Readonly<Record<CosmeticCategory, CosmeticC
   hero_attack: { id: 'hero_attack', label: 'Attack Animations', weight: 15, enabled: true,  target: 'global' },
   board:       { id: 'board',       label: 'Boards',            weight: 5,  enabled: false, target: 'global' },
   music:       { id: 'music',       label: 'Music',             weight: 5,  enabled: false, target: 'global' },
+  // Owner 2026-10-01: "we're adding portrait skins ... we want this to replace the default portrait png when a skin is
+  // applied." The ring around YOUR hero portrait, account-wide (any hero). Weight 10 like titles (kept for later: the
+  // roll has ignored category weights since roll version 3).
+  portrait_frame: { id: 'portrait_frame', label: 'Portrait Frames', weight: 10, enabled: true, target: 'global' },
 });
 
 /**
@@ -134,6 +138,16 @@ const skin = (id: string, category: 'hero_skin' | 'minion_skin', name: string, r
  */
 const heroAttack = (id: string, name: string, rarity: CosmeticRarity, style: string): CosmeticDef =>
   ({ id, category: 'hero_attack', name, rarity, acquisition: { type: 'crate' }, assets: { style }, active: true });
+
+/**
+ * A PORTRAIT FRAME (owner 2026-10-01: "we're adding portrait skins ... we want this to replace the default portrait png
+ * when a skin is applied"). One account-wide item (target `global`) that replaces the ring around YOUR hero portrait on
+ * every surface, seen by you and, through "Show opponent cosmetics", by the players you meet. `assets.art` is the key
+ * of the in-repo ring (`packages/ui/src/art/frames/skins/<key>.webp`, measured + written by `npm run art:frames`);
+ * `assets.master` is the owner's master under `C:/Game Assets/Ascent Art/Skins/Portraits/`.
+ */
+const portraitFrame = (id: string, name: string, rarity: CosmeticRarity, master: string): CosmeticDef =>
+  ({ id, category: 'portrait_frame', name, rarity, acquisition: { type: 'crate' }, assets: { art: id, master }, active: true });
 
 /**
  * HERO TITLES (owner 2026-09-29: "the hero's title is granted at 3 wins with a hero, then the mastery of that title is
@@ -393,6 +407,32 @@ export const COSMETICS: readonly CosmeticDef[] = Object.freeze([
   // striking portrait plays ball: a jump shot, a fadeaway, a pull-up three, and a self alley-oop slammed into an explosion. Four tiers, so
   // Legendary like the others. The name is the builder's placeholder for the owner to rename (the id stays).
   heroAttack('attack_basketball', 'Nothing But Net', 'legendary', 'basketball'),
+  // PORTRAIT FRAMES (owner 2026-10-01: "we're adding portrait skins: C:\Game Assets\Ascent Art\Skins\Portraits"). Every
+  // one drops from crates at its folder's rarity, the rank-named masters included (owner decision 2026-10-01). The NAMES
+  // avoid the ranked medal words (the player-text rule below), so a crate frame never reads as a Ranked reward: the
+  // ids keep the masters' names (permanent, never shown). The masters sit in one sub-folder per RARITY and the folder IS
+  // the rarity (owner 2026-10-01, R-PROG-FRAME-04; portraitFrameRarityFolders.test.ts checks it).
+  portraitFrame('frame_honey', 'Honey Frame', 'common', 'Common/Honey.png'),
+  portraitFrame('frame_bronze', 'Burnished Frame', 'rare', 'Rare/BronzeFrame.png'),
+  portraitFrame('frame_silver', 'Sterling Frame', 'rare', 'Rare/SilverFrame.png'),
+  portraitFrame('frame_gold', 'Gilded Frame', 'rare', 'Rare/GoldFrame.png'),
+  portraitFrame('frame_platinum', 'Seaglass Frame', 'rare', 'Rare/PlatinumFrame.png'),
+  portraitFrame('frame_glass_shard', 'Glass Shard Frame', 'rare', 'Rare/GlassShard.png'),
+  portraitFrame('frame_paragon', 'Paragon Frame', 'rare', 'Rare/Paragon.png'),
+  portraitFrame('frame_vines', 'Vine Frame', 'rare', 'Rare/Vines.png'),
+  portraitFrame('frame_aura', 'Aura Frame', 'epic', 'Epic/Aura.png'),
+  portraitFrame('frame_ascendant', 'Amethyst Frame', 'epic', 'Epic/Ascendant.png'),
+  portraitFrame('frame_dark_diamond', 'Shard Frame', 'epic', 'Epic/DarkDiamond.png'),
+  portraitFrame('frame_diamond', 'Prism Frame', 'epic', 'Epic/DiamondFrame.png'),
+  portraitFrame('frame_ice', 'Frost Frame', 'epic', 'Epic/Ice.png'),
+  portraitFrame('frame_pearlescent', 'Pearlescent Frame', 'epic', 'Epic/Pearlescent.png'),
+  portraitFrame('frame_rank1', 'Crimson Frame', 'epic', 'Epic/Rank1Frame.png'),
+  portraitFrame('frame_nimbus', 'Nimbus Frame', 'epic', 'Epic/Nimbus.png'),
+  portraitFrame('frame_fire', 'Fire Frame', 'legendary', 'Legendary/Fire.png'),
+  portraitFrame('frame_reaper', 'Reaper Frame', 'legendary', 'Legendary/Reaper.png'),
+  portraitFrame('frame_water', 'Water Frame', 'legendary', 'Legendary/Water.png'),
+  portraitFrame('frame_stained_glass', 'Stained Glass Frame', 'legendary', 'Legendary/StainedGlass.png'),
+  portraitFrame('frame_wind', 'Wind Frame', 'legendary', 'Legendary/WindPortrait.png'),
   // HERO TITLES (owner 2026-09-29), 33 heroes x (title + golden master). Achievement rewards, never in a crate.
   ...HERO_TITLE_COSMETICS,
 ]);
@@ -646,9 +686,12 @@ export const liveCosmetics = (catalog: readonly CosmeticDef[] = COSMETICS): Cosm
 
 export type SkinSlot = 'hero_skin' | 'minion_skin';
 export const SKIN_SLOTS: readonly SkinSlot[] = ['hero_skin', 'minion_skin'];
-/** Every slot `equip_cosmetic` accepts: the two per-target skin slots and the account-wide hero attack (target ''). */
-export type EquipSlot = SkinSlot | 'hero_attack';
-export const EQUIP_SLOTS: readonly EquipSlot[] = ['hero_skin', 'minion_skin', 'hero_attack'];
+/** Every slot `equip_cosmetic` accepts: the two per-target skin slots and the account-wide hero attack and portrait
+ *  frame (target ''). */
+export type EquipSlot = SkinSlot | 'hero_attack' | 'portrait_frame';
+export const EQUIP_SLOTS: readonly EquipSlot[] = ['hero_skin', 'minion_skin', 'hero_attack', 'portrait_frame'];
+/** The account-wide slots: one row each, target ''. */
+export const GLOBAL_EQUIP_SLOTS: readonly EquipSlot[] = ['hero_attack', 'portrait_frame'];
 
 /**
  * Who wears what, keyed by the TARGET (handoff §6.7 `cosmetic_loadouts` / §13 `RunCosmeticSnapshot`). The same
@@ -664,6 +707,9 @@ export interface RunCosmeticSnapshot {
    *  show the title worn in THAT run. Absent = no title shown. The live loadout never carries it (the profile
    *  holds it); `withEquippedTitle` folds it in before `snapshotForRun`. */
   title?: string;
+  /** The equipped PORTRAIT FRAME (account-wide, owner 2026-10-01: "we want this to replace the default portrait png
+   *  when a skin is applied"). Absent = the default ring. */
+  portraitFrame?: string;
 }
 
 /** Hard caps on what a snapshot may carry, so a hostile or corrupt payload stays tiny. */
@@ -695,10 +741,11 @@ export function parseCosmeticSnapshot(v: unknown): RunCosmeticSnapshot | null {
   const minionSkinByCardId = parseSkinMap(o.minionSkinByCardId);
   const heroAttack = typeof o.heroAttack === 'string' && ID_RE.test(o.heroAttack) ? o.heroAttack : undefined;
   const title = typeof o.title === 'string' && ID_RE.test(o.title) ? o.title : undefined;
-  if (!heroSkinByHeroId && !minionSkinByCardId && !heroAttack && !title) return null;
+  const portraitFrame = typeof o.portraitFrame === 'string' && ID_RE.test(o.portraitFrame) ? o.portraitFrame : undefined;
+  if (!heroSkinByHeroId && !minionSkinByCardId && !heroAttack && !title && !portraitFrame) return null;
   return {
     ...(heroSkinByHeroId ? { heroSkinByHeroId } : {}), ...(minionSkinByCardId ? { minionSkinByCardId } : {}),
-    ...(heroAttack ? { heroAttack } : {}), ...(title ? { title } : {}),
+    ...(heroAttack ? { heroAttack } : {}), ...(title ? { title } : {}), ...(portraitFrame ? { portraitFrame } : {}),
   };
 }
 
@@ -710,6 +757,7 @@ export function loadoutFromRows(rows: unknown): RunCosmeticSnapshot {
   const hero: Record<string, string> = {};
   const minion: Record<string, string> = {};
   let attack: string | undefined;
+  let frame: string | undefined;
   if (Array.isArray(rows)) {
     for (const r of rows) {
       if (!r || typeof r !== 'object') continue;
@@ -718,6 +766,8 @@ export function loadoutFromRows(rows: unknown): RunCosmeticSnapshot {
       if (typeof id !== 'string' || !ID_RE.test(id)) continue;
       // The hero attack is account-wide: its row's target is '' (the global slot).
       if (slot === 'hero_attack') { if (target === '' || target === undefined) attack = id; continue; }
+      // So is the portrait frame (2026-10-01).
+      if (slot === 'portrait_frame') { if (target === '' || target === undefined) frame = id; continue; }
       if (typeof target !== 'string' || !ID_RE.test(target)) continue;
       if (slot === 'hero_skin') hero[target] = id;
       else if (slot === 'minion_skin') minion[target] = id;
@@ -727,6 +777,7 @@ export function loadoutFromRows(rows: unknown): RunCosmeticSnapshot {
     ...(Object.keys(hero).length ? { heroSkinByHeroId: hero } : {}),
     ...(Object.keys(minion).length ? { minionSkinByCardId: minion } : {}),
     ...(attack ? { heroAttack: attack } : {}),
+    ...(frame ? { portraitFrame: frame } : {}),
   };
 }
 
@@ -768,6 +819,15 @@ export function titleOf(snapshot: RunCosmeticSnapshot | null | undefined): Cosme
   return c && c.category === 'title' && isCosmeticLive(c.id) ? c : null;
 }
 
+/**
+ * The PORTRAIT FRAME this snapshot wears, or null for the default ring. Null whenever the id is unknown, retired (item
+ * or category, TS or server) or not a portrait frame, so a stale or forged id always falls back to the default ring.
+ */
+export function portraitFrameOf(snapshot: RunCosmeticSnapshot | null | undefined): CosmeticDef | null {
+  const c = cosmeticOf(snapshot?.portraitFrame);
+  return c && c.category === 'portrait_frame' && isCosmeticLive(c.id) ? c : null;
+}
+
 /** A loadout with the profile's equipped title folded in (the loadout rows never carry it; the profile does). */
 export function withEquippedTitle(loadout: RunCosmeticSnapshot | null | undefined, titleId: string | null | undefined): RunCosmeticSnapshot | null {
   if (!titleId) return loadout ?? null;
@@ -799,12 +859,15 @@ export function snapshotForRun(
   const attack = heroAttackOf(loadout)?.id;
   // The title is account-wide too, and only a LIVE one is recorded (a retired title is never written down).
   const title = titleOf(loadout)?.id;
-  if (!Object.keys(hero).length && !Object.keys(minion).length && !attack && !title) return null;
+  // The portrait frame is account-wide too (2026-10-01): every run records a LIVE one.
+  const frame = portraitFrameOf(loadout)?.id;
+  if (!Object.keys(hero).length && !Object.keys(minion).length && !attack && !title && !frame) return null;
   return {
     ...(Object.keys(hero).length ? { heroSkinByHeroId: hero } : {}),
     ...(Object.keys(minion).length ? { minionSkinByCardId: minion } : {}),
     ...(attack ? { heroAttack: attack } : {}),
     ...(title ? { title } : {}),
+    ...(frame ? { portraitFrame: frame } : {}),
   };
 }
 

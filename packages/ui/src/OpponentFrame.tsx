@@ -3,7 +3,7 @@ import { getHero, nextOpponent, dominantTribe, THREATS } from '@game/sim';
 import { QUEST_INDEX, RUNE_INDEX } from '@game/content';
 import { questArt, runeArt } from './art';
 import { heroPortrait, opponentSkins } from './skins/skins';
-import { PortraitFrame, pfClass, usePortraitFrame } from './portraitFrame/PortraitFrame';
+import { PortraitFrame, frameIdOf, pfClass, usePortraitFrame } from './portraitFrame/PortraitFrame';
 import { Icon } from './Icon';
 import { mdBold } from './Card';
 import { questRewardText } from './questText';
@@ -30,10 +30,12 @@ const tribeLabel = (tribe: string, count: number): string =>
 export function OpponentFrame() {
   const run = useGame((s) => s.run);
   const showOppSkins = useGame((s) => s.showOpponentSkins);
-  // The portrait-frames tuner's opponent ring (null = today's rounded-square border). Before the early return.
-  const frame = usePortraitFrame('opp');
-  if (run.phase !== 'recruit' && run.phase !== 'combat') return null;
-  const snap = nextOpponent(run);
+  const live = run.phase === 'recruit' || run.phase === 'combat';
+  const snap = live ? nextOpponent(run) : null;
+  // The foe's recorded portrait frame (through "Show opponent cosmetics"), else the portrait-frames tuner's opponent
+  // ring (null = today's rounded-square border). Before the early return.
+  const frame = usePortraitFrame('opp', frameIdOf(opponentSkins(showOppSkins, snap?.cosmetics)));
+  if (!live) return null;
 
   if (!snap) {
     const threat = THREATS[run.threat];

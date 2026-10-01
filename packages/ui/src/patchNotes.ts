@@ -60,6 +60,10 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: 'Collection: hover a minion skin to see the card as it looks in a game, hero skins preview in the real portrait frame, and "Use default art" now shows the default look right away.',
+      },
+      {
+        category: 'Systems',
         text: '12 new skins in crates: the first Indy hero skin, and 11 minion skins, including three for Nimbus.',
       },
       {

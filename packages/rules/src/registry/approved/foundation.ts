@@ -2392,6 +2392,35 @@ export const FOUNDATION_RULES: GameRule[] = [
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/progression/crateFx/crateFx.test.ts', 'packages/ui/src/progression/Crates.test.tsx'], lastVerifiedAt: '2026-09-28' },
   },
   {
+    id: 'R-PROG-COLLECTION-04',
+    title: 'The Collection previews skins as the game shows them: the portrait ring, the in-game card on hover, and the default art after "Use default art"',
+    statement:
+      'In the Collection a HERO skin previews in the in-game portrait ring (the same disc, cover crop and frame as your '
+      + 'portrait in a run), never as a bare or offset picture. Hovering a CARD skin (a minion skin, or a spell skin when '
+      + 'there are any), owned or not, on its tile or on the detail panel\x27s art, floats the real in-game card wearing that '
+      + 'skin (frame, tier stars, stats, name and text on its plate) beside the tile, never over it, and kept on screen; '
+      + 'it is placed once per hover and leaving clears it. Pressing "Use default art" switches the detail preview to the '
+      + 'target\x27s DEFAULT art at once (labelled Default art) and keeps that skin selected; once the server answers, its '
+      + 'status reads Owned with Default art in use, the Equipped ribbon leaves its tile and Equip puts it back on (the '
+      + 'preview returns to the skin). A refused change puts the skin\x27s preview back. Presentation only: the equip still '
+      + 'goes through the server (R-PROG-SKINS-01).',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      {
+        kind: 'owner-chat',
+        ref: 'Claude Code session, 2026-09-30 (Collection review, Heroes tab screenshots)',
+        quote: 'can you [show] the default skin when the player hits use default? also add a mouseover preview of what minions/spells would look like in game as well please. for heroes the preview image is off - can you fix that?',
+      },
+      { kind: 'code', ref: 'packages/ui/src/progression/CollectionScreen.tsx (defaultShown, onHover, DetailPanel); packages/ui/src/progression/SkinCardPreview.tsx; packages/ui/src/portraitFrame/HeroPortraitRing.tsx; packages/ui/src/skins/skinArt.ts (defaultArtOf)' },
+    ],
+    currentBehaviour:
+      'Conforms as of 2026-09-30 (fix/collection-previews). Before, the hero preview was a plain image in a box that also '
+      + 'carried the global `.hero` class, so the in-run hero panel\x27s padding and pale card fill offset the art and showed '
+      + 'white edges; "Use default art" kept showing the skin; there was no card preview.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/progression/CollectionPreviews.test.tsx', 'packages/ui/src/progression/CollectionSkins.test.tsx'], lastVerifiedAt: '2026-09-30' },
+  },
+  {
     id: 'R-ACH-01',
     title: 'Achievements batch 1 pay XP only: 248 achievements, no titles yet, nothing hidden yet; the reward slot can take a title later',
     statement:

@@ -31,7 +31,10 @@ export function AvatarPicker() {
   // those surfaces — never over gameplay (a defensive gate so a lingering flag can't cover the game).
   const onTitle = useGame((s) => s.showTitle);
   const onCareer = useGame((s) => s.showCareer);
-  if (!open || !(onTitle || onCareer)) return null;
+  // Guests cannot change their portrait (owner 2026-09-29): the Title shows the portrait sign-in gate instead, and
+  // this refuses to render for a guest too, so no other path can open the picker around that gate.
+  const anonymous = useGame((s) => s.account.anonymous);
+  if (!open || !(onTitle || onCareer) || anonymous) return null;
   const pick = (id: string | null): void => { setAvatar(id); close(); };
   return (
     <div className="avatarpick" role="dialog" aria-label="Choose your avatar" onClick={close}>

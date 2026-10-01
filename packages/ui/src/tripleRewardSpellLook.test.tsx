@@ -23,9 +23,12 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 const handCard = (cardId: string, uid: string): BoardCard =>
   ({ uid, cardId, tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false, grantedTier: 3 }) as BoardCard;
 
+/** The art-LOADING state classes (art pop-in fix 2026-09-29: `art-wait` / `art-pending` / `art-fadein`) are
+ *  transient — they say whether a URL has decoded yet, not how the card looks — so they are not skeleton. */
+const LOADING = new Set(['art-wait', 'art-pending', 'art-fadein']);
 /** Tag + class list of the root and every descendant, in document order — the card's visual skeleton. */
 const skeleton = (root: Element): string[] =>
-  [root, ...root.querySelectorAll('*')].map((el) => `${el.tagName.toLowerCase()}.${[...el.classList].sort().join('.')}`);
+  [root, ...root.querySelectorAll('*')].map((el) => `${el.tagName.toLowerCase()}.${[...el.classList].filter((c) => !LOADING.has(c)).sort().join('.')}`);
 
 describe('Triple Reward renders through the spell-in-hand path', () => {
   const m = mount(<div />);

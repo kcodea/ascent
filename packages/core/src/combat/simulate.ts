@@ -406,7 +406,12 @@ export function simulate(
   /** Extra combat casts each side has been granted (Runebloom Matriarch). 0 = a Shop Spell resolves once.
    *  Locked in at Start of Combat, so losing the granter mid-fight does not retract it — the same contract
    *  every other Start-of-Combat mode installs. Read by `castInCombat` via `spellCastRepsFor`. */
-  const spellCastExtra: Record<Side, number> = { player: 0, enemy: 0 };
+  // ANCIENT OF WAR × Hunch (owner 2026-09-30): "Shop Spells cast an additional time in combat" seeds this same channel
+  // for the whole fight (Runebloom Matriarch's grant, from the hero), so every `castInCombat` caster reads it.
+  const spellCastExtra: Record<Side, number> = {
+    player: Math.max(0, modsFor('player').ancientSpellCastExtra ?? 0),
+    enemy: Math.max(0, modsFor('enemy').ancientSpellCastExtra ?? 0),
+  };
   /** Rune of the Crucible: the bodies sacrificed at Start of Combat, per side, kept at the stats they had.
    *  Resummoned when that side's LAST minion dies — see the wipe check in `killOrReborn`. Emptied on use, so
    *  a side can only be brought back once per fight. */
@@ -465,6 +470,10 @@ export function simulate(
     enemy: modsFor('enemy').ancientPummel?.dealt ?? 0,
   };
   const ancientPummelPaid: Record<Side, boolean> = { player: false, enemy: false };
+  /** ANCIENT OF DEATH × Hunch: the spell improvement this fight's Avenges granted, per side (carried back). */
+  const ancientSpellImproved: Record<Side, { attack: number; health: number }> = { player: { attack: 0, health: 0 }, enemy: { attack: 0, health: 0 } };
+  /** ANCIENT OF WAR × Frantic Frank: Clearance stacks this fight's hero Avenge gained, per side. */
+  const clearanceStacksGained: Record<Side, number> = { player: 0, enemy: 0 };
   /** Wolvie (Echo): one-shot buffs queued for the next tribe minion each side summons (FIFO). */
   const nextSummonBuffs: Record<Side, { tribe: Tribe; attack: number; health: number; sourceUid?: string }[]> = { player: [], enemy: [] };
   /** Wolvie's Echoes STACK onto the NEXT matching summon (owner 2026-08-12): four queued Echoes all land on the
@@ -1602,6 +1611,19 @@ export function simulate(
         // +6/+8 per copy held (the mods field carries the copy count; a legacy `true` reads as 1).
         const en = typeof ench === 'number' ? Math.max(1, ench) : 1;
         for (const m of boards[side]) if (!m.dead && m.health > 0) ctx.buff(m, ENCHANTMENT_COMBAT.attack * en, ENCHANTMENT_COMBAT.health * en, 'Rune of Enchantment');
+      }
+      // ANCIENT OF BONDS × Hunch (owner 2026-09-30): "Casting spells grants your left and right-most minion +2/+3."
+      // Every combat cast (one per repetition), right after the counter beat: the left-most and right-most LIVING
+      // minions, once when they are the same body. A combat buff, so it lasts the fight (the standing rule).
+      const edges = modsFor(side).ancientSpellEdges;
+      if (edges) {
+        const alive = living(side);
+        const ends = alive.length <= 1 ? alive : [alive[0]!, alive[alive.length - 1]!];
+        // Not the cast's own buff: clear the cast-in-flight mark so the grant carries no `spellId` (a spell with its own
+        // cast effect, e.g. Growth, replaces every tendril its buffs carry; this one must keep the hero-power tendril).
+        const casting = ctx.castingSpellId;
+        ctx.castingSpellId = undefined;
+        try { for (const m of ends) ctx.buff(m, edges.attack, edges.health, edges.label); } finally { ctx.castingSpellId = casting; }
       }
       bus.emit('spellCast', { side, count: spellTotals[side] });
     },
@@ -5120,6 +5142,20 @@ export function simulate(
     if (side === 'player') fireTrigger('runeBodyCounting', side);
     ctx.grantRandomMinion(flagCopiesOf(side, 'runeBodyCounting'), 'undead', side, undefined, victim?.uid);
   });
+  // ANCIENT OF WAR × Frantic Frank (owner 2026-09-30): "Avenge (3): Gain a Clearance stack." A hero-level Avenge, like
+  // Cindara's Hoard: every `every`th friendly death this fight is one stack, gained right then (a `questTrigger` the
+  // replay counts, so the power text ticks mid-fight, R-REALTIME-01), and Rune of Fury fires it again per copy. The
+  // stacks are spent in the Shop (a Clearance past the turn's own use), so the total comes home as a carry-back.
+  bus.on('avenge', (payload) => {
+    const { side, count } = payload as { side: Side; count: number };
+    const cs = modsFor(side).ancientClearanceStacks;
+    if (!cs || count % Math.max(1, cs.every) !== 0) return;
+    const fires = 1 + (modsFor(side).runeFury ? flagCopiesOf(side, 'runeFury') : 0);
+    for (let k = 0; k < fires; k++) {
+      clearanceStacksGained[side] += 1;
+      fireTrigger(cs.flag, side);
+    }
+  });
   // Combat avenge runes — PER SIDE (a served enemy runs its own): Broodpit + Spearline summon to their own side.
   runeAvenge(4, 'runeBroodpit', (m) => !!m.runeBroodpit, (side) => { // Avenge (4): summon 2 Imps with Taunt (owner rebalance 2026-08-03, was 3)
     const imp = cards['impscrap'];
@@ -5158,6 +5194,26 @@ export function simulate(
   });
   // Economy avenge runes — the payoff is RUN state (spell power / max Gold / a hand card / Fodder). The player's
   // fires as always; the enemy's fires silently into `enemyCarry` (see `runeAvenge`'s `economy` flag).
+  // ANCIENT OF DEATH × Hunch (owner 2026-09-30): "Avenge (4) Improve your spells by +1/+1." The Rune of Appraisal
+  // shape through the same Avenge bus: every `every`th friendly death this fight, Rune of Mastery's improve reps and
+  // one extra fire per Rune of Fury copy. Sourced at the death that completed the count, so the replay's
+  // "+A/+H Spell Power" narration (and every live spell number) ticks on that beat (R-REALTIME-01). Owner 2026-09-30:
+  // the flourish plays AT THE HERO POWER, not on the board, so the narration is stamped `heroPower` and the grant
+  // itself goes through silently (no body-anchored narration).
+  bus.on('avenge', (payload) => {
+    const { side, count, victim } = payload as { side: Side; count: number; victim?: Minion };
+    const d = modsFor(side).ancientAvengeSpells;
+    if (!d || count % Math.max(1, d.every) !== 0) return;
+    const fires = 1 + (modsFor(side).runeFury ? flagCopiesOf(side, 'runeFury') : 0);
+    for (let k = 0; k < fires; k++) {
+      const r = ctx.improveRepsFor(side);
+      const a = d.attack * r, h = d.health * r;
+      ancientSpellImproved[side].attack += a;
+      ancientSpellImproved[side].health += h;
+      ctx.grantSpellPower(a, h, side, undefined);
+      if (side === 'player') emit({ type: 'sc', source: victim?.uid ?? '', text: `+${a}/+${h} Spell Power`, side, heroPower: true });
+    }
+  });
   runeAvenge(3, 'runeAppraisal', (m) => !!m.runeAppraisal, (side) => { const r = ctx.improveRepsFor(side); ctx.grantSpellPower(r, r, side, undefined); }, true); // "improve your spells +1/+1" — ×2 under Rune of Mastery
   // Batch 5 (owner sheet 2026-07-30). All three go through `runeAvenge`, which already owns the modulo, the
   // per-side mask and the Rune of Fury re-fire — so these are registrations, not new machinery.
@@ -5639,6 +5695,8 @@ export function simulate(
       rises: modsFor(side).ancientCountRises ? riseLog[side] : undefined,
       summonsMade: modsFor(side).ancientCountSummons ? summonLog[side] : undefined,
       ancientPummelDealt: modsFor(side).ancientPummel ? ancientPummelDealt[side] : undefined,
+      ancientSpellImproved: modsFor(side).ancientAvengeSpells ? { ...ancientSpellImproved[side] } : undefined,
+      ancientClearanceStacks: modsFor(side).ancientClearanceStacks ? clearanceStacksGained[side] : undefined,
     };
   };
   const pc = carryBacksFor('player');
@@ -5715,6 +5773,8 @@ export function simulate(
     ...(pc.rises !== undefined ? { playerRises: pc.rises } : {}),
     ...(pc.summonsMade !== undefined ? { playerSummonsMade: pc.summonsMade } : {}),
     ...(pc.ancientPummelDealt !== undefined ? { playerAncientPummelDealt: pc.ancientPummelDealt } : {}),
+    ...(pc.ancientSpellImproved !== undefined ? { playerAncientSpellImproved: pc.ancientSpellImproved } : {}),
+    ...(pc.ancientClearanceStacks !== undefined ? { playerAncientClearanceStacks: pc.ancientClearanceStacks } : {}),
     // Enemy run-level scalers so the UI can render an enemy Grim/Taragosa/Pack Leader/Runescale at the
     // OPPONENT's value. Present only when the enemy actually had a nonzero scaler (else the card's base text
     // is already accurate → the UI's player-side fallback is fine).

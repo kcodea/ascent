@@ -73,8 +73,8 @@ describe('the drag session (Recruit.tsx source contract)', () => {
   });
 
   it('the FLIP animation calls take the simple path (no per-card global matrix)', () => {
-    // The row slides go through stageFlip's `fromSimpleState` (Flip.from simple at s === 1, a translate-only FLIP
-    // of the same cost on a scaled stage); any direct Flip.from left must still be simple, bar the coalesce.
+    // The row slides go through stageFlip's `fromSimpleState` (Flip.from simple at EVERY scale; a scaled stage only
+    // rescales the recorded offsets to layout px); any direct Flip.from left must still be simple, bar the coalesce.
     expect((RECRUIT.match(/fromSimpleState\(/g) ?? []).length).toBeGreaterThanOrEqual(2);
     const froms = RECRUIT.match(/Flip\.from\([^;]*?\);/gs) ?? [];
     for (const f of froms) {

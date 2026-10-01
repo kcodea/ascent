@@ -82,8 +82,10 @@
 .crth .crate-reward-kind { font-size: 15px; font-weight: 900; letter-spacing: 0.3em; text-transform: uppercase; color: rgba(236, 240, 255, 0.7);
   animation: crth-fade 0.35s ease-out calc(var(--cr-gem-delay, 180ms) + 60ms) both; }
 .crth .crate-reward-name { font-family: var(--font-disp, var(--font-ui)); font-size: 72px; font-weight: 900; line-height: 1.05; letter-spacing: 0.02em; text-align: center; white-space: nowrap;
-  background: linear-gradient(180deg, #ffffff 0%, #fff8e8 50%, color-mix(in srgb, var(--cr-color) 35%, #fff) 100%); -webkit-background-clip: text; background-clip: text; color: transparent;
-  filter: drop-shadow(0 3px 0 rgba(0, 0, 0, 0.55)) drop-shadow(0 0 18px color-mix(in srgb, var(--cr-color) 45%, transparent));
+  /* Solid white letters (owner 2026-09-29: the clipped gradient + drop-shadow filter read as a grey fill inside the
+     letters). The depth and the rarity glow sit OUTSIDE the glyphs as text-shadows. */
+  color: #fff;
+  text-shadow: 0 3px 0 rgba(0, 0, 0, 0.55), 0 0 18px color-mix(in srgb, var(--cr-color) 45%, transparent);
   animation: crth-stamp var(--cr-stamp, 340ms) cubic-bezier(0.3, 1.5, 0.5, 1) var(--cr-stamp-delay, 260ms) both; }
 
 /* the rarity ribbon: a notched banner across the plate's bottom edge */
@@ -102,14 +104,26 @@
   transform: translateX(-120%) skewX(-12deg); opacity: 0;
   animation: crth-shine var(--cr-shine, 700ms) cubic-bezier(0.4, 0, 0.2, 1) var(--cr-shine-delay, 700ms) both; }
 
+/* A skin's art, to the right of the plate (titles have none: the plate IS the title). Pops in with the ribbon. */
+.crth-skin { position: absolute; left: calc(100% + 32px); top: 50%; z-index: 3; width: 190px; height: 190px; overflow: hidden;
+  border: 3px solid color-mix(in srgb, var(--cr-color) 75%, #fff); background: #0e1528;
+  box-shadow: 0 0 0 2px #3b2508, 0 0 40px 4px color-mix(in srgb, var(--cr-color) 45%, transparent), 0 20px 40px -16px #000;
+  transform: translateY(-50%);
+  animation: crth-skin-in 0.45s cubic-bezier(0.2, 1.5, 0.4, 1) var(--cr-ribbon-delay, 520ms) both; }
+.crth-skin.minion { border-radius: 16px; }
+.crth-skin.hero { border-radius: 50%; }
+.crth-skin img { width: 100%; height: 100%; object-fit: cover; display: block; }
+@keyframes crth-skin-in { from { opacity: 0; transform: translateY(-50%) scale(0.6); } to { opacity: 1; transform: translateY(-50%) scale(1); } }
+
 /* Skipped: no rise, no stagger; everything fades straight to the settled plate. */
 .crth.skipped .crate-reward.crth-plate { animation: crth-fade-c 0.18s ease-out both; }
 .crth.skipped .crth-plate-gem, .crth.skipped .crate-reward-kind, .crth.skipped .crate-reward-name, .crth.skipped .crth-ribbon { animation: crth-fade 0.18s ease-out both; }
+.crth.skipped .crth-skin { animation: crth-skin-in 0.18s ease-out both; }
 .crth.skipped .crth-ribbon { animation-name: crth-fade-x; }
 .crth.skipped .crth-plate-shine::after { animation: none; }
 /* Reduced motion: the plate fades in, nothing else moves. */
 .crth.reduced .crate-reward.crth-plate { animation: crth-fade-c var(--cr-fade, 240ms) ease-out both !important; }
-.crth.reduced .crth-plate-gem, .crth.reduced .crate-reward-kind, .crth.reduced .crate-reward-name, .crth.reduced .crth-ribbon,
+.crth.reduced .crth-plate-gem, .crth.reduced .crate-reward-kind, .crth.reduced .crate-reward-name, .crth.reduced .crth-ribbon, .crth.reduced .crth-skin,
 .crth.reduced .crth-plate-shine::after, .crth.reduced .crate-reward.crth-plate::before, .crth.reduced .crate-name { animation: none !important; }
 
 .crth-foot { position: absolute; left: 50%; top: calc(50% + 250px); transform: translateX(-50%); width: 900px; max-width: 100%;
@@ -153,5 +167,5 @@
 @keyframes crth-breathe { 0%, 100% { opacity: 0.55; } 50% { opacity: 1; } }
 @media (prefers-reduced-motion: reduce) {
   .crth .crate-reward.crth-plate { animation: crth-fade-c 0.24s ease-out both !important; }
-  .crth-plate-gem, .crth .crate-reward-kind, .crth .crate-reward-name, .crth-ribbon, .crth-plate-shine::after, .crth .crate-reward.crth-plate::before, .crth-rays, .crth .crate-name { animation: none !important; }
+  .crth-plate-gem, .crth .crate-reward-kind, .crth .crate-reward-name, .crth-ribbon, .crth-skin, .crth-plate-shine::after, .crth .crate-reward.crth-plate::before, .crth-rays, .crth .crate-name { animation: none !important; }
 }

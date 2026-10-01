@@ -4,6 +4,10 @@
  * drafts in `replay/replayDraft.ts`). ONE record per set, overwritten on every write, so the store can never
  * grow past one bounded pool per set. Every call resolves; a browser that refuses IndexedDB simply has no
  * cache, which is exactly today's behaviour.
+ *
+ * Since 2026-09-29 (R-LOBBY-08) the record holds WHOLE RUNS keyed by run key under `POOL_CACHE_VERSION`. A
+ * record is returned raw (`unknown`) and the loader validates it (`usableCache`), so an older per-wave record,
+ * which could hold cut-down runs, is simply ignored and overwritten by the next write.
  */
 import type { SetId } from '@game/content';
 import type { CachedPool, PoolCacheStore } from './poolLoader';
@@ -35,10 +39,10 @@ export function idbPoolCache(): PoolCacheStore {
     async load(setId) {
       const d = await getDb();
       if (!d) return null;
-      return new Promise<CachedPool | null>((resolve) => {
+      return new Promise<unknown>((resolve) => {
         try {
           const req = d.transaction(STORE, 'readonly').objectStore(STORE).get(setId);
-          req.onsuccess = () => resolve((req.result as CachedPool | undefined) ?? null);
+          req.onsuccess = () => resolve((req.result as unknown) ?? null);
           req.onerror = () => resolve(null);
         } catch { resolve(null); }
       });
@@ -60,8 +64,8 @@ export function idbPoolCache(): PoolCacheStore {
 }
 
 /** In-memory store for tests and environments without IndexedDB. */
-export function memoryPoolCache(initial?: CachedPool): PoolCacheStore & { saved: CachedPool[] } {
-  const byId = new Map<SetId, CachedPool>();
+export function memoryPoolCache(initial?: { setId: SetId } & Record<string, unknown>): PoolCacheStore & { saved: CachedPool[] } {
+  const byId = new Map<SetId, unknown>();
   if (initial) byId.set(initial.setId, initial);
   const saved: CachedPool[] = [];
   return {

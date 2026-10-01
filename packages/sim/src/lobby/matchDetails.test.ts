@@ -30,6 +30,7 @@ const board = (a: number, wave: number): BoardSnapshot => ({
   ...(a === 0 ? { cosmetics: { heroSkinByHeroId: { albus: 'skin_albus_1' } } } : {}),
   ...(a >= 2 ? { cosmetics: { title: 'title_wanderer' } } : {}), // the title each of these players wore (R-PROG-TITLE-03)
   ...(a === 1 ? { runes: wave >= 6 ? ['rune_broodpit', 'rune_epic_forge'] : ['rune_broodpit'] } : {}),
+  ...(a === 2 ? { runStrength: 64 } : {}), // Rook's run is scored (board strength, R-LOBBY-09); the others are not
 } as unknown as BoardSnapshot);
 
 beforeAll(() => {
@@ -51,6 +52,23 @@ function lobbyAt(round: number, knockouts: Record<string, { round: number; place
 
 const input = (placement: number) => ({ name: 'Kev', placement, selfBoard: { tier: 4, minions: [{ cardId: 'pack', attack: 9, health: 9 }], runes: ['rune_slaying'] }, titleId: 'alpha_tester' });
 const seatOf = (d: MatchDetails, id: string): MatchSeat => d.seats.find((s) => s.id === id)!;
+
+describe('board strength, frozen into the record (R-LOBBY-09)', () => {
+  it("an opponent seat carries its run's pool strength; yours carries your rounds; unscored seats carry nothing", () => {
+    const lobby = lobbyAt(8, {}, { round: 8, placement: 8 });
+    const d = buildMatchDetails(lobby, { ...input(8), selfStrength: { value: 57, rounds: [{ round: 1, value: 40 }, { round: 2, value: 74 }] } });
+    const rook = d.seats.find((s) => s.name === 'Rook');
+    expect(rook?.strength).toBe(64);
+    for (const s of d.seats) if (!s.self && s.name !== 'Rook') expect(s.strength, s.name).toBeUndefined();
+    const me = d.seats.find((s) => s.self)!;
+    expect(me.strength).toBe(57);
+    expect(me.roundStrength).toEqual([{ round: 1, value: 40 }, { round: 2, value: 74 }]);
+    // Not scored in time: nothing on your seat either.
+    const none = buildMatchDetails(lobby, input(8)).seats.find((s) => s.self)!;
+    expect(none.strength).toBeUndefined();
+    expect(none.roundStrength).toBeUndefined();
+  });
+});
 
 describe('the recorded moment', () => {
   it('your end round is your knockout round, else the last settled round', () => {

@@ -44,6 +44,10 @@ vi.mock('./remoteBoards', async (importOriginal) => ({
   fetchPracticeReplay: (id: number) => fetchPracticeReplay(id),
   fetchPlayerRating: async () => undefined, // syncProfileFromServer: "couldn't ask" → keep the local rating
 }));
+// The LOBBY STRENGTH readout is hidden behind one switch (owner 2026-09-30); a getter-backed mock lets a test
+// flip it on and prove the readout still renders when the switch comes back.
+const lobbyDisplay = vi.hoisted(() => ({ show: false }));
+vi.mock('./lobbyStrengthDisplay', () => ({ get SHOW_LOBBY_STRENGTH() { return lobbyDisplay.show; } }));
 vi.mock('./replay/replayPlayer', () => ({ startReplay: (...a: unknown[]) => startReplay(...a) }));
 
 import { Career } from './Career';
@@ -74,7 +78,7 @@ const FULL_TEAM = {
 const RUNS: CareerRun[] = [
   // The settled ratings: 1193 → 1234, so the newest run's MMR IS the profile's 1234 the crest prints.
   run({ id: 12, heroId: 'sable', atMs: NOW - 1 * DAY, wins: 9, losses: 4, placement: 1, goldSpent: 120, apt: 26.1, wave: 15, ratingDelta: 41, ratingAfter: 1234, dominantTribe: 'beast', replayRowId: 97, durationMs: 883_179,
-    board: FULL_TEAM, runes: ['rune_broodpit', 'rune_epic_forge'], lobbyStrength: { value: 74, tier: 'Brutal', inputs: [] } }),
+    board: FULL_TEAM, runes: ['rune_broodpit', 'rune_epic_forge'], lobbyStrength: { value: 74, tier: 'Brutal', inputs: [] }, boardStrength: 72 }),
   run({ id: 11, heroId: 'brackus', atMs: NOW - 2 * DAY, wins: 5, losses: 5, draws: 2, placement: 3, goldSpent: 90, apt: null, durationMs: 690_108, board: null, runes: [], dominantTribe: 'mech', ratingAfter: 1193 }), // no APT → no APM point, length still known
   run({ id: 10, heroId: 'brackus', atMs: NOW - 40 * DAY, wins: 2, losses: 5, placement: 7, goldSpent: null, apt: null, durationMs: null, board: null, runes: [], dominantTribe: 'beast', detailed: false }), // no settle stamp → no MMR point
 ];
@@ -236,6 +240,17 @@ describe('Match History', () => {
     }
   });
 
+  it('with SHOW_LOBBY_STRENGTH on, the Lobby % is a fourth labelled fact, only on a run that carries a stamp', async () => {
+    lobbyDisplay.show = true;
+    try {
+      ui.unmount();
+      ui = mount(<Career />);
+      await flush();
+      expect(text('.cv2-row .cv2-meta-l')).toEqual(['Played', 'Length', 'Gold spent', 'Lobby', 'Board strength', 'Played', 'Length', 'Gold spent', 'Played', 'Length', 'Gold spent']);
+      expect(text('.cv2-row-lobby')).toEqual(['74%']);
+    } finally { lobbyDisplay.show = false; }
+  });
+
   it('the outcome block: VICTORY for 1st (green) else the placement; the date, run length and Gold, each labelled; "—" when unknown', () => {
     const verdicts = [...ui.container.querySelectorAll('.cv2-verdict')];
     expect(verdicts.map((v) => v.textContent)).toEqual(['VICTORY', '3RD', '7TH']);
@@ -245,9 +260,11 @@ describe('Match History', () => {
     // The banner's edge carries the same result colour.
     expect([...ui.container.querySelectorAll('.cv2-row')].map((r) => r.classList.contains('won'))).toEqual([true, false, false]);
     expect(text('.cv2-row-outcome .cv2-row-label')).toEqual(['Match Outcome', 'Match Outcome', 'Match Outcome']);
-    // The LOBBY STRENGTH (owner 2026-09-22) is a fourth labelled fact, only on a run that carries a stamp.
-    expect(text('.cv2-row .cv2-meta-l')).toEqual(['Played', 'Length', 'Gold spent', 'Lobby', 'Played', 'Length', 'Gold spent', 'Played', 'Length', 'Gold spent']);
-    expect(text('.cv2-row-lobby')).toEqual(['74%']);
+    // The LOBBY STRENGTH (owner 2026-09-22) is HIDDEN for now (owner 2026-09-30): no Lobby fact even on the stamped run.
+    // BOARD STRENGTH (R-LOBBY-09) shows, frozen on the run; a run without a score prints nothing (no placeholder).
+    expect(text('.cv2-row .cv2-meta-l')).toEqual(['Played', 'Length', 'Gold spent', 'Board strength', 'Played', 'Length', 'Gold spent', 'Played', 'Length', 'Gold spent']);
+    expect(text('.cv2-row-lobby')).toEqual([]);
+    expect(text('.cv2-row-bstrength')).toEqual(['72']);
     const when = text('.cv2-row-when');
     expect(when[0]).toMatch(/\d{4}$/);          // a real date
     expect(text('.cv2-row-length')).toEqual(['15 min', '12 min', '—']);   // 883 s · 690 s · no telemetry clock

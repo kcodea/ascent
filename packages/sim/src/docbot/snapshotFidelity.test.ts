@@ -88,6 +88,7 @@ function boardCardExemplar(): Required<BoardCard> {
     attack: 7,
     health: 9,
     sellOverride: 4,
+    clearanceBuy: true, // Frank × Ancients: a Clearance minion — shop-only, see the registry
     chooseBothLeft: 1, // Dealer's own latch — per instance, so a snapshot has to carry it
     keywords: ['DS'] as Keyword[],
     golden: true,
@@ -128,6 +129,7 @@ function boardCardExemplar(): Required<BoardCard> {
     lockedUntilGoldSpent: 70,
     lockedUntilWave: 5,
     extraCasts: 1,
+    castMult: 2,
     borrowed: true,
     eotBonus: 3,
     spellProgress: 4,

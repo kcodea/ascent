@@ -112,7 +112,8 @@
     "lint": "eslint .",
     "wire:plate": "node scripts/build-plate-wire.mjs",
     "beats:audit": "tsx packages/tools/src/beat-audit.ts",
-    "progression:shared": "tsx packages/tools/src/progression-shared.ts"
+    "progression:shared": "tsx packages/tools/src/progression-shared.ts",
+    "strength": "tsx packages/tools/src/strength/cli.ts"
   },
   "devDependencies": {
     "@types/node": "^22.10.5",

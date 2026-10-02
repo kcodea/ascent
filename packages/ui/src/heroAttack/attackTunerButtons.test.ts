@@ -26,10 +26,10 @@ import { SPEC as BOOMERANG } from '../HeroBoomerangTuner';
 import { SPEC as BUBBLE } from '../HeroBubbleTuner';
 import { SPEC as BACKSTAB } from '../HeroBackstabTuner';
 import { SPEC as BASKETBALL } from '../HeroBasketballTuner';
-import { SPEC as REWIND } from '../HeroRewindTuner';
+import { SPEC as BULLET_TIME } from '../HeroBulletTimeTuner';
 import { SPEC as FORMATION } from '../DamageFormationTuner';
 
-const SPECS = { BLAST, QUAKE, ARCANA, BLADES, ENRAGED, POISON, FROST, HOLY, FIRE, UNDEAD, BEAST, BANANA, BLEED, CARDS, STORM, COIN, BOOMERANG, BUBBLE, BACKSTAB, BASKETBALL, REWIND, FORMATION };
+const SPECS = { BLAST, QUAKE, ARCANA, BLADES, ENRAGED, POISON, FROST, HOLY, FIRE, UNDEAD, BEAST, BANANA, BLEED, CARDS, STORM, COIN, BOOMERANG, BUBBLE, BACKSTAB, BASKETBALL, BULLET_TIME, FORMATION };
 
 describe('the attack tuners', () => {
   for (const [name, spec] of Object.entries(SPECS)) {

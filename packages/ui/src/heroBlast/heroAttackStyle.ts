@@ -94,12 +94,11 @@
  * slammed down into an explosion; the backboard shatters). A whistle, dribbles, sneaker squeaks,
  * the swish, the rim and a crowd "ooh" (`../heroBasketball/`).
  *
- * `rewind` is the first ANCIENT attack built for its rarity (`attack_rewind`, "Rewind", the Ancient of Time; owner ask
- * 2026-10-02: "rewinding/stopping time concepts could be cool, and repeating time for the final hit"; the owner picked
- * REWIND & REPLAY): a bolt of golden hourglass sand strikes, then time runs BACKWARD (the splash sucks back in, the bolt
- * retraces its exact path to the hand, its trail leading, the broken halo spinning backward) and the same strike
- * replays. I one strike; II one rewind; III two, every landing leaving a fading afterimage; IV five accelerating loops,
- * each shedding an echo frozen in mid flight, then every echo lands at once in an hourglass shatter (`../heroRewind/`).
+ * `bullettime` is the first ANCIENT attack built for its rarity (`attack_bullet_time`, "Bullet Time", the Ancient of Time;
+ * owner 2026-10-02 picked "BULLET TIME" after three rewind builds): STOPPED TIME, the shots hang in the air. I a gold
+ * clock-hand dart stops an inch from the target, then time resumes; II three stop in a ring round it; III a volley freezes
+ * mid-flight in a spiral and the hero snaps; IV time stops for the whole board, dozens of blades hang in a dome while a
+ * clock counts 3-2-1, then the dome collapses in one massive impact (`../heroBulletTime/`).
  *
  * The style is the ATTACKER's: the equipped item recorded in the striking player's cosmetic snapshot (yours when you
  * win; the foe's seat snapshot when they win, and only while "Show opponent cosmetics" is on). The catalog item names
@@ -113,7 +112,7 @@
  */
 import { heroAttackOf } from '@game/progression';
 
-export const HERO_ATTACK_STYLES = ['classic', 'blast', 'quake', 'arcana', 'blades', 'enraged', 'poison', 'frost', 'holy', 'fire', 'undead', 'beast', 'banana', 'bleed', 'cards', 'storm', 'coin', 'boomerang', 'bubble', 'backstab', 'basketball', 'rewind'] as const;
+export const HERO_ATTACK_STYLES = ['classic', 'blast', 'quake', 'arcana', 'blades', 'enraged', 'poison', 'frost', 'holy', 'fire', 'undead', 'beast', 'banana', 'bleed', 'cards', 'storm', 'coin', 'boomerang', 'bubble', 'backstab', 'basketball', 'bullettime'] as const;
 export type HeroAttackStyle = (typeof HERO_ATTACK_STYLES)[number];
 
 /** What a player without an equipped hero attack sees (owner 2026-09-28: Blast is a cosmetic, not a new default). */
@@ -130,7 +129,7 @@ export function styleOfCosmetic(id: string | null | undefined): HeroAttackStyle 
 }
 
 /** The dev override: `auto` = what a player would see; the others force one style for BOTH sides. */
-export const DEV_HERO_ATTACK_CHOICES = ['auto', 'classic', 'blast', 'quake', 'arcana', 'blades', 'enraged', 'poison', 'frost', 'holy', 'fire', 'undead', 'beast', 'banana', 'bleed', 'cards', 'storm', 'coin', 'boomerang', 'bubble', 'backstab', 'basketball', 'rewind'] as const;
+export const DEV_HERO_ATTACK_CHOICES = ['auto', 'classic', 'blast', 'quake', 'arcana', 'blades', 'enraged', 'poison', 'frost', 'holy', 'fire', 'undead', 'beast', 'banana', 'bleed', 'cards', 'storm', 'coin', 'boomerang', 'bubble', 'backstab', 'basketball', 'bullettime'] as const;
 export type DevHeroAttackChoice = (typeof DEV_HERO_ATTACK_CHOICES)[number];
 
 /** The dev "Attack style" row's labels, shared by every hero attack tuner. */
@@ -141,7 +140,7 @@ export const DEV_HERO_ATTACK_LABELS: Record<DevHeroAttackChoice, string> = {
   coin: 'Pocket Change (coin, Rare)', boomerang: 'Come Back Around (boomerang, Rare)', bubble: 'Bubble Trouble (bubble, Rare)',
   backstab: 'Shadow Step (backstab, Rare)',
   basketball: 'Nothing But Net (basketball)',
-  rewind: 'Rewind (Ancient of Time)',
+  bullettime: 'Bullet Time (Ancient of Time)',
 };
 
 const KEY = 'ascent.heroattackstyle';

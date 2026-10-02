@@ -1,0 +1,270 @@
+/**
+ * THE BULLET TIME SCENE: everything Bullet Time draws in Pixi, on the shared pooled scene (`../heroAttack/fxPool.ts`),
+ * so it runs (and is tested) headless. `heroBulletTime.ts` mounts `root` on the above-portrait overlay, feeds
+ * `update(dt)`, and each frame tells it where every dart is (`setDart`) and how the clock reads (`setClock`).
+ *
+ * THE DARTS are gold clock-hand blades with a soft glow and a ribbon streak drawn along their own motion sampled back in
+ * time. When time stops a dart STOPS DEAD, its streak frozen behind it (stopped motion), and from then on it is alive
+ * but still: it trembles and turns a hair, and glints run along its edge. On the restart it snaps on into the target.
+ *
+ * STOPPED TIME stays visibly alive (owner rule R-PROG-ATTACK-10, "it looks like lag"): a clock ticks over the target, a
+ * gold time ripple pulses off it, dust motes drift, glints run along the hung blades. IV adds a big clock face behind
+ * the dome and the 3-2-1. The RESTART is a hard snap (a flash, a shock ring); the IMPACT is gold and violet, IV the
+ * biggest in the roster.
+ *
+ * Perf: pooled sprites under a hard cap; the darts (at most 64: a body, a glow and one ribbon strip each) and the clock
+ * (a face and two hands) are own objects made once and reused; no allocation per frame beyond the pool's own.
+ */
+import type { Sprite, Texture } from 'pixi.js';
+import type { HeroArcanaTextures } from '../heroArcana/heroArcanaScene';
+import { mixColor, whiten, type Pt } from '../heroAttack/easing';
+import { FxPool } from '../heroAttack/fxPool';
+import { RibbonTrail } from '../heroAttack/ribbonTrail';
+import { DART_W, DIGIT_PX, FACE_PX, HAND_PX, WASH_PX } from './heroBulletTimeTextures';
+
+export interface HeroBulletTimeTextures extends HeroArcanaTextures {
+  dart: Texture;
+  glint: Texture;
+  mote: Texture;
+  clockFace: Texture;
+  clockHand: Texture;
+  wash: Texture;
+  digit3: Texture;
+  digit2: Texture;
+  digit1: Texture;
+}
+
+export interface BulletColors { gold: number; light: number; violet: number; side: number }
+
+export interface BulletLook {
+  dartPx: number;
+  trailMs: number;
+  trailWidth: number;
+  tremblePx: number;
+  turn: number;
+  impactSize: number;
+}
+
+export type DartPhase = 'hand' | 'fly' | 'hang' | 'strike' | 'done';
+
+/** Hard cap on sprites alive at once (IV's dome + collapse peak well under it). */
+export const MAX_BULLET_SPRITES = 520;
+export const MAX_DARTS = 64;
+const GLOW_PX = 128;
+const RING_PX = 160;
+const STAR_PX = 48;
+
+interface Dart { body: Sprite; glow: Sprite; trail: RibbonTrail; on: boolean; phase: DartPhase; seed: number; tint: number; x: number; y: number; angle: number; k: number }
+
+export class HeroBulletTimeScene extends FxPool {
+  private darts: Dart[] = [];
+  private clock: { face: Sprite; long: Sprite; short: Sprite; glow: Sprite } | null = null;
+  private clockOn = false;
+  private age = 0;
+  private glintAcc = 0;
+
+  constructor(private readonly tex: HeroBulletTimeTextures, private readonly colors: BulletColors, private readonly look: BulletLook, scale = 1, seed = 1) {
+    super('heroBulletTime', [tex.glow, tex.ring, tex.star, tex.spark, tex.dart, tex.glint, tex.mote, tex.clockFace, tex.clockHand, tex.wash, tex.digit3, tex.digit2, tex.digit1, tex.ribbonSoft, tex.ribbonBody], scale, seed, MAX_BULLET_SPRITES);
+  }
+
+  get liveDarts(): number { let n = 0; for (const d of this.darts) if (d.on) n++; return n; }
+  get hungDarts(): number { let n = 0; for (const d of this.darts) if (d.on && d.phase === 'hang') n++; return n; }
+  get clockVisible(): boolean { return this.clockOn; }
+
+  private dartAt(i: number, tint: number): Dart | null {
+    if (i < 0 || i >= MAX_DARTS) return null;
+    let d = this.darts[i];
+    if (!d) {
+      const glow = this.take('glow', this.tex.glow, tint);
+      const body = this.take('body', this.tex.dart, tint);
+      if (!glow || !body) { this.give(glow); this.give(body); return null; }
+      body.anchor.set(0.97, 0.5);
+      const trail = new RibbonTrail(this.layers.glow, this.tex.ribbonBody, whiten(tint, 0.3), 'add');
+      d = { body, glow, trail, on: false, phase: 'hand', seed: this.rnd() * 100, tint, x: 0, y: 0, angle: 0, k: 1 };
+      this.darts[i] = d;
+    }
+    return d;
+  }
+
+  /**
+   * Dart `i` this frame: `sample(ms)` is its position on the clock, `te` the motion time to draw (while it hangs, the
+   * time it stopped, so its streak hangs with it), `phase` where it is in its life, `angle` its heading, `size` its scale.
+   */
+  setDart(i: number, sample: (ms: number) => Pt, te: number, phase: DartPhase, angle: number, size: number, tint: number): void {
+    const d = this.darts[i] ?? (phase === 'fly' || phase === 'hang' || phase === 'strike' ? this.dartAt(i, tint) : null);
+    if (!d) return;
+    const on = phase === 'fly' || phase === 'hang' || phase === 'strike';
+    d.on = on; d.phase = phase;
+    d.body.visible = d.glow.visible = on;
+    if (!on) { d.trail.hide(); return; }
+    const S = this.scale;
+    const p = sample(te);
+    let x = p.x, y = p.y, a = angle;
+    if (phase === 'hang') {
+      // Stopped, but alive: a tremble and a hair of turn, never a still frame.
+      const w = this.age * 0.02 + d.seed;
+      x += Math.sin(w * 3.1) * this.look.tremblePx * S;
+      y += Math.cos(w * 2.3) * this.look.tremblePx * S;
+      a += Math.sin(w * 1.7) * this.look.turn;
+    }
+    d.x = x; d.y = y; d.angle = a;
+    const k = (this.look.dartPx * size * S) / DART_W;
+    d.k = k;
+    d.body.position.set(x, y); d.body.rotation = a; d.body.scale.set(k); d.body.alpha = 1; d.body.tint = tint;
+    d.glow.position.set(x, y); d.glow.scale.set((this.look.dartPx * size * S * 0.9) / GLOW_PX); d.glow.alpha = phase === 'hang' ? 0.35 + 0.15 * Math.sin(this.age * 0.012 + d.seed) : 0.55;
+    d.glow.tint = tint;
+    if (this.look.trailMs > 0) {
+      d.trail.mesh.tint = whiten(tint, 0.3);
+      d.trail.draw(sample, te, this.look.trailMs, this.look.trailWidth * size * S, phase === 'hang' ? 0.45 : 0.85);
+    }
+  }
+
+  /** A dart stops dead: a tick ring and a glint at its tip. */
+  freeze(at: Pt, k = 1): void {
+    const c = this.colors;
+    this.spawn('glow', this.tex.ring, c.light, at.x, at.y, { dur: 220, from: 0.05 * k, to: 0.35 * k, a0: 0.9, ease: 'cubic' });
+    this.spawn('core', this.tex.star, 0xffffff, at.x, at.y, { dur: 180, from: 0.3 * k, to: 0.9 * k, a0: 1, mode: 'punch', peakAt: 0.2, rot: 0.4 });
+  }
+
+  /** TIME STOPS: a ripple off the target, a violet flash, dust motes over the area. */
+  stop(at: Pt, radius: number, area: { x: number; y: number; w: number; h: number }, motes: number, big: boolean): void {
+    const c = this.colors;
+    this.ripple(at, radius * (big ? 1.6 : 1));
+    this.spawn('glow', this.tex.glow, c.violet, at.x, at.y, { dur: 260, from: (radius * 1.2) / GLOW_PX, to: (radius * 3) / GLOW_PX, a0: 0.5, mode: 'punch', peakAt: 0.15 });
+    this.motes(area, motes);
+  }
+
+  /** A gold time ripple pulsing off the target (stopped time stays alive). */
+  ripple(at: Pt, radius: number): void {
+    const c = this.colors;
+    this.spawn('glow', this.tex.ring, c.gold, at.x, at.y, { dur: 520, from: (radius * 0.6) / RING_PX, to: (radius * 3.2) / RING_PX, a0: 0.5, ease: 'cubic' });
+  }
+
+  /** Dust motes drifting slowly through stopped time. */
+  motes(area: { x: number; y: number; w: number; h: number }, n: number): void {
+    const c = this.colors;
+    for (let i = 0; i < n; i++) {
+      const sz = 0.5 + this.rnd() * 0.7;
+      this.spawn('core', this.tex.mote, [c.light, c.gold, whiten(c.violet, 0.5)][i % 3]!, area.x + this.rnd() * area.w, area.y + this.rnd() * area.h, {
+        dur: 900 + this.rnd() * 900, from: sz, to: sz * 0.8, a0: 0.7, mode: 'punch', peakAt: 0.3, ease: 'linear',
+        vx: (this.rnd() - 0.5) * 30, vy: -10 - this.rnd() * 20, drag: 1, delay: this.rnd() * 300,
+      });
+    }
+  }
+
+  /** The clock over the target: its face and two hands at opacity `a` (null hides). */
+  setClock(at: Pt, r: number, minute: number, a: number): void {
+    if (!this.clock) {
+      if (a <= 0.001) return;
+      const c = this.colors;
+      const face = this.take('glow', this.tex.clockFace, c.light);
+      const glow = this.take('glow', this.tex.glow, c.violet);
+      const long = this.take('body', this.tex.clockHand, c.gold);
+      const short = this.take('body', this.tex.clockHand, c.light);
+      if (!face || !glow || !long || !short) { for (const s of [face, glow, long, short]) this.give(s); return; }
+      long.anchor.set(10 / HAND_PX, 0.5); short.anchor.set(10 / HAND_PX, 0.5);
+      this.clock = { face, glow, long, short };
+    }
+    const k = this.clock;
+    const on = a > 0.001;
+    this.clockOn = on;
+    k.face.visible = k.glow.visible = k.long.visible = k.short.visible = on;
+    if (!on) return;
+    k.face.position.set(at.x, at.y); k.face.scale.set((r * 2) / (FACE_PX * 0.94)); k.face.alpha = 0.6 * a;
+    k.glow.position.set(at.x, at.y); k.glow.scale.set((r * 2.4) / GLOW_PX); k.glow.alpha = 0.18 * a;
+    k.long.position.set(at.x, at.y); k.long.scale.set((r * 0.88) / HAND_PX, (r * 0.4) / HAND_PX); k.long.rotation = minute - Math.PI / 2; k.long.alpha = 0.95 * a;
+    k.short.position.set(at.x, at.y); k.short.scale.set((r * 0.55) / HAND_PX, (r * 0.5) / HAND_PX); k.short.rotation = minute / 12 - Math.PI / 2 + 2.1; k.short.alpha = 0.95 * a;
+  }
+
+  /** A clock flash (III): the big face flares over the target and fades. */
+  clockFlash(at: Pt, r: number): void {
+    const c = this.colors;
+    this.spawn('glow', this.tex.clockFace, c.gold, at.x, at.y, { dur: 480, from: (r * 1.6) / FACE_PX, to: (r * 2.2) / FACE_PX, a0: 0.9, mode: 'punch', peakAt: 0.12, ease: 'cubic' });
+    this.spawn('glow', this.tex.glow, c.light, at.x, at.y, { dur: 260, from: (r * 1.2) / GLOW_PX, to: (r * 2.4) / GLOW_PX, a0: 0.6, mode: 'punch', peakAt: 0.1 });
+  }
+
+  /** IV's countdown: a big digit slams in over the target and fades as the next comes. */
+  count(at: Pt, n: 1 | 2 | 3, r: number, ms: number): void {
+    const c = this.colors;
+    const t = n === 3 ? this.tex.digit3 : n === 2 ? this.tex.digit2 : this.tex.digit1;
+    const k = (r * 1.6) / DIGIT_PX;
+    this.spawn('body', t, n === 1 ? c.light : c.gold, at.x, at.y, { dur: ms, from: k * 1.6, to: k, a0: 1, mode: 'hold', ease: 'quint' });
+    this.spawn('glow', this.tex.ring, c.violet, at.x, at.y, { dur: ms * 0.8, from: (r * 0.8) / RING_PX, to: (r * 2.2) / RING_PX, a0: 0.7, ease: 'cubic' });
+  }
+
+  /** The glints: now and then one runs along a hung dart's edge. */
+  private glints(dt: number): void {
+    this.glintAcc += dt;
+    if (this.glintAcc < 45) return;
+    this.glintAcc = 0;
+    const hung = this.darts.filter((d) => d.on && d.phase === 'hang');
+    if (!hung.length) return;
+    const d = hung[Math.floor(this.rnd() * hung.length)]!;
+    const len = DART_W * d.k;
+    const back = d.angle + Math.PI;
+    const sx = d.x + Math.cos(back) * len * 0.8, sy = d.y + Math.sin(back) * len * 0.8;
+    const sp = (len * 0.8) / 0.16; // run the length of the blade in 160 ms
+    this.spawn('core', this.tex.glint, 0xffffff, sx, sy, {
+      dur: 160, from: (len * 0.35) / 64 / this.scale, to: (len * 0.35) / 64 / this.scale, sy: 0.4, a0: 0.95, mode: 'punch', peakAt: 0.5, ease: 'linear',
+      vx: (Math.cos(d.angle) * sp) / this.scale, vy: (Math.sin(d.angle) * sp) / this.scale, drag: 1, rot: d.angle,
+    });
+  }
+
+  /** TIME RESTARTS: a hard snap (a white flash over the area, a shock ring off the target). */
+  snap(at: Pt, radius: number, area: { x: number; y: number; w: number; h: number }, k = 1): void {
+    const c = this.colors;
+    this.spawn('glow', this.tex.wash, 0xffffff, area.x + area.w / 2, area.y + area.h / 2, {
+      dur: 140, from: area.w / WASH_PX / this.scale, to: area.w / WASH_PX / this.scale, sy: area.h / area.w, a0: 0.35 * k, mode: 'punch', peakAt: 0.1, ease: 'linear',
+    });
+    this.spawn('glow', this.tex.ring, c.light, at.x, at.y, { dur: 260, from: (radius * 0.6) / RING_PX, to: (radius * 4 * k) / RING_PX, a0: 1, ease: 'cubic' });
+    this.spawn('glow', this.tex.ring, c.violet, at.x, at.y, { dur: 340, from: (radius * 0.4) / RING_PX, to: (radius * 3 * k) / RING_PX, a0: 0.7, ease: 'cubic', delay: 40 });
+  }
+
+  /** A hit (a tick, or the impact's own): a flash, a star, rings, sparks. */
+  hit(at: Pt, dir: Pt, strength: number, sparks: number): void {
+    const c = this.colors;
+    const T = strength;
+    this.spawn('core', this.tex.glow, whiten(c.light, 0.5), at.x, at.y, { dur: 150, from: (50 * T) / GLOW_PX, to: (150 * T) / GLOW_PX, a0: 0.95, mode: 'punch', peakAt: 0.1 });
+    this.spawn('core', this.tex.star, 0xffffff, at.x, at.y, { dur: 180, from: (40 * T) / STAR_PX, to: (120 * T) / STAR_PX, a0: 1, mode: 'punch', peakAt: 0.15, rot: 0.3 });
+    this.spawn('glow', this.tex.ring, c.gold, at.x, at.y, { dur: 280, from: (20 * T) / RING_PX, to: (170 * T) / RING_PX, a0: 0.9, ease: 'cubic' });
+    this.burst('core', this.tex.spark, [c.light, c.gold, 0xffffff], at.x, at.y, sparks, { speed: 520 * T, dir: Math.atan2(-dir.y, -dir.x), spread: 2.6, life: 380, size: 0.6 * T, drag: 0.3, to: 0.3 });
+  }
+
+  /**
+   * THE impact. I-III: a big gold hit with a violet ring. IV, the dome collapsing: the biggest in the roster: a white
+   * core, a gold and violet fireball, four shock rings, the clock face blown outward, a storm of sparks and glints.
+   */
+  impact(at: Pt, dir: Pt, radius: number, tier: number, area: { x: number; y: number; w: number; h: number }): void {
+    const c = this.colors;
+    const X = this.look.impactSize * (1 + 0.15 * (tier - 1));
+    this.hit(at, dir, 1.3 * X, 16 + 4 * tier);
+    this.spawn('glow', this.tex.ring, c.violet, at.x, at.y, { dur: 420, from: (30 * X) / RING_PX, to: (260 * X) / RING_PX, a0: 0.8, ease: 'cubic', delay: 40 });
+    if (tier < 4) return;
+    this.spawn('glow', this.tex.wash, mixColor(c.gold, 0xffffff, 0.5), area.x + area.w / 2, area.y + area.h / 2, {
+      dur: 260, from: area.w / WASH_PX / this.scale, to: area.w / WASH_PX / this.scale, sy: area.h / area.w, a0: 0.5, mode: 'punch', peakAt: 0.08, ease: 'linear',
+    });
+    this.spawn('core', this.tex.glow, 0xffffff, at.x, at.y, { dur: 360, from: (140 * X) / GLOW_PX, to: (520 * X) / GLOW_PX, a0: 1, mode: 'punch', peakAt: 0.06 });
+    this.spawn('glow', this.tex.glow, c.gold, at.x, at.y, { dur: 700, from: (200 * X) / GLOW_PX, to: (640 * X) / GLOW_PX, a0: 0.7, mode: 'punch', peakAt: 0.1 });
+    this.spawn('glow', this.tex.glow, c.violet, at.x, at.y, { dur: 900, from: (220 * X) / GLOW_PX, to: (760 * X) / GLOW_PX, a0: 0.5, mode: 'punch', peakAt: 0.2 });
+    [c.light, c.gold, c.violet, 0xffffff].forEach((tint, i) => this.spawn('glow', this.tex.ring, tint, at.x, at.y, { dur: 560 + i * 140, from: (40 * X) / RING_PX, to: ((420 + i * 160) * X) / RING_PX, a0: 0.95, ease: 'cubic', delay: i * 60 }));
+    this.spawn('glow', this.tex.clockFace, c.gold, at.x, at.y, { dur: 700, from: (radius * 2.6) / FACE_PX, to: (radius * 7 * X) / FACE_PX, a0: 0.85, spin: 0.004, ease: 'cubic' });
+    this.burst('core', this.tex.spark, [c.light, c.gold, c.violet, 0xffffff], at.x, at.y, 70, { speed: 1000 * X, life: 700, size: 0.9 * X, drag: 0.35, to: 0.3 });
+    this.burst('core', this.tex.star, [c.light, c.violet], at.x, at.y, 14, { speed: 640 * X, life: 600, size: (22 * X) / STAR_PX, drag: 0.3, spin: 0.02 });
+    this.burst('body', this.tex.dart, [c.gold, c.light, c.violet], at.x, at.y, 18, { speed: 900 * X, life: 600, size: 0.5 * X, grav: 600, drag: 0.5, spin: 0.03, to: 0.6, lift: 120 });
+  }
+
+  protected override tick(dt: number): boolean {
+    this.age += dt;
+    this.glints(dt);
+    let own = this.clockOn;
+    for (const d of this.darts) if (d.on) { own = true; break; }
+    return own;
+  }
+
+  protected override clearOwn(): void {
+    for (const d of this.darts) { d.trail.hide(); for (const s of [d.body, d.glow]) { s.visible = true; this.give(s); } }
+    this.darts = [];
+    if (this.clock) { for (const s of [this.clock.face, this.clock.glow, this.clock.long, this.clock.short]) { s.visible = true; this.give(s); } this.clock = null; this.clockOn = false; }
+  }
+}
+

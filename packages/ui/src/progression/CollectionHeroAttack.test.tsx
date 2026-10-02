@@ -338,22 +338,22 @@ describe('the Attack Animations tab', () => {
     clean();
   });
 
-  it('Rewind (the Ancient of Time, owner 2026-10-02: "build a new ancient animation for this ancient, the ancient of time") has its own Ancient tile and plays its own preview; Equip sends attack_rewind', async () => {
-    open({ cosmetics: ['alpha_tester', 'attack_blast', 'attack_rewind'] });
+  it('Bullet Time (the Ancient of Time, owner 2026-10-02: "build a new ancient animation for this ancient, the ancient of time") has its own Ancient tile and plays its own preview; Equip sends attack_bullet_time', async () => {
+    open({ cosmetics: ['alpha_tester', 'attack_blast', 'attack_bullet_time'] });
     act(() => tab('Attack Animations').click());
     expect(tab('Attack Animations').querySelector('.colls-tab-count')?.textContent).toBe('2/21');
-    act(() => tile('Rewind').click());
-    expect(tile('Rewind').getAttribute('aria-label')).toBe('Rewind, Ancient, owned');
+    act(() => tile('Bullet Time').click());
+    expect(tile('Bullet Time').getAttribute('aria-label')).toBe('Bullet Time, Ancient, owned');
     expect(text('.colls-detail .colls-kicker')).toBe('Hero attack');
     expect($('.colls-detail .hapv-box')).not.toBeNull();
     const preview = button('▶ Preview');
     expect(preview).toBeTruthy();
     expect(preview!.disabled).toBe(false);
-    equipCosmeticRemote.mockResolvedValue({ status: 'ok', value: null, profile: { ...base, cosmetics: [...base.cosmetics!, 'attack_rewind'], revision: 11, loadout: { heroAttack: 'attack_rewind' } } });
+    equipCosmeticRemote.mockResolvedValue({ status: 'ok', value: null, profile: { ...base, cosmetics: [...base.cosmetics!, 'attack_bullet_time'], revision: 11, loadout: { heroAttack: 'attack_bullet_time' } } });
     await act(async () => { button('Equip')!.click(); });
     await settle();
-    expect(equipCosmeticRemote).toHaveBeenCalledWith('hero_attack', '', 'attack_rewind');
-    expect(tile('Rewind').className).toMatch(/\bworn\b/);
+    expect(equipCosmeticRemote).toHaveBeenCalledWith('hero_attack', '', 'attack_bullet_time');
+    expect(tile('Bullet Time').className).toMatch(/\bworn\b/);
     expect(tile('Arcane Barrage').className).not.toMatch(/\bworn\b/);
     clean();
   });
@@ -362,7 +362,7 @@ describe('the Attack Animations tab', () => {
     open();
     const t = tab('Attack Animations');
     expect(t.className).not.toMatch(/\blocked\b/);
-    // 2026-09-28: Quake ("Tectonic Slam"), Arcana, Phantom Blades, Enraged Strike, Venom Volley and Frost Nova joined Blast, then Inferno, Grave Call, the Stampede and Oona's Banana Cannon and Hemorrhage (2026-09-29), then the Epics Card Shark and Storm Call, then the four Rares, then Nothing But Net (the basketball, 2026-09-29), then Rewind (Ancient, 2026-10-02), so one of twenty-one is owned.
+    // 2026-09-28: Quake ("Tectonic Slam"), Arcana, Phantom Blades, Enraged Strike, Venom Volley and Frost Nova joined Blast, then Inferno, Grave Call, the Stampede and Oona's Banana Cannon and Hemorrhage (2026-09-29), then the Epics Card Shark and Storm Call, then the four Rares, then Nothing But Net (the basketball, 2026-09-29), then Bullet Time (Ancient, 2026-10-02), so one of twenty-one is owned.
     expect(t.querySelector('.colls-tab-count')?.textContent).toBe('1/21');
     act(() => t.click());
     expect(tile('Arcane Barrage').getAttribute('aria-label')).toBe('Arcane Barrage, Legendary, owned');

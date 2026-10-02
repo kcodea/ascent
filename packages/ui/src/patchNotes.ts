@@ -64,11 +64,11 @@ export const PATCH_NOTES: PatchNote[] = [
       },
       {
         category: 'Systems',
-        text: 'A new Ancient hero attack in crates: Rewind. The Ancient of Time pours golden sand on your foe, time runs backward, and the same hit lands again.',
+        text: 'A new Ancient hero attack in crates: Bullet Time. Time stops, your shots hang in the air, then time snaps back and they all land.',
         details: [
-          'Small: one torrent of golden sand.',
-          'Bigger hits rewind and replay, faster and harder each time. The whole board bends back with them.',
-          'Huge: a giant clock fills the board, the hit loops five times, and every echo lands at once as the screen shatters like glass.',
+          'Small: a golden dart stops just short of your foe, then hits.',
+          'Bigger hits freeze a ring of darts, then a whole volley in a spiral.',
+          'Huge: dozens of blades hang in a dome while a clock counts 3, 2, 1. Then they all strike at once.',
           'Equip it in the Collection, on the Attack Animations tab.',
         ],
       },

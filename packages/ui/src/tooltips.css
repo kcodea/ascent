@@ -1,8 +1,8 @@
 /* ══ ONE TOOLTIP STYLE (owner ask 2026-10-02: "can we unify our tooltips everywhere stylistically so that they all
    match? let's use the Aegis version for tooltips") ══════════════════════════════════════════════════════════════
 
-   Every hover tip in the game wears the HERO-POWER ("Aegis") panel: an opaque slate-blue panel, a light hairline
-   with a warm-gold top edge, a gold bold TITLE over a thin divider, light body text whose keywords and numbers read
+   Every hover tip in the game wears the HERO-POWER ("Aegis") panel, recoloured 2026-10-02 to the HUD pills' Gem
+   plate: the plate gradient inside a thin metallic filigree edge, a bold TITLE over a thin divider, light body text whose keywords and numbers read
    in gold, and small outlined PILL tags. A one-line tip ("Upgrade Shop to tier 2") is the same panel with just its
    text.
 
@@ -21,27 +21,33 @@
    nothing here animates, and nothing reads layout. Opaque on purpose: no `backdrop-filter` (the old glass rune tip
    blurred whatever sat behind it and read low-contrast over bright art). ══ */
 :root {
-  /* Panel */
-  --atip-bg-top: #283244;
-  --atip-bg-bot: #121721;
-  --atip-bg: linear-gradient(180deg, var(--atip-bg-top), var(--atip-bg-bot));
-  --atip-line: #4b596c;          /* the light hairline (opaque: the old 26% ice blue, pre-mixed on the panel) */
-  --atip-line-top: #caa157;      /* the warm-gold top edge */
+  /* COLOURS: aliases of the shared `--ui-*` theme tokens (uiTheme.css), so the tooltips wear the same Gem plate as
+     the HUD pills and the 🎨 UI Theme tuner recolours both at once (owner 2026-10-02: "make the tooltips match our
+     hud pill designs"). Never put a literal colour here; theme it in uiTheme.css. */
+  /* Panel: the plate gradient inside a thin metallic filigree edge (a gradient painted under transparent borders,
+     so every border keeps its old width: 1px sides, 2px top). */
+  --atip-bg-top: var(--ui-plate-top);
+  --atip-bg-bot: var(--ui-plate-bot);
+  --atip-bg: var(--ui-plate);
+  --atip-edge: var(--ui-edge);
+  --atip-line: var(--ui-edge-main);    /* solid stand-in for the edge (carets, the menu bubbles' squares) */
+  --atip-line-top: var(--ui-edge-hi);  /* the bright top of the edge */
+  --atip-line-bot: var(--ui-edge-lo);  /* the bottom of the edge */
   --atip-radius: 12px;
   --atip-radius-simple: 10px;
-  --atip-shadow: 0 14px 34px -10px rgba(0, 0, 0, 0.72), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  --atip-shadow: 0 14px 34px -10px rgba(0, 0, 0, 0.72), inset 0 0 0 1px rgba(0, 0, 0, 0.55), inset 0 0 0 2px var(--ui-ring), inset 0 6px 8px -4px rgba(255, 255, 255, 0.07);
   /* Text */
   --atip-font: var(--font-body);
   --atip-title-font: var(--font-title);
-  --atip-title: #ffd98a;         /* gold title */
-  --atip-text: #e6ebf2;          /* body */
-  --atip-muted: #a3aebd;         /* secondary labels */
-  --atip-hl: #ffb561;            /* keywords + numbers inside the body */
-  --atip-divider: rgba(255, 255, 255, 0.12);
+  --atip-title: var(--ui-title);       /* title */
+  --atip-text: var(--ui-text);         /* body */
+  --atip-muted: var(--ui-muted);       /* secondary labels */
+  --atip-hl: var(--ui-hl);             /* keywords + numbers inside the body */
+  --atip-divider: var(--ui-divider);
   /* Pill tags ("once per turn", "Rune · active") */
-  --atip-pill-bg: #0d1119;
-  --atip-pill-line: #3d4a5c;
-  --atip-pill-text: #f4ecdb;
+  --atip-pill-bg: var(--ui-chip-bg);
+  --atip-pill-line: var(--ui-chip-edge);
+  --atip-pill-text: var(--ui-chip-text);
   /* The tuner's dials (tooltipConfig.ts), in ON-SCREEN px. Keep in sync with its DEFAULTS (the owner's dialled
      values, baked 2026-10-02). */
   --atip-title-size: 17px;
@@ -86,9 +92,9 @@
 .atip, .herotip, .questbadge-tip, .riftpill-tip, .riftbtn-tip, .runtrophy-tip, .cv2-rune-tip, .cv2-herotip, .tagtip,
 .sbtip, .tvb-tip, .etb-tip, .rfb-tip, .kwbox, .inspect-buffs, .lobbyscout, .anc-pv,
 .gtip[data-tip]::after, .titlescreen [data-tip]:not(.menubtn)::after, .lbpage [data-tip]:not(.menubtn)::after, .balpage [data-tip]::after {
-  background: var(--atip-bg);
-  border: 1px solid var(--atip-line);
-  border-top: 2px solid var(--atip-line-top);
+  background: var(--atip-bg) padding-box, var(--atip-edge) border-box;
+  border: 1px solid transparent;
+  border-top-width: 2px;
   border-radius: var(--atip-radius);
   box-shadow: var(--atip-shadow);
   color: var(--atip-text);
@@ -165,7 +171,7 @@
   transform: translateX(-50%) rotate(45deg); pointer-events: none;
 }
 .atip-arrow-up::before { top: -6px; background: var(--atip-bg-top); border-left: 1px solid var(--atip-line-top); border-top: 2px solid var(--atip-line-top); }
-.atip-arrow-down::before { bottom: -6px; background: var(--atip-bg-bot); border-right: 1px solid var(--atip-line); border-bottom: 1px solid var(--atip-line); }
+.atip-arrow-down::before { bottom: -6px; background: var(--atip-bg-bot); border-right: 1px solid var(--atip-line-bot); border-bottom: 1px solid var(--atip-line-bot); }
 /* Legacy arrows: the menu bubbles' rotated square (the shop pill's and build tag's carets take the tokens in
    styles.css). */
 .titlescreen [data-tip]:not(.menubtn)::before, .lbpage [data-tip]:not(.menubtn)::before, .balpage [data-tip]::before {

@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, relative } from 'node:path';
-import { NOT_TIP_CLASSES, OWN_SIZE_EXCEPTIONS, PAINT_EXCEPTIONS, TIP_CLASSES } from './tooltipRegistry';
+import { GEM_COLOUR_EXCEPTIONS, NOT_TIP_CLASSES, OWN_SIZE_EXCEPTIONS, PAINT_EXCEPTIONS, TIP_CLASSES } from './tooltipRegistry';
+import { DEFAULT_THEME, UI_THEMES, UI_THEME_IDS, UI_THEME_KEYS, UI_THEME_VARS, type UiThemeTokens } from './uiThemeConfig';
 import { TOOLTIP_DEFAULTS, TOOLTIP_VARS, sanitizeTooltipConfig, type TooltipConfig } from './tooltipConfig';
 
 /**
@@ -15,6 +16,9 @@ import { TOOLTIP_DEFAULTS, TOOLTIP_VARS, sanitizeTooltipConfig, type TooltipConf
  *  5. the tuner's baked defaults match the stylesheet's tokens, so production plays what the CSS declares;
  *  6. no tip (or a part of one) sets its own font-size / padding / line-height: sizes come from the `--atip-*` dials
  *     (or `em`, which is relative to them), so the 💬 Tooltips tuner moves every tip uniformly.
+ *  7. THE UI THEME (owner 2026-10-02): tooltips.css and the Gem plate HUD pill rules carry no literal colour, only the
+ *     shared `--ui-*` tokens (exceptions: black / white shading, GEM_COLOUR_EXCEPTIONS in tooltipRegistry.ts); the
+ *     baked uiTheme.css block equals DEFAULT_THEME; and every theme keeps its text readable (contrast floors).
  */
 
 const SRC = __dirname;
@@ -154,5 +158,97 @@ describe('one shared tooltip style', () => {
   it('a stored tuner blob is sanitised (unknown keys dropped, out-of-range clamped)', () => {
     expect(sanitizeTooltipConfig({ bodySize: 999, junk: 1 })).toEqual({ ...TOOLTIP_DEFAULTS, bodySize: 26 });
     expect(sanitizeTooltipConfig('nope')).toEqual(TOOLTIP_DEFAULTS);
+  });
+});
+
+/* ── 7. THE UI THEME ── */
+
+/** A literal colour in a CSS value: hex, rgb/rgba/hsl/hsla, or a named colour. Pure black / white shading is allowed. */
+const LITERAL = /#[0-9a-fA-F]{3,8}\b|\b(?:rgba?|hsla?)\([^)]*\)|(?<![-\w])(?:white|black|red|gold|orange|purple|silver|gray|grey|yellow|pink|blue|green)(?![-\w])/g;
+const SHADING = /^(#000|#000000|#fff|#ffffff|rgba?\(\s*(0,\s*0,\s*0|255,\s*255,\s*255)\s*(,\s*[\d.]+\s*)?\))$/i;
+/** Literal colours in a declaration value, minus `var(--x, fallback)` fallbacks (the token is what paints). */
+const literalsIn = (value: string): string[] => (value.replace(/var\(--[\w-]+,[^()]*(\([^()]*\))?[^()]*\)/g, 'var()').match(LITERAL) ?? [])
+  .filter((c) => !SHADING.test(c.replace(/\s+/g, ' ').trim()));
+
+const hexRgb = (c: string): [number, number, number] => {
+  const m = /^#([0-9a-f]{6})$/i.exec(c);
+  if (!m) throw new Error(`not #rrggbb: ${c}`);
+  const n = parseInt(m[1]!, 16);
+  return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+};
+const lum = (c: string): number => {
+  const [r, g, b] = hexRgb(c).map((v) => { const x = v / 255; return x <= 0.03928 ? x / 12.92 : ((x + 0.055) / 1.055) ** 2.4; });
+  return 0.2126 * r! + 0.7152 * g! + 0.0722 * b!;
+};
+export const contrast = (a: string, b: string): number => {
+  const [hi, lo] = [lum(a), lum(b)].sort((x, y) => y - x) as [number, number];
+  return (hi + 0.05) / (lo + 0.05);
+};
+
+describe('one shared UI theme (tooltips + HUD pills)', () => {
+  it('tooltips.css paints with the --ui-* tokens only', () => {
+    const bad: string[] = [];
+    for (const r of rules(join(SRC, 'tooltips.css'))) {
+      for (const decl of r.body.split(';')) {
+        const i = decl.indexOf(':');
+        if (i < 0) continue;
+        for (const c of literalsIn(decl.slice(i + 1))) bad.push(`${r.selector.slice(0, 60)} { ${decl.trim().slice(0, 80)} } -> ${c}`);
+      }
+    }
+    expect(bad, 'theme a tooltip colour through uiTheme.css (--ui-*), not a literal').toEqual([]);
+  });
+
+  it('the Gem plate HUD pill rules paint with the --ui-* tokens only', () => {
+    const bad: string[] = [];
+    for (const r of rules(join(SRC, 'healthPills.css'))) {
+      if (!r.selector.includes('[data-hp-look="gem"]')) continue;
+      if (GEM_COLOUR_EXCEPTIONS.some((e) => r.selector.includes(e))) continue;
+      for (const decl of r.body.split(';')) {
+        const i = decl.indexOf(':');
+        if (i < 0) continue;
+        if (decl.slice(0, i).trim().startsWith('--')) continue; // a local custom property is checked where it is used
+        for (const c of literalsIn(decl.slice(i + 1))) bad.push(`${r.selector.slice(0, 70)} { ${decl.trim().slice(0, 80)} } -> ${c}`);
+      }
+    }
+    expect(bad, 'theme a HUD pill colour through uiTheme.css (--ui-*), or register a state colour in GEM_COLOUR_EXCEPTIONS').toEqual([]);
+  });
+
+  it('the baked uiTheme.css block equals DEFAULT_THEME, token for token', () => {
+    const css = readFileSync(join(SRC, 'uiTheme.css'), 'utf8');
+    const t: UiThemeTokens = UI_THEMES[DEFAULT_THEME];
+    for (const k of UI_THEME_KEYS) {
+      const m = css.match(new RegExp(`${UI_THEME_VARS[k]}:\s*([^;]+);`));
+      expect(m, UI_THEME_VARS[k]).not.toBeNull();
+      expect(m![1]!.trim(), UI_THEME_VARS[k]).toBe(t[k]);
+    }
+  });
+
+  it('every theme sets every token to a colour', () => {
+    for (const id of UI_THEME_IDS) {
+      const t: UiThemeTokens = UI_THEMES[id];
+      for (const k of UI_THEME_KEYS) expect(t[k], `${id}.${k}`).toMatch(/^(#[0-9a-f]{6}|rgba\(\d+, \d+, \d+, [\d.]+\))$/);
+    }
+  });
+
+  it('every theme keeps its text readable (WCAG contrast on the plate)', () => {
+    const lows: string[] = [];
+    const need = (id: string, what: string, fg: string, bg: string, min: number): void => {
+      const r = contrast(fg, bg);
+      if (r < min) lows.push(`${id}: ${what} ${r.toFixed(2)} < ${min}`);
+    };
+    for (const id of UI_THEME_IDS) {
+      const t: UiThemeTokens = UI_THEMES[id];
+      // The plate's LIGHTEST stop is the worst case for light text.
+      for (const bg of [t.plateTop, t.plateMid, t.plateBot]) {
+        need(id, 'body text', t.text, bg, 7);
+        need(id, 'title', t.title, bg, 7);
+        need(id, 'highlight', t.hl, bg, 4.5);
+        need(id, 'muted', t.muted, bg, 4.5);
+        need(id, 'warn', t.warn, bg, 4.5);
+      }
+      need(id, 'chip text', t.chipText, t.chipBg, 7);
+      need(id, 'armor number', t.armorInk, t.armorMid, 4.5);
+    }
+    expect(lows).toEqual([]);
   });
 });

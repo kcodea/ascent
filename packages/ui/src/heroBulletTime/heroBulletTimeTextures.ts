@@ -1,13 +1,18 @@
 /**
  * Bullet Time's textures, painted ONCE per session on 2D canvases and kept (on top of the shared Blast / Arcana set it
- * reuses for glows, rings, stars, the beam and the ribbon trail). Greys unless noted, so every sprite tints them:
- *  - DART: a gold clock-hand dart (a slim tapered blade with a ring at its base), pointing right, tip at the right edge.
- *  - GLINT: a thin bright streak that runs along a hung dart's edge.
- *  - MOTE: a soft speck of drifting dust.
- *  - CLOCK FACE: an outer and an inner ring, sixty minute ticks, twelve hour bars.
- *  - HAND: a clock hand pivoting on its base (anchor at the left end).
- *  - DIGITS: the 3, 2 and 1 of IV's countdown (bold, with a dark edge so they hold on any board).
- *  - WASH: a flat white quad (the restart flash).
+ * reuses for glows, rings, stars, streaks, the beam and the ribbon trail). Greys unless noted, so every sprite tints them.
+ *
+ * ARCANE, NOT BALLISTIC (owner review 2026-10-02: "remove the bullet aesthetic. make it more magic inspired"): nothing
+ * here is brass, metal or mechanical.
+ *  - LANCE: a crystalline lance of light (a faceted shard, bright along its spine), pointing right, tip at the right edge.
+ *  - GLYPH: a spinning time rune (an hourglass sigil in a ring): rides each lance's head, orbits the rune circle, drifts
+ *    off the rifts.
+ *  - GLINT: a thin bright streak that runs along a lance.
+ *  - MOTE: a soft speck of drifting light.
+ *  - RUNE CIRCLE (`clockFace`): the time motif as a MAGIC CIRCLE: two luminous rings with twelve time runes between them
+ *    (hourglass, crescent, eye, diamond), a ring of sixty points, a small inner ring. Not a dial: no tick bars.
+ *  - DIGITS: the 3, 2 and 1 of IV's countdown as glowing runes (a soft halo, no hard outline).
+ *  - WASH: a flat white quad (the snap's flash).
  * No hero or Ancient art is used (owner 2026-10-02: "i dont like using the art for the attack").
  */
 import { CanvasSource, Texture } from 'pixi.js';
@@ -15,9 +20,9 @@ import { heroArcanaTextures } from '../heroArcana/heroArcanaTextures';
 import type { HeroBulletTimeTextures } from './heroBulletTimeScene';
 
 export const DART_W = 128;
-export const DART_H = 24;
+export const DART_H = 32;
 export const FACE_PX = 512;
-export const HAND_PX = 128;
+export const GLYPH_PX = 64;
 export const DIGIT_PX = 160;
 export const WASH_PX = 16;
 
@@ -31,20 +36,36 @@ function canvas(w: number, h: number): { c: HTMLCanvasElement; g: CanvasRenderin
 
 const tex = (c: HTMLCanvasElement): Texture => new Texture({ source: new CanvasSource({ resource: c }) });
 
-function paintDart(): HTMLCanvasElement | null {
+/** A crystalline lance: a long faceted shard of light, widest two thirds along, a needle tip and a fading tail. */
+function paintLance(): HTMLCanvasElement | null {
   const k = canvas(DART_W, DART_H); if (!k) return null;
   const g = k.g;
   const cy = DART_H / 2;
-  // The blade: a long taper from the base ring to a needle tip, lit along its top edge.
-  const shade = g.createLinearGradient(0, cy - 6, 0, cy + 6);
-  shade.addColorStop(0, 'rgb(255,255,255)'); shade.addColorStop(0.5, 'rgb(225,225,225)'); shade.addColorStop(1, 'rgb(150,150,150)');
-  g.fillStyle = shade;
-  g.beginPath(); g.moveTo(18, cy - 5); g.lineTo(60, cy - 4); g.lineTo(DART_W - 2, cy); g.lineTo(60, cy + 4); g.lineTo(18, cy + 5); g.closePath(); g.fill();
-  g.strokeStyle = 'rgba(60,60,60,0.9)'; g.lineWidth = 1.2; g.stroke();
-  // The base ring (a clock hand's pivot) and a little counterweight tail.
-  g.beginPath(); g.arc(14, cy, 7, 0, Math.PI * 2); g.fill(); g.stroke();
-  g.fillStyle = 'rgba(70,70,70,0.9)'; g.beginPath(); g.arc(14, cy, 3, 0, Math.PI * 2); g.fill();
-  g.fillStyle = 'rgb(220,220,220)'; g.beginPath(); g.moveTo(7, cy); g.lineTo(1, cy - 4); g.lineTo(1, cy + 4); g.closePath(); g.fill();
+  const tail = 4, wide = 84, tip = DART_W - 3, hw = 9;
+  g.shadowColor = '#fff'; g.shadowBlur = 6;
+  const body = g.createLinearGradient(tail, 0, tip, 0);
+  body.addColorStop(0, 'rgba(255,255,255,0)'); body.addColorStop(0.45, 'rgba(255,255,255,0.55)'); body.addColorStop(0.85, 'rgba(255,255,255,0.9)'); body.addColorStop(1, 'rgba(255,255,255,1)');
+  g.fillStyle = body;
+  g.beginPath(); g.moveTo(tail, cy); g.lineTo(wide, cy - hw); g.lineTo(tip, cy); g.lineTo(wide, cy + hw); g.closePath(); g.fill();
+  // The facets: a bright spine and two faint edges, so it reads as cut crystal, not a solid.
+  g.shadowBlur = 0;
+  g.strokeStyle = 'rgba(255,255,255,1)'; g.lineWidth = 2;
+  g.beginPath(); g.moveTo(tail + 20, cy); g.lineTo(tip, cy); g.stroke();
+  g.strokeStyle = 'rgba(255,255,255,0.5)'; g.lineWidth = 1;
+  g.beginPath(); g.moveTo(wide - 30, cy - hw * 0.65); g.lineTo(tip - 4, cy); g.lineTo(wide - 30, cy + hw * 0.65); g.stroke();
+  return k.c;
+}
+
+/** A time rune: an hourglass sigil in a thin ring, with a dot top and bottom. */
+function paintGlyph(): HTMLCanvasElement | null {
+  const k = canvas(GLYPH_PX, GLYPH_PX); if (!k) return null;
+  const g = k.g;
+  const c = GLYPH_PX / 2;
+  g.strokeStyle = '#fff'; g.fillStyle = '#fff'; g.lineWidth = 3; g.lineJoin = 'round'; g.lineCap = 'round';
+  g.shadowColor = '#fff'; g.shadowBlur = 5;
+  g.beginPath(); g.arc(c, c, 26, 0, Math.PI * 2); g.stroke();
+  g.beginPath(); g.moveTo(c - 11, c - 15); g.lineTo(c + 11, c - 15); g.lineTo(c - 11, c + 15); g.lineTo(c + 11, c + 15); g.closePath(); g.stroke();
+  for (const y of [c - 21, c + 21]) { g.beginPath(); g.arc(c, y, 2.6, 0, Math.PI * 2); g.fill(); }
   return k.c;
 }
 
@@ -66,44 +87,51 @@ function paintMote(): HTMLCanvasElement | null {
   return k.c;
 }
 
-function paintClockFace(): HTMLCanvasElement | null {
+/** The time rune circle: two rings, twelve runes between them, a ring of sixty points, a small inner ring. */
+function paintRuneCircle(): HTMLCanvasElement | null {
   const k = canvas(FACE_PX, FACE_PX); if (!k) return null;
   const g = k.g;
   const c = FACE_PX / 2;
-  const R = FACE_PX * 0.47;
-  const fill = g.createRadialGradient(c, c, R * 0.2, c, c, R);
-  fill.addColorStop(0, 'rgba(255,255,255,0)'); fill.addColorStop(0.8, 'rgba(255,255,255,0.06)'); fill.addColorStop(1, 'rgba(255,255,255,0.16)');
+  const R = FACE_PX * 0.46;
+  const fill = g.createRadialGradient(c, c, R * 0.3, c, c, R);
+  fill.addColorStop(0, 'rgba(255,255,255,0)'); fill.addColorStop(0.85, 'rgba(255,255,255,0.05)'); fill.addColorStop(1, 'rgba(255,255,255,0.12)');
   g.fillStyle = fill; g.beginPath(); g.arc(c, c, R, 0, Math.PI * 2); g.fill();
-  g.strokeStyle = 'rgba(255,255,255,0.95)'; g.lineWidth = 7; g.beginPath(); g.arc(c, c, R, 0, Math.PI * 2); g.stroke();
-  g.lineWidth = 2.5; g.beginPath(); g.arc(c, c, R * 0.86, 0, Math.PI * 2); g.stroke();
-  g.lineCap = 'round';
+  g.strokeStyle = '#fff'; g.fillStyle = '#fff'; g.lineCap = 'round'; g.lineJoin = 'round';
+  g.shadowColor = '#fff'; g.shadowBlur = 10;
+  const ring = (r: number, w: number): void => { g.lineWidth = w; g.beginPath(); g.arc(c, c, r, 0, Math.PI * 2); g.stroke(); };
+  ring(R, 5); ring(R * 0.8, 2.5); ring(R * 0.42, 2);
+  // Twelve time runes between the two outer rings.
+  const rr = R * 0.9, s = R * 0.055;
+  for (let i = 0; i < 12; i++) {
+    const a = (i / 12) * Math.PI * 2 - Math.PI / 2;
+    g.save(); g.translate(c + Math.cos(a) * rr, c + Math.sin(a) * rr); g.rotate(a + Math.PI / 2);
+    g.lineWidth = 3;
+    const kind = i % 4;
+    if (kind === 0) { g.beginPath(); g.moveTo(-s, -s); g.lineTo(s, -s); g.lineTo(-s, s); g.lineTo(s, s); g.closePath(); g.stroke(); }
+    else if (kind === 1) { g.beginPath(); g.arc(0, 0, s, Math.PI * 0.2, Math.PI * 1.8); g.stroke(); g.beginPath(); g.arc(s * 0.35, 0, s * 0.25, 0, Math.PI * 2); g.fill(); }
+    else if (kind === 2) { g.beginPath(); g.ellipse(0, 0, s * 1.1, s * 0.55, 0, 0, Math.PI * 2); g.stroke(); g.beginPath(); g.arc(0, 0, s * 0.25, 0, Math.PI * 2); g.fill(); }
+    else { g.beginPath(); g.moveTo(0, -s * 1.1); g.lineTo(s * 0.7, 0); g.lineTo(0, s * 1.1); g.lineTo(-s * 0.7, 0); g.closePath(); g.stroke(); }
+    g.restore();
+  }
+  // Sixty points of light on the inner ring.
+  g.shadowBlur = 4;
   for (let i = 0; i < 60; i++) {
     const a = (i / 60) * Math.PI * 2;
-    const hour = i % 5 === 0;
-    g.lineWidth = hour ? 9 : 2.5;
-    const r0 = hour ? R * 0.72 : R * 0.88, r1 = R * 0.95;
-    g.beginPath(); g.moveTo(c + Math.cos(a) * r0, c + Math.sin(a) * r0); g.lineTo(c + Math.cos(a) * r1, c + Math.sin(a) * r1); g.stroke();
+    const big = i % 5 === 0;
+    g.beginPath(); g.arc(c + Math.cos(a) * R * 0.72, c + Math.sin(a) * R * 0.72, big ? 4 : 1.8, 0, Math.PI * 2); g.fill();
   }
   return k.c;
 }
 
-function paintHand(): HTMLCanvasElement | null {
-  const k = canvas(HAND_PX, 20); if (!k) return null;
-  const g = k.g;
-  g.fillStyle = 'rgb(245,245,245)';
-  g.beginPath(); g.moveTo(4, 10); g.lineTo(18, 4); g.lineTo(HAND_PX - 6, 9); g.lineTo(HAND_PX - 2, 10); g.lineTo(HAND_PX - 6, 11); g.lineTo(18, 16); g.closePath(); g.fill();
-  g.strokeStyle = 'rgba(70,70,70,0.9)'; g.lineWidth = 1.2; g.stroke();
-  g.beginPath(); g.arc(10, 10, 6, 0, Math.PI * 2); g.fill(); g.stroke();
-  return k.c;
-}
-
+/** A countdown rune: the digit drawn as glowing light (a soft halo, a bright core), no hard outline. */
 function paintDigit(d: string): HTMLCanvasElement | null {
   const k = canvas(DIGIT_PX, DIGIT_PX); if (!k) return null;
   const g = k.g;
-  g.font = `900 ${Math.round(DIGIT_PX * 0.82)}px Georgia, 'Times New Roman', serif`;
+  g.font = `700 ${Math.round(DIGIT_PX * 0.74)}px Georgia, 'Times New Roman', serif`;
   g.textAlign = 'center'; g.textBaseline = 'middle';
-  g.lineJoin = 'round';
-  g.strokeStyle = 'rgba(30,27,75,0.95)'; g.lineWidth = 12; g.strokeText(d, DIGIT_PX / 2, DIGIT_PX * 0.54);
+  g.shadowColor = '#fff'; g.shadowBlur = 22;
+  g.fillStyle = 'rgba(255,255,255,0.55)'; g.fillText(d, DIGIT_PX / 2, DIGIT_PX * 0.54);
+  g.shadowBlur = 8;
   g.fillStyle = '#fff'; g.fillText(d, DIGIT_PX / 2, DIGIT_PX * 0.54);
   return k.c;
 }
@@ -120,11 +148,11 @@ let cached: HeroBulletTimeTextures | null = null;
 export function heroBulletTimeTextures(): HeroBulletTimeTextures | null {
   if (cached) return cached;
   const base = heroArcanaTextures();
-  const dart = paintDart(), glint = paintGlint(), mote = paintMote(), face = paintClockFace(), hand = paintHand(), wash = paintWash();
+  const lance = paintLance(), glyph = paintGlyph(), glint = paintGlint(), mote = paintMote(), face = paintRuneCircle(), wash = paintWash();
   const d3 = paintDigit('3'), d2 = paintDigit('2'), d1 = paintDigit('1');
-  if (!base || !dart || !glint || !mote || !face || !hand || !wash || !d3 || !d2 || !d1) return null;
+  if (!base || !lance || !glyph || !glint || !mote || !face || !wash || !d3 || !d2 || !d1) return null;
   cached = {
-    ...base, dart: tex(dart), glint: tex(glint), mote: tex(mote), clockFace: tex(face), clockHand: tex(hand), wash: tex(wash),
+    ...base, lance: tex(lance), glyph: tex(glyph), glint: tex(glint), mote: tex(mote), clockFace: tex(face), wash: tex(wash),
     digit3: tex(d3), digit2: tex(d2), digit1: tex(d1),
   };
   return cached;

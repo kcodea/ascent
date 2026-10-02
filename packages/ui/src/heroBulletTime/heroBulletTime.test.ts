@@ -24,7 +24,7 @@ import { formationOf, leadInOf } from '../heroAttack/formationFixtures';
 const W = Texture.WHITE;
 const TEX: HeroBulletTimeTextures = {
   glow: W, spark: W, streak: W, ring: W, beam: W, ribbonSoft: W, ribbonBody: W, sigil: W, star: W,
-  dart: W, glint: W, mote: W, clockFace: W, clockHand: W, wash: W, digit3: W, digit2: W, digit1: W,
+  lance: W, glyph: W, glint: W, mote: W, clockFace: W, wash: W, digit3: W, digit2: W, digit1: W,
 };
 const C = HERO_BULLET_DEFAULTS;
 const plan = (total: number, o: { knockout?: boolean; reduced?: boolean; extraRings?: number } = {}) => bulletPlan({ total, distance: 1600, leadIn: leadInOf([total], o.reduced), ...o }, C);

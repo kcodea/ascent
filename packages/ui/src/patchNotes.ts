@@ -86,11 +86,11 @@ export const PATCH_NOTES: PatchNote[] = [
       },
       {
         category: 'Systems',
-        text: 'A new Ancient hero attack in crates: Bullet Time. Golden blades cut through time, slow to a crawl around your foe, then snap in and land.',
+        text: 'A new Ancient hero attack in crates: Bullet Time. Golden spells cut through time, slow to a crawl around your foe, then snap in and land.',
         details: [
-          'Small: one golden blade slows to a crawl just short of your foe, then hits.',
-          'Bigger hits bring three blades, then a whole volley in a spiral.',
-          'Huge: dozens of blades circle your foe while a clock counts 3, 2, 1. Then they all strike at once.',
+          'Small: one golden spell slows to a crawl just short of your foe, then hits.',
+          'Bigger hits bring three spells, then a whole volley in a spiral.',
+          'Huge: dozens of spells circle your foe while a magic clock counts 3, 2, 1. Then they all strike at once.',
           'Equip it in the Collection, on the Attack Animations tab.',
         ],
       },

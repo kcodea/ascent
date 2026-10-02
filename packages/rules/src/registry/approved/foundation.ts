@@ -3664,23 +3664,23 @@ export const FOUNDATION_RULES: GameRule[] = [
   },
   {
     id: 'R-PROG-ATTACK-35',
-    title: 'Bullet Time (attack_bullet_time, Ancient): CUTTING THROUGH TIME: blades tear cuts through the air and crawl in dramatic SLOW MOTION round the target (never stopped, never grey, every shape centred on the target), then time snaps back and they land; the blow lands ONCE',
+    title: 'Bullet Time (attack_bullet_time, Ancient): CUTTING THROUGH TIME, cast as magic: crystal lances of light tear rifts through the air and crawl in dramatic SLOW MOTION round the target (never stopped, never grey, every shape centred on the target), then time snaps back and they land; the blow lands ONCE',
     statement:
       'attack_bullet_time ("Bullet Time", the Ancient of Time; ANCIENT, crate, account-wide, style bullettime): after the shared '
-      + 'damage formation (R-PROG-ATTACK-08) gold clock-hand blades slice in toward the struck hero, each tearing a bright gold '
-      + 'cut (over a violet rift glow) through the air behind it, and as they reach it time drops into dramatic SLOW MOTION: '
-      + 'they keep CRAWLING forward (never stopped), the FX run slowed, afterimages peel off, a clock dial ringing the target '
-      + 'sweeps its hand and ticks faster and louder, a gold ripple sweeps the screen, motes drift, the camera pushes in; '
+      + 'damage formation (R-PROG-ATTACK-08) crystal lances of golden light (a time rune spinning at each head) slice in toward the '
+      + 'struck hero, each opening a shimmering rift (a gold seam, a violet aurora, drifting runes) in the air behind it, and as they reach it time drops into dramatic SLOW MOTION: '
+      + 'they keep CRAWLING forward (never stopped), the FX run slowed, afterimages peel off, a rune circle ringing the target '
+      + 'turns with two runes orbiting it and ticks faster and louder, a gold ripple sweeps the screen, motes drift, the camera pushes in; '
       + 'nothing is greyed. Then time SNAPS back to full speed (a white flash, a cyan and magenta chromatic burst, streaks, a '
-      + 'camera kick, a finger snap and a rising whoosh) and they land. Every shape (the blades, the clock, the countdown, the '
+      + 'camera kick, a shimmer, a bell tone and a rising whoosh) and they land. Every shape (the lances, the rune circle, the countdown, the '
       + 'collapse) CENTRES on the struck portrait\x27s at-rest centre; near an edge the dome shrinks to fit and any blade still '
       + 'off screen is clamped on, never shifting the centre. It escalates on the shared tiers (thresholds 6 / 12 / 20): I '
-      + 'one blade, then the hit; II three from evenly round the target, hitting together; III a volley of twelve in a spiral '
-      + 'round it, a finger snap, and a rapid run of hits (ticks, the blow on the last); IV dozens of blades in a dome of rings '
-      + 'round the target while a clock dial counts 3-2-1, then the dome collapses at once into one massive gold and violet '
+      + 'one lance, then the hit; II three from evenly round the target, hitting together; III a volley of twelve in a spiral '
+      + 'round it, a finger snap, and a rapid run of hits (ticks, the blow on the last); IV dozens of lances in a dome of rings '
+      + 'round the target while the rune circle counts 3-2-1 in glowing runes, then the dome collapses at once into one massive gold and violet '
       + 'impact on a slow-mo dip (never 0). KNOCKOUT VARIANT (R-PROG-ATTACK-20): IV with one extra ring of cyan and magenta '
-      + 'blades, a prismatic collapse, a 1.3x shake, a deeper and longer dip and the KO sting (about 380 ms over Huge). The '
-      + 'consequence lands exactly ONCE, on the last hit (IV: the collapse). No Ancient or hero art is drawn. Presentation '
+      + 'lances, a prismatic collapse, a 1.3x shake, a deeper and longer dip and the KO sting (about 380 ms over Huge). The '
+      + 'consequence lands exactly ONCE, on the last hit (IV: the collapse). No Ancient or hero art is drawn, and nothing reads as ballistic or mechanical (owner: "remove the bullet aesthetic. make it more magic inspired"). Presentation '
       + 'only; reduced motion is fades only. It never uses the rune explosion or turn explosion sounds.',
     domain: 'foundation',
     status: 'approved',

@@ -26,6 +26,7 @@ import { pixiFx } from '../pixiFx';
 import { stageScale } from '../stage';
 import { AttackVoices, type CueOpts } from '../heroAttack/attackSound';
 import { KO_CYAN, KO_MAGENTA, playKoSting } from '../heroAttack/knockout';
+import { playBellStrike } from '../sfx';
 import { DamageFormation, planFormation } from '../heroAttack/damageFormation';
 import { withFormation, type FormationCue } from '../heroAttack/formationConfig';
 import { clamp01, easeInOutSine, hexToNum, prefersReducedMotion, spring, type Pt } from '../heroAttack/easing';
@@ -173,8 +174,14 @@ export function playHeroBulletTime(o: HeroBulletTimeOptions): HeroBulletTimeHand
         break;
       case 'snap':
         // TIME SNAPS BACK TO FULL SPEED: the hero snaps its fingers, a rising whoosh, a flash, a chromatic burst.
-        cue(c.sfxSnapClip, c.sfxSnapGain, c.sfxSnapRate, { lenMs: 200, fadeMs: 80 });
+        cue(c.sfxSnapClip, c.sfxSnapGain, c.sfxSnapRate, { lenMs: 500, fadeMs: 200 });
         cue(c.sfxRestartClip, c.sfxRestartGain, c.sfxRestartRate, { lenMs: 420, fadeMs: 160 });
+        // A bell tone for the time snap (a bright fifth; IV lower and fuller).
+        if (sound) {
+          const lo = plan.kind === 'dome' ? 0.75 : 1;
+          voices.keep(playBellStrike('attack', { gain: 0.45, hz: 1047 * lo, decayMs: 600 / speed }));
+          voices.keep(playBellStrike('attack', { gain: 0.35, hz: 1568 * lo, decayMs: 700 / speed, delayMs: 50 / speed }));
+        }
         scene?.snap(o.defender, radius, screen, plan.kind === 'dome' ? 1.6 : 1);
         break;
       case 'hit':
@@ -185,6 +192,8 @@ export function playHeroBulletTime(o: HeroBulletTimeOptions): HeroBulletTimeHand
         if (plan.tier >= 4) {
           cue(c.sfxBoomClip, c.sfxBoomGain, c.sfxBoomRate - 0.08, { tail: c.sfxTailMix, lenMs: 1800, fadeMs: 600 });
           cue(c.sfxBellClip, c.sfxBellGain, c.sfxBellRate, { tail: c.sfxTailMix * 1.5, lenMs: 2200, fadeMs: 900 });
+          // The great time bell under the collapse.
+          if (sound) voices.keep(playBellStrike('attack', { gain: 0.6, hz: 196, decayMs: 2200 / speed }));
           cue(c.sfxRumbleClip, c.sfxRumbleGain, c.sfxRumbleRate, { lenMs: 1400, fadeMs: 500 });
           cue(c.sfxThudClip, c.sfxThudGain * 1.2, c.sfxThudRate - 0.25, { lenMs: 700, fadeMs: 250 });
           cue(c.sfxFreezeClip, c.sfxFreezeGain * 1.4, c.sfxFreezeRate * 0.55, { lenMs: 900, fadeMs: 300 });

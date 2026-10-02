@@ -18,14 +18,55 @@ branch (PR #1912) in one day.
    Knockout variant. Owner, on IV: "looks weird not being centered and prefer slow motion vs stopped/grey time. like
    more cutting through time than stopping it and dont grey out". **Lessons: centre every shape on the target; no
    desaturation; slow motion reads better than a stop.**
-6. **Bullet Time v6 (this build).** CUTTING THROUGH TIME, in slow motion, centred on the target.
+6. **Bullet Time v6.** CUTTING THROUGH TIME, in slow motion, centred on the target. Owner: "bullet time looks good but
+   remove the bullet aesthetic. make it more magic inspired". The choreography and timings were approved; the LOOK was
+   to change from ballistic to arcane.
+7. **v7 (this build): the magic restyle.** The same choreography and timings, cast as magic (see below). The name
+   "Bullet Time" stays as a placeholder until the owner picks one; the id stays `attack_bullet_time`.
 
 The rewind code is gone. `attack_rewind` was never merged or deployed, so the id became `attack_bullet_time` (style
 `bullettime`), and nothing in a database or a save refers to the old one.
 
+## The magic restyle (v7)
+
+Nothing reads as brass, metal, mechanical or ballistic.
+
+- **The missiles** are crystalline LANCES of light: a faceted shard, additive so it glows, with a time rune (an
+  hourglass sigil in a ring) spinning at the head. They have soft sparkling comet tails (`ribbonSoft`, and specks of
+  starlight shed in flight).
+- **The cuts** are magical RIFTS: a soft violet aurora, a shimmering gold seam and a thin white-hot thread of light
+  (soft-ended glows stretched along the cut, not hard bars), with time runes drifting off them.
+- **The clock** is a MAGIC CIRCLE (`clockFace` is now a rune circle):
+  - two luminous rings, with twelve time runes between them (hourglass, crescent, eye, diamond), a ring of sixty points
+    and a small inner ring;
+  - it turns slowly;
+  - two runes orbit it in place of hands, and sparks trail off the outer one;
+  - the 3-2-1 is drawn as glowing runes over a violet halo.
+- **The impacts** use spell-burst language:
+  - an arcane nova (core and glows);
+  - a RUNE-RING shockwave (the rune circle blasting outward) on every tier;
+  - starlight sparkle, prismatic flecks and drifting runes;
+  - no blade debris.
+- **The Knockout** is restyled the same way: prism rings, a prism rune circle and prism starlight.
+- **The sound** is magical:
+
+  | cue | sound |
+  | --- | --- |
+  | cast | the sparkle whoosh |
+  | cut | the `prismaticpick` chime |
+  | the time snap | an `equipmentsheen` shimmer plus a synth BELL (a bright fifth; `playBellStrike`) |
+  | hit | `fx/blue-impact-hit` |
+  | thud | a resonant arcane `castspell` |
+  | under the IV collapse | a low `equipmentsheen` shimmer and a great synth time bell (196 Hz) |
+  | rumble | a deep cinematic whoosh |
+
+  The old finger snap (`clickthock`), the glass crack, the metal clang (`equipclang`) and the rock impact are gone.
+
+**Name options** for the owner: "Timebreak", "Chronoweave" or "Sands of Eternity" (the placeholder stays "Bullet Time").
+
 ## The signature: CUTTING THROUGH TIME
 
-**The cut.** Gold clock-hand blades slice in toward the struck hero. As each one arrives, time drops into dramatic SLOW
+**The cut.** Crystal lances of golden light slice in toward the struck hero. As each one arrives, time drops into dramatic SLOW
 MOTION (`dartEase` is near-linear, so the blade is still fast when it brakes), and it leaves a TEAR sliced through the
 air behind it (`scene.cut`):
 - a white-hot gold slash over a violet rift glow;
@@ -94,13 +135,13 @@ The ElevenLabs key is not in the main checkout's `.env` files.
 | cue | clip |
 | --- | --- |
 | tick | `thymepiece` |
-| throw | the stereogenic swish |
-| cut | `divineshieldbreak` |
+| cast | the sparkle whoosh |
+| cut | `prismaticpick` |
 | slow-mo swell | the sparkle whoosh, reversed (`AttackVoices` gained `reverse`) |
 | riser | the sparkle whoosh |
-| finger snap | `clickthock` |
+| snap | `equipmentsheen` + a synth bell |
 | restart | the sparkle whoosh |
-| hit / thud / boom / gong / rumble | `fx/blue-impact-hit` / `crit` / `fx/universfield-cinematic-swoosh-impact-454392` / `equipclang` at 0.5x / `fx/heavy-rock-impact` |
+| hit / thud / boom / bell / rumble | `fx/blue-impact-hit` / `castspell` / `fx/universfield-cinematic-swoosh-impact-454392` / `equipmentsheen` at 0.55x + a synth time bell / the cinematic whoosh at 0.6x |
 | KO sting | `playKoSting` |
 
 ElevenLabs prompts, for when credits are available:
@@ -113,14 +154,15 @@ ElevenLabs prompts, for when credits are available:
 
 ## Perf
 
-**Tier IV (v6)**, CPU per frame (the sequence step plus the Pixi submit), dev server, manual frames at 60 fps, 1280x720:
+**Tier IV (v7, the magic restyle)**, CPU per frame (the sequence step plus the Pixi submit), dev server, manual frames
+at 60 fps, 1024x768:
 
 | run | frames | p50 | p95 | max | peak sprites |
 | --- | --- | --- | --- | --- | --- |
-| Bullet Time IV | 382 | 0.0 | 0.3 | 1.7 | 396 |
-| Bullet Time Knockout | 403 | 0.0-0.1 | 0.3 | 0.8-0.9 | 485 |
-| Arcana IV | 368 | 0.0 | 0.3 | 1.0-5.9 | 201 |
-| Arcana Knockout | 397 | 0.1 | 0.3 | 0.8 | 247 |
+| Bullet Time IV | 381 | 0.1 | 0.5 | 0.9 | 503 |
+| Bullet Time Knockout | 401 | 0.1 | 0.5 | 1.1 | 615 |
+| Arcana IV | 357 | 0.0 | 0.3 | 1.1 | 179 |
+| Arcana Knockout | 388 | 0.1 | 0.4 | 1.1 | 211 |
 
 The sprite cap is 900, matching Arcana and Holy. Before that it was 520, which the slow motion's lingering tears and
 afterimages were reaching. Darts are own objects (a body, a glow, one ribbon strip each, at most 64), and so is the

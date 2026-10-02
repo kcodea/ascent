@@ -44,7 +44,7 @@ const HOLY_TEX: HeroHolyTextures = {
   glyphs: [W, W, W], waveBody: W, waveEdge: W,
 };
 const STITCH_TEX: HeroStitchTextures = { ...ARCANA_TEX, needle: W, thread: W, shard: W };
-const BULLET_TEX: HeroBulletTimeTextures = { ...ARCANA_TEX, dart: W, glint: W, mote: W, clockFace: W, clockHand: W, wash: W, digit3: W, digit2: W, digit1: W };
+const BULLET_TEX: HeroBulletTimeTextures = { ...ARCANA_TEX, lance: W, glyph: W, glint: W, mote: W, clockFace: W, wash: W, digit3: W, digit2: W, digit1: W };
 
 const ANCIENT_STYLES = COSMETICS.filter((c) => c.category === 'hero_attack' && c.rarity === 'ancient').map((c) => String(c.assets.style));
 

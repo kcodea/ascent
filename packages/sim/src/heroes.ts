@@ -889,7 +889,6 @@ export const HEROES: HeroDef[] = [
   },
   {
     id: 'rayse',
-    wip: true, // ARCHIVED 2026-09-24 (owner: "remove them from all modes but keep them in the game. they should only show in scene builder"). See `HeroDef.wip`.
     name: 'Rayse',
     blurb: 'Everything that grows through her garden comes out thorned.',
     resolve: 30,

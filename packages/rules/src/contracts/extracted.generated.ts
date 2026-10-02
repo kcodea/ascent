@@ -13759,8 +13759,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     "tags": [
       "activation:combat-trigger",
       "power-kind:empoweringVines",
-      "passive",
-      "wip"
+      "passive"
     ],
     "triggers": [
       {

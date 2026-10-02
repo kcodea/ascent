@@ -159,8 +159,9 @@
  *  · `minionsRallyGold`           a graft on every friendly minion (`applyRuneGrafts` in the Shop, `ancientRallyGold` for
  *                                 combat summons): "Rally: gain N Gold next turn" (`rallyGoldNextTurn`). (War)
  *  · `refreshesCastSpell`         `ancientAfterRefresh`: every Nth Refresh casts the spell through `castSpell`. (Genesis)
- *  · `eotUpgradeDiscount`         a virtual recurring End-of-Turn entry (`ancientTradesUpgrade`): upgrade cost −N. (Time)
- *  · `refreshUpgradeDiscount`     `ancientAfterRefresh`: every Refresh, upgrade cost −N. (Bonds)
+ *  · `eotUpgradeDiscount`         a virtual recurring End-of-Turn entry (`ancientTradesUpgrade`): the FINAL upgrade price −N,
+ *                                 Frugal's +2 included, down to 0 (`cutUpgradeCost` + `tradesSurchargeOff`). (Time)
+ *  · `refreshUpgradeDiscount`     `ancientAfterRefresh`: every Refresh, the same −N on the final price. (Bonds)
  *
  * Serialisable plain data throughout, so saves / snapshots / replays can carry it cheaply later (not in the MVP).
  */
@@ -834,6 +835,10 @@ export interface AncientsState {
   tradesRefreshes?: number;
   /** TRADESMAN × WAR: Gold the Rally graft banked for next turn on `wave` (Shop rallies + that wave's fight, at settle). */
   tradesRallyGold?: { wave: number; gold: number };
+  /** TRADESMAN × TIME / BONDS: the share of Frugal's upgrade surcharge the discounts have eaten at `tier` (owner ruling
+   *  2026-10-02: "Yes, down to 0"). Banked once the running cost is already at its floor; ignored at any other tier, so
+   *  every tier-up path clears it by construction. */
+  tradesSurchargeOff?: { tier: number; gold: number };
 }
 
 /** Turn Ancients on for a run (the Scene Builder's Set 3 flag). Pure: returns a new run. */
@@ -1868,12 +1873,21 @@ function tradesLassoLeft(state: RunState): number {
   return every - ((live(state)?.tradesRefreshes ?? 0) % every);
 }
 
-/** The price an upgrade charges right now: the reducer's `upgradeCostOf` (running cost + Frugal's +2, less Ayse's
- *  banked discount, floored at 0). Restated here because ancients.ts cannot import the reducer (a cycle); a test pins
- *  the two equal. */
+/** Frugal's surcharge on a Shop upgrade ("Shop upgrades cost 2 more"). The reducer's `upgradeCostOf` reads it too. */
+export const FRUGAL_UPGRADE_SURCHARGE = 2;
+
+/** TRADESMAN × TIME / BONDS: Gold of Frugal's surcharge the discounts have eaten at the CURRENT tier (0 otherwise). */
+export function ancientUpgradeSurchargeOff(state: Pick<RunState, 'ancientsEnabled' | 'ancients' | 'tier'>): number {
+  const off = (state.ancientsEnabled ? state.ancients : undefined)?.tradesSurchargeOff;
+  return off && off.tier === state.tier ? off.gold : 0;
+}
+
+/** The price an upgrade charges right now: the reducer's `upgradeCostOf` (running cost + Frugal's surcharge, less what
+ *  the Time / Bonds discounts ate of that surcharge and Ayse's banked discount, floored at 0). Restated here because
+ *  ancients.ts cannot import the reducer (a cycle); a test pins the two equal. */
 export function tradesUpgradeCost(state: RunState): number {
-  const base = state.upgradeCost + (hasPower(state, 'cheapMinions') ? 2 : 0);
-  return Math.max(0, base - (state.aceTierDiscount ?? 0));
+  const base = state.upgradeCost + (hasPower(state, 'cheapMinions') ? FRUGAL_UPGRADE_SURCHARGE : 0);
+  return Math.max(0, base - ancientUpgradeSurchargeOff(state) - (state.aceTierDiscount ?? 0));
 }
 
 /** TIME / BONDS: the live upgrade line (the price right now, or nothing at the top tier). */
@@ -1882,10 +1896,20 @@ function tradesUpgradeText(state: RunState): string {
   return state.tier >= ceiling ? '' : ` Upgrading costs **${tradesUpgradeCost(state)} Gold** now.`;
 }
 
-/** TIME / BONDS: knock `amount` off the running upgrade cost (the Rune of Shopkeep mechanism, floored at
- *  `CONFIG.upgradeCostFloor`; Frugal's +2 rides on top of it, so the shown price floors at 2). */
+/**
+ * TIME / BONDS: knock `amount` off the upgrade price (owner ruling 2026-10-02: "Yes, down to 0"). The running cost goes
+ * first (the Rune of Shopkeep mechanism, floored at `CONFIG.upgradeCostFloor`); whatever is left over then eats into
+ * Frugal's surcharge, banked for this tier (`tradesSurchargeOff`, capped at the surcharge), so the FINAL price floors
+ * at 0, never at Frugal's 2.
+ */
 function cutUpgradeCost(state: RunState, amount: number): void {
-  state.upgradeCost = Math.max(CONFIG.upgradeCostFloor, state.upgradeCost - amount);
+  const want = state.upgradeCost - amount;
+  state.upgradeCost = Math.max(CONFIG.upgradeCostFloor, want);
+  const overflow = state.upgradeCost - want;
+  const a = live(state);
+  if (!a || overflow <= 0 || !hasPower(state, 'cheapMinions')) return;
+  const cur = ancientUpgradeSurchargeOff(state);
+  a.tradesSurchargeOff = { tier: state.tier, gold: Math.min(FRUGAL_UPGRADE_SURCHARGE, cur + overflow) };
 }
 
 /** TRADESMAN × TIME: is the End-of-Turn upgrade cut live (the `ancientTradesUpgrade` recurring entry)? */

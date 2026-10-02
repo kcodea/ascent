@@ -205,15 +205,21 @@ describe('Tradesman × GENESIS: every 2 Refreshes, cast Lasso', () => {
 });
 
 describe('Tradesman × TIME: End of Turn, reduce the cost of upgrading the Shop by 3', () => {
-  it('End of Turn knocks 3 off the running upgrade cost (floored), and the power prints the live price', () => {
+  it('End of Turn knocks 3 off the FINAL upgrade price (Frugal\'s +2 included), down to 0; the power prints the live price', () => {
     let s = picked('time', { board: [card('a', T1, { health: 400 })], upgradeCost: 7 });
     expect(heroPowerText(s)).toBe(`${BASE} **End of Turn:** reduce the cost of upgrading the Shop by **3**. Upgrading costs **9 Gold** now.`);
     s = fightNow(s);
     expect(s.upgradeCost).toBe(4);
     let low = picked('time', { board: [card('a', T1, { health: 400 })], upgradeCost: 2 });
+    expect(upgradeCostOf(low)).toBe(4);
     low = fightNow(low);
-    expect(low.upgradeCost, 'floored').toBe(0);
-    expect(upgradeCostOf(low), 'Frugal\'s +2 still applies').toBe(2);
+    expect(low.upgradeCost, 'the running cost floors at 0').toBe(0);
+    expect(upgradeCostOf(low), 'the last 1 eats into Frugal\'s +2 (owner: "Yes, down to 0")').toBe(1);
+    expect(tradesUpgradeCost(low)).toBe(upgradeCostOf(low));
+    let zero = picked('time', { board: [card('a', T1, { health: 400 })], upgradeCost: 0 });
+    zero = fightNow(zero);
+    expect(upgradeCostOf(zero), 'the final price floors at 0, never below').toBe(0);
+    expect(zero.ancients!.tradesSurchargeOff).toEqual({ tier: zero.tier, gold: 2 });
   });
   it('without the pairing, End of Turn leaves the cost alone', () => {
     const s = fightNow(enableAncients(base({ board: [card('a', T1, { health: 400 })], upgradeCost: 7 })));
@@ -222,15 +228,33 @@ describe('Tradesman × TIME: End of Turn, reduce the cost of upgrading the Shop 
 });
 
 describe('Tradesman × BONDS: refreshing the Shop reduces the cost of upgrading it by 1', () => {
-  it('each Refresh, free ones included, knocks 1 off (floored); the power prints the live price', () => {
+  it('each Refresh, free ones included, knocks 1 off the FINAL price (Frugal\'s +2 included) down to 0; the power prints it', () => {
     let s = picked('bonds', { upgradeCost: 2 });
+    expect(upgradeCostOf(s)).toBe(4);
     s = reduce(s, { type: 'roll' });
     expect(s.upgradeCost).toBe(1);
-    expect(heroPowerText(s)).toContain(`Upgrading costs **${upgradeCostOf(s)} Gold** now.`);
+    expect(upgradeCostOf(s)).toBe(3);
+    expect(heroPowerText(s)).toContain('Upgrading costs **3 Gold** now.');
     s = reduce({ ...s, freeRolls: 1 }, { type: 'roll' });
+    expect(upgradeCostOf(s)).toBe(2);
     expect(s.upgradeCost).toBe(0);
     s = reduce(s, { type: 'roll' });
-    expect(s.upgradeCost, 'floored').toBe(0);
+    expect(upgradeCostOf(s), 'now eating into the surcharge').toBe(1);
+    s = reduce(s, { type: 'roll' });
+    expect(upgradeCostOf(s)).toBe(0);
+    expect(heroPowerText(s)).toContain('Upgrading costs **0 Gold** now.');
+    s = reduce(s, { type: 'roll' });
+    expect(upgradeCostOf(s), 'floored at 0').toBe(0);
+    expect(tradesUpgradeCost(s)).toBe(upgradeCostOf(s));
+  });
+  it('the eaten surcharge belongs to its tier: upgrading brings Frugal\'s +2 back on the next tier', () => {
+    let s = picked('bonds', { upgradeCost: 0 });
+    s = reduce(reduce(s, { type: 'roll' }), { type: 'roll' });
+    expect(upgradeCostOf(s)).toBe(0);
+    const tier = s.tier;
+    s = reduce(s, { type: 'upgrade' });
+    expect(s.tier).toBe(tier + 1);
+    expect(upgradeCostOf(s)).toBe(s.upgradeCost + 2);
   });
   it('the turn-start roll does not cut it', () => {
     let s = picked('bonds', { board: [card('a', T1, { health: 400 })], upgradeCost: 7 });

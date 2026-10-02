@@ -16,8 +16,8 @@ a paid roll, a free roll, a power's refresh (Clearance, Buyout). The turn-start 
 | Fortune | "When you buy a minion, gain a free Refresh" | Every minion bought from the Shop (a normal buy, the Starform, a displaced body re-bought) banks a free Refresh immediately. Spells, Discovers and generated cards do not count. |
 | War | "Your minions gain Rally: Gain 1g next turn" | Every friendly minion carries the Rally keyword and a grafted `rallyGoldNextTurn`. Every Rally trigger banks 1 Gold next turn, uncapped: a swing, a Rally multiplier repeat, a free or Shop Rally. |
 | Genesis | "Every 2 Refreshes, cast Lasso." | A running Refresh count since the pick (`tradesRefreshes`, free ones included). Every 2nd casts Lasso through `castSpell` right after the new row is in, so it steals from the fresh Shop. The beam leaves the hero power. |
-| Time | "End of Turn: Reduce the cost of upgrading the Shop by 3." | A virtual recurring End-of-Turn entry (`ancientTradesUpgrade`) knocks 3 off the running `upgradeCost`, floored at `CONFIG.upgradeCostFloor` (the Rune of Shopkeep mechanism). |
-| Bonds | "Refreshing the shop reduces the cost of upgrading the Shop by 1." | Every Refresh knocks 1 off the running `upgradeCost`, same floor, real time. |
+| Time | "End of Turn: Reduce the cost of upgrading the Shop by 3." | A virtual recurring End-of-Turn entry (`ancientTradesUpgrade`) knocks 3 off the FINAL upgrade price, Frugal's +2 included, down to 0 (owner ruling: "Yes, down to 0"). |
+| Bonds | "Refreshing the shop reduces the cost of upgrading the Shop by 1." | Every Refresh knocks 1 off the FINAL upgrade price, Frugal's +2 included, down to 0, real time. |
 
 ## How it is wired
 
@@ -37,6 +37,10 @@ a paid roll, a free roll, a power's refresh (Clearance, Buyout). The turn-start 
   `questTrigger` per Refresh) and `ancientRallyGold`. No new carry-back field: free Refreshes come home through
   `playerFreeRolls` and Gold through `playerBonusGold`; settle counts the War flags for the live text and advances the
   Death count from `playerDeaths`.
+- **Upgrade discount (Time / Bonds)**: the running `upgradeCost` goes first (the Rune of Shopkeep mechanism, floored at
+  `CONFIG.upgradeCostFloor`); the overflow eats into Frugal's surcharge for the CURRENT tier
+  (`AncientsState.tradesSurchargeOff`, capped at `FRUGAL_UPGRADE_SURCHARGE`, ignored once the tier changes, so every
+  tier-up path restores the full +2 by construction). `upgradeCostOf` subtracts it, so the button, bots and charge agree.
 - **Live text**: `{tDeathLeft}` + `{freeRolls}` (Death; the replay's flags fold in mid-fight), `{rallyGold}` (War: Gold
   banked for next turn, live through a fight), `{lassoLeft}` (Genesis), `{upgradeNow}` (Time / Bonds: the price an
   upgrade charges right now, Frugal's +2 included; `tradesUpgradeCost` restates `upgradeCostOf`, pinned equal by a
@@ -48,14 +52,17 @@ a paid roll, a free roll, a power's refresh (Clearance, Buyout). The turn-start 
 
 ## Judgement calls (open for the owner)
 
+Owner rulings on PR #1905 (2026-10-02): War, a Gilded minion: "Always 1 (as built)". Time / Bonds floor: "Yes, down to
+0" (changed: the discounts eat Frugal's +2). Fortune: "All minion buys (as built)". Genesis: "Yes, every refresh (as
+built)". Time FX: kept as built.
+
+Still open:
+
 - **Death counts one running total across Shop and combat** (the Xerox ruling), not a per-fight Avenge.
-- **Fortune counts the Starform and a re-bought displaced minion** as minions bought; spell buys do not count.
-- **War is a graft, not a hero listener**, so Rally multipliers, free Rallies and Shop Rallies all pay. A Gilded minion
-  still gives 1 Gold. Minions in HAND carry it too (they arrive with it). The Gold is uncapped (the next-turn bank has
-  no cap).
+- **War is a graft, not a hero listener**, so Rally multipliers, free Rallies and Shop Rallies all pay. Minions in HAND
+  carry it too (they arrive with it). The Gold is uncapped (the next-turn bank has no cap).
 - **Genesis counts from the pick**, across turns. A full hand or an empty Shop makes Lasso steal nothing (the count
   still resets).
-- **Time / Bonds floor**: the running cost floors at 0, and Frugal's +2 rides on top, so the price paid floors at 2.
 - **FX**: no new beats. The Time cut rides its own End-of-Turn beat (the recurring entry) but emits no
   `resourceChanged` consequence (the Rune of Shopkeep one does); the Genesis Lasso uses the existing lasso beam from
   the hero-power button (new `'hero'` origin).

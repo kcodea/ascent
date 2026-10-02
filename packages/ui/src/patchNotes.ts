@@ -64,7 +64,11 @@ export const PATCH_NOTES: PatchNote[] = [
       },
       {
         category: 'Systems',
-        text: '2 more Rare portrait frames in crates: Simple Ring and Void.',
+        text: '3 more portrait frames in crates: Simple Ring and Void (Rare), and Cherry Blossom (Epic).',
+        details: [
+          'Some frames changed rarity. Burnished, Sterling, Gilded and Seaglass are now Common. Shard and Prism are now Rare.',
+          'Frames you already own stay yours.',
+        ],
       },
     ],
   },

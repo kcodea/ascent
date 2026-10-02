@@ -168,6 +168,8 @@ describe('no redundant PNG masters ship alongside their WebP builds', () => {
     // → 1398: portrait frames batch 5 2026-10-02 (+2 frame webps in `art/frames/skins/`, carried as above: Simple Ring,
     // Void; owner-named: "added more skins"). Batch 4's five frame webps (2026-10-01) were not carried; the walk
     // measured 1364 top-level files here, well under the cap.
-    expect(total, `art files: ${total} — the WHOLE-ZIP count (~${total + 176}) is what itch caps at 1000`).toBeLessThan(1398);
+    // → 1399: portrait frames batch 6 2026-10-02 (+1 frame webp in `art/frames/skins/`, carried as above: Cherry
+    // Blossom; owner-named: "i added more frames").
+    expect(total, `art files: ${total} — the WHOLE-ZIP count (~${total + 176}) is what itch caps at 1000`).toBeLessThan(1399);
   });
 });

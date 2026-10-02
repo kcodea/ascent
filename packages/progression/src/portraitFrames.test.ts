@@ -7,7 +7,7 @@ import { validateInventoryBody } from './inventory';
 
 /**
  * PORTRAIT FRAMES (owner 2026-10-01: "we're adding portrait skins: C:\Game Assets\Ascent Art\Skins\Portraits. we want
- * this to replace the default portrait png when a skin is applied"). The 38 frames (every one a crate drop at its
+ * this to replace the default portrait png when a skin is applied"). The 39 frames (every one a crate drop at its
  * folder's rarity, the rank-named masters included), the account-wide `portrait_frame` slot, the loadout and the run
  * snapshot carrying it, and the one resolver that drops unknown / retired / wrong-category ids.
  */
@@ -16,14 +16,17 @@ const FRAMES = COSMETICS.filter((c) => c.category === 'portrait_frame');
 afterEach(() => setServerCatalogState(null));
 
 describe('the portrait frame catalog', () => {
-  it('38 crate frames at their folder rarity (6 Common, 10 Rare, 14 Epic, 8 Legendary), each naming its master and art key', () => {
+  it('39 crate frames at their folder rarity (10 Common, 8 Rare, 13 Epic, 8 Legendary), each naming its master and art key', () => {
     expect(Object.fromEntries(FRAMES.map((c) => [c.id, c.rarity]))).toEqual({
       frame_honey: 'common', frame_ale: 'common', frame_ruby: 'common', frame_steel: 'common', frame_wood: 'common',
       frame_dark_dragonscale: 'common',
-      frame_bronze: 'rare', frame_silver: 'rare', frame_gold: 'rare', frame_platinum: 'rare', frame_glass_shard: 'rare', frame_paragon: 'rare', frame_vines: 'rare', frame_magic: 'rare',
-      frame_simple_ring: 'rare', frame_void: 'rare',
-      frame_aura: 'epic', frame_ascendant: 'epic', frame_dark_diamond: 'epic', frame_diamond: 'epic', frame_ice: 'epic', frame_pearlescent: 'epic', frame_rank1: 'epic', frame_nimbus: 'epic',
+      // frames batch 6 (2026-10-02): the owner moved the four metal rings to Common/ and Shard + Prism to Rare/
+      frame_bronze: 'common', frame_silver: 'common', frame_gold: 'common', frame_platinum: 'common',
+      frame_glass_shard: 'rare', frame_paragon: 'rare', frame_vines: 'rare', frame_magic: 'rare',
+      frame_simple_ring: 'rare', frame_void: 'rare', frame_dark_diamond: 'rare', frame_diamond: 'rare',
+      frame_aura: 'epic', frame_ascendant: 'epic', frame_ice: 'epic', frame_pearlescent: 'epic', frame_rank1: 'epic', frame_nimbus: 'epic',
       frame_wedding: 'epic', frame_multichrome_energy: 'epic', frame_blue_energy: 'epic', frame_crackling_ruby: 'epic', frame_topaz: 'epic', frame_jade: 'epic',
+      frame_cherry_blossom: 'epic',
       frame_golden_dragonscale: 'legendary', frame_dark_cloud: 'legendary', frame_venom: 'legendary',
       frame_fire: 'legendary', frame_reaper: 'legendary', frame_water: 'legendary', frame_stained_glass: 'legendary', frame_wind: 'legendary',
     });
@@ -44,6 +47,7 @@ describe('the portrait frame catalog', () => {
       'Seaglass', 'Glass Shard', 'Paragon', 'Vine', 'Magic', 'Simple Ring', 'Void', 'Multichrome Energy', 'Blue Energy', 'Crackling Ruby', 'Topaz', 'Jade',
       'Aura', 'Amethyst', 'Shard', 'Prism', 'Frost', 'Pearlescent',
       'Crimson', 'Nimbus', 'Dark Cloud', 'Venom', 'Wedding', 'Fire', 'Reaper', 'Water', 'Stained Glass', 'Wind',
+      'Cherry Blossom',
     ]);
     expect(new Set(FRAMES.map((c) => c.name)).size).toBe(FRAMES.length);
   });

@@ -29,6 +29,12 @@
     "holeCx": 0.4942,
     "holeCy": 0.4868
   },
+  "frame_cherry_blossom": {
+    "aspect": 1,
+    "holeD": 0.7528,
+    "holeCx": 0.5105,
+    "holeCy": 0.4686
+  },
   "frame_crackling_ruby": {
     "aspect": 1,
     "holeD": 0.7912,

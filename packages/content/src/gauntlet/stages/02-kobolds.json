@@ -4,7 +4,7 @@
   "opponentName": "The Kobold Warren",
   "portraitCardId": "k_gemstorm",
   "tribe": "kobold",
-  "status": "draft",
+  "status": "ready",
   "runes": {
     "round6": "rune_engraving_gems",
     "round9": "rune_attacking_gems"

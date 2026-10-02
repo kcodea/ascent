@@ -1056,4 +1056,88 @@ export const HEROES_RULES: GameRule[] = [
     currentBehaviour: 'Conforms (built 2026-10-02). Dev-only (Scene Builder, Set 3, the Ancients flag).',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsRepete.test.ts'], lastVerifiedAt: '2026-10-02' },
   },
+  {
+    id: 'R-ANCGORR-01',
+    title: 'Gorr × Ancient of Death: Avenge (6) on one running count across Shop and combat gets a plain copy of a minion bought last turn',
+    statement:
+      "With the Ancient of Death, Gorr has a hero Avenge (6) on ONE running count of friendly deaths across the Shop and combat (the Xerox Death shape: carried into each fight, advanced at settle by the fight's deaths). Each fire gets a plain copy of a random minion bought LAST turn (the bodied minion buys of wave - 1; the Starform is never one) to hand, mid-fight as a live toHand in combat. Nothing bought last turn: nothing (the count still moves). Rune of Fury fires it again in combat. The power and the shared Avenge disc print the deaths left, live through a fight.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-02 (Gorr Ancients)', quote: 'death - Avenge (6): Get a copy of a minion you bought last turn.' },
+      { kind: 'code', ref: 'packages/sim/src/ancients.ts avengeCopyLastTurnBuy / ancientGorrShopDeath / gorrBuys; packages/core/src/combat/simulate.ts ancientGorrAvenge' },
+    ],
+    currentBehaviour: 'Conforms (built 2026-10-02). Dev-only (Scene Builder, Set 3, the Ancients flag).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsGorr.test.ts'], lastVerifiedAt: '2026-10-02' },
+  },
+  {
+    id: 'R-ANCGORR-02',
+    title: 'Gorr × Ancient of Fortune: the first minion bought each turn is free',
+    statement:
+      "With the Ancient of Fortune, while no minion has been bought yet this turn (the Starform and a held minion count as minion buys), the next minion offer is free through offerBuyPrice's freeBuy, so the Shop coin, the bots and the charge agree. It shares the one-freebie-per-turn marker with the Freedom rift and First Pick. Spells are never free and do not use it up. A held (displaced) minion keeps its own fixed price.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-02 (Gorr Ancients)', quote: 'fortune - The first minion you buy each turn is free.' },
+      { kind: 'code', ref: 'packages/sim/src/ancients.ts firstMinionFree / ancientGorrFirstFree; packages/sim/src/reducer.ts offerBuyPrice' },
+    ],
+    currentBehaviour: 'Conforms (built 2026-10-02). Dev-only (Scene Builder, Set 3, the Ancients flag).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsGorr.test.ts'], lastVerifiedAt: '2026-10-02' },
+  },
+  {
+    id: 'R-ANCGORR-03',
+    title: 'Gorr × Ancient of War: a repeating hero Pummel (200) sends a plain copy of a random living friendly minion to hand per 200 damage',
+    statement:
+      "With the Ancient of War, every hit a friendly minion lands in combat adds to a hero-level Pummel tally (Albus' tally: lifetime, carried across fights, Rune of the Heavy Hand's share). Every multiple of 200 crossed sends a plain copy of a random LIVING friendly minion to hand, mid-fight (a live toHand). It repeats with no once-per-combat cap. The power prints the progress, live through a fight.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-02 (Gorr Ancients)', quote: 'war - pummel (200): get a copy of a minion in your warband.' },
+      { kind: 'code', ref: 'packages/sim/src/ancients.ts pummelCopyWarband; packages/core/src/combat/simulate.ts noteAncientPummel ancientPummelCopy' },
+    ],
+    currentBehaviour: 'Conforms (built 2026-10-02). Dev-only (Scene Builder, Set 3, the Ancients flag).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsGorr.test.ts'], lastVerifiedAt: '2026-10-02' },
+  },
+  {
+    id: 'R-ANCGORR-04',
+    title: 'Gorr × Ancient of Genesis: the first minion bought each turn also gives a plain copy to hand',
+    statement:
+      "With the Ancient of Genesis, the first minion bought each turn also puts a plain copy of it in hand (hand full: none). The copy is not a buy, so it does not feed Four Peat. A spell bought first does not use it up. The Starform as the first minion buy uses it up and gives nothing (it has no body). Fortune and Genesis never combine: a run picks one Ancient.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-02 (Gorr Ancients)', quote: 'genesis - get a second copy of the first minion you buy each turn' },
+      { kind: 'code', ref: 'packages/sim/src/ancients.ts firstBuyExtraCopy / gorrOnBuy' },
+    ],
+    currentBehaviour: 'Conforms (built 2026-10-02). Dev-only (Scene Builder, Set 3, the Ancients flag).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsGorr.test.ts'], lastVerifiedAt: '2026-10-02' },
+  },
+  {
+    id: 'R-ANCGORR-05',
+    title: 'Gorr × Ancient of Time: End of Turn, a plain copy of a random minion bought this turn',
+    statement:
+      "With the Ancient of Time, at the End of Turn (a virtual recurring End-of-Turn entry, ancientGorrEotCopy, on its own beat) Gorr gets a plain copy of a random minion bought this turn, seeded. No minion bought: nothing. The power prints this turn's minion buys.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-02 (Gorr Ancients)', quote: 'time - End of Turn: Get a random copy of a minion you bought this turn.' },
+      { kind: 'code', ref: 'packages/sim/src/ancients.ts eotCopyThisTurnBuy / ancientRunGorrEotCopy; packages/sim/src/recruit.ts recurringEotEffects' },
+    ],
+    currentBehaviour: 'Conforms (built 2026-10-02). Dev-only (Scene Builder, Set 3, the Ancients flag).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsGorr.test.ts'], lastVerifiedAt: '2026-10-02' },
+  },
+  {
+    id: 'R-ANCGORR-06',
+    title: 'Gorr × Ancient of Bonds: every 3rd card bought gives the minions among those 3 +X/+X (X starts at 2, +2 per payout)',
+    statement:
+      "With the Ancient of Bonds, every card bought counts (spells and the Starform too) on one running count. Every 3rd buy gives the MINIONS among those 3 buys +X/+X permanently, wherever they are now (hand or board). Spells, the Starform, and a body that was sold or consumed get nothing. A buy that completed a triple pays the golden. X starts at 2 and improves +2 after each payout; the power prints X and the buys left.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-02 (Gorr Ancients)', quote: 'bonds - When you buy 3 cards, give them +2/+2 and improve this.' },
+      { kind: 'code', ref: 'packages/sim/src/ancients.ts buysBuffImproves / gorrOnBuy / gorrBondsGain' },
+    ],
+    currentBehaviour: 'Conforms (built 2026-10-02). Dev-only (Scene Builder, Set 3, the Ancients flag).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsGorr.test.ts'], lastVerifiedAt: '2026-10-02' },
+  },
 ];

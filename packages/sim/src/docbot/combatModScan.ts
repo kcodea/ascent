@@ -81,6 +81,8 @@ const OBJECT_ARMS: Record<string, unknown> = {
   ancientRallyGold: { gold: 1 }, // Tradesman x War: the Rally graft for bodies summoned mid-fight
   ancientSummonGain: { attack: 3, health: 2, label: 'Ancient of Death' }, // Robin x Death: the per-summon gain (staged Echo summons take it)
   ancientLastDeathCopy: { label: 'Ancient of Death' }, // Re-Pete x Death: the staged fight's last friendly death comes home as a toHand
+  ancientGorrAvenge: { every: 1, tick: 0, ids: ['pup'], label: 'Ancient of Death' }, // Gorr x Death: Avenge (1) so the staged deaths each send a last-turn buy to hand
+  ancientPummelCopy: { every: 1, dealt: 0, label: 'Ancient of War' }, // Gorr x War: Pummel (1) so the staged hits send copies to hand
   ancientReclaim: { echoExtra: 1, copies: 2, gain: 10, bonds: true, label: 'Ancient of Death' }, // Soren x Death / Time / War / Bonds: acts only on a Reclaim-marked body (none staged: inert)
 };
 

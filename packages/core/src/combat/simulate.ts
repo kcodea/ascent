@@ -473,8 +473,8 @@ export function simulate(
   /** ANCIENT OF WAR × Albus: the side-wide hero-Pummel tally (seeded LIFETIME, like the keyword) and its
    *  once-per-combat latch. Only read for a side whose mods carry `ancientPummel`. */
   const ancientPummelDealt: Record<Side, number> = {
-    player: modsFor('player').ancientPummel?.dealt ?? 0,
-    enemy: modsFor('enemy').ancientPummel?.dealt ?? 0,
+    player: modsFor('player').ancientPummel?.dealt ?? modsFor('player').ancientPummelCopy?.dealt ?? 0,
+    enemy: modsFor('enemy').ancientPummel?.dealt ?? modsFor('enemy').ancientPummelCopy?.dealt ?? 0,
   };
   const ancientPummelPaid: Record<Side, boolean> = { player: false, enemy: false };
   /** ANCIENT OF DEATH × Hunch: the spell improvement this fight's Avenges granted, per side (carried back). */
@@ -2846,12 +2846,26 @@ export function simulate(
    */
   function noteAncientPummel(dealer: Minion, amount: number): void {
     const ap = modsFor(dealer.side).ancientPummel;
-    if (!ap || amount <= 0) return;
+    const pc = modsFor(dealer.side).ancientPummelCopy;
+    if ((!ap && !pc) || amount <= 0) return;
     const side = dealer.side;
     const heavy = modsFor(side).runeHeavyHand ? flagCopiesOf(side, 'runeHeavyHand') : 0;
     const before = ancientPummelDealt[side];
     const after = before + amount * (1 + heavy);
     ancientPummelDealt[side] = after;
+    // ANCIENT OF WAR × Gorr: "pummel (200): get a copy of a minion in your warband." Repeating: one plain copy of a random
+    // living friendly minion per multiple of `every` crossed by this hit (the side's grant stream picks it).
+    if (pc) {
+      const every = Math.max(1, pc.every);
+      const crossed = Math.floor(after / every) - Math.floor(before / every);
+      const draw = grantRngFor(side);
+      for (let i = 0; i < crossed; i++) {
+        const band = boards[side].filter((m) => !m.dead && m.health > 0);
+        if (band.length === 0) break;
+        ctx.grantToHand(band[draw.int(band.length)]!.cardId, side, dealer.uid);
+      }
+    }
+    if (!ap) return;
     if (ancientPummelPaid[side]) return;
     const every = Math.max(1, ap.every);
     if (Math.floor(after / every) - Math.floor(before / every) <= 0) return;
@@ -5256,6 +5270,16 @@ export function simulate(
       xeroxCopy(side, src);
     }
   });
+  // ANCIENT OF DEATH × Gorr (owner 2026-10-02): "Avenge (6): Get a copy of a minion you bought last turn." The Xerox Death
+  // running count; each fire a plain copy of a random last-turn buy to hand (none bought: nothing). Rune of Fury repeats.
+  bus.on('avenge', (payload) => {
+    const { side, count, victim } = payload as { side: Side; count: number; victim?: Minion };
+    const ga = modsFor(side).ancientGorrAvenge;
+    if (!ga || ga.ids.length === 0 || (ga.tick + count) % Math.max(1, ga.every) !== 0) return;
+    const fires = 1 + (modsFor(side).runeFury ? flagCopiesOf(side, 'runeFury') : 0);
+    const draw = grantRngFor(side);
+    for (let k = 0; k < fires; k++) ctx.grantToHand(ga.ids[draw.int(ga.ids.length)]!, side, victim?.uid);
+  });
   // ANCIENT OF DEATH × Tradesman (owner 2026-10-02): "Avenge (3): Gain a free Refresh." A hero Avenge on ONE running
   // count across Shop and combat (`tick` carried in, the Xerox Death shape). Each fire banks a free Refresh right then
   // (`grantFreeRolls`, the Gryphon carry-back) and pulses a `questTrigger` the replay counts for the live text. Rune of
@@ -5825,7 +5849,7 @@ export function simulate(
       wardWindow: modsFor(side).ancientWardCopy ? [...wardWindow[side]] : undefined,
       rises: modsFor(side).ancientCountRises ? riseLog[side] : undefined,
       summonsMade: modsFor(side).ancientCountSummons ? summonLog[side] : undefined,
-      ancientPummelDealt: modsFor(side).ancientPummel ? ancientPummelDealt[side] : undefined,
+      ancientPummelDealt: modsFor(side).ancientPummel || modsFor(side).ancientPummelCopy ? ancientPummelDealt[side] : undefined,
       ancientSpellImproved: modsFor(side).ancientAvengeSpells ? { ...ancientSpellImproved[side] } : undefined,
       ancientClearanceStacks: modsFor(side).ancientClearanceStacks ? clearanceStacksGained[side] : undefined,
     };

@@ -213,6 +213,28 @@
  *  · `secondHandEvery`            Second Hand triggers every `turns` turns instead of every 3. (Time)
  *  · `secondHandEdges`            Second Hand copies the left-most AND right-most board minions instead (one copy when
  *                                 they are the same minion; an empty board copies nothing). (Bonds)
+ *  GORR (Four Peat, `fourPeat`, PASSIVE; owner pairings 2026-10-02). Four Peat = "When you buy 3 minions in a turn, get a
+ *  plain copy of one of them at random." Every pairing below hears buys through `ancientOnBuy` (the reducer's post-buy
+ *  block, every buy path once), which keeps the per-turn log of minions bought (`gorrBuys`, the bodied buys of the last
+ *  two turns) and the per-turn minion-buy count (`gorrMinionBuys`, the Starform included) while Ancients are on, so buys
+ *  made before the pick count. "Get a copy" is a PLAIN copy to hand (hand full: none).
+ *  · `avengeCopyLastTurnBuy`      a hero Avenge (N) on ONE running count of friendly deaths across the Shop
+ *                                 (`ancientGorrShopDeath` at `fireOnFriendDeath`) and combat (`QuestCombatMods.
+ *                                 ancientGorrAvenge`, real time): each fire, a plain copy of a random minion bought LAST
+ *                                 turn (wave - 1). None bought: nothing. (Death)
+ *  · `firstMinionFree`            the first minion bought each turn is free: `offerBuyPrice`'s `freeBuy` (the Freedom rift /
+ *                                 First Pick marker, so the UI coin and the bots read it), only while no minion has been
+ *                                 bought this turn. (Fortune)
+ *  · `pummelCopyWarband`          COMBAT: `QuestCombatMods.ancientPummelCopy`, a HERO-level Pummel on Albus' tally
+ *                                 (lifetime, `pummelDealt`), repeating: every multiple crossed sends a plain copy of a
+ *                                 random living friendly minion to hand, mid-fight. (War)
+ *  · `firstBuyExtraCopy`          the first minion bought each turn also gives a plain copy to hand. (Genesis)
+ *  · `eotCopyThisTurnBuy`         a virtual recurring End-of-Turn entry (`ancientGorrEotCopy`): a plain copy of a random
+ *                                 minion bought this turn. None bought: nothing. (Time)
+ *  · `buysBuffImproves`           every `every`th card bought (a running count, spells included, `gorrBondsWindow`): the
+ *                                 MINIONS among those buys gain +X/+X permanently wherever they are now (hand or board;
+ *                                 a spell, the Starform, or a body that left gets nothing); X starts at `amount` and
+ *                                 improves by `amount` per payout (`gorrBondsGain`). (Bonds)
  *
  * Serialisable plain data throughout, so saves / snapshots / replays can carry it cheaply later (not in the MVP).
  */
@@ -414,7 +436,20 @@ export type AncientEffect =
   /** Second Hand triggers every `turns` turns. */
   | { do: 'secondHandEvery'; turns: number }
   /** Second Hand copies the left-most and right-most board minions instead. */
-  | { do: 'secondHandEdges' };
+  | { do: 'secondHandEdges' }
+  // ── Gorr (Four Peat) ──
+  /** Avenge (`every`), across the Shop and combat: get a plain copy of a minion you bought last turn. */
+  | { do: 'avengeCopyLastTurnBuy'; every: number }
+  /** The first minion you buy each turn is free. */
+  | { do: 'firstMinionFree' }
+  /** Pummel (`every`), repeating: get a plain copy of a minion in your warband. */
+  | { do: 'pummelCopyWarband'; every: number }
+  /** The first minion you buy each turn also gives a plain copy. */
+  | { do: 'firstBuyExtraCopy' }
+  /** End of Turn: a plain copy of a random minion you bought this turn. */
+  | { do: 'eotCopyThisTurnBuy' }
+  /** Every `every` cards bought: those minions gain +X/+X; X starts at `amount`, improves by `amount` per payout. */
+  | { do: 'buysBuffImproves'; every: number; amount: number };
 
 export interface AncientPairing {
   /** The Ancient's text for this hero, as shown on the offer and the preview (the owner's words). */
@@ -950,6 +985,46 @@ export const ANCIENT_PAIRINGS: Record<string, Partial<Record<AncientId, AncientP
       effects: [{ do: 'secondHandEdges' }],
     },
   },
+  // GORR (owner pairings 2026-10-02, quoted above each entry). Four Peat (passive) = "When you buy 3 minions in a turn,
+  // get a plain copy of one of them at random."
+  gorr: {
+    death: {
+      // "Avenge (6): Get a copy of a minion you bought last turn."
+      offerText: '**Avenge (6):** get a plain copy of a minion you bought last turn.',
+      powerText: '{base} **Avenge (6):** get a plain copy of a minion you bought last turn (**{gDeathLeft}** more to go).',
+      effects: [{ do: 'avengeCopyLastTurnBuy', every: 6 }],
+    },
+    fortune: {
+      // "The first minion you buy each turn is free."
+      offerText: 'The first minion you buy each turn is **free**.',
+      powerText: '{base} The first minion you buy each turn is **free**.{gFreeNow}',
+      effects: [{ do: 'firstMinionFree' }],
+    },
+    war: {
+      // "pummel (200): get a copy of a minion in your warband."
+      offerText: '**Pummel (200):** get a plain copy of a random friendly minion. Counts damage dealt by all your minions.',
+      powerText: '{base} **Pummel (200):** get a plain copy of a random friendly minion. Counts damage dealt by all your minions (**{gPummelNow}/{gPummelEvery}**).',
+      effects: [{ do: 'pummelCopyWarband', every: 200 }],
+    },
+    genesis: {
+      // "get a second copy of the first minion you buy each turn"
+      offerText: 'The first minion you buy each turn also gives you a plain copy of it.',
+      powerText: '{base} The first minion you buy each turn also gives you a plain copy of it.{gFirstNow}',
+      effects: [{ do: 'firstBuyExtraCopy' }],
+    },
+    time: {
+      // "End of Turn: Get a random copy of a minion you bought this turn."
+      offerText: '**End of Turn:** get a plain copy of a random minion you bought this turn.',
+      powerText: '{base} **End of Turn:** get a plain copy of a random minion you bought this turn (**{gBoughtNow}** bought).',
+      effects: [{ do: 'eotCopyThisTurnBuy' }],
+    },
+    bonds: {
+      // "When you buy 3 cards, give them +2/+2 and improve this."
+      offerText: 'Every **3** cards you buy, give those minions **+2/+2** and improve this by **+2/+2**.',
+      powerText: '{base} Every **3** cards you buy, give those minions **+{gBondsGain}/+{gBondsGain}** and improve this by **+2/+2** (**{gBondsLeft}** more to go).',
+      effects: [{ do: 'buysBuffImproves', every: 3, amount: 2 }],
+    },
+  },
 };
 
 export function ancientPairingFor(heroId: string, id: AncientId): AncientPairing | undefined {
@@ -1077,6 +1152,18 @@ export interface AncientsState {
   repeteBuys?: string[];
   /** RE-PETE × WAR: the live +X/+X Second Hand's minion copies gain (set at the pick, improved after each trigger). */
   repeteWarGain?: number;
+  /** GORR: the BODIED minions bought per turn (cardIds), the current and the previous turn only. Death reads `wave - 1`,
+   *  Time reads `wave`. Ticked while Ancients are on, whatever is picked. */
+  gorrBuys?: { wave: number; ids: string[] }[];
+  /** GORR × FORTUNE / GENESIS: minions bought on `wave` (the Starform included): 0 = the next one is "the first". */
+  gorrMinionBuys?: { wave: number; n: number };
+  /** GORR × DEATH: friendly deaths since the last copy (Shop + combat), the running Avenge (6) count. */
+  gorrDeaths?: number;
+  /** GORR × BONDS: the cards bought since the last payout, one entry per buy: the bought body's uid, or null (a spell,
+   *  the Starform). */
+  gorrBondsWindow?: (string | null)[];
+  /** GORR × BONDS: the live +X/+X the next payout gives (set at the pick, improved after each payout). */
+  gorrBondsGain?: number;
 }
 
 /** Turn Ancients on for a run (the Scene Builder's Set 3 flag). Pure: returns a new run. */
@@ -1153,6 +1240,8 @@ export function pickAncient(state: RunState, id: AncientId): boolean {
   if (war) a.sorenWarGain = war.amount; // SOREN × WAR: starts at the printed amount
   const rWar = effectOf(state, 'secondHandBuffImproves');
   if (rWar) a.repeteWarGain = rWar.amount; // RE-PETE × WAR: starts at the printed amount
+  const gBonds = effectOf(state, 'buysBuffImproves');
+  if (gBonds) a.gorrBondsGain = gBonds.amount; // GORR × BONDS: starts at the printed amount
   return true;
 }
 
@@ -1245,6 +1334,19 @@ export function ancientPowerText(state: RunState, base: string, combat: AncientP
   const rd = effectOf(state, 'buysDiscoverLocked');
   text = text.replace('{rBuysLeft}', String(rd ? Math.max(1, rd.every) - ((a?.repeteBuys?.length ?? 0) % Math.max(1, rd.every)) : 0))
     .split('{rWarGain}').join(String(ancientSecondHandGain(state))).replace('{shNext}', String(ancientSecondHandNextTurn(state)));
+  // GORR: Death's countdown (live through a fight), Fortune / Genesis "this turn" state, War's Pummel progress (live
+  // through a fight), Time's buys this turn, Bonds' live +X/+X (printed twice) and countdown.
+  const gp = effectOf(state, 'pummelCopyWarband');
+  const gpEvery = Math.max(1, gp?.every ?? 1);
+  const gb = effectOf(state, 'buysBuffImproves');
+  const firstOpen = gorrMinionBuysThisTurn(state) === 0;
+  text = text.replace('{gDeathLeft}', String(ancientGorrAvengeLeft(state, combat.friendlyDeaths ?? 0) ?? 0))
+    .replace('{gFreeNow}', firstOpen && !state.freeBuyUsedThisTurn ? ' Ready this turn.' : ' Used this turn.')
+    .replace('{gFirstNow}', firstOpen ? ' Ready this turn.' : ' Used this turn.')
+    .replace('{gPummelNow}', String(gp ? ((a?.pummelDealt ?? 0) + (combat.friendlyDamage ?? 0)) % gpEvery : 0)).replace('{gPummelEvery}', String(gp?.every ?? 0))
+    .replace('{gBoughtNow}', String(gorrBuysOn(state, state.wave).length))
+    .split('{gBondsGain}').join(String(gb ? a?.gorrBondsGain ?? gb.amount : 0))
+    .replace('{gBondsLeft}', String(gb ? Math.max(1, gb.every) - ((a?.gorrBondsWindow?.length ?? 0) % Math.max(1, gb.every)) : 0));
   return text.replace('{base}', base).replace('{avengeNow}', String(hunch.avengeNow)).replace('{deathA}', String(hunch.deathA)).replace('{deathH}', String(hunch.deathH))
     .replace('{bookGold}', String(a?.bookMaxGold ?? 0)).replace('{genesisLeft}', String(hunch.genesisLeft)).replace('{timeTier}', String(albusTimeTier(state)))
     .replace('{stacks}', String(stacks)).replace('{deathFree}', deathFree).replace('{genesisTribe}', genesisTribe).replace('{timeLeft}', String(ancientTimeBuysLeft(state)))
@@ -1301,7 +1403,7 @@ export function ancientSpellbookAvengeLeft(state: RunState, deaths = state.fxFri
  */
 export function ancientAvengeCountdown(state: RunState, deaths = 0): number | null {
   return ancientClearanceAvengeLeft(state, deaths) ?? ancientSpellbookAvengeLeft(state, deaths) ?? ancientXeroxAvengeLeft(state, deaths)
-    ?? ancientTradesAvengeLeft(state, deaths);
+    ?? ancientTradesAvengeLeft(state, deaths) ?? ancientGorrAvengeLeft(state, deaths);
 }
 
 // ── Hooks ────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -1436,6 +1538,11 @@ export function ancientCombatMods(state: RunState): Partial<QuestCombatMods> {
   if (sg && spoils > 0) out.ancientSummonGain = { attack: sg.attack * spoils, health: sg.health * spoils, label: ANCIENTS.death.name };
   // RE-PETE × DEATH: the fight's last friendly death comes home as a plain copy (paid as the fight ends).
   if (effectOf(state, 'combatLastDeathCopy')) out.ancientLastDeathCopy = { label: ANCIENTS.death.name };
+  // GORR: Death's running Avenge (carried in) with last turn's buys; War's repeating hero Pummel on the lifetime tally.
+  const gd = effectOf(state, 'avengeCopyLastTurnBuy');
+  if (gd) out.ancientGorrAvenge = { every: gd.every, tick: live(state)?.gorrDeaths ?? 0, ids: [...gorrBuysOn(state, state.wave - 1)], label: ANCIENTS.death.name };
+  const gw = effectOf(state, 'pummelCopyWarband');
+  if (gw) out.ancientPummelCopy = { every: gw.every, dealt: live(state)?.pummelDealt ?? 0, label: ANCIENTS.war.name };
   return out;
 }
 
@@ -1544,7 +1651,10 @@ export function ancientAfterCombat(state: RunState, result: CombatResult): void 
   // RISEN × TIME: the count the next Start of Turn pays on.
   if (effectOf(state, 'sotBuffPerCombatSummon')) a.lastSummons = result.playerSummonsMade ?? 0;
   // ALBUS × WAR: the lifetime Pummel tally the fight hands back (the payout already happened mid-fight).
-  if (effectOf(state, 'pummelGrantsCards') && result.playerAncientPummelDealt !== undefined) a.pummelDealt = result.playerAncientPummelDealt;
+  if ((effectOf(state, 'pummelGrantsCards') || effectOf(state, 'pummelCopyWarband')) && result.playerAncientPummelDealt !== undefined) a.pummelDealt = result.playerAncientPummelDealt;
+  // GORR × DEATH: the fight's friendly deaths join the running Avenge count (its copies already flew to hand mid-fight).
+  const gd = effectOf(state, 'avengeCopyLastTurnBuy');
+  if (gd) a.gorrDeaths = ((a.gorrDeaths ?? 0) + (result.playerDeaths ?? 0)) % Math.max(1, gd.every);
   // HUNCH x DEATH: bank the improvement this fight's Avenges granted (the spell power itself settles through
   // `playerSpellPower`, like every combat spell-power gain).
   const imp = result.playerAncientSpellImproved;
@@ -2481,6 +2591,101 @@ export function ancientOnBuy(state: RunState, cardId: string, starform: boolean,
       queueDiscover(state, { kind: 'pool', ids, spells: true, lockWave: state.wave + Math.max(1, rd.turns) });
     } else a.repeteBuys = win;
   }
-  void starform; void body;
+  gorrOnBuy(state, a, cardId, starform, body);
+}
+
+// ── Gorr (Four Peat) hooks ───────────────────────────────────────────────────────────────────────────────────
+/** GORR: the bodied minions bought on `wave` (cardIds, in buy order). */
+export function gorrBuysOn(state: RunState, wave: number): string[] {
+  return live(state)?.gorrBuys?.find((b) => b.wave === wave)?.ids ?? [];
+}
+
+/** GORR: minions bought this turn (the Starform included). */
+function gorrMinionBuysThisTurn(state: RunState): number {
+  const m = live(state)?.gorrMinionBuys;
+  return m && m.wave === state.wave ? m.n : 0;
+}
+
+/** GORR: a plain copy of `cardId` to hand (the pool body with run-wide card buffs). Hand full, or not a minion: none. */
+function gorrCopyToHand(state: RunState, cardId: string): BoardCard | undefined {
+  const def = CARD_INDEX[cardId];
+  if (!def || def.spell || state.hand.length >= handCap(state)) return undefined;
+  return grantMinionToHandOrBoard(state, def, false);
+}
+
+/** A random element of `ids` off the run cursor (undefined when empty). */
+function pickId(state: RunState, ids: readonly string[]): string | undefined {
+  if (ids.length === 0) return undefined;
+  const rng = makeRng(state.rngCursor);
+  const id = ids[rng.int(ids.length)];
+  state.rngCursor = rng.state();
+  return id;
+}
+
+/** GORR: the per-buy bookkeeping (always, while Ancients are on) and the buy-keyed pairings (Genesis, Bonds). */
+function gorrOnBuy(state: RunState, a: AncientsState, cardId: string, starform: boolean, body: BoardCard | undefined): void {
+  const def = CARD_INDEX[cardId];
+  const minion = !!def && !def.spell && !def.ruby;
+  if (minion) {
+    const first = gorrMinionBuysThisTurn(state) === 0;
+    a.gorrMinionBuys = { wave: state.wave, n: gorrMinionBuysThisTurn(state) + 1 };
+    if (!starform) {
+      const cur = gorrBuysOn(state, state.wave);
+      a.gorrBuys = [...(a.gorrBuys ?? []).filter((b) => b.wave === state.wave - 1), { wave: state.wave, ids: [...cur, cardId] }];
+    }
+    // GENESIS: the first minion bought each turn also gives a plain copy (the Starform has no body to copy).
+    if (first && !starform && effectOf(state, 'firstBuyExtraCopy')) gorrCopyToHand(state, cardId);
+  }
+  // BONDS: every `every`th card bought (any card) pays the minions among them, wherever they are now.
+  const gb = effectOf(state, 'buysBuffImproves');
+  if (gb) {
+    const win = [...(a.gorrBondsWindow ?? []), body ? body.uid : null];
+    if (win.length < Math.max(1, gb.every)) { a.gorrBondsWindow = win; return; }
+    a.gorrBondsWindow = [];
+    const x = a.gorrBondsGain ?? gb.amount;
+    const targets = win.map((uid) => (uid ? state.board.find((c) => c.uid === uid) ?? state.hand.find((c) => c.uid === uid) : undefined))
+      .filter((c): c is BoardCard => !!c);
+    if (targets.length > 0 && x > 0) captureBuffFx(state, undefined, 'spell', () => { for (const c of targets) addBuff(c, ANCIENTS.bonds.name, x, x); });
+    a.gorrBondsGain = x + gb.amount;
+  }
+}
+
+/** GORR × FORTUNE: is the next minion buy free (Fortune picked, no minion bought yet this turn)? `offerBuyPrice` folds it
+ *  into its `freeBuy` (still subject to the shared one-freebie-per-turn marker). */
+export function ancientGorrFirstFree(state: RunState): boolean {
+  return !!live(state) && !!effectOf(state, 'firstMinionFree') && gorrMinionBuysThisTurn(state) === 0;
+}
+
+/** GORR × DEATH: friendly deaths still needed for the next copy (the carried count plus `deaths` so far in the fight on
+ *  screen). Null when Death is not picked. */
+export function ancientGorrAvengeLeft(state: RunState, deaths = 0): number | null {
+  const e = live(state) ? effectOf(state, 'avengeCopyLastTurnBuy') : undefined;
+  if (!e) return null;
+  const every = Math.max(1, e.every);
+  return every - (((live(state)?.gorrDeaths ?? 0) + Math.max(0, deaths)) % every);
+}
+
+/** GORR × DEATH, Shop half: a friendly minion died in the Shop (`fireOnFriendDeath`, every Shop death path once). The
+ *  running count ticks; each `every`th death gets a plain copy of a random minion bought last turn. */
+export function ancientGorrShopDeath(state: RunState): void {
+  const a = live(state);
+  const e = a ? effectOf(state, 'avengeCopyLastTurnBuy') : undefined;
+  if (!a || !e) return;
+  a.gorrDeaths = ((a.gorrDeaths ?? 0) + 1) % Math.max(1, e.every);
+  if (a.gorrDeaths !== 0) return;
+  const id = pickId(state, gorrBuysOn(state, state.wave - 1));
+  if (id) gorrCopyToHand(state, id);
+}
+
+/** GORR × TIME: is the End-of-Turn copy live (the `ancientGorrEotCopy` recurring entry)? */
+export function ancientGorrEotCopyLive(state: RunState): boolean {
+  return !!live(state) && !!effectOf(state, 'eotCopyThisTurnBuy');
+}
+
+/** GORR × TIME: End of Turn, a plain copy of a random minion bought this turn (none bought: nothing). */
+export function ancientRunGorrEotCopy(state: RunState): void {
+  if (!ancientGorrEotCopyLive(state)) return;
+  const id = pickId(state, gorrBuysOn(state, state.wave));
+  if (id) gorrCopyToHand(state, id);
 }
 

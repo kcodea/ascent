@@ -970,4 +970,90 @@ export const HEROES_RULES: GameRule[] = [
     currentBehaviour: 'Conforms (built 2026-10-02). Dev-only (Scene Builder, Set 3, the Ancients flag).',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsRobin.test.ts'], lastVerifiedAt: '2026-10-02' },
   },
+  {
+    id: 'R-ANCREPETE-01',
+    title: 'Re-Pete × Ancient of Death: when a combat ends, get a plain copy of the last friendly minion that died in it',
+    statement:
+      "With the Ancient of Death, Re-Pete gets a plain copy of the last FRIENDLY minion that died in each combat (a body that then Rose or Rebirthed still died). The combat's avenge bus remembers the last death; as the fight ends the copy flies to hand (a live toHand, carried home like every combat hand grant). No friendly death: nothing. A full hand: nothing.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-02 (Re-Pete Ancients)', quote: 'death - Get a copy of the last minion that died in combat' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-02 (Re-Pete Ancients)', quote: 'Yours only (as built)' },
+      { kind: 'code', ref: 'packages/sim/src/ancients.ts combatLastDeathCopy; packages/core/src/combat/simulate.ts ancientLastDeathCopy (avenge bus + end of fight)' },
+    ],
+    currentBehaviour: 'Conforms (built 2026-10-02). Dev-only (Scene Builder, Set 3, the Ancients flag).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsRepete.test.ts'], lastVerifiedAt: '2026-10-02' },
+  },
+  {
+    id: 'R-ANCREPETE-02',
+    title: 'Re-Pete × Ancient of Fortune: every 6th card bought opens a Discover of those 6 cards (spells too), the pick locked for 1 turn',
+    statement:
+      "With the Ancient of Fortune, every card bought counts (minions, spells, the Starform) on one running count since the pick. Every 6th buy opens a Discover of up to 3 distinct cards from those 6, spells offered too (the Starform is never offered). The pick goes to hand with lockedUntilWave = next turn: unplayable (a spell uncastable) and padlocked until then. The power prints the buys left.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-02 (Re-Pete Ancients)', quote: 'fortune - When you buy 6 cards, discover one of them. It\'s locked in your hand for 1 turn.' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-02 (Re-Pete Ancients)', quote: 'Offer spells too' },
+      { kind: 'code', ref: 'packages/sim/src/ancients.ts buysDiscoverLocked / ancientOnBuy; packages/sim/src/recruit.ts openDiscover pool spells + lockWave; packages/sim/src/reducer.ts post-buy ancientOnBuy' },
+    ],
+    currentBehaviour: 'Conforms (built 2026-10-02). Dev-only (Scene Builder, Set 3, the Ancients flag).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsRepete.test.ts'], lastVerifiedAt: '2026-10-02' },
+  },
+  {
+    id: 'R-ANCREPETE-03',
+    title: 'Re-Pete × Ancient of War: Second Hand\'s minion copies gain +X/+X (X starts at 10, +10 per trigger)',
+    statement:
+      "With the Ancient of War, every minion Second Hand makes (Wishbone's extra copies included) gains the CURRENT +X/+X permanently, then X improves by +10, once per trigger. X starts at 10, so the first trigger gives +10/+10 and the next +20/+20. A spell copy gains nothing, but its trigger still improves X. The power prints X live.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-02 (Re-Pete Ancients)', quote: 'war - Copied cards gain +10/+10. Improve this every time Second Hand triggers.' },
+      { kind: 'code', ref: 'packages/sim/src/ancients.ts secondHandBuffImproves / ancientAfterSecondHand / repeteWarGain' },
+    ],
+    currentBehaviour: 'Conforms (built 2026-10-02). Dev-only (Scene Builder, Set 3, the Ancients flag).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsRepete.test.ts'], lastVerifiedAt: '2026-10-02' },
+  },
+  {
+    id: 'R-ANCREPETE-04',
+    title: 'Re-Pete × Ancient of Genesis: Second Hand makes exact copies',
+    statement:
+      "With the Ancient of Genesis, Second Hand's copy is EXACT (exactBoardCopy: current stats, the buff breakdown, keywords, gilding) under a fresh uid, instead of a plain base-stat copy.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-02 (Re-Pete Ancients)', quote: 'genesis - Copied minions are now exact copies' },
+      { kind: 'code', ref: 'packages/sim/src/ancients.ts secondHandExact / ancientSecondHandExactCopy' },
+    ],
+    currentBehaviour: 'Conforms (built 2026-10-02). Dev-only (Scene Builder, Set 3, the Ancients flag).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsRepete.test.ts'], lastVerifiedAt: '2026-10-02' },
+  },
+  {
+    id: 'R-ANCREPETE-05',
+    title: 'Re-Pete × Ancient of Time: Second Hand triggers at the end of every 2nd turn instead of every 3rd',
+    statement:
+      "Natively Second Hand fires at the End of Turn on turns 3, 6, 9 (wave % 3 === 0). With the Ancient of Time it fires on turns 2, 4, 6 (wave % 2 === 0). The power prints the next trigger turn.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-02 (Re-Pete Ancients)', quote: 'time - second hand triggers every 2 turns instead' },
+      { kind: 'code', ref: 'packages/sim/src/ancients.ts secondHandEvery / ancientSecondHandEvery; packages/sim/src/reducer.ts endRecruitTurn' },
+    ],
+    currentBehaviour: 'Conforms (built 2026-10-02). Dev-only (Scene Builder, Set 3, the Ancients flag).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsRepete.test.ts'], lastVerifiedAt: '2026-10-02' },
+  },
+  {
+    id: 'R-ANCREPETE-06',
+    title: 'Re-Pete × Ancient of Bonds: Second Hand copies the left-most and right-most board minions instead of the left-most hand card',
+    statement:
+      "With the Ancient of Bonds, Second Hand copies the left-most AND right-most BOARD minions (plain copies) instead of the left-most hand card. A single minion is both ends: one copy. An empty board: nothing.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-02 (Re-Pete Ancients)', quote: 'bonds - Second hand copies the Left and Right-most minions on board instead.' },
+      { kind: 'code', ref: 'packages/sim/src/ancients.ts secondHandEdges / ancientSecondHandSources' },
+    ],
+    currentBehaviour: 'Conforms (built 2026-10-02). Dev-only (Scene Builder, Set 3, the Ancients flag).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsRepete.test.ts'], lastVerifiedAt: '2026-10-02' },
+  },
 ];

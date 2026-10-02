@@ -5270,6 +5270,14 @@ export function simulate(
       fireTrigger(ra.flag, side);
     }
   });
+  // ANCIENT OF DEATH × Re-Pete (owner 2026-10-02): "Get a copy of the last minion that died in combat." The avenge bus
+  // emits once per friendly death (a Rise / Rebirth return still died), so the latest emission is the last death. Paid
+  // as the fight ends (below the attack loop).
+  const lastFriendlyDeath: Record<Side, { cardId: string; uid: string } | undefined> = { player: undefined, enemy: undefined };
+  bus.on('avenge', (payload) => {
+    const { side, victim } = payload as { side: Side; victim?: Minion };
+    if (victim && modsFor(side).ancientLastDeathCopy) lastFriendlyDeath[side] = { cardId: victim.cardId, uid: victim.uid };
+  });
   // Combat avenge runes — PER SIDE (a served enemy runs its own): Broodpit + Spearline summon to their own side.
   runeAvenge(4, 'runeBroodpit', (m) => !!m.runeBroodpit, (side) => { // Avenge (4): summon 2 Imps with Taunt (owner rebalance 2026-08-03, was 3)
     const imp = cards['impscrap'];
@@ -5589,6 +5597,15 @@ export function simulate(
     settleBetweenAttacks();
     flushAscensions(); // a Tara/Spirit Pup that crossed its threshold this attack transforms now (between actions)
     turn = defenderSide;
+  }
+
+  // ANCIENT OF DEATH × Re-Pete: the fight is over; the last friendly death comes home as a plain copy (live `toHand`).
+  for (const side of ['player', 'enemy'] as const) {
+    const ld = modsFor(side).ancientLastDeathCopy;
+    const last = lastFriendlyDeath[side];
+    if (!ld || !last) continue;
+    nextStep();
+    ctx.grantToHand(last.cardId, side, last.uid);
   }
 
   // --- Outcome (A.3 step 8) ---

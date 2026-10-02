@@ -1961,6 +1961,11 @@ export interface QuestCombatMods {
    *  Every FRIENDLY summon (a token, a Rise, a resummon: the summon-entry chokepoint) gains it as a combat buff
    *  (Engraved keeps it, like every combat gain). Player-only; never snapshotted. */
   ancientSummonGain?: { attack: number; health: number; label: string };
+  /** ANCIENT OF DEATH × Re-Pete (owner 2026-10-02): "Get a copy of the last minion that died in combat" (owner: "Yours
+   *  only"). The avenge bus (one emission per friendly death) remembers the side's last dead body; as the fight ends, a
+   *  plain copy of it goes to hand through `grantToHand` (a live `toHand`, carried home in `handGrants`). No friendly
+   *  death: nothing. Player-only; never snapshotted. */
+  ancientLastDeathCopy?: { label: string };
   /** LEGACY (pre-2026-09-28 runs): the run-wide Beast Health channel `beastBuyHp`, re-added to from-base Beast
    *  bodies (summons / Reborn). Nothing feeds it any more — Beast buffs are combat-only (R-AURA-03). */
   beastAuraHp?: number;

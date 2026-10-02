@@ -1,5 +1,5 @@
 import { type PresentationCollector, type ConsequenceDraft, type CombatEvent, beatIdentity, inRunTribes, socTwilightExtraFires, COMBATATIVE_RUBIES_ATTACKS, BODY_COUNTING_DEATHS, ALE_IDS, combatSide, makeCollector, makeRng, simulate, type BoardMinion, type CardDef, type CombatConfig, type CombatResult, type CombatSideState, type Keyword, type PendingCombatQuest, type PresentationBatch, type QuestCombatMods, type QuestDef, type QuestObjective, type QuestObjectiveEvent, type Tribe, TRIBES } from '@game/core';
-import { ancientRobinBondsPrice, ancientSpendRobinBonds, ancientCopyCharges, ancientSpendCopyCharge, ancientOnCopyMachine, ancientXeroxBondTripled, ancientCombatMods, ancientAfterPowerGild, ancientOfferOpen, ancientPowerTargetsGilded, ancientReplacesPowerGild, ancientsCombatTick, ancientsRefreshTick, ancientsSetMeter, pickAncient, ancientPulseExtraThenDestroy, ancientPulseDiscovers, ancientPulsePassive, ancientAfterPulse, ancientAegisDestroys, ancientAegisRecipient, ancientAegisDestroyAndGive, ancientAegisResilient, ancientAfterCombat, ancientBondsReact, ancientStartOfTurn, ancientEmpowerPassive, ancientOnEmpowerPick, ancientOnSpellbook, ancientClearancePassive, ancientClearanceStacks, ancientSpendClearanceStack, ancientClearanceRefresh, ancientMarkClearanceOffer, ancientAfterClearance, ancientOnClearanceBuy, ancientTimePrice, ancientNoteMinionBuy, ancientAfterRefresh, ancientTradesBuy, ancientRallyGoldGraft, ancientUpgradeSurchargeOff, FRUGAL_UPGRADE_SURCHARGE, ancientReclaimInShop, ancientShopReclaim, ancientAfterReclaimMark, ancientTradesRefreshFree, ancientTradesSpendFreeRefresh } from './ancients';
+import { ancientSecondHandEvery, ancientSecondHandSources, ancientSecondHandIsExact, ancientSecondHandExactCopy, ancientAfterSecondHand, ancientOnBuy, ancientRobinBondsPrice, ancientSpendRobinBonds, ancientCopyCharges, ancientSpendCopyCharge, ancientOnCopyMachine, ancientXeroxBondTripled, ancientCombatMods, ancientAfterPowerGild, ancientOfferOpen, ancientPowerTargetsGilded, ancientReplacesPowerGild, ancientsCombatTick, ancientsRefreshTick, ancientsSetMeter, pickAncient, ancientPulseExtraThenDestroy, ancientPulseDiscovers, ancientPulsePassive, ancientAfterPulse, ancientAegisDestroys, ancientAegisRecipient, ancientAegisDestroyAndGive, ancientAegisResilient, ancientAfterCombat, ancientBondsReact, ancientStartOfTurn, ancientEmpowerPassive, ancientOnEmpowerPick, ancientOnSpellbook, ancientClearancePassive, ancientClearanceStacks, ancientSpendClearanceStack, ancientClearanceRefresh, ancientMarkClearanceOffer, ancientAfterClearance, ancientOnClearanceBuy, ancientTimePrice, ancientNoteMinionBuy, ancientAfterRefresh, ancientTradesBuy, ancientRallyGoldGraft, ancientUpgradeSurchargeOff, FRUGAL_UPGRADE_SURCHARGE, ancientReclaimInShop, ancientShopReclaim, ancientAfterReclaimMark, ancientTradesRefreshFree, ancientTradesSpendFreeRefresh } from './ancients';
 import { runSpells } from './spellPool';
 import { currentCollector, withActiveCollector } from './activeCollector';
 import { surfaceKeyForRune, surfaceKeyForQuest, CARD_INDEX, EPIC_RUNES, GIFT_IDS, QUEST_INDEX, RUNE_INDEX, RUNES, runeSynergies, type SynergyTag } from '@game/content';
@@ -128,10 +128,12 @@ function tiffBuyDiscount(s: RunState, card: CardDef): void {
 
 /** Push a PLAIN, base-stat copy of a card to hand (Re-Pete's Second Hand / Gorr's Four Peat) — a CONJURED
  *  card: no per-instance buffs/golden/welds carried, and it does NOT take from the shared pool. Hand-cap-safe. */
-function conjurePlainCopy(s: RunState, cardId: string): void {
+function conjurePlainCopy(s: RunState, cardId: string): BoardCard | undefined {
   const def = CARD_INDEX[cardId];
-  if (!def || s.hand.length >= handCap(s)) return;
-  s.hand.push({ uid: `b${s.uidSeq++}`, cardId: def.id, tribe: def.tribe, attack: def.attack, health: def.health, keywords: [...def.keywords], golden: false });
+  if (!def || s.hand.length >= handCap(s)) return undefined;
+  const card: BoardCard = { uid: `b${s.uidSeq++}`, cardId: def.id, tribe: def.tribe, attack: def.attack, health: def.health, keywords: [...def.keywords], golden: false };
+  s.hand.push(card);
+  return card;
 }
 
 /** Gorr's Four Peat: when you buy your 3rd MINION in a single turn, get a plain copy of one of the three at
@@ -1149,6 +1151,17 @@ export function reduce(state: RunState, action: Action): RunState {
       advanceQuests(next, (o) => o.event === 'buy' && (!o.tribe || tribes.includes(o.tribe)) && (o.filter !== 'shout' || isShout));
       applyCardsBought(next, 1); // Korok / Banksly: "when you buy N cards" (the buy-count sibling of the Gold meter)
       next.cardsBoughtThisTurn = (next.cardsBoughtThisTurn ?? 0) + 1; // set 2: Frenzied Excavator's SoC scaler
+      // ANCIENTS (a no-op unless the run has them): every successful buy, each path once. The spell SLOT is not in
+      // the shop row, so its def is read from `state.spell`. `body` = the bought minion as it stands after the action
+      // (a uid new this action holding the bought card; undefined for a spell, the Starform, or a triple's input).
+      {
+        const adef = bdef ?? (state.spell?.uid === action.uid ? CARD_INDEX[state.spell.cardId] : undefined);
+        if (adef) {
+          const had = new Set([...state.hand, ...state.board].map((c) => c.uid));
+          const body = adef.spell || offer?.starform ? undefined : [...next.hand, ...next.board].find((c) => !had.has(c.uid) && c.cardId === adef.id);
+          ancientOnBuy(next, adef.id, !!offer?.starform, body);
+        }
+      }
       const boughtMinion = !!bdef && !bdef.spell && !bdef.ruby;
       // RUNE OF THE COLLECTOR (balance 9/23: "When you buy 3 minions in one turn, get a random copy of one."):
       // every THIRD minion bought this turn hands over a plain copy of one of the three that filled the meter,
@@ -4261,20 +4274,31 @@ function endRecruitTurn(s: RunState): void {
   // left-most card in hand — base stats only (no buffs/golden/welds carried) and NO pool take (a
   // conjured card). Hand-cap-safe; an empty hand grants nothing. (Owner correction 2026-07-16:
   // end-of-turn, not start-of-shop.)
-  if (hasPower(s, 'secondHand') && s.wave % 3 === 0 && s.hand.length > 0) {
+  // ANCIENTS × Re-Pete (no-ops unless the run has them): Time changes the cadence (every 2nd turn), Bonds the source
+  // (the left-most and right-most BOARD minions), Genesis the copy (an exact one), War what each copy gains.
+  const shSources = hasPower(s, 'secondHand') && s.wave % ancientSecondHandEvery(s) === 0 ? ancientSecondHandSources(s) : [];
+  if (shSources.length > 0) {
     // CHOREOGRAPHER PR 9 — hero powers emit. Re-Pete's Second Hand conjured a card into hand with no
     // event at all, so it had no beat to schedule and nothing in the Beat Lab to reclassify: the owner
     // flipping it from folded to its own beat correctly changed nothing, because there was no beat.
     // The hero is the SOURCE, so the cue can anchor on the portrait rather than on the card that appears.
     const heroDef = getHero(s.heroId);
-    const cardId = s.hand[0]!.cardId;
     heroBeat(s, 'secondHand', heroDef.name, () => {
-      for (let r = 1; r < wishboneReps(s); r++) conjurePlainCopy(s, cardId); // Wishbone: a second copy
-      conjurePlainCopy(s, cardId);
-      const made = s.hand[s.hand.length - 1];
+      const made: BoardCard[] = [];
+      const lastOf: BoardCard[] = []; // each source's last copy: its `cardGranted` arrival (Bonds' two edges get one each)
+      const exact = ancientSecondHandIsExact(s);
+      for (const src of shSources) {
+        let last: BoardCard | undefined;
+        for (let r = 0; r < wishboneReps(s); r++) { // Wishbone: a second copy
+          const copy = exact ? ancientSecondHandExactCopy(s, src) : conjurePlainCopy(s, src.cardId);
+          if (copy) { made.push(copy); last = copy; }
+        }
+        if (last) lastOf.push(last);
+      }
+      ancientAfterSecondHand(s, made);
       const c = currentCollector();
-      if (c.enabled && made) {
-        c.emit({ type: 'cardGranted', target: { zone: 'hand', uid: made.uid, cardId: made.cardId, side: 'player' }, cardId: made.cardId });
+      if (c.enabled) {
+        for (const m of lastOf) c.emit({ type: 'cardGranted', target: { zone: 'hand', uid: m.uid, cardId: m.cardId, side: 'player' }, cardId: m.cardId });
       }
     });
   }

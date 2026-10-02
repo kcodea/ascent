@@ -9838,7 +9838,7 @@ export function openDiscover(state: RunState, spec: DiscoverSpec): void {
     // Without this exemption a Gift Discover filtered itself to empty and silently never opened.
     // …and CHOOSE ONE spells (Prismatic Pick's "Discover a Choose One card", 2026-09-09) — an explicit pool that
     // names them means them; the minion-only default guards the callers that never meant to offer a spell.
-    const pool = spec.ids.filter((id) => CARD_INDEX[id] && (!CARD_INDEX[id]!.spell || CARD_INDEX[id]!.gift || (CARD_INDEX[id]!.chooseOne?.length ?? 0) > 0));
+    const pool = spec.ids.filter((id) => CARD_INDEX[id] && (spec.spells || !CARD_INDEX[id]!.spell || CARD_INDEX[id]!.gift || (CARD_INDEX[id]!.chooseOne?.length ?? 0) > 0));
     if (pool.length === 0) return;
     const rng = makeRng(state.rngCursor);
     const avail = [...pool];
@@ -9849,7 +9849,7 @@ export function openDiscover(state: RunState, spec: DiscoverSpec): void {
     state.discoverLockTier = undefined;
     state.discoverGolden = undefined;
     state.discoverLockGold = undefined;
-    state.discoverLockWave = undefined;
+    state.discoverLockWave = spec.lockWave; // Re-Pete x Ancient of Fortune: the pick is locked until next turn
     state.discoverBorrowed = spec.borrowed; // Rival's Reflection never borrows; kept generic
   } else {
     offerDiscover(state, spec.tier, {

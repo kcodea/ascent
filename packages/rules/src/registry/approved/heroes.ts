@@ -725,15 +725,16 @@ export const HEROES_RULES: GameRule[] = [
   },
   {
     id: 'R-ANCTRADES-02',
-    title: 'Tradesman × Ancient of Fortune: buying a minion gains a free Refresh',
+    title: 'Tradesman × Ancient of Fortune: buying a minion makes your next Refresh cost 0 (never stacks)',
     statement:
-      'With the Ancient of Fortune, every minion BOUGHT from the Shop (a normal buy, the Starform, a displaced body re-bought) banks one free Refresh (RunState.freeRolls) immediately. Spell buys, Discovers and generated cards do not count.',
+      'With the Ancient of Fortune, every minion BOUGHT from the Shop (a normal buy, the Starform, a displaced body re-bought) sets ONE pending "next Refresh costs 0" (AncientsState.tradesNextRefreshFree). It never stacks: more buys while it is set add nothing, and it never banks into RunState.freeRolls. The next Refresh (the roll action) spends it FIRST, before any banked free Refresh (which is kept) or Window Shopping. It carries across turns until used and survives save / restore. The Refresh button, nextRefreshCostOf and the bots read refreshCostOf, which prints 0 while it is pending; the power text says whether the next Refresh is free. Spell buys, Discovers and generated cards do not count.',
     domain: 'heroes',
     status: 'approved',
     evidence: [
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-02 (Tradesman Ancients)', quote: 'Fortune - When you buy a minion, gain a free Refresh' },
-      { kind: 'code', ref: 'packages/sim/src/ancients.ts buyGivesFreeRefresh / ancientTradesBuy; packages/sim/src/reducer.ts buy branch' },
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-02 (Tradesman Ancients, owner rulings on PR #1905)', quote: 'All minion buys (as built)' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-02 (Tradesman Fortune change)', quote: "change tradesman's fortune ancient to 'when you buy a minion, your next refresh costs 0' this way it doesn't stack up multiple free refreshes." },
+      { kind: 'code', ref: 'packages/sim/src/ancients.ts buyNextRefreshFree / ancientTradesBuy / ancientTradesSpendFreeRefresh; packages/sim/src/reducer.ts refreshCostOf + roll branch' },
     ],
     currentBehaviour: 'Conforms (built 2026-10-02). Dev-only (Scene Builder, Set 3, the Ancients flag).',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsTradesman.test.ts'], lastVerifiedAt: '2026-10-02' },

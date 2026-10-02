@@ -14,6 +14,25 @@ import { gatherSnapshotBuffs } from './runBuffs';
 import { stageHost } from './stage';
 import { foePortrait } from './gauntlet/foePortrait';
 
+/** A tier worth printing: a whole number from 1 up. Anything else (missing, NaN, 0) hides the pill. */
+export const tierKnown = (tier: number | null | undefined): tier is number =>
+  typeof tier === 'number' && Number.isInteger(tier) && tier >= 1;
+
+/**
+ * "Shop Tier X" under the foe's health pill (owner ask 2026-10-02). A primitive prop, memoized, no animation: it
+ * re-renders only when the tier (or the Buffs arrow riding under it) changes; both props are primitives. Hidden when
+ * the tier is unknown.
+ */
+export const OppTierPill = memo(function OppTierPill({ tier, arrow = null }: { tier: number | null | undefined; arrow?: '▴' | '▾' | null }): JSX.Element | null {
+  if (!tierKnown(tier)) return null;
+  return (
+    <span className="combatopp-tier">
+      Shop Tier <b className="combatopp-tier-n">{tier}</b>
+      {arrow && <span className="oppbuffs-arrow" aria-hidden="true">{arrow}</span>}
+    </span>
+  );
+});
+
 /**
  * THE COMBAT OPPONENT — the foe's hero portrait, dropped in over the Refresh button for the fight (owner ask
  * 2026-08-25).
@@ -92,6 +111,8 @@ export const CombatOpponent = memo(function CombatOpponent(): JSX.Element | null
     : undefined;
   const runes = (forced ?? next?.board.snapshot?.runes ?? []).filter((id) => RUNE_INDEX[id]);
   const buffRows = gatherSnapshotBuffs(next?.board.snapshot);
+  // The tier of the board this foe is fielding (`PreparedBoard.tier`, the same number that feeds face damage).
+  const oppTier = next.board.tier;
   const hasBuffs = buffRows.length > 0;
   // PORTAL to <body>: `.combatopp` must be able to paint ABOVE the player's statusbar (z40) when the foe
   // strikes. It used to live inside `.app` (a z-index:1 stacking context), which capped it under the
@@ -135,9 +156,17 @@ export const CombatOpponent = memo(function CombatOpponent(): JSX.Element | null
           <div className="combatopp-hp">
             <Icon name="heart" />{shownResolve}
             {shownArmor > 0 && <span className="combatopp-armor">+{shownArmor}</span>}
-            {/* Buffs affordance — the little arrow riding BELOW the health pill (the player's rides the
-                portrait's top; the foe's panel drops the other way). */}
-            {hasBuffs && <span className="oppbuffs-arrow" aria-hidden="true">{buffsOpen ? '▴' : '▾'}</span>}
+            {/* The foe's SHOP TIER (owner ask 2026-10-02) — a smaller pill hung BELOW the health pill. A child of
+                the health pill, absolutely positioned, so it takes the pill's transform and strike fade and never
+                shifts the column. When it shows, the Buffs arrow rides under IT instead of under the health pill
+                (the two would otherwise sit on the same spot). */}
+            {tierKnown(oppTier) ? (
+              <OppTierPill tier={oppTier} arrow={hasBuffs ? (buffsOpen ? '▴' : '▾') : null} />
+            ) : (
+              /* Buffs affordance — the little arrow riding BELOW the health pill (the player's rides the
+                 portrait's top; the foe's panel drops the other way). */
+              hasBuffs && <span className="oppbuffs-arrow" aria-hidden="true">{buffsOpen ? '▴' : '▾'}</span>
+            )}
           </div>
         )}
         {/* The foe's run-buffs pop-out — expands DOWNWARD out of the group's bottom edge when the portrait

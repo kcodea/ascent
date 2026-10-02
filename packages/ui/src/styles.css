@@ -11986,6 +11986,21 @@ body.duel-attacker-opp .combatopp-hp { opacity: 0; }
 }
 .combatopp-hp svg { flex: none; width: calc(24 * var(--u)); height: calc(24 * var(--u)); color: var(--threat); }
 .combatopp-armor { margin-left: calc(3 * var(--u)); font-size: calc(17 * var(--u)); color: #b7c2cf; }
+/* Opponent SHOP TIER (owner ask 2026-10-02) — a smaller pill of the health pill's family hung just BELOW it.
+   Absolutely positioned inside `.combatopp-hp`, so it rides that pill's transform + strike fade and takes NO space
+   in the column (nothing else moves). Static paint, no animation. The number wears the gold of the player's own
+   Tier plaque (`.tvb-tierpill`). When the foe has Buffs, the arrow cue rides under this pill instead. */
+.combatopp-tier {
+  position: absolute; left: 50%; top: calc(100% + 4 * var(--u)); transform: translateX(-50%);
+  display: inline-flex; align-items: baseline; gap: calc(5 * var(--u)); white-space: nowrap; pointer-events: none;
+  background: linear-gradient(180deg, #241a13, #17110c);
+  border: 2px solid color-mix(in srgb, var(--gold) 55%, #000); border-radius: calc(12 * var(--u));
+  padding: calc(4 * var(--u)) calc(11 * var(--u));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 2px 6px rgba(0, 0, 0, 0.3);
+  font-family: var(--font-ui); font-weight: 800; font-size: calc(14 * var(--u)); line-height: 1;
+  letter-spacing: 0.02em; color: #f4ecdb;
+}
+.combatopp-tier-n { font-weight: 900; font-size: calc(16 * var(--u)); color: var(--gold); }
 
 /* FOE BUFFS PANEL (owner ask 2026-08-30) — the opponent portrait carries the SAME affordances as the
    player's (darkened hover prompt, click to toggle, an arrow cue), but the arrow rides BELOW the health

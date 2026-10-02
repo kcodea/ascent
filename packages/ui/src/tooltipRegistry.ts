@@ -32,6 +32,7 @@ export const TIP_CLASSES = [
   'lobbyscout',
   'anc-pv',
   'opp-power-tip',
+  'lobbymax-tip',
 ] as const;
 
 /** Classes whose names look like a tip but are not a hover panel: the `.gtip` family marks the ELEMENT that owns a

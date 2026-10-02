@@ -10654,7 +10654,7 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
    Undoes the header's uppercase / nowrap / text-shadow, which it would inherit. */
 .lobbyrailhead > .herotip.lobbymax-tip {
   left: auto; right: calc(14 * var(--lu)); bottom: calc(100% + 12px); transform: none;
-  width: max-content; max-width: 320px; pointer-events: none;
+  width: max-content; max-width: var(--atip-z-maxw); pointer-events: none;
   text-transform: none; text-shadow: none; letter-spacing: normal; white-space: normal;
 }
 .lobbymax:hover + .herotip.lobbymax-tip, .lobbymax.tt-on + .herotip.lobbymax-tip { opacity: 1; transition-delay: 0.35s; }

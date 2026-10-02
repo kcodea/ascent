@@ -5,9 +5,345 @@
   "portraitCardId": "k_gemstorm",
   "tribe": "kobold",
   "status": "draft",
-  "runes": {},
+  "runes": {
+    "round6": "rune_engraving_gems",
+    "round9": "rune_attacking_gems"
+  },
   "rounds": [
-    { "board": [] }, { "board": [] }, { "board": [] }, { "board": [] }, { "board": [] },
-    { "board": [] }, { "board": [] }, { "board": [] }, { "board": [] }, { "board": [] }
+    {
+      "board": [
+        {
+          "cardId": "k_beggy",
+          "attack": 2,
+          "health": 3,
+          "cardVersion": "9859a418"
+        }
+      ]
+    },
+    {
+      "tier": 1,
+      "board": [
+        {
+          "cardId": "k_beggy",
+          "attack": 2,
+          "health": 3,
+          "cardVersion": "9859a418"
+        },
+        {
+          "cardId": "k_chipwick",
+          "attack": 3,
+          "health": 1,
+          "cardVersion": "f4894b67"
+        }
+      ]
+    },
+    {
+      "tier": 2,
+      "board": [
+        {
+          "cardId": "k_beggy",
+          "attack": 2,
+          "health": 3,
+          "cardVersion": "9859a418"
+        },
+        {
+          "cardId": "k_chipwick",
+          "attack": 5,
+          "health": 3,
+          "cardVersion": "f4894b67"
+        }
+      ]
+    },
+    {
+      "tier": 2,
+      "board": [
+        {
+          "cardId": "k_beggy",
+          "attack": 2,
+          "health": 3,
+          "cardVersion": "9859a418"
+        },
+        {
+          "cardId": "k_chipwick",
+          "attack": 5,
+          "health": 3,
+          "cardVersion": "f4894b67"
+        },
+        {
+          "cardId": "k_deepvein",
+          "attack": 2,
+          "health": 3,
+          "cardVersion": "0da4cc98"
+        },
+        {
+          "cardId": "k_deepvein",
+          "attack": 2,
+          "health": 3,
+          "cardVersion": "0da4cc98"
+        }
+      ],
+      "buffs": {
+        "rubyBonus": {
+          "attack": 0,
+          "health": 2
+        }
+      }
+    },
+    {
+      "tier": 3,
+      "board": [
+        {
+          "cardId": "k_chipwick",
+          "attack": 7,
+          "health": 7,
+          "cardVersion": "f4894b67"
+        },
+        {
+          "cardId": "k_deepvein",
+          "attack": 4,
+          "health": 7,
+          "cardVersion": "0da4cc98"
+        },
+        {
+          "cardId": "k_deepvein",
+          "attack": 2,
+          "health": 3,
+          "cardVersion": "0da4cc98"
+        },
+        {
+          "cardId": "k_chipwick",
+          "attack": 3,
+          "health": 1,
+          "cardVersion": "f4894b67"
+        }
+      ]
+    },
+    {
+      "tier": 3,
+      "board": [
+        {
+          "cardId": "k_blazer",
+          "attack": 2,
+          "health": 7,
+          "cardVersion": "c67de955"
+        },
+        {
+          "cardId": "k_tunnelcharger",
+          "attack": 3,
+          "health": 4,
+          "cardVersion": "bd524d84"
+        },
+        {
+          "cardId": "k_chipwick",
+          "attack": 7,
+          "health": 7,
+          "cardVersion": "f4894b67"
+        },
+        {
+          "cardId": "k_deepvein",
+          "attack": 4,
+          "health": 7,
+          "cardVersion": "0da4cc98"
+        },
+        {
+          "cardId": "k_deepvein",
+          "attack": 2,
+          "health": 3,
+          "cardVersion": "0da4cc98"
+        },
+        {
+          "cardId": "k_chipwick",
+          "attack": 3,
+          "health": 1,
+          "cardVersion": "f4894b67"
+        }
+      ]
+    },
+    {
+      "tier": 4,
+      "board": [
+        {
+          "cardId": "k_blazer",
+          "attack": 4,
+          "health": 10,
+          "cardVersion": "c67de955"
+        },
+        {
+          "cardId": "k_tunnelcharger",
+          "attack": 9,
+          "health": 14,
+          "cardVersion": "bd524d84"
+        },
+        {
+          "cardId": "k_chipwick",
+          "attack": 8,
+          "health": 9,
+          "cardVersion": "f4894b67"
+        },
+        {
+          "cardId": "k_deepvein",
+          "attack": 7,
+          "health": 13,
+          "cardVersion": "0da4cc98"
+        },
+        {
+          "cardId": "k_deepvein",
+          "attack": 5,
+          "health": 10,
+          "cardVersion": "0da4cc98"
+        },
+        {
+          "cardId": "k_chipwick",
+          "attack": 5,
+          "health": 9,
+          "cardVersion": "f4894b67"
+        }
+      ]
+    },
+    {
+      "tier": 4,
+      "board": [
+        {
+          "cardId": "k_blazer",
+          "attack": 7,
+          "health": 14,
+          "cardVersion": "c67de955"
+        },
+        {
+          "cardId": "k_tunnelcharger",
+          "attack": 13,
+          "health": 18,
+          "cardVersion": "bd524d84"
+        },
+        {
+          "cardId": "k_chipwick",
+          "attack": 12,
+          "health": 12,
+          "cardVersion": "f4894b67"
+        },
+        {
+          "cardId": "k_deepvein",
+          "attack": 17,
+          "health": 23,
+          "cardVersion": "0da4cc98",
+          "golden": true
+        },
+        {
+          "cardId": "k_chipwick",
+          "attack": 9,
+          "health": 13,
+          "cardVersion": "f4894b67"
+        },
+        {
+          "cardId": "k_resonance",
+          "attack": 4,
+          "health": 6,
+          "cardVersion": "41995043"
+        }
+      ],
+      "buffs": {
+        "rubyBonus": {
+          "attack": 0,
+          "health": 4
+        }
+      }
+    },
+    {
+      "tier": 5,
+      "board": [
+        {
+          "cardId": "k_blazer",
+          "attack": 11,
+          "health": 18,
+          "cardVersion": "c67de955"
+        },
+        {
+          "cardId": "k_tunnelcharger",
+          "attack": 18,
+          "health": 25,
+          "cardVersion": "bd524d84"
+        },
+        {
+          "cardId": "k_chipwick",
+          "attack": 17,
+          "health": 21,
+          "cardVersion": "f4894b67"
+        },
+        {
+          "cardId": "k_deepvein",
+          "attack": 21,
+          "health": 32,
+          "cardVersion": "0da4cc98",
+          "golden": true
+        },
+        {
+          "cardId": "k_chipwick",
+          "attack": 12,
+          "health": 22,
+          "cardVersion": "f4894b67"
+        },
+        {
+          "cardId": "k_resonance",
+          "attack": 7,
+          "health": 15,
+          "cardVersion": "41995043"
+        },
+        {
+          "cardId": "k_deepdelve",
+          "attack": 4,
+          "health": 7,
+          "cardVersion": "a15b73e7"
+        }
+      ]
+    },
+    {
+      "tier": 5,
+      "board": [
+        {
+          "cardId": "k_blazer",
+          "attack": 11,
+          "health": 18,
+          "cardVersion": "c67de955"
+        },
+        {
+          "cardId": "k_kobabyboldies",
+          "attack": 3,
+          "health": 3,
+          "cardVersion": "8c7ce01e"
+        },
+        {
+          "cardId": "k_tunnelcharger",
+          "attack": 18,
+          "health": 25,
+          "cardVersion": "bd524d84"
+        },
+        {
+          "cardId": "k_chipwick",
+          "attack": 40,
+          "health": 49,
+          "cardVersion": "f4894b67",
+          "golden": true
+        },
+        {
+          "cardId": "k_deepvein",
+          "attack": 21,
+          "health": 32,
+          "cardVersion": "0da4cc98",
+          "golden": true
+        },
+        {
+          "cardId": "k_resonance",
+          "attack": 7,
+          "health": 15,
+          "cardVersion": "41995043"
+        },
+        {
+          "cardId": "k_deepdelve",
+          "attack": 4,
+          "health": 7,
+          "cardVersion": "a15b73e7"
+        }
+      ]
+    }
   ]
 }

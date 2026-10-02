@@ -15,7 +15,7 @@ import { COSMETICS } from './cosmetics';
  * until one exists.)
  */
 const SKINS_ROOT = 'C:/Game Assets/Ascent Art/Skins';
-const RARITY_DIRS = { Common: 'common', Rare: 'rare', Epic: 'epic', Legendary: 'legendary' } as const;
+const RARITY_DIRS = { Common: 'common', Rare: 'rare', Epic: 'epic', Legendary: 'legendary', Ancient: 'ancient' } as const;
 
 describe.skipIf(!existsSync(SKINS_ROOT))('skin rarity = the art folder it sits in', () => {
   const where = new Map<string, { category: string; rarity: string }[]>();

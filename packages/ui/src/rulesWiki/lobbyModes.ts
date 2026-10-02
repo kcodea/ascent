@@ -343,7 +343,7 @@ export const ENTRIES: readonly WikiEntry[] = [
     id: 'crates',
     topic: 'lobby',
     q: 'What are crates and how do I get them?',
-    a: "You get **one crate per Account Level** (your first game gives a Welcome Crate), and the **first time you clear each Gauntlet stage** while signed in earns one too. Open it right after the game or later from the **Collection**. It gives you a cosmetic you **don't already own**. The odds are fixed: **Common 50%, Rare 30%, Epic 15%, Legendary 5%** (if you already own everything of the rarity it rolls, you get the nearest rarity that still has something). No keys, no buying, just play.",
+    a: "You get **one crate per Account Level** (your first game gives a Welcome Crate), and the **first time you clear each Gauntlet stage** while signed in earns one too. Open it right after the game or later from the **Collection**. It gives you a cosmetic you **don't already own**. The odds are fixed: **Common 35%, Rare 31%, Epic 22%, Legendary 9%, Ancient 3%** (if you already own everything of the rarity it rolls, you get the nearest rarity that still has something). No keys, no buying, just play.",
     aliases: ['crate', 'gauntlet crate', 'loot box', 'chest', 'rewards', 'unlock', 'open crate'],
     seeAlso: ['collection', 'account-levels'],
     covers: [{ rule: 'R-PROG-CRATE-01', fp: 'd438ab2c' }, { rule: 'R-PROG-CRATE-02', fp: 'f8a0ebcc' }],

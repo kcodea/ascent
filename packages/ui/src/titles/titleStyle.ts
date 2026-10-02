@@ -2,7 +2,7 @@
  * TITLES: how a title LOOKS (owner ask 2026-09-28: "show the title + the titles colors if it has colors etc as a
  * way of showing off their flair").
  *
- * Today every title paints in its RARITY colour (the shared `.r-common` .. `.r-legendary` tokens in styles.css,
+ * Today every title paints in its RARITY colour (the shared `.r-common` .. `.r-ancient` tokens in styles.css,
  * the same ones the Collection uses). Hero-mastery titles (designed, not built yet) will carry their OWN style: a
  * gradient and an optional effect, keyed by title id in `TITLE_STYLES` below. Adding one is a single entry here;
  * `TitleBadge` already renders both. No catalog or snapshot change is needed, because a snapshot records only the

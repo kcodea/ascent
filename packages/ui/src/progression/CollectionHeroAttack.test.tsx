@@ -62,7 +62,7 @@ describe('the Attack Animations tab', () => {
     act(() => tab('Attack Animations').click());
     expect(tab('Attack Animations').querySelector('.colls-tab-count')?.textContent).toBe('3/20'); // 2026-09-28: Phantom Blades, Enraged Strike, Venom Volley then Frost Nova then Consecration joined, then Inferno, Grave Call, the Stampede and Oona's Banana Cannon, then the Epics Card Shark and Storm Call (2026-09-29), so three of fourteen
     act(() => tile('Arcana').click());
-    expect(tile('Arcana').getAttribute('aria-label')).toBe('Arcana, Legendary, owned');
+    expect(tile('Arcana').getAttribute('aria-label')).toBe('Arcana, Ancient, owned'); // moved Legendary -> Ancient (owner 2026-10-02)
     expect(text('.colls-detail .colls-kicker')).toBe('Hero attack');
     expect($('.colls-detail .hapv-box')).not.toBeNull();
     const preview = button('▶ Preview');
@@ -183,7 +183,7 @@ describe('the Attack Animations tab', () => {
     act(() => tab('Attack Animations').click());
     expect(tab('Attack Animations').querySelector('.colls-tab-count')?.textContent).toBe('2/20');
     act(() => tile('Consecration').click());
-    expect(tile('Consecration').getAttribute('aria-label')).toBe('Consecration, Legendary, owned');
+    expect(tile('Consecration').getAttribute('aria-label')).toBe('Consecration, Ancient, owned'); // moved Legendary -> Ancient (owner 2026-10-02)
     expect(text('.colls-detail .colls-kicker')).toBe('Hero attack');
     expect($('.colls-detail .hapv-box')).not.toBeNull();
     const preview = button('▶ Preview');

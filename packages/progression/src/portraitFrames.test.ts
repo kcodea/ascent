@@ -7,7 +7,7 @@ import { validateInventoryBody } from './inventory';
 
 /**
  * PORTRAIT FRAMES (owner 2026-10-01: "we're adding portrait skins: C:\Game Assets\Ascent Art\Skins\Portraits. we want
- * this to replace the default portrait png when a skin is applied"). The 39 frames (every one a crate drop at its
+ * this to replace the default portrait png when a skin is applied"). The 45 frames (every one a crate drop at its
  * folder's rarity, the rank-named masters included), the account-wide `portrait_frame` slot, the loadout and the run
  * snapshot carrying it, and the one resolver that drops unknown / retired / wrong-category ids.
  */
@@ -16,7 +16,7 @@ const FRAMES = COSMETICS.filter((c) => c.category === 'portrait_frame');
 afterEach(() => setServerCatalogState(null));
 
 describe('the portrait frame catalog', () => {
-  it('39 crate frames at their folder rarity (10 Common, 8 Rare, 13 Epic, 8 Legendary), each naming its master and art key', () => {
+  it('45 crate frames at their folder rarity (10 Common, 8 Rare, 13 Epic, 8 Legendary, 6 Ancient), each naming its master and art key', () => {
     expect(Object.fromEntries(FRAMES.map((c) => [c.id, c.rarity]))).toEqual({
       frame_honey: 'common', frame_ale: 'common', frame_ruby: 'common', frame_steel: 'common', frame_wood: 'common',
       frame_dark_dragonscale: 'common',
@@ -29,6 +29,8 @@ describe('the portrait frame catalog', () => {
       frame_cherry_blossom: 'epic',
       frame_golden_dragonscale: 'legendary', frame_dark_cloud: 'legendary', frame_venom: 'legendary',
       frame_fire: 'legendary', frame_reaper: 'legendary', frame_water: 'legendary', frame_stained_glass: 'legendary', frame_wind: 'legendary',
+      // the first Ancient frames (owner 2026-10-02: "i added a new rarity -> Ancient")
+      frame_bonds: 'ancient', frame_death: 'ancient', frame_fortune: 'ancient', frame_genesis: 'ancient', frame_time: 'ancient', frame_war: 'ancient',
     });
     for (const c of FRAMES) {
       expect(c.acquisition, c.id).toEqual({ type: 'crate' });
@@ -47,7 +49,7 @@ describe('the portrait frame catalog', () => {
       'Seaglass', 'Glass Shard', 'Paragon', 'Vine', 'Magic', 'Simple Ring', 'Void', 'Multichrome Energy', 'Blue Energy', 'Crackling Ruby', 'Topaz', 'Jade',
       'Aura', 'Amethyst', 'Shard', 'Prism', 'Frost', 'Pearlescent',
       'Crimson', 'Nimbus', 'Dark Cloud', 'Venom', 'Wedding', 'Fire', 'Reaper', 'Water', 'Stained Glass', 'Wind',
-      'Cherry Blossom',
+      'Cherry Blossom', 'Bonds', 'Death', 'Fortune', 'Genesis', 'Time', 'War',
     ]);
     expect(new Set(FRAMES.map((c) => c.name)).size).toBe(FRAMES.length);
   });

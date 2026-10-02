@@ -23,6 +23,9 @@ const root = join(__dirname, '../../..');
 const MVP = readFileSync(join(root, 'supabase/migrations/2026-09-27-account-progression.sql'), 'utf8');
 const CRATES = readFileSync(join(root, 'supabase/migrations/2026-09-28-progression-crates.sql'), 'utf8');
 const SKINS = readFileSync(join(root, 'supabase/migrations/2026-09-28-progression-skins.sql'), 'utf8');
+/** The Ancient rarity file's rarity check only (2026-10-02): the code catalog now holds Ancient items, which the crates
+ *  file's four-rarity check would reject. Its pick + open_crate are crateOdds.db.test.ts's business. */
+const ANCIENT_CHECK = ((t: string): string => t.slice(0, t.indexOf('-- ── 1. The pick')))(readFileSync(join(root, 'supabase/migrations/2026-10-02-ancient-rarity.sql'), 'utf8'));
 
 /** The owner's one-line switches, read out of the migration header so the test runs EXACTLY what is documented. */
 function switchLine(pattern: RegExp): string {
@@ -112,6 +115,7 @@ beforeAll(async () => {
   await db.exec(API_GRANTS);
   await db.exec(SKINS);
   await db.exec(API_GRANTS);
+  await db.exec(ANCIENT_CHECK);
   // The first cold start after the deploy.
   expect((await sync()).status).toBe('synced');
 }, 60_000);
@@ -158,7 +162,11 @@ describe('the crate pool', () => {
       if (r.status === 'opened') got.push(r.rewardId!);
       else expect(r.status).toBe('pool_exhausted');
     }
-    expect(got.sort()).toEqual(NON_TITLE_CRATE_IDS);
+    // This file runs the SKINS-era roll (version 1: rarity weight x category weight), which has no weight for Ancient
+    // (2026-10-02), so it never draws an Ancient item. Production runs 2026-10-02-ancient-rarity.sql's pick, where
+    // Ancient is a 3% band (crateOdds.db.test.ts drives that one).
+    const ancient = new Set(COSMETICS.filter((c) => c.rarity === 'ancient').map((c) => c.id));
+    expect(got.sort()).toEqual(NON_TITLE_CRATE_IDS.filter((id) => !ancient.has(id)));
   });
 
   it('the SQL pool and the TS eligible list agree for a fresh player (titles + skins)', async () => {

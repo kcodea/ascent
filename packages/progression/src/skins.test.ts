@@ -46,7 +46,7 @@ describe('the eighty skins', () => {
       ['skin_paragon_1', 'minion_skin', { type: 'card', id: 'n2_paragon' }, 'rare'],
       ['skin_stewardofspells_1', 'minion_skin', { type: 'card', id: 'stewardofspells' }, 'common'],
       ['skin_sylus_1', 'minion_skin', { type: 'card', id: 'sylus' }, 'epic'],
-      ['skin_sylus_2', 'minion_skin', { type: 'card', id: 'sylus' }, 'legendary'],
+      ['skin_sylus_2', 'minion_skin', { type: 'card', id: 'sylus' }, 'ancient'], // moved Legendary -> Ancient (owner 2026-10-02)
       ['skin_venom_1', 'minion_skin', { type: 'card', id: 'venom' }, 'legendary'],
       ['skin_zyff_1', 'minion_skin', { type: 'card', id: 'zyff' }, 'common'],
       ['skin_oona_1', 'minion_skin', { type: 'card', id: 'b2_oona' }, 'epic'],
@@ -62,7 +62,7 @@ describe('the eighty skins', () => {
       ['skin_chimerus_1', 'minion_skin', { type: 'card', id: 'chimerus' }, 'rare'],
       ['skin_chronicler_1', 'minion_skin', { type: 'card', id: 'd2_chronicler' }, 'legendary'],
       ['skin_chronicler_2', 'minion_skin', { type: 'card', id: 'd2_chronicler' }, 'common'],
-      ['skin_edward_1', 'minion_skin', { type: 'card', id: 'dw_edward' }, 'legendary'],
+      ['skin_edward_1', 'minion_skin', { type: 'card', id: 'dw_edward' }, 'ancient'], // moved Legendary -> Ancient (owner 2026-10-02)
       ['skin_baal_1', 'minion_skin', { type: 'card', id: 'dw_baal' }, 'rare'],
       ['skin_pouchpincher_1', 'minion_skin', { type: 'card', id: 'k_pouchpincher' }, 'common'],
       ['skin_buddy_2', 'minion_skin', { type: 'card', id: 'buddy' }, 'legendary'],

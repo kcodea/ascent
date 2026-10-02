@@ -292,7 +292,7 @@ for (const c of COSMETICS) {
   SKIN_MASTERS[norm(master.replace(/\.(png|webp|jpe?g)$/i, ''))] = art;
 }
 
-const SKIN_RARITY_DIRS = ['Minion Skins', 'Hero Skins'].flatMap((c) => ['Common', 'Rare', 'Epic', 'Legendary'].map((r) => `${c}/${r}`));
+const SKIN_RARITY_DIRS = ['Minion Skins', 'Hero Skins'].flatMap((c) => ['Common', 'Rare', 'Epic', 'Legendary', 'Ancient'].map((r) => `${c}/${r}`));
 
 const JOBS: Job[] = [
   {

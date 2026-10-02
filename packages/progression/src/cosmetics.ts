@@ -40,20 +40,22 @@
 export const COSMETIC_CATEGORIES = ['announcer', 'hero_skin', 'minion_skin', 'title', 'hero_attack', 'board', 'music', 'portrait_frame'] as const;
 export type CosmeticCategory = typeof COSMETIC_CATEGORIES[number];
 
-export const COSMETIC_RARITIES = ['common', 'rare', 'epic', 'legendary'] as const;
+export const COSMETIC_RARITIES = ['common', 'rare', 'epic', 'legendary', 'ancient'] as const;
 export type CosmeticRarity = typeof COSMETIC_RARITIES[number];
 
 /**
  * THE PUBLISHED CRATE ODDS, in percent (sum 100). A crate first rolls a rarity at these fixed odds, then picks an
  * unowned item of that rarity (owner 2026-09-29: "go to C", then "make it 50/30/15/5 though"). They never move as
  * items are added, so they are safe to show players. The ONE copy in TS; `progression_crate_pick` in
- * supabase/migrations/2026-09-29-crate-uniform-within-rarity.sql carries them as constants, and sqlParity.test.ts
+ * supabase/migrations/2026-10-02-ancient-rarity.sql carries them as constants, and sqlParity.test.ts
  * fails CI on any drift. Rarity is presentation and pacing, never power.
+ * ANCIENT (owner 2026-10-02: "i added a new rarity -> Ancient. can you wire that up so we can have skins that are of
+ * ancient rarity? these will be a 3% drop rate") ranks ABOVE Legendary; the odds moved 50/30/15/5 -> 35/31/22/9/3.
  */
-export const CRATE_RARITY_ODDS: Readonly<Record<CosmeticRarity, number>> = Object.freeze({ common: 50, rare: 30, epic: 15, legendary: 5 });
+export const CRATE_RARITY_ODDS: Readonly<Record<CosmeticRarity, number>> = Object.freeze({ common: 35, rare: 31, epic: 22, legendary: 9, ancient: 3 });
 
 /** Player-facing rarity labels. */
-export const RARITY_LABELS: Readonly<Record<CosmeticRarity, string>> = Object.freeze({ common: 'Common', rare: 'Rare', epic: 'Epic', legendary: 'Legendary' });
+export const RARITY_LABELS: Readonly<Record<CosmeticRarity, string>> = Object.freeze({ common: 'Common', rare: 'Rare', epic: 'Epic', legendary: 'Legendary', ancient: 'Ancient' });
 
 export interface CosmeticCategoryDef {
   id: CosmeticCategory;
@@ -88,8 +90,9 @@ export const COSMETIC_CATEGORY_DEFS: Readonly<Record<CosmeticCategory, CosmeticC
  * 1 = one weighted draw over every eligible item (rarity weight x category weight), 2026-09-28.
  * 2 = FIXED rarity odds first, then an item within that rarity (category weights), 2026-09-29.
  * 3 = FIXED rarity odds first, then an EQUAL chance for every eligible item of that rarity, 2026-09-29.
+ * 4 = version 3 with FIVE rarities (Ancient above Legendary) at 35/31/22/9/3, 2026-10-02.
  */
-export const CRATE_ROLL_VERSION = 3;
+export const CRATE_ROLL_VERSION = 4;
 
 // ── The catalog ───────────────────────────────────────────────────────────────────────────────────────────
 
@@ -231,7 +234,8 @@ export const COSMETICS: readonly CosmeticDef[] = Object.freeze([
   skin('skin_paragon_1', 'minion_skin', 'Superfan Paragon', 'rare', 'n2_paragon', 'ParagonSkinRare.png'),
   skin('skin_stewardofspells_1', 'minion_skin', 'Potion Stand Steward', 'common', 'stewardofspells', 'SpellStewardSkinEpic.png'),
   skin('skin_sylus_1', 'minion_skin', 'Slam Dunk Sylus', 'epic', 'sylus', 'SylusSkinRare.png'),
-  skin('skin_sylus_2', 'minion_skin', 'Tee Time Sylus', 'legendary', 'sylus', 'SylusSkinLegendary.png'),
+  // ANCIENT (owner 2026-10-02 moved this one from Legendary to the new Ancient rarity; owned copies stay owned).
+  skin('skin_sylus_2', 'minion_skin', 'Tee Time Sylus', 'ancient', 'sylus', 'SylusSkinLegendary.png'),
   skin('skin_venom_1', 'minion_skin', 'Candy Cane Venom', 'legendary', 'venom', 'VenomSkinEpic.png'),
   skin('skin_zyff_1', 'minion_skin', 'Double Agent Zyff', 'common', 'zyff', 'ZyffSkinRare.png'),
   // Batch 3. Owner 2026-09-29: "added a few more hero and minion skins - i want to name them appropriately and then
@@ -255,7 +259,8 @@ export const COSMETICS: readonly CosmeticDef[] = Object.freeze([
   skin('skin_chimerus_1', 'minion_skin', 'Crimson Chimerus', 'rare', 'chimerus', 'ChimerusSkinRare.png'),
   skin('skin_chronicler_1', 'minion_skin', 'Chrome Scalefeather', 'legendary', 'd2_chronicler', 'ChromeScalefeatherRare.png'),
   skin('skin_chronicler_2', 'minion_skin', 'Mecha Scalefeather', 'common', 'd2_chronicler', 'MechaScalefeatherEpic.png'),
-  skin('skin_edward_1', 'minion_skin', 'Edward Colada Hands', 'legendary', 'dw_edward', 'EdwardColadaHandsLegendary.png'),
+  // ANCIENT (owner 2026-10-02 moved this one from Legendary to the new Ancient rarity; owned copies stay owned).
+  skin('skin_edward_1', 'minion_skin', 'Edward Colada Hands', 'ancient', 'dw_edward', 'EdwardColadaHandsLegendary.png'),
   skin('skin_baal_1', 'minion_skin', 'Epic Baal', 'rare', 'dw_baal', 'EpicBaalRare.png'),
   skin('skin_pouchpincher_1', 'minion_skin', 'Lavish Date', 'common', 'k_pouchpincher', 'LavishDateEpic.png'),
   skin('skin_buddy_2', 'minion_skin', 'Portal Buddy', 'legendary', 'buddy', 'PortalBuddyLegendary.png'),
@@ -333,7 +338,8 @@ export const COSMETICS: readonly CosmeticDef[] = Object.freeze([
   // like a magic one called arcana". Clean magic ribbons lobbed from the hero (one, two, a barrage of five), and the
   // top tier swirls them into a vortex over the target that explodes outward. Named by the owner ("Arcana"; note the
   // Blast cosmetic's placeholder name "Arcane Barrage" is close). Legendary like the other two (the owner's call).
-  heroAttack('attack_arcana', 'Arcana', 'legendary', 'arcana'),
+  // ANCIENT (owner 2026-10-02 moved this one from Legendary to the new Ancient rarity; owned copies stay owned).
+  heroAttack('attack_arcana', 'Arcana', 'ancient', 'arcana'),
   // Owner 2026-09-28: "branch off and make a new style animation and surprise me with it. arcana is top tier good. use
   // that as your benchmark for quality. make it unique". Spectral swords summoned round the hero, swung round to aim
   // and loosed in straight thrusts that stick in the target and shatter; the top tier brings down a greatsword. The
@@ -362,7 +368,8 @@ export const COSMETICS: readonly CosmeticDef[] = Object.freeze([
   // smite, III a rain of light spears planting consecration seeds, IV a holy sword that drops, explodes into light and
   // fires a flat consecrated blast at the target. The name is the builder's placeholder for the owner to rename (the id
   // stays). Legendary like the other seven.
-  heroAttack('attack_holy', 'Consecration', 'legendary', 'holy'),
+  // ANCIENT (owner 2026-10-02 moved this one from Legendary to the new Ancient rarity; owned copies stay owned).
+  heroAttack('attack_holy', 'Consecration', 'ancient', 'holy'),
   // Owner 2026-09-29: "make some more attack types - we need a fire animation ... it should look like live flame/fires
   // pixi sprites". Fireballs of live particle fire are hurled (I one, II two, III a volley of five that sets the target
   // ablaze); IV calls down a meteor that detonates into a fire nova and engulfs the target. The name is the builder's
@@ -470,6 +477,13 @@ export const COSMETICS: readonly CosmeticDef[] = Object.freeze([
   portraitFrame('frame_wind', 'Wind', 'legendary', 'Legendary/WindPortrait.png'),
   // Portrait frames batch 6 (Kevin 2026-10-02: "i added more frames"): rarity = the Portraits rarity folder.
   portraitFrame('frame_cherry_blossom', 'Cherry Blossom', 'epic', 'Epic/CherryBlossom.png'),
+  // The first ANCIENT frames (owner 2026-10-02: "i added a new rarity -> Ancient"): rarity = the Portraits/Ancient folder.
+  portraitFrame('frame_bonds', 'Bonds', 'ancient', 'Ancient/Bonds.png'),
+  portraitFrame('frame_death', 'Death', 'ancient', 'Ancient/Death.png'),
+  portraitFrame('frame_fortune', 'Fortune', 'ancient', 'Ancient/Fortune.png'),
+  portraitFrame('frame_genesis', 'Genesis', 'ancient', 'Ancient/Genesis.png'),
+  portraitFrame('frame_time', 'Time', 'ancient', 'Ancient/Time.png'),
+  portraitFrame('frame_war', 'War', 'ancient', 'Ancient/War.png'),
   // HERO TITLES (owner 2026-09-29), 33 heroes x (title + golden master). Achievement rewards, never in a crate.
   ...HERO_TITLE_COSMETICS,
 ]);
@@ -548,7 +562,8 @@ export function rollCrateRarity(u: number): { rarity: CosmeticRarity; frac: numb
  * where `u` landed inside that rarity's band then picks an item of it, EVERY item of the rarity equally likely
  * (owner 2026-09-29: "yeah equal chance"), indexed in id order. A rarity with nothing left falls to the nearest one
  * that has something (`crateRarityFallback`), so a crate always produces an item while any item remains. Null only when nothing is eligible anywhere
- * (`pool_exhausted`). Mirror of `progression_crate_pick` in 2026-09-29-crate-uniform-within-rarity.sql.
+ * (`pool_exhausted`). Mirror of `progression_crate_pick` in 2026-10-02-ancient-rarity.sql (5 rarities; the shape is
+ * 2026-09-29-crate-uniform-within-rarity.sql's).
  */
 export function pickCrateReward(eligible: readonly CosmeticDef[], u: number): CosmeticDef | null {
   const { rarity, frac } = rollCrateRarity(u);
@@ -578,7 +593,7 @@ export function crateChances(eligible: readonly CosmeticDef[]): Map<string, numb
   return out;
 }
 
-/** The published odds as one player-facing line, e.g. "Common 50%, Rare 30%, Epic 15%, Legendary 5%". */
+/** The published odds as one player-facing line, e.g. "Common 35%, Rare 31%, Epic 22%, Legendary 9%, Ancient 3%". */
 export const crateOddsLine = (): string => COSMETIC_RARITIES.map((r) => `${RARITY_LABELS[r]} ${CRATE_RARITY_ODDS[r]}%`).join(', ');
 
 // ── Crates: the shapes the server returns ─────────────────────────────────────────────────────────────────

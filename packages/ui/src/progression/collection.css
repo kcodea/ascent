@@ -9,7 +9,7 @@
    - No looping paint animation. The loops are the crate's float (transform) and two glows that breathe by
      OPACITY over a static shadow / gradient (the kwglow pattern). Hover and select are short one-shot transitions.
    - No cursor rules: every control is a <button>, which the global rule gives the gauntlet.
-   The rarity colours are the shared `.r-common` .. `.r-legendary` tokens (`--rc`, `--rc-a`) in styles.css. */
+   The rarity colours are the shared `.r-common` .. `.r-ancient` tokens (`--rc`, `--rc-a`) in styles.css. */
 
 .colls-page { --colls-gold: #e8c877; --colls-ink: #fff6e4; --colls-dim: rgba(255, 246, 228, 0.62); --colls-line: rgba(196, 160, 92, 0.32);
   --colls-panel: linear-gradient(180deg, rgba(13, 22, 40, 0.82), rgba(8, 14, 28, 0.9)); font-family: var(--font-ui); }
@@ -79,6 +79,9 @@
 .colls-gem { display: inline-block; flex: none; width: 12px; height: 12px; transform: rotate(45deg); border-radius: 2px;
   background: linear-gradient(135deg, #fff 0%, var(--rc) 45%, color-mix(in srgb, var(--rc) 55%, #000) 100%); box-shadow: 0 0 6px var(--rc-a); }
 .colls-gem-lg { width: 22px; height: 22px; border-radius: 3px; }
+/* Ancient: the gem and the selected chip carry the aurora gradient (static). */
+.r-ancient .colls-gem, .colls-gem.r-ancient { background: var(--rc-grad); }
+.colls-chip-r.r-ancient.on { background: var(--rc-grad); }
 
 /* ── The album ──────────────────────────────────────────────────────────────────────────────────────────── */
 .colls-gridwrap { flex: 1; min-height: 0; overflow-y: auto; margin: -8px; padding: 8px 8px 16px; }
@@ -113,9 +116,13 @@
 .colls-tile-lock .colls-lock { width: 18px; height: 18px; display: block; }
 
 /* Epic and Legendary owned tiles read richer: Epic a stronger static glow, Legendary a gold rim that breathes
-   (the OPACITY of a pseudo-element with a static shadow). */
+   (the OPACITY of a pseudo-element with a static shadow). Ancient (2026-10-02): an aurora rim, cyan to magenta,
+   that breathes the same way (opacity only; the gradient and shadow are static). */
 .colls-tile.owned.r-epic { box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08), inset 0 0 34px color-mix(in srgb, var(--rc) 28%, transparent), 0 0 18px -6px var(--rc-a), 0 10px 22px -14px #000; }
 .colls-tile.owned.r-legendary { border-color: #ffcf7a; }
+.colls-tile.owned.r-ancient { border-color: #b8f8ff; }
+.colls-tile.owned.r-ancient::before { content: ''; position: absolute; inset: -3px; border-radius: 16px; pointer-events: none; opacity: 0.4;
+  box-shadow: -10px 0 22px 2px rgba(138, 245, 255, 0.6), 10px 0 22px 2px rgba(255, 122, 224, 0.55), inset 0 0 18px rgba(201, 184, 255, 0.35); animation: colls-breathe 2.8s ease-in-out infinite; will-change: opacity; }
 .colls-tile.owned.r-legendary::before { content: ''; position: absolute; inset: -3px; border-radius: 16px; pointer-events: none; opacity: 0.35;
   box-shadow: 0 0 22px 3px rgba(255, 190, 92, 0.6), inset 0 0 18px rgba(255, 214, 120, 0.35); animation: colls-breathe 2.8s ease-in-out infinite; will-change: opacity; }
 

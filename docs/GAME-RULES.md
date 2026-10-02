@@ -658,10 +658,10 @@ Source: `packages/progression/src/rules.ts` (curve, XP, level titles, crates per
   saved-run format are still `resolve` / `maxResolve` / `startingResolve`, so code and saves read one name
   and players read the other.)*
 - **Loss damage** is capped per round, the cap widening as the run escalates: **5** (rounds 1–3),
-  **10** (4–7), **15** (8–11), **20** (12–15), then **uncapped from round 16 on**. The lobby applies the
-  same cap (`lossDamageCap`, imported by `lobby.ts`) — so a lobby that runs long is uncapped for every
-  round past 15, not just a "finale"
-  (`lossDamageCap`).
+  **10** (4–7), **15** (8–11), **20** (12–14), then **uncapped from round 15 on** (owner ask 2026-10-02;
+  it was 20 through round 15 before). The lobby applies the same cap (`roundLossCap`, which falls back to
+  `lossDamageCap` when a mode sets no table of its own) — so a lobby that runs long is uncapped for every
+  round from 15 on, not just a "finale". The lobby rail prints the cap above its top edge, next to the round.
 - **Gold** ("Embers"): start with **3**, **+1 per wave**, capped at **10**
   (`startEmbers: 3`, `embersPerWave: 1`, `embersCap: 10`).
 - **Shop**: minion cost **3**, sell value **1**, refresh (reroll) cost **1**

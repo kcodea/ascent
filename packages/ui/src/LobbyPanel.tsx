@@ -16,6 +16,18 @@ import { FadeImg } from './FadeImg';
 import { useGame } from './store';
 import { stageHost, stageViewport, toStage } from './stage';
 
+/** The max-damage readout above the rail: "−5", or "No cap" once the round is uncapped. */
+function maxDamageLabel(cap: number): string {
+  return Number.isFinite(cap) ? `−${cap}` : 'No cap';
+}
+
+/** The hover tip on the max-damage readout, with the live number (owner ask 2026-10-02). */
+function maxDamageTip(cap: number): { title: string; rule: string } {
+  return Number.isFinite(cap)
+    ? { title: 'Max damage this round', rule: `A loss this round costs at most ${cap} Health.` }
+    : { title: 'No max damage this round', rule: 'A loss deals full damage.' };
+}
+
 /**
  * The 8-seat table, shown in a LOBBY run.
  *
@@ -129,16 +141,36 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
     return (a.placement ?? 99) - (b.placement ?? 99);
   });
 
+  // The round's loss cap (the run's own table: the Gauntlet has its own, see `roundLossCap`). Infinity = uncapped.
+  const cap = roundLossCap(lobby.rules, lobby.round);
+  const capTip = maxDamageTip(cap);
+
   return (
+    <>
+    {/* THE ROUND HEADER sits just ABOVE the rail's top edge, outside it (owner ask 2026-10-02: "move the Round
+        text to be above the lobby rail ... move the max dmg next to the new round location ... make both larger
+        ... dont let these elements move anything else in the game"). A SIBLING of the rail, not a child: the rail
+        is a scroll container and would clip anything placed outside its box. `.lobbyrailhead` is absolutely
+        positioned off the rail's own `right` / `top` / `width` (styles.css), so it takes no layout space and
+        moves nothing. */}
+    <div className="lobbyrailhead">
+      <span className="lobbyround">Round {lobby.round}</span>
+      {/* Max loss: the most Health a loss this round can cost. Hover explains it with the live number, in the
+          game's standard HUD tip panel (`.herotip`, the hero-power / Equipment hover), not the small `.gtip`
+          bubble: owner 2026-10-02, "fix this tooltip, it's unreadable". */}
+      <span className="lobbymax" aria-label={`${capTip.title}. ${capTip.rule}`}>
+        <Icon name="heart" />{maxDamageLabel(cap)}
+      </span>
+      {/* The chip's SIBLING (opened by `.lobbymax:hover + .lobbymax-tip`, the opponent-power tip's pattern), so the
+          chip's own text stays just the number. */}
+      <span className="herotip lobbymax-tip" role="tooltip" aria-hidden="true">
+        <b>{capTip.title}</b>
+        <span className="herotip-rule">{capTip.rule}</span>
+      </span>
+    </div>
     <div className="lobbyrail">
       <div className="lobbyhead">
-        <span className="lobbyround">Round {lobby.round}</span>
         <span className="lobbyalive">{living.length} left</span>
-        {/* Max loss — the most Health a loss this round can cost (moved here from the removed top-left plaque,
-            owner ask 2026-08-11). */}
-        <span className="lobbymax gtip gtip-down gtip-end" aria-label="Most Health you can lose if you lose this combat" data-tip="Most Health you can lose if you lose this combat">
-          <Icon name="heart" />{Number.isFinite(roundLossCap(lobby.rules, lobby.round)) ? `−${roundLossCap(lobby.rules, lobby.round)}` : 'No cap'}
-        </span>
       </div>
 
       <div className="lobbyseats">
@@ -212,6 +244,7 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
         })}
       </div>
     </div>
+    </>
   );
 });
 

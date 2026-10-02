@@ -109,8 +109,8 @@ export const ENTRIES: readonly WikiEntry[] = [
   {
     id: 'max-loss-display',
     topic: 'lobby',
-    q: 'What does the heart number at the top of the player list mean?',
-    a: "It's the **most Health you can lose** if you lose this round's fight (like −5 early on). Once the early caps are over it just says **No cap**.",
+    q: 'What does the heart number above the player list mean?',
+    a: "It's the **most Health you can lose** if you lose this round's fight (like −5 early on). It sits next to the round number. From round 15 on it says **No cap**: a loss deals full damage. Hover it for a reminder.",
     aliases: ['max damage', 'damage cap', 'max loss', 'no cap', 'heart number'],
     seeAlso: ['how-much-damage', 'lobby-player-list'],
   },

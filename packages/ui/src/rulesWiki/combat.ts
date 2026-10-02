@@ -1,7 +1,7 @@
 import type { WikiEntry } from './types';
 
 // Checked against packages/core/src/combat/simulate.ts (first attacker, attack loop, chooseTarget, outcome +
-// damage) and reducer.ts (lossDamageCap) on 2026-09-28.
+// damage) and reducer.ts (lossDamageCap) on 2026-10-02.
 export const ENTRIES: readonly WikiEntry[] = [
   {
     id: 'who-attacks-first',
@@ -25,7 +25,7 @@ export const ENTRIES: readonly WikiEntry[] = [
     id: 'how-much-damage',
     topic: 'combat',
     q: 'How much damage do I take when I lose a fight?',
-    a: "Your opponent's **tavern tier** plus the **tiers of each of their minions still standing**. So a Tier 4 player left with a Tier 4 and a Tier 3 minion hits you for 4 + 4 + 3 = **11**. Early on it's capped: at most **5** in rounds 1–3, **10** in rounds 4–7, **15** in 8–11 and **20** in 12–15. After that there's no cap.",
+    a: "Your opponent's **tavern tier** plus the **tiers of each of their minions still standing**. So a Tier 4 player left with a Tier 4 and a Tier 3 minion hits you for 4 + 4 + 3 = **11**. Early on it's capped: at most **5** in rounds 1–3, **10** in rounds 4–7, **15** in 8–11 and **20** in 12–14. From round 15 on there's no cap.",
     aliases: ['damage', 'lose health', 'hero damage', 'loss', 'how much do i lose'],
     seeAlso: ['health-and-armor', 'tie-fight'],
   },

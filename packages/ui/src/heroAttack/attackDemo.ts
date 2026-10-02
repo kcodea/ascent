@@ -59,6 +59,11 @@ export interface DemoOpts {
   frames?: HeroAttackOptions['frames'];
   sound?: boolean;
   safety?: boolean;
+  /**
+   * Preview a KNOCKOUT (the tuners' Knockout buttons): the blow is played as one that eliminates the struck hero, with
+   * the attack's Knockout variant (an Ancient attack's "Tier V"; any other style just plays Huge).
+   */
+  knockout?: boolean;
 }
 
 /** Play `play` between the portraits. Resolves with its handle (null when a portrait is missing). */
@@ -84,7 +89,7 @@ export function playAttackDemo<H extends HeroAttackHandle>(
       }),
     };
     const h = play({
-      formation, formationCfg: o.formationCfg, total, side, attacker: geo.a, defender: geo.d, defenderRadius: geo.radius, attackerRadius: geo.attackerRadius,
+      formation, formationCfg: o.formationCfg, total, knockout: o.knockout, knockoutVariant: o.knockout, side, attacker: geo.a, defender: geo.d, defenderRadius: geo.radius, attackerRadius: geo.attackerRadius,
       speed: o.speed, reduced: o.reduced, attackerEl: geo.attackerEl, defenderEl: geo.defenderEl,
       frames: o.frames, sound: o.sound, safety: o.safety,
       onImpact: () => { /* a preview never touches the run; the attack shows its own hit number */ },

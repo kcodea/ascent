@@ -32,7 +32,21 @@ export function tierOf(total: number, c: TierThresholds = HERO_ATTACK_TIER_THRES
  * engine decided; see `heroStrikeKnockout` in `../heroBlast/heroStrikeDamage.ts`). Owner ask 2026-09-29: "if a
  * player knocks someone out, it always plays the huge animation".
  */
-export interface AttackTierContext { knockout?: boolean }
+export interface AttackTierContext {
+  knockout?: boolean;
+  /**
+   * THE KNOCKOUT VARIANT ("Tier V", owner ask 2026-10-02): the caller decided this blow plays the attack's own
+   * Knockout version, a remix of its Huge (Tier IV) with more emphasis. Set only for an ANCIENT-rarity attack that has
+   * one (`knockoutVariantFor` in `knockoutVariant.ts`), and only counts together with `knockout`. The shared tier stays
+   * IV (every per-tier dial reads IV); a style reads `isKnockoutVariant` for its extra beat, colour and weight.
+   */
+  knockoutVariant?: boolean;
+}
+
+/** The blow plays the attack's Knockout variant (Tier V): a knockout AND the caller asked for the variant. */
+export function isKnockoutVariant(ctx: AttackTierContext | undefined): boolean {
+  return !!(ctx?.knockout && ctx.knockoutVariant);
+}
 
 /** A knockout always plays Tier IV ("Huge"), whatever the number. */
 export const KNOCKOUT_TIER: TierNum = 4;

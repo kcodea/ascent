@@ -119,6 +119,7 @@ import { heroStitchPreviewSpeed } from './heroStitch/heroStitchConfig';
 import { resolveHeroAttackStyle } from './heroBlast/heroAttackStyle';
 import { attackerCosmeticOf } from './heroBlast/attackerCosmetic';
 import { heroStrikeDamage, heroStrikeKnockout, heroStrikeNumbers } from './heroBlast/heroStrikeDamage';
+import { knockoutVariantFor } from './heroAttack/knockoutVariant';
 import { tierBadgeAnchor } from './heroAttack/badgeAnchors';
 import type { FormationData } from './heroAttack/damageFormation';
 import { formationPreviewSpeed } from './heroAttack/formationConfig';
@@ -3007,7 +3008,11 @@ export function Recruit() {
     // fadeaway, a pull-up three and a self alley-oop slammed into an explosion; Soul Stitch, the first Ancient: crystal needles sew the target to the striker on violet thread, a pierce and a cross-stitch the hero pulls until they snap, five pins the target is stretched against until they rip out, and the target dragged into a gold heart-knot that bursts). Same blow, same consequence, only drawn differently;
     // the style is the ATTACKER's (their equipped cosmetic, or the dev override). Every runner takes the same options
     // (`heroAttack/options.ts`).
-    const attackStyle = resolveHeroAttackStyle({ attacker: side, attackerCosmeticId: attackerCosmeticOf(run0, side, useGame.getState().showOpponentSkins) });
+    const attackerCosmeticId = attackerCosmeticOf(run0, side, useGame.getState().showOpponentSkins);
+    const attackStyle = resolveHeroAttackStyle({ attacker: side, attackerCosmeticId });
+    // AN ANCIENT ATTACK'S KNOCKOUT VARIANT (owner ask 2026-10-02): on a knockout, an Ancient-rarity attack that has one
+    // plays its Knockout version (its Huge, remixed with more emphasis); every other attack keeps playing Huge.
+    const knockoutVariant = knockoutVariantFor({ style: attackStyle, knockout, cosmeticId: attackerCosmeticId });
     if (attackStyle !== 'classic') {
       const runner = attackStyle === 'stitch'
         ? { play: playHeroStitch, preview: heroStitchPreviewSpeed() }
@@ -3061,6 +3066,7 @@ export function Recruit() {
         formation,
         total: strikeDmg,
         knockout,
+        knockoutVariant,
         // A stable per-blow seed for a style that rolls a variation (the run seed and the round): a replay rolls the same.
         rollSeed: (run0.seed ^ Math.imul(run0.wave + 1, 0x9e3779b1)) >>> 0,
         side,

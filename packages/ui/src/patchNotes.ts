@@ -60,6 +60,18 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: 'Ancient hero attacks now have a special finishing animation on knockouts.',
+        details: [
+          'When an Ancient hero attack knocks a player out, it plays a stronger version of its biggest hit.',
+          'Arcana: the vortex pulses once more before it explodes.',
+          'Consecration: a seventh giant sword is driven into the middle of the blades.',
+          'Soul Stitch: the heart knot cinches twice before it bursts.',
+          'Each one adds cyan and magenta colours, a bigger shake, a short slow motion moment and a knockout sound.',
+          'Every other hero attack still plays its biggest hit on a knockout.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'New Ancient hero attack: Soul Stitch. Crystal needles sew the loser to your hero with violet soul thread, then you pull until it snaps.',
         details: [
           'It can drop from crates at the Ancient rarity.',

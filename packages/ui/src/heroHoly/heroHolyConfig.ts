@@ -42,8 +42,9 @@
  */
 import { clamp, easeInOutSine, seededRng, type Pt } from '../heroAttack/easing';
 import {
-  HERO_ATTACK_TIER_THRESHOLDS, TIERS, reducedAttackTimeline, type TierNum, attackTier, type AttackTierContext,
+  HERO_ATTACK_TIER_THRESHOLDS, TIERS, reducedAttackTimeline, type TierNum, attackTier, type AttackTierContext, isKnockoutVariant,
 } from '../heroAttack/tiers';
+import { KO_DIP, KO_SHAKE, type KoDip } from '../heroAttack/knockout';
 
 export { TIERS, type TierNum };
 
@@ -485,6 +486,14 @@ export interface HolyPlan {
   sword: boolean;
   /** Tier IV: every sword's flight, in arrival order (each faster than the last, the gaps shrinking). */
   swords: HolySwordPlan[];
+  /**
+   * THE KNOCKOUT VARIANT ("Tier V", owner ask 2026-10-02): the Huge judgement, remixed. After the barrage, one beat
+   * later, a SEVENTH, giant prismatic sword (the last in `swords`) flies in through a gap in the star of blades and is
+   * driven point first into its very middle; the eruption throws a wider prismatic consecration ring; a bigger shake, a slow-mo dip (`dip`) and a KO
+   * sting. False / null otherwise.
+   */
+  ko: boolean;
+  dip: KoDip | null;
   /** Tier IV: the centre implodes (after the last sword bites and a short charge). */
   implodeAt: number;
   /** Tier IV: the release: the flat blast is fired at the struck hero; it arrives under it. */
@@ -519,7 +528,7 @@ export function holyPlan(input: HolyPlanInput, c: HeroHolyConfig = cfg): HolyPla
     const { impactAt } = r;
     return {
       reduced: true, tier, k, total, chargeAt: impactAt, absorbEnd: impactAt, prayAt: impactAt, sigilAt: impactAt, sigilMs: 0,
-      ...empty, sword: false, swords: [], implodeAt: impactAt, spreadAt: impactAt, arriveAt: impactAt,
+      ...empty, sword: false, swords: [], ko: false, dip: null, implodeAt: impactAt, spreadAt: impactAt, arriveAt: impactAt,
       fadeAt: impactAt, impactAt, endAt: r.endAt, pillarWidth: 0, shakePx: 0, zoom: 0, punch: 0, motes: 0, burst: 0, dim: 0,
     };
   }
@@ -547,6 +556,11 @@ export function holyPlan(input: HolyPlanInput, c: HeroHolyConfig = cfg): HolyPla
       const size = n > 1 ? 1 + (c.swordLastSize - 1) * Math.pow(i / (n - 1), 2) : c.swordLastSize;
       swords.push({ launchAt: arrive - flight, arriveAt: arrive, size });
     }
+    if (isKnockoutVariant(input)) {
+      // TIER V: a beat after the frenzy, the knockout sword: bigger than the last, driven into the very middle.
+      arrive += HOLY_KO.swordGapMs;
+      swords.push({ launchAt: arrive - HOLY_KO.swordFlightMs, arriveAt: arrive, size: c.swordLastSize * HOLY_KO.swordSize });
+    }
     implodeAt = arrive + c.swordHoldMs;
     spreadAt = implodeAt + c.implodeMs;
     arriveAt = spreadAt + holySpreadMs(input.distance * 0.5, c.spreadMs);
@@ -571,20 +585,52 @@ export function holyPlan(input: HolyPlanInput, c: HeroHolyConfig = cfg): HolyPla
   }
 
   const hits = [...spears.map((s) => s.hitAt), ...smites.slice(0, -1).map((s) => s.hitAt), ...swords.map((w) => w.arriveAt)].filter((at) => at < impactAt).sort((a, b) => a - b);
+  const ko = sword && isKnockoutVariant(input);
   const tail = sword ? Math.max(c.lingerMs, c.zoomOutMs * 0.9) : Math.max(420, c.zoomOutMs * 0.9);
   const endAt = impactAt + tail + T.SettleMs;
 
   return {
     reduced: false, tier, k, total, chargeAt, absorbEnd, prayAt, sigilAt, sigilMs, smites, spears,
-    sword, swords, implodeAt, spreadAt, arriveAt, fadeAt, hits, impactAt, endAt,
+    sword, swords, ko, dip: ko ? { at: impactAt, lo: KO_DIP.lo, ms: KO_DIP.ms } : null,
+    implodeAt, spreadAt, arriveAt, fadeAt, hits, impactAt, endAt,
     pillarWidth: T.PillarWidth,
-    shakePx: clamp(T.Shake, 0, HOLY_CAPS.shakePx),
+    shakePx: clamp(T.Shake * (ko ? KO_SHAKE : 1), 0, HOLY_CAPS.shakePx * (ko ? KO_SHAKE : 1)),
     zoom: clamp(T.Zoom, 0, HOLY_CAPS.zoom),
     punch: T.Punch,
     motes: Math.round(clamp(T.Motes, 0, HOLY_CAPS.motes)),
     burst: T.Burst,
     dim: T.Dim,
   };
+}
+
+/** The Knockout variant's own numbers (fixed, not tuned: a small remix of the tuned Huge). */
+export const HOLY_KO = {
+  /** The beat between the barrage's last bite and the knockout sword's. */
+  swordGapMs: 300,
+  swordFlightMs: 230,
+  /** x the barrage's last sword. */
+  swordSize: 1.35,
+  /** How much wider the eruption's prismatic consecration ring reaches than the Huge one's. */
+  ringScale: 1.5,
+} as const;
+
+/** The barrage's own swords (the knockout sword, when there is one, is the extra last one). */
+export function barrageCount(p: HolyPlan): number { return p.swords.length - (p.ko ? 1 : 0); }
+
+/**
+ * Each sword's heading (radians): the barrage round the compass (`swordHeadings`), and the knockout sword from the GAP
+ * beside the first one (half a step round from `swordAngle`), so it never hides behind a planted blade. Pure.
+ */
+export function holySwordAngles(p: HolyPlan, c: HeroHolyConfig): number[] {
+  const n = barrageCount(p);
+  const heads = swordHeadings(n, c.swordAngle, c.swordJitter);
+  if (p.ko) heads.push(koSwordAngle(n, c));
+  return heads;
+}
+
+/** Tier V's knockout sword heading (radians): half a barrage step round from the first sword. Pure. */
+export function koSwordAngle(n: number, c: HeroHolyConfig): number {
+  return ((c.swordAngle + 180 / Math.max(1, n)) * Math.PI) / 180;
 }
 
 export type HolyCueKind =
@@ -694,12 +740,13 @@ export function holyGeo(p: HolyPlan, a: Pt, d: Pt, radius: number, c: HeroHolyCo
   // THE CENTRE: the middle of the board (along the line between the heroes). Every sword converges on it from off
   // screen, its point planted a little short of it, so the blades form a star round the holy ring.
   const centre = { x: a.x + (d.x - a.x) * c.swordAlong, y: a.y + (d.y - a.y) * c.swordAlong };
-  const heads = swordHeadings(p.swords.length, c.swordAngle, c.swordJitter);
+  const heads = holySwordAngles(p, c);
   const far = 1500 * unit;
   const swords = p.swords.map((w, i) => {
     const ang = heads[i]!;
     const ux = Math.cos(ang), uy = Math.sin(ang);
-    const hub = radius * c.swordPlant;
+    // Tier V's knockout sword plants its point IN the centre (the middle of the star), not round it.
+    const hub = p.ko && i === p.swords.length - 1 ? 0 : radius * c.swordPlant;
     const len = 300 * unit * c.swordSize * w.size;
     return { from: { x: centre.x + ux * far, y: centre.y + uy * far }, tip: { x: centre.x + ux * hub, y: centre.y + uy * hub }, len, ang };
   });
@@ -755,7 +802,8 @@ export function holyCameraAt(p: HolyPlan, c: HeroHolyConfig, t: number): { zoom:
     z += p.zoom * easeInOutSine((t - p.chargeAt) / Math.max(1, p.prayAt - p.chargeAt));
     if (p.sword && p.swords.length) {
       // Every bite punches in a little harder (the ramp); the implosion sucks the view in; the release lets it go.
-      p.swords.forEach((w, i) => { if (t >= w.arriveAt) z += p.punch * (0.35 + 0.65 * (i / Math.max(1, p.swords.length - 1))) * Math.exp(-(t - w.arriveAt) / 90); });
+      const nb = barrageCount(p);
+      p.swords.forEach((w, i) => { if (t >= w.arriveAt) z += p.punch * (i >= nb ? 1.2 : 0.35 + 0.65 * (i / Math.max(1, nb - 1))) * Math.exp(-(t - w.arriveAt) / 90); });
       if (t >= p.implodeAt && t < p.spreadAt) z += p.zoom * 0.8 * Math.pow((t - p.implodeAt) / Math.max(1, p.spreadAt - p.implodeAt), 2);
       if (t >= p.spreadAt) z += (p.zoom * 0.8 + p.punch) * Math.exp(-(t - p.spreadAt) / 80);
     }
@@ -774,9 +822,10 @@ export function holyCameraAt(p: HolyPlan, c: HeroHolyConfig, t: number): { zoom:
   p.hits.forEach((at, i) => kick(at, p.shakePx * (0.25 + 0.04 * i), 45, 17, down));
   if (p.sword) {
     // Each bite kicks along its own heading, harder as they ramp; the implosion trembles; the release kicks.
-    const heads = swordHeadings(p.swords.length, c.swordAngle, c.swordJitter);
+    const heads = holySwordAngles(p, c);
+    const nb = barrageCount(p);
     p.swords.forEach((w, i) => {
-      const k = 0.3 + 0.7 * (i / Math.max(1, p.swords.length - 1));
+      const k = i >= nb ? 1.3 : 0.3 + 0.7 * (i / Math.max(1, nb - 1));
       const ang = heads[i]!;
       kick(w.arriveAt, p.shakePx * 0.6 * k, 45, 16, { x: -Math.cos(ang), y: -Math.sin(ang) });
     });

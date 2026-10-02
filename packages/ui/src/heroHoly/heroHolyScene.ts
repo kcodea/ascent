@@ -33,6 +33,7 @@
 import { Container, Sprite, type Texture } from 'pixi.js';
 import type { HeroArcanaTextures } from '../heroArcana/heroArcanaScene';
 import { clamp01, easeInOutSine, easeOutBack, easeOutCubic, easeOutQuint, mixColor, seededRng, whiten, type Pt } from '../heroAttack/easing';
+import { KO_CYAN, KO_LILAC, KO_MAGENTA, KO_PRISM } from '../heroAttack/knockout';
 import type { HolyRune } from './heroHolyConfig';
 import { SWORD_H, SWORD_LEN_PX, SWORD_TIP_Y, WAVE_EDGE_X } from './heroHolyTextures';
 
@@ -505,11 +506,12 @@ export class HeroHolyScene {
    * speed"): one sword flies in from off screen along its own heading, a light trail behind it, and plants its point by
    * the centre. `from` is where it starts (off screen), `tip` where its point stops, `flightMs` how long it takes.
    */
-  launchSword(from: Pt, tip: Pt, centre: Pt, len: number, flightMs: number): void {
+  launchSword(from: Pt, tip: Pt, centre: Pt, len: number, flightMs: number, prism = false): void {
     const c = this.colors;
-    const glow = this.take('under', this.tex.swordGlow, c.gold);
-    const trail = this.take('glow', this.tex.pillar, c.gold);
-    const trailCore = this.take('hot', this.tex.pillar, c.core);
+    // Tier V's knockout sword glows in the Ancient prism (a magenta aura, a cyan trail) round the same holy blade.
+    const glow = this.take('under', this.tex.swordGlow, prism ? KO_MAGENTA : c.gold);
+    const trail = this.take('glow', this.tex.pillar, prism ? KO_CYAN : c.gold);
+    const trailCore = this.take('hot', this.tex.pillar, prism ? KO_LILAC : c.core);
     const body = this.take('body', this.tex.swordBody, 0xffffff);
     const hot = this.take('hot', this.tex.swordHot, c.core);
     if (!glow || !trail || !trailCore || !body || !hot) { for (const x of [glow, trail, trailCore, body, hot]) if (x) this.give(x); return; }
@@ -756,6 +758,51 @@ export class HeroHolyScene {
     this.motes(foot.x, foot.y, Math.round(o.motes * 0.6), { lift: 300, speed: 200, life: 1200, ring: r * 1.1, grav: -60 });
     this.motes(d.x, d.y, Math.round(o.motes * 0.4), { lift: 80, speed: 420, life: 800, grav: 320, size: 0.36 });
     this.fadeTag('foe', 900, 0.25);
+  }
+
+  /**
+   * TIER V: the knockout sword bites DEAD CENTRE: a prismatic flare round the holy ring (a cyan ring and a magenta one a
+   * beat behind), a bright cross gleam, the hub kicked hard, and prism motes thrown up. One-shot pooled sprites.
+   */
+  koSwordHit(centre: Pt, r: number): void {
+    const c = this.colors, S = this.scale;
+    this.tw('hot', this.tex.glow, c.core, centre.x, centre.y, { dur: 140, from: (r * 0.8) / GLOW_PX / S, to: (r * 2.4) / GLOW_PX / S, a0: 0.9 });
+    this.tw('hot', this.tex.star, KO_LILAC, centre.x, centre.y, { dur: 300, from: (r * 2.4) / 48 / S, to: (r * 4.2) / 48 / S, a0: 1, ease: easeOutCubic });
+    this.tw('glow', this.tex.ring, KO_CYAN, centre.x, centre.y, { dur: 420, from: (r * 0.8) / RING_PX / S, to: (r * 4.6) / RING_PX / S, a0: 0.95, ease: easeOutCubic });
+    this.tw('glow', this.tex.ring, KO_MAGENTA, centre.x, centre.y, { dur: 520, from: (r * 0.8) / RING_PX / S, to: (r * 3.6) / RING_PX / S, a0: 0.8, ease: easeOutCubic, delay: 60 });
+    this.kickTag('hub', 1.1);
+    this.prismMotes(centre.x, centre.y, 16, { lift: 120, speed: 320, life: 700, grav: 0 });
+  }
+
+  /**
+   * TIER V's PRISM on the eruption: a WIDER consecration ring in the Ancient palette (`ringScale` x the Huge one's
+   * reach: cyan, then magenta a beat behind), a prismatic star gleam over the gold, and prism motes rising. Short fills,
+   * so the big -N still reads.
+   */
+  koFlourish(foot: Pt, d: Pt, r: number, ringScale: number): void {
+    const S = this.scale;
+    this.tw('hot', this.tex.star, KO_CYAN, d.x, d.y, { dur: 360, from: (r * 3) / 48 / S, to: (r * 5.8) / 48 / S, a0: 0.75, rot: Math.PI / 8, ease: easeOutCubic });
+    this.tw('glow', this.tex.ring, KO_CYAN, foot.x, foot.y, { dur: 620, from: 0.6, to: (r * 6.5 * ringScale) / RING_PX / S, a0: 0.9, ease: easeOutCubic });
+    this.tw('glow', this.tex.ring, KO_MAGENTA, foot.x, foot.y, { dur: 820, from: 0.6, to: (r * 8 * ringScale) / RING_PX / S, a0: 0.75, ease: easeOutCubic, delay: 70 });
+    this.tw('under', this.tex.ring, KO_LILAC, foot.x, foot.y, { dur: 980, from: (r * 1.4) / RING_PX / S, to: (r * 9.5 * ringScale) / RING_PX / S, a0: 0.4, ease: easeOutCubic, delay: 120 });
+    this.tw('under', this.tex.glow, KO_MAGENTA, d.x, d.y, { dur: 380, from: (r * 1.4) / GLOW_PX / S, to: (r * 4.4) / GLOW_PX / S, a0: 0.35 });
+    this.prismMotes(foot.x, foot.y, 28, { lift: 260, speed: 260, life: 1100, ring: r * 1.2, grav: -50 });
+  }
+
+  /** Motes of light in the Ancient prism (Tier V). */
+  private prismMotes(x: number, y: number, n: number, o: { speed: number; lift: number; life: number; grav: number; ring?: number }): void {
+    const S = this.scale;
+    for (let i = 0; i < n; i++) {
+      const a = this.rnd() * Math.PI * 2;
+      const rr = (o.ring ?? 0) * (0.5 + this.rnd() * 0.5);
+      const sp = o.speed * (0.4 + this.rnd() * 0.8) * S;
+      const up = o.lift * (0.6 + this.rnd() * 0.8) * S;
+      const sz = 0.42 * (0.6 + this.rnd() * 0.7);
+      this.particle('hot', this.tex.star, KO_PRISM[i % 3]!, {
+        x: x + Math.cos(a) * rr, y: y + Math.sin(a) * rr, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp * 0.5 - up, drag: 0.25, grav: o.grav * S,
+        life: o.life * (0.7 + this.rnd() * 0.6), from: sz * S, to: sz * 0.25 * S, alpha: 1, twinkle: 0.015 + this.rnd() * 0.02, spin: (this.rnd() - 0.5) * 0.01,
+      });
+    }
   }
 
   /** The consecrated ground fades (after lingering); the path band fades with it. */
